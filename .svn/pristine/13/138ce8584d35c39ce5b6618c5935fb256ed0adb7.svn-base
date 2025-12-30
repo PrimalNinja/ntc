@@ -1,0 +1,12 @@
+CLS
+INPUT name
+PRINT "Welcome"
+PRINT name
+counter = 0
+a = 2
+WHILE counter * 2 < 3 * 3
+PRINT "Looping"
+counter = counter + 1
+WEND
+IF counter = 3 + a THEN PRINT "Done" ELSE PRINT "Error"
+END

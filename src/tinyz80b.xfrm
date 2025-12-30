@@ -1,0 +1,667 @@
+function tinyz80b_xfrm(objAPI_a, objGlobals_a, objXFrmAPI_a, strArgs_a, cb_a) 
+{
+    var m_TRANSFORMER = 'tinyz80b';
+
+    console.log(m_TRANSFORMER + " plugin called with:");
+    console.log("objAPI_a:", typeof objAPI_a);
+    console.log("objGlobals_a:", typeof objGlobals_a);
+    console.log("objXFrmAPI_a:", typeof objXFrmAPI_a);
+    console.log("strArgs_a:", strArgs_a);
+    console.log("cb_a:", typeof cb_a);
+
+    var api = objAPI_a;
+    var globals = objGlobals_a;
+    var xfrmapi = objXFrmAPI_a;
+
+	// Concatenate all input sources
+	var m_strRaw = '';
+	var m_arrCode = [];
+	var m_strSourceFilenames = '';
+
+	if (xfrmapi.sources && xfrmapi.sources.length > 0) 
+	{
+		var blnRenumber = xfrmapi.sources.length > 1;
+		var intLineNumber = 10;
+		
+		for (var intI = 0; intI < xfrmapi.sources.length; intI++) 
+		{
+			var objSource = xfrmapi.sources[intI];
+			
+			// Concatenate raw (binary or text string)
+			if (objSource.raw)
+			{
+				if (intI > 0)  // input is text, so we need a \n
+				{
+					m_strRaw += '\n';
+				}
+				m_strRaw += objSource.raw;
+			}
+			
+			// Concatenate cd arrays
+			if (objSource.cd)
+			{
+				for (var intJ = 0; intJ < objSource.cd.length; intJ++)
+				{
+					if (blnRenumber)
+					{
+						var objLine = {
+							ln: intLineNumber,
+							lc: objSource.cd[intJ].lc
+						};
+						m_arrCode.push(objLine);
+						intLineNumber += 10;
+					}
+					else
+					{
+						m_arrCode.push(objSource.cd[intJ]);
+					}
+				}
+			}
+			
+			// Build filename list for messages
+			if (intI > 0)
+			{
+				m_strSourceFilenames += ', ';
+			}
+			m_strSourceFilenames += (objSource.fn || 'Unnamed File');
+		}
+	} 
+	else 
+	{
+		// Single source (backwards compatibility)
+		m_strRaw = xfrmapi.raw || '';
+		m_arrCode = xfrmapi.cd || [];
+		m_strSourceFilenames = xfrmapi.sfn || 'Source';
+	}
+
+	var m_intTempCounter = 0;
+
+// Developed by Julian Cassin. 2019-2020.
+//
+function IFtoPF(str_a, arrFunctions_a)
+{
+	var arrResultStack = [];
+	var arrOperatorStack = [];
+	var blnElementComplete = false;
+	var blnEndBrace = false;
+	var blnInIdentifier = false;
+	var blnInOperator = false;
+	var blnOpenBrace = false;
+	var blnProceed = true;
+	var blnSpecialChars = false;
+	var lngI = 0;
+	var strChar = '';
+	var strElement = '';
+	var strOperand = '';
+	var strOperator = '';
+	var strTopOperator = '';
+	var strResult = '';
+
+	// operators in precedence order
+	var OPERATORS = ['_NEW_', '_!_', '_~_', '_++_', '_--_', '_**_', '_*_', '_/_', '_%_', '_+_', '_-_', '_<<_', '_>>_', '_>>>_', '_<_', '_<=_', '_>_', '_>=_', '_==_', '_!=_', '_===_', '_!==_', '_&_', '_^_', '_|_', '_&&_', '_||_', '_+=_', '_-=_', '_**=_', '_*=_', '_/=_', '_%=_', '_<<=_', '_>>=_', '_>>>=_', '_&=_', '_^=_', '_|=_', '_=_']; // -x, TYPEOF, DELETE, IN, INSTANCEOF, ++x, --x unsupported
+
+	// utils
+	function doNothing()
+	{
+		var strTodo = 'this function is just to stop lint errors where we dont want to do anything';
+	}
+	
+	function todo()
+	{
+		var strTodo = 'this function is just to stop lint errors where we things to do';
+	}
+	
+	lngI = 0;
+	strElement = '';
+	strOperand = '';
+	while (lngI <= str_a.length)
+	{
+		blnEndBrace = false;
+		blnElementComplete = false;
+		blnOpenBrace = false;
+		blnProceed = true;
+		blnSpecialChars = false;
+		if (lngI < str_a.length)
+		{
+			strChar = str_a.substr(lngI, 1);
+		}
+		else
+		{
+			strChar = '';
+		}
+
+		if (blnInIdentifier)
+		{
+			if (maybeIdentifier(strChar))
+			{
+				strElement += strChar;
+			}
+			else
+			{
+				blnElementComplete = true;
+				blnInIdentifier = false;
+				blnProceed = false;
+			}
+		}
+		else if (blnInOperator)
+		{
+			if (maybeOperator(strChar))
+			{
+				strElement += strChar;
+			}
+			else
+			{
+				blnElementComplete = true;
+				blnInOperator = false;
+				blnProceed = false;
+			}
+		}
+		else
+		{
+			if (maybeIdentifier(strChar))
+			{
+				strElement += strChar;
+				blnInIdentifier = true;
+			}
+			else if (maybeOperator(strChar))
+			{
+				strElement += strChar;
+				blnInOperator = true;
+			}
+			else
+			{
+				blnSpecialChars = true;
+			}
+		}
+
+		// special characters
+		if (blnSpecialChars)
+		{
+			if (strChar === '')
+			{
+				// do nothing
+				doNothing();
+			}
+			else if (strChar === ' ')
+			{
+				strChar = ''; // whitespace becomes nothing
+			}
+			else if (strChar === ';')
+			{
+				blnElementComplete = true;
+				strChar = '';
+			}
+			else if (strChar === '(')
+			{
+				blnElementComplete = true;
+				blnOpenBrace = true;
+			}
+			else if (strChar === ')')
+			{
+				blnElementComplete = true;
+				blnEndBrace = true;
+			}
+		}
+
+		// end of line hanlding
+		if (lngI == str_a.length)
+		{
+			if (!blnElementComplete)
+			{
+				strElement = strElement + strChar;
+				blnElementComplete = true;
+			}
+		}
+
+		if (blnElementComplete)
+		{
+			if (isOperator(OPERATORS, strElement)) // word operator
+			{
+				strOperator = strElement;
+				strElement = '';
+				//alert('operator:' + strOperator);
+			}
+			else if (isIdentifier(strElement))
+			{
+				// todo
+				todo();
+			}
+			else if (isFunction(arrFunctions_a, strElement))
+			{
+				// todo
+				todo();
+			}
+			else
+			{
+				strOperand = strElement;
+				strElement = '';
+				//alert('operand:' + strOperand);
+			}
+
+			if (strOperand.length > 0)
+			{
+				arrResultStack.push(strOperand);
+			}
+
+			if (arrOperatorStack.length === 0)
+			{
+				if (strOperator.length > 0)
+				{
+					arrOperatorStack.push(strOperator);
+				}
+			}
+			else
+			{
+				strTopOperator = arrOperatorStack.pop();
+				if (strTopOperator === '(')
+				{
+					arrOperatorStack.push(strTopOperator);
+					if (strOperator.length > 0)
+					{
+						arrOperatorStack.push(strOperator);
+					}
+				}
+				else
+				{
+					//alert(strTopOperator + " vs " + strOperator);
+					if (precedence(OPERATORS, strTopOperator) <= precedence(OPERATORS, strOperator))
+					{
+						arrResultStack.push(strTopOperator);
+						if (strOperator.length > 0)
+						{
+							arrOperatorStack.push(strOperator);
+						}
+					}
+					else
+					{
+						arrOperatorStack.push(strTopOperator);
+						if (strOperator.length > 0)
+						{
+							arrOperatorStack.push(strOperator);
+						}
+					}
+				}
+			}
+
+			strOperand = '';
+			strOperator = '';
+
+			if (blnOpenBrace)
+			{
+				arrOperatorStack.push(strChar);
+			}
+
+			if (blnEndBrace)
+			{
+				strOperator = '';
+				while ((arrOperatorStack.length > 0) && (strOperator != '('))
+				{
+					strOperator = arrOperatorStack.pop();
+					if (strOperator != '(')
+					{
+						arrResultStack.push(strOperator);
+					}
+				}
+			}
+		}
+
+		if (blnProceed)
+		{
+			lngI++;
+		}
+	}
+  
+	while (arrOperatorStack.length > 0)
+	{
+		strOperator = arrOperatorStack.pop();
+		if (strOperator != '(')
+		{
+			arrResultStack.push(strOperator);
+		}
+	}
+
+	while (arrResultStack.length > 0)
+	{
+		strOperand = arrResultStack.pop();
+		strResult = strOperand + ' ' + strResult;
+	}
+
+	//alert(str_a + ":" + strResult);
+	return strResult;
+}
+
+function isFunction(arrFunctions_a, str_a)
+{
+	return false;	// todo look up arrFunctions_a
+}
+
+function isIdentifier(str_a)
+{
+	return false;
+}
+
+function isOperator(arrOperators_a, strOperator_a)
+{
+	return (arrOperators_a.indexOf('_' + strOperator_a + '_') > -1);
+}
+
+function maybeIdentifier(str_a)
+{
+	return ("abcdefghijklmnopqrstuvwxyz1234567890_".indexOf(str_a.toLowerCase()) > -1);
+}
+
+function maybeOperator(str_a)
+{
+	return ("!~+-*/%<>=&^|%".indexOf(str_a.toLowerCase()) > -1);
+}
+
+function precedence(arrOperators_a, strOperator_a)
+{
+	return arrOperators_a.indexOf('_' + strOperator_a + '_');
+}
+
+
+function basicExprToZ80(strExpression_a, objOptions_a) 
+{
+    var arrOutput = [];
+    var arrStack = [];
+
+    if (!objOptions_a) objOptions_a = {};
+
+console.log('basicExprToZ80 strExpression_a:' + strExpression_a);
+
+    var postfix = IFtoPF(strExpression_a, []);
+
+console.log('basicExprToZ80 postfix:' + postfix);
+
+    var tokens = postfix.trim().split(/\s+/);
+    var OP_MAP = {
+        '+': 'kw_add16',
+        '-': 'kw_sub16',
+        '*': 'kw_mul16',
+        '/': 'kw_div16',
+        '<': 'kw_comparelt16',
+        '<=': 'kw_comparele16',
+        '>': 'kw_comparegt16',
+        '>=': 'kw_comparege16',
+        '=': 'kw_eq16',
+        '<>': 'kw_neq16',
+        'AND': 'kw_and16',
+        'OR': 'kw_or16',
+        '++': 'kw_incintvar',
+        '--': 'kw_decintvar'
+    };
+
+    var OP_BEHAVIOR = {
+        '+': { args: 2, needsTemp: true },
+        '-': { args: 2, needsTemp: true },
+        '*': { args: 2, needsTemp: true },
+        '/': { args: 2, needsTemp: true },
+        '<': { args: 2, needsTemp: true, isCompare: true },
+        '<=': { args: 2, needsTemp: true, isCompare: true },
+        '>': { args: 2, needsTemp: true, isCompare: true },
+        '>=': { args: 2, needsTemp: true, isCompare: true },
+        '=': { args: 2, needsTemp: true, isCompare: true },
+        '<>': { args: 2, needsTemp: true, isCompare: true },
+        'AND': { args: 2, needsTemp: true },
+        'OR': { args: 2, needsTemp: true },
+        '++': { args: 1, needsTemp: false },
+        '--': { args: 1, needsTemp: false }
+    };
+
+	function newTemp() 
+	{
+		return 'var_tmp_' + (m_intTempCounter++);  // Use module counter
+	}
+	
+    for (var intI = 0; intI < tokens.length; intI++) 
+	{
+        var token = tokens[intI];
+        var behavior = OP_BEHAVIOR[token];
+
+        if (behavior) 
+		{
+            var args = [];
+            for (var j = 0; j < behavior.args; j++) 
+			{
+                args.unshift(arrStack.pop());
+            }
+
+            if (behavior.needsTemp) 
+			{
+                var tmp = newTemp();
+                arrOutput.push('    dw ' + OP_MAP[token] + ', ' + args.join(', ') + ', ' + tmp);
+
+                // If it's the last token and a comparison, finalize it
+                if (intI === tokens.length - 1 && behavior.isCompare) 
+				{
+                    arrOutput.push('    dw kw_final, ' + tmp);
+                }
+
+                arrStack.push(tmp);
+            } 
+			else 
+			{
+                arrOutput.push('    dw ' + OP_MAP[token] + ', ' + args[0]);
+                arrStack.push(args[0]);
+            }
+        } 
+		else 
+		{
+            // Operand: number or variable
+			if (/^\d+$/.test(token)) 
+			{
+				var tmp = newTemp();
+				arrOutput.push('    dw kw_let16, ' + tmp + ', ' + token);
+				arrStack.push(tmp);
+			} 
+			else 
+			{
+				arrStack.push('var_' + token);
+			}
+        }
+    }
+
+    var objResult = {
+        z80: arrOutput.join('\n'),
+        resultVar: arrStack.length > 0 ? arrStack.pop() : null,
+        tempVars: m_intTempCounter
+    };
+	
+console.log('basicExprToZ80 result:' + JSON.stringify(objResult));
+	
+	return objResult;
+}
+	
+function basicToZ80(strBASIC_a) 
+{
+    var arrLines = strBASIC_a.split('\n');
+    var arrOutput = ['; Startup code goes here'];
+    var intNestCounter = 0;
+    var objVariables = {};
+
+	function newTemp() 
+	{
+		var strName = 'var_tmp_' + (m_intTempCounter++);  // Use module counter
+		objVariables[strName] = 'dw 0';
+		return strName;
+	}
+
+    function declareVar(strName_a, strType_a) 
+	{
+        if (!objVariables[strName_a]) 
+		{
+            if (strType_a === 'str') 
+			{
+                objVariables[strName_a] = 'ds 40\n    db 0';
+            } 
+			else 
+			{
+                objVariables[strName_a] = 'dw 0';
+            }
+        }
+    }
+
+    for (var intI = 0; intI < arrLines.length; intI++) 
+	{
+        var label = 'line' + intI;
+        arrOutput.push('');
+        arrOutput.push(label + ':');
+        var statements = arrLines[intI].split(':');
+        for (var j = 0; j < statements.length; j++) 
+		{
+            var strStatement = statements[j].trim();
+            var varMatch;
+
+            if (/^CLS$/i.test(strStatement)) 
+			{
+                arrOutput.push('    dw kw_cls');
+            } 
+			else if (/^END$/i.test(strStatement)) 
+			{
+                arrOutput.push('    dw kw_stop');
+            } 
+			else if (/^RETURN$/i.test(strStatement)) 
+			{
+                arrOutput.push('    dw kw_return');
+            } 
+			else if (varMatch = strStatement.match(/^INPUT\s+([a-zA-Z_][a-zA-Z0-9_]*)$/i)) 
+			{
+                declareVar('var_' + varMatch[1], 'str');
+                arrOutput.push('    dw kw_inputstr, var_' + varMatch[1]);
+            } 
+			else if (varMatch = strStatement.match(/^PRINT\s+"(.+)"$/i)) 
+			{
+                arrOutput.push('    dw kw_printstrlit');
+                arrOutput.push('    db "' + varMatch[1] + '", 0');
+            } 
+			else if (varMatch = strStatement.match(/^PRINT\s+([a-zA-Z_][a-zA-Z0-9_]*)$/i)) 
+			{
+                declareVar('var_' + varMatch[1], 'str');
+                arrOutput.push('    dw kw_printstrvar, var_' + varMatch[1]);
+            } 
+			else if (varMatch = strStatement.match(/^([a-zA-Z_][a-zA-Z0-9_]*)\s*=\s*(.+)$/)) 
+			{
+                var strLHS = varMatch[1];
+                var strRHS = varMatch[2];
+                declareVar('var_' + strLHS, 'int');
+                var result = basicExprToZ80(strRHS);
+                arrOutput.push(result.z80);
+                arrOutput.push('    dw kw_let16, var_' + strLHS + ', ' + result.resultVar);
+			} 
+			else if (varMatch = strStatement.match(/^IF\s+(.+?)\s+THEN\s+PRINT\s+"(.+?)"(?:\s+ELSE\s+PRINT\s+"(.+?)")?$/i)) 
+			{
+				var strExpression = varMatch[1];
+				var strThenMsg = varMatch[2];
+				var strElseMsg = varMatch[3];
+				var strThenLabel = 'if_then_' + intNestCounter;
+				var strElseLabel = 'if_else_' + intNestCounter;
+				var strEndLabel = 'if_end_' + intNestCounter;
+				intNestCounter++;
+
+				var strCondVar;
+				if (/^\d+$/.test(strExpression.trim())) 
+				{
+					strCondVar = newTemp();
+					arrOutput.push('    dw kw_let16, ' + strCondVar + ', ' + strExpression.trim());
+					arrOutput.push('    dw kw_final, ' + strCondVar);
+				} 
+else if (/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(strExpression.trim())) 
+{
+					strCondVar = 'var_' + strExpression.trim();
+					arrOutput.push('    dw kw_final, ' + strCondVar);
+				} 
+				else 
+				{
+					var result = basicExprToZ80(strExpression);
+					arrOutput.push(result.z80);
+					strCondVar = result.resultVar;  // Use the actual result variable
+				}
+
+				arrOutput.push('    dw kw_goto_iffalse, ' + strElseLabel + ', ' + strCondVar);
+				arrOutput.push('    dw kw_printstrlit');
+				arrOutput.push('    db "' + strThenMsg + '", 0');
+				arrOutput.push('    dw kw_goto, ' + strEndLabel);
+				arrOutput.push(strElseLabel + ':');
+				if (strElseMsg) 
+				{
+					arrOutput.push('    dw kw_printstrlit');
+					arrOutput.push('    db "' + strElseMsg + '", 0');
+				}
+				arrOutput.push(strEndLabel + ':');
+			} 
+			else if (varMatch = strStatement.match(/^WHILE\s+(.+)$/i)) 
+			{
+				var strExpression = varMatch[1];
+				var loopLabel = 'while_loop_' + intNestCounter;
+				var strEndLabel = 'while_end_' + intNestCounter;
+				intNestCounter++;
+
+				arrOutput.push(loopLabel + ':');
+
+				var strCondVar;
+				if (/^\d+$/.test(strExpression.trim())) 
+				{
+					strCondVar = newTemp();
+					arrOutput.push('    dw kw_let16, ' + strCondVar + ', ' + strExpression.trim());
+					arrOutput.push('    dw kw_final, ' + strCondVar);
+				} 
+				else if (/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(strExpression.trim())) 
+				{
+					strCondVar = 'var_' + strExpression.trim();
+					arrOutput.push('    dw kw_final, ' + strCondVar);
+				} 
+				else 
+				{
+					var result = basicExprToZ80(strExpression);
+					arrOutput.push(result.z80);
+					strCondVar = result.resultVar;  // Use the actual result variable
+				}
+
+				arrOutput.push('    dw kw_goto_iffalse, ' + strEndLabel + ', ' + strCondVar);
+			} 
+			else if (/^WEND$/i.test(strStatement)) 
+			{
+                var loopLabel = 'while_loop_' + (intNestCounter - 1);
+                var strEndLabel = 'while_end_' + (intNestCounter - 1);
+                arrOutput.push('    dw kw_goto, ' + loopLabel);
+                arrOutput.push(strEndLabel + ':');
+            } 
+			else if (varMatch = strStatement.match(/^GOTO\s+(\w+)$/i)) 
+			{
+                arrOutput.push('    dw kw_goto, ' + varMatch[1]);
+            } 
+			else if (varMatch = strStatement.match(/^GOSUB\s+(\w+)$/i)) 
+			{
+                var returnLabel = 'line' + (intI + 1);
+                arrOutput.push('    dw kw_gosub, ' + varMatch[1] + ', ' + returnLabel);
+            } 
+			else 
+			{
+                arrOutput.push('    ; Unrecognized: ' + strStatement);
+            }
+        }
+    }
+
+    arrOutput.push('');
+    arrOutput.push('; Variable declarations');
+    for (var name in objVariables) 
+	{
+        arrOutput.push(name + ':    ' + objVariables[name]);
+    }
+
+    arrOutput.push('');
+    arrOutput.push('; Support routines (kw_*) go here');
+    return arrOutput.join('\n');
+}
+
+    // Call basicToZ80 on concatenated code
+    var strZ80 = basicToZ80(m_strRaw);
+
+    cb_a({
+        mte: 'text',
+        raw: strZ80,
+        message: '',
+        error: ''
+    });
+}

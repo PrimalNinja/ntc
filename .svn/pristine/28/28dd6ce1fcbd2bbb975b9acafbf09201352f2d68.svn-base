@@ -1,0 +1,123 @@
+Supported BASIC Syntax for Julian's BASIC-to-Z80 Compiler
+---------------------------------------------------------
+
+FLOW CONTROL:
+
+1. END
+   Stops execution.
+   Example:
+     END
+   Compiles to:
+     dw kw_stop
+
+2. GOSUB
+   Calls a subroutine and returns to the next line.
+   Example:
+     GOSUB subroutine
+   Compiles to:
+     dw kw_gosub, subroutine, lineX
+   (lineX is the label of the next line)
+
+3. GOTO
+   Jumps to a label.
+   Example:
+     GOTO line10
+   Compiles to:
+     dw kw_goto, line10
+
+4. IF...THEN...ELSE
+    Conditional execution based on integer equality.
+    Example:
+      IF counter = 3 THEN PRINT "Done" ELSE PRINT "Error"
+    Compiles to:
+      dw kw_let16, var_tmp, 3
+      dw kw_eq16, var_counter, var_tmp
+      dw kw_goto_iffalse, if_else_label
+      dw kw_printstrlit
+      db "Done", 0
+      dw kw_goto, if_end_label
+    if_else_label:
+      dw kw_printstrlit
+      db "Error", 0
+    if_end_label:
+
+5. RETURN
+   Returns from a subroutine.
+   Example:
+     RETURN
+   Compiles to:
+     dw kw_return
+
+6. WHILE...WEND
+    Loop while an integer variable is less than a constant.
+    Example:
+      WHILE counter < 3
+        PRINT "Looping"
+        counter = counter + 1
+      WEND
+    Compiles to:
+      dw kw_let16, var_tmp, 3
+    while_loop_label:
+      dw kw_comparelt16, var_counter, var_tmp
+      dw kw_goto_iffalse, while_end_label
+      dw kw_printstrlit
+      db "Looping", 0
+      dw kw_incintvar, var_counter
+      dw kw_goto, while_loop_label
+    while_end_label:
+
+
+
+INPUT/OUTPUT:
+
+1. CLS
+   Clears the screen.
+   Example:
+     CLS
+   Compiles to:
+     dw kw_cls
+
+2. INPUT
+   Reads a string input into a variable.
+   Example:
+     INPUT name
+   Compiles to:
+     dw kw_inputstr, var_name
+
+3. PRINT
+   Prints a string literal or string variable.
+   Examples:
+     PRINT "Hello"
+     PRINT name
+   Compiles to:
+     dw kw_printstrlit
+     db "Hello", 0
+   or
+     dw kw_printstrvar, var_name
+
+
+
+LOGIC:
+
+1. Increment
+   Increments an integer variable by 1.
+   Example:
+     counter = counter + 1
+   Compiles to:
+     dw kw_incintvar, var_counter
+
+2. LET (Assignment)
+   Assigns a constant integer to a variable.
+   Example:
+     counter = 0
+   Compiles to:
+     dw kw_let16, var_counter, 0
+
+
+
+Notes:
+- Variables are automatically declared as either:
+    dw 0         (for integers)
+    ds 40 + db 0 (for strings)
+- Temporary variables are used for comparisons and constants.
+- Labels are generated as lineX, while_loop_X, if_else_X, etc.
