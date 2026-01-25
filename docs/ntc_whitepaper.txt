@@ -392,11 +392,13 @@ kw_printzoscii_loop:
     pop hl              ; HL = glyph address (or 0 for terminator)
     ld a, l
     or h
-    ret z               ; If 0, done - continue threading
+    jr z, kw_printzoscii_loope  ; If 0, done - continue threading
     
     ld a, (hl)          ; Fetch glyph data
     call char_out       ; Output character
     jr kw_printzoscii_loop
+kw_printzoscii_loope:
+	ret
 
 Performance: ZOSCII eliminates ASCII lookup overhead and processes at approximately 61 T-states per character (compared to ~104 T-states for ASCII), making it 41% faster for text output while maintaining perfect alignment with NTC's architecture.
 
