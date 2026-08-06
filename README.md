@@ -10,7 +10,7 @@ Traditional methods for implementing high-level languages (HLLs) on resource-con
 
 We introduce **Native Threaded Code (NTC)**, a paradigm that achieves the flexibility of HLL compilation with optimized assembly performance. NTC re-imagines Z80 control flow by treating the program as a sequence of 16-bit addresses stored in memory, where the **hardware stack pointer (SP) itself becomes the instruction pointer**. This eliminates traditional CALL/RET overhead for sequential statement execution.
 
-In performance-critical loops, NTC demonstrates dramatic efficiency gains, reducing execution overhead by approximately **64%** compared to equivalent conventional Z80 assembly using CALL/RET patterns. The compiled NTC structure is inherently more readable and maintainable than highly optimized raw assembly.
+In performance-critical loops, NTC demonstrates dramatic efficiency gains, reducing execution overhead by approximately **46%** compared to equivalent conventional Z80 assembly using CALL/RET patterns. The compiled NTC structure is inherently more readable and maintainable than highly optimized raw assembly.
 
 **Architectural Constraint**: Due to the specialized use of the hardware stack pointer (SP) as an instruction pointer, this NTC system requires **interrupts to be disabled** during execution. The system is best suited for Z80 architectures where interrupt-free operation is acceptable, such as certain embedded systems and retro-computing applications.
 
