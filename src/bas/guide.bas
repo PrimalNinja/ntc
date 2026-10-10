@@ -1,4 +1,4 @@
-' tinyz80b - VB5/VB6 style BASIC to NTC (Native Threaded Code) for Z80
+' NTC BASIC - VB5/VB6 style BASIC to NTC (Native Threaded Code) for Z80
 ' type on the left, the NTC thread appears on the right
 '
 ' types     Integer (16 bit) Byte Boolean String (40 chars)  Const  Type..End Type

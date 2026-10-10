@@ -35,7 +35,7 @@ var arrOut = arrExamples.map(function(objEx)
 	}) };
 });
 fs.writeFileSync(strDir + 'js/ntc_examples.js',
-	'// example projects for the tinyz80b GUI, from the bas folder\n' +
+	'// example projects for the NTC BASIC GUI, from the bas folder\n' +
 	'// (c) 2026 Cyborg Unicorn Pty Ltd - MIT License\n' +
 	'// generated: edit the .bas / .cls files, not this one\n\n' +
 	'var NTC_EXAMPLES = ' + JSON.stringify(arrOut, null, '\t') + ';\n');

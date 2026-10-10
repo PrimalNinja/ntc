@@ -1,4 +1,5 @@
 import os
+os.chdir(os.path.dirname(os.path.abspath(__file__)))
 import asyncio
 from playwright.async_api import async_playwright
 async def main():
@@ -11,7 +12,7 @@ async def main():
         pg.on('dialog', lambda d: (logs.append('DIALOG '+d.message.replace('\n',' | ')), asyncio.ensure_future(d.accept())))
         await pg.goto('file://' + os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'ntc.html')) + '')
         await pg.wait_for_timeout(500)
-        await pg.set_input_files('#ge-openfile', ['t/vbp/Demo.vbp','t/vbp/Main.bas','t/vbp/Counter.cls'])
+        await pg.set_input_files('#ge-openfile', ['vbp/Demo.vbp','vbp/Main.bas','vbp/Counter.cls'])
         await pg.wait_for_timeout(800)
         print('files', await pg.locator('#ge-filelist tbody tr').all_inner_texts())
         print('name', await pg.locator('#ge-projectname').inner_text())

@@ -1,4 +1,4 @@
-// tinyz80b GUI - realtime VB style BASIC to NTC, with a project explorer. ES5.
+// NTC BASIC GUI - realtime VB style BASIC to NTC, with a project explorer. ES5.
 // (c) 2026 Cyborg Unicorn Pty Ltd - MIT License
 //
 // Left:   the project's files (listRenderer) - modules (.bas) and classes (.cls)
@@ -110,7 +110,7 @@ function ntcSaveLocal()
 {
 	try
 	{
-		window.localStorage.setItem('tinyz80b_project', JSON.stringify({ name: m_objProject.name, files: m_objProject.files, sel: m_strSelId, mode: $('#ge-mode').val() }));
+		window.localStorage.setItem('tinyz80b_project', JSON.stringify({ name: m_objProject.name, files: m_objProject.files, sel: m_strSelId, mode: $('#ge-mode').val() }));		// storage key kept from the old name so saved projects still load
 	}
 	catch (objError)
 	{
@@ -398,7 +398,7 @@ function ntcAddFiles(objFileList_a)
 				}
 				else
 				{
-					window.alert(objFile_a.name + ' is not a tinyz80b project');
+					window.alert(objFile_a.name + ' is not an NTC BASIC project');
 				}
 			}
 			else if (/\.vbp$/i.test(objFile_a.name))

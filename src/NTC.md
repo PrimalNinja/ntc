@@ -2,7 +2,7 @@
 
 (c) 2026 Cyborg Unicorn Pty Ltd - MIT License
 
-What NTC is, how the tinyz80b compiler works now (VB5/VB6 style front end, turbo and
+What NTC is, how the NTC BASIC compiler works now (VB5/VB6 style front end, turbo and
 normal modes, project explorer), and the language it takes. Progress is tracked in
 `todo.md`.
 

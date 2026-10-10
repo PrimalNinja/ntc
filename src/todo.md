@@ -244,6 +244,11 @@ BASIC dialect.
       routine outside #C000 that turns the upper ROM off for the read, a shadow copy of the
       background in RAM, or drawing into a back buffer at #4000 / #8000 and flipping the
       screen base
+- [ ] if reading RAM under a ROM is needed: a keyword / library routine that copies x bytes
+      from under the ROM into a shared RAM buffer (ROM off, ldir, ROM back on). It must sit
+      outside the ROM area it switches off. (The firmware has RAM LAM - RST 4 at #0020,
+      `ld a,(hl)` with the ROMs off - one byte per call; a block copy is better.) Graphics /
+      I/O classes are decided when we get to them
 - [ ] decide where the start stack (`ntc_csp`) lives when there is a ROM option
 - [ ] FUTURE: `Option RAMBanks <from>-<to>` (CPC 6128 #4000-#7FFF window), with
       `Option ClassSize` as the banking unit. Do not shoot ourselves in the foot meanwhile:
