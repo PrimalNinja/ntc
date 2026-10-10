@@ -1,0 +1,158 @@
+/* tinyz80b GUI - (c) 2026 Cyborg Unicorn Pty Ltd - MIT License */
+
+html, body
+{
+	background: #1e1e1e;
+	color: #d4d4d4;
+	height: 100%;
+	margin: 0;
+	overflow: hidden;
+}
+
+#ge-ntc
+{
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+}
+
+#ge-panes
+{
+	display: flex;
+	flex: 1 1 auto;
+	min-height: 0;
+}
+
+.ge-pane
+{
+	border-right: 1px solid #3e3e42;
+	display: flex;
+	flex: 1 1 50%;
+	flex-direction: column;
+	min-width: 0;
+	padding: 6px;
+}
+
+.ge-pane-title
+{
+	color: #9cdcfe;
+	font-family: monospace;
+	font-size: 12px;
+	margin-bottom: 4px;
+}
+
+#ge-stats
+{
+	color: #858585;
+	margin-left: 10px;
+}
+
+/* stretch the textEditor to fill the pane */
+#ge-input, #ge-output
+{
+	display: flex;
+	flex: 1 1 auto;
+	flex-direction: column;
+	min-height: 0;
+}
+
+#ge-input .ge-texteditor-container, #ge-output .ge-texteditor-container
+{
+	flex: 1 1 auto;
+	min-height: 0;
+}
+
+#ge-input .ge-texteditor-code-wrapper, #ge-output .ge-texteditor-code-wrapper
+{
+	flex: 1 1 auto;
+	min-height: 0;
+}
+
+#ge-input .ge-texteditor-code, #ge-output .ge-texteditor-code
+{
+	height: 100% !important;
+	resize: none !important;
+	white-space: pre;
+	overflow: auto;
+	tab-size: 4;
+}
+
+#ge-input .ge-texteditor-code-gutter
+{
+	bottom: 0;
+}
+
+/* language / format controls are for JS etc, not BASIC */
+#ge-ntc .ge-texteditor-code-language, #ge-ntc .ge-texteditor-format-code
+{
+	display: none;
+}
+
+#ge-ntc .ge-texteditor-status
+{
+	margin-top: 4px;
+}
+
+#ge-controls
+{
+	align-items: center;
+	background: #252526;
+	border-top: 1px solid #3e3e42;
+	display: flex;
+	flex: 0 0 auto;
+	flex-wrap: wrap;
+	font-size: 12px;
+	gap: 12px;
+	padding: 6px 10px;
+}
+
+#ge-controls select, #ge-controls input[type="text"]
+{
+	background: #1e1e1e;
+	border: 1px solid #3e3e42;
+	color: #d4d4d4;
+	font-size: 12px;
+	margin-left: 4px;
+}
+
+#ge-time
+{
+	color: #858585;
+	margin-left: auto;
+}
+
+#ge-errors
+{
+	background: #2d1e1e;
+	color: #f48771;
+	flex: 0 0 auto;
+	font-family: monospace;
+	font-size: 12px;
+	max-height: 20%;
+	overflow: auto;
+}
+
+#ge-errors div
+{
+	cursor: pointer;
+	padding: 2px 10px;
+}
+
+#ge-errors div:hover
+{
+	background: #3e2a2a;
+}
+
+@media (max-width: 700px)
+{
+	#ge-panes
+	{
+		flex-direction: column;
+	}
+
+	.ge-pane
+	{
+		border-bottom: 1px solid #3e3e42;
+		border-right: none;
+	}
+}

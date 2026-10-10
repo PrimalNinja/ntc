@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<!-- tinyz80b realtime VB style BASIC to NTC compiler. (c) 2026 Cyborg Unicorn Pty Ltd - MIT License -->
+	<meta charset="UTF-8">
+	<title>tinyz80b - BASIC to NTC</title>
+	<link href="3p/bootstrap.min.css" rel="stylesheet">
+	<link href="css/textEditor.css" rel="stylesheet">
+	<link href="css/listRenderer.css" rel="stylesheet">
+	<link href="css/ntc_gui.css" rel="stylesheet">
+</head>
+<body>
+	<div id="ge-ntc">
+		<div id="ge-projectbar">
+			<span class="ge-title">tinyz80b</span>
+			<button type="button" class="btn btn-sm btn-outline-light" id="ge-new">New project</button>
+			<button type="button" class="btn btn-sm btn-outline-light" id="ge-open">Open...</button>
+			<button type="button" class="btn btn-sm btn-outline-light" id="ge-saveproject">Save project</button>
+			<input type="file" id="ge-openfile" accept=".json,.bas,.cls,.vbp,.txt" multiple class="ge-hidden">
+			<label>Example
+				<select id="ge-example"></select>
+			</label>
+			<span id="ge-projectname"></span>
+		</div>
+		<div id="ge-panes">
+			<div class="ge-pane ge-pane-project">
+				<div class="ge-pane-title">Project - drag .bas / .cls files here</div>
+				<div id="ge-filelist"></div>
+				<div class="ge-pane-title ge-proc-title">Procedures <span id="ge-procfile"></span></div>
+				<div id="ge-proclist"></div>
+			</div>
+			<div class="ge-pane">
+				<div class="ge-pane-title">BASIC <span id="ge-filename"></span></div>
+				<div id="ge-input"></div>
+			</div>
+			<div class="ge-pane">
+				<div class="ge-pane-title">NTC (Z80) <span id="ge-stats"></span></div>
+				<div id="ge-output"></div>
+			</div>
+		</div>
+		<div id="ge-controls">
+			<label>Platform
+				<select id="ge-platform">
+					<option value="cpc">Amstrad CPC</option>
+				</select>
+			</label>
+			<label>Start mode
+				<select id="ge-mode">
+					<option value="normal">Normal (interrupts on)</option>
+					<option value="turbo">Turbo (Option Turbo)</option>
+				</select>
+			</label>
+			<label>Org <input type="text" id="ge-org" value="#4000" size="6"></label>
+			<label>Library
+				<select id="ge-library">
+					<option value="used">used keywords</option>
+					<option value="all">all</option>
+					<option value="none">none</option>
+				</select>
+			</label>
+			<label><input type="checkbox" id="ge-comments" checked> Source as comments</label>
+			<label><input type="checkbox" id="ge-hidelib"> Hide library in view</label>
+			<button type="button" class="btn btn-sm btn-outline-light" id="ge-copy">Copy</button>
+			<button type="button" class="btn btn-sm btn-outline-light" id="ge-save">Save .asm</button>
+			<span id="ge-time"></span>
+		</div>
+		<div id="ge-errors"></div>
+	</div>
+
+	<script src="3p/jquery-3.7.1.min.js"></script>
+	<script src="js/textEditor.js"></script>
+	<script src="js/listRenderer.js"></script>
+	<script src="js/ntc_lib.js"></script>
+	<script src="js/ntc_parser.js"></script>
+	<script src="js/ntc_compiler.js"></script>
+	<script src="js/ntc_examples.js"></script>
+	<script src="js/ntc_gui.js"></script>
+</body>
+</html>

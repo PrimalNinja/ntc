@@ -1,0 +1,162 @@
+tinyz80b - BASIC to NTC (Native Threaded Code) compiler
+=======================================================
+(c) 2026 Cyborg Unicorn Pty Ltd - MIT License
+
+FILES
+-----
+  js/ntc_compiler.js    the compiler (ES5). ntcCompile(source, options) -> { asm, errors, stats }
+  asm/ntc_lib.asm       keyword library, sections marked ";## name deps..."
+  asm/ntc_plat_cpc.asm  platform: Amstrad CPC hardware (no firmware)
+  js/ntc_lib.js         the .asm files above as JS strings (NTC_LIB_ASM, NTC_PLATFORMS),
+                        the compiler links keywords from these
+  tinyz80b.xfrm         transformer plugin (ntc_compiler.js + ntc_lib.js in one)
+  ntc.html              realtime GUI (textEditor.js), plus js/ntc_gui.js, css/ntc_gui.css
+                        needs 3p/jquery-3.7.1.min.js, 3p/bootstrap.min.css,
+                        js/textEditor.js, css/textEditor.css
+  bas/ntc_test.bas      self-checking test program
+  NTC.md                overview: NTC, the compiler, the two modes, VB5/VB6 plan
+
+xfrm args: org=#4000 library=used|all|none comments=on|off
+
+HOW IT COMPILES
+---------------
+  - line by line, each statement matched by regex
+  - expressions: IFtoPF (shunting yard) to postfix, then a postfix walk with a
+    value stack, one keyword per operator into tmpN (N = stack slot)
+  - no parse tree, no recursive descent
+  - pass 1 only collects variable types, DIMs and labels, pass 2 makes code
+  - IF/WHILE/FOR/DO nesting uses a block stack (type, labels, line)
+  - constants are folded, literals go inline (kw_addl, kw_cpltvl ...), so
+    "x = 3 + 4 * 2" is one kw_ltov
+  - peephole: branch to a goto goes straight to its target, goto to the next
+    label removed, code after goto/stop/return up to a label removed
+  - only the library sections the program uses are linked (plus deps)
+
+LANGUAGE
+--------
+  numbers     16 bit signed. 123 &HFF &FF #FF &X101 TRUE(-1) FALSE(0)
+  variables   any name. name$ is a string. A name without $ is a string if it
+              is given "text", compared with "text", or only used by INPUT.
+              A name used in a sum or given a number is a number.
+  strings     40 chars max. a$ = "x" + b$ + c$   a$ = b$   LEN(a$)
+              IF a$ = "x" / IF a$ <> b$
+  arrays      DIM a(10) - elements 0 to 10, 16 bit. a(i) = v, x = a(i)
+              a literal index is resolved at compile time (arr_a+6)
+  operators   tightest first:
+                - (unary)
+                *  /  \  MOD          (/ and \ both integer, truncate to 0)
+                +  -
+                =  <>  <  <=  >  >=   (signed, result -1 or 0)
+                NOT
+                AND
+                OR  XOR
+              AND/OR/XOR/NOT are bitwise, which works as logical with -1/0
+  functions   ABS(x) SGN(x) RND(n)=0..n-1 PEEK(a) DEEK(a) LEN(a$) INKEY
+
+STATEMENTS
+----------
+  x = expr / LET x = expr
+  PRINT a; b, c       ; joins, , puts a space, trailing ; or , = no newline
+  ? a                 same as PRINT
+  INPUT v             prints "? "
+  INPUT "Prompt"; v   prints "Prompt? "
+  INPUT "Prompt", v   prints "Prompt"
+  IF c THEN s : s ELSE s : s       single line, ELSE goes to the nearest IF
+  IF c THEN 100 / IF c GOTO 100    single branch
+  IF c THEN / ELSEIF c THEN / ELSE / END IF   block
+  WHILE c ... WEND                 test at the bottom (one branch per loop)
+  DO [WHILE c | UNTIL c] ... LOOP [WHILE c | UNTIL c]
+  FOR v = a TO b [STEP s] ... NEXT [v]
+      one keyword at FOR (skip if the loop should not run, left out when
+      start and limit are literals in range) and one keyword per pass at NEXT:
+        STEP 1          kw_next1l/v   inc (hl), compare, jump back
+        literal STEP    kw_nextupl/v (positive) kw_nextdnl/v (negative) - add
+        variable STEP   kw_forentry / kw_fornext (sign of STEP picks direction)
+      l/v = literal or variable limit. A non literal limit or step is worked
+      out once into its own var before the loop.
+  EXIT DO | EXIT FOR | EXIT WHILE
+  GOTO l / GOSUB l / RETURN        l = label: or line number
+      GOTO is 1 word: dw l_go, a code stub "ld sp, l / ret" (30 T).
+      GOSUB targets become keywords when safe:
+        dw l_gs     GOSUB: l_gs: ld (l_rs), sp / ld sp, l / ret   (50 T)
+        dw l_rt     RETURN: l_rt: ld sp, (l_rs) / ret             (40 T)
+        l_rs is the target's return point in RAM. Stubs are code, ROMable.
+      A target stays on the GOSUB stack (kw_gosub / kw_return, 215 T) if:
+        code can fall into it, or it falls into the next target
+        a GOTO / THEN n crosses into or out of its lines
+        it has no RETURN of its own
+        it can be called again while running (call graph cycle)
+      A target's lines run from its label to the next GOSUB target.
+  END / STOP
+  CLS  LOCATE x, y  MODE n (0/1/2, clears)  FRAME
+  POKE a, v  DOKE a, v  RANDOMIZE n
+  CALL a              literal: dw a in the thread, the code runs as a keyword
+                      (SP is the thread, no call/push, end with ret).
+                      variable: kw_callv
+  BREAK [name]        puts dw bp_name in the thread, bp_name: ret at the end.
+                      Break on bp_name in a monitor; SP is the thread position.
+  REM text / ' text
+  label:  and line numbers can start any line
+
+KEYWORDS (dw kw_x, args - args are popped left to right)
+--------
+  operand kinds in the name: v = variable address, l = literal, z = zero
+  compares set Z (Z = true) for kw_goto_iftrue / kw_goto_iffalse
+  kw_scp* = signed compares (used by the compiler), kw_cp* = unsigned
+
+  flow     kw_stop  kw_goto l (compiler emits dw l_go instead)  kw_goto_iftrue l  kw_goto_iffalse l
+           kw_goto_ifzero v,l  kw_goto_ifnzero v,l  kw_gosub l  kw_return
+           kw_forupl/v v,lim,end  kw_fordnl/v v,lim,end  (FOR entry)
+           kw_next1l/v v,lim,top  kw_nextupl/v v,step,lim,top  kw_nextdnl/v
+           kw_forentry v,step,lim,end  kw_fornext v,step,lim,top  (variable STEP)
+           dw label (1 word direct jump)
+  assign   kw_ltov l,v  kw_vtov v,v  kw_ztov v  kw_ftov v (Z flag -> -1/0)
+  maths    kw_inc v  kw_dec v  kw_add v,v,d  kw_addl v,l,d  kw_subvv  kw_sublv
+           kw_2x v,d  kw_4x v,d  kw_mulvv  kw_mulvl  kw_divvv  kw_divvl  kw_divlv
+           kw_modvv  kw_modvl  kw_modlv  kw_negv v,d  kw_absv  kw_sgnv
+  logic    kw_andvv kw_andvl kw_orvv kw_orvl kw_xorvv kw_xorvl kw_notv
+  compare  kw_scp{lt,le,gt,ge}{vv,vl}  kw_cp{lt,le,gt,ge,eq,ne}{vv,vl}
+  memory   kw_lptrtov8 kw_vptrtov8 kw_lptrtov kw_vptrtov (PEEK/DEEK)
+           kw_{l,v}to{l,v}ptr8 (POKE)  kw_{l,v}to{l,v}ptr (DOKE)
+  arrays   kw_aget base,i,d  kw_aset base,i,v  kw_asetl base,i,l
+  random   kw_rndl l,d  kw_rndv v,d  kw_seedl l  kw_seedv v (xorshift, period 65535)
+  strings  kw_strcpy d,s  kw_strcat d,s  kw_strlen s,d  kw_strcmpeq a,b  kw_strcmpne a,b
+  I/O      kw_printzoscii + dw glyph_XX, ..., 0  (PRINT / INPUT prompt text)
+           kw_scrinit (first word when the screen or keys are used)
+           kw_printstrvar s  kw_printint v  kw_printnl  kw_inputstr s  kw_inputint v
+           kw_inkey d  kw_cls  kw_locatell x,y  kw_locatevv  kw_model l  kw_modev v
+           kw_frame  kw_callv v
+
+  No firmware, no call, no push: SP stays in the thread the whole time.
+  Shared routines are entered with jp and the return address in IX and end
+  with jp (ix). ntc_next is a plain ret, so ld ix, ntc_next continues the
+  thread. ntc_csp (SP at start) is only used by kw_stop to return.
+
+  kw_printzoscii, dw glyph, ..., 0 - each glyph word points at an 8 byte
+  bitmap in ntc_font (glyph_XX equ ntc_font + (XX - 32) * 8), 1 = newline.
+  The compiler turns PRINT / INPUT prompt text into these, and puts
+  dw kw_scrinit (mode 1, ROMs off, clear) first when a program uses the
+  screen or keys.
+
+PLATFORM (ntc_plat_cpc.asm, all entered with jp, return via jp (ix))
+--------
+  ntc_plat_putglyph  DE = 8 byte glyph, draw at cursor, move on
+  ntc_plat_newline   ntc_plat_scroll   ntc_plat_backspace
+  ntc_plat_cls       ntc_plat_locate (H=col, L=row, 1 based)
+  ntc_plat_mode      A = 0/1/2, gate array mode, both ROMs off, clear
+  ntc_plat_scankey   A = new key press or 0 (PPI/PSG matrix scan)
+  ntc_plat_getkey    wait for a key, A = ASCII
+  ntc_plat_frame     wait for vsync (PPI port B bit 0)
+  ntc_plat_exit      upper ROM back on before kw_stop returns
+
+  Screen: default CRTC layout at #C000, pen 1 on pen 0, 20/40/80 columns.
+  Keys: new presses only, no auto repeat, shift gives capitals/symbols.
+  Not done: firmware's own mode variable is not updated on exit.
+
+ADDING A KEYWORD
+----------------
+  1. ntc_lib.asm: ";## kw_name deps" then the routine (pop args, ret)
+  2. put the same change in the NTC_LIB_ASM string in ntc_lib.js
+     (platform changes: NTC_PLATFORMS.cpc)
+  3. ntc_compiler.js: emit('kw_name', [args]) where the statement is matched
+  4. tinyz80b.xfrm holds its own copy of both, update it the same way

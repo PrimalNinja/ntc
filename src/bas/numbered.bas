@@ -1,0 +1,9 @@
+10 REM classic numbered style
+20 N = 1
+30 PRINT N;
+40 N = N * 2
+50 IF N < 100 THEN 30
+60 PRINT
+70 GOSUB 200
+80 END
+200 PRINT "in sub" : RETURN

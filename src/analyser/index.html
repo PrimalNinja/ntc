@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1.0">
+		<title>Code Analyser</title>
+		<link href="3p/bootstrap.min.css" rel="stylesheet">
+		<link href="css/listRenderer.css" rel="stylesheet">
+		<link href="css/formRenderer.css" rel="stylesheet">
+		<link href="css/analyser.css" rel="stylesheet">
+		<script src="3p/jquery-3.7.1.min.js"></script>
+	</head>
+	<body class="gs-body">
+
+		<!-- TITLE BAR -->
+		<div class="gs-titlebar">
+			Cyborg Code Analyser
+			<span class="gs-titlebar-badge">v1.0</span>
+		</div>
+
+		<!-- BUTTON BAR -->
+		<div id="ge-button-bar" class="gs-button-bar">
+			<button class="ge-btn-load btn btn-primary">Load</button>
+			<button class="ge-btn-save btn btn-primary">Save</button>
+			<input class="ge-bundle-input gb-hidden" type="file" accept=".json">
+		</div>
+
+		<!-- PROGRESS BAR -->
+		<div id="ge-progress-bar" class="gs-progress-bar gb-hidden">
+			<div class="ge-progress-fill gs-progress-fill"></div>
+		</div>
+
+		<!-- MAIN SPLIT -->
+		<div id="ge-main" class="gs-main">
+
+			<!-- LEFT: File List -->
+			<div class="gs-filelist">
+				<div class="gs-panel-header">
+					Files - Drag them onto the lister below
+					<span class="ml-auto">
+						<button class="ge-btn-clear gs-btn-clear btn btn-sm btn-outline-secondary">Clear All</button>
+					</span>
+				</div>
+				<div class="ge-filelist-container gs-filelist-list"></div>
+			</div>
+
+			<!-- RIGHT: Analysis -->
+			<div class="gs-analysis">
+				<div class="ge-tabs gs-analysis-tabs gb-hidden">
+					<button class="ge-tab-summary ge-tab-btn gs-tab-btn gs-active">📊 Summary</button>
+					<button class="ge-tab-deep ge-tab-btn gs-tab-btn">🔬 Deep Analysis</button>
+					<button class="ge-tab-raw ge-tab-btn gs-tab-btn">📄 Raw Source</button>
+					<button class="ge-tab-render ge-tab-btn gs-tab-btn">🖼️ Render</button>
+				</div>
+				<div class="ge-analysis-body gs-analysis-body">
+					<div class="ge-tab-body-empty ge-tab-body gs-tab-body"></div>
+					<div class="ge-tab-body-summary ge-tab-body gs-tab-body gb-hidden"></div>
+					<div class="ge-tab-body-deep ge-tab-body gs-tab-body gb-hidden"></div>
+					<div class="ge-tab-body-raw ge-tab-body gs-tab-body gb-hidden"></div>
+					<div class="ge-tab-body-render ge-tab-body gs-tab-body gb-hidden"></div>
+				</div>
+			</div>
+
+		</div>
+
+		<script src="js/listRenderer.js"></script>
+		<script src="js/formRenderer.js"></script>
+		<script src="js/parseJS.js"></script>
+		<script src="js/parseVB6.js"></script>
+		<script src="js/parsePHP.js"></script>
+		<script src="js/analyser.js"></script>
+		<script src="js/utils.js"></script>
+		<script src="js/startup.js"></script>
+	</body>
+</html>

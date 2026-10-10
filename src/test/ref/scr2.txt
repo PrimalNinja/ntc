@@ -1,0 +1,3 @@
+mode two, eighty columns
+                                                                          abcdef
+gh
