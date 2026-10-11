@@ -1,658 +1,778 @@
-# Native Threaded Code: Unleashing Compiler-Driven High-Level Performance on Constrained Z80 Systems 20251231
+# NTC - Native Threaded Code
 
-## Notes
+(c) 2026 Cyborg Unicorn Pty Ltd - MIT License
 
-This is an early release due to other priorities that I have. This compiler is implemented as a transformer for CyborgShell (cyborgshell.com).
-
-## Executive Summary
-
-Traditional methods for implementing high-level languages (HLLs) on resource-constrained CPUs, such as the Zilog Z80, suffer from severe performance bottlenecks. Developers routinely rely on inherited programming conventions, primarily the constant use of the Z80's standard hardware stack with CALL and RET for control flow. This approach creates a fixed, repetitive performance penalty that dominates execution time.
-
-We introduce **Native Threaded Code (NTC)**, a paradigm that achieves the flexibility of HLL compilation with optimized assembly performance. NTC re-imagines Z80 control flow by treating the program as a sequence of 16-bit addresses stored in memory, where the **hardware stack pointer (SP) itself becomes the instruction pointer**. This eliminates traditional CALL/RET overhead for sequential statement execution.
-
-In performance-critical loops, NTC demonstrates dramatic efficiency gains, reducing execution overhead by approximately **46%** compared to equivalent conventional Z80 assembly using CALL/RET patterns. The compiled NTC structure is inherently more readable and maintainable than highly optimized raw assembly.
-
-**Architectural Constraint**: Due to the specialized use of the hardware stack pointer (SP) as an instruction pointer, this NTC system requires **interrupts to be disabled** during execution. The system is best suited for Z80 architectures where interrupt-free operation is acceptable, such as certain embedded systems and retro-computing applications.
+What NTC is, how the NTC BASIC compiler works now (VB5/VB6 style front end, turbo and
+normal modes, project explorer), and the language it takes. Progress is tracked in
+`todo.md`. The full language reference, keyword by keyword, is `userguide.md`.
 
 ---
 
-## 1. The Performance Dilemma in Constrained Computing
+## 1. What NTC is
 
-The Zilog Z80, an 8-bit microprocessor, remains widely used in embedded systems, retro-computing, and specialized industrial controllers. A perennial challenge is bridging the gap between high-level language (HLL) abstraction and hardware performance limitations.
-
-Historically, Z80 HLL implementations have fallen into three categories:
-
-1. **Interpreted Systems** (e.g., BASIC interpreters): Each line of source code is tokenized, parsed, and executed in real-time, requiring massive multi-step lookup routines for every command.
-
-2. **Tokenized Systems** (e.g., p-code machines): Programs are converted into intermediate opcodes. While faster than pure interpretation, the CPU must still jump into a kernel routine after every opcode to determine the next action.
-
-3. **Conventional Native Compilation**: Code is compiled directly into assembly, but flow control relies on the Z80's standard CALL and RET instructions to manage all high-level routines.
-
-### The Problem of Inherited Convention
-
-The conventional CALL/RET method is a core source of unnecessary latency. In a high-level program, most operations are simple (e.g., incrementing a counter, printing a string). When using standard subroutines for these tasks, the execution flow is:
+NTC uses the Z80 stack pointer as the instruction pointer. A program is a thread: a list of
+words, each one the address of a keyword (a machine code routine), followed by that
+keyword's arguments.
 
 ```
-CALL Keyword_Routine → Execute → RET → Next Command
+main_thread:
+        dw kw_ltov, 10, var_x          ; x = 10
+        dw kw_printint, var_x          ; Print x
+        dw kw_stop
 ```
 
-The CALL and RET instructions impose fixed overhead: pushing and popping the 16-bit Program Counter (PC) onto the hardware stack. For programs consisting of many small, sequential commands, this stack manipulation overhead dominates execution time. **The inefficiency is not a limitation of the Z80 architecture, but a limitation of unexamined programming convention.**
+The rules:
+
+- **SP = instruction pointer.** `ret` jumps to the next keyword (10 T).
+- **No call. No push.** A keyword pops its arguments off the thread, left to right (10 T
+  each), does its work, and ends with `ret`.
+- **No firmware** on the CPC hardware platform: I/O goes straight to the hardware. Host
+  platforms (CPC firmware, CP/M) call the system for the console only, on the real stack
+  (see Platforms in section 4).
+- **Shared routines** are entered with `jp` and the return address in IX, and end with
+  `jp (ix)`. `ntc_next` is a plain `ret`, so `ld ix, ntc_next` continues the thread.
+- **The thread stays word aligned.** Text is ZOSCII: each character is a word pointing at
+  an 8 byte glyph bitmap, never a byte string. On the CPC the glyphs are the CPC's own font:
+  the first mode set copies chars 32-126 from the lower ROM (`#3900`) into `ntc_font`, running
+  the copy from `#C000` because the program (at `#0040`) can sit under the lower ROM.
+
+  ```
+  dw kw_printzoscii, glyph_48, glyph_49, 1, 0   ; "HI" newline, end
+  glyph_48 equ ntc_font + (#48 - 32) * 8
+  ```
+
+- **Compares** set the Z flag (Z = true) for `kw_goto_iftrue` / `kw_goto_iffalse`.
+- **Breakpoints** are done the NTC way: `dw bp_name` in the thread, `bp_name: ret` in code.
+  Break on `bp_name` in a monitor. SP shows the thread position.
+- **ROMable.** The thread, the keywords and the stubs are read only. Variables, return
+  points and scratch live in RAM. Numbers passed by address (`lit_5: dw 5`) are read only.
 
 ---
 
-## 2. Architectural Paradigm: Native Threaded Code (NTC)
+## 2. Two modes: turbo and normal
 
-Native Threaded Code (NTC) fundamentally alters the Z80 control flow mechanism to eliminate conventional overhead. NTC is based on four core principles:
+The same thread and the same keywords run in both modes. **SP is the thread in both.**
 
-### 2.1 Program-as-Data
-The high-level program is stored as a sequential list of 16-bit addresses (words) in memory. Each word points to an assembly keyword routine (e.g., `kw_print`) followed by its operands (variables, values, or inline data).
+| | Turbo | Normal |
+|---|---|---|
+| Interrupts | off the whole time | let in at safe points |
+| Straight line keywords | `ret` to the next one | the same - no extra cost |
+| Branches (GOTO, loop end, GOSUB, procedure call / end) | `ret` | through `ntc_xn` (about 90 T more) |
+| Long runs without a branch | - | `kw_irq` every 32 keywords |
+| Waiting for a key / vsync | interrupts off | interrupts on while waiting |
 
-Example:
-```asm
-line1:  dw kw_printstrlit
-        db "Hello", 0
-line2:  dw kw_let16, var_counter, 5
+### How normal mode works
+
+`ntc_xn` is the normal mode "next". It saves SP (the thread position) in `ntc_ip`, goes back
+to the real stack (the caller's, `ntc_csp`), enables interrupts for one instruction, then
+disables them, puts SP back in the thread and carries on with `ret`:
+
+```
+ntc_xn: ld (ntc_ip), sp
+        ld sp, (ntc_csp)
+        ei
+        nop                 ; an interrupt can be taken here
+        di
+        ld sp, (ntc_ip)
+        ret
 ```
 
-### 2.2 Native Execution
-Keywords are hand-optimized Z80 assembly routines designed for maximum speed. They execute at native Z80 speed with no interpretive layer.
+Flags are kept, so a compare followed by a branch still works. Inside every keyword SP is
+the thread and interrupts are off, exactly as in turbo - the keyword code is the same.
 
-### 2.3 SP-as-Instruction-Pointer
-**The revolutionary insight**: The Z80's hardware stack pointer (SP) serves as the instruction pointer during program execution.
+Only **branch keywords** have a normal mode copy: a library section that loads SP (or jumps
+into one that does) is copied for normal mode with `ret` -> `jp ntc_xn`, `ret cc` ->
+`jp cc, ntc_xn`, `ntc_next` -> `ntc_xn`, and its labels get `_n` (`kw_goto_iftrue_n`,
+`kw_next1l_n` ...). All other keywords are one copy used by both modes. The compiler makes
+the GOTO / GOSUB / procedure stubs for each mode the same way. `@shared` after the deps in a
+section header keeps it as it is in both modes (its SP load or `ret` is real).
 
-- The program is initialized by setting `SP` to the address of the first keyword
-- Each keyword is "called" by having SP point to its address, then executing a `RET` instruction
-- The `RET` instruction pops the address from SP into PC, effectively loading the next keyword address and executing it
-- This creates a continuous threading effect where execution flows naturally from one keyword to the next
+The CPC platform puts a small interrupt handler at `#38` when normal mode is used (the
+firmware's would turn the ROMs back on). It counts ticks (300 a second, `Ticks`) and takes
+the old 3 bytes back out on exit.
 
-**Critical Implementation Detail**: The startup code shows this clearly:
-```asm
-org #100
-di              ; Disable interrupts (REQUIRED)
-ld iy, sss      ; IY = software stack pointer (permanent)
-ld sp, main     ; SP now points to first keyword address
-ret             ; Pop address from (SP) into PC, jump to first keyword
-```
+### Measured on the emulated CPC
 
-### 2.4 Human Readability and Maintainability
-The resulting compiled code is a linear, self-documenting list of high-level actions:
-```asm
-dw kw_printstrlit
-db "Hello", 0
-dw kw_let16, var_counter, 5
-```
+- A loop of two keywords (`s = s + i` / `Next`, the worst case: a branch every second
+  keyword): 295 T a pass in turbo, 380 T in normal.
+- Straight line code: the same speed in both modes.
 
-This clear structure dramatically improves debugging and maintenance compared to register-heavy, hand-tuned assembly.
+### Turbo in the language
+
+- **Build option / `Option Turbo`**: the program starts in turbo mode. Without it, it starts
+  in normal mode.
+- **`Turbo On` / `Turbo Off`**: switch at run time. `Turbo On` (used in normal mode) is
+  `kw_turbo_on: ret` - SP is already the thread. `Turbo Off` (used in turbo mode) is
+  `kw_turbo_off: jp ntc_xn`.
+- The compiler tracks the mode line by line. A procedure called from both modes is built
+  twice (`p_name` and `p_name_n`), each copy calling the right version of everything.
+- A block (If / Select / loop) and a procedure must end in the mode they started in, so the
+  mode is always known. To let the user choose:
+
+  ```
+  If fast Then
+    Turbo On
+    ShellSort
+    Turbo Off
+  Else
+    ShellSort
+  End If
+  ```
 
 ---
 
-## 3. Performance Analysis: NTC vs. Conventional Assembly
+## 3. Speed compared
 
-The efficiency of NTC is demonstrated by comparing execution overhead in a loop structure with sequential operations.
+What NTC is for: write in plain VB-style BASIC, fast, and get code that runs at compiled
+speed on a Z80 - without writing assembler. Classic Z80 C compilers don't give good Z80
+code; an expert C or assembler programmer can beat NTC on most counts, but they are not
+who this is for. With NTC people can code fast and run fast. Where a hot spot needs more,
+an `#asm` procedure is a keyword with no call cost (section 5, Inline assembly).
 
-### Conventional Assembly Overhead (per operation in loop)
-- `ld hl, operand` = 10 T-states
-- `call keyword` = 17 T-states (push PC, jump)
-- Inside keyword's `ret` = 10 T-states (pop PC, return)
-- **Total per operation: 37 T-states**
+### How it was measured
 
-### NTC Overhead (per operation in loop)
-- Threading `ret` = 10 T-states (pop address, jump to keyword)
-- Keyword executes, ends with `ret` = 10 T-states (continue threading)
-- **Total per operation: 20 T-states**
+Each program ran as a CP/M `.COM` in the harness, with every instruction timed exactly
+and rounded up to whole microseconds as the CPC's Gate Array does (a 4 MHz CPC, as in
+WinAPE at standard speed). Check: the shell sort test (`bas/shellsort.bas`) gave 14.7 s in
+the model, 14.9 s by `Ticks` in WinAPE (AMSDOS build), and turbo 20% faster than normal by
+stopwatch, as the model said. Only the work is timed (from `go` to the result), not
+loading, filling or printing. BDOS calls count as no time - the timed parts make none,
+except BBC BASIC's look at the keyboard every 20 statements, so on a real CP/M BBC BASIC
+is a little slower than shown. The NTC normal mode figures include a minimal interrupt
+handler (NTC's own on the CPC); CP/M's own handler costs more.
 
-### Performance Gain
-- **46% reduction in overhead** for sequential operations
-- Larger programs with more sequential statements see greater benefit
-- Loop-heavy code shows 2-3× speedup in practice
+| | What it is |
+|---|---|
+| NTC turbo, NTC normal | this compiler, Integer (16 bit) and Byte variables, `Option Explicit` |
+| Small C | Ron Cain's Small C as revised by Chris Lewis (C3.0R1.1, ncb85/SmallC-85) - the classic C of the CP/M era; 8080 code (runs as is on a Z80), `int` / `char`, Ron Cain's runtime library |
+| BBC BASIC | BBC BASIC (Z80) v5 by R.T. Russell, CP/M edition - a fast interpreter; `%` integer variables (32 bit, BBC BASIC has no 16 bit integers), `&` byte array |
+| Hand Z80 | the sieve written straight in Z80 (pointer stepping, counter in a register, no tricks) |
 
-This quantitative proof shows that NTC, by eliminating wasteful repetitive CALL/RET stack operations, achieves a non-intuitive result: **the high-level, compiler-friendly structure is faster than typical hand-written Z80 assembly for command sequencing**.
+All programs are plain code with the same algorithm and the same answers (checked), in
+`compare/bench/` (`.bas`, `.c` with Small C's output as `B*C.ASM`, `.bbc`, `BSIEVEA.ASM`).
+
+### Results (seconds on a 4 MHz CPC)
+
+| Test | What it does | Hand Z80 | NTC turbo | NTC normal | Small C | BBC BASIC |
+|---|---|---|---|---|---|---|
+| sieve | primes below 8000, Byte flags | 0.61 | 3.49 | 4.97 | 6.63 | 151.3 |
+| sort | Shell sort, 2001 Integers | | 11.35 | 14.27 | 18.10 | 334.2 |
+| factor | prime factors of 2..1500, trial division | | 16.65 | 18.10 | 23.56 | 197.6 |
+| loop | empty `For` loop, 10000 times | | 0.45 | 0.70 | 1.17 | 7.00 |
+| call | function with 2 parameters, 5000 calls | | 0.80 | 1.17 | 1.11 | 26.7 |
+| divide | `(i * 5) \ 3 + i Mod 13`, 5000 times | | 5.89 | 6.02 | 9.71 | 57.2 |
+| string | build 30 chars one at a time, 200 times | | 1.50 | 1.66 | - | 15.2 |
+
+How many times faster NTC is (the other's time / NTC's time):
+
+| Test | NTC normal vs Small C | NTC turbo vs Small C | NTC normal vs BBC BASIC | NTC turbo vs BBC BASIC | normal takes longer than turbo by |
+|---|---|---|---|---|---|
+| sieve | 1.33 | 1.90 | 30 | 43 | 42% |
+| sort | 1.27 | 1.60 | 23 | 29 | 26% |
+| factor | 1.30 | 1.42 | 11 | 12 | 9% |
+| loop | 1.67 | 2.59 | 10 | 16 | 55% |
+| call | 0.95 | 1.38 | 23 | 33 | 46% |
+| divide | 1.61 | 1.65 | 9.5 | 9.7 | 2% |
+| string | - | - | 9.2 | 10 | 10% |
+
+The hand-written sieve is 5.7 times faster than NTC turbo, 8.2 times faster than NTC
+normal, 11 times faster than Small C and 250 times faster than BBC BASIC.
+
+### What gets the most from NTC
+
+- **Loops, compares and branches.** A compare and its branch are one keyword with the
+  variable addresses and the target in the thread. Small C calls a runtime routine for
+  every compare (`call ccle`), which returns 0 or 1 in HL, then tests that
+  (`ld a,h / or l / jp nz`). BBC BASIC reads and decodes the statement text every time.
+- **Variables and arrays.** NTC variables are at fixed addresses, so a keyword loads them
+  straight (`ld hl,(nn)`). Small C works out a stack address and calls `ccgint` for every
+  local it reads (`ld hl,2 / add hl,sp / call ccgint`). Byte arrays are a byte per element
+  in both NTC and C.
+- **Short keywords gain most from turbo.** Normal mode costs about 90 T per branch, so the
+  more branches per unit of work, the more turbo gains: the empty loop takes 55% longer in
+  normal, the sieve 42%, the sort 26%.
+
+### What gets the least
+
+- **Division, multiply and Mod.** The time is in the 16 bit divide routine, the same for
+  any compiler (NTC's is a bit quicker than Small C's: 1.6 times). Turbo hardly matters
+  (2%): a divide is one long keyword.
+- **Strings, Print, Input.** Copying bytes, and the firmware or BDOS doing the output.
+  NTC is about as fast as its library routine, like anyone else's.
+- **Procedure calls.** Small C's call is a `call` / `ret` with the arguments on the stack,
+  which is cheap on a Z80. NTC's call stub copies the arguments into the parameters and
+  clears the locals (in VB, locals start empty on every call), so in normal mode a call is
+  about the same speed as Small C, in turbo 1.4 times faster. A `#asm` keyword procedure
+  has no call cost at all.
+
+### Where expert C or assembler win
+
+- Keeping a loop's variables in registers the whole time; NTC loads and stores them in
+  memory in every keyword.
+- Stepping a pointer through an array instead of working out `base + index * size` each
+  time (the hand sieve does this).
+- No step between operations: NTC pays a `ret` (10 T) per keyword, plus about 90 T per
+  branch in normal mode.
+- Modern optimising Z80 C compilers (z88dk's zsdcc / sccz80) were not measured. They give
+  much better code than Small C and will come close to NTC, or beat it, in places.
+
+## 4. The compiler
+
+Files (ES5, no node, no Python):
+
+| Path | What it is |
+|---|---|
+| `ntc.html` | The GUI: project explorer, editor, NTC output, compiled as you type |
+| `js/ntc_parser.js` | VBCC style parser: `ntcParse(files)` -> records and element table. Also `IFtoPF` |
+| `js/ntc_compiler.js` | Code generator and library linker: `ntcCompile(source or files, options)` |
+| `js/ntc_lib.js` | The `.asm` library files as JS strings (generated from `asm/`) |
+| `js/ntc_examples.js` | Example projects for the GUI (generated from `bas/`) |
+| `js/ntc_gui.js`, `css/ntc_gui.css` | GUI code and style |
+| `js/listRenderer.js`, `css/listRenderer.css` | Project file and procedure lists |
+| `asm/ntc_lib.asm` | Keyword library, sections marked `;## name deps [@shared]` |
+| `asm/ntc_plat_cpc.asm` | CPC platform layer, straight to the hardware (screen, keys, frame, interrupt handler, exit) |
+| `asm/ntc_plat_cpcfw.asm` | CPC platform through the firmware (text, keys, mode, clock) |
+| `asm/ntc_plat_cpm.asm` | CP/M platform (BDOS console, own stack, warm boot) |
+| `asm/ntc_plat_test.asm` | test harness platform (console through I/O ports, for `test/ntcrun.py`) |
+| `lib/<platform>/*.cls` | the platform classes: `StdIO.cls` (console), `System.cls` (what the machine is) |
+| `userguide.md` | Language reference: every keyword by topic, with an example and its VB5 / VB6 differences |
+| `build/` | Test builds: every program in `bas/` compiled for every platform (`.ASM`), and `build.bat` to assemble them all with sjasmplus on Windows / MS-DOS (CPC: AMSDOS `.BIN` files, CP/M: `.COM`) |
+| `compare/smallc/` | The sieve (`bas/sievetime.bas`) in Small C, as Z80 source, for timing NTC against a classic Z80 C compiler (results in its README) |
+| `bas/` | Examples and self tests (`vb_test.bas`, `vb_test2/`, `ntc_test.bas`, ...) |
+
+### Parser (VBCC concept, ported to JS)
+
+- Each physical line is normalised the VBCC way (`pvtStatementTok`): lower case outside
+  quotes, one space between words, `'` comments cut, `_` continuation joined. Statements are
+  split on `:` outside quotes.
+- Each statement is matched on its first words (prefix dispatch), like VBCC's
+  `pvtParseApp` / `pvtParseObject` / `pvtParseFunction` / `pvtParseUDT`.
+- Context flags say where we are: module, class, procedure, Type, `#If` skip.
+- Every statement becomes one record (`{ k: 'for', v, start, limit, step, line, file ... }`).
+  Declarations go into the element table (VBCC `cElement`: type, scope, full identifier,
+  identifier, params, datatype, value).
+- Full identifiers follow VBCC: `module.name` (private), `name` (public), `module.proc.name`
+  (local), `class.member`.
+- A one line `If c Then a : b Else c` becomes block records (if / else / endif).
+- No tree, no recursive descent. Expressions stay as text in the records.
+
+### Code generator
+
+- Walks the records one by one. Expressions go through `IFtoPF` (shunting yard) to postfix,
+  then a postfix walk with a value stack emits one keyword per operation into `tmpN`
+  (numbers) / `stmpN` (strings). Any name followed by `(` is a function or array: it comes
+  out of `IFtoPF` as `NAME@n` with its argument count.
+- Constants are folded at compile time; literals go inline where a keyword takes them, or by
+  address through the read only number pool (`lit_n`).
+- Pass 1 (run twice) works out the types of undeclared variables, labels, GOSUB targets,
+  procedure calls and the mode at each call. Then: GOSUB keyword forms, the call graph (no
+  recursion), and which modes each procedure is needed in. Pass 2 emits the code.
+- A procedure nobody calls is compiled for its errors, then dropped.
+- Peephole: branch to a GOTO goes straight to its target, a GOTO to the next label goes,
+  code after GOTO / End / Return / procedure end up to the next label goes.
+- Only the library sections the program uses get linked, plus their dependencies, once per
+  mode where needed.
+
+### Procedures (Sub / Function / Property)
+
+```
+        dw p_add_c, var_a, lit_5        ; call: args follow as addresses
+        ...
+p_add:                                  ; body (thread)
+        ...
+        dw p_add_r                      ; end
+```
+
+- `p_name_c` (code stub) copies the arguments into the parameters, sets the locals to 0 / ""
+  (VB: locals start empty on every call, except `Static`), saves SP (the return point) in
+  `p_name_rs` and jumps into the body.
+- `p_name_r` copies ByRef parameters that the procedure writes back to the caller's
+  variable, then loads SP from `p_name_rs`.
+- A function's result is its own variable (VB: assign to the function name).
+- **No recursion**: each procedure has one set of parameters, locals and one return point.
+  A procedure that can call itself (directly or through others) is an error.
+
+### GOTO / GOSUB
+
+- GOTO is one word, `dw l_go`, with a code stub `l_go: ld sp, l / ret` (30 T).
+- A GOSUB target becomes a keyword when safe: `l_gs: ld (l_rs), sp / ld sp, l / ret` (50 T),
+  RETURN `l_rt: ld sp, (l_rs) / ret` (40 T). Otherwise it uses the GOSUB stack
+  (`kw_gosub` / `kw_return`). Labels belong to their procedure.
+
+### Classes - syntactic sugar
+
+- A `.cls` file is a named group of variables and procedures. Members get the class name in
+  front (`counter.add`, `p_counter_add`). `Dim c As New Counter` / `c.Add 5` /
+  `c.Total` / `c.Limit = 3` / `Counter.Total` all resolve at compile time.
+- There is no run time object: every variable of a class uses the class's one set of
+  members.
+- Planned: `Option ClassSize <kilobytes>` to keep a class's code within a size so classes
+  can be banking units. Accepted, not enforced yet.
+
+### Platforms
+
+A platform is one `asm/ntc_plat_<name>.asm` file plus its classes in `lib/<name>/`. The
+file starts with `;@key value` lines the compiler reads, then the `ntc_plat_*` sections the
+library links against (listed at the top of `ntc_lib.asm`):
+
+| Key | Meaning | cpc | cpcfw | cpm | test |
+|---|---|---|---|---|---|
+| `;@org` | default org (the GUI's Org box empty) | #0040 | #0040 | #0100 | #4000 |
+| `;@text` | `glyph`: Print text as ZOSCII glyph words; `byte`: as byte strings (string pool + `kw_printstrvar`) | glyph | byte | byte | byte |
+| `;@scrinit` | the program starts with `kw_scrinit` (mode 1, clear) when it uses the screen | 1 | 0 | 0 | 0 |
+| `;@irq` | has `ntc_plat_irqon` (own interrupt handler: normal mode ticks, `Interrupt`) | 1 | 0 | 0 | 0 |
+| `;@stack` | a label: the program's own real stack (set before `ntc_csp`) | - | - | ntc_cpmstack | - |
+| `;@cols` / `;@rows` | console size | 40 / 25 | 40 / 25 | 80 / 24 | 40 / 25 |
+
+- The library prints through `ntc_plat_putc` (A = char). On the CPC hardware platform it
+  turns the char into its glyph and draws it; `kw_printzoscii` (inline glyph words) is only
+  used by glyph platforms.
+- Host calls (firmware, BDOS) need a real stack. `ntc_fwcall` / `ntc_bdos` keep IX, put the
+  thread position in `ntc_ip`, switch SP to `ntc_csp`, enable interrupts, `call`, disable
+  them and switch back. The thread itself still never sees `call` / `push`. Those sections
+  are `@shared` (their SP loads are real stack switches, not branches), so they have no
+  normal mode copy.
+- `#If NTC_<PLATFORM>` (e.g. `NTC_CPM`) and `#If NTC` are predefined.
+- `Option Terminal VT52 | ANSI` (CP/M): the compiler writes `NTC_TERM equ 0 / 1 / 2` at the
+  top of the program; `ntc_plat_cpm.asm` assembles Cls / Locate for that terminal with
+  sjasmplus `IF`. It also predefines `NTC_TERM_VT52` / `NTC_TERM_ANSI` and `NTC_TERM_POS`,
+  which `lib/cpm/StdIO.cls` uses for CanPosition / CanClear / Rows.
+- The platform's classes join a project when its source names them (`StdIO`, `System`) and
+  the project has no class of that name. A project's own `StdIO.cls` replaces the
+  platform's, and then `Print`, `Input`, `Inkey`, `Inkey$`, `Cls`, `Locate` and `Mode`
+  compile to calls of its methods (`PutStr`, `NewLine`, `Tab`, `GetLine`, `GetKey`, `Cls`,
+  `Locate`, `Mode`), except inside `StdIO` itself.
+- `#asm` naming any library label (not only a section name) links that label's section, so
+  class methods can jump straight to `ntc_plat_putc`, `kw_printint` and so on.
+
+### Project explorer (GUI)
+
+- Left: the project's files (listRenderer) with + Module, + Class, Rename, Remove, and drag
+  and drop of `.bas` / `.cls` files. Under it, the procedures of the selected file - click
+  one to jump to it (a `-` after the kind = never called).
+- Middle: the selected file. Right: the NTC asm for the whole project.
+- Open: `.bas` / `.cls` files, a saved project (`.json`), or a VB `.vbp` picked together
+  with its files (forms are left out). Save project: one `.json` with
+  all files and the start mode. The project is also kept in the browser between visits.
+- Errors show the file and line; click one to go there.
+
+### Status
+
+- Passes on an emulated CPC, both modes: `vb_test.bas` (64 checks), `vb_test2` (30 checks,
+  2 files), `vb_test3.bas` (11 checks: Enum, With, On GoTo / GoSub, Inkey$),
+  `vb_test_long.bas` (58 checks), `vb_test4.bas` (16 checks: array parameters),
+  `vb_test5` (18: #asm, Inp / Out, a library class), `vb_test6.bas` (18: Byte arrays,
+  ReDim), `vb_test7.bas` (16: Type and 2D array parameters), `vb_test8.bas` (5: AddressOf),
+  `vb_test9.bas` (34: ^, IIf, Choose, string functions), `vb_test10` (33: For Each,
+  Property arguments, Like, LSet / RSet, String * n), `vb_test11.bas` (17: asm keyword procedures), `vb_test12.bas` (33: String * n, String Max n), `ntc_test.bas` (36 checks), the class project, sieve,
+  shell sort (turbo and normal from its menu), the FOR / GOSUB / screen tests.
+- Not yet tested on a real CPC.
 
 ---
 
-## 4. The NTC Execution Model: Architectural Deep Dive
+## 5. Language
 
-### 4.1 Sequential Execution and Direct Threading
+VB5 / VB6 style. Differences from VB are listed after each part.
 
-The core innovation lies in how NTC manages program flow using SP as the instruction pointer:
+### Types and declarations
 
-1. **SP points to the current keyword address** in the program data structure
-2. A `RET` instruction pops this address from `(SP)` into PC
-3. PC now contains the keyword routine address, so execution jumps to it
-4. **The keyword routine ends with another `RET`**
-5. Since SP has automatically advanced to the next word (due to the previous pop), this `RET` pops the next keyword address, continuing the thread
+- `Integer` (16 bit signed), `Long` (32 bit signed), `Byte` and `Boolean` (stored as 16
+  bit, True = -1; an array of Byte is 1 byte per element), `String` (40 chars),
+  `String * n` (n = 1 .. 255: VB's fixed length - starts as n spaces, every assignment and
+  Input pads with spaces or cuts to n), `String Max n` (n = 1 .. 255, NTC: at most n chars,
+  not padded).
+- Strings are fixed buffers (no heap). A scalar string (variable, local, temp, param,
+  result, Type field) has its capacity in the byte before it: `[cap][text...][0]`, so `{s}`
+  and every address passed around is still the first char. Array elements are cap + 1
+  bytes with no capacity byte (the element size is passed to `kw_sget` / `kw_sset` /
+  `kw_strcpyn`, or is in the descriptor). Parameters, function results, Select values and
+  temps hold the program's longest string (`NTC_STRMAX`, at least 40, written at the top
+  of the program); library functions build into temps and cut at NTC_STRMAX;
+  `kw_strcpy` / `kw_strcat` / input cut at the destination's capacity byte; call stubs copy
+  strings in and back with the same cut. A function writes straight into a variable only
+  when the variable is at least NTC_STRMAX long; concatenation always may (it cuts).
+- `Enum ... End Enum` (members are constants, also `EnumName.Member`).
+- `Dim` / `Private` / `Public` / `Global` / `Static`, `Const`, `Type ... End Type`.
+- Suffixes: `a$` String, `a%` Integer, `a&` Long; `1000&` / `&HFFFF&` are Long literals. Undeclared names are allowed (their type comes from
+  how they are used) unless `Option Explicit`.
+- Arrays: `Dim a(10)`, `Dim b(1 To 5)`, `Dim g(3, 4)`, `Dim s(10) As String`,
+  `Dim pts(5) As Point` (then `pts(i).x`). `Option Base 0 | 1`.
+- Dynamic arrays: `Dim a()` then `ReDim [Preserve] a(lo To hi)`, `Erase a`. The bounds must
+  be constants (there is no heap): the storage is as big as the biggest `ReDim` of that
+  array, and a descriptor holds the current bounds. 1 dimension. `Erase` of a fixed array
+  clears it.
+  A dynamic array of a Type works too (each field array gets the ReDim).
+- `#Const`, `#If ... Then / #ElseIf / #Else / #End If`.
 
-Example flow:
-```asm
-line1:  dw kw_print, msg_hello    ; SP points here initially
-line2:  dw kw_print, msg_goodbye  ; SP will point here after kw_print
+Long: a separate keyword set (`kw_l_*`), every argument an address, 4 bytes low byte first.
+An expression is Long when a Long variable, function, array or a literal over 65535 is in
+it; Integer sides are widened. A Long put into an Integer keeps the low 16 bits (VB would
+stop with Overflow). Integer * Integer stays 16 bit as in VB - use `CLng(a) * b` or
+`a * 1000&` for a Long result.
 
-kw_print:
-    pop hl          ; HL = msg_hello (the operand)
-    ; ... print string at HL ...
-    ret             ; Pops next keyword address (kw_print again), continues
+Overflow is never checked: Integer and Long arithmetic wraps (there is no error handling,
+see Flow).
+
+Not supported: `Single`, `Double`, `Currency`, `Variant` values, `ReDim` with bounds from
+variables, `Declare`.
+
+### Procedures
+
+- `Sub`, `Function`, `Property Get / Let / Set`, `Public / Private / Friend`, `Static`.
+- Parameters: `ByVal`, `ByRef` (default), `Optional` with a default.
+- `Exit Sub`, `Exit Function`, `Exit Property`. `Call Name(args)` or `Name args`.
+- `Sub Main` runs after any top level code. Top level code (outside procedures) in a module
+  is the main program, as in classic BASIC.
+
+- Arrays as parameters: `Sub SortUp(a() As Integer)` (Integer, Long, String, Byte; 1 or 2
+  dimensions; always ByRef). The call passes the address of a 12 byte descriptor (base,
+  lower bounds, counts, element size); the call stub copies it, and `a(i)` / `a(i, j)` go
+  through it (`kw_pget` / `kw_pset`, `kw_pget2` / `kw_pset2`). An array parameter or a
+  dynamic array can be passed on. `LBound(a [, dim])` / `UBound(a [, dim])` work on them
+  (on a fixed array the compiler works them out).
+- Arrays of a Type as parameters: `Function Total(a() As Point)` - one descriptor per field
+  array; `a(i).x` works as usual.
+- `Property Get / Let` with arguments: `Bag.Item(3) = 42`, `x = Bag.Item(3)`.
+- Local arrays (not `Static`) are cleared on every call, as in VB.
+- Types as parameters: `Sub Grow(p As Point)` / `ByVal p As Point`. The call passes one
+  address per field (nested Types, String and Long fields too); a ByRef Type that the
+  procedure writes is copied back field by field.
+- `AddressOf Proc` gives a number (the address of the procedure's call stub) that can be
+  stored and passed around; `CallAddr x [, args]` calls it (driver / device tables). The
+  arguments go by address and must match the procedure's parameters - the compiler can't
+  check that. `AddressOf` gives the call stub for the turbo mode at that line.
+
+Not supported: recursion (also not found through `CallAddr`), `ParamArray`, 3+ dimension
+array parameters.
+
+### Flow
+
+`If / ElseIf / Else / End If` (block or one line), `Select Case` (values, `a To b`,
+`Is > x`, strings, `Case Else`), `While / Wend`, `Do [While|Until] / Loop [While|Until]`,
+`For / To / Step / Next`, `Exit For | Do | While`, `GoTo`, `GoSub / Return`, `End`, `Stop`,
+labels and line numbers.
+
+`For Each x In array` (1 dimension, fixed / parameter / dynamic; not an array of a Type),
+`On x GoTo a, b, c` / `On x GoSub a, b, c`, `With ... End With`, `DoEvents` (a safe point:
+in normal mode interrupts get in there).
+
+**No error handling - a decision, not a gap.** There is no `On Error` / `Resume` and there
+will not be: it makes lazy programmers and costs speed, and with SP as the thread there are
+no return points to unwind. A routine that can fail returns a status (a Function result,
+e.g. 0 = ok, negative = error) and the caller checks it. Diagnostics are separate:
+
+- `Error text` - prints `Error: text (file line n)` and stops.
+- `Debug.Assert condition` - when false prints `Assert failed: condition (file line n)` and
+  stops (kept in the program, unlike a VB exe).
+
+`For Each` over collections does not exist (there are no objects).
+
+### Operators
+
+`^`, `-` (unary), `* / \ Mod`, `+ -`, `&`, `= <> < <= > >= Like`, `Not`, `And`, `Or Xor`.
+`/` is integer division (no floating point). `^` is a whole number power (`-2 ^ 2` = -4 as
+in VB; a negative power gives 0). `And Or Xor Not` are bitwise (True = -1, so
+they work as logical too). Strings compare with all six compares. `Like` patterns: `*` any
+run, `?` one character, `#` one digit, `[abc]` / `[a-z]` one of, `[!abc]` none of; case
+matters, unless the module has `Option Compare Text`: then compares, `Like`, `InStr`,
+`InStrRev`, `StrComp` and `Select Case` on strings ignore case (both sides go through
+`UCase$` first).
+
+### Functions
+
+- Strings: `Len Left$ Right$ Mid$ Chr$ Asc Str$ CStr Val InStr InStrRev UCase$ LCase$
+  Trim$ LTrim$ RTrim$ Space$ Spc String$ Hex$ Oct$ Replace StrReverse StrComp` (with or
+  without `$`). `Mid$(s, start[, len]) = text` replaces in place. `LSet s = x` / `RSet s = x`
+  put x left / right in s's length, padded with spaces.
+- `Format$(n, "pattern")` - the pattern must be a constant: text before the first `0` / `#`
+  and after the last is kept, the `0`s give the least digits, a `,` gives groups of 3,
+  `.00` is printed as is (whole numbers only). `Format$(42, "0000")` = "0042",
+  `Format$(1234567, "#,##0")` = "1,234,567".
+- `Join(a [, sep])` (a String array). `a = Split(text [, sep])` fills a dynamic String array
+  (`Dim a() As String`): at most 16 parts, or more if a `ReDim` of it is bigger (no heap).
+- `IIf(cond, a, b)`, `Choose(n, a, b, ...)` - numbers, Longs or strings (both values are
+  worked out first, as in VB; Choose out of range gives 0 / "").
+- Arrays: `LBound(a [, dim])`, `UBound(a [, dim])`.
+- Numbers: `Abs Sgn Int Fix CInt CLng CBool CByte`, `Sqr` (whole number square root),
+  `Rnd(n)` = 0 .. n-1, `Peek Deek`, `Inp(port)`,
+  `Inkey` (key code or 0), `Inkey$` (key as text or ""), `Ticks` (interrupt count, normal
+  mode). `Val` / `CLng` of text into a Long reads 32 bit decimal.
+
+### Statements (NTC / CPC)
+
+`Print a; b, c` (also `?` and `Debug.Print`), `Input ["prompt";] v`, `Cls`, `Locate x, y`,
+`Mode n`, `Frame`, `Poke a, v`, `Doke a, v`, `Randomize [n]`, `Call address` (machine code
+run as a keyword: SP is the thread, end with `ret` in turbo, `jp ntc_xn` in normal),
+`Break [name]`, `Turbo On`, `Turbo Off`, `Option Turbo`, `Out port, value` (16 bit port,
+`out (c), a`), `Interrupt MySub` / `Interrupt Off`.
+
+`Tab(n)` and `Spc(n)` in Print.
+
+Differences: `Print` does not add spaces around numbers, `,` prints one space - unless
+`Option VBPrint`: then a number printed on its own gets VB's spaces (`" 5 "`, `"-3 "`) and a
+comma moves to the next 14 column zone (numbers inside `&` stay plain).
+
+**Interrupt hook.** `Interrupt MySub` (a Sub with no parameters) runs MySub after
+interrupts: the interrupt handler only marks it pending, the next safe point calls it
+(the same window `ntc_xn` opens), and its return lets it run again. Normal mode only -
+turbo has no interrupts. `Interrupt Off` stops it. Cls and scroll also let interrupts in
+while they run in normal mode.
+
+**Console classes.** `StdIO` (PutStr, PutChar, PutInt, NewLine, Tab, GetLine, GetChar,
+GetKey, Cls, Locate, Mode, Cols, Column, Row, and the constants CanPosition, CanClear,
+CanInput, CanPoll, CanColour, Glyphs, Rows) and `System` (Platform, CpuClock,
+TicksPerSecond, FrameRate, HasInterrupts, HasHook, HasScreen, HasKeyboard, MaxHandles,
+Ticks) come with each platform; a project's own `StdIO.cls` takes over the console
+statements. `Option Terminal VT52 | ANSI` for CP/M. Details in `userguide.md` section 17.
+
+**Warnings.** Not errors - the program still builds. Now: a Function called as a statement
+("the result of F is not used") - with no error handling, an unchecked status is worth
+seeing. The GUI shows warnings in yellow under the errors.
+
+### Inline assembly
+
+```
+Function AddAsm(ByVal a As Integer, ByVal b As Integer) As Integer
+  #asm
+            ld hl, ({a})
+            ld de, ({b})
+            add hl, de
+            ld ({result}), hl
+  #endasm
+End Function
 ```
 
-**Threading mechanism IS the execution model** - no separate fetch/decode cycle needed.
+**Asm keyword procedures.** A Sub or Function whose whole body is one `#asm` block, and
+which does not use `{param}` or `{result}`, is not a procedure at all: it becomes a keyword.
+The call is `dw fn_name, arg address, ... [, result address]` - no call stub, no body thread,
+no saved return point. The block pops its own arguments and ends with `ret` (added for you):
 
-### 4.2 GOTO: Optimized and Explicit Forms
-
-NTC provides two forms of unconditional jumps:
-
-#### Direct Threading (1 word) - OPTIMIZED
-```asm
-line5:  dw loop_start    ; Just the destination address
+```
+Function Add3(ByVal x As Integer) As Integer
+  #asm
+            pop hl          ; address of x
+            ld e, (hl)
+            inc hl
+            ld d, (hl)
+            inc de
+            inc de
+            inc de
+            pop hl          ; address of the result
+            ld (hl), e
+            inc hl
+            ld (hl), d
+  #endasm
+End Function
 ```
 
-The threading RET pops `loop_start` directly into PC, jumping immediately with **zero keyword overhead**. This is the fastest form and should be used whenever possible.
+`Print Add3(10)` -> `dw fn_add3, lit_10, var_add3_add3` / `dw kw_printint, var_add3_add3`;
+`a = Add3(5)` -> `dw fn_add3, lit_5, var_a` (straight into a, unless a is also an argument).
+About 90 T against about 205 T through the stubs.
 
-#### Explicit Keyword (2 words)
-```asm
-line5:  dw kw_goto, loop_start
-```
+- Every argument is an address, in order: a number's value (literals come from the
+  read only pool, an expression goes into a temp first), a String's first char (0
+  terminated), a Long's 4 bytes (low word first), an array's descriptor, one address per
+  field of a Type. ByVal and ByRef look the same; ByRef means you may write through it (a
+  literal or expression passed ByRef goes through a temp first).
+- A Function gets the result address last (Integer 2 bytes, Long 4, String a buffer).
+  A Sub gets none.
+- Pop exactly what the call passes; don't move SP otherwise. Same rules as a library keyword.
+- `{Const}`, `{globalvar}` and `{label}` still work in the block.
+- One copy serves both modes; in normal mode it counts as a straight keyword for the safe
+  point (`kw_irq` every 32).
+- These stay ordinary procedures (with stubs): a body that also has BASIC lines, a block
+  that uses `{param}` / `{result}`, a block with `ld sp,`, a procedure used with `AddressOf`
+  or `Interrupt`, Property procedures.
 
-**Implementation:**
-```asm
-kw_goto:
-    ret             ; Continue threading from new location
-```
+**Asm blocks in BASIC code.**
 
-The explicit form is useful for documentation clarity but adds overhead. Compilers should optimize to the 1-word form when generating unconditional jumps.
-
-#### Conditional GOTOs (Always 2 words)
-```asm
-line5:  dw kw_goto_iftrue, destination
-```
-
-Conditional jumps **require** the keyword to test flags:
-
-```asm
-kw_goto_iftrue:
-    pop hl          ; HL = destination
-    ret z           ; If condition false (Z set), continue threading normally
-    ld sp, hl       ; If condition true, redirect SP
-    ret             ; Continue threading from new location
-```
-
-Similarly: `kw_goto_iffalse`, which returns if NZ (non-zero/true condition).
-
-### 4.3 Subroutine Control (GOSUB / RETURN)
-
-For high-level subroutines, NTC uses a **software stack** (separate from the hardware stack, which is being used as the instruction pointer) to handle nested GOSUB calls.
-
-#### GOSUB: Two Forms
-
-**Standard Form (2 words):**
-```asm
-line10: dw kw_gosub, fn_subroutine
-line11: dw kw_print, msg_continue    ; Implicit return address
-```
-
-After popping the subroutine address, SP points to `line11`. This address is saved to the software stack, then SP is redirected to the subroutine.
-
-**Explicit Continuation Form (3 words):**
-```asm
-line10: dw kw_gosub, fn_subroutine, main_loop
-line11: dw kw_print, msg_never_executes    ; Skipped!
-
-main_loop:
-        dw kw_print, msg_continue    ; RETURN goes here
-```
-
-This form allows **explicit continuation passing** - the subroutine returns to a specified location rather than the next instruction. This enables state machines and dispatch patterns without requiring GOTOs.
-
-**GOSUB Implementation:**
-```asm
-kw_gosub:
-    pop bc              ; BC = subroutine address
-    ld hl, 0
-    add hl, sp          ; HL = return address
-    
-    ld (iy+0), l        ; Push return address onto software stack
-    ld (iy-1), h
-    dec iy
-    dec iy              ; IY moves down
-    
-    ld sp, bc           ; Jump to subroutine
-    ret
-```
-
-**RETURN Implementation:**
-```asm
-kw_return:
-    inc iy              ; Pop from software stack
-    inc iy
-    ld l, (iy-1)
-    ld h, (iy+0)
-    
-    ld sp, hl           ; Restore return address
-    ret              	; Continue threading at return address
-```
-
-**Software Stack Structure:**
-```asm
-ssp:  dw sss           ; Software stack pointer (grows downward)
-ssb:  dw 128           ; Bottom of stack (128 bytes = 64 levels of nesting)
-sss:                   ; Start (top) of software stack
-```
-
-**Key Insight**: The return address is naturally captured from SP after popping the subroutine address. For the 2-word form, it's the next instruction. For the 3-word form, it's the explicitly specified continuation point.
-
-### 4.4 The Interrupt Constraint
-
-**CRITICAL LIMITATION**: This technique of using SP as an instruction pointer introduces a fundamental constraint:
-
-**Interrupts must be disabled during NTC execution.**
-
-Why? Because:
-- An interrupt (IRQ or NMI) automatically pushes the PC onto the hardware stack at the current SP location
-- Since SP is pointing into program data (keyword addresses), not a conventional stack area, this push would **corrupt program data**
-- Upon return from interrupt, the system state would be irretrievably corrupted
-
-The startup code enforces this requirement:
-```asm
-di              ; Disable interrupts - MANDATORY
-ld sp, main
-ret
-```
-
-**System Applicability**: NTC is suitable for:
-- Embedded systems where interrupt-free operation is acceptable
-- Retro-computing applications with simple I/O models (e.g., Amstrad CPC, ZX Spectrum?)
-- Systems where interrupts can be disabled during computation-intensive phases
-- Batch processing or game logic that doesn't require real-time interrupt handling
-
-NTC is **not suitable** for:
-- Real-time systems requiring interrupt-driven I/O
-- Systems using NMIs for critical operations
-- Multi-tasking environments
+- Each `#asm ... #endasm` block becomes one inline keyword: the thread gets one word, the
+  code goes after the stubs. The compiler adds the closing `ret`; `ret` anywhere in the
+  block is an early exit.
+- `{name}` is the label of a variable, parameter, local or array (an array parameter or a
+  dynamic array gives its descriptor), the value of a Const, or a BASIC label / line number
+  (`ld sp, {skip}` / `ret` jumps there). `{result}` is the
+  function's result. Parameters are values at their labels (the call stub copied them in),
+  so `ld a, ({b})` reads b; writing a ByRef parameter is copied back on return.
+- Labels in a block are local to it (renamed `asm_<file>_<line>_<label>`).
+- Library routines a block names (e.g. `ntc_printbuf`) are linked.
+- Always reach BASIC names with `{name}`, never with the generated label (`var_x`,
+  `p_name_c`, ...). Those labels come from the BASIC and can change when it changes (a
+  clash adds `_2`, the normal mode copy adds `_n`); `{name}` is worked out again on every
+  compile, so it can't go stale. A generated label written by hand gives a warning:
+  `#asm uses the generated label var_v - write {v} so it follows the BASIC`.
+- Each asm line carries its BASIC file and line as a comment (`; main.bas 4`), so an
+  assembler error points back to the source. BASIC lines in the thread are comments too
+  (with the file name when the project has more than one file).
+- Cross reference: every compile also gives a map - each label the compiler made, what it
+  is, its BASIC name, file and line (`Save .map` in the GUI, `--map=file` in cli.js). It is
+  made fresh each time, nothing to maintain; use it to find a label in an emulator or
+  debugger.
+- Rules: SP is the thread - no `call` / `push` unless SP is first switched to the real stack
+  (`ld (ntc_ip), sp / ld sp, (ntc_csp) / ... / ld sp, (ntc_ip)`); no registers are kept
+  between keywords; interrupts are off. A block that moves SP (`ld sp,`) is a branch: its
+  normal mode copy ends with `jp ntc_xn`.
 
 ---
 
-## 5. The Scalability Advantage: Compiler Integration
+## 6. Test tools (`test/`)
 
-The true power of NTC is unlocked when used as a compiler target. A BASIC-to-Z80 compiler can translate high-level code directly into efficient NTC format.
+Scratch tools for testing the compiler. They are not part of the compiler or the GUI, which
+need nothing but a browser. All paths are relative to the `test/` folder, so it works
+wherever the project is.
 
-### 5.1 Expression Evaluation
+### What to install
 
-The compiler transforms complex expressions into linear keyword sequences using temporary variables and postfix evaluation:
+- **node** - for `cli.js` and `gen.js`. Run `npm install` in `test/` once (acorn, for the ES5
+  check in `regress.sh`).
+- **python3** with the `z80` module (`pip install z80`) - the Z80 core used by `cpcrun.py` and
+  `ntcrun.py`.
+- **sjasmplus** - on the PATH, or give its full path in `SJASMPLUS`
+  (`SJASMPLUS=/path/to/sjasmplus python3 cpcrun.py ...`).
+- **Playwright + Chromium** (`pip install playwright`, `playwright install chromium`) - only
+  for the GUI tests.
 
-**Example BASIC**: 
-```basic
-counter = 3 + a * 2
+On Windows run them from a bash (Git Bash / WSL) for `regress.sh`; the others run anywhere.
+
+### cli.js - compile from the command line
+
+```
+node cli.js main.bas                         one file -> .asm on stdout
+node cli.js Main.bas Module2.bas Counter.cls  a project (files in order)
+node cli.js main.bas --turbo                 start in turbo mode (like Option Turbo)
+node cli.js main.bas --platform=cpm          cpc (default), cpcfw, cpm, test
+node cli.js main.bas --amsdos=PROG           also write PROG.BIN with an AMSDOS header when
+                                             sjasmplus assembles it (DEVICE + SAVEAMSDOS)
+node cli.js main.bas --nocomments            no BASIC source lines as comments
+node cli.js main.bas --map=main.map           also write the cross reference
+node cli.js main.bas > main.asm 2> errors.txt
 ```
 
-**Compiled NTC** (conceptual - requires arithmetic keywords):
-```asm
-dw kw_mul16, var_a, 2, var_tmp_0      ; tmp_0 = a * 2
-dw kw_add16, 3, var_tmp_0, var_tmp_1  ; tmp_1 = 3 + tmp_0
-dw kw_let16, var_counter, var_tmp_1   ; counter = tmp_1
+Errors go to stderr as `ERR file:line: message`. Note: a single file is compiled as text
+with no name (module `main`), so a clash between a module name and a procedure name only
+shows with real file names (the GUI, or more than one file).
+
+### cpcrun.py - compile, assemble and run on an emulated CPC
+
+```
+python3 cpcrun.py prog.bas
+python3 cpcrun.py prog.bas 'Bob\n7\n'                typed keys (\n = Return, \x7f = DEL)
+python3 cpcrun.py Main.bas '' Module2.bas --turbo    more files and options go to cli.js
 ```
 
-### 5.2 Control Flow Translation
+It runs `cli.js`, writes `prog.asm` next to `prog.bas` (so copy programs into `test/t/`
+first rather than running them in `bas/`), assembles to `prog.bin` / `prog.sym` with sjasmplus
+(raw binary at the program's org: #0040 on the CPC), then runs it:
 
-**BASIC WHILE Loop:**
-```basic
-WHILE counter < 3
-    PRINT "Looping"
-    counter = counter + 1
-WEND
+- RAM only, no firmware or ROMs. #38 holds `ei / ret` (as a stand in for the firmware's
+  handler) until NTC puts its own there in normal mode
+- an interrupt every 13333 T (the CPC's 300 Hz interrupt, 6 per frame), held until the Z80
+  takes it
+- keyboard matrix through the PPI / PSG ports; the typed keys are pressed one at a time
+  as the program scans
+- the program ends at `End` (NTC returns to a `halt` the harness put at #BFF0); stops with
+  TIMEOUT after about 400 M T
+- prints the screen as text (reads the screen at #C000 and matches each 8x8 cell against
+  the font, any mode), then a status line: halted or not, SP, interrupts taken, T states
+  run, gate array writes (screen mode / ROM settings)
+
+### ntcrun.py - run on any platform
+
+```
+python3 ntcrun.py prog.bas 'Bob\n' --platform=test
+python3 ntcrun.py prog.bas '' --platform=cpm --turbo
+python3 ntcrun.py Main.bas '' StdIO.cls --platform=cpcfw
 ```
 
-**Compiled NTC:**
-```asm
-dw kw_let16, var_tmp_0, 3       ; tmp_0 = 3 (hoist constant)
-while_loop_0:
-    dw kw_comparelt16, var_counter, var_tmp_0, var_tmp_1  ; tmp_1 = (counter < tmp_0)
-    dw kw_goto_iffalse, while_end_0, var_tmp_1            ; exit if false
-    dw kw_printstrlit
-    db "Looping", 0
-    dw kw_inc16, var_counter                              ; counter++
-    dw while_loop_0                                       ; Direct threading (optimized)
-while_end_0:
+The same arguments as `cpcrun.py` plus `--platform=`. `cpc` runs `cpcrun.py`'s CPC. The
+others run on a plain Z80 with 64K RAM and a text screen kept by the harness, printed the
+same way as `cpcrun.py` prints the CPC screen (so the same `ref/` files fit):
+
+- `test`: the port console of `ntc_plat_test.asm` (40 x 25)
+- `cpcfw`: the firmware jumpblock entries the platform uses (`TXT OUTPUT`, `TXT SET CURSOR`,
+  `TXT CLEAR WINDOW`, `SCR SET MODE`, `KM WAIT CHAR`, `KM READ CHAR`, `MC WAIT FLYBACK`,
+  `KL TIME PLEASE`) are small stubs that hand over to the harness
+- `cpm`: program at #0100, BDOS (`call 5`) trapped (functions 2, 6, 9, 11), the warm boot
+  at #0000 ends the run, 80 x 24; VT52 and ANSI clear / cursor codes are understood
+
+These are much faster than the CPC emulation (no screen to read back from video RAM).
+
+### regress.sh - the regression run
+
+```
+bash regress.sh
+SJASMPLUS=/path/to/sjasmplus bash regress.sh
 ```
 
-Note the optimized unconditional jump using direct threading (1 word) instead of `dw kw_goto, while_loop_0` (2 words).
+Runs every test program in both modes (turbo and normal) and checks the result line:
+`vb_test` (64 checks), `ntc_test` (36), `vb_test2` (30, 2 files), `vb_test3` (11),
+`vb_test_long` (58), `vb_test4` (16), `vb_test5` (18, 2 files), `vb_test6` (18),
+`vb_test7` (16), `vb_test8` (5), `vb_test9` (34), `vb_test10` (33, 2 files), `vb_test11` (17), `vb_test12` (33), the class project, sieve, shell sort
+(turbo and normal), the guide, and the output tests (`for gs gs2 scr0 scr2 diag1 diag2
+vbprint cmptext tiny wrap`, plus `hook` in normal mode only) compared with the expected output in `ref/`.
+Then the same programs on the `test`, `cpcfw` and `cpm` platforms in both modes (CP/M skips
+`scr0` / `scr2`: a stream has no Locate), the platform classes on every platform (`stdio.bas`
+against `ref/stdio.<platform>.txt`), CP/M `Option Terminal` (`term_vt52.bas`,
+`term_ansi.bas`) and a project with its own StdIO (`via/`, `ref/via.txt`).
+Then checks every JS file parses as ES5. Ends
+with `ALL PASS` or `SOME FAILED` (with the last lines of each failure). Work files go in
+`test/t/`.
 
-### 5.3 Supported Language Features
+To add a test: put the program in `bas/`, then add a `cp ... ; o=$(...); check "name" "pattern" "$o"`
+line in `regress.sh` with a pattern from its last output line.
 
-The compiler currently supports:
-- **Flow Control**: IF/THEN/ELSE, WHILE/WEND, GOSUB/RETURN, GOTO, END
-- **I/O**: CLS, INPUT, PRINT (literals and variables)
-- **Logic**: Variable assignment, comparisons
-- **Automatic Features**: Temporary variable generation, label management
+### gen.js - rebuild the generated JS
 
-### 5.4 Critical Implementation Gap
+```
+node gen.js
+```
 
-**Note**: The current compiler generates keywords that are not yet fully implemented in the keyword library. The following keywords are required but missing:
+Run it after changing `asm/`, `lib/` or anything in `bas/`. It writes `js/ntc_lib.js` (the
+library text, every platform file and the platform classes) and `js/ntc_examples.js`
+(the Example list in the GUI, from the list at the top of `gen.js` - add new examples
+there).
 
-**High Priority (Code Won't Run Without These):**
-- `kw_printstrlit` - Print inline string literals
-- `kw_printstrvar` - Print string variables
-- `kw_printzoscii` - Print inline zoscii
-- `kw_inputstr` - Read string input
-- `kw_comparelt16` - Less-than comparison
-- `kw_eq16` - Equality comparison
-- `kw_goto_iffalse` - Conditional jump on false
+### genbuild.js - the test builds in build/
 
-**Additional Required Keywords:**
-- `kw_add16`, `kw_sub16`, `kw_mul16`, `kw_div16` - Arithmetic operations
-- `kw_comparele16`, `kw_comparegt16`, `kw_comparege16` - Additional comparisons
-- `kw_neq16` - Inequality comparison
-- `kw_and16`, `kw_or16` - Logical operations
-- `kw_incintvar`, `kw_decintvar` - Optimized increment/decrement
+```
+node genbuild.js
+```
 
-These keywords must be implemented before the compiler output can be assembled and executed.
+Compiles every program in `bas/` (the list at the top of the file) for every platform into
+`build/<platform>/NAME.ASM` (8 character names, CRLF line ends). CPC files get the
+`amsdos` option, so sjasmplus writes an AMSDOS `NAME.BIN` straight away. `build/build.bat`
+then assembles them all on Windows. `regress.sh` runs `genbuild.js` and checks every file
+assembles the way `build.bat` does it.
+
+### guitest*.py - GUI tests (Playwright, headless Chromium)
+
+```
+python3 guitest5.py
+```
+
+- `guitest6.py` - every example on every platform (no errors), and the org follows the
+  platform
+- `guitest5.py` - opens `ntc.html`, compiles every example, prints errors / stats / compile
+  time per example and any browser console errors (should be none)
+- `guitest4.py` - opens the test project in `vbp/` (a .vbp with Main.bas, Counter.cls, a
+  form and a missing file) and the Long example
+- `guitest.py` .. `guitest3.py` - earlier checks: file list, procedure list click to jump,
+  2 file example. Some save a screenshot (`gui*.png`) in `test/`
+
+### Usual cycle
+
+1. change `asm/` or `bas/` -> `node gen.js` (and `node genbuild.js` for `build/`; regress.sh
+   does that one too)
+2. try one program: `cp ../bas/prog.bas t/ && python3 cpcrun.py t/prog.bas`
+3. before handing over: `bash regress.sh` (ALL PASS) and `python3 guitest5.py` (no errors)
 
 ---
 
-## 6. Critical Implementation Details
+## 7. Open decisions
 
-### 6.1 Inline String Alignment
-
-When implementing `kw_printstrlit`, a critical issue arises: **string data alignment**.
-
-```asm
-line1:  dw kw_printstrlit
-        db "Hello", 0     ; 6 bytes (even - OK)
-line2:  dw kw_print, msg  ; Correctly aligned
-
-line3:  dw kw_printstrlit
-        db "Hi", 0        ; 3 bytes (odd - PROBLEM!)
-line4:  dw kw_print, msg  ; MISALIGNED!
-```
-
-After printing "Hi\0" (3 bytes), SP points to an odd address. The next `ret` will pop a misaligned 16-bit value, causing a crash.
-
-**Solution:** `kw_printstrlit` must pad to even boundaries:
-
-```asm
-kw_printstrlit:
-    ld hl, 0
-    add hl, sp          ; HL = start of string
-    
-kw_printstrlit_loop:
-    ld a, (hl)
-    or a
-    jr z, kw_printstrlit_done
-    ; TODO: output character
-    inc hl
-    jr kw_printstrlit_loop
-    
-kw_printstrlit_done:
-    inc hl              ; Move past null terminator
-    
-    ; CRITICAL: Align to even boundary
-    ld a, l
-    and 1               ; Check if odd
-    jr z, kw_printstrlit_aligned
-    inc hl              ; Pad to even address
-    
-kw_printstrlit_aligned:
-    ld sp, hl           ; SP now points to next keyword
-    ret                 ; Continue threading
-```
-
-This ensures all subsequent keyword addresses remain properly aligned.
-
-### 6.2 Inline ZOSCII Strings
-
-ZOSCII (Cyborg ZOSCII) is a word-based character encoding that stores strings as **arrays of glyph pointers** rather than ASCII byte sequences. This architectural choice makes ZOSCII ideal for NTC.
-
-**ZOSCII String Format:**
-```asm
-line1:  dw kw_printzoscii
-        dw glyph_H, glyph_e, glyph_l, glyph_l, glyph_o, 0
-line2:  dw kw_cls           ; Always aligned - no special handling needed
-
-line3:  dw kw_printzoscii
-        dw glyph_H, glyph_i, 0      ; 3 words - still aligned!
-line4:  dw kw_print, msg             ; Always aligned
-```
-
-**Key Advantage:** Since ZOSCII strings consist entirely of 16-bit words, they are **naturally aligned** with NTC's word-based threading architecture. Unlike ASCII strings, there is no alignment problem to solve.
-
-**Implementation:**
-```asm
-kw_printzoscii:
-    ; SP already points at first glyph pointer
-    
-kw_printzoscii_loop:
-    pop hl              ; HL = glyph address (or 0 for terminator)
-    ld a, l
-    or h
-    ret z               ; If 0, done - continue threading
-    
-    ld a, (hl)          ; Fetch glyph data
-    call char_out       ; Output character
-    jr kw_printzoscii_loop
-```
-
-**Performance:** ZOSCII eliminates ASCII lookup overhead and processes at approximately **61 T-states per character** (compared to ~104 T-states for ASCII), making it **41% faster** for text output while maintaining perfect alignment with NTC's architecture.
-
-**Trade-off:** ZOSCII requires 2× storage space compared to ASCII (2 bytes per character vs 1 byte), but the speed advantage and natural alignment make it the optimal choice for NTC systems where performance is prioritized over memory density.
-
-### 6.3 Variable Parameter Handling
-
-Different keywords take different numbers of parameters:
-- `kw_cls` — 0 parameters
-- `kw_inc16 <var>` — 1 parameter
-- `kw_let16 <var>, <value>` — 2 parameters
-- `kw_add16 <var1>, <var2>, <result>` — 3 parameters
-
-Each keyword has **hardcoded knowledge** of its parameter count. The keyword simply pops the required number of words from SP (via threading RETs or explicit POP instructions), processes them, and continues threading.
-
-Example:
-```asm
-kw_let16:
-    pop hl          ; HL = variable address
-    pop de          ; DE = value to assign
-    ld (hl), e      ; Store low byte
-    inc hl
-    ld (hl), d      ; Store high byte
-    ret             ; Continue threading
-```
-
-### 6.4 Comparison and Flag Handling
-
-Comparison keywords must set appropriate flags for conditional jumps. However, this is complex because:
-
-1. The Z80 doesn't have a simple "less than" flag
-2. Comparisons need to work with both signed and unsigned values
-3. The result must be testable by subsequent conditional keywords
-
-**Recommended approach:** Comparison keywords store result in a temporary variable:
-
-```asm
-kw_comparelt16:
-    pop hl              ; HL = address of var1
-    ld e, (hl)
-    inc hl
-    ld d, (hl)          ; DE = var1 value
-    
-    pop hl              ; HL = address of var2
-    ld a, (hl)
-    inc hl
-    ld h, (hl)
-    ld l, a             ; HL = var2 value
-    
-    pop bc              ; BC = result variable address
-    
-    ; Compare: is DE < HL?
-    or a                ; Clear carry
-    push hl
-    ld hl, 0
-    sbc hl, de
-    add hl, de
-    pop hl
-    sbc hl, de          ; HL = var2 - var1
-    
-    ld de, 0            ; Assume false
-    jr nc, kw_comparelt16_done
-    ld de, 1            ; Set true
-    
-kw_comparelt16_done:
-    ld (bc), e          ; Store result (0 or 1)
-    inc bc
-    ld (bc), d
-    
-    ld a, e             ; Set flags for result
-    or d                ; Z if false, NZ if true
-    ret
-```
-
-Then `kw_goto_iffalse` tests the result variable:
-```asm
-kw_goto_iffalse:
-    pop hl              ; HL = destination
-    pop de              ; DE = condition variable address
-    ex de, hl           ; HL = condition addr, DE = destination
-    
-    ld a, (hl)          ; Test condition value
-    inc hl
-    or (hl)
-    
-    ex de, hl           ; HL = destination
-    ret nz              ; If true (NZ), continue threading
-    ld sp, hl           ; If false (Z), jump
-    ret
-```
-
----
-
-## 7. Conclusion: A New Paradigm
-
-Native Threaded Code (NTC) offers a fundamental shift in how high-level languages can be implemented on constrained 8-bit processors. By challenging the convention of CALL/RET control flow and utilizing **the hardware stack pointer as an instruction pointer**, NTC surgically removes performance overhead, leading to substantial speedup over conventional methods.
-
-### Key Advantages:
-✓ **Native speed**: 2-3× faster than conventional CALL/RET patterns  
-✓ **Compiler-friendly**: Direct HLL-to-NTC translation  
-✓ **Maintainable**: Self-documenting code structure  
-✓ **Minimal overhead**: Direct threading eliminates fetch/decode cycles  
-✓ **Optimization opportunities**: 1-word direct jumps, constant folding
-
-### Key Constraints:
-✗ **Interrupts must be disabled**: SP repurposing incompatible with interrupt handling  
-✗ **Not suitable for real-time systems**: Limited to interrupt-free applications  
-✗ **Requires complete keyword library**: Missing keywords prevent execution
-
-### Future Work:
-- Complete implementation of all required keywords
-- Expression evaluator improvements (operator precedence, constant folding)
-- Compiler optimization (1-word jumps, dead code elimination)
-- Error handling (stack overflow, divide by zero)
-- Debugging tools adapted to SP-as-IP model
-
-NTC provides a new architectural paradigm: **Native speed for the application developer, delivered automatically by the compiler**. This approach proves that limitations previously attributed to the Z80 architecture were, in fact, limitations of programming conventions. By combining native performance with high code readability and maintainability, NTC represents a vital, sustainable strategy for high-performance development on embedded and retro systems where interrupt-free operation is acceptable.
-
----
-
-## Appendix: Technical Reference
-
-### Keyword Prefix Conventions
-- `fn_` = subroutine called via kw_gosub, returned via kw_return
-- `kw_` = keyword statement, ends in `ret`
-
-### Currently Implemented Keywords
-
-**Flow Control:**
-- `kw_gosub, <label>` — Call subroutine (2-word form)
-- `kw_gosub, <label>, <return_addr>` — Call with explicit continuation (3-word form)
-- `kw_gosub_iftrue, <label>` — Conditional GOSUB (if NZ/true)
-- `kw_gosub_iffalse, <label>` — Conditional GOSUB (if Z/false)
-- `kw_goto, <label>` — Jump to label (explicit, 2-word form)
-- `dw <label>` — Direct jump (optimized, 1-word form)
-- `kw_goto_iftrue, <label>` — Conditional jump (if NZ/true)
-- `kw_goto_iffalse, <label>` — Conditional jump (if Z/false)
-- `kw_return` — Return from subroutine
-- `kw_return_iftrue` — Conditional return (if NZ/true)
-- `kw_return_iffalse` — Conditional return (if Z/false)
-- `kw_stop` — Halt execution
-
-**Logic:**
-- `kw_let8, <var>, <value>` — Assign 8-bit value
-- `kw_let16, <var>, <value>` — Assign 16-bit value
-- `kw_inc8, <var>` — Increment 8-bit variable
-- `kw_inc16, <var>` — Increment 16-bit variable
-- `kw_dec8, <var>` — Decrement 8-bit variable
-- `kw_dec16, <var>` — Decrement 16-bit variable
-- `kw_iszero8, <var>` — Test if 8-bit variable is zero (sets Z flag)
-- `kw_iszero16, <var>` — Test if 16-bit variable is zero (sets Z flag)
-
-**I/O:**
-- `kw_cls` — Clear screen (Amstrad CPC specific)
-- `kw_locate, <x>, <y>` — Set cursor position
-- `kw_mode, <n>` — Set video mode (stub)
-- `kw_print, <stringaddr>` — Print null-terminated string at address
-
-### Keywords Required by Compiler (Not Yet Implemented)
-
-**High Priority:**
-- `kw_printstrlit` — Print inline string literal (with alignment)
-- `kw_printstrvar, <var>` — Print string variable
-- `kw_printzoscii, <var>` — Print zoscii
-- `kw_inputstr, <var>` — Read string input
-- `kw_comparelt16, <var1>, <var2>, <result>` — Less-than comparison
-- `kw_eq16, <var1>, <var2>, <result>` — Equality comparison
-
-**Arithmetic:**
-- `kw_add16, <var1>, <var2>, <result>` — 16-bit addition
-- `kw_sub16, <var1>, <var2>, <result>` — 16-bit subtraction
-- `kw_mul16, <var1>, <var2>, <result>` — 16-bit multiplication
-- `kw_div16, <var1>, <var2>, <result>` — 16-bit division
-
-**Additional Comparisons:**
-- `kw_comparele16, <var1>, <var2>, <result>` — Less-than-or-equal
-- `kw_comparegt16, <var1>, <var2>, <result>` — Greater-than
-- `kw_comparege16, <var1>, <var2>, <result>` — Greater-than-or-equal
-- `kw_neq16, <var1>, <var2>, <result>` — Inequality
-
-**Logical:**
-- `kw_and16, <var1>, <var2>, <result>` — Logical AND
-- `kw_or16, <var1>, <var2>, <result>` — Logical OR
-
-**Optimized:**
-- `kw_incintvar, <var>` — Increment integer variable (alias for kw_inc16)
-- `kw_decintvar, <var>` — Decrement integer variable (alias for kw_dec16)
-
-### Memory Map (Typical)
-
-```
-#0100   Program entry point (di; ld sp, main; ret)
-#0110   Thread starts here (main:)
-        - Sequential dw keyword_address entries
-        - Inline data (strings with null terminators)
-        - Variable declarations at end
-
-High Memory:
-        Software stack (sss)
-        - 128 bytes allocated
-        - Grows downward
-        - Stores GOSUB return addresses
-```
-
-### T-State Reference
-
-| Operation | T-States | Notes |
-|-----------|----------|-------|
-| Threading RET | 10 | Pop address, jump to keyword |
-| Keyword RET | 10 | Continue threading |
-| POP HL | 10 | Load parameter |
-| LD SP, HL | 6 | Redirect thread |
-| CALL addr | 17 | Conventional (for comparison) |
-| Total per keyword | ~20-40 | Depends on keyword complexity |
-
-### Relationship to Other Threading Models
-
-NTC is most similar to **Direct Threaded Code (DTC)** from Forth implementations:
-- Each thread entry contains the **address** of the routine to execute
-- No fetch/decode cycle - addresses are directly executable
-- Minimal overhead compared to Indirect Threading (ITC) or Token Threading
-
-**Comparison:**
-- **Token Threading**: Fetch token → decode → jump (slower)
-- **Indirect Threading**: Fetch pointer → dereference → jump (slower)
-- **Direct Threading (NTC)**: Fetch address → jump (fastest)
-- **Subroutine Threading**: Embedded CALLs (most code bloat)
-
-NTC achieves the efficiency of direct threading while maintaining the abstraction and tooling benefits of compiled high-level code.
+- Decided 2026-10-11: classes keep one set of members. Several instances are the class's
+  own job, Amiga library style: `h = Serial.Open(...)` returns a handle, every method takes
+  it, the class keeps per instance state in its own arrays. Private members can't be used
+  from outside the class.
+- Open: keep `Dim c As Counter` (it only names the one set of members) or make it an error.
+- `Option ClassSize <kilobytes>` for banking (planned, not enforced).
