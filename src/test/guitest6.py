@@ -12,7 +12,7 @@ async def main():
         await pg.goto('file://' + os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'ntc.html')))
         await pg.wait_for_timeout(500)
         opts = [o for o in await pg.locator('#ge-example option').all_inner_texts() if o.strip() and not o.startswith('-')]
-        for plat in ('cpc', 'cpcfw', 'cpm', 'test'):
+        for plat in ('cpc', 'cpcmin', 'cpcfw', 'cpm', 'test'):
             await pg.select_option('#ge-platform', plat)
             bad = []
             for o in opts:

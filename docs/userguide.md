@@ -1989,6 +1989,55 @@ range covers #C000).
 
 **VB:** not in VB.
 
+### Option RomEnable
+
+`Option RomEnable All` / `Option RomEnable` *rom* [`,` *rom*] ...
+
+CPC firmware platforms (`cpcfw`, `cpcmin`) only. `RUN"NAME` of a binary resets the firmware, and the
+background ROMs - AMSDOS (ROM 7) and any others - are dropped. With this option the program
+starts them again before anything else: `All` starts every background ROM (KL ROM WALK), a
+list starts those ROM numbers (KL INIT BACK). The ROMs take their RAM from `#ABFF` down, so
+the program must end below `#A600` (checked when assembling). If the ROMs are still running
+(the program was loaded from BASIC and CALLed), nothing is started again.
+
+Without the option nothing is started: a program started with `RUN"` has no AMSDOS (files
+go to tape); one CALLed from BASIC keeps whatever was running.
+
+```
+Option RomEnable 7          ' AMSDOS: FileSystem.Load / Save go to disc after RUN"
+```
+
+On other platforms it gives a warning and does nothing.
+
+**VB:** not in VB.
+
+### Option Stack
+
+`Option Stack` *address*
+
+Where the program's stack starts: it grows down from *address*. Without it the program keeps
+the stack it was started with (the firmware's, below `#C000`, on the CPC; its own on CP/M).
+Use it to free memory for the program - on the `cpc` platform, with no firmware, everything
+from `#0040` up to the stack is the program's - or to put the stack in a reserved area:
+
+```
+Option Reserve &H3F00, &H100       ' #3F00-#3FFF: the stack, nothing else goes there
+Option Stack &H4000                ' grows down from #3FFF
+```
+
+NTC itself needs only a little stack (the start code, the interrupt handler, firmware and
+BDOS calls). `End` still returns to whatever started the program: the caller's stack is
+kept and switched back to. The address must be below the program's start or at least 64
+bytes above its end (checked when assembling). On `cpcfw` a stack in `#A600-#BFFF` (the
+firmware's and AMSDOS's RAM) gives a warning.
+
+**The order of options.** All `Option` lines are read first, wherever they are, and the
+program then starts in a fixed order: `Option Stack` (the stack is set), `Option
+RomEnable` (the ROMs are started, using that stack), then the program. `Option Reserve` is
+a check made when assembling.
+
+**VB:** not in VB.
+
 ### Option ClassSize
 
 `Option ClassSize` *kilobytes*
@@ -2044,13 +2093,23 @@ are 0 and the `#Else` part is used.
 
 | Platform | Name | Program | Text | Console |
 |---|---|---|---|---|
-| Amstrad CPC, hardware | `cpc` | a binary at `#0040` (`RUN"name` from AMSDOS), ROMs off, own interrupt handler | drawn by the program, with the CPC's own font (copied from the ROM at start) | full screen, keys from the matrix |
-| Amstrad CPC, firmware | `cpcfw` | a binary at `#0040` (`RUN"name`), firmware left running (AMSDOS, RSXs, windows) | firmware `TXT OUTPUT` | full screen, firmware keys |
+| Amstrad CPC, no firmware | `cpc` | a binary at `#0040` (`RUN"name` from AMSDOS), ROMs off, own interrupt handler; no firmware at all - every byte from `#0040` to the stack is the program's; no files | drawn by the program, with the CPC's own font (copied from the ROM at start) | full screen, keys from the matrix |
+| Amstrad CPC, minimal firmware | `cpcmin` | as `cpc` (own screen, keys, interrupts), but the firmware is kept alive (its RAM `#A700-#BFFF` left alone) and handed back for each firmware call: discs and tape (`FileSystem`), other ROMs' commands (`System.Command`) | as `cpc` | as `cpc` |
+| Amstrad CPC, full firmware | `cpcfw` | a binary at `#0040` (`RUN"name`), firmware left running (AMSDOS, RSXs, windows) | firmware `TXT OUTPUT` | full screen, firmware keys |
 | CP/M 2.2 / 3 | `cpm` | a `.COM` file at `#0100`, ends with a warm boot | BDOS direct console I/O | a stream, or 80 x 24 with [Option Terminal](#option-terminal) |
 | Test harness | `test` | for the emulator in `test/ntcrun.py` | I/O ports | 40 x 25, like CPC mode 1 |
 
 The BASIC is the same on all of them. What changes is the start-up, the console and what
-the `StdIO` and `System` classes report.
+the `StdIO`, `System` and `FileSystem` classes report.
+
+The three CPC platforms are three amounts of firmware: `cpcfw` uses it for everything (the
+easiest, and all ROMs work); `cpcmin` draws and reads the keyboard itself (faster text, NTC's
+own interrupt handler) and keeps the firmware only for discs, tape and ROM commands; `cpc`
+uses none (all the RAM, no files). On `cpcfw` and `cpcmin`, `RUN"` of a binary drops AMSDOS
+and the other ROMs: [Option RomEnable](#option-romenable) starts them again. While a
+`cpcmin` firmware call runs, the screen may show the firmware's mode, and firmware messages
+(disc missing, Retry / Cancel, Press PLAY) appear on the screen; afterwards NTC's mode,
+screen start and interrupt handler are back.
 
 On the firmware and CP/M platforms, console calls go to the system on the real stack with
 interrupts on during the call (the system scans keys on interrupts). The thread itself still
@@ -2118,6 +2177,7 @@ What the machine is. The same members on every platform; 0 / False means "not he
 | `HasKeyboard` | True | True | True | True |
 | `MaxHandles` (file handles, `FileSystem.Open`) | 0 | 0 | 2 | 0 |
 | `Ticks()` | the tick count, the same as `Ticks` | | | |
+| `Command(name)` | run a ROM's command (an RSX, `|NAME`, no arguments) - cpcfw and cpcmin only: 0, or -2 when no ROM has it; -1 elsewhere | | | |
 
 ```
 Print "running on "; System.Platform
@@ -2136,11 +2196,14 @@ hasn't got it. Yes / no capabilities are True (-1); some are numbers.
 
 | Name | Means | cpc | cpcfw | cpm | test |
 |---|---|---|---|---|---|
-| `LOAD`, `SAVE` | whole file to / from memory | - | True | True | - |
+| `LOAD`, `SAVE` | whole file to / from memory | - | True (cpcmin too) | True | - |
 | `SEQUENTIAL` | `Open`, read and write in order | - | - | True | - |
 | `RANDOMACCESS` | `Seek` anywhere, read and write | - | - | True | - |
 | `DELETE`, `RENAME`, `EXISTS`, `SIZE` | those methods | - | - | True | - |
 | `MULTIPLE` | more than one file open at once | - | - | True | - |
+| `DEVICES` | `Devices`, `SelectDevice`, `CurrentDevice` | - | True | True | - |
+| `VOLUMES` | `Volumes`, `SelectVolume`, `CurrentVolume` | - | True | True | - |
+| `CPMVERSION` | BDOS's version: `&H22` CP/M 2.2, `&H31` CP/M 3 | - | - | yes | - |
 | `MAXOPEN` | how many files can be open | 0 | 0 | 2 | 0 |
 | `RECORDSIZE` | the disc's record size | - | - | 128 | - |
 
@@ -2164,6 +2227,33 @@ The methods all return a number: 0 or more is a result (a count, a handle, a byt
 | `Seek(h, position)` | the next read or write is at that byte (a Long, 0 = the start) |
 | `Eof(h)` | True when there is nothing more to read |
 | `ReadLine(h)`, `WriteLine(h, text)` | a line of text (CR LF or LF ends it, not kept) |
+| `Devices()` | how files travel, as text: `"TAPE,DISC"` (CPC with a DOS), `"TAPE"`, `"DISC"` (CP/M) |
+| `SelectDevice(name)` | `"TAPE"` or `"DISC"`; `NotFound` if this platform hasn't got it |
+| `CurrentDevice()` | `"TAPE"` or `"DISC"` |
+| `Volumes()` | the volumes known so far, as text: `"A,B,C"` |
+| `SelectVolume(name)` | the volume for names without one: `"B"`, `"C:"`, `"M"` ...; `NotFound` if not there |
+| `CurrentVolume()` | the volume last selected (`""` = not known) |
+
+**Devices and volumes.** A device is how files travel: `TAPE` or `DISC`. A volume is a
+drive on the disc device: `A`, `B`, and whatever else the disc system offers - `C` and `M`
+on an M4, more with UniDOS, USB or CompactFlash interfaces; `A` to `P` on CP/M. Neither
+AMSDOS nor CP/M can list the volumes that exist, so `Volumes()` lists the ones this program
+knows of: what the platform knows from the start, and every volume used successfully (by
+`SelectVolume`, or by a `Load` / `Save` with `"C:NAME"` in its name) joins it. A program can
+try names in a loop to build the list:
+
+```
+For c = 65 To 90
+  r = FileSystem.SelectVolume(Chr$(c))
+Next
+Print FileSystem.Volumes()
+```
+
+On the CPC that is quick (it looks up the DOS's commands `|A` ... `|Z`, no disc access) but
+it shows the volumes the DOS offers, not that a disc is in the drive. On CP/M each try reads
+the drive (it shows the drive is there, a second or so each); on CP/M 2.2 a drive that
+isn't there stops the program with BDOS's error, so loop only when
+`FileSystem.Capability("CPMVERSION") >= &H30`.
 
 ```
 Dim hs(9) As Integer
@@ -2185,8 +2275,25 @@ r = FileSystem.Close(h)
 - **CPC firmware** (`cpcfw`): `Load` and `Save`, through the firmware's cassette calls - to
   the selected disc drive with AMSDOS, else to tape, as BASIC's `LOAD` and `SAVE` do, with
   the firmware's own messages. A saved file is a binary file: BASIC can
-  `LOAD "HISCORE.DAT", &4000` it. Uses a 2K buffer.
-- **CPC hardware** (`cpc`) and **test**: no files yet - every method returns `NotSupported`.
+  `LOAD "HISCORE.DAT", &4000` it. Uses a 2K buffer. Devices `TAPE` and `DISC` (`|TAPE`,
+  `|DISC`); volumes: any name the disc system has a command for (`|A`, `|B`, `|C` ...).
+
+  **Disc or tape?** `RUN"NAME` of a binary resets the firmware, and that drops AMSDOS: files
+  then go to tape. Two ways to keep the disc:
+  - `Option RomEnable 7` (or `All`): the program starts AMSDOS again when it starts (drive A).
+  - Build at a higher org and start it from BASIC with `CALL`, which keeps AMSDOS running:
+    `MEMORY &1FFF : LOAD "NAME" : CALL &2000` for a program built at `#2000`
+    (`CurrentVolume` is then `""`: AMSDOS's drive, whichever it is).
+
+  The program must end below `#A600` when it uses files (AMSDOS's RAM is above): checked
+  when assembling.
+- **CP/M** has one device, `DISC`; the volumes are the drives. `Volumes` gives the ones CP/M
+  has used so far and the current one; `SelectVolume "B"` makes B the drive for names
+  without a drive letter. CP/M 3 returns `NotFound` for a drive that isn't there; CP/M 2.2
+  stops with its own BDOS error.
+- **CPC minimal firmware** (`cpcmin`): the same as `cpcfw` (Load / Save, devices, volumes), each
+  call handed to the firmware for its length.
+- **CPC, no firmware** (`cpc`) and **test**: no files - every method returns `NotSupported`.
 
 See `bas/files.bas`.
 

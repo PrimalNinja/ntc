@@ -7,6 +7,7 @@ rem   build.bat                          sjasmplus.exe in this folder, or on the
 rem   build.bat C:\tools\sjasmplus.exe   or give its path (relative paths work too)
 rem
 rem   cpc\    Amstrad CPC, hardware     NAME.BIN  AMSDOS file, loads and runs at #0040
+rem   cpcmin\ Amstrad CPC, minimal fw   NAME.BIN  AMSDOS file, loads and runs at #0040
 rem   cpcfw\  Amstrad CPC, firmware     NAME.BIN  AMSDOS file, loads and runs at #0040
 rem   cpm\    CP/M 2.2 / 3              NAME.COM  at #0100
 rem   test\   test harness platform     NAME.BIN  raw, at #4000 (for test\ntcrun.py)
@@ -24,7 +25,7 @@ if exist "%~1" set SJ=%~f1
 set FAIL=0
 pushd "%~dp0"
 
-for %%P in (cpc cpcfw) do (
+for %%P in (cpc cpcmin cpcfw) do (
 	pushd %%P
 	for %%F in (*.ASM) do (
 		echo %%P\%%F

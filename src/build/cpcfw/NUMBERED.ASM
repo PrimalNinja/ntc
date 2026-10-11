@@ -8,6 +8,7 @@
 
 NTC_TERM	equ 0		; Option Terminal: 0 none, 1 VT52, 2 ANSI (CP/M)
 NTC_STRMAX	equ 40		; the longest string (library buffers, temps)
+NTC_ROMENABLE	equ 0		; Option RomEnable (cpcfw, cpcmin): the start code starts the ROMs
 
 ntc_start:
 			di
@@ -631,6 +632,16 @@ ntc_plat_exit:
 ; go to the disc (the drive that is selected), else to tape, exactly
 ; as BASIC's LOAD / SAVE do - with the firmware's own messages
 ; ("Press PLAY then any key", disc errors and Retry / Cancel).
+;
+; RUN"NAME of a binary resets the firmware (MC BOOT PROGRAM), which
+; drops the background ROMs - AMSDOS too - so the cassette calls go
+; back to tape. Loaded from BASIC and CALLed (MEMORY &1FFF : LOAD"NAME"
+; : CALL &2000, built at org #2000), AMSDOS keeps running. Option
+; RomEnable starts the ROMs again in the start code. The first file
+; call checks: CAS IN OPEN (#BC77) a far call (RST 3, #DF) = AMSDOS has
+; the cassette calls. AMSDOS's RAM is about #A700-#ABFF: the program
+; must end below #A600 (checked when assembling). Devices: AMSDOS's own
+; commands |TAPE, |DISC, |A, |B (KL FIND COMMAND, then KL FAR PCALL).
 ; ============================================================
 ; The methods are keywords: arguments into fs_a1 .. fs_a3, the
 ; result's address into fs_res, then fs_go with HL = the routine.

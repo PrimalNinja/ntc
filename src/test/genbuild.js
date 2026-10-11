@@ -17,6 +17,9 @@ var arrPrograms = [
 	{ name: 'SHELSORT', files: ['shellsort.bas'] },
 	{ name: 'SIEVETIM', files: ['sievetime.bas'] },
 	{ name: 'FILES', files: ['files.bas'] },
+	{ name: 'FILESTEP', files: ['filestep.bas'] },
+	{ name: 'FILESTPN', files: ['filestpn.bas'] },
+	{ name: 'AMSDOS', files: ['amsdos.bas'] },
 	{ name: 'NUMBERED', files: ['numbered.bas'] },
 	{ name: 'NTCTEST', files: ['ntc_test.bas'] },
 	{ name: 'VBTEST', files: ['vb_test.bas'] },
@@ -36,7 +39,7 @@ var arrPrograms = [
 	{ name: 'CONSOLE', files: ['console_classes.bas'] },
 	{ name: 'OWNSTDIO', files: ['own_stdio/Main.bas', 'own_stdio/StdIO.cls'] }
 ];
-var arrPlatforms = ['cpc', 'cpcfw', 'cpm', 'test'];
+var arrPlatforms = ['cpc', 'cpcmin', 'cpcfw', 'cpm', 'test'];
 var intErrors = 0;
 
 arrPlatforms.forEach(function(strPlat)
@@ -63,7 +66,7 @@ arrPlatforms.forEach(function(strPlat)
 		var objOpts = { platform: strPlat };
 		var objResult = null;
 
-		if ((strPlat === 'cpc') || (strPlat === 'cpcfw'))
+		if ((strPlat === 'cpc') || (strPlat === 'cpcmin') || (strPlat === 'cpcfw'))
 		{
 			objOpts.amsdos = objProg.name;		// the assembler writes NAME.BIN with an AMSDOS header
 		}

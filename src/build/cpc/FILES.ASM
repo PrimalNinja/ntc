@@ -8,6 +8,7 @@
 
 NTC_TERM	equ 0		; Option Terminal: 0 none, 1 VT52, 2 ANSI (CP/M)
 NTC_STRMAX	equ 40		; the longest string (library buffers, temps)
+NTC_ROMENABLE	equ 0		; Option RomEnable (cpcfw, cpcmin): the start code starts the ROMs
 
 ntc_start:
 			di
@@ -27,12 +28,12 @@ ntc_go:
 main_thread:
 			dw kw_scrinit		; mode 1, ROMs off, clear screen
 
-			; main.bas 9: Print "Files on "; System.Platform
+			; main.bas 19: Print "Files on "; System.Platform
 			dw kw_printzoscii
 			dw glyph_46, glyph_69, glyph_6C, glyph_65, glyph_73, glyph_20, glyph_6F, glyph_6E
 			dw glyph_20, glyph_43, glyph_50, glyph_43, 1, 0		; "Files on CPC\n"
 
-			; main.bas 10: Print "LOAD "; FileSystem.Capability("LOAD"); "  SAVE "; FileSystem.Capability("SAVE")
+			; main.bas 20: Print "LOAD "; FileSystem.Capability("LOAD"); "  SAVE "; FileSystem.Capability("SAVE")
 			dw fn_filesystem_capability, str1, var_filesystem_capability_capability
 			dw kw_printzoscii
 			dw glyph_4C, glyph_4F, glyph_41, glyph_44, glyph_20, 0		; "LOAD "
@@ -43,7 +44,7 @@ main_thread:
 			dw kw_printint, var_filesystem_capability_capability
 			dw kw_printnl
 
-			; main.bas 11: Print "SEQUENTIAL "; FileSystem.Capability("SEQUENTIAL"); "  RANDOMACCESS "; FileSystem.Capability("RANDOMACCESS")
+			; main.bas 21: Print "SEQUENTIAL "; FileSystem.Capability("SEQUENTIAL"); "  RANDOMACCESS "; FileSystem.Capability("RANDOMACCESS")
 			dw fn_filesystem_capability, str3, var_filesystem_capability_capability
 			dw kw_printzoscii
 			dw glyph_53, glyph_45, glyph_51, glyph_55, glyph_45, glyph_4E, glyph_54, glyph_49
@@ -56,7 +57,7 @@ main_thread:
 			dw kw_printint, var_filesystem_capability_capability
 			dw kw_printnl
 
-			; main.bas 12: Print "MAXOPEN "; FileSystem.Capability("MAXOPEN")
+			; main.bas 22: Print "MAXOPEN "; FileSystem.Capability("MAXOPEN")
 			dw fn_filesystem_capability, str5, var_filesystem_capability_capability
 			dw kw_printzoscii
 			dw glyph_4D, glyph_41, glyph_58, glyph_4F, glyph_50, glyph_45, glyph_4E, glyph_20
@@ -64,27 +65,59 @@ main_thread:
 			dw kw_printint, var_filesystem_capability_capability
 			dw kw_printnl
 
-			; main.bas 13: Print
+			; main.bas 23: If FileSystem.Capability("DEVICES") Then Print "Devices "; FileSystem.Devices(); " - using "; FileSystem.CurrentDevice()
+			dw fn_filesystem_capability, str6, var_filesystem_capability_capability
+			dw kw_goto_ifzero_n, var_filesystem_capability_capability, if1_1
+			dw p_filesystem_devices_c
+			dw kw_printzoscii
+			dw glyph_44, glyph_65, glyph_76, glyph_69, glyph_63, glyph_65, glyph_73, glyph_20
+			dw 0		; "Devices "
+			dw kw_printstrvar, var_filesystem_devices_devices
+			dw p_filesystem_currentdevice_c
+			dw kw_printzoscii
+			dw glyph_20, glyph_2D, glyph_20, glyph_75, glyph_73, glyph_69, glyph_6E, glyph_67
+			dw glyph_20, 0		; " - using "
+			dw kw_printstrvar, var_filesystem_currentdevice_currentdevice
+			dw kw_printnl
+if1_1:
+
+			; main.bas 24: If FileSystem.Capability("VOLUMES") Then Print "Volumes known "; FileSystem.Volumes(); " - using "; FileSystem.CurrentVolume()
+			dw fn_filesystem_capability, str7, var_filesystem_capability_capability
+			dw kw_goto_ifzero_n, var_filesystem_capability_capability, if2_1
+			dw p_filesystem_volumes_c
+			dw kw_printzoscii
+			dw glyph_56, glyph_6F, glyph_6C, glyph_75, glyph_6D, glyph_65, glyph_73, glyph_20
+			dw glyph_6B, glyph_6E, glyph_6F, glyph_77, glyph_6E, glyph_20, 0		; "Volumes known "
+			dw kw_printstrvar, var_filesystem_volumes_volumes
+			dw p_filesystem_currentvolume_c
+			dw kw_printzoscii
+			dw glyph_20, glyph_2D, glyph_20, glyph_75, glyph_73, glyph_69, glyph_6E, glyph_67
+			dw glyph_20, 0		; " - using "
+			dw kw_printstrvar, var_filesystem_currentvolume_currentvolume
+			dw kw_printnl
+if2_1:
+
+			; main.bas 25: Print
 			dw kw_printnl
 
-			; main.bas 15: If FileSystem.Capability("SAVE") Then
+			; main.bas 27: If FileSystem.Capability("SAVE") Then
 			dw fn_filesystem_capability, str2, var_filesystem_capability_capability
-			dw kw_goto_ifzero_n, var_filesystem_capability_capability, if1_1
+			dw kw_goto_ifzero_n, var_filesystem_capability_capability, if3_1
 
-			; main.bas 16: For i = 0 To 9 : hs(i) = 1000 - i * 50 : Next
+			; main.bas 28: For i = 0 To 9 : hs(i) = 1000 - i * 50 : Next
 			dw kw_ztov, var_i
-for2_t:
+for4_t:
 			dw kw_mulvl, var_i, 50, tmp2
 			dw kw_sublv, 1000, tmp2, tmp1
 			dw kw_aset, arr_hs, var_i, tmp1
-			dw kw_next1l_n, var_i, 9, for2_t
-for2_e:
+			dw kw_next1l_n, var_i, 9, for4_t
+for4_e:
 
-			; main.bas 17: r = FileSystem.Save("HISCORE.DAT", VarPtr(hs), 20)
-			dw p_filesystem_save_c, str6, vp_arr_hs, lit_20
+			; main.bas 29: r = FileSystem.Save("HISCORE.DAT", VarPtr(hs), 20)
+			dw p_filesystem_save_c, str8, vp_arr_hs, lit_20
 			dw kw_vtov, var_filesystem_save_save, var_r
 
-			; main.bas 18: Print "Save HISCORE.DAT: "; r
+			; main.bas 30: Print "Save HISCORE.DAT: "; r
 			dw kw_printzoscii
 			dw glyph_53, glyph_61, glyph_76, glyph_65, glyph_20, glyph_48, glyph_49, glyph_53
 			dw glyph_43, glyph_4F, glyph_52, glyph_45, glyph_2E, glyph_44, glyph_41, glyph_54
@@ -92,15 +125,15 @@ for2_e:
 			dw kw_printint, var_r
 			dw kw_printnl
 
-			; main.bas 19: If FileSystem.Capability("LOAD") Then
+			; main.bas 31: If FileSystem.Capability("LOAD") Then
 			dw fn_filesystem_capability, str1, var_filesystem_capability_capability
-			dw kw_goto_ifzero_n, var_filesystem_capability_capability, if1_e
+			dw kw_goto_ifzero_n, var_filesystem_capability_capability, if3_e
 
-			; main.bas 20: r = FileSystem.Load("HISCORE.DAT", VarPtr(back), 20)
-			dw p_filesystem_load_c, str6, vp_arr_back, lit_20
+			; main.bas 32: r = FileSystem.Load("HISCORE.DAT", VarPtr(back), 20)
+			dw p_filesystem_load_c, str8, vp_arr_back, lit_20
 			dw kw_vtov, var_filesystem_load_load, var_r
 
-			; main.bas 21: Print "Load: "; r; " bytes, "; back(0); " ... "; back(9)
+			; main.bas 33: Print "Load: "; r; " bytes, "; back(0); " ... "; back(9)
 			dw kw_printzoscii
 			dw glyph_4C, glyph_6F, glyph_61, glyph_64, glyph_3A, glyph_20, 0		; "Load: "
 			dw kw_printint, var_r
@@ -113,94 +146,102 @@ for2_e:
 			dw kw_printint, arr_back+18
 			dw kw_printnl
 
-			; main.bas 22: End If
+			; main.bas 34: End If
+if5_1:
+
+			; main.bas 35: Else
+			dw if3_e_go
 if3_1:
 
-			; main.bas 23: Else
-			dw if1_e_go
-if1_1:
-
-			; main.bas 24: Print "No saving on this platform"
+			; main.bas 36: Print "No saving on this platform"
 			dw kw_printzoscii
 			dw glyph_4E, glyph_6F, glyph_20, glyph_73, glyph_61, glyph_76, glyph_69, glyph_6E
 			dw glyph_67, glyph_20, glyph_6F, glyph_6E, glyph_20, glyph_74, glyph_68, glyph_69
 			dw glyph_73, glyph_20, glyph_70, glyph_6C, glyph_61, glyph_74, glyph_66, glyph_6F
 			dw glyph_72, glyph_6D, 1, 0		; "No saving on this platform\n"
 
-			; main.bas 25: End If
-if1_e:
+			; main.bas 37: End If
+if3_e:
 
-			; main.bas 27: If FileSystem.Capability("SEQUENTIAL") Then
+			; main.bas 39: If FileSystem.Capability("SEQUENTIAL") Then
 			dw fn_filesystem_capability, str3, var_filesystem_capability_capability
-			dw kw_goto_ifzero_n, var_filesystem_capability_capability, if4_1
+			dw kw_goto_ifzero_n, var_filesystem_capability_capability, if6_1
 
-			; main.bas 28: h = FileSystem.Open("NOTES.TXT", FileSystem.ForWrite)
-			dw p_filesystem_open_c, str7, lit_2
+			; main.bas 40: h = FileSystem.Open("NOTES.TXT", FileSystem.ForWrite)
+			dw p_filesystem_open_c, str9, lit_2
 			dw kw_vtov, var_filesystem_open_open, var_h
 
-			; main.bas 29: r = FileSystem.WriteLine(h, "Written by NTC BASIC")
-			dw p_filesystem_writeline_c, var_h, str8
+			; main.bas 41: r = FileSystem.WriteLine(h, "Written by NTC BASIC")
+			dw p_filesystem_writeline_c, var_h, str10
 			dw kw_vtov, var_filesystem_writeline_writeline, var_r
 
-			; main.bas 30: r = FileSystem.WriteLine(h, "Line two")
-			dw p_filesystem_writeline_c, var_h, str9
+			; main.bas 42: r = FileSystem.WriteLine(h, "Line two")
+			dw p_filesystem_writeline_c, var_h, str11
 			dw kw_vtov, var_filesystem_writeline_writeline, var_r
 
-			; main.bas 31: r = FileSystem.Close(h)
+			; main.bas 43: r = FileSystem.Close(h)
 			dw p_filesystem_close_c, var_h
 			dw kw_vtov, var_filesystem_close_close, var_r
 
-			; main.bas 32: Print "NOTES.TXT:"
+			; main.bas 44: Print "NOTES.TXT:"
 			dw kw_printzoscii
 			dw glyph_4E, glyph_4F, glyph_54, glyph_45, glyph_53, glyph_2E, glyph_54, glyph_58
 			dw glyph_54, glyph_3A, 1, 0		; "NOTES.TXT:\n"
 
-			; main.bas 33: h = FileSystem.Open("NOTES.TXT", FileSystem.ForRead)
-			dw p_filesystem_open_c, str7, lit_1
+			; main.bas 45: h = FileSystem.Open("NOTES.TXT", FileSystem.ForRead)
+			dw p_filesystem_open_c, str9, lit_1
 			dw kw_vtov, var_filesystem_open_open, var_h
 
-			; main.bas 34: Do While Not FileSystem.Eof(h)
-do5_t:
+			; main.bas 46: Do While Not FileSystem.Eof(h)
+do7_t:
 			dw p_filesystem_eof_c, var_h
 			dw kw_vtov, var_filesystem_eof_eof, tmp0
 			dw kw_notv, tmp0, tmp0
-			dw kw_goto_ifzero_n, tmp0, do5_e
+			dw kw_goto_ifzero_n, tmp0, do7_e
 
-			; main.bas 35: Print "> "; FileSystem.ReadLine(h)
+			; main.bas 47: Print "> "; FileSystem.ReadLine(h)
 			dw p_filesystem_readline_c, var_h
 			dw kw_printzoscii
 			dw glyph_3E, glyph_20, 0		; "> "
 			dw kw_printstrvar, var_filesystem_readline_readline
 			dw kw_printnl
 
-			; main.bas 36: Loop
-			dw do5_t_go
-do5_e:
+			; main.bas 48: Loop
+			dw do7_t_go
+do7_e:
 
-			; main.bas 37: r = FileSystem.Close(h)
+			; main.bas 49: r = FileSystem.Close(h)
 			dw p_filesystem_close_c, var_h
 			dw kw_vtov, var_filesystem_close_close, var_r
 
-			; main.bas 38: End If
-if4_1:
+			; main.bas 50: End If
+if6_1:
 
-			; main.bas 40: Print "Press a key";
+			; main.bas 52: Print "Press a key";
 			dw kw_printzoscii
 			dw glyph_50, glyph_72, glyph_65, glyph_73, glyph_73, glyph_20, glyph_61, glyph_20
 			dw glyph_6B, glyph_65, glyph_79, 0		; "Press a key"
 
-			; main.bas 41: Do : Frame : Loop Until Inkey <> 0
-do6_t:
+			; main.bas 53: Do While Inkey <> 0 : Loop          ' no key left waiting from before
+do8_t:
+			dw kw_inkey, tmp0
+			dw kw_cpnevl, tmp0, 0
+			dw kw_goto_iffalse_n, do8_e
+			dw do8_t_go
+do8_e:
+
+			; main.bas 54: Do : Frame : Loop Until Inkey <> 0
+do9_t:
 			dw kw_frame
 			dw kw_inkey, tmp0
 			dw kw_cpnevl, tmp0, 0
-			dw kw_goto_iffalse_n, do6_t
-do6_e:
+			dw kw_goto_iffalse_n, do9_t
+do9_e:
 
-			; main.bas 42: Print
+			; main.bas 55: Print
 			dw kw_printnl
 
-			; main.bas 43: End
+			; main.bas 56: End
 			dw kw_stop
 
 ; ============================================================
@@ -209,7 +250,7 @@ do6_e:
 
 p_filesystem_load:
 
-			; FileSystem.cls 39: Load = NotSupported
+			; FileSystem.cls 40: Load = NotSupported
 			dw kw_ltov, -1, var_filesystem_load_load
 			dw p_filesystem_load_r
 
@@ -219,7 +260,7 @@ p_filesystem_load:
 
 p_filesystem_save:
 
-			; FileSystem.cls 43: Save = NotSupported
+			; FileSystem.cls 44: Save = NotSupported
 			dw kw_ltov, -1, var_filesystem_save_save
 			dw p_filesystem_save_r
 
@@ -229,7 +270,7 @@ p_filesystem_save:
 
 p_filesystem_open:
 
-			; FileSystem.cls 63: Open = NotSupported
+			; FileSystem.cls 64: Open = NotSupported
 			dw kw_ltov, -1, var_filesystem_open_open
 			dw p_filesystem_open_r
 
@@ -239,7 +280,7 @@ p_filesystem_open:
 
 p_filesystem_close:
 
-			; FileSystem.cls 67: Close = NotSupported
+			; FileSystem.cls 68: Close = NotSupported
 			dw kw_ltov, -1, var_filesystem_close_close
 			dw p_filesystem_close_r
 
@@ -249,7 +290,7 @@ p_filesystem_close:
 
 p_filesystem_eof:
 
-			; FileSystem.cls 91: Eof = -1
+			; FileSystem.cls 92: Eof = -1
 			dw kw_ltov, -1, var_filesystem_eof_eof
 			dw p_filesystem_eof_r
 
@@ -259,8 +300,8 @@ p_filesystem_eof:
 
 p_filesystem_readline:
 
-			; FileSystem.cls 95: ReadLine = ""
-			dw kw_strcpy, var_filesystem_readline_readline, str10
+			; FileSystem.cls 96: ReadLine = ""
+			dw kw_strcpy, var_filesystem_readline_readline, str12
 			dw p_filesystem_readline_r
 
 ; ============================================================
@@ -269,9 +310,49 @@ p_filesystem_readline:
 
 p_filesystem_writeline:
 
-			; FileSystem.cls 99: WriteLine = NotSupported
+			; FileSystem.cls 100: WriteLine = NotSupported
 			dw kw_ltov, -1, var_filesystem_writeline_writeline
 			dw p_filesystem_writeline_r
+
+; ============================================================
+; function devices (normal mode)
+; ============================================================
+
+p_filesystem_devices:
+
+			; FileSystem.cls 103: Devices = ""
+			dw kw_strcpy, var_filesystem_devices_devices, str12
+			dw p_filesystem_devices_r
+
+; ============================================================
+; function currentdevice (normal mode)
+; ============================================================
+
+p_filesystem_currentdevice:
+
+			; FileSystem.cls 106: CurrentDevice = ""
+			dw kw_strcpy, var_filesystem_currentdevice_currentdevice, str12
+			dw p_filesystem_currentdevice_r
+
+; ============================================================
+; function volumes (normal mode)
+; ============================================================
+
+p_filesystem_volumes:
+
+			; FileSystem.cls 112: Volumes = ""
+			dw kw_strcpy, var_filesystem_volumes_volumes, str12
+			dw p_filesystem_volumes_r
+
+; ============================================================
+; function currentvolume (normal mode)
+; ============================================================
+
+p_filesystem_currentvolume:
+
+			; FileSystem.cls 115: CurrentVolume = ""
+			dw kw_strcpy, var_filesystem_currentvolume_currentvolume, str12
+			dw p_filesystem_currentvolume_r
 
 ; ============================================================
 ; Jump stubs (code, ROMable)
@@ -282,9 +363,11 @@ p_filesystem_writeline:
 ;   turbo mode ends with ret, normal mode with jp ntc_xn
 ; ============================================================
 
-if1_e_go:			ld sp, if1_e
+if3_e_go:			ld sp, if3_e
 			jp ntc_xn
-do5_t_go:			ld sp, do5_t
+do7_t_go:			ld sp, do7_t
+			jp ntc_xn
+do8_t_go:			ld sp, do8_t
 			jp ntc_xn
 
 p_filesystem_load_c:		; call load (normal)
@@ -451,17 +534,53 @@ p_filesystem_writeline_si1_e:
 p_filesystem_writeline_r:		; end of writeline
 			ld sp, (p_filesystem_writeline_rs)
 			jp ntc_xn
+p_filesystem_devices_c:		; call devices (normal)
+			xor a
+			ld (var_filesystem_devices_devices), a
+			ld (p_filesystem_devices_rs), sp
+			ld sp, p_filesystem_devices
+			jp ntc_xn
+p_filesystem_devices_r:		; end of devices
+			ld sp, (p_filesystem_devices_rs)
+			jp ntc_xn
+p_filesystem_currentdevice_c:		; call currentdevice (normal)
+			xor a
+			ld (var_filesystem_currentdevice_currentdevice), a
+			ld (p_filesystem_currentdevice_rs), sp
+			ld sp, p_filesystem_currentdevice
+			jp ntc_xn
+p_filesystem_currentdevice_r:		; end of currentdevice
+			ld sp, (p_filesystem_currentdevice_rs)
+			jp ntc_xn
+p_filesystem_volumes_c:		; call volumes (normal)
+			xor a
+			ld (var_filesystem_volumes_volumes), a
+			ld (p_filesystem_volumes_rs), sp
+			ld sp, p_filesystem_volumes
+			jp ntc_xn
+p_filesystem_volumes_r:		; end of volumes
+			ld sp, (p_filesystem_volumes_rs)
+			jp ntc_xn
+p_filesystem_currentvolume_c:		; call currentvolume (normal)
+			xor a
+			ld (var_filesystem_currentvolume_currentvolume), a
+			ld (p_filesystem_currentvolume_rs), sp
+			ld sp, p_filesystem_currentvolume
+			jp ntc_xn
+p_filesystem_currentvolume_r:		; end of currentvolume
+			ld sp, (p_filesystem_currentvolume_rs)
+			jp ntc_xn
 
 ; ============================================================
 ; Inline assembly (#asm ... #endasm)
 ; ============================================================
 
-fn_filesystem_capability:		; function capability (asm keyword), FileSystem.cls line 29
-            pop hl		; FileSystem.cls 30
-            pop de		; FileSystem.cls 31
-            ld bc, fn_filesystem_capability_caps		; FileSystem.cls 32
-            jp ntc_capfind		; FileSystem.cls 33
-fn_filesystem_capability_caps:       db 0		; FileSystem.cls 34
+fn_filesystem_capability:		; function capability (asm keyword), FileSystem.cls line 30
+            pop hl		; FileSystem.cls 31
+            pop de		; FileSystem.cls 32
+            ld bc, fn_filesystem_capability_caps		; FileSystem.cls 33
+            jp ntc_capfind		; FileSystem.cls 34
+fn_filesystem_capability_caps:       db 0		; FileSystem.cls 35
 			ret			; end of #asm
 
 
@@ -472,6 +591,14 @@ fn_filesystem_capability_caps:       db 0		; FileSystem.cls 34
 arr_hs:			ds 20		; 10 words
 arr_back:			ds 20		; 10 words
 var_filesystem_capability_capability:			dw 0
+			db 40			; capacity
+var_filesystem_devices_devices:			ds 41
+			db 40			; capacity
+var_filesystem_currentdevice_currentdevice:			ds 41
+			db 40			; capacity
+var_filesystem_volumes_volumes:			ds 41
+			db 40			; capacity
+var_filesystem_currentvolume_currentvolume:			ds 41
 var_i:			dw 0
 var_r:			dw 0
 var_filesystem_save_save:			dw 0
@@ -507,6 +634,10 @@ p_filesystem_writeline_rs:			dw 0
 var_filesystem_writeline_h:			dw 0
 			db 40			; capacity
 var_filesystem_writeline_text:			ds 41
+p_filesystem_devices_rs:			dw 0
+p_filesystem_currentdevice_rs:			dw 0
+p_filesystem_volumes_rs:			dw 0
+p_filesystem_currentvolume_rs:			dw 0
 tmp0:			dw 0
 tmp1:			dw 0
 tmp2:			dw 0
@@ -525,6 +656,7 @@ llit_m1:			dw 65535, 65535
 
 glyph_20			equ ntc_font + 0		; " "
 glyph_2C			equ ntc_font + 96		; ","
+glyph_2D			equ ntc_font + 104		; "-"
 glyph_2E			equ ntc_font + 112		; "."
 glyph_3A			equ ntc_font + 208		; ":"
 glyph_3E			equ ntc_font + 240		; ">"
@@ -549,6 +681,7 @@ glyph_56			equ ntc_font + 432		; "V"
 glyph_58			equ ntc_font + 448		; "X"
 glyph_61			equ ntc_font + 520		; "a"
 glyph_62			equ ntc_font + 528		; "b"
+glyph_63			equ ntc_font + 536		; "c"
 glyph_64			equ ntc_font + 544		; "d"
 glyph_65			equ ntc_font + 552		; "e"
 glyph_66			equ ntc_font + 560		; "f"
@@ -564,7 +697,9 @@ glyph_70			equ ntc_font + 640		; "p"
 glyph_72			equ ntc_font + 656		; "r"
 glyph_73			equ ntc_font + 664		; "s"
 glyph_74			equ ntc_font + 672		; "t"
+glyph_75			equ ntc_font + 680		; "u"
 glyph_76			equ ntc_font + 688		; "v"
+glyph_77			equ ntc_font + 696		; "w"
 glyph_79			equ ntc_font + 712		; "y"
 
 ; ============================================================
@@ -577,11 +712,13 @@ str2:			db "SAVE", 0
 str3:			db "SEQUENTIAL", 0
 str4:			db "RANDOMACCESS", 0
 str5:			db "MAXOPEN", 0
-str6:			db "HISCORE.DAT", 0
-str7:			db "NOTES.TXT", 0
-str8:			db "Written by NTC BASIC", 0
-str9:			db "Line two", 0
-str10:			db 0
+str6:			db "DEVICES", 0
+str7:			db "VOLUMES", 0
+str8:			db "HISCORE.DAT", 0
+str9:			db "NOTES.TXT", 0
+str10:			db "Written by NTC BASIC", 0
+str11:			db "Line two", 0
+str12:			db 0
 
 ; ============================================================
 ; Keyword library (used)

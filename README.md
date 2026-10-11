@@ -249,6 +249,7 @@ Files (ES5, no node, no Python):
 | `asm/ntc_plat_cpcfw.asm` | CPC platform through the firmware (text, keys, mode, clock) |
 | `asm/ntc_plat_cpm.asm` | CP/M platform (BDOS console, own stack, warm boot) |
 | `asm/ntc_plat_test.asm` | test harness platform (console through I/O ports, for `test/ntcrun.py`) |
+| `asm/ntc_plat_cpcmin.asm` | CPC platform with minimal firmware: the `cpc` screen / keys / interrupts, the firmware kept for discs and ROMs (handed back per call) |
 | `lib/<platform>/*.cls` | the platform classes: `StdIO.cls` (console), `System.cls` (what the machine is), `FileSystem.cls` (files) |
 | `../docs/userguide.md` | Language reference: every keyword by topic, with an example and its VB5 / VB6 differences |
 | `build/` | Test builds: every program in `bas/` compiled for every platform (`.ASM`), and `build.bat` to assemble them all with sjasmplus on Windows / MS-DOS (CPC: AMSDOS `.BIN` files, CP/M: `.COM`) |
@@ -331,7 +332,7 @@ A platform is one `asm/ntc_plat_<name>.asm` file plus its classes in `lib/<name>
 file starts with `;@key value` lines the compiler reads, then the `ntc_plat_*` sections the
 library links against (listed at the top of `ntc_lib.asm`):
 
-| Key | Meaning | cpc | cpcfw | cpm | test |
+| Key | Meaning | cpc / cpcmin | cpcfw | cpm | test |
 |---|---|---|---|---|---|
 | `;@org` | default org (the GUI's Org box empty) | #0040 | #0040 | #0100 | #4000 |
 | `;@text` | `glyph`: Print text as ZOSCII glyph words; `byte`: as byte strings (string pool + `kw_printstrvar`) | glyph | byte | byte | byte |
@@ -339,6 +340,12 @@ library links against (listed at the top of `ntc_lib.asm`):
 | `;@irq` | has `ntc_plat_irqon` (own interrupt handler: normal mode ticks, `Interrupt`) | 1 | 0 | 0 | 0 |
 | `;@stack` | a label: the program's own real stack (set before `ntc_csp`) | - | - | ntc_cpmstack | - |
 | `;@cols` / `;@rows` | console size | 40 / 25 | 40 / 25 | 80 / 24 | 40 / 25 |
+
+The CPC platforms are three amounts of firmware: `cpcfw` all of it; `cpcmin`
+(`ntc_plat_cpcmin.asm`) = the `cpc` file plus the firmware calls - each one (`fs_go`) hands
+the machine back (`fs_fwon`: the firmware's 3 bytes at #38, `ei`; `fs_fwoff`: `di`, NTC's
+handler, `#8C | mode` to the gate array, CRTC start #3000) - for FileSystem (CAS calls,
+AMSDOS RSXs) and `System.Command` (any RSX, KL FIND COMMAND + KL FAR PCALL); `cpc` none.
 
 - The library prints through `ntc_plat_putc` (A = char). On the CPC hardware platform it
   turns the char into its glyph and draws it; `kw_printzoscii` (inline glyph words) is only
@@ -462,6 +469,14 @@ variables, `Declare`.
   (a load area, a screen, firmware RAM). The compiler writes one sjasmplus `ASSERT` per range
   after `ntc_end`, so the assembly stops (naming the range and the source line) if
   `ntc_start .. ntc_end` overlaps it. The program is not laid out around a range (yet).
+- `Option Stack address`: the start code saves the caller's SP (`ntc_ssp`), sets SP, and pushes
+  `ntc_sback` (switch back to the caller's SP, ret) so `End` (`kw_stop`: `ld sp,(ntc_csp) / ret`)
+  still returns to the caller. ASSERT: below `ntc_start` or 64+ bytes above `ntc_end`. Options
+  are all read first; the start code applies Stack, then RomEnable, then runs the program.
+- `Option RomEnable All | rom [, rom] ...` (cpcfw): the start code starts the background ROMs
+  again (KL ROM WALK / KL INIT BACK per ROM, DE = `ntc_end`, HL = `#ABFF`) unless CAS IN OPEN
+  is already AMSDOS's far call (`#DF` at `#BC77`: the program was CALLed and they run).
+  `RUN"` of a binary resets the firmware and drops them. Writes `NTC_ROMENABLE equ 0 / 1`.
 - `VarPtr(name)`: the address of a variable's value or a fixed size array's first element
   (a read only word, like `AddressOf`), for `FileSystem.Load` / `Save` and `#asm`.
 
@@ -554,7 +569,13 @@ platform can do comes from `FileSystem.Capability("NAME")` - one function for ev
 capability, PRIMAL's `SysPropertyPC` idea: the value (True / a number), or 0 when the
 platform hasn't got it (`LOAD`, `SAVE`, `SEQUENTIAL`, `RANDOMACCESS`, `DELETE`, `RENAME`,
 `EXISTS`, `SIZE`, `MULTIPLE`, `MAXOPEN`, `RECORDSIZE`). A method the platform can't do
-returns `NotSupported` (-1); every result below 0 is a status. CP/M: everything, through
+returns `NotSupported` (-1); every result below 0 is a status. `Devices` / `SelectDevice` /
+`CurrentDevice`: how files travel, TAPE / DISC (`|TAPE`, `|DISC` on cpcfw; CP/M: DISC).
+`Volumes` / `SelectVolume` / `CurrentVolume`: drives - on cpcfw any name the DOS has an RSX
+for (KL FIND COMMAND, KL FAR PCALL: |A, |B, |C, |M ... AMSDOS, M4, UniDOS), on CP/M the BDOS
+drive calls (24, 25, 14). Neither can list volumes: `Volumes` is what the platform knows
+plus every volume used successfully (SelectVolume, or a Load / Save with "C:NAME").
+`Capability("CPMVERSION")`: BDOS 12. CP/M: everything, through
 BDOS FCBs and random records (`ntc_plat_cpm.asm`, section `ntc_plat_fs`: two handles plus
 a slot for the whole-file calls, 170 bytes each). CPC firmware: Load / Save through the
 cassette calls (CAS IN / OUT DIRECT: disc with AMSDOS, else tape). CPC hardware and test:

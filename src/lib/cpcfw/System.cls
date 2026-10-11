@@ -26,3 +26,16 @@ got:
             ld (hl), d
 #endasm
 End Function
+
+' Command(name): run a ROM's command (|NAME, no arguments): AMSDOS, M4, a utility ROM ...
+' OK (0), or -2 when no ROM has it
+Public Function Command(ByVal name As String) As Integer
+#asm
+            pop hl
+            ld (fs_a1), hl
+            pop hl
+            ld (fs_res), hl
+            ld hl, fs_command
+            jp fs_go
+#endasm
+End Function

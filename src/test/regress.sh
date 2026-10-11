@@ -68,7 +68,7 @@ host() { # platform mode
 }
 for pl in test cpcfw cpm; do for m in --turbo ""; do host $pl "$m"; done; done
 # StdIO / System platform classes on every platform, and a project's own StdIO
-for pl in cpc test cpcfw cpm; do
+for pl in cpc cpcmin test cpcfw cpm; do
   cp stdio.bas t/stdio.bas; o=$(timeout 100 python3 ntcrun.py t/stdio.bas 'Bo\nZ' --platform=$pl 2>&1 | grep -v "^--- ")
   if [ "$o" == "$(cat ref/stdio.$pl.txt)" ]; then echo "ok   stdio $pl"; else echo "FAIL stdio $pl"; fail=1; fi
 done
@@ -78,14 +78,19 @@ for f in term_vt52 term_ansi; do	# CP/M Option Terminal
 done
 # FileSystem: CP/M (BDOS files), CPC firmware (Load / Save), no files (test, cpc); both modes
 for m in --turbo ""; do
-  for c in "fs_cpm cpm" "fs_fw cpcfw" "fs_none test" "fs_none cpc"; do
+  # test platform ref [harness option]: fs_fw2 without Option RomEnable - RUN" (tape) and CALLed (disc)
+  for c in "fs_cpm cpm fs_cpm" "fs_fw cpcfw fs_fw" "fs_fw2 cpcfw fs_fw2" "fs_fw2 cpcfw fs_fw2c --called" "fs_none test fs_none" "fs_none cpc fs_none" "fs_fw cpcmin fs_fw" "fs_fw2 cpcmin fs_fw2"; do
     set -- $c; rm -rf t/files; cp $1.bas t/
-    o=$(timeout 100 python3 ntcrun.py t/$1.bas '' --platform=$2 $m 2>&1 | grep -v "^--- ")
-    if [ "$o" == "$(cat ref/$1.txt)" ]; then echo "ok   $1 $2 ${m:-normal}"; else echo "FAIL $1 $2 ${m:-normal}"; echo "$o" | head -5; fail=1; fi
+    o=$(timeout 100 python3 ntcrun.py t/$1.bas '' --platform=$2 $4 $m 2>&1 | grep -v "^--- ")
+    if [ "$o" == "$(cat ref/$3.txt)" ]; then echo "ok   $3 $2 ${m:-normal}"; else echo "FAIL $3 $2 ${m:-normal}"; echo "$o" | head -5; fail=1; fi
+  done
+  for pl in cpcmin cpcfw; do   # AMSDOS through the firmware: cpcmin hands back for each file call
+    rm -rf t/files; cp $P/amsdos.bas t/ex/
+    check "amsdos $pl ${m:-normal}" "^done" "$(timeout 200 python3 ntcrun.py t/ex/amsdos.bas '~x~x~x~b~x' --platform=$pl $m 2>&1)"
   done
   for pl in cpm cpcfw test; do
     rm -rf t/files; cp $P/files.bas t/ex/
-    check "files $pl ${m:-normal}" "Press a key" "$(timeout 100 python3 ntcrun.py t/ex/files.bas 'x' --platform=$pl $m 2>&1)"
+    check "files $pl ${m:-normal}" "Press a key" "$(timeout 100 python3 ntcrun.py t/ex/files.bas '~x' --platform=$pl $m 2>&1)"
   done
 done
 mkdir -p t/via; cp via/* t/via/; o=$(timeout 100 python3 ntcrun.py t/via/Main.bas 'Bo\n7\n' t/via/StdIO.cls --platform=test 2>&1 | grep -v "^--- ")
@@ -93,9 +98,9 @@ if [ "$o" == "$(cat ref/via.txt)" ]; then echo "ok   own StdIO"; else echo "FAIL
 # build/: regenerate, then check every file assembles the way build.bat does it
 SJ=${SJASMPLUS:-sjasmplus}
 node genbuild.js > /dev/null || fail=1
-rm -rf t/bc; mkdir -p t/bc; cp -r ../build/cpc ../build/cpcfw ../build/cpm ../build/test t/bc/
+rm -rf t/bc; mkdir -p t/bc; cp -r ../build/cpc ../build/cpcmin ../build/cpcfw ../build/cpm ../build/test t/bc/
 b=0; n=0
-for p in cpc cpcfw cpm test; do
+for p in cpc cpcmin cpcfw cpm test; do
   for f in t/bc/$p/*.ASM; do
     g=$(basename $f .ASM); n=$((n+1))
     case $p in cpm) o="--raw=$g.COM";; test) o="--raw=$g.BIN";; *) o="";; esac
@@ -105,11 +110,22 @@ for p in cpc cpcfw cpm test; do
   [ $(ls t/bc/$p/*.$x 2>/dev/null | wc -l) == $(ls t/bc/$p/*.ASM | wc -l) ] || { echo "FAIL build $p: not every file written"; b=1; }
 done
 if [ $b == 0 ]; then echo "ok   build/ ($n files assemble)"; else echo "FAIL build/"; fail=1; fi
+# build/dsk/: a CPC data format disc per platform with its programs (needs cpmtools + libdsk)
+if command -v dskform > /dev/null && command -v cpmcp > /dev/null; then
+  SJASMPLUS=$SJ bash gendsk.sh > t/dsk.txt 2>&1 && echo "ok   build/dsk ($(grep -c files t/dsk.txt) images)" || { echo "FAIL build/dsk"; cat t/dsk.txt; fail=1; }
+else
+  echo "skip build/dsk (no cpmtools / libdsk)"
+fi
 # Option Reserve: a range the program stays out of assembles, one it reaches into stops the assembly
 printf 'Option Reserve &HC000, &H4000\nPrint 1\n' > t/res1.bas; printf 'Option Reserve &H0200, &H100\nPrint 1\n' > t/res2.bas
 node cli.js t/res1.bas --platform=cpm > t/res1.asm && (cd t && $SJ --nologo --msg=err --raw=res1.com res1.asm > /dev/null) && r1=ok || r1=bad
 node cli.js t/res2.bas --platform=cpm > t/res2.asm && (cd t && $SJ --nologo --msg=err --raw=res2.com res2.asm 2>&1 | grep -q "Option Reserve #0200-#02FF") && r2=ok || r2=bad
 if [ $r1 == ok ] && [ $r2 == ok ]; then echo "ok   Option Reserve"; else echo "FAIL Option Reserve ($r1 $r2)"; fail=1; fi
+# Option Stack: End comes back to the caller's stack on every host platform; a stack in the program stops the assembly
+printf 'Option Stack &H9000\nPrint "stack ok"\n' > t/stk1.bas
+for pl in test cpm cpcfw; do check "Option Stack $pl" "stack ok" "$(timeout 60 python3 ntcrun.py t/stk1.bas '' --platform=$pl 2>&1)"; done
+printf 'Option Stack &H0150\nPrint 1\n' > t/stk2.bas
+node cli.js t/stk2.bas --platform=cpm > t/stk2.asm && (cd t && $SJ --nologo --msg=err --raw=stk2.com stk2.asm 2>&1 | grep -q "Option Stack #0150") && echo "ok   Option Stack in the program" || { echo "FAIL Option Stack in the program"; fail=1; }
 # the Small C sieve (compare/smallc) runs on the CP/M host and finds 1007 primes
 o=$(timeout 200 python3 -c "import ntcrun; h = ntcrun.Host('cpm', open('t/bc/cpm/SIEVEC.COM', 'rb').read(), 0x100, 'xx'); h.run(); print(h.scr.text()); print('--- halted' if h.m.halted else '--- NOT halted')" 2>&1)
 check "Small C sieve cpm" "^01007" "$o"

@@ -10,10 +10,19 @@ build.bat ..\primal\sjasmplus\sjasmplus.exe   or give its path (relative or full
 
 | Folder | Platform | Output | Use |
 |---|---|---|---|
-| `cpc\` | Amstrad CPC, hardware (no firmware) | `NAME.BIN` with an AMSDOS header, loads and runs at `#0040` | put it on a disk image / M4 / SD card, `RUN"NAME` |
+| `cpc\` | Amstrad CPC, no firmware (no files) | `NAME.BIN` with an AMSDOS header, loads and runs at `#0040` | put it on a disk image / M4 / SD card, `RUN"NAME` |
+| `cpcmin\` | Amstrad CPC, minimal firmware (own screen and keys, firmware for discs and ROMs) | `NAME.BIN` with an AMSDOS header, `#0040` | `RUN"NAME` |
 | `cpcfw\` | Amstrad CPC, through the firmware | `NAME.BIN` with an AMSDOS header, `#0040` | `RUN"NAME` |
 | `cpm\` | CP/M 2.2 / 3 | `NAME.COM` at `#0100` | copy to the CP/M disk, type `NAME` |
 | `test\` | the test harness platform | `NAME.BIN`, raw, at `#4000` | for `test/ntcrun.py` |
+
+`dsk\` holds a disc image per platform with its programs already assembled, ready to insert in
+an emulator (WinAPE: drive A or B): `cpc.dsk`, `cpcmin.dsk`, `cpcfw.dsk` (the `.BIN` files, `RUN"NAME`)
+and `cpm.dsk` (the `.COM` files: boot CP/M from its system disc, then use this one, e.g. in drive B).
+They are CPCEMU `.DSK` files in the CPC **data format** (40 tracks, 9 sectors of 512 bytes, #C1-#C9),
+which AMSDOS, CP/M 2.2 and CP/M Plus all read. They are remade with the .ASM files
+(`test/gendsk.sh`, which needs sjasmplus and cpmtools); after changing a `.bas` yourself, assemble
+with `build.bat` and copy the file onto the image with your usual disc tool.
 
 The CPC files are written by sjasmplus itself (`DEVICE AMSTRADCPC6128` at the top of each
 .ASM and `SAVEAMSDOS` at the end, from the compiler's `amsdos` option / `cli.js --amsdos=NAME`).

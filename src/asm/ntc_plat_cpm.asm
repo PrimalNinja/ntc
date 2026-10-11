@@ -345,7 +345,7 @@ FS_FAILED	equ -9
 FS_EXISTS	equ -10
 FS_BADMODE	equ -11
 
-;## ntc_plat_fs ntc_data @shared
+;## ntc_plat_fs ntc_data ntc_capfind @shared
 fs_a1:			dw 0
 fs_a2:			dw 0
 fs_a3:			dw 0
@@ -1193,4 +1193,179 @@ fs_wl_end:
 			ld a, 10
 			call fs_putb
 			ld hl, 0
+			ret
+
+; fs_strout - HL = text (0 ended) into the String result at (fs_res), cut at its size
+fs_strout:
+			ex de, hl
+			ld hl, (fs_res)
+			dec hl
+			ld b, (hl)			; the capacity
+			inc hl
+			ex de, hl
+fs_so_lp:
+			ld a, (hl)
+			or a
+			jr z, fs_so_end
+			ld c, a
+			ld a, b
+			or a
+			jr z, fs_so_end
+			ld a, c
+			ld (de), a
+			inc hl
+			inc de
+			dec b
+			jr fs_so_lp
+fs_so_end:
+			xor a
+			ld (de), a
+			ret
+
+; Volumes(): the drives CP/M has used so far (logged in, and the current one): "A,B"
+fs_volumes:
+			ld c, 24
+			call fs_bdos			; HL = login vector
+			push hl
+			ld c, 25
+			call fs_bdos			; A = current drive
+			pop hl
+			ld b, a
+			inc b
+			ld de, 1
+fs_dv_bit:
+			dec b
+			jr z, fs_dv_or
+			ex de, hl
+			add hl, hl
+			ex de, hl
+			jr fs_dv_bit
+fs_dv_or:
+			ld a, l
+			or e
+			ld l, a
+			ld a, h
+			or d
+			ld h, a				; HL = the drives
+			ld de, fs_devtxt
+			ld c, 'A'
+fs_dv_lp:
+			srl h
+			rr l
+			jr nc, fs_dv_next
+			ld a, e
+			cp low fs_devtxt
+			jr z, fs_dv_first
+			ld a, ','
+			ld (de), a
+			inc de
+fs_dv_first:
+			ld a, c
+			ld (de), a
+			inc de
+fs_dv_next:
+			inc c
+			ld a, c
+			cp 'Q'
+			jr nz, fs_dv_lp
+			xor a
+			ld (de), a
+			ld hl, fs_devtxt
+			jp fs_strout
+fs_devtxt:		ds 33
+
+; CurrentVolume(): the current drive, "A"
+fs_curvol:
+			ld c, 25
+			call fs_bdos
+			add a, 'A'
+			ld (fs_devtxt), a
+			xor a
+			ld (fs_devtxt + 1), a
+			ld hl, fs_devtxt
+			jp fs_strout
+
+; SelectVolume(name): "B" or "B:" - the drive files without a drive letter use.
+; CP/M 3 reports a drive that isn't there (NotFound); CP/M 2.2 stops with its BDOS error
+fs_selvol:
+			ld hl, (fs_a1)
+			ld a, (hl)
+			call fs_upper
+			sub 'A'
+			jr c, fs_sl_bad
+			cp 16
+			jr nc, fs_sl_bad
+			ld b, a
+			inc hl
+			ld a, (hl)
+			cp ':'
+			jr nz, fs_sl_one
+			inc hl
+			ld a, (hl)
+fs_sl_one:
+			or a
+			jr nz, fs_sl_bad
+			push bc
+			ld c, 45
+			ld e, #FF			; CP/M 3: errors come back (2.2 ignores this)
+			call fs_bdos
+			pop bc
+			ld e, b
+			ld c, 14
+			call fs_bdos
+			inc a
+			ld hl, 0
+			ret nz
+fs_sl_bad:
+			ld hl, FS_NOTFOUND
+			ret
+
+; Devices() / CurrentDevice(): CP/M has discs only
+fs_devices:
+fs_curdev:
+			ld hl, fs_n_disc
+			jp fs_strout
+fs_n_disc:		db "DISC", 0
+
+; SelectDevice(name): "DISC" (any case) - OK; anything else NotFound
+fs_select:
+			ld hl, (fs_a1)
+			ld de, fs_n_disc
+fs_sd_lp:
+			ld a, (hl)
+			call fs_upper
+			ld c, a
+			ld a, (de)
+			cp c
+			jr nz, fs_sd_bad
+			or a
+			jr z, fs_sd_ok
+			inc hl
+			inc de
+			jr fs_sd_lp
+fs_sd_ok:
+			ld hl, 0
+			ret
+fs_sd_bad:
+			ld hl, FS_NOTFOUND
+			ret
+
+; Capability(name) - the class's table at (fs_a2); CPMVERSION (#8000 in the table) asks
+; BDOS 12: #22 = CP/M 2.2, #31 = CP/M 3
+fs_capab:
+			ld hl, (fs_a1)
+			ld de, fs_cnt
+			ld bc, (fs_a2)
+			call ntc_capfind
+			ld hl, (fs_cnt)
+			ld a, h
+			cp #80
+			ret nz
+			ld a, l
+			or a
+			ret nz
+			ld c, 12
+			call fs_bdos
+			ld l, a
+			ld h, 0
 			ret

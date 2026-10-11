@@ -98,3 +98,21 @@ End Function
 Public Function WriteLine(ByVal h As Integer, ByVal text As String) As Integer
     WriteLine = NotSupported
 End Function
+Public Function Devices() As String
+    Devices = ""
+End Function
+Public Function CurrentDevice() As String
+    CurrentDevice = ""
+End Function
+Public Function SelectDevice(ByVal name As String) As Integer
+    SelectDevice = NotSupported
+End Function
+Public Function Volumes() As String
+    Volumes = ""
+End Function
+Public Function CurrentVolume() As String
+    CurrentVolume = ""
+End Function
+Public Function SelectVolume(ByVal name As String) As Integer
+    SelectVolume = NotSupported
+End Function

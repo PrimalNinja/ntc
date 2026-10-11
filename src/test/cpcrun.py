@@ -1,4 +1,4 @@
-import sys, re, subprocess, os
+import sys, os, re, subprocess, os
 import z80
 SJ=os.environ.get('SJASMPLUS', 'sjasmplus')   # sjasmplus on the PATH, or set SJASMPLUS
 KEYS={}  # char -> (line,bit,shift)
@@ -32,6 +32,17 @@ class CPC:
         s.ints=0; s.romon=False
         s.line=0; s.scans=0; s.typed=list(typed); s.phase=0; s.cur=None; s.mode=None; s.vs=0; s.ga=[]
         m.set_output_callback(s.out); m.set_input_callback(s.inp); s.syms=syms
+        # the firmware calls the cpc platform's FileSystem makes (AMSDOS through the firmware):
+        # stand-ins on low ports #E0.. (the CPC decodes its I/O on the high byte), as in ntcrun
+        import ntcrun
+        s.fw = ntcrun.Host.__new__(ntcrun.Host); s.fw.m = m; s.fw.p = 'cpcfw'
+        s.fw.cas_in = None; s.fw.cas_out = None; s.fw.amsdos = False; s.fw.cas_dev = 'TAPE'; s.fw.disk = 'A'
+        os.makedirs(ntcrun.FILES, exist_ok=True)
+        s.fwport = {}
+        for i, a in enumerate(sorted(ntcrun.FW)):
+            if ntcrun.FW[a].startswith(('cas_', 'kl_')):
+                m.set_memory_block(a, bytes([0xD3, 0xE0 + i, 0xC9])); s.fwport[0xE0 + i] = ntcrun.FW[a]
+        m.set_memory_block(0x18, bytes([0xD3, 0xDF, 0xC9]))     # RST 3: AMSDOS's far call CAS entries
     def lowrom(s,on):
         # the lower ROM over #0000-#3FFF: reads give the ROM, writes still go to the RAM below
         m=s.m
@@ -43,11 +54,39 @@ class CPC:
                 if cur[i]!=LOWROM[i]: s.ramlo[i]=cur[i]      # written while the ROM was on
             m.set_memory_block(0,bytes(s.ramlo)); s.romon=False
     def out(s,port,val):
+        lo=port&0xff
+        if lo in s.fwport or lo==0xDF:
+            s.fwcall(lo); return
         hi=(port>>8)&0xff
         if hi==0x7f:
             s.ga.append(val); s.mode=val&3 if (val&0xC0)==0x80 else s.mode
             if (val&0xC0)==0x80: s.lowrom(not (val&4))
         elif hi==0xf6: s.line=val&15
+    def fwcall(s,lo):
+        import ntcrun
+        m=s.m; fw=s.fw
+        if lo==0xDF:
+            sp=m.sp; ret=m.memory[sp]|(m.memory[sp+1]<<8)
+            ok=fw.cas(ntcrun.FW[ret-1]); m.f=(m.f|1) if ok else (m.f&0xFE); m.sp=sp+2; return
+        f=s.fwport[lo]
+        if f.startswith('cas_'):
+            ok=fw.cas(f); m.f=(m.f|1) if ok else (m.f&0xFE)
+        elif f=='kl_rom_walk' or (f=='kl_init_back' and m.c==7):
+            fw.amsdos_on(); m.hl=0xA6FB
+        elif f=='kl_find_command':
+            a=m.hl; n=''
+            while True:
+                c=m.memory[a]; n+=chr(c&0x7F); a+=1
+                if c&0x80: break
+            if fw.amsdos and n in ntcrun.RSX: m.hl=0x4000+ntcrun.RSX.index(n); m.c=7; m.f=m.f|1
+            else: m.f=m.f&0xFE
+        elif f=='kl_far_pcall':
+            n=ntcrun.RSX[m.hl-0x4000]
+            if n=='TAPE': fw.cas_dev='TAPE'
+            elif n=='DISC': fw.cas_dev=fw.disk
+            else:
+                fw.disk=n
+                if fw.cas_dev!='TAPE': fw.cas_dev=n
     def inp(s,port):
         hi=(port>>8)&0xff
         if hi==0xf4:

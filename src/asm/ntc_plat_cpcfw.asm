@@ -249,6 +249,16 @@ ntc_plat_exit:
 ; go to the disc (the drive that is selected), else to tape, exactly
 ; as BASIC's LOAD / SAVE do - with the firmware's own messages
 ; ("Press PLAY then any key", disc errors and Retry / Cancel).
+;
+; RUN"NAME of a binary resets the firmware (MC BOOT PROGRAM), which
+; drops the background ROMs - AMSDOS too - so the cassette calls go
+; back to tape. Loaded from BASIC and CALLed (MEMORY &1FFF : LOAD"NAME"
+; : CALL &2000, built at org #2000), AMSDOS keeps running. Option
+; RomEnable starts the ROMs again in the start code. The first file
+; call checks: CAS IN OPEN (#BC77) a far call (RST 3, #DF) = AMSDOS has
+; the cassette calls. AMSDOS's RAM is about #A700-#ABFF: the program
+; must end below #A600 (checked when assembling). Devices: AMSDOS's own
+; commands |TAPE, |DISC, |A, |B (KL FIND COMMAND, then KL FAR PCALL).
 ; ============================================================
 ; The methods are keywords: arguments into fs_a1 .. fs_a3, the
 ; result's address into fs_res, then fs_go with HL = the routine.
@@ -270,9 +280,30 @@ fs_esp:			dw 0
 fs_six:			dw 0
 fs_siy:			dw 0
 fs_len:			dw 0
+fs_nostore:		db 0
+fs_init:		db 0			; 1 = checked: is AMSDOS running?
+fs_dos:			db 0			; 1 = a DOS is there (|DISC found)
+fs_devd:		db 0			; the device in use: 0 tape, 1 disc
+fs_n_tape:		db "TAPE", 0
+fs_n_disc:		db "DISC", 0
+fs_n_all:		db "TAPE,DISC", 0
+fs_c_tape:		db "TAP", "E" + #80
+fs_c_disc:		db "DIS", "C" + #80
+fs_vol:			ds 9			; the volume in use ("" = not known)
+fs_vols:		ds 145			; the volumes that worked, "A,C,M" (up to 16 of up to 8 letters)
+fs_tmpn:		ds 9			; a volume name, capitals
+fs_rsxn:		ds 17			; a command name (last letter + #80), up to 16 letters
 fs_buf:			ds 2048			; the 2K buffer CAS IN OPEN / CAS OUT OPEN want
+			ASSERT ntc_end <= #A600, "FileSystem on cpcfw: the program must end below #A600 (AMSDOS's RAM)"
 
+fs_go0:
+			ld a, 1
+			ld (fs_nostore), a
+			jr fs_gostart
 fs_go:
+			xor a
+			ld (fs_nostore), a
+fs_gostart:
 			ld (fs_sp), sp
 			ld sp, (ntc_csp)
 			ld (fs_six), ix
@@ -284,11 +315,15 @@ fs_back:
 			di
 			ld ix, (fs_six)
 			ld iy, (fs_siy)
+			ld a, (fs_nostore)
+			or a
+			jr nz, fs_gone
 			ex de, hl
 			ld hl, (fs_res)
 			ld (hl), e
 			inc hl
 			ld (hl), d
+fs_gone:
 			ld sp, (fs_sp)
 			ret
 fs_jphl:
@@ -296,6 +331,378 @@ fs_jphl:
 fs_err:
 			ld sp, (fs_esp)
 			jr fs_back
+
+; fs_start - the first file call: is AMSDOS running? (no ROMs are started here:
+; Option RomEnable does that in the start code)
+fs_start:
+			ld a, (fs_init)
+			or a
+			ret nz
+			inc a
+			ld (fs_init), a
+			ld a, (#BC77)
+			cp #DF				; a far call: AMSDOS has the cassette calls
+			jr nz, fs_st_find	; not running (RUN" dropped it), or |TAPE: tape
+			ld a, 1
+			ld (fs_devd), a
+		IF NTC_ROMENABLE
+			ld hl, fs_n_a1		; started by the program: AMSDOS starts on drive A
+			call fs_addvol
+			ld hl, fs_n_a1
+			ld de, fs_vol
+			ld bc, 2
+			ldir
+		ENDIF
+fs_st_find:
+			ld hl, fs_c_disc
+			call #BCD4			; KL FIND COMMAND: is |DISC there?
+			ld a, 1
+			jr c, fs_st_dos
+			xor a
+fs_st_dos:
+			ld (fs_dos), a
+			ret
+fs_n_a1:		db "A", 0
+
+; fs_rsx - HL = an AMSDOS command's name (last letter + #80): run it, no arguments.
+; Not there goes to fs_err (NotFound)
+fs_rsx:
+			call #BCD4			; KL FIND COMMAND: HL = address, C = ROM
+			jr nc, fs_rx_none
+			xor a				; no arguments
+			ld ix, fs_rx_none	; (the argument list: none)
+			call #001B			; KL FAR PCALL
+			ret
+fs_rx_none:
+			ld hl, FS_NOTFOUND
+			jp fs_err
+
+; fs_strout - HL = text (0 ended) into the String result at (fs_res), cut at its size
+fs_strout:
+			ex de, hl
+			ld hl, (fs_res)
+			dec hl
+			ld b, (hl)			; the capacity
+			inc hl
+			ex de, hl
+fs_so_lp:
+			ld a, (hl)
+			or a
+			jr z, fs_so_end
+			ld c, a
+			ld a, b
+			or a
+			jr z, fs_so_end
+			ld a, c
+			ld (de), a
+			inc hl
+			inc de
+			dec b
+			jr fs_so_lp
+fs_so_end:
+			xor a
+			ld (de), a
+			ret
+
+; fs_same - HL = the program's text, DE = a name in capitals: Z when the same (any case)
+fs_same:
+			ld a, (hl)
+			call fs_up
+			ld c, a
+			ld a, (de)
+			cp c
+			ret nz
+			or a
+			ret z
+			inc hl
+			inc de
+			jr fs_same
+
+; fs_volname - HL = text: a volume name (up to 8 letters, a ':' after it is allowed) into
+; fs_tmpn (capitals) and fs_rsxn (last letter + #80). NZ: not a name
+fs_volname:
+			ld de, fs_tmpn
+			ld b, 0
+fs_vn_lp:
+			ld a, (hl)
+			or a
+			jr z, fs_vn_end
+			cp ':'
+			jr z, fs_vn_colon
+			call fs_up
+			ld (de), a
+			inc hl
+			inc de
+			inc b
+			ld a, b
+			cp 9
+			jr c, fs_vn_lp
+			or a				; too long: NZ (A = 9)
+			ret
+fs_vn_colon:
+			inc hl
+			ld a, (hl)
+			or a
+			ret nz				; something after the ':'
+fs_vn_end:
+			xor a
+			ld (de), a
+			ld a, b
+			or a
+			jr z, fs_vn_bad
+			ld hl, fs_tmpn
+			ld de, fs_rsxn
+			ld c, b
+			ld b, 0
+			ldir
+			dec de
+			ld a, (de)
+			or #80
+			ld (de), a
+			xor a				; Z: a name
+			ret
+fs_vn_bad:
+			inc a				; NZ
+			ret
+
+; fs_addvol - HL = a volume name (capitals, 0 ended): into fs_vols if not there and room
+fs_addvol:
+			ld (fs_len), hl		; (the name)
+			ld de, fs_vols
+fs_av_entry:
+			ld a, (de)
+			or a
+			jr z, fs_av_add		; the end of the list: not there
+			ld hl, (fs_len)
+fs_av_cmp:
+			ld a, (de)
+			cp ','
+			jr z, fs_av_sep
+			or a
+			jr z, fs_av_sep
+			cp (hl)
+			jr nz, fs_av_skip
+			inc hl
+			inc de
+			jr fs_av_cmp
+fs_av_sep:
+			ld a, (hl)			; the entry ended: the same if the name ended too
+			or a
+			ret z
+fs_av_skip:
+			ld a, (de)			; on to the next entry
+			or a
+			jr z, fs_av_add
+			inc de
+			cp ','
+			jr nz, fs_av_skip
+			jr fs_av_entry
+fs_av_add:
+			ld hl, (fs_len)		; DE = the 0 at the end: room for "," + name + 0?
+			push hl
+			ld b, 0
+fs_av_len:
+			ld a, (hl)
+			or a
+			jr z, fs_av_room
+			inc hl
+			inc b
+			jr fs_av_len
+fs_av_room:
+			pop hl
+			push hl
+			ld hl, fs_vols + 145 - 2
+			or a
+			sbc hl, de
+			ld a, h
+			or a
+			jr nz, fs_av_ok		; plenty
+			ld a, l
+			cp b
+			jr nc, fs_av_ok
+			pop hl
+			ret					; full: not added
+fs_av_ok:
+			pop hl
+			ld a, e
+			cp low fs_vols
+			jr nz, fs_av_comma
+			ld a, d
+			cp high fs_vols
+			jr z, fs_av_copy
+fs_av_comma:
+			ld a, ','
+			ld (de), a
+			inc de
+fs_av_copy:
+			ld a, (hl)
+			ld (de), a
+			inc hl
+			inc de
+			or a
+			jr nz, fs_av_copy
+			ret
+
+; fs_namevol - after a Load / Save that worked: a volume in its name ("C:NAME") joins the list
+fs_namevol:
+			ld hl, (fs_a1)
+			ld b, 9
+fs_nv_lp:
+			ld a, (hl)
+			or a
+			ret z
+			cp ':'
+			jr z, fs_nv_found
+			inc hl
+			djnz fs_nv_lp
+			ret
+fs_nv_found:
+			ld a, 9
+			sub b
+			ret z				; ":NAME": no volume
+			ld hl, (fs_a1)
+			ld de, fs_tmpn
+			ld c, a
+			ld b, 0
+fs_nv_cp:
+			ld a, (hl)
+			call fs_up
+			ld (de), a
+			inc hl
+			inc de
+			dec c
+			jr nz, fs_nv_cp
+			xor a
+			ld (de), a
+			ld hl, fs_tmpn
+			jp fs_addvol
+
+; Devices(): "TAPE,DISC" with a DOS, "TAPE" without
+fs_devices:
+			call fs_start
+			ld hl, fs_n_all
+			ld a, (fs_dos)
+			or a
+			jp nz, fs_strout
+			ld hl, fs_n_tape
+			jp fs_strout
+
+; CurrentDevice(): "TAPE" or "DISC"
+fs_curdev:
+			call fs_start
+			ld hl, fs_n_tape
+			ld a, (fs_devd)
+			or a
+			jp z, fs_strout
+			ld hl, fs_n_disc
+			jp fs_strout
+
+; SelectDevice(name): "TAPE" or "DISC" (any case). OK, NotFound
+fs_select:
+			call fs_start
+			ld hl, (fs_a1)
+			ld de, fs_n_tape
+			call fs_same
+			jr z, fs_se_tape
+			ld hl, (fs_a1)
+			ld de, fs_n_disc
+			call fs_same
+			jr nz, fs_se_bad
+			ld a, (fs_dos)
+			or a
+			jr z, fs_se_bad		; no DOS: no disc
+			ld hl, fs_c_disc
+			call fs_rsx
+			ld a, 1
+			jr fs_se_done
+fs_se_tape:
+			ld a, (fs_dos)
+			or a
+			jr z, fs_se_t2		; no DOS: tape anyway
+			ld hl, fs_c_tape
+			call fs_rsx
+fs_se_t2:
+			xor a
+fs_se_done:
+			ld (fs_devd), a
+			ld hl, 0
+			ret
+fs_se_bad:
+			ld hl, FS_NOTFOUND
+			ret
+
+; Volumes(): the volumes that worked so far ("A,C")
+fs_volumes:
+			call fs_start
+			ld hl, fs_vols
+			jp fs_strout
+
+; CurrentVolume(): the volume last selected ("" = not known)
+fs_curvol:
+			call fs_start
+			ld hl, fs_vol
+			jp fs_strout
+
+; SelectVolume(name): runs the DOS's command of that name (|A, |B, |C, |M ... whatever
+; the DOS has). OK, NotFound (no such command). It joins Volumes()
+fs_selvol:
+			call fs_start
+			ld hl, (fs_a1)
+			call fs_volname
+			jr nz, fs_se_bad
+			ld hl, fs_rsxn
+			call fs_rsx
+			ld hl, fs_tmpn
+			ld de, fs_vol
+			ld bc, 9
+			ldir
+			ld hl, fs_tmpn
+			call fs_addvol
+			ld hl, 0
+			ret
+
+; Command(name): run a ROM's command (an RSX: |NAME) with no arguments - AMSDOS, M4,
+; a utility ROM ... OK, NotFound (no ROM has it). Up to 16 letters
+fs_command:
+			call fs_start
+			ld hl, (fs_a1)
+			ld de, fs_rsxn
+			ld b, 0
+fs_cm_lp:
+			ld a, (hl)
+			or a
+			jr z, fs_cm_end
+			call fs_up
+			ld (de), a
+			inc hl
+			inc de
+			inc b
+			ld a, b
+			cp 17
+			jr c, fs_cm_lp
+fs_cm_bad:
+			ld hl, FS_NOTFOUND
+			ret
+fs_cm_end:
+			ld a, b
+			or a
+			jr z, fs_cm_bad
+			dec de
+			ld a, (de)
+			or #80
+			ld (de), a
+			ld hl, fs_rsxn
+			call fs_rsx
+			ld hl, 0
+			ret
+
+fs_up:
+			cp 'a'
+			ret c
+			cp 'z' + 1
+			ret nc
+			sub 32
+			ret
 
 ; fs_name - B = length of the name at (fs_a1), HL = the name; an empty or too long name goes to fs_err
 fs_name:
@@ -323,6 +730,7 @@ fs_nm_end:
 ; Load(name, addr, maxlen): bytes loaded (the file's length), or a status.
 ; A file longer than maxlen is not loaded: FS_TOOBIG
 fs_load:
+			call fs_start
 			call fs_name
 			ld de, fs_buf
 			call #BC77			; CAS IN OPEN: BC = length, carry = ok
@@ -348,10 +756,14 @@ fs_ld_fits:
 fs_ld_read:
 			call #BC7A			; CAS IN CLOSE
 			ld hl, (fs_len)
+			push hl
+			call fs_namevol
+			pop hl
 			ret
 
 ; Save(name, addr, len): a binary file (type 2, BASIC can LOAD it back). 0 or a status
 fs_save:
+			call fs_start
 			call fs_name
 			ld de, fs_buf
 			call #BC8C			; CAS OUT OPEN
@@ -370,7 +782,8 @@ fs_sv_open:
 			jp fs_err
 fs_sv_done:
 			call #BC8F			; CAS OUT CLOSE
-			ld hl, 0
-			ret c
 			ld hl, FS_FAILED
+			ret nc
+			call fs_namevol
+			ld hl, 0
 			ret

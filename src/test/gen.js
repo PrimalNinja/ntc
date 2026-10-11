@@ -3,7 +3,7 @@ var fs = require('fs');
 var strDir = require('path').join(__dirname, '..') + '/';
 function read(f) { return fs.readFileSync(strDir + f, 'utf8'); }
 var strLib = read('asm/ntc_lib.asm');
-var arrPlat = ['cpc', 'cpcfw', 'cpm', 'test'];
+var arrPlat = ['cpc', 'cpcmin', 'cpcfw', 'cpm', 'test'];
 // the platform's own classes: lib/<platform>/*.cls
 var objClasses = {};
 arrPlat.forEach(function(strPlat)

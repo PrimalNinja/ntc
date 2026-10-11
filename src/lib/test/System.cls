@@ -26,3 +26,8 @@ got:
             ld (hl), d
 #endasm
 End Function
+
+' Command(name): a ROM's command (|NAME) - only on the CPC firmware platforms (cpcfw, cpcmin)
+Public Function Command(ByVal name As String) As Integer
+    Command = -1
+End Function

@@ -3,8 +3,11 @@
 ' Load and Save only (for now), through the firmware's cassette calls (CAS IN / CAS OUT
 ' DIRECT): with AMSDOS they go to the disc drive that is selected, else to tape - the same
 ' as BASIC's LOAD and SAVE, with the firmware's own messages ("Press PLAY then any key",
-' disc errors with Retry / Cancel). Capability: LOAD, SAVE (True), MAXOPEN 0. Everything
-' else returns NotSupported. Uses a 2K buffer (CAS IN / OUT OPEN need one).
+' disc errors with Retry / Cancel). Capability: LOAD, SAVE, DEVICES, VOLUMES (True),
+' MAXOPEN 0. Everything else returns NotSupported. Uses a 2K buffer (CAS IN / OUT OPEN).
+' Devices: TAPE, and DISC with a DOS (|TAPE, |DISC). Volumes: any name the DOS has a command
+' for (|A, |B, |C, |M ... - AMSDOS, M4, UniDOS, ...); the ones that work join Volumes().
+' RUN" of a binary drops AMSDOS (tape then): Option RomEnable 7 starts it again.
 ' A file saved here is a binary file (type 2): BASIC can LOAD "NAME", address it back.
 
 ' ---- status
@@ -36,6 +39,10 @@ Public Function Capability(ByVal name As String) As Integer
 caps:       db "LOAD", 0
             dw -1
             db "SAVE", 0
+            dw -1
+            db "DEVICES", 0
+            dw -1
+            db "VOLUMES", 0
             dw -1
             db "MAXOPEN", 0
             dw 0
@@ -142,4 +149,71 @@ End Function
 
 Public Function WriteLine(ByVal h As Integer, ByVal text As String) As Integer
     WriteLine = NotSupported
+End Function
+
+' ---- devices
+
+' Devices(): how files travel, "TAPE,DISC" / "DISC"
+Public Function Devices() As String
+#asm
+            pop hl
+            ld (fs_res), hl
+            ld hl, fs_devices
+            jp fs_go0
+#endasm
+End Function
+
+' CurrentDevice(): "TAPE" or "DISC"
+Public Function CurrentDevice() As String
+#asm
+            pop hl
+            ld (fs_res), hl
+            ld hl, fs_curdev
+            jp fs_go0
+#endasm
+End Function
+
+' SelectDevice(name): "TAPE" or "DISC". OK, or NotFound
+Public Function SelectDevice(ByVal name As String) As Integer
+#asm
+            pop hl
+            ld (fs_a1), hl
+            pop hl
+            ld (fs_res), hl
+            ld hl, fs_select
+            jp fs_go
+#endasm
+End Function
+
+' Volumes(): the volumes that worked so far, "A,C" (the platform can't list them all:
+' each one used successfully joins the list)
+Public Function Volumes() As String
+#asm
+            pop hl
+            ld (fs_res), hl
+            ld hl, fs_volumes
+            jp fs_go0
+#endasm
+End Function
+
+' CurrentVolume(): the volume last selected ("" = not known)
+Public Function CurrentVolume() As String
+#asm
+            pop hl
+            ld (fs_res), hl
+            ld hl, fs_curvol
+            jp fs_go0
+#endasm
+End Function
+
+' SelectVolume(name): the volume files without one in their name go to. OK, NotFound
+Public Function SelectVolume(ByVal name As String) As Integer
+#asm
+            pop hl
+            ld (fs_a1), hl
+            pop hl
+            ld (fs_res), hl
+            ld hl, fs_selvol
+            jp fs_go
+#endasm
 End Function

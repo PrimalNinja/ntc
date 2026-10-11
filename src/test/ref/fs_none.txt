@@ -1,4 +1,6 @@
 cap00
 save-1-1
 open-1-1[]
+devices [][]-1-1
+command-1
 end

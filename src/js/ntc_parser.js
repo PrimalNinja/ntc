@@ -1331,6 +1331,14 @@ function ntcParse(arrFiles_a, objDefines_a)
 		{
 			record('option', { what: 'terminal', value: strText.substr(9) });	// CP/M: the terminal's codes for Cls / Locate
 		}
+		else if (left(strText, 'stack '))
+		{
+			record('option', { what: 'stack', value: trim(strText.substr(6)) });	// where the real stack starts
+		}
+		else if (left(strText, 'romenable '))
+		{
+			record('option', { what: 'romenable', value: trim(strText.substr(10)) });	// CPC firmware: the ROMs to start
+		}
 		else if (left(strText, 'reserve '))
 		{
 			record('option', { what: 'reserve', value: trim(strText.substr(8)) });	// memory the program must not reach into

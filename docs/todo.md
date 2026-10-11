@@ -223,6 +223,48 @@ finished, with the date.
   loop, slower on factor / divide) and SDCC 4.2 (1.5-3.7 x faster than NTC turbo:
   registers for variables and arguments). zsdcc not built (sources not reachable here).
   Same C source for both: `compare/bench/ansi/`
+- 2026-10-12 `build/dsk/`: cpc.dsk, cpcmin.dsk, cpcfw.dsk (.BIN), cpm.dsk (.COM) - CPC data format
+  CPCEMU images made by `test/gendsk.sh` (sjasmplus, then cpmtools dskform / cpmcp), checked with
+  cpmls and a copy back; in regress. cpcmin.dsk: 161K of 178K used - a second disc (or leaving
+  the self tests off) when the programs outgrow one
+- 2026-10-12 files.bas / filestep.bas: Option RomEnable 7 for cpcmin too (Julian: FILES on cpcmin went to tape -
+  the test only restarted AMSDOS for cpcfw)
+- 2026-10-12 **three CPC platforms** (Julian): `cpcfw` full firmware, `cpcmin` minimal firmware (new:
+  the cpc screen / keys / interrupts, the firmware kept alive and handed back for each firmware
+  call - fs_fwon / fs_fwoff: #38 bytes, ei / di, NTC's handler, gate array mode + ROMs off, CRTC
+  start; FileSystem as cpcfw; `System.Command(name)`: any ROM's RSX, no arguments), `cpc` no
+  firmware (no files again). Option RomEnable for cpcfw / cpcmin. GUI, builds (5 platforms),
+  harness (cpcrun firmware stand-ins), regress (fs_fw / fs_fw2 on cpcmin, fs_none on cpc,
+  stdio.cpcmin), `bas/amsdos.bas` (build AMSDOS: Load / Save, an AMSDOS message, Mode 2 kept
+  across a file call, ticks, drive B)
+- 2026-10-12 `Option Stack address` (Julian): the real stack grows down from there; the caller's SP is
+  saved and a return stub pushed so End still returns to the caller; ASSERT that it isn't in the
+  program (or < 64 bytes above its end); warning on cpcfw for #A600-#BFFF. Options are all read
+  first and applied in a fixed order: Stack, RomEnable, the program (Reserve: a check)
+- 2026-10-12 cpcfw FILES checked in WinAPE: works (RUN", Option RomEnable 7). Option RomEnable now
+  gives the ROMs HL = #ABFF (the usual AMSDOS value) instead of #B0FF; files.bas empties the key
+  buffer before its last wait; bas/filestep.bas (FILESTEP, with RomEnable) and filestpn.bas
+  (FILESTPN, without) go through the file calls one step at a time with a key between
+- 2026-10-12 devices and volumes (Julian): a device is how files travel (TAPE, DISC), a volume
+  is a drive - any name, tried when used, since neither AMSDOS nor CP/M can list them.
+  `Devices` / `SelectDevice` / `CurrentDevice` (TAPE / DISC), `Volumes` / `SelectVolume` /
+  `CurrentVolume`; `Volumes()` = known at start (A after Option RomEnable) + each volume used
+  successfully (SelectVolume, or Load / Save with "C:NAME"); a program can loop A-Z to build
+  it (CPC: RSX lookups, no disc access - shows what the DOS offers; CP/M: each try reads
+  the drive, loop only on CP/M 3). Capabilities VOLUMES, CPMVERSION (BDOS 12; CP/M's
+  Capability now runs on the real stack, `fs_capab`). Harness: RSX C and M (M4-like),
+  folders per volume, BDOS 12 = CP/M 3
+- 2026-10-12 FileSystem devices (first try, replaced the same day): `Devices()`, `SelectDevice(name)`, `CurrentDevice()`, capability
+  DEVICES - cpcfw: AMSDOS's |TAPE / |DISC / |A / |B through KL FIND COMMAND + KL FAR PCALL;
+  CP/M: BDOS 24 / 25 / 14 (error mode 255 first, so CP/M 3 reports a missing drive). Julian's
+  report: cpcfw Save always went to tape - RUN" of a binary resets the firmware and drops
+  AMSDOS. `Option RomEnable All | n [, n]` (cpcfw): the start code starts the ROMs again
+  (KL ROM WALK / KL INIT BACK) unless AMSDOS still has the cassette calls (#DF at #BC77:
+  CALLed from BASIC). Without the option nothing is started (RUN": tape; MEMORY &1FFF :
+  LOAD : CALL &2000: AMSDOS kept). Harness: per device folders (TAPE, A, B / CP/M drives),
+  AMSDOS's far call CAS entries (RST 3), `--called`. Tests fs_fw (RomEnable 7), fs_fw2
+  (RUN": tape / --called: disc), devices in fs_cpm / fs_none; bas/files.bas uses
+  `#If NTC_CPCFW` + `Option RomEnable 7`
 - 2026-10-12 `Option Reserve start, size [, start, size] ...`: an sjasmplus ASSERT per range
   after `ntc_end` (the assembly stops if the program overlaps it, naming the range and the
   line); pairs and bounds checked by the compiler; a warning on cpc when #C000 is covered
@@ -431,17 +473,31 @@ finished, with the date.
         constants (one pattern for every platform class and later drivers)
       - CPC firmware: SEQUENTIAL through CAS IN CHAR / CAS OUT CHAR (one file in, one out),
         DELETE / RENAME through AMSDOS's |ERA / |REN (RSX, only with AMSDOS)
-      - CPC hardware platform: use the firmware for files when the program leaves its RAM
-        (#A700 up) alone - a platform option, noted as such: put the firmware's #38 back,
-        call, then NTC's handler again. Or an own FDC (uPD765) driver later
+      - [x] CPC hardware with the firmware for files: done as the cpcmin platform (2026-10-12).
+        An own FDC (uPD765) driver for `cpc` - later, if ever
+      - cpcmin: check in WinAPE (AMSDOS test); messages on/off as an option (CAS NOISY #BC6B
+        for tape, AMSDOS's #BE78 = #FF for disc errors); System.Command with arguments
+      - CPC (cpcfw / cpcmin), later: a directory listing (CAS CATALOG / |DIR print to the screen;
+        names back into the program needs more); Delete / Rename via |ERA / |REN once Command
+        takes arguments
+      - MSX: the cpm build under MSX-DOS 1 / 2 (BDOS-compatible: console and FCB files) - try
+        it, check Option Terminal VT52 there (cursor ESC Y; clear screen may be Ctrl-L);
+        an `msx` platform through the MSX BIOS (CHPUT, CHGET, CHSNS, POSIT, CLS) for
+        programs without MSX-DOS
       - check on a real CPC / WinAPE: CAS calls with IY as NTC leaves it (AMSDOS is believed to
-        load its own IY), tape messages, disc errors (Retry / Cancel) mid-load
+        load its own IY), tape messages, disc errors (Retry / Cancel) mid-load; that AMSDOS's
+        CAS IN OPEN entry really starts with #DF (the "AMSDOS is running" test); the
+        |TAPE / |DISC / |A / |B calls through KL FAR PCALL; Option RomEnable 7 after RUN"
+      - CPC: CurrentDevice when CALLed is "DISC" - AMSDOS's current drive could be read from
+        its workspace (needs the layout)
       - third party mass storage (IDE, SD card interfaces: random access) - needs research,
         not Amstrad standard; possibly later, as their own FileSystem variants
       - CPC firmware: the 2K buffer CAS IN / OUT OPEN need is in the program now (`fs_buf`);
         a way to put it elsewhere, often #C000 (the screen) - e.g. `Option FileBuffer &HC000`
         (an equ the platform file tests: no `ds 2048` then), checked against the program
         like Option Reserve
+      - cpc (no firmware): `End` that resets (`rst 0`) instead of returning, for programs that use
+        the firmware's / BASIC's RAM (#A700-#BFFF) - there is nothing intact to return to then
       - Option Reserve: lay the program out around a range (skip it between sections) instead
         of only stopping the assembly
       - `Option Files n` for MAXOPEN (now fixed at 2 on CP/M), VB style statements

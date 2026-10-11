@@ -1,6 +1,7 @@
-' FileSystem - files. NTC platform class: Amstrad CPC, hardware (no firmware) - no files (yet)
+' FileSystem - files. NTC platform class: Amstrad CPC, hardware (no firmware) - no files
 '
-' This platform has no file system: Capability("...") is 0 (False) for everything and every
+' This platform uses no firmware at all, so no AMSDOS / tape (the cpcmin platform keeps the
+' firmware for that, cpcfw uses it for everything). No file system here: Capability("...") is 0 (False) for everything and every
 ' method returns NotSupported (Eof True, ReadLine ""). Every platform's FileSystem has the
 ' same methods, so a program written for files still compiles here and can check first:
 '   If FileSystem.Capability("SAVE") Then r = FileSystem.Save("HISCORE", VarPtr(hs(0)), 64)
@@ -97,4 +98,22 @@ End Function
 
 Public Function WriteLine(ByVal h As Integer, ByVal text As String) As Integer
     WriteLine = NotSupported
+End Function
+Public Function Devices() As String
+    Devices = ""
+End Function
+Public Function CurrentDevice() As String
+    CurrentDevice = ""
+End Function
+Public Function SelectDevice(ByVal name As String) As Integer
+    SelectDevice = NotSupported
+End Function
+Public Function Volumes() As String
+    Volumes = ""
+End Function
+Public Function CurrentVolume() As String
+    CurrentVolume = ""
+End Function
+Public Function SelectVolume(ByVal name As String) As Integer
+    SelectVolume = NotSupported
 End Function

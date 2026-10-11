@@ -7,6 +7,7 @@
 
 NTC_TERM	equ 0		; Option Terminal: 0 none, 1 VT52, 2 ANSI (CP/M)
 NTC_STRMAX	equ 40		; the longest string (library buffers, temps)
+NTC_ROMENABLE	equ 0		; Option RomEnable (cpcfw, cpcmin): the start code starts the ROMs
 
 ntc_start:
 			di
@@ -22,11 +23,11 @@ ntc_start:
 
 main_thread:
 
-			; main.bas 9: Print "Files on "; System.Platform
+			; main.bas 19: Print "Files on "; System.Platform
 			dw kw_printstrvar, str1
 			dw kw_printnl
 
-			; main.bas 10: Print "LOAD "; FileSystem.Capability("LOAD"); "  SAVE "; FileSystem.Capability("SAVE")
+			; main.bas 20: Print "LOAD "; FileSystem.Capability("LOAD"); "  SAVE "; FileSystem.Capability("SAVE")
 			dw fn_filesystem_capability, str2, var_filesystem_capability_capability
 			dw kw_printstrvar, str3
 			dw kw_printint, var_filesystem_capability_capability
@@ -35,7 +36,7 @@ main_thread:
 			dw kw_printint, var_filesystem_capability_capability
 			dw kw_printnl
 
-			; main.bas 11: Print "SEQUENTIAL "; FileSystem.Capability("SEQUENTIAL"); "  RANDOMACCESS "; FileSystem.Capability("RANDOMACCESS")
+			; main.bas 21: Print "SEQUENTIAL "; FileSystem.Capability("SEQUENTIAL"); "  RANDOMACCESS "; FileSystem.Capability("RANDOMACCESS")
 			dw fn_filesystem_capability, str6, var_filesystem_capability_capability
 			dw kw_printstrvar, str7
 			dw kw_printint, var_filesystem_capability_capability
@@ -44,135 +45,167 @@ main_thread:
 			dw kw_printint, var_filesystem_capability_capability
 			dw kw_printnl
 
-			; main.bas 12: Print "MAXOPEN "; FileSystem.Capability("MAXOPEN")
+			; main.bas 22: Print "MAXOPEN "; FileSystem.Capability("MAXOPEN")
 			dw fn_filesystem_capability, str10, var_filesystem_capability_capability
 			dw kw_printstrvar, str11
 			dw kw_printint, var_filesystem_capability_capability
 			dw kw_printnl
 
-			; main.bas 13: Print
+			; main.bas 23: If FileSystem.Capability("DEVICES") Then Print "Devices "; FileSystem.Devices(); " - using "; FileSystem.CurrentDevice()
+			dw fn_filesystem_capability, str12, var_filesystem_capability_capability
+			dw kw_goto_ifzero_n, var_filesystem_capability_capability, if1_1
+			dw p_filesystem_devices_c
+			dw kw_printstrvar, str13
+			dw kw_printstrvar, var_filesystem_devices_devices
+			dw p_filesystem_currentdevice_c
+			dw kw_printstrvar, str14
+			dw kw_printstrvar, var_filesystem_currentdevice_currentdevice
+			dw kw_printnl
+if1_1:
+
+			; main.bas 24: If FileSystem.Capability("VOLUMES") Then Print "Volumes known "; FileSystem.Volumes(); " - using "; FileSystem.CurrentVolume()
+			dw fn_filesystem_capability, str15, var_filesystem_capability_capability
+			dw kw_goto_ifzero_n, var_filesystem_capability_capability, if2_1
+			dw p_filesystem_volumes_c
+			dw kw_printstrvar, str16
+			dw kw_printstrvar, var_filesystem_volumes_volumes
+			dw p_filesystem_currentvolume_c
+			dw kw_printstrvar, str14
+			dw kw_printstrvar, var_filesystem_currentvolume_currentvolume
+			dw kw_printnl
+if2_1:
+
+			; main.bas 25: Print
 			dw kw_printnl
 
-			; main.bas 15: If FileSystem.Capability("SAVE") Then
+			; main.bas 27: If FileSystem.Capability("SAVE") Then
 			dw fn_filesystem_capability, str4, var_filesystem_capability_capability
-			dw kw_goto_ifzero_n, var_filesystem_capability_capability, if1_1
+			dw kw_goto_ifzero_n, var_filesystem_capability_capability, if3_1
 
-			; main.bas 16: For i = 0 To 9 : hs(i) = 1000 - i * 50 : Next
+			; main.bas 28: For i = 0 To 9 : hs(i) = 1000 - i * 50 : Next
 			dw kw_ztov, var_i
-for2_t:
+for4_t:
 			dw kw_mulvl, var_i, 50, tmp2
 			dw kw_sublv, 1000, tmp2, tmp1
 			dw kw_aset, arr_hs, var_i, tmp1
-			dw kw_next1l_n, var_i, 9, for2_t
-for2_e:
+			dw kw_next1l_n, var_i, 9, for4_t
+for4_e:
 
-			; main.bas 17: r = FileSystem.Save("HISCORE.DAT", VarPtr(hs), 20)
-			dw p_filesystem_save_c, str12, vp_arr_hs, lit_20
+			; main.bas 29: r = FileSystem.Save("HISCORE.DAT", VarPtr(hs), 20)
+			dw p_filesystem_save_c, str17, vp_arr_hs, lit_20
 			dw kw_vtov, var_filesystem_save_save, var_r
 
-			; main.bas 18: Print "Save HISCORE.DAT: "; r
-			dw kw_printstrvar, str13
+			; main.bas 30: Print "Save HISCORE.DAT: "; r
+			dw kw_printstrvar, str18
 			dw kw_printint, var_r
 			dw kw_printnl
 
-			; main.bas 19: If FileSystem.Capability("LOAD") Then
+			; main.bas 31: If FileSystem.Capability("LOAD") Then
 			dw fn_filesystem_capability, str2, var_filesystem_capability_capability
-			dw kw_goto_ifzero_n, var_filesystem_capability_capability, if1_e
+			dw kw_goto_ifzero_n, var_filesystem_capability_capability, if3_e
 
-			; main.bas 20: r = FileSystem.Load("HISCORE.DAT", VarPtr(back), 20)
-			dw p_filesystem_load_c, str12, vp_arr_back, lit_20
+			; main.bas 32: r = FileSystem.Load("HISCORE.DAT", VarPtr(back), 20)
+			dw p_filesystem_load_c, str17, vp_arr_back, lit_20
 			dw kw_vtov, var_filesystem_load_load, var_r
 
-			; main.bas 21: Print "Load: "; r; " bytes, "; back(0); " ... "; back(9)
-			dw kw_printstrvar, str14
+			; main.bas 33: Print "Load: "; r; " bytes, "; back(0); " ... "; back(9)
+			dw kw_printstrvar, str19
 			dw kw_printint, var_r
-			dw kw_printstrvar, str15
+			dw kw_printstrvar, str20
 			dw kw_printint, arr_back
-			dw kw_printstrvar, str16
+			dw kw_printstrvar, str21
 			dw kw_printint, arr_back+18
 			dw kw_printnl
 
-			; main.bas 22: End If
+			; main.bas 34: End If
+if5_1:
+
+			; main.bas 35: Else
+			dw if3_e_go
 if3_1:
 
-			; main.bas 23: Else
-			dw if1_e_go
-if1_1:
-
-			; main.bas 24: Print "No saving on this platform"
-			dw kw_printstrvar, str17
+			; main.bas 36: Print "No saving on this platform"
+			dw kw_printstrvar, str22
 			dw kw_printnl
 
-			; main.bas 25: End If
-if1_e:
+			; main.bas 37: End If
+if3_e:
 
-			; main.bas 27: If FileSystem.Capability("SEQUENTIAL") Then
+			; main.bas 39: If FileSystem.Capability("SEQUENTIAL") Then
 			dw fn_filesystem_capability, str6, var_filesystem_capability_capability
-			dw kw_goto_ifzero_n, var_filesystem_capability_capability, if4_1
+			dw kw_goto_ifzero_n, var_filesystem_capability_capability, if6_1
 
-			; main.bas 28: h = FileSystem.Open("NOTES.TXT", FileSystem.ForWrite)
-			dw p_filesystem_open_c, str18, lit_2
+			; main.bas 40: h = FileSystem.Open("NOTES.TXT", FileSystem.ForWrite)
+			dw p_filesystem_open_c, str23, lit_2
 			dw kw_vtov, var_filesystem_open_open, var_h
 
-			; main.bas 29: r = FileSystem.WriteLine(h, "Written by NTC BASIC")
-			dw p_filesystem_writeline_c, var_h, str19
+			; main.bas 41: r = FileSystem.WriteLine(h, "Written by NTC BASIC")
+			dw p_filesystem_writeline_c, var_h, str24
 			dw kw_vtov, var_filesystem_writeline_writeline, var_r
 
-			; main.bas 30: r = FileSystem.WriteLine(h, "Line two")
-			dw p_filesystem_writeline_c, var_h, str20
+			; main.bas 42: r = FileSystem.WriteLine(h, "Line two")
+			dw p_filesystem_writeline_c, var_h, str25
 			dw kw_vtov, var_filesystem_writeline_writeline, var_r
 
-			; main.bas 31: r = FileSystem.Close(h)
+			; main.bas 43: r = FileSystem.Close(h)
 			dw p_filesystem_close_c, var_h
 			dw kw_vtov, var_filesystem_close_close, var_r
 
-			; main.bas 32: Print "NOTES.TXT:"
-			dw kw_printstrvar, str21
+			; main.bas 44: Print "NOTES.TXT:"
+			dw kw_printstrvar, str26
 			dw kw_printnl
 
-			; main.bas 33: h = FileSystem.Open("NOTES.TXT", FileSystem.ForRead)
-			dw p_filesystem_open_c, str18, lit_1
+			; main.bas 45: h = FileSystem.Open("NOTES.TXT", FileSystem.ForRead)
+			dw p_filesystem_open_c, str23, lit_1
 			dw kw_vtov, var_filesystem_open_open, var_h
 
-			; main.bas 34: Do While Not FileSystem.Eof(h)
-do5_t:
+			; main.bas 46: Do While Not FileSystem.Eof(h)
+do7_t:
 			dw p_filesystem_eof_c, var_h
 			dw kw_vtov, var_filesystem_eof_eof, tmp0
 			dw kw_notv, tmp0, tmp0
-			dw kw_goto_ifzero_n, tmp0, do5_e
+			dw kw_goto_ifzero_n, tmp0, do7_e
 
-			; main.bas 35: Print "> "; FileSystem.ReadLine(h)
+			; main.bas 47: Print "> "; FileSystem.ReadLine(h)
 			dw p_filesystem_readline_c, var_h
-			dw kw_printstrvar, str22
+			dw kw_printstrvar, str27
 			dw kw_printstrvar, var_filesystem_readline_readline
 			dw kw_printnl
 
-			; main.bas 36: Loop
-			dw do5_t_go
-do5_e:
+			; main.bas 48: Loop
+			dw do7_t_go
+do7_e:
 
-			; main.bas 37: r = FileSystem.Close(h)
+			; main.bas 49: r = FileSystem.Close(h)
 			dw p_filesystem_close_c, var_h
 			dw kw_vtov, var_filesystem_close_close, var_r
 
-			; main.bas 38: End If
-if4_1:
+			; main.bas 50: End If
+if6_1:
 
-			; main.bas 40: Print "Press a key";
-			dw kw_printstrvar, str23
+			; main.bas 52: Print "Press a key";
+			dw kw_printstrvar, str28
 
-			; main.bas 41: Do : Frame : Loop Until Inkey <> 0
-do6_t:
+			; main.bas 53: Do While Inkey <> 0 : Loop          ' no key left waiting from before
+do8_t:
+			dw kw_inkey, tmp0
+			dw kw_cpnevl, tmp0, 0
+			dw kw_goto_iffalse_n, do8_e
+			dw do8_t_go
+do8_e:
+
+			; main.bas 54: Do : Frame : Loop Until Inkey <> 0
+do9_t:
 			dw kw_frame
 			dw kw_inkey, tmp0
 			dw kw_cpnevl, tmp0, 0
-			dw kw_goto_iffalse_n, do6_t
-do6_e:
+			dw kw_goto_iffalse_n, do9_t
+do9_e:
 
-			; main.bas 42: Print
+			; main.bas 55: Print
 			dw kw_printnl
 
-			; main.bas 43: End
+			; main.bas 56: End
 			dw kw_stop
 
 ; ============================================================
@@ -232,7 +265,7 @@ p_filesystem_eof:
 p_filesystem_readline:
 
 			; FileSystem.cls 95: ReadLine = ""
-			dw kw_strcpy, var_filesystem_readline_readline, str24
+			dw kw_strcpy, var_filesystem_readline_readline, str29
 			dw p_filesystem_readline_r
 
 ; ============================================================
@@ -246,6 +279,46 @@ p_filesystem_writeline:
 			dw p_filesystem_writeline_r
 
 ; ============================================================
+; function devices (normal mode)
+; ============================================================
+
+p_filesystem_devices:
+
+			; FileSystem.cls 102: Devices = ""
+			dw kw_strcpy, var_filesystem_devices_devices, str29
+			dw p_filesystem_devices_r
+
+; ============================================================
+; function currentdevice (normal mode)
+; ============================================================
+
+p_filesystem_currentdevice:
+
+			; FileSystem.cls 105: CurrentDevice = ""
+			dw kw_strcpy, var_filesystem_currentdevice_currentdevice, str29
+			dw p_filesystem_currentdevice_r
+
+; ============================================================
+; function volumes (normal mode)
+; ============================================================
+
+p_filesystem_volumes:
+
+			; FileSystem.cls 111: Volumes = ""
+			dw kw_strcpy, var_filesystem_volumes_volumes, str29
+			dw p_filesystem_volumes_r
+
+; ============================================================
+; function currentvolume (normal mode)
+; ============================================================
+
+p_filesystem_currentvolume:
+
+			; FileSystem.cls 114: CurrentVolume = ""
+			dw kw_strcpy, var_filesystem_currentvolume_currentvolume, str29
+			dw p_filesystem_currentvolume_r
+
+; ============================================================
 ; Jump stubs (code, ROMable)
 ;   label_go: GOTO label
 ;   label_gs: GOSUB label, return point -> label_rs (RAM)
@@ -254,9 +327,11 @@ p_filesystem_writeline:
 ;   turbo mode ends with ret, normal mode with jp ntc_xn
 ; ============================================================
 
-if1_e_go:			ld sp, if1_e
+if3_e_go:			ld sp, if3_e
 			jp ntc_xn
-do5_t_go:			ld sp, do5_t
+do7_t_go:			ld sp, do7_t
+			jp ntc_xn
+do8_t_go:			ld sp, do8_t
 			jp ntc_xn
 
 p_filesystem_load_c:		; call load (normal)
@@ -423,6 +498,42 @@ p_filesystem_writeline_si1_e:
 p_filesystem_writeline_r:		; end of writeline
 			ld sp, (p_filesystem_writeline_rs)
 			jp ntc_xn
+p_filesystem_devices_c:		; call devices (normal)
+			xor a
+			ld (var_filesystem_devices_devices), a
+			ld (p_filesystem_devices_rs), sp
+			ld sp, p_filesystem_devices
+			jp ntc_xn
+p_filesystem_devices_r:		; end of devices
+			ld sp, (p_filesystem_devices_rs)
+			jp ntc_xn
+p_filesystem_currentdevice_c:		; call currentdevice (normal)
+			xor a
+			ld (var_filesystem_currentdevice_currentdevice), a
+			ld (p_filesystem_currentdevice_rs), sp
+			ld sp, p_filesystem_currentdevice
+			jp ntc_xn
+p_filesystem_currentdevice_r:		; end of currentdevice
+			ld sp, (p_filesystem_currentdevice_rs)
+			jp ntc_xn
+p_filesystem_volumes_c:		; call volumes (normal)
+			xor a
+			ld (var_filesystem_volumes_volumes), a
+			ld (p_filesystem_volumes_rs), sp
+			ld sp, p_filesystem_volumes
+			jp ntc_xn
+p_filesystem_volumes_r:		; end of volumes
+			ld sp, (p_filesystem_volumes_rs)
+			jp ntc_xn
+p_filesystem_currentvolume_c:		; call currentvolume (normal)
+			xor a
+			ld (var_filesystem_currentvolume_currentvolume), a
+			ld (p_filesystem_currentvolume_rs), sp
+			ld sp, p_filesystem_currentvolume
+			jp ntc_xn
+p_filesystem_currentvolume_r:		; end of currentvolume
+			ld sp, (p_filesystem_currentvolume_rs)
+			jp ntc_xn
 
 ; ============================================================
 ; Inline assembly (#asm ... #endasm)
@@ -444,6 +555,14 @@ fn_filesystem_capability_caps:       db 0		; FileSystem.cls 34
 arr_hs:			ds 20		; 10 words
 arr_back:			ds 20		; 10 words
 var_filesystem_capability_capability:			dw 0
+			db 40			; capacity
+var_filesystem_devices_devices:			ds 41
+			db 40			; capacity
+var_filesystem_currentdevice_currentdevice:			ds 41
+			db 40			; capacity
+var_filesystem_volumes_volumes:			ds 41
+			db 40			; capacity
+var_filesystem_currentvolume_currentvolume:			ds 41
 var_i:			dw 0
 var_r:			dw 0
 var_filesystem_save_save:			dw 0
@@ -479,6 +598,10 @@ p_filesystem_writeline_rs:			dw 0
 var_filesystem_writeline_h:			dw 0
 			db 40			; capacity
 var_filesystem_writeline_text:			ds 41
+p_filesystem_devices_rs:			dw 0
+p_filesystem_currentdevice_rs:			dw 0
+p_filesystem_volumes_rs:			dw 0
+p_filesystem_currentvolume_rs:			dw 0
 tmp0:			dw 0
 tmp1:			dw 0
 tmp2:			dw 0
@@ -507,19 +630,24 @@ str8:			db "RANDOMACCESS", 0
 str9:			db "  RANDOMACCESS ", 0
 str10:			db "MAXOPEN", 0
 str11:			db "MAXOPEN ", 0
-str12:			db "HISCORE.DAT", 0
-str13:			db "Save HISCORE.DAT: ", 0
-str14:			db "Load: ", 0
-str15:			db " bytes, ", 0
-str16:			db " ... ", 0
-str17:			db "No saving on this platform", 0
-str18:			db "NOTES.TXT", 0
-str19:			db "Written by NTC BASIC", 0
-str20:			db "Line two", 0
-str21:			db "NOTES.TXT:", 0
-str22:			db "> ", 0
-str23:			db "Press a key", 0
-str24:			db 0
+str12:			db "DEVICES", 0
+str13:			db "Devices ", 0
+str14:			db " - using ", 0
+str15:			db "VOLUMES", 0
+str16:			db "Volumes known ", 0
+str17:			db "HISCORE.DAT", 0
+str18:			db "Save HISCORE.DAT: ", 0
+str19:			db "Load: ", 0
+str20:			db " bytes, ", 0
+str21:			db " ... ", 0
+str22:			db "No saving on this platform", 0
+str23:			db "NOTES.TXT", 0
+str24:			db "Written by NTC BASIC", 0
+str25:			db "Line two", 0
+str26:			db "NOTES.TXT:", 0
+str27:			db "> ", 0
+str28:			db "Press a key", 0
+str29:			db 0
 
 ; ============================================================
 ; Keyword library (used)

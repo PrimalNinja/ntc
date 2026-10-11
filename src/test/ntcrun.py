@@ -1,7 +1,8 @@
 # run an NTC program on an emulated host - scratch test tool, not delivered
-#   python3 ntcrun.py prog.bas 'typed\n' [more files] [--turbo] [--platform=cpc|cpcfw|cpm|test]
+#   python3 ntcrun.py prog.bas 'typed\n' [more files] [--turbo] [--platform=cpc|cpcmin|cpcfw|cpm|test]
 #   (in the typed text: \n = Return, ~ = one look at the keyboard that finds no key)
 # cpc   : the CPC hardware emulation in cpcrun.py (screen read back from video RAM)
+# cpcmin: the same, with stand-ins for the firmware calls its FileSystem / System.Command make
 # test  : the port console of asm/ntc_plat_test.asm
 # cpcfw : CPC firmware jumpblock entries trapped (TXT, KM, SCR, MC, KL)
 # cpm   : CP/M page zero, BDOS (call 5) trapped
@@ -14,7 +15,9 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 FW = {0xBB06: 'km_wait', 0xBB09: 'km_read', 0xBB5A: 'txt_out', 0xBB6C: 'txt_clear', 0xBB75: 'txt_cursor',
       0xBC0E: 'scr_mode', 0xBD19: 'mc_flyback', 0xBD0D: 'kl_time',
       0xBC77: 'cas_in_open', 0xBC7A: 'cas_in_close', 0xBC7D: 'cas_in_abandon', 0xBC83: 'cas_in_direct',
-      0xBC8C: 'cas_out_open', 0xBC8F: 'cas_out_close', 0xBC92: 'cas_out_abandon', 0xBC98: 'cas_out_direct'}
+      0xBC8C: 'cas_out_open', 0xBC8F: 'cas_out_close', 0xBC92: 'cas_out_abandon', 0xBC98: 'cas_out_direct',
+      0xBCCB: 'kl_rom_walk', 0xBCCE: 'kl_init_back', 0xBCD4: 'kl_find_command', 0x001B: 'kl_far_pcall'}
+RSX = ['TAPE', 'DISC', 'A', 'B', 'C', 'M']   # AMSDOS's commands, and an M4-like DOS's C and M
 # files for the FileSystem class (cpm: BDOS FCB calls, cpcfw: CAS calls) live in this folder
 FILES = os.environ.get('NTC_FILES', os.path.join(HERE, 't', 'files'))
 
@@ -82,6 +85,8 @@ class Host:
     def __init__(s, platform, binary, org, typed):
         s.p = platform; s.m = m = z80.Z80Machine(); s.typed = list(typed); s.T = 0; s.ints = 0
         s.loc = []; s.out_log = []; s.dma = 0x80; s.cas_in = None; s.cas_out = None
+        s.drive = 0; s.logged = 1                     # CP/M: current drive A, A logged in
+        s.amsdos = False; s.cas_dev = 'TAPE'; s.disk = 'A'   # CPC: AMSDOS dropped by RUN" until KL ROM WALK
         os.makedirs(FILES, exist_ok=True)
         m.set_memory_block(org, binary)
         m.set_memory_block(0x38, bytes([0xFB, 0xC9]))       # stand in interrupt handler: ei / ret
@@ -100,6 +105,7 @@ class Host:
                 for i, a in enumerate(sorted(FW)):
                     m.set_memory_block(a, bytes([0xD3, 0xE0 + i, 0xC9]))
                 s.fwport = {0xE0 + i: FW[a] for i, a in enumerate(sorted(FW))}
+                m.set_memory_block(0x18, bytes([0xD3, 0xDF, 0xC9]))   # RST 3: a far call (AMSDOS's CAS entries)
         m.set_output_callback(s.out); m.set_input_callback(s.inp)
     def key(s):
         # '~' in the typed text: this look at the keyboard finds no key (then the rest follow)
@@ -136,8 +142,25 @@ class Host:
                 r = 0xFF if s.typed else 0; m.a = r; m.l = r
             elif fn in (15, 16, 19, 22, 23, 33, 34, 35):
                 r = s.bdos_file(fn, m.de); m.a = r; m.l = r
+            elif fn == 14:
+                s.drive = m.e & 15; s.logged |= 1 << s.drive; m.a = 0; m.l = 0
+            elif fn == 24:
+                m.hl = s.logged; m.a = s.logged & 255
+            elif fn == 25:
+                m.a = s.drive; m.l = s.drive
+            elif fn == 45:
+                m.a = 0
+            elif fn == 12:
+                m.hl = 0x0031; m.a = 0x31                     # CP/M 3
             elif fn == 26:
                 s.dma = m.de
+        elif s.p == 'cpcfw' and lo == 0xDF:
+            # RST 3 from a CAS entry AMSDOS took over (DF lo hi): carry it out; the caller of
+            # the entry gets the result (the RST's own return address is dropped)
+            sp = m.sp; ret = m.memory[sp] | (m.memory[sp + 1] << 8)
+            ok = s.cas(FW[ret - 1])
+            m.f = (m.f | 1) if ok else (m.f & 0xFE)
+            m.sp = sp + 2
         elif s.p == 'cpcfw' and lo in getattr(s, 'fwport', {}):
             f = s.fwport[lo]
             if f == 'txt_out': s.scr.ctrl(val)
@@ -157,11 +180,36 @@ class Host:
             elif f.startswith('cas_'):
                 ok = s.cas(f)
                 m.f = (m.f | 1) if ok else (m.f & 0xFE)
+            elif f == 'kl_rom_walk' or (f == 'kl_init_back' and m.c == 7):
+                s.amsdos_on(); m.hl = 0xA6FB
+            elif f == 'kl_find_command':
+                a = m.hl; n = ''
+                while True:
+                    c = m.memory[a]; n += chr(c & 0x7F); a += 1
+                    if c & 0x80: break
+                if s.amsdos and n in RSX:
+                    m.hl = 0x4000 + RSX.index(n); m.c = 7; m.f = m.f | 1
+                else:
+                    m.f = m.f & 0xFE
+            elif f == 'kl_far_pcall':
+                n = RSX[m.hl - 0x4000]
+                if n == 'TAPE': s.cas_dev = 'TAPE'
+                elif n == 'DISC': s.cas_dev = s.disk
+                else:
+                    s.disk = n
+                    if s.cas_dev != 'TAPE': s.cas_dev = n
+    def amsdos_on(s):
+        # AMSDOS starts: drive A, and it takes over the cassette entries (far calls, RST 3)
+        s.amsdos = True; s.cas_dev = s.disk
+        for a, f in FW.items():
+            if f.startswith('cas_'): s.m.set_memory_block(a, bytes([0xDF, 0, 0]))
     def fcbname(s, a, base=0):
         b = s.m.memory
         n = bytes(x & 0x7F for x in b[a + base + 1:a + base + 9]).decode().rstrip()
         e = bytes(x & 0x7F for x in b[a + base + 9:a + base + 12]).decode().rstrip()
-        return os.path.join(FILES, n + ('.' + e if e else ''))
+        d = b[a] - 1 if b[a] else s.drive                  # the FCB's drive (0 = the current one)
+        os.makedirs(os.path.join(FILES, 'ABCDEFGHIJKLMNOP'[d]), exist_ok=True)
+        return os.path.join(FILES, 'ABCDEFGHIJKLMNOP'[d], n + ('.' + e if e else ''))
     def bdos_file(s, fn, fcb):
         # CP/M file calls on the folder FILES: 128 byte records, random read / write
         m = s.m; mem = m.memory; p = s.fcbname(fcb)
@@ -197,7 +245,10 @@ class Host:
         # the firmware's cassette calls (AMSDOS: disc) on the folder FILES; carry = ok
         m = s.m; mem = m.memory
         def name():
-            return os.path.join(FILES, bytes(mem[m.hl:m.hl + m.b]).decode().upper())
+            n = bytes(mem[m.hl:m.hl + m.b]).decode().upper(); d = s.cas_dev
+            if ':' in n and s.cas_dev != 'TAPE': d, n = n.split(':', 1)     # "C:NAME": volume C
+            os.makedirs(os.path.join(FILES, d), exist_ok=True)   # one folder per device / volume: TAPE, A, B, C ...
+            return os.path.join(FILES, d, n)
         if f == 'cas_in_open':
             p = name()
             if not os.path.exists(p): m.a = 0x92; return False
@@ -240,9 +291,10 @@ class Host:
 
 def main():
     args = sys.argv[1:]
-    plat = 'cpc'
+    plat = 'cpc'; called = False
     for a in list(args):
         if a.startswith('--platform='): plat = a[11:]; args.remove(a)
+        if a == '--called': called = True; args.remove(a)   # cpcfw: CALLed from BASIC, AMSDOS still running
     bas = args[0]; typed = (args[1] if len(args) > 1 else '').replace('\\n', '\r').replace('\\x7f', '\x7f')
     extra = args[2:]
     asm = bas[:-4] + '.asm'
@@ -250,13 +302,15 @@ def main():
     if r.stderr: print(r.stderr)
     open(asm, 'w').write(r.stdout)
     b, syms = cpcrun.assemble(asm)
-    if plat == 'cpc':
+    if plat in ('cpc', 'cpcmin'):     # the CPC hardware emulation (cpcmin: plus the firmware stand-ins)
         c = cpcrun.CPC(b, syms.get('ntc_start', 0x4000), typed, syms); c.run()
         print(c.screen(cpcrun.loadfont(syms, c.m.memory)))
         print('--- halted' if c.m.halted else '--- NOT halted', 'sp=%04x' % c.m.sp, 'ints=%d' % c.ints, 'T=%d' % c.T)
         return
     org = syms.get('ntc_start', 0x100 if plat == 'cpm' else 0x4000)   # the program's org
-    h = Host(plat, b, org, typed); h.run()
+    h = Host(plat, b, org, typed)
+    if called and plat == 'cpcfw': h.amsdos_on()
+    h.run()
     print(h.scr.text())
     print('--- halted' if h.m.halted else '--- NOT halted', 'sp=%04x' % h.m.sp, 'ints=%d' % h.ints, 'T=%d' % h.T)
 

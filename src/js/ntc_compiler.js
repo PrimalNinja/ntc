@@ -33,11 +33,13 @@ function ntcCompile(input_a, objOptions_a)
 	var objDefinesIn = {};		// predefined #Const values: NTC and NTC_<platform>
 	var intStrMax = 40;			// the longest string in the program (findStrMax)
 	var arrReserve = [];		// Option Reserve: { start, size, file, line }
+	var arrRomEnable = null;	// Option RomEnable (cpcfw): null none, ['all'], or ROM numbers
+	var objStack = null;		// Option Stack: { addr, file, line } - the real stack's start
 	var strTerminal = 'none';	// Option Terminal (CP/M): none, vt52, ansi		// platform class names the project replaces with its own
 	var objOptions = {
 		org: null,				// null = the platform's (;@org)
 		library: 'used',		// used, all, none
-		platform: 'cpc',		// key into NTC_PLATFORMS: cpc, cpcfw, cpm, test
+		platform: 'cpc',		// key into NTC_PLATFORMS: cpc, cpcmin, cpcfw, cpm, test
 		sourcecomments: true,
 		turbo: false,			// start in turbo mode (same as Option Turbo)
 		libtext: null,
@@ -6958,11 +6960,42 @@ function ntcCompile(input_a, objOptions_a)
 				arrErrors.push({ file: objRec_a.file, line: objRec_a.line, msg: 'Option Reserve: bad range ' + arrParts[intI] + ', ' + arrParts[intI + 1] + ' (numbers: start 0-&HFFFF, size 1 or more, not past &HFFFF)' });
 				continue;
 			}
-			if ((objOptions.platform === 'cpc') && (intStart < 0xC100) && (intStart + intSize > 0xC000))
+			if (((objOptions.platform === 'cpc') || (objOptions.platform === 'cpcmin')) && (intStart < 0xC100) && (intStart + intSize > 0xC000))
 			{
 				arrWarnings.push({ file: objRec_a.file, line: objRec_a.line, msg: 'Option Reserve covers #C000: the cpc platform puts its font copy code at #C000 for a moment when the screen is first used - load into that area only after the first Print / Cls / Mode' });
 			}
 			arrReserve.push({ start: intStart, size: intSize, file: objRec_a.file, line: objRec_a.line });
+		}
+	}
+
+	// Option RomEnable All | n [, n] ...: the CPC firmware platform starts these ROMs (RUN"
+	// of a binary resets the firmware and drops them - AMSDOS too)
+	function readRomEnable(objRec_a)
+	{
+		var arrParts = String(objRec_a.value).split(',').map(trim);
+		var intI = 0;
+		var intRom = 0;
+
+		if ((objOptions.platform !== 'cpcfw') && (objOptions.platform !== 'cpcmin'))
+		{
+			arrWarnings.push({ file: objRec_a.file, line: objRec_a.line, msg: 'Option RomEnable is for the CPC firmware platforms (cpcfw, cpcmin) - no effect on ' + objOptions.platform + ((objOptions.platform === 'cpc') ? ' (it uses no ROMs: cpcmin keeps the firmware for discs and ROMs)' : '') });
+			return;
+		}
+		if ((arrParts.length === 1) && (arrParts[0] === 'all'))
+		{
+			arrRomEnable = ['all'];
+			return;
+		}
+		arrRomEnable = [];
+		for (intI = 0; intI < arrParts.length; intI++)
+		{
+			intRom = parseNumber(arrParts[intI]);
+			if (isNaN(intRom) || (intRom < 0) || (intRom > 255))
+			{
+				arrErrors.push({ file: objRec_a.file, line: objRec_a.line, msg: 'Option RomEnable: All, or ROM numbers 0-255 (AMSDOS is 7): ' + arrParts[intI] });
+				continue;
+			}
+			arrRomEnable.push(intRom);
 		}
 	}
 
@@ -7191,6 +7224,7 @@ function ntcCompile(input_a, objOptions_a)
 	var arrFiles = (typeof input_a === 'string') ? [{ name: 'main.bas', text: input_a }] : input_a;
 	var intI = 0;
 	var intJ = 0;
+	var intValue = 0;
 	var objRec = null;
 	var strCur = '';
 
@@ -7258,6 +7292,26 @@ function ntcCompile(input_a, objOptions_a)
 			else if (objRec.what === 'reserve')
 			{
 				readReserve(objRec);
+			}
+			else if (objRec.what === 'romenable')
+			{
+				readRomEnable(objRec);
+			}
+			else if (objRec.what === 'stack')
+			{
+				intValue = parseNumber(objRec.value);
+				if (isNaN(intValue) || (intValue < 0) || (intValue > 65535))
+				{
+					arrErrors.push({ file: objRec.file, line: objRec.line, msg: 'Option Stack needs an address, 0-&HFFFF (the stack grows down from it): ' + objRec.value });
+				}
+				else
+				{
+					objStack = { addr: intValue, file: objRec.file, line: objRec.line };
+					if (((objOptions.platform === 'cpcfw') || (objOptions.platform === 'cpcmin')) && (intValue > 0xA600) && (intValue < 0xC000))
+					{
+						arrWarnings.push({ file: objRec.file, line: objRec.line, msg: 'Option Stack ' + hex4(intValue) + ': on ' + objOptions.platform + ' #A600-#BFFF is the firmware\'s and AMSDOS\'s RAM' });
+					}
+				}
 			}
 		}
 		if (objRec.k === 'proc')
@@ -7418,14 +7472,51 @@ function ntcCompile(input_a, objOptions_a)
 	}
 	arrAsm.push('NTC_TERM\tequ ' + ({ none: 0, vt52: 1, ansi: 2 })[strTerminal] + '\t\t; Option Terminal: 0 none, 1 VT52, 2 ANSI (CP/M)');
 	arrAsm.push('NTC_STRMAX\tequ ' + intStrMax + '\t\t; the longest string (library buffers, temps)');
+	arrAsm.push('NTC_ROMENABLE\tequ ' + ((arrRomEnable !== null) ? 1 : 0) + '\t\t; Option RomEnable (cpcfw, cpcmin): the start code starts the ROMs');
 	arrAsm.push('');
+	// the options in a fixed order, wherever they are in the source: the stack first (the
+	// ROM start runs on it), then the ROMs, then the program
 	arrAsm.push('ntc_start:');
 	arrAsm.push(strIndent + 'di');
-	if (String(objPlat.stack).length > 0)
+	if (objStack !== null)
+	{
+		arrAsm.push(strIndent + 'ld (ntc_ssp), sp\t\t; Option Stack: the caller\'s stack, for End');
+		arrAsm.push(strIndent + 'ld sp, ' + objStack.addr + '\t\t; the stack from ' + hex4(objStack.addr) + ' down');
+		arrAsm.push(strIndent + 'ld hl, ntc_sback');
+		arrAsm.push(strIndent + 'push hl\t\t\t; End returns here, then to the caller');
+		arrAsm.push(strIndent + 'ASSERT (' + objStack.addr + ' <= ntc_start) || (' + objStack.addr + ' >= ntc_end + 64), "Option Stack ' + hex4(objStack.addr) + ' is in the program, or less than 64 bytes above its end (' + objStack.file + ' line ' + objStack.line + ')"');
+	}
+	else if (String(objPlat.stack).length > 0)
 	{
 		arrAsm.push(strIndent + 'ld sp, ' + objPlat.stack + '\t\t; the platform\'s own real stack');
 	}
 	arrAsm.push(strIndent + 'ld (ntc_csp), sp');
+	if (arrRomEnable !== null)
+	{
+		// RUN" of a binary resets the firmware: the background ROMs (AMSDOS ...) are gone.
+		// A program that was CALLed still has them (CAS IN OPEN is AMSDOS's far call, #DF)
+		arrAsm.push(strIndent + 'ld a, (#BC77)\t\t; Option RomEnable: start the ROMs again');
+		arrAsm.push(strIndent + 'cp #DF\t\t\t; AMSDOS has the cassette calls: they are running');
+		arrAsm.push(strIndent + 'jr z, ntc_roms_on');
+		arrAsm.push(strIndent + 'ei');
+		arrAsm.push(strIndent + 'ld de, ntc_end\t\t; the lowest address the ROMs may use');
+		arrAsm.push(strIndent + 'ld hl, #ABFF\t\t; the highest (as usual for AMSDOS: it takes about #A700-#ABFF)');
+		if (arrRomEnable[0] === 'all')
+		{
+			arrAsm.push(strIndent + 'call #BCCB\t\t; KL ROM WALK: every background ROM');
+		}
+		else
+		{
+			arrRomEnable.forEach(function(intRom_a)
+			{
+				arrAsm.push(strIndent + 'ld c, ' + intRom_a);
+				arrAsm.push(strIndent + 'call #BCCE\t\t; KL INIT BACK: ROM ' + intRom_a + ' (DE / HL come back as the new limits)');
+			});
+		}
+		arrAsm.push(strIndent + 'di');
+		arrAsm.push(strIndent + 'ASSERT ntc_end <= #A600, "Option RomEnable: the program must end below #A600 (the ROMs take their RAM from #ABFF down)"');
+		arrAsm.push('ntc_roms_on:');
+	}
 	if (blnGosub)
 	{
 		arrAsm.push(strIndent + 'ld hl, ntc_gstack_top');
@@ -7444,6 +7535,13 @@ function ntcCompile(input_a, objOptions_a)
 	}
 	arrAsm.push(strIndent + 'ld sp, main_thread');
 	arrAsm.push(strIndent + 'ret');
+	if (objStack !== null)
+	{
+		arrAsm.push('ntc_sback:\t\t\t; End with Option Stack: back to the caller\'s stack');
+		arrAsm.push(strIndent + 'ld sp, (ntc_ssp)');
+		arrAsm.push(strIndent + 'ret');
+		arrAsm.push('ntc_ssp:\t\tdw 0');
+	}
 	arrAsm.push('');
 	arrAsm.push('; ============================================================');
 	arrAsm.push('; Main Thread');

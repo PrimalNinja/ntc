@@ -2,7 +2,8 @@
 '
 ' What it can do: Capability("NAME") - the value, or 0 (False) when this platform hasn't
 ' got it: LOAD, SAVE, SEQUENTIAL, RANDOMACCESS, DELETE, RENAME, EXISTS, SIZE, MULTIPLE
-' (True), MAXOPEN (2), RECORDSIZE (128). Every platform's FileSystem has the same methods;
+' DEVICES, VOLUMES (True), MAXOPEN (2), RECORDSIZE (128), CPMVERSION (BDOS 12: &H22 CP/M 2.2,
+' &H31 CP/M 3). Every platform's FileSystem has the same methods;
 ' one the platform can't do returns NotSupported.
 '
 ' Results: 0 or more = done (a count, a handle, a byte), negative = the status below.
@@ -33,9 +34,13 @@ Public Const ForUpdate = 3        ' read and write, Seek anywhere (made if not t
 Public Function Capability(ByVal name As String) As Integer
 #asm
             pop hl
-            pop de
-            ld bc, caps
-            jp ntc_capfind
+            ld (fs_a1), hl
+            pop hl
+            ld (fs_res), hl
+            ld hl, caps
+            ld (fs_a2), hl
+            ld hl, fs_capab
+            jp fs_go
 caps:       db "LOAD", 0
             dw -1
             db "SAVE", 0
@@ -54,6 +59,12 @@ caps:       db "LOAD", 0
             dw -1
             db "MULTIPLE", 0
             dw -1
+            db "DEVICES", 0
+            dw -1
+            db "VOLUMES", 0
+            dw -1
+            db "CPMVERSION", 0
+            dw #8000
             db "MAXOPEN", 0
             dw 2
             db "RECORDSIZE", 0
@@ -333,6 +344,73 @@ Public Function WriteLine(ByVal h As Integer, ByVal text As String) As Integer
             pop hl
             ld (fs_res), hl
             ld hl, fs_writeln
+            jp fs_go
+#endasm
+End Function
+
+' ---- devices
+
+' Devices(): how files travel, "TAPE,DISC" / "DISC"
+Public Function Devices() As String
+#asm
+            pop hl
+            ld (fs_res), hl
+            ld hl, fs_devices
+            jp fs_go0
+#endasm
+End Function
+
+' CurrentDevice(): "TAPE" or "DISC"
+Public Function CurrentDevice() As String
+#asm
+            pop hl
+            ld (fs_res), hl
+            ld hl, fs_curdev
+            jp fs_go0
+#endasm
+End Function
+
+' SelectDevice(name): "TAPE" or "DISC". OK, or NotFound
+Public Function SelectDevice(ByVal name As String) As Integer
+#asm
+            pop hl
+            ld (fs_a1), hl
+            pop hl
+            ld (fs_res), hl
+            ld hl, fs_select
+            jp fs_go
+#endasm
+End Function
+
+' Volumes(): the volumes that worked so far, "A,C" (the platform can't list them all:
+' each one used successfully joins the list)
+Public Function Volumes() As String
+#asm
+            pop hl
+            ld (fs_res), hl
+            ld hl, fs_volumes
+            jp fs_go0
+#endasm
+End Function
+
+' CurrentVolume(): the volume last selected ("" = not known)
+Public Function CurrentVolume() As String
+#asm
+            pop hl
+            ld (fs_res), hl
+            ld hl, fs_curvol
+            jp fs_go0
+#endasm
+End Function
+
+' SelectVolume(name): the volume files without one in their name go to. OK, NotFound
+Public Function SelectVolume(ByVal name As String) As Integer
+#asm
+            pop hl
+            ld (fs_a1), hl
+            pop hl
+            ld (fs_res), hl
+            ld hl, fs_selvol
             jp fs_go
 #endasm
 End Function
