@@ -304,3 +304,8 @@ html, body
 		max-height: 30%;
 	}
 }
+
+#ge-errors div.ge-warning
+{
+	color: #e0c060;
+}

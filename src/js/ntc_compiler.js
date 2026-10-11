@@ -38,10 +38,10 @@ function ntcCompile(input_a, objOptions_a)
 		platformtext: null
 	};
 
-	var BINARY = { '*': 1, '/': 1, '\\': 1, 'MOD': 1, '+': 1, '-': 1, '&': 1, '=': 1, '<>': 1, '<': 1, '<=': 1, '>': 1, '>=': 1, 'AND': 1, 'OR': 1, 'XOR': 1 };
+	var BINARY = { '^': 1, '*': 1, '/': 1, '\\': 1, 'MOD': 1, '+': 1, '-': 1, '&': 1, '=': 1, '<>': 1, '<': 1, '<=': 1, '>': 1, '>=': 1, 'AND': 1, 'OR': 1, 'XOR': 1, 'LIKE': 1 };
 	var COMPARE = { '=': 'eq', '<>': 'ne', '<': 'lt', '<=': 'le', '>': 'gt', '>=': 'ge' };
 	var FLIP = { '=': '=', '<>': '<>', '<': '>', '<=': '>=', '>': '<', '>=': '<=' };
-	var NTC_SCREEN_KEYWORDS = ['kw_printzoscii', 'kw_printstrvar', 'kw_printint', 'kw_printnl', 'kw_inputstr', 'kw_inputint', 'kw_inkey', 'kw_inkeys', 'kw_cls', 'kw_locatell', 'kw_locatevv', 'kw_l_print', 'kw_l_input', 'kw_printtab'];
+	var NTC_SCREEN_KEYWORDS = ['kw_printzoscii', 'kw_printstrvar', 'kw_printint', 'kw_printnl', 'kw_inputstr', 'kw_inputint', 'kw_inkey', 'kw_inkeys', 'kw_cls', 'kw_locatell', 'kw_locatevv', 'kw_l_print', 'kw_l_input', 'kw_printtab', 'kw_printnl0', 'kw_printintvb', 'kw_l_printvb', 'kw_printzone'];
 	var BRANCH_LABEL_ARG = { 'kw_goto': 0, 'kw_goto_iftrue': 0, 'kw_goto_iffalse': 0, 'kw_goto_ifzero': 1, 'kw_goto_ifnzero': 1, 'kw_forentry': 3, 'kw_fornext': 3,
 		'kw_forupl': 2, 'kw_forupv': 2, 'kw_fordnl': 2, 'kw_fordnv': 2, 'kw_next1l': 2, 'kw_next1v': 2,
 		'kw_nextupl': 3, 'kw_nextupv': 3, 'kw_nextdnl': 3, 'kw_nextdnv': 3 };
@@ -50,7 +50,9 @@ function ntcCompile(input_a, objOptions_a)
 	// built in functions: [min args, max args, result n/s, argument kinds]
 	var BUILTINS = {
 		'abs': [1, 1, 'n'], 'sgn': [1, 1, 'n'], 'peek': [1, 1, 'n'], 'deek': [1, 1, 'n'], 'rnd': [1, 1, 'n'],
-		'lbound': [1, 2, 'n'], 'ubound': [1, 2, 'n'],
+		'lbound': [1, 2, 'n'], 'ubound': [1, 2, 'n'], 'inp': [1, 1, 'n'], 'sqr': [1, 1, 'n'],
+		'iif': [3, 3, '?'], 'choose': [2, 9, '?'], 'strcomp': [2, 3, 'n'], 'instrrev': [2, 3, 'n'],
+		'replace': [3, 3, 's'], 'replace$': [3, 3, 's'], 'format': [1, 2, 's'], 'format$': [1, 2, 's'], 'join': [1, 2, 's'], 'join$': [1, 2, 's'], 'strreverse': [1, 1, 's'], 'oct': [1, 1, 's'], 'oct$': [1, 1, 's'],
 		'int': [1, 1, 'n'], 'fix': [1, 1, 'n'], 'cint': [1, 1, 'n'], 'clng': [1, 1, 'n'], 'cbool': [1, 1, 'n'], 'cbyte': [1, 1, 'n'],
 		'len': [1, 1, 'n'], 'asc': [1, 1, 'n'], 'val': [1, 1, 'n'], 'instr': [2, 3, 'n'],
 		'left': [2, 2, 's'], 'left$': [2, 2, 's'], 'right': [2, 2, 's'], 'right$': [2, 2, 's'],
@@ -95,12 +97,18 @@ function ntcCompile(input_a, objOptions_a)
 	var objTypes = {};
 	var objLabels = {};			// label -> line
 	var objWritten = {};		// param full -> written in its procedure
+	var objDynMax = {};			// dynamic array full -> most bytes any ReDim asks for
+	var blnVBPrint = false;		// Option VBPrint: numbers with spaces, comma = 14 column zones
+	var objHookProcs = {};		// Subs set with Interrupt Name (their return lets the hook run again)
+	var blnHookUsed = false;
+	var objCompareText = {};	// module -> Option Compare Text
 	var arrScanProcCalls = [];	// { from, to, mode, line, file }
 	var objProcModes = {};		// proc full -> { t: true, n: true }
 
 	// per pass state
 	var arrOut = [];
 	var arrErrors = [];
+	var arrWarnings = [];		// [{ file, line, msg }] - not errors, the program still builds
 	var objErrorSeen = {};
 	var arrDecl = [];
 	var objDecl = {};
@@ -122,6 +130,8 @@ function ntcCompile(input_a, objOptions_a)
 	var arrGotoRefs = [];		// { label, mode, line, file }
 	var arrProcStubs = [];		// code lines for procedure call / return stubs
 	var objProcStubDone = {};
+	var arrAsmBlocks = [];		// #asm blocks { name, lines }
+	var objAsmDone = {};
 	var objLabelNames = {};		// element full -> label
 	var objLabelUsed = {};		// label -> element full
 	var objConstCache = {};
@@ -186,6 +196,17 @@ function ntcCompile(input_a, objOptions_a)
 		{
 			objErrorSeen[strKey] = true;
 			arrErrors.push({ file: strFile, line: intLine, msg: strMessage_a });
+		}
+	}
+
+	function warning(strMessage_a)
+	{
+		var strKey = 'W' + strFile + ':' + intLine + ':' + strMessage_a;
+
+		if ((intPass === 2) && (objErrorSeen[strKey] === undefined))
+		{
+			objErrorSeen[strKey] = true;
+			arrWarnings.push({ file: strFile, line: intLine, msg: strMessage_a });
 		}
 	}
 
@@ -362,11 +383,41 @@ function ntcCompile(input_a, objOptions_a)
 		return strLabel_a;
 	}
 
+	// String * n: n (1 .. 40), else 0
+	function fixedLen(objEl_a)
+	{
+		var objValue = null;
+		var strSaveModule = strModule;
+		var strSaveProc = strProc;
+
+		if (!objEl_a || !objEl_a.fixed || (typeOfEl(objEl_a) !== 'str'))
+		{
+			return 0;
+		}
+		strModule = objEl_a.module;
+		strProc = objEl_a.proc || '';
+		objValue = evalConst(String(objEl_a.fixed));
+		strModule = strSaveModule;
+		strProc = strSaveProc;
+		if ((objValue === null) || (objValue.k !== 'l') || (objValue.v < 1) || (objValue.v > 40))
+		{
+			error('String * n: n must be a constant 1 .. 40 (' + objEl_a.id + ')');
+			return 0;
+		}
+
+		return objValue.v;
+	}
+
 	// label of a scalar variable / param / function result, declared
 	function varLabel(objEl_a)
 	{
 		var strLabel = labelOf(objEl_a, 'var_');
 
+		if (fixedLen(objEl_a) > 0)
+		{
+			declare(strLabel, 'strfix', fixedLen(objEl_a));		// starts as n spaces
+			return strLabel;
+		}
 		declare(strLabel, (typeOfEl(objEl_a) === 'str') ? 'str' : ((typeOfEl(objEl_a) === 'long') ? 'long' : 'int'), 0);
 
 		return strLabel;
@@ -411,6 +462,11 @@ function ntcCompile(input_a, objOptions_a)
 			{
 				objResult = find(strClass_a + '.' + strMember_a + '.set');
 			}
+		}
+		// a Private member used from outside its class
+		if ((objResult !== null) && (strModule !== strClass_a) && (objResult.scope === 'module') && !objResult.pub)
+		{
+			error(strClass_a + '.' + strMember_a + ' is Private');
 		}
 
 		return objResult;
@@ -560,13 +616,6 @@ function ntcCompile(input_a, objOptions_a)
 			{
 				continue;
 			}
-			if ((objItem.etype === 'param') || ((objItem.etype === 'array') && (objItem.index !== undefined)))
-			{
-				intLine = objItem.line;
-				strFile = objItem.file;
-				error('a Type as a parameter is not supported yet: ' + objItem.id);
-				continue;
-			}
 			objItem.udt = true;
 			objType = objEl[objItem.datatype];
 			for (intI = 0; intI < objType.fields.length; intI++)
@@ -576,9 +625,31 @@ function ntcCompile(input_a, objOptions_a)
 					etype: ((objItem.etype === 'array') || (objField.dims !== null)) ? 'array' : 'var',
 					scope: objItem.scope, full: objItem.full + '.' + objField.name, id: objItem.id + '.' + objField.name,
 					module: objItem.module, proc: objItem.proc, file: objItem.file, line: objItem.line,
-					datatype: objField.type, typed: true,
+					datatype: objField.type, typed: true, fixed: objField.fixed,
 					dims: (objItem.etype === 'array') ? objItem.dims : objField.dims, isstatic: objItem.isstatic
 				};
+				// a field of an array of a Type parameter: an array parameter with its own descriptor
+				if ((objItem.etype === 'array') && (objItem.index !== undefined))
+				{
+					objNew.index = objItem.index;
+					if (objField.dims !== null)
+					{
+						intLine = objItem.line;
+						strFile = objItem.file;
+						error('a Type with an array inside can not be a parameter: ' + objItem.id);
+					}
+				}
+				// a field of a Type parameter: filled by the call stub, not zeroed
+				if ((objItem.etype === 'param') || objItem.pfield)
+				{
+					objNew.pfield = objItem.pfield || objItem.full;
+					if (objField.dims !== null)
+					{
+						intLine = objItem.line;
+						strFile = objItem.file;
+						error('a Type with an array inside can not be a parameter: ' + objItem.id);
+					}
+				}
 				if ((objItem.etype === 'array') && (objField.dims !== null))
 				{
 					intLine = objItem.line;
@@ -750,6 +821,8 @@ function ntcCompile(input_a, objOptions_a)
 	{
 		var arrArgs = [];
 		var intI = 0;
+		var arrMatch = null;
+		var objTarget = null;
 
 		for (intI = 0; intI < arrArgs_a.length; intI++)
 		{
@@ -960,6 +1033,29 @@ function ntcCompile(input_a, objOptions_a)
 		return objOp_a.lv;
 	}
 
+	// whole number power, wrapping like the keywords (16 or 32 bit); exp < 0 gives 0
+	function powInt(intA_a, intB_a, bln32_a)
+	{
+		var intResult = 1;
+		var intI = 0;
+
+		if (intB_a < 0)
+		{
+			return 0;
+		}
+		for (intI = 0; (intI < intB_a) && (intI < 64); intI++)
+		{
+			intResult = bln32_a ? mul32(intResult, intA_a) : s16(intResult * intA_a);
+		}
+		if (intB_a >= 64)
+		{
+			// past 64 steps the value has settled for 0, 1, -1 and wrapped to 0 otherwise
+			intResult = (intA_a === 0) ? 0 : ((intA_a === 1) ? 1 : ((intA_a === -1) ? ((intB_a % 2 === 0) ? 1 : -1) : 0));
+		}
+
+		return intResult;
+	}
+
 	function mul32(intA_a, intB_a)
 	{
 		var intAh = (intA_a >>> 16) & 0xffff;
@@ -981,6 +1077,7 @@ function ntcCompile(input_a, objOptions_a)
 			case '+': return (intA + intB) | 0;
 			case '-': return (intA - intB) | 0;
 			case '*': return mul32(intA, intB);
+			case '^': return powInt(intA, intB, true);
 			case '/':
 			case '\\': return (intB === 0) ? 0 : (trunc(intA / intB) | 0);
 			case 'MOD': return (intB === 0) ? intA : ((intA - trunc(intA / intB) * intB) | 0);
@@ -1059,7 +1156,7 @@ function ntcCompile(input_a, objOptions_a)
 			return true;
 		}
 
-		return ((objDecl[strBase] !== undefined) && ((objDecl[strBase].kind === 'str') || (objDecl[strBase].kind === 'sarr')));
+		return ((objDecl[strBase] !== undefined) && ((objDecl[strBase].kind === 'str') || (objDecl[strBase].kind === 'strfix') || (objDecl[strBase].kind === 'sarr')));
 	}
 
 	function numTarget(strTarget_a)
@@ -1267,6 +1364,7 @@ function ntcCompile(input_a, objOptions_a)
 			case '+': intResult = intA_a + intB_a; break;
 			case '-': intResult = intA_a - intB_a; break;
 			case '*': intResult = s16(intA_a * intB_a); break;
+			case '^': intResult = powInt(intA_a, intB_a, false); break;
 			case '/':
 			case '\\': intResult = (intB_a === 0) ? 0 : trunc(intA_a / intB_a); break;
 			case 'MOD': intResult = (intB_a === 0) ? intA_a : intA_a - trunc(intA_a / intB_a) * intB_a; break;
@@ -1453,6 +1551,18 @@ function ntcCompile(input_a, objOptions_a)
 		return obj_a;
 	}
 
+	// Option Compare Text: a string compared in this module goes through UCase$ first
+	function foldStr(objOp_a, intSlot_a)
+	{
+		if ((objCompareText[strModule] !== true) || (objOp_a.k !== 's'))
+		{
+			return objOp_a;
+		}
+		emit('kw_strucase', [stmp(intSlot_a), objOp_a.n]);
+
+		return sv(stmp(intSlot_a));
+	}
+
 	// string & string (or + with a string)
 	function concat(objA_a, objB_a, intDest_a, strTarget_a)
 	{
@@ -1495,6 +1605,23 @@ function ntcCompile(input_a, objOptions_a)
 				noteUse(objB, 's');
 				return concat(objA, objB, intDest_a, strTarget(strTarget_a));
 			}
+			if (strOp_a === 'LIKE')
+			{
+				if ((objA.k !== 's') || (objB.k !== 's'))
+				{
+					error('Like needs strings');
+					return lit(0);
+				}
+				objA = foldStr(objA, intDest_a);
+				objB = foldStr(objB, intDest_a + 1);
+				emit('kw_strlike', [objA.n, objB.n]);
+				if (numTarget(strTarget_a))
+				{
+					emit('kw_ftov', [strTarget_a]);
+					return { k: 'v', n: strTarget_a, done: true };
+				}
+				return { k: 'f' };
+			}
 			if (COMPARE[strOp_a] !== undefined)
 			{
 				if ((objA.k !== 's') || (objB.k !== 's'))
@@ -1504,6 +1631,8 @@ function ntcCompile(input_a, objOptions_a)
 					error('string compared with a number');
 					return lit(0);
 				}
+				objA = foldStr(objA, intDest_a);
+				objB = foldStr(objB, intDest_a + 1);
 				emit('kw_strcmp' + COMPARE[strOp_a], [objA.n, objB.n]);
 				if (numTarget(strTarget_a))
 				{
@@ -1518,6 +1647,11 @@ function ntcCompile(input_a, objOptions_a)
 
 		noteUse(objA, 'n');
 		noteUse(objB, 'n');
+		if (strOp_a === 'LIKE')
+		{
+			error('Like needs strings');
+			return lit(0);
+		}
 
 		// a Long on either side: 32 bit
 		if ((objA.k === 'd') || (objB.k === 'd'))
@@ -1628,6 +1762,10 @@ function ntcCompile(input_a, objOptions_a)
 				emit(((strOp_a === 'MOD') ? 'kw_mod' : 'kw_div') + objA.k + objB.k, [objA, objB, strDest]);
 				break;
 
+			case '^':
+				emit('kw_pow', [numAddr(objA, intDest_a), numAddr(objB, intDest_a + 1), strDest]);
+				break;
+
 			case 'AND':
 			case 'OR':
 			case 'XOR':
@@ -1648,7 +1786,7 @@ function ntcCompile(input_a, objOptions_a)
 	// Long operation: every argument is an address, an Integer side is widened
 	function longBinary(strOp_a, objA_a, objB_a, intDest_a, strTarget_a)
 	{
-		var objNames = { '+': 'add', '-': 'sub', '*': 'mul', '/': 'div', '\\': 'div', 'MOD': 'mod', 'AND': 'and', 'OR': 'or', 'XOR': 'xor' };
+		var objNames = { '+': 'add', '-': 'sub', '*': 'mul', '/': 'div', '\\': 'div', 'MOD': 'mod', 'AND': 'and', 'OR': 'or', 'XOR': 'xor', '^': 'pow' };
 		var strA = '';
 		var strB = '';
 		var strDest = '';
@@ -1728,9 +1866,32 @@ function ntcCompile(input_a, objOptions_a)
 		return (objEl_a !== null) && (objEl_a.etype === 'array') && (objEl_a.index !== undefined) && (objEl_a.scope === 'local');
 	}
 
+	// an array of Byte: 1 byte per element (scalar Byte variables stay 16 bit)
+	function isByteArray(objEl_a)
+	{
+		return (objEl_a.etype === 'array') && (objEl_a.datatype === 'byte');
+	}
+
+	// a dynamic array: Dim a() then ReDim a(n) - reached through a descriptor too
+	function isDynArray(objEl_a)
+	{
+		return (objEl_a !== null) && (objEl_a.etype === 'array') && (objEl_a.index === undefined) && (objEl_a.dims !== null) && (objEl_a.dims !== undefined) && (objEl_a.dims.length === 0);
+	}
+
+	// an array reached through a descriptor (parameter or dynamic)
+	function isDescArray(objEl_a)
+	{
+		return isParamArray(objEl_a) || isDynArray(objEl_a);
+	}
+
 	function elementSize(objEl_a)
 	{
 		var strType = typeOfEl(objEl_a);
+
+		if (isByteArray(objEl_a))
+		{
+			return 1;
+		}
 
 		return (strType === 'str') ? 41 : ((strType === 'long') ? 4 : 2);
 	}
@@ -1747,20 +1908,22 @@ function ntcCompile(input_a, objOptions_a)
 		var arrDims = null;
 		var strLabel = '';
 
-		if (isParamArray(objEl_a))
+		if (isDescArray(objEl_a))
 		{
 			return descLabel(objEl_a);
 		}
 		arrDims = dimsOf(objEl_a);
-		if (arrDims.length > 1)
+		if (arrDims.length > 2)
 		{
-			error('only 1 dimension arrays can be passed: ' + objEl_a.id);
+			error('only 1 and 2 dimension arrays can be passed: ' + objEl_a.id);
 		}
 		strLabel = 'ad_' + arrayLabel(objEl_a);
 		if (objDecl[strLabel] === undefined)
 		{
 			declare(strLabel, 'adesc', 0);
-			objDecl[strLabel].words = [arrayLabel(objEl_a), arrDims[0].lo, elementSize(objEl_a), arrDims[0].n];
+			objDecl[strLabel].words = (arrDims.length > 1) ?
+				[arrayLabel(objEl_a), arrDims[0].lo, arrDims[1].lo, arrDims[0].n, arrDims[1].n, elementSize(objEl_a)] :
+				[arrayLabel(objEl_a), arrDims[0].lo, 0, arrDims[0].n, 1, elementSize(objEl_a)];
 		}
 
 		return strLabel;
@@ -1820,7 +1983,7 @@ function ntcCompile(input_a, objOptions_a)
 		{
 			intCount *= arrDims[intI].n;
 		}
-		declare(strLabel, (typeOfEl(objArray_a) === 'str') ? 'sarr' : ((typeOfEl(objArray_a) === 'long') ? 'larr' : 'arr'), intCount);
+		declare(strLabel, (typeOfEl(objArray_a) === 'str') ? 'sarr' : ((typeOfEl(objArray_a) === 'long') ? 'larr' : (isByteArray(objArray_a) ? 'barr' : 'arr')), intCount);
 
 		return strLabel;
 	}
@@ -1887,28 +2050,37 @@ function ntcCompile(input_a, objOptions_a)
 	{
 		var strType = typeOfEl(objArray_a);
 		var strIndex = '';
+		var strIndex2 = '';
 		var strDest = '';
 
-		if (arrArgs_a.length !== 1)
+		if ((arrArgs_a.length !== 1) && (arrArgs_a.length !== 2))
 		{
-			error(objArray_a.id + ' is an array parameter: 1 index');
+			error(objArray_a.id + ': 1 or 2 indexes');
 			return lit(0);
 		}
 		strIndex = numAddr(arrArgs_a[0], intSlot_a);
+		if (arrArgs_a.length === 2)
+		{
+			strIndex2 = numAddr(arrArgs_a[1], intSlot_a + 1);
+		}
 		if (strType === 'str')
 		{
 			strDest = strTarget(strTarget_a) ? strTarget_a : stmp(intSlot_a);
-			emit('kw_pget', [descLabel(objArray_a), strIndex, strDest]);
+			emit((strIndex2.length > 0) ? 'kw_pget2' : 'kw_pget', [descLabel(objArray_a), strIndex].concat((strIndex2.length > 0) ? [strIndex2] : []).concat([strDest]));
 			return { k: 's', n: strDest, done: (strDest === strTarget_a) };
 		}
 		if (strType === 'long')
 		{
 			strDest = longTarget(strTarget_a) ? strTarget_a : ltmp(intSlot_a);
-			emit('kw_pget', [descLabel(objArray_a), strIndex, strDest]);
+			emit((strIndex2.length > 0) ? 'kw_pget2' : 'kw_pget', [descLabel(objArray_a), strIndex].concat((strIndex2.length > 0) ? [strIndex2] : []).concat([strDest]));
 			return { k: 'd', n: strDest, done: (strDest === strTarget_a) };
 		}
 		strDest = numTarget(strTarget_a) ? strTarget_a : tmp(intSlot_a);
-		emit('kw_pget', [descLabel(objArray_a), strIndex, strDest]);
+		if (isByteArray(objArray_a))
+		{
+			emit('kw_ztov', [strDest]);		// kw_pget copies 1 byte: high byte 0
+		}
+		emit((strIndex2.length > 0) ? 'kw_pget2' : 'kw_pget', [descLabel(objArray_a), strIndex].concat((strIndex2.length > 0) ? [strIndex2] : []).concat([strDest]));
 
 		return { k: 'v', n: strDest, done: (strDest === strTarget_a) };
 	}
@@ -1921,12 +2093,25 @@ function ntcCompile(input_a, objOptions_a)
 		var strDest = '';
 		var objResult = null;
 
-		if (isParamArray(objArray_a))
+		if (isDescArray(objArray_a))
 		{
 			return paramArrayGet(objArray_a, arrArgs_a, intSlot_a, strTarget_a);
 		}
 		strBase = arrayLabel(objArray_a);
 		objIndex = arrayIndex(objArray_a, arrArgs_a, intSlot_a);
+		if (isByteArray(objArray_a))
+		{
+			strDest = numTarget(strTarget_a) ? strTarget_a : tmp(intSlot_a);
+			if (objIndex.lit !== undefined)
+			{
+				emit('kw_lptrtov8', [offsetLabel(strBase, objIndex.lit), strDest]);
+			}
+			else
+			{
+				emit('kw_aget8', [offsetLabel(strBase, -objIndex.adjust), objIndex.v, strDest]);
+			}
+			return { k: 'v', n: strDest, done: (strDest === strTarget_a) };
+		}
 
 		if (typeOfEl(objArray_a) === 'long')
 		{
@@ -1983,6 +2168,13 @@ function ntcCompile(input_a, objOptions_a)
 		return !objParam.byval && (objWritten[objProc_a.full + '.' + objParam.name] === true);
 	}
 
+	// the argument may be written through its address: a ByRef parameter the
+	// procedure writes, or any ByRef parameter of an asm keyword procedure
+	function argBack(objProc_a, intIndex_a)
+	{
+		return objProc_a.asmkw ? !objProc_a.params[intIndex_a].byval : copyBack(objProc_a, intIndex_a);
+	}
+
 	function addrLabel(objProc_a, intIndex_a)
 	{
 		return procBase(objProc_a) + '_a' + intIndex_a;
@@ -1992,6 +2184,7 @@ function ntcCompile(input_a, objOptions_a)
 	// when blnOps_a. Returns the result operand for a function.
 	function procCall(objProc_a, arrArgs_a, blnOps_a, intSlot_a, strTarget_a)
 	{
+		var arrRefix = [];
 		var arrParams = procParams(objProc_a);
 		var arrAddr = [];
 		var intI = 0;
@@ -2043,6 +2236,20 @@ function ntcCompile(input_a, objOptions_a)
 					arrAddr.push(litLabel(0));
 					continue;
 				}
+				if (paramEl(objProc_a, intI).udt)
+				{
+					// an array of a Type: one descriptor per field array
+					if (!objArg.el.udt || (objArg.el.datatype !== paramEl(objProc_a, intI).datatype))
+					{
+						error(objProc_a.id + ': argument ' + (intI + 1) + ' (' + objParam.name + ') must be an array of ' + paramEl(objProc_a, intI).datatype);
+						continue;
+					}
+					udtLeaves(objArg.el.datatype, '').forEach(function(objLeaf_a)
+					{
+						arrAddr.push(arrayDesc(objEl[objArg.el.full + objLeaf_a.path]));
+					});
+					continue;
+				}
 				if (objArg.el.udt || (typeOfEl(objArg.el) !== typeOfEl(paramEl(objProc_a, intI))))
 				{
 					error(objProc_a.id + ': argument ' + (intI + 1) + ' (' + objParam.name + ') is an array of the wrong type');
@@ -2050,9 +2257,32 @@ function ntcCompile(input_a, objOptions_a)
 				arrAddr.push(arrayDesc(objArg.el));
 				continue;
 			}
+			if (paramEl(objProc_a, intI).udt)
+			{
+				// a Type: the address of each field of the argument (a Type variable)
+				if ((objArg === null) && (strArg.length > 0))
+				{
+					objArg = /^[a-z_][\w.]*$/i.test(strArg) ? resolve(strArg, false, false) : null;
+					objArg = ((objArg !== null) && objArg.udt && (objArg.etype !== 'array')) ? { k: 'a', el: objArg } : null;
+				}
+				if ((objArg === null) || (objArg.k !== 'a') || !objArg.el.udt || (objArg.el.etype === 'array') || (objArg.el.datatype !== paramEl(objProc_a, intI).datatype))
+				{
+					error(objProc_a.id + ': argument ' + (intI + 1) + ' (' + objParam.name + ') must be a ' + paramEl(objProc_a, intI).datatype + ' variable');
+					continue;
+				}
+				if (!objParam.byval)
+				{
+					noteWrite(objArg.el);		// passed on ByRef: may be written
+				}
+				udtLeaves(objArg.el.datatype, '').forEach(function(objLeaf_a)
+				{
+					arrAddr.push(varLabel(objEl[objArg.el.full + objLeaf_a.path]));
+				});
+				continue;
+			}
 			if ((objArg !== null) && (objArg.k === 'a'))
 			{
-				error('array needs an index: ' + objArg.el.id);
+				error(wholeMsg(objArg.el));
 				objArg = lit(0);
 			}
 			if ((objArg === null) && (strArg.length === 0))
@@ -2076,7 +2306,11 @@ function ntcCompile(input_a, objOptions_a)
 			if (strType === 'str')
 			{
 				objArg = strOf(objArg, intSlot_a + intI);
-				if (copyBack(objProc_a, intI) && !objArg.el && !/^stmp\d+$/.test(objArg.n))
+				if (argBack(objProc_a, intI) && objArg.el && (fixedLen(objArg.el) > 0))
+				{
+					arrRefix.push({ label: objArg.n, n: fixedLen(objArg.el) });	// String * n: pad again after
+				}
+				if (argBack(objProc_a, intI) && !objArg.el && !/^stmp\d+$/.test(objArg.n))
 				{
 					emit('kw_strcpy', [stmp(intSlot_a + intI), objArg.n]);	// a literal must not be written to
 					objArg = sv(stmp(intSlot_a + intI));
@@ -2085,12 +2319,12 @@ function ntcCompile(input_a, objOptions_a)
 			}
 			else if (strType === 'long')
 			{
-				if (copyBack(objProc_a, intI) && (objArg.k === 'v') && objArg.el)
+				if (argBack(objProc_a, intI) && (objArg.k === 'v') && objArg.el)
 				{
 					error(objProc_a.id + ': argument ' + (intI + 1) + ' is ByRef As Long - pass a Long variable or make it ByVal');
 				}
 				strArg = longAddr(objArg, intSlot_a + intI);
-				if (copyBack(objProc_a, intI) && /^llit_/.test(strArg))
+				if (argBack(objProc_a, intI) && /^llit_/.test(strArg))
 				{
 					emit('kw_l_mov', [strArg, ltmp(intSlot_a + intI)]);		// a literal must not be written to
 					strArg = ltmp(intSlot_a + intI);
@@ -2099,7 +2333,7 @@ function ntcCompile(input_a, objOptions_a)
 			}
 			else
 			{
-				if (copyBack(objProc_a, intI) && (objArg.k === 'd') && objArg.el)
+				if (argBack(objProc_a, intI) && (objArg.k === 'd') && objArg.el)
 				{
 					error(objProc_a.id + ': argument ' + (intI + 1) + ' is ByRef As Integer - pass an Integer variable or make it ByVal');
 				}
@@ -2108,7 +2342,7 @@ function ntcCompile(input_a, objOptions_a)
 					error(objProc_a.id + ': argument ' + (intI + 1) + ' must be a number');
 					objArg = lit(0);
 				}
-				if (copyBack(objProc_a, intI) && (objArg.k !== 'v'))
+				if (argBack(objProc_a, intI) && (objArg.k !== 'v'))
 				{
 					objArg = numVar(objArg, intSlot_a + intI);
 				}
@@ -2120,7 +2354,32 @@ function ntcCompile(input_a, objOptions_a)
 		{
 			arrScanProcCalls.push({ from: strProc, to: objProc_a.full, mode: strMode, line: intLine, file: strFile });
 		}
-		emitRaw(procLabel(objProc_a, kwMode()) + '_c', arrAddr, false);
+		if (objProc_a.asmkw)
+		{
+			// asm keyword: the result address goes last, the block stores into it
+			if (objProc_a.kind === 'function')
+			{
+				// x = F(...): the block stores straight into x (not when x is an argument)
+				objRes = objEl[objProc_a.full + '.' + objProc_a.id];
+				strDest = (typeOfEl(objRes) === 'long') ? longTarget(strTarget_a) : ((typeOfEl(objRes) === 'str') ? null : numTarget(strTarget_a));
+				if (strDest && (arrAddr.indexOf(strDest) < 0))
+				{
+					arrAddr.push(strDest);
+					emit(asmKwLabel(objProc_a), arrAddr);
+					return (typeOfEl(objRes) === 'long') ? { k: 'd', n: strDest, done: true } : { k: 'v', n: strDest, done: true };
+				}
+				arrAddr.push(varLabel(objRes));
+			}
+			emit(asmKwLabel(objProc_a), arrAddr);
+		}
+		else
+		{
+			emitRaw(procLabel(objProc_a, kwMode()) + '_c', arrAddr, false);
+		}
+		arrRefix.forEach(function(objFix_a)
+		{
+			emit('kw_strfix', [objFix_a.label, objFix_a.n]);
+		});
 
 		if ((objProc_a.kind === 'function') || (objProc_a.kind === 'propget'))
 		{
@@ -2146,6 +2405,7 @@ function ntcCompile(input_a, objOptions_a)
 	// the call and return stubs of a procedure for a mode (once each)
 	function procStubs(objProc_a, strMode_a)
 	{
+		var intBytes = 0;
 		var arrCode = [];
 		var arrParams = procParams(objProc_a);
 		var intI = 0;
@@ -2168,12 +2428,40 @@ function ntcCompile(input_a, objOptions_a)
 		for (intI = 0; intI < arrParams.length; intI++)
 		{
 			objParam = paramEl(objProc_a, intI);
+			if (arrParams[intI].isarray && objParam.udt)
+			{
+				udtLeaves(objParam.datatype, '').forEach(function(objLeaf_a)
+				{
+					arrCode.push(strIndent + 'pop hl\t\t\t; ' + arrParams[intI].name + '()' + objLeaf_a.path + ' descriptor');
+					arrCode.push(strIndent + 'ld de, ' + descLabel(objEl[objParam.full + objLeaf_a.path]));
+					arrCode.push(strIndent + 'ld bc, 12');
+					arrCode.push(strIndent + 'ldir');
+				});
+				continue;
+			}
 			if (arrParams[intI].isarray)
 			{
 				arrCode.push(strIndent + 'pop hl\t\t\t; ' + arrParams[intI].name + '() descriptor');
 				arrCode.push(strIndent + 'ld de, ' + descLabel(objParam));
-				arrCode.push(strIndent + 'ld bc, 8');
+				arrCode.push(strIndent + 'ld bc, 12');
 				arrCode.push(strIndent + 'ldir');
+				continue;
+			}
+			if (objParam.udt)
+			{
+				// a Type: one address per field
+				udtLeaves(objParam.datatype, '').forEach(function(objLeaf_a, intLeaf_a)
+				{
+					arrCode.push(strIndent + 'pop hl\t\t\t; ' + arrParams[intI].name + objLeaf_a.path);
+					if (copyBack(objProc_a, intI))
+					{
+						declare(addrLabel(objProc_a, intI) + '_' + intLeaf_a, 'int', 0);
+						arrCode.push(strIndent + 'ld (' + addrLabel(objProc_a, intI) + '_' + intLeaf_a + '), hl');
+					}
+					arrCode.push(strIndent + 'ld de, ' + varLabel(objEl[objParam.full + objLeaf_a.path]));
+					arrCode.push(strIndent + 'ld bc, ' + leafSize(typeOfEl({ datatype: objLeaf_a.type, full: '' })));
+					arrCode.push(strIndent + 'ldir');
+				});
 				continue;
 			}
 			strLabel = varLabel(objParam);
@@ -2206,10 +2494,44 @@ function ntcCompile(input_a, objOptions_a)
 				if (objEl.hasOwnProperty(strKey))
 				{
 					objLocal = objEl[strKey];
-					if ((objLocal.proc === objProc_a.full) && (objLocal.scope === 'local') && ((objLocal.etype === 'var') || (objLocal.etype === 'result')) && !objLocal.isstatic && !objLocal.udt)
+					// a local array (not Static) is cleared on every call, as in VB
+					if ((objLocal.proc === objProc_a.full) && (objLocal.scope === 'local') && (objLocal.etype === 'array') && !objLocal.isstatic && !objLocal.udt && !isParamArray(objLocal) && !objLocal.pfield)
+					{
+						if (isDynArray(objLocal))
+						{
+							strLabel = descLabel(objLocal);
+							intBytes = 12;
+						}
+						else
+						{
+							strLabel = arrayLabel(objLocal);
+							intBytes = elementSize(objLocal);
+							dimsOf(objLocal).forEach(function(objDim_a) { intBytes *= objDim_a.n; });
+						}
+						arrCode.push(strIndent + 'ld hl, ' + strLabel + '\t\t; clear ' + objLocal.id + '()');
+						arrCode.push(strIndent + 'ld (hl), 0');
+						if (intBytes > 1)
+						{
+							arrCode.push(strIndent + 'ld de, ' + strLabel + '+1');
+							arrCode.push(strIndent + 'ld bc, ' + (intBytes - 1));
+							arrCode.push(strIndent + 'ldir');
+						}
+						continue;
+					}
+					if ((objLocal.proc === objProc_a.full) && (objLocal.scope === 'local') && ((objLocal.etype === 'var') || (objLocal.etype === 'result')) && !objLocal.isstatic && !objLocal.udt && !objLocal.pfield)
 					{
 						strLabel = varLabel(objLocal);
-						if (typeOfEl(objLocal) === 'str')
+						if (fixedLen(objLocal) > 0)
+						{
+							arrCode.push(strIndent + 'ld hl, ' + strLabel + '\t\t; String * ' + fixedLen(objLocal) + ': spaces');
+							arrCode.push(strIndent + 'ld b, ' + fixedLen(objLocal));
+							arrCode.push(strIndent + 'ld a, \' \'');
+							arrCode.push(strIndent + 'ld (hl), a');
+							arrCode.push(strIndent + 'inc hl');
+							arrCode.push(strIndent + 'djnz $-2');
+							arrCode.push(strIndent + 'ld (hl), 0');
+						}
+						else if (typeOfEl(objLocal) === 'str')
 						{
 							arrCode.push(strIndent + 'xor a');
 							arrCode.push(strIndent + 'ld (' + strLabel + '), a');
@@ -2234,6 +2556,18 @@ function ntcCompile(input_a, objOptions_a)
 		arrCode.push(strBody + '_r:\t\t; end of ' + objProc_a.id);
 		for (intI = 0; intI < arrParams.length; intI++)
 		{
+			if (copyBack(objProc_a, intI) && paramEl(objProc_a, intI).udt)
+			{
+				objParam = paramEl(objProc_a, intI);
+				udtLeaves(objParam.datatype, '').forEach(function(objLeaf_a, intLeaf_a)
+				{
+					arrCode.push(strIndent + 'ld de, (' + addrLabel(objProc_a, intI) + '_' + intLeaf_a + ')');
+					arrCode.push(strIndent + 'ld hl, ' + varLabel(objEl[objParam.full + objLeaf_a.path]));
+					arrCode.push(strIndent + 'ld bc, ' + leafSize(typeOfEl({ datatype: objLeaf_a.type, full: '' })));
+					arrCode.push(strIndent + 'ldir');
+				});
+				continue;
+			}
 			if (copyBack(objProc_a, intI))
 			{
 				objParam = paramEl(objProc_a, intI);
@@ -2255,6 +2589,11 @@ function ntcCompile(input_a, objOptions_a)
 				}
 			}
 		}
+		if ((objHookProcs[objProc_a.full] === true) && (strMode_a === 'n'))
+		{
+			arrCode.push(strIndent + 'ld a, (ntc_hookset)\t; Interrupt hook done: may run again');
+			arrCode.push(strIndent + 'ld (ntc_hookon), a');
+		}
 		arrCode.push(strIndent + 'ld sp, (' + strRs + ')');
 		arrCode.push(strIndent + exitCode(strMode_a));
 
@@ -2264,6 +2603,158 @@ function ntcCompile(input_a, objOptions_a)
 	// ------------------------------------------------------------
 	// functions: built in, arrays, procedures
 	// ------------------------------------------------------------
+
+	// IIf(cond, a, b) / Choose(n, a, b, ...): the values are worked out first (as
+	// in VB), then one is copied into the result by branches
+	function chooseValue(strName_a, arrArgs_a, intSlot_a, strTarget_a)
+	{
+		var arrValues = arrArgs_a.slice(1);
+		var blnLong = false;
+		var blnStr = false;
+		var intI = 0;
+		var intId = newId();
+		var objSel = arrArgs_a[0];
+		var strDest = '';
+		var strEnd = 'ch' + intId + '_e';
+		var strNext = '';
+
+		for (intI = 0; intI < arrValues.length; intI++)
+		{
+			blnStr = blnStr || (arrValues[intI].k === 's');
+			blnLong = blnLong || (arrValues[intI].k === 'd');
+		}
+		if (objSel.k === 's')
+		{
+			error(strName_a + ': the first value must be a number');
+			return lit(0);
+		}
+		// known now: just that value
+		if (isConstNum(objSel))
+		{
+			intI = (strName_a === 'iif') ? ((constNum(objSel) !== 0) ? 0 : 1) : (constNum(objSel) - 1);
+			if ((intI >= 0) && (intI < arrValues.length))
+			{
+				return keepSlot(arrValues[intI], intSlot_a);
+			}
+			return blnStr ? sv(stringLabel('')) : lit(0);
+		}
+		// the selector is only read before the one copy that happens, so the
+		// result can use this slot (the values sit in the slots after it)
+		objSel = numVar(objSel, intSlot_a);
+		if (blnStr)
+		{
+			strDest = strTarget(strTarget_a) ? strTarget_a : stmp(intSlot_a);
+		}
+		else if (blnLong)
+		{
+			strDest = longTarget(strTarget_a) ? strTarget_a : ltmp(intSlot_a);
+		}
+		else
+		{
+			strDest = numTarget(strTarget_a) ? strTarget_a : tmp(intSlot_a);
+		}
+		for (intI = 0; intI < arrValues.length; intI++)
+		{
+			strNext = 'ch' + intId + '_' + intI;
+			if (strName_a === 'iif')
+			{
+				if (intI === 0)
+				{
+					emit('kw_goto_ifzero', [objSel, strNext]);
+				}
+			}
+			else
+			{
+				emitCompare('<>', objSel, lit(intI + 1));
+				emit('kw_goto_iftrue', [strNext]);
+			}
+			if (blnStr)
+			{
+				emit('kw_strcpy', [strDest, strOf(arrValues[intI], intSlot_a + arrArgs_a.length + 1).n]);
+			}
+			else if (blnLong)
+			{
+				storeLong(arrValues[intI], strDest, intSlot_a + arrArgs_a.length + 1);
+			}
+			else
+			{
+				storeNum(arrValues[intI], strDest, intSlot_a + arrArgs_a.length + 2);
+			}
+			emit('kw_goto', [strEnd]);
+			emitLabel(strNext);
+		}
+		// Choose out of range: 0 / ""
+		if (blnStr)
+		{
+			emit('kw_strcpy', [strDest, stringLabel('')]);
+		}
+		else if (blnLong)
+		{
+			emit('kw_l_mov', [llitLabel(0), strDest]);
+		}
+		else
+		{
+			emit('kw_ztov', [strDest]);
+		}
+		emitLabel(strEnd);
+
+		return blnStr ? { k: 's', n: strDest, done: (strDest === strTarget_a) } :
+			(blnLong ? { k: 'd', n: strDest, done: (strDest === strTarget_a) } : { k: 'v', n: strDest, done: (strDest === strTarget_a) });
+	}
+
+	// Format$ number pattern: text before the first 0 / #, text after the last, the
+	// number of 0s (least digits), a comma anywhere = groups of 3. null: no 0 / #
+	function formatPattern(strPattern_a)
+	{
+		var intFirst = strPattern_a.search(/[0#]/);
+		var intLast = Math.max(strPattern_a.lastIndexOf('0'), strPattern_a.lastIndexOf('#'));
+		var strBody = '';
+
+		if (intFirst < 0)
+		{
+			return null;
+		}
+		var strDec = '';
+
+		strBody = strPattern_a.substring(intFirst, intLast + 1);
+		// whole numbers only: ".00" prints as ".00"
+		if (strBody.indexOf('.') > -1)
+		{
+			strDec = '.' + new Array((strBody.substr(strBody.indexOf('.') + 1).match(/0/g) || []).length + 1).join('0');
+			strBody = strBody.substr(0, strBody.indexOf('.'));
+		}
+
+		return {
+			pre: strPattern_a.substr(0, intFirst), suf: ((strDec === '.') ? '' : strDec) + strPattern_a.substr(intLast + 1),
+			min: Math.max(1, (strBody.match(/0/g) || []).length), group: (strBody.indexOf(',') > -1)
+		};
+	}
+
+	function formatNumber(int_a, objFmt_a)
+	{
+		var strDigits = String(Math.abs(int_a));
+		var strResult = '';
+		var intI = 0;
+
+		while (strDigits.length < objFmt_a.min)
+		{
+			strDigits = '0' + strDigits;
+		}
+		if (objFmt_a.group)
+		{
+			for (intI = 0; intI < strDigits.length; intI++)
+			{
+				if ((intI > 0) && ((strDigits.length - intI) % 3 === 0))
+				{
+					strResult += ',';
+				}
+				strResult += strDigits.charAt(intI);
+			}
+			strDigits = strResult;
+		}
+
+		return ((int_a < 0) ? '-' : '') + objFmt_a.pre + strDigits + objFmt_a.suf;
+	}
 
 	function callFunction(strName_a, arrArgs_a, intSlot_a, strTarget_a)
 	{
@@ -2278,30 +2769,41 @@ function ntcCompile(input_a, objOptions_a)
 		var strNum = '';
 		var intI = 0;
 		var arrDims = null;
+		var objFmt = null;
 
 		objElement = resolve(strName, false, false);
 		if ((objElement === null) || (objElement.etype !== 'proc'))
 		{
 			for (intI = 0; intI < arrArgs_a.length; intI++)
 			{
-				if ((arrArgs_a[intI].k === 'a') && !((intI === 0) && ((strName === 'lbound') || (strName === 'ubound'))))
+				if ((arrArgs_a[intI].k === 'a') && !((intI === 0) && ((strName === 'lbound') || (strName === 'ubound') || (strName === 'join') || (strName === 'join$'))))
 				{
-					error('array needs an index: ' + arrArgs_a[intI].el.id);
+					error(wholeMsg(arrArgs_a[intI].el));
 					return lit(0);
 				}
 			}
 		}
 		if (((strName === 'lbound') || (strName === 'ubound')) && ((objElement === null) || (objElement.etype !== 'proc')))
 		{
-			if ((arrArgs_a.length < 1) || (arrArgs_a[0].k !== 'a'))
+			if ((arrArgs_a.length < 1) || (arrArgs_a[0].k !== 'a') || (arrArgs_a[0].el.etype !== 'array'))
 			{
 				error(strName + ' needs an array');
 				return lit(0);
 			}
-			if (isParamArray(arrArgs_a[0].el))
+			if (arrArgs_a[0].el.udt)
 			{
+				arrArgs_a[0] = { k: 'a', el: objEl[arrArgs_a[0].el.full + udtLeaves(arrArgs_a[0].el.datatype, '')[0].path] };
+			}
+			if (isDescArray(arrArgs_a[0].el))
+			{
+				intI = (arrArgs_a.length > 1) ? ((arrArgs_a[1].k === 'l') ? arrArgs_a[1].v : 0) : 1;
+				if ((intI !== 1) && (intI !== 2))
+				{
+					error(strName + ': dimension must be 1 or 2');
+					return lit(0);
+				}
 				strDest = numTarget(strTarget_a) ? strTarget_a : tmp(intSlot_a);
-				emit('kw_' + strName, [descLabel(arrArgs_a[0].el), strDest]);
+				emit('kw_' + strName, [offsetLabel(descLabel(arrArgs_a[0].el), 2 * (intI - 1)), strDest]);
 				return { k: 'v', n: strDest, done: (strDest === strTarget_a) };
 			}
 			arrDims = dimsOf(arrArgs_a[0].el);
@@ -2347,6 +2849,23 @@ function ntcCompile(input_a, objOptions_a)
 		objB = arrArgs_a[1];
 		objC = arrArgs_a[2];
 
+		if ((strName === 'iif') || (strName === 'choose'))
+		{
+			return chooseValue(strName, arrArgs_a, intSlot_a, strTarget_a);
+		}
+		if (strName === 'strcomp')
+		{
+			// (a < b) - (a > b): -1, 0 or 1
+			if ((objA.k !== 's') || (objB.k !== 's'))
+			{
+				error('StrComp needs strings');
+				return lit(0);
+			}
+			binaryOp('<', objA, objB, intSlot_a, tmp(intSlot_a));
+			binaryOp('>', objA, objB, intSlot_a + 1, tmp(intSlot_a + 1));
+			return binaryOp('-', vr(tmp(intSlot_a)), vr(tmp(intSlot_a + 1)), intSlot_a, strTarget_a);
+		}
+
 		// string results: into the target if it is a string var, else stmp
 		if (objBuiltin[2] === 's')
 		{
@@ -2389,6 +2908,15 @@ function ntcCompile(input_a, objOptions_a)
 					{
 						return sv(stringLabel((objA.v & 0xffff).toString(16).toUpperCase()));
 					}
+					if ((objA.k === 'd') && (objA.lv !== undefined))
+					{
+						return sv(stringLabel((objA.lv >>> 0).toString(16).toUpperCase()));
+					}
+					if (objA.k === 'd')
+					{
+						emit('kw_l_hex', [strDest, objA.n]);
+						break;
+					}
 					emit('kw_strhex', [strDest, numAddr(objA, intSlot_a)]);
 					break;
 				case 'space':
@@ -2409,6 +2937,57 @@ function ntcCompile(input_a, objOptions_a)
 				case 'rtrim':
 				case 'trim':
 					emit('kw_str' + strName, [strDest, strArgOf(objA, intSlot_a)]);
+					break;
+				case 'replace':
+					emit('kw_strreplace', [strDest, strArgOf(objA, intSlot_a), strArgOf(objB, intSlot_a + 1), strArgOf(objC, intSlot_a + 2)]);
+					break;
+				case 'join':
+					if ((objA.k !== 'a') || (objA.el.etype !== 'array') || objA.el.udt || (typeOfEl(objA.el) !== 'str'))
+					{
+						error('Join needs a String array');
+						return sv(stringLabel(''));
+					}
+					if (!isDescArray(objA.el) && (dimsOf(objA.el).length !== 1))
+					{
+						error('Join: 1 dimension arrays only');
+						return sv(stringLabel(''));
+					}
+					emit('kw_strjoin', [strDest, arrayDesc(objA.el), (objB !== undefined) ? strArgOf(objB, intSlot_a + 1) : stringLabel(' ')]);
+					break;
+				case 'format':
+					if (objA.k === 's')
+					{
+						return objA;
+					}
+					if (objB === undefined)
+					{
+						return callFunction('cstr', [objA], intSlot_a, strTarget_a);
+					}
+					if ((objB.k !== 's') || !/^str\d+$/.test(objB.n))
+					{
+						error('Format$: the pattern must be a constant string');
+						return sv(stringLabel(''));
+					}
+					objFmt = formatPattern(arrStrings[parseInt(objB.n.substr(3), 10)].text);
+					if (objFmt === null)
+					{
+						return objB;		// no 0 / # in it: the text itself
+					}
+					if (isConstNum(objA))
+					{
+						return sv(stringLabel(formatNumber(constNum(objA), objFmt)));
+					}
+					emit((objA.k === 'd') ? 'kw_l_strfmt' : 'kw_strfmt', [strDest, (objA.k === 'd') ? objA.n : numAddr(objA, intSlot_a), objFmt.min, objFmt.group ? 1 : 0, stringLabel(objFmt.pre), stringLabel(objFmt.suf)]);
+					break;
+				case 'strreverse':
+					emit('kw_strrev', [strDest, strArgOf(objA, intSlot_a)]);
+					break;
+				case 'oct':
+					if (objA.k === 'l')
+					{
+						return sv(stringLabel((objA.v & 0xffff).toString(8)));
+					}
+					emit('kw_stroct', [strDest, numAddr(objA, intSlot_a)]);
 					break;
 				default:
 					break;
@@ -2440,6 +3019,23 @@ function ntcCompile(input_a, objOptions_a)
 				}
 				emit((strName === 'len') ? 'kw_strlen' : ((strName === 'asc') ? 'kw_strasc' : 'kw_strval'), [objA.n, strDest]);
 				break;
+			case 'instrrev':
+				if ((objA.k !== 's') || (objB.k !== 's'))
+				{
+					error('InStrRev needs strings');
+					return lit(0);
+				}
+				objA = foldStr(objA, intSlot_a);
+				objB = foldStr(objB, intSlot_a + 1);
+				emit('kw_strinstrrev', [objA.n, objB.n, (objC !== undefined) ? numAddr(objC, intSlot_a + 2) : litLabel(-1), strDest]);
+				break;
+			case 'sqr':
+				if (objA.k === 'l')
+				{
+					return lit((objA.v < 0) ? 0 : Math.floor(Math.sqrt(objA.v)));
+				}
+				emit('kw_sqr', [numAddr(objA, intSlot_a), strDest]);
+				break;
 			case 'instr':
 				if (arrArgs_a.length === 2)
 				{
@@ -2452,6 +3048,8 @@ function ntcCompile(input_a, objOptions_a)
 					error('InStr needs strings');
 					return lit(0);
 				}
+				objB = foldStr(objB, intSlot_a + 1);
+				objC = foldStr(objC, intSlot_a + 2);
 				emit('kw_strinstr', [numAddr(objA, intSlot_a), objB.n, objC.n, strDest]);
 				break;
 			case 'clng':
@@ -2555,6 +3153,7 @@ function ntcCompile(input_a, objOptions_a)
 					case 'peek': emit((objA.k === 'l') ? 'kw_lptrtov8' : 'kw_vptrtov8', [objA, strDest]); break;
 					case 'deek': emit((objA.k === 'l') ? 'kw_lptrtov' : 'kw_vptrtov', [objA, strDest]); break;
 					case 'rnd': emit((objA.k === 'l') ? 'kw_rndl' : 'kw_rndv', [objA, strDest]); break;
+					case 'inp': emit('kw_inp', [numAddr(objA, intSlot_a), strDest]); break;
 					default: error('function not supported: ' + strName); break;
 				}
 				break;
@@ -2574,6 +3173,32 @@ function ntcCompile(input_a, objOptions_a)
 		}
 
 		return objOp_a.n;
+	}
+
+	// AddressOf Proc: a read only word holding the address of the procedure's call
+	// stub for the mode at this line (call it with CallAddr)
+	function addressOf(strName_a)
+	{
+		var objProc = resolve(strName_a, false, false);
+		var strLabel = '';
+
+		if ((objProc === null) || (objProc.etype !== 'proc'))
+		{
+			error('AddressOf needs a Sub or Function: ' + strName_a);
+			return lit(0);
+		}
+		if (intPass === 1)
+		{
+			arrScanProcCalls.push({ from: strProc, to: objProc.full, mode: strMode, line: intLine, file: strFile });
+		}
+		strLabel = 'ap_' + procLabel(objProc, kwMode()) + '_c';
+		if (objLits[strLabel] === undefined)
+		{
+			objLits[strLabel] = procLabel(objProc, kwMode()) + '_c';
+			arrLits.push(strLabel);
+		}
+
+		return vr(strLabel);
 	}
 
 	// a name on its own in an expression
@@ -2618,6 +3243,10 @@ function ntcCompile(input_a, objOptions_a)
 		}
 
 		objElement = resolve(strToken_a, false, false);
+		if ((objElement === null) && /^__addressof_/i.test(strToken_a))
+		{
+			return addressOf(strToken_a.substr(12).replace(/__dot__/gi, '.'));
+		}
 		if ((objElement === null) && (strUpper === 'INKEY$'))
 		{
 			strTemp = stmp(intBase_a + arrStack_a.length);
@@ -2661,7 +3290,11 @@ function ntcCompile(input_a, objOptions_a)
 				error(strToken_a + ' is a Type');
 				return lit(0);
 			default:
-				if (objElement.udt || isClass(objElement.datatype || ''))
+				if (objElement.udt)
+				{
+					return { k: 'a', el: objElement, n: '' };		// a whole Type: only as an argument
+				}
+				if (isClass(objElement.datatype || ''))
 				{
 					error(strToken_a + ' needs a .member');
 					return lit(0);
@@ -2700,7 +3333,12 @@ function ntcCompile(input_a, objOptions_a)
 
 	function toPostfix(strExpr_a)
 	{
-		var strPostfix = IFtoPF(rewriteFields(trim(strExpr_a)), []);
+		// AddressOf Name -> one operand token
+		var strExpr = trim(strExpr_a).replace(/\baddressof\s+([a-z_][\w.]*)/gi, function(strAll_a, strName_a)
+		{
+			return '__addressof_' + strName_a.replace(/\./g, '__dot__');
+		});
+		var strPostfix = IFtoPF(rewriteFields(strExpr), []);
 
 		return (strPostfix.length > 0) ? strPostfix.split(' ') : [];
 	}
@@ -2754,7 +3392,7 @@ function ntcCompile(input_a, objOptions_a)
 				objA = arrStack.pop();
 				if ((objA.k === 'a') || (objB.k === 'a'))
 				{
-					error('array needs an index: ' + ((objA.k === 'a') ? objA : objB).el.id);
+					error(wholeMsg(((objA.k === 'a') ? objA : objB).el));
 					return lit(0);
 				}
 				arrStack.push(binaryOp(strToken, objA, objB, intBase + arrStack.length, blnLast ? strTarget_a : null));
@@ -2770,7 +3408,7 @@ function ntcCompile(input_a, objOptions_a)
 				objA = arrStack.pop();
 				if (objA.k === 'a')
 				{
-					error('array needs an index: ' + objA.el.id);
+					error(wholeMsg(objA.el));
 					return lit(0);
 				}
 				arrStack.push(unaryOp(strToken, objA, intBase + arrStack.length, blnLast ? strTarget_a : null));
@@ -2820,7 +3458,7 @@ function ntcCompile(input_a, objOptions_a)
 		}
 		if (arrStack[0].k === 'a')
 		{
-			error('array needs an index: ' + arrStack[0].el.id);
+			error(wholeMsg(arrStack[0].el));
 			return lit(0);
 		}
 
@@ -2835,6 +3473,7 @@ function ntcCompile(input_a, objOptions_a)
 
 	function typeOfTokens(arrTokens_a)
 	{
+		var arrArgTypes = [];
 		var arrTokens = arrTokens_a;
 		var arrStack = [];
 		var arrMatch = null;
@@ -2873,8 +3512,13 @@ function ntcCompile(input_a, objOptions_a)
 			}
 			else if ((arrMatch = strToken.match(/^(.+)@(\d+)$/)))
 			{
-				arrStack.splice(arrStack.length - parseInt(arrMatch[2], 10), parseInt(arrMatch[2], 10));
+				arrArgTypes = arrStack.splice(arrStack.length - parseInt(arrMatch[2], 10), parseInt(arrMatch[2], 10));
 				strName = arrMatch[1].toLowerCase();
+				if ((BUILTINS[strName] !== undefined) && (BUILTINS[strName][2] === '?'))
+				{
+					arrStack.push((arrArgTypes.slice(1).indexOf('s') > -1) ? 's' : 'n');	// IIf / Choose: like their values
+					continue;
+				}
 				objElement = resolve(rewriteFields(strName), false, false);
 				if ((objElement !== null) && ((objElement.etype === 'array') || (objElement.etype === 'proc')))
 				{
@@ -3431,6 +4075,7 @@ function ntcCompile(input_a, objOptions_a)
 	{
 		var arrItems = splitTop(strArgs_a, ';,');
 		var arrMatch = null;
+		var blnVB = false;
 		var arrParts = [];
 		var arrPending = [];
 		var blnNewline = true;
@@ -3473,14 +4118,15 @@ function ntcCompile(input_a, objOptions_a)
 						emit('kw_ftov', [tmp(0)]);
 						objValue = vr(tmp(0));
 					}
+					blnVB = blnVBPrint && (arrParts.length === 1);		// a number on its own, not part of &
 					if (isConstNum(objValue))
 					{
-						arrPending = arrPending.concat(textToBytes(String(constNum(objValue))));
+						arrPending = arrPending.concat(textToBytes((blnVB && (constNum(objValue) >= 0) ? ' ' : '') + String(constNum(objValue)) + (blnVB ? ' ' : '')));
 					}
 					else if (objValue.k === 'd')
 					{
 						flush();
-						emit('kw_l_print', [objValue.n]);
+						emit(blnVB ? 'kw_l_printvb' : 'kw_l_print', [objValue.n]);
 					}
 					else if (objValue.k === 's')
 					{
@@ -3497,12 +4143,17 @@ function ntcCompile(input_a, objOptions_a)
 					else
 					{
 						flush();
-						emit('kw_printint', [objValue]);
+						emit(blnVB ? 'kw_printintvb' : 'kw_printint', [objValue]);
 					}
 				}
 			}
 
-			if (arrItems[intI].sep === ',')
+			if ((arrItems[intI].sep === ',') && blnVBPrint)
+			{
+				flush();
+				emit('kw_printzone', []);
+			}
+			else if (arrItems[intI].sep === ',')
 			{
 				arrPending.push(32);
 			}
@@ -3547,6 +4198,45 @@ function ntcCompile(input_a, objOptions_a)
 		{
 			objWritten[objElement_a.full] = true;
 		}
+		if ((intPass === 1) && objElement_a && objElement_a.pfield)
+		{
+			objWritten[objElement_a.pfield] = true;		// a field of a Type parameter
+		}
+	}
+
+	// the scalar fields of a Type, in order: [{ path: '.a.b', type }]
+	function udtLeaves(strType_a, strPrefix_a, arrOut_a)
+	{
+		var arrResult = arrOut_a || [];
+		var intI = 0;
+		var objField = null;
+		var objType = objEl[strType_a];
+
+		for (intI = 0; intI < objType.fields.length; intI++)
+		{
+			objField = objType.fields[intI];
+			if (isUdt(objField.type))
+			{
+				udtLeaves(objField.type, strPrefix_a + '.' + objField.name, arrResult);
+			}
+			else
+			{
+				arrResult.push({ path: strPrefix_a + '.' + objField.name, type: objField.type, dims: objField.dims });
+			}
+		}
+
+		return arrResult;
+	}
+
+	function leafSize(strType_a)
+	{
+		return (strType_a === 'str') ? 41 : ((strType_a === 'long') ? 4 : 2);
+	}
+
+	// message for a whole array / Type used as a value
+	function wholeMsg(objEl_a)
+	{
+		return (objEl_a.etype === 'array') ? ('array needs an index: ' + objEl_a.id) : (objEl_a.id + ' needs a .member');
 	}
 
 	function compileInput(strArgs_a)
@@ -3593,6 +4283,10 @@ function ntcCompile(input_a, objOptions_a)
 				strPrompt = '';
 			}
 			emit(objTarget.str ? 'kw_inputstr' : (objTarget.lng ? 'kw_l_input' : 'kw_inputint'), [objTarget.label]);
+			if (fixedLen(objTarget.el) > 0)
+			{
+				emit('kw_strfix', [objTarget.label, fixedLen(objTarget.el)]);
+			}
 		}
 	}
 
@@ -3707,13 +4401,9 @@ function ntcCompile(input_a, objOptions_a)
 		var objLimit = evalConst(strLimit_a);
 		var strLimit = '';
 
-		if ((objStep === null) || !isConstNum(objStep))
-		{
-			error('a Long FOR needs a constant STEP');
-			objStep = lit(1);
-		}
+		var strNeg = '';
+
 		objCtl_a.lng = true;
-		objCtl_a.stepv = (objStep.k === 'l') ? objStep.v : objStep.lv;
 		compileAssign(objCtl_a.varl, strStart_a, 0);
 		if ((objLimit !== null) && isConstNum(objLimit))
 		{
@@ -3725,10 +4415,67 @@ function ntcCompile(input_a, objOptions_a)
 			compileAssign(strLimit, strLimit_a, 0);
 		}
 		objCtl_a.llim = strLimit;
+		if ((objStep === null) || !isConstNum(objStep))
+		{
+			// step from a variable: worked out once, its sign picks the test
+			objCtl_a.lstep = declare('for' + objCtl_a.id + '_s', 'long', 0);
+			compileAssign(objCtl_a.lstep, strStep_a, 0);
+			strNeg = 'for' + objCtl_a.id + '_n';
+			emit('kw_l_cplt', [objCtl_a.lstep, llitLabel(0)]);
+			emit('kw_goto_iftrue', [strNeg]);
+			emit('kw_l_cpgt', [objCtl_a.varl, strLimit]);
+			emit('kw_goto_iftrue', [objCtl_a.end]);
+			emit('kw_goto', [objCtl_a.top]);
+			emitLabel(strNeg);
+			emit('kw_l_cplt', [objCtl_a.varl, strLimit]);
+			emit('kw_goto_iftrue', [objCtl_a.end]);
+			emitLabel(objCtl_a.top);
+			arrCtl.push(objCtl_a);
+			return;
+		}
+		objCtl_a.stepv = (objStep.k === 'l') ? objStep.v : objStep.lv;
 		emit((objCtl_a.stepv >= 0) ? 'kw_l_cpgt' : 'kw_l_cplt', [objCtl_a.varl, strLimit]);
 		emit('kw_goto_iftrue', [objCtl_a.end]);
 		emitLabel(objCtl_a.top);
 		arrCtl.push(objCtl_a);
+	}
+
+	// For Each x In arr (an array, 1 dimension): a hidden counter from LBound to
+	// UBound, x = arr(counter) at the top of each pass. Next x closes it.
+	function compileForEach(strVar_a, strArr_a)
+	{
+		var intId = newId();
+		var objArray = resolve(strArr_a, false, false);
+		var objCounter = null;
+		var objCtl = null;
+		var objTarget = null;
+		var strCounter = '__fe' + intId;
+
+		if ((objArray === null) || (objArray.etype !== 'array') || objArray.udt)
+		{
+			error('For Each needs an array (not an array of a Type): ' + strArr_a);
+			return;
+		}
+		if (!isDescArray(objArray) && (dimsOf(objArray).length !== 1))
+		{
+			error('For Each: 1 dimension arrays only');
+			return;
+		}
+		objCounter = {
+			etype: 'var', scope: (strProc.length > 0) ? 'local' : 'module',
+			full: ((strProc.length > 0) ? strProc : strModule) + '.' + strCounter,
+			id: strCounter, module: strModule, proc: strProc,
+			datatype: 'int', typed: true, isstatic: true
+		};
+		objEl[objCounter.full] = objCounter;
+		compileFor(strCounter, 'lbound(' + strArr_a + ')', 'ubound(' + strArr_a + ')', null);
+		objCtl = ctlTop('FOR');
+		objTarget = writeTarget(strVar_a);
+		if ((objCtl !== null) && (objTarget !== null))
+		{
+			objCtl.alias = objTarget.label;		// Next x
+		}
+		compileAssignRecord({ target: strVar_a, expr: strArr_a + '(' + strCounter + ')' });
 	}
 
 	function compileNext(arrVars_a)
@@ -3746,7 +4493,7 @@ function ntcCompile(input_a, objOptions_a)
 			if ((objCtl !== null) && (strName.length > 0))
 			{
 				objTarget = writeTarget(strName);
-				if ((objTarget === null) || (objTarget.label !== objCtl.name))
+				if ((objTarget === null) || ((objTarget.label !== objCtl.name) && (objTarget.label !== objCtl.alias)))
 				{
 					error('NEXT ' + strName + ' does not match FOR at line ' + objCtl.line);
 					return;
@@ -3759,7 +4506,19 @@ function ntcCompile(input_a, objOptions_a)
 			}
 			modeCheck(objCtl, 'For');
 
-			if (objCtl.lng)
+			if (objCtl.lng && objCtl.lstep)
+			{
+				emit('kw_l_add', [objCtl.varl, objCtl.lstep, objCtl.varl]);
+				emit('kw_l_cplt', [objCtl.lstep, llitLabel(0)]);
+				emit('kw_goto_iftrue', ['for' + objCtl.id + '_m']);
+				emit('kw_l_cple', [objCtl.varl, objCtl.llim]);
+				emit('kw_goto_iftrue', [objCtl.top]);
+				emit('kw_goto', [objCtl.end]);
+				emitLabel('for' + objCtl.id + '_m');
+				emit('kw_l_cpge', [objCtl.varl, objCtl.llim]);
+				emit('kw_goto_iftrue', [objCtl.top]);
+			}
+			else if (objCtl.lng)
 			{
 				emit('kw_l_add', [objCtl.varl, llitLabel(objCtl.stepv), objCtl.varl]);
 				emit((objCtl.stepv >= 0) ? 'kw_l_cple' : 'kw_l_cpge', [objCtl.varl, objCtl.llim]);
@@ -3834,6 +4593,8 @@ function ntcCompile(input_a, objOptions_a)
 	// target = expr
 	function compileAssignRecord(objRec_a)
 	{
+		var objTarget = null;
+		var objIndex2 = null;
 		var arrMatch = null;
 		var arrIndex = [];
 		var intI = 0;
@@ -3849,12 +4610,32 @@ function ntcCompile(input_a, objOptions_a)
 		// array element: name(index) = expr
 		if ((arrMatch = strTarget.match(/^([a-z_][\w.]*[$%&!#@]?)\s*\((.*)\)$/i)))
 		{
+			// Mid$(s, start[, length]) = text: replace in place
+			if (/^mid\$?$/i.test(arrMatch[1]) && (resolve(arrMatch[1], false, false) === null))
+			{
+				arrIndex = splitTop(arrMatch[2], ',');
+				objTarget = (arrIndex.length >= 2) ? writeTarget(trim(arrIndex[0].text)) : null;
+				if ((objTarget === null) || !objTarget.str || (arrIndex.length > 3))
+				{
+					error('Mid$ = needs a String variable, a start and maybe a length');
+					return;
+				}
+				noteWrite(objTarget.el);
+				objIndex = compileValue(arrIndex[1].text, 0);
+				objValue = (arrIndex.length === 3) ? compileValue(arrIndex[2].text, 1) : lit(255);
+				objIndex = keepSlot(numVar(objIndex, 0), 0);
+				objValue = keepSlot(numVar(objValue, 1), 1);
+				objSrc = strOf(compileExpr(objRec_a.expr, null, 2), 2);
+				emit('kw_strmidset', [objTarget.label, numAddr(objIndex, 0), numAddr(objValue, 1), objSrc.n]);
+				return;
+			}
 			objElement = resolve(arrMatch[1], false, true);
 			if ((objElement === null) || (objElement.etype !== 'array'))
 			{
-				if ((objElement !== null) && (objElement.etype === 'proc') && (objElement.kind === 'proplet'))
+				if ((objElement !== null) && (objElement.etype === 'proc') && ((objElement.kind === 'proplet') || (objElement.kind === 'propset')))
 				{
-					error('property arguments are not supported');
+					// Obj.Prop(i) = v: Property Let Prop(i, v)
+					procCall(objElement, splitTop(arrMatch[2], ',').map(function(objPart_a) { return objPart_a.text; }).concat([objRec_a.expr]), false, 0, null);
 					return;
 				}
 				error(arrMatch[1] + ' is not an array (Dim it first)');
@@ -3865,33 +4646,41 @@ function ntcCompile(input_a, objOptions_a)
 			{
 				arrIndex[intI] = compileValue(arrIndex[intI].text, intI);
 			}
-			if (isParamArray(objElement))
+			if (isDescArray(objElement))
 			{
-				if (arrIndex.length !== 1)
+				if ((arrIndex.length !== 1) && (arrIndex.length !== 2))
 				{
-					error(objElement.id + ' is an array parameter: 1 index');
+					error(objElement.id + ': 1 or 2 indexes');
 					return;
 				}
 				objIndex = keepSlot(arrIndex[0], 0);
-				objValue = compileExpr(objRec_a.expr, null, 1);
+				objIndex2 = (arrIndex.length === 2) ? keepSlot(arrIndex[1], 1) : null;
+				objValue = compileExpr(objRec_a.expr, null, 2);
 				if (typeOfEl(objElement) === 'str')
 				{
-					strName = strOf(objValue, 1).n;
+					strName = strOf(objValue, 2).n;
 				}
 				else if (typeOfEl(objElement) === 'long')
 				{
-					strName = longAddr((objValue.k === 'f') ? numVar(objValue, 1) : objValue, 1);
+					strName = longAddr((objValue.k === 'f') ? numVar(objValue, 2) : objValue, 2);
 				}
 				else
 				{
 					if (objValue.k === 's')
 					{
-						emit('kw_strval', [objValue.n, tmp(1)]);
-						objValue = vr(tmp(1));
+						emit('kw_strval', [objValue.n, tmp(2)]);
+						objValue = vr(tmp(2));
 					}
-					strName = numAddr(objValue, 1);
+					strName = numAddr(objValue, 2);
 				}
-				emit('kw_pset', [descLabel(objElement), numAddr(objIndex, 0), strName]);
+				if (objIndex2 !== null)
+				{
+					emit('kw_pset2', [descLabel(objElement), numAddr(objIndex, 0), numAddr(objIndex2, 1), strName]);
+				}
+				else
+				{
+					emit('kw_pset', [descLabel(objElement), numAddr(objIndex, 0), strName]);
+				}
 				return;
 			}
 			strBase = arrayLabel(objElement);
@@ -3906,6 +4695,23 @@ function ntcCompile(input_a, objOptions_a)
 				objIndex.v = keepSlot(numVar(objIndex.v, 0), 0);
 				objValue = strOf(compileExpr(objRec_a.expr, null, 1), 1);
 				emit('kw_sset', [offsetLabel(strBase, -objIndex.adjust * 41), objIndex.v, objValue.n]);
+				return;
+			}
+			if (isByteArray(objElement))
+			{
+				if (objIndex.lit === undefined)
+				{
+					objIndex.v = keepSlot(numVar(objIndex.v, 0), 0);
+				}
+				objValue = compileValue(objRec_a.expr, 1);
+				if (objIndex.lit !== undefined)
+				{
+					emit((objValue.k === 'l') ? 'kw_ltolptr8' : 'kw_vtolptr8', [objValue, offsetLabel(strBase, objIndex.lit)]);
+				}
+				else
+				{
+					emit('kw_aset8', [offsetLabel(strBase, -objIndex.adjust), objIndex.v, numAddr(objValue, 1)]);
+				}
 				return;
 			}
 			if (typeOfEl(objElement) === 'long')
@@ -3948,6 +4754,12 @@ function ntcCompile(input_a, objOptions_a)
 				error('cannot assign to the Const ' + objRec_a.target);
 				return;
 			case 'array':
+				// a() = Split(text [, sep]): a dynamic String array
+				if ((arrMatch = trim(objRec_a.expr).match(/^split\s*\((.*)\)$/i)) && isDynArray(objElement) && (typeOfEl(objElement) === 'str'))
+				{
+					compileSplit(objElement, splitTop(arrMatch[1], ','));
+					return;
+				}
 				error('array needs an index: ' + objRec_a.target);
 				return;
 			case 'proc':
@@ -3996,6 +4808,10 @@ function ntcCompile(input_a, objOptions_a)
 		if (typeOfEl(objElement) === 'str')
 		{
 			compileStringAssign(strName, objRec_a.expr);
+			if (fixedLen(objElement) > 0)
+			{
+				emit('kw_strfix', [strName, fixedLen(objElement)]);		// pad / cut to n
+			}
 		}
 		else
 		{
@@ -4008,6 +4824,11 @@ function ntcCompile(input_a, objOptions_a)
 	{
 		var objElement = resolve(objRec_a.name, false, false);
 		var objValue = null;
+		var objValues = null;
+		var strLabel = '';
+		var strShow = '';
+		var arrArgs = [];
+		var intI = 0;
 
 		if ((objElement !== null) && (objElement.etype === 'proc'))
 		{
@@ -4015,6 +4836,11 @@ function ntcCompile(input_a, objOptions_a)
 			{
 				error(objRec_a.name + ' is a property, use = to set it');
 				return;
+			}
+			if (objElement.kind === 'function')
+			{
+				arrMatch = String(objElement.src || '').match(/\b(?:function)\s+([A-Za-z_]\w*)/i);
+				warning('the result of ' + (arrMatch ? arrMatch[1] : objElement.id) + ' is not used (a status that is never checked?)');
 			}
 			procCall(objElement, objRec_a.args, false, 0, null);
 			return;
@@ -4032,6 +4858,124 @@ function ntcCompile(input_a, objOptions_a)
 				emit('kw_callv', [objValue]);
 			}
 			return;
+		}
+		switch (objRec_a.name)
+		{
+			case 'lset':
+			case 'rset':
+				// LSet s = x / RSet s = x: x left / right in s's length, padded with spaces
+				arrMatch = (objRec_a.args.length === 1) ? objRec_a.args[0].match(/^\s*([a-z_][\w.]*\$?)\s*=\s*(.+)$/i) : null;
+				objTarget = (arrMatch !== null) ? writeTarget(arrMatch[1]) : null;
+				if ((objTarget === null) || !objTarget.str)
+				{
+					error(objRec_a.name.toUpperCase() + ' needs: ' + objRec_a.name + ' stringvar = text');
+					return;
+				}
+				noteWrite(objTarget.el);
+				objValue = strOf(compileExpr(arrMatch[2], null, 0), 0);
+				emit((objRec_a.name === 'lset') ? 'kw_strlset' : 'kw_strrset', [objTarget.label, objValue.n]);
+				return;
+			case 'doevents':
+				// DoEvents: a safe point - normal mode lets interrupts in (turbo: nothing)
+				if (kwMode() === 'n')
+				{
+					emit('kw_irq', []);
+				}
+				return;
+			case 'interrupt':
+				// Interrupt MySub / Interrupt Off - a Sub run after interrupts (normal mode)
+				if ((objRec_a.args.length === 1) && (trim(objRec_a.args[0]) === 'off'))
+				{
+					emit('kw_hookoff', []);
+					return;
+				}
+				objElement = (objRec_a.args.length === 1) ? resolve(trim(objRec_a.args[0]), false, false) : null;
+				if ((objElement === null) || (objElement.etype !== 'proc') || (objElement.kind !== 'sub') || (procParams(objElement).length > 0))
+				{
+					error('Interrupt needs a Sub with no parameters (or Off)');
+					return;
+				}
+				objHookProcs[objElement.full] = true;
+				blnHookUsed = true;
+				if (intPass === 1)
+				{
+					arrScanProcCalls.push({ from: strProc, to: objElement.full, mode: 'n', line: intLine, file: strFile });
+				}
+				emit('kw_hookon', [procLabel(objElement, 'n') + '_c']);
+				return;
+			case 'calladdr':
+				// CallAddr ptr [, arg, ...] - call the procedure whose AddressOf is in ptr.
+				// Arguments are passed by address; they must match its parameters
+				if (objRec_a.args.length < 1)
+				{
+					error('CallAddr needs an address (from AddressOf)');
+					return;
+				}
+				arrArgs = [];
+				for (intI = 0; intI < objRec_a.args.length; intI++)
+				{
+					objValue = compileExpr(objRec_a.args[intI], null, intI);
+					if (objValue.k === 's')
+					{
+						arrArgs.push(objValue.n);
+					}
+					else if (objValue.k === 'd')
+					{
+						arrArgs.push(objValue.n);
+					}
+					else
+					{
+						if ((intI > 0) && (objValue.k !== 'v'))
+						{
+							objValue = numVar(objValue, intI);
+						}
+						arrArgs.push(numAddr(objValue, intI));
+					}
+				}
+				emit('kw_callp', arrArgs);
+				return;
+			case 'out':
+				// Out port, value - a 16 bit port (B = high byte on the CPC)
+				objValues = compileTwoValues(objRec_a.args, 'OUT');
+				if (objValues !== null)
+				{
+					emit('kw_out', [numAddr(objValues[0], 0), numAddr(objValues[1], 1)]);
+				}
+				return;
+			case 'error':
+				// Error text - a diagnostic: print it with the place, then stop
+				if (objRec_a.args.length !== 1)
+				{
+					error('Error needs one value (the message)');
+					return;
+				}
+				emit('kw_printnl0', []);
+				compilePrint('"Error: "; ' + objRec_a.args[0] + '; " (' + strFile + ' line ' + intLine + ')"');
+				emit('kw_stop', []);
+				blnLastTransfer = true;
+				return;
+			case 'debug.assert':
+				// Debug.Assert condition - when false: print it with the place, then stop
+				if (objRec_a.args.length !== 1)
+				{
+					error('Debug.Assert needs one condition');
+					return;
+				}
+				strLabel = 'as' + newId() + '_ok';
+				compileCond(objRec_a.args[0], strLabel, true);
+				emit('kw_printnl0', []);
+				// show the condition as written when the line is just this statement
+				strShow = trim(objRec_a.args[0]);
+				if (objRec_a.src && /^debug\.assert\s/i.test(objRec_a.src) && !/[:'"]/.test(objRec_a.src))
+				{
+					strShow = trim(objRec_a.src.substr(12));
+				}
+				compilePrint('"Assert failed: ' + strShow.replace(/"/g, '""') + ' (' + strFile + ' line ' + intLine + ')"');
+				emit('kw_stop', []);
+				emitLabel(strLabel);
+				return;
+			default:
+				break;
 		}
 		error('unknown statement or procedure: ' + objRec_a.raw);
 	}
@@ -4351,6 +5295,366 @@ function ntcCompile(input_a, objOptions_a)
 		}
 	}
 
+	// {name} inside #asm: the label (or value) of a BASIC name
+	function asmName(strName_a)
+	{
+		var objElement = null;
+		var objConst = null;
+		var strName = trim(strName_a).toLowerCase();
+
+		if ((strName === 'result') && (strProc.length > 0) && objEl[strProc] && ((objEl[strProc].kind === 'function') || (objEl[strProc].kind === 'propget')))
+		{
+			return varLabel(objEl[strProc + '.' + objEl[strProc].id]);
+		}
+		objElement = resolve(strName, false, false);
+		if ((objElement === null) && (baseLabel(strName).length > 0) && (objLabels[baseLabel(strName)] !== undefined))
+		{
+			return baseLabel(strName) + strCopy;		// a BASIC label / line number: ld sp, {label} / ret jumps there
+		}
+		if (objElement === null)
+		{
+			error('#asm: not found: {' + strName_a + '}');
+			return '0';
+		}
+		switch (objElement.etype)
+		{
+			case 'const':
+				objConst = constValue(objElement);
+				if (objConst.k === 'str')
+				{
+					error('#asm: {' + strName_a + '} is a string Const');
+					return '0';
+				}
+				return String(constNum(objConst));
+			case 'array':
+				return isDescArray(objElement) ? descLabel(objElement) : arrayLabel(objElement);
+			case 'var':
+			case 'param':
+			case 'result':
+				if (objElement.udt)
+				{
+					error('#asm: {' + strName_a + '} is a Type - use {' + strName_a + '.field}');
+					return '0';
+				}
+				noteWrite(objElement);		// the block may write it (ByRef copy back)
+				return varLabel(objElement);
+			default:
+				error('#asm: {' + strName_a + '} is not a variable, array or Const');
+				return '0';
+		}
+	}
+
+	// #asm ... #endasm: an inline keyword. The thread gets one word; the code
+	// goes with the stubs. Labels in the block are local to it. A block that
+	// moves SP (ld sp,) is a branch: its normal mode copy ends with jp ntc_xn.
+	function compileAsm(objRec_a)
+	{
+		var blnNormal = (kwMode() === 'n');
+		var strName = 'asm_' + (objRec_a.fileno || 0) + '_' + objRec_a.line + (blnNormal ? '_n' : '');
+
+		asmBlock(objRec_a, strName, blnNormal, '#asm');
+		emitRaw(strName, [], false);
+	}
+
+	// the code of a #asm block, kept once under strName_a
+	function asmBlock(objRec_a, strName_a, blnNormal_a, strTitle_a)
+	{
+		var arrCode = [];
+		var arrLines = objRec_a.lines;
+		var arrMatch = null;
+		var blnBranch = false;
+		var blnNormal = blnNormal_a;
+		var intCut = 0;
+		var intI = 0;
+		var objLocal = {};
+		var strCode = '';
+		var strComment = '';
+		var strLine = '';
+		var strName = strName_a;
+
+		for (intI = 0; intI < arrLines.length; intI++)
+		{
+			strCode = arrLines[intI].substr(0, codePart(arrLines[intI]));
+			if ((arrMatch = strCode.match(/^\s*([A-Za-z_]\w*):/)))
+			{
+				objLocal[arrMatch[1]] = true;
+			}
+			if (/^\s*ld\s+sp\s*,/i.test(strCode))
+			{
+				blnBranch = true;
+			}
+		}
+
+		arrCode.push(strName + ':\t\t; ' + strTitle_a + ', ' + objRec_a.file + ' line ' + objRec_a.line + (blnNormal ? ' (normal)' : ''));
+		for (intI = 0; intI < arrLines.length; intI++)
+		{
+			strLine = arrLines[intI];
+			intCut = codePart(strLine);
+			strCode = strLine.substr(0, intCut);
+			strComment = strLine.substr(intCut);
+			strCode = strCode.replace(/\{([^{}]+)\}/g, function(strAll_a, strInner_a)
+			{
+				return asmName(strInner_a);
+			});
+			if (blnNormal && blnBranch)
+			{
+				if ((arrMatch = strCode.match(/^(\s+)ret\s*$/i)))
+				{
+					strCode = arrMatch[1] + 'jp ntc_xn';
+				}
+				else if ((arrMatch = strCode.match(/^(\s+)ret\s+(n?z|n?c|po|pe|p|m)\s*$/i)))
+				{
+					strCode = arrMatch[1] + 'jp ' + arrMatch[2] + ', ntc_xn';
+				}
+			}
+			strCode = strCode.replace(/[A-Za-z_]\w*/g, function(strWord_a)
+			{
+				if (objLocal[strWord_a] === true)
+				{
+					return strName + '_' + strWord_a;
+				}
+				if (blnNormal && blnBranch && (strWord_a === 'ntc_next'))
+				{
+					return 'ntc_xn';
+				}
+				return strWord_a;
+			});
+			// a label at the start of a line gets the usual indent for the rest
+			if (/^\S/.test(strCode) && !/^[A-Za-z_]\w*:/.test(strCode) && (trim(strCode).length > 0))
+			{
+				strCode = '\t\t\t' + trim(strCode);
+			}
+			// the BASIC line, so an assembler error points back to the source
+			if (objOptions.sourcecomments && (trim(strCode).length > 0))
+			{
+				strComment = (strComment.length > 0) ? (strComment + ' [' + (objRec_a.line + 1 + intI) + ']') : ('\t\t; ' + objRec_a.file + ' ' + (objRec_a.line + 1 + intI));
+			}
+			arrCode.push(strCode + strComment);
+		}
+		arrCode.push('\t\t\t' + ((blnNormal && blnBranch) ? 'jp ntc_xn' : 'ret') + '\t\t\t; end of #asm');
+
+		if (objAsmDone[strName] === undefined)
+		{
+			objAsmDone[strName] = true;
+			arrAsmBlocks.push({ name: strName, lines: arrCode, orig: arrLines, file: objRec_a.file, line: objRec_a.line, module: objRec_a.module, proc: objRec_a.proc });
+		}
+	}
+
+	// keyword label of an asm keyword procedure
+	function asmKwLabel(objProc_a)
+	{
+		return 'fn_' + procBase(objProc_a).substr(2);
+	}
+
+	// A Sub or Function whose whole body is one #asm block that does not use
+	// {param} or {result} becomes a keyword: dw fn_x, arg address, ...
+	// [, result address]. The block pops them itself and ends with ret.
+	// No stubs, no body thread, no saved return point.
+	function findAsmKeywords()
+	{
+		var objHooked = {};
+		var intI = 0;
+		var intJ = 0;
+		var arrRecs = null;
+		var objProc = null;
+		var objNames = null;
+		var blnOk = false;
+		var strCode = '';
+
+		// AddressOf / Interrupt need the call stub: those stay procedures
+		for (intI = 0; intI < arrRecords.length; intI++)
+		{
+			String(arrRecords[intI].src || '').replace(/\b(?:addressof|interrupt)\s+([a-z_][\w.]*)/gi, function(strAll_a, strName_a)
+			{
+				objHooked[strName_a.toLowerCase().split('.').pop()] = true;
+				return strAll_a;
+			});
+		}
+		for (intI = 0; intI < arrProcOrder.length; intI++)
+		{
+			arrRecs = objProcRecs[arrProcOrder[intI]];
+			objProc = objEl[arrProcOrder[intI]];
+			if (!objProc || ((objProc.kind !== 'sub') && (objProc.kind !== 'function')) || (arrRecs.length !== 3) || (arrRecs[1].k !== 'asm') || (objHooked[objProc.id.toLowerCase()] === true))
+			{
+				continue;
+			}
+			objNames = { result: true };
+			procParams(objProc).forEach(function(objParam_a)
+			{
+				objNames[objParam_a.name.toLowerCase()] = true;
+			});
+			blnOk = true;
+			for (intJ = 0; intJ < arrRecs[1].lines.length; intJ++)
+			{
+				strCode = arrRecs[1].lines[intJ].substr(0, codePart(arrRecs[1].lines[intJ]));
+				if (/^\s*ld\s+sp\s*,/i.test(strCode))
+				{
+					blnOk = false;		// moves SP: a branch, stays a procedure
+				}
+				strCode.replace(/\{([^{}]+)\}/g, function(strAll_a, strInner_a)
+				{
+					if (objNames[trim(strInner_a).toLowerCase().split('.')[0]] === true)
+					{
+						blnOk = false;		// reads parameters by name: stays a procedure
+					}
+					return strAll_a;
+				});
+			}
+			if (blnOk)
+			{
+				objProc.asmkw = true;
+			}
+		}
+	}
+
+	// storage of a dynamic array: the most any ReDim of it asks for
+	function dynLabel(objEl_a)
+	{
+		var strLabel = descLabel(objEl_a) + '_data';
+
+		declare(strLabel, 'dyn', objDynMax[objEl_a.full] || 1);
+
+		return strLabel;
+	}
+
+	// ReDim [Preserve] a(lo To hi): constant bounds (there is no heap), 1 dimension.
+	// The storage is as big as the biggest ReDim of the array; the descriptor gets
+	// the bounds. Without Preserve the elements are cleared.
+	function compileRedim(objRec_a)
+	{
+		var arrTo = null;
+		var intI = 0;
+		var intLo = 0;
+		var intCount = 0;
+		var objElement = null;
+		var objHi = null;
+		var objLo = null;
+		var objVar = null;
+
+		for (intI = 0; intI < objRec_a.vars.length; intI++)
+		{
+			objVar = objRec_a.vars[intI];
+			objElement = resolve(objVar.name, false, true);
+			if ((objElement === null) || (objElement.etype !== 'array'))
+			{
+				error('ReDim: ' + objVar.name + ' is not a dynamic array (Dim ' + objVar.name + '() first)');
+				continue;
+			}
+			if (isParamArray(objElement))
+			{
+				error('ReDim: ' + objVar.name + ' is an array parameter');
+				continue;
+			}
+			if (!isDynArray(objElement))
+			{
+				error('ReDim: ' + objVar.name + ' already has its size (Dim ' + objVar.name + '() for a dynamic array)');
+				continue;
+			}
+			if (objElement.udt)
+			{
+				// a dynamic array of a Type: every field array gets the same ReDim
+				udtLeaves(objElement.datatype, '').forEach(function(objLeaf_a)
+				{
+					compileRedim({ preserve: objRec_a.preserve, vars: [{ name: objVar.name + objLeaf_a.path, dims: objVar.dims }] });
+				});
+				continue;
+			}
+			if (objVar.dims.length !== 1)
+			{
+				error('ReDim: 1 dimension only');
+				continue;
+			}
+			arrTo = objVar.dims[0].toLowerCase().split(/\s+to\s+/);
+			objLo = (arrTo.length > 1) ? evalConst(arrTo[0]) : lit(objBase[objElement.module] || 0);
+			objHi = evalConst(arrTo[arrTo.length - 1]);
+			if ((objLo === null) || (objHi === null) || (objLo.k !== 'l') || (objHi.k !== 'l'))
+			{
+				error('ReDim: the bounds must be constants (there is no heap): ' + objVar.name);
+				continue;
+			}
+			intLo = objLo.v;
+			intCount = objHi.v - objLo.v + 1;
+			if (intCount < 0)
+			{
+				error('ReDim: upper bound below lower bound: ' + objVar.name);
+				continue;
+			}
+			if ((objDynMax[objElement.full] || 0) < intCount * elementSize(objElement))
+			{
+				objDynMax[objElement.full] = intCount * elementSize(objElement);
+			}
+			emit('kw_redim', [descLabel(objElement), dynLabel(objElement), intLo, elementSize(objElement), intCount, objRec_a.preserve ? 0 : 1]);
+		}
+	}
+
+	// a() = Split(text [, sep]) - there is no heap: the array holds at most the
+	// biggest of its ReDims and SPLIT_MOST elements; more parts are dropped
+	function compileSplit(objElement_a, arrArgs_a)
+	{
+		var intMost = 16;
+		var objSep = null;
+		var objText = null;
+
+		if ((arrArgs_a.length < 1) || (arrArgs_a.length > 2))
+		{
+			error('Split needs the text and maybe a separator');
+			return;
+		}
+		if ((objDynMax[objElement_a.full] || 0) < intMost * 41)
+		{
+			objDynMax[objElement_a.full] = intMost * 41;
+		}
+		intMost = Math.floor(objDynMax[objElement_a.full] / 41);
+		objText = strOf(compileExpr(arrArgs_a[0].text, null, 0), 0);
+		objSep = (arrArgs_a.length > 1) ? strOf(compileExpr(arrArgs_a[1].text, null, 1), 1) : sv(stringLabel(' '));
+		emit('kw_strsplit', [descLabel(objElement_a), dynLabel(objElement_a), intMost, objText.n, objSep.n]);
+	}
+
+	// Erase a: a dynamic array has no elements after it, a fixed one is cleared
+	function compileErase(objRec_a)
+	{
+		var arrDims = null;
+		var intBytes = 0;
+		var intI = 0;
+		var intJ = 0;
+		var objElement = null;
+		var strKey = '';
+
+		for (intI = 0; intI < objRec_a.names.length; intI++)
+		{
+			objElement = resolve(objRec_a.names[intI], false, true);
+			if ((objElement === null) || (objElement.etype !== 'array') || isParamArray(objElement))
+			{
+				error('Erase needs an array: ' + objRec_a.names[intI]);
+				continue;
+			}
+			if (objElement.udt)
+			{
+				// an array of a Type: clear each field array
+				for (strKey in objEl)
+				{
+					if (objEl.hasOwnProperty(strKey) && (strKey.indexOf(objElement.full + '.') === 0) && (objEl[strKey].etype === 'array') && !objEl[strKey].udt)
+					{
+						compileErase({ names: [objRec_a.names[intI] + strKey.substr(objElement.full.length)] });
+					}
+				}
+				continue;
+			}
+			if (isDynArray(objElement))
+			{
+				emit('kw_redim', [descLabel(objElement), dynLabel(objElement), 0, elementSize(objElement), 0, 0]);
+				continue;
+			}
+			arrDims = dimsOf(objElement);
+			intBytes = elementSize(objElement);
+			for (intJ = 0; intJ < arrDims.length; intJ++)
+			{
+				intBytes *= arrDims[intJ].n;
+			}
+			emit('kw_erase', [arrayLabel(objElement), intBytes]);
+		}
+	}
+
 	function compileRecord(objRec_a)
 	{
 		var objCtl = null;
@@ -4490,6 +5794,10 @@ function ntcCompile(input_a, objOptions_a)
 				compileNext(objRec_a.vars);
 				break;
 
+			case 'foreach':
+				compileForEach(objRec_a.v, objRec_a.arr);
+				break;
+
 			case 'exit':
 				if ((objRec_a.what === 'sub') || (objRec_a.what === 'function') || (objRec_a.what === 'property'))
 				{
@@ -4604,6 +5912,18 @@ function ntcCompile(input_a, objOptions_a)
 				arrOut.push({ t: 'bp', name: strLabel });
 				break;
 
+			case 'asm':
+				compileAsm(objRec_a);
+				break;
+
+			case 'redim':
+				compileRedim(objRec_a);
+				break;
+
+			case 'erase':
+				compileErase(objRec_a);
+				break;
+
 			case 'dim':
 				checkDim(objRec_a);
 				break;
@@ -4638,9 +5958,12 @@ function ntcCompile(input_a, objOptions_a)
 			{
 				error(objVar.name + ': unknown type ' + objVar.type);
 			}
-			if ((objVar.dims !== null) && (objVar.dims.length === 0))
+			if ((objVar.dims !== null) && (objVar.dims.length === 0) && (objEl[objVar.full] !== undefined))
 			{
-				error('dynamic arrays are not supported: ' + objVar.name + '()');
+				if (!objEl[objVar.full].udt)
+				{
+					descLabel(objEl[objVar.full]);		// dynamic array: its descriptor (ReDim fills it)
+				}
 			}
 			objElement = objEl[objVar.full];
 			if ((objElement !== undefined) && (objElement.etype === 'array') && (objVar.dims !== null) && (objVar.dims.length > 0))
@@ -4671,7 +5994,7 @@ function ntcCompile(input_a, objOptions_a)
 			{
 				intLastComment = objRec.line;
 				strLastCommentFile = objRec.file;
-				emitComment(objRec.line + ': ' + objRec.src);
+				emitComment(((arrFiles.length > 1) ? (objRec.file + ' ') : '') + objRec.line + ': ' + objRec.src);
 			}
 			compileRecord(objRec);
 		}
@@ -4701,6 +6024,18 @@ function ntcCompile(input_a, objOptions_a)
 		strProc = strFull_a;
 		strMode = strMode_a;
 		strProcEntry = strMode_a;
+		if (objProc.asmkw)
+		{
+			// a keyword: the same code serves both modes
+			strCopy = '';
+			setContext(arrRecs[1]);
+			if (intPass === 2)
+			{
+				asmBlock(arrRecs[1], asmKwLabel(objProc), false, objProc.kind + ' ' + objProc.id + ' (asm keyword)');
+			}
+			strProc = '';
+			return;
+		}
 		strCopy = ((intPass === 2) && (strMode_a === 'n') && objModes.t && objModes.n) ? '_n' : '';
 		setContext(arrRecs[0]);
 		arrCtl = [];
@@ -4732,6 +6067,7 @@ function ntcCompile(input_a, objOptions_a)
 		var intDecl = arrDecl.length;
 		var intFast = arrFastUse.length;
 		var intBreak = arrBreakpoints.length;
+		var intAsm = arrAsmBlocks.length;
 		var blnSaveGosub = blnGosub;
 		var intI = 0;
 		var objSaveDone = {};
@@ -4765,6 +6101,11 @@ function ntcCompile(input_a, objOptions_a)
 			delete objBreakpoints[arrBreakpoints[intI]];
 		}
 		arrBreakpoints.length = intBreak;
+		for (intI = intAsm; intI < arrAsmBlocks.length; intI++)
+		{
+			delete objAsmDone[arrAsmBlocks[intI].name];
+		}
+		arrAsmBlocks.length = intAsm;
 		blnGosub = blnSaveGosub;
 	}
 
@@ -4795,6 +6136,8 @@ function ntcCompile(input_a, objOptions_a)
 		arrGotoRefs = [];
 		arrProcStubs = [];
 		objProcStubDone = {};
+		arrAsmBlocks = [];
+		objAsmDone = {};
 		objFastUse = {};
 		arrFastUse = [];
 		objConstCache = {};
@@ -5209,6 +6552,10 @@ function ntcCompile(input_a, objOptions_a)
 	// a keyword that has a normal mode copy (else one copy for both modes)
 	function isModeKw(strKw_a)
 	{
+		if (strKw_a.substr(0, 3) === 'fn_')
+		{
+			return false;		// asm keyword procedure: one copy, a straight keyword
+		}
 		return (objLibSections[strKw_a] === undefined) || objLibSections[strKw_a].mode;
 	}
 
@@ -5267,6 +6614,10 @@ function ntcCompile(input_a, objOptions_a)
 		while (arrQueue.length > 0)
 		{
 			objItem = arrQueue.pop();
+			if (blnHookUsed && (objItem.name === 'ntc_xn'))
+			{
+				objItem.name = 'ntc_xnh';	// the window that also runs the Interrupt hook
+			}
 			objSection = objSections[objItem.name];
 			if (objSection === undefined)
 			{
@@ -5359,6 +6710,14 @@ function ntcCompile(input_a, objOptions_a)
 			{
 				strStartMode = 'n';
 			}
+			else if (objRec.what === 'comparetext')
+			{
+				objCompareText[objRec.module] = true;
+			}
+			else if (objRec.what === 'vbprint')
+			{
+				blnVBPrint = true;
+			}
 			else if (objRec.what === 'base')
 			{
 				objBase[objRec.module] = objRec.value;
@@ -5391,6 +6750,7 @@ function ntcCompile(input_a, objOptions_a)
 	{
 		arrMainRecs.push({ k: 'call', name: 'main', args: [], explicit: false, raw: 'main', file: arrFiles[0].name, line: 0, module: strFirstModule, proc: '', inclass: false });
 	}
+	findAsmKeywords();
 
 	expandUdts();
 
@@ -5604,7 +6964,11 @@ function ntcCompile(input_a, objOptions_a)
 		{
 			strName = objItem.kw + (((objItem.mode === 'n') && isModeKw(objItem.kw)) ? '_n' : '');
 			arrAsm.push(strIndent + 'dw ' + [strName].concat(objItem.args).join(', '));
-			if (objItem.mode === 'n')
+			if (objItem.kw.substr(0, 3) === 'fn_')
+			{
+				// asm keyword procedure: its code is with the #asm blocks
+			}
+			else if (objItem.mode === 'n')
 			{
 				objUsedN[objItem.kw] = true;
 			}
@@ -5721,6 +7085,31 @@ function ntcCompile(input_a, objOptions_a)
 		}
 	}
 
+	if (arrAsmBlocks.length > 0)
+	{
+		arrAsm.push('');
+		arrAsm.push('; ============================================================');
+		arrAsm.push('; Inline assembly (#asm ... #endasm)');
+		arrAsm.push('; ============================================================');
+		arrAsm.push('');
+		for (intI = 0; intI < arrAsmBlocks.length; intI++)
+		{
+			arrAsm.push(arrAsmBlocks[intI].lines.join('\n'));
+			arrAsm.push('');
+			// library routines a block uses by name are linked
+			for (intJ = 0; intJ < arrAsmBlocks[intI].lines.length; intJ++)
+			{
+				(arrAsmBlocks[intI].lines[intJ].substr(0, codePart(arrAsmBlocks[intI].lines[intJ])).match(/[A-Za-z_]\w*/g) || []).forEach(function(strWord_a)
+				{
+					if ((objLibSections[strWord_a] !== undefined) && (strWord_a !== arrAsmBlocks[intI].name))
+					{
+						objUsedT[strWord_a] = true;
+					}
+				});
+			}
+		}
+	}
+
 	if (arrBreakpoints.length > 0)
 	{
 		arrAsm.push('');
@@ -5746,6 +7135,11 @@ function ntcCompile(input_a, objOptions_a)
 		{
 			arrAsm.push(objItem.label + ':' + strIndent + 'ds 41');
 		}
+		else if (objItem.kind === 'strfix')
+		{
+			arrAsm.push(objItem.label + ':' + strIndent + 'db "' + new Array(objItem.size + 1).join(' ') + '", 0\t\t; String * ' + objItem.size);
+			arrAsm.push(strIndent + 'ds ' + (40 - objItem.size));
+		}
 		else if (objItem.kind === 'arr')
 		{
 			arrAsm.push(objItem.label + ':' + strIndent + 'ds ' + (objItem.size * 2) + '\t\t; ' + objItem.size + ' words');
@@ -5756,11 +7150,19 @@ function ntcCompile(input_a, objOptions_a)
 		}
 		else if (objItem.kind === 'desc')
 		{
-			arrAsm.push(objItem.label + ':' + strIndent + 'ds 8\t\t; array parameter: base, lower bound, size, count');
+			arrAsm.push(objItem.label + ':' + strIndent + 'ds 12\t\t; array descriptor: base, lower bounds, counts, size');
 		}
 		else if (objItem.kind === 'adesc')
 		{
 			arrAsm.push(objItem.label + ':' + strIndent + 'dw ' + objItem.words.join(', ') + '\t\t; array as an argument');
+		}
+		else if (objItem.kind === 'dyn')
+		{
+			arrAsm.push(objItem.label + ':' + strIndent + 'ds ' + objItem.size + '\t\t; dynamic array, biggest ReDim');
+		}
+		else if (objItem.kind === 'barr')
+		{
+			arrAsm.push(objItem.label + ':' + strIndent + 'ds ' + objItem.size + '\t\t; ' + objItem.size + ' bytes');
 		}
 		else if (objItem.kind === 'larr')
 		{
@@ -5855,6 +7257,109 @@ function ntcCompile(input_a, objOptions_a)
 		return objA_a.line - objB_a.line;
 	});
 
+	// cross reference: every label the compiler made, what it is, where it comes from.
+	// Made fresh on every compile - #asm should use {name} so it never goes stale.
+	var arrXref = [];
+	var objXrefSeen = {};
+	var objGenerated = {};
+	function xrefAdd(strLabel_a, strKind_a, strName_a, strFile_a, intLine_a)
+	{
+		if ((strLabel_a === undefined) || (objXrefSeen[strLabel_a] !== undefined))
+		{
+			return;
+		}
+		objXrefSeen[strLabel_a] = true;
+		objGenerated[strLabel_a] = true;
+		arrXref.push({ label: strLabel_a, kind: strKind_a, name: strName_a, file: strFile_a || '', line: intLine_a || 0 });
+	}
+	for (strKey in objLabelNames)
+	{
+		if (objLabelNames.hasOwnProperty(strKey) && (objDecl[objLabelNames[strKey]] !== undefined))
+		{
+			objItem = objEl[strKey] || {};
+			xrefAdd(objLabelNames[strKey], objDecl[objLabelNames[strKey]].kind, objItem.id || strKey, objItem.file, objItem.line);
+		}
+	}
+	for (strKey in objDecl)
+	{
+		if (objDecl.hasOwnProperty(strKey) && !/^(tmp|stmp|ltmp)\d+$/.test(strKey))
+		{
+			xrefAdd(strKey, objDecl[strKey].kind, /_rs$/.test(strKey) ? 'return point' : (/_a\d+(_\d+)?$/.test(strKey) ? 'ByRef address' : (/^ad_/.test(strKey) ? 'array as an argument' : (/_data$/.test(strKey) ? 'dynamic array data' : ''))), '', 0);
+		}
+	}
+	for (strKey in objEl)
+	{
+		if (objEl.hasOwnProperty(strKey) && (objEl[strKey].etype === 'proc'))
+		{
+			objItem = objEl[strKey];
+			strName = procBase(objItem);
+			if (objItem.asmkw)
+			{
+				continue;		// listed with the #asm blocks (fn_name)
+			}
+			if (objProcModes[objItem.full] !== undefined)
+			{
+				if (objProcModes[objItem.full].t || !objProcModes[objItem.full].n || (procLabel(objItem, 'n') === strName))
+				{
+					xrefAdd(strName, 'proc', objItem.id, objItem.file, objItem.line);
+					xrefAdd(strName + '_c', 'call stub', objItem.id, objItem.file, objItem.line);
+					xrefAdd(strName + '_r', 'return stub', objItem.id, objItem.file, objItem.line);
+				}
+				if (objProcModes[objItem.full].n && (procLabel(objItem, 'n') !== strName))
+				{
+					xrefAdd(strName + '_n', 'proc (normal)', objItem.id, objItem.file, objItem.line);
+					xrefAdd(strName + '_n_c', 'call stub (normal)', objItem.id, objItem.file, objItem.line);
+					xrefAdd(strName + '_n_r', 'return stub (normal)', objItem.id, objItem.file, objItem.line);
+				}
+			}
+		}
+	}
+	for (strKey in objLabels)
+	{
+		if (objLabels.hasOwnProperty(strKey))
+		{
+			xrefAdd(strKey, 'label', strKey.replace(/^(ln|lbl)_/, ''), '', objLabels[strKey]);
+		}
+	}
+	for (intI = 0; intI < arrAsmBlocks.length; intI++)
+	{
+		xrefAdd(arrAsmBlocks[intI].name, '#asm', '', arrAsmBlocks[intI].file, arrAsmBlocks[intI].line);
+	}
+	arrXref.sort(function(objA_a, objB_a)
+	{
+		return (objA_a.label < objB_a.label) ? -1 : ((objA_a.label > objB_a.label) ? 1 : 0);
+	});
+	// a generated label written by hand in #asm goes stale when the BASIC changes
+	for (intI = 0; intI < arrAsmBlocks.length; intI++)
+	{
+		for (intJ = 0; intJ < arrAsmBlocks[intI].orig.length; intJ++)
+		{
+			(arrAsmBlocks[intI].orig[intJ].substr(0, codePart(arrAsmBlocks[intI].orig[intJ])).replace(/\{[^{}]*\}/g, '').match(/[A-Za-z_]\w*/g) || []).forEach(function(strWord_a)
+			{
+				var objFound = null;
+				var intK = 0;
+
+				if (objGenerated[strWord_a] === true)
+				{
+					for (intK = 0; intK < arrXref.length; intK++)
+					{
+						if (arrXref[intK].label === strWord_a)
+						{
+							objFound = arrXref[intK];
+						}
+					}
+					strFile = arrAsmBlocks[intI].file;
+					intLine = arrAsmBlocks[intI].line + 1 + intJ;
+					warning('#asm uses the generated label ' + strWord_a + ((objFound && objFound.name) ? (' - write {' + objFound.name.replace(/^.*\./, '') + '} so it follows the BASIC') : ' - it can change when the BASIC changes'));
+				}
+			});
+		}
+	}
+	var strMap = ['; NTC cross reference - label, what it is, BASIC name, file line', ';'].concat(arrXref.map(function(objX_a)
+	{
+		return objX_a.label + new Array(Math.max(2, 28 - objX_a.label.length)).join(' ') + objX_a.kind + new Array(Math.max(2, 22 - objX_a.kind.length)).join(' ') + objX_a.name + ((objX_a.file || objX_a.line) ? ('  (' + (objX_a.file ? (objX_a.file + ' ') : '') + (objX_a.line ? objX_a.line : '') + ')') : '');
+	})).join('\n');
+
 	var arrProcList = [];
 	var arrMatch = null;
 	for (intI = 0; intI < objParse.procs.length; intI++)
@@ -5866,6 +7371,9 @@ function ntcCompile(input_a, objOptions_a)
 	return {
 		asm: arrAsm.join('\n'),
 		errors: arrErrors,
+		warnings: arrWarnings,
+		xref: arrXref,
+		map: strMap,
 		procs: arrProcList,
 		stats: {
 			threadbytes: intBytes,

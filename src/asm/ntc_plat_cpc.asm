@@ -42,7 +42,7 @@ ntc_modetab:	db 4, 20, #C0, 2		; mode 0
 				db 2, 40, #F0, 4		; mode 1
 				db 1, 80, #FF, 8		; mode 2
 
-;## ntc_plat_screen ntc_plat_data ntc_font
+;## ntc_plat_screen ntc_plat_data ntc_font ntc_data @shared
 ; ------------------------------------------------------------
 ; ntc_plat_putglyph - DE = 8 byte glyph, draw at the cursor, move on
 ; ------------------------------------------------------------
@@ -134,6 +134,13 @@ ntc_plat_newline:
 ntc_plat_scroll:
 			ld a, 24
 			ld (ntc_cury), a
+			ld a, (ntc_nmode)		; normal mode: interrupts in during the long copy
+			or a
+			jr z, ntc_sc_open
+			ld (ntc_ip), sp
+			ld sp, (ntc_csp)
+			ei
+ntc_sc_open:
 			ld hl, #C000
 			ld a, 8
 ntc_sc_line:
@@ -157,6 +164,12 @@ ntc_sc_line:
 			ld a, (ntc_pgrow)
 			dec a
 			jr nz, ntc_sc_line
+			di
+			ld a, (ntc_nmode)
+			or a
+			jr z, ntc_sc_close
+			ld sp, (ntc_ip)
+ntc_sc_close:
 			jp (ix)
 
 ; ------------------------------------------------------------
@@ -186,11 +199,24 @@ ntc_bs_none:
 ; ntc_plat_cls - clear screen memory, cursor home
 ; ------------------------------------------------------------
 ntc_plat_cls:
+			ld a, (ntc_nmode)		; normal mode: interrupts in during the long copy
+			or a
+			jr z, ntc_cl_open
+			ld (ntc_ip), sp
+			ld sp, (ntc_csp)
+			ei
+ntc_cl_open:
 			ld hl, #C000
 			ld de, #C001
 			ld bc, #3FFF
 			ld (hl), 0
 			ldir
+			di
+			ld a, (ntc_nmode)
+			or a
+			jr z, ntc_cl_close
+			ld sp, (ntc_ip)
+ntc_cl_close:
 			xor a
 			ld (ntc_curx), a
 			ld (ntc_cury), a
@@ -455,6 +481,11 @@ ntc_irq:
 			ld hl, (ntc_ticks)
 			inc hl
 			ld (ntc_ticks), hl
+			ld a, (ntc_hookon)	; an Interrupt hook: run it at the next safe point
+			or a
+			jr z, ntc_irq_nohook
+			ld (ntc_hookpend), a
+ntc_irq_nohook:
 			ld hl, (ntc_irqhl)
 			ex af, af'
 			ei

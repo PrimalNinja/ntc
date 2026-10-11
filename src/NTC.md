@@ -4,7 +4,7 @@
 
 What NTC is, how the NTC BASIC compiler works now (VB5/VB6 style front end, turbo and
 normal modes, project explorer), and the language it takes. Progress is tracked in
-`todo.md`.
+`todo.md`. The full language reference, keyword by keyword, is `userguide.md`.
 
 ---
 
@@ -132,6 +132,7 @@ Files (ES5, no node, no Python):
 | `js/listRenderer.js`, `css/listRenderer.css` | Project file and procedure lists |
 | `asm/ntc_lib.asm` | Keyword library, sections marked `;## name deps [@shared]` |
 | `asm/ntc_plat_cpc.asm` | CPC platform layer (screen, keys, frame, interrupt handler, exit) |
+| `userguide.md` | Language reference: every keyword by topic, with an example and its VB5 / VB6 differences |
 | `bas/` | Examples and self tests (`vb_test.bas`, `vb_test2/`, `ntc_test.bas`, ...) |
 
 ### Parser (VBCC concept, ported to JS)
@@ -218,7 +219,11 @@ p_add:                                  ; body (thread)
 
 - Passes on an emulated CPC, both modes: `vb_test.bas` (64 checks), `vb_test2` (30 checks,
   2 files), `vb_test3.bas` (11 checks: Enum, With, On GoTo / GoSub, Inkey$),
-  `vb_test_long.bas` (58 checks), `vb_test4.bas` (16 checks: array parameters), `ntc_test.bas` (36 checks), the class project, sieve,
+  `vb_test_long.bas` (58 checks), `vb_test4.bas` (16 checks: array parameters),
+  `vb_test5` (18: #asm, Inp / Out, a library class), `vb_test6.bas` (18: Byte arrays,
+  ReDim), `vb_test7.bas` (16: Type and 2D array parameters), `vb_test8.bas` (5: AddressOf),
+  `vb_test9.bas` (34: ^, IIf, Choose, string functions), `vb_test10` (33: For Each,
+  Property arguments, Like, LSet / RSet, String * n), `vb_test11.bas` (17: asm keyword procedures), `ntc_test.bas` (36 checks), the class project, sieve,
   shell sort (both choices), the FOR / GOSUB / screen tests.
 - Not yet tested on a real CPC.
 
@@ -231,23 +236,33 @@ VB5 / VB6 style. Differences from VB are listed after each part.
 ### Types and declarations
 
 - `Integer` (16 bit signed), `Long` (32 bit signed), `Byte` and `Boolean` (stored as 16
-  bit, True = -1), `String` (40 chars).
+  bit, True = -1; an array of Byte is 1 byte per element), `String` (40 chars),
+  `String * n` (n = 1 .. 40: starts as n spaces, every assignment and Input pads with spaces
+  or cuts to n).
 - `Enum ... End Enum` (members are constants, also `EnumName.Member`).
 - `Dim` / `Private` / `Public` / `Global` / `Static`, `Const`, `Type ... End Type`.
 - Suffixes: `a$` String, `a%` Integer, `a&` Long; `1000&` / `&HFFFF&` are Long literals. Undeclared names are allowed (their type comes from
   how they are used) unless `Option Explicit`.
 - Arrays: `Dim a(10)`, `Dim b(1 To 5)`, `Dim g(3, 4)`, `Dim s(10) As String`,
   `Dim pts(5) As Point` (then `pts(i).x`). `Option Base 0 | 1`.
+- Dynamic arrays: `Dim a()` then `ReDim [Preserve] a(lo To hi)`, `Erase a`. The bounds must
+  be constants (there is no heap): the storage is as big as the biggest `ReDim` of that
+  array, and a descriptor holds the current bounds. 1 dimension. `Erase` of a fixed array
+  clears it.
+  A dynamic array of a Type works too (each field array gets the ReDim).
 - `#Const`, `#If ... Then / #ElseIf / #Else / #End If`.
 
 Long: a separate keyword set (`kw_l_*`), every argument an address, 4 bytes low byte first.
 An expression is Long when a Long variable, function, array or a literal over 65535 is in
 it; Integer sides are widened. A Long put into an Integer keeps the low 16 bits (VB would
 stop with Overflow). Integer * Integer stays 16 bit as in VB - use `CLng(a) * b` or
-`a * 1000&` for a Long result. A `For` with a Long counter needs a constant `Step`.
+`a * 1000&` for a Long result.
 
-Not supported: `Single`, `Double`, `Currency`, `Variant` values, dynamic arrays /
-`ReDim`, `Declare`.
+Overflow is never checked: Integer and Long arithmetic wraps (there is no error handling,
+see Flow).
+
+Not supported: `Single`, `Double`, `Currency`, `Variant` values, `ReDim` with bounds from
+variables, `Declare`.
 
 ### Procedures
 
@@ -257,14 +272,26 @@ Not supported: `Single`, `Double`, `Currency`, `Variant` values, dynamic arrays 
 - `Sub Main` runs after any top level code. Top level code (outside procedures) in a module
   is the main program, as in classic BASIC.
 
-- Arrays as parameters: `Sub SortUp(a() As Integer)` (Integer, Long, String; always ByRef).
-  The call passes the address of a descriptor (base, lower bound, element size, count); the
-  call stub copies it, and `a(i)` goes through it (`kw_pget` / `kw_pset`). An array
-  parameter can be passed on. `LBound(a)` / `UBound(a)` work on it (on a normal array they
-  are worked out by the compiler, `UBound(g, 2)` too).
+- Arrays as parameters: `Sub SortUp(a() As Integer)` (Integer, Long, String, Byte; 1 or 2
+  dimensions; always ByRef). The call passes the address of a 12 byte descriptor (base,
+  lower bounds, counts, element size); the call stub copies it, and `a(i)` / `a(i, j)` go
+  through it (`kw_pget` / `kw_pset`, `kw_pget2` / `kw_pset2`). An array parameter or a
+  dynamic array can be passed on. `LBound(a [, dim])` / `UBound(a [, dim])` work on them
+  (on a fixed array the compiler works them out).
+- Arrays of a Type as parameters: `Function Total(a() As Point)` - one descriptor per field
+  array; `a(i).x` works as usual.
+- `Property Get / Let` with arguments: `Bag.Item(3) = 42`, `x = Bag.Item(3)`.
+- Local arrays (not `Static`) are cleared on every call, as in VB.
+- Types as parameters: `Sub Grow(p As Point)` / `ByVal p As Point`. The call passes one
+  address per field (nested Types, String and Long fields too); a ByRef Type that the
+  procedure writes is copied back field by field.
+- `AddressOf Proc` gives a number (the address of the procedure's call stub) that can be
+  stored and passed around; `CallAddr x [, args]` calls it (driver / device tables). The
+  arguments go by address and must match the procedure's parameters - the compiler can't
+  check that. `AddressOf` gives the call stub for the turbo mode at that line.
 
-Not supported: recursion, `ParamArray`, 2 dimension arrays or arrays of a Type as
-parameters, Types as parameters.
+Not supported: recursion (also not found through `CallAddr`), `ParamArray`, 3+ dimension
+array parameters.
 
 ### Flow
 
@@ -273,22 +300,49 @@ parameters, Types as parameters.
 `For / To / Step / Next`, `Exit For | Do | While`, `GoTo`, `GoSub / Return`, `End`, `Stop`,
 labels and line numbers.
 
-`On x GoTo a, b, c` / `On x GoSub a, b, c`, `With ... End With`.
+`For Each x In array` (1 dimension, fixed / parameter / dynamic; not an array of a Type),
+`On x GoTo a, b, c` / `On x GoSub a, b, c`, `With ... End With`, `DoEvents` (a safe point:
+in normal mode interrupts get in there).
 
-Not supported: `On Error`, `For Each`.
+**No error handling - a decision, not a gap.** There is no `On Error` / `Resume` and there
+will not be: it makes lazy programmers and costs speed, and with SP as the thread there are
+no return points to unwind. A routine that can fail returns a status (a Function result,
+e.g. 0 = ok, negative = error) and the caller checks it. Diagnostics are separate:
+
+- `Error text` - prints `Error: text (file line n)` and stops.
+- `Debug.Assert condition` - when false prints `Assert failed: condition (file line n)` and
+  stops (kept in the program, unlike a VB exe).
+
+`For Each` over collections does not exist (there are no objects).
 
 ### Operators
 
-`-` (unary), `* / \ Mod`, `+ -`, `&`, `= <> < <= > >=`, `Not`, `And`, `Or Xor`.
-`/` is integer division (no floating point). `And Or Xor Not` are bitwise (True = -1, so
-they work as logical too). Strings compare with all six compares.
+`^`, `-` (unary), `* / \ Mod`, `+ -`, `&`, `= <> < <= > >= Like`, `Not`, `And`, `Or Xor`.
+`/` is integer division (no floating point). `^` is a whole number power (`-2 ^ 2` = -4 as
+in VB; a negative power gives 0). `And Or Xor Not` are bitwise (True = -1, so
+they work as logical too). Strings compare with all six compares. `Like` patterns: `*` any
+run, `?` one character, `#` one digit, `[abc]` / `[a-z]` one of, `[!abc]` none of; case
+matters, unless the module has `Option Compare Text`: then compares, `Like`, `InStr`,
+`InStrRev`, `StrComp` and `Select Case` on strings ignore case (both sides go through
+`UCase$` first).
 
 ### Functions
 
-- Strings: `Len Left$ Right$ Mid$ Chr$ Asc Str$ CStr Val InStr UCase$ LCase$ Trim$ LTrim$
-  RTrim$ Space$ Spc String$ Hex$` (with or without `$`).
+- Strings: `Len Left$ Right$ Mid$ Chr$ Asc Str$ CStr Val InStr InStrRev UCase$ LCase$
+  Trim$ LTrim$ RTrim$ Space$ Spc String$ Hex$ Oct$ Replace StrReverse StrComp` (with or
+  without `$`). `Mid$(s, start[, len]) = text` replaces in place. `LSet s = x` / `RSet s = x`
+  put x left / right in s's length, padded with spaces.
+- `Format$(n, "pattern")` - the pattern must be a constant: text before the first `0` / `#`
+  and after the last is kept, the `0`s give the least digits, a `,` gives groups of 3,
+  `.00` is printed as is (whole numbers only). `Format$(42, "0000")` = "0042",
+  `Format$(1234567, "#,##0")` = "1,234,567".
+- `Join(a [, sep])` (a String array). `a = Split(text [, sep])` fills a dynamic String array
+  (`Dim a() As String`): at most 16 parts, or more if a `ReDim` of it is bigger (no heap).
+- `IIf(cond, a, b)`, `Choose(n, a, b, ...)` - numbers, Longs or strings (both values are
+  worked out first, as in VB; Choose out of range gives 0 / "").
 - Arrays: `LBound(a [, dim])`, `UBound(a [, dim])`.
-- Numbers: `Abs Sgn Int Fix CInt CLng CBool CByte`, `Rnd(n)` = 0 .. n-1, `Peek Deek`,
+- Numbers: `Abs Sgn Int Fix CInt CLng CBool CByte`, `Sqr` (whole number square root),
+  `Rnd(n)` = 0 .. n-1, `Peek Deek`, `Inp(port)`,
   `Inkey` (key code or 0), `Inkey$` (key as text or ""), `Ticks` (interrupt count, normal
   mode). `Val` / `CLng` of text into a Long reads 32 bit decimal.
 
@@ -297,11 +351,108 @@ they work as logical too). Strings compare with all six compares.
 `Print a; b, c` (also `?` and `Debug.Print`), `Input ["prompt";] v`, `Cls`, `Locate x, y`,
 `Mode n`, `Frame`, `Poke a, v`, `Doke a, v`, `Randomize [n]`, `Call address` (machine code
 run as a keyword: SP is the thread, end with `ret` in turbo, `jp ntc_xn` in normal),
-`Break [name]`, `Turbo On`, `Turbo Off`, `Option Turbo`.
+`Break [name]`, `Turbo On`, `Turbo Off`, `Option Turbo`, `Out port, value` (16 bit port,
+`out (c), a`), `Interrupt MySub` / `Interrupt Off`.
 
 `Tab(n)` and `Spc(n)` in Print.
 
-Differences: `Print` does not add spaces around numbers, `,` prints one space.
+Differences: `Print` does not add spaces around numbers, `,` prints one space - unless
+`Option VBPrint`: then a number printed on its own gets VB's spaces (`" 5 "`, `"-3 "`) and a
+comma moves to the next 14 column zone (numbers inside `&` stay plain).
+
+**Interrupt hook.** `Interrupt MySub` (a Sub with no parameters) runs MySub after
+interrupts: the interrupt handler only marks it pending, the next safe point calls it
+(the same window `ntc_xn` opens), and its return lets it run again. Normal mode only -
+turbo has no interrupts. `Interrupt Off` stops it. Cls and scroll also let interrupts in
+while they run in normal mode.
+
+**Warnings.** Not errors - the program still builds. Now: a Function called as a statement
+("the result of F is not used") - with no error handling, an unchecked status is worth
+seeing. The GUI shows warnings in yellow under the errors.
+
+### Inline assembly
+
+```
+Function AddAsm(ByVal a As Integer, ByVal b As Integer) As Integer
+  #asm
+            ld hl, ({a})
+            ld de, ({b})
+            add hl, de
+            ld ({result}), hl
+  #endasm
+End Function
+```
+
+**Asm keyword procedures.** A Sub or Function whose whole body is one `#asm` block, and
+which does not use `{param}` or `{result}`, is not a procedure at all: it becomes a keyword.
+The call is `dw fn_name, arg address, ... [, result address]` - no call stub, no body thread,
+no saved return point. The block pops its own arguments and ends with `ret` (added for you):
+
+```
+Function Add3(ByVal x As Integer) As Integer
+  #asm
+            pop hl          ; address of x
+            ld e, (hl)
+            inc hl
+            ld d, (hl)
+            inc de
+            inc de
+            inc de
+            pop hl          ; address of the result
+            ld (hl), e
+            inc hl
+            ld (hl), d
+  #endasm
+End Function
+```
+
+`Print Add3(10)` -> `dw fn_add3, lit_10, var_add3_add3` / `dw kw_printint, var_add3_add3`;
+`a = Add3(5)` -> `dw fn_add3, lit_5, var_a` (straight into a, unless a is also an argument).
+About 90 T against about 205 T through the stubs.
+
+- Every argument is an address, in order: a number's value (literals come from the
+  read only pool, an expression goes into a temp first), a String's first char (0
+  terminated), a Long's 4 bytes (low word first), an array's descriptor, one address per
+  field of a Type. ByVal and ByRef look the same; ByRef means you may write through it (a
+  literal or expression passed ByRef goes through a temp first).
+- A Function gets the result address last (Integer 2 bytes, Long 4, String a buffer).
+  A Sub gets none.
+- Pop exactly what the call passes; don't move SP otherwise. Same rules as a library keyword.
+- `{Const}`, `{globalvar}` and `{label}` still work in the block.
+- One copy serves both modes; in normal mode it counts as a straight keyword for the safe
+  point (`kw_irq` every 32).
+- These stay ordinary procedures (with stubs): a body that also has BASIC lines, a block
+  that uses `{param}` / `{result}`, a block with `ld sp,`, a procedure used with `AddressOf`
+  or `Interrupt`, Property procedures.
+
+**Asm blocks in BASIC code.**
+
+- Each `#asm ... #endasm` block becomes one inline keyword: the thread gets one word, the
+  code goes after the stubs. The compiler adds the closing `ret`; `ret` anywhere in the
+  block is an early exit.
+- `{name}` is the label of a variable, parameter, local or array (an array parameter or a
+  dynamic array gives its descriptor), the value of a Const, or a BASIC label / line number
+  (`ld sp, {skip}` / `ret` jumps there). `{result}` is the
+  function's result. Parameters are values at their labels (the call stub copied them in),
+  so `ld a, ({b})` reads b; writing a ByRef parameter is copied back on return.
+- Labels in a block are local to it (renamed `asm_<file>_<line>_<label>`).
+- Library routines a block names (e.g. `ntc_printbuf`) are linked.
+- Always reach BASIC names with `{name}`, never with the generated label (`var_x`,
+  `p_name_c`, ...). Those labels come from the BASIC and can change when it changes (a
+  clash adds `_2`, the normal mode copy adds `_n`); `{name}` is worked out again on every
+  compile, so it can't go stale. A generated label written by hand gives a warning:
+  `#asm uses the generated label var_v - write {v} so it follows the BASIC`.
+- Each asm line carries its BASIC file and line as a comment (`; main.bas 4`), so an
+  assembler error points back to the source. BASIC lines in the thread are comments too
+  (with the file name when the project has more than one file).
+- Cross reference: every compile also gives a map - each label the compiler made, what it
+  is, its BASIC name, file and line (`Save .map` in the GUI, `--map=file` in cli.js). It is
+  made fresh each time, nothing to maintain; use it to find a label in an emulator or
+  debugger.
+- Rules: SP is the thread - no `call` / `push` unless SP is first switched to the real stack
+  (`ld (ntc_ip), sp / ld sp, (ntc_csp) / ... / ld sp, (ntc_ip)`); no registers are kept
+  between keywords; interrupts are off. A block that moves SP (`ld sp,`) is a branch: its
+  normal mode copy ends with `jp ntc_xn`.
 
 ---
 
@@ -330,6 +481,7 @@ node cli.js main.bas                         one file -> .asm on stdout
 node cli.js Main.bas Module2.bas Counter.cls  a project (files in order)
 node cli.js main.bas --turbo                 start in turbo mode (like Option Turbo)
 node cli.js main.bas --nocomments            no BASIC source lines as comments
+node cli.js main.bas --map=main.map           also write the cross reference
 node cli.js main.bas > main.asm 2> errors.txt
 ```
 
@@ -370,9 +522,10 @@ SJASMPLUS=/path/to/sjasmplus bash regress.sh
 
 Runs every test program in both modes (turbo and normal) and checks the result line:
 `vb_test` (64 checks), `ntc_test` (36), `vb_test2` (30, 2 files), `vb_test3` (11),
-`vb_test_long` (58), `vb_test4` (16), the class project, sieve, shell sort (both answers),
-the guide, and the FOR / GOSUB / screen tests (`for.bas gs.bas gs2.bas scr0.bas scr2.bas`)
-compared with the expected output in `ref/`. Then checks every JS file parses as ES5. Ends
+`vb_test_long` (58), `vb_test4` (16), `vb_test5` (18, 2 files), `vb_test6` (18),
+`vb_test7` (16), `vb_test8` (5), `vb_test9` (34), `vb_test10` (33, 2 files), `vb_test11` (17), the class project, sieve, shell sort
+(both answers), the guide, and the output tests (`for gs gs2 scr0 scr2 diag1 diag2
+vbprint cmptext`, plus `hook` in normal mode only) compared with the expected output in `ref/`. Then checks every JS file parses as ES5. Ends
 with `ALL PASS` or `SOME FAILED` (with the last lines of each failure). Work files go in
 `test/t/`.
 
@@ -413,5 +566,9 @@ python3 guitest5.py
 
 ## 6. Open decisions
 
-- Classes: keep one set of members per class (now), or a copy per `Dim x As New`.
+- Decided 2026-10-11: classes keep one set of members. Several instances are the class's
+  own job, Amiga library style: `h = Serial.Open(...)` returns a handle, every method takes
+  it, the class keeps per instance state in its own arrays. Private members can't be used
+  from outside the class.
+- Open: keep `Dim c As Counter` (it only names the one set of members) or make it an error.
 - `Option ClassSize <kilobytes>` for banking (planned, not enforced).

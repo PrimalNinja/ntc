@@ -1,0 +1,2 @@
+start
+Assert failed: x < 2 (main.bas line 4)

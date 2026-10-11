@@ -23,6 +23,7 @@ var m_objList = null;
 var m_objProcList = null;
 var m_arrProcs = [];			// from the last compile: { file, line, name, kind }
 var m_strAsm = '';
+var m_strMap = '';			// cross reference from the last compile
 var m_intTimer = 0;
 var m_intNextId = 1;
 
@@ -531,19 +532,32 @@ function ntcOptions()
 	};
 }
 
-function ntcShowErrors(arrErrors_a)
+function ntcShowErrors(arrErrors_a, arrWarnings_a)
 {
 	var objErrors = $('#ge-errors');
+	var arrAll = [];
 	var intI = 0;
 	var objRow = null;
 
 	objErrors.empty();
 	for (intI = 0; intI < arrErrors_a.length; intI++)
 	{
+		arrAll.push({ kind: 'ERROR', item: arrErrors_a[intI] });
+	}
+	for (intI = 0; intI < (arrWarnings_a || []).length; intI++)
+	{
+		arrAll.push({ kind: 'Warning', item: arrWarnings_a[intI] });
+	}
+	for (intI = 0; intI < arrAll.length; intI++)
+	{
 		objRow = $('<div></div>');
-		objRow.text('ERROR: ' + (arrErrors_a[intI].file ? (arrErrors_a[intI].file + ' ') : '') + ((arrErrors_a[intI].line > 0) ? ('line ' + arrErrors_a[intI].line + ': ') : '') + arrErrors_a[intI].msg);
-		objRow.attr('data-line', arrErrors_a[intI].line);
-		objRow.attr('data-file', arrErrors_a[intI].file || '');
+		objRow.text(arrAll[intI].kind + ': ' + (arrAll[intI].item.file ? (arrAll[intI].item.file + ' ') : '') + ((arrAll[intI].item.line > 0) ? ('line ' + arrAll[intI].item.line + ': ') : '') + arrAll[intI].item.msg);
+		objRow.attr('data-line', arrAll[intI].item.line);
+		objRow.attr('data-file', arrAll[intI].item.file || '');
+		if (arrAll[intI].kind !== 'ERROR')
+		{
+			objRow.addClass('ge-warning');
+		}
 		objErrors.append(objRow);
 	}
 }
@@ -590,6 +604,7 @@ function ntcCompileNow()
 	objResult = ntcCompile(arrFiles, ntcOptions());
 	strView = objResult.asm;
 	m_strAsm = objResult.asm;
+	m_strMap = objResult.map || '';
 
 	if ($('#ge-hidelib').is(':checked'))
 	{
@@ -603,7 +618,7 @@ function ntcCompileNow()
 	m_objOutput.setValue(strView);
 	objCode.scrollTop(intScroll);
 
-	ntcShowErrors(objResult.errors);
+	ntcShowErrors(objResult.errors, objResult.warnings);
 	m_arrProcs = objResult.procs || [];
 	ntcRefreshProcs();
 	$('#ge-stats').text(objResult.stats.threadbytes + ' thread bytes, ' + objResult.stats.keywords + ' keywords, ' +
@@ -809,6 +824,10 @@ function ntcInit()
 	$('#ge-save').on('click', function()
 	{
 		ntcDownload(m_objProject.name + '.asm', m_strAsm);
+	});
+	$('#ge-savemap').on('click', function()
+	{
+		ntcDownload(m_objProject.name + '.map', m_strMap);
 	});
 	$('#ge-copy').on('click', ntcCopy);
 	$('#ge-errors').on('click', 'div', function()

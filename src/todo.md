@@ -110,6 +110,79 @@ finished, with the date.
   - PRIMAL's CPC loader uses the firmware (KM_*, TXT_OUT_CHAR, CAS_*) and call / push; NTC
     uses neither. kernel.asm includes Simon Owen's 6510 emulator (zero page / stack moved
     into defined space so it relocates)
+- 2026-10-11 **`#asm` / `#endasm`**: lines kept as written; each block is an inline keyword
+  (`asm_<file>_<line>`, thread gets one word, code goes with the stubs); labels local to the
+  block; `{name}` = label of a variable / param / result / array (descriptor for array
+  params and dynamic arrays) or the value of a Const, `{result}` = the function result;
+  a block with `ld sp,` gets `ret` -> `jp ntc_xn` in its normal copy; library routines a
+  block names are linked. Works in procedures and at top level
+- 2026-10-11 `Inp(port)` / `Out port, value` (16 bit port, `in a,(c)` / `out (c),a`)
+- 2026-10-11 diagnostics: `Error text` (prints "Error: text (file line n)" and stops),
+  `Debug.Assert cond` (prints the condition and place when false, stops); `kw_printnl0`
+- 2026-10-11 `On Error` / `Resume` give a clear error: NTC has no error handling (decision)
+- 2026-10-11 classes: `Private Type` / `Type` inside a class; a Private class member used
+  from outside is an error ("Pool.Bump is Private"); class arrays, arrays of a Type,
+  `Public Const` as `Class.Const` tested (library class with handles: `vb_test5`)
+- 2026-10-11 Byte arrays are real bytes (`kw_aget8` / `kw_aset8`, peek / poke keywords for a
+  constant index); scalar Byte variables stay 16 bit
+- 2026-10-11 dynamic arrays: `Dim a()`, `ReDim [Preserve] a(lo To hi)` with constant bounds
+  (no heap: the storage is the biggest ReDim of that array, the descriptor holds the
+  bounds), `Erase` (dynamic: no elements; fixed: cleared), `UBound` / `LBound`
+- 2026-10-11 Types as parameters (ByVal / ByRef, nested Types, String and Long fields,
+  passed on to another procedure): one address per field, ByRef copies back when written
+- 2026-10-11 2 dimension array parameters; array descriptors are 12 bytes (base, lower
+  bounds, counts, element size); `LBound(a, 2)` / `UBound(a, 2)` on them
+- 2026-10-11 Long: `Hex$` of a Long (`kw_l_hex`), `For` with a Long counter and a Step from
+  a variable, `^` on Longs (`kw_l_pow`)
+- 2026-10-11 `AddressOf Proc` (a word holding the procedure's call stub) and
+  `CallAddr ptr [, args]` (`kw_callp`) - driver / device tables
+- 2026-10-11 `Option VBPrint`: numbers printed alone get VB spacing (" 5 ", "-3 "), a comma
+  moves to the next 14 column zone (`kw_printintvb`, `kw_l_printvb`, `kw_printzone`)
+- 2026-10-11 Interrupt hook: `Interrupt MySub` / `Interrupt Off` - the interrupt handler marks
+  it pending, the next safe point (`ntc_xnh`, linked instead of `ntc_xn` only when used)
+  calls the Sub; its return lets it run again. Normal mode only (turbo has no interrupts)
+- 2026-10-11 Cls and scroll let interrupts in while they run (normal mode)
+- 2026-10-11 `^` (whole number power), `IIf`, `Choose`, `StrComp`, `InStrRev`, `Replace`,
+  `StrReverse`, `Oct$`, `Sqr` (whole number), `Mid$(s, start[, len]) = text`, `DoEvents`
+  (a safe point in normal mode)
+- 2026-10-11 `For Each x In array` (fixed, parameter or dynamic array, 1 dimension; `Next x`)
+- 2026-10-11 `Property Let / Get` with arguments (`Bag.Item(3) = 42`, `Bag.Item(3)`)
+- 2026-10-11 local arrays (not Static) are cleared on every call, as in VB
+- 2026-10-11 `{label}` in #asm: a BASIC label / line number (`ld sp, {skip} / ret` jumps)
+- 2026-10-11 arrays of a Type as parameters: one descriptor per field array
+- 2026-10-11 `Like` (`*`, `?`, `#`, `[abc]`, `[a-z]`, `[!abc]`; case matters)
+- 2026-10-11 `Option Compare Text` (per module: string compares, Like, InStr, InStrRev,
+  StrComp, Select Case fold case through UCase$)
+- 2026-10-11 `Format$(n, pattern)` (constant pattern: text before / after, `0` least digits,
+  `#`, `,` groups of 3, `.00` printed as is - whole numbers), Integer and Long
+- 2026-10-11 `Join(stringarray [, sep])`; `a() = Split(text [, sep])` into a dynamic String
+  array (holds at most 16 parts or its biggest ReDim - no heap; more parts are dropped)
+- 2026-10-11 warnings (shown in the GUI in yellow, `WARN` in cli.js): a Function called as a
+  statement ("the result of F is not used")
+- 2026-10-11 dynamic arrays of a Type (`Dim a() As T`, ReDim / Preserve / Erase on each
+  field array); a String * n passed ByRef is padded again after the call
+- 2026-10-11 listing / cross reference: every #asm line carries its BASIC file and line,
+  thread comments carry the file name in projects with several files; a map of every
+  generated label (kind, BASIC name, file, line) comes with each compile (`Save .map`,
+  `cli.js --map=`); a generated label written by hand in #asm gives a warning ("write {v}")
+- 2026-10-11 `LSet` / `RSet`; `String * n` padded with spaces / cut to n on every
+  assignment and Input, starts as n spaces (also as a Type field and a local)
+- 2026-10-11 tests: `vb_test5` (18, 2 files: #asm, Inp/Out, library class), `vb_test6` (18:
+  Byte arrays, ReDim), `vb_test7` (16: Type / 2D array params, Long extras), `vb_test8` (5:
+  AddressOf), `vb_test9` (34: ^, IIf, Choose, string functions), `diag1` / `diag2` (Error,
+  Assert), `vbprint`, `hook`, `vb_test10` (2 files: For Each, Property args, local
+  arrays, #asm label, Type array params, Like, LSet / RSet, String * n, Format$, Join,
+  Split; 33 checks), `cmptext` (Option Compare Text) - all pass in both
+  modes (hook: normal only)
+- 2026-10-11 **asm keyword procedures**: a Sub / Function whose body is only `#asm` and
+  doesn't use `{param}` / `{result}` becomes a keyword - `dw fn_name, args..., result` - no
+  stubs, no body thread, no saved SP (Add3: ~90 T instead of ~205 T). `x = F(...)` stores
+  straight into x. Not for AddressOf / Interrupt targets, `ld sp,` blocks, Property. Test
+  `vb_test11` (17 checks)
+- 2026-10-11 fix: `DoEvents` was dropped by the parser - now a safe point (`kw_irq`) in
+  normal mode as documented
+- 2026-10-11 `userguide.md`: language reference by topic (CPC BASIC manual style), with the
+  differences from VB5 / VB6 at each keyword
 
 ---
 
@@ -117,10 +190,6 @@ finished, with the date.
 
 ### Language
 
-- [ ] dynamic arrays / `ReDim`
-- [ ] Long: Overflow is not checked (low 16 bits kept); `Hex$` of a Long; Long `Step` from a variable
-- [ ] Types as procedure parameters; 2 dimension arrays as parameters
-- [ ] Print spacing like VB (space before positive numbers) - as an option?
 - [ ] FUTURE: `Option ClassSize <kilobytes>` - keep a class's code within a size so classes
       can be used as banking units. Accepted, not enforced.
 
@@ -142,48 +211,13 @@ finished, with the date.
   array of a Type) and has a fixed number of slots. Singletons (screen, keyboard, sound
   chip, gate array) just use scalars. No vtables, no allocation, direct calls
 
-### #asm / #endasm (design notes - how it fits what the compiler already does)
-
-- [ ] parser: between `#asm` and `#endasm` keep lines verbatim (no normalising, no `'` cut),
-      one `asm` record with the lines
-- [ ] code generator: each block becomes an anonymous keyword section (`asm_N`) linked like a
-      library section; the thread gets `dw asm_N`. Same machinery as the library: a block
-      without `ld sp,` ends with `ret` in both modes (normal mode lets interrupts in at branches
-      and `kw_irq`, not after every keyword); a block with `ld sp,` gets a normal copy made
-      by `normalCopy` (ret -> jp ntc_xn, labels _n). The compiler adds the closing `ret`;
-      an early exit is just `ret`
-- [ ] labels inside a block are local: rename them per block (`asm_N_label`) so blocks and
-      their normal copies don't clash
-- [ ] names from the BASIC side: a syntax for labels/values, e.g. `{b}` (param), `{x}`
-      (local), `{result}`, `{mBase}` (class member), `{MAXN}` (Const value), resolved by
-      the compiler with the normal scope rules. Parameters are VALUES at their var_ labels
-      (the call stub copies them in): `ld a, ({b})` reads b directly, it is not a pointer.
-      ByRef copy back is done by the return stub from the param's own label, so writing
-      `ld ({b}), a` is enough. Strings: the label is the 41 byte buffer, Longs 4 bytes,
-      arrays: `{arr}` = first element (normal array) or the descriptor (array parameter)
-- [ ] rules for block authors: SP is the thread - no call / push unless SP is switched to
-      a real stack first (`ld (ntc_ip), sp / ld sp, (ntc_csp) / ... / ld sp, (ntc_ip)`);
-      no registers are kept between keywords; IX / IY free; interrupts are off (normal mode
-      opens them only at safe points)
-- [ ] a whole procedure body in `#asm`: just one block followed by the usual `dw p_x_r`
-- [ ] top level `#asm` (outside procedures) = inline code in the main thread, same rules
-- [ ] an asm listing with BASIC line numbers kept for debugging (source comments already
-      do most of this)
-
 ### Classes as libraries (to check / add)
 
-- [ ] test class level arrays, arrays of a Type, `Private Const` (and `Serial.MAX_PORTS`
-      for a Public one), Private procedures not callable from outside
 - [ ] decide: keep `Dim c As Counter` (it only aliases the one set of members) or make it an
       error now that classes are namespaces
-- [ ] `AddressOf` and calling a procedure through a variable - needed for a driver /
-      device table (register a device's entry points, call them later). Fits the call
-      stubs: the stub address is the procedure's "pointer"
-- [ ] real byte arrays (`Byte` is stored as 16 bit now) - buffers for I/O; strings are only
-      40 chars so they are poor buffers
-- [ ] `Inp(port)` / `Out port, value` built ins (16 bit port in BC on the CPC) so simple
-      drivers need no #asm
-- [ ] compiler warning when a Function's status result is ignored (optional)
+- [ ] `CallAddr`: the arguments are not checked against the target's parameters (the
+      compiler can't know it); recursion through `CallAddr` is not found either
+
 
 ### Libraries / drivers (as classes)
 
@@ -343,8 +377,8 @@ CP/M compatible (or mostly) system idea - device model, not decided:
 
 ### Turbo / normal
 
-- [ ] long keywords (Cls, big string work) still hold interrupts off while they run
-- [ ] user interrupt handler hook (Sub called from the interrupt, e.g. music)
+- [ ] long string work and Long divide still hold interrupts off while they run (short:
+      40 chars, 32 steps); Cls, scroll and Mode let them in
 
 ### GUI
 
@@ -354,3 +388,14 @@ CP/M compatible (or mostly) system idea - device model, not decided:
 
 - [ ] test on a real CPC (both modes, Turbo On / Off)
 - [ ] `asm/ntc_plat_test.asm` is left over from the removed Python harness - delete?
+
+---
+
+## possibly future
+
+- [ ] `ReDim` with bounds from variables - needs a heap (or a declared most size). Not now
+- [ ] Overflow is not checked (Integer and Long wrap). With no error handling this stays,
+      write it in NTC.md as the rule
+- [ ] 3+ dimension array parameters (not planned unless needed)
+- [ ] `Format$` with dates / text patterns (`@`, `>`, `<`), `%`; Split's most parts (16)
+      could be an option

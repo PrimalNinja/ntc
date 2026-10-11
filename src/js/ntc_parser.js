@@ -25,15 +25,16 @@
 // ============================================================
 
 // operators, prefix operators are NEG and NOT (functions are prefix too)
-var NTC_OPERATORS = ['_NEG_', '_NOT_', '_*_', '_/_', '_\\_', '_MOD_', '_+_', '_-_', '_&_', '_=_', '_<>_', '_<_', '_<=_', '_>_', '_>=_', '_AND_', '_OR_', '_XOR_'];
+var NTC_OPERATORS = ['_NEG_', '_NOT_', '_^_', '_*_', '_/_', '_\\_', '_MOD_', '_+_', '_-_', '_&_', '_=_', '_<>_', '_<_', '_<=_', '_>_', '_>=_', '_LIKE_', '_AND_', '_OR_', '_XOR_'];
 
 // lower binds tighter, equal = same level (left to right)
 var NTC_PRECEDENCE = {
+	'^': 0,
 	'NEG': 1,
 	'*': 3, '/': 3, '\\': 3, 'MOD': 3,
 	'+': 4, '-': 4,
 	'&': 5,
-	'=': 6, '<>': 6, '<': 6, '<=': 6, '>': 6, '>=': 6,
+	'=': 6, '<>': 6, '<': 6, '<=': 6, '>': 6, '>=': 6, 'LIKE': 6,
 	'NOT': 7,
 	'AND': 8,
 	'OR': 9, 'XOR': 9
@@ -91,7 +92,7 @@ function IFtoPF(str_a, arrFunctions_a)
 
 	function maybeOperator(str_a)
 	{
-		return ((str_a.length > 0) && ("+-*/\\<>=&".indexOf(str_a) > -1));
+		return ((str_a.length > 0) && ("+-*/\\<>=&^".indexOf(str_a) > -1));
 	}
 
 	function precedence(str_a)
@@ -632,6 +633,10 @@ function ntcParse(arrFiles_a)
 			return null;
 		}
 		objElement = { etype: strType_a, scope: strScope_a, full: strFull_a, id: strId_a, module: strModule, proc: strProc, file: strFile, line: intLine };
+		if (blnPubMember)
+		{
+			objElement.pub = true;		// a Public member of a class
+		}
 		if (objExtra_a)
 		{
 			for (strKey in objExtra_a)
@@ -793,6 +798,35 @@ function ntcParse(arrFiles_a)
 		}
 
 		return objResult;
+	}
+
+	// redim [preserve] a(bounds) [as type], ...
+	function parseRedim(strText_a)
+	{
+		var arrParts = [];
+		var arrVars = [];
+		var blnPreserve = false;
+		var intI = 0;
+		var objVar = null;
+		var strText = trim(strText_a);
+
+		if (left(strText, 'preserve '))
+		{
+			blnPreserve = true;
+			strText = trim(strText.substr(9));
+		}
+		arrParts = splitTop(strText, ',');
+		for (intI = 0; intI < arrParts.length; intI++)
+		{
+			objVar = parseVar(arrParts[intI]);
+			if ((objVar === null) || (objVar.dims === null) || (objVar.dims.length === 0))
+			{
+				error('bad ReDim: ' + trim(arrParts[intI]));
+				continue;
+			}
+			arrVars.push(objVar);
+		}
+		record('redim', { preserve: blnPreserve, vars: arrVars });
 	}
 
 	// dim / public / private / static / global: the list after the word
@@ -1182,15 +1216,15 @@ function ntcParse(arrFiles_a)
 			case left(str_a, 'implements '):
 				break;
 
-			case left(str_a, 'private type ') && !blnInClass:
+			case left(str_a, 'private type '):
 				typeBegin('module', str_a.substr(13));
 				break;
 
-			case left(str_a, 'public type ') && !blnInClass:
+			case left(str_a, 'public type '):
 				typeBegin('global', str_a.substr(12));
 				break;
 
-			case left(str_a, 'type ') && !blnInClass:
+			case left(str_a, 'type '):
 				typeBegin('global', str_a.substr(5));
 				break;
 
@@ -1203,7 +1237,9 @@ function ntcParse(arrFiles_a)
 				break;
 
 			case left(str_a, 'public const ') || left(str_a, 'global const '):
+				blnPubMember = blnInClass;
 				declareConsts(blnInClass ? 'module' : 'global', str_a.substr(13));
+				blnPubMember = false;
 				break;
 
 			case left(str_a, 'const '):
@@ -1215,7 +1251,9 @@ function ntcParse(arrFiles_a)
 				break;
 
 			case left(str_a, 'public ') || left(str_a, 'global '):
+				blnPubMember = blnInClass;
 				declareVars(blnInClass ? 'module' : 'global', str_a.substr(7), false);
+				blnPubMember = false;
 				break;
 
 			case left(str_a, 'dim '):
@@ -1262,6 +1300,10 @@ function ntcParse(arrFiles_a)
 		{
 			record('option', { what: 'normal' });
 		}
+		else if (strText === 'vbprint')
+		{
+			record('option', { what: 'vbprint' });	// Print spacing like VB
+		}
 		else if (/^base [01]$/.test(strText))
 		{
 			record('option', { what: 'base', value: parseInt(strText.substr(5), 10) });
@@ -1269,6 +1311,10 @@ function ntcParse(arrFiles_a)
 		else if (/^classsize \d+$/.test(strText))
 		{
 			record('option', { what: 'classsize', value: parseInt(strText.substr(10), 10) });	// planned, not enforced
+		}
+		else if (strText === 'compare text')
+		{
+			record('option', { what: 'comparetext' });	// string compares ignore case in this module
 		}
 		else if (left(strText, 'compare ') || left(strText, 'private module'))
 		{
@@ -1425,11 +1471,15 @@ function ntcParse(arrFiles_a)
 				break;
 
 			case left(strText, 'on error ') || left(strText, 'resume'):
-				error('On Error is not supported yet');
+				error('On Error is not supported - NTC has no error handling: return a status from a Function and check it');
 				break;
 
 			case left(strText, 'redim '):
-				error('ReDim is not supported yet');
+				parseRedim(strText.substr(6));
+				break;
+
+			case left(strText, 'erase '):
+				record('erase', { names: splitTop(strText.substr(6), ',').map(function(str_a) { return trim(str_a); }) });
 				break;
 
 			case left(strText, 'const ') && blnInProc:
@@ -1489,7 +1539,14 @@ function ntcParse(arrFiles_a)
 				break;
 
 			case left(strText, 'for each '):
-				error('For Each is not supported');
+				if ((arrMatch = strText.match(/^for each ([a-z_][\w.]*[$%&!#@]?) in ([a-z_][\w.]*[$%&!#@]?)$/)) !== null)
+				{
+					record('foreach', { v: arrMatch[1], arr: arrMatch[2] });
+				}
+				else
+				{
+					error('For Each needs: For Each x In array');
+				}
 				break;
 
 			case left(strText, 'for '):
@@ -1572,7 +1629,11 @@ function ntcParse(arrFiles_a)
 				record('frame', {});
 				break;
 
-			case strText === 'doevents' || strText === 'beep':
+			case strText === 'beep':
+				break;		// no sound yet: accepted, does nothing
+
+			case strText === 'doevents':
+				parseCall('doevents', false);	// a safe point in normal mode
 				break;
 
 			case left(strText, 'locate '):
@@ -2004,6 +2065,8 @@ function ntcParse(arrFiles_a)
 	var strJoined = '';
 	var strName = '';
 	var objPublicProcs = {};		// public procedure names in .bas files
+	var objAsm = null;				// open #asm block { line, lines }
+	var blnPubMember = false;		// declaring Public members of a class
 	var arrProcMatch = null;
 
 	// a module named like a public procedure (ShellSort in shellsort.bas)
@@ -2069,8 +2132,39 @@ function ntcParse(arrFiles_a)
 		}
 
 		strJoined = '';
+		objAsm = null;
 		for (; intJ < arrLines.length; intJ++)
 		{
+			// #asm ... #endasm: Z80 lines kept as they are
+			if (objAsm !== null)
+			{
+				if (/^\s*#endasm\b/i.test(arrLines[intJ]))
+				{
+					if (!skipping())
+					{
+						intLine = objAsm.line;
+						strSrc = '#asm';
+						record('asm', { lines: objAsm.lines, endline: intJ + 1 });
+					}
+					objAsm = null;
+				}
+				else
+				{
+					objAsm.lines.push(arrLines[intJ].replace(/\s+$/, ''));
+				}
+				continue;
+			}
+			if (/^\s*#asm\b/i.test(arrLines[intJ]) && (strJoined.length === 0))
+			{
+				objAsm = { line: intJ + 1, lines: [] };
+				continue;
+			}
+			if (/^\s*#endasm\b/i.test(arrLines[intJ]))
+			{
+				intLine = intJ + 1;
+				error('#endasm without #asm');
+				continue;
+			}
 			// line continuation: " _" at the end
 			if (/\s_\s*$/.test(arrLines[intJ]))
 			{
@@ -2092,6 +2186,12 @@ function ntcParse(arrFiles_a)
 		if (strJoined.length > 0)
 		{
 			parseLine(strJoined);
+		}
+		if (objAsm !== null)
+		{
+			intLine = objAsm.line;
+			error('#asm is not closed (#endasm)');
+			objAsm = null;
 		}
 
 		if (blnInProc)
