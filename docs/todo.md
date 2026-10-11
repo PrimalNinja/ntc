@@ -218,7 +218,11 @@ finished, with the date.
   sort, factor, loop, call, divide, string in NTC (turbo, normal), Small C (C3.0R1.1, its
   output as `B*C.ASM`), BBC BASIC (Z80) v5 (CP/M edition) and the sieve in hand Z80,
   timed with exact T-states and CPC microsecond timing. NTC normal 1.3-1.7 x Small C (calls
-  0.95 x), turbo 1.4-2.6 x; 9-30 x BBC BASIC; the hand sieve 5.7 x NTC turbo
+  0.95 x), turbo 1.4-2.6 x; 9-30 x BBC BASIC; the hand sieve 5.7 x NTC turbo.
+  2026-10-12: also z88dk sccz80 (-O3; NTC turbo about the same: faster on sieve / sort /
+  loop, slower on factor / divide) and SDCC 4.2 (1.5-3.7 x faster than NTC turbo:
+  registers for variables and arguments). zsdcc not built (sources not reachable here).
+  Same C source for both: `compare/bench/ansi/`
 - 2026-10-11 the CPC platform uses the CPC's own font: the first mode set copies chars
   32-126 from the lower ROM (#3900) into ntc_font (now a RAM buffer, 760 bytes less per
   program), running the copy from #C000 (the program at #0040 can be under the lower ROM).
@@ -576,8 +580,12 @@ CP/M compatible (or mostly) system idea - device model, not decided:
 ### Testing
 
 - [ ] test on a real CPC (both modes, Turbo On / Off)
-- [ ] speed: the 16 bit divide (most of `divide` and `factor`), and the call stub (Small C's
-      plain call / ret is as fast as NTC normal) - see NTC.md section 3
+- [ ] speed: the 16 bit divide (z88dk's and SDCC's are 1.6-1.85 x faster; most of `divide`
+      and `factor`), and the call stub (SDCC 3.7 x faster with arguments in registers) -
+      see NTC.md section 3
+- [ ] speed idea: SDCC's lead is mostly variables held in registers. Possible NTC steps: an
+      inner `For` counter kept in a register pair across its loop body, combined keywords
+      for common pairs (load-compare-branch), a register calling convention for small procs
 - [ ] ntcrun.py counts 1 T per instruction while stepping to deliver an interrupt (up to
       2000 steps per 13333 T block, every block in turbo): its `T=` and the test platform's
       Ticks are too low, turbo most. The z80 module reports no T-states for one step - needs

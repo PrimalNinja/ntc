@@ -1,6 +1,6 @@
 # compare/bench - the speed comparison programs
 
-The programs behind NTC.md section 3 ("Speed compared"), each written plainly with the same
+The programs behind `docs/NTC.md` section 3 ("Speed compared"), each written plainly with the same
 algorithm and the same answers:
 
 | Test | NTC | Small C | Small C output (CP/M) | BBC BASIC |
@@ -14,6 +14,19 @@ algorithm and the same answers:
 | string | `string.bas` | - (Small C has no strings) | | `string.bbc` |
 
 `BSIEVEA.ASM` is the sieve in hand-written Z80. `io_z.inc` is its CP/M console part.
+
+`ansi/` holds the same tests in standard C for z88dk's sccz80 and SDCC (the Small C files
+are K&R C for Small C):
+
+```
+zcc +cpm -compiler=sccz80 -O3 sieve.c -o SIEVEZ.COM
+sdasz80 -plosgff crt0_cpm_sdcc.rel crt0_cpm_sdcc.s
+sdcc -mz80 --opt-code-speed --max-allocs-per-node 200000 --no-std-crt0 --code-loc 0x0120 --data-loc 0 -o sieve.ihx crt0_cpm_sdcc.rel sieve.c
+objcopy -I ihex -O binary sieve.ihx SIEVES.COM      (or hex2bin: a binary from #0100)
+```
+
+`crt0_cpm_sdcc.s` is a small CP/M start-up for SDCC (stack below BDOS, initialised data,
+`putchar` through BDOS 2).
 
 - The NTC programs run the test twice, turbo then normal, each from `go` to the result.
 - `B*C.ASM`: Small C's 8080 code written in Z80 mnemonics one for one, with Ron Cain's

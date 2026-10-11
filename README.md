@@ -4,7 +4,8 @@
 
 What NTC is, how the NTC BASIC compiler works now (VB5/VB6 style front end, turbo and
 normal modes, project explorer), and the language it takes. Progress is tracked in
-`todo.md`. The full language reference, keyword by keyword, is `userguide.md`.
+`todo.md`. The full language reference, keyword by keyword, is `userguide.md`. These three
+are in `docs/`; file and folder names in them (`js/`, `asm/`, `bas/`, `test/` ...) are in `src/`.
 
 ---
 
@@ -123,11 +124,15 @@ the old 3 bytes back out on exit.
 
 ## 3. Speed compared
 
-What NTC is for: write in plain VB-style BASIC, fast, and get code that runs at compiled
-speed on a Z80 - without writing assembler. Classic Z80 C compilers don't give good Z80
-code; an expert C or assembler programmer can beat NTC on most counts, but they are not
-who this is for. With NTC people can code fast and run fast. Where a hot spot needs more,
-an `#asm` procedure is a keyword with no call cost (section 5, Inline assembly).
+What NTC is for: write in plain VB-style BASIC, fast, and get compiled speed on a Z80
+without writing assembler or C. People can code fast and run fast. An expert in assembler,
+or in C with a modern compiler, will beat it - they are not who this is for. Where a hot
+spot needs more, an `#asm` procedure is a keyword with no call cost (section 5, Inline
+assembly).
+
+Short version of the results: NTC is 10 to 40 times faster than BBC BASIC, faster than
+classic Small C, about the same as z88dk's sccz80 in turbo, and slower than SDCC (1.5 to
+3.7 times) - SDCC keeps variables in registers and passes arguments in registers.
 
 ### How it was measured
 
@@ -143,40 +148,50 @@ handler (NTC's own on the CPC); CP/M's own handler costs more.
 
 | | What it is |
 |---|---|
-| NTC turbo, NTC normal | this compiler, Integer (16 bit) and Byte variables, `Option Explicit` |
-| Small C | Ron Cain's Small C as revised by Chris Lewis (C3.0R1.1, ncb85/SmallC-85) - the classic C of the CP/M era; 8080 code (runs as is on a Z80), `int` / `char`, Ron Cain's runtime library |
+| NTC turbo, NTC normal | this compiler; Integer (16 bit) and Byte variables, `Option Explicit` |
+| SDCC | SDCC 4.2.0 (stock, `-mz80 --opt-code-speed --max-allocs-per-node 200000`), own CP/M start-up (`crt0_cpm_sdcc.s`). z88dk's zsdcc is SDCC with z88dk's patches and extra peephole rules - it could not be built here (its sources are not reachable from this machine); expect it to be the same or a little faster |
+| sccz80 | z88dk's own C compiler (built from z88dk's current source), `zcc +cpm -compiler=sccz80 -O3` |
+| Small C | Ron Cain's Small C as revised by Chris Lewis (C3.0R1.1, ncb85/SmallC-85) - the classic C of the CP/M era; 8080 code (runs as is on a Z80), Ron Cain's runtime library |
 | BBC BASIC | BBC BASIC (Z80) v5 by R.T. Russell, CP/M edition - a fast interpreter; `%` integer variables (32 bit, BBC BASIC has no 16 bit integers), `&` byte array |
 | Hand Z80 | the sieve written straight in Z80 (pointer stepping, counter in a register, no tricks) |
 
-All programs are plain code with the same algorithm and the same answers (checked), in
-`compare/bench/` (`.bas`, `.c` with Small C's output as `B*C.ASM`, `.bbc`, `BSIEVEA.ASM`).
+All programs are plain code with the same algorithm, the same 16 bit `int` / 8 bit `char`
+types (except BBC BASIC) and the same answers (checked), in `compare/bench/`: `.bas` (NTC),
+`ansi/*.c` (sccz80 and SDCC), `.c` with Small C's output as `B*C.ASM`, `.bbc`,
+`BSIEVEA.ASM`.
 
 ### Results (seconds on a 4 MHz CPC)
 
-| Test | What it does | Hand Z80 | NTC turbo | NTC normal | Small C | BBC BASIC |
-|---|---|---|---|---|---|---|
-| sieve | primes below 8000, Byte flags | 0.61 | 3.49 | 4.97 | 6.63 | 151.3 |
-| sort | Shell sort, 2001 Integers | | 11.35 | 14.27 | 18.10 | 334.2 |
-| factor | prime factors of 2..1500, trial division | | 16.65 | 18.10 | 23.56 | 197.6 |
-| loop | empty `For` loop, 10000 times | | 0.45 | 0.70 | 1.17 | 7.00 |
-| call | function with 2 parameters, 5000 calls | | 0.80 | 1.17 | 1.11 | 26.7 |
-| divide | `(i * 5) \ 3 + i Mod 13`, 5000 times | | 5.89 | 6.02 | 9.71 | 57.2 |
-| string | build 30 chars one at a time, 200 times | | 1.50 | 1.66 | - | 15.2 |
+| Test | What it does | Hand Z80 | SDCC | NTC turbo | sccz80 | NTC normal | Small C | BBC BASIC |
+|---|---|---|---|---|---|---|---|---|
+| sieve | primes below 8000, byte flags | 0.61 | 0.98 | 3.49 | 3.96 | 4.97 | 6.63 | 151.3 |
+| sort | Shell sort, 2001 integers | | 7.14 | 11.35 | 13.85 | 14.27 | 18.10 | 334.2 |
+| factor | prime factors of 2..1500, trial division | | 11.00 | 16.65 | 13.11 | 18.10 | 23.56 | 197.6 |
+| loop | empty counted loop, 10000 times | | 0.54 * | 0.45 | 0.50 * | 0.70 | 1.17 | 7.00 |
+| call | function with 2 parameters, 5000 calls | | 0.22 | 0.80 | 0.82 | 1.17 | 1.11 | 26.7 |
+| divide | `(i * 5) \ 3 + i Mod 13`, 5000 times | | 3.18 | 5.89 | 3.66 | 6.02 | 9.71 | 57.2 |
+| string | build 30 chars one at a time, 200 times | | - | 1.50 | - | 1.66 | - | 15.2 |
 
-How many times faster NTC is (the other's time / NTC's time):
+\* The C loop counter is `volatile`, or SDCC would throw the empty loop away; that keeps
+it in memory. With a plain `int`, SDCC keeps it in BC and the loop takes **0.085 s**
+(`dec bc / ld a,b / or c / jr nz`) - hand assembler speed.
 
-| Test | NTC normal vs Small C | NTC turbo vs Small C | NTC normal vs BBC BASIC | NTC turbo vs BBC BASIC | normal takes longer than turbo by |
-|---|---|---|---|---|---|
-| sieve | 1.33 | 1.90 | 30 | 43 | 42% |
-| sort | 1.27 | 1.60 | 23 | 29 | 26% |
-| factor | 1.30 | 1.42 | 11 | 12 | 9% |
-| loop | 1.67 | 2.59 | 10 | 16 | 55% |
-| call | 0.95 | 1.38 | 23 | 33 | 46% |
-| divide | 1.61 | 1.65 | 9.5 | 9.7 | 2% |
-| string | - | - | 9.2 | 10 | 10% |
+NTC turbo compared with each (the other's time / NTC turbo's time; above 1 = NTC faster):
 
-The hand-written sieve is 5.7 times faster than NTC turbo, 8.2 times faster than NTC
-normal, 11 times faster than Small C and 250 times faster than BBC BASIC.
+| Test | SDCC | sccz80 | Small C | BBC BASIC |
+|---|---|---|---|---|
+| sieve | 0.28 | 1.13 | 1.90 | 43 |
+| sort | 0.63 | 1.22 | 1.60 | 29 |
+| factor | 0.66 | 0.79 | 1.42 | 12 |
+| loop | 1.2 (0.19 without `volatile`) | 1.10 | 2.59 | 16 |
+| call | 0.27 | 1.03 | 1.38 | 33 |
+| divide | 0.54 | 0.62 | 1.65 | 9.7 |
+
+NTC normal takes longer than turbo by: sieve 42%, sort 26%, factor 9%, loop 55%, call 46%,
+divide 2%, string 10%. Against sccz80, NTC normal is 0.6 to 0.97 times its speed; against
+Small C 1.3 to 1.7 times (calls 0.95); against BBC BASIC 9 to 30 times.
+
+The hand-written sieve is 1.6 times faster than SDCC, 5.7 times faster than NTC turbo.
 
 ### What gets the most from NTC
 
@@ -184,37 +199,37 @@ normal, 11 times faster than Small C and 250 times faster than BBC BASIC.
   variable addresses and the target in the thread. Small C calls a runtime routine for
   every compare (`call ccle`), which returns 0 or 1 in HL, then tests that
   (`ld a,h / or l / jp nz`). BBC BASIC reads and decodes the statement text every time.
+  This is where NTC turbo is ahead of sccz80 (sieve, sort, loop).
 - **Variables and arrays.** NTC variables are at fixed addresses, so a keyword loads them
   straight (`ld hl,(nn)`). Small C works out a stack address and calls `ccgint` for every
-  local it reads (`ld hl,2 / add hl,sp / call ccgint`). Byte arrays are a byte per element
-  in both NTC and C.
+  local it reads (`ld hl,2 / add hl,sp / call ccgint`).
 - **Short keywords gain most from turbo.** Normal mode costs about 90 T per branch, so the
   more branches per unit of work, the more turbo gains: the empty loop takes 55% longer in
   normal, the sieve 42%, the sort 26%.
 
 ### What gets the least
 
-- **Division, multiply and Mod.** The time is in the 16 bit divide routine, the same for
-  any compiler (NTC's is a bit quicker than Small C's: 1.6 times). Turbo hardly matters
-  (2%): a divide is one long keyword.
+- **Division, multiply and Mod.** The time is in the 16 bit divide routine. NTC's is slower
+  than z88dk's and SDCC's (`divide`: 5.9 s against 3.7 s and 3.2 s), and that is also why
+  sccz80 wins `factor`. Turbo hardly matters (2%): a divide is one long keyword. To do:
+  a faster divide.
+- **Procedure calls.** NTC's call stub copies the arguments into the parameters and clears
+  the locals (in VB, locals start empty on every call): about the same as sccz80 in turbo.
+  SDCC passes arguments in registers and is 3.7 times faster. A `#asm` keyword procedure
+  has no call cost at all.
 - **Strings, Print, Input.** Copying bytes, and the firmware or BDOS doing the output.
   NTC is about as fast as its library routine, like anyone else's.
-- **Procedure calls.** Small C's call is a `call` / `ret` with the arguments on the stack,
-  which is cheap on a Z80. NTC's call stub copies the arguments into the parameters and
-  clears the locals (in VB, locals start empty on every call), so in normal mode a call is
-  about the same speed as Small C, in turbo 1.4 times faster. A `#asm` keyword procedure
-  has no call cost at all.
 
-### Where expert C or assembler win
+### Where SDCC and expert assembler win
 
 - Keeping a loop's variables in registers the whole time; NTC loads and stores them in
-  memory in every keyword.
+  memory in every keyword. This is most of SDCC's lead (the sieve: 0.98 s against 3.49 s;
+  the loop without `volatile`: 0.085 s).
+- Arguments in registers, no copying (calls).
 - Stepping a pointer through an array instead of working out `base + index * size` each
   time (the hand sieve does this).
 - No step between operations: NTC pays a `ret` (10 T) per keyword, plus about 90 T per
   branch in normal mode.
-- Modern optimising Z80 C compilers (z88dk's zsdcc / sccz80) were not measured. They give
-  much better code than Small C and will come close to NTC, or beat it, in places.
 
 ## 4. The compiler
 
@@ -235,9 +250,10 @@ Files (ES5, no node, no Python):
 | `asm/ntc_plat_cpm.asm` | CP/M platform (BDOS console, own stack, warm boot) |
 | `asm/ntc_plat_test.asm` | test harness platform (console through I/O ports, for `test/ntcrun.py`) |
 | `lib/<platform>/*.cls` | the platform classes: `StdIO.cls` (console), `System.cls` (what the machine is) |
-| `userguide.md` | Language reference: every keyword by topic, with an example and its VB5 / VB6 differences |
+| `../docs/userguide.md` | Language reference: every keyword by topic, with an example and its VB5 / VB6 differences |
 | `build/` | Test builds: every program in `bas/` compiled for every platform (`.ASM`), and `build.bat` to assemble them all with sjasmplus on Windows / MS-DOS (CPC: AMSDOS `.BIN` files, CP/M: `.COM`) |
 | `compare/smallc/` | The sieve (`bas/sievetime.bas`) in Small C, as Z80 source, for timing NTC against a classic Z80 C compiler (results in its README) |
+| `compare/bench/` | The speed comparison programs (section 3): NTC, Small C, BBC BASIC, hand Z80 |
 | `bas/` | Examples and self tests (`vb_test.bas`, `vb_test2/`, `ntc_test.bas`, ...) |
 
 ### Parser (VBCC concept, ported to JS)
