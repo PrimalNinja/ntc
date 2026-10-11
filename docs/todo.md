@@ -573,6 +573,77 @@ CP/M compatible (or mostly) system idea - device model, not decided:
 - [ ] long string work and Long divide still hold interrupts off while they run (short:
       40 chars, 32 steps); Cls, scroll and Mode let them in
 
+### Optimisations
+
+Background (NTC.md section 3, 2026-10-12): one pass of the sieve's inner loop is 366 T in
+NTC turbo against 107 T for SDCC. The work itself is the same (110 T against 107 T); the
+rest is NTC's: variables loaded and stored in memory by every keyword (115 T), operand
+addresses popped from the thread (90 T), and the `ret` / `jp` between keywords (51 T).
+Normal mode adds about 90 T per branch (`ntc_xn`). Each item below cuts one of these.
+Generic first: they help nearly every program. Gains are estimates from keyword T counts -
+measure each with the bench set (`compare/bench/`) before and after.
+
+- [ ] **For loops, counter not used**: if the body and the code after the loop never read
+      the loop variable, use a hidden down-counter: one keyword `dec` 16 bit + branch if not
+      zero (about 45 T) instead of `kw_next1l` (about 120 T: inc in memory, load, signed
+      compare with the limit). If the variable is read after the loop, set its final value
+      once at the exit
+- [ ] **For loops, Step 1 / -1, constant limit**: the loop always ends at exactly limit + 1
+      (limit - 1), so the end test can be "equal to" (two byte compares) instead of signed
+      <=; one check on entry that the loop runs at all. About 30-40 T per pass, nearly every
+      For loop
+- [ ] **Loop rotation**: `Do While c ... Loop` / `While ... Wend` / `Do Until`: test at the
+      bottom (one jump to it on entry) instead of test at the top + jump back: one branch
+      keyword per pass instead of two. About 20 T turbo, about 110 T normal (the jump back
+      also went through `ntc_xn`)
+- [ ] **Merged keywords for common pairs** (pattern match on the thread, one keyword for
+      two): compare + conditional branch ("jump if var > literal" etc.: about 40 T - every
+      If and loop test); array read + compare (`If f(i) = 1`: no temp written and read
+      back); `x = x + y` / `x = x - y` with the same target (one pop and one address load
+      fewer, about 25 T); literal values inline in the thread instead of a pointer to a
+      constant (`f(j) = 0`: about 7 T). Pick the pairs by counting them in bas/ and the
+      bench programs
+- [ ] **Normal mode: interrupts on every 4th branch**: a counter at the branch (`dec`, skip
+      unless zero, about 20 T) and the full `ntc_xn` window only every 4th time. Interrupts
+      still get in every few hundred T; normal mode's extra on tight loops from 55% to about
+      15%. Check the worst case latency against the CPC's 300 Hz interrupt (it waits for an
+      ack, two missed in a row lose one)
+- [ ] **Constant shortcuts in maths**: `x \ 2^n` -> shift, `x Mod 2^n` -> `And` (sign fix for
+      negatives, or only when known positive, e.g. a loop counter); `x * 2^n` and small
+      constants (`* 3`, `* 5`, `* 10`) -> shifts and adds (SDCC does `i * 5` this way);
+      divide by a constant below 256 -> an 8 bit divisor routine
+- [ ] **Faster 16 bit divide**: z88dk's and SDCC's are 1.6-1.85 x faster (`divide`, most of
+      `factor`). Unrolled loop; a quick path when both values fit in 8 bits. Every `\`,
+      `Mod`, `/`
+- [ ] **Thread-level inlining** of small BASIC procedures: copy the procedure's thread into
+      the caller with the arguments put in directly (`s = Add2(i, 3)` ->
+      `dw kw_add, var_i, lit_3, var_s`): no call stub, no argument copying, no return
+      point. Only for small procedures (thread size grows per copy); a ByVal parameter that
+      is assigned needs a temp copy of the argument; each copy needs its own locals (or safe
+      sharing - no recursion, so possible); a Function's result goes straight to the
+      caller's target. SDCC is 3.7 x faster on calls
+- [ ] **Keywords made for one site** (fabricated by the compiler, like the loop jump-back
+      `do4_t_go` already is): the statement's addresses and constants built into the code
+      (`ld hl,(var_j) / ld de,(var_i) / add hl,de / ld (var_j),hl / ret` = 73 T against
+      `kw_add` 119 T), the thread still one `dw`. No pops, no loads through pointers. Sieve
+      inner loop about 366 T -> 220 T. Costs 10-15 bytes per site against 6-8 bytes of thread:
+      inner loops only, or an option per procedure
+- [ ] **Whole loop body as one piece of code** (the step after site keywords): the loop's
+      variables loaded into registers once (`j` in DE, `i` in BC) and stored back on exit,
+      the body straight code - native code for that loop, about SDCC's 107 T for the sieve,
+      the rest of the program still threaded. Only for loops whose body the compiler can do
+      this way (no calls, few variables)
+- [ ] **Call stub - look at the whole procedure** (like the old single stack allocation for
+      all Dims): today each local is cleared on its own (`ld hl,0 / ld (var_i),hl / ld hl,0 /
+      ld (var_j),hl`, an `ldir` per local array). Lay a procedure's locals out together and
+      clear them in one block (one `ldir`, or `ld (nn),hl` with HL loaded once); skip locals
+      that are always assigned before they are read (the sieve's `i` and `j`: no clear at
+      all - VB's "locals start empty" only matters for a local read before written); a ByVal
+      parameter never assigned in the procedure can read the caller's value, no copy.
+      Cheaper argument passing for small procedures (registers for one or two Integers)
+- [ ] `x++` / `x--`: `kw_inc` / `kw_dec` are already about as fast as a separate keyword can be
+      (31 T usually); gains only when folded into a bigger keyword (a loop's own step)
+
 ### GUI
 
 - [ ] FUTURE: formRenderer for project forms (structured form creator)
@@ -580,12 +651,6 @@ CP/M compatible (or mostly) system idea - device model, not decided:
 ### Testing
 
 - [ ] test on a real CPC (both modes, Turbo On / Off)
-- [ ] speed: the 16 bit divide (z88dk's and SDCC's are 1.6-1.85 x faster; most of `divide`
-      and `factor`), and the call stub (SDCC 3.7 x faster with arguments in registers) -
-      see NTC.md section 3
-- [ ] speed idea: SDCC's lead is mostly variables held in registers. Possible NTC steps: an
-      inner `For` counter kept in a register pair across its loop body, combined keywords
-      for common pairs (load-compare-branch), a register calling convention for small procs
 - [ ] ntcrun.py counts 1 T per instruction while stepping to deliver an interrupt (up to
       2000 steps per 13333 T block, every block in turbo): its `T=` and the test platform's
       Ticks are too low, turbo most. The z80 module reports no T-states for one step - needs
