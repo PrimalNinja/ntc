@@ -138,7 +138,7 @@ tk = Ticks
 For i = 1 To 2000
   s = s + 1
 Next
-Chk (Ticks > tk), -1
+Chk (Ticks > tk) Or (System.TicksPerSecond = 0), -1   ' no clock on this platform: skip
 Chk Sum3(1, 2, 3), 6
 Turbo On
 Chk Sum3(4, 5, 6), 15
@@ -146,6 +146,9 @@ Turbo Off
 
 Print
 Print t; " tests, "; bad; " failed"
+Print "Press a key";
+Do : Frame : Loop Until Inkey <> 0
+Print
 End
 
 Sub Chk(ByVal got As Integer, ByVal want As Integer)

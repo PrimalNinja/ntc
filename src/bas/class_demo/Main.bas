@@ -9,3 +9,6 @@ Print "limit "; c.Limit
 r = Counter.Total
 Print "direct "; r
 Print c.Describe("x")
+Print "Press a key";
+Do : Frame : Loop Until Inkey <> 0
+Print

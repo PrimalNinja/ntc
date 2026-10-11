@@ -10,6 +10,8 @@
 ;         Text in pen 1 on pen 0. Mode 0 = 20 cols, 1 = 40, 2 = 80.
 ; Keys    keyboard matrix through PPI port C (#F6) and PSG reg 14
 ;         (read on #F4). New presses only, no auto repeat.
+; Font    the CPC's own: the first mode set copies chars 32-126 from the
+;         lower ROM (#3900) into ntc_font.
 ; ROMs    mode set turns both ROMs off (scroll reads #C000).
 ;         ntc_plat_exit turns the upper ROM back on (for a CALL from
 ;         BASIC). The firmware's own idea of the mode is not updated.
@@ -17,6 +19,14 @@
 ;         lower ROM off the Z80 takes RST #38 from RAM, so ntc_plat_irqon
 ;         puts a small handler there (the firmware's would turn the ROMs
 ;         back on). ntc_plat_exit puts the old 3 bytes back.
+; ============================================================
+;@name     Amstrad CPC - direct hardware, no firmware
+;@org      #0040
+;@text     glyph
+;@scrinit  1
+;@irq      1
+;@cols     40
+;@rows     25
 ; ============================================================
 
 ;## ntc_plat_data
@@ -29,6 +39,7 @@ ntc_scols:		db 40			; columns          | from ntc_modetab
 ntc_smask:		db #F0			; pen 1 pixel mask |
 ntc_sshift:		db 4			; glyph bits/byte /
 ntc_noadv:		db 0			; 1 = draw without moving the cursor
+ntc_wrapped:	db 0			; 1 = the last character wrapped to the next line
 ntc_pgrow:		db 0			; draw / scroll counter
 ntc_pgaddr:		dw 0			; draw / scroll address
 ntc_klink:		dw 0			; return for ntc_plat_getkey
@@ -43,6 +54,27 @@ ntc_modetab:	db 4, 20, #C0, 2		; mode 0
 				db 1, 80, #FF, 8		; mode 2
 
 ;## ntc_plat_screen ntc_plat_data ntc_font ntc_data @shared
+; ------------------------------------------------------------
+; ntc_plat_putc - A = character 32-126 (others print as ?), draw it
+; ------------------------------------------------------------
+ntc_plat_putc:
+			sub 32
+			jr c, ntc_pc_bad
+			cp 95
+			jr c, ntc_pc_ok
+ntc_pc_bad:
+			ld a, '?' - 32
+ntc_pc_ok:
+			ld l, a
+			ld h, 0
+			add hl, hl
+			add hl, hl
+			add hl, hl
+			ld de, ntc_font
+			add hl, de
+			ex de, hl
+			; fall into ntc_plat_putglyph
+
 ; ------------------------------------------------------------
 ; ntc_plat_putglyph - DE = 8 byte glyph, draw at the cursor, move on
 ; ------------------------------------------------------------
@@ -108,17 +140,31 @@ ntc_pg_shifted:
 			inc a
 			ld (ntc_curx), a
 			cp b
-			jr z, ntc_plat_newline
+			jr z, ntc_pg_wrap
+			xor a
+			ld (ntc_wrapped), a
 			jp (ix)
+ntc_pg_wrap:
+			ld a, 1				; wrapped: a new line straight after does nothing
+			ld (ntc_wrapped), a
+			jr ntc_nl_do
 ntc_pg_noadv:
 			xor a
 			ld (ntc_noadv), a
 			jp (ix)
 
 ; ------------------------------------------------------------
-; ntc_plat_newline - column 0, next row, scroll at the bottom
+; ntc_plat_newline - column 0, next row, scroll at the bottom. Straight
+; after a wrap at the last column it does nothing (as the firmware does)
 ; ------------------------------------------------------------
 ntc_plat_newline:
+			ld a, (ntc_wrapped)
+			or a
+			jr z, ntc_nl_do
+			xor a
+			ld (ntc_wrapped), a
+			jp (ix)
+ntc_nl_do:
 			xor a
 			ld (ntc_curx), a
 			ld a, (ntc_cury)
@@ -176,6 +222,8 @@ ntc_sc_close:
 ; ntc_plat_backspace - cursor back one and blank that cell
 ; ------------------------------------------------------------
 ntc_plat_backspace:
+			xor a
+			ld (ntc_wrapped), a
 			ld a, (ntc_curx)
 			or a
 			jr nz, ntc_bs_col
@@ -218,6 +266,7 @@ ntc_cl_open:
 			ld sp, (ntc_ip)
 ntc_cl_close:
 			xor a
+			ld (ntc_wrapped), a
 			ld (ntc_curx), a
 			ld (ntc_cury), a
 			jp (ix)
@@ -232,6 +281,19 @@ ntc_plat_mode:
 			ld a, 2
 ntc_md_ok:
 			ld (ntc_smode), a
+			ld a, (ntc_sinit)
+			or a
+			jr nz, ntc_md_set
+			; the first time: copy the CPC's own font (lower ROM, chars 32-126 at
+			; #3900) into ntc_font. The copy runs from #C000 (screen RAM, cleared
+			; just after), because the program itself can sit under the lower ROM
+			ld hl, ntc_fontcopy
+			ld de, #C000
+			ld bc, ntc_fontcopy_end - ntc_fontcopy
+			ldir
+			jp #C000
+ntc_md_set:
+			ld a, (ntc_smode)
 			ld c, a
 			or #8C
 			ld b, #7F
@@ -250,10 +312,25 @@ ntc_md_ok:
 			ldir
 			jp ntc_plat_cls
 
+; copied to #C000 and run there (no jumps inside: it runs at any address)
+ntc_fontcopy:
+			ld bc, #7F88		; lower ROM on, upper ROM off
+			out (c), c
+			ld hl, #3900		; the firmware's character matrices, from char 32
+			ld de, ntc_font
+			ld bc, 95 * 8
+			ldir
+			ld bc, #7F8C		; both ROMs off again
+			out (c), c
+			jp ntc_md_set
+ntc_fontcopy_end:
+
 ; ------------------------------------------------------------
 ; ntc_plat_locate - H = column, L = row, 1 based, kept on screen
 ; ------------------------------------------------------------
 ntc_plat_locate:
+			xor a
+			ld (ntc_wrapped), a
 			ld a, h
 			or a
 			jr z, ntc_lc_x0
@@ -454,6 +531,14 @@ ntc_fr_wait:
 			jr z, ntc_fr_done
 			ld sp, (ntc_ip)
 ntc_fr_done:
+			jp (ix)
+
+;## ntc_plat_ticks ntc_data
+; ------------------------------------------------------------
+; ntc_plat_ticks - HL = interrupt count (300 a second, normal mode)
+; ------------------------------------------------------------
+ntc_plat_ticks:
+			ld hl, (ntc_ticks)
 			jp (ix)
 
 ;## ntc_plat_irq ntc_plat_data ntc_data @shared

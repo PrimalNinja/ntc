@@ -14,4 +14,7 @@ For i = 2 To n
   If s(i) Then Print i; " "; : c = c + 1
 Next
 Print : Print c; " primes"
+Print "Press a key";
+Do : Frame : Loop Until Inkey <> 0
+Print
 End

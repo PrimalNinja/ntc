@@ -32,6 +32,9 @@ Chk total, 142
 
 Print
 Print t; " tests, "; bad; " failed"
+Print "Press a key";
+Do : Frame : Loop Until Inkey <> 0
+Print
 End
 
 Sub Chk(ByVal got As Integer, ByVal want As Integer)

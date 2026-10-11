@@ -3,12 +3,31 @@ var fs = require('fs');
 var strDir = require('path').join(__dirname, '..') + '/';
 function read(f) { return fs.readFileSync(strDir + f, 'utf8'); }
 var strLib = read('asm/ntc_lib.asm');
-var objPlat = { cpc: read('asm/ntc_plat_cpc.asm') };
-var strOut = '// keyword library text from asm/ntc_lib.asm and asm/ntc_plat_*.asm, used by ntc_compiler.js\n' +
+var arrPlat = ['cpc', 'cpcfw', 'cpm', 'test'];
+// the platform's own classes: lib/<platform>/*.cls
+var objClasses = {};
+arrPlat.forEach(function(strPlat)
+{
+	var strDirCls = strDir + 'lib/' + strPlat + '/';
+	objClasses[strPlat] = {};
+	if (fs.existsSync(strDirCls))
+	{
+		fs.readdirSync(strDirCls).sort().forEach(function(strFile)
+		{
+			if (/\.cls$/i.test(strFile))
+			{
+				objClasses[strPlat][strFile] = fs.readFileSync(strDirCls + strFile, 'utf8');
+			}
+		});
+	}
+});
+var strOut = '// keyword library text from asm/ntc_lib.asm and asm/ntc_plat_*.asm, and the platform\n' +
+	'// classes from lib/<platform>/*.cls, used by ntc_compiler.js\n' +
 	'// (c) 2026 Cyborg Unicorn Pty Ltd - MIT License\n' +
-	'// generated: edit the .asm files, not this one\n\n' +
+	'// generated: edit the .asm / .cls files, not this one\n\n' +
 	'var NTC_LIB_ASM = ' + JSON.stringify(strLib) + ';\n\n' +
-	'var NTC_PLATFORMS = {\n\tcpc: ' + JSON.stringify(objPlat.cpc) + '\n};\n';
+	'var NTC_PLATFORMS = {\n' + arrPlat.map(function(strPlat) { return '\t' + strPlat + ': ' + JSON.stringify(read('asm/ntc_plat_' + strPlat + '.asm')); }).join(',\n') + '\n};\n\n' +
+	'var NTC_PLATFORM_CLASSES = ' + JSON.stringify(objClasses, null, '\t') + ';\n';
 fs.writeFileSync(strDir + 'js/ntc_lib.js', strOut);
 console.log('generated js/ntc_lib.js');
 
@@ -27,8 +46,12 @@ var arrExamples = [
 	{ name: 'VB self test 9 (^, IIf, Choose, string functions)', files: ['vb_test9.bas'] },
 	{ name: 'VB self test 10 (For Each, Property args)', files: ['vb_test10/Main.bas', 'vb_test10/Bag.cls'] },
 	{ name: 'VB self test 11 (asm keyword procedures)', files: ['vb_test11.bas'] },
+	{ name: 'VB self test 12 (string lengths: String * n, String Max n)', files: ['vb_test12.bas'] },
 	{ name: 'Class project (2 files)', files: ['class_demo/Main.bas', 'class_demo/Counter.cls'] },
+	{ name: 'Console classes: StdIO, System (try each platform)', files: ['console_classes.bas'] },
+	{ name: 'Your own StdIO (2 files)', files: ['own_stdio/Main.bas', 'own_stdio/StdIO.cls'] },
 	{ name: 'Shell sort - turbo at run time', files: ['shellsort.bas'] },
+	{ name: 'Sieve timing - turbo / normal (compare with Small C)', files: ['sievetime.bas'] },
 	{ name: 'Classic self test', files: ['ntc_test.bas'] },
 	{ name: 'Primes (sieve)', files: ['sieve.bas'] },
 	{ name: 'Guess the number', files: ['guess.bas'] },

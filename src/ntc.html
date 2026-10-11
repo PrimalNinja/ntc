@@ -41,7 +41,10 @@
 		<div id="ge-controls">
 			<label>Platform
 				<select id="ge-platform">
-					<option value="cpc">Amstrad CPC</option>
+					<option value="cpc">Amstrad CPC (hardware)</option>
+					<option value="cpcfw">Amstrad CPC (firmware)</option>
+					<option value="cpm">CP/M (.COM)</option>
+					<option value="test">Test harness</option>
 				</select>
 			</label>
 			<label>Start mode
@@ -50,7 +53,7 @@
 					<option value="turbo">Turbo (Option Turbo)</option>
 				</select>
 			</label>
-			<label>Org <input type="text" id="ge-org" value="#4000" size="6"></label>
+			<label>Org <input type="text" id="ge-org" value="" size="6" placeholder="auto" title="Empty: the platform's (CPC #0040, CP/M #0100)"></label>
 			<label>Library
 				<select id="ge-library">
 					<option value="used">used keywords</option>

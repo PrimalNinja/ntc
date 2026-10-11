@@ -111,7 +111,7 @@ function ntcSaveLocal()
 {
 	try
 	{
-		window.localStorage.setItem('tinyz80b_project', JSON.stringify({ name: m_objProject.name, files: m_objProject.files, sel: m_strSelId, mode: $('#ge-mode').val() }));		// storage key kept from the old name so saved projects still load
+		window.localStorage.setItem('tinyz80b_project', JSON.stringify({ name: m_objProject.name, files: m_objProject.files, sel: m_strSelId, mode: $('#ge-mode').val(), platform: $('#ge-platform').val() }));		// storage key kept from the old name so saved projects still load
 	}
 	catch (objError)
 	{
@@ -396,6 +396,10 @@ function ntcAddFiles(objFileList_a)
 					{
 						$('#ge-mode').val(objProject.mode);
 					}
+					if (objProject.platform)
+					{
+						$('#ge-platform').val(objProject.platform);
+					}
 				}
 				else
 				{
@@ -468,7 +472,7 @@ function ntcSaveProject()
 	{
 		arrFiles.push({ name: m_objProject.files[intI].name, text: m_objProject.files[intI].text });
 	}
-	ntcDownload(m_objProject.name + '.json', JSON.stringify({ version: 1, name: m_objProject.name, mode: $('#ge-mode').val(), files: arrFiles }, null, '\t'));
+	ntcDownload(m_objProject.name + '.json', JSON.stringify({ version: 1, name: m_objProject.name, mode: $('#ge-mode').val(), platform: $('#ge-platform').val(), files: arrFiles }, null, '\t'));
 }
 
 // ------------------------------------------------------------
@@ -525,7 +529,7 @@ function ntcOptions()
 {
 	return {
 		platform: $('#ge-platform').val(),
-		org: $('#ge-org').val(),
+		org: (String($('#ge-org').val()).replace(/\s/g, '').length > 0) ? $('#ge-org').val() : null,
 		library: $('#ge-library').val(),
 		sourcecomments: $('#ge-comments').is(':checked'),
 		turbo: ($('#ge-mode').val() === 'turbo')
@@ -767,6 +771,10 @@ function ntcInit()
 		{
 			$('#ge-mode').val(objSaved.mode);
 		}
+		if (objSaved.platform)
+		{
+			$('#ge-platform').val(objSaved.platform);
+		}
 		ntcSetProject(objSaved.name, objSaved.files);
 		for (intI = 0; intI < objSaved.files.length; intI++)
 		{
@@ -814,8 +822,8 @@ function ntcInit()
 	});
 	$('#ge-saveproject').on('click', ntcSaveProject);
 
-	$('#ge-platform, #ge-library, #ge-comments, #ge-hidelib').on('change', ntcRecompile);
-	$('#ge-mode').on('change', function()
+	$('#ge-library, #ge-comments, #ge-hidelib').on('change', ntcRecompile);
+	$('#ge-mode, #ge-platform').on('change', function()
 	{
 		ntcSaveLocal();
 		ntcRecompile();

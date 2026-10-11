@@ -1,0 +1,6 @@
+PRINT "go"
+FOR I%=1 TO 200
+S$=""
+FOR J%=1 TO 30:S$=S$+"x":NEXT
+NEXT
+PRINT "done ";LEN(S$)

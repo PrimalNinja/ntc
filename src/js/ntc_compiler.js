@@ -28,14 +28,20 @@
 
 function ntcCompile(input_a, objOptions_a)
 {
+	var objPlat = {};			// the platform file's ;@ settings (readPlatform)
+	var objOwnClass = {};
+	var objDefinesIn = {};		// predefined #Const values: NTC and NTC_<platform>
+	var intStrMax = 40;			// the longest string in the program (findStrMax)
+	var strTerminal = 'none';	// Option Terminal (CP/M): none, vt52, ansi		// platform class names the project replaces with its own
 	var objOptions = {
-		org: '#4000',
+		org: null,				// null = the platform's (;@org)
 		library: 'used',		// used, all, none
-		platform: 'cpc',		// key into NTC_PLATFORMS
+		platform: 'cpc',		// key into NTC_PLATFORMS: cpc, cpcfw, cpm, test
 		sourcecomments: true,
 		turbo: false,			// start in turbo mode (same as Option Turbo)
 		libtext: null,
-		platformtext: null
+		platformtext: null,
+		amsdos: ''				// a name: also write an AMSDOS file NAME.BIN (sjasmplus SAVEAMSDOS)
 	};
 
 	var BINARY = { '^': 1, '*': 1, '/': 1, '\\': 1, 'MOD': 1, '+': 1, '-': 1, '&': 1, '=': 1, '<>': 1, '<': 1, '<=': 1, '>': 1, '>=': 1, 'AND': 1, 'OR': 1, 'XOR': 1, 'LIKE': 1 };
@@ -383,7 +389,7 @@ function ntcCompile(input_a, objOptions_a)
 		return strLabel_a;
 	}
 
-	// String * n: n (1 .. 40), else 0
+	// String * n: n (1 .. 255), else 0
 	function fixedLen(objEl_a)
 	{
 		var objValue = null;
@@ -399,13 +405,81 @@ function ntcCompile(input_a, objOptions_a)
 		objValue = evalConst(String(objEl_a.fixed));
 		strModule = strSaveModule;
 		strProc = strSaveProc;
-		if ((objValue === null) || (objValue.k !== 'l') || (objValue.v < 1) || (objValue.v > 40))
+		if ((objValue === null) || (objValue.k !== 'l') || (objValue.v < 1) || (objValue.v > 255))
 		{
-			error('String * n: n must be a constant 1 .. 40 (' + objEl_a.id + ')');
+			error('String * n: n must be a constant 1 .. 255 (' + objEl_a.id + ')');
 			return 0;
 		}
 
 		return objValue.v;
+	}
+
+	// String Max n: n (1 .. 255), else 0
+	function maxLen(objEl_a)
+	{
+		var objValue = null;
+		var strSaveModule = strModule;
+		var strSaveProc = strProc;
+
+		if (!objEl_a || !objEl_a.strmax || (typeOfEl(objEl_a) !== 'str'))
+		{
+			return 0;
+		}
+		strModule = objEl_a.module;
+		strProc = objEl_a.proc || '';
+		objValue = evalConst(String(objEl_a.strmax));
+		strModule = strSaveModule;
+		strProc = strSaveProc;
+		if ((objValue === null) || (objValue.k !== 'l') || (objValue.v < 1) || (objValue.v > 255))
+		{
+			error('String Max n: n must be a constant 1 .. 255 (' + objEl_a.id + ')');
+			return 0;
+		}
+
+		return objValue.v;
+	}
+
+	// the most characters a string element holds. Every scalar string buffer
+	// has this capacity in the byte before it ([cap][text...0]); array elements
+	// are cap + 1 bytes each with no capacity byte (the stride says it).
+	// Parameters, function results and Select values take the program's longest
+	// (intStrMax), so nothing passed in is cut
+	function strCap(objEl_a)
+	{
+		var intCap = fixedLen(objEl_a) || maxLen(objEl_a);
+
+		if (intCap > 0)
+		{
+			return intCap;
+		}
+		if (objEl_a && ((objEl_a.etype === 'param') || (objEl_a.etype === 'result') || /^__sel\d+$/.test(objEl_a.id || '')))
+		{
+			return intStrMax;
+		}
+
+		return 40;
+	}
+
+	// the longest string the program declares (at least 40): temps, parameters,
+	// results and the library's own buffers (NTC_STRMAX) are this long
+	function findStrMax()
+	{
+		var intMax = 40;
+		var strKey = '';
+		var objItem = null;
+
+		for (strKey in objEl)
+		{
+			if (objEl.hasOwnProperty(strKey))
+			{
+				objItem = objEl[strKey];
+				if (((objItem.etype === 'var') || (objItem.etype === 'array')) && (typeOfEl(objItem) === 'str') && (objItem.fixed || objItem.strmax))
+				{
+					intMax = Math.max(intMax, fixedLen(objItem) || maxLen(objItem));
+				}
+			}
+		}
+		return intMax;
 	}
 
 	// label of a scalar variable / param / function result, declared
@@ -418,7 +492,7 @@ function ntcCompile(input_a, objOptions_a)
 			declare(strLabel, 'strfix', fixedLen(objEl_a));		// starts as n spaces
 			return strLabel;
 		}
-		declare(strLabel, (typeOfEl(objEl_a) === 'str') ? 'str' : ((typeOfEl(objEl_a) === 'long') ? 'long' : 'int'), 0);
+		declare(strLabel, (typeOfEl(objEl_a) === 'str') ? 'str' : ((typeOfEl(objEl_a) === 'long') ? 'long' : 'int'), (typeOfEl(objEl_a) === 'str') ? strCap(objEl_a) : 0);
 
 		return strLabel;
 	}
@@ -625,7 +699,7 @@ function ntcCompile(input_a, objOptions_a)
 					etype: ((objItem.etype === 'array') || (objField.dims !== null)) ? 'array' : 'var',
 					scope: objItem.scope, full: objItem.full + '.' + objField.name, id: objItem.id + '.' + objField.name,
 					module: objItem.module, proc: objItem.proc, file: objItem.file, line: objItem.line,
-					datatype: objField.type, typed: true, fixed: objField.fixed,
+					datatype: objField.type, typed: true, fixed: objField.fixed, strmax: objField.strmax,
 					dims: (objItem.etype === 'array') ? objItem.dims : objField.dims, isstatic: objItem.isstatic
 				};
 				// a field of an array of a Type parameter: an array parameter with its own descriptor
@@ -864,6 +938,38 @@ function ntcCompile(input_a, objOptions_a)
 		var arrCodes = [];
 		var intCode = 0;
 		var intI = 0;
+		var strText = '';
+
+		if (objPlat.text === 'byte')
+		{
+			// a byte text platform: the text goes in the string pool, a new
+			// line is kw_printnl
+			for (intI = 0; intI <= arrBytes_a.length; intI++)
+			{
+				intCode = (intI < arrBytes_a.length) ? arrBytes_a[intI] : -2;
+				if ((intCode === 13) || (intCode === 10) || (intCode === -2))
+				{
+					if (strText.length > 0)
+					{
+						emit('kw_printstrvar', [stringLabel(strText)]);
+						strText = '';
+					}
+					if ((intCode === 13) && (arrBytes_a[intI + 1] === 10))
+					{
+						intI++;
+					}
+					if (intCode !== -2)
+					{
+						emit('kw_printnl', []);
+					}
+				}
+				else
+				{
+					strText += String.fromCharCode(((intCode < 32) || (intCode > 126)) ? 63 : intCode);
+				}
+			}
+			return;
+		}
 
 		emit('kw_printzoscii', []);
 		for (intI = 0; intI < arrBytes_a.length; intI++)
@@ -1164,9 +1270,36 @@ function ntcCompile(input_a, objOptions_a)
 		return (strTarget_a && !isStrLabel(strTarget_a) && !isLongLabel(strTarget_a)) ? strTarget_a : null;
 	}
 
+	// a string function may write straight into the target only when it is a
+	// whole string variable (not an array element) as long as the longest string:
+	// the library cuts at NTC_STRMAX, so nothing can run past it
 	function strTarget(strTarget_a)
 	{
-		return (strTarget_a && isStrLabel(strTarget_a)) ? strTarget_a : null;
+		return (strScalar(strTarget_a) && (objDecl[strTarget_a].size >= intStrMax) && (objDecl[strTarget_a].kind === 'str')) ? strTarget_a : null;
+	}
+
+	// a whole string variable (has its capacity byte), not an array element
+	function strScalar(strLabel_a)
+	{
+		return !!strLabel_a && (objDecl[strLabel_a] !== undefined) && ((objDecl[strLabel_a].kind === 'str') || (objDecl[strLabel_a].kind === 'strfix'));
+	}
+
+	// store a string: a whole variable through kw_strcpy (it cuts at the variable's
+	// capacity byte), an array element through kw_strcpyn with the element's capacity
+	function storeStr(strDest_a, strSrc_a)
+	{
+		var strBase = String(strDest_a).replace(/[+-]\d+$/, '');
+
+		if (strDest_a === strSrc_a)
+		{
+			return;
+		}
+		if ((objDecl[strBase] !== undefined) && (objDecl[strBase].kind === 'sarr'))
+		{
+			emit('kw_strcpyn', [strDest_a, strSrc_a, (objDecl[strBase].stride || 41) - 1]);
+			return;
+		}
+		emit('kw_strcpy', [strDest_a, strSrc_a]);
 	}
 
 	// flags on the value stack must become a var before anything else runs
@@ -1568,7 +1701,7 @@ function ntcCompile(input_a, objOptions_a)
 	{
 		var objA = strOf(objA_a, intDest_a);
 		var objB = strOf(objB_a, intDest_a + 1);
-		var strDest = strTarget_a ? strTarget_a : stmp(intDest_a);
+		var strDest = strScalar(strTarget_a) ? strTarget_a : stmp(intDest_a);
 
 		// the right side is the target: build in a temp first
 		if (objB.n === strDest)
@@ -1603,7 +1736,7 @@ function ntcCompile(input_a, objOptions_a)
 				}
 				noteUse(objA, 's');
 				noteUse(objB, 's');
-				return concat(objA, objB, intDest_a, strTarget(strTarget_a));
+				return concat(objA, objB, intDest_a, strTarget_a);		// concat cuts at a variable's capacity
 			}
 			if (strOp_a === 'LIKE')
 			{
@@ -1893,7 +2026,7 @@ function ntcCompile(input_a, objOptions_a)
 			return 1;
 		}
 
-		return (strType === 'str') ? 41 : ((strType === 'long') ? 4 : 2);
+		return (strType === 'str') ? (strCap(objEl_a) + 1) : ((strType === 'long') ? 4 : 2);
 	}
 
 	// the array parameter's own descriptor (filled by the call stub)
@@ -1984,6 +2117,10 @@ function ntcCompile(input_a, objOptions_a)
 			intCount *= arrDims[intI].n;
 		}
 		declare(strLabel, (typeOfEl(objArray_a) === 'str') ? 'sarr' : ((typeOfEl(objArray_a) === 'long') ? 'larr' : (isByteArray(objArray_a) ? 'barr' : 'arr')), intCount);
+		if (typeOfEl(objArray_a) === 'str')
+		{
+			objDecl[strLabel].stride = elementSize(objArray_a);
+		}
 
 		return strLabel;
 	}
@@ -2125,12 +2262,12 @@ function ntcCompile(input_a, objOptions_a)
 		}
 		if (objIndex.lit !== undefined)
 		{
-			return blnStr ? sv(offsetLabel(strBase, objIndex.lit * 41)) : vr(offsetLabel(strBase, objIndex.lit * 2));
+			return blnStr ? sv(offsetLabel(strBase, objIndex.lit * elementSize(objArray_a))) : vr(offsetLabel(strBase, objIndex.lit * 2));
 		}
 		if (blnStr)
 		{
 			strDest = stmp(intSlot_a);
-			emit('kw_sget', [offsetLabel(strBase, -objIndex.adjust * 41), objIndex.v, strDest]);
+			emit('kw_sget', [offsetLabel(strBase, -objIndex.adjust * elementSize(objArray_a)), objIndex.v, strDest, elementSize(objArray_a)]);
 			return sv(strDest);
 		}
 		strDest = numTarget(strTarget_a) ? strTarget_a : tmp(intSlot_a);
@@ -2403,6 +2540,41 @@ function ntcCompile(input_a, objOptions_a)
 	}
 
 	// the call and return stubs of a procedure for a mode (once each)
+	// stub code: copy the 0 terminated string at HL into strDest_a (a label, or
+	// '' for the address in DE), at most intCap_a chars (0: the destination's
+	// capacity byte), always ending with a 0
+	function stubStrCopy(arrCode_a, strDest_a, intCap_a, strLoop_a)
+	{
+		var strIndent = '\t\t\t';
+
+		if (strDest_a.length > 0)
+		{
+			arrCode_a.push(strIndent + 'ld de, ' + strDest_a);
+		}
+		if (intCap_a > 0)
+		{
+			arrCode_a.push(strIndent + 'ld b, ' + intCap_a);
+		}
+		else
+		{
+			arrCode_a.push(strIndent + 'dec de');
+			arrCode_a.push(strIndent + 'ld a, (de)\t\t; the destination\'s capacity');
+			arrCode_a.push(strIndent + 'ld b, a');
+			arrCode_a.push(strIndent + 'inc de');
+		}
+		arrCode_a.push(strLoop_a + ':');
+		arrCode_a.push(strIndent + 'ld a, (hl)');
+		arrCode_a.push(strIndent + 'ld (de), a');
+		arrCode_a.push(strIndent + 'or a');
+		arrCode_a.push(strIndent + 'jr z, ' + strLoop_a + '_e');
+		arrCode_a.push(strIndent + 'inc hl');
+		arrCode_a.push(strIndent + 'inc de');
+		arrCode_a.push(strIndent + 'djnz ' + strLoop_a);
+		arrCode_a.push(strIndent + 'xor a');
+		arrCode_a.push(strIndent + 'ld (de), a');
+		arrCode_a.push(strLoop_a + '_e:');
+	}
+
 	function procStubs(objProc_a, strMode_a)
 	{
 		var intBytes = 0;
@@ -2458,6 +2630,11 @@ function ntcCompile(input_a, objOptions_a)
 						declare(addrLabel(objProc_a, intI) + '_' + intLeaf_a, 'int', 0);
 						arrCode.push(strIndent + 'ld (' + addrLabel(objProc_a, intI) + '_' + intLeaf_a + '), hl');
 					}
+					if (typeOfEl(objEl[objParam.full + objLeaf_a.path]) === 'str')
+					{
+						stubStrCopy(arrCode, varLabel(objEl[objParam.full + objLeaf_a.path]), strCap(objEl[objParam.full + objLeaf_a.path]), strBody + '_si' + intI + '_' + intLeaf_a);
+						return;
+					}
 					arrCode.push(strIndent + 'ld de, ' + varLabel(objEl[objParam.full + objLeaf_a.path]));
 					arrCode.push(strIndent + 'ld bc, ' + leafSize(typeOfEl({ datatype: objLeaf_a.type, full: '' })));
 					arrCode.push(strIndent + 'ldir');
@@ -2471,10 +2648,14 @@ function ntcCompile(input_a, objOptions_a)
 				declare(addrLabel(objProc_a, intI), 'int', 0);
 				arrCode.push(strIndent + 'ld (' + addrLabel(objProc_a, intI) + '), hl');
 			}
-			if ((typeOfEl(objParam) === 'str') || (typeOfEl(objParam) === 'long'))
+			if (typeOfEl(objParam) === 'str')
+			{
+				stubStrCopy(arrCode, strLabel, strCap(objParam), strBody + '_si' + intI);
+			}
+			else if (typeOfEl(objParam) === 'long')
 			{
 				arrCode.push(strIndent + 'ld de, ' + strLabel);
-				arrCode.push(strIndent + 'ld bc, ' + ((typeOfEl(objParam) === 'str') ? 41 : 4));
+				arrCode.push(strIndent + 'ld bc, 4');
 				arrCode.push(strIndent + 'ldir');
 			}
 			else
@@ -2563,6 +2744,11 @@ function ntcCompile(input_a, objOptions_a)
 				{
 					arrCode.push(strIndent + 'ld de, (' + addrLabel(objProc_a, intI) + '_' + intLeaf_a + ')');
 					arrCode.push(strIndent + 'ld hl, ' + varLabel(objEl[objParam.full + objLeaf_a.path]));
+					if (typeOfEl(objEl[objParam.full + objLeaf_a.path]) === 'str')
+					{
+						stubStrCopy(arrCode, '', 0, strBody + '_so' + intI + '_' + intLeaf_a);
+						return;
+					}
 					arrCode.push(strIndent + 'ld bc, ' + leafSize(typeOfEl({ datatype: objLeaf_a.type, full: '' })));
 					arrCode.push(strIndent + 'ldir');
 				});
@@ -2576,8 +2762,15 @@ function ntcCompile(input_a, objOptions_a)
 				{
 					arrCode.push(strIndent + 'ld de, (' + addrLabel(objProc_a, intI) + ')');
 					arrCode.push(strIndent + 'ld hl, ' + strLabel);
-					arrCode.push(strIndent + 'ld bc, ' + ((typeOfEl(objParam) === 'str') ? 41 : 4));
-					arrCode.push(strIndent + 'ldir');
+					if (typeOfEl(objParam) === 'str')
+					{
+						stubStrCopy(arrCode, '', 0, strBody + '_so' + intI);		// cut at the caller's capacity
+					}
+					else
+					{
+						arrCode.push(strIndent + 'ld bc, 4');
+						arrCode.push(strIndent + 'ldir');
+					}
 				}
 				else
 				{
@@ -3207,6 +3400,7 @@ function ntcCompile(input_a, objOptions_a)
 		var strUpper = strToken_a.toUpperCase();
 		var intValue = parseNumber(strToken_a);
 		var objElement = null;
+		var objValue = null;
 		var objResult = lit(0);
 		var objConst = null;
 		var strTemp = '';
@@ -3246,6 +3440,19 @@ function ntcCompile(input_a, objOptions_a)
 		if ((objElement === null) && /^__addressof_/i.test(strToken_a))
 		{
 			return addressOf(strToken_a.substr(12).replace(/__dot__/gi, '.'));
+		}
+		if ((objElement === null) && ((strUpper === 'INKEY$') || (strUpper === 'INKEY')) && consoleVia())
+		{
+			// the project's own StdIO: GetKey (Inkey$ = Chr$ of it, Chr$(0) = "")
+			materialize(arrStack_a, intBase_a);
+			objValue = consoleCall('GetKey', [], intBase_a + arrStack_a.length);
+			if ((objValue === null) || (strUpper === 'INKEY'))
+			{
+				return (objValue === null) ? lit(0) : objValue;
+			}
+			strTemp = stmp(intBase_a + arrStack_a.length);
+			emit('kw_strchr', [strTemp, numAddr(objValue, intBase_a + arrStack_a.length)]);
+			return sv(strTemp);
 		}
 		if ((objElement === null) && (strUpper === 'INKEY$'))
 		{
@@ -3684,15 +3891,10 @@ function ntcCompile(input_a, objOptions_a)
 
 	function compileStringAssign(strDest_a, strExpr_a)
 	{
-		var objResult = compileExpr(strExpr_a, strDest_a, 0);
+		var objResult = compileExpr(strExpr_a, strScalar(strDest_a) ? strDest_a : null, 0);
 
 		if (objResult.done)
 		{
-			return;
-		}
-		if ((objResult.k === 'd') && (objResult.lv === undefined))
-		{
-			emit('kw_l_cstr', [strDest_a, objResult.n]);
 			return;
 		}
 		if (isConstNum(objResult))
@@ -3701,13 +3903,16 @@ function ntcCompile(input_a, objOptions_a)
 		}
 		if (objResult.k !== 's')
 		{
-			emit('kw_strcstr', [strDest_a, numAddr(objResult, 0)]);	// VB turns a number into text
-			return;
+			// VB turns a number into text: straight in when the target is long enough,
+			// else through a temp and a store that cuts
+			if (strTarget(strDest_a))
+			{
+				emit((objResult.k === 'd') ? 'kw_l_cstr' : 'kw_strcstr', [strDest_a, (objResult.k === 'd') ? objResult.n : numAddr(objResult, 0)]);
+				return;
+			}
+			objResult = strOf(objResult, 0);
 		}
-		if (objResult.n !== strDest_a)
-		{
-			emit('kw_strcpy', [strDest_a, objResult.n]);
-		}
+		storeStr(strDest_a, objResult.n);
 	}
 
 	// branch to strLabel_a when the condition is true (or false)
@@ -4071,8 +4276,96 @@ function ntcCompile(input_a, objOptions_a)
 		return concatParts(arrLeft).concat(concatParts(arrRight));
 	}
 
+	// ------------------------------------------------------------
+	// the project's own StdIO class: console statements call its methods
+	// (not inside StdIO itself, so it can use the built in ones)
+	// ------------------------------------------------------------
+	function consoleVia()
+	{
+		return (objOwnClass.stdio === true) && (strProc.substr(0, 6) !== 'stdio.');
+	}
+
+	function consoleCall(strMethod_a, arrOps_a, intSlot_a)
+	{
+		var objProc = objEl['stdio.' + strMethod_a.toLowerCase()];
+
+		if ((objProc === undefined) || (objProc.etype !== 'proc'))
+		{
+			error('your StdIO class has no ' + strMethod_a + ' (the console statements use it)');
+			return null;
+		}
+		return procCall(objProc, arrOps_a, true, intSlot_a, null);
+	}
+
+	// Print through StdIO: text and numbers -> PutStr, Tab(n) -> Tab, the end -> NewLine
+	function compilePrintVia(strArgs_a)
+	{
+		var arrItems = splitTop(strArgs_a, ';,');
+		var arrMatch = null;
+		var blnNewline = true;
+		var intI = 0;
+		var objValue = null;
+		var strItem = '';
+		var strText = '';
+
+		function flushText()
+		{
+			if (strText.length > 0)
+			{
+				consoleCall('PutStr', [sv(stringLabel(strText))], 0);
+				strText = '';
+			}
+		}
+
+		for (intI = 0; intI < arrItems.length; intI++)
+		{
+			strItem = trim(arrItems[intI].text);
+			if ((arrMatch = strItem.match(/^tab\s*\((.*)\)$/i)))
+			{
+				flushText();
+				consoleCall('Tab', [compileValue(arrMatch[1], 0)], 0);
+			}
+			else if (strItem.length > 0)
+			{
+				objValue = compileExpr(strItem, null, 0);
+				if ((objValue.k === 's') && /^str\d+$/.test(objValue.n))
+				{
+					strText += arrStrings[parseInt(objValue.n.substr(3), 10)].text;
+				}
+				else if (isConstNum(objValue))
+				{
+					strText += String(constNum(objValue));
+				}
+				else
+				{
+					flushText();
+					consoleCall('PutStr', [strOf(objValue, 0)], 1);
+				}
+			}
+			if (arrItems[intI].sep === ',')
+			{
+				strText += ' ';
+			}
+			if ((intI === arrItems.length - 1) && (strItem.length === 0) && (intI > 0))
+			{
+				blnNewline = false;	// ended with ; or ,
+			}
+		}
+		flushText();
+		if (blnNewline)
+		{
+			consoleCall('NewLine', [], 0);
+		}
+	}
+
 	function compilePrint(strArgs_a)
 	{
+		if (consoleVia())
+		{
+			compilePrintVia(strArgs_a);
+			return;
+		}
+
 		var arrItems = splitTop(strArgs_a, ';,');
 		var arrMatch = null;
 		var blnVB = false;
@@ -4277,12 +4570,33 @@ function ntcCompile(input_a, objOptions_a)
 				error('INPUT needs a variable: ' + strName);
 				continue;
 			}
-			if (strPrompt.length > 0)
+			if (consoleVia())
 			{
-				emitZoscii(textToBytes(strPrompt));
-				strPrompt = '';
+				// the project's own StdIO: the prompt through PutStr, the line through GetLine
+				if (strPrompt.length > 0)
+				{
+					consoleCall('PutStr', [sv(stringLabel(strPrompt))], 0);
+					strPrompt = '';
+				}
+				if (objTarget.str)
+				{
+					consoleCall('GetLine', [{ k: 's', n: objTarget.label, el: objTarget.el }], 0);
+				}
+				else
+				{
+					consoleCall('GetLine', [sv(stmp(0))], 0);
+					emit(objTarget.lng ? 'kw_l_val' : 'kw_strval', [stmp(0), objTarget.label]);
+				}
 			}
-			emit(objTarget.str ? 'kw_inputstr' : (objTarget.lng ? 'kw_l_input' : 'kw_inputint'), [objTarget.label]);
+			else
+			{
+				if (strPrompt.length > 0)
+				{
+					emitZoscii(textToBytes(strPrompt));
+					strPrompt = '';
+				}
+				emit(objTarget.str ? 'kw_inputstr' : (objTarget.lng ? 'kw_l_input' : 'kw_inputint'), [objTarget.label]);
+			}
 			if (fixedLen(objTarget.el) > 0)
 			{
 				emit('kw_strfix', [objTarget.label, fixedLen(objTarget.el)]);
@@ -4605,6 +4919,7 @@ function ntcCompile(input_a, objOptions_a)
 		var objType = null;
 		var strBase = '';
 		var strName = '';
+		var strKw = '';
 		var strTarget = rewriteFields(objRec_a.target);
 
 		// array element: name(index) = expr
@@ -4673,13 +4988,14 @@ function ntcCompile(input_a, objOptions_a)
 					}
 					strName = numAddr(objValue, 2);
 				}
+				strKw = (typeOfEl(objElement) === 'str') ? 'kw_psets' : 'kw_pset';		// a string: cut at the element's size
 				if (objIndex2 !== null)
 				{
-					emit('kw_pset2', [descLabel(objElement), numAddr(objIndex, 0), numAddr(objIndex2, 1), strName]);
+					emit(strKw + '2', [descLabel(objElement), numAddr(objIndex, 0), numAddr(objIndex2, 1), strName]);
 				}
 				else
 				{
-					emit('kw_pset', [descLabel(objElement), numAddr(objIndex, 0), strName]);
+					emit(strKw, [descLabel(objElement), numAddr(objIndex, 0), strName]);
 				}
 				return;
 			}
@@ -4689,12 +5005,12 @@ function ntcCompile(input_a, objOptions_a)
 			{
 				if (objIndex.lit !== undefined)
 				{
-					compileStringAssign(offsetLabel(strBase, objIndex.lit * 41), objRec_a.expr);
+					compileStringAssign(offsetLabel(strBase, objIndex.lit * elementSize(objElement)), objRec_a.expr);
 					return;
 				}
 				objIndex.v = keepSlot(numVar(objIndex.v, 0), 0);
 				objValue = strOf(compileExpr(objRec_a.expr, null, 1), 1);
-				emit('kw_sset', [offsetLabel(strBase, -objIndex.adjust * 41), objIndex.v, objValue.n]);
+				emit('kw_sset', [offsetLabel(strBase, -objIndex.adjust * elementSize(objElement)), objIndex.v, objValue.n, elementSize(objElement)]);
 				return;
 			}
 			if (isByteArray(objElement))
@@ -4893,6 +5209,11 @@ function ntcCompile(input_a, objOptions_a)
 				if ((objElement === null) || (objElement.etype !== 'proc') || (objElement.kind !== 'sub') || (procParams(objElement).length > 0))
 				{
 					error('Interrupt needs a Sub with no parameters (or Off)');
+					return;
+				}
+				if (!objPlat.irq)
+				{
+					error('Interrupt needs a platform with its own interrupt handler (' + objOptions.platform + ' has none)');
 					return;
 				}
 				objHookProcs[objElement.full] = true;
@@ -5600,14 +5921,14 @@ function ntcCompile(input_a, objOptions_a)
 			error('Split needs the text and maybe a separator');
 			return;
 		}
-		if ((objDynMax[objElement_a.full] || 0) < intMost * 41)
+		if ((objDynMax[objElement_a.full] || 0) < intMost * elementSize(objElement_a))
 		{
-			objDynMax[objElement_a.full] = intMost * 41;
+			objDynMax[objElement_a.full] = intMost * elementSize(objElement_a);
 		}
-		intMost = Math.floor(objDynMax[objElement_a.full] / 41);
+		intMost = Math.floor(objDynMax[objElement_a.full] / elementSize(objElement_a));
 		objText = strOf(compileExpr(arrArgs_a[0].text, null, 0), 0);
 		objSep = (arrArgs_a.length > 1) ? strOf(compileExpr(arrArgs_a[1].text, null, 1), 1) : sv(stringLabel(' '));
-		emit('kw_strsplit', [descLabel(objElement_a), dynLabel(objElement_a), intMost, objText.n, objSep.n]);
+		emit('kw_strsplit', [descLabel(objElement_a), dynLabel(objElement_a), intMost, objText.n, objSep.n, elementSize(objElement_a)]);
 	}
 
 	// Erase a: a dynamic array has no elements after it, a fixed one is cleared
@@ -5659,6 +5980,7 @@ function ntcCompile(input_a, objOptions_a)
 	{
 		var objCtl = null;
 		var objValue = null;
+		var objValues = null;
 		var intId = 0;
 		var intSave = 0;
 		var strLabel = '';
@@ -5872,6 +6194,11 @@ function ntcCompile(input_a, objOptions_a)
 				break;
 
 			case 'cls':
+				if (consoleVia())
+				{
+					consoleCall('Cls', [], 0);
+					break;
+				}
 				emit('kw_cls', []);
 				break;
 
@@ -5880,10 +6207,24 @@ function ntcCompile(input_a, objOptions_a)
 				break;
 
 			case 'locate':
+				if (consoleVia())
+				{
+					objValues = compileTwoValues(objRec_a.args, 'LOCATE');
+					if (objValues !== null)
+					{
+						consoleCall('Locate', objValues, 0);
+					}
+					break;
+				}
 				compileLocate(objRec_a.args);
 				break;
 
 			case 'mode':
+				if (consoleVia())
+				{
+					consoleCall('Mode', [compileValue(objRec_a.expr, 0)], 0);
+					break;
+				}
 				objValue = compileValue(objRec_a.expr, 0);
 				emit((objValue.k === 'l') ? 'kw_model' : 'kw_modev', [objValue]);
 				break;
@@ -6517,6 +6858,94 @@ function ntcCompile(input_a, objOptions_a)
 	var arrLibOrder = [];
 	var objLibModeLabels = {};
 	var blnLibLoaded = false;
+	var objLibLabelSection = {};
+
+	// the platform file's ;@key value lines: what the compiler needs to know
+	// about the target (org, text form, screen set up, interrupt handler ...)
+	function platformText()
+	{
+		var strPlatform = objOptions.platformtext;
+
+		if ((strPlatform === null) && (typeof NTC_PLATFORMS !== 'undefined'))
+		{
+			strPlatform = NTC_PLATFORMS[objOptions.platform];
+		}
+		return strPlatform;
+	}
+
+	function readPlatform()
+	{
+		var arrMatch = null;
+		var strPlatform = platformText();
+
+		objPlat = { name: objOptions.platform, org: '#4000', text: 'glyph', scrinit: 1, irq: 0, stack: '', cols: 40, rows: 25 };
+		if ((strPlatform === null) || (strPlatform === undefined))
+		{
+			return;
+		}
+		String(strPlatform).split(/\r?\n/).forEach(function(strLine_a)
+		{
+			if ((arrMatch = strLine_a.match(/^;@(\w+)\s+(.*?)\s*$/)))
+			{
+				objPlat[arrMatch[1].toLowerCase()] = /^\d+$/.test(arrMatch[2]) ? parseInt(arrMatch[2], 10) : arrMatch[2];
+			}
+		});
+	}
+
+	// Option Terminal VT52 | ANSI | None (read before parsing: the platform classes
+	// depend on it through #If NTC_TERM_POS)
+	function findTerminal(arrFiles_a)
+	{
+		var strResult = 'none';
+
+		arrFiles_a.forEach(function(objFile_a)
+		{
+			var arrMatch = String(objFile_a.text).match(/^[ \t]*option[ \t]+terminal[ \t]+(none|vt52|ansi)\b/im);
+
+			if (arrMatch)
+			{
+				strResult = arrMatch[1].toLowerCase();
+			}
+		});
+		return strResult;
+	}
+
+	// the platform's own classes (StdIO, System ...) join the project when the
+	// program names them and the project has no class of that name itself
+	function addPlatformClasses(arrFiles_a)
+	{
+		var arrResult = arrFiles_a.slice(0);
+		var objClasses = (typeof NTC_PLATFORM_CLASSES !== 'undefined') ? (NTC_PLATFORM_CLASSES[objOptions.platform] || {}) : {};
+		var objOwn = {};
+		var strAll = '';
+		var strKey = '';
+		var strName = '';
+
+		arrFiles_a.forEach(function(objFile_a)
+		{
+			var arrMatch = String(objFile_a.text).match(/Attribute\s+VB_Name\s*=\s*"([^"]+)"/i);
+
+			strName = (arrMatch ? arrMatch[1] : String(objFile_a.name).replace(/^.*[\/\\]/, '').replace(/\.\w+$/, '')).toLowerCase();
+			objOwn[strName] = true;
+			strAll += '\n' + String(objFile_a.text).replace(/"[^"\n]*"/g, '""').replace(/'.*$/gm, '');
+		});
+		for (strKey in objClasses)
+		{
+			if (objClasses.hasOwnProperty(strKey))
+			{
+				strName = strKey.replace(/\.\w+$/, '').toLowerCase();
+				if ((objOwn[strName] === undefined) && new RegExp('\\b' + strName + '\\b', 'i').test(strAll))
+				{
+					arrResult.push({ name: strKey, text: objClasses[strKey], platform: true });
+				}
+				else if (objOwn[strName] !== undefined)
+				{
+					objOwnClass[strName] = true;		// the project's own: it replaces the platform's
+				}
+			}
+		}
+		return arrResult;
+	}
 
 	function loadLibrary()
 	{
@@ -6527,10 +6956,7 @@ function ntcCompile(input_a, objOptions_a)
 		{
 			strLib = NTC_LIB_ASM;
 		}
-		if ((strPlatform === null) && (typeof NTC_PLATFORMS !== 'undefined'))
-		{
-			strPlatform = NTC_PLATFORMS[objOptions.platform];
-		}
+		strPlatform = platformText();
 		if ((strLib === null) || (strLib === undefined))
 		{
 			arrErrors.push({ file: '', line: 0, msg: 'keyword library not loaded (ntc_lib.js)' });
@@ -6545,6 +6971,18 @@ function ntcCompile(input_a, objOptions_a)
 		parseSections(strLib, objLibSections, arrLibOrder);
 		parseSections(strPlatform, objLibSections, arrLibOrder);
 		objLibModeLabels = markModeSections(objLibSections, arrLibOrder);
+		// label -> its section, so #asm naming any library label links that section
+		objLibLabelSection = {};
+		arrLibOrder.forEach(function(strName_a)
+		{
+			objLibSections[strName_a].labels.forEach(function(strLabel_a)
+			{
+				if (objLibLabelSection[strLabel_a] === undefined)
+				{
+					objLibLabelSection[strLabel_a] = strName_a;
+				}
+			});
+		});
 		blnLibLoaded = true;
 		return '';
 	}
@@ -6679,7 +7117,21 @@ function ntcCompile(input_a, objOptions_a)
 	var objRec = null;
 	var strCur = '';
 
-	objParse = ntcParse(arrFiles);
+	readPlatform();
+	if ((objOptions.org === null) || (objOptions.org === undefined))
+	{
+		objOptions.org = objPlat.org;
+	}
+	arrFiles = addPlatformClasses(arrFiles);
+	objDefinesIn = { ntc: -1 };
+	objDefinesIn['ntc_' + String(objOptions.platform).toLowerCase()] = -1;	// #If NTC_CPM Then ...
+	strTerminal = findTerminal(arrFiles);
+	if (strTerminal !== 'none')
+	{
+		objDefinesIn['ntc_term_' + strTerminal] = -1;		// #If NTC_TERM_VT52 Then ...
+		objDefinesIn.ntc_term_pos = -1;						// a terminal that can position and clear
+	}
+	objParse = ntcParse(arrFiles, objDefinesIn);
 	objEl = objParse.elements;
 	arrRecords = objParse.records;
 	for (intI = 0; intI < objParse.errors.length; intI++)
@@ -6718,6 +7170,10 @@ function ntcCompile(input_a, objOptions_a)
 			{
 				blnVBPrint = true;
 			}
+			else if ((objRec.what === 'terminal') && (objOptions.platform !== 'cpm'))
+			{
+				arrWarnings.push({ file: objRec.file, line: objRec.line, msg: 'Option Terminal is for CP/M - no effect on ' + objOptions.platform });
+			}
 			else if (objRec.what === 'base')
 			{
 				objBase[objRec.module] = objRec.value;
@@ -6753,6 +7209,7 @@ function ntcCompile(input_a, objOptions_a)
 	findAsmKeywords();
 
 	expandUdts();
+	intStrMax = findStrMax();
 
 	// pass 1 (twice, so types of undeclared variables settle)
 	for (intRun = 0; intRun < 2; intRun++)
@@ -6866,16 +7323,27 @@ function ntcCompile(input_a, objOptions_a)
 	// header
 	arrAsm.push('; ============================================================');
 	arrAsm.push('; NTC program - generated by NTC BASIC (VB style BASIC to NTC)');
-	arrAsm.push('; platform: ' + objOptions.platform + ', starts in ' + ((strStartMode === 't') ? 'turbo' : 'normal') + ' mode');
+	arrAsm.push('; platform: ' + objOptions.platform + ((objPlat.name !== objOptions.platform) ? ' (' + objPlat.name + ')' : '') + ', starts in ' + ((strStartMode === 't') ? 'turbo' : 'normal') + ' mode');
 	arrAsm.push('; ============================================================');
 	arrAsm.push('');
+	if (String(objOptions.amsdos || '').length > 0)
+	{
+		arrAsm.push(strIndent + 'DEVICE AMSTRADCPC6128\t\t; for SAVEAMSDOS at the end');
+	}
 	if (String(objOptions.org).replace(/\s/g, '').length > 0)
 	{
 		arrAsm.push(strIndent + 'org ' + objOptions.org);
 		arrAsm.push('');
 	}
+	arrAsm.push('NTC_TERM\tequ ' + ({ none: 0, vt52: 1, ansi: 2 })[strTerminal] + '\t\t; Option Terminal: 0 none, 1 VT52, 2 ANSI (CP/M)');
+	arrAsm.push('NTC_STRMAX\tequ ' + intStrMax + '\t\t; the longest string (library buffers, temps)');
+	arrAsm.push('');
 	arrAsm.push('ntc_start:');
 	arrAsm.push(strIndent + 'di');
+	if (String(objPlat.stack).length > 0)
+	{
+		arrAsm.push(strIndent + 'ld sp, ' + objPlat.stack + '\t\t; the platform\'s own real stack');
+	}
 	arrAsm.push(strIndent + 'ld (ntc_csp), sp');
 	if (blnGosub)
 	{
@@ -6887,7 +7355,7 @@ function ntcCompile(input_a, objOptions_a)
 		arrAsm.push(strIndent + 'ld a, 1');
 		arrAsm.push(strIndent + 'ld (ntc_nmode), a\t\t; normal mode: waits let interrupts in');
 	}
-	if (blnNormalUsed && (objOptions.platform === 'cpc'))
+	if (blnNormalUsed && objPlat.irq)
 	{
 		arrAsm.push(strIndent + 'ld ix, ntc_go');
 		arrAsm.push(strIndent + 'jp ntc_plat_irqon\t\t; interrupt handler for normal mode');
@@ -6903,7 +7371,7 @@ function ntcCompile(input_a, objOptions_a)
 	arrAsm.push('main_thread:');
 	for (intI = 0; intI < arrOut.length; intI++)
 	{
-		if ((arrOut[intI].t === 'kw') && (NTC_SCREEN_KEYWORDS.indexOf(arrOut[intI].kw) > -1))
+		if (objPlat.scrinit && (arrOut[intI].t === 'kw') && (NTC_SCREEN_KEYWORDS.indexOf(arrOut[intI].kw) > -1))
 		{
 			strName = 'kw_scrinit' + (((strStartMode === 'n') && isModeKw('kw_scrinit')) ? '_n' : '');
 			arrAsm.push(strIndent + 'dw ' + strName + '\t\t; mode 1, ROMs off, clear screen');
@@ -7105,6 +7573,10 @@ function ntcCompile(input_a, objOptions_a)
 					{
 						objUsedT[strWord_a] = true;
 					}
+					else if (objLibLabelSection[strWord_a] !== undefined)
+					{
+						objUsedT[objLibLabelSection[strWord_a]] = true;
+					}
 				});
 			}
 		}
@@ -7133,12 +7605,14 @@ function ntcCompile(input_a, objOptions_a)
 		objItem = arrDecl[intI];
 		if (objItem.kind === 'str')
 		{
-			arrAsm.push(objItem.label + ':' + strIndent + 'ds 41');
+			arrAsm.push(strIndent + 'db ' + objItem.size + '\t\t\t; capacity');
+			arrAsm.push(objItem.label + ':' + strIndent + 'ds ' + (objItem.size + 1));
 		}
 		else if (objItem.kind === 'strfix')
 		{
-			arrAsm.push(objItem.label + ':' + strIndent + 'db "' + new Array(objItem.size + 1).join(' ') + '", 0\t\t; String * ' + objItem.size);
-			arrAsm.push(strIndent + 'ds ' + (40 - objItem.size));
+			arrAsm.push(strIndent + 'db ' + objItem.size + '\t\t\t; capacity');
+			arrAsm.push(objItem.label + ':' + strIndent + 'ds ' + objItem.size + ', 32\t\t; String * ' + objItem.size + ' (n spaces)');
+			arrAsm.push(strIndent + 'db 0');
 		}
 		else if (objItem.kind === 'arr')
 		{
@@ -7146,7 +7620,7 @@ function ntcCompile(input_a, objOptions_a)
 		}
 		else if (objItem.kind === 'sarr')
 		{
-			arrAsm.push(objItem.label + ':' + strIndent + 'ds ' + (objItem.size * 41) + '\t\t; ' + objItem.size + ' strings');
+			arrAsm.push(objItem.label + ':' + strIndent + 'ds ' + (objItem.size * (objItem.stride || 41)) + '\t\t; ' + objItem.size + ' strings of ' + ((objItem.stride || 41) - 1));
 		}
 		else if (objItem.kind === 'desc')
 		{
@@ -7183,7 +7657,8 @@ function ntcCompile(input_a, objOptions_a)
 	}
 	for (intI = 0; intI <= intMaxSTemp; intI++)
 	{
-		arrAsm.push('stmp' + intI + ':' + strIndent + 'ds 41');
+		arrAsm.push(strIndent + 'db ' + intStrMax + '\t\t\t; capacity');
+		arrAsm.push('stmp' + intI + ':' + strIndent + 'ds ' + (intStrMax + 1));
 	}
 	for (intI = 0; intI <= intMaxLTemp; intI++)
 	{
@@ -7366,6 +7841,14 @@ function ntcCompile(input_a, objOptions_a)
 	{
 		arrMatch = String(objParse.procs[intI].src || '').match(/\b(?:sub|function|property\s+(?:get|let|set))\s+([A-Za-z_]\w*)/i);
 		arrProcList.push({ file: objParse.procs[intI].file, line: objParse.procs[intI].line, name: arrMatch ? arrMatch[1] : objParse.procs[intI].id, kind: objParse.procs[intI].kind, scope: objParse.procs[intI].scope, used: (objProcModes[objParse.procs[intI].full] !== undefined) });
+	}
+
+	arrAsm.push('');
+	arrAsm.push('ntc_end:\t\t\t\t; the end of the program');
+	if (String(objOptions.amsdos || '').length > 0)
+	{
+		// an AMSDOS file (128 byte header): RUN"name loads it at the org and starts it
+		arrAsm.push(strIndent + 'SAVEAMSDOS "' + String(objOptions.amsdos).toUpperCase().replace(/[^A-Z0-9]/g, '').substr(0, 8) + '.BIN", ntc_start, ntc_end - ntc_start, ntc_start');
 	}
 
 	return {

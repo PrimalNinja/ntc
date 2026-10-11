@@ -10,6 +10,10 @@ for L in (3,4,5,6,7,8):
 KEYS['\r']=(2,2,False); KEYS['\x7f']=(9,7,False)
 for c in 'abcdefghijklmnopqrstuvwxyz': KEYS[c.upper()]=(KEYS[c][0],KEYS[c][1],True)
 KEYS['-']=(3,1,False); KEYS['0']=(4,0,False)
+# stand in for the CPC lower ROM: only the character matrices (#3800, chars 32-126 from
+# #3900) - the public domain font8x8_basic NTC used before, not Amstrad's ROM
+LOWROM=bytearray(0x4000)
+LOWROM[0x3900:0x3900+760]=bytes(int(x,16) for l in open(os.path.join(os.path.dirname(os.path.abspath(__file__)),'font_standin.txt')) if not l.startswith(';') for x in l.split(';')[0].split())
 def assemble(path):
     b=path[:-4]+'.bin'; s=path[:-4]+'.sym'
     r=subprocess.run([SJ,'--nologo','--raw='+b,'--sym='+s,path],capture_output=True,text=True)
@@ -25,12 +29,24 @@ class CPC:
         m.set_memory_block(0xBFF0,b'\x76'); m.set_memory_block(0xBE00-2,bytes([0xF0,0xBF])); m.sp=0xBE00-2
         m.set_memory_block(0xBFE0,bytes([0xED,0x56,0xC3,org&255,org>>8])); m.pc=0xBFE0   # im 1 : jp org
         m.set_memory_block(0x38,bytes([0xFB,0xC9]))   # stand in for the firmware's handler
-        s.ints=0
+        s.ints=0; s.romon=False
         s.line=0; s.scans=0; s.typed=list(typed); s.phase=0; s.cur=None; s.mode=None; s.vs=0; s.ga=[]
         m.set_output_callback(s.out); m.set_input_callback(s.inp); s.syms=syms
+    def lowrom(s,on):
+        # the lower ROM over #0000-#3FFF: reads give the ROM, writes still go to the RAM below
+        m=s.m
+        if on and not s.romon:
+            s.ramlo=bytearray(m.memory[0:0x4000]); m.set_memory_block(0,bytes(LOWROM)); s.romon=True
+        elif not on and s.romon:
+            cur=m.memory[0:0x4000]
+            for i in range(0x4000):
+                if cur[i]!=LOWROM[i]: s.ramlo[i]=cur[i]      # written while the ROM was on
+            m.set_memory_block(0,bytes(s.ramlo)); s.romon=False
     def out(s,port,val):
         hi=(port>>8)&0xff
-        if hi==0x7f: s.ga.append(val); s.mode=val&3 if (val&0xC0)==0x80 else s.mode
+        if hi==0x7f:
+            s.ga.append(val); s.mode=val&3 if (val&0xC0)==0x80 else s.mode
+            if (val&0xC0)==0x80: s.lowrom(not (val&4))
         elif hi==0xf6: s.line=val&15
     def inp(s,port):
         hi=(port>>8)&0xff
@@ -48,7 +64,8 @@ class CPC:
     def tick(s):
         s.scans+=1
         if s.phase==0 and s.typed and s.scans%3==0:
-            s.cur=KEYS[s.typed.pop(0)]; s.phase=1
+            c=s.typed.pop(0)
+            s.cur=None if c=='~' else KEYS[c]; s.phase=1     # ~ = a pause: no key for one press
         elif s.phase==1 and s.scans%3==0: s.cur=None; s.phase=0
     def run(s,limit=30000):
         # CPC: an interrupt every 13333 T, held until the Z80 takes it
@@ -96,6 +113,6 @@ if __name__=='__main__':
     if r.stderr: print(r.stderr)
     open(asm,'w').write(r.stdout)
     b,syms=assemble(asm)
-    c=CPC(b,0x4000,typed,syms); c.run()
+    c=CPC(b,syms.get('ntc_start',0x4000),typed,syms); c.run()   # loaded at the program's org (CPC: #0040)
     print(c.screen(loadfont(syms,c.m.memory)))
     print('--- halted' if c.m.halted else '--- NOT halted', 'sp=%04x'%c.m.sp, 'ints=%d'%c.ints, 'T=%d'%c.T, 'gate array writes', ['%02X'%v for v in c.ga])

@@ -26,11 +26,15 @@ The rules:
 - **SP = instruction pointer.** `ret` jumps to the next keyword (10 T).
 - **No call. No push.** A keyword pops its arguments off the thread, left to right (10 T
   each), does its work, and ends with `ret`.
-- **No firmware.** I/O goes straight to the hardware.
+- **No firmware** on the CPC hardware platform: I/O goes straight to the hardware. Host
+  platforms (CPC firmware, CP/M) call the system for the console only, on the real stack
+  (see Platforms in section 4).
 - **Shared routines** are entered with `jp` and the return address in IX, and end with
   `jp (ix)`. `ntc_next` is a plain `ret`, so `ld ix, ntc_next` continues the thread.
 - **The thread stays word aligned.** Text is ZOSCII: each character is a word pointing at
-  an 8 byte glyph bitmap, never a byte string.
+  an 8 byte glyph bitmap, never a byte string. On the CPC the glyphs are the CPC's own font:
+  the first mode set copies chars 32-126 from the lower ROM (`#3900`) into `ntc_font`, running
+  the copy from `#C000` because the program (at `#0040`) can sit under the lower ROM.
 
   ```
   dw kw_printzoscii, glyph_48, glyph_49, 1, 0   ; "HI" newline, end
@@ -117,7 +121,102 @@ the old 3 bytes back out on exit.
 
 ---
 
-## 3. The compiler
+## 3. Speed compared
+
+What NTC is for: write in plain VB-style BASIC, fast, and get code that runs at compiled
+speed on a Z80 - without writing assembler. Classic Z80 C compilers don't give good Z80
+code; an expert C or assembler programmer can beat NTC on most counts, but they are not
+who this is for. With NTC people can code fast and run fast. Where a hot spot needs more,
+an `#asm` procedure is a keyword with no call cost (section 5, Inline assembly).
+
+### How it was measured
+
+Each program ran as a CP/M `.COM` in the harness, with every instruction timed exactly
+and rounded up to whole microseconds as the CPC's Gate Array does (a 4 MHz CPC, as in
+WinAPE at standard speed). Check: the shell sort test (`bas/shellsort.bas`) gave 14.7 s in
+the model, 14.9 s by `Ticks` in WinAPE (AMSDOS build), and turbo 20% faster than normal by
+stopwatch, as the model said. Only the work is timed (from `go` to the result), not
+loading, filling or printing. BDOS calls count as no time - the timed parts make none,
+except BBC BASIC's look at the keyboard every 20 statements, so on a real CP/M BBC BASIC
+is a little slower than shown. The NTC normal mode figures include a minimal interrupt
+handler (NTC's own on the CPC); CP/M's own handler costs more.
+
+| | What it is |
+|---|---|
+| NTC turbo, NTC normal | this compiler, Integer (16 bit) and Byte variables, `Option Explicit` |
+| Small C | Ron Cain's Small C as revised by Chris Lewis (C3.0R1.1, ncb85/SmallC-85) - the classic C of the CP/M era; 8080 code (runs as is on a Z80), `int` / `char`, Ron Cain's runtime library |
+| BBC BASIC | BBC BASIC (Z80) v5 by R.T. Russell, CP/M edition - a fast interpreter; `%` integer variables (32 bit, BBC BASIC has no 16 bit integers), `&` byte array |
+| Hand Z80 | the sieve written straight in Z80 (pointer stepping, counter in a register, no tricks) |
+
+All programs are plain code with the same algorithm and the same answers (checked), in
+`compare/bench/` (`.bas`, `.c` with Small C's output as `B*C.ASM`, `.bbc`, `BSIEVEA.ASM`).
+
+### Results (seconds on a 4 MHz CPC)
+
+| Test | What it does | Hand Z80 | NTC turbo | NTC normal | Small C | BBC BASIC |
+|---|---|---|---|---|---|---|
+| sieve | primes below 8000, Byte flags | 0.61 | 3.49 | 4.97 | 6.63 | 151.3 |
+| sort | Shell sort, 2001 Integers | | 11.35 | 14.27 | 18.10 | 334.2 |
+| factor | prime factors of 2..1500, trial division | | 16.65 | 18.10 | 23.56 | 197.6 |
+| loop | empty `For` loop, 10000 times | | 0.45 | 0.70 | 1.17 | 7.00 |
+| call | function with 2 parameters, 5000 calls | | 0.80 | 1.17 | 1.11 | 26.7 |
+| divide | `(i * 5) \ 3 + i Mod 13`, 5000 times | | 5.89 | 6.02 | 9.71 | 57.2 |
+| string | build 30 chars one at a time, 200 times | | 1.50 | 1.66 | - | 15.2 |
+
+How many times faster NTC is (the other's time / NTC's time):
+
+| Test | NTC normal vs Small C | NTC turbo vs Small C | NTC normal vs BBC BASIC | NTC turbo vs BBC BASIC | normal takes longer than turbo by |
+|---|---|---|---|---|---|
+| sieve | 1.33 | 1.90 | 30 | 43 | 42% |
+| sort | 1.27 | 1.60 | 23 | 29 | 26% |
+| factor | 1.30 | 1.42 | 11 | 12 | 9% |
+| loop | 1.67 | 2.59 | 10 | 16 | 55% |
+| call | 0.95 | 1.38 | 23 | 33 | 46% |
+| divide | 1.61 | 1.65 | 9.5 | 9.7 | 2% |
+| string | - | - | 9.2 | 10 | 10% |
+
+The hand-written sieve is 5.7 times faster than NTC turbo, 8.2 times faster than NTC
+normal, 11 times faster than Small C and 250 times faster than BBC BASIC.
+
+### What gets the most from NTC
+
+- **Loops, compares and branches.** A compare and its branch are one keyword with the
+  variable addresses and the target in the thread. Small C calls a runtime routine for
+  every compare (`call ccle`), which returns 0 or 1 in HL, then tests that
+  (`ld a,h / or l / jp nz`). BBC BASIC reads and decodes the statement text every time.
+- **Variables and arrays.** NTC variables are at fixed addresses, so a keyword loads them
+  straight (`ld hl,(nn)`). Small C works out a stack address and calls `ccgint` for every
+  local it reads (`ld hl,2 / add hl,sp / call ccgint`). Byte arrays are a byte per element
+  in both NTC and C.
+- **Short keywords gain most from turbo.** Normal mode costs about 90 T per branch, so the
+  more branches per unit of work, the more turbo gains: the empty loop takes 55% longer in
+  normal, the sieve 42%, the sort 26%.
+
+### What gets the least
+
+- **Division, multiply and Mod.** The time is in the 16 bit divide routine, the same for
+  any compiler (NTC's is a bit quicker than Small C's: 1.6 times). Turbo hardly matters
+  (2%): a divide is one long keyword.
+- **Strings, Print, Input.** Copying bytes, and the firmware or BDOS doing the output.
+  NTC is about as fast as its library routine, like anyone else's.
+- **Procedure calls.** Small C's call is a `call` / `ret` with the arguments on the stack,
+  which is cheap on a Z80. NTC's call stub copies the arguments into the parameters and
+  clears the locals (in VB, locals start empty on every call), so in normal mode a call is
+  about the same speed as Small C, in turbo 1.4 times faster. A `#asm` keyword procedure
+  has no call cost at all.
+
+### Where expert C or assembler win
+
+- Keeping a loop's variables in registers the whole time; NTC loads and stores them in
+  memory in every keyword.
+- Stepping a pointer through an array instead of working out `base + index * size` each
+  time (the hand sieve does this).
+- No step between operations: NTC pays a `ret` (10 T) per keyword, plus about 90 T per
+  branch in normal mode.
+- Modern optimising Z80 C compilers (z88dk's zsdcc / sccz80) were not measured. They give
+  much better code than Small C and will come close to NTC, or beat it, in places.
+
+## 4. The compiler
 
 Files (ES5, no node, no Python):
 
@@ -131,8 +230,14 @@ Files (ES5, no node, no Python):
 | `js/ntc_gui.js`, `css/ntc_gui.css` | GUI code and style |
 | `js/listRenderer.js`, `css/listRenderer.css` | Project file and procedure lists |
 | `asm/ntc_lib.asm` | Keyword library, sections marked `;## name deps [@shared]` |
-| `asm/ntc_plat_cpc.asm` | CPC platform layer (screen, keys, frame, interrupt handler, exit) |
+| `asm/ntc_plat_cpc.asm` | CPC platform layer, straight to the hardware (screen, keys, frame, interrupt handler, exit) |
+| `asm/ntc_plat_cpcfw.asm` | CPC platform through the firmware (text, keys, mode, clock) |
+| `asm/ntc_plat_cpm.asm` | CP/M platform (BDOS console, own stack, warm boot) |
+| `asm/ntc_plat_test.asm` | test harness platform (console through I/O ports, for `test/ntcrun.py`) |
+| `lib/<platform>/*.cls` | the platform classes: `StdIO.cls` (console), `System.cls` (what the machine is) |
 | `userguide.md` | Language reference: every keyword by topic, with an example and its VB5 / VB6 differences |
+| `build/` | Test builds: every program in `bas/` compiled for every platform (`.ASM`), and `build.bat` to assemble them all with sjasmplus on Windows / MS-DOS (CPC: AMSDOS `.BIN` files, CP/M: `.COM`) |
+| `compare/smallc/` | The sieve (`bas/sievetime.bas`) in Small C, as Z80 source, for timing NTC against a classic Z80 C compiler (results in its README) |
 | `bas/` | Examples and self tests (`vb_test.bas`, `vb_test2/`, `ntc_test.bas`, ...) |
 
 ### Parser (VBCC concept, ported to JS)
@@ -204,6 +309,42 @@ p_add:                                  ; body (thread)
 - Planned: `Option ClassSize <kilobytes>` to keep a class's code within a size so classes
   can be banking units. Accepted, not enforced yet.
 
+### Platforms
+
+A platform is one `asm/ntc_plat_<name>.asm` file plus its classes in `lib/<name>/`. The
+file starts with `;@key value` lines the compiler reads, then the `ntc_plat_*` sections the
+library links against (listed at the top of `ntc_lib.asm`):
+
+| Key | Meaning | cpc | cpcfw | cpm | test |
+|---|---|---|---|---|---|
+| `;@org` | default org (the GUI's Org box empty) | #0040 | #0040 | #0100 | #4000 |
+| `;@text` | `glyph`: Print text as ZOSCII glyph words; `byte`: as byte strings (string pool + `kw_printstrvar`) | glyph | byte | byte | byte |
+| `;@scrinit` | the program starts with `kw_scrinit` (mode 1, clear) when it uses the screen | 1 | 0 | 0 | 0 |
+| `;@irq` | has `ntc_plat_irqon` (own interrupt handler: normal mode ticks, `Interrupt`) | 1 | 0 | 0 | 0 |
+| `;@stack` | a label: the program's own real stack (set before `ntc_csp`) | - | - | ntc_cpmstack | - |
+| `;@cols` / `;@rows` | console size | 40 / 25 | 40 / 25 | 80 / 24 | 40 / 25 |
+
+- The library prints through `ntc_plat_putc` (A = char). On the CPC hardware platform it
+  turns the char into its glyph and draws it; `kw_printzoscii` (inline glyph words) is only
+  used by glyph platforms.
+- Host calls (firmware, BDOS) need a real stack. `ntc_fwcall` / `ntc_bdos` keep IX, put the
+  thread position in `ntc_ip`, switch SP to `ntc_csp`, enable interrupts, `call`, disable
+  them and switch back. The thread itself still never sees `call` / `push`. Those sections
+  are `@shared` (their SP loads are real stack switches, not branches), so they have no
+  normal mode copy.
+- `#If NTC_<PLATFORM>` (e.g. `NTC_CPM`) and `#If NTC` are predefined.
+- `Option Terminal VT52 | ANSI` (CP/M): the compiler writes `NTC_TERM equ 0 / 1 / 2` at the
+  top of the program; `ntc_plat_cpm.asm` assembles Cls / Locate for that terminal with
+  sjasmplus `IF`. It also predefines `NTC_TERM_VT52` / `NTC_TERM_ANSI` and `NTC_TERM_POS`,
+  which `lib/cpm/StdIO.cls` uses for CanPosition / CanClear / Rows.
+- The platform's classes join a project when its source names them (`StdIO`, `System`) and
+  the project has no class of that name. A project's own `StdIO.cls` replaces the
+  platform's, and then `Print`, `Input`, `Inkey`, `Inkey$`, `Cls`, `Locate` and `Mode`
+  compile to calls of its methods (`PutStr`, `NewLine`, `Tab`, `GetLine`, `GetKey`, `Cls`,
+  `Locate`, `Mode`), except inside `StdIO` itself.
+- `#asm` naming any library label (not only a section name) links that label's section, so
+  class methods can jump straight to `ntc_plat_putc`, `kw_printint` and so on.
+
 ### Project explorer (GUI)
 
 - Left: the project's files (listRenderer) with + Module, + Class, Rename, Remove, and drag
@@ -223,13 +364,13 @@ p_add:                                  ; body (thread)
   `vb_test5` (18: #asm, Inp / Out, a library class), `vb_test6.bas` (18: Byte arrays,
   ReDim), `vb_test7.bas` (16: Type and 2D array parameters), `vb_test8.bas` (5: AddressOf),
   `vb_test9.bas` (34: ^, IIf, Choose, string functions), `vb_test10` (33: For Each,
-  Property arguments, Like, LSet / RSet, String * n), `vb_test11.bas` (17: asm keyword procedures), `ntc_test.bas` (36 checks), the class project, sieve,
-  shell sort (both choices), the FOR / GOSUB / screen tests.
+  Property arguments, Like, LSet / RSet, String * n), `vb_test11.bas` (17: asm keyword procedures), `vb_test12.bas` (33: String * n, String Max n), `ntc_test.bas` (36 checks), the class project, sieve,
+  shell sort (turbo and normal from its menu), the FOR / GOSUB / screen tests.
 - Not yet tested on a real CPC.
 
 ---
 
-## 4. Language
+## 5. Language
 
 VB5 / VB6 style. Differences from VB are listed after each part.
 
@@ -237,8 +378,19 @@ VB5 / VB6 style. Differences from VB are listed after each part.
 
 - `Integer` (16 bit signed), `Long` (32 bit signed), `Byte` and `Boolean` (stored as 16
   bit, True = -1; an array of Byte is 1 byte per element), `String` (40 chars),
-  `String * n` (n = 1 .. 40: starts as n spaces, every assignment and Input pads with spaces
-  or cuts to n).
+  `String * n` (n = 1 .. 255: VB's fixed length - starts as n spaces, every assignment and
+  Input pads with spaces or cuts to n), `String Max n` (n = 1 .. 255, NTC: at most n chars,
+  not padded).
+- Strings are fixed buffers (no heap). A scalar string (variable, local, temp, param,
+  result, Type field) has its capacity in the byte before it: `[cap][text...][0]`, so `{s}`
+  and every address passed around is still the first char. Array elements are cap + 1
+  bytes with no capacity byte (the element size is passed to `kw_sget` / `kw_sset` /
+  `kw_strcpyn`, or is in the descriptor). Parameters, function results, Select values and
+  temps hold the program's longest string (`NTC_STRMAX`, at least 40, written at the top
+  of the program); library functions build into temps and cut at NTC_STRMAX;
+  `kw_strcpy` / `kw_strcat` / input cut at the destination's capacity byte; call stubs copy
+  strings in and back with the same cut. A function writes straight into a variable only
+  when the variable is at least NTC_STRMAX long; concatenation always may (it cuts).
 - `Enum ... End Enum` (members are constants, also `EnumName.Member`).
 - `Dim` / `Private` / `Public` / `Global` / `Static`, `Const`, `Type ... End Type`.
 - Suffixes: `a$` String, `a%` Integer, `a&` Long; `1000&` / `&HFFFF&` are Long literals. Undeclared names are allowed (their type comes from
@@ -366,6 +518,13 @@ interrupts: the interrupt handler only marks it pending, the next safe point cal
 turbo has no interrupts. `Interrupt Off` stops it. Cls and scroll also let interrupts in
 while they run in normal mode.
 
+**Console classes.** `StdIO` (PutStr, PutChar, PutInt, NewLine, Tab, GetLine, GetChar,
+GetKey, Cls, Locate, Mode, Cols, Column, Row, and the constants CanPosition, CanClear,
+CanInput, CanPoll, CanColour, Glyphs, Rows) and `System` (Platform, CpuClock,
+TicksPerSecond, FrameRate, HasInterrupts, HasHook, HasScreen, HasKeyboard, MaxHandles,
+Ticks) come with each platform; a project's own `StdIO.cls` takes over the console
+statements. `Option Terminal VT52 | ANSI` for CP/M. Details in `userguide.md` section 17.
+
 **Warnings.** Not errors - the program still builds. Now: a Function called as a statement
 ("the result of F is not used") - with no error handling, an unchecked status is worth
 seeing. The GUI shows warnings in yellow under the errors.
@@ -456,7 +615,7 @@ About 90 T against about 205 T through the stubs.
 
 ---
 
-## 5. Test tools (`test/`)
+## 6. Test tools (`test/`)
 
 Scratch tools for testing the compiler. They are not part of the compiler or the GUI, which
 need nothing but a browser. All paths are relative to the `test/` folder, so it works
@@ -466,7 +625,8 @@ wherever the project is.
 
 - **node** - for `cli.js` and `gen.js`. Run `npm install` in `test/` once (acorn, for the ES5
   check in `regress.sh`).
-- **python3** with the `z80` module (`pip install z80`) - the Z80 core used by `cpcrun.py`.
+- **python3** with the `z80` module (`pip install z80`) - the Z80 core used by `cpcrun.py` and
+  `ntcrun.py`.
 - **sjasmplus** - on the PATH, or give its full path in `SJASMPLUS`
   (`SJASMPLUS=/path/to/sjasmplus python3 cpcrun.py ...`).
 - **Playwright + Chromium** (`pip install playwright`, `playwright install chromium`) - only
@@ -480,6 +640,9 @@ On Windows run them from a bash (Git Bash / WSL) for `regress.sh`; the others ru
 node cli.js main.bas                         one file -> .asm on stdout
 node cli.js Main.bas Module2.bas Counter.cls  a project (files in order)
 node cli.js main.bas --turbo                 start in turbo mode (like Option Turbo)
+node cli.js main.bas --platform=cpm          cpc (default), cpcfw, cpm, test
+node cli.js main.bas --amsdos=PROG           also write PROG.BIN with an AMSDOS header when
+                                             sjasmplus assembles it (DEVICE + SAVEAMSDOS)
 node cli.js main.bas --nocomments            no BASIC source lines as comments
 node cli.js main.bas --map=main.map           also write the cross reference
 node cli.js main.bas > main.asm 2> errors.txt
@@ -499,7 +662,7 @@ python3 cpcrun.py Main.bas '' Module2.bas --turbo    more files and options go t
 
 It runs `cli.js`, writes `prog.asm` next to `prog.bas` (so copy programs into `test/t/`
 first rather than running them in `bas/`), assembles to `prog.bin` / `prog.sym` with sjasmplus
-(raw binary at #4000), then runs it:
+(raw binary at the program's org: #0040 on the CPC), then runs it:
 
 - RAM only, no firmware or ROMs. #38 holds `ei / ret` (as a stand in for the firmware's
   handler) until NTC puts its own there in normal mode
@@ -513,6 +676,27 @@ first rather than running them in `bas/`), assembles to `prog.bin` / `prog.sym` 
   the font, any mode), then a status line: halted or not, SP, interrupts taken, T states
   run, gate array writes (screen mode / ROM settings)
 
+### ntcrun.py - run on any platform
+
+```
+python3 ntcrun.py prog.bas 'Bob\n' --platform=test
+python3 ntcrun.py prog.bas '' --platform=cpm --turbo
+python3 ntcrun.py Main.bas '' StdIO.cls --platform=cpcfw
+```
+
+The same arguments as `cpcrun.py` plus `--platform=`. `cpc` runs `cpcrun.py`'s CPC. The
+others run on a plain Z80 with 64K RAM and a text screen kept by the harness, printed the
+same way as `cpcrun.py` prints the CPC screen (so the same `ref/` files fit):
+
+- `test`: the port console of `ntc_plat_test.asm` (40 x 25)
+- `cpcfw`: the firmware jumpblock entries the platform uses (`TXT OUTPUT`, `TXT SET CURSOR`,
+  `TXT CLEAR WINDOW`, `SCR SET MODE`, `KM WAIT CHAR`, `KM READ CHAR`, `MC WAIT FLYBACK`,
+  `KL TIME PLEASE`) are small stubs that hand over to the harness
+- `cpm`: program at #0100, BDOS (`call 5`) trapped (functions 2, 6, 9, 11), the warm boot
+  at #0000 ends the run, 80 x 24; VT52 and ANSI clear / cursor codes are understood
+
+These are much faster than the CPC emulation (no screen to read back from video RAM).
+
 ### regress.sh - the regression run
 
 ```
@@ -523,9 +707,14 @@ SJASMPLUS=/path/to/sjasmplus bash regress.sh
 Runs every test program in both modes (turbo and normal) and checks the result line:
 `vb_test` (64 checks), `ntc_test` (36), `vb_test2` (30, 2 files), `vb_test3` (11),
 `vb_test_long` (58), `vb_test4` (16), `vb_test5` (18, 2 files), `vb_test6` (18),
-`vb_test7` (16), `vb_test8` (5), `vb_test9` (34), `vb_test10` (33, 2 files), `vb_test11` (17), the class project, sieve, shell sort
-(both answers), the guide, and the output tests (`for gs gs2 scr0 scr2 diag1 diag2
-vbprint cmptext`, plus `hook` in normal mode only) compared with the expected output in `ref/`. Then checks every JS file parses as ES5. Ends
+`vb_test7` (16), `vb_test8` (5), `vb_test9` (34), `vb_test10` (33, 2 files), `vb_test11` (17), `vb_test12` (33), the class project, sieve, shell sort
+(turbo and normal), the guide, and the output tests (`for gs gs2 scr0 scr2 diag1 diag2
+vbprint cmptext tiny wrap`, plus `hook` in normal mode only) compared with the expected output in `ref/`.
+Then the same programs on the `test`, `cpcfw` and `cpm` platforms in both modes (CP/M skips
+`scr0` / `scr2`: a stream has no Locate), the platform classes on every platform (`stdio.bas`
+against `ref/stdio.<platform>.txt`), CP/M `Option Terminal` (`term_vt52.bas`,
+`term_ansi.bas`) and a project with its own StdIO (`via/`, `ref/via.txt`).
+Then checks every JS file parses as ES5. Ends
 with `ALL PASS` or `SOME FAILED` (with the last lines of each failure). Work files go in
 `test/t/`.
 
@@ -538,10 +727,22 @@ line in `regress.sh` with a pattern from its last output line.
 node gen.js
 ```
 
-Run it after changing `asm/ntc_lib.asm`, `asm/ntc_plat_cpc.asm` or anything in `bas/`. It
-writes `js/ntc_lib.js` (the library text the compiler links from) and `js/ntc_examples.js`
+Run it after changing `asm/`, `lib/` or anything in `bas/`. It writes `js/ntc_lib.js` (the
+library text, every platform file and the platform classes) and `js/ntc_examples.js`
 (the Example list in the GUI, from the list at the top of `gen.js` - add new examples
 there).
+
+### genbuild.js - the test builds in build/
+
+```
+node genbuild.js
+```
+
+Compiles every program in `bas/` (the list at the top of the file) for every platform into
+`build/<platform>/NAME.ASM` (8 character names, CRLF line ends). CPC files get the
+`amsdos` option, so sjasmplus writes an AMSDOS `NAME.BIN` straight away. `build/build.bat`
+then assembles them all on Windows. `regress.sh` runs `genbuild.js` and checks every file
+assembles the way `build.bat` does it.
 
 ### guitest*.py - GUI tests (Playwright, headless Chromium)
 
@@ -549,6 +750,8 @@ there).
 python3 guitest5.py
 ```
 
+- `guitest6.py` - every example on every platform (no errors), and the org follows the
+  platform
 - `guitest5.py` - opens `ntc.html`, compiles every example, prints errors / stats / compile
   time per example and any browser console errors (should be none)
 - `guitest4.py` - opens the test project in `vbp/` (a .vbp with Main.bas, Counter.cls, a
@@ -558,13 +761,14 @@ python3 guitest5.py
 
 ### Usual cycle
 
-1. change `asm/` or `bas/` -> `node gen.js`
+1. change `asm/` or `bas/` -> `node gen.js` (and `node genbuild.js` for `build/`; regress.sh
+   does that one too)
 2. try one program: `cp ../bas/prog.bas t/ && python3 cpcrun.py t/prog.bas`
 3. before handing over: `bash regress.sh` (ALL PASS) and `python3 guitest5.py` (no errors)
 
 ---
 
-## 6. Open decisions
+## 7. Open decisions
 
 - Decided 2026-10-11: classes keep one set of members. Several instances are the class's
   own job, Amiga library style: `h = Serial.Open(...)` returns a handle, every method takes

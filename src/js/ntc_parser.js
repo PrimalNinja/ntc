@@ -422,13 +422,22 @@ var NTC_SUFFIX_TYPES = { '%': 'int', '&': 'long', '!': 'single', '#': 'double', 
 var NTC_STATEMENT_WORDS = ['cls', 'end', 'stop', 'return', 'else', 'endif', 'wend', 'next', 'loop', 'do', 'frame',
 	'print', 'rem', 'beep', 'randomize', 'doevents', 'exit', 'resume'];
 
-function ntcParse(arrFiles_a)
+function ntcParse(arrFiles_a, objDefines_a)
 {
 	var arrRecords = [];
 	var arrErrors = [];
 	var arrProcs = [];
 	var objElements = {};
-	var objDefines = {};
+	var objDefines = {};		// #Const values; objDefines_a: predefined (NTC, NTC_CPC ...)
+	var strDefine = '';
+
+	for (strDefine in (objDefines_a || {}))
+	{
+		if (objDefines_a.hasOwnProperty(strDefine))
+		{
+			objDefines[strDefine.toLowerCase()] = objDefines_a[strDefine];
+		}
+	}
 
 	// context flags (VBCC: m_blnInObject, m_blnInSub, m_blnInFunc, m_blnInUDT, m_blnSkip)
 	var blnInClass = false;
@@ -611,6 +620,7 @@ function ntcParse(arrFiles_a)
 		{
 			strType = trim(strType.substr(0, intStar));
 		}
+		strType = strType.replace(/\s+max\s+.*$/, '');		// String Max n
 		if (NTC_TYPES[strType] !== undefined)
 		{
 			return NTC_TYPES[strType];
@@ -790,11 +800,16 @@ function ntcParse(arrFiles_a)
 			typed: !!(strAs || objSuffix.type),
 			isnew: left(strAs, 'new '),
 			dims: (arrMatch[2] !== undefined) ? ((trim(arrMatch[3]).length > 0) ? splitTop(arrMatch[3], ',') : []) : null,
-			fixed: 0
+			fixed: 0,
+			strmax: 0
 		};
 		if (strAs.indexOf('*') > -1)
 		{
 			objResult.fixed = trim(strAs.substr(strAs.indexOf('*') + 1));
+		}
+		else if ((arrMatch = strAs.match(/^string\s+max\s+(.+)$/)))
+		{
+			objResult.strmax = trim(arrMatch[1]);		// String Max n: at most n chars, not padded (NTC)
 		}
 
 		return objResult;
@@ -848,7 +863,7 @@ function ntcParse(arrFiles_a)
 			}
 			strFull = fullName(strScope_a, objVar.name);
 			if (elementAdd(objVar.dims !== null ? 'array' : 'var', strScope_a, strFull, objVar.name,
-				{ datatype: objVar.type, typed: objVar.typed, dims: objVar.dims, isnew: objVar.isnew, fixed: objVar.fixed, isstatic: !!blnStatic_a }) === null)
+				{ datatype: objVar.type, typed: objVar.typed, dims: objVar.dims, isnew: objVar.isnew, fixed: objVar.fixed, strmax: objVar.strmax, isstatic: !!blnStatic_a }) === null)
 			{
 				error('already declared: ' + objVar.name);
 				continue;
@@ -1311,6 +1326,10 @@ function ntcParse(arrFiles_a)
 		else if (/^classsize \d+$/.test(strText))
 		{
 			record('option', { what: 'classsize', value: parseInt(strText.substr(10), 10) });	// planned, not enforced
+		}
+		else if (/^terminal (none|vt52|ansi)$/.test(strText))
+		{
+			record('option', { what: 'terminal', value: strText.substr(9) });	// CP/M: the terminal's codes for Cls / Locate
 		}
 		else if (strText === 'compare text')
 		{

@@ -55,7 +55,18 @@
 ; SECTIONS
 ;   ";## name dep dep ..." starts a section. The compiler links
 ;   only the sections a program uses, plus their deps.
-;   A platform file supplies ntc_plat_* sections.
+;   A platform file supplies ntc_plat_* sections:
+;     ntc_plat_data     ntc_curx, ntc_cury, ntc_scols (and its own data)
+;     ntc_plat_screen   ntc_plat_putc (A = char 32-126), ntc_plat_newline,
+;                       ntc_plat_backspace, ntc_plat_cls, ntc_plat_mode (A),
+;                       ntc_plat_locate (H = column, L = row, 1 based);
+;                       glyph platforms also ntc_plat_putglyph (DE = glyph)
+;     ntc_plat_key      ntc_plat_scankey (A = key or 0), ntc_plat_getkey (wait)
+;     ntc_plat_frame    ntc_plat_frame
+;     ntc_plat_ticks    ntc_plat_ticks (HL = tick count)
+;     ntc_plat_exit     ntc_plat_exit (before returning to the caller)
+;     ntc_plat_irq      ntc_plat_irqon (only platforms with their own handler)
+;   All are entered with jp, return address in IX, end with jp (ix).
 ; ============================================================
 
 ;## ntc_data @shared
@@ -73,6 +84,7 @@ ntc_sgnq:		db 0			; quotient sign (bit 7)
 ntc_sgnr:		db 0			; remainder sign (bit 7)
 ntc_lead:		db 0			; printint: digit seen
 ntc_icnt:		db 0			; gets: chars typed
+ntc_icap:		db 0			; gets: the buffer's capacity
 ntc_sptr:		dw 0			; printbuf: text pointer
 ntc_iptr:		dw 0			; gets: buffer pointer
 ntc_ilink:		dw 0			; gets: where to go when done
@@ -82,7 +94,9 @@ ntc_hookon:		db 0			; 1 = the Interrupt hook may run (set, and not running now)
 ntc_hookset:	db 0			; 1 = an Interrupt hook is set
 ntc_hookpend:	db 0			; 1 = an interrupt came, the hook runs at the next safe point
 ntc_hook:		dw 0			; the hook Sub's call stub
+ntc_hostix:		dw 0			; host platforms: IX kept over a firmware / BDOS call
 ntc_numbuf:		ds 14			; printint / long print: digits (+ spaces for Option VBPrint)
+				db 40			; ntc_inbuf's capacity (as every string variable has)
 ntc_inbuf:		ds 41			; inputint: typed text
 
 ;## ntc_gstack
@@ -1822,15 +1836,23 @@ ntc_seed_ok:
 			ret
 
 ; ============================================================
-; Strings (40 chars max, 0 terminated, buffer = 41 bytes)
+; Strings: 0 terminated. A string variable or temp has its capacity
+; (1 .. 255 chars) in the byte before it: [cap][text...][0]. Array
+; elements have no capacity byte (the caller gives the element size).
+; Functions that build a string write into a temp, so they cut at
+; NTC_STRMAX (the longest string in the program, set by the compiler);
+; kw_strcpy / kw_strcat / input cut at the destination's capacity.
 ; ============================================================
 
 ;## kw_strcpy
-;kw_strcpy, <destaddr>, <srcaddr>
+;kw_strcpy, <destaddr>, <srcaddr>  - cut at the destination's capacity byte
 kw_strcpy:
 			pop de
 			pop hl
-			ld b, 40
+			dec de
+			ld a, (de)
+			ld b, a
+			inc de
 ntc_strcpy_loop:
 			ld a, (hl)
 			ld (de), a
@@ -1843,11 +1865,23 @@ ntc_strcpy_loop:
 			ld (de), a
 			ret
 
+;## kw_strcpyn kw_strcpy
+;kw_strcpyn, <destaddr>, <srcaddr>, <capacity>  - into an array element (no capacity byte)
+kw_strcpyn:
+			pop de
+			pop hl
+			pop bc
+			ld b, c
+			jr ntc_strcpy_loop
+
 ;## kw_strcat
-;kw_strcat, <destaddr>, <srcaddr>
+;kw_strcat, <destaddr>, <srcaddr>  - cut at the destination's capacity byte
 kw_strcat:
 			pop de
-			ld b, 40
+			dec de
+			ld a, (de)
+			ld b, a
+			inc de
 ntc_strcat_end:
 			ld a, (de)
 			or a
@@ -1932,7 +1966,7 @@ ntc_strne_f:
 ; ld ix, ntc_next (a ret) so the routine continues the thread.
 ; ============================================================
 
-;## ntc_printbuf ntc_data ntc_font ntc_plat_screen
+;## ntc_printbuf ntc_data ntc_plat_screen
 ; print the 0 terminated ASCII text at (ntc_sptr), then ret (thread)
 ntc_printbuf:
 			ld hl, (ntc_sptr)
@@ -1941,36 +1975,26 @@ ntc_printbuf:
 			ret z
 			inc hl
 			ld (ntc_sptr), hl
-			sub 32
-			jr c, ntc_pb_bad
-			cp 95
-			jr c, ntc_pb_ok
-ntc_pb_bad:
-			ld a, '?' - 32
-ntc_pb_ok:
-			ld l, a
-			ld h, 0
-			add hl, hl
-			add hl, hl
-			add hl, hl
-			ld de, ntc_font
-			add hl, de
-			ex de, hl
 			ld ix, ntc_printbuf
-			jp ntc_plat_putglyph
+			jp ntc_plat_putc
 
 ;## kw_printzoscii ntc_data ntc_font ntc_plat_screen
 ;kw_printzoscii / dw glyph, glyph, ..., 0  - ZOSCII text inline in the thread
-;  each word points at an 8 byte glyph bitmap. 1 = newline, 0 = end.
+;  each word points at an 8 byte glyph bitmap. 1 = newline, 0 = end (only those two:
+;  a program at #0040 can have glyphs below #0100)
 kw_printzoscii:
 			pop de
 			ld a, d
 			or a
-			jr z, ntc_pz_ctl
+			jr nz, ntc_pz_glyph
+			ld a, e
+			cp 2
+			jr c, ntc_pz_ctl
+ntc_pz_glyph:
 			ld ix, kw_printzoscii
 			jp ntc_plat_putglyph
 ntc_pz_ctl:
-			or e
+			or a
 			ret z
 			ld ix, kw_printzoscii
 			jp ntc_plat_newline
@@ -2158,7 +2182,7 @@ kw_printnl:
 			ld ix, ntc_next
 			jp ntc_plat_newline
 
-;## kw_printtab ntc_data ntc_font ntc_plat_screen
+;## kw_printtab ntc_data ntc_plat_screen
 ;kw_printtab, <nvar>  - Tab(n) in Print: spaces up to column n (1 based),
 ;  a new line first when the cursor is already past it. n off the line: nothing
 kw_printtab:
@@ -2180,17 +2204,21 @@ ntc_pt_loop:
 			cp (hl)
 			ret z
 			ret c
-			ld de, ntc_font			; space
+			ld a, ' '
 			ld ix, ntc_pt_loop
-			jp ntc_plat_putglyph
+			jp ntc_plat_putc
 ntc_tabcol:		db 0
 
-;## ntc_gets ntc_data ntc_font ntc_plat_screen ntc_plat_key
-; line input with echo and DEL. HL = buffer (41 bytes), DE = where to
+;## ntc_gets ntc_data ntc_plat_screen ntc_plat_key
+; line input with echo and DEL (or backspace). HL = buffer (its capacity in the byte
+; before it), DE = where to
 ; jp when done (after the newline). 40 chars max, 0 terminated.
 ntc_gets:
 			ld (ntc_iptr), hl
 			ld (ntc_ilink), de
+			dec hl
+			ld a, (hl)			; the buffer's capacity
+			ld (ntc_icap), a
 			xor a
 			ld (ntc_icnt), a
 ntc_gs_wait:
@@ -2201,11 +2229,15 @@ ntc_gs_key:
 			jr z, ntc_gs_done
 			cp 127
 			jr z, ntc_gs_del
+			cp 8
+			jr z, ntc_gs_del
 			cp 32
 			jr c, ntc_gs_wait
 			ld c, a
+			ld a, (ntc_icap)
+			ld b, a
 			ld a, (ntc_icnt)
-			cp 40
+			cp b
 			jr nc, ntc_gs_wait
 			inc a
 			ld (ntc_icnt), a
@@ -2214,17 +2246,8 @@ ntc_gs_key:
 			inc hl
 			ld (ntc_iptr), hl
 			ld a, c
-			sub 32
-			ld l, a
-			ld h, 0
-			add hl, hl
-			add hl, hl
-			add hl, hl
-			ld de, ntc_font
-			add hl, de
-			ex de, hl
 			ld ix, ntc_gs_wait
-			jp ntc_plat_putglyph
+			jp ntc_plat_putc
 ntc_gs_del:
 			ld a, (ntc_icnt)
 			or a
@@ -2446,11 +2469,17 @@ kw_callv:
 			ld l, a
 			jp (hl)
 
-;## kw_ticks ntc_data
-;kw_ticks, <destvar>  - interrupt count (only moves in normal mode)
+;## kw_ticks ntc_data ntc_plat_ticks
+;kw_ticks, <destvar>  - tick count from the platform (CPC: interrupts, 300 a second,
+;  only moving in normal mode)
 kw_ticks:
 			pop hl
-			ld de, (ntc_ticks)
+			ld (ntc_ivar), hl
+			ld ix, ntc_tk_got
+			jp ntc_plat_ticks
+ntc_tk_got:
+			ex de, hl
+			ld hl, (ntc_ivar)
 			ld (hl), e
 			inc hl
 			ld (hl), d
@@ -2803,7 +2832,7 @@ ntc_irls:		dw 0
 ntc_irp:		dw 0
 
 ;## kw_strreplace
-;kw_strreplace, <dest>, <text>, <find>, <with>  - Replace (40 characters at most)
+;kw_strreplace, <dest>, <text>, <find>, <with>  - Replace (NTC_STRMAX characters at most)
 kw_strreplace:
 			pop hl
 			ld (ntc_rpd), hl
@@ -2814,7 +2843,7 @@ kw_strreplace:
 			pop hl
 			ld (ntc_rpr), hl
 			ld de, ntc_rpbuf
-			ld b, 40
+			ld b, NTC_STRMAX
 			ld hl, (ntc_rpf)
 			ld a, (hl)
 			or a
@@ -2894,7 +2923,7 @@ ntc_rps:		dw 0
 ntc_rpf:		dw 0
 ntc_rpr:		dw 0
 ntc_rpp:		dw 0
-ntc_rpbuf:		ds 41
+ntc_rpbuf:		ds NTC_STRMAX + 1
 
 ;## kw_strlike
 ;kw_strlike, <text>, <pattern>  - Z if text Like pattern: * any run, ? one char,
@@ -3288,7 +3317,7 @@ kw_l_strfmt:
 			jp ntc_ltoa
 
 ;## kw_strjoin
-;kw_strjoin, <dest>, <descriptor>, <sep>  - Join(stringarray, sep), 40 characters at most
+;kw_strjoin, <dest>, <descriptor>, <sep>  - Join(stringarray, sep), NTC_STRMAX characters at most
 kw_strjoin:
 			pop hl
 			ld (ntc_jnd), hl
@@ -3306,10 +3335,17 @@ kw_strjoin:
 			inc hl
 			ld d, (hl)
 			ld (ntc_jnc), de
+			inc hl
+			inc hl
+			inc hl
+			ld e, (hl)			; the element size (descriptor +10)
+			inc hl
+			ld d, (hl)
+			ld (ntc_jnz), de
 			pop hl
 			ld (ntc_jns), hl
 			ld de, ntc_jnbuf
-			ld a, 40
+			ld a, NTC_STRMAX
 			ld (ntc_jnr), a
 			ld hl, (ntc_jnc)
 			ld a, h
@@ -3334,7 +3370,7 @@ ntc_jn_c1:
 			jr ntc_jn_c1
 ntc_jn_eend:
 			ld hl, (ntc_jnp)
-			ld bc, 41
+			ld bc, (ntc_jnz)
 			add hl, bc
 			ld (ntc_jnp), hl
 			ld hl, (ntc_jnc)
@@ -3377,11 +3413,12 @@ ntc_jnp:		dw 0
 ntc_jnc:		dw 0
 ntc_jns:		dw 0
 ntc_jnr:		db 0
-ntc_jnbuf:		ds 41
+ntc_jnz:		dw 0
+ntc_jnbuf:		ds NTC_STRMAX + 1
 
 ;## kw_strsplit
-;kw_strsplit, <descriptor>, <base>, <capacity>, <text>, <sep>  - a() = Split(text, sep):
-;  fills the elements (40 chars each) and the descriptor (lower bound 0, count)
+;kw_strsplit, <descriptor>, <base>, <capacity>, <text>, <sep>, <element size>  - a() = Split(text, sep):
+;  fills the elements (element size - 1 chars each) and the descriptor (lower bound 0, count)
 kw_strsplit:
 			pop hl
 			ld (ntc_spd), hl
@@ -3394,6 +3431,8 @@ kw_strsplit:
 			ld (ntc_sps), hl
 			pop hl
 			ld (ntc_spsep), hl
+			pop hl
+			ld (ntc_spz), hl
 			ld hl, 0
 			ld (ntc_spn), hl
 			ld hl, (ntc_sps)
@@ -3410,7 +3449,9 @@ ntc_sp_elem:
 			inc hl
 			ld (ntc_spn), hl
 			ld de, (ntc_spe)
-			ld b, 40
+			ld a, (ntc_spz)
+			dec a
+			ld b, a
 ntc_sp_ch:
 			ld hl, (ntc_sps)
 			ld a, (hl)
@@ -3434,7 +3475,7 @@ ntc_sp_hit:
 			xor a
 			ld (de), a
 			ld hl, (ntc_spe)
-			ld bc, 41
+			ld bc, (ntc_spz)
 			add hl, bc
 			ld (ntc_spe), hl
 			jp ntc_sp_elem
@@ -3478,10 +3519,12 @@ ntc_sp_fin:
 			inc hl
 			ld (hl), 0
 			inc hl
-			ld (hl), 41
+			ld de, (ntc_spz)
+			ld (hl), e
 			inc hl
-			ld (hl), 0
+			ld (hl), d
 			ret
+ntc_spz:		dw 0
 ntc_spd:		dw 0
 ntc_spb:		dw 0
 ntc_spe:		dw 0
@@ -3675,12 +3718,14 @@ kw_strspace:
 			jp ntc_getn
 ntc_sp_n:
 			ld c, ' '
-; A = count (40 max), C = char, DE = dest
+; A = count (NTC_STRMAX at most), C = char, DE = dest
 ntc_strfill:
-			cp 41
+	IF NTC_STRMAX < 255
+			cp NTC_STRMAX + 1
 			jr c, ntc_sf_ok
-			ld a, 40
+			ld a, NTC_STRMAX
 ntc_sf_ok:
+	ENDIF
 			ld b, a
 			inc b
 ntc_sf_loop:
@@ -3958,54 +4003,80 @@ ntc_scge_n:
 			ret
 
 ; ============================================================
-; String arrays (41 bytes an element, no bounds check)
+; String arrays (element size = capacity + 1 bytes, no capacity byte,
+; no bounds check)
 ; ============================================================
 
-;## ntc_saddr
-; DE = base, HL = index var address: HL = base + index * 41. jp (ix)
+;## ntc_saddr ntc_data
+; DE = base, HL = index var address, (ntc_sasz) = element size:
+; HL = base + index * size. jp (ix)
 ntc_saddr:
 			ld a, (hl)
 			inc hl
 			ld h, (hl)
 			ld l, a
-			ld b, h
-			ld c, l
-			add hl, hl
-			add hl, hl
-			add hl, bc
-			add hl, hl
-			add hl, hl
-			add hl, hl
-			add hl, bc
+			ld a, (ntc_sasz + 1)		; element size 256 (String Max 255): index * 256
+			or a
+			jr z, ntc_sa_mul
+			ld h, l
+			ld l, 0
 			add hl, de
 			jp (ix)
+ntc_sa_mul:
+			ld b, h
+			ld c, l
+			ld hl, 0
+			ld a, (ntc_sasz)
+ntc_sa_bit:
+			srl a
+			jr nc, ntc_sa_no
+			add hl, bc
+ntc_sa_no:
+			sla c
+			rl b
+			or a
+			jr nz, ntc_sa_bit
+			add hl, de
+			jp (ix)
+ntc_sasz:		dw 0
 
 ;## kw_sget ntc_saddr
-;kw_sget, <arraybase>, <indexvar>, <dest>  - dest = array(index)
+;kw_sget, <arraybase>, <indexvar>, <dest>, <element size>  - dest = array(index)
 kw_sget:
 			pop de
 			pop hl
+			pop bc
+			ld (ntc_sgd), bc
+			pop bc
+			ld (ntc_sasz), bc
 			ld ix, ntc_sg_a
 			jp ntc_saddr
 ntc_sg_a:
-			pop de
-			ld bc, 41
+			ld de, (ntc_sgd)
+			ld bc, (ntc_sasz)
 			ldir
 			ret
+ntc_sgd:		dw 0
 
-;## kw_sset ntc_saddr
-;kw_sset, <arraybase>, <indexvar>, <src>  - array(index) = src
+;## kw_sset ntc_saddr kw_strcpy
+;kw_sset, <arraybase>, <indexvar>, <src>, <element size>  - array(index) = src, cut at the element
 kw_sset:
 			pop de
 			pop hl
+			pop bc
+			ld (ntc_sgs), bc
+			pop bc
+			ld (ntc_sasz), bc
 			ld ix, ntc_ssa
 			jp ntc_saddr
 ntc_ssa:
 			ex de, hl
-			pop hl
-			ld bc, 41
-			ldir
-			ret
+			ld hl, (ntc_sgs)
+			ld a, (ntc_sasz)
+			dec a
+			ld b, a
+			jp ntc_strcpy_loop
+ntc_sgs:		dw 0
 
 ; ============================================================
 ; Array parameters and dynamic arrays. A procedure gets the address of a
@@ -4141,6 +4212,32 @@ ntc_ps_a:
 			pop hl
 			ldir
 			ret
+
+;## kw_psets ntc_paddr kw_strcpy
+;kw_psets, <descriptor>, <indexvar>, <src>  - String parameter array(index) = src, cut at the element
+kw_psets:
+			pop hl
+			pop de
+			ld ix, ntc_pss_a
+			jp ntc_paddr
+ntc_pss_a:
+			ex de, hl
+			pop hl
+			ld a, c
+			dec a
+			ld b, a
+			jp ntc_strcpy_loop
+
+;## kw_psets2 ntc_paddr2 kw_psets
+;kw_psets2, <descriptor>, <index1var>, <index2var>, <src>  - array(i, j) = src (String)
+kw_psets2:
+			pop hl
+			pop de
+			ld (ntc_piv), de
+			pop de
+			ld (ntc_pjv), de
+			ld ix, ntc_pss_a
+			jp ntc_paddr2
 
 ;## kw_pget2 ntc_paddr2 kw_pget
 ;kw_pget2, <descriptor>, <index1var>, <index2var>, <dest>  - dest = array(i, j)
@@ -5301,102 +5398,8 @@ kw_l_aset:
 			ret
 
 ;## ntc_font
-; 8x8 font, chars 32-126, 8 bytes each, bit 7 = leftmost pixel
-; from font8x8_basic by Daniel Hepper (public domain, IBM VGA based)
+; 8x8 font buffer, chars 32-126, 8 bytes each, bit 7 = leftmost pixel.
+; The platform fills it at start: the CPC copies its own font from the
+; lower ROM (#3900), so text looks like the CPC's.
 ; glyph for char c = ntc_font + (c - 32) * 8
-ntc_font:
-			db #00, #00, #00, #00, #00, #00, #00, #00		; 32  
-			db #18, #3C, #3C, #18, #18, #00, #18, #00		; 33 !
-			db #6C, #6C, #00, #00, #00, #00, #00, #00		; 34 "
-			db #6C, #6C, #FE, #6C, #FE, #6C, #6C, #00		; 35 #
-			db #30, #7C, #C0, #78, #0C, #F8, #30, #00		; 36 $
-			db #00, #C6, #CC, #18, #30, #66, #C6, #00		; 37 %
-			db #38, #6C, #38, #76, #DC, #CC, #76, #00		; 38 &
-			db #60, #60, #C0, #00, #00, #00, #00, #00		; 39 '
-			db #18, #30, #60, #60, #60, #30, #18, #00		; 40 (
-			db #60, #30, #18, #18, #18, #30, #60, #00		; 41 )
-			db #00, #66, #3C, #FF, #3C, #66, #00, #00		; 42 *
-			db #00, #30, #30, #FC, #30, #30, #00, #00		; 43 +
-			db #00, #00, #00, #00, #00, #30, #30, #60		; 44 ,
-			db #00, #00, #00, #FC, #00, #00, #00, #00		; 45 -
-			db #00, #00, #00, #00, #00, #30, #30, #00		; 46 .
-			db #06, #0C, #18, #30, #60, #C0, #80, #00		; 47 /
-			db #7C, #C6, #CE, #DE, #F6, #E6, #7C, #00		; 48 0
-			db #30, #70, #30, #30, #30, #30, #FC, #00		; 49 1
-			db #78, #CC, #0C, #38, #60, #CC, #FC, #00		; 50 2
-			db #78, #CC, #0C, #38, #0C, #CC, #78, #00		; 51 3
-			db #1C, #3C, #6C, #CC, #FE, #0C, #1E, #00		; 52 4
-			db #FC, #C0, #F8, #0C, #0C, #CC, #78, #00		; 53 5
-			db #38, #60, #C0, #F8, #CC, #CC, #78, #00		; 54 6
-			db #FC, #CC, #0C, #18, #30, #30, #30, #00		; 55 7
-			db #78, #CC, #CC, #78, #CC, #CC, #78, #00		; 56 8
-			db #78, #CC, #CC, #7C, #0C, #18, #70, #00		; 57 9
-			db #00, #30, #30, #00, #00, #30, #30, #00		; 58 :
-			db #00, #30, #30, #00, #00, #30, #30, #60		; 59 ;
-			db #18, #30, #60, #C0, #60, #30, #18, #00		; 60 <
-			db #00, #00, #FC, #00, #00, #FC, #00, #00		; 61 =
-			db #60, #30, #18, #0C, #18, #30, #60, #00		; 62 >
-			db #78, #CC, #0C, #18, #30, #00, #30, #00		; 63 ?
-			db #7C, #C6, #DE, #DE, #DE, #C0, #78, #00		; 64 @
-			db #30, #78, #CC, #CC, #FC, #CC, #CC, #00		; 65 A
-			db #FC, #66, #66, #7C, #66, #66, #FC, #00		; 66 B
-			db #3C, #66, #C0, #C0, #C0, #66, #3C, #00		; 67 C
-			db #F8, #6C, #66, #66, #66, #6C, #F8, #00		; 68 D
-			db #FE, #62, #68, #78, #68, #62, #FE, #00		; 69 E
-			db #FE, #62, #68, #78, #68, #60, #F0, #00		; 70 F
-			db #3C, #66, #C0, #C0, #CE, #66, #3E, #00		; 71 G
-			db #CC, #CC, #CC, #FC, #CC, #CC, #CC, #00		; 72 H
-			db #78, #30, #30, #30, #30, #30, #78, #00		; 73 I
-			db #1E, #0C, #0C, #0C, #CC, #CC, #78, #00		; 74 J
-			db #E6, #66, #6C, #78, #6C, #66, #E6, #00		; 75 K
-			db #F0, #60, #60, #60, #62, #66, #FE, #00		; 76 L
-			db #C6, #EE, #FE, #FE, #D6, #C6, #C6, #00		; 77 M
-			db #C6, #E6, #F6, #DE, #CE, #C6, #C6, #00		; 78 N
-			db #38, #6C, #C6, #C6, #C6, #6C, #38, #00		; 79 O
-			db #FC, #66, #66, #7C, #60, #60, #F0, #00		; 80 P
-			db #78, #CC, #CC, #CC, #DC, #78, #1C, #00		; 81 Q
-			db #FC, #66, #66, #7C, #6C, #66, #E6, #00		; 82 R
-			db #78, #CC, #E0, #70, #1C, #CC, #78, #00		; 83 S
-			db #FC, #B4, #30, #30, #30, #30, #78, #00		; 84 T
-			db #CC, #CC, #CC, #CC, #CC, #CC, #FC, #00		; 85 U
-			db #CC, #CC, #CC, #CC, #CC, #78, #30, #00		; 86 V
-			db #C6, #C6, #C6, #D6, #FE, #EE, #C6, #00		; 87 W
-			db #C6, #C6, #6C, #38, #38, #6C, #C6, #00		; 88 X
-			db #CC, #CC, #CC, #78, #30, #30, #78, #00		; 89 Y
-			db #FE, #C6, #8C, #18, #32, #66, #FE, #00		; 90 Z
-			db #78, #60, #60, #60, #60, #60, #78, #00		; 91 [
-			db #C0, #60, #30, #18, #0C, #06, #02, #00		; 92 backslash
-			db #78, #18, #18, #18, #18, #18, #78, #00		; 93 ]
-			db #10, #38, #6C, #C6, #00, #00, #00, #00		; 94 ^
-			db #00, #00, #00, #00, #00, #00, #00, #FF		; 95 _
-			db #30, #30, #18, #00, #00, #00, #00, #00		; 96 `
-			db #00, #00, #78, #0C, #7C, #CC, #76, #00		; 97 a
-			db #E0, #60, #60, #7C, #66, #66, #DC, #00		; 98 b
-			db #00, #00, #78, #CC, #C0, #CC, #78, #00		; 99 c
-			db #1C, #0C, #0C, #7C, #CC, #CC, #76, #00		; 100 d
-			db #00, #00, #78, #CC, #FC, #C0, #78, #00		; 101 e
-			db #38, #6C, #60, #F0, #60, #60, #F0, #00		; 102 f
-			db #00, #00, #76, #CC, #CC, #7C, #0C, #F8		; 103 g
-			db #E0, #60, #6C, #76, #66, #66, #E6, #00		; 104 h
-			db #30, #00, #70, #30, #30, #30, #78, #00		; 105 i
-			db #0C, #00, #0C, #0C, #0C, #CC, #CC, #78		; 106 j
-			db #E0, #60, #66, #6C, #78, #6C, #E6, #00		; 107 k
-			db #70, #30, #30, #30, #30, #30, #78, #00		; 108 l
-			db #00, #00, #CC, #FE, #FE, #D6, #C6, #00		; 109 m
-			db #00, #00, #F8, #CC, #CC, #CC, #CC, #00		; 110 n
-			db #00, #00, #78, #CC, #CC, #CC, #78, #00		; 111 o
-			db #00, #00, #DC, #66, #66, #7C, #60, #F0		; 112 p
-			db #00, #00, #76, #CC, #CC, #7C, #0C, #1E		; 113 q
-			db #00, #00, #DC, #76, #66, #60, #F0, #00		; 114 r
-			db #00, #00, #7C, #C0, #78, #0C, #F8, #00		; 115 s
-			db #10, #30, #7C, #30, #30, #34, #18, #00		; 116 t
-			db #00, #00, #CC, #CC, #CC, #CC, #76, #00		; 117 u
-			db #00, #00, #CC, #CC, #CC, #78, #30, #00		; 118 v
-			db #00, #00, #C6, #D6, #FE, #FE, #6C, #00		; 119 w
-			db #00, #00, #C6, #6C, #38, #6C, #C6, #00		; 120 x
-			db #00, #00, #CC, #CC, #CC, #7C, #0C, #F8		; 121 y
-			db #00, #00, #FC, #98, #30, #64, #FC, #00		; 122 z
-			db #1C, #30, #30, #E0, #30, #30, #1C, #00		; 123 {
-			db #18, #18, #18, #00, #18, #18, #18, #00		; 124 |
-			db #E0, #30, #30, #1C, #30, #30, #E0, #00		; 125 }
-			db #76, #DC, #00, #00, #00, #00, #00, #00		; 126 ~
+ntc_font:		ds 95 * 8

@@ -36,6 +36,9 @@ Next
 Print
 Print Shout(nm)
 Break done
+Print "Press a key";
+Do : Frame : Loop Until Inkey <> 0
+Print
 End
 
 Function Shout(ByVal s As String) As String

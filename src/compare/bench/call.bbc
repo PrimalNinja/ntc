@@ -1,0 +1,6 @@
+PRINT "go"
+S%=0
+FOR I%=1 TO 5000:S%=FNadd2(I%,3):NEXT
+PRINT "done ";S%
+END
+DEF FNadd2(A%,B%)=A%+B%

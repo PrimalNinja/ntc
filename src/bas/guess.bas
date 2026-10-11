@@ -14,4 +14,7 @@ Loop Until g = t
 Print "Got it in "; tries
 Input "Again (y/n)"; a$
 If a$ = "y" Then GoTo again
+Print "Press a key";
+Do : Frame : Loop Until Inkey <> 0
+Print
 End

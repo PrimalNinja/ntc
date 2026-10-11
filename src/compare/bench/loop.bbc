@@ -1,0 +1,3 @@
+PRINT "go"
+FOR I%=1 TO 10000:NEXT
+PRINT "done ";I%

@@ -183,6 +183,73 @@ finished, with the date.
   normal mode as documented
 - 2026-10-11 `userguide.md`: language reference by topic (CPC BASIC manual style), with the
   differences from VB5 / VB6 at each keyword
+- 2026-10-11 **platforms**: a platform file starts with `;@key value` lines (org, text form,
+  screen set up, own interrupt handler, own stack, size) read by the compiler. New:
+  `cpcfw` (CPC through the firmware: TXT / KM / SCR / MC / KL, real stack switch per call),
+  `cpm` (CP/M .COM at #0100, BDOS 6 console, own stack, warm boot), `test` (port console for
+  the harness). The library prints through `ntc_plat_putc`; byte text platforms get Print
+  text as string pool strings instead of ZOSCII glyph words. `Ticks` goes through
+  `ntc_plat_ticks`. `Interrupt` needs `;@irq` (CPC hardware only). `#If NTC` /
+  `#If NTC_<platform>` predefined. GUI: platform list, Org empty = the platform's, platform
+  saved with the project
+- 2026-10-11 **platform classes** `lib/<platform>/StdIO.cls` and `System.cls`: join a
+  project when named; methods are asm keywords (no call overhead), capability constants
+  (CanPosition, CanClear, CanPoll, Rows ...; Platform, TicksPerSecond, HasHook ...). A
+  project's own `StdIO.cls` replaces the platform's and the console statements (Print,
+  Input, Inkey, Inkey$, Cls, Locate, Mode) call its methods (not inside StdIO itself)
+- 2026-10-11 fix: on cpcfw a full-width line got an empty line after it (the program printed
+  its own new line after the 40th char, but the firmware had already wrapped) - now the
+  firmware wraps and a new line straight after a wrap does nothing; the hardware and test
+  platforms do the same now (they used to leave the empty line too). The harness wraps like
+  the firmware on cpcfw. Test `wrap.bas`
+- 2026-10-11 shellsort.bas: up to 2000 numbers (Return = 2000, several seconds - stopwatch
+  timing), a menu T = turbo / N = normal / X = exit to re-run, prints Ticks for normal runs
+  (turbo has interrupts off on the CPC, so Ticks stand still there). 2001 numbers with
+  CPC timing: turbo 11.7 s, normal 14.7 s (turbo 20% faster); matches WinAPE (AMSDOS
+  Ticks 14.9 s, stopwatch about 16 s with the 1.1 s refill before the sort). (The first
+  figures, normal 2.5 x turbo, came from the harness undercounting - see Testing)
+- 2026-10-11 `bas/sievetime.bas` (build SIEVETIM): sieve to 8000 with a Byte array,
+  passes (Return = 5), T / N / X, the key starts the sieve straight away. The same in Small
+  C: `compare/smallc/` (sieve.c, SIEVEC.ASM - Small C's 8080 code in Z80 mnemonics, one for
+  one, plus its runtime), copied to build/cpm. 5 passes with CPC timing: Small C 33.2 s,
+  NTC normal 24.9 s, NTC turbo 17.5 s. Turbo vs normal by kind of program: factoring by
+  trial division 8%, shell sort 20%, sieve 29% (short keywords show it most, divides least)
+- 2026-10-11 **speed compared** (NTC.md section 3, programs in `compare/bench/`): sieve,
+  sort, factor, loop, call, divide, string in NTC (turbo, normal), Small C (C3.0R1.1, its
+  output as `B*C.ASM`), BBC BASIC (Z80) v5 (CP/M edition) and the sieve in hand Z80,
+  timed with exact T-states and CPC microsecond timing. NTC normal 1.3-1.7 x Small C (calls
+  0.95 x), turbo 1.4-2.6 x; 9-30 x BBC BASIC; the hand sieve 5.7 x NTC turbo
+- 2026-10-11 the CPC platform uses the CPC's own font: the first mode set copies chars
+  32-126 from the lower ROM (#3900) into ntc_font (now a RAM buffer, 760 bytes less per
+  program), running the copy from #C000 (the program at #0040 can be under the lower ROM).
+  cpcrun.py emulates the lower ROM for that (stand-in font: test/font_standin.txt)
+- 2026-10-11 every program in bas/ ends with `Press a key` and waits (build/ results stay on
+  screen); vb_test12's Input check now asks "Type 8 letters (only 5 fit)" and passes for any
+  answer that was cut to 5; regress types the key, `~` in typed text = no key on that look,
+  and a check now also needs the program to have ended
+- 2026-10-11 `build/`: every program in `bas/` compiled for every platform (88 .ASM files,
+  made by `test/genbuild.js`) and `build.bat` (MS-DOS) to assemble them all with
+  sjasmplus: CPC as AMSDOS `.BIN` (compiler option `amsdos` / `cli.js --amsdos=NAME` adds
+  `DEVICE AMSTRADCPC6128` and `SAVEAMSDOS`), CP/M `.COM`, test `.BIN`. Every program now
+  ends with `ntc_end:`. regress.sh regenerates and assembles them all
+- 2026-10-11 **string lengths**: `String * n` (VB fixed length, padded) now n = 1 .. 255,
+  new `String Max n` (NTC: at most n, not padded, 1 .. 255), default `String` stays 40.
+  A capacity byte before every scalar string ([cap][text][0]); array elements cap + 1 bytes
+  (stride passed to kw_sget / kw_sset / kw_strcpyn, or in the descriptor: kw_psets,
+  Join, Split); params, results, Select values and temps hold the program's longest
+  string (`NTC_STRMAX equ`, at least 40); kw_strcpy / kw_strcat / input cut at the
+  destination; library functions build into temps, cut at NTC_STRMAX; call stubs copy
+  strings with the same cut. Test `vb_test12` (33 checks)
+- 2026-10-11 CPC builds (cpc, cpcfw) at org #0040 (AMSDOS binaries), was #4000; the
+  harness loads at the program's org. Fix found by it: kw_printzoscii took any word below
+  #0100 as a control word, and a small program's font can now sit there - only 0 (end)
+  and 1 (new line) are controls now (test `tiny.bas`)
+- 2026-10-11 CP/M `Option Terminal VT52 | ANSI` (Cls / Locate with the terminal's codes,
+  `NTC_TERM` for the platform file, `NTC_TERM_*` for #If); tests `term_vt52`, `term_ansi`
+- 2026-10-11 `#asm` naming a library label (not only a section) links that label's section
+- 2026-10-11 test harness `test/ntcrun.py` (test / cpcfw / cpm on a plain Z80, firmware and
+  BDOS handed to the harness); regress.sh runs every test on all four platforms in both
+  modes (230 checks with the terminal, string length and tiny tests); `guitest6.py`
 
 ---
 
@@ -190,6 +257,119 @@ finished, with the date.
 
 ### Language
 
+- [ ] **`Interrupts` class - interrupt handlers as separately compiled frames** (decided in
+      discussion 2026-10-11; replaces the `Interrupt MySub` statement).
+      Background - how interrupts work now: keywords run with interrupts off; an interrupt
+      is only taken at a safe point (`ntc_xn` window between keywords: branches in normal
+      mode and `kw_irq` every 32 straight keywords) or inside the windows of long keywords
+      (Cls, scroll, key wait, frame wait, host calls - all switch SP to `ntc_csp` first, so
+      SP is always the real stack when an interrupt comes). The CPC handler (`ntc_irq`)
+      only counts ticks and sets `ntc_hookpend`; `ntc_xnh` then runs the hook Sub as normal
+      thread code at the next safe point; `ntc_hookon` stops it re-entering itself.
+      Problems with running a BASIC Sub in the main program's frame (found 2026-10-11):
+      1. temps (`tmpN` / `stmpN` / `ltmpN`) can be live across a safe point (`kw_irq` can
+         land mid-expression) - the hook's expressions overwrite them
+      2. BUG NOW: `kw_irq` can land between a compare and its branch (the compare counts
+         as a straight keyword); plain `ntc_xn` keeps the flags, but with a hook the hook's
+         code runs in between and the branch goes the wrong way. Fix even before the class:
+         put `kw_irq` only at statement starts (or never between a compare and its branch)
+      3. procedures / GOSUB targets called from both main code and the hook: one set of
+         params, locals and one `_rs` return point each (no recursion), so the hook's call
+         overwrites the main program's - the recursion check (call graph cycles) does not
+         catch main + hook sharing
+      Design:
+      - the handler is a Sub compiled as its own FRAME: a third compile mode (`_i`) - the
+        Sub and every procedure it calls get their own copies AND their own storage
+        (params, locals, `_rs`, ByRef words), their own temps (`itmpN` ...), own GOSUB
+        return points / stack. Shared with main: global / module variables only. Asm
+        keyword procedures (body only #asm, no storage) need no `_i` copy - both sides call
+        the same one. So a handler can be all BASIC, BASIC with #asm, or effectively all
+        asm (`dw fn_x` + `dw kw_iret`, ~60-80 T over a raw asm handler)
+      - running: an interrupt at a safe point between keywords -> the platform handler saves
+        AF (fixes problem 2 for good) and the thread position, runs the frame's thread with
+        interrupts off, `kw_iret` restores. An interrupt inside a long keyword's window ->
+        only mark the frame pending, it runs at the next safe point (library scratch such as
+        `ntc_ip`, `ntc_sptr` is in use mid keyword). Library keywords are shared code: safe
+        because the frame only runs between keywords
+      - placement: a frame is its own allocation unit, so it can be placed apart (a fixed
+        address e.g. below #4000 on the CPC, a ROM, a bank that is never paged out, or left
+        next to the program). An ISOLATED frame (music player, interrupt driven I/O
+        buffers) gets its own copies of the library sections it uses, placed with it, so
+        nothing it needs can be paged out (bank window, upper ROM / #C000 games) - an
+        ORDINARY frame (game logic, timers) shares the program's library. Same mechanism,
+        only placement differs. Fits the range allocator planned under Memory map (every
+        jump between units already goes through stubs). A resident frame can outlive the
+        main program (TSR style), found by a header
+      - communication: a MAILBOX at the start of the frame: +0 command (0 = none), +2
+        parameter, +4 status / reply (optionally a signature + version word in front). Main
+        writes the parameter, then the command (inside one keyword, interrupts off, so the
+        frame never sees half a command); the frame acts, writes the status, clears the
+        command (= done, `Busy` = command <> 0). A ring of slots if commands can come faster
+        than the frame runs. The caller only needs the frame's base address: a label (same
+        build), `Option Frame <name> At #xxxx`, or found by signature (resident / ROM)
+      - as a class, e.g. `Music.cls`: `Play tune`, `Stop`, `Volume v` (asm keywords that
+        only write the mailbox, ~the cost of a Poke), `Busy()`, `Position()` (the status);
+        the class's handler Sub is the frame. The same shape is the general interrupt
+        driven driver class (e.g. Serial: the frame fills a receive ring, GetChar / Ready
+        read it, Baud posts a command)
+      - API sketch: `Interrupts.Every n, AddressOf Sub` (every n ticks, CPC EVERY),
+        `Interrupts.After n, AddressOf Sub` (once, CPC AFTER), `Interrupts.Frame AddressOf
+        Sub` (every vsync - 1 in 6 interrupts on the CPC), `Interrupts.Off`; a small fixed
+        timer table; `Interrupts.Fast AddressOf AsmSub` for work that must run even inside
+        long keywords' windows: strict rules - asm only, no library code (the compiler can
+        warn when a handler's asm names a library label), short, save IX / IY (the platform
+        saves the rest with exx / ex af,af' - nothing in the library uses the alternate set
+        on the CPC hardware platform; the CPC firmware uses BC' itself)
+      - `AddressOf` gives the stub for the mode at that line; a handler always runs in its
+        own frame, so `Interrupts.*` must give the frame's entry, not a turbo / normal stub
+      - platforms: cpc - the program owns #38, works directly. cpcfw - register the frame /
+        Fast handler as a firmware event (KL NEW FAST TICKER, KL NEW FRAME FLY, KL ADD
+        TICKER), with the pending rule. cpm / test - none (`System.HasHook` /
+        `Interrupts.Available` False, using it is a compile error). Turbo mode: no
+        interrupts, handlers only run in normal mode
+      - rule for every platform handler, to write in NTC.md: the interrupt handler itself
+        never calls library code - it only counts, marks pending, or runs a frame between
+        keywords
+      - then remove the `Interrupt` statement (or keep it as sugar for
+        `Interrupts.Every 1, AddressOf Sub`); update hook.bas / ref, userguide 12, NTC.md
+- [ ] FUTURE (CPC, main target): **library in ROM** - a second CPC build next to the RAM one
+      (RAM only for now; keep this possible). Why: many CPC users have ROM boards (and the M4
+      has ROM slots); the library is half to nine tenths of a typical program (measured
+      2026-10-11: guide 2424 of 2806 bytes, guess 2490 / 2800, shellsort 2610 / 3832,
+      vb_test 2815 / 6194; the whole library ~8 KB without normal copies, so 8-16 KB of RAM
+      back as it grows). An NTC thread is already a tokenised program, so it is a BASIC
+      interpreter's layout (keywords in ROM, tokens in RAM) without the interpreter loop.
+      Plan (discussed 2026-10-11):
+      1. ROM / RAM split first (see Memory map): library working storage at a fixed RAM
+         address given by the platform file (like an interpreter's system variables), data
+         with start values copied at start, nothing writes into library code
+      2. a keyword number list: add-only, versioned (major = breaks compatibility, additions
+         don't) - the contract between programs and ROM versions
+      3. the NTC ROM: one 16K image (every section, turbo + normal copies, CPC platform,
+         font), header (signature, version, count), export table (keyword number ->
+         address, could be in PRIMAL style levels), a standard sideways ROM header with an
+         RSX `|NTC,"PROG"` that loads, links and runs
+      4. link at LOAD time, not through a jump table: the program file holds keyword numbers
+         in the thread + a bitmap (1 bit per thread word: "this is a keyword number") + a
+         short fixup list for code (stubs, #asm); the loader finds the ROM (scan slots for
+         the signature), checks the version, writes the real addresses into the thread once
+         - no run time cost. No register (IY) kept for it: the table is only read while
+         loading (and IY belongs to the ROM on the Spectrum anyway). A RAM `jp` table
+         (10 T per keyword) only for a thread that is itself in ROM and must work with any
+         compatible core
+      5. ROM missing / too old: a plain message (two builds, RAM and ROM, rather than one
+         file with the library bundled - the program's layout is fixed at compile time, so
+         a bundled fallback saves no RAM the program could use)
+      Watch: the upper ROM covers the screen at #C000 - reads give the ROM, so scroll (the
+      one routine that reads the screen) must use hardware scroll or a small routine copied
+      to RAM that switches the ROM off around the copy; writes (glyphs, Cls) are fine. The
+      #38 interrupt handler is in RAM and calls nothing - normal mode unaffected. On cpcfw
+      the firmware switches upper ROMs during its calls, so the call wrapper must be in RAM
+      and select the NTC ROM again. Test: cpcrun.py needs the gate array ROM enable bit, the
+      #DFxx ROM select port and a ROM image in a slot, then the whole regression runs in
+      "library in ROM" mode too. Later: the standard classes (StdIO / System - asm keywords,
+      no storage) in the ROM as well; a cartridge style build (thread in ROM too, only
+      variables in RAM - CPC Plus / GX4000 cartridges)
 - [ ] FUTURE: `Option ClassSize <kilobytes>` - keep a class's code within a size so classes
       can be used as banking units. Accepted, not enforced.
 
@@ -246,16 +426,25 @@ BASIC dialect.
 
 ### Targets
 
-- [ ] build for Z80 under hosts: AMSDOS (CPC, now: no firmware, own platform file), CP/M,
-      ZX Spectrum, then more (the PRIMAL target list is the guide)
+- [x] console on CPC firmware and CP/M (2026-10-11, platforms `cpcfw`, `cpm`)
+- [ ] more hosts: ZX Spectrum, then more (the PRIMAL target list is the guide)
+- [ ] file devices as classes (Disk / RamDisk / Printer / Serial, the standard set
+      MaxFiles / Ready / CanRead / CanWrite / CanSeek; `Open ... As #n` and `Print #n`
+      onto them; handles from `Option Files n`; status, not errors). `Print #n` needs byte
+      text on every platform, glyph platforms included
+- [x] CP/M: `Option Terminal VT52 | ANSI` (2026-10-11) gives Cls / Locate, CanPosition /
+      CanClear / Rows follow it
+- [ ] CP/M: more terminal types (ADM-3A ...) if wanted; Ticks from the CP/M 3 clock where
+      there is one
+- [ ] an If on a constant (StdIO.CanPosition ...) could drop the dead branch instead of
+      jumping over it
 - [ ] `Option CPM`, `Option <target>` ... for target specific things, or loadable drivers /
       libraries (like PRIMAL modules) that applications in this dialect use
-- [ ] host calls (BDOS `call 5`, firmware) need a real stack: a platform keyword can do
-      `ld (ntc_ip), sp / ld sp, (ntc_csp) / call ... / ld sp, (ntc_ip) / ret`, so the
-      thread never sees call / push. Ask Julian: is that OK inside platform keywords for host
-      targets, given the "no firmware" rule?
-- [ ] CP/M: org #0100, page zero is CP/M's, exit with jp 0, console through BDOS (or a
-      terminal driver), files through BDOS FCBs
+- [x] host calls (BDOS `call 5`, firmware) on a real stack: `ntc_fwcall` / `ntc_bdos` switch
+      SP to `ntc_csp` for the call only, the thread never sees call / push (Julian OK'd the
+      firmware / CP/M platforms, 2026-10-11)
+- [x] CP/M: org #0100, page zero is CP/M's, exit with jp 0, console through BDOS
+- [ ] CP/M files through BDOS FCBs (with the file device classes)
 - [ ] Spectrum: ROM at #0000-#3FFF (IM 1 handler is in ROM), screen at #4000 (attribute
       layout, 32x24 text), keyboard ports #xxFE; 128k paging at #C000 only
 
@@ -387,6 +576,13 @@ CP/M compatible (or mostly) system idea - device model, not decided:
 ### Testing
 
 - [ ] test on a real CPC (both modes, Turbo On / Off)
+- [ ] speed: the 16 bit divide (most of `divide` and `factor`), and the call stub (Small C's
+      plain call / ret is as fast as NTC normal) - see NTC.md section 3
+- [ ] ntcrun.py counts 1 T per instruction while stepping to deliver an interrupt (up to
+      2000 steps per 13333 T block, every block in turbo): its `T=` and the test platform's
+      Ticks are too low, turbo most. The z80 module reports no T-states for one step - needs
+      a T-state table (the scratch timing script used for the WinAPE comparison has one,
+      with CPC microsecond timing too)
 - [ ] `asm/ntc_plat_test.asm` is left over from the removed Python harness - delete?
 
 ---

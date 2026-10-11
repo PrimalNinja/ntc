@@ -5,8 +5,10 @@
 The complete language reference for NTC BASIC: a VB5 / VB6 style BASIC that compiles to
 NTC (Native Threaded Code) for the Z80, with the Amstrad CPC as the first target.
 
-Every keyword has its form, what it does, a small example and, where NTC BASIC is not the
-same as VB5 / VB6, a **VB:** line saying what is different. Keywords are grouped by topic.
+The same program builds for several platforms: the Amstrad CPC (straight to the hardware,
+or through its firmware), CP/M, and a test harness. Every keyword has its form, what it
+does, a small example and, where NTC BASIC is not the same as VB5 / VB6, a **VB:** line
+saying what is different. Keywords are grouped by topic.
 An alphabetical index is at the end.
 
 ---
@@ -29,8 +31,9 @@ An alphabetical index is at the end.
 14. [Inline assembly](#14-inline-assembly)
 15. [Diagnostics](#15-diagnostics)
 16. [Compiler directives and options](#16-compiler-directives-and-options)
-17. [Not in NTC BASIC](#17-not-in-ntc-basic)
-18. [Keyword index](#18-keyword-index)
+17. [Platforms and the console classes](#17-platforms-and-the-console-classes)
+18. [Not in NTC BASIC](#18-not-in-ntc-basic)
+19. [Keyword index](#19-keyword-index)
 
 ### How forms are written
 
@@ -53,7 +56,9 @@ In examples, `' prints:` shows what appears on the screen.
 A program is compiled into a **thread**: a list of addresses of small machine code
 routines (keywords), each followed by its arguments. The Z80 stack pointer walks the
 thread, and each keyword ends with `ret`, which jumps straight to the next one. There is
-no interpreter loop, no firmware, and no `call` / `push` in the run time.
+no interpreter loop and no `call` / `push` in the run time. On the CPC hardware platform
+there is no firmware either; on CP/M and the CPC firmware platform, only the console
+routines call the system (see [section 17](#17-platforms-and-the-console-classes)).
 
 What this means when writing BASIC:
 
@@ -61,7 +66,8 @@ What this means when writing BASIC:
   scratch live in RAM.
 - Numbers are whole numbers: `Integer` (16 bit) and `Long` (32 bit). There is no floating
   point.
-- Strings are fixed buffers of up to 40 characters. There is no heap.
+- Strings are fixed buffers: 40 characters unless declared longer or shorter
+  (`String * n`, `String Max n`, up to 255). There is no heap.
 - Procedures can't call themselves (no recursion): each has one set of parameters and
   locals.
 - There is no error trapping. Routines that can fail return a status.
@@ -69,7 +75,8 @@ What this means when writing BASIC:
   at safe points). See [section 13](#13-speed-turbo-and-normal-mode).
 
 A project is one or more `.bas` modules and `.cls` classes. They are compiled together
-into one program.
+into one program, for the platform chosen in the GUI (or `--platform=` on the command
+line).
 
 ---
 
@@ -147,13 +154,15 @@ opened in the GUI; forms are left out.
 | `Long` | 4 bytes | -2147483648 .. 2147483647 | `&` |
 | `Byte` | 2 bytes (1 in an array) | 0 .. 255 (not checked as a variable) | |
 | `Boolean` | 2 bytes | `True` (-1) / `False` (0) | |
-| `String` | 41 bytes | up to 40 characters | `$` |
-| `String * n` | n + 1 bytes | exactly n characters (n = 1 .. 40) | |
+| `String` | 42 bytes | up to 40 characters | `$` |
+| `String Max n` | n + 2 bytes | up to n characters (n = 1 .. 255) | |
+| `String * n` | n + 2 bytes | exactly n characters, padded with spaces (n = 1 .. 255) | |
 | a `Type` | the sum of its fields | see [Type](#type--end-type) | |
 | a class | - | see [section 10](#10-classes) | |
 
 **VB:** no `Single`, `Double`, `Currency`, `Date`, `Variant` or `Object` values. A String
-holds at most 40 characters: anything longer is cut to 40. A Byte variable is 2 bytes and
+holds 40 characters unless declared with `String Max n` or `String * n`: anything longer
+is cut to fit. A Byte variable is 2 bytes and
 keeps whatever is put in it (`y = 300` keeps 300); a Byte array element is 1 byte and keeps
 the low 8 bits.
 
@@ -645,9 +654,26 @@ Print Choose(2, "a", "b", "c")
 
 ## 7. Strings
 
-A String holds up to 40 characters, stored as bytes ending in a 0 byte. Joining or
-assigning more than 40 keeps the first 40. Text on the screen is drawn from the program's
-own font (ZOSCII), not through the firmware.
+A String holds up to 40 characters, stored as bytes ending in a 0 byte. `String Max n`
+and `String * n` give any length from 1 to 255, longer or shorter. Joining or assigning
+more than a string holds keeps what fits. On the CPC hardware platform the program draws text
+itself, with the CPC's own font (copied from the machine's ROM when the program starts); on
+the other platforms the system draws it.
+
+How long strings are:
+
+| Where | Holds |
+|---|---|
+| `Dim s As String` (variables, locals, Type fields, array elements) | 40 |
+| `Dim s As String Max n` / `As String * n` | n (1 .. 255) |
+| parameters, function results, and the working space for joins and functions | the longest string declared anywhere in the program (at least 40) |
+
+So a long value passes through procedures and functions whole, and is only cut when it
+is stored into something shorter. Each string takes its length + 2 bytes (array
+elements: + 1), so a short `String Max n` saves memory: `Dim names(99) As String Max 12`
+takes 1.3 KB instead of 4.1 KB.
+
+**VB:** VB strings grow as needed (no heap here). `String Max n` is NTC BASIC's own.
 
 Functions are written with or without `$`: `Left$` and `Left` are the same.
 
@@ -901,8 +927,9 @@ Print "["; f; "]"
 
 `Dim` *name* `As String *` *n*
 
-A string that is always exactly *n* characters (1 .. 40). It starts as *n* spaces, and every
-assignment or `Input` pads it with spaces or cuts it to *n*.
+A string that is always exactly *n* characters (1 .. 255). It starts as *n* spaces, and
+every assignment or `Input` pads it with spaces or cuts it to *n*. This is VB's fixed-length
+string.
 
 ```
 Dim code As String * 4
@@ -910,6 +937,25 @@ code = "ab"
 Print "["; code; "]"
 ' prints: [ab  ]
 ```
+
+### String Max n
+
+`Dim` *name* `As String Max` *n*
+
+A string of at most *n* characters (1 .. 255), not padded. Use it for text longer than 40
+(a line buffer, a long message) or shorter, to save memory. Works for variables, locals,
+arrays (each element) and Type fields.
+
+```
+Dim lineBuf As String Max 200
+Dim code As String Max 4
+lineBuf = String$(150, "-")
+code = "abcdefg"
+Print Len(lineBuf); ","; code
+' prints: 150,abcd
+```
+
+**VB:** not in VB (VB strings have no limit). `String * n` is VB's fixed-length string.
 
 ### Join
 
@@ -1422,8 +1468,14 @@ copies of its data keeps them itself (in arrays).
 
 ## 11. Screen and keyboard
 
-On the CPC the screen is driven directly (no firmware). The compiled program sets mode 1,
-turns the ROMs off and clears the screen when it starts.
+What the console can do depends on the platform (see
+[section 17](#17-platforms-and-the-console-classes)). On the CPC hardware platform the
+screen is driven directly: the program sets mode 1, turns the ROMs off and clears the screen
+when it starts. On the CPC firmware platform the firmware draws the text and the screen is
+left as it was. On CP/M the console is a stream: text goes out, nothing can be moved back.
+
+The console statements here are the platform's `StdIO` class underneath, and a project
+can supply its own (see [Your own StdIO](#your-own-stdio)).
 
 ### Print
 
@@ -1436,6 +1488,8 @@ Shows numbers and text at the cursor.
 - `;` or `,` at the end: the cursor stays on the line; otherwise a new line follows.
 - `Print` on its own prints a new line.
 - `?` and `Debug.Print` are the same as `Print`.
+- Text that reaches the right edge carries on at the start of the next line. A line exactly
+  as wide as the screen followed by a new line doesn't leave an empty line (as on the CPC).
 
 ```
 Print "a"; 1; "b", 2
@@ -1492,13 +1546,15 @@ Print nm; " is "; age
 
 `Cls`
 
-Clears the screen and puts the cursor at the top left.
+Clears the screen and puts the cursor at the top left. On a stream console (CP/M without
+`Option Terminal`) it starts a new line instead.
 
 ### Locate
 
 `Locate` *column*`,` *row*
 
-Moves the cursor. 1, 1 is the top left.
+Moves the cursor. 1, 1 is the top left. On a stream console (CP/M without
+`Option Terminal`) it does nothing.
 
 ```
 Cls
@@ -1513,7 +1569,8 @@ Print "here"
 
 `Mode` *number*
 
-Sets the CPC screen mode (0 = 20 columns, 1 = 40, 2 = 80) and clears the screen.
+Sets the CPC screen mode (0 = 20 columns, 1 = 40, 2 = 80) and clears the screen. On CP/M it
+does nothing.
 
 ### Inkey, Inkey$
 
@@ -1605,8 +1662,16 @@ For machine code written in the program, `#asm` is easier.
 
 `Ticks` / `Timer`
 
-The interrupt count: 300 a second on a CPC, moving only in normal mode (turbo has no
-interrupts).
+A tick count:
+
+| Platform | Ticks |
+|---|---|
+| CPC hardware | interrupts, 300 a second, moving only in normal mode (turbo has no interrupts) |
+| CPC firmware | the firmware's clock, 300 a second, in both modes |
+| CP/M | always 0 (no clock to share) |
+| test harness | 300 a second of emulated time |
+
+`System.TicksPerSecond` says which: 0 means there is no clock.
 
 ```
 t = Ticks
@@ -1622,7 +1687,8 @@ Print "took "; Ticks - t; " ticks"
 
 Runs a Sub (with no parameters) after interrupts: the interrupt only marks it as due, and
 the program calls it at the next safe point. When it returns, it can run again.
-`Interrupt Off` stops it. Normal mode only.
+`Interrupt Off` stops it. Normal mode only, and only on the CPC hardware platform (it needs
+the program's own interrupt handler; `System.HasHook` says whether it works).
 
 ```
 Dim beats As Integer
@@ -1659,6 +1725,10 @@ The same program runs in two modes:
 | Straight line code | full speed | full speed |
 | Jumps, loops, calls | full speed | a little slower (a safe point at each) |
 | `Ticks`, `Interrupt`, key and frame waits with interrupts | no | yes |
+
+How much slower normal mode is depends on the program: from about 2% (division) to 55%
+(an empty loop); a sieve or a sort 25-40%. `NTC.md` section 3 has the measurements, with
+NTC compared to Small C, BBC BASIC and hand-written Z80.
 
 The compiler knows the mode at every line, and a procedure called from both modes is
 compiled twice.
@@ -1852,7 +1922,31 @@ Every variable in this module must be declared before use.
 ### Option Base, Option Compare, Option VBPrint, Option Turbo
 
 See [Option Base](#option-base), [Option Compare Text](#option-compare-text),
-[Option VBPrint](#option-vbprint), [Option Turbo](#option-turbo).
+[Option VBPrint](#option-vbprint), [Option Turbo](#option-turbo). `Option Terminal` is
+below.
+
+### Option Terminal
+
+`Option Terminal` { `VT52` | `ANSI` | `None` }
+
+CP/M only. Tells the program which codes the terminal understands, so `Cls` clears and
+`Locate` moves the cursor:
+
+- `VT52`: Amstrad CP/M on the CPC and PCW, and many other machines (`ESC E`, `ESC Y`);
+- `ANSI`: most CP/M emulators and modern terminals (`ESC [2J`, `ESC [row;colH`);
+- `None` (the default): a stream - `Cls` starts a new line, `Locate` does nothing.
+
+With a terminal set, `StdIO.CanPosition` and `StdIO.CanClear` are True and `StdIO.Rows` is
+24. On other platforms it gives a warning and does nothing.
+
+```
+Option Terminal VT52
+Cls
+Locate 10, 3
+Print "here"
+```
+
+**VB:** not in VB.
 
 ### Option ClassSize
 
@@ -1883,7 +1977,6 @@ Compiles one part and skips the others. Useful to keep VB and NTC versions of a 
 one file.
 
 ```
-#Const NTC = 1
 #If NTC Then
   Print "built by NTC BASIC"
 #Else
@@ -1891,9 +1984,142 @@ one file.
 #End If
 ```
 
+NTC BASIC defines two constants itself: `NTC`, and `NTC_` plus the platform name
+(`NTC_CPC`, `NTC_CPCFW`, `NTC_CPM`, `NTC_TEST`). With `Option Terminal` it also defines
+`NTC_TERM_VT52` or `NTC_TERM_ANSI`, and `NTC_TERM_POS`. VB doesn't have them, so in VB they
+are 0 and the `#Else` part is used.
+
+```
+#If NTC_CPM Then
+  Print "running under CP/M"
+#End If
+```
+
 ---
 
-## 17. Not in NTC BASIC
+## 17. Platforms and the console classes
+
+### Platforms
+
+| Platform | Name | Program | Text | Console |
+|---|---|---|---|---|
+| Amstrad CPC, hardware | `cpc` | a binary at `#0040` (`RUN"name` from AMSDOS), ROMs off, own interrupt handler | drawn by the program, with the CPC's own font (copied from the ROM at start) | full screen, keys from the matrix |
+| Amstrad CPC, firmware | `cpcfw` | a binary at `#0040` (`RUN"name`), firmware left running (AMSDOS, RSXs, windows) | firmware `TXT OUTPUT` | full screen, firmware keys |
+| CP/M 2.2 / 3 | `cpm` | a `.COM` file at `#0100`, ends with a warm boot | BDOS direct console I/O | a stream, or 80 x 24 with [Option Terminal](#option-terminal) |
+| Test harness | `test` | for the emulator in `test/ntcrun.py` | I/O ports | 40 x 25, like CPC mode 1 |
+
+The BASIC is the same on all of them. What changes is the start-up, the console and what
+the `StdIO` and `System` classes report.
+
+On the firmware and CP/M platforms, console calls go to the system on the real stack with
+interrupts on during the call (the system scans keys on interrupts). The thread itself still
+never uses `call` or `push`. In turbo mode on these platforms, interrupts get in only during
+those calls.
+
+### StdIO
+
+The console as a class. It is part of the platform: name `StdIO` in a program and the
+platform's own `StdIO.cls` joins the project. Every method body is `#asm` only, so each call
+is a keyword with no procedure overhead, and the methods use the same routines as `Print`,
+`Input` and the other console statements, so the two can be mixed.
+
+| Member | What it does |
+|---|---|
+| `PutStr s` | print text, no new line |
+| `PutChar c` | print one character by code (13 = a new line) |
+| `PutInt n` | print an Integer |
+| `NewLine` | new line |
+| `Tab col` | spaces up to a column, like `Tab` in `Print` |
+| `GetLine s` | read a typed line into a String (like `Input`) |
+| `GetChar()` | wait for a key, give its code |
+| `GetKey()` | the key pressed, or 0 (like `Inkey`) |
+| `Cls`, `Locate x, y`, `Mode m` | as the statements |
+| `Cols()` | text columns now |
+| `Column()`, `Row()` | the cursor, 1 based |
+
+Constants (what this console can do):
+
+| Constant | cpc | cpcfw | cpm | test |
+|---|---|---|---|---|
+| `CanPosition` - `Locate` works | True | True | False* | True |
+| `CanClear` - `Cls` clears | True | True | False* | True |
+| `CanInput` - there is a keyboard | True | True | True | True |
+| `CanPoll` - `GetKey` doesn't wait | True | True | True | True |
+| `CanColour` - pen / paper | False | False | False | False |
+| `Glyphs` - the program draws the text itself (ZOSCII glyphs) | True | False | False | False |
+| `Rows` - text rows, 0 = a stream | 25 | 25 | 0* | 25 |
+
+\* With `Option Terminal VT52` or `ANSI`: True, True and 24.
+
+```
+If StdIO.CanPosition Then
+  Locate 1, StdIO.Rows : Print "Score: "; score;
+Else
+  Print "Score: "; score
+End If
+```
+
+The constants are worked out when compiling, so a test like this costs at most one jump.
+
+### System
+
+What the machine is. The same members on every platform; 0 / False means "not here".
+
+| Member | cpc | cpcfw | cpm | test |
+|---|---|---|---|---|
+| `Platform` | "CPC" | "CPC firmware" | "CP/M" | "Test" |
+| `CpuClock` (kHz, 0 = not known) | 4000 | 4000 | 0 | 4000 |
+| `TicksPerSecond` (0 = no clock) | 300 | 300 | 0 | 300 |
+| `FrameRate` (0 = not known) | 50 | 50 | 0 | 0 |
+| `HasInterrupts` (normal mode lets interrupts in) | True | True | True | True |
+| `HasHook` (the `Interrupt` statement) | True | False | False | False |
+| `HasScreen` (rows and columns, not a stream) | True | True | False* | True |
+| `HasKeyboard` | True | True | True | True |
+| `MaxHandles` (file handles) | 0 | 0 | 0 | 0 |
+| `Ticks()` | the tick count, the same as `Ticks` | | | |
+
+```
+Print "running on "; System.Platform
+If System.TicksPerSecond = 0 Then Print "(no clock here)"
+```
+
+### Your own StdIO
+
+A project can have its own `StdIO.cls`. It then replaces the platform's, and the console
+statements in the rest of the project call its methods:
+
+| Statement | Calls |
+|---|---|
+| `Print` | `PutStr` for text and numbers, `Tab` for `Tab(n)`, `NewLine` at the end |
+| `Input` | `PutStr` for the prompt, `GetLine` for each variable (numbers are read with `Val`) |
+| `Inkey` / `Inkey$` | `GetKey` (`Inkey$` gives `Chr$` of it, "" for 0) |
+| `Cls`, `Locate`, `Mode` | `Cls`, `Locate`, `Mode` |
+
+Only the methods a program uses need to exist; a missing one is a compile error that names
+it. Inside `StdIO` itself the statements are the built-in ones, so a class can add to the
+standard console:
+
+```
+' StdIO.cls - every line printed is counted, and text goes out in capitals
+Public Lines As Integer
+
+Public Sub PutStr(ByVal s As String)
+  Print UCase$(s);
+End Sub
+
+Public Sub NewLine()
+  Print
+  Lines = Lines + 1
+End Sub
+```
+
+The platform classes are in `lib/<platform>/` (`StdIO.cls`, `System.cls`): copy one into
+a project to start your own. `Option VBPrint` spacing is not applied through your own
+`StdIO`.
+
+---
+
+## 18. Not in NTC BASIC
 
 These VB5 / VB6 features are not supported. Each was left out on purpose (no heap, no
 floating point, SP as the thread), or is planned as a library rather than a language
@@ -1911,23 +2137,24 @@ change.
 | collections, `For Each` over objects | arrays only |
 | forms, controls, `MsgBox`, `InputBox` | screen and keyboard statements instead |
 | file I/O (`Open`, `Print #`, `Get`, `Put`...) | planned as libraries |
-| graphics, sound | planned as libraries |
+| graphics, sound | planned as libraries / platform classes |
 | date and time functions, `Format$` dates | no |
 | `ReDim` with bounds from variables | constant bounds only |
 | array parameters of 3+ dimensions | 1 or 2 dimensions |
-| strings longer than 40 characters | cut to 40 |
+| strings that grow as needed | fixed lengths: 40, or `String * n` / `String Max n` up to 255 |
 | `Line Input` | `Input` into a String |
 | overflow and subscript checks | none: numbers wrap, indexes are not checked |
 
 ---
 
-## 18. Keyword index
+## 19. Keyword index
 
 | Keyword | Section |
 |---|---|
 | `#asm`, `#endasm` | [14](#asm--endasm) |
 | `#Const` | [16](#const-1) |
 | `#If`, `#ElseIf`, `#Else`, `#End If` | [16](#if--end-if) |
+| `NTC`, `NTC_CPC`, `NTC_CPCFW`, `NTC_CPM`, `NTC_TEST` | [16](#if--end-if) |
 | `&` | [7](#join-strings) |
 | `+ - *` | [5](#add-subtract-multiply) |
 | `/`, `\` | [5](#divide) |
@@ -2003,6 +2230,7 @@ change.
 | `Option ClassSize` | [16](#option-classsize) |
 | `Option Compare Text` | [6](#option-compare-text) |
 | `Option Explicit` | [16](#option-explicit) |
+| `Option Terminal` | [16](#option-terminal) |
 | `Option Turbo` | [13](#option-turbo) |
 | `Option VBPrint` | [11](#option-vbprint) |
 | `Or` | [6](#and-or-xor-not) |
@@ -2027,13 +2255,16 @@ change.
 | `Split` | [7](#split) |
 | `Sqr` | [5](#sqr) |
 | `Static` | [3](#static) |
+| `StdIO` | [17](#stdio) |
 | `Stop` | [8](#end-stop) |
 | `Str$` | [7](#str-cstr) |
 | `StrComp` | [7](#strcomp) |
 | `String$` | [7](#space-spc-string) |
 | `String * n` | [7](#string--n) |
+| `String Max n` | [7](#string-max-n) |
 | `StrReverse` | [7](#strreverse) |
 | `Sub` | [9](#sub--end-sub) |
+| `System` | [17](#system) |
 | `Tab` | [11](#tab-spc) |
 | `Ticks`, `Timer` | [12](#ticks-timer) |
 | `Trim$` | [7](#trim-ltrim-rtrim) |
