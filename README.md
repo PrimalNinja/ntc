@@ -249,7 +249,7 @@ Files (ES5, no node, no Python):
 | `asm/ntc_plat_cpcfw.asm` | CPC platform through the firmware (text, keys, mode, clock) |
 | `asm/ntc_plat_cpm.asm` | CP/M platform (BDOS console, own stack, warm boot) |
 | `asm/ntc_plat_test.asm` | test harness platform (console through I/O ports, for `test/ntcrun.py`) |
-| `lib/<platform>/*.cls` | the platform classes: `StdIO.cls` (console), `System.cls` (what the machine is) |
+| `lib/<platform>/*.cls` | the platform classes: `StdIO.cls` (console), `System.cls` (what the machine is), `FileSystem.cls` (files) |
 | `../docs/userguide.md` | Language reference: every keyword by topic, with an example and its VB5 / VB6 differences |
 | `build/` | Test builds: every program in `bas/` compiled for every platform (`.ASM`), and `build.bat` to assemble them all with sjasmplus on Windows / MS-DOS (CPC: AMSDOS `.BIN` files, CP/M: `.COM`) |
 | `compare/smallc/` | The sieve (`bas/sievetime.bas`) in Small C, as Z80 source, for timing NTC against a classic Z80 C compiler (results in its README) |
@@ -353,7 +353,8 @@ library links against (listed at the top of `ntc_lib.asm`):
   top of the program; `ntc_plat_cpm.asm` assembles Cls / Locate for that terminal with
   sjasmplus `IF`. It also predefines `NTC_TERM_VT52` / `NTC_TERM_ANSI` and `NTC_TERM_POS`,
   which `lib/cpm/StdIO.cls` uses for CanPosition / CanClear / Rows.
-- The platform's classes join a project when its source names them (`StdIO`, `System`) and
+- The platform's classes join a project when its source names them (`StdIO`, `System`,
+  `FileSystem`) and
   the project has no class of that name. A project's own `StdIO.cls` replaces the
   platform's, and then `Print`, `Input`, `Inkey`, `Inkey$`, `Cls`, `Locate` and `Mode`
   compile to calls of its methods (`PutStr`, `NewLine`, `Tab`, `GetLine`, `GetKey`, `Cls`,
@@ -457,6 +458,12 @@ variables, `Declare`.
   stored and passed around; `CallAddr x [, args]` calls it (driver / device tables). The
   arguments go by address and must match the procedure's parameters - the compiler can't
   check that. `AddressOf` gives the call stub for the turbo mode at that line.
+- `Option Reserve start, size [, start, size] ...`: memory the program must stay out of
+  (a load area, a screen, firmware RAM). The compiler writes one sjasmplus `ASSERT` per range
+  after `ntc_end`, so the assembly stops (naming the range and the source line) if
+  `ntc_start .. ntc_end` overlaps it. The program is not laid out around a range (yet).
+- `VarPtr(name)`: the address of a variable's value or a fixed size array's first element
+  (a read only word, like `AddressOf`), for `FileSystem.Load` / `Save` and `#asm`.
 
 Not supported: recursion (also not found through `CallAddr`), `ParamArray`, 3+ dimension
 array parameters.
@@ -540,6 +547,20 @@ CanInput, CanPoll, CanColour, Glyphs, Rows) and `System` (Platform, CpuClock,
 TicksPerSecond, FrameRate, HasInterrupts, HasHook, HasScreen, HasKeyboard, MaxHandles,
 Ticks) come with each platform; a project's own `StdIO.cls` takes over the console
 statements. `Option Terminal VT52 | ANSI` for CP/M. Details in `userguide.md` section 17.
+
+**FileSystem.** The same methods on every platform (Load, Save, Delete, Exists, Rename,
+Size, Open, Close, ReadByte, WriteByte, Read, Write, Seek, Eof, ReadLine, WriteLine); what a
+platform can do comes from `FileSystem.Capability("NAME")` - one function for every
+capability, PRIMAL's `SysPropertyPC` idea: the value (True / a number), or 0 when the
+platform hasn't got it (`LOAD`, `SAVE`, `SEQUENTIAL`, `RANDOMACCESS`, `DELETE`, `RENAME`,
+`EXISTS`, `SIZE`, `MULTIPLE`, `MAXOPEN`, `RECORDSIZE`). A method the platform can't do
+returns `NotSupported` (-1); every result below 0 is a status. CP/M: everything, through
+BDOS FCBs and random records (`ntc_plat_cpm.asm`, section `ntc_plat_fs`: two handles plus
+a slot for the whole-file calls, 170 bytes each). CPC firmware: Load / Save through the
+cassette calls (CAS IN / OUT DIRECT: disc with AMSDOS, else tape). CPC hardware and test:
+none yet. The file routines run on the real stack with interrupts on (`fs_go`), like the
+other host calls; `ntc_capfind` (in `ntc_lib.asm`) searches a class's capability table and
+leaves Z set when found. Details in `userguide.md` section 17.
 
 **Warnings.** Not errors - the program still builds. Now: a Function called as a statement
 ("the result of F is not used") - with no error handling, an unchecked status is worth
@@ -708,8 +729,11 @@ same way as `cpcrun.py` prints the CPC screen (so the same `ref/` files fit):
 - `cpcfw`: the firmware jumpblock entries the platform uses (`TXT OUTPUT`, `TXT SET CURSOR`,
   `TXT CLEAR WINDOW`, `SCR SET MODE`, `KM WAIT CHAR`, `KM READ CHAR`, `MC WAIT FLYBACK`,
   `KL TIME PLEASE`) are small stubs that hand over to the harness
-- `cpm`: program at #0100, BDOS (`call 5`) trapped (functions 2, 6, 9, 11), the warm boot
-  at #0000 ends the run, 80 x 24; VT52 and ANSI clear / cursor codes are understood
+- `cpm`: program at #0100, BDOS (`call 5`) trapped (functions 2, 6, 9, 11, and the file
+  calls 15, 16, 19, 22, 23, 26, 33, 34, 35), the warm boot at #0000 ends the run, 80 x 24;
+  VT52 and ANSI clear / cursor codes are understood
+- files (`FileSystem` on cpm and cpcfw, the CAS IN / OUT calls on cpcfw) are real files in
+  `test/t/files` (or `$NTC_FILES`)
 
 These are much faster than the CPC emulation (no screen to read back from video RAM).
 

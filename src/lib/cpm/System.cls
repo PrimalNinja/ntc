@@ -13,7 +13,7 @@ Public Const HasScreen = True            ' a screen with rows and columns (Optio
 Public Const HasScreen = False           ' a screen with rows and columns (not a stream)
 #End If
 Public Const HasKeyboard = True
-Public Const MaxHandles = 0             ' file handles (no file devices yet)
+Public Const MaxHandles = 2             ' file handles (FileSystem.Open)
 
 ' the tick count (the same as Ticks)
 Public Function Ticks() As Integer

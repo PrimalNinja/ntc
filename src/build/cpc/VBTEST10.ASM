@@ -2739,6 +2739,10 @@ ntc_lpow10:		dd 1000000000, 100000000, 10000000, 1000000, 100000, 10000, 1000, 1
 ; glyph for char c = ntc_font + (c - 32) * 8
 ntc_font:		ds 95 * 8
 
+; ============================================================
+; Platform class capabilities
+; ============================================================
+
 ;## ntc_plat_data
 ntc_curx:		db 0			; cursor column (0 based)
 ntc_cury:		db 0			; cursor row (0 based)

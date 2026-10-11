@@ -32,6 +32,7 @@ function ntcCompile(input_a, objOptions_a)
 	var objOwnClass = {};
 	var objDefinesIn = {};		// predefined #Const values: NTC and NTC_<platform>
 	var intStrMax = 40;			// the longest string in the program (findStrMax)
+	var arrReserve = [];		// Option Reserve: { start, size, file, line }
 	var strTerminal = 'none';	// Option Terminal (CP/M): none, vt52, ansi		// platform class names the project replaces with its own
 	var objOptions = {
 		org: null,				// null = the platform's (;@org)
@@ -3394,6 +3395,38 @@ function ntcCompile(input_a, objOptions_a)
 		return vr(strLabel);
 	}
 
+	// VarPtr(name): a read only word holding the address of a variable (its value; a
+	// String: its first character) or of a fixed size array's first element
+	function varPtr(strName_a)
+	{
+		var objElement = resolve(strName_a, false, false);
+		var strTarget = '';
+		var strLabel = '';
+
+		if ((objElement !== null) && (objElement.etype === 'array') && !isDescArray(objElement) && !objElement.udt)
+		{
+			strTarget = arrayLabel(objElement);
+		}
+		else if ((objElement !== null) && ((objElement.etype === 'var') || (objElement.etype === 'param') || (objElement.etype === 'result')) && !objElement.udt)
+		{
+			strTarget = varLabel(objElement);
+		}
+		else
+		{
+			error('VarPtr needs a variable or a fixed size array: ' + strName_a);
+			return lit(0);
+		}
+		noteWrite(objElement);		// memory behind it may be written (Load, #asm)
+		strLabel = 'vp_' + strTarget;
+		if (objLits[strLabel] === undefined)
+		{
+			objLits[strLabel] = strTarget;
+			arrLits.push(strLabel);
+		}
+
+		return vr(strLabel);
+	}
+
 	// a name on its own in an expression
 	function operand(strToken_a, arrStack_a, intBase_a)
 	{
@@ -3440,6 +3473,10 @@ function ntcCompile(input_a, objOptions_a)
 		if ((objElement === null) && /^__addressof_/i.test(strToken_a))
 		{
 			return addressOf(strToken_a.substr(12).replace(/__dot__/gi, '.'));
+		}
+		if ((objElement === null) && /^__varptr_/i.test(strToken_a))
+		{
+			return varPtr(strToken_a.substr(9).replace(/__dot__/gi, '.'));
 		}
 		if ((objElement === null) && ((strUpper === 'INKEY$') || (strUpper === 'INKEY')) && consoleVia())
 		{
@@ -3544,6 +3581,10 @@ function ntcCompile(input_a, objOptions_a)
 		var strExpr = trim(strExpr_a).replace(/\baddressof\s+([a-z_][\w.]*)/gi, function(strAll_a, strName_a)
 		{
 			return '__addressof_' + strName_a.replace(/\./g, '__dot__');
+		}).replace(/\bvarptr\s*\(\s*([a-z_][\w.]*[$%&]?)\s*\)/gi, function(strAll_a, strName_a)
+		{
+			// VarPtr(name) -> one operand token
+			return '__varptr_' + strName_a.replace(/\$/g, '').replace(/\./g, '__dot__');
 		});
 		var strPostfix = IFtoPF(rewriteFields(strExpr), []);
 
@@ -6894,6 +6935,42 @@ function ntcCompile(input_a, objOptions_a)
 
 	// Option Terminal VT52 | ANSI | None (read before parsing: the platform classes
 	// depend on it through #If NTC_TERM_POS)
+	// Option Reserve start, size [, start, size] ...: memory the program must not reach
+	// into (a screen, a load buffer, firmware RAM). Checked when assembling (ASSERT)
+	function readReserve(objRec_a)
+	{
+		var arrParts = String(objRec_a.value).split(',').map(trim);
+		var intI = 0;
+		var intStart = 0;
+		var intSize = 0;
+
+		if ((arrParts.length < 2) || ((arrParts.length % 2) !== 0))
+		{
+			arrErrors.push({ file: objRec_a.file, line: objRec_a.line, msg: 'Option Reserve needs pairs: start, size [, start, size] ...' });
+			return;
+		}
+		for (intI = 0; intI < arrParts.length; intI += 2)
+		{
+			intStart = parseNumber(arrParts[intI]);
+			intSize = parseNumber(arrParts[intI + 1]);
+			if (isNaN(intStart) || isNaN(intSize) || (intStart < 0) || (intStart > 65535) || (intSize < 1) || (intStart + intSize > 65536))
+			{
+				arrErrors.push({ file: objRec_a.file, line: objRec_a.line, msg: 'Option Reserve: bad range ' + arrParts[intI] + ', ' + arrParts[intI + 1] + ' (numbers: start 0-&HFFFF, size 1 or more, not past &HFFFF)' });
+				continue;
+			}
+			if ((objOptions.platform === 'cpc') && (intStart < 0xC100) && (intStart + intSize > 0xC000))
+			{
+				arrWarnings.push({ file: objRec_a.file, line: objRec_a.line, msg: 'Option Reserve covers #C000: the cpc platform puts its font copy code at #C000 for a moment when the screen is first used - load into that area only after the first Print / Cls / Mode' });
+			}
+			arrReserve.push({ start: intStart, size: intSize, file: objRec_a.file, line: objRec_a.line });
+		}
+	}
+
+	function hex4(int_a)
+	{
+		return '#' + ('0000' + int_a.toString(16).toUpperCase()).slice(-4);
+	}
+
 	function findTerminal(arrFiles_a)
 	{
 		var strResult = 'none';
@@ -7177,6 +7254,10 @@ function ntcCompile(input_a, objOptions_a)
 			else if (objRec.what === 'base')
 			{
 				objBase[objRec.module] = objRec.value;
+			}
+			else if (objRec.what === 'reserve')
+			{
+				readReserve(objRec);
 			}
 		}
 		if (objRec.k === 'proc')
@@ -7845,6 +7926,16 @@ function ntcCompile(input_a, objOptions_a)
 
 	arrAsm.push('');
 	arrAsm.push('ntc_end:\t\t\t\t; the end of the program');
+	if (arrReserve.length > 0)
+	{
+		arrAsm.push('; Option Reserve: the program (ntc_start .. ntc_end) must stay out of these');
+		arrReserve.forEach(function(objRes_a)
+		{
+			var strEnd = hex4(objRes_a.start + objRes_a.size - 1);
+
+			arrAsm.push(strIndent + 'ASSERT (ntc_end <= ' + objRes_a.start + ') || (ntc_start >= ' + (objRes_a.start + objRes_a.size) + '), "the program reaches into Option Reserve ' + hex4(objRes_a.start) + '-' + strEnd + ' (' + objRes_a.file + ' line ' + objRes_a.line + ')"');
+		});
+	}
 	if (String(objOptions.amsdos || '').length > 0)
 	{
 		// an AMSDOS file (128 byte header): RUN"name loads it at the org and starts it

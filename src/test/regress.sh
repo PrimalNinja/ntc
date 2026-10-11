@@ -76,6 +76,18 @@ for f in term_vt52 term_ansi; do	# CP/M Option Terminal
   cp $f.bas t/; o=$(timeout 100 python3 ntcrun.py t/$f.bas '' --platform=cpm 2>&1 | grep -v "^--- ")
   if [ "$o" == "$(cat ref/$f.txt)" ]; then echo "ok   $f cpm"; else echo "FAIL $f cpm"; fail=1; fi
 done
+# FileSystem: CP/M (BDOS files), CPC firmware (Load / Save), no files (test, cpc); both modes
+for m in --turbo ""; do
+  for c in "fs_cpm cpm" "fs_fw cpcfw" "fs_none test" "fs_none cpc"; do
+    set -- $c; rm -rf t/files; cp $1.bas t/
+    o=$(timeout 100 python3 ntcrun.py t/$1.bas '' --platform=$2 $m 2>&1 | grep -v "^--- ")
+    if [ "$o" == "$(cat ref/$1.txt)" ]; then echo "ok   $1 $2 ${m:-normal}"; else echo "FAIL $1 $2 ${m:-normal}"; echo "$o" | head -5; fail=1; fi
+  done
+  for pl in cpm cpcfw test; do
+    rm -rf t/files; cp $P/files.bas t/ex/
+    check "files $pl ${m:-normal}" "Press a key" "$(timeout 100 python3 ntcrun.py t/ex/files.bas 'x' --platform=$pl $m 2>&1)"
+  done
+done
 mkdir -p t/via; cp via/* t/via/; o=$(timeout 100 python3 ntcrun.py t/via/Main.bas 'Bo\n7\n' t/via/StdIO.cls --platform=test 2>&1 | grep -v "^--- ")
 if [ "$o" == "$(cat ref/via.txt)" ]; then echo "ok   own StdIO"; else echo "FAIL own StdIO"; fail=1; fi
 # build/: regenerate, then check every file assembles the way build.bat does it
@@ -93,6 +105,11 @@ for p in cpc cpcfw cpm test; do
   [ $(ls t/bc/$p/*.$x 2>/dev/null | wc -l) == $(ls t/bc/$p/*.ASM | wc -l) ] || { echo "FAIL build $p: not every file written"; b=1; }
 done
 if [ $b == 0 ]; then echo "ok   build/ ($n files assemble)"; else echo "FAIL build/"; fail=1; fi
+# Option Reserve: a range the program stays out of assembles, one it reaches into stops the assembly
+printf 'Option Reserve &HC000, &H4000\nPrint 1\n' > t/res1.bas; printf 'Option Reserve &H0200, &H100\nPrint 1\n' > t/res2.bas
+node cli.js t/res1.bas --platform=cpm > t/res1.asm && (cd t && $SJ --nologo --msg=err --raw=res1.com res1.asm > /dev/null) && r1=ok || r1=bad
+node cli.js t/res2.bas --platform=cpm > t/res2.asm && (cd t && $SJ --nologo --msg=err --raw=res2.com res2.asm 2>&1 | grep -q "Option Reserve #0200-#02FF") && r2=ok || r2=bad
+if [ $r1 == ok ] && [ $r2 == ok ]; then echo "ok   Option Reserve"; else echo "FAIL Option Reserve ($r1 $r2)"; fail=1; fi
 # the Small C sieve (compare/smallc) runs on the CP/M host and finds 1007 primes
 o=$(timeout 200 python3 -c "import ntcrun; h = ntcrun.Host('cpm', open('t/bc/cpm/SIEVEC.COM', 'rb').read(), 0x100, 'xx'); h.run(); print(h.scr.text()); print('--- halted' if h.m.halted else '--- NOT halted')" 2>&1)
 check "Small C sieve cpm" "^01007" "$o"

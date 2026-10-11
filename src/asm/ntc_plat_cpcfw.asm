@@ -242,3 +242,135 @@ ntc_plat_ticks:
 ;## ntc_plat_exit ntc_plat_data
 ntc_plat_exit:
 			jp (ix)
+
+; ============================================================
+; File system (FileSystem class) - Load / Save through the firmware's
+; cassette calls (CAS IN / CAS OUT DIRECT). With AMSDOS present they
+; go to the disc (the drive that is selected), else to tape, exactly
+; as BASIC's LOAD / SAVE do - with the firmware's own messages
+; ("Press PLAY then any key", disc errors and Retry / Cancel).
+; ============================================================
+; The methods are keywords: arguments into fs_a1 .. fs_a3, the
+; result's address into fs_res, then fs_go with HL = the routine.
+; fs_go runs it on the real stack with interrupts on and stores its
+; HL result; a routine that fails jumps to fs_err with HL = status.
+
+FS_NOTFOUND	equ -2
+FS_TOOBIG	equ -8
+FS_FAILED	equ -9
+FS_BADNAME	equ -4
+
+;## ntc_plat_fs ntc_data @shared
+fs_a1:			dw 0
+fs_a2:			dw 0
+fs_a3:			dw 0
+fs_res:			dw 0
+fs_sp:			dw 0
+fs_esp:			dw 0
+fs_six:			dw 0
+fs_siy:			dw 0
+fs_len:			dw 0
+fs_buf:			ds 2048			; the 2K buffer CAS IN OPEN / CAS OUT OPEN want
+
+fs_go:
+			ld (fs_sp), sp
+			ld sp, (ntc_csp)
+			ld (fs_six), ix
+			ld (fs_siy), iy
+			ei
+			ld (fs_esp), sp
+			call fs_jphl
+fs_back:
+			di
+			ld ix, (fs_six)
+			ld iy, (fs_siy)
+			ex de, hl
+			ld hl, (fs_res)
+			ld (hl), e
+			inc hl
+			ld (hl), d
+			ld sp, (fs_sp)
+			ret
+fs_jphl:
+			jp (hl)
+fs_err:
+			ld sp, (fs_esp)
+			jr fs_back
+
+; fs_name - B = length of the name at (fs_a1), HL = the name; an empty or too long name goes to fs_err
+fs_name:
+			ld hl, (fs_a1)
+			ld b, 0
+fs_nm_lp:
+			ld a, (hl)
+			or a
+			jr z, fs_nm_end
+			inc hl
+			inc b
+			ld a, b
+			cp 17
+			jr c, fs_nm_lp
+fs_nm_bad:
+			ld hl, FS_BADNAME
+			jp fs_err
+fs_nm_end:
+			ld a, b
+			or a
+			jr z, fs_nm_bad
+			ld hl, (fs_a1)
+			ret
+
+; Load(name, addr, maxlen): bytes loaded (the file's length), or a status.
+; A file longer than maxlen is not loaded: FS_TOOBIG
+fs_load:
+			call fs_name
+			ld de, fs_buf
+			call #BC77			; CAS IN OPEN: BC = length, carry = ok
+			jr c, fs_ld_open
+			ld hl, FS_NOTFOUND
+			jp fs_err
+fs_ld_open:
+			ld (fs_len), bc
+			ld hl, (fs_a3)
+			or a
+			sbc hl, bc
+			jr nc, fs_ld_fits
+			call #BC7D			; CAS IN ABANDON
+			ld hl, FS_TOOBIG
+			jp fs_err
+fs_ld_fits:
+			ld hl, (fs_a2)
+			call #BC83			; CAS IN DIRECT
+			jr c, fs_ld_read
+			call #BC7D
+			ld hl, FS_FAILED
+			jp fs_err
+fs_ld_read:
+			call #BC7A			; CAS IN CLOSE
+			ld hl, (fs_len)
+			ret
+
+; Save(name, addr, len): a binary file (type 2, BASIC can LOAD it back). 0 or a status
+fs_save:
+			call fs_name
+			ld de, fs_buf
+			call #BC8C			; CAS OUT OPEN
+			jr c, fs_sv_open
+			ld hl, FS_FAILED
+			jp fs_err
+fs_sv_open:
+			ld hl, (fs_a2)
+			ld de, (fs_a3)
+			ld bc, 0			; entry address: none
+			ld a, 2				; binary
+			call #BC98			; CAS OUT DIRECT
+			jr c, fs_sv_done
+			call #BC92			; CAS OUT ABANDON
+			ld hl, FS_FAILED
+			jp fs_err
+fs_sv_done:
+			call #BC8F			; CAS OUT CLOSE
+			ld hl, 0
+			ret c
+			ld hl, FS_FAILED
+			ret

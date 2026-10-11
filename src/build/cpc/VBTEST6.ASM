@@ -1610,6 +1610,10 @@ ntc_ldv_back:
 ; glyph for char c = ntc_font + (c - 32) * 8
 ntc_font:		ds 95 * 8
 
+; ============================================================
+; Platform class capabilities
+; ============================================================
+
 ;## ntc_plat_data
 ntc_curx:		db 0			; cursor column (0 based)
 ntc_cury:		db 0			; cursor row (0 based)

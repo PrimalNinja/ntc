@@ -16,6 +16,7 @@ var arrPrograms = [
 	{ name: 'SIEVE', files: ['sieve.bas'] },
 	{ name: 'SHELSORT', files: ['shellsort.bas'] },
 	{ name: 'SIEVETIM', files: ['sievetime.bas'] },
+	{ name: 'FILES', files: ['files.bas'] },
 	{ name: 'NUMBERED', files: ['numbered.bas'] },
 	{ name: 'NTCTEST', files: ['ntc_test.bas'] },
 	{ name: 'VBTEST', files: ['vb_test.bas'] },

@@ -5403,3 +5403,69 @@ kw_l_aset:
 ; lower ROM (#3900), so text looks like the CPC's.
 ; glyph for char c = ntc_font + (c - 32) * 8
 ntc_font:		ds 95 * 8
+
+; ============================================================
+; Platform class capabilities
+; ============================================================
+
+;## ntc_capfind ntc_data
+; ntc_capfind - the body of a class's Capability(name) keyword.
+;   HL = the name asked for (0 ended), DE = the result's address,
+;   BC = the class's table: name (capitals, 0 ended), dw value, ..., db 0.
+; The name is matched without regard to case. Found: the value, Z set (true).
+; Not found: 0, NZ. Runs on the thread: no call, no push.
+ntc_capfind:
+			ld (ntc_capres), de
+			ld (ntc_capname), hl
+ntc_cf_entry:
+			ld a, (bc)
+			or a
+			jr z, ntc_cf_none
+			ld hl, (ntc_capname)
+ntc_cf_cmp:
+			ld a, (hl)
+			cp 'a'
+			jr c, ntc_cf_up
+			cp 'z' + 1
+			jr nc, ntc_cf_up
+			sub 32
+ntc_cf_up:
+			ld e, a
+			ld a, (bc)
+			cp e
+			jr nz, ntc_cf_skip
+			or a
+			jr z, ntc_cf_found
+			inc hl
+			inc bc
+			jr ntc_cf_cmp
+ntc_cf_skip:
+			ld a, (bc)			; the rest of this name, its 0 and its value
+			inc bc
+			or a
+			jr nz, ntc_cf_skip
+			inc bc
+			inc bc
+			jr ntc_cf_entry
+ntc_cf_found:
+			inc bc
+			ld a, (bc)
+			ld e, a
+			inc bc
+			ld a, (bc)
+			ld d, a
+			ld hl, (ntc_capres)
+			ld (hl), e
+			inc hl
+			ld (hl), d
+			xor a				; Z: found
+			ret
+ntc_cf_none:
+			ld hl, (ntc_capres)
+			ld (hl), a
+			inc hl
+			ld (hl), a
+			inc a				; NZ: not found
+			ret
+ntc_capres:		dw 0
+ntc_capname:	dw 0

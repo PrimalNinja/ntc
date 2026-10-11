@@ -49,6 +49,7 @@ var arrExamples = [
 	{ name: 'VB self test 12 (string lengths: String * n, String Max n)', files: ['vb_test12.bas'] },
 	{ name: 'Class project (2 files)', files: ['class_demo/Main.bas', 'class_demo/Counter.cls'] },
 	{ name: 'Console classes: StdIO, System (try each platform)', files: ['console_classes.bas'] },
+	{ name: 'Files: FileSystem class (try CP/M and CPC firmware)', files: ['files.bas'] },
 	{ name: 'Your own StdIO (2 files)', files: ['own_stdio/Main.bas', 'own_stdio/StdIO.cls'] },
 	{ name: 'Shell sort - turbo at run time', files: ['shellsort.bas'] },
 	{ name: 'Sieve timing - turbo / normal (compare with Small C)', files: ['sievetime.bas'] },

@@ -31,7 +31,7 @@ An alphabetical index is at the end.
 14. [Inline assembly](#14-inline-assembly)
 15. [Diagnostics](#15-diagnostics)
 16. [Compiler directives and options](#16-compiler-directives-and-options)
-17. [Platforms and the console classes](#17-platforms-and-the-console-classes)
+17. [Platforms and the console classes](#17-platforms-and-the-console-classes) (StdIO, System, FileSystem)
 18. [Not in NTC BASIC](#18-not-in-ntc-basic)
 19. [Keyword index](#19-keyword-index)
 
@@ -1422,6 +1422,21 @@ an address.
 **VB:** VB's `AddressOf` is only for passing to Windows API calls, and VB has no
 `CallAddr`. Here they are for driver and command tables.
 
+### VarPtr
+
+`VarPtr(`*variable*`)` / `VarPtr(`*array*`)`
+
+The address of a variable's value (a String: its first character), or of a fixed size
+array's first element. For `FileSystem.Load` / `Save` and `#asm`. An element's address is
+worked out from the first: element `i` of an Integer array is `VarPtr(a) + i * 2`.
+
+```
+Dim scores(9) As Integer
+r = FileSystem.Save("SCORES.DAT", VarPtr(scores), 20)
+```
+
+**VB:** VB6's `VarPtr` also takes an element (`VarPtr(a(3))`); here it takes a name.
+
 ---
 
 ## 10. Classes
@@ -1948,6 +1963,32 @@ Print "here"
 
 **VB:** not in VB.
 
+### Option Reserve
+
+`Option Reserve` *start*`,` *size* [`,` *start*`,` *size*] ...
+
+Memory the program must keep out of: a screen, an area that `FileSystem.Load` fills (a
+level, graphics), firmware RAM, a buffer. Numbers (`&HC000`, `#C000`, `49152`), as many
+pairs as needed, in any module. When the program is assembled, it is checked against each
+range: if the program (its code, thread, library and variables, from the org to the end)
+reaches into one, the assembler stops with
+
+`the program reaches into Option Reserve #8000-#BFFF (main.bas line 1)`
+
+and the fix is a smaller program, a different range or a different org.
+
+```
+Option Reserve &H8000, &H4000      ' #8000-#BFFF: the level loaded from disc
+r = FileSystem.Load("LEVEL1.DAT", &H8000, &H4000)
+```
+
+The program is not moved around a reserved range: it starts at the org and goes up, so a
+range has to be above its end (or below its start). On the `cpc` platform the font copy
+code goes to #C000 for a moment when the screen is first used (a warning says so when a
+range covers #C000).
+
+**VB:** not in VB.
+
 ### Option ClassSize
 
 `Option ClassSize` *kilobytes*
@@ -2075,13 +2116,83 @@ What the machine is. The same members on every platform; 0 / False means "not he
 | `HasHook` (the `Interrupt` statement) | True | False | False | False |
 | `HasScreen` (rows and columns, not a stream) | True | True | False* | True |
 | `HasKeyboard` | True | True | True | True |
-| `MaxHandles` (file handles) | 0 | 0 | 0 | 0 |
+| `MaxHandles` (file handles, `FileSystem.Open`) | 0 | 0 | 2 | 0 |
 | `Ticks()` | the tick count, the same as `Ticks` | | | |
 
 ```
 Print "running on "; System.Platform
 If System.TicksPerSecond = 0 Then Print "(no clock here)"
 ```
+
+### FileSystem
+
+Files. Every platform has a `FileSystem` class with the same methods, so a program that
+uses files compiles everywhere; what the platform can really do comes from `Capability`:
+
+`FileSystem.Capability(`*name*`)`
+
+gives the value for that name (case does not matter), or 0 (False) when this platform
+hasn't got it. Yes / no capabilities are True (-1); some are numbers.
+
+| Name | Means | cpc | cpcfw | cpm | test |
+|---|---|---|---|---|---|
+| `LOAD`, `SAVE` | whole file to / from memory | - | True | True | - |
+| `SEQUENTIAL` | `Open`, read and write in order | - | - | True | - |
+| `RANDOMACCESS` | `Seek` anywhere, read and write | - | - | True | - |
+| `DELETE`, `RENAME`, `EXISTS`, `SIZE` | those methods | - | - | True | - |
+| `MULTIPLE` | more than one file open at once | - | - | True | - |
+| `MAXOPEN` | how many files can be open | 0 | 0 | 2 | 0 |
+| `RECORDSIZE` | the disc's record size | - | - | 128 | - |
+
+A name the platform doesn't know is 0, so a program can ask for anything.
+
+The methods all return a number: 0 or more is a result (a count, a handle, a byte), less than
+0 is a status - `FileSystem.NotSupported` (-1, this platform can't), `NotFound` (-2),
+`Full` (-3), `BadName` (-4), `NoHandle` (-5), `BadHandle` (-6), `EndOfFile` (-7),
+`TooBig` (-8), `Failed` (-9), `AlreadyExists` (-10), `BadMode` (-11).
+
+| Method | Does |
+|---|---|
+| `Load(name, address, maxlen)` | the file into memory; its length (`TooBig`: longer than `maxlen`) |
+| `Save(name, address, length)` | a new file with those bytes |
+| `Delete(name)`, `Exists(name)`, `Rename(old, new)` | `Exists` gives True / False |
+| `Size(name)` | bytes (a Long) |
+| `Open(name, mode)` | a handle; mode `ForRead` (1), `ForWrite` (2, a new file), `ForUpdate` (3, read and write) |
+| `Close(h)` | |
+| `ReadByte(h)`, `WriteByte(h, b)` | `ReadByte` gives 0-255 or `EndOfFile` |
+| `Read(h, address, count)`, `Write(h, address, count)` | bytes to / from memory; `Read` gives how many it got |
+| `Seek(h, position)` | the next read or write is at that byte (a Long, 0 = the start) |
+| `Eof(h)` | True when there is nothing more to read |
+| `ReadLine(h)`, `WriteLine(h, text)` | a line of text (CR LF or LF ends it, not kept) |
+
+```
+Dim hs(9) As Integer
+If FileSystem.Capability("SAVE") Then
+  r = FileSystem.Save("HISCORE.DAT", VarPtr(hs), 20)
+End If
+
+h = FileSystem.Open("NOTES.TXT", FileSystem.ForRead)
+Do While Not FileSystem.Eof(h)
+  Print FileSystem.ReadLine(h)
+Loop
+r = FileSystem.Close(h)
+```
+
+- **CP/M** (`cpm`): everything above, through BDOS. Names `NAME.EXT` or `B:NAME.EXT`
+  (8.3, no `*` or `?`). CP/M keeps whole 128 byte records, not an exact length: `Save`
+  pads the last record with ^Z (26), `Load` and `Size` count whole records, and text ends
+  at the first ^Z (`Eof`, `ReadLine`). Two files open at once.
+- **CPC firmware** (`cpcfw`): `Load` and `Save`, through the firmware's cassette calls - to
+  the selected disc drive with AMSDOS, else to tape, as BASIC's `LOAD` and `SAVE` do, with
+  the firmware's own messages. A saved file is a binary file: BASIC can
+  `LOAD "HISCORE.DAT", &4000` it. Uses a 2K buffer.
+- **CPC hardware** (`cpc`) and **test**: no files yet - every method returns `NotSupported`.
+
+See `bas/files.bas`.
+
+**VB:** VB has `Open ... For ... As #n`, `Print #`, `Input #`, `Get` / `Put` and `EOF()`, and
+raises errors. Here files are methods of a class that return a status, and what works
+depends on the platform.
 
 ### Your own StdIO
 

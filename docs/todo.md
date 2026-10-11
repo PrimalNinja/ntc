@@ -223,6 +223,22 @@ finished, with the date.
   loop, slower on factor / divide) and SDCC 4.2 (1.5-3.7 x faster than NTC turbo:
   registers for variables and arguments). zsdcc not built (sources not reachable here).
   Same C source for both: `compare/bench/ansi/`
+- 2026-10-12 `Option Reserve start, size [, start, size] ...`: an sjasmplus ASSERT per range
+  after `ntc_end` (the assembly stops if the program overlaps it, naming the range and the
+  line); pairs and bounds checked by the compiler; a warning on cpc when #C000 is covered
+  (the font copy code). In regress (one that fits, one that overlaps)
+- 2026-10-12 **FileSystem class** on every platform (`lib/<platform>/FileSystem.cls`), the
+  same methods everywhere: Load, Save, Delete, Exists, Rename, Size, Open, Close,
+  ReadByte, WriteByte, Read, Write, Seek, Eof, ReadLine, WriteLine; results >= 0, status
+  < 0 (NotSupported -1 ... BadMode -11), Open modes ForRead / ForWrite / ForUpdate.
+  `Capability("NAME")`: one function for all capabilities (PRIMAL's SysPropertyPC idea):
+  the value or 0 (`ntc_capfind` in ntc_lib.asm: a table of name + value, case ignored, Z
+  set when found). CP/M: all of it (BDOS FCBs, random records, two handles). CPC
+  firmware: Load / Save (CAS IN / OUT DIRECT - disc with AMSDOS, else tape). CPC hardware,
+  test: none (NotSupported). File code runs on the real stack (`fs_go`). `VarPtr(name)`
+  (variable or fixed size array address). Harness: BDOS file calls and CAS calls on real
+  files (`test/t/files`). Tests `fs_cpm`, `fs_fw`, `fs_none` (both modes), demo
+  `bas/files.bas` (build FILES); System.MaxHandles = 2 on CP/M
 - 2026-10-11 the CPC platform uses the CPC's own font: the first mode set copies chars
   32-126 from the lower ROM (#3900) into ntc_font (now a RAM buffer, 760 bytes less per
   program), running the copy from #C000 (the program at #0040 can be under the lower ROM).
@@ -405,9 +421,32 @@ finished, with the date.
 
 ### Libraries / drivers (as classes)
 
-- [ ] File I/O: CP/M = BDOS + FCBs (needs the real stack switch); CPC bare = direct FDC
-      (uPD765) and an own or AMSDOS compatible disc format, CPC host = AMSDOS CAS_* calls;
-      Spectrum +3 = +3DOS; later a simple NTC file system
+- [x] File I/O, first step (2026-10-12): FileSystem class - CP/M full, CPC firmware
+      Load / Save, none on CPC hardware and test (see done)
+- [ ] FileSystem, next:
+      - `Capability` with a literal name folded when compiling (the platform is known), and
+        the If on a constant dropping its dead branch; in an `If`, the flag form (Z = true,
+        PRIMAL style) straight into the branch with no value stored
+      - `Capability` for `System` and `StdIO` too, in place of the CanPosition / HasHook ...
+        constants (one pattern for every platform class and later drivers)
+      - CPC firmware: SEQUENTIAL through CAS IN CHAR / CAS OUT CHAR (one file in, one out),
+        DELETE / RENAME through AMSDOS's |ERA / |REN (RSX, only with AMSDOS)
+      - CPC hardware platform: use the firmware for files when the program leaves its RAM
+        (#A700 up) alone - a platform option, noted as such: put the firmware's #38 back,
+        call, then NTC's handler again. Or an own FDC (uPD765) driver later
+      - check on a real CPC / WinAPE: CAS calls with IY as NTC leaves it (AMSDOS is believed to
+        load its own IY), tape messages, disc errors (Retry / Cancel) mid-load
+      - third party mass storage (IDE, SD card interfaces: random access) - needs research,
+        not Amstrad standard; possibly later, as their own FileSystem variants
+      - CPC firmware: the 2K buffer CAS IN / OUT OPEN need is in the program now (`fs_buf`);
+        a way to put it elsewhere, often #C000 (the screen) - e.g. `Option FileBuffer &HC000`
+        (an equ the platform file tests: no `ds 2048` then), checked against the program
+        like Option Reserve
+      - Option Reserve: lay the program out around a range (skip it between sections) instead
+        of only stopping the assembly
+      - `Option Files n` for MAXOPEN (now fixed at 2 on CP/M), VB style statements
+        (`Open ... As #n`, `Print #`, `Line Input #`, `Close #`) as a front on the class
+      - Spectrum +3 = +3DOS; later a simple NTC file system
 - [ ] Graphics (CPC): Plot, Draw / Line (Bresenham), Circle, Fill, Point (read), Ink /
       Paper / Pen / Border, sprites (masked, pre shifted). Screen address: row * 80 +
       (line in char) * #800 + x bytes; inks and border are gate array (#7Fxx), not the CRTC

@@ -2183,6 +2183,23 @@ ntc_plat_frame:
 ntc_plat_exit:
 			jp (ix)
 
+; ============================================================
+; File system (FileSystem class) - Load / Save through the firmware's
+; cassette calls (CAS IN / CAS OUT DIRECT). With AMSDOS present they
+; go to the disc (the drive that is selected), else to tape, exactly
+; as BASIC's LOAD / SAVE do - with the firmware's own messages
+; ("Press PLAY then any key", disc errors and Retry / Cancel).
+; ============================================================
+; The methods are keywords: arguments into fs_a1 .. fs_a3, the
+; result's address into fs_res, then fs_go with HL = the routine.
+; fs_go runs it on the real stack with interrupts on and stores its
+; HL result; a routine that fails jumps to fs_err with HL = status.
+
+FS_NOTFOUND	equ -2
+FS_TOOBIG	equ -8
+FS_FAILED	equ -9
+FS_BADNAME	equ -4
+
 
 ntc_end:				; the end of the program
 			SAVEAMSDOS "NTCTEST.BIN", ntc_start, ntc_end - ntc_start, ntc_start

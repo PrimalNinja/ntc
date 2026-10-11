@@ -1,0 +1,7 @@
+cap-1-10
+save0
+load20099
+toobig-8
+missing-2
+open-1-1
+end

@@ -2244,5 +2244,46 @@ ntc_plat_frame:
 ntc_plat_exit:
 			jp 0
 
+; ============================================================
+; File system (FileSystem class) - BDOS files, FCBs, 128 byte records
+; ============================================================
+; The class's methods are keywords: they take their arguments
+; into fs_a1 .. fs_a3, the result's address into fs_res, and
+; jump to fs_go with HL = the routine. fs_go runs the routine on
+; the real stack (call / push are fine there, as for BDOS), with
+; interrupts on, and stores its HL result at fs_res (fs_go4: a
+; Long, high word in fs_hi; fs_go0: no store - the routine writes
+; the result itself). A routine that fails jumps to fs_err with
+; HL = the status (negative); fs_err unwinds to fs_go.
+;
+; Slots: 0 is for Load / Save / Delete / Exists / Rename / Size,
+; 1 and 2 are the handles Open gives. A slot is FS_SLOT bytes:
+;   +0  FCB (36)    +36 mode (0 free, 1 read, 2 write, 3 update)
+;   +37 position in the buffer (0-128)
+;   +38 buffer state (0 not loaded, 1 loaded, 2 changed)
+;   +39 record number in the buffer (2)   +42 buffer (128)
+; Every record goes through random read / write (BDOS 33 / 34),
+; so reading, writing and Seek all work the same way.
+
+FS_SLOT		equ 170
+FS_MODE		equ 36
+FS_BPOS		equ 37
+FS_BST		equ 38
+FS_RECL		equ 39
+FS_RECH		equ 40
+FS_BUF		equ 42
+FS_MAXH		equ 2
+
+FS_NOTFOUND	equ -2
+FS_FULL		equ -3
+FS_BADNAME	equ -4
+FS_NOHANDLE	equ -5
+FS_BADHANDLE	equ -6
+FS_EOF		equ -7
+FS_TOOBIG	equ -8
+FS_FAILED	equ -9
+FS_EXISTS	equ -10
+FS_BADMODE	equ -11
+
 
 ntc_end:				; the end of the program

@@ -1331,6 +1331,10 @@ function ntcParse(arrFiles_a, objDefines_a)
 		{
 			record('option', { what: 'terminal', value: strText.substr(9) });	// CP/M: the terminal's codes for Cls / Locate
 		}
+		else if (left(strText, 'reserve '))
+		{
+			record('option', { what: 'reserve', value: trim(strText.substr(8)) });	// memory the program must not reach into
+		}
 		else if (strText === 'compare text')
 		{
 			record('option', { what: 'comparetext' });	// string compares ignore case in this module

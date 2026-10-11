@@ -164,6 +164,15 @@ var NTC_EXAMPLES = [
 		]
 	},
 	{
+		"name": "Files: FileSystem class (try CP/M and CPC firmware)",
+		"files": [
+			{
+				"name": "files.bas",
+				"text": "' Files: what this platform can do, then try it. The same program builds for every\n' platform - FileSystem.Capability says what works, so nothing is tried that can't be done.\n' CP/M: everything. CPC firmware: Load and Save (disc, or tape without AMSDOS).\n' CPC hardware / test platform: no files.\nOption Explicit\nDim hs(9) As Integer, back(9) As Integer\nDim i As Integer, r As Integer, h As Integer\n\nPrint \"Files on \"; System.Platform\nPrint \"LOAD \"; FileSystem.Capability(\"LOAD\"); \"  SAVE \"; FileSystem.Capability(\"SAVE\")\nPrint \"SEQUENTIAL \"; FileSystem.Capability(\"SEQUENTIAL\"); \"  RANDOMACCESS \"; FileSystem.Capability(\"RANDOMACCESS\")\nPrint \"MAXOPEN \"; FileSystem.Capability(\"MAXOPEN\")\nPrint\n\nIf FileSystem.Capability(\"SAVE\") Then\n  For i = 0 To 9 : hs(i) = 1000 - i * 50 : Next\n  r = FileSystem.Save(\"HISCORE.DAT\", VarPtr(hs), 20)\n  Print \"Save HISCORE.DAT: \"; r\n  If FileSystem.Capability(\"LOAD\") Then\n    r = FileSystem.Load(\"HISCORE.DAT\", VarPtr(back), 20)\n    Print \"Load: \"; r; \" bytes, \"; back(0); \" ... \"; back(9)\n  End If\nElse\n  Print \"No saving on this platform\"\nEnd If\n\nIf FileSystem.Capability(\"SEQUENTIAL\") Then\n  h = FileSystem.Open(\"NOTES.TXT\", FileSystem.ForWrite)\n  r = FileSystem.WriteLine(h, \"Written by NTC BASIC\")\n  r = FileSystem.WriteLine(h, \"Line two\")\n  r = FileSystem.Close(h)\n  Print \"NOTES.TXT:\"\n  h = FileSystem.Open(\"NOTES.TXT\", FileSystem.ForRead)\n  Do While Not FileSystem.Eof(h)\n    Print \"> \"; FileSystem.ReadLine(h)\n  Loop\n  r = FileSystem.Close(h)\nEnd If\n\nPrint \"Press a key\";\nDo : Frame : Loop Until Inkey <> 0\nPrint\nEnd\n"
+			}
+		]
+	},
+	{
 		"name": "Your own StdIO (2 files)",
 		"files": [
 			{

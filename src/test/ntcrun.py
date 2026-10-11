@@ -12,7 +12,11 @@ import cpcrun
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 FW = {0xBB06: 'km_wait', 0xBB09: 'km_read', 0xBB5A: 'txt_out', 0xBB6C: 'txt_clear', 0xBB75: 'txt_cursor',
-      0xBC0E: 'scr_mode', 0xBD19: 'mc_flyback', 0xBD0D: 'kl_time'}
+      0xBC0E: 'scr_mode', 0xBD19: 'mc_flyback', 0xBD0D: 'kl_time',
+      0xBC77: 'cas_in_open', 0xBC7A: 'cas_in_close', 0xBC7D: 'cas_in_abandon', 0xBC83: 'cas_in_direct',
+      0xBC8C: 'cas_out_open', 0xBC8F: 'cas_out_close', 0xBC92: 'cas_out_abandon', 0xBC98: 'cas_out_direct'}
+# files for the FileSystem class (cpm: BDOS FCB calls, cpcfw: CAS calls) live in this folder
+FILES = os.environ.get('NTC_FILES', os.path.join(HERE, 't', 'files'))
 
 class Screen:
     def __init__(s, cols, rows):
@@ -77,7 +81,8 @@ class Screen:
 class Host:
     def __init__(s, platform, binary, org, typed):
         s.p = platform; s.m = m = z80.Z80Machine(); s.typed = list(typed); s.T = 0; s.ints = 0
-        s.loc = []; s.out_log = []
+        s.loc = []; s.out_log = []; s.dma = 0x80; s.cas_in = None; s.cas_out = None
+        os.makedirs(FILES, exist_ok=True)
         m.set_memory_block(org, binary)
         m.set_memory_block(0x38, bytes([0xFB, 0xC9]))       # stand in interrupt handler: ei / ret
         if platform == 'cpm':
@@ -129,6 +134,10 @@ class Host:
                 while m.memory[a] != ord('$'): s.scr.ctrl(m.memory[a]); a += 1
             elif fn == 11:
                 r = 0xFF if s.typed else 0; m.a = r; m.l = r
+            elif fn in (15, 16, 19, 22, 23, 33, 34, 35):
+                r = s.bdos_file(fn, m.de); m.a = r; m.l = r
+            elif fn == 26:
+                s.dma = m.de
         elif s.p == 'cpcfw' and lo in getattr(s, 'fwport', {}):
             f = s.fwport[lo]
             if f == 'txt_out': s.scr.ctrl(val)
@@ -145,6 +154,71 @@ class Host:
                     m.f = m.f & 0xFE
             elif f == 'kl_time':
                 t = s.T // 13333; m.hl = t & 0xFFFF; m.de = (t >> 16) & 0xFFFF
+            elif f.startswith('cas_'):
+                ok = s.cas(f)
+                m.f = (m.f | 1) if ok else (m.f & 0xFE)
+    def fcbname(s, a, base=0):
+        b = s.m.memory
+        n = bytes(x & 0x7F for x in b[a + base + 1:a + base + 9]).decode().rstrip()
+        e = bytes(x & 0x7F for x in b[a + base + 9:a + base + 12]).decode().rstrip()
+        return os.path.join(FILES, n + ('.' + e if e else ''))
+    def bdos_file(s, fn, fcb):
+        # CP/M file calls on the folder FILES: 128 byte records, random read / write
+        m = s.m; mem = m.memory; p = s.fcbname(fcb)
+        if fn == 15: return 0 if os.path.exists(p) else 0xFF
+        if fn == 16: return 0 if os.path.exists(p) else 0xFF
+        if fn == 19:
+            if not os.path.exists(p): return 0xFF
+            os.remove(p); return 0
+        if fn == 22: open(p, 'wb').close(); return 0
+        if fn == 23:
+            q = s.fcbname(fcb, 16)
+            if not os.path.exists(p): return 0xFF
+            os.rename(p, q); return 0
+        rec = mem[fcb + 33] | (mem[fcb + 34] << 8) | (mem[fcb + 35] << 16)
+        if fn == 35:
+            n = (os.path.getsize(p) + 127) // 128 if os.path.exists(p) else 0
+            mem[fcb + 33] = n & 255; mem[fcb + 34] = (n >> 8) & 255; mem[fcb + 35] = n >> 16
+            return 0
+        if not os.path.exists(p): return 0xFF
+        data = bytearray(open(p, 'rb').read())
+        if fn == 33:
+            if rec * 128 >= len(data): return 1
+            blk = data[rec * 128:rec * 128 + 128]
+            blk += bytes([26]) * (128 - len(blk))
+            for i in range(128): mem[(s.dma + i) & 0xFFFF] = blk[i]
+            return 0
+        if fn == 34:
+            if len(data) < rec * 128: data += bytes(rec * 128 - len(data))
+            data[rec * 128:rec * 128 + 128] = bytes(mem[(s.dma + i) & 0xFFFF] for i in range(128))
+            open(p, 'wb').write(data); return 0
+        return 0xFF
+    def cas(s, f):
+        # the firmware's cassette calls (AMSDOS: disc) on the folder FILES; carry = ok
+        m = s.m; mem = m.memory
+        def name():
+            return os.path.join(FILES, bytes(mem[m.hl:m.hl + m.b]).decode().upper())
+        if f == 'cas_in_open':
+            p = name()
+            if not os.path.exists(p): m.a = 0x92; return False
+            s.cas_in = open(p, 'rb').read(); m.bc = len(s.cas_in); m.de = 0; m.a = 2; return True
+        if f == 'cas_in_direct':
+            if s.cas_in is None: return False
+            for i, x in enumerate(s.cas_in): mem[(m.hl + i) & 0xFFFF] = x
+            m.hl = 0; return True
+        if f in ('cas_in_close', 'cas_in_abandon'):
+            s.cas_in = None; return True
+        if f == 'cas_out_open':
+            s.cas_out = [name(), b'']; return True
+        if f == 'cas_out_direct':
+            if s.cas_out is None: return False
+            s.cas_out[1] = bytes(mem[(m.hl + i) & 0xFFFF] for i in range(m.de)); return True
+        if f == 'cas_out_close':
+            if s.cas_out is None: return False
+            open(s.cas_out[0], 'wb').write(s.cas_out[1]); s.cas_out = None; return True
+        if f == 'cas_out_abandon':
+            s.cas_out = None; return True
+        return False
     def inp(s, port):
         lo = port & 0xFF
         if s.p == 'test':
