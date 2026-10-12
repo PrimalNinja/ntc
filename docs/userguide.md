@@ -101,7 +101,9 @@ x = 1 + _
 ### Top level code and Sub Main
 
 Statements outside any procedure are the main program and run from the top, as in
-classic BASIC. If there is a `Sub Main`, it runs after the top level code.
+classic BASIC. If there is a `Sub Main`, it runs after the top level code - the compiler calls
+it when the top level code reaches its end (not after an `End`). With no top level code, `Sub
+Main` runs straight away.
 
 ```
 Print "starting"
@@ -1970,8 +1972,11 @@ In the block:
 - The rules of the run time apply: SP is the thread, so no `call` / `push` unless SP is
   first switched to the real stack (`ld (ntc_ip), sp` / `ld sp, (ntc_csp)` / ... /
   `ld sp, (ntc_ip)`); no register keeps its value between keywords; interrupts are off.
-- A block that loads SP (`ld sp, ...`) is a jump; the compiler makes a normal mode copy of
-  it.
+- A block that loads SP with a label or HL (`ld sp, {label}`, `ld sp, hl`) is a jump; the
+  compiler makes a normal mode copy of it, where `ret` becomes `jp ntc_xn`. Switching to the
+  real stack and back (`ld sp, (ntc_csp)` ... `ld sp, (saved)`) is not a jump: the block's own
+  `call` / `ret` on the real stack stay as written, so it can have subroutines (see
+  `bas/cube3d/Vector3D.cls`).
 
 Each asm line carries its BASIC file and line number as a comment, so an assembler error
 points back to the source. Every compile also makes a map of the labels it generated

@@ -195,6 +195,12 @@ rm -rf t/ir; mkdir -p t/ir; cp $P/interrupts/*.cls t/ir/; sed 's/^Loop Until Ink
 o=$(timeout 600 python3 cpctime.py t/ir/Main.bas '' t/ir/Clock.cls t/ir/Star.cls --platform=cpcmin 2>&1)
 st=$(echo "$o" | sed -n 's/^Clock ticked 2 times, the star \([0-9]*\).*/\1/p'); tm=$(echo "$o" | sed -n 's/.*CPC time \([0-9.]*\) s/\1/p')
 if [ -n "$st" ] && [ "$st" -ge 85 ] && awk "BEGIN { exit !($tm < 2.1) }"; then echo "ok   interrupt classes on time (star $st in ${tm}s)"; else echo "FAIL interrupt classes on time"; echo "$o" | tail -3; fail=1; fi
+# Vector3D (bas/cube3d): turns and perspective to known pixels; the demo runs on cpc and, with
+# Spin as an overlay class in a RAM page, on cpcmin
+cp v3d/proj.bas t/; o=$(timeout 60 python3 ntcrun.py t/proj.bas '' $P/cube3d/Vector3D.cls --platform=cpc 2>&1 | grep -v "^--- ")
+if [ "$o" == "$(cat ref/v3d.txt)" ]; then echo "ok   Vector3D projection"; else echo "FAIL Vector3D projection"; echo "$o" | head -4; fail=1; fi
+rm -rf t/c3 t/files; mkdir -p t/c3; cp $P/cube3d/* t/c3/
+for pl in cpc cpcmin; do check "cube3d demo $pl" "^Bye" "$(timeout 300 python3 ntcrun.py t/c3/Main.bas '3~~~4~~~X' t/c3/Vector3D.cls t/c3/Spin.cls --platform=$pl 2>&1)"; done
 # For loops up to 32767 / down to -32768 end (they looped for ever when the step wrapped)
 for m in --turbo ""; do
   cp for_end.bas t/; o=$(timeout 60 python3 ntcrun.py t/for_end.bas '' --platform=test $m 2>&1 | grep -v "^--- " | tr '\n' ' ')

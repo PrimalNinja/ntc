@@ -5853,7 +5853,8 @@ function ntcCompile(input_a, objOptions_a)
 
 	// #asm ... #endasm: an inline keyword. The thread gets one word; the code
 	// goes with the stubs. Labels in the block are local to it. A block that
-	// moves SP (ld sp,) is a branch: its normal mode copy ends with jp ntc_xn.
+	// moves SP to a label or HL (ld sp, x) is a branch: its normal mode copy ends
+	// with jp ntc_xn. ld sp, (var) - switching to the real stack and back - isn't.
 	function compileAsm(objRec_a)
 	{
 		var blnNormal = (kwMode() === 'n');
@@ -5886,7 +5887,10 @@ function ntcCompile(input_a, objOptions_a)
 			{
 				objLocal[arrMatch[1]] = true;
 			}
-			if (/^\s*ld\s+sp\s*,/i.test(strCode))
+			// ld sp, label / ld sp, hl moves the thread: a branch. ld sp, (var) is the
+			// switch to the real stack and back (ld sp, (ntc_csp) ... ld sp, (saved)):
+			// not a branch, so the block's own call / ret on the real stack stay as written
+			if (/^\s*ld\s+sp\s*,\s*[^\s(]/i.test(strCode))
 			{
 				blnBranch = true;
 			}
@@ -5994,9 +5998,9 @@ function ntcCompile(input_a, objOptions_a)
 			for (intJ = 0; intJ < arrRecs[1].lines.length; intJ++)
 			{
 				strCode = arrRecs[1].lines[intJ].substr(0, codePart(arrRecs[1].lines[intJ]));
-				if (/^\s*ld\s+sp\s*,/i.test(strCode))
+				if (/^\s*ld\s+sp\s*,\s*[^\s(]/i.test(strCode))
 				{
-					blnOk = false;		// moves SP: a branch, stays a procedure
+					blnOk = false;		// moves SP to a label / HL: a branch, stays a procedure
 				}
 				strCode.replace(/\{([^{}]+)\}/g, function(strAll_a, strInner_a)
 				{

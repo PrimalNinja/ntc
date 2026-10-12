@@ -304,6 +304,16 @@ finished, with the date.
   times a program at the real CPC's speed (gate array stretching, interrupts every 3333
   microseconds). Found: turbo and normal differ by about 5% here - the List calls (about
   600 microseconds each) take most of the time. Next: faster List calls
+- 2026-10-12 **CUBE3D** demo (cpc, cpcmin): `bas/cube3d/Vector3D.cls` - 3D wireframe shapes
+  in 8.8 fixed point, turned round X / Y / Z (sine table), perspective, XOR lines on the mode 1
+  screen, all Z80 on the real stack with interrupts let in (normal mode) - ported from B.
+  Chiha's TEC-1 demo (MIT, 2023; from The Amstrad User 69, 1990). `Spin.cls` is the demo: an
+  overlay class on cpcmin (SPIN.PAG in a RAM page) calling Vector3D in main memory. About 10
+  frames a second for the cube (the lines take most of it: drawn and taken off with XOR).
+  Fix found on the way: an #asm block with `ld sp, (var)` (the real stack switch) was taken
+  for a jump, so in normal mode every `ret` in it - its own subroutines' too - became
+  `jp ntc_xn`; now only `ld sp, label / hl` makes a jump. Next: faster lines (8-bit error
+  for short lines), double buffering (two screens, no erase flicker), filled faces
 - 2026-10-12 fix: interrupt classes ran far too seldom on a real CPC (a 1 a second Tick about
   every 4 s, the Frame star every couple of seconds): drawing text held interrupts off for a
   whole Print (about 0.85 ms a character), so 3 interrupts in 4 merged into one, and a Frame
@@ -785,6 +795,18 @@ CP/M compatible (or mostly) system idea - device model, not decided:
 - [ ] List, next: faster calls (GetWord / NextOf as plain keywords without mem_go and the
       argument checks); fields as Strings; a node of another list or a deleted one isn't
       caught; Memory.SavePage / LoadPage (a data page out to a file and back)
+- [x] decided 2026-10-12: CP/M builds never page (no gate array writes, Small only, overlays
+      through BDOS file reads). SymbOS runs CP/M programs in memory it manages, on the CPC,
+      MSX, Enterprise 128 and PCW, so one bank-free .COM with its .PAG overlays runs on all of
+      them, as on real CP/M and MSX-DOS. (Notes kept in case a CPC-only CP/M build is wanted:
+      CP/M 2.2 runs in C0 like AMSDOS; a RAM disc's 512K is found by a CP/M directory in the
+      expansion RAM, not by drive letter - M: may be an M4 / XMAS drive; the probe must save and
+      put back what it writes. CP/M Plus runs in C2: every page setting swaps all four blocks.)
+- [ ] cpm: the start code checks the TPA reaches #8000 when there are overlay classes (a clear
+      message instead of a crash on a small TPA / SymbOS window); find out which BDOS calls
+      SymbOS has (random records 33-36 for Seek)
+- [ ] the Small heap uses the RAM on both sides of a reserved range (with overlays it stops at
+      #4000 now, wasting #8000 up to the BDOS on CP/M)
 - [ ] overlay classes: reusing a C page when none is free (CPCExpansion on 64K - the Small
       overlay area is done); Paged variables saved across swaps in the overlay area
 - [ ] interrupt classes, next: Tick in a page (I pages, a paged interrupt class); asm-only
