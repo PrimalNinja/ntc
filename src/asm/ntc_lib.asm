@@ -7776,6 +7776,7 @@ ntc_isln:		db 0			; slots in use
 ntc_isldue:		db 0			; 1 = a slot may be due
 ntc_islvs:		db 0			; vertical sync at the last interrupt
 ntc_islfr:		db 0			; 1 = this interrupt is the frame's (sync just started)
+ntc_islph:		db 0			; interrupts since the frame's (0-5)
 ntc_isl:		ds 32
 
 ; ntc_isl_tick - from the interrupt handler (call, real stack): count each
@@ -7790,9 +7791,26 @@ ntc_isl_tick:
 			ld a, (ntc_islvs)
 			cpl
 			and e
-			ld (ntc_islfr), a
+			ld d, a					; 1 = the sync started since the last interrupt
 			ld a, e
 			ld (ntc_islvs), a
+			ld a, (ntc_islph)		; a frame is 6 interrupts: count them, so a frame is
+			inc a					; still seen when this interrupt came in after the
+			cp 6					; sync had ended (taken late: a long keyword); the
+			jr c, ntc_it_ph			; sync puts the count back to 0
+			xor a
+ntc_it_ph:
+			bit 0, d
+			jr z, ntc_it_ph2
+			xor a
+ntc_it_ph2:
+			ld (ntc_islph), a
+			or a
+			ld a, 0
+			jr nz, ntc_it_fr
+			inc a
+ntc_it_fr:
+			ld (ntc_islfr), a
 			ld a, (ntc_isln)
 			or a
 			jr z, ntc_it_end

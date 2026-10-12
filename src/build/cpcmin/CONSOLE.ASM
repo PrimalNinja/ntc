@@ -657,6 +657,8 @@ ntc_sbpc:		db 2			; bytes per char  \
 ntc_scols:		db 40			; columns          | from ntc_modetab
 ntc_smask:		db #F0			; pen 1 pixel mask |
 ntc_sshift:		db 4			; glyph bits/byte /
+ntc_pgstk:		ds 32			; putglyph: the stack an interrupt uses between characters
+ntc_pgstk_top:
 ntc_noadv:		db 0			; 1 = draw without moving the cursor
 ntc_wrapped:	db 0			; 1 = the last character wrapped to the next line
 ntc_pgrow:		db 0			; draw / scroll counter
@@ -722,35 +724,89 @@ ntc_pg_mul:
 			ld c, a
 			ld b, #C0
 			add hl, bc			; HL = #C000 + row*80 + col*bpc
-			ld a, 8
-ntc_pg_row:
-			ld (ntc_pgrow), a
-			ld (ntc_pgaddr), hl
+			ld a, (ntc_sbpc)		; mode 1 (2 bytes a row) and 2 (1 byte): their own loops
+			cp 2
+			jr z, ntc_pg_m1
+			dec a
+			jr z, ntc_pg_m2
+			ld b, 8					; mode 0: 4 bytes a row, 2 pixels each (pen 1: bits 7, 6)
+ntc_pg_m0lp:
 			ld a, (de)
 			inc de
 			ld c, a
-			ld a, (ntc_sbpc)
-			ld b, a
-ntc_pg_byte:
-			ld a, (ntc_smask)
-			and c
+			and #C0
 			ld (hl), a
 			inc hl
-			ld a, (ntc_sshift)
-			sla c
-			sla c
-			cp 4
-			jr c, ntc_pg_shifted
-			sla c
-			sla c
-ntc_pg_shifted:
-			djnz ntc_pg_byte
-			ld hl, (ntc_pgaddr)
-			ld bc, #800
-			add hl, bc
-			ld a, (ntc_pgrow)
-			dec a
-			jr nz, ntc_pg_row
+			ld a, c
+			rlca
+			rlca
+			ld c, a
+			and #C0
+			ld (hl), a
+			inc hl
+			ld a, c
+			rlca
+			rlca
+			ld c, a
+			and #C0
+			ld (hl), a
+			inc hl
+			ld a, c
+			rlca
+			rlca
+			and #C0
+			ld (hl), a
+			dec hl
+			dec hl
+			dec hl
+			ld a, h
+			add a, 8
+			ld h, a
+			djnz ntc_pg_m0lp
+			jr ntc_pg_drawn
+ntc_pg_m1:
+			ld b, 8
+ntc_pg_m1lp:
+			ld a, (de)				; pen 1: pixels 0-3 in the high nibble, 4-7 next
+			inc de
+			ld c, a
+			and #F0
+			ld (hl), a
+			inc hl
+			ld a, c
+			rlca
+			rlca
+			rlca
+			rlca
+			and #F0
+			ld (hl), a
+			dec hl
+			ld a, h
+			add a, 8
+			ld h, a
+			djnz ntc_pg_m1lp
+			jr ntc_pg_drawn
+ntc_pg_m2:
+			ld b, 8
+ntc_pg_m2lp:
+			ld a, (de)
+			inc de
+			ld (hl), a
+			ld a, h
+			add a, 8
+			ld h, a
+			djnz ntc_pg_m2lp
+ntc_pg_drawn:
+			ld a, (ntc_nmode)		; normal mode: a waiting interrupt gets in after each
+			or a					; character (drawing text is long), on a stack of its own
+			jr z, ntc_pg_adv		; (SP may be the thread or the real stack here)
+			ld (ntc_pgaddr), sp
+			ld sp, ntc_pgstk_top
+			ei
+			nop
+			di
+			ld sp, (ntc_pgaddr)
+ntc_pg_adv:
 			ld a, (ntc_noadv)
 			or a
 			jr nz, ntc_pg_noadv

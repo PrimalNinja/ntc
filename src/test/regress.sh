@@ -189,6 +189,12 @@ printf 'Dim cl As String\ncl = System.CommandLine\nPrint FileSystem.Exists("NONE
 check "command line after a disc call" "^0\[FILE.TXT\]-10" "$(timeout 60 python3 ntcrun.py t/cl2.bas '' --platform=cpm --cmdline='file.txt' 2>&1)"
 # the tutorial's examples compile, and print what the pages say
 o=$(timeout 900 python3 tutcheck.py 2>&1); if [ $? -eq 0 ]; then echo "ok   tutorial examples ($(echo "$o" | tail -1))"; else echo "FAIL tutorial examples"; echo "$o" | tail -12; fail=1; fi
+# interrupt classes at the real CPC's speed (cpctime.py): no interrupts lost while text is drawn
+# (it held them off: 1 tick in 4 got through), and the frame class runs 50 times a second
+rm -rf t/ir; mkdir -p t/ir; cp $P/interrupts/*.cls t/ir/; sed 's/^Loop Until Inkey <> 0/Loop Until Ticks >= 600/' $P/interrupts/Main.bas > t/ir/Main.bas
+o=$(timeout 600 python3 cpctime.py t/ir/Main.bas '' t/ir/Clock.cls t/ir/Star.cls --platform=cpcmin 2>&1)
+st=$(echo "$o" | sed -n 's/^Clock ticked 2 times, the star \([0-9]*\).*/\1/p'); tm=$(echo "$o" | sed -n 's/.*CPC time \([0-9.]*\) s/\1/p')
+if [ -n "$st" ] && [ "$st" -ge 85 ] && awk "BEGIN { exit !($tm < 2.1) }"; then echo "ok   interrupt classes on time (star $st in ${tm}s)"; else echo "FAIL interrupt classes on time"; echo "$o" | tail -3; fail=1; fi
 # For loops up to 32767 / down to -32768 end (they looped for ever when the step wrapped)
 for m in --turbo ""; do
   cp for_end.bas t/; o=$(timeout 60 python3 ntcrun.py t/for_end.bas '' --platform=test $m 2>&1 | grep -v "^--- " | tr '\n' ' ')

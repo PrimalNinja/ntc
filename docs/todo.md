@@ -304,6 +304,13 @@ finished, with the date.
   times a program at the real CPC's speed (gate array stretching, interrupts every 3333
   microseconds). Found: turbo and normal differ by about 5% here - the List calls (about
   600 microseconds each) take most of the time. Next: faster List calls
+- 2026-10-12 fix: interrupt classes ran far too seldom on a real CPC (a 1 a second Tick about
+  every 4 s, the Frame star every couple of seconds): drawing text held interrupts off for a
+  whole Print (about 0.85 ms a character), so 3 interrupts in 4 merged into one, and a Frame
+  class missed the sync when its interrupt was taken late. Text now lets a waiting interrupt
+  in after each character (normal mode, on a small stack of its own), mode 0 / 1 / 2 draw with
+  their own loops (mode 1 about 2x, mode 0 about 2.2x faster), and Frame counts 6 interrupts
+  a frame, put back to 0 by the sync. Checked at the real CPC's speed (cpctime.py) in regress
 - 2026-10-12 MEMMAP: both screens start with the RAM size, pages, 64K banks and model
 - 2026-10-12 a block part that ends in another turbo mode than the block started in (Turbo On
   ... Turbo Off with the start mode set to turbo) is no longer an error: the compiler switches

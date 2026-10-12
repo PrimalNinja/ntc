@@ -1609,6 +1609,10 @@ End Sub
 - Normal mode only: in turbo mode there are no safe points, so `Tick` waits.
 - A `Tick` that is still running when it is due again runs again after it returns.
 - Keep `Tick` short: it runs between the program's own statements.
+- Interrupts wait while a keyword runs. Text drawing (cpc, cpcmin) lets a waiting interrupt in
+  after each character, so printing doesn't hold them off; a `Frame` class counts 6
+  interrupts a frame as well as watching the sync, so it keeps 50 a second when an interrupt
+  is taken late.
 - Game logic can go in a `Tick` (movement at a fixed 50 a second, whatever the drawing does),
   with the main loop drawing. If the drawing reads what `Tick` changes, keep two copies and
   switch between them when `Tick` is done, so a sprite is never drawn half moved.
