@@ -1315,6 +1315,10 @@ function ntcParse(arrFiles_a, objDefines_a)
 		{
 			record('option', { what: 'normal' });
 		}
+		else if (strText === 'noturbo')
+		{
+			record('option', { what: 'noturbo' });	// normal mode only: one copy of everything, Turbo On / Off do nothing
+		}
 		else if (strText === 'vbprint')
 		{
 			record('option', { what: 'vbprint' });	// Print spacing like VB

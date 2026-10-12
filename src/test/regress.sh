@@ -133,7 +133,7 @@ for m in --turbo ""; do
     if [ "$o" == "$(cat ref/ovl.txt)" ]; then echo "ok   overlays $pl ${m:-normal}"; else echo "FAIL overlays $pl ${m:-normal}"; echo "$o" | head -5; fail=1; fi
   done
 done
-rm -rf t/files; check "overlays 64K" "^Overlay not loaded: LEVEL1.PAG" "$(timeout 200 python3 ntcrun.py t/ovl/Main.bas '' t/ovl/Level1.cls t/ovl/Level2.cls --platform=cpcmin --ram=64 2>&1)"
+rm -rf t/files; check "overlays 64K" "^No RAM page free" "$(timeout 200 python3 ntcrun.py t/ovl/Main.bas '~x' t/ovl/Level1.cls t/ovl/Level2.cls --platform=cpcmin --ram=64 2>&1)"
 printf 'Option Class Overlay\nPublic Sub X()\nEnd Sub\n' > t/ovl/Bad.cls; printf 'Bad.X\n' > t/ovl/b.bas; printf 'Option Memory Small\nBad.X\n' > t/ovl/b2.bas
 node cli.js t/ovl/b.bas t/ovl/Bad.cls --platform=cpc 2>&1 >/dev/null | grep -q "Option Class Overlay needs a platform" && node cli.js t/ovl/b2.bas t/ovl/Bad.cls --platform=cpcmin 2>&1 >/dev/null | grep -q "needs Option Memory CPCExpansion" && echo "ok   overlays refused (cpc, Small)" || { echo "FAIL overlays refused"; fail=1; }
 rm -rf t/files t/od; mkdir -p t/od; cp $P/overlays/* t/od/
@@ -145,6 +145,11 @@ for pl in cpc cpcmin; do
   if [ "$o" == "$(cat ref/isl.txt)" ]; then echo "ok   interrupt classes $pl"; else echo "FAIL interrupt classes $pl"; echo "$o" | head -5; fail=1; fi
 done
 node cli.js t/isl/Main.bas t/isl/Music.cls --platform=cpcfw 2>&1 >/dev/null | grep -q "Option Class Interrupt needs a platform" && echo "ok   interrupt classes refused (cpcfw)" || { echo "FAIL interrupt classes refused"; fail=1; }
+# Option NoTurbo: one copy of everything (normal mode), Turbo On / Off do nothing; still runs
+(echo "Option NoTurbo"; cat $P/shellsort.bas) > t/ssn.bas; cp $P/shellsort.bas t/ss.bas
+node cli.js t/ss.bas > t/ss.asm 2>/dev/null; node cli.js t/ssn.bas > t/ssn.asm 2> t/ssn.err
+if [ $(grep -c "^p_shellsort" t/ssn.asm) -lt $(grep -c "^p_shellsort" t/ss.asm) ] && grep -q "Turbo On does nothing" t/ssn.err; then echo "ok   Option NoTurbo one copy"; else echo "FAIL Option NoTurbo one copy"; fail=1; fi
+check "Option NoTurbo runs" "^6 8 9 26 26 31 34 34 34 35" "$(timeout 100 python3 cpcrun.py t/ssn.bas '300\ntnx' 2>&1)"
 mkdir -p t/via; cp via/* t/via/; o=$(timeout 100 python3 ntcrun.py t/via/Main.bas 'Bo\n7\n' t/via/StdIO.cls --platform=test 2>&1 | grep -v "^--- ")
 if [ "$o" == "$(cat ref/via.txt)" ]; then echo "ok   own StdIO"; else echo "FAIL own StdIO"; fail=1; fi
 # build/: regenerate, then check every file assembles the way build.bat does it
@@ -162,6 +167,9 @@ for p in cpc cpcmin cpcfw cpm test; do
   [ $(ls t/bc/$p/*.$x 2>/dev/null | wc -l) == $(ls t/bc/$p/*.ASM | wc -l) ] || { echo "FAIL build $p: not every file written"; b=1; }
 done
 if [ $b == 0 ]; then echo "ok   build/ ($n files assemble)"; else echo "FAIL build/"; fail=1; fi
+# the overlay files from an AMSDOS build carry an AMSDOS header (AMSDOS won't CAS IN DIRECT a file without one)
+o=$(python3 -c "import ntcrun; print([ntcrun.amsdos_header_of(open('t/bc/cpcmin/'+f,'rb').read()) for f in ('LEVEL1.PAG','LEVEL2.PAG')])" 2>&1)
+if echo "$o" | grep -q "^\[(16384, [0-9]*), (16384, [0-9]*)\]"; then echo "ok   overlay files have AMSDOS headers"; else echo "FAIL overlay files have AMSDOS headers: $o"; fail=1; fi
 # build/dsk/: a CPC data format disc per platform with its programs (needs cpmtools + libdsk)
 if command -v dskform > /dev/null && command -v cpmcp > /dev/null; then
   SJASMPLUS=$SJ bash gendsk.sh > t/dsk.txt 2>&1 && echo "ok   build/dsk ($(grep -c files t/dsk.txt) images)" || { echo "FAIL build/dsk"; cat t/dsk.txt; fail=1; }

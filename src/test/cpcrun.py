@@ -74,7 +74,7 @@ class CPC:
         # stand-ins on low ports #E0.. (the CPC decodes its I/O on the high byte), as in ntcrun
         import ntcrun
         s.fw = ntcrun.Host.__new__(ntcrun.Host); s.fw.m = m; s.fw.p = 'cpcfw'
-        s.fw.cas_in = None; s.fw.cas_out = None; s.fw.amsdos = False; s.fw.cas_dev = 'TAPE'; s.fw.disk = 'A'
+        s.fw.cas_in = None; s.fw.cas_out = None; s.fw.amsdos = False; s.fw.cas_dev = 'TAPE'; s.fw.disk = 'A'; s.fw.cas_ascii = False; s.fw.cas_load = 0
         os.makedirs(ntcrun.FILES, exist_ok=True)
         s.fwport = {}; s.fwaddr = {0xDF: 0x18}
         for i, a in enumerate(sorted(ntcrun.FW)):

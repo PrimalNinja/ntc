@@ -122,6 +122,10 @@ the old 3 bytes back out on exit.
 
 ---
 
+`Option NoTurbo`: normal mode only - every procedure and branch keyword is built once (the
+normal copy), `Turbo On` / `Turbo Off` become no-ops with a warning, and the start mode is
+normal whatever `Option Turbo` or the build setting say. For programs short of memory.
+
 ## 3. Speed compared
 
 What NTC is for: write in plain VB-style BASIC, fast, and get compiled speed on a Z80

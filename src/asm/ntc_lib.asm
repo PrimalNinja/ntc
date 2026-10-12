@@ -7074,7 +7074,7 @@ mem_cw_hi:
 			ld d, #40
 			ret
 
-;## ntc_ovl ntc_data ntc_mem ntc_plat_fs ntc_plat_screen kw_stop @shared
+;## ntc_ovl ntc_data ntc_mem ntc_plat_fs ntc_plat_screen ntc_plat_key kw_stop @shared
 ; ------------------------------------------------------------
 ; ntc_ovl - overlay classes (Option Class Overlay "FILE"): the class's
 ; threads are built at #4000 into FILE.PAG in the same compile; its data
@@ -7104,6 +7104,10 @@ ovl_kres:		dw 0
 ovl_kcur:		dw 0
 ovl_mt:			dw ntc_ovl_ld2	; fs_go returns into this
 ovl_tdie:		db "Overlay not loaded: ", 0
+ovl_tpage:		db "No RAM page free", 0
+ovl_tfile:		db "The file didn't load", 0
+ovl_tkey:		db "Press a key", 0
+ovl_why:		dw 0
 
 ; ntc_ovl_enter - from a call stub (jp, IX = where to go on): HL = the class
 ; block, DE = the stub's word for the caller's page. Comes back on the real
@@ -7142,7 +7146,13 @@ ntc_ovl_en_back:
 			jr nz, ntc_ovl_die
 			ld ix, (ovl_ix)
 			jp (ix)
+; it can't be loaded: the name and why, wait for a key (a program started
+; with RUN" resets when it ends), then the program stops
 ntc_ovl_die:
+			ld (ovl_why), hl
+			ld ix, ntc_ovl_die1
+			jp ntc_plat_newline
+ntc_ovl_die1:
 			ld hl, ovl_tdie
 			ld ix, ntc_ovl_die2
 			jr ntc_ovl_puts
@@ -7153,8 +7163,30 @@ ntc_ovl_die2:
 			ld ix, ntc_ovl_die3
 			jr ntc_ovl_puts
 ntc_ovl_die3:
-			ld ix, kw_stop
+			ld ix, ntc_ovl_die3b
 			jp ntc_plat_newline
+ntc_ovl_die3b:
+			ld hl, (ovl_why)
+			ld de, -OVL_NOPAGE
+			add hl, de
+			ld a, h
+			or l
+			ld hl, ovl_tpage
+			jr z, ntc_ovl_die4
+			ld hl, ovl_tfile
+ntc_ovl_die4:
+			ld ix, ntc_ovl_die5
+			jr ntc_ovl_puts
+ntc_ovl_die5:
+			ld ix, ntc_ovl_die6
+			jp ntc_plat_newline
+ntc_ovl_die6:
+			ld hl, ovl_tkey
+			ld ix, ntc_ovl_die7
+			jr ntc_ovl_puts
+ntc_ovl_die7:
+			ld ix, kw_stop
+			jp ntc_plat_getkey
 ; HL = text (0 ended): printed, then jp (ix)
 ntc_ovl_puts:
 			ld (ovl_pix), ix

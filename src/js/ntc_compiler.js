@@ -96,6 +96,8 @@ function ntcCompile(input_a, objOptions_a)
 	var strCopy = '';			// label suffix for the normal mode copy of a procedure
 	var strMode = 't';			// current mode: t = turbo, n = normal, E = the procedure's entry mode (pass 1)
 	var strStartMode = 't';
+	var blnNoTurbo = false;		// Option NoTurbo: normal mode only (one copy of each procedure and keyword)
+	var objNoTurboLine = null;
 	var intLastComment = -1;
 	var strLastCommentFile = '';
 	var strProcEntry = '';		// mode a procedure copy started in
@@ -6241,6 +6243,14 @@ function ntcCompile(input_a, objOptions_a)
 				break;
 
 			case 'turbo':
+				if (blnNoTurbo)
+				{
+					if (intPass === 2)
+					{
+						warning((objRec_a.on ? 'Turbo On' : 'Turbo Off') + ' does nothing with Option NoTurbo (normal mode only)');
+					}
+					break;
+				}
 				if (objRec_a.on && (strMode !== 't'))
 				{
 					if (strMode === 'n')
@@ -7496,6 +7506,11 @@ function ntcCompile(input_a, objOptions_a)
 			{
 				strStartMode = 'n';
 			}
+			else if (objRec.what === 'noturbo')
+			{
+				blnNoTurbo = true;
+				objNoTurboLine = objRec;
+			}
 			else if (objRec.what === 'comparetext')
 			{
 				objCompareText[objRec.module] = true;
@@ -7565,6 +7580,16 @@ function ntcCompile(input_a, objOptions_a)
 		{
 			arrMainRecs.push(objRec);
 		}
+	}
+
+	// Option NoTurbo: normal mode from the start, whatever Option Turbo / the turbo setting say
+	if (blnNoTurbo)
+	{
+		if (strStartMode === 't')
+		{
+			arrWarnings.push({ file: objNoTurboLine.file, line: objNoTurboLine.line, msg: 'Option NoTurbo: the program starts in normal mode (Option Turbo / the turbo setting are ignored)' });
+		}
+		strStartMode = 'n';
 	}
 
 	// Sub Main runs after the top level code
@@ -8328,6 +8353,7 @@ function ntcCompile(input_a, objOptions_a)
 		// an AMSDOS file (128 byte header): RUN"name loads it at the org and starts it
 		arrAsm.push(strIndent + 'SAVEAMSDOS "' + String(objOptions.amsdos).toUpperCase().replace(/[^A-Z0-9]/g, '').substr(0, 8) + '.BIN", ntc_start, ntc_end - ntc_start, ntc_start');
 	}
+	var strLen = '';
 	if (arrOvlOrder.length > 0)
 	{
 		arrAsm.push(strIndent + 'ASSERT (ntc_end <= #4000) || (ntc_start >= #8000), "overlay classes: the program must stay out of #4000-#7FFF (the window they run in)"');
@@ -8340,14 +8366,39 @@ function ntcCompile(input_a, objOptions_a)
 			arrAsm.push('; Overlay class ' + strModule_a + ' -> ' + objKind.file + ': its threads, built to run at #4000');
 			arrAsm.push('; (a C page); its variables are in the program. Written as its own file.');
 			arrAsm.push('; ============================================================');
-			arrAsm.push(strIndent + 'OUTPUT "' + objKind.file + '"');
+			// an AMSDOS build: a binary file with an AMSDOS header (AMSDOS takes a file without
+			// one for ASCII text, and CAS IN DIRECT won't load it); else the plain bytes
+			if (String(objOptions.amsdos || '').length === 0)
+			{
+				// written here with its AMSDOS header: binary (type 2), loads at #4000
+				strLen = '(ovl_' + objKind.id + '_end - ovl_' + objKind.id + '_start)';
+				arrAsm.push(strIndent + 'OUTPUT "' + objKind.file + '"');
+				arrAsm.push(strIndent + 'ORG #4000 - 128\t\t; the AMSDOS header');
+				arrAsm.push(strIndent + 'ds 18');
+				arrAsm.push(strIndent + 'db 2\t\t\t; binary');
+				arrAsm.push(strIndent + 'dw 0, #4000\t\t; (block length), load address');
+				arrAsm.push(strIndent + 'db 0');
+				arrAsm.push(strIndent + 'dw ' + strLen + ', #4000\t; length, run address');
+				arrAsm.push(strIndent + 'ds 36');
+				arrAsm.push(strIndent + 'dw ' + strLen + '\t; the real length (3 bytes)');
+				arrAsm.push(strIndent + 'db 0');
+				arrAsm.push(strIndent + 'dw 2 + #40 + #40 + 2 * ((' + strLen + ' & 255) + (' + strLen + ' >> 8))\t; checksum of bytes 0-66');
+				arrAsm.push(strIndent + 'ds 59');
+			}
 			arrAsm.push(strIndent + 'ORG #4000');
 			arrAsm.push('ovl_' + objKind.id + '_start:');
 			arrAsm = arrAsm.concat(objOvlAsm[strModule_a]);
 			arrAsm.push(strIndent + 'dw 0\t\t\t; (never empty)');
 			arrAsm.push('ovl_' + objKind.id + '_end:');
 			arrAsm.push(strIndent + 'ASSERT ovl_' + objKind.id + '_end <= #8000, "overlay class ' + strModule_a + ' is more than 16K"');
-			arrAsm.push(strIndent + 'OUTEND');
+			if (String(objOptions.amsdos || '').length === 0)
+			{
+				arrAsm.push(strIndent + 'OUTEND');
+			}
+			else
+			{
+				arrAsm.push(strIndent + 'SAVEAMSDOS "' + objKind.file + '", ovl_' + objKind.id + '_start, ovl_' + objKind.id + '_end - ovl_' + objKind.id + '_start, #4000');
+			}
 		});
 	}
 

@@ -294,6 +294,13 @@ finished, with the date.
   sjasmplus: CPC as AMSDOS `.BIN` (compiler option `amsdos` / `cli.js --amsdos=NAME` adds
   `DEVICE AMSTRADCPC6128` and `SAVEAMSDOS`), CP/M `.COM`, test `.BIN`. Every program now
   ends with `ntc_end:`. regress.sh regenerates and assembles them all
+- 2026-10-12 fix: overlay .PAG files had no AMSDOS header, so AMSDOS took them for text and
+  CAS IN DIRECT didn't load them (OVERLAYS stopped, then RUN" reset). Now SAVEAMSDOS (AMSDOS
+  builds) or a header written in the OUTPUT block; the harness's CAS calls now follow the
+  header rules (headerless = ASCII, no IN DIRECT; CAS OUT writes a header); the failure
+  message says why and waits for a key
+- 2026-10-12 **Option NoTurbo**: normal mode only, one copy of each procedure and branch
+  keyword; Turbo On / Off do nothing (a warning). Shell sort 314 bytes smaller
 - 2026-10-12 **Option Class Overlay ["FILE"] / Interrupt rate | Frame**: overlay classes'
   threads built into .PAG files in the same compile (OUTPUT / ORG #4000), loaded into C pages
   on the first call or with the added Load(), Unload / Loaded / Page; far-call stubs keep and
@@ -726,7 +733,7 @@ CP/M compatible (or mostly) system idea - device model, not decided:
       each); stand-alone DLLs on the library jumpblock; overlays on cpc (no files: put them
       after the program in its file and copy them into pages at start?); library keywords
       used only by an overlay inside its page; a warning when overlay classes call each
-      other (64K reloads); the reason in the "Overlay not loaded" message
+      other (64K reloads)
 - [ ] interrupt classes, next: Tick in a page (I pages, a paged interrupt class); asm-only
       Ticks run inside the interrupt itself (music players: no wait for a safe point);
       cpcfw (firmware frame flyback / ticker events); flags kept across a hook / Tick run

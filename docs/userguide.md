@@ -1518,10 +1518,12 @@ The compiler adds these members to an overlay class (so these names are taken):
 | `Loaded()` | True when it is in RAM |
 | `Page()` | the page it is in, 0 = not loaded |
 
-- A call that has to load and can't (no page free, the file isn't there) prints
-  `Overlay not loaded: LEVEL1.PAG` and ends the program. Call `Load()` first to handle it
-  yourself.
-- Keep the `.PAG` files on the disc with the program's `.BIN`. The program must end below
+- A call that has to load and can't prints `Overlay not loaded: LEVEL1.PAG`, why (`No RAM
+  page free` / `The file didn't load`) and `Press a key`, then ends the program (a program
+  started with `RUN"` then resets). Call `Load()` first to handle it yourself.
+- Keep the `.PAG` files on the disc with the program's `.BIN`. They are binary files with an
+  AMSDOS header (load address `#4000`) - AMSDOS takes a file without a header for text and
+  won't load it into memory. The program must end below
   `#4000` (checked when assembling) and needs AMSDOS (`Option RomEnable 7` after `RUN"`).
 - An overlay class can call the main program, resident classes and other overlay classes;
   each call puts back the page it found. On a 64K machine there is only one page, so two
@@ -1831,6 +1833,18 @@ compiled twice.
 
 The program starts in turbo mode / in normal mode (the default unless the build says
 otherwise).
+
+### Option NoTurbo
+
+`Option NoTurbo`
+
+Normal mode only, to save memory. A procedure called in both modes is normally built twice
+(a turbo copy and a normal copy), and so are the library's branch keywords; with
+`Option NoTurbo` there is one copy of each, in normal mode. `Turbo On` and `Turbo Off` then do
+nothing (a warning says so), and `Option Turbo` or the build's turbo setting is ignored. The
+shell sort example (`bas/shellsort.bas`, which switches mode at run time) comes out 314 bytes
+smaller. Interrupts keep getting in at safe points everywhere, so it suits programs with
+interrupt classes too.
 
 ### Turbo On, Turbo Off
 
@@ -2658,6 +2672,7 @@ change.
 | `Option RomEnable` | [16](#option-romenable) |
 | `Option Stack` | [16](#option-stack) |
 | `Option Terminal` | [16](#option-terminal) |
+| `Option NoTurbo` | [13](#option-noturbo) |
 | `Option Turbo` | [13](#option-turbo) |
 | `Option VBPrint` | [11](#option-vbprint) |
 | `Or` | [6](#and-or-xor-not) |

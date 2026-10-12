@@ -21,6 +21,18 @@ RSX = ['TAPE', 'DISC', 'A', 'B', 'C', 'M']   # AMSDOS's commands, and an M4-like
 # files for the FileSystem class (cpm: BDOS FCB calls, cpcfw: CAS calls) live in this folder
 FILES = os.environ.get('NTC_FILES', os.path.join(HERE, 't', 'files'))
 
+def amsdos_header(data, load=0, typ=2):
+    # the 128 byte header AMSDOS writes for a binary file (as sjasmplus's SAVEAMSDOS does)
+    h = bytearray(128); n = len(data)
+    h[18] = typ; h[21:23] = load.to_bytes(2, 'little'); h[24:26] = n.to_bytes(2, 'little')
+    h[26:28] = load.to_bytes(2, 'little'); h[64:67] = n.to_bytes(3, 'little')
+    h[67:69] = (sum(h[0:67]) & 0xFFFF).to_bytes(2, 'little')
+    return bytes(h)
+def amsdos_header_of(d):
+    # (load address, length) when d starts with a valid AMSDOS header, else None
+    if len(d) < 128 or (sum(d[0:67]) & 0xFFFF) != int.from_bytes(d[67:69], 'little'): return None
+    return int.from_bytes(d[21:23], 'little'), int.from_bytes(d[24:26], 'little')
+
 class Screen:
     def __init__(s, cols, rows):
         s.cols = cols; s.rows = rows; s.clear()
@@ -87,6 +99,7 @@ class Host:
         s.loc = []; s.out_log = []; s.dma = 0x80; s.cas_in = None; s.cas_out = None
         s.drive = 0; s.logged = 1                     # CP/M: current drive A, A logged in
         s.amsdos = False; s.cas_dev = 'TAPE'; s.disk = 'A'   # CPC: AMSDOS dropped by RUN" until KL ROM WALK
+        s.cas_ascii = False; s.cas_load = 0
         os.makedirs(FILES, exist_ok=True)
         m.set_memory_block(org, binary)
         m.set_memory_block(0x38, bytes([0xFB, 0xC9]))       # stand in interrupt handler: ei / ret
@@ -253,9 +266,13 @@ class Host:
             os.makedirs(os.path.join(FILES, d), exist_ok=True)   # one folder per device / volume: TAPE, A, B, C ...
             return os.path.join(FILES, d, n)
         if f == 'cas_in_open':
+            # AMSDOS: a file with a header is binary (its length from the header); one without
+            # is ASCII text - CAS IN DIRECT won't load that (so a file needs its header)
             p = name()
             if not os.path.exists(p): m.a = 0x92; return False
-            s.cas_in = open(p, 'rb').read(); m.bc = len(s.cas_in); m.de = 0; m.a = 2; return True
+            d = open(p, 'rb').read(); h = amsdos_header_of(d)
+            if h is None: s.cas_in = None; s.cas_ascii = True; m.bc = 0; m.de = 0; m.a = 0x16; return True
+            s.cas_ascii = False; s.cas_in = d[128:128 + h[1]]; m.bc = h[1]; m.de = h[0]; m.a = 2; return True
         if f == 'cas_in_direct':
             if s.cas_in is None: return False
             for i, x in enumerate(s.cas_in): mem[(m.hl + i) & 0xFFFF] = x
@@ -266,10 +283,11 @@ class Host:
             s.cas_out = [name(), b'']; return True
         if f == 'cas_out_direct':
             if s.cas_out is None: return False
+            s.cas_load = m.hl
             s.cas_out[1] = bytes(mem[(m.hl + i) & 0xFFFF] for i in range(m.de)); return True
         if f == 'cas_out_close':
             if s.cas_out is None: return False
-            open(s.cas_out[0], 'wb').write(s.cas_out[1]); s.cas_out = None; return True
+            open(s.cas_out[0], 'wb').write(amsdos_header(s.cas_out[1], s.cas_load) + s.cas_out[1]); s.cas_out = None; return True
         if f == 'cas_out_abandon':
             s.cas_out = None; return True
         return False
