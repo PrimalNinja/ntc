@@ -2149,6 +2149,8 @@ ovl_tpage:		db "No RAM page free", 0
 ovl_tfile:		db "The file didn't load", 0
 ovl_tstale:		db "The file is from another build", 0
 ovl_tkey:		db "Press a key", 0
+ovl_tbra:		db " (", 0
+ovl_tket:		db ")", 0
 ovl_why:		dw 0
 
 ; it can't be loaded: the name and why, wait for a key (a program started
@@ -2160,13 +2162,41 @@ ntc_ovl_die:
 ntc_ovl_die1:
 			ld hl, ovl_tdie
 			ld ix, ntc_ovl_die2
-			jr ntc_ovl_puts
+			jp ntc_ovl_puts
 ntc_ovl_die2:
+			ld hl, (ovl_blk)		; the page's name, then its file in brackets (a page
+			ld de, 6				; named by its file: the file)
+			add hl, de
+ntc_ovl_dn1:
+			ld a, (hl)				; past the file name to the page name
+			inc hl
+			or a
+			jr nz, ntc_ovl_dn1
+			ld a, (hl)
+			or a
+			jr z, ntc_ovl_dfile
+			ld ix, ntc_ovl_dn2
+			jp ntc_ovl_puts
+ntc_ovl_dn2:
+			ld hl, ovl_tbra
+			ld ix, ntc_ovl_dn3
+			jp ntc_ovl_puts
+ntc_ovl_dn3:
+			ld hl, (ovl_blk)
+			ld de, 6
+			add hl, de
+			ld ix, ntc_ovl_dn4
+			jp ntc_ovl_puts
+ntc_ovl_dn4:
+			ld hl, ovl_tket
+			ld ix, ntc_ovl_die3
+			jp ntc_ovl_puts
+ntc_ovl_dfile:
 			ld hl, (ovl_blk)
 			ld de, 6
 			add hl, de
 			ld ix, ntc_ovl_die3
-			jr ntc_ovl_puts
+			jp ntc_ovl_puts
 ntc_ovl_die3:
 			ld ix, ntc_ovl_die3b
 			jp ntc_plat_newline
@@ -2188,14 +2218,14 @@ ntc_ovl_die3b:
 			ld hl, ovl_tfile
 ntc_ovl_die4:
 			ld ix, ntc_ovl_die5
-			jr ntc_ovl_puts
+			jp ntc_ovl_puts
 ntc_ovl_die5:
 			ld ix, ntc_ovl_die6
 			jp ntc_plat_newline
 ntc_ovl_die6:
 			ld hl, ovl_tkey
 			ld ix, ntc_ovl_die7
-			jr ntc_ovl_puts
+			jp ntc_ovl_puts
 ntc_ovl_die7:
 			ld ix, kw_stop
 			jp ntc_plat_getkey
@@ -3388,11 +3418,11 @@ ntc_plat_memtop:
 
 
 ; pages (Option Page / Option Class Overlay): the RAM page each is loaded in (0 = not loaded),
-; the end of its code and the size of its page variables, its file
+; the end of its code and the size of its page variables, its file and its name
 ovl_blk_level1:	dw 0, ovl_level1_end, ovl_level1_vsize
-			db "OVERLAYS.001", 0
+			db "OVERLAYS.001", 0, "Level1", 0	; its file, its name (for the messages)
 ovl_blk_level2:	dw 0, ovl_level2_end, ovl_level2_vsize
-			db "OVERLAYS.002", 0
+			db "OVERLAYS.002", 0, "Level2", 0	; its file, its name (for the messages)
 
 ntc_end:				; the end of the program (and of its file)
 ; arrays: after the program, not in its file - kw_bssinit checks they fit and clears them
@@ -3405,7 +3435,7 @@ ntc_free	equ ntc_bss + ntc_bss_size	; the first free byte (heap, Memory tables)
 			ASSERT (ntc_free <= #4000) || (ntc_start >= #8000), "overlay classes: the program and its arrays must stay out of #4000-#7FFF (the window they run in)"
 
 ; ============================================================
-; Page LEVEL1 -> OVERLAYS.001: level1 - threads built to run at #4000
+; Page Level1 -> OVERLAYS.001: level1 - threads built to run at #4000
 ; (a RAM page, or the overlay area); their variables are in the program, but for
 ; Private Paged ones (after the code). Written as its own file.
 ; ============================================================
@@ -3445,14 +3475,14 @@ ovl_level1__0_e:
 			dw 0			; (never empty)
 ovl_level1_end:		; the end of its file; page variables (cleared on loading) follow
 ovl_level1_vsize	equ 0		; its page variables; its local memory is the rest, to #8000
-			ASSERT ovl_level1_end + ovl_level1_vsize <= #8000, "page LEVEL1 (level1) is more than 16K (code and page variables)"
-			DISPLAY "page LEVEL1 (OVERLAYS.001):"
+			ASSERT ovl_level1_end + ovl_level1_vsize <= #8000, "page Level1 (level1) is more than 16K (code and page variables)"
+			DISPLAY "page Level1 (OVERLAYS.001):"
 			DISPLAY "  level1 ", /D, ovl_level1__0_e - ovl_level1__0_s
 			DISPLAY "  page variables ", /D, ovl_level1_vsize, ", free ", /D, #8000 - (ovl_level1_end + ovl_level1_vsize)
 			SAVEAMSDOS "OVERLAYS.001", ovl_level1_start, ovl_level1_end - ovl_level1_start, #4000
 
 ; ============================================================
-; Page LEVEL2 -> OVERLAYS.002: level2 - threads built to run at #4000
+; Page Level2 -> OVERLAYS.002: level2 - threads built to run at #4000
 ; (a RAM page, or the overlay area); their variables are in the program, but for
 ; Private Paged ones (after the code). Written as its own file.
 ; ============================================================
@@ -3486,10 +3516,10 @@ ovl_level2__0_e:
 			dw 0			; (never empty)
 ovl_level2_end:		; the end of its file; page variables (cleared on loading) follow
 ovl_level2_vsize	equ 0		; its page variables; its local memory is the rest, to #8000
-			ASSERT ovl_level2_end + ovl_level2_vsize <= #8000, "page LEVEL2 (level2) is more than 16K (code and page variables)"
-			DISPLAY "page LEVEL2 (OVERLAYS.002):"
+			ASSERT ovl_level2_end + ovl_level2_vsize <= #8000, "page Level2 (level2) is more than 16K (code and page variables)"
+			DISPLAY "page Level2 (OVERLAYS.002):"
 			DISPLAY "  level2 ", /D, ovl_level2__0_e - ovl_level2__0_s
 			DISPLAY "  page variables ", /D, ovl_level2_vsize, ", free ", /D, #8000 - (ovl_level2_end + ovl_level2_vsize)
 			SAVEAMSDOS "OVERLAYS.002", ovl_level2_start, ovl_level2_end - ovl_level2_start, #4000
 
-NTC_STAMP	equ #EF80		; the build stamp: the first word of every page file
+NTC_STAMP	equ #CBD6		; the build stamp: the first word of every page file

@@ -1493,7 +1493,7 @@ copies of its data keeps them itself (in arrays).
 
 ### Option Class
 
-`Option Class Resident` | `Option Class Overlay` [`"FILE"`] | `Option Class Interrupt` *rate* | `Option Class Interrupt Frame`
+`Option Class Resident` | `Option Class Overlay` [*Name* | `"FILE.EXT"`] | `Option Class Interrupt` *rate* | `Option Class Interrupt Frame`
 
 In a `.cls` file: what kind of class it is. Without it (or `Resident`) the class is part of
 the program as above.
@@ -1503,7 +1503,7 @@ the program as above.
 [one overlay area](#one-overlay-area) (cpm, and cpcmin / cpcfw with `Option Memory Small`).
 
 With RAM pages, the class's
-code is built, in the same compile, into its own file - its page (named `FILE`, or the class
+code is built, in the same compile, into its own file - its page (named *Name*, or the class
 name when no name is given) - to run at `#4000` in a RAM page (a C page, see
 [Memory](#memory)). Its variables stay in the program, so they keep their values when the
 page goes. Calling one of its procedures switches its page into the window and back again
@@ -1513,7 +1513,7 @@ memory, a module or a level at a time.
 
 ```
 ' Level1.cls
-Option Class Overlay "LEVEL1"
+Option Class Overlay Level1
 Public Function Play(ByVal score As Integer) As Integer
   Banner "Level 1"            ' a Sub in the main program
   Play = 100
@@ -1539,12 +1539,15 @@ The compiler adds these members to an overlay class (so these names are taken):
 - **Page files are numbered:** `PROGRAM.001`, `PROGRAM.002` ... (PROGRAM: the program's name -
   the project's name in the GUI, `NAME` in `build/`, `cli.js --name=` or the main file's name),
   in the order of the pages in the source (`Option Page` lines first, then `Option Class
-  Overlay`). So two programs on one disc never write the same file. A name with an extension
-  is used as it is: `Option Class Overlay "LEVEL1.PAG"`. The layout list (below) says which
+  Overlay`). So two programs on one disc never write the same file. The page's name (a plain
+  word, like a class name) is for the source, the lists and the messages. To choose the file
+  yourself give it in quotes, with its extension: `Option Class Overlay "LEVEL1.PAG"` (a quoted
+  name without an extension is a plain name, as before). The layout list (below) says which
   number each page got.
 - **Every page file carries the build's stamp** (a CRC of the program, its first word): a file
   from another build of the program (an old `.001` left on the disc) is refused - `-14`.
-- A call that has to load and can't prints `Overlay not loaded: PROGRAM.001`, why (`No RAM
+- A call that has to load and can't prints `Overlay not loaded: Level1 (PROGRAM.001)` - the
+  page and its file - why (`No RAM
   page free` / `The file didn't load` / `The file is from another build`) and `Press a key`,
   then ends the program (a program started with `RUN"` then resets). Call `Load()` first to
   handle it yourself.
@@ -1572,8 +1575,8 @@ The compiler adds these members to an overlay class (so these names are taken):
 - Not yet: one interface for several files (VB's `Implements`, for levels that swap), and
   classes built on their own for any program (like DLLs).
 - Several classes can share one page, and a class can be copied into several pages:
-  [Option Page](#option-page). `Option Class Overlay "FILE"` is the short form of
-  `Option Page "FILE" = ThisClass`; two classes naming the same file share that page.
+  [Option Page](#option-page). `Option Class Overlay Name` is the short form of
+  `Option Page Name = ThisClass`; two classes naming the same page share it.
 
 #### One overlay area
 
@@ -1601,23 +1604,23 @@ The same source works both ways (`bas/overlays/`). What is different:
 
 The compiler keeps the program and the Memory heap out of `#4000-#7FFF` for overlay
 classes (as `Option Reserve &H4000, &H4000`). A file that isn't there stops the program with
-`Overlay not loaded: PROGRAM.001` / `The file didn't load` / `Press a key`.
+`Overlay not loaded: Level1 (PROGRAM.001)` / `The file didn't load` / `Press a key`.
 
 #### Option Page
 
-`Option Page "NAME"` `=` *Class* [`,` *Class*] ...
+`Option Page` *Name* | `"FILE.EXT"` `=` *Class* [`,` *Class*] ...
 
 Where each class goes, in one place (by custom in the main file): the classes listed are
-built together into one file (`PROGRAM.001` ..., numbered as above; `"NAME.EXT"` names the
-file), each at its own fixed address in it.
+built together into one file (`PROGRAM.001` ..., numbered as above; `"FILE.EXT"` instead of a
+name gives the file), each at its own fixed address in it.
 The page is loaded and switched in as a whole, the same way as an overlay class's page (RAM
 pages, or [the overlay area](#one-overlay-area)).
 
 ```
-Option Page "TITLE"   = Title
-Option Page "LEVEL1"  = Level1, Maths, Stars
-Option Page "LEVEL2"  = Level2, Maths, Stars
-Option Page "CREDITS" = Credits
+Option Page Title   = Title
+Option Page Level1  = Level1, Maths, Stars
+Option Page Level2  = Level2, Maths, Stars
+Option Page Credits = Credits
 ```
 
 - **A class in no page is in main RAM**, as always - a class every page uses (a score, a
@@ -1631,7 +1634,7 @@ Option Page "CREDITS" = Credits
   about 320 with a page switch (RAM pages, page already loaded). Calls between procedures of
   one overlay class used to pay the switch too; now they are inside its page.
 - **Calls from main RAM (or another page) to a copied class** go to its **home copy** - the
-  first page that lists it, or the one `Option Home` *Class* `= "NAME"` names. A class with no
+  first page that lists it, or the one `Option Home` *Class* `=` *Page* names. A class with no
   paged variables (every copy alike) may instead use a copy whose page is in the window at
   the time.
 - **Variables:** a copied class's ordinary variables are in the program, so every copy sees the
@@ -1646,8 +1649,8 @@ Option Page "CREDITS" = Credits
   (in the GUI's messages; `cli.js --layout`), and the classes in main RAM that pages call:
 
 ```
-Page LEVEL1 (PAGES.002): level1 104, maths 10 (home), stars 14 (home); paged variables 2; about 16210 bytes free
-Page LEVEL2 (PAGES.003): level2 90, maths 10 (copy), stars 14 (copy); paged variables 2; about 16224 bytes free
+Page Level1 (PAGES.002): level1 104, maths 10 (home), stars 14 (home); paged variables 2; about 16210 bytes free
+Page Level2 (PAGES.003): level2 90, maths 10 (copy), stars 14 (copy); paged variables 2; about 16224 bytes free
 Main RAM, called from pages: score
 ```
 

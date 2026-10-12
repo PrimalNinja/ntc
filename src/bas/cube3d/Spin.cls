@@ -3,10 +3,10 @@
 ' page by the first call, and it calls Vector3D and Graphics in main memory from there. On
 ' cpc (no files) it is part of the program.
 #If NTC_CPCMIN Then
-Option Class Overlay "SPIN"
+Option Class Overlay Spin
 #End If
 #If NTC_CPCFW Then
-Option Class Overlay "SPIN"
+Option Class Overlay Spin
 #End If
 Private ax As Integer, ay As Integer, az As Integer
 Private size As Integer, shape As Integer, frames As Integer, mode As Integer

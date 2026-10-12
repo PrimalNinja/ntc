@@ -1,4 +1,4 @@
-' Level1: page STAGE1, with its own copies of Maths and Stars
+' Level1: page Stage1, with its own copies of Maths and Stars
 Public Sub Play()
   Dim i As Integer
   For i = 1 To 3

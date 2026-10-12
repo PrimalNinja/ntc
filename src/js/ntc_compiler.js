@@ -7788,31 +7788,38 @@ function ntcCompile(input_a, objOptions_a)
 		var objHome = {};
 		var arrHomes = [];
 
-		// a page's name: NAME (its file is numbered: PROGRAM.001 ...) or NAME.EXT (that file)
-		function pageFile(str_a)
+		// a page: Name (a name for the source and the lists; its file is numbered, PROGRAM.001
+		// ...) or "FILE.EXT" (that file; "NAME" in quotes with no extension is a name, as before)
+		function pageId(str_a)
 		{
-			var arrParts = String(str_a).toUpperCase().split('.');
-			var strBase = arrParts[0].replace(/[^A-Z0-9]/g, '').substr(0, 8);
-
-			if (arrParts.length > 1)
-			{
-				return strBase + '.' + arrParts.slice(1).join('').replace(/[^A-Z0-9]/g, '').substr(0, 3);
-			}
-			return strBase;
+			return String(str_a).toLowerCase().replace(/[^a-z0-9_.]/g, '').replace(/\./g, '_');
 		}
-		function addPage(strName_a, strFile_a, intLine_a)
+		function addPage(strName_a, strFile_a, intLine_a, blnQuoted_a)
 		{
-			var strName = pageFile(strName_a);
-			var strId = strName.toLowerCase().replace(/\./g, '_');
+			var strName = String(strName_a).replace(/^\s+|\s+$/g, '');
+			var blnFile = blnQuoted_a && (strName.indexOf('.') > -1);
+			var arrParts = strName.toUpperCase().split('.');
+			var strFile = blnFile ? (arrParts[0].replace(/[^A-Z0-9]/g, '').substr(0, 8) + '.' + arrParts.slice(1).join('').replace(/[^A-Z0-9]/g, '').substr(0, 3)) : '';
+			var strId = '';
 
-			if (strName.replace(/\..*$/, '').length === 0)
+			if (blnFile && (strFile.replace(/\..*$/, '').length === 0))
 			{
-				arrErrors.push({ file: strFile_a, line: intLine_a, msg: 'Option Page: no name' });
+				arrErrors.push({ file: strFile_a, line: intLine_a, msg: 'Option Page: no file name in "' + strName + '"' });
 				return null;
 			}
+			if (!blnFile)
+			{
+				strName = strName.replace(/[^A-Za-z0-9_]/g, '');
+				if (strName.length === 0)
+				{
+					arrErrors.push({ file: strFile_a, line: intLine_a, msg: 'Option Page: no name' });
+					return null;
+				}
+			}
+			strId = pageId(blnFile ? strFile : strName);
 			if (objPages[strId] === undefined)
 			{
-				objPages[strId] = { name: strName, file: (strName.indexOf('.') > -1) ? strName : '', id: strId, blk: 'ovl_blk_' + strId, classes: [], srcfile: strFile_a, line: intLine_a };
+				objPages[strId] = { name: blnFile ? strFile : strName, file: strFile, id: strId, blk: 'ovl_blk_' + strId, classes: [], srcfile: strFile_a, line: intLine_a };
 				arrPageOrder.push(strId);
 			}
 			return objPages[strId];
@@ -7841,12 +7848,12 @@ function ntcCompile(input_a, objOptions_a)
 			activeLines(objFile_a.text).forEach(function(objLine_a)
 			{
 				var strCode = objLine_a.text.replace(/'.*$/, '');
-				var arrMatch = strCode.match(/^\s*option\s+page\s+"([^"]*)"\s*=\s*(.*?)\s*$/i);
+				var arrMatch = strCode.match(/^\s*option\s+page\s+(?:"([^"]*)"|([a-z_]\w*))\s*=\s*(.*?)\s*$/i);
 				var objPage = null;
 
 				if (arrMatch)
 				{
-					objPage = addPage(arrMatch[1], objFile_a.name, objLine_a.line);
+					objPage = addPage((arrMatch[1] !== undefined) ? arrMatch[1] : arrMatch[2], objFile_a.name, objLine_a.line, arrMatch[1] !== undefined);
 					if (objPage === null)
 					{
 						return;
@@ -7859,7 +7866,7 @@ function ntcCompile(input_a, objOptions_a)
 					objPage.declared = true;
 					objPage.srcfile = objFile_a.name;
 					objPage.line = objLine_a.line;
-					arrMatch[2].split(',').forEach(function(strClass_a)
+					arrMatch[3].split(',').forEach(function(strClass_a)
 					{
 						var strModule = strClass_a.replace(/^\s+|\s+$/g, '').toLowerCase();
 
@@ -7877,15 +7884,15 @@ function ntcCompile(input_a, objOptions_a)
 				}
 				else if (/^\s*option\s+page\b/i.test(strCode))
 				{
-					arrErrors.push({ file: objFile_a.name, line: objLine_a.line, msg: 'Option Page "NAME" = Class, Class ...' });
+					arrErrors.push({ file: objFile_a.name, line: objLine_a.line, msg: 'Option Page Name = Class, Class ... (or Option Page "FILE.EXT" = ... for a file name of your own)' });
 				}
-				else if ((arrMatch = strCode.match(/^\s*option\s+home\s+([a-z_]\w*)\s*=\s*"([^"]*)"\s*$/i)))
+				else if ((arrMatch = strCode.match(/^\s*option\s+home\s+([a-z_]\w*)\s*=\s*(?:"([^"]*)"|([a-z_]\w*))\s*$/i)))
 				{
-					arrHomes.push({ module: arrMatch[1].toLowerCase(), page: pageFile(arrMatch[2]).toLowerCase().replace(/\./g, '_'), file: objFile_a.name, line: objLine_a.line });
+					arrHomes.push({ module: arrMatch[1].toLowerCase(), page: pageId((arrMatch[2] !== undefined) ? arrMatch[2] : arrMatch[3]), file: objFile_a.name, line: objLine_a.line });
 				}
 				else if (/^\s*option\s+home\b/i.test(strCode))
 				{
-					arrErrors.push({ file: objFile_a.name, line: objLine_a.line, msg: 'Option Home Class = "PAGE"' });
+					arrErrors.push({ file: objFile_a.name, line: objLine_a.line, msg: 'Option Home Class = Page' });
 				}
 			});
 		});
@@ -7899,12 +7906,12 @@ function ntcCompile(input_a, objOptions_a)
 			}
 			activeLines(objFile_a.text).forEach(function(objLine_a)
 			{
-				var arrMatch = objLine_a.text.replace(/'.*$/, '').match(/^\s*option\s+class\s+overlay\s*(?:"([^"]*)")?\s*$/i);
+				var arrMatch = objLine_a.text.replace(/'.*$/, '').match(/^\s*option\s+class\s+overlay\s*(?:"([^"]*)"|([a-z_]\w*))?\s*$/i);
 				var objPage = null;
 
 				if (arrMatch)
 				{
-					objPage = addPage(arrMatch[1] || strModule, objFile_a.name, objLine_a.line);
+					objPage = addPage((arrMatch[1] !== undefined) ? arrMatch[1] : (arrMatch[2] || strModule), objFile_a.name, objLine_a.line, arrMatch[1] !== undefined);
 					if (objPage !== null)
 					{
 						addClass(objPage, strModule, objFile_a.name, objLine_a.line, true);
@@ -8047,7 +8054,7 @@ function ntcCompile(input_a, objOptions_a)
 		{
 			return;
 		}
-		if ((arrMatch = strValue.match(/^\s*overlay\s*(?:"([^"]*)")?\s*$/i)))
+		if ((arrMatch = strValue.match(/^\s*overlay\s*(?:"([^"]*)"|[a-z_]\w*)?\s*$/i)))
 		{
 			// read by the pre-pass (scanPages: the class joins its page); only the platform here
 			if (!overlayPlatform())
@@ -9206,11 +9213,11 @@ function ntcCompile(input_a, objOptions_a)
 	{
 		arrAsm.push('');
 		arrAsm.push('; pages (Option Page / Option Class Overlay): the RAM page each is loaded in (0 = not loaded),');
-		arrAsm.push('; the end of its code and the size of its page variables, its file');
+		arrAsm.push('; the end of its code and the size of its page variables, its file and its name');
 		arrPageOrder.forEach(function(strId_a)
 		{
 			arrAsm.push(objPages[strId_a].blk + ':\tdw 0, ovl_' + strId_a + '_end, ovl_' + strId_a + '_vsize');
-			arrAsm.push(strIndent + 'db "' + objPages[strId_a].file + '", 0');
+			arrAsm.push(strIndent + 'db "' + objPages[strId_a].file + '", 0, "' + ((objPages[strId_a].name !== objPages[strId_a].file) ? objPages[strId_a].name : '') + '", 0\t; its file, its name (for the messages)');
 		});
 		if (objPageOut.tables.length > 0)
 		{

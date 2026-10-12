@@ -9,10 +9,10 @@
 '   - calls between classes of the same page switch nothing
 ' The compiler lists what is in each page, and how big (the GUI's messages; cli.js --layout).
 Option Explicit
-Option Page "INTRO"   = Title
-Option Page "STAGE1"  = Level1, Maths, Stars
-Option Page "STAGE2"  = Level2, Maths, Stars
-Option Page "ENDING"  = Credits
+Option Page Intro  = Title
+Option Page Stage1 = Level1, Maths, Stars
+Option Page Stage2 = Level2, Maths, Stars
+Option Page Ending = Credits
 #If NTC_CPCMIN Then
 Option RomEnable 7                ' RUN" drops AMSDOS: start it again, the pages load from disc
 #End If
@@ -26,7 +26,7 @@ Level1.Play
 Level2.Play
 Level1.Play
 Print "Maths from main: 7 squared is "; Maths.Square(7)
-Print "Stars from main (STAGE1's copy): "; Stars.Count()
+Print "Stars from main (Stage1's copy): "; Stars.Count()
 Credits.Show
 Print "Press a key";
 Do While Inkey <> 0 : Loop

@@ -7153,6 +7153,8 @@ ovl_tpage:		db "No RAM page free", 0
 ovl_tfile:		db "The file didn't load", 0
 ovl_tstale:		db "The file is from another build", 0
 ovl_tkey:		db "Press a key", 0
+ovl_tbra:		db " (", 0
+ovl_tket:		db ")", 0
 ovl_why:		dw 0
 
 ; it can't be loaded: the name and why, wait for a key (a program started
@@ -7164,13 +7166,41 @@ ntc_ovl_die:
 ntc_ovl_die1:
 			ld hl, ovl_tdie
 			ld ix, ntc_ovl_die2
-			jr ntc_ovl_puts
+			jp ntc_ovl_puts
 ntc_ovl_die2:
+			ld hl, (ovl_blk)		; the page's name, then its file in brackets (a page
+			ld de, 6				; named by its file: the file)
+			add hl, de
+ntc_ovl_dn1:
+			ld a, (hl)				; past the file name to the page name
+			inc hl
+			or a
+			jr nz, ntc_ovl_dn1
+			ld a, (hl)
+			or a
+			jr z, ntc_ovl_dfile
+			ld ix, ntc_ovl_dn2
+			jp ntc_ovl_puts
+ntc_ovl_dn2:
+			ld hl, ovl_tbra
+			ld ix, ntc_ovl_dn3
+			jp ntc_ovl_puts
+ntc_ovl_dn3:
+			ld hl, (ovl_blk)
+			ld de, 6
+			add hl, de
+			ld ix, ntc_ovl_dn4
+			jp ntc_ovl_puts
+ntc_ovl_dn4:
+			ld hl, ovl_tket
+			ld ix, ntc_ovl_die3
+			jp ntc_ovl_puts
+ntc_ovl_dfile:
 			ld hl, (ovl_blk)
 			ld de, 6
 			add hl, de
 			ld ix, ntc_ovl_die3
-			jr ntc_ovl_puts
+			jp ntc_ovl_puts
 ntc_ovl_die3:
 			ld ix, ntc_ovl_die3b
 			jp ntc_plat_newline
@@ -7192,14 +7222,14 @@ ntc_ovl_die3b:
 			ld hl, ovl_tfile
 ntc_ovl_die4:
 			ld ix, ntc_ovl_die5
-			jr ntc_ovl_puts
+			jp ntc_ovl_puts
 ntc_ovl_die5:
 			ld ix, ntc_ovl_die6
 			jp ntc_plat_newline
 ntc_ovl_die6:
 			ld hl, ovl_tkey
 			ld ix, ntc_ovl_die7
-			jr ntc_ovl_puts
+			jp ntc_ovl_puts
 ntc_ovl_die7:
 			ld ix, kw_stop
 			jp ntc_plat_getkey

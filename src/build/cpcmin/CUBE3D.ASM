@@ -4349,6 +4349,8 @@ ovl_tpage:		db "No RAM page free", 0
 ovl_tfile:		db "The file didn't load", 0
 ovl_tstale:		db "The file is from another build", 0
 ovl_tkey:		db "Press a key", 0
+ovl_tbra:		db " (", 0
+ovl_tket:		db ")", 0
 ovl_why:		dw 0
 
 ; it can't be loaded: the name and why, wait for a key (a program started
@@ -4360,13 +4362,41 @@ ntc_ovl_die:
 ntc_ovl_die1:
 			ld hl, ovl_tdie
 			ld ix, ntc_ovl_die2
-			jr ntc_ovl_puts
+			jp ntc_ovl_puts
 ntc_ovl_die2:
+			ld hl, (ovl_blk)		; the page's name, then its file in brackets (a page
+			ld de, 6				; named by its file: the file)
+			add hl, de
+ntc_ovl_dn1:
+			ld a, (hl)				; past the file name to the page name
+			inc hl
+			or a
+			jr nz, ntc_ovl_dn1
+			ld a, (hl)
+			or a
+			jr z, ntc_ovl_dfile
+			ld ix, ntc_ovl_dn2
+			jp ntc_ovl_puts
+ntc_ovl_dn2:
+			ld hl, ovl_tbra
+			ld ix, ntc_ovl_dn3
+			jp ntc_ovl_puts
+ntc_ovl_dn3:
+			ld hl, (ovl_blk)
+			ld de, 6
+			add hl, de
+			ld ix, ntc_ovl_dn4
+			jp ntc_ovl_puts
+ntc_ovl_dn4:
+			ld hl, ovl_tket
+			ld ix, ntc_ovl_die3
+			jp ntc_ovl_puts
+ntc_ovl_dfile:
 			ld hl, (ovl_blk)
 			ld de, 6
 			add hl, de
 			ld ix, ntc_ovl_die3
-			jr ntc_ovl_puts
+			jp ntc_ovl_puts
 ntc_ovl_die3:
 			ld ix, ntc_ovl_die3b
 			jp ntc_plat_newline
@@ -4388,14 +4418,14 @@ ntc_ovl_die3b:
 			ld hl, ovl_tfile
 ntc_ovl_die4:
 			ld ix, ntc_ovl_die5
-			jr ntc_ovl_puts
+			jp ntc_ovl_puts
 ntc_ovl_die5:
 			ld ix, ntc_ovl_die6
 			jp ntc_plat_newline
 ntc_ovl_die6:
 			ld hl, ovl_tkey
 			ld ix, ntc_ovl_die7
-			jr ntc_ovl_puts
+			jp ntc_ovl_puts
 ntc_ovl_die7:
 			ld ix, kw_stop
 			jp ntc_plat_getkey
@@ -6673,9 +6703,9 @@ ntc_plat_memtop:
 
 
 ; pages (Option Page / Option Class Overlay): the RAM page each is loaded in (0 = not loaded),
-; the end of its code and the size of its page variables, its file
+; the end of its code and the size of its page variables, its file and its name
 ovl_blk_spin:	dw 0, ovl_spin_end, ovl_spin_vsize
-			db "CUBE3D.001", 0
+			db "CUBE3D.001", 0, "Spin", 0	; its file, its name (for the messages)
 
 ntc_end:				; the end of the program (and of its file)
 ; arrays: after the program, not in its file - kw_bssinit checks they fit and clears them
@@ -6699,7 +6729,7 @@ ntc_free	equ ntc_bss + ntc_bss_size	; the first free byte (heap, Memory tables)
 			ASSERT (ntc_free <= #4000) || (ntc_start >= #8000), "overlay classes: the program and its arrays must stay out of #4000-#7FFF (the window they run in)"
 
 ; ============================================================
-; Page SPIN -> CUBE3D.001: spin - threads built to run at #4000
+; Page Spin -> CUBE3D.001: spin - threads built to run at #4000
 ; (a RAM page, or the overlay area); their variables are in the program, but for
 ; Private Paged ones (after the code). Written as its own file.
 ; ============================================================
@@ -7330,11 +7360,11 @@ ovl_spin__x_e:
 			dw 0			; (never empty)
 ovl_spin_end:		; the end of its file; page variables (cleared on loading) follow
 ovl_spin_vsize	equ 0		; its page variables; its local memory is the rest, to #8000
-			ASSERT ovl_spin_end + ovl_spin_vsize <= #8000, "page SPIN (spin) is more than 16K (code and page variables)"
-			DISPLAY "page SPIN (CUBE3D.001):"
+			ASSERT ovl_spin_end + ovl_spin_vsize <= #8000, "page Spin (spin) is more than 16K (code and page variables)"
+			DISPLAY "page Spin (CUBE3D.001):"
 			DISPLAY "  spin ", /D, ovl_spin__0_e - ovl_spin__0_s
 			DISPLAY "  (local entries, stubs) ", /D, ovl_spin__x_e - ovl_spin__x_s
 			DISPLAY "  page variables ", /D, ovl_spin_vsize, ", free ", /D, #8000 - (ovl_spin_end + ovl_spin_vsize)
 			SAVEAMSDOS "CUBE3D.001", ovl_spin_start, ovl_spin_end - ovl_spin_start, #4000
 
-NTC_STAMP	equ #9CB7		; the build stamp: the first word of every page file
+NTC_STAMP	equ #05FE		; the build stamp: the first word of every page file

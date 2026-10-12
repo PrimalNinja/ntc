@@ -320,6 +320,10 @@ finished, with the date.
   INTERRUPTCLASSES capabilities True on cpcfw; INTERRUP built for cpcfw; regress checks isl,
   hook and the interrupts example on cpcfw. Tutorial: 9.1 overlays with Small, new 10.7 (text
   and records in nodes), 6.5 replacing / tailoring any library class, 5.3 when turbo gains nothing
+- 2026-10-13 Page names are plain words (`Option Page Level1 = ...`, `Option Class Overlay
+  Level1`, `Option Home Stars = Level2`): a name, not a file - the file is numbered; quotes with
+  an extension pick the file (`"LEVEL1.PAG"`; quoted without an extension still works as a
+  name). The block carries the page's name too: `Overlay not loaded: Stage1 (MAIN.002)`
 - 2026-10-13 **Page files numbered** (Julian): `PROGRAM.001` ... `PROGRAM.999` (the program's
   name: GUI project name, genbuild NAME, `cli.js --name=`, else the main file's name), in page
   order; `"NAME.EXT"` keeps its own name. Two programs on a disc can't clash any more (the

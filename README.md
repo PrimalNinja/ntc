@@ -657,8 +657,10 @@ caller's class was swapped out, so it is loaded again before going back to its t
 emitted (the Small heap stops at the area). CP/M page files are the plain bytes (`fs_load`
 reads whole records into `#4000`, at most 16K).
 
-**Pages** (`Option Page "NAME" = A, B`, `Option Home`; `Option Class Overlay "X"` is the same
-as `Option Page "X" = ThisClass`). A pre-pass (`scanPages`, before parsing, following `#If` /
+**Pages** (`Option Page Name = A, B` or `Option Page "FILE.EXT" = ...`, `Option Home`;
+`Option Class Overlay X` is the same as `Option Page X = ThisClass`). The block is `dw page,
+end, vsize`, then the file name and the page's name (0-ended each; the name empty for a page
+named by its file), so the message says `Overlay not loaded: Level1 (PROGRAM.001)`. A pre-pass (`scanPages`, before parsing, following `#If` /
 `#Const` with the compile's predefined names) reads them from every file: `objPages` (id ->
 name, file, block `ovl_blk_<page>`, classes), `objClassPages` (class -> its pages, the home
 first). Each class still gets its own thread list (`objOvlAsm`); `composePages` writes each
