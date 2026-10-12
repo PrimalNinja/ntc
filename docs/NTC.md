@@ -382,11 +382,25 @@ AMSDOS RSXs) and `System.Command` (any RSX, KL FIND COMMAND + KL FAR PCALL); `cp
 - `#asm` naming any library label (not only a section name) links that label's section, so
   class methods can jump straight to `ntc_plat_putc`, `kw_printint` and so on.
 
-### The keyword library ROM (Library: ROM, cpcfw)
+### The keyword library ROMs (Library: ROM, cpc / cpcmin / cpcfw)
 
 The library can live in a 16K background ROM instead of in each program (`Option Library
 ROM`, `library: 'rom'`, GUI **Library: in ROM**). One ROM per platform, each with its own
-name (`NTC CPCFW` for now), so all of them can be fitted at once.
+name and file (`NTC CPC` NTCCPC.ROM, `NTC CPCMIN` NTCMIN.ROM, `NTC CPCFW` NTCFW.ROM:
+`ntcRomFile`), so all of them can be fitted at once.
+
+- **The platform files** mark what differs in a ROM with `IF NTC_ROMLIB ... ELSE ... ENDIF`
+  (every program has `NTC_ROMLIB equ 0`; ntcRomAsm keeps the IF part and drops the rest), and
+  a section with `@romram` in its header runs from RAM in the ROM (the linker ignores the
+  word). cpc / cpcmin: the gate array writes keep the upper ROM on (`#84 | mode` in place of
+  `#8C | mode`); the first mode set copies the font from the lower ROM in the ROM itself
+  (lower ROM on, upper stays on - no copy to #C000); `ntc_plat_scroll` and `ntc_plat_cls`
+  (both read the screen: the scroll copy, the LDIR fill) are a `@romram` section that turns
+  the upper ROM off round the work and sets `ntc_uroff`; the interrupt handler
+  (`ntc_plat_irqh`, `@romram`) turns the ROM on for its call of `ntc_irqv` while `ntc_uroff` is
+  set and off again after; `ntc_plat_memtop` is `NTC_ROMDATA`; cpcmin's `fs_fwoff` puts the mode
+  back with the ROM on. The program's start uses the firmware (still there at that point on
+  every CPC platform) to find the ROM; KL ROM SELECT lets interrupts in, so `di` follows.
 
 - **Making the ROM** (`ntcRomAsm(platform, registry)` in ntc_compiler.js, run by
   `test/genrom.js`): compiles `Print` with `library: 'allmodes'` (every section, both mode
@@ -396,16 +410,21 @@ name (`NTC CPCFW` for now), so all of them can be fitted at once.
   test of `ntc_v_romen`). `NTC_STRMAX` is 255 and `NTC_MEMBANKS` 64. Lines are sorted into code
   (the ROM), initialised variables (assembled for `#8800` and copied there by the patcher), the
   other variables (`#9400` up, cleared) and constants. A capacity byte before a buffer goes with
-  the buffer; a label at the end of a section stays with the variable before it. The Graphics
+  the buffer; a label at the end of a section, or alone between two variables, stays with the
+  variable before it (`ntc_pgstk_top`). A run of variables one after another in the source
+  stays together and in order (code counts on it: `ntc_plat_mode` copies 4 bytes into
+  `ntc_sbpc ... ntc_sshift`); runs are ordered by the registry (known ones first). So a new
+  variable goes at the end of its run, or the asserts stop the build (a known one moved). The Graphics
   section runs from RAM too: it reads the screen, which the upper ROM hides; `gfx_begin` / `gfx_end`
   and the screen routines (`gfx_line`, `gfx_double`, `gfx_copyrows`) turn the upper ROM off
   and on round themselves (KL U ROM DISABLE / ENABLE, so the firmware's interrupts keep it).
-  The fast ticker event gets the ROM's number as its far address.
-- **The ROM:** an AMSDOS header (`NTCFW.ROM` is 16512 bytes), the standard header (background,
+  The fast ticker event gets the ROM's number as its far address. On cpc / cpcmin the same
+  hooks use `ntc_urom_off` / `on` that write the gate array directly (and set `ntc_uroff`).
+- **The ROM:** an AMSDOS header (each file is 16512 bytes), the standard header (background,
   names, `jp ntc_rom_init` - `scf / ret`, no RAM taken; no BASIC commands yet), then NTC's block
   after the names: `"NTC", 1`, `"CPCFW", 0`, `dw ntc_rom_patch, ntc_rom_index, NTC_ROM_N`.
   The index is one `dw` per number (0: no longer in this ROM); padded with 0 to 16K.
-- **The registry** (`src/asm/ntc_rom_cpcfw.txt`, bundled as `NTC_ROM_REG` by gen.js):
+- **The registry** (`src/asm/ntc_rom_<platform>.txt`, bundled as `NTC_ROM_REG` by gen.js):
   `<n> code <name>` (a routine's number), `- data|bss|const <name> <value>` (a variable's
   fixed address, a constant's value), `gone` (no longer in the ROM: the number is never used
   again). Only what programs can name is registered: section names, `NTC_ROM_RUNTIME` (labels
@@ -427,7 +446,9 @@ name (`NTC CPCFW` for now), so all of them can be fitted at once.
 - **Cost:** 10 T per keyword (the `jp`); the sieve timing is about 25% slower. Programs lose
   the library's size (SIEVE 1588 -> 680 bytes).
 - Firmware and AMSDOS calls from the ROM return to it (the firmware restores the upper ROM
-  selection); checked on the real 6128 ROMs with `realcpc` (`XROM=`).
+  selection); all three checked on the real 6128 ROMs with `realcpc` (`XROM=`): self tests,
+  files, overlays, pages, interrupt classes, the Memory class, cube3d.
+- Sizes: NTCCPC about 2.6K free, NTCMIN about 0.8K, NTCFW about 1.6K.
 
 ### Project explorer (GUI)
 
@@ -537,8 +558,8 @@ variables, `Declare`.
   again (KL ROM WALK / KL INIT BACK per ROM, DE = `ntc_end`, HL = `#ABFF`) unless CAS IN OPEN
   is already AMSDOS's far call (`#DF` at `#BC77`: the program was CALLed and they run).
   `RUN"` of a binary resets the firmware and drops them. Writes `NTC_ROMENABLE equ 0 / 1`.
-- `Option Library ROM | RAM` (cpcfw): the keyword library in the ROM NTC CPCFW - see "The
-  keyword library ROM" in section 4.
+- `Option Library ROM | RAM` (cpc, cpcmin, cpcfw): the keyword library in the platform's ROM -
+  see "The keyword library ROMs" in section 4.
 - `VarPtr(name)`: the address of a variable's value or a fixed size array's first element
   (a read only word, like `AddressOf`), for `FileSystem.Load` / `Save` and `#asm`.
 
@@ -1049,9 +1070,12 @@ node genrom.js [platform]       (cpcfw; needs sjasmplus)
 
 Makes the ROM's source with `ntcRomAsm`, assembles it, appends new registry entries to
 `asm/ntc_rom_<platform>.txt`, makes it again with the new registry and writes
-`build/rom/NTCFW.ASM` and `NTCFW.ROM`. Run `gen.js` after it (the registry goes into
-`ntc_lib.js`). `regress.sh` checks that it adds nothing. `ntcrun.py --platform=cpcfw
---library=rom` puts the ROM image in slot 6 (`NTC_XROM=file` for another one).
+`build/rom/NTCCPC`, `NTCMIN` or `NTCFW.ASM` / `.ROM`. Run `gen.js` after it (the registry goes
+into `ntc_lib.js`). `regress.sh` checks that it adds nothing for any of the three.
+`ntcrun.py` fits the platform's ROM image in slot 6 when the program wants it (`--library=rom`
+or `Option Library ROM`; `NTC_XROM=file` for another one). On cpc / cpcmin (cpcrun.py) the
+image is at #C000 while the gate array has the upper ROM on and slot 6 is selected; writes
+go to the RAM below (the screen).
 
 ### genbuild.js - the test builds in build/
 

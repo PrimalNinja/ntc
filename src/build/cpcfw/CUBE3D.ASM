@@ -10,6 +10,7 @@ NTC_TERM	equ 0		; Option Terminal: 0 none, 1 VT52, 2 ANSI (CP/M)
 NTC_STRMAX	equ 40		; the longest string (library buffers, temps)
 NTC_MEMBANKS	equ 64		; Option Memory: the most 64K banks the Memory class looks for
 NTC_ROMENABLE	equ 1		; Option RomEnable (cpcfw, cpcmin): the start code starts the ROMs
+NTC_ROMLIB	equ 0		; 1 only when the library itself is built as a ROM (ntcRomAsm)
 
 ntc_start:
 			di
@@ -6825,4 +6826,4 @@ ovl_spin_vsize	equ 0		; its page variables; its local memory is the rest, to #80
 			DISPLAY "  page variables ", /D, ovl_spin_vsize, ", free ", /D, #8000 - (ovl_spin_end + ovl_spin_vsize)
 			SAVEAMSDOS "CUBE3D.001", ovl_spin_start, ovl_spin_end - ovl_spin_start, #4000
 
-NTC_STAMP	equ #1F03		; the build stamp: the first word of every page file
+NTC_STAMP	equ #E6BA		; the build stamp: the first word of every page file

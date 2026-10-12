@@ -89,6 +89,29 @@ class CPC:
             if ntcrun.FW[a].startswith(('cas_', 'kl_')):
                 m.set_memory_block(a, bytes([0xD3, 0xE0 + i, 0xC9])); s.fwport[0xE0 + i] = ntcrun.FW[a]; s.fwaddr[0xE0 + i] = a
         m.set_memory_block(0x18, bytes([0xD3, 0xDF, 0xC9]))     # RST 3: AMSDOS's far call CAS entries
+        # Library: ROM - the keyword ROM's image (NTC_XROM) in upper ROM slot XSLOT: at #C000 while
+        # the gate array has the upper ROM on and that slot is selected (writes go to the RAM below)
+        s.xrom = None; s.uon = False; s.romsel = 0; s.umapped = None; s.uram = None
+        x = os.environ.get('NTC_XROM')
+        if x:
+            d = open(x, 'rb').read(); s.xrom = d[128:] if len(d) == 0x4080 else d
+            m.set_write_callback(s.uwrite)
+    def uwrite(s, a, v):
+        s.uram[a - 0xC000] = v
+    def umap(s):
+        if not s.xrom: return
+        import ntcrun
+        want = None
+        if s.uon: want = 'x' if s.romsel == ntcrun.XSLOT else 'basic'
+        if want == s.umapped: return
+        m = s.m
+        if s.umapped is not None:
+            m.unmark_addrs(0xC000, 0x4000, m.WRITE_MARK); m.set_memory_block(0xC000, bytes(s.uram)); s.uram = None
+        if want is not None:
+            s.uram = bytearray(m.memory[0xC000:0x10000])
+            m.set_memory_block(0xC000, s.xrom if want == 'x' else bytes([0x80]) + bytes(0x3FFF))   # another ROM: BASIC's type byte
+            m.mark_addrs(0xC000, 0x4000, m.WRITE_MARK)
+        s.umapped = want
     def lowrom(s,on):
         # the lower ROM over #0000-#3FFF: reads give the ROM, writes still go to the RAM below
         m=s.m
@@ -108,7 +131,7 @@ class CPC:
             s.ram.set(val,hi); return       # a RAM setting for another 512K block (4MB)
         if hi==0x7f:
             s.ga.append(val); s.mode=val&3 if (val&0xC0)==0x80 else s.mode
-            if (val&0xC0)==0x80: s.lowrom(not (val&4))
+            if (val&0xC0)==0x80: s.lowrom(not (val&4)); s.uon = not (val&8); s.umap()
             elif (val&0xC0)==0xC0: s.ga.pop(); s.ram.set(val,hi)
         elif hi==0xf6: s.line=val&15
     def fwcall(s,lo):
@@ -129,6 +152,8 @@ class CPC:
                 if c&0x80: break
             if fw.amsdos and n in ntcrun.RSX: m.hl=0x4000+ntcrun.RSX.index(n); m.c=7; m.f=m.f|1
             else: m.f=m.f&0xFE
+        elif f in ('kl_rom_select','kl_rom_deselect'):
+            old=s.romsel; s.romsel=m.c; s.uon=(f=='kl_rom_select') or bool(s.uon); s.umap(); m.c=old; m.b=0
         elif f=='kl_far_pcall':
             n=ntcrun.RSX[m.hl-0x4000]
             if n=='TAPE': fw.cas_dev='TAPE'
@@ -168,7 +193,9 @@ class CPC:
             if n>limit: print('TIMEOUT pc=%04x sp=%04x'%(s.m.pc,s.m.sp)); break
         s.chunks=n
     def screen(s,font):
-        mem=s.m.memory; mode=s.syms and s.m.memory[s.syms['ntc_smode']]
+        mem=s.m.memory
+        if s.uram is not None: mem=bytearray(mem); mem[0xC000:0x10000]=s.uram     # the screen under the ROM
+        mode=s.syms and s.m.memory[s.syms['ntc_smode']]
         bpc,cols={0:(4,20),1:(2,40),2:(1,80)}[mode]
         out=[]
         for r in range(25):

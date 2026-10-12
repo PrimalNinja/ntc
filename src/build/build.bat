@@ -9,8 +9,10 @@ rem
 rem   cpc\    Amstrad CPC, hardware     NAME.BIN  AMSDOS file, loads and runs at #0040
 rem   cpcmin\ Amstrad CPC, minimal fw   NAME.BIN  AMSDOS file, loads and runs at #0040
 rem   cpcfw\  Amstrad CPC, firmware     NAME.BIN  AMSDOS file, loads and runs at #0040
-rem   cpcfwrom\ cpcfw, Library: ROM     NAME.BIN  as cpcfw, the keywords in NTCFW.ROM
-rem   rom\    the keyword library ROM   NTCFW.ROM 16K + AMSDOS header, for a ROM slot
+rem   cpcrom\ cpcminrom\ cpcfwrom\     NAME.BIN  as cpc / cpcmin / cpcfw, Library: ROM
+rem                                     (the keywords in NTCCPC / NTCMIN / NTCFW.ROM)
+rem   rom\    the keyword library ROMs  NTCCPC.ROM NTCMIN.ROM NTCFW.ROM: 16K + AMSDOS
+rem                                     header, for ROM slots
 rem   cpm\    CP/M 2.2 / 3              NAME.COM  at #0100
 rem   test\   test harness platform     NAME.BIN  raw, at #4000 (for test\ntcrun.py)
 rem
@@ -27,7 +29,7 @@ if exist "%~1" set SJ=%~f1
 set FAIL=0
 pushd "%~dp0"
 
-for %%P in (cpc cpcmin cpcfw cpcfwrom rom) do (
+for %%P in (cpc cpcmin cpcfw cpcrom cpcminrom cpcfwrom rom) do (
 	pushd %%P
 	for %%F in (*.ASM) do (
 		echo %%P\%%F

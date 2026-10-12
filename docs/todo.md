@@ -7,7 +7,7 @@ finished, with the date.
 
 ## done
 
-- 2026-10-13 keyword library in ROM (cpcfw): `Option Library ROM` / GUI Library "in ROM";
+- 2026-10-13 keyword library in ROM (cpc, cpcmin, cpcfw): `Option Library ROM` / GUI Library "in ROM";
   `ntcRomAsm` + test/genrom.js build `build/rom/NTCFW.ROM` (16K + AMSDOS header, background
   ROM "NTC CPCFW"); permanent append-only registry of numbers / variable addresses; the program
   has `name: jp <number>` entries, finds the ROM in slots 0-31 and has its patcher fill in the
@@ -554,12 +554,12 @@ finished, with the date.
         keywords
       - then remove the `Interrupt` statement (or keep it as sugar for
         `Interrupts.Every 1, AddressOf Sub`); update hook.bas / ref, userguide 12, NTC.md
-- [ ] **library in ROM, next** (first step done 2026-10-13: cpcfw, `Option Library ROM`, jump
-      block patched at start, NTCFW.ROM, registry `asm/ntc_rom_cpcfw.txt`). Left: cpcmin and
-      cpc ROMs (own probe through #DFxx / the gate array; every gate array write keeps the
-      upper ROM on; screen reads from RAM); the 10 T per keyword (sieve timing +25%) could go
+- [ ] **library in ROM, next** (done 2026-10-13: cpc, cpcmin, cpcfw - `Option Library ROM`,
+      jump block patched at start, NTCCPC / NTCMIN / NTCFW.ROM, registries
+      `asm/ntc_rom_<platform>.txt`). Left: the 10 T per keyword (sieve timing +25%) could go
       with load time patching of the threads (item 4 below: a list of thread words, patched
-      once - main RAM at start, page files when loaded); BASIC RSX commands in the ROM.
+      once - main RAM at start, page files when loaded); BASIC RSX commands in the ROM;
+      NTCMIN.ROM has about 0.8K free.
 - [ ] FUTURE (CPC, main target): **library in ROM** - a second CPC build next to the RAM one
       (RAM only for now; keep this possible). Why: many CPC users have ROM boards (and the M4
       has ROM slots); the library is half to nine tenths of a typical program (measured

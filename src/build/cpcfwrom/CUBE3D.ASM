@@ -10,6 +10,7 @@ NTC_TERM	equ 0		; Option Terminal: 0 none, 1 VT52, 2 ANSI (CP/M)
 NTC_STRMAX	equ 255		; the longest string (library buffers, temps)
 NTC_MEMBANKS	equ 64		; Option Memory: the most 64K banks the Memory class looks for
 NTC_ROMENABLE	equ 1		; Option RomEnable (cpcfw, cpcmin): the start code starts the ROMs
+NTC_ROMLIB	equ 0		; 1 only when the library itself is built as a ROM (ntcRomAsm)
 
 ntc_start:
 			di
@@ -18,6 +19,7 @@ ntc_start:
 			ei
 			ret				; no ROM (the message is shown): back to the caller
 ntc_rj_ok:
+			di				; (KL ROM SELECT lets interrupts in again)
 			ld hl, ntc_rj_exit
 			push hl			; End comes back here: the caller's ROM selection again
 			ld (ntc_csp), sp
@@ -2060,24 +2062,24 @@ kw_bssinit:	jp 288
 gfx_begin:	jp 327
 gfx_end:		jp 328
 NTC_RJ_N	equ 53		; entries
-gfx_base	equ #8830		; ROM data
-gfx_dbl	equ #8831		; ROM data
-gfx_sp	equ #8832		; ROM data
-gfx_x0	equ #8826		; ROM data
-gfx_x1	equ #882A		; ROM data
-gfx_y0	equ #8828		; ROM data
-gfx_y1	equ #882C		; ROM data
-mem_a1	equ #8817		; ROM data
-mem_res	equ #881D		; ROM data
+gfx_base	equ #8917		; ROM data
+gfx_dbl	equ #8918		; ROM data
+gfx_sp	equ #891A		; ROM data
+gfx_x0	equ #8907		; ROM data
+gfx_x1	equ #890B		; ROM data
+gfx_y0	equ #8909		; ROM data
+gfx_y1	equ #890D		; ROM data
+mem_a1	equ #884F		; ROM data
+mem_res	equ #8855		; ROM data
 ntc_csp	equ #8800		; ROM data
-ntc_nmode	equ #8806		; ROM data
-ntc_ovl_lc	equ #8823		; ROM data
-ntc_smode	equ #8839		; ROM data
-ntc_v_free	equ #8844		; ROM data
-ntc_v_romen	equ #884A		; ROM data
-ntc_v_romold	equ #884C		; ROM data
-ntc_v_stamp	equ #8848		; ROM data
-ntc_v_start	equ #8846		; ROM data
+ntc_nmode	equ #8807		; ROM data
+ntc_ovl_lc	equ #8897		; ROM data
+ntc_smode	equ #8924		; ROM data
+ntc_v_free	equ #895E		; ROM data
+ntc_v_romen	equ #8964		; ROM data
+ntc_v_romold	equ #8966		; ROM data
+ntc_v_stamp	equ #8962		; ROM data
+ntc_v_start	equ #8960		; ROM data
 			ASSERT ntc_free <= #8800, "Library: ROM - the program and its arrays must end below #8800 (the ROM's RAM)"
 
 ; the start: find the ROM in slots 0 - 31, have it patch the jump block. NC = ready;
@@ -2864,4 +2866,4 @@ ovl_spin_vsize	equ 0		; its page variables; its local memory is the rest, to #80
 			DISPLAY "  page variables ", /D, ovl_spin_vsize, ", free ", /D, #8000 - (ovl_spin_end + ovl_spin_vsize)
 			SAVEAMSDOS "CUBE3D.001", ovl_spin_start, ovl_spin_end - ovl_spin_start, #4000
 
-NTC_STAMP	equ #5857		; the build stamp: the first word of every page file
+NTC_STAMP	equ #45EB		; the build stamp: the first word of every page file

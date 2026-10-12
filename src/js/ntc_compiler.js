@@ -7254,6 +7254,10 @@ function ntcCompile(input_a, objOptions_a)
 					{
 						objCurrent.shared = true;
 					}
+					else if (arrParts[intJ] === '@romram')
+					{
+						objCurrent.romram = true;		// in the keyword library ROM this runs from RAM (ntcRomAsm)
+					}
 					else if (arrParts[intJ].substr(0, 4) === '@if:')
 					{
 						// only when that #Const is set (NTC_MEM_SMALL ...): else the section isn't there
@@ -8650,6 +8654,7 @@ function ntcCompile(input_a, objOptions_a)
 	arrAsm.push('NTC_STRMAX\tequ ' + intStrMax + '\t\t; the longest string (library buffers, temps)');
 	arrAsm.push('NTC_MEMBANKS\tequ ' + Math.max(0, Math.min(64, Math.floor((Math.min(257, Math.max(1, objMemory.max || 257)) - 1) / 4))) + '\t\t; Option Memory: the most 64K banks the Memory class looks for');
 	arrAsm.push('NTC_ROMENABLE\tequ ' + ((arrRomEnable !== null) ? 1 : 0) + '\t\t; Option RomEnable (cpcfw, cpcmin): the start code starts the ROMs');
+	arrAsm.push('NTC_ROMLIB\tequ 0\t\t; 1 only when the library itself is built as a ROM (ntcRomAsm)');
 	arrAsm.push('');
 	// the options in a fixed order, wherever they are in the source: the stack first (the
 	// ROM start runs on it), then the ROMs, then the program
@@ -8662,6 +8667,7 @@ function ntcCompile(input_a, objOptions_a)
 		arrAsm.push(strIndent + 'ei');
 		arrAsm.push(strIndent + 'ret\t\t\t\t; no ROM (the message is shown): back to the caller');
 		arrAsm.push('ntc_rj_ok:');
+		arrAsm.push(strIndent + 'di\t\t\t\t; (KL ROM SELECT lets interrupts in again)');
 		arrAsm.push(strIndent + 'ld hl, ntc_rj_exit');
 		arrAsm.push(strIndent + 'push hl\t\t\t; End comes back here: the caller\'s ROM selection again');
 	}
@@ -9466,6 +9472,12 @@ var NTC_ROM_DATA = 0x8800;		// the ROM's initialised variables (and its RAM code
 var NTC_ROM_BSS = 0x9400;		// the rest of its variables (cleared): #9400 - #A5EF
 var NTC_ROM_END = 0xA5F0;		// (#A5F0: the cpcfw fast ticker block)
 
+// the ROM's file name (8 letters): NTCFW, NTCMIN, NTCCPC
+function ntcRomFile(strPlatform_a)
+{
+	return (strPlatform_a === 'cpc') ? 'NTCCPC' : ('NTC' + strPlatform_a.toUpperCase().replace('CPC', ''));
+}
+
 function ntcRomRegistry(strReg_a)
 {
 	var objReg = { list: [], byName: {}, order: [] };
@@ -9510,12 +9522,14 @@ function ntcRomAsm(strPlatform_a, strReg_a)
 	var arrSyms = [];
 	var strIndent = '\t\t\t';
 	var intNum = 0;
+	var intRun = 0;
+	var intIdx = 0;
 	var strHex = '';
 
 	'a b c d e h l af bc de hl ix iy sp ixh ixl iyh iyl i r nz z nc po pe p m high low not and or xor mod shl shr'.split(' ').forEach(function(str_a) { Z80_WORDS[str_a] = true; });
-	if (strPlatform_a !== 'cpcfw')
+	if ((strPlatform_a !== 'cpcfw') && (strPlatform_a !== 'cpc') && (strPlatform_a !== 'cpcmin'))
 	{
-		arrErrors.push({ file: '', line: 0, msg: 'Library ROM: cpcfw only so far (not ' + strPlatform_a + ')' });
+		arrErrors.push({ file: '', line: 0, msg: 'Library ROM: the CPC platforms only (not ' + strPlatform_a + ')' });
 		return { asm: '', errors: arrErrors, symbols: [] };
 	}
 	objRes.errors.forEach(function(objErr_a)
@@ -9544,6 +9558,50 @@ function ntcRomAsm(strPlatform_a, strReg_a)
 	});
 	// one Interrupt-hook window for both: ntc_xnh (it is a superset of ntc_xn)
 	arrSections = arrSections.filter(function(objSec_a) { return !((objSec_a.name === 'ntc_xn') && !/\(normal mode copy\)/.test(objSec_a.header) && (objSec_a.lines.join('\n').indexOf('ntc_hookpend') < 0)); });
+
+	// IF NTC_ROMLIB ... [ELSE ...] ENDIF in the platform files: the ROM's version kept (without
+	// the IF), the RAM version dropped; other IFs pass through
+	arrSections.forEach(function(objSec_a)
+	{
+		var arrStack = [];
+		var arrKept = [];
+
+		function keeping()
+		{
+			return arrStack.every(function(objF_a) { return !objF_a.romlib || objF_a.keep; });
+		}
+		objSec_a.lines.forEach(function(strLine_a)
+		{
+			var strCode = strLine_a.replace(/;.*$/, '');
+
+			if (/^\s*IF\s+NTC_ROMLIB\b/i.test(strCode))
+			{
+				arrStack.push({ romlib: true, keep: true });
+				return;
+			}
+			if (/^\s*IF(N?DEF|N?USED)?\b/i.test(strCode))
+			{
+				arrStack.push({ romlib: false });
+			}
+			else if (/^\s*ELSE\b/i.test(strCode) && (arrStack.length > 0) && arrStack[arrStack.length - 1].romlib)
+			{
+				arrStack[arrStack.length - 1].keep = false;
+				return;
+			}
+			else if (/^\s*ENDIF\b/i.test(strCode) && (arrStack.length > 0))
+			{
+				if (arrStack.pop().romlib)
+				{
+					return;
+				}
+			}
+			if (keeping())
+			{
+				arrKept.push(strLine_a);
+			}
+		});
+		objSec_a.lines = arrKept;
+	});
 
 	// the program's symbols the library uses become variables the program's start sets (or
 	// fixed values for the ROM)
@@ -9708,7 +9766,9 @@ function ntcRomAsm(strPlatform_a, strReg_a)
 		var objItem = null;
 		var arrPending = [];		// labels on their own lines: the next line decides
 		var arrPrefix = [];			// unlabelled data after a buffer (ds): the next variable's (a capacity byte)
-		var blnRam = (objSec_a.name === 'ntc_gfx');
+		var blnRam = (objSec_a.name === 'ntc_gfx') || /\s@romram\b/.test(objSec_a.header);
+
+		intRun++;		// a run: variables one after another in the source - kept together, in order
 		var arrTo = blnRam ? arrInit : arrCode;		// the code that runs from RAM goes into the image
 
 		function prefixBack()
@@ -9722,7 +9782,7 @@ function ntcRomAsm(strPlatform_a, strReg_a)
 			objItem.lines.push(str_a + ':');		// another name in the same variable
 			objItems[str_a] = { kind: 'alias', of: objOf_a };
 		}
-		arrTo.push(objSec_a.header + (blnRam ? '  (ROM: runs from RAM, it reads the screen)' : ''));
+		arrTo.push(objSec_a.header + (blnRam ? '  (ROM: runs from RAM)' : ''));
 		objSec_a.lines.forEach(function(strLine_a)
 		{
 			var strCode = strLine_a.replace(/"[^"]*"/g, '""').replace(/;.*$/, '');
@@ -9742,6 +9802,7 @@ function ntcRomAsm(strPlatform_a, strReg_a)
 				arrConst.push(strLine_a);
 				objItems[strLabel] = { kind: 'const' };
 				objItem = null;
+				intRun++;
 				return;
 			}
 			if (strLabel && (strBody.length === 0))
@@ -9754,12 +9815,15 @@ function ntcRomAsm(strPlatform_a, strReg_a)
 				var strMain = strLabel || arrPending.pop();
 				var arrBefore = arrPrefix;
 
-				if ((objItem !== null) && (arrBefore.length === 0) && (arrPending.length > 0))
-				{
-					// labels alone after a variable, then another: they end the first (its size)
-				}
 				arrPrefix = [];
-				objItem = { label: strMain, lines: arrBefore.slice(0), ds: blnDs && (arrBefore.length === 0) };
+				if ((objItem !== null) && strLabel && (arrPending.length > 0))
+				{
+					// labels alone between two variables: the end of the first (ntc_pgstk_top)
+					prefixBack();
+					arrPending.forEach(function(str_a) { alias(str_a, objItem); });
+					arrPending = [];
+				}
+				objItem = { label: strMain, lines: arrBefore.slice(0), ds: blnDs && (arrBefore.length === 0), run: intRun, idx: intIdx++ };
 				arrPending.forEach(function(str_a) { alias(str_a, objItem); });
 				objItem.lines.push(strLabel ? strLine_a : (strMain + ':' + strLine_a));
 				objItems[strMain] = objItem;
@@ -9783,6 +9847,7 @@ function ntcRomAsm(strPlatform_a, strReg_a)
 				prefixBack();
 			}
 			objItem = null;
+			intRun++;
 			arrPending.forEach(function(str_a)
 			{
 				arrTo.push(ntcRomHook(strPlatform_a, objSec_a.name, str_a, str_a + ':'));
@@ -9813,7 +9878,7 @@ function ntcRomAsm(strPlatform_a, strReg_a)
 		['ntc_v_stamp', 'dw 0', 'the build stamp of its page files (NTC_STAMP)'], ['ntc_v_romen', 'db 0', 'Option RomEnable (NTC_ROMENABLE)'],
 		['ntc_v_rom', 'db 0', 'this ROM\'s number'], ['ntc_v_romold', 'db 0', 'the ROM selection before the program']].forEach(function(arrV_a)
 	{
-		objItems[arrV_a[0]] = { label: arrV_a[0], lines: [arrV_a[0] + ':\t' + arrV_a[1] + '\t\t\t; ' + arrV_a[2]], ds: false };
+		objItems[arrV_a[0]] = { label: arrV_a[0], lines: [arrV_a[0] + ':\t' + arrV_a[1] + '\t\t\t; ' + arrV_a[2]], ds: false, run: ++intRun, idx: intIdx++ };
 	});
 	if (strPlatform_a === 'cpcfw')
 	{
@@ -9827,9 +9892,26 @@ function ntcRomAsm(strPlatform_a, strReg_a)
 		arrInit.push(strIndent + 'push af\n' + strIndent + 'push bc\n' + strIndent + 'push de\n' + strIndent + 'push hl');
 		arrInit.push(strIndent + 'call #B900\t\t; KL U ROM ENABLE');
 		arrInit.push(strIndent + 'pop hl\n' + strIndent + 'pop de\n' + strIndent + 'pop bc\n' + strIndent + 'pop af\n' + strIndent + 'ret');
-		objItems.ntc_urom_off = { kind: 'code' };
-		objItems.ntc_urom_on = { kind: 'code' };
 	}
+	else
+	{
+		// cpc, cpcmin: the gate array directly (NTC's interrupt handler turns the ROM on for
+		// its calls while ntc_uroff is 1)
+		arrInit.push('ntc_urom_off:');
+		arrInit.push(strIndent + 'push af\n' + strIndent + 'push bc');
+		arrInit.push(strIndent + 'ld a, 1\n' + strIndent + 'ld (ntc_uroff), a');
+		arrInit.push(strIndent + 'ld a, (ntc_smode)\n' + strIndent + 'or #8C\t\t\t\t; both ROMs off');
+		arrInit.push(strIndent + 'ld b, #7F\n' + strIndent + 'out (c), a');
+		arrInit.push(strIndent + 'pop bc\n' + strIndent + 'pop af\n' + strIndent + 'ret');
+		arrInit.push('ntc_urom_on:');
+		arrInit.push(strIndent + 'push af\n' + strIndent + 'push bc');
+		arrInit.push(strIndent + 'ld a, (ntc_smode)\n' + strIndent + 'or #84\t\t\t\t; the upper ROM (this one) on');
+		arrInit.push(strIndent + 'ld b, #7F\n' + strIndent + 'out (c), a');
+		arrInit.push(strIndent + 'xor a\n' + strIndent + 'ld (ntc_uroff), a');
+		arrInit.push(strIndent + 'pop bc\n' + strIndent + 'pop af\n' + strIndent + 'ret');
+	}
+	objItems.ntc_urom_off = { kind: 'code' };
+	objItems.ntc_urom_on = { kind: 'code' };
 
 	// the data items in registry order (known ones), then the new ones in source order
 	var arrData = [];
@@ -9901,16 +9983,28 @@ function ntcRomAsm(strPlatform_a, strReg_a)
 		}
 	});
 	// the data items: exported ones first (registry order, new ones appended), then the ROM's own
+	// (a run moves as a whole: code may count on one variable following another, as
+	// ntc_plat_mode's copy into ntc_sbpc ... ntc_sshift does)
+	var objRunRank = {};
+	function rank(str_a)
+	{
+		var objE = objReg.byName[str_a];
+
+		if (objE) { return objE.order; }
+		return exported(str_a) ? 100000 : 200000;
+	}
+	arrData.forEach(function(str_a)
+	{
+		var intR = objItems[str_a].run;
+
+		objRunRank[intR] = (objRunRank[intR] === undefined) ? rank(str_a) : Math.min(objRunRank[intR], rank(str_a));
+	});
 	arrData.sort(function(strA_a, strB_a)
 	{
-		function rank(str_a)
-		{
-			var objE = objReg.byName[str_a];
+		var objA = objItems[strA_a];
+		var objB = objItems[strB_a];
 
-			if (objE) { return objE.order; }
-			return exported(str_a) ? 100000 : 200000;
-		}
-		return rank(strA_a) - rank(strB_a);
+		return (objRunRank[objA.run] - objRunRank[objB.run]) || (objA.run - objB.run) || (objA.idx - objB.idx);
 	});
 
 	function hex4(int_a)
@@ -9930,10 +10024,10 @@ function ntcRomAsm(strPlatform_a, strReg_a)
 	arrOut.push('NTC_MEMBANKS\tequ 64\t\t\t; the Memory class: up to 4MB');
 	arrOut.push('NTC_ROM_N\tequ ' + arrSyms.length + '\t\t\t; numbers in the index');
 	arrOut.push(arrConst.join('\n'));
-	arrOut.push(strIndent + 'OUTPUT "NTC' + strPlatform_a.toUpperCase().replace('CPC', '') + '.ROM"');
+	arrOut.push(strIndent + 'OUTPUT "' + ntcRomFile(strPlatform_a) + '.ROM"');
 	strHex = '#4000';
 	arrOut.push(strIndent + 'ORG #C000 - 128\t\t; an AMSDOS header (WinAPE and ROM tools take it): binary, #C000, 16K');
-	var strRomName = ('NTC' + strPlatform_a.toUpperCase().replace('CPC', '') + '        ').substr(0, 8);
+	var strRomName = (ntcRomFile(strPlatform_a) + '        ').substr(0, 8);
 	var intSum = 2 + 0xC0 + 0x40 + 0xC0 + 0x40;
 	for (var intI = 0; intI < 8; intI++) { intSum += strRomName.charCodeAt(intI); }
 	intSum += 0x52 + 0x4F + 0x4D;
@@ -10083,7 +10177,7 @@ function ntcRomAsm(strPlatform_a, strReg_a)
 // screen (cpcfw: around gfx_begin / gfx_end, and the screen copies)
 function ntcRomHook(strPlatform_a, strSection_a, strLabel_a, strLine_a)
 {
-	if ((strPlatform_a !== 'cpcfw') || (strSection_a !== 'ntc_gfx') || !strLabel_a)
+	if ((strSection_a !== 'ntc_gfx') || !strLabel_a)
 	{
 		return strLine_a;
 	}
@@ -10123,7 +10217,7 @@ function ntcRomJumpBlock(strPlatform_a, arrAsm_a, blnStamp_a, blnRomEnable_a, ar
 
 	if (strReg === undefined)
 	{
-		arrErrors_a.push({ file: '', line: 0, msg: 'Library: ROM - there is no keyword library ROM for ' + strPlatform_a + ' (cpcfw has one)' });
+		arrErrors_a.push({ file: '', line: 0, msg: 'Library: ROM - there is no keyword library ROM for ' + strPlatform_a + ' (the CPC platforms have one: cpc, cpcmin, cpcfw)' });
 		return [];
 	}
 	objReg = ntcRomRegistry(strReg);
@@ -10183,7 +10277,7 @@ function ntcRomJumpBlock(strPlatform_a, arrAsm_a, blnStamp_a, blnRomEnable_a, ar
 	{
 		return '#' + ('000' + (int_a & 0xFFFF).toString(16).toUpperCase()).substr(-4);
 	}
-	arrOut.push('; Library: ROM - the keyword library is in the ROM NTC ' + strPlatform_a.toUpperCase() + ' (NTC' + strPlatform_a.toUpperCase().replace('CPC', '') + '.ROM).');
+	arrOut.push('; Library: ROM - the keyword library is in the ROM NTC ' + strPlatform_a.toUpperCase() + ' (' + ntcRomFile(strPlatform_a) + '.ROM).');
 	arrOut.push('; Its routines: this jump block, the numbers made into addresses by the ROM at the start.');
 	arrOut.push('; Its variables and constants: fixed addresses (RAM #8800 - #A5EF is the ROM\'s).');
 	arrOut.push('ntc_rj_block:');
@@ -10318,7 +10412,7 @@ function ntcRomJumpBlock(strPlatform_a, arrAsm_a, blnStamp_a, blnRomEnable_a, ar
 	arrOut.push('ntc_rj_num:\t\tdw 0');
 	arrOut.push('ntc_rj_sig:\t\tdb "NTC", 1, "' + strPlatform_a.toUpperCase() + '", 0\t; the ROM\'s NTC block');
 	arrOut.push('ntc_rj_sige:');
-	arrOut.push('ntc_rj_tnf:\t\tdb "ROM NTC ' + strPlatform_a.toUpperCase() + ' (NTC' + strPlatform_a.toUpperCase().replace('CPC', '') + '.ROM) not found", 0');
+	arrOut.push('ntc_rj_tnf:\t\tdb "ROM NTC ' + strPlatform_a.toUpperCase() + ' (' + ntcRomFile(strPlatform_a) + '.ROM) not found", 0');
 	arrOut.push('ntc_rj_tlk:\t\tdb "ROM NTC ' + strPlatform_a.toUpperCase() + ' too old: no routine #", 0');
 	arrOut.push('ntc_rj_tnl:\t\tdb 13, 10, "Press a key", 13, 10, 0');
 	return arrOut;

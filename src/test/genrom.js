@@ -13,13 +13,13 @@ var strDir = path.join(__dirname, '..') + '/';
 global.window = global;
 eval(fs.readFileSync(strDir + 'js/ntc_lib.js', 'utf8').replace(/^var /gm, 'global.'));
 eval(fs.readFileSync(strDir + 'js/ntc_parser.js', 'utf8').replace(/^var /gm, 'global.').replace('function IFtoPF', 'global.IFtoPF = function IFtoPF').replace('function ntcParse', 'global.ntcParse = function ntcParse'));
-eval(fs.readFileSync(strDir + 'js/ntc_compiler.js', 'utf8').replace(/^var (NTC_ROM\w*)/gm, 'global.$1').replace('function ntcCompile', 'global.ntcCompile = function ntcCompile').replace('function ntcRomAsm', 'global.ntcRomAsm = function ntcRomAsm').replace('function ntcRomRegistry', 'global.ntcRomRegistry = function ntcRomRegistry').replace('function ntcRomHook', 'global.ntcRomHook = function ntcRomHook'));
+eval(fs.readFileSync(strDir + 'js/ntc_compiler.js', 'utf8').replace(/^var (NTC_ROM\w*)/gm, 'global.$1').replace('function ntcCompile', 'global.ntcCompile = function ntcCompile').replace('function ntcRomAsm', 'global.ntcRomAsm = function ntcRomAsm').replace('function ntcRomRegistry', 'global.ntcRomRegistry = function ntcRomRegistry').replace('function ntcRomHook', 'global.ntcRomHook = function ntcRomHook').replace('function ntcRomFile', 'global.ntcRomFile = function ntcRomFile'));
 
 var strPlat = process.argv[2] || 'cpcfw';
 var strRegFile = strDir + 'asm/ntc_rom_' + strPlat + '.txt';
 var strOutDir = strDir + 'build/rom/';
 var strTmp = fs.mkdtempSync(path.join(require('os').tmpdir(), 'ntcrom'));
-var strName = 'NTC' + strPlat.toUpperCase().replace('CPC', '');
+var strName = ntcRomFile(strPlat);
 var strReg = fs.existsSync(strRegFile) ? fs.readFileSync(strRegFile, 'utf8') : '';
 
 function hex4(int_a) { return '#' + ('000' + (int_a & 0xFFFF).toString(16).toUpperCase()).substr(-4); }

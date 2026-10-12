@@ -9,6 +9,7 @@ NTC_TERM	equ 0		; Option Terminal: 0 none, 1 VT52, 2 ANSI (CP/M)
 NTC_STRMAX	equ 40		; the longest string (library buffers, temps)
 NTC_MEMBANKS	equ 64		; Option Memory: the most 64K banks the Memory class looks for
 NTC_ROMENABLE	equ 0		; Option RomEnable (cpcfw, cpcmin): the start code starts the ROMs
+NTC_ROMLIB	equ 0		; 1 only when the library itself is built as a ROM (ntcRomAsm)
 
 ntc_start:
 			di
@@ -3575,4 +3576,4 @@ ovl_ending_vsize	equ 0		; its page variables; its local memory is the rest, to #
 			DISPLAY "  page variables ", /D, ovl_ending_vsize, ", free ", /D, #8000 - (ovl_ending_end + ovl_ending_vsize)
 			OUTEND
 
-NTC_STAMP	equ #D10C		; the build stamp: the first word of every page file
+NTC_STAMP	equ #4550		; the build stamp: the first word of every page file

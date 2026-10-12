@@ -47,7 +47,7 @@ var arrPrograms = [
 	{ name: 'CONSOLE', files: ['console_classes.bas'] },
 	{ name: 'OWNSTDIO', files: ['own_stdio/Main.bas', 'own_stdio/StdIO.cls'] }
 ];
-var arrPlatforms = ['cpc', 'cpcmin', 'cpcfw', 'cpm', 'test', 'cpcfwrom'];	// cpcfwrom: cpcfw, Library: ROM (needs NTCFW.ROM)
+var arrPlatforms = ['cpc', 'cpcmin', 'cpcfw', 'cpm', 'test', 'cpcrom', 'cpcminrom', 'cpcfwrom'];	// ...rom: Library: ROM (needs NTCCPC / NTCMIN / NTCFW.ROM)
 var intErrors = 0;
 
 arrPlatforms.forEach(function(strPlat)
@@ -71,11 +71,11 @@ arrPlatforms.forEach(function(strPlat)
 		{
 			return { name: strFile.replace(/^.*\//, ''), text: fs.readFileSync(D + 'bas/' + strFile, 'utf8') };
 		});
-		var strReal = (strPlat === 'cpcfwrom') ? 'cpcfw' : strPlat;
+		var strReal = strPlat.replace(/rom$/, '');
 		var objOpts = { platform: strReal };
 		var objResult = null;
 
-		if (strPlat === 'cpcfwrom')
+		if (strPlat !== strReal)
 		{
 			objOpts.library = 'rom';
 		}

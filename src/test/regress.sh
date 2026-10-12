@@ -69,7 +69,7 @@ host() { # platform mode
 }
 for pl in test cpcfw cpm; do for m in --turbo ""; do host $pl "$m"; done; done
 # Library: ROM (cpcfw): the keywords in NTCFW.ROM (the harness puts its image in slot 6)
-for m in "--turbo --library=rom" "--library=rom"; do host cpcfw "$m"; done
+for pl in cpc cpcmin cpcfw; do for m in "--turbo --library=rom" "--library=rom"; do host $pl "$m"; done; done
 # StdIO / System platform classes on every platform, and a project's own StdIO
 for pl in cpc cpcmin test cpcfw cpm; do
   cp stdio.bas t/stdio.bas; o=$(timeout 100 python3 ntcrun.py t/stdio.bas 'Bo\nZ' --platform=$pl 2>&1 | grep -v "^--- ")
@@ -215,13 +215,20 @@ cp hook.bas t/hook.bas; o=$(timeout 60 python3 ntcrun.py t/hook.bas '' --platfor
 if [ "$o" == "$(cat ref/hook.txt)" ]; then echo "ok   hook cpcfw"; else echo "FAIL hook cpcfw"; echo "$o" | head -3; fail=1; fi
 # Library: ROM - the ROM is made from the library and the registry adds nothing (else: run
 # genrom.js, which appends the new entries, then gen.js); the cpcfw demos and tests on the ROM
-o=$(node genrom.js 2>&1); echo "$o" | grep -q "0 added, 0 gone" && echo "ok   ROM: NTCFW.ROM, registry unchanged" || { echo "FAIL ROM: $o"; fail=1; }
+for pl in cpcfw cpc cpcmin; do
+  o=$(node genrom.js $pl 2>&1); echo "$o" | grep -q "0 added, 0 gone" && echo "ok   ROM: $pl, registry unchanged" || { echo "FAIL ROM $pl: $o"; fail=1; }
+done
 R="timeout 200 python3 ntcrun.py"
-for pl in cpcfw; do
+for pl in cpc cpcmin cpcfw; do
   rm -rf t/isl; mkdir -p t/isl; cp isl/* t/isl/
   o=$($R t/isl/Main.bas '' t/isl/Music.cls t/isl/Fast.cls t/isl/Slow.cls t/isl/Frames.cls --platform=$pl --library=rom 2>&1 | grep -v "^--- ")
-  if [ "$o" == "$(cat ref/isl.txt)" ]; then echo "ok   ROM: interrupt classes"; else echo "FAIL ROM: interrupt classes"; echo "$o" | head -5; fail=1; fi
+  if [ "$o" == "$(cat ref/isl.txt)" ]; then echo "ok   ROM: interrupt classes $pl"; else echo "FAIL ROM: interrupt classes $pl"; echo "$o" | head -5; fail=1; fi
 done
+rm -rf t/files; cp fs_fw.bas t/; o=$($R t/fs_fw.bas '' --platform=cpcmin --library=rom 2>&1 | grep -v "^--- ")
+if [ "$o" == "$(cat ref/fs_fw.txt)" ]; then echo "ok   ROM: files cpcmin"; else echo "FAIL ROM: files cpcmin"; echo "$o" | head -5; fail=1; fi
+rm -rf t/files; check "ROM: pages demo cpcmin" "^Final score 128 - thanks for playing" "$($R t/pd/Main.bas '~x' t/pd/Title.cls t/pd/Level1.cls t/pd/Level2.cls t/pd/Maths.cls t/pd/Stars.cls t/pd/Credits.cls t/pd/Score.cls --platform=cpcmin --library=rom 2>&1)"
+rm -rf t/files; check "ROM: overlays demo cpcmin" "^Unload level 1: 0 - pages -C" "$($R t/od/Main.bas '~x' t/od/Level1.cls t/od/Level2.cls --platform=cpcmin --library=rom 2>&1)"
+cp $P/memmap.bas t/ex/; check "ROM: memmap cpc" "^128K, 5 pages: main + 1 banks" "$($R t/ex/memmap.bas '~x~x' --platform=cpc --library=rom 2>&1)"
 o=$(timeout 60 python3 ntcrun.py t/hook.bas '' --platform=cpcfw --library=rom 2>&1 | grep -v "^--- ")
 if [ "$o" == "$(cat ref/hook.txt)" ]; then echo "ok   ROM: hook"; else echo "FAIL ROM: hook"; echo "$o" | head -3; fail=1; fi
 rm -rf t/files; cp fs_fw.bas t/; o=$($R t/fs_fw.bas '' --platform=cpcfw --library=rom 2>&1 | grep -v "^--- ")
@@ -230,7 +237,7 @@ rm -rf t/files; check "ROM: pages demo" "^Final score 128 - thanks for playing" 
 rm -rf t/files; check "ROM: overlays demo" "^Unload level 1: 0 - pages -C" "$($R t/od/Main.bas '~x' t/od/Level1.cls t/od/Level2.cls --platform=cpcfw --library=rom 2>&1)"
 cp $P/memmap.bas t/ex/; check "ROM: memmap" "^128K, 5 pages: main + 1 banks" "$($R t/ex/memmap.bas '~x~x' --platform=cpcfw --library=rom 2>&1)"
 printf 'Print "x"\n' > t/nr.bas
-check "ROM: not fitted" "^ROM NTC CPCFW (NTCFW.ROM) not found" "$(NTC_XROM=/dev/null $R t/nr.bas 'x' --platform=cpcfw --library=rom 2>&1)"
+check "ROM: not fitted" "^ROM NTC CPCFW (NTCFW.ROM) not found" "$(NTC_XROM=  $R t/nr.bas 'x' --platform=cpcfw --library=rom 2>&1)"
 printf 'Option Library ROM\nPrint "x"\n' > t/nr2.bas
 node cli.js t/nr2.bas --platform=cpcfw 2>/dev/null | grep -q "^ntc_rj_block:" && node cli.js t/nr2.bas --platform=cpm 2>&1 >/dev/null | grep -q "no keyword library ROM for cpm" && echo "ok   ROM: Option Library ROM (cpcfw; refused on cpm)" || { echo "FAIL ROM: Option Library ROM"; fail=1; }
 # Option NoTurbo: one copy of everything (normal mode), Turbo On / Off do nothing; still runs
@@ -311,9 +318,9 @@ if [ "$o" == "$(cat ref/via.txt)" ]; then echo "ok   own StdIO"; else echo "FAIL
 # build/: regenerate, then check every file assembles the way build.bat does it
 SJ=${SJASMPLUS:-sjasmplus}
 node genbuild.js > /dev/null || fail=1
-rm -rf t/bc; mkdir -p t/bc; cp -r ../build/cpc ../build/cpcmin ../build/cpcfw ../build/cpm ../build/test ../build/cpcfwrom ../build/rom t/bc/
+rm -rf t/bc; mkdir -p t/bc; cp -r ../build/cpc ../build/cpcmin ../build/cpcfw ../build/cpm ../build/test ../build/cpcrom ../build/cpcminrom ../build/cpcfwrom ../build/rom t/bc/
 b=0; n=0
-for p in cpc cpcmin cpcfw cpcfwrom cpm test rom; do
+for p in cpc cpcmin cpcfw cpcrom cpcminrom cpcfwrom cpm test rom; do
   for f in t/bc/$p/*.ASM; do
     g=$(basename $f .ASM); n=$((n+1))
     case $p in cpm) o="--raw=$g.COM";; test) o="--raw=$g.BIN";; *) o="";; esac

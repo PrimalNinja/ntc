@@ -8785,63 +8785,128 @@ ntc_rom_img:
 ntc_csp:		dw 0			; caller SP, for kw_stop (and the normal mode stack)
 ntc_ip:			dw 0			; normal mode: thread position while out of the thread
 ntc_ticks:		dw 0			; interrupt count (normal mode, platform handler)
+ntc_gnlo:		db 0			; ntc_getn: low byte
 ntc_nmode:		db 0			; 1 = running in normal mode (waits let interrupts in)
 ntc_mode:		db 0			; div mode 0=quotient 1=remainder
+ntc_sgnq:		db 0			; quotient sign (bit 7)
+ntc_sgnr:		db 0			; remainder sign (bit 7)
+ntc_lead:		db 0			; printint: digit seen
+ntc_icnt:		db 0			; gets: chars typed
+ntc_icap:		db 0			; gets: the buffer's capacity
 ntc_sptr:		dw 0			; printbuf: text pointer
+ntc_iptr:		dw 0			; gets: buffer pointer
+ntc_ilink:		dw 0			; gets: where to go when done
 ntc_ivar:		dw 0			; inputint / inkey: dest var
+ntc_aptr:		dw 0			; atoi: text pointer
 ntc_hookon:		db 0			; 1 = the Interrupt hook may run (set, and not running now)
 ntc_hookset:	db 0			; 1 = an Interrupt hook is set
 ntc_hookpend:	db 0			; 1 = an interrupt came, the hook runs at the next safe point
 ntc_hook:		dw 0			; the hook Sub's call stub
+ntc_hostix:		dw 0			; host platforms: IX kept over a firmware / BDOS call
 ntc_rampt:		dw #7FC0		; the gate array's RAM setting now (B = port, C = value): the
+				db 40			; ntc_inbuf's capacity (as every string variable has)
+ntc_inbuf:		ds 41			; inputint: typed text
 ntc_gsp:		dw ntc_gstack_top
 ntc_rnd_seed:	dw 1
 mem_a1:			dw 0
 mem_a2:			dw 0
 mem_a3:			dw 0
 mem_res:		dw 0
+mem_hi:			dw 0
+mem_sp:			dw 0
+mem_esp:		dw 0
+mem_six:		dw 0
+mem_siy:		dw 0
+mem_need:		dw 0
+mem_max:		dw 0
+mem_srca:		dw 0
+mem_dsta:		dw 0
+mem_srcp:		dw 0
+mem_dstp:		dw 0
+mem_left:		dw 0
+mem_chunk:		dw 0
+mem_cur:		dw 1			; the page in the window
+mem_keep:		dw 1			; the page to put back
+mem_hlo:		dw MEM_WIN		; the heap region mem_fit / mem_big work in
+mem_hhi:		dw #8000
+mem_store:		db 0
+mem_init:		db 0			; 1 = the first call has been
+ovl_blk:		dw 0			; the class block in use
+ovl_pg:			dw 0			; where the caller's page goes
+ovl_ix:			dw 0
+ovl_cix:		dw 0
+ovl_pix:		dw 0
+ovl_new:		dw 0
+ovl_res:		dw 0
+ovl_p:			dw 0
+ovl_ksp:		dw 0
 ovl_kres:		dw 0
+ovl_kcur:		dw 0
+ovl_mt:			dw ntc_ovl_ld2	; fs_go returns into this
 ovl_lblk:		dw 0			; LocalAlloc / LocalFree: the class block
+ovl_ct:			dw 0			; ntc_ovl_enterc: the copy table's home row
 ntc_ovl_lc:		db 0			; 1 = a call from code in the class's own page (its local entry): no switch
 ntc_ovl_body:	dw 0			; a class in more than one page: the body of the copy to run
+ovl_tdie:		db "Overlay not loaded: ", 0
+ovl_tpage:		db "No RAM page free", 0
+ovl_tfile:		db "The file didn't load", 0
+ovl_tstale:		db "The file is from another build", 0
+ovl_tkey:		db "Press a key", 0
+ovl_tbra:		db " (", 0
+ovl_tket:		db ")", 0
+ovl_why:		dw 0
 gfx_x0:			dw 0
 gfx_y0:			dw 0
 gfx_x1:			dw 0
 gfx_y1:			dw 0
+gfx_dx:			dw 0
+gfx_dy:			dw 0
+gfx_out:		db 0
+gfx_sy:			db 0			; 0 down, 1 up
 gfx_pen:		db 1
 gfx_clip:		db 1			; 1: a line with an end off the screen isn't drawn; 0: no checks
 gfx_base:		db #C0			; the screen drawn on (high byte)
 gfx_dbl:		db 0			; 1 = double buffering
+gfx_shown:		db #30			; CRTC R12 of the screen shown
 gfx_sp:			dw 0			; the thread position while a Graphics method works
 ntc_isln:		db 0			; slots in use
 ntc_isldue:		db 0			; 1 = a slot may be due
+ntc_islvs:		db 0			; vertical sync at the last interrupt
+ntc_islfr:		db 0			; 1 = this interrupt is the frame's (sync just started)
+ntc_islph:		db 0			; interrupts since the frame's (0-5)
 ntc_curx:		db 0			; cursor column (0 based) - kept here for Tab
 ntc_cury:		db 0			; cursor row (0 based)
 ntc_scols:		db 40			; columns in this mode
 ntc_smode:		db 1			; screen mode (for the Graphics class)
+ntc_fwa:		db 0			; ntc_fwcall: A on return
+ntc_fwwrap:		db 0			; 1 = the last character made the firmware wrap
+ntc_irqset:		db 0			; 1 = the firmware's fast ticker calls ntc_fwevt
 ntc_irqv:		dw 0			; interrupt classes' counting (ntc_isl_tick), 0 = none
+ntc_irqix:		dw 0
 fs_a1:			dw 0
 fs_a2:			dw 0
 fs_a3:			dw 0
 fs_res:			dw 0
+fs_sp:			dw 0
+fs_esp:			dw 0
+fs_six:			dw 0
+fs_siy:			dw 0
+fs_len:			dw 0
+fs_nostore:		db 0
+fs_init:		db 0			; 1 = checked: is AMSDOS running?
+fs_dos:			db 0			; 1 = a DOS is there (|DISC found)
+fs_devd:		db 0			; the device in use: 0 tape, 1 disc
+fs_n_tape:		db "TAPE", 0
+fs_n_disc:		db "DISC", 0
+fs_n_all:		db "TAPE,DISC", 0
+fs_c_tape:		db "TAP", "E" + #80
+fs_c_disc:		db "DIS", "C" + #80
 ntc_v_free:	dw 0			; the first free byte (the program's ntc_free)
 ntc_v_start:	dw 0			; the program's start (ntc_start)
 ntc_v_stamp:	dw 0			; the build stamp of its page files (NTC_STAMP)
 ntc_v_romen:	db 0			; Option RomEnable (NTC_ROMENABLE)
 ntc_v_rom:	db 0			; this ROM's number
 ntc_v_romold:	db 0			; the ROM selection before the program
-ntc_gnlo:		db 0			; ntc_getn: low byte
-ntc_sgnq:		db 0			; quotient sign (bit 7)
-ntc_sgnr:		db 0			; remainder sign (bit 7)
-ntc_lead:		db 0			; printint: digit seen
-ntc_icnt:		db 0			; gets: chars typed
-ntc_icap:		db 0			; gets: the buffer's capacity
-ntc_iptr:		dw 0			; gets: buffer pointer
-ntc_ilink:		dw 0			; gets: where to go when done
-ntc_aptr:		dw 0			; atoi: text pointer
-ntc_hostix:		dw 0			; host platforms: IX kept over a firmware / BDOS call
-				db 40			; ntc_inbuf's capacity (as every string variable has)
-ntc_inbuf:		ds 41			; inputint: typed text
 ntc_rdbase:		dw 0
 ntc_pow10:		dw 10000, 1000, 100, 10, 0
 ntc_tabcol:		db 0
@@ -8904,25 +8969,6 @@ ntc_lix:		dw 0
 ntc_lpwe:		dw 0
 ntc_capres:		dw 0
 ntc_capname:	dw 0
-mem_hi:			dw 0
-mem_sp:			dw 0
-mem_esp:		dw 0
-mem_six:		dw 0
-mem_siy:		dw 0
-mem_need:		dw 0
-mem_max:		dw 0
-mem_srca:		dw 0
-mem_dsta:		dw 0
-mem_srcp:		dw 0
-mem_dstp:		dw 0
-mem_left:		dw 0
-mem_chunk:		dw 0
-mem_cur:		dw 1			; the page in the window
-mem_keep:		dw 1			; the page to put back
-mem_hlo:		dw MEM_WIN		; the heap region mem_fit / mem_big work in
-mem_hhi:		dw #8000
-mem_store:		db 0
-mem_init:		db 0			; 1 = the first call has been
 mem_count:		dw 0			; pages (0 = no paging)
 mem_tnext:		dw 0			; the tables: next links (2 bytes a page)
 mem_ttype:		dw 0			; types (1 byte a page)
@@ -8930,34 +8976,6 @@ mem_tend:		dw 0			; the first byte after them
 mem_banks:		db 0			; 64K banks found
 mem_tl:			db 0
 mem_kinds:		db "--CDIU"		; the type character of each list
-ovl_blk:		dw 0			; the class block in use
-ovl_pg:			dw 0			; where the caller's page goes
-ovl_ix:			dw 0
-ovl_cix:		dw 0
-ovl_pix:		dw 0
-ovl_new:		dw 0
-ovl_res:		dw 0
-ovl_p:			dw 0
-ovl_ksp:		dw 0
-ovl_kcur:		dw 0
-ovl_mt:			dw ntc_ovl_ld2	; fs_go returns into this
-ovl_ct:			dw 0			; ntc_ovl_enterc: the copy table's home row
-ovl_tdie:		db "Overlay not loaded: ", 0
-ovl_tpage:		db "No RAM page free", 0
-ovl_tfile:		db "The file didn't load", 0
-ovl_tstale:		db "The file is from another build", 0
-ovl_tkey:		db "Press a key", 0
-ovl_tbra:		db " (", 0
-ovl_tket:		db ")", 0
-ovl_why:		dw 0
-gfx_dx:			dw 0
-gfx_dy:			dw 0
-gfx_out:		db 0
-gfx_sy:			db 0			; 0 down, 1 up
-gfx_shown:		db #30			; CRTC R12 of the screen shown
-ntc_islvs:		db 0			; vertical sync at the last interrupt
-ntc_islfr:		db 0			; 1 = this interrupt is the frame's (sync just started)
-ntc_islph:		db 0			; interrupts since the frame's (0-5)
 ntc_bsa:		dw 0
 ntc_bsz:		dw 0
 ntc_bsp:		dw 0
@@ -8970,30 +8988,12 @@ lst_ko:			dw 0			; the key's offset in a node
 lst_byte:		db 0			; 0: the low byte, 1: the high byte
 lst_bp:			dw 0
 lst_cpg:		dw 0			; the page in the window (0: not known)
-ntc_fwa:		db 0			; ntc_fwcall: A on return
-ntc_fwwrap:		db 0			; 1 = the last character made the firmware wrap
-ntc_irqset:		db 0			; 1 = the firmware's fast ticker calls ntc_fwevt
-ntc_irqix:		dw 0
 ntc_fwtop:		dw NTC_ROMDATA		; the top of free RAM (#A5F0 with the fast ticker's block)
 ntc_pclink:		dw 0
 ntc_kslink:		dw 0
-fs_sp:			dw 0
-fs_esp:			dw 0
-fs_six:			dw 0
-fs_siy:			dw 0
-fs_len:			dw 0
-fs_nostore:		db 0
-fs_init:		db 0			; 1 = checked: is AMSDOS running?
-fs_dos:			db 0			; 1 = a DOS is there (|DISC found)
-fs_devd:		db 0			; the device in use: 0 tape, 1 disc
-fs_n_tape:		db "TAPE", 0
-fs_n_disc:		db "DISC", 0
-fs_n_all:		db "TAPE,DISC", 0
-fs_c_tape:		db "TAP", "E" + #80
-fs_c_disc:		db "DIS", "C" + #80
 fs_n_a1:		db "A", 0
 ; ---- code that runs from RAM (addresses may change between ROMs: programs reach it through their jump block)
-;## ntc_gfx ntc_data ntc_plat_data @shared  (ROM: runs from RAM, it reads the screen)
+;## ntc_gfx ntc_data ntc_plat_data @shared  (ROM: runs from RAM)
 gfx_begin:
 			call ntc_urom_off	; (ROM: the upper ROM hides the screen)
 			ld a, (gfx_base)
@@ -9542,11 +9542,15 @@ ntc_rom_imgend:
 			OUTEND
 ; ---- the other variables: RAM from NTC_ROMBSS, not in the ROM
 			ORG NTC_ROMBSS
+ntc_numbuf:		ds 14			; printint / long print: digits (+ spaces for Option VBPrint)
 ntc_gstack:		ds 128
 ntc_gstack_top:
 ntc_font:		ds 95 * 8
 ntc_isl:		ds 32
-ntc_numbuf:		ds 14			; printint / long print: digits (+ spaces for Option VBPrint)
+fs_vol:			ds 9			; the volume in use ("" = not known)
+fs_vols:		ds 145			; the volumes that worked, "A,C,M" (up to 16 of up to 8 letters)
+fs_tmpn:		ds 9			; a volume name, capitals
+fs_rsxn:		ds 17			; a command name (last letter + #80), up to 16 letters
 ntc_rpbuf:		ds NTC_STRMAX + 1
 ntc_fmbuf:		ds 14
 ntc_jnbuf:		ds NTC_STRMAX + 1
@@ -9567,61 +9571,57 @@ lst_p:			ds 4
 lst_q:			ds 4
 lst_s1:			ds 4
 lst_s2:			ds 4
-fs_vol:			ds 9			; the volume in use ("" = not known)
-fs_vols:		ds 145			; the volumes that worked, "A,C,M" (up to 16 of up to 8 letters)
-fs_tmpn:		ds 9			; a volume name, capitals
-fs_rsxn:		ds 17			; a command name (last letter + #80), up to 16 letters
 ntc_rom_bssend:
 			ASSERT ntc_rom_bssend <= #A5F0, "the ROM's variables reach #A5F0"
 			ASSERT ntc_csp == #8800, "ntc_csp moved: variables and constants keep their place (a new size or value needs a new name)"
 			ASSERT ntc_ip == #8802, "ntc_ip moved: variables and constants keep their place (a new size or value needs a new name)"
 			ASSERT ntc_ticks == #8804, "ntc_ticks moved: variables and constants keep their place (a new size or value needs a new name)"
-			ASSERT ntc_nmode == #8806, "ntc_nmode moved: variables and constants keep their place (a new size or value needs a new name)"
-			ASSERT ntc_mode == #8807, "ntc_mode moved: variables and constants keep their place (a new size or value needs a new name)"
-			ASSERT ntc_sptr == #8808, "ntc_sptr moved: variables and constants keep their place (a new size or value needs a new name)"
-			ASSERT ntc_ivar == #880A, "ntc_ivar moved: variables and constants keep their place (a new size or value needs a new name)"
-			ASSERT ntc_hookon == #880C, "ntc_hookon moved: variables and constants keep their place (a new size or value needs a new name)"
-			ASSERT ntc_hookset == #880D, "ntc_hookset moved: variables and constants keep their place (a new size or value needs a new name)"
-			ASSERT ntc_hookpend == #880E, "ntc_hookpend moved: variables and constants keep their place (a new size or value needs a new name)"
-			ASSERT ntc_hook == #880F, "ntc_hook moved: variables and constants keep their place (a new size or value needs a new name)"
-			ASSERT ntc_rampt == #8811, "ntc_rampt moved: variables and constants keep their place (a new size or value needs a new name)"
-			ASSERT ntc_gsp == #8813, "ntc_gsp moved: variables and constants keep their place (a new size or value needs a new name)"
-			ASSERT ntc_gstack == #9400, "ntc_gstack moved: variables and constants keep their place (a new size or value needs a new name)"
-			ASSERT ntc_gstack_top == #9480, "ntc_gstack_top moved: variables and constants keep their place (a new size or value needs a new name)"
-			ASSERT ntc_rnd_seed == #8815, "ntc_rnd_seed moved: variables and constants keep their place (a new size or value needs a new name)"
-			ASSERT ntc_font == #9480, "ntc_font moved: variables and constants keep their place (a new size or value needs a new name)"
-			ASSERT mem_a1 == #8817, "mem_a1 moved: variables and constants keep their place (a new size or value needs a new name)"
-			ASSERT mem_a2 == #8819, "mem_a2 moved: variables and constants keep their place (a new size or value needs a new name)"
-			ASSERT mem_a3 == #881B, "mem_a3 moved: variables and constants keep their place (a new size or value needs a new name)"
-			ASSERT mem_res == #881D, "mem_res moved: variables and constants keep their place (a new size or value needs a new name)"
-			ASSERT ovl_kres == #881F, "ovl_kres moved: variables and constants keep their place (a new size or value needs a new name)"
-			ASSERT ovl_lblk == #8821, "ovl_lblk moved: variables and constants keep their place (a new size or value needs a new name)"
-			ASSERT ntc_ovl_lc == #8823, "ntc_ovl_lc moved: variables and constants keep their place (a new size or value needs a new name)"
-			ASSERT ntc_ovl_body == #8824, "ntc_ovl_body moved: variables and constants keep their place (a new size or value needs a new name)"
-			ASSERT gfx_x0 == #8826, "gfx_x0 moved: variables and constants keep their place (a new size or value needs a new name)"
-			ASSERT gfx_y0 == #8828, "gfx_y0 moved: variables and constants keep their place (a new size or value needs a new name)"
-			ASSERT gfx_x1 == #882A, "gfx_x1 moved: variables and constants keep their place (a new size or value needs a new name)"
-			ASSERT gfx_y1 == #882C, "gfx_y1 moved: variables and constants keep their place (a new size or value needs a new name)"
-			ASSERT gfx_pen == #882E, "gfx_pen moved: variables and constants keep their place (a new size or value needs a new name)"
-			ASSERT gfx_clip == #882F, "gfx_clip moved: variables and constants keep their place (a new size or value needs a new name)"
-			ASSERT gfx_base == #8830, "gfx_base moved: variables and constants keep their place (a new size or value needs a new name)"
-			ASSERT gfx_dbl == #8831, "gfx_dbl moved: variables and constants keep their place (a new size or value needs a new name)"
-			ASSERT gfx_sp == #8832, "gfx_sp moved: variables and constants keep their place (a new size or value needs a new name)"
-			ASSERT ntc_isln == #8834, "ntc_isln moved: variables and constants keep their place (a new size or value needs a new name)"
-			ASSERT ntc_isldue == #8835, "ntc_isldue moved: variables and constants keep their place (a new size or value needs a new name)"
-			ASSERT ntc_isl == #9778, "ntc_isl moved: variables and constants keep their place (a new size or value needs a new name)"
-			ASSERT ntc_curx == #8836, "ntc_curx moved: variables and constants keep their place (a new size or value needs a new name)"
-			ASSERT ntc_cury == #8837, "ntc_cury moved: variables and constants keep their place (a new size or value needs a new name)"
-			ASSERT ntc_scols == #8838, "ntc_scols moved: variables and constants keep their place (a new size or value needs a new name)"
-			ASSERT ntc_smode == #8839, "ntc_smode moved: variables and constants keep their place (a new size or value needs a new name)"
-			ASSERT ntc_irqv == #883A, "ntc_irqv moved: variables and constants keep their place (a new size or value needs a new name)"
-			ASSERT fs_a1 == #883C, "fs_a1 moved: variables and constants keep their place (a new size or value needs a new name)"
-			ASSERT fs_a2 == #883E, "fs_a2 moved: variables and constants keep their place (a new size or value needs a new name)"
-			ASSERT fs_a3 == #8840, "fs_a3 moved: variables and constants keep their place (a new size or value needs a new name)"
-			ASSERT fs_res == #8842, "fs_res moved: variables and constants keep their place (a new size or value needs a new name)"
-			ASSERT ntc_v_free == #8844, "ntc_v_free moved: variables and constants keep their place (a new size or value needs a new name)"
-			ASSERT ntc_v_start == #8846, "ntc_v_start moved: variables and constants keep their place (a new size or value needs a new name)"
-			ASSERT ntc_v_stamp == #8848, "ntc_v_stamp moved: variables and constants keep their place (a new size or value needs a new name)"
-			ASSERT ntc_v_romen == #884A, "ntc_v_romen moved: variables and constants keep their place (a new size or value needs a new name)"
-			ASSERT ntc_v_rom == #884B, "ntc_v_rom moved: variables and constants keep their place (a new size or value needs a new name)"
-			ASSERT ntc_v_romold == #884C, "ntc_v_romold moved: variables and constants keep their place (a new size or value needs a new name)"
+			ASSERT ntc_nmode == #8807, "ntc_nmode moved: variables and constants keep their place (a new size or value needs a new name)"
+			ASSERT ntc_mode == #8808, "ntc_mode moved: variables and constants keep their place (a new size or value needs a new name)"
+			ASSERT ntc_sptr == #880E, "ntc_sptr moved: variables and constants keep their place (a new size or value needs a new name)"
+			ASSERT ntc_ivar == #8814, "ntc_ivar moved: variables and constants keep their place (a new size or value needs a new name)"
+			ASSERT ntc_hookon == #8818, "ntc_hookon moved: variables and constants keep their place (a new size or value needs a new name)"
+			ASSERT ntc_hookset == #8819, "ntc_hookset moved: variables and constants keep their place (a new size or value needs a new name)"
+			ASSERT ntc_hookpend == #881A, "ntc_hookpend moved: variables and constants keep their place (a new size or value needs a new name)"
+			ASSERT ntc_hook == #881B, "ntc_hook moved: variables and constants keep their place (a new size or value needs a new name)"
+			ASSERT ntc_rampt == #881F, "ntc_rampt moved: variables and constants keep their place (a new size or value needs a new name)"
+			ASSERT ntc_gsp == #884B, "ntc_gsp moved: variables and constants keep their place (a new size or value needs a new name)"
+			ASSERT ntc_gstack == #940E, "ntc_gstack moved: variables and constants keep their place (a new size or value needs a new name)"
+			ASSERT ntc_gstack_top == #948E, "ntc_gstack_top moved: variables and constants keep their place (a new size or value needs a new name)"
+			ASSERT ntc_rnd_seed == #884D, "ntc_rnd_seed moved: variables and constants keep their place (a new size or value needs a new name)"
+			ASSERT ntc_font == #948E, "ntc_font moved: variables and constants keep their place (a new size or value needs a new name)"
+			ASSERT mem_a1 == #884F, "mem_a1 moved: variables and constants keep their place (a new size or value needs a new name)"
+			ASSERT mem_a2 == #8851, "mem_a2 moved: variables and constants keep their place (a new size or value needs a new name)"
+			ASSERT mem_a3 == #8853, "mem_a3 moved: variables and constants keep their place (a new size or value needs a new name)"
+			ASSERT mem_res == #8855, "mem_res moved: variables and constants keep their place (a new size or value needs a new name)"
+			ASSERT ovl_kres == #888D, "ovl_kres moved: variables and constants keep their place (a new size or value needs a new name)"
+			ASSERT ovl_lblk == #8893, "ovl_lblk moved: variables and constants keep their place (a new size or value needs a new name)"
+			ASSERT ntc_ovl_lc == #8897, "ntc_ovl_lc moved: variables and constants keep their place (a new size or value needs a new name)"
+			ASSERT ntc_ovl_body == #8898, "ntc_ovl_body moved: variables and constants keep their place (a new size or value needs a new name)"
+			ASSERT gfx_x0 == #8907, "gfx_x0 moved: variables and constants keep their place (a new size or value needs a new name)"
+			ASSERT gfx_y0 == #8909, "gfx_y0 moved: variables and constants keep their place (a new size or value needs a new name)"
+			ASSERT gfx_x1 == #890B, "gfx_x1 moved: variables and constants keep their place (a new size or value needs a new name)"
+			ASSERT gfx_y1 == #890D, "gfx_y1 moved: variables and constants keep their place (a new size or value needs a new name)"
+			ASSERT gfx_pen == #8915, "gfx_pen moved: variables and constants keep their place (a new size or value needs a new name)"
+			ASSERT gfx_clip == #8916, "gfx_clip moved: variables and constants keep their place (a new size or value needs a new name)"
+			ASSERT gfx_base == #8917, "gfx_base moved: variables and constants keep their place (a new size or value needs a new name)"
+			ASSERT gfx_dbl == #8918, "gfx_dbl moved: variables and constants keep their place (a new size or value needs a new name)"
+			ASSERT gfx_sp == #891A, "gfx_sp moved: variables and constants keep their place (a new size or value needs a new name)"
+			ASSERT ntc_isln == #891C, "ntc_isln moved: variables and constants keep their place (a new size or value needs a new name)"
+			ASSERT ntc_isldue == #891D, "ntc_isldue moved: variables and constants keep their place (a new size or value needs a new name)"
+			ASSERT ntc_isl == #9786, "ntc_isl moved: variables and constants keep their place (a new size or value needs a new name)"
+			ASSERT ntc_curx == #8921, "ntc_curx moved: variables and constants keep their place (a new size or value needs a new name)"
+			ASSERT ntc_cury == #8922, "ntc_cury moved: variables and constants keep their place (a new size or value needs a new name)"
+			ASSERT ntc_scols == #8923, "ntc_scols moved: variables and constants keep their place (a new size or value needs a new name)"
+			ASSERT ntc_smode == #8924, "ntc_smode moved: variables and constants keep their place (a new size or value needs a new name)"
+			ASSERT ntc_irqv == #8928, "ntc_irqv moved: variables and constants keep their place (a new size or value needs a new name)"
+			ASSERT fs_a1 == #892C, "fs_a1 moved: variables and constants keep their place (a new size or value needs a new name)"
+			ASSERT fs_a2 == #892E, "fs_a2 moved: variables and constants keep their place (a new size or value needs a new name)"
+			ASSERT fs_a3 == #8930, "fs_a3 moved: variables and constants keep their place (a new size or value needs a new name)"
+			ASSERT fs_res == #8932, "fs_res moved: variables and constants keep their place (a new size or value needs a new name)"
+			ASSERT ntc_v_free == #895E, "ntc_v_free moved: variables and constants keep their place (a new size or value needs a new name)"
+			ASSERT ntc_v_start == #8960, "ntc_v_start moved: variables and constants keep their place (a new size or value needs a new name)"
+			ASSERT ntc_v_stamp == #8962, "ntc_v_stamp moved: variables and constants keep their place (a new size or value needs a new name)"
+			ASSERT ntc_v_romen == #8964, "ntc_v_romen moved: variables and constants keep their place (a new size or value needs a new name)"
+			ASSERT ntc_v_rom == #8965, "ntc_v_rom moved: variables and constants keep their place (a new size or value needs a new name)"
+			ASSERT ntc_v_romold == #8966, "ntc_v_romold moved: variables and constants keep their place (a new size or value needs a new name)"

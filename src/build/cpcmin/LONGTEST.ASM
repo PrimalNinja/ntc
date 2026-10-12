@@ -10,6 +10,7 @@ NTC_TERM	equ 0		; Option Terminal: 0 none, 1 VT52, 2 ANSI (CP/M)
 NTC_STRMAX	equ 40		; the longest string (library buffers, temps)
 NTC_MEMBANKS	equ 64		; Option Memory: the most 64K banks the Memory class looks for
 NTC_ROMENABLE	equ 0		; Option RomEnable (cpcfw, cpcmin): the start code starts the ROMs
+NTC_ROMLIB	equ 0		; 1 only when the library itself is built as a ROM (ntcRomAsm)
 
 ntc_start:
 			di
@@ -2576,11 +2577,16 @@ ntc_irqset:		db 0			; 1 = our interrupt handler is at #38
 ntc_irqold:		ds 3			; the 3 bytes it replaced
 ntc_irqhl:		dw 0			; handler scratch
 ntc_irqv:		dw 0			; interrupt classes' counting (ntc_isl_tick), 0 = none
+	IF NTC_ROMLIB
+ntc_uroff:		db 0			; (ROM) 1 = the upper ROM is off while the screen is read
+	ENDIF
 ntc_modetab:	db 4, 20, #C0, 2		; mode 0
 				db 2, 40, #F0, 4		; mode 1
 				db 1, 80, #FF, 8		; mode 2
 
-;## ntc_plat_screen ntc_plat_data ntc_font ntc_data @shared
+; (ntc_plat_scroll, ntc_plat_cls: their own section - the ROM runs them from RAM)
+
+;## ntc_plat_screen ntc_plat_data ntc_font ntc_data ntc_plat_scroll @shared
 ; ------------------------------------------------------------
 ; ntc_plat_putc - A = character 32-126 (others print as ?), draw it
 ; ------------------------------------------------------------
@@ -2751,52 +2757,8 @@ ntc_nl_do:
 			ld a, (ntc_cury)
 			inc a
 			cp 25
-			jr nc, ntc_plat_scroll
+			jp nc, ntc_plat_scroll
 			ld (ntc_cury), a
-			jp (ix)
-
-; ------------------------------------------------------------
-; ntc_plat_scroll - move rows 1-24 up one, clear row 24
-; ------------------------------------------------------------
-ntc_plat_scroll:
-			ld a, 24
-			ld (ntc_cury), a
-			ld a, (ntc_nmode)		; normal mode: interrupts in during the long copy
-			or a
-			jr z, ntc_sc_open
-			ld (ntc_ip), sp
-			ld sp, (ntc_csp)
-			ei
-ntc_sc_open:
-			ld hl, #C000
-			ld a, 8
-ntc_sc_line:
-			ld (ntc_pgrow), a
-			ld (ntc_pgaddr), hl
-			ld d, h
-			ld e, l
-			ld bc, 80
-			add hl, bc
-			ld bc, 24 * 80
-			ldir
-			ld h, d
-			ld l, e
-			ld (hl), 0
-			inc de
-			ld bc, 79
-			ldir
-			ld hl, (ntc_pgaddr)
-			ld bc, #800
-			add hl, bc
-			ld a, (ntc_pgrow)
-			dec a
-			jr nz, ntc_sc_line
-			di
-			ld a, (ntc_nmode)
-			or a
-			jr z, ntc_sc_close
-			ld sp, (ntc_ip)
-ntc_sc_close:
 			jp (ix)
 
 ; ------------------------------------------------------------
@@ -2825,34 +2787,6 @@ ntc_bs_none:
 			jp (ix)
 
 ; ------------------------------------------------------------
-; ntc_plat_cls - clear screen memory, cursor home
-; ------------------------------------------------------------
-ntc_plat_cls:
-			ld a, (ntc_nmode)		; normal mode: interrupts in during the long copy
-			or a
-			jr z, ntc_cl_open
-			ld (ntc_ip), sp
-			ld sp, (ntc_csp)
-			ei
-ntc_cl_open:
-			ld hl, #C000
-			ld de, #C001
-			ld bc, #3FFF
-			ld (hl), 0
-			ldir
-			di
-			ld a, (ntc_nmode)
-			or a
-			jr z, ntc_cl_close
-			ld sp, (ntc_ip)
-ntc_cl_close:
-			xor a
-			ld (ntc_wrapped), a
-			ld (ntc_curx), a
-			ld (ntc_cury), a
-			jp (ix)
-
-; ------------------------------------------------------------
 ; ntc_plat_mode - A = mode (0-2, 3 = 2). Gate array mode with both
 ; ROMs off, set text layout, clear screen
 ; ------------------------------------------------------------
@@ -2868,15 +2802,23 @@ ntc_md_ok:
 			; the first time: copy the CPC's own font (lower ROM, chars 32-126 at
 			; #3900) into ntc_font. The copy runs from #C000 (screen RAM, cleared
 			; just after), because the program itself can sit under the lower ROM
+		IF NTC_ROMLIB
+			jp ntc_fontcopy		; (ROM: it runs here - the lower ROM goes on, this one stays on)
+		ELSE
 			ld hl, ntc_fontcopy
 			ld de, #C000
 			ld bc, ntc_fontcopy_end - ntc_fontcopy
 			ldir
 			jp #C000
+		ENDIF
 ntc_md_set:
 			ld a, (ntc_smode)
 			ld c, a
+		IF NTC_ROMLIB
+			or #84				; (ROM: the upper ROM on)
+		ELSE
 			or #8C
+		ENDIF
 			ld b, #7F
 			out (c), a
 			ld a, 1
@@ -2895,13 +2837,21 @@ ntc_md_set:
 
 ; copied to #C000 and run there (no jumps inside: it runs at any address)
 ntc_fontcopy:
+		IF NTC_ROMLIB
+			ld bc, #7F80		; lower ROM on, upper ROM (this one) on
+		ELSE
 			ld bc, #7F88		; lower ROM on, upper ROM off
+		ENDIF
 			out (c), c
 			ld hl, #3900		; the firmware's character matrices, from char 32
 			ld de, ntc_font
 			ld bc, 95 * 8
 			ldir
+		IF NTC_ROMLIB
+			ld bc, #7F84		; lower ROM off again
+		ELSE
 			ld bc, #7F8C		; both ROMs off again
+		ENDIF
 			out (c), c
 			jp ntc_md_set
 ntc_fontcopy_end:
@@ -2934,6 +2884,111 @@ ntc_lc_y0:
 			jr c, ntc_lc_ymax
 			ld a, 24
 ntc_lc_ymax:
+			ld (ntc_cury), a
+			jp (ix)
+
+;## ntc_plat_scroll ntc_plat_data ntc_data @shared @romram
+; ------------------------------------------------------------
+; ntc_plat_scroll - move rows 1-24 up one, clear row 24
+; ------------------------------------------------------------
+ntc_plat_scroll:
+			ld a, 24
+			ld (ntc_cury), a
+			ld a, (ntc_nmode)		; normal mode: interrupts in during the long copy
+			or a
+			jr z, ntc_sc_open
+			ld (ntc_ip), sp
+			ld sp, (ntc_csp)
+			ei
+ntc_sc_open:
+		IF NTC_ROMLIB
+			ld a, 1				; (ROM: the upper ROM off while the screen is read;
+			ld (ntc_uroff), a	; the interrupt handler turns it on for its calls)
+			ld a, (ntc_smode)
+			or #8C
+			ld b, #7F
+			out (c), a
+		ENDIF
+			ld hl, #C000
+			ld a, 8
+ntc_sc_line:
+			ld (ntc_pgrow), a
+			ld (ntc_pgaddr), hl
+			ld d, h
+			ld e, l
+			ld bc, 80
+			add hl, bc
+			ld bc, 24 * 80
+			ldir
+			ld h, d
+			ld l, e
+			ld (hl), 0
+			inc de
+			ld bc, 79
+			ldir
+			ld hl, (ntc_pgaddr)
+			ld bc, #800
+			add hl, bc
+			ld a, (ntc_pgrow)
+			dec a
+			jr nz, ntc_sc_line
+			di
+		IF NTC_ROMLIB
+			ld a, (ntc_smode)	; (ROM: the upper ROM on again)
+			or #84
+			ld b, #7F
+			out (c), a
+			xor a
+			ld (ntc_uroff), a
+		ENDIF
+			ld a, (ntc_nmode)
+			or a
+			jr z, ntc_sc_close
+			ld sp, (ntc_ip)
+ntc_sc_close:
+			jp (ix)
+
+; ------------------------------------------------------------
+; ntc_plat_cls - clear screen memory, cursor home
+; ------------------------------------------------------------
+ntc_plat_cls:
+			ld a, (ntc_nmode)		; normal mode: interrupts in during the long copy
+			or a
+			jr z, ntc_cl_open
+			ld (ntc_ip), sp
+			ld sp, (ntc_csp)
+			ei
+ntc_cl_open:
+		IF NTC_ROMLIB
+			ld a, 1				; (ROM: the upper ROM off - the fill reads the screen back)
+			ld (ntc_uroff), a
+			ld a, (ntc_smode)
+			or #8C
+			ld b, #7F
+			out (c), a
+		ENDIF
+			ld hl, #C000
+			ld de, #C001
+			ld bc, #3FFF
+			ld (hl), 0
+			ldir
+			di
+		IF NTC_ROMLIB
+			ld a, (ntc_smode)	; (ROM: the upper ROM on again)
+			or #84
+			ld b, #7F
+			out (c), a
+			xor a
+			ld (ntc_uroff), a
+		ENDIF
+			ld a, (ntc_nmode)
+			or a
+			jr z, ntc_cl_close
+			ld sp, (ntc_ip)
+ntc_cl_close:
+			xor a
+			ld (ntc_wrapped), a
+			ld (ntc_curx), a
 			ld (ntc_cury), a
 			jp (ix)
 
@@ -3114,7 +3169,7 @@ ntc_fr_wait:
 ntc_fr_done:
 			jp (ix)
 
-;## ntc_plat_irq ntc_plat_data ntc_data @shared
+;## ntc_plat_irq ntc_plat_data ntc_data ntc_plat_irqh @shared
 ; ------------------------------------------------------------
 ; ntc_plat_irqon - put the interrupt handler at #38 (IM 1)
 ; ------------------------------------------------------------
@@ -3131,6 +3186,7 @@ ntc_plat_irqon:
 			ld (ntc_irqset), a
 			jp (ix)
 
+;## ntc_plat_irqh ntc_plat_data ntc_data @shared @romram
 ; the handler: runs on the real stack, between keywords. Counts ticks
 ; (300 a second). AF goes to AF', HL to RAM; interrupt classes' counting
 ; (ntc_irqv) is a call, keeping the other registers.
@@ -3148,13 +3204,37 @@ ntc_irq_nohook:
 			ld hl, (ntc_irqv)		; interrupt classes (Option Class Interrupt): count them
 			ld a, h
 			or l
+		IF NTC_ROMLIB
+			call nz, ntc_irq_rom	; (the handler runs on the real stack)
+		ELSE
 			call nz, ntc_irq_jp		; (the handler runs on the real stack)
+		ENDIF
 			ld hl, (ntc_irqhl)
 			ex af, af'
 			ei
 			ret
 ntc_irq_jp:
 			jp (hl)
+		IF NTC_ROMLIB
+; (ROM) the counting is in the ROM: the upper ROM on for the call while the
+; screen code has it off
+ntc_irq_rom:
+			ld a, (ntc_uroff)
+			or a
+			jr z, ntc_irq_jp
+			push bc
+			ld a, (ntc_smode)
+			or #84
+			ld b, #7F
+			out (c), a
+			call ntc_irq_jp
+			ld a, (ntc_smode)
+			or #8C
+			ld b, #7F
+			out (c), a
+			pop bc
+			ret
+		ENDIF
 
 ;## ntc_plat_exit ntc_plat_data
 ; ------------------------------------------------------------
@@ -3208,7 +3288,11 @@ FS_BADNAME	equ -4
 ; use: #A600 (the firmware's and AMSDOS's RAM is above). Called on the real
 ; stack (call / ret), only by the Memory class.
 ntc_plat_memtop:
+		IF NTC_ROMLIB
+			ld hl, NTC_ROMDATA	; (ROM: its RAM starts there)
+		ELSE
 			ld hl, #A600
+		ENDIF
 			ret
 
 

@@ -2263,45 +2263,65 @@ On other platforms it gives a warning and does nothing.
 
 `Option Library ROM` / `Option Library RAM`
 
-`cpcfw` only (the other platforms get their ROMs later). With `ROM`, the keyword library is
-not put into the program: it is in a ROM, **NTC CPCFW** (`build/rom/NTCFW.ROM`, 16K with an
-AMSDOS header, 16512 bytes - for a ROM board, an M4 / ROM emulator or WinAPE's ROM slots).
-The program gets a small jump block instead: one `jp` for each library routine it uses. Each
-entry starts as `jp <number>`. At the start the program looks for the ROM in slots 0-31
-(a background ROM whose NTC block says `CPCFW`) and calls the ROM's patcher with the jump
-block, which puts the ROM's address in place of each number. The rest of the program is
-built exactly as before. `RAM` (the default) puts the library in the program; the GUI's
-**Library** list has the same choice (**in ROM (cpcfw)**), and the source wins.
+The CPC platforms (`cpc`, `cpcmin`, `cpcfw`). With `ROM`, the keyword library is not put
+into the program: it is in a ROM, one per platform:
+
+| Platform | ROM name | File |
+|---|---|---|
+| `cpc` | NTC CPC | `build/rom/NTCCPC.ROM` |
+| `cpcmin` | NTC CPCMIN | `build/rom/NTCMIN.ROM` |
+| `cpcfw` | NTC CPCFW | `build/rom/NTCFW.ROM` |
+
+Each is 16K with an AMSDOS header (16512 bytes), for a ROM board, an M4 / ROM emulator or
+WinAPE's ROM slots. They have different names, so all three can be fitted at once; a
+program finds the one for its platform. The ROMs are not interchangeable: the platforms
+share the keyword core, but screen, keys and interrupts are different code (cpcfw goes
+through the firmware, cpc and cpcmin drive the hardware themselves).
+
+The program gets a small jump block instead of the library: one `jp` for each library
+routine it uses. Each entry starts as `jp <number>`. At the start the program looks for the
+ROM in slots 0-31 (KL ROM SELECT - the firmware is still there at that point on every CPC
+platform) and calls the ROM's patcher with the jump block, which puts the ROM's address in
+place of each number. The rest of the program is built exactly as before. `RAM` (the
+default) puts the library in the program; the GUI's **Library** list has the same choice
+(**in ROM (CPC)**), and the source wins.
 
 ```
 Option Library ROM
 Print "Hello"          ' a few hundred bytes: the jump block, the start code, the program
 ```
 
-- **Smaller programs.** GUESS goes from 1539 bytes to 661, SIEVE from 1588 to 680, the pages
-  demo from 7819 to 1285 (cube3d: 13079 to 5344). The difference is the library code.
+- **Smaller programs.** On cpcfw GUESS goes from 1539 bytes to 661, SIEVE from 1588 to 680,
+  the pages demo from 7819 to 1285 (cube3d: 13079 to 5344). The difference is the library code.
 - **Slower.** Every keyword goes through the jump block: 10 T more each time. On short
   keywords that is a lot - the sieve timing takes about 25% longer.
+- **Turbo still works.** The ROM holds both copies of every keyword (turbo and normal), so
+  `Turbo On` / `Off` cost no program RAM for the library. `Option NoTurbo` still saves the
+  program's own second copies: ROM + NoTurbo is the smallest program, RAM library with
+  both modes the fastest (shellsort on cpcfw: 1673 bytes / 14.1M T against 3111 bytes /
+  8.5M T; ROM with both modes: 1895 bytes / 10.1M T).
 - **The ROM's RAM.** The ROM keeps its variables in `#8800-#A5EF`, so the program and its
-  arrays must end below `#8800` (checked when assembling). A program CALLed from BASIC needs
-  `MEMORY &87FF` (or lower) first, or BASIC's strings and the ROM's variables overwrite
-  each other. `End` puts the caller's ROM selection back.
+  arrays must end below `#8800` (checked when assembling), and the Memory class's heap stops
+  there. A program CALLed from BASIC needs `MEMORY &87FF` (or lower) first, or BASIC's strings
+  and the ROM's variables overwrite each other. `End` puts the caller's ROM selection back.
+- **The screen.** The upper ROM covers the screen's RAM at `#C000` for reading. On cpc and
+  cpcmin the ROM stays on and NTC turns it off only while it reads the screen (scroll, Cls,
+  Graphics), from code it runs in RAM; on cpcfw the Graphics routines do the same through
+  the firmware.
 - **Strings up to 255.** The ROM's buffers are built for 255 characters, so the program's
   string temporaries are too (more RAM for programs with many of them).
-- **Not found.** Without the ROM the program prints `ROM NTC CPCFW (NTCFW.ROM) not found`;
-  with an older ROM that hasn't a routine the program uses, `ROM NTC CPCFW too old: no
-  routine #nnnn`. Then it waits for a key and goes back.
-- **The ROM can change.** Numbers never change: the registry (`src/asm/ntc_rom_cpcfw.txt`)
-  only grows. A new ROM can move every routine and fix anything inside - programs built
-  before still work. Variables keep fixed addresses (a variable that has to change gets a
-  new name). The ROM for each platform has its own name, so all of them can be fitted at
-  once and each program finds its own.
+- **Not found.** Without the ROM the program prints `ROM NTC CPCFW (NTCFW.ROM) not found`
+  (its own platform's name); with an older ROM that hasn't a routine the program uses, `ROM
+  NTC CPCFW too old: no routine #nnnn`. Then it waits for a key and goes back.
+- **The ROMs can change.** Numbers never change: each ROM's registry
+  (`src/asm/ntc_rom_<platform>.txt`) only grows. A new ROM can move every routine and fix
+  anything inside - programs built before still work. Variables keep fixed addresses.
 - **#asm.** Inline assembly can use the library routines and variables in the registry
   (what the compiler's own code and the platform classes use: section names, `kw_...`,
   `gfx_...`, `ntc_csp` and the like). Anything else in the library is the ROM's own and
   stops the compile ("the cpcfw ROM has no ...").
-- The firmware keeps the ROM selected: firmware and AMSDOS calls made from the ROM come
-  back to it, and the interrupt classes' firmware event runs in it.
+- Firmware and AMSDOS calls made from the ROM come back to it (cpcfw, and cpcmin's file
+  calls), and cpcfw's interrupt event runs in it.
 
 **VB:** not in VB.
 

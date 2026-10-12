@@ -353,13 +353,19 @@ def main():
     if r.stderr: print(r.stderr)
     open(asm, 'w').write(r.stdout)
     b, syms = cpcrun.assemble(asm)
+    if plat in ('cpc', 'cpcmin', 'cpcfw') and 'NTC_XROM' not in os.environ and ('--library=rom' in extra or 'ntc_rj_block' in syms):
+        # the program wants the keyword ROM (Option Library ROM / --library=rom): fitted in slot 6
+        os.environ['NTC_XROM'] = os.path.join(HERE, '..', 'build', 'rom', {'cpc': 'NTCCPC', 'cpcmin': 'NTCMIN', 'cpcfw': 'NTCFW'}[plat] + '.ROM')
+    if 'ntc_rj_block' in syms:
+        # the ROM's variables the harness reads (ntc_smode, ntc_font): from the registry
+        for line in open(os.path.join(HERE, '..', 'asm', 'ntc_rom_' + plat + '.txt')):
+            p = line.split()
+            if len(p) >= 4 and p[0] == '-' and p[1] in ('data', 'bss') and p[2] not in syms: syms[p[2]] = int(p[3].lstrip('#'), 16)
     if plat in ('cpc', 'cpcmin'):     # the CPC hardware emulation (cpcmin: plus the firmware stand-ins)
         c = cpcrun.CPC(b, syms.get('ntc_start', 0x4000), typed, syms); c.run()
         print(c.screen(cpcrun.loadfont(syms, c.m.memory)))
         print('--- halted' if c.m.halted else '--- NOT halted', 'sp=%04x' % c.m.sp, 'ints=%d' % c.ints, 'T=%d' % c.T)
         return
-    if plat == 'cpcfw' and '--library=rom' in extra and not os.environ.get('NTC_XROM'):
-        os.environ['NTC_XROM'] = os.path.join(HERE, '..', 'build', 'rom', 'NTCFW.ROM')
     org = syms.get('ntc_start', 0x100 if plat == 'cpm' else 0x4000)   # the program's org
     h = Host(plat, b, org, typed)
     if called and plat == 'cpcfw': h.amsdos_on()
