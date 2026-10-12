@@ -250,7 +250,8 @@ Files (ES5, no node, no Python):
 | `asm/ntc_plat_cpm.asm` | CP/M platform (BDOS console, own stack, warm boot) |
 | `asm/ntc_plat_test.asm` | test harness platform (console through I/O ports, for `test/ntcrun.py`) |
 | `asm/ntc_plat_cpcmin.asm` | CPC platform with minimal firmware: the `cpc` screen / keys / interrupts, the firmware kept for discs and ROMs (handed back per call) |
-| `lib/<platform>/*.cls` | the platform classes: `StdIO.cls` (console), `System.cls` (what the machine is), `FileSystem.cls` (files) |
+| `lib/<platform>/*.cls` | the platform classes: `StdIO.cls` (console), `System.cls` (what the machine is), `FileSystem.cls` (files), `Memory.cls` (RAM pages) |
+| `../docs/requirements.md` | What you need to use NTC, rebuild its generated files and run the tests; the targets it builds for |
 | `../docs/userguide.md` | Language reference: every keyword by topic, with an example and its VB5 / VB6 differences |
 | `build/` | Test builds: every program in `bas/` compiled for every platform (`.ASM`), and `build.bat` to assemble them all with sjasmplus on Windows / MS-DOS (CPC: AMSDOS `.BIN` files, CP/M: `.COM`) |
 | `compare/smallc/` | The sieve (`bas/sievetime.bas`) in Small C, as Z80 source, for timing NTC against a classic Z80 C compiler (results in its README) |
@@ -582,6 +583,34 @@ cassette calls (CAS IN / OUT DIRECT: disc with AMSDOS, else tape). CPC hardware 
 none yet. The file routines run on the real stack with interrupts on (`fs_go`), like the
 other host calls; `ntc_capfind` (in `ntc_lib.asm`) searches a class's capability table and
 leaves Z set when found. Details in `userguide.md` section 17.
+
+**Memory.** `Option Memory Small | CPCExpansion [maxpages]` picks the scheme when
+compiling (`NTC_MEM_SMALL` / `NTC_MEM_CPCEXPANSION` for `#If`; library sections marked
+`@if:ntc_mem_small` / `@if:ntc_mem_cpcexpansion` - a section whose `#Const` isn't set isn't in
+the library, so both schemes can use the same labels and the class file stays one).
+`ntc_memcore` is shared (calling frame, far pointers, heap fitting over `mem_hlo`-`mem_hhi`,
+read / write); `ntc_mem` is the scheme. **Small** (default on cpm, test): one heap over free
+main RAM, from `ntc_end` to the first of `ntc_plat_memtop` (a new platform section: CPC
+#A600, CP/M the BDOS at (6)), the stack less 256, an Option Reserve start (`ntc_rsvtab`, a
+table the compiler writes before `ntc_end`). **CPCExpansion** (default on the CPC
+platforms): 16K pages switched into
+`#4000-#7FFF` by the gate array (C4-C7 + bank bits, the port's high byte `#7F`-`#78` picking
+the 512K block), up to a 4MB expansion. One class for every model - small (64K, 1 page: main
+RAM #4000), medium (128K, 5), large (up to a 512K expansion, 33), huge (4MB, 257): the first
+call probes (markers written to bank 63 down to 0 and main RAM, read back, so banks the
+hardware doesn't decode show up). Page numbers are 16 bit. Every page is on one list (free
+low, free high, C, D, I, U - linked through a next table); C / I / U take from the low free
+list (main + the #7F block), D from the high one (#78-#7E), each falling back to the other.
+The tables (3 bytes a page) go from `ntc_end` up, sized to what the probe finds, fewer pages
+when they don't fit below #4000. `AllocPage` / `FreePage`, `SelectPage`, `Map(first,
+count)`, a heap in D pages (`Alloc` / `Free`, far pointers as Longs: page in the high word).
+`Copy` goes through the 2K buffer FileSystem uses (`ntc_buf`), so page to page works with
+one window. The page in the window is kept in `mem_cur`, written before the port, for a
+future interrupt handler to put back. The program and its stack must be out of the window
+(`Option Reserve &H4000, &H4000`), else `Pages() = 0`. cpm: no pages. Code: `ntc_lib.asm`
+sections `ntc_memcore`, `ntc_mem` (two, one per scheme), `ntc_memcopy`, `ntc_buf2k`;
+`bas/memmap.bas` draws the map. *maxpages* becomes `NTC_MEMBANKS equ` (the banks probed, and
+the size of the fixed bank data).
 
 **Warnings.** Not errors - the program still builds. Now: a Function called as a statement
 ("the result of F is not used") - with no error handling, an unchecked status is worth

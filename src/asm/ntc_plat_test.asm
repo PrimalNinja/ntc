@@ -178,3 +178,11 @@ ntc_plat_ticks:
 ;## ntc_plat_exit ntc_plat_data
 ntc_plat_exit:
 			jp (ix)
+
+;## ntc_plat_memtop
+; ntc_plat_memtop - HL = the first byte the Memory class's Small heap must not
+; use (the harness's stack, below it, comes off too). Called on the real
+; stack (call / ret), only by the Memory class.
+ntc_plat_memtop:
+			ld hl, #C000
+			ret

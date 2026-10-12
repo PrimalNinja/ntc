@@ -93,6 +93,37 @@ for m in --turbo ""; do
     check "files $pl ${m:-normal}" "Press a key" "$(timeout 100 python3 ntcrun.py t/ex/files.bas '~x' --platform=$pl $m 2>&1)"
   done
 done
+# Memory class: RAM pages probed on a 64K, 128K, 576K and 4MB CPC; the same on cpcmin / cpcfw; both modes
+for m in --turbo ""; do
+  for c in "64 cpc" "128 cpc" "576 cpc" "4160 cpc" "128 cpcmin" "128 cpcfw"; do
+    set -- $c; cp mem_t.bas t/
+    o=$(timeout 200 python3 ntcrun.py t/mem_t.bas '' --platform=$2 --ram=$1 $m 2>&1 | grep -v "^--- ")
+    if [ "$o" == "$(cat ref/mem_$1.txt)" ]; then echo "ok   memory $1K $2 ${m:-normal}"; else echo "FAIL memory $1K $2 ${m:-normal}"; echo "$o" | head -5; fail=1; fi
+  done
+done
+cp $P/memmap.bas t/ex/
+check "memmap cpc 64K" "^After Free: 0 pages free" "$(timeout 200 python3 ntcrun.py t/ex/memmap.bas '~x' --platform=cpc --ram=64 2>&1)"
+check "memmap cpc 576K" "^Bank 8 " "$(timeout 200 python3 ntcrun.py t/ex/memmap.bas '~x' --platform=cpc --ram=576 2>&1)"
+check "memmap cpc 4MB" "^&7E DD---" "$(timeout 300 python3 ntcrun.py t/ex/memmap.bas '~x' --platform=cpc --ram=4160 2>&1)"
+check "memmap cpcfw 128K" "^Pages UCU--" "$(timeout 200 python3 ntcrun.py t/ex/memmap.bas '~x' --platform=cpcfw 2>&1)"
+# a program ending near #4000: the page tables only take what fits, so fewer pages
+printf 'Option Reserve &H4000, &H4000\nDim big(6000) As Integer\nIf Memory.Pages() > 1 And Memory.Pages() < 257 And Memory.TableEnd() <= &H4000 Then Print "tables fit"\n' > t/lim.bas
+check "memory tables near #4000" "^tables fit" "$(timeout 200 python3 ntcrun.py t/lim.bas '' --platform=cpc --ram=4160 2>&1)"
+# Option Memory Small: a heap in main RAM, on every platform; both modes
+for m in --turbo ""; do
+  for pl in cpc cpcfw cpm test; do
+    cp mem_s.bas t/; o=$(timeout 200 python3 ntcrun.py t/mem_s.bas '' --platform=$pl $m 2>&1 | grep -v "^--- ")
+    if [ "$o" == "$(cat ref/mem_small.txt)" ]; then echo "ok   memory small $pl ${m:-normal}"; else echo "FAIL memory small $pl ${m:-normal}"; echo "$o" | head -5; fail=1; fi
+  done
+done
+# Option Memory CPCExpansion n caps the pages (1: no probe at all); CPCExpansion is refused off the CPC
+printf 'Option Reserve &H4000, &H4000\nOption Memory CPCExpansion 5\nPrint "pages"; Memory.Pages()\n' > t/cap5.bas
+check "Option Memory CPCExpansion 5 on 576K" "^pages5" "$(timeout 200 python3 ntcrun.py t/cap5.bas '' --platform=cpc --ram=576 2>&1)"
+printf 'Option Reserve &H4000, &H4000\nOption Memory CPCExpansion 1\nPrint "pages"; Memory.Pages()\n' > t/cap1.bas
+check "Option Memory CPCExpansion 1 on 576K" "^pages1" "$(timeout 200 python3 ntcrun.py t/cap1.bas '' --platform=cpc --ram=576 2>&1)"
+printf 'Option Memory CPCExpansion\nPrint Memory.Pages()\n' > t/capx.bas
+node cli.js t/capx.bas --platform=cpm > /dev/null 2> t/capx.err; grep -q "Option Memory CPCExpansion is for the CPC platforms" t/capx.err && echo "ok   Option Memory CPCExpansion refused on cpm" || { echo "FAIL Option Memory CPCExpansion refused on cpm"; fail=1; }
+for pl in test cpm; do check "memmap $pl" "^No paging - heap" "$(timeout 200 python3 ntcrun.py t/ex/memmap.bas '~x' --platform=$pl 2>&1)"; done
 mkdir -p t/via; cp via/* t/via/; o=$(timeout 100 python3 ntcrun.py t/via/Main.bas 'Bo\n7\n' t/via/StdIO.cls --platform=test 2>&1 | grep -v "^--- ")
 if [ "$o" == "$(cat ref/via.txt)" ]; then echo "ok   own StdIO"; else echo "FAIL own StdIO"; fail=1; fi
 # build/: regenerate, then check every file assembles the way build.bat does it

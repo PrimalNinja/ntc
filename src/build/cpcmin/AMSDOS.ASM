@@ -8,6 +8,7 @@
 
 NTC_TERM	equ 0		; Option Terminal: 0 none, 1 VT52, 2 ANSI (CP/M)
 NTC_STRMAX	equ 40		; the longest string (library buffers, temps)
+NTC_MEMBANKS	equ 64		; Option Memory: the most 64K banks the Memory class looks for
 NTC_ROMENABLE	equ 1		; Option RomEnable (cpcfw, cpcmin): the start code starts the ROMs
 
 ntc_start:
@@ -1132,6 +1133,11 @@ ntc_font:		ds 95 * 8
 ; Platform class capabilities
 ; ============================================================
 
+;## ntc_buf2k
+; ntc_buf - a 2K buffer shared by the classes that need one: FileSystem's
+; CAS IN / OUT OPEN buffer (CPC firmware) and Memory.Copy's page to page copy
+ntc_buf:		ds 2048
+
 ;## ntc_plat_data
 ntc_curx:		db 0			; cursor column (0 based)
 ntc_cury:		db 0			; cursor row (0 based)
@@ -1685,6 +1691,8 @@ ntc_irq_nohook:
 ; out, upper ROM back on (lower off) if the screen was set up
 ; ------------------------------------------------------------
 ntc_plat_exit:
+			ld bc, #7FC0		; RAM setting back to plain (a Memory page may be in #4000)
+			out (c), c
 			ld a, (ntc_irqset)
 			or a
 			jr z, ntc_ex_rom
@@ -1724,7 +1732,7 @@ FS_TOOBIG	equ -8
 FS_FAILED	equ -9
 FS_BADNAME	equ -4
 
-;## ntc_plat_fs ntc_plat_data ntc_plat_irq ntc_data @shared
+;## ntc_plat_fs ntc_plat_data ntc_plat_irq ntc_data ntc_buf2k @shared
 fs_a1:			dw 0
 fs_a2:			dw 0
 fs_a3:			dw 0
@@ -1747,7 +1755,7 @@ fs_vol:			ds 9			; the volume in use ("" = not known)
 fs_vols:		ds 145			; the volumes that worked, "A,C,M" (up to 16 of up to 8 letters)
 fs_tmpn:		ds 9			; a volume name, capitals
 fs_rsxn:		ds 17			; a command name (last letter + #80), up to 16 letters
-fs_buf:			ds 2048			; the 2K buffer CAS IN OPEN / CAS OUT OPEN want
+fs_buf			equ ntc_buf		; the 2K buffer CAS IN OPEN / CAS OUT OPEN want (shared with Memory.Copy)
 			ASSERT ntc_end <= #A600, "FileSystem on cpcfw: the program must end below #A600 (AMSDOS's RAM)"
 
 fs_go0:

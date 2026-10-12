@@ -1,0 +1,10 @@
+pages0 model0 window00
+heap above program -1 has room -1
+page calls0-2-2-2 map[]
+alloc page0 in heap -1
+copy0 sum4950 peek99
+bad page ptr-2 too big-1
+free0 again-2 q0 outside-2
+8000 blocks>1 -1 largest after-1
+largest back -1
+done

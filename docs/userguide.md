@@ -2038,6 +2038,26 @@ a check made when assembling.
 
 **VB:** not in VB.
 
+### Option Memory
+
+`Option Memory Small` | `Option Memory CPCExpansion` [*maxpages*]
+
+How the [Memory](#memory) class reaches RAM. Decided when compiling: only that scheme's code
+is in the program, and the class's methods are the same either way, so a program builds with
+either.
+
+| Scheme | What | Where |
+|---|---|---|
+| `CPCExpansion` | 16K pages through the `#4000-#7FFF` window, up to a 4MB expansion (257 pages); a heap in D pages | cpc, cpcmin, cpcfw (the default there) |
+| `Small` | no paging: one heap over the free main RAM | every platform (the default on cpm and test) |
+
+*maxpages* (1 - 257, `CPCExpansion` only) is the most pages the class looks for: `5` for a
+6128, `33` for a 512K expansion, `1` for main RAM only. It also shrinks the class's fixed data
+(about 190 bytes at 257). `CPCExpansion` on cpm or test is an error.
+
+`Small` is the least code (about 900 bytes against 2,100 for `CPCExpansion`): for a program
+that only wants `Alloc` / `Free`, or for a 64K machine.
+
 ### Option ClassSize
 
 `Option ClassSize` *kilobytes*
@@ -2301,6 +2321,105 @@ See `bas/files.bas`.
 raises errors. Here files are methods of a class that return a status, and what works
 depends on the platform.
 
+### Memory
+
+RAM for the program to hand out while it runs: whole 16K pages, and a heap (`Alloc` /
+`Free`). [Option Memory](#option-memory) picks how the RAM is reached; the methods are the
+same either way.
+
+**`CPCExpansion`** (the default on cpc, cpcmin, cpcfw): 16K pages switched into
+`#4000-#7FFF` (the window) by the gate array, up to a 4MB expansion. The first call probes
+what is fitted.
+
+| Machine | Pages | Model |
+|---|---|---|
+| 64K (464, 664) | 1: main RAM `#4000` | small |
+| 128K (6128, or 464 + 64K) | 5 | medium |
+| up to a 512K expansion (576K) | 9 - 33 | large |
+| up to a 4MB expansion (4160K) | 37 - 257 | huge |
+
+Page 1 is main RAM `#4000-#7FFF`; pages 2 on are 4 for each 64K bank found (a 6128's second
+64K is pages 2-5), the standard 512K (port `&7F`) first, then the 512K blocks on ports `&7E`
+down to `&78`. A program asks for what it wants; 0 back means it isn't there, and the
+program carries on without it (no music on 64K, say).
+
+Every page is on one list: free, C, D, I or U. Free pages come from two lists - main RAM and
+the standard 512K for C, I and U pages, the blocks above it for D pages (the heap) - and each
+falls back to the other. So on a big machine a growing heap uses the upper blocks and leaves
+the standard 512K for code, music and levels; on 576K or less it is all one list.
+
+The program, and its stack, must be out of the window - switching a page in would hide
+them. `Option Reserve &H4000, &H4000` checks that when assembling. A program in the window
+gets `Pages() = 0`. Anything the program reads or writes in the window (`Poke`, `Peek`,
+`FileSystem.Load`) goes to the page in it at that moment: that is how a page is filled from
+a file. Use `Memory.WindowStart` and `Memory.WindowSize` rather than `&H4000`: they are
+constants, worked out when compiling.
+
+The class's tables (3 bytes a page: a 6128 15 bytes, 4MB 771) go from the program's end
+up, made by the first Memory call - so don't keep your own data straight after the program.
+`TableEnd()` gives the first byte after them. When they don't fit below `#4000` (or below
+the stack), the class keeps fewer pages.
+
+**`Small`** (the default on cpm and test; any platform): no paging. One heap over the free
+main RAM, from the program's end up to the first of: the platform's top (CPC `#A600` - the
+firmware's and AMSDOS's RAM is above; CP/M the BDOS, from address 6), 256 bytes under the
+stack, an `Option Reserve` range. `HeapStart()` / `HeapEnd()` say where. Far pointers are
+plain addresses (page 0); `Pages()` is 0 and the page methods give 0 or `BadPage`. The same
+`Alloc` / `Free` code works with both schemes.
+
+**Far pointers** are Longs: the low word is the address, the high word the page (page 0 =
+plain memory, nothing switched). `Alloc` gives them; `CLng(page) * 65536 + address` makes one.
+
+| Method | Does |
+|---|---|
+| `Pages()` | pages this machine has: 0, 1, 5, 9, 17, 33 ... 257 (`Small`: 0) |
+| `FreePages()` | pages not allocated |
+| `RamSize()` | K of RAM found (64 ... 4160), 0 = no paging so not probed |
+| `Model()` | `ModelNone` (0: `Small`, or no paging), `ModelSmall` (1), `ModelMedium` (2), `ModelLarge` (3), `ModelHuge` (4) |
+| `HeapStart()`, `HeapEnd()` | `Small`: the heap's RAM (`HeapEnd` is the first byte past it); `CPCExpansion`: the window |
+| `TableEnd()` | the first byte after the class's tables (`Small`: the program's end) |
+| `PageType(page)` | its type character |
+| `Map(first, count)` | one character per page from page `first`: `"UCUDD"` (as many as the string holds) |
+| `AllocPage(kind)` | a free page, now of that kind (`TypeCode`, `TypeData`, `TypeIrq`, `TypeUser`); 0 = none left |
+| `FreePage(page)` | back to free (`BadPage` if it is free already) |
+| `SelectPage(page)` | into the window; gives `WindowStart` |
+| `CurrentPage()` | the page in the window |
+| `Alloc(size)` | a far pointer to `size` bytes (up to 16382), 0 = no room |
+| `Free(ptr)` | a block back; a heap page with nothing left in it goes back to free |
+| `Largest()` | the biggest block `Alloc` could give now |
+| `PageOf(ptr)`, `Address(ptr)` | the page; `Address` switches it in and gives the address |
+| `ReadByte(ptr)`, `ReadWord(ptr)` | |
+| `WriteByte ptr, value`, `WriteWord ptr, value` | |
+| `Copy(src, dst, length)` | far pointer to far pointer; past the end of a page it carries on at the start of the next page |
+
+Constants: `WindowStart`, `WindowSize` (`CPCExpansion`: `&H4000`, `&H4000`; `Small`: 0, 0).
+Page types: `TypeCode` ("C", code: pageable classes, compiled sprites), `TypeData` ("D",
+the heap `Alloc` uses), `TypeIrq` ("I", an interrupt handler), `TypeUser` ("U", the
+program's own: music, level data ...), `TypeFree` ("-"). With `CPCExpansion`, `Alloc` uses D
+pages - the one in the window first, then the others, then it takes a free page.
+
+Only `SelectPage` and `Address` change the page in the window; the other methods put it
+back. `End` puts main RAM back in the window (for BASIC, after a `CALL`). Statuses:
+`Memory.OK` (0), `Memory.BadPage` (-2: not a page this machine has, or not a block in use).
+
+```
+music = Memory.AllocPage(Memory.TypeUser)
+If music = 0 Then Print "No music on this machine"
+a = Memory.SelectPage(music)
+r = FileSystem.Load("TUNE.BIN", Memory.WindowStart, Memory.WindowSize)   ' into the page
+
+p = Memory.Alloc(1000)
+Memory.WriteWord p, 1234
+r = Memory.Free(p)
+```
+
+Free blocks are at most 16K (joined neighbours stop there), so with `Small` a big heap is
+several 16K stretches: the biggest single `Alloc` is 16382 bytes. `Copy` uses the same 2K
+buffer as FileSystem. The 4MB blocks use ports `&78xx-&7Exx`, which also have address line
+A10 low, as expansion hardware does: the low byte (`&C4-&FF`) keeps the disc controller out of
+it, but an unusual interface could react. Interrupts are left as they are (off in turbo mode
+and inside keywords), so a long `Copy` can hold the 300 Hz ticks back. See `bas/memmap.bas`.
+
 ### Your own StdIO
 
 A project can have its own `StdIO.cls`. It then replaces the platform's, and the console
@@ -2448,6 +2567,10 @@ change.
 | `Option ClassSize` | [16](#option-classsize) |
 | `Option Compare Text` | [6](#option-compare-text) |
 | `Option Explicit` | [16](#option-explicit) |
+| `Option Memory` | [16](#option-memory) |
+| `Option Reserve` | [16](#option-reserve) |
+| `Option RomEnable` | [16](#option-romenable) |
+| `Option Stack` | [16](#option-stack) |
 | `Option Terminal` | [16](#option-terminal) |
 | `Option Turbo` | [13](#option-turbo) |
 | `Option VBPrint` | [11](#option-vbprint) |

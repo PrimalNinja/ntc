@@ -5469,3 +5469,1559 @@ ntc_cf_none:
 			ret
 ntc_capres:		dw 0
 ntc_capname:	dw 0
+
+;## ntc_buf2k
+; ntc_buf - a 2K buffer shared by the classes that need one: FileSystem's
+; CAS IN / OUT OPEN buffer (CPC firmware) and Memory.Copy's page to page copy
+ntc_buf:		ds 2048
+
+;## ntc_memcore ntc_data ntc_mem @shared
+; ------------------------------------------------------------
+; ntc_memcore - the Memory class, the part every scheme shares. The scheme
+; (Option Memory, else the platform's default) is the section ntc_mem -
+; only the one chosen is in the library (@if:): CPCExpansion (16K pages
+; through the #4000 window, up to 4MB) or Small (main RAM only, no paging).
+; Each class method jumps to mem_go with HL = the routine: mem_go runs it
+; on the real stack (call / push are fine there), interrupts left as
+; they are, and stores its HL result at mem_res (mem_go4: a Long, high
+; word in mem_hi; mem_go0: no store - the routine writes the result
+; itself, or there is none). A routine that fails jumps to mem_err with
+; HL = the status; mem_err puts back the page that was in the window
+; and unwinds to mem_go.
+; Far pointer = a Long: address, page (page 0 = plain memory).
+; Heap: blocks from mem_hlo to mem_hhi (a D page, or Small's main RAM),
+; each with a 2 byte header: length including the header (bits 0-14),
+; bit 15 = in use. Free blocks are at most #4000 (joins stop there).
+; The scheme supplies: mem_start (the first call), mem_sel (HL = page
+; into the window), mem_chk (HL = a page number, else BadPage).
+; ------------------------------------------------------------
+MEM_WIN		equ #4000
+MEM_BADPAGE	equ -2
+
+mem_a1:			dw 0
+mem_a2:			dw 0
+mem_a3:			dw 0
+mem_res:		dw 0
+mem_hi:			dw 0
+mem_sp:			dw 0
+mem_esp:		dw 0
+mem_six:		dw 0
+mem_siy:		dw 0
+mem_need:		dw 0
+mem_max:		dw 0
+mem_srca:		dw 0
+mem_dsta:		dw 0
+mem_srcp:		dw 0
+mem_dstp:		dw 0
+mem_left:		dw 0
+mem_chunk:		dw 0
+mem_cur:		dw 1			; the page in the window
+mem_keep:		dw 1			; the page to put back
+mem_hlo:		dw MEM_WIN		; the heap region mem_fit / mem_big work in
+mem_hhi:		dw #8000
+mem_store:		db 0
+mem_init:		db 0			; 1 = the first call has been
+
+; mem_go / mem_go4 / mem_go0 - HL = the routine (see above)
+mem_go0:
+			xor a
+			jr mem_gostart
+mem_go4:
+			ld a, 4
+			jr mem_gostart
+mem_go:
+			ld a, 2
+mem_gostart:
+			ld (mem_store), a
+			ld (mem_sp), sp
+			ld sp, (ntc_csp)
+			ld (mem_six), ix
+			ld (mem_siy), iy
+			ld de, 0
+			ld (mem_hi), de
+			push hl
+			call mem_start
+			pop hl
+			ld de, (mem_cur)
+			ld (mem_keep), de
+			ld (mem_esp), sp
+			call mem_jphl
+mem_back:
+			ld ix, (mem_six)
+			ld iy, (mem_siy)
+			ld a, (mem_store)
+			or a
+			jr z, mem_gone
+			ex de, hl
+			ld hl, (mem_res)
+			ld (hl), e
+			inc hl
+			ld (hl), d
+			cp 4
+			jr nz, mem_gone
+			ld de, (mem_hi)
+			inc hl
+			ld (hl), e
+			inc hl
+			ld (hl), d
+mem_gone:
+			ld sp, (mem_sp)
+			ret
+mem_jphl:
+			jp (hl)
+mem_err:
+			ld sp, (mem_esp)
+			push hl
+			ld hl, (mem_keep)
+			call mem_sel
+			pop hl
+			ld de, 0
+			ld (mem_hi), de
+			jr mem_back
+
+mem_chk_bad:
+			ld hl, MEM_BADPAGE
+			jp mem_err
+
+; mem_far - HL = a far pointer's address (Long: address, page): DE = the
+; address, HL = the page (0 = plain memory). Page not 0: it must be a page
+; this machine has and the address in the window, else mem_err BadPage.
+mem_far:
+			ld e, (hl)
+			inc hl
+			ld d, (hl)
+			inc hl
+			ld a, (hl)
+			inc hl
+			ld h, (hl)
+			ld l, a
+			or h
+			ret z
+			call mem_chk
+			ld a, d
+			and #C0
+			cp #40
+			jr nz, mem_chk_bad
+			ret
+
+; PageOf(ptr): a far pointer's page
+mem_pageof:
+			ld hl, (mem_a1)
+			inc hl
+			inc hl
+			ld a, (hl)
+			inc hl
+			ld h, (hl)
+			ld l, a
+			ret
+
+; Address(ptr): its page into the window (page 0: nothing); the address
+mem_address:
+			ld hl, (mem_a1)
+			call mem_far
+			ld a, h
+			or l
+			call nz, mem_sel
+			ex de, hl
+			ret
+
+; HeapStart(), HeapEnd(): the heap region (CPCExpansion: the window, a D page at a time)
+mem_heapstart:
+			ld hl, (mem_hlo)
+			ret
+mem_heapend:
+			ld hl, (mem_hhi)
+			ret
+
+; mem_atend - Z when HL = mem_hhi (the heap region's end). Keeps BC, DE, HL.
+mem_atend:
+			ld a, (mem_hhi)
+			cp l
+			ret nz
+			ld a, (mem_hhi + 1)
+			cp h
+			ret
+; mem_cap - HL = two joined blocks' length: NC = too long (over #4000), C = fine
+mem_cap:
+			ld a, h
+			cp #40
+			ret c
+			scf
+			ccf
+			ret nz
+			ld a, l
+			cp 1					; #4000 exactly: C
+			ret
+
+; mem_fit - in the heap region (mem_hlo .. mem_hhi: a D page, or Small's main RAM): the first free block of mem_need
+; bytes or more (free neighbours joined on the way), split when 4 or more
+; bytes are left over, marked in use. Z: HL = its data. NZ: none.
+mem_fit:
+			ld hl, (mem_hlo)
+mem_f_lp:
+			call mem_atend
+			jr z, mem_f_none
+			ld e, (hl)
+			inc hl
+			ld d, (hl)
+			dec hl
+			bit 7, d
+			jr z, mem_f_free
+			res 7, d
+mem_f_next:
+			add hl, de
+			jr mem_f_lp
+mem_f_free:
+			push hl
+			add hl, de				; the block after
+			call mem_atend
+			jr z, mem_f_last
+			ld c, (hl)
+			inc hl
+			ld b, (hl)
+			bit 7, b
+			jr nz, mem_f_last
+			ld h, d					; free too: join them, up to #4000
+			ld l, e
+			add hl, bc
+			call mem_cap
+			jr nc, mem_f_last
+			ex de, hl
+			pop hl
+			ld (hl), e
+			inc hl
+			ld (hl), d
+			dec hl
+			jr mem_f_free
+mem_f_last:
+			pop hl
+			push hl
+			ex de, hl				; HL = its length, DE = the block
+			ld bc, (mem_need)
+			or a
+			sbc hl, bc				; what is left over
+			jr c, mem_f_small
+			ld a, h
+			or a
+			jr nz, mem_f_cut
+			ld a, l
+			cp 4
+			jr nc, mem_f_cut
+			add hl, bc				; all of it
+			ld b, h
+			ld c, l
+			pop hl
+			jr mem_f_take
+mem_f_cut:
+			ex de, hl				; DE = left over, HL = the block
+			pop hl
+			push hl
+			add hl, bc				; the free block after it
+			ld (hl), e
+			inc hl
+			ld (hl), d
+			pop hl
+mem_f_take:
+			ld (hl), c
+			inc hl
+			ld a, b
+			or #80
+			ld (hl), a
+			inc hl
+			xor a
+			ret
+mem_f_small:
+			add hl, bc				; HL = its length again
+			ex de, hl
+			pop hl
+			jr mem_f_next
+mem_f_none:
+			or 1					; NZ
+			ret
+
+; mem_big - in the heap region: join free neighbours, mem_max =
+; the biggest free block's length if bigger
+mem_big:
+			ld hl, (mem_hlo)
+mem_b_lp:
+			call mem_atend
+			ret z
+			ld e, (hl)
+			inc hl
+			ld d, (hl)
+			dec hl
+			bit 7, d
+			jr z, mem_b_free
+			res 7, d
+mem_b_next:
+			add hl, de
+			jr mem_b_lp
+mem_b_free:
+			push hl
+			add hl, de
+			call mem_atend
+			jr z, mem_b_end
+			ld c, (hl)
+			inc hl
+			ld b, (hl)
+			bit 7, b
+			jr nz, mem_b_end
+			ld h, d
+			ld l, e
+			add hl, bc
+			call mem_cap
+			jr nc, mem_b_end
+			ex de, hl
+			pop hl
+			ld (hl), e
+			inc hl
+			ld (hl), d
+			dec hl
+			jr mem_b_free
+mem_b_end:
+			pop hl
+			push hl
+			ld hl, (mem_max)
+			or a
+			sbc hl, de
+			pop hl
+			jr nc, mem_b_next
+			ld (mem_max), de
+			jr mem_b_next
+
+; ---- single bytes and words through far pointers (the window is put back)
+
+; mem_at - mem_a1 = a far pointer's address: its page in, HL = the address
+mem_at:
+			ld hl, (mem_a1)
+			call mem_far
+			ld a, h
+			or l
+			call nz, mem_sel
+			ex de, hl
+			ret
+
+mem_readbyte:
+			call mem_at
+			ld l, (hl)
+			ld h, 0
+			jr mem_putback
+mem_readword:
+			call mem_at
+			ld a, (hl)
+			inc hl
+			ld h, (hl)
+			ld l, a
+			jr mem_putback
+mem_writebyte:
+			call mem_at
+			ld a, (mem_a2)
+			ld (hl), a
+			jr mem_putback
+mem_writeword:
+			call mem_at
+			ld de, (mem_a2)
+			ld (hl), e
+			inc hl
+			ld (hl), d
+mem_putback:
+			push hl
+			ld hl, (mem_keep)
+			call mem_sel
+			pop hl
+			ret
+
+;## ntc_mem ntc_memcore @shared @if:ntc_mem_cpcexpansion
+; ------------------------------------------------------------
+; ntc_mem (CPCExpansion) - 16K RAM pages in the #4000-#7FFF window (CPC gate
+; array RAM setting: C0 = plain, C4-C7 + bank * 8 = page 0-3 of a 64K bank;
+; the port's high byte #7F .. #78 picks the 512K block), up to a 4MB
+; expansion: 64 banks, 257 pages (NTC_MEMBANKS: Option Memory's limit).
+;   Page 1  = main RAM #4000-#7FFF (setting #C0)
+;   Page 2+ = 4 pages for each bank the probe finds, the standard 512K
+;             (port #7F) first, then the blocks on #7E .. #78
+;   Page numbers are 16 bit (a far pointer's high word); 0 = plain memory.
+;   No pages at all when the program (ntc_start .. ntc_end) or the
+;   real stack is in the window: switching would hide them.
+; Tables, made by the first call (mem_start) from ntc_end up, sized to
+; what the probe finds (3 bytes a page: next link, type); fewer pages
+; when there isn't room below #4000 (or below the real stack).
+; Lists: every page is on one - 0 free low (main + the #7F block),
+; 1 free high (#78-#7E), 2 C, 3 D, 4 I, 5 U. C / I / U pages come from
+; the low list first, D pages from the high one; each falls back to the
+; other. On 576K or less every page is low, so it is one list.
+; The page in the window is kept in mem_cur, written before the port,
+; so an interrupt handler can always put the right page back.
+; A new D page is one free block of #4000.
+; ------------------------------------------------------------
+MEM_BANKS	equ NTC_MEMBANKS	; 0 - 64
+MEM_LISTS	equ 6
+
+mem_count:		dw 0			; pages (0 = no paging)
+mem_tnext:		dw 0			; the tables: next links (2 bytes a page)
+mem_ttype:		dw 0			; types (1 byte a page)
+mem_tend:		dw 0			; the first byte after them
+mem_head:		ds MEM_LISTS * 2	; each list's first page
+mem_cnt:		ds MEM_LISTS * 2	; and how many (must follow mem_head)
+mem_banks:		db 0			; 64K banks found
+mem_tl:			db 0
+mem_kinds:		db "--CDIU"		; the type character of each list
+mem_bank:		ds MEM_BANKS * 2 + 1	; per bank found: setting for its page 0, port high byte
+mem_save:		ds MEM_BANKS + 1	; probe: the bytes the markers replace
+
+; mem_start - the first call: can this program page, what is fitted, the tables
+mem_start:
+			ld a, (mem_init)
+			or a
+			ret nz
+			inc a
+			ld (mem_init), a
+			ld hl, ntc_end
+			ld (mem_tend), hl
+			ld de, MEM_WIN + 1		; the program must be out of the window:
+			or a					; it ends by #4000 ...
+			sbc hl, de
+			jr c, mem_st_prog
+			ld hl, ntc_start		; ... or starts at #8000 or above
+			ld de, #8000
+			or a
+			sbc hl, de
+			ret c
+mem_st_prog:
+			ld hl, (ntc_csp)		; and the real stack too: at or below #4000,
+			ld de, MEM_WIN + 1		; or 64 bytes or more above #8000
+			or a
+			sbc hl, de
+			jr c, mem_probe
+			ld hl, (ntc_csp)
+			ld de, #8040
+			or a
+			sbc hl, de
+			ret c
+; the probe: interrupts off, nothing written until every byte is saved.
+; Markers go in bank 63 down to bank 0, then main RAM, so a bank the
+; hardware doesn't decode (a 6128 has one bank, a 512K expansion ignores
+; the port's block bits) reads back a lower bank's marker, and a 64K
+; machine (C4-C7 do nothing) reads main RAM's.
+mem_probe:
+		IF MEM_BANKS > 0
+			ld a, i					; P/V = interrupts were on
+			di
+			push af
+			ld bc, #7FC0
+			out (c), c
+			ld a, (MEM_WIN)
+			ld (mem_save + MEM_BANKS), a
+			ld hl, mem_save
+			ld e, 0
+mem_pr_save:
+			call mem_jbc
+			out (c), c
+			ld a, (MEM_WIN)
+			ld (hl), a
+			inc hl
+			inc e
+			ld a, e
+			cp MEM_BANKS
+			jr nz, mem_pr_save
+			ld e, MEM_BANKS
+mem_pr_mark:
+			dec e
+			call mem_jbc
+			out (c), c
+			ld a, e
+			add a, #40
+			ld (MEM_WIN), a
+			ld a, e
+			or a
+			jr nz, mem_pr_mark
+			ld bc, #7FC0
+			out (c), c
+			ld a, #A5
+			ld (MEM_WIN), a
+			ld hl, mem_bank
+			ld d, 0
+			ld e, 0
+mem_pr_read:
+			call mem_jbc
+			out (c), c
+			ld a, e
+			add a, #40
+			push hl
+			ld hl, MEM_WIN
+			cp (hl)
+			pop hl
+			jr nz, mem_pr_none
+			ld (hl), c				; this bank is there
+			inc hl
+			ld (hl), b
+			inc hl
+			inc d
+mem_pr_none:
+			inc e
+			ld a, e
+			cp MEM_BANKS
+			jr nz, mem_pr_read
+			ld hl, mem_save + MEM_BANKS	; put the bytes back, bank 63 down to 0
+			ld e, MEM_BANKS
+mem_pr_back:
+			dec e
+			dec hl
+			call mem_jbc
+			out (c), c
+			ld a, (hl)
+			ld (MEM_WIN), a
+			ld a, e
+			or a
+			jr nz, mem_pr_back
+			ld bc, #7FC0
+			out (c), c
+			ld a, (mem_save + MEM_BANKS)
+			ld (MEM_WIN), a
+			ld a, d
+			ld (mem_banks), a
+			pop af
+			jp po, mem_pr_di
+			ei
+mem_pr_di:
+		ENDIF
+			ld a, (mem_banks)		; pages = 1 + 4 a bank
+			ld l, a
+			ld h, 0
+			add hl, hl
+			add hl, hl
+			inc hl
+			ld (mem_count), hl
+			ld de, (ntc_csp)		; the tables must end by #4000, or 128 bytes
+			ld hl, MEM_WIN			; under the real stack when it is lower
+			or a
+			sbc hl, de
+			ld hl, MEM_WIN
+			jr c, mem_tb_lim
+			ld hl, -128
+			add hl, de
+mem_tb_lim:
+			ld (mem_tend), hl		; the limit, for now
+mem_tb_fit:
+			ld hl, (mem_count)
+			ld a, h
+			or l
+			jr z, mem_tb_none
+			ld d, h
+			ld e, l
+			add hl, hl
+			add hl, de				; 3 bytes a page
+			ld de, ntc_end
+			add hl, de
+			ex de, hl				; DE = their end
+			ld hl, (mem_tend)
+			or a
+			sbc hl, de
+			jr nc, mem_tb_ok
+			ld hl, (mem_count)		; no room: one page fewer
+			dec hl
+			ld (mem_count), hl
+			jr mem_tb_fit
+mem_tb_none:
+			ld hl, ntc_end
+			ld (mem_tend), hl
+			ret
+mem_tb_ok:
+			ld (mem_tend), de
+			ld hl, ntc_end
+			ld (mem_tnext), hl
+			ld de, (mem_count)
+			add hl, de
+			add hl, de
+			ld (mem_ttype), hl
+			ld bc, (mem_count)		; every page onto its free list, the last
+mem_tb_free:						; first, so the lowest page comes out first
+			ld a, b
+			or c
+			ret z
+			call mem_tofree
+			dec bc
+			jr mem_tb_free
+
+; mem_jbc - E = bank 0-63: BC = the port for its page 0 (B = #7F - E / 8,
+; C = #C4 + (E and 7) * 8). Keeps DE, HL.
+mem_jbc:
+			ld a, e
+			rrca
+			rrca
+			rrca
+			and 7
+			ld b, a
+			ld a, #7F
+			sub b
+			ld b, a
+			ld a, e
+			and 7
+			add a, a
+			add a, a
+			add a, a
+			add a, #C4
+			ld c, a
+			ret
+
+; mem_sel - HL = page (valid): into the window. mem_cur first, then the
+; port; nothing done when it is in already. Keeps BC, DE, HL.
+mem_sel:
+			push hl
+			push de
+			push bc
+			ld de, (mem_cur)
+			ld a, e
+			cp l
+			jr nz, mem_se_do
+			ld a, d
+			cp h
+			jr z, mem_se_end
+mem_se_do:
+			ld (mem_cur), hl
+			dec hl
+			ld a, h
+			or l
+			ld bc, #7FC0
+			jr z, mem_se_out
+			dec hl					; page 2+: bank (page - 2) / 4, page in it (page - 2) and 3
+			ld a, l
+			and 3
+			ld c, a
+			srl h
+			rr l
+			srl h
+			rr l
+			add hl, hl
+			ld de, mem_bank
+			add hl, de
+			ld a, (hl)
+			add a, c
+			ld c, a
+			inc hl
+			ld b, (hl)
+mem_se_out:
+			out (c), c
+mem_se_end:
+			pop bc
+			pop de
+			pop hl
+			ret
+
+; mem_chk - HL = a page number: 1 .. mem_count, else mem_err BadPage.
+; Keeps BC, DE, HL.
+mem_chk:
+			ld a, h
+			or l
+			jp z, mem_chk_bad
+			push de
+			push hl
+			ex de, hl
+			ld hl, (mem_count)
+			or a
+			sbc hl, de
+			pop hl
+			pop de
+			ret nc
+			jp mem_chk_bad
+; ---- the tables and lists (BC = a page)
+
+; mem_tpb - HL = its type byte. Keeps A, BC, DE.
+mem_tpb:
+			ld hl, (mem_ttype)
+			add hl, bc
+			dec hl
+			ret
+; mem_npb - HL = its next link. Keeps A, BC, DE.
+mem_npb:
+			ld hl, (mem_tnext)
+			add hl, bc
+			add hl, bc
+			dec hl
+			dec hl
+			ret
+; mem_lha - A = a list: HL = its head (its count is MEM_LISTS * 2 on). Keeps A, BC, DE.
+mem_lha:
+			push de
+			ld l, a
+			ld h, 0
+			add hl, hl
+			ld de, mem_head
+			add hl, de
+			pop de
+			ret
+; mem_cntadd - HL = a list's head, A = 1 / -1: its count + A. Keeps BC.
+mem_cntadd:
+			push de
+			ld de, MEM_LISTS * 2
+			add hl, de
+			ld e, a
+			rla
+			sbc a, a
+			ld d, a					; DE = A, sign extended
+			ld a, (hl)
+			add a, e
+			ld (hl), a
+			inc hl
+			ld a, (hl)
+			adc a, d
+			ld (hl), a
+			pop de
+			ret
+; mem_push - A = a list: the page goes first on it (and gets its type). Keeps A, BC.
+mem_push:
+			push af
+			push de
+			ld e, a
+			ld d, 0
+			ld hl, mem_kinds
+			add hl, de
+			ld a, (hl)
+			call mem_tpb
+			ld (hl), a
+			ld a, e
+			call mem_lha
+			ld e, (hl)				; DE = the old first page
+			inc hl
+			ld d, (hl)
+			ld (hl), b				; the page is first now
+			dec hl
+			ld (hl), c
+			push hl
+			call mem_npb
+			ld (hl), e
+			inc hl
+			ld (hl), d
+			pop hl
+			ld a, 1
+			call mem_cntadd
+			pop de
+			pop af
+			ret
+; mem_pop - A = a list: BC = its first page, taken off it. NZ, or Z = empty.
+; Keeps DE.
+mem_pop:
+			push de
+			call mem_lha
+			ld c, (hl)
+			inc hl
+			ld b, (hl)
+			dec hl
+			ld a, b
+			or c
+			jr z, mem_po_end
+			push hl
+			call mem_npb
+			ld e, (hl)
+			inc hl
+			ld d, (hl)
+			pop hl
+			ld (hl), e
+			inc hl
+			ld (hl), d
+			dec hl
+			ld a, -1
+			call mem_cntadd
+			ld a, 1
+			or a
+mem_po_end:
+			pop de
+			ret
+; mem_remove - A = a list: the page taken off it. NZ, or Z = not on it. Keeps BC, DE.
+mem_remove:
+			push de
+			call mem_lha
+			push hl					; the head, for the count
+mem_rm_lp:							; HL = a link (the head, or a page's next)
+			ld e, (hl)
+			inc hl
+			ld d, (hl)
+			dec hl
+			ld a, d
+			or e
+			jr z, mem_rm_no
+			ld a, e
+			cp c
+			jr nz, mem_rm_nx
+			ld a, d
+			cp b
+			jr z, mem_rm_hit
+mem_rm_nx:
+			push bc
+			ld b, d
+			ld c, e
+			call mem_npb
+			pop bc
+			jr mem_rm_lp
+mem_rm_hit:
+			push hl					; the link now skips the page
+			call mem_npb
+			ld e, (hl)
+			inc hl
+			ld d, (hl)
+			pop hl
+			ld (hl), e
+			inc hl
+			ld (hl), d
+			pop hl
+			ld a, -1
+			call mem_cntadd
+			ld a, 1
+			or a
+			pop de
+			ret
+mem_rm_no:
+			pop hl
+			xor a
+			pop de
+			ret
+; mem_lowhigh - A = the free list the page belongs on: 0 (main, or the #7F
+; block) or 1. Keeps BC, DE.
+mem_lowhigh:
+			push de
+			ld h, b
+			ld l, c
+			dec hl
+			ld a, h
+			or l
+			jr z, mem_lh_low
+			dec hl
+			srl h
+			rr l
+			srl h
+			rr l
+			add hl, hl
+			ld de, mem_bank + 1
+			add hl, de
+			ld a, (hl)
+			cp #7F
+			jr z, mem_lh_low
+			ld a, 1
+			pop de
+			ret
+mem_lh_low:
+			xor a
+			pop de
+			ret
+; mem_tofree - the page (on no list) onto its free list. Keeps BC.
+mem_tofree:
+			call mem_lowhigh
+			jp mem_push
+; mem_listof - A = the list the page is on. Keeps BC, DE.
+mem_listof:
+			call mem_tpb
+			ld a, (hl)
+			push bc
+			ld hl, mem_kinds + 2
+			ld b, 4
+			ld c, 2
+mem_lo_lp:
+			cp (hl)
+			jr z, mem_lo_got
+			inc hl
+			inc c
+			djnz mem_lo_lp
+			pop bc
+			jr mem_lowhigh
+mem_lo_got:
+			ld a, c
+			pop bc
+			ret
+; mem_kindlist - A = a type character: A = its list (2-5), NZ; Z = not one.
+mem_kindlist:
+			ld hl, mem_kinds + 2
+			ld b, 4
+			ld c, 2
+mem_kl_lp:
+			cp (hl)
+			jr z, mem_kl_got
+			inc hl
+			inc c
+			djnz mem_kl_lp
+			xor a
+			ret
+mem_kl_got:
+			ld a, c
+			or a
+			ret
+; mem_take - A = a list (2-5): a free page onto it - D from the high
+; free list first, the others from the low one - a D page made one free
+; block. BC = the page, NZ; Z = none left.
+mem_take:
+			ld (mem_tl), a
+			cp 3
+			jr z, mem_tk_high
+			xor a
+			call mem_pop
+			jr nz, mem_tk_got
+			ld a, 1
+			call mem_pop
+			ret z
+			jr mem_tk_got
+mem_tk_high:
+			ld a, 1
+			call mem_pop
+			jr nz, mem_tk_got
+			xor a
+			call mem_pop
+			ret z
+mem_tk_got:
+			ld a, (mem_tl)
+			call mem_push
+			cp 3
+			jr nz, mem_tk_done
+			ld h, b
+			ld l, c
+			call mem_sel
+			ld hl, #4000
+			ld (MEM_WIN), hl
+			ld hl, (mem_keep)
+			call mem_sel
+mem_tk_done:
+			ld a, 1
+			or a
+			ret
+
+; ---- what's there
+
+; Pages(): pages (0 = no paging, 1 = 64K, 5 = 128K ... 33 = 512K ... 257 = 4MB)
+mem_pages:
+			ld hl, (mem_count)
+			ret
+
+; FreePages(): pages on the free lists
+mem_freepages:
+			ld hl, (mem_cnt)
+			ld de, (mem_cnt + 2)
+			add hl, de
+			ret
+
+; RamSize(): K of RAM the probe found (64 + 64 a bank), 0 = not probed
+mem_ramsize:
+			ld hl, (mem_count)
+			ld a, h
+			or l
+			ret z
+			ld a, (mem_banks)
+			ld l, a
+			ld h, 0
+			inc hl
+			add hl, hl				; x 64
+			add hl, hl
+			add hl, hl
+			add hl, hl
+			add hl, hl
+			add hl, hl
+			ret
+
+; Model(): 0 none, 1 small (1 page), 2 medium (up to 5), 3 large (up to
+; 33, a 512K expansion), 4 huge (more)
+mem_model:
+			ld de, (mem_count)
+			ld hl, 0
+			ld a, d
+			or a
+			jr nz, mem_md_huge
+			ld a, e
+			or a
+			ret z
+			inc l
+			cp 2
+			ret c
+			inc l
+			cp 6
+			ret c
+			inc l
+			cp 34
+			ret c
+mem_md_huge:
+			ld l, 4
+			ret
+
+; TableEnd(): the first byte after Memory's tables (they start at the program's end)
+mem_tableend:
+			ld hl, (mem_tend)
+			ret
+
+; PageType(page): its type character
+mem_pagetype:
+			ld hl, (mem_a1)
+			call mem_chk
+			ld b, h
+			ld c, l
+			call mem_tpb
+			ld l, (hl)
+			ld h, 0
+			ret
+
+; Map(first, count): one character per page from first, into the string
+; result (as many as fit; pages past the last are left out)
+mem_map:
+			ld hl, (mem_res)
+			dec hl
+			ld a, (hl)				; the string's capacity
+			inc hl
+			ld (mem_srca), hl
+			ld (mem_chunk), a
+			ld bc, (mem_a1)
+			ld hl, (mem_a2)
+			ld (mem_left), hl
+mem_mp_lp:
+			ld hl, (mem_left)
+			bit 7, h
+			jr nz, mem_mp_end
+			ld a, h
+			or l
+			jr z, mem_mp_end
+			ld a, b
+			or c
+			jr z, mem_mp_end
+			ld hl, (mem_count)
+			or a
+			sbc hl, bc
+			jr c, mem_mp_end
+			ld a, (mem_chunk)
+			or a
+			jr z, mem_mp_end
+			dec a
+			ld (mem_chunk), a
+			call mem_tpb
+			ld a, (hl)
+			ld hl, (mem_srca)
+			ld (hl), a
+			inc hl
+			ld (mem_srca), hl
+			inc bc
+			ld hl, (mem_left)
+			dec hl
+			ld (mem_left), hl
+			jr mem_mp_lp
+mem_mp_end:
+			ld hl, (mem_srca)
+			ld (hl), 0
+			ret
+
+; ---- whole pages
+
+; AllocPage(kind): a free page, now of that kind (C, D, I, U); 0 = none left
+mem_allocpage:
+			ld hl, (mem_count)
+			ld a, h
+			or l
+			jr z, mem_ap_none
+			ld hl, (mem_a1)
+			ld a, h
+			or a
+			jr nz, mem_ap_none
+			ld a, l
+			call mem_kindlist
+			jr z, mem_ap_none
+			call mem_take
+			jr z, mem_ap_none
+			ld h, b
+			ld l, c
+			ret
+mem_ap_none:
+			ld hl, 0
+			ret
+
+; FreePage(page): back to free (a D page's blocks go with it). OK, or
+; BadPage (not a page, or free already)
+mem_freepage:
+			ld hl, (mem_a1)
+			call mem_chk
+			ld b, h
+			ld c, l
+			call mem_listof
+			cp 2
+			jp c, mem_chk_bad
+			call mem_remove
+			call mem_tofree
+			ld hl, 0
+			ret
+
+; SelectPage(page): into the window; #4000
+mem_selpage:
+			ld hl, (mem_a1)
+			call mem_chk
+			call mem_sel
+			ld hl, MEM_WIN
+			ret
+
+; CurrentPage(): the page in the window (0 = no paging)
+mem_curpage:
+			ld hl, (mem_count)
+			ld a, h
+			or l
+			ret z
+			ld hl, (mem_cur)
+			ret
+
+; ---- heap in D pages
+
+; Alloc(size): a far pointer to size bytes in a D page, 0 = no room.
+; Tries the page in the window, then the other D pages, then takes a free
+; page. The window is left as it was.
+mem_alloc:
+			ld hl, (mem_count)
+			ld a, h
+			or l
+			jr z, mem_al_fail
+			ld hl, (mem_a1)
+			ld a, h
+			or l
+			jr nz, mem_al_size
+			inc hl
+mem_al_size:
+			ld de, #3FFF			; up to #3FFE: a page less its header
+			or a
+			push hl
+			sbc hl, de
+			pop hl
+			jr nc, mem_al_fail
+			inc hl
+			inc hl
+			ld (mem_need), hl
+			ld bc, (mem_keep)
+			call mem_tpb
+			ld a, (hl)
+			cp 'D'
+			jr nz, mem_al_scan
+			ld h, b
+			ld l, c
+			call mem_try
+			jr z, mem_al_got
+mem_al_scan:
+			ld a, 3
+			call mem_lha
+			ld c, (hl)
+			inc hl
+			ld b, (hl)
+mem_al_lp:
+			ld a, b
+			or c
+			jr z, mem_al_new
+			ld hl, (mem_keep)
+			or a
+			sbc hl, bc
+			jr z, mem_al_nx
+			push bc
+			ld h, b
+			ld l, c
+			call mem_try
+			pop bc
+			jr z, mem_al_got
+mem_al_nx:
+			call mem_npb
+			ld c, (hl)
+			inc hl
+			ld b, (hl)
+			jr mem_al_lp
+mem_al_new:
+			ld a, 3
+			call mem_take
+			jr z, mem_al_back
+			ld h, b
+			ld l, c
+			call mem_try
+mem_al_got:
+			ld de, (mem_cur)		; HL = the data, its page is in
+			ld (mem_hi), de
+			push hl
+			ld hl, (mem_keep)
+			call mem_sel
+			pop hl
+			ret
+mem_al_back:
+			ld hl, (mem_keep)
+			call mem_sel
+mem_al_fail:
+			ld hl, 0
+			ld (mem_hi), hl
+			ret
+
+; mem_try - HL = a D page: select it, then mem_fit
+mem_try:
+			call mem_sel
+			jp mem_fit
+
+; Free(ptr): a block Alloc gave back. A page with nothing left in use
+; goes back to free. OK, or BadPage (not a block in use in a D page)
+mem_free:
+			ld hl, (mem_a1)
+			call mem_far
+			ld a, h
+			or l
+			jp z, mem_chk_bad
+			ld b, h
+			ld c, l
+			call mem_tpb
+			ld a, (hl)
+			cp 'D'
+			jp nz, mem_chk_bad
+			ld h, b
+			ld l, c
+			call mem_sel
+			ex de, hl
+			dec hl
+			bit 7, (hl)
+			jr z, mem_err_page
+			res 7, (hl)
+			ld hl, #4000			; is the whole page free now?
+			ld (mem_need), hl
+			push bc
+			call mem_fit			; only a page with every block free fits
+			pop bc
+			jr nz, mem_fr_done
+			ld a, 3
+			call mem_remove
+			call mem_tofree
+mem_fr_done:
+			ld hl, (mem_keep)
+			call mem_sel
+			ld hl, 0
+			ret
+mem_err_page:
+			ld hl, (mem_keep)
+			call mem_sel
+			jp mem_chk_bad
+
+; Largest(): the biggest block Alloc could give now
+mem_largest:
+			ld hl, 0
+			ld (mem_max), hl
+			ld hl, (mem_cnt)		; a free page: a whole page
+			ld de, (mem_cnt + 2)
+			add hl, de
+			ld a, h
+			or l
+			ld hl, #3FFE
+			ret nz
+			ld a, 3
+			call mem_lha
+			ld c, (hl)
+			inc hl
+			ld b, (hl)
+mem_lg_lp:
+			ld a, b
+			or c
+			jr z, mem_lg_end
+			ld h, b
+			ld l, c
+			call mem_sel
+			push bc
+			call mem_big
+			pop bc
+			call mem_npb
+			ld c, (hl)
+			inc hl
+			ld b, (hl)
+			jr mem_lg_lp
+mem_lg_end:
+			ld hl, (mem_keep)
+			call mem_sel
+			ld hl, (mem_max)
+			ld a, h
+			or l
+			ret z
+			dec hl
+			dec hl
+			ret
+
+;## ntc_mem ntc_memcore ntc_plat_memtop @shared @if:ntc_mem_small
+; ------------------------------------------------------------
+; ntc_mem (Small) - no paging: Alloc / Free over the free main RAM, from the
+; program's end up to the first of: the platform's top (ntc_plat_memtop),
+; 256 bytes under the real stack (when that is above the program), an
+; Option Reserve range (ntc_rsvtab). Far pointers are plain addresses
+; (page 0). Pages() = 0; the page methods give 0 or BadPage.
+; ------------------------------------------------------------
+mem_start:
+			ld a, (mem_init)
+			or a
+			ret nz
+			inc a
+			ld (mem_init), a
+			call ntc_plat_memtop	; HL = the platform's top
+			ld (mem_hhi), hl
+			ld hl, (ntc_csp)		; the real stack, when it is above the program
+			ld de, ntc_end + 256
+			or a
+			sbc hl, de
+			jr c, mem_ss_rsv
+			ld hl, (ntc_csp)
+			ld de, -256
+			add hl, de
+			call mem_lower
+mem_ss_rsv:
+			ld hl, ntc_rsvtab		; Option Reserve ranges above the program
+mem_ss_rl:
+			ld e, (hl)
+			inc hl
+			ld d, (hl)
+			inc hl
+			ld a, d
+			or e
+			jr z, mem_ss_go
+			push hl
+			ld h, d
+			ld l, e
+			push hl
+			ld de, ntc_end
+			or a
+			sbc hl, de
+			pop hl
+			call nc, mem_lower
+			pop hl
+			jr mem_ss_rl
+mem_ss_go:
+			ld hl, ntc_end
+			ld (mem_hlo), hl
+			ex de, hl
+			ld hl, (mem_hhi)		; room for at least one small block, an even size
+			or a
+			sbc hl, de
+			jr c, mem_ss_none
+			ld bc, 8
+			push hl
+			sbc hl, bc
+			pop hl
+			jr c, mem_ss_none
+			res 0, l
+			add hl, de
+			ld (mem_hhi), hl
+mem_ss_init:						; DE = a block: free blocks of up to #4000
+			ld hl, (mem_hhi)
+			or a
+			sbc hl, de
+			ret z
+			ld bc, #4000
+			push hl
+			or a
+			sbc hl, bc
+			pop hl
+			jr c, mem_ss_len
+			ld h, b
+			ld l, c
+mem_ss_len:
+			ex de, hl
+			ld (hl), e
+			inc hl
+			ld (hl), d
+			dec hl
+			add hl, de
+			ex de, hl
+			jr mem_ss_init
+mem_ss_none:
+			ld hl, ntc_end
+			ld (mem_hhi), hl
+			ret
+; HL = a limit: mem_hhi = it when lower
+mem_lower:
+			push de
+			ld de, (mem_hhi)
+			push hl
+			or a
+			sbc hl, de
+			pop hl
+			jr nc, mem_lw_end
+			ld (mem_hhi), hl
+mem_lw_end:
+			pop de
+			ret
+
+; no pages: nothing to switch, every page number is BadPage
+mem_sel:
+			ret
+mem_chk:
+			jp mem_chk_bad
+
+mem_pages:
+mem_freepages:
+mem_ramsize:
+mem_model:
+mem_curpage:
+mem_allocpage:
+			ld hl, 0
+			ret
+mem_pagetype:
+mem_freepage:
+mem_selpage:
+			jp mem_chk_bad
+mem_tableend:
+			ld hl, ntc_end
+			ret
+mem_map:
+			ld hl, (mem_res)
+			ld (hl), 0
+			ret
+
+; Alloc(size): a plain address (page 0) of size bytes, 0 = no room
+mem_alloc:
+			ld hl, (mem_a1)
+			ld a, h
+			or l
+			jr nz, mem_sa_size
+			inc hl
+mem_sa_size:
+			ld de, #3FFF
+			or a
+			push hl
+			sbc hl, de
+			pop hl
+			jr nc, mem_sa_fail
+			inc hl
+			inc hl
+			ld (mem_need), hl
+			call mem_fit
+			ret z
+mem_sa_fail:
+			ld hl, 0
+			ret
+
+; Free(ptr): a block back. OK, or BadPage (not a block in use in the heap)
+mem_free:
+			ld hl, (mem_a1)
+			call mem_far			; a page number: BadPage
+			ex de, hl
+			ld de, (mem_hlo)
+			inc de
+			inc de
+			or a
+			sbc hl, de
+			jp c, mem_chk_bad
+			add hl, de
+			ld de, (mem_hhi)
+			or a
+			sbc hl, de
+			jp nc, mem_chk_bad
+			add hl, de
+			dec hl
+			bit 7, (hl)
+			jp z, mem_chk_bad
+			res 7, (hl)
+			ld hl, 0
+			ret
+
+; Largest(): the biggest block Alloc could give now
+mem_largest:
+			ld hl, 0
+			ld (mem_max), hl
+			call mem_big
+			ld hl, (mem_max)
+			ld a, h
+			or l
+			ret z
+			dec hl
+			dec hl
+			ret
+
+;## ntc_memcopy ntc_mem ntc_buf2k @shared
+; Copy(src, dst, length): far pointer to far pointer, up to 2K at a time
+; through ntc_buf (so page to page works with one window). A page's end
+; (#8000) carries on at #4000 of the next page. The window is put back.
+; OK, or BadPage.
+mem_copy:
+			ld hl, (mem_a1)
+			call mem_far
+			ld (mem_srca), de
+			ld (mem_srcp), hl
+			ld hl, (mem_a2)
+			call mem_far
+			ld (mem_dsta), de
+			ld (mem_dstp), hl
+			ld hl, (mem_a3)
+			ld (mem_left), hl
+mem_cp_lp:
+			ld hl, (mem_left)
+			ld a, h
+			or l
+			jr z, mem_cp_done
+			ld de, 2048
+			call mem_min
+			ld de, (mem_srcp)
+			ld a, d
+			or e
+			ld de, (mem_srca)
+			call nz, mem_room
+			ld de, (mem_dstp)
+			ld a, d
+			or e
+			ld de, (mem_dsta)
+			call nz, mem_room
+			ld (mem_chunk), hl
+			ld hl, (mem_srcp)
+			ld a, h
+			or l
+			call nz, mem_cp_sel
+			ld hl, (mem_srca)
+			ld de, ntc_buf
+			ld bc, (mem_chunk)
+			ldir
+			ld (mem_srca), hl
+			ld hl, (mem_dstp)
+			ld a, h
+			or l
+			call nz, mem_cp_sel
+			ld hl, ntc_buf
+			ld de, (mem_dsta)
+			ld bc, (mem_chunk)
+			ldir
+			ld (mem_dsta), de
+			ld hl, mem_srcp
+			ld de, (mem_srca)
+			call mem_cp_wrap
+			ld (mem_srca), de
+			ld hl, mem_dstp
+			ld de, (mem_dsta)
+			call mem_cp_wrap
+			ld (mem_dsta), de
+			ld hl, (mem_left)
+			ld de, (mem_chunk)
+			or a
+			sbc hl, de
+			ld (mem_left), hl
+			jp mem_cp_lp
+mem_cp_done:
+			ld hl, (mem_keep)
+			call mem_sel
+			ld hl, 0
+			ret
+mem_cp_sel:
+			call mem_chk			; a page past the last one: BadPage
+			jp mem_sel
+; HL = the smaller of HL and DE
+mem_min:
+			push hl
+			or a
+			sbc hl, de
+			pop hl
+			ret c
+			ex de, hl
+			ret
+; DE = an address in the window: HL = no more than #8000 - DE
+mem_room:
+			push hl
+			ld hl, #8000
+			or a
+			sbc hl, de
+			ex de, hl
+			pop hl
+			jr mem_min
+; HL = a page word, DE = the address: #8000 in a page -> #4000 of the next
+mem_cp_wrap:
+			ld a, (hl)
+			inc hl
+			or (hl)
+			dec hl
+			ret z
+			ld a, d
+			cp #80
+			ret nz
+			inc (hl)
+			jr nz, mem_cw_hi
+			inc hl
+			inc (hl)
+mem_cw_hi:
+			ld d, #40
+			ret

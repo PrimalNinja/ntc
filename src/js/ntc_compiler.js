@@ -31,6 +31,8 @@ function ntcCompile(input_a, objOptions_a)
 	var objPlat = {};			// the platform file's ;@ settings (readPlatform)
 	var objOwnClass = {};
 	var objDefinesIn = {};		// predefined #Const values: NTC and NTC_<platform>
+	var objMemory = { scheme: 'small', max: 257 };	// Option Memory
+	var blnMemoryUsed = false;	// the project has a Memory class
 	var intStrMax = 40;			// the longest string in the program (findStrMax)
 	var arrReserve = [];		// Option Reserve: { start, size, file, line }
 	var arrRomEnable = null;	// Option RomEnable (cpcfw): null none, ['all'], or ROM numbers
@@ -6700,6 +6702,7 @@ function ntcCompile(input_a, objOptions_a)
 		var intI = 0;
 		var intJ = 0;
 		var objCurrent = null;
+		var blnSkip = false;
 
 		for (intI = 0; intI < arrLines.length; intI++)
 		{
@@ -6707,16 +6710,27 @@ function ntcCompile(input_a, objOptions_a)
 			{
 				arrParts = trim(arrMatch[2]).length > 0 ? trim(arrMatch[2]).split(/\s+/) : [];
 				objCurrent = { name: arrMatch[1], deps: [], shared: false, lines: [], labels: [], header: arrLines[intI] };
+				blnSkip = false;
 				for (intJ = 0; intJ < arrParts.length; intJ++)
 				{
 					if (arrParts[intJ] === '@shared')
 					{
 						objCurrent.shared = true;
 					}
+					else if (arrParts[intJ].substr(0, 4) === '@if:')
+					{
+						// only when that #Const is set (NTC_MEM_SMALL ...): else the section isn't there
+						blnSkip = (objDefinesIn[arrParts[intJ].substr(4).toLowerCase()] === undefined);
+						objCurrent.header = objCurrent.header.replace(/\s+@if:\S+/, '');
+					}
 					else
 					{
 						objCurrent.deps.push(arrParts[intJ]);
 					}
+				}
+				if (blnSkip)
+				{
+					continue;		// its lines go to objCurrent, which is not kept
 				}
 				if (objInto_a[objCurrent.name] === undefined)
 				{
@@ -6999,6 +7013,32 @@ function ntcCompile(input_a, objOptions_a)
 		}
 	}
 
+	// Option Memory Small | CPCExpansion [maxpages] - findMemory took the values; this checks them
+	function readMemory(objRec_a)
+	{
+		var arrMatch = String(objRec_a.value).match(/^(small|cpcexpansion)\b[ \t,]*(.*)$/i);
+		var blnCpc = (objOptions.platform === 'cpc') || (objOptions.platform === 'cpcmin') || (objOptions.platform === 'cpcfw');
+		var intMax = 0;
+
+		if (!arrMatch)
+		{
+			arrErrors.push({ file: objRec_a.file, line: objRec_a.line, msg: 'Option Memory Small | CPCExpansion [maxpages]: ' + objRec_a.value });
+			return;
+		}
+		if ((arrMatch[1].toLowerCase() === 'cpcexpansion') && !blnCpc)
+		{
+			arrErrors.push({ file: objRec_a.file, line: objRec_a.line, msg: 'Option Memory CPCExpansion is for the CPC platforms (cpc, cpcmin, cpcfw), not ' + objOptions.platform });
+		}
+		if (trim(arrMatch[2]).length > 0)
+		{
+			intMax = parseNumber(trim(arrMatch[2]));
+			if ((arrMatch[1].toLowerCase() !== 'cpcexpansion') || isNaN(intMax) || (intMax < 1) || (intMax > 257))
+			{
+				arrErrors.push({ file: objRec_a.file, line: objRec_a.line, msg: 'Option Memory: the most pages is for CPCExpansion, 1 - 257: ' + objRec_a.value });
+			}
+		}
+	}
+
 	function hex4(int_a)
 	{
 		return '#' + ('0000' + int_a.toString(16).toUpperCase()).slice(-4);
@@ -7018,6 +7058,29 @@ function ntcCompile(input_a, objOptions_a)
 			}
 		});
 		return strResult;
+	}
+
+	// Option Memory: the Memory class's scheme (decided before parsing: it sets
+	// NTC_MEM_SMALL / NTC_MEM_CPCEXPANSION). Default: the CPC expansion RAM on the
+	// CPC platforms, Small (main RAM only) elsewhere
+	function findMemory(arrFiles_a)
+	{
+		var objResult = { scheme: ((objOptions.platform === 'cpc') || (objOptions.platform === 'cpcmin') || (objOptions.platform === 'cpcfw')) ? 'cpcexpansion' : 'small', max: 257 };
+
+		arrFiles_a.forEach(function(objFile_a)
+		{
+			var arrMatch = String(objFile_a.text).match(/^[ \t]*option[ \t]+memory[ \t]+(small|cpcexpansion)\b[ \t,]*(&h[0-9a-f]+|#[0-9a-f]+|\d+)?/im);
+
+			if (arrMatch)
+			{
+				objResult.scheme = arrMatch[1].toLowerCase();
+				if (arrMatch[2])
+				{
+					objResult.max = parseNumber(arrMatch[2]);
+				}
+			}
+		});
+		return objResult;
 	}
 
 	// the platform's own classes (StdIO, System ...) join the project when the
@@ -7237,6 +7300,9 @@ function ntcCompile(input_a, objOptions_a)
 	objDefinesIn = { ntc: -1 };
 	objDefinesIn['ntc_' + String(objOptions.platform).toLowerCase()] = -1;	// #If NTC_CPM Then ...
 	strTerminal = findTerminal(arrFiles);
+	objMemory = findMemory(arrFiles);
+	objDefinesIn['ntc_mem_' + objMemory.scheme] = -1;		// #If NTC_MEM_SMALL Then ... (and @if: library sections)
+	blnMemoryUsed = arrFiles.some(function(objFile_a) { return /(^|[\/\\])memory\.cls$/i.test(String(objFile_a.name)); });
 	if (strTerminal !== 'none')
 	{
 		objDefinesIn['ntc_term_' + strTerminal] = -1;		// #If NTC_TERM_VT52 Then ...
@@ -7292,6 +7358,10 @@ function ntcCompile(input_a, objOptions_a)
 			else if (objRec.what === 'reserve')
 			{
 				readReserve(objRec);
+			}
+			else if (objRec.what === 'memory')
+			{
+				readMemory(objRec);
 			}
 			else if (objRec.what === 'romenable')
 			{
@@ -7472,6 +7542,7 @@ function ntcCompile(input_a, objOptions_a)
 	}
 	arrAsm.push('NTC_TERM\tequ ' + ({ none: 0, vt52: 1, ansi: 2 })[strTerminal] + '\t\t; Option Terminal: 0 none, 1 VT52, 2 ANSI (CP/M)');
 	arrAsm.push('NTC_STRMAX\tequ ' + intStrMax + '\t\t; the longest string (library buffers, temps)');
+	arrAsm.push('NTC_MEMBANKS\tequ ' + Math.max(0, Math.min(64, Math.floor((Math.min(257, Math.max(1, objMemory.max || 257)) - 1) / 4))) + '\t\t; Option Memory: the most 64K banks the Memory class looks for');
 	arrAsm.push('NTC_ROMENABLE\tequ ' + ((arrRomEnable !== null) ? 1 : 0) + '\t\t; Option RomEnable (cpcfw, cpcmin): the start code starts the ROMs');
 	arrAsm.push('');
 	// the options in a fixed order, wherever they are in the source: the stack first (the
@@ -8022,6 +8093,12 @@ function ntcCompile(input_a, objOptions_a)
 		arrProcList.push({ file: objParse.procs[intI].file, line: objParse.procs[intI].line, name: arrMatch ? arrMatch[1] : objParse.procs[intI].id, kind: objParse.procs[intI].kind, scope: objParse.procs[intI].scope, used: (objProcModes[objParse.procs[intI].full] !== undefined) });
 	}
 
+	if (blnMemoryUsed && (objMemory.scheme === 'small'))
+	{
+		arrAsm.push('');
+		arrAsm.push('ntc_rsvtab:\t\t\t\t; Option Reserve starts (the Memory class\'s heap stops at them), 0 ends');
+		arrAsm.push(strIndent + 'dw ' + arrReserve.map(function(objRes_a) { return String(objRes_a.start); }).concat(['0']).join(', '));
+	}
 	arrAsm.push('');
 	arrAsm.push('ntc_end:\t\t\t\t; the end of the program');
 	if (arrReserve.length > 0)

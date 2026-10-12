@@ -1369,3 +1369,12 @@ fs_capab:
 			ld l, a
 			ld h, 0
 			ret
+
+;## ntc_plat_memtop
+; ntc_plat_memtop - HL = the first byte the Memory class's Small heap must not
+; use: the BDOS (its address is at 6; the CCP below it is free, the program
+; ends with a warm boot). Called on the real stack (call / ret), only by the
+; Memory class.
+ntc_plat_memtop:
+			ld hl, (6)
+			ret

@@ -20,6 +20,7 @@ var arrPrograms = [
 	{ name: 'FILESTEP', files: ['filestep.bas'] },
 	{ name: 'FILESTPN', files: ['filestpn.bas'] },
 	{ name: 'AMSDOS', files: ['amsdos.bas'] },
+	{ name: 'MEMMAP', files: ['memmap.bas'] },
 	{ name: 'NUMBERED', files: ['numbered.bas'] },
 	{ name: 'NTCTEST', files: ['ntc_test.bas'] },
 	{ name: 'VBTEST', files: ['vb_test.bas'] },

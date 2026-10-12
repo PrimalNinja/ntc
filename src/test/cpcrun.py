@@ -14,6 +14,31 @@ KEYS['-']=(3,1,False); KEYS['0']=(4,0,False)
 # #3900) - the public domain font8x8_basic NTC used before, not Amstrad's ROM
 LOWROM=bytearray(0x4000)
 LOWROM[0x3900:0x3900+760]=bytes(int(x,16) for l in open(os.path.join(os.path.dirname(os.path.abspath(__file__)),'font_standin.txt')) if not l.startswith(';') for x in l.split(';')[0].split())
+class RamBanks:
+    # the gate array's RAM setting (port #78xx-#7Fxx, value #C0-#FF) on a machine with kb K of RAM:
+    # C0 = the plain 64K, C4-C7 (+ bank * 8) = page 0-3 of a 64K bank at #4000-#7FFF; the port's
+    # high byte picks the 512K block (#7F = the first, #7E the second ... #78 the eighth: 4MB).
+    # Banks past the ones fitted wrap round (a 6128 has one: every setting is bank 0; a 512K
+    # expansion ignores the block), a 64K machine ignores C4-C7. C1-C3 are not emulated.
+    # NTC_RAM sets kb (total RAM: 64, 128, 576 = a 512K expansion, 4160 = 4MB; default 128).
+    def __init__(s, m, kb=None):
+        kb = int(kb or os.environ.get('NTC_RAM', '128'))
+        s.m = m; s.nb = max(0, (kb - 64) // 64); s.ext = bytearray(s.nb * 0x10000)
+        s.main = None; s.cur = None; s.writes = 0
+    def set(s, val, hi=0x7F):
+        s.writes += 1
+        want = None
+        if (val & 7) in (1, 2, 3): print('RamBanks: setting %02X not emulated' % val)
+        if s.nb and (val & 4): want = ((((0x7F - hi) & 7) * 8 + ((val >> 3) & 7)) % s.nb, val & 3)
+        if want == s.cur: return
+        win = bytes(s.m.memory[0x4000:0x8000])
+        if s.cur is None: s.main = win
+        else:
+            o = s.cur[0] * 0x10000 + s.cur[1] * 0x4000; s.ext[o:o + 0x4000] = win
+        if want is None: s.m.set_memory_block(0x4000, s.main)
+        else:
+            o = want[0] * 0x10000 + want[1] * 0x4000; s.m.set_memory_block(0x4000, bytes(s.ext[o:o + 0x4000]))
+        s.cur = want
 def assemble(path):
     b=path[:-4]+'.bin'; s=path[:-4]+'.sym'
     r=subprocess.run([SJ,'--nologo','--raw='+b,'--sym='+s,path],capture_output=True,text=True)
@@ -29,7 +54,7 @@ class CPC:
         m.set_memory_block(0xBFF0,b'\x76'); m.set_memory_block(0xBE00-2,bytes([0xF0,0xBF])); m.sp=0xBE00-2
         m.set_memory_block(0xBFE0,bytes([0xED,0x56,0xC3,org&255,org>>8])); m.pc=0xBFE0   # im 1 : jp org
         m.set_memory_block(0x38,bytes([0xFB,0xC9]))   # stand in for the firmware's handler
-        s.ints=0; s.romon=False
+        s.ints=0; s.romon=False; s.ram=RamBanks(m)
         s.line=0; s.scans=0; s.typed=list(typed); s.phase=0; s.cur=None; s.mode=None; s.vs=0; s.ga=[]
         m.set_output_callback(s.out); m.set_input_callback(s.inp); s.syms=syms
         # the firmware calls the cpc platform's FileSystem makes (AMSDOS through the firmware):
@@ -38,10 +63,10 @@ class CPC:
         s.fw = ntcrun.Host.__new__(ntcrun.Host); s.fw.m = m; s.fw.p = 'cpcfw'
         s.fw.cas_in = None; s.fw.cas_out = None; s.fw.amsdos = False; s.fw.cas_dev = 'TAPE'; s.fw.disk = 'A'
         os.makedirs(ntcrun.FILES, exist_ok=True)
-        s.fwport = {}
+        s.fwport = {}; s.fwaddr = {0xDF: 0x18}
         for i, a in enumerate(sorted(ntcrun.FW)):
             if ntcrun.FW[a].startswith(('cas_', 'kl_')):
-                m.set_memory_block(a, bytes([0xD3, 0xE0 + i, 0xC9])); s.fwport[0xE0 + i] = ntcrun.FW[a]
+                m.set_memory_block(a, bytes([0xD3, 0xE0 + i, 0xC9])); s.fwport[0xE0 + i] = ntcrun.FW[a]; s.fwaddr[0xE0 + i] = a
         m.set_memory_block(0x18, bytes([0xD3, 0xDF, 0xC9]))     # RST 3: AMSDOS's far call CAS entries
     def lowrom(s,on):
         # the lower ROM over #0000-#3FFF: reads give the ROM, writes still go to the RAM below
@@ -55,12 +80,15 @@ class CPC:
             m.set_memory_block(0,bytes(s.ramlo)); s.romon=False
     def out(s,port,val):
         lo=port&0xff
-        if lo in s.fwport or lo==0xDF:
-            s.fwcall(lo); return
+        if (lo in s.fwport or lo==0xDF) and s.m.pc-2==s.fwaddr[lo]:
+            s.fwcall(lo); return     # a stand-in's out (n),a - not a real port write with that low byte
         hi=(port>>8)&0xff
+        if 0x78<=hi<=0x7e and (val&0xC0)==0xC0:
+            s.ram.set(val,hi); return       # a RAM setting for another 512K block (4MB)
         if hi==0x7f:
             s.ga.append(val); s.mode=val&3 if (val&0xC0)==0x80 else s.mode
             if (val&0xC0)==0x80: s.lowrom(not (val&4))
+            elif (val&0xC0)==0xC0: s.ga.pop(); s.ram.set(val,hi)
         elif hi==0xf6: s.line=val&15
     def fwcall(s,lo):
         import ntcrun
@@ -147,7 +175,9 @@ def loadfont(syms,mem):
 if __name__=='__main__':
     bas=sys.argv[1]; typed=(sys.argv[2] if len(sys.argv)>2 else '').replace('\\n','\r').replace('\\x7f','\x7f')
     asm=bas[:-4]+'.asm'
-    extra=[a for a in sys.argv[3:]]
+    extra=[a for a in sys.argv[3:] if not a.startswith('--ram=')]
+    for a in sys.argv[3:]:
+        if a.startswith('--ram='): os.environ['NTC_RAM']=a[6:]
     r=subprocess.run(['node',os.path.join(os.path.dirname(os.path.abspath(__file__)), 'cli.js'),bas]+extra,capture_output=True,text=True)
     if r.stderr: print(r.stderr)
     open(asm,'w').write(r.stdout)

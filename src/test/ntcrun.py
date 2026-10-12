@@ -1,5 +1,5 @@
 # run an NTC program on an emulated host - scratch test tool, not delivered
-#   python3 ntcrun.py prog.bas 'typed\n' [more files] [--turbo] [--platform=cpc|cpcmin|cpcfw|cpm|test]
+#   python3 ntcrun.py prog.bas 'typed\n' [more files] [--turbo] [--platform=cpc|cpcmin|cpcfw|cpm|test] [--ram=64|128|576|4160]
 #   (in the typed text: \n = Return, ~ = one look at the keyboard that finds no key)
 # cpc   : the CPC hardware emulation in cpcrun.py (screen read back from video RAM)
 # cpcmin: the same, with stand-ins for the firmware calls its FileSystem / System.Command make
@@ -106,6 +106,7 @@ class Host:
                     m.set_memory_block(a, bytes([0xD3, 0xE0 + i, 0xC9]))
                 s.fwport = {0xE0 + i: FW[a] for i, a in enumerate(sorted(FW))}
                 m.set_memory_block(0x18, bytes([0xD3, 0xDF, 0xC9]))   # RST 3: a far call (AMSDOS's CAS entries)
+        s.ram = cpcrun.RamBanks(m)                          # the gate array's RAM setting (Memory class)
         m.set_output_callback(s.out); m.set_input_callback(s.inp)
     def key(s):
         # '~' in the typed text: this look at the keyboard finds no key (then the rest follow)
@@ -117,6 +118,8 @@ class Host:
         return (s.T // 13333) & 0xFFFF
     def out(s, port, val):
         lo = port & 0xFF; m = s.m
+        if s.p != 'cpm' and 0x78 <= (port >> 8) <= 0x7F and (val & 0xC0) == 0xC0:
+            s.ram.set(val, port >> 8); return
         if s.p == 'test':
             if lo == 0xFE: s.scr.put(chr(val) if 32 <= val < 127 else '?')
             elif lo == 0xF9: s.scr.newline()
@@ -295,6 +298,7 @@ def main():
     for a in list(args):
         if a.startswith('--platform='): plat = a[11:]; args.remove(a)
         if a == '--called': called = True; args.remove(a)   # cpcfw: CALLed from BASIC, AMSDOS still running
+        if a.startswith('--ram='): os.environ['NTC_RAM'] = a[6:]; args.remove(a)   # total RAM K: 64, 128 (default), 576 (512K expansion), 4160 (4MB)
     bas = args[0]; typed = (args[1] if len(args) > 1 else '').replace('\\n', '\r').replace('\\x7f', '\x7f')
     extra = args[2:]
     asm = bas[:-4] + '.asm'

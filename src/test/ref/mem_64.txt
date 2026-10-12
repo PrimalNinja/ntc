@@ -1,0 +1,12 @@
+pages1 model1 ram64 free1
+bad-2-2-2-2
+cur1
+user page1 type U
+cur1 7788
+word4660 byte52 cur1
+kind '-':0
+too big-1
+alloc0 largest0
+irq page0 free-2 again-2 kind X0
+tables-1 free0
+done

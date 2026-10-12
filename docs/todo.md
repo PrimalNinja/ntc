@@ -294,6 +294,26 @@ finished, with the date.
   sjasmplus: CPC as AMSDOS `.BIN` (compiler option `amsdos` / `cli.js --amsdos=NAME` adds
   `DEVICE AMSTRADCPC6128` and `SAVEAMSDOS`), CP/M `.COM`, test `.BIN`. Every program now
   ends with `ntc_end:`. regress.sh regenerates and assembles them all
+- 2026-10-12 **Option Memory Small | CPCExpansion [maxpages]**: the scheme decided when
+  compiling (`NTC_MEM_*` defines; library sections with `@if:` are only there when their
+  #Const is set). Small = one heap over free main RAM on any platform (cpm and test now have
+  Alloc / Free), about 900 bytes against 2,100; maxpages caps CPCExpansion and its fixed
+  data (`NTC_MEMBANKS`). `Memory.WindowStart` / `WindowSize` constants, `HeapStart` /
+  `HeapEnd`; new platform section `ntc_plat_memtop`. Tests `mem_s` (4 platforms, both
+  modes), the caps, the refusal on cpm
+- 2026-10-12 **Memory class up to 4MB**: 257 pages (16 bit page numbers), probe of 64
+  banks over ports #7F-#78, a list per type (free low / free high / C / D / I / U, next
+  table), C / I / U from main + the standard 512K first and D from the blocks above (each
+  falls back), tables sized at run time from ntc_end (fewer pages when they don't fit),
+  `Map(first, count)`, `TableEnd`, `ModelHuge`. Harness `--ram=4160`; tests at 4MB and with
+  the tables near #4000
+- 2026-10-12 **Memory class** (cpc, cpcmin, cpcfw; cpm stub, test has no pages): probes up
+  to a 512K expansion (64K small 1 page, 128K medium 5, large up to 33), page types C / D /
+  I / U / free, AllocPage / FreePage / SelectPage / CurrentPage / Map, heap in D pages
+  (Alloc / Free / Largest, far pointers as Longs), ReadByte / ReadWord / WriteByte /
+  WriteWord, Copy through the shared 2K buffer (`ntc_buf`, now also FileSystem's CAS
+  buffer). Harness emulates the gate array RAM setting (`--ram=64|128|576`); tests `mem_t`
+  (3 sizes, cpcmin, cpcfw, both modes) and `bas/memmap.bas` (MEMMAP in build/)
 - 2026-10-11 **string lengths**: `String * n` (VB fixed length, padded) now n = 1 .. 255,
   new `String Max n` (NTC: at most n, not padded, 1 .. 255), default `String` stays 40.
   A capacity byte before every scalar string ([cap][text][0]); array elements cap + 1 bytes
@@ -662,6 +682,43 @@ CP/M compatible (or mostly) system idea - device model, not decided:
 - most CP/M programs only use BDOS calls; the ones that call the BIOS or hardware directly
   are the compatibility risk. DDT uses RST 38h for breakpoints, which is the IM 1 interrupt
   address
+
+### Memory class - next (design talk 2026-10-12)
+
+- [ ] `FileSystem.LoadPage(name, page)`: load into a page through the window, cut at the 16K
+      boundary and carry on in the next page (files over 16K)
+- [ ] check in WinAPE that the firmware / AMSDOS leave the RAM setting alone during a file
+      call on cpcfw / cpcmin (a load into a selected page); if not, re-select from `mem_cur`
+- [ ] interrupt handler: when I blocks or paged code exist, switch to a private stack, call
+      each I block (with a divider: every 6th interrupt = 50 Hz), put the page back from
+      `mem_cur`. Nested di / ei count (PRIMAL style); the handler sets it to 1, ei; ret at
+      the end
+- [ ] AY music player class as an I block (player + tune in main RAM out of the window;
+      Stop flag, load a new tune, Play). Keyboard scan moves into the interrupt (the AY and
+      the keys share the PPI)
+- [ ] pageable classes: compiled at #4000 into a C page, called through a stub outside the
+      window (save page, switch, run, switch back); strings returned land outside the window
+- [ ] compiled sprites in C pages: the compiler packs sprite data into a 16K page image with
+      an address table at #4000 (same layout for every level's file, so the class code works
+      with any loaded set); one page switch per Draw of all instances; PUSH drawing with
+      interrupts off; inline next-line step; 2 / 4 / 8 shifted copies per mode; skip
+      transparent bytes, masks for partial ones; clipping / erase choices
+- [ ] code past the window: the compiler continues the program at #8000 when it reaches #4000
+      (a thread jump over the gap), so a big program can still page
+- [ ] library jumpblock at #8000 (shared build mode): fixed 3 byte slot per library keyword,
+      RAM or ROM targets, version check; standalone build stays the default (no extra 10 T)
+- [ ] ROM pages (upper ROM at #C000, port #DF) as their own class: sprites from ROM write the
+      screen under it; no screen reads while the ROM is in
+- [ ] virtual memory: whole 16K pages to SD / CompactFlash / USB (or floppy). Per page:
+      resident, changed (set by WriteByte / WriteWord / Copy / SelectPage of D or U), the
+      file it came from; C pages and U pages loaded from a file are never written back.
+      Least recently used order in the type lists. One file per page (`P0012.PAG`) works
+      with AMSDOS now; a swap file with 16K slots needs random access (M4, IDE, USB)
+- [ ] pageable classes as overlays: each in its own image file (`LEVEL1.PAG`), the call stub
+      loads it when it isn't resident (64K: one frame, like CP/M / Turbo Pascal overlays);
+      on return the caller's page comes back. Rule: a pageable class calls the resident
+      program, not another pageable class (warn) - a game's levels as classes
+- [ ] check the 4MB ports (#78-#7E, A10 low) against other expansion hardware in WinAPE
 
 ### Turbo / normal
 

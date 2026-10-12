@@ -582,6 +582,8 @@ ntc_irq_nohook:
 ; out, upper ROM back on (lower off) if the screen was set up
 ; ------------------------------------------------------------
 ntc_plat_exit:
+			ld bc, #7FC0		; RAM setting back to plain (a Memory page may be in #4000)
+			out (c), c
 			ld a, (ntc_irqset)
 			or a
 			jr z, ntc_ex_rom
@@ -601,3 +603,11 @@ ntc_ex_rom:
 			out (c), a
 ntc_ex_done:
 			jp (ix)
+
+;## ntc_plat_memtop
+; ntc_plat_memtop - HL = the first byte the Memory class's Small heap must not
+; use: #A600 (the firmware's and AMSDOS's RAM is above). Called on the real
+; stack (call / ret), only by the Memory class.
+ntc_plat_memtop:
+			ld hl, #A600
+			ret

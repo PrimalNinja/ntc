@@ -587,6 +587,8 @@ ntc_irq_nohook:
 ; out, upper ROM back on (lower off) if the screen was set up
 ; ------------------------------------------------------------
 ntc_plat_exit:
+			ld bc, #7FC0		; RAM setting back to plain (a Memory page may be in #4000)
+			out (c), c
 			ld a, (ntc_irqset)
 			or a
 			jr z, ntc_ex_rom
@@ -626,7 +628,7 @@ FS_TOOBIG	equ -8
 FS_FAILED	equ -9
 FS_BADNAME	equ -4
 
-;## ntc_plat_fs ntc_plat_data ntc_plat_irq ntc_data @shared
+;## ntc_plat_fs ntc_plat_data ntc_plat_irq ntc_data ntc_buf2k @shared
 fs_a1:			dw 0
 fs_a2:			dw 0
 fs_a3:			dw 0
@@ -649,7 +651,7 @@ fs_vol:			ds 9			; the volume in use ("" = not known)
 fs_vols:		ds 145			; the volumes that worked, "A,C,M" (up to 16 of up to 8 letters)
 fs_tmpn:		ds 9			; a volume name, capitals
 fs_rsxn:		ds 17			; a command name (last letter + #80), up to 16 letters
-fs_buf:			ds 2048			; the 2K buffer CAS IN OPEN / CAS OUT OPEN want
+fs_buf			equ ntc_buf		; the 2K buffer CAS IN OPEN / CAS OUT OPEN want (shared with Memory.Copy)
 			ASSERT ntc_end <= #A600, "FileSystem on cpcfw: the program must end below #A600 (AMSDOS's RAM)"
 
 fs_go0:
@@ -1190,4 +1192,12 @@ fs_sv_done:
 			ret nc
 			call fs_namevol
 			ld hl, 0
+			ret
+
+;## ntc_plat_memtop
+; ntc_plat_memtop - HL = the first byte the Memory class's Small heap must not
+; use: #A600 (the firmware's and AMSDOS's RAM is above). Called on the real
+; stack (call / ret), only by the Memory class.
+ntc_plat_memtop:
+			ld hl, #A600
 			ret

@@ -8,6 +8,7 @@
 
 NTC_TERM	equ 0		; Option Terminal: 0 none, 1 VT52, 2 ANSI (CP/M)
 NTC_STRMAX	equ 40		; the longest string (library buffers, temps)
+NTC_MEMBANKS	equ 64		; Option Memory: the most 64K banks the Memory class looks for
 NTC_ROMENABLE	equ 0		; Option RomEnable (cpcfw, cpcmin): the start code starts the ROMs
 
 ntc_start:
@@ -1385,6 +1386,8 @@ ntc_plat_frame:
 
 ;## ntc_plat_exit ntc_plat_data
 ntc_plat_exit:
+			ld bc, #7FC0		; RAM setting back to plain (a Memory page may be in #4000)
+			out (c), c
 			jp (ix)
 
 ; ============================================================
