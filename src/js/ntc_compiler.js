@@ -38,6 +38,12 @@ function ntcCompile(input_a, objOptions_a)
 	var objOvlAsm = {};			// overlay class -> its thread lines (built at #4000)
 	var arrIslots = [];
 	var objPagedLabel = {};		// label -> overlay class: a Private Paged variable (in the class's page)
+	var objPages = {};			// Option Page / Option Class Overlay: page id -> { name, file, id, blk, classes [modules], srcfile, line }
+	var arrPageOrder = [];		// page ids, in source order
+	var objClassPages = {};		// overlay class (module) -> the page ids it is in (the home page first)
+	var objLocalCalled = {};	// procedure -> true: called from code in one of its own pages (its stub checks ntc_ovl_lc)
+	var objStubClass = {};		// call stub body label (p_x / p_x_n) -> { module, proc } (overlay procedures)
+	var objPageAsmUsed = {};	// keywords the page composition needs
 	var objOvlVars = {};		// overlay class -> its paged variables (declarations)			// interrupt classes: { module, rate (0 = Frame), tick }
 	var intStrMax = 40;			// the longest string in the program (findStrMax)
 	var arrReserve = [];		// Option Reserve: { start, size, file, line }
@@ -784,6 +790,29 @@ function ntcCompile(input_a, objOptions_a)
 	// hold values puts the callee at least live slots above the caller's base. Interrupt
 	// Ticks, Interrupt hooks and AddressOf targets can run at any point, so they (and what
 	// they call) go above everything else.
+	// pages: a procedure called from code in a page it is in too gets the local entry check
+	function decideLocalCalls()
+	{
+		arrScanProcCalls.forEach(function(objCall_a)
+		{
+			var objFrom = objEl[objCall_a.from];
+			var objTo = objEl[objCall_a.to];
+			var arrFrom = null;
+			var arrTo = null;
+
+			if (objCall_a.root || !objFrom || !objTo)
+			{
+				return;
+			}
+			arrFrom = objClassPages[objFrom.module];
+			arrTo = objClassPages[objTo.module];
+			if (arrFrom && arrTo && arrFrom.some(function(str_a) { return arrTo.indexOf(str_a) > -1; }))
+			{
+				objLocalCalled[objCall_a.to] = true;
+			}
+		});
+	}
+
 	function decideTempBases()
 	{
 		var intRound = 0;
@@ -2837,15 +2866,47 @@ function ntcCompile(input_a, objOptions_a)
 		arrCode.push(strIndent + 'ld (' + strRs + '), sp');
 		if (isOverlayProc(objProc_a))
 		{
-			// overlay class: keep the caller's page, switch the class's in (loading it first)
+			// a class in a page: keep the caller's page, switch the class's in (loading it
+			// first). A call from code in the same page (its local entry set ntc_ovl_lc) needs
+			// no switch. A class in more than one page: the copy is picked (ntc_ovl_enterc)
 			declare(procBase(objProc_a) + '_pg', 'int', 0);
-			arrCode.push(strIndent + 'ld hl, ' + objClassKind[objProc_a.module].blk + '\t; overlay ' + objClassKind[objProc_a.module].file);
-			arrCode.push(strIndent + 'ld de, ' + procBase(objProc_a) + '_pg');
-			arrCode.push(strIndent + 'ld ix, ' + strBody + '_in');
-			arrCode.push(strIndent + 'jp ntc_ovl_enter');
-			arrCode.push(strBody + '_in:');
+			objStubClass[strBody] = { module: objProc_a.module, proc: objProc_a.full, mode: strMode_a };
+			if (objLocalCalled[objProc_a.full])
+			{
+				arrCode.push(strIndent + 'ld a, (ntc_ovl_lc)\t; called from its own page?');
+				arrCode.push(strIndent + 'or a');
+				arrCode.push(strIndent + 'jr z, ' + strBody + '_far');
+				arrCode.push(strIndent + 'xor a');
+				arrCode.push(strIndent + 'ld (ntc_ovl_lc), a');
+				arrCode.push(strIndent + 'dec a');
+				arrCode.push(strIndent + 'ld (' + procBase(objProc_a) + '_pg), a\t; #FF..: no page back on return');
+				arrCode.push(strIndent + 'ld (' + procBase(objProc_a) + '_pg+1), a');
+				arrCode.push(strIndent + 'jr ' + strBody + '_in');
+				arrCode.push(strBody + '_far:');
+			}
+			if (objClassKind[objProc_a.module].pages.length > 1)
+			{
+				arrCode.push(strIndent + 'ld hl, ' + strBody + '_ct\t; its copies (' + objClassKind[objProc_a.module].pages.map(function(str_a) { return objPages[str_a].name; }).join(', ') + ')');
+				arrCode.push(strIndent + 'ld de, ' + procBase(objProc_a) + '_pg');
+				arrCode.push(strIndent + 'ld ix, ' + strBody + '_in');
+				arrCode.push(strIndent + 'jp ntc_ovl_enterc');
+				arrCode.push(strBody + '_in:');
+				arrCode.push(strIndent + 'ld sp, (ntc_ovl_body)');
+			}
+			else
+			{
+				arrCode.push(strIndent + 'ld hl, ' + objClassKind[objProc_a.module].blk + '\t; page ' + objClassKind[objProc_a.module].file);
+				arrCode.push(strIndent + 'ld de, ' + procBase(objProc_a) + '_pg');
+				arrCode.push(strIndent + 'ld ix, ' + strBody + '_in');
+				arrCode.push(strIndent + 'jp ntc_ovl_enter');
+				arrCode.push(strBody + '_in:');
+				arrCode.push(strIndent + 'ld sp, ' + strBody);
+			}
 		}
-		arrCode.push(strIndent + 'ld sp, ' + strBody);
+		else
+		{
+			arrCode.push(strIndent + 'ld sp, ' + strBody);
+		}
 		arrCode.push(strIndent + exitCode(strMode_a));
 
 		arrCode.push(strBody + '_r:\t\t; end of ' + objProc_a.id);
@@ -2901,10 +2962,18 @@ function ntcCompile(input_a, objOptions_a)
 			arrCode.push(strIndent + 'ld a, (ntc_hookset)\t; Interrupt hook done: may run again');
 			arrCode.push(strIndent + 'ld (ntc_hookon), a');
 		}
+		if (isOverlayProc(objProc_a) && objLocalCalled[objProc_a.full])
+		{
+			arrCode.push(strIndent + 'ld hl, (' + procBase(objProc_a) + '_pg)');
+			arrCode.push(strIndent + 'ld a, h');
+			arrCode.push(strIndent + 'and l');
+			arrCode.push(strIndent + 'inc a');
+			arrCode.push(strIndent + 'jr z, ' + strBody + '_rb\t; a call from its own page: nothing to switch back');
+		}
 		if (isOverlayProc(objProc_a) && (objMemory.scheme === 'small'))
 		{
-			// one overlay area: the caller's class back in it, if another took its place
-			arrCode.push(strIndent + 'ld hl, (' + procBase(objProc_a) + '_pg)\t; the caller\'s class back in the overlay area');
+			// one overlay area: the caller's page back in it, if another took its place
+			arrCode.push(strIndent + 'ld hl, (' + procBase(objProc_a) + '_pg)\t; the caller\'s page back in the overlay area');
 			arrCode.push(strIndent + 'ld ix, ' + strBody + '_rb');
 			arrCode.push(strIndent + 'jp ntc_ovl_ret');
 			arrCode.push(strBody + '_rb:');
@@ -2914,11 +2983,15 @@ function ntcCompile(input_a, objOptions_a)
 			arrCode.push(strIndent + 'ld sp, (ntc_csp)\t\t; the caller\'s page back');
 			arrCode.push(strIndent + 'ld hl, (' + procBase(objProc_a) + '_pg)');
 			arrCode.push(strIndent + 'call mem_sel');
+			if (objLocalCalled[objProc_a.full])
+			{
+				arrCode.push(strBody + '_rb:');
+			}
 		}
-		if (objClassKind[objProc_a.module] && (objClassKind[objProc_a.module].kind === 'interrupt') && (objProc_a.id.toLowerCase() === 'tick'))
+		if (objClassKind[objProc_a.module] && objClassKind[objProc_a.module].isl && (objProc_a.id.toLowerCase() === 'tick'))
 		{
 			arrCode.push(strIndent + 'xor a\t\t\t; Tick done: it may run again');
-			arrCode.push(strIndent + 'ld (ntc_isl + ' + (objClassKind[objProc_a.module].slot * 8 + 4) + '), a');
+			arrCode.push(strIndent + 'ld (ntc_isl + ' + (objClassKind[objProc_a.module].isl.slot * 8 + 4) + '), a');
 		}
 		arrCode.push(strIndent + 'ld sp, (' + strRs + ')');
 		arrCode.push(strIndent + exitCode(strMode_a));
@@ -6606,6 +6679,280 @@ function ntcCompile(input_a, objOptions_a)
 		strCopy = '';
 	}
 
+	// the pages' contents: for each page its classes' threads (copies of a class that is in
+	// more than one page get every label they define renamed, label__page), calls between
+	// classes of the same page through local entries (no page switch), GOTO / GOSUB stubs
+	// for the renamed copies, the paged variables; the copy tables (main memory) and the
+	// DISPLAY lines of the layout (sjasmplus prints them when assembling)
+	function composePages()
+	{
+		var objOut = { pages: {}, vars: {}, display: {}, tables: [], layout: [] };
+		var strIndent = '\t\t\t';
+
+		function homeOf(strModule_a)
+		{
+			return objClassKind[strModule_a].home;
+		}
+		function sfxOf(strModule_a, strPage_a)
+		{
+			return (homeOf(strModule_a) === strPage_a) ? '' : '__' + strPage_a;
+		}
+		function codeEnd(str_a)
+		{
+			var intI = str_a.indexOf(';');
+
+			return (intI < 0) ? str_a.length : intI;
+		}
+
+		arrPageOrder.forEach(function(strId_a)
+		{
+			var objPage = objPages[strId_a];
+			var arrLines = [];
+			var arrVars = [];
+			var arrDisplay = [];
+			var arrEntries = [];
+			var objEntries = {};
+			var arrStubs = [];
+			var intVars = 0;
+			var intEst = 0;
+			var arrSizes = [];
+
+			objPage.classes.forEach(function(strModule_a, intClass_a)
+			{
+				var strSfx = sfxOf(strModule_a, strId_a);
+				var arrDefs = [];
+				var objStubUsed = {};
+				var objRe = null;
+				var strTag = 'ovl_' + strId_a + '__' + intClass_a;
+				var intBytes = 0;
+
+				(objOvlAsm[strModule_a] || []).forEach(function(str_a)
+				{
+					var arrMatch = str_a.match(/^([A-Za-z_]\w*):/);
+
+					if (arrMatch)
+					{
+						arrDefs.push(arrMatch[1]);
+					}
+				});
+				(objOvlVars[strModule_a] || []).forEach(function(objItem_a)
+				{
+					arrDefs.push(objItem_a.label);
+				});
+				if ((strSfx.length > 0) && (arrDefs.length > 0))
+				{
+					objRe = new RegExp('\\b(' + arrDefs.join('|') + ')(_go|_gs|_rt)?\\b', 'g');
+					// #asm blocks are in main memory, shared by the copies: one that names a label
+					// of the class's threads would reach the home copy from every page
+					arrAsmBlocks.forEach(function(objBlock_a)
+					{
+						var objFound = null;
+
+						if (objBlock_a.module !== strModule_a)
+						{
+							return;
+						}
+						objBlock_a.lines.forEach(function(str_a)
+						{
+							var arrWords = str_a.substr(0, codeEnd(str_a)).match(/[A-Za-z_]\w*/g) || [];
+
+							arrWords.forEach(function(strWord_a)
+							{
+								if ((objFound === null) && (arrDefs.indexOf(strWord_a) > -1))
+								{
+									objFound = strWord_a;
+								}
+							});
+						});
+						if ((objFound !== null) && (intClass_a >= 0) && !objBlock_a.copyerr)
+						{
+							objBlock_a.copyerr = true;
+							arrErrors.push({ file: objBlock_a.file, line: objBlock_a.line, msg: 'an #asm block in ' + strModule_a + ' names ' + objFound + ' (its threads): ' + strModule_a + ' is in more than one page, and the block (in main memory) would reach the home copy from every page' });
+						}
+					});
+				}
+				arrLines.push(strTag + '_s:\t\t; ' + strModule_a + ((strSfx.length > 0) ? ' (a copy: its labels end ' + strSfx + ')' : ''));
+				(objOvlAsm[strModule_a] || []).forEach(function(str_a)
+				{
+					var intEnd = codeEnd(str_a);
+					var strCode = str_a.substr(0, intEnd);
+					var strRest = str_a.substr(intEnd);
+					var arrMatch = strCode.match(/^(\s*dw\s+)([A-Za-z_]\w*)(.*)$/);
+					var strWord = '';
+					var objCallee = null;
+					var strEntry = '';
+
+					// a call to a class in this page: its local entry
+					if (arrMatch && (arrMatch[2].length > 2) && (arrMatch[2].substr(arrMatch[2].length - 2) === '_c'))
+					{
+						strWord = arrMatch[2].substr(0, arrMatch[2].length - 2);
+						objCallee = objStubClass[strWord];
+						if (objCallee && (objPage.classes.indexOf(objCallee.module) > -1) && objLocalCalled[objCallee.proc])
+						{
+							strEntry = strWord + '_cl' + sfxOf(objCallee.module, strId_a);
+							if (objEntries[strEntry] === undefined)
+							{
+								objEntries[strEntry] = true;
+								arrEntries.push({ label: strEntry, body: strWord + sfxOf(objCallee.module, strId_a), stub: strWord + '_c', copied: objClassKind[objCallee.module].pages.length > 1 });
+							}
+							strCode = arrMatch[1] + strEntry + arrMatch[3];
+						}
+					}
+					if (objRe !== null)
+					{
+						strCode = strCode.replace(objRe, function(strAll_a, strName_a, strKind_a)
+						{
+							if (strKind_a)
+							{
+								objStubUsed[strName_a + '|' + strKind_a] = { name: strName_a, kind: strKind_a };
+							}
+							return strName_a + strSfx + (strKind_a || '');
+						});
+					}
+					arrMatch = strCode.match(/^\s*dw\s+(.*)$/);
+					if (arrMatch)
+					{
+						intBytes += 2 * arrMatch[1].split(',').length;
+					}
+					arrLines.push(strCode + strRest);
+				});
+				// GOTO / GOSUB stubs for a copy's renamed labels (the program's point to the home copy)
+				Object.keys(objStubUsed).forEach(function(strKey_a)
+				{
+					var objUse = objStubUsed[strKey_a];
+					var strMode_ = objLabelMode[objUse.name] || 't';
+
+					if (objUse.kind === '_go')
+					{
+						arrStubs.push(objUse.name + strSfx + '_go:' + strIndent + 'ld sp, ' + objUse.name + strSfx);
+						arrStubs.push(strIndent + exitCode(strMode_));
+					}
+					else if (objUse.kind === '_gs')
+					{
+						arrStubs.push(objUse.name + strSfx + '_gs:' + strIndent + 'ld (' + objUse.name + '_rs), sp');
+						arrStubs.push(strIndent + 'ld sp, ' + objUse.name + strSfx);
+						arrStubs.push(strIndent + exitCode(strMode_));
+					}
+					else
+					{
+						arrStubs.push(objUse.name + strSfx + '_rt:' + strIndent + 'ld sp, (' + objUse.name + '_rs)');
+						arrStubs.push(strIndent + exitCode(strMode_));
+					}
+					intBytes += 5;
+				});
+				arrLines.push(strTag + '_e:');
+				arrSizes.push({ module: strModule_a, tag: strTag, copy: strSfx.length > 0, bytes: intBytes });
+				intEst += intBytes;
+			});
+			if ((arrEntries.length > 0) || (arrStubs.length > 0))
+			{
+				arrLines.push('; calls from this page into it (no page switch), GOTO / GOSUB of copies');
+				arrLines.push('ovl_' + strId_a + '__x_s:');
+			}
+			arrEntries.forEach(function(objEntry_a)
+			{
+				if (objEntry_a.copied)
+				{
+					arrLines.push(objEntry_a.label + ':' + strIndent + 'ld hl, ' + objEntry_a.body + '\t; this page\'s copy');
+					arrLines.push(strIndent + 'ld (ntc_ovl_body), hl');
+					arrLines.push(strIndent + 'ld a, 1');
+					intEst += 6;
+				}
+				else
+				{
+					arrLines.push(objEntry_a.label + ':' + strIndent + 'ld a, 1');
+				}
+				arrLines.push(strIndent + 'ld (ntc_ovl_lc), a');
+				arrLines.push(strIndent + 'jp ' + objEntry_a.stub);
+				intEst += 8;
+			});
+			arrLines = arrLines.concat(arrStubs);
+			if ((arrEntries.length > 0) || (arrStubs.length > 0))
+			{
+				arrLines.push('ovl_' + strId_a + '__x_e:');
+			}
+			arrLines.push(strIndent + 'dw 0\t\t\t; (never empty)');
+			// Paged Strings: in the file (their capacity byte goes before them), each copy its own
+			objPage.classes.forEach(function(strModule_a)
+			{
+				var strSfx = sfxOf(strModule_a, strId_a);
+
+				(objOvlVars[strModule_a] || []).forEach(function(objItem_a)
+				{
+					if ((objItem_a.kind === 'str') || (objItem_a.kind === 'strfix'))
+					{
+						arrLines.push(strIndent + 'db ' + objItem_a.size + '\t\t\t; capacity');
+						if (objItem_a.kind === 'str')
+						{
+							arrLines.push(objItem_a.label + strSfx + ':' + strIndent + 'ds ' + (objItem_a.size + 1));
+						}
+						else
+						{
+							arrLines.push(objItem_a.label + strSfx + ':' + strIndent + 'ds ' + objItem_a.size + ', 32');
+							arrLines.push(strIndent + 'db 0');
+						}
+						intEst += objItem_a.size + 2;
+					}
+				});
+			});
+			objPage.classes.forEach(function(strModule_a)
+			{
+				var strSfx = sfxOf(strModule_a, strId_a);
+
+				(objOvlVars[strModule_a] || []).forEach(function(objItem_a)
+				{
+					var intSize = (objItem_a.kind === 'long') ? 4 : (((objItem_a.kind === 'str') || (objItem_a.kind === 'strfix')) ? 0 : (bssSize(objItem_a) || 2));
+
+					if (intSize > 0)
+					{
+						arrVars.push(objItem_a.label + strSfx + '\t\tequ ovl_' + strId_a + '_end + ' + intVars + '\t\t; ' + intSize + ' bytes (' + strModule_a + ')');
+						intVars += intSize;
+					}
+				});
+			});
+			arrVars.push('ovl_' + strId_a + '_vsize\tequ ' + intVars + '\t\t; its page variables; its local memory is the rest, to #8000');
+			// the layout, as the assembler counts it
+			arrDisplay.push(strIndent + 'DISPLAY "page ' + objPage.name + ':"');
+			arrSizes.forEach(function(objSize_a)
+			{
+				arrDisplay.push(strIndent + 'DISPLAY "  ' + objSize_a.module + (objSize_a.copy ? ' (copy)' : (objClassKind[objSize_a.module].pages.length > 1 ? ' (home)' : '')) + ' ", /D, ' + objSize_a.tag + '_e - ' + objSize_a.tag + '_s');
+			});
+			if ((arrEntries.length > 0) || (arrStubs.length > 0))
+			{
+				arrDisplay.push(strIndent + 'DISPLAY "  (local entries, stubs) ", /D, ovl_' + strId_a + '__x_e - ovl_' + strId_a + '__x_s');
+			}
+			arrDisplay.push(strIndent + 'DISPLAY "  page variables ", /D, ovl_' + strId_a + '_vsize, ", free ", /D, #8000 - (ovl_' + strId_a + '_end + ovl_' + strId_a + '_vsize)');
+			objOut.pages[strId_a] = arrLines;
+			objOut.vars[strId_a] = arrVars;
+			objOut.display[strId_a] = arrDisplay;
+			if (intEst + intVars + 2 > 16384)
+			{
+				arrErrors.push({ file: objPage.srcfile, line: objPage.line, msg: 'page ' + objPage.name + ' (' + objPage.classes.join(', ') + ') is more than 16K: about ' + (intEst + intVars + 2) + ' bytes' });
+			}
+			objOut.layout.push({ page: objPage.name, file: objPage.file, classes: arrSizes.map(function(objSize_a) { return { module: objSize_a.module, copy: objSize_a.copy, home: !objSize_a.copy && (objClassKind[objSize_a.module].pages.length > 1), bytes: objSize_a.bytes }; }), vars: intVars, bytes: intEst + intVars + 2 });
+		});
+		// the copy tables: a procedure of a class in more than one page
+		Object.keys(objStubClass).forEach(function(strBody_a)
+		{
+			var objStub = objStubClass[strBody_a];
+			var arrIn = objClassKind[objStub.module].pages;
+			var arrRows = [];
+
+			if (arrIn.length < 2)
+			{
+				return;
+			}
+			// with Private Paged variables each copy keeps its own: calls from outside use the home copy
+			arrRows = ((objOvlVars[objStub.module] || []).length > 0) ? [arrIn[0]] : arrIn;
+			objOut.tables.push(strBody_a + '_ct:\tdb ' + arrRows.length + ((arrRows.length < arrIn.length) ? '\t\t; paged variables: the home copy only' : ''));
+			arrRows.forEach(function(strPage_a)
+			{
+				objOut.tables.push(strIndent + 'dw ' + objPages[strPage_a].blk + ', ' + strBody_a + sfxOf(objStub.module, strPage_a));
+			});
+		});
+		return objOut;
+	}
+
 	// a procedure of an overlay class (not an asm keyword: those stay in main memory)
 	function isOverlayProc(objProc_a)
 	{
@@ -7285,6 +7632,312 @@ function ntcCompile(input_a, objOptions_a)
 		return objResult;
 	}
 
+	// the source lines a pre-pass may look at: #If / #ElseIf / #Else / #End If and #Const
+	// followed (with the compile's predefined names), comments and strings kept as they are
+	function activeLines(strText_a)
+	{
+		var arrOut = [];
+		var arrSkip = [];
+		var objDefs = {};
+		var strKey = '';
+
+		for (strKey in objDefinesIn)
+		{
+			if (objDefinesIn.hasOwnProperty(strKey))
+			{
+				objDefs[strKey] = objDefinesIn[strKey];
+			}
+		}
+		function value(strExpr_a)
+		{
+			var arrStack = [];
+			var arrTokens = [];
+			var intA = 0;
+			var intB = 0;
+
+			try
+			{
+				arrTokens = IFtoPF(strExpr_a.replace(/\bthen\b/gi, ''), []).split(' ');
+			}
+			catch (e)
+			{
+				return 0;
+			}
+			arrTokens.forEach(function(strToken_a)
+			{
+				var strUpper = strToken_a.toUpperCase();
+
+				if (strToken_a.length === 0)
+				{
+					return;
+				}
+				if (strUpper === 'NOT')
+				{
+					arrStack.push(~(arrStack.pop() || 0));
+				}
+				else if ((strUpper === 'AND') || (strUpper === 'OR') || (strUpper === 'XOR') || (strUpper === '=') || (strUpper === '<>'))
+				{
+					intB = arrStack.pop() || 0;
+					intA = arrStack.pop() || 0;
+					arrStack.push((strUpper === 'AND') ? (intA & intB) : ((strUpper === 'OR') ? (intA | intB) : ((strUpper === 'XOR') ? (intA ^ intB) : ((strUpper === '=') ? ((intA === intB) ? -1 : 0) : ((intA !== intB) ? -1 : 0)))));
+				}
+				else if (/^\d+$/.test(strToken_a))
+				{
+					arrStack.push(parseInt(strToken_a, 10));
+				}
+				else
+				{
+					arrStack.push((strUpper === 'TRUE') ? -1 : ((objDefs[strToken_a.toLowerCase()] !== undefined) ? objDefs[strToken_a.toLowerCase()] : 0));
+				}
+			});
+			return (arrStack.length > 0) ? arrStack[arrStack.length - 1] : 0;
+		}
+		function skipping()
+		{
+			return arrSkip.some(function(objTop_a) { return objTop_a.skip; });
+		}
+		String(strText_a).split(/\r?\n/).forEach(function(strLine_a, intLine_a)
+		{
+			var strL = strLine_a.replace(/^\s+|\s+$/g, '').toLowerCase().replace(/\s+/g, ' ');
+			var arrMatch = null;
+			var objTop = null;
+
+			if ((arrMatch = strL.match(/^#(?:const|define) ([a-z_]\w*) ?=? ?(.*)$/)))
+			{
+				if (!skipping())
+				{
+					objDefs[arrMatch[1]] = value(arrMatch[2] || '1');
+				}
+			}
+			else if ((arrMatch = strL.match(/^#if (.+?)( then)?$/)))
+			{
+				objTop = { skip: skipping(), done: skipping() };
+				if (!objTop.skip)
+				{
+					objTop.skip = (value(arrMatch[1]) === 0);
+					objTop.done = !objTop.skip;
+				}
+				arrSkip.push(objTop);
+			}
+			else if ((arrMatch = strL.match(/^#elseif (.+?)( then)?$/)) && (arrSkip.length > 0))
+			{
+				objTop = arrSkip.pop();
+				if (objTop.done || skipping())
+				{
+					objTop.skip = true;
+				}
+				else
+				{
+					objTop.skip = (value(arrMatch[1]) === 0);
+					objTop.done = !objTop.skip;
+				}
+				arrSkip.push(objTop);
+			}
+			else if ((strL === '#else') && (arrSkip.length > 0))
+			{
+				objTop = arrSkip.pop();
+				objTop.skip = objTop.done || skipping();
+				objTop.done = true;
+				arrSkip.push(objTop);
+			}
+			else if (((strL === '#end if') || (strL === '#endif')) && (arrSkip.length > 0))
+			{
+				arrSkip.pop();
+			}
+			else if (!skipping())
+			{
+				arrOut.push({ text: strLine_a, line: intLine_a + 1 });
+			}
+		});
+		return arrOut;
+	}
+
+	// a file's module name (Attribute VB_Name, else the file name), lower case
+	function fileModule(objFile_a)
+	{
+		var arrName = String(objFile_a.text).match(/Attribute\s+VB_Name\s*=\s*"([^"]+)"/i);
+
+		return (arrName ? arrName[1] : String(objFile_a.name).replace(/^.*[\/\\]/, '').replace(/\.\w+$/, '')).toLowerCase();
+	}
+
+	// Option Page "NAME" = Class, Class ... (any file; the main file by custom), Option Class
+	// Overlay ["NAME"] (in a class: that class joins page NAME, by default its own name) and
+	// Option Home Class = "NAME" (which copy calls from outside its pages use): the pages,
+	// read before parsing because the classes get members that name their page's block
+	function scanPages(arrFiles_a)
+	{
+		var objModules = {};
+		var objHome = {};
+		var arrHomes = [];
+
+		function pageFile(str_a)
+		{
+			return String(str_a).toUpperCase().replace(/\.PAG$/, '').replace(/[^A-Z0-9]/g, '').substr(0, 8);
+		}
+		function addPage(strName_a, strFile_a, intLine_a)
+		{
+			var strFile = pageFile(strName_a);
+			var strId = strFile.toLowerCase();
+
+			if (strFile.length === 0)
+			{
+				arrErrors.push({ file: strFile_a, line: intLine_a, msg: 'Option Page: no file name' });
+				return null;
+			}
+			if (objPages[strId] === undefined)
+			{
+				objPages[strId] = { name: strFile, file: strFile + '.PAG', id: strId, blk: 'ovl_blk_' + strId, classes: [], srcfile: strFile_a, line: intLine_a };
+				arrPageOrder.push(strId);
+			}
+			return objPages[strId];
+		}
+		function addClass(objPage_a, strModule_a, strFile_a, intLine_a, blnSugar_a)
+		{
+			if (objPage_a.classes.indexOf(strModule_a) > -1)
+			{
+				if (!blnSugar_a)
+				{
+					arrErrors.push({ file: strFile_a, line: intLine_a, msg: 'Option Page "' + objPage_a.name + '": ' + strModule_a + ' is in it twice' });
+				}
+				return;
+			}
+			objPage_a.classes.push(strModule_a);
+			objClassPages[strModule_a] = (objClassPages[strModule_a] || []).concat([objPage_a.id]);
+		}
+
+		arrFiles_a.forEach(function(objFile_a)
+		{
+			objModules[fileModule(objFile_a)] = objFile_a;
+		});
+		// Option Page lines first (all files, in order), then Option Class Overlay
+		arrFiles_a.forEach(function(objFile_a)
+		{
+			activeLines(objFile_a.text).forEach(function(objLine_a)
+			{
+				var strCode = objLine_a.text.replace(/'.*$/, '');
+				var arrMatch = strCode.match(/^\s*option\s+page\s+"([^"]*)"\s*=\s*(.*?)\s*$/i);
+				var objPage = null;
+
+				if (arrMatch)
+				{
+					objPage = addPage(arrMatch[1], objFile_a.name, objLine_a.line);
+					if (objPage === null)
+					{
+						return;
+					}
+					if (objPage.declared)
+					{
+						arrErrors.push({ file: objFile_a.name, line: objLine_a.line, msg: 'Option Page "' + objPage.name + '" is declared twice (the first: ' + objPage.srcfile + ' line ' + objPage.line + ')' });
+						return;
+					}
+					objPage.declared = true;
+					objPage.srcfile = objFile_a.name;
+					objPage.line = objLine_a.line;
+					arrMatch[2].split(',').forEach(function(strClass_a)
+					{
+						var strModule = strClass_a.replace(/^\s+|\s+$/g, '').toLowerCase();
+
+						if (strModule.length === 0)
+						{
+							return;
+						}
+						if ((objModules[strModule] === undefined) || !/\.cls$/i.test(String(objModules[strModule].name)))
+						{
+							arrErrors.push({ file: objFile_a.name, line: objLine_a.line, msg: 'Option Page "' + objPage.name + '": no class ' + strClass_a.replace(/^\s+|\s+$/g, '') + ' in the project' });
+							return;
+						}
+						addClass(objPage, strModule, objFile_a.name, objLine_a.line, false);
+					});
+				}
+				else if (/^\s*option\s+page\b/i.test(strCode))
+				{
+					arrErrors.push({ file: objFile_a.name, line: objLine_a.line, msg: 'Option Page "NAME" = Class, Class ...' });
+				}
+				else if ((arrMatch = strCode.match(/^\s*option\s+home\s+([a-z_]\w*)\s*=\s*"([^"]*)"\s*$/i)))
+				{
+					arrHomes.push({ module: arrMatch[1].toLowerCase(), page: pageFile(arrMatch[2]).toLowerCase(), file: objFile_a.name, line: objLine_a.line });
+				}
+				else if (/^\s*option\s+home\b/i.test(strCode))
+				{
+					arrErrors.push({ file: objFile_a.name, line: objLine_a.line, msg: 'Option Home Class = "PAGE"' });
+				}
+			});
+		});
+		arrFiles_a.forEach(function(objFile_a)
+		{
+			var strModule = fileModule(objFile_a);
+
+			if (!/\.cls$/i.test(String(objFile_a.name)))
+			{
+				return;
+			}
+			activeLines(objFile_a.text).forEach(function(objLine_a)
+			{
+				var arrMatch = objLine_a.text.replace(/'.*$/, '').match(/^\s*option\s+class\s+overlay\s*(?:"([^"]*)")?\s*$/i);
+				var objPage = null;
+
+				if (arrMatch)
+				{
+					objPage = addPage(arrMatch[1] || strModule, objFile_a.name, objLine_a.line);
+					if (objPage !== null)
+					{
+						addClass(objPage, strModule, objFile_a.name, objLine_a.line, true);
+					}
+				}
+			});
+		});
+		arrPageOrder.forEach(function(strId_a)
+		{
+			if (objPages[strId_a].classes.length === 0)
+			{
+				arrErrors.push({ file: objPages[strId_a].srcfile, line: objPages[strId_a].line, msg: 'Option Page "' + objPages[strId_a].name + '": no classes in it' });
+			}
+		});
+		arrHomes.forEach(function(objHome_a)
+		{
+			var arrIn = objClassPages[objHome_a.module];
+
+			if (arrIn === undefined)
+			{
+				arrErrors.push({ file: objHome_a.file, line: objHome_a.line, msg: 'Option Home: ' + objHome_a.module + ' is in no Option Page' });
+			}
+			else if (arrIn.indexOf(objHome_a.page) < 0)
+			{
+				arrErrors.push({ file: objHome_a.file, line: objHome_a.line, msg: 'Option Home: ' + objHome_a.module + ' is not in page ' + objHome_a.page.toUpperCase() });
+			}
+			else
+			{
+				objClassPages[objHome_a.module] = [objHome_a.page].concat(arrIn.filter(function(str_a) { return str_a !== objHome_a.page; }));
+			}
+		});
+		if ((arrPageOrder.length > 0) && !overlayPlatform())
+		{
+			arrErrors.push({ file: objPages[arrPageOrder[0]].srcfile, line: objPages[arrPageOrder[0]].line, msg: 'Option Page / Option Class Overlay needs a platform that can load files: cpcfw, cpcmin or cpm (not ' + objOptions.platform + ')' });
+			objPages = {};
+			arrPageOrder = [];
+			objClassPages = {};
+			return;
+		}
+		// the classes: overlay kind, their buffers
+		arrPageOrder.forEach(function(strId_a)
+		{
+			objPages[strId_a].classes.forEach(function(strModule_a)
+			{
+				var objHomePage = null;
+
+				if (objClassKind[strModule_a] !== undefined)
+				{
+					return;
+				}
+				objHomePage = objPages[objClassPages[strModule_a][0]];
+				objClassKind[strModule_a] = { kind: 'overlay', pages: objClassPages[strModule_a], home: objHomePage.id, file: objHomePage.file, blk: objHomePage.blk, id: objHomePage.id };
+				arrOvlOrder.push(strModule_a);
+				objOvlAsm[strModule_a] = [];
+				objOvlVars[strModule_a] = [];
+			});
+		});
+	}
+
 	// Option Class Overlay: the class gets Load / Unload / Loaded / Page members (asm
 	// keywords, so they stay in main memory: they work when the class isn't loaded)
 	function addOverlayMembers(arrFiles_a)
@@ -7292,18 +7945,14 @@ function ntcCompile(input_a, objOptions_a)
 		return arrFiles_a.map(function(objFile_a)
 		{
 			var strText = String(objFile_a.text);
-			var arrMatch = strText.match(/^[ \t]*option[ \t]+class[ \t]+overlay\b/im);
-			var arrName = null;
-			var strModule = '';
+			var strModule = fileModule(objFile_a);
 			var strBlk = '';
 
-			if (!arrMatch || !overlayPlatform())
+			if (!/\.cls$/i.test(String(objFile_a.name)) || (objClassKind[strModule] === undefined) || (objClassKind[strModule].kind !== 'overlay'))
 			{
-				return objFile_a;		// not here: Option Class says why
+				return objFile_a;		// not a class in a page
 			}
-			arrName = strText.match(/Attribute\s+VB_Name\s*=\s*"([^"]+)"/i);
-			strModule = (arrName ? arrName[1] : String(objFile_a.name).replace(/^.*[\/\\]/, '').replace(/\.\w+$/, '')).toLowerCase();
-			strBlk = 'ovl_blk_' + strModule.replace(/[^a-z0-9_]/g, '_');
+			strBlk = objClassKind[strModule].blk;		// its (home) page's block
 			strText += '\n' + [
 				'\' ---- overlay class members (added by the compiler)',
 				'Public Function Load() As Integer', '#asm', '\t\t\tpop hl', '\t\t\tld (ovl_kres), hl', '\t\t\tld hl, ' + strBlk, '\t\t\tjp ntc_ovl_kload', '#endasm', 'End Function',
@@ -7345,21 +7994,11 @@ function ntcCompile(input_a, objOptions_a)
 		}
 		if ((arrMatch = strValue.match(/^\s*overlay\s*(?:"([^"]*)")?\s*$/i)))
 		{
+			// read by the pre-pass (scanPages: the class joins its page); only the platform here
 			if (!overlayPlatform())
 			{
 				arrErrors.push({ file: objRec_a.file, line: objRec_a.line, msg: 'Option Class Overlay needs a platform that can load files: cpcfw, cpcmin or cpm (not ' + objOptions.platform + ')' });
-				return;
 			}
-			strFile = (arrMatch[1] || objRec_a.module).toUpperCase().replace(/\.PAG$/, '').replace(/[^A-Z0-9]/g, '').substr(0, 8);
-			if (strFile.length === 0)
-			{
-				arrErrors.push({ file: objRec_a.file, line: objRec_a.line, msg: 'Option Class Overlay: no file name' });
-				return;
-			}
-			objClassKind[objRec_a.module] = { kind: 'overlay', file: strFile + '.PAG', blk: 'ovl_blk_' + objRec_a.module.replace(/[^a-z0-9_]/g, '_'), id: objRec_a.module.replace(/[^a-z0-9_]/g, '_') };
-			arrOvlOrder.push(objRec_a.module);
-			objOvlAsm[objRec_a.module] = [];
-			objOvlVars[objRec_a.module] = [];
 			return;
 		}
 		if ((arrMatch = strValue.match(/^\s*interrupt\s+(frame|\d+)\s*$/i)))
@@ -7367,6 +8006,16 @@ function ntcCompile(input_a, objOptions_a)
 			if (!objPlat.irq)
 			{
 				arrErrors.push({ file: objRec_a.file, line: objRec_a.line, msg: 'Option Class Interrupt needs a CPC platform: cpc, cpcmin or cpcfw (not ' + objOptions.platform + ')' });
+				return;
+			}
+			if ((objClassKind[objRec_a.module] !== undefined) && (objMemory.scheme === 'small'))
+			{
+				arrErrors.push({ file: objRec_a.file, line: objRec_a.line, msg: 'Option Class Interrupt: ' + objRec_a.module + ' is in a page, and with one overlay area (Option Memory Small, cpm) its Tick would load it from disc - keep it in main RAM' });
+				return;
+			}
+			if ((objClassKind[objRec_a.module] !== undefined) && objClassKind[objRec_a.module].isl)
+			{
+				arrErrors.push({ file: objRec_a.file, line: objRec_a.line, msg: 'Option Class Interrupt: given twice' });
 				return;
 			}
 			intRate = (arrMatch[1].toLowerCase() === 'frame') ? 0 : parseInt(arrMatch[1], 10);
@@ -7380,7 +8029,15 @@ function ntcCompile(input_a, objOptions_a)
 				arrErrors.push({ file: objRec_a.file, line: objRec_a.line, msg: 'Option Class Interrupt: 4 interrupt classes at most' });
 				return;
 			}
-			objClassKind[objRec_a.module] = { kind: 'interrupt', rate: intRate, slot: arrIslots.length };
+			if (objClassKind[objRec_a.module] !== undefined)
+			{
+				// a class in a page with a Tick (a driver): the Tick's call switches its page in
+				objClassKind[objRec_a.module].isl = { rate: intRate, slot: arrIslots.length };
+			}
+			else
+			{
+				objClassKind[objRec_a.module] = { kind: 'interrupt', rate: intRate, slot: arrIslots.length, isl: { rate: intRate, slot: arrIslots.length } };
+			}
 			arrIslots.push({ module: objRec_a.module, rate: intRate, file: objRec_a.file, line: objRec_a.line });
 			return;
 		}
@@ -7614,12 +8271,18 @@ function ntcCompile(input_a, objOptions_a)
 	}
 	arrFiles = addPlatformClasses(arrFiles);
 	objMemory = findMemory(arrFiles);
-	arrFiles = addOverlayMembers(arrFiles);
 	objDefinesIn = { ntc: -1 };
 	objDefinesIn['ntc_' + String(objOptions.platform).toLowerCase()] = -1;	// #If NTC_CPM Then ...
 	strTerminal = findTerminal(arrFiles);
-	objMemory = findMemory(arrFiles);
 	objDefinesIn['ntc_mem_' + objMemory.scheme] = -1;		// #If NTC_MEM_SMALL Then ... (and @if: library sections)
+	if (strTerminal !== 'none')
+	{
+		objDefinesIn['ntc_term_' + strTerminal] = -1;
+		objDefinesIn.ntc_term_pos = -1;
+	}
+	scanPages(arrFiles);
+	arrFiles = addOverlayMembers(arrFiles);
+	objMemory = findMemory(arrFiles);
 	blnMemoryUsed = arrFiles.some(function(objFile_a) { return /(^|[\/\\])(memory|list)\.cls$/i.test(String(objFile_a.name)); });
 	if (strTerminal !== 'none')
 	{
@@ -7738,7 +8401,7 @@ function ntcCompile(input_a, objOptions_a)
 	{
 		if (objEl.hasOwnProperty(strCur) && objEl[strCur].paged && (objOvlVars[objEl[strCur].module] === undefined))
 		{
-			arrErrors.push({ file: objEl[strCur].file || '', line: objEl[strCur].line || 0, msg: 'Paged variables (' + objEl[strCur].id + ') go in an overlay class (Option Class Overlay)' });
+			arrErrors.push({ file: objEl[strCur].file || '', line: objEl[strCur].line || 0, msg: 'Paged variables (' + objEl[strCur].id + ') go in a class in a page (Option Page / Option Class Overlay)' });
 		}
 	}
 	strCur = '';
@@ -7828,6 +8491,7 @@ function ntcCompile(input_a, objOptions_a)
 	decideSubs();
 	decideProcs();
 	decideTempBases();
+	decideLocalCalls();
 
 	// pass 2 - code
 	compilePass(2);
@@ -8482,15 +9146,23 @@ function ntcCompile(input_a, objOptions_a)
 		arrProcList.push({ file: objParse.procs[intI].file, line: objParse.procs[intI].line, name: arrMatch ? arrMatch[1] : objParse.procs[intI].id, kind: objParse.procs[intI].kind, scope: objParse.procs[intI].scope, used: (objProcModes[objParse.procs[intI].full] !== undefined) });
 	}
 
-	if (arrOvlOrder.length > 0)
+	var objPageOut = (arrPageOrder.length > 0) ? composePages() : null;
+	if (objPageOut !== null)
 	{
 		arrAsm.push('');
-		arrAsm.push('; overlay classes: the page each is loaded in (0 = not loaded), its page variables (start, size), its file');
-		arrOvlOrder.forEach(function(strModule_a)
+		arrAsm.push('; pages (Option Page / Option Class Overlay): the RAM page each is loaded in (0 = not loaded),');
+		arrAsm.push('; the end of its code and the size of its page variables, its file');
+		arrPageOrder.forEach(function(strId_a)
 		{
-			arrAsm.push(objClassKind[strModule_a].blk + ':\tdw 0, ovl_' + objClassKind[strModule_a].id + '_end, ovl_' + objClassKind[strModule_a].id + '_vsize');
-			arrAsm.push(strIndent + 'db "' + objClassKind[strModule_a].file + '", 0');
+			arrAsm.push(objPages[strId_a].blk + ':\tdw 0, ovl_' + strId_a + '_end, ovl_' + strId_a + '_vsize');
+			arrAsm.push(strIndent + 'db "' + objPages[strId_a].file + '", 0');
 		});
+		if (objPageOut.tables.length > 0)
+		{
+			arrAsm.push('; classes in more than one page: for each procedure, its copies (the home first): page, body');
+			arrAsm = arrAsm.concat(objPageOut.tables);
+			objUsedT['ntc_ovl'] = true;
+		}
 	}
 	if ((arrOvlOrder.length > 0) && !arrReserve.some(function(objRes_a) { return (objRes_a.start <= 0x4000) && (objRes_a.start + objRes_a.size >= 0x8000); }))
 	{
@@ -8533,14 +9205,15 @@ function ntcCompile(input_a, objOptions_a)
 	if (arrOvlOrder.length > 0)
 	{
 		arrAsm.push(strIndent + 'ASSERT (ntc_free <= #4000) || (ntc_start >= #8000), "overlay classes: the program and its arrays must stay out of #4000-#7FFF (the window they run in)"');
-		arrOvlOrder.forEach(function(strModule_a)
+		arrPageOrder.forEach(function(strId_a)
 		{
-			var objKind = objClassKind[strModule_a];
+			var objKind = objPages[strId_a];
 
 			arrAsm.push('');
 			arrAsm.push('; ============================================================');
-			arrAsm.push('; Overlay class ' + strModule_a + ' -> ' + objKind.file + ': its threads, built to run at #4000');
-			arrAsm.push('; (a C page); its variables are in the program. Written as its own file.');
+			arrAsm.push('; Page ' + objKind.name + ' -> ' + objKind.file + ': ' + objKind.classes.join(', ') + ' - threads built to run at #4000');
+			arrAsm.push('; (a RAM page, or the overlay area); their variables are in the program, but for');
+			arrAsm.push('; Private Paged ones (after the code). Written as its own file.');
 			arrAsm.push('; ============================================================');
 			// an AMSDOS build: a binary file with an AMSDOS header (AMSDOS takes a file without
 			// one for ASCII text, and CAS IN DIRECT won't load it); else the plain bytes
@@ -8567,39 +9240,11 @@ function ntcCompile(input_a, objOptions_a)
 			}
 			arrAsm.push(strIndent + 'ORG #4000');
 			arrAsm.push('ovl_' + objKind.id + '_start:');
-			arrAsm = arrAsm.concat(objOvlAsm[strModule_a]);
-			arrAsm.push(strIndent + 'dw 0\t\t\t; (never empty)');
-			intBss = 0;
-			objOvlVars[strModule_a].forEach(function(objItem_a)
-			{
-				// Paged Strings: in the file (their capacity byte goes before them)
-				if ((objItem_a.kind === 'str') || (objItem_a.kind === 'strfix'))
-				{
-					arrAsm.push(strIndent + 'db ' + objItem_a.size + '\t\t\t; capacity');
-					if (objItem_a.kind === 'str')
-					{
-						arrAsm.push(objItem_a.label + ':' + strIndent + 'ds ' + (objItem_a.size + 1));
-					}
-					else
-					{
-						arrAsm.push(objItem_a.label + ':' + strIndent + 'ds ' + objItem_a.size + ', 32');
-						arrAsm.push(strIndent + 'db 0');
-					}
-				}
-			});
+			arrAsm = arrAsm.concat(objPageOut.pages[strId_a]);
 			arrAsm.push('ovl_' + objKind.id + '_end:\t\t; the end of its file; page variables (cleared on loading) follow');
-			objOvlVars[strModule_a].forEach(function(objItem_a)
-			{
-				var intSize = (objItem_a.kind === 'long') ? 4 : (((objItem_a.kind === 'str') || (objItem_a.kind === 'strfix')) ? 0 : (bssSize(objItem_a) || 2));
-
-				if (intSize > 0)
-				{
-					arrAsm.push(objItem_a.label + '\t\tequ ovl_' + objKind.id + '_end + ' + intBss + '\t\t; ' + intSize + ' bytes');
-					intBss += intSize;
-				}
-			});
-			arrAsm.push('ovl_' + objKind.id + '_vsize\tequ ' + intBss + '\t\t; its page variables; its local memory is the rest, to #8000');
-			arrAsm.push(strIndent + 'ASSERT ovl_' + objKind.id + '_end + ovl_' + objKind.id + '_vsize <= #8000, "overlay class ' + strModule_a + ' is more than 16K (code and page variables)"');
+			arrAsm = arrAsm.concat(objPageOut.vars[strId_a]);
+			arrAsm.push(strIndent + 'ASSERT ovl_' + objKind.id + '_end + ovl_' + objKind.id + '_vsize <= #8000, "page ' + objKind.name + ' (' + objKind.classes.join(', ') + ') is more than 16K (code and page variables)"');
+			arrAsm = arrAsm.concat(objPageOut.display[strId_a]);
 			if ((String(objOptions.amsdos || '').length === 0) || (objOptions.platform === 'cpm'))
 			{
 				arrAsm.push(strIndent + 'OUTEND');
@@ -8611,8 +9256,42 @@ function ntcCompile(input_a, objOptions_a)
 		});
 	}
 
+	var arrLayout = [];
+	if (objPageOut !== null)
+	{
+		// the layout: what is in each page (sizes counted from the threads; the assembler's
+		// DISPLAY lines give the exact ones), and the classes in main RAM that pages call
+		objPageOut.layout.forEach(function(objPage_a)
+		{
+			arrLayout.push('Page ' + objPage_a.page + ' (' + objPage_a.file + '): ' + objPage_a.classes.map(function(objClass_a)
+			{
+				return objClass_a.module + ' ' + objClass_a.bytes + (objClass_a.copy ? ' (copy)' : (objClass_a.home ? ' (home)' : ''));
+			}).join(', ') + (objPage_a.vars ? '; paged variables ' + objPage_a.vars : '') + '; about ' + Math.max(0, 16384 - objPage_a.bytes) + ' bytes free');
+		});
+		(function()
+		{
+			var objMain = {};
+
+			arrScanProcCalls.forEach(function(objCall_a)
+			{
+				var objFrom = objEl[objCall_a.from];
+				var objTo = objEl[objCall_a.to];
+
+				if (objFrom && objTo && objClassPages[objFrom.module] && !objClassPages[objTo.module] && !objTo.asmkw && (objTo.module !== strFirstModule) && (objParse.procs.some(function(objP_a) { return objP_a.full === objTo.full; })))
+				{
+					objMain[objTo.module] = true;
+				}
+			});
+			if (Object.keys(objMain).length > 0)
+			{
+				arrLayout.push('Main RAM, called from pages: ' + Object.keys(objMain).join(', '));
+			}
+		})();
+	}
+
 	return {
 		asm: arrAsm.join('\n'),
+		layout: arrLayout,
 		errors: arrErrors,
 		warnings: arrWarnings,
 		xref: arrXref,

@@ -320,6 +320,22 @@ finished, with the date.
   INTERRUPTCLASSES capabilities True on cpcfw; INTERRUP built for cpcfw; regress checks isl,
   hook and the interrupts example on cpcfw. Tutorial: 9.1 overlays with Small, new 10.7 (text
   and records in nodes), 6.5 replacing / tailoring any library class, 5.3 when turbo gains nothing
+- 2026-10-13 **Pages** (Julian's design): `Option Page "NAME" = A, B ...` puts classes into a
+  page together (one `.PAG`, loaded as one); a class in several pages is copied into each
+  (every label it defines renamed `label__page` in the copies, its GOTO / GOSUB stubs and paged
+  variables per copy); a class in no page is in main RAM; calls inside a page go through a
+  local entry (no switch: about 60 T against about 320 T for a switch); calls from outside to
+  a copied class use its home copy (first page listing it, or `Option Home Class = "NAME"`),
+  or, with no paged variables, a copy whose page is in the window (`ntc_ovl_enterc`, copy
+  tables). `Option Class Overlay "X"` = `Option Page "X" = ThisClass` (same name: same page).
+  Blocks per page, so the one overlay area (cpm / Small) works by page. Layout: compile result
+  `layout` (GUI messages, `cli.js --layout`), assembler `DISPLAY` sizes. Checks: unknown class,
+  page declared twice, class twice in a page, empty page, bad Option Home, over 16K, page +
+  interrupt class, `#asm` naming a copied class's thread labels; gendsk refuses two programs
+  writing the same page file. A class in a page can have a Tick too (`Option Class Interrupt`
+  in it: a driver - its page switched in for each Tick; RAM pages only, refused with one
+  overlay area; checked on the real ROMs: 50 a second). Demo PAGES (cpcmin / cpcfw / cpm), test `test/pages/` (RAM pages
+  and one area, both modes; checked on the real 6128 ROMs too), tutorial 13.6
 - 2026-10-12 fix: **cpcfw interrupts never ran on a real CPC** (Julian: the interrupt demo
   crashed). The fast ticker event was express: the 6128 ROM's KL EVENT (#01E2) jumps straight
   to an express routine from the interrupt with the lower ROM on and ignores the far address,
@@ -857,6 +873,10 @@ CP/M compatible (or mostly) system idea - device model, not decided:
       40 chars, 32 steps); Cls, scroll and Mode let them in
 
 ### Optimisations
+
+- [ ] Relocatable driver files (built once, loaded into a shared page at run time,
+      256-byte aligned, a fixed interface per driver type, a resident registry) - design talk
+      2026-10-12
 
 - [ ] cpcfw: a Tick waits for the end of a statement, and the firmware's text takes about
       3.4 ms a character, so a Frame class that prints, beside a main loop that prints, runs

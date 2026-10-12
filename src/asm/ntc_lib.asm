@@ -7144,6 +7144,9 @@ ovl_kres:		dw 0
 ovl_kcur:		dw 0
 ovl_mt:			dw ntc_ovl_ld2	; fs_go returns into this
 ovl_lblk:		dw 0			; LocalAlloc / LocalFree: the class block
+ovl_ct:			dw 0			; ntc_ovl_enterc: the copy table's home row
+ntc_ovl_lc:		db 0			; 1 = a call from code in the class's own page (its local entry): no switch
+ntc_ovl_body:	dw 0			; a class in more than one page: the body of the copy to run
 ovl_tdie:		db "Overlay not loaded: ", 0
 ovl_tpage:		db "No RAM page free", 0
 ovl_tfile:		db "The file didn't load", 0
@@ -7401,6 +7404,59 @@ ntc_ovl_en_back:
 			jp nz, ntc_ovl_die
 			ld ix, (ovl_ix)
 			jp (ix)
+; ntc_ovl_enterc - from a call stub of a class in more than one page (jp, SP =
+; the caller's thread, IX = where to go on): HL = the procedure's copy table (db
+; n, then n x dw block, body - the home copy first), DE = the stub's word for the
+; caller's page. Picks the copy whose page is in the window now (no switch), else
+; the home copy; ntc_ovl_body = its body; then on as ntc_ovl_enter. No stack used
+; (SP is the caller's thread).
+ntc_ovl_enterc:
+			ld (ovl_pg), de
+			ld (ovl_ix), ix
+			ld b, (hl)
+			inc hl
+			ld (ovl_ct), hl
+ntc_ovl_ec1:
+			ld e, (hl)				; DE = a copy's block, HL = its body's word
+			inc hl
+			ld d, (hl)
+			inc hl
+			inc de					; its page (0 = not loaded) = the page in the window?
+			ld a, (de)
+			dec de
+			ld c, a
+			ld a, (mem_cur + 1)
+			cp c
+			jr nz, ntc_ovl_ec2
+			ld a, (de)
+			ld c, a
+			ld a, (mem_cur)
+			cp c
+			jr nz, ntc_ovl_ec2
+			inc de
+			ld a, (de)
+			dec de
+			or c
+			jr nz, ntc_ovl_ec3
+ntc_ovl_ec2:
+			inc hl
+			inc hl
+			djnz ntc_ovl_ec1
+			ld hl, (ovl_ct)			; none in the window: the home copy
+			ld e, (hl)
+			inc hl
+			ld d, (hl)
+			inc hl
+ntc_ovl_ec3:
+			ld a, (hl)
+			inc hl
+			ld h, (hl)
+			ld l, a
+			ld (ntc_ovl_body), hl
+			ex de, hl
+			ld de, (ovl_pg)
+			ld ix, (ovl_ix)
+			jp ntc_ovl_enter
 ; ntc_ovl_core - (jp, IX = where to go on) HL = a class block: its file into a
 ; free C page. Comes back on the real stack with HL = 0 and that page in the
 ; window, or HL = a FileSystem status / OVL_NOPAGE (no page is kept).
@@ -7610,6 +7666,48 @@ ntc_ovl_en_in:
 			ld ix, (ovl_ix)
 			jp (ix)
 
+; ntc_ovl_enterc - from a call stub of a class in more than one page (jp, SP =
+; the caller's thread, IX = where to go on): HL = the procedure's copy table (db
+; n, then n x dw block, body - the home copy first), DE = the stub's word for the
+; caller's page. Picks the copy in the overlay area now (no load), else
+; the home copy; ntc_ovl_body = its body; then on as ntc_ovl_enter. No stack used
+; (SP is the caller's thread).
+ntc_ovl_enterc:
+			ld (ovl_pg), de
+			ld (ovl_ix), ix
+			ld b, (hl)
+			inc hl
+			ld (ovl_ct), hl
+ntc_ovl_ec1:
+			ld e, (hl)				; DE = a copy's block, HL = its body's word
+			inc hl
+			ld d, (hl)
+			inc hl
+			ld a, (ovl_cur)			; the one in the overlay area?
+			cp e
+			jr nz, ntc_ovl_ec2
+			ld a, (ovl_cur + 1)
+			cp d
+			jr z, ntc_ovl_ec3
+ntc_ovl_ec2:
+			inc hl
+			inc hl
+			djnz ntc_ovl_ec1
+			ld hl, (ovl_ct)			; none in the window: the home copy
+			ld e, (hl)
+			inc hl
+			ld d, (hl)
+			inc hl
+ntc_ovl_ec3:
+			ld a, (hl)
+			inc hl
+			ld h, (hl)
+			ld l, a
+			ld (ntc_ovl_body), hl
+			ex de, hl
+			ld de, (ovl_pg)
+			ld ix, (ovl_ix)
+			jp ntc_ovl_enter
 ; ntc_ovl_ret - from a return stub (jp, IX = where to go on): HL = the
 ; class its caller runs in (0: the caller isn't in the area). Comes back on
 ; the real stack with that class in the area again.

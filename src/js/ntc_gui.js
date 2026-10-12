@@ -537,7 +537,7 @@ function ntcOptions()
 	};
 }
 
-function ntcShowErrors(arrErrors_a, arrWarnings_a)
+function ntcShowErrors(arrErrors_a, arrWarnings_a, arrLayout_a)
 {
 	var objErrors = $('#ge-errors');
 	var arrAll = [];
@@ -563,6 +563,14 @@ function ntcShowErrors(arrErrors_a, arrWarnings_a)
 		{
 			objRow.addClass('ge-warning');
 		}
+		objErrors.append(objRow);
+	}
+	// pages (Option Page): what is in each, after the errors and warnings
+	for (intI = 0; intI < (arrLayout_a || []).length; intI++)
+	{
+		objRow = $('<div></div>');
+		objRow.text(arrLayout_a[intI]);
+		objRow.addClass('ge-info');
 		objErrors.append(objRow);
 	}
 }
@@ -623,7 +631,7 @@ function ntcCompileNow()
 	m_objOutput.setValue(strView);
 	objCode.scrollTop(intScroll);
 
-	ntcShowErrors(objResult.errors, objResult.warnings);
+	ntcShowErrors(objResult.errors, objResult.warnings, objResult.layout);
 	m_arrProcs = objResult.procs || [];
 	ntcRefreshProcs();
 	$('#ge-stats').text(objResult.stats.threadbytes + ' thread bytes, ' + objResult.stats.keywords + ' keywords, ' +

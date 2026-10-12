@@ -1562,6 +1562,9 @@ The compiler adds these members to an overlay class (so these names are taken):
   `Memory.Copy(List.Data(node), CLng(Page()) * 65536 + address, size)`.
 - Not yet: one interface for several files (VB's `Implements`, for levels that swap), and
   classes built on their own for any program (like DLLs).
+- Several classes can share one page, and a class can be copied into several pages:
+  [Option Page](#option-page). `Option Class Overlay "FILE"` is the short form of
+  `Option Page "FILE" = ThisClass`; two classes naming the same file share that page.
 
 #### One overlay area
 
@@ -1590,6 +1593,65 @@ The same source works both ways (`bas/overlays/`). What is different:
 The compiler keeps the program and the Memory heap out of `#4000-#7FFF` for overlay
 classes (as `Option Reserve &H4000, &H4000`). A file that isn't there stops the program with
 `Overlay not loaded: LEVEL1.PAG` / `The file didn't load` / `Press a key`.
+
+#### Option Page
+
+`Option Page "NAME"` `=` *Class* [`,` *Class*] ...
+
+Where each class goes, in one place (by custom in the main file): the classes listed are
+built together into `NAME.PAG` (up to 8 characters), each at its own fixed address in it.
+The page is loaded and switched in as a whole, the same way as an overlay class's page (RAM
+pages, or [the overlay area](#one-overlay-area)).
+
+```
+Option Page "TITLE"   = Title
+Option Page "LEVEL1"  = Level1, Maths, Stars
+Option Page "LEVEL2"  = Level2, Maths, Stars
+Option Page "CREDITS" = Credits
+```
+
+- **A class in no page is in main RAM**, as always - a class every page uses (a score, a
+  print routine) goes there.
+- **A class in several pages is copied into each** (`Maths`, `Stars` above): a level calls the
+  copy in its own page, with no page switch. That is what copies are for - calls from inside
+  the page.
+- **Calls between classes of the same page switch nothing** (the call goes through a local
+  entry in the page). Calls into another page switch it in, as for an overlay class. Measured
+  (Z80 T states a call, more than a call to a class in main RAM): about 60 inside a page,
+  about 320 with a page switch (RAM pages, page already loaded). Calls between procedures of
+  one overlay class used to pay the switch too; now they are inside its page.
+- **Calls from main RAM (or another page) to a copied class** go to its **home copy** - the
+  first page that lists it, or the one `Option Home` *Class* `= "NAME"` names. A class with no
+  paged variables (every copy alike) may instead use a copy whose page is in the window at
+  the time.
+- **Variables:** a copied class's ordinary variables are in the program, so every copy sees the
+  same ones. Its `Private Paged` variables are in each page: **each copy has its own** (with
+  one overlay area paged variables are ordinary variables, so the copies share them). If one
+  set must always be the one used, list the class in one page only.
+- `Load()`, `Unload()`, `Loaded()` and `Page()` act on the class's page (its home page if it
+  is copied): unloading a page unloads every class in it. `LocalStart()` / `LocalSize()`:
+  the room after the whole page's code and paged variables.
+- A page holds at most 16K (code and paged variables), checked when compiling (about) and
+  when assembling (exactly). The compiler lists each page with its classes and their sizes
+  (in the GUI's messages; `cli.js --layout`), and the classes in main RAM that pages call:
+
+```
+Page LEVEL1 (LEVEL1.PAG): level1 104, maths 10 (home), stars 14 (home); paged variables 2; about 16210 bytes free
+Page LEVEL2 (LEVEL2.PAG): level2 90, maths 10 (copy), stars 14 (copy); paged variables 2; about 16224 bytes free
+Main RAM, called from pages: score
+```
+
+  Assembling prints the exact sizes the same way (sjasmplus `DISPLAY` lines).
+- **A class in a page can also be an interrupt class** (`Option Class Interrupt` in it): a
+  driver with its own page, its state in paged variables, and a `Tick` - each Tick switches
+  its page in and back, like any call from outside (about 320 T states). RAM pages only:
+  with one overlay area a Tick would load the class from disc, so it is refused there.
+- An `#asm` block of a copied class must not name the class's own thread labels (the block is
+  in main memory, shared by the copies).
+- Two programs on one disc must not use the same page file names (`build/gendsk.sh` checks).
+
+The example `bas/pages/` has a title, two levels sharing copied classes, credits, and a class
+in main RAM that every page calls.
 
 **Interrupt** *rate* / **Interrupt Frame** (cpc, cpcmin: NTC's own interrupt handler; cpcfw: a
 firmware fast ticker event, as for [Interrupt](#interrupt)): the
@@ -2873,6 +2935,7 @@ change.
 | `Option Explicit` | [16](#option-explicit) |
 | `Option Class` | [10](#option-class) |
 | `Option Memory` | [16](#option-memory) |
+| `Option Page`, `Option Home` | [10](#option-page) |
 | `Option Reserve` | [16](#option-reserve) |
 | `Option RomEnable` | [16](#option-romenable) |
 | `Option Stack` | [16](#option-stack) |

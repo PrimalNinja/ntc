@@ -151,6 +151,39 @@ done
 printf 'Option Memory Small\nPrint "del"; FileSystem.Delete("OVB.PAG")\nPrint B.Chain(1)\nPrint "not here"\nSub Note(ByVal t As String)\nEnd Sub\n' > t/ovls/gone.bas
 o=$(timeout 200 python3 ntcrun.py t/ovls/gone.bas 'x' t/ovls/A.cls t/ovls/B.cls --platform=cpm 2>&1)
 echo "$o" | grep -q "^Overlay not loaded: OVB.PAG" && echo "$o" | grep -q "^The file didn't load" && ! echo "$o" | grep -q "not here" && echo "ok   overlay area: file gone" || { echo "FAIL overlay area: file gone"; echo "$o" | tail -4; fail=1; }
+# pages (Option Page): classes packed into pages, a class copied into two pages (paged variables
+# separate per copy; main calls use the home copy), calls inside a page without a page switch,
+# a class used by a page but in none (main RAM); RAM pages on cpcmin / cpcfw, one overlay area
+# on cpm and cpcmin with Option Memory Small (paged variables are ordinary variables there)
+PF="t/pg/Title.cls t/pg/Level1.cls t/pg/Level2.cls t/pg/Shared.cls t/pg/Counter.cls t/pg/Credits.cls t/pg/Util.cls t/pg/OnlyOne.cls"
+for m in --turbo ""; do
+  for c in "Main cpcmin pages" "Main cpcfw pages" "Main cpm pages_small" "MainS cpcmin pages_small"; do
+    set -- $c
+    rm -rf t/files t/pg; mkdir -p t/pg; cp pages/* t/pg/
+    sed 's/^Option Reserve/Option Memory Small\nOption Reserve/' t/pg/Main.bas > t/pg/MainS.bas
+    o=$(timeout 200 python3 ntcrun.py t/pg/$1.bas '' $PF --platform=$2 $m 2>&1 | grep -v "^--- ")
+    if [ "$o" == "$(cat ref/$3.txt)" ]; then echo "ok   pages $1 $2 ${m:-normal}"; else echo "FAIL pages $1 $2 ${m:-normal}"; echo "$o" | head -5; fail=1; fi
+  done
+done
+o=$(node cli.js t/pg/Main.bas $PF --platform=cpcmin --layout 2>&1)
+echo "$o" | grep -q "dw p_shared_sum_cl__level2" && echo "$o" | grep -q "dw p_shared_sum_c, lit_10" && echo "$o" | grep -q "^p_counter_bump_ct:.db 1" && echo "$o" | grep -q "^LAYOUT Page LEVEL2 (LEVEL2.PAG): level2 [0-9]*, shared [0-9]* (copy), counter [0-9]* (copy)" && echo "$o" | grep -q "^LAYOUT Main RAM, called from pages: util" && echo "ok   pages: local calls, layout" || { echo "FAIL pages: local calls, layout"; fail=1; }
+pe() { # name, expected message, main source
+  printf "$3" > t/pg/E.bas
+  node cli.js t/pg/E.bas $PF --platform=cpcmin 2>&1 >/dev/null | grep -q "$2" && echo "ok   pages refused: $1" || { echo "FAIL pages refused: $1"; fail=1; }
+}
+pe "no class" "no class Nope in the project" 'Option Page "A" = Nope\n'
+pe "twice" 'Option Page "A" is declared twice' 'Option Page "A" = Title\nOption Page "A" = Util\n'
+pe "class twice" "title is in it twice" 'Option Page "A" = Title, Title\n'
+pe "home" "Option Home: shared is not in page CREDITS" 'Option Page "L1" = Shared\nOption Page "L2" = Shared\nOption Home Shared = "CREDITS"\n'
+pe "empty" 'Option Page "E": no classes in it' 'Option Page "E" = \n'
+node cli.js t/pg/Main.bas $PF --platform=cpc 2>&1 >/dev/null | grep -q "Option Page / Option Class Overlay needs a platform" && echo "ok   pages refused: cpc" || { echo "FAIL pages refused: cpc"; fail=1; }
+rm -rf t/files t/dv; mkdir -p t/dv; cp drv/* t/dv/
+check "pages: a page class with a Tick" "^ticks in a second: about 50" "$(timeout 300 python3 ntcrun.py t/dv/Main.bas '' t/dv/Drv.cls --platform=cpcmin 2>&1)"
+printf 'Option Memory Small\n' | cat - t/dv/Main.bas > t/dv/S.bas
+node cli.js t/dv/S.bas t/dv/Drv.cls --platform=cpcmin 2>&1 >/dev/null | grep -q "its Tick would load it from disc" && echo "ok   pages: Tick refused with one overlay area" || { echo "FAIL pages: Tick refused with one overlay area"; fail=1; }
+mkdir -p t/sj; printf 'Option Class Overlay "LEVEL1"\nPublic Function F() As Integer\n  F = 5\nEnd Function\n' > t/sj/Extra.cls; printf 'Public Function G() As Integer\n  G = Extra.F() + 1\nEnd Function\n' > t/sj/Lv.cls; printf 'Option Page "LEVEL1" = Lv\nOption Reserve &H4000, &H4000\nPrint Lv.G(); Extra.F()\n' > t/sj/Main.bas
+rm -rf t/files; o=$(node cli.js t/sj/Main.bas t/sj/Extra.cls t/sj/Lv.cls --platform=cpm --layout 2>&1 >/dev/null; timeout 100 python3 ntcrun.py t/sj/Main.bas '' t/sj/Extra.cls t/sj/Lv.cls --platform=cpm 2>&1)
+echo "$o" | grep -q "^LAYOUT Page LEVEL1 (LEVEL1.PAG): lv [0-9]*, extra [0-9]*;" && echo "$o" | grep -q "^65" && echo "ok   pages: Option Class Overlay joins an Option Page" || { echo "FAIL pages: Option Class Overlay joins an Option Page"; fail=1; }
 rm -rf t/files t/od; mkdir -p t/od; cp $P/overlays/* t/od/
 check "overlays demo cpcmin" "^Unload level 1: 0 - pages -C" "$(timeout 200 python3 ntcrun.py t/od/Main.bas '~x' t/od/Level1.cls t/od/Level2.cls --platform=cpcmin 2>&1)"
 rm -rf t/files; check "overlays demo cpm" "^Unload level 2: 0 - level 2 0" "$(timeout 200 python3 ntcrun.py t/od/Main.bas '~x' t/od/Level1.cls t/od/Level2.cls --platform=cpm 2>&1)"
@@ -229,7 +262,7 @@ for m in --turbo ""; do
   done
 done
 printf 'Private Paged x As Integer\nPublic Sub A()\nx = 1\nEnd Sub\n' > t/pvar/Rx.cls; printf 'Rx.A\n' > t/pvar/rmain.bas
-node cli.js t/pvar/rmain.bas t/pvar/Rx.cls --platform=cpcmin 2>&1 >/dev/null | grep -q "go in an overlay class" && echo "ok   paged variables refused outside an overlay class" || { echo "FAIL paged variables refused"; fail=1; }
+node cli.js t/pvar/rmain.bas t/pvar/Rx.cls --platform=cpcmin 2>&1 >/dev/null | grep -q "go in a class in a page" && echo "ok   paged variables refused outside an overlay class" || { echo "FAIL paged variables refused"; fail=1; }
 # arrays after the program (not in its file): the file stays small, too big a set stops with a message
 printf 'Dim a(5000) As Integer\na(4999) = 7\nPrint "a"; a(4999); a(0)\n' > t/bss1.bas
 node cli.js t/bss1.bas --platform=cpm > t/bss1.asm && (cd t && ${SJASMPLUS:-sjasmplus} --nologo --msg=err --raw=bss1.com bss1.asm > /dev/null)

@@ -67,6 +67,7 @@ What each target can do:
 | Heap in main RAM (`Option Memory Small`) | yes | yes | yes | yes (up to the BDOS) | yes |
 | ROM commands (`System.Command`) | - | yes | yes | - | - |
 | Overlay classes (`Option Class Overlay`) | - | yes (RAM pages, or one overlay area with `Small`) | yes (the same) | yes (one overlay area) | - |
+| Pages (`Option Page`: several classes a page, classes copied into pages) | - | yes (RAM pages, or one overlay area with `Small`) | yes (the same) | yes (one overlay area) | - |
 | Linked lists (`List`) | yes | yes | yes | yes | yes |
 | Graphics (`Graphics`: lines in modes 0-2, double buffering) | yes | yes | - | - | - |
 | Interrupt classes (`Option Class Interrupt`), `Interrupt` | yes | yes | yes (firmware fast ticker event) | - | - |

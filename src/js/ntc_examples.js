@@ -243,6 +243,43 @@ var NTC_EXAMPLES = [
 		]
 	},
 	{
+		"name": "Pages: classes placed in pages, copies (cpcmin, cpcfw, cpm)",
+		"files": [
+			{
+				"name": "Main.bas",
+				"text": "' Pages: where each class goes, in one place. A page is a 16K file (INTRO.PAG ...) loaded into\n' a RAM page (cpcmin, cpcfw: a 6128 or more RAM) or, with one overlay area (cpm, Option Memory\n' Small), into #4000-#7FFF in turn. Keep the .PAG files on the disc with the program.\n'   - a class in no page is in main RAM (Score here: the levels and the credits all use it)\n'   - a class in several pages is copied into each (Maths: no page switch when a level uses\n'     it); its paged variables are separate in each copy (Stars counts per level) - with\n'     one overlay area paged variables are ordinary variables, so the copies share them\n'   - calls between classes of the same page switch nothing\n' The compiler lists what is in each page, and how big (the GUI's messages; cli.js --layout).\nOption Explicit\nOption Page \"INTRO\"   = Title\nOption Page \"STAGE1\"  = Level1, Maths, Stars\nOption Page \"STAGE2\"  = Level2, Maths, Stars\nOption Page \"ENDING\"  = Credits\n#If NTC_CPCMIN Then\nOption RomEnable 7                ' RUN\" drops AMSDOS: start it again, the pages load from disc\n#End If\n#If NTC_CPCFW Then\nOption RomEnable 7\n#End If\nOption Reserve &H4000, &H4000     ' the program stays out of the window the pages run in\n\nTitle.Show\nLevel1.Play\nLevel2.Play\nLevel1.Play\nPrint \"Maths from main: 7 squared is \"; Maths.Square(7)\nPrint \"Stars from main (STAGE1's copy): \"; Stars.Count()\nCredits.Show\nPrint \"Press a key\";\nDo While Inkey <> 0 : Loop\nDo : Frame : Loop Until Inkey <> 0\nPrint\nEnd\n"
+			},
+			{
+				"name": "Title.cls",
+				"text": "' Title: page INTRO on its own\nPublic Sub Show()\n  Print \"== PAGES DEMO ==\"\n  Print \"Score: \"; Score.Total()\nEnd Sub\n"
+			},
+			{
+				"name": "Level1.cls",
+				"text": "' Level1: page STAGE1, with its own copies of Maths and Stars\nPublic Sub Play()\n  Dim i As Integer\n  For i = 1 To 3\n    Score.Add Maths.Square(i)\n    Stars.Add\n  Next\n  Print \"Level 1: score \"; Score.Total(); \", stars here \"; Stars.Count()\nEnd Sub\n"
+			},
+			{
+				"name": "Level2.cls",
+				"text": "' Level2: page STAGE2, with its own copies of Maths and Stars\nPublic Sub Play()\n  Score.Add Maths.Square(10)\n  Stars.Add\n  Print \"Level 2: score \"; Score.Total(); \", stars here \"; Stars.Count()\nEnd Sub\n"
+			},
+			{
+				"name": "Maths.cls",
+				"text": "' Maths: copied into STAGE1 and STAGE2 - each level calls the copy in its own page\nPublic Function Square(ByVal n As Integer) As Integer\n  Square = n * n\nEnd Function\n"
+			},
+			{
+				"name": "Stars.cls",
+				"text": "' Stars: copied into STAGE1 and STAGE2; a paged variable, so each copy counts its own\nPrivate Paged n As Integer\nPublic Sub Add()\n  n = n + 1\nEnd Sub\nPublic Function Count() As Integer\n  Count = n\nEnd Function\n"
+			},
+			{
+				"name": "Credits.cls",
+				"text": "' Credits: page ENDING on its own\nPublic Sub Show()\n  Print \"Final score \"; Score.Total(); \" - thanks for playing\"\nEnd Sub\n"
+			},
+			{
+				"name": "Score.cls",
+				"text": "' Score: in no page, so in main RAM - every page can call it, and its variable is shared\nPrivate t As Integer\nPublic Sub Add(ByVal n As Integer)\n  t = t + n\nEnd Sub\nPublic Function Total() As Integer\n  Total = t\nEnd Function\n"
+			}
+		]
+	},
+	{
 		"name": "Interrupt classes: Tick at a rate (cpc, cpcmin, cpcfw)",
 		"files": [
 			{

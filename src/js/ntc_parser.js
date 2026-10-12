@@ -1359,6 +1359,10 @@ function ntcParse(arrFiles_a, objDefines_a)
 		{
 			record('option', { what: 'class', value: trim(strSrc.replace(/^\s*option\s+class\s+/i, '')) });	// a class's kind: overlay ["file"], interrupt rate | frame
 		}
+		else if (left(strText, 'page ') || left(strText, 'home '))
+		{
+			record('option', { what: strText.substr(0, 4), value: trim(strSrc.replace(/^\s*option\s+(page|home)\s+/i, '')) });	// classes in a RAM page / a copied class's home page (read by the compiler's pre-pass)
+		}
 		else if (left(strText, 'memory '))
 		{
 			record('option', { what: 'memory', value: trim(strText.substr(7)) });	// the Memory class's scheme: small, cpcexpansion [maxpages]

@@ -309,3 +309,8 @@ html, body
 {
 	color: #e0c060;
 }
+
+#ge-errors div.ge-info
+{
+	color: #80b0d0;
+}

@@ -657,6 +657,32 @@ caller's class was swapped out, so it is loaded again before going back to its t
 emitted (the Small heap stops at the area). CP/M `.PAG` files are the plain bytes (`fs_load`
 reads whole records into `#4000`, at most 16K).
 
+**Pages** (`Option Page "NAME" = A, B`, `Option Home`; `Option Class Overlay "X"` is the same
+as `Option Page "X" = ThisClass`). A pre-pass (`scanPages`, before parsing, following `#If` /
+`#Const` with the compile's predefined names) reads them from every file: `objPages` (id ->
+name, file, block `ovl_blk_<page>`, classes), `objClassPages` (class -> its pages, the home
+first). Each class still gets its own thread list (`objOvlAsm`); `composePages` writes each
+page from its classes' lists, one after another (labels `ovl_<page>__<n>_s` / `_e` around
+each, for the sizes). A class in more than one page is written into each; in every page but
+its home, **every label its list defines is renamed** `label__<page>` (thread labels, its
+paged variables; `X_go` / `X_gs` / `X_rt` references become the copy's own GOTO / GOSUB stubs,
+written in the page). A call word `dw p_x_c` whose callee is in the same page, when pass 1's
+call graph says the callee is called from one of its own pages (`objLocalCalled`), becomes
+`dw p_x_cl[__page]`: a **local entry** in the page (`ld a, 1 / ld (ntc_ovl_lc), a / jp p_x_c`,
+for a copied class also `ld hl, <this copy's body> / ld (ntc_ovl_body), hl`). The call stub (in
+the program) checks `ntc_ovl_lc` after its argument copies: set means no page switch, `_pg` =
+#FFFF so the return stub switches nothing back. A copied class's far calls jump to
+`ntc_ovl_enterc` with the procedure's copy table (`p_x_ct: db n`, then `dw block, body` per
+copy, the home first; only the home when the class has paged variables): the copy whose page
+is in the window (RAM pages: its block's page word = `mem_cur`; one area: block = `ovl_cur`),
+else the home; `ntc_ovl_body` gets its body and the stub runs `ld sp, (ntc_ovl_body)`. Blocks
+are per page, so loading, `ntc_ovl_fresh` (paged variables of every class in the page), the
+one overlay area's `ovl_cur` / `ntc_ovl_ret` and the members all work by page unchanged. Each
+page ends with `DISPLAY` lines (the assembler prints the sizes) and the compile result has
+`layout` (sizes counted from the thread words; `cli.js --layout`, the GUI's messages). A class in a
+page may also be an interrupt class (`objClassKind[class].isl` = its slot; the Tick goes
+through its call stub, so its page is switched in; refused with Small).
+
 **Graphics** (`ntc_lib.asm` section `ntc_gfx`, class `lib/cpc*/Graphics.cls`): one line loop for
 modes 0-2 - C holds a marker of the pixel's bits (`#AA`/`#55`, `#88 >> n`, `#80 >> n`), `RRC C`
 steps it one pixel right and its carry means the next byte; the pixel is `C AND IYL` (the

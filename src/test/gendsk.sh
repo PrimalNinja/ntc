@@ -14,6 +14,8 @@ mkdir -p ../build/dsk
 for p in cpc cpcmin cpcfw cpm; do
   w=t/dsk_$p; rm -rf $w; mkdir -p $w; cp ../build/$p/*.ASM $w/
   if [ $p == cpm ]; then x=COM; else x=BIN; fi
+  # two programs writing a page file of the same name would overwrite each other's on the disc
+  for f in $w/*.ASM; do grep -E '^\s+(OUTPUT|SAVEAMSDOS) "' $f | grep -o '"[A-Z0-9]*\.PAG"' | sort -u; done | sort | uniq -d | while read n; do echo "gendsk: $p: page file $n is written by more than one program"; done | grep . && fail=1
   for f in $w/*.ASM; do
     g=$(basename $f .ASM)
     o=""; [ $p == cpm ] && o="--raw=$g.COM"

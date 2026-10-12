@@ -197,7 +197,7 @@ p_level1_play_c:		; call play (normal)
 			ld hl, 0
 			ld (var_level1_play_i), hl
 			ld (p_level1_play_rs), sp
-			ld hl, ovl_blk_level1	; overlay LEVEL1.PAG
+			ld hl, ovl_blk_level1	; page LEVEL1.PAG
 			ld de, p_level1_play_pg
 			ld ix, p_level1_play_in
 			jp ntc_ovl_enter
@@ -205,7 +205,7 @@ p_level1_play_in:
 			ld sp, p_level1_play
 			jp ntc_xn
 p_level1_play_r:		; end of play
-			ld hl, (p_level1_play_pg)	; the caller's class back in the overlay area
+			ld hl, (p_level1_play_pg)	; the caller's page back in the overlay area
 			ld ix, p_level1_play_rb
 			jp ntc_ovl_ret
 p_level1_play_rb:
@@ -215,7 +215,7 @@ p_level1_bonus_c:		; call bonus (normal)
 			ld hl, 0
 			ld (var_level1_bonus_bonus), hl
 			ld (p_level1_bonus_rs), sp
-			ld hl, ovl_blk_level1	; overlay LEVEL1.PAG
+			ld hl, ovl_blk_level1	; page LEVEL1.PAG
 			ld de, p_level1_bonus_pg
 			ld ix, p_level1_bonus_in
 			jp ntc_ovl_enter
@@ -223,7 +223,7 @@ p_level1_bonus_in:
 			ld sp, p_level1_bonus
 			jp ntc_xn
 p_level1_bonus_r:		; end of bonus
-			ld hl, (p_level1_bonus_pg)	; the caller's class back in the overlay area
+			ld hl, (p_level1_bonus_pg)	; the caller's page back in the overlay area
 			ld ix, p_level1_bonus_rb
 			jp ntc_ovl_ret
 p_level1_bonus_rb:
@@ -238,7 +238,7 @@ p_level2_play_c:		; call play (normal)
 			ld hl, 0
 			ld (var_level2_play_play), hl
 			ld (p_level2_play_rs), sp
-			ld hl, ovl_blk_level2	; overlay LEVEL2.PAG
+			ld hl, ovl_blk_level2	; page LEVEL2.PAG
 			ld de, p_level2_play_pg
 			ld ix, p_level2_play_in
 			jp ntc_ovl_enter
@@ -246,7 +246,7 @@ p_level2_play_in:
 			ld sp, p_level2_play
 			jp ntc_xn
 p_level2_play_r:		; end of play
-			ld hl, (p_level2_play_pg)	; the caller's class back in the overlay area
+			ld hl, (p_level2_play_pg)	; the caller's page back in the overlay area
 			ld ix, p_level2_play_rb
 			jp ntc_ovl_ret
 p_level2_play_rb:
@@ -1410,6 +1410,9 @@ ovl_kres:		dw 0
 ovl_kcur:		dw 0
 ovl_mt:			dw ntc_ovl_ld2	; fs_go returns into this
 ovl_lblk:		dw 0			; LocalAlloc / LocalFree: the class block
+ovl_ct:			dw 0			; ntc_ovl_enterc: the copy table's home row
+ntc_ovl_lc:		db 0			; 1 = a call from code in the class's own page (its local entry): no switch
+ntc_ovl_body:	dw 0			; a class in more than one page: the body of the copy to run
 ovl_tdie:		db "Overlay not loaded: ", 0
 ovl_tpage:		db "No RAM page free", 0
 ovl_tfile:		db "The file didn't load", 0
@@ -1667,6 +1670,48 @@ ntc_ovl_en_in:
 			ld ix, (ovl_ix)
 			jp (ix)
 
+; ntc_ovl_enterc - from a call stub of a class in more than one page (jp, SP =
+; the caller's thread, IX = where to go on): HL = the procedure's copy table (db
+; n, then n x dw block, body - the home copy first), DE = the stub's word for the
+; caller's page. Picks the copy in the overlay area now (no load), else
+; the home copy; ntc_ovl_body = its body; then on as ntc_ovl_enter. No stack used
+; (SP is the caller's thread).
+ntc_ovl_enterc:
+			ld (ovl_pg), de
+			ld (ovl_ix), ix
+			ld b, (hl)
+			inc hl
+			ld (ovl_ct), hl
+ntc_ovl_ec1:
+			ld e, (hl)				; DE = a copy's block, HL = its body's word
+			inc hl
+			ld d, (hl)
+			inc hl
+			ld a, (ovl_cur)			; the one in the overlay area?
+			cp e
+			jr nz, ntc_ovl_ec2
+			ld a, (ovl_cur + 1)
+			cp d
+			jr z, ntc_ovl_ec3
+ntc_ovl_ec2:
+			inc hl
+			inc hl
+			djnz ntc_ovl_ec1
+			ld hl, (ovl_ct)			; none in the window: the home copy
+			ld e, (hl)
+			inc hl
+			ld d, (hl)
+			inc hl
+ntc_ovl_ec3:
+			ld a, (hl)
+			inc hl
+			ld h, (hl)
+			ld l, a
+			ld (ntc_ovl_body), hl
+			ex de, hl
+			ld de, (ovl_pg)
+			ld ix, (ovl_ix)
+			jp ntc_ovl_enter
 ; ntc_ovl_ret - from a return stub (jp, IX = where to go on): HL = the
 ; class its caller runs in (0: the caller isn't in the area). Comes back on
 ; the real stack with that class in the area again.
@@ -3164,7 +3209,8 @@ ntc_plat_memtop:
 			ret
 
 
-; overlay classes: the page each is loaded in (0 = not loaded), its page variables (start, size), its file
+; pages (Option Page / Option Class Overlay): the RAM page each is loaded in (0 = not loaded),
+; the end of its code and the size of its page variables, its file
 ovl_blk_level1:	dw 0, ovl_level1_end, ovl_level1_vsize
 			db "LEVEL1.PAG", 0
 ovl_blk_level2:	dw 0, ovl_level2_end, ovl_level2_vsize
@@ -3183,12 +3229,14 @@ ntc_free	equ ntc_bss + ntc_bss_size	; the first free byte (heap, Memory tables)
 			ASSERT (ntc_free <= #4000) || (ntc_start >= #8000), "overlay classes: the program and its arrays must stay out of #4000-#7FFF (the window they run in)"
 
 ; ============================================================
-; Overlay class level1 -> LEVEL1.PAG: its threads, built to run at #4000
-; (a C page); its variables are in the program. Written as its own file.
+; Page LEVEL1 -> LEVEL1.PAG: level1 - threads built to run at #4000
+; (a RAM page, or the overlay area); their variables are in the program, but for
+; Private Paged ones (after the code). Written as its own file.
 ; ============================================================
 			OUTPUT "LEVEL1.PAG"
 			ORG #4000
 ovl_level1_start:
+ovl_level1__0_s:		; level1
 p_level1_play:
 
 			; Level1.cls 4: Dim i As Integer
@@ -3217,19 +3265,25 @@ p_level1_bonus:
 			; Level1.cls 12: Bonus = 50
 			dw kw_ltov, 50, var_level1_bonus_bonus
 			dw p_level1_bonus_r
+ovl_level1__0_e:
 			dw 0			; (never empty)
 ovl_level1_end:		; the end of its file; page variables (cleared on loading) follow
 ovl_level1_vsize	equ 0		; its page variables; its local memory is the rest, to #8000
-			ASSERT ovl_level1_end + ovl_level1_vsize <= #8000, "overlay class level1 is more than 16K (code and page variables)"
+			ASSERT ovl_level1_end + ovl_level1_vsize <= #8000, "page LEVEL1 (level1) is more than 16K (code and page variables)"
+			DISPLAY "page LEVEL1:"
+			DISPLAY "  level1 ", /D, ovl_level1__0_e - ovl_level1__0_s
+			DISPLAY "  page variables ", /D, ovl_level1_vsize, ", free ", /D, #8000 - (ovl_level1_end + ovl_level1_vsize)
 			OUTEND
 
 ; ============================================================
-; Overlay class level2 -> LEVEL2.PAG: its threads, built to run at #4000
-; (a C page); its variables are in the program. Written as its own file.
+; Page LEVEL2 -> LEVEL2.PAG: level2 - threads built to run at #4000
+; (a RAM page, or the overlay area); their variables are in the program, but for
+; Private Paged ones (after the code). Written as its own file.
 ; ============================================================
 			OUTPUT "LEVEL2.PAG"
 			ORG #4000
 ovl_level2_start:
+ovl_level2__0_s:		; level2
 p_level2_play:
 
 			; Level2.cls 5: Banner "Level 2"
@@ -3252,8 +3306,12 @@ p_level2_play:
 			; Level2.cls 8: Play = 250
 			dw kw_ltov, 250, var_level2_play_play
 			dw p_level2_play_r
+ovl_level2__0_e:
 			dw 0			; (never empty)
 ovl_level2_end:		; the end of its file; page variables (cleared on loading) follow
 ovl_level2_vsize	equ 0		; its page variables; its local memory is the rest, to #8000
-			ASSERT ovl_level2_end + ovl_level2_vsize <= #8000, "overlay class level2 is more than 16K (code and page variables)"
+			ASSERT ovl_level2_end + ovl_level2_vsize <= #8000, "page LEVEL2 (level2) is more than 16K (code and page variables)"
+			DISPLAY "page LEVEL2:"
+			DISPLAY "  level2 ", /D, ovl_level2__0_e - ovl_level2__0_s
+			DISPLAY "  page variables ", /D, ovl_level2_vsize, ", free ", /D, #8000 - (ovl_level2_end + ovl_level2_vsize)
 			OUTEND

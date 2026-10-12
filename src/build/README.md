@@ -16,14 +16,14 @@ build.bat ..\primal\sjasmplus\sjasmplus.exe   or give its path (relative or full
 | `cpm\` | CP/M 2.2 / 3 | `NAME.COM` at `#0100` | copy to the CP/M disk, type `NAME` |
 | `test\` | the test harness platform | `NAME.BIN`, raw, at `#4000` | for `test/ntcrun.py` |
 
-A program with overlay classes (`OVERLAYS` on cpcmin, cpcfw and cpm) also writes their files
-(`LEVEL1.PAG`, `LEVEL2.PAG`) when it is assembled: copy them to the disc with the `.BIN` /
-`.COM`. `OVERLAYS` is only built for cpcmin, cpcfw and cpm, `INTERRUP` (interrupt classes) for
+A program with pages (overlay classes: `OVERLAYS`, `PAGES` on cpcmin, cpcfw and cpm) also writes
+their files (`LEVEL1.PAG`, `LEVEL2.PAG`, `TITLE.PAG` ...) when it is assembled: copy them to the disc
+with the `.BIN` / `.COM`. `OVERLAYS` and `PAGES` are only built for cpcmin, cpcfw and cpm, `INTERRUP` (interrupt classes) for
 cpc, cpcmin and cpcfw.
 
 `dsk\` holds two disc images per platform with its programs already assembled, ready to insert
 in an emulator (WinAPE: drive A or B): `cpc.dsk`, `cpcmin.dsk`, `cpcfw.dsk` (the examples and demos:
-the `.BIN` files, `RUN"NAME`, and the overlay classes' `.PAG` files next to `OVERLAYS.BIN`) and
+the `.BIN` files, `RUN"NAME`, and the pages' `.PAG` files next to `OVERLAYS.BIN` and `PAGES.BIN`) and
 `cpm.dsk` (the `.COM` files: boot CP/M from its system disc, then use this one, e.g. in drive B);
 `cpctest.dsk`, `cpcmintest.dsk`, `cpcfwtest.dsk`, `cpmtest.dsk` hold the self tests (`NTCTEST`,
 `VBTEST*`, `LONGTEST`) - one disc each would no longer hold them all.
@@ -41,7 +41,7 @@ every file assembles).
 
 Programs: GUIDE, GUESS, SIEVE, SHELSORT, SIEVETIM (sieve timing, turbo / normal), FILES, FILESTEP,
 FILESTPN, AMSDOS, MEMMAP (main memory and RAM pages as a map), LISTS, SORTTIME (5,000 list nodes
-sorted, turbo / normal), CMDLINE (the command line, or ask), CUBE3D (3D wireframe shapes, cpc / cpcmin / cpcfw), OVERLAYS, INTERRUP, NUMBERED, NTCTEST (asks for a name, a number,
+sorted, turbo / normal), CMDLINE (the command line, or ask), CUBE3D (3D wireframe shapes, cpc / cpcmin / cpcfw), OVERLAYS, PAGES (classes placed in pages, a class copied into two), INTERRUP, NUMBERED, NTCTEST (asks for a name, a number,
 a key), VBTEST, VBTEST2..VBTEST12 (VBTEST12 asks for a line at the end), LONGTEST,
 CLASSDEM, CONSOLE (the StdIO / System classes; asks for a name and a key), OWNSTDIO (a
 project's own StdIO). `cpm\` also has SIEVEC, the same sieve in Small C (from

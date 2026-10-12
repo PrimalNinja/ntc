@@ -118,6 +118,7 @@ test platform - a CPC or CP/M shows the same text). The full reference is
 - [13.3 Load, Unload and errors](13.3-load-and-unload.md)
 - [13.4 Paged variables and local memory](13.4-paged-variables-and-local-memory.md)
 - [13.5 One overlay area](13.5-one-overlay-area.md)
+- [13.6 Pages: classes placed together](13.6-pages.md)
 
 ## 14. Interrupt handlers
 

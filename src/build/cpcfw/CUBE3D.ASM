@@ -492,7 +492,7 @@ p_spin_run_c:		; call run (normal)
 			ld hl, 0
 			ld (var_spin_run_t), hl
 			ld (p_spin_run_rs), sp
-			ld hl, ovl_blk_spin	; overlay SPIN.PAG
+			ld hl, ovl_blk_spin	; page SPIN.PAG
 			ld de, p_spin_run_pg
 			ld ix, p_spin_run_in
 			jp ntc_ovl_enter
@@ -507,7 +507,17 @@ p_spin_run_r:		; end of run
 			jp ntc_xn
 p_spin_frame1_c:		; call frame1 (turbo)
 			ld (p_spin_frame1_rs), sp
-			ld hl, ovl_blk_spin	; overlay SPIN.PAG
+			ld a, (ntc_ovl_lc)	; called from its own page?
+			or a
+			jr z, p_spin_frame1_far
+			xor a
+			ld (ntc_ovl_lc), a
+			dec a
+			ld (p_spin_frame1_pg), a	; #FF..: no page back on return
+			ld (p_spin_frame1_pg+1), a
+			jr p_spin_frame1_in
+p_spin_frame1_far:
+			ld hl, ovl_blk_spin	; page SPIN.PAG
 			ld de, p_spin_frame1_pg
 			ld ix, p_spin_frame1_in
 			jp ntc_ovl_enter
@@ -515,14 +525,30 @@ p_spin_frame1_in:
 			ld sp, p_spin_frame1
 			ret
 p_spin_frame1_r:		; end of frame1
+			ld hl, (p_spin_frame1_pg)
+			ld a, h
+			and l
+			inc a
+			jr z, p_spin_frame1_rb	; a call from its own page: nothing to switch back
 			ld sp, (ntc_csp)		; the caller's page back
 			ld hl, (p_spin_frame1_pg)
 			call mem_sel
+p_spin_frame1_rb:
 			ld sp, (p_spin_frame1_rs)
 			ret
 p_spin_frame1_n_c:		; call frame1 (normal)
 			ld (p_spin_frame1_rs), sp
-			ld hl, ovl_blk_spin	; overlay SPIN.PAG
+			ld a, (ntc_ovl_lc)	; called from its own page?
+			or a
+			jr z, p_spin_frame1_n_far
+			xor a
+			ld (ntc_ovl_lc), a
+			dec a
+			ld (p_spin_frame1_pg), a	; #FF..: no page back on return
+			ld (p_spin_frame1_pg+1), a
+			jr p_spin_frame1_n_in
+p_spin_frame1_n_far:
+			ld hl, ovl_blk_spin	; page SPIN.PAG
 			ld de, p_spin_frame1_pg
 			ld ix, p_spin_frame1_n_in
 			jp ntc_ovl_enter
@@ -530,14 +556,30 @@ p_spin_frame1_n_in:
 			ld sp, p_spin_frame1_n
 			jp ntc_xn
 p_spin_frame1_n_r:		; end of frame1
+			ld hl, (p_spin_frame1_pg)
+			ld a, h
+			and l
+			inc a
+			jr z, p_spin_frame1_n_rb	; a call from its own page: nothing to switch back
 			ld sp, (ntc_csp)		; the caller's page back
 			ld hl, (p_spin_frame1_pg)
 			call mem_sel
+p_spin_frame1_n_rb:
 			ld sp, (p_spin_frame1_rs)
 			jp ntc_xn
 p_spin_screen_c:		; call screen (normal)
 			ld (p_spin_screen_rs), sp
-			ld hl, ovl_blk_spin	; overlay SPIN.PAG
+			ld a, (ntc_ovl_lc)	; called from its own page?
+			or a
+			jr z, p_spin_screen_far
+			xor a
+			ld (ntc_ovl_lc), a
+			dec a
+			ld (p_spin_screen_pg), a	; #FF..: no page back on return
+			ld (p_spin_screen_pg+1), a
+			jr p_spin_screen_in
+p_spin_screen_far:
+			ld hl, ovl_blk_spin	; page SPIN.PAG
 			ld de, p_spin_screen_pg
 			ld ix, p_spin_screen_in
 			jp ntc_ovl_enter
@@ -545,14 +587,30 @@ p_spin_screen_in:
 			ld sp, p_spin_screen
 			jp ntc_xn
 p_spin_screen_r:		; end of screen
+			ld hl, (p_spin_screen_pg)
+			ld a, h
+			and l
+			inc a
+			jr z, p_spin_screen_rb	; a call from its own page: nothing to switch back
 			ld sp, (ntc_csp)		; the caller's page back
 			ld hl, (p_spin_screen_pg)
 			call mem_sel
+p_spin_screen_rb:
 			ld sp, (p_spin_screen_rs)
 			jp ntc_xn
 p_spin_status_c:		; call status (normal)
 			ld (p_spin_status_rs), sp
-			ld hl, ovl_blk_spin	; overlay SPIN.PAG
+			ld a, (ntc_ovl_lc)	; called from its own page?
+			or a
+			jr z, p_spin_status_far
+			xor a
+			ld (ntc_ovl_lc), a
+			dec a
+			ld (p_spin_status_pg), a	; #FF..: no page back on return
+			ld (p_spin_status_pg+1), a
+			jr p_spin_status_in
+p_spin_status_far:
+			ld hl, ovl_blk_spin	; page SPIN.PAG
 			ld de, p_spin_status_pg
 			ld ix, p_spin_status_in
 			jp ntc_ovl_enter
@@ -560,14 +618,30 @@ p_spin_status_in:
 			ld sp, p_spin_status
 			jp ntc_xn
 p_spin_status_r:		; end of status
+			ld hl, (p_spin_status_pg)
+			ld a, h
+			and l
+			inc a
+			jr z, p_spin_status_rb	; a call from its own page: nothing to switch back
 			ld sp, (ntc_csp)		; the caller's page back
 			ld hl, (p_spin_status_pg)
 			call mem_sel
+p_spin_status_rb:
 			ld sp, (p_spin_status_rs)
 			jp ntc_xn
 p_spin_makeshape_c:		; call makeshape (normal)
 			ld (p_spin_makeshape_rs), sp
-			ld hl, ovl_blk_spin	; overlay SPIN.PAG
+			ld a, (ntc_ovl_lc)	; called from its own page?
+			or a
+			jr z, p_spin_makeshape_far
+			xor a
+			ld (ntc_ovl_lc), a
+			dec a
+			ld (p_spin_makeshape_pg), a	; #FF..: no page back on return
+			ld (p_spin_makeshape_pg+1), a
+			jr p_spin_makeshape_in
+p_spin_makeshape_far:
+			ld hl, ovl_blk_spin	; page SPIN.PAG
 			ld de, p_spin_makeshape_pg
 			ld ix, p_spin_makeshape_in
 			jp ntc_ovl_enter
@@ -575,9 +649,15 @@ p_spin_makeshape_in:
 			ld sp, p_spin_makeshape
 			jp ntc_xn
 p_spin_makeshape_r:		; end of makeshape
+			ld hl, (p_spin_makeshape_pg)
+			ld a, h
+			and l
+			inc a
+			jr z, p_spin_makeshape_rb	; a call from its own page: nothing to switch back
 			ld sp, (ntc_csp)		; the caller's page back
 			ld hl, (p_spin_makeshape_pg)
 			call mem_sel
+p_spin_makeshape_rb:
 			ld sp, (p_spin_makeshape_rs)
 			jp ntc_xn
 p_spin_cube_c:		; call cube (normal)
@@ -601,7 +681,17 @@ p_spin_cube_c:		; call cube (normal)
 			ld hl, 0
 			ld (var_spin_cube_i), hl
 			ld (p_spin_cube_rs), sp
-			ld hl, ovl_blk_spin	; overlay SPIN.PAG
+			ld a, (ntc_ovl_lc)	; called from its own page?
+			or a
+			jr z, p_spin_cube_far
+			xor a
+			ld (ntc_ovl_lc), a
+			dec a
+			ld (p_spin_cube_pg), a	; #FF..: no page back on return
+			ld (p_spin_cube_pg+1), a
+			jr p_spin_cube_in
+p_spin_cube_far:
+			ld hl, ovl_blk_spin	; page SPIN.PAG
 			ld de, p_spin_cube_pg
 			ld ix, p_spin_cube_in
 			jp ntc_ovl_enter
@@ -609,9 +699,15 @@ p_spin_cube_in:
 			ld sp, p_spin_cube
 			jp ntc_xn
 p_spin_cube_r:		; end of cube
+			ld hl, (p_spin_cube_pg)
+			ld a, h
+			and l
+			inc a
+			jr z, p_spin_cube_rb	; a call from its own page: nothing to switch back
 			ld sp, (ntc_csp)		; the caller's page back
 			ld hl, (p_spin_cube_pg)
 			call mem_sel
+p_spin_cube_rb:
 			ld sp, (p_spin_cube_rs)
 			jp ntc_xn
 p_spin_pyramid_c:		; call pyramid (normal)
@@ -637,7 +733,17 @@ p_spin_pyramid_c:		; call pyramid (normal)
 			ld hl, 0
 			ld (var_spin_pyramid_i), hl
 			ld (p_spin_pyramid_rs), sp
-			ld hl, ovl_blk_spin	; overlay SPIN.PAG
+			ld a, (ntc_ovl_lc)	; called from its own page?
+			or a
+			jr z, p_spin_pyramid_far
+			xor a
+			ld (ntc_ovl_lc), a
+			dec a
+			ld (p_spin_pyramid_pg), a	; #FF..: no page back on return
+			ld (p_spin_pyramid_pg+1), a
+			jr p_spin_pyramid_in
+p_spin_pyramid_far:
+			ld hl, ovl_blk_spin	; page SPIN.PAG
 			ld de, p_spin_pyramid_pg
 			ld ix, p_spin_pyramid_in
 			jp ntc_ovl_enter
@@ -645,16 +751,32 @@ p_spin_pyramid_in:
 			ld sp, p_spin_pyramid
 			jp ntc_xn
 p_spin_pyramid_r:		; end of pyramid
+			ld hl, (p_spin_pyramid_pg)
+			ld a, h
+			and l
+			inc a
+			jr z, p_spin_pyramid_rb	; a call from its own page: nothing to switch back
 			ld sp, (ntc_csp)		; the caller's page back
 			ld hl, (p_spin_pyramid_pg)
 			call mem_sel
+p_spin_pyramid_rb:
 			ld sp, (p_spin_pyramid_rs)
 			jp ntc_xn
 p_spin_cobra_c:		; call cobra (normal)
 			ld hl, 0
 			ld (var_spin_cobra_r), hl
 			ld (p_spin_cobra_rs), sp
-			ld hl, ovl_blk_spin	; overlay SPIN.PAG
+			ld a, (ntc_ovl_lc)	; called from its own page?
+			or a
+			jr z, p_spin_cobra_far
+			xor a
+			ld (ntc_ovl_lc), a
+			dec a
+			ld (p_spin_cobra_pg), a	; #FF..: no page back on return
+			ld (p_spin_cobra_pg+1), a
+			jr p_spin_cobra_in
+p_spin_cobra_far:
+			ld hl, ovl_blk_spin	; page SPIN.PAG
 			ld de, p_spin_cobra_pg
 			ld ix, p_spin_cobra_in
 			jp ntc_ovl_enter
@@ -662,9 +784,15 @@ p_spin_cobra_in:
 			ld sp, p_spin_cobra
 			jp ntc_xn
 p_spin_cobra_r:		; end of cobra
+			ld hl, (p_spin_cobra_pg)
+			ld a, h
+			and l
+			inc a
+			jr z, p_spin_cobra_rb	; a call from its own page: nothing to switch back
 			ld sp, (ntc_csp)		; the caller's page back
 			ld hl, (p_spin_cobra_pg)
 			call mem_sel
+p_spin_cobra_rb:
 			ld sp, (p_spin_cobra_rs)
 			jp ntc_xn
 p_spin_edge_c:		; call edge (normal)
@@ -679,7 +807,17 @@ p_spin_edge_c:		; call edge (normal)
 			ld d, (hl)
 			ld (var_spin_edge_b), de
 			ld (p_spin_edge_rs), sp
-			ld hl, ovl_blk_spin	; overlay SPIN.PAG
+			ld a, (ntc_ovl_lc)	; called from its own page?
+			or a
+			jr z, p_spin_edge_far
+			xor a
+			ld (ntc_ovl_lc), a
+			dec a
+			ld (p_spin_edge_pg), a	; #FF..: no page back on return
+			ld (p_spin_edge_pg+1), a
+			jr p_spin_edge_in
+p_spin_edge_far:
+			ld hl, ovl_blk_spin	; page SPIN.PAG
 			ld de, p_spin_edge_pg
 			ld ix, p_spin_edge_in
 			jp ntc_ovl_enter
@@ -687,9 +825,15 @@ p_spin_edge_in:
 			ld sp, p_spin_edge
 			jp ntc_xn
 p_spin_edge_r:		; end of edge
+			ld hl, (p_spin_edge_pg)
+			ld a, h
+			and l
+			inc a
+			jr z, p_spin_edge_rb	; a call from its own page: nothing to switch back
 			ld sp, (ntc_csp)		; the caller's page back
 			ld hl, (p_spin_edge_pg)
 			call mem_sel
+p_spin_edge_rb:
 			ld sp, (p_spin_edge_rs)
 			jp ntc_xn
 
@@ -4123,6 +4267,9 @@ ovl_kres:		dw 0
 ovl_kcur:		dw 0
 ovl_mt:			dw ntc_ovl_ld2	; fs_go returns into this
 ovl_lblk:		dw 0			; LocalAlloc / LocalFree: the class block
+ovl_ct:			dw 0			; ntc_ovl_enterc: the copy table's home row
+ntc_ovl_lc:		db 0			; 1 = a call from code in the class's own page (its local entry): no switch
+ntc_ovl_body:	dw 0			; a class in more than one page: the body of the copy to run
 ovl_tdie:		db "Overlay not loaded: ", 0
 ovl_tpage:		db "No RAM page free", 0
 ovl_tfile:		db "The file didn't load", 0
@@ -4379,6 +4526,59 @@ ntc_ovl_en_back:
 			jp nz, ntc_ovl_die
 			ld ix, (ovl_ix)
 			jp (ix)
+; ntc_ovl_enterc - from a call stub of a class in more than one page (jp, SP =
+; the caller's thread, IX = where to go on): HL = the procedure's copy table (db
+; n, then n x dw block, body - the home copy first), DE = the stub's word for the
+; caller's page. Picks the copy whose page is in the window now (no switch), else
+; the home copy; ntc_ovl_body = its body; then on as ntc_ovl_enter. No stack used
+; (SP is the caller's thread).
+ntc_ovl_enterc:
+			ld (ovl_pg), de
+			ld (ovl_ix), ix
+			ld b, (hl)
+			inc hl
+			ld (ovl_ct), hl
+ntc_ovl_ec1:
+			ld e, (hl)				; DE = a copy's block, HL = its body's word
+			inc hl
+			ld d, (hl)
+			inc hl
+			inc de					; its page (0 = not loaded) = the page in the window?
+			ld a, (de)
+			dec de
+			ld c, a
+			ld a, (mem_cur + 1)
+			cp c
+			jr nz, ntc_ovl_ec2
+			ld a, (de)
+			ld c, a
+			ld a, (mem_cur)
+			cp c
+			jr nz, ntc_ovl_ec2
+			inc de
+			ld a, (de)
+			dec de
+			or c
+			jr nz, ntc_ovl_ec3
+ntc_ovl_ec2:
+			inc hl
+			inc hl
+			djnz ntc_ovl_ec1
+			ld hl, (ovl_ct)			; none in the window: the home copy
+			ld e, (hl)
+			inc hl
+			ld d, (hl)
+			inc hl
+ntc_ovl_ec3:
+			ld a, (hl)
+			inc hl
+			ld h, (hl)
+			ld l, a
+			ld (ntc_ovl_body), hl
+			ex de, hl
+			ld de, (ovl_pg)
+			ld ix, (ovl_ix)
+			jp ntc_ovl_enter
 ; ntc_ovl_core - (jp, IX = where to go on) HL = a class block: its file into a
 ; free C page. Comes back on the real stack with HL = 0 and that page in the
 ; window, or HL = a FileSystem status / OVL_NOPAGE (no page is kept).
@@ -5921,7 +6121,8 @@ ntc_plat_memtop:
 			ret
 
 
-; overlay classes: the page each is loaded in (0 = not loaded), its page variables (start, size), its file
+; pages (Option Page / Option Class Overlay): the RAM page each is loaded in (0 = not loaded),
+; the end of its code and the size of its page variables, its file
 ovl_blk_spin:	dw 0, ovl_spin_end, ovl_spin_vsize
 			db "SPIN.PAG", 0
 
@@ -5947,11 +6148,13 @@ ntc_free	equ ntc_bss + ntc_bss_size	; the first free byte (heap, Memory tables)
 			ASSERT (ntc_free <= #4000) || (ntc_start >= #8000), "overlay classes: the program and its arrays must stay out of #4000-#7FFF (the window they run in)"
 
 ; ============================================================
-; Overlay class spin -> SPIN.PAG: its threads, built to run at #4000
-; (a C page); its variables are in the program. Written as its own file.
+; Page SPIN -> SPIN.PAG: spin - threads built to run at #4000
+; (a RAM page, or the overlay area); their variables are in the program, but for
+; Private Paged ones (after the code). Written as its own file.
 ; ============================================================
 			ORG #4000
 ovl_spin_start:
+ovl_spin__0_s:		; spin
 p_spin_run:
 
 			; Spin.cls 16: Dim k As String, t As Integer
@@ -5962,10 +6165,10 @@ p_spin_run:
 			dw kw_ltov, 1, var_spin_mode
 
 			; Spin.cls 18: Screen
-			dw p_spin_screen_c
+			dw p_spin_screen_cl
 
 			; Spin.cls 19: MakeShape
-			dw p_spin_makeshape_c
+			dw p_spin_makeshape_cl
 
 			; Spin.cls 20: t = Ticks
 			dw kw_ticks, tmp0
@@ -5981,7 +6184,7 @@ do5_t:
 			dw kw_turbo_on
 
 			; Spin.cls 24: Frame1
-			dw p_spin_frame1_c
+			dw p_spin_frame1_cl
 
 			; Spin.cls 25: Turbo Off
 			dw kw_turbo_off
@@ -5991,7 +6194,7 @@ do5_t:
 if6_1:
 
 			; Spin.cls 27: Frame1
-			dw p_spin_frame1_n_c
+			dw p_spin_frame1_n_cl
 
 			; Spin.cls 28: End If
 if6_e:
@@ -6015,7 +6218,7 @@ if6_e:
 			dw kw_vtov, tmp0, var_spin_run_t
 
 			; Spin.cls 33: Status
-			dw p_spin_status_c
+			dw p_spin_status_cl
 
 			; Spin.cls 34: End If
 if7_1:
@@ -6038,7 +6241,7 @@ if7_1:
 			dw kw_orvv, tmp0, tmp1, tmp0
 			dw kw_goto_ifzero_n, tmp0, if8_1
 			dw kw_strval, var_spin_run_k, var_spin_shape
-			dw p_spin_makeshape_c
+			dw p_spin_makeshape_cl
 if8_1:
 
 			; Spin.cls 37: If k = "+" Or k = "=" Then size = size + 20 : Vector3D.View 160, 112, size, 768
@@ -6081,7 +6284,7 @@ if11_1:
 			dw kw_goto_ifzero_n, tmp0, if12_1
 			dw kw_strasc, var_spin_run_k, tmp0
 			dw kw_addl, tmp0, -65, var_spin_mode
-			dw p_spin_screen_c
+			dw p_spin_screen_cl
 if12_1:
 
 			; Spin.cls 41: If k = "D" Then
@@ -6098,7 +6301,7 @@ if12_1:
 			dw fn_graphics_doublebuffer, var_spin_dbl
 
 			; Spin.cls 45: Status
-			dw p_spin_status_c
+			dw p_spin_status_cl
 
 			; Spin.cls 46: End If
 if13_1:
@@ -6107,7 +6310,7 @@ if13_1:
 			dw kw_strcmpeq, var_spin_run_k, str14
 			dw kw_goto_iffalse_n, if14_1
 			dw kw_notv, var_spin_fast, var_spin_fast
-			dw p_spin_status_c
+			dw p_spin_status_cl
 if14_1:
 
 			; Spin.cls 48: Loop Until k = "X"
@@ -6202,7 +6405,7 @@ p_spin_screen:
 			dw kw_printnl
 
 			; Spin.cls 71: Status
-			dw p_spin_status_c
+			dw p_spin_status_cl
 
 			; Spin.cls 72: If dbl Then Graphics.DoubleBuffer 1
 			dw kw_goto_ifzero_n, var_spin_dbl, if19_1
@@ -6263,7 +6466,7 @@ p_spin_makeshape:
 			dw kw_cpeqvl, var_spin_makeshape___sel23, 1
 			dw kw_goto_iffalse_n, sel23_1
 sel23_b1:
-			dw p_spin_cube_c, lit_0, lit_0, lit_128
+			dw p_spin_cube_cl, lit_0, lit_0, lit_128
 
 			; Spin.cls 89: Case 2: Pyramid 0, 0, 128
 			dw sel23_e_go
@@ -6271,7 +6474,7 @@ sel23_1:
 			dw kw_cpeqvl, var_spin_makeshape___sel23, 2
 			dw kw_goto_iffalse_n, sel23_2
 sel23_b2:
-			dw p_spin_pyramid_c, lit_0, lit_0, lit_128
+			dw p_spin_pyramid_cl, lit_0, lit_0, lit_128
 
 			; Spin.cls 90: Case 3: Cobra
 			dw sel23_e_go
@@ -6279,7 +6482,7 @@ sel23_2:
 			dw kw_cpeqvl, var_spin_makeshape___sel23, 3
 			dw kw_goto_iffalse_n, sel23_3
 sel23_b3:
-			dw p_spin_cobra_c
+			dw p_spin_cobra_cl
 
 			; Spin.cls 91: Case 4: Cube -170, 0, 64 : Pyramid 170, 0, 64 : Cube 0, 0, 40
 			dw sel23_e_go
@@ -6287,9 +6490,9 @@ sel23_3:
 			dw kw_cpeqvl, var_spin_makeshape___sel23, 4
 			dw kw_goto_iffalse_n, sel23_4
 sel23_b4:
-			dw p_spin_cube_c, lit_m170, lit_0, lit_64
-			dw p_spin_pyramid_c, lit_170, lit_0, lit_64
-			dw p_spin_cube_c, lit_0, lit_0, lit_40
+			dw p_spin_cube_cl, lit_m170, lit_0, lit_64
+			dw p_spin_pyramid_cl, lit_170, lit_0, lit_64
+			dw p_spin_cube_cl, lit_0, lit_0, lit_40
 
 			; Spin.cls 92: End Select
 sel23_4:
@@ -6499,44 +6702,79 @@ p_spin_cobra:
 			dw kw_vtov, var_vector3d_addpoint_addpoint, var_spin_cobra_r
 
 			; Spin.cls 135: Edge 0, 1 : Edge 2, 3 : Edge 2, 4 : Edge 4, 5 : Edge 5, 6 : Edge 6, 7
-			dw p_spin_edge_c, lit_0, lit_1
-			dw p_spin_edge_c, lit_2, lit_3
-			dw p_spin_edge_c, lit_2, lit_4
-			dw p_spin_edge_c, lit_4, lit_5
-			dw p_spin_edge_c, lit_5, lit_6
-			dw p_spin_edge_c, lit_6, lit_7
+			dw p_spin_edge_cl, lit_0, lit_1
+			dw p_spin_edge_cl, lit_2, lit_3
+			dw p_spin_edge_cl, lit_2, lit_4
+			dw p_spin_edge_cl, lit_4, lit_5
+			dw p_spin_edge_cl, lit_5, lit_6
+			dw p_spin_edge_cl, lit_6, lit_7
 
 			; Spin.cls 136: Edge 7, 8 : Edge 8, 9 : Edge 9, 3 : Edge 2, 6 : Edge 3, 7 : Edge 2, 10
-			dw p_spin_edge_c, lit_7, lit_8
-			dw p_spin_edge_c, lit_8, lit_9
-			dw p_spin_edge_c, lit_9, lit_3
-			dw p_spin_edge_c, lit_2, lit_6
-			dw p_spin_edge_c, lit_3, lit_7
-			dw p_spin_edge_c, lit_2, lit_10
+			dw p_spin_edge_cl, lit_7, lit_8
+			dw p_spin_edge_cl, lit_8, lit_9
+			dw p_spin_edge_cl, lit_9, lit_3
+			dw p_spin_edge_cl, lit_2, lit_6
+			dw p_spin_edge_cl, lit_3, lit_7
+			dw p_spin_edge_cl, lit_2, lit_10
 
 			; Spin.cls 137: Edge 10, 3 : Edge 10, 11 : Edge 10, 12 : Edge 10, 13 : Edge 2, 11 : Edge 3, 13
-			dw p_spin_edge_c, lit_10, lit_3
-			dw p_spin_edge_c, lit_10, lit_11
-			dw p_spin_edge_c, lit_10, lit_12
-			dw p_spin_edge_c, lit_10, lit_13
-			dw p_spin_edge_c, lit_2, lit_11
-			dw p_spin_edge_c, lit_3, lit_13
+			dw p_spin_edge_cl, lit_10, lit_3
+			dw p_spin_edge_cl, lit_10, lit_11
+			dw p_spin_edge_cl, lit_10, lit_12
+			dw p_spin_edge_cl, lit_10, lit_13
+			dw p_spin_edge_cl, lit_2, lit_11
+			dw p_spin_edge_cl, lit_3, lit_13
 
 			; Spin.cls 138: Edge 5, 11 : Edge 11, 12 : Edge 12, 13 : Edge 13, 8 : Edge 13, 9 : Edge 11, 4
-			dw p_spin_edge_c, lit_5, lit_11
-			dw p_spin_edge_c, lit_11, lit_12
-			dw p_spin_edge_c, lit_12, lit_13
-			dw p_spin_edge_c, lit_13, lit_8
-			dw p_spin_edge_c, lit_13, lit_9
-			dw p_spin_edge_c, lit_11, lit_4
+			dw p_spin_edge_cl, lit_5, lit_11
+			dw p_spin_edge_cl, lit_11, lit_12
+			dw p_spin_edge_cl, lit_12, lit_13
+			dw p_spin_edge_cl, lit_13, lit_8
+			dw p_spin_edge_cl, lit_13, lit_9
+			dw p_spin_edge_cl, lit_11, lit_4
 			dw p_spin_cobra_r
 p_spin_edge:
 
 			; Spin.cls 142: Vector3D.AddEdge a, b
 			dw p_vector3d_addedge_c, var_spin_edge_a, var_spin_edge_b
 			dw p_spin_edge_r
+ovl_spin__0_e:
+; calls from this page into it (no page switch), GOTO / GOSUB of copies
+ovl_spin__x_s:
+p_spin_screen_cl:			ld a, 1
+			ld (ntc_ovl_lc), a
+			jp p_spin_screen_c
+p_spin_makeshape_cl:			ld a, 1
+			ld (ntc_ovl_lc), a
+			jp p_spin_makeshape_c
+p_spin_frame1_cl:			ld a, 1
+			ld (ntc_ovl_lc), a
+			jp p_spin_frame1_c
+p_spin_frame1_n_cl:			ld a, 1
+			ld (ntc_ovl_lc), a
+			jp p_spin_frame1_n_c
+p_spin_status_cl:			ld a, 1
+			ld (ntc_ovl_lc), a
+			jp p_spin_status_c
+p_spin_cube_cl:			ld a, 1
+			ld (ntc_ovl_lc), a
+			jp p_spin_cube_c
+p_spin_pyramid_cl:			ld a, 1
+			ld (ntc_ovl_lc), a
+			jp p_spin_pyramid_c
+p_spin_cobra_cl:			ld a, 1
+			ld (ntc_ovl_lc), a
+			jp p_spin_cobra_c
+p_spin_edge_cl:			ld a, 1
+			ld (ntc_ovl_lc), a
+			jp p_spin_edge_c
+ovl_spin__x_e:
 			dw 0			; (never empty)
 ovl_spin_end:		; the end of its file; page variables (cleared on loading) follow
 ovl_spin_vsize	equ 0		; its page variables; its local memory is the rest, to #8000
-			ASSERT ovl_spin_end + ovl_spin_vsize <= #8000, "overlay class spin is more than 16K (code and page variables)"
+			ASSERT ovl_spin_end + ovl_spin_vsize <= #8000, "page SPIN (spin) is more than 16K (code and page variables)"
+			DISPLAY "page SPIN:"
+			DISPLAY "  spin ", /D, ovl_spin__0_e - ovl_spin__0_s
+			DISPLAY "  (local entries, stubs) ", /D, ovl_spin__x_e - ovl_spin__x_s
+			DISPLAY "  page variables ", /D, ovl_spin_vsize, ", free ", /D, #8000 - (ovl_spin_end + ovl_spin_vsize)
 			SAVEAMSDOS "SPIN.PAG", ovl_spin_start, ovl_spin_end - ovl_spin_start, #4000
