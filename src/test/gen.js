@@ -27,7 +27,9 @@ var strOut = '// keyword library text from asm/ntc_lib.asm and asm/ntc_plat_*.as
 	'// generated: edit the .asm / .cls files, not this one\n\n' +
 	'var NTC_LIB_ASM = ' + JSON.stringify(strLib) + ';\n\n' +
 	'var NTC_PLATFORMS = {\n' + arrPlat.map(function(strPlat) { return '\t' + strPlat + ': ' + JSON.stringify(read('asm/ntc_plat_' + strPlat + '.asm')); }).join(',\n') + '\n};\n\n' +
-	'var NTC_PLATFORM_CLASSES = ' + JSON.stringify(objClasses, null, '\t') + ';\n';
+	'var NTC_PLATFORM_CLASSES = ' + JSON.stringify(objClasses, null, '\t') + ';\n\n' +
+	'// the keyword library ROM registries (asm/ntc_rom_<platform>.txt, test/genrom.js): Library: ROM\n' +
+	'var NTC_ROM_REG = {\n' + arrPlat.filter(function(strPlat) { return fs.existsSync(strDir + 'asm/ntc_rom_' + strPlat + '.txt'); }).map(function(strPlat) { return '\t' + strPlat + ': ' + JSON.stringify(read('asm/ntc_rom_' + strPlat + '.txt')); }).join(',\n') + '\n};\n';
 fs.writeFileSync(strDir + 'js/ntc_lib.js', strOut);
 console.log('generated js/ntc_lib.js');
 

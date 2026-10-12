@@ -7,6 +7,11 @@ finished, with the date.
 
 ## done
 
+- 2026-10-13 keyword library in ROM (cpcfw): `Option Library ROM` / GUI Library "in ROM";
+  `ntcRomAsm` + test/genrom.js build `build/rom/NTCFW.ROM` (16K + AMSDOS header, background
+  ROM "NTC CPCFW"); permanent append-only registry of numbers / variable addresses; the program
+  has `name: jp <number>` entries, finds the ROM in slots 0-31 and has its patcher fill in the
+  addresses; checked on the real 6128 firmware (self tests, files, interrupts, pages, cube3d)
 - 2026-10-09 tinyz80b BASIC to NTC compiler (first cut, regex parser), ES5, line by line,
   IFtoPF shunting yard, no parse tree
 - 2026-10-09 realtime GUI `ntc.html` with textEditor.js: BASIC left, NTC asm right
@@ -549,6 +554,12 @@ finished, with the date.
         keywords
       - then remove the `Interrupt` statement (or keep it as sugar for
         `Interrupts.Every 1, AddressOf Sub`); update hook.bas / ref, userguide 12, NTC.md
+- [ ] **library in ROM, next** (first step done 2026-10-13: cpcfw, `Option Library ROM`, jump
+      block patched at start, NTCFW.ROM, registry `asm/ntc_rom_cpcfw.txt`). Left: cpcmin and
+      cpc ROMs (own probe through #DFxx / the gate array; every gate array write keeps the
+      upper ROM on; screen reads from RAM); the 10 T per keyword (sieve timing +25%) could go
+      with load time patching of the threads (item 4 below: a list of thread words, patched
+      once - main RAM at start, page files when loaded); BASIC RSX commands in the ROM.
 - [ ] FUTURE (CPC, main target): **library in ROM** - a second CPC build next to the RAM one
       (RAM only for now; keep this possible). Why: many CPC users have ROM boards (and the M4
       has ROM slots); the library is half to nine tenths of a typical program (measured

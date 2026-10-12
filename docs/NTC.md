@@ -382,6 +382,53 @@ AMSDOS RSXs) and `System.Command` (any RSX, KL FIND COMMAND + KL FAR PCALL); `cp
 - `#asm` naming any library label (not only a section name) links that label's section, so
   class methods can jump straight to `ntc_plat_putc`, `kw_printint` and so on.
 
+### The keyword library ROM (Library: ROM, cpcfw)
+
+The library can live in a 16K background ROM instead of in each program (`Option Library
+ROM`, `library: 'rom'`, GUI **Library: in ROM**). One ROM per platform, each with its own
+name (`NTC CPCFW` for now), so all of them can be fitted at once.
+
+- **Making the ROM** (`ntcRomAsm(platform, registry)` in ntc_compiler.js, run by
+  `test/genrom.js`): compiles `Print` with `library: 'allmodes'` (every section, both mode
+  copies), drops what a ROM can't use (plain `ntc_xn` - the hook version is kept; asserts),
+  and rewrites the uses of the program's own symbols as RAM variables the start code fills:
+  `ntc_free` -> `(ntc_v_free)`, `ntc_start`, `NTC_STAMP`, `NTC_ROMENABLE` (an `IF` becomes a
+  test of `ntc_v_romen`). `NTC_STRMAX` is 255 and `NTC_MEMBANKS` 64. Lines are sorted into code
+  (the ROM), initialised variables (assembled for `#8800` and copied there by the patcher), the
+  other variables (`#9400` up, cleared) and constants. A capacity byte before a buffer goes with
+  the buffer; a label at the end of a section stays with the variable before it. The Graphics
+  section runs from RAM too: it reads the screen, which the upper ROM hides; `gfx_begin` / `gfx_end`
+  and the screen routines (`gfx_line`, `gfx_double`, `gfx_copyrows`) turn the upper ROM off
+  and on round themselves (KL U ROM DISABLE / ENABLE, so the firmware's interrupts keep it).
+  The fast ticker event gets the ROM's number as its far address.
+- **The ROM:** an AMSDOS header (`NTCFW.ROM` is 16512 bytes), the standard header (background,
+  names, `jp ntc_rom_init` - `scf / ret`, no RAM taken; no BASIC commands yet), then NTC's block
+  after the names: `"NTC", 1`, `"CPCFW", 0`, `dw ntc_rom_patch, ntc_rom_index, NTC_ROM_N`.
+  The index is one `dw` per number (0: no longer in this ROM); padded with 0 to 16K.
+- **The registry** (`src/asm/ntc_rom_cpcfw.txt`, bundled as `NTC_ROM_REG` by gen.js):
+  `<n> code <name>` (a routine's number), `- data|bss|const <name> <value>` (a variable's
+  fixed address, a constant's value), `gone` (no longer in the ROM: the number is never used
+  again). Only what programs can name is registered: section names, `NTC_ROM_RUNTIME` (labels
+  the compiler's own code uses), labels the platform classes name, and their `_n` copies.
+  genrom.js appends new entries (numbers in order; variables at the address they got) and the
+  ROM's source asserts that every known variable is still where the registry says.
+- **The program** (`ntcRomJumpBlock`): in place of the library, the routines its text names
+  as `name: jp <number>`, the variables and constants as `equ`, and `ntc_rj_find`: KL ROM SELECT
+  on slots 0-31 (the first call keeps the caller's selection), a background ROM (`#C000` = 1)
+  whose names are followed by the NTC block for this platform; then `call ntc_rom_patch` with
+  HL = jump block, BC = entries, A = slot. The patcher copies its variables to `#8800`, clears
+  `#9400` up, stores the slot in `ntc_v_rom`, and replaces each number by the address (carry,
+  DE = the number, for one it hasn't got). The start code fills `ntc_v_*` and pushes
+  `ntc_rj_exit` (KL ROM DESELECT: the caller's selection back) before everything else, so
+  `End` and `Option Stack`'s return both come back through it. `ASSERT ntc_free <= #8800`.
+- **Interrupts:** in the firmware's interrupt the lower ROM is on, so RAM below `#4000` (where
+  the jump block is) can't be reached from the event. The start code gives `ntc_irqv` the ROM's
+  own address of `ntc_isl_tick` (`ld hl,(ntc_isl_tick + 1)`: the patched jump).
+- **Cost:** 10 T per keyword (the `jp`); the sieve timing is about 25% slower. Programs lose
+  the library's size (SIEVE 1588 -> 680 bytes).
+- Firmware and AMSDOS calls from the ROM return to it (the firmware restores the upper ROM
+  selection); checked on the real 6128 ROMs with `realcpc` (`XROM=`).
+
 ### Project explorer (GUI)
 
 - Left: the project's files (listRenderer) with + Module, + Class, Rename, Remove, and drag
@@ -490,6 +537,8 @@ variables, `Declare`.
   again (KL ROM WALK / KL INIT BACK per ROM, DE = `ntc_end`, HL = `#ABFF`) unless CAS IN OPEN
   is already AMSDOS's far call (`#DF` at `#BC77`: the program was CALLed and they run).
   `RUN"` of a binary resets the firmware and drops them. Writes `NTC_ROMENABLE equ 0 / 1`.
+- `Option Library ROM | RAM` (cpcfw): the keyword library in the ROM NTC CPCFW - see "The
+  keyword library ROM" in section 4.
 - `VarPtr(name)`: the address of a variable's value or a fixed size array's first element
   (a read only word, like `AddressOf`), for `FileSystem.Load` / `Save` and `#asm`.
 
@@ -991,6 +1040,18 @@ Run it after changing `asm/`, `lib/` or anything in `bas/`. It writes `js/ntc_li
 library text, every platform file and the platform classes) and `js/ntc_examples.js`
 (the Example list in the GUI, from the list at the top of `gen.js` - add new examples
 there).
+
+### genrom.js - the keyword library ROM
+
+```
+node genrom.js [platform]       (cpcfw; needs sjasmplus)
+```
+
+Makes the ROM's source with `ntcRomAsm`, assembles it, appends new registry entries to
+`asm/ntc_rom_<platform>.txt`, makes it again with the new registry and writes
+`build/rom/NTCFW.ASM` and `NTCFW.ROM`. Run `gen.js` after it (the registry goes into
+`ntc_lib.js`). `regress.sh` checks that it adds nothing. `ntcrun.py --platform=cpcfw
+--library=rom` puts the ROM image in slot 6 (`NTC_XROM=file` for another one).
 
 ### genbuild.js - the test builds in build/
 

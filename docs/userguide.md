@@ -2259,6 +2259,52 @@ On other platforms it gives a warning and does nothing.
 
 **VB:** not in VB.
 
+### Option Library
+
+`Option Library ROM` / `Option Library RAM`
+
+`cpcfw` only (the other platforms get their ROMs later). With `ROM`, the keyword library is
+not put into the program: it is in a ROM, **NTC CPCFW** (`build/rom/NTCFW.ROM`, 16K with an
+AMSDOS header, 16512 bytes - for a ROM board, an M4 / ROM emulator or WinAPE's ROM slots).
+The program gets a small jump block instead: one `jp` for each library routine it uses. Each
+entry starts as `jp <number>`. At the start the program looks for the ROM in slots 0-31
+(a background ROM whose NTC block says `CPCFW`) and calls the ROM's patcher with the jump
+block, which puts the ROM's address in place of each number. The rest of the program is
+built exactly as before. `RAM` (the default) puts the library in the program; the GUI's
+**Library** list has the same choice (**in ROM (cpcfw)**), and the source wins.
+
+```
+Option Library ROM
+Print "Hello"          ' a few hundred bytes: the jump block, the start code, the program
+```
+
+- **Smaller programs.** GUESS goes from 1539 bytes to 661, SIEVE from 1588 to 680, the pages
+  demo from 7819 to 1285 (cube3d: 13079 to 5344). The difference is the library code.
+- **Slower.** Every keyword goes through the jump block: 10 T more each time. On short
+  keywords that is a lot - the sieve timing takes about 25% longer.
+- **The ROM's RAM.** The ROM keeps its variables in `#8800-#A5EF`, so the program and its
+  arrays must end below `#8800` (checked when assembling). A program CALLed from BASIC needs
+  `MEMORY &87FF` (or lower) first, or BASIC's strings and the ROM's variables overwrite
+  each other. `End` puts the caller's ROM selection back.
+- **Strings up to 255.** The ROM's buffers are built for 255 characters, so the program's
+  string temporaries are too (more RAM for programs with many of them).
+- **Not found.** Without the ROM the program prints `ROM NTC CPCFW (NTCFW.ROM) not found`;
+  with an older ROM that hasn't a routine the program uses, `ROM NTC CPCFW too old: no
+  routine #nnnn`. Then it waits for a key and goes back.
+- **The ROM can change.** Numbers never change: the registry (`src/asm/ntc_rom_cpcfw.txt`)
+  only grows. A new ROM can move every routine and fix anything inside - programs built
+  before still work. Variables keep fixed addresses (a variable that has to change gets a
+  new name). The ROM for each platform has its own name, so all of them can be fitted at
+  once and each program finds its own.
+- **#asm.** Inline assembly can use the library routines and variables in the registry
+  (what the compiler's own code and the platform classes use: section names, `kw_...`,
+  `gfx_...`, `ntc_csp` and the like). Anything else in the library is the ROM's own and
+  stops the compile ("the cpcfw ROM has no ...").
+- The firmware keeps the ROM selected: firmware and AMSDOS calls made from the ROM come
+  back to it, and the interrupt classes' firmware event runs in it.
+
+**VB:** not in VB.
+
 ### Option Stack
 
 `Option Stack` *address*
@@ -2951,6 +2997,7 @@ change.
 | `Option Memory` | [16](#option-memory) |
 | `Option Page`, `Option Home` | [10](#option-page) |
 | `Option Reserve` | [16](#option-reserve) |
+| `Option Library` | [16](#option-library) |
 | `Option RomEnable` | [16](#option-romenable) |
 | `Option Stack` | [16](#option-stack) |
 | `Option Terminal` | [16](#option-terminal) |

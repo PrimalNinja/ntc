@@ -47,7 +47,7 @@ var arrPrograms = [
 	{ name: 'CONSOLE', files: ['console_classes.bas'] },
 	{ name: 'OWNSTDIO', files: ['own_stdio/Main.bas', 'own_stdio/StdIO.cls'] }
 ];
-var arrPlatforms = ['cpc', 'cpcmin', 'cpcfw', 'cpm', 'test'];
+var arrPlatforms = ['cpc', 'cpcmin', 'cpcfw', 'cpm', 'test', 'cpcfwrom'];	// cpcfwrom: cpcfw, Library: ROM (needs NTCFW.ROM)
 var intErrors = 0;
 
 arrPlatforms.forEach(function(strPlat)
@@ -71,16 +71,21 @@ arrPlatforms.forEach(function(strPlat)
 		{
 			return { name: strFile.replace(/^.*\//, ''), text: fs.readFileSync(D + 'bas/' + strFile, 'utf8') };
 		});
-		var objOpts = { platform: strPlat };
+		var strReal = (strPlat === 'cpcfwrom') ? 'cpcfw' : strPlat;
+		var objOpts = { platform: strReal };
 		var objResult = null;
 
-		if (objProg.platforms && (objProg.platforms.indexOf(strPlat) < 0))
+		if (strPlat === 'cpcfwrom')
+		{
+			objOpts.library = 'rom';
+		}
+		if (objProg.platforms && (objProg.platforms.indexOf(strReal) < 0))
 		{
 			return;		// a program for some platforms only
 		}
 
 		objOpts.name = objProg.name;			// page files: NAME.001 ...
-		if ((strPlat === 'cpc') || (strPlat === 'cpcmin') || (strPlat === 'cpcfw'))
+		if ((strReal === 'cpc') || (strReal === 'cpcmin') || (strReal === 'cpcfw'))
 		{
 			objOpts.amsdos = objProg.name;		// the assembler writes NAME.BIN with an AMSDOS header
 		}

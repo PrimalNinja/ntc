@@ -1351,6 +1351,10 @@ function ntcParse(arrFiles_a, objDefines_a)
 		{
 			record('option', { what: 'stack', value: trim(strText.substr(6)) });	// where the real stack starts
 		}
+		else if (left(strText, 'library '))
+		{
+			record('option', { what: 'library', value: trim(strText.substr(8)) });	// Library ROM: the keywords in the ROM
+		}
 		else if (left(strText, 'romenable '))
 		{
 			record('option', { what: 'romenable', value: trim(strText.substr(10)) });	// CPC firmware: the ROMs to start

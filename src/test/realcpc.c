@@ -12,6 +12,8 @@
 //                <seconds> hits          (how often the WATCH addresses were fetched, and how
 //                                         often with the lower ROM on)
 //                <seconds> end
+// XROM=<file> [XSLOT=n]: a ROM image (16K, or 16K + an AMSDOS header) in upper ROM slot n
+// (default 6), there from power on - e.g. build/rom/NTCFW.ROM
 #define CHIPS_IMPL
 #include <stdio.h>
 #include <stdlib.h>
@@ -44,6 +46,14 @@ static chips_range_t rd(const char* p) {
     void* b = malloc(n); if (fread(b, 1, n, f) != (size_t)n) { perror(p); exit(1); } fclose(f);
     return (chips_range_t){ b, (size_t)n };
 }
+static const uint8_t* xrom = 0; static int xslot = 6;
+static void xbankswitch(uint8_t ram_config, uint8_t rom_enable, uint8_t rom_select, void* user_data) {
+    _cpc_bankswitch(ram_config, rom_enable, rom_select, user_data);
+    if (xrom && (rom_select == xslot) && !(rom_enable & AM40010_CONFIG_HROMEN)) {
+        cpc_t* sys = (cpc_t*) user_data;
+        mem_map_rw(&sys->mem, 0, 0xC000, 0x4000, xrom, sys->ram[_cpc_ram_config[ram_config & 7][3]]);
+    }
+}
 static double now = 0;
 static void run(double sec) { while (sec > 0) { double s = sec > 0.02 ? 0.02 : sec; cpc_exec(&cpc, (uint32_t)(s * 1e6)); now += s; sec -= s; } }
 static void shot(const char* name) {
@@ -70,7 +80,10 @@ int main(int argc, char** argv) {
     sprintf(p, "%s/cpc6128_amsdos.bin", R); desc.roms.cpc6128.amsdos = rd(p);
     char* w = getenv("WATCH");
     if (w) { char* t = strtok(w, ","); while (t && nwatch < 16) { watch[nwatch++] = strtoul(t, 0, 16); t = strtok(0, ","); } desc.debug.callback.func = dbg; static bool st = false; desc.debug.stopped = &st; }
+    char* xr = getenv("XROM");
+    if (xr) { chips_range_t r = rd(xr); xrom = (const uint8_t*) r.ptr + ((r.size == 0x4080) ? 128 : 0); if (getenv("XSLOT")) xslot = atoi(getenv("XSLOT")); }
     cpc_init(&cpc, &desc);
+    if (xrom) { cpc.ga.bankswitch_cb = xbankswitch; xbankswitch(cpc.ga.ram_config, cpc.ga.regs.config, cpc.ga.rom_select, &cpc); }
     run(2.5);
     if (strcmp(argv[1], "-")) cpc_insert_disc(&cpc, rd(argv[1]));
     FILE* s = fopen(argv[2], "r"); char line[512];

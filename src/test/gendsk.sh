@@ -11,7 +11,7 @@ cd "$(dirname "$0")"
 SJ=${SJASMPLUS:-sjasmplus}
 fail=0
 mkdir -p ../build/dsk
-for p in cpc cpcmin cpcfw cpm; do
+for p in cpc cpcmin cpcfw cpcfwrom cpm; do
   w=t/dsk_$p; rm -rf $w; mkdir -p $w; cp ../build/$p/*.ASM $w/
   if [ $p == cpm ]; then x=COM; else x=BIN; fi
   # two programs writing a page file of the same name would overwrite each other's on the disc
@@ -35,6 +35,8 @@ for p in cpc cpcmin cpcfw cpm; do
       [ "$t" == "$k" ] || continue
       cpmcp -f cpcdata -T dsk $d $f 0:$b || { echo "gendsk: $p$k: $b did not fit"; fail=1; }
     done
+    # Library: ROM programs: the ROM image on the disc too (for ROM tools / ROM boards)
+    [ $p == cpcfwrom ] && [ "$k" == "" ] && { cpmcp -f cpcdata -T dsk $d ../build/rom/NTCFW.ROM 0:NTCFW.ROM || fail=1; }
     n=$(cpmls -f cpcdata -T dsk $d | grep -vc '^[0-9]*:$')
     echo "build/dsk/$p$k.dsk: $n files ($(du -k $d | cut -f1)K image)"
   done

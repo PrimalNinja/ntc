@@ -6,7 +6,7 @@ eval(fs.readFileSync(require('path').join(__dirname, '..', 'js', 'ntc_parser.js'
 eval(fs.readFileSync(require('path').join(__dirname, '..', 'js', 'ntc_compiler.js'),'utf8').replace('function ntcCompile','global.ntcCompile = function ntcCompile'));
 var args=process.argv.slice(2), opts={}, files=[];
 var mapFile=null;
-args.forEach(function(a){ if(a==="--turbo")opts.turbo=true; else if(a.indexOf("--platform=")===0)opts.platform=a.substr(11); else if(a.indexOf("--amsdos=")===0)opts.amsdos=a.substr(9); else if(a.indexOf("--name=")===0)opts.name=a.substr(7); else if(a==='--nocomments')opts.sourcecomments=false; else if(a==='--layout')opts.showlayout=true; else if(a.indexOf('--map=')===0)mapFile=a.substr(6); else files.push({name:a.replace(/^.*\//,''),text:fs.readFileSync(a,'utf8')}); });
+args.forEach(function(a){ if(a==="--turbo")opts.turbo=true; else if(a.indexOf("--platform=")===0)opts.platform=a.substr(11); else if(a.indexOf("--amsdos=")===0)opts.amsdos=a.substr(9); else if(a.indexOf("--name=")===0)opts.name=a.substr(7); else if(a.indexOf("--library=")===0)opts.library=a.substr(10); else if(a==='--nocomments')opts.sourcecomments=false; else if(a==='--layout')opts.showlayout=true; else if(a.indexOf('--map=')===0)mapFile=a.substr(6); else files.push({name:a.replace(/^.*\//,''),text:fs.readFileSync(a,'utf8')}); });
 var r=ntcCompile(files.length===1?files[0].text:files,opts);
 r.errors.forEach(function(e){console.error('ERR '+(e.file||'')+':'+e.line+': '+e.msg);});
 (r.warnings||[]).forEach(function(e){console.error('WARN '+(e.file||'')+':'+e.line+': '+e.msg);});

@@ -18,7 +18,10 @@ FW = {0xBB06: 'km_wait', 0xBB09: 'km_read', 0xBB5A: 'txt_out', 0xBB6C: 'txt_clea
       0xBC77: 'cas_in_open', 0xBC7A: 'cas_in_close', 0xBC7D: 'cas_in_abandon', 0xBC83: 'cas_in_direct',
       0xBC8C: 'cas_out_open', 0xBC8F: 'cas_out_close', 0xBC92: 'cas_out_abandon', 0xBC98: 'cas_out_direct',
       0xBCCB: 'kl_rom_walk', 0xBCCE: 'kl_init_back', 0xBCD4: 'kl_find_command', 0x001B: 'kl_far_pcall',
-      0xBCE0: 'kl_new_fast_ticker', 0xBCE6: 'kl_del_fast_ticker'}
+      0xBCE0: 'kl_new_fast_ticker', 0xBCE6: 'kl_del_fast_ticker',
+      0xB900: 'kl_u_rom_enable', 0xB903: 'kl_u_rom_disable', 0xB90F: 'kl_rom_select', 0xB918: 'kl_rom_deselect'}
+# Library: ROM (cpcfw): the keyword ROM's image in upper ROM slot XSLOT - at #C000 while selected
+XSLOT = 6
 RSX = ['TAPE', 'DISC', 'A', 'B', 'C', 'M']   # AMSDOS's commands, and an M4-like DOS's C and M
 # files for the FileSystem class (cpm: BDOS FCB calls, cpcfw: CAS calls) live in this folder
 FILES = os.environ.get('NTC_FILES', os.path.join(HERE, 't', 'files'))
@@ -122,6 +125,10 @@ class Host:
                 s.fwport = {0xE0 + i: FW[a] for i, a in enumerate(sorted(FW))}
                 m.set_memory_block(0x18, bytes([0xD3, 0xDF, 0xC9]))   # RST 3: a far call (AMSDOS's CAS entries)
         s.ram = cpcrun.RamBanks(m)                          # the gate array's RAM setting (Memory class)
+        s.xrom = None; s.romsel = 0
+        x = os.environ.get('NTC_XROM')
+        if platform == 'cpcfw' and x:
+            d = open(x, 'rb').read(); s.xrom = d[128:] if len(d) == 0x4080 else d
         m.set_output_callback(s.out); m.set_input_callback(s.inp)
     def key(s):
         # '~' in the typed text: this look at the keyboard finds no key (then the rest follow)
@@ -221,6 +228,13 @@ class Host:
                 m.set_memory_block(0xBF80, bytes(stub)); m.set_memory_block(0x38, bytes([0xC3, 0x80, 0xBF]))
             elif f == 'kl_del_fast_ticker':
                 m.set_memory_block(0x38, bytes([0xFB, 0xC9]))
+            elif f in ('kl_rom_select', 'kl_rom_deselect'):
+                # the upper ROM selected: the keyword ROM's image at #C000 for its slot, anything
+                # else looks like BASIC (#80: a foreground ROM) to the program's search
+                old = s.romsel; s.romsel = m.c
+                if s.xrom and m.c == XSLOT: m.set_memory_block(0xC000, s.xrom)
+                else: m.set_memory_block(0xC000, b'\x80')
+                m.c = old; m.b = 0
             elif f == 'kl_far_pcall':
                 n = RSX[m.hl - 0x4000]
                 if n == 'TAPE': s.cas_dev = 'TAPE'
@@ -344,6 +358,8 @@ def main():
         print(c.screen(cpcrun.loadfont(syms, c.m.memory)))
         print('--- halted' if c.m.halted else '--- NOT halted', 'sp=%04x' % c.m.sp, 'ints=%d' % c.ints, 'T=%d' % c.T)
         return
+    if plat == 'cpcfw' and '--library=rom' in extra and not os.environ.get('NTC_XROM'):
+        os.environ['NTC_XROM'] = os.path.join(HERE, '..', 'build', 'rom', 'NTCFW.ROM')
     org = syms.get('ntc_start', 0x100 if plat == 'cpm' else 0x4000)   # the program's org
     h = Host(plat, b, org, typed)
     if called and plat == 'cpcfw': h.amsdos_on()

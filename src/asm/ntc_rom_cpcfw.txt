@@ -1,0 +1,388 @@
+; NTC keyword library ROM registry - cpcfw
+; Permanent and append-only: a program built with Library: ROM keeps these numbers,
+; names and addresses, so any later ROM must keep them. Written by test/genrom.js.
+;   <number> code <name>        a routine: the ROM's patcher turns the number into its address
+;   - data|bss <name> <addr>     a variable at a fixed RAM address
+;   - const <name> <value>       a constant
+;   gone: no longer in the ROM (the number stays used)
+0	code	ntc_next
+1	code	kw_stop
+2	code	ntc_xn
+3	code	kw_hookon
+4	code	kw_hookoff
+5	code	kw_turbo_on
+6	code	kw_irq
+7	code	kw_turbo_off
+8	code	kw_goto
+9	code	kw_goto_n
+10	code	kw_goto_iffalse
+11	code	kw_goto_iffalse_n
+12	code	kw_goto_iftrue
+13	code	kw_goto_iftrue_n
+14	code	kw_goto_ifzero
+15	code	kw_goto_ifzero_n
+16	code	kw_goto_ifnzero
+17	code	kw_goto_ifnzero_n
+18	code	kw_gosub
+19	code	kw_gosub_n
+20	code	kw_return
+21	code	kw_return_n
+22	code	kw_forupl
+23	code	kw_forupl_n
+24	code	kw_forupv
+25	code	kw_forupv_n
+26	code	kw_fordnl
+27	code	kw_fordnl_n
+28	code	kw_fordnv
+29	code	kw_fordnv_n
+30	code	kw_next1l
+31	code	kw_next1l_n
+32	code	kw_next1v
+33	code	kw_next1v_n
+34	code	ntc_nextadd
+35	code	kw_nextupl
+36	code	kw_nextupl_n
+37	code	kw_nextupv
+38	code	kw_nextupv_n
+39	code	kw_nextdnl
+40	code	kw_nextdnl_n
+41	code	kw_nextdnv
+42	code	kw_nextdnv_n
+43	code	kw_forentry
+44	code	kw_forentry_n
+45	code	kw_fornext
+46	code	kw_fornext_n
+47	code	kw_ltov
+48	code	kw_vtov
+49	code	kw_ztov
+50	code	kw_ftov
+51	code	kw_inc
+52	code	kw_dec
+53	code	kw_add
+54	code	kw_addl
+55	code	kw_subvv
+56	code	kw_sublv
+57	code	kw_2x
+58	code	kw_4x
+59	code	ntc_mul
+60	code	kw_mulvv
+61	code	kw_mulvl
+62	code	ntc_div
+63	code	kw_divvv
+64	code	kw_divvl
+65	code	kw_divlv
+66	code	kw_modvv
+67	code	kw_modvl
+68	code	kw_modlv
+69	code	kw_negv
+70	code	kw_absv
+71	code	kw_sgnv
+72	code	kw_andvv
+73	code	kw_andvl
+74	code	kw_orvv
+75	code	kw_orvl
+76	code	kw_xorvv
+77	code	kw_xorvl
+78	code	kw_notv
+79	code	kw_scpltvv
+80	code	kw_scpltvl
+81	code	kw_scplevv
+82	code	kw_scplevl
+83	code	kw_scpgtvv
+84	code	kw_scpgtvl
+85	code	kw_scpgevv
+86	code	kw_scpgevl
+87	code	kw_cpltvv
+88	code	kw_cpltvl
+89	code	kw_cplevv
+90	code	kw_cplevl
+91	code	kw_cpgtvv
+92	code	kw_cpgtvl
+93	code	kw_cpgevv
+94	code	kw_cpgevl
+95	code	kw_cpeqvv
+96	code	kw_cpeqvl
+97	code	kw_cpnevv
+98	code	kw_cpnevl
+99	code	kw_lptrtov8
+100	code	kw_vptrtov8
+101	code	kw_lptrtov
+102	code	kw_vptrtov
+103	code	kw_ltovptr8
+104	code	kw_vtovptr8
+105	code	kw_ltolptr8
+106	code	kw_vtolptr8
+107	code	kw_ltovptr
+108	code	kw_vtovptr
+109	code	kw_ltolptr
+110	code	kw_vtolptr
+111	code	kw_aget
+112	code	kw_aset
+113	code	kw_aget8
+114	code	kw_aset8
+115	code	kw_redim
+116	code	kw_erase
+117	code	kw_asetl
+118	code	kw_rndv
+119	code	kw_rndl
+120	code	kw_seedv
+121	code	kw_seedl
+122	code	kw_strcpy
+123	code	kw_strcpyn
+124	code	kw_strcat
+125	code	kw_strlen
+126	code	kw_strcmpeq
+127	code	kw_strcmpne
+128	code	ntc_printbuf
+129	code	kw_printstrvar
+130	code	ntc_itoa
+131	code	kw_printint
+132	code	kw_printintvb
+133	code	kw_printzone
+134	code	kw_printnl0
+135	code	kw_callp
+136	code	kw_inp
+137	code	kw_out
+138	code	kw_printnl
+139	code	kw_printtab
+140	code	ntc_gets
+141	code	kw_inputstr
+142	code	kw_inputint
+143	code	ntc_atoi
+144	code	kw_inkey
+145	code	kw_inkeys
+146	code	kw_scrinit
+147	code	kw_cls
+148	code	kw_locatell
+149	code	kw_locatevv
+150	code	kw_model
+151	code	kw_modev
+152	code	kw_frame
+153	code	kw_callv
+154	code	kw_ticks
+155	code	ntc_getn
+156	code	kw_strleft
+157	code	kw_strright
+158	code	kw_pow
+159	code	kw_sqr
+160	code	kw_strrev
+161	code	kw_stroct
+162	code	kw_strinstrrev
+163	code	kw_strreplace
+164	code	kw_strlike
+165	code	kw_strlset
+166	code	kw_strrset
+167	code	kw_strfix
+168	code	kw_strfmt
+169	code	kw_l_strfmt
+170	code	kw_strjoin
+171	code	kw_strsplit
+172	code	kw_strmidset
+173	code	kw_strmid
+174	code	kw_strchr
+175	code	kw_strcstr
+176	code	kw_strstr
+177	code	kw_strhex
+178	code	kw_strspace
+179	code	kw_strstring
+180	code	kw_strucase
+181	code	kw_strlcase
+182	code	kw_strltrim
+183	code	kw_strrtrim
+184	code	kw_strtrim
+185	code	kw_strasc
+186	code	kw_strval
+187	code	kw_strinstr
+188	code	ntc_strcmp
+189	code	kw_strcmplt
+190	code	kw_strcmple
+191	code	kw_strcmpgt
+192	code	kw_strcmpge
+193	code	ntc_saddr
+194	code	kw_sget
+195	code	kw_sset
+196	code	ntc_paddr
+197	code	ntc_paddr2
+198	code	kw_pget
+199	code	kw_pset
+200	code	kw_psets
+201	code	kw_psets2
+202	code	kw_pget2
+203	code	kw_pset2
+204	code	kw_lbound
+205	code	kw_ubound
+206	code	kw_l_mov
+207	code	kw_l_itol
+208	code	kw_l_ltoi
+209	code	kw_l_add
+210	code	kw_l_sub
+211	code	kw_l_and
+212	code	kw_l_or
+213	code	kw_l_xor
+214	code	kw_l_not
+215	code	kw_l_neg
+216	code	kw_l_abs
+217	code	kw_l_sgn
+218	code	ntc_lcmp
+219	code	kw_l_cplt
+220	code	kw_l_cpge
+221	code	kw_l_cpeq
+222	code	kw_l_cpne
+223	code	kw_l_cple
+224	code	kw_l_cpgt
+225	code	ntc_lmul
+226	code	ntc_lnegm
+227	code	ntc_ldiv
+228	code	kw_l_mul
+229	code	kw_l_div
+230	code	kw_l_mod
+231	code	kw_l_pow
+232	code	ntc_ltoa
+233	code	kw_l_print
+234	code	kw_l_printvb
+235	code	kw_l_cstr
+236	code	kw_l_str
+237	code	kw_l_hex
+238	code	kw_l_val
+239	code	kw_l_input
+240	code	kw_l_aget
+241	code	kw_l_aset
+242	code	ntc_capfind
+243	code	mem_go0
+244	code	mem_go4
+245	code	mem_go
+246	code	mem_pageof
+247	code	mem_address
+248	code	mem_heapstart
+249	code	mem_heapend
+250	code	mem_progstart
+251	code	mem_progend
+252	code	mem_top
+253	code	mem_stacktop
+254	code	mem_readbyte
+255	code	mem_readword
+256	code	mem_writebyte
+257	code	mem_writeword
+258	code	mem_sel
+259	code	mem_pages
+260	code	mem_freepages
+261	code	mem_ramsize
+262	code	mem_model
+263	code	mem_tableend
+264	code	mem_pagetype
+265	code	mem_map
+266	code	mem_allocpage
+267	code	mem_freepage
+268	code	mem_selpage
+269	code	mem_curpage
+270	code	mem_alloc
+271	code	mem_free
+272	code	mem_largest
+273	code	mem_copy
+274	code	ntc_ovl_lalloc
+275	code	ntc_ovl_lfree
+276	code	ntc_ovl_enter
+277	code	ntc_ovl_enterc
+278	code	ntc_ovl_kload
+279	code	ntc_ovl_kunload
+280	code	ntc_ovl_kloaded
+281	code	ntc_ovl_kpage
+282	code	gfx_width
+283	code	gfx_line
+284	code	gfx_flip
+285	code	gfx_double
+286	code	gfx_copyrows
+287	code	ntc_isl_tick
+288	code	kw_bssinit
+289	code	lst_create
+290	code	lst_append
+291	code	lst_prepend
+292	code	lst_insert
+293	code	lst_delete
+294	code	lst_first
+295	code	lst_last
+296	code	lst_nextof
+297	code	lst_prevof
+298	code	lst_countof
+299	code	lst_getword
+300	code	lst_getbyte
+301	code	lst_setword
+302	code	lst_setbyte
+303	code	lst_dataof
+304	code	lst_search
+305	code	lst_destroy
+306	code	lst_sort
+307	code	ntc_fwcall
+308	code	ntc_plat_putc
+309	code	ntc_plat_newline
+310	code	ntc_plat_getkey
+311	code	ntc_plat_frame
+312	code	ntc_plat_ticks
+313	code	ntc_plat_exit
+314	code	ntc_plat_irqon
+315	code	fs_go0
+316	code	fs_go
+317	code	fs_devices
+318	code	fs_curdev
+319	code	fs_select
+320	code	fs_volumes
+321	code	fs_curvol
+322	code	fs_selvol
+323	code	fs_command
+324	code	fs_load
+325	code	fs_save
+326	code	ntc_plat_memtop
+-	data	ntc_csp	#8800
+-	data	ntc_ip	#8802
+-	data	ntc_ticks	#8804
+-	data	ntc_nmode	#8806
+-	data	ntc_mode	#8807
+-	data	ntc_sptr	#8808
+-	data	ntc_ivar	#880A
+-	data	ntc_hookon	#880C
+-	data	ntc_hookset	#880D
+-	data	ntc_hookpend	#880E
+-	data	ntc_hook	#880F
+-	data	ntc_rampt	#8811
+-	data	ntc_gsp	#8813
+-	bss	ntc_gstack	#9400
+-	bss	ntc_gstack_top	#9480
+-	data	ntc_rnd_seed	#8815
+-	bss	ntc_font	#9480
+-	data	mem_a1	#8817
+-	data	mem_a2	#8819
+-	data	mem_a3	#881B
+-	data	mem_res	#881D
+-	data	ovl_kres	#881F
+-	data	ovl_lblk	#8821
+-	data	ntc_ovl_lc	#8823
+-	data	ntc_ovl_body	#8824
+-	data	gfx_x0	#8826
+-	data	gfx_y0	#8828
+-	data	gfx_x1	#882A
+-	data	gfx_y1	#882C
+-	data	gfx_pen	#882E
+-	data	gfx_clip	#882F
+-	data	gfx_base	#8830
+-	data	gfx_dbl	#8831
+-	data	gfx_sp	#8832
+-	data	ntc_isln	#8834
+-	data	ntc_isldue	#8835
+-	bss	ntc_isl	#9778
+-	data	ntc_curx	#8836
+-	data	ntc_cury	#8837
+-	data	ntc_scols	#8838
+-	data	ntc_smode	#8839
+-	data	ntc_irqv	#883A
+-	data	fs_a1	#883C
+-	data	fs_a2	#883E
+-	data	fs_a3	#8840
+-	data	fs_res	#8842
+-	data	ntc_v_free	#8844
+-	data	ntc_v_start	#8846
+-	data	ntc_v_stamp	#8848
+-	data	ntc_v_romen	#884A
+-	data	ntc_v_rom	#884B
+-	data	ntc_v_romold	#884C
+327	code	gfx_begin
+328	code	gfx_end
