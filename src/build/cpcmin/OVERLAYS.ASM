@@ -259,7 +259,7 @@ p_level1_play_c:		; call play (normal)
 			ld hl, 0
 			ld (var_level1_play_i), hl
 			ld (p_level1_play_rs), sp
-			ld hl, ovl_blk_level1	; page LEVEL1.PAG
+			ld hl, ovl_blk_level1	; page OVERLAYS.001
 			ld de, p_level1_play_pg
 			ld ix, p_level1_play_in
 			jp ntc_ovl_enter
@@ -276,7 +276,7 @@ p_level1_bonus_c:		; call bonus (normal)
 			ld hl, 0
 			ld (var_level1_bonus_bonus), hl
 			ld (p_level1_bonus_rs), sp
-			ld hl, ovl_blk_level1	; page LEVEL1.PAG
+			ld hl, ovl_blk_level1	; page OVERLAYS.001
 			ld de, p_level1_bonus_pg
 			ld ix, p_level1_bonus_in
 			jp ntc_ovl_enter
@@ -298,7 +298,7 @@ p_level2_play_c:		; call play (normal)
 			ld hl, 0
 			ld (var_level2_play_play), hl
 			ld (p_level2_play_rs), sp
-			ld hl, ovl_blk_level2	; page LEVEL2.PAG
+			ld hl, ovl_blk_level2	; page OVERLAYS.002
 			ld de, p_level2_play_pg
 			ld ix, p_level2_play_in
 			jp ntc_ovl_enter
@@ -2226,6 +2226,7 @@ mem_lg_end:
 ; memory (LocalAlloc / LocalFree), the members' result.
 ; ------------------------------------------------------------
 OVL_NOPAGE	equ -12
+OVL_STALE	equ -14			; a page file from another build of the program (its stamp differs)
 
 ovl_blk:		dw 0			; the class block in use
 ovl_pg:			dw 0			; where the caller's page goes
@@ -2246,6 +2247,7 @@ ntc_ovl_body:	dw 0			; a class in more than one page: the body of the copy to ru
 ovl_tdie:		db "Overlay not loaded: ", 0
 ovl_tpage:		db "No RAM page free", 0
 ovl_tfile:		db "The file didn't load", 0
+ovl_tstale:		db "The file is from another build", 0
 ovl_tkey:		db "Press a key", 0
 ovl_why:		dw 0
 
@@ -2275,6 +2277,13 @@ ntc_ovl_die3b:
 			ld a, h
 			or l
 			ld hl, ovl_tpage
+			jr z, ntc_ovl_die4
+			ld hl, (ovl_why)
+			ld de, -OVL_STALE
+			add hl, de
+			ld a, h
+			or l
+			ld hl, ovl_tstale
 			jr z, ntc_ovl_die4
 			ld hl, ovl_tfile
 ntc_ovl_die4:
@@ -2584,6 +2593,12 @@ ntc_ovl_ld2:
 			ld sp, (ntc_csp)
 			ld hl, (ovl_res)		; the length, or a status
 			bit 7, h
+			jr nz, ntc_ovl_cfail
+			ld hl, (#4000)			; its first word: the build stamp, as the program's?
+			ld de, NTC_STAMP
+			or a
+			sbc hl, de
+			ld hl, OVL_STALE
 			jr nz, ntc_ovl_cfail
 			ld de, (ovl_new)
 			ld hl, (ovl_blk)
@@ -3936,9 +3951,9 @@ ntc_plat_memtop:
 ; pages (Option Page / Option Class Overlay): the RAM page each is loaded in (0 = not loaded),
 ; the end of its code and the size of its page variables, its file
 ovl_blk_level1:	dw 0, ovl_level1_end, ovl_level1_vsize
-			db "LEVEL1.PAG", 0
+			db "OVERLAYS.001", 0
 ovl_blk_level2:	dw 0, ovl_level2_end, ovl_level2_vsize
-			db "LEVEL2.PAG", 0
+			db "OVERLAYS.002", 0
 
 ntc_end:				; the end of the program (and of its file)
 ; arrays: after the program, not in its file - kw_bssinit checks they fit and clears them
@@ -3951,12 +3966,13 @@ ntc_free	equ ntc_bss + ntc_bss_size	; the first free byte (heap, Memory tables)
 			ASSERT (ntc_free <= #4000) || (ntc_start >= #8000), "overlay classes: the program and its arrays must stay out of #4000-#7FFF (the window they run in)"
 
 ; ============================================================
-; Page LEVEL1 -> LEVEL1.PAG: level1 - threads built to run at #4000
+; Page LEVEL1 -> OVERLAYS.001: level1 - threads built to run at #4000
 ; (a RAM page, or the overlay area); their variables are in the program, but for
 ; Private Paged ones (after the code). Written as its own file.
 ; ============================================================
 			ORG #4000
 ovl_level1_start:
+			dw NTC_STAMP		; the build stamp: the loader checks it against the program's
 ovl_level1__0_s:		; level1
 p_level1_play:
 
@@ -3992,18 +4008,19 @@ ovl_level1__0_e:
 ovl_level1_end:		; the end of its file; page variables (cleared on loading) follow
 ovl_level1_vsize	equ 0		; its page variables; its local memory is the rest, to #8000
 			ASSERT ovl_level1_end + ovl_level1_vsize <= #8000, "page LEVEL1 (level1) is more than 16K (code and page variables)"
-			DISPLAY "page LEVEL1:"
+			DISPLAY "page LEVEL1 (OVERLAYS.001):"
 			DISPLAY "  level1 ", /D, ovl_level1__0_e - ovl_level1__0_s
 			DISPLAY "  page variables ", /D, ovl_level1_vsize, ", free ", /D, #8000 - (ovl_level1_end + ovl_level1_vsize)
-			SAVEAMSDOS "LEVEL1.PAG", ovl_level1_start, ovl_level1_end - ovl_level1_start, #4000
+			SAVEAMSDOS "OVERLAYS.001", ovl_level1_start, ovl_level1_end - ovl_level1_start, #4000
 
 ; ============================================================
-; Page LEVEL2 -> LEVEL2.PAG: level2 - threads built to run at #4000
+; Page LEVEL2 -> OVERLAYS.002: level2 - threads built to run at #4000
 ; (a RAM page, or the overlay area); their variables are in the program, but for
 ; Private Paged ones (after the code). Written as its own file.
 ; ============================================================
 			ORG #4000
 ovl_level2_start:
+			dw NTC_STAMP		; the build stamp: the loader checks it against the program's
 ovl_level2__0_s:		; level2
 p_level2_play:
 
@@ -4040,7 +4057,9 @@ ovl_level2__0_e:
 ovl_level2_end:		; the end of its file; page variables (cleared on loading) follow
 ovl_level2_vsize	equ 0		; its page variables; its local memory is the rest, to #8000
 			ASSERT ovl_level2_end + ovl_level2_vsize <= #8000, "page LEVEL2 (level2) is more than 16K (code and page variables)"
-			DISPLAY "page LEVEL2:"
+			DISPLAY "page LEVEL2 (OVERLAYS.002):"
 			DISPLAY "  level2 ", /D, ovl_level2__0_e - ovl_level2__0_s
 			DISPLAY "  page variables ", /D, ovl_level2_vsize, ", free ", /D, #8000 - (ovl_level2_end + ovl_level2_vsize)
-			SAVEAMSDOS "LEVEL2.PAG", ovl_level2_start, ovl_level2_end - ovl_level2_start, #4000
+			SAVEAMSDOS "OVERLAYS.002", ovl_level2_start, ovl_level2_end - ovl_level2_start, #4000
+
+NTC_STAMP	equ #C576		; the build stamp: the first word of every page file

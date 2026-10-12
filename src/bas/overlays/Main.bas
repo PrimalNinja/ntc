@@ -1,5 +1,5 @@
-' Overlays: two classes built into their own files (LEVEL1.PAG, LEVEL2.PAG) in the same
-' compile. Each runs at #4000. Keep LEVEL1.PAG and LEVEL2.PAG on the disc with the program.
+' Overlays: two classes built into their own files (OVERLAYS.001, OVERLAYS.002: the program's
+' name, numbered) in the same compile. Each runs at #4000. Keep them on the disc with the program.
 ' cpcmin / cpcfw (Option Memory CPCExpansion, needs a 6128 or more RAM): each class gets its
 ' own RAM page, loaded by its first call, and stays there.
 ' cpm (and Option Memory Small): one overlay area at #4000-#7FFF - a call loads its class

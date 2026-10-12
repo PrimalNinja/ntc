@@ -79,6 +79,7 @@ arrPlatforms.forEach(function(strPlat)
 			return;		// a program for some platforms only
 		}
 
+		objOpts.name = objProg.name;			// page files: NAME.001 ...
 		if ((strPlat === 'cpc') || (strPlat === 'cpcmin') || (strPlat === 'cpcfw'))
 		{
 			objOpts.amsdos = objProg.name;		// the assembler writes NAME.BIN with an AMSDOS header

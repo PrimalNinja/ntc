@@ -17,13 +17,13 @@ build.bat ..\primal\sjasmplus\sjasmplus.exe   or give its path (relative or full
 | `test\` | the test harness platform | `NAME.BIN`, raw, at `#4000` | for `test/ntcrun.py` |
 
 A program with pages (overlay classes: `OVERLAYS`, `PAGES` on cpcmin, cpcfw and cpm) also writes
-their files (`LEVEL1.PAG`, `LEVEL2.PAG`, `TITLE.PAG` ...) when it is assembled: copy them to the disc
+their page files (`OVERLAYS.001`, `OVERLAYS.002`, `PAGES.001` ... - the program's name, numbered) when it is assembled: copy them to the disc
 with the `.BIN` / `.COM`. `OVERLAYS` and `PAGES` are only built for cpcmin, cpcfw and cpm, `INTERRUP` (interrupt classes) for
 cpc, cpcmin and cpcfw.
 
 `dsk\` holds two disc images per platform with its programs already assembled, ready to insert
 in an emulator (WinAPE: drive A or B): `cpc.dsk`, `cpcmin.dsk`, `cpcfw.dsk` (the examples and demos:
-the `.BIN` files, `RUN"NAME`, and the pages' `.PAG` files next to `OVERLAYS.BIN` and `PAGES.BIN`) and
+the `.BIN` files, `RUN"NAME`, and the page files `OVERLAYS.001` ..., `PAGES.001` ..., `CUBE3D.001`) and
 `cpm.dsk` (the `.COM` files: boot CP/M from its system disc, then use this one, e.g. in drive B);
 `cpctest.dsk`, `cpcmintest.dsk`, `cpcfwtest.dsk`, `cpmtest.dsk` hold the self tests (`NTCTEST`,
 `VBTEST*`, `LONGTEST`) - one disc each would no longer hold them all.

@@ -40,19 +40,19 @@ ntc_go:
 main_thread:
 			dw kw_scrinit		; mode 1, ROMs off, clear screen
 
-			; Main.bas 23: Title.Show
+			; Main.bas 24: Title.Show
 			dw p_title_show_c
 
-			; Main.bas 24: Level1.Play
+			; Main.bas 25: Level1.Play
 			dw p_level1_play_c
 
-			; Main.bas 25: Level2.Play
+			; Main.bas 26: Level2.Play
 			dw p_level2_play_c
 
-			; Main.bas 26: Level1.Play
+			; Main.bas 27: Level1.Play
 			dw p_level1_play_c
 
-			; Main.bas 27: Print "Maths from main: 7 squared is "; Maths.Square(7)
+			; Main.bas 28: Print "Maths from main: 7 squared is "; Maths.Square(7)
 			dw p_maths_square_c, lit_7
 			dw kw_printzoscii
 			dw glyph_4D, glyph_61, glyph_74, glyph_68, glyph_73, glyph_20, glyph_66, glyph_72
@@ -62,7 +62,7 @@ main_thread:
 			dw kw_printint, var_maths_square_square
 			dw kw_printnl
 
-			; Main.bas 28: Print "Stars from main (STAGE1's copy): "; Stars.Count()
+			; Main.bas 29: Print "Stars from main (STAGE1's copy): "; Stars.Count()
 			dw p_stars_count_c
 			dw kw_printzoscii
 			dw glyph_53, glyph_74, glyph_61, glyph_72, glyph_73, glyph_20, glyph_66, glyph_72
@@ -73,15 +73,15 @@ main_thread:
 			dw kw_printint, var_stars_count_count
 			dw kw_printnl
 
-			; Main.bas 29: Credits.Show
+			; Main.bas 30: Credits.Show
 			dw p_credits_show_c
 
-			; Main.bas 30: Print "Press a key";
+			; Main.bas 31: Print "Press a key";
 			dw kw_printzoscii
 			dw glyph_50, glyph_72, glyph_65, glyph_73, glyph_73, glyph_20, glyph_61, glyph_20
 			dw glyph_6B, glyph_65, glyph_79, 0		; "Press a key"
 
-			; Main.bas 31: Do While Inkey <> 0 : Loop
+			; Main.bas 32: Do While Inkey <> 0 : Loop
 do1_t:
 			dw kw_inkey, tmp0
 			dw kw_cpnevl, tmp0, 0
@@ -89,7 +89,7 @@ do1_t:
 			dw do1_t_go
 do1_e:
 
-			; Main.bas 32: Do : Frame : Loop Until Inkey <> 0
+			; Main.bas 33: Do : Frame : Loop Until Inkey <> 0
 do2_t:
 			dw kw_frame
 			dw kw_inkey, tmp0
@@ -97,10 +97,10 @@ do2_t:
 			dw kw_goto_iffalse_n, do2_t
 do2_e:
 
-			; Main.bas 33: Print
+			; Main.bas 34: Print
 			dw kw_printnl
 
-			; Main.bas 34: End
+			; Main.bas 35: End
 			dw kw_stop
 
 ; ============================================================
@@ -172,7 +172,7 @@ do1_t_go:			ld sp, do1_t
 
 p_title_show_c:		; call show (normal)
 			ld (p_title_show_rs), sp
-			ld hl, ovl_blk_intro	; page INTRO.PAG
+			ld hl, ovl_blk_intro	; page PAGES.001
 			ld de, p_title_show_pg
 			ld ix, p_title_show_in
 			jp ntc_ovl_enter
@@ -189,7 +189,7 @@ p_level1_play_c:		; call play (normal)
 			ld hl, 0
 			ld (var_level1_play_i), hl
 			ld (p_level1_play_rs), sp
-			ld hl, ovl_blk_stage1	; page STAGE1.PAG
+			ld hl, ovl_blk_stage1	; page PAGES.002
 			ld de, p_level1_play_pg
 			ld ix, p_level1_play_in
 			jp ntc_ovl_enter
@@ -204,7 +204,7 @@ p_level1_play_r:		; end of play
 			jp ntc_xn
 p_level2_play_c:		; call play (normal)
 			ld (p_level2_play_rs), sp
-			ld hl, ovl_blk_stage2	; page STAGE2.PAG
+			ld hl, ovl_blk_stage2	; page PAGES.003
 			ld de, p_level2_play_pg
 			ld ix, p_level2_play_in
 			jp ntc_ovl_enter
@@ -321,7 +321,7 @@ p_stars_count_rb:
 			jp ntc_xn
 p_credits_show_c:		; call show (normal)
 			ld (p_credits_show_rs), sp
-			ld hl, ovl_blk_ending	; page ENDING.PAG
+			ld hl, ovl_blk_ending	; page PAGES.004
 			ld de, p_credits_show_pg
 			ld ix, p_credits_show_in
 			jp ntc_ovl_enter
@@ -2197,6 +2197,7 @@ mem_lg_end:
 ; memory (LocalAlloc / LocalFree), the members' result.
 ; ------------------------------------------------------------
 OVL_NOPAGE	equ -12
+OVL_STALE	equ -14			; a page file from another build of the program (its stamp differs)
 
 ovl_blk:		dw 0			; the class block in use
 ovl_pg:			dw 0			; where the caller's page goes
@@ -2217,6 +2218,7 @@ ntc_ovl_body:	dw 0			; a class in more than one page: the body of the copy to ru
 ovl_tdie:		db "Overlay not loaded: ", 0
 ovl_tpage:		db "No RAM page free", 0
 ovl_tfile:		db "The file didn't load", 0
+ovl_tstale:		db "The file is from another build", 0
 ovl_tkey:		db "Press a key", 0
 ovl_why:		dw 0
 
@@ -2246,6 +2248,13 @@ ntc_ovl_die3b:
 			ld a, h
 			or l
 			ld hl, ovl_tpage
+			jr z, ntc_ovl_die4
+			ld hl, (ovl_why)
+			ld de, -OVL_STALE
+			add hl, de
+			ld a, h
+			or l
+			ld hl, ovl_tstale
 			jr z, ntc_ovl_die4
 			ld hl, ovl_tfile
 ntc_ovl_die4:
@@ -2555,6 +2564,12 @@ ntc_ovl_ld2:
 			ld sp, (ntc_csp)
 			ld hl, (ovl_res)		; the length, or a status
 			bit 7, h
+			jr nz, ntc_ovl_cfail
+			ld hl, (#4000)			; its first word: the build stamp, as the program's?
+			ld de, NTC_STAMP
+			or a
+			sbc hl, de
+			ld hl, OVL_STALE
 			jr nz, ntc_ovl_cfail
 			ld de, (ovl_new)
 			ld hl, (ovl_blk)
@@ -3907,13 +3922,13 @@ ntc_plat_memtop:
 ; pages (Option Page / Option Class Overlay): the RAM page each is loaded in (0 = not loaded),
 ; the end of its code and the size of its page variables, its file
 ovl_blk_intro:	dw 0, ovl_intro_end, ovl_intro_vsize
-			db "INTRO.PAG", 0
+			db "PAGES.001", 0
 ovl_blk_stage1:	dw 0, ovl_stage1_end, ovl_stage1_vsize
-			db "STAGE1.PAG", 0
+			db "PAGES.002", 0
 ovl_blk_stage2:	dw 0, ovl_stage2_end, ovl_stage2_vsize
-			db "STAGE2.PAG", 0
+			db "PAGES.003", 0
 ovl_blk_ending:	dw 0, ovl_ending_end, ovl_ending_vsize
-			db "ENDING.PAG", 0
+			db "PAGES.004", 0
 ; classes in more than one page: for each procedure, its copies (the home first): page, body
 p_maths_square_ct:	db 2
 			dw ovl_blk_stage1, p_maths_square
@@ -3929,17 +3944,18 @@ ntc_bss		equ ntc_end
 ntc_bss_size	equ 0
 ntc_free	equ ntc_bss + ntc_bss_size	; the first free byte (heap, Memory tables)
 ; Option Reserve: the program and its arrays (ntc_start .. ntc_free) must stay out of these
-			ASSERT (ntc_free <= 16384) || (ntc_start >= 32768), "the program (or its arrays) reaches into Option Reserve #4000-#7FFF (Main.bas line 21)"
+			ASSERT (ntc_free <= 16384) || (ntc_start >= 32768), "the program (or its arrays) reaches into Option Reserve #4000-#7FFF (Main.bas line 22)"
 			SAVEAMSDOS "PAGES.BIN", ntc_start, ntc_end - ntc_start, ntc_start
 			ASSERT (ntc_free <= #4000) || (ntc_start >= #8000), "overlay classes: the program and its arrays must stay out of #4000-#7FFF (the window they run in)"
 
 ; ============================================================
-; Page INTRO -> INTRO.PAG: title - threads built to run at #4000
+; Page INTRO -> PAGES.001: title - threads built to run at #4000
 ; (a RAM page, or the overlay area); their variables are in the program, but for
 ; Private Paged ones (after the code). Written as its own file.
 ; ============================================================
 			ORG #4000
 ovl_intro_start:
+			dw NTC_STAMP		; the build stamp: the loader checks it against the program's
 ovl_intro__0_s:		; title
 p_title_show:
 
@@ -3961,18 +3977,19 @@ ovl_intro__0_e:
 ovl_intro_end:		; the end of its file; page variables (cleared on loading) follow
 ovl_intro_vsize	equ 0		; its page variables; its local memory is the rest, to #8000
 			ASSERT ovl_intro_end + ovl_intro_vsize <= #8000, "page INTRO (title) is more than 16K (code and page variables)"
-			DISPLAY "page INTRO:"
+			DISPLAY "page INTRO (PAGES.001):"
 			DISPLAY "  title ", /D, ovl_intro__0_e - ovl_intro__0_s
 			DISPLAY "  page variables ", /D, ovl_intro_vsize, ", free ", /D, #8000 - (ovl_intro_end + ovl_intro_vsize)
-			SAVEAMSDOS "INTRO.PAG", ovl_intro_start, ovl_intro_end - ovl_intro_start, #4000
+			SAVEAMSDOS "PAGES.001", ovl_intro_start, ovl_intro_end - ovl_intro_start, #4000
 
 ; ============================================================
-; Page STAGE1 -> STAGE1.PAG: level1, maths, stars - threads built to run at #4000
+; Page STAGE1 -> PAGES.002: level1, maths, stars - threads built to run at #4000
 ; (a RAM page, or the overlay area); their variables are in the program, but for
 ; Private Paged ones (after the code). Written as its own file.
 ; ============================================================
 			ORG #4000
 ovl_stage1_start:
+			dw NTC_STAMP		; the build stamp: the loader checks it against the program's
 ovl_stage1__0_s:		; level1
 p_level1_play:
 
@@ -4049,21 +4066,22 @@ ovl_stage1_end:		; the end of its file; page variables (cleared on loading) foll
 var_stars_n		equ ovl_stage1_end + 0		; 2 bytes (stars)
 ovl_stage1_vsize	equ 2		; its page variables; its local memory is the rest, to #8000
 			ASSERT ovl_stage1_end + ovl_stage1_vsize <= #8000, "page STAGE1 (level1, maths, stars) is more than 16K (code and page variables)"
-			DISPLAY "page STAGE1:"
+			DISPLAY "page STAGE1 (PAGES.002):"
 			DISPLAY "  level1 ", /D, ovl_stage1__0_e - ovl_stage1__0_s
 			DISPLAY "  maths (home) ", /D, ovl_stage1__1_e - ovl_stage1__1_s
 			DISPLAY "  stars (home) ", /D, ovl_stage1__2_e - ovl_stage1__2_s
 			DISPLAY "  (local entries, stubs) ", /D, ovl_stage1__x_e - ovl_stage1__x_s
 			DISPLAY "  page variables ", /D, ovl_stage1_vsize, ", free ", /D, #8000 - (ovl_stage1_end + ovl_stage1_vsize)
-			SAVEAMSDOS "STAGE1.PAG", ovl_stage1_start, ovl_stage1_end - ovl_stage1_start, #4000
+			SAVEAMSDOS "PAGES.002", ovl_stage1_start, ovl_stage1_end - ovl_stage1_start, #4000
 
 ; ============================================================
-; Page STAGE2 -> STAGE2.PAG: level2, maths, stars - threads built to run at #4000
+; Page STAGE2 -> PAGES.003: level2, maths, stars - threads built to run at #4000
 ; (a RAM page, or the overlay area); their variables are in the program, but for
 ; Private Paged ones (after the code). Written as its own file.
 ; ============================================================
 			ORG #4000
 ovl_stage2_start:
+			dw NTC_STAMP		; the build stamp: the loader checks it against the program's
 ovl_stage2__0_s:		; level2
 p_level2_play:
 
@@ -4130,21 +4148,22 @@ ovl_stage2_end:		; the end of its file; page variables (cleared on loading) foll
 var_stars_n__stage2		equ ovl_stage2_end + 0		; 2 bytes (stars)
 ovl_stage2_vsize	equ 2		; its page variables; its local memory is the rest, to #8000
 			ASSERT ovl_stage2_end + ovl_stage2_vsize <= #8000, "page STAGE2 (level2, maths, stars) is more than 16K (code and page variables)"
-			DISPLAY "page STAGE2:"
+			DISPLAY "page STAGE2 (PAGES.003):"
 			DISPLAY "  level2 ", /D, ovl_stage2__0_e - ovl_stage2__0_s
 			DISPLAY "  maths (copy) ", /D, ovl_stage2__1_e - ovl_stage2__1_s
 			DISPLAY "  stars (copy) ", /D, ovl_stage2__2_e - ovl_stage2__2_s
 			DISPLAY "  (local entries, stubs) ", /D, ovl_stage2__x_e - ovl_stage2__x_s
 			DISPLAY "  page variables ", /D, ovl_stage2_vsize, ", free ", /D, #8000 - (ovl_stage2_end + ovl_stage2_vsize)
-			SAVEAMSDOS "STAGE2.PAG", ovl_stage2_start, ovl_stage2_end - ovl_stage2_start, #4000
+			SAVEAMSDOS "PAGES.003", ovl_stage2_start, ovl_stage2_end - ovl_stage2_start, #4000
 
 ; ============================================================
-; Page ENDING -> ENDING.PAG: credits - threads built to run at #4000
+; Page ENDING -> PAGES.004: credits - threads built to run at #4000
 ; (a RAM page, or the overlay area); their variables are in the program, but for
 ; Private Paged ones (after the code). Written as its own file.
 ; ============================================================
 			ORG #4000
 ovl_ending_start:
+			dw NTC_STAMP		; the build stamp: the loader checks it against the program's
 ovl_ending__0_s:		; credits
 p_credits_show:
 
@@ -4164,7 +4183,9 @@ ovl_ending__0_e:
 ovl_ending_end:		; the end of its file; page variables (cleared on loading) follow
 ovl_ending_vsize	equ 0		; its page variables; its local memory is the rest, to #8000
 			ASSERT ovl_ending_end + ovl_ending_vsize <= #8000, "page ENDING (credits) is more than 16K (code and page variables)"
-			DISPLAY "page ENDING:"
+			DISPLAY "page ENDING (PAGES.004):"
 			DISPLAY "  credits ", /D, ovl_ending__0_e - ovl_ending__0_s
 			DISPLAY "  page variables ", /D, ovl_ending_vsize, ", free ", /D, #8000 - (ovl_ending_end + ovl_ending_vsize)
-			SAVEAMSDOS "ENDING.PAG", ovl_ending_start, ovl_ending_end - ovl_ending_start, #4000
+			SAVEAMSDOS "PAGES.004", ovl_ending_start, ovl_ending_end - ovl_ending_start, #4000
+
+NTC_STAMP	equ #96D7		; the build stamp: the first word of every page file

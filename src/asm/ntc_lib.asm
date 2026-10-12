@@ -7130,6 +7130,7 @@ mem_cw_hi:
 ; memory (LocalAlloc / LocalFree), the members' result.
 ; ------------------------------------------------------------
 OVL_NOPAGE	equ -12
+OVL_STALE	equ -14			; a page file from another build of the program (its stamp differs)
 
 ovl_blk:		dw 0			; the class block in use
 ovl_pg:			dw 0			; where the caller's page goes
@@ -7150,6 +7151,7 @@ ntc_ovl_body:	dw 0			; a class in more than one page: the body of the copy to ru
 ovl_tdie:		db "Overlay not loaded: ", 0
 ovl_tpage:		db "No RAM page free", 0
 ovl_tfile:		db "The file didn't load", 0
+ovl_tstale:		db "The file is from another build", 0
 ovl_tkey:		db "Press a key", 0
 ovl_why:		dw 0
 
@@ -7179,6 +7181,13 @@ ntc_ovl_die3b:
 			ld a, h
 			or l
 			ld hl, ovl_tpage
+			jr z, ntc_ovl_die4
+			ld hl, (ovl_why)
+			ld de, -OVL_STALE
+			add hl, de
+			ld a, h
+			or l
+			ld hl, ovl_tstale
 			jr z, ntc_ovl_die4
 			ld hl, ovl_tfile
 ntc_ovl_die4:
@@ -7490,6 +7499,12 @@ ntc_ovl_ld2:
 			ld hl, (ovl_res)		; the length, or a status
 			bit 7, h
 			jr nz, ntc_ovl_cfail
+			ld hl, (#4000)			; its first word: the build stamp, as the program's?
+			ld de, NTC_STAMP
+			or a
+			sbc hl, de
+			ld hl, OVL_STALE
+			jr nz, ntc_ovl_cfail
 			ld de, (ovl_new)
 			ld hl, (ovl_blk)
 			ld (hl), e
@@ -7758,6 +7773,12 @@ ntc_ovl_ld2:
 			ld hl, (ovl_res)		; the length, or a status
 			bit 7, h
 			jr nz, ntc_ovl_cback
+			ld hl, (#4000)			; its first word: the build stamp, as the program's?
+			ld de, NTC_STAMP
+			or a
+			sbc hl, de
+			ld hl, OVL_STALE
+			jr nz, ntc_ovl_cback		; (the area stays empty)
 			ld hl, (ovl_blk)
 			ld (ovl_cur), hl
 			ld (hl), 1

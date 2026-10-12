@@ -500,7 +500,7 @@ p_spin_run_c:		; call run (normal)
 			ld hl, 0
 			ld (var_spin_run_t), hl
 			ld (p_spin_run_rs), sp
-			ld hl, ovl_blk_spin	; page SPIN.PAG
+			ld hl, ovl_blk_spin	; page CUBE3D.001
 			ld de, p_spin_run_pg
 			ld ix, p_spin_run_in
 			jp ntc_ovl_enter
@@ -525,7 +525,7 @@ p_spin_frame1_c:		; call frame1 (turbo)
 			ld (p_spin_frame1_pg+1), a
 			jr p_spin_frame1_in
 p_spin_frame1_far:
-			ld hl, ovl_blk_spin	; page SPIN.PAG
+			ld hl, ovl_blk_spin	; page CUBE3D.001
 			ld de, p_spin_frame1_pg
 			ld ix, p_spin_frame1_in
 			jp ntc_ovl_enter
@@ -556,7 +556,7 @@ p_spin_frame1_n_c:		; call frame1 (normal)
 			ld (p_spin_frame1_pg+1), a
 			jr p_spin_frame1_n_in
 p_spin_frame1_n_far:
-			ld hl, ovl_blk_spin	; page SPIN.PAG
+			ld hl, ovl_blk_spin	; page CUBE3D.001
 			ld de, p_spin_frame1_pg
 			ld ix, p_spin_frame1_n_in
 			jp ntc_ovl_enter
@@ -587,7 +587,7 @@ p_spin_screen_c:		; call screen (normal)
 			ld (p_spin_screen_pg+1), a
 			jr p_spin_screen_in
 p_spin_screen_far:
-			ld hl, ovl_blk_spin	; page SPIN.PAG
+			ld hl, ovl_blk_spin	; page CUBE3D.001
 			ld de, p_spin_screen_pg
 			ld ix, p_spin_screen_in
 			jp ntc_ovl_enter
@@ -618,7 +618,7 @@ p_spin_status_c:		; call status (normal)
 			ld (p_spin_status_pg+1), a
 			jr p_spin_status_in
 p_spin_status_far:
-			ld hl, ovl_blk_spin	; page SPIN.PAG
+			ld hl, ovl_blk_spin	; page CUBE3D.001
 			ld de, p_spin_status_pg
 			ld ix, p_spin_status_in
 			jp ntc_ovl_enter
@@ -649,7 +649,7 @@ p_spin_makeshape_c:		; call makeshape (normal)
 			ld (p_spin_makeshape_pg+1), a
 			jr p_spin_makeshape_in
 p_spin_makeshape_far:
-			ld hl, ovl_blk_spin	; page SPIN.PAG
+			ld hl, ovl_blk_spin	; page CUBE3D.001
 			ld de, p_spin_makeshape_pg
 			ld ix, p_spin_makeshape_in
 			jp ntc_ovl_enter
@@ -699,7 +699,7 @@ p_spin_cube_c:		; call cube (normal)
 			ld (p_spin_cube_pg+1), a
 			jr p_spin_cube_in
 p_spin_cube_far:
-			ld hl, ovl_blk_spin	; page SPIN.PAG
+			ld hl, ovl_blk_spin	; page CUBE3D.001
 			ld de, p_spin_cube_pg
 			ld ix, p_spin_cube_in
 			jp ntc_ovl_enter
@@ -751,7 +751,7 @@ p_spin_pyramid_c:		; call pyramid (normal)
 			ld (p_spin_pyramid_pg+1), a
 			jr p_spin_pyramid_in
 p_spin_pyramid_far:
-			ld hl, ovl_blk_spin	; page SPIN.PAG
+			ld hl, ovl_blk_spin	; page CUBE3D.001
 			ld de, p_spin_pyramid_pg
 			ld ix, p_spin_pyramid_in
 			jp ntc_ovl_enter
@@ -784,7 +784,7 @@ p_spin_cobra_c:		; call cobra (normal)
 			ld (p_spin_cobra_pg+1), a
 			jr p_spin_cobra_in
 p_spin_cobra_far:
-			ld hl, ovl_blk_spin	; page SPIN.PAG
+			ld hl, ovl_blk_spin	; page CUBE3D.001
 			ld de, p_spin_cobra_pg
 			ld ix, p_spin_cobra_in
 			jp ntc_ovl_enter
@@ -825,7 +825,7 @@ p_spin_edge_c:		; call edge (normal)
 			ld (p_spin_edge_pg+1), a
 			jr p_spin_edge_in
 p_spin_edge_far:
-			ld hl, ovl_blk_spin	; page SPIN.PAG
+			ld hl, ovl_blk_spin	; page CUBE3D.001
 			ld de, p_spin_edge_pg
 			ld ix, p_spin_edge_in
 			jp ntc_ovl_enter
@@ -4326,6 +4326,7 @@ mem_lg_end:
 ; memory (LocalAlloc / LocalFree), the members' result.
 ; ------------------------------------------------------------
 OVL_NOPAGE	equ -12
+OVL_STALE	equ -14			; a page file from another build of the program (its stamp differs)
 
 ovl_blk:		dw 0			; the class block in use
 ovl_pg:			dw 0			; where the caller's page goes
@@ -4346,6 +4347,7 @@ ntc_ovl_body:	dw 0			; a class in more than one page: the body of the copy to ru
 ovl_tdie:		db "Overlay not loaded: ", 0
 ovl_tpage:		db "No RAM page free", 0
 ovl_tfile:		db "The file didn't load", 0
+ovl_tstale:		db "The file is from another build", 0
 ovl_tkey:		db "Press a key", 0
 ovl_why:		dw 0
 
@@ -4375,6 +4377,13 @@ ntc_ovl_die3b:
 			ld a, h
 			or l
 			ld hl, ovl_tpage
+			jr z, ntc_ovl_die4
+			ld hl, (ovl_why)
+			ld de, -OVL_STALE
+			add hl, de
+			ld a, h
+			or l
+			ld hl, ovl_tstale
 			jr z, ntc_ovl_die4
 			ld hl, ovl_tfile
 ntc_ovl_die4:
@@ -4684,6 +4693,12 @@ ntc_ovl_ld2:
 			ld sp, (ntc_csp)
 			ld hl, (ovl_res)		; the length, or a status
 			bit 7, h
+			jr nz, ntc_ovl_cfail
+			ld hl, (#4000)			; its first word: the build stamp, as the program's?
+			ld de, NTC_STAMP
+			or a
+			sbc hl, de
+			ld hl, OVL_STALE
 			jr nz, ntc_ovl_cfail
 			ld de, (ovl_new)
 			ld hl, (ovl_blk)
@@ -6660,7 +6675,7 @@ ntc_plat_memtop:
 ; pages (Option Page / Option Class Overlay): the RAM page each is loaded in (0 = not loaded),
 ; the end of its code and the size of its page variables, its file
 ovl_blk_spin:	dw 0, ovl_spin_end, ovl_spin_vsize
-			db "SPIN.PAG", 0
+			db "CUBE3D.001", 0
 
 ntc_end:				; the end of the program (and of its file)
 ; arrays: after the program, not in its file - kw_bssinit checks they fit and clears them
@@ -6684,12 +6699,13 @@ ntc_free	equ ntc_bss + ntc_bss_size	; the first free byte (heap, Memory tables)
 			ASSERT (ntc_free <= #4000) || (ntc_start >= #8000), "overlay classes: the program and its arrays must stay out of #4000-#7FFF (the window they run in)"
 
 ; ============================================================
-; Page SPIN -> SPIN.PAG: spin - threads built to run at #4000
+; Page SPIN -> CUBE3D.001: spin - threads built to run at #4000
 ; (a RAM page, or the overlay area); their variables are in the program, but for
 ; Private Paged ones (after the code). Written as its own file.
 ; ============================================================
 			ORG #4000
 ovl_spin_start:
+			dw NTC_STAMP		; the build stamp: the loader checks it against the program's
 ovl_spin__0_s:		; spin
 p_spin_run:
 
@@ -7315,8 +7331,10 @@ ovl_spin__x_e:
 ovl_spin_end:		; the end of its file; page variables (cleared on loading) follow
 ovl_spin_vsize	equ 0		; its page variables; its local memory is the rest, to #8000
 			ASSERT ovl_spin_end + ovl_spin_vsize <= #8000, "page SPIN (spin) is more than 16K (code and page variables)"
-			DISPLAY "page SPIN:"
+			DISPLAY "page SPIN (CUBE3D.001):"
 			DISPLAY "  spin ", /D, ovl_spin__0_e - ovl_spin__0_s
 			DISPLAY "  (local entries, stubs) ", /D, ovl_spin__x_e - ovl_spin__x_s
 			DISPLAY "  page variables ", /D, ovl_spin_vsize, ", free ", /D, #8000 - (ovl_spin_end + ovl_spin_vsize)
-			SAVEAMSDOS "SPIN.PAG", ovl_spin_start, ovl_spin_end - ovl_spin_start, #4000
+			SAVEAMSDOS "CUBE3D.001", ovl_spin_start, ovl_spin_end - ovl_spin_start, #4000
+
+NTC_STAMP	equ #9CB7		; the build stamp: the first word of every page file

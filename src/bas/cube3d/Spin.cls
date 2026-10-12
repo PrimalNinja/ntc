@@ -1,5 +1,5 @@
 ' Spin: the demo - builds the shapes, turns them and draws them with Vector3D.
-' On cpcmin and cpcfw it is an overlay class: its code is in SPIN.PAG, loaded into a RAM
+' On cpcmin and cpcfw it is an overlay class: its code is in CUBE3D.001 (page SPIN), loaded into a RAM
 ' page by the first call, and it calls Vector3D and Graphics in main memory from there. On
 ' cpc (no files) it is part of the program.
 #If NTC_CPCMIN Then

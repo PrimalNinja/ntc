@@ -4,7 +4,7 @@
 # CPC data format disc (CPCEMU .DSK: 40 tracks, 9 x 512 byte sectors #C1-#C9, 64 directory
 # entries - AMSDOS, CP/M 2.2 and CP/M Plus on the CPC all read it, as does WinAPE).
 # cpc, cpcmin, cpcfw: the .BIN files (AMSDOS header from SAVEAMSDOS) and overlay classes'
-# .PAG files; cpm: the .COM files and overlay .PAG files (no header).
+# page files (NAME.001 ...); cpm: the .COM files and the page files (no header).
 # Scratch tool, not delivered: needs sjasmplus and cpmtools with libdsk (dskform, cpmcp, cpmls).
 # Run after genbuild.js (regress.sh does both).
 cd "$(dirname "$0")"
@@ -15,24 +15,27 @@ for p in cpc cpcmin cpcfw cpm; do
   w=t/dsk_$p; rm -rf $w; mkdir -p $w; cp ../build/$p/*.ASM $w/
   if [ $p == cpm ]; then x=COM; else x=BIN; fi
   # two programs writing a page file of the same name would overwrite each other's on the disc
-  for f in $w/*.ASM; do grep -E '^\s+(OUTPUT|SAVEAMSDOS) "' $f | grep -o '"[A-Z0-9]*\.PAG"' | sort -u; done | sort | uniq -d | while read n; do echo "gendsk: $p: page file $n is written by more than one program"; done | grep . && fail=1
+  # the page files each program writes (OUTPUT "NAME.001" / SAVEAMSDOS "NAME.001", ovl_...)
+  pf() { grep -E '^\s+(OUTPUT "|SAVEAMSDOS "[^"]*", ovl_)' $1 | grep -o '"[^"]*"' | head -999 | grep -v '\.BIN"$' | tr -d '"' | sort -u; }
+  for f in $w/*.ASM; do pf $f; done | sort | uniq -d | while read n; do echo "gendsk: $p: page file $n is written by more than one program"; done | grep . && fail=1
+  pages=$(for f in $w/*.ASM; do pf $f; done | sort -u)
   for f in $w/*.ASM; do
     g=$(basename $f .ASM)
     o=""; [ $p == cpm ] && o="--raw=$g.COM"
     (cd $w && $SJ --nologo --msg=err $o $g.ASM > /dev/null) || { echo "gendsk: $p/$g did not assemble"; fail=1; }
   done
-  # two discs: the examples and demos (with their overlay .PAG files), and the self tests
+  # two discs: the examples and demos (with their page files), and the self tests
   for k in "" test; do
     d=../build/dsk/$p$k.dsk
     rm -f $d
     dskform -type dsk -format cpcdata $d > /dev/null 2>&1 || { echo "gendsk: dskform failed"; exit 1; }
-    for f in $w/*.$x $(ls $w/*.PAG 2>/dev/null); do
+    for f in $w/*.$x $(for n in $pages; do echo $w/$n; done); do
       b=$(basename $f)
       if echo "$b" | grep -qE '^(NTCTEST|VBTEST|LONGTEST)'; then t=test; else t=""; fi
       [ "$t" == "$k" ] || continue
       cpmcp -f cpcdata -T dsk $d $f 0:$b || { echo "gendsk: $p$k: $b did not fit"; fail=1; }
     done
-    n=$(cpmls -f cpcdata -T dsk $d | grep -icE "\.($x|PAG)")
+    n=$(cpmls -f cpcdata -T dsk $d | grep -vc '^[0-9]*:$')
     echo "build/dsk/$p$k.dsk: $n files ($(du -k $d | cut -f1)K image)"
   done
   rm -rf $w

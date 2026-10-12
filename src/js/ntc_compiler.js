@@ -6717,6 +6717,8 @@ function ntcCompile(input_a, objOptions_a)
 			var intEst = 0;
 			var arrSizes = [];
 
+			arrLines.push(strIndent + 'dw NTC_STAMP\t\t; the build stamp: the loader checks it against the program\'s');
+			intEst += 2;
 			objPage.classes.forEach(function(strModule_a, intClass_a)
 			{
 				var strSfx = sfxOf(strModule_a, strId_a);
@@ -6912,7 +6914,7 @@ function ntcCompile(input_a, objOptions_a)
 			});
 			arrVars.push('ovl_' + strId_a + '_vsize\tequ ' + intVars + '\t\t; its page variables; its local memory is the rest, to #8000');
 			// the layout, as the assembler counts it
-			arrDisplay.push(strIndent + 'DISPLAY "page ' + objPage.name + ':"');
+			arrDisplay.push(strIndent + 'DISPLAY "page ' + objPage.name + ' (' + objPage.file + '):"');
 			arrSizes.forEach(function(objSize_a)
 			{
 				arrDisplay.push(strIndent + 'DISPLAY "  ' + objSize_a.module + (objSize_a.copy ? ' (copy)' : (objClassKind[objSize_a.module].pages.length > 1 ? ' (home)' : '')) + ' ", /D, ' + objSize_a.tag + '_e - ' + objSize_a.tag + '_s');
@@ -7760,6 +7762,22 @@ function ntcCompile(input_a, objOptions_a)
 		return (arrName ? arrName[1] : String(objFile_a.name).replace(/^.*[\/\\]/, '').replace(/\.\w+$/, '')).toLowerCase();
 	}
 
+	// the program's name (up to 8 letters and digits): the name option (the GUI: the project's
+	// name; genbuild: the program's), else the AMSDOS name, else the main file's name
+	function programName(arrFiles_a)
+	{
+		var strName = String(objOptions.name || objOptions.amsdos || '');
+		var objMain = null;
+
+		if (strName.length === 0)
+		{
+			objMain = (arrFiles_a || []).filter(function(objFile_a) { return /\.bas$/i.test(String(objFile_a.name)); })[0] || (arrFiles_a || [])[0];
+			strName = objMain ? String(objMain.name).replace(/^.*[\/\\]/, '').replace(/\.\w+$/, '') : '';
+		}
+		strName = strName.toUpperCase().replace(/[^A-Z0-9]/g, '').substr(0, 8);
+		return (strName.length > 0) ? strName : 'PROGRAM';
+	}
+
 	// Option Page "NAME" = Class, Class ... (any file; the main file by custom), Option Class
 	// Overlay ["NAME"] (in a class: that class joins page NAME, by default its own name) and
 	// Option Home Class = "NAME" (which copy calls from outside its pages use): the pages,
@@ -7770,23 +7788,31 @@ function ntcCompile(input_a, objOptions_a)
 		var objHome = {};
 		var arrHomes = [];
 
+		// a page's name: NAME (its file is numbered: PROGRAM.001 ...) or NAME.EXT (that file)
 		function pageFile(str_a)
 		{
-			return String(str_a).toUpperCase().replace(/\.PAG$/, '').replace(/[^A-Z0-9]/g, '').substr(0, 8);
+			var arrParts = String(str_a).toUpperCase().split('.');
+			var strBase = arrParts[0].replace(/[^A-Z0-9]/g, '').substr(0, 8);
+
+			if (arrParts.length > 1)
+			{
+				return strBase + '.' + arrParts.slice(1).join('').replace(/[^A-Z0-9]/g, '').substr(0, 3);
+			}
+			return strBase;
 		}
 		function addPage(strName_a, strFile_a, intLine_a)
 		{
-			var strFile = pageFile(strName_a);
-			var strId = strFile.toLowerCase();
+			var strName = pageFile(strName_a);
+			var strId = strName.toLowerCase().replace(/\./g, '_');
 
-			if (strFile.length === 0)
+			if (strName.replace(/\..*$/, '').length === 0)
 			{
-				arrErrors.push({ file: strFile_a, line: intLine_a, msg: 'Option Page: no file name' });
+				arrErrors.push({ file: strFile_a, line: intLine_a, msg: 'Option Page: no name' });
 				return null;
 			}
 			if (objPages[strId] === undefined)
 			{
-				objPages[strId] = { name: strFile, file: strFile + '.PAG', id: strId, blk: 'ovl_blk_' + strId, classes: [], srcfile: strFile_a, line: intLine_a };
+				objPages[strId] = { name: strName, file: (strName.indexOf('.') > -1) ? strName : '', id: strId, blk: 'ovl_blk_' + strId, classes: [], srcfile: strFile_a, line: intLine_a };
 				arrPageOrder.push(strId);
 			}
 			return objPages[strId];
@@ -7855,7 +7881,7 @@ function ntcCompile(input_a, objOptions_a)
 				}
 				else if ((arrMatch = strCode.match(/^\s*option\s+home\s+([a-z_]\w*)\s*=\s*"([^"]*)"\s*$/i)))
 				{
-					arrHomes.push({ module: arrMatch[1].toLowerCase(), page: pageFile(arrMatch[2]).toLowerCase(), file: objFile_a.name, line: objLine_a.line });
+					arrHomes.push({ module: arrMatch[1].toLowerCase(), page: pageFile(arrMatch[2]).toLowerCase().replace(/\./g, '_'), file: objFile_a.name, line: objLine_a.line });
 				}
 				else if (/^\s*option\s+home\b/i.test(strCode))
 				{
@@ -7903,13 +7929,42 @@ function ntcCompile(input_a, objOptions_a)
 			}
 			else if (arrIn.indexOf(objHome_a.page) < 0)
 			{
-				arrErrors.push({ file: objHome_a.file, line: objHome_a.line, msg: 'Option Home: ' + objHome_a.module + ' is not in page ' + objHome_a.page.toUpperCase() });
+				arrErrors.push({ file: objHome_a.file, line: objHome_a.line, msg: 'Option Home: ' + objHome_a.module + ' is not in page ' + objHome_a.page.toUpperCase().replace(/_/g, '.') });
 			}
 			else
 			{
 				objClassPages[objHome_a.module] = [objHome_a.page].concat(arrIn.filter(function(str_a) { return str_a !== objHome_a.page; }));
 			}
 		});
+		// the files: a page named NAME.EXT is that file; the others are numbered in order,
+		// PROGRAM.001 to PROGRAM.999 (PROGRAM: the program's name), so two programs on one
+		// disc never write the same page file
+		(function()
+		{
+			var intNum = 0;
+			var strProg = programName(arrFiles_a);
+			var objTaken = {};
+
+			arrPageOrder.forEach(function(strId_a)
+			{
+				var objPage = objPages[strId_a];
+
+				if (objPage.file.length === 0)
+				{
+					intNum++;
+					objPage.file = strProg + '.' + ('00' + intNum).substr(-3);
+				}
+				if (objTaken[objPage.file] !== undefined)
+				{
+					arrErrors.push({ file: objPage.srcfile, line: objPage.line, msg: 'Option Page "' + objPage.name + '": its file ' + objPage.file + ' is also page ' + objTaken[objPage.file] + '\'s' });
+				}
+				objTaken[objPage.file] = objPage.name;
+			});
+			if (intNum > 999)
+			{
+				arrErrors.push({ file: objPages[arrPageOrder[0]].srcfile, line: objPages[arrPageOrder[0]].line, msg: 'more than 999 numbered pages' });
+			}
+		})();
 		if ((arrPageOrder.length > 0) && !overlayPlatform())
 		{
 			arrErrors.push({ file: objPages[arrPageOrder[0]].srcfile, line: objPages[arrPageOrder[0]].line, msg: 'Option Page / Option Class Overlay needs a platform that can load files: cpcfw, cpcmin or cpm (not ' + objOptions.platform + ')' });
@@ -9259,6 +9314,25 @@ function ntcCompile(input_a, objOptions_a)
 	var arrLayout = [];
 	if (objPageOut !== null)
 	{
+		// the build stamp: a hash of the whole program (same source, same stamp)
+		(function()
+		{
+			var strAll = arrAsm.join('\n');
+			var intHash = 0xFFFF;		// CRC-16 (CCITT) of the program's text
+			var intI = 0;
+			var intB = 0;
+
+			for (intI = 0; intI < strAll.length; intI++)
+			{
+				intHash ^= (strAll.charCodeAt(intI) & 0xFF) << 8;
+				for (intB = 0; intB < 8; intB++)
+				{
+					intHash = (intHash & 0x8000) ? (((intHash << 1) ^ 0x1021) & 0xFFFF) : ((intHash << 1) & 0xFFFF);
+				}
+			}
+			arrAsm.push('');
+			arrAsm.push('NTC_STAMP\tequ #' + ('000' + intHash.toString(16).toUpperCase()).substr(-4) + '\t\t; the build stamp: the first word of every page file');
+		})();
 		// the layout: what is in each page (sizes counted from the threads; the assembler's
 		// DISPLAY lines give the exact ones), and the classes in main RAM that pages call
 		objPageOut.layout.forEach(function(objPage_a)

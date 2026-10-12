@@ -1503,8 +1503,8 @@ the program as above.
 [one overlay area](#one-overlay-area) (cpm, and cpcmin / cpcfw with `Option Memory Small`).
 
 With RAM pages, the class's
-code is built, in the same compile, into its own file `FILE.PAG` (the class name, up to 8
-characters, when no name is given), to run at `#4000` in a RAM page (a C page, see
+code is built, in the same compile, into its own file - its page (named `FILE`, or the class
+name when no name is given) - to run at `#4000` in a RAM page (a C page, see
 [Memory](#memory)). Its variables stay in the program, so they keep their values when the
 page goes. Calling one of its procedures switches its page into the window and back again
 afterwards (the page that was there before - a data page the program selected stays
@@ -1522,24 +1522,33 @@ End Function
 ' Main.bas
 Option RomEnable 7              ' RUN" drops AMSDOS: start it, the overlays load from disc
 Option Reserve &H4000, &H4000   ' the program stays out of the window overlays run in
-score = Level1.Play(0)          ' loads LEVEL1.PAG into a page, then runs Play
+score = Level1.Play(0)          ' loads its page file into a RAM page, then runs Play
 ```
 
 The compiler adds these members to an overlay class (so these names are taken):
 
 | Member | Does |
 |---|---|
-| `Load()` | loads its file now (nothing if it is loaded): `OK` (0), a FileSystem status (`NotFound` -2, `TooBig` -8 ...), or -12 (no page free) |
+| `Load()` | loads its file now (nothing if it is loaded): `OK` (0), a FileSystem status (`NotFound` -2, `TooBig` -8 ...), -12 (no page free) or -14 (the file is from another build) |
 | `Unload()` | its page back to free; the next call loads the file again |
 | `Loaded()` | True when it is in RAM |
 | `Page()` | the page it is in, 0 = not loaded |
 | `LocalStart()`, `LocalSize()` | its local memory: the rest of its page |
 | `LocalAlloc(size)`, `LocalFree(address)` | blocks of its local memory |
 
-- A call that has to load and can't prints `Overlay not loaded: LEVEL1.PAG`, why (`No RAM
-  page free` / `The file didn't load`) and `Press a key`, then ends the program (a program
-  started with `RUN"` then resets). Call `Load()` first to handle it yourself.
-- Keep the `.PAG` files on the disc with the program's `.BIN`. They are binary files with an
+- **Page files are numbered:** `PROGRAM.001`, `PROGRAM.002` ... (PROGRAM: the program's name -
+  the project's name in the GUI, `NAME` in `build/`, `cli.js --name=` or the main file's name),
+  in the order of the pages in the source (`Option Page` lines first, then `Option Class
+  Overlay`). So two programs on one disc never write the same file. A name with an extension
+  is used as it is: `Option Class Overlay "LEVEL1.PAG"`. The layout list (below) says which
+  number each page got.
+- **Every page file carries the build's stamp** (a CRC of the program, its first word): a file
+  from another build of the program (an old `.001` left on the disc) is refused - `-14`.
+- A call that has to load and can't prints `Overlay not loaded: PROGRAM.001`, why (`No RAM
+  page free` / `The file didn't load` / `The file is from another build`) and `Press a key`,
+  then ends the program (a program started with `RUN"` then resets). Call `Load()` first to
+  handle it yourself.
+- Keep the page files on the disc with the program's `.BIN`. They are binary files with an
   AMSDOS header (load address `#4000`) - AMSDOS takes a file without a header for text and
   won't load it into memory. The program must end below
   `#4000` (checked when assembling) and needs AMSDOS (`Option RomEnable 7` after `RUN"`).
@@ -1552,7 +1561,7 @@ The compiler adds these members to an overlay class (so these names are taken):
   no main memory, and starts fresh (0, "") each time the class is loaded - right for a level's
   own data. Variables that must keep their values stay as normal ones (in the program).
   Paged variables are `Private` only: they are there only while the class's page is in the
-  window, so only the class's own code can use them. Paged Strings are in the `.PAG` file
+  window, so only the class's own code can use them. Paged Strings are in the page file
   (their capacity byte goes with them); other paged variables are not in the file - they are
   cleared when it loads.
 - **Local memory:** the rest of the page, after the code and page variables, is the class's
@@ -1572,8 +1581,8 @@ On CP/M, and on cpcmin / cpcfw with `Option Memory Small` (a 64K CPC, or a progr
 no RAM pages), there is one overlay area, `#4000-#7FFF`, and one overlay class in it at a
 time. A call to a class that isn't there loads its file over the one that was. When the call
 returns into another overlay class's code that was swapped out meanwhile, that class is
-loaded again first. So level 2 calling level 1 loads `LEVEL1.PAG`, and the return loads
-`LEVEL2.PAG` again: calls between overlay classes cost a disc load each way. Calls from the
+loaded again first. So level 2 calling level 1 loads level 1's page, and the return loads
+level 2's again: calls between overlay classes cost a disc load each way. Calls from the
 main program (or resident classes) to the class already in the area cost nothing extra.
 
 The same source works both ways (`bas/overlays/`). What is different:
@@ -1588,18 +1597,19 @@ The same source works both ways (`bas/overlays/`). What is different:
 | `Private Paged` | in its page, fresh at each load | ordinary variables in the program (they keep their values) |
 | Local memory | until `Unload()` | fresh (one free block) at each load |
 | The program | must end below `#4000` | must end below `#4000`; the heap (`Memory`, `List`) is the RAM between the program's end and `#4000` |
-| Files | `.PAG` with an AMSDOS header | the same on the CPC; plain bytes on CP/M (`LEVEL1.PAG` next to the `.COM`) |
+| Files | `PROGRAM.001` ... with an AMSDOS header | the same on the CPC; plain bytes on CP/M (next to the `.COM`) |
 
 The compiler keeps the program and the Memory heap out of `#4000-#7FFF` for overlay
 classes (as `Option Reserve &H4000, &H4000`). A file that isn't there stops the program with
-`Overlay not loaded: LEVEL1.PAG` / `The file didn't load` / `Press a key`.
+`Overlay not loaded: PROGRAM.001` / `The file didn't load` / `Press a key`.
 
 #### Option Page
 
 `Option Page "NAME"` `=` *Class* [`,` *Class*] ...
 
 Where each class goes, in one place (by custom in the main file): the classes listed are
-built together into `NAME.PAG` (up to 8 characters), each at its own fixed address in it.
+built together into one file (`PROGRAM.001` ..., numbered as above; `"NAME.EXT"` names the
+file), each at its own fixed address in it.
 The page is loaded and switched in as a whole, the same way as an overlay class's page (RAM
 pages, or [the overlay area](#one-overlay-area)).
 
@@ -1636,8 +1646,8 @@ Option Page "CREDITS" = Credits
   (in the GUI's messages; `cli.js --layout`), and the classes in main RAM that pages call:
 
 ```
-Page LEVEL1 (LEVEL1.PAG): level1 104, maths 10 (home), stars 14 (home); paged variables 2; about 16210 bytes free
-Page LEVEL2 (LEVEL2.PAG): level2 90, maths 10 (copy), stars 14 (copy); paged variables 2; about 16224 bytes free
+Page LEVEL1 (PAGES.002): level1 104, maths 10 (home), stars 14 (home); paged variables 2; about 16210 bytes free
+Page LEVEL2 (PAGES.003): level2 90, maths 10 (copy), stars 14 (copy); paged variables 2; about 16224 bytes free
 Main RAM, called from pages: score
 ```
 
@@ -1648,7 +1658,8 @@ Main RAM, called from pages: score
   with one overlay area a Tick would load the class from disc, so it is refused there.
 - An `#asm` block of a copied class must not name the class's own thread labels (the block is
   in main memory, shared by the copies).
-- Two programs on one disc must not use the same page file names (`build/gendsk.sh` checks).
+- Two programs on one disc can't clash (numbered files carry the program's name); for names you
+  give yourself (`"NAME.EXT"`) `build/gendsk.sh` checks.
 
 The example `bas/pages/` has a title, two levels sharing copied classes, credits, and a class
 in main RAM that every page calls.

@@ -1,4 +1,4 @@
-' Level 2: built into LEVEL2.PAG. It calls level 1's class too: in RAM pages that switches
+' Level 2: page LEVEL2, built into OVERLAYS.002. It calls level 1's class too: in RAM pages that switches
 ' pages; in one overlay area it loads level 1 over level 2, and level 2 again for the return.
 Option Class Overlay "LEVEL2"
 Public Function Play(ByVal score As Integer) As Integer

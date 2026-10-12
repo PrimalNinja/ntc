@@ -630,17 +630,17 @@ the size of the fixed bank data).
 Small and cpm see one overlay area below). The
 compiler marks the thread of each of the class's procedures (`{t: 'ovl'}` ... `{t: 'ovlend'}`
 in the keyword list); the emitter sends those lines to the class's own list, written after
-the program as `OUTPUT "FILE.PAG"` / `ORG #4000` ... `OUTEND` - one assembly, so every label
+the program as `OUTPUT "PROGRAM.001"` / `ORG #4000` ... `OUTEND` - one assembly, so every label
 is shared and nothing is linked at load time; only the page is decided at run time. The
 class's variables, the call stubs, `#asm` blocks and asm keyword procedures stay in the
 program. The call stub, after the usual argument copies and `ld (p_x_rs), sp`, jumps to
 `ntc_ovl_enter` (`ntc_lib.asm` section `ntc_ovl`): it keeps `mem_cur` in the procedure's
 `_pg` word and switches in the class's page from its block (`ovl_blk_<class>: dw page,
-db "FILE.PAG", 0`), loading the file first (`mem_take` a C page, then FileSystem's `fs_load`
+db "PROGRAM.001", 0`), loading the file first (`mem_take` a C page, then FileSystem's `fs_load`
 through `fs_go`, which returns into `ovl_mt`, a one-word "thread"). The return stub switches
 `_pg` back. The compiler adds `Load` / `Unload` / `Loaded` / `Page` (asm keywords on the
 same section) to the class text before parsing. `--raw` output carries the overlays after
-`ntc_end`; the harness cuts the binary there and copies the `.PAG` files to its disc folders.
+`ntc_end`; the harness cuts the binary there and copies the page files (the names in the `OUTPUT` / `SAVEAMSDOS` lines) to its disc folders.
 
 The shared parts (variables, the "Overlay not loaded" message, `ntc_ovl_fresh` - page
 variables cleared and the local memory made one free block after a load - local memory,
@@ -654,7 +654,7 @@ caller's class was swapped out, so it is loaded again before going back to its t
 / `Unload` called with a thread in the area give -13 (`OVL_BUSY`). `Private Paged` is ignored
 (ordinary variables), since the class doesn't stay. The compiler adds `Option Reserve
 &H4000, &H4000` when the program has none covering the area, and `ntc_rsvtab` is always
-emitted (the Small heap stops at the area). CP/M `.PAG` files are the plain bytes (`fs_load`
+emitted (the Small heap stops at the area). CP/M page files are the plain bytes (`fs_load`
 reads whole records into `#4000`, at most 16K).
 
 **Pages** (`Option Page "NAME" = A, B`, `Option Home`; `Option Class Overlay "X"` is the same
@@ -679,7 +679,11 @@ else the home; `ntc_ovl_body` gets its body and the stub runs `ld sp, (ntc_ovl_b
 are per page, so loading, `ntc_ovl_fresh` (paged variables of every class in the page), the
 one overlay area's `ovl_cur` / `ntc_ovl_ret` and the members all work by page unchanged. Each
 page ends with `DISPLAY` lines (the assembler prints the sizes) and the compile result has
-`layout` (sizes counted from the thread words; `cli.js --layout`, the GUI's messages). A class in a
+`layout` (sizes counted from the thread words; `cli.js --layout`, the GUI's messages). **Page files** are
+`PROGRAM.nnn` (`programName`: the `name` option, else `amsdos`, else the main file's name),
+numbered in page order; a page named `"NAME.EXT"` keeps that name. Each starts with `dw
+NTC_STAMP`, a CRC-16 of the whole program text (`NTC_STAMP equ` at the end of the output);
+`ntc_ovl_core` (both schemes) compares it after loading and fails with `OVL_STALE` (-14). A class in a
 page may also be an interrupt class (`objClassKind[class].isl` = its slot; the Tick goes
 through its call stub, so its page is switched in; refused with Small).
 

@@ -47,7 +47,13 @@ def assemble(path):
     import glob, shutil
     d=os.path.dirname(os.path.abspath(path)); base=os.path.basename(path)
     b=base[:-4]+'.bin'; s=base[:-4]+'.sym'
-    for f in glob.glob(os.path.join(d,'*.PAG')): os.remove(f)
+    # the page files the assembly writes (OUTPUT "NAME.001" / SAVEAMSDOS "NAME.001", ...)
+    pages=[]
+    for line in open(path):
+        m=re.match(r'^\s+(?:OUTPUT|SAVEAMSDOS)\s+"([^"]+)"\s*,?\s*(\S*)',line)
+        if m and (line.lstrip().startswith('OUTPUT') or m.group(2).startswith('ovl_')): pages.append(m.group(1))
+    for f in pages:
+        if os.path.exists(os.path.join(d,f)): os.remove(os.path.join(d,f))
     r=subprocess.run([SJ,'--nologo','--raw='+b,'--sym='+s,base],capture_output=True,text=True,cwd=d)
     if r.returncode: print(r.stdout,r.stderr); sys.exit(1)
     syms={}
@@ -57,7 +63,9 @@ def assemble(path):
     data=open(os.path.join(d,b),'rb').read()
     if 'ntc_end' in syms and 'ntc_start' in syms: data=data[:syms['ntc_end']-syms['ntc_start']]
     import ntcrun
-    for f in glob.glob(os.path.join(d,'*.PAG')):
+    # NTC_KEEPPAGES=1: leave the disc folders' page files as they are (a test of a page file
+    # from another build: the loader must refuse it)
+    for f in ([] if os.environ.get('NTC_KEEPPAGES') else [os.path.join(d,p) for p in pages if os.path.exists(os.path.join(d,p))]):
         for dev in ('A','TAPE'):
             os.makedirs(os.path.join(ntcrun.FILES,dev),exist_ok=True); shutil.copy(f,os.path.join(ntcrun.FILES,dev,os.path.basename(f)))
     return data,syms

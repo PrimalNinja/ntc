@@ -320,6 +320,14 @@ finished, with the date.
   INTERRUPTCLASSES capabilities True on cpcfw; INTERRUP built for cpcfw; regress checks isl,
   hook and the interrupts example on cpcfw. Tutorial: 9.1 overlays with Small, new 10.7 (text
   and records in nodes), 6.5 replacing / tailoring any library class, 5.3 when turbo gains nothing
+- 2026-10-13 **Page files numbered** (Julian): `PROGRAM.001` ... `PROGRAM.999` (the program's
+  name: GUI project name, genbuild NAME, `cli.js --name=`, else the main file's name), in page
+  order; `"NAME.EXT"` keeps its own name. Two programs on a disc can't clash any more (the
+  demo had renamed its pages to dodge OVERLAYS' LEVEL1/LEVEL2). Each page file starts with the
+  build stamp (CRC-16 of the program text): a file from another build is refused, -14 (`The
+  file is from another build`), both schemes, tested by keeping an old page file
+  (`NTC_KEEPPAGES=1` in the harness). Harness and gendsk take the page names from the
+  `OUTPUT` / `SAVEAMSDOS` lines
 - 2026-10-13 **Pages** (Julian's design): `Option Page "NAME" = A, B ...` puts classes into a
   page together (one `.PAG`, loaded as one); a class in several pages is copied into each
   (every label it defines renamed `label__page` in the copies, its GOTO / GOSUB stubs and paged

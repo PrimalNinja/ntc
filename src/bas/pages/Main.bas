@@ -1,6 +1,7 @@
-' Pages: where each class goes, in one place. A page is a 16K file (INTRO.PAG ...) loaded into
+' Pages: where each class goes, in one place. A page is a 16K file (PAGES.001 ...) loaded into
 ' a RAM page (cpcmin, cpcfw: a 6128 or more RAM) or, with one overlay area (cpm, Option Memory
-' Small), into #4000-#7FFF in turn. Keep the .PAG files on the disc with the program.
+' Small), into #4000-#7FFF in turn. Keep the page files (PAGES.001 to PAGES.004, numbered in
+' the order of the Option Page lines) on the disc with the program.
 '   - a class in no page is in main RAM (Score here: the levels and the credits all use it)
 '   - a class in several pages is copied into each (Maths: no page switch when a level uses
 '     it); its paged variables are separate in each copy (Stars counts per level) - with

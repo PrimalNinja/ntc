@@ -166,7 +166,7 @@ for m in --turbo ""; do
   done
 done
 o=$(node cli.js t/pg/Main.bas $PF --platform=cpcmin --layout 2>&1)
-echo "$o" | grep -q "dw p_shared_sum_cl__level2" && echo "$o" | grep -q "dw p_shared_sum_c, lit_10" && echo "$o" | grep -q "^p_counter_bump_ct:.db 1" && echo "$o" | grep -q "^LAYOUT Page LEVEL2 (LEVEL2.PAG): level2 [0-9]*, shared [0-9]* (copy), counter [0-9]* (copy)" && echo "$o" | grep -q "^LAYOUT Main RAM, called from pages: util" && echo "ok   pages: local calls, layout" || { echo "FAIL pages: local calls, layout"; fail=1; }
+echo "$o" | grep -q "dw p_shared_sum_cl__level2" && echo "$o" | grep -q "dw p_shared_sum_c, lit_10" && echo "$o" | grep -q "^p_counter_bump_ct:.db 1" && echo "$o" | grep -q "^LAYOUT Page LEVEL2 (MAIN.003): level2 [0-9]*, shared [0-9]* (copy), counter [0-9]* (copy)" && echo "$o" | grep -q "^LAYOUT Main RAM, called from pages: util" && echo "ok   pages: local calls, layout" || { echo "FAIL pages: local calls, layout"; fail=1; }
 pe() { # name, expected message, main source
   printf "$3" > t/pg/E.bas
   node cli.js t/pg/E.bas $PF --platform=cpcmin 2>&1 >/dev/null | grep -q "$2" && echo "ok   pages refused: $1" || { echo "FAIL pages refused: $1"; fail=1; }
@@ -181,9 +181,18 @@ rm -rf t/files t/dv; mkdir -p t/dv; cp drv/* t/dv/
 check "pages: a page class with a Tick" "^ticks in a second: about 50" "$(timeout 300 python3 ntcrun.py t/dv/Main.bas '' t/dv/Drv.cls --platform=cpcmin 2>&1)"
 printf 'Option Memory Small\n' | cat - t/dv/Main.bas > t/dv/S.bas
 node cli.js t/dv/S.bas t/dv/Drv.cls --platform=cpcmin 2>&1 >/dev/null | grep -q "its Tick would load it from disc" && echo "ok   pages: Tick refused with one overlay area" || { echo "FAIL pages: Tick refused with one overlay area"; fail=1; }
+mkdir -p t/st; printf 'Public Function F() As Integer\n  F = 7\nEnd Function\n' > t/st/C.cls; printf 'Option Page "STALE.PAG" = C\nOption Reserve &H4000, &H4000\nPrint C.F()\nPrint "after"\n' > t/st/Main.bas
+rm -rf t/files; o1=$(timeout 100 python3 ntcrun.py t/st/Main.bas '' t/st/C.cls --platform=cpm 2>&1); printf 'Option Page "STALE.PAG" = C\nOption Reserve &H4000, &H4000\nPrint "new build"\nPrint C.F()\nPrint "after"\n' > t/st/Main.bas
+o=$(NTC_KEEPPAGES=1 timeout 100 python3 ntcrun.py t/st/Main.bas 'x' t/st/C.cls --platform=cpm 2>&1)
+echo "$o1" | grep -q "^7" && echo "$o" | grep -q "^The file is from another build" && echo "$o" | grep -q "^Overlay not loaded: STALE.PAG" && ! echo "$o" | grep -q "^after" && echo "ok   pages: a page file from another build refused" || { echo "FAIL pages: a page file from another build refused"; echo "$o" | tail -4; fail=1; }
+printf 'Option Page "STALE.PAG" = C\nOption RomEnable 7\nOption Reserve &H4000, &H4000\nPrint C.F()\nPrint "after"\n' > t/st/Main.bas
+rm -rf t/files; o1=$(timeout 100 python3 ntcrun.py t/st/Main.bas '' t/st/C.cls --platform=cpcmin 2>&1)
+printf 'Option Page "STALE.PAG" = C\nOption RomEnable 7\nOption Reserve &H4000, &H4000\nPrint "load"; C.Load()\nPrint C.F()\nPrint "after"\n' > t/st/Main.bas
+o=$(NTC_KEEPPAGES=1 timeout 100 python3 ntcrun.py t/st/Main.bas 'x' t/st/C.cls --platform=cpcmin 2>&1)
+echo "$o1" | grep -q "^7" && echo "$o" | grep -q "^load-14" && echo "$o" | grep -q "^The file is from another build" && ! echo "$o" | grep -q "^after" && echo "ok   pages: a page file from another build refused (RAM pages, Load -14)" || { echo "FAIL pages: stale page RAM pages"; echo "$o" | tail -4; fail=1; }
 mkdir -p t/sj; printf 'Option Class Overlay "LEVEL1"\nPublic Function F() As Integer\n  F = 5\nEnd Function\n' > t/sj/Extra.cls; printf 'Public Function G() As Integer\n  G = Extra.F() + 1\nEnd Function\n' > t/sj/Lv.cls; printf 'Option Page "LEVEL1" = Lv\nOption Reserve &H4000, &H4000\nPrint Lv.G(); Extra.F()\n' > t/sj/Main.bas
 rm -rf t/files; o=$(node cli.js t/sj/Main.bas t/sj/Extra.cls t/sj/Lv.cls --platform=cpm --layout 2>&1 >/dev/null; timeout 100 python3 ntcrun.py t/sj/Main.bas '' t/sj/Extra.cls t/sj/Lv.cls --platform=cpm 2>&1)
-echo "$o" | grep -q "^LAYOUT Page LEVEL1 (LEVEL1.PAG): lv [0-9]*, extra [0-9]*;" && echo "$o" | grep -q "^65" && echo "ok   pages: Option Class Overlay joins an Option Page" || { echo "FAIL pages: Option Class Overlay joins an Option Page"; fail=1; }
+echo "$o" | grep -q "^LAYOUT Page LEVEL1 (MAIN.001): lv [0-9]*, extra [0-9]*;" && echo "$o" | grep -q "^65" && echo "ok   pages: Option Class Overlay joins an Option Page" || { echo "FAIL pages: Option Class Overlay joins an Option Page"; fail=1; }
 rm -rf t/files t/od; mkdir -p t/od; cp $P/overlays/* t/od/
 check "overlays demo cpcmin" "^Unload level 1: 0 - pages -C" "$(timeout 200 python3 ntcrun.py t/od/Main.bas '~x' t/od/Level1.cls t/od/Level2.cls --platform=cpcmin 2>&1)"
 rm -rf t/files; check "overlays demo cpm" "^Unload level 2: 0 - level 2 0" "$(timeout 200 python3 ntcrun.py t/od/Main.bas '~x' t/od/Level1.cls t/od/Level2.cls --platform=cpm 2>&1)"
@@ -288,7 +297,7 @@ for p in cpc cpcmin cpcfw cpm test; do
 done
 if [ $b == 0 ]; then echo "ok   build/ ($n files assemble)"; else echo "FAIL build/"; fail=1; fi
 # the overlay files from an AMSDOS build carry an AMSDOS header (AMSDOS won't CAS IN DIRECT a file without one)
-o=$(python3 -c "import ntcrun; print([ntcrun.amsdos_header_of(open('t/bc/cpcmin/'+f,'rb').read()) for f in ('LEVEL1.PAG','LEVEL2.PAG')])" 2>&1)
+o=$(python3 -c "import ntcrun; print([ntcrun.amsdos_header_of(open('t/bc/cpcmin/'+f,'rb').read()) for f in ('OVERLAYS.001','OVERLAYS.002')])" 2>&1)
 if echo "$o" | grep -q "^\[(16384, [0-9]*), (16384, [0-9]*)\]"; then echo "ok   overlay files have AMSDOS headers"; else echo "FAIL overlay files have AMSDOS headers: $o"; fail=1; fi
 # build/dsk/: a CPC data format disc per platform with its programs (needs cpmtools + libdsk)
 if command -v dskform > /dev/null && command -v cpmcp > /dev/null; then
