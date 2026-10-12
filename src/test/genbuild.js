@@ -23,6 +23,7 @@ var arrPrograms = [
 	{ name: 'MEMMAP', files: ['memmap.bas'] },
 	{ name: 'LISTS', files: ['lists.bas'] },
 	{ name: 'SORTTIME', files: ['sorttime.bas'] },
+	{ name: 'CMDLINE', files: ['cmdline.bas'] },
 	{ name: 'OVERLAYS', files: ['overlays/Main.bas', 'overlays/Level1.cls', 'overlays/Level2.cls'], platforms: ['cpcmin', 'cpcfw', 'cpm'] },
 	{ name: 'INTERRUP', files: ['interrupts/Main.bas', 'interrupts/Clock.cls', 'interrupts/Star.cls'], platforms: ['cpc', 'cpcmin'] },
 	{ name: 'NUMBERED', files: ['numbered.bas'] },

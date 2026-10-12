@@ -141,20 +141,20 @@ p_clock_tick:
 p_star_tick:
 
 			; Star.cls 6: Locate x + 1, 1 : Print " ";
-			dw kw_addl, var_star_x, 1, tmp0
-			dw kw_ltov, 1, tmp1
-			dw kw_locatevv, tmp0, tmp1
+			dw kw_addl, var_star_x, 1, tmp2
+			dw kw_ltov, 1, tmp3
+			dw kw_locatevv, tmp2, tmp3
 			dw kw_printzoscii
 			dw glyph_20, 0		; " "
 
 			; Star.cls 7: x = (x + 1) Mod 39
-			dw kw_addl, var_star_x, 1, tmp0
-			dw kw_modvl, tmp0, 39, var_star_x
+			dw kw_addl, var_star_x, 1, tmp2
+			dw kw_modvl, tmp2, 39, var_star_x
 
 			; Star.cls 8: Locate x + 1, 1 : Print "*";
-			dw kw_addl, var_star_x, 1, tmp0
-			dw kw_ltov, 1, tmp1
-			dw kw_locatevv, tmp0, tmp1
+			dw kw_addl, var_star_x, 1, tmp2
+			dw kw_ltov, 1, tmp3
+			dw kw_locatevv, tmp2, tmp3
 			dw kw_printzoscii
 			dw glyph_2A, 0		; "*"
 
@@ -205,6 +205,8 @@ p_star_tick_rs:			dw 0
 var_star_x:			dw 0
 tmp0:			dw 0
 tmp1:			dw 0
+tmp2:			dw 0
+tmp3:			dw 0
 
 ; numbers passed by address (read only)
 llit_1:			dw 1, 0

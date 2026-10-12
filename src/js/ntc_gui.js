@@ -532,7 +532,8 @@ function ntcOptions()
 		org: (String($('#ge-org').val()).replace(/\s/g, '').length > 0) ? $('#ge-org').val() : null,
 		library: $('#ge-library').val(),
 		sourcecomments: $('#ge-comments').is(':checked'),
-		turbo: ($('#ge-mode').val() === 'turbo')
+		turbo: ($('#ge-mode').val() === 'turbo'),
+		amsdos: ($('#ge-amsdos').is(':checked') && /^cpc/.test($('#ge-platform').val())) ? String(m_objProject.name || 'PROGRAM') : ''
 	};
 }
 
@@ -822,7 +823,7 @@ function ntcInit()
 	});
 	$('#ge-saveproject').on('click', ntcSaveProject);
 
-	$('#ge-library, #ge-comments, #ge-hidelib').on('change', ntcRecompile);
+	$('#ge-library, #ge-comments, #ge-hidelib, #ge-amsdos').on('change', ntcRecompile);
 	$('#ge-mode, #ge-platform').on('change', function()
 	{
 		ntcSaveLocal();

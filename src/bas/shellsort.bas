@@ -4,6 +4,7 @@
 ' 2000 numbers take several seconds - long enough for a stopwatch: start it as you
 ' press T or N, stop it at "Done".
 Option Explicit
+Option Turbo Off                  ' starts in normal mode whatever the turbo setting says: T switches
 Const MAXN = 2000
 Dim a(MAXN) As Integer
 Dim n As Integer, i As Integer, k As String

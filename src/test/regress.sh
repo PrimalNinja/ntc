@@ -102,10 +102,10 @@ for m in --turbo ""; do
   done
 done
 cp $P/memmap.bas t/ex/
-check "memmap cpc 64K" "^After Free: 0 pages free" "$(timeout 200 python3 ntcrun.py t/ex/memmap.bas '~x' --platform=cpc --ram=64 2>&1)"
-check "memmap cpc 576K" "^Bank 8 " "$(timeout 200 python3 ntcrun.py t/ex/memmap.bas '~x' --platform=cpc --ram=576 2>&1)"
-check "memmap cpc 4MB" "^&7E DD---" "$(timeout 300 python3 ntcrun.py t/ex/memmap.bas '~x' --platform=cpc --ram=4160 2>&1)"
-check "memmap cpcfw 128K" "^Pages UCU--" "$(timeout 200 python3 ntcrun.py t/ex/memmap.bas '~x' --platform=cpcfw 2>&1)"
+check "memmap cpc 64K" "^After Free: 0 pages free" "$(timeout 200 python3 ntcrun.py t/ex/memmap.bas '~x~x' --platform=cpc --ram=64 2>&1)"
+check "memmap cpc 576K" "^Bank 8 " "$(timeout 200 python3 ntcrun.py t/ex/memmap.bas '~x~x' --platform=cpc --ram=576 2>&1)"
+check "memmap cpc 4MB" "^&7E DD---" "$(timeout 300 python3 ntcrun.py t/ex/memmap.bas '~x~x' --platform=cpc --ram=4160 2>&1)"
+check "memmap cpcfw 128K" "^Pages UCU--" "$(timeout 200 python3 ntcrun.py t/ex/memmap.bas '~x~x' --platform=cpcfw 2>&1)"
 # a program ending near #4000: the page tables only take what fits, so fewer pages
 printf 'Option Reserve &H4000, &H4000\nDim big(6000) As Integer\nIf Memory.Pages() > 1 And Memory.Pages() < 257 And Memory.TableEnd() <= &H4000 Then Print "tables fit"\n' > t/lim.bas
 check "memory tables near #4000" "^tables fit" "$(timeout 200 python3 ntcrun.py t/lim.bas '' --platform=cpc --ram=4160 2>&1)"
@@ -123,7 +123,9 @@ printf 'Option Reserve &H4000, &H4000\nOption Memory CPCExpansion 1\nPrint "page
 check "Option Memory CPCExpansion 1 on 576K" "^pages1" "$(timeout 200 python3 ntcrun.py t/cap1.bas '' --platform=cpc --ram=576 2>&1)"
 printf 'Option Memory CPCExpansion\nPrint Memory.Pages()\n' > t/capx.bas
 node cli.js t/capx.bas --platform=cpm > /dev/null 2> t/capx.err; grep -q "Option Memory CPCExpansion is for the CPC platforms" t/capx.err && echo "ok   Option Memory CPCExpansion refused on cpm" || { echo "FAIL Option Memory CPCExpansion refused on cpm"; fail=1; }
-for pl in test cpm; do check "memmap $pl" "^No paging - heap" "$(timeout 200 python3 ntcrun.py t/ex/memmap.bas '~x' --platform=$pl 2>&1)"; done
+for pl in test cpm; do check "memmap $pl" "^No paging - heap" "$(timeout 200 python3 ntcrun.py t/ex/memmap.bas '~x~x' --platform=$pl 2>&1)"; done
+check "memmap cpm main map" "^Free main RAM: [0-9]" "$(timeout 200 python3 ntcrun.py t/ex/memmap.bas '~x~x' --platform=cpm 2>&1)"
+check "memmap cpcfw summary" "^128K, 5 pages: main + 1 banks" "$(timeout 200 python3 ntcrun.py t/ex/memmap.bas '~x~x' --platform=cpcfw 2>&1)"
 # overlay classes (Option Class Overlay): built into .PAG files in the same compile, loaded into
 # C pages on the first call; cpcmin / cpcfw, both modes; 64K: no page free, a message
 for m in --turbo ""; do
@@ -174,6 +176,24 @@ for m in --turbo ""; do
 done
 cp $P/lists.bas t/ex/
 for pl in cpc cpcfw cpm test; do check "lists demo $pl" "^235 players with 5000 or more" "$(timeout 300 python3 ntcrun.py t/ex/lists.bas '~x' --platform=$pl 2>&1)"; done
+# Function calls inside expressions: the caller's temps survive (both modes, cpc and cpm)
+for m in --turbo ""; do for pl in test cpm; do
+  cp temps.bas t/; o=$(timeout 60 python3 ntcrun.py t/temps.bas '' --platform=$pl $m 2>&1 | grep -v "^--- ")
+  if [ "$o" == "$(cat ref/temps.txt)" ]; then echo "ok   temps across calls $pl ${m:-normal}"; else echo "FAIL temps across calls $pl ${m:-normal}"; echo "$o" | head -5; fail=1; fi
+done; done
+# System.HasCapability / CommandLine: CP/M has the command tail (kept over a disc call), the CPC asks
+cp $P/cmdline.bas t/ex/
+check "command line cpm" "^3 words" "$(timeout 60 python3 ntcrun.py t/ex/cmdline.bas '' --platform=cpm --cmdline='hello there  world' 2>&1)"
+check "command line cpc asks" "^2 words" "$(timeout 60 python3 ntcrun.py t/ex/cmdline.bas 'a bb\n' --platform=cpc 2>&1)"
+printf 'Dim cl As String\ncl = System.CommandLine\nPrint FileSystem.Exists("NONE.TXT"); "["; cl; "]"; System.HasCapability("files"); System.HasCapability("x")\n' > t/cl2.bas
+check "command line after a disc call" "^0\[FILE.TXT\]-10" "$(timeout 60 python3 ntcrun.py t/cl2.bas '' --platform=cpm --cmdline='file.txt' 2>&1)"
+# the tutorial's examples compile, and print what the pages say
+o=$(timeout 900 python3 tutcheck.py 2>&1); if [ $? -eq 0 ]; then echo "ok   tutorial examples ($(echo "$o" | tail -1))"; else echo "FAIL tutorial examples"; echo "$o" | tail -12; fail=1; fi
+# For loops up to 32767 / down to -32768 end (they looped for ever when the step wrapped)
+for m in --turbo ""; do
+  cp for_end.bas t/; o=$(timeout 60 python3 ntcrun.py t/for_end.bas '' --platform=test $m 2>&1 | grep -v "^--- " | tr '\n' ' ')
+  if [ "$o" == "a8-32768 b3 c8 d9 e2 f3 g55 h22 " ]; then echo "ok   for at the Integer ends ${m:-normal}"; else echo "FAIL for at the Integer ends ${m:-normal}: $o"; fail=1; fi
+done
 # the sort timing demo: 300 nodes, a turbo and a normal sort, both in order
 cp $P/sorttime.bas t/ex/
 for pl in cpc cpcmin cpm test; do

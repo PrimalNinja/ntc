@@ -78,38 +78,57 @@ for1_e:
 			dw kw_printint, var_score
 			dw kw_printnl
 
-			; Main.bas 32: Print "Level 1 in page "; Level1.Page(); ", level 2 in page "; Level2.Page()
-			dw fn_level1_page, var_level1_page_page
+			; Main.bas 29: Print "Free after level 1 "; Level1.LocalSize()
+			dw fn_level1_localsize, var_level1_localsize_localsize
 			dw kw_printstrvar, str5
+			dw kw_printint, var_level1_localsize_localsize
+			dw kw_printnl
+
+			; Main.bas 30: Print "Free after level 2 "; Level2.LocalSize()
+			dw fn_level2_localsize, var_level2_localsize_localsize
+			dw kw_printstrvar, str6
+			dw kw_printint, var_level2_localsize_localsize
+			dw kw_printnl
+
+			; Main.bas 31: Print "Heap, largest block "; Memory.Largest()
+			dw fn_memory_largest, var_memory_largest_largest
+			dw kw_printstrvar, str7
+			dw kw_printint, var_memory_largest_largest
+			dw kw_printnl
+
+			; Main.bas 36: Print "Level 1 in page "; Level1.Page(); ", level 2 in page "; Level2.Page()
+			dw fn_level1_page, var_level1_page_page
+			dw kw_printstrvar, str8
 			dw kw_printint, var_level1_page_page
 			dw fn_level2_page, var_level2_page_page
-			dw kw_printstrvar, str6
+			dw kw_printstrvar, str9
 			dw kw_printint, var_level2_page_page
 			dw kw_printnl
 
-			; Main.bas 33: Print "Pages "; Memory.Map(1, Memory.Pages())
+			; Main.bas 37: Print "Pages "; Memory.Map(1, Memory.Pages())
 			dw fn_memory_pages, var_memory_pages_pages
 			dw kw_vtov, var_memory_pages_pages, tmp1
 			dw fn_memory_map, lit_1, tmp1, var_memory_map_map
-			dw kw_printstrvar, str7
-			dw kw_printstrvar, var_memory_map_map
-			dw kw_printnl
-
-			; Main.bas 34: Print "Unload level 1: "; Level1.Unload(); " - pages "; Memory.Map(1, Memory.Pages())
-			dw fn_level1_unload, var_level1_unload_unload
-			dw kw_printstrvar, str8
-			dw kw_printint, var_level1_unload_unload
-			dw fn_memory_pages, var_memory_pages_pages
-			dw kw_vtov, var_memory_pages_pages, tmp1
-			dw fn_memory_map, lit_1, tmp1, var_memory_map_map
-			dw kw_printstrvar, str9
-			dw kw_printstrvar, var_memory_map_map
-			dw kw_printnl
-
-			; Main.bas 36: Print "Press a key";
 			dw kw_printstrvar, str10
+			dw kw_printstrvar, var_memory_map_map
+			dw kw_printnl
 
-			; Main.bas 37: Do While Inkey <> 0 : Loop
+			; Main.bas 38: Print "Unload level 1: "; Level1.Unload(); " - pages "; Memory.Map(1, Memory.Pages())
+			dw fn_level1_unload, var_level1_unload_unload
+			dw kw_printstrvar, str11
+			dw kw_printint, var_level1_unload_unload
+			dw kw_irq		; let interrupts in
+			dw fn_memory_pages, var_memory_pages_pages
+			dw kw_vtov, var_memory_pages_pages, tmp1
+			dw fn_memory_map, lit_1, tmp1, var_memory_map_map
+			dw kw_printstrvar, str12
+			dw kw_printstrvar, var_memory_map_map
+			dw kw_printnl
+
+			; Main.bas 40: Print "Press a key";
+			dw kw_printstrvar, str13
+
+			; Main.bas 41: Do While Inkey <> 0 : Loop
 do4_t:
 			dw kw_inkey, tmp0
 			dw kw_cpnevl, tmp0, 0
@@ -117,7 +136,7 @@ do4_t:
 			dw do4_t_go
 do4_e:
 
-			; Main.bas 38: Do : Frame : Loop Until Inkey <> 0
+			; Main.bas 42: Do : Frame : Loop Until Inkey <> 0
 do5_t:
 			dw kw_frame
 			dw kw_inkey, tmp0
@@ -125,10 +144,10 @@ do5_t:
 			dw kw_goto_iffalse_n, do5_t
 do5_e:
 
-			; Main.bas 39: Print
+			; Main.bas 43: Print
 			dw kw_printnl
 
-			; Main.bas 40: End
+			; Main.bas 44: End
 			dw kw_stop
 
 ; ============================================================
@@ -137,10 +156,10 @@ do5_e:
 
 p_banner:
 
-			; Main.bas 44: Print "== "; text; " =="
-			dw kw_printstrvar, str11
+			; Main.bas 48: Print "== "; text; " =="
+			dw kw_printstrvar, str14
 			dw kw_printstrvar, var_banner_text
-			dw kw_printstrvar, str12
+			dw kw_printstrvar, str15
 			dw kw_printnl
 			dw p_banner_r
 
@@ -281,11 +300,27 @@ fn_level1_page:		; function page (asm keyword), Level1.cls line 41
 			jp ntc_ovl_kpage		; Level1.cls 45
 			ret			; end of #asm
 
+fn_level1_localsize:		; function localsize (asm keyword), Level1.cls line 58
+			pop hl		; Level1.cls 59
+			ld de, (#8000 - (ovl_level1_end + ovl_level1_vsize)) & #FFFE		; Level1.cls 60
+			ld (hl), e		; Level1.cls 61
+			inc hl		; Level1.cls 62
+			ld (hl), d		; Level1.cls 63
+			ret			; end of #asm
+
 fn_level2_page:		; function page (asm keyword), Level2.cls line 37
 			pop hl		; Level2.cls 38
 			ld (ovl_kres), hl		; Level2.cls 39
 			ld hl, ovl_blk_level2		; Level2.cls 40
 			jp ntc_ovl_kpage		; Level2.cls 41
+			ret			; end of #asm
+
+fn_level2_localsize:		; function localsize (asm keyword), Level2.cls line 54
+			pop hl		; Level2.cls 55
+			ld de, (#8000 - (ovl_level2_end + ovl_level2_vsize)) & #FFFE		; Level2.cls 56
+			ld (hl), e		; Level2.cls 57
+			inc hl		; Level2.cls 58
+			ld (hl), d		; Level2.cls 59
 			ret			; end of #asm
 
 fn_memory_pages:		; function pages (asm keyword), Memory.cls line 68
@@ -302,21 +337,28 @@ fn_memory_ramsize:		; function ramsize (asm keyword), Memory.cls line 88
             jp mem_go		; Memory.cls 92
 			ret			; end of #asm
 
-fn_memory_map:		; function map (asm keyword), Memory.cls line 155
-            pop hl		; Memory.cls 156
-            ld e, (hl)		; Memory.cls 157
-            inc hl		; Memory.cls 158
-            ld d, (hl)		; Memory.cls 159
-            ld (mem_a1), de		; Memory.cls 160
-            pop hl		; Memory.cls 161
-            ld e, (hl)		; Memory.cls 162
-            inc hl		; Memory.cls 163
-            ld d, (hl)		; Memory.cls 164
-            ld (mem_a2), de		; Memory.cls 165
-            pop hl		; Memory.cls 166
-            ld (mem_res), hl		; Memory.cls 167
-            ld hl, mem_map		; Memory.cls 168
-            jp mem_go0		; Memory.cls 169
+fn_memory_map:		; function map (asm keyword), Memory.cls line 194
+            pop hl		; Memory.cls 195
+            ld e, (hl)		; Memory.cls 196
+            inc hl		; Memory.cls 197
+            ld d, (hl)		; Memory.cls 198
+            ld (mem_a1), de		; Memory.cls 199
+            pop hl		; Memory.cls 200
+            ld e, (hl)		; Memory.cls 201
+            inc hl		; Memory.cls 202
+            ld d, (hl)		; Memory.cls 203
+            ld (mem_a2), de		; Memory.cls 204
+            pop hl		; Memory.cls 205
+            ld (mem_res), hl		; Memory.cls 206
+            ld hl, mem_map		; Memory.cls 207
+            jp mem_go0		; Memory.cls 208
+			ret			; end of #asm
+
+fn_memory_largest:		; function largest (asm keyword), Memory.cls line 303
+            pop hl		; Memory.cls 304
+            ld (mem_res), hl		; Memory.cls 305
+            ld hl, mem_largest		; Memory.cls 306
+            jp mem_go		; Memory.cls 307
 			ret			; end of #asm
 
 
@@ -330,6 +372,9 @@ var_lvl:			dw 0
 var_score:			dw 0
 var_level1_play_play:			dw 0
 var_level2_play_play:			dw 0
+var_level1_localsize_localsize:			dw 0
+var_level2_localsize_localsize:			dw 0
+var_memory_largest_largest:			dw 0
 var_level1_page_page:			dw 0
 var_level2_page_page:			dw 0
 var_memory_pages_pages:			dw 0
@@ -364,20 +409,24 @@ str1:			db "Overlays on CPC firmware, ", 0
 str2:			db "K", 0
 str3:			db "Level 1 loaded: ", 0
 str4:			db "Score ", 0
-str5:			db "Level 1 in page ", 0
-str6:			db ", level 2 in page ", 0
-str7:			db "Pages ", 0
-str8:			db "Unload level 1: ", 0
-str9:			db " - pages ", 0
-str10:			db "Press a key", 0
-str11:			db "== ", 0
-str12:			db " ==", 0
-str13:			db "Level 1", 0
-str14:			db "  room ", 0
-str15:			db "Level 2", 0
-str16:			db "  score so far ", 0
-str17:			db ", level 1 loaded ", 0
-str18:			db "  bonus from level 1 ", 0
+str5:			db "Free after level 1 ", 0
+str6:			db "Free after level 2 ", 0
+str7:			db "Heap, largest block ", 0
+str8:			db "Level 1 in page ", 0
+str9:			db ", level 2 in page ", 0
+str10:			db "Pages ", 0
+str11:			db "Unload level 1: ", 0
+str12:			db " - pages ", 0
+str13:			db "Press a key", 0
+str14:			db "== ", 0
+str15:			db " ==", 0
+str16:			db "Level 1", 0
+str17:			db "  room ", 0
+str18:			db "Level 2", 0
+str19:			db "  score so far ", 0
+str20:			db ", level 1 loaded ", 0
+str21:			db "  bonus from level 1 ", 0
+str22:			db 0
 
 ; ============================================================
 ; Keyword library (used)
@@ -435,6 +484,12 @@ ntc_xn:
 			ld sp, (ntc_ip)
 			ret
 
+;## kw_irq ntc_xn @shared
+;kw_irq  - normal mode: a safe point the compiler puts in long runs
+;  of keywords without a branch, so interrupts are not held off
+kw_irq:
+			jp ntc_xn
+
 ;## kw_goto_iffalse (normal mode copy)
 ;kw_goto_iffalse, <label>  - branch if NZ (false)
 kw_goto_iffalse_n:
@@ -475,8 +530,11 @@ ntc_for_lt_n:
 			jp nc, ntc_xn
 			ld sp, hl
 			jp ntc_xn
-; ntc_for_le: jump to the label if var <= limit (loop again)
+; ntc_for_le: jump to the label if var <= limit (loop again). A not 0: the
+; step took var past 32767 (or -32768): the loop ends (ntc_for_ge too)
 ntc_for_le_n:
+			or a
+			jr nz, ntc_for_end_n
 			ld a, d
 			xor #80
 			ld d, a
@@ -491,6 +549,8 @@ ntc_for_le_n:
 			jp ntc_xn
 ; ntc_for_ge: jump to the label if var >= limit (loop again)
 ntc_for_ge_n:
+			or a
+			jr nz, ntc_for_end_n
 			ld a, d
 			xor #80
 			ld d, a
@@ -503,6 +563,9 @@ ntc_for_ge_n:
 			pop hl
 			jp c, ntc_xn
 			ld sp, hl
+			jp ntc_xn
+ntc_for_end_n:
+			pop hl
 			jp ntc_xn
 
 ;## kw_next1l (normal mode copy) ntc_for_jump
@@ -518,6 +581,11 @@ kw_next1l_n:
 ntc_n1l_nc_n:
 			ld d, (hl)
 			pop hl
+			ld a, d					; A = #FF when it went past 32767 (#8000)
+			xor #80
+			or e
+			sub 1
+			sbc a, a
 			jp ntc_for_le_n
 
 ;## kw_ltov
@@ -776,7 +844,7 @@ kw_frame:
 ; CAS IN / OUT OPEN buffer (CPC firmware) and Memory.Copy's page to page copy
 ntc_buf:		ds 2048
 
-;## ntc_memcore ntc_data ntc_mem @shared
+;## ntc_memcore ntc_data ntc_mem ntc_plat_memtop @shared
 ; ------------------------------------------------------------
 ; ntc_memcore - the Memory class, the part every scheme shares. The scheme
 ; (Option Memory, else the platform's default) is the section ntc_mem -
@@ -938,6 +1006,19 @@ mem_heapstart:
 			ret
 mem_heapend:
 			ld hl, (mem_hhi)
+			ret
+; ProgramStart(), ProgramEnd() (the first byte after the program and its
+; arrays), Top() (the platform's top of free RAM), StackTop() (the real stack)
+mem_progstart:
+			ld hl, ntc_start
+			ret
+mem_progend:
+			ld hl, ntc_free
+			ret
+mem_top:
+			jp ntc_plat_memtop
+mem_stacktop:
+			ld hl, (ntc_csp)
 			ret
 
 ; mem_atend - Z when HL = mem_hhi (the heap region's end). Keeps BC, DE, HL.
@@ -3225,6 +3306,14 @@ fs_sv_done:
 			ld hl, 0
 			ret
 
+;## ntc_plat_memtop
+; ntc_plat_memtop - HL = the first byte the Memory class's Small heap must not
+; use: #A600 (the firmware's and AMSDOS's RAM is above). Called on the real
+; stack (call / ret), only by the Memory class.
+ntc_plat_memtop:
+			ld hl, #A600
+			ret
+
 
 ; overlay classes: the page each is loaded in (0 = not loaded), its page variables (start, size), its file
 ovl_blk_level1:	dw 0, ovl_level1_end, ovl_level1_vsize
@@ -3253,14 +3342,14 @@ p_level1_play:
 			; Level1.cls 4: Dim i As Integer
 
 			; Level1.cls 5: Banner "Level 1"
-			dw p_banner_c, str13
+			dw p_banner_c, str16
 
 			; Level1.cls 6: For i = 1 To 3
 			dw kw_ltov, 1, var_level1_play_i
 for6_t:
 
 			; Level1.cls 7: Print "  room "; i
-			dw kw_printstrvar, str14
+			dw kw_printstrvar, str17
 			dw kw_printint, var_level1_play_i
 			dw kw_printnl
 
@@ -3291,19 +3380,19 @@ ovl_level2_start:
 p_level2_play:
 
 			; Level2.cls 5: Banner "Level 2"
-			dw p_banner_c, str15
+			dw p_banner_c, str18
 
 			; Level2.cls 6: Print "  score so far "; score; ", level 1 loaded "; Level1.Loaded()
-			dw kw_printstrvar, str16
+			dw kw_printstrvar, str19
 			dw kw_printint, var_level2_play_score
 			dw fn_level1_loaded, var_level1_loaded_loaded
-			dw kw_printstrvar, str17
+			dw kw_printstrvar, str20
 			dw kw_printint, var_level1_loaded_loaded
 			dw kw_printnl
 
 			; Level2.cls 7: Print "  bonus from level 1 "; Level1.Bonus()
 			dw p_level1_bonus_c
-			dw kw_printstrvar, str18
+			dw kw_printstrvar, str21
 			dw kw_printint, var_level1_bonus_bonus
 			dw kw_printnl
 

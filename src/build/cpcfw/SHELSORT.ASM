@@ -26,11 +26,11 @@ ntc_start:
 main_thread:
 			dw kw_bssinit, ntc_bss, ntc_bss_size		; the arrays: do they fit, clear them
 
-			; main.bas 12: Input "How many numbers (Return = 2000)"; n
+			; main.bas 13: Input "How many numbers (Return = 2000)"; n
 			dw kw_printstrvar, str0
 			dw kw_inputint, var_n
 
-			; main.bas 13: If n < 10 Or n > MAXN Then n = MAXN
+			; main.bas 14: If n < 10 Or n > MAXN Then n = MAXN
 			dw kw_scpltvl, var_n, 10
 			dw kw_ftov, tmp0
 			dw kw_scpgtvl, var_n, 2000
@@ -40,17 +40,17 @@ main_thread:
 			dw kw_ltov, 2000, var_n
 if1_1:
 
-			; main.bas 14: Do
+			; main.bas 15: Do
 do2_t:
 
-			; main.bas 15: Print
+			; main.bas 16: Print
 			dw kw_printnl
 
-			; main.bas 16: Print "T = turbo, N = normal, X = exit"
+			; main.bas 17: Print "T = turbo, N = normal, X = exit"
 			dw kw_printstrvar, str1
 			dw kw_printnl
 
-			; main.bas 17: Do : k = UCase$(Inkey$) : Frame : Loop Until (k = "T") Or (k = "N") Or (k = "X")
+			; main.bas 18: Do : k = UCase$(Inkey$) : Frame : Loop Until (k = "T") Or (k = "N") Or (k = "X")
 do3_t:
 			dw kw_inkeys, stmp0
 			dw kw_strucase, var_k, stmp0
@@ -66,30 +66,30 @@ do3_t:
 			dw kw_goto_ifzero_n, tmp0, do3_t
 do3_e:
 
-			; main.bas 18: If k = "X" Then Exit Do
+			; main.bas 19: If k = "X" Then Exit Do
 			dw kw_strcmpeq, var_k, str4
 			dw kw_goto_iffalse_n, if4_1
 			dw do2_e_go
 if4_1:
 
-			; main.bas 20: Randomize 7
+			; main.bas 21: Randomize 7
 			dw kw_seedl, 7
 
-			; main.bas 21: For i = 0 To n
+			; main.bas 22: For i = 0 To n
 			dw kw_ztov, var_i
 			dw kw_vtov, var_n, for5_l
 			dw kw_forupv_n, var_i, for5_l, for5_e
 for5_t:
 
-			; main.bas 22: a(i) = Rnd(1000)
+			; main.bas 23: a(i) = Rnd(1000)
 			dw kw_rndl, 1000, tmp1
 			dw kw_aset, arr_a, var_i, tmp1
 
-			; main.bas 23: Next
+			; main.bas 24: Next
 			dw kw_next1v_n, var_i, for5_l, for5_t
 for5_e:
 
-			; main.bas 24: Print IIf(k = "T", "Turbo", "Normal"); ": sorting "; n + 1; " numbers..."
+			; main.bas 25: Print IIf(k = "T", "Turbo", "Normal"); ": sorting "; n + 1; " numbers..."
 			dw kw_strcmpeq, var_k, str2
 			dw kw_ftov, tmp0
 			dw kw_goto_ifzero_n, tmp0, ch6_0
@@ -108,63 +108,63 @@ ch6_e:
 			dw kw_printstrvar, str9
 			dw kw_printnl
 
-			; main.bas 25: t0 = Ticks
+			; main.bas 26: t0 = Ticks
 			dw kw_ticks, tmp0
 			dw kw_vtov, tmp0, var_t0
 
-			; main.bas 26: If k = "T" Then
+			; main.bas 27: If k = "T" Then
 			dw kw_strcmpeq, var_k, str2
 			dw kw_goto_iffalse_n, if7_1
 
-			; main.bas 27: Turbo On
+			; main.bas 28: Turbo On
 			dw kw_turbo_on
 
-			; main.bas 28: ShellSort
+			; main.bas 29: ShellSort
 			dw p_shellsort_c
 
-			; main.bas 29: Turbo Off
+			; main.bas 30: Turbo Off
 			dw kw_turbo_off
 
-			; main.bas 30: Else
+			; main.bas 31: Else
 			dw if7_e_go
 if7_1:
 
-			; main.bas 31: ShellSort
+			; main.bas 32: ShellSort
 			dw p_shellsort_n_c
 
-			; main.bas 32: End If
+			; main.bas 33: End If
 if7_e:
 
-			; main.bas 33: t1 = Ticks
+			; main.bas 34: t1 = Ticks
 			dw kw_ticks, tmp0
 			dw kw_vtov, tmp0, var_t1
 
-			; main.bas 34: Print "Done - stop the stopwatch"
+			; main.bas 35: Print "Done - stop the stopwatch"
 			dw kw_printstrvar, str10
 			dw kw_printnl
 
-			; main.bas 35: For i = 0 To 9
+			; main.bas 36: For i = 0 To 9
 			dw kw_ztov, var_i
 for8_t:
 
-			; main.bas 36: Print a(i); " ";
+			; main.bas 37: Print a(i); " ";
 			dw kw_aget, arr_a, var_i, tmp0
 			dw kw_printint, tmp0
 			dw kw_printstrvar, str11
 
-			; main.bas 37: Next
+			; main.bas 38: Next
 			dw kw_next1l_n, var_i, 9, for8_t
 for8_e:
 
-			; main.bas 38: Print
+			; main.bas 39: Print
 			dw kw_printnl
 
-			; main.bas 39: If (k = "N") And (System.TicksPerSecond > 0) Then
+			; main.bas 40: If (k = "N") And (System.TicksPerSecond > 0) Then
 			dw kw_strcmpeq, var_k, str3
 			dw kw_ftov, tmp0
 			dw kw_goto_ifzero_n, tmp0, if9_1
 
-			; main.bas 40: Print "took "; t1 - t0; " ticks = "; (t1 - t0) \ System.TicksPerSecond; "."; ((t1 - t0) Mod System.TicksPerSecond) * 10 \ System.TicksPerSecond; " s"
+			; main.bas 41: Print "took "; t1 - t0; " ticks = "; (t1 - t0) \ System.TicksPerSecond; "."; ((t1 - t0) Mod System.TicksPerSecond) * 10 \ System.TicksPerSecond; " s"
 			dw kw_subvv, var_t1, var_t0, tmp0
 			dw kw_printstrvar, str12
 			dw kw_printint, tmp0
@@ -181,29 +181,29 @@ for8_e:
 			dw kw_printstrvar, str15
 			dw kw_printnl
 
-			; main.bas 41: ElseIf k = "T" Then
+			; main.bas 42: ElseIf k = "T" Then
 			dw do2_t_go
 if9_1:
 			dw kw_strcmpeq, var_k, str2
 			dw kw_goto_iffalse_n, do2_t
 
-			; main.bas 42: Print "(turbo runs with interrupts off, so"
+			; main.bas 43: Print "(turbo runs with interrupts off, so"
 			dw kw_printstrvar, str16
 			dw kw_printnl
 
-			; main.bas 43: Print "time it with the stopwatch)"
+			; main.bas 44: Print "time it with the stopwatch)"
 			dw kw_printstrvar, str17
 			dw kw_printnl
 
-			; main.bas 44: End If
+			; main.bas 45: End If
 if9_2:
 if9_e:
 
-			; main.bas 45: Loop
+			; main.bas 46: Loop
 			dw do2_t_go
 do2_e:
 
-			; main.bas 46: End
+			; main.bas 47: End
 			dw kw_stop
 
 ; ============================================================
@@ -212,34 +212,34 @@ do2_e:
 
 p_shellsort:
 
-			; main.bas 49: Dim gap As Integer, i As Integer, j As Integer, t As Integer
+			; main.bas 50: Dim gap As Integer, i As Integer, j As Integer, t As Integer
 
-			; main.bas 50: gap = n \ 2
+			; main.bas 51: gap = n \ 2
 			dw kw_divvl, var_n, 2, var_shellsort_gap
 
-			; main.bas 51: Do While gap > 0
+			; main.bas 52: Do While gap > 0
 do10_t:
 			dw kw_scpgtvl, var_shellsort_gap, 0
 			dw kw_goto_iffalse, do10_e
 
-			; main.bas 52: For i = gap To n
+			; main.bas 53: For i = gap To n
 			dw kw_vtov, var_shellsort_gap, var_shellsort_i
 			dw kw_vtov, var_n, for11_l
 			dw kw_forupv, var_shellsort_i, for11_l, for11_e
 for11_t:
 
-			; main.bas 53: t = a(i)
+			; main.bas 54: t = a(i)
 			dw kw_aget, arr_a, var_shellsort_i, var_shellsort_t
 
-			; main.bas 54: j = i
+			; main.bas 55: j = i
 			dw kw_vtov, var_shellsort_i, var_shellsort_j
 
-			; main.bas 55: Do While j >= gap
+			; main.bas 56: Do While j >= gap
 do12_t:
 			dw kw_scpgevv, var_shellsort_j, var_shellsort_gap
 			dw kw_goto_iffalse, do12_e
 
-			; main.bas 56: If a(j - gap) <= t Then Exit Do
+			; main.bas 57: If a(j - gap) <= t Then Exit Do
 			dw kw_subvv, var_shellsort_j, var_shellsort_gap, tmp0
 			dw kw_aget, arr_a, tmp0, tmp0
 			dw kw_scplevv, tmp0, var_shellsort_t
@@ -247,29 +247,29 @@ do12_t:
 			dw do12_e_go
 if13_1:
 
-			; main.bas 57: a(j) = a(j - gap)
+			; main.bas 58: a(j) = a(j - gap)
 			dw kw_subvv, var_shellsort_j, var_shellsort_gap, tmp1
 			dw kw_aget, arr_a, tmp1, tmp1
 			dw kw_aset, arr_a, var_shellsort_j, tmp1
 
-			; main.bas 58: j = j - gap
+			; main.bas 59: j = j - gap
 			dw kw_subvv, var_shellsort_j, var_shellsort_gap, var_shellsort_j
 
-			; main.bas 59: Loop
+			; main.bas 60: Loop
 			dw do12_t_go
 do12_e:
 
-			; main.bas 60: a(j) = t
+			; main.bas 61: a(j) = t
 			dw kw_aset, arr_a, var_shellsort_j, var_shellsort_t
 
-			; main.bas 61: Next
+			; main.bas 62: Next
 			dw kw_next1v, var_shellsort_i, for11_l, for11_t
 for11_e:
 
-			; main.bas 62: gap = gap \ 2
+			; main.bas 63: gap = gap \ 2
 			dw kw_divvl, var_shellsort_gap, 2, var_shellsort_gap
 
-			; main.bas 63: Loop
+			; main.bas 64: Loop
 			dw do10_t_go
 do10_e:
 			dw p_shellsort_r
@@ -280,34 +280,34 @@ do10_e:
 
 p_shellsort_n:
 
-			; main.bas 49: Dim gap As Integer, i As Integer, j As Integer, t As Integer
+			; main.bas 50: Dim gap As Integer, i As Integer, j As Integer, t As Integer
 
-			; main.bas 50: gap = n \ 2
+			; main.bas 51: gap = n \ 2
 			dw kw_divvl, var_n, 2, var_shellsort_gap
 
-			; main.bas 51: Do While gap > 0
+			; main.bas 52: Do While gap > 0
 do14_t:
 			dw kw_scpgtvl, var_shellsort_gap, 0
 			dw kw_goto_iffalse_n, do14_e
 
-			; main.bas 52: For i = gap To n
+			; main.bas 53: For i = gap To n
 			dw kw_vtov, var_shellsort_gap, var_shellsort_i
 			dw kw_vtov, var_n, for15_l
 			dw kw_forupv_n, var_shellsort_i, for15_l, for15_e
 for15_t:
 
-			; main.bas 53: t = a(i)
+			; main.bas 54: t = a(i)
 			dw kw_aget, arr_a, var_shellsort_i, var_shellsort_t
 
-			; main.bas 54: j = i
+			; main.bas 55: j = i
 			dw kw_vtov, var_shellsort_i, var_shellsort_j
 
-			; main.bas 55: Do While j >= gap
+			; main.bas 56: Do While j >= gap
 do16_t:
 			dw kw_scpgevv, var_shellsort_j, var_shellsort_gap
 			dw kw_goto_iffalse_n, do16_e
 
-			; main.bas 56: If a(j - gap) <= t Then Exit Do
+			; main.bas 57: If a(j - gap) <= t Then Exit Do
 			dw kw_subvv, var_shellsort_j, var_shellsort_gap, tmp0
 			dw kw_aget, arr_a, tmp0, tmp0
 			dw kw_scplevv, tmp0, var_shellsort_t
@@ -315,29 +315,29 @@ do16_t:
 			dw do16_e_go
 if17_1:
 
-			; main.bas 57: a(j) = a(j - gap)
+			; main.bas 58: a(j) = a(j - gap)
 			dw kw_subvv, var_shellsort_j, var_shellsort_gap, tmp1
 			dw kw_aget, arr_a, tmp1, tmp1
 			dw kw_aset, arr_a, var_shellsort_j, tmp1
 
-			; main.bas 58: j = j - gap
+			; main.bas 59: j = j - gap
 			dw kw_subvv, var_shellsort_j, var_shellsort_gap, var_shellsort_j
 
-			; main.bas 59: Loop
+			; main.bas 60: Loop
 			dw do16_t_go
 do16_e:
 
-			; main.bas 60: a(j) = t
+			; main.bas 61: a(j) = t
 			dw kw_aset, arr_a, var_shellsort_j, var_shellsort_t
 
-			; main.bas 61: Next
+			; main.bas 62: Next
 			dw kw_next1v_n, var_shellsort_i, for15_l, for15_t
 for15_e:
 
-			; main.bas 62: gap = gap \ 2
+			; main.bas 63: gap = gap \ 2
 			dw kw_divvl, var_shellsort_gap, 2, var_shellsort_gap
 
-			; main.bas 63: Loop
+			; main.bas 64: Loop
 			dw do14_t_go
 do14_e:
 			dw p_shellsort_n_r
@@ -580,8 +580,11 @@ ntc_for_lt:
 			ret nc
 			ld sp, hl
 			ret
-; ntc_for_le: jump to the label if var <= limit (loop again)
+; ntc_for_le: jump to the label if var <= limit (loop again). A not 0: the
+; step took var past 32767 (or -32768): the loop ends (ntc_for_ge too)
 ntc_for_le:
+			or a
+			jr nz, ntc_for_end
 			ld a, d
 			xor #80
 			ld d, a
@@ -596,6 +599,8 @@ ntc_for_le:
 			ret
 ; ntc_for_ge: jump to the label if var >= limit (loop again)
 ntc_for_ge:
+			or a
+			jr nz, ntc_for_end
 			ld a, d
 			xor #80
 			ld d, a
@@ -608,6 +613,9 @@ ntc_for_ge:
 			pop hl
 			ret c
 			ld sp, hl
+			ret
+ntc_for_end:
+			pop hl
 			ret
 
 ;## ntc_for_jump (normal mode copy)
@@ -642,8 +650,11 @@ ntc_for_lt_n:
 			jp nc, ntc_xn
 			ld sp, hl
 			jp ntc_xn
-; ntc_for_le: jump to the label if var <= limit (loop again)
+; ntc_for_le: jump to the label if var <= limit (loop again). A not 0: the
+; step took var past 32767 (or -32768): the loop ends (ntc_for_ge too)
 ntc_for_le_n:
+			or a
+			jr nz, ntc_for_end_n
 			ld a, d
 			xor #80
 			ld d, a
@@ -658,6 +669,8 @@ ntc_for_le_n:
 			jp ntc_xn
 ; ntc_for_ge: jump to the label if var >= limit (loop again)
 ntc_for_ge_n:
+			or a
+			jr nz, ntc_for_end_n
 			ld a, d
 			xor #80
 			ld d, a
@@ -670,6 +683,9 @@ ntc_for_ge_n:
 			pop hl
 			jp c, ntc_xn
 			ld sp, hl
+			jp ntc_xn
+ntc_for_end_n:
+			pop hl
 			jp ntc_xn
 
 ;## kw_forupv ntc_for_jump
@@ -713,6 +729,11 @@ kw_next1l_n:
 ntc_n1l_nc_n:
 			ld d, (hl)
 			pop hl
+			ld a, d					; A = #FF when it went past 32767 (#8000)
+			xor #80
+			or e
+			sub 1
+			sbc a, a
 			jp ntc_for_le_n
 
 ;## kw_next1v ntc_for_jump
@@ -727,10 +748,15 @@ kw_next1v:
 ntc_n1v_nc:
 			ld d, (hl)
 			pop hl
-			ld a, (hl)
+			ld c, (hl)
 			inc hl
 			ld h, (hl)
-			ld l, a
+			ld l, c
+			ld a, d					; A = #FF when it went past 32767 (#8000)
+			xor #80
+			or e
+			sub 1
+			sbc a, a
 			jp ntc_for_le
 
 ;## kw_next1v (normal mode copy) ntc_for_jump
@@ -745,10 +771,15 @@ kw_next1v_n:
 ntc_n1v_nc_n:
 			ld d, (hl)
 			pop hl
-			ld a, (hl)
+			ld c, (hl)
 			inc hl
 			ld h, (hl)
-			ld l, a
+			ld l, c
+			ld a, d					; A = #FF when it went past 32767 (#8000)
+			xor #80
+			or e
+			sub 1
+			sbc a, a
 			jp ntc_for_le_n
 
 ;## kw_ltov

@@ -10,6 +10,7 @@ or through its firmware), CP/M, and a test harness. Every keyword has its form, 
 does, a small example and, where NTC BASIC is not the same as VB5 / VB6, a **VB:** line
 saying what is different. Keywords are grouped by topic.
 An alphabetical index is at the end.
+New to NTC BASIC? The [tutorial](tutorial/README.md) goes through it a small step at a time.
 
 ---
 
@@ -1076,7 +1077,9 @@ Next
 ' prints: 10741
 ```
 
-`Next i, j` closes two loops. A Long variable can count past 32767.
+`Next i, j` closes two loops. A Long variable can count past 32767. An Integer loop that
+runs to 32767 (or down to -32768) ends there: the step that would go past the Integers ends
+the loop, and the variable is left wrapped round (VB stops with an overflow error).
 
 ### For Each ... Next
 
@@ -1905,7 +1908,9 @@ interrupt classes too.
 `Turbo On` / `Turbo Off`
 
 Switch mode while running. A block (`If`, loop, `Select`) and a procedure must end in the
-mode they started in, so the mode is always known:
+mode they started in, so the mode is always known. When a part of a block doesn't (`Turbo On`
+... `Turbo Off` in a program that started in turbo mode), the compiler switches back to the
+block's mode at its end and gives a warning:
 
 ```
 If fast Then
@@ -2346,11 +2351,39 @@ What the machine is. The same members on every platform; 0 / False means "not he
 | `MaxHandles` (file handles, `FileSystem.Open`) | 0 | 0 | 2 | 0 |
 | `Ticks()` | the tick count, the same as `Ticks` | | | |
 | `Command(name)` | run a ROM's command (an RSX, `|NAME`, no arguments) - cpcfw and cpcmin only: 0, or -2 when no ROM has it; -1 elsewhere | | | |
+| `HasCapability(name)` | True (-1) when the platform can do it, else False - see below | | | |
+| `CommandLine()` | what was typed after the program's name - CP/M only (`A>PROG FILE.TXT` gives `"FILE.TXT"`, in capitals as CP/M passes it); "" elsewhere | | | |
 
 ```
 Print "running on "; System.Platform
 If System.TicksPerSecond = 0 Then Print "(no clock here)"
 ```
+
+`System.HasCapability(`*name*`)` (case does not matter; an unknown name is False):
+
+| Name | Means | cpc | cpcmin | cpcfw | cpm | test |
+|---|---|---|---|---|---|---|
+| `COMMANDLINE` | `System.CommandLine` has the command tail | - | - | - | True | - |
+| `SCREEN` | rows and columns, not a stream | True | True | True | with `Option Terminal` | True |
+| `KEYBOARD` | keys | True | True | True | True | True |
+| `CLOCK` | `Ticks` counts | True | True | True | - | True |
+| `HOOK` | the `Interrupt` statement | True | True | - | - | - |
+| `INTERRUPTCLASSES` | `Option Class Interrupt` | True | True | - | - | - |
+| `PAGES` | RAM pages (`Option Memory CPCExpansion`) | True | True | True | - | - |
+| `FILES` | `FileSystem` Load / Save (more: `FileSystem.Capability`) | - | True | True | True | - |
+| `ROMCOMMANDS` | `System.Command` | - | True | True | - | - |
+| `OVERLAYS` | `Option Class Overlay` | - | True | True | True | - |
+
+```
+If System.HasCapability("COMMANDLINE") Then
+  cl = System.CommandLine
+Else
+  Input "File name"; cl          ' no command line here: ask
+End If
+```
+
+The CP/M start code copies the command tail (at `#80`) aside before anything can overwrite
+it, only when the program uses `CommandLine`. See `bas/cmdline.bas`.
 
 ### FileSystem
 
@@ -2536,6 +2569,9 @@ plain memory, nothing switched). `Alloc` gives them; `CLng(page) * 65536 + addre
 | `Model()` | `ModelNone` (0: `Small`, or no paging), `ModelSmall` (1), `ModelMedium` (2), `ModelLarge` (3), `ModelHuge` (4) |
 | `HeapStart()`, `HeapEnd()` | `Small`: the heap's RAM (`HeapEnd` is the first byte past it); `CPCExpansion`: the window |
 | `TableEnd()` | the first byte after the class's tables (`Small`: the program's end) |
+| `ProgramStart()`, `ProgramEnd()` | where the program is (`ProgramEnd`: the first byte after it and its arrays) |
+| `Top()` | the platform's top of free RAM: CPC `#A600` (the firmware above), CP/M the end of the TPA (the BDOS), test `#C000` |
+| `StackTop()` | where the real stack starts (it grows down) |
 | `PageType(page)` | its type character |
 | `Map(first, count)` | one character per page from page `first`: `"UCUDD"` (as many as the string holds) |
 | `AllocPage(kind)` | a free page, now of that kind (`TypeCode`, `TypeData`, `TypeIrq`, `TypeUser`); 0 = none left |

@@ -3,6 +3,7 @@
 ' Start the stopwatch as you press T or N (the sieve starts straight away), stop it at "Done".
 ' 5 passes take about 17 s (turbo) / 25 s (normal) on a 4 MHz CPC.
 Option Explicit
+Option Turbo Off                  ' starts in normal mode whatever the turbo setting says: T switches
 Const TOP = 8000
 Dim f(TOP) As Byte
 Dim passes As Integer, cnt As Integer, k As String

@@ -39,3 +39,39 @@ Public Function Command(ByVal name As String) As Integer
             jp fs_go
 #endasm
 End Function
+
+' HasCapability(name): True (-1) when this platform can do it, else False (0). The names:
+' COMMANDLINE (System.CommandLine has the command tail), SCREEN (rows and columns, not a
+' stream), KEYBOARD, CLOCK (Ticks counts), HOOK (the Interrupt statement), INTERRUPTCLASSES
+' (Option Class Interrupt), PAGES (RAM pages with Option Memory CPCExpansion), FILES
+' (FileSystem Load / Save ...), ROMCOMMANDS (System.Command), OVERLAYS (Option Class Overlay)
+Public Function HasCapability(ByVal name As String) As Integer
+#asm
+            pop hl
+            pop de
+            ld bc, caps
+            jp ntc_capfind
+caps:
+            db "SCREEN", 0
+            dw -1
+            db "KEYBOARD", 0
+            dw -1
+            db "CLOCK", 0
+            dw -1
+            db "PAGES", 0
+            dw -1
+            db "FILES", 0
+            dw -1
+            db "ROMCOMMANDS", 0
+            dw -1
+            db "OVERLAYS", 0
+            dw -1
+            db 0
+#endasm
+End Function
+
+' CommandLine(): what was typed after the program's name - "" here (no command line:
+' HasCapability("COMMANDLINE") is False)
+Public Function CommandLine() As String
+    CommandLine = ""
+End Function

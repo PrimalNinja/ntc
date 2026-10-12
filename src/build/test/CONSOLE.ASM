@@ -201,6 +201,7 @@ str6:			db "hi ", 0
 str7:			db "key ", 0
 str8:			db " col ", 0
 str9:			db "Press a key", 0
+str10:			db 0
 
 ; ============================================================
 ; Keyword library (used)

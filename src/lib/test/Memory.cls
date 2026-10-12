@@ -149,6 +149,45 @@ Public Function TableEnd() As Integer
 #endasm
 End Function
 
+' ProgramStart(), ProgramEnd(): where the program is (ProgramEnd: the first byte after it
+' and its arrays). Top(): the platform's top of free RAM (CPC #A600 - the firmware above;
+' CP/M the BDOS; test #C000). StackTop(): the real stack (it grows down from here).
+Public Function ProgramStart() As Integer
+#asm
+            pop hl
+            ld (mem_res), hl
+            ld hl, mem_progstart
+            jp mem_go
+#endasm
+End Function
+
+Public Function ProgramEnd() As Integer
+#asm
+            pop hl
+            ld (mem_res), hl
+            ld hl, mem_progend
+            jp mem_go
+#endasm
+End Function
+
+Public Function Top() As Integer
+#asm
+            pop hl
+            ld (mem_res), hl
+            ld hl, mem_top
+            jp mem_go
+#endasm
+End Function
+
+Public Function StackTop() As Integer
+#asm
+            pop hl
+            ld (mem_res), hl
+            ld hl, mem_stacktop
+            jp mem_go
+#endasm
+End Function
+
 ' Map(first, count): one character per page from page first: "UCUDD--" (as many as the
 ' string holds; pages past the last are left out)
 Public Function Map(ByVal first As Integer, ByVal count As Integer) As String

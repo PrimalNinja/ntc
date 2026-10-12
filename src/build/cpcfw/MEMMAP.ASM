@@ -25,327 +25,603 @@ ntc_start:
 
 main_thread:
 
-			; main.bas 23: Print "Memory on "; System.Platform
+			; main.bas 25: Print "Memory on "; System.Platform
 			dw kw_printstrvar, str1
 			dw kw_printnl
 
-			; main.bas 24: n = Memory.Pages()
+			; main.bas 26: n = Memory.Pages()
 			dw fn_memory_pages, var_n
 
-			; main.bas 25: If n = 0 Then
-			dw kw_cpeqvl, var_n, 0
-			dw kw_goto_iffalse_n, if1_1
+			; main.bas 27: Summary
+			dw p_summary_c
 
-			; main.bas 27: Print "No paging - heap &"; Hex$(Memory.HeapStart()); "-&"; Hex$(Memory.HeapEnd())
+			; main.bas 28: MainMap
+			dw p_mainmap_c
+
+			; main.bas 29: Print "Press a key";
+			dw kw_printstrvar, str2
+
+			; main.bas 30: Do While Inkey <> 0 : Loop
+do1_t:
+			dw kw_inkey, tmp0
+			dw kw_cpnevl, tmp0, 0
+			dw kw_goto_iffalse_n, do1_e
+			dw do1_t_go
+do1_e:
+
+			; main.bas 31: Do : Frame : Loop Until Inkey <> 0
+do2_t:
+			dw kw_frame
+			dw kw_inkey, tmp0
+			dw kw_cpnevl, tmp0, 0
+			dw kw_goto_iffalse_n, do2_t
+do2_e:
+
+			; main.bas 32: Print
+			dw kw_printnl
+
+			; main.bas 35: Cls
+			dw kw_cls
+
+			; main.bas 36: Print "Pages on "; System.Platform
+			dw kw_printstrvar, str3
+			dw kw_printnl
+
+			; main.bas 37: Summary
+			dw p_summary_c
+
+			; main.bas 38: If n = 0 Then
+			dw kw_cpeqvl, var_n, 0
+			dw kw_goto_iffalse_n, if3_1
+
+			; main.bas 40: Print "No paging - heap &"; Hex$(Memory.HeapStart()); "-&"; Hex$(Memory.HeapEnd())
 			dw fn_memory_heapstart, var_memory_heapstart_heapstart
 			dw kw_vtov, var_memory_heapstart_heapstart, tmp0
 			dw kw_strhex, stmp0, tmp0
-			dw kw_printstrvar, str2
+			dw kw_printstrvar, str4
 			dw kw_printstrvar, stmp0
 			dw fn_memory_heapend, var_memory_heapend_heapend
 			dw kw_vtov, var_memory_heapend_heapend, tmp0
 			dw kw_strhex, stmp0, tmp0
-			dw kw_printstrvar, str3
+			dw kw_printstrvar, str5
 			dw kw_printstrvar, stmp0
 			dw kw_printnl
 
-			; main.bas 28: Else
-			dw if1_e_go
-if1_1:
-
-			; main.bas 29: Print Memory.RamSize(); "K, "; n; " pages, model ";
-			dw fn_memory_ramsize, var_memory_ramsize_ramsize
-			dw kw_printint, var_memory_ramsize_ramsize
-			dw kw_printstrvar, str4
-			dw kw_printint, var_n
-			dw kw_printstrvar, str5
-
-			; main.bas 30: r = Memory.Model()
-			dw fn_memory_model, var_r
-
-			; main.bas 31: If r = Memory.ModelSmall Then Print "small"
-			dw kw_cpeqvl, var_r, 1
-			dw kw_goto_iffalse_n, if2_1
-			dw kw_printstrvar, str6
-			dw kw_printnl
-if2_1:
-
-			; main.bas 32: If r = Memory.ModelMedium Then Print "medium"
-			dw kw_cpeqvl, var_r, 2
-			dw kw_goto_iffalse_n, if3_1
-			dw kw_printstrvar, str7
-			dw kw_printnl
+			; main.bas 41: Else
+			dw if3_e_go
 if3_1:
 
-			; main.bas 33: If r = Memory.ModelLarge Then Print "large"
-			dw kw_cpeqvl, var_r, 3
-			dw kw_goto_iffalse_n, if4_1
-			dw kw_printstrvar, str8
-			dw kw_printnl
-if4_1:
-
-			; main.bas 34: If r = Memory.ModelHuge Then Print "huge"
-			dw kw_cpeqvl, var_r, 4
-			dw kw_goto_iffalse_n, if5_1
-			dw kw_printstrvar, str9
-			dw kw_printnl
-if5_1:
-
-			; main.bas 35: Print "Page tables end at &"; Hex$(Memory.TableEnd())
+			; main.bas 42: Print "Page tables end at &"; Hex$(Memory.TableEnd())
 			dw fn_memory_tableend, var_memory_tableend_tableend
 			dw kw_vtov, var_memory_tableend_tableend, tmp0
 			dw kw_strhex, stmp0, tmp0
-			dw kw_printstrvar, str10
+			dw kw_printstrvar, str6
 			dw kw_printstrvar, stmp0
 			dw kw_printnl
 
-			; main.bas 36: music = Memory.AllocPage(Memory.TypeUser)
+			; main.bas 43: music = Memory.AllocPage(Memory.TypeUser)
 			dw fn_memory_allocpage, lit_85, var_music
 
-			; main.bas 37: sprites = Memory.AllocPage(Memory.TypeCode)
+			; main.bas 44: sprites = Memory.AllocPage(Memory.TypeCode)
 			dw fn_memory_allocpage, lit_67, var_sprites
 
-			; main.bas 38: level = Memory.AllocPage(Memory.TypeUser)
+			; main.bas 45: level = Memory.AllocPage(Memory.TypeUser)
 			dw fn_memory_allocpage, lit_85, var_level
 
-			; main.bas 39: Print "Music "; music; " Sprites "; sprites; " Level "; level
-			dw kw_printstrvar, str11
+			; main.bas 46: Print "Music "; music; " Sprites "; sprites; " Level "; level
+			dw kw_printstrvar, str7
 			dw kw_printint, var_music
-			dw kw_printstrvar, str12
+			dw kw_printstrvar, str8
 			dw kw_printint, var_sprites
-			dw kw_printstrvar, str13
+			dw kw_printstrvar, str9
 			dw kw_printint, var_level
 			dw kw_printnl
 
-			; main.bas 40: End If
-if1_e:
+			; main.bas 47: End If
+if3_e:
 
-			; main.bas 42: p1 = Memory.Alloc(1000)
+			; main.bas 49: p1 = Memory.Alloc(1000)
 			dw fn_memory_alloc, lit_1000, var_p1
 
-			; main.bas 43: p2 = Memory.Alloc(6000)
+			; main.bas 50: p2 = Memory.Alloc(6000)
 			dw fn_memory_alloc, lit_6000, var_p2
 
-			; main.bas 44: p3 = Memory.Alloc(12000)
+			; main.bas 51: p3 = Memory.Alloc(12000)
 			dw fn_memory_alloc, lit_12000, var_p3
 
-			; main.bas 45: ShowPtr "1000", p1
-			dw p_showptr_c, str14, var_p1
+			; main.bas 52: ShowPtr "1000", p1
+			dw p_showptr_c, str10, var_p1
 
-			; main.bas 46: ShowPtr "6000", p2
-			dw p_showptr_c, str15, var_p2
+			; main.bas 53: ShowPtr "6000", p2
+			dw p_showptr_c, str11, var_p2
 
-			; main.bas 47: ShowPtr "12000", p3
-			dw p_showptr_c, str16, var_p3
+			; main.bas 54: ShowPtr "12000", p3
+			dw p_showptr_c, str12, var_p3
 
-			; main.bas 48: If p1 <> 0 And p3 <> 0 Then
+			; main.bas 55: If p1 <> 0 And p3 <> 0 Then
 			dw kw_l_cpne, var_p1, llit_0
 			dw kw_ftov, tmp0
 			dw kw_l_cpne, var_p3, llit_0
 			dw kw_ftov, tmp1
 			dw kw_andvv, tmp0, tmp1, tmp0
-			dw kw_goto_ifzero_n, tmp0, if6_1
+			dw kw_goto_ifzero_n, tmp0, if4_1
 
-			; main.bas 49: Memory.WriteWord p1, 12345
+			; main.bas 56: Memory.WriteWord p1, 12345
 			dw fn_memory_writeword, var_p1, lit_12345
 
-			; main.bas 50: r = Memory.Copy(p1, p3, 2)
+			; main.bas 57: r = Memory.Copy(p1, p3, 2)
 			dw fn_memory_copy, var_p1, var_p3, lit_2, var_r
 
-			; main.bas 51: Print "Copy page "; Memory.PageOf(p1); " to "; Memory.PageOf(p3); ": "; Memory.ReadWord(p3)
+			; main.bas 58: Print "Copy page "; Memory.PageOf(p1); " to "; Memory.PageOf(p3); ": "; Memory.ReadWord(p3)
 			dw fn_memory_pageof, var_p1, var_memory_pageof_pageof
-			dw kw_printstrvar, str17
+			dw kw_printstrvar, str13
 			dw kw_printint, var_memory_pageof_pageof
 			dw fn_memory_pageof, var_p3, var_memory_pageof_pageof
-			dw kw_printstrvar, str18
+			dw kw_printstrvar, str14
 			dw kw_printint, var_memory_pageof_pageof
 			dw fn_memory_readword, var_p3, var_memory_readword_readword
-			dw kw_printstrvar, str19
+			dw kw_printstrvar, str15
 			dw kw_printint, var_memory_readword_readword
 			dw kw_printnl
 
-			; main.bas 52: End If
-if6_1:
+			; main.bas 59: End If
+if4_1:
 
-			; main.bas 53: Print "Largest free block "; Memory.Largest()
+			; main.bas 60: Print "Largest free block "; Memory.Largest()
 			dw fn_memory_largest, var_memory_largest_largest
-			dw kw_printstrvar, str20
+			dw kw_printstrvar, str16
 			dw kw_printint, var_memory_largest_largest
 			dw kw_printnl
 
-			; main.bas 55: Print
+			; main.bas 62: Print
 			dw kw_printnl
 
-			; main.bas 56: If n = 0 Then
+			; main.bas 63: If n = 0 Then
 			dw kw_cpeqvl, var_n, 0
-			dw kw_goto_iffalse_n, if7_1
+			dw kw_goto_iffalse_n, if5_1
 
-			; main.bas 58: ElseIf n <= 33 Then
-			dw if7_e_go
-if7_1:
+			; main.bas 65: ElseIf n <= 33 Then
+			dw if5_e_go
+if5_1:
 			dw kw_scplevl, var_n, 33
-			dw kw_goto_iffalse_n, if7_2
+			dw kw_goto_iffalse_n, if5_2
 
-			; main.bas 60: m = Memory.Map(1, n)
+			; main.bas 67: m = Memory.Map(1, n)
 			dw fn_memory_map, lit_1, var_n, var_memory_map_map
 			dw kw_strcpy, var_m, var_memory_map_map
 
-			; main.bas 61: Print "        #0000 #4000 #8000 #C000"
-			dw kw_printstrvar, str21
+			; main.bas 68: Print "        #0000 #4000 #8000 #C000"
+			dw kw_printstrvar, str17
 			dw kw_printnl
 
-			; main.bas 62: Print "Main     prog  ["; Mid$(m, 1, 1); "]   ram   scr"
+			; main.bas 69: Print "Main     prog  ["; Mid$(m, 1, 1); "]   ram   scr"
 			dw kw_strmid, stmp0, var_m, lit_1, lit_1
-			dw kw_printstrvar, str22
+			dw kw_printstrvar, str18
 			dw kw_printstrvar, stmp0
-			dw kw_printstrvar, str23
+			dw kw_printstrvar, str19
 			dw kw_printnl
 
-			; main.bas 63: For b = 0 To (n - 1) \ 4 - 1
+			; main.bas 70: For b = 0 To (n - 1) \ 4 - 1
 			dw kw_ztov, var_b
 			dw kw_addl, var_n, -1, tmp0
 			dw kw_divvl, tmp0, 4, tmp0
-			dw kw_addl, tmp0, -1, for8_l
-			dw kw_forupv_n, var_b, for8_l, if7_e
-for8_t:
+			dw kw_addl, tmp0, -1, for6_l
+			dw kw_forupv_n, var_b, for6_l, if5_e
+for6_t:
 
-			; main.bas 64: Print "Bank "; b + 1; "  ";
+			; main.bas 71: Print "Bank "; b + 1; "  ";
 			dw kw_addl, var_b, 1, tmp0
-			dw kw_printstrvar, str24
+			dw kw_printstrvar, str20
 			dw kw_printint, tmp0
-			dw kw_printstrvar, str25
+			dw kw_printstrvar, str21
 
-			; main.bas 65: For r = 0 To 3
+			; main.bas 72: For r = 0 To 3
 			dw kw_ztov, var_r
-for9_t:
+for7_t:
 
-			; main.bas 66: Print " ["; Mid$(m, 2 + b * 4 + r, 1); "]  ";
+			; main.bas 73: Print " ["; Mid$(m, 2 + b * 4 + r, 1); "]  ";
 			dw kw_4x, var_b, tmp2
 			dw kw_addl, tmp2, 2, tmp1
 			dw kw_add, tmp1, var_r, tmp1
 			dw kw_strmid, stmp0, var_m, tmp1, lit_1
-			dw kw_printstrvar, str26
+			dw kw_printstrvar, str22
 			dw kw_printstrvar, stmp0
-			dw kw_printstrvar, str27
+			dw kw_printstrvar, str23
 
-			; main.bas 67: Next
-			dw kw_next1l_n, var_r, 3, for9_t
-for9_e:
+			; main.bas 74: Next
+			dw kw_next1l_n, var_r, 3, for7_t
+for7_e:
 
-			; main.bas 68: Print
+			; main.bas 75: Print
 			dw kw_printnl
 
-			; main.bas 69: Next
-			dw kw_next1v_n, var_b, for8_l, for8_t
-for8_e:
+			; main.bas 76: Next
+			dw kw_next1v_n, var_b, for6_l, for6_t
+for6_e:
 
-			; main.bas 70: Else
-			dw if7_e_go
-if7_2:
+			; main.bas 77: Else
+			dw if5_e_go
+if5_2:
 
-			; main.bas 72: Print "Main ["; Memory.Map(1, 1); "]"
+			; main.bas 79: Print "Main ["; Memory.Map(1, 1); "]"
 			dw fn_memory_map, lit_1, lit_1, var_memory_map_map
-			dw kw_printstrvar, str28
+			dw kw_printstrvar, str24
 			dw kw_printstrvar, var_memory_map_map
-			dw kw_printstrvar, str29
+			dw kw_printstrvar, str25
 			dw kw_printnl
 
-			; main.bas 73: For b = 0 To (n - 2) \ 32
+			; main.bas 80: For b = 0 To (n - 2) \ 32
 			dw kw_ztov, var_b
 			dw kw_addl, var_n, -2, tmp0
-			dw kw_divvl, tmp0, 32, for10_l
-			dw kw_forupv_n, var_b, for10_l, for10_e
-for10_t:
+			dw kw_divvl, tmp0, 32, for8_l
+			dw kw_forupv_n, var_b, for8_l, for8_e
+for8_t:
 
-			; main.bas 74: Print "&"; Hex$(&H7F - b); " "; Memory.Map(2 + b * 32, 32)
+			; main.bas 81: Print "&"; Hex$(&H7F - b); " "; Memory.Map(2 + b * 32, 32)
 			dw kw_sublv, 127, var_b, tmp0
 			dw kw_strhex, stmp0, tmp0
-			dw kw_printstrvar, str30
+			dw kw_printstrvar, str26
 			dw kw_printstrvar, stmp0
 			dw kw_mulvl, var_b, 32, tmp1
 			dw kw_addl, tmp1, 2, tmp0
 			dw fn_memory_map, tmp0, lit_32, var_memory_map_map
-			dw kw_printstrvar, str31
+			dw kw_printstrvar, str27
 			dw kw_printstrvar, var_memory_map_map
 			dw kw_printnl
 
-			; main.bas 75: Next
-			dw kw_next1v_n, var_b, for10_l, for10_t
-for10_e:
+			; main.bas 82: Next
+			dw kw_next1v_n, var_b, for8_l, for8_t
+for8_e:
 
-			; main.bas 76: End If
-if7_e:
+			; main.bas 83: End If
+if5_e:
 
-			; main.bas 77: If n > 0 Then Print "C code D data U user - free"
+			; main.bas 84: If n > 0 Then Print "C code D data U user - free"
 			dw kw_scpgtvl, var_n, 0
-			dw kw_goto_iffalse_n, if11_1
-			dw kw_printstrvar, str32
+			dw kw_goto_iffalse_n, if9_1
+			dw kw_printstrvar, str28
 			dw kw_printnl
-if11_1:
+if9_1:
 
-			; main.bas 79: r = Memory.Free(p2)
+			; main.bas 86: r = Memory.Free(p2)
 			dw fn_memory_free, var_p2, var_r
 
-			; main.bas 80: r = Memory.Free(p1)
+			; main.bas 87: r = Memory.Free(p1)
 			dw fn_memory_free, var_p1, var_r
 
-			; main.bas 81: r = Memory.Free(p3)
+			; main.bas 88: r = Memory.Free(p3)
 			dw fn_memory_free, var_p3, var_r
 
-			; main.bas 82: If n = 0 Then
+			; main.bas 89: If n = 0 Then
 			dw kw_cpeqvl, var_n, 0
-			dw kw_goto_iffalse_n, if12_1
+			dw kw_goto_iffalse_n, if10_1
 
-			; main.bas 83: Print "After Free: largest block "; Memory.Largest()
+			; main.bas 90: Print "After Free: largest block "; Memory.Largest()
 			dw fn_memory_largest, var_memory_largest_largest
-			dw kw_printstrvar, str33
+			dw kw_printstrvar, str29
 			dw kw_printint, var_memory_largest_largest
 			dw kw_printnl
 
-			; main.bas 84: Else
-			dw if12_e_go
-if12_1:
+			; main.bas 91: Else
+			dw if10_e_go
+if10_1:
 
-			; main.bas 85: Print "After Free: "; Memory.FreePages(); " pages free"
+			; main.bas 92: Print "After Free: "; Memory.FreePages(); " pages free"
 			dw fn_memory_freepages, var_memory_freepages_freepages
-			dw kw_printstrvar, str34
+			dw kw_printstrvar, str30
 			dw kw_printint, var_memory_freepages_freepages
-			dw kw_printstrvar, str35
+			dw kw_printstrvar, str31
 			dw kw_printnl
 
-			; main.bas 86: Print "Pages "; Memory.Map(1, 33)
+			; main.bas 93: Print "Pages "; Memory.Map(1, 33)
 			dw fn_memory_map, lit_1, lit_33, var_memory_map_map
-			dw kw_printstrvar, str36
+			dw kw_printstrvar, str32
 			dw kw_printstrvar, var_memory_map_map
 			dw kw_printnl
 
-			; main.bas 87: End If
-if12_e:
+			; main.bas 94: End If
+if10_e:
 
-			; main.bas 89: Print "Press a key";
-			dw kw_printstrvar, str37
+			; main.bas 96: Print "Press a key";
+			dw kw_printstrvar, str2
 
-			; main.bas 90: Do While Inkey <> 0 : Loop
-do13_t:
+			; main.bas 97: Do While Inkey <> 0 : Loop
+do11_t:
 			dw kw_inkey, tmp0
 			dw kw_cpnevl, tmp0, 0
-			dw kw_goto_iffalse_n, do13_e
-			dw do13_t_go
-do13_e:
+			dw kw_goto_iffalse_n, do11_e
+			dw do11_t_go
+do11_e:
 
-			; main.bas 91: Do : Frame : Loop Until Inkey <> 0
-do14_t:
+			; main.bas 98: Do : Frame : Loop Until Inkey <> 0
+do12_t:
 			dw kw_frame
 			dw kw_inkey, tmp0
 			dw kw_cpnevl, tmp0, 0
-			dw kw_goto_iffalse_n, do14_t
-do14_e:
+			dw kw_goto_iffalse_n, do12_t
+do12_e:
 
-			; main.bas 92: Print
+			; main.bas 99: Print
 			dw kw_printnl
 
-			; main.bas 93: End
+			; main.bas 100: End
 			dw kw_stop
+
+; ============================================================
+; sub summary (normal mode)
+; ============================================================
+
+p_summary:
+
+			; main.bas 104: Dim md As Integer
+
+			; main.bas 105: If n = 0 Then
+			dw kw_cpeqvl, var_n, 0
+			dw kw_goto_iffalse_n, if13_1
+
+			; main.bas 106: Print "No RAM pages (Option Memory Small)"
+			dw kw_printstrvar, str33
+			dw kw_printnl
+
+			; main.bas 107: Exit Sub
+			dw p_summary_r
+
+			; main.bas 108: End If
+if13_1:
+
+			; main.bas 109: Print Memory.RamSize(); "K, "; n; " pages: main + "; (n - 1) \ 4; " banks"
+			dw fn_memory_ramsize, var_memory_ramsize_ramsize
+			dw kw_printint, var_memory_ramsize_ramsize
+			dw kw_printstrvar, str34
+			dw kw_printint, var_n
+			dw kw_addl, var_n, -1, tmp0
+			dw kw_divvl, tmp0, 4, tmp0
+			dw kw_printstrvar, str35
+			dw kw_printint, tmp0
+			dw kw_printstrvar, str36
+			dw kw_printnl
+
+			; main.bas 110: md = Memory.Model()
+			dw fn_memory_model, var_summary_md
+
+			; main.bas 111: Print "Model "; Choose(md, "small (64K)", "medium (128K)", "large (to 576K)", "huge (to 4MB)"); ", "; Memory.FreePages(); " pages free"
+			dw kw_cpnevl, var_summary_md, 1
+			dw kw_goto_iftrue_n, ch14_0
+			dw kw_strcpy, stmp0, str37
+			dw ch14_e_go
+ch14_0:
+			dw kw_cpnevl, var_summary_md, 2
+			dw kw_goto_iftrue_n, ch14_1
+			dw kw_strcpy, stmp0, str38
+			dw ch14_e_go
+ch14_1:
+			dw kw_cpnevl, var_summary_md, 3
+			dw kw_goto_iftrue_n, ch14_2
+			dw kw_strcpy, stmp0, str39
+			dw ch14_e_go
+ch14_2:
+			dw kw_cpnevl, var_summary_md, 4
+			dw kw_goto_iftrue_n, ch14_3
+			dw kw_strcpy, stmp0, str40
+			dw ch14_e_go
+ch14_3:
+			dw kw_strcpy, stmp0, str41
+ch14_e:
+			dw kw_printstrvar, str42
+			dw kw_printstrvar, stmp0
+			dw fn_memory_freepages, var_memory_freepages_freepages
+			dw kw_printstrvar, str43
+			dw kw_printint, var_memory_freepages_freepages
+			dw kw_printstrvar, str31
+			dw kw_printnl
+			dw p_summary_r
+
+; ============================================================
+; sub mainmap (normal mode)
+; ============================================================
+
+p_mainmap:
+
+			; main.bas 116: Dim e As Integer, t As Integer, top As Integer, hs As Integer, he As Integer
+
+			; main.bas 117: fr = 0
+			dw kw_l_mov, llit_0, var_fr
+
+			; main.bas 118: e = Memory.ProgramEnd() : t = Memory.TableEnd() : top = Memory.Top()
+			dw fn_memory_programend, var_mainmap_e
+			dw fn_memory_tableend, var_mainmap_t
+			dw fn_memory_top, var_mainmap_top
+
+			; main.bas 119: Area Memory.ProgramStart(), e, "program and arrays"
+			dw fn_memory_programstart, var_memory_programstart_programstart
+			dw p_area_c, var_memory_programstart_programstart, var_mainmap_e, str44
+
+			; main.bas 120: If U(t) > U(e) Then Area e, t, "page tables"
+			dw p_u_c, var_mainmap_t
+			dw kw_l_mov, var_u_u, ltmp0
+			dw p_u_c, var_mainmap_e
+			dw kw_l_mov, var_u_u, ltmp1
+			dw kw_l_cpgt, ltmp0, ltmp1
+			dw kw_goto_iffalse_n, if15_1
+			dw p_area_c, var_mainmap_e, var_mainmap_t, str45
+if15_1:
+
+			; main.bas 121: If Memory.Pages() > 0 Then
+			dw fn_memory_pages, var_memory_pages_pages
+			dw kw_vtov, var_memory_pages_pages, tmp0
+			dw kw_scpgtvl, tmp0, 0
+			dw kw_goto_iffalse_n, if16_1
+
+			; main.bas 123: Area t, &H4000, "free" : fr = fr + U(&H4000) - U(t)
+			dw p_area_c, var_mainmap_t, lit_16384, str46
+			dw p_u_c, lit_16384
+			dw kw_l_mov, var_u_u, ltmp1
+			dw kw_l_add, var_fr, ltmp1, ltmp0
+			dw p_u_c, var_mainmap_t
+			dw kw_l_mov, var_u_u, ltmp1
+			dw kw_l_sub, ltmp0, ltmp1, var_fr
+
+			; main.bas 124: Area &H4000, &H8000, "window (pages)"
+			dw p_area_c, lit_16384, lit_m32768, str47
+
+			; main.bas 125: Area &H8000, top, "free" : fr = fr + U(top) - U(&H8000)
+			dw p_area_c, lit_m32768, var_mainmap_top, str46
+			dw p_u_c, var_mainmap_top
+			dw kw_l_mov, var_u_u, ltmp1
+			dw kw_l_add, var_fr, ltmp1, ltmp0
+			dw p_u_c, lit_m32768
+			dw kw_l_mov, var_u_u, ltmp1
+			dw kw_l_sub, ltmp0, ltmp1, var_fr
+
+			; main.bas 126: Else
+			dw if16_e_go
+if16_1:
+
+			; main.bas 127: hs = Memory.HeapStart() : he = Memory.HeapEnd()
+			dw fn_memory_heapstart, var_mainmap_hs
+			dw fn_memory_heapend, var_mainmap_he
+
+			; main.bas 128: If U(he) > U(hs) Then Area hs, he, "heap (Alloc, List)" : fr = fr + U(he) - U(hs)
+			dw p_u_c, var_mainmap_he
+			dw kw_l_mov, var_u_u, ltmp0
+			dw p_u_c, var_mainmap_hs
+			dw kw_l_mov, var_u_u, ltmp1
+			dw kw_l_cpgt, ltmp0, ltmp1
+			dw kw_goto_iffalse_n, if17_1
+			dw p_area_c, var_mainmap_hs, var_mainmap_he, str48
+			dw p_u_c, var_mainmap_he
+			dw kw_l_mov, var_u_u, ltmp1
+			dw kw_l_add, var_fr, ltmp1, ltmp0
+			dw p_u_c, var_mainmap_hs
+			dw kw_l_mov, var_u_u, ltmp1
+			dw kw_l_sub, ltmp0, ltmp1, var_fr
+if17_1:
+
+			; main.bas 129: If (he = &H4000) And (U(top) > U(&H8000)) Then
+			dw kw_cpeqvl, var_mainmap_he, 16384
+			dw kw_ftov, tmp0
+			dw p_u_c, var_mainmap_top
+			dw kw_l_mov, var_u_u, ltmp1
+			dw p_u_c, lit_m32768
+			dw kw_l_mov, var_u_u, ltmp2
+			dw kw_l_cpgt, ltmp1, ltmp2
+			dw kw_ftov, tmp1
+			dw kw_andvv, tmp0, tmp1, tmp0
+			dw kw_goto_ifzero_n, tmp0, if18_1
+
+			; main.bas 130: Area &H4000, &H8000, "Option Reserve"
+			dw p_area_c, lit_16384, lit_m32768, str49
+
+			; main.bas 131: Area &H8000, top, "free" : fr = fr + U(top) - U(&H8000)
+			dw p_area_c, lit_m32768, var_mainmap_top, str46
+			dw p_u_c, var_mainmap_top
+			dw kw_l_mov, var_u_u, ltmp1
+			dw kw_l_add, var_fr, ltmp1, ltmp0
+			dw p_u_c, lit_m32768
+			dw kw_l_mov, var_u_u, ltmp1
+			dw kw_l_sub, ltmp0, ltmp1, var_fr
+
+			; main.bas 132: ElseIf U(top) > U(he) + 16 Then
+			dw if18_e_go
+if18_1:
+			dw p_u_c, var_mainmap_top
+			dw kw_l_mov, var_u_u, ltmp0
+			dw p_u_c, var_mainmap_he
+			dw kw_l_mov, var_u_u, ltmp1
+			dw kw_l_add, ltmp1, llit_16, ltmp1
+			dw kw_l_cpgt, ltmp0, ltmp1
+			dw kw_goto_iffalse_n, if18_2
+
+			; main.bas 133: Area he, top, "stack and spare"
+			dw p_area_c, var_mainmap_he, var_mainmap_top, str50
+
+			; main.bas 134: End If
+if18_2:
+if18_e:
+
+			; main.bas 135: End If
+if16_e:
+
+			; main.bas 139: Print "&"; Hex$(top); " top of free RAM"
+			dw kw_strhex, stmp0, var_mainmap_top
+			dw kw_printstrvar, str26
+			dw kw_printstrvar, stmp0
+			dw kw_printstrvar, str51
+			dw kw_printnl
+
+			; main.bas 141: Print "Stack at &"; Hex$(Memory.StackTop())
+			dw fn_memory_stacktop, var_memory_stacktop_stacktop
+			dw kw_vtov, var_memory_stacktop_stacktop, tmp0
+			dw kw_strhex, stmp0, tmp0
+			dw kw_printstrvar, str52
+			dw kw_printstrvar, stmp0
+			dw kw_printnl
+
+			; main.bas 142: Print "Free main RAM: "; fr; " bytes"
+			dw kw_printstrvar, str53
+			dw kw_l_print, var_fr
+			dw kw_printstrvar, str54
+			dw kw_printnl
+			dw p_mainmap_r
+
+; ============================================================
+; sub area (normal mode)
+; ============================================================
+
+p_area:
+
+			; main.bas 147: If U(b) <= U(a) Then Exit Sub
+			dw p_u_c, var_area_b
+			dw kw_l_mov, var_u_u, ltmp0
+			dw p_u_c, var_area_a
+			dw kw_l_mov, var_u_u, ltmp1
+			dw kw_l_cple, ltmp0, ltmp1
+			dw kw_goto_iffalse_n, if19_1
+			dw p_area_r
+if19_1:
+
+			; main.bas 148: Print "&"; Right$("000" + Hex$(a), 4); "-&"; Right$("000" + Hex$(b - 1), 4); " "; U(b) - U(a); " "; what
+			dw kw_strhex, stmp1, var_area_a
+			dw kw_strcpy, stmp0, str55
+			dw kw_strcat, stmp0, stmp1
+			dw kw_strright, stmp0, stmp0, lit_4
+			dw kw_printstrvar, str26
+			dw kw_printstrvar, stmp0
+			dw kw_addl, var_area_b, -1, tmp1
+			dw kw_strhex, stmp1, tmp1
+			dw kw_strcpy, stmp0, str55
+			dw kw_strcat, stmp0, stmp1
+			dw kw_strright, stmp0, stmp0, lit_4
+			dw kw_printstrvar, str5
+			dw kw_printstrvar, stmp0
+			dw p_u_c, var_area_b
+			dw kw_l_mov, var_u_u, ltmp0
+			dw p_u_c, var_area_a
+			dw kw_l_mov, var_u_u, ltmp1
+			dw kw_l_sub, ltmp0, ltmp1, ltmp0
+			dw kw_printstrvar, str27
+			dw kw_l_print, ltmp0
+			dw kw_printstrvar, str27
+			dw kw_printstrvar, var_area_what
+			dw kw_printnl
+			dw p_area_r
+
+; ============================================================
+; function u (normal mode)
+; ============================================================
+
+p_u:
+
+			; main.bas 153: If x < 0 Then U = CLng(x) + 65536 Else U = x
+			dw kw_scpltvl, var_u_x, 0
+			dw kw_goto_iffalse_n, if20_1
+			dw kw_l_itol, var_u_x, ltmp2
+			dw kw_l_add, ltmp2, llit_65536, var_u_u
+			dw if20_e_go
+if20_1:
+			dw kw_l_itol, var_u_x, var_u_u
+if20_e:
+			dw p_u_r
 
 ; ============================================================
 ; sub showptr (normal mode)
@@ -353,35 +629,35 @@ do14_e:
 
 p_showptr:
 
-			; main.bas 96: If p = 0 Then
+			; main.bas 157: If p = 0 Then
 			dw kw_l_cpeq, var_showptr_p, llit_0
-			dw kw_goto_iffalse_n, if15_1
+			dw kw_goto_iffalse_n, if21_1
 
-			; main.bas 97: Print "Alloc "; what; ": no room"
-			dw kw_printstrvar, str38
+			; main.bas 158: Print "Alloc "; what; ": no room"
+			dw kw_printstrvar, str56
 			dw kw_printstrvar, var_showptr_what
-			dw kw_printstrvar, str39
+			dw kw_printstrvar, str57
 			dw kw_printnl
 
-			; main.bas 98: Else
-			dw if15_e_go
-if15_1:
+			; main.bas 159: Else
+			dw if21_e_go
+if21_1:
 
-			; main.bas 99: Print "Alloc "; what; ": page "; Memory.PageOf(p); " at &"; Hex$(Memory.Address(p))
-			dw kw_printstrvar, str38
+			; main.bas 160: Print "Alloc "; what; ": page "; Memory.PageOf(p); " at &"; Hex$(Memory.Address(p))
+			dw kw_printstrvar, str56
 			dw kw_printstrvar, var_showptr_what
 			dw fn_memory_pageof, var_showptr_p, var_memory_pageof_pageof
-			dw kw_printstrvar, str40
+			dw kw_printstrvar, str58
 			dw kw_printint, var_memory_pageof_pageof
 			dw fn_memory_address, var_showptr_p, var_memory_address_address
 			dw kw_vtov, var_memory_address_address, tmp0
 			dw kw_strhex, stmp0, tmp0
-			dw kw_printstrvar, str41
+			dw kw_printstrvar, str59
 			dw kw_printstrvar, stmp0
 			dw kw_printnl
 
-			; main.bas 100: End If
-if15_e:
+			; main.bas 161: End If
+if21_e:
 			dw p_showptr_r
 
 ; ============================================================
@@ -393,17 +669,99 @@ if15_e:
 ;   turbo mode ends with ret, normal mode with jp ntc_xn
 ; ============================================================
 
-if1_e_go:			ld sp, if1_e
+do1_t_go:			ld sp, do1_t
 			jp ntc_xn
-if7_e_go:			ld sp, if7_e
+if3_e_go:			ld sp, if3_e
 			jp ntc_xn
-if12_e_go:			ld sp, if12_e
+if5_e_go:			ld sp, if5_e
 			jp ntc_xn
-do13_t_go:			ld sp, do13_t
+if10_e_go:			ld sp, if10_e
 			jp ntc_xn
-if15_e_go:			ld sp, if15_e
+do11_t_go:			ld sp, do11_t
+			jp ntc_xn
+ch14_e_go:			ld sp, ch14_e
+			jp ntc_xn
+if16_e_go:			ld sp, if16_e
+			jp ntc_xn
+if18_e_go:			ld sp, if18_e
+			jp ntc_xn
+if20_e_go:			ld sp, if20_e
+			jp ntc_xn
+if21_e_go:			ld sp, if21_e
 			jp ntc_xn
 
+p_summary_c:		; call summary (normal)
+			ld hl, 0
+			ld (var_summary_md), hl
+			ld (p_summary_rs), sp
+			ld sp, p_summary
+			jp ntc_xn
+p_summary_r:		; end of summary
+			ld sp, (p_summary_rs)
+			jp ntc_xn
+p_mainmap_c:		; call mainmap (normal)
+			ld hl, 0
+			ld (var_mainmap_e), hl
+			ld hl, 0
+			ld (var_mainmap_t), hl
+			ld hl, 0
+			ld (var_mainmap_top), hl
+			ld hl, 0
+			ld (var_mainmap_hs), hl
+			ld hl, 0
+			ld (var_mainmap_he), hl
+			ld (p_mainmap_rs), sp
+			ld sp, p_mainmap
+			jp ntc_xn
+p_mainmap_r:		; end of mainmap
+			ld sp, (p_mainmap_rs)
+			jp ntc_xn
+p_area_c:		; call area (normal)
+			pop hl			; a
+			ld e, (hl)
+			inc hl
+			ld d, (hl)
+			ld (var_area_a), de
+			pop hl			; b
+			ld e, (hl)
+			inc hl
+			ld d, (hl)
+			ld (var_area_b), de
+			pop hl			; what
+			ld de, var_area_what
+			ld b, 40
+p_area_si2:
+			ld a, (hl)
+			ld (de), a
+			or a
+			jr z, p_area_si2_e
+			inc hl
+			inc de
+			djnz p_area_si2
+			xor a
+			ld (de), a
+p_area_si2_e:
+			ld (p_area_rs), sp
+			ld sp, p_area
+			jp ntc_xn
+p_area_r:		; end of area
+			ld sp, (p_area_rs)
+			jp ntc_xn
+p_u_c:		; call u (normal)
+			pop hl			; x
+			ld e, (hl)
+			inc hl
+			ld d, (hl)
+			ld (var_u_x), de
+			ld hl, 0
+			ld (var_u_u), hl
+			ld (var_u_u+2), hl
+			ld (p_u_rs), sp
+			ld sp, p_u
+			jp ntc_xn
+p_u_r:		; end of u
+			ld sp, (p_u_rs)
+			jp ntc_xn
 p_showptr_c:		; call showptr (normal)
 			pop hl			; what
 			ld de, var_showptr_what
@@ -483,116 +841,144 @@ fn_memory_tableend:		; function tableend (asm keyword), Memory.cls line 144
             jp mem_go		; Memory.cls 148
 			ret			; end of #asm
 
-fn_memory_map:		; function map (asm keyword), Memory.cls line 155
-            pop hl		; Memory.cls 156
-            ld e, (hl)		; Memory.cls 157
-            inc hl		; Memory.cls 158
-            ld d, (hl)		; Memory.cls 159
-            ld (mem_a1), de		; Memory.cls 160
-            pop hl		; Memory.cls 161
-            ld e, (hl)		; Memory.cls 162
-            inc hl		; Memory.cls 163
-            ld d, (hl)		; Memory.cls 164
-            ld (mem_a2), de		; Memory.cls 165
-            pop hl		; Memory.cls 166
-            ld (mem_res), hl		; Memory.cls 167
-            ld hl, mem_map		; Memory.cls 168
-            jp mem_go0		; Memory.cls 169
+fn_memory_programstart:		; function programstart (asm keyword), Memory.cls line 156
+            pop hl		; Memory.cls 157
+            ld (mem_res), hl		; Memory.cls 158
+            ld hl, mem_progstart		; Memory.cls 159
+            jp mem_go		; Memory.cls 160
 			ret			; end of #asm
 
-fn_memory_allocpage:		; function allocpage (asm keyword), Memory.cls line 178
-            pop hl		; Memory.cls 179
-            ld e, (hl)		; Memory.cls 180
-            inc hl		; Memory.cls 181
-            ld d, (hl)		; Memory.cls 182
-            ld (mem_a1), de		; Memory.cls 183
+fn_memory_programend:		; function programend (asm keyword), Memory.cls line 165
+            pop hl		; Memory.cls 166
+            ld (mem_res), hl		; Memory.cls 167
+            ld hl, mem_progend		; Memory.cls 168
+            jp mem_go		; Memory.cls 169
+			ret			; end of #asm
+
+fn_memory_top:		; function top (asm keyword), Memory.cls line 174
+            pop hl		; Memory.cls 175
+            ld (mem_res), hl		; Memory.cls 176
+            ld hl, mem_top		; Memory.cls 177
+            jp mem_go		; Memory.cls 178
+			ret			; end of #asm
+
+fn_memory_stacktop:		; function stacktop (asm keyword), Memory.cls line 183
             pop hl		; Memory.cls 184
             ld (mem_res), hl		; Memory.cls 185
-            ld hl, mem_allocpage		; Memory.cls 186
+            ld hl, mem_stacktop		; Memory.cls 186
             jp mem_go		; Memory.cls 187
 			ret			; end of #asm
 
-fn_memory_alloc:		; function alloc (asm keyword), Memory.cls line 236
-            pop hl		; Memory.cls 237
-            ld e, (hl)		; Memory.cls 238
-            inc hl		; Memory.cls 239
-            ld d, (hl)		; Memory.cls 240
-            ld (mem_a1), de		; Memory.cls 241
-            pop hl		; Memory.cls 242
-            ld (mem_res), hl		; Memory.cls 243
-            ld hl, mem_alloc		; Memory.cls 244
-            jp mem_go4		; Memory.cls 245
+fn_memory_map:		; function map (asm keyword), Memory.cls line 194
+            pop hl		; Memory.cls 195
+            ld e, (hl)		; Memory.cls 196
+            inc hl		; Memory.cls 197
+            ld d, (hl)		; Memory.cls 198
+            ld (mem_a1), de		; Memory.cls 199
+            pop hl		; Memory.cls 200
+            ld e, (hl)		; Memory.cls 201
+            inc hl		; Memory.cls 202
+            ld d, (hl)		; Memory.cls 203
+            ld (mem_a2), de		; Memory.cls 204
+            pop hl		; Memory.cls 205
+            ld (mem_res), hl		; Memory.cls 206
+            ld hl, mem_map		; Memory.cls 207
+            jp mem_go0		; Memory.cls 208
 			ret			; end of #asm
 
-fn_memory_free:		; function free (asm keyword), Memory.cls line 252
-            pop hl		; Memory.cls 253
-            ld (mem_a1), hl		; Memory.cls 254
-            pop hl		; Memory.cls 255
-            ld (mem_res), hl		; Memory.cls 256
-            ld hl, mem_free		; Memory.cls 257
-            jp mem_go		; Memory.cls 258
+fn_memory_allocpage:		; function allocpage (asm keyword), Memory.cls line 217
+            pop hl		; Memory.cls 218
+            ld e, (hl)		; Memory.cls 219
+            inc hl		; Memory.cls 220
+            ld d, (hl)		; Memory.cls 221
+            ld (mem_a1), de		; Memory.cls 222
+            pop hl		; Memory.cls 223
+            ld (mem_res), hl		; Memory.cls 224
+            ld hl, mem_allocpage		; Memory.cls 225
+            jp mem_go		; Memory.cls 226
 			ret			; end of #asm
 
-fn_memory_largest:		; function largest (asm keyword), Memory.cls line 264
-            pop hl		; Memory.cls 265
-            ld (mem_res), hl		; Memory.cls 266
-            ld hl, mem_largest		; Memory.cls 267
-            jp mem_go		; Memory.cls 268
+fn_memory_alloc:		; function alloc (asm keyword), Memory.cls line 275
+            pop hl		; Memory.cls 276
+            ld e, (hl)		; Memory.cls 277
+            inc hl		; Memory.cls 278
+            ld d, (hl)		; Memory.cls 279
+            ld (mem_a1), de		; Memory.cls 280
+            pop hl		; Memory.cls 281
+            ld (mem_res), hl		; Memory.cls 282
+            ld hl, mem_alloc		; Memory.cls 283
+            jp mem_go4		; Memory.cls 284
 			ret			; end of #asm
 
-fn_memory_pageof:		; function pageof (asm keyword), Memory.cls line 274
-            pop hl		; Memory.cls 275
-            ld (mem_a1), hl		; Memory.cls 276
-            pop hl		; Memory.cls 277
-            ld (mem_res), hl		; Memory.cls 278
-            ld hl, mem_pageof		; Memory.cls 279
-            jp mem_go		; Memory.cls 280
+fn_memory_free:		; function free (asm keyword), Memory.cls line 291
+            pop hl		; Memory.cls 292
+            ld (mem_a1), hl		; Memory.cls 293
+            pop hl		; Memory.cls 294
+            ld (mem_res), hl		; Memory.cls 295
+            ld hl, mem_free		; Memory.cls 296
+            jp mem_go		; Memory.cls 297
 			ret			; end of #asm
 
-fn_memory_address:		; function address (asm keyword), Memory.cls line 286
-            pop hl		; Memory.cls 287
-            ld (mem_a1), hl		; Memory.cls 288
-            pop hl		; Memory.cls 289
-            ld (mem_res), hl		; Memory.cls 290
-            ld hl, mem_address		; Memory.cls 291
-            jp mem_go		; Memory.cls 292
+fn_memory_largest:		; function largest (asm keyword), Memory.cls line 303
+            pop hl		; Memory.cls 304
+            ld (mem_res), hl		; Memory.cls 305
+            ld hl, mem_largest		; Memory.cls 306
+            jp mem_go		; Memory.cls 307
 			ret			; end of #asm
 
-fn_memory_readword:		; function readword (asm keyword), Memory.cls line 310
-            pop hl		; Memory.cls 311
-            ld (mem_a1), hl		; Memory.cls 312
-            pop hl		; Memory.cls 313
-            ld (mem_res), hl		; Memory.cls 314
-            ld hl, mem_readword		; Memory.cls 315
-            jp mem_go		; Memory.cls 316
+fn_memory_pageof:		; function pageof (asm keyword), Memory.cls line 313
+            pop hl		; Memory.cls 314
+            ld (mem_a1), hl		; Memory.cls 315
+            pop hl		; Memory.cls 316
+            ld (mem_res), hl		; Memory.cls 317
+            ld hl, mem_pageof		; Memory.cls 318
+            jp mem_go		; Memory.cls 319
 			ret			; end of #asm
 
-fn_memory_writeword:		; sub writeword (asm keyword), Memory.cls line 335
-            pop hl		; Memory.cls 336
-            ld (mem_a1), hl		; Memory.cls 337
-            pop hl		; Memory.cls 338
-            ld e, (hl)		; Memory.cls 339
-            inc hl		; Memory.cls 340
-            ld d, (hl)		; Memory.cls 341
-            ld (mem_a2), de		; Memory.cls 342
-            ld hl, mem_writeword		; Memory.cls 343
-            jp mem_go0		; Memory.cls 344
+fn_memory_address:		; function address (asm keyword), Memory.cls line 325
+            pop hl		; Memory.cls 326
+            ld (mem_a1), hl		; Memory.cls 327
+            pop hl		; Memory.cls 328
+            ld (mem_res), hl		; Memory.cls 329
+            ld hl, mem_address		; Memory.cls 330
+            jp mem_go		; Memory.cls 331
 			ret			; end of #asm
 
-fn_memory_copy:		; function copy (asm keyword), Memory.cls line 352
-            pop hl		; Memory.cls 353
-            ld (mem_a1), hl		; Memory.cls 354
-            pop hl		; Memory.cls 355
-            ld (mem_a2), hl		; Memory.cls 356
-            pop hl		; Memory.cls 357
-            ld e, (hl)		; Memory.cls 358
-            inc hl		; Memory.cls 359
-            ld d, (hl)		; Memory.cls 360
-            ld (mem_a3), de		; Memory.cls 361
-            pop hl		; Memory.cls 362
-            ld (mem_res), hl		; Memory.cls 363
-            ld hl, mem_copy		; Memory.cls 364
-            jp mem_go		; Memory.cls 365
+fn_memory_readword:		; function readword (asm keyword), Memory.cls line 349
+            pop hl		; Memory.cls 350
+            ld (mem_a1), hl		; Memory.cls 351
+            pop hl		; Memory.cls 352
+            ld (mem_res), hl		; Memory.cls 353
+            ld hl, mem_readword		; Memory.cls 354
+            jp mem_go		; Memory.cls 355
+			ret			; end of #asm
+
+fn_memory_writeword:		; sub writeword (asm keyword), Memory.cls line 374
+            pop hl		; Memory.cls 375
+            ld (mem_a1), hl		; Memory.cls 376
+            pop hl		; Memory.cls 377
+            ld e, (hl)		; Memory.cls 378
+            inc hl		; Memory.cls 379
+            ld d, (hl)		; Memory.cls 380
+            ld (mem_a2), de		; Memory.cls 381
+            ld hl, mem_writeword		; Memory.cls 382
+            jp mem_go0		; Memory.cls 383
+			ret			; end of #asm
+
+fn_memory_copy:		; function copy (asm keyword), Memory.cls line 391
+            pop hl		; Memory.cls 392
+            ld (mem_a1), hl		; Memory.cls 393
+            pop hl		; Memory.cls 394
+            ld (mem_a2), hl		; Memory.cls 395
+            pop hl		; Memory.cls 396
+            ld e, (hl)		; Memory.cls 397
+            inc hl		; Memory.cls 398
+            ld d, (hl)		; Memory.cls 399
+            ld (mem_a3), de		; Memory.cls 400
+            pop hl		; Memory.cls 401
+            ld (mem_res), hl		; Memory.cls 402
+            ld hl, mem_copy		; Memory.cls 403
+            jp mem_go		; Memory.cls 404
 			ret			; end of #asm
 
 
@@ -603,8 +989,6 @@ fn_memory_copy:		; function copy (asm keyword), Memory.cls line 352
 var_n:			dw 0
 var_memory_heapstart_heapstart:			dw 0
 var_memory_heapend_heapend:			dw 0
-var_memory_ramsize_ramsize:			dw 0
-var_r:			dw 0
 var_memory_tableend_tableend:			dw 0
 var_music:			dw 0
 var_sprites:			dw 0
@@ -612,6 +996,7 @@ var_level:			dw 0
 var_p1:			dw 0, 0
 var_p2:			dw 0, 0
 var_p3:			dw 0, 0
+var_r:			dw 0
 var_memory_pageof_pageof:			dw 0
 var_memory_readword_readword:			dw 0
 var_memory_largest_largest:			dw 0
@@ -620,9 +1005,30 @@ var_m:			ds 41
 			db 40			; capacity
 var_memory_map_map:			ds 41
 var_b:			dw 0
+for6_l:			dw 0
 for8_l:			dw 0
-for10_l:			dw 0
 var_memory_freepages_freepages:			dw 0
+p_summary_rs:			dw 0
+var_summary_md:			dw 0
+var_memory_ramsize_ramsize:			dw 0
+p_mainmap_rs:			dw 0
+var_mainmap_e:			dw 0
+var_mainmap_t:			dw 0
+var_mainmap_top:			dw 0
+var_mainmap_hs:			dw 0
+var_mainmap_he:			dw 0
+var_fr:			dw 0, 0
+var_memory_programstart_programstart:			dw 0
+var_u_u:			dw 0, 0
+var_memory_pages_pages:			dw 0
+var_memory_stacktop_stacktop:			dw 0
+p_area_rs:			dw 0
+var_area_a:			dw 0
+var_area_b:			dw 0
+			db 40			; capacity
+var_area_what:			ds 41
+p_u_rs:			dw 0
+var_u_x:			dw 0
 p_showptr_rs:			dw 0
 			db 40			; capacity
 var_showptr_what:			ds 41
@@ -633,6 +1039,11 @@ tmp1:			dw 0
 tmp2:			dw 0
 			db 40			; capacity
 stmp0:			ds 41
+			db 40			; capacity
+stmp1:			ds 41
+ltmp0:			dw 0, 0
+ltmp1:			dw 0, 0
+ltmp2:			dw 0, 0
 
 ; numbers passed by address (read only)
 lit_85:			dw 85
@@ -646,6 +1057,11 @@ lit_2:			dw 2
 lit_1:			dw 1
 lit_32:			dw 32
 lit_33:			dw 33
+lit_16384:			dw 16384
+lit_m32768:			dw -32768
+llit_16:			dw 16, 0
+lit_4:			dw 4
+llit_65536:			dw 0, 1
 
 ; ============================================================
 ; Strings
@@ -653,46 +1069,64 @@ lit_33:			dw 33
 
 str0:			db "CPC firmware", 0
 str1:			db "Memory on CPC firmware", 0
-str2:			db "No paging - heap &", 0
-str3:			db "-&", 0
-str4:			db "K, ", 0
-str5:			db " pages, model ", 0
-str6:			db "small", 0
-str7:			db "medium", 0
-str8:			db "large", 0
-str9:			db "huge", 0
-str10:			db "Page tables end at &", 0
-str11:			db "Music ", 0
-str12:			db " Sprites ", 0
-str13:			db " Level ", 0
-str14:			db "1000", 0
-str15:			db "6000", 0
-str16:			db "12000", 0
-str17:			db "Copy page ", 0
-str18:			db " to ", 0
-str19:			db ": ", 0
-str20:			db "Largest free block ", 0
-str21:			db "        #0000 #4000 #8000 #C000", 0
-str22:			db "Main     prog  [", 0
-str23:			db "]   ram   scr", 0
-str24:			db "Bank ", 0
-str25:			db "  ", 0
-str26:			db " [", 0
-str27:			db "]  ", 0
-str28:			db "Main [", 0
-str29:			db "]", 0
-str30:			db "&", 0
-str31:			db " ", 0
-str32:			db "C code D data U user - free", 0
-str33:			db "After Free: largest block ", 0
-str34:			db "After Free: ", 0
-str35:			db " pages free", 0
-str36:			db "Pages ", 0
-str37:			db "Press a key", 0
-str38:			db "Alloc ", 0
-str39:			db ": no room", 0
-str40:			db ": page ", 0
-str41:			db " at &", 0
+str2:			db "Press a key", 0
+str3:			db "Pages on CPC firmware", 0
+str4:			db "No paging - heap &", 0
+str5:			db "-&", 0
+str6:			db "Page tables end at &", 0
+str7:			db "Music ", 0
+str8:			db " Sprites ", 0
+str9:			db " Level ", 0
+str10:			db "1000", 0
+str11:			db "6000", 0
+str12:			db "12000", 0
+str13:			db "Copy page ", 0
+str14:			db " to ", 0
+str15:			db ": ", 0
+str16:			db "Largest free block ", 0
+str17:			db "        #0000 #4000 #8000 #C000", 0
+str18:			db "Main     prog  [", 0
+str19:			db "]   ram   scr", 0
+str20:			db "Bank ", 0
+str21:			db "  ", 0
+str22:			db " [", 0
+str23:			db "]  ", 0
+str24:			db "Main [", 0
+str25:			db "]", 0
+str26:			db "&", 0
+str27:			db " ", 0
+str28:			db "C code D data U user - free", 0
+str29:			db "After Free: largest block ", 0
+str30:			db "After Free: ", 0
+str31:			db " pages free", 0
+str32:			db "Pages ", 0
+str33:			db "No RAM pages (Option Memory Small)", 0
+str34:			db "K, ", 0
+str35:			db " pages: main + ", 0
+str36:			db " banks", 0
+str37:			db "small (64K)", 0
+str38:			db "medium (128K)", 0
+str39:			db "large (to 576K)", 0
+str40:			db "huge (to 4MB)", 0
+str41:			db 0
+str42:			db "Model ", 0
+str43:			db ", ", 0
+str44:			db "program and arrays", 0
+str45:			db "page tables", 0
+str46:			db "free", 0
+str47:			db "window (pages)", 0
+str48:			db "heap (Alloc, List)", 0
+str49:			db "Option Reserve", 0
+str50:			db "stack and spare", 0
+str51:			db " top of free RAM", 0
+str52:			db "Stack at &", 0
+str53:			db "Free main RAM: ", 0
+str54:			db " bytes", 0
+str55:			db "000", 0
+str56:			db "Alloc ", 0
+str57:			db ": no room", 0
+str58:			db ": page ", 0
+str59:			db " at &", 0
 
 ; ============================================================
 ; Keyword library (used)
@@ -758,6 +1192,14 @@ kw_goto_iffalse_n:
 			ld sp, hl
 			jp ntc_xn
 
+;## kw_goto_iftrue (normal mode copy)
+;kw_goto_iftrue, <label>  - branch if Z (true)
+kw_goto_iftrue_n:
+			pop hl
+			jp nz, ntc_xn
+			ld sp, hl
+			jp ntc_xn
+
 ;## kw_goto_ifzero (normal mode copy)
 ;kw_goto_ifzero, <var>, <label>  - branch if var = 0
 kw_goto_ifzero_n:
@@ -802,8 +1244,11 @@ ntc_for_lt_n:
 			jp nc, ntc_xn
 			ld sp, hl
 			jp ntc_xn
-; ntc_for_le: jump to the label if var <= limit (loop again)
+; ntc_for_le: jump to the label if var <= limit (loop again). A not 0: the
+; step took var past 32767 (or -32768): the loop ends (ntc_for_ge too)
 ntc_for_le_n:
+			or a
+			jr nz, ntc_for_end_n
 			ld a, d
 			xor #80
 			ld d, a
@@ -818,6 +1263,8 @@ ntc_for_le_n:
 			jp ntc_xn
 ; ntc_for_ge: jump to the label if var >= limit (loop again)
 ntc_for_ge_n:
+			or a
+			jr nz, ntc_for_end_n
 			ld a, d
 			xor #80
 			ld d, a
@@ -830,6 +1277,9 @@ ntc_for_ge_n:
 			pop hl
 			jp c, ntc_xn
 			ld sp, hl
+			jp ntc_xn
+ntc_for_end_n:
+			pop hl
 			jp ntc_xn
 
 ;## kw_forupv (normal mode copy) ntc_for_jump
@@ -859,6 +1309,11 @@ kw_next1l_n:
 ntc_n1l_nc_n:
 			ld d, (hl)
 			pop hl
+			ld a, d					; A = #FF when it went past 32767 (#8000)
+			xor #80
+			or e
+			sub 1
+			sbc a, a
 			jp ntc_for_le_n
 
 ;## kw_next1v (normal mode copy) ntc_for_jump
@@ -873,10 +1328,15 @@ kw_next1v_n:
 ntc_n1v_nc_n:
 			ld d, (hl)
 			pop hl
-			ld a, (hl)
+			ld c, (hl)
 			inc hl
 			ld h, (hl)
-			ld l, a
+			ld l, c
+			ld a, d					; A = #FF when it went past 32767 (#8000)
+			xor #80
+			or e
+			sub 1
+			sbc a, a
 			jp ntc_for_le_n
 
 ;## kw_vtov
@@ -1206,6 +1666,16 @@ ntc_cmp_ne_f:
 			or 1
 			ret
 
+;## kw_scpltvl ntc_cmp
+;kw_scpltvl, <var>, <literal>
+kw_scpltvl:
+			pop hl
+			ld e, (hl)
+			inc hl
+			ld d, (hl)
+			pop hl
+			jp ntc_cmp_slt
+
 ;## kw_scplevl ntc_cmp
 kw_scplevl:
 			pop hl
@@ -1263,6 +1733,36 @@ ntc_strcpy_loop:
 			inc hl
 			inc de
 			djnz ntc_strcpy_loop
+			xor a
+			ld (de), a
+			ret
+
+;## kw_strcat
+;kw_strcat, <destaddr>, <srcaddr>  - cut at the destination's capacity byte
+kw_strcat:
+			pop de
+			dec de
+			ld a, (de)
+			ld b, a
+			inc de
+ntc_strcat_end:
+			ld a, (de)
+			or a
+			jr z, ntc_strcat_copy
+			inc de
+			djnz ntc_strcat_end
+			pop hl
+			ret
+ntc_strcat_copy:
+			pop hl
+ntc_strcat_loop:
+			ld a, (hl)
+			ld (de), a
+			or a
+			ret z
+			inc hl
+			inc de
+			djnz ntc_strcat_loop
 			xor a
 			ld (de), a
 			ret
@@ -1380,6 +1880,12 @@ ntc_inkey_got:
 			ld (hl), 0
 			ret
 
+;## kw_cls ntc_data ntc_plat_screen
+;kw_cls
+kw_cls:
+			ld ix, ntc_next
+			jp ntc_plat_cls
+
 ;## kw_frame ntc_data ntc_plat_frame
 ;kw_frame  - wait for the start of the next frame flyback
 kw_frame:
@@ -1433,6 +1939,38 @@ ntc_sn_end:
 			xor a
 			ld (de), a
 			ret
+
+;## kw_strright ntc_getn kw_strleft
+;kw_strright, <dest>, <src>, <nvar>  - Right$(src, n)
+kw_strright:
+			pop de
+			pop hl
+			pop bc
+			ld ix, ntc_sr_n
+			jp ntc_getn
+ntc_sr_n:
+			ld c, a
+			ld (ntc_sptr), hl
+			ld b, 0
+ntc_sr_len:
+			ld a, (hl)
+			or a
+			jr z, ntc_sr_got
+			inc hl
+			inc b
+			jr ntc_sr_len
+ntc_sr_got:
+			ld a, b
+			sub c
+			jr nc, ntc_sr_skip
+			xor a
+ntc_sr_skip:
+			ld hl, (ntc_sptr)
+			ld c, a
+			ld b, 0
+			add hl, bc
+			ld b, 255
+			jp ntc_strncpy
 
 ;## kw_strmid ntc_getn kw_strleft
 ;kw_strmid, <dest>, <src>, <startvar>, <lenvar>  - Mid$(src, start, len)
@@ -1520,6 +2058,88 @@ ntc_lcnt:		db 0
 ntc_ldst:		dw 0
 ntc_lix:		dw 0
 
+;## kw_l_mov
+;kw_l_mov, <src>, <dest>  - dest = src (4 bytes)
+kw_l_mov:
+			pop hl
+			pop de
+			ldi
+			ldi
+			ldi
+			ldi
+			ret
+
+;## kw_l_itol
+;kw_l_itol, <intvar>, <dest>  - Integer to Long (sign extended)
+kw_l_itol:
+			pop hl
+			pop de
+			ld a, (hl)
+			ld (de), a
+			inc hl
+			inc de
+			ld a, (hl)
+			ld (de), a
+			inc de
+			rla
+			sbc a, a
+			ld (de), a
+			inc de
+			ld (de), a
+			ret
+
+;## kw_l_add
+;kw_l_add, <a>, <b>, <dest>  - a + b
+kw_l_add:
+			pop hl
+			pop de
+			pop ix
+			ld a, (de)
+			add a, (hl)
+			ld (ix+0), a
+			inc hl
+			inc de
+			ld a, (de)
+			adc a, (hl)
+			ld (ix+1), a
+			inc hl
+			inc de
+			ld a, (de)
+			adc a, (hl)
+			ld (ix+2), a
+			inc hl
+			inc de
+			ld a, (de)
+			adc a, (hl)
+			ld (ix+3), a
+			ret
+
+;## kw_l_sub
+;kw_l_sub, <a>, <b>, <dest>  - a - b
+kw_l_sub:
+			pop de
+			pop hl
+			pop ix
+			ld a, (de)
+			sub (hl)
+			ld (ix+0), a
+			inc hl
+			inc de
+			ld a, (de)
+			sbc a, (hl)
+			ld (ix+1), a
+			inc hl
+			inc de
+			ld a, (de)
+			sbc a, (hl)
+			ld (ix+2), a
+			inc hl
+			inc de
+			ld a, (de)
+			sbc a, (hl)
+			ld (ix+3), a
+			ret
+
 ;## ntc_lcmp ntc_ldata
 ; DE = a, HL = b: work out a - b. ntc_lsgn = #80 if a < b (signed),
 ; ntc_lcnt = 0 if a = b. jp (ix) back.
@@ -1589,12 +2209,151 @@ ntc_lcne_f:
 			or 1
 			ret
 
+;## kw_l_cple ntc_lcmp
+;kw_l_cple, <a>, <b>  - Z if a <= b
+kw_l_cple:
+			pop de
+			pop hl
+			ld ix, ntc_lcle
+			jp ntc_lcmp
+ntc_lcle:
+			ld a, (ntc_lcnt)
+			or a
+			ret z
+			ld a, (ntc_lsgn)
+			xor #80
+			ret
+
+;## kw_l_cpgt ntc_lcmp
+;kw_l_cpgt, <a>, <b>  - Z if a > b
+kw_l_cpgt:
+			pop de
+			pop hl
+			ld ix, ntc_lcgt
+			jp ntc_lcmp
+ntc_lcgt:
+			ld a, (ntc_lcnt)
+			or a
+			jr z, ntc_lcgt_f
+			ld a, (ntc_lsgn)
+			or a
+			ret
+ntc_lcgt_f:
+			or 1
+			ret
+
+;## ntc_ltoa ntc_ldata ntc_data
+; Long at (HL) to text at DE, 0 at the end. jp (ix) back. Uses IY.
+ntc_ltoa:
+			ld (ntc_ldst), de
+			ld de, ntc_la
+			ldi
+			ldi
+			ldi
+			ldi
+			ld de, (ntc_ldst)
+			ld a, (ntc_la+3)
+			or a
+			jp p, ntc_lta_pos
+			ld a, '-'
+			ld (de), a
+			inc de
+			ld hl, ntc_la
+			xor a
+			sub (hl)
+			ld (hl), a
+			inc hl
+			ld a, 0
+			sbc a, (hl)
+			ld (hl), a
+			inc hl
+			ld a, 0
+			sbc a, (hl)
+			ld (hl), a
+			inc hl
+			ld a, 0
+			sbc a, (hl)
+			ld (hl), a
+ntc_lta_pos:
+			xor a
+			ld (ntc_lead), a
+			ld iy, ntc_lpow10
+ntc_lta_pow:
+			ld a, (iy+0)
+			or (iy+1)
+			or (iy+2)
+			or (iy+3)
+			jr z, ntc_lta_last
+			ld c, '0'
+ntc_lta_sub:
+			ld hl, ntc_la
+			ld a, (hl)
+			sub (iy+0)
+			ld (ntc_lt), a
+			inc hl
+			ld a, (hl)
+			sbc a, (iy+1)
+			ld (ntc_lt+1), a
+			inc hl
+			ld a, (hl)
+			sbc a, (iy+2)
+			ld (ntc_lt+2), a
+			inc hl
+			ld a, (hl)
+			sbc a, (iy+3)
+			ld (ntc_lt+3), a
+			jr c, ntc_lta_dig
+			ld hl, (ntc_lt)
+			ld (ntc_la), hl
+			ld hl, (ntc_lt+2)
+			ld (ntc_la+2), hl
+			inc c
+			jr ntc_lta_sub
+ntc_lta_dig:
+			ld a, c
+			cp '0'
+			jr nz, ntc_lta_out
+			ld a, (ntc_lead)
+			or a
+			jr z, ntc_lta_skip
+			ld a, c
+ntc_lta_out:
+			ld (de), a
+			inc de
+			ld a, 1
+			ld (ntc_lead), a
+ntc_lta_skip:
+			ld bc, 4
+			add iy, bc
+			jr ntc_lta_pow
+ntc_lta_last:
+			ld a, (ntc_la)
+			add a, '0'
+			ld (de), a
+			inc de
+			xor a
+			ld (de), a
+			jp (ix)
+ntc_lpow10:		dd 1000000000, 100000000, 10000000, 1000000, 100000, 10000, 1000, 100, 10, 0
+
+;## kw_l_print ntc_ltoa ntc_printbuf
+;kw_l_print, <long>  - print a Long
+kw_l_print:
+			pop hl
+			ld de, ntc_numbuf
+			ld ix, ntc_lpr_back
+			jp ntc_ltoa
+ntc_lpr_back:
+			ld hl, ntc_numbuf
+			ld (ntc_sptr), hl
+			jp ntc_printbuf
+
 ;## ntc_buf2k
 ; ntc_buf - a 2K buffer shared by the classes that need one: FileSystem's
 ; CAS IN / OUT OPEN buffer (CPC firmware) and Memory.Copy's page to page copy
 ntc_buf:		ds 2048
 
-;## ntc_memcore ntc_data ntc_mem @shared
+;## ntc_memcore ntc_data ntc_mem ntc_plat_memtop @shared
 ; ------------------------------------------------------------
 ; ntc_memcore - the Memory class, the part every scheme shares. The scheme
 ; (Option Memory, else the platform's default) is the section ntc_mem -
@@ -1756,6 +2515,19 @@ mem_heapstart:
 			ret
 mem_heapend:
 			ld hl, (mem_hhi)
+			ret
+; ProgramStart(), ProgramEnd() (the first byte after the program and its
+; arrays), Top() (the platform's top of free RAM), StackTop() (the real stack)
+mem_progstart:
+			ld hl, ntc_start
+			ret
+mem_progend:
+			ld hl, ntc_free
+			ret
+mem_top:
+			jp ntc_plat_memtop
+mem_stacktop:
+			ld hl, (ntc_csp)
 			ret
 
 ; mem_atend - Z when HL = mem_hhi (the heap region's end). Keeps BC, DE, HL.
@@ -3202,6 +3974,14 @@ FS_TOOBIG	equ -8
 FS_FAILED	equ -9
 FS_BADNAME	equ -4
 
+;## ntc_plat_memtop
+; ntc_plat_memtop - HL = the first byte the Memory class's Small heap must not
+; use: #A600 (the firmware's and AMSDOS's RAM is above). Called on the real
+; stack (call / ret), only by the Memory class.
+ntc_plat_memtop:
+			ld hl, #A600
+			ret
+
 
 ntc_end:				; the end of the program (and of its file)
 ; arrays: after the program, not in its file - kw_bssinit checks they fit and clears them
@@ -3209,5 +3989,5 @@ ntc_bss		equ ntc_end
 ntc_bss_size	equ 0
 ntc_free	equ ntc_bss + ntc_bss_size	; the first free byte (heap, Memory tables)
 ; Option Reserve: the program and its arrays (ntc_start .. ntc_free) must stay out of these
-			ASSERT (ntc_free <= 16384) || (ntc_start >= 32768), "the program (or its arrays) reaches into Option Reserve #4000-#7FFF (main.bas line 16)"
+			ASSERT (ntc_free <= 16384) || (ntc_start >= 32768), "the program (or its arrays) reaches into Option Reserve #4000-#7FFF (main.bas line 17)"
 			SAVEAMSDOS "MEMMAP.BIN", ntc_start, ntc_end - ntc_start, ntc_start

@@ -11,6 +11,7 @@
 ' (Option Memory Small) it says how many fit and uses those.
 ' Turbo runs with interrupts off, so Ticks stands still: time turbo with a stopwatch.
 Option Explicit
+Option Turbo Off                  ' starts in normal mode whatever the turbo setting says: T switches
 #If NTC_CPC Then
 Option Reserve &H4000, &H4000
 #End If
@@ -20,16 +21,21 @@ Option Reserve &H4000, &H4000
 #If NTC_CPCFW Then
 Option Reserve &H4000, &H4000
 #End If
-Dim h As Long, n As Long, nodes As Integer, i As Integer, r As Integer, seed As Integer
+Dim h As Long, n As Long, want As Long, nodes As Integer, i As Integer, r As Integer, seed As Integer
 Dim k As String, t0 As Integer, t1 As Integer, t2 As Integer, t3 As Integer, ok As Integer
 
-Input "How many nodes (Return = 5000)"; nodes
-If nodes < 2 Then nodes = 5000
+' a list holds up to 32767 nodes (its count is an Integer); RAM may hold fewer
+Input "Nodes, 2-32767 (Return = 5000)"; want
+If want = 0 Then want = 5000
+If want < 2 Then want = 2
+If want > 32767 Then Print "Most is 32767" : want = 32767
+nodes = want
 h = List.Create(2)
 For i = 1 To nodes
   If List.Append(h) = 0 Then Print "Room for "; i - 1; " nodes" : Exit For
 Next
 nodes = List.Count(h)
+Print "List of "; nodes; " nodes"
 seed = 1
 Do
   Print

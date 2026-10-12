@@ -16,10 +16,10 @@ build.bat ..\primal\sjasmplus\sjasmplus.exe   or give its path (relative or full
 | `cpm\` | CP/M 2.2 / 3 | `NAME.COM` at `#0100` | copy to the CP/M disk, type `NAME` |
 | `test\` | the test harness platform | `NAME.BIN`, raw, at `#4000` | for `test/ntcrun.py` |
 
-A program with overlay classes (`OVERLAYS` on cpcmin / cpcfw) also writes their files
-(`LEVEL1.PAG`, `LEVEL2.PAG`) when it is assembled: copy them to the disc with the `.BIN`.
-`OVERLAYS` is only built for cpcmin and cpcfw, `INTERRUP` (interrupt classes) for cpc and
-cpcmin.
+A program with overlay classes (`OVERLAYS` on cpcmin, cpcfw and cpm) also writes their files
+(`LEVEL1.PAG`, `LEVEL2.PAG`) when it is assembled: copy them to the disc with the `.BIN` /
+`.COM`. `OVERLAYS` is only built for cpcmin, cpcfw and cpm, `INTERRUP` (interrupt classes) for
+cpc and cpcmin.
 
 `dsk\` holds two disc images per platform with its programs already assembled, ready to insert
 in an emulator (WinAPE: drive A or B): `cpc.dsk`, `cpcmin.dsk`, `cpcfw.dsk` (the examples and demos:
@@ -39,7 +39,9 @@ The .ASM files are generated - don't edit them. After changing the compiler, the
 or `bas/`, run `node genbuild.js` in `test/` (the regression run does it too, and checks that
 every file assembles).
 
-Programs: GUIDE, GUESS, SIEVE, SHELSORT, SIEVETIM (sieve timing, turbo / normal), NUMBERED, NTCTEST (asks for a name, a number,
+Programs: GUIDE, GUESS, SIEVE, SHELSORT, SIEVETIM (sieve timing, turbo / normal), FILES, FILESTEP,
+FILESTPN, AMSDOS, MEMMAP (main memory and RAM pages as a map), LISTS, SORTTIME (5,000 list nodes
+sorted, turbo / normal), CMDLINE (the command line, or ask), OVERLAYS, INTERRUP, NUMBERED, NTCTEST (asks for a name, a number,
 a key), VBTEST, VBTEST2..VBTEST12 (VBTEST12 asks for a line at the end), LONGTEST,
 CLASSDEM, CONSOLE (the StdIO / System classes; asks for a name and a key), OWNSTDIO (a
 project's own StdIO). `cpm\` also has SIEVEC, the same sieve in Small C (from

@@ -143,6 +143,8 @@ function ntcCompile(input_a, objOptions_a)
 	var intMaxTemp = -1;
 	var intMaxSTemp = -1;
 	var intMaxLTemp = -1;
+	var objTmpSize = {};		// pass 1: procedure ('' = main) -> temps it uses (slots, every kind)
+	var objTmpBase = {};		// pass 2: procedure -> its first temp slot (above its callers' live temps)
 	var blnGosub = false;
 	var objGlyphs = {};
 	var objLabelMode = {};		// emitted label -> mode at that label
@@ -761,34 +763,118 @@ function ntcCompile(input_a, objOptions_a)
 	// literals, strings, temps
 	// ------------------------------------------------------------
 
-	function tmp(intIndex_a)
+	// a temp slot: pass 1 notes how many the procedure uses; pass 2 moves them above the
+	// temps its callers still hold during the call (a Function in an expression), so a
+	// call doesn't overwrite them
+	function tmpSlot(intIndex_a)
 	{
-		if (intIndex_a > intMaxTemp)
+		if (intPass === 1)
 		{
-			intMaxTemp = intIndex_a;
+			if ((objTmpSize[strProc] || 0) < intIndex_a + 1)
+			{
+				objTmpSize[strProc] = intIndex_a + 1;
+			}
+			return intIndex_a;
 		}
 
-		return 'tmp' + intIndex_a;
+		return (objTmpBase[strProc] || 0) + intIndex_a;
+	}
+
+	// after pass 1: each procedure's first temp slot. A call made while slots 0 .. live-1
+	// hold values puts the callee at least live slots above the caller's base. Interrupt
+	// Ticks, Interrupt hooks and AddressOf targets can run at any point, so they (and what
+	// they call) go above everything else.
+	function decideTempBases()
+	{
+		var intRound = 0;
+		var blnChanged = true;
+		var intTop = 0;
+		var strKey = '';
+
+		objTmpBase = {};
+		function raise(objCall_a, intFrom_a)
+		{
+			var intNew = intFrom_a + (objCall_a.live || 0);
+
+			if ((objTmpBase[objCall_a.to] || 0) < intNew)
+			{
+				objTmpBase[objCall_a.to] = intNew;
+				blnChanged = true;
+			}
+		}
+		while (blnChanged && (intRound < 64))
+		{
+			blnChanged = false;
+			intRound++;
+			arrScanProcCalls.forEach(function(objCall_a)
+			{
+				if (!objCall_a.root)
+				{
+					raise(objCall_a, objTmpBase[objCall_a.from] || 0);
+				}
+			});
+		}
+		for (strKey in objTmpSize)
+		{
+			if (objTmpSize.hasOwnProperty(strKey) && ((objTmpBase[strKey] || 0) + objTmpSize[strKey] > intTop))
+			{
+				intTop = (objTmpBase[strKey] || 0) + objTmpSize[strKey];
+			}
+		}
+		blnChanged = true;
+		intRound = 0;
+		while (blnChanged && (intRound < 64))
+		{
+			blnChanged = false;
+			intRound++;
+			arrScanProcCalls.forEach(function(objCall_a)
+			{
+				if (objCall_a.root)
+				{
+					raise({ to: objCall_a.to, live: 0 }, intTop);
+				}
+				else if ((objTmpBase[objCall_a.from] || 0) >= intTop)
+				{
+					raise(objCall_a, objTmpBase[objCall_a.from] || 0);
+				}
+			});
+		}
+	}
+
+	function tmp(intIndex_a)
+	{
+		var intN = tmpSlot(intIndex_a);
+
+		if (intN > intMaxTemp)
+		{
+			intMaxTemp = intN;
+		}
+
+		return 'tmp' + intN;
 	}
 
 	function stmp(intIndex_a)
 	{
-		if (intIndex_a > intMaxSTemp)
+		var intN = tmpSlot(intIndex_a);
+
+		if (intN > intMaxSTemp)
 		{
-			intMaxSTemp = intIndex_a;
+			intMaxSTemp = intN;
 		}
 
-		return 'stmp' + intIndex_a;
+		return 'stmp' + intN;
 	}
 
 	function ltmp(intIndex_a)
 	{
-		if (intIndex_a > intMaxLTemp)
+		var intN = tmpSlot(intIndex_a);
+
+		if (intN > intMaxLTemp)
 		{
-			intMaxLTemp = intIndex_a;
+			intMaxLTemp = intN;
 		}
 
-		return 'ltmp' + intIndex_a;
+		return 'ltmp' + intN;
 	}
 
 	// a Long literal as the address of 4 bytes holding it
@@ -2507,7 +2593,7 @@ function ntcCompile(input_a, objOptions_a)
 
 		if (intPass === 1)
 		{
-			arrScanProcCalls.push({ from: strProc, to: objProc_a.full, mode: strMode, line: intLine, file: strFile });
+			arrScanProcCalls.push({ from: strProc, to: objProc_a.full, mode: strMode, line: intLine, file: strFile, live: intSlot_a });
 		}
 		if (objProc_a.asmkw)
 		{
@@ -3429,7 +3515,7 @@ function ntcCompile(input_a, objOptions_a)
 		}
 		if (intPass === 1)
 		{
-			arrScanProcCalls.push({ from: strProc, to: objProc.full, mode: strMode, line: intLine, file: strFile });
+			arrScanProcCalls.push({ from: strProc, to: objProc.full, mode: strMode, line: intLine, file: strFile, root: true });
 		}
 		strLabel = 'ap_' + procLabel(objProc, kwMode()) + '_c';
 		if (objLits[strLabel] === undefined)
@@ -4093,12 +4179,25 @@ function ntcCompile(input_a, objOptions_a)
 		return objCtl;
 	}
 
-	// a branch / loop body must end in the mode it started in
+	// a branch / loop body must end in the mode it started in: when it doesn't (Turbo On ...
+	// Turbo Off in a program that started in turbo mode), the mode is switched back there,
+	// with a warning, so the code after the block knows its mode
 	function modeCheck(objCtl_a, strWhere_a)
 	{
 		if (objCtl_a && (objCtl_a.mode !== strMode))
 		{
-			error('Turbo mode changes inside ' + strWhere_a + ' (line ' + objCtl_a.line + '): end it in the mode it started in');
+			if ((objCtl_a.mode === 't') && (strMode === 'n'))
+			{
+				emitRaw('kw_turbo_on', [], false);
+			}
+			else if ((objCtl_a.mode === 'n') && (strMode === 't'))
+			{
+				emitRaw('kw_turbo_off', [], false);
+			}
+			if (intPass === 2)
+			{
+				warning(strWhere_a + ' (line ' + objCtl_a.line + ') started in ' + ((objCtl_a.mode === 't') ? 'turbo' : 'normal') + ' mode and this part ends in ' + ((strMode === 't') ? 'turbo' : 'normal') + ' mode: switched back to ' + ((objCtl_a.mode === 't') ? 'turbo' : 'normal') + ' here (Option Turbo Off / Option Turbo sets the start mode)');
+			}
 			strMode = objCtl_a.mode;
 		}
 	}
@@ -5307,7 +5406,7 @@ function ntcCompile(input_a, objOptions_a)
 				blnHookUsed = true;
 				if (intPass === 1)
 				{
-					arrScanProcCalls.push({ from: strProc, to: objElement.full, mode: 'n', line: intLine, file: strFile });
+					arrScanProcCalls.push({ from: strProc, to: objElement.full, mode: 'n', line: intLine, file: strFile, root: true });
 				}
 				emit('kw_hookon', [procLabel(objElement, 'n') + '_c']);
 				return;
@@ -6635,7 +6734,7 @@ function ntcCompile(input_a, objOptions_a)
 				}
 				objSlot_a.tick = objTick;
 				blnHookUsed = true;
-				arrScanProcCalls.push({ from: '', to: objTick.full, mode: 'n', line: objSlot_a.line, file: objSlot_a.file });
+				arrScanProcCalls.push({ from: '', to: objTick.full, mode: 'n', line: objSlot_a.line, file: objSlot_a.file, root: true });
 			});
 		}
 		compileRecords(arrMainRecs);
@@ -7661,6 +7760,8 @@ function ntcCompile(input_a, objOptions_a)
 		arrScanCalls = [];
 		arrScanReturns = [];
 		arrScanProcCalls = [];
+		objTmpSize = {};
+		objTmpBase = {};
 		objScanFallIn = {};
 		objWritten = {};
 		objProcModes = {};
@@ -7710,6 +7811,7 @@ function ntcCompile(input_a, objOptions_a)
 	// keep the pass 1 errors that only pass 1 can find (labels used twice etc.)
 	decideSubs();
 	decideProcs();
+	decideTempBases();
 
 	// pass 2 - code
 	compilePass(2);
@@ -7797,6 +7899,10 @@ function ntcCompile(input_a, objOptions_a)
 		arrAsm.push(strIndent + 'ld sp, ' + objPlat.stack + '\t\t; the platform\'s own real stack');
 	}
 	arrAsm.push(strIndent + 'ld (ntc_csp), sp');
+	if ((objOptions.platform === 'cpm') && (objProcModes['system.commandline'] !== undefined))
+	{
+		arrAsm.push(strIndent + 'call ntc_cmdsave\t\t; System.CommandLine: the command tail, before anything overwrites it');
+	}
 	if (arrRomEnable !== null)
 	{
 		// RUN" of a binary resets the firmware: the background ROMs (AMSDOS ...) are gone.

@@ -236,6 +236,7 @@ str0:			db "cols ", 0
 str1:			db "CPC minimal firmware", 0
 str2:			db "name? ", 0
 str3:			db "hi ", 0
+str4:			db 0
 
 ; ============================================================
 ; Keyword library (used)

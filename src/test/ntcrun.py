@@ -1,5 +1,6 @@
 # run an NTC program on an emulated host - scratch test tool, not delivered
 #   python3 ntcrun.py prog.bas 'typed\n' [more files] [--turbo] [--platform=cpc|cpcmin|cpcfw|cpm|test] [--ram=64|128|576|4160]
+#   [--cmdline='file.txt'] (CP/M: the command tail at #80, made capitals as CP/M does)
 #   (in the typed text: \n = Return, ~ = one look at the keyboard that finds no key)
 # cpc   : the CPC hardware emulation in cpcrun.py (screen read back from video RAM)
 # cpcmin: the same, with stand-ins for the firmware calls its FileSystem / System.Command make
@@ -312,11 +313,12 @@ class Host:
 
 def main():
     args = sys.argv[1:]
-    plat = 'cpc'; called = False
+    plat = 'cpc'; called = False; cmdline = ''
     for a in list(args):
         if a.startswith('--platform='): plat = a[11:]; args.remove(a)
         if a == '--called': called = True; args.remove(a)   # cpcfw: CALLed from BASIC, AMSDOS still running
         if a.startswith('--ram='): os.environ['NTC_RAM'] = a[6:]; args.remove(a)   # total RAM K: 64, 128 (default), 576 (512K expansion), 4160 (4MB)
+        if a.startswith('--cmdline='): cmdline = a[10:]; args.remove(a)
     bas = args[0]; typed = (args[1] if len(args) > 1 else '').replace('\\n', '\r').replace('\\x7f', '\x7f')
     extra = args[2:]
     asm = bas[:-4] + '.asm'
@@ -332,6 +334,9 @@ def main():
     org = syms.get('ntc_start', 0x100 if plat == 'cpm' else 0x4000)   # the program's org
     h = Host(plat, b, org, typed)
     if called and plat == 'cpcfw': h.amsdos_on()
+    if plat == 'cpm':
+        tail = (' ' + cmdline.upper()).encode() if cmdline else b''
+        h.m.set_memory_block(0x80, bytes([len(tail)]) + tail + b'\0')
     h.run()
     print(h.scr.text())
     print('--- halted' if h.m.halted else '--- NOT halted', 'sp=%04x' % h.m.sp, 'ints=%d' % h.ints, 'T=%d' % h.T)

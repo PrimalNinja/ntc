@@ -354,8 +354,11 @@ ntc_for_lt:
 			ret nc
 			ld sp, hl
 			ret
-; ntc_for_le: jump to the label if var <= limit (loop again)
+; ntc_for_le: jump to the label if var <= limit (loop again). A not 0: the
+; step took var past 32767 (or -32768): the loop ends (ntc_for_ge too)
 ntc_for_le:
+			or a
+			jr nz, ntc_for_end
 			ld a, d
 			xor #80
 			ld d, a
@@ -370,6 +373,8 @@ ntc_for_le:
 			ret
 ; ntc_for_ge: jump to the label if var >= limit (loop again)
 ntc_for_ge:
+			or a
+			jr nz, ntc_for_end
 			ld a, d
 			xor #80
 			ld d, a
@@ -382,6 +387,9 @@ ntc_for_ge:
 			pop hl
 			ret c
 			ld sp, hl
+			ret
+ntc_for_end:
+			pop hl
 			ret
 
 ;## kw_forupl ntc_for_jump
@@ -447,6 +455,11 @@ kw_next1l:
 ntc_n1l_nc:
 			ld d, (hl)
 			pop hl
+			ld a, d					; A = #FF when it went past 32767 (#8000)
+			xor #80
+			or e
+			sub 1
+			sbc a, a
 			jp ntc_for_le
 
 ;## kw_next1v ntc_for_jump
@@ -461,29 +474,37 @@ kw_next1v:
 ntc_n1v_nc:
 			ld d, (hl)
 			pop hl
-			ld a, (hl)
+			ld c, (hl)
 			inc hl
 			ld h, (hl)
-			ld l, a
+			ld l, c
+			ld a, d					; A = #FF when it went past 32767 (#8000)
+			xor #80
+			or e
+			sub 1
+			sbc a, a
 			jp ntc_for_le
 
 ;## ntc_nextadd
-; var += literal step. Pops var and step. Leaves DE = new value.
+; var += literal step. Pops var and step. Leaves DE = new value, A = #FF when
+; it went past 32767 or -32768 (the loop ends), else 0.
 ntc_nextadd:
-			pop bc				; var
-			pop hl				; step
-			ld a, (bc)
-			ld e, a
-			inc bc
-			ld a, (bc)
-			ld d, a
-			add hl, de
+			pop hl				; var
+			pop bc				; step
+			ld e, (hl)
+			inc hl
+			ld d, (hl)
+			ex de, hl
+			or a
+			adc hl, bc			; P/V = past the end of the Integers
 			ex de, hl			; DE = new value
-			ld a, d
-			ld (bc), a
-			dec bc
-			ld a, e
-			ld (bc), a
+			ld (hl), d
+			dec hl
+			ld (hl), e
+			ld a, 0
+			jp po, ntc_na_ok
+			dec a
+ntc_na_ok:
 			jp (ix)
 
 ;## kw_nextupl ntc_nextadd ntc_for_jump
@@ -503,10 +524,10 @@ kw_nextupv:
 			jp ntc_nextadd
 ntc_nuv_back:
 			pop hl
-			ld a, (hl)
+			ld c, (hl)
 			inc hl
 			ld h, (hl)
-			ld l, a
+			ld l, c
 			jp ntc_for_le
 
 ;## kw_nextdnl ntc_nextadd ntc_for_jump
@@ -526,10 +547,10 @@ kw_nextdnv:
 			jp ntc_nextadd
 ntc_ndv_back:
 			pop hl
-			ld a, (hl)
+			ld c, (hl)
 			inc hl
 			ld h, (hl)
-			ld l, a
+			ld l, c
 			jp ntc_for_ge
 
 ;## kw_forentry
@@ -583,9 +604,11 @@ kw_fornext:
 			ld d, (hl)
 			ld l, (ix+0)
 			ld h, (ix+1)
-			add hl, de
+			or a
+			adc hl, de			; P/V = past 32767 or -32768: the loop ends
 			ld (ix+0), l
 			ld (ix+1), h
+			jp pe, ntc_fn_end
 			ld b, d
 			ex de, hl
 			pop hl
@@ -614,6 +637,10 @@ ntc_fn_neg:
 			pop hl
 			ret c
 			ld sp, hl
+			ret
+ntc_fn_end:
+			pop hl
+			pop hl
 			ret
 
 ; ============================================================
@@ -5523,7 +5550,7 @@ ntc_capname:	dw 0
 ; CAS IN / OUT OPEN buffer (CPC firmware) and Memory.Copy's page to page copy
 ntc_buf:		ds 2048
 
-;## ntc_memcore ntc_data ntc_mem @shared
+;## ntc_memcore ntc_data ntc_mem ntc_plat_memtop @shared
 ; ------------------------------------------------------------
 ; ntc_memcore - the Memory class, the part every scheme shares. The scheme
 ; (Option Memory, else the platform's default) is the section ntc_mem -
@@ -5685,6 +5712,19 @@ mem_heapstart:
 			ret
 mem_heapend:
 			ld hl, (mem_hhi)
+			ret
+; ProgramStart(), ProgramEnd() (the first byte after the program and its
+; arrays), Top() (the platform's top of free RAM), StackTop() (the real stack)
+mem_progstart:
+			ld hl, ntc_start
+			ret
+mem_progend:
+			ld hl, ntc_free
+			ret
+mem_top:
+			jp ntc_plat_memtop
+mem_stacktop:
+			ld hl, (ntc_csp)
 			ret
 
 ; mem_atend - Z when HL = mem_hhi (the heap region's end). Keeps BC, DE, HL.

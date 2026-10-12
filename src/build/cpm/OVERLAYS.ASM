@@ -64,28 +64,46 @@ for1_e:
 			dw kw_printint, var_score
 			dw kw_printnl
 
-			; Main.bas 29: Print "In the area: level 1 "; Level1.Loaded(); ", level 2 "; Level2.Loaded()
-			dw fn_level1_loaded, var_level1_loaded_loaded
+			; Main.bas 29: Print "Free after level 1 "; Level1.LocalSize()
+			dw fn_level1_localsize, var_level1_localsize_localsize
 			dw kw_printstrvar, str4
+			dw kw_printint, var_level1_localsize_localsize
+			dw kw_printnl
+
+			; Main.bas 30: Print "Free after level 2 "; Level2.LocalSize()
+			dw fn_level2_localsize, var_level2_localsize_localsize
+			dw kw_printstrvar, str5
+			dw kw_printint, var_level2_localsize_localsize
+			dw kw_printnl
+
+			; Main.bas 31: Print "Heap, largest block "; Memory.Largest()
+			dw fn_memory_largest, var_memory_largest_largest
+			dw kw_printstrvar, str6
+			dw kw_printint, var_memory_largest_largest
+			dw kw_printnl
+
+			; Main.bas 33: Print "In the area: level 1 "; Level1.Loaded(); ", level 2 "; Level2.Loaded()
+			dw fn_level1_loaded, var_level1_loaded_loaded
+			dw kw_printstrvar, str7
 			dw kw_printint, var_level1_loaded_loaded
 			dw fn_level2_loaded, var_level2_loaded_loaded
-			dw kw_printstrvar, str5
+			dw kw_printstrvar, str8
 			dw kw_printint, var_level2_loaded_loaded
 			dw kw_printnl
 
-			; Main.bas 30: Print "Unload level 2: "; Level2.Unload(); " - level 2 "; Level2.Loaded()
+			; Main.bas 34: Print "Unload level 2: "; Level2.Unload(); " - level 2 "; Level2.Loaded()
 			dw fn_level2_unload, var_level2_unload_unload
-			dw kw_printstrvar, str6
+			dw kw_printstrvar, str9
 			dw kw_printint, var_level2_unload_unload
 			dw fn_level2_loaded, var_level2_loaded_loaded
-			dw kw_printstrvar, str7
+			dw kw_printstrvar, str10
 			dw kw_printint, var_level2_loaded_loaded
 			dw kw_printnl
 
-			; Main.bas 36: Print "Press a key";
-			dw kw_printstrvar, str8
+			; Main.bas 40: Print "Press a key";
+			dw kw_printstrvar, str11
 
-			; Main.bas 37: Do While Inkey <> 0 : Loop
+			; Main.bas 41: Do While Inkey <> 0 : Loop
 do4_t:
 			dw kw_inkey, tmp0
 			dw kw_cpnevl, tmp0, 0
@@ -93,7 +111,7 @@ do4_t:
 			dw do4_t_go
 do4_e:
 
-			; Main.bas 38: Do : Frame : Loop Until Inkey <> 0
+			; Main.bas 42: Do : Frame : Loop Until Inkey <> 0
 do5_t:
 			dw kw_frame
 			dw kw_inkey, tmp0
@@ -101,10 +119,10 @@ do5_t:
 			dw kw_goto_iffalse_n, do5_t
 do5_e:
 
-			; Main.bas 39: Print
+			; Main.bas 43: Print
 			dw kw_printnl
 
-			; Main.bas 40: End
+			; Main.bas 44: End
 			dw kw_stop
 
 ; ============================================================
@@ -113,10 +131,10 @@ do5_e:
 
 p_banner:
 
-			; Main.bas 44: Print "== "; text; " =="
-			dw kw_printstrvar, str9
+			; Main.bas 48: Print "== "; text; " =="
+			dw kw_printstrvar, str12
 			dw kw_printstrvar, var_banner_text
-			dw kw_printstrvar, str10
+			dw kw_printstrvar, str13
 			dw kw_printnl
 			dw p_banner_r
 
@@ -246,6 +264,14 @@ fn_level1_loaded:		; function loaded (asm keyword), Level1.cls line 33
 			jp ntc_ovl_kloaded		; Level1.cls 37
 			ret			; end of #asm
 
+fn_level1_localsize:		; function localsize (asm keyword), Level1.cls line 58
+			pop hl		; Level1.cls 59
+			ld de, (#8000 - (ovl_level1_end + ovl_level1_vsize)) & #FFFE		; Level1.cls 60
+			ld (hl), e		; Level1.cls 61
+			inc hl		; Level1.cls 62
+			ld (hl), d		; Level1.cls 63
+			ret			; end of #asm
+
 fn_level2_unload:		; function unload (asm keyword), Level2.cls line 21
 			pop hl		; Level2.cls 22
 			ld (ovl_kres), hl		; Level2.cls 23
@@ -260,6 +286,21 @@ fn_level2_loaded:		; function loaded (asm keyword), Level2.cls line 29
 			jp ntc_ovl_kloaded		; Level2.cls 33
 			ret			; end of #asm
 
+fn_level2_localsize:		; function localsize (asm keyword), Level2.cls line 54
+			pop hl		; Level2.cls 55
+			ld de, (#8000 - (ovl_level2_end + ovl_level2_vsize)) & #FFFE		; Level2.cls 56
+			ld (hl), e		; Level2.cls 57
+			inc hl		; Level2.cls 58
+			ld (hl), d		; Level2.cls 59
+			ret			; end of #asm
+
+fn_memory_largest:		; function largest (asm keyword), Memory.cls line 303
+            pop hl		; Memory.cls 304
+            ld (mem_res), hl		; Memory.cls 305
+            ld hl, mem_largest		; Memory.cls 306
+            jp mem_go		; Memory.cls 307
+			ret			; end of #asm
+
 
 ; ============================================================
 ; Variables
@@ -270,6 +311,9 @@ var_lvl:			dw 0
 var_score:			dw 0
 var_level1_play_play:			dw 0
 var_level2_play_play:			dw 0
+var_level1_localsize_localsize:			dw 0
+var_level2_localsize_localsize:			dw 0
+var_memory_largest_largest:			dw 0
 var_level2_loaded_loaded:			dw 0
 var_level2_unload_unload:			dw 0
 p_banner_rs:			dw 0
@@ -296,19 +340,22 @@ str0:			db "CP/M", 0
 str1:			db "Overlays on CP/M: one overlay area at &4000", 0
 str2:			db "Level 1 loaded: ", 0
 str3:			db "Score ", 0
-str4:			db "In the area: level 1 ", 0
-str5:			db ", level 2 ", 0
-str6:			db "Unload level 2: ", 0
-str7:			db " - level 2 ", 0
-str8:			db "Press a key", 0
-str9:			db "== ", 0
-str10:			db " ==", 0
-str11:			db "Level 1", 0
-str12:			db "  room ", 0
-str13:			db "Level 2", 0
-str14:			db "  score so far ", 0
-str15:			db ", level 1 loaded ", 0
-str16:			db "  bonus from level 1 ", 0
+str4:			db "Free after level 1 ", 0
+str5:			db "Free after level 2 ", 0
+str6:			db "Heap, largest block ", 0
+str7:			db "In the area: level 1 ", 0
+str8:			db ", level 2 ", 0
+str9:			db "Unload level 2: ", 0
+str10:			db " - level 2 ", 0
+str11:			db "Press a key", 0
+str12:			db "== ", 0
+str13:			db " ==", 0
+str14:			db "Level 1", 0
+str15:			db "  room ", 0
+str16:			db "Level 2", 0
+str17:			db "  score so far ", 0
+str18:			db ", level 1 loaded ", 0
+str19:			db "  bonus from level 1 ", 0
 
 ; ============================================================
 ; Keyword library (used)
@@ -406,8 +453,11 @@ ntc_for_lt_n:
 			jp nc, ntc_xn
 			ld sp, hl
 			jp ntc_xn
-; ntc_for_le: jump to the label if var <= limit (loop again)
+; ntc_for_le: jump to the label if var <= limit (loop again). A not 0: the
+; step took var past 32767 (or -32768): the loop ends (ntc_for_ge too)
 ntc_for_le_n:
+			or a
+			jr nz, ntc_for_end_n
 			ld a, d
 			xor #80
 			ld d, a
@@ -422,6 +472,8 @@ ntc_for_le_n:
 			jp ntc_xn
 ; ntc_for_ge: jump to the label if var >= limit (loop again)
 ntc_for_ge_n:
+			or a
+			jr nz, ntc_for_end_n
 			ld a, d
 			xor #80
 			ld d, a
@@ -434,6 +486,9 @@ ntc_for_ge_n:
 			pop hl
 			jp c, ntc_xn
 			ld sp, hl
+			jp ntc_xn
+ntc_for_end_n:
+			pop hl
 			jp ntc_xn
 
 ;## kw_next1l (normal mode copy) ntc_for_jump
@@ -449,6 +504,11 @@ kw_next1l_n:
 ntc_n1l_nc_n:
 			ld d, (hl)
 			pop hl
+			ld a, d					; A = #FF when it went past 32767 (#8000)
+			xor #80
+			or e
+			sub 1
+			sbc a, a
 			jp ntc_for_le_n
 
 ;## kw_ltov
@@ -764,7 +824,7 @@ ntc_cf_none:
 ntc_capres:		dw 0
 ntc_capname:	dw 0
 
-;## ntc_memcore ntc_data ntc_mem @shared
+;## ntc_memcore ntc_data ntc_mem ntc_plat_memtop @shared
 ; ------------------------------------------------------------
 ; ntc_memcore - the Memory class, the part every scheme shares. The scheme
 ; (Option Memory, else the platform's default) is the section ntc_mem -
@@ -926,6 +986,19 @@ mem_heapstart:
 			ret
 mem_heapend:
 			ld hl, (mem_hhi)
+			ret
+; ProgramStart(), ProgramEnd() (the first byte after the program and its
+; arrays), Top() (the platform's top of free RAM), StackTop() (the real stack)
+mem_progstart:
+			ld hl, ntc_start
+			ret
+mem_progend:
+			ld hl, ntc_free
+			ret
+mem_top:
+			jp ntc_plat_memtop
+mem_stacktop:
+			ld hl, (ntc_csp)
 			ret
 
 ; mem_atend - Z when HL = mem_hhi (the heap region's end). Keeps BC, DE, HL.
@@ -3119,14 +3192,14 @@ p_level1_play:
 			; Level1.cls 4: Dim i As Integer
 
 			; Level1.cls 5: Banner "Level 1"
-			dw p_banner_c, str11
+			dw p_banner_c, str14
 
 			; Level1.cls 6: For i = 1 To 3
 			dw kw_ltov, 1, var_level1_play_i
 for6_t:
 
 			; Level1.cls 7: Print "  room "; i
-			dw kw_printstrvar, str12
+			dw kw_printstrvar, str15
 			dw kw_printint, var_level1_play_i
 			dw kw_printnl
 
@@ -3158,19 +3231,19 @@ ovl_level2_start:
 p_level2_play:
 
 			; Level2.cls 5: Banner "Level 2"
-			dw p_banner_c, str13
+			dw p_banner_c, str16
 
 			; Level2.cls 6: Print "  score so far "; score; ", level 1 loaded "; Level1.Loaded()
-			dw kw_printstrvar, str14
+			dw kw_printstrvar, str17
 			dw kw_printint, var_level2_play_score
 			dw fn_level1_loaded, var_level1_loaded_loaded
-			dw kw_printstrvar, str15
+			dw kw_printstrvar, str18
 			dw kw_printint, var_level1_loaded_loaded
 			dw kw_printnl
 
 			; Level2.cls 7: Print "  bonus from level 1 "; Level1.Bonus()
 			dw p_level1_bonus_c
-			dw kw_printstrvar, str16
+			dw kw_printstrvar, str19
 			dw kw_printint, var_level1_bonus_bonus
 			dw kw_printnl
 

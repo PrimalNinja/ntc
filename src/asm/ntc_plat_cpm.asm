@@ -1370,6 +1370,63 @@ fs_capab:
 			ld h, 0
 			ret
 
+;## ntc_plat_cmdline ntc_data
+; the command line (System.CommandLine): the start code copies CP/M's command
+; tail (#80: its length, then the text - CP/M has made it capitals) here first,
+; before a disc call or Input can overwrite it
+ntc_cmdbuf:		ds 128
+; ntc_cmdsave - (call, the start code) #80 into ntc_cmdbuf, 0 ended, without the
+; spaces in front
+ntc_cmdsave:
+			ld hl, #80
+			ld b, (hl)
+			inc hl
+			ld de, ntc_cmdbuf
+			ld a, b
+			or a
+			jr z, ntc_cs_end
+ntc_cs_sp:
+			ld a, (hl)
+			cp ' '
+			jr nz, ntc_cs_cp
+			inc hl
+			djnz ntc_cs_sp
+			jr ntc_cs_end
+ntc_cs_cp:
+			ld a, (hl)
+			ld (de), a
+			inc hl
+			inc de
+			djnz ntc_cs_cp
+ntc_cs_end:
+			xor a
+			ld (de), a
+			ret
+; ntc_cmdget - (on the thread) HL = the result String: the command line, cut at
+; its capacity
+ntc_cmdget:
+			dec hl
+			ld c, (hl)
+			inc hl
+			ex de, hl
+			ld hl, ntc_cmdbuf
+ntc_cg_lp:
+			ld a, (hl)
+			or a
+			jr z, ntc_cg_end
+			inc c
+			dec c
+			jr z, ntc_cg_end
+			ld (de), a
+			inc hl
+			inc de
+			dec c
+			jr ntc_cg_lp
+ntc_cg_end:
+			xor a
+			ld (de), a
+			ret
+
 ;## ntc_plat_memtop
 ; ntc_plat_memtop - HL = the first byte the Memory class's Small heap must not
 ; use: the BDOS (its address is at 6; the CCP below it is free, the program

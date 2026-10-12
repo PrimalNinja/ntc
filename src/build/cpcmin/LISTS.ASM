@@ -440,6 +440,7 @@ glyph_79			equ ntc_font + 712		; "y"
 ; ============================================================
 
 str0:			db "CPC minimal firmware", 0
+str1:			db 0
 
 ; ============================================================
 ; Keyword library (used)
@@ -537,8 +538,11 @@ ntc_for_lt_n:
 			jp nc, ntc_xn
 			ld sp, hl
 			jp ntc_xn
-; ntc_for_le: jump to the label if var <= limit (loop again)
+; ntc_for_le: jump to the label if var <= limit (loop again). A not 0: the
+; step took var past 32767 (or -32768): the loop ends (ntc_for_ge too)
 ntc_for_le_n:
+			or a
+			jr nz, ntc_for_end_n
 			ld a, d
 			xor #80
 			ld d, a
@@ -553,6 +557,8 @@ ntc_for_le_n:
 			jp ntc_xn
 ; ntc_for_ge: jump to the label if var >= limit (loop again)
 ntc_for_ge_n:
+			or a
+			jr nz, ntc_for_end_n
 			ld a, d
 			xor #80
 			ld d, a
@@ -565,6 +571,9 @@ ntc_for_ge_n:
 			pop hl
 			jp c, ntc_xn
 			ld sp, hl
+			jp ntc_xn
+ntc_for_end_n:
+			pop hl
 			jp ntc_xn
 
 ;## kw_next1l (normal mode copy) ntc_for_jump
@@ -580,6 +589,11 @@ kw_next1l_n:
 ntc_n1l_nc_n:
 			ld d, (hl)
 			pop hl
+			ld a, d					; A = #FF when it went past 32767 (#8000)
+			xor #80
+			or e
+			sub 1
+			sbc a, a
 			jp ntc_for_le_n
 
 ;## kw_ltov
@@ -1108,7 +1122,7 @@ ntc_font:		ds 95 * 8
 ; CAS IN / OUT OPEN buffer (CPC firmware) and Memory.Copy's page to page copy
 ntc_buf:		ds 2048
 
-;## ntc_memcore ntc_data ntc_mem @shared
+;## ntc_memcore ntc_data ntc_mem ntc_plat_memtop @shared
 ; ------------------------------------------------------------
 ; ntc_memcore - the Memory class, the part every scheme shares. The scheme
 ; (Option Memory, else the platform's default) is the section ntc_mem -
@@ -1270,6 +1284,19 @@ mem_heapstart:
 			ret
 mem_heapend:
 			ld hl, (mem_hhi)
+			ret
+; ProgramStart(), ProgramEnd() (the first byte after the program and its
+; arrays), Top() (the platform's top of free RAM), StackTop() (the real stack)
+mem_progstart:
+			ld hl, ntc_start
+			ret
+mem_progend:
+			ld hl, ntc_free
+			ret
+mem_top:
+			jp ntc_plat_memtop
+mem_stacktop:
+			ld hl, (ntc_csp)
 			ret
 
 ; mem_atend - Z when HL = mem_hhi (the heap region's end). Keeps BC, DE, HL.
@@ -3845,6 +3872,14 @@ FS_NOTFOUND	equ -2
 FS_TOOBIG	equ -8
 FS_FAILED	equ -9
 FS_BADNAME	equ -4
+
+;## ntc_plat_memtop
+; ntc_plat_memtop - HL = the first byte the Memory class's Small heap must not
+; use: #A600 (the firmware's and AMSDOS's RAM is above). Called on the real
+; stack (call / ret), only by the Memory class.
+ntc_plat_memtop:
+			ld hl, #A600
+			ret
 
 
 ntc_end:				; the end of the program (and of its file)

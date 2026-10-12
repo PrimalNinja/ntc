@@ -29,35 +29,53 @@ ntc_go:
 main_thread:
 			dw kw_scrinit		; mode 1, ROMs off, clear screen
 
-			; main.bas 26: Input "How many nodes (Return = 5000)"; nodes
+			; main.bas 28: Input "Nodes, 2-32767 (Return = 5000)"; want
 			dw kw_printzoscii
-			dw glyph_48, glyph_6F, glyph_77, glyph_20, glyph_6D, glyph_61, glyph_6E, glyph_79
-			dw glyph_20, glyph_6E, glyph_6F, glyph_64, glyph_65, glyph_73, glyph_20, glyph_28
+			dw glyph_4E, glyph_6F, glyph_64, glyph_65, glyph_73, glyph_2C, glyph_20, glyph_32
+			dw glyph_2D, glyph_33, glyph_32, glyph_37, glyph_36, glyph_37, glyph_20, glyph_28
 			dw glyph_52, glyph_65, glyph_74, glyph_75, glyph_72, glyph_6E, glyph_20, glyph_3D
 			dw glyph_20, glyph_35, glyph_30, glyph_30, glyph_30, glyph_29, glyph_3F, glyph_20
-			dw 0		; "How many nodes (Return = 5000)? "
-			dw kw_inputint, var_nodes
+			dw 0		; "Nodes, 2-32767 (Return = 5000)? "
+			dw kw_l_input, var_want
 
-			; main.bas 27: If nodes < 2 Then nodes = 5000
-			dw kw_scpltvl, var_nodes, 2
+			; main.bas 29: If want = 0 Then want = 5000
+			dw kw_l_cpeq, var_want, llit_0
 			dw kw_goto_iffalse_n, if1_1
-			dw kw_ltov, 5000, var_nodes
+			dw kw_l_mov, llit_5000, var_want
 if1_1:
 
-			; main.bas 28: h = List.Create(2)
+			; main.bas 30: If want < 2 Then want = 2
+			dw kw_l_cplt, var_want, llit_2
+			dw kw_goto_iffalse_n, if2_1
+			dw kw_l_mov, llit_2, var_want
+if2_1:
+
+			; main.bas 31: If want > 32767 Then Print "Most is 32767" : want = 32767
+			dw kw_l_cpgt, var_want, llit_32767
+			dw kw_goto_iffalse_n, if3_1
+			dw kw_printzoscii
+			dw glyph_4D, glyph_6F, glyph_73, glyph_74, glyph_20, glyph_69, glyph_73, glyph_20
+			dw glyph_33, glyph_32, glyph_37, glyph_36, glyph_37, 1, 0		; "Most is 32767\n"
+			dw kw_l_mov, llit_32767, var_want
+if3_1:
+
+			; main.bas 32: nodes = want
+			dw kw_l_ltoi, var_want, var_nodes
+
+			; main.bas 33: h = List.Create(2)
 			dw fn_list_create, lit_2, var_h
 
-			; main.bas 29: For i = 1 To nodes
+			; main.bas 34: For i = 1 To nodes
 			dw kw_ltov, 1, var_i
-			dw kw_vtov, var_nodes, for2_l
-			dw kw_forupv_n, var_i, for2_l, for2_e
-for2_t:
+			dw kw_vtov, var_nodes, for4_l
+			dw kw_forupv_n, var_i, for4_l, for4_e
+for4_t:
 
-			; main.bas 30: If List.Append(h) = 0 Then Print "Room for "; i - 1; " nodes" : Exit For
+			; main.bas 35: If List.Append(h) = 0 Then Print "Room for "; i - 1; " nodes" : Exit For
 			dw fn_list_append, var_h, var_list_append_append
 			dw kw_l_mov, var_list_append_append, ltmp0
 			dw kw_l_cpeq, ltmp0, llit_0
-			dw kw_goto_iffalse_n, if3_1
+			dw kw_goto_iffalse_n, if5_1
 			dw kw_addl, var_i, -1, tmp0
 			dw kw_printzoscii
 			dw glyph_52, glyph_6F, glyph_6F, glyph_6D, glyph_20, glyph_66, glyph_6F, glyph_72
@@ -65,26 +83,34 @@ for2_t:
 			dw kw_printint, tmp0
 			dw kw_printzoscii
 			dw glyph_20, glyph_6E, glyph_6F, glyph_64, glyph_65, glyph_73, 1, 0		; " nodes\n"
-			dw for2_e_go
-if3_1:
+			dw for4_e_go
+if5_1:
 
-			; main.bas 31: Next
-			dw kw_next1v_n, var_i, for2_l, for2_t
-for2_e:
+			; main.bas 36: Next
+			dw kw_next1v_n, var_i, for4_l, for4_t
+for4_e:
 
-			; main.bas 32: nodes = List.Count(h)
+			; main.bas 37: nodes = List.Count(h)
 			dw fn_list_count, var_h, var_nodes
 
-			; main.bas 33: seed = 1
+			; main.bas 38: Print "List of "; nodes; " nodes"
+			dw kw_printzoscii
+			dw glyph_4C, glyph_69, glyph_73, glyph_74, glyph_20, glyph_6F, glyph_66, glyph_20
+			dw 0		; "List of "
+			dw kw_printint, var_nodes
+			dw kw_printzoscii
+			dw glyph_20, glyph_6E, glyph_6F, glyph_64, glyph_65, glyph_73, 1, 0		; " nodes\n"
+
+			; main.bas 39: seed = 1
 			dw kw_ltov, 1, var_seed
 
-			; main.bas 34: Do
-do4_t:
+			; main.bas 40: Do
+do6_t:
 
-			; main.bas 35: Print
+			; main.bas 41: Print
 			dw kw_printnl
 
-			; main.bas 36: Print "T = turbo, N = normal, X = exit"
+			; main.bas 42: Print "T = turbo, N = normal, X = exit"
 			dw kw_printzoscii
 			dw glyph_54, glyph_20, glyph_3D, glyph_20, glyph_74, glyph_75, glyph_72, glyph_62
 			dw glyph_6F, glyph_2C, glyph_20, glyph_4E, glyph_20, glyph_3D, glyph_20, glyph_6E
@@ -92,8 +118,8 @@ do4_t:
 			dw glyph_20, glyph_3D, glyph_20, glyph_65, glyph_78, glyph_69, glyph_74, 1
 			dw 0		; "T = turbo, N = normal, X = exit\n"
 
-			; main.bas 37: Do : k = UCase$(Inkey$) : Frame : Loop Until (k = "T") Or (k = "N") Or (k = "X")
-do5_t:
+			; main.bas 43: Do : k = UCase$(Inkey$) : Frame : Loop Until (k = "T") Or (k = "N") Or (k = "X")
+do7_t:
 			dw kw_inkeys, stmp0
 			dw kw_strucase, var_k, stmp0
 			dw kw_frame
@@ -105,27 +131,27 @@ do5_t:
 			dw kw_strcmpeq, var_k, str2
 			dw kw_ftov, tmp1
 			dw kw_orvv, tmp0, tmp1, tmp0
-			dw kw_goto_ifzero_n, tmp0, do5_t
-do5_e:
+			dw kw_goto_ifzero_n, tmp0, do7_t
+do7_e:
 
-			; main.bas 38: If k = "X" Then Exit Do
+			; main.bas 44: If k = "X" Then Exit Do
 			dw kw_strcmpeq, var_k, str2
-			dw kw_goto_iffalse_n, if6_1
-			dw do4_e_go
-if6_1:
+			dw kw_goto_iffalse_n, if8_1
+			dw do6_e_go
+if8_1:
 
-			; main.bas 39: Print IIf(k = "T", "Turbo", "Normal"); ": "; nodes; " nodes..."
+			; main.bas 45: Print IIf(k = "T", "Turbo", "Normal"); ": "; nodes; " nodes..."
 			dw kw_strcmpeq, var_k, str0
 			dw kw_ftov, tmp0
-			dw kw_goto_ifzero_n, tmp0, ch7_0
+			dw kw_goto_ifzero_n, tmp0, ch9_0
 			dw kw_strcpy, stmp0, str3
-			dw ch7_e_go
-ch7_0:
+			dw ch9_e_go
+ch9_0:
 			dw kw_strcpy, stmp0, str4
-			dw ch7_e_go
-ch7_1:
+			dw ch9_e_go
+ch9_1:
 			dw kw_strcpy, stmp0, str5
-ch7_e:
+ch9_e:
 			dw kw_printstrvar, stmp0
 			dw kw_printzoscii
 			dw glyph_3A, glyph_20, 0		; ": "
@@ -134,59 +160,59 @@ ch7_e:
 			dw glyph_20, glyph_6E, glyph_6F, glyph_64, glyph_65, glyph_73, glyph_2E, glyph_2E
 			dw glyph_2E, 1, 0		; " nodes...\n"
 
-			; main.bas 40: t0 = Ticks
+			; main.bas 46: t0 = Ticks
 			dw kw_ticks, tmp0
 			dw kw_vtov, tmp0, var_t0
 
-			; main.bas 41: If k = "T" Then
+			; main.bas 47: If k = "T" Then
 			dw kw_strcmpeq, var_k, str0
-			dw kw_goto_iffalse_n, if8_1
+			dw kw_goto_iffalse_n, if10_1
 
-			; main.bas 42: Turbo On
+			; main.bas 48: Turbo On
 			dw kw_turbo_on
 
-			; main.bas 43: RunSort
+			; main.bas 49: RunSort
 			dw p_runsort_c
 
-			; main.bas 44: Turbo Off
+			; main.bas 50: Turbo Off
 			dw kw_turbo_off
 
-			; main.bas 45: Else
-			dw if8_e_go
-if8_1:
+			; main.bas 51: Else
+			dw if10_e_go
+if10_1:
 
-			; main.bas 46: RunSort
+			; main.bas 52: RunSort
 			dw p_runsort_n_c
 
-			; main.bas 47: End If
-if8_e:
+			; main.bas 53: End If
+if10_e:
 
-			; main.bas 48: Print "Done - stop the stopwatch"
+			; main.bas 54: Print "Done - stop the stopwatch"
 			dw kw_printzoscii
 			dw glyph_44, glyph_6F, glyph_6E, glyph_65, glyph_20, glyph_2D, glyph_20, glyph_73
 			dw glyph_74, glyph_6F, glyph_70, glyph_20, glyph_74, glyph_68, glyph_65, glyph_20
 			dw glyph_73, glyph_74, glyph_6F, glyph_70, glyph_77, glyph_61, glyph_74, glyph_63
 			dw glyph_68, 1, 0		; "Done - stop the stopwatch\n"
 
-			; main.bas 49: Print IIf(ok, "in order", "NOT IN ORDER")
-			dw kw_goto_ifzero_n, var_ok, ch9_0
+			; main.bas 55: Print IIf(ok, "in order", "NOT IN ORDER")
+			dw kw_goto_ifzero_n, var_ok, ch11_0
 			dw kw_strcpy, stmp0, str6
-			dw ch9_e_go
-ch9_0:
+			dw ch11_e_go
+ch11_0:
 			dw kw_strcpy, stmp0, str7
-			dw ch9_e_go
-ch9_1:
+			dw ch11_e_go
+ch11_1:
 			dw kw_strcpy, stmp0, str5
-ch9_e:
+ch11_e:
 			dw kw_printstrvar, stmp0
 			dw kw_printnl
 
-			; main.bas 50: If (k = "N") And (System.TicksPerSecond > 0) Then
+			; main.bas 56: If (k = "N") And (System.TicksPerSecond > 0) Then
 			dw kw_strcmpeq, var_k, str1
 			dw kw_ftov, tmp0
-			dw kw_goto_ifzero_n, tmp0, if10_1
+			dw kw_goto_ifzero_n, tmp0, if12_1
 
-			; main.bas 51: Print "fill "; Secs(t1 - t0); "  sort "; Secs(t2 - t1); "  check "; Secs(t3 - t2)
+			; main.bas 57: Print "fill "; Secs(t1 - t0); "  sort "; Secs(t2 - t1); "  check "; Secs(t3 - t2)
 			dw kw_subvv, var_t1, var_t0, tmp0
 			dw p_secs_c, tmp0
 			dw kw_printzoscii
@@ -205,13 +231,13 @@ ch9_e:
 			dw kw_printstrvar, var_secs_secs
 			dw kw_printnl
 
-			; main.bas 52: ElseIf k = "N" Then
-			dw do4_t_go
-if10_1:
+			; main.bas 58: ElseIf k = "N" Then
+			dw do6_t_go
+if12_1:
 			dw kw_strcmpeq, var_k, str1
-			dw kw_goto_iffalse_n, if10_2
+			dw kw_goto_iffalse_n, if12_2
 
-			; main.bas 53: Print "(no Ticks on this machine: use the stopwatch)"
+			; main.bas 59: Print "(no Ticks on this machine: use the stopwatch)"
 			dw kw_printzoscii
 			dw glyph_28, glyph_6E, glyph_6F, glyph_20, glyph_54, glyph_69, glyph_63, glyph_6B
 			dw glyph_73, glyph_20, glyph_6F, glyph_6E, glyph_20, glyph_74, glyph_68, glyph_69
@@ -220,11 +246,11 @@ if10_1:
 			dw glyph_68, glyph_65, glyph_20, glyph_73, glyph_74, glyph_6F, glyph_70, glyph_77
 			dw glyph_61, glyph_74, glyph_63, glyph_68, glyph_29, 1, 0		; "(no Ticks on this machine: use the stopwatch)\n"
 
-			; main.bas 54: Else
-			dw do4_t_go
-if10_2:
+			; main.bas 60: Else
+			dw do6_t_go
+if12_2:
 
-			; main.bas 55: Print "(turbo: interrupts are off, use the stopwatch)"
+			; main.bas 61: Print "(turbo: interrupts are off, use the stopwatch)"
 			dw kw_printzoscii
 			dw glyph_28, glyph_74, glyph_75, glyph_72, glyph_62, glyph_6F, glyph_3A, glyph_20
 			dw glyph_69, glyph_6E, glyph_74, glyph_65, glyph_72, glyph_72, glyph_75, glyph_70
@@ -233,17 +259,17 @@ if10_2:
 			dw glyph_74, glyph_68, glyph_65, glyph_20, glyph_73, glyph_74, glyph_6F, glyph_70
 			dw glyph_77, glyph_61, glyph_74, glyph_63, glyph_68, glyph_29, 1, 0		; "(turbo: interrupts are off, use the stopwatch)\n"
 
-			; main.bas 56: End If
-if10_e:
+			; main.bas 62: End If
+if12_e:
 
-			; main.bas 57: Loop
-			dw do4_t_go
-do4_e:
+			; main.bas 63: Loop
+			dw do6_t_go
+do6_e:
 
-			; main.bas 58: r = List.Destroy(h)
+			; main.bas 64: r = List.Destroy(h)
 			dw fn_list_destroy, var_h, var_r
 
-			; main.bas 59: End
+			; main.bas 65: End
 			dw kw_stop
 
 ; ============================================================
@@ -252,76 +278,76 @@ do4_e:
 
 p_runsort:
 
-			; main.bas 63: Dim m As Long, prev As Integer, v As Integer
+			; main.bas 69: Dim m As Long, prev As Integer, v As Integer
 
-			; main.bas 64: m = List.First(h)
+			; main.bas 70: m = List.First(h)
 			dw fn_list_first, var_h, var_runsort_m
 
-			; main.bas 65: Do While m <> 0
-do11_t:
+			; main.bas 71: Do While m <> 0
+do13_t:
 			dw kw_l_cpne, var_runsort_m, llit_0
-			dw kw_goto_iffalse, do11_e
+			dw kw_goto_iffalse, do13_e
 
-			; main.bas 66: seed = (seed * 75 + 74) And &H7FFF
+			; main.bas 72: seed = (seed * 75 + 74) And &H7FFF
 			dw kw_mulvl, var_seed, 75, tmp0
 			dw kw_addl, tmp0, 74, tmp0
 			dw kw_andvl, tmp0, 32767, var_seed
 
-			; main.bas 67: List.SetWord m, 0, seed
+			; main.bas 73: List.SetWord m, 0, seed
 			dw fn_list_setword, var_runsort_m, lit_0, var_seed
 
-			; main.bas 68: m = List.NextOf(m)
+			; main.bas 74: m = List.NextOf(m)
 			dw fn_list_nextof, var_runsort_m, var_list_nextof_nextof
 			dw kw_l_mov, var_list_nextof_nextof, var_runsort_m
 
-			; main.bas 69: Loop
-			dw do11_t_go
-do11_e:
+			; main.bas 75: Loop
+			dw do13_t_go
+do13_e:
 
-			; main.bas 70: t1 = Ticks
+			; main.bas 76: t1 = Ticks
 			dw kw_ticks, tmp0
 			dw kw_vtov, tmp0, var_t1
 
-			; main.bas 71: r = List.Sort(h, 0)
+			; main.bas 77: r = List.Sort(h, 0)
 			dw fn_list_sort, var_h, lit_0, var_r
 
-			; main.bas 72: t2 = Ticks
+			; main.bas 78: t2 = Ticks
 			dw kw_ticks, tmp0
 			dw kw_vtov, tmp0, var_t2
 
-			; main.bas 73: ok = -1 : prev = -32768
+			; main.bas 79: ok = -1 : prev = -32768
 			dw kw_ltov, -1, var_ok
 			dw kw_ltov, -32768, var_runsort_prev
 
-			; main.bas 74: m = List.First(h)
+			; main.bas 80: m = List.First(h)
 			dw fn_list_first, var_h, var_runsort_m
 
-			; main.bas 75: Do While m <> 0
-do12_t:
+			; main.bas 81: Do While m <> 0
+do14_t:
 			dw kw_l_cpne, var_runsort_m, llit_0
-			dw kw_goto_iffalse, do12_e
+			dw kw_goto_iffalse, do14_e
 
-			; main.bas 76: v = List.GetWord(m, 0)
+			; main.bas 82: v = List.GetWord(m, 0)
 			dw fn_list_getword, var_runsort_m, lit_0, var_runsort_v
 
-			; main.bas 77: If v < prev Then ok = 0
+			; main.bas 83: If v < prev Then ok = 0
 			dw kw_scpltvv, var_runsort_v, var_runsort_prev
-			dw kw_goto_iffalse, if13_1
+			dw kw_goto_iffalse, if15_1
 			dw kw_ztov, var_ok
-if13_1:
+if15_1:
 
-			; main.bas 78: prev = v
+			; main.bas 84: prev = v
 			dw kw_vtov, var_runsort_v, var_runsort_prev
 
-			; main.bas 79: m = List.NextOf(m)
+			; main.bas 85: m = List.NextOf(m)
 			dw fn_list_nextof, var_runsort_m, var_list_nextof_nextof
 			dw kw_l_mov, var_list_nextof_nextof, var_runsort_m
 
-			; main.bas 80: Loop
-			dw do12_t_go
-do12_e:
+			; main.bas 86: Loop
+			dw do14_t_go
+do14_e:
 
-			; main.bas 81: t3 = Ticks
+			; main.bas 87: t3 = Ticks
 			dw kw_ticks, tmp0
 			dw kw_vtov, tmp0, var_t3
 			dw p_runsort_r
@@ -332,76 +358,76 @@ do12_e:
 
 p_runsort_n:
 
-			; main.bas 63: Dim m As Long, prev As Integer, v As Integer
+			; main.bas 69: Dim m As Long, prev As Integer, v As Integer
 
-			; main.bas 64: m = List.First(h)
+			; main.bas 70: m = List.First(h)
 			dw fn_list_first, var_h, var_runsort_m
 
-			; main.bas 65: Do While m <> 0
-do14_t:
+			; main.bas 71: Do While m <> 0
+do16_t:
 			dw kw_l_cpne, var_runsort_m, llit_0
-			dw kw_goto_iffalse_n, do14_e
+			dw kw_goto_iffalse_n, do16_e
 
-			; main.bas 66: seed = (seed * 75 + 74) And &H7FFF
+			; main.bas 72: seed = (seed * 75 + 74) And &H7FFF
 			dw kw_mulvl, var_seed, 75, tmp0
 			dw kw_addl, tmp0, 74, tmp0
 			dw kw_andvl, tmp0, 32767, var_seed
 
-			; main.bas 67: List.SetWord m, 0, seed
+			; main.bas 73: List.SetWord m, 0, seed
 			dw fn_list_setword, var_runsort_m, lit_0, var_seed
 
-			; main.bas 68: m = List.NextOf(m)
+			; main.bas 74: m = List.NextOf(m)
 			dw fn_list_nextof, var_runsort_m, var_list_nextof_nextof
 			dw kw_l_mov, var_list_nextof_nextof, var_runsort_m
 
-			; main.bas 69: Loop
-			dw do14_t_go
-do14_e:
+			; main.bas 75: Loop
+			dw do16_t_go
+do16_e:
 
-			; main.bas 70: t1 = Ticks
+			; main.bas 76: t1 = Ticks
 			dw kw_ticks, tmp0
 			dw kw_vtov, tmp0, var_t1
 
-			; main.bas 71: r = List.Sort(h, 0)
+			; main.bas 77: r = List.Sort(h, 0)
 			dw fn_list_sort, var_h, lit_0, var_r
 
-			; main.bas 72: t2 = Ticks
+			; main.bas 78: t2 = Ticks
 			dw kw_ticks, tmp0
 			dw kw_vtov, tmp0, var_t2
 
-			; main.bas 73: ok = -1 : prev = -32768
+			; main.bas 79: ok = -1 : prev = -32768
 			dw kw_ltov, -1, var_ok
 			dw kw_ltov, -32768, var_runsort_prev
 
-			; main.bas 74: m = List.First(h)
+			; main.bas 80: m = List.First(h)
 			dw fn_list_first, var_h, var_runsort_m
 
-			; main.bas 75: Do While m <> 0
-do15_t:
+			; main.bas 81: Do While m <> 0
+do17_t:
 			dw kw_l_cpne, var_runsort_m, llit_0
-			dw kw_goto_iffalse_n, do15_e
+			dw kw_goto_iffalse_n, do17_e
 
-			; main.bas 76: v = List.GetWord(m, 0)
+			; main.bas 82: v = List.GetWord(m, 0)
 			dw fn_list_getword, var_runsort_m, lit_0, var_runsort_v
 
-			; main.bas 77: If v < prev Then ok = 0
+			; main.bas 83: If v < prev Then ok = 0
 			dw kw_scpltvv, var_runsort_v, var_runsort_prev
-			dw kw_goto_iffalse_n, if16_1
+			dw kw_goto_iffalse_n, if18_1
 			dw kw_ztov, var_ok
-if16_1:
+if18_1:
 
-			; main.bas 78: prev = v
+			; main.bas 84: prev = v
 			dw kw_vtov, var_runsort_v, var_runsort_prev
 
-			; main.bas 79: m = List.NextOf(m)
+			; main.bas 85: m = List.NextOf(m)
 			dw fn_list_nextof, var_runsort_m, var_list_nextof_nextof
 			dw kw_l_mov, var_list_nextof_nextof, var_runsort_m
 
-			; main.bas 80: Loop
-			dw do15_t_go
-do15_e:
+			; main.bas 86: Loop
+			dw do17_t_go
+do17_e:
 
-			; main.bas 81: t3 = Ticks
+			; main.bas 87: t3 = Ticks
 			dw kw_ticks, tmp0
 			dw kw_vtov, tmp0, var_t3
 			dw p_runsort_n_r
@@ -412,7 +438,7 @@ do15_e:
 
 p_secs:
 
-			; main.bas 85: Secs = Str$(t \ System.TicksPerSecond) + "." + Mid$(Str$(100 + (t Mod System.TicksPerSecond) * 100 \ System.TicksPerSecond), 3) + "s"
+			; main.bas 91: Secs = Str$(t \ System.TicksPerSecond) + "." + Mid$(Str$(100 + (t Mod System.TicksPerSecond) * 100 \ System.TicksPerSecond), 3) + "s"
 			dw kw_divvl, var_secs_t, 300, tmp0
 			dw kw_strstr, stmp0, tmp0
 			dw kw_strcat, stmp0, str8
@@ -436,25 +462,25 @@ p_secs:
 ;   turbo mode ends with ret, normal mode with jp ntc_xn
 ; ============================================================
 
-for2_e_go:			ld sp, for2_e
+for4_e_go:			ld sp, for4_e
 			jp ntc_xn
-do4_e_go:			ld sp, do4_e
-			jp ntc_xn
-ch7_e_go:			ld sp, ch7_e
-			jp ntc_xn
-if8_e_go:			ld sp, if8_e
+do6_e_go:			ld sp, do6_e
 			jp ntc_xn
 ch9_e_go:			ld sp, ch9_e
 			jp ntc_xn
-do4_t_go:			ld sp, do4_t
+if10_e_go:			ld sp, if10_e
 			jp ntc_xn
-do11_t_go:			ld sp, do11_t
-			ret
-do12_t_go:			ld sp, do12_t
+ch11_e_go:			ld sp, ch11_e
+			jp ntc_xn
+do6_t_go:			ld sp, do6_t
+			jp ntc_xn
+do13_t_go:			ld sp, do13_t
 			ret
 do14_t_go:			ld sp, do14_t
+			ret
+do16_t_go:			ld sp, do16_t
 			jp ntc_xn
-do15_t_go:			ld sp, do15_t
+do17_t_go:			ld sp, do17_t
 			jp ntc_xn
 
 p_runsort_c:		; call runsort (turbo)
@@ -611,10 +637,11 @@ fn_list_destroy:		; function destroy (asm keyword), List.cls line 252
 ; Variables
 ; ============================================================
 
+var_want:			dw 0, 0
 var_nodes:			dw 0
 var_h:			dw 0, 0
 var_i:			dw 0
-for2_l:			dw 0
+for4_l:			dw 0
 var_list_append_append:			dw 0, 0
 var_seed:			dw 0
 			db 40			; capacity
@@ -644,8 +671,11 @@ stmp1:			ds 41
 ltmp0:			dw 0, 0
 
 ; numbers passed by address (read only)
-lit_2:			dw 2
 llit_0:			dw 0, 0
+llit_5000:			dw 5000, 0
+llit_2:			dw 2, 0
+llit_32767:			dw 32767, 0
+lit_2:			dw 2
 lit_0:			dw 0
 lit_3:			dw 3
 lit_255:			dw 255
@@ -661,12 +691,17 @@ glyph_2C			equ ntc_font + 96		; ","
 glyph_2D			equ ntc_font + 104		; "-"
 glyph_2E			equ ntc_font + 112		; "."
 glyph_30			equ ntc_font + 128		; "0"
+glyph_32			equ ntc_font + 144		; "2"
+glyph_33			equ ntc_font + 152		; "3"
 glyph_35			equ ntc_font + 168		; "5"
+glyph_36			equ ntc_font + 176		; "6"
+glyph_37			equ ntc_font + 184		; "7"
 glyph_3A			equ ntc_font + 208		; ":"
 glyph_3D			equ ntc_font + 232		; "="
 glyph_3F			equ ntc_font + 248		; "?"
 glyph_44			equ ntc_font + 288		; "D"
-glyph_48			equ ntc_font + 320		; "H"
+glyph_4C			equ ntc_font + 352		; "L"
+glyph_4D			equ ntc_font + 360		; "M"
 glyph_4E			equ ntc_font + 368		; "N"
 glyph_52			equ ntc_font + 400		; "R"
 glyph_54			equ ntc_font + 416		; "T"
@@ -691,7 +726,6 @@ glyph_74			equ ntc_font + 672		; "t"
 glyph_75			equ ntc_font + 680		; "u"
 glyph_77			equ ntc_font + 696		; "w"
 glyph_78			equ ntc_font + 704		; "x"
-glyph_79			equ ntc_font + 712		; "y"
 
 ; ============================================================
 ; Strings
@@ -839,8 +873,11 @@ ntc_for_lt_n:
 			jp nc, ntc_xn
 			ld sp, hl
 			jp ntc_xn
-; ntc_for_le: jump to the label if var <= limit (loop again)
+; ntc_for_le: jump to the label if var <= limit (loop again). A not 0: the
+; step took var past 32767 (or -32768): the loop ends (ntc_for_ge too)
 ntc_for_le_n:
+			or a
+			jr nz, ntc_for_end_n
 			ld a, d
 			xor #80
 			ld d, a
@@ -855,6 +892,8 @@ ntc_for_le_n:
 			jp ntc_xn
 ; ntc_for_ge: jump to the label if var >= limit (loop again)
 ntc_for_ge_n:
+			or a
+			jr nz, ntc_for_end_n
 			ld a, d
 			xor #80
 			ld d, a
@@ -867,6 +906,9 @@ ntc_for_ge_n:
 			pop hl
 			jp c, ntc_xn
 			ld sp, hl
+			jp ntc_xn
+ntc_for_end_n:
+			pop hl
 			jp ntc_xn
 
 ;## kw_forupv (normal mode copy) ntc_for_jump
@@ -895,10 +937,15 @@ kw_next1v_n:
 ntc_n1v_nc_n:
 			ld d, (hl)
 			pop hl
-			ld a, (hl)
+			ld c, (hl)
 			inc hl
 			ld h, (hl)
-			ld l, a
+			ld l, c
+			ld a, d					; A = #FF when it went past 32767 (#8000)
+			xor #80
+			or e
+			sub 1
+			sbc a, a
 			jp ntc_for_le_n
 
 ;## kw_ltov
@@ -1243,16 +1290,6 @@ kw_scpltvv:
 			ld l, a
 			jp ntc_cmp_slt
 
-;## kw_scpltvl ntc_cmp
-;kw_scpltvl, <var>, <literal>
-kw_scpltvl:
-			pop hl
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			pop hl
-			jp ntc_cmp_slt
-
 ;## kw_strcpy
 ;kw_strcpy, <destaddr>, <srcaddr>  - cut at the destination's capacity byte
 kw_strcpy:
@@ -1495,104 +1532,6 @@ ntc_gs_done:
 			ld ix, (ntc_ilink)
 			jp ntc_plat_newline
 
-;## kw_inputint ntc_gets ntc_atoi
-;kw_inputint, <var>  - signed decimal, stops at the first non digit
-kw_inputint:
-			pop hl
-			ld (ntc_ivar), hl
-			ld hl, ntc_inbuf
-			ld de, ntc_atoi
-			jp ntc_gets
-
-;## ntc_atoi ntc_data
-; text to number into the var at (ntc_ivar). ntc_atoi reads ntc_inbuf,
-; ntc_atoi_hl reads HL. Spaces first, then - , then digits (or &H hex).
-ntc_atoi:
-			ld hl, ntc_inbuf
-ntc_atoi_hl:
-			ld a, (hl)
-			cp ' '
-			jr nz, ntc_atoi_sign
-			inc hl
-			jr ntc_atoi_hl
-ntc_atoi_sign:
-			ld c, 0
-			cp '-'
-			jr nz, ntc_atoi_amp
-			inc c
-			inc hl
-			ld a, (hl)
-ntc_atoi_amp:
-			ld de, 0
-			cp '&'
-			jr nz, ntc_atoi_loop
-			inc hl
-			ld a, (hl)
-			or #20
-			cp 'h'
-			jr nz, ntc_atoi_done
-			inc hl
-ntc_atoi_hex:
-			ld a, (hl)
-			sub '0'
-			jr c, ntc_atoi_done
-			cp 10
-			jr c, ntc_atoi_hd
-			or #20
-			sub 'a' - '0'
-			jr c, ntc_atoi_done
-			cp 6
-			jr nc, ntc_atoi_done
-			add a, 10
-ntc_atoi_hd:
-			ex de, hl
-			add hl, hl
-			add hl, hl
-			add hl, hl
-			add hl, hl
-			or l
-			ld l, a
-			ex de, hl
-			inc hl
-			jr ntc_atoi_hex
-ntc_atoi_loop:
-			ld a, (hl)
-			sub '0'
-			jr c, ntc_atoi_done
-			cp 10
-			jr nc, ntc_atoi_done
-			ld (ntc_aptr), hl
-			ex de, hl
-			ld d, h
-			ld e, l
-			add hl, hl
-			add hl, hl
-			add hl, de
-			add hl, hl
-			ld e, a
-			ld d, 0
-			add hl, de
-			ex de, hl
-			ld hl, (ntc_aptr)
-			inc hl
-			jr ntc_atoi_loop
-ntc_atoi_done:
-			ld a, c
-			or a
-			jr z, ntc_atoi_store
-			xor a
-			sub e
-			ld e, a
-			sbc a, a
-			sub d
-			ld d, a
-ntc_atoi_store:
-			ld hl, (ntc_ivar)
-			ld (hl), e
-			inc hl
-			ld (hl), d
-			ret
-
 ;## kw_inkeys ntc_data ntc_plat_key
 ;kw_inkeys, <dest>  - Inkey$: the new key press as a string, "" if none
 kw_inkeys:
@@ -1783,6 +1722,15 @@ kw_l_mov:
 			ldi
 			ret
 
+;## kw_l_ltoi
+;kw_l_ltoi, <long>, <intdest>  - Long to Integer (low 16 bits)
+kw_l_ltoi:
+			pop hl
+			pop de
+			ldi
+			ldi
+			ret
+
 ;## ntc_lcmp ntc_ldata
 ; DE = a, HL = b: work out a - b. ntc_lsgn = #80 if a < b (signed),
 ; ntc_lcnt = 0 if a = b. jp (ix) back.
@@ -1823,6 +1771,18 @@ ntc_lcm_nov:
 			ld (ntc_lcnt), a
 			jp (ix)
 
+;## kw_l_cplt ntc_lcmp
+;kw_l_cplt, <a>, <b>  - Z if a < b
+kw_l_cplt:
+			pop de
+			pop hl
+			ld ix, ntc_lclt
+			jp ntc_lcmp
+ntc_lclt:
+			ld a, (ntc_lsgn)
+			xor #80
+			ret
+
 ;## kw_l_cpeq ntc_lcmp
 ;kw_l_cpeq, <a>, <b>  - Z if a = b
 kw_l_cpeq:
@@ -1852,6 +1812,165 @@ ntc_lcne_f:
 			or 1
 			ret
 
+;## kw_l_cpgt ntc_lcmp
+;kw_l_cpgt, <a>, <b>  - Z if a > b
+kw_l_cpgt:
+			pop de
+			pop hl
+			ld ix, ntc_lcgt
+			jp ntc_lcmp
+ntc_lcgt:
+			ld a, (ntc_lcnt)
+			or a
+			jr z, ntc_lcgt_f
+			ld a, (ntc_lsgn)
+			or a
+			ret
+ntc_lcgt_f:
+			or 1
+			ret
+
+;## kw_l_val ntc_ldata ntc_data
+;kw_l_val, <src>, <destlong>  - Val() to a Long (decimal)
+kw_l_val:
+			pop hl
+			pop de
+			ld (ntc_ldst), de
+ntc_lv_go:
+			ld de, 0
+			ld (ntc_la), de
+			ld (ntc_la+2), de
+ntc_lv_sp:
+			ld a, (hl)
+			cp ' '
+			jr nz, ntc_lv_sg
+			inc hl
+			jr ntc_lv_sp
+ntc_lv_sg:
+			xor a
+			ld (ntc_lsgn), a
+			ld a, (hl)
+			cp '-'
+			jr nz, ntc_lv_dig
+			ld a, 1
+			ld (ntc_lsgn), a
+			inc hl
+ntc_lv_dig:
+			ld a, (hl)
+			sub '0'
+			jr c, ntc_lv_done
+			cp 10
+			jr nc, ntc_lv_done
+			ld (ntc_lcnt), a
+			ld (ntc_aptr), hl
+			ld hl, ntc_la
+			sla (hl)
+			inc hl
+			rl (hl)
+			inc hl
+			rl (hl)
+			inc hl
+			rl (hl)
+			ld hl, (ntc_la)
+			ld (ntc_lt), hl
+			ld hl, (ntc_la+2)
+			ld (ntc_lt+2), hl
+			ld hl, ntc_la
+			sla (hl)
+			inc hl
+			rl (hl)
+			inc hl
+			rl (hl)
+			inc hl
+			rl (hl)
+			ld hl, ntc_la
+			sla (hl)
+			inc hl
+			rl (hl)
+			inc hl
+			rl (hl)
+			inc hl
+			rl (hl)
+			ld de, ntc_lt
+			ld hl, ntc_la
+			ld a, (de)
+			add a, (hl)
+			ld (hl), a
+			inc de
+			inc hl
+			ld a, (de)
+			adc a, (hl)
+			ld (hl), a
+			inc de
+			inc hl
+			ld a, (de)
+			adc a, (hl)
+			ld (hl), a
+			inc de
+			inc hl
+			ld a, (de)
+			adc a, (hl)
+			ld (hl), a
+			ld hl, ntc_la
+			ld a, (ntc_lcnt)
+			add a, (hl)
+			ld (hl), a
+			inc hl
+			ld a, 0
+			adc a, (hl)
+			ld (hl), a
+			inc hl
+			ld a, 0
+			adc a, (hl)
+			ld (hl), a
+			inc hl
+			ld a, 0
+			adc a, (hl)
+			ld (hl), a
+			ld hl, (ntc_aptr)
+			inc hl
+			jr ntc_lv_dig
+ntc_lv_done:
+			ld a, (ntc_lsgn)
+			or a
+			jr z, ntc_lv_st
+			ld hl, ntc_la
+			xor a
+			sub (hl)
+			ld (hl), a
+			inc hl
+			ld a, 0
+			sbc a, (hl)
+			ld (hl), a
+			inc hl
+			ld a, 0
+			sbc a, (hl)
+			ld (hl), a
+			inc hl
+			ld a, 0
+			sbc a, (hl)
+			ld (hl), a
+ntc_lv_st:
+			ld hl, ntc_la
+			ld de, (ntc_ldst)
+			ldi
+			ldi
+			ldi
+			ldi
+			ret
+
+;## kw_l_input ntc_gets kw_l_val
+;kw_l_input, <destlong>  - Input to a Long
+kw_l_input:
+			pop hl
+			ld (ntc_ldst), hl
+			ld hl, ntc_inbuf
+			ld de, ntc_lin_back
+			jp ntc_gets
+ntc_lin_back:
+			ld hl, ntc_inbuf
+			jp ntc_lv_go
+
 ;## ntc_font
 ; 8x8 font buffer, chars 32-126, 8 bytes each, bit 7 = leftmost pixel.
 ; The platform fills it at start: the CPC copies its own font from the
@@ -1868,7 +1987,7 @@ ntc_font:		ds 95 * 8
 ; CAS IN / OUT OPEN buffer (CPC firmware) and Memory.Copy's page to page copy
 ntc_buf:		ds 2048
 
-;## ntc_memcore ntc_data ntc_mem @shared
+;## ntc_memcore ntc_data ntc_mem ntc_plat_memtop @shared
 ; ------------------------------------------------------------
 ; ntc_memcore - the Memory class, the part every scheme shares. The scheme
 ; (Option Memory, else the platform's default) is the section ntc_mem -
@@ -2030,6 +2149,19 @@ mem_heapstart:
 			ret
 mem_heapend:
 			ld hl, (mem_hhi)
+			ret
+; ProgramStart(), ProgramEnd() (the first byte after the program and its
+; arrays), Top() (the platform's top of free RAM), StackTop() (the real stack)
+mem_progstart:
+			ld hl, ntc_start
+			ret
+mem_progend:
+			ld hl, ntc_free
+			ret
+mem_top:
+			jp ntc_plat_memtop
+mem_stacktop:
+			ld hl, (ntc_csp)
 			ret
 
 ; mem_atend - Z when HL = mem_hhi (the heap region's end). Keeps BC, DE, HL.
@@ -4614,6 +4746,14 @@ FS_TOOBIG	equ -8
 FS_FAILED	equ -9
 FS_BADNAME	equ -4
 
+;## ntc_plat_memtop
+; ntc_plat_memtop - HL = the first byte the Memory class's Small heap must not
+; use: #A600 (the firmware's and AMSDOS's RAM is above). Called on the real
+; stack (call / ret), only by the Memory class.
+ntc_plat_memtop:
+			ld hl, #A600
+			ret
+
 
 ntc_end:				; the end of the program (and of its file)
 ; arrays: after the program, not in its file - kw_bssinit checks they fit and clears them
@@ -4621,5 +4761,5 @@ ntc_bss		equ ntc_end
 ntc_bss_size	equ 0
 ntc_free	equ ntc_bss + ntc_bss_size	; the first free byte (heap, Memory tables)
 ; Option Reserve: the program and its arrays (ntc_start .. ntc_free) must stay out of these
-			ASSERT (ntc_free <= 16384) || (ntc_start >= 32768), "the program (or its arrays) reaches into Option Reserve #4000-#7FFF (main.bas line 18)"
+			ASSERT (ntc_free <= 16384) || (ntc_start >= 32768), "the program (or its arrays) reaches into Option Reserve #4000-#7FFF (main.bas line 19)"
 			SAVEAMSDOS "SORTTIME.BIN", ntc_start, ntc_end - ntc_start, ntc_start

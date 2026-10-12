@@ -104,10 +104,10 @@ do1_e:
 p_stdio_putstr:
 
 			; StdIO.cls 6: Print "<"; UCase$(s); ">";
-			dw kw_strucase, stmp0, var_stdio_putstr_s
+			dw kw_strucase, stmp1, var_stdio_putstr_s
 			dw kw_printzoscii
 			dw glyph_3C, 0		; "<"
-			dw kw_printstrvar, stmp0
+			dw kw_printstrvar, stmp1
 			dw kw_printzoscii
 			dw glyph_3E, 0		; ">"
 			dw p_stdio_putstr_r
@@ -316,6 +316,8 @@ var_stdio_locate_y:			dw 0
 tmp0:			dw 0
 			db 40			; capacity
 stmp0:			ds 41
+			db 40			; capacity
+stmp1:			ds 41
 
 ; numbers passed by address (read only)
 lit_3:			dw 3

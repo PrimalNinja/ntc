@@ -25,6 +25,10 @@ For lvl = 1 To 2
   If lvl = 2 Then score = score + Level2.Play(score)
 Next
 Print "Score "; score
+' the room each overlay leaves after its code (its local memory: LocalAlloc), and the heap
+Print "Free after level 1 "; Level1.LocalSize()
+Print "Free after level 2 "; Level2.LocalSize()
+Print "Heap, largest block "; Memory.Largest()
 #If NTC_MEM_SMALL Then
 Print "In the area: level 1 "; Level1.Loaded(); ", level 2 "; Level2.Loaded()
 Print "Unload level 2: "; Level2.Unload(); " - level 2 "; Level2.Loaded()

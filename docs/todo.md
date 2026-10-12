@@ -304,6 +304,32 @@ finished, with the date.
   times a program at the real CPC's speed (gate array stretching, interrupts every 3333
   microseconds). Found: turbo and normal differ by about 5% here - the List calls (about
   600 microseconds each) take most of the time. Next: faster List calls
+- 2026-10-12 MEMMAP: both screens start with the RAM size, pages, 64K banks and model
+- 2026-10-12 a block part that ends in another turbo mode than the block started in (Turbo On
+  ... Turbo Off with the start mode set to turbo) is no longer an error: the compiler switches
+  back to the block's mode at the end of that part, with a warning (a procedure still must end
+  in its mode)
+- 2026-10-12 **tutorial** (`docs/tutorial/`, 77 pages 1.1-14.4: the IDE, Hello World,
+  calculations, flow, options, StdIO, System, FileSystem, Memory, List, classes, paging and
+  overlays, overlay classes, interrupt handlers); `test/tutcheck.py` compiles every example and
+  runs the ones that show output (in regress.sh). GUI: **AMSDOS .BIN** setting (CPC platforms:
+  Save .asm assembles straight to NAME.BIN with its header)
+- 2026-10-12 **System.HasCapability(name)** (COMMANDLINE, SCREEN, KEYBOARD, CLOCK, HOOK,
+  INTERRUPTCLASSES, PAGES, FILES, ROMCOMMANDS, OVERLAYS) and **System.CommandLine** (CP/M: the
+  command tail, copied aside by the start code when used; "" elsewhere). Demo CMDLINE;
+  ntcrun `--cmdline=`. **Memory.ProgramStart / ProgramEnd / Top / StackTop**; MEMMAP draws
+  main memory up to the top (the TPA end on CP/M) with the free RAM; OVERLAYS shows the room
+  after each overlay
+- 2026-10-12 fix: a Function called inside an expression overwrote the caller's temps when
+  it used temps itself (`U(a) - U(b)` with a Long Function gave the wrong answer). Pass 1
+  now notes each procedure's temps and, per call, the temps the caller still holds; pass 2
+  puts the callee's temps above them (decideTempBases). Interrupt Ticks / hooks and AddressOf
+  targets go above everything. Calls at the start of an expression cost nothing. Test `temps`
+- 2026-10-12 fix: an Integer For loop to 32767 (or down to -32768) looped for ever - the step
+  wrapped round; now the Next keywords see the overflow and end the loop (test `for_end`).
+  The turbo / normal timing demos say `Option Turbo Off` (with the turbo setting on, their
+  If ... Turbo On ... Turbo Off ... Else was an error); the mode error now names both modes.
+  SORTTIME takes up to 32767 nodes (35000 overflowed the Integer and gave 5000)
 - 2026-10-12 **one overlay area** for overlay classes on cpm and on cpcmin / cpcfw with
   Option Memory Small (64K CPCs): one class at a time at #4000-#7FFF, a call loads its class
   over the one there, a return loads the caller's class again if it was swapped out; Load /

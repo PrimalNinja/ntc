@@ -4,8 +4,8 @@
 
 What NTC is, how the NTC BASIC compiler works now (VB5/VB6 style front end, turbo and
 normal modes, project explorer), and the language it takes. Progress is tracked in
-`todo.md`. The full language reference, keyword by keyword, is `userguide.md`. These three
-are in `docs/`; file and folder names in them (`js/`, `asm/`, `bas/`, `test/` ...) are in `src/`.
+`todo.md`. The full language reference, keyword by keyword, is `userguide.md`; a step by step
+tutorial, one small page per topic, is in `tutorial/`. These are in `docs/`; file and folder names in them (`js/`, `asm/`, `bas/`, `test/` ...) are in `src/`.
 
 ---
 
@@ -257,6 +257,7 @@ Files (ES5, no node, no Python):
 | `lib/<platform>/*.cls` | the platform classes: `StdIO.cls` (console), `System.cls` (what the machine is), `FileSystem.cls` (files), `Memory.cls` (RAM pages, heap), `List.cls` (linked lists) |
 | `../docs/requirements.md` | What you need to use NTC, rebuild its generated files and run the tests; the targets it builds for |
 | `../docs/userguide.md` | Language reference: every keyword by topic, with an example and its VB5 / VB6 differences |
+| `../docs/tutorial/` | The tutorial: 77 small pages (1.1 the IDE ... 14.4 a game loop in a Tick), contents in `README.md`; every example is checked by `test/tutcheck.py` |
 | `build/` | Test builds: every program in `bas/` compiled for every platform (`.ASM`), and `build.bat` to assemble them all with sjasmplus on Windows / MS-DOS (CPC: AMSDOS `.BIN` files, CP/M: `.COM`) |
 | `compare/smallc/` | The sieve (`bas/sievetime.bas`) in Small C, as Z80 source, for timing NTC against a classic Z80 C compiler (results in its README) |
 | `compare/bench/` | The speed comparison programs (section 3): NTC, Small C, BBC BASIC, hand Z80 |
@@ -290,6 +291,13 @@ Files (ES5, no node, no Python):
   procedure calls and the mode at each call. Then: GOSUB keyword forms, the call graph (no
   recursion), and which modes each procedure is needed in. Pass 2 emits the code.
 - A procedure nobody calls is compiled for its errors, then dropped.
+- Temps are numbered from 0 in each statement. A Function called inside an expression would
+  overwrite the caller's temps that still hold values (`U(a) - U(b)`), so pass 1 notes each
+  procedure's temp count and, at each call, the slot the caller has reached (`live`); after
+  pass 1 `decideTempBases` gives each procedure a first slot above its callers' live temps,
+  and `tmp()` / `stmp()` / `ltmp()` add it in pass 2. Calls with nothing live cost nothing;
+  interrupt Ticks, `Interrupt` hooks and `AddressOf` targets (they can run at any point) go
+  above everything.
 - Peephole: branch to a GOTO goes straight to its target, a GOTO to the next label goes,
   code after GOTO / End / Return / procedure end up to the next label goes.
 - Only the library sections the program uses get linked, plus their dependencies, once per
@@ -875,6 +883,21 @@ same way as `cpcrun.py` prints the CPC screen (so the same `ref/` files fit):
   `test/t/files` (or `$NTC_FILES`)
 
 These are much faster than the CPC emulation (no screen to read back from video RAM).
+
+### tutcheck.py - check the tutorial
+
+```
+python3 tutcheck.py              every page of docs/tutorial
+python3 tutcheck.py 8.3 13.5     only those pages
+```
+
+Every ```` ```basic ```` block in the tutorial is compiled; one followed by a ```` ```text ````
+block is run with `ntcrun.py` and must print exactly that. HTML comments steer it (they don't
+show when the page is read): `<!-- file: Counter.cls -->` makes the next block an extra file
+for the program after it; `<!-- platform: cpm -->` compiles there; `<!-- run: cpm keys="Ann\n"
+cmdline="x" ram=576 files="NOTES.TXT=line\n" -->` runs there with typed keys, a CP/M command
+tail, the RAM size and files on the disc; `<!-- nocheck -->` skips a fragment. Part of
+`regress.sh`.
 
 ### regress.sh - the regression run
 

@@ -1301,6 +1301,7 @@ str55:			db ") ", 0
 str56:			db "FAIL[", 0
 str57:			db "] ", 0
 str58:			db "banana", 0
+str59:			db 0
 
 ; ============================================================
 ; Keyword library (used)
@@ -1429,8 +1430,11 @@ ntc_for_lt:
 			ret nc
 			ld sp, hl
 			ret
-; ntc_for_le: jump to the label if var <= limit (loop again)
+; ntc_for_le: jump to the label if var <= limit (loop again). A not 0: the
+; step took var past 32767 (or -32768): the loop ends (ntc_for_ge too)
 ntc_for_le:
+			or a
+			jr nz, ntc_for_end
 			ld a, d
 			xor #80
 			ld d, a
@@ -1445,6 +1449,8 @@ ntc_for_le:
 			ret
 ; ntc_for_ge: jump to the label if var >= limit (loop again)
 ntc_for_ge:
+			or a
+			jr nz, ntc_for_end
 			ld a, d
 			xor #80
 			ld d, a
@@ -1457,6 +1463,9 @@ ntc_for_ge:
 			pop hl
 			ret c
 			ld sp, hl
+			ret
+ntc_for_end:
+			pop hl
 			ret
 
 ;## ntc_for_jump (normal mode copy)
@@ -1491,8 +1500,11 @@ ntc_for_lt_n:
 			jp nc, ntc_xn
 			ld sp, hl
 			jp ntc_xn
-; ntc_for_le: jump to the label if var <= limit (loop again)
+; ntc_for_le: jump to the label if var <= limit (loop again). A not 0: the
+; step took var past 32767 (or -32768): the loop ends (ntc_for_ge too)
 ntc_for_le_n:
+			or a
+			jr nz, ntc_for_end_n
 			ld a, d
 			xor #80
 			ld d, a
@@ -1507,6 +1519,8 @@ ntc_for_le_n:
 			jp ntc_xn
 ; ntc_for_ge: jump to the label if var >= limit (loop again)
 ntc_for_ge_n:
+			or a
+			jr nz, ntc_for_end_n
 			ld a, d
 			xor #80
 			ld d, a
@@ -1519,6 +1533,9 @@ ntc_for_ge_n:
 			pop hl
 			jp c, ntc_xn
 			ld sp, hl
+			jp ntc_xn
+ntc_for_end_n:
+			pop hl
 			jp ntc_xn
 
 ;## kw_next1l ntc_for_jump
@@ -1534,6 +1551,11 @@ kw_next1l:
 ntc_n1l_nc:
 			ld d, (hl)
 			pop hl
+			ld a, d					; A = #FF when it went past 32767 (#8000)
+			xor #80
+			or e
+			sub 1
+			sbc a, a
 			jp ntc_for_le
 
 ;## kw_next1l (normal mode copy) ntc_for_jump
@@ -1549,6 +1571,11 @@ kw_next1l_n:
 ntc_n1l_nc_n:
 			ld d, (hl)
 			pop hl
+			ld a, d					; A = #FF when it went past 32767 (#8000)
+			xor #80
+			or e
+			sub 1
+			sbc a, a
 			jp ntc_for_le_n
 
 ;## kw_ltov
