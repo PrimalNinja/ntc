@@ -54,7 +54,7 @@ var arrExamples = [
 	{ name: 'Lists: a high score table in a linked list', files: ['lists.bas'] },
 	{ name: 'Sort timing: 5000 list nodes, turbo and normal', files: ['sorttime.bas'] },
 	{ name: 'Command line (System.CommandLine, or ask)', files: ['cmdline.bas'] },
-	{ name: '3D wireframe: cube, pyramid, Cobra (cpc, cpcmin)', files: ['cube3d/Main.bas', 'cube3d/Vector3D.cls', 'cube3d/Spin.cls'] },
+	{ name: '3D wireframe: cube, pyramid, Cobra (cpc, cpcmin, cpcfw)', files: ['cube3d/Main.bas', 'cube3d/Vector3D.cls', 'cube3d/Spin.cls'] },
 	{ name: 'Overlays: classes loaded at #4000 (cpcmin, cpcfw, cpm)', files: ['overlays/Main.bas', 'overlays/Level1.cls', 'overlays/Level2.cls'] },
 	{ name: 'Interrupt classes: Tick at a rate (cpc, cpcmin, cpcfw)', files: ['interrupts/Main.bas', 'interrupts/Clock.cls', 'interrupts/Star.cls'] },
 	{ name: 'Your own StdIO (2 files)', files: ['own_stdio/Main.bas', 'own_stdio/StdIO.cls'] },

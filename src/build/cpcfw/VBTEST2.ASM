@@ -1893,6 +1893,7 @@ ntc_bstxt:		db "Not enough memory for the arrays", 0
 ntc_curx:		db 0			; cursor column (0 based) - kept here for Tab
 ntc_cury:		db 0			; cursor row (0 based)
 ntc_scols:		db 40			; columns in this mode
+ntc_smode:		db 1			; screen mode (for the Graphics class)
 ntc_fwa:		db 0			; ntc_fwcall: A on return
 ntc_fwwrap:		db 0			; 1 = the last character made the firmware wrap
 ntc_irqset:		db 0			; 1 = the firmware's fast ticker calls ntc_fwevt
@@ -2037,6 +2038,7 @@ ntc_md_ok:
 			jr z, ntc_md_set
 			ld b, 80
 ntc_md_set:
+			ld (ntc_smode), a
 			ld c, a
 			ld a, b
 			ld (ntc_scols), a

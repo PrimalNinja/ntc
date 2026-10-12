@@ -7,6 +7,7 @@
 | `ntcrun.py` | the same as `cpcrun.py` with `--platform=cpc\|cpcfw\|cpm\|test`: the host platforms run on a plain Z80 with the firmware jumpblock / BDOS / test ports handed to the harness, which keeps a text screen |
 | `stdio.bas`, `via/` + `ref/stdio.*.txt`, `ref/via.txt` | the StdIO / System platform classes on each platform, and a project with its own StdIO |
 | `fs_cpm.bas`, `fs_fw.bas`, `fs_none.bas` + `ref/fs_*.txt` | the FileSystem class: CP/M (every method), CPC firmware (Load / Save), no files (test, cpc); the files go to `t/files` |
+| `realcpc.c`, `realcpcbin.sh` | a CPC 6128 with the real Amstrad ROMs and AMSDOS (the floooh/chips emulator, built with gcc): boots BASIC, inserts a .DSK, types, takes screenshots, counts fetches of addresses (with the lower ROM on or off). For what the harness can't show - how the real firmware calls the program (cpcfw interrupts, Graphics under the firmware). Needs the chips headers and the ROM images (github.com/floooh/chips, chips-test) |
 | `genbuild.js` | writes `build/<platform>/NAME.ASM` (every program in `bas/` for every platform) for `build/build.bat` |
 | `guitest6.py` | every example on every platform in the GUI |
 | `regress.sh` | every test program in both modes on the CPC, then on the test / cpcfw / cpm platforms, the platform classes, + ES5 check of the JS. Ends with ALL PASS |

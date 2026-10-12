@@ -41,7 +41,7 @@ every file assembles).
 
 Programs: GUIDE, GUESS, SIEVE, SHELSORT, SIEVETIM (sieve timing, turbo / normal), FILES, FILESTEP,
 FILESTPN, AMSDOS, MEMMAP (main memory and RAM pages as a map), LISTS, SORTTIME (5,000 list nodes
-sorted, turbo / normal), CMDLINE (the command line, or ask), CUBE3D (3D wireframe shapes, cpc / cpcmin), OVERLAYS, INTERRUP, NUMBERED, NTCTEST (asks for a name, a number,
+sorted, turbo / normal), CMDLINE (the command line, or ask), CUBE3D (3D wireframe shapes, cpc / cpcmin / cpcfw), OVERLAYS, INTERRUP, NUMBERED, NTCTEST (asks for a name, a number,
 a key), VBTEST, VBTEST2..VBTEST12 (VBTEST12 asks for a line at the end), LONGTEST,
 CLASSDEM, CONSOLE (the StdIO / System classes; asks for a name and a key), OWNSTDIO (a
 project's own StdIO). `cpm\` also has SIEVEC, the same sieve in Small C (from

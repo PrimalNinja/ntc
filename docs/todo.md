@@ -320,6 +320,20 @@ finished, with the date.
   INTERRUPTCLASSES capabilities True on cpcfw; INTERRUP built for cpcfw; regress checks isl,
   hook and the interrupts example on cpcfw. Tutorial: 9.1 overlays with Small, new 10.7 (text
   and records in nodes), 6.5 replacing / tailoring any library class, 5.3 when turbo gains nothing
+- 2026-10-12 fix: **cpcfw interrupts never ran on a real CPC** (Julian: the interrupt demo
+  crashed). The fast ticker event was express: the 6128 ROM's KL EVENT (#01E2) jumps straight
+  to an express routine from the interrupt with the lower ROM on and ignores the far address,
+  so the CPU ran ROM code at the routine's address (#07F3) 300 times a second. Now a plain
+  asynchronous event (class #80): run at the end of the interrupt through KL FAR ICALL, which
+  honours ROM select #FF. Found and checked with the real 6128 ROMs (`test/realcpc.c`, the
+  floooh/chips emulator): clock exact (16 ticks in 16 s), Interrupt hook works. Patching RAM
+  #0038 (Julian's idea) checked too: the lower ROM has its own #0038 (JP #B941), so 88% of the
+  demo's interrupts never reach RAM #0038 (they come during firmware calls). cpcfw now sets
+  the event only when the program uses Interrupt / interrupt classes (`;@irq 2`).
+  **Graphics class on cpcfw** (ntc_smode kept by Mode); CUBE3D built for cpcfw (Spin an
+  overlay, as on cpcmin) - checked on the real ROMs in modes 0 / 1 / 2, one and two screens,
+  turbo. The harness missed both: its firmware stand-ins call any event routine as a plain
+  call with the ROMs off
 - 2026-10-12 fix (test tool): `cpctime.py` had no real frame sync - port B bit 0 toggled every
   50 reads, so `Frame` and the double buffer flip hardly waited and the CUBE3D frame rates were
   too high (8.4 / 9.5 / 6.7). It now follows the clock: a frame every 20 ms, the sync for its
@@ -843,6 +857,14 @@ CP/M compatible (or mostly) system idea - device model, not decided:
       40 chars, 32 steps); Cls, scroll and Mode let them in
 
 ### Optimisations
+
+- [ ] cpcfw: a Tick waits for the end of a statement, and the firmware's text takes about
+      3.4 ms a character, so a Frame class that prints, beside a main loop that prints, runs
+      20-25 times a second (two dues in one Print run as one). Options: a due count instead
+      of a flag (catch up - right for game logic at a fixed rate, wrong for "once a frame"),
+      or NTC's own glyph drawing on cpcfw (about 0.4 ms a character on cpc)
+- [ ] cpcfw End resets the machine straight away (RUN" programs): the last screen is gone
+      before it can be read - wait for a key, or go back to BASIC when CALLed?
 
 - [ ] Double buffering without the wait: the flip waits for the sync and then sets R12, about
       10 ms a frame doing nothing in CUBE3D. The CRTC takes R12 at the start of the next frame

@@ -210,9 +210,13 @@ class Host:
                 else:
                     m.f = m.f & 0xFE
             elif f == 'kl_new_fast_ticker':
-                # the firmware calls the event routine at every interrupt (300 a second, express
-                # asynchronous): #38 jumps to a stub that keeps the registers and calls it
+                # the firmware calls the event routine at every interrupt (300 a second): #38
+                # jumps to a stub that keeps the registers and calls it. The real firmware calls an
+                # EXPRESS asynchronous routine straight from the interrupt with the lower ROM on,
+                # ignoring the far address (6128 ROM #01E2) - so one below #4000 would run ROM code
                 r = m.de
+                if (m.b & 0x40) and r < 0x4000:
+                    print('ERROR: express event routine at #%04X: the firmware would run the lower ROM there' % r)
                 stub = [0xF5, 0xC5, 0xD5, 0xE5, 0xCD, r & 255, r >> 8, 0xE1, 0xD1, 0xC1, 0xF1, 0xFB, 0xC9]
                 m.set_memory_block(0xBF80, bytes(stub)); m.set_memory_block(0x38, bytes([0xC3, 0x80, 0xBF]))
             elif f == 'kl_del_fast_ticker':

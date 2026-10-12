@@ -667,7 +667,7 @@ sync; `gfx_begin` / `gfx_end` put main RAM in the window around drawing on `#400
 setting in `ntc_rampt` back (the Memory class's `mem_sel` keeps it). Called on the real stack;
 uses IX and IY.
 
-**Interrupt classes** (`Option Class Interrupt rate | Frame`, cpc / cpcmin). Section
+**Interrupt classes** (`Option Class Interrupt rate | Frame`, cpc / cpcmin / cpcfw). Section
 `ntc_islots`: 4 slots (count, reload, running, due, Tick's call stub), filled by the start
 code. The platform's interrupt handler calls `ntc_irqv` (`ntc_isl_tick`): it counts each
 slot down (or, for Frame, looks for the start of the vertical sync on PPI port B) and marks
@@ -675,6 +675,20 @@ it due. `ntc_xnh` (the normal mode safe point) runs a due slot's Tick that isn't
 a call from that point - like the `Interrupt` hook - and Tick's return stub clears its
 running flag. Tick is ordinary BASIC, so nothing runs inside the hardware interrupt but the
 counting.
+
+**cpcfw interrupts** (`ntc_plat_irq` in `ntc_plat_cpcfw.asm`, `;@irq 2`: only when the
+program uses `Interrupt` or interrupt classes). The firmware keeps its interrupt handler; a
+fast ticker event (KL NEW FAST TICKER, block at `#A5F0`) calls `ntc_fwevt` 300 times a
+second, which does the same counting as the cpc handler. The event is **asynchronous but not
+express**: in the 6128 ROM, KL EVENT (`#01E2`) jumps straight to an express event's routine
+from inside the interrupt, with the lower ROM on, and never reads the far address - a routine
+below `#4000` (the program starts at `#0040`) then runs ROM code. A plain asynchronous event
+runs at the end of the interrupt (on the firmware's own stack at `#B8B4`) through KL FAR
+ICALL, which uses the far address: ROM select `#FF`, both ROMs off. Patching RAM `#0038`
+instead would miss most interrupts: the lower ROM has its own `#0038` (`JP #B941` on the
+6128, `JP #B939` on the 464), used whenever the lower ROM is on - during every firmware call.
+Running the interrupts example, 88% of interrupts came with the lower ROM on.
+Checked with the real 6128 ROMs: `test/realcpc.c` (scratch tool, see `test/README.md`).
 
 **Arrays after the program.** Arrays (and array descriptors) are no longer `ds` blocks in
 the program: the compiler gives them addresses after `ntc_end` (`ntc_bss`, `equ`s), so they

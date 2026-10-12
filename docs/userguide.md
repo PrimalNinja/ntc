@@ -1616,6 +1616,11 @@ End Sub
   after each character, so printing doesn't hold them off; a `Frame` class counts 6
   interrupts a frame as well as watching the sync, so it keeps 50 a second when an interrupt
   is taken late.
+- cpcfw: the firmware draws the text, about 3.4 ms a character (measured with the 6128 ROM),
+  and a `Tick` only runs between keywords, so a `Print` of a dozen characters holds every Tick
+  back for about 40 ms. A Tick that falls due twice in that time runs once: a Frame class that
+  prints, with a main loop that prints too, runs about 20-25 times a second instead of 50
+  (the interrupts example). The counting itself is exact (a 1 a second clock keeps time).
 - Game logic can go in a `Tick` (movement at a fixed 50 a second, whatever the drawing does),
   with the main loop drawing. If the drawing reads what `Tick` changes, keep two copies and
   switch between them when `Tick` is done, so a sprite is never drawn half moved.
@@ -2680,8 +2685,10 @@ See `bas/lists.bas`.
 
 ### Graphics
 
-Drawing on the CPC screen: `cpc` and `cpcmin` (the platforms that draw the screen
-themselves). Lines in any mode - 0 (160 x 200, 16 pens), 1 (320 x 200, 4 pens), 2 (640 x 200,
+Drawing on the CPC screen: `cpc`, `cpcmin` and `cpcfw`. On cpcfw the class still writes the
+screen memory itself (the firmware only draws the text): set the mode with `Mode` first (that
+tells the class the mode), and don't let the firmware scroll the text while drawing - a
+scroll moves the screen's start and the lines would land in the wrong place. Lines in any mode - 0 (160 x 200, 16 pens), 1 (320 x 200, 4 pens), 2 (640 x 200,
 2 pens) - in a pen, drawn with XOR: drawing the same line again takes it off and leaves what
 was under it, text included. One drawing loop serves every mode (a marker of the pixel's bits
 moves one pixel per step), so mode 0 lines are the quickest (fewer pixels across) and mode 2

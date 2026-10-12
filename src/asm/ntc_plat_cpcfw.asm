@@ -34,6 +34,7 @@
 ntc_curx:		db 0			; cursor column (0 based) - kept here for Tab
 ntc_cury:		db 0			; cursor row (0 based)
 ntc_scols:		db 40			; columns in this mode
+ntc_smode:		db 1			; screen mode (for the Graphics class)
 ntc_fwa:		db 0			; ntc_fwcall: A on return
 ntc_fwwrap:		db 0			; 1 = the last character made the firmware wrap
 ntc_irqset:		db 0			; 1 = the firmware's fast ticker calls ntc_fwevt
@@ -178,6 +179,7 @@ ntc_md_ok:
 			jr z, ntc_md_set
 			ld b, 80
 ntc_md_set:
+			ld (ntc_smode), a
 			ld c, a
 			ld a, b
 			ld (ntc_scols), a
@@ -270,19 +272,23 @@ ntc_ex_done:
 ; ------------------------------------------------------------
 ; ntc_plat_irqon - normal mode's interrupt work under the firmware: the
 ; firmware keeps its own interrupt handler (keys, sound, AMSDOS), and a fast
-; ticker event (KL NEW FAST TICKER: 300 a second, express asynchronous, at
-; interrupt time) calls ntc_fwevt, which marks an Interrupt hook / interrupt
-; classes as due - they run at the next safe point, as on cpc. The event
-; block must be in the central 32K (the firmware reads it with the lower ROM
-; on): #A5F0, just under the firmware's RAM, so the top of free RAM becomes
-; #A5F0. The routine is called with ROM select #FF (both ROMs off), so it can
-; be anywhere in the program.
+; ticker event (KL NEW FAST TICKER, 300 a second) calls ntc_fwevt, which
+; marks an Interrupt hook / interrupt classes as due - they run at the next
+; safe point, as on cpc. The event block must be in the central 32K (the
+; firmware reads it with the lower ROM on): #A5F0, just under the firmware's
+; RAM, so the top of free RAM becomes #A5F0.
+; The class is asynchronous, NOT express: the firmware (6128 ROM, KL EVENT
+; at #01E2) calls an express event straight from the interrupt with the lower
+; ROM on and never looks at the far address, so a routine below #4000 (this
+; program starts at #0040) would run ROM code there. A plain asynchronous
+; event is run at the end of the interrupt through KL FAR ICALL, which uses
+; the far address: ROM select #FF = both ROMs off.
 ; ------------------------------------------------------------
 ntc_plat_irqon:
 			ld (ntc_irqix), ix
 			ld hl, NTC_FWBLK
 			ld (ntc_fwtop), hl
-			ld b, #C0				; express, asynchronous, far address
+			ld b, #80				; asynchronous, far address (not express: see above)
 			ld c, #FF				; ROM select: upper and lower ROM off
 			ld de, ntc_fwevt
 			ld iy, #BCE0			; KL NEW FAST TICKER
@@ -293,7 +299,8 @@ ntc_iq_on:
 			ld (ntc_irqset), a
 			ld ix, (ntc_irqix)
 			jp (ix)
-; the event routine: at interrupt time, interrupts off; AF, BC, DE, HL free
+; the event routine: at the end of an interrupt (interrupts may be on; the
+; firmware never runs it twice at once); AF, BC, DE, HL free
 ntc_fwevt:
 			ld a, (ntc_hookon)		; an Interrupt hook: run it at the next safe point
 			or a
