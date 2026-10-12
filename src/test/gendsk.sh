@@ -4,7 +4,7 @@
 # CPC data format disc (CPCEMU .DSK: 40 tracks, 9 x 512 byte sectors #C1-#C9, 64 directory
 # entries - AMSDOS, CP/M 2.2 and CP/M Plus on the CPC all read it, as does WinAPE).
 # cpc, cpcmin, cpcfw: the .BIN files (AMSDOS header from SAVEAMSDOS) and overlay classes'
-# .PAG files; cpm: the .COM files.
+# .PAG files; cpm: the .COM files and overlay .PAG files (no header).
 # Scratch tool, not delivered: needs sjasmplus and cpmtools with libdsk (dskform, cpmcp, cpmls).
 # Run after genbuild.js (regress.sh does both).
 cd "$(dirname "$0")"

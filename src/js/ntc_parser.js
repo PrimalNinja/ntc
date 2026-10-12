@@ -454,6 +454,7 @@ function ntcParse(arrFiles_a, objDefines_a)
 	var intLine = 0;
 	var intFile = 0;
 	var strSrc = '';			// the source line being parsed (for comments)
+	var blnPaged = false;		// Private Paged: the variables being declared go in an overlay's page
 
 	// ------------------------------------------------------------
 	// helpers
@@ -863,7 +864,7 @@ function ntcParse(arrFiles_a, objDefines_a)
 			}
 			strFull = fullName(strScope_a, objVar.name);
 			if (elementAdd(objVar.dims !== null ? 'array' : 'var', strScope_a, strFull, objVar.name,
-				{ datatype: objVar.type, typed: objVar.typed, dims: objVar.dims, isnew: objVar.isnew, fixed: objVar.fixed, strmax: objVar.strmax, isstatic: !!blnStatic_a }) === null)
+				{ datatype: objVar.type, typed: objVar.typed, dims: objVar.dims, isnew: objVar.isnew, fixed: objVar.fixed, strmax: objVar.strmax, isstatic: !!blnStatic_a, paged: blnPaged }) === null)
 			{
 				error('already declared: ' + objVar.name);
 				continue;
@@ -1259,6 +1260,17 @@ function ntcParse(arrFiles_a, objDefines_a)
 
 			case left(str_a, 'const '):
 				declareConsts('module', str_a.substr(6));
+				break;
+
+			case left(str_a, 'private paged ') || left(str_a, 'dim paged '):
+				// an overlay class's variable kept in its page (Option Class Overlay)
+				blnPaged = true;
+				declareVars('module', str_a.substr(left(str_a, 'dim ') ? 10 : 14), false);
+				blnPaged = false;
+				break;
+
+			case left(str_a, 'public paged '):
+				error('Paged variables are Private: they are only there while the class\'s page is in');
 				break;
 
 			case left(str_a, 'private '):

@@ -341,6 +341,13 @@ Print a(3)
 
 There is no bounds check: an index out of range reads or writes other memory.
 
+**Where arrays go:** after the program, not in its file - a `Dim a(5000) As Integer` adds 10,000
+bytes of memory but nothing to the `.COM` / `.BIN`. When the program starts it checks they fit
+below the top of free memory (CP/M: the BDOS; CPC: `#A600`, or under the stack) and clears
+them; if they don't fit it prints `Not enough memory for the arrays` and stops. So one build
+runs on CP/M 2.2 or CP/M Plus, and says so when it doesn't fit. For data bigger than the
+program's memory, use a [List](#list).
+
 **VB:** VB stops with "Subscript out of range". NTC BASIC does not check.
 
 ### Option Base
@@ -1486,7 +1493,11 @@ copies of its data keeps them itself (in arrays).
 In a `.cls` file: what kind of class it is. Without it (or `Resident`) the class is part of
 the program as above.
 
-**Overlay** (cpcmin, cpcfw; `Option Memory CPCExpansion`, the default there): the class's
+**Overlay** (cpcmin, cpcfw, cpm): two ways, depending on `Option Memory` - RAM pages
+(cpcmin, cpcfw with `Option Memory CPCExpansion`, the default there), described first, or
+[one overlay area](#one-overlay-area) (cpm, and cpcmin / cpcfw with `Option Memory Small`).
+
+With RAM pages, the class's
 code is built, in the same compile, into its own file `FILE.PAG` (the class name, up to 8
 characters, when no name is given), to run at `#4000` in a RAM page (a C page, see
 [Memory](#memory)). Its variables stay in the program, so they keep their values when the
@@ -1517,6 +1528,8 @@ The compiler adds these members to an overlay class (so these names are taken):
 | `Unload()` | its page back to free; the next call loads the file again |
 | `Loaded()` | True when it is in RAM |
 | `Page()` | the page it is in, 0 = not loaded |
+| `LocalStart()`, `LocalSize()` | its local memory: the rest of its page |
+| `LocalAlloc(size)`, `LocalFree(address)` | blocks of its local memory |
 
 - A call that has to load and can't prints `Overlay not loaded: LEVEL1.PAG`, why (`No RAM
   page free` / `The file didn't load`) and `Press a key`, then ends the program (a program
@@ -1529,8 +1542,49 @@ The compiler adds these members to an overlay class (so these names are taken):
   each call puts back the page it found. On a 64K machine there is only one page, so two
   overlay classes calling each other means loading again.
 - Procedures whose body is only `#asm` stay in the main program (they are keywords).
+- **Page variables:** `Private Paged` *name* `As` *type* (or `Dim Paged`) in an overlay class
+  puts that variable in the class's page, after its code, instead of in the program: it costs
+  no main memory, and starts fresh (0, "") each time the class is loaded - right for a level's
+  own data. Variables that must keep their values stay as normal ones (in the program).
+  Paged variables are `Private` only: they are there only while the class's page is in the
+  window, so only the class's own code can use them. Paged Strings are in the `.PAG` file
+  (their capacity byte goes with them); other paged variables are not in the file - they are
+  cleared when it loads.
+- **Local memory:** the rest of the page, after the code and page variables, is the class's
+  own: `LocalStart()` and `LocalSize()` say where, and `LocalAlloc(size)` / `LocalFree(address)`
+  hand out blocks of it (plain addresses, 0 = no room). Only from the class's own code (from
+  anywhere else `LocalAlloc` gives 0). Copy a list node in with
+  `Memory.Copy(List.Data(node), CLng(Page()) * 65536 + address, size)`.
 - Not yet: one interface for several files (VB's `Implements`, for levels that swap), and
   classes built on their own for any program (like DLLs).
+
+#### One overlay area
+
+On CP/M, and on cpcmin / cpcfw with `Option Memory Small` (a 64K CPC, or a program that wants
+no RAM pages), there is one overlay area, `#4000-#7FFF`, and one overlay class in it at a
+time. A call to a class that isn't there loads its file over the one that was. When the call
+returns into another overlay class's code that was swapped out meanwhile, that class is
+loaded again first. So level 2 calling level 1 loads `LEVEL1.PAG`, and the return loads
+`LEVEL2.PAG` again: calls between overlay classes cost a disc load each way. Calls from the
+main program (or resident classes) to the class already in the area cost nothing extra.
+
+The same source works both ways (`bas/overlays/`). What is different:
+
+| | RAM pages | one overlay area |
+|---|---|---|
+| Classes in memory | each its own page, until `Unload()` | one, until another is called |
+| `Load()` | into a free page | into the area; from code in the area: -13 (it would overwrite it) |
+| `Unload()` | its page back to free | the area is empty; from code in the area: -13 |
+| `Loaded()` | True when in RAM | True when it is the one in the area |
+| `Page()` | its page | 0 |
+| `Private Paged` | in its page, fresh at each load | ordinary variables in the program (they keep their values) |
+| Local memory | until `Unload()` | fresh (one free block) at each load |
+| The program | must end below `#4000` | must end below `#4000`; the heap (`Memory`, `List`) is the RAM between the program's end and `#4000` |
+| Files | `.PAG` with an AMSDOS header | the same on the CPC; plain bytes on CP/M (`LEVEL1.PAG` next to the `.COM`) |
+
+The compiler keeps the program and the Memory heap out of `#4000-#7FFF` for overlay
+classes (as `Option Reserve &H4000, &H4000`). A file that isn't there stops the program with
+`Overlay not loaded: LEVEL1.PAG` / `The file didn't load` / `Press a key`.
 
 **Interrupt** *rate* / **Interrupt Frame** (cpc, cpcmin: NTC's own interrupt handler): the
 class's `Sub Tick()` (no parameters - it must have one) runs *rate* times a second (1 - 300),
@@ -2149,6 +2203,9 @@ either.
 `Small` is the least code (about 900 bytes against 2,100 for `CPCExpansion`): for a program
 that only wants `Alloc` / `Free`, or for a 64K machine.
 
+Overlay classes ([Option Class](#option-class)) follow the scheme: a RAM page each with
+`CPCExpansion`, [one overlay area](#one-overlay-area) at `#4000` with `Small`.
+
 ### Option ClassSize
 
 `Option ClassSize` *kilobytes*
@@ -2518,6 +2575,55 @@ buffer as FileSystem. The 4MB blocks use ports `&78xx-&7Exx`, which also have ad
 A10 low, as expansion hardware does: the low byte (`&C4-&FF`) keeps the disc controller out of
 it, but an unusual interface could react. Interrupts are left as they are (off in turbo mode
 and inside keywords), so a long `Copy` can hold the 300 Hz ticks back. See `bas/memmap.bas`.
+
+### List
+
+Linked lists in the Memory class's heap - D pages with `Option Memory CPCExpansion`, the free
+main RAM with `Option Memory Small` - so a list can be far bigger than the program's own
+memory. Prefer lists to big arrays where you can: an array takes its whole size in the
+program's memory, a list takes 4 bytes there however long it is.
+
+A list is a handle (a Long), so a program can have as many as it likes. Its nodes are far
+pointers (Longs) too; each node has a next and a previous node and *size* bytes of data.
+
+```
+Const ID = 0, SCORE = 2
+h = List.Create(4)                       ' 4 data bytes a node: two words
+n = List.Append(h)
+List.SetWord n, ID, 1 : List.SetWord n, SCORE, 950
+r = List.Sort(h, SCORE)
+n = List.First(h)
+Do While n <> 0
+  Print List.GetWord(n, ID); List.GetWord(n, SCORE)
+  n = List.NextOf(n)
+Loop
+r = List.Destroy(h)
+```
+
+| Method | Does |
+|---|---|
+| `Create(size)` | a new empty list, *size* data bytes a node (up to 15988); 0 = no room |
+| `Append(h)`, `Prepend(h)` | a new node (cleared) at the end / the start; 0 = no room |
+| `InsertAfter(h, node)` | a new node after that one (node 0: at the start) |
+| `Delete(h, node)` | out of the list; its memory goes back to the list's free chain |
+| `First(h)`, `Last(h)`, `NextOf(node)`, `PrevOf(node)` | a node, or 0 |
+| `Count(h)` | the nodes in it |
+| `GetWord(node, offset)`, `GetByte(node, offset)` | from its data |
+| `SetWord node, offset, value`, `SetByte node, offset, value` | into its data |
+| `Data(node)` | a far pointer to its data (for `Memory.Copy`, `Memory.ReadWord` ...) |
+| `Search(h, offset, value)` | the first node whose data has that word at *offset*, or 0 |
+| `Sort(h, offset)` | in order of the (signed) word at *offset*, equal ones keeping their order (a radix sort: two passes over the list, the 2K buffer for the buckets) |
+| `Destroy(h)` | the list's memory back to the heap |
+
+A list takes its nodes from blocks of up to 16000 bytes at a time, cut into nodes on its own
+free chain, so `Append` and `Delete` are a pointer swap and nothing fragments. A handle or node
+that is 0 or not a page this machine has gives `Memory.BadPage` (-2) - but a node of another
+list, or one already deleted, is not caught. Each call costs about 600 microseconds (it
+switches pages and checks its arguments). `Sort` of 500 nodes takes about 0.4 seconds, of 5,000
+nodes (spread over four pages of a 6128) 4.2 to 4.8 seconds, the same in turbo and normal mode -
+see `bas/sorttime.bas`. Every
+platform has it (cpc, cpcmin, cpcfw with either memory scheme; cpm and test with `Small`).
+See `bas/lists.bas`.
 
 ### Your own StdIO
 

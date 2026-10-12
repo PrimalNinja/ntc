@@ -8,3 +8,6 @@ Public Function Play(ByVal score As Integer) As Integer
   Next
   Play = 100
 End Function
+Public Function Bonus() As Integer
+  Bonus = 50
+End Function

@@ -28,6 +28,7 @@ ntc_go:
 
 main_thread:
 			dw kw_scrinit		; mode 1, ROMs off, clear screen
+			dw kw_bssinit, ntc_bss, ntc_bss_size		; the arrays: do they fit, clear them
 
 			; 12: Cls
 			dw kw_cls
@@ -701,11 +702,6 @@ p_bigsum_r:		; end of bigsum
 ; Variables
 ; ============================================================
 
-arr_nums:			ds 12		; 6 words
-arr_odd:			ds 8		; 4 words
-arr_words:			ds 123		; 3 strings of 40
-arr_big:			ds 16		; 4 Longs
-arr_grid:			ds 24		; 12 words
 var_i:			dw 0
 ad_arr_nums:			dw arr_nums, 0, 0, 6, 1, 2		; array as an argument
 var_total_total:			dw 0
@@ -732,31 +728,23 @@ p_chkl_rs:			dw 0
 var_chkl_got:			dw 0, 0
 var_chkl_want:			dw 0, 0
 p_total_rs:			dw 0
-pa_total_a:			ds 12		; array descriptor: base, lower bounds, counts, size
 var_total_k:			dw 0
 for7_l:			dw 0
 p_sortup_rs:			dw 0
-pa_sortup_a:			ds 12		; array descriptor: base, lower bounds, counts, size
 var_sortup_k:			dw 0
 var_sortup_j:			dw 0
 var_sortup_v:			dw 0
 for8_l:			dw 0
 p_lo_rs:			dw 0
-pa_lo_a:			ds 12		; array descriptor: base, lower bounds, counts, size
 p_hi_rs:			dw 0
-pa_hi_a:			ds 12		; array descriptor: base, lower bounds, counts, size
 p_count_rs:			dw 0
-pa_count_a:			ds 12		; array descriptor: base, lower bounds, counts, size
 p_longest_rs:			dw 0
-pa_longest_s:			ds 12		; array descriptor: base, lower bounds, counts, size
 var_longest_k:			dw 0
 for11_l:			dw 0
 p_shout_rs:			dw 0
-pa_shout_s:			ds 12		; array descriptor: base, lower bounds, counts, size
 var_shout_k:			dw 0
 for13_l:			dw 0
 p_bigsum_rs:			dw 0
-pa_bigsum_v:			ds 12		; array descriptor: base, lower bounds, counts, size
 var_bigsum_k:			dw 0
 for14_l:			dw 0
 tmp0:			dw 0
@@ -1929,6 +1917,74 @@ ntc_font:		ds 95 * 8
 ; Platform class capabilities
 ; ============================================================
 
+;## kw_bssinit ntc_data ntc_plat_memtop ntc_plat_screen kw_stop @shared
+;kw_bssinit, <start>, <size>  - the start of the main thread: the program's arrays live after
+;  it (from ntc_end, not in its file). Check they fit under the platform's top (and 256 bytes
+;  under the real stack when that is above them), then clear them. Too big: a message, the
+;  program stops.
+kw_bssinit:
+			pop hl
+			ld (ntc_bsa), hl
+			pop bc
+			ld (ntc_bsz), bc
+			ld (ntc_bsp), sp
+			ld sp, (ntc_csp)
+			add hl, bc				; HL = their end
+			ex de, hl
+			call ntc_plat_memtop	; HL = the platform's top
+			or a
+			sbc hl, de
+			jr c, ntc_bs_big
+			ld hl, (ntc_csp)		; the real stack, when above them
+			ld bc, (ntc_bsa)
+			or a
+			sbc hl, bc
+			jr c, ntc_bs_ok
+			ld hl, (ntc_csp)
+			ld bc, -256
+			add hl, bc
+			or a
+			sbc hl, de
+			jr c, ntc_bs_big
+ntc_bs_ok:
+			ld bc, (ntc_bsz)
+			ld a, b
+			or c
+			jr z, ntc_bs_done
+			ld hl, (ntc_bsa)
+			ld (hl), 0
+			dec bc
+			ld a, b
+			or c
+			jr z, ntc_bs_done
+			ld d, h
+			ld e, l
+			inc de
+			ldir
+ntc_bs_done:
+			ld sp, (ntc_bsp)
+			ret
+ntc_bs_big:
+			ld hl, ntc_bstxt
+ntc_bs_pl:
+			ld a, (hl)
+			or a
+			jr z, ntc_bs_stop
+			inc hl
+			ld (ntc_bsa), hl
+			ld ix, ntc_bs_pn
+			jp ntc_plat_putc
+ntc_bs_pn:
+			ld hl, (ntc_bsa)
+			jr ntc_bs_pl
+ntc_bs_stop:
+			ld ix, kw_stop
+			jp ntc_plat_newline
+ntc_bsa:		dw 0
+ntc_bsz:		dw 0
+ntc_bsp:		dw 0
+ntc_bstxt:		db "Not enough memory for the arrays", 0
+
 ;## ntc_plat_data
 ntc_curx:		db 0			; cursor column (0 based)
 ntc_cury:		db 0			; cursor row (0 based)
@@ -2504,6 +2560,31 @@ ntc_ex_rom:
 ntc_ex_done:
 			jp (ix)
 
+;## ntc_plat_memtop
+; ntc_plat_memtop - HL = the first byte the Memory class's Small heap must not
+; use: #A600 (the firmware's and AMSDOS's RAM is above). Called on the real
+; stack (call / ret), only by the Memory class.
+ntc_plat_memtop:
+			ld hl, #A600
+			ret
 
-ntc_end:				; the end of the program
+
+ntc_end:				; the end of the program (and of its file)
+; arrays: after the program, not in its file - kw_bssinit checks they fit and clears them
+ntc_bss		equ ntc_end
+arr_nums		equ ntc_bss + 0		; 12 bytes
+arr_odd		equ ntc_bss + 12		; 8 bytes
+arr_words		equ ntc_bss + 20		; 123 bytes
+arr_big		equ ntc_bss + 143		; 16 bytes
+arr_grid		equ ntc_bss + 159		; 24 bytes
+pa_total_a		equ ntc_bss + 183		; 12 bytes
+pa_sortup_a		equ ntc_bss + 195		; 12 bytes
+pa_lo_a		equ ntc_bss + 207		; 12 bytes
+pa_hi_a		equ ntc_bss + 219		; 12 bytes
+pa_count_a		equ ntc_bss + 231		; 12 bytes
+pa_longest_s		equ ntc_bss + 243		; 12 bytes
+pa_shout_s		equ ntc_bss + 255		; 12 bytes
+pa_bigsum_v		equ ntc_bss + 267		; 12 bytes
+ntc_bss_size	equ 279
+ntc_free	equ ntc_bss + ntc_bss_size	; the first free byte (heap, Memory tables)
 			SAVEAMSDOS "VBTEST4.BIN", ntc_start, ntc_end - ntc_start, ntc_start

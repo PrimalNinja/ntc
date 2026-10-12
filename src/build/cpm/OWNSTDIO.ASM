@@ -1181,4 +1181,8 @@ FS_EXISTS	equ -10
 FS_BADMODE	equ -11
 
 
-ntc_end:				; the end of the program
+ntc_end:				; the end of the program (and of its file)
+; arrays: after the program, not in its file - kw_bssinit checks they fit and clears them
+ntc_bss		equ ntc_end
+ntc_bss_size	equ 0
+ntc_free	equ ntc_bss + ntc_bss_size	; the first free byte (heap, Memory tables)

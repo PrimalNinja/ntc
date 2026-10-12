@@ -135,9 +135,23 @@ for m in --turbo ""; do
 done
 rm -rf t/files; check "overlays 64K" "^No RAM page free" "$(timeout 200 python3 ntcrun.py t/ovl/Main.bas '~x' t/ovl/Level1.cls t/ovl/Level2.cls --platform=cpcmin --ram=64 2>&1)"
 printf 'Option Class Overlay\nPublic Sub X()\nEnd Sub\n' > t/ovl/Bad.cls; printf 'Bad.X\n' > t/ovl/b.bas; printf 'Option Memory Small\nBad.X\n' > t/ovl/b2.bas
-node cli.js t/ovl/b.bas t/ovl/Bad.cls --platform=cpc 2>&1 >/dev/null | grep -q "Option Class Overlay needs a platform" && node cli.js t/ovl/b2.bas t/ovl/Bad.cls --platform=cpcmin 2>&1 >/dev/null | grep -q "needs Option Memory CPCExpansion" && echo "ok   overlays refused (cpc, Small)" || { echo "FAIL overlays refused"; fail=1; }
+node cli.js t/ovl/b.bas t/ovl/Bad.cls --platform=cpc 2>&1 >/dev/null | grep -q "Option Class Overlay needs a platform" && node cli.js t/ovl/b.bas t/ovl/Bad.cls --platform=test 2>&1 >/dev/null | grep -q "Option Class Overlay needs a platform" && echo "ok   overlays refused (cpc, test)" || { echo "FAIL overlays refused"; fail=1; }
+# one overlay area (Option Memory Small, CP/M): classes take turns at #4000; a return loads the
+# caller's class again; Load / Unload from the area refused; cpm, cpcmin, cpcfw (also 64K)
+for m in --turbo ""; do
+  for c in "cpm 128" "cpcmin 128" "cpcfw 128" "cpcmin 64"; do
+    set -- $c
+    rm -rf t/files t/ovls; mkdir -p t/ovls; cp ovls/* t/ovls/
+    o=$(timeout 200 python3 ntcrun.py t/ovls/Main.bas '' t/ovls/A.cls t/ovls/B.cls --platform=$1 --ram=$2 $m 2>&1 | grep -v "^--- ")
+    if [ "$o" == "$(cat ref/ovls.txt)" ]; then echo "ok   overlay area $1 ${2}K ${m:-normal}"; else echo "FAIL overlay area $1 ${2}K ${m:-normal}"; echo "$o" | head -5; fail=1; fi
+  done
+done
+printf 'Option Memory Small\nPrint "del"; FileSystem.Delete("OVB.PAG")\nPrint B.Chain(1)\nPrint "not here"\nSub Note(ByVal t As String)\nEnd Sub\n' > t/ovls/gone.bas
+o=$(timeout 200 python3 ntcrun.py t/ovls/gone.bas 'x' t/ovls/A.cls t/ovls/B.cls --platform=cpm 2>&1)
+echo "$o" | grep -q "^Overlay not loaded: OVB.PAG" && echo "$o" | grep -q "^The file didn't load" && ! echo "$o" | grep -q "not here" && echo "ok   overlay area: file gone" || { echo "FAIL overlay area: file gone"; echo "$o" | tail -4; fail=1; }
 rm -rf t/files t/od; mkdir -p t/od; cp $P/overlays/* t/od/
 check "overlays demo cpcmin" "^Unload level 1: 0 - pages -C" "$(timeout 200 python3 ntcrun.py t/od/Main.bas '~x' t/od/Level1.cls t/od/Level2.cls --platform=cpcmin 2>&1)"
+rm -rf t/files; check "overlays demo cpm" "^Unload level 2: 0 - level 2 0" "$(timeout 200 python3 ntcrun.py t/od/Main.bas '~x' t/od/Level1.cls t/od/Level2.cls --platform=cpm 2>&1)"
 # interrupt classes (Option Class Interrupt rate | Frame): Tick at safe points, normal mode; cpc / cpcmin
 for pl in cpc cpcmin; do
   rm -rf t/isl; mkdir -p t/isl; cp isl/* t/isl/
@@ -150,6 +164,39 @@ node cli.js t/isl/Main.bas t/isl/Music.cls --platform=cpcfw 2>&1 >/dev/null | gr
 node cli.js t/ss.bas > t/ss.asm 2>/dev/null; node cli.js t/ssn.bas > t/ssn.asm 2> t/ssn.err
 if [ $(grep -c "^p_shellsort" t/ssn.asm) -lt $(grep -c "^p_shellsort" t/ss.asm) ] && grep -q "Turbo On does nothing" t/ssn.err; then echo "ok   Option NoTurbo one copy"; else echo "FAIL Option NoTurbo one copy"; fail=1; fi
 check "Option NoTurbo runs" "^6 8 9 26 26 31 34 34 34 35" "$(timeout 100 python3 cpcrun.py t/ssn.bas '300\ntnx' 2>&1)"
+# List class: linked lists in the heap (D pages, or Small's main RAM); both modes
+for m in --turbo ""; do
+  for c in "cpc 128 list_cpc" "cpcmin 576 list_cpc" "cpc 64 list_64" "cpm 128 list_cpm" "test 128 list_test"; do
+    set -- $c; cp list_t.bas t/
+    o=$(timeout 300 python3 ntcrun.py t/list_t.bas '' --platform=$1 --ram=$2 $m 2>&1 | grep -v "^--- ")
+    if [ "$o" == "$(cat ref/$3.txt)" ]; then echo "ok   list $1 ${2}K ${m:-normal}"; else echo "FAIL list $1 ${2}K ${m:-normal}"; echo "$o" | head -5; fail=1; fi
+  done
+done
+cp $P/lists.bas t/ex/
+for pl in cpc cpcfw cpm test; do check "lists demo $pl" "^235 players with 5000 or more" "$(timeout 300 python3 ntcrun.py t/ex/lists.bas '~x' --platform=$pl 2>&1)"; done
+# the sort timing demo: 300 nodes, a turbo and a normal sort, both in order
+cp $P/sorttime.bas t/ex/
+for pl in cpc cpcmin cpm test; do
+  o=$(timeout 300 python3 ntcrun.py t/ex/sorttime.bas '300\nTNX' --platform=$pl 2>&1)
+  if [ "$(echo "$o" | grep -c '^in order')" == "2" ] && ! echo "$o" | grep -q "NOT IN"; then echo "ok   sorttime $pl"; else echo "FAIL sorttime $pl"; echo "$o" | tail -5; fail=1; fi
+done
+# Private Paged variables and local memory in an overlay class (with a List); both modes
+for m in --turbo ""; do
+  for pl in cpcmin cpcfw; do
+    rm -rf t/files t/pvar; mkdir -p t/pvar; cp pvar/* t/pvar/
+    o=$(timeout 300 python3 ntcrun.py t/pvar/Main.bas '' t/pvar/Shop.cls --platform=$pl $m 2>&1 | grep -v "^--- ")
+    if [ "$o" == "$(cat ref/pvar.txt)" ]; then echo "ok   paged variables $pl ${m:-normal}"; else echo "FAIL paged variables $pl ${m:-normal}"; echo "$o" | head -5; fail=1; fi
+  done
+done
+printf 'Private Paged x As Integer\nPublic Sub A()\nx = 1\nEnd Sub\n' > t/pvar/Rx.cls; printf 'Rx.A\n' > t/pvar/rmain.bas
+node cli.js t/pvar/rmain.bas t/pvar/Rx.cls --platform=cpcmin 2>&1 >/dev/null | grep -q "go in an overlay class" && echo "ok   paged variables refused outside an overlay class" || { echo "FAIL paged variables refused"; fail=1; }
+# arrays after the program (not in its file): the file stays small, too big a set stops with a message
+printf 'Dim a(5000) As Integer\na(4999) = 7\nPrint "a"; a(4999); a(0)\n' > t/bss1.bas
+node cli.js t/bss1.bas --platform=cpm > t/bss1.asm && (cd t && ${SJASMPLUS:-sjasmplus} --nologo --msg=err --raw=bss1.com bss1.asm > /dev/null)
+if [ $(stat -c %s t/bss1.com) -lt 2000 ]; then echo "ok   arrays not in the file ($(stat -c %s t/bss1.com) bytes)"; else echo "FAIL arrays not in the file"; fail=1; fi
+check "arrays after the program run" "^a70" "$(timeout 60 python3 ntcrun.py t/bss1.bas '' --platform=cpm 2>&1)"
+printf 'Dim a(30000) As Integer\nPrint "ran"\n' > t/bss2.bas
+for pl in cpm cpc cpcfw; do check "arrays too big $pl" "^Not enough memory for the arrays" "$(timeout 60 python3 ntcrun.py t/bss2.bas '' --platform=$pl 2>&1)"; done
 mkdir -p t/via; cp via/* t/via/; o=$(timeout 100 python3 ntcrun.py t/via/Main.bas 'Bo\n7\n' t/via/StdIO.cls --platform=test 2>&1 | grep -v "^--- ")
 if [ "$o" == "$(cat ref/via.txt)" ]; then echo "ok   own StdIO"; else echo "FAIL own StdIO"; fail=1; fi
 # build/: regenerate, then check every file assembles the way build.bat does it

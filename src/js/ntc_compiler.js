@@ -36,7 +36,9 @@ function ntcCompile(input_a, objOptions_a)
 	var objClassKind = {};		// Option Class: module -> { kind: 'overlay', file } / { kind: 'interrupt', rate, slot }
 	var arrOvlOrder = [];		// overlay classes, in source order
 	var objOvlAsm = {};			// overlay class -> its thread lines (built at #4000)
-	var arrIslots = [];			// interrupt classes: { module, rate (0 = Frame), tick }
+	var arrIslots = [];
+	var objPagedLabel = {};		// label -> overlay class: a Private Paged variable (in the class's page)
+	var objOvlVars = {};		// overlay class -> its paged variables (declarations)			// interrupt classes: { module, rate (0 = Frame), tick }
 	var intStrMax = 40;			// the longest string in the program (findStrMax)
 	var arrReserve = [];		// Option Reserve: { start, size, file, line }
 	var arrRomEnable = null;	// Option RomEnable (cpcfw): null none, ['all'], or ROM numbers
@@ -373,6 +375,7 @@ function ntcCompile(input_a, objOptions_a)
 		{
 			return objLabelNames[objEl_a.full];
 		}
+
 		if ((strFirstModule.length > 0) && (strName.substr(0, strFirstModule.length + 1) === strFirstModule + '.'))
 		{
 			strName = strName.substr(strFirstModule.length + 1);
@@ -385,6 +388,10 @@ function ntcCompile(input_a, objOptions_a)
 		}
 		objLabelUsed[strLabel] = objEl_a.full;
 		objLabelNames[objEl_a.full] = strLabel;
+		if (objEl_a.paged && (objMemory.scheme === 'cpcexpansion'))
+		{
+			objPagedLabel[strLabel] = objEl_a.module;		// lives in its overlay class's page
+		}
 
 		return strLabel;
 	}
@@ -2808,7 +2815,15 @@ function ntcCompile(input_a, objOptions_a)
 			arrCode.push(strIndent + 'ld a, (ntc_hookset)\t; Interrupt hook done: may run again');
 			arrCode.push(strIndent + 'ld (ntc_hookon), a');
 		}
-		if (isOverlayProc(objProc_a))
+		if (isOverlayProc(objProc_a) && (objMemory.scheme === 'small'))
+		{
+			// one overlay area: the caller's class back in it, if another took its place
+			arrCode.push(strIndent + 'ld hl, (' + procBase(objProc_a) + '_pg)\t; the caller\'s class back in the overlay area');
+			arrCode.push(strIndent + 'ld ix, ' + strBody + '_rb');
+			arrCode.push(strIndent + 'jp ntc_ovl_ret');
+			arrCode.push(strBody + '_rb:');
+		}
+		else if (isOverlayProc(objProc_a))
 		{
 			arrCode.push(strIndent + 'ld sp, (ntc_csp)\t\t; the caller\'s page back');
 			arrCode.push(strIndent + 'ld hl, (' + procBase(objProc_a) + '_pg)');
@@ -7082,6 +7097,21 @@ function ntcCompile(input_a, objOptions_a)
 		}
 	}
 
+	// bytes an array (or descriptor) takes after the program; 0 = it stays in the program
+	function bssSize(objItem_a)
+	{
+		switch (objItem_a.kind)
+		{
+			case 'arr': return objItem_a.size * 2;
+			case 'sarr': return objItem_a.size * (objItem_a.stride || 41);
+			case 'desc': return 12;
+			case 'dyn': return objItem_a.size;
+			case 'barr': return objItem_a.size;
+			case 'larr': return objItem_a.size * 4;
+		}
+		return 0;
+	}
+
 	// Option Memory Small | CPCExpansion [maxpages] - findMemory took the values; this checks them
 	function readMemory(objRec_a)
 	{
@@ -7164,7 +7194,7 @@ function ntcCompile(input_a, objOptions_a)
 			var strModule = '';
 			var strBlk = '';
 
-			if (!arrMatch || ((objOptions.platform !== 'cpcfw') && (objOptions.platform !== 'cpcmin')) || (objMemory.scheme !== 'cpcexpansion'))
+			if (!arrMatch || !overlayPlatform())
 			{
 				return objFile_a;		// not here: Option Class says why
 			}
@@ -7176,10 +7206,21 @@ function ntcCompile(input_a, objOptions_a)
 				'Public Function Load() As Integer', '#asm', '\t\t\tpop hl', '\t\t\tld (ovl_kres), hl', '\t\t\tld hl, ' + strBlk, '\t\t\tjp ntc_ovl_kload', '#endasm', 'End Function',
 				'Public Function Unload() As Integer', '#asm', '\t\t\tpop hl', '\t\t\tld (ovl_kres), hl', '\t\t\tld hl, ' + strBlk, '\t\t\tjp ntc_ovl_kunload', '#endasm', 'End Function',
 				'Public Function Loaded() As Integer', '#asm', '\t\t\tpop hl', '\t\t\tld (ovl_kres), hl', '\t\t\tld hl, ' + strBlk, '\t\t\tjp ntc_ovl_kloaded', '#endasm', 'End Function',
-				'Public Function Page() As Integer', '#asm', '\t\t\tpop hl', '\t\t\tld (ovl_kres), hl', '\t\t\tld hl, ' + strBlk, '\t\t\tjp ntc_ovl_kpage', '#endasm', 'End Function'
+				'Public Function Page() As Integer', '#asm', '\t\t\tpop hl', '\t\t\tld (ovl_kres), hl', '\t\t\tld hl, ' + strBlk, '\t\t\tjp ntc_ovl_kpage', '#endasm', 'End Function',
+				'Public Function LocalStart() As Integer', '#asm', '\t\t\tpop hl', '\t\t\tld de, ' + strBlk.replace('ovl_blk_', 'ovl_') + '_end + ' + strBlk.replace('ovl_blk_', 'ovl_') + '_vsize', '\t\t\tld (hl), e', '\t\t\tinc hl', '\t\t\tld (hl), d', '#endasm', 'End Function',
+				'Public Function LocalSize() As Integer', '#asm', '\t\t\tpop hl', '\t\t\tld de, (#8000 - (' + strBlk.replace('ovl_blk_', 'ovl_') + '_end + ' + strBlk.replace('ovl_blk_', 'ovl_') + '_vsize)) & #FFFE', '\t\t\tld (hl), e', '\t\t\tinc hl', '\t\t\tld (hl), d', '#endasm', 'End Function',
+				'Public Function LocalAlloc(ByVal size As Integer) As Integer', '#asm', '\t\t\tpop hl', '\t\t\tld e, (hl)', '\t\t\tinc hl', '\t\t\tld d, (hl)', '\t\t\tld (mem_a1), de', '\t\t\tpop hl', '\t\t\tld (mem_res), hl', '\t\t\tld hl, ' + strBlk, '\t\t\tld (ovl_lblk), hl', '\t\t\tld hl, ntc_ovl_lalloc', '\t\t\tjp mem_go', '#endasm', 'End Function',
+				'Public Function LocalFree(ByVal addr As Integer) As Integer', '#asm', '\t\t\tpop hl', '\t\t\tld e, (hl)', '\t\t\tinc hl', '\t\t\tld d, (hl)', '\t\t\tld (mem_a1), de', '\t\t\tpop hl', '\t\t\tld (mem_res), hl', '\t\t\tld hl, ' + strBlk, '\t\t\tld (ovl_lblk), hl', '\t\t\tld hl, ntc_ovl_lfree', '\t\t\tjp mem_go', '#endasm', 'End Function'
 			].join('\n') + '\n';
 			return { name: objFile_a.name, text: strText, platform: objFile_a.platform };
 		});
+	}
+
+	// overlay classes need files: AMSDOS (cpcfw, cpcmin: in RAM pages with Option Memory
+	// CPCExpansion, else one overlay area at #4000) or CP/M (the overlay area)
+	function overlayPlatform()
+	{
+		return (objOptions.platform === 'cpcfw') || (objOptions.platform === 'cpcmin') || (objOptions.platform === 'cpm');
 	}
 
 	// Option Class Overlay ["FILE"] | Interrupt rate | Interrupt Frame - checked here
@@ -7187,7 +7228,6 @@ function ntcCompile(input_a, objOptions_a)
 	{
 		var strValue = String(objRec_a.value).replace(/'.*$/, '');
 		var arrMatch = null;
-		var blnCpc = (objOptions.platform === 'cpcfw') || (objOptions.platform === 'cpcmin');
 		var strFile = '';
 		var intRate = 0;
 
@@ -7202,14 +7242,9 @@ function ntcCompile(input_a, objOptions_a)
 		}
 		if ((arrMatch = strValue.match(/^\s*overlay\s*(?:"([^"]*)")?\s*$/i)))
 		{
-			if (!blnCpc)
+			if (!overlayPlatform())
 			{
-				arrErrors.push({ file: objRec_a.file, line: objRec_a.line, msg: 'Option Class Overlay needs a platform that can load files into pages: cpcfw or cpcmin (not ' + objOptions.platform + ')' });
-				return;
-			}
-			if (objMemory.scheme !== 'cpcexpansion')
-			{
-				arrErrors.push({ file: objRec_a.file, line: objRec_a.line, msg: 'Option Class Overlay needs Option Memory CPCExpansion' });
+				arrErrors.push({ file: objRec_a.file, line: objRec_a.line, msg: 'Option Class Overlay needs a platform that can load files: cpcfw, cpcmin or cpm (not ' + objOptions.platform + ')' });
 				return;
 			}
 			strFile = (arrMatch[1] || objRec_a.module).toUpperCase().replace(/\.PAG$/, '').replace(/[^A-Z0-9]/g, '').substr(0, 8);
@@ -7221,6 +7256,7 @@ function ntcCompile(input_a, objOptions_a)
 			objClassKind[objRec_a.module] = { kind: 'overlay', file: strFile + '.PAG', blk: 'ovl_blk_' + objRec_a.module.replace(/[^a-z0-9_]/g, '_'), id: objRec_a.module.replace(/[^a-z0-9_]/g, '_') };
 			arrOvlOrder.push(objRec_a.module);
 			objOvlAsm[objRec_a.module] = [];
+			objOvlVars[objRec_a.module] = [];
 			return;
 		}
 		if ((arrMatch = strValue.match(/^\s*interrupt\s+(frame|\d+)\s*$/i)))
@@ -7469,7 +7505,7 @@ function ntcCompile(input_a, objOptions_a)
 	strTerminal = findTerminal(arrFiles);
 	objMemory = findMemory(arrFiles);
 	objDefinesIn['ntc_mem_' + objMemory.scheme] = -1;		// #If NTC_MEM_SMALL Then ... (and @if: library sections)
-	blnMemoryUsed = arrFiles.some(function(objFile_a) { return /(^|[\/\\])memory\.cls$/i.test(String(objFile_a.name)); });
+	blnMemoryUsed = arrFiles.some(function(objFile_a) { return /(^|[\/\\])(memory|list)\.cls$/i.test(String(objFile_a.name)); });
 	if (strTerminal !== 'none')
 	{
 		objDefinesIn['ntc_term_' + strTerminal] = -1;		// #If NTC_TERM_VT52 Then ...
@@ -7582,6 +7618,16 @@ function ntcCompile(input_a, objOptions_a)
 		}
 	}
 
+	// Private Paged: only in an overlay class
+	for (strCur in objEl)
+	{
+		if (objEl.hasOwnProperty(strCur) && objEl[strCur].paged && (objOvlVars[objEl[strCur].module] === undefined))
+		{
+			arrErrors.push({ file: objEl[strCur].file || '', line: objEl[strCur].line || 0, msg: 'Paged variables (' + objEl[strCur].id + ') go in an overlay class (Option Class Overlay)' });
+		}
+	}
+	strCur = '';
+
 	// Option NoTurbo: normal mode from the start, whatever Option Turbo / the turbo setting say
 	if (blnNoTurbo)
 	{
@@ -7675,6 +7721,8 @@ function ntcCompile(input_a, objOptions_a)
 	var intKeywords = 0;
 	var arrAsm = [];
 	var arrAsmMain = [];
+	var arrBss = [];
+	var intBss = 0;			// arrays: addresses after the program (ntc_end on), cleared at start
 	var objItem = null;
 	var objUsedT = {};
 	var objUsedN = {};
@@ -7742,7 +7790,7 @@ function ntcCompile(input_a, objOptions_a)
 		arrAsm.push(strIndent + 'ld sp, ' + objStack.addr + '\t\t; the stack from ' + hex4(objStack.addr) + ' down');
 		arrAsm.push(strIndent + 'ld hl, ntc_sback');
 		arrAsm.push(strIndent + 'push hl\t\t\t; End returns here, then to the caller');
-		arrAsm.push(strIndent + 'ASSERT (' + objStack.addr + ' <= ntc_start) || (' + objStack.addr + ' >= ntc_end + 64), "Option Stack ' + hex4(objStack.addr) + ' is in the program, or less than 64 bytes above its end (' + objStack.file + ' line ' + objStack.line + ')"');
+		arrAsm.push(strIndent + 'ASSERT (' + objStack.addr + ' <= ntc_start) || (' + objStack.addr + ' >= ntc_free + 64), "Option Stack ' + hex4(objStack.addr) + ' is in the program or its arrays, or less than 64 bytes above their end (' + objStack.file + ' line ' + objStack.line + ')"');
 	}
 	else if (String(objPlat.stack).length > 0)
 	{
@@ -7757,7 +7805,7 @@ function ntcCompile(input_a, objOptions_a)
 		arrAsm.push(strIndent + 'cp #DF\t\t\t; AMSDOS has the cassette calls: they are running');
 		arrAsm.push(strIndent + 'jr z, ntc_roms_on');
 		arrAsm.push(strIndent + 'ei');
-		arrAsm.push(strIndent + 'ld de, ntc_end\t\t; the lowest address the ROMs may use');
+		arrAsm.push(strIndent + 'ld de, ntc_free\t\t; the lowest address the ROMs may use (above the arrays)');
 		arrAsm.push(strIndent + 'ld hl, #ABFF\t\t; the highest (as usual for AMSDOS: it takes about #A700-#ABFF)');
 		if (arrRomEnable[0] === 'all')
 		{
@@ -7772,7 +7820,7 @@ function ntcCompile(input_a, objOptions_a)
 			});
 		}
 		arrAsm.push(strIndent + 'di');
-		arrAsm.push(strIndent + 'ASSERT ntc_end <= #A600, "Option RomEnable: the program must end below #A600 (the ROMs take their RAM from #ABFF down)"');
+		arrAsm.push(strIndent + 'ASSERT ntc_free <= #A600, "Option RomEnable: the program and its arrays must end below #A600 (the ROMs take their RAM from #ABFF down)"');
 		arrAsm.push('ntc_roms_on:');
 	}
 	if (blnGosub)
@@ -7849,6 +7897,13 @@ function ntcCompile(input_a, objOptions_a)
 			intBytes += 2;
 			break;
 		}
+	}
+
+	if (arrDecl.some(function(objItem_a) { return bssSize(objItem_a) > 0; }))
+	{
+		arrAsm.push(strIndent + 'dw kw_bssinit, ntc_bss, ntc_bss_size\t\t; the arrays: do they fit, clear them');
+		objUsedT['kw_bssinit'] = true;
+		intBytes += 6;
 	}
 
 	for (intI = 0; intI < arrOut.length; intI++)
@@ -8076,6 +8131,11 @@ function ntcCompile(input_a, objOptions_a)
 	for (intI = 0; intI < arrDecl.length; intI++)
 	{
 		objItem = arrDecl[intI];
+		if ((objPagedLabel[objItem.label] !== undefined) && (objOvlVars[objPagedLabel[objItem.label]] !== undefined))
+		{
+			objOvlVars[objPagedLabel[objItem.label]].push(objItem);		// in the overlay's page
+			continue;
+		}
 		if (objItem.kind === 'str')
 		{
 			arrAsm.push(strIndent + 'db ' + objItem.size + '\t\t\t; capacity');
@@ -8087,33 +8147,13 @@ function ntcCompile(input_a, objOptions_a)
 			arrAsm.push(objItem.label + ':' + strIndent + 'ds ' + objItem.size + ', 32\t\t; String * ' + objItem.size + ' (n spaces)');
 			arrAsm.push(strIndent + 'db 0');
 		}
-		else if (objItem.kind === 'arr')
+		else if (bssSize(objItem) > 0)
 		{
-			arrAsm.push(objItem.label + ':' + strIndent + 'ds ' + (objItem.size * 2) + '\t\t; ' + objItem.size + ' words');
-		}
-		else if (objItem.kind === 'sarr')
-		{
-			arrAsm.push(objItem.label + ':' + strIndent + 'ds ' + (objItem.size * (objItem.stride || 41)) + '\t\t; ' + objItem.size + ' strings of ' + ((objItem.stride || 41) - 1));
-		}
-		else if (objItem.kind === 'desc')
-		{
-			arrAsm.push(objItem.label + ':' + strIndent + 'ds 12\t\t; array descriptor: base, lower bounds, counts, size');
+			arrBss.push(objItem);		// after the program, not in its file
 		}
 		else if (objItem.kind === 'adesc')
 		{
 			arrAsm.push(objItem.label + ':' + strIndent + 'dw ' + objItem.words.join(', ') + '\t\t; array as an argument');
-		}
-		else if (objItem.kind === 'dyn')
-		{
-			arrAsm.push(objItem.label + ':' + strIndent + 'ds ' + objItem.size + '\t\t; dynamic array, biggest ReDim');
-		}
-		else if (objItem.kind === 'barr')
-		{
-			arrAsm.push(objItem.label + ':' + strIndent + 'ds ' + objItem.size + '\t\t; ' + objItem.size + ' bytes');
-		}
-		else if (objItem.kind === 'larr')
-		{
-			arrAsm.push(objItem.label + ':' + strIndent + 'ds ' + (objItem.size * 4) + '\t\t; ' + objItem.size + ' Longs');
 		}
 		else if (objItem.kind === 'long')
 		{
@@ -8323,29 +8363,43 @@ function ntcCompile(input_a, objOptions_a)
 	if (arrOvlOrder.length > 0)
 	{
 		arrAsm.push('');
-		arrAsm.push('; overlay classes: the page each is loaded in (0 = not loaded), its file');
+		arrAsm.push('; overlay classes: the page each is loaded in (0 = not loaded), its page variables (start, size), its file');
 		arrOvlOrder.forEach(function(strModule_a)
 		{
-			arrAsm.push(objClassKind[strModule_a].blk + ':\tdw 0');
+			arrAsm.push(objClassKind[strModule_a].blk + ':\tdw 0, ovl_' + objClassKind[strModule_a].id + '_end, ovl_' + objClassKind[strModule_a].id + '_vsize');
 			arrAsm.push(strIndent + 'db "' + objClassKind[strModule_a].file + '", 0');
 		});
 	}
-	if (blnMemoryUsed && (objMemory.scheme === 'small'))
+	if ((arrOvlOrder.length > 0) && !arrReserve.some(function(objRes_a) { return (objRes_a.start <= 0x4000) && (objRes_a.start + objRes_a.size >= 0x8000); }))
+	{
+		arrReserve.push({ start: 0x4000, size: 0x4000, file: 'overlay classes', line: 0 });		// the window / overlay area
+	}
+	if ((blnMemoryUsed || (arrOvlOrder.length > 0)) && (objMemory.scheme === 'small'))
 	{
 		arrAsm.push('');
 		arrAsm.push('ntc_rsvtab:\t\t\t\t; Option Reserve starts (the Memory class\'s heap stops at them), 0 ends');
 		arrAsm.push(strIndent + 'dw ' + arrReserve.map(function(objRes_a) { return String(objRes_a.start); }).concat(['0']).join(', '));
 	}
 	arrAsm.push('');
-	arrAsm.push('ntc_end:\t\t\t\t; the end of the program');
+	arrAsm.push('ntc_end:\t\t\t\t; the end of the program (and of its file)');
+	arrAsm.push('; arrays: after the program, not in its file - kw_bssinit checks they fit and clears them');
+	arrAsm.push('ntc_bss\t\tequ ntc_end');
+	intBss = 0;
+	arrBss.forEach(function(objItem_a)
+	{
+		arrAsm.push(objItem_a.label + '\t\tequ ntc_bss + ' + intBss + '\t\t; ' + bssSize(objItem_a) + ' bytes');
+		intBss += bssSize(objItem_a);
+	});
+	arrAsm.push('ntc_bss_size\tequ ' + intBss);
+	arrAsm.push('ntc_free\tequ ntc_bss + ntc_bss_size\t; the first free byte (heap, Memory tables)');
 	if (arrReserve.length > 0)
 	{
-		arrAsm.push('; Option Reserve: the program (ntc_start .. ntc_end) must stay out of these');
+		arrAsm.push('; Option Reserve: the program and its arrays (ntc_start .. ntc_free) must stay out of these');
 		arrReserve.forEach(function(objRes_a)
 		{
 			var strEnd = hex4(objRes_a.start + objRes_a.size - 1);
 
-			arrAsm.push(strIndent + 'ASSERT (ntc_end <= ' + objRes_a.start + ') || (ntc_start >= ' + (objRes_a.start + objRes_a.size) + '), "the program reaches into Option Reserve ' + hex4(objRes_a.start) + '-' + strEnd + ' (' + objRes_a.file + ' line ' + objRes_a.line + ')"');
+			arrAsm.push(strIndent + 'ASSERT (ntc_free <= ' + objRes_a.start + ') || (ntc_start >= ' + (objRes_a.start + objRes_a.size) + '), "the program (or its arrays) reaches into Option Reserve ' + hex4(objRes_a.start) + '-' + strEnd + ' (' + objRes_a.file + ' line ' + objRes_a.line + ')"');
 		});
 	}
 	if (String(objOptions.amsdos || '').length > 0)
@@ -8356,7 +8410,7 @@ function ntcCompile(input_a, objOptions_a)
 	var strLen = '';
 	if (arrOvlOrder.length > 0)
 	{
-		arrAsm.push(strIndent + 'ASSERT (ntc_end <= #4000) || (ntc_start >= #8000), "overlay classes: the program must stay out of #4000-#7FFF (the window they run in)"');
+		arrAsm.push(strIndent + 'ASSERT (ntc_free <= #4000) || (ntc_start >= #8000), "overlay classes: the program and its arrays must stay out of #4000-#7FFF (the window they run in)"');
 		arrOvlOrder.forEach(function(strModule_a)
 		{
 			var objKind = objClassKind[strModule_a];
@@ -8368,7 +8422,7 @@ function ntcCompile(input_a, objOptions_a)
 			arrAsm.push('; ============================================================');
 			// an AMSDOS build: a binary file with an AMSDOS header (AMSDOS takes a file without
 			// one for ASCII text, and CAS IN DIRECT won't load it); else the plain bytes
-			if (String(objOptions.amsdos || '').length === 0)
+			if ((String(objOptions.amsdos || '').length === 0) && (objOptions.platform !== 'cpm'))
 			{
 				// written here with its AMSDOS header: binary (type 2), loads at #4000
 				strLen = '(ovl_' + objKind.id + '_end - ovl_' + objKind.id + '_start)';
@@ -8385,13 +8439,46 @@ function ntcCompile(input_a, objOptions_a)
 				arrAsm.push(strIndent + 'dw 2 + #40 + #40 + 2 * ((' + strLen + ' & 255) + (' + strLen + ' >> 8))\t; checksum of bytes 0-66');
 				arrAsm.push(strIndent + 'ds 59');
 			}
+			if (objOptions.platform === 'cpm')
+			{
+				arrAsm.push(strIndent + 'OUTPUT "' + objKind.file + '"');		// CP/M: the plain bytes
+			}
 			arrAsm.push(strIndent + 'ORG #4000');
 			arrAsm.push('ovl_' + objKind.id + '_start:');
 			arrAsm = arrAsm.concat(objOvlAsm[strModule_a]);
 			arrAsm.push(strIndent + 'dw 0\t\t\t; (never empty)');
-			arrAsm.push('ovl_' + objKind.id + '_end:');
-			arrAsm.push(strIndent + 'ASSERT ovl_' + objKind.id + '_end <= #8000, "overlay class ' + strModule_a + ' is more than 16K"');
-			if (String(objOptions.amsdos || '').length === 0)
+			intBss = 0;
+			objOvlVars[strModule_a].forEach(function(objItem_a)
+			{
+				// Paged Strings: in the file (their capacity byte goes before them)
+				if ((objItem_a.kind === 'str') || (objItem_a.kind === 'strfix'))
+				{
+					arrAsm.push(strIndent + 'db ' + objItem_a.size + '\t\t\t; capacity');
+					if (objItem_a.kind === 'str')
+					{
+						arrAsm.push(objItem_a.label + ':' + strIndent + 'ds ' + (objItem_a.size + 1));
+					}
+					else
+					{
+						arrAsm.push(objItem_a.label + ':' + strIndent + 'ds ' + objItem_a.size + ', 32');
+						arrAsm.push(strIndent + 'db 0');
+					}
+				}
+			});
+			arrAsm.push('ovl_' + objKind.id + '_end:\t\t; the end of its file; page variables (cleared on loading) follow');
+			objOvlVars[strModule_a].forEach(function(objItem_a)
+			{
+				var intSize = (objItem_a.kind === 'long') ? 4 : (((objItem_a.kind === 'str') || (objItem_a.kind === 'strfix')) ? 0 : (bssSize(objItem_a) || 2));
+
+				if (intSize > 0)
+				{
+					arrAsm.push(objItem_a.label + '\t\tequ ovl_' + objKind.id + '_end + ' + intBss + '\t\t; ' + intSize + ' bytes');
+					intBss += intSize;
+				}
+			});
+			arrAsm.push('ovl_' + objKind.id + '_vsize\tequ ' + intBss + '\t\t; its page variables; its local memory is the rest, to #8000');
+			arrAsm.push(strIndent + 'ASSERT ovl_' + objKind.id + '_end + ovl_' + objKind.id + '_vsize <= #8000, "overlay class ' + strModule_a + ' is more than 16K (code and page variables)"');
+			if ((String(objOptions.amsdos || '').length === 0) || (objOptions.platform === 'cpm'))
 			{
 				arrAsm.push(strIndent + 'OUTEND');
 			}

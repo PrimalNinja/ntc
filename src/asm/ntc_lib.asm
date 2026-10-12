@@ -5530,8 +5530,8 @@ ntc_buf:		ds 2048
 ; only the one chosen is in the library (@if:): CPCExpansion (16K pages
 ; through the #4000 window, up to 4MB) or Small (main RAM only, no paging).
 ; Each class method jumps to mem_go with HL = the routine: mem_go runs it
-; on the real stack (call / push are fine there), interrupts left as
-; they are, and stores its HL result at mem_res (mem_go4: a Long, high
+; on the real stack (call / push are fine there), interrupts on in normal
+; mode (off in turbo), and stores its HL result at mem_res (mem_go4: a Long, high
 ; word in mem_hi; mem_go0: no store - the routine writes the result
 ; itself, or there is none). A routine that fails jumps to mem_err with
 ; HL = the status; mem_err puts back the page that was in the window
@@ -5592,9 +5592,15 @@ mem_gostart:
 			pop hl
 			ld de, (mem_cur)
 			ld (mem_keep), de
+			ld a, (ntc_nmode)		; normal mode: interrupts in during the call (Ticks keep
+			or a					; counting through a long Sort or Copy); turbo: off
+			jr z, mem_gocall
+			ei
+mem_gocall:
 			ld (mem_esp), sp
 			call mem_jphl
 mem_back:
+			di
 			ld ix, (mem_six)
 			ld iy, (mem_siy)
 			ld a, (mem_store)
@@ -5889,9 +5895,9 @@ mem_putback:
 ;   Page 2+ = 4 pages for each bank the probe finds, the standard 512K
 ;             (port #7F) first, then the blocks on #7E .. #78
 ;   Page numbers are 16 bit (a far pointer's high word); 0 = plain memory.
-;   No pages at all when the program (ntc_start .. ntc_end) or the
+;   No pages at all when the program (ntc_start .. ntc_free) or the
 ;   real stack is in the window: switching would hide them.
-; Tables, made by the first call (mem_start) from ntc_end up, sized to
+; Tables, made by the first call (mem_start) from ntc_free up, sized to
 ; what the probe finds (3 bytes a page: next link, type); fewer pages
 ; when there isn't room below #4000 (or below the real stack).
 ; Lists: every page is on one - 0 free low (main + the #7F block),
@@ -5924,7 +5930,7 @@ mem_start:
 			ret nz
 			inc a
 			ld (mem_init), a
-			ld hl, ntc_end
+			ld hl, ntc_free
 			ld (mem_tend), hl
 			ld de, MEM_WIN + 1		; the program must be out of the window:
 			or a					; it ends by #4000 ...
@@ -6059,7 +6065,7 @@ mem_tb_fit:
 			ld e, l
 			add hl, hl
 			add hl, de				; 3 bytes a page
-			ld de, ntc_end
+			ld de, ntc_free
 			add hl, de
 			ex de, hl				; DE = their end
 			ld hl, (mem_tend)
@@ -6071,12 +6077,12 @@ mem_tb_fit:
 			ld (mem_count), hl
 			jr mem_tb_fit
 mem_tb_none:
-			ld hl, ntc_end
+			ld hl, ntc_free
 			ld (mem_tend), hl
 			ret
 mem_tb_ok:
 			ld (mem_tend), de
-			ld hl, ntc_end
+			ld hl, ntc_free
 			ld (mem_tnext), hl
 			ld de, (mem_count)
 			add hl, de
@@ -6793,7 +6799,7 @@ mem_start:
 			call ntc_plat_memtop	; HL = the platform's top
 			ld (mem_hhi), hl
 			ld hl, (ntc_csp)		; the real stack, when it is above the program
-			ld de, ntc_end + 256
+			ld de, ntc_free + 256
 			or a
 			sbc hl, de
 			jr c, mem_ss_rsv
@@ -6815,7 +6821,7 @@ mem_ss_rl:
 			ld h, d
 			ld l, e
 			push hl
-			ld de, ntc_end
+			ld de, ntc_free
 			or a
 			sbc hl, de
 			pop hl
@@ -6823,7 +6829,7 @@ mem_ss_rl:
 			pop hl
 			jr mem_ss_rl
 mem_ss_go:
-			ld hl, ntc_end
+			ld hl, ntc_free
 			ld (mem_hlo), hl
 			ex de, hl
 			ld hl, (mem_hhi)		; room for at least one small block, an even size
@@ -6861,7 +6867,7 @@ mem_ss_len:
 			ex de, hl
 			jr mem_ss_init
 mem_ss_none:
-			ld hl, ntc_end
+			ld hl, ntc_free
 			ld (mem_hhi), hl
 			ret
 ; HL = a limit: mem_hhi = it when lower
@@ -6897,7 +6903,7 @@ mem_freepage:
 mem_selpage:
 			jp mem_chk_bad
 mem_tableend:
-			ld hl, ntc_end
+			ld hl, ntc_free
 			ret
 mem_map:
 			ld hl, (mem_res)
@@ -7074,20 +7080,11 @@ mem_cw_hi:
 			ld d, #40
 			ret
 
-;## ntc_ovl ntc_data ntc_mem ntc_plat_fs ntc_plat_screen ntc_plat_key kw_stop @shared
+;## ntc_ovlcom ntc_data ntc_mem ntc_plat_screen ntc_plat_key kw_stop @shared
 ; ------------------------------------------------------------
-; ntc_ovl - overlay classes (Option Class Overlay "FILE"): the class's
-; threads are built at #4000 into FILE.PAG in the same compile; its data
-; stays in main memory. Each class has a block in main memory:
-;   ovl_blk_<class>: dw page (0 = not loaded), db "FILE.PAG", 0
-; A call stub (p_name_c) saves the caller's SP, then jumps to
-; ntc_ovl_enter, which keeps the page that was in the window (the
-; stub's _pg word) and switches the class's page in - loading the file
-; into a free C page first if it isn't loaded. The return stub (p_name_r)
-; switches the caller's page back. Loading runs fs_load (the FileSystem
-; code: CAS IN, AMSDOS) through fs_go, with ovl_mt as the "thread" fs_go
-; returns into. The class's own Load / Unload / Loaded / Page members
-; are asm keywords (ntc_ovl_k*).
+; ntc_ovlcom - what both overlay schemes share (ntc_ovl has the rest): the
+; variables, the message when a class can't be loaded, a class's local
+; memory (LocalAlloc / LocalFree), the members' result.
 ; ------------------------------------------------------------
 OVL_NOPAGE	equ -12
 
@@ -7103,49 +7100,13 @@ ovl_ksp:		dw 0
 ovl_kres:		dw 0
 ovl_kcur:		dw 0
 ovl_mt:			dw ntc_ovl_ld2	; fs_go returns into this
+ovl_lblk:		dw 0			; LocalAlloc / LocalFree: the class block
 ovl_tdie:		db "Overlay not loaded: ", 0
 ovl_tpage:		db "No RAM page free", 0
 ovl_tfile:		db "The file didn't load", 0
 ovl_tkey:		db "Press a key", 0
 ovl_why:		dw 0
 
-; ntc_ovl_enter - from a call stub (jp, IX = where to go on): HL = the class
-; block, DE = the stub's word for the caller's page. Comes back on the real
-; stack with the class's page in the window; a class that can't be loaded
-; stops the program with a message.
-ntc_ovl_enter:
-			ld (ovl_blk), hl
-			ld (ovl_pg), de
-			ld (ovl_ix), ix
-			ld sp, (ntc_csp)
-			call mem_start
-			ld hl, (mem_cur)
-			ex de, hl
-			ld hl, (ovl_pg)
-			ld (hl), e
-			inc hl
-			ld (hl), d
-			ld hl, (ovl_blk)
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			ld a, d
-			or e
-			jr z, ntc_ovl_en_ld
-			ex de, hl
-			call mem_sel
-			ld ix, (ovl_ix)
-			jp (ix)
-ntc_ovl_en_ld:
-			ld hl, (ovl_blk)
-			ld ix, ntc_ovl_en_back
-			jp ntc_ovl_core
-ntc_ovl_en_back:
-			ld a, h
-			or l
-			jr nz, ntc_ovl_die
-			ld ix, (ovl_ix)
-			jp (ix)
 ; it can't be loaded: the name and why, wait for a key (a program started
 ; with RUN" resets when it ends), then the program stops
 ntc_ovl_die:
@@ -7158,8 +7119,8 @@ ntc_ovl_die1:
 			jr ntc_ovl_puts
 ntc_ovl_die2:
 			ld hl, (ovl_blk)
-			inc hl
-			inc hl
+			ld de, 6
+			add hl, de
 			ld ix, ntc_ovl_die3
 			jr ntc_ovl_puts
 ntc_ovl_die3:
@@ -7205,6 +7166,198 @@ ntc_ovl_pe:
 			ld ix, (ovl_pix)
 			jp (ix)
 
+; ntc_ovl_fresh - (call) HL = a class block + 2, the class just loaded at
+; #4000: its page variables cleared, its local memory one free block.
+ntc_ovl_fresh:
+			ld e, (hl)
+			inc hl
+			ld d, (hl)
+			inc hl
+			ld c, (hl)
+			inc hl
+			ld b, (hl)
+			push de
+			ld a, b
+			or c
+			jr z, ntc_ovl_noclr
+			push bc
+			ld h, d
+			ld l, e
+			ld (hl), 0
+			dec bc
+			ld a, b
+			or c
+			jr z, ntc_ovl_clr1
+			inc de
+			ldir
+ntc_ovl_clr1:
+			pop bc
+ntc_ovl_noclr:
+			pop hl
+			add hl, bc				; its local memory: one free block (LocalAlloc)
+			call ntc_ovl_lend
+			or a
+			sbc hl, de				; the size (even)
+			ld a, h
+			or a
+			jr nz, ntc_ovl_lhd
+			ld a, l
+			cp 4
+			jr c, ntc_ovl_lnone
+ntc_ovl_lhd:
+			ex de, hl
+			ld (hl), e
+			inc hl
+			ld (hl), d
+ntc_ovl_lnone:
+			ret
+
+; the members' end: HL = the result into ovl_kres, back on the thread
+ntc_ovl_kret:
+			ex de, hl
+			ld hl, (ovl_kres)
+			ld (hl), e
+			inc hl
+			ld (hl), d
+			ld sp, (ovl_ksp)
+			ret
+
+ntc_ovl_kput:
+			ex de, hl
+			ld hl, (ovl_kres)
+			ld (hl), e
+			inc hl
+			ld (hl), d
+			ret
+
+; ntc_ovl_lend - HL = a class's local memory start: DE = it, HL = its end
+; (start + the room to #8000, made even)
+ntc_ovl_lend:
+			ex de, hl
+			ld hl, #8000
+			or a
+			sbc hl, de
+			res 0, l
+			add hl, de
+			ret
+; LocalAlloc(size) (mem_go): size bytes of the class's local memory - the
+; rest of its page; only from the class's own code. An address, 0 = no room
+ntc_ovl_lalloc:
+			ld hl, (mem_a1)
+			ld a, h
+			or l
+			jr nz, ntc_ovl_la1
+			inc hl
+ntc_ovl_la1:
+			ld de, #3FFF
+			or a
+			push hl
+			sbc hl, de
+			pop hl
+			jr nc, ntc_ovl_la0
+			inc hl
+			inc hl
+			ld (mem_need), hl
+			call ntc_ovl_lreg
+			jr z, ntc_ovl_la0
+			ld bc, (mem_hlo)		; the heap code, on this region
+			push bc
+			ld bc, (mem_hhi)
+			push bc
+			ld (mem_hlo), hl
+			ld (mem_hhi), de
+			call mem_fit
+			jr z, ntc_ovl_la2
+			ld hl, 0
+ntc_ovl_la2:
+			pop de
+			ld (mem_hhi), de
+			pop de
+			ld (mem_hlo), de
+			ret
+ntc_ovl_la0:
+			ld hl, 0
+			ret
+
+; LocalFree(address) (mem_go): a block back. OK, or BadPage
+ntc_ovl_lfree:
+			call ntc_ovl_lreg
+			jp z, mem_chk_bad
+			ld bc, (mem_a1)			; start + 2 <= address < end
+			inc hl
+			inc hl
+			push hl
+			ld h, b
+			ld l, c
+			pop bc
+			or a
+			sbc hl, bc
+			jp c, mem_chk_bad
+			add hl, bc
+			or a
+			sbc hl, de
+			jp nc, mem_chk_bad
+			add hl, de
+			dec hl
+			bit 7, (hl)
+			jp z, mem_chk_bad
+			res 7, (hl)
+			ld hl, 0
+			ret
+
+
+;## ntc_ovl ntc_ovlcom ntc_mem ntc_plat_fs @shared @if:ntc_mem_cpcexpansion
+; ------------------------------------------------------------
+; ntc_ovl - overlay classes (Option Class Overlay "FILE"): the class's
+; threads are built at #4000 into FILE.PAG in the same compile; its data
+; stays in main memory. Each class has a block in main memory:
+;   ovl_blk_<class>: dw page (0 = not loaded), db "FILE.PAG", 0
+; A call stub (p_name_c) saves the caller's SP, then jumps to
+; ntc_ovl_enter, which keeps the page that was in the window (the
+; stub's _pg word) and switches the class's page in - loading the file
+; into a free C page first if it isn't loaded. The return stub (p_name_r)
+; switches the caller's page back. Loading runs fs_load (the FileSystem
+; code: CAS IN, AMSDOS) through fs_go, with ovl_mt as the "thread" fs_go
+; returns into. The class's own Load / Unload / Loaded / Page members
+; are asm keywords (ntc_ovl_k*).
+; ------------------------------------------------------------
+; ntc_ovl_enter - from a call stub (jp, IX = where to go on): HL = the class
+; block, DE = the stub's word for the caller's page. Comes back on the real
+; stack with the class's page in the window; a class that can't be loaded
+; stops the program with a message.
+ntc_ovl_enter:
+			ld (ovl_blk), hl
+			ld (ovl_pg), de
+			ld (ovl_ix), ix
+			ld sp, (ntc_csp)
+			call mem_start
+			ld hl, (mem_cur)
+			ex de, hl
+			ld hl, (ovl_pg)
+			ld (hl), e
+			inc hl
+			ld (hl), d
+			ld hl, (ovl_blk)
+			ld e, (hl)
+			inc hl
+			ld d, (hl)
+			ld a, d
+			or e
+			jr z, ntc_ovl_en_ld
+			ex de, hl
+			call mem_sel
+			ld ix, (ovl_ix)
+			jp (ix)
+ntc_ovl_en_ld:
+			ld hl, (ovl_blk)
+			ld ix, ntc_ovl_en_back
+			jp ntc_ovl_core
+ntc_ovl_en_back:
+			ld a, h
+			or l
+			jp nz, ntc_ovl_die
+			ld ix, (ovl_ix)
+			jp (ix)
 ; ntc_ovl_core - (jp, IX = where to go on) HL = a class block: its file into a
 ; free C page. Comes back on the real stack with HL = 0 and that page in the
 ; window, or HL = a FileSystem status / OVL_NOPAGE (no page is kept).
@@ -7222,8 +7375,8 @@ ntc_ovl_core:
 			ld l, c
 			call mem_sel
 			ld hl, (ovl_blk)		; FileSystem's Load: name, #4000, at most #4000
-			inc hl
-			inc hl
+			ld de, 6
+			add hl, de
 			ld (fs_a1), hl
 			ld hl, MEM_WIN
 			ld (fs_a2), hl
@@ -7243,6 +7396,8 @@ ntc_ovl_ld2:
 			ld (hl), e
 			inc hl
 			ld (hl), d
+			inc hl
+			call ntc_ovl_fresh
 			ld hl, 0
 ntc_ovl_cback:
 			ld ix, (ovl_cix)
@@ -7273,7 +7428,7 @@ ntc_ovl_kload:
 			inc hl
 			or (hl)
 			ld hl, 0
-			jr nz, ntc_ovl_kret
+			jp nz, ntc_ovl_kret
 			ld hl, (ovl_blk)
 			ld ix, ntc_ovl_kl2
 			jp ntc_ovl_core
@@ -7282,15 +7437,7 @@ ntc_ovl_kl2:
 			ld hl, (ovl_kcur)
 			call mem_sel
 			pop hl
-ntc_ovl_kret:
-			ex de, hl
-			ld hl, (ovl_kres)
-			ld (hl), e
-			inc hl
-			ld (hl), d
-			ld sp, (ovl_ksp)
-			ret
-
+			jp ntc_ovl_kret
 ; Unload(): the page back to free (the next call loads the file again). OK
 ntc_ovl_kunload:
 			ld (ovl_ksp), sp
@@ -7310,7 +7457,7 @@ ntc_ovl_kunload:
 			call mem_tofree
 ntc_ovl_kzero:
 			ld hl, 0
-			jr ntc_ovl_kret
+			jp ntc_ovl_kret
 
 ; Loaded(): True when its page is in RAM
 ntc_ovl_kloaded:
@@ -7318,23 +7465,260 @@ ntc_ovl_kloaded:
 			inc hl
 			or (hl)
 			ld hl, 0
-			jr z, ntc_ovl_kput
+			jp z, ntc_ovl_kput
 			dec hl
-ntc_ovl_kput:
-			ex de, hl
-			ld hl, (ovl_kres)
-			ld (hl), e
-			inc hl
-			ld (hl), d
-			ret
-
+			jp ntc_ovl_kput
 ; Page(): the page it is loaded in, 0 = not loaded
 ntc_ovl_kpage:
 			ld a, (hl)
 			inc hl
 			ld h, (hl)
 			ld l, a
-			jr ntc_ovl_kput
+			jp ntc_ovl_kput
+
+; ntc_ovl_lreg - ovl_lblk's class: its page must be the one in the window
+; (its own code is running). NZ: HL = its local memory start, DE = the end.
+; Z: it isn't.
+ntc_ovl_lreg:
+			ld hl, (ovl_lblk)
+			ld e, (hl)
+			inc hl
+			ld d, (hl)
+			ld a, d
+			or e
+			ret z
+			ld hl, (mem_cur)
+			or a
+			sbc hl, de
+			jr nz, ntc_ovl_lno
+			ld hl, (ovl_lblk)
+			inc hl
+			inc hl
+			ld e, (hl)
+			inc hl
+			ld d, (hl)
+			inc hl
+			ld c, (hl)
+			inc hl
+			ld b, (hl)
+			ex de, hl
+			add hl, bc
+			push hl
+			call ntc_ovl_lend
+			ex de, hl
+			pop hl
+			ld a, 1
+			or a
+			ret
+ntc_ovl_lno:
+			xor a
+			ret
+
+;## ntc_ovl ntc_ovlcom ntc_mem ntc_plat_fs @shared @if:ntc_mem_small
+; ------------------------------------------------------------
+; ntc_ovl (Small) - overlay classes with no RAM pages: one overlay area,
+; #4000-#7FFF, holds one class at a time. A call to a class that isn't in
+; it loads the class's file there (over the one that was). The call stub's
+; _pg word keeps the class the caller runs in when the caller's own code is
+; in the area (its thread is in #4000-#7FFF), else 0; the return stub
+; (ntc_ovl_ret) loads that class again if another one took its place. In
+; the class block, the page word is 1 while the class is in the area.
+; ------------------------------------------------------------
+OVL_BUSY	equ -13
+
+ovl_cur:		dw 0			; the class block in the area, 0 = none
+
+; ntc_ovl_enter - from a call stub (jp, SP = the caller's thread, IX = where
+; to go on): HL = the class block, DE = the stub's word for the class to
+; put back. Comes back on the real stack with the class in the area.
+ntc_ovl_enter:
+			ld (ovl_blk), hl
+			ld (ovl_pg), de
+			ld (ovl_ix), ix
+			ld hl, 0
+			add hl, sp
+			ld sp, (ntc_csp)
+			ld a, h					; the caller's thread in the area: its class
+			and #C0
+			cp #40
+			ld hl, 0
+			jr nz, ntc_ovl_en1
+			ld hl, (ovl_cur)
+ntc_ovl_en1:
+			ex de, hl
+			ld hl, (ovl_pg)
+			ld (hl), e
+			inc hl
+			ld (hl), d
+			ld hl, (ovl_blk)
+ntc_ovl_engo:
+			ld de, (ovl_cur)
+			or a
+			sbc hl, de
+			jr z, ntc_ovl_en_in
+			add hl, de
+			ld ix, ntc_ovl_en_back
+			jp ntc_ovl_core
+ntc_ovl_en_back:
+			ld a, h
+			or l
+			jp nz, ntc_ovl_die
+ntc_ovl_en_in:
+			ld ix, (ovl_ix)
+			jp (ix)
+
+; ntc_ovl_ret - from a return stub (jp, IX = where to go on): HL = the
+; class its caller runs in (0: the caller isn't in the area). Comes back on
+; the real stack with that class in the area again.
+ntc_ovl_ret:
+			ld sp, (ntc_csp)
+			ld a, h
+			or l
+			jr z, ntc_ovl_rt0
+			ld (ovl_ix), ix
+			ld (ovl_blk), hl
+			jr ntc_ovl_engo
+ntc_ovl_rt0:
+			jp (ix)
+
+; ntc_ovl_core - (jp, IX = where to go on) HL = a class block: its file into
+; the area. Comes back on the real stack with HL = 0, or a FileSystem status
+; (the area is then empty).
+ntc_ovl_core:
+			ld (ovl_blk), hl
+			ld (ovl_cix), ix
+			ld sp, (ntc_csp)
+			ld hl, (ovl_cur)		; the class in the area goes
+			ld a, h
+			or l
+			jr z, ntc_ovl_c1
+			xor a
+			ld (hl), a
+			inc hl
+			ld (hl), a
+			ld h, a
+			ld l, a
+			ld (ovl_cur), hl
+ntc_ovl_c1:
+			ld hl, (ovl_blk)		; FileSystem's Load: name, #4000, at most #4000
+			ld de, 6
+			add hl, de
+			ld (fs_a1), hl
+			ld hl, #4000
+			ld (fs_a2), hl
+			ld (fs_a3), hl
+			ld hl, ovl_res
+			ld (fs_res), hl
+			ld sp, ovl_mt
+			ld hl, fs_load
+			jp fs_go
+ntc_ovl_ld2:
+			ld sp, (ntc_csp)
+			ld hl, (ovl_res)		; the length, or a status
+			bit 7, h
+			jr nz, ntc_ovl_cback
+			ld hl, (ovl_blk)
+			ld (ovl_cur), hl
+			ld (hl), 1
+			inc hl
+			ld (hl), 0
+			inc hl
+			call ntc_ovl_fresh
+			ld hl, 0
+ntc_ovl_cback:
+			ld ix, (ovl_cix)
+			jp (ix)
+
+; the class members (asm keywords, on the thread): HL = the class block,
+; ovl_kres = the result's address. Code running in the area can't load or
+; unload a class: that would overwrite it (OVL_BUSY, -13).
+
+; Load(): the class's file into the area now (nothing if it is there). OK,
+; a FileSystem status, or -13
+ntc_ovl_kload:
+			ld (ovl_ksp), sp
+			ld (ovl_blk), hl
+			ld de, (ovl_cur)
+			or a
+			sbc hl, de
+			ld sp, (ntc_csp)
+			jp z, ntc_ovl_kret		; HL = 0
+			call ntc_ovl_kbusy
+			jp z, ntc_ovl_kret
+			ld hl, (ovl_blk)
+			ld ix, ntc_ovl_kret
+			jp ntc_ovl_core
+; Z and HL = OVL_BUSY when the member was called from code in the area
+ntc_ovl_kbusy:
+			ld a, (ovl_ksp + 1)
+			and #C0
+			cp #40
+			ld hl, OVL_BUSY
+			ret
+
+; Unload(): the area is empty (the next call loads the file again). OK, or -13
+ntc_ovl_kunload:
+			ld (ovl_ksp), sp
+			ld sp, (ntc_csp)
+			ld a, (hl)
+			inc hl
+			or (hl)
+			jr z, ntc_ovl_kzero
+			push hl
+			call ntc_ovl_kbusy
+			pop de
+			jp z, ntc_ovl_kret
+			xor a
+			ld (de), a
+			dec de
+			ld (de), a
+			ld h, a
+			ld l, a
+			ld (ovl_cur), hl
+ntc_ovl_kzero:
+			ld hl, 0
+			jp ntc_ovl_kret
+
+; Loaded(): True when it is in the area
+ntc_ovl_kloaded:
+			ld a, (hl)
+			inc hl
+			or (hl)
+			ld hl, 0
+			jp z, ntc_ovl_kput
+			dec hl
+			jp ntc_ovl_kput
+
+; Page(): 0 (no RAM pages)
+ntc_ovl_kpage:
+			ld hl, 0
+			jp ntc_ovl_kput
+
+; ntc_ovl_lreg - ovl_lblk's class: it must be in the area (its own code is
+; running). NZ: HL = its local memory start, DE = the end. Z: it isn't.
+ntc_ovl_lreg:
+			ld hl, (ovl_lblk)
+			ld a, (hl)
+			inc hl
+			or (hl)
+			ret z
+			inc hl
+			ld e, (hl)
+			inc hl
+			ld d, (hl)
+			inc hl
+			ld c, (hl)
+			inc hl
+			ld b, (hl)
+			ex de, hl
+			add hl, bc
+			push hl
+			call ntc_ovl_lend
+			ex de, hl
+			pop hl
+			ld a, 1
+			or a
+			ret
 
 ;## ntc_islots ntc_data @shared
 ; ------------------------------------------------------------
@@ -7425,3 +7809,956 @@ ntc_it_end:
 			pop de
 			pop bc
 			ret
+
+;## kw_bssinit ntc_data ntc_plat_memtop ntc_plat_screen kw_stop @shared
+;kw_bssinit, <start>, <size>  - the start of the main thread: the program's arrays live after
+;  it (from ntc_end, not in its file). Check they fit under the platform's top (and 256 bytes
+;  under the real stack when that is above them), then clear them. Too big: a message, the
+;  program stops.
+kw_bssinit:
+			pop hl
+			ld (ntc_bsa), hl
+			pop bc
+			ld (ntc_bsz), bc
+			ld (ntc_bsp), sp
+			ld sp, (ntc_csp)
+			add hl, bc				; HL = their end
+			ex de, hl
+			call ntc_plat_memtop	; HL = the platform's top
+			or a
+			sbc hl, de
+			jr c, ntc_bs_big
+			ld hl, (ntc_csp)		; the real stack, when above them
+			ld bc, (ntc_bsa)
+			or a
+			sbc hl, bc
+			jr c, ntc_bs_ok
+			ld hl, (ntc_csp)
+			ld bc, -256
+			add hl, bc
+			or a
+			sbc hl, de
+			jr c, ntc_bs_big
+ntc_bs_ok:
+			ld bc, (ntc_bsz)
+			ld a, b
+			or c
+			jr z, ntc_bs_done
+			ld hl, (ntc_bsa)
+			ld (hl), 0
+			dec bc
+			ld a, b
+			or c
+			jr z, ntc_bs_done
+			ld d, h
+			ld e, l
+			inc de
+			ldir
+ntc_bs_done:
+			ld sp, (ntc_bsp)
+			ret
+ntc_bs_big:
+			ld hl, ntc_bstxt
+ntc_bs_pl:
+			ld a, (hl)
+			or a
+			jr z, ntc_bs_stop
+			inc hl
+			ld (ntc_bsa), hl
+			ld ix, ntc_bs_pn
+			jp ntc_plat_putc
+ntc_bs_pn:
+			ld hl, (ntc_bsa)
+			jr ntc_bs_pl
+ntc_bs_stop:
+			ld ix, kw_stop
+			jp ntc_plat_newline
+ntc_bsa:		dw 0
+ntc_bsz:		dw 0
+ntc_bsp:		dw 0
+ntc_bstxt:		db "Not enough memory for the arrays", 0
+
+;## ntc_list ntc_memcore @shared
+; ------------------------------------------------------------
+; ntc_list - the List class: linked lists in the Memory class's heap (D
+; pages with CPCExpansion, main RAM with Small), handles and nodes are far
+; pointers (Longs: address, page). Nodes come from pools: a list takes a
+; block of up to 16000 bytes at a time and cuts it into nodes on its free
+; chain, so getting / giving back a node is a pointer swap.
+;   header (20 bytes): +0 first, +4 last, +8 count, +10 data bytes a node,
+;                      +12 free chain, +16 pools
+;   pool:  +0 the next pool, then nodes
+;   node:  +0 next, +4 previous, +8 the data
+; Runs through mem_go like the Memory class (real stack); the window is
+; put back at the end.
+; ------------------------------------------------------------
+LST_FIRST	equ 0
+LST_LAST	equ 4
+LST_COUNT	equ 8
+LST_SIZE	equ 10
+LST_FREE	equ 12
+LST_POOLS	equ 16
+LST_HDR		equ 20
+LST_NEXT	equ 0
+LST_PREV	equ 4
+LST_DATA	equ 8
+
+lst_h:			ds 4			; the list's header
+lst_n:			ds 4			; nodes, far pointers (address, page)
+lst_m:			ds 4
+lst_k:			ds 4
+lst_p:			ds 4
+lst_q:			ds 4
+lst_s1:			ds 4
+lst_s2:			ds 4
+lst_size:		dw 0
+lst_v:			dw 0
+lst_cnt:		dw 0
+lst_key:		dw 0
+
+; lst_at - HL = a far pointer variable: its page in, HL = its address
+lst_at:
+			ld e, (hl)
+			inc hl
+			ld d, (hl)
+			inc hl
+			ld a, (hl)
+			inc hl
+			ld h, (hl)
+			ld l, a
+			or h
+			call nz, mem_sel
+			ex de, hl
+			ret
+; lst_rd - HL = far variable, DE = offset: HL = the word there
+lst_rd:
+			push de
+			call lst_at
+			pop de
+			add hl, de
+			ld a, (hl)
+			inc hl
+			ld h, (hl)
+			ld l, a
+			ret
+; lst_wr - HL = far variable, DE = offset, BC = the word to write there
+lst_wr:
+			push bc
+			push de
+			call lst_at
+			pop de
+			add hl, de
+			pop bc
+			ld (hl), c
+			inc hl
+			ld (hl), b
+			ret
+; lst_rd4 - HL = far variable, DE = offset, BC = a variable: the far pointer there into it
+lst_rd4:
+			push bc
+			push de
+			call lst_at
+			pop de
+			add hl, de
+			pop de
+			ld bc, 4
+			ldir
+			ret
+; lst_wr4 - HL = far variable, DE = offset, BC = a variable: it goes into the field
+lst_wr4:
+			push bc
+			push de
+			call lst_at
+			pop de
+			add hl, de
+			ex de, hl
+			pop hl
+			ld bc, 4
+			ldir
+			ret
+; lst_null - HL = far variable: Z when it is 0
+lst_null:
+			ld a, (hl)
+			inc hl
+			or (hl)
+			inc hl
+			or (hl)
+			inc hl
+			or (hl)
+			ret
+; lst_cp4 - HL = from, DE = to (variables)
+lst_cp4:
+			ld bc, 4
+			ldir
+			ret
+; lst_zero - HL = a variable: 0
+lst_zero:
+			xor a
+			ld (hl), a
+			inc hl
+			ld (hl), a
+			inc hl
+			ld (hl), a
+			inc hl
+			ld (hl), a
+			ret
+; lst_arg - HL = a Long argument's address, DE = a variable: copied, checked
+; (not 0, a page this machine has, an address in the window) else BadPage
+lst_arg:
+			push hl
+			push de
+			call lst_cp4
+			pop hl
+			call lst_null
+			jp z, mem_chk_bad
+			pop hl
+			jp mem_far
+; lst_back - the window as it was; lst_retn / lst_ret0 - the result (Long)
+lst_back:
+			ld hl, (mem_keep)
+			jp mem_sel
+lst_retn:
+			call lst_back
+			ld hl, (lst_n + 2)
+			ld (mem_hi), hl
+			ld hl, (lst_n)
+			ret
+lst_ret0:
+			call lst_back
+			ld hl, 0
+			ld (mem_hi), hl
+			ret
+; lst_count - A = 1 / -1: the header's count + A
+lst_count:
+			push af
+			ld hl, lst_h
+			ld de, LST_COUNT
+			call lst_rd
+			pop af
+			ld b, h
+			ld c, l
+			inc bc
+			dec a
+			jr z, lst_ct_up
+			dec bc
+			dec bc
+lst_ct_up:
+			ld hl, lst_h
+			ld de, LST_COUNT
+			jp lst_wr
+
+; lst_newnode - a node from lst_h's free chain (a new pool when it is empty),
+; cleared, in lst_n. NZ; Z = no room
+lst_newnode:
+			ld hl, lst_h
+			ld de, LST_FREE
+			ld bc, lst_n
+			call lst_rd4
+			ld hl, lst_n
+			call lst_null
+			jp nz, lst_nn_take
+			ld hl, lst_h			; a new pool: as many nodes as fit in 16000 bytes
+			ld de, LST_SIZE
+			call lst_rd
+			ld de, LST_DATA
+			add hl, de
+			ld (lst_v), hl			; node size
+			ex de, hl
+			ld hl, 15996
+			ld bc, 0
+lst_nn_div:
+			or a
+			sbc hl, de
+			jr c, lst_nn_n
+			inc bc
+			jr lst_nn_div
+lst_nn_n:
+			ld (lst_cnt), bc
+			ld hl, 4
+			ld de, (lst_v)
+lst_nn_mul:
+			add hl, de
+			dec bc
+			ld a, b
+			or c
+			jr nz, lst_nn_mul
+			ld (mem_a1), hl
+			call mem_alloc
+			ld a, h
+			or l
+			ret z
+			ld (lst_m), hl			; the pool
+			ld hl, (mem_hi)
+			ld (lst_m + 2), hl
+			ld hl, lst_h			; pool.next = the pools so far, pools = it
+			ld de, LST_POOLS
+			ld bc, lst_k
+			call lst_rd4
+			ld hl, lst_m
+			ld de, 0
+			ld bc, lst_k
+			call lst_wr4
+			ld hl, lst_h
+			ld de, LST_POOLS
+			ld bc, lst_m
+			call lst_wr4
+			ld hl, lst_m			; its nodes, each pointing at the next
+			call lst_at
+			ld de, 4
+			add hl, de
+			push hl
+			ld bc, (lst_cnt)
+lst_nn_link:
+			dec bc
+			ld a, b
+			or c
+			jr z, lst_nn_last
+			push bc
+			ld d, h
+			ld e, l
+			ld bc, (lst_v)
+			ex de, hl
+			add hl, bc
+			ex de, hl				; DE = the next node
+			ld (hl), e
+			inc hl
+			ld (hl), d
+			inc hl
+			ld a, (lst_m + 2)
+			ld (hl), a
+			inc hl
+			ld a, (lst_m + 3)
+			ld (hl), a
+			ex de, hl
+			pop bc
+			jr lst_nn_link
+lst_nn_last:
+			call lst_zero
+			pop hl
+			ld (lst_n), hl
+			ld hl, (lst_m + 2)
+			ld (lst_n + 2), hl
+lst_nn_take:
+			ld hl, lst_n			; the free chain goes on from its next
+			ld de, LST_NEXT
+			ld bc, lst_k
+			call lst_rd4
+			ld hl, lst_h
+			ld de, LST_FREE
+			ld bc, lst_k
+			call lst_wr4
+			ld hl, lst_h			; cleared: next, previous, data
+			ld de, LST_SIZE
+			call lst_rd
+			ld de, LST_DATA - 1
+			add hl, de
+			push hl
+			ld hl, lst_n
+			call lst_at
+			pop bc
+			ld (hl), 0
+			ld d, h
+			ld e, l
+			inc de
+			ldir
+			ld a, 1
+			or a
+			ret
+
+; Create(size): a new empty list of nodes with size data bytes; 0 = no room
+lst_create:
+			ld hl, (mem_a1)
+			ld (lst_size), hl
+			ld de, 15988 + 1
+			or a
+			sbc hl, de
+			jp nc, lst_ret0
+			ld hl, LST_HDR
+			ld (mem_a1), hl
+			call mem_alloc
+			ld a, h
+			or l
+			jp z, lst_ret0
+			ld (lst_n), hl
+			ld hl, (mem_hi)
+			ld (lst_n + 2), hl
+			ld hl, lst_n
+			call lst_at
+			ld b, LST_HDR
+lst_cr_clr:
+			ld (hl), 0
+			inc hl
+			djnz lst_cr_clr
+			ld hl, lst_n
+			ld de, LST_SIZE
+			ld bc, (lst_size)
+			call lst_wr
+			jp lst_retn
+
+; Append(h) / Prepend(h): a new node at the end / the start; 0 = no room
+lst_append:
+			ld hl, (mem_a1)
+			ld de, lst_h
+			call lst_arg
+			call lst_newnode
+			jp z, lst_ret0
+			ld hl, lst_h			; node.prev = last
+			ld de, LST_LAST
+			ld bc, lst_m
+			call lst_rd4
+			ld hl, lst_n
+			ld de, LST_PREV
+			ld bc, lst_m
+			call lst_wr4
+			ld hl, lst_m
+			call lst_null
+			ld hl, lst_h
+			ld de, LST_FIRST
+			jr z, lst_ap_link		; empty: it is the first too
+			ld hl, lst_m
+			ld de, LST_NEXT
+lst_ap_link:
+			ld bc, lst_n
+			call lst_wr4
+			ld hl, lst_h
+			ld de, LST_LAST
+			ld bc, lst_n
+			call lst_wr4
+lst_added:
+			ld a, 1
+			call lst_count
+			jp lst_retn
+
+lst_prepend:
+			ld hl, (mem_a1)
+			ld de, lst_h
+			call lst_arg
+			call lst_newnode
+			jp z, lst_ret0
+			ld hl, lst_h			; node.next = first
+			ld de, LST_FIRST
+			ld bc, lst_m
+			call lst_rd4
+			ld hl, lst_n
+			ld de, LST_NEXT
+			ld bc, lst_m
+			call lst_wr4
+			ld hl, lst_m
+			call lst_null
+			ld hl, lst_h
+			ld de, LST_LAST
+			jr z, lst_pp_link		; empty: it is the last too
+			ld hl, lst_m
+			ld de, LST_PREV
+lst_pp_link:
+			ld bc, lst_n
+			call lst_wr4
+			ld hl, lst_h
+			ld de, LST_FIRST
+			ld bc, lst_n
+			call lst_wr4
+			jp lst_added
+
+; InsertAfter(h, node): a new node after that one (node 0: at the start)
+lst_insert:
+			ld hl, (mem_a2)
+			call lst_null
+			jp z, lst_prepend
+			ld hl, (mem_a1)
+			ld de, lst_h
+			call lst_arg
+			ld hl, (mem_a2)
+			ld de, lst_m
+			call lst_arg
+			call lst_newnode
+			jp z, lst_ret0
+			ld hl, lst_m			; k = m.next
+			ld de, LST_NEXT
+			ld bc, lst_k
+			call lst_rd4
+			ld hl, lst_n			; n.prev = m, n.next = k, m.next = n
+			ld de, LST_PREV
+			ld bc, lst_m
+			call lst_wr4
+			ld hl, lst_n
+			ld de, LST_NEXT
+			ld bc, lst_k
+			call lst_wr4
+			ld hl, lst_m
+			ld de, LST_NEXT
+			ld bc, lst_n
+			call lst_wr4
+			ld hl, lst_k			; k.prev = n, or last = n
+			call lst_null
+			ld hl, lst_h
+			ld de, LST_LAST
+			jr z, lst_in_link
+			ld hl, lst_k
+			ld de, LST_PREV
+lst_in_link:
+			ld bc, lst_n
+			call lst_wr4
+			jp lst_added
+
+; Delete(h, node): out of the list, back on its free chain. OK
+lst_delete:
+			ld hl, (mem_a1)
+			ld de, lst_h
+			call lst_arg
+			ld hl, (mem_a2)
+			ld de, lst_n
+			call lst_arg
+			ld hl, lst_n
+			ld de, LST_NEXT
+			ld bc, lst_k
+			call lst_rd4
+			ld hl, lst_n
+			ld de, LST_PREV
+			ld bc, lst_m
+			call lst_rd4
+			call lst_unlink
+			ld a, -1
+			call lst_count
+			ld hl, lst_h			; node.next = the free chain, free = node
+			ld de, LST_FREE
+			ld bc, lst_k
+			call lst_rd4
+			ld hl, lst_n
+			ld de, LST_NEXT
+			ld bc, lst_k
+			call lst_wr4
+			ld hl, lst_h
+			ld de, LST_FREE
+			ld bc, lst_n
+			call lst_wr4
+			call lst_back
+			ld hl, 0
+			ret
+; lst_unlink - lst_m (previous) and lst_k (next) of a node: joined; the header's first / last
+lst_unlink:
+			ld hl, lst_m
+			call lst_null
+			ld hl, lst_h
+			ld de, LST_FIRST
+			jr z, lst_ul_1
+			ld hl, lst_m
+			ld de, LST_NEXT
+lst_ul_1:
+			ld bc, lst_k
+			call lst_wr4
+			ld hl, lst_k
+			call lst_null
+			ld hl, lst_h
+			ld de, LST_LAST
+			jr z, lst_ul_2
+			ld hl, lst_k
+			ld de, LST_PREV
+lst_ul_2:
+			ld bc, lst_m
+			jp lst_wr4
+
+; First(h), Last(h): a node or 0. NextOf(node), PrevOf(node): a node or 0
+lst_first:
+			ld de, LST_FIRST
+			jr lst_field
+lst_last:
+			ld de, LST_LAST
+lst_field:
+			push de
+			ld hl, (mem_a1)
+			ld de, lst_h
+			call lst_arg
+			pop de
+			ld hl, lst_h
+			ld bc, lst_n
+			call lst_rd4
+			jp lst_retn
+lst_nextof:
+			ld de, LST_NEXT
+			jr lst_field
+lst_prevof:
+			ld de, LST_PREV
+			jr lst_field
+
+; Count(h): nodes in the list
+lst_countof:
+			ld hl, (mem_a1)
+			ld de, lst_h
+			call lst_arg
+			ld hl, lst_h
+			ld de, LST_COUNT
+			call lst_rd
+lst_rethl:
+			push hl
+			call lst_back
+			pop hl
+			ret
+
+; GetWord(node, offset), GetByte(node, offset): from its data
+lst_getword:
+			call lst_data
+			ld a, (hl)
+			inc hl
+			ld h, (hl)
+			ld l, a
+			jp lst_rethl
+lst_getbyte:
+			call lst_data
+			ld l, (hl)
+			ld h, 0
+			jp lst_rethl
+; SetWord node, offset, value / SetByte node, offset, value
+lst_setword:
+			call lst_data
+			ld de, (mem_a3)
+			ld (hl), e
+			inc hl
+			ld (hl), d
+			jp lst_back
+lst_setbyte:
+			call lst_data
+			ld a, (mem_a3)
+			ld (hl), a
+			jp lst_back
+; lst_data - mem_a1 = a node's address (Long), mem_a2 = offset: its page in, HL = the byte
+lst_data:
+			ld hl, (mem_a1)
+			ld de, lst_n
+			call lst_arg
+			ld hl, lst_n
+			call lst_at
+			ld de, LST_DATA
+			add hl, de
+			ld de, (mem_a2)
+			add hl, de
+			ret
+; Data(node): a far pointer to its data (for Memory.Copy, ReadWord ...)
+lst_dataof:
+			ld hl, (mem_a1)
+			ld de, lst_n
+			call lst_arg
+			ld hl, (lst_n)
+			ld de, LST_DATA
+			add hl, de
+			ld (lst_n), hl
+			jp lst_retn
+
+; Search(h, offset, value): the first node whose word at offset is value, or 0
+lst_search:
+			ld hl, (mem_a1)
+			ld de, lst_h
+			call lst_arg
+			ld hl, lst_h
+			ld de, LST_FIRST
+			ld bc, lst_n
+			call lst_rd4
+lst_se_lp:
+			ld hl, lst_n
+			call lst_null
+			jp z, lst_ret0
+			ld hl, (mem_a2)
+			ld de, LST_DATA
+			add hl, de
+			ex de, hl
+			ld hl, lst_n
+			call lst_rd
+			ld de, (mem_a3)
+			or a
+			sbc hl, de
+			jp z, lst_retn
+			ld hl, lst_n
+			ld de, LST_NEXT
+			ld bc, lst_n
+			call lst_rd4
+			jr lst_se_lp
+
+; Destroy(h): its pools and header back to the heap. OK
+lst_destroy:
+			ld hl, (mem_a1)
+			ld de, lst_h
+			call lst_arg
+			ld hl, lst_h
+			ld de, LST_POOLS
+			ld bc, lst_n
+			call lst_rd4
+lst_ds_lp:
+			ld hl, lst_n
+			call lst_null
+			jr z, lst_ds_hdr
+			ld hl, lst_n
+			ld de, 0
+			ld bc, lst_k
+			call lst_rd4
+			ld hl, lst_n
+			ld (mem_a1), hl
+			call mem_free
+			ld hl, lst_k
+			ld de, lst_n
+			call lst_cp4
+			jr lst_ds_lp
+lst_ds_hdr:
+			ld hl, lst_h
+			ld (mem_a1), hl
+			call mem_free
+			call lst_back
+			ld hl, 0
+			ret
+
+;## ntc_listsort ntc_list ntc_buf2k @shared
+; Sort(h, offset): in order of the (signed) word at offset in each node's
+; data, equal ones keeping their order. A radix sort: two passes over the
+; list (the key's low byte, then its high byte with the sign bit flipped),
+; each node going onto the end of one of 256 buckets, the buckets joined
+; in order after each pass; then the previous links. The bucket heads and
+; tails (far pointers) fill the 2K buffer (ntc_buf).
+LST_HEADS	equ ntc_buf
+LST_TAILS	equ ntc_buf + 1024
+
+lst_ko:			dw 0			; the key's offset in a node
+lst_byte:		db 0			; 0: the low byte, 1: the high byte
+lst_bp:			dw 0
+lst_cpg:		dw 0			; the page in the window (0: not known)
+
+; lst_rs_sel - DE = a page (0: main memory, nothing to do): in the window.
+; Keeps HL.
+lst_rs_sel:
+			ld a, d
+			or e
+			ret z
+			ld a, (lst_cpg)
+			cp e
+			jr nz, lst_rs_sdo
+			ld a, (lst_cpg + 1)
+			cp d
+			ret z
+lst_rs_sdo:
+			ld (lst_cpg), de
+			push hl
+			ex de, hl
+			call mem_sel
+			pop hl
+			ret
+
+lst_sort:
+			ld hl, (mem_a1)
+			ld de, lst_h
+			call lst_arg
+			ld hl, (mem_a2)
+			ld de, LST_DATA
+			add hl, de
+			ld (lst_ko), hl
+			xor a
+			ld (lst_byte), a
+			call lst_rs_pass
+			ld a, 1
+			ld (lst_byte), a
+			call lst_rs_pass
+			ld hl, lst_s2			; the previous links, and the last node
+			call lst_zero
+			ld hl, lst_h
+			ld de, LST_FIRST
+			ld bc, lst_n
+			call lst_rd4
+			ld hl, 0
+			ld (lst_cpg), hl
+lst_rs_fix:
+			ld hl, (lst_n)
+			ld a, h
+			or l
+			jr z, lst_rs_fixed
+			ld de, (lst_n + 2)
+			call lst_rs_sel
+			ld e, (hl)				; k = its next
+			inc hl
+			ld d, (hl)
+			inc hl
+			ld (lst_k), de
+			ld e, (hl)
+			inc hl
+			ld d, (hl)
+			inc hl
+			ld (lst_k + 2), de
+			ld de, (lst_s2)			; its previous = s2
+			ld (hl), e
+			inc hl
+			ld (hl), d
+			inc hl
+			ld de, (lst_s2 + 2)
+			ld (hl), e
+			inc hl
+			ld (hl), d
+			ld hl, (lst_n)			; s2 = the node, on to the next
+			ld (lst_s2), hl
+			ld hl, (lst_n + 2)
+			ld (lst_s2 + 2), hl
+			ld hl, (lst_k)
+			ld (lst_n), hl
+			ld hl, (lst_k + 2)
+			ld (lst_n + 2), hl
+			jr lst_rs_fix
+lst_rs_fixed:
+			ld hl, lst_h
+			ld de, LST_LAST
+			ld bc, lst_s2
+			call lst_wr4
+			call lst_back
+			ld hl, 0
+			ret
+
+; one pass: every node onto its bucket's end, then the buckets joined
+lst_rs_pass:
+			ld hl, ntc_buf
+			ld (hl), 0
+			ld de, ntc_buf + 1
+			ld bc, 2047
+			ldir
+			ld hl, lst_h
+			ld de, LST_FIRST
+			ld bc, lst_n
+			call lst_rd4
+			ld hl, 0
+			ld (lst_cpg), hl
+lst_rs_lp:
+			ld hl, (lst_n)
+			ld a, h
+			or l
+			jp z, lst_rs_cat
+			ld de, (lst_n + 2)
+			call lst_rs_sel
+			ld e, (hl)				; k = its next
+			inc hl
+			ld d, (hl)
+			inc hl
+			ld (lst_k), de
+			ld e, (hl)
+			inc hl
+			ld d, (hl)
+			ld (lst_k + 2), de
+			ld hl, (lst_n)			; A = its key byte
+			ld de, (lst_ko)
+			add hl, de
+			ld a, (lst_byte)
+			or a
+			ld a, (hl)
+			jr z, lst_rs_idx
+			inc hl
+			ld a, (hl)
+			xor #80
+lst_rs_idx:
+			ld l, a
+			ld h, 0
+			add hl, hl
+			add hl, hl
+			ld de, LST_TAILS
+			add hl, de				; HL = its bucket's tail
+			ld e, (hl)
+			inc hl
+			ld d, (hl)
+			ld a, d
+			or e
+			jr z, lst_rs_empty
+			inc hl
+			ld c, (hl)
+			inc hl
+			ld b, (hl)
+			dec hl
+			dec hl
+			dec hl
+			push hl
+			ex de, hl				; the tail's next = the node
+			ld d, b
+			ld e, c
+			call lst_rs_sel
+			ld de, (lst_n)
+			ld (hl), e
+			inc hl
+			ld (hl), d
+			inc hl
+			ld de, (lst_n + 2)
+			ld (hl), e
+			inc hl
+			ld (hl), d
+			pop hl
+			jr lst_rs_tail
+lst_rs_empty:
+			dec hl					; an empty bucket: its head = the node
+			push hl
+			ld de, -1024
+			add hl, de
+			ld de, (lst_n)
+			ld (hl), e
+			inc hl
+			ld (hl), d
+			inc hl
+			ld de, (lst_n + 2)
+			ld (hl), e
+			inc hl
+			ld (hl), d
+			pop hl
+lst_rs_tail:
+			ld de, (lst_n)			; its tail = the node
+			ld (hl), e
+			inc hl
+			ld (hl), d
+			inc hl
+			ld de, (lst_n + 2)
+			ld (hl), e
+			inc hl
+			ld (hl), d
+			ld hl, (lst_k)			; on to the next
+			ld (lst_n), hl
+			ld hl, (lst_k + 2)
+			ld (lst_n + 2), hl
+			jp lst_rs_lp
+lst_rs_cat:
+			ld hl, lst_s1			; the buckets in order: s1 = first, s2 = the last tail
+			call lst_zero
+			ld hl, lst_s2
+			call lst_zero
+			ld hl, LST_HEADS
+			ld (lst_bp), hl
+lst_rs_clp:
+			ld hl, (lst_bp)
+			call lst_null
+			jr z, lst_rs_cnx
+			ld hl, lst_s2
+			call lst_null
+			jr nz, lst_rs_clink
+			ld hl, (lst_bp)
+			ld de, lst_s1
+			call lst_cp4
+			jr lst_rs_ct
+lst_rs_clink:
+			ld hl, lst_s2
+			ld de, LST_NEXT
+			ld bc, (lst_bp)
+			call lst_wr4
+lst_rs_ct:
+			ld hl, (lst_bp)
+			ld de, 1024
+			add hl, de
+			ld de, lst_s2
+			call lst_cp4
+lst_rs_cnx:
+			ld hl, (lst_bp)
+			ld de, 4
+			add hl, de
+			ld (lst_bp), hl
+			ld de, LST_HEADS + 1024
+			or a
+			sbc hl, de
+			jr nz, lst_rs_clp
+			ld hl, lst_s2			; the last tail's next = 0
+			call lst_null
+			jr z, lst_rs_cend
+			ld hl, lst_k
+			call lst_zero
+			ld hl, lst_s2
+			ld de, LST_NEXT
+			ld bc, lst_k
+			call lst_wr4
+lst_rs_cend:
+			ld hl, lst_h
+			ld de, LST_FIRST
+			ld bc, lst_s1
+			jp lst_wr4

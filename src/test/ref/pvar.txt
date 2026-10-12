@@ -1,0 +1,8 @@
+list200
+fill50 total1275 title [Corner shop]
+visits2 local-1
+copy308
+loaded-1 unload0
+again total0 title [] visits3
+outside0-2
+done

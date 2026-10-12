@@ -23,6 +23,7 @@ ntc_start:
 ; ============================================================
 
 main_thread:
+			dw kw_bssinit, ntc_bss, ntc_bss_size		; the arrays: do they fit, clear them
 
 			; 27: Cls
 			dw kw_cls
@@ -554,11 +555,6 @@ p_setel_r:		; end of setel
 ; Variables
 ; ============================================================
 
-arr_names:			ds 130		; 10 strings of 12
-arr_wide:			ds 303		; 3 strings of 100
-arr_huge:			ds 768		; 3 strings of 255
-pa_d:			ds 12		; array descriptor: base, lower bounds, counts, size
-pa_parts:			ds 12		; array descriptor: base, lower bounds, counts, size
 			db 40			; capacity
 var_s:			ds 41
 			db 100			; capacity
@@ -585,8 +581,6 @@ var_r_nm:			ds 9
 			db 4			; capacity
 var_r_code:			ds 4, 32		; String * 4 (n spaces)
 			db 0
-pa_d_data:			ds 33		; dynamic array, biggest ReDim
-pa_parts_data:			ds 112		; dynamic array, biggest ReDim
 var_k:			dw 0
 var___fe2:			dw 0
 			db 40			; capacity
@@ -608,7 +602,6 @@ p_fill_rs:			dw 0
 var_fill_x:			ds 256
 p_fill_a0:			dw 0
 p_setel_rs:			dw 0
-pa_setel_a:			ds 12		; array descriptor: base, lower bounds, counts, size
 tmp0:			dw 0
 tmp1:			dw 0
 tmp2:			dw 0
@@ -2110,6 +2103,74 @@ kw_ubound:
 ; Work space ntc_la / ntc_lb / ntc_lr / ntc_lt.
 ; ============================================================
 
+;## kw_bssinit ntc_data ntc_plat_memtop ntc_plat_screen kw_stop @shared
+;kw_bssinit, <start>, <size>  - the start of the main thread: the program's arrays live after
+;  it (from ntc_end, not in its file). Check they fit under the platform's top (and 256 bytes
+;  under the real stack when that is above them), then clear them. Too big: a message, the
+;  program stops.
+kw_bssinit:
+			pop hl
+			ld (ntc_bsa), hl
+			pop bc
+			ld (ntc_bsz), bc
+			ld (ntc_bsp), sp
+			ld sp, (ntc_csp)
+			add hl, bc				; HL = their end
+			ex de, hl
+			call ntc_plat_memtop	; HL = the platform's top
+			or a
+			sbc hl, de
+			jr c, ntc_bs_big
+			ld hl, (ntc_csp)		; the real stack, when above them
+			ld bc, (ntc_bsa)
+			or a
+			sbc hl, bc
+			jr c, ntc_bs_ok
+			ld hl, (ntc_csp)
+			ld bc, -256
+			add hl, bc
+			or a
+			sbc hl, de
+			jr c, ntc_bs_big
+ntc_bs_ok:
+			ld bc, (ntc_bsz)
+			ld a, b
+			or c
+			jr z, ntc_bs_done
+			ld hl, (ntc_bsa)
+			ld (hl), 0
+			dec bc
+			ld a, b
+			or c
+			jr z, ntc_bs_done
+			ld d, h
+			ld e, l
+			inc de
+			ldir
+ntc_bs_done:
+			ld sp, (ntc_bsp)
+			ret
+ntc_bs_big:
+			ld hl, ntc_bstxt
+ntc_bs_pl:
+			ld a, (hl)
+			or a
+			jr z, ntc_bs_stop
+			inc hl
+			ld (ntc_bsa), hl
+			ld ix, ntc_bs_pn
+			jp ntc_plat_putc
+ntc_bs_pn:
+			ld hl, (ntc_bsa)
+			jr ntc_bs_pl
+ntc_bs_stop:
+			ld ix, kw_stop
+			jp ntc_plat_newline
+ntc_bsa:		dw 0
+ntc_bsz:		dw 0
+ntc_bsp:		dw 0
+ntc_bstxt:		db "Not enough memory for the arrays", 0
+
 ;## ntc_plat_data
 ntc_curx:		db 0			; cursor column (0 based)
 ntc_cury:		db 0			; cursor row (0 based)
@@ -2259,5 +2320,25 @@ ntc_plat_frame:
 ntc_plat_exit:
 			jp (ix)
 
+;## ntc_plat_memtop
+; ntc_plat_memtop - HL = the first byte the Memory class's Small heap must not
+; use (the harness's stack, below it, comes off too). Called on the real
+; stack (call / ret), only by the Memory class.
+ntc_plat_memtop:
+			ld hl, #C000
+			ret
 
-ntc_end:				; the end of the program
+
+ntc_end:				; the end of the program (and of its file)
+; arrays: after the program, not in its file - kw_bssinit checks they fit and clears them
+ntc_bss		equ ntc_end
+arr_names		equ ntc_bss + 0		; 130 bytes
+arr_wide		equ ntc_bss + 130		; 303 bytes
+arr_huge		equ ntc_bss + 433		; 768 bytes
+pa_d		equ ntc_bss + 1201		; 12 bytes
+pa_parts		equ ntc_bss + 1213		; 12 bytes
+pa_d_data		equ ntc_bss + 1225		; 33 bytes
+pa_parts_data		equ ntc_bss + 1258		; 112 bytes
+pa_setel_a		equ ntc_bss + 1370		; 12 bytes
+ntc_bss_size	equ 1382
+ntc_free	equ ntc_bss + ntc_bss_size	; the first free byte (heap, Memory tables)

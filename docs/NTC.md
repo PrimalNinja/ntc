@@ -254,7 +254,7 @@ Files (ES5, no node, no Python):
 | `asm/ntc_plat_cpm.asm` | CP/M platform (BDOS console, own stack, warm boot) |
 | `asm/ntc_plat_test.asm` | test harness platform (console through I/O ports, for `test/ntcrun.py`) |
 | `asm/ntc_plat_cpcmin.asm` | CPC platform with minimal firmware: the `cpc` screen / keys / interrupts, the firmware kept for discs and ROMs (handed back per call) |
-| `lib/<platform>/*.cls` | the platform classes: `StdIO.cls` (console), `System.cls` (what the machine is), `FileSystem.cls` (files), `Memory.cls` (RAM pages) |
+| `lib/<platform>/*.cls` | the platform classes: `StdIO.cls` (console), `System.cls` (what the machine is), `FileSystem.cls` (files), `Memory.cls` (RAM pages, heap), `List.cls` (linked lists) |
 | `../docs/requirements.md` | What you need to use NTC, rebuild its generated files and run the tests; the targets it builds for |
 | `../docs/userguide.md` | Language reference: every keyword by topic, with an example and its VB5 / VB6 differences |
 | `build/` | Test builds: every program in `bas/` compiled for every platform (`.ASM`), and `build.bat` to assemble them all with sjasmplus on Windows / MS-DOS (CPC: AMSDOS `.BIN` files, CP/M: `.COM`) |
@@ -618,7 +618,8 @@ sections `ntc_memcore`, `ntc_mem` (two, one per scheme), `ntc_memcopy`, `ntc_buf
 `bas/memmap.bas` draws the map. *maxpages* becomes `NTC_MEMBANKS equ` (the banks probed, and
 the size of the fixed bank data).
 
-**Overlay classes** (`Option Class Overlay ["FILE"]`, cpcmin / cpcfw, CPCExpansion). The
+**Overlay classes** (`Option Class Overlay ["FILE"]`, cpcmin / cpcfw with CPCExpansion; for
+Small and cpm see one overlay area below). The
 compiler marks the thread of each of the class's procedures (`{t: 'ovl'}` ... `{t: 'ovlend'}`
 in the keyword list); the emitter sends those lines to the class's own list, written after
 the program as `OUTPUT "FILE.PAG"` / `ORG #4000` ... `OUTEND` - one assembly, so every label
@@ -633,6 +634,21 @@ through `fs_go`, which returns into `ovl_mt`, a one-word "thread"). The return s
 same section) to the class text before parsing. `--raw` output carries the overlays after
 `ntc_end`; the harness cuts the binary there and copies the `.PAG` files to its disc folders.
 
+The shared parts (variables, the "Overlay not loaded" message, `ntc_ovl_fresh` - page
+variables cleared and the local memory made one free block after a load - local memory,
+the members' result) are in section `ntc_ovlcom`; `ntc_ovl` comes in two versions, picked by
+`@if:ntc_mem_cpcexpansion` / `@if:ntc_mem_small`. **One overlay area** (Small, cpm and
+cpcmin / cpcfw): `ovl_cur` is the class block in `#4000-#7FFF`, and a block's page word is 1
+while its class is there. `ntc_ovl_enter` looks at the caller's thread (SP when the stub
+jumps): in `#4000-#7FFF` it is code of the class in the area, so `ovl_cur` goes into `_pg`,
+else 0. The return stub jumps to `ntc_ovl_ret` with `_pg`: not 0 and not `ovl_cur` means the
+caller's class was swapped out, so it is loaded again before going back to its thread. `Load`
+/ `Unload` called with a thread in the area give -13 (`OVL_BUSY`). `Private Paged` is ignored
+(ordinary variables), since the class doesn't stay. The compiler adds `Option Reserve
+&H4000, &H4000` when the program has none covering the area, and `ntc_rsvtab` is always
+emitted (the Small heap stops at the area). CP/M `.PAG` files are the plain bytes (`fs_load`
+reads whole records into `#4000`, at most 16K).
+
 **Interrupt classes** (`Option Class Interrupt rate | Frame`, cpc / cpcmin). Section
 `ntc_islots`: 4 slots (count, reload, running, due, Tick's call stub), filled by the start
 code. The platform's interrupt handler calls `ntc_irqv` (`ntc_isl_tick`): it counts each
@@ -641,6 +657,33 @@ it due. `ntc_xnh` (the normal mode safe point) runs a due slot's Tick that isn't
 a call from that point - like the `Interrupt` hook - and Tick's return stub clears its
 running flag. Tick is ordinary BASIC, so nothing runs inside the hardware interrupt but the
 counting.
+
+**Arrays after the program.** Arrays (and array descriptors) are no longer `ds` blocks in
+the program: the compiler gives them addresses after `ntc_end` (`ntc_bss`, `equ`s), so they
+are not in the file. `ntc_free` (= `ntc_bss` + their size) is the first free byte: the
+Memory class's tables, the Small heap, `Option RomEnable`'s lowest address and the
+`Option Reserve` / Stack / FileSystem / overlay checks all use it. The main thread starts with
+`kw_bssinit, ntc_bss, ntc_bss_size` (after the screen set-up): it checks the arrays fit under
+`ntc_plat_memtop` (and 256 bytes under the real stack when that is above them), clears them,
+or prints a message and stops. Scalars and Strings (their capacity byte) stay in the program.
+
+**List class** (`ntc_lib.asm` section `ntc_list`): linked lists in the Memory heap. A handle
+is a far pointer to a 20 byte header (first, last, count, data size, free chain, pools); nodes
+(next, previous, data) come from pools of up to 16000 bytes cut into nodes on the list's free
+chain. Field access goes through `lst_at` (switch the page in, the address). `Sort`
+(section `ntc_listsort`, so the 2K buffer only comes in with it) is a radix sort: two passes
+(the key's low byte, then its high byte with the sign bit flipped), each node onto the end
+of one of 256 buckets (head and tail far pointers in `ntc_buf`), the buckets joined after
+each pass, then the previous links. The inner loops keep the node in registers and switch
+pages only when the page changes (`lst_rs_sel`). 5,000 nodes on a 6128: 4.2-4.8 CPC seconds
+(`bas/sorttime.bas`, timed with `test/cpctime.py`).
+
+**Paged variables** (`Private Paged` in an overlay class): the compiler routes their
+declarations (by label, `objPagedLabel`) into the overlay: Strings into its file, the rest
+as `equ`s after `ovl_<class>_end`. The class block is now `dw page, vars start, vars size` and
+the name; the loader clears the variables and makes the rest of the page one free block, the
+class's local memory (`LocalAlloc` / `LocalFree`: the heap code, `mem_fit`, run on that region
+with `mem_hlo` / `mem_hhi` set to it).
 
 **Warnings.** Not errors - the program still builds. Now: a Function called as a statement
 ("the result of F is not used") - with no error handling, an unchecked status is worth
@@ -792,6 +835,22 @@ first rather than running them in `bas/`), assembles to `prog.bin` / `prog.sym` 
 - prints the screen as text (reads the screen at #C000 and matches each 8x8 cell against
   the font, any mode), then a status line: halted or not, SP, interrupts taken, T states
   run, gate array writes (screen mode / ROM settings)
+
+### cpctime.py - time a program at the real CPC's speed
+
+```
+python3 cpctime.py t/sorttime.bas '\nNX' --mark=lst_first,lst_sort
+python3 cpctime.py prog.bas 'typed keys' --ram=576 --turbo
+```
+
+The same emulated CPC as `cpcrun.py`, but it steps one instruction at a time and adds up
+the real CPC's time for each: the gate array stretches every instruction to a whole number
+of microseconds (4 T steps), so a CPC runs slower than the T states say (cpcrun's `T`). The
+300 Hz interrupt comes every 3333 microseconds as on the real machine, so `Ticks`, and
+anything a program times with it, matches a CPC. About 10 times slower to run than
+`cpcrun.py`. It prints the screen, the interrupts taken and the run time in CPC seconds;
+with `--mark=label,...` also each time the program reaches one of those labels, from the
+start and from the mark before (labels from the `.sym` file: `kw_turbo_on`, `lst_sort` ...).
 
 ### ntcrun.py - run on any platform
 

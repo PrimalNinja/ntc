@@ -1,0 +1,11 @@
+in00 page0
+a8-10
+b120-1
+ (A) (B) (B again) (A again)deep17-10
+busy-1313
+local-11
+paged142
+unload0000 again0
+load0-10 twice0
+main6
+done

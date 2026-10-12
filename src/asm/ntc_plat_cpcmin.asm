@@ -660,7 +660,7 @@ fs_vols:		ds 145			; the volumes that worked, "A,C,M" (up to 16 of up to 8 lette
 fs_tmpn:		ds 9			; a volume name, capitals
 fs_rsxn:		ds 17			; a command name (last letter + #80), up to 16 letters
 fs_buf			equ ntc_buf		; the 2K buffer CAS IN OPEN / CAS OUT OPEN want (shared with Memory.Copy)
-			ASSERT ntc_end <= #A600, "FileSystem on cpcfw: the program must end below #A600 (AMSDOS's RAM)"
+			ASSERT ntc_free <= #A600, "FileSystem on cpcmin: the program and its arrays must end below #A600 (AMSDOS's RAM)"
 
 fs_go0:
 			ld a, 1

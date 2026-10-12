@@ -1600,8 +1600,8 @@ ntc_buf:		ds 2048
 ; only the one chosen is in the library (@if:): CPCExpansion (16K pages
 ; through the #4000 window, up to 4MB) or Small (main RAM only, no paging).
 ; Each class method jumps to mem_go with HL = the routine: mem_go runs it
-; on the real stack (call / push are fine there), interrupts left as
-; they are, and stores its HL result at mem_res (mem_go4: a Long, high
+; on the real stack (call / push are fine there), interrupts on in normal
+; mode (off in turbo), and stores its HL result at mem_res (mem_go4: a Long, high
 ; word in mem_hi; mem_go0: no store - the routine writes the result
 ; itself, or there is none). A routine that fails jumps to mem_err with
 ; HL = the status; mem_err puts back the page that was in the window
@@ -1662,9 +1662,15 @@ mem_gostart:
 			pop hl
 			ld de, (mem_cur)
 			ld (mem_keep), de
+			ld a, (ntc_nmode)		; normal mode: interrupts in during the call (Ticks keep
+			or a					; counting through a long Sort or Copy); turbo: off
+			jr z, mem_gocall
+			ei
+mem_gocall:
 			ld (mem_esp), sp
 			call mem_jphl
 mem_back:
+			di
 			ld ix, (mem_six)
 			ld iy, (mem_siy)
 			ld a, (mem_store)
@@ -1966,7 +1972,7 @@ mem_start:
 			call ntc_plat_memtop	; HL = the platform's top
 			ld (mem_hhi), hl
 			ld hl, (ntc_csp)		; the real stack, when it is above the program
-			ld de, ntc_end + 256
+			ld de, ntc_free + 256
 			or a
 			sbc hl, de
 			jr c, mem_ss_rsv
@@ -1988,7 +1994,7 @@ mem_ss_rl:
 			ld h, d
 			ld l, e
 			push hl
-			ld de, ntc_end
+			ld de, ntc_free
 			or a
 			sbc hl, de
 			pop hl
@@ -1996,7 +2002,7 @@ mem_ss_rl:
 			pop hl
 			jr mem_ss_rl
 mem_ss_go:
-			ld hl, ntc_end
+			ld hl, ntc_free
 			ld (mem_hlo), hl
 			ex de, hl
 			ld hl, (mem_hhi)		; room for at least one small block, an even size
@@ -2034,7 +2040,7 @@ mem_ss_len:
 			ex de, hl
 			jr mem_ss_init
 mem_ss_none:
-			ld hl, ntc_end
+			ld hl, ntc_free
 			ld (mem_hhi), hl
 			ret
 ; HL = a limit: mem_hhi = it when lower
@@ -2070,7 +2076,7 @@ mem_freepage:
 mem_selpage:
 			jp mem_chk_bad
 mem_tableend:
-			ld hl, ntc_end
+			ld hl, ntc_free
 			ret
 mem_map:
 			ld hl, (mem_res)
@@ -2408,4 +2414,8 @@ ntc_plat_memtop:
 ntc_rsvtab:				; Option Reserve starts (the Memory class's heap stops at them), 0 ends
 			dw 0
 
-ntc_end:				; the end of the program
+ntc_end:				; the end of the program (and of its file)
+; arrays: after the program, not in its file - kw_bssinit checks they fit and clears them
+ntc_bss		equ ntc_end
+ntc_bss_size	equ 0
+ntc_free	equ ntc_bss + ntc_bss_size	; the first free byte (heap, Memory tables)

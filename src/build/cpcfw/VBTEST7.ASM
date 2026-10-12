@@ -24,6 +24,7 @@ ntc_start:
 ; ============================================================
 
 main_thread:
+			dw kw_bssinit, ntc_bss, ntc_bss_size		; the arrays: do they fit, clear them
 
 			; 23: Cls
 			dw kw_cls
@@ -770,7 +771,6 @@ p_clear2_r:		; end of clear2
 ; Variables
 ; ============================================================
 
-arr_grid:			ds 24		; 12 words
 var_p_x:			dw 0
 var_p_y:			dw 0
 var_dist2_dist2:			dw 0
@@ -834,17 +834,13 @@ p_twice2_rs:			dw 0
 var_twice2_a_x:			dw 0
 var_twice2_a_y:			dw 0
 p_corner_rs:			dw 0
-pa_corner_g:			ds 12		; array descriptor: base, lower bounds, counts, size
 p_sum2_rs:			dw 0
-pa_sum2_g:			ds 12		; array descriptor: base, lower bounds, counts, size
 var_sum2_r:			dw 0
 var_sum2_c:			dw 0
 for8_l:			dw 0
 for9_l:			dw 0
 p_cols_rs:			dw 0
-pa_cols_g:			ds 12		; array descriptor: base, lower bounds, counts, size
 p_clear2_rs:			dw 0
-pa_clear2_g:			ds 12		; array descriptor: base, lower bounds, counts, size
 var_clear2_r:			dw 0
 var_clear2_c:			dw 0
 for10_l:			dw 0
@@ -2263,6 +2259,74 @@ ntc_lhx_same:
 			ld (de), a
 			ret
 
+;## kw_bssinit ntc_data ntc_plat_memtop ntc_plat_screen kw_stop @shared
+;kw_bssinit, <start>, <size>  - the start of the main thread: the program's arrays live after
+;  it (from ntc_end, not in its file). Check they fit under the platform's top (and 256 bytes
+;  under the real stack when that is above them), then clear them. Too big: a message, the
+;  program stops.
+kw_bssinit:
+			pop hl
+			ld (ntc_bsa), hl
+			pop bc
+			ld (ntc_bsz), bc
+			ld (ntc_bsp), sp
+			ld sp, (ntc_csp)
+			add hl, bc				; HL = their end
+			ex de, hl
+			call ntc_plat_memtop	; HL = the platform's top
+			or a
+			sbc hl, de
+			jr c, ntc_bs_big
+			ld hl, (ntc_csp)		; the real stack, when above them
+			ld bc, (ntc_bsa)
+			or a
+			sbc hl, bc
+			jr c, ntc_bs_ok
+			ld hl, (ntc_csp)
+			ld bc, -256
+			add hl, bc
+			or a
+			sbc hl, de
+			jr c, ntc_bs_big
+ntc_bs_ok:
+			ld bc, (ntc_bsz)
+			ld a, b
+			or c
+			jr z, ntc_bs_done
+			ld hl, (ntc_bsa)
+			ld (hl), 0
+			dec bc
+			ld a, b
+			or c
+			jr z, ntc_bs_done
+			ld d, h
+			ld e, l
+			inc de
+			ldir
+ntc_bs_done:
+			ld sp, (ntc_bsp)
+			ret
+ntc_bs_big:
+			ld hl, ntc_bstxt
+ntc_bs_pl:
+			ld a, (hl)
+			or a
+			jr z, ntc_bs_stop
+			inc hl
+			ld (ntc_bsa), hl
+			ld ix, ntc_bs_pn
+			jp ntc_plat_putc
+ntc_bs_pn:
+			ld hl, (ntc_bsa)
+			jr ntc_bs_pl
+ntc_bs_stop:
+			ld ix, kw_stop
+			jp ntc_plat_newline
+ntc_bsa:		dw 0
+ntc_bsz:		dw 0
+ntc_bsp:		dw 0
+ntc_bstxt:		db "Not enough memory for the arrays", 0
+
 ;## ntc_plat_data
 ntc_curx:		db 0			; cursor column (0 based) - kept here for Tab
 ntc_cury:		db 0			; cursor row (0 based)
@@ -2502,6 +2566,23 @@ FS_TOOBIG	equ -8
 FS_FAILED	equ -9
 FS_BADNAME	equ -4
 
+;## ntc_plat_memtop
+; ntc_plat_memtop - HL = the first byte the Memory class's Small heap must not
+; use: #A600 (the firmware's and AMSDOS's RAM is above). Called on the real
+; stack (call / ret), only by the Memory class.
+ntc_plat_memtop:
+			ld hl, #A600
+			ret
 
-ntc_end:				; the end of the program
+
+ntc_end:				; the end of the program (and of its file)
+; arrays: after the program, not in its file - kw_bssinit checks they fit and clears them
+ntc_bss		equ ntc_end
+arr_grid		equ ntc_bss + 0		; 24 bytes
+pa_corner_g		equ ntc_bss + 24		; 12 bytes
+pa_sum2_g		equ ntc_bss + 36		; 12 bytes
+pa_cols_g		equ ntc_bss + 48		; 12 bytes
+pa_clear2_g		equ ntc_bss + 60		; 12 bytes
+ntc_bss_size	equ 72
+ntc_free	equ ntc_bss + ntc_bss_size	; the first free byte (heap, Memory tables)
 			SAVEAMSDOS "VBTEST7.BIN", ntc_start, ntc_end - ntc_start, ntc_start

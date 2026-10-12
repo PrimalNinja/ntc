@@ -24,6 +24,7 @@ ntc_start:
 ; ============================================================
 
 main_thread:
+			dw kw_bssinit, ntc_bss, ntc_bss_size		; the arrays: do they fit, clear them
 
 			; Main.bas 19: Cls
 			dw kw_cls
@@ -738,12 +739,6 @@ asm_0_65_n:		; #asm, Main.bas line 65 (normal)
 ; Variables
 ; ============================================================
 
-arr_a:			ds 10		; 5 words
-arr_s:			ds 123		; 3 strings of 40
-pa_d:			ds 12		; array descriptor: base, lower bounds, counts, size
-arr_pts:			ds 8		; 4 words
-pa_parts:			ds 12		; array descriptor: base, lower bounds, counts, size
-arr_bag_mitems:			ds 20		; 10 words
 var_i:			dw 0
 var_sum:			dw 0
 var___fe2:			dw 0
@@ -755,15 +750,12 @@ var___fe4:			dw 0
 var_one:			ds 41
 ad_arr_a:			dw arr_a, 0, 0, 5, 1, 2		; array as an argument
 var_sumof_sumof:			dw 0
-pa_d_data:			ds 12		; dynamic array, biggest ReDim
 var_e:			dw 0, 0
 var___fe6:			dw 0
 for7_l:			dw 0
 var_bag_item_get_item:			dw 0
 var_fresh_fresh:			dw 0
 var_kept_kept:			dw 0
-arr_pts_x:			ds 8		; 4 words
-arr_pts_name:			ds 164		; 4 strings of 40
 ad_arr_pts_x:			dw arr_pts_x, 0, 0, 4, 1, 2		; array as an argument
 ad_arr_pts_name:			dw arr_pts_name, 0, 0, 4, 1, 41		; array as an argument
 var_totalx_totalx:			dw 0
@@ -773,7 +765,6 @@ var_names_names:			ds 41
 var_fx:			ds 5, 32		; String * 5 (n spaces)
 			db 0
 ad_arr_s:			dw arr_s, 0, 0, 3, 1, 41		; array as an argument
-pa_parts_data:			ds 656		; dynamic array, biggest ReDim
 var_t:			dw 0
 var_bad:			dw 0
 p_chk_rs:			dw 0
@@ -785,25 +776,16 @@ var_chks_got:			ds 41
 			db 40			; capacity
 var_chks_want:			ds 41
 p_sumof_rs:			dw 0
-pa_sumof_v:			ds 12		; array descriptor: base, lower bounds, counts, size
 var_sumof_n:			dw 0
 var_sumof___fe12:			dw 0
 for13_l:			dw 0
 p_fresh_rs:			dw 0
-arr_fresh_b:			ds 8		; 4 words
 p_kept_rs:			dw 0
-arr_kept_c:			ds 8		; 4 words
 p_totalx_rs:			dw 0
-pa_totalx_a_x:			ds 12		; array descriptor: base, lower bounds, counts, size
-pa_totalx_a_name:			ds 12		; array descriptor: base, lower bounds, counts, size
 var_totalx_k:			dw 0
 for14_l:			dw 0
 p_names_rs:			dw 0
-pa_names_a_x:			ds 12		; array descriptor: base, lower bounds, counts, size
-pa_names_a_name:			ds 12		; array descriptor: base, lower bounds, counts, size
 p_bumpx_rs:			dw 0
-pa_bumpx_a_x:			ds 12		; array descriptor: base, lower bounds, counts, size
-pa_bumpx_a_name:			ds 12		; array descriptor: base, lower bounds, counts, size
 p_bag_item_get_rs:			dw 0
 var_bag_item_get_i:			dw 0
 p_bag_item_let_rs:			dw 0
@@ -2663,6 +2645,74 @@ ntc_lta_last:
 			jp (ix)
 ntc_lpow10:		dd 1000000000, 100000000, 10000000, 1000000, 100000, 10000, 1000, 100, 10, 0
 
+;## kw_bssinit ntc_data ntc_plat_memtop ntc_plat_screen kw_stop @shared
+;kw_bssinit, <start>, <size>  - the start of the main thread: the program's arrays live after
+;  it (from ntc_end, not in its file). Check they fit under the platform's top (and 256 bytes
+;  under the real stack when that is above them), then clear them. Too big: a message, the
+;  program stops.
+kw_bssinit:
+			pop hl
+			ld (ntc_bsa), hl
+			pop bc
+			ld (ntc_bsz), bc
+			ld (ntc_bsp), sp
+			ld sp, (ntc_csp)
+			add hl, bc				; HL = their end
+			ex de, hl
+			call ntc_plat_memtop	; HL = the platform's top
+			or a
+			sbc hl, de
+			jr c, ntc_bs_big
+			ld hl, (ntc_csp)		; the real stack, when above them
+			ld bc, (ntc_bsa)
+			or a
+			sbc hl, bc
+			jr c, ntc_bs_ok
+			ld hl, (ntc_csp)
+			ld bc, -256
+			add hl, bc
+			or a
+			sbc hl, de
+			jr c, ntc_bs_big
+ntc_bs_ok:
+			ld bc, (ntc_bsz)
+			ld a, b
+			or c
+			jr z, ntc_bs_done
+			ld hl, (ntc_bsa)
+			ld (hl), 0
+			dec bc
+			ld a, b
+			or c
+			jr z, ntc_bs_done
+			ld d, h
+			ld e, l
+			inc de
+			ldir
+ntc_bs_done:
+			ld sp, (ntc_bsp)
+			ret
+ntc_bs_big:
+			ld hl, ntc_bstxt
+ntc_bs_pl:
+			ld a, (hl)
+			or a
+			jr z, ntc_bs_stop
+			inc hl
+			ld (ntc_bsa), hl
+			ld ix, ntc_bs_pn
+			jp ntc_plat_putc
+ntc_bs_pn:
+			ld hl, (ntc_bsa)
+			jr ntc_bs_pl
+ntc_bs_stop:
+			ld ix, kw_stop
+			jp ntc_plat_newline
+ntc_bsa:		dw 0
+ntc_bsz:		dw 0
+ntc_bsp:		dw 0
+ntc_bstxt:		db "Not enough memory for the arrays", 0
+
 ;## ntc_plat_data
 ntc_curx:		db 0			; column (0 based) - counted for Tab
 ntc_cury:		db 0			; not used (a stream has no rows)
@@ -2972,5 +3022,37 @@ FS_FAILED	equ -9
 FS_EXISTS	equ -10
 FS_BADMODE	equ -11
 
+;## ntc_plat_memtop
+; ntc_plat_memtop - HL = the first byte the Memory class's Small heap must not
+; use: the BDOS (its address is at 6; the CCP below it is free, the program
+; ends with a warm boot). Called on the real stack (call / ret), only by the
+; Memory class.
+ntc_plat_memtop:
+			ld hl, (6)
+			ret
 
-ntc_end:				; the end of the program
+
+ntc_end:				; the end of the program (and of its file)
+; arrays: after the program, not in its file - kw_bssinit checks they fit and clears them
+ntc_bss		equ ntc_end
+arr_a		equ ntc_bss + 0		; 10 bytes
+arr_s		equ ntc_bss + 10		; 123 bytes
+pa_d		equ ntc_bss + 133		; 12 bytes
+arr_pts		equ ntc_bss + 145		; 8 bytes
+pa_parts		equ ntc_bss + 153		; 12 bytes
+arr_bag_mitems		equ ntc_bss + 165		; 20 bytes
+pa_d_data		equ ntc_bss + 185		; 12 bytes
+arr_pts_x		equ ntc_bss + 197		; 8 bytes
+arr_pts_name		equ ntc_bss + 205		; 164 bytes
+pa_parts_data		equ ntc_bss + 369		; 656 bytes
+pa_sumof_v		equ ntc_bss + 1025		; 12 bytes
+arr_fresh_b		equ ntc_bss + 1037		; 8 bytes
+arr_kept_c		equ ntc_bss + 1045		; 8 bytes
+pa_totalx_a_x		equ ntc_bss + 1053		; 12 bytes
+pa_totalx_a_name		equ ntc_bss + 1065		; 12 bytes
+pa_names_a_x		equ ntc_bss + 1077		; 12 bytes
+pa_names_a_name		equ ntc_bss + 1089		; 12 bytes
+pa_bumpx_a_x		equ ntc_bss + 1101		; 12 bytes
+pa_bumpx_a_name		equ ntc_bss + 1113		; 12 bytes
+ntc_bss_size	equ 1125
+ntc_free	equ ntc_bss + ntc_bss_size	; the first free byte (heap, Memory tables)

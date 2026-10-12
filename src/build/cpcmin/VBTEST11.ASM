@@ -1843,5 +1843,9 @@ FS_FAILED	equ -9
 FS_BADNAME	equ -4
 
 
-ntc_end:				; the end of the program
+ntc_end:				; the end of the program (and of its file)
+; arrays: after the program, not in its file - kw_bssinit checks they fit and clears them
+ntc_bss		equ ntc_end
+ntc_bss_size	equ 0
+ntc_free	equ ntc_bss + ntc_bss_size	; the first free byte (heap, Memory tables)
 			SAVEAMSDOS "VBTEST11.BIN", ntc_start, ntc_end - ntc_start, ntc_start

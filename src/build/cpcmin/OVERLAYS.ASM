@@ -18,12 +18,12 @@ ntc_start:
 			cp #DF			; AMSDOS has the cassette calls: they are running
 			jr z, ntc_roms_on
 			ei
-			ld de, ntc_end		; the lowest address the ROMs may use
+			ld de, ntc_free		; the lowest address the ROMs may use (above the arrays)
 			ld hl, #ABFF		; the highest (as usual for AMSDOS: it takes about #A700-#ABFF)
 			ld c, 7
 			call #BCCE		; KL INIT BACK: ROM 7 (DE / HL come back as the new limits)
 			di
-			ASSERT ntc_end <= #A600, "Option RomEnable: the program must end below #A600 (the ROMs take their RAM from #ABFF down)"
+			ASSERT ntc_free <= #A600, "Option RomEnable: the program and its arrays must end below #A600 (the ROMs take their RAM from #ABFF down)"
 ntc_roms_on:
 			ld a, 1
 			ld (ntc_nmode), a		; normal mode: waits let interrupts in
@@ -40,7 +40,7 @@ ntc_go:
 main_thread:
 			dw kw_scrinit		; mode 1, ROMs off, clear screen
 
-			; Main.bas 10: Print "Overlays on "; System.Platform; ", "; Memory.RamSize(); "K"
+			; Main.bas 20: Print "Overlays on "; System.Platform; ", "; Memory.RamSize(); "K"
 			dw fn_memory_ramsize, var_memory_ramsize_ramsize
 			dw kw_printzoscii
 			dw glyph_4F, glyph_76, glyph_65, glyph_72, glyph_6C, glyph_61, glyph_79, glyph_73
@@ -52,7 +52,7 @@ main_thread:
 			dw kw_printzoscii
 			dw glyph_4B, 1, 0		; "K\n"
 
-			; Main.bas 11: Print "Level 1 loaded: "; Level1.Loaded()
+			; Main.bas 22: Print "Level 1 loaded: "; Level1.Loaded()
 			dw fn_level1_loaded, var_level1_loaded_loaded
 			dw kw_printzoscii
 			dw glyph_4C, glyph_65, glyph_76, glyph_65, glyph_6C, glyph_20, glyph_31, glyph_20
@@ -61,11 +61,11 @@ main_thread:
 			dw kw_printint, var_level1_loaded_loaded
 			dw kw_printnl
 
-			; Main.bas 12: For lvl = 1 To 2
+			; Main.bas 23: For lvl = 1 To 2
 			dw kw_ltov, 1, var_lvl
 for1_t:
 
-			; Main.bas 13: If lvl = 1 Then score = score + Level1.Play(score)
+			; Main.bas 24: If lvl = 1 Then score = score + Level1.Play(score)
 			dw kw_cpeqvl, var_lvl, 1
 			dw kw_goto_iffalse_n, if2_1
 			dw p_level1_play_c, var_score
@@ -73,7 +73,7 @@ for1_t:
 			dw kw_add, var_score, tmp1, var_score
 if2_1:
 
-			; Main.bas 14: If lvl = 2 Then score = score + Level2.Play(score)
+			; Main.bas 25: If lvl = 2 Then score = score + Level2.Play(score)
 			dw kw_cpeqvl, var_lvl, 2
 			dw kw_goto_iffalse_n, if3_1
 			dw p_level2_play_c, var_score
@@ -81,17 +81,17 @@ if2_1:
 			dw kw_add, var_score, tmp1, var_score
 if3_1:
 
-			; Main.bas 15: Next
+			; Main.bas 26: Next
 			dw kw_next1l_n, var_lvl, 2, for1_t
 for1_e:
 
-			; Main.bas 16: Print "Score "; score
+			; Main.bas 27: Print "Score "; score
 			dw kw_printzoscii
 			dw glyph_53, glyph_63, glyph_6F, glyph_72, glyph_65, glyph_20, 0		; "Score "
 			dw kw_printint, var_score
 			dw kw_printnl
 
-			; Main.bas 17: Print "Level 1 in page "; Level1.Page(); ", level 2 in page "; Level2.Page()
+			; Main.bas 32: Print "Level 1 in page "; Level1.Page(); ", level 2 in page "; Level2.Page()
 			dw fn_level1_page, var_level1_page_page
 			dw kw_printzoscii
 			dw glyph_4C, glyph_65, glyph_76, glyph_65, glyph_6C, glyph_20, glyph_31, glyph_20
@@ -106,7 +106,7 @@ for1_e:
 			dw kw_printint, var_level2_page_page
 			dw kw_printnl
 
-			; Main.bas 18: Print "Pages "; Memory.Map(1, Memory.Pages())
+			; Main.bas 33: Print "Pages "; Memory.Map(1, Memory.Pages())
 			dw fn_memory_pages, var_memory_pages_pages
 			dw kw_vtov, var_memory_pages_pages, tmp1
 			dw fn_memory_map, lit_1, tmp1, var_memory_map_map
@@ -115,7 +115,7 @@ for1_e:
 			dw kw_printstrvar, var_memory_map_map
 			dw kw_printnl
 
-			; Main.bas 19: Print "Unload level 1: "; Level1.Unload(); " - pages "; Memory.Map(1, Memory.Pages())
+			; Main.bas 34: Print "Unload level 1: "; Level1.Unload(); " - pages "; Memory.Map(1, Memory.Pages())
 			dw fn_level1_unload, var_level1_unload_unload
 			dw kw_printzoscii
 			dw glyph_55, glyph_6E, glyph_6C, glyph_6F, glyph_61, glyph_64, glyph_20, glyph_6C
@@ -131,12 +131,12 @@ for1_e:
 			dw kw_printstrvar, var_memory_map_map
 			dw kw_printnl
 
-			; Main.bas 20: Print "Press a key";
+			; Main.bas 36: Print "Press a key";
 			dw kw_printzoscii
 			dw glyph_50, glyph_72, glyph_65, glyph_73, glyph_73, glyph_20, glyph_61, glyph_20
 			dw glyph_6B, glyph_65, glyph_79, 0		; "Press a key"
 
-			; Main.bas 21: Do While Inkey <> 0 : Loop
+			; Main.bas 37: Do While Inkey <> 0 : Loop
 do4_t:
 			dw kw_inkey, tmp0
 			dw kw_cpnevl, tmp0, 0
@@ -144,7 +144,7 @@ do4_t:
 			dw do4_t_go
 do4_e:
 
-			; Main.bas 22: Do : Frame : Loop Until Inkey <> 0
+			; Main.bas 38: Do : Frame : Loop Until Inkey <> 0
 do5_t:
 			dw kw_frame
 			dw kw_inkey, tmp0
@@ -152,10 +152,10 @@ do5_t:
 			dw kw_goto_iffalse_n, do5_t
 do5_e:
 
-			; Main.bas 23: Print
+			; Main.bas 39: Print
 			dw kw_printnl
 
-			; Main.bas 24: End
+			; Main.bas 40: End
 			dw kw_stop
 
 ; ============================================================
@@ -164,7 +164,7 @@ do5_e:
 
 p_banner:
 
-			; Main.bas 28: Print "== "; text; " =="
+			; Main.bas 44: Print "== "; text; " =="
 			dw kw_printzoscii
 			dw glyph_3D, glyph_3D, glyph_20, 0		; "== "
 			dw kw_printstrvar, var_banner_text
@@ -174,6 +174,11 @@ p_banner:
 
 ; ============================================================
 ; function play (normal mode)
+; ============================================================
+
+
+; ============================================================
+; function bonus (normal mode)
 ; ============================================================
 
 
@@ -239,6 +244,23 @@ p_level1_play_r:		; end of play
 			call mem_sel
 			ld sp, (p_level1_play_rs)
 			jp ntc_xn
+p_level1_bonus_c:		; call bonus (normal)
+			ld hl, 0
+			ld (var_level1_bonus_bonus), hl
+			ld (p_level1_bonus_rs), sp
+			ld hl, ovl_blk_level1	; overlay LEVEL1.PAG
+			ld de, p_level1_bonus_pg
+			ld ix, p_level1_bonus_in
+			jp ntc_ovl_enter
+p_level1_bonus_in:
+			ld sp, p_level1_bonus
+			jp ntc_xn
+p_level1_bonus_r:		; end of bonus
+			ld sp, (ntc_csp)		; the caller's page back
+			ld hl, (p_level1_bonus_pg)
+			call mem_sel
+			ld sp, (p_level1_bonus_rs)
+			jp ntc_xn
 p_level2_play_c:		; call play (normal)
 			pop hl			; score
 			ld e, (hl)
@@ -266,32 +288,32 @@ p_level2_play_r:		; end of play
 ; Inline assembly (#asm ... #endasm)
 ; ============================================================
 
-fn_level1_unload:		; function unload (asm keyword), Level1.cls line 22
-			pop hl		; Level1.cls 23
-			ld (ovl_kres), hl		; Level1.cls 24
-			ld hl, ovl_blk_level1		; Level1.cls 25
-			jp ntc_ovl_kunload		; Level1.cls 26
+fn_level1_unload:		; function unload (asm keyword), Level1.cls line 25
+			pop hl		; Level1.cls 26
+			ld (ovl_kres), hl		; Level1.cls 27
+			ld hl, ovl_blk_level1		; Level1.cls 28
+			jp ntc_ovl_kunload		; Level1.cls 29
 			ret			; end of #asm
 
-fn_level1_loaded:		; function loaded (asm keyword), Level1.cls line 30
-			pop hl		; Level1.cls 31
-			ld (ovl_kres), hl		; Level1.cls 32
-			ld hl, ovl_blk_level1		; Level1.cls 33
-			jp ntc_ovl_kloaded		; Level1.cls 34
+fn_level1_loaded:		; function loaded (asm keyword), Level1.cls line 33
+			pop hl		; Level1.cls 34
+			ld (ovl_kres), hl		; Level1.cls 35
+			ld hl, ovl_blk_level1		; Level1.cls 36
+			jp ntc_ovl_kloaded		; Level1.cls 37
 			ret			; end of #asm
 
-fn_level1_page:		; function page (asm keyword), Level1.cls line 38
-			pop hl		; Level1.cls 39
-			ld (ovl_kres), hl		; Level1.cls 40
-			ld hl, ovl_blk_level1		; Level1.cls 41
-			jp ntc_ovl_kpage		; Level1.cls 42
+fn_level1_page:		; function page (asm keyword), Level1.cls line 41
+			pop hl		; Level1.cls 42
+			ld (ovl_kres), hl		; Level1.cls 43
+			ld hl, ovl_blk_level1		; Level1.cls 44
+			jp ntc_ovl_kpage		; Level1.cls 45
 			ret			; end of #asm
 
-fn_level2_page:		; function page (asm keyword), Level2.cls line 35
-			pop hl		; Level2.cls 36
-			ld (ovl_kres), hl		; Level2.cls 37
-			ld hl, ovl_blk_level2		; Level2.cls 38
-			jp ntc_ovl_kpage		; Level2.cls 39
+fn_level2_page:		; function page (asm keyword), Level2.cls line 37
+			pop hl		; Level2.cls 38
+			ld (ovl_kres), hl		; Level2.cls 39
+			ld hl, ovl_blk_level2		; Level2.cls 40
+			jp ntc_ovl_kpage		; Level2.cls 41
 			ret			; end of #asm
 
 fn_memory_pages:		; function pages (asm keyword), Memory.cls line 68
@@ -349,6 +371,9 @@ p_level1_play_rs:			dw 0
 var_level1_play_score:			dw 0
 var_level1_play_i:			dw 0
 p_level1_play_pg:			dw 0
+p_level1_bonus_rs:			dw 0
+var_level1_bonus_bonus:			dw 0
+p_level1_bonus_pg:			dw 0
 p_level2_play_rs:			dw 0
 var_level2_play_score:			dw 0
 p_level2_play_pg:			dw 0
@@ -377,6 +402,7 @@ glyph_50			equ ntc_font + 384		; "P"
 glyph_53			equ ntc_font + 408		; "S"
 glyph_55			equ ntc_font + 424		; "U"
 glyph_61			equ ntc_font + 520		; "a"
+glyph_62			equ ntc_font + 528		; "b"
 glyph_63			equ ntc_font + 536		; "c"
 glyph_64			equ ntc_font + 544		; "d"
 glyph_65			equ ntc_font + 552		; "e"
@@ -391,6 +417,7 @@ glyph_6F			equ ntc_font + 632		; "o"
 glyph_70			equ ntc_font + 640		; "p"
 glyph_72			equ ntc_font + 656		; "r"
 glyph_73			equ ntc_font + 664		; "s"
+glyph_75			equ ntc_font + 680		; "u"
 glyph_76			equ ntc_font + 688		; "v"
 glyph_77			equ ntc_font + 696		; "w"
 glyph_79			equ ntc_font + 712		; "y"
@@ -847,8 +874,8 @@ ntc_buf:		ds 2048
 ; only the one chosen is in the library (@if:): CPCExpansion (16K pages
 ; through the #4000 window, up to 4MB) or Small (main RAM only, no paging).
 ; Each class method jumps to mem_go with HL = the routine: mem_go runs it
-; on the real stack (call / push are fine there), interrupts left as
-; they are, and stores its HL result at mem_res (mem_go4: a Long, high
+; on the real stack (call / push are fine there), interrupts on in normal
+; mode (off in turbo), and stores its HL result at mem_res (mem_go4: a Long, high
 ; word in mem_hi; mem_go0: no store - the routine writes the result
 ; itself, or there is none). A routine that fails jumps to mem_err with
 ; HL = the status; mem_err puts back the page that was in the window
@@ -909,9 +936,15 @@ mem_gostart:
 			pop hl
 			ld de, (mem_cur)
 			ld (mem_keep), de
+			ld a, (ntc_nmode)		; normal mode: interrupts in during the call (Ticks keep
+			or a					; counting through a long Sort or Copy); turbo: off
+			jr z, mem_gocall
+			ei
+mem_gocall:
 			ld (mem_esp), sp
 			call mem_jphl
 mem_back:
+			di
 			ld ix, (mem_six)
 			ld iy, (mem_siy)
 			ld a, (mem_store)
@@ -1206,9 +1239,9 @@ mem_putback:
 ;   Page 2+ = 4 pages for each bank the probe finds, the standard 512K
 ;             (port #7F) first, then the blocks on #7E .. #78
 ;   Page numbers are 16 bit (a far pointer's high word); 0 = plain memory.
-;   No pages at all when the program (ntc_start .. ntc_end) or the
+;   No pages at all when the program (ntc_start .. ntc_free) or the
 ;   real stack is in the window: switching would hide them.
-; Tables, made by the first call (mem_start) from ntc_end up, sized to
+; Tables, made by the first call (mem_start) from ntc_free up, sized to
 ; what the probe finds (3 bytes a page: next link, type); fewer pages
 ; when there isn't room below #4000 (or below the real stack).
 ; Lists: every page is on one - 0 free low (main + the #7F block),
@@ -1241,7 +1274,7 @@ mem_start:
 			ret nz
 			inc a
 			ld (mem_init), a
-			ld hl, ntc_end
+			ld hl, ntc_free
 			ld (mem_tend), hl
 			ld de, MEM_WIN + 1		; the program must be out of the window:
 			or a					; it ends by #4000 ...
@@ -1376,7 +1409,7 @@ mem_tb_fit:
 			ld e, l
 			add hl, hl
 			add hl, de				; 3 bytes a page
-			ld de, ntc_end
+			ld de, ntc_free
 			add hl, de
 			ex de, hl				; DE = their end
 			ld hl, (mem_tend)
@@ -1388,12 +1421,12 @@ mem_tb_fit:
 			ld (mem_count), hl
 			jr mem_tb_fit
 mem_tb_none:
-			ld hl, ntc_end
+			ld hl, ntc_free
 			ld (mem_tend), hl
 			ret
 mem_tb_ok:
 			ld (mem_tend), de
-			ld hl, ntc_end
+			ld hl, ntc_free
 			ld (mem_tnext), hl
 			ld de, (mem_count)
 			add hl, de
@@ -2093,20 +2126,11 @@ mem_lg_end:
 			dec hl
 			ret
 
-;## ntc_ovl ntc_data ntc_mem ntc_plat_fs ntc_plat_screen ntc_plat_key kw_stop @shared
+;## ntc_ovlcom ntc_data ntc_mem ntc_plat_screen ntc_plat_key kw_stop @shared
 ; ------------------------------------------------------------
-; ntc_ovl - overlay classes (Option Class Overlay "FILE"): the class's
-; threads are built at #4000 into FILE.PAG in the same compile; its data
-; stays in main memory. Each class has a block in main memory:
-;   ovl_blk_<class>: dw page (0 = not loaded), db "FILE.PAG", 0
-; A call stub (p_name_c) saves the caller's SP, then jumps to
-; ntc_ovl_enter, which keeps the page that was in the window (the
-; stub's _pg word) and switches the class's page in - loading the file
-; into a free C page first if it isn't loaded. The return stub (p_name_r)
-; switches the caller's page back. Loading runs fs_load (the FileSystem
-; code: CAS IN, AMSDOS) through fs_go, with ovl_mt as the "thread" fs_go
-; returns into. The class's own Load / Unload / Loaded / Page members
-; are asm keywords (ntc_ovl_k*).
+; ntc_ovlcom - what both overlay schemes share (ntc_ovl has the rest): the
+; variables, the message when a class can't be loaded, a class's local
+; memory (LocalAlloc / LocalFree), the members' result.
 ; ------------------------------------------------------------
 OVL_NOPAGE	equ -12
 
@@ -2122,49 +2146,13 @@ ovl_ksp:		dw 0
 ovl_kres:		dw 0
 ovl_kcur:		dw 0
 ovl_mt:			dw ntc_ovl_ld2	; fs_go returns into this
+ovl_lblk:		dw 0			; LocalAlloc / LocalFree: the class block
 ovl_tdie:		db "Overlay not loaded: ", 0
 ovl_tpage:		db "No RAM page free", 0
 ovl_tfile:		db "The file didn't load", 0
 ovl_tkey:		db "Press a key", 0
 ovl_why:		dw 0
 
-; ntc_ovl_enter - from a call stub (jp, IX = where to go on): HL = the class
-; block, DE = the stub's word for the caller's page. Comes back on the real
-; stack with the class's page in the window; a class that can't be loaded
-; stops the program with a message.
-ntc_ovl_enter:
-			ld (ovl_blk), hl
-			ld (ovl_pg), de
-			ld (ovl_ix), ix
-			ld sp, (ntc_csp)
-			call mem_start
-			ld hl, (mem_cur)
-			ex de, hl
-			ld hl, (ovl_pg)
-			ld (hl), e
-			inc hl
-			ld (hl), d
-			ld hl, (ovl_blk)
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			ld a, d
-			or e
-			jr z, ntc_ovl_en_ld
-			ex de, hl
-			call mem_sel
-			ld ix, (ovl_ix)
-			jp (ix)
-ntc_ovl_en_ld:
-			ld hl, (ovl_blk)
-			ld ix, ntc_ovl_en_back
-			jp ntc_ovl_core
-ntc_ovl_en_back:
-			ld a, h
-			or l
-			jr nz, ntc_ovl_die
-			ld ix, (ovl_ix)
-			jp (ix)
 ; it can't be loaded: the name and why, wait for a key (a program started
 ; with RUN" resets when it ends), then the program stops
 ntc_ovl_die:
@@ -2177,8 +2165,8 @@ ntc_ovl_die1:
 			jr ntc_ovl_puts
 ntc_ovl_die2:
 			ld hl, (ovl_blk)
-			inc hl
-			inc hl
+			ld de, 6
+			add hl, de
 			ld ix, ntc_ovl_die3
 			jr ntc_ovl_puts
 ntc_ovl_die3:
@@ -2224,6 +2212,197 @@ ntc_ovl_pe:
 			ld ix, (ovl_pix)
 			jp (ix)
 
+; ntc_ovl_fresh - (call) HL = a class block + 2, the class just loaded at
+; #4000: its page variables cleared, its local memory one free block.
+ntc_ovl_fresh:
+			ld e, (hl)
+			inc hl
+			ld d, (hl)
+			inc hl
+			ld c, (hl)
+			inc hl
+			ld b, (hl)
+			push de
+			ld a, b
+			or c
+			jr z, ntc_ovl_noclr
+			push bc
+			ld h, d
+			ld l, e
+			ld (hl), 0
+			dec bc
+			ld a, b
+			or c
+			jr z, ntc_ovl_clr1
+			inc de
+			ldir
+ntc_ovl_clr1:
+			pop bc
+ntc_ovl_noclr:
+			pop hl
+			add hl, bc				; its local memory: one free block (LocalAlloc)
+			call ntc_ovl_lend
+			or a
+			sbc hl, de				; the size (even)
+			ld a, h
+			or a
+			jr nz, ntc_ovl_lhd
+			ld a, l
+			cp 4
+			jr c, ntc_ovl_lnone
+ntc_ovl_lhd:
+			ex de, hl
+			ld (hl), e
+			inc hl
+			ld (hl), d
+ntc_ovl_lnone:
+			ret
+
+; the members' end: HL = the result into ovl_kres, back on the thread
+ntc_ovl_kret:
+			ex de, hl
+			ld hl, (ovl_kres)
+			ld (hl), e
+			inc hl
+			ld (hl), d
+			ld sp, (ovl_ksp)
+			ret
+
+ntc_ovl_kput:
+			ex de, hl
+			ld hl, (ovl_kres)
+			ld (hl), e
+			inc hl
+			ld (hl), d
+			ret
+
+; ntc_ovl_lend - HL = a class's local memory start: DE = it, HL = its end
+; (start + the room to #8000, made even)
+ntc_ovl_lend:
+			ex de, hl
+			ld hl, #8000
+			or a
+			sbc hl, de
+			res 0, l
+			add hl, de
+			ret
+; LocalAlloc(size) (mem_go): size bytes of the class's local memory - the
+; rest of its page; only from the class's own code. An address, 0 = no room
+ntc_ovl_lalloc:
+			ld hl, (mem_a1)
+			ld a, h
+			or l
+			jr nz, ntc_ovl_la1
+			inc hl
+ntc_ovl_la1:
+			ld de, #3FFF
+			or a
+			push hl
+			sbc hl, de
+			pop hl
+			jr nc, ntc_ovl_la0
+			inc hl
+			inc hl
+			ld (mem_need), hl
+			call ntc_ovl_lreg
+			jr z, ntc_ovl_la0
+			ld bc, (mem_hlo)		; the heap code, on this region
+			push bc
+			ld bc, (mem_hhi)
+			push bc
+			ld (mem_hlo), hl
+			ld (mem_hhi), de
+			call mem_fit
+			jr z, ntc_ovl_la2
+			ld hl, 0
+ntc_ovl_la2:
+			pop de
+			ld (mem_hhi), de
+			pop de
+			ld (mem_hlo), de
+			ret
+ntc_ovl_la0:
+			ld hl, 0
+			ret
+
+; LocalFree(address) (mem_go): a block back. OK, or BadPage
+ntc_ovl_lfree:
+			call ntc_ovl_lreg
+			jp z, mem_chk_bad
+			ld bc, (mem_a1)			; start + 2 <= address < end
+			inc hl
+			inc hl
+			push hl
+			ld h, b
+			ld l, c
+			pop bc
+			or a
+			sbc hl, bc
+			jp c, mem_chk_bad
+			add hl, bc
+			or a
+			sbc hl, de
+			jp nc, mem_chk_bad
+			add hl, de
+			dec hl
+			bit 7, (hl)
+			jp z, mem_chk_bad
+			res 7, (hl)
+			ld hl, 0
+			ret
+
+;## ntc_ovl ntc_ovlcom ntc_mem ntc_plat_fs @shared
+; ------------------------------------------------------------
+; ntc_ovl - overlay classes (Option Class Overlay "FILE"): the class's
+; threads are built at #4000 into FILE.PAG in the same compile; its data
+; stays in main memory. Each class has a block in main memory:
+;   ovl_blk_<class>: dw page (0 = not loaded), db "FILE.PAG", 0
+; A call stub (p_name_c) saves the caller's SP, then jumps to
+; ntc_ovl_enter, which keeps the page that was in the window (the
+; stub's _pg word) and switches the class's page in - loading the file
+; into a free C page first if it isn't loaded. The return stub (p_name_r)
+; switches the caller's page back. Loading runs fs_load (the FileSystem
+; code: CAS IN, AMSDOS) through fs_go, with ovl_mt as the "thread" fs_go
+; returns into. The class's own Load / Unload / Loaded / Page members
+; are asm keywords (ntc_ovl_k*).
+; ------------------------------------------------------------
+; ntc_ovl_enter - from a call stub (jp, IX = where to go on): HL = the class
+; block, DE = the stub's word for the caller's page. Comes back on the real
+; stack with the class's page in the window; a class that can't be loaded
+; stops the program with a message.
+ntc_ovl_enter:
+			ld (ovl_blk), hl
+			ld (ovl_pg), de
+			ld (ovl_ix), ix
+			ld sp, (ntc_csp)
+			call mem_start
+			ld hl, (mem_cur)
+			ex de, hl
+			ld hl, (ovl_pg)
+			ld (hl), e
+			inc hl
+			ld (hl), d
+			ld hl, (ovl_blk)
+			ld e, (hl)
+			inc hl
+			ld d, (hl)
+			ld a, d
+			or e
+			jr z, ntc_ovl_en_ld
+			ex de, hl
+			call mem_sel
+			ld ix, (ovl_ix)
+			jp (ix)
+ntc_ovl_en_ld:
+			ld hl, (ovl_blk)
+			ld ix, ntc_ovl_en_back
+			jp ntc_ovl_core
+ntc_ovl_en_back:
+			ld a, h
+			or l
+			jp nz, ntc_ovl_die
+			ld ix, (ovl_ix)
+			jp (ix)
 ; ntc_ovl_core - (jp, IX = where to go on) HL = a class block: its file into a
 ; free C page. Comes back on the real stack with HL = 0 and that page in the
 ; window, or HL = a FileSystem status / OVL_NOPAGE (no page is kept).
@@ -2241,8 +2420,8 @@ ntc_ovl_core:
 			ld l, c
 			call mem_sel
 			ld hl, (ovl_blk)		; FileSystem's Load: name, #4000, at most #4000
-			inc hl
-			inc hl
+			ld de, 6
+			add hl, de
 			ld (fs_a1), hl
 			ld hl, MEM_WIN
 			ld (fs_a2), hl
@@ -2262,6 +2441,8 @@ ntc_ovl_ld2:
 			ld (hl), e
 			inc hl
 			ld (hl), d
+			inc hl
+			call ntc_ovl_fresh
 			ld hl, 0
 ntc_ovl_cback:
 			ld ix, (ovl_cix)
@@ -2292,7 +2473,7 @@ ntc_ovl_kload:
 			inc hl
 			or (hl)
 			ld hl, 0
-			jr nz, ntc_ovl_kret
+			jp nz, ntc_ovl_kret
 			ld hl, (ovl_blk)
 			ld ix, ntc_ovl_kl2
 			jp ntc_ovl_core
@@ -2301,15 +2482,7 @@ ntc_ovl_kl2:
 			ld hl, (ovl_kcur)
 			call mem_sel
 			pop hl
-ntc_ovl_kret:
-			ex de, hl
-			ld hl, (ovl_kres)
-			ld (hl), e
-			inc hl
-			ld (hl), d
-			ld sp, (ovl_ksp)
-			ret
-
+			jp ntc_ovl_kret
 ; Unload(): the page back to free (the next call loads the file again). OK
 ntc_ovl_kunload:
 			ld (ovl_ksp), sp
@@ -2329,7 +2502,7 @@ ntc_ovl_kunload:
 			call mem_tofree
 ntc_ovl_kzero:
 			ld hl, 0
-			jr ntc_ovl_kret
+			jp ntc_ovl_kret
 
 ; Loaded(): True when its page is in RAM
 ntc_ovl_kloaded:
@@ -2337,23 +2510,54 @@ ntc_ovl_kloaded:
 			inc hl
 			or (hl)
 			ld hl, 0
-			jr z, ntc_ovl_kput
+			jp z, ntc_ovl_kput
 			dec hl
-ntc_ovl_kput:
-			ex de, hl
-			ld hl, (ovl_kres)
-			ld (hl), e
-			inc hl
-			ld (hl), d
-			ret
-
+			jp ntc_ovl_kput
 ; Page(): the page it is loaded in, 0 = not loaded
 ntc_ovl_kpage:
 			ld a, (hl)
 			inc hl
 			ld h, (hl)
 			ld l, a
-			jr ntc_ovl_kput
+			jp ntc_ovl_kput
+
+; ntc_ovl_lreg - ovl_lblk's class: its page must be the one in the window
+; (its own code is running). NZ: HL = its local memory start, DE = the end.
+; Z: it isn't.
+ntc_ovl_lreg:
+			ld hl, (ovl_lblk)
+			ld e, (hl)
+			inc hl
+			ld d, (hl)
+			ld a, d
+			or e
+			ret z
+			ld hl, (mem_cur)
+			or a
+			sbc hl, de
+			jr nz, ntc_ovl_lno
+			ld hl, (ovl_lblk)
+			inc hl
+			inc hl
+			ld e, (hl)
+			inc hl
+			ld d, (hl)
+			inc hl
+			ld c, (hl)
+			inc hl
+			ld b, (hl)
+			ex de, hl
+			add hl, bc
+			push hl
+			call ntc_ovl_lend
+			ex de, hl
+			pop hl
+			ld a, 1
+			or a
+			ret
+ntc_ovl_lno:
+			xor a
+			ret
 
 ;## ntc_plat_data
 ntc_curx:		db 0			; cursor column (0 based)
@@ -2973,7 +3177,7 @@ fs_vols:		ds 145			; the volumes that worked, "A,C,M" (up to 16 of up to 8 lette
 fs_tmpn:		ds 9			; a volume name, capitals
 fs_rsxn:		ds 17			; a command name (last letter + #80), up to 16 letters
 fs_buf			equ ntc_buf		; the 2K buffer CAS IN OPEN / CAS OUT OPEN want (shared with Memory.Copy)
-			ASSERT ntc_end <= #A600, "FileSystem on cpcfw: the program must end below #A600 (AMSDOS's RAM)"
+			ASSERT ntc_free <= #A600, "FileSystem on cpcmin: the program and its arrays must end below #A600 (AMSDOS's RAM)"
 
 fs_go0:
 			ld a, 1
@@ -3516,17 +3720,21 @@ fs_sv_done:
 			ret
 
 
-; overlay classes: the page each is loaded in (0 = not loaded), its file
-ovl_blk_level1:	dw 0
+; overlay classes: the page each is loaded in (0 = not loaded), its page variables (start, size), its file
+ovl_blk_level1:	dw 0, ovl_level1_end, ovl_level1_vsize
 			db "LEVEL1.PAG", 0
-ovl_blk_level2:	dw 0
+ovl_blk_level2:	dw 0, ovl_level2_end, ovl_level2_vsize
 			db "LEVEL2.PAG", 0
 
-ntc_end:				; the end of the program
-; Option Reserve: the program (ntc_start .. ntc_end) must stay out of these
-			ASSERT (ntc_end <= 16384) || (ntc_start >= 32768), "the program reaches into Option Reserve #4000-#7FFF (Main.bas line 7)"
+ntc_end:				; the end of the program (and of its file)
+; arrays: after the program, not in its file - kw_bssinit checks they fit and clears them
+ntc_bss		equ ntc_end
+ntc_bss_size	equ 0
+ntc_free	equ ntc_bss + ntc_bss_size	; the first free byte (heap, Memory tables)
+; Option Reserve: the program and its arrays (ntc_start .. ntc_free) must stay out of these
+			ASSERT (ntc_free <= 16384) || (ntc_start >= 32768), "the program (or its arrays) reaches into Option Reserve #4000-#7FFF (Main.bas line 14)"
 			SAVEAMSDOS "OVERLAYS.BIN", ntc_start, ntc_end - ntc_start, ntc_start
-			ASSERT (ntc_end <= #4000) || (ntc_start >= #8000), "overlay classes: the program must stay out of #4000-#7FFF (the window they run in)"
+			ASSERT (ntc_free <= #4000) || (ntc_start >= #8000), "overlay classes: the program and its arrays must stay out of #4000-#7FFF (the window they run in)"
 
 ; ============================================================
 ; Overlay class level1 -> LEVEL1.PAG: its threads, built to run at #4000
@@ -3558,9 +3766,15 @@ for6_e:
 			; Level1.cls 9: Play = 100
 			dw kw_ltov, 100, var_level1_play_play
 			dw p_level1_play_r
+p_level1_bonus:
+
+			; Level1.cls 12: Bonus = 50
+			dw kw_ltov, 50, var_level1_bonus_bonus
+			dw p_level1_bonus_r
 			dw 0			; (never empty)
-ovl_level1_end:
-			ASSERT ovl_level1_end <= #8000, "overlay class level1 is more than 16K"
+ovl_level1_end:		; the end of its file; page variables (cleared on loading) follow
+ovl_level1_vsize	equ 0		; its page variables; its local memory is the rest, to #8000
+			ASSERT ovl_level1_end + ovl_level1_vsize <= #8000, "overlay class level1 is more than 16K (code and page variables)"
 			SAVEAMSDOS "LEVEL1.PAG", ovl_level1_start, ovl_level1_end - ovl_level1_start, #4000
 
 ; ============================================================
@@ -3571,10 +3785,10 @@ ovl_level1_end:
 ovl_level2_start:
 p_level2_play:
 
-			; Level2.cls 4: Banner "Level 2"
+			; Level2.cls 5: Banner "Level 2"
 			dw p_banner_c, str2
 
-			; Level2.cls 5: Print "  score so far "; score; ", level 1 loaded "; Level1.Loaded()
+			; Level2.cls 6: Print "  score so far "; score; ", level 1 loaded "; Level1.Loaded()
 			dw kw_printzoscii
 			dw glyph_20, glyph_20, glyph_73, glyph_63, glyph_6F, glyph_72, glyph_65, glyph_20
 			dw glyph_73, glyph_6F, glyph_20, glyph_66, glyph_61, glyph_72, glyph_20, 0		; "  score so far "
@@ -3587,10 +3801,20 @@ p_level2_play:
 			dw kw_printint, var_level1_loaded_loaded
 			dw kw_printnl
 
-			; Level2.cls 6: Play = 250
+			; Level2.cls 7: Print "  bonus from level 1 "; Level1.Bonus()
+			dw p_level1_bonus_c
+			dw kw_printzoscii
+			dw glyph_20, glyph_20, glyph_62, glyph_6F, glyph_6E, glyph_75, glyph_73, glyph_20
+			dw glyph_66, glyph_72, glyph_6F, glyph_6D, glyph_20, glyph_6C, glyph_65, glyph_76
+			dw glyph_65, glyph_6C, glyph_20, glyph_31, glyph_20, 0		; "  bonus from level 1 "
+			dw kw_printint, var_level1_bonus_bonus
+			dw kw_printnl
+
+			; Level2.cls 8: Play = 250
 			dw kw_ltov, 250, var_level2_play_play
 			dw p_level2_play_r
 			dw 0			; (never empty)
-ovl_level2_end:
-			ASSERT ovl_level2_end <= #8000, "overlay class level2 is more than 16K"
+ovl_level2_end:		; the end of its file; page variables (cleared on loading) follow
+ovl_level2_vsize	equ 0		; its page variables; its local memory is the rest, to #8000
+			ASSERT ovl_level2_end + ovl_level2_vsize <= #8000, "overlay class level2 is more than 16K (code and page variables)"
 			SAVEAMSDOS "LEVEL2.PAG", ovl_level2_start, ovl_level2_end - ovl_level2_start, #4000

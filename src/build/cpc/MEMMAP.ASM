@@ -1711,8 +1711,8 @@ ntc_buf:		ds 2048
 ; only the one chosen is in the library (@if:): CPCExpansion (16K pages
 ; through the #4000 window, up to 4MB) or Small (main RAM only, no paging).
 ; Each class method jumps to mem_go with HL = the routine: mem_go runs it
-; on the real stack (call / push are fine there), interrupts left as
-; they are, and stores its HL result at mem_res (mem_go4: a Long, high
+; on the real stack (call / push are fine there), interrupts on in normal
+; mode (off in turbo), and stores its HL result at mem_res (mem_go4: a Long, high
 ; word in mem_hi; mem_go0: no store - the routine writes the result
 ; itself, or there is none). A routine that fails jumps to mem_err with
 ; HL = the status; mem_err puts back the page that was in the window
@@ -1773,9 +1773,15 @@ mem_gostart:
 			pop hl
 			ld de, (mem_cur)
 			ld (mem_keep), de
+			ld a, (ntc_nmode)		; normal mode: interrupts in during the call (Ticks keep
+			or a					; counting through a long Sort or Copy); turbo: off
+			jr z, mem_gocall
+			ei
+mem_gocall:
 			ld (mem_esp), sp
 			call mem_jphl
 mem_back:
+			di
 			ld ix, (mem_six)
 			ld iy, (mem_siy)
 			ld a, (mem_store)
@@ -2070,9 +2076,9 @@ mem_putback:
 ;   Page 2+ = 4 pages for each bank the probe finds, the standard 512K
 ;             (port #7F) first, then the blocks on #7E .. #78
 ;   Page numbers are 16 bit (a far pointer's high word); 0 = plain memory.
-;   No pages at all when the program (ntc_start .. ntc_end) or the
+;   No pages at all when the program (ntc_start .. ntc_free) or the
 ;   real stack is in the window: switching would hide them.
-; Tables, made by the first call (mem_start) from ntc_end up, sized to
+; Tables, made by the first call (mem_start) from ntc_free up, sized to
 ; what the probe finds (3 bytes a page: next link, type); fewer pages
 ; when there isn't room below #4000 (or below the real stack).
 ; Lists: every page is on one - 0 free low (main + the #7F block),
@@ -2105,7 +2111,7 @@ mem_start:
 			ret nz
 			inc a
 			ld (mem_init), a
-			ld hl, ntc_end
+			ld hl, ntc_free
 			ld (mem_tend), hl
 			ld de, MEM_WIN + 1		; the program must be out of the window:
 			or a					; it ends by #4000 ...
@@ -2240,7 +2246,7 @@ mem_tb_fit:
 			ld e, l
 			add hl, hl
 			add hl, de				; 3 bytes a page
-			ld de, ntc_end
+			ld de, ntc_free
 			add hl, de
 			ex de, hl				; DE = their end
 			ld hl, (mem_tend)
@@ -2252,12 +2258,12 @@ mem_tb_fit:
 			ld (mem_count), hl
 			jr mem_tb_fit
 mem_tb_none:
-			ld hl, ntc_end
+			ld hl, ntc_free
 			ld (mem_tend), hl
 			ret
 mem_tb_ok:
 			ld (mem_tend), de
-			ld hl, ntc_end
+			ld hl, ntc_free
 			ld (mem_tnext), hl
 			ld de, (mem_count)
 			add hl, de
@@ -3643,7 +3649,11 @@ ntc_ex_done:
 			jp (ix)
 
 
-ntc_end:				; the end of the program
-; Option Reserve: the program (ntc_start .. ntc_end) must stay out of these
-			ASSERT (ntc_end <= 16384) || (ntc_start >= 32768), "the program reaches into Option Reserve #4000-#7FFF (main.bas line 10)"
+ntc_end:				; the end of the program (and of its file)
+; arrays: after the program, not in its file - kw_bssinit checks they fit and clears them
+ntc_bss		equ ntc_end
+ntc_bss_size	equ 0
+ntc_free	equ ntc_bss + ntc_bss_size	; the first free byte (heap, Memory tables)
+; Option Reserve: the program and its arrays (ntc_start .. ntc_free) must stay out of these
+			ASSERT (ntc_free <= 16384) || (ntc_start >= 32768), "the program (or its arrays) reaches into Option Reserve #4000-#7FFF (main.bas line 10)"
 			SAVEAMSDOS "MEMMAP.BIN", ntc_start, ntc_end - ntc_start, ntc_start

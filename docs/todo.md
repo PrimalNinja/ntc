@@ -294,6 +294,21 @@ finished, with the date.
   sjasmplus: CPC as AMSDOS `.BIN` (compiler option `amsdos` / `cli.js --amsdos=NAME` adds
   `DEVICE AMSTRADCPC6128` and `SAVEAMSDOS`), CP/M `.COM`, test `.BIN`. Every program now
   ends with `ntc_end:`. regress.sh regenerates and assembles them all
+- 2026-10-12 **arrays after the program** (not in the file; kw_bssinit checks they fit under
+  the platform's top and clears them, else "Not enough memory for the arrays"; ntc_free is
+  the first free byte); **List class** (handle-based linked lists in the heap, node pools,
+  merge sort; every platform); **Private Paged** variables and local memory (LocalStart /
+  LocalSize / LocalAlloc / LocalFree) in overlay classes. Demo LISTS; tests `list_t`, `pvar`
+- 2026-10-12 List.Sort is now a radix sort (the merge sort took close to a minute for 5,000 nodes;
+  now 4.2-4.8 s on a 6128). Demo SORTTIME (5,000 nodes, turbo and normal). `test/cpctime.py`
+  times a program at the real CPC's speed (gate array stretching, interrupts every 3333
+  microseconds). Found: turbo and normal differ by about 5% here - the List calls (about
+  600 microseconds each) take most of the time. Next: faster List calls
+- 2026-10-12 **one overlay area** for overlay classes on cpm and on cpcmin / cpcfw with
+  Option Memory Small (64K CPCs): one class at a time at #4000-#7FFF, a call loads its class
+  over the one there, a return loads the caller's class again if it was swapped out; Load /
+  Unload from the area give -13; Paged variables stay in main memory there. CP/M .PAG files
+  are plain bytes. OVERLAYS demo now also on cpm; test `ovls` (cpm, cpcmin, cpcfw, 64K)
 - 2026-10-12 fix: overlay .PAG files had no AMSDOS header, so AMSDOS took them for text and
   CAS IN DIRECT didn't load them (OVERLAYS stopped, then RUN" reset). Now SAVEAMSDOS (AMSDOS
   builds) or a header written in the OUTPUT block; the harness's CAS calls now follow the
@@ -734,6 +749,11 @@ CP/M compatible (or mostly) system idea - device model, not decided:
       after the program in its file and copy them into pages at start?); library keywords
       used only by an overlay inside its page; a warning when overlay classes call each
       other (64K reloads)
+- [ ] List, next: faster calls (GetWord / NextOf as plain keywords without mem_go and the
+      argument checks); fields as Strings; a node of another list or a deleted one isn't
+      caught; Memory.SavePage / LoadPage (a data page out to a file and back)
+- [ ] overlay classes: reusing a C page when none is free (CPCExpansion on 64K - the Small
+      overlay area is done); Paged variables saved across swaps in the overlay area
 - [ ] interrupt classes, next: Tick in a page (I pages, a paged interrupt class); asm-only
       Ticks run inside the interrupt itself (music players: no wait for a safe point);
       cpcfw (firmware frame flyback / ticker events); flags kept across a hook / Tick run
