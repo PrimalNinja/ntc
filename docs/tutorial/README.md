@@ -95,6 +95,7 @@ test platform - a CPC or CP/M shows the same text). The full reference is
 - [10.4 Insert, delete and search](10.4-insert-delete-search.md)
 - [10.5 Sorting](10.5-sorting.md)
 - [10.6 Lists or arrays?](10.6-lists-or-arrays.md)
+- [10.7 Text and records in nodes](10.7-text-in-nodes.md)
 
 ## 11. Classes
 

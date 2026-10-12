@@ -3,7 +3,9 @@
 # stretches every instruction to a whole number of microseconds. This steps one instruction
 # at a time, adds up the CPC's microseconds, and raises the 300 Hz interrupt every 3333
 # microseconds as the real machine does - so Ticks, and anything timed with it, comes out
-# as on a CPC. About 10x slower to run than cpcrun.py.
+# as on a CPC. The frame sync (PPI port B bit 0) follows the same clock: a frame every 20 ms,
+# the sync high for its first 512 us, so Frame and the double buffer flip wait as on a CPC.
+# About 10x slower to run than cpcrun.py.
 #
 #   python3 cpctime.py prog.bas 'typed keys' [--mark=sym1,sym2...] [--ram=128] [cli.js options]
 #
@@ -107,6 +109,15 @@ def main():
         if nm in syms: watch[syms[nm]] = nm
         else: print('no label', nm)
     m = c.m; mem = m.memory
+    # the vertical sync by the clock, as on a CPC: a frame every 20 ms, the sync (PPI port B
+    # bit 0) high for its first 512 us, and the interrupt after it 2 lines (128 us) in
+    now = [0.0]
+    old_inp = c.inp
+    def inp(port):
+        if (port >> 8) & 0xff == 0xf5:
+            return 1 if (now[0] + 128 - 3333.33) % 20000 < 512 else 0
+        return old_inp(port)
+    m.set_input_callback(inp)
     def step():
         m.ticks_to_stop = 1; m.run()
     us = 0; nextint = 3333.33; pend = False; hits = []
@@ -114,6 +125,7 @@ def main():
         pc = m.pc
         if pc in watch: hits.append((watch[pc], us))
         op = mem[pc]; op2 = mem[(pc + 1) & 0xFFFF]
+        now[0] = us
         step()
         us += timeof(m, mem, pc, op, op2, step)
         if us >= nextint: nextint += 3333.33; pend = True

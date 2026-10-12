@@ -657,6 +657,16 @@ caller's class was swapped out, so it is loaded again before going back to its t
 emitted (the Small heap stops at the area). CP/M `.PAG` files are the plain bytes (`fs_load`
 reads whole records into `#4000`, at most 16K).
 
+**Graphics** (`ntc_lib.asm` section `ntc_gfx`, class `lib/cpc*/Graphics.cls`): one line loop for
+modes 0-2 - C holds a marker of the pixel's bits (`#AA`/`#55`, `#88 >> n`, `#80 >> n`), `RRC C`
+steps it one pixel right and its carry means the next byte; the pixel is `C AND IYL` (the
+pen's bits for the mode) XORed in. Going down a row: `H + 8`, and when bits 3-5 of H come back
+to 0 the character row is done (`+ #C050`) - true for either screen (`#C0` or `#40`). Double
+buffering shows `#C000` or main RAM's `#4000` with CRTC R12 (`#30` / `#10`) at the vertical
+sync; `gfx_begin` / `gfx_end` put main RAM in the window around drawing on `#4000` and then the
+setting in `ntc_rampt` back (the Memory class's `mem_sel` keeps it). Called on the real stack;
+uses IX and IY.
+
 **Interrupt classes** (`Option Class Interrupt rate | Frame`, cpc / cpcmin). Section
 `ntc_islots`: 4 slots (count, reload, running, due, Tick's call stub), filled by the start
 code. The platform's interrupt handler calls `ntc_irqv` (`ntc_isl_tick`): it counts each
@@ -855,7 +865,9 @@ The same emulated CPC as `cpcrun.py`, but it steps one instruction at a time and
 the real CPC's time for each: the gate array stretches every instruction to a whole number
 of microseconds (4 T steps), so a CPC runs slower than the T states say (cpcrun's `T`). The
 300 Hz interrupt comes every 3333 microseconds as on the real machine, so `Ticks`, and
-anything a program times with it, matches a CPC. About 10 times slower to run than
+anything a program times with it, matches a CPC. The frame sync follows the same clock (a
+frame every 20 ms, the sync high for its first 512 microseconds), so `Frame` and the double
+buffer flip wait as long as on a CPC. About 10 times slower to run than
 `cpcrun.py`. It prints the screen, the interrupts taken and the run time in CPC seconds;
 with `--mark=label,...` also each time the program reaches one of those labels, from the
 start and from the mark before (labels from the `.sym` file: `kw_turbo_on`, `lst_sort` ...).

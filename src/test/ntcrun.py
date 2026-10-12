@@ -17,7 +17,8 @@ FW = {0xBB06: 'km_wait', 0xBB09: 'km_read', 0xBB5A: 'txt_out', 0xBB6C: 'txt_clea
       0xBC0E: 'scr_mode', 0xBD19: 'mc_flyback', 0xBD0D: 'kl_time',
       0xBC77: 'cas_in_open', 0xBC7A: 'cas_in_close', 0xBC7D: 'cas_in_abandon', 0xBC83: 'cas_in_direct',
       0xBC8C: 'cas_out_open', 0xBC8F: 'cas_out_close', 0xBC92: 'cas_out_abandon', 0xBC98: 'cas_out_direct',
-      0xBCCB: 'kl_rom_walk', 0xBCCE: 'kl_init_back', 0xBCD4: 'kl_find_command', 0x001B: 'kl_far_pcall'}
+      0xBCCB: 'kl_rom_walk', 0xBCCE: 'kl_init_back', 0xBCD4: 'kl_find_command', 0x001B: 'kl_far_pcall',
+      0xBCE0: 'kl_new_fast_ticker', 0xBCE6: 'kl_del_fast_ticker'}
 RSX = ['TAPE', 'DISC', 'A', 'B', 'C', 'M']   # AMSDOS's commands, and an M4-like DOS's C and M
 # files for the FileSystem class (cpm: BDOS FCB calls, cpcfw: CAS calls) live in this folder
 FILES = os.environ.get('NTC_FILES', os.path.join(HERE, 't', 'files'))
@@ -208,6 +209,14 @@ class Host:
                     m.hl = 0x4000 + RSX.index(n); m.c = 7; m.f = m.f | 1
                 else:
                     m.f = m.f & 0xFE
+            elif f == 'kl_new_fast_ticker':
+                # the firmware calls the event routine at every interrupt (300 a second, express
+                # asynchronous): #38 jumps to a stub that keeps the registers and calls it
+                r = m.de
+                stub = [0xF5, 0xC5, 0xD5, 0xE5, 0xCD, r & 255, r >> 8, 0xE1, 0xD1, 0xC1, 0xF1, 0xFB, 0xC9]
+                m.set_memory_block(0xBF80, bytes(stub)); m.set_memory_block(0x38, bytes([0xC3, 0x80, 0xBF]))
+            elif f == 'kl_del_fast_ticker':
+                m.set_memory_block(0x38, bytes([0xFB, 0xC9]))
             elif f == 'kl_far_pcall':
                 n = RSX[m.hl - 0x4000]
                 if n == 'TAPE': s.cas_dev = 'TAPE'

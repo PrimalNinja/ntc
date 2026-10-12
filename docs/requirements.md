@@ -61,14 +61,15 @@ What each target can do:
 | | cpc | cpcmin | cpcfw | cpm | test |
 |---|---|---|---|---|---|
 | Screen | own drawing, CPC font, modes 0 / 1 / 2 | own drawing | firmware text | BDOS console | ports |
-| Interrupts (normal mode, `Interrupt`) | own handler, 300 Hz | own handler | firmware | - | - |
+| Interrupts (normal mode, `Interrupt`) | own handler, 300 Hz | own handler | firmware, plus a fast ticker event for `Interrupt` | - | - |
 | Files (`FileSystem`) | - | Load / Save, tape / disc, volumes | Load / Save, tape / disc, volumes | everything (sequential, random access, delete, rename ...) | - |
 | RAM pages (`Memory`, `Option Memory CPCExpansion`) | up to a 4MB expansion | up to a 4MB expansion | up to a 4MB expansion | - | - |
 | Heap in main RAM (`Option Memory Small`) | yes | yes | yes | yes (up to the BDOS) | yes |
 | ROM commands (`System.Command`) | - | yes | yes | - | - |
 | Overlay classes (`Option Class Overlay`) | - | yes (RAM pages, or one overlay area with `Small`) | yes (the same) | yes (one overlay area) | - |
 | Linked lists (`List`) | yes | yes | yes | yes | yes |
-| Interrupt classes (`Option Class Interrupt`) | yes | yes | - | - | - |
+| Graphics (`Graphics`: lines in modes 0-2, double buffering) | yes | yes | - | - | - |
+| Interrupt classes (`Option Class Interrupt`), `Interrupt` | yes | yes | yes (firmware fast ticker event) | - | - |
 
 RAM pages: 64K machines (464, 664) have 1 page, 128K (6128, or a 464 with a 64K
 expansion) 5, up to 33 with a 512K expansion and up to 257 with a 4MB expansion (WinAPE

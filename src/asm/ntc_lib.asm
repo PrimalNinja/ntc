@@ -95,6 +95,8 @@ ntc_hookset:	db 0			; 1 = an Interrupt hook is set
 ntc_hookpend:	db 0			; 1 = an interrupt came, the hook runs at the next safe point
 ntc_hook:		dw 0			; the hook Sub's call stub
 ntc_hostix:		dw 0			; host platforms: IX kept over a firmware / BDOS call
+ntc_rampt:		dw #7FC0		; the gate array's RAM setting now (B = port, C = value): the
+								; Memory class keeps it, Graphics puts it back after drawing
 ntc_numbuf:		ds 14			; printint / long print: digits (+ spaces for Option VBPrint)
 				db 40			; ntc_inbuf's capacity (as every string variable has)
 ntc_inbuf:		ds 41			; inputint: typed text
@@ -6195,6 +6197,7 @@ mem_se_do:
 			inc hl
 			ld b, (hl)
 mem_se_out:
+			ld (ntc_rampt), bc
 			out (c), c
 mem_se_end:
 			pop bc
@@ -7758,6 +7761,554 @@ ntc_ovl_lreg:
 			pop hl
 			ld a, 1
 			or a
+			ret
+
+;## ntc_gfx ntc_data ntc_plat_data @shared
+; ------------------------------------------------------------
+; ntc_gfx - drawing on the CPC screen (Graphics class, Vector3D): lines in
+; mode 0, 1 or 2 (ntc_smode), in a pen, XOR (drawing a line again takes it
+; off). Two screens for double buffering: #C000 and main RAM's own
+; #4000-#7FFF (page 1 - the CRTC always shows main RAM, whatever RAM page the
+; Z80 has in the window). Called on the real stack (call / ret); uses IX, IY.
+; One loop for every mode: C is a marker of the pixel's bits (mode 0 #AA /
+; #55, mode 1 #88 >> n, mode 2 #80 >> n); RRC C moves it one pixel right and
+; its carry says "next byte"; the pixel is C and the pen's pattern (IYL).
+; ------------------------------------------------------------
+gfx_x0:			dw 0
+gfx_y0:			dw 0
+gfx_x1:			dw 0
+gfx_y1:			dw 0
+gfx_dx:			dw 0
+gfx_dy:			dw 0
+gfx_out:		db 0
+gfx_sy:			db 0			; 0 down, 1 up
+gfx_pen:		db 1
+gfx_clip:		db 1			; 1: a line with an end off the screen isn't drawn; 0: no checks
+gfx_base:		db #C0			; the screen drawn on (high byte)
+gfx_dbl:		db 0			; 1 = double buffering
+gfx_shown:		db #30			; CRTC R12 of the screen shown
+gfx_sp:			dw 0			; the thread position while a Graphics method works
+
+; gfx_begin / gfx_end - around drawing: main RAM in the window when the
+; screen drawn on is #4000, the RAM setting put back after
+gfx_begin:
+			ld a, (gfx_base)
+			cp #40
+			ret nz
+			push bc
+			ld bc, #7FC0
+			out (c), c
+			pop bc
+			ret
+gfx_end:
+			ld a, (gfx_base)
+			cp #40
+			ret nz
+			ld bc, (ntc_rampt)
+			out (c), c
+			ret
+
+; gfx_width - HL = the screen's width in pixels in this mode
+gfx_width:
+			ld a, (ntc_smode)
+			ld hl, 160
+			or a
+			ret z
+			add hl, hl
+			dec a
+			ret z
+			add hl, hl
+			ret
+
+; gfx_line - (gfx_x0, gfx_y0) to (gfx_x1, gfx_y1), pixels of this mode
+gfx_line:
+			ld a, (gfx_clip)
+			or a
+			jr z, gfx_l_go
+			call gfx_width
+			ex de, hl
+			ld hl, (gfx_x0)
+			call gfx_chk
+			ret c
+			ld hl, (gfx_x1)
+			call gfx_chk
+			ret c
+			ld de, 200
+			ld hl, (gfx_y0)
+			call gfx_chk
+			ret c
+			ld hl, (gfx_y1)
+			call gfx_chk
+			ret c
+gfx_l_go:
+			ld hl, (gfx_x1)			; left to right
+			ld de, (gfx_x0)
+			or a
+			sbc hl, de
+			jr nc, gfx_l_lr
+			ld hl, (gfx_x0)
+			ld de, (gfx_x1)
+			ld (gfx_x0), de
+			ld (gfx_x1), hl
+			ld hl, (gfx_y0)
+			ld de, (gfx_y1)
+			ld (gfx_y0), de
+			ld (gfx_y1), hl
+			ld hl, (gfx_x1)
+			ld de, (gfx_x0)
+			or a
+			sbc hl, de
+gfx_l_lr:
+			ld (gfx_dx), hl
+			ld hl, (gfx_y1)
+			ld de, (gfx_y0)
+			or a
+			sbc hl, de
+			ld a, 0
+			jr nc, gfx_l_dy
+			call gfx_neg
+			ld a, 1
+gfx_l_dy:
+			ld (gfx_sy), a
+			ld (gfx_dy), hl
+			call gfx_pat			; IYL = the pen's pattern in this mode
+			ld a, (gfx_y0)			; HL = the address of (x0, y0)
+			ld c, a
+			and #F8
+			ld l, a
+			ld h, 0
+			add hl, hl
+			ld d, h
+			ld e, l
+			add hl, hl
+			add hl, hl
+			add hl, de				; (y / 8) * 80
+			ld a, c
+			and 7
+			add a, a
+			add a, a
+			add a, a
+			ld c, a
+			ld a, (gfx_base)
+			add a, c
+			add a, h
+			ld h, a
+			ld de, (gfx_x0)			; + x / pixels a byte, C = the marker
+			ld a, (ntc_smode)
+			or a
+			jr nz, gfx_l_m12
+			ld c, #AA
+			srl d
+			rr e
+			jr nc, gfx_l_adr
+			ld c, #55
+			jr gfx_l_adr
+gfx_l_m12:
+			dec a
+			ld a, e
+			jr nz, gfx_l_m2
+			and 3
+			ld b, a
+			ld c, #88
+			srl d
+			rr e
+			srl d
+			rr e
+			jr gfx_l_sh
+gfx_l_m2:
+			and 7
+			ld b, a
+			ld c, #80
+			srl d
+			rr e
+			srl d
+			rr e
+			srl d
+			rr e
+gfx_l_sh:
+			ld a, b
+			or a
+			jr z, gfx_l_adr
+gfx_l_shl:
+			rrc c
+			djnz gfx_l_shl
+gfx_l_adr:
+			add hl, de
+			call gfx_begin
+			call gfx_l_draw
+			jp gfx_end
+gfx_l_draw:
+			ld a, c					; the first pixel
+			and iyl
+			xor (hl)
+			ld (hl), a
+			push hl
+			ld hl, (gfx_dx)
+			ld de, (gfx_dy)
+			or a
+			sbc hl, de
+			pop hl
+			jp c, gfx_ymaj
+			ld de, (gfx_dy)			; x major: count dx, error dx / 2, IX = dy
+			push de
+			pop ix
+			ld de, (gfx_dx)
+			call gfx_cnt
+			ret z
+			ld de, (gfx_dx)
+			srl d
+			rr e
+			ld a, (gfx_sy)
+			or a
+			jp nz, gfx_xu
+gfx_xd:
+			rrc c					; x + 1
+			jr nc, gfx_xd1
+			inc hl
+gfx_xd1:
+			ld a, e					; error - dy
+			sub ixl
+			ld e, a
+			ld a, d
+			sbc a, ixh
+			ld d, a
+			jp p, gfx_xd2
+			push hl					; error + dx, y + 1
+			ld hl, (gfx_dx)
+			add hl, de
+			ex de, hl
+			pop hl
+			ld a, h
+			add a, 8
+			ld h, a
+			and #38
+			jr nz, gfx_xd2
+			push de
+			ld de, #C050
+			add hl, de
+			pop de
+gfx_xd2:
+			ld a, c
+			and iyl
+			xor (hl)
+			ld (hl), a
+			djnz gfx_xd
+			ld a, (gfx_out)
+			dec a
+			ld (gfx_out), a
+			jr nz, gfx_xd
+			ret
+gfx_xu:
+			rrc c
+			jr nc, gfx_xu1
+			inc hl
+gfx_xu1:
+			ld a, e
+			sub ixl
+			ld e, a
+			ld a, d
+			sbc a, ixh
+			ld d, a
+			jp p, gfx_xu2
+			push hl					; error + dx, y - 1
+			ld hl, (gfx_dx)
+			add hl, de
+			ex de, hl
+			pop hl
+			ld a, h
+			sub 8
+			ld h, a
+			and #38
+			cp #38
+			jr nz, gfx_xu2
+			push de
+			ld de, #3FB0
+			add hl, de
+			pop de
+gfx_xu2:
+			ld a, c
+			and iyl
+			xor (hl)
+			ld (hl), a
+			djnz gfx_xu
+			ld a, (gfx_out)
+			dec a
+			ld (gfx_out), a
+			jr nz, gfx_xu
+			ret
+gfx_ymaj:
+			ld de, (gfx_dx)			; y major: count dy, error dy / 2, IX = dx
+			push de
+			pop ix
+			ld de, (gfx_dy)
+			call gfx_cnt
+			ret z
+			ld de, (gfx_dy)
+			srl d
+			rr e
+			ld a, (gfx_sy)
+			or a
+			jp nz, gfx_yu
+gfx_yd:
+			ld a, h					; y + 1
+			add a, 8
+			ld h, a
+			and #38
+			jr nz, gfx_yd1
+			push de
+			ld de, #C050
+			add hl, de
+			pop de
+gfx_yd1:
+			ld a, e					; error - dx
+			sub ixl
+			ld e, a
+			ld a, d
+			sbc a, ixh
+			ld d, a
+			jp p, gfx_yd2
+			push hl					; error + dy, x + 1
+			ld hl, (gfx_dy)
+			add hl, de
+			ex de, hl
+			pop hl
+			rrc c
+			jr nc, gfx_yd2
+			inc hl
+gfx_yd2:
+			ld a, c
+			and iyl
+			xor (hl)
+			ld (hl), a
+			djnz gfx_yd
+			ld a, (gfx_out)
+			dec a
+			ld (gfx_out), a
+			jr nz, gfx_yd
+			ret
+gfx_yu:
+			ld a, h					; y - 1
+			sub 8
+			ld h, a
+			and #38
+			cp #38
+			jr nz, gfx_yu1
+			push de
+			ld de, #3FB0
+			add hl, de
+			pop de
+gfx_yu1:
+			ld a, e
+			sub ixl
+			ld e, a
+			ld a, d
+			sbc a, ixh
+			ld d, a
+			jp p, gfx_yu2
+			push hl
+			ld hl, (gfx_dy)
+			add hl, de
+			ex de, hl
+			pop hl
+			rrc c
+			jr nc, gfx_yu2
+			inc hl
+gfx_yu2:
+			ld a, c
+			and iyl
+			xor (hl)
+			ld (hl), a
+			djnz gfx_yu
+			ld a, (gfx_out)
+			dec a
+			ld (gfx_out), a
+			jr nz, gfx_yu
+			ret
+; DE = a count: B = its low byte (0 = 256), gfx_out = rounds of B; Z when 0
+gfx_cnt:
+			ld a, d
+			or e
+			ret z
+			ld b, e
+			ld a, e
+			or a
+			jr z, gfx_cn1
+			inc d
+gfx_cn1:
+			ld a, d
+			ld (gfx_out), a
+			or 1
+			ret
+; HL = a coordinate, DE = the limit: carry when HL is not 0 .. DE - 1
+gfx_chk:
+			bit 7, h
+			scf
+			ret nz
+			or a
+			sbc hl, de
+			ccf
+			ret
+gfx_neg:
+			xor a
+			sub l
+			ld l, a
+			sbc a, a
+			sub h
+			ld h, a
+			ret
+; gfx_pat - IYL = the pen's bits for this mode (both / all pixels of a byte)
+gfx_pat:
+			ld a, (gfx_pen)
+			ld b, a
+			ld a, (ntc_smode)
+			or a
+			jr z, gfx_pt0
+			dec a
+			jr z, gfx_pt1
+			ld a, b					; mode 2: pen 1 = every bit
+			and 1
+			jr z, gfx_ptset
+			ld a, #FF
+			jr gfx_ptset
+gfx_pt1:
+			xor a					; mode 1: pen bit 0 in the high nibble, bit 1 low
+			bit 0, b
+			jr z, gfx_pt1b
+			or #F0
+gfx_pt1b:
+			bit 1, b
+			jr z, gfx_ptset
+			or #0F
+			jr gfx_ptset
+gfx_pt0:
+			xor a					; mode 0: bit 0 -> 7, 1 -> 3, 2 -> 5, 3 -> 1 (and one
+			bit 0, b				; to the right for the second pixel)
+			jr z, gfx_p01
+			or #C0
+gfx_p01:
+			bit 1, b
+			jr z, gfx_p02
+			or #0C
+gfx_p02:
+			bit 2, b
+			jr z, gfx_p03
+			or #30
+gfx_p03:
+			bit 3, b
+			jr z, gfx_ptset
+			or #03
+gfx_ptset:
+			ld iyl, a
+			ret
+
+; gfx_flip - double buffering: wait for the frame flyback, show the screen
+; just drawn, draw on the other one from now on
+gfx_flip:
+			ld a, (gfx_dbl)
+			or a
+			ret z
+			ld b, #F5				; wait for the vertical sync to start
+gfx_fw1:
+			in a, (c)
+			rra
+			jr c, gfx_fw1
+gfx_fw2:
+			in a, (c)
+			rra
+			jr nc, gfx_fw2
+			ld a, (gfx_base)		; show it: CRTC R12 #30 (#C000) / #10 (#4000)
+			cp #C0
+			ld a, #30
+			ld e, #40
+			jr z, gfx_fl1
+			ld a, #10
+			ld e, #C0
+gfx_fl1:
+			ld (gfx_shown), a
+			ld bc, #BC0C
+			out (c), c
+			inc b
+			out (c), a
+			ld a, e
+			ld (gfx_base), a
+			ret
+
+; gfx_double - A = 1: double buffering on (the screen at #C000 copied to
+; #4000, which is drawn on first), 0: off (#C000 shown and drawn on)
+gfx_double:
+			or a
+			jr z, gfx_dboff
+			ld (gfx_dbl), a
+			ld a, #C0				; show #C000 now
+			call gfx_dshow
+			ld bc, #7FC0
+			out (c), c
+			ld hl, #C000
+			ld de, #4000
+			ld bc, #4000
+			ldir
+			ld bc, (ntc_rampt)
+			out (c), c
+			ld a, #40
+			ld (gfx_base), a
+			ret
+gfx_dboff:
+			ld (gfx_dbl), a
+			ld a, #C0
+			ld (gfx_base), a
+gfx_dshow:
+			ld a, #30
+			ld (gfx_shown), a
+			ld bc, #BC0C
+			out (c), c
+			inc b
+			out (c), a
+			ret
+
+; gfx_copyrows - A = text rows from the top: copied from #C000 to #4000 (so
+; text printed while double buffering shows on both screens)
+gfx_copyrows:
+			or a
+			ret z
+			ld e, a
+			ld bc, #7FC0
+			out (c), c
+			ld d, 8					; 8 lines a row
+			ld hl, #C000
+gfx_cr1:
+			push hl
+			push de
+			ld b, 0
+			ld c, e					; rows * 80 bytes
+			ld a, 80
+			ld h, b
+			ld l, b
+gfx_cr2:
+			add hl, bc
+			dec a
+			jr nz, gfx_cr2
+			ld b, h
+			ld c, l
+			pop de
+			pop hl
+			push hl
+			push de
+			push hl
+			ld a, h
+			sub #80
+			ld d, a
+			ld e, l
+			pop hl
+			ldir
+			pop de
+			pop hl
+			ld a, h
+			add a, 8
+			ld h, a
+			dec d
+			jr nz, gfx_cr1
+			ld bc, (ntc_rampt)
+			out (c), c
 			ret
 
 ;## ntc_islots ntc_data @shared

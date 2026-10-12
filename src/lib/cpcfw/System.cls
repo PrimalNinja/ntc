@@ -6,7 +6,7 @@ Public Const CpuClock = 4000           ' kHz, 0 = not known
 Public Const TicksPerSecond = 300         ' Ticks rate, 0 = no clock
 Public Const FrameRate = 50              ' screen frames a second, 0 = not known
 Public Const HasInterrupts = True       ' normal mode lets interrupts in
-Public Const HasHook = False             ' the Interrupt statement works
+Public Const HasHook = True             ' the Interrupt statement works (a firmware fast ticker event)
 Public Const HasScreen = True           ' a screen with rows and columns (not a stream)
 Public Const HasKeyboard = True
 Public Const MaxHandles = 0             ' file handles (no file devices yet)
@@ -57,6 +57,10 @@ caps:
             db "KEYBOARD", 0
             dw -1
             db "CLOCK", 0
+            dw -1
+            db "HOOK", 0
+            dw -1
+            db "INTERRUPTCLASSES", 0
             dw -1
             db "PAGES", 0
             dw -1

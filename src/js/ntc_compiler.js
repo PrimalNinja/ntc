@@ -5399,7 +5399,7 @@ function ntcCompile(input_a, objOptions_a)
 				}
 				if (!objPlat.irq)
 				{
-					error('Interrupt needs a platform with its own interrupt handler (' + objOptions.platform + ' has none)');
+					error('Interrupt needs a CPC platform: cpc, cpcmin or cpcfw (not ' + objOptions.platform + ')');
 					return;
 				}
 				objHookProcs[objElement.full] = true;
@@ -7366,7 +7366,7 @@ function ntcCompile(input_a, objOptions_a)
 		{
 			if (!objPlat.irq)
 			{
-				arrErrors.push({ file: objRec_a.file, line: objRec_a.line, msg: 'Option Class Interrupt needs a platform with its own interrupt handler: cpc or cpcmin (not ' + objOptions.platform + ')' });
+				arrErrors.push({ file: objRec_a.file, line: objRec_a.line, msg: 'Option Class Interrupt needs a CPC platform: cpc, cpcmin or cpcfw (not ' + objOptions.platform + ')' });
 				return;
 			}
 			intRate = (arrMatch[1].toLowerCase() === 'frame') ? 0 : parseInt(arrMatch[1], 10);
@@ -7472,6 +7472,18 @@ function ntcCompile(input_a, objOptions_a)
 			return false;		// asm keyword procedure: one copy, a straight keyword
 		}
 		return (objLibSections[strKw_a] === undefined) || objLibSections[strKw_a].mode;
+	}
+
+	// the platform's interrupt work is started in normal mode (;@irq 1), or only when the
+	// program uses the Interrupt statement or interrupt classes (;@irq 2: cpcfw, where the
+	// firmware does the rest and the fast ticker's block costs RAM)
+	function irqNeeded()
+	{
+		if (!blnNormalUsed || !objPlat.irq)
+		{
+			return false;
+		}
+		return (objPlat.irq !== 2) || (arrIslots.length > 0) || (Object.keys(objHookProcs).length > 0);
 	}
 
 	function linkLibrary(objUsedT_a, objUsedN_a, blnIrq_a)
@@ -7969,7 +7981,7 @@ function ntcCompile(input_a, objOptions_a)
 			arrWarnings.push({ file: arrIslots[0].file, line: arrIslots[0].line, msg: 'Option Class Interrupt: Tick only runs in normal mode, and this program starts in turbo mode' });
 		}
 	}
-	if (blnNormalUsed && objPlat.irq)
+	if (irqNeeded())
 	{
 		arrAsm.push(strIndent + 'ld ix, ntc_go');
 		arrAsm.push(strIndent + 'jp ntc_plat_irqon\t\t; interrupt handler for normal mode');
@@ -8347,7 +8359,7 @@ function ntcCompile(input_a, objOptions_a)
 		{
 			objUsedT['ntc_ovl'] = true;		// the overlay call stubs use it
 		}
-		arrAsm.push(linkLibrary(objUsedT, objUsedN, blnNormalUsed));
+		arrAsm.push(linkLibrary(objUsedT, objUsedN, irqNeeded()));
 	}
 
 	arrErrors.sort(function(objA_a, objB_a)

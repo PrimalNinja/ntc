@@ -304,6 +304,27 @@ finished, with the date.
   times a program at the real CPC's speed (gate array stretching, interrupts every 3333
   microseconds). Found: turbo and normal differ by about 5% here - the List calls (about
   600 microseconds each) take most of the time. Next: faster List calls
+- 2026-10-12 **Graphics class** (cpc, cpcmin): XOR lines in modes 0 / 1 / 2 with pens (one
+  loop for every mode), Plot, Clip on / off, double buffering (#C000 and main RAM's #4000, the
+  CRTC swapped at the flyback, RAM pages still usable: drawing puts main RAM in the window only
+  while it writes), CopyText for text on both screens. Vector3D draws through it (each screen
+  keeps its own lines to take off); CUBE3D keys A / B / C mode, D double buffering, T turbo.
+  Measured (real CPC speed, the cube; corrected after cpctime.py got a real frame sync, see
+  below): mode 1 7.7 frames a second whatever the screens or turbo, mode 0 8.5, mode 2 6.3 -
+  two screens don't cost speed, they stop the flicker; turbo gives nothing here (93% of the
+  time is in Z80 code). Test `gfx/lines.bas`
+- 2026-10-12 **cpcfw interrupts**: the Interrupt statement and interrupt classes on cpcfw, through
+  a firmware fast ticker event (KL NEW FAST TICKER, 300 a second, express + asynchronous, both
+  ROMs off; KL DEL FAST TICKER at the end). The event block must be in the central 32K, so it
+  sits at #A5F0 and Memory.Top is #A5F0 when interrupts are used. System.HasHook and the HOOK /
+  INTERRUPTCLASSES capabilities True on cpcfw; INTERRUP built for cpcfw; regress checks isl,
+  hook and the interrupts example on cpcfw. Tutorial: 9.1 overlays with Small, new 10.7 (text
+  and records in nodes), 6.5 replacing / tailoring any library class, 5.3 when turbo gains nothing
+- 2026-10-12 fix (test tool): `cpctime.py` had no real frame sync - port B bit 0 toggled every
+  50 reads, so `Frame` and the double buffer flip hardly waited and the CUBE3D frame rates were
+  too high (8.4 / 9.5 / 6.7). It now follows the clock: a frame every 20 ms, the sync for its
+  first 512 microseconds. Real waits found: about 10 ms a frame in Frame (one screen) and in
+  the flip (two screens)
 - 2026-10-12 **CUBE3D** demo (cpc, cpcmin): `bas/cube3d/Vector3D.cls` - 3D wireframe shapes
   in 8.8 fixed point, turned round X / Y / Z (sine table), perspective, XOR lines on the mode 1
   screen, all Z80 on the real stack with interrupts let in (normal mode) - ported from B.
@@ -822,6 +843,14 @@ CP/M compatible (or mostly) system idea - device model, not decided:
       40 chars, 32 steps); Cls, scroll and Mode let them in
 
 ### Optimisations
+
+- [ ] Double buffering without the wait: the flip waits for the sync and then sets R12, about
+      10 ms a frame doing nothing in CUBE3D. The CRTC takes R12 at the start of the next frame
+      wherever it is written, so the flip can set R12 at once and the program wait only before
+      it draws on the other screen - and the next Turn (about 32 ms, longer than a frame) runs
+      in between, so no wait at all. CUBE3D: about 7.7 -> 8.4 frames a second. Check the CRTC
+      types (1 is said to differ on R12 / R13 mid-frame). One screen: `Frame` before the draw
+      costs the same 10 ms and can't stop the flicker (the draw takes about 4 frames)
 
 Background (NTC.md section 3, 2026-10-12): one pass of the sieve's inner loop is 366 T in
 NTC turbo against 107 T for SDCC. The work itself is the same (110 T against 107 T); the

@@ -56,7 +56,7 @@ var arrExamples = [
 	{ name: 'Command line (System.CommandLine, or ask)', files: ['cmdline.bas'] },
 	{ name: '3D wireframe: cube, pyramid, Cobra (cpc, cpcmin)', files: ['cube3d/Main.bas', 'cube3d/Vector3D.cls', 'cube3d/Spin.cls'] },
 	{ name: 'Overlays: classes loaded at #4000 (cpcmin, cpcfw, cpm)', files: ['overlays/Main.bas', 'overlays/Level1.cls', 'overlays/Level2.cls'] },
-	{ name: 'Interrupt classes: Tick at a rate (cpc, cpcmin)', files: ['interrupts/Main.bas', 'interrupts/Clock.cls', 'interrupts/Star.cls'] },
+	{ name: 'Interrupt classes: Tick at a rate (cpc, cpcmin, cpcfw)', files: ['interrupts/Main.bas', 'interrupts/Clock.cls', 'interrupts/Star.cls'] },
 	{ name: 'Your own StdIO (2 files)', files: ['own_stdio/Main.bas', 'own_stdio/StdIO.cls'] },
 	{ name: 'Shell sort - turbo at run time', files: ['shellsort.bas'] },
 	{ name: 'Sieve timing - turbo / normal (compare with Small C)', files: ['sievetime.bas'] },

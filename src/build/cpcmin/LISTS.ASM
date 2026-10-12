@@ -472,6 +472,8 @@ ntc_hookset:	db 0			; 1 = an Interrupt hook is set
 ntc_hookpend:	db 0			; 1 = an interrupt came, the hook runs at the next safe point
 ntc_hook:		dw 0			; the hook Sub's call stub
 ntc_hostix:		dw 0			; host platforms: IX kept over a firmware / BDOS call
+ntc_rampt:		dw #7FC0		; the gate array's RAM setting now (B = port, C = value): the
+								; Memory class keeps it, Graphics puts it back after drawing
 ntc_numbuf:		ds 14			; printint / long print: digits (+ spaces for Option VBPrint)
 				db 40			; ntc_inbuf's capacity (as every string variable has)
 ntc_inbuf:		ds 41			; inputint: typed text
@@ -1767,6 +1769,7 @@ mem_se_do:
 			inc hl
 			ld b, (hl)
 mem_se_out:
+			ld (ntc_rampt), bc
 			out (c), c
 mem_se_end:
 			pop bc

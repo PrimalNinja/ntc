@@ -1591,7 +1591,8 @@ The compiler keeps the program and the Memory heap out of `#4000-#7FFF` for over
 classes (as `Option Reserve &H4000, &H4000`). A file that isn't there stops the program with
 `Overlay not loaded: LEVEL1.PAG` / `The file didn't load` / `Press a key`.
 
-**Interrupt** *rate* / **Interrupt Frame** (cpc, cpcmin: NTC's own interrupt handler): the
+**Interrupt** *rate* / **Interrupt Frame** (cpc, cpcmin: NTC's own interrupt handler; cpcfw: a
+firmware fast ticker event, as for [Interrupt](#interrupt)): the
 class's `Sub Tick()` (no parameters - it must have one) runs *rate* times a second (1 - 300),
 or once a frame (just after the vertical sync), while the program does its own thing.
 
@@ -1842,8 +1843,12 @@ Print "took "; Ticks - t; " ticks"
 
 Runs a Sub (with no parameters) after interrupts: the interrupt only marks it as due, and
 the program calls it at the next safe point. When it returns, it can run again.
-`Interrupt Off` stops it. Normal mode only, and only on the CPC hardware platform (it needs
-the program's own interrupt handler; `System.HasHook` says whether it works).
+`Interrupt Off` stops it. Normal mode only, on the CPC platforms: cpc and cpcmin (NTC's own
+interrupt handler) and cpcfw (a firmware fast ticker event, 300 a second, marks it due - the
+firmware keeps its own handler for keys, sound and AMSDOS). `System.HasHook` says whether it
+works. On cpcfw the event's block sits at `#A5F0`, so the program and its arrays must end
+below it, and `Memory.Top()` is `#A5F0`. A cpcfw program that uses neither `Interrupt` nor
+interrupt classes sets no event and keeps the RAM up to `#A600`.
 
 ```
 Dim beats As Integer
@@ -1884,7 +1889,10 @@ The same program runs in two modes:
 | `Ticks`, `Interrupt`, key and frame waits with interrupts | no | yes |
 
 How much slower normal mode is depends on the program: from about 2% (division) to 55%
-(an empty loop); a sieve or a sort 25-40%. `NTC.md` section 3 has the measurements, with
+(an empty loop); a sieve or a sort 25-40%. A program whose time goes into library keywords and
+`#asm` gains nothing from turbo: the 3D demo (`bas/cube3d`, 93% of its time in Z80 code) runs
+7.7 frames a second in normal mode and 7.8 in turbo - keep normal mode there, and interrupts,
+`Ticks` and interrupt classes keep working. `NTC.md` section 3 has the measurements, with
 NTC compared to Small C, BBC BASIC and hand-written Z80.
 
 The compiler knows the mode at every line, and a procedure called from both modes is
@@ -2354,7 +2362,7 @@ What the machine is. The same members on every platform; 0 / False means "not he
 | `TicksPerSecond` (0 = no clock) | 300 | 300 | 0 | 300 |
 | `FrameRate` (0 = not known) | 50 | 50 | 0 | 0 |
 | `HasInterrupts` (normal mode lets interrupts in) | True | True | True | True |
-| `HasHook` (the `Interrupt` statement) | True | False | False | False |
+| `HasHook` (the `Interrupt` statement) | True | True | False | False |
 | `HasScreen` (rows and columns, not a stream) | True | True | False* | True |
 | `HasKeyboard` | True | True | True | True |
 | `MaxHandles` (file handles, `FileSystem.Open`) | 0 | 0 | 2 | 0 |
@@ -2376,8 +2384,8 @@ If System.TicksPerSecond = 0 Then Print "(no clock here)"
 | `SCREEN` | rows and columns, not a stream | True | True | True | with `Option Terminal` | True |
 | `KEYBOARD` | keys | True | True | True | True | True |
 | `CLOCK` | `Ticks` counts | True | True | True | - | True |
-| `HOOK` | the `Interrupt` statement | True | True | - | - | - |
-| `INTERRUPTCLASSES` | `Option Class Interrupt` | True | True | - | - | - |
+| `HOOK` | the `Interrupt` statement | True | True | True | - | - |
+| `INTERRUPTCLASSES` | `Option Class Interrupt` | True | True | True | - | - |
 | `PAGES` | RAM pages (`Option Memory CPCExpansion`) | True | True | True | - | - |
 | `FILES` | `FileSystem` Load / Save (more: `FileSystem.Capability`) | - | True | True | True | - |
 | `ROMCOMMANDS` | `System.Command` | - | True | True | - | - |
@@ -2579,7 +2587,7 @@ plain memory, nothing switched). `Alloc` gives them; `CLng(page) * 65536 + addre
 | `HeapStart()`, `HeapEnd()` | `Small`: the heap's RAM (`HeapEnd` is the first byte past it); `CPCExpansion`: the window |
 | `TableEnd()` | the first byte after the class's tables (`Small`: the program's end) |
 | `ProgramStart()`, `ProgramEnd()` | where the program is (`ProgramEnd`: the first byte after it and its arrays) |
-| `Top()` | the platform's top of free RAM: CPC `#A600` (the firmware above), CP/M the end of the TPA (the BDOS), test `#C000` |
+| `Top()` | the platform's top of free RAM: CPC `#A600` (the firmware above; cpcfw `#A5F0` with `Interrupt` or interrupt classes), CP/M the end of the TPA (the BDOS), test `#C000` |
 | `StackTop()` | where the real stack starts (it grows down) |
 | `PageType(page)` | its type character |
 | `Map(first, count)` | one character per page from page `first`: `"UCUDD"` (as many as the string holds) |
@@ -2669,6 +2677,45 @@ nodes (spread over four pages of a 6128) 4.2 to 4.8 seconds, the same in turbo a
 see `bas/sorttime.bas`. Every
 platform has it (cpc, cpcmin, cpcfw with either memory scheme; cpm and test with `Small`).
 See `bas/lists.bas`.
+
+### Graphics
+
+Drawing on the CPC screen: `cpc` and `cpcmin` (the platforms that draw the screen
+themselves). Lines in any mode - 0 (160 x 200, 16 pens), 1 (320 x 200, 4 pens), 2 (640 x 200,
+2 pens) - in a pen, drawn with XOR: drawing the same line again takes it off and leaves what
+was under it, text included. One drawing loop serves every mode (a marker of the pixel's bits
+moves one pixel per step), so mode 0 lines are the quickest (fewer pixels across) and mode 2
+the slowest.
+
+| Member | Does |
+|---|---|
+| `Line x0, y0, x1, y1` | a line in the pen, in pixels of the current mode |
+| `Plot x, y` | one pixel |
+| `Pen p` | the pen (mode 0: 0-15, mode 1: 0-3, mode 2: 0-1) |
+| `Clip on` | on (the default): a line with an end off the screen isn't drawn. Off: no checks - fastest, but a point off the screen writes over memory |
+| `Width()` | the screen's width in this mode (160, 320, 640) |
+| `DoubleBuffer on` | two screens: `#C000` and main RAM's own `#4000-#7FFF`. The one not shown is drawn on; `Flip` shows it |
+| `Flip` | wait for the frame flyback, show the screen just drawn, draw on the other one |
+| `Back()` | the screen drawn on: 0 = `#C000`, 1 = `#4000` |
+| `Buffering()` | True while double buffering is on |
+| `CopyText rows` | the top rows of text copied from `#C000` to the other screen (`Print` always writes to `#C000`) |
+
+**Double buffering and RAM pages.** The CRTC always shows main RAM, whatever RAM page the Z80
+has in the window, so the second screen at main RAM's `#4000` stays on show while code or data
+pages are switched in. Drawing puts main RAM in the window only while it writes, then puts back
+the page that was there (the Memory class keeps it in `ntc_rampt`). So overlay classes and
+data pages still work: take page 1 first (`Memory.AllocPage(Memory.TypeUser)` gives it first)
+so nothing else is put there. On a 64K CPC page 1 is the only page.
+
+```
+Graphics.DoubleBuffer 1
+Do
+  ' ... draw the frame with Graphics.Line (on the screen not shown) ...
+  Graphics.Flip                  ' show it at the next flyback
+Loop
+```
+
+See `bas/cube3d/` (Vector3D draws through it).
 
 ### Your own StdIO
 

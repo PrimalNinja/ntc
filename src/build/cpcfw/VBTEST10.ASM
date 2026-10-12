@@ -906,6 +906,8 @@ ntc_hookset:	db 0			; 1 = an Interrupt hook is set
 ntc_hookpend:	db 0			; 1 = an interrupt came, the hook runs at the next safe point
 ntc_hook:		dw 0			; the hook Sub's call stub
 ntc_hostix:		dw 0			; host platforms: IX kept over a firmware / BDOS call
+ntc_rampt:		dw #7FC0		; the gate array's RAM setting now (B = port, C = value): the
+								; Memory class keeps it, Graphics puts it back after drawing
 ntc_numbuf:		ds 14			; printint / long print: digits (+ spaces for Option VBPrint)
 				db 40			; ntc_inbuf's capacity (as every string variable has)
 ntc_inbuf:		ds 41			; inputint: typed text
@@ -2737,6 +2739,11 @@ ntc_cury:		db 0			; cursor row (0 based)
 ntc_scols:		db 40			; columns in this mode
 ntc_fwa:		db 0			; ntc_fwcall: A on return
 ntc_fwwrap:		db 0			; 1 = the last character made the firmware wrap
+ntc_irqset:		db 0			; 1 = the firmware's fast ticker calls ntc_fwevt
+ntc_irqv:		dw 0			; interrupt classes' counting (ntc_isl_tick), 0 = none
+ntc_irqix:		dw 0
+NTC_FWBLK	equ #A5F0		; the fast ticker's event block (central 32K, below the firmware)
+ntc_fwtop:		dw #A600		; the top of free RAM (#A5F0 with the fast ticker's block)
 
 ;## ntc_plat_fw ntc_plat_data ntc_data @shared
 ; ------------------------------------------------------------
@@ -2937,45 +2944,32 @@ ntc_plat_frame:
 			ld iy, #BD19
 			jp ntc_fwcall
 
-;## ntc_plat_exit ntc_plat_data
+;## ntc_plat_exit ntc_plat_data ntc_plat_fw
 ntc_plat_exit:
 			ld bc, #7FC0		; RAM setting back to plain (a Memory page may be in #4000)
 			out (c), c
+			ld a, (ntc_irqset)	; the fast ticker out of the firmware's list
+			or a
+			jr z, ntc_ex_done
+			xor a
+			ld (ntc_irqset), a
+			ld (ntc_irqix), ix
+			ld hl, NTC_FWBLK
+			ld iy, #BCE6		; KL DEL FAST TICKER
+			ld ix, ntc_ex_back
+			jp ntc_fwcall
+ntc_ex_back:
+			ld ix, (ntc_irqix)
+ntc_ex_done:
 			jp (ix)
 
-; ============================================================
-; File system (FileSystem class) - Load / Save through the firmware's
-; cassette calls (CAS IN / CAS OUT DIRECT). With AMSDOS present they
-; go to the disc (the drive that is selected), else to tape, exactly
-; as BASIC's LOAD / SAVE do - with the firmware's own messages
-; ("Press PLAY then any key", disc errors and Retry / Cancel).
-;
-; RUN"NAME of a binary resets the firmware (MC BOOT PROGRAM), which
-; drops the background ROMs - AMSDOS too - so the cassette calls go
-; back to tape. Loaded from BASIC and CALLed (MEMORY &1FFF : LOAD"NAME"
-; : CALL &2000, built at org #2000), AMSDOS keeps running. Option
-; RomEnable starts the ROMs again in the start code. The first file
-; call checks: CAS IN OPEN (#BC77) a far call (RST 3, #DF) = AMSDOS has
-; the cassette calls. AMSDOS's RAM is about #A700-#ABFF: the program
-; must end below #A600 (checked when assembling). Devices: AMSDOS's own
-; commands |TAPE, |DISC, |A, |B (KL FIND COMMAND, then KL FAR PCALL).
-; ============================================================
-; The methods are keywords: arguments into fs_a1 .. fs_a3, the
-; result's address into fs_res, then fs_go with HL = the routine.
-; fs_go runs it on the real stack with interrupts on and stores its
-; HL result; a routine that fails jumps to fs_err with HL = status.
-
-FS_NOTFOUND	equ -2
-FS_TOOBIG	equ -8
-FS_FAILED	equ -9
-FS_BADNAME	equ -4
-
-;## ntc_plat_memtop
+;## ntc_plat_memtop ntc_plat_data
 ; ntc_plat_memtop - HL = the first byte the Memory class's Small heap must not
-; use: #A600 (the firmware's and AMSDOS's RAM is above). Called on the real
-; stack (call / ret), only by the Memory class.
+; use: #A600 (the firmware's and AMSDOS's RAM is above), #A5F0 when the fast
+; ticker's event block is there (Interrupt, interrupt classes). Called on the
+; real stack (call / ret).
 ntc_plat_memtop:
-			ld hl, #A600
+			ld hl, (ntc_fwtop)
 			ret
 
 

@@ -19,7 +19,7 @@ build.bat ..\primal\sjasmplus\sjasmplus.exe   or give its path (relative or full
 A program with overlay classes (`OVERLAYS` on cpcmin, cpcfw and cpm) also writes their files
 (`LEVEL1.PAG`, `LEVEL2.PAG`) when it is assembled: copy them to the disc with the `.BIN` /
 `.COM`. `OVERLAYS` is only built for cpcmin, cpcfw and cpm, `INTERRUP` (interrupt classes) for
-cpc and cpcmin.
+cpc, cpcmin and cpcfw.
 
 `dsk\` holds two disc images per platform with its programs already assembled, ready to insert
 in an emulator (WinAPE: drive A or B): `cpc.dsk`, `cpcmin.dsk`, `cpcfw.dsk` (the examples and demos:

@@ -1,27 +1,28 @@
 ' Vector3D - 3D wireframe shapes on the CPC screen (mode 1, pen 1): points in 8.8 fixed
 ' point (256 = 1.0), turned round the X, Y and Z axes and drawn in perspective as lines.
 ' Turn and Draw are Z80 (#asm): the maths and the line drawing run at machine code speed,
-' on the real stack, with interrupts let in during the work in normal mode. Lines are drawn with XOR, so drawing the same lines again takes them off and
+' on the real stack, with interrupts let in during the work (in turbo mode too: the
+' interrupt only counts Ticks then - hooks and interrupt classes wait for normal mode). Lines are drawn with XOR, so drawing the same lines again takes them off and
 ' leaves what was under them (text) as it was.
 ' Based on B. Chiha's 3D frame demo for the TEC-1 (MIT licence, 2023), itself a Z80 version
 ' of a BASIC program in The Amstrad User, issue 69 (October 1990).
-' Platforms: cpc and cpcmin (the screen at #C000, as the program sets it up).
+' Platforms: cpc and cpcmin (the Graphics class).
 Option Explicit
 Public Const MAXPOINTS = 32
 Public Const MAXEDGES = 64
 
 Private px(31) As Integer, py(31) As Integer, pz(31) As Integer   ' the shape, 8.8
 Private sx(31) As Integer, sy(31) As Integer                      ' turned and projected: pixels
-Private ox(31) As Integer, oy(31) As Integer                      ' what is on the screen now
+Private ox(31) As Integer, oy(31) As Integer                      ' what is on the screen at #C000
+Private qx(31) As Integer, qy(31) As Integer                      ' ... and at #4000 (double buffering)
 Private ea(63) As Integer, eb(63) As Integer                      ' edges: point numbers
-Private np As Integer, ne As Integer, shown As Integer
+Private np As Integer, ne As Integer, shown As Integer, shown2 As Integer
 Private cx As Integer, cy As Integer, scl As Integer, dst As Integer
 ' working space for the Z80 code
 Private spsave As Integer, vis As Integer, pk As Integer, pn As Integer, td As Integer
 Private tx As Integer, ty As Integer, tz As Integer
 Private sinx As Integer, cosx As Integer, siny As Integer, cosy As Integer, sinz As Integer, cosz As Integer
 Private xs As Integer, ys As Integer, ek As Integer, en As Integer, ia As Integer, ib As Integer
-Private lx0 As Integer, ly0 As Integer, lx1 As Integer, ly1 As Integer, ldx As Integer, ldy As Integer, lout As Integer, lsy As Integer
 
 ' Clear: no points, no edges (take the shape off the screen first with Hide)
 Public Sub Clear()
@@ -75,6 +76,16 @@ End Sub
 
 Public Sub Hide()
   Draw 0
+  If Graphics.Buffering() Then
+    Graphics.Flip
+    Draw 0
+  End If
+End Sub
+
+' Forget: the screen was cleared (Cls, Mode, double buffering switched): nothing to take off
+Public Sub Forget()
+  shown = 0
+  shown2 = 0
 End Sub
 
 ' Turn ax, ay, az: the shape turned round X, then Y, then Z (0-255 = a full turn), and
@@ -89,11 +100,8 @@ Public Sub Turn(ByVal ax As Integer, ByVal ay As Integer, ByVal az As Integer)
             ld e, a
             ld ({spsave}), sp       ; the real stack for the work (calls, pushes)
             ld sp, (ntc_csp)
-            ld a, (ntc_nmode)       ; normal mode: interrupts in while it works
-            or a
-            jr z, t_di
-            ei
-t_di:
+            ei                      ; interrupts in while it works, in both modes (the
+                                    ; real stack): Ticks keeps counting in turbo too
             push de
             push bc
             ld a, c
@@ -407,63 +415,81 @@ t_sin:
 #endasm
 End Sub
 
-' Draw visible: what is on the screen goes; with visible not 0 the shape at its last Turn
-' is drawn
+' Draw visible: the lines on the screen being drawn on go (each screen keeps its own,
+' with double buffering); with visible not 0 the shape at its last Turn is drawn, and with
+' double buffering that screen is then shown (Graphics.Flip)
 Public Sub Draw(ByVal visible As Integer)
 #asm
             ld a, ({visible})
             ld ({vis}), a
             ld ({spsave}), sp
             ld sp, (ntc_csp)
-            ld a, (ntc_nmode)
-            or a
-            jr z, d_di
             ei
-d_di:
-            ld a, ({shown})
-            or a
-            jr z, d_new
-            ld hl, {ox}             ; take the old lines off (XOR again)
+            ld a, (gfx_base)        ; this screen's old lines: ox / oy (#C000) or qx / qy (#4000)
+            cp #40
+            jr z, d_b1
+            ld hl, {ox}
+            ld de, {oy}
+            ld bc, {shown}
+            jr d_b
+d_b1:
+            ld hl, {qx}
+            ld de, {qy}
+            ld bc, {shown2}
+d_b:
             ld ({xs}), hl
-            ld hl, {oy}
-            ld ({ys}), hl
-            call d_edges
-d_new:
-            xor a
-            ld ({shown}), a
+            ld ({ys}), de
+            ld ({ek}), bc
+            push hl
+            push de
+            ld a, (bc)
+            or a
+            call nz, d_edges        ; take them off (XOR again)
+            ld hl, ({ek})
+            ld (hl), 0
+            pop de
+            pop hl
             ld a, ({vis})
             or a
             jr z, d_end
+            push hl
+            push de
             ld hl, {sx}
             ld ({xs}), hl
             ld hl, {sy}
             ld ({ys}), hl
             call d_edges
-            ld hl, {sx}             ; what is shown now
-            ld de, {ox}
+            pop de
+            pop hl
+            push de
+            ex de, hl
+            ld hl, {sx}             ; what is on this screen now
             ld bc, 64
             ldir
+            pop de
             ld hl, {sy}
-            ld de, {oy}
             ld bc, 64
             ldir
-            ld a, 1
-            ld ({shown}), a
+            ld hl, ({ek})
+            ld (hl), 1
+            call gfx_flip
 d_end:
             di
             ld sp, ({spsave})
             ret
 
-; every edge, from the point arrays at xs / ys
+; every edge, from the point arrays at xs / ys (pixels of mode 1: halved for mode 0,
+; doubled for mode 2)
 d_edges:
             ld a, ({ne})
             or a
             ret z
             ld ({en}), a
             ld hl, 0
-            ld ({ek}), hl
+            ld ({pk}), hl
+            call gfx_begin
 d_elp:
-            ld de, ({ek})
+            ld de, ({pk})
             ld hl, {ea}
             add hl, de
             ld a, (hl)
@@ -479,28 +505,30 @@ d_elp:
             ld hl, ({xs})
             ld a, ({ia})
             call d_word
-            ld ({lx0}), hl
+            call d_mx
+            ld (gfx_x0), hl
             ld hl, ({ys})
             ld a, ({ia})
             call d_word
-            ld ({ly0}), hl
+            ld (gfx_y0), hl
             ld hl, ({xs})
             ld a, ({ib})
             call d_word
-            ld ({lx1}), hl
+            call d_mx
+            ld (gfx_x1), hl
             ld hl, ({ys})
             ld a, ({ib})
             call d_word
-            ld ({ly1}), hl
-            call d_line
-            ld hl, ({ek})
+            ld (gfx_y1), hl
+            call gfx_line
+            ld hl, ({pk})
             inc hl
             inc hl
-            ld ({ek}), hl
+            ld ({pk}), hl
             ld hl, {en}
             dec (hl)
             jr nz, d_elp
-            ret
+            jp gfx_end
 d_word:
             add a, l
             ld l, a
@@ -512,315 +540,17 @@ d_word:
             ld h, (hl)
             ld l, a
             ret
-; HL = x: carry when it is off the screen (not 0 .. 319)
-d_cx:
-            bit 7, h
-            scf
-            ret nz
-            ld de, 320
-            or a
-            sbc hl, de
-            ccf
-            ret
-; HL = y: carry when not 0 .. 199
-d_cy:
-            bit 7, h
-            scf
-            ret nz
-            ld de, 200
-            or a
-            sbc hl, de
-            ccf
-            ret
-; a line from (lx0, ly0) to (lx1, ly1), XOR, pen 1; off the screen: not drawn
-d_line:
-            ld hl, ({lx0})
-            call d_cx
-            ret c
-            ld hl, ({lx1})
-            call d_cx
-            ret c
-            ld hl, ({ly0})
-            call d_cy
-            ret c
-            ld hl, ({ly1})
-            call d_cy
-            ret c
-            ld hl, ({lx1})          ; left to right
-            ld de, ({lx0})
-            or a
-            sbc hl, de
-            jr nc, d_lr
-            ld hl, ({lx0})
-            ld de, ({lx1})
-            ld ({lx0}), de
-            ld ({lx1}), hl
-            ld hl, ({ly0})
-            ld de, ({ly1})
-            ld ({ly0}), de
-            ld ({ly1}), hl
-            ld hl, ({lx1})
-            ld de, ({lx0})
-            or a
-            sbc hl, de
-d_lr:
-            ld ({ldx}), hl
-            ld hl, ({ly1})
-            ld de, ({ly0})
-            or a
-            sbc hl, de
-            ld b, 0                 ; B = 0: down, 1: up
-            jr nc, d_dy
-            inc b
-            call d_neg
-d_dy:
-            ld ({ldy}), hl
-            ld a, b
-            ld ({lsy}), a
-            ld a, ({ly0})           ; HL = the address of (x0, y0)
-            ld c, a
-            and #F8
-            ld l, a
-            ld h, 0
-            add hl, hl
-            ld d, h
-            ld e, l
-            add hl, hl
-            add hl, hl
-            add hl, de              ; (y / 8) * 80
-            ld a, c
-            and 7
-            add a, a
-            add a, a
-            add a, a
-            add a, #C0
-            add a, h
-            ld h, a
-            ld de, ({lx0})
-            srl d
-            rr e
-            srl d
-            rr e
-            add hl, de
-            ld a, ({lx0})           ; C = the pixel's bit
-            and 3
-            ld b, a
-            ld a, #80
-            jr z, d_mk
-d_mlp:
-            rrca
-            djnz d_mlp
-d_mk:
-            ld c, a
-            ld a, (hl)              ; the first pixel
-            xor c
-            ld (hl), a
-            push hl
-            ld hl, ({ldx})
-            ld de, ({ldy})
-            or a
-            sbc hl, de
-            pop hl
-            jp c, d_ymaj
-            ; x major: count dx, error dx / 2, IX = dy
-            ld de, ({ldy})
-            push de
-            pop ix
-            ld de, ({ldx})
-            call d_cnt
+; HL = x in mode 1 pixels: in this mode's
+d_mx:
+            ld a, (ntc_smode)
+            cp 1
             ret z
-            ld de, ({ldx})
-            srl d
-            rr e
-            ld a, ({lsy})
-            or a
-            jp nz, d_xu
-d_xd:
-            srl c                   ; x + 1
-            bit 3, c
-            jr z, d_xd1
-            ld c, #80
-            inc hl
-d_xd1:
-            ld a, e                 ; error - dy
-            sub ixl
-            ld e, a
-            ld a, d
-            sbc a, ixh
-            ld d, a
-            jp p, d_xd2
-            push hl                 ; error + dx, y + 1
-            ld hl, ({ldx})
-            add hl, de
-            ex de, hl
-            pop hl
-            ld a, h
-            add a, 8
-            ld h, a
-            jr nc, d_xd2
-            push de
-            ld de, #C050
-            add hl, de
-            pop de
-d_xd2:
-            ld a, (hl)
-            xor c
-            ld (hl), a
-            djnz d_xd
-            ld a, ({lout})
-            dec a
-            ld ({lout}), a
-            jr nz, d_xd
+            jr c, d_m0
+            add hl, hl
             ret
-d_xu:
-            srl c
-            bit 3, c
-            jr z, d_xu1
-            ld c, #80
-            inc hl
-d_xu1:
-            ld a, e
-            sub ixl
-            ld e, a
-            ld a, d
-            sbc a, ixh
-            ld d, a
-            jp p, d_xu2
-            push hl                 ; error + dx, y - 1
-            ld hl, ({ldx})
-            add hl, de
-            ex de, hl
-            pop hl
-            ld a, h
-            sub 8
-            ld h, a
-            cp #C0
-            jr nc, d_xu2
-            push de
-            ld de, #3FB0
-            add hl, de
-            pop de
-d_xu2:
-            ld a, (hl)
-            xor c
-            ld (hl), a
-            djnz d_xu
-            ld a, ({lout})
-            dec a
-            ld ({lout}), a
-            jr nz, d_xu
-            ret
-d_ymaj:
-            ; y major: count dy, error dy / 2, IX = dx
-            ld de, ({ldx})
-            push de
-            pop ix
-            ld de, ({ldy})
-            call d_cnt
-            ret z
-            ld de, ({ldy})
-            srl d
-            rr e
-            ld a, ({lsy})
-            or a
-            jp nz, d_yu
-d_yd:
-            ld a, h                 ; y + 1
-            add a, 8
-            ld h, a
-            jr nc, d_yd1
-            push de
-            ld de, #C050
-            add hl, de
-            pop de
-d_yd1:
-            ld a, e                 ; error - dx
-            sub ixl
-            ld e, a
-            ld a, d
-            sbc a, ixh
-            ld d, a
-            jp p, d_yd2
-            push hl                 ; error + dy, x + 1
-            ld hl, ({ldy})
-            add hl, de
-            ex de, hl
-            pop hl
-            srl c
-            bit 3, c
-            jr z, d_yd2
-            ld c, #80
-            inc hl
-d_yd2:
-            ld a, (hl)
-            xor c
-            ld (hl), a
-            djnz d_yd
-            ld a, ({lout})
-            dec a
-            ld ({lout}), a
-            jr nz, d_yd
-            ret
-d_yu:
-            ld a, h                 ; y - 1
-            sub 8
-            ld h, a
-            cp #C0
-            jr nc, d_yu1
-            push de
-            ld de, #3FB0
-            add hl, de
-            pop de
-d_yu1:
-            ld a, e
-            sub ixl
-            ld e, a
-            ld a, d
-            sbc a, ixh
-            ld d, a
-            jp p, d_yu2
-            push hl
-            ld hl, ({ldy})
-            add hl, de
-            ex de, hl
-            pop hl
-            srl c
-            bit 3, c
-            jr z, d_yu2
-            ld c, #80
-            inc hl
-d_yu2:
-            ld a, (hl)
-            xor c
-            ld (hl), a
-            djnz d_yu
-            ld a, ({lout})
-            dec a
-            ld ({lout}), a
-            jr nz, d_yu
-            ret
-; DE = the count: B = its low byte (0 = 256), lout = the rounds of B; Z when DE = 0
-d_cnt:
-            ld a, d
-            or e
-            ret z
-            ld b, e
-            ld a, e
-            or a
-            jr z, d_cn1
-            inc d
-d_cn1:
-            ld a, d
-            ld ({lout}), a
-            or 1                    ; NZ
-            ret
-d_neg:
-            xor a
-            sub l
-            ld l, a
-            sbc a, a
-            sub h
-            ld h, a
+d_m0:
+            sra h
+            rr l
             ret
 #endasm
 End Sub

@@ -155,12 +155,15 @@ rm -rf t/files t/od; mkdir -p t/od; cp $P/overlays/* t/od/
 check "overlays demo cpcmin" "^Unload level 1: 0 - pages -C" "$(timeout 200 python3 ntcrun.py t/od/Main.bas '~x' t/od/Level1.cls t/od/Level2.cls --platform=cpcmin 2>&1)"
 rm -rf t/files; check "overlays demo cpm" "^Unload level 2: 0 - level 2 0" "$(timeout 200 python3 ntcrun.py t/od/Main.bas '~x' t/od/Level1.cls t/od/Level2.cls --platform=cpm 2>&1)"
 # interrupt classes (Option Class Interrupt rate | Frame): Tick at safe points, normal mode; cpc / cpcmin
-for pl in cpc cpcmin; do
+# (NTC's interrupt handler) and cpcfw (a firmware fast ticker event)
+for pl in cpc cpcmin cpcfw; do
   rm -rf t/isl; mkdir -p t/isl; cp isl/* t/isl/
   o=$(timeout 200 python3 ntcrun.py t/isl/Main.bas '' t/isl/Music.cls t/isl/Fast.cls t/isl/Slow.cls t/isl/Frames.cls --platform=$pl 2>&1 | grep -v "^--- ")
   if [ "$o" == "$(cat ref/isl.txt)" ]; then echo "ok   interrupt classes $pl"; else echo "FAIL interrupt classes $pl"; echo "$o" | head -5; fail=1; fi
 done
-node cli.js t/isl/Main.bas t/isl/Music.cls --platform=cpcfw 2>&1 >/dev/null | grep -q "Option Class Interrupt needs a platform" && echo "ok   interrupt classes refused (cpcfw)" || { echo "FAIL interrupt classes refused"; fail=1; }
+node cli.js t/isl/Main.bas t/isl/Music.cls --platform=cpm 2>&1 >/dev/null | grep -q "Option Class Interrupt needs a CPC platform" && echo "ok   interrupt classes refused (cpm)" || { echo "FAIL interrupt classes refused"; fail=1; }
+cp hook.bas t/hook.bas; o=$(timeout 60 python3 ntcrun.py t/hook.bas '' --platform=cpcfw 2>&1 | grep -v "^--- ")
+if [ "$o" == "$(cat ref/hook.txt)" ]; then echo "ok   hook cpcfw"; else echo "FAIL hook cpcfw"; echo "$o" | head -3; fail=1; fi
 # Option NoTurbo: one copy of everything (normal mode), Turbo On / Off do nothing; still runs
 (echo "Option NoTurbo"; cat $P/shellsort.bas) > t/ssn.bas; cp $P/shellsort.bas t/ss.bas
 node cli.js t/ss.bas > t/ss.asm 2>/dev/null; node cli.js t/ssn.bas > t/ssn.asm 2> t/ssn.err
@@ -200,7 +203,12 @@ if [ -n "$st" ] && [ "$st" -ge 85 ] && awk "BEGIN { exit !($tm < 2.1) }"; then e
 cp v3d/proj.bas t/; o=$(timeout 60 python3 ntcrun.py t/proj.bas '' $P/cube3d/Vector3D.cls --platform=cpc 2>&1 | grep -v "^--- ")
 if [ "$o" == "$(cat ref/v3d.txt)" ]; then echo "ok   Vector3D projection"; else echo "FAIL Vector3D projection"; echo "$o" | head -4; fail=1; fi
 rm -rf t/c3 t/files; mkdir -p t/c3; cp $P/cube3d/* t/c3/
-for pl in cpc cpcmin; do check "cube3d demo $pl" "^Bye" "$(timeout 300 python3 ntcrun.py t/c3/Main.bas '3~~~4~~~X' t/c3/Vector3D.cls t/c3/Spin.cls --platform=$pl 2>&1)"; done
+for pl in cpc cpcmin; do check "cube3d demo $pl" "^Bye" "$(timeout 300 python3 ntcrun.py t/c3/Main.bas '3~~~D~~~A~~~C~~~T~~~4~~~X' t/c3/Vector3D.cls t/c3/Spin.cls --platform=$pl 2>&1)"; done
+# Graphics: XOR lines in modes 0, 1, 2 on #C000 and on #4000 (double buffering), cpc and cpcmin
+for pl in cpc cpcmin; do
+  cp gfx/lines.bas t/; o=$(timeout 300 python3 ntcrun.py t/lines.bas '' --platform=$pl 2>&1 | grep -v "^--- ")
+  if [ "$o" == "$(cat ref/gfx_lines.txt)" ]; then echo "ok   Graphics lines $pl"; else echo "FAIL Graphics lines $pl"; echo "$o" | head -4; fail=1; fi
+done
 # For loops up to 32767 / down to -32768 end (they looped for ever when the step wrapped)
 for m in --turbo ""; do
   cp for_end.bas t/; o=$(timeout 60 python3 ntcrun.py t/for_end.bas '' --platform=test $m 2>&1 | grep -v "^--- " | tr '\n' ' ')

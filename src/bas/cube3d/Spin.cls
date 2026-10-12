@@ -1,43 +1,79 @@
-' Spin: the demo itself - builds the shapes, turns them and draws them with Vector3D.
+' Spin: the demo - builds the shapes, turns them and draws them with Vector3D.
 ' On cpcmin it is an overlay class: its code is in SPIN.PAG, loaded into a RAM page by the
-' first call, and calls Vector3D in main memory from there. On cpc (no files) it is part of
-' the program.
+' first call, and it calls Vector3D and Graphics in main memory from there. On cpc (no
+' files) it is part of the program.
 #If NTC_CPCMIN Then
 Option Class Overlay "SPIN"
 #End If
 Private ax As Integer, ay As Integer, az As Integer
-Private dax As Integer, day As Integer, daz As Integer
-Private size As Integer, shape As Integer, frames As Integer
+Private size As Integer, shape As Integer, frames As Integer, mode As Integer
+Private dbl As Integer, fast As Integer, paused As Integer, fps As Integer
 
 Public Sub Run()
-  Dim k As String, t As Integer, paused As Integer
-  Cls
-  Print "NTC 3D: 1 cube 2 pyramid 3 Cobra 4 all"
-  Print "+ - size, P pause, X exit";
-  size = 280
-  shape = 1
+  Dim k As String, t As Integer
+  size = 280 : shape = 1 : mode = 1
+  Screen
   MakeShape
-  dax = 2 : day = 3 : daz = 1
   t = Ticks
   Do
-    Vector3D.Turn ax, ay, az
-    Frame
-    Vector3D.Show
-    If paused = 0 Then
-      ax = (ax + dax) And 255 : ay = (ay + day) And 255 : az = (az + daz) And 255
+    If fast Then
+      Turbo On
+      Frame1
+      Turbo Off
+    Else
+      Frame1
     End If
     frames = frames + 1
-    If frames = 50 Then
-      Locate 34, 2 : Print 50 * System.TicksPerSecond \ (Ticks - t + 1); "fps ";
+    If frames = 25 Then
+      fps = 25 * System.TicksPerSecond \ (Ticks - t + 1)
       frames = 0 : t = Ticks
+      Status
     End If
     k = UCase$(Inkey$)
     If k = "1" Or k = "2" Or k = "3" Or k = "4" Then shape = Val(k) : MakeShape
     If k = "+" Or k = "=" Then size = size + 20 : Vector3D.View 160, 112, size, 768
     If k = "-" And size > 60 Then size = size - 20 : Vector3D.View 160, 112, size, 768
     If k = "P" Then paused = Not paused
+    If k = "A" Or k = "B" Or k = "C" Then mode = Asc(k) - 65 : Screen
+    If k = "D" Then
+      Vector3D.Hide
+      dbl = Not dbl
+      Graphics.DoubleBuffer dbl
+      Status
+    End If
+    If k = "T" Then fast = Not fast : Status
   Loop Until k = "X"
   Vector3D.Hide
+  Graphics.DoubleBuffer 0
+End Sub
+
+' one frame: turn, wait for the flyback (one screen) or not (two: Show flips), draw
+Private Sub Frame1()
+  Vector3D.Turn ax, ay, az
+  If dbl = 0 Then Frame
+  Vector3D.Show
+  If paused = 0 Then
+    ax = (ax + 2) And 255 : ay = (ay + 3) And 255 : az = (az + 1) And 255
+  End If
+End Sub
+
+' a new screen mode: the shape off both screens, the mode set, the text again
+Private Sub Screen()
+  Vector3D.Hide
+  Graphics.DoubleBuffer 0
+  Mode mode
+  Vector3D.Forget
+  Print "1-4 shape A-C mode"
+  Print "D double T turbo +-PX"
+  Status
+  If dbl Then Graphics.DoubleBuffer 1
+End Sub
+
+' the state line (row 3), on both screens when double buffering
+Private Sub Status()
+  Locate 1, 3
+  Print "M"; mode; IIf(dbl, " dbl", " one"); IIf(fast, " turbo ", " normal "); fps; "fps  ";
+  If dbl Then Graphics.CopyText 3
 End Sub
 
 ' the chosen shape (or all three, small) into Vector3D

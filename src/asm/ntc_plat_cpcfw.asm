@@ -17,12 +17,15 @@
 ; so keys pressed while the program computes are caught at the
 ; next Inkey / Input (the firmware buffers them), and Ticks
 ; (the firmware's 1/300 s clock) still counts.
+;
+; @irq 2: the fast ticker event (ntc_plat_irq) is only set when the
+; program uses the Interrupt statement or interrupt classes.
 ; ============================================================
 ;@name     Amstrad CPC - firmware text and keys
 ;@org      #0040
 ;@text     byte
 ;@scrinit  0
-;@irq      0
+;@irq      2
 ;@cols     40
 ;@rows     25
 ; ============================================================
@@ -33,6 +36,11 @@ ntc_cury:		db 0			; cursor row (0 based)
 ntc_scols:		db 40			; columns in this mode
 ntc_fwa:		db 0			; ntc_fwcall: A on return
 ntc_fwwrap:		db 0			; 1 = the last character made the firmware wrap
+ntc_irqset:		db 0			; 1 = the firmware's fast ticker calls ntc_fwevt
+ntc_irqv:		dw 0			; interrupt classes' counting (ntc_isl_tick), 0 = none
+ntc_irqix:		dw 0
+NTC_FWBLK	equ #A5F0		; the fast ticker's event block (central 32K, below the firmware)
+ntc_fwtop:		dw #A600		; the top of free RAM (#A5F0 with the fast ticker's block)
 
 ;## ntc_plat_fw ntc_plat_data ntc_data @shared
 ; ------------------------------------------------------------
@@ -239,11 +247,65 @@ ntc_plat_ticks:
 			ld iy, #BD0D
 			jp ntc_fwcall
 
-;## ntc_plat_exit ntc_plat_data
+;## ntc_plat_exit ntc_plat_data ntc_plat_fw
 ntc_plat_exit:
 			ld bc, #7FC0		; RAM setting back to plain (a Memory page may be in #4000)
 			out (c), c
+			ld a, (ntc_irqset)	; the fast ticker out of the firmware's list
+			or a
+			jr z, ntc_ex_done
+			xor a
+			ld (ntc_irqset), a
+			ld (ntc_irqix), ix
+			ld hl, NTC_FWBLK
+			ld iy, #BCE6		; KL DEL FAST TICKER
+			ld ix, ntc_ex_back
+			jp ntc_fwcall
+ntc_ex_back:
+			ld ix, (ntc_irqix)
+ntc_ex_done:
 			jp (ix)
+
+;## ntc_plat_irq ntc_plat_data ntc_plat_fw ntc_data @shared
+; ------------------------------------------------------------
+; ntc_plat_irqon - normal mode's interrupt work under the firmware: the
+; firmware keeps its own interrupt handler (keys, sound, AMSDOS), and a fast
+; ticker event (KL NEW FAST TICKER: 300 a second, express asynchronous, at
+; interrupt time) calls ntc_fwevt, which marks an Interrupt hook / interrupt
+; classes as due - they run at the next safe point, as on cpc. The event
+; block must be in the central 32K (the firmware reads it with the lower ROM
+; on): #A5F0, just under the firmware's RAM, so the top of free RAM becomes
+; #A5F0. The routine is called with ROM select #FF (both ROMs off), so it can
+; be anywhere in the program.
+; ------------------------------------------------------------
+ntc_plat_irqon:
+			ld (ntc_irqix), ix
+			ld hl, NTC_FWBLK
+			ld (ntc_fwtop), hl
+			ld b, #C0				; express, asynchronous, far address
+			ld c, #FF				; ROM select: upper and lower ROM off
+			ld de, ntc_fwevt
+			ld iy, #BCE0			; KL NEW FAST TICKER
+			ld ix, ntc_iq_on
+			jp ntc_fwcall
+ntc_iq_on:
+			ld a, 1
+			ld (ntc_irqset), a
+			ld ix, (ntc_irqix)
+			jp (ix)
+; the event routine: at interrupt time, interrupts off; AF, BC, DE, HL free
+ntc_fwevt:
+			ld a, (ntc_hookon)		; an Interrupt hook: run it at the next safe point
+			or a
+			jr z, ntc_fe_nohook
+			ld (ntc_hookpend), a
+ntc_fe_nohook:
+			ld hl, (ntc_irqv)		; interrupt classes: count them
+			ld a, h
+			or l
+			ret z
+			jp (hl)
+			ASSERT ntc_free <= NTC_FWBLK, "Interrupt / interrupt classes on cpcfw: the program and its arrays must end below #A5F0 (the firmware event block)"
 
 ; ============================================================
 ; File system (FileSystem class) - Load / Save through the firmware's
@@ -267,12 +329,11 @@ ntc_plat_exit:
 ; fs_go runs it on the real stack with interrupts on and stores its
 ; HL result; a routine that fails jumps to fs_err with HL = status.
 
+;## ntc_plat_fs ntc_data ntc_buf2k @shared
 FS_NOTFOUND	equ -2
 FS_TOOBIG	equ -8
 FS_FAILED	equ -9
 FS_BADNAME	equ -4
-
-;## ntc_plat_fs ntc_data ntc_buf2k @shared
 fs_a1:			dw 0
 fs_a2:			dw 0
 fs_a3:			dw 0
@@ -790,10 +851,11 @@ fs_sv_done:
 			ld hl, 0
 			ret
 
-;## ntc_plat_memtop
+;## ntc_plat_memtop ntc_plat_data
 ; ntc_plat_memtop - HL = the first byte the Memory class's Small heap must not
-; use: #A600 (the firmware's and AMSDOS's RAM is above). Called on the real
-; stack (call / ret), only by the Memory class.
+; use: #A600 (the firmware's and AMSDOS's RAM is above), #A5F0 when the fast
+; ticker's event block is there (Interrupt, interrupt classes). Called on the
+; real stack (call / ret).
 ntc_plat_memtop:
-			ld hl, #A600
+			ld hl, (ntc_fwtop)
 			ret
