@@ -2219,6 +2219,7 @@ ntc_kprev:		db #FF, #FF, #FF, #FF, #FF, #FF, #FF, #FF, #FF, #FF
 ntc_irqset:		db 0			; 1 = our interrupt handler is at #38
 ntc_irqold:		ds 3			; the 3 bytes it replaced
 ntc_irqhl:		dw 0			; handler scratch
+ntc_irqv:		dw 0			; interrupt classes' counting (ntc_isl_tick), 0 = none
 ntc_modetab:	db 4, 20, #C0, 2		; mode 0
 				db 2, 40, #F0, 4		; mode 1
 				db 1, 80, #FF, 8		; mode 2
@@ -2721,7 +2722,8 @@ ntc_plat_irqon:
 			jp (ix)
 
 ; the handler: runs on the real stack, between keywords. Counts ticks
-; (300 a second). No push - AF goes to AF', HL to RAM.
+; (300 a second). AF goes to AF', HL to RAM; interrupt classes' counting
+; (ntc_irqv) is a call, keeping the other registers.
 ntc_irq:
 			ex af, af'
 			ld (ntc_irqhl), hl
@@ -2733,10 +2735,16 @@ ntc_irq:
 			jr z, ntc_irq_nohook
 			ld (ntc_hookpend), a
 ntc_irq_nohook:
+			ld hl, (ntc_irqv)		; interrupt classes (Option Class Interrupt): count them
+			ld a, h
+			or l
+			call nz, ntc_irq_jp		; (the handler runs on the real stack)
 			ld hl, (ntc_irqhl)
 			ex af, af'
 			ei
 			ret
+ntc_irq_jp:
+			jp (hl)
 
 ;## ntc_plat_exit ntc_plat_data
 ; ------------------------------------------------------------

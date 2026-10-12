@@ -598,7 +598,9 @@ platforms): 16K pages switched into
 the 512K block), up to a 4MB expansion. One class for every model - small (64K, 1 page: main
 RAM #4000), medium (128K, 5), large (up to a 512K expansion, 33), huge (4MB, 257): the first
 call probes (markers written to bank 63 down to 0 and main RAM, read back, so banks the
-hardware doesn't decode show up). Page numbers are 16 bit. Every page is on one list (free
+hardware doesn't decode show up). Page numbers are 16 bit. Page types: C code (overlay
+classes load into these), D the heap (`Alloc` / `Free`), I interrupt handler blocks (a label
+for now), U the program's own (music, level data). Every page is on one list (free
 low, free high, C, D, I, U - linked through a next table); C / I / U take from the low free
 list (main + the #7F block), D from the high one (#78-#7E), each falling back to the other.
 The tables (3 bytes a page) go from `ntc_end` up, sized to what the probe finds, fewer pages
@@ -611,6 +613,30 @@ future interrupt handler to put back. The program and its stack must be out of t
 sections `ntc_memcore`, `ntc_mem` (two, one per scheme), `ntc_memcopy`, `ntc_buf2k`;
 `bas/memmap.bas` draws the map. *maxpages* becomes `NTC_MEMBANKS equ` (the banks probed, and
 the size of the fixed bank data).
+
+**Overlay classes** (`Option Class Overlay ["FILE"]`, cpcmin / cpcfw, CPCExpansion). The
+compiler marks the thread of each of the class's procedures (`{t: 'ovl'}` ... `{t: 'ovlend'}`
+in the keyword list); the emitter sends those lines to the class's own list, written after
+the program as `OUTPUT "FILE.PAG"` / `ORG #4000` ... `OUTEND` - one assembly, so every label
+is shared and nothing is linked at load time; only the page is decided at run time. The
+class's variables, the call stubs, `#asm` blocks and asm keyword procedures stay in the
+program. The call stub, after the usual argument copies and `ld (p_x_rs), sp`, jumps to
+`ntc_ovl_enter` (`ntc_lib.asm` section `ntc_ovl`): it keeps `mem_cur` in the procedure's
+`_pg` word and switches in the class's page from its block (`ovl_blk_<class>: dw page,
+db "FILE.PAG", 0`), loading the file first (`mem_take` a C page, then FileSystem's `fs_load`
+through `fs_go`, which returns into `ovl_mt`, a one-word "thread"). The return stub switches
+`_pg` back. The compiler adds `Load` / `Unload` / `Loaded` / `Page` (asm keywords on the
+same section) to the class text before parsing. `--raw` output carries the overlays after
+`ntc_end`; the harness cuts the binary there and copies the `.PAG` files to its disc folders.
+
+**Interrupt classes** (`Option Class Interrupt rate | Frame`, cpc / cpcmin). Section
+`ntc_islots`: 4 slots (count, reload, running, due, Tick's call stub), filled by the start
+code. The platform's interrupt handler calls `ntc_irqv` (`ntc_isl_tick`): it counts each
+slot down (or, for Frame, looks for the start of the vertical sync on PPI port B) and marks
+it due. `ntc_xnh` (the normal mode safe point) runs a due slot's Tick that isn't running, as
+a call from that point - like the `Interrupt` hook - and Tick's return stub clears its
+running flag. Tick is ordinary BASIC, so nothing runs inside the hardware interrupt but the
+counting.
 
 **Warnings.** Not errors - the program still builds. Now: a Function called as a statement
 ("the result of F is not used") - with no error handling, an unchecked status is worth

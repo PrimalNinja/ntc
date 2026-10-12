@@ -21,6 +21,8 @@ var arrPrograms = [
 	{ name: 'FILESTPN', files: ['filestpn.bas'] },
 	{ name: 'AMSDOS', files: ['amsdos.bas'] },
 	{ name: 'MEMMAP', files: ['memmap.bas'] },
+	{ name: 'OVERLAYS', files: ['overlays/Main.bas', 'overlays/Level1.cls', 'overlays/Level2.cls'], platforms: ['cpcmin', 'cpcfw'] },
+	{ name: 'INTERRUP', files: ['interrupts/Main.bas', 'interrupts/Clock.cls', 'interrupts/Star.cls'], platforms: ['cpc', 'cpcmin'] },
 	{ name: 'NUMBERED', files: ['numbered.bas'] },
 	{ name: 'NTCTEST', files: ['ntc_test.bas'] },
 	{ name: 'VBTEST', files: ['vb_test.bas'] },
@@ -66,6 +68,11 @@ arrPlatforms.forEach(function(strPlat)
 		});
 		var objOpts = { platform: strPlat };
 		var objResult = null;
+
+		if (objProg.platforms && (objProg.platforms.indexOf(strPlat) < 0))
+		{
+			return;		// a program for some platforms only
+		}
 
 		if ((strPlat === 'cpc') || (strPlat === 'cpcmin') || (strPlat === 'cpcfw'))
 		{

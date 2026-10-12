@@ -1339,6 +1339,10 @@ function ntcParse(arrFiles_a, objDefines_a)
 		{
 			record('option', { what: 'romenable', value: trim(strText.substr(10)) });	// CPC firmware: the ROMs to start
 		}
+		else if (left(strText, 'class '))
+		{
+			record('option', { what: 'class', value: trim(strSrc.replace(/^\s*option\s+class\s+/i, '')) });	// a class's kind: overlay ["file"], interrupt rate | frame
+		}
 		else if (left(strText, 'memory '))
 		{
 			record('option', { what: 'memory', value: trim(strText.substr(7)) });	// the Memory class's scheme: small, cpcexpansion [maxpages]

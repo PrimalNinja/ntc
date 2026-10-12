@@ -124,6 +124,27 @@ check "Option Memory CPCExpansion 1 on 576K" "^pages1" "$(timeout 200 python3 nt
 printf 'Option Memory CPCExpansion\nPrint Memory.Pages()\n' > t/capx.bas
 node cli.js t/capx.bas --platform=cpm > /dev/null 2> t/capx.err; grep -q "Option Memory CPCExpansion is for the CPC platforms" t/capx.err && echo "ok   Option Memory CPCExpansion refused on cpm" || { echo "FAIL Option Memory CPCExpansion refused on cpm"; fail=1; }
 for pl in test cpm; do check "memmap $pl" "^No paging - heap" "$(timeout 200 python3 ntcrun.py t/ex/memmap.bas '~x' --platform=$pl 2>&1)"; done
+# overlay classes (Option Class Overlay): built into .PAG files in the same compile, loaded into
+# C pages on the first call; cpcmin / cpcfw, both modes; 64K: no page free, a message
+for m in --turbo ""; do
+  for pl in cpcmin cpcfw; do
+    rm -rf t/files t/ovl; mkdir -p t/ovl; cp ovl/* t/ovl/
+    o=$(timeout 200 python3 ntcrun.py t/ovl/Main.bas '' t/ovl/Level1.cls t/ovl/Level2.cls --platform=$pl $m 2>&1 | grep -v "^--- ")
+    if [ "$o" == "$(cat ref/ovl.txt)" ]; then echo "ok   overlays $pl ${m:-normal}"; else echo "FAIL overlays $pl ${m:-normal}"; echo "$o" | head -5; fail=1; fi
+  done
+done
+rm -rf t/files; check "overlays 64K" "^Overlay not loaded: LEVEL1.PAG" "$(timeout 200 python3 ntcrun.py t/ovl/Main.bas '' t/ovl/Level1.cls t/ovl/Level2.cls --platform=cpcmin --ram=64 2>&1)"
+printf 'Option Class Overlay\nPublic Sub X()\nEnd Sub\n' > t/ovl/Bad.cls; printf 'Bad.X\n' > t/ovl/b.bas; printf 'Option Memory Small\nBad.X\n' > t/ovl/b2.bas
+node cli.js t/ovl/b.bas t/ovl/Bad.cls --platform=cpc 2>&1 >/dev/null | grep -q "Option Class Overlay needs a platform" && node cli.js t/ovl/b2.bas t/ovl/Bad.cls --platform=cpcmin 2>&1 >/dev/null | grep -q "needs Option Memory CPCExpansion" && echo "ok   overlays refused (cpc, Small)" || { echo "FAIL overlays refused"; fail=1; }
+rm -rf t/files t/od; mkdir -p t/od; cp $P/overlays/* t/od/
+check "overlays demo cpcmin" "^Unload level 1: 0 - pages -C" "$(timeout 200 python3 ntcrun.py t/od/Main.bas '~x' t/od/Level1.cls t/od/Level2.cls --platform=cpcmin 2>&1)"
+# interrupt classes (Option Class Interrupt rate | Frame): Tick at safe points, normal mode; cpc / cpcmin
+for pl in cpc cpcmin; do
+  rm -rf t/isl; mkdir -p t/isl; cp isl/* t/isl/
+  o=$(timeout 200 python3 ntcrun.py t/isl/Main.bas '' t/isl/Music.cls t/isl/Fast.cls t/isl/Slow.cls t/isl/Frames.cls --platform=$pl 2>&1 | grep -v "^--- ")
+  if [ "$o" == "$(cat ref/isl.txt)" ]; then echo "ok   interrupt classes $pl"; else echo "FAIL interrupt classes $pl"; echo "$o" | head -5; fail=1; fi
+done
+node cli.js t/isl/Main.bas t/isl/Music.cls --platform=cpcfw 2>&1 >/dev/null | grep -q "Option Class Interrupt needs a platform" && echo "ok   interrupt classes refused (cpcfw)" || { echo "FAIL interrupt classes refused"; fail=1; }
 mkdir -p t/via; cp via/* t/via/; o=$(timeout 100 python3 ntcrun.py t/via/Main.bas 'Bo\n7\n' t/via/StdIO.cls --platform=test 2>&1 | grep -v "^--- ")
 if [ "$o" == "$(cat ref/via.txt)" ]; then echo "ok   own StdIO"; else echo "FAIL own StdIO"; fail=1; fi
 # build/: regenerate, then check every file assembles the way build.bat does it

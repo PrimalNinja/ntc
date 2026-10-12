@@ -1479,6 +1479,81 @@ total. No `Set x = Nothing`, `Is`, `TypeOf`, `Class_Initialize` / `Class_Termina
 events (`Event`, `RaiseEvent`, `WithEvents`) or `Implements`. A class that needs several
 copies of its data keeps them itself (in arrays).
 
+### Option Class
+
+`Option Class Resident` | `Option Class Overlay` [`"FILE"`] | `Option Class Interrupt` *rate* | `Option Class Interrupt Frame`
+
+In a `.cls` file: what kind of class it is. Without it (or `Resident`) the class is part of
+the program as above.
+
+**Overlay** (cpcmin, cpcfw; `Option Memory CPCExpansion`, the default there): the class's
+code is built, in the same compile, into its own file `FILE.PAG` (the class name, up to 8
+characters, when no name is given), to run at `#4000` in a RAM page (a C page, see
+[Memory](#memory)). Its variables stay in the program, so they keep their values when the
+page goes. Calling one of its procedures switches its page into the window and back again
+afterwards (the page that was there before - a data page the program selected stays
+selected); the first call loads the file into a free C page. So a program can be bigger than
+memory, a module or a level at a time.
+
+```
+' Level1.cls
+Option Class Overlay "LEVEL1"
+Public Function Play(ByVal score As Integer) As Integer
+  Banner "Level 1"            ' a Sub in the main program
+  Play = 100
+End Function
+
+' Main.bas
+Option RomEnable 7              ' RUN" drops AMSDOS: start it, the overlays load from disc
+Option Reserve &H4000, &H4000   ' the program stays out of the window overlays run in
+score = Level1.Play(0)          ' loads LEVEL1.PAG into a page, then runs Play
+```
+
+The compiler adds these members to an overlay class (so these names are taken):
+
+| Member | Does |
+|---|---|
+| `Load()` | loads its file now (nothing if it is loaded): `OK` (0), a FileSystem status (`NotFound` -2, `TooBig` -8 ...), or -12 (no page free) |
+| `Unload()` | its page back to free; the next call loads the file again |
+| `Loaded()` | True when it is in RAM |
+| `Page()` | the page it is in, 0 = not loaded |
+
+- A call that has to load and can't (no page free, the file isn't there) prints
+  `Overlay not loaded: LEVEL1.PAG` and ends the program. Call `Load()` first to handle it
+  yourself.
+- Keep the `.PAG` files on the disc with the program's `.BIN`. The program must end below
+  `#4000` (checked when assembling) and needs AMSDOS (`Option RomEnable 7` after `RUN"`).
+- An overlay class can call the main program, resident classes and other overlay classes;
+  each call puts back the page it found. On a 64K machine there is only one page, so two
+  overlay classes calling each other means loading again.
+- Procedures whose body is only `#asm` stay in the main program (they are keywords).
+- Not yet: one interface for several files (VB's `Implements`, for levels that swap), and
+  classes built on their own for any program (like DLLs).
+
+**Interrupt** *rate* / **Interrupt Frame** (cpc, cpcmin: NTC's own interrupt handler): the
+class's `Sub Tick()` (no parameters - it must have one) runs *rate* times a second (1 - 300),
+or once a frame (just after the vertical sync), while the program does its own thing.
+
+```
+' Clock.cls
+Option Class Interrupt 1
+Public Seconds As Integer
+Public Sub Tick()
+  Seconds = Seconds + 1
+End Sub
+```
+
+- Up to 4 interrupt classes. The interrupt (300 a second) only counts and marks a class as
+  due; `Tick` runs at the program's next safe point, like [Interrupt](#interrupt) - so it is
+  ordinary BASIC, and can use anything. Classes of the same rate take turns (they don't fall
+  on the same interrupt).
+- Normal mode only: in turbo mode there are no safe points, so `Tick` waits.
+- A `Tick` that is still running when it is due again runs again after it returns.
+- Keep `Tick` short: it runs between the program's own statements.
+- Game logic can go in a `Tick` (movement at a fixed 50 a second, whatever the drawing does),
+  with the main loop drawing. If the drawing reads what `Tick` changes, keep two copies and
+  switch between them when `Tick` is done, so a sprite is never drawn half moved.
+
 ---
 
 ## 11. Screen and keyboard
@@ -1716,6 +1791,8 @@ Sub Beat()
   beats = beats + 1
 End Sub
 ```
+
+For Subs that run at a set rate, see interrupt classes ([Option Class](#option-class)).
 
 **VB:** not in VB (it is like CPC BASIC's `EVERY` / `AFTER`).
 
@@ -2343,6 +2420,16 @@ Page 1 is main RAM `#4000-#7FFF`; pages 2 on are 4 for each 64K bank found (a 61
 down to `&78`. A program asks for what it wants; 0 back means it isn't there, and the
 program carries on without it (no music on 64K, say).
 
+Every page has a type:
+
+| Type | Letter | For | What the class does with it |
+|---|---|---|---|
+| `TypeCode` | C | code: overlay classes ([Option Class](#option-class)), compiled sprites later | overlay classes load into these |
+| `TypeData` | D | the heap | `Alloc` / `Free` work inside these; one left empty goes back to free |
+| `TypeIrq` | I | interrupt handler blocks | a label for now |
+| `TypeUser` | U | the program's own: music, level data, anything it manages itself | a label: the program uses the page as it likes |
+| `TypeFree` | - | not allocated | |
+
 Every page is on one list: free, C, D, I or U. Free pages come from two lists - main RAM and
 the standard 512K for C, I and U pages, the blocks above it for D pages (the heap) - and each
 falls back to the other. So on a big machine a growing heap uses the upper blocks and leaves
@@ -2393,10 +2480,8 @@ plain memory, nothing switched). `Alloc` gives them; `CLng(page) * 65536 + addre
 | `Copy(src, dst, length)` | far pointer to far pointer; past the end of a page it carries on at the start of the next page |
 
 Constants: `WindowStart`, `WindowSize` (`CPCExpansion`: `&H4000`, `&H4000`; `Small`: 0, 0).
-Page types: `TypeCode` ("C", code: pageable classes, compiled sprites), `TypeData` ("D",
-the heap `Alloc` uses), `TypeIrq` ("I", an interrupt handler), `TypeUser` ("U", the
-program's own: music, level data ...), `TypeFree` ("-"). With `CPCExpansion`, `Alloc` uses D
-pages - the one in the window first, then the others, then it takes a free page.
+With `CPCExpansion`, `Alloc` uses D pages - the one in the window first, then the others,
+then it takes a free page.
 
 Only `SelectPage` and `Address` change the page in the window; the other methods put it
 back. `End` puts main RAM back in the window (for BASIC, after a `CALL`). Statuses:
@@ -2567,6 +2652,7 @@ change.
 | `Option ClassSize` | [16](#option-classsize) |
 | `Option Compare Text` | [6](#option-compare-text) |
 | `Option Explicit` | [16](#option-explicit) |
+| `Option Class` | [10](#option-class) |
 | `Option Memory` | [16](#option-memory) |
 | `Option Reserve` | [16](#option-reserve) |
 | `Option RomEnable` | [16](#option-romenable) |

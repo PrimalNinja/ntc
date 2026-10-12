@@ -40,14 +40,27 @@ class RamBanks:
             o = want[0] * 0x10000 + want[1] * 0x4000; s.m.set_memory_block(0x4000, bytes(s.ext[o:o + 0x4000]))
         s.cur = want
 def assemble(path):
-    b=path[:-4]+'.bin'; s=path[:-4]+'.sym'
-    r=subprocess.run([SJ,'--nologo','--raw='+b,'--sym='+s,path],capture_output=True,text=True)
+    # sjasmplus runs in the .asm's folder, so files it writes itself (overlay classes'
+    # .PAG files, OUTPUT) land there; they are copied to the harness's disc folders
+    # (t/files/A and TAPE) for the program to load. The binary is cut at ntc_end: the
+    # overlays follow it in --raw output.
+    import glob, shutil
+    d=os.path.dirname(os.path.abspath(path)); base=os.path.basename(path)
+    b=base[:-4]+'.bin'; s=base[:-4]+'.sym'
+    for f in glob.glob(os.path.join(d,'*.PAG')): os.remove(f)
+    r=subprocess.run([SJ,'--nologo','--raw='+b,'--sym='+s,base],capture_output=True,text=True,cwd=d)
     if r.returncode: print(r.stdout,r.stderr); sys.exit(1)
     syms={}
-    for line in open(s):
+    for line in open(os.path.join(d,s)):
         m=re.match(r'^(\S+):\s+EQU\s+0x([0-9A-Fa-f]+)',line)
         if m: syms[m.group(1).lower()]=int(m.group(2),16)
-    return open(b,'rb').read(),syms
+    data=open(os.path.join(d,b),'rb').read()
+    if 'ntc_end' in syms and 'ntc_start' in syms: data=data[:syms['ntc_end']-syms['ntc_start']]
+    import ntcrun
+    for f in glob.glob(os.path.join(d,'*.PAG')):
+        for dev in ('A','TAPE'):
+            os.makedirs(os.path.join(ntcrun.FILES,dev),exist_ok=True); shutil.copy(f,os.path.join(ntcrun.FILES,dev,os.path.basename(f)))
+    return data,syms
 class CPC:
     def __init__(s,binary,org,typed,syms):
         s.m=m=z80.Z80Machine(); m.set_memory_block(org,binary)

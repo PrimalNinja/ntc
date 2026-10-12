@@ -133,21 +133,69 @@ ntc_xn:
 			ld sp, (ntc_ip)
 			ret
 
-;## ntc_xnh ntc_data @shared
-; ntc_xn for a program with an Interrupt hook (Interrupt MySub): the same
-; window, then a pending hook runs as a call of the hook Sub from this
-; point (its return goes back into the thread). Linked instead of ntc_xn.
+;## ntc_xnh ntc_data ntc_islots @shared
+; ntc_xn for a program with an Interrupt hook (Interrupt MySub) or interrupt
+; classes (Option Class Interrupt): the same window, then a pending hook
+; runs as a call of the hook Sub from this point (its return goes back into
+; the thread), else a due class's Tick (not one still running). Flags are
+; kept when nothing runs. Linked instead of ntc_xn.
 ntc_xn:
 			ld (ntc_ip), sp
 			ld sp, (ntc_csp)
 			ei
 			nop					; an interrupt can be taken here
 			di
+			push af
 			ld a, (ntc_hookpend)
 			or a
-			jr nz, ntc_xn_hook
+			jr nz, ntc_xn_hookp
+			ld a, (ntc_isldue)
+			or a
+			jr nz, ntc_xn_isl
+ntc_xn_none:
+			pop af
 			ld sp, (ntc_ip)
 			ret
+ntc_xn_isl:
+			ld hl, ntc_isl + 4		; the first slot due and not running
+			ld a, (ntc_isln)
+			ld b, a
+			ld c, 0					; due but still running: stays due
+ntc_xi_lp:
+			ld a, (hl)
+			or a
+			jr nz, ntc_xi_skip
+			inc hl
+			ld a, (hl)
+			dec hl
+			or a
+			jr nz, ntc_xi_run
+ntc_xi_skip:
+			inc hl
+			ld a, (hl)
+			dec hl
+			or c
+			ld c, a
+			ld de, 8
+			add hl, de
+			djnz ntc_xi_lp
+			ld a, c
+			ld (ntc_isldue), a
+			jr ntc_xn_none
+ntc_xi_run:
+			ld (hl), 1				; running (its return stub clears it)
+			inc hl
+			ld (hl), 0				; not due
+			inc hl
+			ld e, (hl)				; Tick's call stub
+			inc hl
+			ld d, (hl)
+			pop af
+			ld sp, (ntc_ip)
+			ex de, hl
+			jp (hl)
+ntc_xn_hookp:
+			pop af
 ntc_xn_hook:
 			xor a
 			ld (ntc_hookpend), a
@@ -7024,4 +7072,324 @@ mem_cp_wrap:
 			inc (hl)
 mem_cw_hi:
 			ld d, #40
+			ret
+
+;## ntc_ovl ntc_data ntc_mem ntc_plat_fs ntc_plat_screen kw_stop @shared
+; ------------------------------------------------------------
+; ntc_ovl - overlay classes (Option Class Overlay "FILE"): the class's
+; threads are built at #4000 into FILE.PAG in the same compile; its data
+; stays in main memory. Each class has a block in main memory:
+;   ovl_blk_<class>: dw page (0 = not loaded), db "FILE.PAG", 0
+; A call stub (p_name_c) saves the caller's SP, then jumps to
+; ntc_ovl_enter, which keeps the page that was in the window (the
+; stub's _pg word) and switches the class's page in - loading the file
+; into a free C page first if it isn't loaded. The return stub (p_name_r)
+; switches the caller's page back. Loading runs fs_load (the FileSystem
+; code: CAS IN, AMSDOS) through fs_go, with ovl_mt as the "thread" fs_go
+; returns into. The class's own Load / Unload / Loaded / Page members
+; are asm keywords (ntc_ovl_k*).
+; ------------------------------------------------------------
+OVL_NOPAGE	equ -12
+
+ovl_blk:		dw 0			; the class block in use
+ovl_pg:			dw 0			; where the caller's page goes
+ovl_ix:			dw 0
+ovl_cix:		dw 0
+ovl_pix:		dw 0
+ovl_new:		dw 0
+ovl_res:		dw 0
+ovl_p:			dw 0
+ovl_ksp:		dw 0
+ovl_kres:		dw 0
+ovl_kcur:		dw 0
+ovl_mt:			dw ntc_ovl_ld2	; fs_go returns into this
+ovl_tdie:		db "Overlay not loaded: ", 0
+
+; ntc_ovl_enter - from a call stub (jp, IX = where to go on): HL = the class
+; block, DE = the stub's word for the caller's page. Comes back on the real
+; stack with the class's page in the window; a class that can't be loaded
+; stops the program with a message.
+ntc_ovl_enter:
+			ld (ovl_blk), hl
+			ld (ovl_pg), de
+			ld (ovl_ix), ix
+			ld sp, (ntc_csp)
+			call mem_start
+			ld hl, (mem_cur)
+			ex de, hl
+			ld hl, (ovl_pg)
+			ld (hl), e
+			inc hl
+			ld (hl), d
+			ld hl, (ovl_blk)
+			ld e, (hl)
+			inc hl
+			ld d, (hl)
+			ld a, d
+			or e
+			jr z, ntc_ovl_en_ld
+			ex de, hl
+			call mem_sel
+			ld ix, (ovl_ix)
+			jp (ix)
+ntc_ovl_en_ld:
+			ld hl, (ovl_blk)
+			ld ix, ntc_ovl_en_back
+			jp ntc_ovl_core
+ntc_ovl_en_back:
+			ld a, h
+			or l
+			jr nz, ntc_ovl_die
+			ld ix, (ovl_ix)
+			jp (ix)
+ntc_ovl_die:
+			ld hl, ovl_tdie
+			ld ix, ntc_ovl_die2
+			jr ntc_ovl_puts
+ntc_ovl_die2:
+			ld hl, (ovl_blk)
+			inc hl
+			inc hl
+			ld ix, ntc_ovl_die3
+			jr ntc_ovl_puts
+ntc_ovl_die3:
+			ld ix, kw_stop
+			jp ntc_plat_newline
+; HL = text (0 ended): printed, then jp (ix)
+ntc_ovl_puts:
+			ld (ovl_pix), ix
+ntc_ovl_pl:
+			ld a, (hl)
+			or a
+			jr z, ntc_ovl_pe
+			inc hl
+			ld (ovl_p), hl
+			ld ix, ntc_ovl_pn
+			jp ntc_plat_putc
+ntc_ovl_pn:
+			ld hl, (ovl_p)
+			jr ntc_ovl_pl
+ntc_ovl_pe:
+			ld ix, (ovl_pix)
+			jp (ix)
+
+; ntc_ovl_core - (jp, IX = where to go on) HL = a class block: its file into a
+; free C page. Comes back on the real stack with HL = 0 and that page in the
+; window, or HL = a FileSystem status / OVL_NOPAGE (no page is kept).
+ntc_ovl_core:
+			ld (ovl_blk), hl
+			ld (ovl_cix), ix
+			ld sp, (ntc_csp)
+			call mem_start
+			ld a, 2					; a free page onto the C list
+			call mem_take
+			ld hl, OVL_NOPAGE
+			jr z, ntc_ovl_cback
+			ld (ovl_new), bc
+			ld h, b
+			ld l, c
+			call mem_sel
+			ld hl, (ovl_blk)		; FileSystem's Load: name, #4000, at most #4000
+			inc hl
+			inc hl
+			ld (fs_a1), hl
+			ld hl, MEM_WIN
+			ld (fs_a2), hl
+			ld (fs_a3), hl
+			ld hl, ovl_res
+			ld (fs_res), hl
+			ld sp, ovl_mt
+			ld hl, fs_load
+			jp fs_go
+ntc_ovl_ld2:
+			ld sp, (ntc_csp)
+			ld hl, (ovl_res)		; the length, or a status
+			bit 7, h
+			jr nz, ntc_ovl_cfail
+			ld de, (ovl_new)
+			ld hl, (ovl_blk)
+			ld (hl), e
+			inc hl
+			ld (hl), d
+			ld hl, 0
+ntc_ovl_cback:
+			ld ix, (ovl_cix)
+			jp (ix)
+ntc_ovl_cfail:
+			push hl
+			ld bc, (ovl_new)		; the page goes back to free
+			ld a, 2
+			call mem_remove
+			call mem_tofree
+			pop hl
+			jr ntc_ovl_cback
+
+; the class members (asm keywords, on the thread): HL = the class block,
+; ovl_kres = the result's address
+
+; Load(): the class's file into a free C page (nothing if it is loaded).
+; OK, a FileSystem status, or -12 (no page free). The window is put back.
+ntc_ovl_kload:
+			ld (ovl_ksp), sp
+			ld (ovl_blk), hl
+			ld sp, (ntc_csp)
+			call mem_start
+			ld hl, (mem_cur)
+			ld (ovl_kcur), hl
+			ld hl, (ovl_blk)
+			ld a, (hl)
+			inc hl
+			or (hl)
+			ld hl, 0
+			jr nz, ntc_ovl_kret
+			ld hl, (ovl_blk)
+			ld ix, ntc_ovl_kl2
+			jp ntc_ovl_core
+ntc_ovl_kl2:
+			push hl
+			ld hl, (ovl_kcur)
+			call mem_sel
+			pop hl
+ntc_ovl_kret:
+			ex de, hl
+			ld hl, (ovl_kres)
+			ld (hl), e
+			inc hl
+			ld (hl), d
+			ld sp, (ovl_ksp)
+			ret
+
+; Unload(): the page back to free (the next call loads the file again). OK
+ntc_ovl_kunload:
+			ld (ovl_ksp), sp
+			ld sp, (ntc_csp)
+			ld c, (hl)
+			inc hl
+			ld b, (hl)
+			ld a, b
+			or c
+			jr z, ntc_ovl_kzero
+			xor a
+			ld (hl), a
+			dec hl
+			ld (hl), a
+			ld a, 2
+			call mem_remove
+			call mem_tofree
+ntc_ovl_kzero:
+			ld hl, 0
+			jr ntc_ovl_kret
+
+; Loaded(): True when its page is in RAM
+ntc_ovl_kloaded:
+			ld a, (hl)
+			inc hl
+			or (hl)
+			ld hl, 0
+			jr z, ntc_ovl_kput
+			dec hl
+ntc_ovl_kput:
+			ex de, hl
+			ld hl, (ovl_kres)
+			ld (hl), e
+			inc hl
+			ld (hl), d
+			ret
+
+; Page(): the page it is loaded in, 0 = not loaded
+ntc_ovl_kpage:
+			ld a, (hl)
+			inc hl
+			ld h, (hl)
+			ld l, a
+			jr ntc_ovl_kput
+
+;## ntc_islots ntc_data @shared
+; ------------------------------------------------------------
+; ntc_islots - interrupt classes (Option Class Interrupt rate | Frame): up to
+; 4 classes whose Tick Sub runs at a rate, at the next safe point after it is
+; due (normal mode). Slot n, 8 bytes at ntc_isl + n * 8:
+;   +0 count (dw)  +2 reload (dw: interrupts between runs, 0 = every frame)
+;   +4 running (db: Tick started, its return stub clears it)  +5 due (db)
+;   +6 Tick's call stub (dw)
+; The start code fills the slots and puts ntc_isl_tick in ntc_irqv, which
+; the platform's interrupt handler calls. The counts start at 1, 2, 3, 4 so
+; classes of the same rate take turns.
+; ------------------------------------------------------------
+ntc_isln:		db 0			; slots in use
+ntc_isldue:		db 0			; 1 = a slot may be due
+ntc_islvs:		db 0			; vertical sync at the last interrupt
+ntc_islfr:		db 0			; 1 = this interrupt is the frame's (sync just started)
+ntc_isl:		ds 32
+
+; ntc_isl_tick - from the interrupt handler (call, real stack): count each
+; slot, mark the ones due. Keeps BC, DE, IX, IY.
+ntc_isl_tick:
+			push bc
+			push de
+			ld b, #F5				; PPI port B bit 0: vertical sync
+			in a, (c)
+			and 1
+			ld e, a
+			ld a, (ntc_islvs)
+			cpl
+			and e
+			ld (ntc_islfr), a
+			ld a, e
+			ld (ntc_islvs), a
+			ld a, (ntc_isln)
+			or a
+			jr z, ntc_it_end
+			ld b, a
+			ld hl, ntc_isl
+ntc_it_lp:
+			push hl
+			inc hl
+			inc hl
+			ld a, (hl)
+			inc hl
+			or (hl)
+			pop hl
+			jr nz, ntc_it_rate
+			ld a, (ntc_islfr)		; every frame: when the sync starts
+			or a
+			jr z, ntc_it_nx
+			jr ntc_it_due
+ntc_it_rate:
+			ld e, (hl)
+			inc hl
+			ld d, (hl)
+			dec de
+			ld (hl), d
+			dec hl
+			ld (hl), e
+			ld a, d
+			or e
+			jr nz, ntc_it_nx
+			push hl					; due: count again from the reload
+			inc hl
+			inc hl
+			ld e, (hl)
+			inc hl
+			ld d, (hl)
+			pop hl
+			ld (hl), e
+			inc hl
+			ld (hl), d
+			dec hl
+ntc_it_due:
+			push hl
+			ld de, 5
+			add hl, de
+			ld (hl), 1
+			pop hl
+			ld a, 1
+			ld (ntc_isldue), a
+ntc_it_nx:
+			ld de, 8
+			add hl, de
+			djnz ntc_it_lp
+ntc_it_end:
+			pop de
+			pop bc
 			ret

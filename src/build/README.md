@@ -16,9 +16,17 @@ build.bat ..\primal\sjasmplus\sjasmplus.exe   or give its path (relative or full
 | `cpm\` | CP/M 2.2 / 3 | `NAME.COM` at `#0100` | copy to the CP/M disk, type `NAME` |
 | `test\` | the test harness platform | `NAME.BIN`, raw, at `#4000` | for `test/ntcrun.py` |
 
-`dsk\` holds a disc image per platform with its programs already assembled, ready to insert in
-an emulator (WinAPE: drive A or B): `cpc.dsk`, `cpcmin.dsk`, `cpcfw.dsk` (the `.BIN` files, `RUN"NAME`)
-and `cpm.dsk` (the `.COM` files: boot CP/M from its system disc, then use this one, e.g. in drive B).
+A program with overlay classes (`OVERLAYS` on cpcmin / cpcfw) also writes their files
+(`LEVEL1.PAG`, `LEVEL2.PAG`) when it is assembled: copy them to the disc with the `.BIN`.
+`OVERLAYS` is only built for cpcmin and cpcfw, `INTERRUP` (interrupt classes) for cpc and
+cpcmin.
+
+`dsk\` holds two disc images per platform with its programs already assembled, ready to insert
+in an emulator (WinAPE: drive A or B): `cpc.dsk`, `cpcmin.dsk`, `cpcfw.dsk` (the examples and demos:
+the `.BIN` files, `RUN"NAME`, and the overlay classes' `.PAG` files next to `OVERLAYS.BIN`) and
+`cpm.dsk` (the `.COM` files: boot CP/M from its system disc, then use this one, e.g. in drive B);
+`cpctest.dsk`, `cpcmintest.dsk`, `cpcfwtest.dsk`, `cpmtest.dsk` hold the self tests (`NTCTEST`,
+`VBTEST*`, `LONGTEST`) - one disc each would no longer hold them all.
 They are CPCEMU `.DSK` files in the CPC **data format** (40 tracks, 9 sectors of 512 bytes, #C1-#C9),
 which AMSDOS, CP/M 2.2 and CP/M Plus all read. They are remade with the .ASM files
 (`test/gendsk.sh`, which needs sjasmplus and cpmtools); after changing a `.bas` yourself, assemble

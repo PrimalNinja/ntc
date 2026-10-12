@@ -294,6 +294,13 @@ finished, with the date.
   sjasmplus: CPC as AMSDOS `.BIN` (compiler option `amsdos` / `cli.js --amsdos=NAME` adds
   `DEVICE AMSTRADCPC6128` and `SAVEAMSDOS`), CP/M `.COM`, test `.BIN`. Every program now
   ends with `ntc_end:`. regress.sh regenerates and assembles them all
+- 2026-10-12 **Option Class Overlay ["FILE"] / Interrupt rate | Frame**: overlay classes'
+  threads built into .PAG files in the same compile (OUTPUT / ORG #4000), loaded into C pages
+  on the first call or with the added Load(), Unload / Loaded / Page; far-call stubs keep and
+  restore the caller's page (cpcmin, cpcfw). Interrupt classes: 4 slots counted by the
+  interrupt handler, Tick run at safe points (cpc, cpcmin). Demos OVERLAYS, INTERRUP; tests
+  `ovl`, `isl`; build/dsk split into examples and tests discs per platform. Page types table
+  in the user guide
 - 2026-10-12 **Option Memory Small | CPCExpansion [maxpages]**: the scheme decided when
   compiling (`NTC_MEM_*` defines; library sections with `@if:` are only there when their
   #Const is set). Small = one heap over free main RAM on any platform (cpm and test now have
@@ -714,10 +721,17 @@ CP/M compatible (or mostly) system idea - device model, not decided:
       file it came from; C pages and U pages loaded from a file are never written back.
       Least recently used order in the type lists. One file per page (`P0012.PAG`) works
       with AMSDOS now; a swap file with 16K slots needs random access (M4, IDE, USB)
-- [ ] pageable classes as overlays: each in its own image file (`LEVEL1.PAG`), the call stub
-      loads it when it isn't resident (64K: one frame, like CP/M / Turbo Pascal overlays);
-      on return the caller's page comes back. Rule: a pageable class calls the resident
-      program, not another pageable class (warn) - a game's levels as classes
+- [ ] overlay classes, next: `Implements` (an interface class; several files built against
+      it, `ILevel.Load("LEVEL" & n)` swaps the file behind it - a jump table at #4000 in
+      each); stand-alone DLLs on the library jumpblock; overlays on cpc (no files: put them
+      after the program in its file and copy them into pages at start?); library keywords
+      used only by an overlay inside its page; a warning when overlay classes call each
+      other (64K reloads); the reason in the "Overlay not loaded" message
+- [ ] interrupt classes, next: Tick in a page (I pages, a paged interrupt class); asm-only
+      Ticks run inside the interrupt itself (music players: no wait for a safe point);
+      cpcfw (firmware frame flyback / ticker events); flags kept across a hook / Tick run
+      at a safe point (a compare then kw_irq then a branch); harness vertical sync timing
+      (it toggles per read, so Frame classes run in bursts there)
 - [ ] check the 4MB ports (#78-#7E, A10 low) against other expansion hardware in WinAPE
 
 ### Turbo / normal

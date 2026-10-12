@@ -19,7 +19,7 @@ async def main():
                 await pg.select_option('#ge-example', label=o)
                 await pg.wait_for_timeout(300)
                 e = (await pg.locator('#ge-errors').inner_text()).strip()
-                if e and 'Interrupt' not in e: bad.append((o, e[:60]))
+                if e and 'Interrupt' not in e and 'Overlay' not in e: bad.append((o, e[:60]))
             asm = await pg.evaluate('m_strAsm')
             org = [l.strip() for l in asm.split('\n') if l.strip().startswith('org ')][:1]
             print(plat, org, 'errors:', bad)

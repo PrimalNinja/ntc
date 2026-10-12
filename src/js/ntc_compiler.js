@@ -33,6 +33,10 @@ function ntcCompile(input_a, objOptions_a)
 	var objDefinesIn = {};		// predefined #Const values: NTC and NTC_<platform>
 	var objMemory = { scheme: 'small', max: 257 };	// Option Memory
 	var blnMemoryUsed = false;	// the project has a Memory class
+	var objClassKind = {};		// Option Class: module -> { kind: 'overlay', file } / { kind: 'interrupt', rate, slot }
+	var arrOvlOrder = [];		// overlay classes, in source order
+	var objOvlAsm = {};			// overlay class -> its thread lines (built at #4000)
+	var arrIslots = [];			// interrupt classes: { module, rate (0 = Frame), tick }
 	var intStrMax = 40;			// the longest string in the program (findStrMax)
 	var arrReserve = [];		// Option Reserve: { start, size, file, line }
 	var arrRomEnable = null;	// Option RomEnable (cpcfw): null none, ['all'], or ROM numbers
@@ -2736,6 +2740,16 @@ function ntcCompile(input_a, objOptions_a)
 			}
 		}
 		arrCode.push(strIndent + 'ld (' + strRs + '), sp');
+		if (isOverlayProc(objProc_a))
+		{
+			// overlay class: keep the caller's page, switch the class's in (loading it first)
+			declare(procBase(objProc_a) + '_pg', 'int', 0);
+			arrCode.push(strIndent + 'ld hl, ' + objClassKind[objProc_a.module].blk + '\t; overlay ' + objClassKind[objProc_a.module].file);
+			arrCode.push(strIndent + 'ld de, ' + procBase(objProc_a) + '_pg');
+			arrCode.push(strIndent + 'ld ix, ' + strBody + '_in');
+			arrCode.push(strIndent + 'jp ntc_ovl_enter');
+			arrCode.push(strBody + '_in:');
+		}
 		arrCode.push(strIndent + 'ld sp, ' + strBody);
 		arrCode.push(strIndent + exitCode(strMode_a));
 
@@ -2791,6 +2805,17 @@ function ntcCompile(input_a, objOptions_a)
 		{
 			arrCode.push(strIndent + 'ld a, (ntc_hookset)\t; Interrupt hook done: may run again');
 			arrCode.push(strIndent + 'ld (ntc_hookon), a');
+		}
+		if (isOverlayProc(objProc_a))
+		{
+			arrCode.push(strIndent + 'ld sp, (ntc_csp)\t\t; the caller\'s page back');
+			arrCode.push(strIndent + 'ld hl, (' + procBase(objProc_a) + '_pg)');
+			arrCode.push(strIndent + 'call mem_sel');
+		}
+		if (objClassKind[objProc_a.module] && (objClassKind[objProc_a.module].kind === 'interrupt') && (objProc_a.id.toLowerCase() === 'tick'))
+		{
+			arrCode.push(strIndent + 'xor a\t\t\t; Tick done: it may run again');
+			arrCode.push(strIndent + 'ld (ntc_isl + ' + (objClassKind[objProc_a.module].slot * 8 + 4) + '), a');
 		}
 		arrCode.push(strIndent + 'ld sp, (' + strRs + ')');
 		arrCode.push(strIndent + exitCode(strMode_a));
@@ -6430,6 +6455,10 @@ function ntcCompile(input_a, objOptions_a)
 			emitComment('');
 			emitComment(objProc.kind + ' ' + objProc.id + ((strMode_a === 'n') ? ' (normal mode)' : ' (turbo mode)'));
 			procStubs(objProc, strMode_a);
+			if (isOverlayProc(objProc))
+			{
+				arrOut.push({ t: 'ovl', name: objProc.module });	// its thread goes into the overlay
+			}
 		}
 		emitLabel(procLabel(objProc, (strMode_a === 'E') ? 't' : strMode_a));
 		blnLastTransfer = false;
@@ -6441,8 +6470,18 @@ function ntcCompile(input_a, objOptions_a)
 			error(objProc.id + ' must end in the turbo mode it started in');
 		}
 		emitRaw(procLabel(objProc, kwMode()) + '_r', [], true);
+		if ((intPass === 2) && isOverlayProc(objProc))
+		{
+			arrOut.push({ t: 'ovlend' });
+		}
 		strProc = '';
 		strCopy = '';
+	}
+
+	// a procedure of an overlay class (not an asm keyword: those stay in main memory)
+	function isOverlayProc(objProc_a)
+	{
+		return !objProc_a.asmkw && (objClassKind[objProc_a.module] !== undefined) && (objClassKind[objProc_a.module].kind === 'overlay');
 	}
 
 	// a procedure nobody calls: compiled for its errors, the code is dropped
@@ -6554,6 +6593,26 @@ function ntcCompile(input_a, objOptions_a)
 		strProc = '';
 		strCopy = '';
 		strMode = strStartMode;
+		if (intPass === 1)
+		{
+			arrIslots.forEach(function(objSlot_a)
+			{
+				var objTick = objEl[objSlot_a.module + '.tick'];
+
+				if ((objTick === undefined) || (objTick.etype !== 'proc') || (objTick.kind !== 'sub') || (procParams(objTick).length > 0))
+				{
+					if (!objSlot_a.bad)
+					{
+						arrErrors.push({ file: objSlot_a.file, line: objSlot_a.line, msg: 'Option Class Interrupt: the class needs a Sub Tick() with no parameters' });
+					}
+					objSlot_a.bad = true;
+					return;
+				}
+				objSlot_a.tick = objTick;
+				blnHookUsed = true;
+				arrScanProcCalls.push({ from: '', to: objTick.full, mode: 'n', line: objSlot_a.line, file: objSlot_a.file });
+			});
+		}
 		compileRecords(arrMainRecs);
 		closeBlocks();
 		emit('kw_stop', []);
@@ -6674,7 +6733,7 @@ function ntcCompile(input_a, objOptions_a)
 			{
 				blnChanged = false;
 			}
-			if (!blnChanged || (objItem.t === 'comment'))
+			if (!blnChanged || (objItem.t === 'comment') || (objItem.t === 'ovl') || (objItem.t === 'ovlend'))
 			{
 				arrNew.push(objItem);
 			}
@@ -7083,6 +7142,102 @@ function ntcCompile(input_a, objOptions_a)
 		return objResult;
 	}
 
+	// Option Class Overlay: the class gets Load / Unload / Loaded / Page members (asm
+	// keywords, so they stay in main memory: they work when the class isn't loaded)
+	function addOverlayMembers(arrFiles_a)
+	{
+		return arrFiles_a.map(function(objFile_a)
+		{
+			var strText = String(objFile_a.text);
+			var arrMatch = strText.match(/^[ \t]*option[ \t]+class[ \t]+overlay\b/im);
+			var arrName = null;
+			var strModule = '';
+			var strBlk = '';
+
+			if (!arrMatch || ((objOptions.platform !== 'cpcfw') && (objOptions.platform !== 'cpcmin')) || (objMemory.scheme !== 'cpcexpansion'))
+			{
+				return objFile_a;		// not here: Option Class says why
+			}
+			arrName = strText.match(/Attribute\s+VB_Name\s*=\s*"([^"]+)"/i);
+			strModule = (arrName ? arrName[1] : String(objFile_a.name).replace(/^.*[\/\\]/, '').replace(/\.\w+$/, '')).toLowerCase();
+			strBlk = 'ovl_blk_' + strModule.replace(/[^a-z0-9_]/g, '_');
+			strText += '\n' + [
+				'\' ---- overlay class members (added by the compiler)',
+				'Public Function Load() As Integer', '#asm', '\t\t\tpop hl', '\t\t\tld (ovl_kres), hl', '\t\t\tld hl, ' + strBlk, '\t\t\tjp ntc_ovl_kload', '#endasm', 'End Function',
+				'Public Function Unload() As Integer', '#asm', '\t\t\tpop hl', '\t\t\tld (ovl_kres), hl', '\t\t\tld hl, ' + strBlk, '\t\t\tjp ntc_ovl_kunload', '#endasm', 'End Function',
+				'Public Function Loaded() As Integer', '#asm', '\t\t\tpop hl', '\t\t\tld (ovl_kres), hl', '\t\t\tld hl, ' + strBlk, '\t\t\tjp ntc_ovl_kloaded', '#endasm', 'End Function',
+				'Public Function Page() As Integer', '#asm', '\t\t\tpop hl', '\t\t\tld (ovl_kres), hl', '\t\t\tld hl, ' + strBlk, '\t\t\tjp ntc_ovl_kpage', '#endasm', 'End Function'
+			].join('\n') + '\n';
+			return { name: objFile_a.name, text: strText, platform: objFile_a.platform };
+		});
+	}
+
+	// Option Class Overlay ["FILE"] | Interrupt rate | Interrupt Frame - checked here
+	function readClassOption(objRec_a)
+	{
+		var strValue = String(objRec_a.value).replace(/'.*$/, '');
+		var arrMatch = null;
+		var blnCpc = (objOptions.platform === 'cpcfw') || (objOptions.platform === 'cpcmin');
+		var strFile = '';
+		var intRate = 0;
+
+		if (!objRec_a.inclass)
+		{
+			arrErrors.push({ file: objRec_a.file, line: objRec_a.line, msg: 'Option Class goes in a class (.cls) file' });
+			return;
+		}
+		if ((arrMatch = strValue.match(/^\s*resident\s*$/i)))
+		{
+			return;
+		}
+		if ((arrMatch = strValue.match(/^\s*overlay\s*(?:"([^"]*)")?\s*$/i)))
+		{
+			if (!blnCpc)
+			{
+				arrErrors.push({ file: objRec_a.file, line: objRec_a.line, msg: 'Option Class Overlay needs a platform that can load files into pages: cpcfw or cpcmin (not ' + objOptions.platform + ')' });
+				return;
+			}
+			if (objMemory.scheme !== 'cpcexpansion')
+			{
+				arrErrors.push({ file: objRec_a.file, line: objRec_a.line, msg: 'Option Class Overlay needs Option Memory CPCExpansion' });
+				return;
+			}
+			strFile = (arrMatch[1] || objRec_a.module).toUpperCase().replace(/\.PAG$/, '').replace(/[^A-Z0-9]/g, '').substr(0, 8);
+			if (strFile.length === 0)
+			{
+				arrErrors.push({ file: objRec_a.file, line: objRec_a.line, msg: 'Option Class Overlay: no file name' });
+				return;
+			}
+			objClassKind[objRec_a.module] = { kind: 'overlay', file: strFile + '.PAG', blk: 'ovl_blk_' + objRec_a.module.replace(/[^a-z0-9_]/g, '_'), id: objRec_a.module.replace(/[^a-z0-9_]/g, '_') };
+			arrOvlOrder.push(objRec_a.module);
+			objOvlAsm[objRec_a.module] = [];
+			return;
+		}
+		if ((arrMatch = strValue.match(/^\s*interrupt\s+(frame|\d+)\s*$/i)))
+		{
+			if (!objPlat.irq)
+			{
+				arrErrors.push({ file: objRec_a.file, line: objRec_a.line, msg: 'Option Class Interrupt needs a platform with its own interrupt handler: cpc or cpcmin (not ' + objOptions.platform + ')' });
+				return;
+			}
+			intRate = (arrMatch[1].toLowerCase() === 'frame') ? 0 : parseInt(arrMatch[1], 10);
+			if ((arrMatch[1].toLowerCase() !== 'frame') && ((intRate < 1) || (intRate > 300)))
+			{
+				arrErrors.push({ file: objRec_a.file, line: objRec_a.line, msg: 'Option Class Interrupt: a rate of 1 - 300 times a second, or Frame' });
+				return;
+			}
+			if (arrIslots.length >= 4)
+			{
+				arrErrors.push({ file: objRec_a.file, line: objRec_a.line, msg: 'Option Class Interrupt: 4 interrupt classes at most' });
+				return;
+			}
+			objClassKind[objRec_a.module] = { kind: 'interrupt', rate: intRate, slot: arrIslots.length };
+			arrIslots.push({ module: objRec_a.module, rate: intRate, file: objRec_a.file, line: objRec_a.line });
+			return;
+		}
+		arrErrors.push({ file: objRec_a.file, line: objRec_a.line, msg: 'Option Class Resident | Overlay ["FILE"] | Interrupt rate | Interrupt Frame: ' + strValue });
+	}
+
 	// the platform's own classes (StdIO, System ...) join the project when the
 	// program names them and the project has no class of that name itself
 	function addPlatformClasses(arrFiles_a)
@@ -7297,6 +7452,8 @@ function ntcCompile(input_a, objOptions_a)
 		objOptions.org = objPlat.org;
 	}
 	arrFiles = addPlatformClasses(arrFiles);
+	objMemory = findMemory(arrFiles);
+	arrFiles = addOverlayMembers(arrFiles);
 	objDefinesIn = { ntc: -1 };
 	objDefinesIn['ntc_' + String(objOptions.platform).toLowerCase()] = -1;	// #If NTC_CPM Then ...
 	strTerminal = findTerminal(arrFiles);
@@ -7362,6 +7519,10 @@ function ntcCompile(input_a, objOptions_a)
 			else if (objRec.what === 'memory')
 			{
 				readMemory(objRec);
+			}
+			else if (objRec.what === 'class')
+			{
+				readClassOption(objRec);
 			}
 			else if (objRec.what === 'romenable')
 			{
@@ -7488,6 +7649,7 @@ function ntcCompile(input_a, objOptions_a)
 	var intBytes = 0;
 	var intKeywords = 0;
 	var arrAsm = [];
+	var arrAsmMain = [];
 	var objItem = null;
 	var objUsedT = {};
 	var objUsedN = {};
@@ -7597,6 +7759,32 @@ function ntcCompile(input_a, objOptions_a)
 	{
 		arrAsm.push(strIndent + 'ld a, 1');
 		arrAsm.push(strIndent + 'ld (ntc_nmode), a\t\t; normal mode: waits let interrupts in');
+	}
+	if (arrIslots.length > 0)
+	{
+		arrAsm.push(strIndent + '; Option Class Interrupt: the classes\' Tick subs, run at safe points (normal mode)');
+		arrIslots.forEach(function(objSlot_a, intSlot_a)
+		{
+			if (objSlot_a.tick === undefined)
+			{
+				return;
+			}
+			arrAsm.push(strIndent + 'ld hl, ' + ((objSlot_a.rate === 0) ? 0 : Math.max(1, Math.round(300 / objSlot_a.rate))) + '\t\t; ' + objSlot_a.module + ': ' + ((objSlot_a.rate === 0) ? 'every frame' : ('every ' + Math.max(1, Math.round(300 / objSlot_a.rate)) + ' interrupts')));
+			arrAsm.push(strIndent + 'ld (ntc_isl + ' + (intSlot_a * 8 + 2) + '), hl');
+			arrAsm.push(strIndent + 'ld hl, ' + (((objSlot_a.rate === 0) ? 0 : Math.max(1, Math.round(300 / objSlot_a.rate))) + intSlot_a + 1) + '\t\t\t; the first after one period (+ the slot, so they take turns)');
+			arrAsm.push(strIndent + 'ld (ntc_isl + ' + (intSlot_a * 8) + '), hl');
+			arrAsm.push(strIndent + 'ld hl, ' + procLabel(objSlot_a.tick, 'n') + '_c');
+			arrAsm.push(strIndent + 'ld (ntc_isl + ' + (intSlot_a * 8 + 6) + '), hl');
+		});
+		arrAsm.push(strIndent + 'ld a, ' + arrIslots.length);
+		arrAsm.push(strIndent + 'ld (ntc_isln), a');
+		arrAsm.push(strIndent + 'ld hl, ntc_isl_tick');
+		arrAsm.push(strIndent + 'ld (ntc_irqv), hl\t\t; the interrupt handler counts for them');
+		objUsedT['ntc_islots'] = true;
+		if (strStartMode === 't')
+		{
+			arrWarnings.push({ file: arrIslots[0].file, line: arrIslots[0].line, msg: 'Option Class Interrupt: Tick only runs in normal mode, and this program starts in turbo mode' });
+		}
 	}
 	if (blnNormalUsed && objPlat.irq)
 	{
@@ -7741,6 +7929,16 @@ function ntcCompile(input_a, objOptions_a)
 		else if (objItem.t === 'label')
 		{
 			arrAsm.push(objItem.name + ':');
+		}
+		else if (objItem.t === 'ovl')
+		{
+			// an overlay class's procedure: its thread goes into the overlay (built at #4000)
+			arrAsmMain = arrAsm;
+			arrAsm = objOvlAsm[objItem.name];
+		}
+		else if (objItem.t === 'ovlend')
+		{
+			arrAsm = arrAsmMain;
 		}
 		else if (objItem.t === 'comment')
 		{
@@ -7970,6 +8168,10 @@ function ntcCompile(input_a, objOptions_a)
 	arrAsm.push('');
 	if (objOptions.library !== 'none')
 	{
+		if (arrOvlOrder.length > 0)
+		{
+			objUsedT['ntc_ovl'] = true;		// the overlay call stubs use it
+		}
 		arrAsm.push(linkLibrary(objUsedT, objUsedN, blnNormalUsed));
 	}
 
@@ -8093,6 +8295,16 @@ function ntcCompile(input_a, objOptions_a)
 		arrProcList.push({ file: objParse.procs[intI].file, line: objParse.procs[intI].line, name: arrMatch ? arrMatch[1] : objParse.procs[intI].id, kind: objParse.procs[intI].kind, scope: objParse.procs[intI].scope, used: (objProcModes[objParse.procs[intI].full] !== undefined) });
 	}
 
+	if (arrOvlOrder.length > 0)
+	{
+		arrAsm.push('');
+		arrAsm.push('; overlay classes: the page each is loaded in (0 = not loaded), its file');
+		arrOvlOrder.forEach(function(strModule_a)
+		{
+			arrAsm.push(objClassKind[strModule_a].blk + ':\tdw 0');
+			arrAsm.push(strIndent + 'db "' + objClassKind[strModule_a].file + '", 0');
+		});
+	}
 	if (blnMemoryUsed && (objMemory.scheme === 'small'))
 	{
 		arrAsm.push('');
@@ -8115,6 +8327,28 @@ function ntcCompile(input_a, objOptions_a)
 	{
 		// an AMSDOS file (128 byte header): RUN"name loads it at the org and starts it
 		arrAsm.push(strIndent + 'SAVEAMSDOS "' + String(objOptions.amsdos).toUpperCase().replace(/[^A-Z0-9]/g, '').substr(0, 8) + '.BIN", ntc_start, ntc_end - ntc_start, ntc_start');
+	}
+	if (arrOvlOrder.length > 0)
+	{
+		arrAsm.push(strIndent + 'ASSERT (ntc_end <= #4000) || (ntc_start >= #8000), "overlay classes: the program must stay out of #4000-#7FFF (the window they run in)"');
+		arrOvlOrder.forEach(function(strModule_a)
+		{
+			var objKind = objClassKind[strModule_a];
+
+			arrAsm.push('');
+			arrAsm.push('; ============================================================');
+			arrAsm.push('; Overlay class ' + strModule_a + ' -> ' + objKind.file + ': its threads, built to run at #4000');
+			arrAsm.push('; (a C page); its variables are in the program. Written as its own file.');
+			arrAsm.push('; ============================================================');
+			arrAsm.push(strIndent + 'OUTPUT "' + objKind.file + '"');
+			arrAsm.push(strIndent + 'ORG #4000');
+			arrAsm.push('ovl_' + objKind.id + '_start:');
+			arrAsm = arrAsm.concat(objOvlAsm[strModule_a]);
+			arrAsm.push(strIndent + 'dw 0\t\t\t; (never empty)');
+			arrAsm.push('ovl_' + objKind.id + '_end:');
+			arrAsm.push(strIndent + 'ASSERT ovl_' + objKind.id + '_end <= #8000, "overlay class ' + strModule_a + ' is more than 16K"');
+			arrAsm.push(strIndent + 'OUTEND');
+		});
 	}
 
 	return {

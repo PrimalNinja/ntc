@@ -51,6 +51,8 @@ var arrExamples = [
 	{ name: 'Console classes: StdIO, System (try each platform)', files: ['console_classes.bas'] },
 	{ name: 'Files: FileSystem class (try CP/M and CPC firmware)', files: ['files.bas'] },
 	{ name: 'Memory map: Memory class RAM pages (CPC)', files: ['memmap.bas'] },
+	{ name: 'Overlays: classes in RAM pages (cpcmin, cpcfw)', files: ['overlays/Main.bas', 'overlays/Level1.cls', 'overlays/Level2.cls'] },
+	{ name: 'Interrupt classes: Tick at a rate (cpc, cpcmin)', files: ['interrupts/Main.bas', 'interrupts/Clock.cls', 'interrupts/Star.cls'] },
 	{ name: 'Your own StdIO (2 files)', files: ['own_stdio/Main.bas', 'own_stdio/StdIO.cls'] },
 	{ name: 'Shell sort - turbo at run time', files: ['shellsort.bas'] },
 	{ name: 'Sieve timing - turbo / normal (compare with Small C)', files: ['sievetime.bas'] },

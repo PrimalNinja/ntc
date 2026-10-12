@@ -182,6 +182,40 @@ var NTC_EXAMPLES = [
 		]
 	},
 	{
+		"name": "Overlays: classes in RAM pages (cpcmin, cpcfw)",
+		"files": [
+			{
+				"name": "Main.bas",
+				"text": "' Overlays: two classes built into their own files (LEVEL1.PAG, LEVEL2.PAG) in the same\n' compile. Each runs at #4000 in a RAM page; a call loads its file the first time.\n' Needs a 6128 (or more RAM) and AMSDOS: cpcmin or cpcfw. Keep LEVEL1.PAG and LEVEL2.PAG on\n' the disc with OVERLAYS.BIN.\nOption Explicit\nOption RomEnable 7                ' RUN\" drops AMSDOS: start it again, the overlays load from disc\nOption Reserve &H4000, &H4000     ' the program stays out of the window the overlays run in\nDim lvl As Integer, score As Integer\n\nPrint \"Overlays on \"; System.Platform; \", \"; Memory.RamSize(); \"K\"\nPrint \"Level 1 loaded: \"; Level1.Loaded()\nFor lvl = 1 To 2\n  If lvl = 1 Then score = score + Level1.Play(score)\n  If lvl = 2 Then score = score + Level2.Play(score)\nNext\nPrint \"Score \"; score\nPrint \"Level 1 in page \"; Level1.Page(); \", level 2 in page \"; Level2.Page()\nPrint \"Pages \"; Memory.Map(1, Memory.Pages())\nPrint \"Unload level 1: \"; Level1.Unload(); \" - pages \"; Memory.Map(1, Memory.Pages())\nPrint \"Press a key\";\nDo While Inkey <> 0 : Loop\nDo : Frame : Loop Until Inkey <> 0\nPrint\nEnd\n\n' the main program's own routines: overlays can call them\nSub Banner(ByVal text As String)\n  Print \"== \"; text; \" ==\"\nEnd Sub\n"
+			},
+			{
+				"name": "Level1.cls",
+				"text": "' Level 1: built into LEVEL1.PAG. Its code is in a RAM page, its variables in the program.\nOption Class Overlay \"LEVEL1\"\nPublic Function Play(ByVal score As Integer) As Integer\n  Dim i As Integer\n  Banner \"Level 1\"\n  For i = 1 To 3\n    Print \"  room \"; i\n  Next\n  Play = 100\nEnd Function\n"
+			},
+			{
+				"name": "Level2.cls",
+				"text": "' Level 2: built into LEVEL2.PAG. It calls level 1's class too (that switches pages).\nOption Class Overlay \"LEVEL2\"\nPublic Function Play(ByVal score As Integer) As Integer\n  Banner \"Level 2\"\n  Print \"  score so far \"; score; \", level 1 loaded \"; Level1.Loaded()\n  Play = 250\nEnd Function\n"
+			}
+		]
+	},
+	{
+		"name": "Interrupt classes: Tick at a rate (cpc, cpcmin)",
+		"files": [
+			{
+				"name": "Main.bas",
+				"text": "' Interrupts: classes whose Tick Sub runs at a rate (Option Class Interrupt), while the main\n' program does its own thing. Up to 4 such classes. Normal mode, cpc or cpcmin (they need\n' NTC's own interrupt handler).\nOption Explicit\nDim loops As Long\n\nCls\nLocate 1, 3 : Print \"Clock: a Tick once a second\"\nLocate 1, 4 : Print \"Star: a Tick every frame (50 a second)\"\nLocate 1, 8 : Print \"Press a key to stop\"\nDo While Inkey <> 0 : Loop\nDo\n  loops = loops + 1\n  Locate 1, 6 : Print \"Main loop: \"; loops;\nLoop Until Inkey <> 0\nLocate 1, 10\nPrint \"Clock ticked \"; Clock.Seconds; \" times, the star \"; Star.Moves\nEnd\n"
+			},
+			{
+				"name": "Clock.cls",
+				"text": "' Clock: Tick once a second\nOption Class Interrupt 1\nPublic Seconds As Integer\nPublic Sub Tick()\n  Seconds = Seconds + 1\n  Locate 30, 3 : Print Seconds; \"s \";\nEnd Sub\n"
+			},
+			{
+				"name": "Star.cls",
+				"text": "' Star: Tick every frame, moving a star along the top line\nOption Class Interrupt Frame\nPublic Moves As Integer\nDim x As Integer\nPublic Sub Tick()\n  Locate x + 1, 1 : Print \" \";\n  x = (x + 1) Mod 39\n  Locate x + 1, 1 : Print \"*\";\n  Moves = Moves + 1\nEnd Sub\n"
+			}
+		]
+	},
+	{
 		"name": "Your own StdIO (2 files)",
 		"files": [
 			{
