@@ -433,6 +433,9 @@ for pl in cpc cpcmin; do check "cube3d demo $pl" "^Bye" "$(timeout 300 python3 n
 # memory (C1 / C2); the shape off again at the end: no screen byte left set
 for v in 22 31; do o=$(NTC_CPMVER=$v NTC_GFXCHK=1 timeout 300 python3 ntcrun.py t/c3/Main.bas '3~~~D~~~A~~~C~~~T~~~4~~~X' t/c3/Vector3D.cls t/c3/Spin.cls --platform=cpm 2>&1)
   check "cube3d demo cpm $v" "^Bye" "$o"; check "cube3d demo cpm $v screen clean" "screen bytes set: 0$" "$o"; done
+# CITY3D (bas/city3d): a few frames on cpcfw with the keys held (turn, climb, roll), then Q
+rm -rf t/city; mkdir -p t/city; cp $P/city3d/* t/city/
+check "city3d demo cpcfw" "^Bye" "$(timeout 300 python3 ntcrun.py t/city/Main.bas " {8}{8}{63}{63}{31}{31}~~~~{67}" t/city/City.cls --platform=cpcfw 2>&1)"
 # Graphics: XOR lines in modes 0, 1, 2 on #C000 and on #4000 (double buffering), cpc and cpcmin
 for pl in cpc cpcmin; do
   cp gfx/lines.bas t/; o=$(timeout 300 python3 ntcrun.py t/lines.bas '' --platform=$pl 2>&1 | grep -v "^--- ")

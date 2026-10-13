@@ -11,9 +11,16 @@ finished, with the date.
   picks the way. CP/M 2.2 draws on #C000 in the program's 64K; CP/M Plus copies the line loop to
   #C000 (common memory) and draws each line from there with C1 (screen = block 1 at #4000), C2
   back. Harness: NTC_CPMVER (22 / 31, Plus modelled as C2 with the gate array), NTC_GFXCHK
+- 2026-10-14 **CITY3D** demo (cpcfw, `bas/city3d`): a wireframe city to fly through - 64 x 64
+  repeating cells (streets every 4th row / column, 1-7 storeys, taller in the middle), camera
+  free in all directions (Elite's keys + cursors, T turbo), ~2000 units seen, buildings out of
+  view skipped, lines clipped to the near plane and the view's sides, double buffered. All Z80
+  in City.cls: per-frame tables (column / row / height terms in camera space) make each corner
+  three additions; projection by shifts and an 8-step divide. About 1.4 frames a second at real
+  speed (aimed at WinAPE 1000% for now). Harness: cpcfw now gives the vertical sync (#F5xx)
 - 2026-10-14 CUBE3D: only the edges that moved are drawn again (old line off, new on) - the
-  shape no longer blinks in place when a turn moves it less than a pixel; the turn follows the
-  clock (Ticks), not the frame count
+  shape no longer blinks in place when a turn moves it less than a pixel. The turn is a fixed
+  step a frame again (the clock-based step was erratic in normal mode)
 - 2026-10-13 every program in bas/ has `Option PressAnyKeyOnEnd` in place of its own "Press a key"
   loop (Locomotive: `'# Option ...` on a line of its own; JS: `//# Option ...`); the test harnesses
   press Return at that wait

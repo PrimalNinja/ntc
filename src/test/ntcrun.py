@@ -373,6 +373,10 @@ class Host:
         return False
     def inp(s, port):
         lo = port & 0xFF
+        if s.p == 'cpcfw' and (port >> 8) == 0xF5:
+            # the PPI's port B: bit 0 the vertical sync, for the first 1500 T of each 80000 T frame
+            # (Graphics.Flip waits for it; the firmware itself is trapped, not run)
+            return 0xFE | (1 if (s.T + 4000 - s.m.ticks_to_stop) % 80000 < 1500 else 0)
         if s.p == 'cpcfw' and (port >> 8) == 0xF4:
             # the keyboard matrix (Keys class): {n} in the typed text holds key n for 12 scans
             v = 0xFF; h = getattr(s, 'held', None); line = getattr(s, 'line', 0)

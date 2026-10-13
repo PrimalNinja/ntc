@@ -3103,7 +3103,7 @@ Do
 Loop
 ```
 
-See `bas/cube3d/` (Vector3D draws through it).
+See `bas/cube3d/` (Vector3D draws through it) and `bas/city3d/` (a wireframe city to fly through, cpcfw).
 
 **Graphics on CP/M (an Amstrad CPC).** The `cpm` platform has the class too, for CP/M on a
 CPC: mode 2 only (the console's mode: 640 x 200, pens 0-1), one screen (`DoubleBuffer`, `Flip`

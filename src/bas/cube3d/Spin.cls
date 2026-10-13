@@ -9,7 +9,7 @@ Option Class Overlay Spin
 Option Class Overlay Spin
 #End If
 Private ax As Integer, ay As Integer, az As Integer
-Private fx As Integer, fy As Integer, fz As Integer, lt As Integer ' the angles in 256ths (8.8, wrapping: the high byte is the angle), the clock
+Private fx As Integer, fy As Integer, fz As Integer ' the angles in 256ths (8.8, wrapping: the high byte is the angle)
 Private size As Integer, shape As Integer, frames As Integer, mode As Integer
 Private dbl As Integer, fast As Integer, paused As Integer, fps As Integer
 
@@ -58,19 +58,14 @@ Public Sub Run()
 End Sub
 
 ' one frame: turn, wait for the flyback (one screen) or not (two: Show flips), draw. The angles
-' move by the time gone (Ticks, 300 a second): X 2, Y 3, Z 1 every 50th of a second, so the
-' shape turns at the same speed whatever the frame rate. Turbo mode has no clock (interrupts
-' off), nor has CP/M: a frame's step instead
+' move a fixed step each frame (X 2, Y 3, Z 1 in 256ths of a turn; 8.8: the high byte is the
+' angle), so the turn is smooth whatever the mode; a faster frame is a faster turn
 Private Sub Frame1()
-  Dim d As Integer
   Vector3D.Turn ax, ay, az
   If dbl = 0 Then Frame
   Vector3D.Show
-  If fast Or System.TicksPerSecond = 0 Then d = 6 Else d = Ticks - lt
-  lt = Ticks
-  If d < 0 Or d > 60 Then d = 6
   If paused = 0 Then
-    Do While d > 0 : fx = fx + 85 : fy = fy + 128 : fz = fz + 43 : d = d - 1 : Loop
+    fx = fx + 512 : fy = fy + 768 : fz = fz + 256
     ax = Peek(VarPtr(fx) + 1) : ay = Peek(VarPtr(fy) + 1) : az = Peek(VarPtr(fz) + 1)
   End If
 End Sub

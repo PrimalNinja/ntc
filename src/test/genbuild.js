@@ -26,6 +26,7 @@ var arrPrograms = [
 	{ name: 'LISTS', files: ['lists.bas'] },
 	{ name: 'SORTTIME', files: ['sorttime.bas'] },
 	{ name: 'CMDLINE', files: ['cmdline.bas'] },
+	{ name: 'CITY3D', files: ['city3d/Main.bas', 'city3d/City.cls'], platforms: ['cpcfw'] },
 	{ name: 'CUBE3D', files: ['cube3d/Main.bas', 'cube3d/Vector3D.cls', 'cube3d/Spin.cls'], platforms: ['cpc', 'cpcmin', 'cpcfw', 'cpm'] },
 	{ name: 'OVERLAYS', files: ['overlays/Main.bas', 'overlays/Level1.cls', 'overlays/Level2.cls'], platforms: ['cpcmin', 'cpcfw', 'cpm'] },
 	{ name: 'PAGES', files: ['pages/Main.bas', 'pages/Title.cls', 'pages/Level1.cls', 'pages/Level2.cls', 'pages/Maths.cls', 'pages/Stars.cls', 'pages/Credits.cls', 'pages/Score.cls'], platforms: ['cpcmin', 'cpcfw', 'cpm'] },

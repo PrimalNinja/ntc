@@ -2774,7 +2774,8 @@ FS_BADMODE	equ -11
 ;## ntc_plat_memtop ntc_plat_data
 ; ntc_plat_memtop - HL = the first byte the Memory class's Small heap must not
 ; use: the BDOS (its address is at 6; the CCP below it is free, the program
-; ends with a warm boot). Called on the real stack (call / ret), only by the
+; ends with a warm boot), or ntc_cpmtop when lower (Graphics on CP/M Plus sets
+; it to its copy at GFH_AT). Called on the real stack (call / ret), only by the
 ; Memory class.
 ntc_plat_memtop:
 			push de
