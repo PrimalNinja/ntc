@@ -39,17 +39,22 @@ main_thread:
 			dw kw_scrinit		; mode 1, ROMs off, clear screen
 			dw kw_bssinit, ntc_bss, ntc_bss_size		; the arrays: do they fit, clear them
 
-			; Main.bas 26: Spin.Run
+			; Main.bas 27: Spin.Run
 			dw p_spin_run_c
 
-			; Main.bas 27: Mode 1
+			; Main.bas 28: Mode 1
 			dw kw_model, 1
 
-			; Main.bas 28: Print "Bye"
+			; Main.bas 29: Print "Bye"
 			dw kw_printzoscii
 			dw glyph_42, glyph_79, glyph_65, 1, 0		; "Bye\n"
 
-			; Main.bas 29: End
+			; Main.bas 30: End
+			dw kw_printnl0
+			dw kw_printzoscii
+			dw glyph_50, glyph_72, glyph_65, glyph_73, glyph_73, glyph_20, glyph_61, glyph_20
+			dw glyph_6B, glyph_65, glyph_79, 0		; "Press a key"
+			dw kw_waitkey
 			dw kw_stop
 
 ; ============================================================
@@ -2319,6 +2324,7 @@ glyph_64			equ ntc_font + 544		; "d"
 glyph_65			equ ntc_font + 552		; "e"
 glyph_66			equ ntc_font + 560		; "f"
 glyph_68			equ ntc_font + 576		; "h"
+glyph_6B			equ ntc_font + 600		; "k"
 glyph_6C			equ ntc_font + 608		; "l"
 glyph_6D			equ ntc_font + 616		; "m"
 glyph_6F			equ ntc_font + 632		; "o"
@@ -2393,6 +2399,7 @@ kw_strcmpeq:	jp 126
 kw_printzoscii:	jp 129
 kw_printstrvar:	jp 130
 kw_printint:	jp 132
+kw_printnl0:	jp 135
 kw_inkeys:	jp 146
 kw_scrinit:	jp 147
 kw_locatell:	jp 149
@@ -2407,7 +2414,8 @@ kw_bssinit:	jp 283
 ntc_plat_irqon:	jp 308
 ntc_urom_off:	jp 319
 ntc_urom_on:	jp 320
-NTC_RJ_N	equ 46		; entries
+kw_waitkey:	jp 321
+NTC_RJ_N	equ 48		; entries
 ntc_csp	equ #8800		; ROM data
 ntc_font	equ #948E		; ROM bss
 ntc_nmode	equ #8807		; ROM data

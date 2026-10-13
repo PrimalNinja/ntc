@@ -1,5 +1,6 @@
 ' File test in steps: each step says what it is about to do, then waits for a key, so a
 ' crash shows where it happened. With Option RomEnable 7 (cpcfw): AMSDOS is started again after RUN".
+Option PressAnyKeyOnEnd "Press a key to end"     ' at the end: a message and a key (a RUN" program resets when it ends)
 Option Explicit
 #If NTC_CPCFW Then
 Option RomEnable 7
@@ -28,8 +29,7 @@ Print "6 Load STEP.DAT..."
 Wait
 r = FileSystem.Load("STEP.DAT", VarPtr(b), 20)
 Print "  Load gave"; r; ", "; b(0); " ... "; b(9)
-Print "7 done - press a key to end"
-Wait
+Print "7 done"
 End
 
 Sub Wait()

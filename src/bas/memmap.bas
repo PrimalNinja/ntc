@@ -4,6 +4,7 @@
 ' asks for what it wants - a 0 back means it isn't there, and it carries on without it.
 ' Music, sprites and level pages come from main RAM and the standard 512K first, the heap
 ' (D pages) from the blocks above it first.
+Option PressAnyKeyOnEnd "Press a key"     ' at the end: a message and a key (a RUN" program resets when it ends)
 Option Explicit
 ' The program must stay out of #4000-#7FFF (the window pages are switched into): checked
 ' when assembling. (The test platform's programs start at #4000, so it has no paging.)
@@ -93,10 +94,6 @@ Else
   Print "Pages "; Memory.Map(1, 33)
 End If
 
-Print "Press a key";
-Do While Inkey <> 0 : Loop
-Do : Frame : Loop Until Inkey <> 0
-Print
 End
 
 ' RAM size, pages, 64K banks and the model (Small / CP/M: no paging)

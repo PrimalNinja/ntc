@@ -767,6 +767,51 @@ ntc_plat_memtop:
 		ENDIF
 			ret
 
+;## ntc_plat_romsel ntc_plat_data @shared @ramonly
+; rd_sel - A = a slot: that ROM in at #C000 (the upper ROM on, straight to the
+; gate array and #DFxx). rd_unsel - back as NTC runs (Library: ROM: the
+; keyword ROM in; else both ROMs off). From RAM only (@ramonly). Keep DE,
+; HL (rd_unsel also AF)
+rd_old:			dw 0
+rd_sel:
+			push hl
+			push de
+			ld e, a
+			ld a, (ntc_smode)
+			or #84				; the upper ROM on
+			ld b, #7F
+			out (c), a
+		IF NTC_ROMLIB
+			ld bc, (ntc_rx_cur)
+			ld (rd_old), bc
+			ld c, e
+			ld b, #DF
+			ld (ntc_rx_cur), bc	; (the interrupt handler puts this one back)
+		ELSE
+			ld c, e
+			ld b, #DF
+		ENDIF
+			out (c), c
+			pop de
+			pop hl
+			ret
+rd_unsel:
+			push af
+			push bc
+		IF NTC_ROMLIB
+			ld bc, (rd_old)
+			ld (ntc_rx_cur), bc
+			out (c), c			; the keyword ROM
+		ELSE
+			ld a, (ntc_smode)
+			or #8C				; both ROMs off
+			ld b, #7F
+			out (c), a
+		ENDIF
+			pop bc
+			pop af
+			ret
+
 ;## ntc_plat_rmr ntc_plat_data
 ; ntc_plat_rmr - A = the gate array's ROM / mode byte now (#8x: screen mode,
 ; lower and upper ROM on / off), so Memory's CallBank can turn both ROMs off

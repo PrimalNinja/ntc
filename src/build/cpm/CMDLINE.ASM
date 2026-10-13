@@ -27,46 +27,46 @@ ntc_start:
 
 main_thread:
 
-			; main.bas 6: If System.HasCapability("COMMANDLINE") Then
+			; main.bas 7: If System.HasCapability("COMMANDLINE") Then
 			dw fn_system_hascapability, str0, var_system_hascapability_hascapability
 			dw kw_goto_ifzero_n, var_system_hascapability_hascapability, if1_1
 
-			; main.bas 7: cl = System.CommandLine
+			; main.bas 8: cl = System.CommandLine
 			dw fn_system_commandline, var_system_commandline_commandline
 			dw kw_strcpy, var_cl, var_system_commandline_commandline
 
-			; main.bas 8: Print "Command line: ["; cl; "]"
+			; main.bas 9: Print "Command line: ["; cl; "]"
 			dw kw_printstrvar, str1
 			dw kw_printstrvar, var_cl
 			dw kw_printstrvar, str2
 			dw kw_printnl
 
-			; main.bas 9: Else
+			; main.bas 10: Else
 			dw if1_e_go
 if1_1:
 
-			; main.bas 10: Input "No command line here - type one"; cl
+			; main.bas 11: Input "No command line here - type one"; cl
 			dw kw_printstrvar, str3
 			dw kw_inputstr, var_cl
 
-			; main.bas 11: End If
+			; main.bas 12: End If
 if1_e:
 
-			; main.bas 13: w = 0
+			; main.bas 14: w = 0
 			dw kw_ztov, var_w
 
-			; main.bas 14: For i = 1 To Len(cl)
+			; main.bas 15: For i = 1 To Len(cl)
 			dw kw_ltov, 1, var_i
 			dw kw_strlen, var_cl, for2_l
 			dw kw_forupv_n, var_i, for2_l, for2_e
 for2_t:
 
-			; main.bas 15: If Mid$(cl, i, 1) <> " " Then
+			; main.bas 16: If Mid$(cl, i, 1) <> " " Then
 			dw kw_strmid, stmp0, var_cl, var_i, lit_1
 			dw kw_strcmpne, stmp0, str4
 			dw kw_goto_iffalse_n, if3_1
 
-			; main.bas 16: If (i = 1) Or (Mid$(cl, i - 1, 1) = " ") Then w = w + 1 : Print w; ": ";
+			; main.bas 17: If (i = 1) Or (Mid$(cl, i - 1, 1) = " ") Then w = w + 1 : Print w; ": ";
 			dw kw_cpeqvl, var_i, 1
 			dw kw_ftov, tmp0
 			dw kw_addl, var_i, -1, tmp2
@@ -80,11 +80,11 @@ for2_t:
 			dw kw_printstrvar, str5
 if4_1:
 
-			; main.bas 17: Print Mid$(cl, i, 1);
+			; main.bas 18: Print Mid$(cl, i, 1);
 			dw kw_strmid, stmp0, var_cl, var_i, lit_1
 			dw kw_printstrvar, stmp0
 
-			; main.bas 18: If (i = Len(cl)) Or (Mid$(cl, i + 1, 1) = " ") Then Print
+			; main.bas 19: If (i = Len(cl)) Or (Mid$(cl, i + 1, 1) = " ") Then Print
 			dw kw_strlen, var_cl, tmp1
 			dw kw_cpeqvv, var_i, tmp1
 			dw kw_ftov, tmp0
@@ -97,19 +97,19 @@ if4_1:
 			dw kw_printnl
 if5_1:
 
-			; main.bas 19: End If
+			; main.bas 20: End If
 if3_1:
 
-			; main.bas 20: Next
+			; main.bas 21: Next
 			dw kw_next1v_n, var_i, for2_l, for2_t
 for2_e:
 
-			; main.bas 21: Print w; " words"
+			; main.bas 22: Print w; " words"
 			dw kw_printint, var_w
 			dw kw_printstrvar, str6
 			dw kw_printnl
 
-			; main.bas 22: Print "Files: "; IIf(System.HasCapability("FILES"), "yes", "no"); ", pages: "; IIf(System.HasCapability("PAGES"), "yes", "no")
+			; main.bas 23: Print "Files: "; IIf(System.HasCapability("FILES"), "yes", "no"); ", pages: "; IIf(System.HasCapability("PAGES"), "yes", "no")
 			dw fn_system_hascapability, str7, var_system_hascapability_hascapability
 			dw kw_vtov, var_system_hascapability_hascapability, tmp0
 			dw kw_goto_ifzero_n, tmp0, ch6_0
@@ -138,7 +138,10 @@ ch7_e:
 			dw kw_printstrvar, stmp0
 			dw kw_printnl
 
-			; main.bas 23: End
+			; main.bas 24: End
+			dw kw_printnl0
+			dw kw_printstrvar, str14
+			dw kw_waitkey
 			dw kw_stop
 
 ; ============================================================
@@ -229,6 +232,7 @@ str10:			db 0
 str11:			db "Files: ", 0
 str12:			db "PAGES", 0
 str13:			db ", pages: ", 0
+str14:			db "Press a key", 0
 
 ; ============================================================
 ; Keyword library (used)
@@ -274,6 +278,12 @@ ntc_stop_back:
 			ld sp, (ntc_csp)
 			ei
 			ret
+
+;## kw_waitkey ntc_data ntc_plat_key
+; kw_waitkey - wait for a key (Option PressAnyKeyOnEnd, before kw_stop)
+kw_waitkey:
+			ld ix, ntc_next
+			jp ntc_plat_getkey
 
 ;## ntc_xn ntc_data @shared
 ; normal mode "next": every normal mode keyword ends here (its ret
@@ -779,6 +789,15 @@ ntc_pi_done:
 			ld hl, ntc_numbuf
 			ld (ntc_sptr), hl
 			jp ntc_printbuf
+
+;## kw_printnl0 ntc_data ntc_plat_screen
+;kw_printnl0  - new line unless the cursor is at the start of a line
+kw_printnl0:
+			ld a, (ntc_curx)
+			or a
+			ret z
+			ld ix, ntc_next
+			jp ntc_plat_newline
 
 ;## kw_printnl ntc_data ntc_plat_screen
 ;kw_printnl

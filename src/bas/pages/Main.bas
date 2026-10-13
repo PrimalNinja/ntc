@@ -8,6 +8,7 @@
 '     one overlay area paged variables are ordinary variables, so the copies share them
 '   - calls between classes of the same page switch nothing
 ' The compiler lists what is in each page, and how big (the GUI's messages; cli.js --layout).
+Option PressAnyKeyOnEnd "Press a key"     ' at the end: a message and a key (a RUN" program resets when it ends)
 Option Explicit
 Option Page Intro  = Title
 Option Page Stage1 = Level1, Maths, Stars
@@ -28,8 +29,4 @@ Level1.Play
 Print "Maths from main: 7 squared is "; Maths.Square(7)
 Print "Stars from main (Stage1's copy): "; Stars.Count()
 Credits.Show
-Print "Press a key";
-Do While Inkey <> 0 : Loop
-Do : Frame : Loop Until Inkey <> 0
-Print
 End

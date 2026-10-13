@@ -26,56 +26,42 @@ ntc_start:
 
 main_thread:
 
-			; 1: 10 REM classic numbered style
+			; 2: 10 REM classic numbered style
 ln_10:
 
-			; 2: 20 N = 1
+			; 3: 20 N = 1
 ln_20:
 			dw kw_ltov, 1, var_n
 
-			; 3: 30 PRINT N;
+			; 4: 30 PRINT N;
 ln_30:
 			dw kw_printint, var_n
 
-			; 4: 40 N = N * 2
+			; 5: 40 N = N * 2
 ln_40:
 			dw kw_2x, var_n, var_n
 
-			; 5: 50 IF N < 100 THEN 30
+			; 6: 50 IF N < 100 THEN 30
 ln_50:
 			dw kw_scpltvl, var_n, 100
 			dw kw_goto_iftrue_n, ln_30
 
-			; 6: 60 PRINT
+			; 7: 60 PRINT
 ln_60:
 			dw kw_printnl
 
-			; 7: 70 GOSUB 200
+			; 8: 70 GOSUB 200
 ln_70:
 			dw ln_200_gs
 
-			; 8: 72 PRINT "Press a key";
-ln_72:
-			dw kw_printstrvar, str0
-
-			; 9: 74 DO : FRAME : LOOP UNTIL INKEY <> 0
-ln_74:
-do1_t:
-			dw kw_frame
-			dw kw_inkey, tmp0
-			dw kw_cpnevl, tmp0, 0
-			dw kw_goto_iffalse_n, do1_t
-do1_e:
-
-			; 10: 76 PRINT
-ln_76:
-			dw kw_printnl
-
-			; 11: 80 END
+			; 9: 80 END
 ln_80:
+			dw kw_printnl0
+			dw kw_printstrvar, str0
+			dw kw_waitkey
 			dw kw_stop
 
-			; 12: 200 PRINT "in sub" : RETURN
+			; 10: 200 PRINT "in sub" : RETURN
 ln_200:
 			dw kw_printstrvar, str1
 			dw kw_printnl
@@ -102,7 +88,6 @@ ln_200_rt:			ld sp, (ln_200_rs)
 
 var_n:			dw 0
 ln_200_rs:			dw 0
-tmp0:			dw 0
 
 ; ============================================================
 ; Strings
@@ -156,6 +141,12 @@ ntc_stop_back:
 			ei
 			ret
 
+;## kw_waitkey ntc_data ntc_plat_key
+; kw_waitkey - wait for a key (Option PressAnyKeyOnEnd, before kw_stop)
+kw_waitkey:
+			ld ix, ntc_next
+			jp ntc_plat_getkey
+
 ;## ntc_xn ntc_data @shared
 ; normal mode "next": every normal mode keyword ends here (its ret
 ; became jp ntc_xn). Thread position to ntc_ip, real stack, one
@@ -168,14 +159,6 @@ ntc_xn:
 			di
 			ld sp, (ntc_ip)
 			ret
-
-;## kw_goto_iffalse (normal mode copy)
-;kw_goto_iffalse, <label>  - branch if NZ (false)
-kw_goto_iffalse_n:
-			pop hl
-			jp z, ntc_xn
-			ld sp, hl
-			jp ntc_xn
 
 ;## kw_goto_iftrue (normal mode copy)
 ;kw_goto_iftrue, <label>  - branch if Z (true)
@@ -288,19 +271,6 @@ kw_scpltvl:
 			pop hl
 			jp ntc_cmp_slt
 
-;## kw_cpnevl ntc_cmp
-kw_cpnevl:
-			pop hl
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			pop hl
-			jp ntc_cmp_ne
-
-; ============================================================
-; Memory (PEEK / POKE / DEEK / DOKE)
-; ============================================================
-
 ;## ntc_printbuf ntc_data ntc_plat_screen
 ; print the 0 terminated ASCII text at (ntc_sptr), then ret (thread)
 ntc_printbuf:
@@ -394,31 +364,20 @@ ntc_pi_done:
 			ld (ntc_sptr), hl
 			jp ntc_printbuf
 
+;## kw_printnl0 ntc_data ntc_plat_screen
+;kw_printnl0  - new line unless the cursor is at the start of a line
+kw_printnl0:
+			ld a, (ntc_curx)
+			or a
+			ret z
+			ld ix, ntc_next
+			jp ntc_plat_newline
+
 ;## kw_printnl ntc_data ntc_plat_screen
 ;kw_printnl
 kw_printnl:
 			ld ix, ntc_next
 			jp ntc_plat_newline
-
-;## kw_inkey ntc_data ntc_plat_key
-;kw_inkey, <destvar>  - new key press or 0, no wait
-kw_inkey:
-			pop hl
-			ld (ntc_ivar), hl
-			ld ix, ntc_inkey_got
-			jp ntc_plat_scankey
-ntc_inkey_got:
-			ld hl, (ntc_ivar)
-			ld (hl), a
-			inc hl
-			ld (hl), 0
-			ret
-
-;## kw_frame ntc_data ntc_plat_frame
-;kw_frame  - wait for the start of the next frame flyback
-kw_frame:
-			ld ix, ntc_next
-			jp ntc_plat_frame
 
 ;## ntc_plat_data
 ntc_curx:		db 0			; cursor column (0 based) - kept here for Tab
@@ -626,12 +585,6 @@ ntc_plat_getkey:
 			ld iy, #BB06			; KM WAIT CHAR
 			jp ntc_fwcall
 ntc_kslink:		dw 0
-
-;## ntc_plat_frame ntc_plat_fw
-; ntc_plat_frame - MC WAIT FLYBACK
-ntc_plat_frame:
-			ld iy, #BD19
-			jp ntc_fwcall
 
 ;## ntc_plat_exit ntc_plat_data ntc_plat_fw
 ntc_plat_exit:

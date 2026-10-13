@@ -27,7 +27,7 @@ ntc_start:
 main_thread:
 			dw kw_bssinit, ntc_bss, ntc_bss_size		; the arrays: do they fit, clear them
 
-			; 22: loco_d(0) = "Ann"
+			; 23: loco_d(0) = "Ann"
 			dw kw_strcpyn, arr_loco_d, str0, 40
 			dw kw_strcpyn, arr_loco_d+41, str1, 40
 			dw kw_strcpyn, arr_loco_d+82, str2, 40
@@ -39,13 +39,13 @@ main_thread:
 			dw kw_strcpyn, arr_loco_d+328, str8, 40
 			dw kw_strcpyn, arr_loco_d+369, str9, 40
 
-			; 4: Mode 1
+			; 5: Mode 1
 			dw kw_model, 1
 
-			; 6: total = 0
+			; 7: total = 0
 			dw kw_l_mov, llit_0, var_total
 
-			; 7: For i = 1 To 5 : nm_s(i) = loco_d(loco_p) : loco_p = loco_p + 1 : sc(i) = Val(loco_d(loco_p)) : loco_p = loco_p + 1 : total = total + sc(i) : Next
+			; 8: For i = 1 To 5 : nm_s(i) = loco_d(loco_p) : loco_p = loco_p + 1 : sc(i) = Val(loco_d(loco_p)) : loco_p = loco_p + 1 : total = total + sc(i) : Next
 			dw kw_ltov, 1, var_i
 for1_t:
 			dw kw_sget, arr_loco_d, var_loco_p, stmp1, 41
@@ -61,11 +61,11 @@ for1_t:
 			dw kw_next1l_n, var_i, 5, for1_t
 for1_e:
 
-			; 8: Print "High scores"
+			; 9: Print "High scores"
 			dw kw_printstrvar, str10
 			dw kw_printnl
 
-			; 9: For i = 1 To 5 : Print nm_s(i); Tab(10); sc(i) : Next
+			; 10: For i = 1 To 5 : Print nm_s(i); Tab(10); sc(i) : Next
 			dw kw_ltov, 1, var_i
 for2_t:
 			dw kw_sget, arr_nm_s, var_i, stmp0, 41
@@ -77,7 +77,7 @@ for2_t:
 			dw kw_next1l_n, var_i, 5, for2_t
 for2_e:
 
-			; 10: Print "Total"; total; " Best"; IIf((IIf((IIf((IIf((sc(1)) > (sc(2)), sc(1), sc(2))) > (sc(3)), IIf((sc(1)) > (sc(2)), sc(1), sc(2)), sc(3))) > (sc(4)), IIf((IIf((sc(1)) > (sc(2)), sc(1), sc(2))) > (sc(3)), IIf((sc(1)) > (sc(2)), sc(1), sc(2)), sc(3)), sc(4))) > (sc(5)), IIf((IIf((IIf((sc(1)) > (sc(2)), sc(1), sc(2))) > (sc(3)), IIf((sc(1)) > (sc(2)), sc(1), sc(2)), sc(3))) > (sc(4)), IIf((IIf((sc(1)) > (sc(2)), sc(1), sc(2))) > (sc(3)), IIf((sc(1)) > (sc(2)), sc(1), sc(2)), sc(3)), sc(4)), sc(5))
+			; 11: Print "Total"; total; " Best"; IIf((IIf((IIf((IIf((sc(1)) > (sc(2)), sc(1), sc(2))) > (sc(3)), IIf((sc(1)) > (sc(2)), sc(1), sc(2)), sc(3))) > (sc(4)), IIf((IIf((sc(1)) > (sc(2)), sc(1), sc(2))) > (sc(3)), IIf((sc(1)) > (sc(2)), sc(1), sc(2)), sc(3)), sc(4))) > (sc(5)), IIf((IIf((IIf((sc(1)) > (sc(2)), sc(1), sc(2))) > (sc(3)), IIf((sc(1)) > (sc(2)), sc(1), sc(2)), sc(3))) > (sc(4)), IIf((IIf((sc(1)) > (sc(2)), sc(1), sc(2))) > (sc(3)), IIf((sc(1)) > (sc(2)), sc(1), sc(2)), sc(3)), sc(4)), sc(5))
 			dw kw_printstrvar, str11
 			dw kw_l_printvb, var_total
 			dw kw_scpgtvv, arr_sc+2, arr_sc+4
@@ -249,14 +249,14 @@ ch17_e:
 			dw kw_printintvb, tmp0
 			dw kw_printnl
 
-			; 12: Print "Ann has"; fn_pct(sc(1)); "%"
+			; 13: Print "Ann has"; fn_pct(sc(1)); "%"
 			dw p_fn_pct_c, arr_sc+2
 			dw kw_printstrvar, str13
 			dw kw_printintvb, var_fn_pct_fn_pct
 			dw kw_printstrvar, str14
 			dw kw_printnl
 
-			; 13: a_s = "Hello" : Mid$(a_s, 1, 1) = "J" : Print a_s; " "; UCase$(a_s)
+			; 14: a_s = "Hello" : Mid$(a_s, 1, 1) = "J" : Print a_s; " "; UCase$(a_s)
 			dw kw_strcpy, var_a_s, str15
 			dw kw_ltov, 1, tmp0
 			dw kw_ltov, 1, tmp1
@@ -267,38 +267,41 @@ ch17_e:
 			dw kw_printstrvar, stmp0
 			dw kw_printnl
 
-			; 14: GoSub 1000
+			; 15: GoSub 1000
 			dw ln_1000_gs
 
-			; 15: On 2 GoSub 1010, 1020
+			; 16: On 2 GoSub 1010, 1020
 			dw ln_1020_gs
 
-			; 17: Print "Done"
+			; 18: Print "Done"
 			dw kw_printstrvar, str18
 			dw kw_printnl
 
-			; 18: End
+			; 19: End
+			dw kw_printnl0
+			dw kw_printstrvar, str19
+			dw kw_waitkey
 			dw kw_stop
 
-			; 19: 1000 Print "In GOSUB 1000" : Return
+			; 20: 1000 Print "In GOSUB 1000" : Return
 ln_1000:
-			dw kw_printstrvar, str19
-			dw kw_printnl
-			dw ln_1000_rt
-
-			; 20: 1010 Print "one" : Return
-ln_1010:
 			dw kw_printstrvar, str20
 			dw kw_printnl
 			dw ln_1000_rt
 
-			; 21: 1020 Print "two" : Return
-ln_1020:
+			; 21: 1010 Print "one" : Return
+ln_1010:
 			dw kw_printstrvar, str21
+			dw kw_printnl
+			dw ln_1000_rt
+
+			; 22: 1020 Print "two" : Return
+ln_1020:
+			dw kw_printstrvar, str22
 			dw kw_printnl
 			dw ln_1020_rt
 
-			; 23: End
+			; 24: End
 
 ; ============================================================
 ; function fn_pct (normal mode)
@@ -306,7 +309,7 @@ ln_1020:
 
 p_fn_pct:
 
-			; 11: fn_pct = x * 10 \ (total \ 10)
+			; 12: fn_pct = x * 10 \ (total \ 10)
 			dw kw_mulvl, var_fn_pct_x, 10, tmp0
 			dw kw_l_div, var_total, llit_10, ltmp1
 			dw kw_l_itol, tmp0, ltmp0
@@ -432,9 +435,10 @@ str15:			db "Hello", 0
 str16:			db "J", 0
 str17:			db " ", 0
 str18:			db "Done", 0
-str19:			db "In GOSUB 1000", 0
-str20:			db "one", 0
-str21:			db "two", 0
+str19:			db "Press a key", 0
+str20:			db "In GOSUB 1000", 0
+str21:			db "one", 0
+str22:			db "two", 0
 
 ; ============================================================
 ; Keyword library (used)
@@ -480,6 +484,12 @@ ntc_stop_back:
 			ld sp, (ntc_csp)
 			ei
 			ret
+
+;## kw_waitkey ntc_data ntc_plat_key
+; kw_waitkey - wait for a key (Option PressAnyKeyOnEnd, before kw_stop)
+kw_waitkey:
+			ld ix, ntc_next
+			jp ntc_plat_getkey
 
 ;## ntc_xn ntc_data @shared
 ; normal mode "next": every normal mode keyword ends here (its ret
@@ -944,6 +954,15 @@ ntc_piv_done:
 			ld hl, ntc_numbuf
 			ld (ntc_sptr), hl
 			jp ntc_printbuf
+
+;## kw_printnl0 ntc_data ntc_plat_screen
+;kw_printnl0  - new line unless the cursor is at the start of a line
+kw_printnl0:
+			ld a, (ntc_curx)
+			or a
+			ret z
+			ld ix, ntc_next
+			jp ntc_plat_newline
 
 ;## kw_printnl ntc_data ntc_plat_screen
 ;kw_printnl
@@ -1921,6 +1940,28 @@ ntc_lc_y:
 			ld iy, #BB75			; TXT SET CURSOR
 			jp ntc_fwcall
 ntc_pclink:		dw 0
+
+;## ntc_plat_key ntc_plat_fw ntc_data
+; ntc_plat_scankey - A = key from the firmware's buffer, or 0
+ntc_plat_scankey:
+			ld (ntc_kslink), ix
+			ld iy, #BB09			; KM READ CHAR
+			ld ix, ntc_ks_back
+			jp ntc_fwcall
+ntc_ks_back:
+			ld ix, (ntc_kslink)
+			jr c, ntc_ks_got
+			xor a
+			jp (ix)
+ntc_ks_got:
+			ld a, (ntc_fwa)
+			jp (ix)
+
+; ntc_plat_getkey - wait for a key: KM WAIT CHAR
+ntc_plat_getkey:
+			ld iy, #BB06			; KM WAIT CHAR
+			jp ntc_fwcall
+ntc_kslink:		dw 0
 
 ;## ntc_plat_exit ntc_plat_data ntc_plat_fw
 ntc_plat_exit:

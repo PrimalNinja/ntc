@@ -19,6 +19,8 @@ NTC becomes a warning (the line is left out, the compiler lists it).
 
 ## The ground rules
 
+- **NTC options:** `'# Option ...` on a line of its own passes the option through (`'# Option
+  PressAnyKeyOnEnd "Press a key"`).
 - **Per module.** A file says `'# Option Flavour Locomotive` (or `REM #Option Flavour
   Locomotive`) on its first line, or `options.flavour` is `locomotive`, or its name ends in
   `.loc` (decision 1). It mixes with VB5 and JS files in one project.

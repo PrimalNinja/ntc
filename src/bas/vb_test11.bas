@@ -1,5 +1,6 @@
 ' VB self test 11 - asm keyword procedures: a Sub / Function whose body is only
 ' #asm (no {param} / {result}) is called directly: dw fn_name, args..., result
+Option PressAnyKeyOnEnd "Press a key"     ' at the end: a message and a key (a RUN" program resets when it ends)
 Option Explicit
 
 Const STEP3 = 3
@@ -65,9 +66,6 @@ Chk c, 50
 
 Print
 Print t; " tests, "; bad; " failed"
-Print "Press a key";
-Do : Frame : Loop Until Inkey <> 0
-Print
 End
 
 Sub Chk(ByVal got As Integer, ByVal want As Integer)

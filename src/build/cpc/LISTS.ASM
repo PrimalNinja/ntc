@@ -30,25 +30,25 @@ ntc_go:
 main_thread:
 			dw kw_scrinit		; mode 1, ROMs off, clear screen
 
-			; main.bas 17: Print "Lists on "; System.Platform
+			; main.bas 18: Print "Lists on "; System.Platform
 			dw kw_printzoscii
 			dw glyph_4C, glyph_69, glyph_73, glyph_74, glyph_73, glyph_20, glyph_6F, glyph_6E
 			dw glyph_20, glyph_43, glyph_50, glyph_43, 1, 0		; "Lists on CPC\n"
 
-			; main.bas 18: h = List.Create(4)
+			; main.bas 19: h = List.Create(4)
 			dw fn_list_create, lit_4, var_h
 
-			; main.bas 19: seed = 12345
+			; main.bas 20: seed = 12345
 			dw kw_ltov, 12345, var_seed
 
-			; main.bas 20: For i = 1 To 500
+			; main.bas 21: For i = 1 To 500
 			dw kw_ltov, 1, var_i
 for1_t:
 
-			; main.bas 21: n = List.Append(h)
+			; main.bas 22: n = List.Append(h)
 			dw fn_list_append, var_h, var_n
 
-			; main.bas 22: If n = 0 Then Print "No room after"; i - 1 : Exit For
+			; main.bas 23: If n = 0 Then Print "No room after"; i - 1 : Exit For
 			dw kw_l_cpeq, var_n, llit_0
 			dw kw_goto_iffalse_n, if2_1
 			dw kw_addl, var_i, -1, tmp0
@@ -60,44 +60,44 @@ for1_t:
 			dw for1_e_go
 if2_1:
 
-			; main.bas 23: seed = (seed * 75 + 74) And &H7FFF       ' a small random number generator
+			; main.bas 24: seed = (seed * 75 + 74) And &H7FFF       ' a small random number generator
 			dw kw_mulvl, var_seed, 75, tmp0
 			dw kw_addl, tmp0, 74, tmp0
 			dw kw_andvl, tmp0, 32767, var_seed
 
-			; main.bas 24: List.SetWord n, ID, i
+			; main.bas 25: List.SetWord n, ID, i
 			dw fn_list_setword, var_n, lit_0, var_i
 
-			; main.bas 25: List.SetWord n, SCORE, seed Mod 10000
+			; main.bas 26: List.SetWord n, SCORE, seed Mod 10000
 			dw kw_modvl, var_seed, 10000, tmp2
 			dw fn_list_setword, var_n, lit_2, tmp2
 
-			; main.bas 26: Next
+			; main.bas 27: Next
 			dw kw_next1l_n, var_i, 500, for1_t
 for1_e:
 
-			; main.bas 27: Print List.Count(h); " players"
+			; main.bas 28: Print List.Count(h); " players"
 			dw fn_list_count, var_h, var_list_count_count
 			dw kw_printint, var_list_count_count
 			dw kw_printzoscii
 			dw glyph_20, glyph_70, glyph_6C, glyph_61, glyph_79, glyph_65, glyph_72, glyph_73
 			dw 1, 0		; " players\n"
 
-			; main.bas 29: r = List.Sort(h, SCORE)
+			; main.bas 30: r = List.Sort(h, SCORE)
 			dw fn_list_sort, var_h, lit_2, var_r
 
-			; main.bas 30: Print "Top 5:"
+			; main.bas 31: Print "Top 5:"
 			dw kw_printzoscii
 			dw glyph_54, glyph_6F, glyph_70, glyph_20, glyph_35, glyph_3A, 1, 0		; "Top 5:\n"
 
-			; main.bas 31: n = List.Last(h)
+			; main.bas 32: n = List.Last(h)
 			dw fn_list_last, var_h, var_n
 
-			; main.bas 32: For i = 1 To 5
+			; main.bas 33: For i = 1 To 5
 			dw kw_ltov, 1, var_i
 for3_t:
 
-			; main.bas 33: Print "  player "; List.GetWord(n, ID); ": "; List.GetWord(n, SCORE)
+			; main.bas 34: Print "  player "; List.GetWord(n, ID); ": "; List.GetWord(n, SCORE)
 			dw fn_list_getword, var_n, lit_0, var_list_getword_getword
 			dw kw_printzoscii
 			dw glyph_20, glyph_20, glyph_70, glyph_6C, glyph_61, glyph_79, glyph_65, glyph_72
@@ -109,26 +109,26 @@ for3_t:
 			dw kw_printint, var_list_getword_getword
 			dw kw_printnl
 
-			; main.bas 34: n = List.PrevOf(n)
+			; main.bas 35: n = List.PrevOf(n)
 			dw fn_list_prevof, var_n, var_list_prevof_prevof
 			dw kw_l_mov, var_list_prevof_prevof, var_n
 
-			; main.bas 35: Next
+			; main.bas 36: Next
 			dw kw_next1l_n, var_i, 5, for3_t
 for3_e:
 
-			; main.bas 38: n = List.First(h)
+			; main.bas 39: n = List.First(h)
 			dw fn_list_first, var_h, var_n
 
-			; main.bas 39: Do While n <> 0
+			; main.bas 40: Do While n <> 0
 do4_t:
 			dw kw_l_cpne, var_n, llit_0
 			dw kw_goto_iffalse_n, do4_e
 
-			; main.bas 40: nxt = List.NextOf(n)
+			; main.bas 41: nxt = List.NextOf(n)
 			dw fn_list_nextof, var_n, var_nxt
 
-			; main.bas 41: If List.GetWord(n, SCORE) < 5000 Then r = List.Delete(h, n)
+			; main.bas 42: If List.GetWord(n, SCORE) < 5000 Then r = List.Delete(h, n)
 			dw fn_list_getword, var_n, lit_2, var_list_getword_getword
 			dw kw_vtov, var_list_getword_getword, tmp0
 			dw kw_scpltvl, tmp0, 5000
@@ -136,14 +136,14 @@ do4_t:
 			dw fn_list_delete, var_h, var_n, var_r
 if5_1:
 
-			; main.bas 42: n = nxt
+			; main.bas 43: n = nxt
 			dw kw_l_mov, var_nxt, var_n
 
-			; main.bas 43: Loop
+			; main.bas 44: Loop
 			dw do4_t_go
 do4_e:
 
-			; main.bas 44: Print List.Count(h); " players with 5000 or more"
+			; main.bas 45: Print List.Count(h); " players with 5000 or more"
 			dw fn_list_count, var_h, var_list_count_count
 			dw kw_printint, var_list_count_count
 			dw kw_printzoscii
@@ -152,10 +152,10 @@ do4_e:
 			dw glyph_30, glyph_30, glyph_20, glyph_6F, glyph_72, glyph_20, glyph_6D, glyph_6F
 			dw glyph_72, glyph_65, 1, 0		; " players with 5000 or more\n"
 
-			; main.bas 45: n = List.Search(h, ID, 250)
+			; main.bas 46: n = List.Search(h, ID, 250)
 			dw fn_list_search, var_h, lit_0, lit_250, var_n
 
-			; main.bas 46: If n <> 0 Then Print "Player 250 scored "; List.GetWord(n, SCORE) Else Print "Player 250 is gone"
+			; main.bas 47: If n <> 0 Then Print "Player 250 scored "; List.GetWord(n, SCORE) Else Print "Player 250 is gone"
 			dw kw_l_cpne, var_n, llit_0
 			dw kw_goto_iffalse_n, if6_1
 			dw fn_list_getword, var_n, lit_2, var_list_getword_getword
@@ -173,34 +173,15 @@ if6_1:
 			dw glyph_6E, glyph_65, 1, 0		; "Player 250 is gone\n"
 if6_e:
 
-			; main.bas 47: r = List.Destroy(h)
+			; main.bas 48: r = List.Destroy(h)
 			dw fn_list_destroy, var_h, var_r
 
-			; main.bas 49: Print "Press a key";
+			; main.bas 50: End
+			dw kw_printnl0
 			dw kw_printzoscii
 			dw glyph_50, glyph_72, glyph_65, glyph_73, glyph_73, glyph_20, glyph_61, glyph_20
 			dw glyph_6B, glyph_65, glyph_79, 0		; "Press a key"
-
-			; main.bas 50: Do While Inkey <> 0 : Loop
-do7_t:
-			dw kw_inkey, tmp0
-			dw kw_cpnevl, tmp0, 0
-			dw kw_goto_iffalse_n, do7_e
-			dw do7_t_go
-do7_e:
-
-			; main.bas 51: Do : Frame : Loop Until Inkey <> 0
-do8_t:
-			dw kw_frame
-			dw kw_inkey, tmp0
-			dw kw_cpnevl, tmp0, 0
-			dw kw_goto_iffalse_n, do8_t
-do8_e:
-
-			; main.bas 52: Print
-			dw kw_printnl
-
-			; main.bas 53: End
+			dw kw_waitkey
 			dw kw_stop
 
 ; ============================================================
@@ -217,8 +198,6 @@ for1_e_go:			ld sp, for1_e
 do4_t_go:			ld sp, do4_t
 			jp ntc_xn
 if6_e_go:			ld sp, if6_e
-			jp ntc_xn
-do7_t_go:			ld sp, do7_t
 			jp ntc_xn
 
 ; ============================================================
@@ -485,6 +464,12 @@ ntc_stop_back:
 			ld sp, (ntc_csp)
 			ei
 			ret
+
+;## kw_waitkey ntc_data ntc_plat_key
+; kw_waitkey - wait for a key (Option PressAnyKeyOnEnd, before kw_stop)
+kw_waitkey:
+			ld ix, ntc_next
+			jp ntc_plat_getkey
 
 ;## ntc_xn ntc_data @shared
 ; normal mode "next": every normal mode keyword ends here (its ret
@@ -863,19 +848,6 @@ kw_scpltvl:
 			pop hl
 			jp ntc_cmp_slt
 
-;## kw_cpnevl ntc_cmp
-kw_cpnevl:
-			pop hl
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			pop hl
-			jp ntc_cmp_ne
-
-; ============================================================
-; Memory (PEEK / POKE / DEEK / DOKE)
-; ============================================================
-
 ;## ntc_printbuf ntc_data ntc_plat_screen
 ; print the 0 terminated ASCII text at (ntc_sptr), then ret (thread)
 ntc_printbuf:
@@ -983,25 +955,20 @@ ntc_pi_done:
 			ld (ntc_sptr), hl
 			jp ntc_printbuf
 
+;## kw_printnl0 ntc_data ntc_plat_screen
+;kw_printnl0  - new line unless the cursor is at the start of a line
+kw_printnl0:
+			ld a, (ntc_curx)
+			or a
+			ret z
+			ld ix, ntc_next
+			jp ntc_plat_newline
+
 ;## kw_printnl ntc_data ntc_plat_screen
 ;kw_printnl
 kw_printnl:
 			ld ix, ntc_next
 			jp ntc_plat_newline
-
-;## kw_inkey ntc_data ntc_plat_key
-;kw_inkey, <destvar>  - new key press or 0, no wait
-kw_inkey:
-			pop hl
-			ld (ntc_ivar), hl
-			ld ix, ntc_inkey_got
-			jp ntc_plat_scankey
-ntc_inkey_got:
-			ld hl, (ntc_ivar)
-			ld (hl), a
-			inc hl
-			ld (hl), 0
-			ret
 
 ;## kw_scrinit ntc_data ntc_plat_screen
 ;kw_scrinit  - first word of any program that prints or reads keys:
@@ -1010,12 +977,6 @@ kw_scrinit:
 			ld a, 1
 			ld ix, ntc_next
 			jp ntc_plat_mode
-
-;## kw_frame ntc_data ntc_plat_frame
-;kw_frame  - wait for the start of the next frame flyback
-kw_frame:
-			ld ix, ntc_next
-			jp ntc_plat_frame
 
 ;## ntc_ldata
 ntc_la:			ds 4
@@ -4096,36 +4057,6 @@ ntc_keymaps:
 			db "!", 34, 27, "Q", 9, "A", 0, "Z"
 			db 0, 0, 0, 0, 0, 0, 0, 127
 
-;## ntc_plat_frame ntc_data @shared
-; ------------------------------------------------------------
-; ntc_plat_frame - wait for the start of vsync (PPI port B bit 0)
-; normal mode: interrupts in while waiting
-; ------------------------------------------------------------
-ntc_plat_frame:
-			ld a, (ntc_nmode)
-			or a
-			jr z, ntc_fr_go
-			ld (ntc_ip), sp
-			ld sp, (ntc_csp)
-			ei
-ntc_fr_go:
-			ld b, #F5
-ntc_fr_in:
-			in a, (c)
-			rra
-			jr c, ntc_fr_in
-ntc_fr_wait:
-			in a, (c)
-			rra
-			jr nc, ntc_fr_wait
-			di
-			ld a, (ntc_nmode)
-			or a
-			jr z, ntc_fr_done
-			ld sp, (ntc_ip)
-ntc_fr_done:
-			jp (ix)
-
 ;## ntc_plat_irq ntc_plat_data ntc_data ntc_plat_irqh @shared
 ; ------------------------------------------------------------
 ; ntc_plat_irqon - put the interrupt handler at #38 (IM 1)
@@ -4259,5 +4190,5 @@ ntc_bss		equ ntc_end
 ntc_bss_size	equ 0
 ntc_free	equ ntc_bss + ntc_bss_size	; the first free byte (heap, Memory tables)
 ; Option Reserve: the program and its arrays (ntc_start .. ntc_free) must stay out of these
-			ASSERT (ntc_free <= 16384) || (ntc_start >= 32768), "the program (or its arrays) reaches into Option Reserve #4000-#7FFF (main.bas line 6)"
+			ASSERT (ntc_free <= 16384) || (ntc_start >= 32768), "the program (or its arrays) reaches into Option Reserve #4000-#7FFF (main.bas line 7)"
 			SAVEAMSDOS "LISTS.BIN", ntc_start, ntc_end - ntc_start, ntc_start

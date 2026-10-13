@@ -1,3 +1,4 @@
+Option PressAnyKeyOnEnd "Press a key"     ' at the end: a message and a key (a RUN" program resets when it ends)
 Randomize 1234
 again:
 t = Rnd(100) + 1 : tries = 0
@@ -14,7 +15,4 @@ Loop Until g = t
 Print "Got it in "; tries
 Input "Again (y/n)"; a$
 If a$ = "y" Then GoTo again
-Print "Press a key";
-Do : Frame : Loop Until Inkey <> 0
-Print
 End

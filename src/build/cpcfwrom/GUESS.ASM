@@ -34,86 +34,75 @@ ntc_rj_ok:
 
 main_thread:
 
-			; 1: Randomize 1234
+			; 2: Randomize 1234
 			dw kw_seedl, 1234
 
-			; 2: again:
+			; 3: again:
 lbl_again:
 
-			; 3: t = Rnd(100) + 1 : tries = 0
+			; 4: t = Rnd(100) + 1 : tries = 0
 			dw kw_rndl, 100, tmp0
 			dw kw_addl, tmp0, 1, var_t
 			dw kw_ztov, var_tries
 
-			; 4: Print "I picked 1 to 100"
+			; 5: Print "I picked 1 to 100"
 			dw kw_printstrvar, str0
 			dw kw_printnl
 
-			; 5: Do
+			; 6: Do
 do1_t:
 
-			; 6: Input "Guess"; g
+			; 7: Input "Guess"; g
 			dw kw_printstrvar, str1
 			dw kw_inputint, var_g
 
-			; 7: tries = tries + 1
+			; 8: tries = tries + 1
 			dw kw_inc, var_tries
 
-			; 8: If g < t Then
+			; 9: If g < t Then
 			dw kw_scpltvv, var_g, var_t
 			dw kw_goto_iffalse_n, if2_1
 
-			; 9: Print "Higher"
+			; 10: Print "Higher"
 			dw kw_printstrvar, str2
 			dw kw_printnl
 
-			; 10: ElseIf g > t Then
+			; 11: ElseIf g > t Then
 			dw if2_e_go
 if2_1:
 			dw kw_scpgtvv, var_g, var_t
 			dw kw_goto_iffalse_n, if2_2
 
-			; 11: Print "Lower"
+			; 12: Print "Lower"
 			dw kw_printstrvar, str3
 			dw kw_printnl
 
-			; 12: End If
+			; 13: End If
 if2_2:
 if2_e:
 
-			; 13: Loop Until g = t
+			; 14: Loop Until g = t
 			dw kw_cpeqvv, var_g, var_t
 			dw kw_goto_iffalse_n, do1_t
 do1_e:
 
-			; 14: Print "Got it in "; tries
+			; 15: Print "Got it in "; tries
 			dw kw_printstrvar, str4
 			dw kw_printint, var_tries
 			dw kw_printnl
 
-			; 15: Input "Again (y/n)"; a$
+			; 16: Input "Again (y/n)"; a$
 			dw kw_printstrvar, str5
 			dw kw_inputstr, var_a
 
-			; 16: If a$ = "y" Then GoTo again
+			; 17: If a$ = "y" Then GoTo again
 			dw kw_strcmpeq, var_a, str6
 			dw kw_goto_iftrue_n, lbl_again
 
-			; 17: Print "Press a key";
+			; 18: End
+			dw kw_printnl0
 			dw kw_printstrvar, str7
-
-			; 18: Do : Frame : Loop Until Inkey <> 0
-do3_t:
-			dw kw_frame
-			dw kw_inkey, tmp0
-			dw kw_cpnevl, tmp0, 0
-			dw kw_goto_iffalse_n, do3_t
-do3_e:
-
-			; 19: Print
-			dw kw_printnl
-
-			; 20: End
+			dw kw_waitkey
 			dw kw_stop
 
 ; ============================================================
@@ -170,18 +159,17 @@ kw_addl:		jp 54
 kw_scpltvv:	jp 79
 kw_scpgtvv:	jp 83
 kw_cpeqvv:	jp 95
-kw_cpnevl:	jp 98
 kw_rndl:		jp 119
 kw_seedl:	jp 121
 kw_strcmpeq:	jp 126
 kw_printstrvar:	jp 129
 kw_printint:	jp 131
+kw_printnl0:	jp 134
 kw_printnl:	jp 138
 kw_inputstr:	jp 141
 kw_inputint:	jp 142
-kw_inkey:	jp 144
-kw_frame:	jp 152
-NTC_RJ_N	equ 21		; entries
+kw_waitkey:	jp 348
+NTC_RJ_N	equ 20		; entries
 ntc_csp	equ #8800		; ROM data
 ntc_nmode	equ #8807		; ROM data
 ntc_v_free	equ #894E		; ROM data

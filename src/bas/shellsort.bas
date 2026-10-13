@@ -3,6 +3,7 @@
 ' modes, so it is built twice (p_shellsort and p_shellsort_n).
 ' 2000 numbers take several seconds - long enough for a stopwatch: start it as you
 ' press T or N, stop it at "Done".
+Option PressAnyKeyOnEnd "Press a key"     ' at the end: a message and a key (a RUN" program resets when it ends)
 Option Explicit
 Option Turbo Off                  ' starts in normal mode whatever the turbo setting says: T switches
 Const MAXN = 2000

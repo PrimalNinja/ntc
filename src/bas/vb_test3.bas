@@ -1,3 +1,4 @@
+Option PressAnyKeyOnEnd "Press a key"     ' at the end: a message and a key (a RUN" program resets when it ends)
 Option Explicit
 Enum Colour
   Red
@@ -55,9 +56,6 @@ k = Inkey$
 ChkS k, ""
 Print
 Print t; " tests, "; bad; " failed"
-Print "Press a key";
-Do : Frame : Loop Until Inkey <> 0
-Print
 End
 one:
   n = n + 1

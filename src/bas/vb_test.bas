@@ -1,4 +1,5 @@
 ' VB style self test - each check prints its number and ok or FAIL
+Option PressAnyKeyOnEnd "Press a key"     ' at the end: a message and a key (a RUN" program resets when it ends)
 Option Explicit
 
 Const MAXN = 10
@@ -146,9 +147,6 @@ Turbo Off
 
 Print
 Print t; " tests, "; bad; " failed"
-Print "Press a key";
-Do : Frame : Loop Until Inkey <> 0
-Print
 End
 
 Sub Chk(ByVal got As Integer, ByVal want As Integer)

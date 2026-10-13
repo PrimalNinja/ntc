@@ -9,6 +9,7 @@
 //   a, a%, a$     three variables (renamed when they clash: a, a_i, a_s; an array and a
 //                 plain variable of one name: the array gets _a)
 //   '#long        a type hint at the end of a line (DIM x '#long, total = 0 '#long)
+//   '# Option ... on a line of its own: an NTC option (Option PressAnyKeyOnEnd "Press a key")
 //   DATA / READ / RESTORE, DEF FN, SWAP, MAX / MIN, BIN$, WAIT: written as VB lines
 // Usage: ntcFlavourLoco({ name, text }, options) -> { text, lines, errors, warnings }
 // ============================================================
@@ -21,6 +22,7 @@ function ntcFlavourLoco(objFile_a, objOptions_a)
 	var arrSrc = String(objFile_a.text || '').replace(/\r\n?/g, '\n').split('\n');
 	var arrLineToks = [];		// per source line: its tokens (after the line number) and hint
 	var arrTop = [];			// declarations, DATA table { line, text }
+	var arrOptions = [];		// '# Option ... lines { line, text }
 	var arrBody = [];			// the program { line, text }
 	var arrTail = [];			// DEF FN functions, helpers { line, text }
 	var objVars = {};			// base name (lower case) -> { '': {...}, '%': {...}, '$': {...} }
@@ -151,6 +153,12 @@ function ntcFlavourLoco(objFile_a, objOptions_a)
 		intSrcLine = intI_a + 1;
 		if (m) { intNum = parseInt(m[1], 10); strRest = strRest.substr(m[0].length); }
 		arrT = tokenise(strRest);
+		// '# Option ... on a line of its own: an NTC option (Option PressAnyKeyOnEnd ...)
+		if ((arrT.length === 1) && (arrT[0].t === 'rem') && /^#\s*option\s+/i.test(arrT[0].v) && !/^#\s*option\s+flavour/i.test(arrT[0].v))
+		{
+			arrOptions.push({ line: intI_a + 1, text: arrT[0].v.replace(/^#\s*/, '') });
+			arrT = [];
+		}
 		// '#type at the end: a hint (a comment to the CPC)
 		if (arrT.length && arrT[arrT.length - 1].t === 'rem' && /^#/.test(arrT[arrT.length - 1].v) && !/^#\s*option\s+flavour/i.test(arrT[arrT.length - 1].v))
 		{
@@ -816,6 +824,7 @@ function ntcFlavourLoco(objFile_a, objOptions_a)
 	// the top: Option VBPrint (the CPC's print spacing), the variables, the DATA table
 	// ------------------------------------------------------------
 	arrTop.push({ line: 1, text: 'Option VBPrint' });
+	arrOptions.forEach(function(objO_a) { arrTop.push(objO_a); });
 	Object.keys(objVars).sort().forEach(function(strBase_a)
 	{
 		Object.keys(objVars[strBase_a]).forEach(function(strSuf_a)

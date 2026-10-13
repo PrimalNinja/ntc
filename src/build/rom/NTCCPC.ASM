@@ -8506,6 +8506,16 @@ ntc_v_stamp:	dw 0			; the build stamp of its page files (NTC_STAMP)
 ntc_v_romen:	db 0			; Option RomEnable (NTC_ROMENABLE)
 ntc_v_rom:	db 0			; this ROM's number
 ntc_v_romold:	db 0			; the ROM selection before the program
+ntc_rx_cur:	dw 0			; the ROM of the set selected now (C = its slot, B = #DF)
+ntc_rx_bc:	dw 0			; a far call: BC kept here
+ntc_rx_s0:	dw 0			; ROM 0 of the set: its slot (B = #DF, C = slot)
+ntc_rx_s1:	dw 0			; ROM 1 of the set: its slot (B = #DF, C = slot)
+ntc_rx_s2:	dw 0			; ROM 2 of the set: its slot (B = #DF, C = slot)
+ntc_rx_s3:	dw 0			; ROM 3 of the set: its slot (B = #DF, C = slot)
+ntc_rx_s4:	dw 0			; ROM 4 of the set: its slot (B = #DF, C = slot)
+ntc_rx_s5:	dw 0			; ROM 5 of the set: its slot (B = #DF, C = slot)
+ntc_rx_s6:	dw 0			; ROM 6 of the set: its slot (B = #DF, C = slot)
+ntc_rx_s7:	dw 0			; ROM 7 of the set: its slot (B = #DF, C = slot)
 ntc_rdbase:		dw 0
 ntc_pow10:		dw 10000, 1000, 100, 10, 0
 ntc_tabcol:		db 0
@@ -8612,16 +8622,6 @@ ntc_keymaps:			db 0, 0, 0, "9", "6", "3", 13, "."
 			db "$", "#", "E", "W", "S", "D", "C", "X"
 			db "!", 34, 27, "Q", 9, "A", 0, "Z"
 			db 0, 0, 0, 0, 0, 0, 0, 127
-ntc_rx_cur:	dw 0			; the ROM of the set selected now (C = its slot, B = #DF)
-ntc_rx_bc:	dw 0			; a far call: BC kept here
-ntc_rx_s0:	dw 0			; ROM 0 of the set: its slot (B = #DF, C = slot)
-ntc_rx_s1:	dw 0			; ROM 1 of the set: its slot (B = #DF, C = slot)
-ntc_rx_s2:	dw 0			; ROM 2 of the set: its slot (B = #DF, C = slot)
-ntc_rx_s3:	dw 0			; ROM 3 of the set: its slot (B = #DF, C = slot)
-ntc_rx_s4:	dw 0			; ROM 4 of the set: its slot (B = #DF, C = slot)
-ntc_rx_s5:	dw 0			; ROM 5 of the set: its slot (B = #DF, C = slot)
-ntc_rx_s6:	dw 0			; ROM 6 of the set: its slot (B = #DF, C = slot)
-ntc_rx_s7:	dw 0			; ROM 7 of the set: its slot (B = #DF, C = slot)
 ; ---- code that runs from RAM (addresses may change between ROMs: programs reach it through their jump block)
 ;## ntc_membank ntc_plat_rmr @shared @romram  (ROM: runs from RAM)
 ntc_bk_go:
@@ -8891,3 +8891,4 @@ ntc_rom_bssend:
 			ASSERT (ntc_v_romen & #FFFF) == #88B6, "ntc_v_romen moved: variables and constants keep their place (a new size or value needs a new name)"
 			ASSERT (ntc_v_rom & #FFFF) == #88B7, "ntc_v_rom moved: variables and constants keep their place (a new size or value needs a new name)"
 			ASSERT (ntc_v_romold & #FFFF) == #88B8, "ntc_v_romold moved: variables and constants keep their place (a new size or value needs a new name)"
+			ASSERT (ntc_rx_cur & #FFFF) == #88B9, "ntc_rx_cur moved: variables and constants keep their place (a new size or value needs a new name)"

@@ -35,10 +35,10 @@ ntc_rj_ok:
 main_thread:
 			dw kw_bssinit, ntc_bss, ntc_bss_size		; the arrays: do they fit, clear them
 
-			; 3: n = 1000
+			; 4: n = 1000
 			dw kw_ltov, 1000, var_n
 
-			; 4: For i = 2 To n : s(i) = 1 : Next
+			; 5: For i = 2 To n : s(i) = 1 : Next
 			dw kw_ltov, 2, var_i
 			dw kw_vtov, var_n, for1_l
 			dw kw_forupv_n, var_i, for1_l, for1_e
@@ -47,18 +47,18 @@ for1_t:
 			dw kw_next1v_n, var_i, for1_l, for1_t
 for1_e:
 
-			; 5: i = 2
+			; 6: i = 2
 			dw kw_ltov, 2, var_i
 
-			; 6: While i * i <= n
+			; 7: While i * i <= n
 			dw wh2_c_go
 wh2_t:
 
-			; 7: If s(i) Then
+			; 8: If s(i) Then
 			dw kw_aget, arr_s, var_i, tmp0
 			dw kw_goto_ifzero_n, tmp0, if3_1
 
-			; 8: For j = i * i To n Step i : s(j) = 0 : Next
+			; 9: For j = i * i To n Step i : s(j) = 0 : Next
 			dw kw_mulvv, var_i, var_i, var_j
 			dw kw_vtov, var_n, for4_l
 			dw kw_vtov, var_i, for4_s
@@ -68,29 +68,29 @@ for4_t:
 			dw kw_fornext_n, var_j, for4_s, for4_l, for4_t
 for4_e:
 
-			; 9: End If
+			; 10: End If
 if3_1:
 
-			; 10: i = i + 1
+			; 11: i = i + 1
 			dw kw_inc, var_i
 
-			; 11: Wend
+			; 12: Wend
 wh2_c:
 			dw kw_mulvv, var_i, var_i, tmp0
 			dw kw_scplevv, tmp0, var_n
 			dw kw_goto_iftrue_n, wh2_t
 wh2_e:
 
-			; 12: c = 0
+			; 13: c = 0
 			dw kw_ztov, var_c
 
-			; 13: For i = 2 To n
+			; 14: For i = 2 To n
 			dw kw_ltov, 2, var_i
 			dw kw_vtov, var_n, for5_l
 			dw kw_forupv_n, var_i, for5_l, for5_e
 for5_t:
 
-			; 14: If s(i) Then Print i; " "; : c = c + 1
+			; 15: If s(i) Then Print i; " "; : c = c + 1
 			dw kw_aget, arr_s, var_i, tmp0
 			dw kw_goto_ifzero_n, tmp0, if6_1
 			dw kw_printint, var_i
@@ -98,31 +98,20 @@ for5_t:
 			dw kw_inc, var_c
 if6_1:
 
-			; 15: Next
+			; 16: Next
 			dw kw_next1v_n, var_i, for5_l, for5_t
 for5_e:
 
-			; 16: Print : Print c; " primes"
+			; 17: Print : Print c; " primes"
 			dw kw_printnl
 			dw kw_printint, var_c
 			dw kw_printstrvar, str1
 			dw kw_printnl
 
-			; 17: Print "Press a key";
+			; 18: End
+			dw kw_printnl0
 			dw kw_printstrvar, str2
-
-			; 18: Do : Frame : Loop Until Inkey <> 0
-do7_t:
-			dw kw_frame
-			dw kw_inkey, tmp0
-			dw kw_cpnevl, tmp0, 0
-			dw kw_goto_iffalse_n, do7_t
-do7_e:
-
-			; 19: Print
-			dw kw_printnl
-
-			; 20: End
+			dw kw_waitkey
 			dw kw_stop
 
 ; ============================================================
@@ -169,7 +158,6 @@ str2:			db "Press a key", 0
 ntc_rj_block:
 kw_stop:		jp 1
 ntc_xn:		jp 2
-kw_goto_iffalse_n:	jp 11
 kw_goto_iftrue_n:	jp 13
 kw_goto_ifzero_n:	jp 15
 kw_forupv_n:	jp 25
@@ -182,16 +170,15 @@ kw_ztov:		jp 49
 kw_inc:		jp 51
 kw_mulvv:	jp 60
 kw_scplevv:	jp 81
-kw_cpnevl:	jp 98
 kw_aget:		jp 111
 kw_asetl:	jp 117
 kw_printstrvar:	jp 129
 kw_printint:	jp 131
+kw_printnl0:	jp 134
 kw_printnl:	jp 138
-kw_inkey:	jp 144
-kw_frame:	jp 152
 kw_bssinit:	jp 288
-NTC_RJ_N	equ 24		; entries
+kw_waitkey:	jp 348
+NTC_RJ_N	equ 22		; entries
 ntc_csp	equ #8800		; ROM data
 ntc_nmode	equ #8807		; ROM data
 ntc_v_free	equ #894E		; ROM data

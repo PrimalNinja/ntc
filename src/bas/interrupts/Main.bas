@@ -1,6 +1,7 @@
 ' Interrupts: classes whose Tick Sub runs at a rate (Option Class Interrupt), while the main
 ' program does its own thing. Up to 4 such classes. Normal mode, cpc or cpcmin (they need
 ' NTC's own interrupt handler).
+Option PressAnyKeyOnEnd "Press a key"     ' at the end: a message and a key (a RUN" program resets when it ends)
 Option Explicit
 Dim loops As Long
 

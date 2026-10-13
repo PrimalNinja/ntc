@@ -1,4 +1,5 @@
 ' VB self test 4 - arrays as parameters, LBound / UBound, Tab
+Option PressAnyKeyOnEnd "Press a key"     ' at the end: a message and a key (a RUN" program resets when it ends)
 Option Explicit
 
 Dim t As Integer, bad As Integer
@@ -48,9 +49,6 @@ ChkL BigSum(big), 350000
 Print
 Print "a"; Tab(6); "b"
 Print t; " tests, "; bad; " failed"
-Print "Press a key";
-Do : Frame : Loop Until Inkey <> 0
-Print
 End
 
 Sub Chk(ByVal got As Integer, ByVal want As Integer)

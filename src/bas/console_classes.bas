@@ -1,4 +1,5 @@
 ' StdIO and System platform classes (the same program on every platform)
+Option PressAnyKeyOnEnd "Press a key"     ' at the end: a message and a key (a RUN" program resets when it ends)
 Dim s As String, k As Integer
 StdIO.PutStr "cols "
 StdIO.PutInt StdIO.Cols()
@@ -14,6 +15,3 @@ StdIO.PutStr "hi " & s
 StdIO.NewLine
 k = StdIO.GetChar()
 Print "key "; k; " col "; StdIO.Column()
-Print "Press a key";
-Do : Frame : Loop Until Inkey <> 0
-Print

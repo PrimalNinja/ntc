@@ -2,6 +2,7 @@
 // The JS flavour: a JS syntax over NTC (ES5 / ES6 subset). It is turned into VB5 text and
 // compiled like any other module, so JS and VB files mix in one project.
 // //# on a line of its own is an NTC line; //# after code is a type hint.
+//# Option PressAnyKeyOnEnd "Press a key"
 const MAX = 10;
 let total = 0;        //#long
 let name = "NTC";

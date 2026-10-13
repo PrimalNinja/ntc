@@ -27,23 +27,23 @@ ntc_start:
 main_thread:
 			dw kw_bssinit, ntc_bss, ntc_bss_size		; the arrays: do they fit, clear them
 
-			; 27: Cls
+			; 28: Cls
 			dw kw_cls
 
-			; 28: Print "VB self test 12"
+			; 29: Print "VB self test 12"
 			dw kw_printstrvar, str0
 			dw kw_printnl
 
-			; 31: s = String$(60, "a")
+			; 32: s = String$(60, "a")
 			dw kw_strasc, str1, tmp1
 			dw kw_strstring, stmp0, lit_60, tmp1
 			dw kw_strcpy, var_s, stmp0
 
-			; 32: Chk Len(s), 40
+			; 33: Chk Len(s), 40
 			dw kw_strlen, var_s, tmp0
 			dw p_chk_c, tmp0, lit_40
 
-			; 35: big = String$(30, "a") & String$(30, "b") & String$(30, "c")
+			; 36: big = String$(30, "a") & String$(30, "b") & String$(30, "c")
 			dw kw_strasc, str1, tmp1
 			dw kw_strstring, stmp0, lit_30, tmp1
 			dw kw_strasc, str2, tmp2
@@ -54,294 +54,283 @@ main_thread:
 			dw kw_strcpy, var_big, stmp0
 			dw kw_strcat, var_big, stmp1
 
-			; 36: Chk Len(big), 90
+			; 37: Chk Len(big), 90
 			dw kw_strlen, var_big, tmp0
 			dw p_chk_c, tmp0, lit_90
 
-			; 37: Chk Asc(Right$(big, 1)), 99
+			; 38: Chk Asc(Right$(big, 1)), 99
 			dw kw_strright, stmp0, var_big, lit_1
 			dw kw_strasc, stmp0, tmp0
 			dw p_chk_c, tmp0, lit_99
 
-			; 38: short = "abcdefgh"
+			; 39: short = "abcdefgh"
 			dw kw_strcpy, var_short, str4
 
-			; 39: Chk Len(short), 5
+			; 40: Chk Len(short), 5
 			dw kw_strlen, var_short, tmp0
 			dw p_chk_c, tmp0, lit_5
 
-			; 40: short = "x" & "yyyyyyy"
+			; 41: short = "x" & "yyyyyyy"
 			dw kw_strcpy, var_short, str5
 			dw kw_strcat, var_short, str6
 
-			; 41: Chk Len(short), 5
+			; 42: Chk Len(short), 5
 			dw kw_strlen, var_short, tmp0
 			dw p_chk_c, tmp0, lit_5
 
-			; 42: n2 = 12345
+			; 43: n2 = 12345
 			dw kw_strcpy, var_n2, str7
 
-			; 43: Chk Val(n2), 12
+			; 44: Chk Val(n2), 12
 			dw kw_strval, var_n2, tmp0
 			dw p_chk_c, tmp0, lit_12
 
-			; 44: w = String$(255, "w")
+			; 45: w = String$(255, "w")
 			dw kw_strasc, str8, tmp1
 			dw kw_strstring, var_w, lit_255, tmp1
 
-			; 45: Chk Len(w), 255
+			; 46: Chk Len(w), 255
 			dw kw_strlen, var_w, tmp0
 			dw p_chk_c, tmp0, lit_255
 
-			; 48: f = "hi"
+			; 49: f = "hi"
 			dw kw_strcpy, var_f, str9
 			dw kw_strfix, var_f, 200
 
-			; 49: Chk Len(f), 200
+			; 50: Chk Len(f), 200
 			dw kw_strlen, var_f, tmp0
 			dw p_chk_c, tmp0, lit_200
 
-			; 50: Chk Asc(Mid$(f, 3, 1)), 32
+			; 51: Chk Asc(Mid$(f, 3, 1)), 32
 			dw kw_strmid, stmp0, var_f, lit_3, lit_1
 			dw kw_strasc, stmp0, tmp0
 			dw p_chk_c, tmp0, lit_32
 
-			; 51: Mid$(f, 199, 2) = "ZZ"
+			; 52: Mid$(f, 199, 2) = "ZZ"
 			dw kw_ltov, 199, tmp0
 			dw kw_ltov, 2, tmp1
 			dw kw_strmidset, var_f, tmp0, tmp1, str10
 
-			; 52: Chk Asc(Right$(f, 1)), 90
+			; 53: Chk Asc(Right$(f, 1)), 90
 			dw kw_strright, stmp0, var_f, lit_1
 			dw kw_strasc, stmp0, tmp0
 			dw p_chk_c, tmp0, lit_90
 
-			; 53: f3 = "abcdef"
+			; 54: f3 = "abcdef"
 			dw kw_strcpy, var_f3, str11
 			dw kw_strfix, var_f3, 3
 
-			; 54: Chk Len(f3), 3
+			; 55: Chk Len(f3), 3
 			dw kw_strlen, var_f3, tmp0
 			dw p_chk_c, tmp0, lit_3
 
-			; 57: Chk Len(Space$(150)), 150
+			; 58: Chk Len(Space$(150)), 150
 			dw kw_strspace, stmp0, lit_150
 			dw kw_strlen, stmp0, tmp0
 			dw p_chk_c, tmp0, lit_150
 
-			; 58: Chk Len(Left$(big, 95)), 90
+			; 59: Chk Len(Left$(big, 95)), 90
 			dw kw_strleft, stmp0, var_big, lit_95
 			dw kw_strlen, stmp0, tmp0
 			dw p_chk_c, tmp0, lit_90
 
-			; 59: Chk Len(UCase$(big)), 90
+			; 60: Chk Len(UCase$(big)), 90
 			dw kw_strucase, stmp0, var_big
 			dw kw_strlen, stmp0, tmp0
 			dw p_chk_c, tmp0, lit_90
 
-			; 60: Chk Len(Replace(big, "a", "")), 60
+			; 61: Chk Len(Replace(big, "a", "")), 60
 			dw kw_strreplace, stmp0, var_big, str1, str12
 			dw kw_strlen, stmp0, tmp0
 			dw p_chk_c, tmp0, lit_60
 
-			; 61: Chk Len(Rep("q", 90)), 90
+			; 62: Chk Len(Rep("q", 90)), 90
 			dw p_rep_c, str13, lit_90
 			dw kw_strcpy, stmp0, var_rep_rep
 			dw kw_strlen, stmp0, tmp0
 			dw p_chk_c, tmp0, lit_90
 
-			; 62: Chk LenOf(big), 90
+			; 63: Chk LenOf(big), 90
 			dw p_lenof_c, var_big
 			dw p_chk_c, var_lenof_lenof, lit_90
 
-			; 65: Fill short
+			; 66: Fill short
 			dw p_fill_c, var_short
 
-			; 66: Chk Len(short), 5
+			; 67: Chk Len(short), 5
 			dw kw_strlen, var_short, tmp0
 			dw p_chk_c, tmp0, lit_5
 
-			; 67: Fill big
+			; 68: Fill big
 			dw p_fill_c, var_big
 
-			; 68: Chk Len(big), 50
+			; 69: Chk Len(big), 50
 			dw kw_strlen, var_big, tmp0
 			dw p_chk_c, tmp0, lit_50
 
-			; 71: names(3) = "abcdefghijklmnop"
+			; 72: names(3) = "abcdefghijklmnop"
 			dw kw_strcpyn, arr_names+39, str14, 12
 
-			; 72: Chk Len(names(3)), 12
+			; 73: Chk Len(names(3)), 12
 			dw kw_strlen, arr_names+39, tmp0
 			dw p_chk_c, tmp0, lit_12
 
-			; 73: For i = 0 To 9
+			; 74: For i = 0 To 9
 			dw kw_ztov, var_i
 for1_t:
 
-			; 74: names(i) = String$(i + 10, "n")
+			; 75: names(i) = String$(i + 10, "n")
 			dw kw_addl, var_i, 10, tmp1
 			dw kw_strasc, str15, tmp2
 			dw kw_strstring, stmp1, tmp1, tmp2
 			dw kw_sset, arr_names, var_i, stmp1, 13
 
-			; 75: Next
+			; 76: Next
 			dw kw_next1l_n, var_i, 9, for1_t
 for1_e:
 
-			; 76: Chk Len(names(1)), 11
+			; 77: Chk Len(names(1)), 11
 			dw kw_strlen, arr_names+13, tmp0
 			dw p_chk_c, tmp0, lit_11
 
-			; 77: Chk Len(names(9)), 12
+			; 78: Chk Len(names(9)), 12
 			dw kw_strlen, arr_names+117, tmp0
 			dw p_chk_c, tmp0, lit_12
 
-			; 78: wide(1) = String$(80, "z")
+			; 79: wide(1) = String$(80, "z")
 			dw kw_strasc, str16, tmp1
 			dw kw_strstring, stmp0, lit_80, tmp1
 			dw kw_strcpyn, arr_wide+101, stmp0, 100
 
-			; 79: i = 1
+			; 80: i = 1
 			dw kw_ltov, 1, var_i
 
-			; 80: Chk Len(wide(i)), 80
+			; 81: Chk Len(wide(i)), 80
 			dw kw_sget, arr_wide, var_i, stmp0, 101
 			dw kw_strlen, stmp0, tmp0
 			dw p_chk_c, tmp0, lit_80
 
-			; 81: huge(2) = String$(200, "h")
+			; 82: huge(2) = String$(200, "h")
 			dw kw_strasc, str17, tmp1
 			dw kw_strstring, stmp0, lit_200, tmp1
 			dw kw_strcpyn, arr_huge+512, stmp0, 255
 
-			; 82: i = 2
+			; 83: i = 2
 			dw kw_ltov, 2, var_i
 
-			; 83: Chk Len(huge(i)), 200
+			; 84: Chk Len(huge(i)), 200
 			dw kw_sget, arr_huge, var_i, stmp0, 256
 			dw kw_strlen, stmp0, tmp0
 			dw p_chk_c, tmp0, lit_200
 
-			; 84: huge(i) = huge(i) & String$(100, "j")
+			; 85: huge(i) = huge(i) & String$(100, "j")
 			dw kw_sget, arr_huge, var_i, stmp1, 256
 			dw kw_strasc, str18, tmp3
 			dw kw_strstring, stmp2, lit_100, tmp3
 			dw kw_strcat, stmp1, stmp2
 			dw kw_sset, arr_huge, var_i, stmp1, 256
 
-			; 85: Chk Len(huge(2)), 255
+			; 86: Chk Len(huge(2)), 255
 			dw kw_strlen, arr_huge+512, tmp0
 			dw p_chk_c, tmp0, lit_255
 
-			; 88: SetEl names
+			; 89: SetEl names
 			dw p_setel_c, ad_arr_names
 
-			; 89: Chk Len(names(1)), 12
+			; 90: Chk Len(names(1)), 12
 			dw kw_strlen, arr_names+13, tmp0
 			dw p_chk_c, tmp0, lit_12
 
-			; 92: r.nm = "abcdefghij"
+			; 93: r.nm = "abcdefghij"
 			dw kw_strcpy, var_r_nm, str19
 
-			; 93: Chk Len(r.nm), 8
+			; 94: Chk Len(r.nm), 8
 			dw kw_strlen, var_r_nm, tmp0
 			dw p_chk_c, tmp0, lit_8
 
-			; 94: r.code = "x"
+			; 95: r.code = "x"
 			dw kw_strcpy, var_r_code, str5
 			dw kw_strfix, var_r_code, 4
 
-			; 95: Chk Len(r.code), 4
+			; 96: Chk Len(r.code), 4
 			dw kw_strlen, var_r_code, tmp0
 			dw p_chk_c, tmp0, lit_4
 
-			; 98: ReDim d(1 To 3)
+			; 99: ReDim d(1 To 3)
 			dw kw_redim, pa_d, pa_d_data, 1, 11, 3, 1
 
-			; 99: d(2) = String$(20, "k")
+			; 100: d(2) = String$(20, "k")
 			dw kw_strasc, str20, tmp3
 			dw kw_strstring, stmp2, lit_20, tmp3
 			dw kw_psets, pa_d, lit_2, stmp2
 
-			; 100: Chk Len(d(2)), 10
+			; 101: Chk Len(d(2)), 10
 			dw kw_pget, pa_d, lit_2, stmp0
 			dw kw_strlen, stmp0, tmp0
 			dw p_chk_c, tmp0, lit_10
 
-			; 101: parts = Split("abcdefgh,ij", ",")
+			; 102: parts = Split("abcdefgh,ij", ",")
 			dw kw_strsplit, pa_parts, pa_parts_data, 16, str21, str22, 7
 
-			; 102: Chk Len(parts(0)), 6
+			; 103: Chk Len(parts(0)), 6
 			dw kw_pget, pa_parts, lit_0, stmp0
 			dw kw_strlen, stmp0, tmp0
 			dw p_chk_c, tmp0, lit_6
 
-			; 103: Chk UBound(parts), 1
+			; 104: Chk UBound(parts), 1
 			dw kw_ubound, pa_parts, tmp0
 			dw p_chk_c, tmp0, lit_1
 
-			; 106: k = 0
+			; 107: k = 0
 			dw kw_ztov, var_k
 
-			; 107: For Each v In wide
+			; 108: For Each v In wide
 			dw kw_ztov, var___fe2
 for3_t:
 			dw kw_sget, arr_wide, var___fe2, stmp0, 101
 			dw kw_strcpy, var_v, stmp0
 
-			; 108: k = k + Len(v)
+			; 109: k = k + Len(v)
 			dw kw_strlen, var_v, tmp1
 			dw kw_add, var_k, tmp1, var_k
 
-			; 109: Next
+			; 110: Next
 			dw kw_next1l_n, var___fe2, 2, for3_t
 for3_e:
 
-			; 110: Chk k, 40
+			; 111: Chk k, 40
 			dw p_chk_c, var_k, lit_40
 
-			; 113: Input "Type 8 letters (only 5 fit)"; short
+			; 114: Input "Type 8 letters (only 5 fit)"; short
 			dw kw_printstrvar, str23
 			dw kw_inputstr, var_short
 
-			; 114: Chk (Len(short) <= 5), -1
+			; 115: Chk (Len(short) <= 5), -1
 			dw kw_strlen, var_short, tmp0
 			dw kw_scplevl, tmp0, 5
 			dw kw_ftov, tmp0
 			dw p_chk_c, tmp0, lit_m1
 
-			; 115: Print "["; short; "]"
+			; 116: Print "["; short; "]"
 			dw kw_printstrvar, str24
 			dw kw_printstrvar, var_short
 			dw kw_printstrvar, str25
 			dw kw_printnl
 
-			; 117: Print
+			; 118: Print
 			dw kw_printnl
 
-			; 118: Print t; " tests, "; bad; " failed"
+			; 119: Print t; " tests, "; bad; " failed"
 			dw kw_printint, var_t
 			dw kw_printstrvar, str26
 			dw kw_printint, var_bad
 			dw kw_printstrvar, str27
 			dw kw_printnl
 
-			; 119: Print "Press a key";
+			; 120: End
+			dw kw_printnl0
 			dw kw_printstrvar, str28
-
-			; 120: Do : Frame : Loop Until Inkey <> 0
-do4_t:
-			dw kw_frame
-			dw kw_inkey, tmp0
-			dw kw_cpnevl, tmp0, 0
-			dw kw_goto_iffalse_n, do4_t
-do4_e:
-
-			; 121: Print
-			dw kw_printnl
-
-			; 122: End
+			dw kw_waitkey
 			dw kw_stop
 
 ; ============================================================
@@ -350,34 +339,34 @@ do4_e:
 
 p_chk:
 
-			; 125: t = t + 1
+			; 123: t = t + 1
 			dw kw_inc, var_t
 
-			; 126: Print t; ":";
+			; 124: Print t; ":";
 			dw kw_printint, var_t
 			dw kw_printstrvar, str29
 
-			; 127: If got = want Then
+			; 125: If got = want Then
 			dw kw_cpeqvv, var_chk_got, var_chk_want
-			dw kw_goto_iffalse_n, if5_1
+			dw kw_goto_iffalse_n, if4_1
 
-			; 128: Print "ok ";
+			; 126: Print "ok ";
 			dw kw_printstrvar, str30
 
-			; 129: Else
-			dw if5_e_go
-if5_1:
+			; 127: Else
+			dw if4_e_go
+if4_1:
 
-			; 130: Print "FAIL("; got; ") ";
+			; 128: Print "FAIL("; got; ") ";
 			dw kw_printstrvar, str31
 			dw kw_printint, var_chk_got
 			dw kw_printstrvar, str32
 
-			; 131: bad = bad + 1
+			; 129: bad = bad + 1
 			dw kw_inc, var_bad
 
-			; 132: End If
-if5_e:
+			; 130: End If
+if4_e:
 			dw p_chk_r
 
 ; ============================================================
@@ -386,7 +375,7 @@ if5_e:
 
 p_rep:
 
-			; 136: Rep = String$(n, c)
+			; 134: Rep = String$(n, c)
 			dw kw_strasc, var_rep_c, tmp1
 			dw kw_strstring, var_rep_rep, var_rep_n, tmp1
 			dw p_rep_r
@@ -397,7 +386,7 @@ p_rep:
 
 p_lenof:
 
-			; 140: LenOf = Len(x)
+			; 138: LenOf = Len(x)
 			dw kw_strlen, var_lenof_x, var_lenof_lenof
 			dw p_lenof_r
 
@@ -407,7 +396,7 @@ p_lenof:
 
 p_fill:
 
-			; 144: x = String$(50, "m")
+			; 142: x = String$(50, "m")
 			dw kw_strasc, str33, tmp1
 			dw kw_strstring, var_fill_x, lit_50, tmp1
 			dw p_fill_r
@@ -418,7 +407,7 @@ p_fill:
 
 p_setel:
 
-			; 148: a(1) = "1234567890123456"
+			; 146: a(1) = "1234567890123456"
 			dw kw_psets, pa_setel_a, lit_1, str34
 			dw p_setel_r
 
@@ -431,7 +420,7 @@ p_setel:
 ;   turbo mode ends with ret, normal mode with jp ntc_xn
 ; ============================================================
 
-if5_e_go:			ld sp, if5_e
+if4_e_go:			ld sp, if4_e
 			jp ntc_xn
 
 p_chk_c:		; call chk (normal)
@@ -728,6 +717,12 @@ ntc_stop_back:
 			ei
 			ret
 
+;## kw_waitkey ntc_data ntc_plat_key
+; kw_waitkey - wait for a key (Option PressAnyKeyOnEnd, before kw_stop)
+kw_waitkey:
+			ld ix, ntc_next
+			jp ntc_plat_getkey
+
 ;## ntc_xn ntc_data @shared
 ; normal mode "next": every normal mode keyword ends here (its ret
 ; became jp ntc_xn). Thread position to ntc_ip, real stack, one
@@ -1014,19 +1009,6 @@ kw_cpeqvv:
 			ld l, a
 			jp ntc_cmp_eq
 
-;## kw_cpnevl ntc_cmp
-kw_cpnevl:
-			pop hl
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			pop hl
-			jp ntc_cmp_ne
-
-; ============================================================
-; Memory (PEEK / POKE / DEEK / DOKE)
-; ============================================================
-
 ;## kw_redim kw_erase
 ;kw_redim, <descriptor>, <base>, <lower>, <size>, <count>, <clear>  - ReDim: fill the
 ;  descriptor (1 dimension); clear <> 0: zero the elements
@@ -1268,6 +1250,15 @@ ntc_pi_done:
 			ld (ntc_sptr), hl
 			jp ntc_printbuf
 
+;## kw_printnl0 ntc_data ntc_plat_screen
+;kw_printnl0  - new line unless the cursor is at the start of a line
+kw_printnl0:
+			ld a, (ntc_curx)
+			or a
+			ret z
+			ld ix, ntc_next
+			jp ntc_plat_newline
+
 ;## kw_printnl ntc_data ntc_plat_screen
 ;kw_printnl
 kw_printnl:
@@ -1426,31 +1417,11 @@ ntc_atoi_store:
 			ld (hl), d
 			ret
 
-;## kw_inkey ntc_data ntc_plat_key
-;kw_inkey, <destvar>  - new key press or 0, no wait
-kw_inkey:
-			pop hl
-			ld (ntc_ivar), hl
-			ld ix, ntc_inkey_got
-			jp ntc_plat_scankey
-ntc_inkey_got:
-			ld hl, (ntc_ivar)
-			ld (hl), a
-			inc hl
-			ld (hl), 0
-			ret
-
 ;## kw_cls ntc_data ntc_plat_screen
 ;kw_cls
 kw_cls:
 			ld ix, ntc_next
 			jp ntc_plat_cls
-
-;## kw_frame ntc_data ntc_plat_frame
-;kw_frame  - wait for the start of the next frame flyback
-kw_frame:
-			ld ix, ntc_next
-			jp ntc_plat_frame
 
 ;## ntc_getn ntc_data
 ; BC = address of a word: A = its value limited to 0..255
@@ -2394,12 +2365,6 @@ ntc_plat_getkey:
 			ld iy, #BB06			; KM WAIT CHAR
 			jp ntc_fwcall
 ntc_kslink:		dw 0
-
-;## ntc_plat_frame ntc_plat_fw
-; ntc_plat_frame - MC WAIT FLYBACK
-ntc_plat_frame:
-			ld iy, #BD19
-			jp ntc_fwcall
 
 ;## ntc_plat_exit ntc_plat_data ntc_plat_fw
 ntc_plat_exit:

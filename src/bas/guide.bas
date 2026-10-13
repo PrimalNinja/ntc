@@ -24,6 +24,7 @@
 ' debug     Break name - puts dw bp_name in the thread
 ' comments  Rem or '
 
+Option PressAnyKeyOnEnd "Press a key"     ' at the end: a message and a key (a RUN" program resets when it ends)
 Option Explicit
 Dim nm As String, i As Integer
 
@@ -36,9 +37,6 @@ Next
 Print
 Print Shout(nm)
 Break done
-Print "Press a key";
-Do : Frame : Loop Until Inkey <> 0
-Print
 End
 
 Function Shout(ByVal s As String) As String

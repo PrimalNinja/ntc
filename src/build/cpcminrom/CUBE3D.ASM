@@ -50,10 +50,10 @@ main_thread:
 			dw kw_scrinit		; mode 1, ROMs off, clear screen
 			dw kw_bssinit, ntc_bss, ntc_bss_size		; the arrays: do they fit, clear them
 
-			; Main.bas 14: scr = Memory.AllocPage(Memory.TypeUser)
+			; Main.bas 15: scr = Memory.AllocPage(Memory.TypeUser)
 			dw fn_memory_allocpage, lit_85, var_scr
 
-			; Main.bas 15: If scr <> 1 Then Print "Page 1 is taken - no double buffering" : End
+			; Main.bas 16: If scr <> 1 Then Print "Page 1 is taken - no double buffering" : End
 			dw kw_cpnevl, var_scr, 1
 			dw kw_goto_iffalse_n, if1_1
 			dw kw_printzoscii
@@ -62,20 +62,30 @@ main_thread:
 			dw glyph_2D, glyph_20, glyph_6E, glyph_6F, glyph_20, glyph_64, glyph_6F, glyph_75
 			dw glyph_62, glyph_6C, glyph_65, glyph_20, glyph_62, glyph_75, glyph_66, glyph_66
 			dw glyph_65, glyph_72, glyph_69, glyph_6E, glyph_67, 1, 0		; "Page 1 is taken - no double buffering\n"
+			dw kw_printnl0
+			dw kw_printzoscii
+			dw glyph_50, glyph_72, glyph_65, glyph_73, glyph_73, glyph_20, glyph_61, glyph_20
+			dw glyph_6B, glyph_65, glyph_79, 0		; "Press a key"
+			dw kw_waitkey
 			dw kw_stop
 if1_1:
 
-			; Main.bas 26: Spin.Run
+			; Main.bas 27: Spin.Run
 			dw p_spin_run_c
 
-			; Main.bas 27: Mode 1
+			; Main.bas 28: Mode 1
 			dw kw_model, 1
 
-			; Main.bas 28: Print "Bye"
+			; Main.bas 29: Print "Bye"
 			dw kw_printzoscii
 			dw glyph_42, glyph_79, glyph_65, 1, 0		; "Bye\n"
 
-			; Main.bas 29: End
+			; Main.bas 30: End
+			dw kw_printnl0
+			dw kw_printzoscii
+			dw glyph_50, glyph_72, glyph_65, glyph_73, glyph_73, glyph_20, glyph_61, glyph_20
+			dw glyph_6B, glyph_65, glyph_79, 0		; "Press a key"
+			dw kw_waitkey
 			dw kw_stop
 
 ; ============================================================
@@ -2080,6 +2090,7 @@ kw_strcmpeq:	jp 126
 kw_printzoscii:	jp 129
 kw_printstrvar:	jp 130
 kw_printint:	jp 132
+kw_printnl0:	jp 135
 kw_inkeys:	jp 146
 kw_scrinit:	jp 147
 kw_locatell:	jp 149
@@ -2098,7 +2109,8 @@ kw_bssinit:	jp 291
 ntc_plat_irqon:	jp 316
 ntc_urom_off:	jp 342
 ntc_urom_on:	jp 343
-NTC_RJ_N	equ 51		; entries
+kw_waitkey:	jp 344
+NTC_RJ_N	equ 53		; entries
 mem_a1	equ #884F		; ROM data
 mem_res	equ #8855		; ROM data
 ntc_csp	equ #8800		; ROM data
@@ -2899,7 +2911,7 @@ arr_vector3d_eb		equ ntc_bss + 704		; 128 bytes
 ntc_bss_size	equ 832
 ntc_free	equ ntc_bss + ntc_bss_size	; the first free byte (heap, Memory tables)
 ; Option Reserve: the program and its arrays (ntc_start .. ntc_free) must stay out of these
-			ASSERT (ntc_free <= 16384) || (ntc_start >= 32768), "the program (or its arrays) reaches into Option Reserve #4000-#7FFF (Main.bas line 10)"
+			ASSERT (ntc_free <= 16384) || (ntc_start >= 32768), "the program (or its arrays) reaches into Option Reserve #4000-#7FFF (Main.bas line 11)"
 			SAVEAMSDOS "CUBE3D.BIN", ntc_start, ntc_end - ntc_start, ntc_start
 			ASSERT (ntc_free <= #4000) || (ntc_start >= #8000), "overlay classes: the program and its arrays must stay out of #4000-#7FFF (the window they run in)"
 
@@ -3543,4 +3555,4 @@ ovl_spin_vsize	equ 0		; its page variables; its local memory is the rest, to #80
 			DISPLAY "  page variables ", /D, ovl_spin_vsize, ", free ", /D, #8000 - (ovl_spin_end + ovl_spin_vsize)
 			SAVEAMSDOS "CUBE3D.001", ovl_spin_start, ovl_spin_end - ovl_spin_start, #4000
 
-NTC_STAMP	equ #1674		; the build stamp: the first word of every page file
+NTC_STAMP	equ #8844		; the build stamp: the first word of every page file

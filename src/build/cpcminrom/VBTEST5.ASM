@@ -39,59 +39,59 @@ main_thread:
 			dw kw_scrinit		; mode 1, ROMs off, clear screen
 			dw kw_bssinit, ntc_bss, ntc_bss_size		; the arrays: do they fit, clear them
 
-			; Main.bas 12: Cls
+			; Main.bas 13: Cls
 			dw kw_cls
 
-			; Main.bas 13: Print "VB self test 5"
+			; Main.bas 14: Print "VB self test 5"
 			dw kw_printzoscii
 			dw glyph_56, glyph_42, glyph_20, glyph_73, glyph_65, glyph_6C, glyph_66, glyph_20
 			dw glyph_74, glyph_65, glyph_73, glyph_74, glyph_20, glyph_35, 1, 0		; "VB self test 5\n"
 
-			; Main.bas 16: v = 5
+			; Main.bas 17: v = 5
 			dw kw_ltov, 5, var_v
 
-			; Main.bas 17: #asm
-			dw asm_0_17_n
+			; Main.bas 18: #asm
+			dw asm_0_18_n
 
-			; Main.bas 23: Chk v, 105
+			; Main.bas 24: Chk v, 105
 			dw p_chk_c, var_v, lit_105
 
-			; Main.bas 26: Chk AddAsm(30, 12), 42
+			; Main.bas 27: Chk AddAsm(30, 12), 42
 			dw p_addasm_c, lit_30, lit_12
 			dw p_chk_c, var_addasm_addasm, lit_42
 
-			; Main.bas 27: Chk Times3(7), 21
+			; Main.bas 28: Chk Times3(7), 21
 			dw p_times3_c, lit_7
 			dw p_chk_c, var_times3_times3, lit_21
 
-			; Main.bas 28: Chk CountBits(255), 8
+			; Main.bas 29: Chk CountBits(255), 8
 			dw p_countbits_c, lit_255
 			dw p_chk_c, var_countbits_countbits, lit_8
 
-			; Main.bas 29: Chk CountBits(&H8001), 2
+			; Main.bas 30: Chk CountBits(&H8001), 2
 			dw p_countbits_c, lit_m32767
 			dw p_chk_c, var_countbits_countbits, lit_2
 
-			; Main.bas 30: n = 9
+			; Main.bas 31: n = 9
 			dw kw_ltov, 9, var_n
 
-			; Main.bas 31: Twice n
+			; Main.bas 32: Twice n
 			dw p_twice_c, var_n
 
-			; Main.bas 32: Chk n, 18
+			; Main.bas 33: Chk n, 18
 			dw p_chk_c, var_n, lit_18
 
-			; Main.bas 33: tbl(2) = 77
+			; Main.bas 34: tbl(2) = 77
 			dw kw_ltov, 77, arr_tbl+4
 
-			; Main.bas 34: Chk ThirdOf(tbl), 77
+			; Main.bas 35: Chk ThirdOf(tbl), 77
 			dw p_thirdof_c, ad_arr_tbl
 			dw p_chk_c, var_thirdof_thirdof, lit_77
 
-			; Main.bas 37: v = Inp(&HF500)
+			; Main.bas 38: v = Inp(&HF500)
 			dw kw_inp, lit_m2816, var_v
 
-			; Main.bas 38: Chk (v >= 0) And (v <= 255), -1
+			; Main.bas 39: Chk (v >= 0) And (v <= 255), -1
 			dw kw_scpgevl, var_v, 0
 			dw kw_ftov, tmp0
 			dw kw_scplevl, var_v, 255
@@ -99,10 +99,10 @@ main_thread:
 			dw kw_andvv, tmp0, tmp1, tmp0
 			dw p_chk_c, tmp0, lit_m1
 
-			; Main.bas 39: Out &H7F00, &H10
+			; Main.bas 40: Out &H7F00, &H10
 			dw kw_out, lit_32512, lit_16
 
-			; Main.bas 42: Debug.Assert v >= 0
+			; Main.bas 43: Debug.Assert v >= 0
 			dw kw_scpgevl, var_v, 0
 			dw kw_goto_iftrue_n, as1_ok
 			dw kw_printnl0
@@ -111,72 +111,77 @@ main_thread:
 			dw glyph_61, glyph_69, glyph_6C, glyph_65, glyph_64, glyph_3A, glyph_20, glyph_76
 			dw glyph_20, glyph_3E, glyph_3D, glyph_20, glyph_30, glyph_20, glyph_28, glyph_4D
 			dw glyph_61, glyph_69, glyph_6E, glyph_2E, glyph_62, glyph_61, glyph_73, glyph_20
-			dw glyph_6C, glyph_69, glyph_6E, glyph_65, glyph_20, glyph_34, glyph_32, glyph_29
-			dw 1, 0		; "Assert failed: v >= 0 (Main.bas line 42)\n"
+			dw glyph_6C, glyph_69, glyph_6E, glyph_65, glyph_20, glyph_34, glyph_33, glyph_29
+			dw 1, 0		; "Assert failed: v >= 0 (Main.bas line 43)\n"
+			dw kw_printnl0
+			dw kw_printzoscii
+			dw glyph_50, glyph_72, glyph_65, glyph_73, glyph_73, glyph_20, glyph_61, glyph_20
+			dw glyph_6B, glyph_65, glyph_79, 0		; "Press a key"
+			dw kw_waitkey
 			dw kw_stop
 as1_ok:
 
-			; Main.bas 45: h1 = Pool.Open(10)
+			; Main.bas 46: h1 = Pool.Open(10)
 			dw p_pool_open_c, lit_10
 			dw kw_vtov, var_pool_open_open, var_h1
 
-			; Main.bas 46: h2 = Pool.Open(20)
+			; Main.bas 47: h2 = Pool.Open(20)
 			dw p_pool_open_c, lit_20
 			dw kw_vtov, var_pool_open_open, var_h2
 
-			; Main.bas 47: Chk h1, 0
+			; Main.bas 48: Chk h1, 0
 			dw p_chk_c, var_h1, lit_0
 
-			; Main.bas 48: Chk h2, 1
+			; Main.bas 49: Chk h2, 1
 			dw p_chk_c, var_h2, lit_1
 
-			; Main.bas 49: Pool.Add h1, 5
+			; Main.bas 50: Pool.Add h1, 5
 			dw p_pool_add_c, var_h1, lit_5
 
-			; Main.bas 50: Pool.Add h2, 7
+			; Main.bas 51: Pool.Add h2, 7
 			dw p_pool_add_c, var_h2, lit_7
 
-			; Main.bas 51: Pool.Add h1, 1
+			; Main.bas 52: Pool.Add h1, 1
 			dw p_pool_add_c, var_h1, lit_1
 
-			; Main.bas 52: Chk Pool.Value(h1), 16
+			; Main.bas 53: Chk Pool.Value(h1), 16
 			dw p_pool_value_c, var_h1
 			dw p_chk_c, var_pool_value_value, lit_16
 
-			; Main.bas 53: Chk Pool.Value(h2), 27
+			; Main.bas 54: Chk Pool.Value(h2), 27
 			dw p_pool_value_c, var_h2
 			dw p_chk_c, var_pool_value_value, lit_27
 
-			; Main.bas 54: Chk Pool.Uses(h1), 2
+			; Main.bas 55: Chk Pool.Uses(h1), 2
 			dw p_pool_uses_c, var_h1
 			dw p_chk_c, var_pool_uses_uses, lit_2
 
-			; Main.bas 55: Chk Pool.MAXSLOTS, 4
+			; Main.bas 56: Chk Pool.MAXSLOTS, 4
 			dw p_chk_c, lit_4, lit_4
 
-			; Main.bas 56: Pool.Close h1
+			; Main.bas 57: Pool.Close h1
 			dw p_pool_close_c, var_h1
 
-			; Main.bas 57: Chk Pool.Open(30), 0
+			; Main.bas 58: Chk Pool.Open(30), 0
 			dw p_pool_open_c, lit_30
 			dw p_chk_c, var_pool_open_open, lit_0
 
-			; Main.bas 58: Chk Pool.Open(1), 2
+			; Main.bas 59: Chk Pool.Open(1), 2
 			dw p_pool_open_c, lit_1
 			dw p_chk_c, var_pool_open_open, lit_2
 
-			; Main.bas 59: Chk Pool.Open(1), 3
+			; Main.bas 60: Chk Pool.Open(1), 3
 			dw p_pool_open_c, lit_1
 			dw p_chk_c, var_pool_open_open, lit_3
 
-			; Main.bas 60: Chk Pool.Open(1), -1
+			; Main.bas 61: Chk Pool.Open(1), -1
 			dw p_pool_open_c, lit_1
 			dw p_chk_c, var_pool_open_open, lit_m1
 
-			; Main.bas 62: Print
+			; Main.bas 63: Print
 			dw kw_printnl
 
-			; Main.bas 63: Print t; " tests, "; bad; " failed"
+			; Main.bas 64: Print t; " tests, "; bad; " failed"
 			dw kw_printint, var_t
 			dw kw_printzoscii
 			dw glyph_20, glyph_74, glyph_65, glyph_73, glyph_74, glyph_73, glyph_2C, glyph_20
@@ -186,23 +191,12 @@ as1_ok:
 			dw glyph_20, glyph_66, glyph_61, glyph_69, glyph_6C, glyph_65, glyph_64, 1
 			dw 0		; " failed\n"
 
-			; Main.bas 64: Print "Press a key";
+			; Main.bas 65: End
+			dw kw_printnl0
 			dw kw_printzoscii
 			dw glyph_50, glyph_72, glyph_65, glyph_73, glyph_73, glyph_20, glyph_61, glyph_20
 			dw glyph_6B, glyph_65, glyph_79, 0		; "Press a key"
-
-			; Main.bas 65: Do : Frame : Loop Until Inkey <> 0
-do2_t:
-			dw kw_frame
-			dw kw_inkey, tmp0
-			dw kw_cpnevl, tmp0, 0
-			dw kw_goto_iffalse_n, do2_t
-do2_e:
-
-			; Main.bas 66: Print
-			dw kw_printnl
-
-			; Main.bas 67: End
+			dw kw_waitkey
 			dw kw_stop
 
 ; ============================================================
@@ -211,38 +205,38 @@ do2_e:
 
 p_chk:
 
-			; Main.bas 70: t = t + 1
+			; Main.bas 68: t = t + 1
 			dw kw_inc, var_t
 
-			; Main.bas 71: Print t; ":";
+			; Main.bas 69: Print t; ":";
 			dw kw_printint, var_t
 			dw kw_printzoscii
 			dw glyph_3A, 0		; ":"
 
-			; Main.bas 72: If got = want Then
+			; Main.bas 70: If got = want Then
 			dw kw_cpeqvv, var_chk_got, var_chk_want
-			dw kw_goto_iffalse_n, if3_1
+			dw kw_goto_iffalse_n, if2_1
 
-			; Main.bas 73: Print "ok ";
+			; Main.bas 71: Print "ok ";
 			dw kw_printzoscii
 			dw glyph_6F, glyph_6B, glyph_20, 0		; "ok "
 
-			; Main.bas 74: Else
-			dw if3_e_go
-if3_1:
+			; Main.bas 72: Else
+			dw if2_e_go
+if2_1:
 
-			; Main.bas 75: Print "FAIL("; got; ") ";
+			; Main.bas 73: Print "FAIL("; got; ") ";
 			dw kw_printzoscii
 			dw glyph_46, glyph_41, glyph_49, glyph_4C, glyph_28, 0		; "FAIL("
 			dw kw_printint, var_chk_got
 			dw kw_printzoscii
 			dw glyph_29, glyph_20, 0		; ") "
 
-			; Main.bas 76: bad = bad + 1
+			; Main.bas 74: bad = bad + 1
 			dw kw_inc, var_bad
 
-			; Main.bas 77: End If
-if3_e:
+			; Main.bas 75: End If
+if2_e:
 			dw p_chk_r
 
 ; ============================================================
@@ -251,8 +245,8 @@ if3_e:
 
 p_addasm:
 
-			; Main.bas 81: #asm
-			dw asm_0_81_n
+			; Main.bas 79: #asm
+			dw asm_0_79_n
 			dw p_addasm_r
 
 ; ============================================================
@@ -261,11 +255,11 @@ p_addasm:
 
 p_times3:
 
-			; Main.bas 90: Times3 = x
+			; Main.bas 88: Times3 = x
 			dw kw_vtov, var_times3_x, var_times3_times3
 
-			; Main.bas 91: #asm
-			dw asm_0_91_n
+			; Main.bas 89: #asm
+			dw asm_0_89_n
 			dw p_times3_r
 
 ; ============================================================
@@ -274,8 +268,8 @@ p_times3:
 
 p_countbits:
 
-			; Main.bas 103: #asm
-			dw asm_0_103_n
+			; Main.bas 101: #asm
+			dw asm_0_101_n
 			dw p_countbits_r
 
 ; ============================================================
@@ -284,8 +278,8 @@ p_countbits:
 
 p_twice:
 
-			; Main.bas 122: #asm
-			dw asm_0_122_n
+			; Main.bas 120: #asm
+			dw asm_0_120_n
 			dw p_twice_r
 
 ; ============================================================
@@ -294,8 +288,8 @@ p_twice:
 
 p_thirdof:
 
-			; Main.bas 132: #asm
-			dw asm_0_132_n
+			; Main.bas 130: #asm
+			dw asm_0_130_n
 			dw p_thirdof_r
 
 ; ============================================================
@@ -308,12 +302,12 @@ p_pool_open:
 
 			; Pool.cls 17: For h = 0 To MAXSLOTS - 1
 			dw kw_ztov, var_pool_open_h
-for4_t:
+for3_t:
 
 			; Pool.cls 18: If mSlots(h).used = 0 Then
 			dw kw_aget, arr_pool_mslots_used, var_pool_open_h, tmp0
 			dw kw_cpeqvl, tmp0, 0
-			dw kw_goto_iffalse_n, if5_1
+			dw kw_goto_iffalse_n, if4_1
 
 			; Pool.cls 19: mSlots(h).used = -1
 			dw kw_asetl, arr_pool_mslots_used, var_pool_open_h, -1
@@ -334,11 +328,11 @@ for4_t:
 			dw p_pool_open_r
 
 			; Pool.cls 25: End If
-if5_1:
+if4_1:
 
 			; Pool.cls 26: Next
-			dw kw_next1l_n, var_pool_open_h, 3, for4_t
-for4_e:
+			dw kw_next1l_n, var_pool_open_h, 3, for3_t
+for3_e:
 
 			; Pool.cls 27: Open = -1
 			dw kw_ltov, -1, var_pool_open_open
@@ -413,7 +407,7 @@ p_pool_bump:
 ;   turbo mode ends with ret, normal mode with jp ntc_xn
 ; ============================================================
 
-if3_e_go:			ld sp, if3_e
+if2_e_go:			ld sp, if2_e
 			jp ntc_xn
 
 p_chk_c:		; call chk (normal)
@@ -601,60 +595,60 @@ p_pool_bump_r:		; end of bump
 ; Inline assembly (#asm ... #endasm)
 ; ============================================================
 
-asm_0_17_n:		; #asm, Main.bas line 17 (normal)
-            ld hl, (var_v)		; Main.bas 18
-            ld de, 100		; Main.bas 19
-            add hl, de		; Main.bas 20
-            ld (var_v), hl        ; v = v + BASE [21]
+asm_0_18_n:		; #asm, Main.bas line 18 (normal)
+            ld hl, (var_v)		; Main.bas 19
+            ld de, 100		; Main.bas 20
+            add hl, de		; Main.bas 21
+            ld (var_v), hl        ; v = v + BASE [22]
 			ret			; end of #asm
 
-asm_0_81_n:		; #asm, Main.bas line 81 (normal)
-            ld hl, (var_addasm_a)		; Main.bas 82
-            ld de, (var_addasm_b)		; Main.bas 83
-            add hl, de		; Main.bas 84
-            ld (var_addasm_addasm), hl		; Main.bas 85
+asm_0_79_n:		; #asm, Main.bas line 79 (normal)
+            ld hl, (var_addasm_a)		; Main.bas 80
+            ld de, (var_addasm_b)		; Main.bas 81
+            add hl, de		; Main.bas 82
+            ld (var_addasm_addasm), hl		; Main.bas 83
 			ret			; end of #asm
 
-asm_0_91_n:		; #asm, Main.bas line 91 (normal)
-            ld hl, (var_times3_times3)		; Main.bas 92
-            ld d, h		; Main.bas 93
-            ld e, l		; Main.bas 94
-            add hl, hl		; Main.bas 95
-            add hl, de		; Main.bas 96
-            ld (var_times3_times3), hl		; Main.bas 97
+asm_0_89_n:		; #asm, Main.bas line 89 (normal)
+            ld hl, (var_times3_times3)		; Main.bas 90
+            ld d, h		; Main.bas 91
+            ld e, l		; Main.bas 92
+            add hl, hl		; Main.bas 93
+            add hl, de		; Main.bas 94
+            ld (var_times3_times3), hl		; Main.bas 95
 			ret			; end of #asm
 
-asm_0_103_n:		; #asm, Main.bas line 103 (normal)
-            ld hl, (var_countbits_x)		; Main.bas 104
-            ld b, 16		; Main.bas 105
-            ld c, 0		; Main.bas 106
-asm_0_103_n_loop:		; Main.bas 107
-            add hl, hl		; Main.bas 108
-            jr nc, asm_0_103_n_skip		; Main.bas 109
-            inc c		; Main.bas 110
-asm_0_103_n_skip:		; Main.bas 111
-            djnz asm_0_103_n_loop		; Main.bas 112
-            ld a, c		; Main.bas 113
-            ld (var_countbits_countbits), a		; Main.bas 114
-            xor a		; Main.bas 115
-            ld (var_countbits_countbits+1), a		; Main.bas 116
+asm_0_101_n:		; #asm, Main.bas line 101 (normal)
+            ld hl, (var_countbits_x)		; Main.bas 102
+            ld b, 16		; Main.bas 103
+            ld c, 0		; Main.bas 104
+asm_0_101_n_loop:		; Main.bas 105
+            add hl, hl		; Main.bas 106
+            jr nc, asm_0_101_n_skip		; Main.bas 107
+            inc c		; Main.bas 108
+asm_0_101_n_skip:		; Main.bas 109
+            djnz asm_0_101_n_loop		; Main.bas 110
+            ld a, c		; Main.bas 111
+            ld (var_countbits_countbits), a		; Main.bas 112
+            xor a		; Main.bas 113
+            ld (var_countbits_countbits+1), a		; Main.bas 114
 			ret			; end of #asm
 
-asm_0_122_n:		; #asm, Main.bas line 122 (normal)
-            ld hl, (var_twice_n)		; Main.bas 123
-            add hl, hl		; Main.bas 124
-            ld (var_twice_n), hl		; Main.bas 125
-asm_0_122_n_loop:		; Main.bas 126
+asm_0_120_n:		; #asm, Main.bas line 120 (normal)
+            ld hl, (var_twice_n)		; Main.bas 121
+            add hl, hl		; Main.bas 122
+            ld (var_twice_n), hl		; Main.bas 123
+asm_0_120_n_loop:		; Main.bas 124
 			ret			; end of #asm
 
-asm_0_132_n:		; #asm, Main.bas line 132 (normal)
-            ld hl, (pa_thirdof_a)        ; base [133]
-            ld de, 4		; Main.bas 134
-            add hl, de          ; element 2 [135]
-            ld e, (hl)		; Main.bas 136
-            inc hl		; Main.bas 137
-            ld d, (hl)		; Main.bas 138
-            ld (var_thirdof_thirdof), de		; Main.bas 139
+asm_0_130_n:		; #asm, Main.bas line 130 (normal)
+            ld hl, (pa_thirdof_a)        ; base [131]
+            ld de, 4		; Main.bas 132
+            add hl, de          ; element 2 [133]
+            ld e, (hl)		; Main.bas 134
+            inc hl		; Main.bas 135
+            ld d, (hl)		; Main.bas 136
+            ld (var_thirdof_thirdof), de		; Main.bas 137
 			ret			; end of #asm
 
 
@@ -744,7 +738,7 @@ glyph_29			equ ntc_font + 72		; ")"
 glyph_2C			equ ntc_font + 96		; ","
 glyph_2E			equ ntc_font + 112		; "."
 glyph_30			equ ntc_font + 128		; "0"
-glyph_32			equ ntc_font + 144		; "2"
+glyph_33			equ ntc_font + 152		; "3"
 glyph_34			equ ntc_font + 160		; "4"
 glyph_35			equ ntc_font + 168		; "5"
 glyph_3A			equ ntc_font + 208		; ":"
@@ -799,7 +793,6 @@ kw_scplevl:	jp 82
 kw_scpgevl:	jp 86
 kw_cpeqvv:	jp 95
 kw_cpeqvl:	jp 96
-kw_cpnevl:	jp 98
 kw_aget:		jp 111
 kw_aset:		jp 112
 kw_asetl:	jp 117
@@ -809,13 +802,12 @@ kw_printnl0:	jp 135
 kw_inp:		jp 137
 kw_out:		jp 138
 kw_printnl:	jp 139
-kw_inkey:	jp 145
 kw_scrinit:	jp 147
 kw_cls:		jp 148
-kw_frame:	jp 153
 kw_bssinit:	jp 291
 ntc_plat_irqon:	jp 316
-NTC_RJ_N	equ 33		; entries
+kw_waitkey:	jp 344
+NTC_RJ_N	equ 31		; entries
 ntc_csp	equ #8800		; ROM data
 ntc_font	equ #948E		; ROM bss
 ntc_nmode	equ #8807		; ROM data

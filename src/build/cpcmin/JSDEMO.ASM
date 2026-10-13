@@ -31,54 +31,54 @@ main_thread:
 			dw kw_scrinit		; mode 1, ROMs off, clear screen
 			dw kw_bssinit, ntc_bss, ntc_bss_size		; the arrays: do they fit, clear them
 
-			; Main.bas 6: total = 0
+			; Main.bas 7: total = 0
 			dw kw_l_mov, llit_0, var_total
 
-			; Main.bas 7: name = "NTC"
+			; Main.bas 8: name = "NTC"
 			dw kw_strcpy, var_name, str0
 
-			; Main.bas 21: For i = 0 To (MAX - 1)
+			; Main.bas 22: For i = 0 To (MAX - 1)
 			dw kw_ztov, var_i
 for1_t:
 
-			; Main.bas 23: squares(i) = square(i)
+			; Main.bas 24: squares(i) = square(i)
 			dw p_square_c, var_i
 			dw kw_aset, arr_squares, var_i, var_square_square
 
-			; Main.bas 24: Next
+			; Main.bas 25: Next
 			dw kw_next1l_n, var_i, 9, for1_t
 for1_e:
 
-			; Main.bas 25: i = 0
+			; Main.bas 26: i = 0
 			dw kw_ztov, var_i
 
-			; Main.bas 26: While (i < MAX)
+			; Main.bas 27: While (i < MAX)
 			dw wh2_c_go
 wh2_t:
 
-			; Main.bas 28: If ((i Mod 2) = 0) Then
+			; Main.bas 29: If ((i Mod 2) = 0) Then
 			dw kw_modvl, var_i, 2, tmp0
 			dw kw_cpeqvl, tmp0, 0
 			dw kw_goto_iffalse_n, if3_1
 
-			; Main.bas 30: total = (total + squares(i))
+			; Main.bas 31: total = (total + squares(i))
 			dw kw_aget, arr_squares, var_i, tmp1
 			dw kw_l_itol, tmp1, ltmp1
 			dw kw_l_add, var_total, ltmp1, var_total
 
-			; Main.bas 31: End If
+			; Main.bas 32: End If
 if3_1:
 
-			; Main.bas 32: i = i + 1
+			; Main.bas 33: i = i + 1
 			dw kw_inc, var_i
 
-			; Main.bas 33: Wend
+			; Main.bas 34: Wend
 wh2_c:
 			dw kw_scpltvl, var_i, 10
 			dw kw_goto_iftrue_n, wh2_t
 wh2_e:
 
-			; Main.bas 34: Print ("Hello from " & (LCase$(name)))
+			; Main.bas 35: Print ("Hello from " & (LCase$(name)))
 			dw kw_strlcase, stmp0, var_name
 			dw kw_printzoscii
 			dw glyph_48, glyph_65, glyph_6C, glyph_6C, glyph_6F, glyph_20, glyph_66, glyph_72
@@ -86,33 +86,33 @@ wh2_e:
 			dw kw_printstrvar, stmp0
 			dw kw_printnl
 
-			; Main.bas 35: Call report("even squares", total)
+			; Main.bas 36: Call report("even squares", total)
 			dw kw_l_cstr, stmp1, var_total
 			dw p_report_c, str1, stmp1
 
-			; Main.bas 36: c.label = "count"
+			; Main.bas 37: c.label = "count"
 			dw kw_strcpy, var_counter_label, str2
 
-			; Main.bas 37: For j = 10 To 1 Step -3
+			; Main.bas 38: For j = 10 To 1 Step -3
 			dw kw_ltov, 10, var_j
 for4_t:
 
-			; Main.bas 39: Call c.add(j)
+			; Main.bas 40: Call c.add(j)
 			dw p_counter_add_c, var_j
 
-			; Main.bas 40: Print j; " ";
+			; Main.bas 41: Print j; " ";
 			dw kw_printint, var_j
 			dw kw_printzoscii
 			dw glyph_20, 0		; " "
 
-			; Main.bas 41: Next
+			; Main.bas 42: Next
 			dw kw_nextdnl_n, var_j, -3, 1, for4_t
 for4_e:
 
-			; Main.bas 42: Print
+			; Main.bas 43: Print
 			dw kw_printnl
 
-			; Main.bas 43: Print c.describe(); " in "; c.steps; " steps"
+			; Main.bas 44: Print c.describe(); " in "; c.steps; " steps"
 			dw p_counter_describe_c
 			dw kw_printstrvar, var_counter_describe_describe
 			dw p_counter_steps_get_c
@@ -121,6 +121,11 @@ for4_e:
 			dw kw_printint, var_counter_steps_get_steps
 			dw kw_printzoscii
 			dw glyph_20, glyph_73, glyph_74, glyph_65, glyph_70, glyph_73, 1, 0		; " steps\n"
+			dw kw_printnl0
+			dw kw_printzoscii
+			dw glyph_50, glyph_72, glyph_65, glyph_73, glyph_73, glyph_20, glyph_61, glyph_20
+			dw glyph_6B, glyph_65, glyph_79, 0		; "Press a key"
+			dw kw_waitkey
 			dw kw_stop
 
 ; ============================================================
@@ -129,7 +134,7 @@ for4_e:
 
 p_square:
 
-			; Main.bas 13: square = (n * n)
+			; Main.bas 14: square = (n * n)
 			dw kw_mulvv, var_square_n, var_square_n, var_square_square
 			dw p_square_r
 
@@ -139,7 +144,7 @@ p_square:
 
 p_report:
 
-			; Main.bas 18: Print ((label & ": ") & value)
+			; Main.bas 19: Print ((label & ": ") & value)
 			dw kw_printstrvar, var_report_label
 			dw kw_printzoscii
 			dw glyph_3A, glyph_20, 0		; ": "
@@ -342,9 +347,12 @@ llit_0:			dw 0, 0
 glyph_20			equ ntc_font + 0		; " "
 glyph_3A			equ ntc_font + 208		; ":"
 glyph_48			equ ntc_font + 320		; "H"
+glyph_50			equ ntc_font + 384		; "P"
+glyph_61			equ ntc_font + 520		; "a"
 glyph_65			equ ntc_font + 552		; "e"
 glyph_66			equ ntc_font + 560		; "f"
 glyph_69			equ ntc_font + 584		; "i"
+glyph_6B			equ ntc_font + 600		; "k"
 glyph_6C			equ ntc_font + 608		; "l"
 glyph_6D			equ ntc_font + 616		; "m"
 glyph_6E			equ ntc_font + 624		; "n"
@@ -353,6 +361,7 @@ glyph_70			equ ntc_font + 640		; "p"
 glyph_72			equ ntc_font + 656		; "r"
 glyph_73			equ ntc_font + 664		; "s"
 glyph_74			equ ntc_font + 672		; "t"
+glyph_79			equ ntc_font + 712		; "y"
 
 ; ============================================================
 ; Strings
@@ -407,6 +416,12 @@ ntc_stop_back:
 			ld sp, (ntc_csp)
 			ei
 			ret
+
+;## kw_waitkey ntc_data ntc_plat_key
+; kw_waitkey - wait for a key (Option PressAnyKeyOnEnd, before kw_stop)
+kw_waitkey:
+			ld ix, ntc_next
+			jp ntc_plat_getkey
 
 ;## ntc_xn ntc_data @shared
 ; normal mode "next": every normal mode keyword ends here (its ret
@@ -1029,6 +1044,15 @@ ntc_pi_done:
 			ld hl, ntc_numbuf
 			ld (ntc_sptr), hl
 			jp ntc_printbuf
+
+;## kw_printnl0 ntc_data ntc_plat_screen
+;kw_printnl0  - new line unless the cursor is at the start of a line
+kw_printnl0:
+			ld a, (ntc_curx)
+			or a
+			ret z
+			ld ix, ntc_next
+			jp ntc_plat_newline
 
 ;## kw_printnl ntc_data ntc_plat_screen
 ;kw_printnl
@@ -1748,6 +1772,153 @@ ntc_cl_close:
 			ld (ntc_curx), a
 			ld (ntc_cury), a
 			jp (ix)
+
+;## ntc_plat_key ntc_plat_data ntc_data @shared
+; ------------------------------------------------------------
+; ntc_plat_scankey - A = ASCII of a key pressed since the last scan,
+; 0 if none
+; ------------------------------------------------------------
+ntc_plat_scankey:
+			ld bc, #F40E		; PSG register 14
+			out (c), c
+			ld bc, #F6C0		; PSG: select register
+			out (c), c
+			ld bc, #F600		; PSG: inactive
+			out (c), c
+			ld bc, #F792		; PPI port A input
+			out (c), c
+			ld hl, ntc_kcur
+			ld a, #40			; PSG read + line 0
+ntc_ks_line:
+			ld b, #F6
+			out (c), a
+			ld b, #F4
+			in d, (c)
+			ld (hl), d
+			inc hl
+			inc a
+			cp #4A
+			jr nz, ntc_ks_line
+			ld bc, #F782		; PPI port A output
+			out (c), c
+			ld bc, #F600
+			out (c), c
+			ld a, #FF
+			ld (ntc_kidx), a
+			ld hl, ntc_kcur
+			ld de, ntc_kprev
+			ld iy, ntc_kign
+			ld bc, #0A00		; B = 10 lines, C = key index
+ntc_ks_find:
+			ld a, (ntc_kidx)
+			inc a
+			jr nz, ntc_ks_next
+			ld a, (hl)
+			cpl
+			ex de, hl
+			and (hl)			; pressed now, released last scan
+			ex de, hl
+			and (iy+0)			; not shift / control / caps
+			jr z, ntc_ks_next
+ntc_ks_bit:
+			rrca
+			jr c, ntc_ks_got
+			inc c
+			jr ntc_ks_bit
+ntc_ks_got:
+			ld a, c
+			ld (ntc_kidx), a
+ntc_ks_next:
+			ld a, c
+			and #F8
+			add a, 8
+			ld c, a
+			inc hl
+			inc de
+			inc iy
+			djnz ntc_ks_find
+			ld hl, ntc_kcur
+			ld de, ntc_kprev
+			ld bc, 10
+			ldir
+			ld a, (ntc_kidx)
+			cp #FF
+			jr z, ntc_ks_none
+			ld e, a
+			ld d, 0
+			ld hl, ntc_keymap
+			ld a, (ntc_kcur + 2)
+			bit 5, a			; shift
+			jr nz, ntc_ks_map
+			ld hl, ntc_keymaps
+ntc_ks_map:
+			add hl, de
+			ld a, (hl)
+			jp (ix)
+ntc_ks_none:
+			xor a
+			jp (ix)
+
+; ------------------------------------------------------------
+; ntc_plat_getkey - wait for a key press, A = ASCII
+; ------------------------------------------------------------
+ntc_plat_getkey:
+			ld (ntc_klink), ix
+ntc_gk_scan:
+			ld ix, ntc_gk_back
+			jp ntc_plat_scankey
+ntc_gk_back:
+			or a
+			jr nz, ntc_gk_done
+			ld a, (ntc_nmode)		; normal mode: interrupts in while waiting
+			or a
+			jr z, ntc_gk_wait
+			ld (ntc_ip), sp
+			ld sp, (ntc_csp)
+			ei
+ntc_gk_wait:
+			ld bc, 1000			; about 6ms between scans (debounce)
+ntc_gk_delay:
+			dec bc
+			ld a, b
+			or c
+			jr nz, ntc_gk_delay
+			di
+			ld a, (ntc_nmode)
+			or a
+			jr z, ntc_gk_scan
+			ld sp, (ntc_ip)
+			jr ntc_gk_scan
+ntc_gk_done:
+			ld ix, (ntc_klink)
+			jp (ix)
+
+; keys that never count as a press on their own (shift, control, caps)
+ntc_kign:		db #FF, #FF, #5F, #FF, #FF, #FF, #FF, #FF, #BF, #FF
+
+; matrix line 0-9, bit 0-7 -> ASCII (0 = ignored)
+ntc_keymap:
+			db 0, 0, 0, "9", "6", "3", 13, "."			; up right down f9 f6 f3 enter f.
+			db 0, 0, "7", "8", "5", "1", "2", "0"		; left copy f7 f8 f5 f1 f2 f0
+			db 0, "[", 13, "]", "4", 0, 92, 0			; clr [ return ] f4 shift \ control
+			db "^", "-", "@", "p", ";", ":", "/", "."
+			db "0", "9", "o", "i", "l", "k", "m", ","
+			db "8", "7", "u", "y", "h", "j", "n", " "
+			db "6", "5", "r", "t", "g", "f", "b", "v"
+			db "4", "3", "e", "w", "s", "d", "c", "x"
+			db "1", "2", 27, "q", 9, "a", 0, "z"		; 1 2 esc q tab a caps z
+			db 0, 0, 0, 0, 0, 0, 0, 127				; joystick, del
+ntc_keymaps:
+			db 0, 0, 0, "9", "6", "3", 13, "."
+			db 0, 0, "7", "8", "5", "1", "2", "0"
+			db 0, "{", 13, "}", "4", 0, "`", 0
+			db "^", "=", "|", "P", "+", "*", "?", ">"
+			db "_", ")", "O", "I", "L", "K", "M", "<"
+			db "(", 39, "U", "Y", "H", "J", "N", " "
+			db "&", "%", "R", "T", "G", "F", "B", "V"
+			db "$", "#", "E", "W", "S", "D", "C", "X"
+			db "!", 34, 27, "Q", 9, "A", 0, "Z"
+			db 0, 0, 0, 0, 0, 0, 0, 127
 
 ;## ntc_plat_irq ntc_plat_data ntc_data ntc_plat_irqh @shared
 ; ------------------------------------------------------------

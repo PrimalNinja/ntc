@@ -4,6 +4,7 @@
 ' Vector3D.cls does the maths (Z80), the Graphics class draws; Spin.cls is the demo - an
 ' overlay class on cpcmin and cpcfw (page SPIN, file CUBE3D.001, in a RAM page: keep it on
 ' the disc with CUBE3D.BIN; needs a 6128). cpc, cpcmin and cpcfw.
+Option PressAnyKeyOnEnd "Press a key"     ' at the end: a message and a key (a RUN" program resets when it ends)
 Option Explicit
 #If NTC_CPCMIN Then
 Option RomEnable 7                ' AMSDOS, for the page file CUBE3D.001

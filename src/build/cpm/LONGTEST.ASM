@@ -27,226 +27,226 @@ ntc_start:
 main_thread:
 			dw kw_bssinit, ntc_bss, ntc_bss_size		; the arrays: do they fit, clear them
 
-			; 20: Cls
+			; 21: Cls
 			dw kw_cls
 
-			; 21: Print "Long self test"
+			; 22: Print "Long self test"
 			dw kw_printstrvar, str0
 			dw kw_printnl
 
-			; 24: a = 100000
+			; 25: a = 100000
 			dw kw_l_mov, llit_100000, var_a
 
-			; 25: ChkL a, 100000
+			; 26: ChkL a, 100000
 			dw p_chkl_c, var_a, llit_100000
 
-			; 26: ChkL BIG, 100000
+			; 27: ChkL BIG, 100000
 			dw p_chkl_c, llit_100000, llit_100000
 
-			; 27: ChkL MEGA, 1000000
+			; 28: ChkL MEGA, 1000000
 			dw p_chkl_c, llit_1000000, llit_1000000
 
-			; 28: a = -40000
+			; 29: a = -40000
 			dw kw_l_mov, llit_m40000, var_a
 
-			; 29: ChkL a, -40000
+			; 30: ChkL a, -40000
 			dw p_chkl_c, var_a, llit_m40000
 
-			; 30: ChkS Str$(2147483647), " 2147483647"
+			; 31: ChkS Str$(2147483647), " 2147483647"
 			dw p_chks_c, str1, str1
 
-			; 31: a = &H7FFFFFFF
+			; 32: a = &H7FFFFFFF
 			dw kw_l_mov, llit_2147483647, var_a
 
-			; 32: ChkL a, 2147483647
+			; 33: ChkL a, 2147483647
 			dw p_chkl_c, var_a, llit_2147483647
 
-			; 35: a = 70000
+			; 36: a = 70000
 			dw kw_l_mov, llit_70000, var_a
 
-			; 36: b = 30000
+			; 37: b = 30000
 			dw kw_l_mov, llit_30000, var_b
 
-			; 37: ChkL a + b, 100000
+			; 38: ChkL a + b, 100000
 			dw kw_l_add, var_a, var_b, ltmp0
 			dw p_chkl_c, ltmp0, llit_100000
 
-			; 38: ChkL a - b, 40000
+			; 39: ChkL a - b, 40000
 			dw kw_l_sub, var_a, var_b, ltmp0
 			dw p_chkl_c, ltmp0, llit_40000
 
-			; 39: ChkL b - a, -40000
+			; 40: ChkL b - a, -40000
 			dw kw_l_sub, var_b, var_a, ltmp0
 			dw p_chkl_c, ltmp0, llit_m40000
 
-			; 40: ChkL a * 3, 210000
+			; 41: ChkL a * 3, 210000
 			dw kw_l_mul, var_a, llit_3, ltmp0
 			dw p_chkl_c, ltmp0, llit_210000
 
-			; 41: ChkL a \ 7, 10000
+			; 42: ChkL a \ 7, 10000
 			dw kw_l_div, var_a, llit_7, ltmp0
 			dw p_chkl_c, ltmp0, llit_10000
 
-			; 42: ChkL a / 7, 10000
+			; 43: ChkL a / 7, 10000
 			dw kw_l_div, var_a, llit_7, ltmp0
 			dw p_chkl_c, ltmp0, llit_10000
 
-			; 43: ChkL a Mod 9, 7
+			; 44: ChkL a Mod 9, 7
 			dw kw_l_mod, var_a, llit_9, ltmp0
 			dw p_chkl_c, ltmp0, llit_7
 
-			; 44: ChkL -a Mod 9, -7
+			; 45: ChkL -a Mod 9, -7
 			dw kw_l_neg, var_a, ltmp0
 			dw kw_l_mod, ltmp0, llit_9, ltmp0
 			dw p_chkl_c, ltmp0, llit_m7
 
-			; 45: ChkL a * -2, -140000
+			; 46: ChkL a * -2, -140000
 			dw kw_l_mul, var_a, llit_m2, ltmp0
 			dw p_chkl_c, ltmp0, llit_m140000
 
-			; 46: c = a * 300
+			; 47: c = a * 300
 			dw kw_l_mul, var_a, llit_300, var_c
 
-			; 47: ChkL c \ a, 300
+			; 48: ChkL c \ a, 300
 			dw kw_l_div, var_c, var_a, ltmp0
 			dw p_chkl_c, ltmp0, llit_300
 
-			; 48: ChkL -a, -70000
+			; 49: ChkL -a, -70000
 			dw kw_l_neg, var_a, ltmp0
 			dw p_chkl_c, ltmp0, llit_m70000
 
-			; 49: ChkL Abs(-a), 70000
+			; 50: ChkL Abs(-a), 70000
 			dw kw_l_neg, var_a, ltmp0
 			dw kw_l_abs, ltmp0, ltmp0
 			dw p_chkl_c, ltmp0, llit_70000
 
-			; 50: Chk Sgn(-a), -1
+			; 51: Chk Sgn(-a), -1
 			dw kw_l_neg, var_a, ltmp0
 			dw kw_l_sgn, ltmp0, tmp0
 			dw p_chk_c, tmp0, lit_m1
 
-			; 51: Chk Sgn(a), 1
+			; 52: Chk Sgn(a), 1
 			dw kw_l_sgn, var_a, tmp0
 			dw p_chk_c, tmp0, lit_1
 
-			; 52: c = 0
+			; 53: c = 0
 			dw kw_l_mov, llit_0, var_c
 
-			; 53: Chk Sgn(c), 0
+			; 54: Chk Sgn(c), 0
 			dw kw_l_sgn, var_c, tmp0
 			dw p_chk_c, tmp0, lit_0
 
-			; 54: ChkL (a And &HFFFF&), 4464
+			; 55: ChkL (a And &HFFFF&), 4464
 			dw kw_l_and, var_a, llit_65535, ltmp0
 			dw p_chkl_c, ltmp0, llit_4464
 
-			; 55: ChkL a Or 1, 70001
+			; 56: ChkL a Or 1, 70001
 			dw kw_l_or, var_a, llit_1, ltmp0
 			dw p_chkl_c, ltmp0, llit_70001
 
-			; 56: ChkL a Xor a, 0
+			; 57: ChkL a Xor a, 0
 			dw kw_l_xor, var_a, var_a, ltmp0
 			dw p_chkl_c, ltmp0, llit_0
 
-			; 57: ChkL Not c, -1
+			; 58: ChkL Not c, -1
 			dw kw_l_not, var_c, ltmp0
 			dw p_chkl_c, ltmp0, llit_m1
 
-			; 60: n = 1000
+			; 61: n = 1000
 			dw kw_ltov, 1000, var_n
 
-			; 61: a = n
+			; 62: a = n
 			dw kw_l_itol, var_n, var_a
 
-			; 62: ChkL a, 1000
+			; 63: ChkL a, 1000
 			dw p_chkl_c, var_a, llit_1000
 
-			; 63: a = n * 1000&
+			; 64: a = n * 1000&
 			dw kw_l_itol, var_n, ltmp0
 			dw kw_l_mul, ltmp0, llit_1000, var_a
 
-			; 64: ChkL a, 1000000
+			; 65: ChkL a, 1000000
 			dw p_chkl_c, var_a, llit_1000000
 
-			; 65: a = CLng(n) * n
+			; 66: a = CLng(n) * n
 			dw kw_l_itol, var_n, ltmp0
 			dw kw_l_itol, var_n, ltmp1
 			dw kw_l_mul, ltmp0, ltmp1, var_a
 
-			; 66: ChkL a, 1000000
+			; 67: ChkL a, 1000000
 			dw p_chkl_c, var_a, llit_1000000
 
-			; 67: n = 300
+			; 68: n = 300
 			dw kw_ltov, 300, var_n
 
-			; 68: a = CLng(n) * n + n
+			; 69: a = CLng(n) * n + n
 			dw kw_l_itol, var_n, ltmp0
 			dw kw_l_itol, var_n, ltmp1
 			dw kw_l_mul, ltmp0, ltmp1, ltmp0
 			dw kw_l_itol, var_n, ltmp1
 			dw kw_l_add, ltmp0, ltmp1, var_a
 
-			; 69: ChkL a, 90300
+			; 70: ChkL a, 90300
 			dw p_chkl_c, var_a, llit_90300
 
-			; 70: a = 65537
+			; 71: a = 65537
 			dw kw_l_mov, llit_65537, var_a
 
-			; 71: n = a
+			; 72: n = a
 			dw kw_l_ltoi, var_a, var_n
 
-			; 72: Chk n, 1
+			; 73: Chk n, 1
 			dw p_chk_c, var_n, lit_1
 
-			; 73: Chk CInt(a), 1
+			; 74: Chk CInt(a), 1
 			dw kw_l_ltoi, var_a, tmp0
 			dw p_chk_c, tmp0, lit_1
 
-			; 76: a = 100000
+			; 77: a = 100000
 			dw kw_l_mov, llit_100000, var_a
 
-			; 77: b = 99999
+			; 78: b = 99999
 			dw kw_l_mov, llit_99999, var_b
 
-			; 78: Chk (a > b), -1
+			; 79: Chk (a > b), -1
 			dw kw_l_cpgt, var_a, var_b
 			dw kw_ftov, tmp0
 			dw p_chk_c, tmp0, lit_m1
 
-			; 79: Chk (a < b), 0
+			; 80: Chk (a < b), 0
 			dw kw_l_cplt, var_a, var_b
 			dw kw_ftov, tmp0
 			dw p_chk_c, tmp0, lit_0
 
-			; 80: Chk (a = 100000), -1
+			; 81: Chk (a = 100000), -1
 			dw kw_l_cpeq, var_a, llit_100000
 			dw kw_ftov, tmp0
 			dw p_chk_c, tmp0, lit_m1
 
-			; 81: Chk (a <> b), -1
+			; 82: Chk (a <> b), -1
 			dw kw_l_cpne, var_a, var_b
 			dw kw_ftov, tmp0
 			dw p_chk_c, tmp0, lit_m1
 
-			; 82: Chk (b <= a), -1
+			; 83: Chk (b <= a), -1
 			dw kw_l_cple, var_b, var_a
 			dw kw_ftov, tmp0
 			dw p_chk_c, tmp0, lit_m1
 
-			; 83: Chk (b >= a), 0
+			; 84: Chk (b >= a), 0
 			dw kw_l_cpge, var_b, var_a
 			dw kw_ftov, tmp0
 			dw p_chk_c, tmp0, lit_0
 
-			; 84: c = -5
+			; 85: c = -5
 			dw kw_l_mov, llit_m5, var_c
 
-			; 85: Chk (c < 3), -1
+			; 86: Chk (c < 3), -1
 			dw kw_l_cplt, var_c, llit_3
 			dw kw_ftov, tmp0
 			dw p_chk_c, tmp0, lit_m1
 
-			; 86: If a > 50000 Then n = 1 Else n = 2
+			; 87: If a > 50000 Then n = 1 Else n = 2
 			dw kw_l_cpgt, var_a, llit_50000
 			dw kw_goto_iffalse_n, if1_1
 			dw kw_ltov, 1, var_n
@@ -255,13 +255,13 @@ if1_1:
 			dw kw_ltov, 2, var_n
 if1_e:
 
-			; 87: Chk n, 1
+			; 88: Chk n, 1
 			dw p_chk_c, var_n, lit_1
 
-			; 88: c = 0
+			; 89: c = 0
 			dw kw_l_mov, llit_0, var_c
 
-			; 89: If c Then n = 3 Else n = 4
+			; 90: If c Then n = 3 Else n = 4
 			dw kw_l_cpne, var_c, llit_0
 			dw kw_goto_iffalse_n, if2_1
 			dw kw_ltov, 3, var_n
@@ -270,177 +270,177 @@ if2_1:
 			dw kw_ltov, 4, var_n
 if2_e:
 
-			; 90: Chk n, 4
+			; 91: Chk n, 4
 			dw p_chk_c, var_n, lit_4
 
-			; 93: a = 123456
+			; 94: a = 123456
 			dw kw_l_mov, llit_123456, var_a
 
-			; 94: ChkS CStr(a), "123456"
+			; 95: ChkS CStr(a), "123456"
 			dw kw_l_cstr, stmp0, var_a
 			dw p_chks_c, stmp0, str2
 
-			; 95: ChkS Str$(a), " 123456"
+			; 96: ChkS Str$(a), " 123456"
 			dw kw_l_str, stmp0, var_a
 			dw p_chks_c, stmp0, str3
 
-			; 96: ChkS "a=" & a, "a=123456"
+			; 97: ChkS "a=" & a, "a=123456"
 			dw kw_l_cstr, stmp1, var_a
 			dw kw_strcpy, stmp0, str4
 			dw kw_strcat, stmp0, stmp1
 			dw p_chks_c, stmp0, str5
 
-			; 97: a = -987654
+			; 98: a = -987654
 			dw kw_l_mov, llit_m987654, var_a
 
-			; 98: ChkS CStr(a), "-987654"
+			; 99: ChkS CStr(a), "-987654"
 			dw kw_l_cstr, stmp0, var_a
 			dw p_chks_c, stmp0, str6
 
-			; 99: s = a
+			; 100: s = a
 			dw kw_l_cstr, var_s, var_a
 
-			; 100: ChkS s, "-987654"
+			; 101: ChkS s, "-987654"
 			dw p_chks_c, var_s, str6
 
-			; 101: a = Val("1234567")
+			; 102: a = Val("1234567")
 			dw kw_l_val, str7, var_a
 
-			; 102: ChkL a, 1234567
+			; 103: ChkL a, 1234567
 			dw p_chkl_c, var_a, llit_1234567
 
-			; 103: a = CLng("-200000")
+			; 104: a = CLng("-200000")
 			dw kw_l_val, str8, var_a
 
-			; 104: ChkL a, -200000
+			; 105: ChkL a, -200000
 			dw p_chkl_c, var_a, llit_m200000
 
-			; 105: s = "45000"
+			; 106: s = "45000"
 			dw kw_strcpy, var_s, str9
 
-			; 106: a = s
+			; 107: a = s
 			dw kw_l_val, var_s, var_a
 
-			; 107: ChkL a, 45000
+			; 108: ChkL a, 45000
 			dw p_chkl_c, var_a, llit_45000
 
-			; 110: For i = 0 To 4
+			; 111: For i = 0 To 4
 			dw kw_ztov, var_i
 for3_t:
 
-			; 111: arr(i) = CLng(i) * 100000
+			; 112: arr(i) = CLng(i) * 100000
 			dw kw_l_itol, var_i, ltmp1
 			dw kw_l_mul, ltmp1, llit_100000, ltmp1
 			dw kw_l_aset, arr_arr, var_i, ltmp1
 
-			; 112: Next
+			; 113: Next
 			dw kw_next1l_n, var_i, 4, for3_t
 for3_e:
 
-			; 113: ChkL arr(4), 400000
+			; 114: ChkL arr(4), 400000
 			dw p_chkl_c, arr_arr+16, llit_400000
 
-			; 114: i = 3
+			; 115: i = 3
 			dw kw_ltov, 3, var_i
 
-			; 115: ChkL arr(i), 300000
+			; 116: ChkL arr(i), 300000
 			dw kw_l_aget, arr_arr, var_i, ltmp0
 			dw p_chkl_c, ltmp0, llit_300000
 
-			; 116: arr(i) = arr(i) + 1
+			; 117: arr(i) = arr(i) + 1
 			dw kw_l_aget, arr_arr, var_i, ltmp1
 			dw kw_l_add, ltmp1, llit_1, ltmp1
 			dw kw_l_aset, arr_arr, var_i, ltmp1
 
-			; 117: ChkL arr(3), 300001
+			; 118: ChkL arr(3), 300001
 			dw p_chkl_c, arr_arr+12, llit_300001
 
-			; 118: acc.id = 7
+			; 119: acc.id = 7
 			dw kw_ltov, 7, var_acc_id
 
-			; 119: acc.balance = 250000
+			; 120: acc.balance = 250000
 			dw kw_l_mov, llit_250000, var_acc_balance
 
-			; 120: acc.balance = acc.balance * 2
+			; 121: acc.balance = acc.balance * 2
 			dw kw_l_mul, var_acc_balance, llit_2, var_acc_balance
 
-			; 121: ChkL acc.balance, 500000
+			; 122: ChkL acc.balance, 500000
 			dw p_chkl_c, var_acc_balance, llit_500000
 
-			; 122: ChkL Twice(123456), 246912
+			; 123: ChkL Twice(123456), 246912
 			dw p_twice_c, llit_123456
 			dw p_chkl_c, var_twice_twice, llit_246912
 
-			; 123: a = 5
+			; 124: a = 5
 			dw kw_l_mov, llit_5, var_a
 
-			; 124: AddTo a, 99995
+			; 125: AddTo a, 99995
 			dw p_addto_c, var_a, llit_99995
 
-			; 125: ChkL a, 100000
+			; 126: ChkL a, 100000
 			dw p_chkl_c, var_a, llit_100000
 
-			; 126: ChkL Fact(12), 479001600
+			; 127: ChkL Fact(12), 479001600
 			dw p_fact_c, lit_12
 			dw p_chkl_c, var_fact_fact, llit_479001600
 
-			; 129: total = 0
+			; 130: total = 0
 			dw kw_l_mov, llit_0, var_total
 
-			; 130: For a = 99998 To 100002
+			; 131: For a = 99998 To 100002
 			dw kw_l_mov, llit_99998, var_a
 			dw kw_l_cpgt, var_a, llit_100002
 			dw kw_goto_iftrue_n, for4_e
 for4_t:
 
-			; 131: total = total + a
+			; 132: total = total + a
 			dw kw_l_add, var_total, var_a, var_total
 
-			; 132: Next
+			; 133: Next
 			dw kw_l_add, var_a, llit_1, var_a
 			dw kw_l_cple, var_a, llit_100002
 			dw kw_goto_iftrue_n, for4_t
 for4_e:
 
-			; 133: ChkL total, 500000
+			; 134: ChkL total, 500000
 			dw p_chkl_c, var_total, llit_500000
 
-			; 134: total = 0
+			; 135: total = 0
 			dw kw_l_mov, llit_0, var_total
 
-			; 135: For a = 300000 To 100000 Step -100000
+			; 136: For a = 300000 To 100000 Step -100000
 			dw kw_l_mov, llit_300000, var_a
 			dw kw_l_cplt, var_a, llit_100000
 			dw kw_goto_iftrue_n, for5_e
 for5_t:
 
-			; 136: total = total + a
+			; 137: total = total + a
 			dw kw_l_add, var_total, var_a, var_total
 
-			; 137: Next
+			; 138: Next
 			dw kw_l_add, var_a, llit_m100000, var_a
 			dw kw_l_cpge, var_a, llit_100000
 			dw kw_goto_iftrue_n, for5_t
 for5_e:
 
-			; 138: ChkL total, 600000
+			; 139: ChkL total, 600000
 			dw p_chkl_c, var_total, llit_600000
 
-			; 141: a = 150000
+			; 142: a = 150000
 			dw kw_l_mov, llit_150000, var_a
 
-			; 142: Select Case a
+			; 143: Select Case a
 			dw kw_l_mov, var_a, var___sel6
 
-			; 143: Case Is < 100000
+			; 144: Case Is < 100000
 			dw kw_l_cplt, var___sel6, llit_100000
 			dw kw_goto_iffalse_n, sel6_1
 sel6_b1:
 
-			; 144: n = 1
+			; 145: n = 1
 			dw kw_ltov, 1, var_n
 
-			; 145: Case 100000 To 199999
+			; 146: Case 100000 To 199999
 			dw sel6_e_go
 sel6_1:
 			dw kw_l_cplt, var___sel6, llit_100000
@@ -449,47 +449,36 @@ sel6_1:
 			dw kw_goto_iffalse_n, sel6_2
 sel6_b2:
 
-			; 146: n = 2
+			; 147: n = 2
 			dw kw_ltov, 2, var_n
 
-			; 147: Case Else
+			; 148: Case Else
 			dw sel6_e_go
 sel6_2:
 
-			; 148: n = 3
+			; 149: n = 3
 			dw kw_ltov, 3, var_n
 
-			; 149: End Select
+			; 150: End Select
 sel6_e:
 
-			; 150: Chk n, 2
+			; 151: Chk n, 2
 			dw p_chk_c, var_n, lit_2
 
-			; 152: Print
+			; 153: Print
 			dw kw_printnl
 
-			; 153: Print t; " tests, "; bad; " failed"
+			; 154: Print t; " tests, "; bad; " failed"
 			dw kw_printint, var_t
 			dw kw_printstrvar, str10
 			dw kw_printint, var_bad
 			dw kw_printstrvar, str11
 			dw kw_printnl
 
-			; 154: Print "Press a key";
+			; 155: End
+			dw kw_printnl0
 			dw kw_printstrvar, str12
-
-			; 155: Do : Frame : Loop Until Inkey <> 0
-do7_t:
-			dw kw_frame
-			dw kw_inkey, tmp0
-			dw kw_cpnevl, tmp0, 0
-			dw kw_goto_iffalse_n, do7_t
-do7_e:
-
-			; 156: Print
-			dw kw_printnl
-
-			; 157: End
+			dw kw_waitkey
 			dw kw_stop
 
 ; ============================================================
@@ -498,34 +487,34 @@ do7_e:
 
 p_chkl:
 
-			; 160: t = t + 1
+			; 158: t = t + 1
 			dw kw_inc, var_t
 
-			; 161: Print t; ":";
+			; 159: Print t; ":";
 			dw kw_printint, var_t
 			dw kw_printstrvar, str13
 
-			; 162: If got = want Then
+			; 160: If got = want Then
 			dw kw_l_cpeq, var_chkl_got, var_chkl_want
-			dw kw_goto_iffalse_n, if8_1
+			dw kw_goto_iffalse_n, if7_1
 
-			; 163: Print "ok ";
+			; 161: Print "ok ";
 			dw kw_printstrvar, str14
 
-			; 164: Else
-			dw if8_e_go
-if8_1:
+			; 162: Else
+			dw if7_e_go
+if7_1:
 
-			; 165: Print "FAIL("; got; ") ";
+			; 163: Print "FAIL("; got; ") ";
 			dw kw_printstrvar, str15
 			dw kw_l_print, var_chkl_got
 			dw kw_printstrvar, str16
 
-			; 166: bad = bad + 1
+			; 164: bad = bad + 1
 			dw kw_inc, var_bad
 
-			; 167: End If
-if8_e:
+			; 165: End If
+if7_e:
 			dw p_chkl_r
 
 ; ============================================================
@@ -534,34 +523,34 @@ if8_e:
 
 p_chk:
 
-			; 171: t = t + 1
+			; 169: t = t + 1
 			dw kw_inc, var_t
 
-			; 172: Print t; ":";
+			; 170: Print t; ":";
 			dw kw_printint, var_t
 			dw kw_printstrvar, str13
 
-			; 173: If got = want Then
+			; 171: If got = want Then
 			dw kw_cpeqvv, var_chk_got, var_chk_want
-			dw kw_goto_iffalse_n, if9_1
+			dw kw_goto_iffalse_n, if8_1
 
-			; 174: Print "ok ";
+			; 172: Print "ok ";
 			dw kw_printstrvar, str14
 
-			; 175: Else
-			dw if9_e_go
-if9_1:
+			; 173: Else
+			dw if8_e_go
+if8_1:
 
-			; 176: Print "FAIL("; got; ") ";
+			; 174: Print "FAIL("; got; ") ";
 			dw kw_printstrvar, str15
 			dw kw_printint, var_chk_got
 			dw kw_printstrvar, str16
 
-			; 177: bad = bad + 1
+			; 175: bad = bad + 1
 			dw kw_inc, var_bad
 
-			; 178: End If
-if9_e:
+			; 176: End If
+if8_e:
 			dw p_chk_r
 
 ; ============================================================
@@ -570,34 +559,34 @@ if9_e:
 
 p_chks:
 
-			; 182: t = t + 1
+			; 180: t = t + 1
 			dw kw_inc, var_t
 
-			; 183: Print t; ":";
+			; 181: Print t; ":";
 			dw kw_printint, var_t
 			dw kw_printstrvar, str13
 
-			; 184: If got = want Then
+			; 182: If got = want Then
 			dw kw_strcmpeq, var_chks_got, var_chks_want
-			dw kw_goto_iffalse_n, if10_1
+			dw kw_goto_iffalse_n, if9_1
 
-			; 185: Print "ok ";
+			; 183: Print "ok ";
 			dw kw_printstrvar, str14
 
-			; 186: Else
-			dw if10_e_go
-if10_1:
+			; 184: Else
+			dw if9_e_go
+if9_1:
 
-			; 187: Print "FAIL["; got; "] ";
+			; 185: Print "FAIL["; got; "] ";
 			dw kw_printstrvar, str17
 			dw kw_printstrvar, var_chks_got
 			dw kw_printstrvar, str18
 
-			; 188: bad = bad + 1
+			; 186: bad = bad + 1
 			dw kw_inc, var_bad
 
-			; 189: End If
-if10_e:
+			; 187: End If
+if9_e:
 			dw p_chks_r
 
 ; ============================================================
@@ -606,7 +595,7 @@ if10_e:
 
 p_twice:
 
-			; 193: Twice = v + v
+			; 191: Twice = v + v
 			dw kw_l_add, var_twice_v, var_twice_v, var_twice_twice
 			dw p_twice_r
 
@@ -616,7 +605,7 @@ p_twice:
 
 p_addto:
 
-			; 197: x = x + y
+			; 195: x = x + y
 			dw kw_l_add, var_addto_x, var_addto_y, var_addto_x
 			dw p_addto_r
 
@@ -626,28 +615,28 @@ p_addto:
 
 p_fact:
 
-			; 201: Dim r As Long
+			; 199: Dim r As Long
 
-			; 202: r = 1
+			; 200: r = 1
 			dw kw_l_mov, llit_1, var_fact_r
 
-			; 203: Do While k > 1
-do11_t:
+			; 201: Do While k > 1
+do10_t:
 			dw kw_scpgtvl, var_fact_k, 1
-			dw kw_goto_iffalse_n, do11_e
+			dw kw_goto_iffalse_n, do10_e
 
-			; 204: r = r * k
+			; 202: r = r * k
 			dw kw_l_itol, var_fact_k, ltmp1
 			dw kw_l_mul, var_fact_r, ltmp1, var_fact_r
 
-			; 205: k = k - 1
+			; 203: k = k - 1
 			dw kw_dec, var_fact_k
 
-			; 206: Loop
-			dw do11_t_go
-do11_e:
+			; 204: Loop
+			dw do10_t_go
+do10_e:
 
-			; 207: Fact = r
+			; 205: Fact = r
 			dw kw_l_mov, var_fact_r, var_fact_fact
 			dw p_fact_r
 
@@ -666,13 +655,13 @@ if2_e_go:			ld sp, if2_e
 			jp ntc_xn
 sel6_e_go:			ld sp, sel6_e
 			jp ntc_xn
+if7_e_go:			ld sp, if7_e
+			jp ntc_xn
 if8_e_go:			ld sp, if8_e
 			jp ntc_xn
 if9_e_go:			ld sp, if9_e
 			jp ntc_xn
-if10_e_go:			ld sp, if10_e
-			jp ntc_xn
-do11_t_go:			ld sp, do11_t
+do10_t_go:			ld sp, do10_t
 			jp ntc_xn
 
 p_chkl_c:		; call chkl (normal)
@@ -973,6 +962,12 @@ ntc_stop_back:
 			ei
 			ret
 
+;## kw_waitkey ntc_data ntc_plat_key
+; kw_waitkey - wait for a key (Option PressAnyKeyOnEnd, before kw_stop)
+kw_waitkey:
+			ld ix, ntc_next
+			jp ntc_plat_getkey
+
 ;## ntc_xn ntc_data @shared
 ; normal mode "next": every normal mode keyword ends here (its ret
 ; became jp ntc_xn). Thread position to ntc_ip, real stack, one
@@ -1243,19 +1238,6 @@ kw_cpeqvv:
 			ld l, a
 			jp ntc_cmp_eq
 
-;## kw_cpnevl ntc_cmp
-kw_cpnevl:
-			pop hl
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			pop hl
-			jp ntc_cmp_ne
-
-; ============================================================
-; Memory (PEEK / POKE / DEEK / DOKE)
-; ============================================================
-
 ;## kw_strcpy
 ;kw_strcpy, <destaddr>, <srcaddr>  - cut at the destination's capacity byte
 kw_strcpy:
@@ -1415,37 +1397,26 @@ ntc_pi_done:
 			ld (ntc_sptr), hl
 			jp ntc_printbuf
 
+;## kw_printnl0 ntc_data ntc_plat_screen
+;kw_printnl0  - new line unless the cursor is at the start of a line
+kw_printnl0:
+			ld a, (ntc_curx)
+			or a
+			ret z
+			ld ix, ntc_next
+			jp ntc_plat_newline
+
 ;## kw_printnl ntc_data ntc_plat_screen
 ;kw_printnl
 kw_printnl:
 			ld ix, ntc_next
 			jp ntc_plat_newline
 
-;## kw_inkey ntc_data ntc_plat_key
-;kw_inkey, <destvar>  - new key press or 0, no wait
-kw_inkey:
-			pop hl
-			ld (ntc_ivar), hl
-			ld ix, ntc_inkey_got
-			jp ntc_plat_scankey
-ntc_inkey_got:
-			ld hl, (ntc_ivar)
-			ld (hl), a
-			inc hl
-			ld (hl), 0
-			ret
-
 ;## kw_cls ntc_data ntc_plat_screen
 ;kw_cls
 kw_cls:
 			ld ix, ntc_next
 			jp ntc_plat_cls
-
-;## kw_frame ntc_data ntc_plat_frame
-;kw_frame  - wait for the start of the next frame flyback
-kw_frame:
-			ld ix, ntc_next
-			jp ntc_plat_frame
 
 ;## ntc_ldata
 ntc_la:			ds 4
@@ -2729,10 +2700,6 @@ ntc_gk_back:
 			ld ix, (ntc_gklink)
 			jp (ix)
 ntc_gklink:		dw 0
-
-;## ntc_plat_frame
-ntc_plat_frame:
-			jp (ix)
 
 ;## ntc_plat_exit ntc_plat_data
 ; ntc_plat_exit - warm boot back to CP/M

@@ -2482,6 +2482,9 @@ Option PressAnyKeyOnEnd "Done - press a key"
 Print "Hello"
 ```
 
+In the Locomotive BASIC flavour: `'# Option PressAnyKeyOnEnd "Press a key"` on a line of its own;
+in the JS flavour: `//# Option PressAnyKeyOnEnd "Press a key"`. Every example in `bas/` has it.
+
 **VB:** not in VB.
 
 ### Option Stack
@@ -2589,7 +2592,7 @@ are 0 and the `#Else` part is used.
 
 | Platform | Name | Program | Text | Console |
 |---|---|---|---|---|
-| Amstrad CPC, no firmware | `cpc` | a binary at `#0040` (`RUN"name` from AMSDOS), ROMs off, own interrupt handler; no firmware at all - every byte from `#0040` to the stack is the program's; no files | drawn by the program, with the CPC's own font (copied from the ROM at start) | full screen, keys from the matrix |
+| Amstrad CPC, no firmware | `cpc` | a binary at `#0040` (`RUN"name` from AMSDOS), ROMs off, own interrupt handler; no firmware at all - every byte from `#0040` to the stack is the program's; files from a ROMDISC only | drawn by the program, with the CPC's own font (copied from the ROM at start) | full screen, keys from the matrix |
 | Amstrad CPC, minimal firmware | `cpcmin` | as `cpc` (own screen, keys, interrupts), but the firmware is kept alive (its RAM `#A700-#BFFF` left alone) and handed back for each firmware call: discs and tape (`FileSystem`), other ROMs' commands (`System.Command`) | as `cpc` | as `cpc` |
 | Amstrad CPC, full firmware | `cpcfw` | a binary at `#0040` (`RUN"name`), firmware left running (AMSDOS, RSXs, windows) | firmware `TXT OUTPUT` | full screen, firmware keys |
 | CP/M 2.2 / 3 | `cpm` | a `.COM` file at `#0100`, ends with a warm boot | BDOS direct console I/O | a stream, or 80 x 24 with [Option Terminal](#option-terminal) |
@@ -2601,7 +2604,7 @@ the `StdIO`, `System` and `FileSystem` classes report.
 The three CPC platforms are three amounts of firmware: `cpcfw` uses it for everything (the
 easiest, and all ROMs work); `cpcmin` draws and reads the keyboard itself (faster text, NTC's
 own interrupt handler) and keeps the firmware only for discs, tape and ROM commands; `cpc`
-uses none (all the RAM, no files). On `cpcfw` and `cpcmin`, `RUN"` of a binary drops AMSDOS
+uses none (all the RAM; files from a ROMDISC only). On `cpcfw` and `cpcmin`, `RUN"` of a binary drops AMSDOS
 and the other ROMs: [Option RomEnable](#option-romenable) starts them again. While a
 `cpcmin` firmware call runs, the screen may show the firmware's mode, and firmware messages
 (disc missing, Retry / Cancel, Press PLAY) appear on the screen; afterwards NTC's mode,
@@ -2693,7 +2696,7 @@ If System.TicksPerSecond = 0 Then Print "(no clock here)"
 | `HOOK` | the `Interrupt` statement | True | True | True | - | - |
 | `INTERRUPTCLASSES` | `Option Class Interrupt` | True | True | True | - | - |
 | `PAGES` | RAM pages (`Option Memory CPCExpansion`) | True | True | True | - | - |
-| `FILES` | `FileSystem` Load / Save (more: `FileSystem.Capability`) | - | True | True | True | - |
+| `FILES` | `FileSystem` Load / Save (more: `FileSystem.Capability`) | - (a ROMDISC: `FileSystem.Capability("ROMDISC")`) | True | True | True | - |
 | `ROMCOMMANDS` | `System.Command` | - | True | True | - | - |
 | `OVERLAYS` | `Option Class Overlay` | - | True | True | True | - |
 
@@ -2720,15 +2723,16 @@ hasn't got it. Yes / no capabilities are True (-1); some are numbers.
 
 | Name | Means | cpc | cpcfw | cpm | test |
 |---|---|---|---|---|---|
-| `LOAD`, `SAVE` | whole file to / from memory | - | True (cpcmin too) | True | - |
-| `SEQUENTIAL` | `Open`, read and write in order | - | True (cpcmin too) | True | - |
+| `LOAD`, `SAVE` | whole file to / from memory | `LOAD` (ROMDISC) | True (cpcmin too) | True | - |
+| `SEQUENTIAL` | `Open`, read and write in order | True (reading: ROMDISC) | True (cpcmin too) | True | - |
 | `RANDOMACCESS` | `Seek` anywhere, read and write | - | - | True | - |
-| `DELETE`, `RENAME`, `EXISTS`, `SIZE` | those methods | - | - | True | - |
+| `DELETE`, `RENAME`, `EXISTS`, `SIZE` | those methods | `EXISTS`, `SIZE` | - (`Exists`, `Size` on volume R) | True | - |
 | `MULTIPLE` | more than one file open at once | - | - | True | - |
-| `DEVICES` | `Devices`, `SelectDevice`, `CurrentDevice` | - | True | True | - |
-| `VOLUMES` | `Volumes`, `SelectVolume`, `CurrentVolume` | - | True | True | - |
+| `DEVICES` | `Devices`, `SelectDevice`, `CurrentDevice` | True (`ROM`) | True | True | - |
+| `VOLUMES` | `Volumes`, `SelectVolume`, `CurrentVolume` | True (`R`) | True | True | - |
+| `ROMDISC` | volume R: files kept in ROMs (below) | True | True (cpcmin too) | - | - |
 | `CPMVERSION` | BDOS's version: `&H22` CP/M 2.2, `&H31` CP/M 3 | - | - | yes | - |
-| `MAXOPEN` | how many files can be open | 0 | 1 | 2 | 0 |
+| `MAXOPEN` | how many files can be open | 1 | 1 (and a ROMDISC file beside it) | 2 | 0 |
 | `RECORDSIZE` | the disc's record size | - | - | 128 | - |
 
 A name the platform doesn't know is 0, so a program can ask for anything.
@@ -2751,6 +2755,7 @@ The methods all return a number: 0 or more is a result (a count, a handle, a byt
 | `Seek(h, position)` | the next read or write is at that byte (a Long, 0 = the start) |
 | `Eof(h)` | True when there is nothing more to read |
 | `ReadLine(h)`, `WriteLine(h, text)` | a line of text (CR LF or LF ends it, not kept) |
+| `DirEntry(n)` | the ROMDISC's n-th file, `"NAME.EXT"` (1 = the first), `""` past the last (other platforms: `""`) |
 | `Devices()` | how files travel, as text: `"TAPE,DISC"` (CPC with a DOS), `"TAPE"`, `"DISC"` (CP/M) |
 | `SelectDevice(name)` | `"TAPE"` or `"DISC"`; `NotFound` if this platform hasn't got it |
 | `CurrentDevice()` | `"TAPE"` or `"DISC"` |
@@ -2827,7 +2832,42 @@ r = FileSystem.Close(h)
   volumes), each call handed to the firmware for its length. Its keyword ROM has no room for
   the open-file code: with `Option Library ROM` the program carries that part itself (about
   450 bytes).
-- **CPC, no firmware** (`cpc`) and **test**: no files - every method returns `NotSupported`.
+- **CPC, no firmware** (`cpc`): the ROMDISC is its only volume (below). **test**: no files -
+  every method returns `NotSupported`.
+
+**The ROMDISC (volume R)** - files kept in ROMs, read only, on cpc, cpcmin and cpcfw. A
+ROMDISC is one or more ROMs (`NTCDISC.ROM`, `NTCDISC2.ROM` ..., up to 8, in any ROM slots)
+made from a list of files by `ntcRomDisc` (in `ntc_compiler.js`; `test/genromdisc.js
+outdir FILE ...` writes them). Names are 8.3. ROM 0 holds the directory, read until an entry
+flagged as the end; each entry has the name, a flags byte (bit 0 = compressed - none are yet),
+the ROM and address where the file starts, and its length; a file may run on from one ROM into
+the next.
+
+It isn't a disc system: no drive, no catalogue screen, no Retry / Cancel - FileSystem's
+methods simply go to the ROMDISC's routines when the volume is R:
+
+- a name `"R:NAME.EXT"`, or a name with no volume while the volume in use is R
+  (`SelectVolume "R"`): `Load`, `Open` (`ForRead` only: it gives handle 2), `Exists`, `Size`;
+- handle 2: `ReadByte`, `Read`, `ReadLine`, `Eof`, `Close`;
+- `DirEntry(n)` lists the files.
+
+Writing (`Save`, `Open ForWrite`, `WriteByte` ...), `Delete`, `Rename` and `Seek` return
+`NotSupported` on R. On cpcmin and cpcfw a ROMDISC file (handle 2) can be open beside a disc file
+(handle 1), and `"A:NAME"` still reaches the disc while R is in use. On cpc, R is the only volume.
+No ROMDISC fitted (or a part of it missing): `NotFound`, `Volumes` `""` on cpc. Reading selects
+the ROMDISC's ROM for a moment (cpc and cpcmin: on the hardware; cpcfw and cpcmin's file calls:
+KL ROM SELECT), so this code is never in the keyword ROM: a `Library: ROM` program carries it
+(about 1.2K) when it uses volume R.
+
+```
+r = FileSystem.SelectVolume("R")
+n = 0
+Do
+  n = n + 1 : s = FileSystem.DirEntry(n)
+  If s <> "" Then Print s; " "; FileSystem.Size(s)
+Loop Until s = ""
+r = FileSystem.Load("TITLE.SCR", &HC000, 16384)     ' a screen straight from ROM
+```
 
 See `bas/files.bas`.
 

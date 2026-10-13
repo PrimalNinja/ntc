@@ -27,100 +27,89 @@ ntc_start:
 main_thread:
 			dw kw_bssinit, ntc_bss, ntc_bss_size		; the arrays: do they fit, clear them
 
-			; 9: Cls
+			; 10: Cls
 			dw kw_cls
 
-			; 10: Print "VB self test 8"
+			; 11: Print "VB self test 8"
 			dw kw_printstrvar, str0
 			dw kw_printnl
 
-			; 13: table(0) = AddressOf AddOne
+			; 14: table(0) = AddressOf AddOne
 			dw kw_vtov, ap_p_addone_c, arr_table
 
-			; 14: table(1) = AddressOf AddTen
+			; 15: table(1) = AddressOf AddTen
 			dw kw_vtov, ap_p_addten_c, arr_table+2
 
-			; 15: table(2) = AddressOf AddArg
+			; 16: table(2) = AddressOf AddArg
 			dw kw_vtov, ap_p_addarg_c, arr_table+4
 
-			; 16: total = 0
+			; 17: total = 0
 			dw kw_ztov, var_total
 
-			; 17: CallAddr table(0)
+			; 18: CallAddr table(0)
 			dw kw_callp, arr_table
 
-			; 18: CallAddr table(1)
+			; 19: CallAddr table(1)
 			dw kw_callp, arr_table+2
 
-			; 19: Chk total, 11
+			; 20: Chk total, 11
 			dw p_chk_c, var_total, lit_11
 
-			; 20: p = table(2)
+			; 21: p = table(2)
 			dw kw_vtov, arr_table+4, var_p
 
-			; 21: CallAddr p, 100
+			; 22: CallAddr p, 100
 			dw kw_ltov, 100, tmp1
 			dw kw_callp, var_p, tmp1
 
-			; 22: Chk total, 111
+			; 23: Chk total, 111
 			dw p_chk_c, var_total, lit_111
 
-			; 23: For i = 0 To 1
+			; 24: For i = 0 To 1
 			dw kw_ztov, var_i
 for1_t:
 
-			; 24: CallAddr table(i)
+			; 25: CallAddr table(i)
 			dw kw_aget, arr_table, var_i, tmp0
 			dw kw_callp, tmp0
 
-			; 25: Next
+			; 26: Next
 			dw kw_next1l_n, var_i, 1, for1_t
 for1_e:
 
-			; 26: Chk total, 122
+			; 27: Chk total, 122
 			dw p_chk_c, var_total, lit_122
 
-			; 27: i = 5
+			; 28: i = 5
 			dw kw_ltov, 5, var_i
 
-			; 28: CallAddr table(2), i * 2
+			; 29: CallAddr table(2), i * 2
 			dw kw_2x, var_i, tmp1
 			dw kw_callp, arr_table+4, tmp1
 
-			; 29: Chk total, 132
+			; 30: Chk total, 132
 			dw p_chk_c, var_total, lit_132
 
-			; 30: Register AddressOf AddTen
+			; 31: Register AddressOf AddTen
 			dw p_register_c, ap_p_addten_c
 
-			; 31: Chk total, 142
+			; 32: Chk total, 142
 			dw p_chk_c, var_total, lit_142
 
-			; 33: Print
+			; 34: Print
 			dw kw_printnl
 
-			; 34: Print t; " tests, "; bad; " failed"
+			; 35: Print t; " tests, "; bad; " failed"
 			dw kw_printint, var_t
 			dw kw_printstrvar, str1
 			dw kw_printint, var_bad
 			dw kw_printstrvar, str2
 			dw kw_printnl
 
-			; 35: Print "Press a key";
+			; 36: End
+			dw kw_printnl0
 			dw kw_printstrvar, str3
-
-			; 36: Do : Frame : Loop Until Inkey <> 0
-do2_t:
-			dw kw_frame
-			dw kw_inkey, tmp0
-			dw kw_cpnevl, tmp0, 0
-			dw kw_goto_iffalse_n, do2_t
-do2_e:
-
-			; 37: Print
-			dw kw_printnl
-
-			; 38: End
+			dw kw_waitkey
 			dw kw_stop
 
 ; ============================================================
@@ -129,34 +118,34 @@ do2_e:
 
 p_chk:
 
-			; 41: t = t + 1
+			; 39: t = t + 1
 			dw kw_inc, var_t
 
-			; 42: Print t; ":";
+			; 40: Print t; ":";
 			dw kw_printint, var_t
 			dw kw_printstrvar, str4
 
-			; 43: If got = want Then
+			; 41: If got = want Then
 			dw kw_cpeqvv, var_chk_got, var_chk_want
-			dw kw_goto_iffalse_n, if3_1
+			dw kw_goto_iffalse_n, if2_1
 
-			; 44: Print "ok ";
+			; 42: Print "ok ";
 			dw kw_printstrvar, str5
 
-			; 45: Else
-			dw if3_e_go
-if3_1:
+			; 43: Else
+			dw if2_e_go
+if2_1:
 
-			; 46: Print "FAIL("; got; ") ";
+			; 44: Print "FAIL("; got; ") ";
 			dw kw_printstrvar, str6
 			dw kw_printint, var_chk_got
 			dw kw_printstrvar, str7
 
-			; 47: bad = bad + 1
+			; 45: bad = bad + 1
 			dw kw_inc, var_bad
 
-			; 48: End If
-if3_e:
+			; 46: End If
+if2_e:
 			dw p_chk_r
 
 ; ============================================================
@@ -165,7 +154,7 @@ if3_e:
 
 p_addone:
 
-			; 52: total = total + 1
+			; 50: total = total + 1
 			dw kw_inc, var_total
 			dw p_addone_r
 
@@ -175,7 +164,7 @@ p_addone:
 
 p_addten:
 
-			; 56: total = total + 10
+			; 54: total = total + 10
 			dw kw_addl, var_total, 10, var_total
 			dw p_addten_r
 
@@ -185,7 +174,7 @@ p_addten:
 
 p_addarg:
 
-			; 60: total = total + n
+			; 58: total = total + n
 			dw kw_add, var_total, var_addarg_n, var_total
 			dw p_addarg_r
 
@@ -195,7 +184,7 @@ p_addarg:
 
 p_register:
 
-			; 65: CallAddr entry
+			; 63: CallAddr entry
 			dw kw_callp, var_register_entry
 			dw p_register_r
 
@@ -208,7 +197,7 @@ p_register:
 ;   turbo mode ends with ret, normal mode with jp ntc_xn
 ; ============================================================
 
-if3_e_go:			ld sp, if3_e
+if2_e_go:			ld sp, if2_e
 			jp ntc_xn
 
 p_chk_c:		; call chk (normal)
@@ -355,6 +344,12 @@ ntc_stop_back:
 			ld sp, (ntc_csp)
 			ei
 			ret
+
+;## kw_waitkey ntc_data ntc_plat_key
+; kw_waitkey - wait for a key (Option PressAnyKeyOnEnd, before kw_stop)
+kw_waitkey:
+			ld ix, ntc_next
+			jp ntc_plat_getkey
 
 ;## ntc_xn ntc_data @shared
 ; normal mode "next": every normal mode keyword ends here (its ret
@@ -643,19 +638,6 @@ kw_cpeqvv:
 			ld l, a
 			jp ntc_cmp_eq
 
-;## kw_cpnevl ntc_cmp
-kw_cpnevl:
-			pop hl
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			pop hl
-			jp ntc_cmp_ne
-
-; ============================================================
-; Memory (PEEK / POKE / DEEK / DOKE)
-; ============================================================
-
 ;## kw_aget
 ;kw_aget, <arraybase>, <indexvar>, <destvar>
 kw_aget:
@@ -769,6 +751,15 @@ ntc_pi_done:
 			ld (ntc_sptr), hl
 			jp ntc_printbuf
 
+;## kw_printnl0 ntc_data ntc_plat_screen
+;kw_printnl0  - new line unless the cursor is at the start of a line
+kw_printnl0:
+			ld a, (ntc_curx)
+			or a
+			ret z
+			ld ix, ntc_next
+			jp ntc_plat_newline
+
 ;## kw_callp
 ;kw_callp, <addressvar>, <arg>, ...  - CallAddr: jump to the procedure call stub whose
 ;  address (AddressOf) is in the var. SP is then at the arguments, as the stub expects
@@ -786,31 +777,11 @@ kw_printnl:
 			ld ix, ntc_next
 			jp ntc_plat_newline
 
-;## kw_inkey ntc_data ntc_plat_key
-;kw_inkey, <destvar>  - new key press or 0, no wait
-kw_inkey:
-			pop hl
-			ld (ntc_ivar), hl
-			ld ix, ntc_inkey_got
-			jp ntc_plat_scankey
-ntc_inkey_got:
-			ld hl, (ntc_ivar)
-			ld (hl), a
-			inc hl
-			ld (hl), 0
-			ret
-
 ;## kw_cls ntc_data ntc_plat_screen
 ;kw_cls
 kw_cls:
 			ld ix, ntc_next
 			jp ntc_plat_cls
-
-;## kw_frame ntc_data ntc_plat_frame
-;kw_frame  - wait for the start of the next frame flyback
-kw_frame:
-			ld ix, ntc_next
-			jp ntc_plat_frame
 
 ;## kw_bssinit ntc_data ntc_plat_memtop ntc_plat_screen kw_stop @shared
 ;kw_bssinit, <start>, <size>  - the start of the main thread: the program's arrays live after
@@ -1138,10 +1109,6 @@ ntc_gk_back:
 			ld ix, (ntc_gklink)
 			jp (ix)
 ntc_gklink:		dw 0
-
-;## ntc_plat_frame
-ntc_plat_frame:
-			jp (ix)
 
 ;## ntc_plat_exit ntc_plat_data
 ; ntc_plat_exit - warm boot back to CP/M

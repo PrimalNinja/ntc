@@ -25,16 +25,16 @@ ntc_start:
 
 main_thread:
 
-			; Main.bas 3: c.Reset
+			; Main.bas 4: c.Reset
 			dw p_counter_reset_c
 
-			; Main.bas 4: c.Add 5
+			; Main.bas 5: c.Add 5
 			dw p_counter_add_c, lit_5
 
-			; Main.bas 5: c.Add 7
+			; Main.bas 6: c.Add 7
 			dw p_counter_add_c, lit_7
 
-			; Main.bas 6: Print "count "; c.Count; " total "; c.Total
+			; Main.bas 7: Print "count "; c.Count; " total "; c.Total
 			dw p_counter_count_get_c
 			dw kw_printstrvar, str0
 			dw kw_printint, var_counter_count_get_count
@@ -43,42 +43,31 @@ main_thread:
 			dw kw_printint, var_counter_total_get_total
 			dw kw_printnl
 
-			; Main.bas 7: c.Limit = 3
+			; Main.bas 8: c.Limit = 3
 			dw p_counter_limit_let_c, lit_3
 
-			; Main.bas 8: Print "limit "; c.Limit
+			; Main.bas 9: Print "limit "; c.Limit
 			dw p_counter_limit_get_c
 			dw kw_printstrvar, str2
 			dw kw_printint, var_counter_limit_get_limit
 			dw kw_printnl
 
-			; Main.bas 9: r = Counter.Total
+			; Main.bas 10: r = Counter.Total
 			dw p_counter_total_get_c
 			dw kw_vtov, var_counter_total_get_total, var_r
 
-			; Main.bas 10: Print "direct "; r
+			; Main.bas 11: Print "direct "; r
 			dw kw_printstrvar, str3
 			dw kw_printint, var_r
 			dw kw_printnl
 
-			; Main.bas 11: Print c.Describe("x")
+			; Main.bas 12: Print c.Describe("x")
 			dw p_counter_describe_c, str4
 			dw kw_printstrvar, var_counter_describe_describe
 			dw kw_printnl
-
-			; Main.bas 12: Print "Press a key";
+			dw kw_printnl0
 			dw kw_printstrvar, str5
-
-			; Main.bas 13: Do : Frame : Loop Until Inkey <> 0
-do1_t:
-			dw kw_frame
-			dw kw_inkey, tmp0
-			dw kw_cpnevl, tmp0, 0
-			dw kw_goto_iffalse_n, do1_t
-do1_e:
-
-			; Main.bas 14: Print
-			dw kw_printnl
+			dw kw_waitkey
 			dw kw_stop
 
 ; ============================================================
@@ -277,7 +266,6 @@ p_counter_limit_get_rs:			dw 0
 p_counter_describe_rs:			dw 0
 			db 40			; capacity
 var_counter_describe_s:			ds 41
-tmp0:			dw 0
 			db 40			; capacity
 stmp0:			ds 41
 			db 40			; capacity
@@ -345,6 +333,12 @@ ntc_stop_back:
 			ei
 			ret
 
+;## kw_waitkey ntc_data ntc_plat_key
+; kw_waitkey - wait for a key (Option PressAnyKeyOnEnd, before kw_stop)
+kw_waitkey:
+			ld ix, ntc_next
+			jp ntc_plat_getkey
+
 ;## ntc_xn ntc_data @shared
 ; normal mode "next": every normal mode keyword ends here (its ret
 ; became jp ntc_xn). Thread position to ntc_ip, real stack, one
@@ -357,14 +351,6 @@ ntc_xn:
 			di
 			ld sp, (ntc_ip)
 			ret
-
-;## kw_goto_iffalse (normal mode copy)
-;kw_goto_iffalse, <label>  - branch if NZ (false)
-kw_goto_iffalse_n:
-			pop hl
-			jp z, ntc_xn
-			ld sp, hl
-			jp ntc_xn
 
 ;## kw_vtov
 ;kw_vtov, <sourcevar>, <destvar>
@@ -418,86 +404,6 @@ kw_add:
 			inc hl
 			ld (hl), d
 			ret
-
-;## ntc_cmp
-ntc_cmp_slt:
-			ld a, d
-			xor #80
-			ld d, a
-			ld a, h
-			xor #80
-			ld h, a
-ntc_cmp_ult:
-			ex de, hl
-			or a
-			sbc hl, de
-			sbc a, a
-			inc a
-			ret
-ntc_cmp_sge:
-			ld a, d
-			xor #80
-			ld d, a
-			ld a, h
-			xor #80
-			ld h, a
-ntc_cmp_uge:
-			ex de, hl
-			or a
-			sbc hl, de
-			sbc a, a
-			ret
-ntc_cmp_sgt:
-			ld a, d
-			xor #80
-			ld d, a
-			ld a, h
-			xor #80
-			ld h, a
-ntc_cmp_ugt:
-			or a
-			sbc hl, de
-			sbc a, a
-			inc a
-			ret
-ntc_cmp_sle:
-			ld a, d
-			xor #80
-			ld d, a
-			ld a, h
-			xor #80
-			ld h, a
-ntc_cmp_ule:
-			or a
-			sbc hl, de
-			sbc a, a
-			ret
-ntc_cmp_eq:
-			or a
-			sbc hl, de
-			ret
-ntc_cmp_ne:
-			or a
-			sbc hl, de
-			jr z, ntc_cmp_ne_f
-			xor a
-			ret
-ntc_cmp_ne_f:
-			or 1
-			ret
-
-;## kw_cpnevl ntc_cmp
-kw_cpnevl:
-			pop hl
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			pop hl
-			jp ntc_cmp_ne
-
-; ============================================================
-; Memory (PEEK / POKE / DEEK / DOKE)
-; ============================================================
 
 ;## kw_strcpy
 ;kw_strcpy, <destaddr>, <srcaddr>  - cut at the destination's capacity byte
@@ -643,31 +549,20 @@ ntc_pi_done:
 			ld (ntc_sptr), hl
 			jp ntc_printbuf
 
+;## kw_printnl0 ntc_data ntc_plat_screen
+;kw_printnl0  - new line unless the cursor is at the start of a line
+kw_printnl0:
+			ld a, (ntc_curx)
+			or a
+			ret z
+			ld ix, ntc_next
+			jp ntc_plat_newline
+
 ;## kw_printnl ntc_data ntc_plat_screen
 ;kw_printnl
 kw_printnl:
 			ld ix, ntc_next
 			jp ntc_plat_newline
-
-;## kw_inkey ntc_data ntc_plat_key
-;kw_inkey, <destvar>  - new key press or 0, no wait
-kw_inkey:
-			pop hl
-			ld (ntc_ivar), hl
-			ld ix, ntc_inkey_got
-			jp ntc_plat_scankey
-ntc_inkey_got:
-			ld hl, (ntc_ivar)
-			ld (hl), a
-			inc hl
-			ld (hl), 0
-			ret
-
-;## kw_frame ntc_data ntc_plat_frame
-;kw_frame  - wait for the start of the next frame flyback
-kw_frame:
-			ld ix, ntc_next
-			jp ntc_plat_frame
 
 ;## kw_strcstr ntc_itoa
 ;kw_strcstr, <dest>, <nvar>  - number to text (CStr, "x" & n)
@@ -820,10 +715,6 @@ ntc_plat_scankey:
 ; ntc_plat_getkey - wait for a key, A = key
 ntc_plat_getkey:
 			in a, (#fd)
-			jp (ix)
-
-;## ntc_plat_frame
-ntc_plat_frame:
 			jp (ix)
 
 ;## ntc_plat_exit ntc_plat_data

@@ -38,26 +38,26 @@ ntc_go:
 main_thread:
 			dw kw_scrinit		; mode 1, ROMs off, clear screen
 
-			; main.bas 3: StdIO.PutStr "cols "
+			; main.bas 4: StdIO.PutStr "cols "
 			dw fn_stdio_putstr, str0
 
-			; main.bas 4: StdIO.PutInt StdIO.Cols()
+			; main.bas 5: StdIO.PutInt StdIO.Cols()
 			dw fn_stdio_cols, var_stdio_cols_cols
 			dw fn_stdio_putint, var_stdio_cols_cols
 
-			; main.bas 5: StdIO.NewLine
+			; main.bas 6: StdIO.NewLine
 			dw fn_stdio_newline
 
-			; main.bas 6: StdIO.PutChar 65
+			; main.bas 7: StdIO.PutChar 65
 			dw fn_stdio_putchar, lit_65
 
-			; main.bas 7: StdIO.PutChar 66
+			; main.bas 8: StdIO.PutChar 66
 			dw fn_stdio_putchar, lit_66
 
-			; main.bas 8: StdIO.NewLine
+			; main.bas 9: StdIO.NewLine
 			dw fn_stdio_newline
 
-			; main.bas 9: If StdIO.CanPosition Then Print "can position" Else Print "stream"
+			; main.bas 10: If StdIO.CanPosition Then Print "can position" Else Print "stream"
 			dw kw_printzoscii
 			dw glyph_63, glyph_61, glyph_6E, glyph_20, glyph_70, glyph_6F, glyph_73, glyph_69
 			dw glyph_74, glyph_69, glyph_6F, glyph_6E, 1, 0		; "can position\n"
@@ -67,7 +67,7 @@ if1_1:
 			dw glyph_73, glyph_74, glyph_72, glyph_65, glyph_61, glyph_6D, 1, 0		; "stream\n"
 if1_e:
 
-			; main.bas 10: Print System.Platform; " ticks/s "; System.TicksPerSecond
+			; main.bas 11: Print System.Platform; " ticks/s "; System.TicksPerSecond
 			dw kw_printzoscii
 			dw glyph_43, glyph_50, glyph_43, glyph_20, glyph_6D, glyph_69, glyph_6E, glyph_69
 			dw glyph_6D, glyph_61, glyph_6C, glyph_20, glyph_66, glyph_69, glyph_72, glyph_6D
@@ -75,24 +75,24 @@ if1_e:
 			dw glyph_6B, glyph_73, glyph_2F, glyph_73, glyph_20, glyph_33, glyph_30, glyph_30
 			dw 1, 0		; "CPC minimal firmware ticks/s 300\n"
 
-			; main.bas 11: StdIO.PutStr "name? "
+			; main.bas 12: StdIO.PutStr "name? "
 			dw fn_stdio_putstr, str2
 
-			; main.bas 12: StdIO.GetLine s
+			; main.bas 13: StdIO.GetLine s
 			dw fn_stdio_getline, var_s
 
-			; main.bas 13: StdIO.PutStr "hi " & s
+			; main.bas 14: StdIO.PutStr "hi " & s
 			dw kw_strcpy, stmp0, str3
 			dw kw_strcat, stmp0, var_s
 			dw fn_stdio_putstr, stmp0
 
-			; main.bas 14: StdIO.NewLine
+			; main.bas 15: StdIO.NewLine
 			dw fn_stdio_newline
 
-			; main.bas 15: k = StdIO.GetChar()
+			; main.bas 16: k = StdIO.GetChar()
 			dw fn_stdio_getchar, var_k
 
-			; main.bas 16: Print "key "; k; " col "; StdIO.Column()
+			; main.bas 17: Print "key "; k; " col "; StdIO.Column()
 			dw kw_printzoscii
 			dw glyph_6B, glyph_65, glyph_79, glyph_20, 0		; "key "
 			dw kw_printint, var_k
@@ -101,22 +101,11 @@ if1_e:
 			dw glyph_20, glyph_63, glyph_6F, glyph_6C, glyph_20, 0		; " col "
 			dw kw_printint, var_stdio_column_column
 			dw kw_printnl
-
-			; main.bas 17: Print "Press a key";
+			dw kw_printnl0
 			dw kw_printzoscii
 			dw glyph_50, glyph_72, glyph_65, glyph_73, glyph_73, glyph_20, glyph_61, glyph_20
 			dw glyph_6B, glyph_65, glyph_79, 0		; "Press a key"
-
-			; main.bas 18: Do : Frame : Loop Until Inkey <> 0
-do2_t:
-			dw kw_frame
-			dw kw_inkey, tmp0
-			dw kw_cpnevl, tmp0, 0
-			dw kw_goto_iffalse_n, do2_t
-do2_e:
-
-			; main.bas 19: Print
-			dw kw_printnl
+			dw kw_waitkey
 			dw kw_stop
 
 ; ============================================================
@@ -202,7 +191,6 @@ var_stdio_cols_cols:			dw 0
 var_s:			ds 41
 var_k:			dw 0
 var_stdio_column_column:			dw 0
-tmp0:			dw 0
 			db 255			; capacity
 stmp0:			ds 256
 
@@ -258,23 +246,21 @@ ntc_rj_block:
 ntc_next:	jp 0
 kw_stop:		jp 1
 ntc_xn:		jp 2
-kw_goto_iffalse_n:	jp 11
-kw_cpnevl:	jp 98
 kw_strcpy:	jp 122
 kw_strcat:	jp 124
 ntc_printbuf:	jp 128
 kw_printzoscii:	jp 129
 kw_printint:	jp 132
+kw_printnl0:	jp 135
 kw_printnl:	jp 139
 kw_inputstr:	jp 142
-kw_inkey:	jp 145
 kw_scrinit:	jp 147
-kw_frame:	jp 153
 ntc_plat_putc:	jp 310
 ntc_plat_newline:	jp 311
 ntc_plat_getkey:	jp 313
 ntc_plat_irqon:	jp 316
-NTC_RJ_N	equ 19		; entries
+kw_waitkey:	jp 344
+NTC_RJ_N	equ 17		; entries
 ntc_csp	equ #8800		; ROM data
 ntc_curx	equ #8910		; ROM data
 ntc_font	equ #948E		; ROM bss

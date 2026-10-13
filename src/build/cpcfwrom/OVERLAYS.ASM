@@ -45,24 +45,24 @@ ntc_roms_on:
 
 main_thread:
 
-			; Main.bas 20: Print "Overlays on "; System.Platform; ", "; Memory.RamSize(); "K"
+			; Main.bas 21: Print "Overlays on "; System.Platform; ", "; Memory.RamSize(); "K"
 			dw fn_memory_ramsize, var_memory_ramsize_ramsize
 			dw kw_printstrvar, str1
 			dw kw_printint, var_memory_ramsize_ramsize
 			dw kw_printstrvar, str2
 			dw kw_printnl
 
-			; Main.bas 22: Print "Level 1 loaded: "; Level1.Loaded()
+			; Main.bas 23: Print "Level 1 loaded: "; Level1.Loaded()
 			dw fn_level1_loaded, var_level1_loaded_loaded
 			dw kw_printstrvar, str3
 			dw kw_printint, var_level1_loaded_loaded
 			dw kw_printnl
 
-			; Main.bas 23: For lvl = 1 To 2
+			; Main.bas 24: For lvl = 1 To 2
 			dw kw_ltov, 1, var_lvl
 for1_t:
 
-			; Main.bas 24: If lvl = 1 Then score = score + Level1.Play(score)
+			; Main.bas 25: If lvl = 1 Then score = score + Level1.Play(score)
 			dw kw_cpeqvl, var_lvl, 1
 			dw kw_goto_iffalse_n, if2_1
 			dw p_level1_play_c, var_score
@@ -70,7 +70,7 @@ for1_t:
 			dw kw_add, var_score, tmp1, var_score
 if2_1:
 
-			; Main.bas 25: If lvl = 2 Then score = score + Level2.Play(score)
+			; Main.bas 26: If lvl = 2 Then score = score + Level2.Play(score)
 			dw kw_cpeqvl, var_lvl, 2
 			dw kw_goto_iffalse_n, if3_1
 			dw p_level2_play_c, var_score
@@ -78,34 +78,34 @@ if2_1:
 			dw kw_add, var_score, tmp1, var_score
 if3_1:
 
-			; Main.bas 26: Next
+			; Main.bas 27: Next
 			dw kw_next1l_n, var_lvl, 2, for1_t
 for1_e:
 
-			; Main.bas 27: Print "Score "; score
+			; Main.bas 28: Print "Score "; score
 			dw kw_printstrvar, str4
 			dw kw_printint, var_score
 			dw kw_printnl
 
-			; Main.bas 29: Print "Free after level 1 "; Level1.LocalSize()
+			; Main.bas 30: Print "Free after level 1 "; Level1.LocalSize()
 			dw fn_level1_localsize, var_level1_localsize_localsize
 			dw kw_printstrvar, str5
 			dw kw_printint, var_level1_localsize_localsize
 			dw kw_printnl
 
-			; Main.bas 30: Print "Free after level 2 "; Level2.LocalSize()
+			; Main.bas 31: Print "Free after level 2 "; Level2.LocalSize()
 			dw fn_level2_localsize, var_level2_localsize_localsize
 			dw kw_printstrvar, str6
 			dw kw_printint, var_level2_localsize_localsize
 			dw kw_printnl
 
-			; Main.bas 31: Print "Heap, largest block "; Memory.Largest()
+			; Main.bas 32: Print "Heap, largest block "; Memory.Largest()
 			dw fn_memory_largest, var_memory_largest_largest
 			dw kw_printstrvar, str7
 			dw kw_printint, var_memory_largest_largest
 			dw kw_printnl
 
-			; Main.bas 36: Print "Level 1 in page "; Level1.Page(); ", level 2 in page "; Level2.Page()
+			; Main.bas 37: Print "Level 1 in page "; Level1.Page(); ", level 2 in page "; Level2.Page()
 			dw fn_level1_page, var_level1_page_page
 			dw kw_printstrvar, str8
 			dw kw_printint, var_level1_page_page
@@ -114,7 +114,7 @@ for1_e:
 			dw kw_printint, var_level2_page_page
 			dw kw_printnl
 
-			; Main.bas 37: Print "Pages "; Memory.Map(1, Memory.Pages())
+			; Main.bas 38: Print "Pages "; Memory.Map(1, Memory.Pages())
 			dw fn_memory_pages, var_memory_pages_pages
 			dw kw_vtov, var_memory_pages_pages, tmp1
 			dw fn_memory_map, lit_1, tmp1, var_memory_map_map
@@ -122,7 +122,7 @@ for1_e:
 			dw kw_printstrvar, var_memory_map_map
 			dw kw_printnl
 
-			; Main.bas 38: Print "Unload level 1: "; Level1.Unload(); " - pages "; Memory.Map(1, Memory.Pages())
+			; Main.bas 39: Print "Unload level 1: "; Level1.Unload(); " - pages "; Memory.Map(1, Memory.Pages())
 			dw fn_level1_unload, var_level1_unload_unload
 			dw kw_printstrvar, str11
 			dw kw_printint, var_level1_unload_unload
@@ -134,29 +134,10 @@ for1_e:
 			dw kw_printstrvar, var_memory_map_map
 			dw kw_printnl
 
-			; Main.bas 40: Print "Press a key";
+			; Main.bas 41: End
+			dw kw_printnl0
 			dw kw_printstrvar, str13
-
-			; Main.bas 41: Do While Inkey <> 0 : Loop
-do4_t:
-			dw kw_inkey, tmp0
-			dw kw_cpnevl, tmp0, 0
-			dw kw_goto_iffalse_n, do4_e
-			dw do4_t_go
-do4_e:
-
-			; Main.bas 42: Do : Frame : Loop Until Inkey <> 0
-do5_t:
-			dw kw_frame
-			dw kw_inkey, tmp0
-			dw kw_cpnevl, tmp0, 0
-			dw kw_goto_iffalse_n, do5_t
-do5_e:
-
-			; Main.bas 43: Print
-			dw kw_printnl
-
-			; Main.bas 44: End
+			dw kw_waitkey
 			dw kw_stop
 
 ; ============================================================
@@ -165,7 +146,7 @@ do5_e:
 
 p_banner:
 
-			; Main.bas 48: Print "== "; text; " =="
+			; Main.bas 45: Print "== "; text; " =="
 			dw kw_printstrvar, str14
 			dw kw_printstrvar, var_banner_text
 			dw kw_printstrvar, str15
@@ -196,8 +177,6 @@ p_banner:
 ;   turbo mode ends with ret, normal mode with jp ntc_xn
 ; ============================================================
 
-do4_t_go:			ld sp, do4_t
-			jp ntc_xn
 
 p_banner_c:		; call banner (normal)
 			pop hl			; text
@@ -454,12 +433,10 @@ kw_ltov:		jp 47
 kw_vtov:		jp 48
 kw_add:		jp 53
 kw_cpeqvl:	jp 96
-kw_cpnevl:	jp 98
 kw_printstrvar:	jp 129
 kw_printint:	jp 131
+kw_printnl0:	jp 134
 kw_printnl:	jp 138
-kw_inkey:	jp 144
-kw_frame:	jp 152
 mem_go0:		jp 243
 mem_go:		jp 245
 mem_sel:		jp 258
@@ -471,7 +448,8 @@ ntc_ovl_enter:	jp 276
 ntc_ovl_kunload:	jp 279
 ntc_ovl_kloaded:	jp 280
 ntc_ovl_kpage:	jp 281
-NTC_RJ_N	equ 26		; entries
+kw_waitkey:	jp 348
+NTC_RJ_N	equ 25		; entries
 mem_a1	equ #884F		; ROM data
 mem_a2	equ #8851		; ROM data
 mem_res	equ #8855		; ROM data
@@ -698,7 +676,7 @@ ntc_bss		equ ntc_end
 ntc_bss_size	equ 0
 ntc_free	equ ntc_bss + ntc_bss_size	; the first free byte (heap, Memory tables)
 ; Option Reserve: the program and its arrays (ntc_start .. ntc_free) must stay out of these
-			ASSERT (ntc_free <= 16384) || (ntc_start >= 32768), "the program (or its arrays) reaches into Option Reserve #4000-#7FFF (Main.bas line 14)"
+			ASSERT (ntc_free <= 16384) || (ntc_start >= 32768), "the program (or its arrays) reaches into Option Reserve #4000-#7FFF (Main.bas line 15)"
 			SAVEAMSDOS "OVERLAYS.BIN", ntc_start, ntc_end - ntc_start, ntc_start
 			ASSERT (ntc_free <= #4000) || (ntc_start >= #8000), "overlay classes: the program and its arrays must stay out of #4000-#7FFF (the window they run in)"
 
@@ -720,7 +698,7 @@ p_level1_play:
 
 			; Level1.cls 6: For i = 1 To 3
 			dw kw_ltov, 1, var_level1_play_i
-for6_t:
+for4_t:
 
 			; Level1.cls 7: Print "  room "; i
 			dw kw_printstrvar, str17
@@ -728,8 +706,8 @@ for6_t:
 			dw kw_printnl
 
 			; Level1.cls 8: Next
-			dw kw_next1l_n, var_level1_play_i, 3, for6_t
-for6_e:
+			dw kw_next1l_n, var_level1_play_i, 3, for4_t
+for4_e:
 
 			; Level1.cls 9: Play = 100
 			dw kw_ltov, 100, var_level1_play_play
@@ -790,4 +768,4 @@ ovl_level2_vsize	equ 0		; its page variables; its local memory is the rest, to #
 			DISPLAY "  page variables ", /D, ovl_level2_vsize, ", free ", /D, #8000 - (ovl_level2_end + ovl_level2_vsize)
 			SAVEAMSDOS "OVERLAYS.002", ovl_level2_start, ovl_level2_end - ovl_level2_start, #4000
 
-NTC_STAMP	equ #18D6		; the build stamp: the first word of every page file
+NTC_STAMP	equ #A23A		; the build stamp: the first word of every page file

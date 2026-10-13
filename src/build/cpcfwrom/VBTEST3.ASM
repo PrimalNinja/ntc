@@ -35,73 +35,73 @@ ntc_rj_ok:
 main_thread:
 			dw kw_bssinit, ntc_bss, ntc_bss_size		; the arrays: do they fit, clear them
 
-			; 20: Print "VB test 3"
+			; 21: Print "VB test 3"
 			dw kw_printstrvar, str0
 			dw kw_printnl
 
-			; 21: Chk Red, 0
+			; 22: Chk Red, 0
 			dw p_chk_c, lit_0, lit_0
 
-			; 22: Chk Green, 5
+			; 23: Chk Green, 5
 			dw p_chk_c, lit_5, lit_5
 
-			; 23: Chk Blue, 6
+			; 24: Chk Blue, 6
 			dw p_chk_c, lit_6, lit_6
 
-			; 24: Chk Colour.Blue + Size.Large, 16
+			; 25: Chk Colour.Blue + Size.Large, 16
 			dw p_chk_c, lit_16, lit_16
 
-			; 25: c = Green
+			; 26: c = Green
 			dw kw_ltov, 5, var_c
 
-			; 26: Chk c, 5
+			; 27: Chk c, 5
 			dw p_chk_c, var_c, lit_5
 
-			; 28: .w = 3
+			; 29: .w = 3
 			dw kw_ltov, 3, var_b_w
 
-			; 29: .h = 4
+			; 30: .h = 4
 			dw kw_ltov, 4, var_b_h
 
-			; 30: .label = "box"
+			; 31: .label = "box"
 			dw kw_strcpy, var_b_label, str1
 
-			; 31: n = .w * .h
+			; 32: n = .w * .h
 			dw kw_mulvv, var_b_w, var_b_h, var_n
 
-			; 33: Chk n, 12
+			; 34: Chk n, 12
 			dw p_chk_c, var_n, lit_12
 
-			; 34: ChkS b.label, "box"
+			; 35: ChkS b.label, "box"
 			dw p_chks_c, var_b_label, str1
 
-			; 35: For i = 0 To 2
+			; 36: For i = 0 To 2
 			dw kw_ztov, var_i
 for1_t:
 
-			; 37: .w = i
+			; 38: .w = i
 			dw kw_aset, arr_boxes_w, var_i, var_i
 
-			; 38: .h = i * 2
+			; 39: .h = i * 2
 			dw kw_2x, var_i, tmp1
 			dw kw_aset, arr_boxes_h, var_i, tmp1
 
-			; 40: Next
+			; 41: Next
 			dw kw_next1l_n, var_i, 2, for1_t
 for1_e:
 
-			; 41: Chk boxes(2).w + boxes(2).h, 6
+			; 42: Chk boxes(2).w + boxes(2).h, 6
 			dw kw_add, arr_boxes_w+4, arr_boxes_h+4, tmp0
 			dw p_chk_c, tmp0, lit_6
 
-			; 42: n = 0
+			; 43: n = 0
 			dw kw_ztov, var_n
 
-			; 43: For i = 1 To 3
+			; 44: For i = 1 To 3
 			dw kw_ltov, 1, var_i
 for2_t:
 
-			; 44: On i GoSub one, two, three
+			; 45: On i GoSub one, two, three
 			dw kw_cpeqvl, var_i, 1
 			dw kw_goto_iffalse_n, on3_0
 			dw lbl_one_gs
@@ -118,96 +118,85 @@ on3_1:
 on3_2:
 on3_e:
 
-			; 45: Next
+			; 46: Next
 			dw kw_next1l_n, var_i, 3, for2_t
 for2_e:
 
-			; 46: Chk n, 321
+			; 47: Chk n, 321
 			dw p_chk_c, var_n, lit_321
 
-			; 47: i = 2
+			; 48: i = 2
 			dw kw_ltov, 2, var_i
 
-			; 48: On i GoTo l1, l2
+			; 49: On i GoTo l1, l2
 			dw kw_cpeqvl, var_i, 1
 			dw kw_goto_iftrue_n, lbl_l1
 			dw kw_cpeqvl, var_i, 2
 			dw kw_goto_iftrue_n, lbl_l2
 
-			; 49: Chk 0, 1
+			; 50: Chk 0, 1
 			dw p_chk_c, lit_0, lit_1
 
-			; 50: l1:
+			; 51: l1:
 lbl_l1:
 
-			; 51: Chk 0, 1
+			; 52: Chk 0, 1
 			dw p_chk_c, lit_0, lit_1
 
-			; 52: l2:
+			; 53: l2:
 lbl_l2:
 
-			; 53: Chk 1, 1
+			; 54: Chk 1, 1
 			dw p_chk_c, lit_1, lit_1
 
-			; 54: k = Inkey$
+			; 55: k = Inkey$
 			dw kw_inkeys, stmp0
 			dw kw_strcpy, var_k, stmp0
 
-			; 55: ChkS k, ""
+			; 56: ChkS k, ""
 			dw p_chks_c, var_k, str2
 
-			; 56: Print
+			; 57: Print
 			dw kw_printnl
 
-			; 57: Print t; " tests, "; bad; " failed"
+			; 58: Print t; " tests, "; bad; " failed"
 			dw kw_printint, var_t
 			dw kw_printstrvar, str3
 			dw kw_printint, var_bad
 			dw kw_printstrvar, str4
 			dw kw_printnl
 
-			; 58: Print "Press a key";
+			; 59: End
+			dw kw_printnl0
 			dw kw_printstrvar, str5
-
-			; 59: Do : Frame : Loop Until Inkey <> 0
-do5_t:
-			dw kw_frame
-			dw kw_inkey, tmp0
-			dw kw_cpnevl, tmp0, 0
-			dw kw_goto_iffalse_n, do5_t
-do5_e:
-
-			; 60: Print
-			dw kw_printnl
-
-			; 61: End
+			dw kw_waitkey
 			dw kw_stop
 
-			; 62: one:
+			; 60: one:
 lbl_one:
 
-			; 63: n = n + 1
+			; 61: n = n + 1
 			dw kw_inc, var_n
 
-			; 64: Return
+			; 62: Return
 			dw lbl_one_rt
 
-			; 65: two:
+			; 63: two:
 lbl_two:
 
-			; 66: n = n + 20
+			; 64: n = n + 20
 			dw kw_addl, var_n, 20, var_n
 
-			; 67: Return
+			; 65: Return
 			dw lbl_two_rt
 
-			; 68: three:
+			; 66: three:
 lbl_three:
 
-			; 69: n = n + 300
+			; 67: n = n + 300
 			dw kw_addl, var_n, 300, var_n
 
-			; 70: Return
+			; 68: Return
 			dw lbl_three_rt
 
 ; ============================================================
@@ -216,24 +205,24 @@ lbl_three:
 
 p_chk:
 
-			; 73: t = t + 1
+			; 71: t = t + 1
 			dw kw_inc, var_t
 
-			; 74: Print t; ":";
+			; 72: Print t; ":";
 			dw kw_printint, var_t
 			dw kw_printstrvar, str6
 
-			; 75: If got = want Then Print "ok "; Else Print "FAIL("; got; ") "; : bad = bad + 1
+			; 73: If got = want Then Print "ok "; Else Print "FAIL("; got; ") "; : bad = bad + 1
 			dw kw_cpeqvv, var_chk_got, var_chk_want
-			dw kw_goto_iffalse_n, if6_1
+			dw kw_goto_iffalse_n, if5_1
 			dw kw_printstrvar, str7
-			dw if6_e_go
-if6_1:
+			dw if5_e_go
+if5_1:
 			dw kw_printstrvar, str8
 			dw kw_printint, var_chk_got
 			dw kw_printstrvar, str9
 			dw kw_inc, var_bad
-if6_e:
+if5_e:
 			dw p_chk_r
 
 ; ============================================================
@@ -242,24 +231,24 @@ if6_e:
 
 p_chks:
 
-			; 79: t = t + 1
+			; 77: t = t + 1
 			dw kw_inc, var_t
 
-			; 80: Print t; ":";
+			; 78: Print t; ":";
 			dw kw_printint, var_t
 			dw kw_printstrvar, str6
 
-			; 81: If got = want Then Print "ok "; Else Print "FAIL["; got; "] "; : bad = bad + 1
+			; 79: If got = want Then Print "ok "; Else Print "FAIL["; got; "] "; : bad = bad + 1
 			dw kw_strcmpeq, var_chks_got, var_chks_want
-			dw kw_goto_iffalse_n, if7_1
+			dw kw_goto_iffalse_n, if6_1
 			dw kw_printstrvar, str7
-			dw if7_e_go
-if7_1:
+			dw if6_e_go
+if6_1:
 			dw kw_printstrvar, str10
 			dw kw_printstrvar, var_chks_got
 			dw kw_printstrvar, str11
 			dw kw_inc, var_bad
-if7_e:
+if6_e:
 			dw p_chks_r
 
 ; ============================================================
@@ -273,9 +262,9 @@ if7_e:
 
 on3_e_go:			ld sp, on3_e
 			jp ntc_xn
-if6_e_go:			ld sp, if6_e
+if5_e_go:			ld sp, if5_e
 			jp ntc_xn
-if7_e_go:			ld sp, if7_e
+if6_e_go:			ld sp, if6_e
 			jp ntc_xn
 lbl_one_gs:			ld (lbl_one_rs), sp
 			ld sp, lbl_one
@@ -425,18 +414,17 @@ kw_2x:		jp 57
 kw_mulvv:	jp 60
 kw_cpeqvv:	jp 95
 kw_cpeqvl:	jp 96
-kw_cpnevl:	jp 98
 kw_aset:		jp 112
 kw_strcpy:	jp 122
 kw_strcmpeq:	jp 126
 kw_printstrvar:	jp 129
 kw_printint:	jp 131
+kw_printnl0:	jp 134
 kw_printnl:	jp 138
-kw_inkey:	jp 144
 kw_inkeys:	jp 145
-kw_frame:	jp 152
 kw_bssinit:	jp 288
-NTC_RJ_N	equ 25		; entries
+kw_waitkey:	jp 348
+NTC_RJ_N	equ 24		; entries
 ntc_csp	equ #8800		; ROM data
 ntc_nmode	equ #8807		; ROM data
 ntc_v_free	equ #894E		; ROM data

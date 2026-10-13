@@ -3,6 +3,7 @@
 ' for its length, then NTC takes it again. Also runs on cpcfw (all through the firmware). RUN"AMSDOS: Option RomEnable 7 starts
 ' AMSDOS again (RUN" drops it). Checks: Load / Save, an AMSDOS message on NTC's screen, the
 ' mode kept across a file call, NTC's ticks still counting, drive B (if you choose).
+Option PressAnyKeyOnEnd "Press a key"     ' at the end: a message and a key (a RUN" program resets when it ends)
 Option Explicit
 #If NTC_CPCMIN Then
 Option RomEnable 7
@@ -53,7 +54,6 @@ If k = 66 Or k = 98 Then
   Print "Volumes now "; FileSystem.Volumes()
 End If
 Print "done"
-Wait
 End
 
 Sub Wait()

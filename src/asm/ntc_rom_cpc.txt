@@ -363,3 +363,4 @@
 -	data	ntc_v_rom	#88B7
 -	data	ntc_v_romold	#88B8
 321	code	kw_waitkey
+-	data	ntc_rx_cur	#88B9

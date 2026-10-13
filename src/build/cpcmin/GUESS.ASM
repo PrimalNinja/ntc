@@ -30,95 +30,84 @@ ntc_go:
 main_thread:
 			dw kw_scrinit		; mode 1, ROMs off, clear screen
 
-			; 1: Randomize 1234
+			; 2: Randomize 1234
 			dw kw_seedl, 1234
 
-			; 2: again:
+			; 3: again:
 lbl_again:
 
-			; 3: t = Rnd(100) + 1 : tries = 0
+			; 4: t = Rnd(100) + 1 : tries = 0
 			dw kw_rndl, 100, tmp0
 			dw kw_addl, tmp0, 1, var_t
 			dw kw_ztov, var_tries
 
-			; 4: Print "I picked 1 to 100"
+			; 5: Print "I picked 1 to 100"
 			dw kw_printzoscii
 			dw glyph_49, glyph_20, glyph_70, glyph_69, glyph_63, glyph_6B, glyph_65, glyph_64
 			dw glyph_20, glyph_31, glyph_20, glyph_74, glyph_6F, glyph_20, glyph_31, glyph_30
 			dw glyph_30, 1, 0		; "I picked 1 to 100\n"
 
-			; 5: Do
+			; 6: Do
 do1_t:
 
-			; 6: Input "Guess"; g
+			; 7: Input "Guess"; g
 			dw kw_printzoscii
 			dw glyph_47, glyph_75, glyph_65, glyph_73, glyph_73, glyph_3F, glyph_20, 0		; "Guess? "
 			dw kw_inputint, var_g
 
-			; 7: tries = tries + 1
+			; 8: tries = tries + 1
 			dw kw_inc, var_tries
 
-			; 8: If g < t Then
+			; 9: If g < t Then
 			dw kw_scpltvv, var_g, var_t
 			dw kw_goto_iffalse_n, if2_1
 
-			; 9: Print "Higher"
+			; 10: Print "Higher"
 			dw kw_printzoscii
 			dw glyph_48, glyph_69, glyph_67, glyph_68, glyph_65, glyph_72, 1, 0		; "Higher\n"
 
-			; 10: ElseIf g > t Then
+			; 11: ElseIf g > t Then
 			dw if2_e_go
 if2_1:
 			dw kw_scpgtvv, var_g, var_t
 			dw kw_goto_iffalse_n, if2_2
 
-			; 11: Print "Lower"
+			; 12: Print "Lower"
 			dw kw_printzoscii
 			dw glyph_4C, glyph_6F, glyph_77, glyph_65, glyph_72, 1, 0		; "Lower\n"
 
-			; 12: End If
+			; 13: End If
 if2_2:
 if2_e:
 
-			; 13: Loop Until g = t
+			; 14: Loop Until g = t
 			dw kw_cpeqvv, var_g, var_t
 			dw kw_goto_iffalse_n, do1_t
 do1_e:
 
-			; 14: Print "Got it in "; tries
+			; 15: Print "Got it in "; tries
 			dw kw_printzoscii
 			dw glyph_47, glyph_6F, glyph_74, glyph_20, glyph_69, glyph_74, glyph_20, glyph_69
 			dw glyph_6E, glyph_20, 0		; "Got it in "
 			dw kw_printint, var_tries
 			dw kw_printnl
 
-			; 15: Input "Again (y/n)"; a$
+			; 16: Input "Again (y/n)"; a$
 			dw kw_printzoscii
 			dw glyph_41, glyph_67, glyph_61, glyph_69, glyph_6E, glyph_20, glyph_28, glyph_79
 			dw glyph_2F, glyph_6E, glyph_29, glyph_3F, glyph_20, 0		; "Again (y/n)? "
 			dw kw_inputstr, var_a
 
-			; 16: If a$ = "y" Then GoTo again
+			; 17: If a$ = "y" Then GoTo again
 			dw kw_strcmpeq, var_a, str0
 			dw kw_goto_iftrue_n, lbl_again
 
-			; 17: Print "Press a key";
+			; 18: End
+			dw kw_printnl0
 			dw kw_printzoscii
 			dw glyph_50, glyph_72, glyph_65, glyph_73, glyph_73, glyph_20, glyph_61, glyph_20
 			dw glyph_6B, glyph_65, glyph_79, 0		; "Press a key"
-
-			; 18: Do : Frame : Loop Until Inkey <> 0
-do3_t:
-			dw kw_frame
-			dw kw_inkey, tmp0
-			dw kw_cpnevl, tmp0, 0
-			dw kw_goto_iffalse_n, do3_t
-do3_e:
-
-			; 19: Print
-			dw kw_printnl
-
-			; 20: End
+			dw kw_waitkey
 			dw kw_stop
 
 ; ============================================================
@@ -229,6 +218,12 @@ ntc_stop_back:
 			ld sp, (ntc_csp)
 			ei
 			ret
+
+;## kw_waitkey ntc_data ntc_plat_key
+; kw_waitkey - wait for a key (Option PressAnyKeyOnEnd, before kw_stop)
+kw_waitkey:
+			ld ix, ntc_next
+			jp ntc_plat_getkey
 
 ;## ntc_xn ntc_data @shared
 ; normal mode "next": every normal mode keyword ends here (its ret
@@ -483,19 +478,6 @@ kw_cpeqvv:
 			ld l, a
 			jp ntc_cmp_eq
 
-;## kw_cpnevl ntc_cmp
-kw_cpnevl:
-			pop hl
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			pop hl
-			jp ntc_cmp_ne
-
-; ============================================================
-; Memory (PEEK / POKE / DEEK / DOKE)
-; ============================================================
-
 ;## ntc_rnd_seed
 ntc_rnd_seed:	dw 1
 
@@ -677,6 +659,15 @@ ntc_pi_done:
 			ld (ntc_sptr), hl
 			jp ntc_printbuf
 
+;## kw_printnl0 ntc_data ntc_plat_screen
+;kw_printnl0  - new line unless the cursor is at the start of a line
+kw_printnl0:
+			ld a, (ntc_curx)
+			or a
+			ret z
+			ld ix, ntc_next
+			jp ntc_plat_newline
+
 ;## kw_printnl ntc_data ntc_plat_screen
 ;kw_printnl
 kw_printnl:
@@ -844,20 +835,6 @@ ntc_atoi_store:
 			ld (hl), d
 			ret
 
-;## kw_inkey ntc_data ntc_plat_key
-;kw_inkey, <destvar>  - new key press or 0, no wait
-kw_inkey:
-			pop hl
-			ld (ntc_ivar), hl
-			ld ix, ntc_inkey_got
-			jp ntc_plat_scankey
-ntc_inkey_got:
-			ld hl, (ntc_ivar)
-			ld (hl), a
-			inc hl
-			ld (hl), 0
-			ret
-
 ;## kw_scrinit ntc_data ntc_plat_screen
 ;kw_scrinit  - first word of any program that prints or reads keys:
 ;  mode 1, ROMs off, clear screen
@@ -865,12 +842,6 @@ kw_scrinit:
 			ld a, 1
 			ld ix, ntc_next
 			jp ntc_plat_mode
-
-;## kw_frame ntc_data ntc_plat_frame
-;kw_frame  - wait for the start of the next frame flyback
-kw_frame:
-			ld ix, ntc_next
-			jp ntc_plat_frame
 
 ;## ntc_font
 ; 8x8 font buffer, chars 32-126, 8 bytes each, bit 7 = leftmost pixel.
@@ -1467,36 +1438,6 @@ ntc_keymaps:
 			db "$", "#", "E", "W", "S", "D", "C", "X"
 			db "!", 34, 27, "Q", 9, "A", 0, "Z"
 			db 0, 0, 0, 0, 0, 0, 0, 127
-
-;## ntc_plat_frame ntc_data @shared
-; ------------------------------------------------------------
-; ntc_plat_frame - wait for the start of vsync (PPI port B bit 0)
-; normal mode: interrupts in while waiting
-; ------------------------------------------------------------
-ntc_plat_frame:
-			ld a, (ntc_nmode)
-			or a
-			jr z, ntc_fr_go
-			ld (ntc_ip), sp
-			ld sp, (ntc_csp)
-			ei
-ntc_fr_go:
-			ld b, #F5
-ntc_fr_in:
-			in a, (c)
-			rra
-			jr c, ntc_fr_in
-ntc_fr_wait:
-			in a, (c)
-			rra
-			jr nc, ntc_fr_wait
-			di
-			ld a, (ntc_nmode)
-			or a
-			jr z, ntc_fr_done
-			ld sp, (ntc_ip)
-ntc_fr_done:
-			jp (ix)
 
 ;## ntc_plat_irq ntc_plat_data ntc_data ntc_plat_irqh @shared
 ; ------------------------------------------------------------

@@ -38,58 +38,44 @@ ntc_go:
 main_thread:
 			dw kw_scrinit		; mode 1, ROMs off, clear screen
 
-			; 1: 10 REM classic numbered style
+			; 2: 10 REM classic numbered style
 ln_10:
 
-			; 2: 20 N = 1
+			; 3: 20 N = 1
 ln_20:
 			dw kw_ltov, 1, var_n
 
-			; 3: 30 PRINT N;
+			; 4: 30 PRINT N;
 ln_30:
 			dw kw_printint, var_n
 
-			; 4: 40 N = N * 2
+			; 5: 40 N = N * 2
 ln_40:
 			dw kw_2x, var_n, var_n
 
-			; 5: 50 IF N < 100 THEN 30
+			; 6: 50 IF N < 100 THEN 30
 ln_50:
 			dw kw_scpltvl, var_n, 100
 			dw kw_goto_iftrue_n, ln_30
 
-			; 6: 60 PRINT
+			; 7: 60 PRINT
 ln_60:
 			dw kw_printnl
 
-			; 7: 70 GOSUB 200
+			; 8: 70 GOSUB 200
 ln_70:
 			dw ln_200_gs
 
-			; 8: 72 PRINT "Press a key";
-ln_72:
+			; 9: 80 END
+ln_80:
+			dw kw_printnl0
 			dw kw_printzoscii
 			dw glyph_50, glyph_72, glyph_65, glyph_73, glyph_73, glyph_20, glyph_61, glyph_20
 			dw glyph_6B, glyph_65, glyph_79, 0		; "Press a key"
-
-			; 9: 74 DO : FRAME : LOOP UNTIL INKEY <> 0
-ln_74:
-do1_t:
-			dw kw_frame
-			dw kw_inkey, tmp0
-			dw kw_cpnevl, tmp0, 0
-			dw kw_goto_iffalse_n, do1_t
-do1_e:
-
-			; 10: 76 PRINT
-ln_76:
-			dw kw_printnl
-
-			; 11: 80 END
-ln_80:
+			dw kw_waitkey
 			dw kw_stop
 
-			; 12: 200 PRINT "in sub" : RETURN
+			; 10: 200 PRINT "in sub" : RETURN
 ln_200:
 			dw kw_printzoscii
 			dw glyph_69, glyph_6E, glyph_20, glyph_73, glyph_75, glyph_62, 1, 0		; "in sub\n"
@@ -116,7 +102,6 @@ ln_200_rt:			ld sp, (ln_200_rs)
 
 var_n:			dw 0
 ln_200_rs:			dw 0
-tmp0:			dw 0
 
 ; ============================================================
 ; ZOSCII glyphs - each points at its 8 byte bitmap in ntc_font
@@ -145,20 +130,18 @@ glyph_79			equ ntc_font + 712		; "y"
 ntc_rj_block:
 kw_stop:		jp 1
 ntc_xn:		jp 2
-kw_goto_iffalse_n:	jp 11
 kw_goto_iftrue_n:	jp 13
 kw_ltov:		jp 47
 kw_2x:		jp 57
 kw_scpltvl:	jp 80
-kw_cpnevl:	jp 98
 kw_printzoscii:	jp 129
 kw_printint:	jp 132
+kw_printnl0:	jp 135
 kw_printnl:	jp 139
-kw_inkey:	jp 145
 kw_scrinit:	jp 147
-kw_frame:	jp 153
 ntc_plat_irqon:	jp 308
-NTC_RJ_N	equ 15		; entries
+kw_waitkey:	jp 321
+NTC_RJ_N	equ 13		; entries
 ntc_csp	equ #8800		; ROM data
 ntc_font	equ #948E		; ROM bss
 ntc_nmode	equ #8807		; ROM data

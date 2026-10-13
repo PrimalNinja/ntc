@@ -7357,6 +7357,708 @@ ntc_k_set:
 			ld (hl), d
 			ret
 
+;## ntc_romdisc ntc_data ntc_plat_romsel @shared @ramonly
+; ------------------------------------------------------------
+; ntc_romdisc - ROMDISC: read-only files kept in ROMs, the FileSystem's
+; volume R (cpc, cpcmin, cpcfw). A disc is a set of ROMs NTCDISC.ROM,
+; NTCDISC2.ROM ... (made by ntcRomDisc in ntc_compiler.js) in any slots
+; 0-31: background ROMs whose names are followed by the block
+;   "NTC", 2, "ROMDISC", 0, dw stamp, db place, db ROMs, dw directory (ROM 0)
+; ROM 0 has the directory at #C040: entries of RD_ENTRY bytes, read until
+; one whose flags have bit 7 set (the end):
+;   +0 name (8, spaces after), +8 extension (3), +11 flags (bit 0
+;   compressed - none are yet), +12 its ROM (place in the set), +13 its
+;   address (dw), +15 its length (3 bytes)
+; A file's bytes run on from its address; past #FFFF they go on at RD_DATA
+; of the next ROM. Reading selects the disc's ROM (ntc_plat_romsel: rd_sel /
+; rd_unsel), so this runs from RAM: it is not in the keyword ROM (@ramonly).
+; Routines run on the real stack (rd_go on cpc, the FileSystem's fs_go on
+; cpcmin / cpcfw); arguments in rd_a1 .. rd_a3, a string / Long result at
+; (rd_res); HL = the result or a status. One file open: handle 2.
+; ------------------------------------------------------------
+RD_DATA		equ #C040		; directory (ROM 0) and file data start
+RD_ENTRY	equ 18
+RD_HANDLE	equ 2
+RD_NOTSUP	equ -1
+RD_NOTFOUND	equ -2
+RD_BADNAME	equ -4
+RD_NOHANDLE	equ -5
+RD_BADHANDLE	equ -6
+RD_EOF		equ -7
+RD_TOOBIG	equ -8
+rd_a1:			dw 0
+rd_a2:			dw 0
+rd_a3:			dw 0
+rd_res:			dw 0
+rd_sp:			dw 0
+rd_six:			dw 0
+rd_siy:			dw 0
+rd_nostore:		db 0
+rd_state:		db 0			; 0 = not looked for yet, 1 = there, 2 = none
+rd_want:		db 0
+rd_n:			db 0			; ROMs in the disc
+rd_stamp:		dw 0
+rd_dir:			dw 0			; the directory (ROM 0)
+rd_slots:		ds 8			; each ROM's slot
+rd_name:		ds 11			; a name as the directory has it
+rd_ent:			ds RD_ENTRY		; the entry found
+rd_isopen:		db 0			; 1 = a file open (handle 2)
+rd_rom:			db 0			; reading: the ROM, the address, the bytes left
+rd_addr:		dw 0
+rd_left:		ds 3
+rd_cnt:			dw 0
+rd_dst:			dw 0
+rd_cap:			db 0
+rd_sig:			db "NTC", 2, "ROMDISC", 0
+rd_sige:
+
+; rd_go / rd_go0 - (cpc) HL = the routine: run on the real stack, its HL
+; stored at (rd_res) (rd_go0: not stored - the routine writes its result)
+rd_go0:
+			ld a, 1
+			jr rd_gostart
+rd_go:
+			xor a
+rd_gostart:
+			ld (rd_nostore), a
+			ld (rd_sp), sp
+			ld sp, (ntc_csp)
+			ld (rd_six), ix
+			ld (rd_siy), iy
+			ld a, (ntc_nmode)
+			or a
+			jr z, rd_g_call
+			ei
+rd_g_call:
+			call rd_jphl
+			di
+			ld ix, (rd_six)
+			ld iy, (rd_siy)
+			ld a, (rd_nostore)
+			or a
+			jr nz, rd_g_end
+			ex de, hl
+			ld hl, (rd_res)
+			ld (hl), e
+			inc hl
+			ld (hl), d
+rd_g_end:
+			ld sp, (rd_sp)
+			ret
+rd_jphl:
+			jp (hl)
+
+; rd_mount - is a disc there? (looked for once). Z = yes
+rd_mount:
+			ld a, (rd_state)
+			cp 1
+			ret z
+			or a
+			jr nz, rd_mt_no
+			xor a
+			ld (rd_want), a
+			call rd_scan
+			jr c, rd_mt_none
+			ld (rd_slots), a
+			ld a, 1
+rd_mt_more:
+			ld (rd_want), a
+			ld hl, rd_n
+			cp (hl)
+			jr nc, rd_mt_ok
+			call rd_scan
+			jr c, rd_mt_none		; a part missing: no disc
+			ld b, a
+			ld a, (rd_want)
+			ld e, a
+			ld d, 0
+			ld hl, rd_slots
+			add hl, de
+			ld (hl), b
+			inc a
+			jr rd_mt_more
+rd_mt_ok:
+			ld a, 1
+			ld (rd_state), a
+			cp a					; Z
+			ret
+rd_mt_none:
+			ld a, 2
+			ld (rd_state), a
+rd_mt_no:
+			or 1					; NZ
+			ret
+
+; rd_scan - the disc ROM rd_want (0: any stamp; the others: ROM 0's stamp).
+; NC: A = its slot (ROM 0: rd_n, rd_stamp, rd_dir set). C: not there
+rd_scan:
+			ld c, 0
+rd_sc_next:
+			push bc
+			ld a, c
+			call rd_sel
+			call rd_sc_try
+			call rd_unsel
+			pop bc
+			jr nc, rd_sc_got
+			inc c
+			ld a, c
+			cp 32
+			jr c, rd_sc_next
+			scf
+			ret
+rd_sc_got:
+			ld a, c
+			ret
+rd_sc_try:							; (the ROM is in) NC = it is the one
+			ld a, (#C000)
+			cp 1					; a background ROM
+			jr nz, rd_sc_not
+			ld hl, (#C004)			; its names
+			ld a, h
+			cp #C0
+			jr c, rd_sc_not
+rd_sc_name:
+			ld a, (hl)
+			inc hl
+			or a
+			jr nz, rd_sc_name
+			ld de, rd_sig
+			ld b, rd_sige - rd_sig
+rd_sc_cmp:
+			ld a, (de)
+			cp (hl)
+			jr nz, rd_sc_not
+			inc de
+			inc hl
+			djnz rd_sc_cmp
+			ld e, (hl)
+			inc hl
+			ld d, (hl)				; DE = its stamp
+			inc hl
+			ld a, (rd_want)
+			cp (hl)
+			jr nz, rd_sc_not
+			inc hl
+			or a
+			jr nz, rd_sc_stamp
+			ld (rd_stamp), de		; ROM 0: the disc's stamp, ROMs, directory
+			ld a, (hl)
+			ld (rd_n), a
+			inc hl
+			ld e, (hl)
+			inc hl
+			ld d, (hl)
+			ld (rd_dir), de
+			or a
+			ret
+rd_sc_stamp:
+			ld hl, (rd_stamp)
+			or a
+			sbc hl, de
+			ret z					; (NC)
+rd_sc_not:
+			scf
+			ret
+
+; rd_mkname - HL = a name ("NAME.EXT", "R:NAME.EXT"): rd_name. NC, or C = not
+; a name (empty, more than 8.3)
+rd_mkname:
+			push hl
+			ld hl, rd_name
+			ld b, 11
+rd_mk_sp:
+			ld (hl), ' '
+			inc hl
+			djnz rd_mk_sp
+			pop hl
+			inc hl
+			ld a, (hl)
+			dec hl
+			cp ':'
+			jr nz, rd_mk_go
+			inc hl					; past "R:"
+			inc hl
+rd_mk_go:
+			ld de, rd_name
+			ld b, 9					; up to 8 letters, then . or the end
+			ld a, (hl)
+			or a
+			jr z, rd_mk_bad
+rd_mk_lp:
+			ld a, (hl)
+			or a
+			ret z					; (NC)
+			inc hl
+			cp '.'
+			jr z, rd_mk_ext
+			dec b
+			jr z, rd_mk_bad
+			call rd_up
+			ld (de), a
+			inc de
+			jr rd_mk_lp
+rd_mk_ext:
+			ld de, rd_name + 8
+			ld b, 4
+rd_mk_elp:
+			ld a, (hl)
+			or a
+			ret z
+			inc hl
+			dec b
+			jr z, rd_mk_bad
+			cp '.'
+			jr z, rd_mk_bad
+			call rd_up
+			ld (de), a
+			inc de
+			jr rd_mk_elp
+rd_mk_bad:
+			scf
+			ret
+rd_up:
+			cp 'a'
+			ret c
+			cp 'z' + 1
+			ret nc
+			sub 32
+			ret
+
+; rd_find - rd_a1 = a name: its entry into rd_ent. NC, or C with HL = the status
+rd_find:
+			call rd_mount
+			ld hl, RD_NOTFOUND
+			scf
+			ret nz
+			ld hl, (rd_a1)
+			call rd_mkname
+			ld hl, RD_BADNAME
+			ret c
+			ld a, (rd_slots)
+			call rd_sel
+			ld hl, (rd_dir)
+rd_fd_lp:
+			push hl
+			ld de, 11
+			add hl, de
+			bit 7, (hl)				; the end
+			pop hl
+			jr nz, rd_fd_none
+			push hl
+			ld de, rd_name
+			ld b, 11
+rd_fd_cmp:
+			ld a, (de)
+			cp (hl)
+			jr nz, rd_fd_nx
+			inc de
+			inc hl
+			djnz rd_fd_cmp
+			pop hl
+			ld de, rd_ent
+			ld bc, RD_ENTRY
+			ldir
+			call rd_unsel
+			or a					; NC
+			ret
+rd_fd_nx:
+			pop hl
+			ld de, RD_ENTRY
+			add hl, de
+			jr rd_fd_lp
+rd_fd_none:
+			call rd_unsel
+			ld hl, RD_NOTFOUND
+			scf
+			ret
+
+; rd_start - reading from the start of rd_ent's file (rd_rom, rd_addr, rd_left)
+rd_start:
+			ld hl, rd_ent + 12
+			ld de, rd_rom
+			ld bc, 6
+			ldir
+			ret
+
+; rd_copy - BC bytes (no more than are left) to DE: on from rd_rom / rd_addr
+rd_copy:
+			ld (rd_cnt), bc
+			ld (rd_dst), de
+rd_cp_lp:
+			ld hl, (rd_cnt)
+			ld a, h
+			or l
+			ret z
+			ld hl, (rd_addr)		; this ROM's part: up to #FFFF
+			ex de, hl
+			ld hl, 0
+			or a
+			sbc hl, de				; HL = #10000 - address
+			ld de, (rd_cnt)
+			or a
+			sbc hl, de
+			jr nc, rd_cp_all
+			add hl, de				; (only what this ROM has)
+			ld b, h
+			ld c, l
+			jr rd_cp_do
+rd_cp_all:
+			ld b, d
+			ld c, e
+rd_cp_do:
+			push bc
+			call rd_romslot
+			call rd_sel
+			pop bc
+			push bc
+			ld hl, (rd_addr)
+			ld de, (rd_dst)
+			ldir
+			ld (rd_dst), de
+			call rd_unsel
+			pop bc
+			ld hl, (rd_cnt)
+			or a
+			sbc hl, bc
+			ld (rd_cnt), hl
+			call rd_adv
+			jr rd_cp_lp
+
+; rd_adv - BC bytes read: on in the file (the next ROM past #FFFF), fewer left
+rd_adv:
+			ld hl, (rd_addr)
+			add hl, bc
+			jr nc, rd_av_same
+			ld a, h
+			or l
+			jr nz, rd_av_same
+			ld hl, rd_rom
+			inc (hl)
+			ld hl, RD_DATA
+rd_av_same:
+			ld (rd_addr), hl
+			ld hl, (rd_left)
+			or a
+			sbc hl, bc
+			ld (rd_left), hl
+			ret nc
+			ld hl, rd_left + 2
+			dec (hl)
+			ret
+
+; rd_romslot - A = the slot of rd_rom
+rd_romslot:
+			ld a, (rd_rom)
+			ld e, a
+			ld d, 0
+			ld hl, rd_slots
+			add hl, de
+			ld a, (hl)
+			ret
+
+; rd_getb - the next byte of the open file: A, NC; C = the end
+rd_getb:
+			ld hl, (rd_left)
+			ld a, h
+			or l
+			ld hl, rd_left + 2
+			or (hl)
+			scf
+			ret z
+			call rd_romslot
+			call rd_sel
+			ld hl, (rd_addr)
+			ld a, (hl)
+			push af
+			call rd_unsel
+			ld bc, 1
+			call rd_adv
+			pop af
+			or a					; NC
+			ret
+
+; rd_hchk - rd_a1 must be handle 2, open: else (from the routine) BadHandle
+rd_hchk:
+			ld hl, (rd_a1)
+			ld de, -RD_HANDLE
+			add hl, de
+			ld a, h
+			or l
+			jr nz, rd_hc_bad
+			ld a, (rd_isopen)
+			or a
+			ret nz
+rd_hc_bad:
+			pop hl					; (out of the routine)
+			ld hl, RD_BADHANDLE
+			ret
+
+; Load(name, addr, maxlen): its length, or a status (TooBig: nothing loaded)
+rd_load:
+			call rd_find
+			ret c
+			ld a, (rd_ent + 17)		; more than 65535, or more than maxlen
+			or a
+			ld hl, RD_TOOBIG
+			ret nz
+			ld de, (rd_ent + 15)
+			ld hl, (rd_a3)
+			or a
+			sbc hl, de
+			ld hl, RD_TOOBIG
+			ret c
+			call rd_start
+			ld bc, (rd_ent + 15)
+			ld de, (rd_a2)
+			call rd_copy
+			ld hl, (rd_ent + 15)
+			ret
+
+; Open(name, mode): handle 2, or a status (only ForRead: the disc is read only)
+rd_open:
+			ld a, (rd_isopen)
+			or a
+			ld hl, RD_NOHANDLE
+			ret nz
+			ld hl, (rd_a2)
+			dec hl
+			ld a, h
+			or l
+			ld hl, RD_NOTSUP
+			ret nz
+			call rd_find
+			ret c
+			call rd_start
+			ld a, 1
+			ld (rd_isopen), a
+			ld hl, RD_HANDLE
+			ret
+
+; Close(h): OK or BadHandle
+rd_close:
+			call rd_hchk
+			xor a
+			ld (rd_isopen), a
+			ld hl, 0
+			ret
+
+; ReadByte(h): 0-255, EndOfFile, BadHandle
+rd_readb:
+			call rd_hchk
+			call rd_getb
+			ld hl, RD_EOF
+			ret c
+			ld l, a
+			ld h, 0
+			ret
+
+; Read(h, addr, count): bytes read (fewer at the end)
+rd_read:
+			call rd_hchk
+			ld hl, (rd_a3)
+			bit 7, h
+			jr z, rd_rd_pos
+			ld hl, 0
+rd_rd_pos:
+			ld a, (rd_left + 2)		; no more than are left
+			or a
+			jr nz, rd_rd_go
+			ld de, (rd_left)
+			push hl
+			or a
+			sbc hl, de
+			pop hl
+			jr c, rd_rd_go
+			ex de, hl
+rd_rd_go:
+			push hl
+			ld b, h
+			ld c, l
+			ld de, (rd_a2)
+			call rd_copy
+			pop hl
+			ret
+
+; Eof(h): True when nothing is left (or h is not the open file)
+rd_eof:
+			ld hl, (rd_a1)
+			ld de, -RD_HANDLE
+			add hl, de
+			ld a, h
+			or l
+			jr nz, rd_ef_yes
+			ld a, (rd_isopen)
+			or a
+			jr z, rd_ef_yes
+			ld hl, (rd_left)
+			ld a, h
+			or l
+			ld hl, rd_left + 2
+			or (hl)
+			ld hl, 0
+			ret nz
+rd_ef_yes:
+			ld hl, -1
+			ret
+
+; ReadLine(h): the next line (up to LF; CR dropped) into the string at (rd_res)
+rd_readln:
+			ld hl, (rd_res)
+			ld (hl), 0
+			dec hl
+			ld a, (hl)
+			ld (rd_cap), a
+			inc hl
+			ld (rd_dst), hl
+			call rd_hchk
+rd_rl_lp:
+			call rd_getb
+			jr c, rd_rl_end
+			cp 10
+			jr z, rd_rl_end
+			cp 13
+			jr z, rd_rl_lp
+			ld c, a
+			ld a, (rd_cap)
+			or a
+			jr z, rd_rl_lp			; full: the rest of the line is dropped
+			dec a
+			ld (rd_cap), a
+			ld hl, (rd_dst)
+			ld (hl), c
+			inc hl
+			ld (rd_dst), hl
+			jr rd_rl_lp
+rd_rl_end:
+			ld hl, (rd_dst)
+			ld (hl), 0
+			ret
+
+; Exists(name): True / False
+rd_exists:
+			call rd_find
+			ld hl, 0
+			ret c
+			dec hl
+			ret
+
+; Size(name): its length, a Long written at (rd_res) (or a status)
+rd_size:
+			call rd_find
+			ld de, (rd_res)
+			jr c, rd_sz_status
+			ld hl, rd_ent + 15
+			ld bc, 3
+			ldir
+			xor a
+			ld (de), a
+			ret
+rd_sz_status:
+			ex de, hl
+			ld (hl), e
+			inc hl
+			ld (hl), d
+			inc hl
+			ld (hl), #FF
+			inc hl
+			ld (hl), #FF
+			ret
+
+; DirEntry(n): the n-th file's name ("NAME.EXT", 1 = the first) into the
+; string at (rd_res); "" past the last (or no disc)
+rd_dirent:
+			ld hl, (rd_res)
+			ld (hl), 0
+			dec hl
+			ld a, (hl)
+			ld (rd_cap), a
+			call rd_mount
+			ret nz
+			ld de, (rd_a1)
+			ld a, d
+			or a
+			ret nz
+			ld a, e
+			or a
+			ret z
+			ld b, a
+			ld a, (rd_slots)
+			push bc
+			call rd_sel				; (rd_sel uses BC)
+			pop bc
+			ld hl, (rd_dir)
+rd_de_lp:
+			push hl
+			ld de, 11
+			add hl, de
+			bit 7, (hl)
+			pop hl
+			jr nz, rd_de_done		; past the last
+			dec b
+			jr z, rd_de_got
+			ld de, RD_ENTRY
+			add hl, de
+			jr rd_de_lp
+rd_de_got:
+			ld de, rd_name			; (a copy: the ROM goes out before the string is written)
+			ld bc, 11
+			ldir
+			call rd_unsel
+			ld hl, rd_name
+			ld de, (rd_res)
+			ld b, 8
+			call rd_de_part
+			ld a, (rd_name + 8)
+			cp ' '
+			jr z, rd_de_end
+			ld a, '.'
+			call rd_de_put
+			ld hl, rd_name + 8
+			ld b, 3
+			call rd_de_part
+rd_de_end:
+			xor a
+			ld (de), a
+			ret
+rd_de_done:
+			jp rd_unsel
+rd_de_part:							; B letters at HL (up to a space) to DE
+			ld a, (hl)
+			cp ' '
+			ret z
+			call rd_de_put
+			inc hl
+			djnz rd_de_part
+			ret
+rd_de_put:							; A to DE if the string has room
+			push af
+			ld a, (rd_cap)
+			or a
+			jr z, rd_dp_full
+			dec a
+			ld (rd_cap), a
+			pop af
+			ld (de), a
+			inc de
+			ret
+rd_dp_full:
+			pop af
+			ret
+
+; SelectVolume("R"): OK when a disc is there, else NotFound
+rd_selvol:
+			call rd_mount
+			ld hl, RD_NOTFOUND
+			ret nz
+			ld hl, 0
+			ret
+
+; rd_ns - NotSupported (a method the disc can't do)
+rd_ns:
+			ld hl, RD_NOTSUP
+			ret
+
 ;## ntc_memcopy ntc_mem ntc_buf2k @shared @far
 ; Copy(src, dst, length): far pointer to far pointer, up to 2K at a time
 ; through ntc_buf (so page to page works with one window). A page's end

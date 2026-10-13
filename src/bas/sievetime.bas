@@ -2,6 +2,7 @@
 ' The same work as compare/smallc/sieve.c (a Byte flag per number), for comparing NTC with Small C.
 ' Start the stopwatch as you press T or N (the sieve starts straight away), stop it at "Done".
 ' 5 passes take about 17 s (turbo) / 25 s (normal) on a 4 MHz CPC.
+Option PressAnyKeyOnEnd "Press a key"     ' at the end: a message and a key (a RUN" program resets when it ends)
 Option Explicit
 Option Turbo Off                  ' starts in normal mode whatever the turbo setting says: T switches
 Const TOP = 8000

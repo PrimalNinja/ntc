@@ -41,7 +41,7 @@ ntc_go:
 main_thread:
 			dw kw_scrinit		; mode 1, ROMs off, clear screen
 
-			; Main.bas 20: Print "Overlays on "; System.Platform; ", "; Memory.RamSize(); "K"
+			; Main.bas 21: Print "Overlays on "; System.Platform; ", "; Memory.RamSize(); "K"
 			dw fn_memory_ramsize, var_memory_ramsize_ramsize
 			dw kw_printzoscii
 			dw glyph_4F, glyph_76, glyph_65, glyph_72, glyph_6C, glyph_61, glyph_79, glyph_73
@@ -53,7 +53,7 @@ main_thread:
 			dw kw_printzoscii
 			dw glyph_4B, 1, 0		; "K\n"
 
-			; Main.bas 22: Print "Level 1 loaded: "; Level1.Loaded()
+			; Main.bas 23: Print "Level 1 loaded: "; Level1.Loaded()
 			dw fn_level1_loaded, var_level1_loaded_loaded
 			dw kw_printzoscii
 			dw glyph_4C, glyph_65, glyph_76, glyph_65, glyph_6C, glyph_20, glyph_31, glyph_20
@@ -62,11 +62,11 @@ main_thread:
 			dw kw_printint, var_level1_loaded_loaded
 			dw kw_printnl
 
-			; Main.bas 23: For lvl = 1 To 2
+			; Main.bas 24: For lvl = 1 To 2
 			dw kw_ltov, 1, var_lvl
 for1_t:
 
-			; Main.bas 24: If lvl = 1 Then score = score + Level1.Play(score)
+			; Main.bas 25: If lvl = 1 Then score = score + Level1.Play(score)
 			dw kw_cpeqvl, var_lvl, 1
 			dw kw_goto_iffalse_n, if2_1
 			dw p_level1_play_c, var_score
@@ -74,7 +74,7 @@ for1_t:
 			dw kw_add, var_score, tmp1, var_score
 if2_1:
 
-			; Main.bas 25: If lvl = 2 Then score = score + Level2.Play(score)
+			; Main.bas 26: If lvl = 2 Then score = score + Level2.Play(score)
 			dw kw_cpeqvl, var_lvl, 2
 			dw kw_goto_iffalse_n, if3_1
 			dw p_level2_play_c, var_score
@@ -82,17 +82,17 @@ if2_1:
 			dw kw_add, var_score, tmp1, var_score
 if3_1:
 
-			; Main.bas 26: Next
+			; Main.bas 27: Next
 			dw kw_next1l_n, var_lvl, 2, for1_t
 for1_e:
 
-			; Main.bas 27: Print "Score "; score
+			; Main.bas 28: Print "Score "; score
 			dw kw_printzoscii
 			dw glyph_53, glyph_63, glyph_6F, glyph_72, glyph_65, glyph_20, 0		; "Score "
 			dw kw_printint, var_score
 			dw kw_printnl
 
-			; Main.bas 29: Print "Free after level 1 "; Level1.LocalSize()
+			; Main.bas 30: Print "Free after level 1 "; Level1.LocalSize()
 			dw fn_level1_localsize, var_level1_localsize_localsize
 			dw kw_printzoscii
 			dw glyph_46, glyph_72, glyph_65, glyph_65, glyph_20, glyph_61, glyph_66, glyph_74
@@ -101,7 +101,7 @@ for1_e:
 			dw kw_printint, var_level1_localsize_localsize
 			dw kw_printnl
 
-			; Main.bas 30: Print "Free after level 2 "; Level2.LocalSize()
+			; Main.bas 31: Print "Free after level 2 "; Level2.LocalSize()
 			dw fn_level2_localsize, var_level2_localsize_localsize
 			dw kw_printzoscii
 			dw glyph_46, glyph_72, glyph_65, glyph_65, glyph_20, glyph_61, glyph_66, glyph_74
@@ -110,7 +110,7 @@ for1_e:
 			dw kw_printint, var_level2_localsize_localsize
 			dw kw_printnl
 
-			; Main.bas 31: Print "Heap, largest block "; Memory.Largest()
+			; Main.bas 32: Print "Heap, largest block "; Memory.Largest()
 			dw fn_memory_largest, var_memory_largest_largest
 			dw kw_printzoscii
 			dw glyph_48, glyph_65, glyph_61, glyph_70, glyph_2C, glyph_20, glyph_6C, glyph_61
@@ -119,7 +119,7 @@ for1_e:
 			dw kw_printint, var_memory_largest_largest
 			dw kw_printnl
 
-			; Main.bas 36: Print "Level 1 in page "; Level1.Page(); ", level 2 in page "; Level2.Page()
+			; Main.bas 37: Print "Level 1 in page "; Level1.Page(); ", level 2 in page "; Level2.Page()
 			dw fn_level1_page, var_level1_page_page
 			dw kw_printzoscii
 			dw glyph_4C, glyph_65, glyph_76, glyph_65, glyph_6C, glyph_20, glyph_31, glyph_20
@@ -134,7 +134,7 @@ for1_e:
 			dw kw_printint, var_level2_page_page
 			dw kw_printnl
 
-			; Main.bas 37: Print "Pages "; Memory.Map(1, Memory.Pages())
+			; Main.bas 38: Print "Pages "; Memory.Map(1, Memory.Pages())
 			dw fn_memory_pages, var_memory_pages_pages
 			dw kw_vtov, var_memory_pages_pages, tmp1
 			dw fn_memory_map, lit_1, tmp1, var_memory_map_map
@@ -143,7 +143,7 @@ for1_e:
 			dw kw_printstrvar, var_memory_map_map
 			dw kw_printnl
 
-			; Main.bas 38: Print "Unload level 1: "; Level1.Unload(); " - pages "; Memory.Map(1, Memory.Pages())
+			; Main.bas 39: Print "Unload level 1: "; Level1.Unload(); " - pages "; Memory.Map(1, Memory.Pages())
 			dw fn_level1_unload, var_level1_unload_unload
 			dw kw_printzoscii
 			dw glyph_55, glyph_6E, glyph_6C, glyph_6F, glyph_61, glyph_64, glyph_20, glyph_6C
@@ -160,31 +160,12 @@ for1_e:
 			dw kw_printstrvar, var_memory_map_map
 			dw kw_printnl
 
-			; Main.bas 40: Print "Press a key";
+			; Main.bas 41: End
+			dw kw_printnl0
 			dw kw_printzoscii
 			dw glyph_50, glyph_72, glyph_65, glyph_73, glyph_73, glyph_20, glyph_61, glyph_20
 			dw glyph_6B, glyph_65, glyph_79, 0		; "Press a key"
-
-			; Main.bas 41: Do While Inkey <> 0 : Loop
-do4_t:
-			dw kw_inkey, tmp0
-			dw kw_cpnevl, tmp0, 0
-			dw kw_goto_iffalse_n, do4_e
-			dw do4_t_go
-do4_e:
-
-			; Main.bas 42: Do : Frame : Loop Until Inkey <> 0
-do5_t:
-			dw kw_frame
-			dw kw_inkey, tmp0
-			dw kw_cpnevl, tmp0, 0
-			dw kw_goto_iffalse_n, do5_t
-do5_e:
-
-			; Main.bas 43: Print
-			dw kw_printnl
-
-			; Main.bas 44: End
+			dw kw_waitkey
 			dw kw_stop
 
 ; ============================================================
@@ -193,7 +174,7 @@ do5_e:
 
 p_banner:
 
-			; Main.bas 48: Print "== "; text; " =="
+			; Main.bas 45: Print "== "; text; " =="
 			dw kw_printzoscii
 			dw glyph_3D, glyph_3D, glyph_20, 0		; "== "
 			dw kw_printstrvar, var_banner_text
@@ -225,8 +206,6 @@ p_banner:
 ;   turbo mode ends with ret, normal mode with jp ntc_xn
 ; ============================================================
 
-do4_t_go:			ld sp, do4_t
-			jp ntc_xn
 
 p_banner_c:		; call banner (normal)
 			pop hl			; text
@@ -534,6 +513,12 @@ ntc_stop_back:
 			ei
 			ret
 
+;## kw_waitkey ntc_data ntc_plat_key
+; kw_waitkey - wait for a key (Option PressAnyKeyOnEnd, before kw_stop)
+kw_waitkey:
+			ld ix, ntc_next
+			jp ntc_plat_getkey
+
 ;## ntc_xn ntc_data @shared
 ; normal mode "next": every normal mode keyword ends here (its ret
 ; became jp ntc_xn). Thread position to ntc_ip, real stack, one
@@ -770,19 +755,6 @@ kw_cpeqvl:
 			pop hl
 			jp ntc_cmp_eq
 
-;## kw_cpnevl ntc_cmp
-kw_cpnevl:
-			pop hl
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			pop hl
-			jp ntc_cmp_ne
-
-; ============================================================
-; Memory (PEEK / POKE / DEEK / DOKE)
-; ============================================================
-
 ;## ntc_printbuf ntc_data ntc_plat_screen
 ; print the 0 terminated ASCII text at (ntc_sptr), then ret (thread)
 ntc_printbuf:
@@ -897,25 +869,20 @@ ntc_pi_done:
 			ld (ntc_sptr), hl
 			jp ntc_printbuf
 
+;## kw_printnl0 ntc_data ntc_plat_screen
+;kw_printnl0  - new line unless the cursor is at the start of a line
+kw_printnl0:
+			ld a, (ntc_curx)
+			or a
+			ret z
+			ld ix, ntc_next
+			jp ntc_plat_newline
+
 ;## kw_printnl ntc_data ntc_plat_screen
 ;kw_printnl
 kw_printnl:
 			ld ix, ntc_next
 			jp ntc_plat_newline
-
-;## kw_inkey ntc_data ntc_plat_key
-;kw_inkey, <destvar>  - new key press or 0, no wait
-kw_inkey:
-			pop hl
-			ld (ntc_ivar), hl
-			ld ix, ntc_inkey_got
-			jp ntc_plat_scankey
-ntc_inkey_got:
-			ld hl, (ntc_ivar)
-			ld (hl), a
-			inc hl
-			ld (hl), 0
-			ret
 
 ;## kw_scrinit ntc_data ntc_plat_screen
 ;kw_scrinit  - first word of any program that prints or reads keys:
@@ -924,12 +891,6 @@ kw_scrinit:
 			ld a, 1
 			ld ix, ntc_next
 			jp ntc_plat_mode
-
-;## kw_frame ntc_data ntc_plat_frame
-;kw_frame  - wait for the start of the next frame flyback
-kw_frame:
-			ld ix, ntc_next
-			jp ntc_plat_frame
 
 ;## ntc_font
 ; 8x8 font buffer, chars 32-126, 8 bytes each, bit 7 = leftmost pixel.
@@ -3569,36 +3530,6 @@ ntc_keymaps:
 			db "!", 34, 27, "Q", 9, "A", 0, "Z"
 			db 0, 0, 0, 0, 0, 0, 0, 127
 
-;## ntc_plat_frame ntc_data @shared
-; ------------------------------------------------------------
-; ntc_plat_frame - wait for the start of vsync (PPI port B bit 0)
-; normal mode: interrupts in while waiting
-; ------------------------------------------------------------
-ntc_plat_frame:
-			ld a, (ntc_nmode)
-			or a
-			jr z, ntc_fr_go
-			ld (ntc_ip), sp
-			ld sp, (ntc_csp)
-			ei
-ntc_fr_go:
-			ld b, #F5
-ntc_fr_in:
-			in a, (c)
-			rra
-			jr c, ntc_fr_in
-ntc_fr_wait:
-			in a, (c)
-			rra
-			jr nc, ntc_fr_wait
-			di
-			ld a, (ntc_nmode)
-			or a
-			jr z, ntc_fr_done
-			ld sp, (ntc_ip)
-ntc_fr_done:
-			jp (ix)
-
 ;## ntc_plat_irq ntc_plat_data ntc_data ntc_plat_irqh @shared
 ; ------------------------------------------------------------
 ; ntc_plat_irqon - put the interrupt handler at #38 (IM 1)
@@ -4337,7 +4268,7 @@ ntc_bss		equ ntc_end
 ntc_bss_size	equ 0
 ntc_free	equ ntc_bss + ntc_bss_size	; the first free byte (heap, Memory tables)
 ; Option Reserve: the program and its arrays (ntc_start .. ntc_free) must stay out of these
-			ASSERT (ntc_free <= 16384) || (ntc_start >= 32768), "the program (or its arrays) reaches into Option Reserve #4000-#7FFF (Main.bas line 14)"
+			ASSERT (ntc_free <= 16384) || (ntc_start >= 32768), "the program (or its arrays) reaches into Option Reserve #4000-#7FFF (Main.bas line 15)"
 			SAVEAMSDOS "OVERLAYS.BIN", ntc_start, ntc_end - ntc_start, ntc_start
 			ASSERT (ntc_free <= #4000) || (ntc_start >= #8000), "overlay classes: the program and its arrays must stay out of #4000-#7FFF (the window they run in)"
 
@@ -4359,7 +4290,7 @@ p_level1_play:
 
 			; Level1.cls 6: For i = 1 To 3
 			dw kw_ltov, 1, var_level1_play_i
-for6_t:
+for4_t:
 
 			; Level1.cls 7: Print "  room "; i
 			dw kw_printzoscii
@@ -4368,8 +4299,8 @@ for6_t:
 			dw kw_printnl
 
 			; Level1.cls 8: Next
-			dw kw_next1l_n, var_level1_play_i, 3, for6_t
-for6_e:
+			dw kw_next1l_n, var_level1_play_i, 3, for4_t
+for4_e:
 
 			; Level1.cls 9: Play = 100
 			dw kw_ltov, 100, var_level1_play_play
@@ -4438,4 +4369,4 @@ ovl_level2_vsize	equ 0		; its page variables; its local memory is the rest, to #
 			DISPLAY "  page variables ", /D, ovl_level2_vsize, ", free ", /D, #8000 - (ovl_level2_end + ovl_level2_vsize)
 			SAVEAMSDOS "OVERLAYS.002", ovl_level2_start, ovl_level2_end - ovl_level2_start, #4000
 
-NTC_STAMP	equ #56BA		; the build stamp: the first word of every page file
+NTC_STAMP	equ #C2B5		; the build stamp: the first word of every page file

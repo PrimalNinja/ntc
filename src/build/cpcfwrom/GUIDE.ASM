@@ -34,23 +34,23 @@ ntc_rj_ok:
 
 main_thread:
 
-			; 30: Cls
+			; 31: Cls
 			dw kw_cls
 
-			; 31: Input "Your name"; nm
+			; 32: Input "Your name"; nm
 			dw kw_printstrvar, str0
 			dw kw_inputstr, var_nm
 
-			; 32: Print "Hello " & nm
+			; 33: Print "Hello " & nm
 			dw kw_printstrvar, str1
 			dw kw_printstrvar, var_nm
 			dw kw_printnl
 
-			; 33: For i = 1 To 10
+			; 34: For i = 1 To 10
 			dw kw_ltov, 1, var_i
 for1_t:
 
-			; 34: If i Mod 3 = 0 Then Print "fizz "; Else Print i; " ";
+			; 35: If i Mod 3 = 0 Then Print "fizz "; Else Print i; " ";
 			dw kw_modvl, var_i, 3, tmp0
 			dw kw_cpeqvl, tmp0, 0
 			dw kw_goto_iffalse_n, if2_1
@@ -61,36 +61,25 @@ if2_1:
 			dw kw_printstrvar, str3
 if2_e:
 
-			; 35: Next
+			; 36: Next
 			dw kw_next1l_n, var_i, 10, for1_t
 for1_e:
 
-			; 36: Print
+			; 37: Print
 			dw kw_printnl
 
-			; 37: Print Shout(nm)
+			; 38: Print Shout(nm)
 			dw p_shout_c, var_nm
 			dw kw_printstrvar, var_shout_shout
 			dw kw_printnl
 
-			; 38: Break done
+			; 39: Break done
 			dw bp_done_n
 
-			; 39: Print "Press a key";
+			; 40: End
+			dw kw_printnl0
 			dw kw_printstrvar, str4
-
-			; 40: Do : Frame : Loop Until Inkey <> 0
-do3_t:
-			dw kw_frame
-			dw kw_inkey, tmp0
-			dw kw_cpnevl, tmp0, 0
-			dw kw_goto_iffalse_n, do3_t
-do3_e:
-
-			; 41: Print
-			dw kw_printnl
-
-			; 42: End
+			dw kw_waitkey
 			dw kw_stop
 
 ; ============================================================
@@ -99,7 +88,7 @@ do3_e:
 
 p_shout:
 
-			; 45: Shout = UCase$(s) & "!"
+			; 43: Shout = UCase$(s) & "!"
 			dw kw_strucase, stmp0, var_shout_s
 			dw kw_strcpy, var_shout_shout, stmp0
 			dw kw_strcat, var_shout_shout, str5
@@ -189,18 +178,17 @@ kw_next1l_n:	jp 31
 kw_ltov:		jp 47
 kw_modvl:	jp 67
 kw_cpeqvl:	jp 96
-kw_cpnevl:	jp 98
 kw_strcpy:	jp 122
 kw_strcat:	jp 124
 kw_printstrvar:	jp 129
 kw_printint:	jp 131
+kw_printnl0:	jp 134
 kw_printnl:	jp 138
 kw_inputstr:	jp 141
-kw_inkey:	jp 144
 kw_cls:		jp 147
-kw_frame:	jp 152
 kw_strucase:	jp 180
-NTC_RJ_N	equ 18		; entries
+kw_waitkey:	jp 348
+NTC_RJ_N	equ 17		; entries
 ntc_csp	equ #8800		; ROM data
 ntc_nmode	equ #8807		; ROM data
 ntc_v_free	equ #894E		; ROM data

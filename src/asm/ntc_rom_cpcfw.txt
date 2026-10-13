@@ -398,3 +398,5 @@
 -	data	ntc_v_rom	#8955
 -	data	ntc_v_romold	#8956
 348	code	kw_waitkey
+349	code	fs_addvol
+-	bss	fs_vol	#9806

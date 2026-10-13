@@ -49,19 +49,19 @@ ntc_go:
 main_thread:
 			dw kw_scrinit		; mode 1, ROMs off, clear screen
 
-			; Main.bas 24: Title.Show
+			; Main.bas 25: Title.Show
 			dw p_title_show_c
 
-			; Main.bas 25: Level1.Play
+			; Main.bas 26: Level1.Play
 			dw p_level1_play_c
 
-			; Main.bas 26: Level2.Play
+			; Main.bas 27: Level2.Play
 			dw p_level2_play_c
 
-			; Main.bas 27: Level1.Play
+			; Main.bas 28: Level1.Play
 			dw p_level1_play_c
 
-			; Main.bas 28: Print "Maths from main: 7 squared is "; Maths.Square(7)
+			; Main.bas 29: Print "Maths from main: 7 squared is "; Maths.Square(7)
 			dw p_maths_square_c, lit_7
 			dw kw_printzoscii
 			dw glyph_4D, glyph_61, glyph_74, glyph_68, glyph_73, glyph_20, glyph_66, glyph_72
@@ -71,7 +71,7 @@ main_thread:
 			dw kw_printint, var_maths_square_square
 			dw kw_printnl
 
-			; Main.bas 29: Print "Stars from main (Stage1's copy): "; Stars.Count()
+			; Main.bas 30: Print "Stars from main (Stage1's copy): "; Stars.Count()
 			dw p_stars_count_c
 			dw kw_printzoscii
 			dw glyph_53, glyph_74, glyph_61, glyph_72, glyph_73, glyph_20, glyph_66, glyph_72
@@ -82,34 +82,15 @@ main_thread:
 			dw kw_printint, var_stars_count_count
 			dw kw_printnl
 
-			; Main.bas 30: Credits.Show
+			; Main.bas 31: Credits.Show
 			dw p_credits_show_c
 
-			; Main.bas 31: Print "Press a key";
+			; Main.bas 32: End
+			dw kw_printnl0
 			dw kw_printzoscii
 			dw glyph_50, glyph_72, glyph_65, glyph_73, glyph_73, glyph_20, glyph_61, glyph_20
 			dw glyph_6B, glyph_65, glyph_79, 0		; "Press a key"
-
-			; Main.bas 32: Do While Inkey <> 0 : Loop
-do1_t:
-			dw kw_inkey, tmp0
-			dw kw_cpnevl, tmp0, 0
-			dw kw_goto_iffalse_n, do1_e
-			dw do1_t_go
-do1_e:
-
-			; Main.bas 33: Do : Frame : Loop Until Inkey <> 0
-do2_t:
-			dw kw_frame
-			dw kw_inkey, tmp0
-			dw kw_cpnevl, tmp0, 0
-			dw kw_goto_iffalse_n, do2_t
-do2_e:
-
-			; Main.bas 34: Print
-			dw kw_printnl
-
-			; Main.bas 35: End
+			dw kw_waitkey
 			dw kw_stop
 
 ; ============================================================
@@ -176,8 +157,6 @@ p_score_total:
 ;   turbo mode ends with ret, normal mode with jp ntc_xn
 ; ============================================================
 
-do1_t_go:			ld sp, do1_t
-			jp ntc_xn
 
 p_title_show_c:		; call show (normal)
 			ld (p_title_show_rs), sp
@@ -392,7 +371,6 @@ p_score_add_rs:			dw 0
 var_score_add_n:			dw 0
 var_score_t:			dw 0
 p_score_total_rs:			dw 0
-tmp0:			dw 0
 
 ; numbers passed by address (read only)
 lit_7:			dw 7
@@ -455,25 +433,23 @@ glyph_79			equ ntc_font + 712		; "y"
 ntc_rj_block:
 kw_stop:		jp 1
 ntc_xn:		jp 2
-kw_goto_iffalse_n:	jp 11
 kw_next1l_n:	jp 31
 kw_ltov:		jp 47
 kw_vtov:		jp 48
 kw_inc:		jp 51
 kw_add:		jp 53
 kw_mulvv:	jp 60
-kw_cpnevl:	jp 98
 kw_printzoscii:	jp 129
 kw_printint:	jp 132
+kw_printnl0:	jp 135
 kw_printnl:	jp 139
-kw_inkey:	jp 145
 kw_scrinit:	jp 147
-kw_frame:	jp 153
 mem_sel:		jp 259
 ntc_ovl_enter:	jp 277
 ntc_ovl_enterc:	jp 278
 ntc_plat_irqon:	jp 316
-NTC_RJ_N	equ 20		; entries
+kw_waitkey:	jp 344
+NTC_RJ_N	equ 18		; entries
 ntc_csp	equ #8800		; ROM data
 ntc_font	equ #948E		; ROM bss
 ntc_nmode	equ #8807		; ROM data
@@ -711,7 +687,7 @@ ntc_bss		equ ntc_end
 ntc_bss_size	equ 0
 ntc_free	equ ntc_bss + ntc_bss_size	; the first free byte (heap, Memory tables)
 ; Option Reserve: the program and its arrays (ntc_start .. ntc_free) must stay out of these
-			ASSERT (ntc_free <= 16384) || (ntc_start >= 32768), "the program (or its arrays) reaches into Option Reserve #4000-#7FFF (Main.bas line 22)"
+			ASSERT (ntc_free <= 16384) || (ntc_start >= 32768), "the program (or its arrays) reaches into Option Reserve #4000-#7FFF (Main.bas line 23)"
 			SAVEAMSDOS "PAGES.BIN", ntc_start, ntc_end - ntc_start, ntc_start
 			ASSERT (ntc_free <= #4000) || (ntc_start >= #8000), "overlay classes: the program and its arrays must stay out of #4000-#7FFF (the window they run in)"
 
@@ -764,7 +740,7 @@ p_level1_play:
 
 			; Level1.cls 4: For i = 1 To 3
 			dw kw_ltov, 1, var_level1_play_i
-for3_t:
+for1_t:
 
 			; Level1.cls 5: Score.Add Maths.Square(i)
 			dw p_maths_square_cl, var_level1_play_i
@@ -774,8 +750,8 @@ for3_t:
 			dw p_stars_add_cl
 
 			; Level1.cls 7: Next
-			dw kw_next1l_n, var_level1_play_i, 3, for3_t
-for3_e:
+			dw kw_next1l_n, var_level1_play_i, 3, for1_t
+for1_e:
 
 			; Level1.cls 8: Print "Level 1: score "; Score.Total(); ", stars here "; Stars.Count()
 			dw p_score_total_c
@@ -955,4 +931,4 @@ ovl_ending_vsize	equ 0		; its page variables; its local memory is the rest, to #
 			DISPLAY "  page variables ", /D, ovl_ending_vsize, ", free ", /D, #8000 - (ovl_ending_end + ovl_ending_vsize)
 			SAVEAMSDOS "PAGES.004", ovl_ending_start, ovl_ending_end - ovl_ending_start, #4000
 
-NTC_STAMP	equ #0E7E		; the build stamp: the first word of every page file
+NTC_STAMP	equ #8BE1		; the build stamp: the first word of every page file

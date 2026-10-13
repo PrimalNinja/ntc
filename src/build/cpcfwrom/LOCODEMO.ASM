@@ -35,7 +35,7 @@ ntc_rj_ok:
 main_thread:
 			dw kw_bssinit, ntc_bss, ntc_bss_size		; the arrays: do they fit, clear them
 
-			; 22: loco_d(0) = "Ann"
+			; 23: loco_d(0) = "Ann"
 			dw kw_strcpyn, arr_loco_d, str0, 40
 			dw kw_strcpyn, arr_loco_d+41, str1, 40
 			dw kw_strcpyn, arr_loco_d+82, str2, 40
@@ -47,13 +47,13 @@ main_thread:
 			dw kw_strcpyn, arr_loco_d+328, str8, 40
 			dw kw_strcpyn, arr_loco_d+369, str9, 40
 
-			; 4: Mode 1
+			; 5: Mode 1
 			dw kw_model, 1
 
-			; 6: total = 0
+			; 7: total = 0
 			dw kw_l_mov, llit_0, var_total
 
-			; 7: For i = 1 To 5 : nm_s(i) = loco_d(loco_p) : loco_p = loco_p + 1 : sc(i) = Val(loco_d(loco_p)) : loco_p = loco_p + 1 : total = total + sc(i) : Next
+			; 8: For i = 1 To 5 : nm_s(i) = loco_d(loco_p) : loco_p = loco_p + 1 : sc(i) = Val(loco_d(loco_p)) : loco_p = loco_p + 1 : total = total + sc(i) : Next
 			dw kw_ltov, 1, var_i
 for1_t:
 			dw kw_sget, arr_loco_d, var_loco_p, stmp1, 41
@@ -69,11 +69,11 @@ for1_t:
 			dw kw_next1l_n, var_i, 5, for1_t
 for1_e:
 
-			; 8: Print "High scores"
+			; 9: Print "High scores"
 			dw kw_printstrvar, str10
 			dw kw_printnl
 
-			; 9: For i = 1 To 5 : Print nm_s(i); Tab(10); sc(i) : Next
+			; 10: For i = 1 To 5 : Print nm_s(i); Tab(10); sc(i) : Next
 			dw kw_ltov, 1, var_i
 for2_t:
 			dw kw_sget, arr_nm_s, var_i, stmp0, 41
@@ -85,7 +85,7 @@ for2_t:
 			dw kw_next1l_n, var_i, 5, for2_t
 for2_e:
 
-			; 10: Print "Total"; total; " Best"; IIf((IIf((IIf((IIf((sc(1)) > (sc(2)), sc(1), sc(2))) > (sc(3)), IIf((sc(1)) > (sc(2)), sc(1), sc(2)), sc(3))) > (sc(4)), IIf((IIf((sc(1)) > (sc(2)), sc(1), sc(2))) > (sc(3)), IIf((sc(1)) > (sc(2)), sc(1), sc(2)), sc(3)), sc(4))) > (sc(5)), IIf((IIf((IIf((sc(1)) > (sc(2)), sc(1), sc(2))) > (sc(3)), IIf((sc(1)) > (sc(2)), sc(1), sc(2)), sc(3))) > (sc(4)), IIf((IIf((sc(1)) > (sc(2)), sc(1), sc(2))) > (sc(3)), IIf((sc(1)) > (sc(2)), sc(1), sc(2)), sc(3)), sc(4)), sc(5))
+			; 11: Print "Total"; total; " Best"; IIf((IIf((IIf((IIf((sc(1)) > (sc(2)), sc(1), sc(2))) > (sc(3)), IIf((sc(1)) > (sc(2)), sc(1), sc(2)), sc(3))) > (sc(4)), IIf((IIf((sc(1)) > (sc(2)), sc(1), sc(2))) > (sc(3)), IIf((sc(1)) > (sc(2)), sc(1), sc(2)), sc(3)), sc(4))) > (sc(5)), IIf((IIf((IIf((sc(1)) > (sc(2)), sc(1), sc(2))) > (sc(3)), IIf((sc(1)) > (sc(2)), sc(1), sc(2)), sc(3))) > (sc(4)), IIf((IIf((sc(1)) > (sc(2)), sc(1), sc(2))) > (sc(3)), IIf((sc(1)) > (sc(2)), sc(1), sc(2)), sc(3)), sc(4)), sc(5))
 			dw kw_printstrvar, str11
 			dw kw_l_printvb, var_total
 			dw kw_scpgtvv, arr_sc+2, arr_sc+4
@@ -257,14 +257,14 @@ ch17_e:
 			dw kw_printintvb, tmp0
 			dw kw_printnl
 
-			; 12: Print "Ann has"; fn_pct(sc(1)); "%"
+			; 13: Print "Ann has"; fn_pct(sc(1)); "%"
 			dw p_fn_pct_c, arr_sc+2
 			dw kw_printstrvar, str13
 			dw kw_printintvb, var_fn_pct_fn_pct
 			dw kw_printstrvar, str14
 			dw kw_printnl
 
-			; 13: a_s = "Hello" : Mid$(a_s, 1, 1) = "J" : Print a_s; " "; UCase$(a_s)
+			; 14: a_s = "Hello" : Mid$(a_s, 1, 1) = "J" : Print a_s; " "; UCase$(a_s)
 			dw kw_strcpy, var_a_s, str15
 			dw kw_ltov, 1, tmp0
 			dw kw_ltov, 1, tmp1
@@ -275,38 +275,41 @@ ch17_e:
 			dw kw_printstrvar, stmp0
 			dw kw_printnl
 
-			; 14: GoSub 1000
+			; 15: GoSub 1000
 			dw ln_1000_gs
 
-			; 15: On 2 GoSub 1010, 1020
+			; 16: On 2 GoSub 1010, 1020
 			dw ln_1020_gs
 
-			; 17: Print "Done"
+			; 18: Print "Done"
 			dw kw_printstrvar, str18
 			dw kw_printnl
 
-			; 18: End
+			; 19: End
+			dw kw_printnl0
+			dw kw_printstrvar, str19
+			dw kw_waitkey
 			dw kw_stop
 
-			; 19: 1000 Print "In GOSUB 1000" : Return
+			; 20: 1000 Print "In GOSUB 1000" : Return
 ln_1000:
-			dw kw_printstrvar, str19
-			dw kw_printnl
-			dw ln_1000_rt
-
-			; 20: 1010 Print "one" : Return
-ln_1010:
 			dw kw_printstrvar, str20
 			dw kw_printnl
 			dw ln_1000_rt
 
-			; 21: 1020 Print "two" : Return
-ln_1020:
+			; 21: 1010 Print "one" : Return
+ln_1010:
 			dw kw_printstrvar, str21
+			dw kw_printnl
+			dw ln_1000_rt
+
+			; 22: 1020 Print "two" : Return
+ln_1020:
+			dw kw_printstrvar, str22
 			dw kw_printnl
 			dw ln_1020_rt
 
-			; 23: End
+			; 24: End
 
 ; ============================================================
 ; function fn_pct (normal mode)
@@ -314,7 +317,7 @@ ln_1020:
 
 p_fn_pct:
 
-			; 11: fn_pct = x * 10 \ (total \ 10)
+			; 12: fn_pct = x * 10 \ (total \ 10)
 			dw kw_mulvl, var_fn_pct_x, 10, tmp0
 			dw kw_l_div, var_total, llit_10, ltmp1
 			dw kw_l_itol, tmp0, ltmp0
@@ -440,9 +443,10 @@ str15:			db "Hello", 0
 str16:			db "J", 0
 str17:			db " ", 0
 str18:			db "Done", 0
-str19:			db "In GOSUB 1000", 0
-str20:			db "one", 0
-str21:			db "two", 0
+str19:			db "Press a key", 0
+str20:			db "In GOSUB 1000", 0
+str21:			db "one", 0
+str22:			db "two", 0
 
 ; ============================================================
 ; Keyword library (rom)
@@ -469,6 +473,7 @@ kw_strcpy:	jp 122
 kw_strcpyn:	jp 123
 kw_printstrvar:	jp 129
 kw_printintvb:	jp 132
+kw_printnl0:	jp 134
 kw_printnl:	jp 138
 kw_printtab:	jp 139
 kw_model:	jp 150
@@ -484,7 +489,8 @@ kw_l_add:	jp 209
 kw_l_div:	jp 229
 kw_l_printvb:	jp 234
 kw_bssinit:	jp 288
-NTC_RJ_N	equ 32		; entries
+kw_waitkey:	jp 348
+NTC_RJ_N	equ 34		; entries
 ntc_csp	equ #8800		; ROM data
 ntc_nmode	equ #8807		; ROM data
 ntc_v_free	equ #894E		; ROM data

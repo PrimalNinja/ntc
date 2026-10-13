@@ -27,14 +27,14 @@ ntc_start:
 main_thread:
 			dw kw_bssinit, ntc_bss, ntc_bss_size		; the arrays: do they fit, clear them
 
-			; main.bas 13: Print "1 started"
+			; main.bas 14: Print "1 started"
 			dw kw_printstrvar, str0
 			dw kw_printnl
 
-			; main.bas 14: Wait
+			; main.bas 15: Wait
 			dw p_wait_c
 
-			; main.bas 15: Print "2 Capability LOAD"; FileSystem.Capability("LOAD"); " SAVE"; FileSystem.Capability("SAVE")
+			; main.bas 16: Print "2 Capability LOAD"; FileSystem.Capability("LOAD"); " SAVE"; FileSystem.Capability("SAVE")
 			dw fn_filesystem_capability, str1, var_filesystem_capability_capability
 			dw kw_printstrvar, str2
 			dw kw_printint, var_filesystem_capability_capability
@@ -43,19 +43,19 @@ main_thread:
 			dw kw_printint, var_filesystem_capability_capability
 			dw kw_printnl
 
-			; main.bas 16: Wait
+			; main.bas 17: Wait
 			dw p_wait_c
 
-			; main.bas 17: Print "3 Devices: "; FileSystem.Devices()
+			; main.bas 18: Print "3 Devices: "; FileSystem.Devices()
 			dw fn_filesystem_devices, var_filesystem_devices_devices
 			dw kw_printstrvar, str5
 			dw kw_printstrvar, var_filesystem_devices_devices
 			dw kw_printnl
 
-			; main.bas 18: Wait
+			; main.bas 19: Wait
 			dw p_wait_c
 
-			; main.bas 19: Print "4 CurrentDevice: "; FileSystem.CurrentDevice(); "  Volume: "; FileSystem.CurrentVolume()
+			; main.bas 20: Print "4 CurrentDevice: "; FileSystem.CurrentDevice(); "  Volume: "; FileSystem.CurrentVolume()
 			dw fn_filesystem_currentdevice, var_filesystem_currentdevice_currentdevice
 			dw kw_printstrvar, str6
 			dw kw_printstrvar, var_filesystem_currentdevice_currentdevice
@@ -64,10 +64,10 @@ main_thread:
 			dw kw_printstrvar, var_filesystem_currentvolume_currentvolume
 			dw kw_printnl
 
-			; main.bas 20: Wait
+			; main.bas 21: Wait
 			dw p_wait_c
 
-			; main.bas 21: For i = 0 To 9 : a(i) = 1000 - i * 50 : Next
+			; main.bas 22: For i = 0 To 9 : a(i) = 1000 - i * 50 : Next
 			dw kw_ztov, var_i
 for1_t:
 			dw kw_mulvl, var_i, 50, tmp2
@@ -76,35 +76,35 @@ for1_t:
 			dw kw_next1l_n, var_i, 9, for1_t
 for1_e:
 
-			; main.bas 22: Print "5 Save STEP.DAT..."
+			; main.bas 23: Print "5 Save STEP.DAT..."
 			dw kw_printstrvar, str8
 			dw kw_printnl
 
-			; main.bas 23: Wait
+			; main.bas 24: Wait
 			dw p_wait_c
 
-			; main.bas 24: r = FileSystem.Save("STEP.DAT", VarPtr(a), 20)
+			; main.bas 25: r = FileSystem.Save("STEP.DAT", VarPtr(a), 20)
 			dw fn_filesystem_save, str9, vp_arr_a, lit_20, var_r
 
-			; main.bas 25: Print "  Save gave"; r
+			; main.bas 26: Print "  Save gave"; r
 			dw kw_printstrvar, str10
 			dw kw_printint, var_r
 			dw kw_printnl
 
-			; main.bas 26: Wait
+			; main.bas 27: Wait
 			dw p_wait_c
 
-			; main.bas 27: Print "6 Load STEP.DAT..."
+			; main.bas 28: Print "6 Load STEP.DAT..."
 			dw kw_printstrvar, str11
 			dw kw_printnl
 
-			; main.bas 28: Wait
+			; main.bas 29: Wait
 			dw p_wait_c
 
-			; main.bas 29: r = FileSystem.Load("STEP.DAT", VarPtr(b), 20)
+			; main.bas 30: r = FileSystem.Load("STEP.DAT", VarPtr(b), 20)
 			dw fn_filesystem_load, str9, vp_arr_b, lit_20, var_r
 
-			; main.bas 30: Print "  Load gave"; r; ", "; b(0); " ... "; b(9)
+			; main.bas 31: Print "  Load gave"; r; ", "; b(0); " ... "; b(9)
 			dw kw_printstrvar, str12
 			dw kw_printint, var_r
 			dw kw_printstrvar, str13
@@ -113,14 +113,14 @@ for1_e:
 			dw kw_printint, arr_b+18
 			dw kw_printnl
 
-			; main.bas 31: Print "7 done - press a key to end"
+			; main.bas 32: Print "7 done"
 			dw kw_printstrvar, str15
 			dw kw_printnl
 
-			; main.bas 32: Wait
-			dw p_wait_c
-
 			; main.bas 33: End
+			dw kw_printnl0
+			dw kw_printstrvar, str16
+			dw kw_waitkey
 			dw kw_stop
 
 ; ============================================================
@@ -130,7 +130,7 @@ for1_e:
 p_wait:
 
 			; main.bas 36: Print "  (press a key)"
-			dw kw_printstrvar, str16
+			dw kw_printstrvar, str17
 			dw kw_printnl
 
 			; main.bas 37: Do While Inkey <> 0 : Loop
@@ -316,8 +316,10 @@ str11:			db "6 Load STEP.DAT...", 0
 str12:			db "  Load gave", 0
 str13:			db ", ", 0
 str14:			db " ... ", 0
-str15:			db "7 done - press a key to end", 0
-str16:			db "  (press a key)", 0
+str15:			db "7 done", 0
+str16:			db "Press a key to end", 0
+str17:			db "  (press a key)", 0
+str18:			db 0
 
 ; ============================================================
 ; Keyword library (used)
@@ -363,6 +365,12 @@ ntc_stop_back:
 			ld sp, (ntc_csp)
 			ei
 			ret
+
+;## kw_waitkey ntc_data ntc_plat_key
+; kw_waitkey - wait for a key (Option PressAnyKeyOnEnd, before kw_stop)
+kw_waitkey:
+			ld ix, ntc_next
+			jp ntc_plat_getkey
 
 ;## ntc_xn ntc_data @shared
 ; normal mode "next": every normal mode keyword ends here (its ret
@@ -729,6 +737,15 @@ ntc_pi_done:
 			ld hl, ntc_numbuf
 			ld (ntc_sptr), hl
 			jp ntc_printbuf
+
+;## kw_printnl0 ntc_data ntc_plat_screen
+;kw_printnl0  - new line unless the cursor is at the start of a line
+kw_printnl0:
+			ld a, (ntc_curx)
+			or a
+			ret z
+			ld ix, ntc_next
+			jp ntc_plat_newline
 
 ;## kw_printnl ntc_data ntc_plat_screen
 ;kw_printnl

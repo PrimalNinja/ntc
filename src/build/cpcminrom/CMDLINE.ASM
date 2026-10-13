@@ -38,15 +38,15 @@ ntc_go:
 main_thread:
 			dw kw_scrinit		; mode 1, ROMs off, clear screen
 
-			; main.bas 6: If System.HasCapability("COMMANDLINE") Then
+			; main.bas 7: If System.HasCapability("COMMANDLINE") Then
 			dw fn_system_hascapability, str0, var_system_hascapability_hascapability
 			dw kw_goto_ifzero_n, var_system_hascapability_hascapability, if1_1
 
-			; main.bas 7: cl = System.CommandLine
+			; main.bas 8: cl = System.CommandLine
 			dw p_system_commandline_c
 			dw kw_strcpy, var_cl, var_system_commandline_commandline
 
-			; main.bas 8: Print "Command line: ["; cl; "]"
+			; main.bas 9: Print "Command line: ["; cl; "]"
 			dw kw_printzoscii
 			dw glyph_43, glyph_6F, glyph_6D, glyph_6D, glyph_61, glyph_6E, glyph_64, glyph_20
 			dw glyph_6C, glyph_69, glyph_6E, glyph_65, glyph_3A, glyph_20, glyph_5B, 0		; "Command line: ["
@@ -54,11 +54,11 @@ main_thread:
 			dw kw_printzoscii
 			dw glyph_5D, 1, 0		; "]\n"
 
-			; main.bas 9: Else
+			; main.bas 10: Else
 			dw if1_e_go
 if1_1:
 
-			; main.bas 10: Input "No command line here - type one"; cl
+			; main.bas 11: Input "No command line here - type one"; cl
 			dw kw_printzoscii
 			dw glyph_4E, glyph_6F, glyph_20, glyph_63, glyph_6F, glyph_6D, glyph_6D, glyph_61
 			dw glyph_6E, glyph_64, glyph_20, glyph_6C, glyph_69, glyph_6E, glyph_65, glyph_20
@@ -67,24 +67,24 @@ if1_1:
 			dw glyph_20, 0		; "No command line here - type one? "
 			dw kw_inputstr, var_cl
 
-			; main.bas 11: End If
+			; main.bas 12: End If
 if1_e:
 
-			; main.bas 13: w = 0
+			; main.bas 14: w = 0
 			dw kw_ztov, var_w
 
-			; main.bas 14: For i = 1 To Len(cl)
+			; main.bas 15: For i = 1 To Len(cl)
 			dw kw_ltov, 1, var_i
 			dw kw_strlen, var_cl, for2_l
 			dw kw_forupv_n, var_i, for2_l, for2_e
 for2_t:
 
-			; main.bas 15: If Mid$(cl, i, 1) <> " " Then
+			; main.bas 16: If Mid$(cl, i, 1) <> " " Then
 			dw kw_strmid, stmp0, var_cl, var_i, lit_1
 			dw kw_strcmpne, stmp0, str1
 			dw kw_goto_iffalse_n, if3_1
 
-			; main.bas 16: If (i = 1) Or (Mid$(cl, i - 1, 1) = " ") Then w = w + 1 : Print w; ": ";
+			; main.bas 17: If (i = 1) Or (Mid$(cl, i - 1, 1) = " ") Then w = w + 1 : Print w; ": ";
 			dw kw_cpeqvl, var_i, 1
 			dw kw_ftov, tmp0
 			dw kw_addl, var_i, -1, tmp2
@@ -99,11 +99,11 @@ for2_t:
 			dw glyph_3A, glyph_20, 0		; ": "
 if4_1:
 
-			; main.bas 17: Print Mid$(cl, i, 1);
+			; main.bas 18: Print Mid$(cl, i, 1);
 			dw kw_strmid, stmp0, var_cl, var_i, lit_1
 			dw kw_printstrvar, stmp0
 
-			; main.bas 18: If (i = Len(cl)) Or (Mid$(cl, i + 1, 1) = " ") Then Print
+			; main.bas 19: If (i = Len(cl)) Or (Mid$(cl, i + 1, 1) = " ") Then Print
 			dw kw_strlen, var_cl, tmp1
 			dw kw_cpeqvv, var_i, tmp1
 			dw kw_ftov, tmp0
@@ -116,19 +116,19 @@ if4_1:
 			dw kw_printnl
 if5_1:
 
-			; main.bas 19: End If
+			; main.bas 20: End If
 if3_1:
 
-			; main.bas 20: Next
+			; main.bas 21: Next
 			dw kw_next1v_n, var_i, for2_l, for2_t
 for2_e:
 
-			; main.bas 21: Print w; " words"
+			; main.bas 22: Print w; " words"
 			dw kw_printint, var_w
 			dw kw_printzoscii
 			dw glyph_20, glyph_77, glyph_6F, glyph_72, glyph_64, glyph_73, 1, 0		; " words\n"
 
-			; main.bas 22: Print "Files: "; IIf(System.HasCapability("FILES"), "yes", "no"); ", pages: "; IIf(System.HasCapability("PAGES"), "yes", "no")
+			; main.bas 23: Print "Files: "; IIf(System.HasCapability("FILES"), "yes", "no"); ", pages: "; IIf(System.HasCapability("PAGES"), "yes", "no")
 			dw fn_system_hascapability, str2, var_system_hascapability_hascapability
 			dw kw_vtov, var_system_hascapability_hascapability, tmp0
 			dw kw_goto_ifzero_n, tmp0, ch6_0
@@ -160,7 +160,12 @@ ch7_e:
 			dw kw_printstrvar, stmp0
 			dw kw_printnl
 
-			; main.bas 23: End
+			; main.bas 24: End
+			dw kw_printnl0
+			dw kw_printzoscii
+			dw glyph_50, glyph_72, glyph_65, glyph_73, glyph_73, glyph_20, glyph_61, glyph_20
+			dw glyph_6B, glyph_65, glyph_79, 0		; "Press a key"
+			dw kw_waitkey
 			dw kw_stop
 
 ; ============================================================
@@ -267,6 +272,7 @@ glyph_3F			equ ntc_font + 248		; "?"
 glyph_43			equ ntc_font + 280		; "C"
 glyph_46			equ ntc_font + 304		; "F"
 glyph_4E			equ ntc_font + 368		; "N"
+glyph_50			equ ntc_font + 384		; "P"
 glyph_5B			equ ntc_font + 472		; "["
 glyph_5D			equ ntc_font + 488		; "]"
 glyph_61			equ ntc_font + 520		; "a"
@@ -276,6 +282,7 @@ glyph_65			equ ntc_font + 552		; "e"
 glyph_67			equ ntc_font + 568		; "g"
 glyph_68			equ ntc_font + 576		; "h"
 glyph_69			equ ntc_font + 584		; "i"
+glyph_6B			equ ntc_font + 600		; "k"
 glyph_6C			equ ntc_font + 608		; "l"
 glyph_6D			equ ntc_font + 616		; "m"
 glyph_6E			equ ntc_font + 624		; "n"
@@ -329,13 +336,15 @@ kw_strcmpne:	jp 127
 kw_printzoscii:	jp 129
 kw_printstrvar:	jp 130
 kw_printint:	jp 132
+kw_printnl0:	jp 135
 kw_printnl:	jp 139
 kw_inputstr:	jp 142
 kw_scrinit:	jp 147
 kw_strmid:	jp 174
 ntc_capfind:	jp 243
 ntc_plat_irqon:	jp 316
-NTC_RJ_N	equ 28		; entries
+kw_waitkey:	jp 344
+NTC_RJ_N	equ 30		; entries
 ntc_csp	equ #8800		; ROM data
 ntc_font	equ #948E		; ROM bss
 ntc_nmode	equ #8807		; ROM data

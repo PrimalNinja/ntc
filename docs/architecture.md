@@ -266,7 +266,17 @@ area with Small / CP/M. Call stubs in the main program switch the page in, keep 
 was there and switch it back on return. Each page file starts with the program's build stamp,
 checked after loading.
 
-### 5.5 End
+### 5.5 Files and the ROMDISC
+
+FileSystem's methods run on the real stack. cpcfw and cpcmin reach AMSDOS through the firmware
+(cpcmin hands the machine back to the firmware for each call). Volume R is the ROMDISC: read-only
+files in ROMs (`NTCDISC.ROM` ...). It isn't a disc driver: when the volume is R, a method goes
+to the ROMDISC's routines (`rd_*`, section `ntc_romdisc`) instead of AMSDOS's. Those routines
+select the ROMDISC's ROM for a moment and copy from it, so they run from RAM - in a `Library:
+ROM` program they are part of the program, not the keyword ROM. On cpc (no firmware) the
+ROMDISC is the only volume.
+
+### 5.6 End
 
 `End` (or the last line) is `kw_stop`:
 
@@ -303,7 +313,8 @@ fitted at once.
 ```
 
 Not in the ROMs (a ROM program carries them itself, `@ramonly`): Graphics (so other graphics
-classes can sit beside it) and cpcmin's sequential-file code (no room).
+classes can sit beside it), the ROMDISC's routines (they switch the ROM away) and cpcmin's
+sequential-file code (no room).
 
 ### 6.2 The registry
 
@@ -379,7 +390,7 @@ registry's exported variables keep fixed addresses).
 | Keys (`Inkey`) | NTC's matrix scan | as cpc | KM READ CHAR |
 | `Keys` class | the matrix, straight from the hardware | as cpc | as cpc |
 | Interrupts | NTC's handler at `#0038` | as cpc (the firmware's during file calls) | a firmware fast ticker event |
-| Files | none | AMSDOS through the firmware | AMSDOS through the firmware |
+| Files | the ROMDISC (volume R) | AMSDOS through the firmware, and the ROMDISC | AMSDOS through the firmware, and the ROMDISC |
 | Top of free RAM | `#A600` | `#A600` | `#A600` (`#A5F0` with the event) |
 | Keyword ROM | NTCCPC.ROM | NTCMIN.ROM | NTCFW.ROM |
 

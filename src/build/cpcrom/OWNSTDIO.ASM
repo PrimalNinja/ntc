@@ -38,72 +38,61 @@ ntc_go:
 main_thread:
 			dw kw_scrinit		; mode 1, ROMs off, clear screen
 
-			; Main.bas 3: n = 42
+			; Main.bas 4: n = 42
 			dw kw_ltov, 42, var_n
 
-			; Main.bas 4: Print "hello"; n, "x"
+			; Main.bas 5: Print "hello"; n, "x"
 			dw p_stdio_putstr_c, str0
 			dw kw_strcstr, stmp0, var_n
 			dw p_stdio_putstr_c, stmp0
 			dw p_stdio_putstr_c, str2
 			dw p_stdio_newline_c
 
-			; Main.bas 5: Cls
+			; Main.bas 6: Cls
 			dw p_stdio_cls_c
 
-			; Main.bas 6: Locate 3, 4
+			; Main.bas 7: Locate 3, 4
 			dw p_stdio_locate_c, lit_3, lit_4
 
-			; Main.bas 7: Input "name"; s
+			; Main.bas 8: Input "name"; s
 			dw p_stdio_putstr_c, str3
 			dw p_stdio_getline_c, var_s
 
-			; Main.bas 8: Print s
+			; Main.bas 9: Print s
 			dw p_stdio_putstr_c, var_s
 			dw p_stdio_newline_c
 
-			; Main.bas 9: k$ = Inkey$
+			; Main.bas 10: k$ = Inkey$
 			dw p_stdio_getkey_c
 			dw kw_strchr, stmp0, var_stdio_getkey_getkey
 			dw kw_strcpy, var_k, stmp0
 
-			; Main.bas 10: Print k$; Inkey
+			; Main.bas 11: Print k$; Inkey
 			dw p_stdio_putstr_c, var_k
 			dw p_stdio_getkey_c
 			dw kw_strcstr, stmp0, var_stdio_getkey_getkey
 			dw p_stdio_putstr_c, stmp0
 			dw p_stdio_newline_c
 
-			; Main.bas 11: Input "num"; n
+			; Main.bas 12: Input "num"; n
 			dw p_stdio_putstr_c, str4
 			dw p_stdio_getline_c, stmp0
 			dw kw_strval, stmp0, var_n
 
-			; Main.bas 12: Print n + 1
+			; Main.bas 13: Print n + 1
 			dw kw_addl, var_n, 1, tmp0
 			dw kw_strcstr, stmp0, tmp0
 			dw p_stdio_putstr_c, stmp0
 			dw p_stdio_newline_c
 
-			; Main.bas 13: Print "lines "; StdIO.Lines
+			; Main.bas 14: Print "lines "; StdIO.Lines
 			dw p_stdio_putstr_c, str5
 			dw kw_strcstr, stmp0, var_stdio_lines
 			dw p_stdio_putstr_c, stmp0
 			dw p_stdio_newline_c
-
-			; Main.bas 14: Print "Press a key";
+			dw kw_printnl0
 			dw p_stdio_putstr_c, str6
-
-			; Main.bas 15: Do : Frame : Loop Until Inkey <> 0
-do1_t:
-			dw kw_frame
-			dw p_stdio_getkey_c
-			dw kw_cpnevl, var_stdio_getkey_getkey, 0
-			dw kw_goto_iffalse_n, do1_t
-do1_e:
-
-			; Main.bas 16: Print
-			dw p_stdio_newline_c
+			dw kw_waitkey
 			dw kw_stop
 
 ; ============================================================
@@ -372,26 +361,25 @@ str7:			db "!", 0
 ntc_rj_block:
 kw_stop:		jp 1
 ntc_xn:		jp 2
-kw_goto_iffalse_n:	jp 11
 kw_ltov:		jp 47
 kw_inc:		jp 51
 kw_addl:		jp 54
-kw_cpnevl:	jp 98
 kw_strcpy:	jp 122
 kw_strcat:	jp 124
 kw_printzoscii:	jp 129
 kw_printstrvar:	jp 130
 kw_printint:	jp 132
+kw_printnl0:	jp 135
 kw_printnl:	jp 139
 kw_inputstr:	jp 142
 kw_scrinit:	jp 147
-kw_frame:	jp 153
 kw_strchr:	jp 175
 kw_strcstr:	jp 176
 kw_strucase:	jp 181
 kw_strval:	jp 187
 ntc_plat_irqon:	jp 308
-NTC_RJ_N	equ 21		; entries
+kw_waitkey:	jp 321
+NTC_RJ_N	equ 20		; entries
 ntc_csp	equ #8800		; ROM data
 ntc_font	equ #948E		; ROM bss
 ntc_nmode	equ #8807		; ROM data

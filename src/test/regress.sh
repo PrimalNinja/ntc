@@ -82,7 +82,7 @@ done
 # FileSystem: CP/M (BDOS files), CPC firmware (Load / Save), no files (test, cpc); both modes
 for m in --turbo ""; do
   # test platform ref [harness option]: fs_fw2 without Option RomEnable - RUN" (tape) and CALLed (disc)
-  for c in "fs_cpm cpm fs_cpm" "fs_fw cpcfw fs_fw" "fs_fw2 cpcfw fs_fw2" "fs_fw2 cpcfw fs_fw2c --called" "fs_none test fs_none" "fs_none cpc fs_none" "fs_fw cpcmin fs_fw" "fs_fw2 cpcmin fs_fw2"; do
+  for c in "fs_cpm cpm fs_cpm" "fs_fw cpcfw fs_fw" "fs_fw2 cpcfw fs_fw2" "fs_fw2 cpcfw fs_fw2c --called" "fs_none test fs_none" "fs_none cpc fs_none_cpc" "fs_fw cpcmin fs_fw" "fs_fw2 cpcmin fs_fw2"; do
     set -- $c; rm -rf t/files; cp $1.bas t/
     o=$(timeout 100 python3 ntcrun.py t/$1.bas '' --platform=$2 $4 $m 2>&1 | grep -v "^--- ")
     if [ "$o" == "$(cat ref/$3.txt)" ]; then echo "ok   $3 $2 ${m:-normal}"; else echo "FAIL $3 $2 ${m:-normal}"; echo "$o" | head -5; fail=1; fi
@@ -359,6 +359,23 @@ for pl in cpcfw cpcmin; do for m in --turbo ""; do
 done; done
 o=$(node cli.js t/loc/classic.loc --platform=test --vb 2>/dev/null)
 if [ "$o" == "$(cat ref/loc_classic_vb.txt)" ]; then echo "ok   Locomotive: translation"; else echo "FAIL Locomotive: translation"; diff <(echo "$o") ref/loc_classic_vb.txt | head -5; fail=1; fi
+# ROMDISC (volume R: read-only files in ROMs, made by ntcRomDisc / genromdisc.js, here 2 ROMs with
+# a file across them, in slots 10, 11): directory, Load, Open / ReadLine / Read / Eof, Exists, Size;
+# cpc (its only volume), cpcmin, cpcfw, both modes, Library: ROM; beside AMSDOS (cpcmin, cpcfw: drive
+# A and R, a disc file and a ROM file open at once); a part of the disc missing: no disc
+rm -rf t/rddisc t/rdhalf; node genromdisc.js t/rddisc rd/HELLO.TXT rd/BIG.BIN rd/SMALL.DAT > /dev/null
+[ -f t/rddisc/NTCDISC2.ROM ] && echo "ok   ROMDISC: two ROMs" || { echo "FAIL ROMDISC: two ROMs"; fail=1; }
+cp rd/rd_t.bas rd/rd_m.bas t/
+for pl in cpc cpcmin cpcfw; do for m in --turbo "" "--library=rom"; do
+  o=$(NTC_ROMDISC=t/rddisc/NTCDISC.ROM timeout 120 python3 ntcrun.py t/rd_t.bas '' --platform=$pl $m 2>&1 | grep -v "^--- ")
+  if [ "$o" == "$(cat ref/romdisc.txt)" ]; then echo "ok   ROMDISC $pl ${m:-normal}"; else echo "FAIL ROMDISC $pl ${m:-normal}"; echo "$o" | head -5; fail=1; fi
+done; done
+for pl in cpcmin cpcfw; do for m in "" "--library=rom"; do
+  rm -rf t/files; o=$(NTC_ROMDISC=t/rddisc/NTCDISC.ROM timeout 120 python3 ntcrun.py t/rd_m.bas '' --platform=$pl $m 2>&1 | grep -v "^--- ")
+  if [ "$o" == "$(cat ref/romdisc_m.txt)" ]; then echo "ok   ROMDISC beside AMSDOS $pl ${m:-normal}"; else echo "FAIL ROMDISC beside AMSDOS $pl ${m:-normal}"; echo "$o" | head -5; fail=1; fi
+done; done
+mkdir -p t/rdhalf; cp t/rddisc/NTCDISC.ROM t/rdhalf/
+check "ROMDISC: a part missing" "^select R -2" "$(NTC_ROMDISC=t/rdhalf/NTCDISC.ROM timeout 120 python3 ntcrun.py t/rd_t.bas '' --platform=cpc 2>&1)"
 # Option PressAnyKeyOnEnd "message": at End (here in a Sub), Error and the last line, the message
 # and a key; without a key it waits (not halted)
 printf 'Option PressAnyKeyOnEnd "Done - press a key"\nPrint "a";\nQuit\nPrint "b"\nSub Quit()\n  End\nEnd Sub\n' > t/pak1.bas
@@ -369,7 +386,7 @@ for pl in test cpc cpcfw cpm; do
   check "PressAnyKeyOnEnd last line $pl" "^Press any key" "$(timeout 60 python3 ntcrun.py t/pak2.bas 'x' --platform=$pl 2>&1)"
   check "PressAnyKeyOnEnd Error $pl" "^Oops - a key" "$(timeout 60 python3 ntcrun.py t/pak3.bas 'x' --platform=$pl 2>&1)"
 done
-o=$(timeout 60 python3 ntcrun.py t/pak1.bas '' --platform=cpm 2>&1)
+o=$(NTC_NOENDKEY=1 timeout 60 python3 ntcrun.py t/pak1.bas '' --platform=cpm 2>&1)
 echo "$o" | grep -q "^--- NOT halted" && ! echo "$o" | grep -q "^b" && echo "ok   PressAnyKeyOnEnd waits for the key" || { echo "FAIL PressAnyKeyOnEnd waits for the key"; fail=1; }
 check "PressAnyKeyOnEnd ROM cpcfw" "^Done - press a key" "$(timeout 60 python3 ntcrun.py t/pak1.bas 'x' --platform=cpcfw --library=rom 2>&1)"
 # Option NoTurbo: one copy of everything (normal mode), Turbo On / Off do nothing; still runs

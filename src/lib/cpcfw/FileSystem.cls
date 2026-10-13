@@ -4,7 +4,11 @@
 ' (CAS IN CHAR / CAS OUT CHAR): with AMSDOS they go to the disc drive that is selected, else to tape - the same
 ' as BASIC's LOAD and SAVE, with the firmware's own messages ("Press PLAY then any key",
 ' disc errors with Retry / Cancel). Capability: LOAD, SAVE, SEQUENTIAL, DEVICES, VOLUMES
-' (True), MAXOPEN 1. Seek, Delete, Exists, Rename, Size return NotSupported. Uses a 2K buffer (CAS IN / OUT OPEN).
+' (True), MAXOPEN 1, ROMDISC (True). Seek, Delete, Rename return NotSupported. Uses a 2K buffer
+' (CAS IN / OUT OPEN).
+' Volume R is the ROMDISC (files kept in ROMs, read only: NTCDISC.ROM ...): SelectVolume "R",
+' or "R:NAME.EXT" - Load, Open ForRead (handle 2, beside a disc file's handle 1), ReadByte,
+' Read, ReadLine, Eof, Close, Exists, Size, DirEntry.
 ' Devices: TAPE, and DISC with a DOS (|TAPE, |DISC). Volumes: any name the DOS has a command
 ' for (|A, |B, |C, |M ... - AMSDOS, M4, UniDOS, ...); the ones that work join Volumes().
 ' RUN" of a binary drops AMSDOS (tape then): Option RomEnable 7 starts it again.
@@ -47,6 +51,8 @@ caps:       db "LOAD", 0
             dw -1
             db "VOLUMES", 0
             dw -1
+            db "ROMDISC", 0
+            dw -1
             db "MAXOPEN", 0
             dw 1
             db 0
@@ -72,7 +78,8 @@ Public Function Load(ByVal name As String, ByVal addr As Integer, ByVal maxlen A
             pop hl
             ld (fs_res), hl
             ld hl, fs_load
-            jp fs_go
+            ld de, rd_load
+            jp rd_route
 #endasm
 End Function
 
@@ -94,7 +101,8 @@ Public Function Save(ByVal name As String, ByVal addr As Integer, ByVal length A
             pop hl
             ld (fs_res), hl
             ld hl, fs_save
-            jp fs_go
+            ld de, rd_ns
+            jp rd_route
 #endasm
 End Function
 
@@ -102,16 +110,34 @@ Public Function Delete(ByVal name As String) As Integer
     Delete = NotSupported
 End Function
 
+' Exists(name): True / False - on the ROMDISC (volume R); NotSupported elsewhere
 Public Function Exists(ByVal name As String) As Integer
-    Exists = NotSupported
+#asm
+            pop hl
+            ld (fs_a1), hl
+            pop hl
+            ld (fs_res), hl
+            ld hl, rd_ns
+            ld de, rd_exists
+            jp rd_route
+#endasm
 End Function
 
 Public Function Rename(ByVal oldname As String, ByVal newname As String) As Integer
     Rename = NotSupported
 End Function
 
+' Size(name): bytes - on the ROMDISC (volume R); NotSupported elsewhere
 Public Function Size(ByVal name As String) As Long
-    Size = NotSupported
+#asm
+            pop hl
+            ld (fs_a1), hl
+            pop hl
+            ld (fs_res), hl
+            ld hl, rd_nsl
+            ld de, rd_size
+            jp rd_route0
+#endasm
 End Function
 
 ' ---- one open file (handle 1)
@@ -131,7 +157,8 @@ Public Function Open(ByVal name As String, ByVal mode As Integer) As Integer
             pop hl
             ld (fs_res), hl
             ld hl, fs_open
-            jp fs_go
+            ld de, rd_open
+            jp rd_route
 #endasm
 End Function
 
@@ -145,7 +172,8 @@ Public Function Close(ByVal h As Integer) As Integer
             pop hl
             ld (fs_res), hl
             ld hl, fs_closeh
-            jp fs_go
+            ld de, rd_close
+            jp rd_routeh
 #endasm
 End Function
 
@@ -160,7 +188,8 @@ Public Function ReadByte(ByVal h As Integer) As Integer
             pop hl
             ld (fs_res), hl
             ld hl, fs_readb
-            jp fs_go
+            ld de, rd_readb
+            jp rd_routeh
 #endasm
 End Function
 
@@ -179,7 +208,8 @@ Public Function WriteByte(ByVal h As Integer, ByVal b As Integer) As Integer
             pop hl
             ld (fs_res), hl
             ld hl, fs_writeb
-            jp fs_go
+            ld de, rd_ns
+            jp rd_routeh
 #endasm
 End Function
 
@@ -204,7 +234,8 @@ Public Function Read(ByVal h As Integer, ByVal addr As Integer, ByVal count As I
             pop hl
             ld (fs_res), hl
             ld hl, fs_read
-            jp fs_go
+            ld de, rd_read
+            jp rd_routeh
 #endasm
 End Function
 
@@ -229,7 +260,8 @@ Public Function Write(ByVal h As Integer, ByVal addr As Integer, ByVal count As 
             pop hl
             ld (fs_res), hl
             ld hl, fs_write
-            jp fs_go
+            ld de, rd_ns
+            jp rd_routeh
 #endasm
 End Function
 
@@ -248,7 +280,8 @@ Public Function Eof(ByVal h As Integer) As Integer
             pop hl
             ld (fs_res), hl
             ld hl, fs_eof
-            jp fs_go
+            ld de, rd_eof
+            jp rd_routeh
 #endasm
 End Function
 
@@ -263,7 +296,8 @@ Public Function ReadLine(ByVal h As Integer) As String
             pop hl
             ld (fs_res), hl
             ld hl, fs_readln
-            jp fs_go0
+            ld de, rd_readln
+            jp rd_routeh0
 #endasm
 End Function
 
@@ -280,7 +314,8 @@ Public Function WriteLine(ByVal h As Integer, ByVal text As String) As Integer
             pop hl
             ld (fs_res), hl
             ld hl, fs_writeln
-            jp fs_go
+            ld de, rd_ns
+            jp rd_routeh
 #endasm
 End Function
 
@@ -347,6 +382,25 @@ Public Function SelectVolume(ByVal name As String) As Integer
             pop hl
             ld (fs_res), hl
             ld hl, fs_selvol
-            jp fs_go
+            ld de, rd_fsvol
+            jp rd_routev
+#endasm
+End Function
+
+' ---- the ROMDISC (volume R: files kept in ROMs, read only)
+
+' DirEntry(n): the ROMDISC's n-th file, "NAME.EXT" (1 = the first); "" past the last, or
+' no ROMDISC fitted
+Public Function DirEntry(ByVal n As Integer) As String
+#asm
+            pop hl
+            ld e, (hl)
+            inc hl
+            ld d, (hl)
+            ld (rd_a1), de
+            pop hl
+            ld (rd_res), hl
+            ld hl, rd_dirent
+            jp fs_go0
 #endasm
 End Function

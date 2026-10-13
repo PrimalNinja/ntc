@@ -30,58 +30,44 @@ ntc_go:
 main_thread:
 			dw kw_scrinit		; mode 1, ROMs off, clear screen
 
-			; 1: 10 REM classic numbered style
+			; 2: 10 REM classic numbered style
 ln_10:
 
-			; 2: 20 N = 1
+			; 3: 20 N = 1
 ln_20:
 			dw kw_ltov, 1, var_n
 
-			; 3: 30 PRINT N;
+			; 4: 30 PRINT N;
 ln_30:
 			dw kw_printint, var_n
 
-			; 4: 40 N = N * 2
+			; 5: 40 N = N * 2
 ln_40:
 			dw kw_2x, var_n, var_n
 
-			; 5: 50 IF N < 100 THEN 30
+			; 6: 50 IF N < 100 THEN 30
 ln_50:
 			dw kw_scpltvl, var_n, 100
 			dw kw_goto_iftrue_n, ln_30
 
-			; 6: 60 PRINT
+			; 7: 60 PRINT
 ln_60:
 			dw kw_printnl
 
-			; 7: 70 GOSUB 200
+			; 8: 70 GOSUB 200
 ln_70:
 			dw ln_200_gs
 
-			; 8: 72 PRINT "Press a key";
-ln_72:
+			; 9: 80 END
+ln_80:
+			dw kw_printnl0
 			dw kw_printzoscii
 			dw glyph_50, glyph_72, glyph_65, glyph_73, glyph_73, glyph_20, glyph_61, glyph_20
 			dw glyph_6B, glyph_65, glyph_79, 0		; "Press a key"
-
-			; 9: 74 DO : FRAME : LOOP UNTIL INKEY <> 0
-ln_74:
-do1_t:
-			dw kw_frame
-			dw kw_inkey, tmp0
-			dw kw_cpnevl, tmp0, 0
-			dw kw_goto_iffalse_n, do1_t
-do1_e:
-
-			; 10: 76 PRINT
-ln_76:
-			dw kw_printnl
-
-			; 11: 80 END
-ln_80:
+			dw kw_waitkey
 			dw kw_stop
 
-			; 12: 200 PRINT "in sub" : RETURN
+			; 10: 200 PRINT "in sub" : RETURN
 ln_200:
 			dw kw_printzoscii
 			dw glyph_69, glyph_6E, glyph_20, glyph_73, glyph_75, glyph_62, 1, 0		; "in sub\n"
@@ -108,7 +94,6 @@ ln_200_rt:			ld sp, (ln_200_rs)
 
 var_n:			dw 0
 ln_200_rs:			dw 0
-tmp0:			dw 0
 
 ; ============================================================
 ; ZOSCII glyphs - each points at its 8 byte bitmap in ntc_font
@@ -172,6 +157,12 @@ ntc_stop_back:
 			ei
 			ret
 
+;## kw_waitkey ntc_data ntc_plat_key
+; kw_waitkey - wait for a key (Option PressAnyKeyOnEnd, before kw_stop)
+kw_waitkey:
+			ld ix, ntc_next
+			jp ntc_plat_getkey
+
 ;## ntc_xn ntc_data @shared
 ; normal mode "next": every normal mode keyword ends here (its ret
 ; became jp ntc_xn). Thread position to ntc_ip, real stack, one
@@ -184,14 +175,6 @@ ntc_xn:
 			di
 			ld sp, (ntc_ip)
 			ret
-
-;## kw_goto_iffalse (normal mode copy)
-;kw_goto_iffalse, <label>  - branch if NZ (false)
-kw_goto_iffalse_n:
-			pop hl
-			jp z, ntc_xn
-			ld sp, hl
-			jp ntc_xn
 
 ;## kw_goto_iftrue (normal mode copy)
 ;kw_goto_iftrue, <label>  - branch if Z (true)
@@ -304,19 +287,6 @@ kw_scpltvl:
 			pop hl
 			jp ntc_cmp_slt
 
-;## kw_cpnevl ntc_cmp
-kw_cpnevl:
-			pop hl
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			pop hl
-			jp ntc_cmp_ne
-
-; ============================================================
-; Memory (PEEK / POKE / DEEK / DOKE)
-; ============================================================
-
 ;## ntc_printbuf ntc_data ntc_plat_screen
 ; print the 0 terminated ASCII text at (ntc_sptr), then ret (thread)
 ntc_printbuf:
@@ -424,25 +394,20 @@ ntc_pi_done:
 			ld (ntc_sptr), hl
 			jp ntc_printbuf
 
+;## kw_printnl0 ntc_data ntc_plat_screen
+;kw_printnl0  - new line unless the cursor is at the start of a line
+kw_printnl0:
+			ld a, (ntc_curx)
+			or a
+			ret z
+			ld ix, ntc_next
+			jp ntc_plat_newline
+
 ;## kw_printnl ntc_data ntc_plat_screen
 ;kw_printnl
 kw_printnl:
 			ld ix, ntc_next
 			jp ntc_plat_newline
-
-;## kw_inkey ntc_data ntc_plat_key
-;kw_inkey, <destvar>  - new key press or 0, no wait
-kw_inkey:
-			pop hl
-			ld (ntc_ivar), hl
-			ld ix, ntc_inkey_got
-			jp ntc_plat_scankey
-ntc_inkey_got:
-			ld hl, (ntc_ivar)
-			ld (hl), a
-			inc hl
-			ld (hl), 0
-			ret
 
 ;## kw_scrinit ntc_data ntc_plat_screen
 ;kw_scrinit  - first word of any program that prints or reads keys:
@@ -451,12 +416,6 @@ kw_scrinit:
 			ld a, 1
 			ld ix, ntc_next
 			jp ntc_plat_mode
-
-;## kw_frame ntc_data ntc_plat_frame
-;kw_frame  - wait for the start of the next frame flyback
-kw_frame:
-			ld ix, ntc_next
-			jp ntc_plat_frame
 
 ;## ntc_font
 ; 8x8 font buffer, chars 32-126, 8 bytes each, bit 7 = leftmost pixel.
@@ -1053,36 +1012,6 @@ ntc_keymaps:
 			db "$", "#", "E", "W", "S", "D", "C", "X"
 			db "!", 34, 27, "Q", 9, "A", 0, "Z"
 			db 0, 0, 0, 0, 0, 0, 0, 127
-
-;## ntc_plat_frame ntc_data @shared
-; ------------------------------------------------------------
-; ntc_plat_frame - wait for the start of vsync (PPI port B bit 0)
-; normal mode: interrupts in while waiting
-; ------------------------------------------------------------
-ntc_plat_frame:
-			ld a, (ntc_nmode)
-			or a
-			jr z, ntc_fr_go
-			ld (ntc_ip), sp
-			ld sp, (ntc_csp)
-			ei
-ntc_fr_go:
-			ld b, #F5
-ntc_fr_in:
-			in a, (c)
-			rra
-			jr c, ntc_fr_in
-ntc_fr_wait:
-			in a, (c)
-			rra
-			jr nc, ntc_fr_wait
-			di
-			ld a, (ntc_nmode)
-			or a
-			jr z, ntc_fr_done
-			ld sp, (ntc_ip)
-ntc_fr_done:
-			jp (ix)
 
 ;## ntc_plat_irq ntc_plat_data ntc_data ntc_plat_irqh @shared
 ; ------------------------------------------------------------

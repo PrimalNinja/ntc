@@ -724,6 +724,25 @@ give Failed while it is open; `fs_hmode` is in `ntc_plat_fs`). cpcmin: the same;
 other host calls; `ntc_capfind` (in `ntc_lib.asm`) searches a class's capability table and
 leaves Z set when found. Details in `userguide.md` section 17.
 
+**ROMDISC** (volume R; `ntc_lib.asm` section `ntc_romdisc`, `@ramonly`; per platform
+`ntc_plat_romsel` - `rd_sel` / `rd_unsel`: cpc straight to the gate array and `#DFxx`, keeping
+`ntc_rx_cur` right in a Library: ROM program; cpcmin / cpcfw KL ROM SELECT / DESELECT, inside
+`fs_go` where the firmware is alive - and on cpcmin / cpcfw `ntc_plat_rdroute`). Read-only files
+in ROMs made by `ntcRomDisc(files)` (ntc_compiler.js; `test/genromdisc.js`): background ROMs
+`NTCDISC.ROM`, `NTCDISC2.ROM` ... with the block `"NTC", 2, "ROMDISC", 0, dw stamp, db place,
+db ROMs, dw directory`, data from `#C040`; ROM 0's directory: 18 byte entries (name 8 +
+extension 3, flags - bit 0 compressed, bit 7 the end -, ROM, address, 3 byte length), read until
+the end flag; a file runs on into the next ROM at `#C040`. `rd_mount` finds the disc once
+(slots 0-31, ROM 0 then the others by its stamp). The routines (`rd_load`, `rd_open` - handle 2,
+`rd_readb`, `rd_read`, `rd_readln`, `rd_eof`, `rd_close`, `rd_exists`, `rd_size`, `rd_dirent`,
+`rd_selvol`) take `rd_a1 .. rd_a3` and `rd_res`, return HL, and run on the real stack: through
+`rd_go` (cpc, whose FileSystem class has R only) or `fs_go` (cpcmin / cpcfw). There a method
+names both routines and jumps to `rd_route` (by name: `"R:..."`, or no volume and `fs_vol` =
+`"R"`), `rd_routeh` (handle 2) or `rd_routev` (`SelectVolume "R"`: `rd_fsvol` sets `fs_vol`):
+these run on the thread (no call, no push), copy `fs_a1 .. fs_res` into `rd_a1 .. rd_res` when R
+is picked, and jump to `fs_go` / `fs_go0`. No disc driver: FileSystem's methods just reach the
+disc's routines when the volume is R.
+
 **Memory.** `Option Memory Small | CPCExpansion [maxpages]` picks the scheme when
 compiling (`NTC_MEM_SMALL` / `NTC_MEM_CPCEXPANSION` for `#If`; library sections marked
 `@if:ntc_mem_small` / `@if:ntc_mem_cpcexpansion` - a section whose `#Const` isn't set isn't in
@@ -1163,7 +1182,11 @@ Makes the ROM's source with `ntcRomAsm`, assembles it, appends new registry entr
 into `ntc_lib.js`). `regress.sh` checks that it adds nothing for any of the three.
 `ntcrun.py` fits the platform's ROM image in slot 6 when the program wants it (`--library=rom`
 or `Option Library ROM`; `NTC_XROM=file` for another one, `NTC_ROMDIR=dir` for a set built
-with `--out`), and the rest of a set (`NAME2.ROM` ...) in slots 5, 4, 3 ...; it follows
+with `--out`), and the rest of a set (`NAME2.ROM` ...) in slots 5, 4, 3 ...; a ROMDISC with
+`NTC_ROMDISC=dir/NTCDISC.ROM` (and its `NTCDISC2.ROM` ...) in slots 10, 11 ...; at
+`kw_waitkey` (`Option PressAnyKeyOnEnd`, which every program in `bas/` has) a breakpoint types
+Return when the typed text is used up, so tests needn't (`NTC_NOENDKEY=1`: not; cpcrun.py,
+cpctime.py and ntcrun.py all do it); it follows
 `#DFxx` writes on cpc / cpcmin and KL ROM SELECT on cpcfw (its fast ticker stub selects the
 main ROM for the event, as KL FAR ICALL does). `genrom.js [platform] [--cap=bytes]
 [--out=dir] [--place=section:rom,...]`: `--out` leaves the registry file alone (the forced

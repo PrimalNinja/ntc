@@ -9641,6 +9641,156 @@ function ntcRomFile(strPlatform_a)
 	return (strPlatform_a === 'cpc') ? 'NTCCPC' : ('NTC' + strPlatform_a.toUpperCase().replace('CPC', ''));
 }
 
+// ============================================================
+// ntcRomDisc(files) - a ROMDISC: read-only files kept in ROMs, the CPC FileSystem's volume R
+// (asm/ntc_lib.asm section ntc_romdisc reads it). files: [{ name: 'LEVEL1.DAT', bytes: [...] }]
+// (8.3 names). Returns { roms: [16512 byte arrays: an AMSDOS header + 16K], files: ['NTCDISC.ROM',
+// 'NTCDISC2.ROM' ...], errors: [] }. Each ROM: a background ROM header at #C000 (its init does
+// nothing), names "NTC DISC" ..., then "NTC", 2, "ROMDISC", 0, dw stamp, db place, db ROMs, dw
+// directory; padded to #C040. ROM 0's directory at #C040: 18 byte entries (name 8 + extension 3,
+// spaces after; flags - bit 0 compressed, none are yet; ROM; address; length, 3 bytes), the last
+// with flags #80. The files' bytes follow one after another, on in the next ROM from #C040
+// ============================================================
+function ntcRomDisc(arrFiles_a)
+{
+	var arrErrors = [];
+	var arrNames = [];
+	var intDirLen = (arrFiles_a.length + 1) * 18;
+	var arrStream = [];
+	var arrRoms = [];
+	var intI = 0;
+	var intJ = 0;
+	var intStamp = 0xFFFF;
+	var intRom = 0;
+	var intAddr = 0;
+
+	function name83(str_a)
+	{
+		var arrM = String(str_a).toUpperCase().match(/^([A-Z0-9_\-$!#%&@^~{}]{1,8})(?:\.([A-Z0-9_\-$!#%&@^~{}]{1,3}))?$/);
+
+		if (!arrM) { return null; }
+		return (arrM[1] + '        ').substr(0, 8) + ((arrM[2] || '') + '   ').substr(0, 3);
+	}
+	function crc(int_a)
+	{
+		intStamp ^= (int_a & 0xFF) << 8;
+		for (var intB = 0; intB < 8; intB++) { intStamp = (intStamp & 0x8000) ? (((intStamp << 1) ^ 0x1021) & 0xFFFF) : ((intStamp << 1) & 0xFFFF); }
+	}
+	for (intI = 0; intI < arrFiles_a.length; intI++)
+	{
+		var str83 = name83(arrFiles_a[intI].name);
+
+		if (str83 === null) { arrErrors.push('ROMDISC: not an 8.3 name: ' + arrFiles_a[intI].name); continue; }
+		if (arrNames.indexOf(str83) >= 0) { arrErrors.push('ROMDISC: two files called ' + arrFiles_a[intI].name); continue; }
+		arrNames.push(str83);
+	}
+	if ((arrErrors.length > 0) || (0xC040 + intDirLen > 0x10000))
+	{
+		if (arrErrors.length === 0) { arrErrors.push('ROMDISC: too many files for the directory'); }
+		return { roms: [], files: [], errors: arrErrors };
+	}
+	// where each file starts: its ROM and address
+	var arrPlace = [];
+	intRom = 0;
+	intAddr = 0xC040 + intDirLen;
+	for (intI = 0; intI < arrFiles_a.length; intI++)
+	{
+		var arrB = arrFiles_a[intI].bytes;
+
+		if (intAddr > 0xFFFF) { intRom++; intAddr = 0xC040; }
+		arrPlace.push({ rom: intRom, addr: intAddr, len: arrB.length });
+		for (intJ = 0; intJ < arrB.length; intJ++)
+		{
+			arrStream.push({ rom: intRom, addr: intAddr, v: arrB[intJ] & 0xFF });
+			crc(arrB[intJ]);
+			intAddr++;
+			if (intAddr > 0xFFFF) { intRom++; intAddr = 0xC040; }
+		}
+	}
+	arrNames.forEach(function(str_a) { for (var intK = 0; intK < 11; intK++) { crc(str_a.charCodeAt(intK)); } });
+	var intCount = 1;			// the ROMs used (the last file's last byte)
+	arrPlace.forEach(function(objP_a) { if (objP_a.len > 0) { intCount = Math.max(intCount, objP_a.rom + 1); } });
+	if (arrStream.length > 0) { intCount = Math.max(intCount, arrStream[arrStream.length - 1].rom + 1); }
+	if (intCount > 8)
+	{
+		return { roms: [], files: [], errors: ['ROMDISC: more than 8 ROMs (128K)'] };
+	}
+	for (intI = 0; intI < intCount; intI++)
+	{
+		var arrR = [];
+		var strNm = (intI === 0) ? 'NTC DISC' : 'NTC DISC' + (intI + 1);
+		var intP = 0;
+
+		for (intJ = 0; intJ < 0x4000; intJ++) { arrR.push(0); }
+		arrR[0] = 1;			// a background ROM
+		arrR[1] = 1;
+		arrR[4] = 0x09;			// names at #C009
+		arrR[5] = 0xC0;
+		arrR[6] = 0xC3;			// jp init
+		intP = 9;
+		for (intJ = 0; intJ < strNm.length; intJ++) { arrR[intP++] = strNm.charCodeAt(intJ) | ((intJ === strNm.length - 1) ? 0x80 : 0); }
+		arrR[intP++] = 0;
+		'NTC'.split('').forEach(function(str_a) { arrR[intP++] = str_a.charCodeAt(0); });
+		arrR[intP++] = 2;
+		'ROMDISC'.split('').forEach(function(str_a) { arrR[intP++] = str_a.charCodeAt(0); });
+		arrR[intP++] = 0;
+		arrR[intP++] = intStamp & 0xFF;
+		arrR[intP++] = intStamp >> 8;
+		arrR[intP++] = intI;
+		arrR[intP++] = intCount;
+		arrR[intP++] = (intI === 0) ? 0x40 : 0;		// the directory (ROM 0: #C040)
+		arrR[intP++] = (intI === 0) ? 0xC0 : 0;
+		arrR[7] = (0xC000 + intP) & 0xFF;			// init: scf / ret
+		arrR[8] = (0xC000 + intP) >> 8;
+		arrR[intP++] = 0x37;
+		arrR[intP++] = 0xC9;
+		arrRoms.push(arrR);
+	}
+	// the directory
+	for (intI = 0; intI <= arrNames.length; intI++)
+	{
+		var intE = 0x40 + intI * 18;
+
+		if (intI === arrNames.length)
+		{
+			arrRoms[0][intE + 11] = 0x80;			// the end
+			break;
+		}
+		for (intJ = 0; intJ < 11; intJ++) { arrRoms[0][intE + intJ] = arrNames[intI].charCodeAt(intJ); }
+		arrRoms[0][intE + 11] = 0;
+		arrRoms[0][intE + 12] = arrPlace[intI].rom;
+		arrRoms[0][intE + 13] = arrPlace[intI].addr & 0xFF;
+		arrRoms[0][intE + 14] = (arrPlace[intI].addr >> 8) & 0xFF;
+		arrRoms[0][intE + 15] = arrPlace[intI].len & 0xFF;
+		arrRoms[0][intE + 16] = (arrPlace[intI].len >> 8) & 0xFF;
+		arrRoms[0][intE + 17] = (arrPlace[intI].len >> 16) & 0xFF;
+	}
+	arrStream.forEach(function(objB_a) { arrRoms[objB_a.rom][objB_a.addr - 0xC000] = objB_a.v; });
+	// each with an AMSDOS header (binary, #C000, 16K), as the keyword ROMs
+	var arrFilesOut = [];
+	var arrOut = arrRoms.map(function(arrR_a, intI_a)
+	{
+		var strFile = 'NTCDISC' + ((intI_a > 0) ? String(intI_a + 1) : '');
+		var arrH = [];
+		var strN = (strFile + '        ').substr(0, 8) + 'ROM';
+		var intSum = 0;
+
+		for (var intK = 0; intK < 128; intK++) { arrH.push(0); }
+		for (intK = 0; intK < 11; intK++) { arrH[1 + intK] = strN.charCodeAt(intK); }
+		arrH[18] = 2;
+		arrH[21] = 0x00; arrH[22] = 0xC0;
+		arrH[24] = 0x00; arrH[25] = 0x40;
+		arrH[26] = 0x00; arrH[27] = 0xC0;
+		arrH[64] = 0x00; arrH[65] = 0x40; arrH[66] = 0;
+		for (intK = 0; intK < 67; intK++) { intSum += arrH[intK]; }
+		arrH[67] = intSum & 0xFF;
+		arrH[68] = (intSum >> 8) & 0xFF;
+		arrFilesOut.push(strFile + '.ROM');
+		return arrH.concat(arrR_a);
+	});
+	return { roms: arrOut, files: arrFilesOut, errors: [] };
+}
+
 function ntcRomRegistry(strReg_a)
 {
 	var objReg = { list: [], byName: {}, order: [] };

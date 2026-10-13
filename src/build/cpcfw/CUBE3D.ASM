@@ -38,28 +38,34 @@ ntc_roms_on:
 main_thread:
 			dw kw_bssinit, ntc_bss, ntc_bss_size		; the arrays: do they fit, clear them
 
-			; Main.bas 23: scr = Memory.AllocPage(Memory.TypeUser)
+			; Main.bas 24: scr = Memory.AllocPage(Memory.TypeUser)
 			dw fn_memory_allocpage, lit_85, var_scr
 
-			; Main.bas 24: If scr <> 1 Then Print "Page 1 is taken - no double buffering" : End
+			; Main.bas 25: If scr <> 1 Then Print "Page 1 is taken - no double buffering" : End
 			dw kw_cpnevl, var_scr, 1
 			dw kw_goto_iffalse_n, if1_1
 			dw kw_printstrvar, str0
 			dw kw_printnl
+			dw kw_printnl0
+			dw kw_printstrvar, str1
+			dw kw_waitkey
 			dw kw_stop
 if1_1:
 
-			; Main.bas 26: Spin.Run
+			; Main.bas 27: Spin.Run
 			dw p_spin_run_c
 
-			; Main.bas 27: Mode 1
+			; Main.bas 28: Mode 1
 			dw kw_model, 1
 
-			; Main.bas 28: Print "Bye"
-			dw kw_printstrvar, str1
+			; Main.bas 29: Print "Bye"
+			dw kw_printstrvar, str2
 			dw kw_printnl
 
-			; Main.bas 29: End
+			; Main.bas 30: End
+			dw kw_printnl0
+			dw kw_printstrvar, str1
+			dw kw_waitkey
 			dw kw_stop
 
 ; ============================================================
@@ -1967,30 +1973,31 @@ lit_13:			dw 13
 ; ============================================================
 
 str0:			db "Page 1 is taken - no double buffering", 0
-str1:			db "Bye", 0
-str2:			db "1", 0
-str3:			db "2", 0
-str4:			db "3", 0
-str5:			db "4", 0
-str6:			db "+", 0
-str7:			db "=", 0
-str8:			db "-", 0
-str9:			db "P", 0
-str10:			db "A", 0
-str11:			db "B", 0
-str12:			db "C", 0
-str13:			db "D", 0
-str14:			db "T", 0
-str15:			db "X", 0
-str16:			db "1-4 shape A-C mode", 0
-str17:			db "D double T turbo +-PX", 0
-str18:			db "M", 0
-str19:			db " dbl", 0
-str20:			db " one", 0
-str21:			db 0
-str22:			db " turbo ", 0
-str23:			db " normal ", 0
-str24:			db "fps  ", 0
+str1:			db "Press a key", 0
+str2:			db "Bye", 0
+str3:			db "1", 0
+str4:			db "2", 0
+str5:			db "3", 0
+str6:			db "4", 0
+str7:			db "+", 0
+str8:			db "=", 0
+str9:			db "-", 0
+str10:			db "P", 0
+str11:			db "A", 0
+str12:			db "B", 0
+str13:			db "C", 0
+str14:			db "D", 0
+str15:			db "T", 0
+str16:			db "X", 0
+str17:			db "1-4 shape A-C mode", 0
+str18:			db "D double T turbo +-PX", 0
+str19:			db "M", 0
+str20:			db " dbl", 0
+str21:			db " one", 0
+str22:			db 0
+str23:			db " turbo ", 0
+str24:			db " normal ", 0
+str25:			db "fps  ", 0
 
 ; ============================================================
 ; Keyword library (used)
@@ -2036,6 +2043,12 @@ ntc_stop_back:
 			ld sp, (ntc_csp)
 			ei
 			ret
+
+;## kw_waitkey ntc_data ntc_plat_key
+; kw_waitkey - wait for a key (Option PressAnyKeyOnEnd, before kw_stop)
+kw_waitkey:
+			ld ix, ntc_next
+			jp ntc_plat_getkey
 
 ;## ntc_xn ntc_data @shared
 ; normal mode "next": every normal mode keyword ends here (its ret
@@ -2764,6 +2777,15 @@ ntc_pi_done:
 			ld hl, ntc_numbuf
 			ld (ntc_sptr), hl
 			jp ntc_printbuf
+
+;## kw_printnl0 ntc_data ntc_plat_screen
+;kw_printnl0  - new line unless the cursor is at the start of a line
+kw_printnl0:
+			ld a, (ntc_curx)
+			or a
+			ret z
+			ld ix, ntc_next
+			jp ntc_plat_newline
 
 ;## kw_printnl ntc_data ntc_plat_screen
 ;kw_printnl
@@ -6438,7 +6460,7 @@ arr_vector3d_eb		equ ntc_bss + 704		; 128 bytes
 ntc_bss_size	equ 832
 ntc_free	equ ntc_bss + ntc_bss_size	; the first free byte (heap, Memory tables)
 ; Option Reserve: the program and its arrays (ntc_start .. ntc_free) must stay out of these
-			ASSERT (ntc_free <= 16384) || (ntc_start >= 32768), "the program (or its arrays) reaches into Option Reserve #4000-#7FFF (Main.bas line 19)"
+			ASSERT (ntc_free <= 16384) || (ntc_start >= 32768), "the program (or its arrays) reaches into Option Reserve #4000-#7FFF (Main.bas line 20)"
 			SAVEAMSDOS "CUBE3D.BIN", ntc_start, ntc_end - ntc_start, ntc_start
 			ASSERT (ntc_free <= #4000) || (ntc_start >= #8000), "overlay classes: the program and its arrays must stay out of #4000-#7FFF (the window they run in)"
 
@@ -6524,15 +6546,15 @@ if7_1:
 			dw kw_strucase, var_spin_run_k, stmp0
 
 			; Spin.cls 36: If k = "1" Or k = "2" Or k = "3" Or k = "4" Then shape = Val(k) : MakeShape
-			dw kw_strcmpeq, var_spin_run_k, str2
-			dw kw_ftov, tmp0
 			dw kw_strcmpeq, var_spin_run_k, str3
-			dw kw_ftov, tmp1
-			dw kw_orvv, tmp0, tmp1, tmp0
+			dw kw_ftov, tmp0
 			dw kw_strcmpeq, var_spin_run_k, str4
 			dw kw_ftov, tmp1
 			dw kw_orvv, tmp0, tmp1, tmp0
 			dw kw_strcmpeq, var_spin_run_k, str5
+			dw kw_ftov, tmp1
+			dw kw_orvv, tmp0, tmp1, tmp0
+			dw kw_strcmpeq, var_spin_run_k, str6
 			dw kw_ftov, tmp1
 			dw kw_orvv, tmp0, tmp1, tmp0
 			dw kw_goto_ifzero_n, tmp0, if8_1
@@ -6541,9 +6563,9 @@ if7_1:
 if8_1:
 
 			; Spin.cls 37: If k = "+" Or k = "=" Then size = size + 20 : Vector3D.View 160, 112, size, 768
-			dw kw_strcmpeq, var_spin_run_k, str6
-			dw kw_ftov, tmp0
 			dw kw_strcmpeq, var_spin_run_k, str7
+			dw kw_ftov, tmp0
+			dw kw_strcmpeq, var_spin_run_k, str8
 			dw kw_ftov, tmp1
 			dw kw_orvv, tmp0, tmp1, tmp0
 			dw kw_goto_ifzero_n, tmp0, if9_1
@@ -6552,7 +6574,7 @@ if8_1:
 if9_1:
 
 			; Spin.cls 38: If k = "-" And size > 60 Then size = size - 20 : Vector3D.View 160, 112, size, 768
-			dw kw_strcmpeq, var_spin_run_k, str8
+			dw kw_strcmpeq, var_spin_run_k, str9
 			dw kw_ftov, tmp0
 			dw kw_scpgtvl, var_spin_size, 60
 			dw kw_ftov, tmp1
@@ -6563,18 +6585,18 @@ if9_1:
 if10_1:
 
 			; Spin.cls 39: If k = "P" Then paused = Not paused
-			dw kw_strcmpeq, var_spin_run_k, str9
+			dw kw_strcmpeq, var_spin_run_k, str10
 			dw kw_goto_iffalse_n, if11_1
 			dw kw_notv, var_spin_paused, var_spin_paused
 if11_1:
 
 			; Spin.cls 40: If k = "A" Or k = "B" Or k = "C" Then mode = Asc(k) - 65 : Screen
-			dw kw_strcmpeq, var_spin_run_k, str10
-			dw kw_ftov, tmp0
 			dw kw_strcmpeq, var_spin_run_k, str11
+			dw kw_ftov, tmp0
+			dw kw_strcmpeq, var_spin_run_k, str12
 			dw kw_ftov, tmp1
 			dw kw_orvv, tmp0, tmp1, tmp0
-			dw kw_strcmpeq, var_spin_run_k, str12
+			dw kw_strcmpeq, var_spin_run_k, str13
 			dw kw_ftov, tmp1
 			dw kw_orvv, tmp0, tmp1, tmp0
 			dw kw_goto_ifzero_n, tmp0, if12_1
@@ -6584,7 +6606,7 @@ if11_1:
 if12_1:
 
 			; Spin.cls 41: If k = "D" Then
-			dw kw_strcmpeq, var_spin_run_k, str13
+			dw kw_strcmpeq, var_spin_run_k, str14
 			dw kw_goto_iffalse_n, if13_1
 
 			; Spin.cls 42: Vector3D.Hide
@@ -6603,14 +6625,14 @@ if12_1:
 if13_1:
 
 			; Spin.cls 47: If k = "T" Then fast = Not fast : Status
-			dw kw_strcmpeq, var_spin_run_k, str14
+			dw kw_strcmpeq, var_spin_run_k, str15
 			dw kw_goto_iffalse_n, if14_1
 			dw kw_notv, var_spin_fast, var_spin_fast
 			dw p_spin_status_cl
 if14_1:
 
 			; Spin.cls 48: Loop Until k = "X"
-			dw kw_strcmpeq, var_spin_run_k, str15
+			dw kw_strcmpeq, var_spin_run_k, str16
 			dw kw_goto_iffalse_n, do5_t
 do5_e:
 
@@ -6693,11 +6715,11 @@ p_spin_screen:
 			dw p_vector3d_forget_c
 
 			; Spin.cls 69: Print "1-4 shape A-C mode"
-			dw kw_printstrvar, str16
+			dw kw_printstrvar, str17
 			dw kw_printnl
 
 			; Spin.cls 70: Print "D double T turbo +-PX"
-			dw kw_printstrvar, str17
+			dw kw_printstrvar, str18
 			dw kw_printnl
 
 			; Spin.cls 71: Status
@@ -6714,30 +6736,30 @@ p_spin_status:
 			dw kw_locatell, 1, 3
 
 			; Spin.cls 78: Print "M"; mode; IIf(dbl, " dbl", " one"); IIf(fast, " turbo ", " normal "); fps; "fps  ";
-			dw kw_printstrvar, str18
+			dw kw_printstrvar, str19
 			dw kw_printint, var_spin_mode
 			dw kw_goto_ifzero_n, var_spin_dbl, ch20_0
-			dw kw_strcpy, stmp0, str19
-			dw ch20_e_go
-ch20_0:
 			dw kw_strcpy, stmp0, str20
 			dw ch20_e_go
-ch20_1:
+ch20_0:
 			dw kw_strcpy, stmp0, str21
+			dw ch20_e_go
+ch20_1:
+			dw kw_strcpy, stmp0, str22
 ch20_e:
 			dw kw_printstrvar, stmp0
 			dw kw_goto_ifzero_n, var_spin_fast, ch21_0
-			dw kw_strcpy, stmp0, str22
-			dw ch21_e_go
-ch21_0:
 			dw kw_strcpy, stmp0, str23
 			dw ch21_e_go
+ch21_0:
+			dw kw_strcpy, stmp0, str24
+			dw ch21_e_go
 ch21_1:
-			dw kw_strcpy, stmp0, str21
+			dw kw_strcpy, stmp0, str22
 ch21_e:
 			dw kw_printstrvar, stmp0
 			dw kw_printint, var_spin_fps
-			dw kw_printstrvar, str24
+			dw kw_printstrvar, str25
 
 			; Spin.cls 79: If dbl Then Graphics.CopyText 3
 			dw kw_goto_ifzero_n, var_spin_dbl, if22_1
@@ -7075,4 +7097,4 @@ ovl_spin_vsize	equ 0		; its page variables; its local memory is the rest, to #80
 			DISPLAY "  page variables ", /D, ovl_spin_vsize, ", free ", /D, #8000 - (ovl_spin_end + ovl_spin_vsize)
 			SAVEAMSDOS "CUBE3D.001", ovl_spin_start, ovl_spin_end - ovl_spin_start, #4000
 
-NTC_STAMP	equ #E723		; the build stamp: the first word of every page file
+NTC_STAMP	equ #C26B		; the build stamp: the first word of every page file

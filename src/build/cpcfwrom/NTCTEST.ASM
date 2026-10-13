@@ -35,95 +35,95 @@ ntc_rj_ok:
 main_thread:
 			dw kw_bssinit, ntc_bss, ntc_bss_size		; the arrays: do they fit, clear them
 
-			; 3: CLS
+			; 4: CLS
 			dw kw_cls
 
-			; 4: PRINT "NTC self test"
+			; 5: PRINT "NTC self test"
 			dw kw_printstrvar, str0
 			dw kw_printnl
 
-			; 5: t = 0 : bad = 0
+			; 6: t = 0 : bad = 0
 			dw kw_ztov, var_t
 			dw kw_ztov, var_bad
 
-			; 8: got = 10 - 2 * 3 + 4 : want = 8 : GOSUB chk
+			; 9: got = 10 - 2 * 3 + 4 : want = 8 : GOSUB chk
 			dw kw_ltov, 8, var_got
 			dw kw_ltov, 8, var_want
 			dw lbl_chk_gs
 
-			; 9: got = 100 / 5 * 2 : want = 40 : GOSUB chk
+			; 10: got = 100 / 5 * 2 : want = 40 : GOSUB chk
 			dw kw_ltov, 40, var_got
 			dw kw_ltov, 40, var_want
 			dw lbl_chk_gs
 
-			; 10: got = 10 - 2 - 3 : want = 5 : GOSUB chk
+			; 11: got = 10 - 2 - 3 : want = 5 : GOSUB chk
 			dw kw_ltov, 5, var_got
 			dw kw_ltov, 5, var_want
 			dw lbl_chk_gs
 
-			; 11: got = (6 + 3) * 4 / (2 - 9) : want = -5 : GOSUB chk
+			; 12: got = (6 + 3) * 4 / (2 - 9) : want = -5 : GOSUB chk
 			dw kw_ltov, -5, var_got
 			dw kw_ltov, -5, var_want
 			dw lbl_chk_gs
 
-			; 12: got = -7 / 2 : want = -3 : GOSUB chk
+			; 13: got = -7 / 2 : want = -3 : GOSUB chk
 			dw kw_ltov, -3, var_got
 			dw kw_ltov, -3, var_want
 			dw lbl_chk_gs
 
-			; 13: got = -7 MOD 2 : want = -1 : GOSUB chk
+			; 14: got = -7 MOD 2 : want = -1 : GOSUB chk
 			dw kw_ltov, -1, var_got
 			dw kw_ltov, -1, var_want
 			dw lbl_chk_gs
 
-			; 14: got = 7 MOD -2 : want = 1 : GOSUB chk
+			; 15: got = 7 MOD -2 : want = 1 : GOSUB chk
 			dw kw_ltov, 1, var_got
 			dw kw_ltov, 1, var_want
 			dw lbl_chk_gs
 
-			; 15: a = 7 : b = -3
+			; 16: a = 7 : b = -3
 			dw kw_ltov, 7, var_a
 			dw kw_ltov, -3, var_b
 
-			; 16: got = a * b + a \ b : want = -23 : GOSUB chk
+			; 17: got = a * b + a \ b : want = -23 : GOSUB chk
 			dw kw_mulvv, var_a, var_b, tmp0
 			dw kw_divvv, var_a, var_b, tmp1
 			dw kw_add, tmp0, tmp1, var_got
 			dw kw_ltov, -23, var_want
 			dw lbl_chk_gs
 
-			; 17: got = -a * -b : want = -21 : GOSUB chk
+			; 18: got = -a * -b : want = -21 : GOSUB chk
 			dw kw_negv, var_a, tmp0
 			dw kw_negv, var_b, tmp1
 			dw kw_mulvv, tmp0, tmp1, var_got
 			dw kw_ltov, -21, var_want
 			dw lbl_chk_gs
 
-			; 18: got = 32767 + 1 : want = -32768 : GOSUB chk
+			; 19: got = 32767 + 1 : want = -32768 : GOSUB chk
 			dw kw_ltov, -32768, var_got
 			dw kw_ltov, -32768, var_want
 			dw lbl_chk_gs
 
-			; 19: got = ABS(b) + SGN(b) : want = 2 : GOSUB chk
+			; 20: got = ABS(b) + SGN(b) : want = 2 : GOSUB chk
 			dw kw_absv, var_b, tmp0
 			dw kw_sgnv, var_b, tmp1
 			dw kw_add, tmp0, tmp1, var_got
 			dw kw_ltov, 2, var_want
 			dw lbl_chk_gs
 
-			; 22: got = (a > b) : want = -1 : GOSUB chk
+			; 23: got = (a > b) : want = -1 : GOSUB chk
 			dw kw_scpgtvv, var_a, var_b
 			dw kw_ftov, var_got
 			dw kw_ltov, -1, var_want
 			dw lbl_chk_gs
 
-			; 23: got = (a < b) : want = 0 : GOSUB chk
+			; 24: got = (a < b) : want = 0 : GOSUB chk
 			dw kw_scpltvv, var_a, var_b
 			dw kw_ftov, var_got
 			dw kw_ztov, var_want
 			dw lbl_chk_gs
 
-			; 24: got = (a >= 7 AND b <= -3) : want = -1 : GOSUB chk
+			; 25: got = (a >= 7 AND b <= -3) : want = -1 : GOSUB chk
 			dw kw_scpgevl, var_a, 7
 			dw kw_ftov, tmp0
 			dw kw_scplevl, var_b, -3
@@ -132,7 +132,7 @@ main_thread:
 			dw kw_ltov, -1, var_want
 			dw lbl_chk_gs
 
-			; 25: got = (a = 1 OR b = 1) : want = 0 : GOSUB chk
+			; 26: got = (a = 1 OR b = 1) : want = 0 : GOSUB chk
 			dw kw_cpeqvl, var_a, 1
 			dw kw_ftov, tmp0
 			dw kw_cpeqvl, var_b, 1
@@ -141,22 +141,22 @@ main_thread:
 			dw kw_ztov, var_want
 			dw lbl_chk_gs
 
-			; 26: got = NOT 0 : want = -1 : GOSUB chk
+			; 27: got = NOT 0 : want = -1 : GOSUB chk
 			dw kw_ltov, -1, var_got
 			dw kw_ltov, -1, var_want
 			dw lbl_chk_gs
 
-			; 27: got = &HF0 AND &H3C : want = &H30 : GOSUB chk
+			; 28: got = &HF0 AND &H3C : want = &H30 : GOSUB chk
 			dw kw_ltov, 48, var_got
 			dw kw_ltov, 48, var_want
 			dw lbl_chk_gs
 
-			; 28: got = 5 XOR 3 : want = 6 : GOSUB chk
+			; 29: got = 5 XOR 3 : want = 6 : GOSUB chk
 			dw kw_ltov, 6, var_got
 			dw kw_ltov, 6, var_want
 			dw lbl_chk_gs
 
-			; 31: s = 0 : FOR i = 1 TO 10 : s = s + i : NEXT
+			; 32: s = 0 : FOR i = 1 TO 10 : s = s + i : NEXT
 			dw kw_ztov, var_s
 			dw kw_ltov, 1, var_i
 for1_t:
@@ -164,12 +164,12 @@ for1_t:
 			dw kw_next1l_n, var_i, 10, for1_t
 for1_e:
 
-			; 32: got = s : want = 55 : GOSUB chk
+			; 33: got = s : want = 55 : GOSUB chk
 			dw kw_vtov, var_s, var_got
 			dw kw_ltov, 55, var_want
 			dw lbl_chk_gs
 
-			; 33: s = 0 : FOR i = 10 TO 1 STEP -3 : s = s + i : NEXT
+			; 34: s = 0 : FOR i = 10 TO 1 STEP -3 : s = s + i : NEXT
 			dw kw_ztov, var_s
 			dw kw_ltov, 10, var_i
 for2_t:
@@ -177,12 +177,12 @@ for2_t:
 			dw kw_nextdnl_n, var_i, -3, 1, for2_t
 for2_e:
 
-			; 34: got = s : want = 22 : GOSUB chk
+			; 35: got = s : want = 22 : GOSUB chk
 			dw kw_vtov, var_s, var_got
 			dw kw_ltov, 22, var_want
 			dw lbl_chk_gs
 
-			; 35: s = 0 : st = 2 : FOR i = 1 TO 9 STEP st : s = s + i : NEXT
+			; 36: s = 0 : st = 2 : FOR i = 1 TO 9 STEP st : s = s + i : NEXT
 			dw kw_ztov, var_s
 			dw kw_ltov, 2, var_st
 			dw kw_ltov, 1, var_i
@@ -194,12 +194,12 @@ for3_t:
 			dw kw_fornext_n, var_i, for3_s, for3_l, for3_t
 for3_e:
 
-			; 36: got = s : want = 25 : GOSUB chk
+			; 37: got = s : want = 25 : GOSUB chk
 			dw kw_vtov, var_s, var_got
 			dw kw_ltov, 25, var_want
 			dw lbl_chk_gs
 
-			; 37: n = 0 : WHILE n < 7 : n = n + 1 : WEND
+			; 38: n = 0 : WHILE n < 7 : n = n + 1 : WEND
 			dw kw_ztov, var_n
 			dw wh4_c_go
 wh4_t:
@@ -209,12 +209,12 @@ wh4_c:
 			dw kw_goto_iftrue_n, wh4_t
 wh4_e:
 
-			; 38: got = n : want = 7 : GOSUB chk
+			; 39: got = n : want = 7 : GOSUB chk
 			dw kw_vtov, var_n, var_got
 			dw kw_ltov, 7, var_want
 			dw lbl_chk_gs
 
-			; 39: n = 0 : DO : n = n + 1 : IF n = 4 THEN EXIT DO
+			; 40: n = 0 : DO : n = n + 1 : IF n = 4 THEN EXIT DO
 			dw kw_ztov, var_n
 do5_t:
 			dw kw_inc, var_n
@@ -223,16 +223,16 @@ do5_t:
 			dw do5_e_go
 if6_1:
 
-			; 40: LOOP
+			; 41: LOOP
 			dw do5_t_go
 do5_e:
 
-			; 41: got = n : want = 4 : GOSUB chk
+			; 42: got = n : want = 4 : GOSUB chk
 			dw kw_vtov, var_n, var_got
 			dw kw_ltov, 4, var_want
 			dw lbl_chk_gs
 
-			; 42: n = 10 : DO WHILE n > 0 : n = n - 3 : LOOP
+			; 43: n = 10 : DO WHILE n > 0 : n = n - 3 : LOOP
 			dw kw_ltov, 10, var_n
 do7_t:
 			dw kw_scpgtvl, var_n, 0
@@ -241,15 +241,15 @@ do7_t:
 			dw do7_t_go
 do7_e:
 
-			; 43: got = n : want = -2 : GOSUB chk
+			; 44: got = n : want = -2 : GOSUB chk
 			dw kw_vtov, var_n, var_got
 			dw kw_ltov, -2, var_want
 			dw lbl_chk_gs
 
-			; 44: s = 0
+			; 45: s = 0
 			dw kw_ztov, var_s
 
-			; 45: FOR i = 1 TO 3 : FOR j = 1 TO 3 : s = s + i * j : NEXT j : NEXT i
+			; 46: FOR i = 1 TO 3 : FOR j = 1 TO 3 : s = s + i * j : NEXT j : NEXT i
 			dw kw_ltov, 1, var_i
 for8_t:
 			dw kw_ltov, 1, var_j
@@ -261,53 +261,53 @@ for9_e:
 			dw kw_next1l_n, var_i, 3, for8_t
 for8_e:
 
-			; 46: got = s : want = 36 : GOSUB chk
+			; 47: got = s : want = 36 : GOSUB chk
 			dw kw_vtov, var_s, var_got
 			dw kw_ltov, 36, var_want
 			dw lbl_chk_gs
 
-			; 49: r = 0
+			; 50: r = 0
 			dw kw_ztov, var_r
 
-			; 50: IF a > 5 THEN
+			; 51: IF a > 5 THEN
 			dw kw_scpgtvl, var_a, 5
 			dw kw_goto_iffalse_n, if10_1
 
-			; 51: IF b > 0 THEN
+			; 52: IF b > 0 THEN
 			dw kw_scpgtvl, var_b, 0
 			dw kw_goto_iffalse_n, if11_1
 
-			; 52: r = 1
+			; 53: r = 1
 			dw kw_ltov, 1, var_r
 
-			; 53: ELSEIF b = -3 THEN
+			; 54: ELSEIF b = -3 THEN
 			dw if11_e_go
 if11_1:
 			dw kw_cpeqvl, var_b, -3
 			dw kw_goto_iffalse_n, if11_2
 
-			; 54: r = 2
+			; 55: r = 2
 			dw kw_ltov, 2, var_r
 
-			; 55: ELSE
+			; 56: ELSE
 			dw if11_e_go
 if11_2:
 
-			; 56: r = 3
+			; 57: r = 3
 			dw kw_ltov, 3, var_r
 
-			; 57: END IF
+			; 58: END IF
 if11_e:
 
-			; 58: END IF
+			; 59: END IF
 if10_1:
 
-			; 59: got = r : want = 2 : GOSUB chk
+			; 60: got = r : want = 2 : GOSUB chk
 			dw kw_vtov, var_r, var_got
 			dw kw_ltov, 2, var_want
 			dw lbl_chk_gs
 
-			; 60: r = 0 : IF 1 = 1 THEN IF 2 = 3 THEN r = 1 ELSE r = 2
+			; 61: r = 0 : IF 1 = 1 THEN IF 2 = 3 THEN r = 1 ELSE r = 2
 			dw kw_ztov, var_r
 			dw if13_1_go
 if13_1:
@@ -315,21 +315,21 @@ if13_1:
 if13_e:
 if12_1:
 
-			; 61: got = r : want = 2 : GOSUB chk
+			; 62: got = r : want = 2 : GOSUB chk
 			dw kw_vtov, var_r, var_got
 			dw kw_ltov, 2, var_want
 			dw lbl_chk_gs
 
-			; 64: d = 0 : GOSUB lvl1
+			; 65: d = 0 : GOSUB lvl1
 			dw kw_ztov, var_d
 			dw lbl_lvl1_gs
 
-			; 65: got = d : want = 111 : GOSUB chk
+			; 66: got = d : want = 111 : GOSUB chk
 			dw kw_vtov, var_d, var_got
 			dw kw_ltov, 111, var_want
 			dw lbl_chk_gs
 
-			; 69: FOR i = 0 TO 10 : arr(i) = i * i : NEXT
+			; 70: FOR i = 0 TO 10 : arr(i) = i * i : NEXT
 			dw kw_ztov, var_i
 for14_t:
 			dw kw_mulvv, var_i, var_i, tmp1
@@ -337,7 +337,7 @@ for14_t:
 			dw kw_next1l_n, var_i, 10, for14_t
 for14_e:
 
-			; 70: s = 0 : FOR i = 0 TO 10 : s = s + arr(i) : NEXT
+			; 71: s = 0 : FOR i = 0 TO 10 : s = s + arr(i) : NEXT
 			dw kw_ztov, var_s
 			dw kw_ztov, var_i
 for15_t:
@@ -346,71 +346,71 @@ for15_t:
 			dw kw_next1l_n, var_i, 10, for15_t
 for15_e:
 
-			; 71: got = s : want = 385 : GOSUB chk
+			; 72: got = s : want = 385 : GOSUB chk
 			dw kw_vtov, var_s, var_got
 			dw kw_ltov, 385, var_want
 			dw lbl_chk_gs
 
-			; 72: got = arr(3) + arr(a) : want = 58 : GOSUB chk
+			; 73: got = arr(3) + arr(a) : want = 58 : GOSUB chk
 			dw kw_aget, arr_arr, var_a, tmp1
 			dw kw_add, arr_arr+6, tmp1, var_got
 			dw kw_ltov, 58, var_want
 			dw lbl_chk_gs
 
-			; 75: POKE &H8000, 200 : DOKE &H8002, -1234
+			; 76: POKE &H8000, 200 : DOKE &H8002, -1234
 			dw kw_ltolptr8, 200, -32768
 			dw kw_ltolptr, -1234, -32766
 
-			; 76: got = PEEK(&H8000) : want = 200 : GOSUB chk
+			; 77: got = PEEK(&H8000) : want = 200 : GOSUB chk
 			dw kw_lptrtov8, -32768, var_got
 			dw kw_ltov, 200, var_want
 			dw lbl_chk_gs
 
-			; 77: addr = &H8002 : got = DEEK(addr) : want = -1234 : GOSUB chk
+			; 78: addr = &H8002 : got = DEEK(addr) : want = -1234 : GOSUB chk
 			dw kw_ltov, -32766, var_addr
 			dw kw_vptrtov, var_addr, var_got
 			dw kw_ltov, -1234, var_want
 			dw lbl_chk_gs
 
-			; 80: x$ = "abc" : y$ = x$ + "def" + x$
+			; 81: x$ = "abc" : y$ = x$ + "def" + x$
 			dw kw_strcpy, var_x, str1
 			dw kw_strcpy, stmp0, var_x
 			dw kw_strcat, stmp0, str2
 			dw kw_strcpy, var_y, stmp0
 			dw kw_strcat, var_y, var_x
 
-			; 81: got = LEN(y$) : want = 9 : GOSUB chk
+			; 82: got = LEN(y$) : want = 9 : GOSUB chk
 			dw kw_strlen, var_y, var_got
 			dw kw_ltov, 9, var_want
 			dw lbl_chk_gs
 
-			; 82: got = 0 : IF y$ = "abcdefabc" THEN got = 1
+			; 83: got = 0 : IF y$ = "abcdefabc" THEN got = 1
 			dw kw_ztov, var_got
 			dw kw_strcmpeq, var_y, str3
 			dw kw_goto_iffalse_n, if16_1
 			dw kw_ltov, 1, var_got
 if16_1:
 
-			; 83: want = 1 : GOSUB chk
+			; 84: want = 1 : GOSUB chk
 			dw kw_ltov, 1, var_want
 			dw lbl_chk_gs
 
-			; 84: got = 0 : IF x$ <> y$ THEN got = 1
+			; 85: got = 0 : IF x$ <> y$ THEN got = 1
 			dw kw_ztov, var_got
 			dw kw_strcmpne, var_x, var_y
 			dw kw_goto_iffalse_n, if17_1
 			dw kw_ltov, 1, var_got
 if17_1:
 
-			; 85: want = 1 : GOSUB chk
+			; 86: want = 1 : GOSUB chk
 			dw kw_ltov, 1, var_want
 			dw lbl_chk_gs
 
-			; 88: RANDOMIZE 99 : ok = 1
+			; 89: RANDOMIZE 99 : ok = 1
 			dw kw_seedl, 99
 			dw kw_ltov, 1, var_ok
 
-			; 89: FOR i = 1 TO 100 : r = RND(6) : IF r < 0 OR r > 5 THEN ok = 0
+			; 90: FOR i = 1 TO 100 : r = RND(6) : IF r < 0 OR r > 5 THEN ok = 0
 			dw kw_ltov, 1, var_i
 for18_t:
 			dw kw_rndl, 6, var_r
@@ -423,54 +423,54 @@ for18_t:
 			dw kw_ztov, var_ok
 if19_1:
 
-			; 90: NEXT
+			; 91: NEXT
 			dw kw_next1l_n, var_i, 100, for18_t
 for18_e:
 
-			; 91: got = ok : want = 1 : GOSUB chk
+			; 92: got = ok : want = 1 : GOSUB chk
 			dw kw_vtov, var_ok, var_got
 			dw kw_ltov, 1, var_want
 			dw lbl_chk_gs
 
-			; 93: PRINT
+			; 94: PRINT
 			dw kw_printnl
 
-			; 94: PRINT t; " tests, "; bad; " failed"
+			; 95: PRINT t; " tests, "; bad; " failed"
 			dw kw_printint, var_t
 			dw kw_printstrvar, str4
 			dw kw_printint, var_bad
 			dw kw_printstrvar, str5
 			dw kw_printnl
 
-			; 97: PRINT "-12345 = "; -12345
+			; 98: PRINT "-12345 = "; -12345
 			dw kw_printstrvar, str6
 			dw kw_printnl
 
-			; 98: INPUT "Type your name"; nm$
+			; 99: INPUT "Type your name"; nm$
 			dw kw_printstrvar, str7
 			dw kw_inputstr, var_nm
 
-			; 99: PRINT "Hello "; nm$; "!"
+			; 100: PRINT "Hello "; nm$; "!"
 			dw kw_printstrvar, str8
 			dw kw_printstrvar, var_nm
 			dw kw_printstrvar, str9
 			dw kw_printnl
 
-			; 100: INPUT "Number"; v
+			; 101: INPUT "Number"; v
 			dw kw_printstrvar, str10
 			dw kw_inputint, var_v
 
-			; 101: PRINT v; " * 3 = "; v * 3
+			; 102: PRINT v; " * 3 = "; v * 3
 			dw kw_printint, var_v
 			dw kw_mulvl, var_v, 3, tmp0
 			dw kw_printstrvar, str11
 			dw kw_printint, tmp0
 			dw kw_printnl
 
-			; 102: PRINT "Press a key";
+			; 103: PRINT "Press a key";
 			dw kw_printstrvar, str12
 
-			; 103: DO : k = INKEY : FRAME : LOOP UNTIL k <> 0
+			; 104: DO : k = INKEY : FRAME : LOOP UNTIL k <> 0
 do20_t:
 			dw kw_inkey, tmp0
 			dw kw_vtov, tmp0, var_k
@@ -479,29 +479,32 @@ do20_t:
 			dw kw_goto_iffalse_n, do20_t
 do20_e:
 
-			; 104: PRINT " - code "; k
+			; 105: PRINT " - code "; k
 			dw kw_printstrvar, str13
 			dw kw_printint, var_k
 			dw kw_printnl
 
-			; 105: LOCATE 25, 25 : PRINT "bottom line";
+			; 106: LOCATE 25, 25 : PRINT "bottom line";
 			dw kw_locatell, 25, 25
 			dw kw_printstrvar, str14
 
-			; 106: END
+			; 107: END
+			dw kw_printnl0
+			dw kw_printstrvar, str12
+			dw kw_waitkey
 			dw kw_stop
 
-			; 108: chk:
+			; 109: chk:
 lbl_chk:
 
-			; 109: t = t + 1
+			; 110: t = t + 1
 			dw kw_inc, var_t
 
-			; 110: PRINT t; ":";
+			; 111: PRINT t; ":";
 			dw kw_printint, var_t
 			dw kw_printstrvar, str15
 
-			; 111: IF got = want THEN PRINT "ok "; ELSE PRINT "FAIL "; : bad = bad + 1
+			; 112: IF got = want THEN PRINT "ok "; ELSE PRINT "FAIL "; : bad = bad + 1
 			dw kw_cpeqvv, var_got, var_want
 			dw kw_goto_iffalse_n, if21_1
 			dw kw_printstrvar, str16
@@ -511,22 +514,22 @@ if21_1:
 			dw kw_inc, var_bad
 if21_e:
 
-			; 112: RETURN
+			; 113: RETURN
 			dw lbl_chk_rt
 
-			; 114: lvl1: d = d + 1 : GOSUB lvl2 : RETURN
+			; 115: lvl1: d = d + 1 : GOSUB lvl2 : RETURN
 lbl_lvl1:
 			dw kw_inc, var_d
 			dw lbl_lvl2_gs
 			dw lbl_lvl1_rt
 
-			; 115: lvl2: d = d + 10 : GOSUB lvl3 : RETURN
+			; 116: lvl2: d = d + 10 : GOSUB lvl3 : RETURN
 lbl_lvl2:
 			dw kw_addl, var_d, 10, var_d
 			dw lbl_lvl3_gs
 			dw lbl_lvl2_rt
 
-			; 116: lvl3: d = d + 100 : RETURN
+			; 117: lvl3: d = d + 100 : RETURN
 lbl_lvl3:
 			dw kw_addl, var_d, 100, var_d
 			dw lbl_lvl3_rt
@@ -693,6 +696,7 @@ kw_strcmpeq:	jp 126
 kw_strcmpne:	jp 127
 kw_printstrvar:	jp 129
 kw_printint:	jp 131
+kw_printnl0:	jp 134
 kw_printnl:	jp 138
 kw_inputstr:	jp 141
 kw_inputint:	jp 142
@@ -701,7 +705,8 @@ kw_cls:		jp 147
 kw_locatell:	jp 148
 kw_frame:	jp 152
 kw_bssinit:	jp 288
-NTC_RJ_N	equ 56		; entries
+kw_waitkey:	jp 348
+NTC_RJ_N	equ 58		; entries
 ntc_csp	equ #8800		; ROM data
 ntc_nmode	equ #8807		; ROM data
 ntc_v_free	equ #894E		; ROM data

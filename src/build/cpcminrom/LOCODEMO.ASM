@@ -39,7 +39,7 @@ main_thread:
 			dw kw_scrinit		; mode 1, ROMs off, clear screen
 			dw kw_bssinit, ntc_bss, ntc_bss_size		; the arrays: do they fit, clear them
 
-			; 22: loco_d(0) = "Ann"
+			; 23: loco_d(0) = "Ann"
 			dw kw_strcpyn, arr_loco_d, str0, 40
 			dw kw_strcpyn, arr_loco_d+41, str1, 40
 			dw kw_strcpyn, arr_loco_d+82, str2, 40
@@ -51,13 +51,13 @@ main_thread:
 			dw kw_strcpyn, arr_loco_d+328, str8, 40
 			dw kw_strcpyn, arr_loco_d+369, str9, 40
 
-			; 4: Mode 1
+			; 5: Mode 1
 			dw kw_model, 1
 
-			; 6: total = 0
+			; 7: total = 0
 			dw kw_l_mov, llit_0, var_total
 
-			; 7: For i = 1 To 5 : nm_s(i) = loco_d(loco_p) : loco_p = loco_p + 1 : sc(i) = Val(loco_d(loco_p)) : loco_p = loco_p + 1 : total = total + sc(i) : Next
+			; 8: For i = 1 To 5 : nm_s(i) = loco_d(loco_p) : loco_p = loco_p + 1 : sc(i) = Val(loco_d(loco_p)) : loco_p = loco_p + 1 : total = total + sc(i) : Next
 			dw kw_ltov, 1, var_i
 for1_t:
 			dw kw_sget, arr_loco_d, var_loco_p, stmp1, 41
@@ -73,12 +73,12 @@ for1_t:
 			dw kw_next1l_n, var_i, 5, for1_t
 for1_e:
 
-			; 8: Print "High scores"
+			; 9: Print "High scores"
 			dw kw_printzoscii
 			dw glyph_48, glyph_69, glyph_67, glyph_68, glyph_20, glyph_73, glyph_63, glyph_6F
 			dw glyph_72, glyph_65, glyph_73, 1, 0		; "High scores\n"
 
-			; 9: For i = 1 To 5 : Print nm_s(i); Tab(10); sc(i) : Next
+			; 10: For i = 1 To 5 : Print nm_s(i); Tab(10); sc(i) : Next
 			dw kw_ltov, 1, var_i
 for2_t:
 			dw kw_sget, arr_nm_s, var_i, stmp0, 41
@@ -90,7 +90,7 @@ for2_t:
 			dw kw_next1l_n, var_i, 5, for2_t
 for2_e:
 
-			; 10: Print "Total"; total; " Best"; IIf((IIf((IIf((IIf((sc(1)) > (sc(2)), sc(1), sc(2))) > (sc(3)), IIf((sc(1)) > (sc(2)), sc(1), sc(2)), sc(3))) > (sc(4)), IIf((IIf((sc(1)) > (sc(2)), sc(1), sc(2))) > (sc(3)), IIf((sc(1)) > (sc(2)), sc(1), sc(2)), sc(3)), sc(4))) > (sc(5)), IIf((IIf((IIf((sc(1)) > (sc(2)), sc(1), sc(2))) > (sc(3)), IIf((sc(1)) > (sc(2)), sc(1), sc(2)), sc(3))) > (sc(4)), IIf((IIf((sc(1)) > (sc(2)), sc(1), sc(2))) > (sc(3)), IIf((sc(1)) > (sc(2)), sc(1), sc(2)), sc(3)), sc(4)), sc(5))
+			; 11: Print "Total"; total; " Best"; IIf((IIf((IIf((IIf((sc(1)) > (sc(2)), sc(1), sc(2))) > (sc(3)), IIf((sc(1)) > (sc(2)), sc(1), sc(2)), sc(3))) > (sc(4)), IIf((IIf((sc(1)) > (sc(2)), sc(1), sc(2))) > (sc(3)), IIf((sc(1)) > (sc(2)), sc(1), sc(2)), sc(3)), sc(4))) > (sc(5)), IIf((IIf((IIf((sc(1)) > (sc(2)), sc(1), sc(2))) > (sc(3)), IIf((sc(1)) > (sc(2)), sc(1), sc(2)), sc(3))) > (sc(4)), IIf((IIf((sc(1)) > (sc(2)), sc(1), sc(2))) > (sc(3)), IIf((sc(1)) > (sc(2)), sc(1), sc(2)), sc(3)), sc(4)), sc(5))
 			dw kw_printzoscii
 			dw glyph_54, glyph_6F, glyph_74, glyph_61, glyph_6C, 0		; "Total"
 			dw kw_l_printvb, var_total
@@ -264,7 +264,7 @@ ch17_e:
 			dw kw_printintvb, tmp0
 			dw kw_printnl
 
-			; 12: Print "Ann has"; fn_pct(sc(1)); "%"
+			; 13: Print "Ann has"; fn_pct(sc(1)); "%"
 			dw p_fn_pct_c, arr_sc+2
 			dw kw_printzoscii
 			dw glyph_41, glyph_6E, glyph_6E, glyph_20, glyph_68, glyph_61, glyph_73, 0		; "Ann has"
@@ -272,7 +272,7 @@ ch17_e:
 			dw kw_printzoscii
 			dw glyph_25, 1, 0		; "%\n"
 
-			; 13: a_s = "Hello" : Mid$(a_s, 1, 1) = "J" : Print a_s; " "; UCase$(a_s)
+			; 14: a_s = "Hello" : Mid$(a_s, 1, 1) = "J" : Print a_s; " "; UCase$(a_s)
 			dw kw_strcpy, var_a_s, str10
 			dw kw_ltov, 1, tmp0
 			dw kw_ltov, 1, tmp1
@@ -284,39 +284,44 @@ ch17_e:
 			dw kw_printstrvar, stmp0
 			dw kw_printnl
 
-			; 14: GoSub 1000
+			; 15: GoSub 1000
 			dw ln_1000_gs
 
-			; 15: On 2 GoSub 1010, 1020
+			; 16: On 2 GoSub 1010, 1020
 			dw ln_1020_gs
 
-			; 17: Print "Done"
+			; 18: Print "Done"
 			dw kw_printzoscii
 			dw glyph_44, glyph_6F, glyph_6E, glyph_65, 1, 0		; "Done\n"
 
-			; 18: End
+			; 19: End
+			dw kw_printnl0
+			dw kw_printzoscii
+			dw glyph_50, glyph_72, glyph_65, glyph_73, glyph_73, glyph_20, glyph_61, glyph_20
+			dw glyph_6B, glyph_65, glyph_79, 0		; "Press a key"
+			dw kw_waitkey
 			dw kw_stop
 
-			; 19: 1000 Print "In GOSUB 1000" : Return
+			; 20: 1000 Print "In GOSUB 1000" : Return
 ln_1000:
 			dw kw_printzoscii
 			dw glyph_49, glyph_6E, glyph_20, glyph_47, glyph_4F, glyph_53, glyph_55, glyph_42
 			dw glyph_20, glyph_31, glyph_30, glyph_30, glyph_30, 1, 0		; "In GOSUB 1000\n"
 			dw ln_1000_rt
 
-			; 20: 1010 Print "one" : Return
+			; 21: 1010 Print "one" : Return
 ln_1010:
 			dw kw_printzoscii
 			dw glyph_6F, glyph_6E, glyph_65, 1, 0		; "one\n"
 			dw ln_1000_rt
 
-			; 21: 1020 Print "two" : Return
+			; 22: 1020 Print "two" : Return
 ln_1020:
 			dw kw_printzoscii
 			dw glyph_74, glyph_77, glyph_6F, 1, 0		; "two\n"
 			dw ln_1020_rt
 
-			; 23: End
+			; 24: End
 
 ; ============================================================
 ; function fn_pct (normal mode)
@@ -324,7 +329,7 @@ ln_1020:
 
 p_fn_pct:
 
-			; 11: fn_pct = x * 10 \ (total \ 10)
+			; 12: fn_pct = x * 10 \ (total \ 10)
 			dw kw_mulvl, var_fn_pct_x, 10, tmp0
 			dw kw_l_div, var_total, llit_10, ltmp1
 			dw kw_l_itol, tmp0, ltmp0
@@ -442,6 +447,7 @@ glyph_47			equ ntc_font + 312		; "G"
 glyph_48			equ ntc_font + 320		; "H"
 glyph_49			equ ntc_font + 328		; "I"
 glyph_4F			equ ntc_font + 376		; "O"
+glyph_50			equ ntc_font + 384		; "P"
 glyph_53			equ ntc_font + 408		; "S"
 glyph_54			equ ntc_font + 416		; "T"
 glyph_55			equ ntc_font + 424		; "U"
@@ -451,6 +457,7 @@ glyph_65			equ ntc_font + 552		; "e"
 glyph_67			equ ntc_font + 568		; "g"
 glyph_68			equ ntc_font + 576		; "h"
 glyph_69			equ ntc_font + 584		; "i"
+glyph_6B			equ ntc_font + 600		; "k"
 glyph_6C			equ ntc_font + 608		; "l"
 glyph_6E			equ ntc_font + 624		; "n"
 glyph_6F			equ ntc_font + 632		; "o"
@@ -458,6 +465,7 @@ glyph_72			equ ntc_font + 656		; "r"
 glyph_73			equ ntc_font + 664		; "s"
 glyph_74			equ ntc_font + 672		; "t"
 glyph_77			equ ntc_font + 696		; "w"
+glyph_79			equ ntc_font + 712		; "y"
 
 ; ============================================================
 ; Strings
@@ -502,6 +510,7 @@ kw_strcpyn:	jp 123
 kw_printzoscii:	jp 129
 kw_printstrvar:	jp 130
 kw_printintvb:	jp 133
+kw_printnl0:	jp 135
 kw_printnl:	jp 139
 kw_printtab:	jp 140
 kw_scrinit:	jp 147
@@ -519,7 +528,8 @@ kw_l_div:	jp 230
 kw_l_printvb:	jp 235
 kw_bssinit:	jp 291
 ntc_plat_irqon:	jp 316
-NTC_RJ_N	equ 35		; entries
+kw_waitkey:	jp 344
+NTC_RJ_N	equ 37		; entries
 ntc_csp	equ #8800		; ROM data
 ntc_font	equ #948E		; ROM bss
 ntc_nmode	equ #8807		; ROM data

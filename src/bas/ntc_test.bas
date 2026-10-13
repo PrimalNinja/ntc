@@ -1,5 +1,6 @@
 ' NTC self test - each check prints its number and ok or FAIL
 ' got = result, want = expected, then GOSUB chk
+Option PressAnyKeyOnEnd "Press a key"     ' at the end: a message and a key (a RUN" program resets when it ends)
 CLS
 PRINT "NTC self test"
 t = 0 : bad = 0

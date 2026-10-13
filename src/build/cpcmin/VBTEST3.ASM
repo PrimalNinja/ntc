@@ -31,74 +31,74 @@ main_thread:
 			dw kw_scrinit		; mode 1, ROMs off, clear screen
 			dw kw_bssinit, ntc_bss, ntc_bss_size		; the arrays: do they fit, clear them
 
-			; 20: Print "VB test 3"
+			; 21: Print "VB test 3"
 			dw kw_printzoscii
 			dw glyph_56, glyph_42, glyph_20, glyph_74, glyph_65, glyph_73, glyph_74, glyph_20
 			dw glyph_33, 1, 0		; "VB test 3\n"
 
-			; 21: Chk Red, 0
+			; 22: Chk Red, 0
 			dw p_chk_c, lit_0, lit_0
 
-			; 22: Chk Green, 5
+			; 23: Chk Green, 5
 			dw p_chk_c, lit_5, lit_5
 
-			; 23: Chk Blue, 6
+			; 24: Chk Blue, 6
 			dw p_chk_c, lit_6, lit_6
 
-			; 24: Chk Colour.Blue + Size.Large, 16
+			; 25: Chk Colour.Blue + Size.Large, 16
 			dw p_chk_c, lit_16, lit_16
 
-			; 25: c = Green
+			; 26: c = Green
 			dw kw_ltov, 5, var_c
 
-			; 26: Chk c, 5
+			; 27: Chk c, 5
 			dw p_chk_c, var_c, lit_5
 
-			; 28: .w = 3
+			; 29: .w = 3
 			dw kw_ltov, 3, var_b_w
 
-			; 29: .h = 4
+			; 30: .h = 4
 			dw kw_ltov, 4, var_b_h
 
-			; 30: .label = "box"
+			; 31: .label = "box"
 			dw kw_strcpy, var_b_label, str0
 
-			; 31: n = .w * .h
+			; 32: n = .w * .h
 			dw kw_mulvv, var_b_w, var_b_h, var_n
 
-			; 33: Chk n, 12
+			; 34: Chk n, 12
 			dw p_chk_c, var_n, lit_12
 
-			; 34: ChkS b.label, "box"
+			; 35: ChkS b.label, "box"
 			dw p_chks_c, var_b_label, str0
 
-			; 35: For i = 0 To 2
+			; 36: For i = 0 To 2
 			dw kw_ztov, var_i
 for1_t:
 
-			; 37: .w = i
+			; 38: .w = i
 			dw kw_aset, arr_boxes_w, var_i, var_i
 
-			; 38: .h = i * 2
+			; 39: .h = i * 2
 			dw kw_2x, var_i, tmp1
 			dw kw_aset, arr_boxes_h, var_i, tmp1
 
-			; 40: Next
+			; 41: Next
 			dw kw_next1l_n, var_i, 2, for1_t
 for1_e:
 
-			; 41: Chk boxes(2).w + boxes(2).h, 6
+			; 42: Chk boxes(2).w + boxes(2).h, 6
 			dw kw_add, arr_boxes_w+4, arr_boxes_h+4, tmp0
 			dw p_chk_c, tmp0, lit_6
 
-			; 42: n = 0
+			; 43: n = 0
 			dw kw_ztov, var_n
 
-			; 43: For i = 1 To 3
+			; 44: For i = 1 To 3
 			dw kw_ltov, 1, var_i
 for2_t:
 
-			; 44: On i GoSub one, two, three
+			; 45: On i GoSub one, two, three
 			dw kw_cpeqvl, var_i, 1
 			dw kw_goto_iffalse_n, on3_0
 			dw lbl_one_gs
@@ -115,48 +115,48 @@ on3_1:
 on3_2:
 on3_e:
 
-			; 45: Next
+			; 46: Next
 			dw kw_next1l_n, var_i, 3, for2_t
 for2_e:
 
-			; 46: Chk n, 321
+			; 47: Chk n, 321
 			dw p_chk_c, var_n, lit_321
 
-			; 47: i = 2
+			; 48: i = 2
 			dw kw_ltov, 2, var_i
 
-			; 48: On i GoTo l1, l2
+			; 49: On i GoTo l1, l2
 			dw kw_cpeqvl, var_i, 1
 			dw kw_goto_iftrue_n, lbl_l1
 			dw kw_cpeqvl, var_i, 2
 			dw kw_goto_iftrue_n, lbl_l2
 
-			; 49: Chk 0, 1
+			; 50: Chk 0, 1
 			dw p_chk_c, lit_0, lit_1
 
-			; 50: l1:
+			; 51: l1:
 lbl_l1:
 
-			; 51: Chk 0, 1
+			; 52: Chk 0, 1
 			dw p_chk_c, lit_0, lit_1
 
-			; 52: l2:
+			; 53: l2:
 lbl_l2:
 
-			; 53: Chk 1, 1
+			; 54: Chk 1, 1
 			dw p_chk_c, lit_1, lit_1
 
-			; 54: k = Inkey$
+			; 55: k = Inkey$
 			dw kw_inkeys, stmp0
 			dw kw_strcpy, var_k, stmp0
 
-			; 55: ChkS k, ""
+			; 56: ChkS k, ""
 			dw p_chks_c, var_k, str1
 
-			; 56: Print
+			; 57: Print
 			dw kw_printnl
 
-			; 57: Print t; " tests, "; bad; " failed"
+			; 58: Print t; " tests, "; bad; " failed"
 			dw kw_printint, var_t
 			dw kw_printzoscii
 			dw glyph_20, glyph_74, glyph_65, glyph_73, glyph_74, glyph_73, glyph_2C, glyph_20
@@ -166,50 +166,39 @@ lbl_l2:
 			dw glyph_20, glyph_66, glyph_61, glyph_69, glyph_6C, glyph_65, glyph_64, 1
 			dw 0		; " failed\n"
 
-			; 58: Print "Press a key";
+			; 59: End
+			dw kw_printnl0
 			dw kw_printzoscii
 			dw glyph_50, glyph_72, glyph_65, glyph_73, glyph_73, glyph_20, glyph_61, glyph_20
 			dw glyph_6B, glyph_65, glyph_79, 0		; "Press a key"
-
-			; 59: Do : Frame : Loop Until Inkey <> 0
-do5_t:
-			dw kw_frame
-			dw kw_inkey, tmp0
-			dw kw_cpnevl, tmp0, 0
-			dw kw_goto_iffalse_n, do5_t
-do5_e:
-
-			; 60: Print
-			dw kw_printnl
-
-			; 61: End
+			dw kw_waitkey
 			dw kw_stop
 
-			; 62: one:
+			; 60: one:
 lbl_one:
 
-			; 63: n = n + 1
+			; 61: n = n + 1
 			dw kw_inc, var_n
 
-			; 64: Return
+			; 62: Return
 			dw lbl_one_rt
 
-			; 65: two:
+			; 63: two:
 lbl_two:
 
-			; 66: n = n + 20
+			; 64: n = n + 20
 			dw kw_addl, var_n, 20, var_n
 
-			; 67: Return
+			; 65: Return
 			dw lbl_two_rt
 
-			; 68: three:
+			; 66: three:
 lbl_three:
 
-			; 69: n = n + 300
+			; 67: n = n + 300
 			dw kw_addl, var_n, 300, var_n
 
-			; 70: Return
+			; 68: Return
 			dw lbl_three_rt
 
 ; ============================================================
@@ -218,28 +207,28 @@ lbl_three:
 
 p_chk:
 
-			; 73: t = t + 1
+			; 71: t = t + 1
 			dw kw_inc, var_t
 
-			; 74: Print t; ":";
+			; 72: Print t; ":";
 			dw kw_printint, var_t
 			dw kw_printzoscii
 			dw glyph_3A, 0		; ":"
 
-			; 75: If got = want Then Print "ok "; Else Print "FAIL("; got; ") "; : bad = bad + 1
+			; 73: If got = want Then Print "ok "; Else Print "FAIL("; got; ") "; : bad = bad + 1
 			dw kw_cpeqvv, var_chk_got, var_chk_want
-			dw kw_goto_iffalse_n, if6_1
+			dw kw_goto_iffalse_n, if5_1
 			dw kw_printzoscii
 			dw glyph_6F, glyph_6B, glyph_20, 0		; "ok "
-			dw if6_e_go
-if6_1:
+			dw if5_e_go
+if5_1:
 			dw kw_printzoscii
 			dw glyph_46, glyph_41, glyph_49, glyph_4C, glyph_28, 0		; "FAIL("
 			dw kw_printint, var_chk_got
 			dw kw_printzoscii
 			dw glyph_29, glyph_20, 0		; ") "
 			dw kw_inc, var_bad
-if6_e:
+if5_e:
 			dw p_chk_r
 
 ; ============================================================
@@ -248,28 +237,28 @@ if6_e:
 
 p_chks:
 
-			; 79: t = t + 1
+			; 77: t = t + 1
 			dw kw_inc, var_t
 
-			; 80: Print t; ":";
+			; 78: Print t; ":";
 			dw kw_printint, var_t
 			dw kw_printzoscii
 			dw glyph_3A, 0		; ":"
 
-			; 81: If got = want Then Print "ok "; Else Print "FAIL["; got; "] "; : bad = bad + 1
+			; 79: If got = want Then Print "ok "; Else Print "FAIL["; got; "] "; : bad = bad + 1
 			dw kw_strcmpeq, var_chks_got, var_chks_want
-			dw kw_goto_iffalse_n, if7_1
+			dw kw_goto_iffalse_n, if6_1
 			dw kw_printzoscii
 			dw glyph_6F, glyph_6B, glyph_20, 0		; "ok "
-			dw if7_e_go
-if7_1:
+			dw if6_e_go
+if6_1:
 			dw kw_printzoscii
 			dw glyph_46, glyph_41, glyph_49, glyph_4C, glyph_5B, 0		; "FAIL["
 			dw kw_printstrvar, var_chks_got
 			dw kw_printzoscii
 			dw glyph_5D, glyph_20, 0		; "] "
 			dw kw_inc, var_bad
-if7_e:
+if6_e:
 			dw p_chks_r
 
 ; ============================================================
@@ -283,9 +272,9 @@ if7_e:
 
 on3_e_go:			ld sp, on3_e
 			jp ntc_xn
-if6_e_go:			ld sp, if6_e
+if5_e_go:			ld sp, if5_e
 			jp ntc_xn
-if7_e_go:			ld sp, if7_e
+if6_e_go:			ld sp, if6_e
 			jp ntc_xn
 lbl_one_gs:			ld (lbl_one_rs), sp
 			ld sp, lbl_one
@@ -479,6 +468,12 @@ ntc_stop_back:
 			ld sp, (ntc_csp)
 			ei
 			ret
+
+;## kw_waitkey ntc_data ntc_plat_key
+; kw_waitkey - wait for a key (Option PressAnyKeyOnEnd, before kw_stop)
+kw_waitkey:
+			ld ix, ntc_next
+			jp ntc_plat_getkey
 
 ;## ntc_xn ntc_data @shared
 ; normal mode "next": every normal mode keyword ends here (its ret
@@ -805,19 +800,6 @@ kw_cpeqvl:
 			pop hl
 			jp ntc_cmp_eq
 
-;## kw_cpnevl ntc_cmp
-kw_cpnevl:
-			pop hl
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			pop hl
-			jp ntc_cmp_ne
-
-; ============================================================
-; Memory (PEEK / POKE / DEEK / DOKE)
-; ============================================================
-
 ;## kw_aset
 ;kw_aset, <arraybase>, <indexvar>, <sourcevar>
 kw_aset:
@@ -990,25 +972,20 @@ ntc_pi_done:
 			ld (ntc_sptr), hl
 			jp ntc_printbuf
 
+;## kw_printnl0 ntc_data ntc_plat_screen
+;kw_printnl0  - new line unless the cursor is at the start of a line
+kw_printnl0:
+			ld a, (ntc_curx)
+			or a
+			ret z
+			ld ix, ntc_next
+			jp ntc_plat_newline
+
 ;## kw_printnl ntc_data ntc_plat_screen
 ;kw_printnl
 kw_printnl:
 			ld ix, ntc_next
 			jp ntc_plat_newline
-
-;## kw_inkey ntc_data ntc_plat_key
-;kw_inkey, <destvar>  - new key press or 0, no wait
-kw_inkey:
-			pop hl
-			ld (ntc_ivar), hl
-			ld ix, ntc_inkey_got
-			jp ntc_plat_scankey
-ntc_inkey_got:
-			ld hl, (ntc_ivar)
-			ld (hl), a
-			inc hl
-			ld (hl), 0
-			ret
 
 ;## kw_inkeys ntc_data ntc_plat_key
 ;kw_inkeys, <dest>  - Inkey$: the new key press as a string, "" if none
@@ -1033,12 +1010,6 @@ kw_scrinit:
 			ld a, 1
 			ld ix, ntc_next
 			jp ntc_plat_mode
-
-;## kw_frame ntc_data ntc_plat_frame
-;kw_frame  - wait for the start of the next frame flyback
-kw_frame:
-			ld ix, ntc_next
-			jp ntc_plat_frame
 
 ;## ntc_font
 ; 8x8 font buffer, chars 32-126, 8 bytes each, bit 7 = leftmost pixel.
@@ -1703,36 +1674,6 @@ ntc_keymaps:
 			db "$", "#", "E", "W", "S", "D", "C", "X"
 			db "!", 34, 27, "Q", 9, "A", 0, "Z"
 			db 0, 0, 0, 0, 0, 0, 0, 127
-
-;## ntc_plat_frame ntc_data @shared
-; ------------------------------------------------------------
-; ntc_plat_frame - wait for the start of vsync (PPI port B bit 0)
-; normal mode: interrupts in while waiting
-; ------------------------------------------------------------
-ntc_plat_frame:
-			ld a, (ntc_nmode)
-			or a
-			jr z, ntc_fr_go
-			ld (ntc_ip), sp
-			ld sp, (ntc_csp)
-			ei
-ntc_fr_go:
-			ld b, #F5
-ntc_fr_in:
-			in a, (c)
-			rra
-			jr c, ntc_fr_in
-ntc_fr_wait:
-			in a, (c)
-			rra
-			jr nc, ntc_fr_wait
-			di
-			ld a, (ntc_nmode)
-			or a
-			jr z, ntc_fr_done
-			ld sp, (ntc_ip)
-ntc_fr_done:
-			jp (ix)
 
 ;## ntc_plat_irq ntc_plat_data ntc_data ntc_plat_irqh @shared
 ; ------------------------------------------------------------

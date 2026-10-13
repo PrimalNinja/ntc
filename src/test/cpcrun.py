@@ -80,6 +80,18 @@ def assemble(path):
         for dev in ('A','TAPE'):
             os.makedirs(os.path.join(ntcrun.FILES,dev),exist_ok=True); shutil.copy(f,os.path.join(ntcrun.FILES,dev,os.path.basename(f)))
     return data,syms
+def endkey_set(m, syms):
+    # Option PressAnyKeyOnEnd: a breakpoint on kw_waitkey (its key at the end); NTC_NOENDKEY=1: none
+    if syms and 'kw_waitkey' in syms and not os.environ.get('NTC_NOENDKEY'): m.set_breakpoint(syms['kw_waitkey'])
+def endkey_run(obj):
+    # run on; at kw_waitkey, when the typed text is used up, a Return is typed (the test needn't)
+    m = obj.m; ev = m.run()
+    while ev & 1:
+        if not obj.typed: obj.typed.append('\r')
+        ev = m.step_over_breakpoint()
+        if m.halted or m.ticks_to_stop <= 0: break
+        ev = m.run()
+
 class CPC:
     def __init__(s,binary,org,typed,syms):
         s.m=m=z80.Z80Machine(); m.set_memory_block(org,binary)
@@ -89,6 +101,7 @@ class CPC:
         s.ints=0; s.romon=False; s.ram=RamBanks(m)
         s.line=0; s.scans=0; s.typed=list(typed); s.phase=0; s.cur=None; s.mode=None; s.vs=0; s.ga=[]
         m.set_output_callback(s.out); m.set_input_callback(s.inp); s.syms=syms
+        endkey_set(m, syms)
         # the firmware calls the cpc platform's FileSystem makes (AMSDOS through the firmware):
         # stand-ins on low ports #E0.. (the CPC decodes its I/O on the high byte), as in ntcrun
         import ntcrun
@@ -209,12 +222,12 @@ class CPC:
         # CPC: an interrupt every 13333 T, held until the Z80 takes it
         n=0; s.T=0
         while not s.m.halted:
-            s.m.ticks_to_stop=13333; s.m.run(); n+=1; s.T+=13333-s.m.ticks_to_stop
+            s.m.ticks_to_stop=13333; endkey_run(s); n+=1; s.T+=13333-s.m.ticks_to_stop
             if s.m.halted: break
             steps=0
             while not s.m.halted and steps<2000:
                 if s.m.iff1 and s.m.on_handle_active_int(): s.ints+=1; break
-                s.m.ticks_to_stop=1; s.m.run(); steps+=1; s.T+=1-s.m.ticks_to_stop
+                s.m.ticks_to_stop=1; endkey_run(s); steps+=1; s.T+=1-s.m.ticks_to_stop
             if n>limit: print('TIMEOUT pc=%04x sp=%04x'%(s.m.pc,s.m.sp)); break
         s.chunks=n
     def screen(s,font):

@@ -34,26 +34,26 @@ ntc_rj_ok:
 
 main_thread:
 
-			; main.bas 3: StdIO.PutStr "cols "
+			; main.bas 4: StdIO.PutStr "cols "
 			dw fn_stdio_putstr, str0
 
-			; main.bas 4: StdIO.PutInt StdIO.Cols()
+			; main.bas 5: StdIO.PutInt StdIO.Cols()
 			dw fn_stdio_cols, var_stdio_cols_cols
 			dw fn_stdio_putint, var_stdio_cols_cols
 
-			; main.bas 5: StdIO.NewLine
+			; main.bas 6: StdIO.NewLine
 			dw fn_stdio_newline
 
-			; main.bas 6: StdIO.PutChar 65
+			; main.bas 7: StdIO.PutChar 65
 			dw fn_stdio_putchar, lit_65
 
-			; main.bas 7: StdIO.PutChar 66
+			; main.bas 8: StdIO.PutChar 66
 			dw fn_stdio_putchar, lit_66
 
-			; main.bas 8: StdIO.NewLine
+			; main.bas 9: StdIO.NewLine
 			dw fn_stdio_newline
 
-			; main.bas 9: If StdIO.CanPosition Then Print "can position" Else Print "stream"
+			; main.bas 10: If StdIO.CanPosition Then Print "can position" Else Print "stream"
 			dw kw_printstrvar, str1
 			dw kw_printnl
 			dw if1_e_go
@@ -62,48 +62,37 @@ if1_1:
 			dw kw_printnl
 if1_e:
 
-			; main.bas 10: Print System.Platform; " ticks/s "; System.TicksPerSecond
+			; main.bas 11: Print System.Platform; " ticks/s "; System.TicksPerSecond
 			dw kw_printstrvar, str4
 			dw kw_printnl
 
-			; main.bas 11: StdIO.PutStr "name? "
+			; main.bas 12: StdIO.PutStr "name? "
 			dw fn_stdio_putstr, str5
 
-			; main.bas 12: StdIO.GetLine s
+			; main.bas 13: StdIO.GetLine s
 			dw fn_stdio_getline, var_s
 
-			; main.bas 13: StdIO.PutStr "hi " & s
+			; main.bas 14: StdIO.PutStr "hi " & s
 			dw kw_strcpy, stmp0, str6
 			dw kw_strcat, stmp0, var_s
 			dw fn_stdio_putstr, stmp0
 
-			; main.bas 14: StdIO.NewLine
+			; main.bas 15: StdIO.NewLine
 			dw fn_stdio_newline
 
-			; main.bas 15: k = StdIO.GetChar()
+			; main.bas 16: k = StdIO.GetChar()
 			dw fn_stdio_getchar, var_k
 
-			; main.bas 16: Print "key "; k; " col "; StdIO.Column()
+			; main.bas 17: Print "key "; k; " col "; StdIO.Column()
 			dw kw_printstrvar, str7
 			dw kw_printint, var_k
 			dw fn_stdio_column, var_stdio_column_column
 			dw kw_printstrvar, str8
 			dw kw_printint, var_stdio_column_column
 			dw kw_printnl
-
-			; main.bas 17: Print "Press a key";
+			dw kw_printnl0
 			dw kw_printstrvar, str9
-
-			; main.bas 18: Do : Frame : Loop Until Inkey <> 0
-do2_t:
-			dw kw_frame
-			dw kw_inkey, tmp0
-			dw kw_cpnevl, tmp0, 0
-			dw kw_goto_iffalse_n, do2_t
-do2_e:
-
-			; main.bas 19: Print
-			dw kw_printnl
+			dw kw_waitkey
 			dw kw_stop
 
 ; ============================================================
@@ -189,7 +178,6 @@ var_stdio_cols_cols:			dw 0
 var_s:			ds 41
 var_k:			dw 0
 var_stdio_column_column:			dw 0
-tmp0:			dw 0
 			db 255			; capacity
 stmp0:			ds 256
 
@@ -224,21 +212,19 @@ ntc_rj_block:
 ntc_next:	jp 0
 kw_stop:		jp 1
 ntc_xn:		jp 2
-kw_goto_iffalse_n:	jp 11
-kw_cpnevl:	jp 98
 kw_strcpy:	jp 122
 kw_strcat:	jp 124
 ntc_printbuf:	jp 128
 kw_printstrvar:	jp 129
 kw_printint:	jp 131
+kw_printnl0:	jp 134
 kw_printnl:	jp 138
 kw_inputstr:	jp 141
-kw_inkey:	jp 144
-kw_frame:	jp 152
 ntc_plat_putc:	jp 308
 ntc_plat_newline:	jp 309
 ntc_plat_getkey:	jp 310
-NTC_RJ_N	equ 17		; entries
+kw_waitkey:	jp 348
+NTC_RJ_N	equ 15		; entries
 ntc_csp	equ #8800		; ROM data
 ntc_curx	equ #8910		; ROM data
 ntc_ivar	equ #8814		; ROM data

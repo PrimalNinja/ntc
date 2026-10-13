@@ -41,19 +41,19 @@ ntc_go:
 main_thread:
 			dw kw_scrinit		; mode 1, ROMs off, clear screen
 
-			; Main.bas 24: Title.Show
+			; Main.bas 25: Title.Show
 			dw p_title_show_c
 
-			; Main.bas 25: Level1.Play
+			; Main.bas 26: Level1.Play
 			dw p_level1_play_c
 
-			; Main.bas 26: Level2.Play
+			; Main.bas 27: Level2.Play
 			dw p_level2_play_c
 
-			; Main.bas 27: Level1.Play
+			; Main.bas 28: Level1.Play
 			dw p_level1_play_c
 
-			; Main.bas 28: Print "Maths from main: 7 squared is "; Maths.Square(7)
+			; Main.bas 29: Print "Maths from main: 7 squared is "; Maths.Square(7)
 			dw p_maths_square_c, lit_7
 			dw kw_printzoscii
 			dw glyph_4D, glyph_61, glyph_74, glyph_68, glyph_73, glyph_20, glyph_66, glyph_72
@@ -63,7 +63,7 @@ main_thread:
 			dw kw_printint, var_maths_square_square
 			dw kw_printnl
 
-			; Main.bas 29: Print "Stars from main (Stage1's copy): "; Stars.Count()
+			; Main.bas 30: Print "Stars from main (Stage1's copy): "; Stars.Count()
 			dw p_stars_count_c
 			dw kw_printzoscii
 			dw glyph_53, glyph_74, glyph_61, glyph_72, glyph_73, glyph_20, glyph_66, glyph_72
@@ -74,34 +74,15 @@ main_thread:
 			dw kw_printint, var_stars_count_count
 			dw kw_printnl
 
-			; Main.bas 30: Credits.Show
+			; Main.bas 31: Credits.Show
 			dw p_credits_show_c
 
-			; Main.bas 31: Print "Press a key";
+			; Main.bas 32: End
+			dw kw_printnl0
 			dw kw_printzoscii
 			dw glyph_50, glyph_72, glyph_65, glyph_73, glyph_73, glyph_20, glyph_61, glyph_20
 			dw glyph_6B, glyph_65, glyph_79, 0		; "Press a key"
-
-			; Main.bas 32: Do While Inkey <> 0 : Loop
-do1_t:
-			dw kw_inkey, tmp0
-			dw kw_cpnevl, tmp0, 0
-			dw kw_goto_iffalse_n, do1_e
-			dw do1_t_go
-do1_e:
-
-			; Main.bas 33: Do : Frame : Loop Until Inkey <> 0
-do2_t:
-			dw kw_frame
-			dw kw_inkey, tmp0
-			dw kw_cpnevl, tmp0, 0
-			dw kw_goto_iffalse_n, do2_t
-do2_e:
-
-			; Main.bas 34: Print
-			dw kw_printnl
-
-			; Main.bas 35: End
+			dw kw_waitkey
 			dw kw_stop
 
 ; ============================================================
@@ -168,8 +149,6 @@ p_score_total:
 ;   turbo mode ends with ret, normal mode with jp ntc_xn
 ; ============================================================
 
-do1_t_go:			ld sp, do1_t
-			jp ntc_xn
 
 p_title_show_c:		; call show (normal)
 			ld (p_title_show_rs), sp
@@ -384,7 +363,6 @@ p_score_add_rs:			dw 0
 var_score_add_n:			dw 0
 var_score_t:			dw 0
 p_score_total_rs:			dw 0
-tmp0:			dw 0
 
 ; numbers passed by address (read only)
 lit_7:			dw 7
@@ -482,6 +460,12 @@ ntc_stop_back:
 			ei
 			ret
 
+;## kw_waitkey ntc_data ntc_plat_key
+; kw_waitkey - wait for a key (Option PressAnyKeyOnEnd, before kw_stop)
+kw_waitkey:
+			ld ix, ntc_next
+			jp ntc_plat_getkey
+
 ;## ntc_xn ntc_data @shared
 ; normal mode "next": every normal mode keyword ends here (its ret
 ; became jp ntc_xn). Thread position to ntc_ip, real stack, one
@@ -494,14 +478,6 @@ ntc_xn:
 			di
 			ld sp, (ntc_ip)
 			ret
-
-;## kw_goto_iffalse (normal mode copy)
-;kw_goto_iffalse, <label>  - branch if NZ (false)
-kw_goto_iffalse_n:
-			pop hl
-			jp z, ntc_xn
-			ld sp, hl
-			jp ntc_xn
 
 ;## ntc_for_jump (normal mode copy)
 ; tails for the FOR / NEXT keywords. DE = var value, HL = limit,
@@ -680,86 +656,6 @@ kw_mulvv:
 			ld d, (hl)
 			jp ntc_mul
 
-;## ntc_cmp
-ntc_cmp_slt:
-			ld a, d
-			xor #80
-			ld d, a
-			ld a, h
-			xor #80
-			ld h, a
-ntc_cmp_ult:
-			ex de, hl
-			or a
-			sbc hl, de
-			sbc a, a
-			inc a
-			ret
-ntc_cmp_sge:
-			ld a, d
-			xor #80
-			ld d, a
-			ld a, h
-			xor #80
-			ld h, a
-ntc_cmp_uge:
-			ex de, hl
-			or a
-			sbc hl, de
-			sbc a, a
-			ret
-ntc_cmp_sgt:
-			ld a, d
-			xor #80
-			ld d, a
-			ld a, h
-			xor #80
-			ld h, a
-ntc_cmp_ugt:
-			or a
-			sbc hl, de
-			sbc a, a
-			inc a
-			ret
-ntc_cmp_sle:
-			ld a, d
-			xor #80
-			ld d, a
-			ld a, h
-			xor #80
-			ld h, a
-ntc_cmp_ule:
-			or a
-			sbc hl, de
-			sbc a, a
-			ret
-ntc_cmp_eq:
-			or a
-			sbc hl, de
-			ret
-ntc_cmp_ne:
-			or a
-			sbc hl, de
-			jr z, ntc_cmp_ne_f
-			xor a
-			ret
-ntc_cmp_ne_f:
-			or 1
-			ret
-
-;## kw_cpnevl ntc_cmp
-kw_cpnevl:
-			pop hl
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			pop hl
-			jp ntc_cmp_ne
-
-; ============================================================
-; Memory (PEEK / POKE / DEEK / DOKE)
-; ============================================================
-
 ;## ntc_printbuf ntc_data ntc_plat_screen
 ; print the 0 terminated ASCII text at (ntc_sptr), then ret (thread)
 ntc_printbuf:
@@ -867,25 +763,20 @@ ntc_pi_done:
 			ld (ntc_sptr), hl
 			jp ntc_printbuf
 
+;## kw_printnl0 ntc_data ntc_plat_screen
+;kw_printnl0  - new line unless the cursor is at the start of a line
+kw_printnl0:
+			ld a, (ntc_curx)
+			or a
+			ret z
+			ld ix, ntc_next
+			jp ntc_plat_newline
+
 ;## kw_printnl ntc_data ntc_plat_screen
 ;kw_printnl
 kw_printnl:
 			ld ix, ntc_next
 			jp ntc_plat_newline
-
-;## kw_inkey ntc_data ntc_plat_key
-;kw_inkey, <destvar>  - new key press or 0, no wait
-kw_inkey:
-			pop hl
-			ld (ntc_ivar), hl
-			ld ix, ntc_inkey_got
-			jp ntc_plat_scankey
-ntc_inkey_got:
-			ld hl, (ntc_ivar)
-			ld (hl), a
-			inc hl
-			ld (hl), 0
-			ret
 
 ;## kw_scrinit ntc_data ntc_plat_screen
 ;kw_scrinit  - first word of any program that prints or reads keys:
@@ -894,12 +785,6 @@ kw_scrinit:
 			ld a, 1
 			ld ix, ntc_next
 			jp ntc_plat_mode
-
-;## kw_frame ntc_data ntc_plat_frame
-;kw_frame  - wait for the start of the next frame flyback
-kw_frame:
-			ld ix, ntc_next
-			jp ntc_plat_frame
 
 ;## ntc_font
 ; 8x8 font buffer, chars 32-126, 8 bytes each, bit 7 = leftmost pixel.
@@ -3539,36 +3424,6 @@ ntc_keymaps:
 			db "!", 34, 27, "Q", 9, "A", 0, "Z"
 			db 0, 0, 0, 0, 0, 0, 0, 127
 
-;## ntc_plat_frame ntc_data @shared
-; ------------------------------------------------------------
-; ntc_plat_frame - wait for the start of vsync (PPI port B bit 0)
-; normal mode: interrupts in while waiting
-; ------------------------------------------------------------
-ntc_plat_frame:
-			ld a, (ntc_nmode)
-			or a
-			jr z, ntc_fr_go
-			ld (ntc_ip), sp
-			ld sp, (ntc_csp)
-			ei
-ntc_fr_go:
-			ld b, #F5
-ntc_fr_in:
-			in a, (c)
-			rra
-			jr c, ntc_fr_in
-ntc_fr_wait:
-			in a, (c)
-			rra
-			jr nc, ntc_fr_wait
-			di
-			ld a, (ntc_nmode)
-			or a
-			jr z, ntc_fr_done
-			ld sp, (ntc_ip)
-ntc_fr_done:
-			jp (ix)
-
 ;## ntc_plat_irq ntc_plat_data ntc_data ntc_plat_irqh @shared
 ; ------------------------------------------------------------
 ; ntc_plat_irqon - put the interrupt handler at #38 (IM 1)
@@ -4319,7 +4174,7 @@ ntc_bss		equ ntc_end
 ntc_bss_size	equ 0
 ntc_free	equ ntc_bss + ntc_bss_size	; the first free byte (heap, Memory tables)
 ; Option Reserve: the program and its arrays (ntc_start .. ntc_free) must stay out of these
-			ASSERT (ntc_free <= 16384) || (ntc_start >= 32768), "the program (or its arrays) reaches into Option Reserve #4000-#7FFF (Main.bas line 22)"
+			ASSERT (ntc_free <= 16384) || (ntc_start >= 32768), "the program (or its arrays) reaches into Option Reserve #4000-#7FFF (Main.bas line 23)"
 			SAVEAMSDOS "PAGES.BIN", ntc_start, ntc_end - ntc_start, ntc_start
 			ASSERT (ntc_free <= #4000) || (ntc_start >= #8000), "overlay classes: the program and its arrays must stay out of #4000-#7FFF (the window they run in)"
 
@@ -4372,7 +4227,7 @@ p_level1_play:
 
 			; Level1.cls 4: For i = 1 To 3
 			dw kw_ltov, 1, var_level1_play_i
-for3_t:
+for1_t:
 
 			; Level1.cls 5: Score.Add Maths.Square(i)
 			dw p_maths_square_cl, var_level1_play_i
@@ -4382,8 +4237,8 @@ for3_t:
 			dw p_stars_add_cl
 
 			; Level1.cls 7: Next
-			dw kw_next1l_n, var_level1_play_i, 3, for3_t
-for3_e:
+			dw kw_next1l_n, var_level1_play_i, 3, for1_t
+for1_e:
 
 			; Level1.cls 8: Print "Level 1: score "; Score.Total(); ", stars here "; Stars.Count()
 			dw p_score_total_c
@@ -4563,4 +4418,4 @@ ovl_ending_vsize	equ 0		; its page variables; its local memory is the rest, to #
 			DISPLAY "  page variables ", /D, ovl_ending_vsize, ", free ", /D, #8000 - (ovl_ending_end + ovl_ending_vsize)
 			SAVEAMSDOS "PAGES.004", ovl_ending_start, ovl_ending_end - ovl_ending_start, #4000
 
-NTC_STAMP	equ #1B12		; the build stamp: the first word of every page file
+NTC_STAMP	equ #38D3		; the build stamp: the first word of every page file

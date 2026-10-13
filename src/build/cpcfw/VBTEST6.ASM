@@ -27,227 +27,216 @@ ntc_start:
 main_thread:
 			dw kw_bssinit, ntc_bss, ntc_bss_size		; the arrays: do they fit, clear them
 
-			; 20: Cls
+			; 21: Cls
 			dw kw_cls
 
-			; 21: Print "VB self test 6"
+			; 22: Print "VB self test 6"
 			dw kw_printstrvar, str0
 			dw kw_printnl
 
-			; 24: For i = 0 To 9
+			; 25: For i = 0 To 9
 			dw kw_ztov, var_i
 for1_t:
 
-			; 25: buf(i) = i * 30
+			; 26: buf(i) = i * 30
 			dw kw_mulvl, var_i, 30, tmp1
 			dw kw_aset8, arr_buf, var_i, tmp1
 
-			; 26: Next
+			; 27: Next
 			dw kw_next1l_n, var_i, 9, for1_t
 for1_e:
 
-			; 27: Chk buf(9), 14          ' 270 And 255
+			; 28: Chk buf(9), 14          ' 270 And 255
 			dw kw_lptrtov8, arr_buf+9, tmp0
 			dw p_chk_c, tmp0, lit_14
 
-			; 28: Chk buf(2), 60
+			; 29: Chk buf(2), 60
 			dw kw_lptrtov8, arr_buf+2, tmp0
 			dw p_chk_c, tmp0, lit_60
 
-			; 29: i = 3
+			; 30: i = 3
 			dw kw_ltov, 3, var_i
 
-			; 30: Chk buf(i), 90
+			; 31: Chk buf(i), 90
 			dw kw_aget8, arr_buf, var_i, tmp0
 			dw p_chk_c, tmp0, lit_90
 
-			; 31: buf(0) = 255
+			; 32: buf(0) = 255
 			dw kw_ltolptr8, 255, arr_buf
 
-			; 32: Chk buf(0), 255
+			; 33: Chk buf(0), 255
 			dw kw_lptrtov8, arr_buf, tmp0
 			dw p_chk_c, tmp0, lit_255
 
-			; 33: Chk ByteSum(buf), 255 + 30 + 60 + 90 + 120 + 150 + 180 + 210 + 240 + 14
+			; 34: Chk ByteSum(buf), 255 + 30 + 60 + 90 + 120 + 150 + 180 + 210 + 240 + 14
 			dw p_bytesum_c, ad_arr_buf
 			dw p_chk_c, var_bytesum_bytesum, lit_1349
 
-			; 36: ReDim dyn(5)
+			; 37: ReDim dyn(5)
 			dw kw_redim, pa_dyn, pa_dyn_data, 0, 2, 6, 1
 
-			; 37: Chk UBound(dyn), 5
+			; 38: Chk UBound(dyn), 5
 			dw kw_ubound, pa_dyn, tmp0
 			dw p_chk_c, tmp0, lit_5
 
-			; 38: Chk LBound(dyn), 0
+			; 39: Chk LBound(dyn), 0
 			dw kw_lbound, pa_dyn, tmp0
 			dw p_chk_c, tmp0, lit_0
 
-			; 39: For i = 0 To 5
+			; 40: For i = 0 To 5
 			dw kw_ztov, var_i
 for2_t:
 
-			; 40: dyn(i) = i * i
+			; 41: dyn(i) = i * i
 			dw kw_mulvv, var_i, var_i, tmp2
 			dw kw_pset, pa_dyn, var_i, tmp2
 
-			; 41: Next
+			; 42: Next
 			dw kw_next1l_n, var_i, 5, for2_t
 for2_e:
 
-			; 42: Chk dyn(5), 25
+			; 43: Chk dyn(5), 25
 			dw kw_pget, pa_dyn, lit_5, tmp0
 			dw p_chk_c, tmp0, lit_25
 
-			; 43: ReDim Preserve dyn(BIGN)
+			; 44: ReDim Preserve dyn(BIGN)
 			dw kw_redim, pa_dyn, pa_dyn_data, 0, 2, 21, 0
 
-			; 44: Chk UBound(dyn), 20
+			; 45: Chk UBound(dyn), 20
 			dw kw_ubound, pa_dyn, tmp0
 			dw p_chk_c, tmp0, lit_20
 
-			; 45: Chk dyn(4), 16
+			; 46: Chk dyn(4), 16
 			dw kw_pget, pa_dyn, lit_4, tmp0
 			dw p_chk_c, tmp0, lit_16
 
-			; 46: dyn(20) = 7
+			; 47: dyn(20) = 7
 			dw kw_pset, pa_dyn, lit_20, lit_7
 
-			; 47: Chk dyn(20), 7
+			; 48: Chk dyn(20), 7
 			dw kw_pget, pa_dyn, lit_20, tmp0
 			dw p_chk_c, tmp0, lit_7
 
-			; 48: ReDim dyn(1 To 3)
+			; 49: ReDim dyn(1 To 3)
 			dw kw_redim, pa_dyn, pa_dyn_data, 1, 2, 3, 1
 
-			; 49: Chk LBound(dyn), 1
+			; 50: Chk LBound(dyn), 1
 			dw kw_lbound, pa_dyn, tmp0
 			dw p_chk_c, tmp0, lit_1
 
-			; 50: Chk dyn(1), 0           ' cleared without Preserve
+			; 51: Chk dyn(1), 0           ' cleared without Preserve
 			dw kw_pget, pa_dyn, lit_1, tmp0
 			dw p_chk_c, tmp0, lit_0
 
-			; 51: dyn(3) = 9
+			; 52: dyn(3) = 9
 			dw kw_pset, pa_dyn, lit_3, lit_9
 
-			; 52: Chk Total(dyn), 9
+			; 53: Chk Total(dyn), 9
 			dw p_total_c, pa_dyn
 			dw p_chk_c, var_total_total, lit_9
 
-			; 53: Erase dyn
+			; 54: Erase dyn
 			dw kw_redim, pa_dyn, pa_dyn_data, 0, 2, 0, 0
 
-			; 54: Chk UBound(dyn), -1
+			; 55: Chk UBound(dyn), -1
 			dw kw_ubound, pa_dyn, tmp0
 			dw p_chk_c, tmp0, lit_m1
 
-			; 56: ReDim names(2)
+			; 57: ReDim names(2)
 			dw kw_redim, pa_names, pa_names_data, 0, 41, 3, 1
 
-			; 57: names(1) = "dyn"
+			; 58: names(1) = "dyn"
 			dw kw_psets, pa_names, lit_1, str1
 
-			; 58: Chk Len(names(1)), 3
+			; 59: Chk Len(names(1)), 3
 			dw kw_pget, pa_names, lit_1, stmp0
 			dw kw_strlen, stmp0, tmp0
 			dw p_chk_c, tmp0, lit_3
 
-			; 59: ReDim big(1)
+			; 60: ReDim big(1)
 			dw kw_redim, pa_big, pa_big_data, 0, 4, 2, 1
 
-			; 60: big(1) = 100000
+			; 61: big(1) = 100000
 			dw kw_pset, pa_big, lit_1, llit_100000
 
-			; 61: Chk big(1) \ 1000, 100
+			; 62: Chk big(1) \ 1000, 100
 			dw kw_pget, pa_big, lit_1, ltmp0
 			dw kw_l_div, ltmp0, llit_1000, ltmp0
 			dw kw_l_ltoi, ltmp0, tmp0
 			dw p_chk_c, tmp0, lit_100
 
-			; 64: fixed(2) = 5
+			; 65: fixed(2) = 5
 			dw kw_ltov, 5, arr_fixed+4
 
-			; 65: Erase fixed
+			; 66: Erase fixed
 			dw kw_erase, arr_fixed, 10
 
-			; 66: Chk fixed(2), 0
+			; 67: Chk fixed(2), 0
 			dw p_chk_c, arr_fixed+4, lit_0
 
-			; 69: ReDim recs(2)
+			; 70: ReDim recs(2)
 			dw kw_redim, pa_recs_n, pa_recs_n_data, 0, 2, 3, 1
 			dw kw_redim, pa_recs_nm, pa_recs_nm_data, 0, 41, 3, 1
 
-			; 70: For i = 0 To 2
+			; 71: For i = 0 To 2
 			dw kw_ztov, var_i
 for3_t:
 
-			; 71: recs(i).n = i * 5
+			; 72: recs(i).n = i * 5
 			dw kw_mulvl, var_i, 5, tmp2
 			dw kw_pset, pa_recs_n, var_i, tmp2
 
-			; 72: recs(i).nm = "r" & i
+			; 73: recs(i).nm = "r" & i
 			dw kw_strcstr, stmp3, var_i
 			dw kw_strcpy, stmp2, str2
 			dw kw_strcat, stmp2, stmp3
 			dw kw_psets, pa_recs_nm, var_i, stmp2
 
-			; 73: Next
+			; 74: Next
 			dw kw_next1l_n, var_i, 2, for3_t
 for3_e:
 
-			; 74: Chk UBound(recs), 2
+			; 75: Chk UBound(recs), 2
 			dw kw_ubound, pa_recs_n, tmp0
 			dw p_chk_c, tmp0, lit_2
 
-			; 75: Chk Len(recs(1).nm) + recs(2).n, 12
+			; 76: Chk Len(recs(1).nm) + recs(2).n, 12
 			dw kw_pget, pa_recs_nm, lit_1, stmp0
 			dw kw_strlen, stmp0, tmp0
 			dw kw_pget, pa_recs_n, lit_2, tmp1
 			dw kw_add, tmp0, tmp1, tmp0
 			dw p_chk_c, tmp0, lit_12
 
-			; 76: ReDim Preserve recs(4)
+			; 77: ReDim Preserve recs(4)
 			dw kw_redim, pa_recs_n, pa_recs_n_data, 0, 2, 5, 0
 			dw kw_redim, pa_recs_nm, pa_recs_nm_data, 0, 41, 5, 0
 
-			; 77: Chk recs(2).n, 10
+			; 78: Chk recs(2).n, 10
 			dw kw_pget, pa_recs_n, lit_2, tmp0
 			dw p_chk_c, tmp0, lit_10
 
-			; 78: Erase recs
+			; 79: Erase recs
 			dw kw_redim, pa_recs_n, pa_recs_n_data, 0, 2, 0, 0
 			dw kw_redim, pa_recs_nm, pa_recs_nm_data, 0, 41, 0, 0
 
-			; 79: Chk UBound(recs), -1
+			; 80: Chk UBound(recs), -1
 			dw kw_ubound, pa_recs_n, tmp0
 			dw p_chk_c, tmp0, lit_m1
 
-			; 81: Print
+			; 82: Print
 			dw kw_printnl
 
-			; 82: Print t; " tests, "; bad; " failed"
+			; 83: Print t; " tests, "; bad; " failed"
 			dw kw_printint, var_t
 			dw kw_printstrvar, str3
 			dw kw_printint, var_bad
 			dw kw_printstrvar, str4
 			dw kw_printnl
 
-			; 83: Print "Press a key";
+			; 84: End
+			dw kw_printnl0
 			dw kw_printstrvar, str5
-
-			; 84: Do : Frame : Loop Until Inkey <> 0
-do4_t:
-			dw kw_frame
-			dw kw_inkey, tmp0
-			dw kw_cpnevl, tmp0, 0
-			dw kw_goto_iffalse_n, do4_t
-do4_e:
-
-			; 85: Print
-			dw kw_printnl
-
-			; 86: End
+			dw kw_waitkey
 			dw kw_stop
 
 ; ============================================================
@@ -256,34 +245,34 @@ do4_e:
 
 p_chk:
 
-			; 89: t = t + 1
+			; 87: t = t + 1
 			dw kw_inc, var_t
 
-			; 90: Print t; ":";
+			; 88: Print t; ":";
 			dw kw_printint, var_t
 			dw kw_printstrvar, str6
 
-			; 91: If got = want Then
+			; 89: If got = want Then
 			dw kw_cpeqvv, var_chk_got, var_chk_want
-			dw kw_goto_iffalse_n, if5_1
+			dw kw_goto_iffalse_n, if4_1
 
-			; 92: Print "ok ";
+			; 90: Print "ok ";
 			dw kw_printstrvar, str7
 
-			; 93: Else
-			dw if5_e_go
-if5_1:
+			; 91: Else
+			dw if4_e_go
+if4_1:
 
-			; 94: Print "FAIL("; got; ") ";
+			; 92: Print "FAIL("; got; ") ";
 			dw kw_printstrvar, str8
 			dw kw_printint, var_chk_got
 			dw kw_printstrvar, str9
 
-			; 95: bad = bad + 1
+			; 93: bad = bad + 1
 			dw kw_inc, var_bad
 
-			; 96: End If
-if5_e:
+			; 94: End If
+if4_e:
 			dw p_chk_r
 
 ; ============================================================
@@ -292,25 +281,25 @@ if5_e:
 
 p_bytesum:
 
-			; 100: Dim k As Integer
+			; 98: Dim k As Integer
 
-			; 101: ByteSum = 0
+			; 99: ByteSum = 0
 			dw kw_ztov, var_bytesum_bytesum
 
-			; 102: For k = LBound(b) To UBound(b)
+			; 100: For k = LBound(b) To UBound(b)
 			dw kw_lbound, pa_bytesum_b, var_bytesum_k
-			dw kw_ubound, pa_bytesum_b, for6_l
-			dw kw_forupv_n, var_bytesum_k, for6_l, for6_e
-for6_t:
+			dw kw_ubound, pa_bytesum_b, for5_l
+			dw kw_forupv_n, var_bytesum_k, for5_l, for5_e
+for5_t:
 
-			; 103: ByteSum = ByteSum + b(k)
+			; 101: ByteSum = ByteSum + b(k)
 			dw kw_ztov, tmp1
 			dw kw_pget, pa_bytesum_b, var_bytesum_k, tmp1
 			dw kw_add, var_bytesum_bytesum, tmp1, var_bytesum_bytesum
 
-			; 104: Next
-			dw kw_next1v_n, var_bytesum_k, for6_l, for6_t
-for6_e:
+			; 102: Next
+			dw kw_next1v_n, var_bytesum_k, for5_l, for5_t
+for5_e:
 			dw p_bytesum_r
 
 ; ============================================================
@@ -319,24 +308,24 @@ for6_e:
 
 p_total:
 
-			; 108: Dim k As Integer
+			; 106: Dim k As Integer
 
-			; 109: Total = 0
+			; 107: Total = 0
 			dw kw_ztov, var_total_total
 
-			; 110: For k = LBound(a) To UBound(a)
+			; 108: For k = LBound(a) To UBound(a)
 			dw kw_lbound, pa_total_a, var_total_k
-			dw kw_ubound, pa_total_a, for7_l
-			dw kw_forupv_n, var_total_k, for7_l, for7_e
-for7_t:
+			dw kw_ubound, pa_total_a, for6_l
+			dw kw_forupv_n, var_total_k, for6_l, for6_e
+for6_t:
 
-			; 111: Total = Total + a(k)
+			; 109: Total = Total + a(k)
 			dw kw_pget, pa_total_a, var_total_k, tmp1
 			dw kw_add, var_total_total, tmp1, var_total_total
 
-			; 112: Next
-			dw kw_next1v_n, var_total_k, for7_l, for7_t
-for7_e:
+			; 110: Next
+			dw kw_next1v_n, var_total_k, for6_l, for6_t
+for6_e:
 			dw p_total_r
 
 ; ============================================================
@@ -348,7 +337,7 @@ for7_e:
 ;   turbo mode ends with ret, normal mode with jp ntc_xn
 ; ============================================================
 
-if5_e_go:			ld sp, if5_e
+if4_e_go:			ld sp, if4_e
 			jp ntc_xn
 
 p_chk_c:		; call chk (normal)
@@ -414,10 +403,10 @@ var_chk_got:			dw 0
 var_chk_want:			dw 0
 p_bytesum_rs:			dw 0
 var_bytesum_k:			dw 0
-for6_l:			dw 0
+for5_l:			dw 0
 p_total_rs:			dw 0
 var_total_k:			dw 0
-for7_l:			dw 0
+for6_l:			dw 0
 tmp0:			dw 0
 tmp1:			dw 0
 tmp2:			dw 0
@@ -514,6 +503,12 @@ ntc_stop_back:
 			ld sp, (ntc_csp)
 			ei
 			ret
+
+;## kw_waitkey ntc_data ntc_plat_key
+; kw_waitkey - wait for a key (Option PressAnyKeyOnEnd, before kw_stop)
+kw_waitkey:
+			ld ix, ntc_next
+			jp ntc_plat_getkey
 
 ;## ntc_xn ntc_data @shared
 ; normal mode "next": every normal mode keyword ends here (its ret
@@ -838,19 +833,6 @@ kw_cpeqvv:
 			ld l, a
 			jp ntc_cmp_eq
 
-;## kw_cpnevl ntc_cmp
-kw_cpnevl:
-			pop hl
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			pop hl
-			jp ntc_cmp_ne
-
-; ============================================================
-; Memory (PEEK / POKE / DEEK / DOKE)
-; ============================================================
-
 ;## kw_lptrtov8
 ;kw_lptrtov8, <literaladdr>, <destvar>  - PEEK(literal)
 kw_lptrtov8:
@@ -1135,37 +1117,26 @@ ntc_pi_done:
 			ld (ntc_sptr), hl
 			jp ntc_printbuf
 
+;## kw_printnl0 ntc_data ntc_plat_screen
+;kw_printnl0  - new line unless the cursor is at the start of a line
+kw_printnl0:
+			ld a, (ntc_curx)
+			or a
+			ret z
+			ld ix, ntc_next
+			jp ntc_plat_newline
+
 ;## kw_printnl ntc_data ntc_plat_screen
 ;kw_printnl
 kw_printnl:
 			ld ix, ntc_next
 			jp ntc_plat_newline
 
-;## kw_inkey ntc_data ntc_plat_key
-;kw_inkey, <destvar>  - new key press or 0, no wait
-kw_inkey:
-			pop hl
-			ld (ntc_ivar), hl
-			ld ix, ntc_inkey_got
-			jp ntc_plat_scankey
-ntc_inkey_got:
-			ld hl, (ntc_ivar)
-			ld (hl), a
-			inc hl
-			ld (hl), 0
-			ret
-
 ;## kw_cls ntc_data ntc_plat_screen
 ;kw_cls
 kw_cls:
 			ld ix, ntc_next
 			jp ntc_plat_cls
-
-;## kw_frame ntc_data ntc_plat_frame
-;kw_frame  - wait for the start of the next frame flyback
-kw_frame:
-			ld ix, ntc_next
-			jp ntc_plat_frame
 
 ;## kw_strcstr ntc_itoa
 ;kw_strcstr, <dest>, <nvar>  - number to text (CStr, "x" & n)
@@ -1829,12 +1800,6 @@ ntc_plat_getkey:
 			ld iy, #BB06			; KM WAIT CHAR
 			jp ntc_fwcall
 ntc_kslink:		dw 0
-
-;## ntc_plat_frame ntc_plat_fw
-; ntc_plat_frame - MC WAIT FLYBACK
-ntc_plat_frame:
-			ld iy, #BD19
-			jp ntc_fwcall
 
 ;## ntc_plat_exit ntc_plat_data ntc_plat_fw
 ntc_plat_exit:

@@ -1,4 +1,5 @@
 ' VB self test 5 - #asm, Inp / Out, Debug.Assert, classes as libraries (handles)
+Option PressAnyKeyOnEnd "Press a key"     ' at the end: a message and a key (a RUN" program resets when it ends)
 Option Explicit
 
 Const BASE = 100
@@ -61,9 +62,6 @@ Chk Pool.Open(1), -1
 
 Print
 Print t; " tests, "; bad; " failed"
-Print "Press a key";
-Do : Frame : Loop Until Inkey <> 0
-Print
 End
 
 Sub Chk(ByVal got As Integer, ByVal want As Integer)

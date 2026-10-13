@@ -3,6 +3,7 @@
 ' CP/M: everything. CPC firmware (cpcfw, cpcmin): Load, Save and one open file (disc, or
 ' tape without AMSDOS).
 ' CPC hardware / test platform: no files.
+Option PressAnyKeyOnEnd "Press a key"     ' at the end: a message and a key (a RUN" program resets when it ends)
 Option Explicit
 #If NTC_CPCFW Then
 ' RUN"FILES resets the firmware and drops AMSDOS: start it again (ROM 7) so files go to disc.
@@ -50,8 +51,4 @@ If FileSystem.Capability("SEQUENTIAL") Then
   r = FileSystem.Close(h)
 End If
 
-Print "Press a key";
-Do While Inkey <> 0 : Loop          ' no key left waiting from before
-Do : Frame : Loop Until Inkey <> 0
-Print
 End

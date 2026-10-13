@@ -35,11 +35,11 @@ ntc_rj_ok:
 main_thread:
 			dw kw_bssinit, ntc_bss, ntc_bss_size		; the arrays: do they fit, clear them
 
-			; main.bas 12: Input "How many passes (Return = 5)"; passes
+			; main.bas 13: Input "How many passes (Return = 5)"; passes
 			dw kw_printstrvar, str0
 			dw kw_inputint, var_passes
 
-			; main.bas 13: If passes < 1 Or passes > 100 Then passes = 5
+			; main.bas 14: If passes < 1 Or passes > 100 Then passes = 5
 			dw kw_scpltvl, var_passes, 1
 			dw kw_ftov, tmp0
 			dw kw_scpgtvl, var_passes, 100
@@ -49,17 +49,17 @@ main_thread:
 			dw kw_ltov, 5, var_passes
 if1_1:
 
-			; main.bas 14: Do
+			; main.bas 15: Do
 do2_t:
 
-			; main.bas 15: Print
+			; main.bas 16: Print
 			dw kw_printnl
 
-			; main.bas 16: Print "T = turbo, N = normal, X = exit"
+			; main.bas 17: Print "T = turbo, N = normal, X = exit"
 			dw kw_printstrvar, str1
 			dw kw_printnl
 
-			; main.bas 17: Do : k = UCase$(Inkey$) : Frame : Loop Until (k = "T") Or (k = "N") Or (k = "X")
+			; main.bas 18: Do : k = UCase$(Inkey$) : Frame : Loop Until (k = "T") Or (k = "N") Or (k = "X")
 do3_t:
 			dw kw_inkeys, stmp0
 			dw kw_strucase, stmp0, stmp0
@@ -76,13 +76,13 @@ do3_t:
 			dw kw_goto_ifzero_n, tmp0, do3_t
 do3_e:
 
-			; main.bas 18: If k = "X" Then Exit Do
+			; main.bas 19: If k = "X" Then Exit Do
 			dw kw_strcmpeq, var_k, str4
 			dw kw_goto_iffalse_n, if4_1
 			dw do2_e_go
 if4_1:
 
-			; main.bas 19: Print IIf(k = "T", "Turbo", "Normal"); ": "; passes; " passes..."
+			; main.bas 20: Print IIf(k = "T", "Turbo", "Normal"); ": "; passes; " passes..."
 			dw kw_strcmpeq, var_k, str2
 			dw kw_ftov, tmp0
 			dw kw_goto_ifzero_n, tmp0, ch5_0
@@ -100,52 +100,52 @@ ch5_e:
 			dw kw_printstrvar, str9
 			dw kw_printnl
 
-			; main.bas 20: t0 = Ticks
+			; main.bas 21: t0 = Ticks
 			dw kw_ticks, tmp0
 			dw kw_vtov, tmp0, var_t0
 
-			; main.bas 21: If k = "T" Then
+			; main.bas 22: If k = "T" Then
 			dw kw_strcmpeq, var_k, str2
 			dw kw_goto_iffalse_n, if6_1
 
-			; main.bas 22: Turbo On
+			; main.bas 23: Turbo On
 			dw kw_turbo_on
 
-			; main.bas 23: RunPasses
+			; main.bas 24: RunPasses
 			dw p_runpasses_c
 
-			; main.bas 24: Turbo Off
+			; main.bas 25: Turbo Off
 			dw kw_turbo_off
 
-			; main.bas 25: Else
+			; main.bas 26: Else
 			dw if6_e_go
 if6_1:
 
-			; main.bas 26: RunPasses
+			; main.bas 27: RunPasses
 			dw p_runpasses_n_c
 
-			; main.bas 27: End If
+			; main.bas 28: End If
 if6_e:
 
-			; main.bas 28: t1 = Ticks
+			; main.bas 29: t1 = Ticks
 			dw kw_ticks, tmp0
 			dw kw_vtov, tmp0, var_t1
 
-			; main.bas 29: Print "Done - stop the stopwatch"
+			; main.bas 30: Print "Done - stop the stopwatch"
 			dw kw_printstrvar, str10
 			dw kw_printnl
 
-			; main.bas 30: Print cnt; " primes below "; TOP
+			; main.bas 31: Print cnt; " primes below "; TOP
 			dw kw_printint, var_cnt
 			dw kw_printstrvar, str11
 			dw kw_printnl
 
-			; main.bas 31: If (k = "N") And (System.TicksPerSecond > 0) Then
+			; main.bas 32: If (k = "N") And (System.TicksPerSecond > 0) Then
 			dw kw_strcmpeq, var_k, str3
 			dw kw_ftov, tmp0
 			dw kw_goto_ifzero_n, tmp0, if7_1
 
-			; main.bas 32: Print "took "; t1 - t0; " ticks = "; (t1 - t0) \ System.TicksPerSecond; "."; ((t1 - t0) Mod System.TicksPerSecond) * 10 \ System.TicksPerSecond; " s"
+			; main.bas 33: Print "took "; t1 - t0; " ticks = "; (t1 - t0) \ System.TicksPerSecond; "."; ((t1 - t0) Mod System.TicksPerSecond) * 10 \ System.TicksPerSecond; " s"
 			dw kw_subvv, var_t1, var_t0, tmp0
 			dw kw_printstrvar, str12
 			dw kw_printint, tmp0
@@ -162,29 +162,32 @@ if6_e:
 			dw kw_printstrvar, str15
 			dw kw_printnl
 
-			; main.bas 33: ElseIf k = "T" Then
+			; main.bas 34: ElseIf k = "T" Then
 			dw do2_t_go
 if7_1:
 			dw kw_strcmpeq, var_k, str2
 			dw kw_goto_iffalse_n, do2_t
 
-			; main.bas 34: Print "(turbo runs with interrupts off, so"
+			; main.bas 35: Print "(turbo runs with interrupts off, so"
 			dw kw_printstrvar, str16
 			dw kw_printnl
 
-			; main.bas 35: Print "time it with the stopwatch)"
+			; main.bas 36: Print "time it with the stopwatch)"
 			dw kw_printstrvar, str17
 			dw kw_printnl
 
-			; main.bas 36: End If
+			; main.bas 37: End If
 if7_2:
 if7_e:
 
-			; main.bas 37: Loop
+			; main.bas 38: Loop
 			dw do2_t_go
 do2_e:
 
-			; main.bas 38: End
+			; main.bas 39: End
+			dw kw_printnl0
+			dw kw_printstrvar, str18
+			dw kw_waitkey
 			dw kw_stop
 
 ; ============================================================
@@ -193,18 +196,18 @@ do2_e:
 
 p_runpasses:
 
-			; main.bas 41: Dim p As Integer
+			; main.bas 42: Dim p As Integer
 
-			; main.bas 42: For p = 1 To passes
+			; main.bas 43: For p = 1 To passes
 			dw kw_ltov, 1, var_runpasses_p
 			dw kw_vtov, var_passes, for8_l
 			dw kw_forupv, var_runpasses_p, for8_l, for8_e
 for8_t:
 
-			; main.bas 43: Sieve
+			; main.bas 44: Sieve
 			dw p_sieve_c
 
-			; main.bas 44: Next
+			; main.bas 45: Next
 			dw kw_next1v, var_runpasses_p, for8_l, for8_t
 for8_e:
 			dw p_runpasses_r
@@ -215,18 +218,18 @@ for8_e:
 
 p_runpasses_n:
 
-			; main.bas 41: Dim p As Integer
+			; main.bas 42: Dim p As Integer
 
-			; main.bas 42: For p = 1 To passes
+			; main.bas 43: For p = 1 To passes
 			dw kw_ltov, 1, var_runpasses_p
 			dw kw_vtov, var_passes, for9_l
 			dw kw_forupv_n, var_runpasses_p, for9_l, for9_e
 for9_t:
 
-			; main.bas 43: Sieve
+			; main.bas 44: Sieve
 			dw p_sieve_n_c
 
-			; main.bas 44: Next
+			; main.bas 45: Next
 			dw kw_next1v_n, var_runpasses_p, for9_l, for9_t
 for9_e:
 			dw p_runpasses_n_r
@@ -237,56 +240,56 @@ for9_e:
 
 p_sieve:
 
-			; main.bas 48: Dim i As Integer, j As Integer
+			; main.bas 49: Dim i As Integer, j As Integer
 
-			; main.bas 49: For i = 2 To TOP
+			; main.bas 50: For i = 2 To TOP
 			dw kw_ltov, 2, var_sieve_i
 for10_t:
 
-			; main.bas 50: f(i) = 1
+			; main.bas 51: f(i) = 1
 			dw kw_aset8, arr_f, var_sieve_i, lit_1
 
-			; main.bas 51: Next
+			; main.bas 52: Next
 			dw kw_next1l, var_sieve_i, 8000, for10_t
 for10_e:
 
-			; main.bas 52: cnt = 0
+			; main.bas 53: cnt = 0
 			dw kw_ztov, var_cnt
 
-			; main.bas 53: For i = 2 To TOP
+			; main.bas 54: For i = 2 To TOP
 			dw kw_ltov, 2, var_sieve_i
 for11_t:
 
-			; main.bas 54: If f(i) = 1 Then
+			; main.bas 55: If f(i) = 1 Then
 			dw kw_aget8, arr_f, var_sieve_i, tmp0
 			dw kw_cpeqvl, tmp0, 1
 			dw kw_goto_iffalse, if12_1
 
-			; main.bas 55: cnt = cnt + 1
+			; main.bas 56: cnt = cnt + 1
 			dw kw_inc, var_cnt
 
-			; main.bas 56: j = i + i
+			; main.bas 57: j = i + i
 			dw kw_add, var_sieve_i, var_sieve_i, var_sieve_j
 
-			; main.bas 57: Do While j <= TOP
+			; main.bas 58: Do While j <= TOP
 do13_t:
 			dw kw_scplevl, var_sieve_j, 8000
 			dw kw_goto_iffalse, do13_e
 
-			; main.bas 58: f(j) = 0
+			; main.bas 59: f(j) = 0
 			dw kw_aset8, arr_f, var_sieve_j, lit_0
 
-			; main.bas 59: j = j + i
+			; main.bas 60: j = j + i
 			dw kw_add, var_sieve_j, var_sieve_i, var_sieve_j
 
-			; main.bas 60: Loop
+			; main.bas 61: Loop
 			dw do13_t_go
 do13_e:
 
-			; main.bas 61: End If
+			; main.bas 62: End If
 if12_1:
 
-			; main.bas 62: Next
+			; main.bas 63: Next
 			dw kw_next1l, var_sieve_i, 8000, for11_t
 for11_e:
 			dw p_sieve_r
@@ -297,56 +300,56 @@ for11_e:
 
 p_sieve_n:
 
-			; main.bas 48: Dim i As Integer, j As Integer
+			; main.bas 49: Dim i As Integer, j As Integer
 
-			; main.bas 49: For i = 2 To TOP
+			; main.bas 50: For i = 2 To TOP
 			dw kw_ltov, 2, var_sieve_i
 for14_t:
 
-			; main.bas 50: f(i) = 1
+			; main.bas 51: f(i) = 1
 			dw kw_aset8, arr_f, var_sieve_i, lit_1
 
-			; main.bas 51: Next
+			; main.bas 52: Next
 			dw kw_next1l_n, var_sieve_i, 8000, for14_t
 for14_e:
 
-			; main.bas 52: cnt = 0
+			; main.bas 53: cnt = 0
 			dw kw_ztov, var_cnt
 
-			; main.bas 53: For i = 2 To TOP
+			; main.bas 54: For i = 2 To TOP
 			dw kw_ltov, 2, var_sieve_i
 for15_t:
 
-			; main.bas 54: If f(i) = 1 Then
+			; main.bas 55: If f(i) = 1 Then
 			dw kw_aget8, arr_f, var_sieve_i, tmp0
 			dw kw_cpeqvl, tmp0, 1
 			dw kw_goto_iffalse_n, if16_1
 
-			; main.bas 55: cnt = cnt + 1
+			; main.bas 56: cnt = cnt + 1
 			dw kw_inc, var_cnt
 
-			; main.bas 56: j = i + i
+			; main.bas 57: j = i + i
 			dw kw_add, var_sieve_i, var_sieve_i, var_sieve_j
 
-			; main.bas 57: Do While j <= TOP
+			; main.bas 58: Do While j <= TOP
 do17_t:
 			dw kw_scplevl, var_sieve_j, 8000
 			dw kw_goto_iffalse_n, do17_e
 
-			; main.bas 58: f(j) = 0
+			; main.bas 59: f(j) = 0
 			dw kw_aset8, arr_f, var_sieve_j, lit_0
 
-			; main.bas 59: j = j + i
+			; main.bas 60: j = j + i
 			dw kw_add, var_sieve_j, var_sieve_i, var_sieve_j
 
-			; main.bas 60: Loop
+			; main.bas 61: Loop
 			dw do17_t_go
 do17_e:
 
-			; main.bas 61: End If
+			; main.bas 62: End If
 if16_1:
 
-			; main.bas 62: Next
+			; main.bas 63: Next
 			dw kw_next1l_n, var_sieve_i, 8000, for15_t
 for15_e:
 			dw p_sieve_n_r
@@ -462,6 +465,7 @@ str14:			db ".", 0
 str15:			db " s", 0
 str16:			db "(turbo runs with interrupts off, so", 0
 str17:			db "time it with the stopwatch)", 0
+str18:			db "Press a key", 0
 
 ; ============================================================
 ; Keyword library (rom)
@@ -505,6 +509,7 @@ kw_strcpy:	jp 122
 kw_strcmpeq:	jp 126
 kw_printstrvar:	jp 129
 kw_printint:	jp 131
+kw_printnl0:	jp 134
 kw_printnl:	jp 138
 kw_inputint:	jp 142
 kw_inkeys:	jp 145
@@ -512,7 +517,8 @@ kw_frame:	jp 152
 kw_ticks:	jp 154
 kw_strucase:	jp 180
 kw_bssinit:	jp 288
-NTC_RJ_N	equ 41		; entries
+kw_waitkey:	jp 348
+NTC_RJ_N	equ 43		; entries
 ntc_csp	equ #8800		; ROM data
 ntc_nmode	equ #8807		; ROM data
 ntc_v_free	equ #894E		; ROM data

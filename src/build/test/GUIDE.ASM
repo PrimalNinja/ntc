@@ -25,23 +25,23 @@ ntc_start:
 
 main_thread:
 
-			; 30: Cls
+			; 31: Cls
 			dw kw_cls
 
-			; 31: Input "Your name"; nm
+			; 32: Input "Your name"; nm
 			dw kw_printstrvar, str0
 			dw kw_inputstr, var_nm
 
-			; 32: Print "Hello " & nm
+			; 33: Print "Hello " & nm
 			dw kw_printstrvar, str1
 			dw kw_printstrvar, var_nm
 			dw kw_printnl
 
-			; 33: For i = 1 To 10
+			; 34: For i = 1 To 10
 			dw kw_ltov, 1, var_i
 for1_t:
 
-			; 34: If i Mod 3 = 0 Then Print "fizz "; Else Print i; " ";
+			; 35: If i Mod 3 = 0 Then Print "fizz "; Else Print i; " ";
 			dw kw_modvl, var_i, 3, tmp0
 			dw kw_cpeqvl, tmp0, 0
 			dw kw_goto_iffalse_n, if2_1
@@ -52,36 +52,25 @@ if2_1:
 			dw kw_printstrvar, str3
 if2_e:
 
-			; 35: Next
+			; 36: Next
 			dw kw_next1l_n, var_i, 10, for1_t
 for1_e:
 
-			; 36: Print
+			; 37: Print
 			dw kw_printnl
 
-			; 37: Print Shout(nm)
+			; 38: Print Shout(nm)
 			dw p_shout_c, var_nm
 			dw kw_printstrvar, var_shout_shout
 			dw kw_printnl
 
-			; 38: Break done
+			; 39: Break done
 			dw bp_done_n
 
-			; 39: Print "Press a key";
+			; 40: End
+			dw kw_printnl0
 			dw kw_printstrvar, str4
-
-			; 40: Do : Frame : Loop Until Inkey <> 0
-do3_t:
-			dw kw_frame
-			dw kw_inkey, tmp0
-			dw kw_cpnevl, tmp0, 0
-			dw kw_goto_iffalse_n, do3_t
-do3_e:
-
-			; 41: Print
-			dw kw_printnl
-
-			; 42: End
+			dw kw_waitkey
 			dw kw_stop
 
 ; ============================================================
@@ -90,7 +79,7 @@ do3_e:
 
 p_shout:
 
-			; 45: Shout = UCase$(s) & "!"
+			; 43: Shout = UCase$(s) & "!"
 			dw kw_strucase, stmp0, var_shout_s
 			dw kw_strcpy, var_shout_shout, stmp0
 			dw kw_strcat, var_shout_shout, str5
@@ -209,6 +198,12 @@ ntc_stop_back:
 			ld sp, (ntc_csp)
 			ei
 			ret
+
+;## kw_waitkey ntc_data ntc_plat_key
+; kw_waitkey - wait for a key (Option PressAnyKeyOnEnd, before kw_stop)
+kw_waitkey:
+			ld ix, ntc_next
+			jp ntc_plat_getkey
 
 ;## ntc_xn ntc_data @shared
 ; normal mode "next": every normal mode keyword ends here (its ret
@@ -508,19 +503,6 @@ kw_cpeqvl:
 			pop hl
 			jp ntc_cmp_eq
 
-;## kw_cpnevl ntc_cmp
-kw_cpnevl:
-			pop hl
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			pop hl
-			jp ntc_cmp_ne
-
-; ============================================================
-; Memory (PEEK / POKE / DEEK / DOKE)
-; ============================================================
-
 ;## kw_strcpy
 ;kw_strcpy, <destaddr>, <srcaddr>  - cut at the destination's capacity byte
 kw_strcpy:
@@ -665,6 +647,15 @@ ntc_pi_done:
 			ld (ntc_sptr), hl
 			jp ntc_printbuf
 
+;## kw_printnl0 ntc_data ntc_plat_screen
+;kw_printnl0  - new line unless the cursor is at the start of a line
+kw_printnl0:
+			ld a, (ntc_curx)
+			or a
+			ret z
+			ld ix, ntc_next
+			jp ntc_plat_newline
+
 ;## kw_printnl ntc_data ntc_plat_screen
 ;kw_printnl
 kw_printnl:
@@ -734,31 +725,11 @@ kw_inputstr:
 			ld de, ntc_next
 			jp ntc_gets
 
-;## kw_inkey ntc_data ntc_plat_key
-;kw_inkey, <destvar>  - new key press or 0, no wait
-kw_inkey:
-			pop hl
-			ld (ntc_ivar), hl
-			ld ix, ntc_inkey_got
-			jp ntc_plat_scankey
-ntc_inkey_got:
-			ld hl, (ntc_ivar)
-			ld (hl), a
-			inc hl
-			ld (hl), 0
-			ret
-
 ;## kw_cls ntc_data ntc_plat_screen
 ;kw_cls
 kw_cls:
 			ld ix, ntc_next
 			jp ntc_plat_cls
-
-;## kw_frame ntc_data ntc_plat_frame
-;kw_frame  - wait for the start of the next frame flyback
-kw_frame:
-			ld ix, ntc_next
-			jp ntc_plat_frame
 
 ;## kw_strucase
 ;kw_strucase, <dest>, <src>  - UCase$
@@ -919,10 +890,6 @@ ntc_plat_scankey:
 ; ntc_plat_getkey - wait for a key, A = key
 ntc_plat_getkey:
 			in a, (#fd)
-			jp (ix)
-
-;## ntc_plat_frame
-ntc_plat_frame:
 			jp (ix)
 
 ;## ntc_plat_exit ntc_plat_data

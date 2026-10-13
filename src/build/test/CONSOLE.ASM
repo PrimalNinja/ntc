@@ -25,26 +25,26 @@ ntc_start:
 
 main_thread:
 
-			; main.bas 3: StdIO.PutStr "cols "
+			; main.bas 4: StdIO.PutStr "cols "
 			dw fn_stdio_putstr, str0
 
-			; main.bas 4: StdIO.PutInt StdIO.Cols()
+			; main.bas 5: StdIO.PutInt StdIO.Cols()
 			dw fn_stdio_cols, var_stdio_cols_cols
 			dw fn_stdio_putint, var_stdio_cols_cols
 
-			; main.bas 5: StdIO.NewLine
+			; main.bas 6: StdIO.NewLine
 			dw fn_stdio_newline
 
-			; main.bas 6: StdIO.PutChar 65
+			; main.bas 7: StdIO.PutChar 65
 			dw fn_stdio_putchar, lit_65
 
-			; main.bas 7: StdIO.PutChar 66
+			; main.bas 8: StdIO.PutChar 66
 			dw fn_stdio_putchar, lit_66
 
-			; main.bas 8: StdIO.NewLine
+			; main.bas 9: StdIO.NewLine
 			dw fn_stdio_newline
 
-			; main.bas 9: If StdIO.CanPosition Then Print "can position" Else Print "stream"
+			; main.bas 10: If StdIO.CanPosition Then Print "can position" Else Print "stream"
 			dw kw_printstrvar, str1
 			dw kw_printnl
 			dw if1_e_go
@@ -53,48 +53,37 @@ if1_1:
 			dw kw_printnl
 if1_e:
 
-			; main.bas 10: Print System.Platform; " ticks/s "; System.TicksPerSecond
+			; main.bas 11: Print System.Platform; " ticks/s "; System.TicksPerSecond
 			dw kw_printstrvar, str4
 			dw kw_printnl
 
-			; main.bas 11: StdIO.PutStr "name? "
+			; main.bas 12: StdIO.PutStr "name? "
 			dw fn_stdio_putstr, str5
 
-			; main.bas 12: StdIO.GetLine s
+			; main.bas 13: StdIO.GetLine s
 			dw fn_stdio_getline, var_s
 
-			; main.bas 13: StdIO.PutStr "hi " & s
+			; main.bas 14: StdIO.PutStr "hi " & s
 			dw kw_strcpy, stmp0, str6
 			dw kw_strcat, stmp0, var_s
 			dw fn_stdio_putstr, stmp0
 
-			; main.bas 14: StdIO.NewLine
+			; main.bas 15: StdIO.NewLine
 			dw fn_stdio_newline
 
-			; main.bas 15: k = StdIO.GetChar()
+			; main.bas 16: k = StdIO.GetChar()
 			dw fn_stdio_getchar, var_k
 
-			; main.bas 16: Print "key "; k; " col "; StdIO.Column()
+			; main.bas 17: Print "key "; k; " col "; StdIO.Column()
 			dw kw_printstrvar, str7
 			dw kw_printint, var_k
 			dw fn_stdio_column, var_stdio_column_column
 			dw kw_printstrvar, str8
 			dw kw_printint, var_stdio_column_column
 			dw kw_printnl
-
-			; main.bas 17: Print "Press a key";
+			dw kw_printnl0
 			dw kw_printstrvar, str9
-
-			; main.bas 18: Do : Frame : Loop Until Inkey <> 0
-do2_t:
-			dw kw_frame
-			dw kw_inkey, tmp0
-			dw kw_cpnevl, tmp0, 0
-			dw kw_goto_iffalse_n, do2_t
-do2_e:
-
-			; main.bas 19: Print
-			dw kw_printnl
+			dw kw_waitkey
 			dw kw_stop
 
 ; ============================================================
@@ -180,7 +169,6 @@ var_stdio_cols_cols:			dw 0
 var_s:			ds 41
 var_k:			dw 0
 var_stdio_column_column:			dw 0
-tmp0:			dw 0
 			db 40			; capacity
 stmp0:			ds 41
 
@@ -249,6 +237,12 @@ ntc_stop_back:
 			ei
 			ret
 
+;## kw_waitkey ntc_data ntc_plat_key
+; kw_waitkey - wait for a key (Option PressAnyKeyOnEnd, before kw_stop)
+kw_waitkey:
+			ld ix, ntc_next
+			jp ntc_plat_getkey
+
 ;## ntc_xn ntc_data @shared
 ; normal mode "next": every normal mode keyword ends here (its ret
 ; became jp ntc_xn). Thread position to ntc_ip, real stack, one
@@ -261,94 +255,6 @@ ntc_xn:
 			di
 			ld sp, (ntc_ip)
 			ret
-
-;## kw_goto_iffalse (normal mode copy)
-;kw_goto_iffalse, <label>  - branch if NZ (false)
-kw_goto_iffalse_n:
-			pop hl
-			jp z, ntc_xn
-			ld sp, hl
-			jp ntc_xn
-
-;## ntc_cmp
-ntc_cmp_slt:
-			ld a, d
-			xor #80
-			ld d, a
-			ld a, h
-			xor #80
-			ld h, a
-ntc_cmp_ult:
-			ex de, hl
-			or a
-			sbc hl, de
-			sbc a, a
-			inc a
-			ret
-ntc_cmp_sge:
-			ld a, d
-			xor #80
-			ld d, a
-			ld a, h
-			xor #80
-			ld h, a
-ntc_cmp_uge:
-			ex de, hl
-			or a
-			sbc hl, de
-			sbc a, a
-			ret
-ntc_cmp_sgt:
-			ld a, d
-			xor #80
-			ld d, a
-			ld a, h
-			xor #80
-			ld h, a
-ntc_cmp_ugt:
-			or a
-			sbc hl, de
-			sbc a, a
-			inc a
-			ret
-ntc_cmp_sle:
-			ld a, d
-			xor #80
-			ld d, a
-			ld a, h
-			xor #80
-			ld h, a
-ntc_cmp_ule:
-			or a
-			sbc hl, de
-			sbc a, a
-			ret
-ntc_cmp_eq:
-			or a
-			sbc hl, de
-			ret
-ntc_cmp_ne:
-			or a
-			sbc hl, de
-			jr z, ntc_cmp_ne_f
-			xor a
-			ret
-ntc_cmp_ne_f:
-			or 1
-			ret
-
-;## kw_cpnevl ntc_cmp
-kw_cpnevl:
-			pop hl
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			pop hl
-			jp ntc_cmp_ne
-
-; ============================================================
-; Memory (PEEK / POKE / DEEK / DOKE)
-; ============================================================
 
 ;## kw_strcpy
 ;kw_strcpy, <destaddr>, <srcaddr>  - cut at the destination's capacity byte
@@ -494,6 +400,15 @@ ntc_pi_done:
 			ld (ntc_sptr), hl
 			jp ntc_printbuf
 
+;## kw_printnl0 ntc_data ntc_plat_screen
+;kw_printnl0  - new line unless the cursor is at the start of a line
+kw_printnl0:
+			ld a, (ntc_curx)
+			or a
+			ret z
+			ld ix, ntc_next
+			jp ntc_plat_newline
+
 ;## kw_printnl ntc_data ntc_plat_screen
 ;kw_printnl
 kw_printnl:
@@ -562,26 +477,6 @@ kw_inputstr:
 			pop hl
 			ld de, ntc_next
 			jp ntc_gets
-
-;## kw_inkey ntc_data ntc_plat_key
-;kw_inkey, <destvar>  - new key press or 0, no wait
-kw_inkey:
-			pop hl
-			ld (ntc_ivar), hl
-			ld ix, ntc_inkey_got
-			jp ntc_plat_scankey
-ntc_inkey_got:
-			ld hl, (ntc_ivar)
-			ld (hl), a
-			inc hl
-			ld (hl), 0
-			ret
-
-;## kw_frame ntc_data ntc_plat_frame
-;kw_frame  - wait for the start of the next frame flyback
-kw_frame:
-			ld ix, ntc_next
-			jp ntc_plat_frame
 
 ;## ntc_plat_data
 ntc_curx:		db 0			; cursor column (0 based)
@@ -722,10 +617,6 @@ ntc_plat_scankey:
 ; ntc_plat_getkey - wait for a key, A = key
 ntc_plat_getkey:
 			in a, (#fd)
-			jp (ix)
-
-;## ntc_plat_frame
-ntc_plat_frame:
 			jp (ix)
 
 ;## ntc_plat_exit ntc_plat_data

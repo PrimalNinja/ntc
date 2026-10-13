@@ -26,47 +26,47 @@ ntc_start:
 
 main_thread:
 
-			; 9: Cls
+			; 10: Cls
 			dw kw_cls
 
-			; 10: Print "VB self test 9"
+			; 11: Print "VB self test 9"
 			dw kw_printstrvar, str0
 			dw kw_printnl
 
-			; 13: Chk 2 ^ 10, 1024
+			; 14: Chk 2 ^ 10, 1024
 			dw p_chk_c, lit_1024, lit_1024
 
-			; 14: n = 3
+			; 15: n = 3
 			dw kw_ltov, 3, var_n
 
-			; 15: Chk n ^ 4, 81
+			; 16: Chk n ^ 4, 81
 			dw kw_pow, var_n, lit_4, tmp0
 			dw p_chk_c, tmp0, lit_81
 
-			; 16: Chk -2 ^ 2, -4
+			; 17: Chk -2 ^ 2, -4
 			dw p_chk_c, lit_m4, lit_m4
 
-			; 17: Chk 2 ^ 3 ^ 2, 64
+			; 18: Chk 2 ^ 3 ^ 2, 64
 			dw p_chk_c, lit_64, lit_64
 
-			; 18: Chk n ^ 0, 1
+			; 19: Chk n ^ 0, 1
 			dw kw_pow, var_n, lit_0, tmp0
 			dw p_chk_c, tmp0, lit_1
 
-			; 19: w = 10
+			; 20: w = 10
 			dw kw_l_mov, llit_10, var_w
 
-			; 20: ChkL w ^ 9, 1000000000
+			; 21: ChkL w ^ 9, 1000000000
 			dw kw_l_pow, var_w, llit_9, ltmp0
 			dw p_chkl_c, ltmp0, llit_1000000000
 
-			; 21: ChkL 3& ^ 13, 1594323
+			; 22: ChkL 3& ^ 13, 1594323
 			dw p_chkl_c, llit_1594323, llit_1594323
 
-			; 24: n = 5
+			; 25: n = 5
 			dw kw_ltov, 5, var_n
 
-			; 25: Chk IIf(n > 3, 100, 200), 100
+			; 26: Chk IIf(n > 3, 100, 200), 100
 			dw kw_scpgtvl, var_n, 3
 			dw kw_ftov, tmp0
 			dw kw_goto_ifzero_n, tmp0, ch1_0
@@ -80,7 +80,7 @@ ch1_1:
 ch1_e:
 			dw p_chk_c, tmp0, lit_100
 
-			; 26: Chk IIf(n > 9, 100, 200), 200
+			; 27: Chk IIf(n > 9, 100, 200), 200
 			dw kw_scpgtvl, var_n, 9
 			dw kw_ftov, tmp0
 			dw kw_goto_ifzero_n, tmp0, ch2_0
@@ -94,7 +94,7 @@ ch2_1:
 ch2_e:
 			dw p_chk_c, tmp0, lit_200
 
-			; 27: ChkS IIf(n = 5, "five", "other"), "five"
+			; 28: ChkS IIf(n = 5, "five", "other"), "five"
 			dw kw_cpeqvl, var_n, 5
 			dw kw_ftov, tmp0
 			dw kw_goto_ifzero_n, tmp0, ch3_0
@@ -108,7 +108,7 @@ ch3_1:
 ch3_e:
 			dw p_chks_c, stmp0, str1
 
-			; 28: ChkS "x" & IIf(n < 0, "neg", "pos"), "xpos"
+			; 29: ChkS "x" & IIf(n < 0, "neg", "pos"), "xpos"
 			dw kw_scpltvl, var_n, 0
 			dw kw_ftov, tmp1
 			dw kw_goto_ifzero_n, tmp1, ch4_0
@@ -124,13 +124,13 @@ ch4_e:
 			dw kw_strcat, stmp0, stmp1
 			dw p_chks_c, stmp0, str7
 
-			; 29: Chk Choose(2, 10, 20, 30), 20
+			; 30: Chk Choose(2, 10, 20, 30), 20
 			dw p_chk_c, lit_20, lit_20
 
-			; 30: i = 3
+			; 31: i = 3
 			dw kw_ltov, 3, var_i
 
-			; 31: Chk Choose(i, 10, 20, 30), 30
+			; 32: Chk Choose(i, 10, 20, 30), 30
 			dw kw_cpnevl, var_i, 1
 			dw kw_goto_iftrue_n, ch6_0
 			dw kw_ltov, 10, tmp0
@@ -150,10 +150,10 @@ ch6_2:
 ch6_e:
 			dw p_chk_c, tmp0, lit_30
 
-			; 32: i = 7
+			; 33: i = 7
 			dw kw_ltov, 7, var_i
 
-			; 33: Chk Choose(i, 10, 20, 30), 0
+			; 34: Chk Choose(i, 10, 20, 30), 0
 			dw kw_cpnevl, var_i, 1
 			dw kw_goto_iftrue_n, ch7_0
 			dw kw_ltov, 10, tmp0
@@ -173,7 +173,7 @@ ch7_2:
 ch7_e:
 			dw p_chk_c, tmp0, lit_0
 
-			; 34: ChkS Choose(n - 3, "a", "b", "c"), "b"
+			; 35: ChkS Choose(n - 3, "a", "b", "c"), "b"
 			dw kw_addl, var_n, -3, tmp0
 			dw kw_cpnevl, tmp0, 1
 			dw kw_goto_iftrue_n, ch8_0
@@ -194,7 +194,7 @@ ch8_2:
 ch8_e:
 			dw p_chks_c, stmp0, str9
 
-			; 37: Chk StrComp("abc", "abd"), -1
+			; 38: Chk StrComp("abc", "abd"), -1
 			dw kw_strcmplt, str11, str12
 			dw kw_ftov, tmp0
 			dw kw_strcmpgt, str11, str12
@@ -202,7 +202,7 @@ ch8_e:
 			dw kw_subvv, tmp0, tmp1, tmp0
 			dw p_chk_c, tmp0, lit_m1
 
-			; 38: Chk StrComp("abc", "abc"), 0
+			; 39: Chk StrComp("abc", "abc"), 0
 			dw kw_strcmplt, str11, str11
 			dw kw_ftov, tmp0
 			dw kw_strcmpgt, str11, str11
@@ -210,7 +210,7 @@ ch8_e:
 			dw kw_subvv, tmp0, tmp1, tmp0
 			dw p_chk_c, tmp0, lit_0
 
-			; 39: Chk StrComp("b", "abc"), 1
+			; 40: Chk StrComp("b", "abc"), 1
 			dw kw_strcmplt, str9, str11
 			dw kw_ftov, tmp0
 			dw kw_strcmpgt, str9, str11
@@ -218,130 +218,119 @@ ch8_e:
 			dw kw_subvv, tmp0, tmp1, tmp0
 			dw p_chk_c, tmp0, lit_1
 
-			; 40: s = "a,b,c,b"
+			; 41: s = "a,b,c,b"
 			dw kw_strcpy, var_s, str13
 
-			; 41: Chk InStrRev(s, "b"), 7
+			; 42: Chk InStrRev(s, "b"), 7
 			dw kw_strinstrrev, var_s, str9, lit_m1, tmp0
 			dw p_chk_c, tmp0, lit_7
 
-			; 42: Chk InStrRev(s, "b", 6), 3
+			; 43: Chk InStrRev(s, "b", 6), 3
 			dw kw_strinstrrev, var_s, str9, lit_6, tmp0
 			dw p_chk_c, tmp0, lit_3
 
-			; 43: Chk InStrRev(s, "z"), 0
+			; 44: Chk InStrRev(s, "z"), 0
 			dw kw_strinstrrev, var_s, str14, lit_m1, tmp0
 			dw p_chk_c, tmp0, lit_0
 
-			; 44: ChkS Replace(s, ",", "; "), "a; b; c; b"
+			; 45: ChkS Replace(s, ",", "; "), "a; b; c; b"
 			dw kw_strreplace, stmp0, var_s, str15, str16
 			dw p_chks_c, stmp0, str17
 
-			; 45: ChkS Replace(s, "b", ""), "a,,c,"
+			; 46: ChkS Replace(s, "b", ""), "a,,c,"
 			dw kw_strreplace, stmp0, var_s, str9, str3
 			dw p_chks_c, stmp0, str18
 
-			; 46: ChkS StrReverse("hello"), "olleh"
+			; 47: ChkS StrReverse("hello"), "olleh"
 			dw kw_strrev, stmp0, str19
 			dw p_chks_c, stmp0, str20
 
-			; 47: s = "abc"
+			; 48: s = "abc"
 			dw kw_strcpy, var_s, str11
 
-			; 48: s = StrReverse(s)
+			; 49: s = StrReverse(s)
 			dw kw_strrev, var_s, var_s
 
-			; 49: ChkS s, "cba"
+			; 50: ChkS s, "cba"
 			dw p_chks_c, var_s, str21
 
-			; 50: ChkS Oct$(8), "10"
+			; 51: ChkS Oct$(8), "10"
 			dw p_chks_c, str22, str22
 
-			; 51: n = 511
+			; 52: n = 511
 			dw kw_ltov, 511, var_n
 
-			; 52: ChkS Oct$(n), "777"
+			; 53: ChkS Oct$(n), "777"
 			dw kw_stroct, stmp0, var_n
 			dw p_chks_c, stmp0, str23
 
-			; 53: n = -1
+			; 54: n = -1
 			dw kw_ltov, -1, var_n
 
-			; 54: ChkS Oct(n), "177777"
+			; 55: ChkS Oct(n), "177777"
 			dw kw_stroct, stmp0, var_n
 			dw p_chks_c, stmp0, str24
 
-			; 57: Chk Sqr(144), 12
+			; 58: Chk Sqr(144), 12
 			dw p_chk_c, lit_12, lit_12
 
-			; 58: n = 150
+			; 59: n = 150
 			dw kw_ltov, 150, var_n
 
-			; 59: Chk Sqr(n), 12
+			; 60: Chk Sqr(n), 12
 			dw kw_sqr, var_n, tmp0
 			dw p_chk_c, tmp0, lit_12
 
-			; 60: Chk Sqr(-4), 0
+			; 61: Chk Sqr(-4), 0
 			dw p_chk_c, lit_0, lit_0
 
-			; 63: s = "hello world"
+			; 64: s = "hello world"
 			dw kw_strcpy, var_s, str25
 
-			; 64: Mid$(s, 1, 1) = "J"
+			; 65: Mid$(s, 1, 1) = "J"
 			dw kw_ltov, 1, tmp0
 			dw kw_ltov, 1, tmp1
 			dw kw_strmidset, var_s, tmp0, tmp1, str26
 
-			; 65: ChkS s, "Jello world"
+			; 66: ChkS s, "Jello world"
 			dw p_chks_c, var_s, str27
 
-			; 66: Mid$(s, 7) = "W0rld!!"
+			; 67: Mid$(s, 7) = "W0rld!!"
 			dw kw_ltov, 7, tmp0
 			dw kw_ltov, 255, tmp1
 			dw kw_strmidset, var_s, tmp0, tmp1, str28
 
-			; 67: ChkS s, "Jello W0rld"
+			; 68: ChkS s, "Jello W0rld"
 			dw p_chks_c, var_s, str29
 
-			; 70: For i = 1 To 3
+			; 71: For i = 1 To 3
 			dw kw_ltov, 1, var_i
 for9_t:
 
-			; 71: DoEvents
+			; 72: DoEvents
 			dw kw_irq
 
-			; 72: Next
+			; 73: Next
 			dw kw_next1l_n, var_i, 3, for9_t
 for9_e:
 
-			; 73: Chk i, 4
+			; 74: Chk i, 4
 			dw p_chk_c, var_i, lit_4
 
-			; 75: Print
+			; 76: Print
 			dw kw_printnl
 
-			; 76: Print t; " tests, "; bad; " failed"
+			; 77: Print t; " tests, "; bad; " failed"
 			dw kw_printint, var_t
 			dw kw_printstrvar, str30
 			dw kw_printint, var_bad
 			dw kw_printstrvar, str31
 			dw kw_printnl
 
-			; 77: Print "Press a key";
+			; 78: End
+			dw kw_printnl0
 			dw kw_printstrvar, str32
-
-			; 78: Do : Frame : Loop Until Inkey <> 0
-do10_t:
-			dw kw_frame
-			dw kw_inkey, tmp0
-			dw kw_cpnevl, tmp0, 0
-			dw kw_goto_iffalse_n, do10_t
-do10_e:
-
-			; 79: Print
-			dw kw_printnl
-
-			; 80: End
+			dw kw_waitkey
 			dw kw_stop
 
 ; ============================================================
@@ -350,34 +339,34 @@ do10_e:
 
 p_chk:
 
-			; 83: t = t + 1
+			; 81: t = t + 1
 			dw kw_inc, var_t
 
-			; 84: Print t; ":";
+			; 82: Print t; ":";
 			dw kw_printint, var_t
 			dw kw_printstrvar, str33
 
-			; 85: If got = want Then
+			; 83: If got = want Then
 			dw kw_cpeqvv, var_chk_got, var_chk_want
-			dw kw_goto_iffalse_n, if11_1
+			dw kw_goto_iffalse_n, if10_1
 
-			; 86: Print "ok ";
+			; 84: Print "ok ";
 			dw kw_printstrvar, str34
 
-			; 87: Else
-			dw if11_e_go
-if11_1:
+			; 85: Else
+			dw if10_e_go
+if10_1:
 
-			; 88: Print "FAIL("; got; ") ";
+			; 86: Print "FAIL("; got; ") ";
 			dw kw_printstrvar, str35
 			dw kw_printint, var_chk_got
 			dw kw_printstrvar, str36
 
-			; 89: bad = bad + 1
+			; 87: bad = bad + 1
 			dw kw_inc, var_bad
 
-			; 90: End If
-if11_e:
+			; 88: End If
+if10_e:
 			dw p_chk_r
 
 ; ============================================================
@@ -386,34 +375,34 @@ if11_e:
 
 p_chkl:
 
-			; 94: t = t + 1
+			; 92: t = t + 1
 			dw kw_inc, var_t
 
-			; 95: Print t; ":";
+			; 93: Print t; ":";
 			dw kw_printint, var_t
 			dw kw_printstrvar, str33
 
-			; 96: If got = want Then
+			; 94: If got = want Then
 			dw kw_l_cpeq, var_chkl_got, var_chkl_want
-			dw kw_goto_iffalse_n, if12_1
+			dw kw_goto_iffalse_n, if11_1
 
-			; 97: Print "ok ";
+			; 95: Print "ok ";
 			dw kw_printstrvar, str34
 
-			; 98: Else
-			dw if12_e_go
-if12_1:
+			; 96: Else
+			dw if11_e_go
+if11_1:
 
-			; 99: Print "FAIL("; got; ") ";
+			; 97: Print "FAIL("; got; ") ";
 			dw kw_printstrvar, str35
 			dw kw_l_print, var_chkl_got
 			dw kw_printstrvar, str36
 
-			; 100: bad = bad + 1
+			; 98: bad = bad + 1
 			dw kw_inc, var_bad
 
-			; 101: End If
-if12_e:
+			; 99: End If
+if11_e:
 			dw p_chkl_r
 
 ; ============================================================
@@ -422,34 +411,34 @@ if12_e:
 
 p_chks:
 
-			; 105: t = t + 1
+			; 103: t = t + 1
 			dw kw_inc, var_t
 
-			; 106: Print t; ":";
+			; 104: Print t; ":";
 			dw kw_printint, var_t
 			dw kw_printstrvar, str33
 
-			; 107: If got = want Then
+			; 105: If got = want Then
 			dw kw_strcmpeq, var_chks_got, var_chks_want
-			dw kw_goto_iffalse_n, if13_1
+			dw kw_goto_iffalse_n, if12_1
 
-			; 108: Print "ok ";
+			; 106: Print "ok ";
 			dw kw_printstrvar, str34
 
-			; 109: Else
-			dw if13_e_go
-if13_1:
+			; 107: Else
+			dw if12_e_go
+if12_1:
 
-			; 110: Print "FAIL["; got; "] ";
+			; 108: Print "FAIL["; got; "] ";
 			dw kw_printstrvar, str37
 			dw kw_printstrvar, var_chks_got
 			dw kw_printstrvar, str38
 
-			; 111: bad = bad + 1
+			; 109: bad = bad + 1
 			dw kw_inc, var_bad
 
-			; 112: End If
-if13_e:
+			; 110: End If
+if12_e:
 			dw p_chks_r
 
 ; ============================================================
@@ -475,11 +464,11 @@ ch7_e_go:			ld sp, ch7_e
 			jp ntc_xn
 ch8_e_go:			ld sp, ch8_e
 			jp ntc_xn
+if10_e_go:			ld sp, if10_e
+			jp ntc_xn
 if11_e_go:			ld sp, if11_e
 			jp ntc_xn
 if12_e_go:			ld sp, if12_e
-			jp ntc_xn
-if13_e_go:			ld sp, if13_e
 			jp ntc_xn
 
 p_chk_c:		; call chk (normal)
@@ -691,6 +680,12 @@ ntc_stop_back:
 			ld sp, (ntc_csp)
 			ei
 			ret
+
+;## kw_waitkey ntc_data ntc_plat_key
+; kw_waitkey - wait for a key (Option PressAnyKeyOnEnd, before kw_stop)
+kw_waitkey:
+			ld ix, ntc_next
+			jp ntc_plat_getkey
 
 ;## ntc_xn ntc_data @shared
 ; normal mode "next": every normal mode keyword ends here (its ret
@@ -1197,37 +1192,26 @@ ntc_pi_done:
 			ld (ntc_sptr), hl
 			jp ntc_printbuf
 
+;## kw_printnl0 ntc_data ntc_plat_screen
+;kw_printnl0  - new line unless the cursor is at the start of a line
+kw_printnl0:
+			ld a, (ntc_curx)
+			or a
+			ret z
+			ld ix, ntc_next
+			jp ntc_plat_newline
+
 ;## kw_printnl ntc_data ntc_plat_screen
 ;kw_printnl
 kw_printnl:
 			ld ix, ntc_next
 			jp ntc_plat_newline
 
-;## kw_inkey ntc_data ntc_plat_key
-;kw_inkey, <destvar>  - new key press or 0, no wait
-kw_inkey:
-			pop hl
-			ld (ntc_ivar), hl
-			ld ix, ntc_inkey_got
-			jp ntc_plat_scankey
-ntc_inkey_got:
-			ld hl, (ntc_ivar)
-			ld (hl), a
-			inc hl
-			ld (hl), 0
-			ret
-
 ;## kw_cls ntc_data ntc_plat_screen
 ;kw_cls
 kw_cls:
 			ld ix, ntc_next
 			jp ntc_plat_cls
-
-;## kw_frame ntc_data ntc_plat_frame
-;kw_frame  - wait for the start of the next frame flyback
-kw_frame:
-			ld ix, ntc_next
-			jp ntc_plat_frame
 
 ;## kw_pow
 ;kw_pow, <basevar>, <expvar>, <destvar>  - base ^ exp (Integer, low 16 bits; exp < 0 gives 0)
@@ -2252,10 +2236,6 @@ ntc_gk_back:
 			ld ix, (ntc_gklink)
 			jp (ix)
 ntc_gklink:		dw 0
-
-;## ntc_plat_frame
-ntc_plat_frame:
-			jp (ix)
 
 ;## ntc_plat_exit ntc_plat_data
 ; ntc_plat_exit - warm boot back to CP/M

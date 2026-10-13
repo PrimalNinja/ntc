@@ -39,135 +39,135 @@ main_thread:
 			dw kw_scrinit		; mode 1, ROMs off, clear screen
 			dw kw_bssinit, ntc_bss, ntc_bss_size		; the arrays: do they fit, clear them
 
-			; 23: Cls
+			; 24: Cls
 			dw kw_cls
 
-			; 24: Print "VB self test 7"
+			; 25: Print "VB self test 7"
 			dw kw_printzoscii
 			dw glyph_56, glyph_42, glyph_20, glyph_73, glyph_65, glyph_6C, glyph_66, glyph_20
 			dw glyph_74, glyph_65, glyph_73, glyph_74, glyph_20, glyph_37, 1, 0		; "VB self test 7\n"
 
-			; 27: p.x = 3
+			; 28: p.x = 3
 			dw kw_ltov, 3, var_p_x
 
-			; 28: p.y = 4
+			; 29: p.y = 4
 			dw kw_ltov, 4, var_p_y
 
-			; 29: Chk Dist2(p), 25
+			; 30: Chk Dist2(p), 25
 			dw p_dist2_c, var_p_x, var_p_y
 			dw p_chk_c, var_dist2_dist2, lit_25
 
-			; 30: Grow p, 10
+			; 31: Grow p, 10
 			dw p_grow_c, var_p_x, var_p_y, lit_10
 
-			; 31: Chk p.x, 13
+			; 32: Chk p.x, 13
 			dw p_chk_c, var_p_x, lit_13
 
-			; 32: Chk p.y, 14
+			; 33: Chk p.y, 14
 			dw p_chk_c, var_p_y, lit_14
 
-			; 33: q = p
+			; 34: q = p
 			dw kw_vtov, var_p_x, var_q_x
 			dw kw_vtov, var_p_y, var_q_y
 
-			; 34: NoGrow q
+			; 35: NoGrow q
 			dw p_nogrow_c, var_q_x, var_q_y
 
-			; 35: Chk q.x, 13
+			; 36: Chk q.x, 13
 			dw p_chk_c, var_q_x, lit_13
 
-			; 36: b.name = "box"
+			; 37: b.name = "box"
 			dw kw_strcpy, var_b_name, str0
 
-			; 37: b.size.x = 300
+			; 38: b.size.x = 300
 			dw kw_ltov, 300, var_b_size_x
 
-			; 38: b.size.y = 400
+			; 39: b.size.y = 400
 			dw kw_ltov, 400, var_b_size_y
 
-			; 39: b.topleft.x = 1
+			; 40: b.topleft.x = 1
 			dw kw_ltov, 1, var_b_topleft_x
 
-			; 40: SetArea b
+			; 41: SetArea b
 			dw p_setarea_c, var_b_name, var_b_topleft_x, var_b_topleft_y, var_b_size_x, var_b_size_y, var_b_area
 
-			; 41: Chk b.area \ 1000, 120
+			; 42: Chk b.area \ 1000, 120
 			dw kw_l_div, var_b_area, llit_1000, ltmp0
 			dw kw_l_ltoi, ltmp0, tmp0
 			dw p_chk_c, tmp0, lit_120
 
-			; 42: ChkS b.name, "box!"
+			; 43: ChkS b.name, "box!"
 			dw p_chks_c, var_b_name, str1
 
-			; 43: Chk b.topleft.x, 2
+			; 44: Chk b.topleft.x, 2
 			dw p_chk_c, var_b_topleft_x, lit_2
 
-			; 44: Chk Twice2(p), 49
+			; 45: Chk Twice2(p), 49
 			dw p_twice2_c, var_p_x, var_p_y
 			dw p_chk_c, var_twice2_twice2, lit_49
 
-			; 47: For i = 0 To 2
+			; 48: For i = 0 To 2
 			dw kw_ztov, var_i
 for1_t:
 
-			; 48: For j = 0 To 3
+			; 49: For j = 0 To 3
 			dw kw_ztov, var_j
 for2_t:
 
-			; 49: grid(i, j) = i * 10 + j
+			; 50: grid(i, j) = i * 10 + j
 			dw kw_4x, var_i, tmp0
 			dw kw_add, tmp0, var_j, tmp0
 			dw kw_mulvl, var_i, 10, tmp1
 			dw kw_add, tmp1, var_j, tmp1
 			dw kw_aset, arr_grid, tmp0, tmp1
 
-			; 50: Next
+			; 51: Next
 			dw kw_next1l_n, var_j, 3, for2_t
 for2_e:
 
-			; 51: Next
+			; 52: Next
 			dw kw_next1l_n, var_i, 2, for1_t
 for1_e:
 
-			; 52: Chk Corner(grid), 23
+			; 53: Chk Corner(grid), 23
 			dw p_corner_c, ad_arr_grid
 			dw p_chk_c, var_corner_corner, lit_23
 
-			; 53: Chk Sum2(grid), 0 + 1 + 2 + 3 + 10 + 11 + 12 + 13 + 20 + 21 + 22 + 23
+			; 54: Chk Sum2(grid), 0 + 1 + 2 + 3 + 10 + 11 + 12 + 13 + 20 + 21 + 22 + 23
 			dw p_sum2_c, ad_arr_grid
 			dw p_chk_c, var_sum2_sum2, lit_138
 
-			; 54: Chk Cols(grid), 3
+			; 55: Chk Cols(grid), 3
 			dw p_cols_c, ad_arr_grid
 			dw p_chk_c, var_cols_cols, lit_3
 
-			; 55: Clear2 grid
+			; 56: Clear2 grid
 			dw p_clear2_c, ad_arr_grid
 
-			; 56: Chk grid(2, 3), 0
+			; 57: Chk grid(2, 3), 0
 			dw p_chk_c, arr_grid+22, lit_0
 
-			; 59: w = &H12345678
+			; 60: w = &H12345678
 			dw kw_l_mov, llit_305419896, var_w
 
-			; 60: ChkS Hex$(w), "12345678"
+			; 61: ChkS Hex$(w), "12345678"
 			dw kw_l_hex, stmp0, var_w
 			dw p_chks_c, stmp0, str2
 
-			; 61: w = -1
+			; 62: w = -1
 			dw kw_l_mov, llit_m1, var_w
 
-			; 62: ChkS Hex$(w), "FFFFFFFF"
+			; 63: ChkS Hex$(w), "FFFFFFFF"
 			dw kw_l_hex, stmp0, var_w
 			dw p_chks_c, stmp0, str3
 
-			; 63: w = 0
+			; 64: w = 0
 			dw kw_l_mov, llit_0, var_w
 
-			; 64: i = 2
+			; 65: i = 2
 			dw kw_ltov, 2, var_i
 
-			; 66: For k = 1 To 10 Step i
+			; 67: For k = 1 To 10 Step i
 			dw kw_l_mov, llit_1, var_k
 			dw kw_l_itol, var_i, for3_s
 			dw kw_l_cplt, for3_s, llit_0
@@ -180,10 +180,10 @@ for3_n:
 			dw kw_goto_iftrue_n, for3_e
 for3_t:
 
-			; 67: w = w + k
+			; 68: w = w + k
 			dw kw_l_add, var_w, var_k, var_w
 
-			; 68: Next
+			; 69: Next
 			dw kw_l_add, var_k, for3_s, var_k
 			dw kw_l_cplt, for3_s, llit_0
 			dw kw_goto_iftrue_n, for3_m
@@ -195,11 +195,11 @@ for3_m:
 			dw kw_goto_iftrue_n, for3_t
 for3_e:
 
-			; 69: Chk w, 25
+			; 70: Chk w, 25
 			dw kw_l_ltoi, var_w, tmp0
 			dw p_chk_c, tmp0, lit_25
 
-			; 70: For k = 10 To 1 Step -i
+			; 71: For k = 10 To 1 Step -i
 			dw kw_l_mov, llit_10, var_k
 			dw kw_negv, var_i, tmp0
 			dw kw_l_itol, tmp0, for4_s
@@ -213,10 +213,10 @@ for4_n:
 			dw kw_goto_iftrue_n, for4_e
 for4_t:
 
-			; 71: w = w + k
+			; 72: w = w + k
 			dw kw_l_add, var_w, var_k, var_w
 
-			; 72: Next
+			; 73: Next
 			dw kw_l_add, var_k, for4_s, var_k
 			dw kw_l_cplt, for4_s, llit_0
 			dw kw_goto_iftrue_n, for4_m
@@ -228,14 +228,14 @@ for4_m:
 			dw kw_goto_iftrue_n, for4_t
 for4_e:
 
-			; 73: Chk w, 55
+			; 74: Chk w, 55
 			dw kw_l_ltoi, var_w, tmp0
 			dw p_chk_c, tmp0, lit_55
 
-			; 75: Print
+			; 76: Print
 			dw kw_printnl
 
-			; 76: Print t; " tests, "; bad; " failed"
+			; 77: Print t; " tests, "; bad; " failed"
 			dw kw_printint, var_t
 			dw kw_printzoscii
 			dw glyph_20, glyph_74, glyph_65, glyph_73, glyph_74, glyph_73, glyph_2C, glyph_20
@@ -245,23 +245,12 @@ for4_e:
 			dw glyph_20, glyph_66, glyph_61, glyph_69, glyph_6C, glyph_65, glyph_64, 1
 			dw 0		; " failed\n"
 
-			; 77: Print "Press a key";
+			; 78: End
+			dw kw_printnl0
 			dw kw_printzoscii
 			dw glyph_50, glyph_72, glyph_65, glyph_73, glyph_73, glyph_20, glyph_61, glyph_20
 			dw glyph_6B, glyph_65, glyph_79, 0		; "Press a key"
-
-			; 78: Do : Frame : Loop Until Inkey <> 0
-do5_t:
-			dw kw_frame
-			dw kw_inkey, tmp0
-			dw kw_cpnevl, tmp0, 0
-			dw kw_goto_iffalse_n, do5_t
-do5_e:
-
-			; 79: Print
-			dw kw_printnl
-
-			; 80: End
+			dw kw_waitkey
 			dw kw_stop
 
 ; ============================================================
@@ -270,38 +259,38 @@ do5_e:
 
 p_chk:
 
-			; 83: t = t + 1
+			; 81: t = t + 1
 			dw kw_inc, var_t
 
-			; 84: Print t; ":";
+			; 82: Print t; ":";
 			dw kw_printint, var_t
 			dw kw_printzoscii
 			dw glyph_3A, 0		; ":"
 
-			; 85: If got = want Then
+			; 83: If got = want Then
 			dw kw_cpeqvv, var_chk_got, var_chk_want
-			dw kw_goto_iffalse_n, if6_1
+			dw kw_goto_iffalse_n, if5_1
 
-			; 86: Print "ok ";
+			; 84: Print "ok ";
 			dw kw_printzoscii
 			dw glyph_6F, glyph_6B, glyph_20, 0		; "ok "
 
-			; 87: Else
-			dw if6_e_go
-if6_1:
+			; 85: Else
+			dw if5_e_go
+if5_1:
 
-			; 88: Print "FAIL("; got; ") ";
+			; 86: Print "FAIL("; got; ") ";
 			dw kw_printzoscii
 			dw glyph_46, glyph_41, glyph_49, glyph_4C, glyph_28, 0		; "FAIL("
 			dw kw_printint, var_chk_got
 			dw kw_printzoscii
 			dw glyph_29, glyph_20, 0		; ") "
 
-			; 89: bad = bad + 1
+			; 87: bad = bad + 1
 			dw kw_inc, var_bad
 
-			; 90: End If
-if6_e:
+			; 88: End If
+if5_e:
 			dw p_chk_r
 
 ; ============================================================
@@ -310,38 +299,38 @@ if6_e:
 
 p_chks:
 
-			; 94: t = t + 1
+			; 92: t = t + 1
 			dw kw_inc, var_t
 
-			; 95: Print t; ":";
+			; 93: Print t; ":";
 			dw kw_printint, var_t
 			dw kw_printzoscii
 			dw glyph_3A, 0		; ":"
 
-			; 96: If got = want Then
+			; 94: If got = want Then
 			dw kw_strcmpeq, var_chks_got, var_chks_want
-			dw kw_goto_iffalse_n, if7_1
+			dw kw_goto_iffalse_n, if6_1
 
-			; 97: Print "ok ";
+			; 95: Print "ok ";
 			dw kw_printzoscii
 			dw glyph_6F, glyph_6B, glyph_20, 0		; "ok "
 
-			; 98: Else
-			dw if7_e_go
-if7_1:
+			; 96: Else
+			dw if6_e_go
+if6_1:
 
-			; 99: Print "FAIL["; got; "] ";
+			; 97: Print "FAIL["; got; "] ";
 			dw kw_printzoscii
 			dw glyph_46, glyph_41, glyph_49, glyph_4C, glyph_5B, 0		; "FAIL["
 			dw kw_printstrvar, var_chks_got
 			dw kw_printzoscii
 			dw glyph_5D, glyph_20, 0		; "] "
 
-			; 100: bad = bad + 1
+			; 98: bad = bad + 1
 			dw kw_inc, var_bad
 
-			; 101: End If
-if7_e:
+			; 99: End If
+if6_e:
 			dw p_chks_r
 
 ; ============================================================
@@ -350,7 +339,7 @@ if7_e:
 
 p_dist2:
 
-			; 105: Dist2 = a.x * a.x + a.y * a.y
+			; 103: Dist2 = a.x * a.x + a.y * a.y
 			dw kw_mulvv, var_dist2_a_x, var_dist2_a_x, tmp0
 			dw kw_mulvv, var_dist2_a_y, var_dist2_a_y, tmp1
 			dw kw_add, tmp0, tmp1, var_dist2_dist2
@@ -362,10 +351,10 @@ p_dist2:
 
 p_grow:
 
-			; 109: a.x = a.x + n
+			; 107: a.x = a.x + n
 			dw kw_add, var_grow_a_x, var_grow_n, var_grow_a_x
 
-			; 110: a.y = a.y + n
+			; 108: a.y = a.y + n
 			dw kw_add, var_grow_a_y, var_grow_n, var_grow_a_y
 			dw p_grow_r
 
@@ -375,7 +364,7 @@ p_grow:
 
 p_nogrow:
 
-			; 114: a.x = 0
+			; 112: a.x = 0
 			dw kw_ztov, var_nogrow_a_x
 			dw p_nogrow_r
 
@@ -385,15 +374,15 @@ p_nogrow:
 
 p_setarea:
 
-			; 119: bx.area = CLng(bx.size.x) * bx.size.y
+			; 117: bx.area = CLng(bx.size.x) * bx.size.y
 			dw kw_l_itol, var_setarea_bx_size_x, ltmp0
 			dw kw_l_itol, var_setarea_bx_size_y, ltmp1
 			dw kw_l_mul, ltmp0, ltmp1, var_setarea_bx_area
 
-			; 120: bx.name = bx.name & "!"
+			; 118: bx.name = bx.name & "!"
 			dw kw_strcat, var_setarea_bx_name, str4
 
-			; 121: Grow bx.topleft, 1
+			; 119: Grow bx.topleft, 1
 			dw p_grow_c, var_setarea_bx_topleft_x, var_setarea_bx_topleft_y, lit_1
 			dw p_setarea_r
 
@@ -403,7 +392,7 @@ p_setarea:
 
 p_twice2:
 
-			; 126: Twice2 = Dist2(a) \ 10 + a.x
+			; 124: Twice2 = Dist2(a) \ 10 + a.x
 			dw p_dist2_c, var_twice2_a_x, var_twice2_a_y
 			dw kw_vtov, var_dist2_dist2, tmp0
 			dw kw_divvl, tmp0, 10, tmp0
@@ -416,7 +405,7 @@ p_twice2:
 
 p_corner:
 
-			; 130: Corner = g(2, 3)
+			; 128: Corner = g(2, 3)
 			dw kw_pget2, pa_corner_g, lit_2, lit_3, var_corner_corner
 			dw p_corner_r
 
@@ -426,34 +415,34 @@ p_corner:
 
 p_sum2:
 
-			; 134: Dim r As Integer, c As Integer
+			; 132: Dim r As Integer, c As Integer
 
-			; 135: Sum2 = 0
+			; 133: Sum2 = 0
 			dw kw_ztov, var_sum2_sum2
 
-			; 136: For r = LBound(g, 1) To UBound(g, 1)
+			; 134: For r = LBound(g, 1) To UBound(g, 1)
 			dw kw_lbound, pa_sum2_g, var_sum2_r
-			dw kw_ubound, pa_sum2_g, for8_l
-			dw kw_forupv_n, var_sum2_r, for8_l, for8_e
+			dw kw_ubound, pa_sum2_g, for7_l
+			dw kw_forupv_n, var_sum2_r, for7_l, for7_e
+for7_t:
+
+			; 135: For c = LBound(g, 2) To UBound(g, 2)
+			dw kw_lbound, pa_sum2_g+2, var_sum2_c
+			dw kw_ubound, pa_sum2_g+2, for8_l
+			dw kw_forupv_n, var_sum2_c, for8_l, for8_e
 for8_t:
 
-			; 137: For c = LBound(g, 2) To UBound(g, 2)
-			dw kw_lbound, pa_sum2_g+2, var_sum2_c
-			dw kw_ubound, pa_sum2_g+2, for9_l
-			dw kw_forupv_n, var_sum2_c, for9_l, for9_e
-for9_t:
-
-			; 138: Sum2 = Sum2 + g(r, c)
+			; 136: Sum2 = Sum2 + g(r, c)
 			dw kw_pget2, pa_sum2_g, var_sum2_r, var_sum2_c, tmp1
 			dw kw_add, var_sum2_sum2, tmp1, var_sum2_sum2
 
-			; 139: Next
-			dw kw_next1v_n, var_sum2_c, for9_l, for9_t
-for9_e:
-
-			; 140: Next
-			dw kw_next1v_n, var_sum2_r, for8_l, for8_t
+			; 137: Next
+			dw kw_next1v_n, var_sum2_c, for8_l, for8_t
 for8_e:
+
+			; 138: Next
+			dw kw_next1v_n, var_sum2_r, for7_l, for7_t
+for7_e:
 			dw p_sum2_r
 
 ; ============================================================
@@ -462,7 +451,7 @@ for8_e:
 
 p_cols:
 
-			; 144: Cols = UBound(g, 2)
+			; 142: Cols = UBound(g, 2)
 			dw kw_ubound, pa_cols_g+2, var_cols_cols
 			dw p_cols_r
 
@@ -472,30 +461,30 @@ p_cols:
 
 p_clear2:
 
-			; 148: Dim r As Integer, c As Integer
+			; 146: Dim r As Integer, c As Integer
 
-			; 149: For r = 0 To UBound(g, 1)
+			; 147: For r = 0 To UBound(g, 1)
 			dw kw_ztov, var_clear2_r
-			dw kw_ubound, pa_clear2_g, for10_l
-			dw kw_forupv_n, var_clear2_r, for10_l, for10_e
+			dw kw_ubound, pa_clear2_g, for9_l
+			dw kw_forupv_n, var_clear2_r, for9_l, for9_e
+for9_t:
+
+			; 148: For c = 0 To UBound(g, 2)
+			dw kw_ztov, var_clear2_c
+			dw kw_ubound, pa_clear2_g+2, for10_l
+			dw kw_forupv_n, var_clear2_c, for10_l, for10_e
 for10_t:
 
-			; 150: For c = 0 To UBound(g, 2)
-			dw kw_ztov, var_clear2_c
-			dw kw_ubound, pa_clear2_g+2, for11_l
-			dw kw_forupv_n, var_clear2_c, for11_l, for11_e
-for11_t:
-
-			; 151: g(r, c) = 0
+			; 149: g(r, c) = 0
 			dw kw_pset2, pa_clear2_g, var_clear2_r, var_clear2_c, lit_0
 
-			; 152: Next
-			dw kw_next1v_n, var_clear2_c, for11_l, for11_t
-for11_e:
-
-			; 153: Next
-			dw kw_next1v_n, var_clear2_r, for10_l, for10_t
+			; 150: Next
+			dw kw_next1v_n, var_clear2_c, for10_l, for10_t
 for10_e:
+
+			; 151: Next
+			dw kw_next1v_n, var_clear2_r, for9_l, for9_t
+for9_e:
 			dw p_clear2_r
 
 ; ============================================================
@@ -515,9 +504,9 @@ for4_t_go:			ld sp, for4_t
 			jp ntc_xn
 for4_e_go:			ld sp, for4_e
 			jp ntc_xn
-if6_e_go:			ld sp, if6_e
+if5_e_go:			ld sp, if5_e
 			jp ntc_xn
-if7_e_go:			ld sp, if7_e
+if6_e_go:			ld sp, if6_e
 			jp ntc_xn
 
 p_chk_c:		; call chk (normal)
@@ -864,14 +853,14 @@ p_corner_rs:			dw 0
 p_sum2_rs:			dw 0
 var_sum2_r:			dw 0
 var_sum2_c:			dw 0
+for7_l:			dw 0
 for8_l:			dw 0
-for9_l:			dw 0
 p_cols_rs:			dw 0
 p_clear2_rs:			dw 0
 var_clear2_r:			dw 0
 var_clear2_c:			dw 0
+for9_l:			dw 0
 for10_l:			dw 0
-for11_l:			dw 0
 tmp0:			dw 0
 tmp1:			dw 0
 			db 255			; capacity
@@ -968,7 +957,6 @@ kw_mulvl:	jp 61
 kw_divvl:	jp 64
 kw_negv:		jp 69
 kw_cpeqvv:	jp 95
-kw_cpnevl:	jp 98
 kw_aset:		jp 112
 kw_strcpy:	jp 122
 kw_strcat:	jp 124
@@ -976,11 +964,10 @@ kw_strcmpeq:	jp 126
 kw_printzoscii:	jp 129
 kw_printstrvar:	jp 130
 kw_printint:	jp 132
+kw_printnl0:	jp 135
 kw_printnl:	jp 139
-kw_inkey:	jp 145
 kw_scrinit:	jp 147
 kw_cls:		jp 148
-kw_frame:	jp 153
 kw_pget2:	jp 203
 kw_pset2:	jp 204
 kw_lbound:	jp 205
@@ -998,7 +985,8 @@ kw_l_div:	jp 230
 kw_l_hex:	jp 238
 kw_bssinit:	jp 283
 ntc_plat_irqon:	jp 308
-NTC_RJ_N	equ 48		; entries
+kw_waitkey:	jp 321
+NTC_RJ_N	equ 47		; entries
 ntc_csp	equ #8800		; ROM data
 ntc_font	equ #948E		; ROM bss
 ntc_nmode	equ #8807		; ROM data

@@ -31,16 +31,16 @@ main_thread:
 			dw kw_scrinit		; mode 1, ROMs off, clear screen
 			dw kw_bssinit, ntc_bss, ntc_bss_size		; the arrays: do they fit, clear them
 
-			; main.bas 16: Mode 1
+			; main.bas 17: Mode 1
 			dw kw_model, 1
 
-			; main.bas 17: Print "AMSDOS test on "; System.Platform
+			; main.bas 18: Print "AMSDOS test on "; System.Platform
 			dw kw_printzoscii
 			dw glyph_41, glyph_4D, glyph_53, glyph_44, glyph_4F, glyph_53, glyph_20, glyph_74
 			dw glyph_65, glyph_73, glyph_74, glyph_20, glyph_6F, glyph_6E, glyph_20, glyph_43
 			dw glyph_50, glyph_43, 1, 0		; "AMSDOS test on CPC\n"
 
-			; main.bas 18: Print "Devices "; FileSystem.Devices(); " - using "; FileSystem.CurrentDevice()
+			; main.bas 19: Print "Devices "; FileSystem.Devices(); " - using "; FileSystem.CurrentDevice()
 			dw p_filesystem_devices_c
 			dw kw_printzoscii
 			dw glyph_44, glyph_65, glyph_76, glyph_69, glyph_63, glyph_65, glyph_73, glyph_20
@@ -53,7 +53,7 @@ main_thread:
 			dw kw_printstrvar, var_filesystem_currentdevice_currentdevice
 			dw kw_printnl
 
-			; main.bas 19: Print "Volumes "; FileSystem.Volumes(); " - using "; FileSystem.CurrentVolume()
+			; main.bas 20: Print "Volumes "; FileSystem.Volumes(); " - using "; FileSystem.CurrentVolume()
 			dw p_filesystem_volumes_c
 			dw kw_printzoscii
 			dw glyph_56, glyph_6F, glyph_6C, glyph_75, glyph_6D, glyph_65, glyph_73, glyph_20
@@ -66,10 +66,10 @@ main_thread:
 			dw kw_printstrvar, var_filesystem_currentvolume_currentvolume
 			dw kw_printnl
 
-			; main.bas 20: Wait
+			; main.bas 21: Wait
 			dw p_wait_c
 
-			; main.bas 22: For i = 0 To 9 : a(i) = 1000 - i * 50 : Next
+			; main.bas 23: For i = 0 To 9 : a(i) = 1000 - i * 50 : Next
 			dw kw_ztov, var_i
 for1_t:
 			dw kw_mulvl, var_i, 50, tmp2
@@ -78,22 +78,21 @@ for1_t:
 			dw kw_next1l_n, var_i, 9, for1_t
 for1_e:
 
-			; main.bas 23: r = FileSystem.Save("AMS1.DAT", VarPtr(a), 20)
+			; main.bas 24: r = FileSystem.Save("AMS1.DAT", VarPtr(a), 20)
 			dw p_filesystem_save_c, str1, vp_arr_a, lit_20
 			dw kw_vtov, var_filesystem_save_save, var_r
 
-			; main.bas 24: Print "Save AMS1.DAT:"; r
+			; main.bas 25: Print "Save AMS1.DAT:"; r
 			dw kw_printzoscii
 			dw glyph_53, glyph_61, glyph_76, glyph_65, glyph_20, glyph_41, glyph_4D, glyph_53
 			dw glyph_31, glyph_2E, glyph_44, glyph_41, glyph_54, glyph_3A, 0		; "Save AMS1.DAT:"
 			dw kw_printint, var_r
 			dw kw_printnl
 
-			; main.bas 25: r = FileSystem.Load("AMS1.DAT", VarPtr(b), 20)
-			dw p_filesystem_load_c, str1, vp_arr_b, lit_20
-			dw kw_vtov, var_filesystem_load_load, var_r
+			; main.bas 26: r = FileSystem.Load("AMS1.DAT", VarPtr(b), 20)
+			dw fn_filesystem_load, str1, vp_arr_b, lit_20, var_r
 
-			; main.bas 26: Print "Load AMS1.DAT:"; r; " -"; b(0); " ..."; b(9)
+			; main.bas 27: Print "Load AMS1.DAT:"; r; " -"; b(0); " ..."; b(9)
 			dw kw_printzoscii
 			dw glyph_4C, glyph_6F, glyph_61, glyph_64, glyph_20, glyph_41, glyph_4D, glyph_53
 			dw glyph_31, glyph_2E, glyph_44, glyph_41, glyph_54, glyph_3A, 0		; "Load AMS1.DAT:"
@@ -106,15 +105,15 @@ for1_e:
 			dw kw_printint, arr_b+18
 			dw kw_printnl
 
-			; main.bas 27: t = Ticks
+			; main.bas 28: t = Ticks
 			dw kw_ticks, tmp0
 			dw kw_vtov, tmp0, var_t
 
-			; main.bas 28: Frame : Frame
+			; main.bas 29: Frame : Frame
 			dw kw_frame
 			dw kw_frame
 
-			; main.bas 29: Print "Ticks still counting:"; IIf(Ticks <> t Or System.TicksPerSecond = 0, " yes", " NO")
+			; main.bas 30: Print "Ticks still counting:"; IIf(Ticks <> t Or System.TicksPerSecond = 0, " yes", " NO")
 			dw kw_ticks, tmp0
 			dw kw_cpnevv, tmp0, var_t
 			dw kw_ftov, tmp0
@@ -134,14 +133,14 @@ ch2_e:
 			dw kw_printstrvar, stmp0
 			dw kw_printnl
 
-			; main.bas 30: Print "A file that isn't there"
+			; main.bas 31: Print "A file that isn't there"
 			dw kw_printzoscii
 			dw glyph_41, glyph_20, glyph_66, glyph_69, glyph_6C, glyph_65, glyph_20, glyph_74
 			dw glyph_68, glyph_61, glyph_74, glyph_20, glyph_69, glyph_73, glyph_6E, glyph_27
 			dw glyph_74, glyph_20, glyph_74, glyph_68, glyph_65, glyph_72, glyph_65, 1
 			dw 0		; "A file that isn't there\n"
 
-			; main.bas 31: Print "(AMSDOS may print its message):"
+			; main.bas 32: Print "(AMSDOS may print its message):"
 			dw kw_printzoscii
 			dw glyph_28, glyph_41, glyph_4D, glyph_53, glyph_44, glyph_4F, glyph_53, glyph_20
 			dw glyph_6D, glyph_61, glyph_79, glyph_20, glyph_70, glyph_72, glyph_69, glyph_6E
@@ -149,11 +148,10 @@ ch2_e:
 			dw glyph_73, glyph_73, glyph_61, glyph_67, glyph_65, glyph_29, glyph_3A, 1
 			dw 0		; "(AMSDOS may print its message):\n"
 
-			; main.bas 32: r = FileSystem.Load("NOFILE.DAT", VarPtr(b), 20)
-			dw p_filesystem_load_c, str5, vp_arr_b, lit_20
-			dw kw_vtov, var_filesystem_load_load, var_r
+			; main.bas 33: r = FileSystem.Load("NOFILE.DAT", VarPtr(b), 20)
+			dw fn_filesystem_load, str5, vp_arr_b, lit_20, var_r
 
-			; main.bas 33: Print "Load NOFILE.DAT:"; r; " (NotFound is -2)"
+			; main.bas 34: Print "Load NOFILE.DAT:"; r; " (NotFound is -2)"
 			dw kw_printzoscii
 			dw glyph_4C, glyph_6F, glyph_61, glyph_64, glyph_20, glyph_4E, glyph_4F, glyph_46
 			dw glyph_49, glyph_4C, glyph_45, glyph_2E, glyph_44, glyph_41, glyph_54, glyph_3A
@@ -164,13 +162,13 @@ ch2_e:
 			dw glyph_6E, glyph_64, glyph_20, glyph_69, glyph_73, glyph_20, glyph_2D, glyph_32
 			dw glyph_29, 1, 0		; " (NotFound is -2)\n"
 
-			; main.bas 34: Wait
+			; main.bas 35: Wait
 			dw p_wait_c
 
-			; main.bas 36: Mode 2
+			; main.bas 37: Mode 2
 			dw kw_model, 2
 
-			; main.bas 37: Print "Mode 2 (80 columns): saving again..."
+			; main.bas 38: Print "Mode 2 (80 columns): saving again..."
 			dw kw_printzoscii
 			dw glyph_4D, glyph_6F, glyph_64, glyph_65, glyph_20, glyph_32, glyph_20, glyph_28
 			dw glyph_38, glyph_30, glyph_20, glyph_63, glyph_6F, glyph_6C, glyph_75, glyph_6D
@@ -178,11 +176,11 @@ ch2_e:
 			dw glyph_69, glyph_6E, glyph_67, glyph_20, glyph_61, glyph_67, glyph_61, glyph_69
 			dw glyph_6E, glyph_2E, glyph_2E, glyph_2E, 1, 0		; "Mode 2 (80 columns): saving again...\n"
 
-			; main.bas 38: r = FileSystem.Save("AMS2.DAT", VarPtr(a), 20)
+			; main.bas 39: r = FileSystem.Save("AMS2.DAT", VarPtr(a), 20)
 			dw p_filesystem_save_c, str6, vp_arr_a, lit_20
 			dw kw_vtov, var_filesystem_save_save, var_r
 
-			; main.bas 39: Print "Save AMS2.DAT:"; r; " - this line should still be 80 columns, under the one above"
+			; main.bas 40: Print "Save AMS2.DAT:"; r; " - this line should still be 80 columns, under the one above"
 			dw kw_printzoscii
 			dw glyph_53, glyph_61, glyph_76, glyph_65, glyph_20, glyph_41, glyph_4D, glyph_53
 			dw glyph_32, glyph_2E, glyph_44, glyph_41, glyph_54, glyph_3A, 0		; "Save AMS2.DAT:"
@@ -197,13 +195,13 @@ ch2_e:
 			dw glyph_68, glyph_65, glyph_20, glyph_6F, glyph_6E, glyph_65, glyph_20, glyph_61
 			dw glyph_62, glyph_6F, glyph_76, glyph_65, 1, 0		; " - this line should still be 80 columns, under the one above\n"
 
-			; main.bas 40: Wait
+			; main.bas 41: Wait
 			dw p_wait_c
 
-			; main.bas 42: Mode 1
+			; main.bas 43: Mode 1
 			dw kw_model, 1
 
-			; main.bas 43: Print "B = try drive B, any other key = skip"
+			; main.bas 44: Print "B = try drive B, any other key = skip"
 			dw kw_printzoscii
 			dw glyph_42, glyph_20, glyph_3D, glyph_20, glyph_74, glyph_72, glyph_79, glyph_20
 			dw glyph_64, glyph_72, glyph_69, glyph_76, glyph_65, glyph_20, glyph_42, glyph_2C
@@ -211,7 +209,7 @@ ch2_e:
 			dw glyph_65, glyph_72, glyph_20, glyph_6B, glyph_65, glyph_79, glyph_20, glyph_3D
 			dw glyph_20, glyph_73, glyph_6B, glyph_69, glyph_70, 1, 0		; "B = try drive B, any other key = skip\n"
 
-			; main.bas 44: Do While Inkey <> 0 : Loop
+			; main.bas 45: Do While Inkey <> 0 : Loop
 do3_t:
 			dw kw_inkey, tmp0
 			dw kw_cpnevl, tmp0, 0
@@ -219,7 +217,7 @@ do3_t:
 			dw do3_t_go
 do3_e:
 
-			; main.bas 45: Do : k = Inkey : Frame : Loop Until k <> 0
+			; main.bas 46: Do : k = Inkey : Frame : Loop Until k <> 0
 do4_t:
 			dw kw_inkey, tmp0
 			dw kw_vtov, tmp0, var_k
@@ -228,7 +226,7 @@ do4_t:
 			dw kw_goto_iffalse_n, do4_t
 do4_e:
 
-			; main.bas 46: If k = 66 Or k = 98 Then
+			; main.bas 47: If k = 66 Or k = 98 Then
 			dw kw_cpeqvl, var_k, 66
 			dw kw_ftov, tmp0
 			dw kw_cpeqvl, var_k, 98
@@ -236,7 +234,7 @@ do4_e:
 			dw kw_orvv, tmp0, tmp1, tmp0
 			dw kw_goto_ifzero_n, tmp0, if5_1
 
-			; main.bas 47: Print "SelectVolume B:"; FileSystem.SelectVolume("B")
+			; main.bas 48: Print "SelectVolume B:"; FileSystem.SelectVolume("B")
 			dw p_filesystem_selectvolume_c, str7
 			dw kw_printzoscii
 			dw glyph_53, glyph_65, glyph_6C, glyph_65, glyph_63, glyph_74, glyph_56, glyph_6F
@@ -244,11 +242,11 @@ do4_e:
 			dw kw_printint, var_filesystem_selectvolume_selectvolume
 			dw kw_printnl
 
-			; main.bas 48: r = FileSystem.Save("AMS3.DAT", VarPtr(a), 20)
+			; main.bas 49: r = FileSystem.Save("AMS3.DAT", VarPtr(a), 20)
 			dw p_filesystem_save_c, str8, vp_arr_a, lit_20
 			dw kw_vtov, var_filesystem_save_save, var_r
 
-			; main.bas 49: Print "Save B:AMS3.DAT:"; r
+			; main.bas 50: Print "Save B:AMS3.DAT:"; r
 			dw kw_printzoscii
 			dw glyph_53, glyph_61, glyph_76, glyph_65, glyph_20, glyph_42, glyph_3A, glyph_41
 			dw glyph_4D, glyph_53, glyph_33, glyph_2E, glyph_44, glyph_41, glyph_54, glyph_3A
@@ -256,11 +254,10 @@ do4_e:
 			dw kw_printint, var_r
 			dw kw_printnl
 
-			; main.bas 50: r = FileSystem.Load("AMS3.DAT", VarPtr(b), 20)
-			dw p_filesystem_load_c, str8, vp_arr_b, lit_20
-			dw kw_vtov, var_filesystem_load_load, var_r
+			; main.bas 51: r = FileSystem.Load("AMS3.DAT", VarPtr(b), 20)
+			dw fn_filesystem_load, str8, vp_arr_b, lit_20, var_r
 
-			; main.bas 51: Print "Load:"; r; " -"; b(0)
+			; main.bas 52: Print "Load:"; r; " -"; b(0)
 			dw kw_printzoscii
 			dw glyph_4C, glyph_6F, glyph_61, glyph_64, glyph_3A, 0		; "Load:"
 			dw kw_printint, var_r
@@ -269,11 +266,11 @@ do4_e:
 			dw kw_printint, arr_b
 			dw kw_printnl
 
-			; main.bas 52: r = FileSystem.SelectVolume("A")
+			; main.bas 53: r = FileSystem.SelectVolume("A")
 			dw p_filesystem_selectvolume_c, str9
 			dw kw_vtov, var_filesystem_selectvolume_selectvolume, var_r
 
-			; main.bas 53: Print "Volumes now "; FileSystem.Volumes()
+			; main.bas 54: Print "Volumes now "; FileSystem.Volumes()
 			dw p_filesystem_volumes_c
 			dw kw_printzoscii
 			dw glyph_56, glyph_6F, glyph_6C, glyph_75, glyph_6D, glyph_65, glyph_73, glyph_20
@@ -281,17 +278,19 @@ do4_e:
 			dw kw_printstrvar, var_filesystem_volumes_volumes
 			dw kw_printnl
 
-			; main.bas 54: End If
+			; main.bas 55: End If
 if5_1:
 
-			; main.bas 55: Print "done"
+			; main.bas 56: Print "done"
 			dw kw_printzoscii
 			dw glyph_64, glyph_6F, glyph_6E, glyph_65, 1, 0		; "done\n"
 
-			; main.bas 56: Wait
-			dw p_wait_c
-
 			; main.bas 57: End
+			dw kw_printnl0
+			dw kw_printzoscii
+			dw glyph_50, glyph_72, glyph_65, glyph_73, glyph_73, glyph_20, glyph_61, glyph_20
+			dw glyph_6B, glyph_65, glyph_79, 0		; "Press a key"
+			dw kw_waitkey
 			dw kw_stop
 
 ; ============================================================
@@ -323,22 +322,12 @@ do7_e:
 			dw p_wait_r
 
 ; ============================================================
-; function load (normal mode)
-; ============================================================
-
-p_filesystem_load:
-
-			; FileSystem.cls 40: Load = NotSupported
-			dw kw_ltov, -1, var_filesystem_load_load
-			dw p_filesystem_load_r
-
-; ============================================================
 ; function save (normal mode)
 ; ============================================================
 
 p_filesystem_save:
 
-			; FileSystem.cls 44: Save = NotSupported
+			; FileSystem.cls 82: Save = NotSupported
 			dw kw_ltov, -1, var_filesystem_save_save
 			dw p_filesystem_save_r
 
@@ -348,8 +337,16 @@ p_filesystem_save:
 
 p_filesystem_devices:
 
-			; FileSystem.cls 103: Devices = ""
+			; FileSystem.cls 239: If SelectVolume("R") = OK Then Devices = "ROM" Else Devices = ""
+			dw p_filesystem_selectvolume_c, str10
+			dw kw_vtov, var_filesystem_selectvolume_selectvolume, tmp0
+			dw kw_cpeqvl, tmp0, 0
+			dw kw_goto_iffalse_n, if8_1
+			dw kw_strcpy, var_filesystem_devices_devices, str11
+			dw if8_e_go
+if8_1:
 			dw kw_strcpy, var_filesystem_devices_devices, str4
+if8_e:
 			dw p_filesystem_devices_r
 
 ; ============================================================
@@ -358,8 +355,8 @@ p_filesystem_devices:
 
 p_filesystem_currentdevice:
 
-			; FileSystem.cls 106: CurrentDevice = ""
-			dw kw_strcpy, var_filesystem_currentdevice_currentdevice, str4
+			; FileSystem.cls 243: CurrentDevice = "ROM"
+			dw kw_strcpy, var_filesystem_currentdevice_currentdevice, str11
 			dw p_filesystem_currentdevice_r
 
 ; ============================================================
@@ -368,8 +365,16 @@ p_filesystem_currentdevice:
 
 p_filesystem_volumes:
 
-			; FileSystem.cls 112: Volumes = ""
+			; FileSystem.cls 253: If SelectVolume("R") = OK Then Volumes = "R" Else Volumes = ""
+			dw p_filesystem_selectvolume_c, str10
+			dw kw_vtov, var_filesystem_selectvolume_selectvolume, tmp0
+			dw kw_cpeqvl, tmp0, 0
+			dw kw_goto_iffalse_n, if10_1
+			dw kw_strcpy, var_filesystem_volumes_volumes, str10
+			dw if10_e_go
+if10_1:
 			dw kw_strcpy, var_filesystem_volumes_volumes, str4
+if10_e:
 			dw p_filesystem_volumes_r
 
 ; ============================================================
@@ -378,8 +383,8 @@ p_filesystem_volumes:
 
 p_filesystem_currentvolume:
 
-			; FileSystem.cls 115: CurrentVolume = ""
-			dw kw_strcpy, var_filesystem_currentvolume_currentvolume, str4
+			; FileSystem.cls 257: CurrentVolume = "R"
+			dw kw_strcpy, var_filesystem_currentvolume_currentvolume, str10
 			dw p_filesystem_currentvolume_r
 
 ; ============================================================
@@ -388,8 +393,31 @@ p_filesystem_currentvolume:
 
 p_filesystem_selectvolume:
 
-			; FileSystem.cls 118: SelectVolume = NotSupported
-			dw kw_ltov, -1, var_filesystem_selectvolume_selectvolume
+			; FileSystem.cls 262: Dim v As String
+
+			; FileSystem.cls 263: v = UCase$(name)
+			dw kw_strucase, var_filesystem_selectvolume_v, var_filesystem_selectvolume_name
+
+			; FileSystem.cls 264: If v = "R" Or v = "R:" Then
+			dw kw_strcmpeq, var_filesystem_selectvolume_v, str10
+			dw kw_ftov, tmp0
+			dw kw_strcmpeq, var_filesystem_selectvolume_v, str12
+			dw kw_ftov, tmp1
+			dw kw_orvv, tmp0, tmp1, tmp0
+			dw kw_goto_ifzero_n, tmp0, if11_1
+
+			; FileSystem.cls 265: SelectVolume = SelVol()
+			dw fn_filesystem_selvol, var_filesystem_selectvolume_selectvolume
+
+			; FileSystem.cls 266: Else
+			dw if11_e_go
+if11_1:
+
+			; FileSystem.cls 267: SelectVolume = NotFound
+			dw kw_ltov, -2, var_filesystem_selectvolume_selectvolume
+
+			; FileSystem.cls 268: End If
+if11_e:
 			dw p_filesystem_selectvolume_r
 
 ; ============================================================
@@ -407,6 +435,12 @@ do3_t_go:			ld sp, do3_t
 			jp ntc_xn
 do6_t_go:			ld sp, do6_t
 			jp ntc_xn
+if8_e_go:			ld sp, if8_e
+			jp ntc_xn
+if10_e_go:			ld sp, if10_e
+			jp ntc_xn
+if11_e_go:			ld sp, if11_e
+			jp ntc_xn
 
 p_wait_c:		; call wait (normal)
 			ld (p_wait_rs), sp
@@ -414,39 +448,6 @@ p_wait_c:		; call wait (normal)
 			jp ntc_xn
 p_wait_r:		; end of wait
 			ld sp, (p_wait_rs)
-			jp ntc_xn
-p_filesystem_load_c:		; call load (normal)
-			pop hl			; name
-			ld de, var_filesystem_load_name
-			ld b, 40
-p_filesystem_load_si0:
-			ld a, (hl)
-			ld (de), a
-			or a
-			jr z, p_filesystem_load_si0_e
-			inc hl
-			inc de
-			djnz p_filesystem_load_si0
-			xor a
-			ld (de), a
-p_filesystem_load_si0_e:
-			pop hl			; addr
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			ld (var_filesystem_load_addr), de
-			pop hl			; maxlen
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			ld (var_filesystem_load_maxlen), de
-			ld hl, 0
-			ld (var_filesystem_load_load), hl
-			ld (p_filesystem_load_rs), sp
-			ld sp, p_filesystem_load
-			jp ntc_xn
-p_filesystem_load_r:		; end of load
-			ld sp, (p_filesystem_load_rs)
 			jp ntc_xn
 p_filesystem_save_c:		; call save (normal)
 			pop hl			; name
@@ -534,12 +535,45 @@ p_filesystem_selectvolume_si0:
 p_filesystem_selectvolume_si0_e:
 			ld hl, 0
 			ld (var_filesystem_selectvolume_selectvolume), hl
+			xor a
+			ld (var_filesystem_selectvolume_v), a
 			ld (p_filesystem_selectvolume_rs), sp
 			ld sp, p_filesystem_selectvolume
 			jp ntc_xn
 p_filesystem_selectvolume_r:		; end of selectvolume
 			ld sp, (p_filesystem_selectvolume_rs)
 			jp ntc_xn
+
+; ============================================================
+; Inline assembly (#asm ... #endasm)
+; ============================================================
+
+fn_filesystem_load:		; function load (asm keyword), FileSystem.cls line 61
+            pop hl		; FileSystem.cls 62
+            ld (rd_a1), hl		; FileSystem.cls 63
+            pop hl		; FileSystem.cls 64
+            ld e, (hl)		; FileSystem.cls 65
+            inc hl		; FileSystem.cls 66
+            ld d, (hl)		; FileSystem.cls 67
+            ld (rd_a2), de		; FileSystem.cls 68
+            pop hl		; FileSystem.cls 69
+            ld e, (hl)		; FileSystem.cls 70
+            inc hl		; FileSystem.cls 71
+            ld d, (hl)		; FileSystem.cls 72
+            ld (rd_a3), de		; FileSystem.cls 73
+            pop hl		; FileSystem.cls 74
+            ld (rd_res), hl		; FileSystem.cls 75
+            ld hl, rd_load		; FileSystem.cls 76
+            jp rd_go		; FileSystem.cls 77
+			ret			; end of #asm
+
+fn_filesystem_selvol:		; function selvol (asm keyword), FileSystem.cls line 272
+            pop hl		; FileSystem.cls 273
+            ld (rd_res), hl		; FileSystem.cls 274
+            ld hl, rd_selvol		; FileSystem.cls 275
+            jp rd_go		; FileSystem.cls 276
+			ret			; end of #asm
+
 
 ; ============================================================
 ; Variables
@@ -556,16 +590,10 @@ var_filesystem_currentvolume_currentvolume:			ds 41
 var_i:			dw 0
 var_r:			dw 0
 var_filesystem_save_save:			dw 0
-var_filesystem_load_load:			dw 0
 var_t:			dw 0
 var_k:			dw 0
 var_filesystem_selectvolume_selectvolume:			dw 0
 p_wait_rs:			dw 0
-p_filesystem_load_rs:			dw 0
-			db 40			; capacity
-var_filesystem_load_name:			ds 41
-var_filesystem_load_addr:			dw 0
-var_filesystem_load_maxlen:			dw 0
 p_filesystem_save_rs:			dw 0
 			db 40			; capacity
 var_filesystem_save_name:			ds 41
@@ -578,6 +606,8 @@ p_filesystem_currentvolume_rs:			dw 0
 p_filesystem_selectvolume_rs:			dw 0
 			db 40			; capacity
 var_filesystem_selectvolume_name:			ds 41
+			db 40			; capacity
+var_filesystem_selectvolume_v:			ds 41
 tmp0:			dw 0
 tmp1:			dw 0
 tmp2:			dw 0
@@ -588,7 +618,6 @@ stmp0:			ds 41
 vp_arr_a:			dw arr_a
 lit_20:			dw 20
 vp_arr_b:			dw arr_b
-llit_m1:			dw 65535, 65535
 
 ; ============================================================
 ; ZOSCII glyphs - each points at its 8 byte bitmap in ntc_font
@@ -660,6 +689,9 @@ str6:			db "AMS2.DAT", 0
 str7:			db "B", 0
 str8:			db "AMS3.DAT", 0
 str9:			db "A", 0
+str10:			db "R", 0
+str11:			db "ROM", 0
+str12:			db "R:", 0
 
 ; ============================================================
 ; Keyword library (used)
@@ -705,6 +737,12 @@ ntc_stop_back:
 			ld sp, (ntc_csp)
 			ei
 			ret
+
+;## kw_waitkey ntc_data ntc_plat_key
+; kw_waitkey - wait for a key (Option PressAnyKeyOnEnd, before kw_stop)
+kw_waitkey:
+			ld ix, ntc_next
+			jp ntc_plat_getkey
 
 ;## ntc_xn ntc_data @shared
 ; normal mode "next": every normal mode keyword ends here (its ret
@@ -1097,6 +1135,21 @@ ntc_strcpy_loop:
 			ld (de), a
 			ret
 
+;## kw_strcmpeq
+;kw_strcmpeq, <addr1>, <addr2>  - Z if equal
+kw_strcmpeq:
+			pop de
+			pop hl
+ntc_streq_loop:
+			ld a, (de)
+			cp (hl)
+			ret nz
+			or a
+			ret z
+			inc hl
+			inc de
+			jr ntc_streq_loop
+
 ;## ntc_printbuf ntc_data ntc_plat_screen
 ; print the 0 terminated ASCII text at (ntc_sptr), then ret (thread)
 ntc_printbuf:
@@ -1211,6 +1264,15 @@ ntc_pi_done:
 			ld (ntc_sptr), hl
 			jp ntc_printbuf
 
+;## kw_printnl0 ntc_data ntc_plat_screen
+;kw_printnl0  - new line unless the cursor is at the start of a line
+kw_printnl0:
+			ld a, (ntc_curx)
+			or a
+			ret z
+			ld ix, ntc_next
+			jp ntc_plat_newline
+
 ;## kw_printnl ntc_data ntc_plat_screen
 ;kw_printnl
 kw_printnl:
@@ -1275,6 +1337,26 @@ ntc_tk_got:
 ; string buffer (41 bytes). Dest may be the same as the source.
 ; ============================================================
 
+;## kw_strucase
+;kw_strucase, <dest>, <src>  - UCase$
+kw_strucase:
+			pop de
+			pop hl
+ntc_uc_loop:
+			ld a, (hl)
+			cp 'a'
+			jr c, ntc_uc_put
+			cp 'z' + 1
+			jr nc, ntc_uc_put
+			sub 32
+ntc_uc_put:
+			ld (de), a
+			or a
+			ret z
+			inc hl
+			inc de
+			jr ntc_uc_loop
+
 ;## ntc_font
 ; 8x8 font buffer, chars 32-126, 8 bytes each, bit 7 = leftmost pixel.
 ; The platform fills it at start: the CPC copies its own font from the
@@ -1285,6 +1367,708 @@ ntc_font:		ds 95 * 8
 ; ============================================================
 ; Platform class capabilities
 ; ============================================================
+
+;## ntc_romdisc ntc_data ntc_plat_romsel @shared @ramonly
+; ------------------------------------------------------------
+; ntc_romdisc - ROMDISC: read-only files kept in ROMs, the FileSystem's
+; volume R (cpc, cpcmin, cpcfw). A disc is a set of ROMs NTCDISC.ROM,
+; NTCDISC2.ROM ... (made by ntcRomDisc in ntc_compiler.js) in any slots
+; 0-31: background ROMs whose names are followed by the block
+;   "NTC", 2, "ROMDISC", 0, dw stamp, db place, db ROMs, dw directory (ROM 0)
+; ROM 0 has the directory at #C040: entries of RD_ENTRY bytes, read until
+; one whose flags have bit 7 set (the end):
+;   +0 name (8, spaces after), +8 extension (3), +11 flags (bit 0
+;   compressed - none are yet), +12 its ROM (place in the set), +13 its
+;   address (dw), +15 its length (3 bytes)
+; A file's bytes run on from its address; past #FFFF they go on at RD_DATA
+; of the next ROM. Reading selects the disc's ROM (ntc_plat_romsel: rd_sel /
+; rd_unsel), so this runs from RAM: it is not in the keyword ROM (@ramonly).
+; Routines run on the real stack (rd_go on cpc, the FileSystem's fs_go on
+; cpcmin / cpcfw); arguments in rd_a1 .. rd_a3, a string / Long result at
+; (rd_res); HL = the result or a status. One file open: handle 2.
+; ------------------------------------------------------------
+RD_DATA		equ #C040		; directory (ROM 0) and file data start
+RD_ENTRY	equ 18
+RD_HANDLE	equ 2
+RD_NOTSUP	equ -1
+RD_NOTFOUND	equ -2
+RD_BADNAME	equ -4
+RD_NOHANDLE	equ -5
+RD_BADHANDLE	equ -6
+RD_EOF		equ -7
+RD_TOOBIG	equ -8
+rd_a1:			dw 0
+rd_a2:			dw 0
+rd_a3:			dw 0
+rd_res:			dw 0
+rd_sp:			dw 0
+rd_six:			dw 0
+rd_siy:			dw 0
+rd_nostore:		db 0
+rd_state:		db 0			; 0 = not looked for yet, 1 = there, 2 = none
+rd_want:		db 0
+rd_n:			db 0			; ROMs in the disc
+rd_stamp:		dw 0
+rd_dir:			dw 0			; the directory (ROM 0)
+rd_slots:		ds 8			; each ROM's slot
+rd_name:		ds 11			; a name as the directory has it
+rd_ent:			ds RD_ENTRY		; the entry found
+rd_isopen:		db 0			; 1 = a file open (handle 2)
+rd_rom:			db 0			; reading: the ROM, the address, the bytes left
+rd_addr:		dw 0
+rd_left:		ds 3
+rd_cnt:			dw 0
+rd_dst:			dw 0
+rd_cap:			db 0
+rd_sig:			db "NTC", 2, "ROMDISC", 0
+rd_sige:
+
+; rd_go / rd_go0 - (cpc) HL = the routine: run on the real stack, its HL
+; stored at (rd_res) (rd_go0: not stored - the routine writes its result)
+rd_go0:
+			ld a, 1
+			jr rd_gostart
+rd_go:
+			xor a
+rd_gostart:
+			ld (rd_nostore), a
+			ld (rd_sp), sp
+			ld sp, (ntc_csp)
+			ld (rd_six), ix
+			ld (rd_siy), iy
+			ld a, (ntc_nmode)
+			or a
+			jr z, rd_g_call
+			ei
+rd_g_call:
+			call rd_jphl
+			di
+			ld ix, (rd_six)
+			ld iy, (rd_siy)
+			ld a, (rd_nostore)
+			or a
+			jr nz, rd_g_end
+			ex de, hl
+			ld hl, (rd_res)
+			ld (hl), e
+			inc hl
+			ld (hl), d
+rd_g_end:
+			ld sp, (rd_sp)
+			ret
+rd_jphl:
+			jp (hl)
+
+; rd_mount - is a disc there? (looked for once). Z = yes
+rd_mount:
+			ld a, (rd_state)
+			cp 1
+			ret z
+			or a
+			jr nz, rd_mt_no
+			xor a
+			ld (rd_want), a
+			call rd_scan
+			jr c, rd_mt_none
+			ld (rd_slots), a
+			ld a, 1
+rd_mt_more:
+			ld (rd_want), a
+			ld hl, rd_n
+			cp (hl)
+			jr nc, rd_mt_ok
+			call rd_scan
+			jr c, rd_mt_none		; a part missing: no disc
+			ld b, a
+			ld a, (rd_want)
+			ld e, a
+			ld d, 0
+			ld hl, rd_slots
+			add hl, de
+			ld (hl), b
+			inc a
+			jr rd_mt_more
+rd_mt_ok:
+			ld a, 1
+			ld (rd_state), a
+			cp a					; Z
+			ret
+rd_mt_none:
+			ld a, 2
+			ld (rd_state), a
+rd_mt_no:
+			or 1					; NZ
+			ret
+
+; rd_scan - the disc ROM rd_want (0: any stamp; the others: ROM 0's stamp).
+; NC: A = its slot (ROM 0: rd_n, rd_stamp, rd_dir set). C: not there
+rd_scan:
+			ld c, 0
+rd_sc_next:
+			push bc
+			ld a, c
+			call rd_sel
+			call rd_sc_try
+			call rd_unsel
+			pop bc
+			jr nc, rd_sc_got
+			inc c
+			ld a, c
+			cp 32
+			jr c, rd_sc_next
+			scf
+			ret
+rd_sc_got:
+			ld a, c
+			ret
+rd_sc_try:							; (the ROM is in) NC = it is the one
+			ld a, (#C000)
+			cp 1					; a background ROM
+			jr nz, rd_sc_not
+			ld hl, (#C004)			; its names
+			ld a, h
+			cp #C0
+			jr c, rd_sc_not
+rd_sc_name:
+			ld a, (hl)
+			inc hl
+			or a
+			jr nz, rd_sc_name
+			ld de, rd_sig
+			ld b, rd_sige - rd_sig
+rd_sc_cmp:
+			ld a, (de)
+			cp (hl)
+			jr nz, rd_sc_not
+			inc de
+			inc hl
+			djnz rd_sc_cmp
+			ld e, (hl)
+			inc hl
+			ld d, (hl)				; DE = its stamp
+			inc hl
+			ld a, (rd_want)
+			cp (hl)
+			jr nz, rd_sc_not
+			inc hl
+			or a
+			jr nz, rd_sc_stamp
+			ld (rd_stamp), de		; ROM 0: the disc's stamp, ROMs, directory
+			ld a, (hl)
+			ld (rd_n), a
+			inc hl
+			ld e, (hl)
+			inc hl
+			ld d, (hl)
+			ld (rd_dir), de
+			or a
+			ret
+rd_sc_stamp:
+			ld hl, (rd_stamp)
+			or a
+			sbc hl, de
+			ret z					; (NC)
+rd_sc_not:
+			scf
+			ret
+
+; rd_mkname - HL = a name ("NAME.EXT", "R:NAME.EXT"): rd_name. NC, or C = not
+; a name (empty, more than 8.3)
+rd_mkname:
+			push hl
+			ld hl, rd_name
+			ld b, 11
+rd_mk_sp:
+			ld (hl), ' '
+			inc hl
+			djnz rd_mk_sp
+			pop hl
+			inc hl
+			ld a, (hl)
+			dec hl
+			cp ':'
+			jr nz, rd_mk_go
+			inc hl					; past "R:"
+			inc hl
+rd_mk_go:
+			ld de, rd_name
+			ld b, 9					; up to 8 letters, then . or the end
+			ld a, (hl)
+			or a
+			jr z, rd_mk_bad
+rd_mk_lp:
+			ld a, (hl)
+			or a
+			ret z					; (NC)
+			inc hl
+			cp '.'
+			jr z, rd_mk_ext
+			dec b
+			jr z, rd_mk_bad
+			call rd_up
+			ld (de), a
+			inc de
+			jr rd_mk_lp
+rd_mk_ext:
+			ld de, rd_name + 8
+			ld b, 4
+rd_mk_elp:
+			ld a, (hl)
+			or a
+			ret z
+			inc hl
+			dec b
+			jr z, rd_mk_bad
+			cp '.'
+			jr z, rd_mk_bad
+			call rd_up
+			ld (de), a
+			inc de
+			jr rd_mk_elp
+rd_mk_bad:
+			scf
+			ret
+rd_up:
+			cp 'a'
+			ret c
+			cp 'z' + 1
+			ret nc
+			sub 32
+			ret
+
+; rd_find - rd_a1 = a name: its entry into rd_ent. NC, or C with HL = the status
+rd_find:
+			call rd_mount
+			ld hl, RD_NOTFOUND
+			scf
+			ret nz
+			ld hl, (rd_a1)
+			call rd_mkname
+			ld hl, RD_BADNAME
+			ret c
+			ld a, (rd_slots)
+			call rd_sel
+			ld hl, (rd_dir)
+rd_fd_lp:
+			push hl
+			ld de, 11
+			add hl, de
+			bit 7, (hl)				; the end
+			pop hl
+			jr nz, rd_fd_none
+			push hl
+			ld de, rd_name
+			ld b, 11
+rd_fd_cmp:
+			ld a, (de)
+			cp (hl)
+			jr nz, rd_fd_nx
+			inc de
+			inc hl
+			djnz rd_fd_cmp
+			pop hl
+			ld de, rd_ent
+			ld bc, RD_ENTRY
+			ldir
+			call rd_unsel
+			or a					; NC
+			ret
+rd_fd_nx:
+			pop hl
+			ld de, RD_ENTRY
+			add hl, de
+			jr rd_fd_lp
+rd_fd_none:
+			call rd_unsel
+			ld hl, RD_NOTFOUND
+			scf
+			ret
+
+; rd_start - reading from the start of rd_ent's file (rd_rom, rd_addr, rd_left)
+rd_start:
+			ld hl, rd_ent + 12
+			ld de, rd_rom
+			ld bc, 6
+			ldir
+			ret
+
+; rd_copy - BC bytes (no more than are left) to DE: on from rd_rom / rd_addr
+rd_copy:
+			ld (rd_cnt), bc
+			ld (rd_dst), de
+rd_cp_lp:
+			ld hl, (rd_cnt)
+			ld a, h
+			or l
+			ret z
+			ld hl, (rd_addr)		; this ROM's part: up to #FFFF
+			ex de, hl
+			ld hl, 0
+			or a
+			sbc hl, de				; HL = #10000 - address
+			ld de, (rd_cnt)
+			or a
+			sbc hl, de
+			jr nc, rd_cp_all
+			add hl, de				; (only what this ROM has)
+			ld b, h
+			ld c, l
+			jr rd_cp_do
+rd_cp_all:
+			ld b, d
+			ld c, e
+rd_cp_do:
+			push bc
+			call rd_romslot
+			call rd_sel
+			pop bc
+			push bc
+			ld hl, (rd_addr)
+			ld de, (rd_dst)
+			ldir
+			ld (rd_dst), de
+			call rd_unsel
+			pop bc
+			ld hl, (rd_cnt)
+			or a
+			sbc hl, bc
+			ld (rd_cnt), hl
+			call rd_adv
+			jr rd_cp_lp
+
+; rd_adv - BC bytes read: on in the file (the next ROM past #FFFF), fewer left
+rd_adv:
+			ld hl, (rd_addr)
+			add hl, bc
+			jr nc, rd_av_same
+			ld a, h
+			or l
+			jr nz, rd_av_same
+			ld hl, rd_rom
+			inc (hl)
+			ld hl, RD_DATA
+rd_av_same:
+			ld (rd_addr), hl
+			ld hl, (rd_left)
+			or a
+			sbc hl, bc
+			ld (rd_left), hl
+			ret nc
+			ld hl, rd_left + 2
+			dec (hl)
+			ret
+
+; rd_romslot - A = the slot of rd_rom
+rd_romslot:
+			ld a, (rd_rom)
+			ld e, a
+			ld d, 0
+			ld hl, rd_slots
+			add hl, de
+			ld a, (hl)
+			ret
+
+; rd_getb - the next byte of the open file: A, NC; C = the end
+rd_getb:
+			ld hl, (rd_left)
+			ld a, h
+			or l
+			ld hl, rd_left + 2
+			or (hl)
+			scf
+			ret z
+			call rd_romslot
+			call rd_sel
+			ld hl, (rd_addr)
+			ld a, (hl)
+			push af
+			call rd_unsel
+			ld bc, 1
+			call rd_adv
+			pop af
+			or a					; NC
+			ret
+
+; rd_hchk - rd_a1 must be handle 2, open: else (from the routine) BadHandle
+rd_hchk:
+			ld hl, (rd_a1)
+			ld de, -RD_HANDLE
+			add hl, de
+			ld a, h
+			or l
+			jr nz, rd_hc_bad
+			ld a, (rd_isopen)
+			or a
+			ret nz
+rd_hc_bad:
+			pop hl					; (out of the routine)
+			ld hl, RD_BADHANDLE
+			ret
+
+; Load(name, addr, maxlen): its length, or a status (TooBig: nothing loaded)
+rd_load:
+			call rd_find
+			ret c
+			ld a, (rd_ent + 17)		; more than 65535, or more than maxlen
+			or a
+			ld hl, RD_TOOBIG
+			ret nz
+			ld de, (rd_ent + 15)
+			ld hl, (rd_a3)
+			or a
+			sbc hl, de
+			ld hl, RD_TOOBIG
+			ret c
+			call rd_start
+			ld bc, (rd_ent + 15)
+			ld de, (rd_a2)
+			call rd_copy
+			ld hl, (rd_ent + 15)
+			ret
+
+; Open(name, mode): handle 2, or a status (only ForRead: the disc is read only)
+rd_open:
+			ld a, (rd_isopen)
+			or a
+			ld hl, RD_NOHANDLE
+			ret nz
+			ld hl, (rd_a2)
+			dec hl
+			ld a, h
+			or l
+			ld hl, RD_NOTSUP
+			ret nz
+			call rd_find
+			ret c
+			call rd_start
+			ld a, 1
+			ld (rd_isopen), a
+			ld hl, RD_HANDLE
+			ret
+
+; Close(h): OK or BadHandle
+rd_close:
+			call rd_hchk
+			xor a
+			ld (rd_isopen), a
+			ld hl, 0
+			ret
+
+; ReadByte(h): 0-255, EndOfFile, BadHandle
+rd_readb:
+			call rd_hchk
+			call rd_getb
+			ld hl, RD_EOF
+			ret c
+			ld l, a
+			ld h, 0
+			ret
+
+; Read(h, addr, count): bytes read (fewer at the end)
+rd_read:
+			call rd_hchk
+			ld hl, (rd_a3)
+			bit 7, h
+			jr z, rd_rd_pos
+			ld hl, 0
+rd_rd_pos:
+			ld a, (rd_left + 2)		; no more than are left
+			or a
+			jr nz, rd_rd_go
+			ld de, (rd_left)
+			push hl
+			or a
+			sbc hl, de
+			pop hl
+			jr c, rd_rd_go
+			ex de, hl
+rd_rd_go:
+			push hl
+			ld b, h
+			ld c, l
+			ld de, (rd_a2)
+			call rd_copy
+			pop hl
+			ret
+
+; Eof(h): True when nothing is left (or h is not the open file)
+rd_eof:
+			ld hl, (rd_a1)
+			ld de, -RD_HANDLE
+			add hl, de
+			ld a, h
+			or l
+			jr nz, rd_ef_yes
+			ld a, (rd_isopen)
+			or a
+			jr z, rd_ef_yes
+			ld hl, (rd_left)
+			ld a, h
+			or l
+			ld hl, rd_left + 2
+			or (hl)
+			ld hl, 0
+			ret nz
+rd_ef_yes:
+			ld hl, -1
+			ret
+
+; ReadLine(h): the next line (up to LF; CR dropped) into the string at (rd_res)
+rd_readln:
+			ld hl, (rd_res)
+			ld (hl), 0
+			dec hl
+			ld a, (hl)
+			ld (rd_cap), a
+			inc hl
+			ld (rd_dst), hl
+			call rd_hchk
+rd_rl_lp:
+			call rd_getb
+			jr c, rd_rl_end
+			cp 10
+			jr z, rd_rl_end
+			cp 13
+			jr z, rd_rl_lp
+			ld c, a
+			ld a, (rd_cap)
+			or a
+			jr z, rd_rl_lp			; full: the rest of the line is dropped
+			dec a
+			ld (rd_cap), a
+			ld hl, (rd_dst)
+			ld (hl), c
+			inc hl
+			ld (rd_dst), hl
+			jr rd_rl_lp
+rd_rl_end:
+			ld hl, (rd_dst)
+			ld (hl), 0
+			ret
+
+; Exists(name): True / False
+rd_exists:
+			call rd_find
+			ld hl, 0
+			ret c
+			dec hl
+			ret
+
+; Size(name): its length, a Long written at (rd_res) (or a status)
+rd_size:
+			call rd_find
+			ld de, (rd_res)
+			jr c, rd_sz_status
+			ld hl, rd_ent + 15
+			ld bc, 3
+			ldir
+			xor a
+			ld (de), a
+			ret
+rd_sz_status:
+			ex de, hl
+			ld (hl), e
+			inc hl
+			ld (hl), d
+			inc hl
+			ld (hl), #FF
+			inc hl
+			ld (hl), #FF
+			ret
+
+; DirEntry(n): the n-th file's name ("NAME.EXT", 1 = the first) into the
+; string at (rd_res); "" past the last (or no disc)
+rd_dirent:
+			ld hl, (rd_res)
+			ld (hl), 0
+			dec hl
+			ld a, (hl)
+			ld (rd_cap), a
+			call rd_mount
+			ret nz
+			ld de, (rd_a1)
+			ld a, d
+			or a
+			ret nz
+			ld a, e
+			or a
+			ret z
+			ld b, a
+			ld a, (rd_slots)
+			push bc
+			call rd_sel				; (rd_sel uses BC)
+			pop bc
+			ld hl, (rd_dir)
+rd_de_lp:
+			push hl
+			ld de, 11
+			add hl, de
+			bit 7, (hl)
+			pop hl
+			jr nz, rd_de_done		; past the last
+			dec b
+			jr z, rd_de_got
+			ld de, RD_ENTRY
+			add hl, de
+			jr rd_de_lp
+rd_de_got:
+			ld de, rd_name			; (a copy: the ROM goes out before the string is written)
+			ld bc, 11
+			ldir
+			call rd_unsel
+			ld hl, rd_name
+			ld de, (rd_res)
+			ld b, 8
+			call rd_de_part
+			ld a, (rd_name + 8)
+			cp ' '
+			jr z, rd_de_end
+			ld a, '.'
+			call rd_de_put
+			ld hl, rd_name + 8
+			ld b, 3
+			call rd_de_part
+rd_de_end:
+			xor a
+			ld (de), a
+			ret
+rd_de_done:
+			jp rd_unsel
+rd_de_part:							; B letters at HL (up to a space) to DE
+			ld a, (hl)
+			cp ' '
+			ret z
+			call rd_de_put
+			inc hl
+			djnz rd_de_part
+			ret
+rd_de_put:							; A to DE if the string has room
+			push af
+			ld a, (rd_cap)
+			or a
+			jr z, rd_dp_full
+			dec a
+			ld (rd_cap), a
+			pop af
+			ld (de), a
+			inc de
+			ret
+rd_dp_full:
+			pop af
+			ret
+
+; SelectVolume("R"): OK when a disc is there, else NotFound
+rd_selvol:
+			call rd_mount
+			ld hl, RD_NOTFOUND
+			ret nz
+			ld hl, 0
+			ret
+
+; rd_ns - NotSupported (a method the disc can't do)
+rd_ns:
+			ld hl, RD_NOTSUP
+			ret
 
 ;## kw_bssinit ntc_data ntc_plat_memtop ntc_plat_screen kw_stop @shared
 ;kw_bssinit, <start>, <size>  - the start of the main thread: the program's arrays live after
@@ -2088,6 +2872,51 @@ ntc_plat_memtop:
 		ELSE
 			ld hl, #A600
 		ENDIF
+			ret
+
+;## ntc_plat_romsel ntc_plat_data @shared @ramonly
+; rd_sel - A = a slot: that ROM in at #C000 (the upper ROM on, straight to the
+; gate array and #DFxx). rd_unsel - back as NTC runs (Library: ROM: the
+; keyword ROM in; else both ROMs off). From RAM only (@ramonly). Keep DE,
+; HL (rd_unsel also AF)
+rd_old:			dw 0
+rd_sel:
+			push hl
+			push de
+			ld e, a
+			ld a, (ntc_smode)
+			or #84				; the upper ROM on
+			ld b, #7F
+			out (c), a
+		IF NTC_ROMLIB
+			ld bc, (ntc_rx_cur)
+			ld (rd_old), bc
+			ld c, e
+			ld b, #DF
+			ld (ntc_rx_cur), bc	; (the interrupt handler puts this one back)
+		ELSE
+			ld c, e
+			ld b, #DF
+		ENDIF
+			out (c), c
+			pop de
+			pop hl
+			ret
+rd_unsel:
+			push af
+			push bc
+		IF NTC_ROMLIB
+			ld bc, (rd_old)
+			ld (ntc_rx_cur), bc
+			out (c), c			; the keyword ROM
+		ELSE
+			ld a, (ntc_smode)
+			or #8C				; both ROMs off
+			ld b, #7F
+			out (c), a
+		ENDIF
+			pop bc
+			pop af
 			ret
 
 

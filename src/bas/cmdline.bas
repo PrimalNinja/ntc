@@ -1,5 +1,6 @@
 ' Command line: on CP/M, what was typed after the program's name (A>CMDLINE HELLO THERE);
 ' where there is no command line (the CPC), the program asks for it instead.
+Option PressAnyKeyOnEnd "Press a key"     ' at the end: a message and a key (a RUN" program resets when it ends)
 Option Explicit
 Dim cl As String, i As Integer, w As Integer
 

@@ -1,4 +1,5 @@
 ' VB self test 10 - For Each, Property with arguments, local arrays cleared, #asm jump to a label
+Option PressAnyKeyOnEnd "Press a key"     ' at the end: a message and a key (a RUN" program resets when it ends)
 Option Explicit
 
 Type Pt
@@ -115,9 +116,6 @@ ChkS Join(parts, "/"), "x/yy//z"
 
 Print
 Print t; " tests, "; bad; " failed"
-Print "Press a key";
-Do : Frame : Loop Until Inkey <> 0
-Print
 End
 
 Sub Chk(ByVal got As Integer, ByVal want As Integer)

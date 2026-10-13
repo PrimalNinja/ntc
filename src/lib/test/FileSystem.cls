@@ -116,3 +116,8 @@ End Function
 Public Function SelectVolume(ByVal name As String) As Integer
     SelectVolume = NotSupported
 End Function
+
+' DirEntry(n): a ROMDISC's n-th file (the CPC platforms' volume R) - none here: ""
+Public Function DirEntry(ByVal n As Integer) As String
+    DirEntry = ""
+End Function

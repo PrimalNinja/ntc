@@ -25,86 +25,75 @@ ntc_start:
 
 main_thread:
 
-			; 1: Randomize 1234
+			; 2: Randomize 1234
 			dw kw_seedl, 1234
 
-			; 2: again:
+			; 3: again:
 lbl_again:
 
-			; 3: t = Rnd(100) + 1 : tries = 0
+			; 4: t = Rnd(100) + 1 : tries = 0
 			dw kw_rndl, 100, tmp0
 			dw kw_addl, tmp0, 1, var_t
 			dw kw_ztov, var_tries
 
-			; 4: Print "I picked 1 to 100"
+			; 5: Print "I picked 1 to 100"
 			dw kw_printstrvar, str0
 			dw kw_printnl
 
-			; 5: Do
+			; 6: Do
 do1_t:
 
-			; 6: Input "Guess"; g
+			; 7: Input "Guess"; g
 			dw kw_printstrvar, str1
 			dw kw_inputint, var_g
 
-			; 7: tries = tries + 1
+			; 8: tries = tries + 1
 			dw kw_inc, var_tries
 
-			; 8: If g < t Then
+			; 9: If g < t Then
 			dw kw_scpltvv, var_g, var_t
 			dw kw_goto_iffalse_n, if2_1
 
-			; 9: Print "Higher"
+			; 10: Print "Higher"
 			dw kw_printstrvar, str2
 			dw kw_printnl
 
-			; 10: ElseIf g > t Then
+			; 11: ElseIf g > t Then
 			dw if2_e_go
 if2_1:
 			dw kw_scpgtvv, var_g, var_t
 			dw kw_goto_iffalse_n, if2_2
 
-			; 11: Print "Lower"
+			; 12: Print "Lower"
 			dw kw_printstrvar, str3
 			dw kw_printnl
 
-			; 12: End If
+			; 13: End If
 if2_2:
 if2_e:
 
-			; 13: Loop Until g = t
+			; 14: Loop Until g = t
 			dw kw_cpeqvv, var_g, var_t
 			dw kw_goto_iffalse_n, do1_t
 do1_e:
 
-			; 14: Print "Got it in "; tries
+			; 15: Print "Got it in "; tries
 			dw kw_printstrvar, str4
 			dw kw_printint, var_tries
 			dw kw_printnl
 
-			; 15: Input "Again (y/n)"; a$
+			; 16: Input "Again (y/n)"; a$
 			dw kw_printstrvar, str5
 			dw kw_inputstr, var_a
 
-			; 16: If a$ = "y" Then GoTo again
+			; 17: If a$ = "y" Then GoTo again
 			dw kw_strcmpeq, var_a, str6
 			dw kw_goto_iftrue_n, lbl_again
 
-			; 17: Print "Press a key";
+			; 18: End
+			dw kw_printnl0
 			dw kw_printstrvar, str7
-
-			; 18: Do : Frame : Loop Until Inkey <> 0
-do3_t:
-			dw kw_frame
-			dw kw_inkey, tmp0
-			dw kw_cpnevl, tmp0, 0
-			dw kw_goto_iffalse_n, do3_t
-do3_e:
-
-			; 19: Print
-			dw kw_printnl
-
-			; 20: End
+			dw kw_waitkey
 			dw kw_stop
 
 ; ============================================================
@@ -187,6 +176,12 @@ ntc_stop_back:
 			ld sp, (ntc_csp)
 			ei
 			ret
+
+;## kw_waitkey ntc_data ntc_plat_key
+; kw_waitkey - wait for a key (Option PressAnyKeyOnEnd, before kw_stop)
+kw_waitkey:
+			ld ix, ntc_next
+			jp ntc_plat_getkey
 
 ;## ntc_xn ntc_data @shared
 ; normal mode "next": every normal mode keyword ends here (its ret
@@ -441,19 +436,6 @@ kw_cpeqvv:
 			ld l, a
 			jp ntc_cmp_eq
 
-;## kw_cpnevl ntc_cmp
-kw_cpnevl:
-			pop hl
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			pop hl
-			jp ntc_cmp_ne
-
-; ============================================================
-; Memory (PEEK / POKE / DEEK / DOKE)
-; ============================================================
-
 ;## ntc_rnd_seed
 ntc_rnd_seed:	dw 1
 
@@ -620,6 +602,15 @@ ntc_pi_done:
 			ld hl, ntc_numbuf
 			ld (ntc_sptr), hl
 			jp ntc_printbuf
+
+;## kw_printnl0 ntc_data ntc_plat_screen
+;kw_printnl0  - new line unless the cursor is at the start of a line
+kw_printnl0:
+			ld a, (ntc_curx)
+			or a
+			ret z
+			ld ix, ntc_next
+			jp ntc_plat_newline
 
 ;## kw_printnl ntc_data ntc_plat_screen
 ;kw_printnl
@@ -788,26 +779,6 @@ ntc_atoi_store:
 			ld (hl), d
 			ret
 
-;## kw_inkey ntc_data ntc_plat_key
-;kw_inkey, <destvar>  - new key press or 0, no wait
-kw_inkey:
-			pop hl
-			ld (ntc_ivar), hl
-			ld ix, ntc_inkey_got
-			jp ntc_plat_scankey
-ntc_inkey_got:
-			ld hl, (ntc_ivar)
-			ld (hl), a
-			inc hl
-			ld (hl), 0
-			ret
-
-;## kw_frame ntc_data ntc_plat_frame
-;kw_frame  - wait for the start of the next frame flyback
-kw_frame:
-			ld ix, ntc_next
-			jp ntc_plat_frame
-
 ;## ntc_plat_data
 ntc_curx:		db 0			; cursor column (0 based)
 ntc_cury:		db 0			; cursor row (0 based)
@@ -947,10 +918,6 @@ ntc_plat_scankey:
 ; ntc_plat_getkey - wait for a key, A = key
 ntc_plat_getkey:
 			in a, (#fd)
-			jp (ix)
-
-;## ntc_plat_frame
-ntc_plat_frame:
 			jp (ix)
 
 ;## ntc_plat_exit ntc_plat_data

@@ -30,26 +30,26 @@ ntc_go:
 main_thread:
 			dw kw_scrinit		; mode 1, ROMs off, clear screen
 
-			; main.bas 3: StdIO.PutStr "cols "
+			; main.bas 4: StdIO.PutStr "cols "
 			dw fn_stdio_putstr, str0
 
-			; main.bas 4: StdIO.PutInt StdIO.Cols()
+			; main.bas 5: StdIO.PutInt StdIO.Cols()
 			dw fn_stdio_cols, var_stdio_cols_cols
 			dw fn_stdio_putint, var_stdio_cols_cols
 
-			; main.bas 5: StdIO.NewLine
+			; main.bas 6: StdIO.NewLine
 			dw fn_stdio_newline
 
-			; main.bas 6: StdIO.PutChar 65
+			; main.bas 7: StdIO.PutChar 65
 			dw fn_stdio_putchar, lit_65
 
-			; main.bas 7: StdIO.PutChar 66
+			; main.bas 8: StdIO.PutChar 66
 			dw fn_stdio_putchar, lit_66
 
-			; main.bas 8: StdIO.NewLine
+			; main.bas 9: StdIO.NewLine
 			dw fn_stdio_newline
 
-			; main.bas 9: If StdIO.CanPosition Then Print "can position" Else Print "stream"
+			; main.bas 10: If StdIO.CanPosition Then Print "can position" Else Print "stream"
 			dw kw_printzoscii
 			dw glyph_63, glyph_61, glyph_6E, glyph_20, glyph_70, glyph_6F, glyph_73, glyph_69
 			dw glyph_74, glyph_69, glyph_6F, glyph_6E, 1, 0		; "can position\n"
@@ -59,30 +59,30 @@ if1_1:
 			dw glyph_73, glyph_74, glyph_72, glyph_65, glyph_61, glyph_6D, 1, 0		; "stream\n"
 if1_e:
 
-			; main.bas 10: Print System.Platform; " ticks/s "; System.TicksPerSecond
+			; main.bas 11: Print System.Platform; " ticks/s "; System.TicksPerSecond
 			dw kw_printzoscii
 			dw glyph_43, glyph_50, glyph_43, glyph_20, glyph_74, glyph_69, glyph_63, glyph_6B
 			dw glyph_73, glyph_2F, glyph_73, glyph_20, glyph_33, glyph_30, glyph_30, 1
 			dw 0		; "CPC ticks/s 300\n"
 
-			; main.bas 11: StdIO.PutStr "name? "
+			; main.bas 12: StdIO.PutStr "name? "
 			dw fn_stdio_putstr, str2
 
-			; main.bas 12: StdIO.GetLine s
+			; main.bas 13: StdIO.GetLine s
 			dw fn_stdio_getline, var_s
 
-			; main.bas 13: StdIO.PutStr "hi " & s
+			; main.bas 14: StdIO.PutStr "hi " & s
 			dw kw_strcpy, stmp0, str3
 			dw kw_strcat, stmp0, var_s
 			dw fn_stdio_putstr, stmp0
 
-			; main.bas 14: StdIO.NewLine
+			; main.bas 15: StdIO.NewLine
 			dw fn_stdio_newline
 
-			; main.bas 15: k = StdIO.GetChar()
+			; main.bas 16: k = StdIO.GetChar()
 			dw fn_stdio_getchar, var_k
 
-			; main.bas 16: Print "key "; k; " col "; StdIO.Column()
+			; main.bas 17: Print "key "; k; " col "; StdIO.Column()
 			dw kw_printzoscii
 			dw glyph_6B, glyph_65, glyph_79, glyph_20, 0		; "key "
 			dw kw_printint, var_k
@@ -91,22 +91,11 @@ if1_e:
 			dw glyph_20, glyph_63, glyph_6F, glyph_6C, glyph_20, 0		; " col "
 			dw kw_printint, var_stdio_column_column
 			dw kw_printnl
-
-			; main.bas 17: Print "Press a key";
+			dw kw_printnl0
 			dw kw_printzoscii
 			dw glyph_50, glyph_72, glyph_65, glyph_73, glyph_73, glyph_20, glyph_61, glyph_20
 			dw glyph_6B, glyph_65, glyph_79, 0		; "Press a key"
-
-			; main.bas 18: Do : Frame : Loop Until Inkey <> 0
-do2_t:
-			dw kw_frame
-			dw kw_inkey, tmp0
-			dw kw_cpnevl, tmp0, 0
-			dw kw_goto_iffalse_n, do2_t
-do2_e:
-
-			; main.bas 19: Print
-			dw kw_printnl
+			dw kw_waitkey
 			dw kw_stop
 
 ; ============================================================
@@ -192,7 +181,6 @@ var_stdio_cols_cols:			dw 0
 var_s:			ds 41
 var_k:			dw 0
 var_stdio_column_column:			dw 0
-tmp0:			dw 0
 			db 40			; capacity
 stmp0:			ds 41
 
@@ -280,6 +268,12 @@ ntc_stop_back:
 			ei
 			ret
 
+;## kw_waitkey ntc_data ntc_plat_key
+; kw_waitkey - wait for a key (Option PressAnyKeyOnEnd, before kw_stop)
+kw_waitkey:
+			ld ix, ntc_next
+			jp ntc_plat_getkey
+
 ;## ntc_xn ntc_data @shared
 ; normal mode "next": every normal mode keyword ends here (its ret
 ; became jp ntc_xn). Thread position to ntc_ip, real stack, one
@@ -292,94 +286,6 @@ ntc_xn:
 			di
 			ld sp, (ntc_ip)
 			ret
-
-;## kw_goto_iffalse (normal mode copy)
-;kw_goto_iffalse, <label>  - branch if NZ (false)
-kw_goto_iffalse_n:
-			pop hl
-			jp z, ntc_xn
-			ld sp, hl
-			jp ntc_xn
-
-;## ntc_cmp
-ntc_cmp_slt:
-			ld a, d
-			xor #80
-			ld d, a
-			ld a, h
-			xor #80
-			ld h, a
-ntc_cmp_ult:
-			ex de, hl
-			or a
-			sbc hl, de
-			sbc a, a
-			inc a
-			ret
-ntc_cmp_sge:
-			ld a, d
-			xor #80
-			ld d, a
-			ld a, h
-			xor #80
-			ld h, a
-ntc_cmp_uge:
-			ex de, hl
-			or a
-			sbc hl, de
-			sbc a, a
-			ret
-ntc_cmp_sgt:
-			ld a, d
-			xor #80
-			ld d, a
-			ld a, h
-			xor #80
-			ld h, a
-ntc_cmp_ugt:
-			or a
-			sbc hl, de
-			sbc a, a
-			inc a
-			ret
-ntc_cmp_sle:
-			ld a, d
-			xor #80
-			ld d, a
-			ld a, h
-			xor #80
-			ld h, a
-ntc_cmp_ule:
-			or a
-			sbc hl, de
-			sbc a, a
-			ret
-ntc_cmp_eq:
-			or a
-			sbc hl, de
-			ret
-ntc_cmp_ne:
-			or a
-			sbc hl, de
-			jr z, ntc_cmp_ne_f
-			xor a
-			ret
-ntc_cmp_ne_f:
-			or 1
-			ret
-
-;## kw_cpnevl ntc_cmp
-kw_cpnevl:
-			pop hl
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			pop hl
-			jp ntc_cmp_ne
-
-; ============================================================
-; Memory (PEEK / POKE / DEEK / DOKE)
-; ============================================================
 
 ;## kw_strcpy
 ;kw_strcpy, <destaddr>, <srcaddr>  - cut at the destination's capacity byte
@@ -539,6 +445,15 @@ ntc_pi_done:
 			ld (ntc_sptr), hl
 			jp ntc_printbuf
 
+;## kw_printnl0 ntc_data ntc_plat_screen
+;kw_printnl0  - new line unless the cursor is at the start of a line
+kw_printnl0:
+			ld a, (ntc_curx)
+			or a
+			ret z
+			ld ix, ntc_next
+			jp ntc_plat_newline
+
 ;## kw_printnl ntc_data ntc_plat_screen
 ;kw_printnl
 kw_printnl:
@@ -608,20 +523,6 @@ kw_inputstr:
 			ld de, ntc_next
 			jp ntc_gets
 
-;## kw_inkey ntc_data ntc_plat_key
-;kw_inkey, <destvar>  - new key press or 0, no wait
-kw_inkey:
-			pop hl
-			ld (ntc_ivar), hl
-			ld ix, ntc_inkey_got
-			jp ntc_plat_scankey
-ntc_inkey_got:
-			ld hl, (ntc_ivar)
-			ld (hl), a
-			inc hl
-			ld (hl), 0
-			ret
-
 ;## kw_scrinit ntc_data ntc_plat_screen
 ;kw_scrinit  - first word of any program that prints or reads keys:
 ;  mode 1, ROMs off, clear screen
@@ -629,12 +530,6 @@ kw_scrinit:
 			ld a, 1
 			ld ix, ntc_next
 			jp ntc_plat_mode
-
-;## kw_frame ntc_data ntc_plat_frame
-;kw_frame  - wait for the start of the next frame flyback
-kw_frame:
-			ld ix, ntc_next
-			jp ntc_plat_frame
 
 ;## ntc_font
 ; 8x8 font buffer, chars 32-126, 8 bytes each, bit 7 = leftmost pixel.
@@ -1231,36 +1126,6 @@ ntc_keymaps:
 			db "$", "#", "E", "W", "S", "D", "C", "X"
 			db "!", 34, 27, "Q", 9, "A", 0, "Z"
 			db 0, 0, 0, 0, 0, 0, 0, 127
-
-;## ntc_plat_frame ntc_data @shared
-; ------------------------------------------------------------
-; ntc_plat_frame - wait for the start of vsync (PPI port B bit 0)
-; normal mode: interrupts in while waiting
-; ------------------------------------------------------------
-ntc_plat_frame:
-			ld a, (ntc_nmode)
-			or a
-			jr z, ntc_fr_go
-			ld (ntc_ip), sp
-			ld sp, (ntc_csp)
-			ei
-ntc_fr_go:
-			ld b, #F5
-ntc_fr_in:
-			in a, (c)
-			rra
-			jr c, ntc_fr_in
-ntc_fr_wait:
-			in a, (c)
-			rra
-			jr nc, ntc_fr_wait
-			di
-			ld a, (ntc_nmode)
-			or a
-			jr z, ntc_fr_done
-			ld sp, (ntc_ip)
-ntc_fr_done:
-			jp (ix)
 
 ;## ntc_plat_irq ntc_plat_data ntc_data ntc_plat_irqh @shared
 ; ------------------------------------------------------------

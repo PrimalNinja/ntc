@@ -1,6 +1,7 @@
 ' Lists: a high score table kept in a linked list (the List class). The nodes live in the
 ' Memory class's heap - RAM pages on a CPC with expansion RAM, the free main RAM otherwise -
 ' so the program itself only keeps the list's handle.
+Option PressAnyKeyOnEnd "Press a key"     ' at the end: a message and a key (a RUN" program resets when it ends)
 Option Explicit
 #If NTC_CPC Then
 Option Reserve &H4000, &H4000
@@ -46,8 +47,4 @@ n = List.Search(h, ID, 250)
 If n <> 0 Then Print "Player 250 scored "; List.GetWord(n, SCORE) Else Print "Player 250 is gone"
 r = List.Destroy(h)
 
-Print "Press a key";
-Do While Inkey <> 0 : Loop
-Do : Frame : Loop Until Inkey <> 0
-Print
 End

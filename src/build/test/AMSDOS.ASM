@@ -26,14 +26,14 @@ ntc_start:
 main_thread:
 			dw kw_bssinit, ntc_bss, ntc_bss_size		; the arrays: do they fit, clear them
 
-			; main.bas 16: Mode 1
+			; main.bas 17: Mode 1
 			dw kw_model, 1
 
-			; main.bas 17: Print "AMSDOS test on "; System.Platform
+			; main.bas 18: Print "AMSDOS test on "; System.Platform
 			dw kw_printstrvar, str1
 			dw kw_printnl
 
-			; main.bas 18: Print "Devices "; FileSystem.Devices(); " - using "; FileSystem.CurrentDevice()
+			; main.bas 19: Print "Devices "; FileSystem.Devices(); " - using "; FileSystem.CurrentDevice()
 			dw p_filesystem_devices_c
 			dw kw_printstrvar, str2
 			dw kw_printstrvar, var_filesystem_devices_devices
@@ -42,7 +42,7 @@ main_thread:
 			dw kw_printstrvar, var_filesystem_currentdevice_currentdevice
 			dw kw_printnl
 
-			; main.bas 19: Print "Volumes "; FileSystem.Volumes(); " - using "; FileSystem.CurrentVolume()
+			; main.bas 20: Print "Volumes "; FileSystem.Volumes(); " - using "; FileSystem.CurrentVolume()
 			dw p_filesystem_volumes_c
 			dw kw_printstrvar, str4
 			dw kw_printstrvar, var_filesystem_volumes_volumes
@@ -51,10 +51,10 @@ main_thread:
 			dw kw_printstrvar, var_filesystem_currentvolume_currentvolume
 			dw kw_printnl
 
-			; main.bas 20: Wait
+			; main.bas 21: Wait
 			dw p_wait_c
 
-			; main.bas 22: For i = 0 To 9 : a(i) = 1000 - i * 50 : Next
+			; main.bas 23: For i = 0 To 9 : a(i) = 1000 - i * 50 : Next
 			dw kw_ztov, var_i
 for1_t:
 			dw kw_mulvl, var_i, 50, tmp2
@@ -63,20 +63,20 @@ for1_t:
 			dw kw_next1l_n, var_i, 9, for1_t
 for1_e:
 
-			; main.bas 23: r = FileSystem.Save("AMS1.DAT", VarPtr(a), 20)
+			; main.bas 24: r = FileSystem.Save("AMS1.DAT", VarPtr(a), 20)
 			dw p_filesystem_save_c, str5, vp_arr_a, lit_20
 			dw kw_vtov, var_filesystem_save_save, var_r
 
-			; main.bas 24: Print "Save AMS1.DAT:"; r
+			; main.bas 25: Print "Save AMS1.DAT:"; r
 			dw kw_printstrvar, str6
 			dw kw_printint, var_r
 			dw kw_printnl
 
-			; main.bas 25: r = FileSystem.Load("AMS1.DAT", VarPtr(b), 20)
+			; main.bas 26: r = FileSystem.Load("AMS1.DAT", VarPtr(b), 20)
 			dw p_filesystem_load_c, str5, vp_arr_b, lit_20
 			dw kw_vtov, var_filesystem_load_load, var_r
 
-			; main.bas 26: Print "Load AMS1.DAT:"; r; " -"; b(0); " ..."; b(9)
+			; main.bas 27: Print "Load AMS1.DAT:"; r; " -"; b(0); " ..."; b(9)
 			dw kw_printstrvar, str7
 			dw kw_printint, var_r
 			dw kw_printstrvar, str8
@@ -85,15 +85,15 @@ for1_e:
 			dw kw_printint, arr_b+18
 			dw kw_printnl
 
-			; main.bas 27: t = Ticks
+			; main.bas 28: t = Ticks
 			dw kw_ticks, tmp0
 			dw kw_vtov, tmp0, var_t
 
-			; main.bas 28: Frame : Frame
+			; main.bas 29: Frame : Frame
 			dw kw_frame
 			dw kw_frame
 
-			; main.bas 29: Print "Ticks still counting:"; IIf(Ticks <> t Or System.TicksPerSecond = 0, " yes", " NO")
+			; main.bas 30: Print "Ticks still counting:"; IIf(Ticks <> t Or System.TicksPerSecond = 0, " yes", " NO")
 			dw kw_ticks, tmp0
 			dw kw_cpnevv, tmp0, var_t
 			dw kw_ftov, tmp0
@@ -110,55 +110,55 @@ ch2_e:
 			dw kw_printstrvar, stmp0
 			dw kw_printnl
 
-			; main.bas 30: Print "A file that isn't there"
+			; main.bas 31: Print "A file that isn't there"
 			dw kw_printstrvar, str14
 			dw kw_printnl
 
-			; main.bas 31: Print "(AMSDOS may print its message):"
+			; main.bas 32: Print "(AMSDOS may print its message):"
 			dw kw_printstrvar, str15
 			dw kw_printnl
 
-			; main.bas 32: r = FileSystem.Load("NOFILE.DAT", VarPtr(b), 20)
+			; main.bas 33: r = FileSystem.Load("NOFILE.DAT", VarPtr(b), 20)
 			dw p_filesystem_load_c, str16, vp_arr_b, lit_20
 			dw kw_vtov, var_filesystem_load_load, var_r
 
-			; main.bas 33: Print "Load NOFILE.DAT:"; r; " (NotFound is -2)"
+			; main.bas 34: Print "Load NOFILE.DAT:"; r; " (NotFound is -2)"
 			dw kw_printstrvar, str17
 			dw kw_printint, var_r
 			dw kw_printstrvar, str18
 			dw kw_printnl
 
-			; main.bas 34: Wait
+			; main.bas 35: Wait
 			dw p_wait_c
 
-			; main.bas 36: Mode 2
+			; main.bas 37: Mode 2
 			dw kw_model, 2
 
-			; main.bas 37: Print "Mode 2 (80 columns): saving again..."
+			; main.bas 38: Print "Mode 2 (80 columns): saving again..."
 			dw kw_printstrvar, str19
 			dw kw_printnl
 
-			; main.bas 38: r = FileSystem.Save("AMS2.DAT", VarPtr(a), 20)
+			; main.bas 39: r = FileSystem.Save("AMS2.DAT", VarPtr(a), 20)
 			dw p_filesystem_save_c, str20, vp_arr_a, lit_20
 			dw kw_vtov, var_filesystem_save_save, var_r
 
-			; main.bas 39: Print "Save AMS2.DAT:"; r; " - this line should still be 80 columns, under the one above"
+			; main.bas 40: Print "Save AMS2.DAT:"; r; " - this line should still be 80 columns, under the one above"
 			dw kw_printstrvar, str21
 			dw kw_printint, var_r
 			dw kw_printstrvar, str22
 			dw kw_printnl
 
-			; main.bas 40: Wait
+			; main.bas 41: Wait
 			dw p_wait_c
 
-			; main.bas 42: Mode 1
+			; main.bas 43: Mode 1
 			dw kw_model, 1
 
-			; main.bas 43: Print "B = try drive B, any other key = skip"
+			; main.bas 44: Print "B = try drive B, any other key = skip"
 			dw kw_printstrvar, str23
 			dw kw_printnl
 
-			; main.bas 44: Do While Inkey <> 0 : Loop
+			; main.bas 45: Do While Inkey <> 0 : Loop
 do3_t:
 			dw kw_inkey, tmp0
 			dw kw_cpnevl, tmp0, 0
@@ -166,7 +166,7 @@ do3_t:
 			dw do3_t_go
 do3_e:
 
-			; main.bas 45: Do : k = Inkey : Frame : Loop Until k <> 0
+			; main.bas 46: Do : k = Inkey : Frame : Loop Until k <> 0
 do4_t:
 			dw kw_inkey, tmp0
 			dw kw_vtov, tmp0, var_k
@@ -175,7 +175,7 @@ do4_t:
 			dw kw_goto_iffalse_n, do4_t
 do4_e:
 
-			; main.bas 46: If k = 66 Or k = 98 Then
+			; main.bas 47: If k = 66 Or k = 98 Then
 			dw kw_cpeqvl, var_k, 66
 			dw kw_ftov, tmp0
 			dw kw_cpeqvl, var_k, 98
@@ -183,53 +183,53 @@ do4_e:
 			dw kw_orvv, tmp0, tmp1, tmp0
 			dw kw_goto_ifzero_n, tmp0, if5_1
 
-			; main.bas 47: Print "SelectVolume B:"; FileSystem.SelectVolume("B")
+			; main.bas 48: Print "SelectVolume B:"; FileSystem.SelectVolume("B")
 			dw p_filesystem_selectvolume_c, str24
 			dw kw_printstrvar, str25
 			dw kw_printint, var_filesystem_selectvolume_selectvolume
 			dw kw_printnl
 
-			; main.bas 48: r = FileSystem.Save("AMS3.DAT", VarPtr(a), 20)
+			; main.bas 49: r = FileSystem.Save("AMS3.DAT", VarPtr(a), 20)
 			dw p_filesystem_save_c, str26, vp_arr_a, lit_20
 			dw kw_vtov, var_filesystem_save_save, var_r
 
-			; main.bas 49: Print "Save B:AMS3.DAT:"; r
+			; main.bas 50: Print "Save B:AMS3.DAT:"; r
 			dw kw_printstrvar, str27
 			dw kw_printint, var_r
 			dw kw_printnl
 
-			; main.bas 50: r = FileSystem.Load("AMS3.DAT", VarPtr(b), 20)
+			; main.bas 51: r = FileSystem.Load("AMS3.DAT", VarPtr(b), 20)
 			dw p_filesystem_load_c, str26, vp_arr_b, lit_20
 			dw kw_vtov, var_filesystem_load_load, var_r
 
-			; main.bas 51: Print "Load:"; r; " -"; b(0)
+			; main.bas 52: Print "Load:"; r; " -"; b(0)
 			dw kw_printstrvar, str28
 			dw kw_printint, var_r
 			dw kw_printstrvar, str8
 			dw kw_printint, arr_b
 			dw kw_printnl
 
-			; main.bas 52: r = FileSystem.SelectVolume("A")
+			; main.bas 53: r = FileSystem.SelectVolume("A")
 			dw p_filesystem_selectvolume_c, str29
 			dw kw_vtov, var_filesystem_selectvolume_selectvolume, var_r
 
-			; main.bas 53: Print "Volumes now "; FileSystem.Volumes()
+			; main.bas 54: Print "Volumes now "; FileSystem.Volumes()
 			dw p_filesystem_volumes_c
 			dw kw_printstrvar, str30
 			dw kw_printstrvar, var_filesystem_volumes_volumes
 			dw kw_printnl
 
-			; main.bas 54: End If
+			; main.bas 55: End If
 if5_1:
 
-			; main.bas 55: Print "done"
+			; main.bas 56: Print "done"
 			dw kw_printstrvar, str31
 			dw kw_printnl
 
-			; main.bas 56: Wait
-			dw p_wait_c
-
 			; main.bas 57: End
+			dw kw_printnl0
+			dw kw_printstrvar, str32
+			dw kw_waitkey
 			dw kw_stop
 
 ; ============================================================
@@ -609,6 +609,12 @@ ntc_stop_back:
 			ld sp, (ntc_csp)
 			ei
 			ret
+
+;## kw_waitkey ntc_data ntc_plat_key
+; kw_waitkey - wait for a key (Option PressAnyKeyOnEnd, before kw_stop)
+kw_waitkey:
+			ld ix, ntc_next
+			jp ntc_plat_getkey
 
 ;## ntc_xn ntc_data @shared
 ; normal mode "next": every normal mode keyword ends here (its ret
@@ -1093,6 +1099,15 @@ ntc_pi_done:
 			ld hl, ntc_numbuf
 			ld (ntc_sptr), hl
 			jp ntc_printbuf
+
+;## kw_printnl0 ntc_data ntc_plat_screen
+;kw_printnl0  - new line unless the cursor is at the start of a line
+kw_printnl0:
+			ld a, (ntc_curx)
+			or a
+			ret z
+			ld ix, ntc_next
+			jp ntc_plat_newline
 
 ;## kw_printnl ntc_data ntc_plat_screen
 ;kw_printnl

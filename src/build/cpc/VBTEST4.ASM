@@ -31,126 +31,126 @@ main_thread:
 			dw kw_scrinit		; mode 1, ROMs off, clear screen
 			dw kw_bssinit, ntc_bss, ntc_bss_size		; the arrays: do they fit, clear them
 
-			; 12: Cls
+			; 13: Cls
 			dw kw_cls
 
-			; 13: Print "VB self test 4"
+			; 14: Print "VB self test 4"
 			dw kw_printzoscii
 			dw glyph_56, glyph_42, glyph_20, glyph_73, glyph_65, glyph_6C, glyph_66, glyph_20
 			dw glyph_74, glyph_65, glyph_73, glyph_74, glyph_20, glyph_34, 1, 0		; "VB self test 4\n"
 
-			; 16: Chk LBound(nums), 0
+			; 17: Chk LBound(nums), 0
 			dw p_chk_c, lit_0, lit_0
 
-			; 17: Chk UBound(nums), 5
+			; 18: Chk UBound(nums), 5
 			dw p_chk_c, lit_5, lit_5
 
-			; 18: Chk LBound(odd), 1
+			; 19: Chk LBound(odd), 1
 			dw p_chk_c, lit_1, lit_1
 
-			; 19: Chk UBound(odd), 4
+			; 20: Chk UBound(odd), 4
 			dw p_chk_c, lit_4, lit_4
 
-			; 20: Chk UBound(grid, 2), 3
+			; 21: Chk UBound(grid, 2), 3
 			dw p_chk_c, lit_3, lit_3
 
-			; 23: For i = 0 To 5
+			; 24: For i = 0 To 5
 			dw kw_ztov, var_i
 for1_t:
 
-			; 24: nums(i) = 10 - i
+			; 25: nums(i) = 10 - i
 			dw kw_sublv, 10, var_i, tmp1
 			dw kw_aset, arr_nums, var_i, tmp1
 
-			; 25: Next
+			; 26: Next
 			dw kw_next1l_n, var_i, 5, for1_t
 for1_e:
 
-			; 26: Chk Total(nums), 45
+			; 27: Chk Total(nums), 45
 			dw p_total_c, ad_arr_nums
 			dw p_chk_c, var_total_total, lit_45
 
-			; 27: SortUp nums
+			; 28: SortUp nums
 			dw p_sortup_c, ad_arr_nums
 
-			; 28: Chk nums(0), 5
+			; 29: Chk nums(0), 5
 			dw p_chk_c, arr_nums, lit_5
 
-			; 29: Chk nums(5), 10
+			; 30: Chk nums(5), 10
 			dw p_chk_c, arr_nums+10, lit_10
 
-			; 30: Chk Total(nums), 45
+			; 31: Chk Total(nums), 45
 			dw p_total_c, ad_arr_nums
 			dw p_chk_c, var_total_total, lit_45
 
-			; 31: For i = 1 To 4
+			; 32: For i = 1 To 4
 			dw kw_ltov, 1, var_i
 for2_t:
 
-			; 32: odd(i) = i * i
+			; 33: odd(i) = i * i
 			dw kw_mulvv, var_i, var_i, tmp1
 			dw kw_aset, arr_odd-2, var_i, tmp1
 
-			; 33: Next
+			; 34: Next
 			dw kw_next1l_n, var_i, 4, for2_t
 for2_e:
 
-			; 34: Chk Total(odd), 30
+			; 35: Chk Total(odd), 30
 			dw p_total_c, ad_arr_odd
 			dw p_chk_c, var_total_total, lit_30
 
-			; 35: Chk Lo(odd), 1
+			; 36: Chk Lo(odd), 1
 			dw p_lo_c, ad_arr_odd
 			dw p_chk_c, var_lo_lo, lit_1
 
-			; 36: Chk Hi(odd), 4
+			; 37: Chk Hi(odd), 4
 			dw p_hi_c, ad_arr_odd
 			dw p_chk_c, var_hi_hi, lit_4
 
-			; 37: Chk Count(nums), 6
+			; 38: Chk Count(nums), 6
 			dw p_count_c, ad_arr_nums
 			dw p_chk_c, var_count_count, lit_6
 
-			; 38: words(0) = "pear"
+			; 39: words(0) = "pear"
 			dw kw_strcpyn, arr_words, str0, 40
 
-			; 39: words(1) = "apple"
+			; 40: words(1) = "apple"
 			dw kw_strcpyn, arr_words+41, str1, 40
 
-			; 40: words(2) = "fig"
+			; 41: words(2) = "fig"
 			dw kw_strcpyn, arr_words+82, str2, 40
 
-			; 41: ChkS Longest(words), "apple"
+			; 42: ChkS Longest(words), "apple"
 			dw p_longest_c, ad_arr_words
 			dw p_chks_c, var_longest_longest, str1
 
-			; 42: Shout words
+			; 43: Shout words
 			dw p_shout_c, ad_arr_words
 
-			; 43: ChkS words(2), "FIG"
+			; 44: ChkS words(2), "FIG"
 			dw p_chks_c, arr_words+82, str3
 
-			; 44: big(0) = 100000
+			; 45: big(0) = 100000
 			dw kw_l_mov, llit_100000, arr_big
 
-			; 45: big(3) = 250000
+			; 46: big(3) = 250000
 			dw kw_l_mov, llit_250000, arr_big+12
 
-			; 46: ChkL BigSum(big), 350000
+			; 47: ChkL BigSum(big), 350000
 			dw p_bigsum_c, ad_arr_big
 			dw p_chkl_c, var_bigsum_bigsum, llit_350000
 
-			; 48: Print
+			; 49: Print
 			dw kw_printnl
 
-			; 49: Print "a"; Tab(6); "b"
+			; 50: Print "a"; Tab(6); "b"
 			dw kw_printzoscii
 			dw glyph_61, 0		; "a"
 			dw kw_printtab, lit_6
 			dw kw_printzoscii
 			dw glyph_62, 1, 0		; "b\n"
 
-			; 50: Print t; " tests, "; bad; " failed"
+			; 51: Print t; " tests, "; bad; " failed"
 			dw kw_printint, var_t
 			dw kw_printzoscii
 			dw glyph_20, glyph_74, glyph_65, glyph_73, glyph_74, glyph_73, glyph_2C, glyph_20
@@ -160,23 +160,12 @@ for2_e:
 			dw glyph_20, glyph_66, glyph_61, glyph_69, glyph_6C, glyph_65, glyph_64, 1
 			dw 0		; " failed\n"
 
-			; 51: Print "Press a key";
+			; 52: End
+			dw kw_printnl0
 			dw kw_printzoscii
 			dw glyph_50, glyph_72, glyph_65, glyph_73, glyph_73, glyph_20, glyph_61, glyph_20
 			dw glyph_6B, glyph_65, glyph_79, 0		; "Press a key"
-
-			; 52: Do : Frame : Loop Until Inkey <> 0
-do3_t:
-			dw kw_frame
-			dw kw_inkey, tmp0
-			dw kw_cpnevl, tmp0, 0
-			dw kw_goto_iffalse_n, do3_t
-do3_e:
-
-			; 53: Print
-			dw kw_printnl
-
-			; 54: End
+			dw kw_waitkey
 			dw kw_stop
 
 ; ============================================================
@@ -185,38 +174,38 @@ do3_e:
 
 p_chk:
 
-			; 57: t = t + 1
+			; 55: t = t + 1
 			dw kw_inc, var_t
 
-			; 58: Print t; ":";
+			; 56: Print t; ":";
 			dw kw_printint, var_t
 			dw kw_printzoscii
 			dw glyph_3A, 0		; ":"
 
-			; 59: If got = want Then
+			; 57: If got = want Then
 			dw kw_cpeqvv, var_chk_got, var_chk_want
-			dw kw_goto_iffalse_n, if4_1
+			dw kw_goto_iffalse_n, if3_1
 
-			; 60: Print "ok ";
+			; 58: Print "ok ";
 			dw kw_printzoscii
 			dw glyph_6F, glyph_6B, glyph_20, 0		; "ok "
 
-			; 61: Else
-			dw if4_e_go
-if4_1:
+			; 59: Else
+			dw if3_e_go
+if3_1:
 
-			; 62: Print "FAIL("; got; ") ";
+			; 60: Print "FAIL("; got; ") ";
 			dw kw_printzoscii
 			dw glyph_46, glyph_41, glyph_49, glyph_4C, glyph_28, 0		; "FAIL("
 			dw kw_printint, var_chk_got
 			dw kw_printzoscii
 			dw glyph_29, glyph_20, 0		; ") "
 
-			; 63: bad = bad + 1
+			; 61: bad = bad + 1
 			dw kw_inc, var_bad
 
-			; 64: End If
-if4_e:
+			; 62: End If
+if3_e:
 			dw p_chk_r
 
 ; ============================================================
@@ -225,38 +214,38 @@ if4_e:
 
 p_chks:
 
-			; 68: t = t + 1
+			; 66: t = t + 1
 			dw kw_inc, var_t
 
-			; 69: Print t; ":";
+			; 67: Print t; ":";
 			dw kw_printint, var_t
 			dw kw_printzoscii
 			dw glyph_3A, 0		; ":"
 
-			; 70: If got = want Then
+			; 68: If got = want Then
 			dw kw_strcmpeq, var_chks_got, var_chks_want
-			dw kw_goto_iffalse_n, if5_1
+			dw kw_goto_iffalse_n, if4_1
 
-			; 71: Print "ok ";
+			; 69: Print "ok ";
 			dw kw_printzoscii
 			dw glyph_6F, glyph_6B, glyph_20, 0		; "ok "
 
-			; 72: Else
-			dw if5_e_go
-if5_1:
+			; 70: Else
+			dw if4_e_go
+if4_1:
 
-			; 73: Print "FAIL["; got; "] ";
+			; 71: Print "FAIL["; got; "] ";
 			dw kw_printzoscii
 			dw glyph_46, glyph_41, glyph_49, glyph_4C, glyph_5B, 0		; "FAIL["
 			dw kw_printstrvar, var_chks_got
 			dw kw_printzoscii
 			dw glyph_5D, glyph_20, 0		; "] "
 
-			; 74: bad = bad + 1
+			; 72: bad = bad + 1
 			dw kw_inc, var_bad
 
-			; 75: End If
-if5_e:
+			; 73: End If
+if4_e:
 			dw p_chks_r
 
 ; ============================================================
@@ -265,38 +254,38 @@ if5_e:
 
 p_chkl:
 
-			; 79: t = t + 1
+			; 77: t = t + 1
 			dw kw_inc, var_t
 
-			; 80: Print t; ":";
+			; 78: Print t; ":";
 			dw kw_printint, var_t
 			dw kw_printzoscii
 			dw glyph_3A, 0		; ":"
 
-			; 81: If got = want Then
+			; 79: If got = want Then
 			dw kw_l_cpeq, var_chkl_got, var_chkl_want
-			dw kw_goto_iffalse_n, if6_1
+			dw kw_goto_iffalse_n, if5_1
 
-			; 82: Print "ok ";
+			; 80: Print "ok ";
 			dw kw_printzoscii
 			dw glyph_6F, glyph_6B, glyph_20, 0		; "ok "
 
-			; 83: Else
-			dw if6_e_go
-if6_1:
+			; 81: Else
+			dw if5_e_go
+if5_1:
 
-			; 84: Print "FAIL("; got; ") ";
+			; 82: Print "FAIL("; got; ") ";
 			dw kw_printzoscii
 			dw glyph_46, glyph_41, glyph_49, glyph_4C, glyph_28, 0		; "FAIL("
 			dw kw_l_print, var_chkl_got
 			dw kw_printzoscii
 			dw glyph_29, glyph_20, 0		; ") "
 
-			; 85: bad = bad + 1
+			; 83: bad = bad + 1
 			dw kw_inc, var_bad
 
-			; 86: End If
-if6_e:
+			; 84: End If
+if5_e:
 			dw p_chkl_r
 
 ; ============================================================
@@ -305,24 +294,24 @@ if6_e:
 
 p_total:
 
-			; 90: Dim k As Integer
+			; 88: Dim k As Integer
 
-			; 91: Total = 0
+			; 89: Total = 0
 			dw kw_ztov, var_total_total
 
-			; 92: For k = LBound(a) To UBound(a)
+			; 90: For k = LBound(a) To UBound(a)
 			dw kw_lbound, pa_total_a, var_total_k
-			dw kw_ubound, pa_total_a, for7_l
-			dw kw_forupv_n, var_total_k, for7_l, for7_e
-for7_t:
+			dw kw_ubound, pa_total_a, for6_l
+			dw kw_forupv_n, var_total_k, for6_l, for6_e
+for6_t:
 
-			; 93: Total = Total + a(k)
+			; 91: Total = Total + a(k)
 			dw kw_pget, pa_total_a, var_total_k, tmp1
 			dw kw_add, var_total_total, tmp1, var_total_total
 
-			; 94: Next
-			dw kw_next1v_n, var_total_k, for7_l, for7_t
-for7_e:
+			; 92: Next
+			dw kw_next1v_n, var_total_k, for6_l, for6_t
+for6_e:
 			dw p_total_r
 
 ; ============================================================
@@ -331,53 +320,53 @@ for7_e:
 
 p_sortup:
 
-			; 99: Dim k As Integer, j As Integer, v As Integer
+			; 97: Dim k As Integer, j As Integer, v As Integer
 
-			; 100: For k = LBound(a) + 1 To UBound(a)
+			; 98: For k = LBound(a) + 1 To UBound(a)
 			dw kw_lbound, pa_sortup_a, tmp0
 			dw kw_addl, tmp0, 1, var_sortup_k
-			dw kw_ubound, pa_sortup_a, for8_l
-			dw kw_forupv_n, var_sortup_k, for8_l, for8_e
-for8_t:
+			dw kw_ubound, pa_sortup_a, for7_l
+			dw kw_forupv_n, var_sortup_k, for7_l, for7_e
+for7_t:
 
-			; 101: v = a(k)
+			; 99: v = a(k)
 			dw kw_pget, pa_sortup_a, var_sortup_k, var_sortup_v
 
-			; 102: j = k - 1
+			; 100: j = k - 1
 			dw kw_addl, var_sortup_k, -1, var_sortup_j
 
-			; 103: Do While j >= LBound(a)
-do9_t:
+			; 101: Do While j >= LBound(a)
+do8_t:
 			dw kw_lbound, pa_sortup_a, tmp1
 			dw kw_scpgevv, var_sortup_j, tmp1
-			dw kw_goto_iffalse_n, do9_e
+			dw kw_goto_iffalse_n, do8_e
 
-			; 104: If a(j) <= v Then Exit Do
+			; 102: If a(j) <= v Then Exit Do
 			dw kw_pget, pa_sortup_a, var_sortup_j, tmp0
 			dw kw_scplevv, tmp0, var_sortup_v
-			dw kw_goto_iffalse_n, if10_1
-			dw do9_e_go
-if10_1:
+			dw kw_goto_iffalse_n, if9_1
+			dw do8_e_go
+if9_1:
 
-			; 105: a(j + 1) = a(j)
+			; 103: a(j + 1) = a(j)
 			dw kw_addl, var_sortup_j, 1, tmp0
 			dw kw_pget, pa_sortup_a, var_sortup_j, tmp2
 			dw kw_pset, pa_sortup_a, tmp0, tmp2
 
-			; 106: j = j - 1
+			; 104: j = j - 1
 			dw kw_dec, var_sortup_j
 
-			; 107: Loop
-			dw do9_t_go
-do9_e:
+			; 105: Loop
+			dw do8_t_go
+do8_e:
 
-			; 108: a(j + 1) = v
+			; 106: a(j + 1) = v
 			dw kw_addl, var_sortup_j, 1, tmp0
 			dw kw_pset, pa_sortup_a, tmp0, var_sortup_v
 
-			; 109: Next
-			dw kw_next1v_n, var_sortup_k, for8_l, for8_t
-for8_e:
+			; 107: Next
+			dw kw_next1v_n, var_sortup_k, for7_l, for7_t
+for7_e:
 			dw p_sortup_r
 
 ; ============================================================
@@ -386,7 +375,7 @@ for8_e:
 
 p_lo:
 
-			; 113: Lo = LBound(a)
+			; 111: Lo = LBound(a)
 			dw kw_lbound, pa_lo_a, var_lo_lo
 			dw p_lo_r
 
@@ -396,7 +385,7 @@ p_lo:
 
 p_hi:
 
-			; 117: Hi = UBound(a)
+			; 115: Hi = UBound(a)
 			dw kw_ubound, pa_hi_a, var_hi_hi
 			dw p_hi_r
 
@@ -406,7 +395,7 @@ p_hi:
 
 p_count:
 
-			; 122: Count = Hi(a) - Lo(a) + 1
+			; 120: Count = Hi(a) - Lo(a) + 1
 			dw p_hi_c, pa_count_a
 			dw kw_vtov, var_hi_hi, tmp0
 			dw p_lo_c, pa_count_a
@@ -421,29 +410,29 @@ p_count:
 
 p_longest:
 
-			; 126: Dim k As Integer
+			; 124: Dim k As Integer
 
-			; 127: Longest = ""
+			; 125: Longest = ""
 			dw kw_strcpy, var_longest_longest, str4
 
-			; 128: For k = 0 To UBound(s)
+			; 126: For k = 0 To UBound(s)
 			dw kw_ztov, var_longest_k
-			dw kw_ubound, pa_longest_s, for11_l
-			dw kw_forupv_n, var_longest_k, for11_l, for11_e
-for11_t:
+			dw kw_ubound, pa_longest_s, for10_l
+			dw kw_forupv_n, var_longest_k, for10_l, for10_e
+for10_t:
 
-			; 129: If Len(s(k)) > Len(Longest) Then Longest = s(k)
+			; 127: If Len(s(k)) > Len(Longest) Then Longest = s(k)
 			dw kw_pget, pa_longest_s, var_longest_k, stmp0
 			dw kw_strlen, stmp0, tmp0
 			dw kw_strlen, var_longest_longest, tmp1
 			dw kw_scpgtvv, tmp0, tmp1
-			dw kw_goto_iffalse_n, if12_1
+			dw kw_goto_iffalse_n, if11_1
 			dw kw_pget, pa_longest_s, var_longest_k, var_longest_longest
-if12_1:
+if11_1:
 
-			; 130: Next
-			dw kw_next1v_n, var_longest_k, for11_l, for11_t
-for11_e:
+			; 128: Next
+			dw kw_next1v_n, var_longest_k, for10_l, for10_t
+for10_e:
 			dw p_longest_r
 
 ; ============================================================
@@ -452,22 +441,22 @@ for11_e:
 
 p_shout:
 
-			; 134: Dim k As Integer
+			; 132: Dim k As Integer
 
-			; 135: For k = 0 To UBound(s)
+			; 133: For k = 0 To UBound(s)
 			dw kw_ztov, var_shout_k
-			dw kw_ubound, pa_shout_s, for13_l
-			dw kw_forupv_n, var_shout_k, for13_l, for13_e
-for13_t:
+			dw kw_ubound, pa_shout_s, for12_l
+			dw kw_forupv_n, var_shout_k, for12_l, for12_e
+for12_t:
 
-			; 136: s(k) = UCase$(s(k))
+			; 134: s(k) = UCase$(s(k))
 			dw kw_pget, pa_shout_s, var_shout_k, stmp2
 			dw kw_strucase, stmp2, stmp2
 			dw kw_psets, pa_shout_s, var_shout_k, stmp2
 
-			; 137: Next
-			dw kw_next1v_n, var_shout_k, for13_l, for13_t
-for13_e:
+			; 135: Next
+			dw kw_next1v_n, var_shout_k, for12_l, for12_t
+for12_e:
 			dw p_shout_r
 
 ; ============================================================
@@ -476,24 +465,24 @@ for13_e:
 
 p_bigsum:
 
-			; 141: Dim k As Integer
+			; 139: Dim k As Integer
 
-			; 142: BigSum = 0
+			; 140: BigSum = 0
 			dw kw_l_mov, llit_0, var_bigsum_bigsum
 
-			; 143: For k = 0 To UBound(v)
+			; 141: For k = 0 To UBound(v)
 			dw kw_ztov, var_bigsum_k
-			dw kw_ubound, pa_bigsum_v, for14_l
-			dw kw_forupv_n, var_bigsum_k, for14_l, for14_e
-for14_t:
+			dw kw_ubound, pa_bigsum_v, for13_l
+			dw kw_forupv_n, var_bigsum_k, for13_l, for13_e
+for13_t:
 
-			; 144: BigSum = BigSum + v(k)
+			; 142: BigSum = BigSum + v(k)
 			dw kw_pget, pa_bigsum_v, var_bigsum_k, ltmp1
 			dw kw_l_add, var_bigsum_bigsum, ltmp1, var_bigsum_bigsum
 
-			; 145: Next
-			dw kw_next1v_n, var_bigsum_k, for14_l, for14_t
-for14_e:
+			; 143: Next
+			dw kw_next1v_n, var_bigsum_k, for13_l, for13_t
+for13_e:
 			dw p_bigsum_r
 
 ; ============================================================
@@ -505,15 +494,15 @@ for14_e:
 ;   turbo mode ends with ret, normal mode with jp ntc_xn
 ; ============================================================
 
+if3_e_go:			ld sp, if3_e
+			jp ntc_xn
 if4_e_go:			ld sp, if4_e
 			jp ntc_xn
 if5_e_go:			ld sp, if5_e
 			jp ntc_xn
-if6_e_go:			ld sp, if6_e
+do8_e_go:			ld sp, do8_e
 			jp ntc_xn
-do9_e_go:			ld sp, do9_e
-			jp ntc_xn
-do9_t_go:			ld sp, do9_t
+do8_t_go:			ld sp, do8_t
 			jp ntc_xn
 
 p_chk_c:		; call chk (normal)
@@ -730,24 +719,24 @@ var_chkl_got:			dw 0, 0
 var_chkl_want:			dw 0, 0
 p_total_rs:			dw 0
 var_total_k:			dw 0
-for7_l:			dw 0
+for6_l:			dw 0
 p_sortup_rs:			dw 0
 var_sortup_k:			dw 0
 var_sortup_j:			dw 0
 var_sortup_v:			dw 0
-for8_l:			dw 0
+for7_l:			dw 0
 p_lo_rs:			dw 0
 p_hi_rs:			dw 0
 p_count_rs:			dw 0
 p_longest_rs:			dw 0
 var_longest_k:			dw 0
-for11_l:			dw 0
+for10_l:			dw 0
 p_shout_rs:			dw 0
 var_shout_k:			dw 0
-for13_l:			dw 0
+for12_l:			dw 0
 p_bigsum_rs:			dw 0
 var_bigsum_k:			dw 0
-for14_l:			dw 0
+for13_l:			dw 0
 tmp0:			dw 0
 tmp1:			dw 0
 tmp2:			dw 0
@@ -862,6 +851,12 @@ ntc_stop_back:
 			ld sp, (ntc_csp)
 			ei
 			ret
+
+;## kw_waitkey ntc_data ntc_plat_key
+; kw_waitkey - wait for a key (Option PressAnyKeyOnEnd, before kw_stop)
+kw_waitkey:
+			ld ix, ntc_next
+			jp ntc_plat_getkey
 
 ;## ntc_xn ntc_data @shared
 ; normal mode "next": every normal mode keyword ends here (its ret
@@ -1297,19 +1292,6 @@ kw_cpeqvv:
 			ld l, a
 			jp ntc_cmp_eq
 
-;## kw_cpnevl ntc_cmp
-kw_cpnevl:
-			pop hl
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			pop hl
-			jp ntc_cmp_ne
-
-; ============================================================
-; Memory (PEEK / POKE / DEEK / DOKE)
-; ============================================================
-
 ;## kw_aset
 ;kw_aset, <arraybase>, <indexvar>, <sourcevar>
 kw_aset:
@@ -1510,6 +1492,15 @@ ntc_pi_done:
 			ld (ntc_sptr), hl
 			jp ntc_printbuf
 
+;## kw_printnl0 ntc_data ntc_plat_screen
+;kw_printnl0  - new line unless the cursor is at the start of a line
+kw_printnl0:
+			ld a, (ntc_curx)
+			or a
+			ret z
+			ld ix, ntc_next
+			jp ntc_plat_newline
+
 ;## kw_printnl ntc_data ntc_plat_screen
 ;kw_printnl
 kw_printnl:
@@ -1543,20 +1534,6 @@ ntc_pt_loop:
 			jp ntc_plat_putc
 ntc_tabcol:		db 0
 
-;## kw_inkey ntc_data ntc_plat_key
-;kw_inkey, <destvar>  - new key press or 0, no wait
-kw_inkey:
-			pop hl
-			ld (ntc_ivar), hl
-			ld ix, ntc_inkey_got
-			jp ntc_plat_scankey
-ntc_inkey_got:
-			ld hl, (ntc_ivar)
-			ld (hl), a
-			inc hl
-			ld (hl), 0
-			ret
-
 ;## kw_scrinit ntc_data ntc_plat_screen
 ;kw_scrinit  - first word of any program that prints or reads keys:
 ;  mode 1, ROMs off, clear screen
@@ -1570,12 +1547,6 @@ kw_scrinit:
 kw_cls:
 			ld ix, ntc_next
 			jp ntc_plat_cls
-
-;## kw_frame ntc_data ntc_plat_frame
-;kw_frame  - wait for the start of the next frame flyback
-kw_frame:
-			ld ix, ntc_next
-			jp ntc_plat_frame
 
 ;## kw_strucase
 ;kw_strucase, <dest>, <src>  - UCase$
@@ -2590,36 +2561,6 @@ ntc_keymaps:
 			db "$", "#", "E", "W", "S", "D", "C", "X"
 			db "!", 34, 27, "Q", 9, "A", 0, "Z"
 			db 0, 0, 0, 0, 0, 0, 0, 127
-
-;## ntc_plat_frame ntc_data @shared
-; ------------------------------------------------------------
-; ntc_plat_frame - wait for the start of vsync (PPI port B bit 0)
-; normal mode: interrupts in while waiting
-; ------------------------------------------------------------
-ntc_plat_frame:
-			ld a, (ntc_nmode)
-			or a
-			jr z, ntc_fr_go
-			ld (ntc_ip), sp
-			ld sp, (ntc_csp)
-			ei
-ntc_fr_go:
-			ld b, #F5
-ntc_fr_in:
-			in a, (c)
-			rra
-			jr c, ntc_fr_in
-ntc_fr_wait:
-			in a, (c)
-			rra
-			jr nc, ntc_fr_wait
-			di
-			ld a, (ntc_nmode)
-			or a
-			jr z, ntc_fr_done
-			ld sp, (ntc_ip)
-ntc_fr_done:
-			jp (ix)
 
 ;## ntc_plat_irq ntc_plat_data ntc_data ntc_plat_irqh @shared
 ; ------------------------------------------------------------

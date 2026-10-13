@@ -119,7 +119,7 @@ def main():
         return old_inp(port)
     m.set_input_callback(inp)
     def step():
-        m.ticks_to_stop = 1; m.run()
+        m.ticks_to_stop = 1; cpcrun.endkey_run(c)
     us = 0; nextint = 3333.33; pend = False; hits = []
     while not m.halted and us < 1e9:
         pc = m.pc

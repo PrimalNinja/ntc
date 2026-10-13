@@ -1,4 +1,5 @@
 ' VB self test 8 - AddressOf / CallAddr (a driver table), Error / Assert diagnostics compile
+Option PressAnyKeyOnEnd "Press a key"     ' at the end: a message and a key (a RUN" program resets when it ends)
 Option Explicit
 
 Dim t As Integer, bad As Integer
@@ -32,9 +33,6 @@ Chk total, 142
 
 Print
 Print t; " tests, "; bad; " failed"
-Print "Press a key";
-Do : Frame : Loop Until Inkey <> 0
-Print
 End
 
 Sub Chk(ByVal got As Integer, ByVal want As Integer)

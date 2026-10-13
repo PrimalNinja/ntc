@@ -10,6 +10,7 @@
 ' Needs room for the nodes: 5000 take 60K, so a 6128 (pages) - on 64K or CP/M
 ' (Option Memory Small) it says how many fit and uses those.
 ' Turbo runs with interrupts off, so Ticks stands still: time turbo with a stopwatch.
+Option PressAnyKeyOnEnd "Press a key"     ' at the end: a message and a key (a RUN" program resets when it ends)
 Option Explicit
 Option Turbo Off                  ' starts in normal mode whatever the turbo setting says: T switches
 #If NTC_CPC Then

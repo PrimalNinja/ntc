@@ -35,321 +35,310 @@ ntc_rj_ok:
 main_thread:
 			dw kw_bssinit, ntc_bss, ntc_bss_size		; the arrays: do they fit, clear them
 
-			; Main.bas 19: Cls
+			; Main.bas 20: Cls
 			dw kw_cls
 
-			; Main.bas 20: Print "VB self test 10"
+			; Main.bas 21: Print "VB self test 10"
 			dw kw_printstrvar, str0
 			dw kw_printnl
 
-			; Main.bas 23: For i = 0 To 4
+			; Main.bas 24: For i = 0 To 4
 			dw kw_ztov, var_i
 for1_t:
 
-			; Main.bas 24: a(i) = i * 3
+			; Main.bas 25: a(i) = i * 3
 			dw kw_mulvl, var_i, 3, tmp1
 			dw kw_aset, arr_a, var_i, tmp1
 
-			; Main.bas 25: Next
+			; Main.bas 26: Next
 			dw kw_next1l_n, var_i, 4, for1_t
 for1_e:
 
-			; Main.bas 26: sum = 0
+			; Main.bas 27: sum = 0
 			dw kw_ztov, var_sum
 
-			; Main.bas 27: For Each x In a
+			; Main.bas 28: For Each x In a
 			dw kw_ztov, var___fe2
 for3_t:
 			dw kw_aget, arr_a, var___fe2, var_x
 
-			; Main.bas 28: sum = sum + x
+			; Main.bas 29: sum = sum + x
 			dw kw_add, var_sum, var_x, var_sum
 
-			; Main.bas 29: Next x
+			; Main.bas 30: Next x
 			dw kw_next1l_n, var___fe2, 4, for3_t
 for3_e:
 
-			; Main.bas 30: Chk sum, 30
+			; Main.bas 31: Chk sum, 30
 			dw p_chk_c, var_sum, lit_30
 
-			; Main.bas 31: s(0) = "a"
+			; Main.bas 32: s(0) = "a"
 			dw kw_strcpyn, arr_s, str1, 40
 
-			; Main.bas 32: s(1) = "b"
+			; Main.bas 33: s(1) = "b"
 			dw kw_strcpyn, arr_s+41, str2, 40
 
-			; Main.bas 33: s(2) = "c"
+			; Main.bas 34: s(2) = "c"
 			dw kw_strcpyn, arr_s+82, str3, 40
 
-			; Main.bas 34: w = ""
+			; Main.bas 35: w = ""
 			dw kw_strcpy, var_w, str4
 
-			; Main.bas 36: For Each one In s
+			; Main.bas 37: For Each one In s
 			dw kw_ztov, var___fe4
 for5_t:
 			dw kw_sget, arr_s, var___fe4, stmp0, 41
 			dw kw_strcpy, var_one, stmp0
 
-			; Main.bas 37: w = w & one
+			; Main.bas 38: w = w & one
 			dw kw_strcat, var_w, var_one
 
-			; Main.bas 38: Next
+			; Main.bas 39: Next
 			dw kw_next1l_n, var___fe4, 2, for5_t
 for5_e:
 
-			; Main.bas 39: ChkS w, "abc"
+			; Main.bas 40: ChkS w, "abc"
 			dw p_chks_c, var_w, str5
 
-			; Main.bas 40: Chk SumOf(a), 30
+			; Main.bas 41: Chk SumOf(a), 30
 			dw p_sumof_c, ad_arr_a
 			dw p_chk_c, var_sumof_sumof, lit_30
 
-			; Main.bas 41: ReDim d(1 To 3)
+			; Main.bas 42: ReDim d(1 To 3)
 			dw kw_redim, pa_d, pa_d_data, 1, 4, 3, 1
 
-			; Main.bas 42: d(1) = 100000
+			; Main.bas 43: d(1) = 100000
 			dw kw_pset, pa_d, lit_1, llit_100000
 
-			; Main.bas 43: d(3) = 5
+			; Main.bas 44: d(3) = 5
 			dw kw_pset, pa_d, lit_3, llit_5
 
-			; Main.bas 44: e = 0
+			; Main.bas 45: e = 0
 			dw kw_l_mov, llit_0, var_e
 
-			; Main.bas 45: For Each e In d
+			; Main.bas 46: For Each e In d
 			dw kw_lbound, pa_d, var___fe6
 			dw kw_ubound, pa_d, for7_l
 			dw kw_forupv_n, var___fe6, for7_l, for7_e
 for7_t:
 			dw kw_pget, pa_d, var___fe6, var_e
 
-			; Main.bas 46: sum = sum + 1
+			; Main.bas 47: sum = sum + 1
 			dw kw_inc, var_sum
 
-			; Main.bas 47: Next
+			; Main.bas 48: Next
 			dw kw_next1v_n, var___fe6, for7_l, for7_t
 for7_e:
 
-			; Main.bas 48: Chk sum, 33
+			; Main.bas 49: Chk sum, 33
 			dw p_chk_c, var_sum, lit_33
 
-			; Main.bas 49: Chk (e = 5), -1
+			; Main.bas 50: Chk (e = 5), -1
 			dw kw_l_cpeq, var_e, llit_5
 			dw kw_ftov, tmp0
 			dw p_chk_c, tmp0, lit_m1
 
-			; Main.bas 52: Bag.Item(3) = 42
+			; Main.bas 53: Bag.Item(3) = 42
 			dw p_bag_item_let_c, lit_3, lit_42
 
-			; Main.bas 53: Bag.Item(4) = Bag.Item(3) + 1
+			; Main.bas 54: Bag.Item(4) = Bag.Item(3) + 1
 			dw p_bag_item_get_c, lit_3
 			dw kw_vtov, var_bag_item_get_item, tmp1
 			dw kw_inc, tmp1
 			dw p_bag_item_let_c, lit_4, tmp1
 
-			; Main.bas 54: Chk Bag.Item(3), 42
+			; Main.bas 55: Chk Bag.Item(3), 42
 			dw p_bag_item_get_c, lit_3
 			dw p_chk_c, var_bag_item_get_item, lit_42
 
-			; Main.bas 55: Chk Bag.Item(4), 43
+			; Main.bas 56: Chk Bag.Item(4), 43
 			dw p_bag_item_get_c, lit_4
 			dw p_chk_c, var_bag_item_get_item, lit_43
-
-			; Main.bas 58: Chk Fresh(), 5
-			dw p_fresh_c
-			dw p_chk_c, var_fresh_fresh, lit_5
 
 			; Main.bas 59: Chk Fresh(), 5
 			dw p_fresh_c
 			dw p_chk_c, var_fresh_fresh, lit_5
 
-			; Main.bas 60: Chk Kept(), 5
+			; Main.bas 60: Chk Fresh(), 5
+			dw p_fresh_c
+			dw p_chk_c, var_fresh_fresh, lit_5
+
+			; Main.bas 61: Chk Kept(), 5
 			dw p_kept_c
 			dw p_chk_c, var_kept_kept, lit_5
 
-			; Main.bas 61: Chk Kept(), 10
+			; Main.bas 62: Chk Kept(), 10
 			dw p_kept_c
 			dw p_chk_c, var_kept_kept, lit_10
 
-			; Main.bas 64: x = 1
+			; Main.bas 65: x = 1
 			dw kw_ltov, 1, var_x
 
-			; Main.bas 65: #asm
-			dw asm_0_65_n
+			; Main.bas 66: #asm
+			dw asm_0_66_n
 
-			; Main.bas 69: x = 2
+			; Main.bas 70: x = 2
 			dw kw_ltov, 2, var_x
 
-			; Main.bas 70: skip:
+			; Main.bas 71: skip:
 lbl_skip:
 
-			; Main.bas 71: Chk x, 1
+			; Main.bas 72: Chk x, 1
 			dw p_chk_c, var_x, lit_1
 
-			; Main.bas 74: For i = 0 To 3
+			; Main.bas 75: For i = 0 To 3
 			dw kw_ztov, var_i
 for8_t:
 
-			; Main.bas 75: pts(i).x = i * 10
+			; Main.bas 76: pts(i).x = i * 10
 			dw kw_mulvl, var_i, 10, tmp1
 			dw kw_aset, arr_pts_x, var_i, tmp1
 
-			; Main.bas 76: pts(i).name = "n" & i
+			; Main.bas 77: pts(i).name = "n" & i
 			dw kw_strcstr, stmp2, var_i
 			dw kw_strcpy, stmp1, str6
 			dw kw_strcat, stmp1, stmp2
 			dw kw_sset, arr_pts_name, var_i, stmp1, 41
 
-			; Main.bas 77: Next
+			; Main.bas 78: Next
 			dw kw_next1l_n, var_i, 3, for8_t
 for8_e:
 
-			; Main.bas 78: Chk TotalX(pts), 60
+			; Main.bas 79: Chk TotalX(pts), 60
 			dw p_totalx_c, ad_arr_pts_x, ad_arr_pts_name
 			dw p_chk_c, var_totalx_totalx, lit_60
 
-			; Main.bas 79: ChkS Names(pts), "n1n3"
+			; Main.bas 80: ChkS Names(pts), "n1n3"
 			dw p_names_c, ad_arr_pts_x, ad_arr_pts_name
 			dw p_chks_c, var_names_names, str7
 
-			; Main.bas 80: BumpX pts
+			; Main.bas 81: BumpX pts
 			dw p_bumpx_c, ad_arr_pts_x, ad_arr_pts_name
 
-			; Main.bas 81: Chk pts(2).x, 21
+			; Main.bas 82: Chk pts(2).x, 21
 			dw p_chk_c, arr_pts_x+4, lit_21
 
-			; Main.bas 84: w = "hello.bas"
+			; Main.bas 85: w = "hello.bas"
 			dw kw_strcpy, var_w, str8
 
-			; Main.bas 85: Chk (w Like "*.bas"), -1
+			; Main.bas 86: Chk (w Like "*.bas"), -1
 			dw kw_strlike, var_w, str9
 			dw kw_ftov, tmp0
 			dw p_chk_c, tmp0, lit_m1
 
-			; Main.bas 86: Chk (w Like "*.cls"), 0
+			; Main.bas 87: Chk (w Like "*.cls"), 0
 			dw kw_strlike, var_w, str10
 			dw kw_ftov, tmp0
 			dw p_chk_c, tmp0, lit_0
 
-			; Main.bas 87: Chk ("cat" Like "[bc]at"), -1
+			; Main.bas 88: Chk ("cat" Like "[bc]at"), -1
 			dw kw_strlike, str11, str12
 			dw kw_ftov, tmp0
 			dw p_chk_c, tmp0, lit_m1
 
-			; Main.bas 88: Chk ("rat" Like "[!bc]at"), -1
+			; Main.bas 89: Chk ("rat" Like "[!bc]at"), -1
 			dw kw_strlike, str13, str14
 			dw kw_ftov, tmp0
 			dw p_chk_c, tmp0, lit_m1
 
-			; Main.bas 89: Chk ("a5" Like "a#"), -1
+			; Main.bas 90: Chk ("a5" Like "a#"), -1
 			dw kw_strlike, str15, str16
 			dw kw_ftov, tmp0
 			dw p_chk_c, tmp0, lit_m1
 
-			; Main.bas 90: Chk ("aXbXc" Like "*X*c"), -1
+			; Main.bas 91: Chk ("aXbXc" Like "*X*c"), -1
 			dw kw_strlike, str17, str18
 			dw kw_ftov, tmp0
 			dw p_chk_c, tmp0, lit_m1
 
-			; Main.bas 93: w = Space$(6)
+			; Main.bas 94: w = Space$(6)
 			dw kw_strspace, stmp0, lit_6
 			dw kw_strcpy, var_w, stmp0
 
-			; Main.bas 94: LSet w = "ab"
+			; Main.bas 95: LSet w = "ab"
 			dw kw_strlset, var_w, str19
 
-			; Main.bas 95: ChkS w, "ab    "
+			; Main.bas 96: ChkS w, "ab    "
 			dw p_chks_c, var_w, str20
 
-			; Main.bas 96: RSet w = "ab"
+			; Main.bas 97: RSet w = "ab"
 			dw kw_strrset, var_w, str19
 
-			; Main.bas 97: ChkS w, "    ab"
+			; Main.bas 98: ChkS w, "    ab"
 			dw p_chks_c, var_w, str21
 
-			; Main.bas 98: fx = "ab"
+			; Main.bas 99: fx = "ab"
 			dw kw_strcpy, var_fx, str19
 			dw kw_strfix, var_fx, 5
 
-			; Main.bas 99: ChkS fx, "ab   "
+			; Main.bas 100: ChkS fx, "ab   "
 			dw p_chks_c, var_fx, str22
 
-			; Main.bas 100: fx = "abcdefgh"
+			; Main.bas 101: fx = "abcdefgh"
 			dw kw_strcpy, var_fx, str23
 			dw kw_strfix, var_fx, 5
 
-			; Main.bas 101: ChkS fx, "abcde"
+			; Main.bas 102: ChkS fx, "abcde"
 			dw p_chks_c, var_fx, str24
 
-			; Main.bas 102: Chk Len(fx), 5
+			; Main.bas 103: Chk Len(fx), 5
 			dw kw_strlen, var_fx, tmp0
 			dw p_chk_c, tmp0, lit_5
 
-			; Main.bas 105: i = 42
+			; Main.bas 106: i = 42
 			dw kw_ltov, 42, var_i
 
-			; Main.bas 106: ChkS Format$(i, "0000"), "0042"
+			; Main.bas 107: ChkS Format$(i, "0000"), "0042"
 			dw kw_strfmt, stmp0, var_i, 4, 0, str4, str4
 			dw p_chks_c, stmp0, str26
 
-			; Main.bas 107: e = 1234567
+			; Main.bas 108: e = 1234567
 			dw kw_l_mov, llit_1234567, var_e
 
-			; Main.bas 108: ChkS Format$(e, "#,##0"), "1,234,567"
+			; Main.bas 109: ChkS Format$(e, "#,##0"), "1,234,567"
 			dw kw_l_strfmt, stmp0, var_e, 1, 1, str4, str4
 			dw p_chks_c, stmp0, str28
 
-			; Main.bas 109: ChkS Format$(-i, "$0.00"), "-$42.00"
+			; Main.bas 110: ChkS Format$(-i, "$0.00"), "-$42.00"
 			dw kw_negv, var_i, tmp0
 			dw kw_strfmt, stmp0, tmp0, 1, 0, str30, str31
 			dw p_chks_c, stmp0, str32
 
-			; Main.bas 110: ChkS Join(s, "-"), "a-b-c"
+			; Main.bas 111: ChkS Join(s, "-"), "a-b-c"
 			dw kw_strjoin, stmp0, ad_arr_s, str33
 			dw p_chks_c, stmp0, str34
 
-			; Main.bas 111: parts = Split("x,yy,,z", ",")
+			; Main.bas 112: parts = Split("x,yy,,z", ",")
 			dw kw_strsplit, pa_parts, pa_parts_data, 16, str35, str36, 41
 
-			; Main.bas 112: Chk UBound(parts), 3
+			; Main.bas 113: Chk UBound(parts), 3
 			dw kw_ubound, pa_parts, tmp0
 			dw p_chk_c, tmp0, lit_3
 
-			; Main.bas 113: ChkS parts(1) & parts(3), "yyz"
+			; Main.bas 114: ChkS parts(1) & parts(3), "yyz"
 			dw kw_pget, pa_parts, lit_1, stmp0
 			dw kw_pget, pa_parts, lit_3, stmp1
 			dw kw_strcat, stmp0, stmp1
 			dw p_chks_c, stmp0, str37
 
-			; Main.bas 114: ChkS Join(parts, "/"), "x/yy//z"
+			; Main.bas 115: ChkS Join(parts, "/"), "x/yy//z"
 			dw kw_strjoin, stmp0, pa_parts, str38
 			dw p_chks_c, stmp0, str39
 
-			; Main.bas 116: Print
+			; Main.bas 117: Print
 			dw kw_printnl
 
-			; Main.bas 117: Print t; " tests, "; bad; " failed"
+			; Main.bas 118: Print t; " tests, "; bad; " failed"
 			dw kw_printint, var_t
 			dw kw_printstrvar, str40
 			dw kw_printint, var_bad
 			dw kw_printstrvar, str41
 			dw kw_printnl
 
-			; Main.bas 118: Print "Press a key";
+			; Main.bas 119: End
+			dw kw_printnl0
 			dw kw_printstrvar, str42
-
-			; Main.bas 119: Do : Frame : Loop Until Inkey <> 0
-do9_t:
-			dw kw_frame
-			dw kw_inkey, tmp0
-			dw kw_cpnevl, tmp0, 0
-			dw kw_goto_iffalse_n, do9_t
-do9_e:
-
-			; Main.bas 120: Print
-			dw kw_printnl
-
-			; Main.bas 121: End
+			dw kw_waitkey
 			dw kw_stop
 
 ; ============================================================
@@ -358,34 +347,34 @@ do9_e:
 
 p_chk:
 
-			; Main.bas 124: t = t + 1
+			; Main.bas 122: t = t + 1
 			dw kw_inc, var_t
 
-			; Main.bas 125: Print t; ":";
+			; Main.bas 123: Print t; ":";
 			dw kw_printint, var_t
 			dw kw_printstrvar, str43
 
-			; Main.bas 126: If got = want Then
+			; Main.bas 124: If got = want Then
 			dw kw_cpeqvv, var_chk_got, var_chk_want
-			dw kw_goto_iffalse_n, if10_1
+			dw kw_goto_iffalse_n, if9_1
 
-			; Main.bas 127: Print "ok ";
+			; Main.bas 125: Print "ok ";
 			dw kw_printstrvar, str44
 
-			; Main.bas 128: Else
-			dw if10_e_go
-if10_1:
+			; Main.bas 126: Else
+			dw if9_e_go
+if9_1:
 
-			; Main.bas 129: Print "FAIL("; got; ") ";
+			; Main.bas 127: Print "FAIL("; got; ") ";
 			dw kw_printstrvar, str45
 			dw kw_printint, var_chk_got
 			dw kw_printstrvar, str46
 
-			; Main.bas 130: bad = bad + 1
+			; Main.bas 128: bad = bad + 1
 			dw kw_inc, var_bad
 
-			; Main.bas 131: End If
-if10_e:
+			; Main.bas 129: End If
+if9_e:
 			dw p_chk_r
 
 ; ============================================================
@@ -394,34 +383,34 @@ if10_e:
 
 p_chks:
 
-			; Main.bas 135: t = t + 1
+			; Main.bas 133: t = t + 1
 			dw kw_inc, var_t
 
-			; Main.bas 136: Print t; ":";
+			; Main.bas 134: Print t; ":";
 			dw kw_printint, var_t
 			dw kw_printstrvar, str43
 
-			; Main.bas 137: If got = want Then
+			; Main.bas 135: If got = want Then
 			dw kw_strcmpeq, var_chks_got, var_chks_want
-			dw kw_goto_iffalse_n, if11_1
+			dw kw_goto_iffalse_n, if10_1
 
-			; Main.bas 138: Print "ok ";
+			; Main.bas 136: Print "ok ";
 			dw kw_printstrvar, str44
 
-			; Main.bas 139: Else
-			dw if11_e_go
-if11_1:
+			; Main.bas 137: Else
+			dw if10_e_go
+if10_1:
 
-			; Main.bas 140: Print "FAIL["; got; "] ";
+			; Main.bas 138: Print "FAIL["; got; "] ";
 			dw kw_printstrvar, str47
 			dw kw_printstrvar, var_chks_got
 			dw kw_printstrvar, str48
 
-			; Main.bas 141: bad = bad + 1
+			; Main.bas 139: bad = bad + 1
 			dw kw_inc, var_bad
 
-			; Main.bas 142: End If
-if11_e:
+			; Main.bas 140: End If
+if10_e:
 			dw p_chks_r
 
 ; ============================================================
@@ -430,24 +419,24 @@ if11_e:
 
 p_sumof:
 
-			; Main.bas 146: Dim n As Integer
+			; Main.bas 144: Dim n As Integer
 
-			; Main.bas 147: SumOf = 0
+			; Main.bas 145: SumOf = 0
 			dw kw_ztov, var_sumof_sumof
 
-			; Main.bas 148: For Each n In v
-			dw kw_lbound, pa_sumof_v, var_sumof___fe12
-			dw kw_ubound, pa_sumof_v, for13_l
-			dw kw_forupv_n, var_sumof___fe12, for13_l, for13_e
-for13_t:
-			dw kw_pget, pa_sumof_v, var_sumof___fe12, var_sumof_n
+			; Main.bas 146: For Each n In v
+			dw kw_lbound, pa_sumof_v, var_sumof___fe11
+			dw kw_ubound, pa_sumof_v, for12_l
+			dw kw_forupv_n, var_sumof___fe11, for12_l, for12_e
+for12_t:
+			dw kw_pget, pa_sumof_v, var_sumof___fe11, var_sumof_n
 
-			; Main.bas 149: SumOf = SumOf + n
+			; Main.bas 147: SumOf = SumOf + n
 			dw kw_add, var_sumof_sumof, var_sumof_n, var_sumof_sumof
 
-			; Main.bas 150: Next
-			dw kw_next1v_n, var_sumof___fe12, for13_l, for13_t
-for13_e:
+			; Main.bas 148: Next
+			dw kw_next1v_n, var_sumof___fe11, for12_l, for12_t
+for12_e:
 			dw p_sumof_r
 
 ; ============================================================
@@ -456,12 +445,12 @@ for13_e:
 
 p_fresh:
 
-			; Main.bas 154: Dim b(3) As Integer
+			; Main.bas 152: Dim b(3) As Integer
 
-			; Main.bas 155: b(1) = b(1) + 5
+			; Main.bas 153: b(1) = b(1) + 5
 			dw kw_addl, arr_fresh_b+2, 5, arr_fresh_b+2
 
-			; Main.bas 156: Fresh = b(1)
+			; Main.bas 154: Fresh = b(1)
 			dw kw_vtov, arr_fresh_b+2, var_fresh_fresh
 			dw p_fresh_r
 
@@ -471,12 +460,12 @@ p_fresh:
 
 p_kept:
 
-			; Main.bas 160: Static c(3) As Integer
+			; Main.bas 158: Static c(3) As Integer
 
-			; Main.bas 161: c(1) = c(1) + 5
+			; Main.bas 159: c(1) = c(1) + 5
 			dw kw_addl, arr_kept_c+2, 5, arr_kept_c+2
 
-			; Main.bas 162: Kept = c(1)
+			; Main.bas 160: Kept = c(1)
 			dw kw_vtov, arr_kept_c+2, var_kept_kept
 			dw p_kept_r
 
@@ -486,21 +475,21 @@ p_kept:
 
 p_totalx:
 
-			; Main.bas 166: Dim k As Integer
+			; Main.bas 164: Dim k As Integer
 
-			; Main.bas 167: For k = LBound(a) To UBound(a)
+			; Main.bas 165: For k = LBound(a) To UBound(a)
 			dw kw_lbound, pa_totalx_a_x, var_totalx_k
-			dw kw_ubound, pa_totalx_a_x, for14_l
-			dw kw_forupv_n, var_totalx_k, for14_l, for14_e
-for14_t:
+			dw kw_ubound, pa_totalx_a_x, for13_l
+			dw kw_forupv_n, var_totalx_k, for13_l, for13_e
+for13_t:
 
-			; Main.bas 168: TotalX = TotalX + a(k).x
+			; Main.bas 166: TotalX = TotalX + a(k).x
 			dw kw_pget, pa_totalx_a_x, var_totalx_k, tmp1
 			dw kw_add, var_totalx_totalx, tmp1, var_totalx_totalx
 
-			; Main.bas 169: Next
-			dw kw_next1v_n, var_totalx_k, for14_l, for14_t
-for14_e:
+			; Main.bas 167: Next
+			dw kw_next1v_n, var_totalx_k, for13_l, for13_t
+for13_e:
 			dw p_totalx_r
 
 ; ============================================================
@@ -509,7 +498,7 @@ for14_e:
 
 p_names:
 
-			; Main.bas 173: Names = a(1).name & a(3).name
+			; Main.bas 171: Names = a(1).name & a(3).name
 			dw kw_pget, pa_names_a_name, lit_1, stmp0
 			dw kw_pget, pa_names_a_name, lit_3, stmp1
 			dw kw_strcpy, var_names_names, stmp0
@@ -522,7 +511,7 @@ p_names:
 
 p_bumpx:
 
-			; Main.bas 177: a(2).x = a(2).x + 1
+			; Main.bas 175: a(2).x = a(2).x + 1
 			dw kw_pget, pa_bumpx_a_x, lit_2, tmp2
 			dw kw_inc, tmp2
 			dw kw_pset, pa_bumpx_a_x, lit_2, tmp2
@@ -557,9 +546,9 @@ p_bag_item_let:
 ;   turbo mode ends with ret, normal mode with jp ntc_xn
 ; ============================================================
 
-if10_e_go:			ld sp, if10_e
+if9_e_go:			ld sp, if9_e
 			jp ntc_xn
-if11_e_go:			ld sp, if11_e
+if10_e_go:			ld sp, if10_e
 			jp ntc_xn
 
 p_chk_c:		; call chk (normal)
@@ -739,9 +728,9 @@ p_bag_item_let_r:		; end of item
 ; Inline assembly (#asm ... #endasm)
 ; ============================================================
 
-asm_0_65_n:		; #asm, Main.bas line 65 (normal)
-            ld sp, lbl_skip		; Main.bas 66
-            jp ntc_xn		; Main.bas 67
+asm_0_66_n:		; #asm, Main.bas line 66 (normal)
+            ld sp, lbl_skip		; Main.bas 67
+            jp ntc_xn		; Main.bas 68
 			jp ntc_xn			; end of #asm
 
 
@@ -787,13 +776,13 @@ var_chks_got:			ds 256
 var_chks_want:			ds 256
 p_sumof_rs:			dw 0
 var_sumof_n:			dw 0
-var_sumof___fe12:			dw 0
-for13_l:			dw 0
+var_sumof___fe11:			dw 0
+for12_l:			dw 0
 p_fresh_rs:			dw 0
 p_kept_rs:			dw 0
 p_totalx_rs:			dw 0
 var_totalx_k:			dw 0
-for14_l:			dw 0
+for13_l:			dw 0
 p_names_rs:			dw 0
 p_bumpx_rs:			dw 0
 p_bag_item_get_rs:			dw 0
@@ -910,7 +899,6 @@ kw_addl:		jp 54
 kw_mulvl:	jp 61
 kw_negv:		jp 69
 kw_cpeqvv:	jp 95
-kw_cpnevl:	jp 98
 kw_aget:		jp 111
 kw_aset:		jp 112
 kw_redim:	jp 115
@@ -921,10 +909,9 @@ kw_strlen:	jp 125
 kw_strcmpeq:	jp 126
 kw_printstrvar:	jp 129
 kw_printint:	jp 131
+kw_printnl0:	jp 134
 kw_printnl:	jp 138
-kw_inkey:	jp 144
 kw_cls:		jp 147
-kw_frame:	jp 152
 kw_strlike:	jp 164
 kw_strlset:	jp 165
 kw_strrset:	jp 166
@@ -944,7 +931,8 @@ kw_ubound:	jp 205
 kw_l_mov:	jp 206
 kw_l_cpeq:	jp 221
 kw_bssinit:	jp 288
-NTC_RJ_N	equ 50		; entries
+kw_waitkey:	jp 348
+NTC_RJ_N	equ 49		; entries
 ntc_csp	equ #8800		; ROM data
 ntc_nmode	equ #8807		; ROM data
 ntc_v_free	equ #894E		; ROM data

@@ -38,27 +38,27 @@ ntc_go:
 main_thread:
 			dw kw_scrinit		; mode 1, ROMs off, clear screen
 
-			; 13: Cls
+			; 14: Cls
 			dw kw_cls
 
-			; 14: Print "VB self test 11"
+			; 15: Print "VB self test 11"
 			dw kw_printzoscii
 			dw glyph_56, glyph_42, glyph_20, glyph_73, glyph_65, glyph_6C, glyph_66, glyph_20
 			dw glyph_74, glyph_65, glyph_73, glyph_74, glyph_20, glyph_31, glyph_31, 1
 			dw 0		; "VB self test 11\n"
 
-			; 17: Chk Add3(10), 13
+			; 18: Chk Add3(10), 13
 			dw fn_add3, lit_10, var_add3_add3
 			dw p_chk_c, var_add3_add3, lit_13
 
-			; 18: a = 20
+			; 19: a = 20
 			dw kw_ltov, 20, var_a
 
-			; 19: Chk Add3(a), 23
+			; 20: Chk Add3(a), 23
 			dw fn_add3, var_a, var_add3_add3
 			dw p_chk_c, var_add3_add3, lit_23
 
-			; 20: Chk Add3(a * 2) + Add3(1), 47
+			; 21: Chk Add3(a * 2) + Add3(1), 47
 			dw kw_2x, var_a, tmp0
 			dw fn_add3, tmp0, var_add3_add3
 			dw kw_vtov, var_add3_add3, tmp0
@@ -67,7 +67,7 @@ main_thread:
 			dw kw_add, tmp0, tmp1, tmp0
 			dw p_chk_c, tmp0, lit_47
 
-			; 21: Chk Add3(Add3(Add3(0))), 9
+			; 22: Chk Add3(Add3(Add3(0))), 9
 			dw fn_add3, lit_0, var_add3_add3
 			dw kw_vtov, var_add3_add3, tmp0
 			dw fn_add3, tmp0, var_add3_add3
@@ -75,105 +75,105 @@ main_thread:
 			dw fn_add3, tmp0, var_add3_add3
 			dw p_chk_c, var_add3_add3, lit_9
 
-			; 24: a = Add3(5)
+			; 25: a = Add3(5)
 			dw fn_add3, lit_5, var_a
 
-			; 25: Chk a, 8
+			; 26: Chk a, 8
 			dw p_chk_c, var_a, lit_8
 
-			; 26: a = Add3(a)
+			; 27: a = Add3(a)
 			dw fn_add3, var_a, var_add3_add3
 			dw kw_vtov, var_add3_add3, var_a
 
-			; 27: Chk a, 11
+			; 28: Chk a, 11
 			dw p_chk_c, var_a, lit_11
 
-			; 30: Chk AddXY(7, 8), 15
+			; 31: Chk AddXY(7, 8), 15
 			dw fn_addxy, lit_7, lit_8, var_addxy_addxy
 			dw p_chk_c, var_addxy_addxy, lit_15
 
-			; 31: b = AddXY(a, 5) * 2
+			; 32: b = AddXY(a, 5) * 2
 			dw fn_addxy, var_a, lit_5, var_addxy_addxy
 			dw kw_vtov, var_addxy_addxy, tmp0
 			dw kw_2x, tmp0, var_b
 
-			; 32: Chk b, 32
+			; 33: Chk b, 32
 			dw p_chk_c, var_b, lit_32
 
-			; 35: c = 41
+			; 36: c = 41
 			dw kw_ltov, 41, var_c
 
-			; 36: Inc c
+			; 37: Inc c
 			dw fn_inc, var_c
 
-			; 37: Chk c, 42
+			; 38: Chk c, 42
 			dw p_chk_c, var_c, lit_42
-
-			; 38: Inc c
-			dw fn_inc, var_c
 
 			; 39: Inc c
 			dw fn_inc, var_c
 
-			; 40: Chk c, 44
+			; 40: Inc c
+			dw fn_inc, var_c
+
+			; 41: Chk c, 44
 			dw p_chk_c, var_c, lit_44
 
-			; 43: s = "hello"
+			; 44: s = "hello"
 			dw kw_strcpy, var_s, str0
 
-			; 44: UpFirst s
+			; 45: UpFirst s
 			dw fn_upfirst, var_s
 
-			; 45: Chk Asc(s), 72
+			; 46: Chk Asc(s), 72
 			dw kw_strasc, var_s, tmp0
 			dw p_chk_c, tmp0, lit_72
 
-			; 46: Chk Len(s), 5
+			; 47: Chk Len(s), 5
 			dw kw_strlen, var_s, tmp0
 			dw p_chk_c, tmp0, lit_5
 
-			; 49: n = Big(3)
+			; 50: n = Big(3)
 			dw fn_big, lit_3, var_n
 
-			; 50: Chk n \ 65536, 3
+			; 51: Chk n \ 65536, 3
 			dw kw_l_div, var_n, llit_65536, ltmp0
 			dw kw_l_ltoi, ltmp0, tmp0
 			dw p_chk_c, tmp0, lit_3
 
-			; 51: Chk n Mod 65536, 0
+			; 52: Chk n Mod 65536, 0
 			dw kw_l_mod, var_n, llit_65536, ltmp0
 			dw kw_l_ltoi, ltmp0, tmp0
 			dw p_chk_c, tmp0, lit_0
 
-			; 54: Chk AddC(1), 4
+			; 55: Chk AddC(1), 4
 			dw fn_addc, lit_1, var_addc_addc
 			dw p_chk_c, var_addc_addc, lit_4
 
-			; 57: Chk Twice(21), 42
+			; 58: Chk Twice(21), 42
 			dw p_twice_c, lit_21
 			dw p_chk_c, var_twice_twice, lit_42
 
-			; 60: c = 0
+			; 61: c = 0
 			dw kw_ztov, var_c
 
-			; 61: For i = 1 To 50
+			; 62: For i = 1 To 50
 			dw kw_ltov, 1, var_i
 for1_t:
 
-			; 62: Inc c
+			; 63: Inc c
 			dw fn_inc, var_c
 
-			; 63: Next
+			; 64: Next
 			dw kw_next1l_n, var_i, 50, for1_t
 for1_e:
 
-			; 64: Chk c, 50
+			; 65: Chk c, 50
 			dw p_chk_c, var_c, lit_50
 
-			; 66: Print
+			; 67: Print
 			dw kw_printnl
 
-			; 67: Print t; " tests, "; bad; " failed"
+			; 68: Print t; " tests, "; bad; " failed"
 			dw kw_printint, var_t
 			dw kw_printzoscii
 			dw glyph_20, glyph_74, glyph_65, glyph_73, glyph_74, glyph_73, glyph_2C, glyph_20
@@ -183,23 +183,12 @@ for1_e:
 			dw glyph_20, glyph_66, glyph_61, glyph_69, glyph_6C, glyph_65, glyph_64, 1
 			dw 0		; " failed\n"
 
-			; 68: Print "Press a key";
+			; 69: End
+			dw kw_printnl0
 			dw kw_printzoscii
 			dw glyph_50, glyph_72, glyph_65, glyph_73, glyph_73, glyph_20, glyph_61, glyph_20
 			dw glyph_6B, glyph_65, glyph_79, 0		; "Press a key"
-
-			; 69: Do : Frame : Loop Until Inkey <> 0
-do2_t:
-			dw kw_frame
-			dw kw_inkey, tmp0
-			dw kw_cpnevl, tmp0, 0
-			dw kw_goto_iffalse_n, do2_t
-do2_e:
-
-			; 70: Print
-			dw kw_printnl
-
-			; 71: End
+			dw kw_waitkey
 			dw kw_stop
 
 ; ============================================================
@@ -208,38 +197,38 @@ do2_e:
 
 p_chk:
 
-			; 74: t = t + 1
+			; 72: t = t + 1
 			dw kw_inc, var_t
 
-			; 75: Print t; ":";
+			; 73: Print t; ":";
 			dw kw_printint, var_t
 			dw kw_printzoscii
 			dw glyph_3A, 0		; ":"
 
-			; 76: If got = want Then
+			; 74: If got = want Then
 			dw kw_cpeqvv, var_chk_got, var_chk_want
-			dw kw_goto_iffalse_n, if3_1
+			dw kw_goto_iffalse_n, if2_1
 
-			; 77: Print "ok ";
+			; 75: Print "ok ";
 			dw kw_printzoscii
 			dw glyph_6F, glyph_6B, glyph_20, 0		; "ok "
 
-			; 78: Else
-			dw if3_e_go
-if3_1:
+			; 76: Else
+			dw if2_e_go
+if2_1:
 
-			; 79: Print "FAIL("; got; ") ";
+			; 77: Print "FAIL("; got; ") ";
 			dw kw_printzoscii
 			dw glyph_46, glyph_41, glyph_49, glyph_4C, glyph_28, 0		; "FAIL("
 			dw kw_printint, var_chk_got
 			dw kw_printzoscii
 			dw glyph_29, glyph_20, 0		; ") "
 
-			; 80: bad = bad + 1
+			; 78: bad = bad + 1
 			dw kw_inc, var_bad
 
-			; 81: End If
-if3_e:
+			; 79: End If
+if2_e:
 			dw p_chk_r
 
 ; ============================================================
@@ -248,8 +237,8 @@ if3_e:
 
 p_twice:
 
-			; 179: #asm
-			dw asm_0_179_n
+			; 177: #asm
+			dw asm_0_177_n
 			dw p_twice_r
 
 ; ============================================================
@@ -261,7 +250,7 @@ p_twice:
 ;   turbo mode ends with ret, normal mode with jp ntc_xn
 ; ============================================================
 
-if3_e_go:			ld sp, if3_e
+if2_e_go:			ld sp, if2_e
 			jp ntc_xn
 
 p_chk_c:		; call chk (normal)
@@ -300,92 +289,92 @@ p_twice_r:		; end of twice
 ; Inline assembly (#asm ... #endasm)
 ; ============================================================
 
-fn_add3:		; function add3 (asm keyword), main.bas line 85
-    pop hl          ; address of x [86]
-    ld e,(hl)		; main.bas 87
-    inc hl		; main.bas 88
-    ld d,(hl)		; main.bas 89
+fn_add3:		; function add3 (asm keyword), main.bas line 83
+    pop hl          ; address of x [84]
+    ld e,(hl)		; main.bas 85
+    inc hl		; main.bas 86
+    ld d,(hl)		; main.bas 87
+    inc de		; main.bas 88
+    inc de		; main.bas 89
     inc de		; main.bas 90
-    inc de		; main.bas 91
-    inc de		; main.bas 92
-    pop hl          ; address of the result [93]
-    ld (hl),e		; main.bas 94
-    inc hl		; main.bas 95
-    ld (hl),d		; main.bas 96
+    pop hl          ; address of the result [91]
+    ld (hl),e		; main.bas 92
+    inc hl		; main.bas 93
+    ld (hl),d		; main.bas 94
 			ret			; end of #asm
 
-fn_addxy:		; function addxy (asm keyword), main.bas line 101
-    pop hl          ; x [102]
-    ld e,(hl)		; main.bas 103
-    inc hl		; main.bas 104
-    ld d,(hl)		; main.bas 105
-    pop hl          ; y [106]
-    ld a,(hl)		; main.bas 107
-    inc hl		; main.bas 108
-    ld h,(hl)		; main.bas 109
-    ld l,a		; main.bas 110
-    add hl,de		; main.bas 111
-    ex de,hl		; main.bas 112
-    pop hl          ; result [113]
-    ld (hl),e		; main.bas 114
-    inc hl		; main.bas 115
-    ld (hl),d		; main.bas 116
+fn_addxy:		; function addxy (asm keyword), main.bas line 99
+    pop hl          ; x [100]
+    ld e,(hl)		; main.bas 101
+    inc hl		; main.bas 102
+    ld d,(hl)		; main.bas 103
+    pop hl          ; y [104]
+    ld a,(hl)		; main.bas 105
+    inc hl		; main.bas 106
+    ld h,(hl)		; main.bas 107
+    ld l,a		; main.bas 108
+    add hl,de		; main.bas 109
+    ex de,hl		; main.bas 110
+    pop hl          ; result [111]
+    ld (hl),e		; main.bas 112
+    inc hl		; main.bas 113
+    ld (hl),d		; main.bas 114
 			ret			; end of #asm
 
-fn_inc:		; sub inc (asm keyword), main.bas line 121
-    pop hl          ; address of v (ByRef: write through it) [122]
-    inc (hl)		; main.bas 123
-    jr nz,fn_inc_done		; main.bas 124
-    inc hl		; main.bas 125
-    inc (hl)		; main.bas 126
-fn_inc_done:		; main.bas 127
+fn_inc:		; sub inc (asm keyword), main.bas line 119
+    pop hl          ; address of v (ByRef: write through it) [120]
+    inc (hl)		; main.bas 121
+    jr nz,fn_inc_done		; main.bas 122
+    inc hl		; main.bas 123
+    inc (hl)		; main.bas 124
+fn_inc_done:		; main.bas 125
 			ret			; end of #asm
 
-fn_upfirst:		; sub upfirst (asm keyword), main.bas line 132
-    pop hl          ; the string itself (0 terminated) [133]
-    ld a,(hl)		; main.bas 134
-    cp 'a'		; main.bas 135
-    ret c		; main.bas 136
-    cp 'z'+1		; main.bas 137
-    ret nc		; main.bas 138
-    sub 32		; main.bas 139
-    ld (hl),a		; main.bas 140
+fn_upfirst:		; sub upfirst (asm keyword), main.bas line 130
+    pop hl          ; the string itself (0 terminated) [131]
+    ld a,(hl)		; main.bas 132
+    cp 'a'		; main.bas 133
+    ret c		; main.bas 134
+    cp 'z'+1		; main.bas 135
+    ret nc		; main.bas 136
+    sub 32		; main.bas 137
+    ld (hl),a		; main.bas 138
 			ret			; end of #asm
 
-fn_big:		; function big (asm keyword), main.bas line 145
-    pop hl          ; hi [146]
-    ld e,(hl)		; main.bas 147
-    inc hl		; main.bas 148
-    ld d,(hl)		; main.bas 149
-    pop hl          ; result: 4 bytes, low word first [150]
-    xor a		; main.bas 151
+fn_big:		; function big (asm keyword), main.bas line 143
+    pop hl          ; hi [144]
+    ld e,(hl)		; main.bas 145
+    inc hl		; main.bas 146
+    ld d,(hl)		; main.bas 147
+    pop hl          ; result: 4 bytes, low word first [148]
+    xor a		; main.bas 149
+    ld (hl),a		; main.bas 150
+    inc hl		; main.bas 151
     ld (hl),a		; main.bas 152
     inc hl		; main.bas 153
-    ld (hl),a		; main.bas 154
+    ld (hl),e		; main.bas 154
     inc hl		; main.bas 155
-    ld (hl),e		; main.bas 156
-    inc hl		; main.bas 157
-    ld (hl),d		; main.bas 158
+    ld (hl),d		; main.bas 156
 			ret			; end of #asm
 
-fn_addc:		; function addc (asm keyword), main.bas line 163
-    pop hl		; main.bas 164
-    ld e,(hl)		; main.bas 165
-    inc hl		; main.bas 166
-    ld d,(hl)		; main.bas 167
-    ld hl,3		; main.bas 168
-    add hl,de		; main.bas 169
-    ex de,hl		; main.bas 170
-    pop hl		; main.bas 171
-    ld (hl),e		; main.bas 172
-    inc hl		; main.bas 173
-    ld (hl),d		; main.bas 174
+fn_addc:		; function addc (asm keyword), main.bas line 161
+    pop hl		; main.bas 162
+    ld e,(hl)		; main.bas 163
+    inc hl		; main.bas 164
+    ld d,(hl)		; main.bas 165
+    ld hl,3		; main.bas 166
+    add hl,de		; main.bas 167
+    ex de,hl		; main.bas 168
+    pop hl		; main.bas 169
+    ld (hl),e		; main.bas 170
+    inc hl		; main.bas 171
+    ld (hl),d		; main.bas 172
 			ret			; end of #asm
 
-asm_0_179_n:		; #asm, main.bas line 179 (normal)
-    ld hl,(var_twice_x)		; main.bas 180
-    add hl,hl		; main.bas 181
-    ld (var_twice_twice),hl		; main.bas 182
+asm_0_177_n:		; #asm, main.bas line 177 (normal)
+    ld hl,(var_twice_x)		; main.bas 178
+    add hl,hl		; main.bas 179
+    ld (var_twice_twice),hl		; main.bas 180
 			ret			; end of #asm
 
 
@@ -493,22 +482,21 @@ kw_inc:		jp 51
 kw_add:		jp 53
 kw_2x:		jp 57
 kw_cpeqvv:	jp 95
-kw_cpnevl:	jp 98
 kw_strcpy:	jp 122
 kw_strlen:	jp 125
 kw_printzoscii:	jp 129
 kw_printint:	jp 132
+kw_printnl0:	jp 135
 kw_printnl:	jp 139
-kw_inkey:	jp 145
 kw_scrinit:	jp 147
 kw_cls:		jp 148
-kw_frame:	jp 153
 kw_strasc:	jp 186
 kw_l_ltoi:	jp 209
 kw_l_div:	jp 230
 kw_l_mod:	jp 231
 ntc_plat_irqon:	jp 308
-NTC_RJ_N	equ 26		; entries
+kw_waitkey:	jp 321
+NTC_RJ_N	equ 25		; entries
 ntc_csp	equ #8800		; ROM data
 ntc_font	equ #948E		; ROM bss
 ntc_nmode	equ #8807		; ROM data

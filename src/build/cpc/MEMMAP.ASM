@@ -30,26 +30,26 @@ ntc_go:
 main_thread:
 			dw kw_scrinit		; mode 1, ROMs off, clear screen
 
-			; main.bas 25: Print "Memory on "; System.Platform
+			; main.bas 26: Print "Memory on "; System.Platform
 			dw kw_printzoscii
 			dw glyph_4D, glyph_65, glyph_6D, glyph_6F, glyph_72, glyph_79, glyph_20, glyph_6F
 			dw glyph_6E, glyph_20, glyph_43, glyph_50, glyph_43, 1, 0		; "Memory on CPC\n"
 
-			; main.bas 26: n = Memory.Pages()
+			; main.bas 27: n = Memory.Pages()
 			dw fn_memory_pages, var_n
 
-			; main.bas 27: Summary
+			; main.bas 28: Summary
 			dw p_summary_c
 
-			; main.bas 28: MainMap
+			; main.bas 29: MainMap
 			dw p_mainmap_c
 
-			; main.bas 29: Print "Press a key";
+			; main.bas 30: Print "Press a key";
 			dw kw_printzoscii
 			dw glyph_50, glyph_72, glyph_65, glyph_73, glyph_73, glyph_20, glyph_61, glyph_20
 			dw glyph_6B, glyph_65, glyph_79, 0		; "Press a key"
 
-			; main.bas 30: Do While Inkey <> 0 : Loop
+			; main.bas 31: Do While Inkey <> 0 : Loop
 do1_t:
 			dw kw_inkey, tmp0
 			dw kw_cpnevl, tmp0, 0
@@ -57,7 +57,7 @@ do1_t:
 			dw do1_t_go
 do1_e:
 
-			; main.bas 31: Do : Frame : Loop Until Inkey <> 0
+			; main.bas 32: Do : Frame : Loop Until Inkey <> 0
 do2_t:
 			dw kw_frame
 			dw kw_inkey, tmp0
@@ -65,25 +65,25 @@ do2_t:
 			dw kw_goto_iffalse_n, do2_t
 do2_e:
 
-			; main.bas 32: Print
+			; main.bas 33: Print
 			dw kw_printnl
 
-			; main.bas 35: Cls
+			; main.bas 36: Cls
 			dw kw_cls
 
-			; main.bas 36: Print "Pages on "; System.Platform
+			; main.bas 37: Print "Pages on "; System.Platform
 			dw kw_printzoscii
 			dw glyph_50, glyph_61, glyph_67, glyph_65, glyph_73, glyph_20, glyph_6F, glyph_6E
 			dw glyph_20, glyph_43, glyph_50, glyph_43, 1, 0		; "Pages on CPC\n"
 
-			; main.bas 37: Summary
+			; main.bas 38: Summary
 			dw p_summary_c
 
-			; main.bas 38: If n = 0 Then
+			; main.bas 39: If n = 0 Then
 			dw kw_cpeqvl, var_n, 0
 			dw kw_goto_iffalse_n, if3_1
 
-			; main.bas 40: Print "No paging - heap &"; Hex$(Memory.HeapStart()); "-&"; Hex$(Memory.HeapEnd())
+			; main.bas 41: Print "No paging - heap &"; Hex$(Memory.HeapStart()); "-&"; Hex$(Memory.HeapEnd())
 			dw fn_memory_heapstart, var_memory_heapstart_heapstart
 			dw kw_vtov, var_memory_heapstart_heapstart, tmp0
 			dw kw_strhex, stmp0, tmp0
@@ -100,11 +100,11 @@ do2_e:
 			dw kw_printstrvar, stmp0
 			dw kw_printnl
 
-			; main.bas 41: Else
+			; main.bas 42: Else
 			dw if3_e_go
 if3_1:
 
-			; main.bas 42: Print "Page tables end at &"; Hex$(Memory.TableEnd())
+			; main.bas 43: Print "Page tables end at &"; Hex$(Memory.TableEnd())
 			dw fn_memory_tableend, var_memory_tableend_tableend
 			dw kw_vtov, var_memory_tableend_tableend, tmp0
 			dw kw_strhex, stmp0, tmp0
@@ -115,16 +115,16 @@ if3_1:
 			dw kw_printstrvar, stmp0
 			dw kw_printnl
 
-			; main.bas 43: music = Memory.AllocPage(Memory.TypeUser)
+			; main.bas 44: music = Memory.AllocPage(Memory.TypeUser)
 			dw fn_memory_allocpage, lit_85, var_music
 
-			; main.bas 44: sprites = Memory.AllocPage(Memory.TypeCode)
+			; main.bas 45: sprites = Memory.AllocPage(Memory.TypeCode)
 			dw fn_memory_allocpage, lit_67, var_sprites
 
-			; main.bas 45: level = Memory.AllocPage(Memory.TypeUser)
+			; main.bas 46: level = Memory.AllocPage(Memory.TypeUser)
 			dw fn_memory_allocpage, lit_85, var_level
 
-			; main.bas 46: Print "Music "; music; " Sprites "; sprites; " Level "; level
+			; main.bas 47: Print "Music "; music; " Sprites "; sprites; " Level "; level
 			dw kw_printzoscii
 			dw glyph_4D, glyph_75, glyph_73, glyph_69, glyph_63, glyph_20, 0		; "Music "
 			dw kw_printint, var_music
@@ -137,28 +137,28 @@ if3_1:
 			dw kw_printint, var_level
 			dw kw_printnl
 
-			; main.bas 47: End If
+			; main.bas 48: End If
 if3_e:
 
-			; main.bas 49: p1 = Memory.Alloc(1000)
+			; main.bas 50: p1 = Memory.Alloc(1000)
 			dw fn_memory_alloc, lit_1000, var_p1
 
-			; main.bas 50: p2 = Memory.Alloc(6000)
+			; main.bas 51: p2 = Memory.Alloc(6000)
 			dw fn_memory_alloc, lit_6000, var_p2
 
-			; main.bas 51: p3 = Memory.Alloc(12000)
+			; main.bas 52: p3 = Memory.Alloc(12000)
 			dw fn_memory_alloc, lit_12000, var_p3
 
-			; main.bas 52: ShowPtr "1000", p1
+			; main.bas 53: ShowPtr "1000", p1
 			dw p_showptr_c, str1, var_p1
 
-			; main.bas 53: ShowPtr "6000", p2
+			; main.bas 54: ShowPtr "6000", p2
 			dw p_showptr_c, str2, var_p2
 
-			; main.bas 54: ShowPtr "12000", p3
+			; main.bas 55: ShowPtr "12000", p3
 			dw p_showptr_c, str3, var_p3
 
-			; main.bas 55: If p1 <> 0 And p3 <> 0 Then
+			; main.bas 56: If p1 <> 0 And p3 <> 0 Then
 			dw kw_l_cpne, var_p1, llit_0
 			dw kw_ftov, tmp0
 			dw kw_l_cpne, var_p3, llit_0
@@ -166,13 +166,13 @@ if3_e:
 			dw kw_andvv, tmp0, tmp1, tmp0
 			dw kw_goto_ifzero_n, tmp0, if4_1
 
-			; main.bas 56: Memory.WriteWord p1, 12345
+			; main.bas 57: Memory.WriteWord p1, 12345
 			dw fn_memory_writeword, var_p1, lit_12345
 
-			; main.bas 57: r = Memory.Copy(p1, p3, 2)
+			; main.bas 58: r = Memory.Copy(p1, p3, 2)
 			dw fn_memory_copy, var_p1, var_p3, lit_2, var_r
 
-			; main.bas 58: Print "Copy page "; Memory.PageOf(p1); " to "; Memory.PageOf(p3); ": "; Memory.ReadWord(p3)
+			; main.bas 59: Print "Copy page "; Memory.PageOf(p1); " to "; Memory.PageOf(p3); ": "; Memory.ReadWord(p3)
 			dw fn_memory_pageof, var_p1, var_memory_pageof_pageof
 			dw kw_printzoscii
 			dw glyph_43, glyph_6F, glyph_70, glyph_79, glyph_20, glyph_70, glyph_61, glyph_67
@@ -188,10 +188,10 @@ if3_e:
 			dw kw_printint, var_memory_readword_readword
 			dw kw_printnl
 
-			; main.bas 59: End If
+			; main.bas 60: End If
 if4_1:
 
-			; main.bas 60: Print "Largest free block "; Memory.Largest()
+			; main.bas 61: Print "Largest free block "; Memory.Largest()
 			dw fn_memory_largest, var_memory_largest_largest
 			dw kw_printzoscii
 			dw glyph_4C, glyph_61, glyph_72, glyph_67, glyph_65, glyph_73, glyph_74, glyph_20
@@ -200,24 +200,24 @@ if4_1:
 			dw kw_printint, var_memory_largest_largest
 			dw kw_printnl
 
-			; main.bas 62: Print
+			; main.bas 63: Print
 			dw kw_printnl
 
-			; main.bas 63: If n = 0 Then
+			; main.bas 64: If n = 0 Then
 			dw kw_cpeqvl, var_n, 0
 			dw kw_goto_iffalse_n, if5_1
 
-			; main.bas 65: ElseIf n <= 33 Then
+			; main.bas 66: ElseIf n <= 33 Then
 			dw if5_e_go
 if5_1:
 			dw kw_scplevl, var_n, 33
 			dw kw_goto_iffalse_n, if5_2
 
-			; main.bas 67: m = Memory.Map(1, n)
+			; main.bas 68: m = Memory.Map(1, n)
 			dw fn_memory_map, lit_1, var_n, var_memory_map_map
 			dw kw_strcpy, var_m, var_memory_map_map
 
-			; main.bas 68: Print "        #0000 #4000 #8000 #C000"
+			; main.bas 69: Print "        #0000 #4000 #8000 #C000"
 			dw kw_printzoscii
 			dw glyph_20, glyph_20, glyph_20, glyph_20, glyph_20, glyph_20, glyph_20, glyph_20
 			dw glyph_23, glyph_30, glyph_30, glyph_30, glyph_30, glyph_20, glyph_23, glyph_34
@@ -225,7 +225,7 @@ if5_1:
 			dw glyph_30, glyph_20, glyph_23, glyph_43, glyph_30, glyph_30, glyph_30, 1
 			dw 0		; "        #0000 #4000 #8000 #C000\n"
 
-			; main.bas 69: Print "Main     prog  ["; Mid$(m, 1, 1); "]   ram   scr"
+			; main.bas 70: Print "Main     prog  ["; Mid$(m, 1, 1); "]   ram   scr"
 			dw kw_strmid, stmp0, var_m, lit_1, lit_1
 			dw kw_printzoscii
 			dw glyph_4D, glyph_61, glyph_69, glyph_6E, glyph_20, glyph_20, glyph_20, glyph_20
@@ -236,7 +236,7 @@ if5_1:
 			dw glyph_5D, glyph_20, glyph_20, glyph_20, glyph_72, glyph_61, glyph_6D, glyph_20
 			dw glyph_20, glyph_20, glyph_73, glyph_63, glyph_72, 1, 0		; "]   ram   scr\n"
 
-			; main.bas 70: For b = 0 To (n - 1) \ 4 - 1
+			; main.bas 71: For b = 0 To (n - 1) \ 4 - 1
 			dw kw_ztov, var_b
 			dw kw_addl, var_n, -1, tmp0
 			dw kw_divvl, tmp0, 4, tmp0
@@ -244,7 +244,7 @@ if5_1:
 			dw kw_forupv_n, var_b, for6_l, if5_e
 for6_t:
 
-			; main.bas 71: Print "Bank "; b + 1; "  ";
+			; main.bas 72: Print "Bank "; b + 1; "  ";
 			dw kw_addl, var_b, 1, tmp0
 			dw kw_printzoscii
 			dw glyph_42, glyph_61, glyph_6E, glyph_6B, glyph_20, 0		; "Bank "
@@ -252,11 +252,11 @@ for6_t:
 			dw kw_printzoscii
 			dw glyph_20, glyph_20, 0		; "  "
 
-			; main.bas 72: For r = 0 To 3
+			; main.bas 73: For r = 0 To 3
 			dw kw_ztov, var_r
 for7_t:
 
-			; main.bas 73: Print " ["; Mid$(m, 2 + b * 4 + r, 1); "]  ";
+			; main.bas 74: Print " ["; Mid$(m, 2 + b * 4 + r, 1); "]  ";
 			dw kw_4x, var_b, tmp2
 			dw kw_addl, tmp2, 2, tmp1
 			dw kw_add, tmp1, var_r, tmp1
@@ -267,22 +267,22 @@ for7_t:
 			dw kw_printzoscii
 			dw glyph_5D, glyph_20, glyph_20, 0		; "]  "
 
-			; main.bas 74: Next
+			; main.bas 75: Next
 			dw kw_next1l_n, var_r, 3, for7_t
 for7_e:
 
-			; main.bas 75: Print
+			; main.bas 76: Print
 			dw kw_printnl
 
-			; main.bas 76: Next
+			; main.bas 77: Next
 			dw kw_next1v_n, var_b, for6_l, for6_t
 for6_e:
 
-			; main.bas 77: Else
+			; main.bas 78: Else
 			dw if5_e_go
 if5_2:
 
-			; main.bas 79: Print "Main ["; Memory.Map(1, 1); "]"
+			; main.bas 80: Print "Main ["; Memory.Map(1, 1); "]"
 			dw fn_memory_map, lit_1, lit_1, var_memory_map_map
 			dw kw_printzoscii
 			dw glyph_4D, glyph_61, glyph_69, glyph_6E, glyph_20, glyph_5B, 0		; "Main ["
@@ -290,14 +290,14 @@ if5_2:
 			dw kw_printzoscii
 			dw glyph_5D, 1, 0		; "]\n"
 
-			; main.bas 80: For b = 0 To (n - 2) \ 32
+			; main.bas 81: For b = 0 To (n - 2) \ 32
 			dw kw_ztov, var_b
 			dw kw_addl, var_n, -2, tmp0
 			dw kw_divvl, tmp0, 32, for8_l
 			dw kw_forupv_n, var_b, for8_l, for8_e
 for8_t:
 
-			; main.bas 81: Print "&"; Hex$(&H7F - b); " "; Memory.Map(2 + b * 32, 32)
+			; main.bas 82: Print "&"; Hex$(&H7F - b); " "; Memory.Map(2 + b * 32, 32)
 			dw kw_sublv, 127, var_b, tmp0
 			dw kw_strhex, stmp0, tmp0
 			dw kw_printzoscii
@@ -311,14 +311,14 @@ for8_t:
 			dw kw_printstrvar, var_memory_map_map
 			dw kw_printnl
 
-			; main.bas 82: Next
+			; main.bas 83: Next
 			dw kw_next1v_n, var_b, for8_l, for8_t
 for8_e:
 
-			; main.bas 83: End If
+			; main.bas 84: End If
 if5_e:
 
-			; main.bas 84: If n > 0 Then Print "C code D data U user - free"
+			; main.bas 85: If n > 0 Then Print "C code D data U user - free"
 			dw kw_scpgtvl, var_n, 0
 			dw kw_goto_iffalse_n, if9_1
 			dw kw_printzoscii
@@ -328,20 +328,20 @@ if5_e:
 			dw glyph_72, glyph_65, glyph_65, 1, 0		; "C code D data U user - free\n"
 if9_1:
 
-			; main.bas 86: r = Memory.Free(p2)
+			; main.bas 87: r = Memory.Free(p2)
 			dw fn_memory_free, var_p2, var_r
 
-			; main.bas 87: r = Memory.Free(p1)
+			; main.bas 88: r = Memory.Free(p1)
 			dw fn_memory_free, var_p1, var_r
 
-			; main.bas 88: r = Memory.Free(p3)
+			; main.bas 89: r = Memory.Free(p3)
 			dw fn_memory_free, var_p3, var_r
 
-			; main.bas 89: If n = 0 Then
+			; main.bas 90: If n = 0 Then
 			dw kw_cpeqvl, var_n, 0
 			dw kw_goto_iffalse_n, if10_1
 
-			; main.bas 90: Print "After Free: largest block "; Memory.Largest()
+			; main.bas 91: Print "After Free: largest block "; Memory.Largest()
 			dw fn_memory_largest, var_memory_largest_largest
 			dw kw_printzoscii
 			dw glyph_41, glyph_66, glyph_74, glyph_65, glyph_72, glyph_20, glyph_46, glyph_72
@@ -351,11 +351,11 @@ if9_1:
 			dw kw_printint, var_memory_largest_largest
 			dw kw_printnl
 
-			; main.bas 91: Else
+			; main.bas 92: Else
 			dw if10_e_go
 if10_1:
 
-			; main.bas 92: Print "After Free: "; Memory.FreePages(); " pages free"
+			; main.bas 93: Print "After Free: "; Memory.FreePages(); " pages free"
 			dw fn_memory_freepages, var_memory_freepages_freepages
 			dw kw_printzoscii
 			dw glyph_41, glyph_66, glyph_74, glyph_65, glyph_72, glyph_20, glyph_46, glyph_72
@@ -365,41 +365,22 @@ if10_1:
 			dw glyph_20, glyph_70, glyph_61, glyph_67, glyph_65, glyph_73, glyph_20, glyph_66
 			dw glyph_72, glyph_65, glyph_65, 1, 0		; " pages free\n"
 
-			; main.bas 93: Print "Pages "; Memory.Map(1, 33)
+			; main.bas 94: Print "Pages "; Memory.Map(1, 33)
 			dw fn_memory_map, lit_1, lit_33, var_memory_map_map
 			dw kw_printzoscii
 			dw glyph_50, glyph_61, glyph_67, glyph_65, glyph_73, glyph_20, 0		; "Pages "
 			dw kw_printstrvar, var_memory_map_map
 			dw kw_printnl
 
-			; main.bas 94: End If
+			; main.bas 95: End If
 if10_e:
 
-			; main.bas 96: Print "Press a key";
+			; main.bas 97: End
+			dw kw_printnl0
 			dw kw_printzoscii
 			dw glyph_50, glyph_72, glyph_65, glyph_73, glyph_73, glyph_20, glyph_61, glyph_20
 			dw glyph_6B, glyph_65, glyph_79, 0		; "Press a key"
-
-			; main.bas 97: Do While Inkey <> 0 : Loop
-do11_t:
-			dw kw_inkey, tmp0
-			dw kw_cpnevl, tmp0, 0
-			dw kw_goto_iffalse_n, do11_e
-			dw do11_t_go
-do11_e:
-
-			; main.bas 98: Do : Frame : Loop Until Inkey <> 0
-do12_t:
-			dw kw_frame
-			dw kw_inkey, tmp0
-			dw kw_cpnevl, tmp0, 0
-			dw kw_goto_iffalse_n, do12_t
-do12_e:
-
-			; main.bas 99: Print
-			dw kw_printnl
-
-			; main.bas 100: End
+			dw kw_waitkey
 			dw kw_stop
 
 ; ============================================================
@@ -408,13 +389,13 @@ do12_e:
 
 p_summary:
 
-			; main.bas 104: Dim md As Integer
+			; main.bas 101: Dim md As Integer
 
-			; main.bas 105: If n = 0 Then
+			; main.bas 102: If n = 0 Then
 			dw kw_cpeqvl, var_n, 0
-			dw kw_goto_iffalse_n, if13_1
+			dw kw_goto_iffalse_n, if11_1
 
-			; main.bas 106: Print "No RAM pages (Option Memory Small)"
+			; main.bas 103: Print "No RAM pages (Option Memory Small)"
 			dw kw_printzoscii
 			dw glyph_4E, glyph_6F, glyph_20, glyph_52, glyph_41, glyph_4D, glyph_20, glyph_70
 			dw glyph_61, glyph_67, glyph_65, glyph_73, glyph_20, glyph_28, glyph_4F, glyph_70
@@ -422,13 +403,13 @@ p_summary:
 			dw glyph_6F, glyph_72, glyph_79, glyph_20, glyph_53, glyph_6D, glyph_61, glyph_6C
 			dw glyph_6C, glyph_29, 1, 0		; "No RAM pages (Option Memory Small)\n"
 
-			; main.bas 107: Exit Sub
+			; main.bas 104: Exit Sub
 			dw p_summary_r
 
-			; main.bas 108: End If
-if13_1:
+			; main.bas 105: End If
+if11_1:
 
-			; main.bas 109: Print Memory.RamSize(); "K, "; n; " pages: main + "; (n - 1) \ 4; " banks"
+			; main.bas 106: Print Memory.RamSize(); "K, "; n; " pages: main + "; (n - 1) \ 4; " banks"
 			dw fn_memory_ramsize, var_memory_ramsize_ramsize
 			dw kw_printint, var_memory_ramsize_ramsize
 			dw kw_printzoscii
@@ -443,32 +424,32 @@ if13_1:
 			dw kw_printzoscii
 			dw glyph_20, glyph_62, glyph_61, glyph_6E, glyph_6B, glyph_73, 1, 0		; " banks\n"
 
-			; main.bas 110: md = Memory.Model()
+			; main.bas 107: md = Memory.Model()
 			dw fn_memory_model, var_summary_md
 
-			; main.bas 111: Print "Model "; Choose(md, "small (64K)", "medium (128K)", "large (to 576K)", "huge (to 4MB)"); ", "; Memory.FreePages(); " pages free"
+			; main.bas 108: Print "Model "; Choose(md, "small (64K)", "medium (128K)", "large (to 576K)", "huge (to 4MB)"); ", "; Memory.FreePages(); " pages free"
 			dw kw_cpnevl, var_summary_md, 1
-			dw kw_goto_iftrue_n, ch14_0
+			dw kw_goto_iftrue_n, ch12_0
 			dw kw_strcpy, stmp0, str4
-			dw ch14_e_go
-ch14_0:
+			dw ch12_e_go
+ch12_0:
 			dw kw_cpnevl, var_summary_md, 2
-			dw kw_goto_iftrue_n, ch14_1
+			dw kw_goto_iftrue_n, ch12_1
 			dw kw_strcpy, stmp0, str5
-			dw ch14_e_go
-ch14_1:
+			dw ch12_e_go
+ch12_1:
 			dw kw_cpnevl, var_summary_md, 3
-			dw kw_goto_iftrue_n, ch14_2
+			dw kw_goto_iftrue_n, ch12_2
 			dw kw_strcpy, stmp0, str6
-			dw ch14_e_go
-ch14_2:
+			dw ch12_e_go
+ch12_2:
 			dw kw_cpnevl, var_summary_md, 4
-			dw kw_goto_iftrue_n, ch14_3
+			dw kw_goto_iftrue_n, ch12_3
 			dw kw_strcpy, stmp0, str7
-			dw ch14_e_go
-ch14_3:
+			dw ch12_e_go
+ch12_3:
 			dw kw_strcpy, stmp0, str8
-ch14_e:
+ch12_e:
 			dw kw_printzoscii
 			dw glyph_4D, glyph_6F, glyph_64, glyph_65, glyph_6C, glyph_20, 0		; "Model "
 			dw kw_printstrvar, stmp0
@@ -487,37 +468,37 @@ ch14_e:
 
 p_mainmap:
 
-			; main.bas 116: Dim e As Integer, t As Integer, top As Integer, hs As Integer, he As Integer
+			; main.bas 113: Dim e As Integer, t As Integer, top As Integer, hs As Integer, he As Integer
 
-			; main.bas 117: fr = 0
+			; main.bas 114: fr = 0
 			dw kw_l_mov, llit_0, var_fr
 
-			; main.bas 118: e = Memory.ProgramEnd() : t = Memory.TableEnd() : top = Memory.Top()
+			; main.bas 115: e = Memory.ProgramEnd() : t = Memory.TableEnd() : top = Memory.Top()
 			dw fn_memory_programend, var_mainmap_e
 			dw fn_memory_tableend, var_mainmap_t
 			dw fn_memory_top, var_mainmap_top
 
-			; main.bas 119: Area Memory.ProgramStart(), e, "program and arrays"
+			; main.bas 116: Area Memory.ProgramStart(), e, "program and arrays"
 			dw fn_memory_programstart, var_memory_programstart_programstart
 			dw p_area_c, var_memory_programstart_programstart, var_mainmap_e, str9
 
-			; main.bas 120: If U(t) > U(e) Then Area e, t, "page tables"
+			; main.bas 117: If U(t) > U(e) Then Area e, t, "page tables"
 			dw p_u_c, var_mainmap_t
 			dw kw_l_mov, var_u_u, ltmp0
 			dw p_u_c, var_mainmap_e
 			dw kw_l_mov, var_u_u, ltmp1
 			dw kw_l_cpgt, ltmp0, ltmp1
-			dw kw_goto_iffalse_n, if15_1
+			dw kw_goto_iffalse_n, if13_1
 			dw p_area_c, var_mainmap_e, var_mainmap_t, str10
-if15_1:
+if13_1:
 
-			; main.bas 121: If Memory.Pages() > 0 Then
+			; main.bas 118: If Memory.Pages() > 0 Then
 			dw fn_memory_pages, var_memory_pages_pages
 			dw kw_vtov, var_memory_pages_pages, tmp0
 			dw kw_scpgtvl, tmp0, 0
-			dw kw_goto_iffalse_n, if16_1
+			dw kw_goto_iffalse_n, if14_1
 
-			; main.bas 123: Area t, &H4000, "free" : fr = fr + U(&H4000) - U(t)
+			; main.bas 120: Area t, &H4000, "free" : fr = fr + U(&H4000) - U(t)
 			dw p_area_c, var_mainmap_t, lit_16384, str11
 			dw p_u_c, lit_16384
 			dw kw_l_mov, var_u_u, ltmp1
@@ -526,10 +507,10 @@ if15_1:
 			dw kw_l_mov, var_u_u, ltmp1
 			dw kw_l_sub, ltmp0, ltmp1, var_fr
 
-			; main.bas 124: Area &H4000, &H8000, "window (pages)"
+			; main.bas 121: Area &H4000, &H8000, "window (pages)"
 			dw p_area_c, lit_16384, lit_m32768, str12
 
-			; main.bas 125: Area &H8000, top, "free" : fr = fr + U(top) - U(&H8000)
+			; main.bas 122: Area &H8000, top, "free" : fr = fr + U(top) - U(&H8000)
 			dw p_area_c, lit_m32768, var_mainmap_top, str11
 			dw p_u_c, var_mainmap_top
 			dw kw_l_mov, var_u_u, ltmp1
@@ -538,21 +519,21 @@ if15_1:
 			dw kw_l_mov, var_u_u, ltmp1
 			dw kw_l_sub, ltmp0, ltmp1, var_fr
 
-			; main.bas 126: Else
-			dw if16_e_go
-if16_1:
+			; main.bas 123: Else
+			dw if14_e_go
+if14_1:
 
-			; main.bas 127: hs = Memory.HeapStart() : he = Memory.HeapEnd()
+			; main.bas 124: hs = Memory.HeapStart() : he = Memory.HeapEnd()
 			dw fn_memory_heapstart, var_mainmap_hs
 			dw fn_memory_heapend, var_mainmap_he
 
-			; main.bas 128: If U(he) > U(hs) Then Area hs, he, "heap (Alloc, List)" : fr = fr + U(he) - U(hs)
+			; main.bas 125: If U(he) > U(hs) Then Area hs, he, "heap (Alloc, List)" : fr = fr + U(he) - U(hs)
 			dw p_u_c, var_mainmap_he
 			dw kw_l_mov, var_u_u, ltmp0
 			dw p_u_c, var_mainmap_hs
 			dw kw_l_mov, var_u_u, ltmp1
 			dw kw_l_cpgt, ltmp0, ltmp1
-			dw kw_goto_iffalse_n, if17_1
+			dw kw_goto_iffalse_n, if15_1
 			dw p_area_c, var_mainmap_hs, var_mainmap_he, str13
 			dw p_u_c, var_mainmap_he
 			dw kw_l_mov, var_u_u, ltmp1
@@ -560,9 +541,9 @@ if16_1:
 			dw p_u_c, var_mainmap_hs
 			dw kw_l_mov, var_u_u, ltmp1
 			dw kw_l_sub, ltmp0, ltmp1, var_fr
-if17_1:
+if15_1:
 
-			; main.bas 129: If (he = &H4000) And (U(top) > U(&H8000)) Then
+			; main.bas 126: If (he = &H4000) And (U(top) > U(&H8000)) Then
 			dw kw_cpeqvl, var_mainmap_he, 16384
 			dw kw_ftov, tmp0
 			dw p_u_c, var_mainmap_top
@@ -572,12 +553,12 @@ if17_1:
 			dw kw_l_cpgt, ltmp1, ltmp2
 			dw kw_ftov, tmp1
 			dw kw_andvv, tmp0, tmp1, tmp0
-			dw kw_goto_ifzero_n, tmp0, if18_1
+			dw kw_goto_ifzero_n, tmp0, if16_1
 
-			; main.bas 130: Area &H4000, &H8000, "Option Reserve"
+			; main.bas 127: Area &H4000, &H8000, "Option Reserve"
 			dw p_area_c, lit_16384, lit_m32768, str14
 
-			; main.bas 131: Area &H8000, top, "free" : fr = fr + U(top) - U(&H8000)
+			; main.bas 128: Area &H8000, top, "free" : fr = fr + U(top) - U(&H8000)
 			dw p_area_c, lit_m32768, var_mainmap_top, str11
 			dw p_u_c, var_mainmap_top
 			dw kw_l_mov, var_u_u, ltmp1
@@ -586,28 +567,28 @@ if17_1:
 			dw kw_l_mov, var_u_u, ltmp1
 			dw kw_l_sub, ltmp0, ltmp1, var_fr
 
-			; main.bas 132: ElseIf U(top) > U(he) + 16 Then
-			dw if18_e_go
-if18_1:
+			; main.bas 129: ElseIf U(top) > U(he) + 16 Then
+			dw if16_e_go
+if16_1:
 			dw p_u_c, var_mainmap_top
 			dw kw_l_mov, var_u_u, ltmp0
 			dw p_u_c, var_mainmap_he
 			dw kw_l_mov, var_u_u, ltmp1
 			dw kw_l_add, ltmp1, llit_16, ltmp1
 			dw kw_l_cpgt, ltmp0, ltmp1
-			dw kw_goto_iffalse_n, if18_2
+			dw kw_goto_iffalse_n, if16_2
 
-			; main.bas 133: Area he, top, "stack and spare"
+			; main.bas 130: Area he, top, "stack and spare"
 			dw p_area_c, var_mainmap_he, var_mainmap_top, str15
 
-			; main.bas 134: End If
-if18_2:
-if18_e:
-
-			; main.bas 135: End If
+			; main.bas 131: End If
+if16_2:
 if16_e:
 
-			; main.bas 139: Print "&"; Hex$(top); " top of free RAM"
+			; main.bas 132: End If
+if14_e:
+
+			; main.bas 136: Print "&"; Hex$(top); " top of free RAM"
 			dw kw_strhex, stmp0, var_mainmap_top
 			dw kw_printzoscii
 			dw glyph_26, 0		; "&"
@@ -617,7 +598,7 @@ if16_e:
 			dw glyph_66, glyph_72, glyph_65, glyph_65, glyph_20, glyph_52, glyph_41, glyph_4D
 			dw 1, 0		; " top of free RAM\n"
 
-			; main.bas 141: Print "Stack at &"; Hex$(Memory.StackTop())
+			; main.bas 138: Print "Stack at &"; Hex$(Memory.StackTop())
 			dw fn_memory_stacktop, var_memory_stacktop_stacktop
 			dw kw_vtov, var_memory_stacktop_stacktop, tmp0
 			dw kw_strhex, stmp0, tmp0
@@ -627,7 +608,7 @@ if16_e:
 			dw kw_printstrvar, stmp0
 			dw kw_printnl
 
-			; main.bas 142: Print "Free main RAM: "; fr; " bytes"
+			; main.bas 139: Print "Free main RAM: "; fr; " bytes"
 			dw kw_printzoscii
 			dw glyph_46, glyph_72, glyph_65, glyph_65, glyph_20, glyph_6D, glyph_61, glyph_69
 			dw glyph_6E, glyph_20, glyph_52, glyph_41, glyph_4D, glyph_3A, glyph_20, 0		; "Free main RAM: "
@@ -642,17 +623,17 @@ if16_e:
 
 p_area:
 
-			; main.bas 147: If U(b) <= U(a) Then Exit Sub
+			; main.bas 144: If U(b) <= U(a) Then Exit Sub
 			dw p_u_c, var_area_b
 			dw kw_l_mov, var_u_u, ltmp0
 			dw p_u_c, var_area_a
 			dw kw_l_mov, var_u_u, ltmp1
 			dw kw_l_cple, ltmp0, ltmp1
-			dw kw_goto_iffalse_n, if19_1
+			dw kw_goto_iffalse_n, if17_1
 			dw p_area_r
-if19_1:
+if17_1:
 
-			; main.bas 148: Print "&"; Right$("000" + Hex$(a), 4); "-&"; Right$("000" + Hex$(b - 1), 4); " "; U(b) - U(a); " "; what
+			; main.bas 145: Print "&"; Right$("000" + Hex$(a), 4); "-&"; Right$("000" + Hex$(b - 1), 4); " "; U(b) - U(a); " "; what
 			dw kw_strhex, stmp1, var_area_a
 			dw kw_strcpy, stmp0, str16
 			dw kw_strcat, stmp0, stmp1
@@ -688,15 +669,15 @@ if19_1:
 
 p_u:
 
-			; main.bas 153: If x < 0 Then U = CLng(x) + 65536 Else U = x
+			; main.bas 150: If x < 0 Then U = CLng(x) + 65536 Else U = x
 			dw kw_scpltvl, var_u_x, 0
-			dw kw_goto_iffalse_n, if20_1
+			dw kw_goto_iffalse_n, if18_1
 			dw kw_l_itol, var_u_x, ltmp2
 			dw kw_l_add, ltmp2, llit_65536, var_u_u
-			dw if20_e_go
-if20_1:
+			dw if18_e_go
+if18_1:
 			dw kw_l_itol, var_u_x, var_u_u
-if20_e:
+if18_e:
 			dw p_u_r
 
 ; ============================================================
@@ -705,11 +686,11 @@ if20_e:
 
 p_showptr:
 
-			; main.bas 157: If p = 0 Then
+			; main.bas 154: If p = 0 Then
 			dw kw_l_cpeq, var_showptr_p, llit_0
-			dw kw_goto_iffalse_n, if21_1
+			dw kw_goto_iffalse_n, if19_1
 
-			; main.bas 158: Print "Alloc "; what; ": no room"
+			; main.bas 155: Print "Alloc "; what; ": no room"
 			dw kw_printzoscii
 			dw glyph_41, glyph_6C, glyph_6C, glyph_6F, glyph_63, glyph_20, 0		; "Alloc "
 			dw kw_printstrvar, var_showptr_what
@@ -717,11 +698,11 @@ p_showptr:
 			dw glyph_3A, glyph_20, glyph_6E, glyph_6F, glyph_20, glyph_72, glyph_6F, glyph_6F
 			dw glyph_6D, 1, 0		; ": no room\n"
 
-			; main.bas 159: Else
-			dw if21_e_go
-if21_1:
+			; main.bas 156: Else
+			dw if19_e_go
+if19_1:
 
-			; main.bas 160: Print "Alloc "; what; ": page "; Memory.PageOf(p); " at &"; Hex$(Memory.Address(p))
+			; main.bas 157: Print "Alloc "; what; ": page "; Memory.PageOf(p); " at &"; Hex$(Memory.Address(p))
 			dw kw_printzoscii
 			dw glyph_41, glyph_6C, glyph_6C, glyph_6F, glyph_63, glyph_20, 0		; "Alloc "
 			dw kw_printstrvar, var_showptr_what
@@ -737,8 +718,8 @@ if21_1:
 			dw kw_printstrvar, stmp0
 			dw kw_printnl
 
-			; main.bas 161: End If
-if21_e:
+			; main.bas 158: End If
+if19_e:
 			dw p_showptr_r
 
 ; ============================================================
@@ -758,17 +739,15 @@ if5_e_go:			ld sp, if5_e
 			jp ntc_xn
 if10_e_go:			ld sp, if10_e
 			jp ntc_xn
-do11_t_go:			ld sp, do11_t
+ch12_e_go:			ld sp, ch12_e
 			jp ntc_xn
-ch14_e_go:			ld sp, ch14_e
+if14_e_go:			ld sp, if14_e
 			jp ntc_xn
 if16_e_go:			ld sp, if16_e
 			jp ntc_xn
 if18_e_go:			ld sp, if18_e
 			jp ntc_xn
-if20_e_go:			ld sp, if20_e
-			jp ntc_xn
-if21_e_go:			ld sp, if21_e
+if19_e_go:			ld sp, if19_e
 			jp ntc_xn
 
 p_summary_c:		; call summary (normal)
@@ -1264,6 +1243,12 @@ ntc_stop_back:
 			ld sp, (ntc_csp)
 			ei
 			ret
+
+;## kw_waitkey ntc_data ntc_plat_key
+; kw_waitkey - wait for a key (Option PressAnyKeyOnEnd, before kw_stop)
+kw_waitkey:
+			ld ix, ntc_next
+			jp ntc_plat_getkey
 
 ;## ntc_xn ntc_data @shared
 ; normal mode "next": every normal mode keyword ends here (its ret
@@ -1974,6 +1959,15 @@ ntc_pi_done:
 			ld hl, ntc_numbuf
 			ld (ntc_sptr), hl
 			jp ntc_printbuf
+
+;## kw_printnl0 ntc_data ntc_plat_screen
+;kw_printnl0  - new line unless the cursor is at the start of a line
+kw_printnl0:
+			ld a, (ntc_curx)
+			or a
+			ret z
+			ld ix, ntc_next
+			jp ntc_plat_newline
 
 ;## kw_printnl ntc_data ntc_plat_screen
 ;kw_printnl
@@ -4848,5 +4842,5 @@ ntc_bss		equ ntc_end
 ntc_bss_size	equ 0
 ntc_free	equ ntc_bss + ntc_bss_size	; the first free byte (heap, Memory tables)
 ; Option Reserve: the program and its arrays (ntc_start .. ntc_free) must stay out of these
-			ASSERT (ntc_free <= 16384) || (ntc_start >= 32768), "the program (or its arrays) reaches into Option Reserve #4000-#7FFF (main.bas line 11)"
+			ASSERT (ntc_free <= 16384) || (ntc_start >= 32768), "the program (or its arrays) reaches into Option Reserve #4000-#7FFF (main.bas line 12)"
 			SAVEAMSDOS "MEMMAP.BIN", ntc_start, ntc_end - ntc_start, ntc_start

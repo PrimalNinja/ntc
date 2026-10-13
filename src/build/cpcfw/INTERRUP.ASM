@@ -46,25 +46,25 @@ ntc_go:
 
 main_thread:
 
-			; Main.bas 7: Cls
+			; Main.bas 8: Cls
 			dw kw_cls
 
-			; Main.bas 8: Locate 1, 3 : Print "Clock: a Tick once a second"
+			; Main.bas 9: Locate 1, 3 : Print "Clock: a Tick once a second"
 			dw kw_locatell, 1, 3
 			dw kw_printstrvar, str0
 			dw kw_printnl
 
-			; Main.bas 9: Locate 1, 4 : Print "Star: a Tick every frame (50 a second)"
+			; Main.bas 10: Locate 1, 4 : Print "Star: a Tick every frame (50 a second)"
 			dw kw_locatell, 1, 4
 			dw kw_printstrvar, str1
 			dw kw_printnl
 
-			; Main.bas 10: Locate 1, 8 : Print "Press a key to stop"
+			; Main.bas 11: Locate 1, 8 : Print "Press a key to stop"
 			dw kw_locatell, 1, 8
 			dw kw_printstrvar, str2
 			dw kw_printnl
 
-			; Main.bas 11: Do While Inkey <> 0 : Loop
+			; Main.bas 12: Do While Inkey <> 0 : Loop
 do1_t:
 			dw kw_inkey, tmp0
 			dw kw_cpnevl, tmp0, 0
@@ -72,34 +72,37 @@ do1_t:
 			dw do1_t_go
 do1_e:
 
-			; Main.bas 12: Do
+			; Main.bas 13: Do
 do2_t:
 
-			; Main.bas 13: loops = loops + 1
+			; Main.bas 14: loops = loops + 1
 			dw kw_l_add, var_loops, llit_1, var_loops
 
-			; Main.bas 14: Locate 1, 6 : Print "Main loop: "; loops;
+			; Main.bas 15: Locate 1, 6 : Print "Main loop: "; loops;
 			dw kw_locatell, 1, 6
 			dw kw_printstrvar, str3
 			dw kw_l_print, var_loops
 
-			; Main.bas 15: Loop Until Inkey <> 0
+			; Main.bas 16: Loop Until Inkey <> 0
 			dw kw_inkey, tmp0
 			dw kw_cpnevl, tmp0, 0
 			dw kw_goto_iffalse_n, do2_t
 do2_e:
 
-			; Main.bas 16: Locate 1, 10
+			; Main.bas 17: Locate 1, 10
 			dw kw_locatell, 1, 10
 
-			; Main.bas 17: Print "Clock ticked "; Clock.Seconds; " times, the star "; Star.Moves
+			; Main.bas 18: Print "Clock ticked "; Clock.Seconds; " times, the star "; Star.Moves
 			dw kw_printstrvar, str4
 			dw kw_printint, var_clock_seconds
 			dw kw_printstrvar, str5
 			dw kw_printint, var_star_moves
 			dw kw_printnl
 
-			; Main.bas 18: End
+			; Main.bas 19: End
+			dw kw_printnl0
+			dw kw_printstrvar, str6
+			dw kw_waitkey
 			dw kw_stop
 
 ; ============================================================
@@ -114,7 +117,7 @@ p_clock_tick:
 			; Clock.cls 6: Locate 30, 3 : Print Seconds; "s ";
 			dw kw_locatell, 30, 3
 			dw kw_printint, var_clock_seconds
-			dw kw_printstrvar, str6
+			dw kw_printstrvar, str7
 			dw p_clock_tick_r
 
 ; ============================================================
@@ -127,7 +130,7 @@ p_star_tick:
 			dw kw_addl, var_star_x, 1, tmp2
 			dw kw_ltov, 1, tmp3
 			dw kw_locatevv, tmp2, tmp3
-			dw kw_printstrvar, str7
+			dw kw_printstrvar, str8
 
 			; Star.cls 7: x = (x + 1) Mod 39
 			dw kw_addl, var_star_x, 1, tmp2
@@ -137,7 +140,7 @@ p_star_tick:
 			dw kw_addl, var_star_x, 1, tmp2
 			dw kw_ltov, 1, tmp3
 			dw kw_locatevv, tmp2, tmp3
-			dw kw_printstrvar, str8
+			dw kw_printstrvar, str9
 
 			; Star.cls 9: Moves = Moves + 1
 			dw kw_inc, var_star_moves
@@ -202,9 +205,10 @@ str2:			db "Press a key to stop", 0
 str3:			db "Main loop: ", 0
 str4:			db "Clock ticked ", 0
 str5:			db " times, the star ", 0
-str6:			db "s ", 0
-str7:			db " ", 0
-str8:			db "*", 0
+str6:			db "Press a key", 0
+str7:			db "s ", 0
+str8:			db " ", 0
+str9:			db "*", 0
 
 ; ============================================================
 ; Keyword library (used)
@@ -250,6 +254,12 @@ ntc_stop_back:
 			ld sp, (ntc_csp)
 			ei
 			ret
+
+;## kw_waitkey ntc_data ntc_plat_key
+; kw_waitkey - wait for a key (Option PressAnyKeyOnEnd, before kw_stop)
+kw_waitkey:
+			ld ix, ntc_next
+			jp ntc_plat_getkey
 
 ;## ntc_xnh ntc_data ntc_islots @shared
 ; ntc_xn for a program with an Interrupt hook (Interrupt MySub) or interrupt
@@ -639,6 +649,15 @@ ntc_pi_done:
 			ld hl, ntc_numbuf
 			ld (ntc_sptr), hl
 			jp ntc_printbuf
+
+;## kw_printnl0 ntc_data ntc_plat_screen
+;kw_printnl0  - new line unless the cursor is at the start of a line
+kw_printnl0:
+			ld a, (ntc_curx)
+			or a
+			ret z
+			ld ix, ntc_next
+			jp ntc_plat_newline
 
 ;## kw_printnl ntc_data ntc_plat_screen
 ;kw_printnl

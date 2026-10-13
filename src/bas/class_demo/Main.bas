@@ -1,3 +1,4 @@
+Option PressAnyKeyOnEnd "Press a key"     ' at the end: a message and a key (a RUN" program resets when it ends)
 Dim c As New Counter
 Dim r As Integer
 c.Reset
@@ -9,6 +10,3 @@ Print "limit "; c.Limit
 r = Counter.Total
 Print "direct "; r
 Print c.Describe("x")
-Print "Press a key";
-Do : Frame : Loop Until Inkey <> 0
-Print

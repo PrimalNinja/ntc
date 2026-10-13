@@ -7,6 +7,13 @@ finished, with the date.
 
 ## done
 
+- 2026-10-13 every program in bas/ has `Option PressAnyKeyOnEnd` in place of its own "Press a key"
+  loop (Locomotive: `'# Option ...` on a line of its own; JS: `//# Option ...`); the test harnesses
+  press Return at that wait
+- 2026-10-13 ROMDISC: read-only files in ROMs (NTCDISC.ROM ..., up to 8, any slots), FileSystem's
+  volume R on cpc (its only volume), cpcmin and cpcfw - Load, Open ForRead (handle 2), ReadByte, Read,
+  ReadLine, Eof, Close, Exists, Size, DirEntry; 8.3 names, a directory read until the end flag, a
+  flags byte (compressed: reserved); `ntcRomDisc` + test/genromdisc.js; checked on the real 6128
 - 2026-10-13 keyword ROM sets: a platform's library in as many ROMs as it needs (NTCMIN.ROM,
   NTCMIN2.ROM ...), one build, found by the set's stamp in any slots; `@far` sections (Memory,
   List) move out as groups; far calls through RAM stubs (cpc / cpcmin `#DFxx`, cpcfw KL ROM
@@ -1040,9 +1047,8 @@ measure each with the bench set (`compare/bench/`) before and after.
 - [ ] a text buffer class (optional; discussed for CyborgOS): lines of text in the heap, insert /
       delete / get / set a line - for editors and CLIs
 - [ ] Keys: the Shift / Control forms of INKEY(n) (32, 128 ...) for the Locomotive flavour
-- [ ] ROMDISC: files in ROMs (a directory with name, length, flags - compressed later -, ROM and
-      offset), FileSystem device `ROM` (read only: Load, Open ForRead, Exists, Size, list);
-      overlays and page files loading from ROM; a packer for the images (after ROM sets: done)
+- [ ] ROMDISC, next: overlay classes and page files loading from it (volume R for their files);
+      compressed files (the flag is there); a GUI builder (ntcRomDisc is ES5, in the compiler)
 - [ ] ROM sets: one set for all three CPC platforms (the platform layer in the program's RAM, a
       call table) - later
 - [ ] ROM sets: far call stubs made by the patcher from a 3 byte table (saves RAM image space)

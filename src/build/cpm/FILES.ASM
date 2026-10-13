@@ -27,11 +27,11 @@ ntc_start:
 main_thread:
 			dw kw_bssinit, ntc_bss, ntc_bss_size		; the arrays: do they fit, clear them
 
-			; main.bas 20: Print "Files on "; System.Platform
+			; main.bas 21: Print "Files on "; System.Platform
 			dw kw_printstrvar, str1
 			dw kw_printnl
 
-			; main.bas 21: Print "LOAD "; FileSystem.Capability("LOAD"); "  SAVE "; FileSystem.Capability("SAVE")
+			; main.bas 22: Print "LOAD "; FileSystem.Capability("LOAD"); "  SAVE "; FileSystem.Capability("SAVE")
 			dw fn_filesystem_capability, str2, var_filesystem_capability_capability
 			dw kw_printstrvar, str3
 			dw kw_printint, var_filesystem_capability_capability
@@ -40,7 +40,7 @@ main_thread:
 			dw kw_printint, var_filesystem_capability_capability
 			dw kw_printnl
 
-			; main.bas 22: Print "SEQUENTIAL "; FileSystem.Capability("SEQUENTIAL"); "  RANDOMACCESS "; FileSystem.Capability("RANDOMACCESS")
+			; main.bas 23: Print "SEQUENTIAL "; FileSystem.Capability("SEQUENTIAL"); "  RANDOMACCESS "; FileSystem.Capability("RANDOMACCESS")
 			dw fn_filesystem_capability, str6, var_filesystem_capability_capability
 			dw kw_printstrvar, str7
 			dw kw_printint, var_filesystem_capability_capability
@@ -49,13 +49,13 @@ main_thread:
 			dw kw_printint, var_filesystem_capability_capability
 			dw kw_printnl
 
-			; main.bas 23: Print "MAXOPEN "; FileSystem.Capability("MAXOPEN")
+			; main.bas 24: Print "MAXOPEN "; FileSystem.Capability("MAXOPEN")
 			dw fn_filesystem_capability, str10, var_filesystem_capability_capability
 			dw kw_printstrvar, str11
 			dw kw_printint, var_filesystem_capability_capability
 			dw kw_printnl
 
-			; main.bas 24: If FileSystem.Capability("DEVICES") Then Print "Devices "; FileSystem.Devices(); " - using "; FileSystem.CurrentDevice()
+			; main.bas 25: If FileSystem.Capability("DEVICES") Then Print "Devices "; FileSystem.Devices(); " - using "; FileSystem.CurrentDevice()
 			dw fn_filesystem_capability, str12, var_filesystem_capability_capability
 			dw kw_goto_ifzero_n, var_filesystem_capability_capability, if1_1
 			dw fn_filesystem_devices, var_filesystem_devices_devices
@@ -67,7 +67,7 @@ main_thread:
 			dw kw_printnl
 if1_1:
 
-			; main.bas 25: If FileSystem.Capability("VOLUMES") Then Print "Volumes known "; FileSystem.Volumes(); " - using "; FileSystem.CurrentVolume()
+			; main.bas 26: If FileSystem.Capability("VOLUMES") Then Print "Volumes known "; FileSystem.Volumes(); " - using "; FileSystem.CurrentVolume()
 			dw fn_filesystem_capability, str15, var_filesystem_capability_capability
 			dw kw_goto_ifzero_n, var_filesystem_capability_capability, if2_1
 			dw fn_filesystem_volumes, var_filesystem_volumes_volumes
@@ -79,14 +79,14 @@ if1_1:
 			dw kw_printnl
 if2_1:
 
-			; main.bas 26: Print
+			; main.bas 27: Print
 			dw kw_printnl
 
-			; main.bas 28: If FileSystem.Capability("SAVE") Then
+			; main.bas 29: If FileSystem.Capability("SAVE") Then
 			dw fn_filesystem_capability, str4, var_filesystem_capability_capability
 			dw kw_goto_ifzero_n, var_filesystem_capability_capability, if3_1
 
-			; main.bas 29: For i = 0 To 9 : hs(i) = 1000 - i * 50 : Next
+			; main.bas 30: For i = 0 To 9 : hs(i) = 1000 - i * 50 : Next
 			dw kw_ztov, var_i
 for4_t:
 			dw kw_mulvl, var_i, 50, tmp2
@@ -95,22 +95,22 @@ for4_t:
 			dw kw_next1l_n, var_i, 9, for4_t
 for4_e:
 
-			; main.bas 30: r = FileSystem.Save("HISCORE.DAT", VarPtr(hs), 20)
+			; main.bas 31: r = FileSystem.Save("HISCORE.DAT", VarPtr(hs), 20)
 			dw fn_filesystem_save, str17, vp_arr_hs, lit_20, var_r
 
-			; main.bas 31: Print "Save HISCORE.DAT: "; r
+			; main.bas 32: Print "Save HISCORE.DAT: "; r
 			dw kw_printstrvar, str18
 			dw kw_printint, var_r
 			dw kw_printnl
 
-			; main.bas 32: If FileSystem.Capability("LOAD") Then
+			; main.bas 33: If FileSystem.Capability("LOAD") Then
 			dw fn_filesystem_capability, str2, var_filesystem_capability_capability
 			dw kw_goto_ifzero_n, var_filesystem_capability_capability, if3_e
 
-			; main.bas 33: r = FileSystem.Load("HISCORE.DAT", VarPtr(back), 20)
+			; main.bas 34: r = FileSystem.Load("HISCORE.DAT", VarPtr(back), 20)
 			dw fn_filesystem_load, str17, vp_arr_back, lit_20, var_r
 
-			; main.bas 34: Print "Load: "; r; " bytes, "; back(0); " ... "; back(9)
+			; main.bas 35: Print "Load: "; r; " bytes, "; back(0); " ... "; back(9)
 			dw kw_printstrvar, str19
 			dw kw_printint, var_r
 			dw kw_printstrvar, str20
@@ -119,89 +119,70 @@ for4_e:
 			dw kw_printint, arr_back+18
 			dw kw_printnl
 
-			; main.bas 35: End If
+			; main.bas 36: End If
 if5_1:
 
-			; main.bas 36: Else
+			; main.bas 37: Else
 			dw if3_e_go
 if3_1:
 
-			; main.bas 37: Print "No saving on this platform"
+			; main.bas 38: Print "No saving on this platform"
 			dw kw_printstrvar, str22
 			dw kw_printnl
 
-			; main.bas 38: End If
+			; main.bas 39: End If
 if3_e:
 
-			; main.bas 40: If FileSystem.Capability("SEQUENTIAL") Then
+			; main.bas 41: If FileSystem.Capability("SEQUENTIAL") Then
 			dw fn_filesystem_capability, str6, var_filesystem_capability_capability
 			dw kw_goto_ifzero_n, var_filesystem_capability_capability, if6_1
 
-			; main.bas 41: h = FileSystem.Open("NOTES.TXT", FileSystem.ForWrite)
+			; main.bas 42: h = FileSystem.Open("NOTES.TXT", FileSystem.ForWrite)
 			dw fn_filesystem_open, str23, lit_2, var_h
 
-			; main.bas 42: r = FileSystem.WriteLine(h, "Written by NTC BASIC")
+			; main.bas 43: r = FileSystem.WriteLine(h, "Written by NTC BASIC")
 			dw fn_filesystem_writeline, var_h, str24, var_r
 
-			; main.bas 43: r = FileSystem.WriteLine(h, "Line two")
+			; main.bas 44: r = FileSystem.WriteLine(h, "Line two")
 			dw fn_filesystem_writeline, var_h, str25, var_r
 
-			; main.bas 44: r = FileSystem.Close(h)
+			; main.bas 45: r = FileSystem.Close(h)
 			dw fn_filesystem_close, var_h, var_r
 
-			; main.bas 45: Print "NOTES.TXT:"
+			; main.bas 46: Print "NOTES.TXT:"
 			dw kw_printstrvar, str26
 			dw kw_printnl
 
-			; main.bas 46: h = FileSystem.Open("NOTES.TXT", FileSystem.ForRead)
+			; main.bas 47: h = FileSystem.Open("NOTES.TXT", FileSystem.ForRead)
 			dw fn_filesystem_open, str23, lit_1, var_h
 
-			; main.bas 47: Do While Not FileSystem.Eof(h)
+			; main.bas 48: Do While Not FileSystem.Eof(h)
 do7_t:
 			dw fn_filesystem_eof, var_h, var_filesystem_eof_eof
 			dw kw_vtov, var_filesystem_eof_eof, tmp0
 			dw kw_notv, tmp0, tmp0
 			dw kw_goto_ifzero_n, tmp0, do7_e
 
-			; main.bas 48: Print "> "; FileSystem.ReadLine(h)
+			; main.bas 49: Print "> "; FileSystem.ReadLine(h)
 			dw fn_filesystem_readline, var_h, var_filesystem_readline_readline
 			dw kw_printstrvar, str27
 			dw kw_printstrvar, var_filesystem_readline_readline
 			dw kw_printnl
 
-			; main.bas 49: Loop
+			; main.bas 50: Loop
 			dw do7_t_go
 do7_e:
 
-			; main.bas 50: r = FileSystem.Close(h)
+			; main.bas 51: r = FileSystem.Close(h)
 			dw fn_filesystem_close, var_h, var_r
 
-			; main.bas 51: End If
+			; main.bas 52: End If
 if6_1:
 
-			; main.bas 53: Print "Press a key";
+			; main.bas 54: End
+			dw kw_printnl0
 			dw kw_printstrvar, str28
-
-			; main.bas 54: Do While Inkey <> 0 : Loop          ' no key left waiting from before
-do8_t:
-			dw kw_inkey, tmp0
-			dw kw_cpnevl, tmp0, 0
-			dw kw_goto_iffalse_n, do8_e
-			dw do8_t_go
-do8_e:
-
-			; main.bas 55: Do : Frame : Loop Until Inkey <> 0
-do9_t:
-			dw kw_frame
-			dw kw_inkey, tmp0
-			dw kw_cpnevl, tmp0, 0
-			dw kw_goto_iffalse_n, do9_t
-do9_e:
-
-			; main.bas 56: Print
-			dw kw_printnl
-
-			; main.bas 57: End
+			dw kw_waitkey
 			dw kw_stop
 
 ; ============================================================
@@ -216,8 +197,6 @@ do9_e:
 if3_e_go:			ld sp, if3_e
 			jp ntc_xn
 do7_t_go:			ld sp, do7_t
-			jp ntc_xn
-do8_t_go:			ld sp, do8_t
 			jp ntc_xn
 
 ; ============================================================
@@ -458,6 +437,7 @@ str25:			db "Line two", 0
 str26:			db "NOTES.TXT:", 0
 str27:			db "> ", 0
 str28:			db "Press a key", 0
+str29:			db 0
 
 ; ============================================================
 ; Keyword library (used)
@@ -504,6 +484,12 @@ ntc_stop_back:
 			ei
 			ret
 
+;## kw_waitkey ntc_data ntc_plat_key
+; kw_waitkey - wait for a key (Option PressAnyKeyOnEnd, before kw_stop)
+kw_waitkey:
+			ld ix, ntc_next
+			jp ntc_plat_getkey
+
 ;## ntc_xn ntc_data @shared
 ; normal mode "next": every normal mode keyword ends here (its ret
 ; became jp ntc_xn). Thread position to ntc_ip, real stack, one
@@ -516,14 +502,6 @@ ntc_xn:
 			di
 			ld sp, (ntc_ip)
 			ret
-
-;## kw_goto_iffalse (normal mode copy)
-;kw_goto_iffalse, <label>  - branch if NZ (false)
-kw_goto_iffalse_n:
-			pop hl
-			jp z, ntc_xn
-			ld sp, hl
-			jp ntc_xn
 
 ;## kw_goto_ifzero (normal mode copy)
 ;kw_goto_ifzero, <var>, <label>  - branch if var = 0
@@ -722,86 +700,6 @@ kw_notv:
 ; Tails take DE = a, HL = b and test a <rel> b.
 ; ============================================================
 
-;## ntc_cmp
-ntc_cmp_slt:
-			ld a, d
-			xor #80
-			ld d, a
-			ld a, h
-			xor #80
-			ld h, a
-ntc_cmp_ult:
-			ex de, hl
-			or a
-			sbc hl, de
-			sbc a, a
-			inc a
-			ret
-ntc_cmp_sge:
-			ld a, d
-			xor #80
-			ld d, a
-			ld a, h
-			xor #80
-			ld h, a
-ntc_cmp_uge:
-			ex de, hl
-			or a
-			sbc hl, de
-			sbc a, a
-			ret
-ntc_cmp_sgt:
-			ld a, d
-			xor #80
-			ld d, a
-			ld a, h
-			xor #80
-			ld h, a
-ntc_cmp_ugt:
-			or a
-			sbc hl, de
-			sbc a, a
-			inc a
-			ret
-ntc_cmp_sle:
-			ld a, d
-			xor #80
-			ld d, a
-			ld a, h
-			xor #80
-			ld h, a
-ntc_cmp_ule:
-			or a
-			sbc hl, de
-			sbc a, a
-			ret
-ntc_cmp_eq:
-			or a
-			sbc hl, de
-			ret
-ntc_cmp_ne:
-			or a
-			sbc hl, de
-			jr z, ntc_cmp_ne_f
-			xor a
-			ret
-ntc_cmp_ne_f:
-			or 1
-			ret
-
-;## kw_cpnevl ntc_cmp
-kw_cpnevl:
-			pop hl
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			pop hl
-			jp ntc_cmp_ne
-
-; ============================================================
-; Memory (PEEK / POKE / DEEK / DOKE)
-; ============================================================
-
 ;## kw_aset
 ;kw_aset, <arraybase>, <indexvar>, <sourcevar>
 kw_aset:
@@ -917,31 +815,20 @@ ntc_pi_done:
 			ld (ntc_sptr), hl
 			jp ntc_printbuf
 
+;## kw_printnl0 ntc_data ntc_plat_screen
+;kw_printnl0  - new line unless the cursor is at the start of a line
+kw_printnl0:
+			ld a, (ntc_curx)
+			or a
+			ret z
+			ld ix, ntc_next
+			jp ntc_plat_newline
+
 ;## kw_printnl ntc_data ntc_plat_screen
 ;kw_printnl
 kw_printnl:
 			ld ix, ntc_next
 			jp ntc_plat_newline
-
-;## kw_inkey ntc_data ntc_plat_key
-;kw_inkey, <destvar>  - new key press or 0, no wait
-kw_inkey:
-			pop hl
-			ld (ntc_ivar), hl
-			ld ix, ntc_inkey_got
-			jp ntc_plat_scankey
-ntc_inkey_got:
-			ld hl, (ntc_ivar)
-			ld (hl), a
-			inc hl
-			ld (hl), 0
-			ret
-
-;## kw_frame ntc_data ntc_plat_frame
-;kw_frame  - wait for the start of the next frame flyback
-kw_frame:
-			ld ix, ntc_next
-			jp ntc_plat_frame
 
 ;## ntc_capfind ntc_data
 ; ntc_capfind - the body of a class's Capability(name) keyword.
@@ -1331,10 +1218,6 @@ ntc_gk_back:
 			ld ix, (ntc_gklink)
 			jp (ix)
 ntc_gklink:		dw 0
-
-;## ntc_plat_frame
-ntc_plat_frame:
-			jp (ix)
 
 ;## ntc_plat_exit ntc_plat_data
 ; ntc_plat_exit - warm boot back to CP/M

@@ -38,26 +38,26 @@ ntc_go:
 main_thread:
 			dw kw_scrinit		; mode 1, ROMs off, clear screen
 
-			; 30: Cls
+			; 31: Cls
 			dw kw_cls
 
-			; 31: Input "Your name"; nm
+			; 32: Input "Your name"; nm
 			dw kw_printzoscii
 			dw glyph_59, glyph_6F, glyph_75, glyph_72, glyph_20, glyph_6E, glyph_61, glyph_6D
 			dw glyph_65, glyph_3F, glyph_20, 0		; "Your name? "
 			dw kw_inputstr, var_nm
 
-			; 32: Print "Hello " & nm
+			; 33: Print "Hello " & nm
 			dw kw_printzoscii
 			dw glyph_48, glyph_65, glyph_6C, glyph_6C, glyph_6F, glyph_20, 0		; "Hello "
 			dw kw_printstrvar, var_nm
 			dw kw_printnl
 
-			; 33: For i = 1 To 10
+			; 34: For i = 1 To 10
 			dw kw_ltov, 1, var_i
 for1_t:
 
-			; 34: If i Mod 3 = 0 Then Print "fizz "; Else Print i; " ";
+			; 35: If i Mod 3 = 0 Then Print "fizz "; Else Print i; " ";
 			dw kw_modvl, var_i, 3, tmp0
 			dw kw_cpeqvl, tmp0, 0
 			dw kw_goto_iffalse_n, if2_1
@@ -70,38 +70,27 @@ if2_1:
 			dw glyph_20, 0		; " "
 if2_e:
 
-			; 35: Next
+			; 36: Next
 			dw kw_next1l_n, var_i, 10, for1_t
 for1_e:
 
-			; 36: Print
+			; 37: Print
 			dw kw_printnl
 
-			; 37: Print Shout(nm)
+			; 38: Print Shout(nm)
 			dw p_shout_c, var_nm
 			dw kw_printstrvar, var_shout_shout
 			dw kw_printnl
 
-			; 38: Break done
+			; 39: Break done
 			dw bp_done_n
 
-			; 39: Print "Press a key";
+			; 40: End
+			dw kw_printnl0
 			dw kw_printzoscii
 			dw glyph_50, glyph_72, glyph_65, glyph_73, glyph_73, glyph_20, glyph_61, glyph_20
 			dw glyph_6B, glyph_65, glyph_79, 0		; "Press a key"
-
-			; 40: Do : Frame : Loop Until Inkey <> 0
-do3_t:
-			dw kw_frame
-			dw kw_inkey, tmp0
-			dw kw_cpnevl, tmp0, 0
-			dw kw_goto_iffalse_n, do3_t
-do3_e:
-
-			; 41: Print
-			dw kw_printnl
-
-			; 42: End
+			dw kw_waitkey
 			dw kw_stop
 
 ; ============================================================
@@ -110,7 +99,7 @@ do3_e:
 
 p_shout:
 
-			; 45: Shout = UCase$(s) & "!"
+			; 43: Shout = UCase$(s) & "!"
 			dw kw_strucase, stmp0, var_shout_s
 			dw kw_strcpy, var_shout_shout, stmp0
 			dw kw_strcat, var_shout_shout, str0
@@ -219,21 +208,20 @@ kw_next1l_n:	jp 31
 kw_ltov:		jp 47
 kw_modvl:	jp 67
 kw_cpeqvl:	jp 96
-kw_cpnevl:	jp 98
 kw_strcpy:	jp 122
 kw_strcat:	jp 124
 kw_printzoscii:	jp 129
 kw_printstrvar:	jp 130
 kw_printint:	jp 132
+kw_printnl0:	jp 135
 kw_printnl:	jp 139
 kw_inputstr:	jp 142
-kw_inkey:	jp 145
 kw_scrinit:	jp 147
 kw_cls:		jp 148
-kw_frame:	jp 153
 kw_strucase:	jp 181
 ntc_plat_irqon:	jp 316
-NTC_RJ_N	equ 21		; entries
+kw_waitkey:	jp 344
+NTC_RJ_N	equ 20		; entries
 ntc_csp	equ #8800		; ROM data
 ntc_font	equ #948E		; ROM bss
 ntc_nmode	equ #8807		; ROM data

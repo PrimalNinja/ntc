@@ -39,7 +39,7 @@ main_thread:
 			dw kw_scrinit		; mode 1, ROMs off, clear screen
 			dw kw_bssinit, ntc_bss, ntc_bss_size		; the arrays: do they fit, clear them
 
-			; main.bas 13: Input "How many numbers (Return = 2000)"; n
+			; main.bas 14: Input "How many numbers (Return = 2000)"; n
 			dw kw_printzoscii
 			dw glyph_48, glyph_6F, glyph_77, glyph_20, glyph_6D, glyph_61, glyph_6E, glyph_79
 			dw glyph_20, glyph_6E, glyph_75, glyph_6D, glyph_62, glyph_65, glyph_72, glyph_73
@@ -48,7 +48,7 @@ main_thread:
 			dw glyph_3F, glyph_20, 0		; "How many numbers (Return = 2000)? "
 			dw kw_inputint, var_n
 
-			; main.bas 14: If n < 10 Or n > MAXN Then n = MAXN
+			; main.bas 15: If n < 10 Or n > MAXN Then n = MAXN
 			dw kw_scpltvl, var_n, 10
 			dw kw_ftov, tmp0
 			dw kw_scpgtvl, var_n, 2000
@@ -58,13 +58,13 @@ main_thread:
 			dw kw_ltov, 2000, var_n
 if1_1:
 
-			; main.bas 15: Do
+			; main.bas 16: Do
 do2_t:
 
-			; main.bas 16: Print
+			; main.bas 17: Print
 			dw kw_printnl
 
-			; main.bas 17: Print "T = turbo, N = normal, X = exit"
+			; main.bas 18: Print "T = turbo, N = normal, X = exit"
 			dw kw_printzoscii
 			dw glyph_54, glyph_20, glyph_3D, glyph_20, glyph_74, glyph_75, glyph_72, glyph_62
 			dw glyph_6F, glyph_2C, glyph_20, glyph_4E, glyph_20, glyph_3D, glyph_20, glyph_6E
@@ -72,7 +72,7 @@ do2_t:
 			dw glyph_20, glyph_3D, glyph_20, glyph_65, glyph_78, glyph_69, glyph_74, 1
 			dw 0		; "T = turbo, N = normal, X = exit\n"
 
-			; main.bas 18: Do : k = UCase$(Inkey$) : Frame : Loop Until (k = "T") Or (k = "N") Or (k = "X")
+			; main.bas 19: Do : k = UCase$(Inkey$) : Frame : Loop Until (k = "T") Or (k = "N") Or (k = "X")
 do3_t:
 			dw kw_inkeys, stmp0
 			dw kw_strucase, stmp0, stmp0
@@ -89,30 +89,30 @@ do3_t:
 			dw kw_goto_ifzero_n, tmp0, do3_t
 do3_e:
 
-			; main.bas 19: If k = "X" Then Exit Do
+			; main.bas 20: If k = "X" Then Exit Do
 			dw kw_strcmpeq, var_k, str2
 			dw kw_goto_iffalse_n, if4_1
 			dw do2_e_go
 if4_1:
 
-			; main.bas 21: Randomize 7
+			; main.bas 22: Randomize 7
 			dw kw_seedl, 7
 
-			; main.bas 22: For i = 0 To n
+			; main.bas 23: For i = 0 To n
 			dw kw_ztov, var_i
 			dw kw_vtov, var_n, for5_l
 			dw kw_forupv_n, var_i, for5_l, for5_e
 for5_t:
 
-			; main.bas 23: a(i) = Rnd(1000)
+			; main.bas 24: a(i) = Rnd(1000)
 			dw kw_rndl, 1000, tmp1
 			dw kw_aset, arr_a, var_i, tmp1
 
-			; main.bas 24: Next
+			; main.bas 25: Next
 			dw kw_next1v_n, var_i, for5_l, for5_t
 for5_e:
 
-			; main.bas 25: Print IIf(k = "T", "Turbo", "Normal"); ": sorting "; n + 1; " numbers..."
+			; main.bas 26: Print IIf(k = "T", "Turbo", "Normal"); ": sorting "; n + 1; " numbers..."
 			dw kw_strcmpeq, var_k, str0
 			dw kw_ftov, tmp0
 			dw kw_goto_ifzero_n, tmp0, ch6_0
@@ -134,67 +134,67 @@ ch6_e:
 			dw glyph_20, glyph_6E, glyph_75, glyph_6D, glyph_62, glyph_65, glyph_72, glyph_73
 			dw glyph_2E, glyph_2E, glyph_2E, 1, 0		; " numbers...\n"
 
-			; main.bas 26: t0 = Ticks
+			; main.bas 27: t0 = Ticks
 			dw kw_ticks, tmp0
 			dw kw_vtov, tmp0, var_t0
 
-			; main.bas 27: If k = "T" Then
+			; main.bas 28: If k = "T" Then
 			dw kw_strcmpeq, var_k, str0
 			dw kw_goto_iffalse_n, if7_1
 
-			; main.bas 28: Turbo On
+			; main.bas 29: Turbo On
 			dw kw_turbo_on
 
-			; main.bas 29: ShellSort
+			; main.bas 30: ShellSort
 			dw p_shellsort_c
 
-			; main.bas 30: Turbo Off
+			; main.bas 31: Turbo Off
 			dw kw_turbo_off
 
-			; main.bas 31: Else
+			; main.bas 32: Else
 			dw if7_e_go
 if7_1:
 
-			; main.bas 32: ShellSort
+			; main.bas 33: ShellSort
 			dw p_shellsort_n_c
 
-			; main.bas 33: End If
+			; main.bas 34: End If
 if7_e:
 
-			; main.bas 34: t1 = Ticks
+			; main.bas 35: t1 = Ticks
 			dw kw_ticks, tmp0
 			dw kw_vtov, tmp0, var_t1
 
-			; main.bas 35: Print "Done - stop the stopwatch"
+			; main.bas 36: Print "Done - stop the stopwatch"
 			dw kw_printzoscii
 			dw glyph_44, glyph_6F, glyph_6E, glyph_65, glyph_20, glyph_2D, glyph_20, glyph_73
 			dw glyph_74, glyph_6F, glyph_70, glyph_20, glyph_74, glyph_68, glyph_65, glyph_20
 			dw glyph_73, glyph_74, glyph_6F, glyph_70, glyph_77, glyph_61, glyph_74, glyph_63
 			dw glyph_68, 1, 0		; "Done - stop the stopwatch\n"
 
-			; main.bas 36: For i = 0 To 9
+			; main.bas 37: For i = 0 To 9
 			dw kw_ztov, var_i
 for8_t:
 
-			; main.bas 37: Print a(i); " ";
+			; main.bas 38: Print a(i); " ";
 			dw kw_aget, arr_a, var_i, tmp0
 			dw kw_printint, tmp0
 			dw kw_printzoscii
 			dw glyph_20, 0		; " "
 
-			; main.bas 38: Next
+			; main.bas 39: Next
 			dw kw_next1l_n, var_i, 9, for8_t
 for8_e:
 
-			; main.bas 39: Print
+			; main.bas 40: Print
 			dw kw_printnl
 
-			; main.bas 40: If (k = "N") And (System.TicksPerSecond > 0) Then
+			; main.bas 41: If (k = "N") And (System.TicksPerSecond > 0) Then
 			dw kw_strcmpeq, var_k, str1
 			dw kw_ftov, tmp0
 			dw kw_goto_ifzero_n, tmp0, if9_1
 
-			; main.bas 41: Print "took "; t1 - t0; " ticks = "; (t1 - t0) \ System.TicksPerSecond; "."; ((t1 - t0) Mod System.TicksPerSecond) * 10 \ System.TicksPerSecond; " s"
+			; main.bas 42: Print "took "; t1 - t0; " ticks = "; (t1 - t0) \ System.TicksPerSecond; "."; ((t1 - t0) Mod System.TicksPerSecond) * 10 \ System.TicksPerSecond; " s"
 			dw kw_subvv, var_t1, var_t0, tmp0
 			dw kw_printzoscii
 			dw glyph_74, glyph_6F, glyph_6F, glyph_6B, glyph_20, 0		; "took "
@@ -215,13 +215,13 @@ for8_e:
 			dw kw_printzoscii
 			dw glyph_20, glyph_73, 1, 0		; " s\n"
 
-			; main.bas 42: ElseIf k = "T" Then
+			; main.bas 43: ElseIf k = "T" Then
 			dw do2_t_go
 if9_1:
 			dw kw_strcmpeq, var_k, str0
 			dw kw_goto_iffalse_n, do2_t
 
-			; main.bas 43: Print "(turbo runs with interrupts off, so"
+			; main.bas 44: Print "(turbo runs with interrupts off, so"
 			dw kw_printzoscii
 			dw glyph_28, glyph_74, glyph_75, glyph_72, glyph_62, glyph_6F, glyph_20, glyph_72
 			dw glyph_75, glyph_6E, glyph_73, glyph_20, glyph_77, glyph_69, glyph_74, glyph_68
@@ -229,22 +229,27 @@ if9_1:
 			dw glyph_70, glyph_74, glyph_73, glyph_20, glyph_6F, glyph_66, glyph_66, glyph_2C
 			dw glyph_20, glyph_73, glyph_6F, 1, 0		; "(turbo runs with interrupts off, so\n"
 
-			; main.bas 44: Print "time it with the stopwatch)"
+			; main.bas 45: Print "time it with the stopwatch)"
 			dw kw_printzoscii
 			dw glyph_74, glyph_69, glyph_6D, glyph_65, glyph_20, glyph_69, glyph_74, glyph_20
 			dw glyph_77, glyph_69, glyph_74, glyph_68, glyph_20, glyph_74, glyph_68, glyph_65
 			dw glyph_20, glyph_73, glyph_74, glyph_6F, glyph_70, glyph_77, glyph_61, glyph_74
 			dw glyph_63, glyph_68, glyph_29, 1, 0		; "time it with the stopwatch)\n"
 
-			; main.bas 45: End If
+			; main.bas 46: End If
 if9_2:
 if9_e:
 
-			; main.bas 46: Loop
+			; main.bas 47: Loop
 			dw do2_t_go
 do2_e:
 
-			; main.bas 47: End
+			; main.bas 48: End
+			dw kw_printnl0
+			dw kw_printzoscii
+			dw glyph_50, glyph_72, glyph_65, glyph_73, glyph_73, glyph_20, glyph_61, glyph_20
+			dw glyph_6B, glyph_65, glyph_79, 0		; "Press a key"
+			dw kw_waitkey
 			dw kw_stop
 
 ; ============================================================
@@ -253,34 +258,34 @@ do2_e:
 
 p_shellsort:
 
-			; main.bas 50: Dim gap As Integer, i As Integer, j As Integer, t As Integer
+			; main.bas 51: Dim gap As Integer, i As Integer, j As Integer, t As Integer
 
-			; main.bas 51: gap = n \ 2
+			; main.bas 52: gap = n \ 2
 			dw kw_divvl, var_n, 2, var_shellsort_gap
 
-			; main.bas 52: Do While gap > 0
+			; main.bas 53: Do While gap > 0
 do10_t:
 			dw kw_scpgtvl, var_shellsort_gap, 0
 			dw kw_goto_iffalse, do10_e
 
-			; main.bas 53: For i = gap To n
+			; main.bas 54: For i = gap To n
 			dw kw_vtov, var_shellsort_gap, var_shellsort_i
 			dw kw_vtov, var_n, for11_l
 			dw kw_forupv, var_shellsort_i, for11_l, for11_e
 for11_t:
 
-			; main.bas 54: t = a(i)
+			; main.bas 55: t = a(i)
 			dw kw_aget, arr_a, var_shellsort_i, var_shellsort_t
 
-			; main.bas 55: j = i
+			; main.bas 56: j = i
 			dw kw_vtov, var_shellsort_i, var_shellsort_j
 
-			; main.bas 56: Do While j >= gap
+			; main.bas 57: Do While j >= gap
 do12_t:
 			dw kw_scpgevv, var_shellsort_j, var_shellsort_gap
 			dw kw_goto_iffalse, do12_e
 
-			; main.bas 57: If a(j - gap) <= t Then Exit Do
+			; main.bas 58: If a(j - gap) <= t Then Exit Do
 			dw kw_subvv, var_shellsort_j, var_shellsort_gap, tmp0
 			dw kw_aget, arr_a, tmp0, tmp0
 			dw kw_scplevv, tmp0, var_shellsort_t
@@ -288,29 +293,29 @@ do12_t:
 			dw do12_e_go
 if13_1:
 
-			; main.bas 58: a(j) = a(j - gap)
+			; main.bas 59: a(j) = a(j - gap)
 			dw kw_subvv, var_shellsort_j, var_shellsort_gap, tmp1
 			dw kw_aget, arr_a, tmp1, tmp1
 			dw kw_aset, arr_a, var_shellsort_j, tmp1
 
-			; main.bas 59: j = j - gap
+			; main.bas 60: j = j - gap
 			dw kw_subvv, var_shellsort_j, var_shellsort_gap, var_shellsort_j
 
-			; main.bas 60: Loop
+			; main.bas 61: Loop
 			dw do12_t_go
 do12_e:
 
-			; main.bas 61: a(j) = t
+			; main.bas 62: a(j) = t
 			dw kw_aset, arr_a, var_shellsort_j, var_shellsort_t
 
-			; main.bas 62: Next
+			; main.bas 63: Next
 			dw kw_next1v, var_shellsort_i, for11_l, for11_t
 for11_e:
 
-			; main.bas 63: gap = gap \ 2
+			; main.bas 64: gap = gap \ 2
 			dw kw_divvl, var_shellsort_gap, 2, var_shellsort_gap
 
-			; main.bas 64: Loop
+			; main.bas 65: Loop
 			dw do10_t_go
 do10_e:
 			dw p_shellsort_r
@@ -321,34 +326,34 @@ do10_e:
 
 p_shellsort_n:
 
-			; main.bas 50: Dim gap As Integer, i As Integer, j As Integer, t As Integer
+			; main.bas 51: Dim gap As Integer, i As Integer, j As Integer, t As Integer
 
-			; main.bas 51: gap = n \ 2
+			; main.bas 52: gap = n \ 2
 			dw kw_divvl, var_n, 2, var_shellsort_gap
 
-			; main.bas 52: Do While gap > 0
+			; main.bas 53: Do While gap > 0
 do14_t:
 			dw kw_scpgtvl, var_shellsort_gap, 0
 			dw kw_goto_iffalse_n, do14_e
 
-			; main.bas 53: For i = gap To n
+			; main.bas 54: For i = gap To n
 			dw kw_vtov, var_shellsort_gap, var_shellsort_i
 			dw kw_vtov, var_n, for15_l
 			dw kw_forupv_n, var_shellsort_i, for15_l, for15_e
 for15_t:
 
-			; main.bas 54: t = a(i)
+			; main.bas 55: t = a(i)
 			dw kw_aget, arr_a, var_shellsort_i, var_shellsort_t
 
-			; main.bas 55: j = i
+			; main.bas 56: j = i
 			dw kw_vtov, var_shellsort_i, var_shellsort_j
 
-			; main.bas 56: Do While j >= gap
+			; main.bas 57: Do While j >= gap
 do16_t:
 			dw kw_scpgevv, var_shellsort_j, var_shellsort_gap
 			dw kw_goto_iffalse_n, do16_e
 
-			; main.bas 57: If a(j - gap) <= t Then Exit Do
+			; main.bas 58: If a(j - gap) <= t Then Exit Do
 			dw kw_subvv, var_shellsort_j, var_shellsort_gap, tmp0
 			dw kw_aget, arr_a, tmp0, tmp0
 			dw kw_scplevv, tmp0, var_shellsort_t
@@ -356,29 +361,29 @@ do16_t:
 			dw do16_e_go
 if17_1:
 
-			; main.bas 58: a(j) = a(j - gap)
+			; main.bas 59: a(j) = a(j - gap)
 			dw kw_subvv, var_shellsort_j, var_shellsort_gap, tmp1
 			dw kw_aget, arr_a, tmp1, tmp1
 			dw kw_aset, arr_a, var_shellsort_j, tmp1
 
-			; main.bas 59: j = j - gap
+			; main.bas 60: j = j - gap
 			dw kw_subvv, var_shellsort_j, var_shellsort_gap, var_shellsort_j
 
-			; main.bas 60: Loop
+			; main.bas 61: Loop
 			dw do16_t_go
 do16_e:
 
-			; main.bas 61: a(j) = t
+			; main.bas 62: a(j) = t
 			dw kw_aset, arr_a, var_shellsort_j, var_shellsort_t
 
-			; main.bas 62: Next
+			; main.bas 63: Next
 			dw kw_next1v_n, var_shellsort_i, for15_l, for15_t
 for15_e:
 
-			; main.bas 63: gap = gap \ 2
+			; main.bas 64: gap = gap \ 2
 			dw kw_divvl, var_shellsort_gap, 2, var_shellsort_gap
 
-			; main.bas 64: Loop
+			; main.bas 65: Loop
 			dw do14_t_go
 do14_e:
 			dw p_shellsort_n_r
@@ -485,6 +490,7 @@ glyph_3F			equ ntc_font + 248		; "?"
 glyph_44			equ ntc_font + 288		; "D"
 glyph_48			equ ntc_font + 320		; "H"
 glyph_4E			equ ntc_font + 368		; "N"
+glyph_50			equ ntc_font + 384		; "P"
 glyph_52			equ ntc_font + 400		; "R"
 glyph_54			equ ntc_font + 416		; "T"
 glyph_58			equ ntc_font + 448		; "X"
@@ -564,6 +570,7 @@ kw_strcmpeq:	jp 126
 kw_printzoscii:	jp 129
 kw_printstrvar:	jp 130
 kw_printint:	jp 132
+kw_printnl0:	jp 135
 kw_printnl:	jp 139
 kw_inputint:	jp 143
 kw_inkeys:	jp 146
@@ -573,7 +580,8 @@ kw_ticks:	jp 155
 kw_strucase:	jp 181
 kw_bssinit:	jp 291
 ntc_plat_irqon:	jp 316
-NTC_RJ_N	equ 44		; entries
+kw_waitkey:	jp 344
+NTC_RJ_N	equ 46		; entries
 ntc_csp	equ #8800		; ROM data
 ntc_font	equ #948E		; ROM bss
 ntc_nmode	equ #8807		; ROM data

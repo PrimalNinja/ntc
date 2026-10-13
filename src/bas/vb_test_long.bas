@@ -1,4 +1,5 @@
 ' Long (32 bit) self test - each check prints its number and ok or FAIL
+Option PressAnyKeyOnEnd "Press a key"     ' at the end: a message and a key (a RUN" program resets when it ends)
 Option Explicit
 
 Const BIG = 100000
@@ -151,9 +152,6 @@ Chk n, 2
 
 Print
 Print t; " tests, "; bad; " failed"
-Print "Press a key";
-Do : Frame : Loop Until Inkey <> 0
-Print
 End
 
 Sub ChkL(ByVal got As Long, ByVal want As Long)

@@ -4,6 +4,7 @@
 ' own RAM page, loaded by its first call, and stays there.
 ' cpm (and Option Memory Small): one overlay area at #4000-#7FFF - a call loads its class
 ' there over the one that was, a return loads the caller's class again if it was swapped out.
+Option PressAnyKeyOnEnd "Press a key"     ' at the end: a message and a key (a RUN" program resets when it ends)
 Option Explicit
 #If NTC_CPCMIN Then
 Option RomEnable 7                ' RUN" drops AMSDOS: start it again, the overlays load from disc
@@ -37,10 +38,6 @@ Print "Level 1 in page "; Level1.Page(); ", level 2 in page "; Level2.Page()
 Print "Pages "; Memory.Map(1, Memory.Pages())
 Print "Unload level 1: "; Level1.Unload(); " - pages "; Memory.Map(1, Memory.Pages())
 #End If
-Print "Press a key";
-Do While Inkey <> 0 : Loop
-Do : Frame : Loop Until Inkey <> 0
-Print
 End
 
 ' the main program's own routines: overlays can call them

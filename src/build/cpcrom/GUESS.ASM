@@ -38,95 +38,84 @@ ntc_go:
 main_thread:
 			dw kw_scrinit		; mode 1, ROMs off, clear screen
 
-			; 1: Randomize 1234
+			; 2: Randomize 1234
 			dw kw_seedl, 1234
 
-			; 2: again:
+			; 3: again:
 lbl_again:
 
-			; 3: t = Rnd(100) + 1 : tries = 0
+			; 4: t = Rnd(100) + 1 : tries = 0
 			dw kw_rndl, 100, tmp0
 			dw kw_addl, tmp0, 1, var_t
 			dw kw_ztov, var_tries
 
-			; 4: Print "I picked 1 to 100"
+			; 5: Print "I picked 1 to 100"
 			dw kw_printzoscii
 			dw glyph_49, glyph_20, glyph_70, glyph_69, glyph_63, glyph_6B, glyph_65, glyph_64
 			dw glyph_20, glyph_31, glyph_20, glyph_74, glyph_6F, glyph_20, glyph_31, glyph_30
 			dw glyph_30, 1, 0		; "I picked 1 to 100\n"
 
-			; 5: Do
+			; 6: Do
 do1_t:
 
-			; 6: Input "Guess"; g
+			; 7: Input "Guess"; g
 			dw kw_printzoscii
 			dw glyph_47, glyph_75, glyph_65, glyph_73, glyph_73, glyph_3F, glyph_20, 0		; "Guess? "
 			dw kw_inputint, var_g
 
-			; 7: tries = tries + 1
+			; 8: tries = tries + 1
 			dw kw_inc, var_tries
 
-			; 8: If g < t Then
+			; 9: If g < t Then
 			dw kw_scpltvv, var_g, var_t
 			dw kw_goto_iffalse_n, if2_1
 
-			; 9: Print "Higher"
+			; 10: Print "Higher"
 			dw kw_printzoscii
 			dw glyph_48, glyph_69, glyph_67, glyph_68, glyph_65, glyph_72, 1, 0		; "Higher\n"
 
-			; 10: ElseIf g > t Then
+			; 11: ElseIf g > t Then
 			dw if2_e_go
 if2_1:
 			dw kw_scpgtvv, var_g, var_t
 			dw kw_goto_iffalse_n, if2_2
 
-			; 11: Print "Lower"
+			; 12: Print "Lower"
 			dw kw_printzoscii
 			dw glyph_4C, glyph_6F, glyph_77, glyph_65, glyph_72, 1, 0		; "Lower\n"
 
-			; 12: End If
+			; 13: End If
 if2_2:
 if2_e:
 
-			; 13: Loop Until g = t
+			; 14: Loop Until g = t
 			dw kw_cpeqvv, var_g, var_t
 			dw kw_goto_iffalse_n, do1_t
 do1_e:
 
-			; 14: Print "Got it in "; tries
+			; 15: Print "Got it in "; tries
 			dw kw_printzoscii
 			dw glyph_47, glyph_6F, glyph_74, glyph_20, glyph_69, glyph_74, glyph_20, glyph_69
 			dw glyph_6E, glyph_20, 0		; "Got it in "
 			dw kw_printint, var_tries
 			dw kw_printnl
 
-			; 15: Input "Again (y/n)"; a$
+			; 16: Input "Again (y/n)"; a$
 			dw kw_printzoscii
 			dw glyph_41, glyph_67, glyph_61, glyph_69, glyph_6E, glyph_20, glyph_28, glyph_79
 			dw glyph_2F, glyph_6E, glyph_29, glyph_3F, glyph_20, 0		; "Again (y/n)? "
 			dw kw_inputstr, var_a
 
-			; 16: If a$ = "y" Then GoTo again
+			; 17: If a$ = "y" Then GoTo again
 			dw kw_strcmpeq, var_a, str0
 			dw kw_goto_iftrue_n, lbl_again
 
-			; 17: Print "Press a key";
+			; 18: End
+			dw kw_printnl0
 			dw kw_printzoscii
 			dw glyph_50, glyph_72, glyph_65, glyph_73, glyph_73, glyph_20, glyph_61, glyph_20
 			dw glyph_6B, glyph_65, glyph_79, 0		; "Press a key"
-
-			; 18: Do : Frame : Loop Until Inkey <> 0
-do3_t:
-			dw kw_frame
-			dw kw_inkey, tmp0
-			dw kw_cpnevl, tmp0, 0
-			dw kw_goto_iffalse_n, do3_t
-do3_e:
-
-			; 19: Print
-			dw kw_printnl
-
-			; 20: End
+			dw kw_waitkey
 			dw kw_stop
 
 ; ============================================================
@@ -211,20 +200,19 @@ kw_addl:		jp 54
 kw_scpltvv:	jp 79
 kw_scpgtvv:	jp 83
 kw_cpeqvv:	jp 95
-kw_cpnevl:	jp 98
 kw_rndl:		jp 119
 kw_seedl:	jp 121
 kw_strcmpeq:	jp 126
 kw_printzoscii:	jp 129
 kw_printint:	jp 132
+kw_printnl0:	jp 135
 kw_printnl:	jp 139
 kw_inputstr:	jp 142
 kw_inputint:	jp 143
-kw_inkey:	jp 145
 kw_scrinit:	jp 147
-kw_frame:	jp 153
 ntc_plat_irqon:	jp 308
-NTC_RJ_N	equ 23		; entries
+kw_waitkey:	jp 321
+NTC_RJ_N	equ 22		; entries
 ntc_csp	equ #8800		; ROM data
 ntc_font	equ #948E		; ROM bss
 ntc_nmode	equ #8807		; ROM data

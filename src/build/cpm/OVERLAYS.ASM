@@ -26,21 +26,21 @@ ntc_start:
 
 main_thread:
 
-			; Main.bas 18: Print "Overlays on "; System.Platform; ": one overlay area at &4000"
+			; Main.bas 19: Print "Overlays on "; System.Platform; ": one overlay area at &4000"
 			dw kw_printstrvar, str1
 			dw kw_printnl
 
-			; Main.bas 22: Print "Level 1 loaded: "; Level1.Loaded()
+			; Main.bas 23: Print "Level 1 loaded: "; Level1.Loaded()
 			dw fn_level1_loaded, var_level1_loaded_loaded
 			dw kw_printstrvar, str2
 			dw kw_printint, var_level1_loaded_loaded
 			dw kw_printnl
 
-			; Main.bas 23: For lvl = 1 To 2
+			; Main.bas 24: For lvl = 1 To 2
 			dw kw_ltov, 1, var_lvl
 for1_t:
 
-			; Main.bas 24: If lvl = 1 Then score = score + Level1.Play(score)
+			; Main.bas 25: If lvl = 1 Then score = score + Level1.Play(score)
 			dw kw_cpeqvl, var_lvl, 1
 			dw kw_goto_iffalse_n, if2_1
 			dw p_level1_play_c, var_score
@@ -48,7 +48,7 @@ for1_t:
 			dw kw_add, var_score, tmp1, var_score
 if2_1:
 
-			; Main.bas 25: If lvl = 2 Then score = score + Level2.Play(score)
+			; Main.bas 26: If lvl = 2 Then score = score + Level2.Play(score)
 			dw kw_cpeqvl, var_lvl, 2
 			dw kw_goto_iffalse_n, if3_1
 			dw p_level2_play_c, var_score
@@ -56,34 +56,34 @@ if2_1:
 			dw kw_add, var_score, tmp1, var_score
 if3_1:
 
-			; Main.bas 26: Next
+			; Main.bas 27: Next
 			dw kw_next1l_n, var_lvl, 2, for1_t
 for1_e:
 
-			; Main.bas 27: Print "Score "; score
+			; Main.bas 28: Print "Score "; score
 			dw kw_printstrvar, str3
 			dw kw_printint, var_score
 			dw kw_printnl
 
-			; Main.bas 29: Print "Free after level 1 "; Level1.LocalSize()
+			; Main.bas 30: Print "Free after level 1 "; Level1.LocalSize()
 			dw fn_level1_localsize, var_level1_localsize_localsize
 			dw kw_printstrvar, str4
 			dw kw_printint, var_level1_localsize_localsize
 			dw kw_printnl
 
-			; Main.bas 30: Print "Free after level 2 "; Level2.LocalSize()
+			; Main.bas 31: Print "Free after level 2 "; Level2.LocalSize()
 			dw fn_level2_localsize, var_level2_localsize_localsize
 			dw kw_printstrvar, str5
 			dw kw_printint, var_level2_localsize_localsize
 			dw kw_printnl
 
-			; Main.bas 31: Print "Heap, largest block "; Memory.Largest()
+			; Main.bas 32: Print "Heap, largest block "; Memory.Largest()
 			dw fn_memory_largest, var_memory_largest_largest
 			dw kw_printstrvar, str6
 			dw kw_printint, var_memory_largest_largest
 			dw kw_printnl
 
-			; Main.bas 33: Print "In the area: level 1 "; Level1.Loaded(); ", level 2 "; Level2.Loaded()
+			; Main.bas 34: Print "In the area: level 1 "; Level1.Loaded(); ", level 2 "; Level2.Loaded()
 			dw fn_level1_loaded, var_level1_loaded_loaded
 			dw kw_printstrvar, str7
 			dw kw_printint, var_level1_loaded_loaded
@@ -92,7 +92,7 @@ for1_e:
 			dw kw_printint, var_level2_loaded_loaded
 			dw kw_printnl
 
-			; Main.bas 34: Print "Unload level 2: "; Level2.Unload(); " - level 2 "; Level2.Loaded()
+			; Main.bas 35: Print "Unload level 2: "; Level2.Unload(); " - level 2 "; Level2.Loaded()
 			dw fn_level2_unload, var_level2_unload_unload
 			dw kw_printstrvar, str9
 			dw kw_printint, var_level2_unload_unload
@@ -101,29 +101,11 @@ for1_e:
 			dw kw_printint, var_level2_loaded_loaded
 			dw kw_printnl
 
-			; Main.bas 40: Print "Press a key";
+			; Main.bas 41: End
+			dw kw_printnl0
 			dw kw_printstrvar, str11
-
-			; Main.bas 41: Do While Inkey <> 0 : Loop
-do4_t:
-			dw kw_inkey, tmp0
-			dw kw_cpnevl, tmp0, 0
-			dw kw_goto_iffalse_n, do4_e
-			dw do4_t_go
-do4_e:
-
-			; Main.bas 42: Do : Frame : Loop Until Inkey <> 0
-do5_t:
-			dw kw_frame
-			dw kw_inkey, tmp0
-			dw kw_cpnevl, tmp0, 0
-			dw kw_goto_iffalse_n, do5_t
-do5_e:
-
-			; Main.bas 43: Print
-			dw kw_printnl
-
-			; Main.bas 44: End
+			dw kw_irq		; let interrupts in
+			dw kw_waitkey
 			dw kw_stop
 
 ; ============================================================
@@ -132,7 +114,7 @@ do5_e:
 
 p_banner:
 
-			; Main.bas 48: Print "== "; text; " =="
+			; Main.bas 45: Print "== "; text; " =="
 			dw kw_printstrvar, str12
 			dw kw_printstrvar, var_banner_text
 			dw kw_printstrvar, str13
@@ -163,8 +145,6 @@ p_banner:
 ;   turbo mode ends with ret, normal mode with jp ntc_xn
 ; ============================================================
 
-do4_t_go:			ld sp, do4_t
-			jp ntc_xn
 
 p_banner_c:		; call banner (normal)
 			pop hl			; text
@@ -403,6 +383,12 @@ ntc_stop_back:
 			ei
 			ret
 
+;## kw_waitkey ntc_data ntc_plat_key
+; kw_waitkey - wait for a key (Option PressAnyKeyOnEnd, before kw_stop)
+kw_waitkey:
+			ld ix, ntc_next
+			jp ntc_plat_getkey
+
 ;## ntc_xn ntc_data @shared
 ; normal mode "next": every normal mode keyword ends here (its ret
 ; became jp ntc_xn). Thread position to ntc_ip, real stack, one
@@ -415,6 +401,12 @@ ntc_xn:
 			di
 			ld sp, (ntc_ip)
 			ret
+
+;## kw_irq ntc_xn @shared
+;kw_irq  - normal mode: a safe point the compiler puts in long runs
+;  of keywords without a branch, so interrupts are not held off
+kw_irq:
+			jp ntc_xn
 
 ;## kw_goto_iffalse (normal mode copy)
 ;kw_goto_iffalse, <label>  - branch if NZ (false)
@@ -633,19 +625,6 @@ kw_cpeqvl:
 			pop hl
 			jp ntc_cmp_eq
 
-;## kw_cpnevl ntc_cmp
-kw_cpnevl:
-			pop hl
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			pop hl
-			jp ntc_cmp_ne
-
-; ============================================================
-; Memory (PEEK / POKE / DEEK / DOKE)
-; ============================================================
-
 ;## ntc_printbuf ntc_data ntc_plat_screen
 ; print the 0 terminated ASCII text at (ntc_sptr), then ret (thread)
 ntc_printbuf:
@@ -739,31 +718,20 @@ ntc_pi_done:
 			ld (ntc_sptr), hl
 			jp ntc_printbuf
 
+;## kw_printnl0 ntc_data ntc_plat_screen
+;kw_printnl0  - new line unless the cursor is at the start of a line
+kw_printnl0:
+			ld a, (ntc_curx)
+			or a
+			ret z
+			ld ix, ntc_next
+			jp ntc_plat_newline
+
 ;## kw_printnl ntc_data ntc_plat_screen
 ;kw_printnl
 kw_printnl:
 			ld ix, ntc_next
 			jp ntc_plat_newline
-
-;## kw_inkey ntc_data ntc_plat_key
-;kw_inkey, <destvar>  - new key press or 0, no wait
-kw_inkey:
-			pop hl
-			ld (ntc_ivar), hl
-			ld ix, ntc_inkey_got
-			jp ntc_plat_scankey
-ntc_inkey_got:
-			ld hl, (ntc_ivar)
-			ld (hl), a
-			inc hl
-			ld (hl), 0
-			ret
-
-;## kw_frame ntc_data ntc_plat_frame
-;kw_frame  - wait for the start of the next frame flyback
-kw_frame:
-			ld ix, ntc_next
-			jp ntc_plat_frame
 
 ;## ntc_capfind ntc_data
 ; ntc_capfind - the body of a class's Capability(name) keyword.
@@ -2180,10 +2148,6 @@ ntc_gk_back:
 			jp (ix)
 ntc_gklink:		dw 0
 
-;## ntc_plat_frame
-ntc_plat_frame:
-			jp (ix)
-
 ;## ntc_plat_exit ntc_plat_data
 ; ntc_plat_exit - warm boot back to CP/M
 ntc_plat_exit:
@@ -3281,7 +3245,7 @@ ntc_bss		equ ntc_end
 ntc_bss_size	equ 0
 ntc_free	equ ntc_bss + ntc_bss_size	; the first free byte (heap, Memory tables)
 ; Option Reserve: the program and its arrays (ntc_start .. ntc_free) must stay out of these
-			ASSERT (ntc_free <= 16384) || (ntc_start >= 32768), "the program (or its arrays) reaches into Option Reserve #4000-#7FFF (Main.bas line 14)"
+			ASSERT (ntc_free <= 16384) || (ntc_start >= 32768), "the program (or its arrays) reaches into Option Reserve #4000-#7FFF (Main.bas line 15)"
 			ASSERT (ntc_free <= #4000) || (ntc_start >= #8000), "overlay classes: the program and its arrays must stay out of #4000-#7FFF (the window they run in)"
 
 ; ============================================================
@@ -3303,7 +3267,7 @@ p_level1_play:
 
 			; Level1.cls 6: For i = 1 To 3
 			dw kw_ltov, 1, var_level1_play_i
-for6_t:
+for4_t:
 
 			; Level1.cls 7: Print "  room "; i
 			dw kw_printstrvar, str15
@@ -3311,8 +3275,8 @@ for6_t:
 			dw kw_printnl
 
 			; Level1.cls 8: Next
-			dw kw_next1l_n, var_level1_play_i, 3, for6_t
-for6_e:
+			dw kw_next1l_n, var_level1_play_i, 3, for4_t
+for4_e:
 
 			; Level1.cls 9: Play = 100
 			dw kw_ltov, 100, var_level1_play_play
@@ -3374,4 +3338,4 @@ ovl_level2_vsize	equ 0		; its page variables; its local memory is the rest, to #
 			DISPLAY "  page variables ", /D, ovl_level2_vsize, ", free ", /D, #8000 - (ovl_level2_end + ovl_level2_vsize)
 			OUTEND
 
-NTC_STAMP	equ #50C8		; the build stamp: the first word of every page file
+NTC_STAMP	equ #6191		; the build stamp: the first word of every page file

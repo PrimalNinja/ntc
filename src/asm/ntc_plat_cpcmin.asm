@@ -1629,6 +1629,159 @@ ntc_plat_memtop:
 		ENDIF
 			ret
 
+;## ntc_plat_romsel @shared @ramonly
+; rd_sel - A = a slot: that ROM in at #C000 (KL ROM SELECT: the upper ROM on,
+; the firmware knows). rd_unsel - what was in before back (KL ROM DESELECT).
+; From RAM only (@ramonly: never in the keyword ROM). Keep DE, HL (rd_unsel
+; also AF)
+rd_old:			dw 0
+rd_sel:
+			push hl
+			push de
+			ld c, a
+			call #B90F			; KL ROM SELECT: B / C = the state and ROM before
+			ld (rd_old), bc
+			pop de
+			pop hl
+			ret
+rd_unsel:
+			push af
+			push hl
+			push de
+			ld bc, (rd_old)
+			call #B918			; KL ROM DESELECT
+			pop de
+			pop hl
+			pop af
+			ret
+
+;## ntc_plat_rdroute ntc_plat_fs ntc_romdisc @shared @ramonly
+; rd_route ... - a FileSystem method's way to the ROMDISC (volume R): HL =
+; the fs_ routine, DE = the rd_ one, fs_a1 ... fs_res set. The rd_ routine
+; is picked (fs_a1 .. fs_res copied to rd_a1 .. rd_res) when
+;   rd_route / rd_route0:   the name at (fs_a1) is "R:..." - or has no volume
+;                           and the volume in use is R
+;   rd_routeh / rd_routeh0: fs_a1 is handle 2 (the ROMDISC's open file)
+;   rd_routev:              the name is "R" (or "R:")
+; then fs_go (the ..0 ones: fs_go0). Runs on the thread: no call, no push.
+rd_rtf:			db 0
+rd_rtd:			dw 0
+rd_routev:
+			ld a, 4
+			jr rd_rt
+rd_routeh0:
+			ld a, 3
+			jr rd_rt
+rd_routeh:
+			ld a, 2
+			jr rd_rt
+rd_route0:
+			ld a, 1
+			jr rd_rt
+rd_route:
+			xor a
+rd_rt:
+			ld (rd_rtf), a
+			ld (rd_rtd), de
+			bit 1, a
+			jr nz, rd_rt_h
+			bit 2, a
+			jr nz, rd_rt_v
+			ex de, hl				; DE = the fs_ routine
+			ld hl, (fs_a1)
+			inc hl
+			ld a, (hl)
+			dec hl
+			cp ':'
+			jr nz, rd_rt_cur
+			ld a, (hl)
+			or #20
+			cp 'r'
+			jr z, rd_rt_rd
+			jr rd_rt_fs
+rd_rt_cur:							; no volume in the name: the one in use
+			ld a, (fs_vol)
+			cp 'R'
+			jr nz, rd_rt_fs
+			ld a, (fs_vol + 1)
+			or a
+			jr z, rd_rt_rd
+rd_rt_fs:
+			ex de, hl				; HL = the fs_ routine
+			jr rd_rt_go
+rd_rt_h:
+			ex de, hl
+			ld hl, (fs_a1)
+			ld a, h
+			or a
+			jr nz, rd_rt_fs
+			ld a, l
+			cp 2
+			jr z, rd_rt_rd
+			jr rd_rt_fs
+rd_rt_v:
+			ex de, hl
+			ld hl, (fs_a1)
+			ld a, (hl)
+			or #20
+			cp 'r'
+			jr nz, rd_rt_fs
+			inc hl
+			ld a, (hl)
+			or a
+			jr z, rd_rt_rd
+			cp ':'
+			jr nz, rd_rt_fs
+			inc hl
+			ld a, (hl)
+			or a
+			jr nz, rd_rt_fs
+rd_rt_rd:
+			ld hl, (fs_a1)
+			ld (rd_a1), hl
+			ld hl, (fs_a2)
+			ld (rd_a2), hl
+			ld hl, (fs_a3)
+			ld (rd_a3), hl
+			ld hl, (fs_res)
+			ld (rd_res), hl
+			ld hl, (rd_rtd)
+rd_rt_go:
+			ld a, (rd_rtf)
+			rra
+			jp c, fs_go0
+			jp fs_go
+
+; rd_fsvol - SelectVolume "R": the disc there, then R is the volume in use
+; (names without one go to the disc) and joins Volumes()
+rd_fsvol:
+			call rd_selvol
+			ld a, h
+			or l
+			ret nz
+			ld hl, rd_vr
+			ld de, fs_vol
+			ld bc, 2
+			ldir
+			ld hl, rd_vr
+			call fs_addvol
+			ld hl, 0
+			ret
+rd_vr:			db "R", 0
+
+; rd_nsl - NotSupported as a Long at (fs_res) (Size on a volume that can't)
+rd_nsl:
+			ld hl, (fs_res)
+			ld a, #FF
+			ld (hl), a
+			inc hl
+			ld (hl), a
+			inc hl
+			ld (hl), a
+			inc hl
+			ld (hl), a
+			ret
+
 ;## ntc_plat_rmr ntc_plat_data
 ; ntc_plat_rmr - A = the gate array's ROM / mode byte now (#8x: screen mode,
 ; lower and upper ROM on / off), so Memory's CallBank can turn both ROMs off

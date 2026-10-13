@@ -55,10 +55,10 @@ ntc_go:
 main_thread:
 			dw kw_scrinit		; mode 1, ROMs off, clear screen
 
-			; Main.bas 7: Cls
+			; Main.bas 8: Cls
 			dw kw_cls
 
-			; Main.bas 8: Locate 1, 3 : Print "Clock: a Tick once a second"
+			; Main.bas 9: Locate 1, 3 : Print "Clock: a Tick once a second"
 			dw kw_locatell, 1, 3
 			dw kw_printzoscii
 			dw glyph_43, glyph_6C, glyph_6F, glyph_63, glyph_6B, glyph_3A, glyph_20, glyph_61
@@ -66,7 +66,7 @@ main_thread:
 			dw glyph_63, glyph_65, glyph_20, glyph_61, glyph_20, glyph_73, glyph_65, glyph_63
 			dw glyph_6F, glyph_6E, glyph_64, 1, 0		; "Clock: a Tick once a second\n"
 
-			; Main.bas 9: Locate 1, 4 : Print "Star: a Tick every frame (50 a second)"
+			; Main.bas 10: Locate 1, 4 : Print "Star: a Tick every frame (50 a second)"
 			dw kw_locatell, 1, 4
 			dw kw_printzoscii
 			dw glyph_53, glyph_74, glyph_61, glyph_72, glyph_3A, glyph_20, glyph_61, glyph_20
@@ -75,14 +75,14 @@ main_thread:
 			dw glyph_20, glyph_28, glyph_35, glyph_30, glyph_20, glyph_61, glyph_20, glyph_73
 			dw glyph_65, glyph_63, glyph_6F, glyph_6E, glyph_64, glyph_29, 1, 0		; "Star: a Tick every frame (50 a second)\n"
 
-			; Main.bas 10: Locate 1, 8 : Print "Press a key to stop"
+			; Main.bas 11: Locate 1, 8 : Print "Press a key to stop"
 			dw kw_locatell, 1, 8
 			dw kw_printzoscii
 			dw glyph_50, glyph_72, glyph_65, glyph_73, glyph_73, glyph_20, glyph_61, glyph_20
 			dw glyph_6B, glyph_65, glyph_79, glyph_20, glyph_74, glyph_6F, glyph_20, glyph_73
 			dw glyph_74, glyph_6F, glyph_70, 1, 0		; "Press a key to stop\n"
 
-			; Main.bas 11: Do While Inkey <> 0 : Loop
+			; Main.bas 12: Do While Inkey <> 0 : Loop
 do1_t:
 			dw kw_inkey, tmp0
 			dw kw_cpnevl, tmp0, 0
@@ -90,29 +90,29 @@ do1_t:
 			dw do1_t_go
 do1_e:
 
-			; Main.bas 12: Do
+			; Main.bas 13: Do
 do2_t:
 
-			; Main.bas 13: loops = loops + 1
+			; Main.bas 14: loops = loops + 1
 			dw kw_l_add, var_loops, llit_1, var_loops
 
-			; Main.bas 14: Locate 1, 6 : Print "Main loop: "; loops;
+			; Main.bas 15: Locate 1, 6 : Print "Main loop: "; loops;
 			dw kw_locatell, 1, 6
 			dw kw_printzoscii
 			dw glyph_4D, glyph_61, glyph_69, glyph_6E, glyph_20, glyph_6C, glyph_6F, glyph_6F
 			dw glyph_70, glyph_3A, glyph_20, 0		; "Main loop: "
 			dw kw_l_print, var_loops
 
-			; Main.bas 15: Loop Until Inkey <> 0
+			; Main.bas 16: Loop Until Inkey <> 0
 			dw kw_inkey, tmp0
 			dw kw_cpnevl, tmp0, 0
 			dw kw_goto_iffalse_n, do2_t
 do2_e:
 
-			; Main.bas 16: Locate 1, 10
+			; Main.bas 17: Locate 1, 10
 			dw kw_locatell, 1, 10
 
-			; Main.bas 17: Print "Clock ticked "; Clock.Seconds; " times, the star "; Star.Moves
+			; Main.bas 18: Print "Clock ticked "; Clock.Seconds; " times, the star "; Star.Moves
 			dw kw_printzoscii
 			dw glyph_43, glyph_6C, glyph_6F, glyph_63, glyph_6B, glyph_20, glyph_74, glyph_69
 			dw glyph_63, glyph_6B, glyph_65, glyph_64, glyph_20, 0		; "Clock ticked "
@@ -124,7 +124,12 @@ do2_e:
 			dw kw_printint, var_star_moves
 			dw kw_printnl
 
-			; Main.bas 18: End
+			; Main.bas 19: End
+			dw kw_printnl0
+			dw kw_printzoscii
+			dw glyph_50, glyph_72, glyph_65, glyph_73, glyph_73, glyph_20, glyph_61, glyph_20
+			dw glyph_6B, glyph_65, glyph_79, 0		; "Press a key"
+			dw kw_waitkey
 			dw kw_stop
 
 ; ============================================================
@@ -274,6 +279,7 @@ kw_modvl:	jp 67
 kw_cpnevl:	jp 98
 kw_printzoscii:	jp 129
 kw_printint:	jp 132
+kw_printnl0:	jp 135
 kw_printnl:	jp 139
 kw_inkey:	jp 145
 kw_scrinit:	jp 147
@@ -284,7 +290,8 @@ kw_l_add:	jp 210
 kw_l_print:	jp 234
 ntc_isl_tick:	jp 282
 ntc_plat_irqon:	jp 308
-NTC_RJ_N	equ 20		; entries
+kw_waitkey:	jp 321
+NTC_RJ_N	equ 22		; entries
 ntc_csp	equ #8800		; ROM data
 ntc_font	equ #948E		; ROM bss
 ntc_irqv	equ #88A1		; ROM data

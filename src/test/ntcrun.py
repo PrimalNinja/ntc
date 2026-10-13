@@ -26,15 +26,23 @@ XSLOT = 6
 def load_xroms():
     # the keyword ROM set: NTC_XROM is the main ROM (slot XSLOT); NAME2.ROM, NAME3.ROM ... next to it
     # (a set of more than one) go in slots XSLOT - 1, XSLOT - 2 ... ({slot: 16K image})
+    # a ROMDISC (NTC_ROMDISC = its NTCDISC.ROM; NTCDISC2.ROM ... next to it): slots 10, 11 ...
     x = os.environ.get('NTC_XROM'); out = {}
-    if not x: return out
     def img(p):
         d = open(p, 'rb').read(); return d[128:] if len(d) == 0x4080 else d
-    out[XSLOT] = img(x)
-    base, ext = os.path.splitext(x)
-    for k in range(2, 9):
-        p = base + str(k) + ext
-        if os.path.exists(p): out[XSLOT - k + 1] = img(p)
+    if x:
+        out[XSLOT] = img(x)
+        base, ext = os.path.splitext(x)
+        for k in range(2, 9):
+            p = base + str(k) + ext
+            if os.path.exists(p): out[XSLOT - k + 1] = img(p)
+    d = os.environ.get('NTC_ROMDISC')
+    if d:
+        out[10] = img(d)
+        base, ext = os.path.splitext(d)
+        for k in range(2, 9):
+            p = base + str(k) + ext
+            if os.path.exists(p): out[9 + k] = img(p)
     return out
 RSX = ['TAPE', 'DISC', 'A', 'B', 'C', 'M']   # AMSDOS's commands, and an M4-like DOS's C and M
 # files for the FileSystem class (cpm: BDOS FCB calls, cpcfw: CAS calls) live in this folder
@@ -384,12 +392,12 @@ class Host:
     def run(s, limit=30000):
         n = 0
         while not s.m.halted:
-            s.m.ticks_to_stop = 13333; s.m.run(); n += 1; s.T += 13333 - s.m.ticks_to_stop
+            s.m.ticks_to_stop = 13333; cpcrun.endkey_run(s); n += 1; s.T += 13333 - s.m.ticks_to_stop
             if s.m.halted: break
             steps = 0
             while not s.m.halted and steps < 2000:
                 if s.m.iff1 and s.m.on_handle_active_int(): s.ints += 1; break
-                s.m.ticks_to_stop = 1; s.m.run(); steps += 1; s.T += 1 - s.m.ticks_to_stop
+                s.m.ticks_to_stop = 1; cpcrun.endkey_run(s); steps += 1; s.T += 1 - s.m.ticks_to_stop
             if n > limit: print('TIMEOUT pc=%04x sp=%04x' % (s.m.pc, s.m.sp)); break
 
 def main():
@@ -422,6 +430,7 @@ def main():
         return
     org = syms.get('ntc_start', 0x100 if plat == 'cpm' else 0x4000)   # the program's org
     h = Host(plat, b, org, typed)
+    cpcrun.endkey_set(h.m, syms)
     if called and plat == 'cpcfw': h.amsdos_on()
     if plat == 'cpm':
         tail = (' ' + cmdline.upper()).encode() if cmdline else b''

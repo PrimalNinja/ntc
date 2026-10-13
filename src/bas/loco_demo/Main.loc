@@ -1,6 +1,7 @@
 10 REM Locomotive BASIC flavour: the CPC's own BASIC, turned into VB5 and compiled.
 20 REM a, a% and a$ are three variables; '#long after a line is a type hint;
 30 REM a line NTC can't do becomes a warning and is left out (line 200 below)
+'# Option PressAnyKeyOnEnd "Press a key"
 40 MODE 1
 50 DIM sc(5),nm$(5)
 60 total=0 '#long

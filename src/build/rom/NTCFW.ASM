@@ -7,7 +7,7 @@ NTC_ROMDATA	equ #8800		; its initialised variables (and RAM code), copied by ntc
 NTC_ROMBSS	equ #9400		; its other variables, cleared
 NTC_STRMAX	equ 255			; strings up to 255 characters (programs built for the ROM use 255)
 NTC_MEMBANKS	equ 64			; the Memory class: up to 4MB
-NTC_ROM_N	equ 349			; numbers in the index
+NTC_ROM_N	equ 350			; numbers in the index
 NTC_ROM_COUNT	equ 1			; ROMs in the set (NTCFW.ROM)
 NTC_ROM_SET	equ #AF3D		; the set's stamp (its ROMs find each other by it)
 MEM_WIN		equ #4000
@@ -501,6 +501,7 @@ ntc_rom_index:
 			dw ntc_urom_off		; 346
 			dw ntc_urom_on		; 347
 			dw kw_waitkey		; 348
+			dw fs_addvol		; 349
 ; ---- the library (code)
 ;## ntc_data @shared
 ntc_next:		ret				; IX target that continues the thread
@@ -9727,3 +9728,4 @@ ntc_rom_bssend:
 			ASSERT (ntc_v_romen & #FFFF) == #8954, "ntc_v_romen moved: variables and constants keep their place (a new size or value needs a new name)"
 			ASSERT (ntc_v_rom & #FFFF) == #8955, "ntc_v_rom moved: variables and constants keep their place (a new size or value needs a new name)"
 			ASSERT (ntc_v_romold & #FFFF) == #8956, "ntc_v_romold moved: variables and constants keep their place (a new size or value needs a new name)"
+			ASSERT (fs_vol & #FFFF) == #9806, "fs_vol moved: variables and constants keep their place (a new size or value needs a new name)"
