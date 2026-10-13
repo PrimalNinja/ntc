@@ -39,6 +39,41 @@ Public Function Altitude() As Integer
   Altitude = camy
 End Function
 
+' Buildings(): how many cells of the map have a building (after Init)
+Public Function Buildings() As Integer
+#asm
+            ld hl, #8000
+            ld de, 0
+            ld bc, 4096
+bd_lp:
+            ld a, (hl)
+            and 7
+            jr z, bd_n
+            inc de
+bd_n:
+            inc hl
+            dec bc
+            ld a, b
+            or c
+            jr nz, bd_lp
+            pop hl
+            ld (hl), e
+            inc hl
+            ld (hl), d
+#endasm
+End Function
+
+' ProgramEnd(): the first byte after the program and its variables
+Public Function ProgramEnd() As Integer
+#asm
+            pop hl
+            ld de, ntc_free
+            ld (hl), e
+            inc hl
+            ld (hl), d
+#endasm
+End Function
+
 ' the map: a byte a cell at #8000 (z * 64 + x): bits 0-2 storeys (0 = none), bit 3 the
 ' narrow footprint
 Private Sub MakeMap()
@@ -160,12 +195,15 @@ Public Sub Render()
 #asm
             ld ({sps}), sp
             ld sp, (ntc_csp)
+            ei                      ; interrupts in while it works (the real stack): the
+                                    ; clock keeps counting, in turbo too
             call r_turn
             call r_tidy
             call r_fly
             call r_terms
             call r_clear
             call r_cells
+            di
             ld sp, ({sps})
             ret
 
@@ -534,6 +572,7 @@ tm_vec:
 
 ; r_clear - rows 1-24 of the screen being drawn on cleared (row 0 is the text line)
 r_clear:
+            di                      ; SP goes through the screen: no interrupts meanwhile
             call gfx_begin
             ld (w_csp), sp
             ld a, (gfx_base)
@@ -570,7 +609,9 @@ cl_lp:
             dec c
             jr nz, cl_blk
             ld sp, (w_csp)
-            jp gfx_end
+            call gfx_end
+            ei
+            ret
 
 ; ---- the buildings
 

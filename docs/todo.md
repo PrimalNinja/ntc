@@ -17,7 +17,12 @@ finished, with the date.
   view skipped, lines clipped to the near plane and the view's sides, double buffered. All Z80
   in City.cls: per-frame tables (column / row / height terms in camera space) make each corner
   three additions; projection by shifts and an 8-step divide. About 1.4 frames a second at real
-  speed (aimed at WinAPE 1000% for now). Harness: cpcfw now gives the vertical sync (#F5xx)
+  speed (aimed at WinAPE 1000% for now). Harness: cpcfw now gives the vertical sync (#F5xx).
+  Interrupts are let in while Render works (it runs ~0.1-1 s with them off otherwise, and the
+  lost ticks made the FPS read ~10x high); the start screen shows the buildings and RAM used
+- 2026-10-14 CUBE3D: + / - (the ; and - keys) are held keys (Keys class) on the CPC platforms -
+  the size changes every frame while held (cpm keeps Inkey$). MAXPOINTS 24, MAXEDGES 40 (room
+  for Keys on cpcmin). Harness (cpcrun): a Keys scan no longer moves typed keys on
 - 2026-10-14 CUBE3D: only the edges that moved are drawn again (old line off, new on) - the
   shape no longer blinks in place when a turn moves it less than a pixel. The turn is a fixed
   step a frame again (the clock-based step was erratic in normal mode)

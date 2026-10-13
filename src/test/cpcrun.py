@@ -201,7 +201,13 @@ class CPC:
                 L,bit,sh=s.cur
                 if s.line==L: v&=~(1<<bit)
                 if sh and s.line==2: v&=~(1<<5)
-            if s.line==9: s.tick()
+            if s.line==9:
+                # a scan by the Keys class (Down / Joystick) moves on held keys ({n}) and pauses (~) only:
+                # typed keys are for Inkey's scan, which a program's Keys calls mustn't hurry
+                ks=s.syms.get('ntc_ksc_line') if s.syms else None
+                typedkey=(s.phase==1 and getattr(s,'tkey',False)) or (s.phase==0 and s.typed and s.typed[0] not in '{~')
+                if ks is None or not (ks<=s.m.pc<ks+16) or not typedkey:
+                    s.tick()
             return v&0xff
         if hi==0xf5:
             s.vs+=1; return 1 if (s.vs//50)%2 else 0
@@ -214,10 +220,10 @@ class CPC:
                 n=''
                 while s.typed and s.typed[0]!='}': n+=s.typed.pop(0)
                 if s.typed: s.typed.pop(0)
-                s.cur=(int(n)//8,int(n)%8,False); s.phase=1
+                s.cur=(int(n)//8,int(n)%8,False); s.phase=1; s.tkey=False
             else:
-                s.cur=None if c=='~' else KEYS[c]; s.phase=1     # ~ = a pause: no key for one press
-        elif s.phase==1 and s.scans%3==0: s.cur=None; s.phase=0
+                s.cur=None if c=='~' else KEYS[c]; s.phase=1; s.tkey=(c!='~')     # ~ = a pause: no key for one press
+        elif s.phase==1 and s.scans%3==0: s.cur=None; s.phase=0; s.tkey=False
     def run(s,limit=30000):
         # CPC: an interrupt every 13333 T, held until the Z80 takes it
         n=0; s.T=0

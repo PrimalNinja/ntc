@@ -97,7 +97,7 @@ p_vector3d_clear:
 p_vector3d_addpoint:
 
 			; Vector3D.cls 37: If np >= MAXPOINTS Then AddPoint = -1 : Exit Function
-			dw kw_scpgevl, var_vector3d_np, 32
+			dw kw_scpgevl, var_vector3d_np, 24
 			dw kw_goto_iffalse_n, if2_1
 			dw kw_ltov, -1, var_vector3d_addpoint_addpoint
 			dw p_vector3d_addpoint_r
@@ -122,7 +122,7 @@ if2_1:
 p_vector3d_addedge:
 
 			; Vector3D.cls 45: If ne >= MAXEDGES Then Exit Sub
-			dw kw_scpgevl, var_vector3d_ne, 64
+			dw kw_scpgevl, var_vector3d_ne, 40
 			dw kw_goto_iffalse_n, if3_1
 			dw p_vector3d_addedge_r
 if3_1:
@@ -1541,11 +1541,11 @@ asm_1_425_n_d_all:		; Vector3D.cls 454
 asm_1_425_n_d_keep:		; Vector3D.cls 460
             ld hl, arr_vector3d_sx             ; what is on this screen now [461]
             ld de, (var_vector3d_xo)		; Vector3D.cls 462
-            ld bc, 64		; Vector3D.cls 463
+            ld bc, 24 * 2		; Vector3D.cls 463
             ldir		; Vector3D.cls 464
             ld hl, arr_vector3d_sy		; Vector3D.cls 465
             ld de, (var_vector3d_yo)		; Vector3D.cls 466
-            ld bc, 64		; Vector3D.cls 467
+            ld bc, 24 * 2		; Vector3D.cls 467
             ldir		; Vector3D.cls 468
             ld hl, (var_vector3d_ek)		; Vector3D.cls 469
             ld (hl), 1		; Vector3D.cls 470
@@ -1735,11 +1735,11 @@ asm_1_425_d_all:		; Vector3D.cls 454
 asm_1_425_d_keep:		; Vector3D.cls 460
             ld hl, arr_vector3d_sx             ; what is on this screen now [461]
             ld de, (var_vector3d_xo)		; Vector3D.cls 462
-            ld bc, 64		; Vector3D.cls 463
+            ld bc, 24 * 2		; Vector3D.cls 463
             ldir		; Vector3D.cls 464
             ld hl, arr_vector3d_sy		; Vector3D.cls 465
             ld de, (var_vector3d_yo)		; Vector3D.cls 466
-            ld bc, 64		; Vector3D.cls 467
+            ld bc, 24 * 2		; Vector3D.cls 467
             ldir		; Vector3D.cls 468
             ld hl, (var_vector3d_ek)		; Vector3D.cls 469
             ld (hl), 1		; Vector3D.cls 470
@@ -1932,6 +1932,15 @@ fn_graphics_buffering_bf0:		; Graphics.cls 170
             ld (hl), a		; Graphics.cls 173
 			ret			; end of #asm
 
+fn_keys_down:		; function down (asm keyword), Keys.cls line 44
+            pop hl		; Keys.cls 45
+            ld e, (hl)		; Keys.cls 46
+            inc hl		; Keys.cls 47
+            ld d, (hl)		; Keys.cls 48
+            ex de, hl		; Keys.cls 49
+            jp ntc_kdown		; Keys.cls 50
+			ret			; end of #asm
+
 fn_memory_allocpage:		; function allocpage (asm keyword), Memory.cls line 219
             pop hl		; Memory.cls 220
             ld e, (hl)		; Memory.cls 221
@@ -2018,6 +2027,7 @@ var_spin_mode:			dw 0
 var_spin_fast:			dw 0
 var_spin_frames:			dw 0
 var_spin_fps:			dw 0
+var_keys_down_down:			dw 0
 var_spin_paused:			dw 0
 var_spin_dbl:			dw 0
 p_spin_frame1_rs:			dw 0
@@ -2069,9 +2079,11 @@ stmp0:			ds 256
 lit_85:			dw 85
 lit_1:			dw 1
 lit_0:			dw 0
+lit_28:			dw 28
 lit_160:			dw 160
 lit_112:			dw 112
 lit_768:			dw 768
+lit_25:			dw 25
 vp_var_spin_fx:			dw var_spin_fx
 vp_var_spin_fy:			dw var_spin_fy
 vp_var_spin_fz:			dw var_spin_fz
@@ -2115,25 +2127,22 @@ str3:			db "1", 0
 str4:			db "2", 0
 str5:			db "3", 0
 str6:			db "4", 0
-str7:			db "+", 0
-str8:			db "=", 0
-str9:			db "-", 0
-str10:			db "P", 0
-str11:			db "A", 0
-str12:			db "B", 0
-str13:			db "C", 0
-str14:			db "D", 0
-str15:			db "T", 0
-str16:			db "X", 0
-str17:			db "1-4 shape A-C mode", 0
-str18:			db "D double T turbo +-PX", 0
-str19:			db "M", 0
-str20:			db " dbl", 0
-str21:			db " one", 0
-str22:			db 0
-str23:			db " turbo ", 0
-str24:			db " normal ", 0
-str25:			db "fps  ", 0
+str7:			db "P", 0
+str8:			db "A", 0
+str9:			db "B", 0
+str10:			db "C", 0
+str11:			db "D", 0
+str12:			db "T", 0
+str13:			db "X", 0
+str14:			db "1-4 shape A-C mode", 0
+str15:			db "D double T turbo +-PX", 0
+str16:			db "M", 0
+str17:			db " dbl", 0
+str18:			db " one", 0
+str19:			db 0
+str20:			db " turbo ", 0
+str21:			db " normal ", 0
+str22:			db "fps  ", 0
 
 ; ============================================================
 ; Keyword library (rom)
@@ -2192,10 +2201,11 @@ mem_sel:		jp 258
 mem_allocpage:	jp 266
 ntc_ovl_enter:	jp 276
 kw_bssinit:	jp 288
+ntc_kdown:	jp 334
 ntc_urom_off:	jp 346
 ntc_urom_on:	jp 347
 kw_waitkey:	jp 348
-NTC_RJ_N	equ 52		; entries
+NTC_RJ_N	equ 53		; entries
 mem_a1	equ #884F		; ROM data
 mem_res	equ #8855		; ROM data
 ntc_csp	equ #8800		; ROM data
@@ -3088,18 +3098,18 @@ ovl_blk_spin:	dw 0, ovl_spin_end, ovl_spin_vsize
 ntc_end:				; the end of the program (and of its file)
 ; arrays: after the program, not in its file - kw_bssinit checks they fit and clears them
 ntc_bss		equ ntc_end
-arr_vector3d_px		equ ntc_bss + 0		; 64 bytes
-arr_vector3d_py		equ ntc_bss + 64		; 64 bytes
-arr_vector3d_pz		equ ntc_bss + 128		; 64 bytes
-arr_vector3d_sx		equ ntc_bss + 192		; 64 bytes
-arr_vector3d_sy		equ ntc_bss + 256		; 64 bytes
-arr_vector3d_ox		equ ntc_bss + 320		; 64 bytes
-arr_vector3d_oy		equ ntc_bss + 384		; 64 bytes
-arr_vector3d_qx		equ ntc_bss + 448		; 64 bytes
-arr_vector3d_qy		equ ntc_bss + 512		; 64 bytes
-arr_vector3d_ea		equ ntc_bss + 576		; 128 bytes
-arr_vector3d_eb		equ ntc_bss + 704		; 128 bytes
-ntc_bss_size	equ 832
+arr_vector3d_px		equ ntc_bss + 0		; 48 bytes
+arr_vector3d_py		equ ntc_bss + 48		; 48 bytes
+arr_vector3d_pz		equ ntc_bss + 96		; 48 bytes
+arr_vector3d_sx		equ ntc_bss + 144		; 48 bytes
+arr_vector3d_sy		equ ntc_bss + 192		; 48 bytes
+arr_vector3d_ox		equ ntc_bss + 240		; 48 bytes
+arr_vector3d_oy		equ ntc_bss + 288		; 48 bytes
+arr_vector3d_qx		equ ntc_bss + 336		; 48 bytes
+arr_vector3d_qy		equ ntc_bss + 384		; 48 bytes
+arr_vector3d_ea		equ ntc_bss + 432		; 80 bytes
+arr_vector3d_eb		equ ntc_bss + 512		; 80 bytes
+ntc_bss_size	equ 592
 ntc_free	equ ntc_bss + ntc_bss_size	; the first free byte (heap, Memory tables)
 ; Option Reserve: the program and its arrays (ntc_start .. ntc_free) must stay out of these
 			ASSERT (ntc_free <= 16384) || (ntc_start >= 32768), "the program (or its arrays) reaches into Option Reserve #4000-#7FFF (Main.bas line 21)"
@@ -3205,41 +3215,37 @@ if7_1:
 			dw p_spin_makeshape_cl
 if8_1:
 
-			; Spin.cls 41: If k = "+" Or k = "=" Then size = size + 20 : Vector3D.View 160, 112, size, 768
-			dw kw_strcmpeq, var_spin_run_k, str7
-			dw kw_ftov, tmp0
-			dw kw_strcmpeq, var_spin_run_k, str8
-			dw kw_ftov, tmp1
-			dw kw_orvv, tmp0, tmp1, tmp0
-			dw kw_goto_ifzero_n, tmp0, if9_1
-			dw kw_addl, var_spin_size, 20, var_spin_size
+			; Spin.cls 46: If Keys.Down(28) Then size = size + 8 : Vector3D.View 160, 112, size, 768
+			dw fn_keys_down, lit_28, var_keys_down_down
+			dw kw_goto_ifzero_n, var_keys_down_down, if9_1
+			dw kw_addl, var_spin_size, 8, var_spin_size
 			dw p_vector3d_view_c, lit_160, lit_112, var_spin_size, lit_768
 if9_1:
 
-			; Spin.cls 42: If k = "-" And size > 60 Then size = size - 20 : Vector3D.View 160, 112, size, 768
-			dw kw_strcmpeq, var_spin_run_k, str9
-			dw kw_ftov, tmp0
+			; Spin.cls 47: If Keys.Down(25) And size > 60 Then size = size - 8 : Vector3D.View 160, 112, size, 768
+			dw fn_keys_down, lit_25, var_keys_down_down
+			dw kw_vtov, var_keys_down_down, tmp0
 			dw kw_scpgtvl, var_spin_size, 60
 			dw kw_ftov, tmp1
 			dw kw_andvv, tmp0, tmp1, tmp0
 			dw kw_goto_ifzero_n, tmp0, if10_1
-			dw kw_addl, var_spin_size, -20, var_spin_size
+			dw kw_addl, var_spin_size, -8, var_spin_size
 			dw p_vector3d_view_c, lit_160, lit_112, var_spin_size, lit_768
 if10_1:
 
-			; Spin.cls 43: If k = "P" Then paused = Not paused
-			dw kw_strcmpeq, var_spin_run_k, str10
+			; Spin.cls 49: If k = "P" Then paused = Not paused
+			dw kw_strcmpeq, var_spin_run_k, str7
 			dw kw_goto_iffalse_n, if11_1
 			dw kw_notv, var_spin_paused, var_spin_paused
 if11_1:
 
-			; Spin.cls 47: If k = "A" Or k = "B" Or k = "C" Then mode = Asc(k) - 65 : Screen
-			dw kw_strcmpeq, var_spin_run_k, str11
+			; Spin.cls 53: If k = "A" Or k = "B" Or k = "C" Then mode = Asc(k) - 65 : Screen
+			dw kw_strcmpeq, var_spin_run_k, str8
 			dw kw_ftov, tmp0
-			dw kw_strcmpeq, var_spin_run_k, str12
+			dw kw_strcmpeq, var_spin_run_k, str9
 			dw kw_ftov, tmp1
 			dw kw_orvv, tmp0, tmp1, tmp0
-			dw kw_strcmpeq, var_spin_run_k, str13
+			dw kw_strcmpeq, var_spin_run_k, str10
 			dw kw_ftov, tmp1
 			dw kw_orvv, tmp0, tmp1, tmp0
 			dw kw_goto_ifzero_n, tmp0, if12_1
@@ -3248,67 +3254,67 @@ if11_1:
 			dw p_spin_screen_cl
 if12_1:
 
-			; Spin.cls 48: If k = "D" Then
-			dw kw_strcmpeq, var_spin_run_k, str14
+			; Spin.cls 54: If k = "D" Then
+			dw kw_strcmpeq, var_spin_run_k, str11
 			dw kw_goto_iffalse_n, if13_1
 
-			; Spin.cls 49: Vector3D.Hide
+			; Spin.cls 55: Vector3D.Hide
 			dw p_vector3d_hide_c
 
-			; Spin.cls 50: dbl = Not dbl
+			; Spin.cls 56: dbl = Not dbl
 			dw kw_notv, var_spin_dbl, var_spin_dbl
 
-			; Spin.cls 51: Graphics.DoubleBuffer dbl
+			; Spin.cls 57: Graphics.DoubleBuffer dbl
 			dw fn_graphics_doublebuffer, var_spin_dbl
 
-			; Spin.cls 52: Status
+			; Spin.cls 58: Status
 			dw p_spin_status_cl
 
-			; Spin.cls 53: End If
+			; Spin.cls 59: End If
 if13_1:
 
-			; Spin.cls 54: If k = "T" Then fast = Not fast : Status
-			dw kw_strcmpeq, var_spin_run_k, str15
+			; Spin.cls 60: If k = "T" Then fast = Not fast : Status
+			dw kw_strcmpeq, var_spin_run_k, str12
 			dw kw_goto_iffalse_n, if14_1
 			dw kw_notv, var_spin_fast, var_spin_fast
 			dw p_spin_status_cl
 if14_1:
 
-			; Spin.cls 55: Loop Until k = "X"
-			dw kw_strcmpeq, var_spin_run_k, str16
+			; Spin.cls 61: Loop Until k = "X"
+			dw kw_strcmpeq, var_spin_run_k, str13
 			dw kw_goto_iffalse_n, do5_t
 do5_e:
 
-			; Spin.cls 56: Vector3D.Hide
+			; Spin.cls 62: Vector3D.Hide
 			dw p_vector3d_hide_c
 
-			; Spin.cls 57: Graphics.DoubleBuffer 0
+			; Spin.cls 63: Graphics.DoubleBuffer 0
 			dw fn_graphics_doublebuffer, lit_0
 			dw p_spin_run_r
 p_spin_frame1:
 
-			; Spin.cls 64: Vector3D.Turn ax, ay, az
+			; Spin.cls 70: Vector3D.Turn ax, ay, az
 			dw p_vector3d_turn_c, var_spin_ax, var_spin_ay, var_spin_az
 
-			; Spin.cls 65: If dbl = 0 Then Frame
+			; Spin.cls 71: If dbl = 0 Then Frame
 			dw kw_cpeqvl, var_spin_dbl, 0
 			dw kw_goto_iffalse, if15_1
 			dw kw_frame
 if15_1:
 
-			; Spin.cls 66: Vector3D.Show
+			; Spin.cls 72: Vector3D.Show
 			dw p_vector3d_show_c
 
-			; Spin.cls 67: If paused = 0 Then
+			; Spin.cls 73: If paused = 0 Then
 			dw kw_cpeqvl, var_spin_paused, 0
 			dw kw_goto_iffalse, if16_1
 
-			; Spin.cls 68: fx = fx + 512 : fy = fy + 768 : fz = fz + 256
+			; Spin.cls 74: fx = fx + 512 : fy = fy + 768 : fz = fz + 256
 			dw kw_addl, var_spin_fx, 512, var_spin_fx
 			dw kw_addl, var_spin_fy, 768, var_spin_fy
 			dw kw_addl, var_spin_fz, 256, var_spin_fz
 
-			; Spin.cls 69: ax = Peek(VarPtr(fx) + 1) : ay = Peek(VarPtr(fy) + 1) : az = Peek(VarPtr(fz) + 1)
+			; Spin.cls 75: ax = Peek(VarPtr(fx) + 1) : ay = Peek(VarPtr(fy) + 1) : az = Peek(VarPtr(fz) + 1)
 			dw kw_addl, vp_var_spin_fx, 1, tmp0
 			dw kw_vptrtov8, tmp0, var_spin_ax
 			dw kw_addl, vp_var_spin_fy, 1, tmp0
@@ -3316,33 +3322,33 @@ if15_1:
 			dw kw_addl, vp_var_spin_fz, 1, tmp0
 			dw kw_vptrtov8, tmp0, var_spin_az
 
-			; Spin.cls 70: End If
+			; Spin.cls 76: End If
 if16_1:
 			dw p_spin_frame1_r
 p_spin_frame1_n:
 
-			; Spin.cls 64: Vector3D.Turn ax, ay, az
+			; Spin.cls 70: Vector3D.Turn ax, ay, az
 			dw p_vector3d_turn_n_c, var_spin_ax, var_spin_ay, var_spin_az
 
-			; Spin.cls 65: If dbl = 0 Then Frame
+			; Spin.cls 71: If dbl = 0 Then Frame
 			dw kw_cpeqvl, var_spin_dbl, 0
 			dw kw_goto_iffalse_n, if17_1
 			dw kw_frame
 if17_1:
 
-			; Spin.cls 66: Vector3D.Show
+			; Spin.cls 72: Vector3D.Show
 			dw p_vector3d_show_n_c
 
-			; Spin.cls 67: If paused = 0 Then
+			; Spin.cls 73: If paused = 0 Then
 			dw kw_cpeqvl, var_spin_paused, 0
 			dw kw_goto_iffalse_n, if18_1
 
-			; Spin.cls 68: fx = fx + 512 : fy = fy + 768 : fz = fz + 256
+			; Spin.cls 74: fx = fx + 512 : fy = fy + 768 : fz = fz + 256
 			dw kw_addl, var_spin_fx, 512, var_spin_fx
 			dw kw_addl, var_spin_fy, 768, var_spin_fy
 			dw kw_addl, var_spin_fz, 256, var_spin_fz
 
-			; Spin.cls 69: ax = Peek(VarPtr(fx) + 1) : ay = Peek(VarPtr(fy) + 1) : az = Peek(VarPtr(fz) + 1)
+			; Spin.cls 75: ax = Peek(VarPtr(fx) + 1) : ay = Peek(VarPtr(fy) + 1) : az = Peek(VarPtr(fz) + 1)
 			dw kw_addl, vp_var_spin_fx, 1, tmp0
 			dw kw_vptrtov8, tmp0, var_spin_ax
 			dw kw_addl, vp_var_spin_fy, 1, tmp0
@@ -3350,96 +3356,96 @@ if17_1:
 			dw kw_addl, vp_var_spin_fz, 1, tmp0
 			dw kw_vptrtov8, tmp0, var_spin_az
 
-			; Spin.cls 70: End If
+			; Spin.cls 76: End If
 if18_1:
 			dw p_spin_frame1_n_r
 p_spin_screen:
 
-			; Spin.cls 75: Vector3D.Hide
+			; Spin.cls 81: Vector3D.Hide
 			dw p_vector3d_hide_c
 
-			; Spin.cls 76: Graphics.DoubleBuffer 0
+			; Spin.cls 82: Graphics.DoubleBuffer 0
 			dw fn_graphics_doublebuffer, lit_0
 
-			; Spin.cls 80: Mode mode
+			; Spin.cls 86: Mode mode
 			dw kw_modev, var_spin_mode
 
-			; Spin.cls 82: Vector3D.Forget
+			; Spin.cls 88: Vector3D.Forget
 			dw p_vector3d_forget_c
 
-			; Spin.cls 83: Print "1-4 shape A-C mode"
-			dw kw_printstrvar, str17
+			; Spin.cls 89: Print "1-4 shape A-C mode"
+			dw kw_printstrvar, str14
 			dw kw_printnl
 
-			; Spin.cls 84: Print "D double T turbo +-PX"
-			dw kw_printstrvar, str18
+			; Spin.cls 90: Print "D double T turbo +-PX"
+			dw kw_printstrvar, str15
 			dw kw_printnl
 
-			; Spin.cls 85: Status
+			; Spin.cls 91: Status
 			dw p_spin_status_cl
 
-			; Spin.cls 86: If dbl Then Graphics.DoubleBuffer 1
+			; Spin.cls 92: If dbl Then Graphics.DoubleBuffer 1
 			dw kw_goto_ifzero_n, var_spin_dbl, if19_1
 			dw fn_graphics_doublebuffer, lit_1
 if19_1:
 			dw p_spin_screen_r
 p_spin_status:
 
-			; Spin.cls 91: Locate 1, 3
+			; Spin.cls 97: Locate 1, 3
 			dw kw_locatell, 1, 3
 
-			; Spin.cls 92: Print "M"; mode; IIf(dbl, " dbl", " one"); IIf(fast, " turbo ", " normal "); fps; "fps  ";
-			dw kw_printstrvar, str19
+			; Spin.cls 98: Print "M"; mode; IIf(dbl, " dbl", " one"); IIf(fast, " turbo ", " normal "); fps; "fps  ";
+			dw kw_printstrvar, str16
 			dw kw_printint, var_spin_mode
 			dw kw_goto_ifzero_n, var_spin_dbl, ch20_0
-			dw kw_strcpy, stmp0, str20
+			dw kw_strcpy, stmp0, str17
 			dw ch20_e_go
 ch20_0:
-			dw kw_strcpy, stmp0, str21
+			dw kw_strcpy, stmp0, str18
 			dw ch20_e_go
 ch20_1:
-			dw kw_strcpy, stmp0, str22
+			dw kw_strcpy, stmp0, str19
 ch20_e:
 			dw kw_printstrvar, stmp0
 			dw kw_goto_ifzero_n, var_spin_fast, ch21_0
-			dw kw_strcpy, stmp0, str23
+			dw kw_strcpy, stmp0, str20
 			dw ch21_e_go
 ch21_0:
-			dw kw_strcpy, stmp0, str24
+			dw kw_strcpy, stmp0, str21
 			dw ch21_e_go
 ch21_1:
-			dw kw_strcpy, stmp0, str22
+			dw kw_strcpy, stmp0, str19
 ch21_e:
 			dw kw_printstrvar, stmp0
 			dw kw_printint, var_spin_fps
-			dw kw_printstrvar, str25
+			dw kw_printstrvar, str22
 
-			; Spin.cls 93: If dbl Then Graphics.CopyText 3
+			; Spin.cls 99: If dbl Then Graphics.CopyText 3
 			dw kw_goto_ifzero_n, var_spin_dbl, if22_1
 			dw fn_graphics_copytext, lit_3
 if22_1:
 			dw p_spin_status_r
 p_spin_makeshape:
 
-			; Spin.cls 98: Vector3D.Hide
+			; Spin.cls 104: Vector3D.Hide
 			dw p_vector3d_hide_c
 
-			; Spin.cls 99: Vector3D.Clear
+			; Spin.cls 105: Vector3D.Clear
 			dw p_vector3d_clear_c
 
-			; Spin.cls 100: Vector3D.View 160, 112, size, 768
+			; Spin.cls 106: Vector3D.View 160, 112, size, 768
 			dw p_vector3d_view_c, lit_160, lit_112, var_spin_size, lit_768
 
-			; Spin.cls 101: Select Case shape
+			; Spin.cls 107: Select Case shape
 			dw kw_vtov, var_spin_shape, var_spin_makeshape___sel23
 
-			; Spin.cls 102: Case 1: Cube 0, 0, 128
+			; Spin.cls 108: Case 1: Cube 0, 0, 128
 			dw kw_cpeqvl, var_spin_makeshape___sel23, 1
 			dw kw_goto_iffalse_n, sel23_1
 sel23_b1:
 			dw p_spin_cube_cl, lit_0, lit_0, lit_128
 
-			; Spin.cls 103: Case 2: Pyramid 0, 0, 128
+			; Spin.cls 109: Case 2: Pyramid 0, 0, 128
 			dw sel23_e_go
 sel23_1:
 			dw kw_cpeqvl, var_spin_makeshape___sel23, 2
@@ -3447,7 +3453,7 @@ sel23_1:
 sel23_b2:
 			dw p_spin_pyramid_cl, lit_0, lit_0, lit_128
 
-			; Spin.cls 104: Case 3: Cobra
+			; Spin.cls 110: Case 3: Cobra
 			dw sel23_e_go
 sel23_2:
 			dw kw_cpeqvl, var_spin_makeshape___sel23, 3
@@ -3455,7 +3461,7 @@ sel23_2:
 sel23_b3:
 			dw p_spin_cobra_cl
 
-			; Spin.cls 105: Case 4: Cube -170, 0, 64 : Pyramid 170, 0, 64 : Cube 0, 0, 40
+			; Spin.cls 111: Case 4: Cube -170, 0, 64 : Pyramid 170, 0, 64 : Cube 0, 0, 40
 			dw sel23_e_go
 sel23_3:
 			dw kw_cpeqvl, var_spin_makeshape___sel23, 4
@@ -3465,23 +3471,23 @@ sel23_b4:
 			dw p_spin_pyramid_cl, lit_170, lit_0, lit_64
 			dw p_spin_cube_cl, lit_0, lit_0, lit_40
 
-			; Spin.cls 106: End Select
+			; Spin.cls 112: End Select
 sel23_4:
 sel23_e:
 			dw p_spin_makeshape_r
 p_spin_cube:
 
-			; Spin.cls 111: Dim p As Integer, i As Integer
+			; Spin.cls 117: Dim p As Integer, i As Integer
 
-			; Spin.cls 112: p = Vector3D.Points()
+			; Spin.cls 118: p = Vector3D.Points()
 			dw p_vector3d_points_c
 			dw kw_vtov, var_vector3d_points_points, var_spin_cube_p
 
-			; Spin.cls 113: For i = 0 To 7
+			; Spin.cls 119: For i = 0 To 7
 			dw kw_ztov, var_spin_cube_i
 for24_t:
 
-			; Spin.cls 114: If Vector3D.AddPoint(x + IIf(i And 1, h, -h), y + IIf(i And 2, h, -h), IIf(i And 4, h, -h)) < 0 Then Exit Sub
+			; Spin.cls 120: If Vector3D.AddPoint(x + IIf(i And 1, h, -h), y + IIf(i And 2, h, -h), IIf(i And 4, h, -h)) < 0 Then Exit Sub
 			dw kw_andvl, var_spin_cube_i, 1, tmp1
 			dw kw_negv, var_spin_cube_h, tmp3
 			dw kw_goto_ifzero_n, tmp1, ch26_0
@@ -3524,15 +3530,15 @@ ch28_e:
 			dw p_spin_cube_r
 if25_1:
 
-			; Spin.cls 115: Next
+			; Spin.cls 121: Next
 			dw kw_next1l_n, var_spin_cube_i, 7, for24_t
 for24_e:
 
-			; Spin.cls 117: For i = 0 To 7
+			; Spin.cls 123: For i = 0 To 7
 			dw kw_ztov, var_spin_cube_i
 for29_t:
 
-			; Spin.cls 118: If (i And 1) = 0 Then Vector3D.AddEdge p + i, p + i + 1
+			; Spin.cls 124: If (i And 1) = 0 Then Vector3D.AddEdge p + i, p + i + 1
 			dw kw_andvl, var_spin_cube_i, 1, tmp0
 			dw kw_cpeqvl, tmp0, 0
 			dw kw_goto_iffalse_n, if30_1
@@ -3542,7 +3548,7 @@ for29_t:
 			dw p_vector3d_addedge_c, tmp0, tmp1
 if30_1:
 
-			; Spin.cls 119: If (i And 2) = 0 Then Vector3D.AddEdge p + i, p + i + 2
+			; Spin.cls 125: If (i And 2) = 0 Then Vector3D.AddEdge p + i, p + i + 2
 			dw kw_andvl, var_spin_cube_i, 2, tmp0
 			dw kw_cpeqvl, tmp0, 0
 			dw kw_goto_iffalse_n, if31_1
@@ -3552,7 +3558,7 @@ if30_1:
 			dw p_vector3d_addedge_c, tmp0, tmp1
 if31_1:
 
-			; Spin.cls 120: If (i And 4) = 0 Then Vector3D.AddEdge p + i, p + i + 4
+			; Spin.cls 126: If (i And 4) = 0 Then Vector3D.AddEdge p + i, p + i + 4
 			dw kw_andvl, var_spin_cube_i, 4, tmp0
 			dw kw_cpeqvl, tmp0, 0
 			dw kw_goto_iffalse_n, if32_1
@@ -3562,117 +3568,117 @@ if31_1:
 			dw p_vector3d_addedge_c, tmp0, tmp1
 if32_1:
 
-			; Spin.cls 121: Next
+			; Spin.cls 127: Next
 			dw kw_next1l_n, var_spin_cube_i, 7, for29_t
 for29_e:
 			dw p_spin_cube_r
 p_spin_pyramid:
 
-			; Spin.cls 126: Dim p As Integer, r As Integer, i As Integer
+			; Spin.cls 132: Dim p As Integer, r As Integer, i As Integer
 
-			; Spin.cls 127: p = Vector3D.Points()
+			; Spin.cls 133: p = Vector3D.Points()
 			dw p_vector3d_points_c
 			dw kw_vtov, var_vector3d_points_points, var_spin_pyramid_p
 
-			; Spin.cls 128: r = Vector3D.AddPoint(x - h, y - h, -h)
+			; Spin.cls 134: r = Vector3D.AddPoint(x - h, y - h, -h)
 			dw kw_subvv, var_spin_pyramid_x, var_spin_pyramid_h, tmp0
 			dw kw_subvv, var_spin_pyramid_y, var_spin_pyramid_h, tmp1
 			dw kw_negv, var_spin_pyramid_h, tmp2
 			dw p_vector3d_addpoint_c, tmp0, tmp1, tmp2
 			dw kw_vtov, var_vector3d_addpoint_addpoint, var_spin_pyramid_r
 
-			; Spin.cls 129: r = Vector3D.AddPoint(x + h, y - h, -h)
+			; Spin.cls 135: r = Vector3D.AddPoint(x + h, y - h, -h)
 			dw kw_add, var_spin_pyramid_x, var_spin_pyramid_h, tmp0
 			dw kw_subvv, var_spin_pyramid_y, var_spin_pyramid_h, tmp1
 			dw kw_negv, var_spin_pyramid_h, tmp2
 			dw p_vector3d_addpoint_c, tmp0, tmp1, tmp2
 			dw kw_vtov, var_vector3d_addpoint_addpoint, var_spin_pyramid_r
 
-			; Spin.cls 130: r = Vector3D.AddPoint(x + h, y + h, -h)
+			; Spin.cls 136: r = Vector3D.AddPoint(x + h, y + h, -h)
 			dw kw_add, var_spin_pyramid_x, var_spin_pyramid_h, tmp0
 			dw kw_add, var_spin_pyramid_y, var_spin_pyramid_h, tmp1
 			dw kw_negv, var_spin_pyramid_h, tmp2
 			dw p_vector3d_addpoint_c, tmp0, tmp1, tmp2
 			dw kw_vtov, var_vector3d_addpoint_addpoint, var_spin_pyramid_r
 
-			; Spin.cls 131: r = Vector3D.AddPoint(x - h, y + h, -h)
+			; Spin.cls 137: r = Vector3D.AddPoint(x - h, y + h, -h)
 			dw kw_subvv, var_spin_pyramid_x, var_spin_pyramid_h, tmp0
 			dw kw_add, var_spin_pyramid_y, var_spin_pyramid_h, tmp1
 			dw kw_negv, var_spin_pyramid_h, tmp2
 			dw p_vector3d_addpoint_c, tmp0, tmp1, tmp2
 			dw kw_vtov, var_vector3d_addpoint_addpoint, var_spin_pyramid_r
 
-			; Spin.cls 132: r = Vector3D.AddPoint(x, y, h)
+			; Spin.cls 138: r = Vector3D.AddPoint(x, y, h)
 			dw p_vector3d_addpoint_c, var_spin_pyramid_x, var_spin_pyramid_y, var_spin_pyramid_h
 			dw kw_vtov, var_vector3d_addpoint_addpoint, var_spin_pyramid_r
 
-			; Spin.cls 133: For i = 0 To 3
+			; Spin.cls 139: For i = 0 To 3
 			dw kw_ztov, var_spin_pyramid_i
 for33_t:
 
-			; Spin.cls 134: Vector3D.AddEdge p + i, p + ((i + 1) And 3)
+			; Spin.cls 140: Vector3D.AddEdge p + i, p + ((i + 1) And 3)
 			dw kw_add, var_spin_pyramid_p, var_spin_pyramid_i, tmp0
 			dw kw_addl, var_spin_pyramid_i, 1, tmp2
 			dw kw_andvl, tmp2, 3, tmp2
 			dw kw_add, var_spin_pyramid_p, tmp2, tmp1
 			dw p_vector3d_addedge_c, tmp0, tmp1
 
-			; Spin.cls 135: Vector3D.AddEdge p + i, p + 4
+			; Spin.cls 141: Vector3D.AddEdge p + i, p + 4
 			dw kw_add, var_spin_pyramid_p, var_spin_pyramid_i, tmp0
 			dw kw_addl, var_spin_pyramid_p, 4, tmp1
 			dw p_vector3d_addedge_c, tmp0, tmp1
 
-			; Spin.cls 136: Next
+			; Spin.cls 142: Next
 			dw kw_next1l_n, var_spin_pyramid_i, 3, for33_t
 for33_e:
 			dw p_spin_pyramid_r
 p_spin_cobra:
 
-			; Spin.cls 141: Dim r As Integer
+			; Spin.cls 147: Dim r As Integer
 
-			; Spin.cls 142: r = Vector3D.AddPoint(0, 213, 0) : r = Vector3D.AddPoint(0, 128, 0)
+			; Spin.cls 148: r = Vector3D.AddPoint(0, 213, 0) : r = Vector3D.AddPoint(0, 128, 0)
 			dw p_vector3d_addpoint_c, lit_0, lit_213, lit_0
 			dw kw_vtov, var_vector3d_addpoint_addpoint, var_spin_cobra_r
 			dw p_vector3d_addpoint_c, lit_0, lit_128, lit_0
 			dw kw_vtov, var_vector3d_addpoint_addpoint, var_spin_cobra_r
 
-			; Spin.cls 143: r = Vector3D.AddPoint(-85, 128, 0) : r = Vector3D.AddPoint(85, 128, 0)
+			; Spin.cls 149: r = Vector3D.AddPoint(-85, 128, 0) : r = Vector3D.AddPoint(85, 128, 0)
 			dw p_vector3d_addpoint_c, lit_m85, lit_128, lit_0
 			dw kw_vtov, var_vector3d_addpoint_addpoint, var_spin_cobra_r
 			dw p_vector3d_addpoint_c, lit_85, lit_128, lit_0
 			dw kw_vtov, var_vector3d_addpoint_addpoint, var_spin_cobra_r
 
-			; Spin.cls 144: r = Vector3D.AddPoint(-238, -128, 0) : r = Vector3D.AddPoint(-256, -213, 0)
+			; Spin.cls 150: r = Vector3D.AddPoint(-238, -128, 0) : r = Vector3D.AddPoint(-256, -213, 0)
 			dw p_vector3d_addpoint_c, lit_m238, lit_m128, lit_0
 			dw kw_vtov, var_vector3d_addpoint_addpoint, var_spin_cobra_r
 			dw p_vector3d_addpoint_c, lit_m256, lit_m213, lit_0
 			dw kw_vtov, var_vector3d_addpoint_addpoint, var_spin_cobra_r
 
-			; Spin.cls 145: r = Vector3D.AddPoint(-85, -213, -34) : r = Vector3D.AddPoint(85, -213, -34)
+			; Spin.cls 151: r = Vector3D.AddPoint(-85, -213, -34) : r = Vector3D.AddPoint(85, -213, -34)
 			dw p_vector3d_addpoint_c, lit_m85, lit_m213, lit_m34
 			dw kw_vtov, var_vector3d_addpoint_addpoint, var_spin_cobra_r
 			dw p_vector3d_addpoint_c, lit_85, lit_m213, lit_m34
 			dw kw_vtov, var_vector3d_addpoint_addpoint, var_spin_cobra_r
 
-			; Spin.cls 146: r = Vector3D.AddPoint(256, -213, 0) : r = Vector3D.AddPoint(238, -128, 0)
+			; Spin.cls 152: r = Vector3D.AddPoint(256, -213, 0) : r = Vector3D.AddPoint(238, -128, 0)
 			dw p_vector3d_addpoint_c, lit_256, lit_m213, lit_0
 			dw kw_vtov, var_vector3d_addpoint_addpoint, var_spin_cobra_r
 			dw p_vector3d_addpoint_c, lit_238, lit_m128, lit_0
 			dw kw_vtov, var_vector3d_addpoint_addpoint, var_spin_cobra_r
 
-			; Spin.cls 147: r = Vector3D.AddPoint(0, 42, 85) : r = Vector3D.AddPoint(-170, -213, 59)
+			; Spin.cls 153: r = Vector3D.AddPoint(0, 42, 85) : r = Vector3D.AddPoint(-170, -213, 59)
 			dw p_vector3d_addpoint_c, lit_0, lit_42, lit_85
 			dw kw_vtov, var_vector3d_addpoint_addpoint, var_spin_cobra_r
 			dw p_vector3d_addpoint_c, lit_m170, lit_m213, lit_59
 			dw kw_vtov, var_vector3d_addpoint_addpoint, var_spin_cobra_r
 
-			; Spin.cls 148: r = Vector3D.AddPoint(0, -213, 85) : r = Vector3D.AddPoint(170, -213, 59)
+			; Spin.cls 154: r = Vector3D.AddPoint(0, -213, 85) : r = Vector3D.AddPoint(170, -213, 59)
 			dw p_vector3d_addpoint_c, lit_0, lit_m213, lit_85
 			dw kw_vtov, var_vector3d_addpoint_addpoint, var_spin_cobra_r
 			dw p_vector3d_addpoint_c, lit_170, lit_m213, lit_59
 			dw kw_vtov, var_vector3d_addpoint_addpoint, var_spin_cobra_r
 
-			; Spin.cls 149: Edge 0, 1 : Edge 2, 3 : Edge 2, 4 : Edge 4, 5 : Edge 5, 6 : Edge 6, 7
+			; Spin.cls 155: Edge 0, 1 : Edge 2, 3 : Edge 2, 4 : Edge 4, 5 : Edge 5, 6 : Edge 6, 7
 			dw p_spin_edge_cl, lit_0, lit_1
 			dw p_spin_edge_cl, lit_2, lit_3
 			dw p_spin_edge_cl, lit_2, lit_4
@@ -3680,7 +3686,7 @@ p_spin_cobra:
 			dw p_spin_edge_cl, lit_5, lit_6
 			dw p_spin_edge_cl, lit_6, lit_7
 
-			; Spin.cls 150: Edge 7, 8 : Edge 8, 9 : Edge 9, 3 : Edge 2, 6 : Edge 3, 7 : Edge 2, 10
+			; Spin.cls 156: Edge 7, 8 : Edge 8, 9 : Edge 9, 3 : Edge 2, 6 : Edge 3, 7 : Edge 2, 10
 			dw p_spin_edge_cl, lit_7, lit_8
 			dw p_spin_edge_cl, lit_8, lit_9
 			dw p_spin_edge_cl, lit_9, lit_3
@@ -3688,7 +3694,7 @@ p_spin_cobra:
 			dw p_spin_edge_cl, lit_3, lit_7
 			dw p_spin_edge_cl, lit_2, lit_10
 
-			; Spin.cls 151: Edge 10, 3 : Edge 10, 11 : Edge 10, 12 : Edge 10, 13 : Edge 2, 11 : Edge 3, 13
+			; Spin.cls 157: Edge 10, 3 : Edge 10, 11 : Edge 10, 12 : Edge 10, 13 : Edge 2, 11 : Edge 3, 13
 			dw p_spin_edge_cl, lit_10, lit_3
 			dw p_spin_edge_cl, lit_10, lit_11
 			dw p_spin_edge_cl, lit_10, lit_12
@@ -3696,7 +3702,7 @@ p_spin_cobra:
 			dw p_spin_edge_cl, lit_2, lit_11
 			dw p_spin_edge_cl, lit_3, lit_13
 
-			; Spin.cls 152: Edge 5, 11 : Edge 11, 12 : Edge 12, 13 : Edge 13, 8 : Edge 13, 9 : Edge 11, 4
+			; Spin.cls 158: Edge 5, 11 : Edge 11, 12 : Edge 12, 13 : Edge 13, 8 : Edge 13, 9 : Edge 11, 4
 			dw p_spin_edge_cl, lit_5, lit_11
 			dw p_spin_edge_cl, lit_11, lit_12
 			dw p_spin_edge_cl, lit_12, lit_13
@@ -3706,7 +3712,7 @@ p_spin_cobra:
 			dw p_spin_cobra_r
 p_spin_edge:
 
-			; Spin.cls 156: Vector3D.AddEdge a, b
+			; Spin.cls 162: Vector3D.AddEdge a, b
 			dw p_vector3d_addedge_c, var_spin_edge_a, var_spin_edge_b
 			dw p_spin_edge_r
 ovl_spin__0_e:
@@ -3750,4 +3756,4 @@ ovl_spin_vsize	equ 0		; its page variables; its local memory is the rest, to #80
 			DISPLAY "  page variables ", /D, ovl_spin_vsize, ", free ", /D, #8000 - (ovl_spin_end + ovl_spin_vsize)
 			SAVEAMSDOS "CUBE3D.001", ovl_spin_start, ovl_spin_end - ovl_spin_start, #4000
 
-NTC_STAMP	equ #BD5B		; the build stamp: the first word of every page file
+NTC_STAMP	equ #0F9A		; the build stamp: the first word of every page file

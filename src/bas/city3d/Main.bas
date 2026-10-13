@@ -8,11 +8,22 @@ Option PressAnyKeyOnEnd "Press a key"     ' at the end: a message and a key (a R
 Option Explicit
 Option Reserve &H4000, &H4000     ' main RAM's #4000-#7FFF: the second screen
 Option Reserve &H8000, &H1400     ' the city's map and tables (City.cls)
-Dim k As Integer, tk As Integer, fast As Integer, spd As Integer
+Dim k As Integer, tk As Integer, fast As Integer, spd As Integer, n As Integer
 Dim p As Integer, r As Integer, y As Integer, frames As Integer, t As Integer, fps As Integer
 
 Mode 1
+City.Init
+n = City.ProgramEnd() - &H40
 Print "CITY3D - fly through the city"
+Print
+Print "World     16384 x 16384, repeating"
+Print "Map       64 x 64 cells of 256"
+Print "Buildings "; City.Buildings(); " (1-7 storeys)"
+Print "View      2048 ahead, 17 x 17 cells"
+Print "Program   #0040-#"; Hex$(City.ProgramEnd() - 1); "  "; n; " bytes"
+Print "Map+table #8000-#93C5  5062 bytes"
+Print "Screens   #C000, #4000 16384 each"
+Print "RAM used  "; n + 5062 + 16384; " + the screen"
 Print
 Print "< >       roll"
 Print "S X       dive / climb"
@@ -23,7 +34,6 @@ Print "Q         quit"
 Print
 Print "Press a key"
 Do : Loop Until Inkey <> 0
-City.Init
 Cls
 Graphics.DoubleBuffer 1
 spd = 8
@@ -49,10 +59,11 @@ Do
   Graphics.Flip
   frames = frames + 1
   If frames = 16 Then
-    If fast Then fps = 0 Else fps = 16 * System.TicksPerSecond \ (Ticks - t + 1)
+    ' frames a second in tenths: 16 frames * 300 ticks * 10 / the ticks they took (halved: Integer)
+    If fast Then fps = 0 Else fps = 8 * System.TicksPerSecond * 10 \ ((Ticks - t) \ 2 + 1)
     frames = 0 : t = Ticks
     Locate 1, 1
-    Print "SPEED"; spd; " HEIGHT"; City.Altitude(); IIf(fast, " TURBO", ""); "  FPS"; fps; "    ";
+    Print "SPEED "; spd; "  HEIGHT "; City.Altitude(); IIf(fast, "  TURBO", ""); "  FPS "; fps \ 10; "."; fps Mod 10; "    ";
     Graphics.CopyText 1
   End If
   k = Keys.Down(51)                                                 ' T: turbo on / off

@@ -38,8 +38,14 @@ Public Sub Run()
     End If
     k = UCase$(Inkey$)
     If k = "1" Or k = "2" Or k = "3" Or k = "4" Then shape = Val(k) : MakeShape
+#If NTC_CPM Then
     If k = "+" Or k = "=" Then size = size + 20 : Vector3D.View 160, 112, size, 768
     If k = "-" And size > 60 Then size = size - 20 : Vector3D.View 160, 112, size, 768
+#Else
+    ' size: held keys (Keys class), every frame while down: + (the ; key) bigger, - smaller
+    If Keys.Down(28) Then size = size + 8 : Vector3D.View 160, 112, size, 768
+    If Keys.Down(25) And size > 60 Then size = size - 8 : Vector3D.View 160, 112, size, 768
+#End If
     If k = "P" Then paused = Not paused
 #If NTC_CPM Then
     If k = "A" Or k = "B" Or k = "C" Or k = "D" Then k = ""

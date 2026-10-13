@@ -31,76 +31,132 @@ main_thread:
 			; Main.bas 14: Mode 1
 			dw kw_model, 1
 
-			; Main.bas 15: Print "CITY3D - fly through the city"
+			; Main.bas 15: City.Init
+			dw p_city_init_c
+
+			; Main.bas 16: n = City.ProgramEnd() - &H40
+			dw fn_city_programend, var_city_programend_programend
+			dw kw_vtov, var_city_programend_programend, tmp0
+			dw kw_addl, tmp0, -64, var_n
+
+			; Main.bas 17: Print "CITY3D - fly through the city"
 			dw kw_printstrvar, str0
 			dw kw_printnl
 
-			; Main.bas 16: Print
+			; Main.bas 18: Print
 			dw kw_printnl
 
-			; Main.bas 17: Print "< >       roll"
+			; Main.bas 19: Print "World     16384 x 16384, repeating"
 			dw kw_printstrvar, str1
 			dw kw_printnl
 
-			; Main.bas 18: Print "S X       dive / climb"
+			; Main.bas 20: Print "Map       64 x 64 cells of 256"
 			dw kw_printstrvar, str2
 			dw kw_printnl
 
-			; Main.bas 19: Print "cursors   turn, dive / climb"
+			; Main.bas 21: Print "Buildings "; City.Buildings(); " (1-7 storeys)"
+			dw fn_city_buildings, var_city_buildings_buildings
 			dw kw_printstrvar, str3
-			dw kw_printnl
-
-			; Main.bas 20: Print "Space ?   faster / slower"
+			dw kw_printint, var_city_buildings_buildings
 			dw kw_printstrvar, str4
 			dw kw_printnl
 
-			; Main.bas 21: Print "T         turbo on / off"
+			; Main.bas 22: Print "View      2048 ahead, 17 x 17 cells"
 			dw kw_printstrvar, str5
 			dw kw_printnl
 
-			; Main.bas 22: Print "Q         quit"
+			; Main.bas 23: Print "Program   #0040-#"; Hex$(City.ProgramEnd() - 1); "  "; n; " bytes"
+			dw fn_city_programend, var_city_programend_programend
+			dw kw_vtov, var_city_programend_programend, tmp0
+			dw kw_dec, tmp0
+			dw kw_strhex, stmp0, tmp0
 			dw kw_printstrvar, str6
-			dw kw_printnl
-
-			; Main.bas 23: Print
-			dw kw_printnl
-
-			; Main.bas 24: Print "Press a key"
+			dw kw_printstrvar, stmp0
 			dw kw_printstrvar, str7
+			dw kw_printint, var_n
+			dw kw_printstrvar, str8
 			dw kw_printnl
 
-			; Main.bas 25: Do : Loop Until Inkey <> 0
+			; Main.bas 24: Print "Map+table #8000-#93C5  5062 bytes"
+			dw kw_printstrvar, str9
+			dw kw_printnl
+
+			; Main.bas 25: Print "Screens   #C000, #4000 16384 each"
+			dw kw_printstrvar, str10
+			dw kw_printnl
+
+			; Main.bas 26: Print "RAM used  "; n + 5062 + 16384; " + the screen"
+			dw kw_irq		; let interrupts in
+			dw kw_addl, var_n, 5062, tmp0
+			dw kw_addl, tmp0, 16384, tmp0
+			dw kw_printstrvar, str11
+			dw kw_printint, tmp0
+			dw kw_printstrvar, str12
+			dw kw_printnl
+
+			; Main.bas 27: Print
+			dw kw_printnl
+
+			; Main.bas 28: Print "< >       roll"
+			dw kw_printstrvar, str13
+			dw kw_printnl
+
+			; Main.bas 29: Print "S X       dive / climb"
+			dw kw_printstrvar, str14
+			dw kw_printnl
+
+			; Main.bas 30: Print "cursors   turn, dive / climb"
+			dw kw_printstrvar, str15
+			dw kw_printnl
+
+			; Main.bas 31: Print "Space ?   faster / slower"
+			dw kw_printstrvar, str16
+			dw kw_printnl
+
+			; Main.bas 32: Print "T         turbo on / off"
+			dw kw_printstrvar, str17
+			dw kw_printnl
+
+			; Main.bas 33: Print "Q         quit"
+			dw kw_printstrvar, str18
+			dw kw_printnl
+
+			; Main.bas 34: Print
+			dw kw_printnl
+
+			; Main.bas 35: Print "Press a key"
+			dw kw_printstrvar, str19
+			dw kw_printnl
+
+			; Main.bas 36: Do : Loop Until Inkey <> 0
 do1_t:
 			dw kw_inkey, tmp0
 			dw kw_cpnevl, tmp0, 0
 			dw kw_goto_iffalse_n, do1_t
 do1_e:
 
-			; Main.bas 26: City.Init
-			dw p_city_init_c
-
-			; Main.bas 27: Cls
+			; Main.bas 37: Cls
 			dw kw_cls
 
-			; Main.bas 28: Graphics.DoubleBuffer 1
+			; Main.bas 38: Graphics.DoubleBuffer 1
 			dw fn_graphics_doublebuffer, lit_1
 
-			; Main.bas 29: spd = 8
+			; Main.bas 39: spd = 8
 			dw kw_ltov, 8, var_spd
 
-			; Main.bas 30: t = Ticks
+			; Main.bas 40: t = Ticks
 			dw kw_ticks, tmp0
 			dw kw_vtov, tmp0, var_t
 
-			; Main.bas 31: Do
+			; Main.bas 41: Do
 do2_t:
 
-			; Main.bas 32: p = 0 : r = 0 : y = 0
+			; Main.bas 42: p = 0 : r = 0 : y = 0
 			dw kw_ztov, var_p
 			dw kw_ztov, var_r
 			dw kw_ztov, var_y
 
-			; Main.bas 33: If Keys.Down(Keys.KeyS) Or Keys.Down(Keys.KeyUp) Then p = -1      ' dive
+			; Main.bas 43: If Keys.Down(Keys.KeyS) Or Keys.Down(Keys.KeyUp) Then p = -1      ' dive
 			dw fn_keys_down, lit_60, var_keys_down_down
 			dw kw_vtov, var_keys_down_down, tmp0
 			dw fn_keys_down, lit_0, var_keys_down_down
@@ -110,7 +166,7 @@ do2_t:
 			dw kw_ltov, -1, var_p
 if3_1:
 
-			; Main.bas 34: If Keys.Down(Keys.KeyX) Or Keys.Down(Keys.KeyDown) Then p = 1     ' climb
+			; Main.bas 44: If Keys.Down(Keys.KeyX) Or Keys.Down(Keys.KeyDown) Then p = 1     ' climb
 			dw fn_keys_down, lit_63, var_keys_down_down
 			dw kw_vtov, var_keys_down_down, tmp0
 			dw fn_keys_down, lit_2, var_keys_down_down
@@ -120,31 +176,31 @@ if3_1:
 			dw kw_ltov, 1, var_p
 if4_1:
 
-			; Main.bas 35: If Keys.Down(39) Then r = -1                                      ' < (the , key)
+			; Main.bas 45: If Keys.Down(39) Then r = -1                                      ' < (the , key)
 			dw fn_keys_down, lit_39, var_keys_down_down
 			dw kw_goto_ifzero_n, var_keys_down_down, if5_1
 			dw kw_ltov, -1, var_r
 if5_1:
 
-			; Main.bas 36: If Keys.Down(31) Then r = 1                                       ' > (the . key)
+			; Main.bas 46: If Keys.Down(31) Then r = 1                                       ' > (the . key)
 			dw fn_keys_down, lit_31, var_keys_down_down
 			dw kw_goto_ifzero_n, var_keys_down_down, if6_1
 			dw kw_ltov, 1, var_r
 if6_1:
 
-			; Main.bas 37: If Keys.Down(Keys.KeyLeft) Then y = -1
+			; Main.bas 47: If Keys.Down(Keys.KeyLeft) Then y = -1
 			dw fn_keys_down, lit_8, var_keys_down_down
 			dw kw_goto_ifzero_n, var_keys_down_down, if7_1
 			dw kw_ltov, -1, var_y
 if7_1:
 
-			; Main.bas 38: If Keys.Down(Keys.KeyRight) Then y = 1
+			; Main.bas 48: If Keys.Down(Keys.KeyRight) Then y = 1
 			dw fn_keys_down, lit_1, var_keys_down_down
 			dw kw_goto_ifzero_n, var_keys_down_down, if8_1
 			dw kw_ltov, 1, var_y
 if8_1:
 
-			; Main.bas 39: If Keys.Down(Keys.KeySpace) And spd < 64 Then spd = spd + 1
+			; Main.bas 49: If Keys.Down(Keys.KeySpace) And spd < 64 Then spd = spd + 1
 			dw fn_keys_down, lit_47, var_keys_down_down
 			dw kw_vtov, var_keys_down_down, tmp0
 			dw kw_scpltvl, var_spd, 64
@@ -154,7 +210,7 @@ if8_1:
 			dw kw_inc, var_spd
 if9_1:
 
-			; Main.bas 40: If Keys.Down(30) And spd > 0 Then spd = spd - 1                   ' ? (the / key)
+			; Main.bas 50: If Keys.Down(30) And spd > 0 Then spd = spd - 1                   ' ? (the / key)
 			dw fn_keys_down, lit_30, var_keys_down_down
 			dw kw_vtov, var_keys_down_down, tmp0
 			dw kw_scpgtvl, var_spd, 0
@@ -164,90 +220,95 @@ if9_1:
 			dw kw_dec, var_spd
 if10_1:
 
-			; Main.bas 41: City.Steer p, r, y, spd
+			; Main.bas 51: City.Steer p, r, y, spd
 			dw p_city_steer_c, var_p, var_r, var_y, var_spd
 
-			; Main.bas 42: If fast Then
+			; Main.bas 52: If fast Then
 			dw kw_goto_ifzero_n, var_fast, if11_1
 
-			; Main.bas 43: Turbo On
+			; Main.bas 53: Turbo On
 			dw kw_turbo_on
 
-			; Main.bas 44: City.Render
+			; Main.bas 54: City.Render
 			dw fn_city_render
 
-			; Main.bas 45: Turbo Off
+			; Main.bas 55: Turbo Off
 			dw kw_turbo_off
 
-			; Main.bas 46: Else
+			; Main.bas 56: Else
 			dw if11_e_go
 if11_1:
 
-			; Main.bas 47: City.Render
+			; Main.bas 57: City.Render
 			dw fn_city_render
 
-			; Main.bas 48: End If
+			; Main.bas 58: End If
 if11_e:
 
-			; Main.bas 49: Graphics.Flip
+			; Main.bas 59: Graphics.Flip
 			dw fn_graphics_flip
 
-			; Main.bas 50: frames = frames + 1
+			; Main.bas 60: frames = frames + 1
 			dw kw_inc, var_frames
 
-			; Main.bas 51: If frames = 16 Then
+			; Main.bas 61: If frames = 16 Then
 			dw kw_cpeqvl, var_frames, 16
 			dw kw_goto_iffalse_n, if12_1
 
-			; Main.bas 52: If fast Then fps = 0 Else fps = 16 * System.TicksPerSecond \ (Ticks - t + 1)
+			; Main.bas 63: If fast Then fps = 0 Else fps = 8 * System.TicksPerSecond * 10 \ ((Ticks - t) \ 2 + 1)
 			dw kw_goto_ifzero_n, var_fast, if13_1
 			dw kw_ztov, var_fps
 			dw if13_e_go
 if13_1:
 			dw kw_ticks, tmp1
 			dw kw_subvv, tmp1, var_t, tmp1
+			dw kw_divvl, tmp1, 2, tmp1
 			dw kw_inc, tmp1
-			dw kw_divlv, 4800, tmp1, var_fps
+			dw kw_divlv, 24000, tmp1, var_fps
 if13_e:
 
-			; Main.bas 53: frames = 0 : t = Ticks
+			; Main.bas 64: frames = 0 : t = Ticks
 			dw kw_ztov, var_frames
 			dw kw_ticks, tmp0
 			dw kw_vtov, tmp0, var_t
 
-			; Main.bas 54: Locate 1, 1
+			; Main.bas 65: Locate 1, 1
 			dw kw_locatell, 1, 1
 
-			; Main.bas 55: Print "SPEED"; spd; " HEIGHT"; City.Altitude(); IIf(fast, " TURBO", ""); "  FPS"; fps; "    ";
-			dw kw_printstrvar, str8
+			; Main.bas 66: Print "SPEED "; spd; "  HEIGHT "; City.Altitude(); IIf(fast, "  TURBO", ""); "  FPS "; fps \ 10; "."; fps Mod 10; "    ";
+			dw kw_printstrvar, str20
 			dw kw_printint, var_spd
 			dw p_city_altitude_c
-			dw kw_printstrvar, str9
+			dw kw_printstrvar, str21
 			dw kw_printint, var_city_altitude_altitude
 			dw kw_goto_ifzero_n, var_fast, ch14_0
-			dw kw_strcpy, stmp0, str10
+			dw kw_strcpy, stmp0, str22
 			dw ch14_e_go
 ch14_0:
-			dw kw_strcpy, stmp0, str11
+			dw kw_strcpy, stmp0, str23
 			dw ch14_e_go
 ch14_1:
-			dw kw_strcpy, stmp0, str11
+			dw kw_strcpy, stmp0, str23
 ch14_e:
 			dw kw_printstrvar, stmp0
-			dw kw_printstrvar, str12
-			dw kw_printint, var_fps
-			dw kw_printstrvar, str13
+			dw kw_divvl, var_fps, 10, tmp0
+			dw kw_printstrvar, str24
+			dw kw_printint, tmp0
+			dw kw_modvl, var_fps, 10, tmp0
+			dw kw_printstrvar, str25
+			dw kw_printint, tmp0
+			dw kw_printstrvar, str26
 
-			; Main.bas 56: Graphics.CopyText 1
+			; Main.bas 67: Graphics.CopyText 1
 			dw fn_graphics_copytext, lit_1
 
-			; Main.bas 57: End If
+			; Main.bas 68: End If
 if12_1:
 
-			; Main.bas 58: k = Keys.Down(51)                                                 ' T: turbo on / off
+			; Main.bas 69: k = Keys.Down(51)                                                 ' T: turbo on / off
 			dw fn_keys_down, lit_51, var_k
 
-			; Main.bas 59: If k <> 0 And tk = 0 Then fast = Not fast
+			; Main.bas 70: If k <> 0 And tk = 0 Then fast = Not fast
 			dw kw_cpnevl, var_k, 0
 			dw kw_ftov, tmp0
 			dw kw_cpeqvl, var_tk, 0
@@ -257,27 +318,27 @@ if12_1:
 			dw kw_notv, var_fast, var_fast
 if15_1:
 
-			; Main.bas 60: tk = k
+			; Main.bas 71: tk = k
 			dw kw_vtov, var_k, var_tk
 
-			; Main.bas 61: Loop Until Keys.Down(Keys.KeyQ)
+			; Main.bas 72: Loop Until Keys.Down(Keys.KeyQ)
 			dw fn_keys_down, lit_67, var_keys_down_down
 			dw kw_goto_ifzero_n, var_keys_down_down, do2_t
 do2_e:
 
-			; Main.bas 62: Graphics.DoubleBuffer 0
+			; Main.bas 73: Graphics.DoubleBuffer 0
 			dw fn_graphics_doublebuffer, lit_0
 
-			; Main.bas 63: Mode 1
+			; Main.bas 74: Mode 1
 			dw kw_model, 1
 
-			; Main.bas 64: Print "Bye"
-			dw kw_printstrvar, str14
+			; Main.bas 75: Print "Bye"
+			dw kw_printstrvar, str27
 			dw kw_printnl
 
-			; Main.bas 65: End
+			; Main.bas 76: End
 			dw kw_printnl0
-			dw kw_printstrvar, str7
+			dw kw_printstrvar, str19
 			dw kw_waitkey
 			dw kw_stop
 
@@ -392,1388 +453,1423 @@ p_city_altitude_r:		; end of altitude
 ; Inline assembly (#asm ... #endasm)
 ; ============================================================
 
-fn_city_makemap:		; sub makemap (asm keyword), City.cls line 45
-            ld (var_city_sps), sp		; City.cls 46
-            ld sp, (ntc_csp)		; City.cls 47
-            ld hl, #8000		; City.cls 48
-            ld c, 0                 ; z [49]
-fn_city_makemap_mm_z:		; City.cls 50
-            ld b, 0                 ; x [51]
-fn_city_makemap_mm_x:		; City.cls 52
-            ld (hl), 0		; City.cls 53
-            ld a, b		; City.cls 54
-            and 3		; City.cls 55
-            jr z, fn_city_makemap_mm_nx             ; a street: every 4th column [56]
-            ld a, c		; City.cls 57
-            and 3		; City.cls 58
-            jr z, fn_city_makemap_mm_nx             ; and row [59]
-            push hl		; City.cls 60
-            push bc		; City.cls 61
-            call fn_city_makemap_mm_rnd		; City.cls 62
-            ld a, l		; City.cls 63
-            and 15		; City.cls 64
-            cp 2		; City.cls 65
-            jr c, fn_city_makemap_mm_park           ; an empty lot [66]
-            ld a, l		; City.cls 67
-            rrca		; City.cls 68
-            rrca		; City.cls 69
-            rrca		; City.cls 70
-            rrca		; City.cls 71
-            and 3		; City.cls 72
-            inc a		; City.cls 73
-            ld e, a                 ; 1-4 storeys [74]
-            ld a, l		; City.cls 75
-            and #40		; City.cls 76
-            rrca		; City.cls 77
-            rrca		; City.cls 78
-            rrca		; City.cls 79
-            ld d, a                 ; bit 3: narrow [80]
-            pop bc		; City.cls 81
-            push bc		; City.cls 82
-            ld a, b                 ; taller near the middle (32, 32) [83]
-            sub 32		; City.cls 84
-            jr nc, fn_city_makemap_mm_d1		; City.cls 85
-            neg		; City.cls 86
-fn_city_makemap_mm_d1:		; City.cls 87
-            ld h, a		; City.cls 88
-            ld a, c		; City.cls 89
-            sub 32		; City.cls 90
-            jr nc, fn_city_makemap_mm_d2		; City.cls 91
-            neg		; City.cls 92
-fn_city_makemap_mm_d2:		; City.cls 93
-            cp h		; City.cls 94
-            jr nc, fn_city_makemap_mm_d3		; City.cls 95
-            ld a, h		; City.cls 96
-fn_city_makemap_mm_d3:		; City.cls 97
-            cp 6		; City.cls 98
-            jr nc, fn_city_makemap_mm_d4		; City.cls 99
-            inc e		; City.cls 100
-fn_city_makemap_mm_d4:		; City.cls 101
-            cp 12		; City.cls 102
-            jr nc, fn_city_makemap_mm_d5		; City.cls 103
-            inc e		; City.cls 104
-fn_city_makemap_mm_d5:		; City.cls 105
-            cp 20		; City.cls 106
-            jr nc, fn_city_makemap_mm_d6		; City.cls 107
-            inc e		; City.cls 108
-fn_city_makemap_mm_d6:		; City.cls 109
-            ld a, e		; City.cls 110
-            cp 8		; City.cls 111
-            jr c, fn_city_makemap_mm_d7		; City.cls 112
-            ld a, 7		; City.cls 113
-fn_city_makemap_mm_d7:		; City.cls 114
-            or d		; City.cls 115
-            pop bc		; City.cls 116
-            pop hl		; City.cls 117
-            ld (hl), a		; City.cls 118
-            jr fn_city_makemap_mm_nx		; City.cls 119
-fn_city_makemap_mm_park:		; City.cls 120
-            pop bc		; City.cls 121
-            pop hl		; City.cls 122
-fn_city_makemap_mm_nx:		; City.cls 123
-            inc hl		; City.cls 124
-            inc b		; City.cls 125
-            ld a, b		; City.cls 126
-            cp 64		; City.cls 127
-            jr nz, fn_city_makemap_mm_x		; City.cls 128
-            inc c		; City.cls 129
-            ld a, c		; City.cls 130
-            cp 64		; City.cls 131
-            jr nz, fn_city_makemap_mm_z		; City.cls 132
-            ld sp, (var_city_sps)		; City.cls 133
-            ret		; City.cls 134
-; mm_rnd - HL = the next number of a 16 bit xorshift
-fn_city_makemap_mm_rnd:		; City.cls 136
-            ld hl, (fn_city_makemap_mm_seed)		; City.cls 137
-            ld a, h		; City.cls 138
-            rra		; City.cls 139
-            ld a, l		; City.cls 140
-            rra		; City.cls 141
-            xor h		; City.cls 142
-            ld h, a		; City.cls 143
-            ld a, l		; City.cls 144
-            rra		; City.cls 145
-            ld a, h		; City.cls 146
-            rra		; City.cls 147
-            xor l		; City.cls 148
-            ld l, a		; City.cls 149
-            xor h		; City.cls 150
-            ld h, a		; City.cls 151
-            ld (fn_city_makemap_mm_seed), hl		; City.cls 152
-            ret		; City.cls 153
-fn_city_makemap_mm_seed:    dw 12345		; City.cls 154
+fn_city_buildings:		; function buildings (asm keyword), City.cls line 44
+            ld hl, #8000		; City.cls 45
+            ld de, 0		; City.cls 46
+            ld bc, 4096		; City.cls 47
+fn_city_buildings_bd_lp:		; City.cls 48
+            ld a, (hl)		; City.cls 49
+            and 7		; City.cls 50
+            jr z, fn_city_buildings_bd_n		; City.cls 51
+            inc de		; City.cls 52
+fn_city_buildings_bd_n:		; City.cls 53
+            inc hl		; City.cls 54
+            dec bc		; City.cls 55
+            ld a, b		; City.cls 56
+            or c		; City.cls 57
+            jr nz, fn_city_buildings_bd_lp		; City.cls 58
+            pop hl		; City.cls 59
+            ld (hl), e		; City.cls 60
+            inc hl		; City.cls 61
+            ld (hl), d		; City.cls 62
 			ret			; end of #asm
 
-fn_city_render:		; sub render (asm keyword), City.cls line 160
-            ld (var_city_sps), sp		; City.cls 161
-            ld sp, (ntc_csp)		; City.cls 162
-            call fn_city_render_r_turn		; City.cls 163
-            call fn_city_render_r_tidy		; City.cls 164
-            call fn_city_render_r_fly		; City.cls 165
-            call fn_city_render_r_terms		; City.cls 166
-            call fn_city_render_r_clear		; City.cls 167
-            call fn_city_render_r_cells		; City.cls 168
-            ld sp, (var_city_sps)		; City.cls 169
-            ret		; City.cls 170
+fn_city_programend:		; function programend (asm keyword), City.cls line 68
+            pop hl		; City.cls 69
+            ld de, ntc_free		; City.cls 70
+            ld (hl), e		; City.cls 71
+            inc hl		; City.cls 72
+            ld (hl), d		; City.cls 73
+			ret			; end of #asm
+
+fn_city_makemap:		; sub makemap (asm keyword), City.cls line 80
+            ld (var_city_sps), sp		; City.cls 81
+            ld sp, (ntc_csp)		; City.cls 82
+            ld hl, #8000		; City.cls 83
+            ld c, 0                 ; z [84]
+fn_city_makemap_mm_z:		; City.cls 85
+            ld b, 0                 ; x [86]
+fn_city_makemap_mm_x:		; City.cls 87
+            ld (hl), 0		; City.cls 88
+            ld a, b		; City.cls 89
+            and 3		; City.cls 90
+            jr z, fn_city_makemap_mm_nx             ; a street: every 4th column [91]
+            ld a, c		; City.cls 92
+            and 3		; City.cls 93
+            jr z, fn_city_makemap_mm_nx             ; and row [94]
+            push hl		; City.cls 95
+            push bc		; City.cls 96
+            call fn_city_makemap_mm_rnd		; City.cls 97
+            ld a, l		; City.cls 98
+            and 15		; City.cls 99
+            cp 2		; City.cls 100
+            jr c, fn_city_makemap_mm_park           ; an empty lot [101]
+            ld a, l		; City.cls 102
+            rrca		; City.cls 103
+            rrca		; City.cls 104
+            rrca		; City.cls 105
+            rrca		; City.cls 106
+            and 3		; City.cls 107
+            inc a		; City.cls 108
+            ld e, a                 ; 1-4 storeys [109]
+            ld a, l		; City.cls 110
+            and #40		; City.cls 111
+            rrca		; City.cls 112
+            rrca		; City.cls 113
+            rrca		; City.cls 114
+            ld d, a                 ; bit 3: narrow [115]
+            pop bc		; City.cls 116
+            push bc		; City.cls 117
+            ld a, b                 ; taller near the middle (32, 32) [118]
+            sub 32		; City.cls 119
+            jr nc, fn_city_makemap_mm_d1		; City.cls 120
+            neg		; City.cls 121
+fn_city_makemap_mm_d1:		; City.cls 122
+            ld h, a		; City.cls 123
+            ld a, c		; City.cls 124
+            sub 32		; City.cls 125
+            jr nc, fn_city_makemap_mm_d2		; City.cls 126
+            neg		; City.cls 127
+fn_city_makemap_mm_d2:		; City.cls 128
+            cp h		; City.cls 129
+            jr nc, fn_city_makemap_mm_d3		; City.cls 130
+            ld a, h		; City.cls 131
+fn_city_makemap_mm_d3:		; City.cls 132
+            cp 6		; City.cls 133
+            jr nc, fn_city_makemap_mm_d4		; City.cls 134
+            inc e		; City.cls 135
+fn_city_makemap_mm_d4:		; City.cls 136
+            cp 12		; City.cls 137
+            jr nc, fn_city_makemap_mm_d5		; City.cls 138
+            inc e		; City.cls 139
+fn_city_makemap_mm_d5:		; City.cls 140
+            cp 20		; City.cls 141
+            jr nc, fn_city_makemap_mm_d6		; City.cls 142
+            inc e		; City.cls 143
+fn_city_makemap_mm_d6:		; City.cls 144
+            ld a, e		; City.cls 145
+            cp 8		; City.cls 146
+            jr c, fn_city_makemap_mm_d7		; City.cls 147
+            ld a, 7		; City.cls 148
+fn_city_makemap_mm_d7:		; City.cls 149
+            or d		; City.cls 150
+            pop bc		; City.cls 151
+            pop hl		; City.cls 152
+            ld (hl), a		; City.cls 153
+            jr fn_city_makemap_mm_nx		; City.cls 154
+fn_city_makemap_mm_park:		; City.cls 155
+            pop bc		; City.cls 156
+            pop hl		; City.cls 157
+fn_city_makemap_mm_nx:		; City.cls 158
+            inc hl		; City.cls 159
+            inc b		; City.cls 160
+            ld a, b		; City.cls 161
+            cp 64		; City.cls 162
+            jr nz, fn_city_makemap_mm_x		; City.cls 163
+            inc c		; City.cls 164
+            ld a, c		; City.cls 165
+            cp 64		; City.cls 166
+            jr nz, fn_city_makemap_mm_z		; City.cls 167
+            ld sp, (var_city_sps)		; City.cls 168
+            ret		; City.cls 169
+; mm_rnd - HL = the next number of a 16 bit xorshift
+fn_city_makemap_mm_rnd:		; City.cls 171
+            ld hl, (fn_city_makemap_mm_seed)		; City.cls 172
+            ld a, h		; City.cls 173
+            rra		; City.cls 174
+            ld a, l		; City.cls 175
+            rra		; City.cls 176
+            xor h		; City.cls 177
+            ld h, a		; City.cls 178
+            ld a, l		; City.cls 179
+            rra		; City.cls 180
+            ld a, h		; City.cls 181
+            rra		; City.cls 182
+            xor l		; City.cls 183
+            ld l, a		; City.cls 184
+            xor h		; City.cls 185
+            ld h, a		; City.cls 186
+            ld (fn_city_makemap_mm_seed), hl		; City.cls 187
+            ret		; City.cls 188
+fn_city_makemap_mm_seed:    dw 12345		; City.cls 189
+			ret			; end of #asm
+
+fn_city_render:		; sub render (asm keyword), City.cls line 195
+            ld (var_city_sps), sp		; City.cls 196
+            ld sp, (ntc_csp)		; City.cls 197
+            ei                      ; interrupts in while it works (the real stack): the [198]
+                                    ; clock keeps counting, in turbo too
+            call fn_city_render_r_turn		; City.cls 200
+            call fn_city_render_r_tidy		; City.cls 201
+            call fn_city_render_r_fly		; City.cls 202
+            call fn_city_render_r_terms		; City.cls 203
+            call fn_city_render_r_clear		; City.cls 204
+            call fn_city_render_r_cells		; City.cls 205
+            di		; City.cls 206
+            ld sp, (var_city_sps)		; City.cls 207
+            ret		; City.cls 208
 
 ; ---- the camera
 
 ; r_turn - the turns asked for (rp, rr, ry: -1, 0, 1), 2 degrees each
-fn_city_render_r_turn:		; City.cls 175
-            ld a, (var_city_rp)		; City.cls 176
-            or a		; City.cls 177
-            jr z, fn_city_render_rt_r		; City.cls 178
-            ld ix, arr_city_bas + 12       ; climb: forward towards up [179]
-            ld iy, arr_city_bas + 6		; City.cls 180
-            call fn_city_render_rt_s		; City.cls 181
-            call fn_city_render_r_pair		; City.cls 182
-fn_city_render_rt_r:		; City.cls 183
-            ld a, (var_city_rr)		; City.cls 184
-            or a		; City.cls 185
-            jr z, fn_city_render_rt_y		; City.cls 186
-            ld ix, arr_city_bas + 6        ; roll right: up towards right [187]
-            ld iy, arr_city_bas		; City.cls 188
-            call fn_city_render_rt_s		; City.cls 189
-            call fn_city_render_r_pair		; City.cls 190
-fn_city_render_rt_y:		; City.cls 191
-            ld a, (var_city_ry)		; City.cls 192
-            or a		; City.cls 193
-            ret z		; City.cls 194
-            ld ix, arr_city_bas + 12       ; yaw right: forward towards right [195]
-            ld iy, arr_city_bas		; City.cls 196
-            call fn_city_render_rt_s		; City.cls 197
-            jp fn_city_render_r_pair		; City.cls 198
-fn_city_render_rt_s:		; City.cls 199
-            ld hl, 572              ; sin 2 degrees [200]
-            bit 7, a		; City.cls 201
-            jr z, fn_city_render_rt_s1		; City.cls 202
-            ld hl, -572		; City.cls 203
-fn_city_render_rt_s1:		; City.cls 204
-            ld (fn_city_render_w_rs), hl		; City.cls 205
-            ret		; City.cls 206
+fn_city_render_r_turn:		; City.cls 213
+            ld a, (var_city_rp)		; City.cls 214
+            or a		; City.cls 215
+            jr z, fn_city_render_rt_r		; City.cls 216
+            ld ix, arr_city_bas + 12       ; climb: forward towards up [217]
+            ld iy, arr_city_bas + 6		; City.cls 218
+            call fn_city_render_rt_s		; City.cls 219
+            call fn_city_render_r_pair		; City.cls 220
+fn_city_render_rt_r:		; City.cls 221
+            ld a, (var_city_rr)		; City.cls 222
+            or a		; City.cls 223
+            jr z, fn_city_render_rt_y		; City.cls 224
+            ld ix, arr_city_bas + 6        ; roll right: up towards right [225]
+            ld iy, arr_city_bas		; City.cls 226
+            call fn_city_render_rt_s		; City.cls 227
+            call fn_city_render_r_pair		; City.cls 228
+fn_city_render_rt_y:		; City.cls 229
+            ld a, (var_city_ry)		; City.cls 230
+            or a		; City.cls 231
+            ret z		; City.cls 232
+            ld ix, arr_city_bas + 12       ; yaw right: forward towards right [233]
+            ld iy, arr_city_bas		; City.cls 234
+            call fn_city_render_rt_s		; City.cls 235
+            jp fn_city_render_r_pair		; City.cls 236
+fn_city_render_rt_s:		; City.cls 237
+            ld hl, 572              ; sin 2 degrees [238]
+            bit 7, a		; City.cls 239
+            jr z, fn_city_render_rt_s1		; City.cls 240
+            ld hl, -572		; City.cls 241
+fn_city_render_rt_s1:		; City.cls 242
+            ld (fn_city_render_w_rs), hl		; City.cls 243
+            ret		; City.cls 244
 ; r_pair - IX = A, IY = B (vectors): A = A cos + B sin, B = B cos - A sin
-fn_city_render_r_pair:		; City.cls 208
-            ld b, 3		; City.cls 209
-fn_city_render_rp_lp:		; City.cls 210
-            push bc		; City.cls 211
-            ld e, (ix + 0)		; City.cls 212
-            ld d, (ix + 1)		; City.cls 213
-            ld (fn_city_render_w_a), de		; City.cls 214
-            ld e, (iy + 0)		; City.cls 215
-            ld d, (iy + 1)		; City.cls 216
-            ld (fn_city_render_w_b), de		; City.cls 217
-            ld de, (fn_city_render_w_a)		; City.cls 218
-            ld bc, 16374            ; cos 2 degrees [219]
-            call fn_city_render_mulfix		; City.cls 220
-            ld (fn_city_render_w_t), hl		; City.cls 221
-            ld de, (fn_city_render_w_b)		; City.cls 222
-            ld bc, (fn_city_render_w_rs)		; City.cls 223
-            call fn_city_render_mulfix		; City.cls 224
-            ld de, (fn_city_render_w_t)		; City.cls 225
-            add hl, de		; City.cls 226
-            ld (ix + 0), l		; City.cls 227
-            ld (ix + 1), h		; City.cls 228
-            ld de, (fn_city_render_w_b)		; City.cls 229
-            ld bc, 16374		; City.cls 230
-            call fn_city_render_mulfix		; City.cls 231
-            ld (fn_city_render_w_t), hl		; City.cls 232
-            ld de, (fn_city_render_w_a)		; City.cls 233
-            ld bc, (fn_city_render_w_rs)		; City.cls 234
-            call fn_city_render_mulfix		; City.cls 235
-            ex de, hl		; City.cls 236
-            ld hl, (fn_city_render_w_t)		; City.cls 237
-            or a		; City.cls 238
-            sbc hl, de		; City.cls 239
-            ld (iy + 0), l		; City.cls 240
-            ld (iy + 1), h		; City.cls 241
-            inc ix		; City.cls 242
-            inc ix		; City.cls 243
-            inc iy		; City.cls 244
-            inc iy		; City.cls 245
-            pop bc		; City.cls 246
-            djnz fn_city_render_rp_lp		; City.cls 247
-            ret		; City.cls 248
+fn_city_render_r_pair:		; City.cls 246
+            ld b, 3		; City.cls 247
+fn_city_render_rp_lp:		; City.cls 248
+            push bc		; City.cls 249
+            ld e, (ix + 0)		; City.cls 250
+            ld d, (ix + 1)		; City.cls 251
+            ld (fn_city_render_w_a), de		; City.cls 252
+            ld e, (iy + 0)		; City.cls 253
+            ld d, (iy + 1)		; City.cls 254
+            ld (fn_city_render_w_b), de		; City.cls 255
+            ld de, (fn_city_render_w_a)		; City.cls 256
+            ld bc, 16374            ; cos 2 degrees [257]
+            call fn_city_render_mulfix		; City.cls 258
+            ld (fn_city_render_w_t), hl		; City.cls 259
+            ld de, (fn_city_render_w_b)		; City.cls 260
+            ld bc, (fn_city_render_w_rs)		; City.cls 261
+            call fn_city_render_mulfix		; City.cls 262
+            ld de, (fn_city_render_w_t)		; City.cls 263
+            add hl, de		; City.cls 264
+            ld (ix + 0), l		; City.cls 265
+            ld (ix + 1), h		; City.cls 266
+            ld de, (fn_city_render_w_b)		; City.cls 267
+            ld bc, 16374		; City.cls 268
+            call fn_city_render_mulfix		; City.cls 269
+            ld (fn_city_render_w_t), hl		; City.cls 270
+            ld de, (fn_city_render_w_a)		; City.cls 271
+            ld bc, (fn_city_render_w_rs)		; City.cls 272
+            call fn_city_render_mulfix		; City.cls 273
+            ex de, hl		; City.cls 274
+            ld hl, (fn_city_render_w_t)		; City.cls 275
+            or a		; City.cls 276
+            sbc hl, de		; City.cls 277
+            ld (iy + 0), l		; City.cls 278
+            ld (iy + 1), h		; City.cls 279
+            inc ix		; City.cls 280
+            inc ix		; City.cls 281
+            inc iy		; City.cls 282
+            inc iy		; City.cls 283
+            pop bc		; City.cls 284
+            djnz fn_city_render_rp_lp		; City.cls 285
+            ret		; City.cls 286
 
 ; r_tidy - forward of length 1, right square to it and of length 1, up = forward x right
-fn_city_render_r_tidy:		; City.cls 251
-            ld ix, arr_city_bas + 12		; City.cls 252
-            call fn_city_render_r_unit		; City.cls 253
-            ld ix, arr_city_bas		; City.cls 254
-            ld iy, arr_city_bas + 12		; City.cls 255
-            call fn_city_render_r_dot		; City.cls 256
-            ld (fn_city_render_w_t), hl            ; right . forward [257]
-            ld b, 3		; City.cls 258
-fn_city_render_td_lp:		; City.cls 259
-            push bc		; City.cls 260
-            ld e, (iy + 0)		; City.cls 261
-            ld d, (iy + 1)		; City.cls 262
-            ld bc, (fn_city_render_w_t)		; City.cls 263
-            call fn_city_render_mulfix		; City.cls 264
-            ex de, hl		; City.cls 265
-            ld l, (ix + 0)		; City.cls 266
-            ld h, (ix + 1)		; City.cls 267
-            or a		; City.cls 268
-            sbc hl, de		; City.cls 269
-            ld (ix + 0), l		; City.cls 270
-            ld (ix + 1), h		; City.cls 271
-            inc ix		; City.cls 272
-            inc ix		; City.cls 273
-            inc iy		; City.cls 274
-            inc iy		; City.cls 275
-            pop bc		; City.cls 276
-            djnz fn_city_render_td_lp		; City.cls 277
-            ld ix, arr_city_bas		; City.cls 278
-            call fn_city_render_r_unit		; City.cls 279
-            ld de, (arr_city_bas + 14)     ; up x = Fy Rz - Fz Ry [280]
-            ld bc, (arr_city_bas + 4)		; City.cls 281
-            call fn_city_render_mulfix		; City.cls 282
-            ld (fn_city_render_w_t), hl		; City.cls 283
-            ld de, (arr_city_bas + 16)		; City.cls 284
-            ld bc, (arr_city_bas + 2)		; City.cls 285
-            call fn_city_render_mulfix		; City.cls 286
-            ex de, hl		; City.cls 287
-            ld hl, (fn_city_render_w_t)		; City.cls 288
-            or a		; City.cls 289
-            sbc hl, de		; City.cls 290
-            ld (arr_city_bas + 6), hl		; City.cls 291
-            ld de, (arr_city_bas + 16)     ; up y = Fz Rx - Fx Rz [292]
-            ld bc, (arr_city_bas)		; City.cls 293
-            call fn_city_render_mulfix		; City.cls 294
-            ld (fn_city_render_w_t), hl		; City.cls 295
-            ld de, (arr_city_bas + 12)		; City.cls 296
-            ld bc, (arr_city_bas + 4)		; City.cls 297
-            call fn_city_render_mulfix		; City.cls 298
-            ex de, hl		; City.cls 299
-            ld hl, (fn_city_render_w_t)		; City.cls 300
-            or a		; City.cls 301
-            sbc hl, de		; City.cls 302
-            ld (arr_city_bas + 8), hl		; City.cls 303
-            ld de, (arr_city_bas + 12)     ; up z = Fx Ry - Fy Rx [304]
-            ld bc, (arr_city_bas + 2)		; City.cls 305
-            call fn_city_render_mulfix		; City.cls 306
-            ld (fn_city_render_w_t), hl		; City.cls 307
-            ld de, (arr_city_bas + 14)		; City.cls 308
-            ld bc, (arr_city_bas)		; City.cls 309
-            call fn_city_render_mulfix		; City.cls 310
-            ex de, hl		; City.cls 311
-            ld hl, (fn_city_render_w_t)		; City.cls 312
-            or a		; City.cls 313
-            sbc hl, de		; City.cls 314
-            ld (arr_city_bas + 10), hl		; City.cls 315
-            ret		; City.cls 316
+fn_city_render_r_tidy:		; City.cls 289
+            ld ix, arr_city_bas + 12		; City.cls 290
+            call fn_city_render_r_unit		; City.cls 291
+            ld ix, arr_city_bas		; City.cls 292
+            ld iy, arr_city_bas + 12		; City.cls 293
+            call fn_city_render_r_dot		; City.cls 294
+            ld (fn_city_render_w_t), hl            ; right . forward [295]
+            ld b, 3		; City.cls 296
+fn_city_render_td_lp:		; City.cls 297
+            push bc		; City.cls 298
+            ld e, (iy + 0)		; City.cls 299
+            ld d, (iy + 1)		; City.cls 300
+            ld bc, (fn_city_render_w_t)		; City.cls 301
+            call fn_city_render_mulfix		; City.cls 302
+            ex de, hl		; City.cls 303
+            ld l, (ix + 0)		; City.cls 304
+            ld h, (ix + 1)		; City.cls 305
+            or a		; City.cls 306
+            sbc hl, de		; City.cls 307
+            ld (ix + 0), l		; City.cls 308
+            ld (ix + 1), h		; City.cls 309
+            inc ix		; City.cls 310
+            inc ix		; City.cls 311
+            inc iy		; City.cls 312
+            inc iy		; City.cls 313
+            pop bc		; City.cls 314
+            djnz fn_city_render_td_lp		; City.cls 315
+            ld ix, arr_city_bas		; City.cls 316
+            call fn_city_render_r_unit		; City.cls 317
+            ld de, (arr_city_bas + 14)     ; up x = Fy Rz - Fz Ry [318]
+            ld bc, (arr_city_bas + 4)		; City.cls 319
+            call fn_city_render_mulfix		; City.cls 320
+            ld (fn_city_render_w_t), hl		; City.cls 321
+            ld de, (arr_city_bas + 16)		; City.cls 322
+            ld bc, (arr_city_bas + 2)		; City.cls 323
+            call fn_city_render_mulfix		; City.cls 324
+            ex de, hl		; City.cls 325
+            ld hl, (fn_city_render_w_t)		; City.cls 326
+            or a		; City.cls 327
+            sbc hl, de		; City.cls 328
+            ld (arr_city_bas + 6), hl		; City.cls 329
+            ld de, (arr_city_bas + 16)     ; up y = Fz Rx - Fx Rz [330]
+            ld bc, (arr_city_bas)		; City.cls 331
+            call fn_city_render_mulfix		; City.cls 332
+            ld (fn_city_render_w_t), hl		; City.cls 333
+            ld de, (arr_city_bas + 12)		; City.cls 334
+            ld bc, (arr_city_bas + 4)		; City.cls 335
+            call fn_city_render_mulfix		; City.cls 336
+            ex de, hl		; City.cls 337
+            ld hl, (fn_city_render_w_t)		; City.cls 338
+            or a		; City.cls 339
+            sbc hl, de		; City.cls 340
+            ld (arr_city_bas + 8), hl		; City.cls 341
+            ld de, (arr_city_bas + 12)     ; up z = Fx Ry - Fy Rx [342]
+            ld bc, (arr_city_bas + 2)		; City.cls 343
+            call fn_city_render_mulfix		; City.cls 344
+            ld (fn_city_render_w_t), hl		; City.cls 345
+            ld de, (arr_city_bas + 14)		; City.cls 346
+            ld bc, (arr_city_bas)		; City.cls 347
+            call fn_city_render_mulfix		; City.cls 348
+            ex de, hl		; City.cls 349
+            ld hl, (fn_city_render_w_t)		; City.cls 350
+            or a		; City.cls 351
+            sbc hl, de		; City.cls 352
+            ld (arr_city_bas + 10), hl		; City.cls 353
+            ret		; City.cls 354
 ; r_dot - HL = (IX) . (IY), vectors of 3
-fn_city_render_r_dot:		; City.cls 318
-            ld e, (ix + 0)		; City.cls 319
-            ld d, (ix + 1)		; City.cls 320
-            ld c, (iy + 0)		; City.cls 321
-            ld b, (iy + 1)		; City.cls 322
-            call fn_city_render_mulfix		; City.cls 323
-            ld (fn_city_render_w_d), hl		; City.cls 324
-            ld e, (ix + 2)		; City.cls 325
-            ld d, (ix + 3)		; City.cls 326
-            ld c, (iy + 2)		; City.cls 327
-            ld b, (iy + 3)		; City.cls 328
-            call fn_city_render_mulfix		; City.cls 329
-            ld de, (fn_city_render_w_d)		; City.cls 330
-            add hl, de		; City.cls 331
-            ld (fn_city_render_w_d), hl		; City.cls 332
-            ld e, (ix + 4)		; City.cls 333
-            ld d, (ix + 5)		; City.cls 334
-            ld c, (iy + 4)		; City.cls 335
-            ld b, (iy + 5)		; City.cls 336
-            call fn_city_render_mulfix		; City.cls 337
-            ld de, (fn_city_render_w_d)		; City.cls 338
-            add hl, de		; City.cls 339
-            ret		; City.cls 340
+fn_city_render_r_dot:		; City.cls 356
+            ld e, (ix + 0)		; City.cls 357
+            ld d, (ix + 1)		; City.cls 358
+            ld c, (iy + 0)		; City.cls 359
+            ld b, (iy + 1)		; City.cls 360
+            call fn_city_render_mulfix		; City.cls 361
+            ld (fn_city_render_w_d), hl		; City.cls 362
+            ld e, (ix + 2)		; City.cls 363
+            ld d, (ix + 3)		; City.cls 364
+            ld c, (iy + 2)		; City.cls 365
+            ld b, (iy + 3)		; City.cls 366
+            call fn_city_render_mulfix		; City.cls 367
+            ld de, (fn_city_render_w_d)		; City.cls 368
+            add hl, de		; City.cls 369
+            ld (fn_city_render_w_d), hl		; City.cls 370
+            ld e, (ix + 4)		; City.cls 371
+            ld d, (ix + 5)		; City.cls 372
+            ld c, (iy + 4)		; City.cls 373
+            ld b, (iy + 5)		; City.cls 374
+            call fn_city_render_mulfix		; City.cls 375
+            ld de, (fn_city_render_w_d)		; City.cls 376
+            add hl, de		; City.cls 377
+            ret		; City.cls 378
 ; r_unit - (IX) scaled to length 1: times (3 - |v|^2) / 2 (close to 1 already)
-fn_city_render_r_unit:		; City.cls 342
-            push ix		; City.cls 343
-            pop iy		; City.cls 344
-            call fn_city_render_r_dot		; City.cls 345
-            sra h		; City.cls 346
-            rr l		; City.cls 347
-            ex de, hl		; City.cls 348
-            ld hl, 24576		; City.cls 349
-            or a		; City.cls 350
-            sbc hl, de		; City.cls 351
-            ld (fn_city_render_w_k), hl		; City.cls 352
-            ld b, 3		; City.cls 353
-fn_city_render_ru_lp:		; City.cls 354
-            push bc		; City.cls 355
-            ld e, (ix + 0)		; City.cls 356
-            ld d, (ix + 1)		; City.cls 357
-            ld bc, (fn_city_render_w_k)		; City.cls 358
-            call fn_city_render_mulfix		; City.cls 359
-            ld (ix + 0), l		; City.cls 360
-            ld (ix + 1), h		; City.cls 361
-            inc ix		; City.cls 362
-            inc ix		; City.cls 363
-            pop bc		; City.cls 364
-            djnz fn_city_render_ru_lp		; City.cls 365
-            ret		; City.cls 366
+fn_city_render_r_unit:		; City.cls 380
+            push ix		; City.cls 381
+            pop iy		; City.cls 382
+            call fn_city_render_r_dot		; City.cls 383
+            sra h		; City.cls 384
+            rr l		; City.cls 385
+            ex de, hl		; City.cls 386
+            ld hl, 24576		; City.cls 387
+            or a		; City.cls 388
+            sbc hl, de		; City.cls 389
+            ld (fn_city_render_w_k), hl		; City.cls 390
+            ld b, 3		; City.cls 391
+fn_city_render_ru_lp:		; City.cls 392
+            push bc		; City.cls 393
+            ld e, (ix + 0)		; City.cls 394
+            ld d, (ix + 1)		; City.cls 395
+            ld bc, (fn_city_render_w_k)		; City.cls 396
+            call fn_city_render_mulfix		; City.cls 397
+            ld (ix + 0), l		; City.cls 398
+            ld (ix + 1), h		; City.cls 399
+            inc ix		; City.cls 400
+            inc ix		; City.cls 401
+            pop bc		; City.cls 402
+            djnz fn_city_render_ru_lp		; City.cls 403
+            ret		; City.cls 404
 
 ; r_fly - the camera moved forward by spd; x, z wrap round the world, y kept 16 - 3000
-fn_city_render_r_fly:		; City.cls 369
-            ld ix, var_city_qx		; City.cls 370
-            ld de, (arr_city_bas + 12)		; City.cls 371
-            call fn_city_render_fl_add		; City.cls 372
-            ld ix, var_city_qy		; City.cls 373
-            ld de, (arr_city_bas + 14)		; City.cls 374
-            call fn_city_render_fl_add		; City.cls 375
-            ld ix, var_city_qz		; City.cls 376
-            ld de, (arr_city_bas + 16)		; City.cls 377
-            call fn_city_render_fl_add		; City.cls 378
-            ld a, (var_city_qx + 3)		; City.cls 379
-            and #0F		; City.cls 380
-            ld (var_city_qx + 3), a		; City.cls 381
-            ld a, (var_city_qz + 3)		; City.cls 382
-            and #0F		; City.cls 383
-            ld (var_city_qz + 3), a		; City.cls 384
-            ld hl, (var_city_qy + 2)       ; y / 4 [385]
-            ld de, 4		; City.cls 386
-            call fn_city_render_cmps		; City.cls 387
-            jr nc, fn_city_render_fl_y1		; City.cls 388
-            ld hl, 0		; City.cls 389
-            ld (var_city_qy), hl		; City.cls 390
-            ld hl, 4		; City.cls 391
-            ld (var_city_qy + 2), hl		; City.cls 392
-fn_city_render_fl_y1:		; City.cls 393
-            ld hl, (var_city_qy + 2)		; City.cls 394
-            ld de, 750		; City.cls 395
-            call fn_city_render_cmps		; City.cls 396
-            jr c, fn_city_render_fl_y2		; City.cls 397
-            ld hl, 0		; City.cls 398
-            ld (var_city_qy), hl		; City.cls 399
-            ld hl, 750		; City.cls 400
-            ld (var_city_qy + 2), hl		; City.cls 401
-fn_city_render_fl_y2:		; City.cls 402
-            ld ix, var_city_qx		; City.cls 403
-            call fn_city_render_fl_w		; City.cls 404
-            ld (var_city_camx), de		; City.cls 405
-            ld ix, var_city_qy		; City.cls 406
-            call fn_city_render_fl_w		; City.cls 407
-            ld (var_city_camy), de		; City.cls 408
-            ld ix, var_city_qz		; City.cls 409
-            call fn_city_render_fl_w		; City.cls 410
-            ld (var_city_camz), de		; City.cls 411
-            ret		; City.cls 412
+fn_city_render_r_fly:		; City.cls 407
+            ld ix, var_city_qx		; City.cls 408
+            ld de, (arr_city_bas + 12)		; City.cls 409
+            call fn_city_render_fl_add		; City.cls 410
+            ld ix, var_city_qy		; City.cls 411
+            ld de, (arr_city_bas + 14)		; City.cls 412
+            call fn_city_render_fl_add		; City.cls 413
+            ld ix, var_city_qz		; City.cls 414
+            ld de, (arr_city_bas + 16)		; City.cls 415
+            call fn_city_render_fl_add		; City.cls 416
+            ld a, (var_city_qx + 3)		; City.cls 417
+            and #0F		; City.cls 418
+            ld (var_city_qx + 3), a		; City.cls 419
+            ld a, (var_city_qz + 3)		; City.cls 420
+            and #0F		; City.cls 421
+            ld (var_city_qz + 3), a		; City.cls 422
+            ld hl, (var_city_qy + 2)       ; y / 4 [423]
+            ld de, 4		; City.cls 424
+            call fn_city_render_cmps		; City.cls 425
+            jr nc, fn_city_render_fl_y1		; City.cls 426
+            ld hl, 0		; City.cls 427
+            ld (var_city_qy), hl		; City.cls 428
+            ld hl, 4		; City.cls 429
+            ld (var_city_qy + 2), hl		; City.cls 430
+fn_city_render_fl_y1:		; City.cls 431
+            ld hl, (var_city_qy + 2)		; City.cls 432
+            ld de, 750		; City.cls 433
+            call fn_city_render_cmps		; City.cls 434
+            jr c, fn_city_render_fl_y2		; City.cls 435
+            ld hl, 0		; City.cls 436
+            ld (var_city_qy), hl		; City.cls 437
+            ld hl, 750		; City.cls 438
+            ld (var_city_qy + 2), hl		; City.cls 439
+fn_city_render_fl_y2:		; City.cls 440
+            ld ix, var_city_qx		; City.cls 441
+            call fn_city_render_fl_w		; City.cls 442
+            ld (var_city_camx), de		; City.cls 443
+            ld ix, var_city_qy		; City.cls 444
+            call fn_city_render_fl_w		; City.cls 445
+            ld (var_city_camy), de		; City.cls 446
+            ld ix, var_city_qz		; City.cls 447
+            call fn_city_render_fl_w		; City.cls 448
+            ld (var_city_camz), de		; City.cls 449
+            ret		; City.cls 450
 ; fl_add - (IX), a Long, + DE * spd
-fn_city_render_fl_add:		; City.cls 414
-            ld bc, (var_city_spd)		; City.cls 415
-            call fn_city_render_mul16s		; City.cls 416
-            ld a, (ix + 0)		; City.cls 417
-            add a, l		; City.cls 418
-            ld (ix + 0), a		; City.cls 419
-            ld a, (ix + 1)		; City.cls 420
-            adc a, h		; City.cls 421
-            ld (ix + 1), a		; City.cls 422
-            ld a, (ix + 2)		; City.cls 423
-            adc a, e		; City.cls 424
-            ld (ix + 2), a		; City.cls 425
-            ld a, (ix + 3)		; City.cls 426
-            adc a, d		; City.cls 427
-            ld (ix + 3), a		; City.cls 428
-            ret		; City.cls 429
+fn_city_render_fl_add:		; City.cls 452
+            ld bc, (var_city_spd)		; City.cls 453
+            call fn_city_render_mul16s		; City.cls 454
+            ld a, (ix + 0)		; City.cls 455
+            add a, l		; City.cls 456
+            ld (ix + 0), a		; City.cls 457
+            ld a, (ix + 1)		; City.cls 458
+            adc a, h		; City.cls 459
+            ld (ix + 1), a		; City.cls 460
+            ld a, (ix + 2)		; City.cls 461
+            adc a, e		; City.cls 462
+            ld (ix + 2), a		; City.cls 463
+            ld a, (ix + 3)		; City.cls 464
+            adc a, d		; City.cls 465
+            ld (ix + 3), a		; City.cls 466
+            ret		; City.cls 467
 ; fl_w - DE = (IX), a Long, / 16384
-fn_city_render_fl_w:		; City.cls 431
-            ld l, (ix + 0)		; City.cls 432
-            ld h, (ix + 1)		; City.cls 433
-            ld e, (ix + 2)		; City.cls 434
-            ld d, (ix + 3)		; City.cls 435
-            add hl, hl		; City.cls 436
-            rl e		; City.cls 437
-            rl d		; City.cls 438
-            add hl, hl		; City.cls 439
-            rl e		; City.cls 440
-            rl d		; City.cls 441
-            ret		; City.cls 442
+fn_city_render_fl_w:		; City.cls 469
+            ld l, (ix + 0)		; City.cls 470
+            ld h, (ix + 1)		; City.cls 471
+            ld e, (ix + 2)		; City.cls 472
+            ld d, (ix + 3)		; City.cls 473
+            add hl, hl		; City.cls 474
+            rl e		; City.cls 475
+            rl d		; City.cls 476
+            add hl, hl		; City.cls 477
+            rl e		; City.cls 478
+            rl d		; City.cls 479
+            ret		; City.cls 480
 
 ; ---- the frame's tables: each column's / row's edges and each height, in camera space
 ; (a building's corner is then three additions)
 
-fn_city_render_r_terms:		; City.cls 447
-            ld a, (var_city_camx + 1)		; City.cls 448
-            ld (fn_city_render_w_cbx), a		; City.cls 449
-            ld a, (var_city_camz + 1)		; City.cls 450
-            ld (fn_city_render_w_cbz), a		; City.cls 451
-            ld ix, 36864		; City.cls 452
-            ld iy, arr_city_bas            ; x: R.x U.x F.x [453]
-            ld a, (var_city_camx)		; City.cls 454
-            call fn_city_render_tm_axis		; City.cls 455
-            ld ix, 37272		; City.cls 456
-            ld iy, arr_city_bas + 4        ; z: R.z U.z F.z [457]
-            ld a, (var_city_camz)		; City.cls 458
-            call fn_city_render_tm_axis		; City.cls 459
-            ld ix, 37680		; City.cls 460
-            ld iy, arr_city_bas + 2        ; y: R.y U.y F.y [461]
-            ld hl, (var_city_camy)		; City.cls 462
-            call fn_city_render_hneg		; City.cls 463
-            ld b, 9		; City.cls 464
-fn_city_render_tm_h:		; City.cls 465
-            push bc		; City.cls 466
-            push hl		; City.cls 467
-            call fn_city_render_tm_vec		; City.cls 468
-            pop hl		; City.cls 469
-            ld de, 72               ; a storey [470]
-            add hl, de		; City.cls 471
-            pop bc		; City.cls 472
-            djnz fn_city_render_tm_h		; City.cls 473
-            ret		; City.cls 474
+fn_city_render_r_terms:		; City.cls 485
+            ld a, (var_city_camx + 1)		; City.cls 486
+            ld (fn_city_render_w_cbx), a		; City.cls 487
+            ld a, (var_city_camz + 1)		; City.cls 488
+            ld (fn_city_render_w_cbz), a		; City.cls 489
+            ld ix, 36864		; City.cls 490
+            ld iy, arr_city_bas            ; x: R.x U.x F.x [491]
+            ld a, (var_city_camx)		; City.cls 492
+            call fn_city_render_tm_axis		; City.cls 493
+            ld ix, 37272		; City.cls 494
+            ld iy, arr_city_bas + 4        ; z: R.z U.z F.z [495]
+            ld a, (var_city_camz)		; City.cls 496
+            call fn_city_render_tm_axis		; City.cls 497
+            ld ix, 37680		; City.cls 498
+            ld iy, arr_city_bas + 2        ; y: R.y U.y F.y [499]
+            ld hl, (var_city_camy)		; City.cls 500
+            call fn_city_render_hneg		; City.cls 501
+            ld b, 9		; City.cls 502
+fn_city_render_tm_h:		; City.cls 503
+            push bc		; City.cls 504
+            push hl		; City.cls 505
+            call fn_city_render_tm_vec		; City.cls 506
+            pop hl		; City.cls 507
+            ld de, 72               ; a storey [508]
+            add hl, de		; City.cls 509
+            pop bc		; City.cls 510
+            djnz fn_city_render_tm_h		; City.cls 511
+            ret		; City.cls 512
 ; tm_axis - A = the camera's place in its cell: 17 cells from 8 before, 4 edges each
 ; (40, 216: wide; 72, 184: narrow)
-fn_city_render_tm_axis:		; City.cls 477
-            ld e, a		; City.cls 478
-            ld d, 0		; City.cls 479
-            ld hl, -8 * 256		; City.cls 480
-            or a		; City.cls 481
-            sbc hl, de		; City.cls 482
-            ld b, 17		; City.cls 483
-fn_city_render_ta_lp:		; City.cls 484
-            push bc		; City.cls 485
-            push hl		; City.cls 486
-            ld de, 40		; City.cls 487
-            add hl, de		; City.cls 488
-            call fn_city_render_tm_vec		; City.cls 489
-            pop hl		; City.cls 490
-            push hl		; City.cls 491
-            ld de, 216		; City.cls 492
-            add hl, de		; City.cls 493
-            call fn_city_render_tm_vec		; City.cls 494
-            pop hl		; City.cls 495
-            push hl		; City.cls 496
-            ld de, 72		; City.cls 497
-            add hl, de		; City.cls 498
-            call fn_city_render_tm_vec		; City.cls 499
-            pop hl		; City.cls 500
-            push hl		; City.cls 501
-            ld de, 184		; City.cls 502
-            add hl, de		; City.cls 503
-            call fn_city_render_tm_vec		; City.cls 504
-            pop hl		; City.cls 505
-            inc h		; City.cls 506
-            pop bc		; City.cls 507
-            djnz fn_city_render_ta_lp		; City.cls 508
-            ret		; City.cls 509
+fn_city_render_tm_axis:		; City.cls 515
+            ld e, a		; City.cls 516
+            ld d, 0		; City.cls 517
+            ld hl, -8 * 256		; City.cls 518
+            or a		; City.cls 519
+            sbc hl, de		; City.cls 520
+            ld b, 17		; City.cls 521
+fn_city_render_ta_lp:		; City.cls 522
+            push bc		; City.cls 523
+            push hl		; City.cls 524
+            ld de, 40		; City.cls 525
+            add hl, de		; City.cls 526
+            call fn_city_render_tm_vec		; City.cls 527
+            pop hl		; City.cls 528
+            push hl		; City.cls 529
+            ld de, 216		; City.cls 530
+            add hl, de		; City.cls 531
+            call fn_city_render_tm_vec		; City.cls 532
+            pop hl		; City.cls 533
+            push hl		; City.cls 534
+            ld de, 72		; City.cls 535
+            add hl, de		; City.cls 536
+            call fn_city_render_tm_vec		; City.cls 537
+            pop hl		; City.cls 538
+            push hl		; City.cls 539
+            ld de, 184		; City.cls 540
+            add hl, de		; City.cls 541
+            call fn_city_render_tm_vec		; City.cls 542
+            pop hl		; City.cls 543
+            inc h		; City.cls 544
+            pop bc		; City.cls 545
+            djnz fn_city_render_ta_lp		; City.cls 546
+            ret		; City.cls 547
 ; tm_vec - (IX) = HL times the basis numbers at IY, IY + 6, IY + 12; IX + 6
-fn_city_render_tm_vec:		; City.cls 511
-            ld (fn_city_render_w_d), hl		; City.cls 512
-            ex de, hl		; City.cls 513
-            ld c, (iy + 0)		; City.cls 514
-            ld b, (iy + 1)		; City.cls 515
-            call fn_city_render_mulfix		; City.cls 516
-            ld (ix + 0), l		; City.cls 517
-            ld (ix + 1), h		; City.cls 518
-            ld de, (fn_city_render_w_d)		; City.cls 519
-            ld c, (iy + 6)		; City.cls 520
-            ld b, (iy + 7)		; City.cls 521
-            call fn_city_render_mulfix		; City.cls 522
-            ld (ix + 2), l		; City.cls 523
-            ld (ix + 3), h		; City.cls 524
-            ld de, (fn_city_render_w_d)		; City.cls 525
-            ld c, (iy + 12)		; City.cls 526
-            ld b, (iy + 13)		; City.cls 527
-            call fn_city_render_mulfix		; City.cls 528
-            ld (ix + 4), l		; City.cls 529
-            ld (ix + 5), h		; City.cls 530
-            ld de, 6		; City.cls 531
-            add ix, de		; City.cls 532
-            ret		; City.cls 533
+fn_city_render_tm_vec:		; City.cls 549
+            ld (fn_city_render_w_d), hl		; City.cls 550
+            ex de, hl		; City.cls 551
+            ld c, (iy + 0)		; City.cls 552
+            ld b, (iy + 1)		; City.cls 553
+            call fn_city_render_mulfix		; City.cls 554
+            ld (ix + 0), l		; City.cls 555
+            ld (ix + 1), h		; City.cls 556
+            ld de, (fn_city_render_w_d)		; City.cls 557
+            ld c, (iy + 6)		; City.cls 558
+            ld b, (iy + 7)		; City.cls 559
+            call fn_city_render_mulfix		; City.cls 560
+            ld (ix + 2), l		; City.cls 561
+            ld (ix + 3), h		; City.cls 562
+            ld de, (fn_city_render_w_d)		; City.cls 563
+            ld c, (iy + 12)		; City.cls 564
+            ld b, (iy + 13)		; City.cls 565
+            call fn_city_render_mulfix		; City.cls 566
+            ld (ix + 4), l		; City.cls 567
+            ld (ix + 5), h		; City.cls 568
+            ld de, 6		; City.cls 569
+            add ix, de		; City.cls 570
+            ret		; City.cls 571
 
 ; r_clear - rows 1-24 of the screen being drawn on cleared (row 0 is the text line)
-fn_city_render_r_clear:		; City.cls 536
-            call gfx_begin		; City.cls 537
-            ld (fn_city_render_w_csp), sp		; City.cls 538
-            ld a, (gfx_base)		; City.cls 539
-            add a, #3F		; City.cls 540
-            ld h, a		; City.cls 541
-            ld l, #D0               ; the end of the last 2K block's 25 rows [542]
-            ld c, 8		; City.cls 543
-fn_city_render_cl_blk:		; City.cls 544
-            ld (fn_city_render_w_crp), hl		; City.cls 545
-            ld sp, (fn_city_render_w_crp)		; City.cls 546
-            ld de, 0		; City.cls 547
-            ld b, 60                ; 60 x 32 bytes = 1920: rows 1-24 [548]
-fn_city_render_cl_lp:		; City.cls 549
-            push de		; City.cls 550
-            push de		; City.cls 551
-            push de		; City.cls 552
-            push de		; City.cls 553
-            push de		; City.cls 554
-            push de		; City.cls 555
-            push de		; City.cls 556
-            push de		; City.cls 557
-            push de		; City.cls 558
-            push de		; City.cls 559
-            push de		; City.cls 560
-            push de		; City.cls 561
-            push de		; City.cls 562
-            push de		; City.cls 563
-            push de		; City.cls 564
-            push de		; City.cls 565
-            djnz fn_city_render_cl_lp		; City.cls 566
-            ld a, h		; City.cls 567
-            sub 8		; City.cls 568
-            ld h, a		; City.cls 569
-            dec c		; City.cls 570
-            jr nz, fn_city_render_cl_blk		; City.cls 571
-            ld sp, (fn_city_render_w_csp)		; City.cls 572
-            jp gfx_end		; City.cls 573
+fn_city_render_r_clear:		; City.cls 574
+            di                      ; SP goes through the screen: no interrupts meanwhile [575]
+            call gfx_begin		; City.cls 576
+            ld (fn_city_render_w_csp), sp		; City.cls 577
+            ld a, (gfx_base)		; City.cls 578
+            add a, #3F		; City.cls 579
+            ld h, a		; City.cls 580
+            ld l, #D0               ; the end of the last 2K block's 25 rows [581]
+            ld c, 8		; City.cls 582
+fn_city_render_cl_blk:		; City.cls 583
+            ld (fn_city_render_w_crp), hl		; City.cls 584
+            ld sp, (fn_city_render_w_crp)		; City.cls 585
+            ld de, 0		; City.cls 586
+            ld b, 60                ; 60 x 32 bytes = 1920: rows 1-24 [587]
+fn_city_render_cl_lp:		; City.cls 588
+            push de		; City.cls 589
+            push de		; City.cls 590
+            push de		; City.cls 591
+            push de		; City.cls 592
+            push de		; City.cls 593
+            push de		; City.cls 594
+            push de		; City.cls 595
+            push de		; City.cls 596
+            push de		; City.cls 597
+            push de		; City.cls 598
+            push de		; City.cls 599
+            push de		; City.cls 600
+            push de		; City.cls 601
+            push de		; City.cls 602
+            push de		; City.cls 603
+            push de		; City.cls 604
+            djnz fn_city_render_cl_lp		; City.cls 605
+            ld a, h		; City.cls 606
+            sub 8		; City.cls 607
+            ld h, a		; City.cls 608
+            dec c		; City.cls 609
+            jr nz, fn_city_render_cl_blk		; City.cls 610
+            ld sp, (fn_city_render_w_csp)		; City.cls 611
+            call gfx_end		; City.cls 612
+            ei		; City.cls 613
+            ret		; City.cls 614
 
 ; ---- the buildings
 
-fn_city_render_r_cells:		; City.cls 577
-            xor a		; City.cls 578
-            ld (fn_city_render_w_cj), a		; City.cls 579
-fn_city_render_ce_row:		; City.cls 580
-            xor a		; City.cls 581
-            ld (fn_city_render_w_ci), a		; City.cls 582
-fn_city_render_ce_col:		; City.cls 583
-            call fn_city_render_ce_one		; City.cls 584
-            ld a, (fn_city_render_w_ci)		; City.cls 585
-            inc a		; City.cls 586
-            ld (fn_city_render_w_ci), a		; City.cls 587
-            cp 17		; City.cls 588
-            jr nz, fn_city_render_ce_col		; City.cls 589
-            ld a, (fn_city_render_w_cj)		; City.cls 590
-            inc a		; City.cls 591
-            ld (fn_city_render_w_cj), a		; City.cls 592
-            cp 17		; City.cls 593
-            jr nz, fn_city_render_ce_row		; City.cls 594
-            ret		; City.cls 595
+fn_city_render_r_cells:		; City.cls 618
+            xor a		; City.cls 619
+            ld (fn_city_render_w_cj), a		; City.cls 620
+fn_city_render_ce_row:		; City.cls 621
+            xor a		; City.cls 622
+            ld (fn_city_render_w_ci), a		; City.cls 623
+fn_city_render_ce_col:		; City.cls 624
+            call fn_city_render_ce_one		; City.cls 625
+            ld a, (fn_city_render_w_ci)		; City.cls 626
+            inc a		; City.cls 627
+            ld (fn_city_render_w_ci), a		; City.cls 628
+            cp 17		; City.cls 629
+            jr nz, fn_city_render_ce_col		; City.cls 630
+            ld a, (fn_city_render_w_cj)		; City.cls 631
+            inc a		; City.cls 632
+            ld (fn_city_render_w_cj), a		; City.cls 633
+            cp 17		; City.cls 634
+            jr nz, fn_city_render_ce_row		; City.cls 635
+            ret		; City.cls 636
 ; ce_one - the cell (w_ci, w_cj) of the 17 x 17 round the camera
-fn_city_render_ce_one:		; City.cls 597
-            ld a, (fn_city_render_w_cj)		; City.cls 598
-            ld hl, fn_city_render_w_cbz		; City.cls 599
-            add a, (hl)		; City.cls 600
-            sub 8		; City.cls 601
-            and 63		; City.cls 602
-            rrca		; City.cls 603
-            rrca		; City.cls 604
-            ld c, a		; City.cls 605
-            and #C0		; City.cls 606
-            ld l, a		; City.cls 607
-            ld a, c		; City.cls 608
-            and #0F		; City.cls 609
-            or #80                  ; CMAP + row * 64 [610]
-            ld h, a		; City.cls 611
-            ld a, (fn_city_render_w_ci)		; City.cls 612
-            ld de, fn_city_render_w_cbx		; City.cls 613
-            ex de, hl		; City.cls 614
-            add a, (hl)		; City.cls 615
-            ex de, hl		; City.cls 616
-            sub 8		; City.cls 617
-            and 63		; City.cls 618
-            or l		; City.cls 619
-            ld l, a		; City.cls 620
-            ld a, (hl)		; City.cls 621
-            and 7		; City.cls 622
-            ret z                   ; no building [623]
-            ld (fn_city_render_w_lvl), a		; City.cls 624
-            ld a, (hl)		; City.cls 625
-            and 8		; City.cls 626
-            rrca		; City.cls 627
-            rrca		; City.cls 628
-            ld (fn_city_render_w_var), a           ; 0 wide, 2 narrow [629]
-            ld a, (fn_city_render_w_ci)            ; the tables' entries for its edges [630]
-            add a, a		; City.cls 631
-            add a, a		; City.cls 632
-            ld hl, fn_city_render_w_var		; City.cls 633
-            add a, (hl)		; City.cls 634
-            call fn_city_render_x6		; City.cls 635
-            ld de, 36864		; City.cls 636
-            add hl, de		; City.cls 637
-            ld (fn_city_render_w_px0), hl		; City.cls 638
-            ld de, 6		; City.cls 639
-            add hl, de		; City.cls 640
-            ld (fn_city_render_w_px1), hl		; City.cls 641
-            ld a, (fn_city_render_w_cj)		; City.cls 642
-            add a, a		; City.cls 643
-            add a, a		; City.cls 644
-            ld hl, fn_city_render_w_var		; City.cls 645
-            add a, (hl)		; City.cls 646
-            call fn_city_render_x6		; City.cls 647
-            ld de, 37272		; City.cls 648
-            add hl, de		; City.cls 649
-            ld (fn_city_render_w_pz0), hl		; City.cls 650
-            ld de, 6		; City.cls 651
-            add hl, de		; City.cls 652
-            ld (fn_city_render_w_pz1), hl		; City.cls 653
-            ld a, (fn_city_render_w_lvl)		; City.cls 654
-            call fn_city_render_x6		; City.cls 655
-            ld de, 37680		; City.cls 656
-            add hl, de		; City.cls 657
-            ld (fn_city_render_w_phl), hl		; City.cls 658
-            ld c, 0                 ; its middle, to see if it is in view [659]
-            call fn_city_render_ce_mid		; City.cls 660
-            ld (fn_city_render_w_cx), hl		; City.cls 661
-            ld c, 2		; City.cls 662
-            call fn_city_render_ce_mid		; City.cls 663
-            ld (fn_city_render_w_cy), hl		; City.cls 664
-            ld c, 4		; City.cls 665
-            call fn_city_render_ce_mid		; City.cls 666
-            ld (fn_city_render_w_cz), hl		; City.cls 667
-            ld de, -310             ; behind [668]
-            call fn_city_render_cmps		; City.cls 669
-            ret c		; City.cls 670
-            ld hl, (fn_city_render_w_cz)		; City.cls 671
-            ld de, 2048 + 310       ; too far [672]
-            call fn_city_render_cmps		; City.cls 673
-            ret nc		; City.cls 674
-            ld hl, (fn_city_render_w_cx)           ; off to the side: |X| - Z > 310 * 1.41 [675]
-            call fn_city_render_habs		; City.cls 676
-            ld de, (fn_city_render_w_cz)		; City.cls 677
-            or a		; City.cls 678
-            sbc hl, de		; City.cls 679
-            ld de, 438		; City.cls 680
-            call fn_city_render_cmps		; City.cls 681
-            ret nc		; City.cls 682
-            ld hl, (fn_city_render_w_cy)           ; above / below: 4|Y| - 3Z > 310 * 5 [683]
-            call fn_city_render_habs		; City.cls 684
-            add hl, hl		; City.cls 685
-            add hl, hl		; City.cls 686
-            push hl		; City.cls 687
-            ld hl, (fn_city_render_w_cz)		; City.cls 688
-            ld e, l		; City.cls 689
-            ld d, h		; City.cls 690
-            add hl, hl		; City.cls 691
-            add hl, de		; City.cls 692
-            ex de, hl		; City.cls 693
-            pop hl		; City.cls 694
-            or a		; City.cls 695
-            sbc hl, de		; City.cls 696
-            ld de, 1550		; City.cls 697
-            call fn_city_render_cmps		; City.cls 698
-            ret nc		; City.cls 699
-            ld ix, 37734              ; its 8 corners [700]
-            xor a		; City.cls 701
-            ld (fn_city_render_w_vk), a		; City.cls 702
-fn_city_render_ve_lp:		; City.cls 703
-            ld a, (fn_city_render_w_vk)		; City.cls 704
-            ld hl, (fn_city_render_w_px0)		; City.cls 705
-            bit 0, a		; City.cls 706
-            jr z, fn_city_render_ve1		; City.cls 707
-            ld hl, (fn_city_render_w_px1)		; City.cls 708
-fn_city_render_ve1:		; City.cls 709
-            ld (fn_city_render_w_pa), hl		; City.cls 710
-            ld hl, (fn_city_render_w_pz0)		; City.cls 711
-            bit 1, a		; City.cls 712
-            jr z, fn_city_render_ve2		; City.cls 713
-            ld hl, (fn_city_render_w_pz1)		; City.cls 714
-fn_city_render_ve2:		; City.cls 715
-            ld (fn_city_render_w_pb), hl		; City.cls 716
-            ld hl, 37680		; City.cls 717
-            bit 2, a		; City.cls 718
-            jr z, fn_city_render_ve3		; City.cls 719
-            ld hl, (fn_city_render_w_phl)		; City.cls 720
-fn_city_render_ve3:		; City.cls 721
-            ld (fn_city_render_w_pc), hl		; City.cls 722
-            ld c, 0		; City.cls 723
-            call fn_city_render_ve_sum		; City.cls 724
-            ld (ix + 0), l		; City.cls 725
-            ld (ix + 1), h		; City.cls 726
-            ld c, 2		; City.cls 727
-            call fn_city_render_ve_sum		; City.cls 728
-            ld (ix + 2), l		; City.cls 729
-            ld (ix + 3), h		; City.cls 730
-            ld c, 4		; City.cls 731
-            call fn_city_render_ve_sum		; City.cls 732
-            ld (ix + 4), l		; City.cls 733
-            ld (ix + 5), h		; City.cls 734
-            call fn_city_render_ve_oc		; City.cls 735
-            ld (ix + 6), a		; City.cls 736
-            or a		; City.cls 737
-            call z, fn_city_render_ve_proj		; City.cls 738
-            ld de, 12		; City.cls 739
-            add ix, de		; City.cls 740
-            ld a, (fn_city_render_w_vk)		; City.cls 741
-            inc a		; City.cls 742
+fn_city_render_ce_one:		; City.cls 638
+            ld a, (fn_city_render_w_cj)		; City.cls 639
+            ld hl, fn_city_render_w_cbz		; City.cls 640
+            add a, (hl)		; City.cls 641
+            sub 8		; City.cls 642
+            and 63		; City.cls 643
+            rrca		; City.cls 644
+            rrca		; City.cls 645
+            ld c, a		; City.cls 646
+            and #C0		; City.cls 647
+            ld l, a		; City.cls 648
+            ld a, c		; City.cls 649
+            and #0F		; City.cls 650
+            or #80                  ; CMAP + row * 64 [651]
+            ld h, a		; City.cls 652
+            ld a, (fn_city_render_w_ci)		; City.cls 653
+            ld de, fn_city_render_w_cbx		; City.cls 654
+            ex de, hl		; City.cls 655
+            add a, (hl)		; City.cls 656
+            ex de, hl		; City.cls 657
+            sub 8		; City.cls 658
+            and 63		; City.cls 659
+            or l		; City.cls 660
+            ld l, a		; City.cls 661
+            ld a, (hl)		; City.cls 662
+            and 7		; City.cls 663
+            ret z                   ; no building [664]
+            ld (fn_city_render_w_lvl), a		; City.cls 665
+            ld a, (hl)		; City.cls 666
+            and 8		; City.cls 667
+            rrca		; City.cls 668
+            rrca		; City.cls 669
+            ld (fn_city_render_w_var), a           ; 0 wide, 2 narrow [670]
+            ld a, (fn_city_render_w_ci)            ; the tables' entries for its edges [671]
+            add a, a		; City.cls 672
+            add a, a		; City.cls 673
+            ld hl, fn_city_render_w_var		; City.cls 674
+            add a, (hl)		; City.cls 675
+            call fn_city_render_x6		; City.cls 676
+            ld de, 36864		; City.cls 677
+            add hl, de		; City.cls 678
+            ld (fn_city_render_w_px0), hl		; City.cls 679
+            ld de, 6		; City.cls 680
+            add hl, de		; City.cls 681
+            ld (fn_city_render_w_px1), hl		; City.cls 682
+            ld a, (fn_city_render_w_cj)		; City.cls 683
+            add a, a		; City.cls 684
+            add a, a		; City.cls 685
+            ld hl, fn_city_render_w_var		; City.cls 686
+            add a, (hl)		; City.cls 687
+            call fn_city_render_x6		; City.cls 688
+            ld de, 37272		; City.cls 689
+            add hl, de		; City.cls 690
+            ld (fn_city_render_w_pz0), hl		; City.cls 691
+            ld de, 6		; City.cls 692
+            add hl, de		; City.cls 693
+            ld (fn_city_render_w_pz1), hl		; City.cls 694
+            ld a, (fn_city_render_w_lvl)		; City.cls 695
+            call fn_city_render_x6		; City.cls 696
+            ld de, 37680		; City.cls 697
+            add hl, de		; City.cls 698
+            ld (fn_city_render_w_phl), hl		; City.cls 699
+            ld c, 0                 ; its middle, to see if it is in view [700]
+            call fn_city_render_ce_mid		; City.cls 701
+            ld (fn_city_render_w_cx), hl		; City.cls 702
+            ld c, 2		; City.cls 703
+            call fn_city_render_ce_mid		; City.cls 704
+            ld (fn_city_render_w_cy), hl		; City.cls 705
+            ld c, 4		; City.cls 706
+            call fn_city_render_ce_mid		; City.cls 707
+            ld (fn_city_render_w_cz), hl		; City.cls 708
+            ld de, -310             ; behind [709]
+            call fn_city_render_cmps		; City.cls 710
+            ret c		; City.cls 711
+            ld hl, (fn_city_render_w_cz)		; City.cls 712
+            ld de, 2048 + 310       ; too far [713]
+            call fn_city_render_cmps		; City.cls 714
+            ret nc		; City.cls 715
+            ld hl, (fn_city_render_w_cx)           ; off to the side: |X| - Z > 310 * 1.41 [716]
+            call fn_city_render_habs		; City.cls 717
+            ld de, (fn_city_render_w_cz)		; City.cls 718
+            or a		; City.cls 719
+            sbc hl, de		; City.cls 720
+            ld de, 438		; City.cls 721
+            call fn_city_render_cmps		; City.cls 722
+            ret nc		; City.cls 723
+            ld hl, (fn_city_render_w_cy)           ; above / below: 4|Y| - 3Z > 310 * 5 [724]
+            call fn_city_render_habs		; City.cls 725
+            add hl, hl		; City.cls 726
+            add hl, hl		; City.cls 727
+            push hl		; City.cls 728
+            ld hl, (fn_city_render_w_cz)		; City.cls 729
+            ld e, l		; City.cls 730
+            ld d, h		; City.cls 731
+            add hl, hl		; City.cls 732
+            add hl, de		; City.cls 733
+            ex de, hl		; City.cls 734
+            pop hl		; City.cls 735
+            or a		; City.cls 736
+            sbc hl, de		; City.cls 737
+            ld de, 1550		; City.cls 738
+            call fn_city_render_cmps		; City.cls 739
+            ret nc		; City.cls 740
+            ld ix, 37734              ; its 8 corners [741]
+            xor a		; City.cls 742
             ld (fn_city_render_w_vk), a		; City.cls 743
-            cp 8		; City.cls 744
-            jr nz, fn_city_render_ve_lp		; City.cls 745
-            ld hl, fn_city_render_ce_edges         ; its 12 edges [746]
-            ld b, 12		; City.cls 747
-fn_city_render_ed_lp:		; City.cls 748
-            push bc		; City.cls 749
-            ld a, (hl)		; City.cls 750
-            inc hl		; City.cls 751
-            ld c, (hl)		; City.cls 752
-            inc hl		; City.cls 753
-            push hl		; City.cls 754
-            call fn_city_render_vx12		; City.cls 755
-            ld (fn_city_render_w_ea), hl		; City.cls 756
-            ld a, c		; City.cls 757
-            call fn_city_render_vx12		; City.cls 758
-            ld (fn_city_render_w_eb), hl		; City.cls 759
-            call fn_city_render_ed_one		; City.cls 760
-            pop hl		; City.cls 761
-            pop bc		; City.cls 762
-            djnz fn_city_render_ed_lp		; City.cls 763
-            ret		; City.cls 764
+fn_city_render_ve_lp:		; City.cls 744
+            ld a, (fn_city_render_w_vk)		; City.cls 745
+            ld hl, (fn_city_render_w_px0)		; City.cls 746
+            bit 0, a		; City.cls 747
+            jr z, fn_city_render_ve1		; City.cls 748
+            ld hl, (fn_city_render_w_px1)		; City.cls 749
+fn_city_render_ve1:		; City.cls 750
+            ld (fn_city_render_w_pa), hl		; City.cls 751
+            ld hl, (fn_city_render_w_pz0)		; City.cls 752
+            bit 1, a		; City.cls 753
+            jr z, fn_city_render_ve2		; City.cls 754
+            ld hl, (fn_city_render_w_pz1)		; City.cls 755
+fn_city_render_ve2:		; City.cls 756
+            ld (fn_city_render_w_pb), hl		; City.cls 757
+            ld hl, 37680		; City.cls 758
+            bit 2, a		; City.cls 759
+            jr z, fn_city_render_ve3		; City.cls 760
+            ld hl, (fn_city_render_w_phl)		; City.cls 761
+fn_city_render_ve3:		; City.cls 762
+            ld (fn_city_render_w_pc), hl		; City.cls 763
+            ld c, 0		; City.cls 764
+            call fn_city_render_ve_sum		; City.cls 765
+            ld (ix + 0), l		; City.cls 766
+            ld (ix + 1), h		; City.cls 767
+            ld c, 2		; City.cls 768
+            call fn_city_render_ve_sum		; City.cls 769
+            ld (ix + 2), l		; City.cls 770
+            ld (ix + 3), h		; City.cls 771
+            ld c, 4		; City.cls 772
+            call fn_city_render_ve_sum		; City.cls 773
+            ld (ix + 4), l		; City.cls 774
+            ld (ix + 5), h		; City.cls 775
+            call fn_city_render_ve_oc		; City.cls 776
+            ld (ix + 6), a		; City.cls 777
+            or a		; City.cls 778
+            call z, fn_city_render_ve_proj		; City.cls 779
+            ld de, 12		; City.cls 780
+            add ix, de		; City.cls 781
+            ld a, (fn_city_render_w_vk)		; City.cls 782
+            inc a		; City.cls 783
+            ld (fn_city_render_w_vk), a		; City.cls 784
+            cp 8		; City.cls 785
+            jr nz, fn_city_render_ve_lp		; City.cls 786
+            ld hl, fn_city_render_ce_edges         ; its 12 edges [787]
+            ld b, 12		; City.cls 788
+fn_city_render_ed_lp:		; City.cls 789
+            push bc		; City.cls 790
+            ld a, (hl)		; City.cls 791
+            inc hl		; City.cls 792
+            ld c, (hl)		; City.cls 793
+            inc hl		; City.cls 794
+            push hl		; City.cls 795
+            call fn_city_render_vx12		; City.cls 796
+            ld (fn_city_render_w_ea), hl		; City.cls 797
+            ld a, c		; City.cls 798
+            call fn_city_render_vx12		; City.cls 799
+            ld (fn_city_render_w_eb), hl		; City.cls 800
+            call fn_city_render_ed_one		; City.cls 801
+            pop hl		; City.cls 802
+            pop bc		; City.cls 803
+            djnz fn_city_render_ed_lp		; City.cls 804
+            ret		; City.cls 805
 ; ce_mid - HL = half the sum of the six tables' numbers at offset C (the middle's X, Y or Z)
-fn_city_render_ce_mid:		; City.cls 766
-            ld b, 0		; City.cls 767
-            ld hl, 0		; City.cls 768
-            ld (fn_city_render_w_sum), hl		; City.cls 769
-            ld hl, (fn_city_render_w_px0)		; City.cls 770
-            call fn_city_render_ce_acc		; City.cls 771
-            ld hl, (fn_city_render_w_px1)		; City.cls 772
-            call fn_city_render_ce_acc		; City.cls 773
-            ld hl, (fn_city_render_w_pz0)		; City.cls 774
-            call fn_city_render_ce_acc		; City.cls 775
-            ld hl, (fn_city_render_w_pz1)		; City.cls 776
-            call fn_city_render_ce_acc		; City.cls 777
-            ld hl, 37680		; City.cls 778
-            call fn_city_render_ce_acc		; City.cls 779
-            ld hl, (fn_city_render_w_phl)		; City.cls 780
-            call fn_city_render_ce_acc		; City.cls 781
-            ld hl, (fn_city_render_w_sum)		; City.cls 782
-            sra h		; City.cls 783
-            rr l		; City.cls 784
-            ret		; City.cls 785
-fn_city_render_ce_acc:		; City.cls 786
-            add hl, bc		; City.cls 787
-            ld e, (hl)		; City.cls 788
-            inc hl		; City.cls 789
-            ld d, (hl)		; City.cls 790
-            ld hl, (fn_city_render_w_sum)		; City.cls 791
-            add hl, de		; City.cls 792
-            ld (fn_city_render_w_sum), hl		; City.cls 793
-            ret		; City.cls 794
+fn_city_render_ce_mid:		; City.cls 807
+            ld b, 0		; City.cls 808
+            ld hl, 0		; City.cls 809
+            ld (fn_city_render_w_sum), hl		; City.cls 810
+            ld hl, (fn_city_render_w_px0)		; City.cls 811
+            call fn_city_render_ce_acc		; City.cls 812
+            ld hl, (fn_city_render_w_px1)		; City.cls 813
+            call fn_city_render_ce_acc		; City.cls 814
+            ld hl, (fn_city_render_w_pz0)		; City.cls 815
+            call fn_city_render_ce_acc		; City.cls 816
+            ld hl, (fn_city_render_w_pz1)		; City.cls 817
+            call fn_city_render_ce_acc		; City.cls 818
+            ld hl, 37680		; City.cls 819
+            call fn_city_render_ce_acc		; City.cls 820
+            ld hl, (fn_city_render_w_phl)		; City.cls 821
+            call fn_city_render_ce_acc		; City.cls 822
+            ld hl, (fn_city_render_w_sum)		; City.cls 823
+            sra h		; City.cls 824
+            rr l		; City.cls 825
+            ret		; City.cls 826
+fn_city_render_ce_acc:		; City.cls 827
+            add hl, bc		; City.cls 828
+            ld e, (hl)		; City.cls 829
+            inc hl		; City.cls 830
+            ld d, (hl)		; City.cls 831
+            ld hl, (fn_city_render_w_sum)		; City.cls 832
+            add hl, de		; City.cls 833
+            ld (fn_city_render_w_sum), hl		; City.cls 834
+            ret		; City.cls 835
 ; ve_sum - HL = (w_pa) + (w_pb) + (w_pc), the numbers at offset C
-fn_city_render_ve_sum:		; City.cls 796
-            ld b, 0		; City.cls 797
-            ld hl, (fn_city_render_w_pa)		; City.cls 798
-            add hl, bc		; City.cls 799
-            ld e, (hl)		; City.cls 800
-            inc hl		; City.cls 801
-            ld d, (hl)		; City.cls 802
-            ld hl, (fn_city_render_w_pb)		; City.cls 803
-            add hl, bc		; City.cls 804
-            ld a, (hl)		; City.cls 805
-            inc hl		; City.cls 806
-            ld h, (hl)		; City.cls 807
-            ld l, a		; City.cls 808
-            add hl, de		; City.cls 809
-            ex de, hl		; City.cls 810
-            ld hl, (fn_city_render_w_pc)		; City.cls 811
-            add hl, bc		; City.cls 812
-            ld a, (hl)		; City.cls 813
-            inc hl		; City.cls 814
-            ld h, (hl)		; City.cls 815
-            ld l, a		; City.cls 816
-            add hl, de		; City.cls 817
-            ret		; City.cls 818
+fn_city_render_ve_sum:		; City.cls 837
+            ld b, 0		; City.cls 838
+            ld hl, (fn_city_render_w_pa)		; City.cls 839
+            add hl, bc		; City.cls 840
+            ld e, (hl)		; City.cls 841
+            inc hl		; City.cls 842
+            ld d, (hl)		; City.cls 843
+            ld hl, (fn_city_render_w_pb)		; City.cls 844
+            add hl, bc		; City.cls 845
+            ld a, (hl)		; City.cls 846
+            inc hl		; City.cls 847
+            ld h, (hl)		; City.cls 848
+            ld l, a		; City.cls 849
+            add hl, de		; City.cls 850
+            ex de, hl		; City.cls 851
+            ld hl, (fn_city_render_w_pc)		; City.cls 852
+            add hl, bc		; City.cls 853
+            ld a, (hl)		; City.cls 854
+            inc hl		; City.cls 855
+            ld h, (hl)		; City.cls 856
+            ld l, a		; City.cls 857
+            add hl, de		; City.cls 858
+            ret		; City.cls 859
 ; ve_oc - A = the outcode of the corner at IX: bit 0 nearer than 16, 1 right (X > Z),
 ; 2 left (-X > Z), 3 above (4Y > 3Z), 4 below (-4Y > 3Z)
-fn_city_render_ve_oc:		; City.cls 821
-            ld c, 0		; City.cls 822
-            ld l, (ix + 4)		; City.cls 823
-            ld h, (ix + 5)		; City.cls 824
-            ld (fn_city_render_w_vz), hl		; City.cls 825
-            ld de, 16		; City.cls 826
-            call fn_city_render_cmps		; City.cls 827
-            jr nc, fn_city_render_oc1		; City.cls 828
-            set 0, c		; City.cls 829
-fn_city_render_oc1:		; City.cls 830
-            ld e, (ix + 0)		; City.cls 831
-            ld d, (ix + 1)		; City.cls 832
-            ld hl, (fn_city_render_w_vz)		; City.cls 833
-            call fn_city_render_cmps		; City.cls 834
-            jr nc, fn_city_render_oc2		; City.cls 835
-            set 1, c		; City.cls 836
-fn_city_render_oc2:		; City.cls 837
-            ld l, (ix + 0)		; City.cls 838
-            ld h, (ix + 1)		; City.cls 839
-            call fn_city_render_hneg		; City.cls 840
-            ex de, hl		; City.cls 841
-            ld hl, (fn_city_render_w_vz)		; City.cls 842
-            call fn_city_render_cmps		; City.cls 843
-            jr nc, fn_city_render_oc3		; City.cls 844
-            set 2, c		; City.cls 845
-fn_city_render_oc3:		; City.cls 846
-            ld l, (ix + 2)		; City.cls 847
-            ld h, (ix + 3)		; City.cls 848
-            add hl, hl		; City.cls 849
-            add hl, hl		; City.cls 850
-            ld (fn_city_render_w_v4y), hl		; City.cls 851
-            ld hl, (fn_city_render_w_vz)		; City.cls 852
-            ld e, l		; City.cls 853
-            ld d, h		; City.cls 854
-            add hl, hl		; City.cls 855
-            add hl, de		; City.cls 856
-            ld (fn_city_render_w_v3z), hl		; City.cls 857
-            ld de, (fn_city_render_w_v4y)		; City.cls 858
-            call fn_city_render_cmps		; City.cls 859
-            jr nc, fn_city_render_oc4		; City.cls 860
-            set 3, c		; City.cls 861
-fn_city_render_oc4:		; City.cls 862
-            ld hl, (fn_city_render_w_v4y)		; City.cls 863
-            call fn_city_render_hneg		; City.cls 864
-            ex de, hl		; City.cls 865
-            ld hl, (fn_city_render_w_v3z)		; City.cls 866
-            call fn_city_render_cmps		; City.cls 867
-            jr nc, fn_city_render_oc5		; City.cls 868
-            set 4, c		; City.cls 869
-fn_city_render_oc5:		; City.cls 870
-            ld a, c		; City.cls 871
-            ret		; City.cls 872
+fn_city_render_ve_oc:		; City.cls 862
+            ld c, 0		; City.cls 863
+            ld l, (ix + 4)		; City.cls 864
+            ld h, (ix + 5)		; City.cls 865
+            ld (fn_city_render_w_vz), hl		; City.cls 866
+            ld de, 16		; City.cls 867
+            call fn_city_render_cmps		; City.cls 868
+            jr nc, fn_city_render_oc1		; City.cls 869
+            set 0, c		; City.cls 870
+fn_city_render_oc1:		; City.cls 871
+            ld e, (ix + 0)		; City.cls 872
+            ld d, (ix + 1)		; City.cls 873
+            ld hl, (fn_city_render_w_vz)		; City.cls 874
+            call fn_city_render_cmps		; City.cls 875
+            jr nc, fn_city_render_oc2		; City.cls 876
+            set 1, c		; City.cls 877
+fn_city_render_oc2:		; City.cls 878
+            ld l, (ix + 0)		; City.cls 879
+            ld h, (ix + 1)		; City.cls 880
+            call fn_city_render_hneg		; City.cls 881
+            ex de, hl		; City.cls 882
+            ld hl, (fn_city_render_w_vz)		; City.cls 883
+            call fn_city_render_cmps		; City.cls 884
+            jr nc, fn_city_render_oc3		; City.cls 885
+            set 2, c		; City.cls 886
+fn_city_render_oc3:		; City.cls 887
+            ld l, (ix + 2)		; City.cls 888
+            ld h, (ix + 3)		; City.cls 889
+            add hl, hl		; City.cls 890
+            add hl, hl		; City.cls 891
+            ld (fn_city_render_w_v4y), hl		; City.cls 892
+            ld hl, (fn_city_render_w_vz)		; City.cls 893
+            ld e, l		; City.cls 894
+            ld d, h		; City.cls 895
+            add hl, hl		; City.cls 896
+            add hl, de		; City.cls 897
+            ld (fn_city_render_w_v3z), hl		; City.cls 898
+            ld de, (fn_city_render_w_v4y)		; City.cls 899
+            call fn_city_render_cmps		; City.cls 900
+            jr nc, fn_city_render_oc4		; City.cls 901
+            set 3, c		; City.cls 902
+fn_city_render_oc4:		; City.cls 903
+            ld hl, (fn_city_render_w_v4y)		; City.cls 904
+            call fn_city_render_hneg		; City.cls 905
+            ex de, hl		; City.cls 906
+            ld hl, (fn_city_render_w_v3z)		; City.cls 907
+            call fn_city_render_cmps		; City.cls 908
+            jr nc, fn_city_render_oc5		; City.cls 909
+            set 4, c		; City.cls 910
+fn_city_render_oc5:		; City.cls 911
+            ld a, c		; City.cls 912
+            ret		; City.cls 913
 ; ve_proj - the corner at IX onto the screen: sx = 160 + X * 160 / Z (0-319),
 ; sy = 100 - Y * 133 / Z (0-199), at IX + 8, IX + 10
-fn_city_render_ve_proj:		; City.cls 875
-            ld l, (ix + 4)		; City.cls 876
-            ld h, (ix + 5)		; City.cls 877
-            bit 7, h		; City.cls 878
-            jr nz, fn_city_render_pj_z1		; City.cls 879
-            ld a, h		; City.cls 880
-            or l		; City.cls 881
-            jr nz, fn_city_render_pj_z		; City.cls 882
-fn_city_render_pj_z1:		; City.cls 883
-            ld hl, 1		; City.cls 884
-fn_city_render_pj_z:		; City.cls 885
-            ld (fn_city_render_w_pzv), hl		; City.cls 886
-            ld l, (ix + 0)		; City.cls 887
-            ld h, (ix + 1)		; City.cls 888
-            ld a, h		; City.cls 889
-            ld (fn_city_render_w_psg), a		; City.cls 890
-            call fn_city_render_habs		; City.cls 891
-            ld de, (fn_city_render_w_pzv)		; City.cls 892
-            call fn_city_render_ucap		; City.cls 893
-            call fn_city_render_pj_160		; City.cls 894
-            call fn_city_render_pj_div		; City.cls 895
-            ex de, hl		; City.cls 896
-            ld hl, 160		; City.cls 897
-            ld a, (fn_city_render_w_psg)		; City.cls 898
-            bit 7, a		; City.cls 899
-            jr nz, fn_city_render_pj_xn		; City.cls 900
-            add hl, de		; City.cls 901
-            jr fn_city_render_pj_xs		; City.cls 902
-fn_city_render_pj_xn:		; City.cls 903
-            or a		; City.cls 904
-            sbc hl, de		; City.cls 905
-fn_city_render_pj_xs:		; City.cls 906
-            ld de, 319		; City.cls 907
-            call fn_city_render_ucap		; City.cls 908
-            ld (ix + 8), l		; City.cls 909
-            ld (ix + 9), h		; City.cls 910
-            ld l, (ix + 2)		; City.cls 911
-            ld h, (ix + 3)		; City.cls 912
-            ld a, h		; City.cls 913
-            ld (fn_city_render_w_psg), a		; City.cls 914
-            call fn_city_render_habs		; City.cls 915
-            push hl		; City.cls 916
-            ld hl, (fn_city_render_w_pzv)		; City.cls 917
-            ld e, l		; City.cls 918
-            ld d, h		; City.cls 919
-            add hl, hl		; City.cls 920
-            add hl, de		; City.cls 921
-            srl h		; City.cls 922
-            rr l		; City.cls 923
-            srl h		; City.cls 924
-            rr l		; City.cls 925
-            ex de, hl		; City.cls 926
-            pop hl		; City.cls 927
-            call fn_city_render_ucap		; City.cls 928
-            call fn_city_render_pj_133		; City.cls 929
-            call fn_city_render_pj_div		; City.cls 930
-            ex de, hl		; City.cls 931
-            ld hl, 100		; City.cls 932
-            ld a, (fn_city_render_w_psg)		; City.cls 933
-            bit 7, a		; City.cls 934
-            jr nz, fn_city_render_pj_yn		; City.cls 935
-            or a		; City.cls 936
-            sbc hl, de		; City.cls 937
-            jr fn_city_render_pj_ys		; City.cls 938
-fn_city_render_pj_yn:		; City.cls 939
-            add hl, de		; City.cls 940
-fn_city_render_pj_ys:		; City.cls 941
-            ld de, 199		; City.cls 942
-            call fn_city_render_ucap		; City.cls 943
-            ld (ix + 10), l		; City.cls 944
-            ld (ix + 11), h		; City.cls 945
-            ret		; City.cls 946
-; pj_160 / pj_133 - C:HL = HL * 160 / * 133 (24 bits), by shifts
-fn_city_render_pj_160:		; City.cls 948
-            ld c, 0		; City.cls 949
-            add hl, hl		; City.cls 950
-            rl c		; City.cls 951
-            add hl, hl		; City.cls 952
-            rl c		; City.cls 953
-            add hl, hl		; City.cls 954
-            rl c		; City.cls 955
-            add hl, hl		; City.cls 956
-            rl c		; City.cls 957
-            add hl, hl		; City.cls 958
-            rl c                    ; * 32 [959]
+fn_city_render_ve_proj:		; City.cls 916
+            ld l, (ix + 4)		; City.cls 917
+            ld h, (ix + 5)		; City.cls 918
+            bit 7, h		; City.cls 919
+            jr nz, fn_city_render_pj_z1		; City.cls 920
+            ld a, h		; City.cls 921
+            or l		; City.cls 922
+            jr nz, fn_city_render_pj_z		; City.cls 923
+fn_city_render_pj_z1:		; City.cls 924
+            ld hl, 1		; City.cls 925
+fn_city_render_pj_z:		; City.cls 926
+            ld (fn_city_render_w_pzv), hl		; City.cls 927
+            ld l, (ix + 0)		; City.cls 928
+            ld h, (ix + 1)		; City.cls 929
+            ld a, h		; City.cls 930
+            ld (fn_city_render_w_psg), a		; City.cls 931
+            call fn_city_render_habs		; City.cls 932
+            ld de, (fn_city_render_w_pzv)		; City.cls 933
+            call fn_city_render_ucap		; City.cls 934
+            call fn_city_render_pj_160		; City.cls 935
+            call fn_city_render_pj_div		; City.cls 936
+            ex de, hl		; City.cls 937
+            ld hl, 160		; City.cls 938
+            ld a, (fn_city_render_w_psg)		; City.cls 939
+            bit 7, a		; City.cls 940
+            jr nz, fn_city_render_pj_xn		; City.cls 941
+            add hl, de		; City.cls 942
+            jr fn_city_render_pj_xs		; City.cls 943
+fn_city_render_pj_xn:		; City.cls 944
+            or a		; City.cls 945
+            sbc hl, de		; City.cls 946
+fn_city_render_pj_xs:		; City.cls 947
+            ld de, 319		; City.cls 948
+            call fn_city_render_ucap		; City.cls 949
+            ld (ix + 8), l		; City.cls 950
+            ld (ix + 9), h		; City.cls 951
+            ld l, (ix + 2)		; City.cls 952
+            ld h, (ix + 3)		; City.cls 953
+            ld a, h		; City.cls 954
+            ld (fn_city_render_w_psg), a		; City.cls 955
+            call fn_city_render_habs		; City.cls 956
+            push hl		; City.cls 957
+            ld hl, (fn_city_render_w_pzv)		; City.cls 958
+            ld e, l		; City.cls 959
             ld d, h		; City.cls 960
-            ld e, l		; City.cls 961
-            ld b, c		; City.cls 962
-            add hl, hl		; City.cls 963
-            rl c		; City.cls 964
-            add hl, hl		; City.cls 965
-            rl c                    ; * 128 [966]
-            add hl, de		; City.cls 967
-            ld a, c		; City.cls 968
-            adc a, b		; City.cls 969
-            ld c, a                 ; * 160 [970]
-            ret		; City.cls 971
-fn_city_render_pj_133:		; City.cls 972
-            ld c, 0		; City.cls 973
-            push hl                 ; n [974]
-            add hl, hl		; City.cls 975
-            rl c		; City.cls 976
-            add hl, hl		; City.cls 977
-            rl c                    ; * 4 [978]
-            ld d, h		; City.cls 979
-            ld e, l		; City.cls 980
-            ld b, c		; City.cls 981
-            add hl, hl		; City.cls 982
-            rl c		; City.cls 983
-            add hl, hl		; City.cls 984
-            rl c		; City.cls 985
-            add hl, hl		; City.cls 986
-            rl c		; City.cls 987
-            add hl, hl		; City.cls 988
-            rl c		; City.cls 989
-            add hl, hl		; City.cls 990
-            rl c                    ; * 128 [991]
-            add hl, de		; City.cls 992
-            ld a, c		; City.cls 993
-            adc a, b		; City.cls 994
-            ld c, a                 ; * 132 [995]
-            pop de		; City.cls 996
-            add hl, de		; City.cls 997
-            ld a, c		; City.cls 998
-            adc a, 0		; City.cls 999
-            ld c, a                 ; * 133 [1000]
-            ret		; City.cls 1001
-; pj_div - HL = C:HL / (w_pzv): the quotient is under 256 (8 steps)
-fn_city_render_pj_div:		; City.cls 1003
-            ld b, l		; City.cls 1004
-            ld l, h		; City.cls 1005
-            ld h, c                 ; HL = the top 16 bits, B = the low 8 [1006]
-            ld de, (fn_city_render_w_pzv)		; City.cls 1007
-            ld c, 0		; City.cls 1008
-            ld a, 8		; City.cls 1009
-fn_city_render_pd_lp:		; City.cls 1010
-            sla b		; City.cls 1011
-            adc hl, hl		; City.cls 1012
-            sla c		; City.cls 1013
-            or a		; City.cls 1014
-            sbc hl, de		; City.cls 1015
-            jr nc, fn_city_render_pd_y		; City.cls 1016
-            add hl, de		; City.cls 1017
-            jr fn_city_render_pd_n		; City.cls 1018
-fn_city_render_pd_y:		; City.cls 1019
-            inc c		; City.cls 1020
-fn_city_render_pd_n:		; City.cls 1021
-            dec a		; City.cls 1022
-            jr nz, fn_city_render_pd_lp		; City.cls 1023
-            ld l, c		; City.cls 1024
-            ld h, 0		; City.cls 1025
-            ret		; City.cls 1026
-; vx12 - HL = the corner table + A * 12
-fn_city_render_vx12:		; City.cls 1028
-            ld l, a		; City.cls 1029
-            ld h, 0		; City.cls 1030
+            add hl, hl		; City.cls 961
+            add hl, de		; City.cls 962
+            srl h		; City.cls 963
+            rr l		; City.cls 964
+            srl h		; City.cls 965
+            rr l		; City.cls 966
+            ex de, hl		; City.cls 967
+            pop hl		; City.cls 968
+            call fn_city_render_ucap		; City.cls 969
+            call fn_city_render_pj_133		; City.cls 970
+            call fn_city_render_pj_div		; City.cls 971
+            ex de, hl		; City.cls 972
+            ld hl, 100		; City.cls 973
+            ld a, (fn_city_render_w_psg)		; City.cls 974
+            bit 7, a		; City.cls 975
+            jr nz, fn_city_render_pj_yn		; City.cls 976
+            or a		; City.cls 977
+            sbc hl, de		; City.cls 978
+            jr fn_city_render_pj_ys		; City.cls 979
+fn_city_render_pj_yn:		; City.cls 980
+            add hl, de		; City.cls 981
+fn_city_render_pj_ys:		; City.cls 982
+            ld de, 199		; City.cls 983
+            call fn_city_render_ucap		; City.cls 984
+            ld (ix + 10), l		; City.cls 985
+            ld (ix + 11), h		; City.cls 986
+            ret		; City.cls 987
+; pj_160 / pj_133 - C:HL = HL * 160 / * 133 (24 bits), by shifts
+fn_city_render_pj_160:		; City.cls 989
+            ld c, 0		; City.cls 990
+            add hl, hl		; City.cls 991
+            rl c		; City.cls 992
+            add hl, hl		; City.cls 993
+            rl c		; City.cls 994
+            add hl, hl		; City.cls 995
+            rl c		; City.cls 996
+            add hl, hl		; City.cls 997
+            rl c		; City.cls 998
+            add hl, hl		; City.cls 999
+            rl c                    ; * 32 [1000]
+            ld d, h		; City.cls 1001
+            ld e, l		; City.cls 1002
+            ld b, c		; City.cls 1003
+            add hl, hl		; City.cls 1004
+            rl c		; City.cls 1005
+            add hl, hl		; City.cls 1006
+            rl c                    ; * 128 [1007]
+            add hl, de		; City.cls 1008
+            ld a, c		; City.cls 1009
+            adc a, b		; City.cls 1010
+            ld c, a                 ; * 160 [1011]
+            ret		; City.cls 1012
+fn_city_render_pj_133:		; City.cls 1013
+            ld c, 0		; City.cls 1014
+            push hl                 ; n [1015]
+            add hl, hl		; City.cls 1016
+            rl c		; City.cls 1017
+            add hl, hl		; City.cls 1018
+            rl c                    ; * 4 [1019]
+            ld d, h		; City.cls 1020
+            ld e, l		; City.cls 1021
+            ld b, c		; City.cls 1022
+            add hl, hl		; City.cls 1023
+            rl c		; City.cls 1024
+            add hl, hl		; City.cls 1025
+            rl c		; City.cls 1026
+            add hl, hl		; City.cls 1027
+            rl c		; City.cls 1028
+            add hl, hl		; City.cls 1029
+            rl c		; City.cls 1030
             add hl, hl		; City.cls 1031
-            add hl, hl		; City.cls 1032
-            ld e, l		; City.cls 1033
-            ld d, h		; City.cls 1034
-            add hl, hl		; City.cls 1035
-            add hl, de		; City.cls 1036
-            ld de, 37734		; City.cls 1037
+            rl c                    ; * 128 [1032]
+            add hl, de		; City.cls 1033
+            ld a, c		; City.cls 1034
+            adc a, b		; City.cls 1035
+            ld c, a                 ; * 132 [1036]
+            pop de		; City.cls 1037
             add hl, de		; City.cls 1038
-            ret		; City.cls 1039
+            ld a, c		; City.cls 1039
+            adc a, 0		; City.cls 1040
+            ld c, a                 ; * 133 [1041]
+            ret		; City.cls 1042
+; pj_div - HL = C:HL / (w_pzv): the quotient is under 256 (8 steps)
+fn_city_render_pj_div:		; City.cls 1044
+            ld b, l		; City.cls 1045
+            ld l, h		; City.cls 1046
+            ld h, c                 ; HL = the top 16 bits, B = the low 8 [1047]
+            ld de, (fn_city_render_w_pzv)		; City.cls 1048
+            ld c, 0		; City.cls 1049
+            ld a, 8		; City.cls 1050
+fn_city_render_pd_lp:		; City.cls 1051
+            sla b		; City.cls 1052
+            adc hl, hl		; City.cls 1053
+            sla c		; City.cls 1054
+            or a		; City.cls 1055
+            sbc hl, de		; City.cls 1056
+            jr nc, fn_city_render_pd_y		; City.cls 1057
+            add hl, de		; City.cls 1058
+            jr fn_city_render_pd_n		; City.cls 1059
+fn_city_render_pd_y:		; City.cls 1060
+            inc c		; City.cls 1061
+fn_city_render_pd_n:		; City.cls 1062
+            dec a		; City.cls 1063
+            jr nz, fn_city_render_pd_lp		; City.cls 1064
+            ld l, c		; City.cls 1065
+            ld h, 0		; City.cls 1066
+            ret		; City.cls 1067
+; vx12 - HL = the corner table + A * 12
+fn_city_render_vx12:		; City.cls 1069
+            ld l, a		; City.cls 1070
+            ld h, 0		; City.cls 1071
+            add hl, hl		; City.cls 1072
+            add hl, hl		; City.cls 1073
+            ld e, l		; City.cls 1074
+            ld d, h		; City.cls 1075
+            add hl, hl		; City.cls 1076
+            add hl, de		; City.cls 1077
+            ld de, 37734		; City.cls 1078
+            add hl, de		; City.cls 1079
+            ret		; City.cls 1080
 ; ed_one - the edge (w_ea) - (w_eb): drawn as it is, clipped, or not at all
-fn_city_render_ed_one:		; City.cls 1041
-            ld ix, (fn_city_render_w_ea)		; City.cls 1042
-            ld iy, (fn_city_render_w_eb)		; City.cls 1043
-            ld a, (ix + 6)		; City.cls 1044
-            and (iy + 6)		; City.cls 1045
-            ret nz                  ; both ends outside the same side [1046]
-            ld a, (ix + 6)		; City.cls 1047
-            or (iy + 6)		; City.cls 1048
-            jr z, fn_city_render_ed_set		; City.cls 1049
-            ld (fn_city_render_w_mask), a		; City.cls 1050
-            push ix		; City.cls 1051
-            pop hl		; City.cls 1052
-            ld de, fn_city_render_w_e0		; City.cls 1053
-            ld bc, 6		; City.cls 1054
-            ldir		; City.cls 1055
-            push iy		; City.cls 1056
-            pop hl		; City.cls 1057
-            ld de, fn_city_render_w_e1		; City.cls 1058
-            ld bc, 6		; City.cls 1059
-            ldir		; City.cls 1060
-            call fn_city_render_clip3d		; City.cls 1061
-            ret nc                  ; nothing of it in view [1062]
-            ld ix, fn_city_render_w_e0		; City.cls 1063
-            call fn_city_render_ve_proj		; City.cls 1064
-            ld ix, fn_city_render_w_e1		; City.cls 1065
-            call fn_city_render_ve_proj		; City.cls 1066
-            ld ix, fn_city_render_w_e0		; City.cls 1067
-            ld iy, fn_city_render_w_e1		; City.cls 1068
-fn_city_render_ed_set:		; City.cls 1069
-            ld l, (ix + 8)		; City.cls 1070
-            ld h, (ix + 9)		; City.cls 1071
-            ld (gfx_x0), hl		; City.cls 1072
-            ld l, (ix + 10)		; City.cls 1073
-            ld h, (ix + 11)		; City.cls 1074
-            ld (gfx_y0), hl		; City.cls 1075
-            ld l, (iy + 8)		; City.cls 1076
-            ld h, (iy + 9)		; City.cls 1077
-            ld (gfx_x1), hl		; City.cls 1078
-            ld l, (iy + 10)		; City.cls 1079
-            ld h, (iy + 11)		; City.cls 1080
-            ld (gfx_y1), hl		; City.cls 1081
-            jp gfx_line		; City.cls 1082
+fn_city_render_ed_one:		; City.cls 1082
+            ld ix, (fn_city_render_w_ea)		; City.cls 1083
+            ld iy, (fn_city_render_w_eb)		; City.cls 1084
+            ld a, (ix + 6)		; City.cls 1085
+            and (iy + 6)		; City.cls 1086
+            ret nz                  ; both ends outside the same side [1087]
+            ld a, (ix + 6)		; City.cls 1088
+            or (iy + 6)		; City.cls 1089
+            jr z, fn_city_render_ed_set		; City.cls 1090
+            ld (fn_city_render_w_mask), a		; City.cls 1091
+            push ix		; City.cls 1092
+            pop hl		; City.cls 1093
+            ld de, fn_city_render_w_e0		; City.cls 1094
+            ld bc, 6		; City.cls 1095
+            ldir		; City.cls 1096
+            push iy		; City.cls 1097
+            pop hl		; City.cls 1098
+            ld de, fn_city_render_w_e1		; City.cls 1099
+            ld bc, 6		; City.cls 1100
+            ldir		; City.cls 1101
+            call fn_city_render_clip3d		; City.cls 1102
+            ret nc                  ; nothing of it in view [1103]
+            ld ix, fn_city_render_w_e0		; City.cls 1104
+            call fn_city_render_ve_proj		; City.cls 1105
+            ld ix, fn_city_render_w_e1		; City.cls 1106
+            call fn_city_render_ve_proj		; City.cls 1107
+            ld ix, fn_city_render_w_e0		; City.cls 1108
+            ld iy, fn_city_render_w_e1		; City.cls 1109
+fn_city_render_ed_set:		; City.cls 1110
+            ld l, (ix + 8)		; City.cls 1111
+            ld h, (ix + 9)		; City.cls 1112
+            ld (gfx_x0), hl		; City.cls 1113
+            ld l, (ix + 10)		; City.cls 1114
+            ld h, (ix + 11)		; City.cls 1115
+            ld (gfx_y0), hl		; City.cls 1116
+            ld l, (iy + 8)		; City.cls 1117
+            ld h, (iy + 9)		; City.cls 1118
+            ld (gfx_x1), hl		; City.cls 1119
+            ld l, (iy + 10)		; City.cls 1120
+            ld h, (iy + 11)		; City.cls 1121
+            ld (gfx_y1), hl		; City.cls 1122
+            jp gfx_line		; City.cls 1123
 ; clip3d - w_e0 - w_e1 cut against the sides in w_mask (near, right, left, top, bottom);
 ; carry: something is left
-fn_city_render_clip3d:		; City.cls 1085
-            xor a		; City.cls 1086
-            ld (fn_city_render_w_pl), a		; City.cls 1087
-fn_city_render_cp_lp:		; City.cls 1088
-            ld a, (fn_city_render_w_mask)		; City.cls 1089
-            rrca		; City.cls 1090
-            ld (fn_city_render_w_mask), a		; City.cls 1091
-            jr nc, fn_city_render_cp_next		; City.cls 1092
-            ld ix, fn_city_render_w_e0		; City.cls 1093
-            call fn_city_render_cp_dist		; City.cls 1094
-            ld (fn_city_render_w_d0), hl		; City.cls 1095
-            ld ix, fn_city_render_w_e1		; City.cls 1096
-            call fn_city_render_cp_dist		; City.cls 1097
-            ld (fn_city_render_w_d1), hl		; City.cls 1098
-            ld a, (fn_city_render_w_d0 + 1)		; City.cls 1099
-            ld b, a		; City.cls 1100
-            ld a, (fn_city_render_w_d1 + 1)		; City.cls 1101
-            and b		; City.cls 1102
-            jp m, fn_city_render_cp_rej            ; both outside [1103]
-            bit 7, b		; City.cls 1104
-            jr z, fn_city_render_cp_e1		; City.cls 1105
-            ld ix, fn_city_render_w_e0             ; end 0 outside: moved to the side [1106]
-            ld iy, fn_city_render_w_e1		; City.cls 1107
-            ld hl, (fn_city_render_w_d0)		; City.cls 1108
-            ld (fn_city_render_w_dn), hl		; City.cls 1109
-            ld de, (fn_city_render_w_d1)		; City.cls 1110
-            or a		; City.cls 1111
-            sbc hl, de		; City.cls 1112
-            ld (fn_city_render_w_dd), hl		; City.cls 1113
-            call fn_city_render_cp_lerp		; City.cls 1114
-            jr fn_city_render_cp_next		; City.cls 1115
-fn_city_render_cp_e1:		; City.cls 1116
-            ld a, (fn_city_render_w_d1 + 1)		; City.cls 1117
-            bit 7, a		; City.cls 1118
-            jr z, fn_city_render_cp_next		; City.cls 1119
-            ld ix, fn_city_render_w_e1             ; end 1 outside [1120]
-            ld iy, fn_city_render_w_e0		; City.cls 1121
-            ld hl, (fn_city_render_w_d1)		; City.cls 1122
-            ld (fn_city_render_w_dn), hl		; City.cls 1123
-            ld de, (fn_city_render_w_d0)		; City.cls 1124
-            or a		; City.cls 1125
-            sbc hl, de		; City.cls 1126
-            ld (fn_city_render_w_dd), hl		; City.cls 1127
-            call fn_city_render_cp_lerp		; City.cls 1128
-fn_city_render_cp_next:		; City.cls 1129
-            ld a, (fn_city_render_w_pl)		; City.cls 1130
-            inc a		; City.cls 1131
-            ld (fn_city_render_w_pl), a		; City.cls 1132
-            cp 5		; City.cls 1133
-            jr nz, fn_city_render_cp_lp		; City.cls 1134
-            scf		; City.cls 1135
-            ret		; City.cls 1136
-fn_city_render_cp_rej:		; City.cls 1137
-            or a		; City.cls 1138
-            ret		; City.cls 1139
+fn_city_render_clip3d:		; City.cls 1126
+            xor a		; City.cls 1127
+            ld (fn_city_render_w_pl), a		; City.cls 1128
+fn_city_render_cp_lp:		; City.cls 1129
+            ld a, (fn_city_render_w_mask)		; City.cls 1130
+            rrca		; City.cls 1131
+            ld (fn_city_render_w_mask), a		; City.cls 1132
+            jr nc, fn_city_render_cp_next		; City.cls 1133
+            ld ix, fn_city_render_w_e0		; City.cls 1134
+            call fn_city_render_cp_dist		; City.cls 1135
+            ld (fn_city_render_w_d0), hl		; City.cls 1136
+            ld ix, fn_city_render_w_e1		; City.cls 1137
+            call fn_city_render_cp_dist		; City.cls 1138
+            ld (fn_city_render_w_d1), hl		; City.cls 1139
+            ld a, (fn_city_render_w_d0 + 1)		; City.cls 1140
+            ld b, a		; City.cls 1141
+            ld a, (fn_city_render_w_d1 + 1)		; City.cls 1142
+            and b		; City.cls 1143
+            jp m, fn_city_render_cp_rej            ; both outside [1144]
+            bit 7, b		; City.cls 1145
+            jr z, fn_city_render_cp_e1		; City.cls 1146
+            ld ix, fn_city_render_w_e0             ; end 0 outside: moved to the side [1147]
+            ld iy, fn_city_render_w_e1		; City.cls 1148
+            ld hl, (fn_city_render_w_d0)		; City.cls 1149
+            ld (fn_city_render_w_dn), hl		; City.cls 1150
+            ld de, (fn_city_render_w_d1)		; City.cls 1151
+            or a		; City.cls 1152
+            sbc hl, de		; City.cls 1153
+            ld (fn_city_render_w_dd), hl		; City.cls 1154
+            call fn_city_render_cp_lerp		; City.cls 1155
+            jr fn_city_render_cp_next		; City.cls 1156
+fn_city_render_cp_e1:		; City.cls 1157
+            ld a, (fn_city_render_w_d1 + 1)		; City.cls 1158
+            bit 7, a		; City.cls 1159
+            jr z, fn_city_render_cp_next		; City.cls 1160
+            ld ix, fn_city_render_w_e1             ; end 1 outside [1161]
+            ld iy, fn_city_render_w_e0		; City.cls 1162
+            ld hl, (fn_city_render_w_d1)		; City.cls 1163
+            ld (fn_city_render_w_dn), hl		; City.cls 1164
+            ld de, (fn_city_render_w_d0)		; City.cls 1165
+            or a		; City.cls 1166
+            sbc hl, de		; City.cls 1167
+            ld (fn_city_render_w_dd), hl		; City.cls 1168
+            call fn_city_render_cp_lerp		; City.cls 1169
+fn_city_render_cp_next:		; City.cls 1170
+            ld a, (fn_city_render_w_pl)		; City.cls 1171
+            inc a		; City.cls 1172
+            ld (fn_city_render_w_pl), a		; City.cls 1173
+            cp 5		; City.cls 1174
+            jr nz, fn_city_render_cp_lp		; City.cls 1175
+            scf		; City.cls 1176
+            ret		; City.cls 1177
+fn_city_render_cp_rej:		; City.cls 1178
+            or a		; City.cls 1179
+            ret		; City.cls 1180
 ; cp_dist - HL = how far the point at IX is inside side w_pl (negative: outside)
-fn_city_render_cp_dist:		; City.cls 1141
-            ld e, (ix + 4)		; City.cls 1142
-            ld d, (ix + 5)		; City.cls 1143
-            ld a, (fn_city_render_w_pl)		; City.cls 1144
-            or a		; City.cls 1145
-            jr nz, fn_city_render_cd1		; City.cls 1146
-            ld hl, -16		; City.cls 1147
-            add hl, de              ; Z - 16 [1148]
-            ret		; City.cls 1149
-fn_city_render_cd1:		; City.cls 1150
-            dec a		; City.cls 1151
-            jr nz, fn_city_render_cd2		; City.cls 1152
-            ld l, (ix + 0)		; City.cls 1153
-            ld h, (ix + 1)		; City.cls 1154
-            ex de, hl		; City.cls 1155
-            or a		; City.cls 1156
-            sbc hl, de              ; Z - X [1157]
-            ret		; City.cls 1158
-fn_city_render_cd2:		; City.cls 1159
-            dec a		; City.cls 1160
-            jr nz, fn_city_render_cd3		; City.cls 1161
-            ld l, (ix + 0)		; City.cls 1162
-            ld h, (ix + 1)		; City.cls 1163
-            add hl, de              ; Z + X [1164]
-            ret		; City.cls 1165
-fn_city_render_cd3:		; City.cls 1166
-            push af		; City.cls 1167
-            ld l, e		; City.cls 1168
-            ld h, d		; City.cls 1169
-            add hl, hl		; City.cls 1170
-            add hl, de		; City.cls 1171
-            ex de, hl               ; DE = 3Z [1172]
-            ld l, (ix + 2)		; City.cls 1173
-            ld h, (ix + 3)		; City.cls 1174
-            add hl, hl		; City.cls 1175
-            add hl, hl              ; HL = 4Y [1176]
-            pop af		; City.cls 1177
-            dec a		; City.cls 1178
-            jr nz, fn_city_render_cd4		; City.cls 1179
-            ex de, hl		; City.cls 1180
-            or a		; City.cls 1181
-            sbc hl, de              ; (3Z - 4Y) / 2 [1182]
-            sra h		; City.cls 1183
-            rr l		; City.cls 1184
-            ret		; City.cls 1185
-fn_city_render_cd4:		; City.cls 1186
-            add hl, de              ; (3Z + 4Y) / 2 [1187]
-            sra h		; City.cls 1188
-            rr l		; City.cls 1189
+fn_city_render_cp_dist:		; City.cls 1182
+            ld e, (ix + 4)		; City.cls 1183
+            ld d, (ix + 5)		; City.cls 1184
+            ld a, (fn_city_render_w_pl)		; City.cls 1185
+            or a		; City.cls 1186
+            jr nz, fn_city_render_cd1		; City.cls 1187
+            ld hl, -16		; City.cls 1188
+            add hl, de              ; Z - 16 [1189]
             ret		; City.cls 1190
+fn_city_render_cd1:		; City.cls 1191
+            dec a		; City.cls 1192
+            jr nz, fn_city_render_cd2		; City.cls 1193
+            ld l, (ix + 0)		; City.cls 1194
+            ld h, (ix + 1)		; City.cls 1195
+            ex de, hl		; City.cls 1196
+            or a		; City.cls 1197
+            sbc hl, de              ; Z - X [1198]
+            ret		; City.cls 1199
+fn_city_render_cd2:		; City.cls 1200
+            dec a		; City.cls 1201
+            jr nz, fn_city_render_cd3		; City.cls 1202
+            ld l, (ix + 0)		; City.cls 1203
+            ld h, (ix + 1)		; City.cls 1204
+            add hl, de              ; Z + X [1205]
+            ret		; City.cls 1206
+fn_city_render_cd3:		; City.cls 1207
+            push af		; City.cls 1208
+            ld l, e		; City.cls 1209
+            ld h, d		; City.cls 1210
+            add hl, hl		; City.cls 1211
+            add hl, de		; City.cls 1212
+            ex de, hl               ; DE = 3Z [1213]
+            ld l, (ix + 2)		; City.cls 1214
+            ld h, (ix + 3)		; City.cls 1215
+            add hl, hl		; City.cls 1216
+            add hl, hl              ; HL = 4Y [1217]
+            pop af		; City.cls 1218
+            dec a		; City.cls 1219
+            jr nz, fn_city_render_cd4		; City.cls 1220
+            ex de, hl		; City.cls 1221
+            or a		; City.cls 1222
+            sbc hl, de              ; (3Z - 4Y) / 2 [1223]
+            sra h		; City.cls 1224
+            rr l		; City.cls 1225
+            ret		; City.cls 1226
+fn_city_render_cd4:		; City.cls 1227
+            add hl, de              ; (3Z + 4Y) / 2 [1228]
+            sra h		; City.cls 1229
+            rr l		; City.cls 1230
+            ret		; City.cls 1231
 ; cp_lerp - the point at IX moved towards IY's: + (IY - IX) * w_dn / w_dd
-fn_city_render_cp_lerp:		; City.cls 1192
-            ld b, 3		; City.cls 1193
-fn_city_render_cl_lp2:		; City.cls 1194
-            push bc		; City.cls 1195
-            ld l, (iy + 0)		; City.cls 1196
-            ld h, (iy + 1)		; City.cls 1197
-            ld e, (ix + 0)		; City.cls 1198
-            ld d, (ix + 1)		; City.cls 1199
-            or a		; City.cls 1200
-            sbc hl, de		; City.cls 1201
-            ex de, hl		; City.cls 1202
-            ld bc, (fn_city_render_w_dn)		; City.cls 1203
-            call fn_city_render_mul16s		; City.cls 1204
-            ld bc, (fn_city_render_w_dd)		; City.cls 1205
-            call fn_city_render_div32s16		; City.cls 1206
-            ld e, (ix + 0)		; City.cls 1207
-            ld d, (ix + 1)		; City.cls 1208
-            add hl, de		; City.cls 1209
-            ld (ix + 0), l		; City.cls 1210
-            ld (ix + 1), h		; City.cls 1211
-            inc ix		; City.cls 1212
-            inc ix		; City.cls 1213
-            inc iy		; City.cls 1214
-            inc iy		; City.cls 1215
-            pop bc		; City.cls 1216
-            djnz fn_city_render_cl_lp2		; City.cls 1217
-            ret		; City.cls 1218
+fn_city_render_cp_lerp:		; City.cls 1233
+            ld b, 3		; City.cls 1234
+fn_city_render_cl_lp2:		; City.cls 1235
+            push bc		; City.cls 1236
+            ld l, (iy + 0)		; City.cls 1237
+            ld h, (iy + 1)		; City.cls 1238
+            ld e, (ix + 0)		; City.cls 1239
+            ld d, (ix + 1)		; City.cls 1240
+            or a		; City.cls 1241
+            sbc hl, de		; City.cls 1242
+            ex de, hl		; City.cls 1243
+            ld bc, (fn_city_render_w_dn)		; City.cls 1244
+            call fn_city_render_mul16s		; City.cls 1245
+            ld bc, (fn_city_render_w_dd)		; City.cls 1246
+            call fn_city_render_div32s16		; City.cls 1247
+            ld e, (ix + 0)		; City.cls 1248
+            ld d, (ix + 1)		; City.cls 1249
+            add hl, de		; City.cls 1250
+            ld (ix + 0), l		; City.cls 1251
+            ld (ix + 1), h		; City.cls 1252
+            inc ix		; City.cls 1253
+            inc ix		; City.cls 1254
+            inc iy		; City.cls 1255
+            inc iy		; City.cls 1256
+            pop bc		; City.cls 1257
+            djnz fn_city_render_cl_lp2		; City.cls 1258
+            ret		; City.cls 1259
 
 ; ---- arithmetic
 
 ; mulfix - HL = DE * BC / 16384, signed
-fn_city_render_mulfix:		; City.cls 1223
-            call fn_city_render_mul16s		; City.cls 1224
-            add hl, hl		; City.cls 1225
-            rl e		; City.cls 1226
-            rl d		; City.cls 1227
-            add hl, hl		; City.cls 1228
-            rl e		; City.cls 1229
-            rl d		; City.cls 1230
-            ex de, hl		; City.cls 1231
-            ret		; City.cls 1232
+fn_city_render_mulfix:		; City.cls 1264
+            call fn_city_render_mul16s		; City.cls 1265
+            add hl, hl		; City.cls 1266
+            rl e		; City.cls 1267
+            rl d		; City.cls 1268
+            add hl, hl		; City.cls 1269
+            rl e		; City.cls 1270
+            rl d		; City.cls 1271
+            ex de, hl		; City.cls 1272
+            ret		; City.cls 1273
 ; mul16s - DEHL = DE * BC, signed
-fn_city_render_mul16s:		; City.cls 1234
-            ld a, d		; City.cls 1235
-            xor b		; City.cls 1236
-            push af		; City.cls 1237
-            bit 7, d		; City.cls 1238
-            jr z, fn_city_render_ms1		; City.cls 1239
-            xor a		; City.cls 1240
-            sub e		; City.cls 1241
-            ld e, a		; City.cls 1242
-            sbc a, a		; City.cls 1243
-            sub d		; City.cls 1244
-            ld d, a		; City.cls 1245
-fn_city_render_ms1:		; City.cls 1246
-            bit 7, b		; City.cls 1247
-            jr z, fn_city_render_ms2		; City.cls 1248
-            xor a		; City.cls 1249
-            sub c		; City.cls 1250
-            ld c, a		; City.cls 1251
-            sbc a, a		; City.cls 1252
-            sub b		; City.cls 1253
-            ld b, a		; City.cls 1254
-fn_city_render_ms2:		; City.cls 1255
-            call fn_city_render_mulu16		; City.cls 1256
-            pop af		; City.cls 1257
-            ret p		; City.cls 1258
-fn_city_render_neg32:		; City.cls 1259
-            xor a		; City.cls 1260
-            sub l		; City.cls 1261
-            ld l, a		; City.cls 1262
-            ld a, 0		; City.cls 1263
-            sbc a, h		; City.cls 1264
-            ld h, a		; City.cls 1265
-            ld a, 0		; City.cls 1266
-            sbc a, e		; City.cls 1267
-            ld e, a		; City.cls 1268
-            ld a, 0		; City.cls 1269
-            sbc a, d		; City.cls 1270
-            ld d, a		; City.cls 1271
-            ret		; City.cls 1272
+fn_city_render_mul16s:		; City.cls 1275
+            ld a, d		; City.cls 1276
+            xor b		; City.cls 1277
+            push af		; City.cls 1278
+            bit 7, d		; City.cls 1279
+            jr z, fn_city_render_ms1		; City.cls 1280
+            xor a		; City.cls 1281
+            sub e		; City.cls 1282
+            ld e, a		; City.cls 1283
+            sbc a, a		; City.cls 1284
+            sub d		; City.cls 1285
+            ld d, a		; City.cls 1286
+fn_city_render_ms1:		; City.cls 1287
+            bit 7, b		; City.cls 1288
+            jr z, fn_city_render_ms2		; City.cls 1289
+            xor a		; City.cls 1290
+            sub c		; City.cls 1291
+            ld c, a		; City.cls 1292
+            sbc a, a		; City.cls 1293
+            sub b		; City.cls 1294
+            ld b, a		; City.cls 1295
+fn_city_render_ms2:		; City.cls 1296
+            call fn_city_render_mulu16		; City.cls 1297
+            pop af		; City.cls 1298
+            ret p		; City.cls 1299
+fn_city_render_neg32:		; City.cls 1300
+            xor a		; City.cls 1301
+            sub l		; City.cls 1302
+            ld l, a		; City.cls 1303
+            ld a, 0		; City.cls 1304
+            sbc a, h		; City.cls 1305
+            ld h, a		; City.cls 1306
+            ld a, 0		; City.cls 1307
+            sbc a, e		; City.cls 1308
+            ld e, a		; City.cls 1309
+            ld a, 0		; City.cls 1310
+            sbc a, d		; City.cls 1311
+            ld d, a		; City.cls 1312
+            ret		; City.cls 1313
 ; mulu16 - DEHL = DE * BC, unsigned
-fn_city_render_mulu16:		; City.cls 1274
-            ld hl, 0		; City.cls 1275
-            ld a, 16		; City.cls 1276
-fn_city_render_mu_lp:		; City.cls 1277
-            add hl, hl		; City.cls 1278
-            rl e		; City.cls 1279
-            rl d		; City.cls 1280
-            jr nc, fn_city_render_mu_n		; City.cls 1281
-            add hl, bc		; City.cls 1282
-            jr nc, fn_city_render_mu_n		; City.cls 1283
-            inc de		; City.cls 1284
-fn_city_render_mu_n:		; City.cls 1285
-            dec a		; City.cls 1286
-            jr nz, fn_city_render_mu_lp		; City.cls 1287
-            ret		; City.cls 1288
+fn_city_render_mulu16:		; City.cls 1315
+            ld hl, 0		; City.cls 1316
+            ld a, 16		; City.cls 1317
+fn_city_render_mu_lp:		; City.cls 1318
+            add hl, hl		; City.cls 1319
+            rl e		; City.cls 1320
+            rl d		; City.cls 1321
+            jr nc, fn_city_render_mu_n		; City.cls 1322
+            add hl, bc		; City.cls 1323
+            jr nc, fn_city_render_mu_n		; City.cls 1324
+            inc de		; City.cls 1325
+fn_city_render_mu_n:		; City.cls 1326
+            dec a		; City.cls 1327
+            jr nz, fn_city_render_mu_lp		; City.cls 1328
+            ret		; City.cls 1329
 ; div32s16 - HL = DEHL / BC, signed (kept to 32767 if it would be more)
-fn_city_render_div32s16:		; City.cls 1290
-            ld a, d		; City.cls 1291
-            xor b		; City.cls 1292
-            push af		; City.cls 1293
-            bit 7, d		; City.cls 1294
-            call nz, fn_city_render_neg32		; City.cls 1295
-            bit 7, b		; City.cls 1296
-            jr z, fn_city_render_ds1		; City.cls 1297
-            xor a		; City.cls 1298
-            sub c		; City.cls 1299
-            ld c, a		; City.cls 1300
-            sbc a, a		; City.cls 1301
-            sub b		; City.cls 1302
-            ld b, a		; City.cls 1303
-fn_city_render_ds1:		; City.cls 1304
-            ex de, hl		; City.cls 1305
-            or a		; City.cls 1306
-            sbc hl, bc		; City.cls 1307
-            add hl, bc		; City.cls 1308
-            jr c, fn_city_render_ds2		; City.cls 1309
-            ld de, #7FFF		; City.cls 1310
-            jr fn_city_render_ds3		; City.cls 1311
-fn_city_render_ds2:		; City.cls 1312
-            call fn_city_render_divu		; City.cls 1313
-fn_city_render_ds3:		; City.cls 1314
-            ex de, hl		; City.cls 1315
-            pop af		; City.cls 1316
-            ret p		; City.cls 1317
-fn_city_render_hneg:		; City.cls 1318
-            xor a		; City.cls 1319
-            sub l		; City.cls 1320
-            ld l, a		; City.cls 1321
-            sbc a, a		; City.cls 1322
-            sub h		; City.cls 1323
-            ld h, a		; City.cls 1324
-            ret		; City.cls 1325
+fn_city_render_div32s16:		; City.cls 1331
+            ld a, d		; City.cls 1332
+            xor b		; City.cls 1333
+            push af		; City.cls 1334
+            bit 7, d		; City.cls 1335
+            call nz, fn_city_render_neg32		; City.cls 1336
+            bit 7, b		; City.cls 1337
+            jr z, fn_city_render_ds1		; City.cls 1338
+            xor a		; City.cls 1339
+            sub c		; City.cls 1340
+            ld c, a		; City.cls 1341
+            sbc a, a		; City.cls 1342
+            sub b		; City.cls 1343
+            ld b, a		; City.cls 1344
+fn_city_render_ds1:		; City.cls 1345
+            ex de, hl		; City.cls 1346
+            or a		; City.cls 1347
+            sbc hl, bc		; City.cls 1348
+            add hl, bc		; City.cls 1349
+            jr c, fn_city_render_ds2		; City.cls 1350
+            ld de, #7FFF		; City.cls 1351
+            jr fn_city_render_ds3		; City.cls 1352
+fn_city_render_ds2:		; City.cls 1353
+            call fn_city_render_divu		; City.cls 1354
+fn_city_render_ds3:		; City.cls 1355
+            ex de, hl		; City.cls 1356
+            pop af		; City.cls 1357
+            ret p		; City.cls 1358
+fn_city_render_hneg:		; City.cls 1359
+            xor a		; City.cls 1360
+            sub l		; City.cls 1361
+            ld l, a		; City.cls 1362
+            sbc a, a		; City.cls 1363
+            sub h		; City.cls 1364
+            ld h, a		; City.cls 1365
+            ret		; City.cls 1366
 ; divu - DE = HL:DE / BC, unsigned, HL < BC (HL = the remainder)
-fn_city_render_divu:		; City.cls 1327
-            ld a, 16		; City.cls 1328
-fn_city_render_dv_lp:		; City.cls 1329
-            sla e		; City.cls 1330
-            rl d		; City.cls 1331
-            adc hl, hl		; City.cls 1332
-            jr c, fn_city_render_dv_s		; City.cls 1333
-            sbc hl, bc		; City.cls 1334
-            jr nc, fn_city_render_dv_ok		; City.cls 1335
-            add hl, bc		; City.cls 1336
-            dec a		; City.cls 1337
-            jr nz, fn_city_render_dv_lp		; City.cls 1338
-            ret		; City.cls 1339
-fn_city_render_dv_s:		; City.cls 1340
-            or a		; City.cls 1341
-            sbc hl, bc		; City.cls 1342
-fn_city_render_dv_ok:		; City.cls 1343
-            inc e		; City.cls 1344
-            dec a		; City.cls 1345
-            jr nz, fn_city_render_dv_lp		; City.cls 1346
-            ret		; City.cls 1347
+fn_city_render_divu:		; City.cls 1368
+            ld a, 16		; City.cls 1369
+fn_city_render_dv_lp:		; City.cls 1370
+            sla e		; City.cls 1371
+            rl d		; City.cls 1372
+            adc hl, hl		; City.cls 1373
+            jr c, fn_city_render_dv_s		; City.cls 1374
+            sbc hl, bc		; City.cls 1375
+            jr nc, fn_city_render_dv_ok		; City.cls 1376
+            add hl, bc		; City.cls 1377
+            dec a		; City.cls 1378
+            jr nz, fn_city_render_dv_lp		; City.cls 1379
+            ret		; City.cls 1380
+fn_city_render_dv_s:		; City.cls 1381
+            or a		; City.cls 1382
+            sbc hl, bc		; City.cls 1383
+fn_city_render_dv_ok:		; City.cls 1384
+            inc e		; City.cls 1385
+            dec a		; City.cls 1386
+            jr nz, fn_city_render_dv_lp		; City.cls 1387
+            ret		; City.cls 1388
 ; habs - HL = |HL|
-fn_city_render_habs:		; City.cls 1349
-            bit 7, h		; City.cls 1350
-            ret z		; City.cls 1351
-            jr fn_city_render_hneg		; City.cls 1352
+fn_city_render_habs:		; City.cls 1390
+            bit 7, h		; City.cls 1391
+            ret z		; City.cls 1392
+            jr fn_city_render_hneg		; City.cls 1393
 ; ucap - HL = the smaller of HL and DE, unsigned
-fn_city_render_ucap:		; City.cls 1354
-            or a		; City.cls 1355
-            sbc hl, de		; City.cls 1356
-            add hl, de		; City.cls 1357
-            ret c		; City.cls 1358
-            ld h, d		; City.cls 1359
-            ld l, e		; City.cls 1360
-            ret		; City.cls 1361
+fn_city_render_ucap:		; City.cls 1395
+            or a		; City.cls 1396
+            sbc hl, de		; City.cls 1397
+            add hl, de		; City.cls 1398
+            ret c		; City.cls 1399
+            ld h, d		; City.cls 1400
+            ld l, e		; City.cls 1401
+            ret		; City.cls 1402
 ; cmps - carry when HL < DE, signed (HL lost)
-fn_city_render_cmps:		; City.cls 1363
-            ld a, h		; City.cls 1364
-            xor d		; City.cls 1365
-            jp m, fn_city_render_cm_d		; City.cls 1366
-            or a		; City.cls 1367
-            sbc hl, de		; City.cls 1368
-            ret		; City.cls 1369
-fn_city_render_cm_d:		; City.cls 1370
-            bit 7, h		; City.cls 1371
-            scf		; City.cls 1372
-            ret nz		; City.cls 1373
-            or a		; City.cls 1374
-            ret		; City.cls 1375
+fn_city_render_cmps:		; City.cls 1404
+            ld a, h		; City.cls 1405
+            xor d		; City.cls 1406
+            jp m, fn_city_render_cm_d		; City.cls 1407
+            or a		; City.cls 1408
+            sbc hl, de		; City.cls 1409
+            ret		; City.cls 1410
+fn_city_render_cm_d:		; City.cls 1411
+            bit 7, h		; City.cls 1412
+            scf		; City.cls 1413
+            ret nz		; City.cls 1414
+            or a		; City.cls 1415
+            ret		; City.cls 1416
 ; x6 - HL = A * 6
-fn_city_render_x6:		; City.cls 1377
-            ld l, a		; City.cls 1378
-            ld h, 0		; City.cls 1379
-            add hl, hl		; City.cls 1380
-            ld e, l		; City.cls 1381
-            ld d, h		; City.cls 1382
-            add hl, hl		; City.cls 1383
-            add hl, de		; City.cls 1384
-            ret		; City.cls 1385
+fn_city_render_x6:		; City.cls 1418
+            ld l, a		; City.cls 1419
+            ld h, 0		; City.cls 1420
+            add hl, hl		; City.cls 1421
+            ld e, l		; City.cls 1422
+            ld d, h		; City.cls 1423
+            add hl, hl		; City.cls 1424
+            add hl, de		; City.cls 1425
+            ret		; City.cls 1426
 
-fn_city_render_ce_edges:   db 0, 1, 2, 3, 0, 2, 1, 3, 4, 5, 6, 7, 4, 6, 5, 7, 0, 4, 1, 5, 2, 6, 3, 7		; City.cls 1387
-fn_city_render_w_rs:       dw 0		; City.cls 1388
-fn_city_render_w_a:        dw 0		; City.cls 1389
-fn_city_render_w_b:        dw 0		; City.cls 1390
-fn_city_render_w_t:        dw 0		; City.cls 1391
-fn_city_render_w_d:        dw 0		; City.cls 1392
-fn_city_render_w_k:        dw 0		; City.cls 1393
-fn_city_render_w_cbx:      db 0		; City.cls 1394
-fn_city_render_w_cbz:      db 0		; City.cls 1395
-fn_city_render_w_ci:       db 0		; City.cls 1396
-fn_city_render_w_cj:       db 0		; City.cls 1397
-fn_city_render_w_lvl:      db 0		; City.cls 1398
-fn_city_render_w_var:      db 0		; City.cls 1399
-fn_city_render_w_vk:       db 0		; City.cls 1400
-fn_city_render_w_psg:      db 0		; City.cls 1401
-fn_city_render_w_mask:     db 0		; City.cls 1402
-fn_city_render_w_pl:       db 0		; City.cls 1403
-fn_city_render_w_px0:      dw 0		; City.cls 1404
-fn_city_render_w_px1:      dw 0		; City.cls 1405
-fn_city_render_w_pz0:      dw 0		; City.cls 1406
-fn_city_render_w_pz1:      dw 0		; City.cls 1407
-fn_city_render_w_phl:      dw 0		; City.cls 1408
-fn_city_render_w_sum:      dw 0		; City.cls 1409
-fn_city_render_w_cx:       dw 0		; City.cls 1410
-fn_city_render_w_cy:       dw 0		; City.cls 1411
-fn_city_render_w_cz:       dw 0		; City.cls 1412
-fn_city_render_w_pa:       dw 0		; City.cls 1413
-fn_city_render_w_pb:       dw 0		; City.cls 1414
-fn_city_render_w_pc:       dw 0		; City.cls 1415
-fn_city_render_w_vz:       dw 0		; City.cls 1416
-fn_city_render_w_v4y:      dw 0		; City.cls 1417
-fn_city_render_w_v3z:      dw 0		; City.cls 1418
-fn_city_render_w_pzv:      dw 0		; City.cls 1419
-fn_city_render_w_ea:       dw 0		; City.cls 1420
-fn_city_render_w_eb:       dw 0		; City.cls 1421
-fn_city_render_w_d0:       dw 0		; City.cls 1422
-fn_city_render_w_d1:       dw 0		; City.cls 1423
-fn_city_render_w_dn:       dw 0		; City.cls 1424
-fn_city_render_w_dd:       dw 0		; City.cls 1425
-fn_city_render_w_csp:      dw 0		; City.cls 1426
-fn_city_render_w_crp:      dw 0		; City.cls 1427
-fn_city_render_w_e0:       ds 12		; City.cls 1428
-fn_city_render_w_e1:       ds 12		; City.cls 1429
+fn_city_render_ce_edges:   db 0, 1, 2, 3, 0, 2, 1, 3, 4, 5, 6, 7, 4, 6, 5, 7, 0, 4, 1, 5, 2, 6, 3, 7		; City.cls 1428
+fn_city_render_w_rs:       dw 0		; City.cls 1429
+fn_city_render_w_a:        dw 0		; City.cls 1430
+fn_city_render_w_b:        dw 0		; City.cls 1431
+fn_city_render_w_t:        dw 0		; City.cls 1432
+fn_city_render_w_d:        dw 0		; City.cls 1433
+fn_city_render_w_k:        dw 0		; City.cls 1434
+fn_city_render_w_cbx:      db 0		; City.cls 1435
+fn_city_render_w_cbz:      db 0		; City.cls 1436
+fn_city_render_w_ci:       db 0		; City.cls 1437
+fn_city_render_w_cj:       db 0		; City.cls 1438
+fn_city_render_w_lvl:      db 0		; City.cls 1439
+fn_city_render_w_var:      db 0		; City.cls 1440
+fn_city_render_w_vk:       db 0		; City.cls 1441
+fn_city_render_w_psg:      db 0		; City.cls 1442
+fn_city_render_w_mask:     db 0		; City.cls 1443
+fn_city_render_w_pl:       db 0		; City.cls 1444
+fn_city_render_w_px0:      dw 0		; City.cls 1445
+fn_city_render_w_px1:      dw 0		; City.cls 1446
+fn_city_render_w_pz0:      dw 0		; City.cls 1447
+fn_city_render_w_pz1:      dw 0		; City.cls 1448
+fn_city_render_w_phl:      dw 0		; City.cls 1449
+fn_city_render_w_sum:      dw 0		; City.cls 1450
+fn_city_render_w_cx:       dw 0		; City.cls 1451
+fn_city_render_w_cy:       dw 0		; City.cls 1452
+fn_city_render_w_cz:       dw 0		; City.cls 1453
+fn_city_render_w_pa:       dw 0		; City.cls 1454
+fn_city_render_w_pb:       dw 0		; City.cls 1455
+fn_city_render_w_pc:       dw 0		; City.cls 1456
+fn_city_render_w_vz:       dw 0		; City.cls 1457
+fn_city_render_w_v4y:      dw 0		; City.cls 1458
+fn_city_render_w_v3z:      dw 0		; City.cls 1459
+fn_city_render_w_pzv:      dw 0		; City.cls 1460
+fn_city_render_w_ea:       dw 0		; City.cls 1461
+fn_city_render_w_eb:       dw 0		; City.cls 1462
+fn_city_render_w_d0:       dw 0		; City.cls 1463
+fn_city_render_w_d1:       dw 0		; City.cls 1464
+fn_city_render_w_dn:       dw 0		; City.cls 1465
+fn_city_render_w_dd:       dw 0		; City.cls 1466
+fn_city_render_w_csp:      dw 0		; City.cls 1467
+fn_city_render_w_crp:      dw 0		; City.cls 1468
+fn_city_render_w_e0:       ds 12		; City.cls 1469
+fn_city_render_w_e1:       ds 12		; City.cls 1470
 			ret			; end of #asm
 
 fn_graphics_doublebuffer:		; sub doublebuffer (asm keyword), Graphics.cls line 94
@@ -1819,6 +1915,9 @@ fn_keys_down:		; function down (asm keyword), Keys.cls line 44
 ; Variables
 ; ============================================================
 
+var_n:			dw 0
+var_city_programend_programend:			dw 0
+var_city_buildings_buildings:			dw 0
 var_spd:			dw 0
 var_t:			dw 0
 var_p:			dw 0
@@ -1879,20 +1978,33 @@ llit_98304000:			dw 0, 1500
 ; ============================================================
 
 str0:			db "CITY3D - fly through the city", 0
-str1:			db "< >       roll", 0
-str2:			db "S X       dive / climb", 0
-str3:			db "cursors   turn, dive / climb", 0
-str4:			db "Space ?   faster / slower", 0
-str5:			db "T         turbo on / off", 0
-str6:			db "Q         quit", 0
-str7:			db "Press a key", 0
-str8:			db "SPEED", 0
-str9:			db " HEIGHT", 0
-str10:			db " TURBO", 0
-str11:			db 0
-str12:			db "  FPS", 0
-str13:			db "    ", 0
-str14:			db "Bye", 0
+str1:			db "World     16384 x 16384, repeating", 0
+str2:			db "Map       64 x 64 cells of 256", 0
+str3:			db "Buildings ", 0
+str4:			db " (1-7 storeys)", 0
+str5:			db "View      2048 ahead, 17 x 17 cells", 0
+str6:			db "Program   #0040-#", 0
+str7:			db "  ", 0
+str8:			db " bytes", 0
+str9:			db "Map+table #8000-#93C5  5062 bytes", 0
+str10:			db "Screens   #C000, #4000 16384 each", 0
+str11:			db "RAM used  ", 0
+str12:			db " + the screen", 0
+str13:			db "< >       roll", 0
+str14:			db "S X       dive / climb", 0
+str15:			db "cursors   turn, dive / climb", 0
+str16:			db "Space ?   faster / slower", 0
+str17:			db "T         turbo on / off", 0
+str18:			db "Q         quit", 0
+str19:			db "Press a key", 0
+str20:			db "SPEED ", 0
+str21:			db "  HEIGHT ", 0
+str22:			db "  TURBO", 0
+str23:			db 0
+str24:			db "  FPS ", 0
+str25:			db ".", 0
+str26:			db "    ", 0
+str27:			db "Bye", 0
 
 ; ============================================================
 ; Keyword library (used)
@@ -1965,6 +2077,12 @@ kw_turbo_on:
 			xor a
 			ld (ntc_nmode), a
 			ret
+
+;## kw_irq ntc_xn @shared
+;kw_irq  - normal mode: a safe point the compiler puts in long runs
+;  of keywords without a branch, so interrupts are not held off
+kw_irq:
+			jp ntc_xn
 
 ;## kw_turbo_off ntc_xn ntc_data @shared
 ;kw_turbo_off  - Turbo Off, used in turbo mode: continue in normal mode
@@ -2065,6 +2183,22 @@ kw_dec:
 			ret nz
 			inc hl
 			dec (hl)
+			ret
+
+;## kw_addl
+;kw_addl, <var>, <literal>, <destvar>
+kw_addl:
+			pop hl
+			ld e, (hl)
+			inc hl
+			ld d, (hl)
+			pop hl
+			add hl, de
+			ex de, hl
+			pop hl
+			ld (hl), e
+			inc hl
+			ld (hl), d
 			ret
 
 ;## kw_subvv
@@ -2169,6 +2303,20 @@ ntc_div_store:
 			ld (hl), d
 			ret
 
+;## kw_divvl ntc_div
+;kw_divvl, <var>, <literal>, <destvar>
+kw_divvl:
+			xor a
+			ld (ntc_mode), a
+ntc_divvl:
+			pop hl
+			ld a, (hl)
+			inc hl
+			ld h, (hl)
+			ld l, a
+			pop de
+			jp ntc_div
+
 ;## kw_divlv ntc_div
 ;kw_divlv, <literal>, <var>, <destvar>
 kw_divlv:
@@ -2183,6 +2331,13 @@ ntc_divlv:
 			ld h, b
 			ld l, c
 			jp ntc_div
+
+;## kw_modvl kw_divvl
+;kw_modvl, <var>, <literal>, <destvar>
+kw_modvl:
+			ld a, 1
+			ld (ntc_mode), a
+			jp ntc_divvl
 
 ;## kw_andvv
 ;kw_andvv, <var1>, <var2>, <destvar>
@@ -2544,6 +2699,51 @@ ntc_tk_got:
 ; (a literal goes in as lit_n, a dw in the data). Results go to a
 ; string buffer (41 bytes). Dest may be the same as the source.
 ; ============================================================
+
+;## kw_strhex
+;kw_strhex, <dest>, <nvar>  - Hex$(n), no leading zeros
+kw_strhex:
+			pop de
+			pop hl
+			ld a, (hl)
+			inc hl
+			ld h, (hl)
+			ld l, a
+			ld b, 4
+			ld c, 0
+ntc_hx_loop:
+			xor a
+			add hl, hl
+			rla
+			add hl, hl
+			rla
+			add hl, hl
+			rla
+			add hl, hl
+			rla
+			bit 0, c
+			jr nz, ntc_hx_out
+			or a
+			jr nz, ntc_hx_first
+			ld a, b
+			dec a
+			jr nz, ntc_hx_next
+			xor a
+ntc_hx_first:
+			set 0, c
+ntc_hx_out:
+			add a, '0'
+			cp '9' + 1
+			jr c, ntc_hx_put
+			add a, 7
+ntc_hx_put:
+			ld (de), a
+			inc de
+ntc_hx_next:
+			djnz ntc_hx_loop
+			xor a
+			ld (de), a
+			ret
 
 ;## kw_l_mov
 ;kw_l_mov, <src>, <dest>  - dest = src (4 bytes)

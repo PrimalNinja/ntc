@@ -8,14 +8,14 @@
 ' of a BASIC program in The Amstrad User, issue 69 (October 1990).
 ' Platforms: cpc, cpcmin, cpcfw and cpm on an Amstrad CPC (the Graphics class).
 Option Explicit
-Public Const MAXPOINTS = 32
-Public Const MAXEDGES = 64
+Public Const MAXPOINTS = 24
+Public Const MAXEDGES = 40
 
-Private px(31) As Integer, py(31) As Integer, pz(31) As Integer   ' the shape, 8.8
-Private sx(31) As Integer, sy(31) As Integer                      ' turned and projected: pixels
-Private ox(31) As Integer, oy(31) As Integer                      ' what is on the screen at #C000
-Private qx(31) As Integer, qy(31) As Integer                      ' ... and at #4000 (double buffering)
-Private ea(63) As Integer, eb(63) As Integer                      ' edges: point numbers
+Private px(23) As Integer, py(23) As Integer, pz(23) As Integer   ' the shape, 8.8
+Private sx(23) As Integer, sy(23) As Integer                      ' turned and projected: pixels
+Private ox(23) As Integer, oy(23) As Integer                      ' what is on the screen at #C000
+Private qx(23) As Integer, qy(23) As Integer                      ' ... and at #4000 (double buffering)
+Private ea(39) As Integer, eb(39) As Integer                      ' edges: point numbers
 Private np As Integer, ne As Integer, shown As Integer, shown2 As Integer
 Private cx As Integer, cy As Integer, scl As Integer, dst As Integer
 ' working space for the Z80 code
@@ -460,11 +460,11 @@ d_all:
 d_keep:
             ld hl, {sx}             ; what is on this screen now
             ld de, ({xo})
-            ld bc, 64
+            ld bc, {MAXPOINTS} * 2
             ldir
             ld hl, {sy}
             ld de, ({yo})
-            ld bc, 64
+            ld bc, {MAXPOINTS} * 2
             ldir
             ld hl, ({ek})
             ld (hl), 1
