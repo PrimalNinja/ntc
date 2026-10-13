@@ -11,6 +11,7 @@ NTC_STRMAX	equ 40		; the longest string (library buffers, temps)
 NTC_MEMBANKS	equ 64		; Option Memory: the most 64K banks the Memory class looks for
 NTC_ROMENABLE	equ 1		; Option RomEnable (cpcfw, cpcmin): the start code starts the ROMs
 NTC_ROMLIB	equ 0		; 1 = the library is the keyword ROM (Library: ROM; ntcRomAsm builds it)
+NTC_WINHOLE	equ 1		; 1 = the program is built round an Option Reserve range over the window #4000-#7FFF
 NTC_CPMGFX	equ 0		; 1 = CP/M: Graphics draws on an Amstrad CPC's screen (2.2: #C000, Plus: block 1 from common memory)
 
 ntc_start:
@@ -42,6 +43,10 @@ ntc_roms_on:
 			ld sp, main_thread
 			ret
 
+			IF ($ < 32768) && (ntc_rg1_e - ntc_rg1 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg1:
 ; ============================================================
 ; Main Thread
 ; ============================================================
@@ -143,6 +148,11 @@ for1_e:
 			dw kw_waitkey
 			dw kw_stop
 
+ntc_rg1_e:
+			IF ($ < 32768) && (ntc_rg2_e - ntc_rg2 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg2:
 ; ============================================================
 ; sub banner (normal mode)
 ; ============================================================
@@ -156,16 +166,31 @@ p_banner:
 			dw kw_printnl
 			dw p_banner_r
 
+ntc_rg2_e:
+			IF ($ < 32768) && (ntc_rg3_e - ntc_rg3 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg3:
 ; ============================================================
 ; function play (normal mode)
 ; ============================================================
 
 
+ntc_rg3_e:
+			IF ($ < 32768) && (ntc_rg4_e - ntc_rg4 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg4:
 ; ============================================================
 ; function bonus (normal mode)
 ; ============================================================
 
 
+ntc_rg4_e:
+			IF ($ < 32768) && (ntc_rg5_e - ntc_rg5 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg5:
 ; ============================================================
 ; function play (normal mode)
 ; ============================================================
@@ -266,6 +291,11 @@ p_level2_play_r:		; end of play
 			ld sp, (p_level2_play_rs)
 			jp ntc_xn
 
+ntc_rg5_e:
+			IF ($ < 32768) && (ntc_rg6_e - ntc_rg6 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg6:
 ; ============================================================
 ; Inline assembly (#asm ... #endasm)
 ; ============================================================
@@ -353,6 +383,11 @@ fn_memory_largest:		; function largest (asm keyword), Memory.cls line 305
 			ret			; end of #asm
 
 
+ntc_rg6_e:
+			IF ($ < 32768) && (ntc_rg7_e - ntc_rg7 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg7:
 ; ============================================================
 ; Variables
 ; ============================================================
@@ -391,6 +426,11 @@ tmp1:			dw 0
 ; numbers passed by address (read only)
 lit_1:			dw 1
 
+ntc_rg7_e:
+			IF ($ < 32768) && (ntc_rg8_e - ntc_rg8 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg8:
 ; ============================================================
 ; Strings
 ; ============================================================
@@ -419,10 +459,20 @@ str20:			db ", level 1 loaded ", 0
 str21:			db "  bonus from level 1 ", 0
 str22:			db 0
 
+ntc_rg8_e:
+			IF ($ < 32768) && (ntc_rg9_e - ntc_rg9 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg9:
 ; ============================================================
 ; Keyword library (used)
 ; ============================================================
 
+ntc_rg9_e:
+			IF ($ < 32768) && (ntc_rg10_e - ntc_rg10 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg10:
 ;## ntc_data @shared
 ; ------------------------------------------------------------
 ; Scratch space
@@ -455,6 +505,11 @@ ntc_numbuf:		ds 14			; printint / long print: digits (+ spaces for Option VBPrin
 				db 40			; ntc_inbuf's capacity (as every string variable has)
 ntc_inbuf:		ds 41			; inputint: typed text
 
+ntc_rg10_e:
+			IF ($ < 32768) && (ntc_rg11_e - ntc_rg11 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg11:
 ;## kw_stop ntc_data ntc_plat_exit @shared
 kw_stop:
 			ld ix, ntc_stop_back
@@ -464,12 +519,22 @@ ntc_stop_back:
 			ei
 			ret
 
+ntc_rg11_e:
+			IF ($ < 32768) && (ntc_rg12_e - ntc_rg12 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg12:
 ;## kw_waitkey ntc_data ntc_plat_key
 ; kw_waitkey - wait for a key (Option PressAnyKeyOnEnd, before kw_stop)
 kw_waitkey:
 			ld ix, ntc_next
 			jp ntc_plat_getkey
 
+ntc_rg12_e:
+			IF ($ < 32768) && (ntc_rg13_e - ntc_rg13 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg13:
 ;## ntc_xn ntc_data @shared
 ; normal mode "next": every normal mode keyword ends here (its ret
 ; became jp ntc_xn). Thread position to ntc_ip, real stack, one
@@ -483,12 +548,22 @@ ntc_xn:
 			ld sp, (ntc_ip)
 			ret
 
+ntc_rg13_e:
+			IF ($ < 32768) && (ntc_rg14_e - ntc_rg14 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg14:
 ;## kw_irq ntc_xn @shared
 ;kw_irq  - normal mode: a safe point the compiler puts in long runs
 ;  of keywords without a branch, so interrupts are not held off
 kw_irq:
 			jp ntc_xn
 
+ntc_rg14_e:
+			IF ($ < 32768) && (ntc_rg15_e - ntc_rg15 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg15:
 ;## kw_goto_iffalse (normal mode copy)
 ;kw_goto_iffalse, <label>  - branch if NZ (false)
 kw_goto_iffalse_n:
@@ -497,6 +572,11 @@ kw_goto_iffalse_n:
 			ld sp, hl
 			jp ntc_xn
 
+ntc_rg15_e:
+			IF ($ < 32768) && (ntc_rg16_e - ntc_rg16 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg16:
 ;## ntc_for_jump (normal mode copy)
 ; tails for the FOR / NEXT keywords. DE = var value, HL = limit,
 ; SP = thread at the label word. Signed compare by flipping bit 15.
@@ -567,6 +647,11 @@ ntc_for_end_n:
 			pop hl
 			jp ntc_xn
 
+ntc_rg16_e:
+			IF ($ < 32768) && (ntc_rg17_e - ntc_rg17 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg17:
 ;## kw_next1l (normal mode copy) ntc_for_jump
 ;kw_next1l, <var>, <literal limit>, <toplabel>
 ;  NEXT for STEP 1: inc var, back to the top while var <= limit
@@ -587,6 +672,11 @@ ntc_n1l_nc_n:
 			sbc a, a
 			jp ntc_for_le_n
 
+ntc_rg17_e:
+			IF ($ < 32768) && (ntc_rg18_e - ntc_rg18 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg18:
 ;## kw_ltov
 ;kw_ltov, <literal>, <destvar>
 kw_ltov:
@@ -597,6 +687,11 @@ kw_ltov:
 			ld (hl), d
 			ret
 
+ntc_rg18_e:
+			IF ($ < 32768) && (ntc_rg19_e - ntc_rg19 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg19:
 ;## kw_vtov
 ;kw_vtov, <sourcevar>, <destvar>
 kw_vtov:
@@ -610,6 +705,11 @@ kw_vtov:
 			ld (hl), d
 			ret
 
+ntc_rg19_e:
+			IF ($ < 32768) && (ntc_rg20_e - ntc_rg20 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg20:
 ;## kw_add
 ;kw_add, <var1>, <var2>, <destvar>
 kw_add:
@@ -630,6 +730,11 @@ kw_add:
 			ld (hl), d
 			ret
 
+ntc_rg20_e:
+			IF ($ < 32768) && (ntc_rg21_e - ntc_rg21 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg21:
 ;## ntc_cmp
 ntc_cmp_slt:
 			ld a, d
@@ -697,6 +802,11 @@ ntc_cmp_ne_f:
 			or 1
 			ret
 
+ntc_rg21_e:
+			IF ($ < 32768) && (ntc_rg22_e - ntc_rg22 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg22:
 ;## kw_cpeqvl ntc_cmp
 kw_cpeqvl:
 			pop hl
@@ -706,6 +816,11 @@ kw_cpeqvl:
 			pop hl
 			jp ntc_cmp_eq
 
+ntc_rg22_e:
+			IF ($ < 32768) && (ntc_rg23_e - ntc_rg23 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg23:
 ;## ntc_printbuf ntc_data ntc_plat_screen
 ; print the 0 terminated ASCII text at (ntc_sptr), then ret (thread)
 ntc_printbuf:
@@ -718,6 +833,11 @@ ntc_printbuf:
 			ld ix, ntc_printbuf
 			jp ntc_plat_putc
 
+ntc_rg23_e:
+			IF ($ < 32768) && (ntc_rg24_e - ntc_rg24 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg24:
 ;## kw_printstrvar ntc_printbuf
 ;kw_printstrvar, <straddr>
 kw_printstrvar:
@@ -725,6 +845,11 @@ kw_printstrvar:
 			ld (ntc_sptr), hl
 			jp ntc_printbuf
 
+ntc_rg24_e:
+			IF ($ < 32768) && (ntc_rg25_e - ntc_rg25 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg25:
 ;## ntc_itoa ntc_data
 ; HL = signed value, DE = buffer: writes the digits and a 0 (DE ends on
 ; the 0). jp (ix) back. Uses A, BC, IY.
@@ -783,6 +908,11 @@ ntc_ia_last:
 			jp (ix)
 ntc_pow10:		dw 10000, 1000, 100, 10, 0
 
+ntc_rg25_e:
+			IF ($ < 32768) && (ntc_rg26_e - ntc_rg26 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg26:
 ;## kw_printint ntc_printbuf ntc_itoa
 ;kw_printint, <var>  - signed decimal
 kw_printint:
@@ -799,6 +929,11 @@ ntc_pi_done:
 			ld (ntc_sptr), hl
 			jp ntc_printbuf
 
+ntc_rg26_e:
+			IF ($ < 32768) && (ntc_rg27_e - ntc_rg27 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg27:
 ;## kw_printnl0 ntc_data ntc_plat_screen
 ;kw_printnl0  - new line unless the cursor is at the start of a line
 kw_printnl0:
@@ -808,17 +943,32 @@ kw_printnl0:
 			ld ix, ntc_next
 			jp ntc_plat_newline
 
+ntc_rg27_e:
+			IF ($ < 32768) && (ntc_rg28_e - ntc_rg28 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg28:
 ;## kw_printnl ntc_data ntc_plat_screen
 ;kw_printnl
 kw_printnl:
 			ld ix, ntc_next
 			jp ntc_plat_newline
 
+ntc_rg28_e:
+			IF ($ < 32768) && (ntc_rg29_e - ntc_rg29 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg29:
 ;## ntc_buf2k
 ; ntc_buf - a 2K buffer shared by the classes that need one: FileSystem's
 ; CAS IN / OUT OPEN buffer (CPC firmware) and Memory.Copy's page to page copy
 ntc_buf:		ds 2048
 
+ntc_rg29_e:
+			IF ($ < 32768) && (ntc_rg30_e - ntc_rg30 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg30:
 ;## ntc_memcore ntc_data ntc_mem ntc_memcore2 ntc_plat_memtop @shared
 ; ------------------------------------------------------------
 ; ntc_memcore - the Memory class, the part every scheme shares. The scheme
@@ -933,6 +1083,11 @@ mem_chk_bad:
 			ld hl, MEM_BADPAGE
 			jp mem_err
 
+ntc_rg30_e:
+			IF ($ < 32768) && (ntc_rg31_e - ntc_rg31 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg31:
 ;## ntc_memcore2 ntc_memcore @shared @far
 ; ntc_memcore2 - the rest of the shared part: far pointers, the heap, bytes
 ; and words. Runs on the real stack (through mem_go), so a keyword ROM set
@@ -956,7 +1111,7 @@ mem_far:
 			ld a, d
 			and #C0
 			cp #40
-			jr nz, mem_chk_bad
+			jp nz, mem_chk_bad		; (jr: another part, maybe across Option Reserve)
 			ret
 
 ; PageOf(ptr): a far pointer's page
@@ -1199,6 +1354,11 @@ mem_putback:
 			pop hl
 			ret
 
+ntc_rg31_e:
+			IF ($ < 32768) && (ntc_rg32_e - ntc_rg32 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg32:
 ;## ntc_mem ntc_memcore ntc_membank @shared @far
 ; ------------------------------------------------------------
 ; ntc_mem (CPCExpansion) - 16K RAM pages in the #4000-#7FFF window (CPC gate
@@ -1250,6 +1410,9 @@ mem_start:
 			ld (mem_init), a
 			ld hl, ntc_free
 			ld (mem_tend), hl
+	IF NTC_WINHOLE
+			jr mem_st_prog			; the program is built round the window (Option Reserve)
+	ENDIF
 			ld de, MEM_WIN + 1		; the program must be out of the window:
 			or a					; it ends by #4000 ...
 			sbc hl, de
@@ -1364,6 +1527,10 @@ mem_pr_di:
 			add hl, hl
 			inc hl
 			ld (mem_count), hl
+	IF NTC_WINHOLE
+			call ntc_plat_memtop		; built round the window: the tables go above it
+			jr mem_tb_lim			; (ntc_memtab), up to the platform's top
+	ENDIF
 			ld de, (ntc_csp)		; the tables must end by #4000, or 128 bytes
 			ld hl, MEM_WIN			; under the real stack when it is lower
 			or a
@@ -1383,7 +1550,11 @@ mem_tb_fit:
 			ld e, l
 			add hl, hl
 			add hl, de				; 3 bytes a page
+	IF NTC_WINHOLE
+			ld de, ntc_memtab
+	ELSE
 			ld de, ntc_free
+	ENDIF
 			add hl, de
 			ex de, hl				; DE = their end
 			ld hl, (mem_tend)
@@ -1395,12 +1566,20 @@ mem_tb_fit:
 			ld (mem_count), hl
 			jr mem_tb_fit
 mem_tb_none:
+	IF NTC_WINHOLE
+			ld hl, ntc_memtab
+	ELSE
 			ld hl, ntc_free
+	ENDIF
 			ld (mem_tend), hl
 			ret
 mem_tb_ok:
 			ld (mem_tend), de
+	IF NTC_WINHOLE
+			ld hl, ntc_memtab
+	ELSE
 			ld hl, ntc_free
+	ENDIF
 			ld (mem_tnext), hl
 			ld de, (mem_count)
 			add hl, de
@@ -2279,6 +2458,11 @@ mem_lg_end:
 			dec hl
 			ret
 
+ntc_rg32_e:
+			IF ($ < 32768) && (ntc_rg33_e - ntc_rg33 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg33:
 ;## ntc_membank ntc_plat_rmr @shared @romram
 ; ------------------------------------------------------------
 ; ntc_membank - Memory's CallBank switch (CPCExpansion). Runs from RAM
@@ -2322,6 +2506,11 @@ ntc_bk_end:
 ntc_bk_di:
 			ret
 
+ntc_rg33_e:
+			IF ($ < 32768) && (ntc_rg34_e - ntc_rg34 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg34:
 ;## ntc_ovlcom ntc_data ntc_mem ntc_plat_screen ntc_plat_key kw_stop @shared
 ; ------------------------------------------------------------
 ; ntc_ovlcom - what both overlay schemes share (ntc_ovl has the rest): the
@@ -2589,6 +2778,11 @@ ntc_ovl_lfree:
 			ld hl, 0
 			ret
 
+ntc_rg34_e:
+			IF ($ < 32768) && (ntc_rg35_e - ntc_rg35 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg35:
 ;## ntc_ovl ntc_ovlcom ntc_mem ntc_plat_fs @shared
 ; ------------------------------------------------------------
 ; ntc_ovl - overlay classes (Option Class Overlay "FILE"): the class's
@@ -2856,6 +3050,11 @@ ntc_ovl_lno:
 			xor a
 			ret
 
+ntc_rg35_e:
+			IF ($ < 32768) && (ntc_rg36_e - ntc_rg36 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg36:
 ;## ntc_plat_data
 ntc_curx:		db 0			; cursor column (0 based) - kept here for Tab
 ntc_cury:		db 0			; cursor row (0 based)
@@ -2869,6 +3068,11 @@ ntc_irqix:		dw 0
 NTC_FWBLK	equ #A5F0		; the fast ticker's event block (central 32K, below the firmware)
 ntc_fwtop:		dw #A600		; the top of free RAM (#A5F0 with the fast ticker's block)
 
+ntc_rg36_e:
+			IF ($ < 32768) && (ntc_rg37_e - ntc_rg37 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg37:
 ;## ntc_plat_fw ntc_plat_data ntc_data @shared
 ; ------------------------------------------------------------
 ; ntc_fwcall - IY = firmware address; A, BC, DE, HL go in and come
@@ -2889,6 +3093,11 @@ ntc_fwcall:
 ntc_fwjp:
 			jp (iy)
 
+ntc_rg37_e:
+			IF ($ < 32768) && (ntc_rg38_e - ntc_rg38 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg38:
 ;## ntc_plat_screen ntc_plat_fw ntc_plat_data ntc_data
 ; ntc_plat_putc - A = character: TXT OUTPUT. The firmware wraps by itself after
 ; the last column, so only the column is counted here; a new line straight after
@@ -3041,6 +3250,11 @@ ntc_lc_y:
 			jp ntc_fwcall
 ntc_pclink:		dw 0
 
+ntc_rg38_e:
+			IF ($ < 32768) && (ntc_rg39_e - ntc_rg39 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg39:
 ;## ntc_plat_key ntc_plat_fw ntc_data
 ; ntc_plat_scankey - A = key from the firmware's buffer, or 0
 ntc_plat_scankey:
@@ -3063,6 +3277,11 @@ ntc_plat_getkey:
 			jp ntc_fwcall
 ntc_kslink:		dw 0
 
+ntc_rg39_e:
+			IF ($ < 32768) && (ntc_rg40_e - ntc_rg40 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg40:
 ;## ntc_plat_exit ntc_plat_data ntc_plat_fw
 ntc_plat_exit:
 			ld bc, #7FC0		; RAM setting back to plain (a Memory page may be in #4000)
@@ -3082,6 +3301,11 @@ ntc_ex_back:
 ntc_ex_done:
 			jp (ix)
 
+ntc_rg40_e:
+			IF ($ < 32768) && (ntc_rg41_e - ntc_rg41 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg41:
 ;## ntc_plat_fs ntc_data ntc_buf2k @shared
 FS_NOTFOUND	equ -2
 FS_TOOBIG	equ -8
@@ -3110,7 +3334,6 @@ fs_vol:			ds 9			; the volume in use ("" = not known)
 fs_vols:		ds 145			; the volumes that worked, "A,C,M" (up to 16 of up to 8 letters)
 fs_tmpn:		ds 9			; a volume name, capitals
 fs_rsxn:		ds 17			; a command name (last letter + #80), up to 16 letters
-fs_buf			equ ntc_buf		; the 2K buffer CAS IN OPEN / CAS OUT OPEN want (shared with Memory.Copy)
 			ASSERT ntc_free <= #A600, "FileSystem on cpcfw: the program and its arrays must end below #A600 (AMSDOS's RAM)"
 
 fs_go0:
@@ -3613,6 +3836,11 @@ fs_sv_done:
 			ld hl, 0
 			ret
 
+ntc_rg41_e:
+			IF ($ < 32768) && (ntc_rg42_e - ntc_rg42 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg42:
 ;## ntc_plat_memtop ntc_plat_data
 ; ntc_plat_memtop - HL = the first byte the Memory class's Small heap must not
 ; use: #A600 (the firmware's and AMSDOS's RAM is above), #A5F0 when the fast
@@ -3622,6 +3850,11 @@ ntc_plat_memtop:
 			ld hl, (ntc_fwtop)
 			ret
 
+ntc_rg42_e:
+			IF ($ < 32768) && (ntc_rg43_e - ntc_rg43 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg43:
 ;## ntc_plat_rmr ntc_plat_data
 ; ntc_plat_rmr - A = the gate array's ROM / mode byte now: the firmware keeps
 ; it in C' (B' = #7F), so Memory's CallBank can turn both ROMs off and put
@@ -3640,13 +3873,24 @@ ovl_blk_level1:	dw 0, ovl_level1_end, ovl_level1_vsize
 ovl_blk_level2:	dw 0, ovl_level2_end, ovl_level2_vsize
 			db "OVERLAYS.002", 0, "Level2", 0	; its file, its name (for the messages)
 
+ntc_rg43_e:
 ntc_end:				; the end of the program (and of its file)
+fs_buf			equ ntc_buf		; the 2K buffer CAS IN OPEN / CAS OUT OPEN want (shared with Memory.Copy)
 ; arrays: after the program, not in its file - kw_bssinit checks they fit and clears them
+			IF (ntc_end < 32768) && (ntc_end + ntc_bss_size > 16384)	; fwdref-ok
+ntc_bss		equ 32768		; after Option Reserve #4000-#7FFF
+			ELSE
 ntc_bss		equ ntc_end
+			ENDIF
 ntc_bss_size	equ 0
 ntc_free	equ ntc_bss + ntc_bss_size	; the first free byte (heap, Memory tables)
+			IF ntc_free <= 32768	; fwdref-ok
+ntc_memtab	equ 32768		; the Memory class's tables: above the window (Option Reserve)
+			ELSE
+ntc_memtab	equ ntc_free
+			ENDIF
 ; Option Reserve: the program and its arrays (ntc_start .. ntc_free) must stay out of these
-			ASSERT (ntc_free <= 16384) || (ntc_start >= 32768), "the program (or its arrays) reaches into Option Reserve #4000-#7FFF (Main.bas line 15)"
+			ASSERT (ntc_free <= 16384) || (ntc_bss >= 32768), "the program (or its arrays) reaches into Option Reserve #4000-#7FFF (Main.bas line 15)"
 			SAVEAMSDOS "OVERLAYS.BIN", ntc_start, ntc_end - ntc_start, ntc_start
 			ASSERT (ntc_free <= #4000) || (ntc_start >= #8000), "overlay classes: the program and its arrays must stay out of #4000-#7FFF (the window they run in)"
 
@@ -3738,4 +3982,4 @@ ovl_level2_vsize	equ 0		; its page variables; its local memory is the rest, to #
 			DISPLAY "  page variables ", /D, ovl_level2_vsize, ", free ", /D, #8000 - (ovl_level2_end + ovl_level2_vsize)
 			SAVEAMSDOS "OVERLAYS.002", ovl_level2_start, ovl_level2_end - ovl_level2_start, #4000
 
-NTC_STAMP	equ #4002		; the build stamp: the first word of every page file
+NTC_STAMP	equ #E0B7		; the build stamp: the first word of every page file

@@ -7,10 +7,35 @@ finished, with the date.
 
 ## done
 
+- 2026-10-14 CyborgOS speed and fixes: text for the front slot written straight into screen
+  memory (Hyp.Text: the firmware's matrices via TXT SET M TABLE, SCR CHAR POSITION; mode 2),
+  the slot's page a ring of 25 rows (no copy to scroll), the control-code scan in Z80
+  (Hyp.Printable); keys answered in the bank (#F681: BDOS 1, 6, 11 with no switch); time
+  slices of 6 interrupts handled in Hyp.Run (no BASIC between); BDOS 9 fetched with
+  Memory.Copy. Fixes: the screen didn't scroll on the real ROMs (the firmware scrolls only at the
+  next character below the last line); TOP closed at once (the ESC of Control + ESC) and
+  refreshed - now drawn once, Control + ESC / Control + a slot go back, the TOP command is gone;
+  firmware calls come back with interrupts on (di after them, or an interrupt is pushed into the
+  thread); the upper ROM is off while a program runs (Library: ROM had the keyword ROM over the
+  bank's top 16K). Library: ROM: Option Buffer has no buffer to place (the ROM has its own), and
+  the ROM's Memory tables start at the end of the program below the window when the arrays went
+  after an Option Reserve range. Harness: screen memory text (mode 2) for cpcfw, the RAM under
+  the keyword ROM, TXT SET M TABLE / SCR CHAR POSITION / ROM enable stand-ins, NTC_PROF
+  (a profile), NTC_LIMIT, NTC_PEEK; realcpc: Control + 1-8 / ESC (\c1 ... \ce). Measured on the
+  real ROMs: about 8 lines a second (was 3)
 - 2026-10-14 Graphics and CUBE3D on cpm (an Amstrad CPC, mode 2, one screen, no firmware): BDOS 12
   picks the way. CP/M 2.2 draws on #C000 in the program's 64K; CP/M Plus copies the line loop to
   #C000 (common memory) and draws each line from there with C1 (screen = block 1 at #4000), C2
   back. Harness: NTC_CPMVER (22 / 31, Plus modelled as C2 with the gate array), NTC_GFXCHK
+- 2026-10-14 **Option Reserve builds round the range**: guards at each place a program can be cut
+  (a library section, a procedure, the variables, the strings) skip the hole (`ds`) when the
+  next part would reach into it (sjasmplus sizes from its earlier pass); a jr that crosses parts
+  becomes jp; names that are another label + n go after everything; the arrays go after the
+  hole; NTC_WINHOLE / ntc_memtab put the Memory class's tables above the window. Test hole.bas
+- 2026-10-14 CyborgOS: the front slot gets half the turns, a program with no key gives up its
+  turns until the clock moves, characters out collected in the bank (128) and written in runs,
+  the system keys from an interrupt class (Hot.cls; Control held, numbers in turn), TOP
+  (Control + ESC), every register kept for the programs (IX, IY, alternates). 4MB: 64 banks
 - 2026-10-14 **CyborgOS** first version (`bas/cyborgos`, cpcfw, `build/dsk/cyborgos.dsk`): slots in
   whole 64K banks running cpm-built programs (.CYB = with an AMSDOS header) at #0100; BDOS at
   #0005 as far calls into the hypervisor; interrupts stop a program and hand back; per-slot text
@@ -491,8 +516,9 @@ finished, with the date.
   builds) or a header written in the OUTPUT block; the harness's CAS calls now follow the
   header rules (headerless = ASCII, no IN DIRECT; CAS OUT writes a header); the failure
   message says why and waits for a key
-- 2026-10-12 **Option NoTurbo**: normal mode only, one copy of each procedure and branch
-  keyword; Turbo On / Off do nothing (a warning). Shell sort 314 bytes smaller
+- 2026-10-12 **Option NoTurbo**: normal mode only; Turbo On / Off do nothing (a warning), so
+  code reached in both modes (procedures, branch keywords) is built once instead of twice. A
+  program that never switches mode is unchanged (it is already built once). Shell sort 314 bytes smaller
 - 2026-10-12 **Option Class Overlay ["FILE"] / Interrupt rate | Frame**: overlay classes'
   threads built into .PAG files in the same compile (OUTPUT / ORG #4000), loaded into C pages
   on the first call or with the added Load(), Unload / Loaded / Page; far-call stubs keep and

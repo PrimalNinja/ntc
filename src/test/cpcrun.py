@@ -111,7 +111,7 @@ class CPC:
         s.fwport = {}; s.fwaddr = {0xDF: 0x18}
         for i, a in enumerate(sorted(ntcrun.FW)):
             if ntcrun.FW[a].startswith(('cas_', 'kl_')):
-                m.set_memory_block(a, bytes([0xD3, 0xE0 + i, 0xC9])); s.fwport[0xE0 + i] = ntcrun.FW[a]; s.fwaddr[0xE0 + i] = a
+                m.set_memory_block(a, bytes([0xD3, (0xE0 + i) & 0xFF, 0xC9])); s.fwport[(0xE0 + i) & 0xFF] = ntcrun.FW[a]; s.fwaddr[(0xE0 + i) & 0xFF] = a
         m.set_memory_block(0x18, bytes([0xD3, 0xDF, 0xC9]))     # RST 3: AMSDOS's far call CAS entries
         # Library: ROM - the keyword ROM's image (NTC_XROM) in upper ROM slot XSLOT: at #C000 while
         # the gate array has the upper ROM on and that slot is selected (writes go to the RAM below)

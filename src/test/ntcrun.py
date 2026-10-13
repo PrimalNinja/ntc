@@ -8,7 +8,7 @@
 # cpcfw : CPC firmware jumpblock entries trapped (TXT, KM, SCR, MC, KL)
 # cpm   : CP/M page zero, BDOS (call 5) trapped
 # Prints the text screen, then a '---' status line (same form as cpcrun.py).
-import sys, os, subprocess
+import sys, os, subprocess, random
 import z80
 import cpcrun
 
@@ -25,6 +25,7 @@ FW = {0xBB06: 'km_wait', 0xBB09: 'km_read', 0xBB5A: 'txt_out', 0xBB6C: 'txt_clea
       0xBC8C: 'cas_out_open', 0xBC8F: 'cas_out_close', 0xBC92: 'cas_out_abandon', 0xBC98: 'cas_out_direct',
       0xBCCB: 'kl_rom_walk', 0xBCCE: 'kl_init_back', 0xBCD4: 'kl_find_command', 0x001B: 'kl_far_pcall',
       0xBCE0: 'kl_new_fast_ticker', 0xBCE6: 'kl_del_fast_ticker',
+      0xB906: 'kl_l_rom_enable', 0xB90C: 'kl_rom_restore', 0xBBA5: 'txt_matrix', 0xBBAB: 'txt_set_m_table', 0xBC1A: 'scr_char_pos',
       0xB900: 'kl_u_rom_enable', 0xB903: 'kl_u_rom_disable', 0xB90F: 'kl_rom_select', 0xB918: 'kl_rom_deselect'}
 # Library: ROM (cpcfw): the keyword ROM's image in upper ROM slot XSLOT - at #C000 while selected
 XSLOT = 6
@@ -49,6 +50,8 @@ def load_xroms():
             p = base + str(k) + ext
             if os.path.exists(p): out[9 + k] = img(p)
     return out
+# NTC_PROF=file: the PC at the end of each 13333 T chunk, with the symbols, written there (a profile)
+PROF = [] if os.environ.get('NTC_PROF') else None
 RSX = ['TAPE', 'DISC', 'A', 'B', 'C', 'M']   # AMSDOS's commands, and an M4-like DOS's C and M
 # files for the FileSystem class (cpm: BDOS FCB calls, cpcfw: CAS calls) live in this folder
 FILES = os.environ.get('NTC_FILES', os.path.join(HERE, 't', 'files'))
@@ -70,10 +73,26 @@ class Screen:
         s.cols = cols; s.rows = rows; s.clear()
     def clear(s):
         s.cells = [[' '] * 80 for _ in range(s.rows)]; s.x = 0; s.y = 0
+        # cpcfw: characters written straight into screen memory (mode 2, at SCR CHAR POSITION's
+        # addresses; the matrices from TXT GET MATRIX hold the character code in their first
+        # byte) are shown too; the firmware's scroll moves the screen's start (off)
+        s.off = 0
+        if getattr(s, 'mem', None) is not None: s.vset(0xC000, bytes(0x800))
+    def vset(s, a, data):
+        # screen RAM: the machine's memory, or (Library: ROM - the keyword ROM is at #C000) the
+        # RAM under it that writes there go to
+        if getattr(s, 'vram', None) is not None: s.vram[a - 0xC000:a - 0xC000 + len(data)] = data
+        else: s.mem.set_memory_block(a, data)
+    def vget(s, a):
+        return s.vram[a - 0xC000] if getattr(s, 'vram', None) is not None else s.mem.memory[a]
+    def scrolled(s):
+        if getattr(s, 'mem', None) is None: return
+        s.off = (s.off + 80) & 0x7FF
+        for c in range(80): s.vset(0xC000 + ((s.off + 24 * 80 + c) & 0x7FF), b'\0')
     def newline(s):
         s.x = 0; s.y += 1
         if s.y >= s.rows:
-            s.cells.pop(0); s.cells.append([' '] * 80); s.y = s.rows - 1
+            s.cells.pop(0); s.cells.append([' '] * 80); s.y = s.rows - 1; s.scrolled()
     def put(s, c):
         if s.x >= s.cols:
             s.newline()
@@ -111,7 +130,7 @@ class Screen:
         elif v == 10:
             s.y += 1
             if s.y >= s.rows:
-                s.cells.pop(0); s.cells.append([' '] * 80); s.y = s.rows - 1
+                s.cells.pop(0); s.cells.append([' '] * 80); s.y = s.rows - 1; s.scrolled()
         elif v == 8:
             if s.x > 0: s.x -= 1
             elif s.y > 0: s.y -= 1; s.x = s.cols - 1
@@ -121,6 +140,11 @@ class Screen:
     def locate(s, x, y):
         s.x = max(0, min(s.cols - 1, x - 1)); s.y = max(0, min(s.rows - 1, y - 1))
     def text(s):
+        if getattr(s, 'mem', None) is not None and s.cols == 80:
+            for r in range(min(s.rows, 25)):
+                for c in range(80):
+                    b = s.vget(0xC000 + ((s.off + r * 80 + c) & 0x7FF))
+                    if 32 <= b < 127: s.cells[r][c] = chr(b)
         out = [''.join(r[:s.cols]).rstrip() for r in s.cells]
         while out and not out[-1]: out.pop()
         return '\n'.join(out)
@@ -146,14 +170,19 @@ class Host:
             m.set_memory_block(0xBFF0, b'\x76'); m.set_memory_block(0xBE00 - 2, bytes([0xF0, 0xBF])); m.sp = 0xBE00 - 2
             m.set_memory_block(0xBFE0, bytes([0xED, 0x56, 0xC3, org & 255, org >> 8])); m.pc = 0xBFE0
             if platform == 'cpcfw':
-                s.scr.immediate = True
+                s.scr.immediate = True; s.scr.mem = m; s.scr.clear()
                 for i, a in enumerate(sorted(FW)):
-                    m.set_memory_block(a, bytes([0xD3, 0xE0 + i, 0xC9]))
-                s.fwport = {0xE0 + i: FW[a] for i, a in enumerate(sorted(FW))}
+                    m.set_memory_block(a, bytes([0xD3, (0xE0 + i) & 0xFF, 0xC9]))
+                s.fwport = {(0xE0 + i) & 0xFF: FW[a] for i, a in enumerate(sorted(FW))}
                 m.set_memory_block(0x18, bytes([0xD3, 0xDF, 0xC9]))   # RST 3: a far call (AMSDOS's CAS entries)
         s.ram = cpcrun.RamBanks(m)                          # the gate array's RAM setting (Memory class)
         s.romsel = 0
         s.xroms = load_xroms() if platform == 'cpcfw' else {}
+        if s.xroms and platform == 'cpcfw':
+            # writes to #C000-#FFFF (the screen) go to the RAM under the keyword ROM, not over its image
+            s.scr.vram = bytearray(0x4000)
+            m.mark_addrs(0xC000, 0x4000, m.WRITE_MARK)
+            m.set_write_callback(lambda a, v: s.scr.vram.__setitem__(a - 0xC000, v))
         m.set_output_callback(s.out); m.set_input_callback(s.inp)
     def key(s):
         # '~' in the typed text: this look at the keyboard finds no key (then the rest follow)
@@ -167,7 +196,13 @@ class Host:
     def out(s, port, val):
         lo = port & 0xFF; m = s.m
         if (s.p != 'cpm' or CPMVER >= 0x30) and 0x78 <= (port >> 8) <= 0x7F and (val & 0xC0) == 0xC0:
-            s.ram.set(val, port >> 8); return
+            s.ram.set(val, port >> 8)
+            if getattr(s.scr, 'vram', None) is not None:
+                # Library: ROM: the screen RAM under the keyword ROM only while main RAM's block 3
+                # is at #C000 (a task's bank there is written as it is)
+                if s.ram.view[3] == ('m', 3): s.m.mark_addrs(0xC000, 0x4000, s.m.WRITE_MARK)
+                else: s.m.unmark_addrs(0xC000, 0x4000, s.m.WRITE_MARK)
+            return
         if s.p == 'cpcfw' and (port >> 8) == 0xF6:
             s.line = val & 15; return          # the PPI's port C: the keyboard line (Keys class)
         if s.p == 'test':
@@ -224,6 +259,15 @@ class Host:
             if f == 'txt_out': s.scr.ctrl(val)
             elif f == 'txt_clear': s.scr.clear()
             elif f == 'txt_cursor': s.scr.locate(m.h, m.l)
+            elif f == 'txt_matrix':
+                m.set_memory_block(0x4000, bytes(sum(([c] + [0] * 7 for c in range(32, 128)), [])))
+                m.hl = 0x4000 + ((m.a - 32) & 0xFF) * 8
+            elif f == 'txt_set_m_table':
+                if m.d == 0: m.set_memory_block(m.hl, bytes(sum(([c] + [0] * 7 for c in range(m.e, 256)), [])))
+            elif f == 'scr_char_pos':
+                m.hl = 0xC000 + ((s.scr.off + m.l * 80 + m.h) & 0x7FF); m.b = 1
+            elif f in ('kl_l_rom_enable', 'kl_u_rom_disable', 'kl_u_rom_enable'): m.a = 0
+            elif f == 'kl_rom_restore': pass
             elif f == 'scr_mode': s.scr.cols = {0: 20, 1: 40}.get(val, 80); s.scr.clear()
             elif f == 'km_wait':
                 m.a = s.key() or 13; m.f = m.f | 1
@@ -404,7 +448,15 @@ class Host:
     def run(s, limit=30000):
         n = 0
         while not s.m.halted:
-            s.m.ticks_to_stop = 13333; cpcrun.endkey_run(s); n += 1; s.T += 13333 - s.m.ticks_to_stop
+            if PROF is not None:
+                # a sample at a random point in the chunk (not at its end: that is when the interrupt comes)
+                r = random.randint(100, 13200)
+                s.m.ticks_to_stop = r; cpcrun.endkey_run(s); s.T += r - s.m.ticks_to_stop
+                PROF.append((s.m.pc, 0 if s.ram.view[0] == ('m', 0) else 1, s.m.sp, s.m.memory[0] if False else 0))
+                q = 13333 - r
+            else:
+                q = 13333
+            s.m.ticks_to_stop = q; cpcrun.endkey_run(s); n += 1; s.T += q - s.m.ticks_to_stop
             if s.m.halted: break
             steps = 0
             while not s.m.halted and steps < 2000:
@@ -449,11 +501,15 @@ def main():
         h.m.set_memory_block(0x80, bytes([len(tail)]) + tail + b'\0')
         if CPMVER >= 0x30:
             h.ram.mainp = [bytes(0x4000)] * 4; h.ram.view = [('x', 0, 0), ('x', 0, 1), ('x', 0, 2), ('x', 0, 3)]
-    h.run()
+    h.run(int(os.environ.get('NTC_LIMIT', '30000')))
+    if os.environ.get('NTC_PEEK'):
+        for a in os.environ['NTC_PEEK'].split(','): print('--- peek %s: %s' % (a, ' '.join('%02x' % h.m.memory[int(a, 16) + i] for i in range(8))))
     print(h.scr.text())
     if plat == 'cpm' and os.environ.get('NTC_GFXCHK'):
         scr = h.ram.main_page(1) if CPMVER >= 0x30 else bytes(h.m.memory[0xC000:0xF000])
         print('--- screen bytes set: %d' % sum(1 for x in scr if x))
+    if PROF is not None:
+        import json; json.dump({'pc': PROF, 'syms': syms}, open(os.environ['NTC_PROF'], 'w'))
     print('--- halted' if h.m.halted else '--- NOT halted', 'pc=%04x' % h.m.pc, 'sp=%04x' % h.m.sp, 'ints=%d' % h.ints, 'T=%d' % h.T)
 
 if __name__ == '__main__':

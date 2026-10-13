@@ -11,6 +11,7 @@ NTC_STRMAX	equ 255		; the longest string (library buffers, temps)
 NTC_MEMBANKS	equ 64		; Option Memory: the most 64K banks the Memory class looks for
 NTC_ROMENABLE	equ 1		; Option RomEnable (cpcfw, cpcmin): the start code starts the ROMs
 NTC_ROMLIB	equ 1		; 1 = the library is the keyword ROM (Library: ROM; ntcRomAsm builds it)
+NTC_WINHOLE	equ 0		; 1 = the program is built round an Option Reserve range over the window #4000-#7FFF
 NTC_CPMGFX	equ 0		; 1 = CP/M: Graphics draws on an Amstrad CPC's screen (2.2: #C000, Plus: block 1 from common memory)
 
 ntc_start:
@@ -428,7 +429,11 @@ ntc_rj_all:
 ntc_rj_call:
 			call 0				; HL = jump block, BC = entries, A = slot, DE = slots; C: DE = a number it hasn't got
 			jp c, ntc_rj_lacks
+			IF (ntc_bss >= 32768) && (ntc_end <= 16384)	; fwdref-ok
+			ld hl, ntc_end
+			ELSE
 			ld hl, ntc_free
+			ENDIF
 			ld (ntc_v_free), hl
 			ld hl, ntc_start
 			ld (ntc_v_start), hl
@@ -1446,4 +1451,5 @@ arr_a		equ ntc_bss + 0		; 20 bytes
 arr_b		equ ntc_bss + 20		; 20 bytes
 ntc_bss_size	equ 40
 ntc_free	equ ntc_bss + ntc_bss_size	; the first free byte (heap, Memory tables)
+ntc_memtab	equ ntc_free		; the Memory class's tables
 			SAVEAMSDOS "FILESTEP.BIN", ntc_start, ntc_end - ntc_start, ntc_start

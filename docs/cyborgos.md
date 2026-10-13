@@ -17,20 +17,37 @@ from the design below:
   unchanged). Handled now: 0 (end), 1, 2, 6, 9, 11, 12 (gives 2.2), 25; files not yet (255).
 - Programs are `.CYB` files: a cpm build with an AMSDOS header (AMSDOS reads a headerless file
   as ASCII text, to the first #1A). `RUN name` loads name.CYB at #0100 of the slot's bank.
-- Scheduling is round robin from the hypervisor's main loop: a program runs until its next
-  BDOS call or an interrupt (NTC's safe points let interrupts in: a program with no BDOS
-  calls still gives the CPU back). The interrupt classes as the scheduler (fixed / Share) are
-  the next step.
-- The hypervisor keeps the firmware's alternate registers (BC') around each run, and runs
-  the firmware's interrupt handler (`rst #38`) for an interrupt that stopped a program.
+- Scheduling is from the hypervisor's main loop: a program runs for a time slice of 6
+  interrupts (1/50 s; the interrupts inside a slice are handled in Hyp.Run's code, with no trip
+  through BASIC) or until a BDOS call that needs the hypervisor. NTC's safe points let
+  interrupts in, so a program with no BDOS calls still gives the CPU back. The front slot gets
+  every other turn (half the time). The system keys (Control + 1-8, Control + ESC) are an
+  interrupt class (Hot.cls, 50 a second).
+- Keys: the hypervisor puts the slot's next key in its bank (#F681); the BDOS stub answers 1,
+  6 (#FF / #FE) and 11 from it, with no switch.
+- Characters out are collected by the BDOS stub in the bank (128) and handed over at a line
+  end, when full, at a far call or at the end of a slice (IX = how many). The hypervisor writes
+  runs of them into the slot's page (a ring of 25 rows: no copy to scroll) and, for the front
+  slot, straight into screen memory (Hyp.Text: the firmware's matrices, SCR CHAR POSITION).
+  TOP (Control + ESC) shows the last whole second's turns, BDOS calls and characters per slot,
+  drawn once.
+- Every register is kept for a program over a BDOS call and an interrupt (IX, IY, the
+  alternate set); the hypervisor keeps its own (the firmware's BC') round each run, runs the
+  firmware's interrupt handler (`rst #38`) for an interrupt that stopped a program, and turns
+  the upper ROM off while a program runs (Library: ROM has the keyword ROM on).
 - The command line is one copy in the hypervisor, with each slot's line in arrays (RUN, FG,
   PS, KILL, WAIT, CLS, MEM, HELP, QUIT). Control + 1-8 brings a slot to the front.
-- Each slot's text page (80 x 25) is at #F700 of its bank; the BDOS stubs at #F600 (the top of
-  the TPA), the saved SP at #FFFE: about 62K for a program.
-- Speed: each BDOS call is a round trip through BASIC (tens of thousands of T states), so a
-  program that calls the BDOS in a tight loop runs slowly.
-- `Option Buffer &H8000` (new) puts the library's 2K buffer outside the program, which keeps
-  the hypervisor under #4000.
+- Each slot's text page (80 x 25) is at #F700 of its bank; the BDOS stubs at #F500 (the top of
+  the TPA), the characters out at #F600, the saved SP at #FFFE: about 61K for a program.
+- Speed: 200 lines of 62 characters scroll at about 8 lines a second on the real ROMs (was
+  about 3, and the screen didn't scroll: the firmware scrolls only when the next character
+  goes below the last line). A BDOS call that reaches the hypervisor is still a round trip
+  through BASIC.
+- `Option Reserve` now builds round the range: the hypervisor (about 19K) fills #0040-#3FFF
+  and goes on at #8800 (after `Option Buffer &H8000`'s 2K); the Memory class's tables follow
+  it, so a 4MB expansion gives all 64 banks (it gave 5 when the tables had to fit below #4000).
+- `.COM` files directly: not yet - AMSDOS's end of file at a #1A in a headerless file stays
+  (checked on the real ROMs), so they need sector reading (with the file system).
 
 ## 1. The pieces
 

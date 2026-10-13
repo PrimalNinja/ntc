@@ -7,9 +7,10 @@ NTC_ROMDATA	equ #8800		; its initialised variables (and RAM code), copied by ntc
 NTC_ROMBSS	equ #9400		; its other variables, cleared
 NTC_STRMAX	equ 255			; strings up to 255 characters (programs built for the ROM use 255)
 NTC_MEMBANKS	equ 64			; the Memory class: up to 4MB
+NTC_WINHOLE	equ 0			; (a program built round the window has its library in RAM)
 NTC_ROM_N	equ 346			; numbers in the index
 NTC_ROM_COUNT	equ 1			; ROMs in the set (NTCMIN.ROM)
-NTC_ROM_SET	equ #2738		; the set's stamp (its ROMs find each other by it)
+NTC_ROM_SET	equ #D23D		; the set's stamp (its ROMs find each other by it)
 MEM_WIN		equ #4000
 MEM_BADPAGE	equ -2
 MEM_BANKS	equ NTC_MEMBANKS	; 0 - 64
@@ -5906,6 +5907,9 @@ mem_start:
 			ld (mem_init), a
 			ld hl, (ntc_v_free)
 			ld (mem_tend), hl
+	IF NTC_WINHOLE
+			jr mem_st_prog			; the program is built round the window (Option Reserve)
+	ENDIF
 			ld de, MEM_WIN + 1		; the program must be out of the window:
 			or a					; it ends by #4000 ...
 			sbc hl, de
@@ -6013,6 +6017,10 @@ mem_pr_di:
 			add hl, hl
 			inc hl
 			ld (mem_count), hl
+	IF NTC_WINHOLE
+			call ntc_plat_memtop		; built round the window: the tables go above it
+			jr mem_tb_lim			; (ntc_memtab), up to the platform's top
+	ENDIF
 			ld de, (ntc_csp)		; the tables must end by #4000, or 128 bytes
 			ld hl, MEM_WIN			; under the real stack when it is lower
 			or a
@@ -6032,7 +6040,11 @@ mem_tb_fit:
 			ld e, l
 			add hl, hl
 			add hl, de				; 3 bytes a page
+	IF NTC_WINHOLE
+			ld de, ntc_memtab
+	ELSE
 			ld de, (ntc_v_free)
+	ENDIF
 			add hl, de
 			ex de, hl				; DE = their end
 			ld hl, (mem_tend)
@@ -6044,12 +6056,20 @@ mem_tb_fit:
 			ld (mem_count), hl
 			jr mem_tb_fit
 mem_tb_none:
+	IF NTC_WINHOLE
+			ld hl, ntc_memtab
+	ELSE
 			ld hl, (ntc_v_free)
+	ENDIF
 			ld (mem_tend), hl
 			ret
 mem_tb_ok:
 			ld (mem_tend), de
+	IF NTC_WINHOLE
+			ld hl, ntc_memtab
+	ELSE
 			ld hl, (ntc_v_free)
+	ENDIF
 			ld (mem_tnext), hl
 			ld de, (mem_count)
 			add hl, de

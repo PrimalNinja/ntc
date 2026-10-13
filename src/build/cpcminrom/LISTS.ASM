@@ -11,6 +11,7 @@ NTC_STRMAX	equ 255		; the longest string (library buffers, temps)
 NTC_MEMBANKS	equ 64		; Option Memory: the most 64K banks the Memory class looks for
 NTC_ROMENABLE	equ 0		; Option RomEnable (cpcfw, cpcmin): the start code starts the ROMs
 NTC_ROMLIB	equ 1		; 1 = the library is the keyword ROM (Library: ROM; ntcRomAsm builds it)
+NTC_WINHOLE	equ 1		; 1 = the program is built round an Option Reserve range over the window #4000-#7FFF
 NTC_CPMGFX	equ 0		; 1 = CP/M: Graphics draws on an Amstrad CPC's screen (2.2: #C000, Plus: block 1 from common memory)
 
 ntc_start:
@@ -42,6 +43,10 @@ ntc_go:
 			ld sp, main_thread
 			ret
 
+			IF ($ < 32768) && (ntc_rg1_e - ntc_rg1 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg1:
 ; ============================================================
 ; Main Thread
 ; ============================================================
@@ -221,6 +226,11 @@ do4_t_go:			ld sp, do4_t
 if6_e_go:			ld sp, if6_e
 			jp ntc_xn
 
+ntc_rg1_e:
+			IF ($ < 32768) && (ntc_rg2_e - ntc_rg2 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg2:
 ; ============================================================
 ; Inline assembly (#asm ... #endasm)
 ; ============================================================
@@ -376,6 +386,11 @@ fn_list_destroy:		; function destroy (asm keyword), List.cls line 252
 			ret			; end of #asm
 
 
+ntc_rg2_e:
+			IF ($ < 32768) && (ntc_rg3_e - ntc_rg3 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg3:
 ; ============================================================
 ; Variables
 ; ============================================================
@@ -400,40 +415,21 @@ lit_0:			dw 0
 lit_2:			dw 2
 lit_250:			dw 250
 
+ntc_rg3_e:
+			IF ($ < 32768) && (ntc_rg4_e - ntc_rg4 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg4:
 ; ============================================================
 ; ZOSCII glyphs - each points at its 8 byte bitmap in ntc_font
 ; ============================================================
 
-glyph_20			equ ntc_font + 0		; " "
-glyph_30			equ ntc_font + 128		; "0"
-glyph_32			equ ntc_font + 144		; "2"
-glyph_35			equ ntc_font + 168		; "5"
-glyph_3A			equ ntc_font + 208		; ":"
-glyph_43			equ ntc_font + 280		; "C"
-glyph_4C			equ ntc_font + 352		; "L"
-glyph_4E			equ ntc_font + 368		; "N"
-glyph_50			equ ntc_font + 384		; "P"
-glyph_54			equ ntc_font + 416		; "T"
-glyph_61			equ ntc_font + 520		; "a"
-glyph_63			equ ntc_font + 536		; "c"
-glyph_64			equ ntc_font + 544		; "d"
-glyph_65			equ ntc_font + 552		; "e"
-glyph_66			equ ntc_font + 560		; "f"
-glyph_67			equ ntc_font + 568		; "g"
-glyph_68			equ ntc_font + 576		; "h"
-glyph_69			equ ntc_font + 584		; "i"
-glyph_6B			equ ntc_font + 600		; "k"
-glyph_6C			equ ntc_font + 608		; "l"
-glyph_6D			equ ntc_font + 616		; "m"
-glyph_6E			equ ntc_font + 624		; "n"
-glyph_6F			equ ntc_font + 632		; "o"
-glyph_70			equ ntc_font + 640		; "p"
-glyph_72			equ ntc_font + 656		; "r"
-glyph_73			equ ntc_font + 664		; "s"
-glyph_74			equ ntc_font + 672		; "t"
-glyph_77			equ ntc_font + 696		; "w"
-glyph_79			equ ntc_font + 712		; "y"
 
+ntc_rg4_e:
+			IF ($ < 32768) && (ntc_rg5_e - ntc_rg5 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg5:
 ; ============================================================
 ; Strings
 ; ============================================================
@@ -441,6 +437,11 @@ glyph_79			equ ntc_font + 712		; "y"
 str0:			db "CPC minimal firmware", 0
 str1:			db 0
 
+ntc_rg5_e:
+			IF ($ < 32768) && (ntc_rg6_e - ntc_rg6 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg6:
 ; ============================================================
 ; Keyword library (rom)
 ; ============================================================
@@ -546,7 +547,11 @@ ntc_rj_all:
 ntc_rj_call:
 			call 0				; HL = jump block, BC = entries, A = slot, DE = slots; C: DE = a number it hasn't got
 			jp c, ntc_rj_lacks
+			IF (ntc_bss >= 32768) && (ntc_end <= 16384)	; fwdref-ok
+			ld hl, ntc_end
+			ELSE
 			ld hl, ntc_free
+			ENDIF
 			ld (ntc_v_free), hl
 			ld hl, ntc_start
 			ld (ntc_v_start), hl
@@ -701,11 +706,50 @@ ntc_rj_tlk:		db "ROM NTC CPCMIN too old: no routine #", 0
 ntc_rj_tpt:		db "ROM NTCMIN<n>.ROM not found: n = #", 0
 ntc_rj_tnl:		db 13, 10, "Press a key", 13, 10, 0
 
+ntc_rg6_e:
 ntc_end:				; the end of the program (and of its file)
+glyph_20			equ ntc_font + 0		; " "
+glyph_30			equ ntc_font + 128		; "0"
+glyph_32			equ ntc_font + 144		; "2"
+glyph_35			equ ntc_font + 168		; "5"
+glyph_3A			equ ntc_font + 208		; ":"
+glyph_43			equ ntc_font + 280		; "C"
+glyph_4C			equ ntc_font + 352		; "L"
+glyph_4E			equ ntc_font + 368		; "N"
+glyph_50			equ ntc_font + 384		; "P"
+glyph_54			equ ntc_font + 416		; "T"
+glyph_61			equ ntc_font + 520		; "a"
+glyph_63			equ ntc_font + 536		; "c"
+glyph_64			equ ntc_font + 544		; "d"
+glyph_65			equ ntc_font + 552		; "e"
+glyph_66			equ ntc_font + 560		; "f"
+glyph_67			equ ntc_font + 568		; "g"
+glyph_68			equ ntc_font + 576		; "h"
+glyph_69			equ ntc_font + 584		; "i"
+glyph_6B			equ ntc_font + 600		; "k"
+glyph_6C			equ ntc_font + 608		; "l"
+glyph_6D			equ ntc_font + 616		; "m"
+glyph_6E			equ ntc_font + 624		; "n"
+glyph_6F			equ ntc_font + 632		; "o"
+glyph_70			equ ntc_font + 640		; "p"
+glyph_72			equ ntc_font + 656		; "r"
+glyph_73			equ ntc_font + 664		; "s"
+glyph_74			equ ntc_font + 672		; "t"
+glyph_77			equ ntc_font + 696		; "w"
+glyph_79			equ ntc_font + 712		; "y"
 ; arrays: after the program, not in its file - kw_bssinit checks they fit and clears them
+			IF (ntc_end < 32768) && (ntc_end + ntc_bss_size > 16384)	; fwdref-ok
+ntc_bss		equ 32768		; after Option Reserve #4000-#7FFF
+			ELSE
 ntc_bss		equ ntc_end
+			ENDIF
 ntc_bss_size	equ 0
 ntc_free	equ ntc_bss + ntc_bss_size	; the first free byte (heap, Memory tables)
+			IF ntc_free <= 32768	; fwdref-ok
+ntc_memtab	equ 32768		; the Memory class's tables: above the window (Option Reserve)
+			ELSE
+ntc_memtab	equ ntc_free
+			ENDIF
 ; Option Reserve: the program and its arrays (ntc_start .. ntc_free) must stay out of these
-			ASSERT (ntc_free <= 16384) || (ntc_start >= 32768), "the program (or its arrays) reaches into Option Reserve #4000-#7FFF (main.bas line 10)"
+			ASSERT (ntc_free <= 16384) || (ntc_bss >= 32768), "the program (or its arrays) reaches into Option Reserve #4000-#7FFF (main.bas line 10)"
 			SAVEAMSDOS "LISTS.BIN", ntc_start, ntc_end - ntc_start, ntc_start

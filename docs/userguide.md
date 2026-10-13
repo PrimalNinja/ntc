@@ -2241,7 +2241,8 @@ The library's 2K buffer - the one FileSystem's files (the CPC firmware's cassett
 `Memory.Copy` (page to page) use - at that address instead of inside the program. The program
 gets 2K smaller, and the range is kept out of like an `Option Reserve` range. Use free main RAM
 outside the program and outside the `#4000` window (a copy between pages goes through it),
-e.g. `Option Buffer &H8000` on cpcfw.
+e.g. `Option Buffer &H8000` on cpcfw. With `Option Library ROM` it does nothing (the 2K buffer
+is the ROM's own, in its RAM) and its range is free for the program.
 
 ### Option Reserve
 
@@ -2262,8 +2263,13 @@ Option Reserve &H8000, &H4000      ' #8000-#BFFF: the level loaded from disc
 r = FileSystem.Load("LEVEL1.DAT", &H8000, &H4000)
 ```
 
-The program is not moved around a reserved range: it starts at the org and goes up, so a
-range has to be above its end (or below its start). On the `cpc` platform the font copy
+The program is built round a reserved range above its org: it starts at the org and goes up,
+and when the next part of it (a procedure's thread, a library section, the variables, the
+strings) would reach into the range, that part and the rest go on after it. The arrays and the
+Memory class's tables go after it too. So a program with `Option Reserve &H4000, &H4000` (a
+second screen, the RAM page window) can be bigger than 16K: it fills `#0040-#3FFF`, then
+carries on at `#8000`. The file holds the hole as zeros (16K more to load). A range below the
+org, or one the program never reaches, changes nothing. On the `cpc` platform the font copy
 code goes to #C000 for a moment when the screen is first used (a warning says so when a
 range covers #C000).
 

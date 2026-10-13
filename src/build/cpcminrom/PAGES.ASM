@@ -11,6 +11,7 @@ NTC_STRMAX	equ 255		; the longest string (library buffers, temps)
 NTC_MEMBANKS	equ 64		; Option Memory: the most 64K banks the Memory class looks for
 NTC_ROMENABLE	equ 1		; Option RomEnable (cpcfw, cpcmin): the start code starts the ROMs
 NTC_ROMLIB	equ 1		; 1 = the library is the keyword ROM (Library: ROM; ntcRomAsm builds it)
+NTC_WINHOLE	equ 1		; 1 = the program is built round an Option Reserve range over the window #4000-#7FFF
 NTC_CPMGFX	equ 0		; 1 = CP/M: Graphics draws on an Amstrad CPC's screen (2.2: #C000, Plus: block 1 from common memory)
 
 ntc_start:
@@ -53,6 +54,10 @@ ntc_go:
 			ld sp, main_thread
 			ret
 
+			IF ($ < 32768) && (ntc_rg1_e - ntc_rg1 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg1:
 ; ============================================================
 ; Main Thread
 ; ============================================================
@@ -104,41 +109,81 @@ main_thread:
 			dw kw_waitkey
 			dw kw_stop
 
+ntc_rg1_e:
+			IF ($ < 32768) && (ntc_rg2_e - ntc_rg2 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg2:
 ; ============================================================
 ; sub show (normal mode)
 ; ============================================================
 
 
+ntc_rg2_e:
+			IF ($ < 32768) && (ntc_rg3_e - ntc_rg3 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg3:
 ; ============================================================
 ; sub play (normal mode)
 ; ============================================================
 
 
+ntc_rg3_e:
+			IF ($ < 32768) && (ntc_rg4_e - ntc_rg4 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg4:
 ; ============================================================
 ; sub play (normal mode)
 ; ============================================================
 
 
+ntc_rg4_e:
+			IF ($ < 32768) && (ntc_rg5_e - ntc_rg5 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg5:
 ; ============================================================
 ; function square (normal mode)
 ; ============================================================
 
 
+ntc_rg5_e:
+			IF ($ < 32768) && (ntc_rg6_e - ntc_rg6 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg6:
 ; ============================================================
 ; sub add (normal mode)
 ; ============================================================
 
 
+ntc_rg6_e:
+			IF ($ < 32768) && (ntc_rg7_e - ntc_rg7 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg7:
 ; ============================================================
 ; function count (normal mode)
 ; ============================================================
 
 
+ntc_rg7_e:
+			IF ($ < 32768) && (ntc_rg8_e - ntc_rg8 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg8:
 ; ============================================================
 ; sub show (normal mode)
 ; ============================================================
 
 
+ntc_rg8_e:
+			IF ($ < 32768) && (ntc_rg9_e - ntc_rg9 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg9:
 ; ============================================================
 ; sub add (normal mode)
 ; ============================================================
@@ -149,6 +194,11 @@ p_score_add:
 			dw kw_add, var_score_t, var_score_add_n, var_score_t
 			dw p_score_add_r
 
+ntc_rg9_e:
+			IF ($ < 32768) && (ntc_rg10_e - ntc_rg10 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg10:
 ; ============================================================
 ; function total (normal mode)
 ; ============================================================
@@ -355,6 +405,11 @@ p_score_total_r:		; end of total
 			ld sp, (p_score_total_rs)
 			jp ntc_xn
 
+ntc_rg10_e:
+			IF ($ < 32768) && (ntc_rg11_e - ntc_rg11 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg11:
 ; ============================================================
 ; Variables
 ; ============================================================
@@ -387,53 +442,21 @@ p_score_total_rs:			dw 0
 lit_7:			dw 7
 lit_10:			dw 10
 
+ntc_rg11_e:
+			IF ($ < 32768) && (ntc_rg12_e - ntc_rg12 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg12:
 ; ============================================================
 ; ZOSCII glyphs - each points at its 8 byte bitmap in ntc_font
 ; ============================================================
 
-glyph_20			equ ntc_font + 0		; " "
-glyph_27			equ ntc_font + 56		; "'"
-glyph_28			equ ntc_font + 64		; "("
-glyph_29			equ ntc_font + 72		; ")"
-glyph_2C			equ ntc_font + 96		; ","
-glyph_2D			equ ntc_font + 104		; "-"
-glyph_31			equ ntc_font + 136		; "1"
-glyph_32			equ ntc_font + 144		; "2"
-glyph_37			equ ntc_font + 184		; "7"
-glyph_3A			equ ntc_font + 208		; ":"
-glyph_3D			equ ntc_font + 232		; "="
-glyph_41			equ ntc_font + 264		; "A"
-glyph_44			equ ntc_font + 288		; "D"
-glyph_45			equ ntc_font + 296		; "E"
-glyph_46			equ ntc_font + 304		; "F"
-glyph_47			equ ntc_font + 312		; "G"
-glyph_4C			equ ntc_font + 352		; "L"
-glyph_4D			equ ntc_font + 360		; "M"
-glyph_4F			equ ntc_font + 376		; "O"
-glyph_50			equ ntc_font + 384		; "P"
-glyph_53			equ ntc_font + 408		; "S"
-glyph_61			equ ntc_font + 520		; "a"
-glyph_63			equ ntc_font + 536		; "c"
-glyph_64			equ ntc_font + 544		; "d"
-glyph_65			equ ntc_font + 552		; "e"
-glyph_66			equ ntc_font + 560		; "f"
-glyph_67			equ ntc_font + 568		; "g"
-glyph_68			equ ntc_font + 576		; "h"
-glyph_69			equ ntc_font + 584		; "i"
-glyph_6B			equ ntc_font + 600		; "k"
-glyph_6C			equ ntc_font + 608		; "l"
-glyph_6D			equ ntc_font + 616		; "m"
-glyph_6E			equ ntc_font + 624		; "n"
-glyph_6F			equ ntc_font + 632		; "o"
-glyph_70			equ ntc_font + 640		; "p"
-glyph_71			equ ntc_font + 648		; "q"
-glyph_72			equ ntc_font + 656		; "r"
-glyph_73			equ ntc_font + 664		; "s"
-glyph_74			equ ntc_font + 672		; "t"
-glyph_75			equ ntc_font + 680		; "u"
-glyph_76			equ ntc_font + 688		; "v"
-glyph_79			equ ntc_font + 712		; "y"
 
+ntc_rg12_e:
+			IF ($ < 32768) && (ntc_rg13_e - ntc_rg13 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg13:
 ; ============================================================
 ; Keyword library (rom)
 ; ============================================================
@@ -518,7 +541,11 @@ ntc_rj_all:
 ntc_rj_call:
 			call 0				; HL = jump block, BC = entries, A = slot, DE = slots; C: DE = a number it hasn't got
 			jp c, ntc_rj_lacks
+			IF (ntc_bss >= 32768) && (ntc_end <= 16384)	; fwdref-ok
+			ld hl, ntc_end
+			ELSE
 			ld hl, ntc_free
+			ENDIF
 			ld (ntc_v_free), hl
 			ld hl, ntc_start
 			ld (ntc_v_start), hl
@@ -692,13 +719,65 @@ p_stars_add_ct:	db 1		; paged variables: the home copy only
 p_stars_count_ct:	db 1		; paged variables: the home copy only
 			dw ovl_blk_stage1, p_stars_count
 
+ntc_rg13_e:
 ntc_end:				; the end of the program (and of its file)
+glyph_20			equ ntc_font + 0		; " "
+glyph_27			equ ntc_font + 56		; "'"
+glyph_28			equ ntc_font + 64		; "("
+glyph_29			equ ntc_font + 72		; ")"
+glyph_2C			equ ntc_font + 96		; ","
+glyph_2D			equ ntc_font + 104		; "-"
+glyph_31			equ ntc_font + 136		; "1"
+glyph_32			equ ntc_font + 144		; "2"
+glyph_37			equ ntc_font + 184		; "7"
+glyph_3A			equ ntc_font + 208		; ":"
+glyph_3D			equ ntc_font + 232		; "="
+glyph_41			equ ntc_font + 264		; "A"
+glyph_44			equ ntc_font + 288		; "D"
+glyph_45			equ ntc_font + 296		; "E"
+glyph_46			equ ntc_font + 304		; "F"
+glyph_47			equ ntc_font + 312		; "G"
+glyph_4C			equ ntc_font + 352		; "L"
+glyph_4D			equ ntc_font + 360		; "M"
+glyph_4F			equ ntc_font + 376		; "O"
+glyph_50			equ ntc_font + 384		; "P"
+glyph_53			equ ntc_font + 408		; "S"
+glyph_61			equ ntc_font + 520		; "a"
+glyph_63			equ ntc_font + 536		; "c"
+glyph_64			equ ntc_font + 544		; "d"
+glyph_65			equ ntc_font + 552		; "e"
+glyph_66			equ ntc_font + 560		; "f"
+glyph_67			equ ntc_font + 568		; "g"
+glyph_68			equ ntc_font + 576		; "h"
+glyph_69			equ ntc_font + 584		; "i"
+glyph_6B			equ ntc_font + 600		; "k"
+glyph_6C			equ ntc_font + 608		; "l"
+glyph_6D			equ ntc_font + 616		; "m"
+glyph_6E			equ ntc_font + 624		; "n"
+glyph_6F			equ ntc_font + 632		; "o"
+glyph_70			equ ntc_font + 640		; "p"
+glyph_71			equ ntc_font + 648		; "q"
+glyph_72			equ ntc_font + 656		; "r"
+glyph_73			equ ntc_font + 664		; "s"
+glyph_74			equ ntc_font + 672		; "t"
+glyph_75			equ ntc_font + 680		; "u"
+glyph_76			equ ntc_font + 688		; "v"
+glyph_79			equ ntc_font + 712		; "y"
 ; arrays: after the program, not in its file - kw_bssinit checks they fit and clears them
+			IF (ntc_end < 32768) && (ntc_end + ntc_bss_size > 16384)	; fwdref-ok
+ntc_bss		equ 32768		; after Option Reserve #4000-#7FFF
+			ELSE
 ntc_bss		equ ntc_end
+			ENDIF
 ntc_bss_size	equ 0
 ntc_free	equ ntc_bss + ntc_bss_size	; the first free byte (heap, Memory tables)
+			IF ntc_free <= 32768	; fwdref-ok
+ntc_memtab	equ 32768		; the Memory class's tables: above the window (Option Reserve)
+			ELSE
+ntc_memtab	equ ntc_free
+			ENDIF
 ; Option Reserve: the program and its arrays (ntc_start .. ntc_free) must stay out of these
-			ASSERT (ntc_free <= 16384) || (ntc_start >= 32768), "the program (or its arrays) reaches into Option Reserve #4000-#7FFF (Main.bas line 23)"
+			ASSERT (ntc_free <= 16384) || (ntc_bss >= 32768), "the program (or its arrays) reaches into Option Reserve #4000-#7FFF (Main.bas line 23)"
 			SAVEAMSDOS "PAGES.BIN", ntc_start, ntc_end - ntc_start, ntc_start
 			ASSERT (ntc_free <= #4000) || (ntc_start >= #8000), "overlay classes: the program and its arrays must stay out of #4000-#7FFF (the window they run in)"
 
@@ -942,4 +1021,4 @@ ovl_ending_vsize	equ 0		; its page variables; its local memory is the rest, to #
 			DISPLAY "  page variables ", /D, ovl_ending_vsize, ", free ", /D, #8000 - (ovl_ending_end + ovl_ending_vsize)
 			SAVEAMSDOS "PAGES.004", ovl_ending_start, ovl_ending_end - ovl_ending_start, #4000
 
-NTC_STAMP	equ #132E		; the build stamp: the first word of every page file
+NTC_STAMP	equ #213E		; the build stamp: the first word of every page file

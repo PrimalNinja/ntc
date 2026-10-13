@@ -11,6 +11,7 @@ NTC_STRMAX	equ 255		; the longest string (library buffers, temps)
 NTC_MEMBANKS	equ 64		; Option Memory: the most 64K banks the Memory class looks for
 NTC_ROMENABLE	equ 1		; Option RomEnable (cpcfw, cpcmin): the start code starts the ROMs
 NTC_ROMLIB	equ 1		; 1 = the library is the keyword ROM (Library: ROM; ntcRomAsm builds it)
+NTC_WINHOLE	equ 1		; 1 = the program is built round an Option Reserve range over the window #4000-#7FFF
 NTC_CPMGFX	equ 0		; 1 = CP/M: Graphics draws on an Amstrad CPC's screen (2.2: #C000, Plus: block 1 from common memory)
 
 ntc_start:
@@ -50,6 +51,10 @@ ntc_roms_on:
 			ld sp, main_thread
 			ret
 
+			IF ($ < 32768) && (ntc_rg1_e - ntc_rg1 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg1:
 ; ============================================================
 ; Main Thread
 ; ============================================================
@@ -151,6 +156,11 @@ for1_e:
 			dw kw_waitkey
 			dw kw_stop
 
+ntc_rg1_e:
+			IF ($ < 32768) && (ntc_rg2_e - ntc_rg2 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg2:
 ; ============================================================
 ; sub banner (normal mode)
 ; ============================================================
@@ -164,16 +174,31 @@ p_banner:
 			dw kw_printnl
 			dw p_banner_r
 
+ntc_rg2_e:
+			IF ($ < 32768) && (ntc_rg3_e - ntc_rg3 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg3:
 ; ============================================================
 ; function play (normal mode)
 ; ============================================================
 
 
+ntc_rg3_e:
+			IF ($ < 32768) && (ntc_rg4_e - ntc_rg4 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg4:
 ; ============================================================
 ; function bonus (normal mode)
 ; ============================================================
 
 
+ntc_rg4_e:
+			IF ($ < 32768) && (ntc_rg5_e - ntc_rg5 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg5:
 ; ============================================================
 ; function play (normal mode)
 ; ============================================================
@@ -274,6 +299,11 @@ p_level2_play_r:		; end of play
 			ld sp, (p_level2_play_rs)
 			jp ntc_xn
 
+ntc_rg5_e:
+			IF ($ < 32768) && (ntc_rg6_e - ntc_rg6 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg6:
 ; ============================================================
 ; Inline assembly (#asm ... #endasm)
 ; ============================================================
@@ -361,6 +391,11 @@ fn_memory_largest:		; function largest (asm keyword), Memory.cls line 305
 			ret			; end of #asm
 
 
+ntc_rg6_e:
+			IF ($ < 32768) && (ntc_rg7_e - ntc_rg7 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg7:
 ; ============================================================
 ; Variables
 ; ============================================================
@@ -399,6 +434,11 @@ tmp1:			dw 0
 ; numbers passed by address (read only)
 lit_1:			dw 1
 
+ntc_rg7_e:
+			IF ($ < 32768) && (ntc_rg8_e - ntc_rg8 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg8:
 ; ============================================================
 ; Strings
 ; ============================================================
@@ -427,6 +467,11 @@ str20:			db ", level 1 loaded ", 0
 str21:			db "  bonus from level 1 ", 0
 str22:			db 0
 
+ntc_rg8_e:
+			IF ($ < 32768) && (ntc_rg9_e - ntc_rg9 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg9:
 ; ============================================================
 ; Keyword library (rom)
 ; ============================================================
@@ -519,7 +564,11 @@ ntc_rj_all:
 ntc_rj_call:
 			call 0				; HL = jump block, BC = entries, A = slot, DE = slots; C: DE = a number it hasn't got
 			jp c, ntc_rj_lacks
+			IF (ntc_bss >= 32768) && (ntc_end <= 16384)	; fwdref-ok
+			ld hl, ntc_end
+			ELSE
 			ld hl, ntc_free
+			ENDIF
 			ld (ntc_v_free), hl
 			ld hl, ntc_start
 			ld (ntc_v_start), hl
@@ -681,13 +730,23 @@ ovl_blk_level1:	dw 0, ovl_level1_end, ovl_level1_vsize
 ovl_blk_level2:	dw 0, ovl_level2_end, ovl_level2_vsize
 			db "OVERLAYS.002", 0, "Level2", 0	; its file, its name (for the messages)
 
+ntc_rg9_e:
 ntc_end:				; the end of the program (and of its file)
 ; arrays: after the program, not in its file - kw_bssinit checks they fit and clears them
+			IF (ntc_end < 32768) && (ntc_end + ntc_bss_size > 16384)	; fwdref-ok
+ntc_bss		equ 32768		; after Option Reserve #4000-#7FFF
+			ELSE
 ntc_bss		equ ntc_end
+			ENDIF
 ntc_bss_size	equ 0
 ntc_free	equ ntc_bss + ntc_bss_size	; the first free byte (heap, Memory tables)
+			IF ntc_free <= 32768	; fwdref-ok
+ntc_memtab	equ 32768		; the Memory class's tables: above the window (Option Reserve)
+			ELSE
+ntc_memtab	equ ntc_free
+			ENDIF
 ; Option Reserve: the program and its arrays (ntc_start .. ntc_free) must stay out of these
-			ASSERT (ntc_free <= 16384) || (ntc_start >= 32768), "the program (or its arrays) reaches into Option Reserve #4000-#7FFF (Main.bas line 15)"
+			ASSERT (ntc_free <= 16384) || (ntc_bss >= 32768), "the program (or its arrays) reaches into Option Reserve #4000-#7FFF (Main.bas line 15)"
 			SAVEAMSDOS "OVERLAYS.BIN", ntc_start, ntc_end - ntc_start, ntc_start
 			ASSERT (ntc_free <= #4000) || (ntc_start >= #8000), "overlay classes: the program and its arrays must stay out of #4000-#7FFF (the window they run in)"
 
@@ -779,4 +838,4 @@ ovl_level2_vsize	equ 0		; its page variables; its local memory is the rest, to #
 			DISPLAY "  page variables ", /D, ovl_level2_vsize, ", free ", /D, #8000 - (ovl_level2_end + ovl_level2_vsize)
 			SAVEAMSDOS "OVERLAYS.002", ovl_level2_start, ovl_level2_end - ovl_level2_start, #4000
 
-NTC_STAMP	equ #E5CD		; the build stamp: the first word of every page file
+NTC_STAMP	equ #8958		; the build stamp: the first word of every page file

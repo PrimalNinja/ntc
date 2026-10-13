@@ -122,9 +122,14 @@ the old 3 bytes back out on exit.
 
 ---
 
-`Option NoTurbo`: normal mode only - every procedure and branch keyword is built once (the
-normal copy), `Turbo On` / `Turbo Off` become no-ops with a warning, and the start mode is
-normal whatever `Option Turbo` or the build setting say. For programs short of memory.
+A program is built only for the mode(s) it runs in: one mode, one copy of everything. Only
+code reached in both modes (a program with `Turbo On` / `Turbo Off`, or a procedure an
+interrupt Tick calls as well as turbo code) is built twice.
+
+`Option NoTurbo`: normal mode only - `Turbo On` / `Turbo Off` become no-ops with a warning, the
+start mode is normal whatever `Option Turbo` or the build setting say, so what would have been
+built twice is built once (the normal copy). A program that never switches mode comes out the
+same. For programs that switch mode and are short of memory.
 
 ## 3. Speed compared
 

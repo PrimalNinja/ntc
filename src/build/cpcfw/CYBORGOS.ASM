@@ -7,10 +7,11 @@
 			org #0040
 
 NTC_TERM	equ 0		; Option Terminal: 0 none, 1 VT52, 2 ANSI (CP/M)
-NTC_STRMAX	equ 80		; the longest string (library buffers, temps)
+NTC_STRMAX	equ 130		; the longest string (library buffers, temps)
 NTC_MEMBANKS	equ 64		; Option Memory: the most 64K banks the Memory class looks for
 NTC_ROMENABLE	equ 1		; Option RomEnable (cpcfw, cpcmin): the start code starts the ROMs
 NTC_ROMLIB	equ 0		; 1 = the library is the keyword ROM (Library: ROM; ntcRomAsm builds it)
+NTC_WINHOLE	equ 1		; 1 = the program is built round an Option Reserve range over the window #4000-#7FFF
 NTC_CPMGFX	equ 0		; 1 = CP/M: Graphics draws on an Amstrad CPC's screen (2.2: #C000, Plus: block 1 from common memory)
 
 ntc_start:
@@ -39,9 +40,27 @@ ntc_start2:
 ntc_roms_on:
 			ld a, 1
 			ld (ntc_nmode), a		; normal mode: waits let interrupts in
+			; Option Class Interrupt: the classes' Tick subs, run at safe points (normal mode)
+			ld hl, 6		; hot: every 6 interrupts
+			ld (ntc_isl + 2), hl
+			ld hl, 7			; the first after one period (+ the slot, so they take turns)
+			ld (ntc_isl + 0), hl
+			ld hl, p_hot_tick_c
+			ld (ntc_isl + 6), hl
+			ld a, 1
+			ld (ntc_isln), a
+			ld hl, ntc_isl_tick
+			ld (ntc_irqv), hl		; the interrupt handler counts for them
+			ld ix, ntc_go
+			jp ntc_plat_irqon		; interrupt handler for normal mode
+ntc_go:
 			ld sp, main_thread
 			ret
 
+			IF ($ < 34816) && (ntc_rg1_e - ntc_rg1 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg1:
 ; ============================================================
 ; Main Thread
 ; ============================================================
@@ -49,28 +68,31 @@ ntc_roms_on:
 main_thread:
 			dw kw_bssinit, ntc_bss, ntc_bss_size		; the arrays: do they fit, clear them
 
-			; Main.bas 26: Mode 2
+			; Main.bas 34: Mode 2
 			dw kw_model, 2
 
-			; Main.bas 27: k = Memory.Banks()
+			; Main.bas 35: Hyp.FontInit
+			dw fn_hyp_fontinit
+
+			; Main.bas 36: k = Memory.Banks()
 			dw fn_memory_banks, var_k
 
-			; Main.bas 28: ns = k \ 2
+			; Main.bas 37: ns = k \ 2
 			dw kw_divvl, var_k, 2, var_ns
 
-			; Main.bas 29: If ns < 1 Then ns = k
+			; Main.bas 38: If ns < 1 Then ns = k
 			dw kw_scpltvl, var_ns, 1
 			dw kw_goto_iffalse_n, if1_1
 			dw kw_vtov, var_k, var_ns
 if1_1:
 
-			; Main.bas 30: If ns > 8 Then ns = 8
+			; Main.bas 39: If ns > 8 Then ns = 8
 			dw kw_scpgtvl, var_ns, 8
 			dw kw_goto_iffalse_n, if2_1
 			dw kw_ltov, 8, var_ns
 if2_1:
 
-			; Main.bas 31: If ns = 0 Then Print "CyborgOS needs a 6128 or more RAM" : End
+			; Main.bas 40: If ns = 0 Then Print "CyborgOS needs a 6128 or more RAM" : End
 			dw kw_cpeqvl, var_ns, 0
 			dw kw_goto_iffalse_n, if3_1
 			dw kw_printstrvar, str0
@@ -81,521 +103,811 @@ if2_1:
 			dw kw_stop
 if3_1:
 
-			; Main.bas 32: For i = 1 To ns
+			; Main.bas 41: For i = 1 To ns
 			dw kw_ltov, 1, var_i
 			dw kw_vtov, var_ns, for4_l
 			dw kw_forupv_n, var_i, for4_l, for4_e
 for4_t:
 
-			; Main.bas 33: bk(i) = Memory.AllocBank()
+			; Main.bas 42: bk(i) = Memory.AllocBank()
 			dw fn_memory_allocbank, var_memory_allocbank_allocbank
 			dw kw_aset, arr_bk, var_i, var_memory_allocbank_allocbank
 
-			; Main.bas 34: Memory.SelectPage Memory.BankPage(bk(i), 0)
+			; Main.bas 43: Memory.SelectPage Memory.BankPage(bk(i), 0)
 			dw kw_aget, arr_bk, var_i, tmp0
 			dw p_memory_bankpage_c, tmp0, lit_0
 			dw fn_memory_selectpage, var_memory_bankpage_bankpage, var_memory_selectpage_selectpage
 
-			; Main.bas 35: sg(i) = Hyp.Setting()
+			; Main.bas 44: sg(i) = Hyp.Setting()
 			dw fn_hyp_setting, var_hyp_setting_setting
 			dw kw_aset, arr_sg, var_i, var_hyp_setting_setting
 
-			; Main.bas 36: tp(i) = Hyp.FarPtr(Memory.BankPage(bk(i), 3), BUF)
+			; Main.bas 45: tp(i) = Hyp.FarPtr(Memory.BankPage(bk(i), 3), BUF)
 			dw kw_aget, arr_bk, var_i, tmp1
 			dw p_memory_bankpage_c, tmp1, lit_3
 			dw kw_vtov, var_memory_bankpage_bankpage, tmp1
 			dw fn_hyp_farptr, tmp1, lit_m2304, var_hyp_farptr_farptr
 			dw kw_l_aset, arr_tp, var_i, var_hyp_farptr_farptr
 
-			; Main.bas 37: Next
+			; Main.bas 46: wk(i) = -1
+			dw kw_asetl, arr_wk, var_i, -1
+
+			; Main.bas 47: Next
 			dw kw_next1v_n, var_i, for4_l, for4_t
 for4_e:
 
-			; Main.bas 38: blank = Space$(80)
-			dw kw_strspace, var_blank, lit_80
+			; Main.bas 48: blank = Space$(80)
+			dw kw_strspace, stmp0, lit_80
+			dw kw_strcpy, var_blank, stmp0
 
-			; Main.bas 39: row = Space$(80)
-			dw kw_strspace, var_row, lit_80
+			; Main.bas 49: row = Space$(80)
+			dw kw_strspace, stmp0, lit_80
+			dw kw_strcpy, var_row, stmp0
 
-			; Main.bas 40: front = 1
+			; Main.bas 50: ob = Space$(128)
+			dw kw_strspace, var_ob, lit_128
+
+			; Main.bas 51: front = 1
 			dw kw_ltov, 1, var_front
 
-			; Main.bas 41: OpenSlot 1
+			; Main.bas 52: OpenSlot 1
 			dw p_openslot_c, lit_1
 
-			; Main.bas 42: Do
+			; Main.bas 53: Do
 do5_t:
 
-			; Main.bas 43: hk = HotKey()
-			dw p_hotkey_c
-			dw kw_vtov, var_hotkey_hotkey, var_hk
+			; Main.bas 54: hk = Hot.Take()
+			dw p_hot_take_c
+			dw kw_vtov, var_hot_take_take, var_hk
 
-			; Main.bas 44: If hk <> 0 And hk <> held Then ToFront hk
-			dw kw_cpnevl, var_hk, 0
+			; Main.bas 55: If hk = 9 Then
+			dw kw_cpeqvl, var_hk, 9
+			dw kw_goto_iffalse_n, if6_1
+
+			; Main.bas 56: If front = 0 Then ToFront back Else ShowTop      ' Control + ESC: TOP, and again: back
+			dw kw_cpeqvl, var_front, 0
+			dw kw_goto_iffalse_n, if7_1
+			dw p_tofront_c, var_back
+			dw if6_e_go
+if7_1:
+			dw p_showtop_c
+if7_e:
+
+			; Main.bas 57: ElseIf hk > 0 And hk <= ns Then
+			dw if6_e_go
+if6_1:
+			dw kw_scpgtvl, var_hk, 0
 			dw kw_ftov, tmp0
-			dw kw_cpnevv, var_hk, var_held
+			dw kw_scplevv, var_hk, var_ns
 			dw kw_ftov, tmp1
 			dw kw_andvv, tmp0, tmp1, tmp0
-			dw kw_goto_ifzero_n, tmp0, if6_1
+			dw kw_goto_ifzero_n, tmp0, if6_2
+
+			; Main.bas 58: ToFront hk
 			dw p_tofront_c, var_hk
-if6_1:
 
-			; Main.bas 45: held = hk
-			dw kw_vtov, var_hk, var_held
+			; Main.bas 59: End If
+if6_2:
+if6_e:
 
-			; Main.bas 46: If pk <> 0 Then
+			; Main.bas 60: If pk <> 0 Then
 			dw kw_cpnevl, var_pk, 0
-			dw kw_goto_iffalse_n, if7_1
+			dw kw_goto_iffalse_n, if8_1
 
-			; Main.bas 47: k = pk : pk = 0
+			; Main.bas 61: k = pk : pk = 0
 			dw kw_vtov, var_pk, var_k
 			dw kw_ztov, var_pk
 
-			; Main.bas 48: KeyIn k
+			; Main.bas 62: KeyIn k
 			dw p_keyin_c, var_k
 
-			; Main.bas 49: ElseIf wt = 0 Then
-			dw if7_e_go
-if7_1:
+			; Main.bas 63: ElseIf wt = 0 Then
+			dw if8_e_go
+if8_1:
 			dw kw_cpeqvl, var_wt, 0
-			dw kw_goto_iffalse_n, if7_2
+			dw kw_goto_iffalse_n, if8_2
 
-			; Main.bas 51: If st(front) <> 2 Or kq(front) = 0 Then
-			dw kw_aget, arr_st, var_front, tmp0
-			dw kw_cpnevl, tmp0, 2
+			; Main.bas 65: If front = 0 Or st(front) <> 2 Or kq(front) = 0 Then
+			dw kw_cpeqvl, var_front, 0
 			dw kw_ftov, tmp0
+			dw kw_aget, arr_st, var_front, tmp1
+			dw kw_cpnevl, tmp1, 2
+			dw kw_ftov, tmp1
+			dw kw_orvv, tmp0, tmp1, tmp0
 			dw kw_aget, arr_kq, var_front, tmp1
 			dw kw_cpeqvl, tmp1, 0
 			dw kw_ftov, tmp1
 			dw kw_orvv, tmp0, tmp1, tmp0
-			dw kw_goto_ifzero_n, tmp0, if7_e
+			dw kw_goto_ifzero_n, tmp0, if8_e
 
-			; Main.bas 52: k = Inkey
+			; Main.bas 66: k = Inkey
 			dw kw_inkey, tmp0
 			dw kw_vtov, tmp0, var_k
 
-			; Main.bas 53: If k <> 0 And hk = 0 Then KeyIn k
+			; Main.bas 67: If k <> 0 And Hot.Control() = 0 Then KeyIn k
 			dw kw_cpnevl, var_k, 0
 			dw kw_ftov, tmp0
-			dw kw_cpeqvl, var_hk, 0
+			dw p_hot_control_c
+			dw kw_vtov, var_hot_control_control, tmp1
+			dw kw_cpeqvl, tmp1, 0
 			dw kw_ftov, tmp1
 			dw kw_andvv, tmp0, tmp1, tmp0
-			dw kw_goto_ifzero_n, tmp0, if7_e
+			dw kw_goto_ifzero_n, tmp0, if8_e
 			dw p_keyin_c, var_k
+if10_1:
+
+			; Main.bas 68: End If
 if9_1:
 
-			; Main.bas 54: End If
-if8_1:
-
-			; Main.bas 55: ElseIf Running() = 0 Then
-			dw if7_e_go
-if7_2:
+			; Main.bas 69: ElseIf Running() = 0 Then
+			dw if8_e_go
+if8_2:
 			dw p_running_c
 			dw kw_vtov, var_running_running, tmp0
 			dw kw_cpeqvl, tmp0, 0
-			dw kw_goto_iffalse_n, if7_3
+			dw kw_goto_iffalse_n, if8_3
 
-			; Main.bas 56: Prompt wt : wt = 0          ' WAIT: nothing runs any more
+			; Main.bas 70: Prompt wt : wt = 0          ' WAIT: nothing runs any more
 			dw p_prompt_c, var_wt
 			dw kw_ztov, var_wt
 
-			; Main.bas 57: End If
-if7_3:
-if7_e:
+			; Main.bas 71: End If
+if8_3:
+if8_e:
 
-			; Main.bas 58: RunNext
+			; Main.bas 72: If Ticks - td >= 300 Then Roll
+			dw kw_ticks, tmp0
+			dw kw_subvv, tmp0, var_td, tmp0
+			dw kw_scpgevl, tmp0, 300
+			dw kw_goto_iffalse_n, if11_1
+			dw p_roll_c
+if11_1:
+
+			; Main.bas 73: RunNext
 			dw p_runnext_c
 
-			; Main.bas 59: Loop Until quit
+			; Main.bas 74: Loop Until quit
 			dw kw_goto_ifzero_n, var_quit, do5_t
 do5_e:
 
-			; Main.bas 60: Mode 1
+			; Main.bas 75: Mode 1
 			dw kw_model, 1
 
-			; Main.bas 61: Print "CyborgOS ended, "; runs; " programs ran"
+			; Main.bas 76: Print "CyborgOS ended, "; runs; " programs ran"
 			dw kw_printstrvar, str2
 			dw kw_printint, var_runs
 			dw kw_printstrvar, str3
 			dw kw_printnl
 
-			; Main.bas 62: End
+			; Main.bas 77: End
 			dw kw_printnl0
 			dw kw_printstrvar, str1
 			dw kw_waitkey
 			dw kw_stop
 
+ntc_rg1_e:
+			IF ($ < 34816) && (ntc_rg2_e - ntc_rg2 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg2:
 ; ============================================================
 ; function running (normal mode)
 ; ============================================================
 
 p_running:
 
-			; Main.bas 66: Dim j As Integer
+			; Main.bas 81: Dim j As Integer
 
-			; Main.bas 67: For j = 1 To ns
+			; Main.bas 82: For j = 1 To ns
 			dw kw_ltov, 1, var_running_j
-			dw kw_vtov, var_ns, for10_l
-			dw kw_forupv_n, var_running_j, for10_l, for10_e
-for10_t:
+			dw kw_vtov, var_ns, for12_l
+			dw kw_forupv_n, var_running_j, for12_l, for12_e
+for12_t:
 
-			; Main.bas 68: If st(j) = 2 Then Running = Running + 1
+			; Main.bas 83: If st(j) = 2 Then Running = Running + 1
 			dw kw_aget, arr_st, var_running_j, tmp0
 			dw kw_cpeqvl, tmp0, 2
-			dw kw_goto_iffalse_n, if11_1
+			dw kw_goto_iffalse_n, if13_1
 			dw kw_inc, var_running_running
-if11_1:
-
-			; Main.bas 69: Next
-			dw kw_next1v_n, var_running_j, for10_l, for10_t
-for10_e:
-			dw p_running_r
-
-; ============================================================
-; function hotkey (normal mode)
-; ============================================================
-
-p_hotkey:
-
-			; Main.bas 74: HotKey = 0
-			dw kw_ztov, var_hotkey_hotkey
-
-			; Main.bas 75: If Keys.Down(Keys.KeyControl) = 0 Then Exit Function
-			dw fn_keys_down, lit_23, var_keys_down_down
-			dw kw_vtov, var_keys_down_down, tmp0
-			dw kw_cpeqvl, tmp0, 0
-			dw kw_goto_iffalse_n, if12_1
-			dw p_hotkey_r
-if12_1:
-
-			; Main.bas 76: If Keys.Down(64) Then HotKey = 1
-			dw fn_keys_down, lit_64, var_keys_down_down
-			dw kw_goto_ifzero_n, var_keys_down_down, if13_1
-			dw kw_ltov, 1, var_hotkey_hotkey
 if13_1:
 
-			; Main.bas 77: If Keys.Down(65) Then HotKey = 2
-			dw fn_keys_down, lit_65, var_keys_down_down
-			dw kw_goto_ifzero_n, var_keys_down_down, if14_1
-			dw kw_ltov, 2, var_hotkey_hotkey
+			; Main.bas 84: Next
+			dw kw_next1v_n, var_running_j, for12_l, for12_t
+for12_e:
+			dw p_running_r
+
+ntc_rg2_e:
+			IF ($ < 34816) && (ntc_rg3_e - ntc_rg3 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg3:
+; ============================================================
+; function ready (normal mode)
+; ============================================================
+
+p_ready:
+
+			; Main.bas 90: Ready = 0
+			dw kw_ztov, var_ready_ready
+
+			; Main.bas 91: If t < 1 Then Exit Function
+			dw kw_scpltvl, var_ready_t, 1
+			dw kw_goto_iffalse_n, if14_1
+			dw p_ready_r
 if14_1:
 
-			; Main.bas 78: If Keys.Down(57) Then HotKey = 3
-			dw fn_keys_down, lit_57, var_keys_down_down
-			dw kw_goto_ifzero_n, var_keys_down_down, if15_1
-			dw kw_ltov, 3, var_hotkey_hotkey
+			; Main.bas 92: If st(t) <> 2 Then Exit Function
+			dw kw_aget, arr_st, var_ready_t, tmp0
+			dw kw_cpnevl, tmp0, 2
+			dw kw_goto_iffalse_n, if15_1
+			dw p_ready_r
 if15_1:
 
-			; Main.bas 79: If Keys.Down(56) Then HotKey = 4
-			dw fn_keys_down, lit_56, var_keys_down_down
-			dw kw_goto_ifzero_n, var_keys_down_down, if16_1
-			dw kw_ltov, 4, var_hotkey_hotkey
+			; Main.bas 93: If wk(t) = Ticks And kq(t) = 0 Then Exit Function
+			dw kw_aget, arr_wk, var_ready_t, tmp0
+			dw kw_ticks, tmp1
+			dw kw_cpeqvv, tmp0, tmp1
+			dw kw_ftov, tmp0
+			dw kw_aget, arr_kq, var_ready_t, tmp1
+			dw kw_cpeqvl, tmp1, 0
+			dw kw_ftov, tmp1
+			dw kw_andvv, tmp0, tmp1, tmp0
+			dw kw_goto_ifzero_n, tmp0, if16_1
+			dw p_ready_r
 if16_1:
 
-			; Main.bas 80: If Keys.Down(49) Then HotKey = 5
-			dw fn_keys_down, lit_49, var_keys_down_down
-			dw kw_goto_ifzero_n, var_keys_down_down, if17_1
-			dw kw_ltov, 5, var_hotkey_hotkey
-if17_1:
+			; Main.bas 94: Ready = -1
+			dw kw_ltov, -1, var_ready_ready
+			dw p_ready_r
 
-			; Main.bas 81: If Keys.Down(48) Then HotKey = 6
-			dw fn_keys_down, lit_48, var_keys_down_down
-			dw kw_goto_ifzero_n, var_keys_down_down, if18_1
-			dw kw_ltov, 6, var_hotkey_hotkey
-if18_1:
-
-			; Main.bas 82: If Keys.Down(41) Then HotKey = 7
-			dw fn_keys_down, lit_41, var_keys_down_down
-			dw kw_goto_ifzero_n, var_keys_down_down, if19_1
-			dw kw_ltov, 7, var_hotkey_hotkey
-if19_1:
-
-			; Main.bas 83: If Keys.Down(40) Then HotKey = 8
-			dw fn_keys_down, lit_40, var_keys_down_down
-			dw kw_goto_ifzero_n, var_keys_down_down, if20_1
-			dw kw_ltov, 8, var_hotkey_hotkey
-if20_1:
-
-			; Main.bas 84: If HotKey > ns Then HotKey = 0
-			dw kw_scpgtvv, var_hotkey_hotkey, var_ns
-			dw kw_goto_iffalse_n, if21_1
-			dw kw_ztov, var_hotkey_hotkey
-if21_1:
-			dw p_hotkey_r
-
+ntc_rg3_e:
+			IF ($ < 34816) && (ntc_rg4_e - ntc_rg4 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg4:
 ; ============================================================
 ; sub runnext (normal mode)
 ; ============================================================
 
 p_runnext:
 
-			; Main.bas 89: Dim n As Integer
+			; Main.bas 99: Dim n As Integer, t As Integer, r As Integer, c As Integer
 
-			; Main.bas 90: For n = 1 To ns
+			; Main.bas 100: fr = Not fr
+			dw kw_notv, var_fr, var_fr
+
+			; Main.bas 101: If fr Then
+			dw kw_goto_ifzero_n, var_fr, if17_1
+
+			; Main.bas 102: If Ready(front) Then t = front
+			dw p_ready_c, var_front
+			dw kw_goto_ifzero_n, var_ready_ready, if18_1
+			dw kw_vtov, var_front, var_runnext_t
+if18_1:
+
+			; Main.bas 103: End If
+if17_1:
+
+			; Main.bas 104: If t = 0 Then
+			dw kw_cpeqvl, var_runnext_t, 0
+			dw kw_goto_iffalse_n, if19_1
+
+			; Main.bas 105: For n = 1 To ns
 			dw kw_ltov, 1, var_runnext_n
-			dw kw_vtov, var_ns, for22_l
-			dw kw_forupv_n, var_runnext_n, for22_l, for22_e
-for22_t:
+			dw kw_vtov, var_ns, for20_l
+			dw kw_forupv_n, var_runnext_n, for20_l, for20_e
+for20_t:
 
-			; Main.bas 91: cur = cur + 1
+			; Main.bas 106: cur = cur + 1
 			dw kw_inc, var_cur
 
-			; Main.bas 92: If cur > ns Then cur = 1
+			; Main.bas 107: If cur > ns Then cur = 1
 			dw kw_scpgtvv, var_cur, var_ns
-			dw kw_goto_iffalse_n, if23_1
+			dw kw_goto_iffalse_n, if21_1
 			dw kw_ltov, 1, var_cur
+if21_1:
+
+			; Main.bas 108: If cur <> front Then
+			dw kw_cpnevv, var_cur, var_front
+			dw kw_goto_iffalse_n, if22_1
+
+			; Main.bas 109: If Ready(cur) Then t = cur : Exit For
+			dw p_ready_c, var_cur
+			dw kw_goto_ifzero_n, var_ready_ready, if23_1
+			dw kw_vtov, var_cur, var_runnext_t
+			dw for20_e_go
 if23_1:
 
-			; Main.bas 93: If st(cur) = 2 Then
-			dw kw_aget, arr_st, var_cur, tmp0
-			dw kw_cpeqvl, tmp0, 2
+			; Main.bas 110: End If
+if22_1:
+
+			; Main.bas 111: Next
+			dw kw_next1v_n, var_runnext_n, for20_l, for20_t
+for20_e:
+
+			; Main.bas 112: End If
+if19_1:
+
+			; Main.bas 113: If t = 0 Then
+			dw kw_cpeqvl, var_runnext_t, 0
 			dw kw_goto_iffalse_n, if24_1
 
-			; Main.bas 94: Hyp.Reply ra(cur), ra(cur)
-			dw kw_aget, arr_ra, var_cur, tmp0
-			dw kw_aget, arr_ra, var_cur, tmp1
-			dw p_hyp_reply_c, tmp0, tmp1
-
-			; Main.bas 95: If Hyp.Run(sg(cur)) = 1 Then Bdos cur
-			dw kw_aget, arr_sg, var_cur, tmp0
-			dw p_hyp_run_c, tmp0
-			dw kw_vtov, var_hyp_run_run, tmp0
-			dw kw_cpeqvl, tmp0, 1
-			dw kw_goto_iffalse_n, if25_1
-			dw p_bdos_c, var_cur
+			; Main.bas 114: If Ready(front) Then t = front
+			dw p_ready_c, var_front
+			dw kw_goto_ifzero_n, var_ready_ready, if25_1
+			dw kw_vtov, var_front, var_runnext_t
 if25_1:
 
-			; Main.bas 96: Exit Sub
-			dw p_runnext_r
-
-			; Main.bas 97: End If
+			; Main.bas 115: End If
 if24_1:
 
-			; Main.bas 98: Next
-			dw kw_next1v_n, var_runnext_n, for22_l, for22_t
-for22_e:
+			; Main.bas 116: If t = 0 Then
+			dw kw_cpeqvl, var_runnext_t, 0
+			dw kw_goto_iffalse_n, if26_1
 
-			; Main.bas 99: Frame                           ' nothing running: wait a frame
+			; Main.bas 117: If Running() = 0 Then Frame     ' nothing to run: wait a frame (a program waiting for a
+			dw p_running_c
+			dw kw_vtov, var_running_running, tmp0
+			dw kw_cpeqvl, tmp0, 0
+			dw kw_goto_iffalse_n, if27_1
 			dw kw_frame
+if27_1:
+
+			; Main.bas 118: Exit Sub                        ' key looks again when the clock moves on)
 			dw p_runnext_r
 
+			; Main.bas 119: End If
+if26_1:
+
+			; Main.bas 120: Hyp.Reply ra(t), ra(t)
+			dw kw_aget, arr_ra, var_runnext_t, tmp0
+			dw kw_aget, arr_ra, var_runnext_t, tmp1
+			dw p_hyp_reply_c, tmp0, tmp1
+
+			; Main.bas 121: r = Hyp.Run(sg(t))
+			dw kw_aget, arr_sg, var_runnext_t, tmp0
+			dw p_hyp_run_c, tmp0
+			dw kw_vtov, var_hyp_run_run, var_runnext_r
+
+			; Main.bas 122: tn(t) = tn(t) + 1
+			dw kw_aget, arr_tn, var_runnext_t, tmp1
+			dw kw_inc, tmp1
+			dw kw_aset, arr_tn, var_runnext_t, tmp1
+
+			; Main.bas 123: If kq(t) <> 0 Then
+			dw kw_aget, arr_kq, var_runnext_t, tmp0
+			dw kw_cpnevl, tmp0, 0
+			dw kw_goto_iffalse_n, if28_1
+
+			; Main.bas 124: If Memory.ReadByte(Far(t, Hyp.KEY)) = 0 Then kq(t) = 0     ' the program took its key
+			dw p_far_c, var_runnext_t, lit_m2431
+			dw kw_l_mov, var_far_far, ltmp0
+			dw fn_memory_readbyte, ltmp0, var_memory_readbyte_readbyte
+			dw kw_vtov, var_memory_readbyte_readbyte, tmp0
+			dw kw_cpeqvl, tmp0, 0
+			dw kw_goto_iffalse_n, if29_1
+			dw kw_asetl, arr_kq, var_runnext_t, 0
+if29_1:
+
+			; Main.bas 125: End If
+if28_1:
+
+			; Main.bas 126: c = Hyp.Count()
+			dw p_hyp_count_c
+			dw kw_vtov, var_hyp_count_count, var_runnext_c
+
+			; Main.bas 127: If c > 0 Then Collected t, c
+			dw kw_scpgtvl, var_runnext_c, 0
+			dw kw_goto_iffalse_n, if30_1
+			dw p_collected_c, var_runnext_t, var_runnext_c
+if30_1:
+
+			; Main.bas 128: If r = 1 Then Bdos t
+			dw kw_cpeqvl, var_runnext_r, 1
+			dw kw_goto_iffalse_n, if31_1
+			dw p_bdos_c, var_runnext_t
+if31_1:
+			dw p_runnext_r
+
+ntc_rg4_e:
+			IF ($ < 34816) && (ntc_rg5_e - ntc_rg5 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg5:
 ; ============================================================
 ; sub bdos (normal mode)
 ; ============================================================
 
 p_bdos:
 
-			; Main.bas 104: Dim f As Integer, e As Integer, a As Integer
+			; Main.bas 133: Dim f As Integer, e As Integer, a As Integer
 
-			; Main.bas 105: f = Hyp.Fn() : e = Hyp.Arg() : a = 0
+			; Main.bas 134: f = Hyp.Fn() : e = Hyp.Arg() And 255 : a = 0
 			dw p_hyp_fn_c
 			dw kw_vtov, var_hyp_fn_fn, var_bdos_f
 			dw p_hyp_arg_c
-			dw kw_vtov, var_hyp_arg_arg, var_bdos_e
+			dw kw_vtov, var_hyp_arg_arg, tmp0
+			dw kw_andvl, tmp0, 255, var_bdos_e
 			dw kw_ztov, var_bdos_a
 
-			; Main.bas 106: Select Case f
-			dw kw_vtov, var_bdos_f, var_bdos___sel26
+			; Main.bas 135: nb(t) = nb(t) + 1
+			dw kw_aget, arr_nb, var_bdos_t, tmp1
+			dw kw_inc, tmp1
+			dw kw_aset, arr_nb, var_bdos_t, tmp1
 
-			; Main.bas 107: Case 0
-			dw kw_cpeqvl, var_bdos___sel26, 0
-			dw kw_goto_iffalse_n, sel26_1
-sel26_b1:
+			; Main.bas 136: wk(t) = -1
+			dw kw_asetl, arr_wk, var_bdos_t, -1
 
-			; Main.bas 108: EndTask t
+			; Main.bas 137: Select Case f
+			dw kw_vtov, var_bdos_f, var_bdos___sel32
+
+			; Main.bas 138: Case 0
+			dw kw_cpeqvl, var_bdos___sel32, 0
+			dw kw_goto_iffalse_n, sel32_1
+sel32_b1:
+
+			; Main.bas 139: EndTask t
 			dw p_endtask_c, var_bdos_t
 
-			; Main.bas 109: Exit Sub
+			; Main.bas 140: Exit Sub
 			dw p_bdos_r
 
-			; Main.bas 110: Case 1
-sel26_1:
-			dw kw_cpeqvl, var_bdos___sel26, 1
-			dw kw_goto_iffalse_n, sel26_2
-sel26_b2:
+			; Main.bas 141: Case 1
+sel32_1:
+			dw kw_cpeqvl, var_bdos___sel32, 1
+			dw kw_goto_iffalse_n, sel32_2
+sel32_b2:
 
-			; Main.bas 111: a = kq(t) : kq(t) = 0
+			; Main.bas 142: a = kq(t) : kq(t) = 0
 			dw kw_aget, arr_kq, var_bdos_t, var_bdos_a
 			dw kw_asetl, arr_kq, var_bdos_t, 0
 
-			; Main.bas 112: If a <> 0 Then PutC t, a
+			; Main.bas 143: If a <> 0 Then PutC t, a Else wk(t) = Ticks
 			dw kw_cpnevl, var_bdos_a, 0
-			dw kw_goto_iffalse_n, sel26_e
+			dw kw_goto_iffalse_n, if33_1
 			dw p_putc_c, var_bdos_t, var_bdos_a
-if27_1:
+			dw sel32_e_go
+if33_1:
+			dw kw_ticks, tmp1
+			dw kw_aset, arr_wk, var_bdos_t, tmp1
+if33_e:
 
-			; Main.bas 113: Case 2
-			dw sel26_e_go
-sel26_2:
-			dw kw_cpeqvl, var_bdos___sel26, 2
-			dw kw_goto_iffalse_n, sel26_3
-sel26_b3:
+			; Main.bas 144: Case 2
+			dw sel32_e_go
+sel32_2:
+			dw kw_cpeqvl, var_bdos___sel32, 2
+			dw kw_goto_iffalse_n, sel32_3
+sel32_b3:
 
-			; Main.bas 114: PutC t, e And 255
-			dw kw_andvl, var_bdos_e, 255, tmp1
-			dw p_putc_c, var_bdos_t, tmp1
+			; Main.bas 145: PutC t, e
+			dw p_putc_c, var_bdos_t, var_bdos_e
 
-			; Main.bas 115: Case 6
-			dw sel26_e_go
-sel26_3:
-			dw kw_cpeqvl, var_bdos___sel26, 6
-			dw kw_goto_iffalse_n, sel26_4
-sel26_b4:
+			; Main.bas 146: Case 6
+			dw sel32_e_go
+sel32_3:
+			dw kw_cpeqvl, var_bdos___sel32, 6
+			dw kw_goto_iffalse_n, sel32_4
+sel32_b4:
 
-			; Main.bas 116: If (e And 255) = 255 Then
-			dw kw_andvl, var_bdos_e, 255, tmp0
-			dw kw_cpeqvl, tmp0, 255
-			dw kw_goto_iffalse_n, if28_1
+			; Main.bas 147: If e = 255 Then
+			dw kw_cpeqvl, var_bdos_e, 255
+			dw kw_goto_iffalse_n, if34_1
 
-			; Main.bas 117: a = kq(t) : kq(t) = 0
+			; Main.bas 148: a = kq(t) : kq(t) = 0
 			dw kw_aget, arr_kq, var_bdos_t, var_bdos_a
 			dw kw_asetl, arr_kq, var_bdos_t, 0
 
-			; Main.bas 118: ElseIf (e And 255) = 254 Then
-			dw sel26_e_go
-if28_1:
-			dw kw_andvl, var_bdos_e, 255, tmp0
-			dw kw_cpeqvl, tmp0, 254
-			dw kw_goto_iffalse_n, if28_2
+			; Main.bas 149: If a = 0 Then wk(t) = Ticks
+			dw kw_cpeqvl, var_bdos_a, 0
+			dw kw_goto_iffalse_n, sel32_e
+			dw kw_ticks, tmp1
+			dw kw_aset, arr_wk, var_bdos_t, tmp1
+if35_1:
 
-			; Main.bas 119: If kq(t) <> 0 Then a = 255
+			; Main.bas 150: ElseIf e = 254 Then
+			dw sel32_e_go
+if34_1:
+			dw kw_cpeqvl, var_bdos_e, 254
+			dw kw_goto_iffalse_n, if34_2
+
+			; Main.bas 151: If kq(t) <> 0 Then a = 255 Else wk(t) = Ticks
 			dw kw_aget, arr_kq, var_bdos_t, tmp0
 			dw kw_cpnevl, tmp0, 0
-			dw kw_goto_iffalse_n, sel26_e
+			dw kw_goto_iffalse_n, if36_1
 			dw kw_ltov, 255, var_bdos_a
-if29_1:
+			dw sel32_e_go
+if36_1:
+			dw kw_ticks, tmp1
+			dw kw_aset, arr_wk, var_bdos_t, tmp1
+if36_e:
 
-			; Main.bas 120: Else
-			dw sel26_e_go
-if28_2:
+			; Main.bas 152: Else
+			dw sel32_e_go
+if34_2:
 
-			; Main.bas 121: PutC t, e And 255
-			dw kw_andvl, var_bdos_e, 255, tmp1
-			dw p_putc_c, var_bdos_t, tmp1
+			; Main.bas 153: PutC t, e
+			dw p_putc_c, var_bdos_t, var_bdos_e
 
-			; Main.bas 122: End If
-if28_e:
+			; Main.bas 154: End If
+if34_e:
 
-			; Main.bas 123: Case 9
-			dw sel26_e_go
-sel26_4:
-			dw kw_cpeqvl, var_bdos___sel26, 9
-			dw kw_goto_iffalse_n, sel26_5
-sel26_b5:
+			; Main.bas 155: Case 9
+			dw sel32_e_go
+sel32_4:
+			dw kw_cpeqvl, var_bdos___sel32, 9
+			dw kw_goto_iffalse_n, sel32_5
+sel32_b5:
 
-			; Main.bas 124: PutMem t, e
-			dw p_putmem_c, var_bdos_t, var_bdos_e
+			; Main.bas 156: PutMem t, Hyp.Arg()
+			dw p_hyp_arg_c
+			dw p_putmem_c, var_bdos_t, var_hyp_arg_arg
 
-			; Main.bas 125: Case 11
-			dw sel26_e_go
-sel26_5:
-			dw kw_cpeqvl, var_bdos___sel26, 11
-			dw kw_goto_iffalse_n, sel26_6
-sel26_b6:
+			; Main.bas 157: Case 11
+			dw sel32_e_go
+sel32_5:
+			dw kw_cpeqvl, var_bdos___sel32, 11
+			dw kw_goto_iffalse_n, sel32_6
+sel32_b6:
 
-			; Main.bas 126: If kq(t) <> 0 Then a = 255
+			; Main.bas 158: If kq(t) <> 0 Then a = 255 Else wk(t) = Ticks
 			dw kw_aget, arr_kq, var_bdos_t, tmp0
 			dw kw_cpnevl, tmp0, 0
-			dw kw_goto_iffalse_n, sel26_e
+			dw kw_goto_iffalse_n, if37_1
 			dw kw_ltov, 255, var_bdos_a
-if30_1:
+			dw sel32_e_go
+if37_1:
+			dw kw_ticks, tmp1
+			dw kw_aset, arr_wk, var_bdos_t, tmp1
+if37_e:
 
-			; Main.bas 127: Case 12
-			dw sel26_e_go
-sel26_6:
-			dw kw_cpeqvl, var_bdos___sel26, 12
-			dw kw_goto_iffalse_n, sel26_7
-sel26_b7:
+			; Main.bas 159: Case 12
+			dw sel32_e_go
+sel32_6:
+			dw kw_cpeqvl, var_bdos___sel32, 12
+			dw kw_goto_iffalse_n, sel32_7
+sel32_b7:
 
-			; Main.bas 128: a = &H22                    ' CP/M 2.2
+			; Main.bas 160: a = &H22                    ' CP/M 2.2
 			dw kw_ltov, 34, var_bdos_a
 
-			; Main.bas 129: Case 25
-			dw sel26_e_go
-sel26_7:
-			dw kw_cpeqvl, var_bdos___sel26, 25
-			dw kw_goto_iffalse_n, sel26_8
-sel26_b8:
+			; Main.bas 161: Case 25
+			dw sel32_e_go
+sel32_7:
+			dw kw_cpeqvl, var_bdos___sel32, 25
+			dw kw_goto_iffalse_n, sel32_8
+sel32_b8:
 
-			; Main.bas 130: a = 0
+			; Main.bas 162: a = 0
 			dw kw_ztov, var_bdos_a
 
-			; Main.bas 131: Case Else
-			dw sel26_e_go
-sel26_8:
+			; Main.bas 163: Case 128
+			dw sel32_e_go
+sel32_8:
+			dw kw_cpeqvl, var_bdos___sel32, 128
+			dw kw_goto_iffalse_n, sel32_9
+sel32_b9:
 
-			; Main.bas 132: a = 255                     ' not here yet (files)
+			; Main.bas 165: Case Else
+			dw sel32_e_go
+sel32_9:
+
+			; Main.bas 166: a = 255                     ' not here yet (files)
 			dw kw_ltov, 255, var_bdos_a
 
-			; Main.bas 133: End Select
-sel26_e:
+			; Main.bas 167: End Select
+sel32_e:
 
-			; Main.bas 134: ra(t) = a
+			; Main.bas 168: ra(t) = a
 			dw kw_aset, arr_ra, var_bdos_t, var_bdos_a
 			dw p_bdos_r
 
+ntc_rg5_e:
+			IF ($ < 34816) && (ntc_rg6_e - ntc_rg6 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg6:
+; ============================================================
+; sub collected (normal mode)
+; ============================================================
+
+p_collected:
+
+			; Main.bas 174: nc(t) = nc(t) + n
+			dw kw_aget, arr_nc, var_collected_t, tmp1
+			dw kw_add, tmp1, var_collected_n, tmp1
+			dw kw_aset, arr_nc, var_collected_t, tmp1
+
+			; Main.bas 175: Memory.Copy Far(t, Hyp.OBUF), CLng(VarPtr(ob)), n
+			dw p_far_c, var_collected_t, lit_m2560
+			dw kw_l_itol, vp_var_ob, ltmp1
+			dw fn_memory_copy, var_far_far, ltmp1, var_collected_n, var_memory_copy_copy
+
+			; Main.bas 176: Out t, n
+			dw p_out_c, var_collected_t, var_collected_n
+			dw p_collected_r
+
+ntc_rg6_e:
+			IF ($ < 34816) && (ntc_rg7_e - ntc_rg7 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg7:
+; ============================================================
+; sub out (normal mode)
+; ============================================================
+
+p_out:
+
+			; Main.bas 182: Dim p As Integer, j As Integer, q As Integer, c As Integer, w As Integer
+
+			; Main.bas 183: p = VarPtr(ob)
+			dw kw_vtov, vp_var_ob, var_out_p
+
+			; Main.bas 184: j = 0
+			dw kw_ztov, var_out_j
+
+			; Main.bas 185: Do While j < n
+do38_t:
+			dw kw_scpltvv, var_out_j, var_out_n
+			dw kw_goto_iffalse_n, do38_e
+
+			; Main.bas 186: c = Peek(p + j)
+			dw kw_add, var_out_p, var_out_j, tmp0
+			dw kw_vptrtov8, tmp0, var_out_c
+
+			; Main.bas 187: If c >= 32 And es(t) = 0 Then
+			dw kw_scpgevl, var_out_c, 32
+			dw kw_ftov, tmp0
+			dw kw_aget, arr_es, var_out_t, tmp1
+			dw kw_cpeqvl, tmp1, 0
+			dw kw_ftov, tmp1
+			dw kw_andvv, tmp0, tmp1, tmp0
+			dw kw_goto_ifzero_n, tmp0, if39_1
+
+			; Main.bas 188: w = 80 - cx(t)
+			dw kw_aget, arr_cx, var_out_t, tmp1
+			dw kw_sublv, 80, tmp1, var_out_w
+
+			; Main.bas 189: If w > n - j Then w = n - j
+			dw kw_subvv, var_out_n, var_out_j, tmp1
+			dw kw_scpgtvv, var_out_w, tmp1
+			dw kw_goto_iffalse_n, if40_1
+			dw kw_subvv, var_out_n, var_out_j, var_out_w
+if40_1:
+
+			; Main.bas 190: q = j + Hyp.Printable(p + j, w)
+			dw kw_add, var_out_p, var_out_j, tmp1
+			dw p_hyp_printable_c, tmp1, var_out_w
+			dw kw_vtov, var_hyp_printable_printable, tmp1
+			dw kw_add, var_out_j, tmp1, var_out_q
+
+			; Main.bas 191: Memory.Copy CLng(p + j), RowA(t, cy(t)) + cx(t), q - j
+			dw kw_add, var_out_p, var_out_j, tmp0
+			dw kw_l_itol, tmp0, ltmp0
+			dw kw_aget, arr_cy, var_out_t, tmp2
+			dw p_rowa_c, var_out_t, tmp2
+			dw kw_l_mov, var_rowa_rowa, ltmp1
+			dw kw_aget, arr_cx, var_out_t, tmp2
+			dw kw_l_itol, tmp2, ltmp2
+			dw kw_l_add, ltmp1, ltmp2, ltmp1
+			dw kw_subvv, var_out_q, var_out_j, tmp2
+			dw fn_memory_copy, ltmp0, ltmp1, tmp2, var_memory_copy_copy
+
+			; Main.bas 192: If t = front Then
+			dw kw_cpeqvv, var_out_t, var_front
+			dw kw_goto_iffalse_n, if41_1
+
+			; Main.bas 193: Hyp.Text p + j, q - j, cx(t), cy(t)
+			dw kw_add, var_out_p, var_out_j, tmp0
+			dw kw_subvv, var_out_q, var_out_j, tmp1
+			dw kw_aget, arr_cx, var_out_t, tmp2
+			dw kw_aget, arr_cy, var_out_t, tmp3
+			dw p_hyp_text_c, tmp0, tmp1, tmp2, tmp3
+
+			; Main.bas 194: End If
+if41_1:
+
+			; Main.bas 195: cx(t) = cx(t) + q - j
+			dw kw_aget, arr_cx, var_out_t, tmp1
+			dw kw_add, tmp1, var_out_q, tmp1
+			dw kw_subvv, tmp1, var_out_j, tmp1
+			dw kw_aset, arr_cx, var_out_t, tmp1
+
+			; Main.bas 196: If cx(t) >= 80 Then cx(t) = 0 : NewLine t
+			dw kw_aget, arr_cx, var_out_t, tmp0
+			dw kw_scpgevl, tmp0, 80
+			dw kw_goto_iffalse_n, if42_1
+			dw kw_asetl, arr_cx, var_out_t, 0
+			dw p_newline_c, var_out_t
+if42_1:
+
+			; Main.bas 197: j = q
+			dw kw_vtov, var_out_q, var_out_j
+
+			; Main.bas 198: Else
+			dw do38_t_go
+if39_1:
+
+			; Main.bas 199: PutC t, c
+			dw p_putc_c, var_out_t, var_out_c
+
+			; Main.bas 200: j = j + 1
+			dw kw_inc, var_out_j
+
+			; Main.bas 201: End If
+if39_e:
+
+			; Main.bas 202: Loop
+			dw do38_t_go
+do38_e:
+			dw p_out_r
+
+ntc_rg7_e:
+			IF ($ < 34816) && (ntc_rg8_e - ntc_rg8 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg8:
 ; ============================================================
 ; sub putc (normal mode)
 ; ============================================================
 
 p_putc:
 
-			; Main.bas 141: If es(t) = 1 Then
+			; Main.bas 209: If es(t) = 1 Then
 			dw kw_aget, arr_es, var_putc_t, tmp0
 			dw kw_cpeqvl, tmp0, 1
-			dw kw_goto_iffalse_n, if31_1
+			dw kw_goto_iffalse_n, if43_1
 
-			; Main.bas 142: es(t) = 0
+			; Main.bas 210: es(t) = 0
 			dw kw_asetl, arr_es, var_putc_t, 0
 
-			; Main.bas 143: If c = 69 Then ClsT t
+			; Main.bas 211: If c = 69 Then ClsT t
 			dw kw_cpeqvl, var_putc_c, 69
-			dw kw_goto_iffalse_n, if32_1
+			dw kw_goto_iffalse_n, if44_1
 			dw p_clst_c, var_putc_t
-if32_1:
+if44_1:
 
-			; Main.bas 144: If c = 89 Then es(t) = 2
+			; Main.bas 212: If c = 89 Then es(t) = 2
 			dw kw_cpeqvl, var_putc_c, 89
-			dw kw_goto_iffalse_n, if33_1
+			dw kw_goto_iffalse_n, if45_1
 			dw kw_asetl, arr_es, var_putc_t, 2
-if33_1:
+if45_1:
 
-			; Main.bas 145: If c = 72 Then cx(t) = 0 : cy(t) = 0
+			; Main.bas 213: If c = 72 Then cx(t) = 0 : cy(t) = 0
 			dw kw_cpeqvl, var_putc_c, 72
-			dw kw_goto_iffalse_n, if31_e
+			dw kw_goto_iffalse_n, if43_e
 			dw kw_asetl, arr_cx, var_putc_t, 0
 			dw kw_asetl, arr_cy, var_putc_t, 0
-if34_1:
+if46_1:
 
-			; Main.bas 146: ElseIf es(t) = 2 Then
-			dw if31_e_go
-if31_1:
+			; Main.bas 214: ElseIf es(t) = 2 Then
+			dw if43_e_go
+if43_1:
 			dw kw_aget, arr_es, var_putc_t, tmp0
 			dw kw_cpeqvl, tmp0, 2
-			dw kw_goto_iffalse_n, if31_2
+			dw kw_goto_iffalse_n, if43_2
 
-			; Main.bas 147: ey(t) = c - 32 : es(t) = 3
+			; Main.bas 215: ey(t) = c - 32 : es(t) = 3
 			dw kw_addl, var_putc_c, -32, tmp1
 			dw kw_aset, arr_ey, var_putc_t, tmp1
 			dw kw_asetl, arr_es, var_putc_t, 3
 
-			; Main.bas 148: ElseIf es(t) = 3 Then
-			dw if31_e_go
-if31_2:
+			; Main.bas 216: ElseIf es(t) = 3 Then
+			dw if43_e_go
+if43_2:
 			dw kw_aget, arr_es, var_putc_t, tmp0
 			dw kw_cpeqvl, tmp0, 3
-			dw kw_goto_iffalse_n, if31_3
+			dw kw_goto_iffalse_n, if43_3
 
-			; Main.bas 149: es(t) = 0
+			; Main.bas 217: es(t) = 0
 			dw kw_asetl, arr_es, var_putc_t, 0
 
-			; Main.bas 150: cx(t) = c - 32 : cy(t) = ey(t)
+			; Main.bas 218: cx(t) = c - 32 : cy(t) = ey(t)
 			dw kw_addl, var_putc_c, -32, tmp1
 			dw kw_aset, arr_cx, var_putc_t, tmp1
 			dw kw_aget, arr_ey, var_putc_t, tmp1
 			dw kw_aset, arr_cy, var_putc_t, tmp1
 
-			; Main.bas 151: If cx(t) < 0 Or cx(t) > 79 Then cx(t) = 0
+			; Main.bas 219: If cx(t) < 0 Or cx(t) > 79 Then cx(t) = 0
 			dw kw_aget, arr_cx, var_putc_t, tmp0
 			dw kw_scpltvl, tmp0, 0
 			dw kw_ftov, tmp0
@@ -603,11 +915,11 @@ if31_2:
 			dw kw_scpgtvl, tmp1, 79
 			dw kw_ftov, tmp1
 			dw kw_orvv, tmp0, tmp1, tmp0
-			dw kw_goto_ifzero_n, tmp0, if35_1
+			dw kw_goto_ifzero_n, tmp0, if47_1
 			dw kw_asetl, arr_cx, var_putc_t, 0
-if35_1:
+if47_1:
 
-			; Main.bas 152: If cy(t) < 0 Or cy(t) > 24 Then cy(t) = 0
+			; Main.bas 220: If cy(t) < 0 Or cy(t) > 24 Then cy(t) = 0
 			dw kw_aget, arr_cy, var_putc_t, tmp0
 			dw kw_scpltvl, tmp0, 0
 			dw kw_ftov, tmp0
@@ -615,236 +927,295 @@ if35_1:
 			dw kw_scpgtvl, tmp1, 24
 			dw kw_ftov, tmp1
 			dw kw_orvv, tmp0, tmp1, tmp0
-			dw kw_goto_ifzero_n, tmp0, if31_e
+			dw kw_goto_ifzero_n, tmp0, if43_e
 			dw kw_asetl, arr_cy, var_putc_t, 0
-if36_1:
+if48_1:
 
-			; Main.bas 153: ElseIf c = 27 Then
-			dw if31_e_go
-if31_3:
+			; Main.bas 221: ElseIf c = 27 Then
+			dw if43_e_go
+if43_3:
 			dw kw_cpeqvl, var_putc_c, 27
-			dw kw_goto_iffalse_n, if31_4
+			dw kw_goto_iffalse_n, if43_4
 
-			; Main.bas 154: es(t) = 1
+			; Main.bas 222: es(t) = 1
 			dw kw_asetl, arr_es, var_putc_t, 1
 
-			; Main.bas 155: ElseIf c = 13 Then
-			dw if31_e_go
-if31_4:
+			; Main.bas 223: ElseIf c = 13 Then
+			dw if43_e_go
+if43_4:
 			dw kw_cpeqvl, var_putc_c, 13
-			dw kw_goto_iffalse_n, if31_5
+			dw kw_goto_iffalse_n, if43_5
 
-			; Main.bas 156: cx(t) = 0
+			; Main.bas 224: cx(t) = 0
 			dw kw_asetl, arr_cx, var_putc_t, 0
 
-			; Main.bas 157: ElseIf c = 10 Then
-			dw if31_e_go
-if31_5:
+			; Main.bas 225: ElseIf c = 10 Then
+			dw if43_e_go
+if43_5:
 			dw kw_cpeqvl, var_putc_c, 10
-			dw kw_goto_iffalse_n, if31_6
+			dw kw_goto_iffalse_n, if43_6
 
-			; Main.bas 158: NewLine t
+			; Main.bas 226: NewLine t
 			dw p_newline_c, var_putc_t
 
-			; Main.bas 159: ElseIf c = 8 Then
-			dw if31_e_go
-if31_6:
+			; Main.bas 227: ElseIf c = 8 Then
+			dw if43_e_go
+if43_6:
 			dw kw_cpeqvl, var_putc_c, 8
-			dw kw_goto_iffalse_n, if31_7
+			dw kw_goto_iffalse_n, if43_7
 
-			; Main.bas 160: If cx(t) > 0 Then cx(t) = cx(t) - 1
+			; Main.bas 228: If cx(t) > 0 Then cx(t) = cx(t) - 1
 			dw kw_aget, arr_cx, var_putc_t, tmp0
 			dw kw_scpgtvl, tmp0, 0
-			dw kw_goto_iffalse_n, if31_e
+			dw kw_goto_iffalse_n, if43_e
 			dw kw_aget, arr_cx, var_putc_t, tmp1
 			dw kw_dec, tmp1
 			dw kw_aset, arr_cx, var_putc_t, tmp1
-if37_1:
+if49_1:
 
-			; Main.bas 161: ElseIf c >= 32 Then
-			dw if31_e_go
-if31_7:
+			; Main.bas 229: ElseIf c >= 32 Then
+			dw if43_e_go
+if43_7:
 			dw kw_scpgevl, var_putc_c, 32
-			dw kw_goto_iffalse_n, if31_8
+			dw kw_goto_iffalse_n, if43_8
 
-			; Main.bas 162: Memory.WriteByte tp(t) + cy(t) * 80 + cx(t), c
-			dw kw_l_aget, arr_tp, var_putc_t, ltmp0
+			; Main.bas 230: Memory.WriteByte RowA(t, cy(t)) + cx(t), c
 			dw kw_aget, arr_cy, var_putc_t, tmp1
-			dw kw_mulvl, tmp1, 80, tmp1
-			dw kw_l_itol, tmp1, ltmp1
-			dw kw_l_add, ltmp0, ltmp1, ltmp0
+			dw p_rowa_c, var_putc_t, tmp1
+			dw kw_l_mov, var_rowa_rowa, ltmp0
 			dw kw_aget, arr_cx, var_putc_t, tmp1
 			dw kw_l_itol, tmp1, ltmp1
 			dw kw_l_add, ltmp0, ltmp1, ltmp0
 			dw fn_memory_writebyte, ltmp0, var_putc_c
 
-			; Main.bas 163: If t = front Then
+			; Main.bas 231: If t = front Then
 			dw kw_cpeqvv, var_putc_t, var_front
-			dw kw_goto_iffalse_n, if38_1
+			dw kw_goto_iffalse_n, if50_1
 
-			; Main.bas 164: Locate cx(t) + 1, cy(t) + 1
-			dw kw_aget, arr_cx, var_putc_t, tmp0
-			dw kw_inc, tmp0
-			dw kw_aget, arr_cy, var_putc_t, tmp1
-			dw kw_inc, tmp1
-			dw kw_locatevv, tmp0, tmp1
+			; Main.bas 232: Hyp.Char c, cx(t), cy(t)
+			dw kw_aget, arr_cx, var_putc_t, tmp1
+			dw kw_aget, arr_cy, var_putc_t, tmp2
+			dw p_hyp_char_c, var_putc_c, tmp1, tmp2
 
-			; Main.bas 165: Print Chr$(c);
-			dw kw_strchr, stmp0, var_putc_c
-			dw kw_printstrvar, stmp0
+			; Main.bas 233: End If
+if50_1:
 
-			; Main.bas 166: End If
-if38_1:
-
-			; Main.bas 167: cx(t) = cx(t) + 1
+			; Main.bas 234: cx(t) = cx(t) + 1
 			dw kw_aget, arr_cx, var_putc_t, tmp1
 			dw kw_inc, tmp1
 			dw kw_aset, arr_cx, var_putc_t, tmp1
 
-			; Main.bas 168: If cx(t) = 80 Then cx(t) = 0 : NewLine t
+			; Main.bas 235: If cx(t) = 80 Then cx(t) = 0 : NewLine t
 			dw kw_aget, arr_cx, var_putc_t, tmp0
 			dw kw_cpeqvl, tmp0, 80
-			dw kw_goto_iffalse_n, if39_1
+			dw kw_goto_iffalse_n, if51_1
 			dw kw_asetl, arr_cx, var_putc_t, 0
 			dw p_newline_c, var_putc_t
-if39_1:
+if51_1:
 
-			; Main.bas 169: End If
-if31_8:
-if31_e:
+			; Main.bas 236: End If
+if43_8:
+if43_e:
 			dw p_putc_r
 
+ntc_rg8_e:
+			IF ($ < 34816) && (ntc_rg9_e - ntc_rg9 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg9:
 ; ============================================================
 ; sub newline (normal mode)
 ; ============================================================
 
 p_newline:
 
-			; Main.bas 173: cy(t) = cy(t) + 1
+			; Main.bas 240: cy(t) = cy(t) + 1
 			dw kw_aget, arr_cy, var_newline_t, tmp1
 			dw kw_inc, tmp1
 			dw kw_aset, arr_cy, var_newline_t, tmp1
 
-			; Main.bas 174: If cy(t) < 25 Then Exit Sub
+			; Main.bas 241: If cy(t) < 25 Then Exit Sub
 			dw kw_aget, arr_cy, var_newline_t, tmp0
 			dw kw_scpltvl, tmp0, 25
-			dw kw_goto_iffalse_n, if40_1
+			dw kw_goto_iffalse_n, if52_1
 			dw p_newline_r
-if40_1:
+if52_1:
 
-			; Main.bas 175: cy(t) = 24
+			; Main.bas 242: cy(t) = 24
 			dw kw_asetl, arr_cy, var_newline_t, 24
 
-			; Main.bas 176: Memory.Copy tp(t) + 80, tp(t), 1920
-			dw kw_l_aget, arr_tp, var_newline_t, ltmp0
-			dw kw_l_add, ltmp0, llit_80, ltmp0
-			dw kw_l_aget, arr_tp, var_newline_t, ltmp1
-			dw fn_memory_copy, ltmp0, ltmp1, lit_1920, var_memory_copy_copy
+			; Main.bas 243: pt(t) = pt(t) + 1                ' the page scrolls: its top row moves on, the new last row is cleared
+			dw kw_aget, arr_pt, var_newline_t, tmp1
+			dw kw_inc, tmp1
+			dw kw_aset, arr_pt, var_newline_t, tmp1
 
-			; Main.bas 177: Memory.Copy CLng(VarPtr(blank)), tp(t) + 1920, 80
+			; Main.bas 244: If pt(t) = 25 Then pt(t) = 0
+			dw kw_aget, arr_pt, var_newline_t, tmp0
+			dw kw_cpeqvl, tmp0, 25
+			dw kw_goto_iffalse_n, if53_1
+			dw kw_asetl, arr_pt, var_newline_t, 0
+if53_1:
+
+			; Main.bas 245: Memory.Copy CLng(VarPtr(blank)), RowA(t, 24), 80
 			dw kw_l_itol, vp_var_blank, ltmp0
-			dw kw_l_aget, arr_tp, var_newline_t, ltmp1
-			dw kw_l_add, ltmp1, llit_1920, ltmp1
-			dw fn_memory_copy, ltmp0, ltmp1, lit_80, var_memory_copy_copy
+			dw p_rowa_c, var_newline_t, lit_24
+			dw fn_memory_copy, ltmp0, var_rowa_rowa, lit_80, var_memory_copy_copy
 
-			; Main.bas 178: If t = front Then
+			; Main.bas 246: If t = front Then
 			dw kw_cpeqvv, var_newline_t, var_front
-			dw kw_goto_iffalse_n, if41_1
+			dw kw_goto_iffalse_n, if54_1
 
-			; Main.bas 179: Locate 1, 25
+			; Main.bas 247: Locate 1, 25                  ' the screen scrolls: the firmware scrolls when a character
 			dw kw_locatell, 1, 25
 
-			; Main.bas 180: Print                         ' the screen scrolls
+			; Main.bas 248: Print                         ' goes below the last line (not at the line feed itself)
 			dw kw_printnl
 
-			; Main.bas 181: End If
-if41_1:
+			; Main.bas 249: Print " ";
+			dw kw_printstrvar, str4
+
+			; Main.bas 250: End If
+if54_1:
 			dw p_newline_r
 
+ntc_rg9_e:
+			IF ($ < 34816) && (ntc_rg10_e - ntc_rg10 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg10:
 ; ============================================================
 ; sub puts (normal mode)
 ; ============================================================
 
 p_puts:
 
-			; Main.bas 185: Dim j As Integer
+			; Main.bas 254: ob = Left$(s, 128)
+			dw kw_strleft, var_ob, var_puts_s, lit_128
 
-			; Main.bas 186: For j = 1 To Len(s)
-			dw kw_ltov, 1, var_puts_j
-			dw kw_strlen, var_puts_s, for42_l
-			dw kw_forupv_n, var_puts_j, for42_l, for42_e
-for42_t:
-
-			; Main.bas 187: PutC t, Asc(Mid$(s, j, 1))
-			dw kw_strmid, stmp1, var_puts_s, var_puts_j, lit_1
-			dw kw_strasc, stmp1, tmp1
-			dw p_putc_c, var_puts_t, tmp1
-
-			; Main.bas 188: Next
-			dw kw_next1v_n, var_puts_j, for42_l, for42_t
-for42_e:
+			; Main.bas 255: Out t, Len(ob)
+			dw kw_strlen, var_ob, tmp1
+			dw p_out_c, var_puts_t, tmp1
 			dw p_puts_r
 
+ntc_rg10_e:
+			IF ($ < 34816) && (ntc_rg11_e - ntc_rg11 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg11:
 ; ============================================================
 ; sub putln (normal mode)
 ; ============================================================
 
 p_putln:
 
-			; Main.bas 192: PutS t, s
+			; Main.bas 259: PutS t, s
 			dw p_puts_c, var_putln_t, var_putln_s
 
-			; Main.bas 193: PutC t, 13
+			; Main.bas 260: PutC t, 13
 			dw p_putc_c, var_putln_t, lit_13
 
-			; Main.bas 194: PutC t, 10
+			; Main.bas 261: PutC t, 10
 			dw p_putc_c, var_putln_t, lit_10
 			dw p_putln_r
 
+ntc_rg11_e:
+			IF ($ < 34816) && (ntc_rg12_e - ntc_rg12 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg12:
 ; ============================================================
 ; sub putmem (normal mode)
 ; ============================================================
 
 p_putmem:
 
-			; Main.bas 199: Dim c As Integer, n As Integer
+			; Main.bas 267: Dim la As Long, n As Integer, d As Integer, tot As Integer
 
-			; Main.bas 200: Do
-do43_t:
+			; Main.bas 268: la = a
+			dw kw_l_itol, var_putmem_a, var_putmem_la
 
-			; Main.bas 201: c = Memory.ReadByte(Far(t, a))
-			dw p_far_c, var_putmem_t, var_putmem_a
-			dw kw_l_mov, var_far_far, ltmp0
-			dw fn_memory_readbyte, ltmp0, var_putmem_c
+			; Main.bas 269: If la < 0 Then la = la + 65536
+			dw kw_l_cplt, var_putmem_la, llit_0
+			dw kw_goto_iffalse_n, if55_1
+			dw kw_l_add, var_putmem_la, llit_65536, var_putmem_la
+if55_1:
 
-			; Main.bas 202: If c = 36 Then Exit Sub
-			dw kw_cpeqvl, var_putmem_c, 36
-			dw kw_goto_iffalse_n, if44_1
+			; Main.bas 270: Do
+do56_t:
+
+			; Main.bas 271: n = 128
+			dw kw_ltov, 128, var_putmem_n
+
+			; Main.bas 272: If la + n > 65536 Then n = 65536 - la
+			dw kw_l_itol, var_putmem_n, ltmp1
+			dw kw_l_add, var_putmem_la, ltmp1, ltmp0
+			dw kw_l_cpgt, ltmp0, llit_65536
+			dw kw_goto_iffalse_n, if57_1
+			dw kw_l_sub, llit_65536, var_putmem_la, ltmp0
+			dw kw_l_ltoi, ltmp0, var_putmem_n
+if57_1:
+
+			; Main.bas 273: If n <= 0 Then Exit Sub
+			dw kw_scplevl, var_putmem_n, 0
+			dw kw_goto_iffalse_n, if58_1
 			dw p_putmem_r
-if44_1:
+if58_1:
 
-			; Main.bas 203: PutC t, c
-			dw p_putc_c, var_putmem_t, var_putmem_c
+			; Main.bas 274: Memory.Copy Far(t, la), CLng(VarPtr(ob)), n
+			dw kw_l_ltoi, var_putmem_la, tmp1
+			dw p_far_c, var_putmem_t, tmp1
+			dw kw_l_itol, vp_var_ob, ltmp1
+			dw fn_memory_copy, var_far_far, ltmp1, var_putmem_n, var_memory_copy_copy
 
-			; Main.bas 204: a = a + 1
-			dw kw_inc, var_putmem_a
+			; Main.bas 275: d = InStr(Left$(ob, n), "$")
+			dw kw_strleft, stmp0, var_ob, var_putmem_n
+			dw kw_strinstr, lit_1, stmp0, str5, var_putmem_d
 
-			; Main.bas 205: n = n + 1
-			dw kw_inc, var_putmem_n
+			; Main.bas 276: If d > 0 Then n = d - 1
+			dw kw_scpgtvl, var_putmem_d, 0
+			dw kw_goto_iffalse_n, if59_1
+			dw kw_addl, var_putmem_d, -1, var_putmem_n
+if59_1:
 
-			; Main.bas 206: Loop Until n > 2000
-			dw kw_scpgtvl, var_putmem_n, 2000
-			dw kw_goto_iffalse_n, do43_t
-do43_e:
+			; Main.bas 277: nc(t) = nc(t) + n
+			dw kw_aget, arr_nc, var_putmem_t, tmp1
+			dw kw_add, tmp1, var_putmem_n, tmp1
+			dw kw_aset, arr_nc, var_putmem_t, tmp1
+
+			; Main.bas 278: Out t, n
+			dw p_out_c, var_putmem_t, var_putmem_n
+
+			; Main.bas 279: If d > 0 Then Exit Sub
+			dw kw_scpgtvl, var_putmem_d, 0
+			dw kw_goto_iffalse_n, if60_1
+			dw p_putmem_r
+if60_1:
+
+			; Main.bas 280: la = la + n
+			dw kw_l_itol, var_putmem_n, ltmp1
+			dw kw_l_add, var_putmem_la, ltmp1, var_putmem_la
+
+			; Main.bas 281: tot = tot + n
+			dw kw_add, var_putmem_tot, var_putmem_n, var_putmem_tot
+
+			; Main.bas 282: Loop Until tot > 4000
+			dw kw_scpgtvl, var_putmem_tot, 4000
+			dw kw_goto_iffalse_n, do56_t
+do56_e:
 			dw p_putmem_r
 
+ntc_rg12_e:
+			IF ($ < 34816) && (ntc_rg13_e - ntc_rg13 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg13:
 ; ============================================================
 ; function far (normal mode)
 ; ============================================================
 
 p_far:
 
-			; Main.bas 211: Far = Hyp.FarPtr(Memory.BankPage(bk(t), ((a And &HC000) \ 16384) And 3), a)
+			; Main.bas 287: Far = Hyp.FarPtr(Memory.BankPage(bk(t), ((a And &HC000) \ 16384) And 3), a)
 			dw kw_aget, arr_bk, var_far_t, tmp1
 			dw kw_andvl, var_far_a, -16384, tmp2
 			dw kw_divvl, tmp2, 16384, tmp2
@@ -854,19 +1225,52 @@ p_far:
 			dw fn_hyp_farptr, tmp1, var_far_a, var_far_far
 			dw p_far_r
 
+ntc_rg13_e:
+			IF ($ < 34816) && (ntc_rg14_e - ntc_rg14 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg14:
+; ============================================================
+; function rowa (normal mode)
+; ============================================================
+
+p_rowa:
+
+			; Main.bas 292: r = r + pt(t)
+			dw kw_aget, arr_pt, var_rowa_t, tmp2
+			dw kw_add, var_rowa_r, tmp2, var_rowa_r
+
+			; Main.bas 293: If r >= 25 Then r = r - 25
+			dw kw_scpgevl, var_rowa_r, 25
+			dw kw_goto_iffalse_n, if61_1
+			dw kw_addl, var_rowa_r, -25, var_rowa_r
+if61_1:
+
+			; Main.bas 294: RowA = tp(t) + r * 80
+			dw kw_l_aget, arr_tp, var_rowa_t, ltmp1
+			dw kw_mulvl, var_rowa_r, 80, tmp2
+			dw kw_l_itol, tmp2, ltmp2
+			dw kw_l_add, ltmp1, ltmp2, var_rowa_rowa
+			dw p_rowa_r
+
+ntc_rg14_e:
+			IF ($ < 34816) && (ntc_rg15_e - ntc_rg15 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg15:
 ; ============================================================
 ; sub clst (normal mode)
 ; ============================================================
 
 p_clst:
 
-			; Main.bas 215: Dim j As Integer
+			; Main.bas 298: Dim j As Integer
 
-			; Main.bas 216: For j = 0 To 24
+			; Main.bas 299: For j = 0 To 24
 			dw kw_ztov, var_clst_j
-for45_t:
+for62_t:
 
-			; Main.bas 217: Memory.Copy CLng(VarPtr(blank)), tp(t) + j * 80, 80
+			; Main.bas 300: Memory.Copy CLng(VarPtr(blank)), tp(t) + j * 80, 80
 			dw kw_l_itol, vp_var_blank, ltmp0
 			dw kw_l_aget, arr_tp, var_clst_t, ltmp1
 			dw kw_mulvl, var_clst_j, 80, tmp2
@@ -874,89 +1278,339 @@ for45_t:
 			dw kw_l_add, ltmp1, ltmp2, ltmp1
 			dw fn_memory_copy, ltmp0, ltmp1, lit_80, var_memory_copy_copy
 
-			; Main.bas 218: Next
-			dw kw_next1l_n, var_clst_j, 24, for45_t
-for45_e:
+			; Main.bas 301: Next
+			dw kw_next1l_n, var_clst_j, 24, for62_t
+for62_e:
 
-			; Main.bas 219: cx(t) = 0 : cy(t) = 0
+			; Main.bas 302: pt(t) = 0
+			dw kw_asetl, arr_pt, var_clst_t, 0
+
+			; Main.bas 303: cx(t) = 0 : cy(t) = 0
 			dw kw_asetl, arr_cx, var_clst_t, 0
 			dw kw_asetl, arr_cy, var_clst_t, 0
 
-			; Main.bas 220: If t = front Then Cls
+			; Main.bas 304: If t = front Then Cls
 			dw kw_cpeqvv, var_clst_t, var_front
-			dw kw_goto_iffalse_n, if46_1
+			dw kw_goto_iffalse_n, if63_1
 			dw kw_cls
-if46_1:
+if63_1:
 			dw p_clst_r
 
+ntc_rg15_e:
+			IF ($ < 34816) && (ntc_rg16_e - ntc_rg16 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg16:
 ; ============================================================
 ; sub tofront (normal mode)
 ; ============================================================
 
 p_tofront:
 
-			; Main.bas 225: Dim j As Integer
+			; Main.bas 309: Dim j As Integer
 
-			; Main.bas 226: front = t
+			; Main.bas 310: front = t
 			dw kw_vtov, var_tofront_t, var_front
 
-			; Main.bas 227: If st(t) = 0 Then OpenSlot t : Exit Sub
+			; Main.bas 311: If st(t) = 0 Then OpenSlot t : Exit Sub
 			dw kw_aget, arr_st, var_tofront_t, tmp0
 			dw kw_cpeqvl, tmp0, 0
-			dw kw_goto_iffalse_n, if47_1
+			dw kw_goto_iffalse_n, if64_1
 			dw p_openslot_c, var_tofront_t
 			dw p_tofront_r
-if47_1:
+if64_1:
 
-			; Main.bas 228: Cls
+			; Main.bas 312: Cls
 			dw kw_cls
 
-			; Main.bas 229: For j = 0 To 24
+			; Main.bas 313: For j = 0 To 24
 			dw kw_ztov, var_tofront_j
-for48_t:
+for65_t:
 
-			; Main.bas 230: Memory.Copy tp(t) + j * 80, CLng(VarPtr(row)), 80
-			dw kw_l_aget, arr_tp, var_tofront_t, ltmp0
-			dw kw_mulvl, var_tofront_j, 80, tmp1
-			dw kw_l_itol, tmp1, ltmp1
-			dw kw_l_add, ltmp0, ltmp1, ltmp0
+			; Main.bas 314: Memory.Copy RowA(t, j), CLng(VarPtr(row)), 80
+			dw p_rowa_c, var_tofront_t, var_tofront_j
 			dw kw_l_itol, vp_var_row, ltmp1
-			dw fn_memory_copy, ltmp0, ltmp1, lit_80, var_memory_copy_copy
+			dw fn_memory_copy, var_rowa_rowa, ltmp1, lit_80, var_memory_copy_copy
 
-			; Main.bas 231: Locate 1, j + 1
-			dw kw_addl, var_tofront_j, 1, tmp1
-			dw kw_ltov, 1, tmp0
-			dw kw_locatevv, tmp0, tmp1
+			; Main.bas 315: Hyp.Text VarPtr(row), 80, 0, j
+			dw p_hyp_text_c, vp_var_row, lit_80, lit_0, var_tofront_j
 
-			; Main.bas 232: If j < 24 Then Print row; Else Print Left$(row, 79);
-			dw kw_scpltvl, var_tofront_j, 24
-			dw kw_goto_iffalse_n, if49_1
-			dw kw_printstrvar, var_row
-			dw if49_e_go
-if49_1:
-			dw kw_strleft, stmp0, var_row, lit_79
-			dw kw_printstrvar, stmp0
-if49_e:
-
-			; Main.bas 233: Next
-			dw kw_next1l_n, var_tofront_j, 24, for48_t
-for48_e:
-
-			; Main.bas 234: Locate cx(t) + 1, cy(t) + 1
-			dw kw_aget, arr_cx, var_tofront_t, tmp0
-			dw kw_inc, tmp0
-			dw kw_aget, arr_cy, var_tofront_t, tmp1
-			dw kw_inc, tmp1
-			dw kw_locatevv, tmp0, tmp1
+			; Main.bas 316: Next
+			dw kw_next1l_n, var_tofront_j, 24, for65_t
+for65_e:
 			dw p_tofront_r
 
+ntc_rg16_e:
+			IF ($ < 34816) && (ntc_rg17_e - ntc_rg17 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg17:
+; ============================================================
+; sub showtop (normal mode)
+; ============================================================
+
+p_showtop:
+
+			; Main.bas 322: Dim j As Integer, s As String Max 14
+
+			; Main.bas 323: If front <> 0 Then back = front
+			dw kw_cpnevl, var_front, 0
+			dw kw_goto_iffalse_n, if66_1
+			dw kw_vtov, var_front, var_back
+if66_1:
+
+			; Main.bas 324: front = 0
+			dw kw_ztov, var_front
+
+			; Main.bas 325: Cls
+			dw kw_cls
+
+			; Main.bas 326: Print "CyborgOS TOP - " + N(ns) + " slots, " + N(Memory.Banks()) + " banks of 64K, " + N(Memory.FreePages()) + " pages free"
+			dw p_n_c, var_ns
+			dw kw_printstrvar, str6
+			dw kw_printstrvar, var_n_n
+			dw fn_memory_banks, var_memory_banks_banks
+			dw kw_vtov, var_memory_banks_banks, tmp0
+			dw p_n_c, tmp0
+			dw kw_printstrvar, str7
+			dw kw_printstrvar, var_n_n
+			dw fn_memory_freepages, var_memory_freepages_freepages
+			dw kw_vtov, var_memory_freepages_freepages, tmp0
+			dw p_n_c, tmp0
+			dw kw_printstrvar, str8
+			dw kw_printstrvar, var_n_n
+			dw kw_printstrvar, str9
+			dw kw_printnl
+
+			; Main.bas 327: Print "Control + ESC: back, Control + 1-" + N(ns) + ": that slot"
+			dw p_n_c, var_ns
+			dw kw_printstrvar, str10
+			dw kw_printstrvar, var_n_n
+			dw kw_printstrvar, str11
+			dw kw_printnl
+
+			; Main.bas 328: Print
+			dw kw_printnl
+
+			; Main.bas 329: Print "In the last whole second:"
+			dw kw_printstrvar, str12
+			dw kw_printnl
+
+			; Main.bas 330: Print "SLOT  STATE          PROGRAM         TURNS/S   BDOS/S  CHARS/S"
+			dw kw_printstrvar, str13
+			dw kw_printnl
+
+			; Main.bas 331: For j = 1 To ns
+			dw kw_ltov, 1, var_showtop_j
+			dw kw_vtov, var_ns, for67_l
+			dw kw_forupv_n, var_showtop_j, for67_l, for67_e
+for67_t:
+
+			; Main.bas 332: If st(j) = 0 Then
+			dw kw_aget, arr_st, var_showtop_j, tmp0
+			dw kw_cpeqvl, tmp0, 0
+			dw kw_goto_iffalse_n, if68_1
+
+			; Main.bas 333: s = "-"
+			dw kw_strcpy, var_showtop_s, str14
+
+			; Main.bas 334: ElseIf st(j) = 1 Then
+			dw if68_e_go
+if68_1:
+			dw kw_aget, arr_st, var_showtop_j, tmp0
+			dw kw_cpeqvl, tmp0, 1
+			dw kw_goto_iffalse_n, if68_2
+
+			; Main.bas 335: s = "command line"
+			dw kw_strcpy, var_showtop_s, str15
+
+			; Main.bas 336: ElseIf wk(j) >= 0 Then
+			dw if68_e_go
+if68_2:
+			dw kw_aget, arr_wk, var_showtop_j, tmp0
+			dw kw_scpgevl, tmp0, 0
+			dw kw_goto_iffalse_n, if68_3
+
+			; Main.bas 337: s = "waiting (key)"
+			dw kw_strcpy, var_showtop_s, str16
+
+			; Main.bas 338: Else
+			dw if68_e_go
+if68_3:
+
+			; Main.bas 339: s = "running"
+			dw kw_strcpy, var_showtop_s, str17
+
+			; Main.bas 340: End If
+if68_e:
+
+			; Main.bas 341: Print " "; Right$(" " + N(j), 2); IIf(j = back, "*", " "); "  "; Left$(s + Space$(15), 15); Left$(IIf(st(j) = 2, nm(j), "") + Space$(13), 13); Pad(Rate(lt(j), ld)); Pad(Rate(lb(j), ld)); Pad(Rate(lc(j), ld))
+			dw p_n_c, var_showtop_j
+			dw kw_strcpy, stmp1, var_n_n
+			dw kw_strcpy, stmp0, str4
+			dw kw_strcat, stmp0, stmp1
+			dw kw_strright, stmp0, stmp0, lit_2
+			dw kw_printstrvar, str4
+			dw kw_printstrvar, stmp0
+			dw kw_cpeqvv, var_showtop_j, var_back
+			dw kw_ftov, tmp0
+			dw kw_goto_ifzero_n, tmp0, ch69_0
+			dw kw_strcpy, stmp0, str18
+			dw ch69_e_go
+ch69_0:
+			dw kw_strcpy, stmp0, str4
+			dw ch69_e_go
+ch69_1:
+			dw kw_strcpy, stmp0, str19
+ch69_e:
+			dw kw_printstrvar, stmp0
+			dw kw_strspace, stmp1, lit_15
+			dw kw_strcpy, stmp0, var_showtop_s
+			dw kw_strcat, stmp0, stmp1
+			dw kw_strleft, stmp0, stmp0, lit_15
+			dw kw_printstrvar, str20
+			dw kw_printstrvar, stmp0
+			dw kw_aget, arr_st, var_showtop_j, tmp0
+			dw kw_cpeqvl, tmp0, 2
+			dw kw_ftov, tmp0
+			dw kw_sget, arr_nm, var_showtop_j, stmp1, 13
+			dw kw_goto_ifzero_n, tmp0, ch70_0
+			dw kw_strcpy, stmp0, stmp1
+			dw ch70_e_go
+ch70_0:
+			dw kw_strcpy, stmp0, str19
+			dw ch70_e_go
+ch70_1:
+			dw kw_strcpy, stmp0, str19
+ch70_e:
+			dw kw_strspace, stmp1, lit_13
+			dw kw_strcat, stmp0, stmp1
+			dw kw_strleft, stmp0, stmp0, lit_13
+			dw kw_printstrvar, stmp0
+			dw kw_aget, arr_lt, var_showtop_j, tmp0
+			dw p_rate_c, tmp0, var_ld
+			dw kw_vtov, var_rate_rate, tmp0
+			dw p_pad_c, tmp0
+			dw kw_printstrvar, var_pad_pad
+			dw kw_aget, arr_lb, var_showtop_j, tmp0
+			dw p_rate_c, tmp0, var_ld
+			dw kw_vtov, var_rate_rate, tmp0
+			dw p_pad_c, tmp0
+			dw kw_printstrvar, var_pad_pad
+			dw kw_aget, arr_lc, var_showtop_j, tmp0
+			dw p_rate_c, tmp0, var_ld
+			dw kw_vtov, var_rate_rate, tmp0
+			dw p_pad_c, tmp0
+			dw kw_printstrvar, var_pad_pad
+			dw kw_printnl
+
+			; Main.bas 342: Next
+			dw kw_next1v_n, var_showtop_j, for67_l, for67_t
+for67_e:
+			dw p_showtop_r
+
+ntc_rg17_e:
+			IF ($ < 34816) && (ntc_rg18_e - ntc_rg18 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg18:
+; ============================================================
+; sub roll (normal mode)
+; ============================================================
+
+p_roll:
+
+			; Main.bas 347: Dim j As Integer
+
+			; Main.bas 348: ld = Ticks - td
+			dw kw_ticks, tmp0
+			dw kw_subvv, tmp0, var_td, var_ld
+
+			; Main.bas 349: td = Ticks
+			dw kw_ticks, tmp0
+			dw kw_vtov, tmp0, var_td
+
+			; Main.bas 350: For j = 1 To ns
+			dw kw_ltov, 1, var_roll_j
+			dw kw_vtov, var_ns, for71_l
+			dw kw_forupv_n, var_roll_j, for71_l, for71_e
+for71_t:
+
+			; Main.bas 351: lt(j) = tn(j) : lb(j) = nb(j) : lc(j) = nc(j)
+			dw kw_aget, arr_tn, var_roll_j, tmp1
+			dw kw_aset, arr_lt, var_roll_j, tmp1
+			dw kw_aget, arr_nb, var_roll_j, tmp1
+			dw kw_aset, arr_lb, var_roll_j, tmp1
+			dw kw_aget, arr_nc, var_roll_j, tmp1
+			dw kw_aset, arr_lc, var_roll_j, tmp1
+
+			; Main.bas 352: tn(j) = 0 : nb(j) = 0 : nc(j) = 0
+			dw kw_asetl, arr_tn, var_roll_j, 0
+			dw kw_asetl, arr_nb, var_roll_j, 0
+			dw kw_asetl, arr_nc, var_roll_j, 0
+
+			; Main.bas 353: Next
+			dw kw_next1v_n, var_roll_j, for71_l, for71_t
+for71_e:
+			dw p_roll_r
+
+ntc_rg18_e:
+			IF ($ < 34816) && (ntc_rg19_e - ntc_rg19 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg19:
+; ============================================================
+; function pad (normal mode)
+; ============================================================
+
+p_pad:
+
+			; Main.bas 358: Pad = Right$(Space$(9) + N(v), 9)
+			dw kw_strspace, stmp0, lit_9
+			dw p_n_c, var_pad_v
+			dw kw_strcpy, stmp1, var_n_n
+			dw kw_strcat, stmp0, stmp1
+			dw kw_strright, var_pad_pad, stmp0, lit_9
+			dw p_pad_r
+
+ntc_rg19_e:
+			IF ($ < 34816) && (ntc_rg20_e - ntc_rg20 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg20:
+; ============================================================
+; function rate (normal mode)
+; ============================================================
+
+p_rate:
+
+			; Main.bas 363: If n > 1000 Then Rate = n \ (d \ 300 + 1) Else Rate = n * 30 \ (d \ 10 + 1)
+			dw kw_scpgtvl, var_rate_n, 1000
+			dw kw_goto_iffalse_n, if72_1
+			dw kw_divvl, var_rate_d, 300, tmp1
+			dw kw_inc, tmp1
+			dw kw_divvv, var_rate_n, tmp1, var_rate_rate
+			dw if72_e_go
+if72_1:
+			dw kw_mulvl, var_rate_n, 30, tmp0
+			dw kw_divvl, var_rate_d, 10, tmp1
+			dw kw_inc, tmp1
+			dw kw_divvv, tmp0, tmp1, var_rate_rate
+if72_e:
+			dw p_rate_r
+
+ntc_rg20_e:
+			IF ($ < 34816) && (ntc_rg21_e - ntc_rg21 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg21:
 ; ============================================================
 ; sub install (normal mode)
 ; ============================================================
 
 p_install:
 
-			; Main.bas 241: Memory.Copy CLng(Hyp.Info(0)), Far(t, 0), Hyp.Info(1)
+			; Main.bas 370: Memory.Copy CLng(Hyp.Info(0)), Far(t, 0), Hyp.Info(1)
 			dw fn_hyp_info, lit_0, var_hyp_info_info
 			dw kw_vtov, var_hyp_info_info, tmp0
 			dw kw_l_itol, tmp0, ltmp0
@@ -964,134 +1618,188 @@ p_install:
 			dw fn_hyp_info, lit_1, var_hyp_info_info
 			dw fn_memory_copy, ltmp0, var_far_far, var_hyp_info_info, var_memory_copy_copy
 
-			; Main.bas 242: Memory.Copy CLng(Hyp.Info(2)), Far(t, Hyp.STUB), Hyp.Info(3)
+			; Main.bas 371: Memory.Copy CLng(Hyp.Info(2)), Far(t, Hyp.STUB), Hyp.Info(3)
 			dw fn_hyp_info, lit_2, var_hyp_info_info
 			dw kw_vtov, var_hyp_info_info, tmp0
 			dw kw_l_itol, tmp0, ltmp0
-			dw p_far_c, var_install_t, lit_m2560
+			dw p_far_c, var_install_t, lit_m2816
 			dw fn_hyp_info, lit_3, var_hyp_info_info
 			dw fn_memory_copy, ltmp0, var_far_far, var_hyp_info_info, var_memory_copy_copy
+
+			; Main.bas 372: Memory.WriteByte Far(t, Hyp.OBUF + 128), 0      ' no characters collected
+			dw p_far_c, var_install_t, lit_m2432
+			dw fn_memory_writebyte, var_far_far, lit_0
+
+			; Main.bas 373: Memory.WriteByte Far(t, Hyp.KEY), 0             ' no key waiting
+			dw p_far_c, var_install_t, lit_m2431
+			dw fn_memory_writebyte, var_far_far, lit_0
+
+			; Main.bas 374: kq(t) = 0
+			dw kw_asetl, arr_kq, var_install_t, 0
 			dw p_install_r
 
+ntc_rg21_e:
+			IF ($ < 34816) && (ntc_rg22_e - ntc_rg22 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg22:
 ; ============================================================
 ; sub openslot (normal mode)
 ; ============================================================
 
 p_openslot:
 
-			; Main.bas 246: Install t
+			; Main.bas 378: Install t
 			dw p_install_c, var_openslot_t
 
-			; Main.bas 247: st(t) = 1
+			; Main.bas 379: st(t) = 1
 			dw kw_asetl, arr_st, var_openslot_t, 1
 
-			; Main.bas 248: ClsT t
+			; Main.bas 380: ClsT t
 			dw p_clst_c, var_openslot_t
 
-			; Main.bas 249: PutLn t, "CyborgOS slot " + N(t) + " of " + N(ns) + " - Control + 1-" + N(ns) + ", HELP"
+			; Main.bas 381: PutLn t, "CyborgOS slot " + N(t) + " of " + N(ns) + " - Control + 1-" + N(ns) + ", Control + ESC: TOP, HELP"
 			dw p_n_c, var_openslot_t
 			dw kw_strcpy, stmp2, var_n_n
-			dw kw_strcpy, stmp1, str4
+			dw kw_strcpy, stmp1, str21
 			dw kw_strcat, stmp1, stmp2
-			dw kw_strcat, stmp1, str5
+			dw kw_strcat, stmp1, str22
 			dw p_n_c, var_ns
 			dw kw_strcpy, stmp2, var_n_n
 			dw kw_strcat, stmp1, stmp2
-			dw kw_strcat, stmp1, str6
+			dw kw_strcat, stmp1, str23
 			dw p_n_c, var_ns
 			dw kw_strcpy, stmp2, var_n_n
 			dw kw_strcat, stmp1, stmp2
-			dw kw_strcat, stmp1, str7
+			dw kw_strcat, stmp1, str24
 			dw p_putln_c, var_openslot_t, stmp1
 
-			; Main.bas 250: Prompt t
+			; Main.bas 382: Prompt t
 			dw p_prompt_c, var_openslot_t
 			dw p_openslot_r
 
+ntc_rg22_e:
+			IF ($ < 34816) && (ntc_rg23_e - ntc_rg23 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg23:
 ; ============================================================
 ; function n (normal mode)
 ; ============================================================
 
 p_n:
 
-			; Main.bas 255: N = Trim$(Str$(v))
+			; Main.bas 387: N = Trim$(Str$(v))
 			dw kw_strstr, stmp2, var_n_v
 			dw kw_strtrim, var_n_n, stmp2
 			dw p_n_r
 
+ntc_rg23_e:
+			IF ($ < 34816) && (ntc_rg24_e - ntc_rg24 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg24:
 ; ============================================================
 ; sub prompt (normal mode)
 ; ============================================================
 
 p_prompt:
 
-			; Main.bas 259: ln(t) = ""
-			dw kw_sset, arr_ln, var_prompt_t, str8, 73
+			; Main.bas 391: ln(t) = ""
+			dw kw_sset, arr_ln, var_prompt_t, str19, 73
 
-			; Main.bas 260: PutS t, N(t) + "> "
+			; Main.bas 392: PutS t, N(t) + "> "
 			dw p_n_c, var_prompt_t
 			dw kw_strcpy, stmp1, var_n_n
-			dw kw_strcat, stmp1, str9
+			dw kw_strcat, stmp1, str25
 			dw p_puts_c, var_prompt_t, stmp1
 			dw p_prompt_r
 
+ntc_rg24_e:
+			IF ($ < 34816) && (ntc_rg25_e - ntc_rg25 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg25:
 ; ============================================================
 ; sub keyin (normal mode)
 ; ============================================================
 
 p_keyin:
 
-			; Main.bas 265: Dim t As Integer
+			; Main.bas 397: Dim t As Integer
 
-			; Main.bas 266: t = front
+			; Main.bas 398: If front = 0 Then
+			dw kw_cpeqvl, var_front, 0
+			dw kw_goto_iffalse_n, if73_1
+
+			; Main.bas 399: Exit Sub                      ' TOP stays until Control + ESC or Control + a slot
+			dw p_keyin_r
+
+			; Main.bas 400: End If
+if73_1:
+
+			; Main.bas 401: t = front
 			dw kw_vtov, var_front, var_keyin_t
 
-			; Main.bas 267: If st(t) = 2 Then kq(t) = k : Exit Sub
+			; Main.bas 402: If st(t) = 2 Then
 			dw kw_aget, arr_st, var_keyin_t, tmp0
 			dw kw_cpeqvl, tmp0, 2
-			dw kw_goto_iffalse_n, if50_1
+			dw kw_goto_iffalse_n, if74_1
+
+			; Main.bas 403: kq(t) = k                                     ' the key into its bank: its BDOS answers from it
 			dw kw_aset, arr_kq, var_keyin_t, var_keyin_k
+
+			; Main.bas 404: Memory.WriteByte Far(t, Hyp.KEY), k
+			dw p_far_c, var_keyin_t, lit_m2431
+			dw fn_memory_writebyte, var_far_far, var_keyin_k
+
+			; Main.bas 405: Exit Sub
 			dw p_keyin_r
-if50_1:
 
-			; Main.bas 268: If k = 13 Then
+			; Main.bas 406: End If
+if74_1:
+
+			; Main.bas 407: If k = 13 Then
 			dw kw_cpeqvl, var_keyin_k, 13
-			dw kw_goto_iffalse_n, if51_1
+			dw kw_goto_iffalse_n, if75_1
 
-			; Main.bas 269: PutLn t, ""
-			dw p_putln_c, var_keyin_t, str8
+			; Main.bas 408: PutLn t, ""
+			dw p_putln_c, var_keyin_t, str19
 
-			; Main.bas 270: Command t
+			; Main.bas 409: Command t
 			dw p_command_c, var_keyin_t
 
-			; Main.bas 271: If st(t) = 1 And wt = 0 Then Prompt t
+			; Main.bas 410: If st(t) = 1 And wt = 0 And front = t Then Prompt t
 			dw kw_aget, arr_st, var_keyin_t, tmp0
 			dw kw_cpeqvl, tmp0, 1
 			dw kw_ftov, tmp0
 			dw kw_cpeqvl, var_wt, 0
 			dw kw_ftov, tmp1
 			dw kw_andvv, tmp0, tmp1, tmp0
-			dw kw_goto_ifzero_n, tmp0, if51_e
+			dw kw_cpeqvv, var_front, var_keyin_t
+			dw kw_ftov, tmp1
+			dw kw_andvv, tmp0, tmp1, tmp0
+			dw kw_goto_ifzero_n, tmp0, if75_e
 			dw p_prompt_c, var_keyin_t
-if52_1:
+if76_1:
 
-			; Main.bas 272: ElseIf k = 127 Or k = 8 Then
-			dw if51_e_go
-if51_1:
+			; Main.bas 411: ElseIf k = 127 Or k = 8 Then
+			dw if75_e_go
+if75_1:
 			dw kw_cpeqvl, var_keyin_k, 127
 			dw kw_ftov, tmp0
 			dw kw_cpeqvl, var_keyin_k, 8
 			dw kw_ftov, tmp1
 			dw kw_orvv, tmp0, tmp1, tmp0
-			dw kw_goto_ifzero_n, tmp0, if51_2
+			dw kw_goto_ifzero_n, tmp0, if75_2
 
-			; Main.bas 273: If Len(ln(t)) > 0 Then
+			; Main.bas 412: If Len(ln(t)) > 0 Then
 			dw kw_sget, arr_ln, var_keyin_t, stmp0, 73
 			dw kw_strlen, stmp0, tmp0
 			dw kw_scpgtvl, tmp0, 0
-			dw kw_goto_iffalse_n, if51_e
+			dw kw_goto_iffalse_n, if75_e
 
-			; Main.bas 274: ln(t) = Left$(ln(t), Len(ln(t)) - 1)
+			; Main.bas 413: ln(t) = Left$(ln(t), Len(ln(t)) - 1)
 			dw kw_sget, arr_ln, var_keyin_t, stmp1, 73
 			dw kw_sget, arr_ln, var_keyin_t, stmp2, 73
 			dw kw_strlen, stmp2, tmp2
@@ -1099,17 +1807,17 @@ if51_1:
 			dw kw_strleft, stmp1, stmp1, tmp2
 			dw kw_sset, arr_ln, var_keyin_t, stmp1, 73
 
-			; Main.bas 275: PutC t, 8 : PutC t, 32 : PutC t, 8
+			; Main.bas 414: PutC t, 8 : PutC t, 32 : PutC t, 8
 			dw p_putc_c, var_keyin_t, lit_8
 			dw p_putc_c, var_keyin_t, lit_32
 			dw p_putc_c, var_keyin_t, lit_8
 
-			; Main.bas 276: End If
-if53_1:
+			; Main.bas 415: End If
+if77_1:
 
-			; Main.bas 277: ElseIf k >= 32 And k < 127 And Len(ln(t)) < 70 Then
-			dw if51_e_go
-if51_2:
+			; Main.bas 416: ElseIf k >= 32 And k < 127 And Len(ln(t)) < 70 Then
+			dw if75_e_go
+if75_2:
 			dw kw_scpgevl, var_keyin_k, 32
 			dw kw_ftov, tmp0
 			dw kw_scpltvl, var_keyin_k, 127
@@ -1120,239 +1828,252 @@ if51_2:
 			dw kw_scpltvl, tmp1, 70
 			dw kw_ftov, tmp1
 			dw kw_andvv, tmp0, tmp1, tmp0
-			dw kw_goto_ifzero_n, tmp0, if51_3
+			dw kw_goto_ifzero_n, tmp0, if75_3
 
-			; Main.bas 278: ln(t) = ln(t) + Chr$(k)
+			; Main.bas 417: ln(t) = ln(t) + Chr$(k)
 			dw kw_sget, arr_ln, var_keyin_t, stmp1, 73
 			dw kw_strchr, stmp2, var_keyin_k
 			dw kw_strcat, stmp1, stmp2
 			dw kw_sset, arr_ln, var_keyin_t, stmp1, 73
 
-			; Main.bas 279: PutC t, k
+			; Main.bas 418: PutC t, k
 			dw p_putc_c, var_keyin_t, var_keyin_k
 
-			; Main.bas 280: End If
-if51_3:
-if51_e:
+			; Main.bas 419: End If
+if75_3:
+if75_e:
 			dw p_keyin_r
 
+ntc_rg25_e:
+			IF ($ < 34816) && (ntc_rg26_e - ntc_rg26 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg26:
 ; ============================================================
 ; sub command (normal mode)
 ; ============================================================
 
 p_command:
 
-			; Main.bas 284: Dim c As String, a As String, b As String, p As Integer, s As Integer
+			; Main.bas 423: Dim c As String, a As String, b As String, p As Integer, s As Integer
 
-			; Main.bas 285: c = UCase$(Trim$(ln(t)))
+			; Main.bas 424: c = UCase$(Trim$(ln(t)))
 			dw kw_sget, arr_ln, var_command_t, stmp0, 73
 			dw kw_strtrim, stmp0, stmp0
 			dw kw_strucase, stmp0, stmp0
 			dw kw_strcpy, var_command_c, stmp0
 
-			; Main.bas 286: p = InStr(c, " ")
-			dw kw_strinstr, lit_1, var_command_c, str10, var_command_p
+			; Main.bas 425: p = InStr(c, " ")
+			dw kw_strinstr, lit_1, var_command_c, str4, var_command_p
 
-			; Main.bas 287: If p > 0 Then
+			; Main.bas 426: If p > 0 Then
 			dw kw_scpgtvl, var_command_p, 0
-			dw kw_goto_iffalse_n, if54_1
+			dw kw_goto_iffalse_n, if78_1
 
-			; Main.bas 288: a = Trim$(Mid$(c, p + 1))
+			; Main.bas 427: a = Trim$(Mid$(c, p + 1))
 			dw kw_addl, var_command_p, 1, tmp1
 			dw kw_strmid, stmp0, var_command_c, tmp1, lit_255
 			dw kw_strtrim, stmp0, stmp0
 			dw kw_strcpy, var_command_a, stmp0
 
-			; Main.bas 289: c = Left$(c, p - 1)
+			; Main.bas 428: c = Left$(c, p - 1)
 			dw kw_addl, var_command_p, -1, tmp1
 			dw kw_strleft, stmp0, var_command_c, tmp1
 			dw kw_strcpy, var_command_c, stmp0
 
-			; Main.bas 290: End If
-if54_1:
+			; Main.bas 429: End If
+if78_1:
 
-			; Main.bas 291: p = InStr(a, " ")
-			dw kw_strinstr, lit_1, var_command_a, str10, var_command_p
+			; Main.bas 430: p = InStr(a, " ")
+			dw kw_strinstr, lit_1, var_command_a, str4, var_command_p
 
-			; Main.bas 292: If p > 0 Then
+			; Main.bas 431: If p > 0 Then
 			dw kw_scpgtvl, var_command_p, 0
-			dw kw_goto_iffalse_n, if55_1
+			dw kw_goto_iffalse_n, if79_1
 
-			; Main.bas 293: b = Trim$(Mid$(a, p + 1))
+			; Main.bas 432: b = Trim$(Mid$(a, p + 1))
 			dw kw_addl, var_command_p, 1, tmp1
 			dw kw_strmid, stmp0, var_command_a, tmp1, lit_255
 			dw kw_strtrim, stmp0, stmp0
 			dw kw_strcpy, var_command_b, stmp0
 
-			; Main.bas 294: a = Left$(a, p - 1)
+			; Main.bas 433: a = Left$(a, p - 1)
 			dw kw_addl, var_command_p, -1, tmp1
 			dw kw_strleft, stmp0, var_command_a, tmp1
 			dw kw_strcpy, var_command_a, stmp0
 
-			; Main.bas 295: End If
-if55_1:
+			; Main.bas 434: End If
+if79_1:
 
-			; Main.bas 296: Select Case c
-			dw kw_strcpy, var_command___sel56, var_command_c
+			; Main.bas 435: Select Case c
+			dw kw_strcpy, var_command___sel80, var_command_c
 
-			; Main.bas 297: Case ""
-			dw kw_strcmpeq, var_command___sel56, str8
-			dw kw_goto_iffalse_n, sel56_1
-sel56_b1:
+			; Main.bas 436: Case ""
+			dw kw_strcmpeq, var_command___sel80, str19
+			dw kw_goto_iffalse_n, sel80_1
+sel80_b1:
 
-			; Main.bas 298: Case "HELP"
-			dw sel56_e_go
-sel56_1:
-			dw kw_strcmpeq, var_command___sel56, str11
-			dw kw_goto_iffalse_n, sel56_2
-sel56_b2:
+			; Main.bas 437: Case "HELP"
+			dw sel80_e_go
+sel80_1:
+			dw kw_strcmpeq, var_command___sel80, str26
+			dw kw_goto_iffalse_n, sel80_2
+sel80_b2:
 
-			; Main.bas 299: PutLn t, "RUN name [slot]  FG slot  PS  KILL slot  WAIT  CLS  MEM  QUIT"
-			dw p_putln_c, var_command_t, str12
+			; Main.bas 438: PutLn t, "RUN name [slot]  FG slot  PS  KILL slot  WAIT  CLS  MEM  QUIT"
+			dw p_putln_c, var_command_t, str27
 
-			; Main.bas 300: Case "CLS"
-			dw sel56_e_go
-sel56_2:
-			dw kw_strcmpeq, var_command___sel56, str13
-			dw kw_goto_iffalse_n, sel56_3
-sel56_b3:
+			; Main.bas 439: PutLn t, "Control + 1-" + N(ns) + ": a slot to the front   Control + ESC: TOP (again: back)"
+			dw p_n_c, var_ns
+			dw kw_strcpy, stmp2, var_n_n
+			dw kw_strcpy, stmp1, str28
+			dw kw_strcat, stmp1, stmp2
+			dw kw_strcat, stmp1, str29
+			dw p_putln_c, var_command_t, stmp1
 
-			; Main.bas 301: ClsT t
+			; Main.bas 440: Case "CLS"
+			dw sel80_e_go
+sel80_2:
+			dw kw_strcmpeq, var_command___sel80, str30
+			dw kw_goto_iffalse_n, sel80_3
+sel80_b3:
+
+			; Main.bas 441: ClsT t
 			dw p_clst_c, var_command_t
 
-			; Main.bas 302: Case "RUN"
-			dw sel56_e_go
-sel56_3:
-			dw kw_strcmpeq, var_command___sel56, str14
-			dw kw_goto_iffalse_n, sel56_4
-sel56_b4:
+			; Main.bas 442: Case "RUN"
+			dw sel80_e_go
+sel80_3:
+			dw kw_strcmpeq, var_command___sel80, str31
+			dw kw_goto_iffalse_n, sel80_4
+sel80_b4:
 
-			; Main.bas 303: s = t
+			; Main.bas 443: s = t
 			dw kw_vtov, var_command_t, var_command_s
 
-			; Main.bas 304: If b <> "" Then s = Val(b)
-			dw kw_strcmpne, var_command_b, str8
-			dw kw_goto_iffalse_n, if57_1
+			; Main.bas 444: If b <> "" Then s = Val(b)
+			dw kw_strcmpne, var_command_b, str19
+			dw kw_goto_iffalse_n, if81_1
 			dw kw_strval, var_command_b, var_command_s
-if57_1:
+if81_1:
 
-			; Main.bas 305: If s < 1 Or s > ns Then PutLn t, "no slot" + Str$(s) : Exit Sub
+			; Main.bas 445: If s < 1 Or s > ns Then PutLn t, "no slot" + Str$(s) : Exit Sub
 			dw kw_scpltvl, var_command_s, 1
 			dw kw_ftov, tmp0
 			dw kw_scpgtvv, var_command_s, var_ns
 			dw kw_ftov, tmp1
 			dw kw_orvv, tmp0, tmp1, tmp0
-			dw kw_goto_ifzero_n, tmp0, if58_1
+			dw kw_goto_ifzero_n, tmp0, if82_1
 			dw kw_strstr, stmp2, var_command_s
-			dw kw_strcpy, stmp1, str15
+			dw kw_strcpy, stmp1, str32
 			dw kw_strcat, stmp1, stmp2
 			dw p_putln_c, var_command_t, stmp1
 			dw p_command_r
-if58_1:
+if82_1:
 
-			; Main.bas 306: If st(s) = 2 Then PutLn t, "slot" + Str$(s) + " is busy" : Exit Sub
+			; Main.bas 446: If st(s) = 2 Then PutLn t, "slot" + Str$(s) + " is busy" : Exit Sub
 			dw kw_aget, arr_st, var_command_s, tmp0
 			dw kw_cpeqvl, tmp0, 2
-			dw kw_goto_iffalse_n, if59_1
+			dw kw_goto_iffalse_n, if83_1
 			dw kw_strstr, stmp2, var_command_s
-			dw kw_strcpy, stmp1, str16
+			dw kw_strcpy, stmp1, str33
 			dw kw_strcat, stmp1, stmp2
-			dw kw_strcat, stmp1, str17
+			dw kw_strcat, stmp1, str34
 			dw p_putln_c, var_command_t, stmp1
 			dw p_command_r
-if59_1:
+if83_1:
 
-			; Main.bas 307: StartTask t, s, a
+			; Main.bas 447: StartTask t, s, a
 			dw p_starttask_c, var_command_t, var_command_s, var_command_a
 
-			; Main.bas 308: Case "FG"
-			dw sel56_e_go
-sel56_4:
-			dw kw_strcmpeq, var_command___sel56, str18
-			dw kw_goto_iffalse_n, sel56_5
-sel56_b5:
+			; Main.bas 448: Case "FG"
+			dw sel80_e_go
+sel80_4:
+			dw kw_strcmpeq, var_command___sel80, str35
+			dw kw_goto_iffalse_n, sel80_5
+sel80_b5:
 
-			; Main.bas 309: s = Val(a)
+			; Main.bas 449: s = Val(a)
 			dw kw_strval, var_command_a, var_command_s
 
-			; Main.bas 310: If s >= 1 And s <= ns Then ToFront s Else PutLn t, "no slot " + a
+			; Main.bas 450: If s >= 1 And s <= ns Then ToFront s Else PutLn t, "no slot " + a
 			dw kw_scpgevl, var_command_s, 1
 			dw kw_ftov, tmp0
 			dw kw_scplevv, var_command_s, var_ns
 			dw kw_ftov, tmp1
 			dw kw_andvv, tmp0, tmp1, tmp0
-			dw kw_goto_ifzero_n, tmp0, if60_1
+			dw kw_goto_ifzero_n, tmp0, if84_1
 			dw p_tofront_c, var_command_s
-			dw sel56_e_go
-if60_1:
-			dw kw_strcpy, stmp1, str19
+			dw sel80_e_go
+if84_1:
+			dw kw_strcpy, stmp1, str36
 			dw kw_strcat, stmp1, var_command_a
 			dw p_putln_c, var_command_t, stmp1
-if60_e:
+if84_e:
 
-			; Main.bas 311: Case "PS"
-			dw sel56_e_go
-sel56_5:
-			dw kw_strcmpeq, var_command___sel56, str20
-			dw kw_goto_iffalse_n, sel56_6
-sel56_b6:
+			; Main.bas 451: Case "PS"
+			dw sel80_e_go
+sel80_5:
+			dw kw_strcmpeq, var_command___sel80, str37
+			dw kw_goto_iffalse_n, sel80_6
+sel80_b6:
 
-			; Main.bas 312: For s = 1 To ns
+			; Main.bas 452: For s = 1 To ns
 			dw kw_ltov, 1, var_command_s
-			dw kw_vtov, var_ns, for61_l
-			dw kw_forupv_n, var_command_s, for61_l, sel56_e
-for61_t:
+			dw kw_vtov, var_ns, for85_l
+			dw kw_forupv_n, var_command_s, for85_l, sel80_e
+for85_t:
 
-			; Main.bas 313: If st(s) = 0 Then a = "-" Else If st(s) = 1 Then a = "command line" Else a = nm(s)
+			; Main.bas 453: If st(s) = 0 Then a = "-" Else If st(s) = 1 Then a = "command line" Else a = nm(s)
 			dw kw_aget, arr_st, var_command_s, tmp0
 			dw kw_cpeqvl, tmp0, 0
-			dw kw_goto_iffalse_n, if62_1
-			dw kw_strcpy, var_command_a, str21
-			dw if62_e_go
-if62_1:
+			dw kw_goto_iffalse_n, if86_1
+			dw kw_strcpy, var_command_a, str14
+			dw if86_e_go
+if86_1:
 			dw kw_aget, arr_st, var_command_s, tmp0
 			dw kw_cpeqvl, tmp0, 1
-			dw kw_goto_iffalse_n, if63_1
-			dw kw_strcpy, var_command_a, str22
-			dw if63_e_go
-if63_1:
+			dw kw_goto_iffalse_n, if87_1
+			dw kw_strcpy, var_command_a, str15
+			dw if87_e_go
+if87_1:
 			dw kw_sget, arr_nm, var_command_s, stmp0, 13
 			dw kw_strcpy, var_command_a, stmp0
-if63_e:
-if62_e:
+if87_e:
+if86_e:
 
-			; Main.bas 314: PutLn t, Str$(s) + IIf(s = front, " * ", "   ") + a
+			; Main.bas 454: PutLn t, Str$(s) + IIf(s = front, " * ", "   ") + a
 			dw kw_strstr, stmp1, var_command_s
 			dw kw_cpeqvv, var_command_s, var_front
 			dw kw_ftov, tmp2
-			dw kw_goto_ifzero_n, tmp2, ch64_0
-			dw kw_strcpy, stmp2, str23
-			dw ch64_e_go
-ch64_0:
-			dw kw_strcpy, stmp2, str24
-			dw ch64_e_go
-ch64_1:
-			dw kw_strcpy, stmp2, str8
-ch64_e:
+			dw kw_goto_ifzero_n, tmp2, ch88_0
+			dw kw_strcpy, stmp2, str38
+			dw ch88_e_go
+ch88_0:
+			dw kw_strcpy, stmp2, str39
+			dw ch88_e_go
+ch88_1:
+			dw kw_strcpy, stmp2, str19
+ch88_e:
 			dw kw_strcat, stmp1, stmp2
 			dw kw_strcat, stmp1, var_command_a
 			dw p_putln_c, var_command_t, stmp1
 
-			; Main.bas 315: Next
-			dw kw_next1v_n, var_command_s, for61_l, for61_t
-for61_e:
+			; Main.bas 455: Next
+			dw kw_next1v_n, var_command_s, for85_l, for85_t
+for85_e:
 
-			; Main.bas 316: Case "KILL"
-			dw sel56_e_go
-sel56_6:
-			dw kw_strcmpeq, var_command___sel56, str25
-			dw kw_goto_iffalse_n, sel56_7
-sel56_b7:
+			; Main.bas 456: Case "KILL"
+			dw sel80_e_go
+sel80_6:
+			dw kw_strcmpeq, var_command___sel80, str40
+			dw kw_goto_iffalse_n, sel80_7
+sel80_b7:
 
-			; Main.bas 317: s = Val(a)
+			; Main.bas 457: s = Val(a)
 			dw kw_strval, var_command_a, var_command_s
 
-			; Main.bas 318: If s >= 1 And s <= ns And st(s) = 2 Then
+			; Main.bas 458: If s >= 1 And s <= ns And st(s) = 2 Then
 			dw kw_scpgevl, var_command_s, 1
 			dw kw_ftov, tmp0
 			dw kw_scplevv, var_command_s, var_ns
@@ -1362,309 +2083,533 @@ sel56_b7:
 			dw kw_cpeqvl, tmp1, 2
 			dw kw_ftov, tmp1
 			dw kw_andvv, tmp0, tmp1, tmp0
-			dw kw_goto_ifzero_n, tmp0, if65_1
+			dw kw_goto_ifzero_n, tmp0, if89_1
 
-			; Main.bas 319: EndTask s
+			; Main.bas 459: EndTask s
 			dw p_endtask_c, var_command_s
 
-			; Main.bas 320: Else
-			dw sel56_e_go
-if65_1:
+			; Main.bas 460: Else
+			dw sel80_e_go
+if89_1:
 
-			; Main.bas 321: PutLn t, "nothing running in slot " + a
-			dw kw_strcpy, stmp1, str26
+			; Main.bas 461: PutLn t, "nothing running in slot " + a
+			dw kw_strcpy, stmp1, str41
 			dw kw_strcat, stmp1, var_command_a
 			dw p_putln_c, var_command_t, stmp1
 
-			; Main.bas 322: End If
-if65_e:
+			; Main.bas 462: End If
+if89_e:
 
-			; Main.bas 323: Case "MEM"
-			dw sel56_e_go
-sel56_7:
-			dw kw_strcmpeq, var_command___sel56, str27
-			dw kw_goto_iffalse_n, sel56_8
-sel56_b8:
+			; Main.bas 463: Case "MEM"
+			dw sel80_e_go
+sel80_7:
+			dw kw_strcmpeq, var_command___sel80, str42
+			dw kw_goto_iffalse_n, sel80_8
+sel80_b8:
 
-			; Main.bas 324: PutLn t, Str$(Memory.Banks()) + " banks of 64K," + Str$(ns) + " slots," + Str$(Memory.FreePages()) + " pages of 16K free"
+			; Main.bas 464: PutLn t, N(Memory.Banks()) + " banks of 64K, " + N(ns) + " slots, " + N(Memory.FreePages()) + " pages of 16K free"
 			dw fn_memory_banks, var_memory_banks_banks
 			dw kw_vtov, var_memory_banks_banks, tmp1
-			dw kw_strstr, stmp1, tmp1
-			dw kw_strcat, stmp1, str28
-			dw kw_strstr, stmp2, var_ns
+			dw p_n_c, tmp1
+			dw kw_strcpy, stmp1, var_n_n
+			dw kw_strcat, stmp1, str8
+			dw p_n_c, var_ns
+			dw kw_strcpy, stmp2, var_n_n
 			dw kw_strcat, stmp1, stmp2
-			dw kw_strcat, stmp1, str29
+			dw kw_strcat, stmp1, str7
 			dw fn_memory_freepages, var_memory_freepages_freepages
 			dw kw_vtov, var_memory_freepages_freepages, tmp2
-			dw kw_strstr, stmp2, tmp2
+			dw p_n_c, tmp2
+			dw kw_strcpy, stmp2, var_n_n
 			dw kw_strcat, stmp1, stmp2
-			dw kw_strcat, stmp1, str30
+			dw kw_strcat, stmp1, str43
 			dw p_putln_c, var_command_t, stmp1
 
-			; Main.bas 325: Case "WAIT"
-			dw sel56_e_go
-sel56_8:
-			dw kw_strcmpeq, var_command___sel56, str31
-			dw kw_goto_iffalse_n, sel56_9
-sel56_b9:
+			; Main.bas 465: Case "WAIT"
+			dw sel80_e_go
+sel80_8:
+			dw kw_strcmpeq, var_command___sel80, str44
+			dw kw_goto_iffalse_n, sel80_9
+sel80_b9:
 
-			; Main.bas 326: If Running() > 0 Then wt = t
+			; Main.bas 466: If Running() > 0 Then wt = t
 			dw p_running_c
 			dw kw_vtov, var_running_running, tmp0
 			dw kw_scpgtvl, tmp0, 0
-			dw kw_goto_iffalse_n, sel56_e
+			dw kw_goto_iffalse_n, sel80_e
 			dw kw_vtov, var_command_t, var_wt
-if66_1:
+if90_1:
 
-			; Main.bas 327: Case "QUIT"
-			dw sel56_e_go
-sel56_9:
-			dw kw_strcmpeq, var_command___sel56, str32
-			dw kw_goto_iffalse_n, sel56_10
-sel56_b10:
+			; Main.bas 467: Case "QUIT"
+			dw sel80_e_go
+sel80_9:
+			dw kw_strcmpeq, var_command___sel80, str45
+			dw kw_goto_iffalse_n, sel80_10
+sel80_b10:
 
-			; Main.bas 328: quit = -1
+			; Main.bas 468: quit = -1
 			dw kw_ltov, -1, var_quit
 
-			; Main.bas 329: Case Else
-			dw sel56_e_go
-sel56_10:
+			; Main.bas 469: Case Else
+			dw sel80_e_go
+sel80_10:
 
-			; Main.bas 330: PutLn t, "? " + c + " (HELP)"
-			dw kw_strcpy, stmp1, str33
+			; Main.bas 470: PutLn t, "? " + c + " (HELP)"
+			dw kw_strcpy, stmp1, str46
 			dw kw_strcat, stmp1, var_command_c
-			dw kw_strcat, stmp1, str34
+			dw kw_strcat, stmp1, str47
 			dw p_putln_c, var_command_t, stmp1
 
-			; Main.bas 331: End Select
-sel56_e:
+			; Main.bas 471: End Select
+sel80_e:
 			dw p_command_r
 
+ntc_rg26_e:
+			IF ($ < 34816) && (ntc_rg27_e - ntc_rg27 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg27:
 ; ============================================================
 ; sub starttask (normal mode)
 ; ============================================================
 
 p_starttask:
 
-			; Main.bas 336: Dim h As Integer, n As Integer, p As Integer, want As Integer
+			; Main.bas 476: Dim h As Integer, n As Integer, p As Integer, want As Integer
 
-			; Main.bas 337: If f = "" Then PutLn t, "RUN what?" : Exit Sub
-			dw kw_strcmpeq, var_starttask_f, str8
-			dw kw_goto_iffalse_n, if67_1
-			dw p_putln_c, var_starttask_t, str35
+			; Main.bas 477: If f = "" Then PutLn t, "RUN what?" : Exit Sub
+			dw kw_strcmpeq, var_starttask_f, str19
+			dw kw_goto_iffalse_n, if91_1
+			dw p_putln_c, var_starttask_t, str48
 			dw p_starttask_r
-if67_1:
+if91_1:
 
-			; Main.bas 338: If InStr(f, ".") = 0 Then f = f + ".CYB"
-			dw kw_strinstr, lit_1, var_starttask_f, str36, tmp0
+			; Main.bas 478: If InStr(f, ".") = 0 Then f = f + ".CYB"
+			dw kw_strinstr, lit_1, var_starttask_f, str49, tmp0
 			dw kw_cpeqvl, tmp0, 0
-			dw kw_goto_iffalse_n, if68_1
-			dw kw_strcat, var_starttask_f, str37
-if68_1:
+			dw kw_goto_iffalse_n, if92_1
+			dw kw_strcat, var_starttask_f, str50
+if92_1:
 
-			; Main.bas 339: h = FileSystem.Open(f, FileSystem.ForRead)
+			; Main.bas 479: h = FileSystem.Open(f, FileSystem.ForRead)
 			dw fn_filesystem_open, var_starttask_f, lit_1, var_starttask_h
 
-			; Main.bas 340: If h < 0 Then PutLn t, f + ": not found" : Exit Sub
+			; Main.bas 480: If h < 0 Then PutLn t, f + ": not found" : Exit Sub
 			dw kw_scpltvl, var_starttask_h, 0
-			dw kw_goto_iffalse_n, if69_1
+			dw kw_goto_iffalse_n, if93_1
 			dw kw_strcpy, stmp1, var_starttask_f
-			dw kw_strcat, stmp1, str38
+			dw kw_strcat, stmp1, str51
 			dw p_putln_c, var_starttask_t, stmp1
 			dw p_starttask_r
-if69_1:
+if93_1:
 
-			; Main.bas 341: If st(s) = 0 Then OpenSlot s
+			; Main.bas 481: If st(s) = 0 Then OpenSlot s
 			dw kw_aget, arr_st, var_starttask_s, tmp0
 			dw kw_cpeqvl, tmp0, 0
-			dw kw_goto_iffalse_n, if70_1
+			dw kw_goto_iffalse_n, if94_1
 			dw p_openslot_c, var_starttask_s
-if70_1:
+if94_1:
 
-			; Main.bas 342: If s <> t Then PutLn s, "RUN " + f
+			; Main.bas 482: If s <> t Then PutLn s, "RUN " + f
 			dw kw_cpnevv, var_starttask_s, var_starttask_t
-			dw kw_goto_iffalse_n, if71_1
-			dw kw_strcpy, stmp1, str39
+			dw kw_goto_iffalse_n, if95_1
+			dw kw_strcpy, stmp1, str52
 			dw kw_strcat, stmp1, var_starttask_f
 			dw p_putln_c, var_starttask_s, stmp1
-if71_1:
+if95_1:
 
-			; Main.bas 343: Install s
+			; Main.bas 483: Install s
 			dw p_install_c, var_starttask_s
 
-			; Main.bas 344: p = 0
+			; Main.bas 484: p = 0
 			dw kw_ztov, var_starttask_p
 
-			; Main.bas 345: Do
-do72_t:
+			; Main.bas 485: Do
+do96_t:
 
-			; Main.bas 346: Memory.SelectPage Memory.BankPage(bk(s), p)
+			; Main.bas 486: Memory.SelectPage Memory.BankPage(bk(s), p)
 			dw kw_aget, arr_bk, var_starttask_s, tmp0
 			dw p_memory_bankpage_c, tmp0, var_starttask_p
 			dw fn_memory_selectpage, var_memory_bankpage_bankpage, var_memory_selectpage_selectpage
 
-			; Main.bas 347: If p = 0 Then
+			; Main.bas 487: If p = 0 Then
 			dw kw_cpeqvl, var_starttask_p, 0
-			dw kw_goto_iffalse_n, if73_1
+			dw kw_goto_iffalse_n, if97_1
 
-			; Main.bas 348: want = &H3F00
+			; Main.bas 488: want = &H3F00
 			dw kw_ltov, 16128, var_starttask_want
 
-			; Main.bas 349: n = FileSystem.Read(h, &H4100, want)
+			; Main.bas 489: n = FileSystem.Read(h, &H4100, want)
 			dw fn_filesystem_read, var_starttask_h, lit_16640, var_starttask_want, var_starttask_n
 
-			; Main.bas 350: Else
-			dw if73_e_go
-if73_1:
+			; Main.bas 490: Else
+			dw if97_e_go
+if97_1:
 
-			; Main.bas 351: want = &H4000
+			; Main.bas 491: want = &H4000
 			dw kw_ltov, 16384, var_starttask_want
 
-			; Main.bas 352: If p = 3 Then want = &H3600
+			; Main.bas 492: If p = 3 Then want = &H3500
 			dw kw_cpeqvl, var_starttask_p, 3
-			dw kw_goto_iffalse_n, if74_1
-			dw kw_ltov, 13824, var_starttask_want
-if74_1:
+			dw kw_goto_iffalse_n, if98_1
+			dw kw_ltov, 13568, var_starttask_want
+if98_1:
 
-			; Main.bas 353: n = FileSystem.Read(h, &H4000, want)
+			; Main.bas 493: n = FileSystem.Read(h, &H4000, want)
 			dw fn_filesystem_read, var_starttask_h, lit_16384, var_starttask_want, var_starttask_n
 
-			; Main.bas 354: End If
-if73_e:
+			; Main.bas 494: End If
+if97_e:
 
-			; Main.bas 355: p = p + 1
+			; Main.bas 495: p = p + 1
 			dw kw_inc, var_starttask_p
 
-			; Main.bas 356: Loop Until n < want Or p = 4
+			; Main.bas 496: Loop Until n < want Or p = 4
 			dw kw_scpltvv, var_starttask_n, var_starttask_want
 			dw kw_ftov, tmp0
 			dw kw_cpeqvl, var_starttask_p, 4
 			dw kw_ftov, tmp1
 			dw kw_orvv, tmp0, tmp1, tmp0
-			dw kw_goto_ifzero_n, tmp0, do72_t
-do72_e:
+			dw kw_goto_ifzero_n, tmp0, do96_t
+do96_e:
 
-			; Main.bas 357: FileSystem.Close h
+			; Main.bas 497: FileSystem.Close h
 			dw fn_filesystem_close, var_starttask_h, var_filesystem_close_close
 
-			; Main.bas 359: Memory.WriteWord Far(s, &HFEFC), &H100
+			; Main.bas 499: Memory.WriteWord Far(s, &HFEFC), &H100
 			dw p_far_c, var_starttask_s, lit_m260
 			dw fn_memory_writeword, var_far_far, lit_256
 
-			; Main.bas 360: Memory.WriteWord Far(s, &HFEFE), 0
+			; Main.bas 500: Memory.WriteWord Far(s, &HFEFE), 0
 			dw p_far_c, var_starttask_s, lit_m258
 			dw fn_memory_writeword, var_far_far, lit_0
 
-			; Main.bas 361: Memory.WriteWord Far(s, &HFFFE), &HFEFC
+			; Main.bas 501: Memory.WriteWord Far(s, &HFFFE), &HFEFC
 			dw p_far_c, var_starttask_s, lit_m2
 			dw fn_memory_writeword, var_far_far, lit_m260
 
-			; Main.bas 362: nm(s) = f
+			; Main.bas 502: nm(s) = f
 			dw kw_sset, arr_nm, var_starttask_s, var_starttask_f, 13
 
-			; Main.bas 363: kq(s) = 0
+			; Main.bas 503: kq(s) = 0
 			dw kw_asetl, arr_kq, var_starttask_s, 0
 
-			; Main.bas 364: es(s) = 0
+			; Main.bas 504: es(s) = 0
 			dw kw_asetl, arr_es, var_starttask_s, 0
 
-			; Main.bas 365: st(s) = 2
+			; Main.bas 505: wk(s) = -1
+			dw kw_asetl, arr_wk, var_starttask_s, -1
+
+			; Main.bas 506: st(s) = 2
 			dw kw_asetl, arr_st, var_starttask_s, 2
 
-			; Main.bas 366: If s <> t Then PutLn t, f + " runs in slot" + Str$(s)
+			; Main.bas 507: If s <> t Then PutLn t, f + " runs in slot" + Str$(s)
 			dw kw_cpnevv, var_starttask_s, var_starttask_t
-			dw kw_goto_iffalse_n, if75_1
+			dw kw_goto_iffalse_n, if99_1
 			dw kw_strcpy, stmp1, var_starttask_f
-			dw kw_strcat, stmp1, str40
+			dw kw_strcat, stmp1, str53
 			dw kw_strstr, stmp2, var_starttask_s
 			dw kw_strcat, stmp1, stmp2
 			dw p_putln_c, var_starttask_t, stmp1
-if75_1:
+if99_1:
 			dw p_starttask_r
 
+ntc_rg27_e:
+			IF ($ < 34816) && (ntc_rg28_e - ntc_rg28 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg28:
 ; ============================================================
 ; sub endtask (normal mode)
 ; ============================================================
 
 p_endtask:
 
-			; Main.bas 370: Dim c As Integer
+			; Main.bas 511: Dim c As Integer
 
-			; Main.bas 371: st(t) = 1
+			; Main.bas 512: st(t) = 1
 			dw kw_asetl, arr_st, var_endtask_t, 1
 
-			; Main.bas 372: runs = runs + 1
+			; Main.bas 513: runs = runs + 1
 			dw kw_inc, var_runs
 
-			; Main.bas 373: PutLn t, ""
-			dw p_putln_c, var_endtask_t, str8
+			; Main.bas 514: PutLn t, ""
+			dw p_putln_c, var_endtask_t, str19
 
-			; Main.bas 374: PutLn t, "[" + nm(t) + " ended]"
+			; Main.bas 515: PutLn t, "[" + nm(t) + " ended]"
 			dw kw_sget, arr_nm, var_endtask_t, stmp2, 13
-			dw kw_strcpy, stmp1, str41
+			dw kw_strcpy, stmp1, str54
 			dw kw_strcat, stmp1, stmp2
-			dw kw_strcat, stmp1, str42
+			dw kw_strcat, stmp1, str55
 			dw p_putln_c, var_endtask_t, stmp1
 
-			; Main.bas 375: Prompt t
+			; Main.bas 516: Prompt t
 			dw p_prompt_c, var_endtask_t
 
-			; Main.bas 376: c = kq(t) : kq(t) = 0
+			; Main.bas 517: c = kq(t) : kq(t) = 0
 			dw kw_aget, arr_kq, var_endtask_t, var_endtask_c
 			dw kw_asetl, arr_kq, var_endtask_t, 0
 
-			; Main.bas 377: If c <> 0 And t = front Then pk = c    ' a key typed for it after its last look: the command line's
+			; Main.bas 518: If c <> 0 And t = front Then pk = c    ' a key typed for it after its last look: the command line's
 			dw kw_cpnevl, var_endtask_c, 0
 			dw kw_ftov, tmp0
 			dw kw_cpeqvv, var_endtask_t, var_front
 			dw kw_ftov, tmp1
 			dw kw_andvv, tmp0, tmp1, tmp0
-			dw kw_goto_ifzero_n, tmp0, if76_1
+			dw kw_goto_ifzero_n, tmp0, if100_1
 			dw kw_vtov, var_endtask_c, var_pk
-if76_1:
+if100_1:
 			dw p_endtask_r
 
+ntc_rg28_e:
+			IF ($ < 34816) && (ntc_rg29_e - ntc_rg29 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg29:
+; ============================================================
+; function printable (normal mode)
+; ============================================================
+
+p_hyp_printable:
+
+			; Hyp.cls 71: #asm
+			dw asm_1_71_n
+			dw p_hyp_printable_r
+
+ntc_rg29_e:
+			IF ($ < 34816) && (ntc_rg30_e - ntc_rg30 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg30:
+; ============================================================
+; sub text (normal mode)
+; ============================================================
+
+p_hyp_text:
+
+			; Hyp.cls 118: #asm
+			dw asm_1_118_n
+			dw p_hyp_text_r
+
+ntc_rg30_e:
+			IF ($ < 34816) && (ntc_rg31_e - ntc_rg31 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg31:
+; ============================================================
+; sub char (normal mode)
+; ============================================================
+
+p_hyp_char:
+
+			; Hyp.cls 185: Text VarPtr(c), 1, col, row
+			dw p_hyp_text_c, vp_var_hyp_char_c, lit_1, var_hyp_char_col, var_hyp_char_row
+			dw p_hyp_char_r
+
+ntc_rg31_e:
+			IF ($ < 34816) && (ntc_rg32_e - ntc_rg32 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg32:
 ; ============================================================
 ; sub reply (normal mode)
 ; ============================================================
 
 p_hyp_reply:
 
-			; Hyp.cls 65: ra = a : rhl = hl
+			; Hyp.cls 190: ra = a : rhl = hl
 			dw kw_vtov, var_hyp_reply_a, var_hyp_ra
 			dw kw_vtov, var_hyp_reply_hl, var_hyp_rhl
 			dw p_hyp_reply_r
 
+ntc_rg32_e:
+			IF ($ < 34816) && (ntc_rg33_e - ntc_rg33 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg33:
 ; ============================================================
 ; function fn (normal mode)
 ; ============================================================
 
 p_hyp_fn:
 
-			; Hyp.cls 69: Fn = rfn And 255
+			; Hyp.cls 194: Fn = rfn And 255
 			dw kw_andvl, var_hyp_rfn, 255, var_hyp_fn_fn
 			dw p_hyp_fn_r
 
+ntc_rg33_e:
+			IF ($ < 34816) && (ntc_rg34_e - ntc_rg34 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg34:
 ; ============================================================
 ; function arg (normal mode)
 ; ============================================================
 
 p_hyp_arg:
 
-			; Hyp.cls 73: Arg = rde
+			; Hyp.cls 198: Arg = rde
 			dw kw_vtov, var_hyp_rde, var_hyp_arg_arg
 			dw p_hyp_arg_r
 
+ntc_rg34_e:
+			IF ($ < 34816) && (ntc_rg35_e - ntc_rg35 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg35:
+; ============================================================
+; function count (normal mode)
+; ============================================================
+
+p_hyp_count:
+
+			; Hyp.cls 203: Count = rcnt
+			dw kw_vtov, var_hyp_rcnt, var_hyp_count_count
+			dw p_hyp_count_r
+
+ntc_rg35_e:
+			IF ($ < 34816) && (ntc_rg36_e - ntc_rg36 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg36:
 ; ============================================================
 ; function run (normal mode)
 ; ============================================================
 
 p_hyp_run:
 
-			; Hyp.cls 78: #asm
-			dw asm_1_78_n
+			; Hyp.cls 208: #asm
+			dw asm_1_208_n
 			dw p_hyp_run_r
 
+ntc_rg36_e:
+			IF ($ < 34816) && (ntc_rg37_e - ntc_rg37 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg37:
+; ============================================================
+; sub tick (normal mode)
+; ============================================================
+
+p_hot_tick:
+
+			; Hot.cls 10: Dim k As Integer
+
+			; Hot.cls 11: ctl = Keys.Down(Keys.KeyControl)
+			dw fn_keys_down, lit_23, var_hot_ctl
+
+			; Hot.cls 12: If ctl Then
+			dw kw_goto_ifzero_n, var_hot_ctl, if101_1
+
+			; Hot.cls 13: If Keys.Down(64) Then k = 1
+			dw fn_keys_down, lit_64, var_keys_down_down
+			dw kw_goto_ifzero_n, var_keys_down_down, if102_1
+			dw kw_ltov, 1, var_hot_tick_k
+if102_1:
+
+			; Hot.cls 14: If Keys.Down(65) Then k = 2
+			dw fn_keys_down, lit_65, var_keys_down_down
+			dw kw_goto_ifzero_n, var_keys_down_down, if103_1
+			dw kw_ltov, 2, var_hot_tick_k
+if103_1:
+
+			; Hot.cls 15: If Keys.Down(57) Then k = 3
+			dw fn_keys_down, lit_57, var_keys_down_down
+			dw kw_goto_ifzero_n, var_keys_down_down, if104_1
+			dw kw_ltov, 3, var_hot_tick_k
+if104_1:
+
+			; Hot.cls 16: If Keys.Down(56) Then k = 4
+			dw fn_keys_down, lit_56, var_keys_down_down
+			dw kw_goto_ifzero_n, var_keys_down_down, if105_1
+			dw kw_ltov, 4, var_hot_tick_k
+if105_1:
+
+			; Hot.cls 17: If Keys.Down(49) Then k = 5
+			dw fn_keys_down, lit_49, var_keys_down_down
+			dw kw_goto_ifzero_n, var_keys_down_down, if106_1
+			dw kw_ltov, 5, var_hot_tick_k
+if106_1:
+
+			; Hot.cls 18: If Keys.Down(48) Then k = 6
+			dw fn_keys_down, lit_48, var_keys_down_down
+			dw kw_goto_ifzero_n, var_keys_down_down, if107_1
+			dw kw_ltov, 6, var_hot_tick_k
+if107_1:
+
+			; Hot.cls 19: If Keys.Down(41) Then k = 7
+			dw fn_keys_down, lit_41, var_keys_down_down
+			dw kw_goto_ifzero_n, var_keys_down_down, if108_1
+			dw kw_ltov, 7, var_hot_tick_k
+if108_1:
+
+			; Hot.cls 20: If Keys.Down(40) Then k = 8
+			dw fn_keys_down, lit_40, var_keys_down_down
+			dw kw_goto_ifzero_n, var_keys_down_down, if109_1
+			dw kw_ltov, 8, var_hot_tick_k
+if109_1:
+
+			; Hot.cls 21: If Keys.Down(Keys.KeyEsc) Then k = 9
+			dw fn_keys_down, lit_66, var_keys_down_down
+			dw kw_goto_ifzero_n, var_keys_down_down, if110_1
+			dw kw_ltov, 9, var_hot_tick_k
+if110_1:
+
+			; Hot.cls 22: End If
+if101_1:
+
+			; Hot.cls 23: If k <> 0 And k <> last Then pend = k
+			dw kw_cpnevl, var_hot_tick_k, 0
+			dw kw_ftov, tmp4
+			dw kw_cpnevv, var_hot_tick_k, var_hot_last
+			dw kw_ftov, tmp5
+			dw kw_andvv, tmp4, tmp5, tmp4
+			dw kw_goto_ifzero_n, tmp4, if111_1
+			dw kw_vtov, var_hot_tick_k, var_hot_pend
+if111_1:
+
+			; Hot.cls 24: last = k
+			dw kw_vtov, var_hot_tick_k, var_hot_last
+			dw p_hot_tick_r
+
+ntc_rg37_e:
+			IF ($ < 34816) && (ntc_rg38_e - ntc_rg38 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg38:
+; ============================================================
+; function take (normal mode)
+; ============================================================
+
+p_hot_take:
+
+			; Hot.cls 28: Take = pend
+			dw kw_vtov, var_hot_pend, var_hot_take_take
+
+			; Hot.cls 29: pend = 0
+			dw kw_ztov, var_hot_pend
+			dw p_hot_take_r
+
+ntc_rg38_e:
+			IF ($ < 34816) && (ntc_rg39_e - ntc_rg39 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg39:
+; ============================================================
+; function control (normal mode)
+; ============================================================
+
+p_hot_control:
+
+			; Hot.cls 34: Control = ctl
+			dw kw_vtov, var_hot_ctl, var_hot_control_control
+			dw p_hot_control_r
+
+ntc_rg39_e:
+			IF ($ < 34816) && (ntc_rg40_e - ntc_rg40 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg40:
 ; ============================================================
 ; function bankpage (normal mode)
 ; ============================================================
@@ -1686,25 +2631,37 @@ p_memory_bankpage:
 ;   turbo mode ends with ret, normal mode with jp ntc_xn
 ; ============================================================
 
-if7_e_go:			ld sp, if7_e
+if6_e_go:			ld sp, if6_e
 			jp ntc_xn
-sel26_e_go:			ld sp, sel26_e
+if8_e_go:			ld sp, if8_e
 			jp ntc_xn
-if31_e_go:			ld sp, if31_e
+for20_e_go:			ld sp, for20_e
 			jp ntc_xn
-if49_e_go:			ld sp, if49_e
+sel32_e_go:			ld sp, sel32_e
 			jp ntc_xn
-if51_e_go:			ld sp, if51_e
+do38_t_go:			ld sp, do38_t
 			jp ntc_xn
-sel56_e_go:			ld sp, sel56_e
+if43_e_go:			ld sp, if43_e
 			jp ntc_xn
-if62_e_go:			ld sp, if62_e
+if68_e_go:			ld sp, if68_e
 			jp ntc_xn
-if63_e_go:			ld sp, if63_e
+ch69_e_go:			ld sp, ch69_e
 			jp ntc_xn
-ch64_e_go:			ld sp, ch64_e
+ch70_e_go:			ld sp, ch70_e
 			jp ntc_xn
-if73_e_go:			ld sp, if73_e
+if72_e_go:			ld sp, if72_e
+			jp ntc_xn
+if75_e_go:			ld sp, if75_e
+			jp ntc_xn
+sel80_e_go:			ld sp, sel80_e
+			jp ntc_xn
+if86_e_go:			ld sp, if86_e
+			jp ntc_xn
+if87_e_go:			ld sp, if87_e
+			jp ntc_xn
+ch88_e_go:			ld sp, ch88_e
+			jp ntc_xn
+if97_e_go:			ld sp, if97_e
 			jp ntc_xn
 
 p_running_c:		; call running (normal)
@@ -1718,18 +2675,29 @@ p_running_c:		; call running (normal)
 p_running_r:		; end of running
 			ld sp, (p_running_rs)
 			jp ntc_xn
-p_hotkey_c:		; call hotkey (normal)
+p_ready_c:		; call ready (normal)
+			pop hl			; t
+			ld e, (hl)
+			inc hl
+			ld d, (hl)
+			ld (var_ready_t), de
 			ld hl, 0
-			ld (var_hotkey_hotkey), hl
-			ld (p_hotkey_rs), sp
-			ld sp, p_hotkey
+			ld (var_ready_ready), hl
+			ld (p_ready_rs), sp
+			ld sp, p_ready
 			jp ntc_xn
-p_hotkey_r:		; end of hotkey
-			ld sp, (p_hotkey_rs)
+p_ready_r:		; end of ready
+			ld sp, (p_ready_rs)
 			jp ntc_xn
 p_runnext_c:		; call runnext (normal)
 			ld hl, 0
 			ld (var_runnext_n), hl
+			ld hl, 0
+			ld (var_runnext_t), hl
+			ld hl, 0
+			ld (var_runnext_r), hl
+			ld hl, 0
+			ld (var_runnext_c), hl
 			ld (p_runnext_rs), sp
 			ld sp, p_runnext
 			jp ntc_xn
@@ -1753,6 +2721,50 @@ p_bdos_c:		; call bdos (normal)
 			jp ntc_xn
 p_bdos_r:		; end of bdos
 			ld sp, (p_bdos_rs)
+			jp ntc_xn
+p_collected_c:		; call collected (normal)
+			pop hl			; t
+			ld e, (hl)
+			inc hl
+			ld d, (hl)
+			ld (var_collected_t), de
+			pop hl			; n
+			ld e, (hl)
+			inc hl
+			ld d, (hl)
+			ld (var_collected_n), de
+			ld (p_collected_rs), sp
+			ld sp, p_collected
+			jp ntc_xn
+p_collected_r:		; end of collected
+			ld sp, (p_collected_rs)
+			jp ntc_xn
+p_out_c:		; call out (normal)
+			pop hl			; t
+			ld e, (hl)
+			inc hl
+			ld d, (hl)
+			ld (var_out_t), de
+			pop hl			; n
+			ld e, (hl)
+			inc hl
+			ld d, (hl)
+			ld (var_out_n), de
+			ld hl, 0
+			ld (var_out_p), hl
+			ld hl, 0
+			ld (var_out_j), hl
+			ld hl, 0
+			ld (var_out_q), hl
+			ld hl, 0
+			ld (var_out_c), hl
+			ld hl, 0
+			ld (var_out_w), hl
+			ld (p_out_rs), sp
+			ld sp, p_out
+			jp ntc_xn
+p_out_r:		; end of out
+			ld sp, (p_out_rs)
 			jp ntc_xn
 p_putc_c:		; call putc (normal)
 			pop hl			; t
@@ -1791,7 +2803,7 @@ p_puts_c:		; call puts (normal)
 			ld (var_puts_t), de
 			pop hl			; s
 			ld de, var_puts_s
-			ld b, 80
+			ld b, 130
 p_puts_si1:
 			ld a, (hl)
 			ld (de), a
@@ -1803,8 +2815,6 @@ p_puts_si1:
 			xor a
 			ld (de), a
 p_puts_si1_e:
-			ld hl, 0
-			ld (var_puts_j), hl
 			ld (p_puts_rs), sp
 			ld sp, p_puts
 			jp ntc_xn
@@ -1819,7 +2829,7 @@ p_putln_c:		; call putln (normal)
 			ld (var_putln_t), de
 			pop hl			; s
 			ld de, var_putln_s
-			ld b, 80
+			ld b, 130
 p_putln_si1:
 			ld a, (hl)
 			ld (de), a
@@ -1849,9 +2859,14 @@ p_putmem_c:		; call putmem (normal)
 			ld d, (hl)
 			ld (var_putmem_a), de
 			ld hl, 0
-			ld (var_putmem_c), hl
+			ld (var_putmem_la), hl
+			ld (var_putmem_la+2), hl
 			ld hl, 0
 			ld (var_putmem_n), hl
+			ld hl, 0
+			ld (var_putmem_d), hl
+			ld hl, 0
+			ld (var_putmem_tot), hl
 			ld (p_putmem_rs), sp
 			ld sp, p_putmem
 			jp ntc_xn
@@ -1877,6 +2892,26 @@ p_far_c:		; call far (normal)
 			jp ntc_xn
 p_far_r:		; end of far
 			ld sp, (p_far_rs)
+			jp ntc_xn
+p_rowa_c:		; call rowa (normal)
+			pop hl			; t
+			ld e, (hl)
+			inc hl
+			ld d, (hl)
+			ld (var_rowa_t), de
+			pop hl			; r
+			ld e, (hl)
+			inc hl
+			ld d, (hl)
+			ld (var_rowa_r), de
+			ld hl, 0
+			ld (var_rowa_rowa), hl
+			ld (var_rowa_rowa+2), hl
+			ld (p_rowa_rs), sp
+			ld sp, p_rowa
+			jp ntc_xn
+p_rowa_r:		; end of rowa
+			ld sp, (p_rowa_rs)
 			jp ntc_xn
 p_clst_c:		; call clst (normal)
 			pop hl			; t
@@ -1905,6 +2940,59 @@ p_tofront_c:		; call tofront (normal)
 			jp ntc_xn
 p_tofront_r:		; end of tofront
 			ld sp, (p_tofront_rs)
+			jp ntc_xn
+p_showtop_c:		; call showtop (normal)
+			ld hl, 0
+			ld (var_showtop_j), hl
+			xor a
+			ld (var_showtop_s), a
+			ld (p_showtop_rs), sp
+			ld sp, p_showtop
+			jp ntc_xn
+p_showtop_r:		; end of showtop
+			ld sp, (p_showtop_rs)
+			jp ntc_xn
+p_roll_c:		; call roll (normal)
+			ld hl, 0
+			ld (var_roll_j), hl
+			ld (p_roll_rs), sp
+			ld sp, p_roll
+			jp ntc_xn
+p_roll_r:		; end of roll
+			ld sp, (p_roll_rs)
+			jp ntc_xn
+p_pad_c:		; call pad (normal)
+			pop hl			; v
+			ld e, (hl)
+			inc hl
+			ld d, (hl)
+			ld (var_pad_v), de
+			xor a
+			ld (var_pad_pad), a
+			ld (p_pad_rs), sp
+			ld sp, p_pad
+			jp ntc_xn
+p_pad_r:		; end of pad
+			ld sp, (p_pad_rs)
+			jp ntc_xn
+p_rate_c:		; call rate (normal)
+			pop hl			; n
+			ld e, (hl)
+			inc hl
+			ld d, (hl)
+			ld (var_rate_n), de
+			pop hl			; d
+			ld e, (hl)
+			inc hl
+			ld d, (hl)
+			ld (var_rate_d), de
+			ld hl, 0
+			ld (var_rate_rate), hl
+			ld (p_rate_rs), sp
+			ld sp, p_rate
+			jp ntc_xn
+p_rate_r:		; end of rate
+			ld sp, (p_rate_rs)
 			jp ntc_xn
 p_install_c:		; call install (normal)
 			pop hl			; t
@@ -2005,7 +3093,7 @@ p_starttask_c:		; call starttask (normal)
 			ld (var_starttask_s), de
 			pop hl			; f
 			ld de, var_starttask_f
-			ld b, 80
+			ld b, 130
 p_starttask_si2:
 			ld a, (hl)
 			ld (de), a
@@ -2045,6 +3133,74 @@ p_endtask_c:		; call endtask (normal)
 p_endtask_r:		; end of endtask
 			ld sp, (p_endtask_rs)
 			jp ntc_xn
+p_hyp_printable_c:		; call printable (normal)
+			pop hl			; p
+			ld e, (hl)
+			inc hl
+			ld d, (hl)
+			ld (var_hyp_printable_p), de
+			pop hl			; n
+			ld e, (hl)
+			inc hl
+			ld d, (hl)
+			ld (var_hyp_printable_n), de
+			ld hl, 0
+			ld (var_hyp_printable_printable), hl
+			ld (p_hyp_printable_rs), sp
+			ld sp, p_hyp_printable
+			jp ntc_xn
+p_hyp_printable_r:		; end of printable
+			ld sp, (p_hyp_printable_rs)
+			jp ntc_xn
+p_hyp_text_c:		; call text (normal)
+			pop hl			; p
+			ld e, (hl)
+			inc hl
+			ld d, (hl)
+			ld (var_hyp_text_p), de
+			pop hl			; n
+			ld e, (hl)
+			inc hl
+			ld d, (hl)
+			ld (var_hyp_text_n), de
+			pop hl			; col
+			ld e, (hl)
+			inc hl
+			ld d, (hl)
+			ld (var_hyp_text_col), de
+			pop hl			; row
+			ld e, (hl)
+			inc hl
+			ld d, (hl)
+			ld (var_hyp_text_row), de
+			ld (p_hyp_text_rs), sp
+			ld sp, p_hyp_text
+			jp ntc_xn
+p_hyp_text_r:		; end of text
+			ld sp, (p_hyp_text_rs)
+			jp ntc_xn
+p_hyp_char_c:		; call char (normal)
+			pop hl			; c
+			ld e, (hl)
+			inc hl
+			ld d, (hl)
+			ld (var_hyp_char_c), de
+			pop hl			; col
+			ld e, (hl)
+			inc hl
+			ld d, (hl)
+			ld (var_hyp_char_col), de
+			pop hl			; row
+			ld e, (hl)
+			inc hl
+			ld d, (hl)
+			ld (var_hyp_char_row), de
+			ld (p_hyp_char_rs), sp
+			ld sp, p_hyp_char
+			jp ntc_xn
+p_hyp_char_r:		; end of char
+			ld sp, (p_hyp_char_rs)
+			jp ntc_xn
 p_hyp_reply_c:		; call reply (normal)
 			pop hl			; a
 			ld e, (hl)
@@ -2080,6 +3236,15 @@ p_hyp_arg_c:		; call arg (normal)
 p_hyp_arg_r:		; end of arg
 			ld sp, (p_hyp_arg_rs)
 			jp ntc_xn
+p_hyp_count_c:		; call count (normal)
+			ld hl, 0
+			ld (var_hyp_count_count), hl
+			ld (p_hyp_count_rs), sp
+			ld sp, p_hyp_count
+			jp ntc_xn
+p_hyp_count_r:		; end of count
+			ld sp, (p_hyp_count_rs)
+			jp ntc_xn
 p_hyp_run_c:		; call run (normal)
 			pop hl			; setting
 			ld e, (hl)
@@ -2093,6 +3258,35 @@ p_hyp_run_c:		; call run (normal)
 			jp ntc_xn
 p_hyp_run_r:		; end of run
 			ld sp, (p_hyp_run_rs)
+			jp ntc_xn
+p_hot_tick_c:		; call tick (normal)
+			ld hl, 0
+			ld (var_hot_tick_k), hl
+			ld (p_hot_tick_rs), sp
+			ld sp, p_hot_tick
+			jp ntc_xn
+p_hot_tick_r:		; end of tick
+			xor a			; Tick done: it may run again
+			ld (ntc_isl + 4), a
+			ld sp, (p_hot_tick_rs)
+			jp ntc_xn
+p_hot_take_c:		; call take (normal)
+			ld hl, 0
+			ld (var_hot_take_take), hl
+			ld (p_hot_take_rs), sp
+			ld sp, p_hot_take
+			jp ntc_xn
+p_hot_take_r:		; end of take
+			ld sp, (p_hot_take_rs)
+			jp ntc_xn
+p_hot_control_c:		; call control (normal)
+			ld hl, 0
+			ld (var_hot_control_control), hl
+			ld (p_hot_control_rs), sp
+			ld sp, p_hot_control
+			jp ntc_xn
+p_hot_control_r:		; end of control
+			ld sp, (p_hot_control_rs)
 			jp ntc_xn
 p_memory_bankpage_c:		; call bankpage (normal)
 			pop hl			; bank
@@ -2114,183 +3308,423 @@ p_memory_bankpage_r:		; end of bankpage
 			ld sp, (p_memory_bankpage_rs)
 			jp ntc_xn
 
+ntc_rg40_e:
+			IF ($ < 34816) && (ntc_rg41_e - ntc_rg41 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg41:
 ; ============================================================
 ; Inline assembly (#asm ... #endasm)
 ; ============================================================
 
-fn_hyp_setting:		; function setting (asm keyword), Hyp.cls line 24
-            ld de, (ntc_rampt)		; Hyp.cls 25
-            ld a, e		; Hyp.cls 26
-            and #F8		; Hyp.cls 27
-            or 2		; Hyp.cls 28
-            ld e, a		; Hyp.cls 29
-            pop hl		; Hyp.cls 30
-            ld (hl), e		; Hyp.cls 31
-            inc hl		; Hyp.cls 32
-            ld (hl), d		; Hyp.cls 33
+fn_hyp_setting:		; function setting (asm keyword), Hyp.cls line 29
+            ld de, (ntc_rampt)		; Hyp.cls 30
+            ld a, e		; Hyp.cls 31
+            and #F8		; Hyp.cls 32
+            or 2		; Hyp.cls 33
+            ld e, a		; Hyp.cls 34
+            pop hl		; Hyp.cls 35
+            ld (hl), e		; Hyp.cls 36
+            inc hl		; Hyp.cls 37
+            ld (hl), d		; Hyp.cls 38
 			ret			; end of #asm
 
-fn_hyp_farptr:		; function farptr (asm keyword), Hyp.cls line 40
-            pop hl		; Hyp.cls 41
-            ld c, (hl)		; Hyp.cls 42
-            inc hl		; Hyp.cls 43
-            ld b, (hl)              ; BC = page [44]
-            pop hl		; Hyp.cls 45
-            ld e, (hl)		; Hyp.cls 46
-            inc hl		; Hyp.cls 47
-            ld a, (hl)		; Hyp.cls 48
-            and #3F		; Hyp.cls 49
-            or #40		; Hyp.cls 50
-            ld d, a                 ; DE = #4000 + the address's low 14 bits [51]
-            pop hl		; Hyp.cls 52
-            ld (hl), e		; Hyp.cls 53
-            inc hl		; Hyp.cls 54
-            ld (hl), d		; Hyp.cls 55
-            inc hl		; Hyp.cls 56
-            ld (hl), c		; Hyp.cls 57
-            inc hl		; Hyp.cls 58
-            ld (hl), b		; Hyp.cls 59
+fn_hyp_farptr:		; function farptr (asm keyword), Hyp.cls line 45
+            pop hl		; Hyp.cls 46
+            ld c, (hl)		; Hyp.cls 47
+            inc hl		; Hyp.cls 48
+            ld b, (hl)              ; BC = page [49]
+            pop hl		; Hyp.cls 50
+            ld e, (hl)		; Hyp.cls 51
+            inc hl		; Hyp.cls 52
+            ld a, (hl)		; Hyp.cls 53
+            and #3F		; Hyp.cls 54
+            or #40		; Hyp.cls 55
+            ld d, a                 ; DE = #4000 + the address's low 14 bits [56]
+            pop hl		; Hyp.cls 57
+            ld (hl), e		; Hyp.cls 58
+            inc hl		; Hyp.cls 59
+            ld (hl), d		; Hyp.cls 60
+            inc hl		; Hyp.cls 61
+            ld (hl), c		; Hyp.cls 62
+            inc hl		; Hyp.cls 63
+            ld (hl), b		; Hyp.cls 64
 			ret			; end of #asm
 
-asm_1_78_n:		; #asm, Hyp.cls line 78 (normal)
-            ld (var_hyp_sps), sp		; Hyp.cls 79
-            ld sp, (ntc_csp)		; Hyp.cls 80
-            db #08                  ; ex af, af': the alternate registers kept - the [81]
-            exx                     ; firmware's (BC' = its ROM / mode setting); a task [82]
-            push af                 ; may use them [83]
-            push bc		; Hyp.cls 84
-            push de		; Hyp.cls 85
-            push hl		; Hyp.cls 86
-            exx		; Hyp.cls 87
-            db #08		; Hyp.cls 88
-            ld hl, asm_1_78_n_rn_back		; Hyp.cls 89
-            push hl                 ; where main RAM carries on [90]
-            ld (ntc_bk_sp), sp		; Hyp.cls 91
-            ld a, (var_hyp_ra)		; Hyp.cls 92
-            ld hl, (var_hyp_rhl)		; Hyp.cls 93
-            ld bc, (var_hyp_run_setting)		; Hyp.cls 94
-            jp ntc_bk_out           ; out (c), c: the task's bank; its #0046 lands it [95]
-asm_1_78_n_rn_back:		; Hyp.cls 96
-            db #08                  ; ex af, af' [97]
-            exx		; Hyp.cls 98
-            pop hl                  ; the alternate registers back [99]
-            pop de		; Hyp.cls 100
-            pop bc		; Hyp.cls 101
-            pop af		; Hyp.cls 102
-            exx		; Hyp.cls 103
-            db #08		; Hyp.cls 104
-            push af                 ; carry: a BDOS call (A = C, DE = DE) [105]
-            push bc		; Hyp.cls 106
-            ld bc, (ntc_rampt)      ; the window's page back [107]
-            out (c), c		; Hyp.cls 108
-            pop bc		; Hyp.cls 109
-            pop af		; Hyp.cls 110
-            jr c, asm_1_78_n_rn_far		; Hyp.cls 111
-            rst #38                 ; an interrupt stopped the task: the firmware's handler [112]
-            di		; Hyp.cls 113
-            ld hl, 0		; Hyp.cls 114
-            jr asm_1_78_n_rn_end		; Hyp.cls 115
-asm_1_78_n_rn_far:		; Hyp.cls 116
-            ld (var_hyp_rfn), a		; Hyp.cls 117
-            ld (var_hyp_rde), de		; Hyp.cls 118
-            ld hl, 1		; Hyp.cls 119
-asm_1_78_n_rn_end:		; Hyp.cls 120
-            ld (var_hyp_run_run), hl		; Hyp.cls 121
-            ld sp, (var_hyp_sps)		; Hyp.cls 122
+asm_1_71_n:		; #asm, Hyp.cls line 71 (normal)
+            ld hl, (var_hyp_printable_p)		; Hyp.cls 72
+            ld bc, (var_hyp_printable_n)		; Hyp.cls 73
+            ld de, 0		; Hyp.cls 74
+asm_1_71_n_pr_lp:		; Hyp.cls 75
+            ld a, b		; Hyp.cls 76
+            or c		; Hyp.cls 77
+            jr z, asm_1_71_n_pr_end		; Hyp.cls 78
+            ld a, (hl)		; Hyp.cls 79
+            cp 32		; Hyp.cls 80
+            jr c, asm_1_71_n_pr_end		; Hyp.cls 81
+            inc hl		; Hyp.cls 82
+            inc de		; Hyp.cls 83
+            dec bc		; Hyp.cls 84
+            jr asm_1_71_n_pr_lp		; Hyp.cls 85
+asm_1_71_n_pr_end:		; Hyp.cls 86
+            ld (var_hyp_printable_printable), de		; Hyp.cls 87
 			ret			; end of #asm
 
-fn_hyp_info:		; function info (asm keyword), Hyp.cls line 129
-            pop hl		; Hyp.cls 130
-            ld a, (hl)		; Hyp.cls 131
-            ld hl, fn_hyp_info_hi_p0		; Hyp.cls 132
-            or a		; Hyp.cls 133
-            jr z, fn_hyp_info_in_e		; Hyp.cls 134
-            ld hl, fn_hyp_info_hi_p0e - fn_hyp_info_hi_p0		; Hyp.cls 135
-            dec a		; Hyp.cls 136
-            jr z, fn_hyp_info_in_e		; Hyp.cls 137
-            ld hl, fn_hyp_info_sb_start		; Hyp.cls 138
-            dec a		; Hyp.cls 139
-            jr z, fn_hyp_info_in_e		; Hyp.cls 140
-            ld hl, fn_hyp_info_sb_end - fn_hyp_info_sb_start		; Hyp.cls 141
-fn_hyp_info_in_e:		; Hyp.cls 142
-            ex de, hl		; Hyp.cls 143
-            pop hl		; Hyp.cls 144
-            ld (hl), e		; Hyp.cls 145
-            inc hl		; Hyp.cls 146
-            ld (hl), d		; Hyp.cls 147
-            ret		; Hyp.cls 148
+fn_hyp_fontinit:		; sub fontinit (asm keyword), Hyp.cls line 95
+            ld (var_hyp_hsp), sp		; Hyp.cls 96
+            ld sp, (ntc_csp)		; Hyp.cls 97
+            ld de, 32               ; D = 0: a table, E = its first character [98]
+            ld hl, #4000		; Hyp.cls 99
+            call #BBAB              ; TXT SET M TABLE (the matrices from 32 on, copied there) [100]
+            di		; Hyp.cls 101
+            ld hl, #4000		; Hyp.cls 102
+            ld de, arr_hyp_font		; Hyp.cls 103
+            ld bc, 96 * 8		; Hyp.cls 104
+            ldir		; Hyp.cls 105
+            ld de, #FF00            ; D <> 0: no table of its own any more [106]
+            call #BBAB		; Hyp.cls 107
+            di		; Hyp.cls 108
+            ld sp, (var_hyp_hsp)		; Hyp.cls 109
+			ret			; end of #asm
+
+asm_1_118_n:		; #asm, Hyp.cls line 118 (normal)
+            ld (var_hyp_hsp), sp		; Hyp.cls 119
+            ld sp, (ntc_csp)		; Hyp.cls 120
+            ld hl, (var_hyp_text_p)		; Hyp.cls 121
+            ld a, (var_hyp_text_n)		; Hyp.cls 122
+            ld b, a		; Hyp.cls 123
+            ld a, (var_hyp_text_col)		; Hyp.cls 124
+            ld d, a		; Hyp.cls 125
+            ld a, (var_hyp_text_row)		; Hyp.cls 126
+            ld e, a		; Hyp.cls 127
+            call asm_1_118_n_hy_text		; Hyp.cls 128
+            ld sp, (var_hyp_hsp)		; Hyp.cls 129
+            jr asm_1_118_n_hy_end		; Hyp.cls 130
+; hy_text: B characters at HL to the screen from column D, row E (called on the real stack)
+asm_1_118_n_hy_text:		; Hyp.cls 132
+            ld a, b		; Hyp.cls 133
+            or a		; Hyp.cls 134
+            ret z		; Hyp.cls 135
+asm_1_118_n_hy_tx_lp:		; Hyp.cls 136
+            ld a, d		; Hyp.cls 137
+            cp 80		; Hyp.cls 138
+            ret nc		; Hyp.cls 139
+            push bc		; Hyp.cls 140
+            push de		; Hyp.cls 141
+            ld a, (hl)		; Hyp.cls 142
+            inc hl		; Hyp.cls 143
+            push hl		; Hyp.cls 144
+            sub 32		; Hyp.cls 145
+            cp 96		; Hyp.cls 146
+            jr c, asm_1_118_n_hy_tx_ok		; Hyp.cls 147
+            ld a, '?' - 32		; Hyp.cls 148
+asm_1_118_n_hy_tx_ok:		; Hyp.cls 149
+            ld l, a		; Hyp.cls 150
+            ld h, 0		; Hyp.cls 151
+            add hl, hl		; Hyp.cls 152
+            add hl, hl		; Hyp.cls 153
+            add hl, hl		; Hyp.cls 154
+            ld bc, arr_hyp_font		; Hyp.cls 155
+            add hl, bc		; Hyp.cls 156
+            push hl                 ; the character's matrix [157]
+            ld h, d		; Hyp.cls 158
+            ld l, e		; Hyp.cls 159
+            call #BC1A              ; SCR CHAR POSITION: HL = its screen address [160]
+            di                      ; (firmware calls come back with interrupts on: the thread [161]
+                                    ; must not get an interrupt pushed into it)
+            pop de		; Hyp.cls 163
+            ld b, 8		; Hyp.cls 164
+asm_1_118_n_hy_tx_ln:		; Hyp.cls 165
+            ld a, (de)		; Hyp.cls 166
+            ld (hl), a		; Hyp.cls 167
+            inc de		; Hyp.cls 168
+            ld a, h		; Hyp.cls 169
+            add a, 8		; Hyp.cls 170
+            ld h, a		; Hyp.cls 171
+            djnz asm_1_118_n_hy_tx_ln		; Hyp.cls 172
+            pop hl		; Hyp.cls 173
+            pop de		; Hyp.cls 174
+            pop bc		; Hyp.cls 175
+            inc d		; Hyp.cls 176
+            djnz asm_1_118_n_hy_tx_lp		; Hyp.cls 177
+            ret		; Hyp.cls 178
+asm_1_118_n_hy_end:		; Hyp.cls 179
+			ret			; end of #asm
+
+asm_1_208_n:		; #asm, Hyp.cls line 208 (normal)
+            ld (var_hyp_sps), sp		; Hyp.cls 209
+            ld sp, (ntc_csp)		; Hyp.cls 210
+            call #B903              ; KL U ROM DISABLE: the task's top 16K, not a ROM (Library: [211]
+            di                      ; ROM has the keyword ROM on), while it runs [212]
+            ld (var_hyp_rrom), a		; Hyp.cls 213
+            ld a, 6		; Hyp.cls 214
+            ld (var_hyp_slc), a		; Hyp.cls 215
+            ld a, 1                 ; from BASIC: it has taken the characters (Collected) [216]
+            ld (var_hyp_rclr), a		; Hyp.cls 217
+asm_1_208_n_rn_again:		; Hyp.cls 218
+            push ix                 ; IX, IY and [219]
+            push iy		; Hyp.cls 220
+            db #08                  ; ex af, af': the alternate registers kept - the [221]
+            exx                     ; firmware's (BC' = its ROM / mode setting); a task [222]
+            push af                 ; may use them [223]
+            push bc		; Hyp.cls 224
+            push de		; Hyp.cls 225
+            push hl		; Hyp.cls 226
+            exx		; Hyp.cls 227
+            db #08		; Hyp.cls 228
+            ld hl, asm_1_208_n_rn_back		; Hyp.cls 229
+            push hl                 ; where main RAM carries on [230]
+            ld (ntc_bk_sp), sp		; Hyp.cls 231
+            ld a, (var_hyp_rclr)		; Hyp.cls 232
+            ld e, a                 ; E = 1: the bank empties its characters out (BASIC has them) [233]
+            ld a, (var_hyp_ra)		; Hyp.cls 234
+            ld hl, (var_hyp_rhl)		; Hyp.cls 235
+            ld bc, (var_hyp_run_setting)		; Hyp.cls 236
+            jp ntc_bk_out           ; out (c), c: the task's bank; its #0046 lands it [237]
+asm_1_208_n_rn_back:		; Hyp.cls 238
+            ld (var_hyp_rcnt), ix         ; the characters it collected (the stubs put them in IX) [239]
+            db #08                  ; ex af, af' [240]
+            exx		; Hyp.cls 241
+            pop hl                  ; the alternate registers back [242]
+            pop de		; Hyp.cls 243
+            pop bc		; Hyp.cls 244
+            pop af		; Hyp.cls 245
+            exx		; Hyp.cls 246
+            db #08		; Hyp.cls 247
+            pop iy		; Hyp.cls 248
+            pop ix		; Hyp.cls 249
+            push af                 ; carry: a BDOS call (A = C, DE = DE) [250]
+            push bc		; Hyp.cls 251
+            ld bc, (ntc_rampt)      ; the window's page back [252]
+            out (c), c		; Hyp.cls 253
+            pop bc		; Hyp.cls 254
+            pop af		; Hyp.cls 255
+            jr c, asm_1_208_n_rn_far		; Hyp.cls 256
+            rst #38                 ; an interrupt stopped the task: the firmware's handler [257]
+            di		; Hyp.cls 258
+            ld hl, var_hyp_slc            ; a time slice is SLICE interrupts: until it is used up the [259]
+            dec (hl)                ; task carries on straight away (no trip through BASIC) [260]
+            jr z, asm_1_208_n_rn_int		; Hyp.cls 261
+            ld a, (ntc_isldue)      ; ... unless an interrupt class (the system keys) is due [262]
+            or a		; Hyp.cls 263
+            jr nz, asm_1_208_n_rn_int		; Hyp.cls 264
+            xor a                   ; its characters stay in its bank (and the count goes on) [265]
+            ld (var_hyp_rclr), a		; Hyp.cls 266
+            jp asm_1_208_n_rn_again		; Hyp.cls 267
+asm_1_208_n_rn_int:		; Hyp.cls 268
+            ld hl, 0		; Hyp.cls 269
+            jr asm_1_208_n_rn_end		; Hyp.cls 270
+asm_1_208_n_rn_far:		; Hyp.cls 271
+            ld (var_hyp_rfn), a		; Hyp.cls 272
+            ld (var_hyp_rde), de		; Hyp.cls 273
+            ld hl, 1		; Hyp.cls 274
+asm_1_208_n_rn_end:		; Hyp.cls 275
+            ld (var_hyp_run_run), hl		; Hyp.cls 276
+            ld a, (var_hyp_rrom)		; Hyp.cls 277
+            call #B90C              ; KL ROM RESTORE [278]
+            di		; Hyp.cls 279
+            ld sp, (var_hyp_sps)		; Hyp.cls 280
+
+			ret			; end of #asm
+
+fn_hyp_info:		; function info (asm keyword), Hyp.cls line 288
+            pop hl		; Hyp.cls 289
+            ld a, (hl)		; Hyp.cls 290
+            ld hl, fn_hyp_info_hi_p0		; Hyp.cls 291
+            or a		; Hyp.cls 292
+            jr z, fn_hyp_info_in_e		; Hyp.cls 293
+            ld hl, fn_hyp_info_hi_p0e - fn_hyp_info_hi_p0		; Hyp.cls 294
+            dec a		; Hyp.cls 295
+            jr z, fn_hyp_info_in_e		; Hyp.cls 296
+            ld hl, fn_hyp_info_sb_start		; Hyp.cls 297
+            dec a		; Hyp.cls 298
+            jr z, fn_hyp_info_in_e		; Hyp.cls 299
+            ld hl, fn_hyp_info_sb_end - fn_hyp_info_sb_start		; Hyp.cls 300
+fn_hyp_info_in_e:		; Hyp.cls 301
+            ex de, hl		; Hyp.cls 302
+            pop hl		; Hyp.cls 303
+            ld (hl), e		; Hyp.cls 304
+            inc hl		; Hyp.cls 305
+            ld (hl), d		; Hyp.cls 306
+            ret		; Hyp.cls 307
 ; page zero (#0000-#0080)
-fn_hyp_info_hi_p0:		; Hyp.cls 150
-            db #C3		; Hyp.cls 151
-            dw 62976 + (fn_hyp_info_sb_exit - fn_hyp_info_sb_start)    ; #0000: warm boot = the task ends [152]
-            db 0, 0		; Hyp.cls 153
-            db #C3		; Hyp.cls 154
-            dw 62976                           ; #0005: BDOS (#0006: the top of the TPA) [155]
-            ds #38 - 8		; Hyp.cls 156
-            db #C3		; Hyp.cls 157
-            dw 62976 + (fn_hyp_info_sb_int - fn_hyp_info_sb_start)     ; #0038: the interrupt [158]
-            ds #44 - #3B		; Hyp.cls 159
-            db #ED, #49                         ; #0044: out (c), c [160]
-            db #C3		; Hyp.cls 161
-            dw 62976 + (fn_hyp_info_sb_land - fn_hyp_info_sb_start)    ; #0046: this bank switched in [162]
-            ds #5C - #49		; Hyp.cls 163
-            db 0, "           "                 ; #005C: the default FCB [164]
-            ds #80 - #68		; Hyp.cls 165
-            db 0                                ; #0080: no command tail [166]
-fn_hyp_info_hi_p0e:		; Hyp.cls 167
-; the stubs: assembled here, run at STUB in the bank (jumps inside them are to STUB + offset)
-fn_hyp_info_sb_start:		; Hyp.cls 169
-            di                                  ; BDOS: C = function, DE = argument [170]
-            ld a, c		; Hyp.cls 171
-            ld hl, 62976 + (fn_hyp_info_sb_far - fn_hyp_info_sb_start)		; Hyp.cls 172
-            push hl		; Hyp.cls 173
-            ld (#FFFE), sp		; Hyp.cls 174
-            ld bc, #7FC0		; Hyp.cls 175
-            scf                                 ; carry: a far call [176]
-            jp #0044		; Hyp.cls 177
-fn_hyp_info_sb_far:		; Hyp.cls 178
-            ret                                 ; the answer in A and HL [179]
-fn_hyp_info_sb_int:		; Hyp.cls 180
-            push af                             ; an interrupt: everything kept [181]
-            push bc		; Hyp.cls 182
-            push de		; Hyp.cls 183
-            push hl		; Hyp.cls 184
-            db #08                              ; ex af, af' [185]
-            exx		; Hyp.cls 186
-            push af		; Hyp.cls 187
-            push bc		; Hyp.cls 188
-            push de		; Hyp.cls 189
-            push hl		; Hyp.cls 190
-            push ix		; Hyp.cls 191
-            push iy		; Hyp.cls 192
-            ld hl, 62976 + (fn_hyp_info_sb_rest - fn_hyp_info_sb_start)		; Hyp.cls 193
-            push hl		; Hyp.cls 194
-            ld (#FFFE), sp		; Hyp.cls 195
-            ld bc, #7FC0		; Hyp.cls 196
-            or a                                ; no carry: an interrupt [197]
-            jp #0044		; Hyp.cls 198
-fn_hyp_info_sb_rest:		; Hyp.cls 199
-            pop iy		; Hyp.cls 200
-            pop ix		; Hyp.cls 201
-            pop hl		; Hyp.cls 202
-            pop de		; Hyp.cls 203
-            pop bc		; Hyp.cls 204
-            pop af		; Hyp.cls 205
-            exx		; Hyp.cls 206
-            db #08                              ; ex af, af' [207]
-            pop hl		; Hyp.cls 208
-            pop de		; Hyp.cls 209
-            pop bc		; Hyp.cls 210
-            pop af		; Hyp.cls 211
-            ei		; Hyp.cls 212
-            ret		; Hyp.cls 213
-fn_hyp_info_sb_land:		; Hyp.cls 214
-            ld sp, (#FFFE)                      ; this bank's SP [215]
-            ret		; Hyp.cls 216
-fn_hyp_info_sb_exit:		; Hyp.cls 217
-            ld c, 0		; Hyp.cls 218
-            jp 62976		; Hyp.cls 219
-fn_hyp_info_sb_end:		; Hyp.cls 220
+fn_hyp_info_hi_p0:		; Hyp.cls 309
+            db #C3		; Hyp.cls 310
+            dw 62720 + (fn_hyp_info_sb_exit - fn_hyp_info_sb_start)    ; #0000: warm boot = the task ends [311]
+            db 0, 0		; Hyp.cls 312
+            db #C3		; Hyp.cls 313
+            dw 62720                           ; #0005: BDOS (#0006: the top of the TPA) [314]
+            ds #38 - 8		; Hyp.cls 315
+            db #C3		; Hyp.cls 316
+            dw 62720 + (fn_hyp_info_sb_int - fn_hyp_info_sb_start)     ; #0038: the interrupt [317]
+            ds #44 - #3B		; Hyp.cls 318
+            db #ED, #49                         ; #0044: out (c), c [319]
+            db #C3		; Hyp.cls 320
+            dw 62720 + (fn_hyp_info_sb_land - fn_hyp_info_sb_start)    ; #0046: this bank switched in [321]
+            ds #5C - #49		; Hyp.cls 322
+            db 0, "           "                 ; #005C: the default FCB [323]
+            ds #80 - #68		; Hyp.cls 324
+            db 0                                ; #0080: no command tail [325]
+fn_hyp_info_hi_p0e:		; Hyp.cls 326
+; the stubs: assembled here, run at STUB in the bank (jumps inside them are to STUB + offset).
+; Characters out (BDOS 2, 6 with E < #FE) are collected at OBUF with no switch; the hypervisor
+; gets them (IX = how many) at the next far call or interrupt, at a line end, or when 128 wait
+fn_hyp_info_sb_start:		; Hyp.cls 330
+            di                                  ; BDOS: C = function, DE = argument [331]
+            ld a, c		; Hyp.cls 332
+            cp 2		; Hyp.cls 333
+            jr z, fn_hyp_info_sb_put		; Hyp.cls 334
+            cp 6		; Hyp.cls 335
+            jr z, fn_hyp_info_sb_f6		; Hyp.cls 336
+            cp 11		; Hyp.cls 337
+            jr z, fn_hyp_info_sb_stat		; Hyp.cls 338
+            cp 1		; Hyp.cls 339
+            jr z, fn_hyp_info_sb_f1		; Hyp.cls 340
+            jr fn_hyp_info_sb_call		; Hyp.cls 341
+fn_hyp_info_sb_f6:		; Hyp.cls 342
+            ld a, e		; Hyp.cls 343
+            cp #FF		; Hyp.cls 344
+            jr z, fn_hyp_info_sb_get		; Hyp.cls 345
+            cp #FE		; Hyp.cls 346
+            jr c, fn_hyp_info_sb_put		; Hyp.cls 347
+; keys: the hypervisor leaves the slot's next key at KEY (0 none), so these never switch
+fn_hyp_info_sb_stat:		; Hyp.cls 349
+            ld a, (63105)                       ; 6 / #FE, 11: is a key waiting (#FF / 0) [350]
+            or a		; Hyp.cls 351
+            jr z, fn_hyp_info_sb_ret		; Hyp.cls 352
+            ld a, #FF		; Hyp.cls 353
+fn_hyp_info_sb_ret:		; Hyp.cls 354
+            ld l, a		; Hyp.cls 355
+            ld h, 0		; Hyp.cls 356
+            ei		; Hyp.cls 357
+            ret		; Hyp.cls 358
+fn_hyp_info_sb_get:		; Hyp.cls 359
+            ld hl, 63105                        ; 6 / #FF: the key or 0 [360]
+            ld a, (hl)		; Hyp.cls 361
+            ld (hl), 0		; Hyp.cls 362
+            jr fn_hyp_info_sb_ret		; Hyp.cls 363
+fn_hyp_info_sb_f1:		; Hyp.cls 364
+            ld hl, 63105                        ; 1: the key (echoed) or 0 [365]
+            ld a, (hl)		; Hyp.cls 366
+            or a		; Hyp.cls 367
+            jr z, fn_hyp_info_sb_ret		; Hyp.cls 368
+            ld (hl), 0		; Hyp.cls 369
+            ld e, a		; Hyp.cls 370
+            ld hl, 62976 + 128                 ; the echo, collected (not when full) [371]
+            ld a, (hl)		; Hyp.cls 372
+            cp 127		; Hyp.cls 373
+            ld a, e		; Hyp.cls 374
+            jr nc, fn_hyp_info_sb_ret		; Hyp.cls 375
+            inc (hl)		; Hyp.cls 376
+            ld l, (hl)		; Hyp.cls 377
+            dec l		; Hyp.cls 378
+            ld h, 62976 / 256		; Hyp.cls 379
+            ld (hl), a		; Hyp.cls 380
+            jr fn_hyp_info_sb_ret		; Hyp.cls 381
+fn_hyp_info_sb_put:		; Hyp.cls 382
+            ld hl, 62976 + 128                 ; the count [383]
+            ld a, (hl)		; Hyp.cls 384
+            inc (hl)		; Hyp.cls 385
+            ld l, a		; Hyp.cls 386
+            ld h, 62976 / 256		; Hyp.cls 387
+            ld (hl), e		; Hyp.cls 388
+            cp 127		; Hyp.cls 389
+            jr nc, fn_hyp_info_sb_flush                     ; full [390]
+            ld a, e		; Hyp.cls 391
+            cp 10		; Hyp.cls 392
+            jr z, fn_hyp_info_sb_flush                      ; a line end: shown now [393]
+            ei		; Hyp.cls 394
+            ret		; Hyp.cls 395
+fn_hyp_info_sb_flush:		; Hyp.cls 396
+            ld c, #80                           ; (function #80: only the characters) [397]
+fn_hyp_info_sb_call:		; Hyp.cls 398
+            push ix                             ; IX, IY and the alternate registers kept [399]
+            push iy                             ; over the call (ex af, af') [400]
+            db #08		; Hyp.cls 401
+            exx		; Hyp.cls 402
+            push af		; Hyp.cls 403
+            push bc		; Hyp.cls 404
+            push de		; Hyp.cls 405
+            push hl		; Hyp.cls 406
+            exx		; Hyp.cls 407
+            db #08		; Hyp.cls 408
+            ld a, (62976 + 128)		; Hyp.cls 409
+            ld ixl, a		; Hyp.cls 410
+            ld ixh, 0		; Hyp.cls 411
+            ld a, c		; Hyp.cls 412
+            ld hl, 62720 + (fn_hyp_info_sb_far - fn_hyp_info_sb_start)		; Hyp.cls 413
+            push hl		; Hyp.cls 414
+            ld (#FFFE), sp		; Hyp.cls 415
+            ld bc, #7FC0		; Hyp.cls 416
+            scf                                 ; carry: a far call [417]
+            jp #0044		; Hyp.cls 418
+fn_hyp_info_sb_far:		; Hyp.cls 419
+            db #08                              ; the answer in A and HL; the program's [420]
+            exx                                 ; other registers back [421]
+            pop hl		; Hyp.cls 422
+            pop de		; Hyp.cls 423
+            pop bc		; Hyp.cls 424
+            pop af		; Hyp.cls 425
+            exx		; Hyp.cls 426
+            db #08		; Hyp.cls 427
+            pop iy		; Hyp.cls 428
+            pop ix		; Hyp.cls 429
+            ei		; Hyp.cls 430
+            ret		; Hyp.cls 431
+fn_hyp_info_sb_int:		; Hyp.cls 432
+            push af                             ; an interrupt: everything kept [433]
+            push bc		; Hyp.cls 434
+            push de		; Hyp.cls 435
+            push hl		; Hyp.cls 436
+            db #08                              ; ex af, af' [437]
+            exx		; Hyp.cls 438
+            push af		; Hyp.cls 439
+            push bc		; Hyp.cls 440
+            push de		; Hyp.cls 441
+            push hl		; Hyp.cls 442
+            push ix		; Hyp.cls 443
+            push iy		; Hyp.cls 444
+            ld a, (62976 + 128)		; Hyp.cls 445
+            ld ixl, a		; Hyp.cls 446
+            ld ixh, 0		; Hyp.cls 447
+            ld hl, 62720 + (fn_hyp_info_sb_rest - fn_hyp_info_sb_start)		; Hyp.cls 448
+            push hl		; Hyp.cls 449
+            ld (#FFFE), sp		; Hyp.cls 450
+            ld bc, #7FC0		; Hyp.cls 451
+            or a                                ; no carry: an interrupt [452]
+            jp #0044		; Hyp.cls 453
+fn_hyp_info_sb_rest:		; Hyp.cls 454
+            pop iy		; Hyp.cls 455
+            pop ix		; Hyp.cls 456
+            pop hl		; Hyp.cls 457
+            pop de		; Hyp.cls 458
+            pop bc		; Hyp.cls 459
+            pop af		; Hyp.cls 460
+            exx		; Hyp.cls 461
+            db #08                              ; ex af, af' [462]
+            pop hl		; Hyp.cls 463
+            pop de		; Hyp.cls 464
+            pop bc		; Hyp.cls 465
+            pop af		; Hyp.cls 466
+            ei		; Hyp.cls 467
+            ret		; Hyp.cls 468
+fn_hyp_info_sb_land:		; Hyp.cls 469
+            ld sp, (#FFFE)                      ; this bank's SP [470]
+            push af		; Hyp.cls 471
+            ld a, e                             ; E = 1: the hypervisor has the characters [472]
+            or a		; Hyp.cls 473
+            jr z, fn_hyp_info_sb_lkeep		; Hyp.cls 474
+            xor a		; Hyp.cls 475
+            ld (62976 + 128), a		; Hyp.cls 476
+fn_hyp_info_sb_lkeep:		; Hyp.cls 477
+            pop af		; Hyp.cls 478
+            ret		; Hyp.cls 479
+fn_hyp_info_sb_exit:		; Hyp.cls 480
+            ld c, 0		; Hyp.cls 481
+            jp 62720		; Hyp.cls 482
+fn_hyp_info_sb_end:		; Hyp.cls 483
+            ASSERT fn_hyp_info_sb_end - fn_hyp_info_sb_start <= 256, "the bank stubs must fit below OBUF"		; Hyp.cls 484
+
 			ret			; end of #asm
 
 fn_filesystem_open:		; function open (asm keyword), FileSystem.cls line 149
@@ -2436,6 +3870,11 @@ fn_memory_allocbank:		; function allocbank (asm keyword), Memory.cls line 424
 			ret			; end of #asm
 
 
+ntc_rg41_e:
+			IF ($ < 34816) && (ntc_rg42_e - ntc_rg42 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg42:
 ; ============================================================
 ; Variables
 ; ============================================================
@@ -2453,25 +3892,37 @@ var_hyp_farptr_farptr:			dw 0, 0
 var_blank:			ds 81
 			db 80			; capacity
 var_row:			ds 81
+			db 130			; capacity
+var_ob:			ds 131
 var_front:			dw 0
 var_hk:			dw 0
-var_hotkey_hotkey:			dw 0
-var_held:			dw 0
+var_hot_take_take:			dw 0
+var_back:			dw 0
 var_pk:			dw 0
 var_wt:			dw 0
+var_hot_control_control:			dw 0
 var_running_running:			dw 0
+var_td:			dw 0
 var_quit:			dw 0
 var_runs:			dw 0
 p_running_rs:			dw 0
 var_running_j:			dw 0
-for10_l:			dw 0
-p_hotkey_rs:			dw 0
-var_keys_down_down:			dw 0
+for12_l:			dw 0
+p_ready_rs:			dw 0
+var_ready_t:			dw 0
+var_ready_ready:			dw 0
 p_runnext_rs:			dw 0
 var_runnext_n:			dw 0
-for22_l:			dw 0
+var_runnext_t:			dw 0
+var_runnext_r:			dw 0
+var_runnext_c:			dw 0
+var_fr:			dw 0
+for20_l:			dw 0
 var_cur:			dw 0
 var_hyp_run_run:			dw 0
+var_far_far:			dw 0, 0
+var_memory_readbyte_readbyte:			dw 0
+var_hyp_count_count:			dw 0
 p_bdos_rs:			dw 0
 var_bdos_t:			dw 0
 var_bdos_f:			dw 0
@@ -2479,45 +3930,79 @@ var_bdos_e:			dw 0
 var_bdos_a:			dw 0
 var_hyp_fn_fn:			dw 0
 var_hyp_arg_arg:			dw 0
-var_bdos___sel26:			dw 0
+var_bdos___sel32:			dw 0
+p_collected_rs:			dw 0
+var_collected_t:			dw 0
+var_collected_n:			dw 0
+var_memory_copy_copy:			dw 0
+p_out_rs:			dw 0
+var_out_t:			dw 0
+var_out_n:			dw 0
+var_out_p:			dw 0
+var_out_j:			dw 0
+var_out_q:			dw 0
+var_out_c:			dw 0
+var_out_w:			dw 0
+var_hyp_printable_printable:			dw 0
+var_rowa_rowa:			dw 0, 0
 p_putc_rs:			dw 0
 var_putc_t:			dw 0
 var_putc_c:			dw 0
 p_newline_rs:			dw 0
 var_newline_t:			dw 0
-var_memory_copy_copy:			dw 0
 p_puts_rs:			dw 0
 var_puts_t:			dw 0
-			db 80			; capacity
-var_puts_s:			ds 81
-var_puts_j:			dw 0
-for42_l:			dw 0
+			db 130			; capacity
+var_puts_s:			ds 131
 p_putln_rs:			dw 0
 var_putln_t:			dw 0
-			db 80			; capacity
-var_putln_s:			ds 81
+			db 130			; capacity
+var_putln_s:			ds 131
 p_putmem_rs:			dw 0
 var_putmem_t:			dw 0
 var_putmem_a:			dw 0
-var_putmem_c:			dw 0
+var_putmem_la:			dw 0, 0
 var_putmem_n:			dw 0
-var_far_far:			dw 0, 0
+var_putmem_d:			dw 0
+var_putmem_tot:			dw 0
 p_far_rs:			dw 0
 var_far_t:			dw 0
 var_far_a:			dw 0
+p_rowa_rs:			dw 0
+var_rowa_t:			dw 0
+var_rowa_r:			dw 0
 p_clst_rs:			dw 0
 var_clst_t:			dw 0
 var_clst_j:			dw 0
 p_tofront_rs:			dw 0
 var_tofront_t:			dw 0
 var_tofront_j:			dw 0
+p_showtop_rs:			dw 0
+var_showtop_j:			dw 0
+			db 14			; capacity
+var_showtop_s:			ds 15
+			db 130			; capacity
+var_n_n:			ds 131
+var_memory_banks_banks:			dw 0
+var_memory_freepages_freepages:			dw 0
+for67_l:			dw 0
+var_ld:			dw 0
+var_rate_rate:			dw 0
+			db 130			; capacity
+var_pad_pad:			ds 131
+p_roll_rs:			dw 0
+var_roll_j:			dw 0
+for71_l:			dw 0
+p_pad_rs:			dw 0
+var_pad_v:			dw 0
+p_rate_rs:			dw 0
+var_rate_n:			dw 0
+var_rate_d:			dw 0
 p_install_rs:			dw 0
 var_install_t:			dw 0
 var_hyp_info_info:			dw 0
 p_openslot_rs:			dw 0
 var_openslot_t:			dw 0
-			db 80			; capacity
-var_n_n:			ds 81
 p_n_rs:			dw 0
 var_n_v:			dw 0
 p_prompt_rs:			dw 0
@@ -2535,16 +4020,14 @@ var_command_a:			ds 41
 var_command_b:			ds 41
 var_command_p:			dw 0
 var_command_s:			dw 0
-			db 80			; capacity
-var_command___sel56:			ds 81
-for61_l:			dw 0
-var_memory_banks_banks:			dw 0
-var_memory_freepages_freepages:			dw 0
+			db 130			; capacity
+var_command___sel80:			ds 131
+for85_l:			dw 0
 p_starttask_rs:			dw 0
 var_starttask_t:			dw 0
 var_starttask_s:			dw 0
-			db 80			; capacity
-var_starttask_f:			ds 81
+			db 130			; capacity
+var_starttask_f:			ds 131
 var_starttask_h:			dw 0
 var_starttask_n:			dw 0
 var_starttask_p:			dw 0
@@ -2553,6 +4036,19 @@ var_filesystem_close_close:			dw 0
 p_endtask_rs:			dw 0
 var_endtask_t:			dw 0
 var_endtask_c:			dw 0
+p_hyp_printable_rs:			dw 0
+var_hyp_printable_p:			dw 0
+var_hyp_printable_n:			dw 0
+var_hyp_hsp:			dw 0
+p_hyp_text_rs:			dw 0
+var_hyp_text_p:			dw 0
+var_hyp_text_n:			dw 0
+var_hyp_text_col:			dw 0
+var_hyp_text_row:			dw 0
+p_hyp_char_rs:			dw 0
+var_hyp_char_c:			dw 0
+var_hyp_char_col:			dw 0
+var_hyp_char_row:			dw 0
 p_hyp_reply_rs:			dw 0
 var_hyp_reply_a:			dw 0
 var_hyp_reply_hl:			dw 0
@@ -2562,21 +4058,37 @@ p_hyp_fn_rs:			dw 0
 var_hyp_rfn:			dw 0
 p_hyp_arg_rs:			dw 0
 var_hyp_rde:			dw 0
+p_hyp_count_rs:			dw 0
+var_hyp_rcnt:			dw 0
 p_hyp_run_rs:			dw 0
 var_hyp_run_setting:			dw 0
 var_hyp_sps:			dw 0
+var_hyp_rrom:			dw 0
+var_hyp_slc:			dw 0
+var_hyp_rclr:			dw 0
+p_hot_tick_rs:			dw 0
+var_hot_tick_k:			dw 0
+var_hot_ctl:			dw 0
+var_keys_down_down:			dw 0
+var_hot_last:			dw 0
+var_hot_pend:			dw 0
+p_hot_take_rs:			dw 0
+p_hot_control_rs:			dw 0
 p_memory_bankpage_rs:			dw 0
 var_memory_bankpage_bank:			dw 0
 var_memory_bankpage_n:			dw 0
 tmp0:			dw 0
 tmp1:			dw 0
 tmp2:			dw 0
-			db 80			; capacity
-stmp0:			ds 81
-			db 80			; capacity
-stmp1:			ds 81
-			db 80			; capacity
-stmp2:			ds 81
+tmp3:			dw 0
+tmp4:			dw 0
+tmp5:			dw 0
+			db 130			; capacity
+stmp0:			ds 131
+			db 130			; capacity
+stmp1:			ds 131
+			db 130			; capacity
+stmp2:			ds 131
 ltmp0:			dw 0, 0
 ltmp1:			dw 0, 0
 ltmp2:			dw 0, 0
@@ -2586,26 +4098,23 @@ lit_0:			dw 0
 lit_3:			dw 3
 lit_m2304:			dw -2304
 lit_80:			dw 80
+lit_128:			dw 128
 lit_1:			dw 1
-lit_23:			dw 23
-lit_64:			dw 64
-lit_65:			dw 65
-lit_57:			dw 57
-lit_56:			dw 56
-lit_49:			dw 49
-lit_48:			dw 48
-lit_41:			dw 41
-lit_40:			dw 40
-llit_80:			dw 80, 0
-lit_1920:			dw 1920
+lit_m2431:			dw -2431
+lit_m2560:			dw -2560
+vp_var_ob:			dw var_ob
 vp_var_blank:			dw var_blank
-llit_1920:			dw 1920, 0
+lit_24:			dw 24
 lit_13:			dw 13
 lit_10:			dw 10
+llit_0:			dw 0, 0
+llit_65536:			dw 0, 1
 vp_var_row:			dw var_row
-lit_79:			dw 79
 lit_2:			dw 2
-lit_m2560:			dw -2560
+lit_15:			dw 15
+lit_9:			dw 9
+lit_m2816:			dw -2816
+lit_m2432:			dw -2432
 lit_8:			dw 8
 lit_32:			dw 32
 lit_255:			dw 255
@@ -2615,7 +4124,23 @@ lit_m260:			dw -260
 lit_256:			dw 256
 lit_m258:			dw -258
 lit_m2:			dw -2
+vp_var_hyp_char_c:			dw var_hyp_char_c
+lit_23:			dw 23
+lit_64:			dw 64
+lit_65:			dw 65
+lit_57:			dw 57
+lit_56:			dw 56
+lit_49:			dw 49
+lit_48:			dw 48
+lit_41:			dw 41
+lit_40:			dw 40
+lit_66:			dw 66
 
+ntc_rg42_e:
+			IF ($ < 34816) && (ntc_rg43_e - ntc_rg43 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg43:
 ; ============================================================
 ; Strings
 ; ============================================================
@@ -2624,50 +4149,73 @@ str0:			db "CyborgOS needs a 6128 or more RAM", 0
 str1:			db "Press a key", 0
 str2:			db "CyborgOS ended, ", 0
 str3:			db " programs ran", 0
-str4:			db "CyborgOS slot ", 0
-str5:			db " of ", 0
-str6:			db " - Control + 1-", 0
-str7:			db ", HELP", 0
-str8:			db 0
-str9:			db "> ", 0
-str10:			db " ", 0
-str11:			db "HELP", 0
-str12:			db "RUN name [slot]  FG slot  PS  KILL slot  WAIT  CLS  MEM  QUIT", 0
-str13:			db "CLS", 0
-str14:			db "RUN", 0
-str15:			db "no slot", 0
-str16:			db "slot", 0
-str17:			db " is busy", 0
-str18:			db "FG", 0
-str19:			db "no slot ", 0
-str20:			db "PS", 0
-str21:			db "-", 0
-str22:			db "command line", 0
-str23:			db " * ", 0
-str24:			db "   ", 0
-str25:			db "KILL", 0
-str26:			db "nothing running in slot ", 0
-str27:			db "MEM", 0
-str28:			db " banks of 64K,", 0
-str29:			db " slots,", 0
-str30:			db " pages of 16K free", 0
-str31:			db "WAIT", 0
-str32:			db "QUIT", 0
-str33:			db "? ", 0
-str34:			db " (HELP)", 0
-str35:			db "RUN what?", 0
-str36:			db ".", 0
-str37:			db ".CYB", 0
-str38:			db ": not found", 0
-str39:			db "RUN ", 0
-str40:			db " runs in slot", 0
-str41:			db "[", 0
-str42:			db " ended]", 0
+str4:			db " ", 0
+str5:			db "$", 0
+str6:			db "CyborgOS TOP - ", 0
+str7:			db " slots, ", 0
+str8:			db " banks of 64K, ", 0
+str9:			db " pages free", 0
+str10:			db "Control + ESC: back, Control + 1-", 0
+str11:			db ": that slot", 0
+str12:			db "In the last whole second:", 0
+str13:			db "SLOT  STATE          PROGRAM         TURNS/S   BDOS/S  CHARS/S", 0
+str14:			db "-", 0
+str15:			db "command line", 0
+str16:			db "waiting (key)", 0
+str17:			db "running", 0
+str18:			db "*", 0
+str19:			db 0
+str20:			db "  ", 0
+str21:			db "CyborgOS slot ", 0
+str22:			db " of ", 0
+str23:			db " - Control + 1-", 0
+str24:			db ", Control + ESC: TOP, HELP", 0
+str25:			db "> ", 0
+str26:			db "HELP", 0
+str27:			db "RUN name [slot]  FG slot  PS  KILL slot  WAIT  CLS  MEM  QUIT", 0
+str28:			db "Control + 1-", 0
+str29:			db ": a slot to the front   Control + ESC: TOP (again: back)", 0
+str30:			db "CLS", 0
+str31:			db "RUN", 0
+str32:			db "no slot", 0
+str33:			db "slot", 0
+str34:			db " is busy", 0
+str35:			db "FG", 0
+str36:			db "no slot ", 0
+str37:			db "PS", 0
+str38:			db " * ", 0
+str39:			db "   ", 0
+str40:			db "KILL", 0
+str41:			db "nothing running in slot ", 0
+str42:			db "MEM", 0
+str43:			db " pages of 16K free", 0
+str44:			db "WAIT", 0
+str45:			db "QUIT", 0
+str46:			db "? ", 0
+str47:			db " (HELP)", 0
+str48:			db "RUN what?", 0
+str49:			db ".", 0
+str50:			db ".CYB", 0
+str51:			db ": not found", 0
+str52:			db "RUN ", 0
+str53:			db " runs in slot", 0
+str54:			db "[", 0
+str55:			db " ended]", 0
 
+ntc_rg43_e:
+			IF ($ < 34816) && (ntc_rg44_e - ntc_rg44 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg44:
 ; ============================================================
 ; Keyword library (used)
 ; ============================================================
 
+ntc_rg44_e:
+			IF ($ < 34816) && (ntc_rg45_e - ntc_rg45 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg45:
 ;## ntc_data @shared
 ; ------------------------------------------------------------
 ; Scratch space
@@ -2700,6 +4248,11 @@ ntc_numbuf:		ds 14			; printint / long print: digits (+ spaces for Option VBPrin
 				db 40			; ntc_inbuf's capacity (as every string variable has)
 ntc_inbuf:		ds 41			; inputint: typed text
 
+ntc_rg45_e:
+			IF ($ < 34816) && (ntc_rg46_e - ntc_rg46 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg46:
 ;## kw_stop ntc_data ntc_plat_exit @shared
 kw_stop:
 			ld ix, ntc_stop_back
@@ -2709,25 +4262,98 @@ ntc_stop_back:
 			ei
 			ret
 
+ntc_rg46_e:
+			IF ($ < 34816) && (ntc_rg47_e - ntc_rg47 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg47:
 ;## kw_waitkey ntc_data ntc_plat_key
 ; kw_waitkey - wait for a key (Option PressAnyKeyOnEnd, before kw_stop)
 kw_waitkey:
 			ld ix, ntc_next
 			jp ntc_plat_getkey
 
-;## ntc_xn ntc_data @shared
-; normal mode "next": every normal mode keyword ends here (its ret
-; became jp ntc_xn). Thread position to ntc_ip, real stack, one
-; instruction with interrupts on, then back into the thread.
+ntc_rg47_e:
+			IF ($ < 34816) && (ntc_rg48_e - ntc_rg48 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg48:
+;## ntc_xnh ntc_data ntc_islots @shared
+; ntc_xn for a program with an Interrupt hook (Interrupt MySub) or interrupt
+; classes (Option Class Interrupt): the same window, then a pending hook
+; runs as a call of the hook Sub from this point (its return goes back into
+; the thread), else a due class's Tick (not one still running). Flags are
+; kept when nothing runs. Linked instead of ntc_xn.
 ntc_xn:
 			ld (ntc_ip), sp
 			ld sp, (ntc_csp)
 			ei
 			nop					; an interrupt can be taken here
 			di
+			push af
+			ld a, (ntc_hookpend)
+			or a
+			jr nz, ntc_xn_hookp
+			ld a, (ntc_isldue)
+			or a
+			jr nz, ntc_xn_isl
+ntc_xn_none:
+			pop af
 			ld sp, (ntc_ip)
 			ret
+ntc_xn_isl:
+			ld hl, ntc_isl + 4		; the first slot due and not running
+			ld a, (ntc_isln)
+			ld b, a
+			ld c, 0					; due but still running: stays due
+ntc_xi_lp:
+			ld a, (hl)
+			or a
+			jr nz, ntc_xi_skip
+			inc hl
+			ld a, (hl)
+			dec hl
+			or a
+			jr nz, ntc_xi_run
+ntc_xi_skip:
+			inc hl
+			ld a, (hl)
+			dec hl
+			or c
+			ld c, a
+			ld de, 8
+			add hl, de
+			djnz ntc_xi_lp
+			ld a, c
+			ld (ntc_isldue), a
+			jr ntc_xn_none
+ntc_xi_run:
+			ld (hl), 1				; running (its return stub clears it)
+			inc hl
+			ld (hl), 0				; not due
+			inc hl
+			ld e, (hl)				; Tick's call stub
+			inc hl
+			ld d, (hl)
+			pop af
+			ld sp, (ntc_ip)
+			ex de, hl
+			jp (hl)
+ntc_xn_hookp:
+			pop af
+ntc_xn_hook:
+			xor a
+			ld (ntc_hookpend), a
+			ld (ntc_hookon), a	; not again until the hook returns
+			ld sp, (ntc_ip)
+			ld hl, (ntc_hook)
+			jp (hl)
 
+ntc_rg48_e:
+			IF ($ < 34816) && (ntc_rg49_e - ntc_rg49 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg49:
 ;## kw_goto_iffalse (normal mode copy)
 ;kw_goto_iffalse, <label>  - branch if NZ (false)
 kw_goto_iffalse_n:
@@ -2736,6 +4362,11 @@ kw_goto_iffalse_n:
 			ld sp, hl
 			jp ntc_xn
 
+ntc_rg49_e:
+			IF ($ < 34816) && (ntc_rg50_e - ntc_rg50 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg50:
 ;## kw_goto_ifzero (normal mode copy)
 ;kw_goto_ifzero, <var>, <label>  - branch if var = 0
 kw_goto_ifzero_n:
@@ -2748,6 +4379,11 @@ kw_goto_ifzero_n:
 			ld sp, hl
 			jp ntc_xn
 
+ntc_rg50_e:
+			IF ($ < 34816) && (ntc_rg51_e - ntc_rg51 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg51:
 ;## ntc_for_jump (normal mode copy)
 ; tails for the FOR / NEXT keywords. DE = var value, HL = limit,
 ; SP = thread at the label word. Signed compare by flipping bit 15.
@@ -2818,6 +4454,11 @@ ntc_for_end_n:
 			pop hl
 			jp ntc_xn
 
+ntc_rg51_e:
+			IF ($ < 34816) && (ntc_rg52_e - ntc_rg52 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg52:
 ;## kw_forupv (normal mode copy) ntc_for_jump
 ;kw_forupv, <var>, <limit var>, <endlabel>
 kw_forupv_n:
@@ -2832,6 +4473,11 @@ kw_forupv_n:
 			ld l, a
 			jp ntc_for_gt_n
 
+ntc_rg52_e:
+			IF ($ < 34816) && (ntc_rg53_e - ntc_rg53 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg53:
 ;## kw_next1l (normal mode copy) ntc_for_jump
 ;kw_next1l, <var>, <literal limit>, <toplabel>
 ;  NEXT for STEP 1: inc var, back to the top while var <= limit
@@ -2852,6 +4498,11 @@ ntc_n1l_nc_n:
 			sbc a, a
 			jp ntc_for_le_n
 
+ntc_rg53_e:
+			IF ($ < 34816) && (ntc_rg54_e - ntc_rg54 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg54:
 ;## kw_next1v (normal mode copy) ntc_for_jump
 ;kw_next1v, <var>, <limit var>, <toplabel>
 kw_next1v_n:
@@ -2875,6 +4526,11 @@ ntc_n1v_nc_n:
 			sbc a, a
 			jp ntc_for_le_n
 
+ntc_rg54_e:
+			IF ($ < 34816) && (ntc_rg55_e - ntc_rg55 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg55:
 ;## kw_ltov
 ;kw_ltov, <literal>, <destvar>
 kw_ltov:
@@ -2885,6 +4541,11 @@ kw_ltov:
 			ld (hl), d
 			ret
 
+ntc_rg55_e:
+			IF ($ < 34816) && (ntc_rg56_e - ntc_rg56 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg56:
 ;## kw_vtov
 ;kw_vtov, <sourcevar>, <destvar>
 kw_vtov:
@@ -2898,6 +4559,11 @@ kw_vtov:
 			ld (hl), d
 			ret
 
+ntc_rg56_e:
+			IF ($ < 34816) && (ntc_rg57_e - ntc_rg57 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg57:
 ;## kw_ztov
 ;kw_ztov, <destvar>
 kw_ztov:
@@ -2908,6 +4574,11 @@ kw_ztov:
 			ld (hl), a
 			ret
 
+ntc_rg57_e:
+			IF ($ < 34816) && (ntc_rg58_e - ntc_rg58 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg58:
 ;## kw_ftov
 ;kw_ftov, <destvar>  - Z flag to var: true = -1, false = 0
 kw_ftov:
@@ -2927,6 +4598,11 @@ ntc_ftov_t:
 ; Arithmetic
 ; ============================================================
 
+ntc_rg58_e:
+			IF ($ < 34816) && (ntc_rg59_e - ntc_rg59 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg59:
 ;## kw_inc
 ;kw_inc, <var>
 kw_inc:
@@ -2937,6 +4613,11 @@ kw_inc:
 			inc (hl)
 			ret
 
+ntc_rg59_e:
+			IF ($ < 34816) && (ntc_rg60_e - ntc_rg60 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg60:
 ;## kw_dec
 ;kw_dec, <var>
 kw_dec:
@@ -2949,6 +4630,11 @@ kw_dec:
 			dec (hl)
 			ret
 
+ntc_rg60_e:
+			IF ($ < 34816) && (ntc_rg61_e - ntc_rg61 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg61:
 ;## kw_add
 ;kw_add, <var1>, <var2>, <destvar>
 kw_add:
@@ -2969,6 +4655,11 @@ kw_add:
 			ld (hl), d
 			ret
 
+ntc_rg61_e:
+			IF ($ < 34816) && (ntc_rg62_e - ntc_rg62 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg62:
 ;## kw_addl
 ;kw_addl, <var>, <literal>, <destvar>
 kw_addl:
@@ -2985,6 +4676,62 @@ kw_addl:
 			ld (hl), d
 			ret
 
+ntc_rg62_e:
+			IF ($ < 34816) && (ntc_rg63_e - ntc_rg63 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg63:
+;## kw_subvv
+;kw_subvv, <var1>, <var2>, <destvar>  - var1 - var2
+kw_subvv:
+			pop hl
+			ld e, (hl)
+			inc hl
+			ld d, (hl)
+			pop hl
+			ld a, (hl)
+			inc hl
+			ld h, (hl)
+			ld l, a
+			ex de, hl
+			or a
+			sbc hl, de
+			ex de, hl
+			pop hl
+			ld (hl), e
+			inc hl
+			ld (hl), d
+			ret
+
+ntc_rg63_e:
+			IF ($ < 34816) && (ntc_rg64_e - ntc_rg64 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg64:
+;## kw_sublv
+;kw_sublv, <literal>, <var>, <destvar>  - literal - var
+kw_sublv:
+			pop de
+			pop hl
+			ld a, (hl)
+			inc hl
+			ld h, (hl)
+			ld l, a
+			ex de, hl
+			or a
+			sbc hl, de
+			ex de, hl
+			pop hl
+			ld (hl), e
+			inc hl
+			ld (hl), d
+			ret
+
+ntc_rg64_e:
+			IF ($ < 34816) && (ntc_rg65_e - ntc_rg65 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg65:
 ;## kw_4x
 ;kw_4x, <var>, <destvar>
 kw_4x:
@@ -3002,6 +4749,11 @@ kw_4x:
 			ld (hl), d
 			ret
 
+ntc_rg65_e:
+			IF ($ < 34816) && (ntc_rg66_e - ntc_rg66 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg66:
 ;## ntc_mul
 ; BC * DE -> pop destvar, store. Low 16 bits (same signed/unsigned)
 ntc_mul:
@@ -3023,6 +4775,11 @@ ntc_mul_skip:
 			ld (hl), d
 			ret
 
+ntc_rg66_e:
+			IF ($ < 34816) && (ntc_rg67_e - ntc_rg67 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg67:
 ;## kw_mulvl ntc_mul
 ;kw_mulvl, <var>, <literal>, <destvar>
 kw_mulvl:
@@ -3033,6 +4790,11 @@ kw_mulvl:
 			pop de
 			jp ntc_mul
 
+ntc_rg67_e:
+			IF ($ < 34816) && (ntc_rg68_e - ntc_rg68 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg68:
 ;## ntc_div ntc_data
 ; HL / DE signed, truncating. (ntc_mode) 0 = quotient, 1 = remainder.
 ; Remainder takes the dividend's sign. Divide by zero gives
@@ -3113,6 +4875,34 @@ ntc_div_store:
 			ld (hl), d
 			ret
 
+ntc_rg68_e:
+			IF ($ < 34816) && (ntc_rg69_e - ntc_rg69 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg69:
+;## kw_divvv ntc_div
+;kw_divvv, <var1>, <var2>, <destvar>  - var1 / var2
+kw_divvv:
+			xor a
+			ld (ntc_mode), a
+ntc_divvv:
+			pop hl
+			ld c, (hl)
+			inc hl
+			ld b, (hl)
+			pop hl
+			ld e, (hl)
+			inc hl
+			ld d, (hl)
+			ld h, b
+			ld l, c
+			jp ntc_div
+
+ntc_rg69_e:
+			IF ($ < 34816) && (ntc_rg70_e - ntc_rg70 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg70:
 ;## kw_divvl ntc_div
 ;kw_divvl, <var>, <literal>, <destvar>
 kw_divvl:
@@ -3127,6 +4917,11 @@ ntc_divvl:
 			pop de
 			jp ntc_div
 
+ntc_rg70_e:
+			IF ($ < 34816) && (ntc_rg71_e - ntc_rg71 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg71:
 ;## kw_andvv
 ;kw_andvv, <var1>, <var2>, <destvar>
 kw_andvv:
@@ -3148,6 +4943,11 @@ kw_andvv:
 			ld (hl), d
 			ret
 
+ntc_rg71_e:
+			IF ($ < 34816) && (ntc_rg72_e - ntc_rg72 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg72:
 ;## kw_andvl
 ;kw_andvl, <var>, <literal>, <destvar>
 kw_andvl:
@@ -3166,6 +4966,11 @@ kw_andvl:
 			ld (hl), d
 			ret
 
+ntc_rg72_e:
+			IF ($ < 34816) && (ntc_rg73_e - ntc_rg73 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg73:
 ;## kw_orvv
 ;kw_orvv, <var1>, <var2>, <destvar>
 kw_orvv:
@@ -3187,6 +4992,38 @@ kw_orvv:
 			ld (hl), d
 			ret
 
+ntc_rg73_e:
+			IF ($ < 34816) && (ntc_rg74_e - ntc_rg74 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg74:
+;## kw_notv
+;kw_notv, <var>, <destvar>
+kw_notv:
+			pop hl
+			ld a, (hl)
+			cpl
+			ld e, a
+			inc hl
+			ld a, (hl)
+			cpl
+			ld d, a
+			pop hl
+			ld (hl), e
+			inc hl
+			ld (hl), d
+			ret
+
+; ============================================================
+; Compares - result in Z flag (Z = true)
+; Tails take DE = a, HL = b and test a <rel> b.
+; ============================================================
+
+ntc_rg74_e:
+			IF ($ < 34816) && (ntc_rg75_e - ntc_rg75 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg75:
 ;## ntc_cmp
 ntc_cmp_slt:
 			ld a, d
@@ -3254,6 +5091,11 @@ ntc_cmp_ne_f:
 			or 1
 			ret
 
+ntc_rg75_e:
+			IF ($ < 34816) && (ntc_rg76_e - ntc_rg76 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg76:
 ;## kw_scpltvv ntc_cmp
 ;kw_scpltvv, <var1>, <var2>  - signed var1 < var2
 kw_scpltvv:
@@ -3268,6 +5110,11 @@ kw_scpltvv:
 			ld l, a
 			jp ntc_cmp_slt
 
+ntc_rg76_e:
+			IF ($ < 34816) && (ntc_rg77_e - ntc_rg77 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg77:
 ;## kw_scpltvl ntc_cmp
 ;kw_scpltvl, <var>, <literal>
 kw_scpltvl:
@@ -3278,6 +5125,11 @@ kw_scpltvl:
 			pop hl
 			jp ntc_cmp_slt
 
+ntc_rg77_e:
+			IF ($ < 34816) && (ntc_rg78_e - ntc_rg78 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg78:
 ;## kw_scplevv ntc_cmp
 kw_scplevv:
 			pop hl
@@ -3291,6 +5143,25 @@ kw_scplevv:
 			ld l, a
 			jp ntc_cmp_sle
 
+ntc_rg78_e:
+			IF ($ < 34816) && (ntc_rg79_e - ntc_rg79 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg79:
+;## kw_scplevl ntc_cmp
+kw_scplevl:
+			pop hl
+			ld e, (hl)
+			inc hl
+			ld d, (hl)
+			pop hl
+			jp ntc_cmp_sle
+
+ntc_rg79_e:
+			IF ($ < 34816) && (ntc_rg80_e - ntc_rg80 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg80:
 ;## kw_scpgtvv ntc_cmp
 kw_scpgtvv:
 			pop hl
@@ -3304,6 +5175,11 @@ kw_scpgtvv:
 			ld l, a
 			jp ntc_cmp_sgt
 
+ntc_rg80_e:
+			IF ($ < 34816) && (ntc_rg81_e - ntc_rg81 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg81:
 ;## kw_scpgtvl ntc_cmp
 kw_scpgtvl:
 			pop hl
@@ -3313,6 +5189,11 @@ kw_scpgtvl:
 			pop hl
 			jp ntc_cmp_sgt
 
+ntc_rg81_e:
+			IF ($ < 34816) && (ntc_rg82_e - ntc_rg82 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg82:
 ;## kw_scpgevl ntc_cmp
 kw_scpgevl:
 			pop hl
@@ -3322,6 +5203,11 @@ kw_scpgevl:
 			pop hl
 			jp ntc_cmp_sge
 
+ntc_rg82_e:
+			IF ($ < 34816) && (ntc_rg83_e - ntc_rg83 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg83:
 ;## kw_cpeqvv ntc_cmp
 ;kw_cpeqvv, <var1>, <var2>
 kw_cpeqvv:
@@ -3336,6 +5222,11 @@ kw_cpeqvv:
 			ld l, a
 			jp ntc_cmp_eq
 
+ntc_rg83_e:
+			IF ($ < 34816) && (ntc_rg84_e - ntc_rg84 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg84:
 ;## kw_cpeqvl ntc_cmp
 kw_cpeqvl:
 			pop hl
@@ -3345,6 +5236,11 @@ kw_cpeqvl:
 			pop hl
 			jp ntc_cmp_eq
 
+ntc_rg84_e:
+			IF ($ < 34816) && (ntc_rg85_e - ntc_rg85 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg85:
 ;## kw_cpnevv ntc_cmp
 kw_cpnevv:
 			pop hl
@@ -3358,6 +5254,11 @@ kw_cpnevv:
 			ld l, a
 			jp ntc_cmp_ne
 
+ntc_rg85_e:
+			IF ($ < 34816) && (ntc_rg86_e - ntc_rg86 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg86:
 ;## kw_cpnevl ntc_cmp
 kw_cpnevl:
 			pop hl
@@ -3371,6 +5272,30 @@ kw_cpnevl:
 ; Memory (PEEK / POKE / DEEK / DOKE)
 ; ============================================================
 
+ntc_rg86_e:
+			IF ($ < 34816) && (ntc_rg87_e - ntc_rg87 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg87:
+;## kw_vptrtov8
+;kw_vptrtov8, <addrvar>, <destvar>  - PEEK(var)
+kw_vptrtov8:
+			pop hl
+			ld e, (hl)
+			inc hl
+			ld d, (hl)
+			ld a, (de)
+			pop hl
+			ld (hl), a
+			inc hl
+			ld (hl), 0
+			ret
+
+ntc_rg87_e:
+			IF ($ < 34816) && (ntc_rg88_e - ntc_rg88 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg88:
 ;## kw_aget
 ;kw_aget, <arraybase>, <indexvar>, <destvar>
 kw_aget:
@@ -3391,6 +5316,11 @@ kw_aget:
 			ld (hl), d
 			ret
 
+ntc_rg88_e:
+			IF ($ < 34816) && (ntc_rg89_e - ntc_rg89 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg89:
 ;## kw_aset
 ;kw_aset, <arraybase>, <indexvar>, <sourcevar>
 kw_aset:
@@ -3413,6 +5343,11 @@ kw_aset:
 			ld (hl), b
 			ret
 
+ntc_rg89_e:
+			IF ($ < 34816) && (ntc_rg90_e - ntc_rg90 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg90:
 ;## kw_asetl
 ;kw_asetl, <arraybase>, <indexvar>, <literal>
 kw_asetl:
@@ -3434,6 +5369,11 @@ kw_asetl:
 ; Random (16 bit xorshift 7,9,8 - period 65535)
 ; ============================================================
 
+ntc_rg90_e:
+			IF ($ < 34816) && (ntc_rg91_e - ntc_rg91 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg91:
 ;## kw_strcpy
 ;kw_strcpy, <destaddr>, <srcaddr>  - cut at the destination's capacity byte
 kw_strcpy:
@@ -3455,6 +5395,11 @@ ntc_strcpy_loop:
 			ld (de), a
 			ret
 
+ntc_rg91_e:
+			IF ($ < 34816) && (ntc_rg92_e - ntc_rg92 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg92:
 ;## kw_strcat
 ;kw_strcat, <destaddr>, <srcaddr>  - cut at the destination's capacity byte
 kw_strcat:
@@ -3485,6 +5430,11 @@ ntc_strcat_loop:
 			ld (de), a
 			ret
 
+ntc_rg92_e:
+			IF ($ < 34816) && (ntc_rg93_e - ntc_rg93 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg93:
 ;## kw_strlen
 ;kw_strlen, <straddr>, <destvar>
 kw_strlen:
@@ -3504,6 +5454,11 @@ ntc_strlen_done:
 			ld (hl), b
 			ret
 
+ntc_rg93_e:
+			IF ($ < 34816) && (ntc_rg94_e - ntc_rg94 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg94:
 ;## kw_strcmpeq
 ;kw_strcmpeq, <addr1>, <addr2>  - Z if equal
 kw_strcmpeq:
@@ -3519,6 +5474,11 @@ ntc_streq_loop:
 			inc de
 			jr ntc_streq_loop
 
+ntc_rg94_e:
+			IF ($ < 34816) && (ntc_rg95_e - ntc_rg95 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg95:
 ;## kw_strcmpne
 ;kw_strcmpne, <addr1>, <addr2>  - Z if not equal
 kw_strcmpne:
@@ -3547,6 +5507,11 @@ ntc_strne_f:
 ; ld ix, ntc_next (a ret) so the routine continues the thread.
 ; ============================================================
 
+ntc_rg95_e:
+			IF ($ < 34816) && (ntc_rg96_e - ntc_rg96 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg96:
 ;## ntc_printbuf ntc_data ntc_plat_screen
 ; print the 0 terminated ASCII text at (ntc_sptr), then ret (thread)
 ntc_printbuf:
@@ -3559,6 +5524,11 @@ ntc_printbuf:
 			ld ix, ntc_printbuf
 			jp ntc_plat_putc
 
+ntc_rg96_e:
+			IF ($ < 34816) && (ntc_rg97_e - ntc_rg97 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg97:
 ;## kw_printstrvar ntc_printbuf
 ;kw_printstrvar, <straddr>
 kw_printstrvar:
@@ -3566,6 +5536,11 @@ kw_printstrvar:
 			ld (ntc_sptr), hl
 			jp ntc_printbuf
 
+ntc_rg97_e:
+			IF ($ < 34816) && (ntc_rg98_e - ntc_rg98 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg98:
 ;## ntc_itoa ntc_data
 ; HL = signed value, DE = buffer: writes the digits and a 0 (DE ends on
 ; the 0). jp (ix) back. Uses A, BC, IY.
@@ -3624,6 +5599,11 @@ ntc_ia_last:
 			jp (ix)
 ntc_pow10:		dw 10000, 1000, 100, 10, 0
 
+ntc_rg98_e:
+			IF ($ < 34816) && (ntc_rg99_e - ntc_rg99 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg99:
 ;## kw_printint ntc_printbuf ntc_itoa
 ;kw_printint, <var>  - signed decimal
 kw_printint:
@@ -3640,6 +5620,11 @@ ntc_pi_done:
 			ld (ntc_sptr), hl
 			jp ntc_printbuf
 
+ntc_rg99_e:
+			IF ($ < 34816) && (ntc_rg100_e - ntc_rg100 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg100:
 ;## kw_printnl0 ntc_data ntc_plat_screen
 ;kw_printnl0  - new line unless the cursor is at the start of a line
 kw_printnl0:
@@ -3649,12 +5634,22 @@ kw_printnl0:
 			ld ix, ntc_next
 			jp ntc_plat_newline
 
+ntc_rg100_e:
+			IF ($ < 34816) && (ntc_rg101_e - ntc_rg101 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg101:
 ;## kw_printnl ntc_data ntc_plat_screen
 ;kw_printnl
 kw_printnl:
 			ld ix, ntc_next
 			jp ntc_plat_newline
 
+ntc_rg101_e:
+			IF ($ < 34816) && (ntc_rg102_e - ntc_rg102 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg102:
 ;## ntc_atoi ntc_data
 ; text to number into the var at (ntc_ivar). ntc_atoi reads ntc_inbuf,
 ; ntc_atoi_hl reads HL. Spaces first, then - , then digits (or &H hex).
@@ -3744,6 +5739,11 @@ ntc_atoi_store:
 			ld (hl), d
 			ret
 
+ntc_rg102_e:
+			IF ($ < 34816) && (ntc_rg103_e - ntc_rg103 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg103:
 ;## kw_inkey ntc_data ntc_plat_key
 ;kw_inkey, <destvar>  - new key press or 0, no wait
 kw_inkey:
@@ -3758,12 +5758,22 @@ ntc_inkey_got:
 			ld (hl), 0
 			ret
 
+ntc_rg103_e:
+			IF ($ < 34816) && (ntc_rg104_e - ntc_rg104 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg104:
 ;## kw_cls ntc_data ntc_plat_screen
 ;kw_cls
 kw_cls:
 			ld ix, ntc_next
 			jp ntc_plat_cls
 
+ntc_rg104_e:
+			IF ($ < 34816) && (ntc_rg105_e - ntc_rg105 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg105:
 ;## kw_locatell ntc_data ntc_plat_screen
 ;kw_locatell, <x>, <y>  - 1 based
 kw_locatell:
@@ -3774,17 +5784,11 @@ kw_locatell:
 			ld ix, ntc_next
 			jp ntc_plat_locate
 
-;## kw_locatevv ntc_data ntc_plat_screen
-;kw_locatevv, <xvar>, <yvar>
-kw_locatevv:
-			pop hl
-			ld c, (hl)
-			pop hl
-			ld l, (hl)
-			ld h, c
-			ld ix, ntc_next
-			jp ntc_plat_locate
-
+ntc_rg105_e:
+			IF ($ < 34816) && (ntc_rg106_e - ntc_rg106 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg106:
 ;## kw_model ntc_data ntc_plat_screen
 ;kw_model, <literal>  - 0, 1 or 2, clears the screen
 kw_model:
@@ -3793,12 +5797,49 @@ kw_model:
 			ld ix, ntc_next
 			jp ntc_plat_mode
 
+ntc_rg106_e:
+			IF ($ < 34816) && (ntc_rg107_e - ntc_rg107 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg107:
 ;## kw_frame ntc_data ntc_plat_frame
 ;kw_frame  - wait for the start of the next frame flyback
 kw_frame:
 			ld ix, ntc_next
 			jp ntc_plat_frame
 
+ntc_rg107_e:
+			IF ($ < 34816) && (ntc_rg108_e - ntc_rg108 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg108:
+;## kw_ticks ntc_data ntc_plat_ticks
+;kw_ticks, <destvar>  - tick count from the platform (CPC: interrupts, 300 a second,
+;  only moving in normal mode)
+kw_ticks:
+			pop hl
+			ld (ntc_ivar), hl
+			ld ix, ntc_tk_got
+			jp ntc_plat_ticks
+ntc_tk_got:
+			ex de, hl
+			ld hl, (ntc_ivar)
+			ld (hl), e
+			inc hl
+			ld (hl), d
+			ret
+
+; ============================================================
+; String functions. Numbers are passed as the address of a word
+; (a literal goes in as lit_n, a dw in the data). Results go to a
+; string buffer (41 bytes). Dest may be the same as the source.
+; ============================================================
+
+ntc_rg108_e:
+			IF ($ < 34816) && (ntc_rg109_e - ntc_rg109 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg109:
 ;## ntc_getn ntc_data
 ; BC = address of a word: A = its value limited to 0..255
 ; (below 0 = 0, above 255 = 255). jp (ix) back. Keeps DE, HL.
@@ -3819,6 +5860,11 @@ ntc_gn_max:
 			ld a, 255
 			jp (ix)
 
+ntc_rg109_e:
+			IF ($ < 34816) && (ntc_rg110_e - ntc_rg110 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg110:
 ;## kw_strleft ntc_getn
 ;kw_strleft, <dest>, <src>, <nvar>  - Left$(src, n)
 kw_strleft:
@@ -3847,6 +5893,48 @@ ntc_sn_end:
 			ld (de), a
 			ret
 
+ntc_rg110_e:
+			IF ($ < 34816) && (ntc_rg111_e - ntc_rg111 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg111:
+;## kw_strright ntc_getn kw_strleft
+;kw_strright, <dest>, <src>, <nvar>  - Right$(src, n)
+kw_strright:
+			pop de
+			pop hl
+			pop bc
+			ld ix, ntc_sr_n
+			jp ntc_getn
+ntc_sr_n:
+			ld c, a
+			ld (ntc_sptr), hl
+			ld b, 0
+ntc_sr_len:
+			ld a, (hl)
+			or a
+			jr z, ntc_sr_got
+			inc hl
+			inc b
+			jr ntc_sr_len
+ntc_sr_got:
+			ld a, b
+			sub c
+			jr nc, ntc_sr_skip
+			xor a
+ntc_sr_skip:
+			ld hl, (ntc_sptr)
+			ld c, a
+			ld b, 0
+			add hl, bc
+			ld b, 255
+			jp ntc_strncpy
+
+ntc_rg111_e:
+			IF ($ < 34816) && (ntc_rg112_e - ntc_rg112 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg112:
 ;## kw_strmid ntc_getn kw_strleft
 ;kw_strmid, <dest>, <src>, <startvar>, <lenvar>  - Mid$(src, start, len)
 kw_strmid:
@@ -3878,6 +5966,11 @@ ntc_sm_n:
 			ld b, a
 			jp ntc_strncpy
 
+ntc_rg112_e:
+			IF ($ < 34816) && (ntc_rg113_e - ntc_rg113 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg113:
 ;## kw_strchr
 ;kw_strchr, <dest>, <nvar>  - Chr$(n)
 kw_strchr:
@@ -3890,6 +5983,11 @@ kw_strchr:
 			ld (de), a
 			ret
 
+ntc_rg113_e:
+			IF ($ < 34816) && (ntc_rg114_e - ntc_rg114 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg114:
 ;## kw_strstr ntc_itoa
 ;kw_strstr, <dest>, <nvar>  - Str$(n): a space before 0 and positives
 kw_strstr:
@@ -3908,6 +6006,11 @@ ntc_st_go:
 			ld ix, ntc_next
 			jp ntc_itoa
 
+ntc_rg114_e:
+			IF ($ < 34816) && (ntc_rg115_e - ntc_rg115 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg115:
 ;## kw_strspace ntc_getn
 ;kw_strspace, <dest>, <nvar>  - Space$(n)
 kw_strspace:
@@ -3939,6 +6042,11 @@ ntc_sf_end:
 			ld (de), a
 			ret
 
+ntc_rg115_e:
+			IF ($ < 34816) && (ntc_rg116_e - ntc_rg116 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg116:
 ;## kw_strucase
 ;kw_strucase, <dest>, <src>  - UCase$
 kw_strucase:
@@ -3959,6 +6067,11 @@ ntc_uc_put:
 			inc de
 			jr ntc_uc_loop
 
+ntc_rg116_e:
+			IF ($ < 34816) && (ntc_rg117_e - ntc_rg117 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg117:
 ;## kw_strrtrim ntc_data
 ;kw_strrtrim, <dest>, <src>  - RTrim$
 kw_strrtrim:
@@ -3988,6 +6101,11 @@ ntc_rt_loop:
 			ld (hl), 0
 			jr ntc_rt_loop
 
+ntc_rg117_e:
+			IF ($ < 34816) && (ntc_rg118_e - ntc_rg118 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg118:
 ;## kw_strtrim kw_strrtrim
 ;kw_strtrim, <dest>, <src>  - Trim$
 kw_strtrim:
@@ -4003,17 +6121,11 @@ ntc_tr_go:
 			ld (ntc_sptr), de
 			jp ntc_rt_copy
 
-;## kw_strasc
-;kw_strasc, <src>, <destvar>  - Asc(src), 0 if empty
-kw_strasc:
-			pop hl
-			ld a, (hl)
-			pop hl
-			ld (hl), a
-			inc hl
-			ld (hl), 0
-			ret
-
+ntc_rg118_e:
+			IF ($ < 34816) && (ntc_rg119_e - ntc_rg119 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg119:
 ;## kw_strval ntc_atoi
 ;kw_strval, <src>, <destvar>  - Val(src): decimal or &H hex
 kw_strval:
@@ -4022,6 +6134,11 @@ kw_strval:
 			ld (ntc_ivar), de
 			jp ntc_atoi_hl
 
+ntc_rg119_e:
+			IF ($ < 34816) && (ntc_rg120_e - ntc_rg120 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg120:
 ;## kw_strinstr ntc_getn ntc_data
 ;kw_strinstr, <startvar>, <s1>, <s2>, <destvar>  - InStr(start, s1, s2)
 kw_strinstr:
@@ -4078,6 +6195,11 @@ ntc_in_found:
 			ld (hl), 0
 			ret
 
+ntc_rg120_e:
+			IF ($ < 34816) && (ntc_rg121_e - ntc_rg121 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg121:
 ;## ntc_saddr ntc_data
 ; DE = base, HL = index var address, (ntc_sasz) = element size:
 ; HL = base + index * size. jp (ix)
@@ -4111,6 +6233,11 @@ ntc_sa_no:
 			jp (ix)
 ntc_sasz:		dw 0
 
+ntc_rg121_e:
+			IF ($ < 34816) && (ntc_rg122_e - ntc_rg122 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg122:
 ;## kw_sget ntc_saddr
 ;kw_sget, <arraybase>, <indexvar>, <dest>, <element size>  - dest = array(index)
 kw_sget:
@@ -4129,6 +6256,11 @@ ntc_sg_a:
 			ret
 ntc_sgd:		dw 0
 
+ntc_rg122_e:
+			IF ($ < 34816) && (ntc_rg123_e - ntc_rg123 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg123:
 ;## kw_sset ntc_saddr kw_strcpy
 ;kw_sset, <arraybase>, <indexvar>, <src>, <element size>  - array(index) = src, cut at the element
 kw_sset:
@@ -4156,6 +6288,26 @@ ntc_sgs:		dw 0
 ; descriptor; ReDim fills a dynamic array's descriptor.
 ; ============================================================
 
+ntc_rg123_e:
+			IF ($ < 34816) && (ntc_rg124_e - ntc_rg124 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg124:
+;## ntc_ldata
+ntc_la:			ds 4
+ntc_lb:			ds 4
+ntc_lr:			ds 4
+ntc_lt:			ds 4
+ntc_lsgn:		db 0
+ntc_lcnt:		db 0
+ntc_ldst:		dw 0
+ntc_lix:		dw 0
+
+ntc_rg124_e:
+			IF ($ < 34816) && (ntc_rg125_e - ntc_rg125 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg125:
 ;## kw_l_mov
 ;kw_l_mov, <src>, <dest>  - dest = src (4 bytes)
 kw_l_mov:
@@ -4167,6 +6319,11 @@ kw_l_mov:
 			ldi
 			ret
 
+ntc_rg125_e:
+			IF ($ < 34816) && (ntc_rg126_e - ntc_rg126 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg126:
 ;## kw_l_itol
 ;kw_l_itol, <intvar>, <dest>  - Integer to Long (sign extended)
 kw_l_itol:
@@ -4186,6 +6343,25 @@ kw_l_itol:
 			ld (de), a
 			ret
 
+ntc_rg126_e:
+			IF ($ < 34816) && (ntc_rg127_e - ntc_rg127 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg127:
+;## kw_l_ltoi
+;kw_l_ltoi, <long>, <intdest>  - Long to Integer (low 16 bits)
+kw_l_ltoi:
+			pop hl
+			pop de
+			ldi
+			ldi
+			ret
+
+ntc_rg127_e:
+			IF ($ < 34816) && (ntc_rg128_e - ntc_rg128 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg128:
 ;## kw_l_add
 ;kw_l_add, <a>, <b>, <dest>  - a + b
 kw_l_add:
@@ -4212,6 +6388,127 @@ kw_l_add:
 			ld (ix+3), a
 			ret
 
+ntc_rg128_e:
+			IF ($ < 34816) && (ntc_rg129_e - ntc_rg129 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg129:
+;## kw_l_sub
+;kw_l_sub, <a>, <b>, <dest>  - a - b
+kw_l_sub:
+			pop de
+			pop hl
+			pop ix
+			ld a, (de)
+			sub (hl)
+			ld (ix+0), a
+			inc hl
+			inc de
+			ld a, (de)
+			sbc a, (hl)
+			ld (ix+1), a
+			inc hl
+			inc de
+			ld a, (de)
+			sbc a, (hl)
+			ld (ix+2), a
+			inc hl
+			inc de
+			ld a, (de)
+			sbc a, (hl)
+			ld (ix+3), a
+			ret
+
+ntc_rg129_e:
+			IF ($ < 34816) && (ntc_rg130_e - ntc_rg130 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg130:
+;## ntc_lcmp ntc_ldata
+; DE = a, HL = b: work out a - b. ntc_lsgn = #80 if a < b (signed),
+; ntc_lcnt = 0 if a = b. jp (ix) back.
+ntc_lcmp:
+			ld a, (de)
+			sub (hl)
+			ld (ntc_lr), a
+			inc hl
+			inc de
+			ld a, (de)
+			sbc a, (hl)
+			ld (ntc_lr+1), a
+			inc hl
+			inc de
+			ld a, (de)
+			sbc a, (hl)
+			ld (ntc_lr+2), a
+			inc hl
+			inc de
+			ld a, (de)
+			sbc a, (hl)
+			ld (ntc_lr+3), a
+			ld b, 0
+			jp po, ntc_lcm_nov
+			ld b, #80
+ntc_lcm_nov:
+			xor b
+			and #80
+			ld (ntc_lsgn), a
+			ld hl, ntc_lr
+			ld a, (hl)
+			inc hl
+			or (hl)
+			inc hl
+			or (hl)
+			inc hl
+			or (hl)
+			ld (ntc_lcnt), a
+			jp (ix)
+
+ntc_rg130_e:
+			IF ($ < 34816) && (ntc_rg131_e - ntc_rg131 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg131:
+;## kw_l_cplt ntc_lcmp
+;kw_l_cplt, <a>, <b>  - Z if a < b
+kw_l_cplt:
+			pop de
+			pop hl
+			ld ix, ntc_lclt
+			jp ntc_lcmp
+ntc_lclt:
+			ld a, (ntc_lsgn)
+			xor #80
+			ret
+
+ntc_rg131_e:
+			IF ($ < 34816) && (ntc_rg132_e - ntc_rg132 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg132:
+;## kw_l_cpgt ntc_lcmp
+;kw_l_cpgt, <a>, <b>  - Z if a > b
+kw_l_cpgt:
+			pop de
+			pop hl
+			ld ix, ntc_lcgt
+			jp ntc_lcmp
+ntc_lcgt:
+			ld a, (ntc_lcnt)
+			or a
+			jr z, ntc_lcgt_f
+			ld a, (ntc_lsgn)
+			or a
+			ret
+ntc_lcgt_f:
+			or 1
+			ret
+
+ntc_rg132_e:
+			IF ($ < 34816) && (ntc_rg133_e - ntc_rg133 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg133:
 ;## kw_l_aget
 ;kw_l_aget, <arraybase>, <indexvar>, <dest>  - Long array element
 kw_l_aget:
@@ -4231,6 +6528,11 @@ kw_l_aget:
 			ldi
 			ret
 
+ntc_rg133_e:
+			IF ($ < 34816) && (ntc_rg134_e - ntc_rg134 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg134:
 ;## kw_l_aset
 ;kw_l_aset, <arraybase>, <indexvar>, <src>  - set a Long array element
 kw_l_aset:
@@ -4251,9 +6553,19 @@ kw_l_aset:
 			ldi
 			ret
 
+ntc_rg134_e:
+			IF ($ < 34816) && (ntc_rg135_e - ntc_rg135 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg135:
 ;## ntc_buf2k
 ntc_buf	equ 32768		; Option Buffer: the 2K buffer outside the program
 
+ntc_rg135_e:
+			IF ($ < 34816) && (ntc_rg136_e - ntc_rg136 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg136:
 ;## ntc_memcore ntc_data ntc_mem ntc_memcore2 ntc_plat_memtop @shared
 ; ------------------------------------------------------------
 ; ntc_memcore - the Memory class, the part every scheme shares. The scheme
@@ -4368,6 +6680,11 @@ mem_chk_bad:
 			ld hl, MEM_BADPAGE
 			jp mem_err
 
+ntc_rg136_e:
+			IF ($ < 34816) && (ntc_rg137_e - ntc_rg137 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg137:
 ;## ntc_memcore2 ntc_memcore @shared @far
 ; ntc_memcore2 - the rest of the shared part: far pointers, the heap, bytes
 ; and words. Runs on the real stack (through mem_go), so a keyword ROM set
@@ -4391,7 +6708,7 @@ mem_far:
 			ld a, d
 			and #C0
 			cp #40
-			jr nz, mem_chk_bad
+			jp nz, mem_chk_bad		; (jr: another part, maybe across Option Reserve)
 			ret
 
 ; PageOf(ptr): a far pointer's page
@@ -4634,6 +6951,11 @@ mem_putback:
 			pop hl
 			ret
 
+ntc_rg137_e:
+			IF ($ < 34816) && (ntc_rg138_e - ntc_rg138 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg138:
 ;## ntc_mem ntc_memcore ntc_membank @shared @far
 ; ------------------------------------------------------------
 ; ntc_mem (CPCExpansion) - 16K RAM pages in the #4000-#7FFF window (CPC gate
@@ -4685,6 +7007,9 @@ mem_start:
 			ld (mem_init), a
 			ld hl, ntc_free
 			ld (mem_tend), hl
+	IF NTC_WINHOLE
+			jr mem_st_prog			; the program is built round the window (Option Reserve)
+	ENDIF
 			ld de, MEM_WIN + 1		; the program must be out of the window:
 			or a					; it ends by #4000 ...
 			sbc hl, de
@@ -4799,6 +7124,10 @@ mem_pr_di:
 			add hl, hl
 			inc hl
 			ld (mem_count), hl
+	IF NTC_WINHOLE
+			call ntc_plat_memtop		; built round the window: the tables go above it
+			jr mem_tb_lim			; (ntc_memtab), up to the platform's top
+	ENDIF
 			ld de, (ntc_csp)		; the tables must end by #4000, or 128 bytes
 			ld hl, MEM_WIN			; under the real stack when it is lower
 			or a
@@ -4818,7 +7147,11 @@ mem_tb_fit:
 			ld e, l
 			add hl, hl
 			add hl, de				; 3 bytes a page
+	IF NTC_WINHOLE
+			ld de, ntc_memtab
+	ELSE
 			ld de, ntc_free
+	ENDIF
 			add hl, de
 			ex de, hl				; DE = their end
 			ld hl, (mem_tend)
@@ -4830,12 +7163,20 @@ mem_tb_fit:
 			ld (mem_count), hl
 			jr mem_tb_fit
 mem_tb_none:
+	IF NTC_WINHOLE
+			ld hl, ntc_memtab
+	ELSE
 			ld hl, ntc_free
+	ENDIF
 			ld (mem_tend), hl
 			ret
 mem_tb_ok:
 			ld (mem_tend), de
+	IF NTC_WINHOLE
+			ld hl, ntc_memtab
+	ELSE
 			ld hl, ntc_free
+	ENDIF
 			ld (mem_tnext), hl
 			ld de, (mem_count)
 			add hl, de
@@ -5714,6 +8055,11 @@ mem_lg_end:
 			dec hl
 			ret
 
+ntc_rg138_e:
+			IF ($ < 34816) && (ntc_rg139_e - ntc_rg139 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg139:
 ;## ntc_membank ntc_plat_rmr @shared @romram
 ; ------------------------------------------------------------
 ; ntc_membank - Memory's CallBank switch (CPCExpansion). Runs from RAM
@@ -5757,6 +8103,11 @@ ntc_bk_end:
 ntc_bk_di:
 			ret
 
+ntc_rg139_e:
+			IF ($ < 34816) && (ntc_rg140_e - ntc_rg140 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg140:
 ;## ntc_keys ntc_data @shared
 ; ------------------------------------------------------------
 ; ntc_keys - the Keys class (CPC): the keyboard matrix read straight from the
@@ -5860,6 +8211,11 @@ ntc_k_set:
 			ld (hl), d
 			ret
 
+ntc_rg140_e:
+			IF ($ < 34816) && (ntc_rg141_e - ntc_rg141 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg141:
 ;## ntc_romdisc ntc_data ntc_plat_romsel @shared @ramonly
 ; ------------------------------------------------------------
 ; ntc_romdisc - ROMDISC: read-only files kept in ROMs, the FileSystem's
@@ -6562,6 +8918,11 @@ rd_ns:
 			ld hl, RD_NOTSUP
 			ret
 
+ntc_rg141_e:
+			IF ($ < 34816) && (ntc_rg142_e - ntc_rg142 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg142:
 ;## ntc_memcopy ntc_mem ntc_buf2k @shared @far
 ; Copy(src, dst, length): far pointer to far pointer, up to 2K at a time
 ; through ntc_buf (so page to page works with one window). A page's end
@@ -6672,6 +9033,183 @@ mem_cw_hi:
 			ld d, #40
 			ret
 
+ntc_rg142_e:
+			IF ($ < 34816) && (ntc_rg143_e - ntc_rg143 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg143:
+;## ntc_islots ntc_data @shared
+; ------------------------------------------------------------
+; ntc_islots - interrupt classes (Option Class Interrupt rate | Frame | Share n):
+; up to 16 classes whose Tick Sub runs at the next safe point after it is due
+; (normal mode). Slot n, 8 bytes at ntc_isl + n * 8:
+;   +0 count (dw)  +2 reload (dw: interrupts between runs, 0 = every frame,
+;   #8000 + weight = a shared class)  +4 running (db: Tick started, its return
+;   stub clears it)  +5 due (db)  +6 Tick's call stub (dw)
+; Fixed classes (a rate, Frame) are counted every interrupt. Shared classes take
+; turns in the interrupts no fixed class fell due in: the current one is marked
+; due on each such interrupt until it has had its weight of turns, then the
+; next shared one. The start code fills the slots and puts ntc_isl_tick in
+; ntc_irqv, which the platform's interrupt handler calls. The counts start a
+; slot apart so classes of the same rate take turns.
+; ------------------------------------------------------------
+ntc_isln:		db 0			; slots in use
+ntc_isldue:		db 0			; 1 = a slot may be due
+ntc_islvs:		db 0			; vertical sync at the last interrupt
+ntc_islfr:		db 0			; 1 = this interrupt is the frame's (sync just started)
+ntc_islph:		db 0			; interrupts since the frame's (0-5)
+ntc_islfx:		db 0			; 1 = a fixed class fell due in this interrupt
+ntc_islsc:		db 0			; the shared class having its turns (slot number)
+ntc_islsw:		db 0			; turns it has left
+ntc_islshn:		db 0			; shared classes (0 = none)
+ntc_isl:		ds 128			; 16 slots
+
+; ntc_isl_tick - from the interrupt handler (call, real stack): count each
+; slot, mark the ones due. Keeps BC, DE, IX, IY.
+ntc_isl_tick:
+			push bc
+			push de
+			ld b, #F5				; PPI port B bit 0: vertical sync
+			in a, (c)
+			and 1
+			ld e, a
+			ld a, (ntc_islvs)
+			cpl
+			and e
+			ld d, a					; 1 = the sync started since the last interrupt
+			ld a, e
+			ld (ntc_islvs), a
+			ld a, (ntc_islph)		; a frame is 6 interrupts: count them, so a frame is
+			inc a					; still seen when this interrupt came in after the
+			cp 6					; sync had ended (taken late: a long keyword); the
+			jr c, ntc_it_ph			; sync puts the count back to 0
+			xor a
+ntc_it_ph:
+			bit 0, d
+			jr z, ntc_it_ph2
+			xor a
+ntc_it_ph2:
+			ld (ntc_islph), a
+			or a
+			ld a, 0
+			jr nz, ntc_it_fr
+			inc a
+ntc_it_fr:
+			ld (ntc_islfr), a
+			xor a
+			ld (ntc_islfx), a
+			ld a, (ntc_isln)
+			or a
+			jp z, ntc_it_end
+			ld b, a
+			ld hl, ntc_isl
+ntc_it_lp:
+			push hl
+			inc hl
+			inc hl
+			ld e, (hl)
+			inc hl
+			ld d, (hl)
+			pop hl
+			bit 7, d				; a shared class: the turns below mark it
+			jr nz, ntc_it_nx
+			ld a, d
+			or e
+			jr nz, ntc_it_rate
+			ld a, (ntc_islfr)		; every frame: when the sync starts
+			or a
+			jr z, ntc_it_nx
+			jr ntc_it_due
+ntc_it_rate:
+			ld e, (hl)
+			inc hl
+			ld d, (hl)
+			dec de
+			ld (hl), d
+			dec hl
+			ld (hl), e
+			ld a, d
+			or e
+			jr nz, ntc_it_nx
+			push hl					; due: count again from the reload
+			inc hl
+			inc hl
+			ld e, (hl)
+			inc hl
+			ld d, (hl)
+			pop hl
+			ld (hl), e
+			inc hl
+			ld (hl), d
+			dec hl
+ntc_it_due:
+			push hl
+			ld de, 5
+			add hl, de
+			ld (hl), 1
+			pop hl
+			ld a, 1
+			ld (ntc_isldue), a
+			ld (ntc_islfx), a
+ntc_it_nx:
+			ld de, 8
+			add hl, de
+			djnz ntc_it_lp
+			; shared classes: an interrupt no fixed class used is a turn
+			ld a, (ntc_islfx)
+			or a
+			jp nz, ntc_it_end
+			ld a, (ntc_islshn)
+			or a
+			jp z, ntc_it_end
+			ld a, (ntc_islsw)
+			or a
+			jr nz, ntc_it_take
+			ld a, (ntc_islsc)		; its turns are used: the next shared class
+ntc_it_find:
+			inc a
+			ld hl, ntc_isln
+			cp (hl)
+			jr c, ntc_it_fi2
+			xor a
+ntc_it_fi2:
+			ld l, a
+			ld h, 0
+			add hl, hl
+			add hl, hl
+			add hl, hl
+			ld de, ntc_isl + 2
+			add hl, de
+			ld e, (hl)				; E = the weight
+			inc hl
+			bit 7, (hl)
+			jr z, ntc_it_find		; not shared (there is one: ntc_islshn)
+			ld (ntc_islsc), a
+			ld a, e
+ntc_it_take:
+			dec a
+			ld (ntc_islsw), a
+			ld a, (ntc_islsc)
+			ld l, a
+			ld h, 0
+			add hl, hl
+			add hl, hl
+			add hl, hl
+			ld de, ntc_isl + 5
+			add hl, de
+			ld (hl), 1				; due
+			ld a, 1
+			ld (ntc_isldue), a
+ntc_it_end:
+			pop de
+			pop bc
+			ret
+
+ntc_rg143_e:
+			IF ($ < 34816) && (ntc_rg144_e - ntc_rg144 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg144:
 ;## kw_bssinit ntc_data ntc_plat_memtop ntc_plat_screen kw_stop @shared
 ;kw_bssinit, <start>, <size>  - the start of the main thread: the program's arrays live after
 ;  it (from ntc_end, not in its file). Check they fit under the platform's top (and 256 bytes
@@ -6740,6 +9278,11 @@ ntc_bsz:		dw 0
 ntc_bsp:		dw 0
 ntc_bstxt:		db "Not enough memory for the arrays", 0
 
+ntc_rg144_e:
+			IF ($ < 34816) && (ntc_rg145_e - ntc_rg145 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg145:
 ;## ntc_plat_data
 ntc_curx:		db 0			; cursor column (0 based) - kept here for Tab
 ntc_cury:		db 0			; cursor row (0 based)
@@ -6753,6 +9296,11 @@ ntc_irqix:		dw 0
 NTC_FWBLK	equ #A5F0		; the fast ticker's event block (central 32K, below the firmware)
 ntc_fwtop:		dw #A600		; the top of free RAM (#A5F0 with the fast ticker's block)
 
+ntc_rg145_e:
+			IF ($ < 34816) && (ntc_rg146_e - ntc_rg146 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg146:
 ;## ntc_plat_fw ntc_plat_data ntc_data @shared
 ; ------------------------------------------------------------
 ; ntc_fwcall - IY = firmware address; A, BC, DE, HL go in and come
@@ -6773,6 +9321,11 @@ ntc_fwcall:
 ntc_fwjp:
 			jp (iy)
 
+ntc_rg146_e:
+			IF ($ < 34816) && (ntc_rg147_e - ntc_rg147 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg147:
 ;## ntc_plat_screen ntc_plat_fw ntc_plat_data ntc_data
 ; ntc_plat_putc - A = character: TXT OUTPUT. The firmware wraps by itself after
 ; the last column, so only the column is counted here; a new line straight after
@@ -6925,6 +9478,11 @@ ntc_lc_y:
 			jp ntc_fwcall
 ntc_pclink:		dw 0
 
+ntc_rg147_e:
+			IF ($ < 34816) && (ntc_rg148_e - ntc_rg148 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg148:
 ;## ntc_plat_key ntc_plat_fw ntc_data
 ; ntc_plat_scankey - A = key from the firmware's buffer, or 0
 ntc_plat_scankey:
@@ -6947,12 +9505,33 @@ ntc_plat_getkey:
 			jp ntc_fwcall
 ntc_kslink:		dw 0
 
+ntc_rg148_e:
+			IF ($ < 34816) && (ntc_rg149_e - ntc_rg149 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg149:
 ;## ntc_plat_frame ntc_plat_fw
 ; ntc_plat_frame - MC WAIT FLYBACK
 ntc_plat_frame:
 			ld iy, #BD19
 			jp ntc_fwcall
 
+ntc_rg149_e:
+			IF ($ < 34816) && (ntc_rg150_e - ntc_rg150 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg150:
+;## ntc_plat_ticks ntc_plat_fw
+; ntc_plat_ticks - HL = the firmware's 1/300 s clock (KL TIME PLEASE, low word)
+ntc_plat_ticks:
+			ld iy, #BD0D
+			jp ntc_fwcall
+
+ntc_rg150_e:
+			IF ($ < 34816) && (ntc_rg151_e - ntc_rg151 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg151:
 ;## ntc_plat_exit ntc_plat_data ntc_plat_fw
 ntc_plat_exit:
 			ld bc, #7FC0		; RAM setting back to plain (a Memory page may be in #4000)
@@ -6972,6 +9551,84 @@ ntc_ex_back:
 ntc_ex_done:
 			jp (ix)
 
+ntc_rg151_e:
+			IF ($ < 34816) && (ntc_rg152_e - ntc_rg152 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg152:
+;## ntc_plat_irq ntc_plat_data ntc_plat_fw ntc_data @shared
+; ------------------------------------------------------------
+; ntc_plat_irqon - normal mode's interrupt work under the firmware: the
+; firmware keeps its own interrupt handler (keys, sound, AMSDOS), and a fast
+; ticker event (KL NEW FAST TICKER, 300 a second) calls ntc_fwevt, which
+; marks an Interrupt hook / interrupt classes as due - they run at the next
+; safe point, as on cpc. The event block must be in the central 32K (the
+; firmware reads it with the lower ROM on): #A5F0, just under the firmware's
+; RAM, so the top of free RAM becomes #A5F0.
+; The class is asynchronous, NOT express: the firmware (6128 ROM, KL EVENT
+; at #01E2) calls an express event straight from the interrupt with the lower
+; ROM on and never looks at the far address, so a routine below #4000 (this
+; program starts at #0040) would run ROM code there. A plain asynchronous
+; event is run at the end of the interrupt through KL FAR ICALL, which uses
+; the far address: ROM select #FF = both ROMs off.
+; ------------------------------------------------------------
+ntc_plat_irqon:
+			ld (ntc_irqix), ix
+			ld hl, NTC_FWBLK
+			ld (ntc_fwtop), hl
+			ld b, #80				; asynchronous, far address (not express: see above)
+			ld c, #FF				; ROM select: upper and lower ROM off
+			ld de, ntc_fwevt
+			ld iy, #BCE0			; KL NEW FAST TICKER
+			ld ix, ntc_iq_on
+			jp ntc_fwcall
+ntc_iq_on:
+			ld a, 1
+			ld (ntc_irqset), a
+			ld ix, (ntc_irqix)
+			jp (ix)
+; the event routine: at the end of an interrupt (interrupts may be on; the
+; firmware never runs it twice at once); AF, BC, DE, HL free
+ntc_fwevt:
+			ld a, (ntc_hookon)		; an Interrupt hook: run it at the next safe point
+			or a
+			jr z, ntc_fe_nohook
+			ld (ntc_hookpend), a
+ntc_fe_nohook:
+			ld hl, (ntc_irqv)		; interrupt classes: count them
+			ld a, h
+			or l
+			ret z
+			jp (hl)
+			ASSERT ntc_free <= NTC_FWBLK, "Interrupt / interrupt classes on cpcfw: the program and its arrays must end below #A5F0 (the firmware event block)"
+
+; ============================================================
+; File system (FileSystem class) - Load / Save through the firmware's
+; cassette calls (CAS IN / CAS OUT DIRECT). With AMSDOS present they
+; go to the disc (the drive that is selected), else to tape, exactly
+; as BASIC's LOAD / SAVE do - with the firmware's own messages
+; ("Press PLAY then any key", disc errors and Retry / Cancel).
+;
+; RUN"NAME of a binary resets the firmware (MC BOOT PROGRAM), which
+; drops the background ROMs - AMSDOS too - so the cassette calls go
+; back to tape. Loaded from BASIC and CALLed (MEMORY &1FFF : LOAD"NAME"
+; : CALL &2000, built at org #2000), AMSDOS keeps running. Option
+; RomEnable starts the ROMs again in the start code. The first file
+; call checks: CAS IN OPEN (#BC77) a far call (RST 3, #DF) = AMSDOS has
+; the cassette calls. AMSDOS's RAM is about #A700-#ABFF: the program
+; must end below #A600 (checked when assembling). Devices: AMSDOS's own
+; commands |TAPE, |DISC, |A, |B (KL FIND COMMAND, then KL FAR PCALL).
+; ============================================================
+; The methods are keywords: arguments into fs_a1 .. fs_a3, the
+; result's address into fs_res, then fs_go with HL = the routine.
+; fs_go runs it on the real stack with interrupts on and stores its
+; HL result; a routine that fails jumps to fs_err with HL = status.
+
+ntc_rg152_e:
+			IF ($ < 34816) && (ntc_rg153_e - ntc_rg153 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg153:
 ;## ntc_plat_fs ntc_data ntc_buf2k @shared
 FS_NOTFOUND	equ -2
 FS_TOOBIG	equ -8
@@ -7000,7 +9657,6 @@ fs_vol:			ds 9			; the volume in use ("" = not known)
 fs_vols:		ds 145			; the volumes that worked, "A,C,M" (up to 16 of up to 8 letters)
 fs_tmpn:		ds 9			; a volume name, capitals
 fs_rsxn:		ds 17			; a command name (last letter + #80), up to 16 letters
-fs_buf			equ ntc_buf		; the 2K buffer CAS IN OPEN / CAS OUT OPEN want (shared with Memory.Copy)
 			ASSERT ntc_free <= #A600, "FileSystem on cpcfw: the program and its arrays must end below #A600 (AMSDOS's RAM)"
 
 fs_go0:
@@ -7503,6 +10159,11 @@ fs_sv_done:
 			ld hl, 0
 			ret
 
+ntc_rg153_e:
+			IF ($ < 34816) && (ntc_rg154_e - ntc_rg154 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg154:
 ;## ntc_plat_fsseq ntc_plat_fs @shared
 ; ---- one open file (handle 1), through CAS IN CHAR / CAS OUT CHAR: read a
 ; file (any type) byte by byte, or write a new text file (type ASCII, as
@@ -7781,6 +10442,11 @@ fs_wl_end:
 			ld hl, 0
 			ret
 
+ntc_rg154_e:
+			IF ($ < 34816) && (ntc_rg155_e - ntc_rg155 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg155:
 ;## ntc_plat_memtop ntc_plat_data
 ; ntc_plat_memtop - HL = the first byte the Memory class's Small heap must not
 ; use: #A600 (the firmware's and AMSDOS's RAM is above), #A5F0 when the fast
@@ -7790,6 +10456,11 @@ ntc_plat_memtop:
 			ld hl, (ntc_fwtop)
 			ret
 
+ntc_rg155_e:
+			IF ($ < 34816) && (ntc_rg156_e - ntc_rg156 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg156:
 ;## ntc_plat_romsel @shared @ramonly
 ; rd_sel - A = a slot: that ROM in at #C000 (KL ROM SELECT: the upper ROM on,
 ; the firmware knows). rd_unsel - what was in before back (KL ROM DESELECT).
@@ -7816,6 +10487,11 @@ rd_unsel:
 			pop af
 			ret
 
+ntc_rg156_e:
+			IF ($ < 34816) && (ntc_rg157_e - ntc_rg157 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg157:
 ;## ntc_plat_rdroute ntc_plat_fs ntc_romdisc @shared @ramonly
 ; rd_route ... - a FileSystem method's way to the ROMDISC (volume R): HL =
 ; the fs_ routine, DE = the rd_ one, fs_a1 ... fs_res set. The rd_ routine
@@ -7943,6 +10619,11 @@ rd_nsl:
 			ld (hl), a
 			ret
 
+ntc_rg157_e:
+			IF ($ < 34816) && (ntc_rg158_e - ntc_rg158 + $ > 16384)	; fwdref-ok
+			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			ENDIF
+ntc_rg158:
 ;## ntc_plat_rmr ntc_plat_data
 ; ntc_plat_rmr - A = the gate array's ROM / mode byte now: the firmware keeps
 ; it in C' (B' = #7F), so Memory's CallBank can turn both ROMs off and put
@@ -7954,9 +10635,15 @@ ntc_plat_rmr:
 			ret
 
 
+ntc_rg158_e:
 ntc_end:				; the end of the program (and of its file)
+fs_buf			equ ntc_buf		; the 2K buffer CAS IN OPEN / CAS OUT OPEN want (shared with Memory.Copy)
 ; arrays: after the program, not in its file - kw_bssinit checks they fit and clears them
+			IF (ntc_end < 34816) && (ntc_end + ntc_bss_size > 16384)	; fwdref-ok
+ntc_bss		equ 34816		; after Option Reserve #4000-#87FF
+			ELSE
 ntc_bss		equ ntc_end
+			ENDIF
 arr_bk		equ ntc_bss + 0		; 18 bytes
 arr_sg		equ ntc_bss + 18		; 18 bytes
 arr_st		equ ntc_bss + 36		; 18 bytes
@@ -7966,12 +10653,26 @@ arr_es		equ ntc_bss + 90		; 18 bytes
 arr_ey		equ ntc_bss + 108		; 18 bytes
 arr_kq		equ ntc_bss + 126		; 18 bytes
 arr_ra		equ ntc_bss + 144		; 18 bytes
-arr_tp		equ ntc_bss + 162		; 36 bytes
-arr_nm		equ ntc_bss + 198		; 117 bytes
-arr_ln		equ ntc_bss + 315		; 657 bytes
-ntc_bss_size	equ 972
+arr_wk		equ ntc_bss + 162		; 18 bytes
+arr_tn		equ ntc_bss + 180		; 18 bytes
+arr_nb		equ ntc_bss + 198		; 18 bytes
+arr_nc		equ ntc_bss + 216		; 18 bytes
+arr_lt		equ ntc_bss + 234		; 18 bytes
+arr_lb		equ ntc_bss + 252		; 18 bytes
+arr_lc		equ ntc_bss + 270		; 18 bytes
+arr_pt		equ ntc_bss + 288		; 18 bytes
+arr_tp		equ ntc_bss + 306		; 36 bytes
+arr_nm		equ ntc_bss + 342		; 117 bytes
+arr_ln		equ ntc_bss + 459		; 657 bytes
+arr_hyp_font		equ ntc_bss + 1116		; 768 bytes
+ntc_bss_size	equ 1884
 ntc_free	equ ntc_bss + ntc_bss_size	; the first free byte (heap, Memory tables)
+			IF ntc_free <= 34816	; fwdref-ok
+ntc_memtab	equ 34816		; the Memory class's tables: above the window (Option Reserve)
+			ELSE
+ntc_memtab	equ ntc_free
+			ENDIF
 ; Option Reserve: the program and its arrays (ntc_start .. ntc_free) must stay out of these
-			ASSERT (ntc_free <= 16384) || (ntc_start >= 32768), "the program (or its arrays) reaches into Option Reserve #4000-#7FFF (Main.bas line 14)"
-			ASSERT (ntc_free <= 32768) || (ntc_start >= 34816), "the program (or its arrays) reaches into Option Reserve #8000-#87FF (Main.bas line 15)"
+			ASSERT (ntc_free <= 16384) || (ntc_bss >= 32768), "the program (or its arrays) reaches into Option Reserve #4000-#7FFF (Main.bas line 18)"
+			ASSERT (ntc_free <= 32768) || (ntc_bss >= 34816), "the program (or its arrays) reaches into Option Reserve #8000-#87FF (Main.bas line 19)"
 			SAVEAMSDOS "CYBORGOS.BIN", ntc_start, ntc_end - ntc_start, ntc_start

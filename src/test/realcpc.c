@@ -89,6 +89,9 @@ int main(int argc, char** argv) {
     }
     cpc_init(&cpc, &desc);
     if (nxrom) { cpc.ga.bankswitch_cb = xbankswitch; xbankswitch(cpc.ga.ram_config, cpc.ga.regs.config, cpc.ga.rom_select, &cpc); }
+    // Control + 1-8 typed as \c1 ... \c8 (codes #81-#88), Control + ESC as \ce (#89)
+    for (int i = 1; i <= 8; i++) cpc.kbd.key_masks[0x80 + i] = cpc.kbd.key_masks['0' + i] | (2 << (KBD_MAX_COLUMNS + KBD_MAX_LINES));
+    cpc.kbd.key_masks[0x89] = cpc.kbd.key_masks[0x03] | (2 << (KBD_MAX_COLUMNS + KBD_MAX_LINES));
     run(2.5);
     if (strcmp(argv[1], "-")) cpc_insert_disc(&cpc, rd(argv[1]));
     FILE* s = fopen(argv[2], "r"); char line[512];
@@ -101,6 +104,8 @@ int main(int argc, char** argv) {
             for (char* c = arg; *c; c++) {
                 int k = *c;
                 if (c[0] == '\\' && c[1] == 'n') { k = 0x0D; c++; }
+                else if (c[0] == '\\' && c[1] == 'c' && c[2] == 'e') { k = 0x89; c += 2; }
+                else if (c[0] == '\\' && c[1] == 'c' && c[2] >= '1' && c[2] <= '8') { k = 0x80 + c[2] - '0'; c += 2; }
                 cpc_key_down(&cpc, k); run(0.06); cpc_key_up(&cpc, k); run(0.06);
             }
         } else if (!strcmp(cmd, "shot")) { sprintf(p, "%s%s.ppm", argv[3], arg); shot(p); }

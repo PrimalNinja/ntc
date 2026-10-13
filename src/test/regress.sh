@@ -147,9 +147,9 @@ check "memmap cpc 64K" "^After Free: 0 pages free" "$(timeout 200 python3 ntcrun
 check "memmap cpc 576K" "^Bank 8 " "$(timeout 200 python3 ntcrun.py t/ex/memmap.bas '~x~x' --platform=cpc --ram=576 2>&1)"
 check "memmap cpc 4MB" "^&7E DD---" "$(timeout 300 python3 ntcrun.py t/ex/memmap.bas '~x~x' --platform=cpc --ram=4160 2>&1)"
 check "memmap cpcfw 128K" "^Pages UCU--" "$(timeout 200 python3 ntcrun.py t/ex/memmap.bas '~x~x' --platform=cpcfw 2>&1)"
-# a program ending near #4000: the page tables only take what fits, so fewer pages
-printf 'Option Reserve &H4000, &H4000\nDim big(5800) As Integer\nIf Memory.Pages() > 1 And Memory.Pages() < 257 And Memory.TableEnd() <= &H4000 Then Print "tables fit"\n' > t/lim.bas
-check "memory tables near #4000" "^tables fit" "$(timeout 200 python3 ntcrun.py t/lim.bas '' --platform=cpc --ram=4160 2>&1)"
+# a program ending near #4000 with Option Reserve over the window: the page tables go above it (all 4MB)
+printf 'Option Reserve &H4000, &H4000\nDim big(5800) As Integer\nIf Memory.Pages() = 257 And Memory.TableEnd() > &H8000 Then Print "tables fit"\n' > t/lim.bas
+check "memory tables after Option Reserve" "^tables fit" "$(timeout 200 python3 ntcrun.py t/lim.bas '' --platform=cpc --ram=4160 2>&1)"
 # Option Memory Small: a heap in main RAM, on every platform; both modes
 for m in --turbo ""; do
   for pl in cpc cpcfw cpm test; do
@@ -436,6 +436,9 @@ for v in 22 31; do o=$(NTC_CPMVER=$v NTC_GFXCHK=1 timeout 300 python3 ntcrun.py 
 # CITY3D (bas/city3d): a few frames on cpcfw with the keys held (turn, climb, roll), then Q
 rm -rf t/city; mkdir -p t/city; cp $P/city3d/* t/city/
 check "city3d demo cpcfw" "^Bye" "$(timeout 300 python3 ntcrun.py t/city/Main.bas " {8}{8}{63}{63}{31}{31}~~~~{67}" t/city/City.cls --platform=cpcfw 2>&1)"
+# Option Reserve builds round the range: a program too big for #0040-#3FFF goes on above #8000
+cp hole.bas t/
+for pl in cpc cpcmin cpcfw; do check "Option Reserve round the hole $pl" "^a3 7 big at .* end [89]" "$(timeout 60 python3 ntcrun.py t/hole.bas '' --platform=$pl 2>&1)"; done
 # CyborgOS (bas/cyborgos): CP/M programs (.CYB: a cpm build with an AMSDOS header) in 64K banks
 # under the hypervisor (cpcfw): CRUNCH (stopped only by interrupts) in slot 2, TICKER (a BDOS
 # call a loop) in slot 3 brought to the front and ended with a key, WAIT for CRUNCH, QUIT. 576K:
@@ -446,10 +449,22 @@ for g in TICKER CRUNCH; do
   (cd t/cy && ${SJASMPLUS:-sjasmplus} --nologo --msg=err --raw=$g.COM $g.asm > /dev/null)
   python3 -c "import ntcrun; d = open('t/cy/$g.COM', 'rb').read(); open('t/files/A/$g.CYB', 'wb').write(ntcrun.amsdos_header(d, 0x100) + d)"
 done
+node cli.js str9.bas --platform=cpm > t/cy/STR9.asm 2>/dev/null
+(cd t/cy && ${SJASMPLUS:-sjasmplus} --nologo --msg=err --raw=STR9.COM STR9.asm > /dev/null)
+python3 -c "import ntcrun; d = open('t/cy/STR9.COM', 'rb').read(); open('t/files/A/STR9.CYB', 'wb').write(ntcrun.amsdos_header(d, 0x100) + d)"
+node cli.js $P/cyborgos/tasks/LINES.bas --platform=cpm > t/cy/LINES.asm 2>/dev/null
+(cd t/cy && ${SJASMPLUS:-sjasmplus} --nologo --msg=err --raw=LINES.COM LINES.asm > /dev/null)
+python3 -c "import ntcrun; d = open('t/cy/LINES.COM', 'rb').read(); open('t/files/A/LINES.CYB', 'wb').write(ntcrun.amsdos_header(d, 0x100) + d)"
 W=$(printf '~%.0s' $(seq 1 40))
-check "CyborgOS 4 slots" "CyborgOS ended, 2 programs ran" "$(timeout 600 python3 ntcrun.py t/cy/Main.bas "run CRUNCH 2\nrun TICKER 3\nfg 3\n${W}xwait\nquit\n" t/cy/Hyp.cls --platform=cpcfw --ram=576 2>&1)"
-check "CyborgOS 1 slot (6128)" "CyborgOS ended, 2 programs ran" "$(timeout 600 python3 ntcrun.py t/cy/Main.bas "run CRUNCH\n${W}run TICKER\n${W}xquit\n" t/cy/Hyp.cls --platform=cpcfw --ram=128 2>&1)"
-check "CyborgOS 4 slots, Library: ROM" "CyborgOS ended, 2 programs ran" "$(timeout 600 python3 ntcrun.py t/cy/Main.bas "run CRUNCH 2\nrun TICKER 3\nfg 3\n${W}xwait\nquit\n" t/cy/Hyp.cls --platform=cpcfw --ram=576 --library=rom 2>&1)"
+# 200 lines: the page and the screen scroll (written straight into screen memory), all of them shown
+o=$(timeout 300 python3 ntcrun.py t/cy/Main.bas "run LINES\n~~~~~~~~~~" t/cy/Hyp.cls t/cy/Hot.cls --platform=cpcfw --ram=576 2>&1)
+if echo "$o" | grep -q "^line199 the quick" && echo "$o" | grep -q "^line200 the quick" && echo "$o" | grep -q "^lines done"; then echo "ok   CyborgOS 200 lines scroll"; else echo "FAIL CyborgOS 200 lines scroll"; echo "$o" | tail -5; fail=1; fi
+# BDOS 9: a "$" string over 128 bytes (fetched with Memory.Copy in pieces), the screen left showing
+o=$(timeout 300 python3 ntcrun.py t/cy/Main.bas "run STR9\n${W}" t/cy/Hyp.cls t/cy/Hot.cls --platform=cpcfw --ram=576 2>&1)
+if echo "$o" | grep -q "^s9 tail ok"; then echo "ok   CyborgOS BDOS 9 string"; else echo "FAIL CyborgOS BDOS 9 string"; echo "$o" | tail -5; fail=1; fi
+check "CyborgOS 4 slots" "CyborgOS ended, 2 programs ran" "$(timeout 600 python3 ntcrun.py t/cy/Main.bas "run CRUNCH 2\nrun TICKER 3\nfg 3\n${W}xwait\nquit\n" t/cy/Hyp.cls t/cy/Hot.cls --platform=cpcfw --ram=576 2>&1)"
+check "CyborgOS 1 slot (6128)" "CyborgOS ended, 2 programs ran" "$(timeout 600 python3 ntcrun.py t/cy/Main.bas "run CRUNCH\n${W}run TICKER\n${W}xquit\n" t/cy/Hyp.cls t/cy/Hot.cls --platform=cpcfw --ram=128 2>&1)"
+check "CyborgOS 4 slots, Library: ROM" "CyborgOS ended, 2 programs ran" "$(timeout 600 python3 ntcrun.py t/cy/Main.bas "run CRUNCH 2\nrun TICKER 3\nfg 3\n${W}xwait\nquit\n" t/cy/Hyp.cls t/cy/Hot.cls --platform=cpcfw --ram=576 --library=rom 2>&1)"
 # Graphics: XOR lines in modes 0, 1, 2 on #C000 and on #4000 (double buffering), cpc and cpcmin
 for pl in cpc cpcmin; do
   cp gfx/lines.bas t/; o=$(timeout 300 python3 ntcrun.py t/lines.bas '' --platform=$pl 2>&1 | grep -v "^--- ")
@@ -509,10 +524,13 @@ if command -v dskform > /dev/null && command -v cpmcp > /dev/null; then
 else
   echo "skip build/dsk (no cpmtools / libdsk)"
 fi
-# Option Reserve: a range the program stays out of assembles, one it reaches into stops the assembly
-printf 'Option Reserve &HC000, &H4000\nPrint 1\n' > t/res1.bas; printf 'Option Reserve &H0200, &H100\nPrint 1\n' > t/res2.bas
+# Option Reserve: a range above the program assembles, one at its start stops the assembly, one
+# inside it is built round (res4: the program goes on after #02FF and runs)
+printf 'Option Reserve &HC000, &H4000\nPrint 1\n' > t/res1.bas; printf 'Option Reserve &H0100, &H100\nPrint 1\n' > t/res2.bas
+printf 'Option Reserve &H0200, &H100\nPrint 1\n' > t/res4.bas
+check "Option Reserve built round" "^1$" "$(timeout 100 python3 ntcrun.py t/res4.bas '' --platform=cpm 2>&1)"
 node cli.js t/res1.bas --platform=cpm > t/res1.asm && (cd t && $SJ --nologo --msg=err --raw=res1.com res1.asm > /dev/null) && r1=ok || r1=bad
-node cli.js t/res2.bas --platform=cpm > t/res2.asm && (cd t && $SJ --nologo --msg=err --raw=res2.com res2.asm 2>&1 | grep -q "Option Reserve #0200-#02FF") && r2=ok || r2=bad
+node cli.js t/res2.bas --platform=cpm > t/res2.asm && (cd t && $SJ --nologo --msg=err --raw=res2.com res2.asm 2>&1 | grep -q "Option Reserve #0100-#01FF") && r2=ok || r2=bad
 if [ $r1 == ok ] && [ $r2 == ok ]; then echo "ok   Option Reserve"; else echo "FAIL Option Reserve ($r1 $r2)"; fail=1; fi
 # Option Stack: End comes back to the caller's stack on every host platform; a stack in the program stops the assembly
 printf 'Option Stack &H9000\nPrint "stack ok"\n' > t/stk1.bas

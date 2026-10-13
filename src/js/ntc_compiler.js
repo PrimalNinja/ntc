@@ -8247,6 +8247,180 @@ function ntcCompile(input_a, objOptions_a)
 		return (objPlat.irq !== 2) || (arrIslots.length > 0) || (Object.keys(objHookProcs).length > 0);
 	}
 
+	// holeLayout - Option Reserve ranges after the org are built round: at each place the
+	// program can be cut (a library section, a procedure's thread, the parts before the
+	// library) a guard skips the hole (ds) when the next part would reach into it; the arrays
+	// go after it too. sjasmplus works the sizes out from its earlier pass (fwdref-ok)
+	function orgNum()
+	{
+		var intV = parseInt(String(objOptions.org || '').replace(/^\s*(#|&H|0x|\$)/i, ''), 16);
+
+		return isNaN(intV) ? 0 : intV;
+	}
+	var strIndentG = '\t\t\t';
+	function holeLayout(strAsm_a)
+	{
+		var arrHoles = [];
+		var arrIn = strAsm_a.split('\n');
+		var arrOut = [];
+		var intK = 0;
+		var blnIn = false;
+		var blnLib = false;
+		var intI = 0;
+		var blnWin = false;
+
+		arrReserve.filter(function(objR_a) { return objR_a.start > orgNum(); }).map(function(objR_a) { return { s: objR_a.start, e: objR_a.start + objR_a.size }; })
+			.sort(function(a_a, b_a) { return a_a.s - b_a.s; }).forEach(function(objH_a)
+			{
+				var objLast = arrHoles[arrHoles.length - 1];
+
+				if (objLast && (objH_a.s <= objLast.e)) { objLast.e = Math.max(objLast.e, objH_a.e); } else { arrHoles.push({ s: objH_a.s, e: objH_a.e }); }
+			});
+		blnWin = arrHoles.some(function(objH_a) { return (objH_a.s <= 0x4000) && (objH_a.e >= 0x8000); });
+		var strFrom = (arrIn.indexOf('ntc_start2:') >= 0) ? 'ntc_start2:' : 'ntc_start:';
+		var arrLate = [];
+		// a jr from one part to another may end up across the hole: those become jp
+		(function()
+		{
+			var objLabPart = {};
+			var arrPart = [];
+			var intP = 0;
+			var blnIn2 = false;
+			var blnLib2 = false;
+
+			if (arrHoles.length === 0)
+			{
+				return;
+			}
+			arrIn.forEach(function(strL_a, intI_a)
+			{
+				var arrM = null;
+
+				if (strL_a === strFrom) { blnIn2 = true; }
+				if (/^ntc_end:/.test(strL_a)) { blnIn2 = false; }
+				if (blnIn2)
+				{
+					if (/^; Keyword library \(/.test(strL_a)) { blnLib2 = true; }
+					if (/^;## /.test(strL_a) || (!blnLib2 && (strL_a === '; ============================================================') && (arrIn[intI_a + 2] === '; ============================================================')))
+					{
+						intP++;
+					}
+					arrM = strL_a.match(/^([A-Za-z_][\w.]*):?(\s|$)/);
+					if (arrM && !/^\s*(equ|=)\b/i.test(strL_a.substr(arrM[1].length + 1).replace(/^:/, '')))
+					{
+						objLabPart[arrM[1]] = intP;
+					}
+				}
+				arrPart.push(blnIn2 ? intP : -1);
+			});
+			arrIn = arrIn.map(function(strL_a, intI_a)
+			{
+				var arrM = strL_a.match(/^(\s*(?:[A-Za-z_]\w*:?)?\s+)jr(\s+(?:(?:nz|z|nc|c)\s*,\s*)?)([A-Za-z_]\w*)\s*(;.*)?$/i);
+
+				if ((arrPart[intI_a] < 0) || !arrM || (objLabPart[arrM[3]] === undefined) || (objLabPart[arrM[3]] === arrPart[intI_a]))
+				{
+					return strL_a;
+				}
+				return arrM[1] + 'jp' + arrM[2] + arrM[3] + '\t\t; (jr: another part, maybe across Option Reserve)';
+			});
+		})();
+		function guard()
+		{
+			if (intK > 0) { arrOut.push('ntc_rg' + intK + '_e:'); }
+			intK++;
+			arrHoles.forEach(function(objH_a)
+			{
+				arrOut.push(strIndentG + 'IF ($ < ' + objH_a.e + ') && (ntc_rg' + intK + '_e - ntc_rg' + intK + ' + $ > ' + objH_a.s + ')\t; fwdref-ok');
+				arrOut.push(strIndentG + 'ds ' + objH_a.e + ' - $\t\t; Option Reserve ' + hex4(objH_a.s) + '-' + hex4(objH_a.e - 1) + ': round it');
+				arrOut.push(strIndentG + 'ENDIF');
+			});
+			arrOut.push('ntc_rg' + intK + ':');
+		}
+		for (intI = 0; intI < arrIn.length; intI++)
+		{
+			var strL = arrIn[intI];
+
+			if (strL === 'NTC_WINHOLE\tequ @@WINHOLE@@\t\t; 1 = the program is built round an Option Reserve range over the window #4000-#7FFF')
+			{
+				arrOut.push(strL.replace('@@WINHOLE@@', blnWin ? '1' : '0'));
+				continue;
+			}
+			if (strL === '@@MEMTAB@@')
+			{
+				// the Memory class's page tables: after the program - above the window when the
+				// program is built round it and ends below it
+				var objW = arrHoles.filter(function(objH_a) { return (objH_a.s <= 0x4000) && (objH_a.e >= 0x8000); })[0];
+				if (objW)
+				{
+					arrOut.push(strIndentG + 'IF ntc_free <= ' + objW.e + '\t; fwdref-ok');
+					arrOut.push('ntc_memtab\tequ ' + objW.e + '\t\t; the Memory class\'s tables: above the window (Option Reserve)');
+					arrOut.push(strIndentG + 'ELSE');
+					arrOut.push('ntc_memtab\tequ ntc_free');
+					arrOut.push(strIndentG + 'ENDIF');
+				}
+				else
+				{
+					arrOut.push('ntc_memtab\tequ ntc_free\t\t; the Memory class\'s tables');
+				}
+				continue;
+			}
+			if (strL === '@@BSS@@')
+			{
+				// the arrays: after the program, or after the hole they would reach into
+				var arrB = [];
+				arrHoles.forEach(function(objH_a, intH_a)
+				{
+					arrB.push(strIndentG + ((intH_a === 0) ? 'IF' : 'ELSEIF') + ' (ntc_end < ' + objH_a.e + ') && (ntc_end + ntc_bss_size > ' + objH_a.s + ')\t; fwdref-ok');
+					arrB.push('ntc_bss\t\tequ ' + objH_a.e + '\t\t; after Option Reserve ' + hex4(objH_a.s) + '-' + hex4(objH_a.e - 1));
+				});
+				if (arrB.length > 0)
+				{
+					arrOut = arrOut.concat(arrB);
+					arrOut.push(strIndentG + 'ELSE');
+					arrOut.push('ntc_bss\t\tequ ntc_end');
+					arrOut.push(strIndentG + 'ENDIF');
+				}
+				else
+				{
+					arrOut.push('ntc_bss\t\tequ ntc_end');
+				}
+				continue;
+			}
+			if (arrHoles.length > 0)
+			{
+				if (strL === strFrom)
+				{
+					blnIn = true;		// after the start code's first bytes (the bank switch at #0044)
+				}
+				if (/^ntc_end:/.test(strL) && blnIn)
+				{
+					arrOut.push('ntc_rg' + intK + '_e:');
+					arrOut.push(strL);
+					// names that are another label + n (a glyph in the font, fs_buf): after
+					// everything, so sjasmplus has their final values by its last pass
+					arrOut = arrOut.concat(arrLate);
+					blnIn = false;
+					continue;
+				}
+				else if (blnIn && /^[a-z_]\w*\s+equ\s+[a-z_]/.test(strL))
+				{
+					arrLate.push(strL);
+					continue;
+				}
+				else if (blnIn)
+				{
+					if (/^; Keyword library \(/.test(strL)) { blnLib = true; }
+					if (/^;## /.test(strL) || (!blnLib && (strL === '; ============================================================') && (arrIn[intI + 2] === '; ============================================================')))
+					{
+						guard();
+					}
+				}
+			}
+			arrOut.push(strL);
+		}
+		return arrOut.join('\n');
+	}
+
 	// gfxHighCopy - CP/M: the Graphics line loop (ntc_gfx from ; >gfxhi to ; <gfxhi)
 	// again, assembled for GFH_AT (#C000, common memory on CP/M Plus) with its labels
 	// gfx_ renamed gfh_; gfx_cpmver copies it there (CP/M Plus draws from there in C1)
@@ -8508,7 +8682,7 @@ function ntcCompile(input_a, objOptions_a)
 				else
 				{
 					intBufAt = intValue;
-					arrReserve.push({ start: intValue, size: 2048, file: objRec.file, line: objRec.line });
+					arrReserve.push({ start: intValue, size: 2048, file: objRec.file, line: objRec.line, buffer: true });
 				}
 			}
 			else if (objRec.what === 'memory')
@@ -8623,6 +8797,13 @@ function ntcCompile(input_a, objOptions_a)
 	if (objOptions.library === 'rom')
 	{
 		intStrMax = 255;		// Library: ROM - the ROM's buffers are built for 255
+		// Library: ROM - the 2K buffer is the ROM's own (in its RAM): Option Buffer has no buffer
+		// to place, and its range is free for the program
+		if (intBufAt >= 0)
+		{
+			intBufAt = -1;
+			arrReserve = arrReserve.filter(function(objR_a) { return !objR_a.buffer; });
+		}
 	}
 
 	// pass 1 (twice, so types of undeclared variables settle)
@@ -8761,6 +8942,7 @@ function ntcCompile(input_a, objOptions_a)
 	arrAsm.push('NTC_MEMBANKS\tequ ' + Math.max(0, Math.min(64, Math.floor((Math.min(257, Math.max(1, objMemory.max || 257)) - 1) / 4))) + '\t\t; Option Memory: the most 64K banks the Memory class looks for');
 	arrAsm.push('NTC_ROMENABLE\tequ ' + ((arrRomEnable !== null) ? 1 : 0) + '\t\t; Option RomEnable (cpcfw, cpcmin): the start code starts the ROMs');
 	arrAsm.push('NTC_ROMLIB\tequ ' + ((objOptions.library === 'rom') ? 1 : 0) + '\t\t; 1 = the library is the keyword ROM (Library: ROM; ntcRomAsm builds it)');
+	arrAsm.push('NTC_WINHOLE\tequ @@WINHOLE@@\t\t; 1 = the program is built round an Option Reserve range over the window #4000-#7FFF');
 	arrAsm.push('NTC_CPMGFX\tequ ' + ((String(objOptions.platform).toLowerCase() === 'cpm') ? 1 : 0) + '\t\t; 1 = CP/M: Graphics draws on an Amstrad CPC\'s screen (2.2: #C000, Plus: block 1 from common memory)');
 	arrAsm.push('');
 	// the options in a fixed order, wherever they are in the source: the stack first (the
@@ -9449,7 +9631,7 @@ function ntcCompile(input_a, objOptions_a)
 	arrAsm.push('');
 	arrAsm.push('ntc_end:\t\t\t\t; the end of the program (and of its file)');
 	arrAsm.push('; arrays: after the program, not in its file - kw_bssinit checks they fit and clears them');
-	arrAsm.push('ntc_bss\t\tequ ntc_end');
+	arrAsm.push('@@BSS@@');
 	intBss = 0;
 	arrBss.forEach(function(objItem_a)
 	{
@@ -9458,6 +9640,7 @@ function ntcCompile(input_a, objOptions_a)
 	});
 	arrAsm.push('ntc_bss_size\tequ ' + intBss);
 	arrAsm.push('ntc_free\tequ ntc_bss + ntc_bss_size\t; the first free byte (heap, Memory tables)');
+	arrAsm.push('@@MEMTAB@@');
 	if (arrReserve.length > 0)
 	{
 		arrAsm.push('; Option Reserve: the program and its arrays (ntc_start .. ntc_free) must stay out of these');
@@ -9465,7 +9648,9 @@ function ntcCompile(input_a, objOptions_a)
 		{
 			var strEnd = hex4(objRes_a.start + objRes_a.size - 1);
 
-			arrAsm.push(strIndent + 'ASSERT (ntc_free <= ' + objRes_a.start + ') || (ntc_start >= ' + (objRes_a.start + objRes_a.size) + '), "the program (or its arrays) reaches into Option Reserve ' + hex4(objRes_a.start) + '-' + strEnd + ' (' + objRes_a.file + ' line ' + objRes_a.line + ')"');
+			// built round the range (a hole after the org): only the arrays are checked, the
+			// program's own parts were placed round it
+			arrAsm.push(strIndent + 'ASSERT (ntc_free <= ' + objRes_a.start + ') || (' + ((objRes_a.start > orgNum()) ? 'ntc_bss' : 'ntc_start') + ' >= ' + (objRes_a.start + objRes_a.size) + '), "the program (or its arrays) reaches into Option Reserve ' + hex4(objRes_a.start) + '-' + strEnd + ' (' + objRes_a.file + ' line ' + objRes_a.line + ')"');
 		});
 	}
 	if (String(objOptions.amsdos || '').length > 0)
@@ -9592,7 +9777,7 @@ function ntcCompile(input_a, objOptions_a)
 		arrList_a.forEach(function(objE_a) { if (objE_a.file && (objOrigName[objE_a.file] !== undefined)) { objE_a.file = objOrigName[objE_a.file]; } });
 	});
 	return {
-		asm: arrAsm.join('\n'),
+		asm: holeLayout(arrAsm.join('\n')),
 		libasm: strLibAsm,
 		vbfiles: arrFiles,
 		layout: arrLayout,
@@ -10141,7 +10326,7 @@ function ntcRomAsm(strPlatform_a, strReg_a, objOpt_a)
 	while (blnChanged)
 	{
 		blnChanged = false;
-		objDefined = { NTC_ROMDATA: 1, NTC_ROMBSS: 1, NTC_STRMAX: 1, NTC_MEMBANKS: 1, ntc_v_free: 1, ntc_v_start: 1, ntc_v_stamp: 1, ntc_v_romen: 1, ntc_v_rom: 1, ntc_v_romold: 1, ntc_rx_cur: 1, ntc_rx_bc: 1 };
+		objDefined = { NTC_ROMDATA: 1, NTC_ROMBSS: 1, NTC_STRMAX: 1, NTC_MEMBANKS: 1, NTC_WINHOLE: 1, ntc_memtab: 1, ntc_v_free: 1, ntc_v_start: 1, ntc_v_stamp: 1, ntc_v_romen: 1, ntc_v_rom: 1, ntc_v_romold: 1, ntc_rx_cur: 1, ntc_rx_bc: 1 };
 		for (var intD = 0; intD < NTC_ROM_MAXSET; intD++) { objDefined['ntc_rx_s' + intD] = 1; }
 		arrSections.forEach(function(objSec_a)
 		{
@@ -10736,6 +10921,7 @@ function ntcRomAsm(strPlatform_a, strReg_a, objOpt_a)
 	arrOut.push('NTC_ROMBSS\tequ ' + hex4(NTC_ROM_BSS) + '\t\t; its other variables, cleared');
 	arrOut.push('NTC_STRMAX\tequ 255\t\t\t; strings up to 255 characters (programs built for the ROM use 255)');
 	arrOut.push('NTC_MEMBANKS\tequ 64\t\t\t; the Memory class: up to 4MB');
+	arrOut.push('NTC_WINHOLE\tequ 0\t\t\t; (a program built round the window has its library in RAM)');
 	arrOut.push('NTC_ROM_N\tequ ' + arrSyms.length + '\t\t\t; numbers in the index');
 	arrOut.push('NTC_ROM_COUNT\tequ ' + intRoms + '\t\t\t; ROMs in the set (' + ntcRomFile(strPlatform_a) + '.ROM' + ((intRoms > 1) ? ' ... ' + ntcRomFile(strPlatform_a) + intRoms + '.ROM' : '') + ')');
 	arrOut.push('NTC_ROM_SET\tequ ' + hex4(intSet) + '\t\t; the set\'s stamp (its ROMs find each other by it)');
@@ -11009,6 +11195,7 @@ function ntcRomJumpBlock(strPlatform_a, arrAsm_a, blnStamp_a, blnRomEnable_a, ar
 	});
 	// the start code's own
 	['ntc_v_free', 'ntc_v_start', 'ntc_v_stamp', 'ntc_v_romen', 'ntc_v_romold'].forEach(function(str_a) { objUsed[str_a] = true; });
+	['ntc_bss', 'ntc_memtab'].forEach(function(str_a) { objDefined[str_a] = true; });		// (written in after this, by holeLayout)
 	Object.keys(objUsed).sort().forEach(function(strName_a)
 	{
 		var objEntry = objReg.byName[strName_a];
@@ -11108,7 +11295,13 @@ function ntcRomJumpBlock(strPlatform_a, arrAsm_a, blnStamp_a, blnRomEnable_a, ar
 	arrOut.push('ntc_rj_call:');
 	arrOut.push(strIndent + 'call 0\t\t\t\t; HL = jump block, BC = entries, A = slot, DE = slots; C: DE = a number it hasn\'t got');
 	arrOut.push(strIndent + 'jp c, ntc_rj_lacks');
+	// the ROM's Memory class takes its tables from ntc_v_free up: with the arrays put after an
+	// Option Reserve range over the window, that is the end of the program below it
+	arrOut.push(strIndent + 'IF (ntc_bss >= 32768) && (ntc_end <= 16384)\t; fwdref-ok');
+	arrOut.push(strIndent + 'ld hl, ntc_end');
+	arrOut.push(strIndent + 'ELSE');
 	arrOut.push(strIndent + 'ld hl, ntc_free');
+	arrOut.push(strIndent + 'ENDIF');
 	arrOut.push(strIndent + 'ld (ntc_v_free), hl');
 	arrOut.push(strIndent + 'ld hl, ntc_start');
 	arrOut.push(strIndent + 'ld (ntc_v_start), hl');

@@ -11,6 +11,7 @@ NTC_STRMAX	equ 255		; the longest string (library buffers, temps)
 NTC_MEMBANKS	equ 64		; Option Memory: the most 64K banks the Memory class looks for
 NTC_ROMENABLE	equ 1		; Option RomEnable (cpcfw, cpcmin): the start code starts the ROMs
 NTC_ROMLIB	equ 1		; 1 = the library is the keyword ROM (Library: ROM; ntcRomAsm builds it)
+NTC_WINHOLE	equ 1		; 1 = the program is built round an Option Reserve range over the window #4000-#7FFF
 NTC_CPMGFX	equ 0		; 1 = CP/M: Graphics draws on an Amstrad CPC's screen (2.2: #C000, Plus: block 1 from common memory)
 
 ntc_start:
@@ -50,6 +51,10 @@ ntc_roms_on:
 			ld sp, main_thread
 			ret
 
+			IF ($ < 32768) && (ntc_rg1_e - ntc_rg1 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg1:
 ; ============================================================
 ; Main Thread
 ; ============================================================
@@ -87,6 +92,11 @@ if1_1:
 			dw kw_waitkey
 			dw kw_stop
 
+ntc_rg1_e:
+			IF ($ < 32768) && (ntc_rg2_e - ntc_rg2 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg2:
 ; ============================================================
 ; sub clear (normal mode)
 ; ============================================================
@@ -100,6 +110,11 @@ p_vector3d_clear:
 			dw kw_ztov, var_vector3d_ne
 			dw p_vector3d_clear_r
 
+ntc_rg2_e:
+			IF ($ < 32768) && (ntc_rg3_e - ntc_rg3 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg3:
 ; ============================================================
 ; function addpoint (normal mode)
 ; ============================================================
@@ -125,6 +140,11 @@ if2_1:
 			dw kw_inc, var_vector3d_np
 			dw p_vector3d_addpoint_r
 
+ntc_rg3_e:
+			IF ($ < 32768) && (ntc_rg4_e - ntc_rg4 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg4:
 ; ============================================================
 ; sub addedge (normal mode)
 ; ============================================================
@@ -145,6 +165,11 @@ if3_1:
 			dw kw_inc, var_vector3d_ne
 			dw p_vector3d_addedge_r
 
+ntc_rg4_e:
+			IF ($ < 32768) && (ntc_rg5_e - ntc_rg5 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg5:
 ; ============================================================
 ; sub view (normal mode)
 ; ============================================================
@@ -158,6 +183,11 @@ p_vector3d_view:
 			dw kw_vtov, var_vector3d_view_distance, var_vector3d_dst
 			dw p_vector3d_view_r
 
+ntc_rg5_e:
+			IF ($ < 32768) && (ntc_rg6_e - ntc_rg6 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg6:
 ; ============================================================
 ; function points (normal mode)
 ; ============================================================
@@ -168,6 +198,11 @@ p_vector3d_points:
 			dw kw_vtov, var_vector3d_np, var_vector3d_points_points
 			dw p_vector3d_points_r
 
+ntc_rg6_e:
+			IF ($ < 32768) && (ntc_rg7_e - ntc_rg7 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg7:
 ; ============================================================
 ; sub show (turbo mode)
 ; ============================================================
@@ -178,6 +213,11 @@ p_vector3d_show:
 			dw p_vector3d_draw_c, lit_1
 			dw p_vector3d_show_r
 
+ntc_rg7_e:
+			IF ($ < 32768) && (ntc_rg8_e - ntc_rg8 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg8:
 ; ============================================================
 ; sub show (normal mode)
 ; ============================================================
@@ -186,6 +226,11 @@ p_vector3d_show_n:
 			dw p_vector3d_draw_n_c, lit_1
 			dw p_vector3d_show_n_r
 
+ntc_rg8_e:
+			IF ($ < 32768) && (ntc_rg9_e - ntc_rg9 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg9:
 ; ============================================================
 ; sub hide (normal mode)
 ; ============================================================
@@ -209,6 +254,11 @@ p_vector3d_hide:
 if4_1:
 			dw p_vector3d_hide_r
 
+ntc_rg9_e:
+			IF ($ < 32768) && (ntc_rg10_e - ntc_rg10 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg10:
 ; ============================================================
 ; sub forget (normal mode)
 ; ============================================================
@@ -222,6 +272,11 @@ p_vector3d_forget:
 			dw kw_ztov, var_vector3d_shown2
 			dw p_vector3d_forget_r
 
+ntc_rg10_e:
+			IF ($ < 32768) && (ntc_rg11_e - ntc_rg11 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg11:
 ; ============================================================
 ; sub turn (turbo mode)
 ; ============================================================
@@ -232,6 +287,11 @@ p_vector3d_turn:
 			dw asm_1_95
 			dw p_vector3d_turn_r
 
+ntc_rg11_e:
+			IF ($ < 32768) && (ntc_rg12_e - ntc_rg12 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg12:
 ; ============================================================
 ; sub turn (normal mode)
 ; ============================================================
@@ -240,6 +300,11 @@ p_vector3d_turn_n:
 			dw asm_1_95_n
 			dw p_vector3d_turn_n_r
 
+ntc_rg12_e:
+			IF ($ < 32768) && (ntc_rg13_e - ntc_rg13 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg13:
 ; ============================================================
 ; sub draw (normal mode)
 ; ============================================================
@@ -250,6 +315,11 @@ p_vector3d_draw_n:
 			dw asm_1_425_n
 			dw p_vector3d_draw_n_r
 
+ntc_rg13_e:
+			IF ($ < 32768) && (ntc_rg14_e - ntc_rg14 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg14:
 ; ============================================================
 ; sub draw (turbo mode)
 ; ============================================================
@@ -258,51 +328,101 @@ p_vector3d_draw:
 			dw asm_1_425
 			dw p_vector3d_draw_r
 
+ntc_rg14_e:
+			IF ($ < 32768) && (ntc_rg15_e - ntc_rg15 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg15:
 ; ============================================================
 ; sub run (normal mode)
 ; ============================================================
 
 
+ntc_rg15_e:
+			IF ($ < 32768) && (ntc_rg16_e - ntc_rg16 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg16:
 ; ============================================================
 ; sub frame1 (turbo mode)
 ; ============================================================
 
 
+ntc_rg16_e:
+			IF ($ < 32768) && (ntc_rg17_e - ntc_rg17 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg17:
 ; ============================================================
 ; sub frame1 (normal mode)
 ; ============================================================
 
 
+ntc_rg17_e:
+			IF ($ < 32768) && (ntc_rg18_e - ntc_rg18 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg18:
 ; ============================================================
 ; sub screen (normal mode)
 ; ============================================================
 
 
+ntc_rg18_e:
+			IF ($ < 32768) && (ntc_rg19_e - ntc_rg19 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg19:
 ; ============================================================
 ; sub status (normal mode)
 ; ============================================================
 
 
+ntc_rg19_e:
+			IF ($ < 32768) && (ntc_rg20_e - ntc_rg20 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg20:
 ; ============================================================
 ; sub makeshape (normal mode)
 ; ============================================================
 
 
+ntc_rg20_e:
+			IF ($ < 32768) && (ntc_rg21_e - ntc_rg21 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg21:
 ; ============================================================
 ; sub cube (normal mode)
 ; ============================================================
 
 
+ntc_rg21_e:
+			IF ($ < 32768) && (ntc_rg22_e - ntc_rg22 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg22:
 ; ============================================================
 ; sub pyramid (normal mode)
 ; ============================================================
 
 
+ntc_rg22_e:
+			IF ($ < 32768) && (ntc_rg23_e - ntc_rg23 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg23:
 ; ============================================================
 ; sub cobra (normal mode)
 ; ============================================================
 
 
+ntc_rg23_e:
+			IF ($ < 32768) && (ntc_rg24_e - ntc_rg24 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg24:
 ; ============================================================
 ; sub edge (normal mode)
 ; ============================================================
@@ -863,6 +983,11 @@ p_spin_edge_rb:
 			ld sp, (p_spin_edge_rs)
 			jp ntc_xn
 
+ntc_rg24_e:
+			IF ($ < 32768) && (ntc_rg25_e - ntc_rg25 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg25:
 ; ============================================================
 ; Inline assembly (#asm ... #endasm)
 ; ============================================================
@@ -1964,6 +2089,11 @@ fn_memory_allocpage:		; function allocpage (asm keyword), Memory.cls line 219
 			ret			; end of #asm
 
 
+ntc_rg25_e:
+			IF ($ < 32768) && (ntc_rg26_e - ntc_rg26 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg26:
 ; ============================================================
 ; Variables
 ; ============================================================
@@ -2126,6 +2256,11 @@ lit_11:			dw 11
 lit_12:			dw 12
 lit_13:			dw 13
 
+ntc_rg26_e:
+			IF ($ < 32768) && (ntc_rg27_e - ntc_rg27 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg27:
 ; ============================================================
 ; Strings
 ; ============================================================
@@ -2154,6 +2289,11 @@ str20:			db " turbo ", 0
 str21:			db " normal ", 0
 str22:			db "fps  ", 0
 
+ntc_rg27_e:
+			IF ($ < 32768) && (ntc_rg28_e - ntc_rg28 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg28:
 ; ============================================================
 ; Keyword library (rom)
 ; ============================================================
@@ -2275,7 +2415,11 @@ ntc_rj_all:
 ntc_rj_call:
 			call 0				; HL = jump block, BC = entries, A = slot, DE = slots; C: DE = a number it hasn't got
 			jp c, ntc_rj_lacks
+			IF (ntc_bss >= 32768) && (ntc_end <= 16384)	; fwdref-ok
+			ld hl, ntc_end
+			ELSE
 			ld hl, ntc_free
+			ENDIF
 			ld (ntc_v_free), hl
 			ld hl, ntc_start
 			ld (ntc_v_start), hl
@@ -2430,6 +2574,11 @@ ntc_rj_tlk:		db "ROM NTC CPCFW too old: no routine #", 0
 ntc_rj_tpt:		db "ROM NTCFW<n>.ROM not found: n = #", 0
 ntc_rj_tnl:		db 13, 10, "Press a key", 13, 10, 0
 ; (not in the ROM - the library sections this program uses that the ROM leaves out)
+ntc_rg28_e:
+			IF ($ < 32768) && (ntc_rg29_e - ntc_rg29 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg29:
 ;## ntc_gfx ntc_data ntc_plat_data @shared @ramonly
 ; ------------------------------------------------------------
 ; ntc_gfx - drawing on the CPC screen (Graphics class, Vector3D): lines in
@@ -3105,9 +3254,14 @@ gfx_cr2:
 ovl_blk_spin:	dw 0, ovl_spin_end, ovl_spin_vsize
 			db "CUBE3D.001", 0, "Spin", 0	; its file, its name (for the messages)
 
+ntc_rg29_e:
 ntc_end:				; the end of the program (and of its file)
 ; arrays: after the program, not in its file - kw_bssinit checks they fit and clears them
+			IF (ntc_end < 32768) && (ntc_end + ntc_bss_size > 16384)	; fwdref-ok
+ntc_bss		equ 32768		; after Option Reserve #4000-#7FFF
+			ELSE
 ntc_bss		equ ntc_end
+			ENDIF
 arr_vector3d_px		equ ntc_bss + 0		; 48 bytes
 arr_vector3d_py		equ ntc_bss + 48		; 48 bytes
 arr_vector3d_pz		equ ntc_bss + 96		; 48 bytes
@@ -3121,8 +3275,13 @@ arr_vector3d_ea		equ ntc_bss + 432		; 80 bytes
 arr_vector3d_eb		equ ntc_bss + 512		; 80 bytes
 ntc_bss_size	equ 592
 ntc_free	equ ntc_bss + ntc_bss_size	; the first free byte (heap, Memory tables)
+			IF ntc_free <= 32768	; fwdref-ok
+ntc_memtab	equ 32768		; the Memory class's tables: above the window (Option Reserve)
+			ELSE
+ntc_memtab	equ ntc_free
+			ENDIF
 ; Option Reserve: the program and its arrays (ntc_start .. ntc_free) must stay out of these
-			ASSERT (ntc_free <= 16384) || (ntc_start >= 32768), "the program (or its arrays) reaches into Option Reserve #4000-#7FFF (Main.bas line 21)"
+			ASSERT (ntc_free <= 16384) || (ntc_bss >= 32768), "the program (or its arrays) reaches into Option Reserve #4000-#7FFF (Main.bas line 21)"
 			SAVEAMSDOS "CUBE3D.BIN", ntc_start, ntc_end - ntc_start, ntc_start
 			ASSERT (ntc_free <= #4000) || (ntc_start >= #8000), "overlay classes: the program and its arrays must stay out of #4000-#7FFF (the window they run in)"
 
@@ -3766,4 +3925,4 @@ ovl_spin_vsize	equ 0		; its page variables; its local memory is the rest, to #80
 			DISPLAY "  page variables ", /D, ovl_spin_vsize, ", free ", /D, #8000 - (ovl_spin_end + ovl_spin_vsize)
 			SAVEAMSDOS "CUBE3D.001", ovl_spin_start, ovl_spin_end - ovl_spin_start, #4000
 
-NTC_STAMP	equ #847D		; the build stamp: the first word of every page file
+NTC_STAMP	equ #BA10		; the build stamp: the first word of every page file
