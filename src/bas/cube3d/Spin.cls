@@ -9,12 +9,16 @@ Option Class Overlay Spin
 Option Class Overlay Spin
 #End If
 Private ax As Integer, ay As Integer, az As Integer
+Private fx As Integer, fy As Integer, fz As Integer, lt As Integer ' the angles in 256ths (8.8, wrapping: the high byte is the angle), the clock
 Private size As Integer, shape As Integer, frames As Integer, mode As Integer
 Private dbl As Integer, fast As Integer, paused As Integer, fps As Integer
 
 Public Sub Run()
   Dim k As String, t As Integer
   size = 280 : shape = 1 : mode = 1
+#If NTC_CPM Then
+  mode = 2                        ' CP/M: the console's mode, one screen
+#End If
   Screen
   MakeShape
   t = Ticks
@@ -37,6 +41,9 @@ Public Sub Run()
     If k = "+" Or k = "=" Then size = size + 20 : Vector3D.View 160, 112, size, 768
     If k = "-" And size > 60 Then size = size - 20 : Vector3D.View 160, 112, size, 768
     If k = "P" Then paused = Not paused
+#If NTC_CPM Then
+    If k = "A" Or k = "B" Or k = "C" Or k = "D" Then k = ""
+#End If
     If k = "A" Or k = "B" Or k = "C" Then mode = Asc(k) - 65 : Screen
     If k = "D" Then
       Vector3D.Hide
@@ -50,13 +57,21 @@ Public Sub Run()
   Graphics.DoubleBuffer 0
 End Sub
 
-' one frame: turn, wait for the flyback (one screen) or not (two: Show flips), draw
+' one frame: turn, wait for the flyback (one screen) or not (two: Show flips), draw. The angles
+' move by the time gone (Ticks, 300 a second): X 2, Y 3, Z 1 every 50th of a second, so the
+' shape turns at the same speed whatever the frame rate. Turbo mode has no clock (interrupts
+' off), nor has CP/M: a frame's step instead
 Private Sub Frame1()
+  Dim d As Integer
   Vector3D.Turn ax, ay, az
   If dbl = 0 Then Frame
   Vector3D.Show
+  If fast Or System.TicksPerSecond = 0 Then d = 6 Else d = Ticks - lt
+  lt = Ticks
+  If d < 0 Or d > 60 Then d = 6
   If paused = 0 Then
-    ax = (ax + 2) And 255 : ay = (ay + 3) And 255 : az = (az + 1) And 255
+    Do While d > 0 : fx = fx + 85 : fy = fy + 128 : fz = fz + 43 : d = d - 1 : Loop
+    ax = Peek(VarPtr(fx) + 1) : ay = Peek(VarPtr(fy) + 1) : az = Peek(VarPtr(fz) + 1)
   End If
 End Sub
 
@@ -64,7 +79,11 @@ End Sub
 Private Sub Screen()
   Vector3D.Hide
   Graphics.DoubleBuffer 0
+#If NTC_CPM Then
+  Cls                             ' (Option Terminal VT52; Mode does nothing on CP/M)
+#Else
   Mode mode
+#End If
   Vector3D.Forget
   Print "1-4 shape A-C mode"
   Print "D double T turbo +-PX"

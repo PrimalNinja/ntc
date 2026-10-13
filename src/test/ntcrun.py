@@ -13,6 +13,11 @@ import z80
 import cpcrun
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+# cpm: the CP/M version BDOS 12 gives (NTC_CPMVER=22 or 31, default 31). CP/M Plus is modelled as
+# on a 6128: the program runs in RAM configuration C2 (the 64K seen is blocks 4-7), main RAM's
+# blocks 0-3 (the screen: block 1) are reached with C1 (Graphics). NTC_GFXCHK=1: at the end, the
+# number of screen bytes not 0 (Plus: block 1, 2.2: #C000-#EFFF)
+CPMVER = int(os.environ.get('NTC_CPMVER', '31'), 16)
 FW = {0xBB06: 'km_wait', 0xBB09: 'km_read', 0xBB5A: 'txt_out', 0xBB6C: 'txt_clear', 0xBB75: 'txt_cursor',
       0xBC0E: 'scr_mode', 0xBD19: 'mc_flyback', 0xBD0D: 'kl_time',
       0xBC77: 'cas_in_open', 0xBC7A: 'cas_in_close', 0xBC7D: 'cas_in_abandon', 0xBC83: 'cas_in_direct',
@@ -161,7 +166,7 @@ class Host:
         return (s.T // 13333) & 0xFFFF
     def out(s, port, val):
         lo = port & 0xFF; m = s.m
-        if s.p != 'cpm' and 0x78 <= (port >> 8) <= 0x7F and (val & 0xC0) == 0xC0:
+        if (s.p != 'cpm' or CPMVER >= 0x30) and 0x78 <= (port >> 8) <= 0x7F and (val & 0xC0) == 0xC0:
             s.ram.set(val, port >> 8); return
         if s.p == 'cpcfw' and (port >> 8) == 0xF6:
             s.line = val & 15; return          # the PPI's port C: the keyboard line (Keys class)
@@ -199,7 +204,7 @@ class Host:
             elif fn == 45:
                 m.a = 0
             elif fn == 12:
-                m.hl = 0x0031; m.a = 0x31                     # CP/M 3
+                v = CPMVER; m.hl = v; m.a = v                 # CP/M 3 (NTC_CPMVER=22: 2.2)
             elif fn == 26:
                 s.dma = m.de
         elif s.p == 'cpcfw' and lo == 0xDF:
@@ -435,9 +440,14 @@ def main():
     if plat == 'cpm':
         tail = (' ' + cmdline.upper()).encode() if cmdline else b''
         h.m.set_memory_block(0x80, bytes([len(tail)]) + tail + b'\0')
+        if CPMVER >= 0x30:
+            h.ram.mainp = [bytes(0x4000)] * 4; h.ram.view = [('x', 0, 0), ('x', 0, 1), ('x', 0, 2), ('x', 0, 3)]
     h.run()
     print(h.scr.text())
-    print('--- halted' if h.m.halted else '--- NOT halted', 'sp=%04x' % h.m.sp, 'ints=%d' % h.ints, 'T=%d' % h.T)
+    if plat == 'cpm' and os.environ.get('NTC_GFXCHK'):
+        scr = h.ram.main_page(1) if CPMVER >= 0x30 else bytes(h.m.memory[0xC000:0xF000])
+        print('--- screen bytes set: %d' % sum(1 for x in scr if x))
+    print('--- halted' if h.m.halted else '--- NOT halted', 'pc=%04x' % h.m.pc, 'sp=%04x' % h.m.sp, 'ints=%d' % h.ints, 'T=%d' % h.T)
 
 if __name__ == '__main__':
     main()

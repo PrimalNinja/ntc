@@ -150,7 +150,7 @@ upward from `#9400`; when the firmware is retired they can grow up into its RAM.
 
 | Platform | Org | Stack | Top of free RAM | Notes |
 |---|---|---|---|---|
-| `cpm` | `#0100` | the program's own (`ntc_cpmstack`) | the BDOS (address 6) | console and files through BDOS; no pages |
+| `cpm` | `#0100` | the program's own (`ntc_cpmstack`) | the BDOS (address 6); with Graphics on CP/M Plus `#C000` (its line loop copy) | console and files through BDOS; no pages. Graphics (a CPC only) writes the screen itself: 2.2 `#C000`, Plus block 1 through C1 from common memory |
 | `test` | `#4000` | the caller's | `#C000` | console through I/O ports, for the test harness |
 
 ---

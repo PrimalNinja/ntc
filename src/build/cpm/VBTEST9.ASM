@@ -10,6 +10,7 @@ NTC_STRMAX	equ 40		; the longest string (library buffers, temps)
 NTC_MEMBANKS	equ 64		; Option Memory: the most 64K banks the Memory class looks for
 NTC_ROMENABLE	equ 0		; Option RomEnable (cpcfw, cpcmin): the start code starts the ROMs
 NTC_ROMLIB	equ 0		; 1 = the library is the keyword ROM (Library: ROM; ntcRomAsm builds it)
+NTC_CPMGFX	equ 1		; 1 = CP/M: Graphics draws on an Amstrad CPC's screen (2.2: #C000, Plus: block 1 from common memory)
 
 ntc_start:
 			di
@@ -1983,6 +1984,8 @@ ntc_curx:		db 0			; column (0 based) - counted for Tab
 ntc_cury:		db 0			; not used (a stream has no rows)
 ntc_scols:		db 80			; columns
 ntc_bdosa:		db 0			; ntc_bdos: A on return
+ntc_smode:		db 2			; screen mode (Graphics on an Amstrad CPC: CP/M's console is mode 2)
+ntc_cpmtop:		dw #FFFF		; the heap's top if lower than the BDOS (Graphics on CP/M Plus: GFH_AT)
 				ds 256			; the program's real stack
 ntc_cpmstack:
 

@@ -8246,6 +8246,30 @@ function ntcCompile(input_a, objOptions_a)
 		return (objPlat.irq !== 2) || (arrIslots.length > 0) || (Object.keys(objHookProcs).length > 0);
 	}
 
+	// gfxHighCopy - CP/M: the Graphics line loop (ntc_gfx from ; >gfxhi to ; <gfxhi)
+	// again, assembled for GFH_AT (#C000, common memory on CP/M Plus) with its labels
+	// gfx_ renamed gfh_; gfx_cpmver copies it there (CP/M Plus draws from there in C1)
+	function gfxHighCopy(arrLines_a)
+	{
+		var arrOut = [';## ntc_gfx (CP/M Plus copy, for GFH_AT)', 'GFH_AT\tequ #C000', 'gfh_src:', '\t\t\tDISP GFH_AT', 'gfh_start:'];
+		var blnIn = false;
+
+		arrLines_a.forEach(function(strLine_a)
+		{
+			if (/^;\s*>gfxhi/.test(strLine_a)) { blnIn = true; return; }
+			if (/^;\s*<gfxhi/.test(strLine_a)) { blnIn = false; return; }
+			if (blnIn)
+			{
+				arrOut.push(strLine_a.replace(/\bgfx_/g, 'gfh_'));
+			}
+		});
+		arrOut.push('gfh_end:');
+		arrOut.push('\t\t\tENT');
+		arrOut.push('\t\t\tASSERT ntc_end <= GFH_AT\t\t; CP/M Plus Graphics: the program ends below its copy');
+		arrOut.push('');
+		return arrOut;
+	}
+
 	function linkLibrary(objUsedT_a, objUsedN_a, blnIrq_a, blnRamOnly_a)
 	{
 		var arrOrder = arrLibOrder;
@@ -8348,6 +8372,10 @@ function ntcCompile(input_a, objOptions_a)
 				arrResult.push(objSection.header);
 				arrResult.push(objSection.lines.join('\n').replace(/\s+$/, ''));
 				arrResult.push('');
+				if ((objSection.name === 'ntc_gfx') && (String(objOptions.platform).toLowerCase() === 'cpm'))
+				{
+					arrResult = arrResult.concat(gfxHighCopy(objSection.lines));
+				}
 			}
 			if (objItem.n === true)
 			{
@@ -8711,6 +8739,7 @@ function ntcCompile(input_a, objOptions_a)
 	arrAsm.push('NTC_MEMBANKS\tequ ' + Math.max(0, Math.min(64, Math.floor((Math.min(257, Math.max(1, objMemory.max || 257)) - 1) / 4))) + '\t\t; Option Memory: the most 64K banks the Memory class looks for');
 	arrAsm.push('NTC_ROMENABLE\tequ ' + ((arrRomEnable !== null) ? 1 : 0) + '\t\t; Option RomEnable (cpcfw, cpcmin): the start code starts the ROMs');
 	arrAsm.push('NTC_ROMLIB\tequ ' + ((objOptions.library === 'rom') ? 1 : 0) + '\t\t; 1 = the library is the keyword ROM (Library: ROM; ntcRomAsm builds it)');
+	arrAsm.push('NTC_CPMGFX\tequ ' + ((String(objOptions.platform).toLowerCase() === 'cpm') ? 1 : 0) + '\t\t; 1 = CP/M: Graphics draws on an Amstrad CPC\'s screen (2.2: #C000, Plus: block 1 from common memory)');
 	arrAsm.push('');
 	// the options in a fixed order, wherever they are in the source: the stack first (the
 	// ROM start runs on it), then the ROMs, then the program
@@ -10794,7 +10823,7 @@ function ntcRomAsm(strPlatform_a, strReg_a, objOpt_a)
 	arrOut.push('; ---- code that runs from RAM (addresses may change between ROMs: programs reach it through their jump block)');
 	arrOut = arrOut.concat(arrInit);
 	arrOut.push('ntc_rom_imgend_r:');
-	arrOut.push(strIndent + 'ENT');
+	arrOut.push('\t\t\tENT');
 	arrOut.push('ntc_rom_imgend:');
 	arrOut.push(strIndent + 'ASSERT ntc_rom_imgend_r <= NTC_ROMBSS, "the ROM\'s initialised variables reach #9400"');
 	if (blnMeasure)
@@ -10915,10 +10944,18 @@ function ntcRomJumpBlock(strPlatform_a, arrAsm_a, blnStamp_a, blnRomEnable_a, ar
 		return [];
 	}
 	objReg = ntcRomRegistry(strReg);
+	var arrCpm = [];		// IF NTC_CPMGFX blocks (CP/M only: 0 on these platforms): true while in the CP/M part
 	arrAsm_a.forEach(function(strText_a)
 	{
 		String(strText_a).split('\n').forEach(function(strLine_a)
 		{
+			if (/^\s+IF\s+NTC_CPMGFX\b/i.test(strLine_a)) { arrCpm.push(true); return; }
+			if ((arrCpm.length > 0) && /^\s+ELSE\b/i.test(strLine_a)) { arrCpm[arrCpm.length - 1] = false; return; }
+			if ((arrCpm.length > 0) && /^\s+ENDIF\b/i.test(strLine_a)) { arrCpm.pop(); return; }
+			if (arrCpm.indexOf(true) >= 0)
+			{
+				return;
+			}
 			var strCode = strLine_a.replace(/"[^"]*"/g, '""').replace(/'[^']*'/g, "''").replace(/;.*$/, '');
 			var arrDef = strCode.match(/^([A-Za-z_]\w*)(:|\s+equ\b|\s*=)/i);
 			var arrWords = strCode.replace(/^([A-Za-z_]\w*):?/, '').match(/[A-Za-z_]\w*/g) || [];

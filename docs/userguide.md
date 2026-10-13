@@ -3065,7 +3065,8 @@ See `bas/lists.bas`.
 
 ### Graphics
 
-Drawing on the CPC screen: `cpc`, `cpcmin` and `cpcfw`. On cpcfw the class still writes the
+Drawing on the CPC screen: `cpc`, `cpcmin` and `cpcfw` (and `cpm` on a CPC, mode 2: see the
+end of this section). On cpcfw the class still writes the
 screen memory itself (the firmware only draws the text): set the mode with `Mode` first (that
 tells the class the mode), and don't let the firmware scroll the text while drawing - a
 scroll moves the screen's start and the lines would land in the wrong place. Lines in any mode - 0 (160 x 200, 16 pens), 1 (320 x 200, 4 pens), 2 (640 x 200,
@@ -3103,6 +3104,24 @@ Loop
 ```
 
 See `bas/cube3d/` (Vector3D draws through it).
+
+**Graphics on CP/M (an Amstrad CPC).** The `cpm` platform has the class too, for CP/M on a
+CPC: mode 2 only (the console's mode: 640 x 200, pens 0-1), one screen (`DoubleBuffer`, `Flip`
+and `CopyText` do nothing, `Back()` is 0). It writes to the screen memory itself, not through
+CP/M or the firmware; it asks BDOS 12 which CP/M it is on at the first line drawn:
+
+- CP/M 2.2: the screen is `#C000-#FFFF` of the program's own 64K: drawn there.
+- CP/M Plus (6128): programs run in RAM configuration C2 (blocks 4-7) and the screen is block 1,
+  which is at `#4000` only in C1 (blocks 0, 1, 2, 7) - and C1 leaves nothing of the program but
+  `#C000-#FFFF` (block 7, common memory). So the first line copies the line loop (about 380
+  bytes) to `#C000`, and each line is drawn from there: C1 in, the line, C2 back, interrupts
+  off meanwhile. The program must end below `#C000` (the assembler checks), and the Memory
+  class's `Small` heap stays below it from then on.
+
+Clear the screen before drawing (`Cls` with `Option Terminal VT52`): the lines assume the
+screen starts at its first byte, and a console that has scrolled has moved that start. It
+writes the CPC's screen memory, so it is for an Amstrad CPC only (on other CP/M machines it
+writes over memory).
 
 ### Keys
 

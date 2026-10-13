@@ -35,6 +35,8 @@ ntc_curx:		db 0			; column (0 based) - counted for Tab
 ntc_cury:		db 0			; not used (a stream has no rows)
 ntc_scols:		db 80			; columns
 ntc_bdosa:		db 0			; ntc_bdos: A on return
+ntc_smode:		db 2			; screen mode (Graphics on an Amstrad CPC: CP/M's console is mode 2)
+ntc_cpmtop:		dw #FFFF		; the heap's top if lower than the BDOS (Graphics on CP/M Plus: GFH_AT)
 				ds 256			; the program's real stack
 ntc_cpmstack:
 
@@ -1427,11 +1429,21 @@ ntc_cg_end:
 			ld (de), a
 			ret
 
-;## ntc_plat_memtop
+;## ntc_plat_memtop ntc_plat_data
 ; ntc_plat_memtop - HL = the first byte the Memory class's Small heap must not
 ; use: the BDOS (its address is at 6; the CCP below it is free, the program
-; ends with a warm boot). Called on the real stack (call / ret), only by the
+; ends with a warm boot), or ntc_cpmtop when lower (Graphics on CP/M Plus sets
+; it to its copy at GFH_AT). Called on the real stack (call / ret), only by the
 ; Memory class.
 ntc_plat_memtop:
-			ld hl, (6)
+			push de
+			ld hl, (ntc_cpmtop)
+			ld de, (6)
+			or a
+			sbc hl, de
+			add hl, de
+			jr c, ntc_mt1			; ntc_cpmtop lower
+			ex de, hl
+ntc_mt1:
+			pop de
 			ret

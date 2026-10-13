@@ -7,6 +7,13 @@ finished, with the date.
 
 ## done
 
+- 2026-10-14 Graphics and CUBE3D on cpm (an Amstrad CPC, mode 2, one screen, no firmware): BDOS 12
+  picks the way. CP/M 2.2 draws on #C000 in the program's 64K; CP/M Plus copies the line loop to
+  #C000 (common memory) and draws each line from there with C1 (screen = block 1 at #4000), C2
+  back. Harness: NTC_CPMVER (22 / 31, Plus modelled as C2 with the gate array), NTC_GFXCHK
+- 2026-10-14 CUBE3D: only the edges that moved are drawn again (old line off, new on) - the
+  shape no longer blinks in place when a turn moves it less than a pixel; the turn follows the
+  clock (Ticks), not the frame count
 - 2026-10-13 every program in bas/ has `Option PressAnyKeyOnEnd` in place of its own "Press a key"
   loop (Locomotive: `'# Option ...` on a line of its own; JS: `//# Option ...`); the test harnesses
   press Return at that wait

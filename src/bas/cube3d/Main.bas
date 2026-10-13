@@ -3,7 +3,8 @@
 ' Keys: 1-4 shape, A/B/C mode 0/1/2, D double buffering, T turbo, + - size, P pause, X exit.
 ' Vector3D.cls does the maths (Z80), the Graphics class draws; Spin.cls is the demo - an
 ' overlay class on cpcmin and cpcfw (page SPIN, file CUBE3D.001, in a RAM page: keep it on
-' the disc with CUBE3D.BIN; needs a 6128). cpc, cpcmin and cpcfw.
+' the disc with CUBE3D.BIN; needs a 6128). cpc, cpcmin and cpcfw; cpm on an Amstrad CPC (CP/M 2.2
+' or Plus: mode 2, one screen, all in main memory; the Graphics class writes to the screen memory).
 Option PressAnyKeyOnEnd "Press a key"     ' at the end: a message and a key (a RUN" program resets when it ends)
 Option Explicit
 #If NTC_CPCMIN Then
@@ -24,7 +25,14 @@ Dim scr As Integer
 scr = Memory.AllocPage(Memory.TypeUser)
 If scr <> 1 Then Print "Page 1 is taken - no double buffering" : End
 #End If
+#If NTC_CPM Then
+Option Terminal VT52              ' Amstrad CP/M's console: Cls and Locate
+#End If
 Spin.Run
+#If NTC_CPM Then
+Cls
+#Else
 Mode 1
+#End If
 Print "Bye"
 End

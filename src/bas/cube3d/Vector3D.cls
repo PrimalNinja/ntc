@@ -6,7 +6,7 @@
 ' leaves what was under them (text) as it was.
 ' Based on B. Chiha's 3D frame demo for the TEC-1 (MIT licence, 2023), itself a Z80 version
 ' of a BASIC program in The Amstrad User, issue 69 (October 1990).
-' Platforms: cpc and cpcmin (the Graphics class).
+' Platforms: cpc, cpcmin, cpcfw and cpm on an Amstrad CPC (the Graphics class).
 Option Explicit
 Public Const MAXPOINTS = 32
 Public Const MAXEDGES = 64
@@ -23,6 +23,7 @@ Private spsave As Integer, vis As Integer, pk As Integer, pn As Integer, td As I
 Private tx As Integer, ty As Integer, tz As Integer
 Private sinx As Integer, cosx As Integer, siny As Integer, cosy As Integer, sinz As Integer, cosz As Integer
 Private xs As Integer, ys As Integer, ek As Integer, en As Integer, ia As Integer, ib As Integer
+Private xo As Integer, yo As Integer, dm As Integer                 ' Draw: this screen's old lines, d_change
 
 ' Clear: no points, no edges (take the shape off the screen first with Hide)
 Public Sub Clear()
@@ -415,9 +416,11 @@ t_sin:
 #endasm
 End Sub
 
-' Draw visible: the lines on the screen being drawn on go (each screen keeps its own,
-' with double buffering); with visible not 0 the shape at its last Turn is drawn, and with
-' double buffering that screen is then shown (Graphics.Flip)
+' Draw visible: with visible 0 the lines on the screen being drawn on go (each screen keeps
+' its own, with double buffering); with visible not 0 the shape at its last Turn takes their
+' place - only the edges that moved are drawn again (old line off, new line on, edge by
+' edge), so a shape that hasn't moved a pixel doesn't flash - and with double buffering that
+' screen is then shown (Graphics.Flip)
 Public Sub Draw(ByVal visible As Integer)
 #asm
             ld a, ({visible})
@@ -437,50 +440,106 @@ d_b1:
             ld de, {qy}
             ld bc, {shown2}
 d_b:
-            ld ({xs}), hl
-            ld ({ys}), de
+            ld ({xo}), hl
+            ld ({yo}), de
             ld ({ek}), bc
-            push hl
-            push de
-            ld a, (bc)
-            or a
-            call nz, d_edges        ; take them off (XOR again)
-            ld hl, ({ek})
-            ld (hl), 0
-            pop de
-            pop hl
             ld a, ({vis})
             or a
-            jr z, d_end
-            push hl
-            push de
-            ld hl, {sx}
+            jr z, d_off
+            ld a, (bc)
+            or a
+            jr z, d_all
+            call d_change           ; only the edges that moved: old line off, new on
+            jr d_keep
+d_all:
+            ld hl, {sx}             ; nothing on this screen yet: every edge
             ld ({xs}), hl
             ld hl, {sy}
             ld ({ys}), hl
             call d_edges
-            pop de
-            pop hl
-            push de
-            ex de, hl
+d_keep:
             ld hl, {sx}             ; what is on this screen now
+            ld de, ({xo})
             ld bc, 64
             ldir
-            pop de
             ld hl, {sy}
+            ld de, ({yo})
             ld bc, 64
             ldir
             ld hl, ({ek})
             ld (hl), 1
             call gfx_flip
+            jr d_end
+d_off:
+            ld a, (bc)              ; the shape off this screen (XOR again)
+            or a
+            jr z, d_end
+            ld hl, ({xo})
+            ld ({xs}), hl
+            ld hl, ({yo})
+            ld ({ys}), hl
+            call d_edges
+            ld hl, ({ek})
+            ld (hl), 0
 d_end:
             di
             ld sp, ({spsave})
             ret
-
+; d_same - A = a point's offset: Z when it is where it was (x and y, old and new)
+d_same:
+            ld c, a
+            ld hl, ({xo})
+            call d_word
+            ex de, hl
+            ld hl, {sx}
+            ld a, c
+            call d_word
+            or a
+            sbc hl, de
+            ret nz
+            ld hl, ({yo})
+            ld a, c
+            call d_word
+            ex de, hl
+            ld hl, {sy}
+            ld a, c
+            call d_word
+            or a
+            sbc hl, de
+            ret
+; d_one - the line of edge ia - ib from the arrays at xs / ys
+d_one:
+            ld hl, ({xs})
+            ld a, ({ia})
+            call d_word
+            call d_mx
+            ld (gfx_x0), hl
+            ld hl, ({ys})
+            ld a, ({ia})
+            call d_word
+            ld (gfx_y0), hl
+            ld hl, ({xs})
+            ld a, ({ib})
+            call d_word
+            call d_mx
+            ld (gfx_x1), hl
+            ld hl, ({ys})
+            ld a, ({ib})
+            call d_word
+            ld (gfx_y1), hl
+            jp gfx_line
 ; every edge, from the point arrays at xs / ys (pixels of mode 1: halved for mode 0,
 ; doubled for mode 2)
 d_edges:
+            xor a
+            jr d_eg
+; d_change - each edge whose ends moved since this screen's last Show: its old line off
+; and its new one on, one edge after another (an edge that hasn't moved isn't touched, so
+; it doesn't flash; a moving one is gone only for its own two lines)
+d_change:
+            ld a, 1
+d_eg:
+            ld ({dm}), a
             ld a, ({ne})
             or a
             ret z
@@ -502,25 +561,28 @@ d_elp:
             and 31
             add a, a
             ld ({ib}), a
-            ld hl, ({xs})
-            ld a, ({ia})
-            call d_word
-            call d_mx
-            ld (gfx_x0), hl
-            ld hl, ({ys})
-            ld a, ({ia})
-            call d_word
-            ld (gfx_y0), hl
-            ld hl, ({xs})
+            ld a, ({dm})
+            or a
+            jr z, d_eone            ; every edge from xs / ys
+            ld a, ({ia})            ; the same ends, old and new: nothing to do
+            call d_same
+            jr nz, d_cmove
             ld a, ({ib})
-            call d_word
-            call d_mx
-            ld (gfx_x1), hl
-            ld hl, ({ys})
-            ld a, ({ib})
-            call d_word
-            ld (gfx_y1), hl
-            call gfx_line
+            call d_same
+            jr z, d_enext
+d_cmove:
+            ld hl, ({xo})
+            ld ({xs}), hl
+            ld hl, ({yo})
+            ld ({ys}), hl
+            call d_one              ; the old line off
+            ld hl, {sx}
+            ld ({xs}), hl
+            ld hl, {sy}
+            ld ({ys}), hl
+d_eone:
+            call d_one
+d_enext:
             ld hl, ({pk})
             inc hl
             inc hl

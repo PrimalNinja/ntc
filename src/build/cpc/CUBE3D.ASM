@@ -6,11 +6,12 @@
 			DEVICE AMSTRADCPC6128		; for SAVEAMSDOS at the end
 			org #0040
 
-NTC_TERM	equ 0		; Option Terminal: 0 none, 1 VT52, 2 ANSI (CP/M)
+NTC_TERM	equ 1		; Option Terminal: 0 none, 1 VT52, 2 ANSI (CP/M)
 NTC_STRMAX	equ 40		; the longest string (library buffers, temps)
 NTC_MEMBANKS	equ 64		; Option Memory: the most 64K banks the Memory class looks for
 NTC_ROMENABLE	equ 0		; Option RomEnable (cpcfw, cpcmin): the start code starts the ROMs
 NTC_ROMLIB	equ 0		; 1 = the library is the keyword ROM (Library: ROM; ntcRomAsm builds it)
+NTC_CPMGFX	equ 0		; 1 = CP/M: Graphics draws on an Amstrad CPC's screen (2.2: #C000, Plus: block 1 from common memory)
 
 ntc_start:
 			di
@@ -31,17 +32,17 @@ main_thread:
 			dw kw_scrinit		; mode 1, ROMs off, clear screen
 			dw kw_bssinit, ntc_bss, ntc_bss_size		; the arrays: do they fit, clear them
 
-			; Main.bas 27: Spin.Run
+			; Main.bas 31: Spin.Run
 			dw p_spin_run_c
 
-			; Main.bas 28: Mode 1
+			; Main.bas 35: Mode 1
 			dw kw_model, 1
 
-			; Main.bas 29: Print "Bye"
+			; Main.bas 37: Print "Bye"
 			dw kw_printzoscii
 			dw glyph_42, glyph_79, glyph_65, 1, 0		; "Bye\n"
 
-			; Main.bas 30: End
+			; Main.bas 38: End
 			dw kw_printnl0
 			dw kw_printzoscii
 			dw glyph_50, glyph_72, glyph_65, glyph_73, glyph_73, glyph_20, glyph_61, glyph_20
@@ -55,10 +56,10 @@ main_thread:
 
 p_vector3d_clear:
 
-			; Vector3D.cls 29: np = 0
+			; Vector3D.cls 30: np = 0
 			dw kw_ztov, var_vector3d_np
 
-			; Vector3D.cls 30: ne = 0
+			; Vector3D.cls 31: ne = 0
 			dw kw_ztov, var_vector3d_ne
 			dw p_vector3d_clear_r
 
@@ -68,22 +69,22 @@ p_vector3d_clear:
 
 p_vector3d_addpoint:
 
-			; Vector3D.cls 36: If np >= MAXPOINTS Then AddPoint = -1 : Exit Function
+			; Vector3D.cls 37: If np >= MAXPOINTS Then AddPoint = -1 : Exit Function
 			dw kw_scpgevl, var_vector3d_np, 32
 			dw kw_goto_iffalse_n, if1_1
 			dw kw_ltov, -1, var_vector3d_addpoint_addpoint
 			dw p_vector3d_addpoint_r
 if1_1:
 
-			; Vector3D.cls 37: px(np) = x : py(np) = y : pz(np) = z
+			; Vector3D.cls 38: px(np) = x : py(np) = y : pz(np) = z
 			dw kw_aset, arr_vector3d_px, var_vector3d_np, var_vector3d_addpoint_x
 			dw kw_aset, arr_vector3d_py, var_vector3d_np, var_vector3d_addpoint_y
 			dw kw_aset, arr_vector3d_pz, var_vector3d_np, var_vector3d_addpoint_z
 
-			; Vector3D.cls 38: AddPoint = np
+			; Vector3D.cls 39: AddPoint = np
 			dw kw_vtov, var_vector3d_np, var_vector3d_addpoint_addpoint
 
-			; Vector3D.cls 39: np = np + 1
+			; Vector3D.cls 40: np = np + 1
 			dw kw_inc, var_vector3d_np
 			dw p_vector3d_addpoint_r
 
@@ -93,17 +94,17 @@ if1_1:
 
 p_vector3d_addedge:
 
-			; Vector3D.cls 44: If ne >= MAXEDGES Then Exit Sub
+			; Vector3D.cls 45: If ne >= MAXEDGES Then Exit Sub
 			dw kw_scpgevl, var_vector3d_ne, 64
 			dw kw_goto_iffalse_n, if2_1
 			dw p_vector3d_addedge_r
 if2_1:
 
-			; Vector3D.cls 45: ea(ne) = a : eb(ne) = b
+			; Vector3D.cls 46: ea(ne) = a : eb(ne) = b
 			dw kw_aset, arr_vector3d_ea, var_vector3d_ne, var_vector3d_addedge_a
 			dw kw_aset, arr_vector3d_eb, var_vector3d_ne, var_vector3d_addedge_b
 
-			; Vector3D.cls 46: ne = ne + 1
+			; Vector3D.cls 47: ne = ne + 1
 			dw kw_inc, var_vector3d_ne
 			dw p_vector3d_addedge_r
 
@@ -113,7 +114,7 @@ if2_1:
 
 p_vector3d_view:
 
-			; Vector3D.cls 52: cx = x : cy = y : scl = scale : dst = distance
+			; Vector3D.cls 53: cx = x : cy = y : scl = scale : dst = distance
 			dw kw_vtov, var_vector3d_view_x, var_vector3d_cx
 			dw kw_vtov, var_vector3d_view_y, var_vector3d_cy
 			dw kw_vtov, var_vector3d_view_scale, var_vector3d_scl
@@ -126,7 +127,7 @@ p_vector3d_view:
 
 p_vector3d_points:
 
-			; Vector3D.cls 56: Points = np
+			; Vector3D.cls 57: Points = np
 			dw kw_vtov, var_vector3d_np, var_vector3d_points_points
 			dw p_vector3d_points_r
 
@@ -136,7 +137,7 @@ p_vector3d_points:
 
 p_vector3d_show:
 
-			; Vector3D.cls 74: Draw 1
+			; Vector3D.cls 75: Draw 1
 			dw p_vector3d_draw_c, lit_1
 			dw p_vector3d_show_r
 
@@ -154,20 +155,20 @@ p_vector3d_show_n:
 
 p_vector3d_hide:
 
-			; Vector3D.cls 78: Draw 0
+			; Vector3D.cls 79: Draw 0
 			dw p_vector3d_draw_n_c, lit_0
 
-			; Vector3D.cls 79: If Graphics.Buffering() Then
+			; Vector3D.cls 80: If Graphics.Buffering() Then
 			dw fn_graphics_buffering, var_graphics_buffering_buffering
 			dw kw_goto_ifzero_n, var_graphics_buffering_buffering, if3_1
 
-			; Vector3D.cls 80: Graphics.Flip
+			; Vector3D.cls 81: Graphics.Flip
 			dw fn_graphics_flip
 
-			; Vector3D.cls 81: Draw 0
+			; Vector3D.cls 82: Draw 0
 			dw p_vector3d_draw_n_c, lit_0
 
-			; Vector3D.cls 82: End If
+			; Vector3D.cls 83: End If
 if3_1:
 			dw p_vector3d_hide_r
 
@@ -177,10 +178,10 @@ if3_1:
 
 p_vector3d_forget:
 
-			; Vector3D.cls 87: shown = 0
+			; Vector3D.cls 88: shown = 0
 			dw kw_ztov, var_vector3d_shown
 
-			; Vector3D.cls 88: shown2 = 0
+			; Vector3D.cls 89: shown2 = 0
 			dw kw_ztov, var_vector3d_shown2
 			dw p_vector3d_forget_r
 
@@ -190,8 +191,8 @@ p_vector3d_forget:
 
 p_vector3d_turn:
 
-			; Vector3D.cls 94: #asm
-			dw asm_1_94
+			; Vector3D.cls 95: #asm
+			dw asm_1_95
 			dw p_vector3d_turn_r
 
 ; ============================================================
@@ -199,7 +200,7 @@ p_vector3d_turn:
 ; ============================================================
 
 p_vector3d_turn_n:
-			dw asm_1_94_n
+			dw asm_1_95_n
 			dw p_vector3d_turn_n_r
 
 ; ============================================================
@@ -208,8 +209,8 @@ p_vector3d_turn_n:
 
 p_vector3d_draw_n:
 
-			; Vector3D.cls 422: #asm
-			dw asm_1_422_n
+			; Vector3D.cls 425: #asm
+			dw asm_1_425_n
 			dw p_vector3d_draw_n_r
 
 ; ============================================================
@@ -217,7 +218,7 @@ p_vector3d_draw_n:
 ; ============================================================
 
 p_vector3d_draw:
-			dw asm_1_422
+			dw asm_1_425
 			dw p_vector3d_draw_r
 
 ; ============================================================
@@ -226,77 +227,77 @@ p_vector3d_draw:
 
 p_spin_run:
 
-			; Spin.cls 16: Dim k As String, t As Integer
+			; Spin.cls 17: Dim k As String, t As Integer
 
-			; Spin.cls 17: size = 280 : shape = 1 : mode = 1
+			; Spin.cls 18: size = 280 : shape = 1 : mode = 1
 			dw kw_ltov, 280, var_spin_size
 			dw kw_ltov, 1, var_spin_shape
 			dw kw_ltov, 1, var_spin_mode
 
-			; Spin.cls 18: Screen
+			; Spin.cls 22: Screen
 			dw p_spin_screen_c
 
-			; Spin.cls 19: MakeShape
+			; Spin.cls 23: MakeShape
 			dw p_spin_makeshape_c
 
-			; Spin.cls 20: t = Ticks
+			; Spin.cls 24: t = Ticks
 			dw kw_ticks, tmp0
 			dw kw_vtov, tmp0, var_spin_run_t
 
-			; Spin.cls 21: Do
+			; Spin.cls 25: Do
 do4_t:
 
-			; Spin.cls 22: If fast Then
+			; Spin.cls 26: If fast Then
 			dw kw_goto_ifzero_n, var_spin_fast, if5_1
 
-			; Spin.cls 23: Turbo On
+			; Spin.cls 27: Turbo On
 			dw kw_turbo_on
 
-			; Spin.cls 24: Frame1
+			; Spin.cls 28: Frame1
 			dw p_spin_frame1_c
 
-			; Spin.cls 25: Turbo Off
+			; Spin.cls 29: Turbo Off
 			dw kw_turbo_off
 
-			; Spin.cls 26: Else
+			; Spin.cls 30: Else
 			dw if5_e_go
 if5_1:
 
-			; Spin.cls 27: Frame1
+			; Spin.cls 31: Frame1
 			dw p_spin_frame1_n_c
 
-			; Spin.cls 28: End If
+			; Spin.cls 32: End If
 if5_e:
 
-			; Spin.cls 29: frames = frames + 1
+			; Spin.cls 33: frames = frames + 1
 			dw kw_inc, var_spin_frames
 
-			; Spin.cls 30: If frames = 25 Then
+			; Spin.cls 34: If frames = 25 Then
 			dw kw_cpeqvl, var_spin_frames, 25
 			dw kw_goto_iffalse_n, if6_1
 
-			; Spin.cls 31: fps = 25 * System.TicksPerSecond \ (Ticks - t + 1)
+			; Spin.cls 35: fps = 25 * System.TicksPerSecond \ (Ticks - t + 1)
 			dw kw_ticks, tmp1
 			dw kw_subvv, tmp1, var_spin_run_t, tmp1
 			dw kw_inc, tmp1
 			dw kw_divlv, 7500, tmp1, var_spin_fps
 
-			; Spin.cls 32: frames = 0 : t = Ticks
+			; Spin.cls 36: frames = 0 : t = Ticks
 			dw kw_ztov, var_spin_frames
 			dw kw_ticks, tmp0
 			dw kw_vtov, tmp0, var_spin_run_t
 
-			; Spin.cls 33: Status
+			; Spin.cls 37: Status
 			dw p_spin_status_c
 
-			; Spin.cls 34: End If
+			; Spin.cls 38: End If
 if6_1:
 
-			; Spin.cls 35: k = UCase$(Inkey$)
+			; Spin.cls 39: k = UCase$(Inkey$)
 			dw kw_inkeys, stmp0
 			dw kw_strucase, var_spin_run_k, stmp0
 
-			; Spin.cls 36: If k = "1" Or k = "2" Or k = "3" Or k = "4" Then shape = Val(k) : MakeShape
+			; Spin.cls 40: If k = "1" Or k = "2" Or k = "3" Or k = "4" Then shape = Val(k) : MakeShape
 			dw kw_strcmpeq, var_spin_run_k, str0
 			dw kw_ftov, tmp0
 			dw kw_strcmpeq, var_spin_run_k, str1
@@ -313,7 +314,7 @@ if6_1:
 			dw p_spin_makeshape_c
 if7_1:
 
-			; Spin.cls 37: If k = "+" Or k = "=" Then size = size + 20 : Vector3D.View 160, 112, size, 768
+			; Spin.cls 41: If k = "+" Or k = "=" Then size = size + 20 : Vector3D.View 160, 112, size, 768
 			dw kw_strcmpeq, var_spin_run_k, str4
 			dw kw_ftov, tmp0
 			dw kw_strcmpeq, var_spin_run_k, str5
@@ -324,7 +325,7 @@ if7_1:
 			dw p_vector3d_view_c, lit_160, lit_112, var_spin_size, lit_768
 if8_1:
 
-			; Spin.cls 38: If k = "-" And size > 60 Then size = size - 20 : Vector3D.View 160, 112, size, 768
+			; Spin.cls 42: If k = "-" And size > 60 Then size = size - 20 : Vector3D.View 160, 112, size, 768
 			dw kw_strcmpeq, var_spin_run_k, str6
 			dw kw_ftov, tmp0
 			dw kw_scpgtvl, var_spin_size, 60
@@ -335,13 +336,13 @@ if8_1:
 			dw p_vector3d_view_c, lit_160, lit_112, var_spin_size, lit_768
 if9_1:
 
-			; Spin.cls 39: If k = "P" Then paused = Not paused
+			; Spin.cls 43: If k = "P" Then paused = Not paused
 			dw kw_strcmpeq, var_spin_run_k, str7
 			dw kw_goto_iffalse_n, if10_1
 			dw kw_notv, var_spin_paused, var_spin_paused
 if10_1:
 
-			; Spin.cls 40: If k = "A" Or k = "B" Or k = "C" Then mode = Asc(k) - 65 : Screen
+			; Spin.cls 47: If k = "A" Or k = "B" Or k = "C" Then mode = Asc(k) - 65 : Screen
 			dw kw_strcmpeq, var_spin_run_k, str8
 			dw kw_ftov, tmp0
 			dw kw_strcmpeq, var_spin_run_k, str9
@@ -356,41 +357,41 @@ if10_1:
 			dw p_spin_screen_c
 if11_1:
 
-			; Spin.cls 41: If k = "D" Then
+			; Spin.cls 48: If k = "D" Then
 			dw kw_strcmpeq, var_spin_run_k, str11
 			dw kw_goto_iffalse_n, if12_1
 
-			; Spin.cls 42: Vector3D.Hide
+			; Spin.cls 49: Vector3D.Hide
 			dw p_vector3d_hide_c
 
-			; Spin.cls 43: dbl = Not dbl
+			; Spin.cls 50: dbl = Not dbl
 			dw kw_notv, var_spin_dbl, var_spin_dbl
 
-			; Spin.cls 44: Graphics.DoubleBuffer dbl
+			; Spin.cls 51: Graphics.DoubleBuffer dbl
 			dw fn_graphics_doublebuffer, var_spin_dbl
 
-			; Spin.cls 45: Status
+			; Spin.cls 52: Status
 			dw p_spin_status_c
 
-			; Spin.cls 46: End If
+			; Spin.cls 53: End If
 if12_1:
 
-			; Spin.cls 47: If k = "T" Then fast = Not fast : Status
+			; Spin.cls 54: If k = "T" Then fast = Not fast : Status
 			dw kw_strcmpeq, var_spin_run_k, str12
 			dw kw_goto_iffalse_n, if13_1
 			dw kw_notv, var_spin_fast, var_spin_fast
 			dw p_spin_status_c
 if13_1:
 
-			; Spin.cls 48: Loop Until k = "X"
+			; Spin.cls 55: Loop Until k = "X"
 			dw kw_strcmpeq, var_spin_run_k, str13
 			dw kw_goto_iffalse_n, do4_t
 do4_e:
 
-			; Spin.cls 49: Vector3D.Hide
+			; Spin.cls 56: Vector3D.Hide
 			dw p_vector3d_hide_c
 
-			; Spin.cls 50: Graphics.DoubleBuffer 0
+			; Spin.cls 57: Graphics.DoubleBuffer 0
 			dw fn_graphics_doublebuffer, lit_0
 			dw p_spin_run_r
 
@@ -400,32 +401,68 @@ do4_e:
 
 p_spin_frame1:
 
-			; Spin.cls 55: Vector3D.Turn ax, ay, az
+			; Spin.cls 65: Dim d As Integer
+
+			; Spin.cls 66: Vector3D.Turn ax, ay, az
 			dw p_vector3d_turn_c, var_spin_ax, var_spin_ay, var_spin_az
 
-			; Spin.cls 56: If dbl = 0 Then Frame
+			; Spin.cls 67: If dbl = 0 Then Frame
 			dw kw_cpeqvl, var_spin_dbl, 0
 			dw kw_goto_iffalse, if14_1
 			dw kw_frame
 if14_1:
 
-			; Spin.cls 57: Vector3D.Show
+			; Spin.cls 68: Vector3D.Show
 			dw p_vector3d_show_c
 
-			; Spin.cls 58: If paused = 0 Then
-			dw kw_cpeqvl, var_spin_paused, 0
-			dw kw_goto_iffalse, if15_1
-
-			; Spin.cls 59: ax = (ax + 2) And 255 : ay = (ay + 3) And 255 : az = (az + 1) And 255
-			dw kw_addl, var_spin_ax, 2, tmp0
-			dw kw_andvl, tmp0, 255, var_spin_ax
-			dw kw_addl, var_spin_ay, 3, tmp0
-			dw kw_andvl, tmp0, 255, var_spin_ay
-			dw kw_addl, var_spin_az, 1, tmp0
-			dw kw_andvl, tmp0, 255, var_spin_az
-
-			; Spin.cls 60: End If
+			; Spin.cls 69: If fast Or System.TicksPerSecond = 0 Then d = 6 Else d = Ticks - lt
+			dw kw_goto_ifzero, var_spin_fast, if15_1
+			dw kw_ltov, 6, var_spin_frame1_d
+			dw if15_e_go
 if15_1:
+			dw kw_ticks, tmp0
+			dw kw_subvv, tmp0, var_spin_lt, var_spin_frame1_d
+if15_e:
+
+			; Spin.cls 70: lt = Ticks
+			dw kw_ticks, tmp0
+			dw kw_vtov, tmp0, var_spin_lt
+
+			; Spin.cls 71: If d < 0 Or d > 60 Then d = 6
+			dw kw_scpltvl, var_spin_frame1_d, 0
+			dw kw_ftov, tmp0
+			dw kw_scpgtvl, var_spin_frame1_d, 60
+			dw kw_ftov, tmp1
+			dw kw_orvv, tmp0, tmp1, tmp0
+			dw kw_goto_ifzero, tmp0, if16_1
+			dw kw_ltov, 6, var_spin_frame1_d
+if16_1:
+
+			; Spin.cls 72: If paused = 0 Then
+			dw kw_cpeqvl, var_spin_paused, 0
+			dw kw_goto_iffalse, if17_1
+
+			; Spin.cls 73: Do While d > 0 : fx = fx + 85 : fy = fy + 128 : fz = fz + 43 : d = d - 1 : Loop
+do18_t:
+			dw kw_scpgtvl, var_spin_frame1_d, 0
+			dw kw_goto_iffalse, do18_e
+			dw kw_addl, var_spin_fx, 85, var_spin_fx
+			dw kw_addl, var_spin_fy, 128, var_spin_fy
+			dw kw_addl, var_spin_fz, 43, var_spin_fz
+			dw kw_dec, var_spin_frame1_d
+			dw do18_t_go
+do18_e:
+
+			; Spin.cls 74: ax = Peek(VarPtr(fx) + 1) : ay = Peek(VarPtr(fy) + 1) : az = Peek(VarPtr(fz) + 1)
+			dw kw_addl, vp_var_spin_fx, 1, tmp0
+			dw kw_vptrtov8, tmp0, var_spin_ax
+			dw kw_addl, vp_var_spin_fy, 1, tmp0
+			dw kw_vptrtov8, tmp0, var_spin_ay
+			dw kw_addl, vp_var_spin_fz, 1, tmp0
+			dw kw_vptrtov8, tmp0, var_spin_az
+
+			; Spin.cls 75: End If
+if17_1:
 			dw p_spin_frame1_r
 
 ; ============================================================
@@ -434,32 +471,68 @@ if15_1:
 
 p_spin_frame1_n:
 
-			; Spin.cls 55: Vector3D.Turn ax, ay, az
+			; Spin.cls 65: Dim d As Integer
+
+			; Spin.cls 66: Vector3D.Turn ax, ay, az
 			dw p_vector3d_turn_n_c, var_spin_ax, var_spin_ay, var_spin_az
 
-			; Spin.cls 56: If dbl = 0 Then Frame
+			; Spin.cls 67: If dbl = 0 Then Frame
 			dw kw_cpeqvl, var_spin_dbl, 0
-			dw kw_goto_iffalse_n, if16_1
+			dw kw_goto_iffalse_n, if19_1
 			dw kw_frame
-if16_1:
+if19_1:
 
-			; Spin.cls 57: Vector3D.Show
+			; Spin.cls 68: Vector3D.Show
 			dw p_vector3d_show_n_c
 
-			; Spin.cls 58: If paused = 0 Then
+			; Spin.cls 69: If fast Or System.TicksPerSecond = 0 Then d = 6 Else d = Ticks - lt
+			dw kw_goto_ifzero_n, var_spin_fast, if20_1
+			dw kw_ltov, 6, var_spin_frame1_d
+			dw if20_e_go
+if20_1:
+			dw kw_ticks, tmp0
+			dw kw_subvv, tmp0, var_spin_lt, var_spin_frame1_d
+if20_e:
+
+			; Spin.cls 70: lt = Ticks
+			dw kw_ticks, tmp0
+			dw kw_vtov, tmp0, var_spin_lt
+
+			; Spin.cls 71: If d < 0 Or d > 60 Then d = 6
+			dw kw_scpltvl, var_spin_frame1_d, 0
+			dw kw_ftov, tmp0
+			dw kw_scpgtvl, var_spin_frame1_d, 60
+			dw kw_ftov, tmp1
+			dw kw_orvv, tmp0, tmp1, tmp0
+			dw kw_goto_ifzero_n, tmp0, if21_1
+			dw kw_ltov, 6, var_spin_frame1_d
+if21_1:
+
+			; Spin.cls 72: If paused = 0 Then
 			dw kw_cpeqvl, var_spin_paused, 0
-			dw kw_goto_iffalse_n, if17_1
+			dw kw_goto_iffalse_n, if22_1
 
-			; Spin.cls 59: ax = (ax + 2) And 255 : ay = (ay + 3) And 255 : az = (az + 1) And 255
-			dw kw_addl, var_spin_ax, 2, tmp0
-			dw kw_andvl, tmp0, 255, var_spin_ax
-			dw kw_addl, var_spin_ay, 3, tmp0
-			dw kw_andvl, tmp0, 255, var_spin_ay
-			dw kw_addl, var_spin_az, 1, tmp0
-			dw kw_andvl, tmp0, 255, var_spin_az
+			; Spin.cls 73: Do While d > 0 : fx = fx + 85 : fy = fy + 128 : fz = fz + 43 : d = d - 1 : Loop
+do23_t:
+			dw kw_scpgtvl, var_spin_frame1_d, 0
+			dw kw_goto_iffalse_n, do23_e
+			dw kw_addl, var_spin_fx, 85, var_spin_fx
+			dw kw_addl, var_spin_fy, 128, var_spin_fy
+			dw kw_addl, var_spin_fz, 43, var_spin_fz
+			dw kw_dec, var_spin_frame1_d
+			dw do23_t_go
+do23_e:
 
-			; Spin.cls 60: End If
-if17_1:
+			; Spin.cls 74: ax = Peek(VarPtr(fx) + 1) : ay = Peek(VarPtr(fy) + 1) : az = Peek(VarPtr(fz) + 1)
+			dw kw_addl, vp_var_spin_fx, 1, tmp0
+			dw kw_vptrtov8, tmp0, var_spin_ax
+			dw kw_addl, vp_var_spin_fy, 1, tmp0
+			dw kw_vptrtov8, tmp0, var_spin_ay
+			dw kw_addl, vp_var_spin_fz, 1, tmp0
+			dw kw_vptrtov8, tmp0, var_spin_az
+
+			; Spin.cls 75: End If
+if22_1:
 			dw p_spin_frame1_n_r
 
 ; ============================================================
@@ -468,37 +541,37 @@ if17_1:
 
 p_spin_screen:
 
-			; Spin.cls 65: Vector3D.Hide
+			; Spin.cls 80: Vector3D.Hide
 			dw p_vector3d_hide_c
 
-			; Spin.cls 66: Graphics.DoubleBuffer 0
+			; Spin.cls 81: Graphics.DoubleBuffer 0
 			dw fn_graphics_doublebuffer, lit_0
 
-			; Spin.cls 67: Mode mode
+			; Spin.cls 85: Mode mode
 			dw kw_modev, var_spin_mode
 
-			; Spin.cls 68: Vector3D.Forget
+			; Spin.cls 87: Vector3D.Forget
 			dw p_vector3d_forget_c
 
-			; Spin.cls 69: Print "1-4 shape A-C mode"
+			; Spin.cls 88: Print "1-4 shape A-C mode"
 			dw kw_printzoscii
 			dw glyph_31, glyph_2D, glyph_34, glyph_20, glyph_73, glyph_68, glyph_61, glyph_70
 			dw glyph_65, glyph_20, glyph_41, glyph_2D, glyph_43, glyph_20, glyph_6D, glyph_6F
 			dw glyph_64, glyph_65, 1, 0		; "1-4 shape A-C mode\n"
 
-			; Spin.cls 70: Print "D double T turbo +-PX"
+			; Spin.cls 89: Print "D double T turbo +-PX"
 			dw kw_printzoscii
 			dw glyph_44, glyph_20, glyph_64, glyph_6F, glyph_75, glyph_62, glyph_6C, glyph_65
 			dw glyph_20, glyph_54, glyph_20, glyph_74, glyph_75, glyph_72, glyph_62, glyph_6F
 			dw glyph_20, glyph_2B, glyph_2D, glyph_50, glyph_58, 1, 0		; "D double T turbo +-PX\n"
 
-			; Spin.cls 71: Status
+			; Spin.cls 90: Status
 			dw p_spin_status_c
 
-			; Spin.cls 72: If dbl Then Graphics.DoubleBuffer 1
-			dw kw_goto_ifzero_n, var_spin_dbl, if18_1
+			; Spin.cls 91: If dbl Then Graphics.DoubleBuffer 1
+			dw kw_goto_ifzero_n, var_spin_dbl, if24_1
 			dw fn_graphics_doublebuffer, lit_1
-if18_1:
+if24_1:
 			dw p_spin_screen_r
 
 ; ============================================================
@@ -507,41 +580,41 @@ if18_1:
 
 p_spin_status:
 
-			; Spin.cls 77: Locate 1, 3
+			; Spin.cls 96: Locate 1, 3
 			dw kw_locatell, 1, 3
 
-			; Spin.cls 78: Print "M"; mode; IIf(dbl, " dbl", " one"); IIf(fast, " turbo ", " normal "); fps; "fps  ";
+			; Spin.cls 97: Print "M"; mode; IIf(dbl, " dbl", " one"); IIf(fast, " turbo ", " normal "); fps; "fps  ";
 			dw kw_printzoscii
 			dw glyph_4D, 0		; "M"
 			dw kw_printint, var_spin_mode
-			dw kw_goto_ifzero_n, var_spin_dbl, ch19_0
+			dw kw_goto_ifzero_n, var_spin_dbl, ch25_0
 			dw kw_strcpy, stmp0, str14
-			dw ch19_e_go
-ch19_0:
+			dw ch25_e_go
+ch25_0:
 			dw kw_strcpy, stmp0, str15
-			dw ch19_e_go
-ch19_1:
+			dw ch25_e_go
+ch25_1:
 			dw kw_strcpy, stmp0, str16
-ch19_e:
+ch25_e:
 			dw kw_printstrvar, stmp0
-			dw kw_goto_ifzero_n, var_spin_fast, ch20_0
+			dw kw_goto_ifzero_n, var_spin_fast, ch26_0
 			dw kw_strcpy, stmp0, str17
-			dw ch20_e_go
-ch20_0:
+			dw ch26_e_go
+ch26_0:
 			dw kw_strcpy, stmp0, str18
-			dw ch20_e_go
-ch20_1:
+			dw ch26_e_go
+ch26_1:
 			dw kw_strcpy, stmp0, str16
-ch20_e:
+ch26_e:
 			dw kw_printstrvar, stmp0
 			dw kw_printint, var_spin_fps
 			dw kw_printzoscii
 			dw glyph_66, glyph_70, glyph_73, glyph_20, glyph_20, 0		; "fps  "
 
-			; Spin.cls 79: If dbl Then Graphics.CopyText 3
-			dw kw_goto_ifzero_n, var_spin_dbl, if21_1
+			; Spin.cls 98: If dbl Then Graphics.CopyText 3
+			dw kw_goto_ifzero_n, var_spin_dbl, if27_1
 			dw fn_graphics_copytext, lit_3
-if21_1:
+if27_1:
 			dw p_spin_status_r
 
 ; ============================================================
@@ -550,53 +623,53 @@ if21_1:
 
 p_spin_makeshape:
 
-			; Spin.cls 84: Vector3D.Hide
+			; Spin.cls 103: Vector3D.Hide
 			dw p_vector3d_hide_c
 
-			; Spin.cls 85: Vector3D.Clear
+			; Spin.cls 104: Vector3D.Clear
 			dw p_vector3d_clear_c
 
-			; Spin.cls 86: Vector3D.View 160, 112, size, 768
+			; Spin.cls 105: Vector3D.View 160, 112, size, 768
 			dw p_vector3d_view_c, lit_160, lit_112, var_spin_size, lit_768
 
-			; Spin.cls 87: Select Case shape
-			dw kw_vtov, var_spin_shape, var_spin_makeshape___sel22
+			; Spin.cls 106: Select Case shape
+			dw kw_vtov, var_spin_shape, var_spin_makeshape___sel28
 
-			; Spin.cls 88: Case 1: Cube 0, 0, 128
-			dw kw_cpeqvl, var_spin_makeshape___sel22, 1
-			dw kw_goto_iffalse_n, sel22_1
-sel22_b1:
+			; Spin.cls 107: Case 1: Cube 0, 0, 128
+			dw kw_cpeqvl, var_spin_makeshape___sel28, 1
+			dw kw_goto_iffalse_n, sel28_1
+sel28_b1:
 			dw p_spin_cube_c, lit_0, lit_0, lit_128
 
-			; Spin.cls 89: Case 2: Pyramid 0, 0, 128
-			dw sel22_e_go
-sel22_1:
-			dw kw_cpeqvl, var_spin_makeshape___sel22, 2
-			dw kw_goto_iffalse_n, sel22_2
-sel22_b2:
+			; Spin.cls 108: Case 2: Pyramid 0, 0, 128
+			dw sel28_e_go
+sel28_1:
+			dw kw_cpeqvl, var_spin_makeshape___sel28, 2
+			dw kw_goto_iffalse_n, sel28_2
+sel28_b2:
 			dw p_spin_pyramid_c, lit_0, lit_0, lit_128
 
-			; Spin.cls 90: Case 3: Cobra
-			dw sel22_e_go
-sel22_2:
-			dw kw_cpeqvl, var_spin_makeshape___sel22, 3
-			dw kw_goto_iffalse_n, sel22_3
-sel22_b3:
+			; Spin.cls 109: Case 3: Cobra
+			dw sel28_e_go
+sel28_2:
+			dw kw_cpeqvl, var_spin_makeshape___sel28, 3
+			dw kw_goto_iffalse_n, sel28_3
+sel28_b3:
 			dw p_spin_cobra_c
 
-			; Spin.cls 91: Case 4: Cube -170, 0, 64 : Pyramid 170, 0, 64 : Cube 0, 0, 40
-			dw sel22_e_go
-sel22_3:
-			dw kw_cpeqvl, var_spin_makeshape___sel22, 4
-			dw kw_goto_iffalse_n, sel22_4
-sel22_b4:
+			; Spin.cls 110: Case 4: Cube -170, 0, 64 : Pyramid 170, 0, 64 : Cube 0, 0, 40
+			dw sel28_e_go
+sel28_3:
+			dw kw_cpeqvl, var_spin_makeshape___sel28, 4
+			dw kw_goto_iffalse_n, sel28_4
+sel28_b4:
 			dw p_spin_cube_c, lit_m170, lit_0, lit_64
 			dw p_spin_pyramid_c, lit_170, lit_0, lit_64
 			dw p_spin_cube_c, lit_0, lit_0, lit_40
 
-			; Spin.cls 92: End Select
-sel22_4:
-sel22_e:
+			; Spin.cls 111: End Select
+sel28_4:
+sel28_e:
 			dw p_spin_makeshape_r
 
 ; ============================================================
@@ -605,100 +678,100 @@ sel22_e:
 
 p_spin_cube:
 
-			; Spin.cls 97: Dim p As Integer, i As Integer
+			; Spin.cls 116: Dim p As Integer, i As Integer
 
-			; Spin.cls 98: p = Vector3D.Points()
+			; Spin.cls 117: p = Vector3D.Points()
 			dw p_vector3d_points_c
 			dw kw_vtov, var_vector3d_points_points, var_spin_cube_p
 
-			; Spin.cls 99: For i = 0 To 7
+			; Spin.cls 118: For i = 0 To 7
 			dw kw_ztov, var_spin_cube_i
-for23_t:
+for29_t:
 
-			; Spin.cls 100: If Vector3D.AddPoint(x + IIf(i And 1, h, -h), y + IIf(i And 2, h, -h), IIf(i And 4, h, -h)) < 0 Then Exit Sub
+			; Spin.cls 119: If Vector3D.AddPoint(x + IIf(i And 1, h, -h), y + IIf(i And 2, h, -h), IIf(i And 4, h, -h)) < 0 Then Exit Sub
 			dw kw_andvl, var_spin_cube_i, 1, tmp1
 			dw kw_negv, var_spin_cube_h, tmp3
-			dw kw_goto_ifzero_n, tmp1, ch25_0
+			dw kw_goto_ifzero_n, tmp1, ch31_0
 			dw kw_vtov, var_spin_cube_h, tmp1
-			dw ch25_e_go
-ch25_0:
+			dw ch31_e_go
+ch31_0:
 			dw kw_vtov, tmp3, tmp1
-			dw ch25_e_go
-ch25_1:
+			dw ch31_e_go
+ch31_1:
 			dw kw_ztov, tmp1
-ch25_e:
+ch31_e:
 			dw kw_add, var_spin_cube_x, tmp1, tmp0
 			dw kw_andvl, var_spin_cube_i, 2, tmp2
 			dw kw_negv, var_spin_cube_h, tmp4
-			dw kw_goto_ifzero_n, tmp2, ch26_0
+			dw kw_goto_ifzero_n, tmp2, ch32_0
 			dw kw_vtov, var_spin_cube_h, tmp2
-			dw ch26_e_go
-ch26_0:
+			dw ch32_e_go
+ch32_0:
 			dw kw_vtov, tmp4, tmp2
-			dw ch26_e_go
-ch26_1:
+			dw ch32_e_go
+ch32_1:
 			dw kw_ztov, tmp2
-ch26_e:
+ch32_e:
 			dw kw_add, var_spin_cube_y, tmp2, tmp1
 			dw kw_andvl, var_spin_cube_i, 4, tmp2
 			dw kw_negv, var_spin_cube_h, tmp4
-			dw kw_goto_ifzero_n, tmp2, ch27_0
+			dw kw_goto_ifzero_n, tmp2, ch33_0
 			dw kw_vtov, var_spin_cube_h, tmp2
-			dw ch27_e_go
-ch27_0:
+			dw ch33_e_go
+ch33_0:
 			dw kw_vtov, tmp4, tmp2
-			dw ch27_e_go
-ch27_1:
+			dw ch33_e_go
+ch33_1:
 			dw kw_ztov, tmp2
-ch27_e:
+ch33_e:
 			dw p_vector3d_addpoint_c, tmp0, tmp1, tmp2
 			dw kw_vtov, var_vector3d_addpoint_addpoint, tmp0
 			dw kw_scpltvl, tmp0, 0
-			dw kw_goto_iffalse_n, if24_1
+			dw kw_goto_iffalse_n, if30_1
 			dw p_spin_cube_r
-if24_1:
+if30_1:
 
-			; Spin.cls 101: Next
-			dw kw_next1l_n, var_spin_cube_i, 7, for23_t
-for23_e:
+			; Spin.cls 120: Next
+			dw kw_next1l_n, var_spin_cube_i, 7, for29_t
+for29_e:
 
-			; Spin.cls 103: For i = 0 To 7
+			; Spin.cls 122: For i = 0 To 7
 			dw kw_ztov, var_spin_cube_i
-for28_t:
+for34_t:
 
-			; Spin.cls 104: If (i And 1) = 0 Then Vector3D.AddEdge p + i, p + i + 1
+			; Spin.cls 123: If (i And 1) = 0 Then Vector3D.AddEdge p + i, p + i + 1
 			dw kw_andvl, var_spin_cube_i, 1, tmp0
 			dw kw_cpeqvl, tmp0, 0
-			dw kw_goto_iffalse_n, if29_1
+			dw kw_goto_iffalse_n, if35_1
 			dw kw_add, var_spin_cube_p, var_spin_cube_i, tmp0
 			dw kw_add, var_spin_cube_p, var_spin_cube_i, tmp1
 			dw kw_inc, tmp1
 			dw p_vector3d_addedge_c, tmp0, tmp1
-if29_1:
+if35_1:
 
-			; Spin.cls 105: If (i And 2) = 0 Then Vector3D.AddEdge p + i, p + i + 2
+			; Spin.cls 124: If (i And 2) = 0 Then Vector3D.AddEdge p + i, p + i + 2
 			dw kw_andvl, var_spin_cube_i, 2, tmp0
 			dw kw_cpeqvl, tmp0, 0
-			dw kw_goto_iffalse_n, if30_1
+			dw kw_goto_iffalse_n, if36_1
 			dw kw_add, var_spin_cube_p, var_spin_cube_i, tmp0
 			dw kw_add, var_spin_cube_p, var_spin_cube_i, tmp1
 			dw kw_addl, tmp1, 2, tmp1
 			dw p_vector3d_addedge_c, tmp0, tmp1
-if30_1:
+if36_1:
 
-			; Spin.cls 106: If (i And 4) = 0 Then Vector3D.AddEdge p + i, p + i + 4
+			; Spin.cls 125: If (i And 4) = 0 Then Vector3D.AddEdge p + i, p + i + 4
 			dw kw_andvl, var_spin_cube_i, 4, tmp0
 			dw kw_cpeqvl, tmp0, 0
-			dw kw_goto_iffalse_n, if31_1
+			dw kw_goto_iffalse_n, if37_1
 			dw kw_add, var_spin_cube_p, var_spin_cube_i, tmp0
 			dw kw_add, var_spin_cube_p, var_spin_cube_i, tmp1
 			dw kw_addl, tmp1, 4, tmp1
 			dw p_vector3d_addedge_c, tmp0, tmp1
-if31_1:
+if37_1:
 
-			; Spin.cls 107: Next
-			dw kw_next1l_n, var_spin_cube_i, 7, for28_t
-for28_e:
+			; Spin.cls 126: Next
+			dw kw_next1l_n, var_spin_cube_i, 7, for34_t
+for34_e:
 			dw p_spin_cube_r
 
 ; ============================================================
@@ -707,63 +780,63 @@ for28_e:
 
 p_spin_pyramid:
 
-			; Spin.cls 112: Dim p As Integer, r As Integer, i As Integer
+			; Spin.cls 131: Dim p As Integer, r As Integer, i As Integer
 
-			; Spin.cls 113: p = Vector3D.Points()
+			; Spin.cls 132: p = Vector3D.Points()
 			dw p_vector3d_points_c
 			dw kw_vtov, var_vector3d_points_points, var_spin_pyramid_p
 
-			; Spin.cls 114: r = Vector3D.AddPoint(x - h, y - h, -h)
+			; Spin.cls 133: r = Vector3D.AddPoint(x - h, y - h, -h)
 			dw kw_subvv, var_spin_pyramid_x, var_spin_pyramid_h, tmp0
 			dw kw_subvv, var_spin_pyramid_y, var_spin_pyramid_h, tmp1
 			dw kw_negv, var_spin_pyramid_h, tmp2
 			dw p_vector3d_addpoint_c, tmp0, tmp1, tmp2
 			dw kw_vtov, var_vector3d_addpoint_addpoint, var_spin_pyramid_r
 
-			; Spin.cls 115: r = Vector3D.AddPoint(x + h, y - h, -h)
+			; Spin.cls 134: r = Vector3D.AddPoint(x + h, y - h, -h)
 			dw kw_add, var_spin_pyramid_x, var_spin_pyramid_h, tmp0
 			dw kw_subvv, var_spin_pyramid_y, var_spin_pyramid_h, tmp1
 			dw kw_negv, var_spin_pyramid_h, tmp2
 			dw p_vector3d_addpoint_c, tmp0, tmp1, tmp2
 			dw kw_vtov, var_vector3d_addpoint_addpoint, var_spin_pyramid_r
 
-			; Spin.cls 116: r = Vector3D.AddPoint(x + h, y + h, -h)
+			; Spin.cls 135: r = Vector3D.AddPoint(x + h, y + h, -h)
 			dw kw_add, var_spin_pyramid_x, var_spin_pyramid_h, tmp0
 			dw kw_add, var_spin_pyramid_y, var_spin_pyramid_h, tmp1
 			dw kw_negv, var_spin_pyramid_h, tmp2
 			dw p_vector3d_addpoint_c, tmp0, tmp1, tmp2
 			dw kw_vtov, var_vector3d_addpoint_addpoint, var_spin_pyramid_r
 
-			; Spin.cls 117: r = Vector3D.AddPoint(x - h, y + h, -h)
+			; Spin.cls 136: r = Vector3D.AddPoint(x - h, y + h, -h)
 			dw kw_subvv, var_spin_pyramid_x, var_spin_pyramid_h, tmp0
 			dw kw_add, var_spin_pyramid_y, var_spin_pyramid_h, tmp1
 			dw kw_negv, var_spin_pyramid_h, tmp2
 			dw p_vector3d_addpoint_c, tmp0, tmp1, tmp2
 			dw kw_vtov, var_vector3d_addpoint_addpoint, var_spin_pyramid_r
 
-			; Spin.cls 118: r = Vector3D.AddPoint(x, y, h)
+			; Spin.cls 137: r = Vector3D.AddPoint(x, y, h)
 			dw p_vector3d_addpoint_c, var_spin_pyramid_x, var_spin_pyramid_y, var_spin_pyramid_h
 			dw kw_vtov, var_vector3d_addpoint_addpoint, var_spin_pyramid_r
 
-			; Spin.cls 119: For i = 0 To 3
+			; Spin.cls 138: For i = 0 To 3
 			dw kw_ztov, var_spin_pyramid_i
-for32_t:
+for38_t:
 
-			; Spin.cls 120: Vector3D.AddEdge p + i, p + ((i + 1) And 3)
+			; Spin.cls 139: Vector3D.AddEdge p + i, p + ((i + 1) And 3)
 			dw kw_add, var_spin_pyramid_p, var_spin_pyramid_i, tmp0
 			dw kw_addl, var_spin_pyramid_i, 1, tmp2
 			dw kw_andvl, tmp2, 3, tmp2
 			dw kw_add, var_spin_pyramid_p, tmp2, tmp1
 			dw p_vector3d_addedge_c, tmp0, tmp1
 
-			; Spin.cls 121: Vector3D.AddEdge p + i, p + 4
+			; Spin.cls 140: Vector3D.AddEdge p + i, p + 4
 			dw kw_add, var_spin_pyramid_p, var_spin_pyramid_i, tmp0
 			dw kw_addl, var_spin_pyramid_p, 4, tmp1
 			dw p_vector3d_addedge_c, tmp0, tmp1
 
-			; Spin.cls 122: Next
-			dw kw_next1l_n, var_spin_pyramid_i, 3, for32_t
-for32_e:
+			; Spin.cls 141: Next
+			dw kw_next1l_n, var_spin_pyramid_i, 3, for38_t
+for38_e:
 			dw p_spin_pyramid_r
 
 ; ============================================================
@@ -772,51 +845,51 @@ for32_e:
 
 p_spin_cobra:
 
-			; Spin.cls 127: Dim r As Integer
+			; Spin.cls 146: Dim r As Integer
 
-			; Spin.cls 128: r = Vector3D.AddPoint(0, 213, 0) : r = Vector3D.AddPoint(0, 128, 0)
+			; Spin.cls 147: r = Vector3D.AddPoint(0, 213, 0) : r = Vector3D.AddPoint(0, 128, 0)
 			dw p_vector3d_addpoint_c, lit_0, lit_213, lit_0
 			dw kw_vtov, var_vector3d_addpoint_addpoint, var_spin_cobra_r
 			dw p_vector3d_addpoint_c, lit_0, lit_128, lit_0
 			dw kw_vtov, var_vector3d_addpoint_addpoint, var_spin_cobra_r
 
-			; Spin.cls 129: r = Vector3D.AddPoint(-85, 128, 0) : r = Vector3D.AddPoint(85, 128, 0)
+			; Spin.cls 148: r = Vector3D.AddPoint(-85, 128, 0) : r = Vector3D.AddPoint(85, 128, 0)
 			dw p_vector3d_addpoint_c, lit_m85, lit_128, lit_0
 			dw kw_vtov, var_vector3d_addpoint_addpoint, var_spin_cobra_r
 			dw p_vector3d_addpoint_c, lit_85, lit_128, lit_0
 			dw kw_vtov, var_vector3d_addpoint_addpoint, var_spin_cobra_r
 
-			; Spin.cls 130: r = Vector3D.AddPoint(-238, -128, 0) : r = Vector3D.AddPoint(-256, -213, 0)
+			; Spin.cls 149: r = Vector3D.AddPoint(-238, -128, 0) : r = Vector3D.AddPoint(-256, -213, 0)
 			dw p_vector3d_addpoint_c, lit_m238, lit_m128, lit_0
 			dw kw_vtov, var_vector3d_addpoint_addpoint, var_spin_cobra_r
 			dw p_vector3d_addpoint_c, lit_m256, lit_m213, lit_0
 			dw kw_vtov, var_vector3d_addpoint_addpoint, var_spin_cobra_r
 
-			; Spin.cls 131: r = Vector3D.AddPoint(-85, -213, -34) : r = Vector3D.AddPoint(85, -213, -34)
+			; Spin.cls 150: r = Vector3D.AddPoint(-85, -213, -34) : r = Vector3D.AddPoint(85, -213, -34)
 			dw p_vector3d_addpoint_c, lit_m85, lit_m213, lit_m34
 			dw kw_vtov, var_vector3d_addpoint_addpoint, var_spin_cobra_r
 			dw p_vector3d_addpoint_c, lit_85, lit_m213, lit_m34
 			dw kw_vtov, var_vector3d_addpoint_addpoint, var_spin_cobra_r
 
-			; Spin.cls 132: r = Vector3D.AddPoint(256, -213, 0) : r = Vector3D.AddPoint(238, -128, 0)
+			; Spin.cls 151: r = Vector3D.AddPoint(256, -213, 0) : r = Vector3D.AddPoint(238, -128, 0)
 			dw p_vector3d_addpoint_c, lit_256, lit_m213, lit_0
 			dw kw_vtov, var_vector3d_addpoint_addpoint, var_spin_cobra_r
 			dw p_vector3d_addpoint_c, lit_238, lit_m128, lit_0
 			dw kw_vtov, var_vector3d_addpoint_addpoint, var_spin_cobra_r
 
-			; Spin.cls 133: r = Vector3D.AddPoint(0, 42, 85) : r = Vector3D.AddPoint(-170, -213, 59)
+			; Spin.cls 152: r = Vector3D.AddPoint(0, 42, 85) : r = Vector3D.AddPoint(-170, -213, 59)
 			dw p_vector3d_addpoint_c, lit_0, lit_42, lit_85
 			dw kw_vtov, var_vector3d_addpoint_addpoint, var_spin_cobra_r
 			dw p_vector3d_addpoint_c, lit_m170, lit_m213, lit_59
 			dw kw_vtov, var_vector3d_addpoint_addpoint, var_spin_cobra_r
 
-			; Spin.cls 134: r = Vector3D.AddPoint(0, -213, 85) : r = Vector3D.AddPoint(170, -213, 59)
+			; Spin.cls 153: r = Vector3D.AddPoint(0, -213, 85) : r = Vector3D.AddPoint(170, -213, 59)
 			dw p_vector3d_addpoint_c, lit_0, lit_m213, lit_85
 			dw kw_vtov, var_vector3d_addpoint_addpoint, var_spin_cobra_r
 			dw p_vector3d_addpoint_c, lit_170, lit_m213, lit_59
 			dw kw_vtov, var_vector3d_addpoint_addpoint, var_spin_cobra_r
 
-			; Spin.cls 135: Edge 0, 1 : Edge 2, 3 : Edge 2, 4 : Edge 4, 5 : Edge 5, 6 : Edge 6, 7
+			; Spin.cls 154: Edge 0, 1 : Edge 2, 3 : Edge 2, 4 : Edge 4, 5 : Edge 5, 6 : Edge 6, 7
 			dw p_spin_edge_c, lit_0, lit_1
 			dw p_spin_edge_c, lit_2, lit_3
 			dw p_spin_edge_c, lit_2, lit_4
@@ -824,7 +897,7 @@ p_spin_cobra:
 			dw p_spin_edge_c, lit_5, lit_6
 			dw p_spin_edge_c, lit_6, lit_7
 
-			; Spin.cls 136: Edge 7, 8 : Edge 8, 9 : Edge 9, 3 : Edge 2, 6 : Edge 3, 7 : Edge 2, 10
+			; Spin.cls 155: Edge 7, 8 : Edge 8, 9 : Edge 9, 3 : Edge 2, 6 : Edge 3, 7 : Edge 2, 10
 			dw p_spin_edge_c, lit_7, lit_8
 			dw p_spin_edge_c, lit_8, lit_9
 			dw p_spin_edge_c, lit_9, lit_3
@@ -832,7 +905,7 @@ p_spin_cobra:
 			dw p_spin_edge_c, lit_3, lit_7
 			dw p_spin_edge_c, lit_2, lit_10
 
-			; Spin.cls 137: Edge 10, 3 : Edge 10, 11 : Edge 10, 12 : Edge 10, 13 : Edge 2, 11 : Edge 3, 13
+			; Spin.cls 156: Edge 10, 3 : Edge 10, 11 : Edge 10, 12 : Edge 10, 13 : Edge 2, 11 : Edge 3, 13
 			dw p_spin_edge_c, lit_10, lit_3
 			dw p_spin_edge_c, lit_10, lit_11
 			dw p_spin_edge_c, lit_10, lit_12
@@ -840,7 +913,7 @@ p_spin_cobra:
 			dw p_spin_edge_c, lit_2, lit_11
 			dw p_spin_edge_c, lit_3, lit_13
 
-			; Spin.cls 138: Edge 5, 11 : Edge 11, 12 : Edge 12, 13 : Edge 13, 8 : Edge 13, 9 : Edge 11, 4
+			; Spin.cls 157: Edge 5, 11 : Edge 11, 12 : Edge 12, 13 : Edge 13, 8 : Edge 13, 9 : Edge 11, 4
 			dw p_spin_edge_c, lit_5, lit_11
 			dw p_spin_edge_c, lit_11, lit_12
 			dw p_spin_edge_c, lit_12, lit_13
@@ -855,7 +928,7 @@ p_spin_cobra:
 
 p_spin_edge:
 
-			; Spin.cls 142: Vector3D.AddEdge a, b
+			; Spin.cls 161: Vector3D.AddEdge a, b
 			dw p_vector3d_addedge_c, var_spin_edge_a, var_spin_edge_b
 			dw p_spin_edge_r
 
@@ -870,17 +943,25 @@ p_spin_edge:
 
 if5_e_go:			ld sp, if5_e
 			jp ntc_xn
-ch19_e_go:			ld sp, ch19_e
+if15_e_go:			ld sp, if15_e
+			ret
+do18_t_go:			ld sp, do18_t
+			ret
+if20_e_go:			ld sp, if20_e
 			jp ntc_xn
-ch20_e_go:			ld sp, ch20_e
-			jp ntc_xn
-sel22_e_go:			ld sp, sel22_e
+do23_t_go:			ld sp, do23_t
 			jp ntc_xn
 ch25_e_go:			ld sp, ch25_e
 			jp ntc_xn
 ch26_e_go:			ld sp, ch26_e
 			jp ntc_xn
-ch27_e_go:			ld sp, ch27_e
+sel28_e_go:			ld sp, sel28_e
+			jp ntc_xn
+ch31_e_go:			ld sp, ch31_e
+			jp ntc_xn
+ch32_e_go:			ld sp, ch32_e
+			jp ntc_xn
+ch33_e_go:			ld sp, ch33_e
 			jp ntc_xn
 
 p_vector3d_clear_c:		; call clear (normal)
@@ -1075,6 +1156,8 @@ p_spin_run_r:		; end of run
 			ld sp, (p_spin_run_rs)
 			jp ntc_xn
 p_spin_frame1_c:		; call frame1 (turbo)
+			ld hl, 0
+			ld (var_spin_frame1_d), hl
 			ld (p_spin_frame1_rs), sp
 			ld sp, p_spin_frame1
 			ret
@@ -1082,6 +1165,8 @@ p_spin_frame1_r:		; end of frame1
 			ld sp, (p_spin_frame1_rs)
 			ret
 p_spin_frame1_n_c:		; call frame1 (normal)
+			ld hl, 0
+			ld (var_spin_frame1_d), hl
 			ld (p_spin_frame1_rs), sp
 			ld sp, p_spin_frame1_n
 			jp ntc_xn
@@ -1194,920 +1279,1038 @@ p_spin_edge_r:		; end of edge
 ; Inline assembly (#asm ... #endasm)
 ; ============================================================
 
-asm_1_94:		; #asm, Vector3D.cls line 94
-            ld a, (var_vector3d_turn_ax)		; Vector3D.cls 95
-            ld c, a		; Vector3D.cls 96
-            ld a, (var_vector3d_turn_ay)		; Vector3D.cls 97
-            ld b, a		; Vector3D.cls 98
-            ld a, (var_vector3d_turn_az)		; Vector3D.cls 99
-            ld e, a		; Vector3D.cls 100
-            ld (var_vector3d_spsave), sp       ; the real stack for the work (calls, pushes) [101]
-            ld sp, (ntc_csp)		; Vector3D.cls 102
-            ei                      ; interrupts in while it works, in both modes (the [103]
+asm_1_95:		; #asm, Vector3D.cls line 95
+            ld a, (var_vector3d_turn_ax)		; Vector3D.cls 96
+            ld c, a		; Vector3D.cls 97
+            ld a, (var_vector3d_turn_ay)		; Vector3D.cls 98
+            ld b, a		; Vector3D.cls 99
+            ld a, (var_vector3d_turn_az)		; Vector3D.cls 100
+            ld e, a		; Vector3D.cls 101
+            ld (var_vector3d_spsave), sp       ; the real stack for the work (calls, pushes) [102]
+            ld sp, (ntc_csp)		; Vector3D.cls 103
+            ei                      ; interrupts in while it works, in both modes (the [104]
                                     ; real stack): Ticks keeps counting in turbo too
-            push de		; Vector3D.cls 105
-            push bc		; Vector3D.cls 106
-            ld a, c		; Vector3D.cls 107
-            call asm_1_94_t_sc		; Vector3D.cls 108
-            ld (var_vector3d_sinx), de		; Vector3D.cls 109
-            ld (var_vector3d_cosx), hl		; Vector3D.cls 110
-            pop bc		; Vector3D.cls 111
-            ld a, b		; Vector3D.cls 112
-            call asm_1_94_t_sc		; Vector3D.cls 113
-            ld (var_vector3d_siny), de		; Vector3D.cls 114
-            ld (var_vector3d_cosy), hl		; Vector3D.cls 115
-            pop de		; Vector3D.cls 116
-            ld a, e		; Vector3D.cls 117
-            call asm_1_94_t_sc		; Vector3D.cls 118
-            ld (var_vector3d_sinz), de		; Vector3D.cls 119
-            ld (var_vector3d_cosz), hl		; Vector3D.cls 120
-            ld hl, 0		; Vector3D.cls 121
-            ld (var_vector3d_pk), hl		; Vector3D.cls 122
-            ld a, (var_vector3d_np)		; Vector3D.cls 123
-            or a		; Vector3D.cls 124
-            jp z, asm_1_94_t_done		; Vector3D.cls 125
-            ld (var_vector3d_pn), a		; Vector3D.cls 126
-asm_1_94_t_pt:		; Vector3D.cls 127
-            ld de, (var_vector3d_pk)		; Vector3D.cls 128
-            ld hl, arr_vector3d_px		; Vector3D.cls 129
-            call asm_1_94_t_get		; Vector3D.cls 130
-            ld (var_vector3d_tx), hl		; Vector3D.cls 131
-            ld hl, arr_vector3d_py		; Vector3D.cls 132
-            call asm_1_94_t_get		; Vector3D.cls 133
-            ld (var_vector3d_ty), hl		; Vector3D.cls 134
-            ld hl, arr_vector3d_pz		; Vector3D.cls 135
-            call asm_1_94_t_get		; Vector3D.cls 136
-            ld (var_vector3d_tz), hl		; Vector3D.cls 137
+            push de		; Vector3D.cls 106
+            push bc		; Vector3D.cls 107
+            ld a, c		; Vector3D.cls 108
+            call asm_1_95_t_sc		; Vector3D.cls 109
+            ld (var_vector3d_sinx), de		; Vector3D.cls 110
+            ld (var_vector3d_cosx), hl		; Vector3D.cls 111
+            pop bc		; Vector3D.cls 112
+            ld a, b		; Vector3D.cls 113
+            call asm_1_95_t_sc		; Vector3D.cls 114
+            ld (var_vector3d_siny), de		; Vector3D.cls 115
+            ld (var_vector3d_cosy), hl		; Vector3D.cls 116
+            pop de		; Vector3D.cls 117
+            ld a, e		; Vector3D.cls 118
+            call asm_1_95_t_sc		; Vector3D.cls 119
+            ld (var_vector3d_sinz), de		; Vector3D.cls 120
+            ld (var_vector3d_cosz), hl		; Vector3D.cls 121
+            ld hl, 0		; Vector3D.cls 122
+            ld (var_vector3d_pk), hl		; Vector3D.cls 123
+            ld a, (var_vector3d_np)		; Vector3D.cls 124
+            or a		; Vector3D.cls 125
+            jp z, asm_1_95_t_done		; Vector3D.cls 126
+            ld (var_vector3d_pn), a		; Vector3D.cls 127
+asm_1_95_t_pt:		; Vector3D.cls 128
+            ld de, (var_vector3d_pk)		; Vector3D.cls 129
+            ld hl, arr_vector3d_px		; Vector3D.cls 130
+            call asm_1_95_t_get		; Vector3D.cls 131
+            ld (var_vector3d_tx), hl		; Vector3D.cls 132
+            ld hl, arr_vector3d_py		; Vector3D.cls 133
+            call asm_1_95_t_get		; Vector3D.cls 134
+            ld (var_vector3d_ty), hl		; Vector3D.cls 135
+            ld hl, arr_vector3d_pz		; Vector3D.cls 136
+            call asm_1_95_t_get		; Vector3D.cls 137
+            ld (var_vector3d_tz), hl		; Vector3D.cls 138
             ; round X: y' = y cos - z sin, z' = y sin + z cos
-            ld hl, (var_vector3d_ty)		; Vector3D.cls 139
-            ld de, (var_vector3d_cosx)		; Vector3D.cls 140
-            call asm_1_94_t_mul		; Vector3D.cls 141
-            push hl		; Vector3D.cls 142
-            ld hl, (var_vector3d_tz)		; Vector3D.cls 143
-            ld de, (var_vector3d_sinx)		; Vector3D.cls 144
-            call asm_1_94_t_mul		; Vector3D.cls 145
-            ex de, hl		; Vector3D.cls 146
-            pop hl		; Vector3D.cls 147
-            or a		; Vector3D.cls 148
-            sbc hl, de		; Vector3D.cls 149
-            push hl		; Vector3D.cls 150
-            ld hl, (var_vector3d_ty)		; Vector3D.cls 151
-            ld de, (var_vector3d_sinx)		; Vector3D.cls 152
-            call asm_1_94_t_mul		; Vector3D.cls 153
-            push hl		; Vector3D.cls 154
-            ld hl, (var_vector3d_tz)		; Vector3D.cls 155
-            ld de, (var_vector3d_cosx)		; Vector3D.cls 156
-            call asm_1_94_t_mul		; Vector3D.cls 157
-            pop de		; Vector3D.cls 158
-            add hl, de		; Vector3D.cls 159
-            ld (var_vector3d_tz), hl		; Vector3D.cls 160
-            pop hl		; Vector3D.cls 161
-            ld (var_vector3d_ty), hl		; Vector3D.cls 162
+            ld hl, (var_vector3d_ty)		; Vector3D.cls 140
+            ld de, (var_vector3d_cosx)		; Vector3D.cls 141
+            call asm_1_95_t_mul		; Vector3D.cls 142
+            push hl		; Vector3D.cls 143
+            ld hl, (var_vector3d_tz)		; Vector3D.cls 144
+            ld de, (var_vector3d_sinx)		; Vector3D.cls 145
+            call asm_1_95_t_mul		; Vector3D.cls 146
+            ex de, hl		; Vector3D.cls 147
+            pop hl		; Vector3D.cls 148
+            or a		; Vector3D.cls 149
+            sbc hl, de		; Vector3D.cls 150
+            push hl		; Vector3D.cls 151
+            ld hl, (var_vector3d_ty)		; Vector3D.cls 152
+            ld de, (var_vector3d_sinx)		; Vector3D.cls 153
+            call asm_1_95_t_mul		; Vector3D.cls 154
+            push hl		; Vector3D.cls 155
+            ld hl, (var_vector3d_tz)		; Vector3D.cls 156
+            ld de, (var_vector3d_cosx)		; Vector3D.cls 157
+            call asm_1_95_t_mul		; Vector3D.cls 158
+            pop de		; Vector3D.cls 159
+            add hl, de		; Vector3D.cls 160
+            ld (var_vector3d_tz), hl		; Vector3D.cls 161
+            pop hl		; Vector3D.cls 162
+            ld (var_vector3d_ty), hl		; Vector3D.cls 163
             ; round Y: x' = x cos + z sin, z' = z cos - x sin
-            ld hl, (var_vector3d_tx)		; Vector3D.cls 164
-            ld de, (var_vector3d_cosy)		; Vector3D.cls 165
-            call asm_1_94_t_mul		; Vector3D.cls 166
-            push hl		; Vector3D.cls 167
-            ld hl, (var_vector3d_tz)		; Vector3D.cls 168
-            ld de, (var_vector3d_siny)		; Vector3D.cls 169
-            call asm_1_94_t_mul		; Vector3D.cls 170
-            pop de		; Vector3D.cls 171
-            add hl, de		; Vector3D.cls 172
-            push hl		; Vector3D.cls 173
-            ld hl, (var_vector3d_tz)		; Vector3D.cls 174
-            ld de, (var_vector3d_cosy)		; Vector3D.cls 175
-            call asm_1_94_t_mul		; Vector3D.cls 176
-            push hl		; Vector3D.cls 177
-            ld hl, (var_vector3d_tx)		; Vector3D.cls 178
-            ld de, (var_vector3d_siny)		; Vector3D.cls 179
-            call asm_1_94_t_mul		; Vector3D.cls 180
-            ex de, hl		; Vector3D.cls 181
-            pop hl		; Vector3D.cls 182
-            or a		; Vector3D.cls 183
-            sbc hl, de		; Vector3D.cls 184
-            ld (var_vector3d_tz), hl		; Vector3D.cls 185
-            pop hl		; Vector3D.cls 186
-            ld (var_vector3d_tx), hl		; Vector3D.cls 187
+            ld hl, (var_vector3d_tx)		; Vector3D.cls 165
+            ld de, (var_vector3d_cosy)		; Vector3D.cls 166
+            call asm_1_95_t_mul		; Vector3D.cls 167
+            push hl		; Vector3D.cls 168
+            ld hl, (var_vector3d_tz)		; Vector3D.cls 169
+            ld de, (var_vector3d_siny)		; Vector3D.cls 170
+            call asm_1_95_t_mul		; Vector3D.cls 171
+            pop de		; Vector3D.cls 172
+            add hl, de		; Vector3D.cls 173
+            push hl		; Vector3D.cls 174
+            ld hl, (var_vector3d_tz)		; Vector3D.cls 175
+            ld de, (var_vector3d_cosy)		; Vector3D.cls 176
+            call asm_1_95_t_mul		; Vector3D.cls 177
+            push hl		; Vector3D.cls 178
+            ld hl, (var_vector3d_tx)		; Vector3D.cls 179
+            ld de, (var_vector3d_siny)		; Vector3D.cls 180
+            call asm_1_95_t_mul		; Vector3D.cls 181
+            ex de, hl		; Vector3D.cls 182
+            pop hl		; Vector3D.cls 183
+            or a		; Vector3D.cls 184
+            sbc hl, de		; Vector3D.cls 185
+            ld (var_vector3d_tz), hl		; Vector3D.cls 186
+            pop hl		; Vector3D.cls 187
+            ld (var_vector3d_tx), hl		; Vector3D.cls 188
             ; round Z: x' = x cos - y sin, y' = x sin + y cos
-            ld hl, (var_vector3d_tx)		; Vector3D.cls 189
-            ld de, (var_vector3d_cosz)		; Vector3D.cls 190
-            call asm_1_94_t_mul		; Vector3D.cls 191
-            push hl		; Vector3D.cls 192
-            ld hl, (var_vector3d_ty)		; Vector3D.cls 193
-            ld de, (var_vector3d_sinz)		; Vector3D.cls 194
-            call asm_1_94_t_mul		; Vector3D.cls 195
-            ex de, hl		; Vector3D.cls 196
-            pop hl		; Vector3D.cls 197
-            or a		; Vector3D.cls 198
-            sbc hl, de		; Vector3D.cls 199
-            push hl		; Vector3D.cls 200
-            ld hl, (var_vector3d_tx)		; Vector3D.cls 201
-            ld de, (var_vector3d_sinz)		; Vector3D.cls 202
-            call asm_1_94_t_mul		; Vector3D.cls 203
-            push hl		; Vector3D.cls 204
-            ld hl, (var_vector3d_ty)		; Vector3D.cls 205
-            ld de, (var_vector3d_cosz)		; Vector3D.cls 206
-            call asm_1_94_t_mul		; Vector3D.cls 207
-            pop de		; Vector3D.cls 208
-            add hl, de		; Vector3D.cls 209
-            ld (var_vector3d_ty), hl		; Vector3D.cls 210
-            pop hl		; Vector3D.cls 211
-            ld (var_vector3d_tx), hl		; Vector3D.cls 212
+            ld hl, (var_vector3d_tx)		; Vector3D.cls 190
+            ld de, (var_vector3d_cosz)		; Vector3D.cls 191
+            call asm_1_95_t_mul		; Vector3D.cls 192
+            push hl		; Vector3D.cls 193
+            ld hl, (var_vector3d_ty)		; Vector3D.cls 194
+            ld de, (var_vector3d_sinz)		; Vector3D.cls 195
+            call asm_1_95_t_mul		; Vector3D.cls 196
+            ex de, hl		; Vector3D.cls 197
+            pop hl		; Vector3D.cls 198
+            or a		; Vector3D.cls 199
+            sbc hl, de		; Vector3D.cls 200
+            push hl		; Vector3D.cls 201
+            ld hl, (var_vector3d_tx)		; Vector3D.cls 202
+            ld de, (var_vector3d_sinz)		; Vector3D.cls 203
+            call asm_1_95_t_mul		; Vector3D.cls 204
+            push hl		; Vector3D.cls 205
+            ld hl, (var_vector3d_ty)		; Vector3D.cls 206
+            ld de, (var_vector3d_cosz)		; Vector3D.cls 207
+            call asm_1_95_t_mul		; Vector3D.cls 208
+            pop de		; Vector3D.cls 209
+            add hl, de		; Vector3D.cls 210
+            ld (var_vector3d_ty), hl		; Vector3D.cls 211
+            pop hl		; Vector3D.cls 212
+            ld (var_vector3d_tx), hl		; Vector3D.cls 213
             ; perspective: d = z + distance, at least 0.25
-            ld hl, (var_vector3d_tz)		; Vector3D.cls 214
-            ld de, (var_vector3d_dst)		; Vector3D.cls 215
-            add hl, de		; Vector3D.cls 216
-            bit 7, h		; Vector3D.cls 217
-            jr nz, asm_1_94_t_dmin		; Vector3D.cls 218
-            ld a, h		; Vector3D.cls 219
-            or a		; Vector3D.cls 220
-            jr nz, asm_1_94_t_dok		; Vector3D.cls 221
-            ld a, l		; Vector3D.cls 222
-            cp 64		; Vector3D.cls 223
-            jr nc, asm_1_94_t_dok		; Vector3D.cls 224
-asm_1_94_t_dmin:		; Vector3D.cls 225
-            ld hl, 64		; Vector3D.cls 226
-asm_1_94_t_dok:		; Vector3D.cls 227
-            ld (var_vector3d_td), hl		; Vector3D.cls 228
-            ld hl, (var_vector3d_tx)		; Vector3D.cls 229
-            call asm_1_94_t_prj		; Vector3D.cls 230
-            ld de, (var_vector3d_cx)		; Vector3D.cls 231
-            add hl, de		; Vector3D.cls 232
-            ex de, hl		; Vector3D.cls 233
-            ld hl, arr_vector3d_sx		; Vector3D.cls 234
-            call asm_1_94_t_put		; Vector3D.cls 235
-            ld hl, (var_vector3d_ty)		; Vector3D.cls 236
-            call asm_1_94_t_prj		; Vector3D.cls 237
-            ex de, hl		; Vector3D.cls 238
-            ld hl, (var_vector3d_cy)		; Vector3D.cls 239
-            or a		; Vector3D.cls 240
-            sbc hl, de		; Vector3D.cls 241
-            ex de, hl		; Vector3D.cls 242
-            ld hl, arr_vector3d_sy		; Vector3D.cls 243
-            call asm_1_94_t_put		; Vector3D.cls 244
-            ld hl, (var_vector3d_pk)		; Vector3D.cls 245
-            inc hl		; Vector3D.cls 246
+            ld hl, (var_vector3d_tz)		; Vector3D.cls 215
+            ld de, (var_vector3d_dst)		; Vector3D.cls 216
+            add hl, de		; Vector3D.cls 217
+            bit 7, h		; Vector3D.cls 218
+            jr nz, asm_1_95_t_dmin		; Vector3D.cls 219
+            ld a, h		; Vector3D.cls 220
+            or a		; Vector3D.cls 221
+            jr nz, asm_1_95_t_dok		; Vector3D.cls 222
+            ld a, l		; Vector3D.cls 223
+            cp 64		; Vector3D.cls 224
+            jr nc, asm_1_95_t_dok		; Vector3D.cls 225
+asm_1_95_t_dmin:		; Vector3D.cls 226
+            ld hl, 64		; Vector3D.cls 227
+asm_1_95_t_dok:		; Vector3D.cls 228
+            ld (var_vector3d_td), hl		; Vector3D.cls 229
+            ld hl, (var_vector3d_tx)		; Vector3D.cls 230
+            call asm_1_95_t_prj		; Vector3D.cls 231
+            ld de, (var_vector3d_cx)		; Vector3D.cls 232
+            add hl, de		; Vector3D.cls 233
+            ex de, hl		; Vector3D.cls 234
+            ld hl, arr_vector3d_sx		; Vector3D.cls 235
+            call asm_1_95_t_put		; Vector3D.cls 236
+            ld hl, (var_vector3d_ty)		; Vector3D.cls 237
+            call asm_1_95_t_prj		; Vector3D.cls 238
+            ex de, hl		; Vector3D.cls 239
+            ld hl, (var_vector3d_cy)		; Vector3D.cls 240
+            or a		; Vector3D.cls 241
+            sbc hl, de		; Vector3D.cls 242
+            ex de, hl		; Vector3D.cls 243
+            ld hl, arr_vector3d_sy		; Vector3D.cls 244
+            call asm_1_95_t_put		; Vector3D.cls 245
+            ld hl, (var_vector3d_pk)		; Vector3D.cls 246
             inc hl		; Vector3D.cls 247
-            ld (var_vector3d_pk), hl		; Vector3D.cls 248
-            ld hl, var_vector3d_pn		; Vector3D.cls 249
-            dec (hl)		; Vector3D.cls 250
-            jp nz, asm_1_94_t_pt		; Vector3D.cls 251
-asm_1_94_t_done:		; Vector3D.cls 252
-            di		; Vector3D.cls 253
-            ld sp, (var_vector3d_spsave)		; Vector3D.cls 254
-            ret		; Vector3D.cls 255
+            inc hl		; Vector3D.cls 248
+            ld (var_vector3d_pk), hl		; Vector3D.cls 249
+            ld hl, var_vector3d_pn		; Vector3D.cls 250
+            dec (hl)		; Vector3D.cls 251
+            jp nz, asm_1_95_t_pt		; Vector3D.cls 252
+asm_1_95_t_done:		; Vector3D.cls 253
+            di		; Vector3D.cls 254
+            ld sp, (var_vector3d_spsave)		; Vector3D.cls 255
+            ret		; Vector3D.cls 256
 
 ; HL = an array, DE = offset: HL = the word there
-asm_1_94_t_get:		; Vector3D.cls 258
-            add hl, de		; Vector3D.cls 259
-            ld a, (hl)		; Vector3D.cls 260
-            inc hl		; Vector3D.cls 261
-            ld h, (hl)		; Vector3D.cls 262
-            ld l, a		; Vector3D.cls 263
-            ret		; Vector3D.cls 264
+asm_1_95_t_get:		; Vector3D.cls 259
+            add hl, de		; Vector3D.cls 260
+            ld a, (hl)		; Vector3D.cls 261
+            inc hl		; Vector3D.cls 262
+            ld h, (hl)		; Vector3D.cls 263
+            ld l, a		; Vector3D.cls 264
+            ret		; Vector3D.cls 265
 ; HL = an array, DE = the word for point pk
-asm_1_94_t_put:		; Vector3D.cls 266
-            push de		; Vector3D.cls 267
-            ld de, (var_vector3d_pk)		; Vector3D.cls 268
-            add hl, de		; Vector3D.cls 269
-            pop de		; Vector3D.cls 270
-            ld (hl), e		; Vector3D.cls 271
-            inc hl		; Vector3D.cls 272
-            ld (hl), d		; Vector3D.cls 273
-            ret		; Vector3D.cls 274
+asm_1_95_t_put:		; Vector3D.cls 267
+            push de		; Vector3D.cls 268
+            ld de, (var_vector3d_pk)		; Vector3D.cls 269
+            add hl, de		; Vector3D.cls 270
+            pop de		; Vector3D.cls 271
+            ld (hl), e		; Vector3D.cls 272
+            inc hl		; Vector3D.cls 273
+            ld (hl), d		; Vector3D.cls 274
+            ret		; Vector3D.cls 275
 ; A = angle: DE = sin, HL = cos (8.8)
-asm_1_94_t_sc:		; Vector3D.cls 276
-            push af		; Vector3D.cls 277
-            call asm_1_94_t_tab		; Vector3D.cls 278
-            ex de, hl		; Vector3D.cls 279
-            pop af		; Vector3D.cls 280
-            add a, 64		; Vector3D.cls 281
-asm_1_94_t_tab:		; Vector3D.cls 282
-            ld l, a		; Vector3D.cls 283
-            ld h, 0		; Vector3D.cls 284
-            add hl, hl		; Vector3D.cls 285
-            ld bc, asm_1_94_t_sin		; Vector3D.cls 286
-            add hl, bc		; Vector3D.cls 287
-            ld a, (hl)		; Vector3D.cls 288
-            inc hl		; Vector3D.cls 289
-            ld h, (hl)		; Vector3D.cls 290
-            ld l, a		; Vector3D.cls 291
-            ret		; Vector3D.cls 292
+asm_1_95_t_sc:		; Vector3D.cls 277
+            push af		; Vector3D.cls 278
+            call asm_1_95_t_tab		; Vector3D.cls 279
+            ex de, hl		; Vector3D.cls 280
+            pop af		; Vector3D.cls 281
+            add a, 64		; Vector3D.cls 282
+asm_1_95_t_tab:		; Vector3D.cls 283
+            ld l, a		; Vector3D.cls 284
+            ld h, 0		; Vector3D.cls 285
+            add hl, hl		; Vector3D.cls 286
+            ld bc, asm_1_95_t_sin		; Vector3D.cls 287
+            add hl, bc		; Vector3D.cls 288
+            ld a, (hl)		; Vector3D.cls 289
+            inc hl		; Vector3D.cls 290
+            ld h, (hl)		; Vector3D.cls 291
+            ld l, a		; Vector3D.cls 292
+            ret		; Vector3D.cls 293
 ; HL = a coordinate (8.8, signed), DE = sin / cos (-256 .. 256): HL = HL * DE / 256
-asm_1_94_t_mul:		; Vector3D.cls 294
-            ld a, h		; Vector3D.cls 295
-            xor d		; Vector3D.cls 296
-            push af		; Vector3D.cls 297
-            bit 7, h		; Vector3D.cls 298
-            jr z, asm_1_94_t_m1		; Vector3D.cls 299
-            xor a		; Vector3D.cls 300
-            sub l		; Vector3D.cls 301
-            ld l, a		; Vector3D.cls 302
-            sbc a, a		; Vector3D.cls 303
-            sub h		; Vector3D.cls 304
-            ld h, a		; Vector3D.cls 305
-asm_1_94_t_m1:		; Vector3D.cls 306
-            bit 7, d		; Vector3D.cls 307
-            jr z, asm_1_94_t_m2		; Vector3D.cls 308
-            xor a		; Vector3D.cls 309
-            sub e		; Vector3D.cls 310
-            ld e, a		; Vector3D.cls 311
-            sbc a, a		; Vector3D.cls 312
-            sub d		; Vector3D.cls 313
-            ld d, a		; Vector3D.cls 314
-asm_1_94_t_m2:		; Vector3D.cls 315
-            ld a, d		; Vector3D.cls 316
-            or a		; Vector3D.cls 317
-            jr nz, asm_1_94_t_m9             ; 256: times 1 [318]
-            ld a, e		; Vector3D.cls 319
-            ex de, hl		; Vector3D.cls 320
-            ld hl, 0		; Vector3D.cls 321
-            ld c, l		; Vector3D.cls 322
-            ld b, 8		; Vector3D.cls 323
-asm_1_94_t_mlp:		; Vector3D.cls 324
-            add hl, hl		; Vector3D.cls 325
-            rl c		; Vector3D.cls 326
-            add a, a		; Vector3D.cls 327
-            jr nc, asm_1_94_t_mnx		; Vector3D.cls 328
-            add hl, de		; Vector3D.cls 329
-            jr nc, asm_1_94_t_mnx		; Vector3D.cls 330
-            inc c		; Vector3D.cls 331
-asm_1_94_t_mnx:		; Vector3D.cls 332
-            djnz asm_1_94_t_mlp		; Vector3D.cls 333
-            ld l, h		; Vector3D.cls 334
-            ld h, c		; Vector3D.cls 335
-asm_1_94_t_m9:		; Vector3D.cls 336
-            pop af		; Vector3D.cls 337
-            rla		; Vector3D.cls 338
-            ret nc		; Vector3D.cls 339
-asm_1_94_t_neg:		; Vector3D.cls 340
-            xor a		; Vector3D.cls 341
-            sub l		; Vector3D.cls 342
-            ld l, a		; Vector3D.cls 343
-            sbc a, a		; Vector3D.cls 344
-            sub h		; Vector3D.cls 345
-            ld h, a		; Vector3D.cls 346
-            ret		; Vector3D.cls 347
+asm_1_95_t_mul:		; Vector3D.cls 295
+            ld a, h		; Vector3D.cls 296
+            xor d		; Vector3D.cls 297
+            push af		; Vector3D.cls 298
+            bit 7, h		; Vector3D.cls 299
+            jr z, asm_1_95_t_m1		; Vector3D.cls 300
+            xor a		; Vector3D.cls 301
+            sub l		; Vector3D.cls 302
+            ld l, a		; Vector3D.cls 303
+            sbc a, a		; Vector3D.cls 304
+            sub h		; Vector3D.cls 305
+            ld h, a		; Vector3D.cls 306
+asm_1_95_t_m1:		; Vector3D.cls 307
+            bit 7, d		; Vector3D.cls 308
+            jr z, asm_1_95_t_m2		; Vector3D.cls 309
+            xor a		; Vector3D.cls 310
+            sub e		; Vector3D.cls 311
+            ld e, a		; Vector3D.cls 312
+            sbc a, a		; Vector3D.cls 313
+            sub d		; Vector3D.cls 314
+            ld d, a		; Vector3D.cls 315
+asm_1_95_t_m2:		; Vector3D.cls 316
+            ld a, d		; Vector3D.cls 317
+            or a		; Vector3D.cls 318
+            jr nz, asm_1_95_t_m9             ; 256: times 1 [319]
+            ld a, e		; Vector3D.cls 320
+            ex de, hl		; Vector3D.cls 321
+            ld hl, 0		; Vector3D.cls 322
+            ld c, l		; Vector3D.cls 323
+            ld b, 8		; Vector3D.cls 324
+asm_1_95_t_mlp:		; Vector3D.cls 325
+            add hl, hl		; Vector3D.cls 326
+            rl c		; Vector3D.cls 327
+            add a, a		; Vector3D.cls 328
+            jr nc, asm_1_95_t_mnx		; Vector3D.cls 329
+            add hl, de		; Vector3D.cls 330
+            jr nc, asm_1_95_t_mnx		; Vector3D.cls 331
+            inc c		; Vector3D.cls 332
+asm_1_95_t_mnx:		; Vector3D.cls 333
+            djnz asm_1_95_t_mlp		; Vector3D.cls 334
+            ld l, h		; Vector3D.cls 335
+            ld h, c		; Vector3D.cls 336
+asm_1_95_t_m9:		; Vector3D.cls 337
+            pop af		; Vector3D.cls 338
+            rla		; Vector3D.cls 339
+            ret nc		; Vector3D.cls 340
+asm_1_95_t_neg:		; Vector3D.cls 341
+            xor a		; Vector3D.cls 342
+            sub l		; Vector3D.cls 343
+            ld l, a		; Vector3D.cls 344
+            sbc a, a		; Vector3D.cls 345
+            sub h		; Vector3D.cls 346
+            ld h, a		; Vector3D.cls 347
+            ret		; Vector3D.cls 348
 ; HL = a coordinate (8.8, signed): HL = pixels = HL * scale / td
-asm_1_94_t_prj:		; Vector3D.cls 349
-            ld a, h		; Vector3D.cls 350
-            push af		; Vector3D.cls 351
-            bit 7, h		; Vector3D.cls 352
-            call nz, asm_1_94_t_neg		; Vector3D.cls 353
-            ld de, (var_vector3d_scl)		; Vector3D.cls 354
-            ld b, h                 ; DE:HL = HL * DE [355]
-            ld c, l		; Vector3D.cls 356
-            ld hl, 0		; Vector3D.cls 357
-            ld a, 16		; Vector3D.cls 358
-asm_1_94_t_pml:		; Vector3D.cls 359
-            add hl, hl		; Vector3D.cls 360
-            rl e		; Vector3D.cls 361
-            rl d		; Vector3D.cls 362
-            jr nc, asm_1_94_t_pmn		; Vector3D.cls 363
-            add hl, bc		; Vector3D.cls 364
-            jr nc, asm_1_94_t_pmn		; Vector3D.cls 365
-            inc de		; Vector3D.cls 366
-asm_1_94_t_pmn:		; Vector3D.cls 367
-            dec a		; Vector3D.cls 368
-            jr nz, asm_1_94_t_pml		; Vector3D.cls 369
-            ld bc, (var_vector3d_td)           ; HL = DE:HL / BC (DE < BC) [370]
-            ld a, 16		; Vector3D.cls 371
-asm_1_94_t_dlp:		; Vector3D.cls 372
-            add hl, hl		; Vector3D.cls 373
-            ex de, hl		; Vector3D.cls 374
-            adc hl, hl		; Vector3D.cls 375
-            jr c, asm_1_94_t_dsb		; Vector3D.cls 376
-            or a		; Vector3D.cls 377
-            sbc hl, bc		; Vector3D.cls 378
-            jr nc, asm_1_94_t_d1		; Vector3D.cls 379
-            add hl, bc		; Vector3D.cls 380
-            ex de, hl		; Vector3D.cls 381
-            dec a		; Vector3D.cls 382
-            jr nz, asm_1_94_t_dlp		; Vector3D.cls 383
-            jr asm_1_94_t_dend		; Vector3D.cls 384
-asm_1_94_t_dsb:		; Vector3D.cls 385
-            or a		; Vector3D.cls 386
-            sbc hl, bc		; Vector3D.cls 387
-asm_1_94_t_d1:		; Vector3D.cls 388
-            ex de, hl		; Vector3D.cls 389
-            inc l		; Vector3D.cls 390
-            dec a		; Vector3D.cls 391
-            jr nz, asm_1_94_t_dlp		; Vector3D.cls 392
-asm_1_94_t_dend:		; Vector3D.cls 393
-            pop af		; Vector3D.cls 394
-            rla		; Vector3D.cls 395
-            ret nc		; Vector3D.cls 396
-            jr asm_1_94_t_neg		; Vector3D.cls 397
-asm_1_94_t_sin:		; Vector3D.cls 398
-            dw 0, 6, 13, 19, 25, 31, 38, 44, 50, 56, 62, 68, 74, 80, 86, 92		; Vector3D.cls 399
-            dw 98, 104, 109, 115, 121, 126, 132, 137, 142, 147, 152, 157, 162, 167, 172, 177		; Vector3D.cls 400
-            dw 181, 185, 190, 194, 198, 202, 206, 209, 213, 216, 220, 223, 226, 229, 231, 234		; Vector3D.cls 401
-            dw 237, 239, 241, 243, 245, 247, 248, 250, 251, 252, 253, 254, 255, 255, 256, 256		; Vector3D.cls 402
-            dw 256, 256, 256, 255, 255, 254, 253, 252, 251, 250, 248, 247, 245, 243, 241, 239		; Vector3D.cls 403
-            dw 237, 234, 231, 229, 226, 223, 220, 216, 213, 209, 206, 202, 198, 194, 190, 185		; Vector3D.cls 404
-            dw 181, 177, 172, 167, 162, 157, 152, 147, 142, 137, 132, 126, 121, 115, 109, 104		; Vector3D.cls 405
-            dw 98, 92, 86, 80, 74, 68, 62, 56, 50, 44, 38, 31, 25, 19, 13, 6		; Vector3D.cls 406
-            dw 0, -6, -13, -19, -25, -31, -38, -44, -50, -56, -62, -68, -74, -80, -86, -92		; Vector3D.cls 407
-            dw -98, -104, -109, -115, -121, -126, -132, -137, -142, -147, -152, -157, -162, -167, -172, -177		; Vector3D.cls 408
-            dw -181, -185, -190, -194, -198, -202, -206, -209, -213, -216, -220, -223, -226, -229, -231, -234		; Vector3D.cls 409
-            dw -237, -239, -241, -243, -245, -247, -248, -250, -251, -252, -253, -254, -255, -255, -256, -256		; Vector3D.cls 410
-            dw -256, -256, -256, -255, -255, -254, -253, -252, -251, -250, -248, -247, -245, -243, -241, -239		; Vector3D.cls 411
-            dw -237, -234, -231, -229, -226, -223, -220, -216, -213, -209, -206, -202, -198, -194, -190, -185		; Vector3D.cls 412
-            dw -181, -177, -172, -167, -162, -157, -152, -147, -142, -137, -132, -126, -121, -115, -109, -104		; Vector3D.cls 413
-            dw -98, -92, -86, -80, -74, -68, -62, -56, -50, -44, -38, -31, -25, -19, -13, -6		; Vector3D.cls 414
+asm_1_95_t_prj:		; Vector3D.cls 350
+            ld a, h		; Vector3D.cls 351
+            push af		; Vector3D.cls 352
+            bit 7, h		; Vector3D.cls 353
+            call nz, asm_1_95_t_neg		; Vector3D.cls 354
+            ld de, (var_vector3d_scl)		; Vector3D.cls 355
+            ld b, h                 ; DE:HL = HL * DE [356]
+            ld c, l		; Vector3D.cls 357
+            ld hl, 0		; Vector3D.cls 358
+            ld a, 16		; Vector3D.cls 359
+asm_1_95_t_pml:		; Vector3D.cls 360
+            add hl, hl		; Vector3D.cls 361
+            rl e		; Vector3D.cls 362
+            rl d		; Vector3D.cls 363
+            jr nc, asm_1_95_t_pmn		; Vector3D.cls 364
+            add hl, bc		; Vector3D.cls 365
+            jr nc, asm_1_95_t_pmn		; Vector3D.cls 366
+            inc de		; Vector3D.cls 367
+asm_1_95_t_pmn:		; Vector3D.cls 368
+            dec a		; Vector3D.cls 369
+            jr nz, asm_1_95_t_pml		; Vector3D.cls 370
+            ld bc, (var_vector3d_td)           ; HL = DE:HL / BC (DE < BC) [371]
+            ld a, 16		; Vector3D.cls 372
+asm_1_95_t_dlp:		; Vector3D.cls 373
+            add hl, hl		; Vector3D.cls 374
+            ex de, hl		; Vector3D.cls 375
+            adc hl, hl		; Vector3D.cls 376
+            jr c, asm_1_95_t_dsb		; Vector3D.cls 377
+            or a		; Vector3D.cls 378
+            sbc hl, bc		; Vector3D.cls 379
+            jr nc, asm_1_95_t_d1		; Vector3D.cls 380
+            add hl, bc		; Vector3D.cls 381
+            ex de, hl		; Vector3D.cls 382
+            dec a		; Vector3D.cls 383
+            jr nz, asm_1_95_t_dlp		; Vector3D.cls 384
+            jr asm_1_95_t_dend		; Vector3D.cls 385
+asm_1_95_t_dsb:		; Vector3D.cls 386
+            or a		; Vector3D.cls 387
+            sbc hl, bc		; Vector3D.cls 388
+asm_1_95_t_d1:		; Vector3D.cls 389
+            ex de, hl		; Vector3D.cls 390
+            inc l		; Vector3D.cls 391
+            dec a		; Vector3D.cls 392
+            jr nz, asm_1_95_t_dlp		; Vector3D.cls 393
+asm_1_95_t_dend:		; Vector3D.cls 394
+            pop af		; Vector3D.cls 395
+            rla		; Vector3D.cls 396
+            ret nc		; Vector3D.cls 397
+            jr asm_1_95_t_neg		; Vector3D.cls 398
+asm_1_95_t_sin:		; Vector3D.cls 399
+            dw 0, 6, 13, 19, 25, 31, 38, 44, 50, 56, 62, 68, 74, 80, 86, 92		; Vector3D.cls 400
+            dw 98, 104, 109, 115, 121, 126, 132, 137, 142, 147, 152, 157, 162, 167, 172, 177		; Vector3D.cls 401
+            dw 181, 185, 190, 194, 198, 202, 206, 209, 213, 216, 220, 223, 226, 229, 231, 234		; Vector3D.cls 402
+            dw 237, 239, 241, 243, 245, 247, 248, 250, 251, 252, 253, 254, 255, 255, 256, 256		; Vector3D.cls 403
+            dw 256, 256, 256, 255, 255, 254, 253, 252, 251, 250, 248, 247, 245, 243, 241, 239		; Vector3D.cls 404
+            dw 237, 234, 231, 229, 226, 223, 220, 216, 213, 209, 206, 202, 198, 194, 190, 185		; Vector3D.cls 405
+            dw 181, 177, 172, 167, 162, 157, 152, 147, 142, 137, 132, 126, 121, 115, 109, 104		; Vector3D.cls 406
+            dw 98, 92, 86, 80, 74, 68, 62, 56, 50, 44, 38, 31, 25, 19, 13, 6		; Vector3D.cls 407
+            dw 0, -6, -13, -19, -25, -31, -38, -44, -50, -56, -62, -68, -74, -80, -86, -92		; Vector3D.cls 408
+            dw -98, -104, -109, -115, -121, -126, -132, -137, -142, -147, -152, -157, -162, -167, -172, -177		; Vector3D.cls 409
+            dw -181, -185, -190, -194, -198, -202, -206, -209, -213, -216, -220, -223, -226, -229, -231, -234		; Vector3D.cls 410
+            dw -237, -239, -241, -243, -245, -247, -248, -250, -251, -252, -253, -254, -255, -255, -256, -256		; Vector3D.cls 411
+            dw -256, -256, -256, -255, -255, -254, -253, -252, -251, -250, -248, -247, -245, -243, -241, -239		; Vector3D.cls 412
+            dw -237, -234, -231, -229, -226, -223, -220, -216, -213, -209, -206, -202, -198, -194, -190, -185		; Vector3D.cls 413
+            dw -181, -177, -172, -167, -162, -157, -152, -147, -142, -137, -132, -126, -121, -115, -109, -104		; Vector3D.cls 414
+            dw -98, -92, -86, -80, -74, -68, -62, -56, -50, -44, -38, -31, -25, -19, -13, -6		; Vector3D.cls 415
 			ret			; end of #asm
 
-asm_1_94_n:		; #asm, Vector3D.cls line 94 (normal)
-            ld a, (var_vector3d_turn_ax)		; Vector3D.cls 95
-            ld c, a		; Vector3D.cls 96
-            ld a, (var_vector3d_turn_ay)		; Vector3D.cls 97
-            ld b, a		; Vector3D.cls 98
-            ld a, (var_vector3d_turn_az)		; Vector3D.cls 99
-            ld e, a		; Vector3D.cls 100
-            ld (var_vector3d_spsave), sp       ; the real stack for the work (calls, pushes) [101]
-            ld sp, (ntc_csp)		; Vector3D.cls 102
-            ei                      ; interrupts in while it works, in both modes (the [103]
+asm_1_95_n:		; #asm, Vector3D.cls line 95 (normal)
+            ld a, (var_vector3d_turn_ax)		; Vector3D.cls 96
+            ld c, a		; Vector3D.cls 97
+            ld a, (var_vector3d_turn_ay)		; Vector3D.cls 98
+            ld b, a		; Vector3D.cls 99
+            ld a, (var_vector3d_turn_az)		; Vector3D.cls 100
+            ld e, a		; Vector3D.cls 101
+            ld (var_vector3d_spsave), sp       ; the real stack for the work (calls, pushes) [102]
+            ld sp, (ntc_csp)		; Vector3D.cls 103
+            ei                      ; interrupts in while it works, in both modes (the [104]
                                     ; real stack): Ticks keeps counting in turbo too
-            push de		; Vector3D.cls 105
-            push bc		; Vector3D.cls 106
-            ld a, c		; Vector3D.cls 107
-            call asm_1_94_n_t_sc		; Vector3D.cls 108
-            ld (var_vector3d_sinx), de		; Vector3D.cls 109
-            ld (var_vector3d_cosx), hl		; Vector3D.cls 110
-            pop bc		; Vector3D.cls 111
-            ld a, b		; Vector3D.cls 112
-            call asm_1_94_n_t_sc		; Vector3D.cls 113
-            ld (var_vector3d_siny), de		; Vector3D.cls 114
-            ld (var_vector3d_cosy), hl		; Vector3D.cls 115
-            pop de		; Vector3D.cls 116
-            ld a, e		; Vector3D.cls 117
-            call asm_1_94_n_t_sc		; Vector3D.cls 118
-            ld (var_vector3d_sinz), de		; Vector3D.cls 119
-            ld (var_vector3d_cosz), hl		; Vector3D.cls 120
-            ld hl, 0		; Vector3D.cls 121
-            ld (var_vector3d_pk), hl		; Vector3D.cls 122
-            ld a, (var_vector3d_np)		; Vector3D.cls 123
-            or a		; Vector3D.cls 124
-            jp z, asm_1_94_n_t_done		; Vector3D.cls 125
-            ld (var_vector3d_pn), a		; Vector3D.cls 126
-asm_1_94_n_t_pt:		; Vector3D.cls 127
-            ld de, (var_vector3d_pk)		; Vector3D.cls 128
-            ld hl, arr_vector3d_px		; Vector3D.cls 129
-            call asm_1_94_n_t_get		; Vector3D.cls 130
-            ld (var_vector3d_tx), hl		; Vector3D.cls 131
-            ld hl, arr_vector3d_py		; Vector3D.cls 132
-            call asm_1_94_n_t_get		; Vector3D.cls 133
-            ld (var_vector3d_ty), hl		; Vector3D.cls 134
-            ld hl, arr_vector3d_pz		; Vector3D.cls 135
-            call asm_1_94_n_t_get		; Vector3D.cls 136
-            ld (var_vector3d_tz), hl		; Vector3D.cls 137
+            push de		; Vector3D.cls 106
+            push bc		; Vector3D.cls 107
+            ld a, c		; Vector3D.cls 108
+            call asm_1_95_n_t_sc		; Vector3D.cls 109
+            ld (var_vector3d_sinx), de		; Vector3D.cls 110
+            ld (var_vector3d_cosx), hl		; Vector3D.cls 111
+            pop bc		; Vector3D.cls 112
+            ld a, b		; Vector3D.cls 113
+            call asm_1_95_n_t_sc		; Vector3D.cls 114
+            ld (var_vector3d_siny), de		; Vector3D.cls 115
+            ld (var_vector3d_cosy), hl		; Vector3D.cls 116
+            pop de		; Vector3D.cls 117
+            ld a, e		; Vector3D.cls 118
+            call asm_1_95_n_t_sc		; Vector3D.cls 119
+            ld (var_vector3d_sinz), de		; Vector3D.cls 120
+            ld (var_vector3d_cosz), hl		; Vector3D.cls 121
+            ld hl, 0		; Vector3D.cls 122
+            ld (var_vector3d_pk), hl		; Vector3D.cls 123
+            ld a, (var_vector3d_np)		; Vector3D.cls 124
+            or a		; Vector3D.cls 125
+            jp z, asm_1_95_n_t_done		; Vector3D.cls 126
+            ld (var_vector3d_pn), a		; Vector3D.cls 127
+asm_1_95_n_t_pt:		; Vector3D.cls 128
+            ld de, (var_vector3d_pk)		; Vector3D.cls 129
+            ld hl, arr_vector3d_px		; Vector3D.cls 130
+            call asm_1_95_n_t_get		; Vector3D.cls 131
+            ld (var_vector3d_tx), hl		; Vector3D.cls 132
+            ld hl, arr_vector3d_py		; Vector3D.cls 133
+            call asm_1_95_n_t_get		; Vector3D.cls 134
+            ld (var_vector3d_ty), hl		; Vector3D.cls 135
+            ld hl, arr_vector3d_pz		; Vector3D.cls 136
+            call asm_1_95_n_t_get		; Vector3D.cls 137
+            ld (var_vector3d_tz), hl		; Vector3D.cls 138
             ; round X: y' = y cos - z sin, z' = y sin + z cos
-            ld hl, (var_vector3d_ty)		; Vector3D.cls 139
-            ld de, (var_vector3d_cosx)		; Vector3D.cls 140
-            call asm_1_94_n_t_mul		; Vector3D.cls 141
-            push hl		; Vector3D.cls 142
-            ld hl, (var_vector3d_tz)		; Vector3D.cls 143
-            ld de, (var_vector3d_sinx)		; Vector3D.cls 144
-            call asm_1_94_n_t_mul		; Vector3D.cls 145
-            ex de, hl		; Vector3D.cls 146
-            pop hl		; Vector3D.cls 147
-            or a		; Vector3D.cls 148
-            sbc hl, de		; Vector3D.cls 149
-            push hl		; Vector3D.cls 150
-            ld hl, (var_vector3d_ty)		; Vector3D.cls 151
-            ld de, (var_vector3d_sinx)		; Vector3D.cls 152
-            call asm_1_94_n_t_mul		; Vector3D.cls 153
-            push hl		; Vector3D.cls 154
-            ld hl, (var_vector3d_tz)		; Vector3D.cls 155
-            ld de, (var_vector3d_cosx)		; Vector3D.cls 156
-            call asm_1_94_n_t_mul		; Vector3D.cls 157
-            pop de		; Vector3D.cls 158
-            add hl, de		; Vector3D.cls 159
-            ld (var_vector3d_tz), hl		; Vector3D.cls 160
-            pop hl		; Vector3D.cls 161
-            ld (var_vector3d_ty), hl		; Vector3D.cls 162
+            ld hl, (var_vector3d_ty)		; Vector3D.cls 140
+            ld de, (var_vector3d_cosx)		; Vector3D.cls 141
+            call asm_1_95_n_t_mul		; Vector3D.cls 142
+            push hl		; Vector3D.cls 143
+            ld hl, (var_vector3d_tz)		; Vector3D.cls 144
+            ld de, (var_vector3d_sinx)		; Vector3D.cls 145
+            call asm_1_95_n_t_mul		; Vector3D.cls 146
+            ex de, hl		; Vector3D.cls 147
+            pop hl		; Vector3D.cls 148
+            or a		; Vector3D.cls 149
+            sbc hl, de		; Vector3D.cls 150
+            push hl		; Vector3D.cls 151
+            ld hl, (var_vector3d_ty)		; Vector3D.cls 152
+            ld de, (var_vector3d_sinx)		; Vector3D.cls 153
+            call asm_1_95_n_t_mul		; Vector3D.cls 154
+            push hl		; Vector3D.cls 155
+            ld hl, (var_vector3d_tz)		; Vector3D.cls 156
+            ld de, (var_vector3d_cosx)		; Vector3D.cls 157
+            call asm_1_95_n_t_mul		; Vector3D.cls 158
+            pop de		; Vector3D.cls 159
+            add hl, de		; Vector3D.cls 160
+            ld (var_vector3d_tz), hl		; Vector3D.cls 161
+            pop hl		; Vector3D.cls 162
+            ld (var_vector3d_ty), hl		; Vector3D.cls 163
             ; round Y: x' = x cos + z sin, z' = z cos - x sin
-            ld hl, (var_vector3d_tx)		; Vector3D.cls 164
-            ld de, (var_vector3d_cosy)		; Vector3D.cls 165
-            call asm_1_94_n_t_mul		; Vector3D.cls 166
-            push hl		; Vector3D.cls 167
-            ld hl, (var_vector3d_tz)		; Vector3D.cls 168
-            ld de, (var_vector3d_siny)		; Vector3D.cls 169
-            call asm_1_94_n_t_mul		; Vector3D.cls 170
-            pop de		; Vector3D.cls 171
-            add hl, de		; Vector3D.cls 172
-            push hl		; Vector3D.cls 173
-            ld hl, (var_vector3d_tz)		; Vector3D.cls 174
-            ld de, (var_vector3d_cosy)		; Vector3D.cls 175
-            call asm_1_94_n_t_mul		; Vector3D.cls 176
-            push hl		; Vector3D.cls 177
-            ld hl, (var_vector3d_tx)		; Vector3D.cls 178
-            ld de, (var_vector3d_siny)		; Vector3D.cls 179
-            call asm_1_94_n_t_mul		; Vector3D.cls 180
-            ex de, hl		; Vector3D.cls 181
-            pop hl		; Vector3D.cls 182
-            or a		; Vector3D.cls 183
-            sbc hl, de		; Vector3D.cls 184
-            ld (var_vector3d_tz), hl		; Vector3D.cls 185
-            pop hl		; Vector3D.cls 186
-            ld (var_vector3d_tx), hl		; Vector3D.cls 187
+            ld hl, (var_vector3d_tx)		; Vector3D.cls 165
+            ld de, (var_vector3d_cosy)		; Vector3D.cls 166
+            call asm_1_95_n_t_mul		; Vector3D.cls 167
+            push hl		; Vector3D.cls 168
+            ld hl, (var_vector3d_tz)		; Vector3D.cls 169
+            ld de, (var_vector3d_siny)		; Vector3D.cls 170
+            call asm_1_95_n_t_mul		; Vector3D.cls 171
+            pop de		; Vector3D.cls 172
+            add hl, de		; Vector3D.cls 173
+            push hl		; Vector3D.cls 174
+            ld hl, (var_vector3d_tz)		; Vector3D.cls 175
+            ld de, (var_vector3d_cosy)		; Vector3D.cls 176
+            call asm_1_95_n_t_mul		; Vector3D.cls 177
+            push hl		; Vector3D.cls 178
+            ld hl, (var_vector3d_tx)		; Vector3D.cls 179
+            ld de, (var_vector3d_siny)		; Vector3D.cls 180
+            call asm_1_95_n_t_mul		; Vector3D.cls 181
+            ex de, hl		; Vector3D.cls 182
+            pop hl		; Vector3D.cls 183
+            or a		; Vector3D.cls 184
+            sbc hl, de		; Vector3D.cls 185
+            ld (var_vector3d_tz), hl		; Vector3D.cls 186
+            pop hl		; Vector3D.cls 187
+            ld (var_vector3d_tx), hl		; Vector3D.cls 188
             ; round Z: x' = x cos - y sin, y' = x sin + y cos
-            ld hl, (var_vector3d_tx)		; Vector3D.cls 189
-            ld de, (var_vector3d_cosz)		; Vector3D.cls 190
-            call asm_1_94_n_t_mul		; Vector3D.cls 191
-            push hl		; Vector3D.cls 192
-            ld hl, (var_vector3d_ty)		; Vector3D.cls 193
-            ld de, (var_vector3d_sinz)		; Vector3D.cls 194
-            call asm_1_94_n_t_mul		; Vector3D.cls 195
-            ex de, hl		; Vector3D.cls 196
-            pop hl		; Vector3D.cls 197
-            or a		; Vector3D.cls 198
-            sbc hl, de		; Vector3D.cls 199
-            push hl		; Vector3D.cls 200
-            ld hl, (var_vector3d_tx)		; Vector3D.cls 201
-            ld de, (var_vector3d_sinz)		; Vector3D.cls 202
-            call asm_1_94_n_t_mul		; Vector3D.cls 203
-            push hl		; Vector3D.cls 204
-            ld hl, (var_vector3d_ty)		; Vector3D.cls 205
-            ld de, (var_vector3d_cosz)		; Vector3D.cls 206
-            call asm_1_94_n_t_mul		; Vector3D.cls 207
-            pop de		; Vector3D.cls 208
-            add hl, de		; Vector3D.cls 209
-            ld (var_vector3d_ty), hl		; Vector3D.cls 210
-            pop hl		; Vector3D.cls 211
-            ld (var_vector3d_tx), hl		; Vector3D.cls 212
+            ld hl, (var_vector3d_tx)		; Vector3D.cls 190
+            ld de, (var_vector3d_cosz)		; Vector3D.cls 191
+            call asm_1_95_n_t_mul		; Vector3D.cls 192
+            push hl		; Vector3D.cls 193
+            ld hl, (var_vector3d_ty)		; Vector3D.cls 194
+            ld de, (var_vector3d_sinz)		; Vector3D.cls 195
+            call asm_1_95_n_t_mul		; Vector3D.cls 196
+            ex de, hl		; Vector3D.cls 197
+            pop hl		; Vector3D.cls 198
+            or a		; Vector3D.cls 199
+            sbc hl, de		; Vector3D.cls 200
+            push hl		; Vector3D.cls 201
+            ld hl, (var_vector3d_tx)		; Vector3D.cls 202
+            ld de, (var_vector3d_sinz)		; Vector3D.cls 203
+            call asm_1_95_n_t_mul		; Vector3D.cls 204
+            push hl		; Vector3D.cls 205
+            ld hl, (var_vector3d_ty)		; Vector3D.cls 206
+            ld de, (var_vector3d_cosz)		; Vector3D.cls 207
+            call asm_1_95_n_t_mul		; Vector3D.cls 208
+            pop de		; Vector3D.cls 209
+            add hl, de		; Vector3D.cls 210
+            ld (var_vector3d_ty), hl		; Vector3D.cls 211
+            pop hl		; Vector3D.cls 212
+            ld (var_vector3d_tx), hl		; Vector3D.cls 213
             ; perspective: d = z + distance, at least 0.25
-            ld hl, (var_vector3d_tz)		; Vector3D.cls 214
-            ld de, (var_vector3d_dst)		; Vector3D.cls 215
-            add hl, de		; Vector3D.cls 216
-            bit 7, h		; Vector3D.cls 217
-            jr nz, asm_1_94_n_t_dmin		; Vector3D.cls 218
-            ld a, h		; Vector3D.cls 219
-            or a		; Vector3D.cls 220
-            jr nz, asm_1_94_n_t_dok		; Vector3D.cls 221
-            ld a, l		; Vector3D.cls 222
-            cp 64		; Vector3D.cls 223
-            jr nc, asm_1_94_n_t_dok		; Vector3D.cls 224
-asm_1_94_n_t_dmin:		; Vector3D.cls 225
-            ld hl, 64		; Vector3D.cls 226
-asm_1_94_n_t_dok:		; Vector3D.cls 227
-            ld (var_vector3d_td), hl		; Vector3D.cls 228
-            ld hl, (var_vector3d_tx)		; Vector3D.cls 229
-            call asm_1_94_n_t_prj		; Vector3D.cls 230
-            ld de, (var_vector3d_cx)		; Vector3D.cls 231
-            add hl, de		; Vector3D.cls 232
-            ex de, hl		; Vector3D.cls 233
-            ld hl, arr_vector3d_sx		; Vector3D.cls 234
-            call asm_1_94_n_t_put		; Vector3D.cls 235
-            ld hl, (var_vector3d_ty)		; Vector3D.cls 236
-            call asm_1_94_n_t_prj		; Vector3D.cls 237
-            ex de, hl		; Vector3D.cls 238
-            ld hl, (var_vector3d_cy)		; Vector3D.cls 239
-            or a		; Vector3D.cls 240
-            sbc hl, de		; Vector3D.cls 241
-            ex de, hl		; Vector3D.cls 242
-            ld hl, arr_vector3d_sy		; Vector3D.cls 243
-            call asm_1_94_n_t_put		; Vector3D.cls 244
-            ld hl, (var_vector3d_pk)		; Vector3D.cls 245
-            inc hl		; Vector3D.cls 246
+            ld hl, (var_vector3d_tz)		; Vector3D.cls 215
+            ld de, (var_vector3d_dst)		; Vector3D.cls 216
+            add hl, de		; Vector3D.cls 217
+            bit 7, h		; Vector3D.cls 218
+            jr nz, asm_1_95_n_t_dmin		; Vector3D.cls 219
+            ld a, h		; Vector3D.cls 220
+            or a		; Vector3D.cls 221
+            jr nz, asm_1_95_n_t_dok		; Vector3D.cls 222
+            ld a, l		; Vector3D.cls 223
+            cp 64		; Vector3D.cls 224
+            jr nc, asm_1_95_n_t_dok		; Vector3D.cls 225
+asm_1_95_n_t_dmin:		; Vector3D.cls 226
+            ld hl, 64		; Vector3D.cls 227
+asm_1_95_n_t_dok:		; Vector3D.cls 228
+            ld (var_vector3d_td), hl		; Vector3D.cls 229
+            ld hl, (var_vector3d_tx)		; Vector3D.cls 230
+            call asm_1_95_n_t_prj		; Vector3D.cls 231
+            ld de, (var_vector3d_cx)		; Vector3D.cls 232
+            add hl, de		; Vector3D.cls 233
+            ex de, hl		; Vector3D.cls 234
+            ld hl, arr_vector3d_sx		; Vector3D.cls 235
+            call asm_1_95_n_t_put		; Vector3D.cls 236
+            ld hl, (var_vector3d_ty)		; Vector3D.cls 237
+            call asm_1_95_n_t_prj		; Vector3D.cls 238
+            ex de, hl		; Vector3D.cls 239
+            ld hl, (var_vector3d_cy)		; Vector3D.cls 240
+            or a		; Vector3D.cls 241
+            sbc hl, de		; Vector3D.cls 242
+            ex de, hl		; Vector3D.cls 243
+            ld hl, arr_vector3d_sy		; Vector3D.cls 244
+            call asm_1_95_n_t_put		; Vector3D.cls 245
+            ld hl, (var_vector3d_pk)		; Vector3D.cls 246
             inc hl		; Vector3D.cls 247
-            ld (var_vector3d_pk), hl		; Vector3D.cls 248
-            ld hl, var_vector3d_pn		; Vector3D.cls 249
-            dec (hl)		; Vector3D.cls 250
-            jp nz, asm_1_94_n_t_pt		; Vector3D.cls 251
-asm_1_94_n_t_done:		; Vector3D.cls 252
-            di		; Vector3D.cls 253
-            ld sp, (var_vector3d_spsave)		; Vector3D.cls 254
-            ret		; Vector3D.cls 255
+            inc hl		; Vector3D.cls 248
+            ld (var_vector3d_pk), hl		; Vector3D.cls 249
+            ld hl, var_vector3d_pn		; Vector3D.cls 250
+            dec (hl)		; Vector3D.cls 251
+            jp nz, asm_1_95_n_t_pt		; Vector3D.cls 252
+asm_1_95_n_t_done:		; Vector3D.cls 253
+            di		; Vector3D.cls 254
+            ld sp, (var_vector3d_spsave)		; Vector3D.cls 255
+            ret		; Vector3D.cls 256
 
 ; HL = an array, DE = offset: HL = the word there
-asm_1_94_n_t_get:		; Vector3D.cls 258
-            add hl, de		; Vector3D.cls 259
-            ld a, (hl)		; Vector3D.cls 260
-            inc hl		; Vector3D.cls 261
-            ld h, (hl)		; Vector3D.cls 262
-            ld l, a		; Vector3D.cls 263
-            ret		; Vector3D.cls 264
+asm_1_95_n_t_get:		; Vector3D.cls 259
+            add hl, de		; Vector3D.cls 260
+            ld a, (hl)		; Vector3D.cls 261
+            inc hl		; Vector3D.cls 262
+            ld h, (hl)		; Vector3D.cls 263
+            ld l, a		; Vector3D.cls 264
+            ret		; Vector3D.cls 265
 ; HL = an array, DE = the word for point pk
-asm_1_94_n_t_put:		; Vector3D.cls 266
-            push de		; Vector3D.cls 267
-            ld de, (var_vector3d_pk)		; Vector3D.cls 268
-            add hl, de		; Vector3D.cls 269
-            pop de		; Vector3D.cls 270
-            ld (hl), e		; Vector3D.cls 271
-            inc hl		; Vector3D.cls 272
-            ld (hl), d		; Vector3D.cls 273
-            ret		; Vector3D.cls 274
+asm_1_95_n_t_put:		; Vector3D.cls 267
+            push de		; Vector3D.cls 268
+            ld de, (var_vector3d_pk)		; Vector3D.cls 269
+            add hl, de		; Vector3D.cls 270
+            pop de		; Vector3D.cls 271
+            ld (hl), e		; Vector3D.cls 272
+            inc hl		; Vector3D.cls 273
+            ld (hl), d		; Vector3D.cls 274
+            ret		; Vector3D.cls 275
 ; A = angle: DE = sin, HL = cos (8.8)
-asm_1_94_n_t_sc:		; Vector3D.cls 276
-            push af		; Vector3D.cls 277
-            call asm_1_94_n_t_tab		; Vector3D.cls 278
-            ex de, hl		; Vector3D.cls 279
-            pop af		; Vector3D.cls 280
-            add a, 64		; Vector3D.cls 281
-asm_1_94_n_t_tab:		; Vector3D.cls 282
-            ld l, a		; Vector3D.cls 283
-            ld h, 0		; Vector3D.cls 284
-            add hl, hl		; Vector3D.cls 285
-            ld bc, asm_1_94_n_t_sin		; Vector3D.cls 286
-            add hl, bc		; Vector3D.cls 287
-            ld a, (hl)		; Vector3D.cls 288
-            inc hl		; Vector3D.cls 289
-            ld h, (hl)		; Vector3D.cls 290
-            ld l, a		; Vector3D.cls 291
-            ret		; Vector3D.cls 292
+asm_1_95_n_t_sc:		; Vector3D.cls 277
+            push af		; Vector3D.cls 278
+            call asm_1_95_n_t_tab		; Vector3D.cls 279
+            ex de, hl		; Vector3D.cls 280
+            pop af		; Vector3D.cls 281
+            add a, 64		; Vector3D.cls 282
+asm_1_95_n_t_tab:		; Vector3D.cls 283
+            ld l, a		; Vector3D.cls 284
+            ld h, 0		; Vector3D.cls 285
+            add hl, hl		; Vector3D.cls 286
+            ld bc, asm_1_95_n_t_sin		; Vector3D.cls 287
+            add hl, bc		; Vector3D.cls 288
+            ld a, (hl)		; Vector3D.cls 289
+            inc hl		; Vector3D.cls 290
+            ld h, (hl)		; Vector3D.cls 291
+            ld l, a		; Vector3D.cls 292
+            ret		; Vector3D.cls 293
 ; HL = a coordinate (8.8, signed), DE = sin / cos (-256 .. 256): HL = HL * DE / 256
-asm_1_94_n_t_mul:		; Vector3D.cls 294
-            ld a, h		; Vector3D.cls 295
-            xor d		; Vector3D.cls 296
-            push af		; Vector3D.cls 297
-            bit 7, h		; Vector3D.cls 298
-            jr z, asm_1_94_n_t_m1		; Vector3D.cls 299
-            xor a		; Vector3D.cls 300
-            sub l		; Vector3D.cls 301
-            ld l, a		; Vector3D.cls 302
-            sbc a, a		; Vector3D.cls 303
-            sub h		; Vector3D.cls 304
-            ld h, a		; Vector3D.cls 305
-asm_1_94_n_t_m1:		; Vector3D.cls 306
-            bit 7, d		; Vector3D.cls 307
-            jr z, asm_1_94_n_t_m2		; Vector3D.cls 308
-            xor a		; Vector3D.cls 309
-            sub e		; Vector3D.cls 310
-            ld e, a		; Vector3D.cls 311
-            sbc a, a		; Vector3D.cls 312
-            sub d		; Vector3D.cls 313
-            ld d, a		; Vector3D.cls 314
-asm_1_94_n_t_m2:		; Vector3D.cls 315
-            ld a, d		; Vector3D.cls 316
-            or a		; Vector3D.cls 317
-            jr nz, asm_1_94_n_t_m9             ; 256: times 1 [318]
-            ld a, e		; Vector3D.cls 319
-            ex de, hl		; Vector3D.cls 320
-            ld hl, 0		; Vector3D.cls 321
-            ld c, l		; Vector3D.cls 322
-            ld b, 8		; Vector3D.cls 323
-asm_1_94_n_t_mlp:		; Vector3D.cls 324
-            add hl, hl		; Vector3D.cls 325
-            rl c		; Vector3D.cls 326
-            add a, a		; Vector3D.cls 327
-            jr nc, asm_1_94_n_t_mnx		; Vector3D.cls 328
-            add hl, de		; Vector3D.cls 329
-            jr nc, asm_1_94_n_t_mnx		; Vector3D.cls 330
-            inc c		; Vector3D.cls 331
-asm_1_94_n_t_mnx:		; Vector3D.cls 332
-            djnz asm_1_94_n_t_mlp		; Vector3D.cls 333
-            ld l, h		; Vector3D.cls 334
-            ld h, c		; Vector3D.cls 335
-asm_1_94_n_t_m9:		; Vector3D.cls 336
-            pop af		; Vector3D.cls 337
-            rla		; Vector3D.cls 338
-            ret nc		; Vector3D.cls 339
-asm_1_94_n_t_neg:		; Vector3D.cls 340
-            xor a		; Vector3D.cls 341
-            sub l		; Vector3D.cls 342
-            ld l, a		; Vector3D.cls 343
-            sbc a, a		; Vector3D.cls 344
-            sub h		; Vector3D.cls 345
-            ld h, a		; Vector3D.cls 346
-            ret		; Vector3D.cls 347
+asm_1_95_n_t_mul:		; Vector3D.cls 295
+            ld a, h		; Vector3D.cls 296
+            xor d		; Vector3D.cls 297
+            push af		; Vector3D.cls 298
+            bit 7, h		; Vector3D.cls 299
+            jr z, asm_1_95_n_t_m1		; Vector3D.cls 300
+            xor a		; Vector3D.cls 301
+            sub l		; Vector3D.cls 302
+            ld l, a		; Vector3D.cls 303
+            sbc a, a		; Vector3D.cls 304
+            sub h		; Vector3D.cls 305
+            ld h, a		; Vector3D.cls 306
+asm_1_95_n_t_m1:		; Vector3D.cls 307
+            bit 7, d		; Vector3D.cls 308
+            jr z, asm_1_95_n_t_m2		; Vector3D.cls 309
+            xor a		; Vector3D.cls 310
+            sub e		; Vector3D.cls 311
+            ld e, a		; Vector3D.cls 312
+            sbc a, a		; Vector3D.cls 313
+            sub d		; Vector3D.cls 314
+            ld d, a		; Vector3D.cls 315
+asm_1_95_n_t_m2:		; Vector3D.cls 316
+            ld a, d		; Vector3D.cls 317
+            or a		; Vector3D.cls 318
+            jr nz, asm_1_95_n_t_m9             ; 256: times 1 [319]
+            ld a, e		; Vector3D.cls 320
+            ex de, hl		; Vector3D.cls 321
+            ld hl, 0		; Vector3D.cls 322
+            ld c, l		; Vector3D.cls 323
+            ld b, 8		; Vector3D.cls 324
+asm_1_95_n_t_mlp:		; Vector3D.cls 325
+            add hl, hl		; Vector3D.cls 326
+            rl c		; Vector3D.cls 327
+            add a, a		; Vector3D.cls 328
+            jr nc, asm_1_95_n_t_mnx		; Vector3D.cls 329
+            add hl, de		; Vector3D.cls 330
+            jr nc, asm_1_95_n_t_mnx		; Vector3D.cls 331
+            inc c		; Vector3D.cls 332
+asm_1_95_n_t_mnx:		; Vector3D.cls 333
+            djnz asm_1_95_n_t_mlp		; Vector3D.cls 334
+            ld l, h		; Vector3D.cls 335
+            ld h, c		; Vector3D.cls 336
+asm_1_95_n_t_m9:		; Vector3D.cls 337
+            pop af		; Vector3D.cls 338
+            rla		; Vector3D.cls 339
+            ret nc		; Vector3D.cls 340
+asm_1_95_n_t_neg:		; Vector3D.cls 341
+            xor a		; Vector3D.cls 342
+            sub l		; Vector3D.cls 343
+            ld l, a		; Vector3D.cls 344
+            sbc a, a		; Vector3D.cls 345
+            sub h		; Vector3D.cls 346
+            ld h, a		; Vector3D.cls 347
+            ret		; Vector3D.cls 348
 ; HL = a coordinate (8.8, signed): HL = pixels = HL * scale / td
-asm_1_94_n_t_prj:		; Vector3D.cls 349
-            ld a, h		; Vector3D.cls 350
-            push af		; Vector3D.cls 351
-            bit 7, h		; Vector3D.cls 352
-            call nz, asm_1_94_n_t_neg		; Vector3D.cls 353
-            ld de, (var_vector3d_scl)		; Vector3D.cls 354
-            ld b, h                 ; DE:HL = HL * DE [355]
-            ld c, l		; Vector3D.cls 356
-            ld hl, 0		; Vector3D.cls 357
-            ld a, 16		; Vector3D.cls 358
-asm_1_94_n_t_pml:		; Vector3D.cls 359
-            add hl, hl		; Vector3D.cls 360
-            rl e		; Vector3D.cls 361
-            rl d		; Vector3D.cls 362
-            jr nc, asm_1_94_n_t_pmn		; Vector3D.cls 363
-            add hl, bc		; Vector3D.cls 364
-            jr nc, asm_1_94_n_t_pmn		; Vector3D.cls 365
-            inc de		; Vector3D.cls 366
-asm_1_94_n_t_pmn:		; Vector3D.cls 367
-            dec a		; Vector3D.cls 368
-            jr nz, asm_1_94_n_t_pml		; Vector3D.cls 369
-            ld bc, (var_vector3d_td)           ; HL = DE:HL / BC (DE < BC) [370]
-            ld a, 16		; Vector3D.cls 371
-asm_1_94_n_t_dlp:		; Vector3D.cls 372
-            add hl, hl		; Vector3D.cls 373
-            ex de, hl		; Vector3D.cls 374
-            adc hl, hl		; Vector3D.cls 375
-            jr c, asm_1_94_n_t_dsb		; Vector3D.cls 376
-            or a		; Vector3D.cls 377
-            sbc hl, bc		; Vector3D.cls 378
-            jr nc, asm_1_94_n_t_d1		; Vector3D.cls 379
-            add hl, bc		; Vector3D.cls 380
-            ex de, hl		; Vector3D.cls 381
-            dec a		; Vector3D.cls 382
-            jr nz, asm_1_94_n_t_dlp		; Vector3D.cls 383
-            jr asm_1_94_n_t_dend		; Vector3D.cls 384
-asm_1_94_n_t_dsb:		; Vector3D.cls 385
-            or a		; Vector3D.cls 386
-            sbc hl, bc		; Vector3D.cls 387
-asm_1_94_n_t_d1:		; Vector3D.cls 388
-            ex de, hl		; Vector3D.cls 389
-            inc l		; Vector3D.cls 390
-            dec a		; Vector3D.cls 391
-            jr nz, asm_1_94_n_t_dlp		; Vector3D.cls 392
-asm_1_94_n_t_dend:		; Vector3D.cls 393
-            pop af		; Vector3D.cls 394
-            rla		; Vector3D.cls 395
-            ret nc		; Vector3D.cls 396
-            jr asm_1_94_n_t_neg		; Vector3D.cls 397
-asm_1_94_n_t_sin:		; Vector3D.cls 398
-            dw 0, 6, 13, 19, 25, 31, 38, 44, 50, 56, 62, 68, 74, 80, 86, 92		; Vector3D.cls 399
-            dw 98, 104, 109, 115, 121, 126, 132, 137, 142, 147, 152, 157, 162, 167, 172, 177		; Vector3D.cls 400
-            dw 181, 185, 190, 194, 198, 202, 206, 209, 213, 216, 220, 223, 226, 229, 231, 234		; Vector3D.cls 401
-            dw 237, 239, 241, 243, 245, 247, 248, 250, 251, 252, 253, 254, 255, 255, 256, 256		; Vector3D.cls 402
-            dw 256, 256, 256, 255, 255, 254, 253, 252, 251, 250, 248, 247, 245, 243, 241, 239		; Vector3D.cls 403
-            dw 237, 234, 231, 229, 226, 223, 220, 216, 213, 209, 206, 202, 198, 194, 190, 185		; Vector3D.cls 404
-            dw 181, 177, 172, 167, 162, 157, 152, 147, 142, 137, 132, 126, 121, 115, 109, 104		; Vector3D.cls 405
-            dw 98, 92, 86, 80, 74, 68, 62, 56, 50, 44, 38, 31, 25, 19, 13, 6		; Vector3D.cls 406
-            dw 0, -6, -13, -19, -25, -31, -38, -44, -50, -56, -62, -68, -74, -80, -86, -92		; Vector3D.cls 407
-            dw -98, -104, -109, -115, -121, -126, -132, -137, -142, -147, -152, -157, -162, -167, -172, -177		; Vector3D.cls 408
-            dw -181, -185, -190, -194, -198, -202, -206, -209, -213, -216, -220, -223, -226, -229, -231, -234		; Vector3D.cls 409
-            dw -237, -239, -241, -243, -245, -247, -248, -250, -251, -252, -253, -254, -255, -255, -256, -256		; Vector3D.cls 410
-            dw -256, -256, -256, -255, -255, -254, -253, -252, -251, -250, -248, -247, -245, -243, -241, -239		; Vector3D.cls 411
-            dw -237, -234, -231, -229, -226, -223, -220, -216, -213, -209, -206, -202, -198, -194, -190, -185		; Vector3D.cls 412
-            dw -181, -177, -172, -167, -162, -157, -152, -147, -142, -137, -132, -126, -121, -115, -109, -104		; Vector3D.cls 413
-            dw -98, -92, -86, -80, -74, -68, -62, -56, -50, -44, -38, -31, -25, -19, -13, -6		; Vector3D.cls 414
+asm_1_95_n_t_prj:		; Vector3D.cls 350
+            ld a, h		; Vector3D.cls 351
+            push af		; Vector3D.cls 352
+            bit 7, h		; Vector3D.cls 353
+            call nz, asm_1_95_n_t_neg		; Vector3D.cls 354
+            ld de, (var_vector3d_scl)		; Vector3D.cls 355
+            ld b, h                 ; DE:HL = HL * DE [356]
+            ld c, l		; Vector3D.cls 357
+            ld hl, 0		; Vector3D.cls 358
+            ld a, 16		; Vector3D.cls 359
+asm_1_95_n_t_pml:		; Vector3D.cls 360
+            add hl, hl		; Vector3D.cls 361
+            rl e		; Vector3D.cls 362
+            rl d		; Vector3D.cls 363
+            jr nc, asm_1_95_n_t_pmn		; Vector3D.cls 364
+            add hl, bc		; Vector3D.cls 365
+            jr nc, asm_1_95_n_t_pmn		; Vector3D.cls 366
+            inc de		; Vector3D.cls 367
+asm_1_95_n_t_pmn:		; Vector3D.cls 368
+            dec a		; Vector3D.cls 369
+            jr nz, asm_1_95_n_t_pml		; Vector3D.cls 370
+            ld bc, (var_vector3d_td)           ; HL = DE:HL / BC (DE < BC) [371]
+            ld a, 16		; Vector3D.cls 372
+asm_1_95_n_t_dlp:		; Vector3D.cls 373
+            add hl, hl		; Vector3D.cls 374
+            ex de, hl		; Vector3D.cls 375
+            adc hl, hl		; Vector3D.cls 376
+            jr c, asm_1_95_n_t_dsb		; Vector3D.cls 377
+            or a		; Vector3D.cls 378
+            sbc hl, bc		; Vector3D.cls 379
+            jr nc, asm_1_95_n_t_d1		; Vector3D.cls 380
+            add hl, bc		; Vector3D.cls 381
+            ex de, hl		; Vector3D.cls 382
+            dec a		; Vector3D.cls 383
+            jr nz, asm_1_95_n_t_dlp		; Vector3D.cls 384
+            jr asm_1_95_n_t_dend		; Vector3D.cls 385
+asm_1_95_n_t_dsb:		; Vector3D.cls 386
+            or a		; Vector3D.cls 387
+            sbc hl, bc		; Vector3D.cls 388
+asm_1_95_n_t_d1:		; Vector3D.cls 389
+            ex de, hl		; Vector3D.cls 390
+            inc l		; Vector3D.cls 391
+            dec a		; Vector3D.cls 392
+            jr nz, asm_1_95_n_t_dlp		; Vector3D.cls 393
+asm_1_95_n_t_dend:		; Vector3D.cls 394
+            pop af		; Vector3D.cls 395
+            rla		; Vector3D.cls 396
+            ret nc		; Vector3D.cls 397
+            jr asm_1_95_n_t_neg		; Vector3D.cls 398
+asm_1_95_n_t_sin:		; Vector3D.cls 399
+            dw 0, 6, 13, 19, 25, 31, 38, 44, 50, 56, 62, 68, 74, 80, 86, 92		; Vector3D.cls 400
+            dw 98, 104, 109, 115, 121, 126, 132, 137, 142, 147, 152, 157, 162, 167, 172, 177		; Vector3D.cls 401
+            dw 181, 185, 190, 194, 198, 202, 206, 209, 213, 216, 220, 223, 226, 229, 231, 234		; Vector3D.cls 402
+            dw 237, 239, 241, 243, 245, 247, 248, 250, 251, 252, 253, 254, 255, 255, 256, 256		; Vector3D.cls 403
+            dw 256, 256, 256, 255, 255, 254, 253, 252, 251, 250, 248, 247, 245, 243, 241, 239		; Vector3D.cls 404
+            dw 237, 234, 231, 229, 226, 223, 220, 216, 213, 209, 206, 202, 198, 194, 190, 185		; Vector3D.cls 405
+            dw 181, 177, 172, 167, 162, 157, 152, 147, 142, 137, 132, 126, 121, 115, 109, 104		; Vector3D.cls 406
+            dw 98, 92, 86, 80, 74, 68, 62, 56, 50, 44, 38, 31, 25, 19, 13, 6		; Vector3D.cls 407
+            dw 0, -6, -13, -19, -25, -31, -38, -44, -50, -56, -62, -68, -74, -80, -86, -92		; Vector3D.cls 408
+            dw -98, -104, -109, -115, -121, -126, -132, -137, -142, -147, -152, -157, -162, -167, -172, -177		; Vector3D.cls 409
+            dw -181, -185, -190, -194, -198, -202, -206, -209, -213, -216, -220, -223, -226, -229, -231, -234		; Vector3D.cls 410
+            dw -237, -239, -241, -243, -245, -247, -248, -250, -251, -252, -253, -254, -255, -255, -256, -256		; Vector3D.cls 411
+            dw -256, -256, -256, -255, -255, -254, -253, -252, -251, -250, -248, -247, -245, -243, -241, -239		; Vector3D.cls 412
+            dw -237, -234, -231, -229, -226, -223, -220, -216, -213, -209, -206, -202, -198, -194, -190, -185		; Vector3D.cls 413
+            dw -181, -177, -172, -167, -162, -157, -152, -147, -142, -137, -132, -126, -121, -115, -109, -104		; Vector3D.cls 414
+            dw -98, -92, -86, -80, -74, -68, -62, -56, -50, -44, -38, -31, -25, -19, -13, -6		; Vector3D.cls 415
 			ret			; end of #asm
 
-asm_1_422_n:		; #asm, Vector3D.cls line 422 (normal)
-            ld a, (var_vector3d_draw_visible)		; Vector3D.cls 423
-            ld (var_vector3d_vis), a		; Vector3D.cls 424
-            ld (var_vector3d_spsave), sp		; Vector3D.cls 425
-            ld sp, (ntc_csp)		; Vector3D.cls 426
-            ei		; Vector3D.cls 427
-            ld a, (gfx_base)        ; this screen's old lines: ox / oy (#C000) or qx / qy (#4000) [428]
-            cp #40		; Vector3D.cls 429
-            jr z, asm_1_422_n_d_b1		; Vector3D.cls 430
-            ld hl, arr_vector3d_ox		; Vector3D.cls 431
-            ld de, arr_vector3d_oy		; Vector3D.cls 432
-            ld bc, var_vector3d_shown		; Vector3D.cls 433
-            jr asm_1_422_n_d_b		; Vector3D.cls 434
-asm_1_422_n_d_b1:		; Vector3D.cls 435
-            ld hl, arr_vector3d_qx		; Vector3D.cls 436
-            ld de, arr_vector3d_qy		; Vector3D.cls 437
-            ld bc, var_vector3d_shown2		; Vector3D.cls 438
-asm_1_422_n_d_b:		; Vector3D.cls 439
-            ld (var_vector3d_xs), hl		; Vector3D.cls 440
-            ld (var_vector3d_ys), de		; Vector3D.cls 441
-            ld (var_vector3d_ek), bc		; Vector3D.cls 442
-            push hl		; Vector3D.cls 443
-            push de		; Vector3D.cls 444
-            ld a, (bc)		; Vector3D.cls 445
-            or a		; Vector3D.cls 446
-            call nz, asm_1_422_n_d_edges        ; take them off (XOR again) [447]
-            ld hl, (var_vector3d_ek)		; Vector3D.cls 448
-            ld (hl), 0		; Vector3D.cls 449
-            pop de		; Vector3D.cls 450
-            pop hl		; Vector3D.cls 451
-            ld a, (var_vector3d_vis)		; Vector3D.cls 452
-            or a		; Vector3D.cls 453
-            jr z, asm_1_422_n_d_end		; Vector3D.cls 454
-            push hl		; Vector3D.cls 455
-            push de		; Vector3D.cls 456
-            ld hl, arr_vector3d_sx		; Vector3D.cls 457
-            ld (var_vector3d_xs), hl		; Vector3D.cls 458
-            ld hl, arr_vector3d_sy		; Vector3D.cls 459
-            ld (var_vector3d_ys), hl		; Vector3D.cls 460
-            call asm_1_422_n_d_edges		; Vector3D.cls 461
-            pop de		; Vector3D.cls 462
-            pop hl		; Vector3D.cls 463
-            push de		; Vector3D.cls 464
-            ex de, hl		; Vector3D.cls 465
-            ld hl, arr_vector3d_sx             ; what is on this screen now [466]
+asm_1_425_n:		; #asm, Vector3D.cls line 425 (normal)
+            ld a, (var_vector3d_draw_visible)		; Vector3D.cls 426
+            ld (var_vector3d_vis), a		; Vector3D.cls 427
+            ld (var_vector3d_spsave), sp		; Vector3D.cls 428
+            ld sp, (ntc_csp)		; Vector3D.cls 429
+            ei		; Vector3D.cls 430
+            ld a, (gfx_base)        ; this screen's old lines: ox / oy (#C000) or qx / qy (#4000) [431]
+            cp #40		; Vector3D.cls 432
+            jr z, asm_1_425_n_d_b1		; Vector3D.cls 433
+            ld hl, arr_vector3d_ox		; Vector3D.cls 434
+            ld de, arr_vector3d_oy		; Vector3D.cls 435
+            ld bc, var_vector3d_shown		; Vector3D.cls 436
+            jr asm_1_425_n_d_b		; Vector3D.cls 437
+asm_1_425_n_d_b1:		; Vector3D.cls 438
+            ld hl, arr_vector3d_qx		; Vector3D.cls 439
+            ld de, arr_vector3d_qy		; Vector3D.cls 440
+            ld bc, var_vector3d_shown2		; Vector3D.cls 441
+asm_1_425_n_d_b:		; Vector3D.cls 442
+            ld (var_vector3d_xo), hl		; Vector3D.cls 443
+            ld (var_vector3d_yo), de		; Vector3D.cls 444
+            ld (var_vector3d_ek), bc		; Vector3D.cls 445
+            ld a, (var_vector3d_vis)		; Vector3D.cls 446
+            or a		; Vector3D.cls 447
+            jr z, asm_1_425_n_d_off		; Vector3D.cls 448
+            ld a, (bc)		; Vector3D.cls 449
+            or a		; Vector3D.cls 450
+            jr z, asm_1_425_n_d_all		; Vector3D.cls 451
+            call asm_1_425_n_d_change           ; only the edges that moved: old line off, new on [452]
+            jr asm_1_425_n_d_keep		; Vector3D.cls 453
+asm_1_425_n_d_all:		; Vector3D.cls 454
+            ld hl, arr_vector3d_sx             ; nothing on this screen yet: every edge [455]
+            ld (var_vector3d_xs), hl		; Vector3D.cls 456
+            ld hl, arr_vector3d_sy		; Vector3D.cls 457
+            ld (var_vector3d_ys), hl		; Vector3D.cls 458
+            call asm_1_425_n_d_edges		; Vector3D.cls 459
+asm_1_425_n_d_keep:		; Vector3D.cls 460
+            ld hl, arr_vector3d_sx             ; what is on this screen now [461]
+            ld de, (var_vector3d_xo)		; Vector3D.cls 462
+            ld bc, 64		; Vector3D.cls 463
+            ldir		; Vector3D.cls 464
+            ld hl, arr_vector3d_sy		; Vector3D.cls 465
+            ld de, (var_vector3d_yo)		; Vector3D.cls 466
             ld bc, 64		; Vector3D.cls 467
             ldir		; Vector3D.cls 468
-            pop de		; Vector3D.cls 469
-            ld hl, arr_vector3d_sy		; Vector3D.cls 470
-            ld bc, 64		; Vector3D.cls 471
-            ldir		; Vector3D.cls 472
-            ld hl, (var_vector3d_ek)		; Vector3D.cls 473
-            ld (hl), 1		; Vector3D.cls 474
-            call gfx_flip		; Vector3D.cls 475
-asm_1_422_n_d_end:		; Vector3D.cls 476
-            di		; Vector3D.cls 477
-            ld sp, (var_vector3d_spsave)		; Vector3D.cls 478
-            ret		; Vector3D.cls 479
-
+            ld hl, (var_vector3d_ek)		; Vector3D.cls 469
+            ld (hl), 1		; Vector3D.cls 470
+            call gfx_flip		; Vector3D.cls 471
+            jr asm_1_425_n_d_end		; Vector3D.cls 472
+asm_1_425_n_d_off:		; Vector3D.cls 473
+            ld a, (bc)              ; the shape off this screen (XOR again) [474]
+            or a		; Vector3D.cls 475
+            jr z, asm_1_425_n_d_end		; Vector3D.cls 476
+            ld hl, (var_vector3d_xo)		; Vector3D.cls 477
+            ld (var_vector3d_xs), hl		; Vector3D.cls 478
+            ld hl, (var_vector3d_yo)		; Vector3D.cls 479
+            ld (var_vector3d_ys), hl		; Vector3D.cls 480
+            call asm_1_425_n_d_edges		; Vector3D.cls 481
+            ld hl, (var_vector3d_ek)		; Vector3D.cls 482
+            ld (hl), 0		; Vector3D.cls 483
+asm_1_425_n_d_end:		; Vector3D.cls 484
+            di		; Vector3D.cls 485
+            ld sp, (var_vector3d_spsave)		; Vector3D.cls 486
+            ret		; Vector3D.cls 487
+; d_same - A = a point's offset: Z when it is where it was (x and y, old and new)
+asm_1_425_n_d_same:		; Vector3D.cls 489
+            ld c, a		; Vector3D.cls 490
+            ld hl, (var_vector3d_xo)		; Vector3D.cls 491
+            call asm_1_425_n_d_word		; Vector3D.cls 492
+            ex de, hl		; Vector3D.cls 493
+            ld hl, arr_vector3d_sx		; Vector3D.cls 494
+            ld a, c		; Vector3D.cls 495
+            call asm_1_425_n_d_word		; Vector3D.cls 496
+            or a		; Vector3D.cls 497
+            sbc hl, de		; Vector3D.cls 498
+            ret nz		; Vector3D.cls 499
+            ld hl, (var_vector3d_yo)		; Vector3D.cls 500
+            ld a, c		; Vector3D.cls 501
+            call asm_1_425_n_d_word		; Vector3D.cls 502
+            ex de, hl		; Vector3D.cls 503
+            ld hl, arr_vector3d_sy		; Vector3D.cls 504
+            ld a, c		; Vector3D.cls 505
+            call asm_1_425_n_d_word		; Vector3D.cls 506
+            or a		; Vector3D.cls 507
+            sbc hl, de		; Vector3D.cls 508
+            ret		; Vector3D.cls 509
+; d_one - the line of edge ia - ib from the arrays at xs / ys
+asm_1_425_n_d_one:		; Vector3D.cls 511
+            ld hl, (var_vector3d_xs)		; Vector3D.cls 512
+            ld a, (var_vector3d_ia)		; Vector3D.cls 513
+            call asm_1_425_n_d_word		; Vector3D.cls 514
+            call asm_1_425_n_d_mx		; Vector3D.cls 515
+            ld (gfx_x0), hl		; Vector3D.cls 516
+            ld hl, (var_vector3d_ys)		; Vector3D.cls 517
+            ld a, (var_vector3d_ia)		; Vector3D.cls 518
+            call asm_1_425_n_d_word		; Vector3D.cls 519
+            ld (gfx_y0), hl		; Vector3D.cls 520
+            ld hl, (var_vector3d_xs)		; Vector3D.cls 521
+            ld a, (var_vector3d_ib)		; Vector3D.cls 522
+            call asm_1_425_n_d_word		; Vector3D.cls 523
+            call asm_1_425_n_d_mx		; Vector3D.cls 524
+            ld (gfx_x1), hl		; Vector3D.cls 525
+            ld hl, (var_vector3d_ys)		; Vector3D.cls 526
+            ld a, (var_vector3d_ib)		; Vector3D.cls 527
+            call asm_1_425_n_d_word		; Vector3D.cls 528
+            ld (gfx_y1), hl		; Vector3D.cls 529
+            jp gfx_line		; Vector3D.cls 530
 ; every edge, from the point arrays at xs / ys (pixels of mode 1: halved for mode 0,
 ; doubled for mode 2)
-asm_1_422_n_d_edges:		; Vector3D.cls 483
-            ld a, (var_vector3d_ne)		; Vector3D.cls 484
-            or a		; Vector3D.cls 485
-            ret z		; Vector3D.cls 486
-            ld (var_vector3d_en), a		; Vector3D.cls 487
-            ld hl, 0		; Vector3D.cls 488
-            ld (var_vector3d_pk), hl		; Vector3D.cls 489
-            call gfx_begin		; Vector3D.cls 490
-asm_1_422_n_d_elp:		; Vector3D.cls 491
-            ld de, (var_vector3d_pk)		; Vector3D.cls 492
-            ld hl, arr_vector3d_ea		; Vector3D.cls 493
-            add hl, de		; Vector3D.cls 494
-            ld a, (hl)		; Vector3D.cls 495
-            and 31		; Vector3D.cls 496
-            add a, a		; Vector3D.cls 497
-            ld (var_vector3d_ia), a		; Vector3D.cls 498
-            ld hl, arr_vector3d_eb		; Vector3D.cls 499
-            add hl, de		; Vector3D.cls 500
-            ld a, (hl)		; Vector3D.cls 501
-            and 31		; Vector3D.cls 502
-            add a, a		; Vector3D.cls 503
-            ld (var_vector3d_ib), a		; Vector3D.cls 504
-            ld hl, (var_vector3d_xs)		; Vector3D.cls 505
-            ld a, (var_vector3d_ia)		; Vector3D.cls 506
-            call asm_1_422_n_d_word		; Vector3D.cls 507
-            call asm_1_422_n_d_mx		; Vector3D.cls 508
-            ld (gfx_x0), hl		; Vector3D.cls 509
-            ld hl, (var_vector3d_ys)		; Vector3D.cls 510
-            ld a, (var_vector3d_ia)		; Vector3D.cls 511
-            call asm_1_422_n_d_word		; Vector3D.cls 512
-            ld (gfx_y0), hl		; Vector3D.cls 513
-            ld hl, (var_vector3d_xs)		; Vector3D.cls 514
-            ld a, (var_vector3d_ib)		; Vector3D.cls 515
-            call asm_1_422_n_d_word		; Vector3D.cls 516
-            call asm_1_422_n_d_mx		; Vector3D.cls 517
-            ld (gfx_x1), hl		; Vector3D.cls 518
-            ld hl, (var_vector3d_ys)		; Vector3D.cls 519
-            ld a, (var_vector3d_ib)		; Vector3D.cls 520
-            call asm_1_422_n_d_word		; Vector3D.cls 521
-            ld (gfx_y1), hl		; Vector3D.cls 522
-            call gfx_line		; Vector3D.cls 523
-            ld hl, (var_vector3d_pk)		; Vector3D.cls 524
-            inc hl		; Vector3D.cls 525
-            inc hl		; Vector3D.cls 526
-            ld (var_vector3d_pk), hl		; Vector3D.cls 527
-            ld hl, var_vector3d_en		; Vector3D.cls 528
-            dec (hl)		; Vector3D.cls 529
-            jr nz, asm_1_422_n_d_elp		; Vector3D.cls 530
-            jp gfx_end		; Vector3D.cls 531
-asm_1_422_n_d_word:		; Vector3D.cls 532
-            add a, l		; Vector3D.cls 533
-            ld l, a		; Vector3D.cls 534
-            adc a, h		; Vector3D.cls 535
-            sub l		; Vector3D.cls 536
-            ld h, a		; Vector3D.cls 537
-            ld a, (hl)		; Vector3D.cls 538
-            inc hl		; Vector3D.cls 539
-            ld h, (hl)		; Vector3D.cls 540
-            ld l, a		; Vector3D.cls 541
-            ret		; Vector3D.cls 542
+asm_1_425_n_d_edges:		; Vector3D.cls 533
+            xor a		; Vector3D.cls 534
+            jr asm_1_425_n_d_eg		; Vector3D.cls 535
+; d_change - each edge whose ends moved since this screen's last Show: its old line off
+; and its new one on, one edge after another (an edge that hasn't moved isn't touched, so
+; it doesn't flash; a moving one is gone only for its own two lines)
+asm_1_425_n_d_change:		; Vector3D.cls 539
+            ld a, 1		; Vector3D.cls 540
+asm_1_425_n_d_eg:		; Vector3D.cls 541
+            ld (var_vector3d_dm), a		; Vector3D.cls 542
+            ld a, (var_vector3d_ne)		; Vector3D.cls 543
+            or a		; Vector3D.cls 544
+            ret z		; Vector3D.cls 545
+            ld (var_vector3d_en), a		; Vector3D.cls 546
+            ld hl, 0		; Vector3D.cls 547
+            ld (var_vector3d_pk), hl		; Vector3D.cls 548
+            call gfx_begin		; Vector3D.cls 549
+asm_1_425_n_d_elp:		; Vector3D.cls 550
+            ld de, (var_vector3d_pk)		; Vector3D.cls 551
+            ld hl, arr_vector3d_ea		; Vector3D.cls 552
+            add hl, de		; Vector3D.cls 553
+            ld a, (hl)		; Vector3D.cls 554
+            and 31		; Vector3D.cls 555
+            add a, a		; Vector3D.cls 556
+            ld (var_vector3d_ia), a		; Vector3D.cls 557
+            ld hl, arr_vector3d_eb		; Vector3D.cls 558
+            add hl, de		; Vector3D.cls 559
+            ld a, (hl)		; Vector3D.cls 560
+            and 31		; Vector3D.cls 561
+            add a, a		; Vector3D.cls 562
+            ld (var_vector3d_ib), a		; Vector3D.cls 563
+            ld a, (var_vector3d_dm)		; Vector3D.cls 564
+            or a		; Vector3D.cls 565
+            jr z, asm_1_425_n_d_eone            ; every edge from xs / ys [566]
+            ld a, (var_vector3d_ia)            ; the same ends, old and new: nothing to do [567]
+            call asm_1_425_n_d_same		; Vector3D.cls 568
+            jr nz, asm_1_425_n_d_cmove		; Vector3D.cls 569
+            ld a, (var_vector3d_ib)		; Vector3D.cls 570
+            call asm_1_425_n_d_same		; Vector3D.cls 571
+            jr z, asm_1_425_n_d_enext		; Vector3D.cls 572
+asm_1_425_n_d_cmove:		; Vector3D.cls 573
+            ld hl, (var_vector3d_xo)		; Vector3D.cls 574
+            ld (var_vector3d_xs), hl		; Vector3D.cls 575
+            ld hl, (var_vector3d_yo)		; Vector3D.cls 576
+            ld (var_vector3d_ys), hl		; Vector3D.cls 577
+            call asm_1_425_n_d_one              ; the old line off [578]
+            ld hl, arr_vector3d_sx		; Vector3D.cls 579
+            ld (var_vector3d_xs), hl		; Vector3D.cls 580
+            ld hl, arr_vector3d_sy		; Vector3D.cls 581
+            ld (var_vector3d_ys), hl		; Vector3D.cls 582
+asm_1_425_n_d_eone:		; Vector3D.cls 583
+            call asm_1_425_n_d_one		; Vector3D.cls 584
+asm_1_425_n_d_enext:		; Vector3D.cls 585
+            ld hl, (var_vector3d_pk)		; Vector3D.cls 586
+            inc hl		; Vector3D.cls 587
+            inc hl		; Vector3D.cls 588
+            ld (var_vector3d_pk), hl		; Vector3D.cls 589
+            ld hl, var_vector3d_en		; Vector3D.cls 590
+            dec (hl)		; Vector3D.cls 591
+            jr nz, asm_1_425_n_d_elp		; Vector3D.cls 592
+            jp gfx_end		; Vector3D.cls 593
+asm_1_425_n_d_word:		; Vector3D.cls 594
+            add a, l		; Vector3D.cls 595
+            ld l, a		; Vector3D.cls 596
+            adc a, h		; Vector3D.cls 597
+            sub l		; Vector3D.cls 598
+            ld h, a		; Vector3D.cls 599
+            ld a, (hl)		; Vector3D.cls 600
+            inc hl		; Vector3D.cls 601
+            ld h, (hl)		; Vector3D.cls 602
+            ld l, a		; Vector3D.cls 603
+            ret		; Vector3D.cls 604
 ; HL = x in mode 1 pixels: in this mode's
-asm_1_422_n_d_mx:		; Vector3D.cls 544
-            ld a, (ntc_smode)		; Vector3D.cls 545
-            cp 1		; Vector3D.cls 546
-            ret z		; Vector3D.cls 547
-            jr c, asm_1_422_n_d_m0		; Vector3D.cls 548
-            add hl, hl		; Vector3D.cls 549
-            ret		; Vector3D.cls 550
-asm_1_422_n_d_m0:		; Vector3D.cls 551
-            sra h		; Vector3D.cls 552
-            rr l		; Vector3D.cls 553
-            ret		; Vector3D.cls 554
+asm_1_425_n_d_mx:		; Vector3D.cls 606
+            ld a, (ntc_smode)		; Vector3D.cls 607
+            cp 1		; Vector3D.cls 608
+            ret z		; Vector3D.cls 609
+            jr c, asm_1_425_n_d_m0		; Vector3D.cls 610
+            add hl, hl		; Vector3D.cls 611
+            ret		; Vector3D.cls 612
+asm_1_425_n_d_m0:		; Vector3D.cls 613
+            sra h		; Vector3D.cls 614
+            rr l		; Vector3D.cls 615
+            ret		; Vector3D.cls 616
 			ret			; end of #asm
 
-asm_1_422:		; #asm, Vector3D.cls line 422
-            ld a, (var_vector3d_draw_visible)		; Vector3D.cls 423
-            ld (var_vector3d_vis), a		; Vector3D.cls 424
-            ld (var_vector3d_spsave), sp		; Vector3D.cls 425
-            ld sp, (ntc_csp)		; Vector3D.cls 426
-            ei		; Vector3D.cls 427
-            ld a, (gfx_base)        ; this screen's old lines: ox / oy (#C000) or qx / qy (#4000) [428]
-            cp #40		; Vector3D.cls 429
-            jr z, asm_1_422_d_b1		; Vector3D.cls 430
-            ld hl, arr_vector3d_ox		; Vector3D.cls 431
-            ld de, arr_vector3d_oy		; Vector3D.cls 432
-            ld bc, var_vector3d_shown		; Vector3D.cls 433
-            jr asm_1_422_d_b		; Vector3D.cls 434
-asm_1_422_d_b1:		; Vector3D.cls 435
-            ld hl, arr_vector3d_qx		; Vector3D.cls 436
-            ld de, arr_vector3d_qy		; Vector3D.cls 437
-            ld bc, var_vector3d_shown2		; Vector3D.cls 438
-asm_1_422_d_b:		; Vector3D.cls 439
-            ld (var_vector3d_xs), hl		; Vector3D.cls 440
-            ld (var_vector3d_ys), de		; Vector3D.cls 441
-            ld (var_vector3d_ek), bc		; Vector3D.cls 442
-            push hl		; Vector3D.cls 443
-            push de		; Vector3D.cls 444
-            ld a, (bc)		; Vector3D.cls 445
-            or a		; Vector3D.cls 446
-            call nz, asm_1_422_d_edges        ; take them off (XOR again) [447]
-            ld hl, (var_vector3d_ek)		; Vector3D.cls 448
-            ld (hl), 0		; Vector3D.cls 449
-            pop de		; Vector3D.cls 450
-            pop hl		; Vector3D.cls 451
-            ld a, (var_vector3d_vis)		; Vector3D.cls 452
-            or a		; Vector3D.cls 453
-            jr z, asm_1_422_d_end		; Vector3D.cls 454
-            push hl		; Vector3D.cls 455
-            push de		; Vector3D.cls 456
-            ld hl, arr_vector3d_sx		; Vector3D.cls 457
-            ld (var_vector3d_xs), hl		; Vector3D.cls 458
-            ld hl, arr_vector3d_sy		; Vector3D.cls 459
-            ld (var_vector3d_ys), hl		; Vector3D.cls 460
-            call asm_1_422_d_edges		; Vector3D.cls 461
-            pop de		; Vector3D.cls 462
-            pop hl		; Vector3D.cls 463
-            push de		; Vector3D.cls 464
-            ex de, hl		; Vector3D.cls 465
-            ld hl, arr_vector3d_sx             ; what is on this screen now [466]
+asm_1_425:		; #asm, Vector3D.cls line 425
+            ld a, (var_vector3d_draw_visible)		; Vector3D.cls 426
+            ld (var_vector3d_vis), a		; Vector3D.cls 427
+            ld (var_vector3d_spsave), sp		; Vector3D.cls 428
+            ld sp, (ntc_csp)		; Vector3D.cls 429
+            ei		; Vector3D.cls 430
+            ld a, (gfx_base)        ; this screen's old lines: ox / oy (#C000) or qx / qy (#4000) [431]
+            cp #40		; Vector3D.cls 432
+            jr z, asm_1_425_d_b1		; Vector3D.cls 433
+            ld hl, arr_vector3d_ox		; Vector3D.cls 434
+            ld de, arr_vector3d_oy		; Vector3D.cls 435
+            ld bc, var_vector3d_shown		; Vector3D.cls 436
+            jr asm_1_425_d_b		; Vector3D.cls 437
+asm_1_425_d_b1:		; Vector3D.cls 438
+            ld hl, arr_vector3d_qx		; Vector3D.cls 439
+            ld de, arr_vector3d_qy		; Vector3D.cls 440
+            ld bc, var_vector3d_shown2		; Vector3D.cls 441
+asm_1_425_d_b:		; Vector3D.cls 442
+            ld (var_vector3d_xo), hl		; Vector3D.cls 443
+            ld (var_vector3d_yo), de		; Vector3D.cls 444
+            ld (var_vector3d_ek), bc		; Vector3D.cls 445
+            ld a, (var_vector3d_vis)		; Vector3D.cls 446
+            or a		; Vector3D.cls 447
+            jr z, asm_1_425_d_off		; Vector3D.cls 448
+            ld a, (bc)		; Vector3D.cls 449
+            or a		; Vector3D.cls 450
+            jr z, asm_1_425_d_all		; Vector3D.cls 451
+            call asm_1_425_d_change           ; only the edges that moved: old line off, new on [452]
+            jr asm_1_425_d_keep		; Vector3D.cls 453
+asm_1_425_d_all:		; Vector3D.cls 454
+            ld hl, arr_vector3d_sx             ; nothing on this screen yet: every edge [455]
+            ld (var_vector3d_xs), hl		; Vector3D.cls 456
+            ld hl, arr_vector3d_sy		; Vector3D.cls 457
+            ld (var_vector3d_ys), hl		; Vector3D.cls 458
+            call asm_1_425_d_edges		; Vector3D.cls 459
+asm_1_425_d_keep:		; Vector3D.cls 460
+            ld hl, arr_vector3d_sx             ; what is on this screen now [461]
+            ld de, (var_vector3d_xo)		; Vector3D.cls 462
+            ld bc, 64		; Vector3D.cls 463
+            ldir		; Vector3D.cls 464
+            ld hl, arr_vector3d_sy		; Vector3D.cls 465
+            ld de, (var_vector3d_yo)		; Vector3D.cls 466
             ld bc, 64		; Vector3D.cls 467
             ldir		; Vector3D.cls 468
-            pop de		; Vector3D.cls 469
-            ld hl, arr_vector3d_sy		; Vector3D.cls 470
-            ld bc, 64		; Vector3D.cls 471
-            ldir		; Vector3D.cls 472
-            ld hl, (var_vector3d_ek)		; Vector3D.cls 473
-            ld (hl), 1		; Vector3D.cls 474
-            call gfx_flip		; Vector3D.cls 475
-asm_1_422_d_end:		; Vector3D.cls 476
-            di		; Vector3D.cls 477
-            ld sp, (var_vector3d_spsave)		; Vector3D.cls 478
-            ret		; Vector3D.cls 479
-
+            ld hl, (var_vector3d_ek)		; Vector3D.cls 469
+            ld (hl), 1		; Vector3D.cls 470
+            call gfx_flip		; Vector3D.cls 471
+            jr asm_1_425_d_end		; Vector3D.cls 472
+asm_1_425_d_off:		; Vector3D.cls 473
+            ld a, (bc)              ; the shape off this screen (XOR again) [474]
+            or a		; Vector3D.cls 475
+            jr z, asm_1_425_d_end		; Vector3D.cls 476
+            ld hl, (var_vector3d_xo)		; Vector3D.cls 477
+            ld (var_vector3d_xs), hl		; Vector3D.cls 478
+            ld hl, (var_vector3d_yo)		; Vector3D.cls 479
+            ld (var_vector3d_ys), hl		; Vector3D.cls 480
+            call asm_1_425_d_edges		; Vector3D.cls 481
+            ld hl, (var_vector3d_ek)		; Vector3D.cls 482
+            ld (hl), 0		; Vector3D.cls 483
+asm_1_425_d_end:		; Vector3D.cls 484
+            di		; Vector3D.cls 485
+            ld sp, (var_vector3d_spsave)		; Vector3D.cls 486
+            ret		; Vector3D.cls 487
+; d_same - A = a point's offset: Z when it is where it was (x and y, old and new)
+asm_1_425_d_same:		; Vector3D.cls 489
+            ld c, a		; Vector3D.cls 490
+            ld hl, (var_vector3d_xo)		; Vector3D.cls 491
+            call asm_1_425_d_word		; Vector3D.cls 492
+            ex de, hl		; Vector3D.cls 493
+            ld hl, arr_vector3d_sx		; Vector3D.cls 494
+            ld a, c		; Vector3D.cls 495
+            call asm_1_425_d_word		; Vector3D.cls 496
+            or a		; Vector3D.cls 497
+            sbc hl, de		; Vector3D.cls 498
+            ret nz		; Vector3D.cls 499
+            ld hl, (var_vector3d_yo)		; Vector3D.cls 500
+            ld a, c		; Vector3D.cls 501
+            call asm_1_425_d_word		; Vector3D.cls 502
+            ex de, hl		; Vector3D.cls 503
+            ld hl, arr_vector3d_sy		; Vector3D.cls 504
+            ld a, c		; Vector3D.cls 505
+            call asm_1_425_d_word		; Vector3D.cls 506
+            or a		; Vector3D.cls 507
+            sbc hl, de		; Vector3D.cls 508
+            ret		; Vector3D.cls 509
+; d_one - the line of edge ia - ib from the arrays at xs / ys
+asm_1_425_d_one:		; Vector3D.cls 511
+            ld hl, (var_vector3d_xs)		; Vector3D.cls 512
+            ld a, (var_vector3d_ia)		; Vector3D.cls 513
+            call asm_1_425_d_word		; Vector3D.cls 514
+            call asm_1_425_d_mx		; Vector3D.cls 515
+            ld (gfx_x0), hl		; Vector3D.cls 516
+            ld hl, (var_vector3d_ys)		; Vector3D.cls 517
+            ld a, (var_vector3d_ia)		; Vector3D.cls 518
+            call asm_1_425_d_word		; Vector3D.cls 519
+            ld (gfx_y0), hl		; Vector3D.cls 520
+            ld hl, (var_vector3d_xs)		; Vector3D.cls 521
+            ld a, (var_vector3d_ib)		; Vector3D.cls 522
+            call asm_1_425_d_word		; Vector3D.cls 523
+            call asm_1_425_d_mx		; Vector3D.cls 524
+            ld (gfx_x1), hl		; Vector3D.cls 525
+            ld hl, (var_vector3d_ys)		; Vector3D.cls 526
+            ld a, (var_vector3d_ib)		; Vector3D.cls 527
+            call asm_1_425_d_word		; Vector3D.cls 528
+            ld (gfx_y1), hl		; Vector3D.cls 529
+            jp gfx_line		; Vector3D.cls 530
 ; every edge, from the point arrays at xs / ys (pixels of mode 1: halved for mode 0,
 ; doubled for mode 2)
-asm_1_422_d_edges:		; Vector3D.cls 483
-            ld a, (var_vector3d_ne)		; Vector3D.cls 484
-            or a		; Vector3D.cls 485
-            ret z		; Vector3D.cls 486
-            ld (var_vector3d_en), a		; Vector3D.cls 487
-            ld hl, 0		; Vector3D.cls 488
-            ld (var_vector3d_pk), hl		; Vector3D.cls 489
-            call gfx_begin		; Vector3D.cls 490
-asm_1_422_d_elp:		; Vector3D.cls 491
-            ld de, (var_vector3d_pk)		; Vector3D.cls 492
-            ld hl, arr_vector3d_ea		; Vector3D.cls 493
-            add hl, de		; Vector3D.cls 494
-            ld a, (hl)		; Vector3D.cls 495
-            and 31		; Vector3D.cls 496
-            add a, a		; Vector3D.cls 497
-            ld (var_vector3d_ia), a		; Vector3D.cls 498
-            ld hl, arr_vector3d_eb		; Vector3D.cls 499
-            add hl, de		; Vector3D.cls 500
-            ld a, (hl)		; Vector3D.cls 501
-            and 31		; Vector3D.cls 502
-            add a, a		; Vector3D.cls 503
-            ld (var_vector3d_ib), a		; Vector3D.cls 504
-            ld hl, (var_vector3d_xs)		; Vector3D.cls 505
-            ld a, (var_vector3d_ia)		; Vector3D.cls 506
-            call asm_1_422_d_word		; Vector3D.cls 507
-            call asm_1_422_d_mx		; Vector3D.cls 508
-            ld (gfx_x0), hl		; Vector3D.cls 509
-            ld hl, (var_vector3d_ys)		; Vector3D.cls 510
-            ld a, (var_vector3d_ia)		; Vector3D.cls 511
-            call asm_1_422_d_word		; Vector3D.cls 512
-            ld (gfx_y0), hl		; Vector3D.cls 513
-            ld hl, (var_vector3d_xs)		; Vector3D.cls 514
-            ld a, (var_vector3d_ib)		; Vector3D.cls 515
-            call asm_1_422_d_word		; Vector3D.cls 516
-            call asm_1_422_d_mx		; Vector3D.cls 517
-            ld (gfx_x1), hl		; Vector3D.cls 518
-            ld hl, (var_vector3d_ys)		; Vector3D.cls 519
-            ld a, (var_vector3d_ib)		; Vector3D.cls 520
-            call asm_1_422_d_word		; Vector3D.cls 521
-            ld (gfx_y1), hl		; Vector3D.cls 522
-            call gfx_line		; Vector3D.cls 523
-            ld hl, (var_vector3d_pk)		; Vector3D.cls 524
-            inc hl		; Vector3D.cls 525
-            inc hl		; Vector3D.cls 526
-            ld (var_vector3d_pk), hl		; Vector3D.cls 527
-            ld hl, var_vector3d_en		; Vector3D.cls 528
-            dec (hl)		; Vector3D.cls 529
-            jr nz, asm_1_422_d_elp		; Vector3D.cls 530
-            jp gfx_end		; Vector3D.cls 531
-asm_1_422_d_word:		; Vector3D.cls 532
-            add a, l		; Vector3D.cls 533
-            ld l, a		; Vector3D.cls 534
-            adc a, h		; Vector3D.cls 535
-            sub l		; Vector3D.cls 536
-            ld h, a		; Vector3D.cls 537
-            ld a, (hl)		; Vector3D.cls 538
-            inc hl		; Vector3D.cls 539
-            ld h, (hl)		; Vector3D.cls 540
-            ld l, a		; Vector3D.cls 541
-            ret		; Vector3D.cls 542
+asm_1_425_d_edges:		; Vector3D.cls 533
+            xor a		; Vector3D.cls 534
+            jr asm_1_425_d_eg		; Vector3D.cls 535
+; d_change - each edge whose ends moved since this screen's last Show: its old line off
+; and its new one on, one edge after another (an edge that hasn't moved isn't touched, so
+; it doesn't flash; a moving one is gone only for its own two lines)
+asm_1_425_d_change:		; Vector3D.cls 539
+            ld a, 1		; Vector3D.cls 540
+asm_1_425_d_eg:		; Vector3D.cls 541
+            ld (var_vector3d_dm), a		; Vector3D.cls 542
+            ld a, (var_vector3d_ne)		; Vector3D.cls 543
+            or a		; Vector3D.cls 544
+            ret z		; Vector3D.cls 545
+            ld (var_vector3d_en), a		; Vector3D.cls 546
+            ld hl, 0		; Vector3D.cls 547
+            ld (var_vector3d_pk), hl		; Vector3D.cls 548
+            call gfx_begin		; Vector3D.cls 549
+asm_1_425_d_elp:		; Vector3D.cls 550
+            ld de, (var_vector3d_pk)		; Vector3D.cls 551
+            ld hl, arr_vector3d_ea		; Vector3D.cls 552
+            add hl, de		; Vector3D.cls 553
+            ld a, (hl)		; Vector3D.cls 554
+            and 31		; Vector3D.cls 555
+            add a, a		; Vector3D.cls 556
+            ld (var_vector3d_ia), a		; Vector3D.cls 557
+            ld hl, arr_vector3d_eb		; Vector3D.cls 558
+            add hl, de		; Vector3D.cls 559
+            ld a, (hl)		; Vector3D.cls 560
+            and 31		; Vector3D.cls 561
+            add a, a		; Vector3D.cls 562
+            ld (var_vector3d_ib), a		; Vector3D.cls 563
+            ld a, (var_vector3d_dm)		; Vector3D.cls 564
+            or a		; Vector3D.cls 565
+            jr z, asm_1_425_d_eone            ; every edge from xs / ys [566]
+            ld a, (var_vector3d_ia)            ; the same ends, old and new: nothing to do [567]
+            call asm_1_425_d_same		; Vector3D.cls 568
+            jr nz, asm_1_425_d_cmove		; Vector3D.cls 569
+            ld a, (var_vector3d_ib)		; Vector3D.cls 570
+            call asm_1_425_d_same		; Vector3D.cls 571
+            jr z, asm_1_425_d_enext		; Vector3D.cls 572
+asm_1_425_d_cmove:		; Vector3D.cls 573
+            ld hl, (var_vector3d_xo)		; Vector3D.cls 574
+            ld (var_vector3d_xs), hl		; Vector3D.cls 575
+            ld hl, (var_vector3d_yo)		; Vector3D.cls 576
+            ld (var_vector3d_ys), hl		; Vector3D.cls 577
+            call asm_1_425_d_one              ; the old line off [578]
+            ld hl, arr_vector3d_sx		; Vector3D.cls 579
+            ld (var_vector3d_xs), hl		; Vector3D.cls 580
+            ld hl, arr_vector3d_sy		; Vector3D.cls 581
+            ld (var_vector3d_ys), hl		; Vector3D.cls 582
+asm_1_425_d_eone:		; Vector3D.cls 583
+            call asm_1_425_d_one		; Vector3D.cls 584
+asm_1_425_d_enext:		; Vector3D.cls 585
+            ld hl, (var_vector3d_pk)		; Vector3D.cls 586
+            inc hl		; Vector3D.cls 587
+            inc hl		; Vector3D.cls 588
+            ld (var_vector3d_pk), hl		; Vector3D.cls 589
+            ld hl, var_vector3d_en		; Vector3D.cls 590
+            dec (hl)		; Vector3D.cls 591
+            jr nz, asm_1_425_d_elp		; Vector3D.cls 592
+            jp gfx_end		; Vector3D.cls 593
+asm_1_425_d_word:		; Vector3D.cls 594
+            add a, l		; Vector3D.cls 595
+            ld l, a		; Vector3D.cls 596
+            adc a, h		; Vector3D.cls 597
+            sub l		; Vector3D.cls 598
+            ld h, a		; Vector3D.cls 599
+            ld a, (hl)		; Vector3D.cls 600
+            inc hl		; Vector3D.cls 601
+            ld h, (hl)		; Vector3D.cls 602
+            ld l, a		; Vector3D.cls 603
+            ret		; Vector3D.cls 604
 ; HL = x in mode 1 pixels: in this mode's
-asm_1_422_d_mx:		; Vector3D.cls 544
-            ld a, (ntc_smode)		; Vector3D.cls 545
-            cp 1		; Vector3D.cls 546
-            ret z		; Vector3D.cls 547
-            jr c, asm_1_422_d_m0		; Vector3D.cls 548
-            add hl, hl		; Vector3D.cls 549
-            ret		; Vector3D.cls 550
-asm_1_422_d_m0:		; Vector3D.cls 551
-            sra h		; Vector3D.cls 552
-            rr l		; Vector3D.cls 553
-            ret		; Vector3D.cls 554
+asm_1_425_d_mx:		; Vector3D.cls 606
+            ld a, (ntc_smode)		; Vector3D.cls 607
+            cp 1		; Vector3D.cls 608
+            ret z		; Vector3D.cls 609
+            jr c, asm_1_425_d_m0		; Vector3D.cls 610
+            add hl, hl		; Vector3D.cls 611
+            ret		; Vector3D.cls 612
+asm_1_425_d_m0:		; Vector3D.cls 613
+            sra h		; Vector3D.cls 614
+            rr l		; Vector3D.cls 615
+            ret		; Vector3D.cls 616
 			ret			; end of #asm
 
 fn_graphics_doublebuffer:		; sub doublebuffer (asm keyword), Graphics.cls line 91
@@ -2204,12 +2407,15 @@ var_vector3d_td:			dw 0
 p_vector3d_draw_rs:			dw 0
 var_vector3d_draw_visible:			dw 0
 var_vector3d_vis:			dw 0
+var_vector3d_xo:			dw 0
+var_vector3d_yo:			dw 0
+var_vector3d_ek:			dw 0
 var_vector3d_xs:			dw 0
 var_vector3d_ys:			dw 0
-var_vector3d_ek:			dw 0
-var_vector3d_en:			dw 0
 var_vector3d_ia:			dw 0
 var_vector3d_ib:			dw 0
+var_vector3d_dm:			dw 0
+var_vector3d_en:			dw 0
 p_spin_run_rs:			dw 0
 			db 40			; capacity
 var_spin_run_k:			ds 41
@@ -2223,13 +2429,18 @@ var_spin_fps:			dw 0
 var_spin_paused:			dw 0
 var_spin_dbl:			dw 0
 p_spin_frame1_rs:			dw 0
+var_spin_frame1_d:			dw 0
 var_spin_ax:			dw 0
 var_spin_ay:			dw 0
 var_spin_az:			dw 0
+var_spin_lt:			dw 0
+var_spin_fx:			dw 0
+var_spin_fy:			dw 0
+var_spin_fz:			dw 0
 p_spin_screen_rs:			dw 0
 p_spin_status_rs:			dw 0
 p_spin_makeshape_rs:			dw 0
-var_spin_makeshape___sel22:			dw 0
+var_spin_makeshape___sel28:			dw 0
 p_spin_cube_rs:			dw 0
 var_spin_cube_x:			dw 0
 var_spin_cube_y:			dw 0
@@ -2262,6 +2473,9 @@ lit_0:			dw 0
 lit_160:			dw 160
 lit_112:			dw 112
 lit_768:			dw 768
+vp_var_spin_fx:			dw var_spin_fx
+vp_var_spin_fy:			dw var_spin_fy
+vp_var_spin_fz:			dw var_spin_fz
 lit_3:			dw 3
 lit_128:			dw 128
 lit_m170:			dw -170
@@ -2445,6 +2659,18 @@ kw_goto_iffalse_n:
 			ld sp, hl
 			jp ntc_xn
 
+;## kw_goto_ifzero
+;kw_goto_ifzero, <var>, <label>  - branch if var = 0
+kw_goto_ifzero:
+			pop hl
+			ld a, (hl)
+			inc hl
+			or (hl)
+			pop hl
+			ret nz
+			ld sp, hl
+			ret
+
 ;## kw_goto_ifzero (normal mode copy)
 ;kw_goto_ifzero, <var>, <label>  - branch if var = 0
 kw_goto_ifzero_n:
@@ -2607,6 +2833,18 @@ kw_inc:
 			ret nz
 			inc hl
 			inc (hl)
+			ret
+
+;## kw_dec
+;kw_dec, <var>
+kw_dec:
+			pop hl
+			ld a, (hl)
+			dec (hl)
+			or a
+			ret nz
+			inc hl
+			dec (hl)
 			ret
 
 ;## kw_add
@@ -2964,6 +3202,20 @@ kw_cpeqvl:
 			ld d, (hl)
 			pop hl
 			jp ntc_cmp_eq
+
+;## kw_vptrtov8
+;kw_vptrtov8, <addrvar>, <destvar>  - PEEK(var)
+kw_vptrtov8:
+			pop hl
+			ld e, (hl)
+			inc hl
+			ld d, (hl)
+			ld a, (de)
+			pop hl
+			ld (hl), a
+			inc hl
+			ld (hl), 0
+			ret
 
 ;## kw_aset
 ;kw_aset, <arraybase>, <indexvar>, <sourcevar>
@@ -3378,10 +3630,6 @@ gfx_x0:			dw 0
 gfx_y0:			dw 0
 gfx_x1:			dw 0
 gfx_y1:			dw 0
-gfx_dx:			dw 0
-gfx_dy:			dw 0
-gfx_out:		db 0
-gfx_sy:			db 0			; 0 down, 1 up
 gfx_pen:		db 1
 gfx_clip:		db 1			; 1: a line with an end off the screen isn't drawn; 0: no checks
 gfx_base:		db #C0			; the screen drawn on (high byte)
@@ -3392,6 +3640,9 @@ gfx_sp:			dw 0			; the thread position while a Graphics method works
 ; gfx_begin / gfx_end - around drawing: main RAM in the window when the
 ; screen drawn on is #4000, the RAM setting put back after
 gfx_begin:
+	IF NTC_CPMGFX
+			ret						; CP/M: each line does its own (gfx_cpmdraw)
+	ENDIF
 			ld a, (gfx_base)
 			cp #40
 			ret nz
@@ -3401,6 +3652,9 @@ gfx_begin:
 			pop bc
 			ret
 gfx_end:
+	IF NTC_CPMGFX
+			ret
+	ENDIF
 			ld a, (gfx_base)
 			cp #40
 			ret nz
@@ -3534,9 +3788,45 @@ gfx_l_shl:
 			djnz gfx_l_shl
 gfx_l_adr:
 			add hl, de
+	IF NTC_CPMGFX
+			jp gfx_cpmdraw
+	ELSE
 			call gfx_begin
 			call gfx_l_draw
 			jp gfx_end
+	ENDIF
+; >gfxhi - CP/M: the compiler copies from here to <gfxhi into common memory
+; (GFH_AT, #C000), labels gfx_ renamed gfh_: the copy CP/M Plus draws with
+gfx_dx:			dw 0
+gfx_dy:			dw 0
+gfx_out:		db 0
+gfx_sy:			db 0			; 0 down, 1 up
+	IF NTC_CPMGFX
+; gfx_go (run as gfh_go, in common memory) - CP/M Plus: draw the line with
+; RAM configuration C1 (the screen, block 1, at #4000), on a stack in common
+; memory (C1 takes away the program's own #0000-#BFFF), then C2 back
+gfx_go:
+			ld (gfx_hsp), sp
+			ld sp, gfx_hstk
+			ld a, i					; P/V = interrupts on: off while C1 is in
+			di
+			push af
+			ld a, c
+			ld bc, #7FC1
+			out (c), c
+			ld c, a
+			call gfx_l_draw
+			ld bc, #7FC2
+			out (c), c
+			pop af
+			ld sp, (gfx_hsp)
+			ret po
+			ei
+			ret
+gfx_hsp:		dw 0
+				ds 24
+gfx_hstk:
+	ENDIF
 gfx_l_draw:
 			ld a, c					; the first pixel
 			and iyl
@@ -3739,6 +4029,69 @@ gfx_cn1:
 			ld (gfx_out), a
 			or 1
 			ret
+; <gfxhi
+	IF NTC_CPMGFX
+; gfx_cpmdraw - CP/M on an Amstrad CPC, mode 2 (the console's). CP/M 2.2: the
+; screen is #C000 of the program's own 64K: drawn there. CP/M Plus: the program
+; runs in RAM configuration C2 (blocks 4-7) and the screen is block 1, at #4000
+; only in C1 (blocks 0, 1, 2, 7), where nothing of the program but #C000-#FFFF
+; (block 7, common) is left: the first line copies the loop to GFH_AT, and
+; each line copies its numbers there and draws with the copy (gfh_go)
+gfx_cpmdraw:
+			ld a, (gfx_cpm)
+			or a
+			call z, gfx_cpmver
+			cp #30
+			jp c, gfx_l_draw		; 2.2
+			ld a, h					; Plus: the address worked out for #C000 (gfx_base): #4000 in C1
+			sub #80
+			ld h, a
+			push bc
+			push hl
+			ld hl, gfx_dx
+			ld de, gfh_dx
+			ld bc, 6
+			ldir
+			pop hl
+			pop bc
+			jp gfh_go
+; gfx_cpmver - A = gfx_cpm = the CP/M version (BDOS 12: #22, #31); Plus: the
+; copy put in common memory, the heap kept below GFH_AT
+gfx_cpmver:
+			push bc
+			push de
+			push hl
+			push ix
+			push iy
+			ld a, i					; P/V = interrupts on (BDOS may turn them on)
+			push af
+			ld c, 12
+			call 5
+			di
+			pop af
+			jp po, gfx_cv1
+			ei
+gfx_cv1:
+			pop iy
+			pop ix
+			ld a, l
+			cp #30
+			jr c, gfx_cv2
+			ld hl, gfh_src
+			ld de, GFH_AT
+			ld bc, gfh_end - gfh_start
+			ldir
+			ld hl, GFH_AT
+			ld (ntc_cpmtop), hl
+			ld a, #31
+gfx_cv2:
+			ld (gfx_cpm), a
+			pop hl
+			pop de
+			pop bc
+			ret
+gfx_cpm:		db 0			; the CP/M version, 0 = not looked at yet
+	ENDIF
 ; HL = a coordinate, DE = the limit: carry when HL is not 0 .. DE - 1
 gfx_chk:
 			bit 7, h
@@ -3836,6 +4189,9 @@ gfx_fl1:
 ; gfx_double - A = 1: double buffering on (the screen at #C000 copied to
 ; #4000, which is drawn on first), 0: off (#C000 shown and drawn on)
 gfx_double:
+	IF NTC_CPMGFX
+			ret						; CP/M: one screen
+	ENDIF
 			or a
 			jr z, gfx_dboff
 			ld (gfx_dbl), a
@@ -3868,6 +4224,9 @@ gfx_dshow:
 ; gfx_copyrows - A = text rows from the top: copied from #C000 to #4000 (so
 ; text printed while double buffering shows on both screens)
 gfx_copyrows:
+	IF NTC_CPMGFX
+			ret						; CP/M: one screen
+	ENDIF
 			or a
 			ret z
 			ld e, a

@@ -8973,10 +8973,6 @@ gfx_x0:			dw 0
 gfx_y0:			dw 0
 gfx_x1:			dw 0
 gfx_y1:			dw 0
-gfx_dx:			dw 0
-gfx_dy:			dw 0
-gfx_out:		db 0
-gfx_sy:			db 0			; 0 down, 1 up
 gfx_pen:		db 1
 gfx_clip:		db 1			; 1: a line with an end off the screen isn't drawn; 0: no checks
 gfx_base:		db #C0			; the screen drawn on (high byte)
@@ -8987,6 +8983,9 @@ gfx_sp:			dw 0			; the thread position while a Graphics method works
 ; gfx_begin / gfx_end - around drawing: main RAM in the window when the
 ; screen drawn on is #4000, the RAM setting put back after
 gfx_begin:
+	IF NTC_CPMGFX
+			ret						; CP/M: each line does its own (gfx_cpmdraw)
+	ENDIF
 			ld a, (gfx_base)
 			cp #40
 			ret nz
@@ -8996,6 +8995,9 @@ gfx_begin:
 			pop bc
 			ret
 gfx_end:
+	IF NTC_CPMGFX
+			ret
+	ENDIF
 			ld a, (gfx_base)
 			cp #40
 			ret nz
@@ -9129,9 +9131,45 @@ gfx_l_shl:
 			djnz gfx_l_shl
 gfx_l_adr:
 			add hl, de
+	IF NTC_CPMGFX
+			jp gfx_cpmdraw
+	ELSE
 			call gfx_begin
 			call gfx_l_draw
 			jp gfx_end
+	ENDIF
+; >gfxhi - CP/M: the compiler copies from here to <gfxhi into common memory
+; (GFH_AT, #C000), labels gfx_ renamed gfh_: the copy CP/M Plus draws with
+gfx_dx:			dw 0
+gfx_dy:			dw 0
+gfx_out:		db 0
+gfx_sy:			db 0			; 0 down, 1 up
+	IF NTC_CPMGFX
+; gfx_go (run as gfh_go, in common memory) - CP/M Plus: draw the line with
+; RAM configuration C1 (the screen, block 1, at #4000), on a stack in common
+; memory (C1 takes away the program's own #0000-#BFFF), then C2 back
+gfx_go:
+			ld (gfx_hsp), sp
+			ld sp, gfx_hstk
+			ld a, i					; P/V = interrupts on: off while C1 is in
+			di
+			push af
+			ld a, c
+			ld bc, #7FC1
+			out (c), c
+			ld c, a
+			call gfx_l_draw
+			ld bc, #7FC2
+			out (c), c
+			pop af
+			ld sp, (gfx_hsp)
+			ret po
+			ei
+			ret
+gfx_hsp:		dw 0
+				ds 24
+gfx_hstk:
+	ENDIF
 gfx_l_draw:
 			ld a, c					; the first pixel
 			and iyl
@@ -9334,6 +9372,69 @@ gfx_cn1:
 			ld (gfx_out), a
 			or 1
 			ret
+; <gfxhi
+	IF NTC_CPMGFX
+; gfx_cpmdraw - CP/M on an Amstrad CPC, mode 2 (the console's). CP/M 2.2: the
+; screen is #C000 of the program's own 64K: drawn there. CP/M Plus: the program
+; runs in RAM configuration C2 (blocks 4-7) and the screen is block 1, at #4000
+; only in C1 (blocks 0, 1, 2, 7), where nothing of the program but #C000-#FFFF
+; (block 7, common) is left: the first line copies the loop to GFH_AT, and
+; each line copies its numbers there and draws with the copy (gfh_go)
+gfx_cpmdraw:
+			ld a, (gfx_cpm)
+			or a
+			call z, gfx_cpmver
+			cp #30
+			jp c, gfx_l_draw		; 2.2
+			ld a, h					; Plus: the address worked out for #C000 (gfx_base): #4000 in C1
+			sub #80
+			ld h, a
+			push bc
+			push hl
+			ld hl, gfx_dx
+			ld de, gfh_dx
+			ld bc, 6
+			ldir
+			pop hl
+			pop bc
+			jp gfh_go
+; gfx_cpmver - A = gfx_cpm = the CP/M version (BDOS 12: #22, #31); Plus: the
+; copy put in common memory, the heap kept below GFH_AT
+gfx_cpmver:
+			push bc
+			push de
+			push hl
+			push ix
+			push iy
+			ld a, i					; P/V = interrupts on (BDOS may turn them on)
+			push af
+			ld c, 12
+			call 5
+			di
+			pop af
+			jp po, gfx_cv1
+			ei
+gfx_cv1:
+			pop iy
+			pop ix
+			ld a, l
+			cp #30
+			jr c, gfx_cv2
+			ld hl, gfh_src
+			ld de, GFH_AT
+			ld bc, gfh_end - gfh_start
+			ldir
+			ld hl, GFH_AT
+			ld (ntc_cpmtop), hl
+			ld a, #31
+gfx_cv2:
+			ld (gfx_cpm), a
+			pop hl
+			pop de
+			pop bc
+			ret
+gfx_cpm:		db 0			; the CP/M version, 0 = not looked at yet
+	ENDIF
 ; HL = a coordinate, DE = the limit: carry when HL is not 0 .. DE - 1
 gfx_chk:
 			bit 7, h
@@ -9431,6 +9532,9 @@ gfx_fl1:
 ; gfx_double - A = 1: double buffering on (the screen at #C000 copied to
 ; #4000, which is drawn on first), 0: off (#C000 shown and drawn on)
 gfx_double:
+	IF NTC_CPMGFX
+			ret						; CP/M: one screen
+	ENDIF
 			or a
 			jr z, gfx_dboff
 			ld (gfx_dbl), a
@@ -9463,6 +9567,9 @@ gfx_dshow:
 ; gfx_copyrows - A = text rows from the top: copied from #C000 to #4000 (so
 ; text printed while double buffering shows on both screens)
 gfx_copyrows:
+	IF NTC_CPMGFX
+			ret						; CP/M: one screen
+	ENDIF
 			or a
 			ret z
 			ld e, a

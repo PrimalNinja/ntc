@@ -10,6 +10,7 @@ NTC_STRMAX	equ 40		; the longest string (library buffers, temps)
 NTC_MEMBANKS	equ 64		; Option Memory: the most 64K banks the Memory class looks for
 NTC_ROMENABLE	equ 0		; Option RomEnable (cpcfw, cpcmin): the start code starts the ROMs
 NTC_ROMLIB	equ 0		; 1 = the library is the keyword ROM (Library: ROM; ntcRomAsm builds it)
+NTC_CPMGFX	equ 1		; 1 = CP/M: Graphics draws on an Amstrad CPC's screen (2.2: #C000, Plus: block 1 from common memory)
 
 ntc_start:
 			di
@@ -3328,6 +3329,8 @@ ntc_curx:		db 0			; column (0 based) - counted for Tab
 ntc_cury:		db 0			; not used (a stream has no rows)
 ntc_scols:		db 80			; columns
 ntc_bdosa:		db 0			; ntc_bdos: A on return
+ntc_smode:		db 2			; screen mode (Graphics on an Amstrad CPC: CP/M's console is mode 2)
+ntc_cpmtop:		dw #FFFF		; the heap's top if lower than the BDOS (Graphics on CP/M Plus: GFH_AT)
 				ds 256			; the program's real stack
 ntc_cpmstack:
 
@@ -3638,13 +3641,22 @@ FS_FAILED	equ -9
 FS_EXISTS	equ -10
 FS_BADMODE	equ -11
 
-;## ntc_plat_memtop
+;## ntc_plat_memtop ntc_plat_data
 ; ntc_plat_memtop - HL = the first byte the Memory class's Small heap must not
 ; use: the BDOS (its address is at 6; the CCP below it is free, the program
 ; ends with a warm boot). Called on the real stack (call / ret), only by the
 ; Memory class.
 ntc_plat_memtop:
-			ld hl, (6)
+			push de
+			ld hl, (ntc_cpmtop)
+			ld de, (6)
+			or a
+			sbc hl, de
+			add hl, de
+			jr c, ntc_mt1			; ntc_cpmtop lower
+			ex de, hl
+ntc_mt1:
+			pop de
 			ret
 
 
