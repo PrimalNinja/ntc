@@ -23,6 +23,19 @@ FW = {0xBB06: 'km_wait', 0xBB09: 'km_read', 0xBB5A: 'txt_out', 0xBB6C: 'txt_clea
       0xB900: 'kl_u_rom_enable', 0xB903: 'kl_u_rom_disable', 0xB90F: 'kl_rom_select', 0xB918: 'kl_rom_deselect'}
 # Library: ROM (cpcfw): the keyword ROM's image in upper ROM slot XSLOT - at #C000 while selected
 XSLOT = 6
+def load_xroms():
+    # the keyword ROM set: NTC_XROM is the main ROM (slot XSLOT); NAME2.ROM, NAME3.ROM ... next to it
+    # (a set of more than one) go in slots XSLOT - 1, XSLOT - 2 ... ({slot: 16K image})
+    x = os.environ.get('NTC_XROM'); out = {}
+    if not x: return out
+    def img(p):
+        d = open(p, 'rb').read(); return d[128:] if len(d) == 0x4080 else d
+    out[XSLOT] = img(x)
+    base, ext = os.path.splitext(x)
+    for k in range(2, 9):
+        p = base + str(k) + ext
+        if os.path.exists(p): out[XSLOT - k + 1] = img(p)
+    return out
 RSX = ['TAPE', 'DISC', 'A', 'B', 'C', 'M']   # AMSDOS's commands, and an M4-like DOS's C and M
 # files for the FileSystem class (cpm: BDOS FCB calls, cpcfw: CAS calls) live in this folder
 FILES = os.environ.get('NTC_FILES', os.path.join(HERE, 't', 'files'))
@@ -126,10 +139,8 @@ class Host:
                 s.fwport = {0xE0 + i: FW[a] for i, a in enumerate(sorted(FW))}
                 m.set_memory_block(0x18, bytes([0xD3, 0xDF, 0xC9]))   # RST 3: a far call (AMSDOS's CAS entries)
         s.ram = cpcrun.RamBanks(m)                          # the gate array's RAM setting (Memory class)
-        s.xrom = None; s.romsel = 0
-        x = os.environ.get('NTC_XROM')
-        if platform == 'cpcfw' and x:
-            d = open(x, 'rb').read(); s.xrom = d[128:] if len(d) == 0x4080 else d
+        s.romsel = 0
+        s.xroms = load_xroms() if platform == 'cpcfw' else {}
         m.set_output_callback(s.out); m.set_input_callback(s.inp)
     def key(s):
         # '~' in the typed text: this look at the keyboard finds no key (then the rest follow)
@@ -190,6 +201,11 @@ class Host:
             ok = s.cas(FW[ret - 1])
             m.f = (m.f | 1) if ok else (m.f & 0xFE)
             m.sp = sp + 2
+        elif s.p == 'cpcfw' and lo == 0xDD and m.pc == 0xBF86:
+            s.evsel = s.romsel                  # the fast ticker event: the main ROM in for its call
+            if s.xroms: m.set_memory_block(0xC000, s.xroms.get(XSLOT, b'\x80'))
+        elif s.p == 'cpcfw' and lo == 0xDC and m.pc == 0xBF8B:
+            if s.xroms: m.set_memory_block(0xC000, s.xroms.get(s.evsel, b'\x80'))
         elif s.p == 'cpcfw' and lo in getattr(s, 'fwport', {}):
             f = s.fwport[lo]
             if f == 'txt_out': s.scr.ctrl(val)
@@ -228,7 +244,9 @@ class Host:
                 r = m.de
                 if (m.b & 0x40) and r < 0x4000:
                     print('ERROR: express event routine at #%04X: the firmware would run the lower ROM there' % r)
-                stub = [0xF5, 0xC5, 0xD5, 0xE5, 0xCD, r & 255, r >> 8, 0xE1, 0xD1, 0xC1, 0xF1, 0xFB, 0xC9]
+                # (KL FAR ICALL: the event's ROM - NTC's main ROM - is selected for the call, then the one
+                # that was in: out (#DD) / out (#DC) here)
+                stub = [0xF5, 0xC5, 0xD5, 0xE5, 0xD3, 0xDD, 0xCD, r & 255, r >> 8, 0xD3, 0xDC, 0xE1, 0xD1, 0xC1, 0xF1, 0xFB, 0xC9]
                 m.set_memory_block(0xBF80, bytes(stub)); m.set_memory_block(0x38, bytes([0xC3, 0x80, 0xBF]))
             elif f == 'kl_del_fast_ticker':
                 m.set_memory_block(0x38, bytes([0xFB, 0xC9]))
@@ -236,7 +254,7 @@ class Host:
                 # the upper ROM selected: the keyword ROM's image at #C000 for its slot, anything
                 # else looks like BASIC (#80: a foreground ROM) to the program's search
                 old = s.romsel; s.romsel = m.c
-                if s.xrom and m.c == XSLOT: m.set_memory_block(0xC000, s.xrom)
+                if m.c in s.xroms: m.set_memory_block(0xC000, s.xroms[m.c])
                 else: m.set_memory_block(0xC000, b'\x80')
                 m.c = old; m.b = 0
             elif f == 'kl_far_pcall':
@@ -391,7 +409,7 @@ def main():
     b, syms = cpcrun.assemble(asm)
     if plat in ('cpc', 'cpcmin', 'cpcfw') and 'NTC_XROM' not in os.environ and ('--library=rom' in extra or 'ntc_rj_block' in syms):
         # the program wants the keyword ROM (Option Library ROM / --library=rom): fitted in slot 6
-        os.environ['NTC_XROM'] = os.path.join(HERE, '..', 'build', 'rom', {'cpc': 'NTCCPC', 'cpcmin': 'NTCMIN', 'cpcfw': 'NTCFW'}[plat] + '.ROM')
+        os.environ['NTC_XROM'] = os.path.join(os.environ.get('NTC_ROMDIR', os.path.join(HERE, '..', 'build', 'rom')), {'cpc': 'NTCCPC', 'cpcmin': 'NTCMIN', 'cpcfw': 'NTCFW'}[plat] + '.ROM')
     if 'ntc_rj_block' in syms:
         # the ROM's variables the harness reads (ntc_smode, ntc_font): from the registry
         for line in open(os.path.join(HERE, '..', 'asm', 'ntc_rom_' + plat + '.txt')):

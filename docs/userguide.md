@@ -2389,7 +2389,9 @@ into the program: it is in a ROM, one per platform:
 | `cpcfw` | NTC CPCFW | `build/rom/NTCFW.ROM` |
 
 Each is 16K with an AMSDOS header (16512 bytes), for a ROM board, an M4 / ROM emulator or
-WinAPE's ROM slots. They have different names, so all three can be fitted at once; a
+WinAPE's ROM slots. When a platform's library no longer fits in 16K, it becomes a **set**:
+`NTCMIN.ROM` (the main one) plus `NTCMIN2.ROM`, `NTCMIN3.ROM` ... (see *ROM sets* below);
+today each platform's library fits in one. They have different names, so all three can be fitted at once; a
 program finds the one for its platform. The ROMs are not interchangeable: the platforms
 share the keyword core, but screen, keys and interrupts are different code (cpcfw goes
 through the firmware, cpc and cpcmin drive the hardware themselves).
@@ -2438,6 +2440,47 @@ Print "Hello"          ' a few hundred bytes: the jump block, the start code, th
   stops the compile ("the cpcfw ROM has no ...").
 - Firmware and AMSDOS calls made from the ROM come back to it (cpcfw, and cpcmin's file
   calls), and cpcfw's interrupt event runs in it.
+- **Graphics is not in the ROM.** A program that uses `Graphics` carries that code itself, so
+  other graphics classes can sit beside it later; it turns the ROM off around its screen work
+  as before. cpcmin's sequential-file code is not in its ROM either (the program carries it).
+
+**ROM sets.** The keyword ROMs are built as one *set* per platform: a main ROM, and as many
+more as the library needs, all from one build (they find each other by the set's stamp). The
+program's start code finds the main ROM, then the rest of its set, in any slots - fit them
+where there is room (the main one need not be first). Missing one: `ROM NTCMIN<n>.ROM not found: n = #0002` (its
+number, the main ROM being 1).
+
+- The main ROM holds the keywords and everything a keyword reaches directly. Only real stack
+  code - Memory, List and the like - moves to the other ROMs.
+- A call into another ROM of the set is a *far call* through RAM (always in sight, whichever
+  ROM is in): it selects the other ROM, calls, selects the first one again - about 200 T
+  states, registers and flags passed both ways. A program's jump block entry for a routine in
+  another ROM points at its far call, so programs don't change: a program built for a one-ROM
+  set runs with a three-ROM set of a later build, and the other way round.
+- The sections that call each other a lot stay together in one ROM (Memory and List go
+  together), so a far call happens once per method call, not once per byte.
+- cpc and cpcmin select the ROM straight on the hardware (`#DFxx`); their interrupt handler
+  puts the main ROM in for the interrupt classes and the ROM that was in back after. cpcfw goes
+  through the firmware (KL ROM SELECT), so the firmware's own record of the ROM in - which its
+  events put back after their far calls - stays right.
+- Each far call stub takes 10 bytes of the ROM's RAM (`#8800-#93FF`).
+
+**VB:** not in VB.
+
+### Option PressAnyKeyOnEnd
+
+`Option PressAnyKeyOnEnd` [*"message"*]
+
+At the program's end - `End` (anywhere, in a Sub too), `Error`, a failed `Debug.Assert`, or the
+last line - shows the message on a line of its own and waits for a key, then ends. Without a
+message: `Press any key`. A program started with `RUN"NAME` from AMSDOS resets the machine when
+it ends, and the screen goes with it: this keeps it until a key, without a "press a key" in
+every program.
+
+```
+Option PressAnyKeyOnEnd "Done - press a key"
+Print "Hello"
+```
 
 **VB:** not in VB.
 

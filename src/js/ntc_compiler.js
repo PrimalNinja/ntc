@@ -39,6 +39,7 @@ function ntcCompile(input_a, objOptions_a)
 	var arrIslots = [];
 	var objPagedLabel = {};		// label -> overlay class: a Private Paged variable (in the class's page)
 	var strLibAsm = '';			// the linked library's text (genrom.js builds ROMs from it)
+	var strPakEnd = null;		// Option PressAnyKeyOnEnd: the message (a string literal), or null
 	var objPages = {};			// Option Page / Option Class Overlay: page id -> { name, file, id, blk, classes [modules], srcfile, line }
 	var arrPageOrder = [];		// page ids, in source order
 	var objClassPages = {};		// overlay class (module) -> the page ids it is in (the home page first)
@@ -4618,6 +4619,19 @@ function ntcCompile(input_a, objOptions_a)
 		}
 	}
 
+	// the end of the program: kw_stop; with Option PressAnyKeyOnEnd first the message (on a line
+	// of its own) and a key
+	function emitStop()
+	{
+		if (strPakEnd !== null)
+		{
+			emit('kw_printnl0', []);
+			compilePrint(strPakEnd + ';');
+			emit('kw_waitkey', []);
+		}
+		emit('kw_stop', []);
+	}
+
 	function compilePrint(strArgs_a)
 	{
 		if (consoleVia())
@@ -5532,7 +5546,7 @@ function ntcCompile(input_a, objOptions_a)
 				}
 				emit('kw_printnl0', []);
 				compilePrint('"Error: "; ' + objRec_a.args[0] + '; " (' + strFile + ' line ' + intLine + ')"');
-				emit('kw_stop', []);
+				emitStop();
 				blnLastTransfer = true;
 				return;
 			case 'debug.assert':
@@ -5552,7 +5566,7 @@ function ntcCompile(input_a, objOptions_a)
 					strShow = trim(objRec_a.src.substr(12));
 				}
 				compilePrint('"Assert failed: ' + strShow.replace(/"/g, '""') + ' (' + strFile + ' line ' + intLine + ')"');
-				emit('kw_stop', []);
+				emitStop();
 				emitLabel(strLabel);
 				return;
 			default:
@@ -6430,7 +6444,7 @@ function ntcCompile(input_a, objOptions_a)
 				break;
 
 			case 'end':
-				emit('kw_stop', []);
+				emitStop();
 				blnLastTransfer = true;
 				break;
 
@@ -7093,7 +7107,7 @@ function ntcCompile(input_a, objOptions_a)
 		}
 		compileRecords(arrMainRecs);
 		closeBlocks();
-		emit('kw_stop', []);
+		emitStop();
 
 		// procedures
 		for (intI = 0; intI < arrProcOrder.length; intI++)
@@ -7257,6 +7271,10 @@ function ntcCompile(input_a, objOptions_a)
 					else if (arrParts[intJ] === '@romram')
 					{
 						objCurrent.romram = true;		// in the keyword library ROM this runs from RAM (ntcRomAsm)
+					}
+					else if (arrParts[intJ] === '@far')
+					{
+						objCurrent.far = true;			// real stack code: a keyword ROM set may put it in another ROM (ntcRomAsm)
 					}
 					else if (arrParts[intJ] === '@ramonly')
 					{
@@ -8473,6 +8491,17 @@ function ntcCompile(input_a, objOptions_a)
 			{
 				readRomEnable(objRec);
 			}
+			else if (objRec.what === 'pressanykeyonend')
+			{
+				// the program's end (End, Error, a failed Debug.Assert, the last line): the message,
+				// then a key - so a program RUN from AMSDOS doesn't reset before it can be read
+				strPakEnd = (objRec.value.length > 0) ? objRec.value : '"Press any key"';
+				if (!/^"([^"]|"")*"$/.test(strPakEnd))
+				{
+					arrErrors.push({ file: objRec.file, line: objRec.line, msg: 'Option PressAnyKeyOnEnd: a message in quotes, or none - ' + objRec.value });
+					strPakEnd = null;
+				}
+			}
 			else if (objRec.what === 'stack')
 			{
 				intValue = parseNumber(objRec.value);
@@ -9172,6 +9201,19 @@ function ntcCompile(input_a, objOptions_a)
 		// sections marked @ramonly aren't in the ROM: the program has the ones it uses (the
 		// ROM's routines and variables they use come through the jump block, as the program's)
 		strLibAsm = linkLibrary(objUsedT, objUsedN, irqNeeded(), true);
+		(function()
+		{
+			// the screen code turns the keyword ROM off around its reads and writes (ntcRomHook)
+			var strSec = '';
+			strLibAsm = strLibAsm.split('\n').map(function(strLine_a)
+			{
+				var arrH = strLine_a.match(/^;##\s+(\S+)/);
+				var arrL = strLine_a.match(/^([A-Za-z_]\w*):/);
+
+				if (arrH) { strSec = arrH[1]; }
+				return arrL ? ntcRomHook(objOptions.platform, strSec, arrL[1], strLine_a) : strLine_a;
+			}).join('\n');
+		})();
 		if (strLibAsm.replace(/\s/g, '').length > 0)
 		{
 			arrAsm.push('; (not in the ROM - the library sections this program uses that the ROM leaves out)');
@@ -9527,6 +9569,7 @@ var NTC_ROM_RUNTIME = ['kw_absv', 'kw_aget', 'kw_aget8', 'kw_bssinit', 'kw_callp
 var NTC_ROM_DATA = 0x8800;		// the ROM's initialised variables (and its RAM code): #8800 - #93FF
 var NTC_ROM_BSS = 0x9400;		// the rest of its variables (cleared): #9400 - #A5EF
 var NTC_ROM_END = 0xA5F0;		// (#A5F0: the cpcfw fast ticker block)
+var NTC_ROM_MAXSET = 8;			// the most ROMs in a keyword ROM set
 
 // ============================================================
 // ntcPrep - the flavour preprocessor: every file as VB5 text for the one parser and compiler.
@@ -9621,8 +9664,13 @@ function ntcRomRegistry(strReg_a)
 	return objReg;
 }
 
-function ntcRomAsm(strPlatform_a, strReg_a)
+function ntcRomAsm(strPlatform_a, strReg_a, objOpt_a)
 {
+	var objOpt = objOpt_a || {};
+	var objPlace = objOpt.place || {};		// section name -> ROM of the set (0 = the main ROM; only @far sections move)
+	var blnMeasure = (objOpt.measure === true);	// sizes only: one ROM with no 16K limit, markers around the @far sections
+	var arrChunks = [];		// the code sections, in order: { name, far, start, end } (lines of arrCode)
+	var arrRamChunks = [];	// the sections that run from RAM: { name, start, end } (lines of arrInit)
 	var arrErrors = [];
 	var objReg = ntcRomRegistry(strReg_a);
 	var objRes = ntcCompile('Print\n', { platform: strPlatform_a, library: 'allmodes', sourcecomments: false });
@@ -9686,6 +9734,10 @@ function ntcRomAsm(strPlatform_a, strReg_a)
 			return true;
 		}
 		objSec_a.lines.forEach(function(str_a) { arrRamOnlyUses = arrRamOnlyUses.concat(str_a.replace(/"[^"]*"|'[^']*'/g, '').replace(/;.*$/, '').match(/[A-Za-z_]\w*/g) || []); });
+		if (objSec_a.name === 'ntc_gfx')
+		{
+			arrRamOnlyUses.push('ntc_urom_off', 'ntc_urom_on');		// (its ROM hooks: ntcRomHook)
+		}
 		return false;
 	});
 	// one Interrupt-hook window for both: ntc_xnh (it is a superset of ntc_xn)
@@ -9870,7 +9922,8 @@ function ntcRomAsm(strPlatform_a, strReg_a)
 	while (blnChanged)
 	{
 		blnChanged = false;
-		objDefined = { NTC_ROMDATA: 1, NTC_ROMBSS: 1, NTC_STRMAX: 1, NTC_MEMBANKS: 1, ntc_v_free: 1, ntc_v_start: 1, ntc_v_stamp: 1, ntc_v_romen: 1, ntc_v_rom: 1, ntc_v_romold: 1 };
+		objDefined = { NTC_ROMDATA: 1, NTC_ROMBSS: 1, NTC_STRMAX: 1, NTC_MEMBANKS: 1, ntc_v_free: 1, ntc_v_start: 1, ntc_v_stamp: 1, ntc_v_romen: 1, ntc_v_rom: 1, ntc_v_romold: 1, ntc_rx_cur: 1, ntc_rx_bc: 1 };
+		for (var intD = 0; intD < NTC_ROM_MAXSET; intD++) { objDefined['ntc_rx_s' + intD] = 1; }
 		arrSections.forEach(function(objSec_a)
 		{
 			if (objSec_a.keep)
@@ -9914,6 +9967,8 @@ function ntcRomAsm(strPlatform_a, strReg_a)
 			objItem.lines.push(str_a + ':');		// another name in the same variable
 			objItems[str_a] = { kind: 'alias', of: objOf_a };
 		}
+		var intChunkStart = arrCode.length;
+		var intRamStart = arrInit.length;
 		arrTo.push(objSec_a.header + (blnRam ? '  (ROM: runs from RAM)' : ''));
 		objSec_a.lines.forEach(function(strLine_a)
 		{
@@ -10004,6 +10059,60 @@ function ntcRomAsm(strPlatform_a, strReg_a)
 			arrTo.push(str_a + ':');
 			objItems[str_a] = { kind: 'code' };
 		});
+		if (!blnRam)
+		{
+			arrChunks.push({ name: objSec_a.name, far: /\s@far\b/.test(objSec_a.header), start: intChunkStart, end: arrCode.length,
+				deps: objSec_a.header.replace(/^;##\s+\S+/, '').split(/\s+/).filter(function(str_a) { return /^[A-Za-z_]\w*$/.test(str_a); }) });
+		}
+		else
+		{
+			arrRamChunks.push({ name: objSec_a.name, start: intRamStart, end: arrInit.length });
+		}
+	});
+	// which sections each section's code names (genrom.js keeps @far sections that use each other together)
+	(function()
+	{
+		var objOwner = {};
+		arrChunks.forEach(function(objC_a)
+		{
+			arrCode.slice(objC_a.start, objC_a.end).join('\n').split('\n').forEach(function(str_a)
+			{
+				var arrM = str_a.match(/^([A-Za-z_]\w*):?(?:\s|$)/);
+				if (arrM) { objOwner[arrM[1]] = objC_a.name; }
+			});
+		});
+		arrChunks.forEach(function(objC_a)
+		{
+			var objU = {};
+			(arrCode.slice(objC_a.start, objC_a.end).join('\n').replace(/;.*$/gm, '').match(/[A-Za-z_]\w*/g) || []).forEach(function(str_a)
+			{
+				if (objOwner[str_a] && (objOwner[str_a] !== objC_a.name)) { objU[objOwner[str_a]] = true; }
+			});
+			objC_a.uses = Object.keys(objU);
+		});
+	})();
+	// a keyword ROM set: which ROM each section's code is in (the main ROM unless placed)
+	var intRoms = 1;
+	arrChunks.forEach(function(objC_a)
+	{
+		objC_a.rom = (objC_a.far && objPlace[objC_a.name]) ? objPlace[objC_a.name] : 0;
+		intRoms = Math.max(intRoms, objC_a.rom + 1);
+	});
+	if (intRoms > NTC_ROM_MAXSET)
+	{
+		arrErrors.push({ file: '', line: 0, msg: 'Library ROM: a set of more than ' + NTC_ROM_MAXSET + ' ROMs' });
+	}
+	// the ROM's own variables for the set: ntc_rx_cur = the ROM in now, ntc_rx_s0 ... = each
+	// ROM's slot (as B = #DF, C = slot: out (c), c selects it), filled by ntc_rom_patch
+	var arrRxVars = [['ntc_rx_cur', 'dw 0', 'the ROM of the set selected now (C = its slot, B = #DF)'], ['ntc_rx_bc', 'dw 0', 'a far call: BC kept here']];
+	for (var intS = 0; intS < NTC_ROM_MAXSET; intS++)
+	{
+		arrRxVars.push(['ntc_rx_s' + intS, 'dw 0', 'ROM ' + intS + ' of the set: its slot (B = #DF, C = slot)']);
+	}
+	intRun++;
+	arrRxVars.forEach(function(arrV_a)
+	{
+		objItems[arrV_a[0]] = { label: arrV_a[0], lines: [arrV_a[0] + ':\t' + arrV_a[1] + '\t\t\t; ' + arrV_a[2]], ds: false, run: intRun, idx: intIdx++ };
 	});
 	// the values the program's start sets (its own symbols the library needs)
 	[['ntc_v_free', 'dw 0', 'the first free byte (the program\'s ntc_free)'], ['ntc_v_start', 'dw 0', 'the program\'s start (ntc_start)'],
@@ -10044,6 +10153,148 @@ function ntcRomAsm(strPlatform_a, strReg_a)
 	}
 	objItems.ntc_urom_off = { kind: 'code' };
 	objItems.ntc_urom_on = { kind: 'code' };
+
+	// ---- a set of more than one ROM: the code that crosses from one ROM to another goes through
+	// RAM (always in sight, whichever ROM is selected). A far call: xc_<label> (10 bytes each) keeps
+	// BC, puts the label in BC and jumps to ntc_rx_c<rom>, which keeps the ROM in now on the stack,
+	// selects the label's ROM (ntc_rx_sel), calls it, selects the first ROM again and returns -
+	// registers and flags pass both ways. Only real stack code may cross (@far sections, and what
+	// calls them on the real stack): a call becomes a far call, a jp / jr a far call and ret.
+	// A program's jump block reaches a routine in another ROM through its xc_ (the index has it).
+	var objLabelRom = {};		// code label -> its ROM (RAM code: 'ram')
+	var objXc = {};				// labels that need an xc_ stub
+	var arrCross = [];			// what was rewritten in sections that are not @far (genrom.js lists it)
+	var intTramp = 0;
+	function codeLabelsOf(arrLines_a)
+	{
+		var arrL = [];
+
+		arrLines_a.join('\n').split('\n').forEach(function(str_a)
+		{
+			var arrM = str_a.match(/^([A-Za-z_]\w*):?(?:\s|$)/);
+
+			if (arrM && !/^\s*[A-Za-z_]\w*:?\s+equ\b/i.test(str_a))
+			{
+				arrL.push(arrM[1]);
+			}
+		});
+		return arrL;
+	}
+	arrChunks.forEach(function(objC_a)
+	{
+		codeLabelsOf(arrCode.slice(objC_a.start, objC_a.end)).forEach(function(str_a) { objLabelRom[str_a] = objC_a.rom; });
+	});
+	codeLabelsOf(arrInit).forEach(function(str_a) { objLabelRom[str_a] = 'ram'; });
+	function crossRewrite(arrLines_a, intRom_a, strWhere_a, blnFar_a)
+	{
+		var arrNew = [];
+		var arrTr = [];
+
+		arrLines_a.join('\n').split('\n').forEach(function(strLine_a)
+		{
+			var strCode = strLine_a.replace(/"[^"]*"|'[^']*'/g, '""').replace(/;.*$/, '');
+			var arrM = strCode.match(/^([A-Za-z_]\w*:?)?(\s+)([A-Za-z]+)\b\s*(.*?)\s*$/);
+			var strPre = '';
+			var strOp = '';
+			var arrArgs = [];
+			var strT = '';
+			var strCc = '';
+
+			if (!arrM)
+			{
+				arrNew.push(strLine_a);
+				return;
+			}
+			strPre = arrM[1] || '';
+			strOp = arrM[3].toLowerCase();
+			arrArgs = arrM[4].length ? arrM[4].split(',').map(function(str_a) { return str_a.replace(/^\s+|\s+$/g, ''); }) : [];
+			if (/^(call|jp|jr|djnz)$/.test(strOp) && (arrArgs.length > 0))
+			{
+				strT = arrArgs[arrArgs.length - 1];
+				strCc = (arrArgs.length > 1) ? arrArgs[0] : '';
+				if (/^[A-Za-z_]\w*$/.test(strT) && (typeof objLabelRom[strT] === 'number') && (objLabelRom[strT] !== intRom_a))
+				{
+					objXc[strT] = true;
+					if (!blnFar_a)
+					{
+						arrCross.push(strWhere_a + ': ' + strLine_a.replace(/^\s+/, ''));
+					}
+					if (strOp === 'djnz')
+					{
+						arrErrors.push({ file: '', line: 0, msg: 'Library ROM set: djnz to another ROM (' + strWhere_a + ': ' + strT + ')' });
+					}
+					else if (strOp === 'call')
+					{
+						arrNew.push(strPre + '\t\t\tcall ' + (strCc ? strCc + ', ' : '') + 'xc_' + strT + '\t; (far: ROM ' + objLabelRom[strT] + ')');
+					}
+					else if (!strCc)
+					{
+						arrNew.push(strPre + '\t\t\tcall xc_' + strT + '\t; (far: ROM ' + objLabelRom[strT] + ', was ' + strOp + ')');
+						arrNew.push('\t\t\tret');
+					}
+					else
+					{
+						arrNew.push(strPre + '\t\t\tjp ' + strCc + ', ntc_xt_' + intTramp + '\t; (far: ROM ' + objLabelRom[strT] + ', was ' + strOp + ')');
+						arrTr.push('ntc_xt_' + intTramp + ':');
+						arrTr.push('\t\t\tcall xc_' + strT);
+						arrTr.push('\t\t\tret');
+						intTramp++;
+					}
+					return;
+				}
+			}
+			if (!/^(db|dw|ds|defb|defw|defs|dm|byte|word|equ)$/.test(strOp))
+			{
+				(arrM[4].match(/[A-Za-z_]\w*/g) || []).forEach(function(strW_a)
+				{
+					if ((typeof objLabelRom[strW_a] === 'number') && (objLabelRom[strW_a] !== intRom_a))
+					{
+						arrErrors.push({ file: '', line: 0, msg: 'Library ROM set: ' + strWhere_a + ' names ' + strW_a + ' in another ROM other than by call / jp (' + strLine_a.replace(/^\s+/, '') + ')' });
+					}
+				});
+			}
+			arrNew.push(strLine_a);
+		});
+		return arrNew.concat(arrTr);
+	}
+	if (intRoms > 1)
+	{
+		// (the code sections follow one another in arrCode: each is rewritten in its place)
+		var arrCodeNew = [];
+
+		arrChunks.forEach(function(objC_a)
+		{
+			var arrBody = crossRewrite(arrCode.slice(objC_a.start, objC_a.end), objC_a.rom, objC_a.name, objC_a.far);
+
+			objC_a.start = arrCodeNew.length;
+			arrCodeNew = arrCodeNew.concat(arrBody);
+			objC_a.end = arrCodeNew.length;
+		});
+		arrCode = arrCodeNew;
+		// code run from RAM is reached from the main ROM, so it names the main ROM's code
+		// directly - except a RAM section that a far section uses (ntc_membank): there any ROM may be
+		// in, so all its ROM code is reached by far calls
+		var objFarUses = {};
+		arrChunks.forEach(function(objC_a)
+		{
+			if (objC_a.rom > 0)
+			{
+				(arrCode.slice(objC_a.start, objC_a.end).join('\n').replace(/;.*$/gm, '').match(/[A-Za-z_]\w*/g) || []).forEach(function(str_a) { objFarUses[str_a] = true; });
+			}
+		});
+		var arrInitNew = [];
+		var intIat = 0;
+		arrRamChunks.forEach(function(objR_a)
+		{
+			var arrR = arrInit.slice(objR_a.start, objR_a.end);
+			var blnFarReached = codeLabelsOf(arrR).some(function(str_a) { return objFarUses[str_a] === true; });
+
+			arrInitNew = arrInitNew.concat(arrInit.slice(intIat, objR_a.start));
+			arrInitNew = arrInitNew.concat(blnFarReached ? crossRewrite(arrR, -1, objR_a.name, true) : crossRewrite(arrR, 0, objR_a.name, false));
+			intIat = objR_a.end;
+		});
+		arrInit = arrInitNew.concat(arrInit.slice(intIat));
+	}
 
 	// the data items in registry order (known ones), then the new ones in source order
 	var arrData = [];
@@ -10144,38 +10395,136 @@ function ntcRomAsm(strPlatform_a, strReg_a)
 	{
 		return '#' + ('000' + (int_a & 0xFFFF).toString(16).toUpperCase()).substr(-4);
 	}
+	// a set: every routine a program may name that is outside the main ROM gets its xc_ (the
+	// index points there), then the far call code (RAM)
+	if (intRoms > 1)
+	{
+		arrSyms.forEach(function(objSym_a)
+		{
+			if ((objSym_a.kind === 'code') && (typeof objLabelRom[objSym_a.name] === 'number') && (objLabelRom[objSym_a.name] > 0))
+			{
+				objXc[objSym_a.name] = true;
+			}
+		});
+		var objRomsUsed = {};
+		arrInit.push('; ---- far calls between the ROMs of the set (see ntcRomAsm)');
+		Object.keys(objXc).sort().forEach(function(str_a)
+		{
+			objRomsUsed[objLabelRom[str_a]] = true;
+			arrInit.push('xc_' + str_a + ':\tld (ntc_rx_bc), bc\t; ' + str_a + ' (ROM ' + objLabelRom[str_a] + ')');
+			arrInit.push(strIndent + 'ld bc, ' + str_a);
+			arrInit.push(strIndent + 'jp ntc_rx_c' + objLabelRom[str_a]);
+		});
+		Object.keys(objRomsUsed).forEach(function(strK_a)
+		{
+			arrInit.push('ntc_rx_c' + strK_a + ':\t\t\t\t; a far call into ROM ' + strK_a + ': BC = where (the caller\'s BC in ntc_rx_bc)');
+			arrInit.push(strIndent + 'ld (ntc_rx_jt + 1), bc');
+			arrInit.push(strIndent + 'ld bc, (ntc_rx_cur)');
+			arrInit.push(strIndent + 'push bc\t\t\t\t; the ROM in now');
+			arrInit.push(strIndent + 'ld bc, (ntc_rx_s' + strK_a + ')');
+			arrInit.push(strIndent + 'call ntc_rx_sel');
+			arrInit.push(strIndent + 'ld bc, (ntc_rx_bc)');
+			arrInit.push(strIndent + 'call ntc_rx_jt');
+			arrInit.push(strIndent + 'ld (ntc_rx_bc), bc');
+			arrInit.push(strIndent + 'pop bc');
+			arrInit.push(strIndent + 'call ntc_rx_sel\t\t; that ROM again');
+			arrInit.push(strIndent + 'ld bc, (ntc_rx_bc)');
+			arrInit.push(strIndent + 'ret');
+		});
+		arrInit.push('ntc_rx_jt:\t\tjp 0\t\t\t; (the target, written by ntc_rx_c<rom>)');
+		if (strPlatform_a === 'cpcfw')
+		{
+			// through the firmware (KL ROM SELECT), so its own record of the ROM in - which its
+			// interrupt events put back after their far calls - stays right
+			arrInit.push('ntc_rx_sel:\t\t\t\t; C = a slot: that ROM in (ntc_rx_cur first). Keeps AF, DE, HL, IX, IY and the interrupt state');
+			arrInit.push(strIndent + 'ld (ntc_rx_cur), bc');
+			arrInit.push(strIndent + 'push af\n' + strIndent + 'push de\n' + strIndent + 'push hl');
+			arrInit.push(strIndent + 'ld a, i\t\t\t\t; P/V = interrupts on');
+			arrInit.push(strIndent + 'push af');
+			arrInit.push(strIndent + 'call #B90F\t\t; KL ROM SELECT (it lets interrupts in)');
+			arrInit.push(strIndent + 'pop af');
+			arrInit.push(strIndent + 'di');
+			arrInit.push(strIndent + 'jp po, ntc_rx_sdi');
+			arrInit.push(strIndent + 'ei');
+			arrInit.push('ntc_rx_sdi:');
+			arrInit.push(strIndent + 'pop hl\n' + strIndent + 'pop de\n' + strIndent + 'pop af');
+			arrInit.push(strIndent + 'ret');
+		}
+		else
+		{
+			arrInit.push('ntc_rx_sel:\t\t\t\t; C = a slot: that ROM in (ntc_rx_cur first, for the interrupt handler). Keeps AF, DE, HL');
+			arrInit.push(strIndent + 'ld b, #DF');
+			arrInit.push(strIndent + 'ld (ntc_rx_cur), bc');
+			arrInit.push(strIndent + 'out (c), c');
+			arrInit.push(strIndent + 'ret');
+		}
+	}
+	// the set's stamp: the ROMs of one build find each other by it
+	var intSet = 0xFFFF;
+	(function()
+	{
+		var strAll = arrCode.join('\n') + arrInit.join('\n') + JSON.stringify(objPlace);
+		for (var intI = 0; intI < strAll.length; intI++)
+		{
+			intSet ^= (strAll.charCodeAt(intI) & 0xFF) << 8;
+			for (var intB = 0; intB < 8; intB++) { intSet = (intSet & 0x8000) ? (((intSet << 1) ^ 0x1021) & 0xFFFF) : ((intSet << 1) & 0xFFFF); }
+		}
+	})();
+	function amsdosHeader(strFile_a)
+	{
+		var strRomName = (strFile_a + '        ').substr(0, 8);
+		var intSum = 2 + 0xC0 + 0x40 + 0xC0 + 0x40;
+		var arrH = [];
+
+		for (var intI = 0; intI < 8; intI++) { intSum += strRomName.charCodeAt(intI); }
+		intSum += 0x52 + 0x4F + 0x4D;
+		arrH.push(strIndent + 'ORG #C000 - 128\t\t; an AMSDOS header (WinAPE and ROM tools take it): binary, #C000, 16K');
+		arrH.push(strIndent + 'db 0, "' + strRomName + '", "ROM"\t; user 0, the file name');
+		arrH.push(strIndent + 'ds 6');
+		arrH.push(strIndent + 'db 2');
+		arrH.push(strIndent + 'dw 0, #C000');
+		arrH.push(strIndent + 'db 0');
+		arrH.push(strIndent + 'dw #4000, #C000');
+		arrH.push(strIndent + 'ds 36');
+		arrH.push(strIndent + 'dw #4000');
+		arrH.push(strIndent + 'db 0');
+		arrH.push(strIndent + 'dw ' + hex4(intSum) + '\t\t\t; checksum of bytes 0-66');
+		arrH.push(strIndent + 'ds 59');
+		return arrH;
+	}
+	function codeOf(intRom_a)
+	{
+		var arrC = [];
+
+		arrChunks.forEach(function(objC_a, intI_a)
+		{
+			if (blnMeasure || (objC_a.rom === intRom_a))
+			{
+				if (blnMeasure && objC_a.far) { arrC.push('ntc_rom_ms' + intI_a + ':'); }
+				arrC = arrC.concat(arrCode.slice(objC_a.start, objC_a.end));
+				if (blnMeasure && objC_a.far) { arrC.push('ntc_rom_me' + intI_a + ':'); }
+			}
+		});
+		return arrC;
+	}
 	// the ROM
 	arrOut.push('; ============================================================');
 	arrOut.push('; NTC BASIC keyword library ROM - ' + strPlatform_a + ' (generated by ntcRomAsm, ntc_compiler.js)');
 	arrOut.push('; A background ROM: standard header, no BASIC commands (yet). Programs built with');
 	arrOut.push('; Library: ROM find it at their start and call ntc_rom_patch with their jump block.');
 	arrOut.push('; ============================================================');
-	arrOut.push(strIndent + 'DEVICE AMSTRADCPC6128');
 	arrOut.push('NTC_ROMDATA\tequ ' + hex4(NTC_ROM_DATA) + '\t\t; its initialised variables (and RAM code), copied by ntc_rom_patch');
 	arrOut.push('NTC_ROMBSS\tequ ' + hex4(NTC_ROM_BSS) + '\t\t; its other variables, cleared');
 	arrOut.push('NTC_STRMAX\tequ 255\t\t\t; strings up to 255 characters (programs built for the ROM use 255)');
 	arrOut.push('NTC_MEMBANKS\tequ 64\t\t\t; the Memory class: up to 4MB');
 	arrOut.push('NTC_ROM_N\tequ ' + arrSyms.length + '\t\t\t; numbers in the index');
+	arrOut.push('NTC_ROM_COUNT\tequ ' + intRoms + '\t\t\t; ROMs in the set (' + ntcRomFile(strPlatform_a) + '.ROM' + ((intRoms > 1) ? ' ... ' + ntcRomFile(strPlatform_a) + intRoms + '.ROM' : '') + ')');
+	arrOut.push('NTC_ROM_SET\tequ ' + hex4(intSet) + '\t\t; the set\'s stamp (its ROMs find each other by it)');
 	arrOut.push(arrConst.join('\n'));
 	arrOut.push(strIndent + 'OUTPUT "' + ntcRomFile(strPlatform_a) + '.ROM"');
 	strHex = '#4000';
-	arrOut.push(strIndent + 'ORG #C000 - 128\t\t; an AMSDOS header (WinAPE and ROM tools take it): binary, #C000, 16K');
-	var strRomName = (ntcRomFile(strPlatform_a) + '        ').substr(0, 8);
-	var intSum = 2 + 0xC0 + 0x40 + 0xC0 + 0x40;
-	for (var intI = 0; intI < 8; intI++) { intSum += strRomName.charCodeAt(intI); }
-	intSum += 0x52 + 0x4F + 0x4D;
-	arrOut.push(strIndent + 'db 0, "' + strRomName + '", "ROM"\t; user 0, the file name');
-	arrOut.push(strIndent + 'ds 6');
-	arrOut.push(strIndent + 'db 2');
-	arrOut.push(strIndent + 'dw 0, #C000');
-	arrOut.push(strIndent + 'db 0');
-	arrOut.push(strIndent + 'dw #4000, #C000');
-	arrOut.push(strIndent + 'ds 36');
-	arrOut.push(strIndent + 'dw #4000');
-	arrOut.push(strIndent + 'db 0');
-	arrOut.push(strIndent + 'dw ' + hex4(intSum) + '\t\t\t; checksum of bytes 0-66');
-	arrOut.push(strIndent + 'ds 59');
-	arrOut.push(strIndent + 'ORG #C000');
+	arrOut = arrOut.concat(amsdosHeader(ntcRomFile(strPlatform_a)));
+	arrOut.push(strIndent + 'ORG ' + (blnMeasure ? '#4000\t\t\t; (measuring: no 16K limit)' : '#C000'));
 	arrOut.push('ntc_rom_start:');
 	arrOut.push(strIndent + 'db 1\t\t\t\t; a background ROM');
 	arrOut.push(strIndent + 'db 1, 0, 0\t\t\t; mark, version, modification');
@@ -10186,22 +10535,27 @@ function ntcRomAsm(strPlatform_a, strReg_a)
 	arrOut.push(strIndent + 'db "' + strNm.substr(0, strNm.length - 1) + '", "' + strNm.substr(-1) + '" + #80\t; the ROM\'s name (one per platform: they can all be fitted)');
 	arrOut.push(strIndent + 'db 0\t\t\t\t; (no BASIC commands yet)');
 	arrOut.push('ntc_rom_block:\t\t\t\t; NTC\'s part: the program\'s start code reads it');
-	arrOut.push(strIndent + 'db "NTC", 1\t\t\t; mark, format of this block');
+	arrOut.push(strIndent + 'db "NTC", 2\t\t\t; mark, format of this block');
 	arrOut.push(strIndent + 'db "' + strPlatform_a.toUpperCase() + '", 0\t\t; the platform it is for');
-	arrOut.push(strIndent + 'dw ntc_rom_patch\t\t; HL = jump block, BC = entries, A = this ROM\'s number');
+	arrOut.push(strIndent + 'dw NTC_ROM_SET\t\t; the set\'s stamp');
+	arrOut.push(strIndent + 'db 0, NTC_ROM_COUNT\t\t; this ROM\'s place in the set (0 = the main one), ROMs in the set');
+	arrOut.push(strIndent + 'dw ntc_rom_patch\t\t; HL = jump block, BC = entries, A = this ROM\'s slot, DE = the set\'s slots');
 	arrOut.push(strIndent + 'dw ntc_rom_index, NTC_ROM_N');
 	arrOut.push('; the firmware starts background ROMs at power on: nothing to do (no RAM claimed)');
 	arrOut.push('ntc_rom_init:');
 	arrOut.push(strIndent + 'scf');
 	arrOut.push(strIndent + 'ret');
 	arrOut.push('; ntc_rom_patch - (call, from the program, this ROM selected) HL = the program\'s jump');
-	arrOut.push('; block (3 bytes each: jp <number>), BC = its entries, A = this ROM\'s number. Sets up');
-	arrOut.push('; the ROM\'s RAM (initialised variables copied, the rest cleared), then each number becomes');
-	arrOut.push('; the ROM\'s address. NC = done. C = a number this ROM hasn\'t got: DE = it.');
+	arrOut.push('; block (3 bytes each: jp <number>), BC = its entries, A = this ROM\'s slot, DE = the');
+	arrOut.push('; slots of the set\'s ROMs (NTC_ROM_COUNT bytes, the main one first). Sets up the ROM\'s');
+	arrOut.push('; RAM (initialised variables copied, the rest cleared, the slots), then each number becomes');
+	arrOut.push('; its address (a routine in another ROM of the set: its far call). NC = done. C = a number');
+	arrOut.push('; this ROM hasn\'t got: DE = it.');
 	arrOut.push('ntc_rom_patch:');
 	arrOut.push(strIndent + 'push hl');
 	arrOut.push(strIndent + 'push bc');
 	arrOut.push(strIndent + 'push af');
+	arrOut.push(strIndent + 'push de');
 	arrOut.push(strIndent + 'ld hl, ntc_rom_img');
 	arrOut.push(strIndent + 'ld de, NTC_ROMDATA');
 	arrOut.push(strIndent + 'ld bc, ntc_rom_imgend - ntc_rom_img');
@@ -10211,6 +10565,19 @@ function ntcRomAsm(strPlatform_a, strReg_a)
 	arrOut.push(strIndent + 'ld bc, ntc_rom_bssend - NTC_ROMBSS - 1');
 	arrOut.push(strIndent + 'ld (hl), 0');
 	arrOut.push(strIndent + 'ldir');
+	arrOut.push(strIndent + 'pop de\t\t\t\t; the slots: ntc_rx_s0 ... as #DF00 + slot');
+	arrOut.push(strIndent + 'ld hl, ntc_rx_s0');
+	arrOut.push(strIndent + 'ld b, NTC_ROM_COUNT');
+	arrOut.push('ntc_rp_sl:');
+	arrOut.push(strIndent + 'ld a, (de)');
+	arrOut.push(strIndent + 'inc de');
+	arrOut.push(strIndent + 'ld (hl), a');
+	arrOut.push(strIndent + 'inc hl');
+	arrOut.push(strIndent + 'ld (hl), #DF');
+	arrOut.push(strIndent + 'inc hl');
+	arrOut.push(strIndent + 'djnz ntc_rp_sl');
+	arrOut.push(strIndent + 'ld hl, (ntc_rx_s0)');
+	arrOut.push(strIndent + 'ld (ntc_rx_cur), hl\t\t; the main ROM is in');
 	arrOut.push(strIndent + 'pop af');
 	arrOut.push(strIndent + 'ld (ntc_v_rom), a');
 	arrOut.push(strIndent + 'pop bc');
@@ -10259,10 +10626,11 @@ function ntcRomAsm(strPlatform_a, strReg_a)
 	arrOut.push('ntc_rom_index:');
 	arrSyms.sort(function(objA_a, objB_a) { return objA_a.num - objB_a.num; }).forEach(function(objSym_a)
 	{
-		arrOut.push(strIndent + 'dw ' + ((objSym_a.kind === 'gone') ? '0' : objSym_a.name) + '\t\t; ' + objSym_a.num + ((objSym_a.kind === 'gone') ? ' (no longer here)' : ''));
+		var blnFarSym = (intRoms > 1) && (objSym_a.kind !== 'gone') && (typeof objLabelRom[objSym_a.name] === 'number') && (objLabelRom[objSym_a.name] > 0);
+		arrOut.push(strIndent + 'dw ' + ((objSym_a.kind === 'gone') ? '0' : ((blnFarSym ? 'xc_' : '') + objSym_a.name)) + '\t\t; ' + objSym_a.num + ((objSym_a.kind === 'gone') ? ' (no longer here)' : (blnFarSym ? ' (ROM ' + objLabelRom[objSym_a.name] + ', a far call)' : '')));
 	});
 	arrOut.push('; ---- the library (code)');
-	arrOut = arrOut.concat(arrCode);
+	arrOut = arrOut.concat(codeOf(0));
 	arrOut.push('; ---- initialised variables and the code that runs from RAM: assembled for NTC_ROMDATA, copied there');
 	arrOut.push('ntc_rom_img:');
 	arrOut.push(strIndent + 'DISP NTC_ROMDATA');
@@ -10279,9 +10647,51 @@ function ntcRomAsm(strPlatform_a, strReg_a)
 	arrOut.push(strIndent + 'ENT');
 	arrOut.push('ntc_rom_imgend:');
 	arrOut.push(strIndent + 'ASSERT ntc_rom_imgend_r <= NTC_ROMBSS, "the ROM\'s initialised variables reach #9400"');
-	arrOut.push(strIndent + 'ASSERT $ <= #10000, "the ROM is more than 16K"');
-	arrOut.push(strIndent + 'ds #10000 - $, 0\t\t; to 16K');
-	arrOut.push(strIndent + 'OUTEND');
+	if (blnMeasure)
+	{
+		arrOut.push('ntc_rom_mend:');
+		arrOut.push(strIndent + 'OUTEND');
+	}
+	else
+	{
+		arrOut.push(strIndent + 'ASSERT $ <= #10000, "the ROM is more than 16K"');
+		arrOut.push(strIndent + 'ds #10000 - $, 0\t\t; to 16K');
+		arrOut.push(strIndent + 'OUTEND');
+	}
+	// the other ROMs of the set: a header (a background ROM whose init does nothing), the block the
+	// program's start code looks for, then their code
+	for (var intK = 1; !blnMeasure && (intK < intRoms); intK++)
+	{
+		var strFileK = ntcRomFile(strPlatform_a) + (intK + 1);
+		var strNmK = 'NTC ' + strPlatform_a.toUpperCase() + (intK + 1);
+		arrOut.push('; ============================================================');
+		arrOut.push('; ROM ' + intK + ' of the set: ' + strFileK + '.ROM');
+		arrOut.push('; ============================================================');
+		arrOut.push(strIndent + 'OUTPUT "' + strFileK + '.ROM"');
+		arrOut = arrOut.concat(amsdosHeader(strFileK));
+		arrOut.push(strIndent + 'ORG #C000');
+		arrOut.push('ntc_rom' + intK + '_start:');
+		arrOut.push(strIndent + 'db 1\t\t\t\t; a background ROM');
+		arrOut.push(strIndent + 'db 1, 0, 0');
+		arrOut.push(strIndent + 'dw ntc_rom' + intK + '_names');
+		arrOut.push(strIndent + 'jp ntc_rom' + intK + '_init');
+		arrOut.push('ntc_rom' + intK + '_names:');
+		arrOut.push(strIndent + 'db "' + strNmK.substr(0, strNmK.length - 1) + '", "' + strNmK.substr(-1) + '" + #80');
+		arrOut.push(strIndent + 'db 0');
+		arrOut.push('ntc_rom' + intK + '_block:');
+		arrOut.push(strIndent + 'db "NTC", 2');
+		arrOut.push(strIndent + 'db "' + strPlatform_a.toUpperCase() + '", 0');
+		arrOut.push(strIndent + 'dw NTC_ROM_SET');
+		arrOut.push(strIndent + 'db ' + intK + ', NTC_ROM_COUNT');
+		arrOut.push('ntc_rom' + intK + '_init:');
+		arrOut.push(strIndent + 'scf');
+		arrOut.push(strIndent + 'ret');
+		arrOut = arrOut.concat(codeOf(intK));
+		arrOut.push('ntc_rom' + intK + '_end:');
+		arrOut.push(strIndent + 'ASSERT $ <= #10000, "ROM ' + intK + ' of the set is more than 16K"');
+		arrOut.push(strIndent + 'ds #10000 - $, 0');
+		arrOut.push(strIndent + 'OUTEND');
+	}
 	arrOut.push('; ---- the other variables: RAM from NTC_ROMBSS, not in the ROM');
 	arrOut.push(strIndent + 'ORG NTC_ROMBSS');
 	arrData.forEach(function(strName_a)
@@ -10303,7 +10713,8 @@ function ntcRomAsm(strPlatform_a, strReg_a)
 			arrOut.push(strIndent + 'ASSERT (' + objSym_a.name + ' & #FFFF) == ' + hex4(objEntry.value) + ', "' + objSym_a.name + ' moved: variables and constants keep their place (a new size or value needs a new name)"');
 		}
 	});
-	return { asm: arrOut.join('\n') + '\n', errors: arrErrors, symbols: arrSyms, vars: arrVars };
+	return { asm: arrOut.join('\n') + '\n', errors: arrErrors, symbols: arrSyms, vars: arrVars, roms: intRoms, cross: arrCross,
+		chunks: arrChunks.map(function(objC_a, intI_a) { return { name: objC_a.name, far: objC_a.far, rom: objC_a.rom, idx: intI_a, deps: objC_a.deps.concat(objC_a.uses || []) }; }) };
 }
 
 // ROM build: the code that runs from RAM switches the upper ROM off while it reads the
@@ -10425,12 +10836,67 @@ function ntcRomJumpBlock(strPlatform_a, arrAsm_a, blnStamp_a, blnRomEnable_a, ar
 	});
 	arrOut.push(strIndent + 'ASSERT ntc_free <= #8800, "Library: ROM - the program and its arrays must end below #8800 (the ROM\'s RAM)"');
 	arrOut.push('');
-	arrOut.push('; the start: find the ROM in slots 0 - 31, have it patch the jump block. NC = ready;');
-	arrOut.push('; C = not there / too old (the message is shown, the caller\'s ROM selection is back)');
+	arrOut.push('; the start: find the ROM set in slots 0 - 31 (its main ROM, then the others with the same');
+	arrOut.push('; stamp), have the main one patch the jump block. NC = ready; C = not there / too old');
+	arrOut.push('; (the message is shown, the caller\'s ROM selection is back)');
 	arrOut.push('ntc_rj_find:');
 	arrOut.push(strIndent + 'ld c, 0');
 	arrOut.push(strIndent + 'call #B90F\t\t; KL ROM SELECT: B / C = the caller\'s state and selection');
 	arrOut.push(strIndent + 'ld (ntc_rj_old), bc');
+	arrOut.push(strIndent + 'xor a');
+	arrOut.push(strIndent + 'ld (ntc_rj_want), a');
+	arrOut.push(strIndent + 'call ntc_rj_scan\t\t; the main ROM');
+	arrOut.push(strIndent + 'jp c, ntc_rj_nf');
+	arrOut.push(strIndent + 'ld (ntc_rj_slots), a');
+	arrOut.push(strIndent + 'ld e, (hl)');
+	arrOut.push(strIndent + 'inc hl');
+	arrOut.push(strIndent + 'ld d, (hl)\t\t\t; its patcher');
+	arrOut.push(strIndent + 'ld (ntc_rj_call + 1), de');
+	arrOut.push(strIndent + 'ld a, 1');
+	arrOut.push('ntc_rj_more:\t\t\t\t; the other ROMs of the set');
+	arrOut.push(strIndent + 'ld (ntc_rj_want), a');
+	arrOut.push(strIndent + 'ld hl, ntc_rj_n');
+	arrOut.push(strIndent + 'cp (hl)');
+	arrOut.push(strIndent + 'jr nc, ntc_rj_all');
+	arrOut.push(strIndent + 'call ntc_rj_scan');
+	arrOut.push(strIndent + 'jp c, ntc_rj_part');
+	arrOut.push(strIndent + 'ld b, a');
+	arrOut.push(strIndent + 'ld a, (ntc_rj_want)');
+	arrOut.push(strIndent + 'ld e, a');
+	arrOut.push(strIndent + 'ld d, 0');
+	arrOut.push(strIndent + 'ld hl, ntc_rj_slots');
+	arrOut.push(strIndent + 'add hl, de');
+	arrOut.push(strIndent + 'ld (hl), b');
+	arrOut.push(strIndent + 'inc a');
+	arrOut.push(strIndent + 'jr ntc_rj_more');
+	arrOut.push('ntc_rj_all:');
+	arrOut.push(strIndent + 'ld a, (ntc_rj_slots)');
+	arrOut.push(strIndent + 'ld c, a');
+	arrOut.push(strIndent + 'call #B90F\t\t; KL ROM SELECT: the main ROM');
+	arrOut.push(strIndent + 'di\t\t\t\t\t; (KL ROM SELECT lets interrupts in)');
+	arrOut.push(strIndent + 'ld a, (ntc_rj_slots)\t; its slot');
+	arrOut.push(strIndent + 'ld hl, ntc_rj_block');
+	arrOut.push(strIndent + 'ld bc, NTC_RJ_N');
+	arrOut.push(strIndent + 'ld de, ntc_rj_slots');
+	arrOut.push('ntc_rj_call:');
+	arrOut.push(strIndent + 'call 0\t\t\t\t; HL = jump block, BC = entries, A = slot, DE = slots; C: DE = a number it hasn\'t got');
+	arrOut.push(strIndent + 'jp c, ntc_rj_lacks');
+	arrOut.push(strIndent + 'ld hl, ntc_free');
+	arrOut.push(strIndent + 'ld (ntc_v_free), hl');
+	arrOut.push(strIndent + 'ld hl, ntc_start');
+	arrOut.push(strIndent + 'ld (ntc_v_start), hl');
+	arrOut.push(strIndent + 'ld hl, ' + (blnStamp_a ? 'NTC_STAMP' : '0'));
+	arrOut.push(strIndent + 'ld (ntc_v_stamp), hl');
+	arrOut.push(strIndent + 'ld a, ' + (blnRomEnable_a ? 1 : 0));
+	arrOut.push(strIndent + 'ld (ntc_v_romen), a');
+	arrOut.push(strIndent + 'ld a, (ntc_rj_old)');
+	arrOut.push(strIndent + 'ld (ntc_v_romold), a');
+	arrOut.push(strIndent + 'or a\t\t\t\t; NC: ready');
+	arrOut.push(strIndent + 'ret');
+	arrOut.push('; ntc_rj_scan - a ROM of the set: ROM ntc_rj_want (0 = the main one, any stamp; the others');
+	arrOut.push('; with the main one\'s stamp). NC: A = its slot, HL = past its block\'s count byte (the main');
+	arrOut.push('; one: at its patcher), it is selected. C: not there');
+	arrOut.push('ntc_rj_scan:');
 	arrOut.push(strIndent + 'ld c, 0');
 	arrOut.push('ntc_rj_next:');
 	arrOut.push(strIndent + 'push bc');
@@ -10459,46 +10925,61 @@ function ntcRomJumpBlock(strPlatform_a, arrAsm_a, blnStamp_a, blnRomEnable_a, ar
 	arrOut.push(strIndent + 'djnz ntc_rj_cmp');
 	arrOut.push(strIndent + 'ld e, (hl)');
 	arrOut.push(strIndent + 'inc hl');
-	arrOut.push(strIndent + 'ld d, (hl)\t\t\t; its patcher');
-	arrOut.push(strIndent + 'ld (ntc_rj_call + 1), de');
-	arrOut.push(strIndent + 'ld a, c\t\t\t\t; its slot');
-	arrOut.push(strIndent + 'ld hl, ntc_rj_block');
-	arrOut.push(strIndent + 'ld bc, NTC_RJ_N');
-	arrOut.push('ntc_rj_call:');
-	arrOut.push(strIndent + 'call 0\t\t\t\t; HL = jump block, BC = entries, A = slot; C: DE = a number it hasn\'t got');
-	arrOut.push(strIndent + 'jr c, ntc_rj_lacks');
-	arrOut.push(strIndent + 'ld hl, ntc_free');
-	arrOut.push(strIndent + 'ld (ntc_v_free), hl');
-	arrOut.push(strIndent + 'ld hl, ntc_start');
-	arrOut.push(strIndent + 'ld (ntc_v_start), hl');
-	arrOut.push(strIndent + 'ld hl, ' + (blnStamp_a ? 'NTC_STAMP' : '0'));
-	arrOut.push(strIndent + 'ld (ntc_v_stamp), hl');
-	arrOut.push(strIndent + 'ld a, ' + (blnRomEnable_a ? 1 : 0));
-	arrOut.push(strIndent + 'ld (ntc_v_romen), a');
-	arrOut.push(strIndent + 'ld a, (ntc_rj_old)');
-	arrOut.push(strIndent + 'ld (ntc_v_romold), a');
-	arrOut.push(strIndent + 'or a\t\t\t\t; NC: ready');
+	arrOut.push(strIndent + 'ld d, (hl)\t\t\t; DE = its set\'s stamp');
+	arrOut.push(strIndent + 'inc hl');
+	arrOut.push(strIndent + 'ld a, (ntc_rj_want)');
+	arrOut.push(strIndent + 'cp (hl)\t\t\t\t; its place in the set');
+	arrOut.push(strIndent + 'jr nz, ntc_rj_skip');
+	arrOut.push(strIndent + 'or a');
+	arrOut.push(strIndent + 'jr z, ntc_rj_got');
+	arrOut.push(strIndent + 'push hl');
+	arrOut.push(strIndent + 'ld hl, (ntc_rj_set)');
+	arrOut.push(strIndent + 'or a');
+	arrOut.push(strIndent + 'sbc hl, de');
+	arrOut.push(strIndent + 'pop hl');
+	arrOut.push(strIndent + 'jr nz, ntc_rj_skip\t\t; another build\'s');
+	arrOut.push('ntc_rj_got:');
+	arrOut.push(strIndent + 'ld (ntc_rj_set), de');
+	arrOut.push(strIndent + 'inc hl');
+	arrOut.push(strIndent + 'ld a, (hl)');
+	arrOut.push(strIndent + 'ld (ntc_rj_n), a\t\t; ROMs in the set');
+	arrOut.push(strIndent + 'inc hl');
+	arrOut.push(strIndent + 'ld a, c');
+	arrOut.push(strIndent + 'or a\t\t\t\t; NC');
 	arrOut.push(strIndent + 'ret');
 	arrOut.push('ntc_rj_skip:');
 	arrOut.push(strIndent + 'inc c');
 	arrOut.push(strIndent + 'ld a, c');
 	arrOut.push(strIndent + 'cp 32');
 	arrOut.push(strIndent + 'jr c, ntc_rj_next');
+	arrOut.push(strIndent + 'scf\t\t\t\t\t; C: not there');
+	arrOut.push(strIndent + 'ret');
+	arrOut.push('ntc_rj_nf:');
 	arrOut.push(strIndent + 'ld hl, ntc_rj_tnf');
 	arrOut.push(strIndent + 'jr ntc_rj_fail');
+	arrOut.push('ntc_rj_part:\t\t\t\t; a ROM of the set is missing: its number (1 = the main one)');
+	arrOut.push(strIndent + 'ld a, (ntc_rj_want)');
+	arrOut.push(strIndent + 'inc a');
+	arrOut.push(strIndent + 'ld e, a');
+	arrOut.push(strIndent + 'ld d, 0');
+	arrOut.push(strIndent + 'ld (ntc_rj_num), de');
+	arrOut.push(strIndent + 'ld hl, ntc_rj_tpt');
+	arrOut.push(strIndent + 'jr ntc_rj_fnum');
 	arrOut.push('ntc_rj_lacks:');
 	arrOut.push(strIndent + 'ld (ntc_rj_num), de');
 	arrOut.push(strIndent + 'ld hl, ntc_rj_tlk');
+	arrOut.push('ntc_rj_fnum:');
+	arrOut.push(strIndent + 'ld a, 1');
+	arrOut.push(strIndent + 'ld (ntc_rj_pn), a\t\t; the number after the message');
 	arrOut.push('ntc_rj_fail:');
 	arrOut.push(strIndent + 'push hl');
 	arrOut.push(strIndent + 'ld bc, (ntc_rj_old)');
 	arrOut.push(strIndent + 'call #B918\t\t; KL ROM DESELECT: the caller\'s selection again');
 	arrOut.push(strIndent + 'pop hl');
 	arrOut.push(strIndent + 'call ntc_rj_puts');
-	arrOut.push(strIndent + 'ld hl, ntc_rj_tlk');
+	arrOut.push(strIndent + 'ld a, (ntc_rj_pn)');
 	arrOut.push(strIndent + 'or a');
-	arrOut.push(strIndent + 'sbc hl, de\t\t\t; (DE: past the message shown)');
-	arrOut.push(strIndent + 'jr nz, ntc_rj_nl');
+	arrOut.push(strIndent + 'jr z, ntc_rj_nl');
 	arrOut.push(strIndent + 'ld a, (ntc_rj_num + 1)');
 	arrOut.push(strIndent + 'call ntc_rj_hex');
 	arrOut.push(strIndent + 'ld a, (ntc_rj_num)');
@@ -10543,10 +11024,16 @@ function ntcRomJumpBlock(strPlatform_a, arrAsm_a, blnStamp_a, blnRomEnable_a, ar
 	arrOut.push(strIndent + 'ret');
 	arrOut.push('ntc_rj_old:\t\tdw 0\t\t\t; the caller\'s ROM selection (C) and state (B)');
 	arrOut.push('ntc_rj_num:\t\tdw 0');
-	arrOut.push('ntc_rj_sig:\t\tdb "NTC", 1, "' + strPlatform_a.toUpperCase() + '", 0\t; the ROM\'s NTC block');
+	arrOut.push('ntc_rj_pn:\t\tdb 0\t\t\t; 1 = a number goes after the message');
+	arrOut.push('ntc_rj_want:\tdb 0\t\t\t; the ROM of the set looked for');
+	arrOut.push('ntc_rj_n:\t\tdb 1\t\t\t; ROMs in the set');
+	arrOut.push('ntc_rj_set:\t\tdw 0\t\t\t; the set\'s stamp');
+	arrOut.push('ntc_rj_slots:\tds ' + NTC_ROM_MAXSET + '\t\t\t; each ROM\'s slot, the main one first');
+	arrOut.push('ntc_rj_sig:\t\tdb "NTC", 2, "' + strPlatform_a.toUpperCase() + '", 0\t; the ROMs\' NTC block');
 	arrOut.push('ntc_rj_sige:');
 	arrOut.push('ntc_rj_tnf:\t\tdb "ROM NTC ' + strPlatform_a.toUpperCase() + ' (' + ntcRomFile(strPlatform_a) + '.ROM) not found", 0');
 	arrOut.push('ntc_rj_tlk:\t\tdb "ROM NTC ' + strPlatform_a.toUpperCase() + ' too old: no routine #", 0');
+	arrOut.push('ntc_rj_tpt:\t\tdb "ROM ' + ntcRomFile(strPlatform_a) + '<n>.ROM not found: n = #", 0');
 	arrOut.push('ntc_rj_tnl:\t\tdb 13, 10, "Press a key", 13, 10, 0');
 	return arrOut;
 }

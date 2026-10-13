@@ -2356,7 +2356,7 @@ ntc_lpr_back:
 ; CAS IN / OUT OPEN buffer (CPC firmware) and Memory.Copy's page to page copy
 ntc_buf:		ds 2048
 
-;## ntc_memcore ntc_data ntc_mem ntc_plat_memtop @shared
+;## ntc_memcore ntc_data ntc_mem ntc_memcore2 ntc_plat_memtop @shared
 ; ------------------------------------------------------------
 ; ntc_memcore - the Memory class, the part every scheme shares. The scheme
 ; (Option Memory, else the platform's default) is the section ntc_mem -
@@ -2469,6 +2469,11 @@ mem_err:
 mem_chk_bad:
 			ld hl, MEM_BADPAGE
 			jp mem_err
+
+;## ntc_memcore2 ntc_memcore @shared @far
+; ntc_memcore2 - the rest of the shared part: far pointers, the heap, bytes
+; and words. Runs on the real stack (through mem_go), so a keyword ROM set
+; can place it in another ROM of the set (@far).
 
 ; mem_far - HL = a far pointer's address (Long: address, page): DE = the
 ; address, HL = the page (0 = plain memory). Page not 0: it must be a page
@@ -2731,7 +2736,7 @@ mem_putback:
 			pop hl
 			ret
 
-;## ntc_mem ntc_memcore ntc_plat_memtop @shared
+;## ntc_mem ntc_memcore ntc_plat_memtop @shared @far
 ; ------------------------------------------------------------
 ; ntc_mem (Small) - no paging: Alloc / Free over the free main RAM, from the
 ; program's end up to the first of: the platform's top (ntc_plat_memtop),
@@ -2924,7 +2929,7 @@ mem_largest:
 			dec hl
 			ret
 
-;## ntc_memcopy ntc_mem ntc_buf2k @shared
+;## ntc_memcopy ntc_mem ntc_buf2k @shared @far
 ; Copy(src, dst, length): far pointer to far pointer, up to 2K at a time
 ; through ntc_buf (so page to page works with one window). A page's end
 ; (#8000) carries on at #4000 of the next page. The window is put back.

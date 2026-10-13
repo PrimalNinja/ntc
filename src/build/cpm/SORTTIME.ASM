@@ -1846,7 +1846,7 @@ ntc_lin_back:
 ; CAS IN / OUT OPEN buffer (CPC firmware) and Memory.Copy's page to page copy
 ntc_buf:		ds 2048
 
-;## ntc_memcore ntc_data ntc_mem ntc_plat_memtop @shared
+;## ntc_memcore ntc_data ntc_mem ntc_memcore2 ntc_plat_memtop @shared
 ; ------------------------------------------------------------
 ; ntc_memcore - the Memory class, the part every scheme shares. The scheme
 ; (Option Memory, else the platform's default) is the section ntc_mem -
@@ -1959,6 +1959,11 @@ mem_err:
 mem_chk_bad:
 			ld hl, MEM_BADPAGE
 			jp mem_err
+
+;## ntc_memcore2 ntc_memcore @shared @far
+; ntc_memcore2 - the rest of the shared part: far pointers, the heap, bytes
+; and words. Runs on the real stack (through mem_go), so a keyword ROM set
+; can place it in another ROM of the set (@far).
 
 ; mem_far - HL = a far pointer's address (Long: address, page): DE = the
 ; address, HL = the page (0 = plain memory). Page not 0: it must be a page
@@ -2221,7 +2226,7 @@ mem_putback:
 			pop hl
 			ret
 
-;## ntc_mem ntc_memcore ntc_plat_memtop @shared
+;## ntc_mem ntc_memcore ntc_plat_memtop @shared @far
 ; ------------------------------------------------------------
 ; ntc_mem (Small) - no paging: Alloc / Free over the free main RAM, from the
 ; program's end up to the first of: the platform's top (ntc_plat_memtop),
@@ -2414,7 +2419,7 @@ mem_largest:
 			dec hl
 			ret
 
-;## ntc_list ntc_memcore @shared
+;## ntc_list ntc_memcore @shared @far
 ; ------------------------------------------------------------
 ; ntc_list - the List class: linked lists in the Memory class's heap (D
 ; pages with CPCExpansion, main RAM with Small), handles and nodes are far
@@ -3040,7 +3045,7 @@ lst_ds_hdr:
 			ld hl, 0
 			ret
 
-;## ntc_listsort ntc_list ntc_buf2k @shared
+;## ntc_listsort ntc_list ntc_buf2k @shared @far
 ; Sort(h, offset): in order of the (signed) word at offset in each node's
 ; data, equal ones keeping their order. A radix sort: two passes over the
 ; list (the key's low byte, then its high byte with the sign bit flipped),

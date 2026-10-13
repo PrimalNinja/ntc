@@ -122,6 +122,12 @@ ntc_stop_back:
 			ei
 			ret
 
+;## kw_waitkey ntc_data ntc_plat_key
+; kw_waitkey - wait for a key (Option PressAnyKeyOnEnd, before kw_stop)
+kw_waitkey:
+			ld ix, ntc_next
+			jp ntc_plat_getkey
+
 ;## ntc_xn ntc_data @shared
 ; normal mode "next": every normal mode keyword ends here (its ret
 ; became jp ntc_xn). Thread position to ntc_ip, real stack, one
@@ -5552,7 +5558,7 @@ ntc_capname:	dw 0
 ; CAS IN / OUT OPEN buffer (CPC firmware) and Memory.Copy's page to page copy
 ntc_buf:		ds 2048
 
-;## ntc_memcore ntc_data ntc_mem ntc_plat_memtop @shared
+;## ntc_memcore ntc_data ntc_mem ntc_memcore2 ntc_plat_memtop @shared
 ; ------------------------------------------------------------
 ; ntc_memcore - the Memory class, the part every scheme shares. The scheme
 ; (Option Memory, else the platform's default) is the section ntc_mem -
@@ -5665,6 +5671,11 @@ mem_err:
 mem_chk_bad:
 			ld hl, MEM_BADPAGE
 			jp mem_err
+
+;## ntc_memcore2 ntc_memcore @shared @far
+; ntc_memcore2 - the rest of the shared part: far pointers, the heap, bytes
+; and words. Runs on the real stack (through mem_go), so a keyword ROM set
+; can place it in another ROM of the set (@far).
 
 ; mem_far - HL = a far pointer's address (Long: address, page): DE = the
 ; address, HL = the page (0 = plain memory). Page not 0: it must be a page
@@ -5927,7 +5938,7 @@ mem_putback:
 			pop hl
 			ret
 
-;## ntc_mem ntc_memcore ntc_membank @shared @if:ntc_mem_cpcexpansion
+;## ntc_mem ntc_memcore ntc_membank @shared @far @if:ntc_mem_cpcexpansion
 ; ------------------------------------------------------------
 ; ntc_mem (CPCExpansion) - 16K RAM pages in the #4000-#7FFF window (CPC gate
 ; array RAM setting: C0 = plain, C4-C7 + bank * 8 = page 0-3 of a 64K bank;
@@ -7050,7 +7061,7 @@ ntc_bk_end:
 ntc_bk_di:
 			ret
 
-;## ntc_mem ntc_memcore ntc_plat_memtop @shared @if:ntc_mem_small
+;## ntc_mem ntc_memcore ntc_plat_memtop @shared @far @if:ntc_mem_small
 ; ------------------------------------------------------------
 ; ntc_mem (Small) - no paging: Alloc / Free over the free main RAM, from the
 ; program's end up to the first of: the platform's top (ntc_plat_memtop),
@@ -7346,7 +7357,7 @@ ntc_k_set:
 			ld (hl), d
 			ret
 
-;## ntc_memcopy ntc_mem ntc_buf2k @shared
+;## ntc_memcopy ntc_mem ntc_buf2k @shared @far
 ; Copy(src, dst, length): far pointer to far pointer, up to 2K at a time
 ; through ntc_buf (so page to page works with one window). A page's end
 ; (#8000) carries on at #4000 of the next page. The window is put back.
@@ -8245,7 +8256,7 @@ ntc_ovl_lreg:
 			or a
 			ret
 
-;## ntc_gfx ntc_data ntc_plat_data @shared
+;## ntc_gfx ntc_data ntc_plat_data @shared @ramonly
 ; ------------------------------------------------------------
 ; ntc_gfx - drawing on the CPC screen (Graphics class, Vector3D): lines in
 ; mode 0, 1 or 2 (ntc_smode), in a pen, XOR (drawing a line again takes it
@@ -9028,7 +9039,7 @@ ntc_bsz:		dw 0
 ntc_bsp:		dw 0
 ntc_bstxt:		db "Not enough memory for the arrays", 0
 
-;## ntc_list ntc_memcore @shared
+;## ntc_list ntc_memcore @shared @far
 ; ------------------------------------------------------------
 ; ntc_list - the List class: linked lists in the Memory class's heap (D
 ; pages with CPCExpansion, main RAM with Small), handles and nodes are far
@@ -9654,7 +9665,7 @@ lst_ds_hdr:
 			ld hl, 0
 			ret
 
-;## ntc_listsort ntc_list ntc_buf2k @shared
+;## ntc_listsort ntc_list ntc_buf2k @shared @far
 ; Sort(h, offset): in order of the (signed) word at offset in each node's
 ; data, equal ones keeping their order. A radix sort: two passes over the
 ; list (the key's low byte, then its high byte with the sign bit flipped),

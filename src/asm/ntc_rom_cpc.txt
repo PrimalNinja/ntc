@@ -280,13 +280,13 @@
 272	code	mem_free
 273	code	mem_largest
 274	code	mem_copy
-275	code	gfx_begin
-276	code	gfx_end
-277	code	gfx_width
-278	code	gfx_line
-279	code	gfx_flip
-280	code	gfx_double
-281	code	gfx_copyrows
+275	gone	gfx_begin
+276	gone	gfx_end
+277	gone	gfx_width
+278	gone	gfx_line
+279	gone	gfx_flip
+280	gone	gfx_double
+281	gone	gfx_copyrows
 282	code	ntc_isl_tick
 283	code	kw_bssinit
 284	code	lst_create
@@ -324,6 +324,8 @@
 316	code	ntc_kdown
 317	code	ntc_kjoy
 318	code	ntc_plat_rmr
+319	code	ntc_urom_off
+320	code	ntc_urom_on
 -	data	ntc_csp	#8800
 -	data	ntc_ip	#8802
 -	data	ntc_ticks	#8804
@@ -345,27 +347,19 @@
 -	data	mem_a2	#8851
 -	data	mem_a3	#8853
 -	data	mem_res	#8855
--	data	gfx_x0	#887B
--	data	gfx_y0	#887D
--	data	gfx_x1	#887F
--	data	gfx_y1	#8881
--	data	gfx_pen	#8889
--	data	gfx_clip	#888A
--	data	gfx_base	#888B
--	data	gfx_dbl	#888C
--	data	gfx_sp	#888E
--	data	ntc_isln	#8890
--	data	ntc_isldue	#8891
--	data	ntc_islshn	#8898
+-	data	ntc_isln	#887B
+-	data	ntc_isldue	#887C
+-	data	ntc_islshn	#8883
 -	bss	ntc_isl	#9786
--	data	ntc_curx	#8899
--	data	ntc_cury	#889A
--	data	ntc_smode	#889B
--	data	ntc_scols	#889E
--	data	ntc_irqv	#88B6
--	data	ntc_v_free	#88C5
--	data	ntc_v_start	#88C7
--	data	ntc_v_stamp	#88C9
--	data	ntc_v_romen	#88CB
--	data	ntc_v_rom	#88CC
--	data	ntc_v_romold	#88CD
+-	data	ntc_curx	#8884
+-	data	ntc_cury	#8885
+-	data	ntc_smode	#8886
+-	data	ntc_scols	#8889
+-	data	ntc_irqv	#88A1
+-	data	ntc_v_free	#88B0
+-	data	ntc_v_start	#88B2
+-	data	ntc_v_stamp	#88B4
+-	data	ntc_v_romen	#88B6
+-	data	ntc_v_rom	#88B7
+-	data	ntc_v_romold	#88B8
+321	code	kw_waitkey

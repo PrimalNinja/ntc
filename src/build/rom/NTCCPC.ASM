@@ -3,12 +3,13 @@
 ; A background ROM: standard header, no BASIC commands (yet). Programs built with
 ; Library: ROM find it at their start and call ntc_rom_patch with their jump block.
 ; ============================================================
-			DEVICE AMSTRADCPC6128
 NTC_ROMDATA	equ #8800		; its initialised variables (and RAM code), copied by ntc_rom_patch
 NTC_ROMBSS	equ #9400		; its other variables, cleared
 NTC_STRMAX	equ 255			; strings up to 255 characters (programs built for the ROM use 255)
 NTC_MEMBANKS	equ 64			; the Memory class: up to 4MB
-NTC_ROM_N	equ 319			; numbers in the index
+NTC_ROM_N	equ 322			; numbers in the index
+NTC_ROM_COUNT	equ 1			; ROMs in the set (NTCCPC.ROM)
+NTC_ROM_SET	equ #F14A		; the set's stamp (its ROMs find each other by it)
 MEM_WIN		equ #4000
 MEM_BADPAGE	equ -2
 MEM_BANKS	equ NTC_MEMBANKS	; 0 - 64
@@ -49,22 +50,27 @@ ntc_rom_names:
 			db "NTC CP", "C" + #80	; the ROM's name (one per platform: they can all be fitted)
 			db 0				; (no BASIC commands yet)
 ntc_rom_block:				; NTC's part: the program's start code reads it
-			db "NTC", 1			; mark, format of this block
+			db "NTC", 2			; mark, format of this block
 			db "CPC", 0		; the platform it is for
-			dw ntc_rom_patch		; HL = jump block, BC = entries, A = this ROM's number
+			dw NTC_ROM_SET		; the set's stamp
+			db 0, NTC_ROM_COUNT		; this ROM's place in the set (0 = the main one), ROMs in the set
+			dw ntc_rom_patch		; HL = jump block, BC = entries, A = this ROM's slot, DE = the set's slots
 			dw ntc_rom_index, NTC_ROM_N
 ; the firmware starts background ROMs at power on: nothing to do (no RAM claimed)
 ntc_rom_init:
 			scf
 			ret
 ; ntc_rom_patch - (call, from the program, this ROM selected) HL = the program's jump
-; block (3 bytes each: jp <number>), BC = its entries, A = this ROM's number. Sets up
-; the ROM's RAM (initialised variables copied, the rest cleared), then each number becomes
-; the ROM's address. NC = done. C = a number this ROM hasn't got: DE = it.
+; block (3 bytes each: jp <number>), BC = its entries, A = this ROM's slot, DE = the
+; slots of the set's ROMs (NTC_ROM_COUNT bytes, the main one first). Sets up the ROM's
+; RAM (initialised variables copied, the rest cleared, the slots), then each number becomes
+; its address (a routine in another ROM of the set: its far call). NC = done. C = a number
+; this ROM hasn't got: DE = it.
 ntc_rom_patch:
 			push hl
 			push bc
 			push af
+			push de
 			ld hl, ntc_rom_img
 			ld de, NTC_ROMDATA
 			ld bc, ntc_rom_imgend - ntc_rom_img
@@ -74,6 +80,19 @@ ntc_rom_patch:
 			ld bc, ntc_rom_bssend - NTC_ROMBSS - 1
 			ld (hl), 0
 			ldir
+			pop de				; the slots: ntc_rx_s0 ... as #DF00 + slot
+			ld hl, ntc_rx_s0
+			ld b, NTC_ROM_COUNT
+ntc_rp_sl:
+			ld a, (de)
+			inc de
+			ld (hl), a
+			inc hl
+			ld (hl), #DF
+			inc hl
+			djnz ntc_rp_sl
+			ld hl, (ntc_rx_s0)
+			ld (ntc_rx_cur), hl		; the main ROM is in
 			pop af
 			ld (ntc_v_rom), a
 			pop bc
@@ -395,13 +414,13 @@ ntc_rom_index:
 			dw mem_free		; 272
 			dw mem_largest		; 273
 			dw mem_copy		; 274
-			dw gfx_begin		; 275
-			dw gfx_end		; 276
-			dw gfx_width		; 277
-			dw gfx_line		; 278
-			dw gfx_flip		; 279
-			dw gfx_double		; 280
-			dw gfx_copyrows		; 281
+			dw 0		; 275 (no longer here)
+			dw 0		; 276 (no longer here)
+			dw 0		; 277 (no longer here)
+			dw 0		; 278 (no longer here)
+			dw 0		; 279 (no longer here)
+			dw 0		; 280 (no longer here)
+			dw 0		; 281 (no longer here)
 			dw ntc_isl_tick		; 282
 			dw kw_bssinit		; 283
 			dw lst_create		; 284
@@ -439,6 +458,9 @@ ntc_rom_index:
 			dw ntc_kdown		; 316
 			dw ntc_kjoy		; 317
 			dw ntc_plat_rmr		; 318
+			dw ntc_urom_off		; 319
+			dw ntc_urom_on		; 320
+			dw kw_waitkey		; 321
 ; ---- the library (code)
 ;## ntc_data @shared
 ntc_next:		ret				; IX target that continues the thread
@@ -451,6 +473,10 @@ ntc_stop_back:
 			ld sp, (ntc_csp)
 			ei
 			ret
+;## kw_waitkey ntc_data ntc_plat_key
+kw_waitkey:
+			ld ix, ntc_next
+			jp ntc_plat_getkey
 ;## ntc_xnh ntc_data ntc_islots @shared
 ntc_xn:
 			ld (ntc_ip), sp
@@ -5540,7 +5566,7 @@ ntc_cf_none:
 			inc a				; NZ: not found
 			ret
 ;## ntc_buf2k
-;## ntc_memcore ntc_data ntc_mem ntc_plat_memtop @shared
+;## ntc_memcore ntc_data ntc_mem ntc_memcore2 ntc_plat_memtop @shared
 mem_go0:
 			xor a
 			jr mem_gostart
@@ -5605,6 +5631,7 @@ mem_err:
 mem_chk_bad:
 			ld hl, MEM_BADPAGE
 			jp mem_err
+;## ntc_memcore2 ntc_memcore @shared @far
 mem_far:
 			ld e, (hl)
 			inc hl
@@ -5839,7 +5866,7 @@ mem_putback:
 			call mem_sel
 			pop hl
 			ret
-;## ntc_mem ntc_memcore ntc_membank @shared
+;## ntc_mem ntc_memcore ntc_membank @shared @far
 mem_start:
 			ld a, (mem_init)
 			or a
@@ -6867,7 +6894,7 @@ ntc_k_set:
 			inc hl
 			ld (hl), d
 			ret
-;## ntc_memcopy ntc_mem ntc_buf2k @shared
+;## ntc_memcopy ntc_mem ntc_buf2k @shared @far
 mem_copy:
 			ld hl, (mem_a1)
 			call mem_far
@@ -7166,7 +7193,7 @@ ntc_bs_pn:
 ntc_bs_stop:
 			ld ix, kw_stop
 			jp ntc_plat_newline
-;## ntc_list ntc_memcore @shared
+;## ntc_list ntc_memcore @shared @far
 lst_at:
 			ld e, (hl)
 			inc hl
@@ -7716,7 +7743,7 @@ lst_ds_hdr:
 			call lst_back
 			ld hl, 0
 			ret
-;## ntc_listsort ntc_list ntc_buf2k @shared
+;## ntc_listsort ntc_list ntc_buf2k @shared @far
 lst_rs_sel:
 			ld a, d
 			or e
@@ -8442,20 +8469,6 @@ mem_hlo:		dw MEM_WIN		; the heap region mem_fit / mem_big work in
 mem_hhi:		dw #8000
 mem_store:		db 0
 mem_init:		db 0			; 1 = the first call has been
-gfx_x0:			dw 0
-gfx_y0:			dw 0
-gfx_x1:			dw 0
-gfx_y1:			dw 0
-gfx_dx:			dw 0
-gfx_dy:			dw 0
-gfx_out:		db 0
-gfx_sy:			db 0			; 0 down, 1 up
-gfx_pen:		db 1
-gfx_clip:		db 1			; 1: a line with an end off the screen isn't drawn; 0: no checks
-gfx_base:		db #C0			; the screen drawn on (high byte)
-gfx_dbl:		db 0			; 1 = double buffering
-gfx_shown:		db #30			; CRTC R12 of the screen shown
-gfx_sp:			dw 0			; the thread position while a Graphics method works
 ntc_isln:		db 0			; slots in use
 ntc_isldue:		db 0			; 1 = a slot may be due
 ntc_islvs:		db 0			; vertical sync at the last interrupt
@@ -8599,6 +8612,16 @@ ntc_keymaps:			db 0, 0, 0, "9", "6", "3", 13, "."
 			db "$", "#", "E", "W", "S", "D", "C", "X"
 			db "!", 34, 27, "Q", 9, "A", 0, "Z"
 			db 0, 0, 0, 0, 0, 0, 0, 127
+ntc_rx_cur:	dw 0			; the ROM of the set selected now (C = its slot, B = #DF)
+ntc_rx_bc:	dw 0			; a far call: BC kept here
+ntc_rx_s0:	dw 0			; ROM 0 of the set: its slot (B = #DF, C = slot)
+ntc_rx_s1:	dw 0			; ROM 1 of the set: its slot (B = #DF, C = slot)
+ntc_rx_s2:	dw 0			; ROM 2 of the set: its slot (B = #DF, C = slot)
+ntc_rx_s3:	dw 0			; ROM 3 of the set: its slot (B = #DF, C = slot)
+ntc_rx_s4:	dw 0			; ROM 4 of the set: its slot (B = #DF, C = slot)
+ntc_rx_s5:	dw 0			; ROM 5 of the set: its slot (B = #DF, C = slot)
+ntc_rx_s6:	dw 0			; ROM 6 of the set: its slot (B = #DF, C = slot)
+ntc_rx_s7:	dw 0			; ROM 7 of the set: its slot (B = #DF, C = slot)
 ; ---- code that runs from RAM (addresses may change between ROMs: programs reach it through their jump block)
 ;## ntc_membank ntc_plat_rmr @shared @romram  (ROM: runs from RAM)
 ntc_bk_go:
@@ -8634,524 +8657,6 @@ ntc_bk_end:
 			jp po, ntc_bk_di
 			ei
 ntc_bk_di:
-			ret
-;## ntc_gfx ntc_data ntc_plat_data @shared  (ROM: runs from RAM)
-gfx_begin:
-			call ntc_urom_off	; (ROM: the upper ROM hides the screen)
-			ld a, (gfx_base)
-			cp #40
-			ret nz
-			push bc
-			ld bc, #7FC0
-			out (c), c
-			pop bc
-			ret
-gfx_end:
-			call ntc_urom_on	; (ROM: the upper ROM hides the screen)
-			ld a, (gfx_base)
-			cp #40
-			ret nz
-			ld bc, (ntc_rampt)
-			out (c), c
-			ret
-gfx_width:
-			ld a, (ntc_smode)
-			ld hl, 160
-			or a
-			ret z
-			add hl, hl
-			dec a
-			ret z
-			add hl, hl
-			ret
-gfx_line:				; (ROM: the upper ROM off around it)
-			call ntc_urom_off
-			call gfx_line_r
-			jp ntc_urom_on
-gfx_line_r:
-			ld a, (gfx_clip)
-			or a
-			jr z, gfx_l_go
-			call gfx_width
-			ex de, hl
-			ld hl, (gfx_x0)
-			call gfx_chk
-			ret c
-			ld hl, (gfx_x1)
-			call gfx_chk
-			ret c
-			ld de, 200
-			ld hl, (gfx_y0)
-			call gfx_chk
-			ret c
-			ld hl, (gfx_y1)
-			call gfx_chk
-			ret c
-gfx_l_go:
-			ld hl, (gfx_x1)			; left to right
-			ld de, (gfx_x0)
-			or a
-			sbc hl, de
-			jr nc, gfx_l_lr
-			ld hl, (gfx_x0)
-			ld de, (gfx_x1)
-			ld (gfx_x0), de
-			ld (gfx_x1), hl
-			ld hl, (gfx_y0)
-			ld de, (gfx_y1)
-			ld (gfx_y0), de
-			ld (gfx_y1), hl
-			ld hl, (gfx_x1)
-			ld de, (gfx_x0)
-			or a
-			sbc hl, de
-gfx_l_lr:
-			ld (gfx_dx), hl
-			ld hl, (gfx_y1)
-			ld de, (gfx_y0)
-			or a
-			sbc hl, de
-			ld a, 0
-			jr nc, gfx_l_dy
-			call gfx_neg
-			ld a, 1
-gfx_l_dy:
-			ld (gfx_sy), a
-			ld (gfx_dy), hl
-			call gfx_pat			; IYL = the pen's pattern in this mode
-			ld a, (gfx_y0)			; HL = the address of (x0, y0)
-			ld c, a
-			and #F8
-			ld l, a
-			ld h, 0
-			add hl, hl
-			ld d, h
-			ld e, l
-			add hl, hl
-			add hl, hl
-			add hl, de				; (y / 8) * 80
-			ld a, c
-			and 7
-			add a, a
-			add a, a
-			add a, a
-			ld c, a
-			ld a, (gfx_base)
-			add a, c
-			add a, h
-			ld h, a
-			ld de, (gfx_x0)			; + x / pixels a byte, C = the marker
-			ld a, (ntc_smode)
-			or a
-			jr nz, gfx_l_m12
-			ld c, #AA
-			srl d
-			rr e
-			jr nc, gfx_l_adr
-			ld c, #55
-			jr gfx_l_adr
-gfx_l_m12:
-			dec a
-			ld a, e
-			jr nz, gfx_l_m2
-			and 3
-			ld b, a
-			ld c, #88
-			srl d
-			rr e
-			srl d
-			rr e
-			jr gfx_l_sh
-gfx_l_m2:
-			and 7
-			ld b, a
-			ld c, #80
-			srl d
-			rr e
-			srl d
-			rr e
-			srl d
-			rr e
-gfx_l_sh:
-			ld a, b
-			or a
-			jr z, gfx_l_adr
-gfx_l_shl:
-			rrc c
-			djnz gfx_l_shl
-gfx_l_adr:
-			add hl, de
-			call gfx_begin
-			call gfx_l_draw
-			jp gfx_end
-gfx_l_draw:
-			ld a, c					; the first pixel
-			and iyl
-			xor (hl)
-			ld (hl), a
-			push hl
-			ld hl, (gfx_dx)
-			ld de, (gfx_dy)
-			or a
-			sbc hl, de
-			pop hl
-			jp c, gfx_ymaj
-			ld de, (gfx_dy)			; x major: count dx, error dx / 2, IX = dy
-			push de
-			pop ix
-			ld de, (gfx_dx)
-			call gfx_cnt
-			ret z
-			ld de, (gfx_dx)
-			srl d
-			rr e
-			ld a, (gfx_sy)
-			or a
-			jp nz, gfx_xu
-gfx_xd:
-			rrc c					; x + 1
-			jr nc, gfx_xd1
-			inc hl
-gfx_xd1:
-			ld a, e					; error - dy
-			sub ixl
-			ld e, a
-			ld a, d
-			sbc a, ixh
-			ld d, a
-			jp p, gfx_xd2
-			push hl					; error + dx, y + 1
-			ld hl, (gfx_dx)
-			add hl, de
-			ex de, hl
-			pop hl
-			ld a, h
-			add a, 8
-			ld h, a
-			and #38
-			jr nz, gfx_xd2
-			push de
-			ld de, #C050
-			add hl, de
-			pop de
-gfx_xd2:
-			ld a, c
-			and iyl
-			xor (hl)
-			ld (hl), a
-			djnz gfx_xd
-			ld a, (gfx_out)
-			dec a
-			ld (gfx_out), a
-			jr nz, gfx_xd
-			ret
-gfx_xu:
-			rrc c
-			jr nc, gfx_xu1
-			inc hl
-gfx_xu1:
-			ld a, e
-			sub ixl
-			ld e, a
-			ld a, d
-			sbc a, ixh
-			ld d, a
-			jp p, gfx_xu2
-			push hl					; error + dx, y - 1
-			ld hl, (gfx_dx)
-			add hl, de
-			ex de, hl
-			pop hl
-			ld a, h
-			sub 8
-			ld h, a
-			and #38
-			cp #38
-			jr nz, gfx_xu2
-			push de
-			ld de, #3FB0
-			add hl, de
-			pop de
-gfx_xu2:
-			ld a, c
-			and iyl
-			xor (hl)
-			ld (hl), a
-			djnz gfx_xu
-			ld a, (gfx_out)
-			dec a
-			ld (gfx_out), a
-			jr nz, gfx_xu
-			ret
-gfx_ymaj:
-			ld de, (gfx_dx)			; y major: count dy, error dy / 2, IX = dx
-			push de
-			pop ix
-			ld de, (gfx_dy)
-			call gfx_cnt
-			ret z
-			ld de, (gfx_dy)
-			srl d
-			rr e
-			ld a, (gfx_sy)
-			or a
-			jp nz, gfx_yu
-gfx_yd:
-			ld a, h					; y + 1
-			add a, 8
-			ld h, a
-			and #38
-			jr nz, gfx_yd1
-			push de
-			ld de, #C050
-			add hl, de
-			pop de
-gfx_yd1:
-			ld a, e					; error - dx
-			sub ixl
-			ld e, a
-			ld a, d
-			sbc a, ixh
-			ld d, a
-			jp p, gfx_yd2
-			push hl					; error + dy, x + 1
-			ld hl, (gfx_dy)
-			add hl, de
-			ex de, hl
-			pop hl
-			rrc c
-			jr nc, gfx_yd2
-			inc hl
-gfx_yd2:
-			ld a, c
-			and iyl
-			xor (hl)
-			ld (hl), a
-			djnz gfx_yd
-			ld a, (gfx_out)
-			dec a
-			ld (gfx_out), a
-			jr nz, gfx_yd
-			ret
-gfx_yu:
-			ld a, h					; y - 1
-			sub 8
-			ld h, a
-			and #38
-			cp #38
-			jr nz, gfx_yu1
-			push de
-			ld de, #3FB0
-			add hl, de
-			pop de
-gfx_yu1:
-			ld a, e
-			sub ixl
-			ld e, a
-			ld a, d
-			sbc a, ixh
-			ld d, a
-			jp p, gfx_yu2
-			push hl
-			ld hl, (gfx_dy)
-			add hl, de
-			ex de, hl
-			pop hl
-			rrc c
-			jr nc, gfx_yu2
-			inc hl
-gfx_yu2:
-			ld a, c
-			and iyl
-			xor (hl)
-			ld (hl), a
-			djnz gfx_yu
-			ld a, (gfx_out)
-			dec a
-			ld (gfx_out), a
-			jr nz, gfx_yu
-			ret
-gfx_cnt:
-			ld a, d
-			or e
-			ret z
-			ld b, e
-			ld a, e
-			or a
-			jr z, gfx_cn1
-			inc d
-gfx_cn1:
-			ld a, d
-			ld (gfx_out), a
-			or 1
-			ret
-gfx_chk:
-			bit 7, h
-			scf
-			ret nz
-			or a
-			sbc hl, de
-			ccf
-			ret
-gfx_neg:
-			xor a
-			sub l
-			ld l, a
-			sbc a, a
-			sub h
-			ld h, a
-			ret
-gfx_pat:
-			ld a, (gfx_pen)
-			ld b, a
-			ld a, (ntc_smode)
-			or a
-			jr z, gfx_pt0
-			dec a
-			jr z, gfx_pt1
-			ld a, b					; mode 2: pen 1 = every bit
-			and 1
-			jr z, gfx_ptset
-			ld a, #FF
-			jr gfx_ptset
-gfx_pt1:
-			xor a					; mode 1: pen bit 0 in the high nibble, bit 1 low
-			bit 0, b
-			jr z, gfx_pt1b
-			or #F0
-gfx_pt1b:
-			bit 1, b
-			jr z, gfx_ptset
-			or #0F
-			jr gfx_ptset
-gfx_pt0:
-			xor a					; mode 0: bit 0 -> 7, 1 -> 3, 2 -> 5, 3 -> 1 (and one
-			bit 0, b				; to the right for the second pixel)
-			jr z, gfx_p01
-			or #C0
-gfx_p01:
-			bit 1, b
-			jr z, gfx_p02
-			or #0C
-gfx_p02:
-			bit 2, b
-			jr z, gfx_p03
-			or #30
-gfx_p03:
-			bit 3, b
-			jr z, gfx_ptset
-			or #03
-gfx_ptset:
-			ld iyl, a
-			ret
-gfx_flip:
-			ld a, (gfx_dbl)
-			or a
-			ret z
-			ld b, #F5				; wait for the vertical sync to start
-gfx_fw1:
-			in a, (c)
-			rra
-			jr c, gfx_fw1
-gfx_fw2:
-			in a, (c)
-			rra
-			jr nc, gfx_fw2
-			ld a, (gfx_base)		; show it: CRTC R12 #30 (#C000) / #10 (#4000)
-			cp #C0
-			ld a, #30
-			ld e, #40
-			jr z, gfx_fl1
-			ld a, #10
-			ld e, #C0
-gfx_fl1:
-			ld (gfx_shown), a
-			ld bc, #BC0C
-			out (c), c
-			inc b
-			out (c), a
-			ld a, e
-			ld (gfx_base), a
-			ret
-gfx_double:				; (ROM: the upper ROM off around it)
-			call ntc_urom_off
-			call gfx_double_r
-			jp ntc_urom_on
-gfx_double_r:
-			or a
-			jr z, gfx_dboff
-			ld (gfx_dbl), a
-			ld a, #C0				; show #C000 now
-			call gfx_dshow
-			ld bc, #7FC0
-			out (c), c
-			ld hl, #C000
-			ld de, #4000
-			ld bc, #4000
-			ldir
-			ld bc, (ntc_rampt)
-			out (c), c
-			ld a, #40
-			ld (gfx_base), a
-			ret
-gfx_dboff:
-			ld (gfx_dbl), a
-			ld a, #C0
-			ld (gfx_base), a
-gfx_dshow:
-			ld a, #30
-			ld (gfx_shown), a
-			ld bc, #BC0C
-			out (c), c
-			inc b
-			out (c), a
-			ret
-gfx_copyrows:				; (ROM: the upper ROM off around it)
-			call ntc_urom_off
-			call gfx_copyrows_r
-			jp ntc_urom_on
-gfx_copyrows_r:
-			or a
-			ret z
-			ld e, a
-			ld bc, #7FC0
-			out (c), c
-			ld d, 8					; 8 lines a row
-			ld hl, #C000
-gfx_cr1:
-			push hl
-			push de
-			ld b, 0
-			ld c, e					; rows * 80 bytes
-			ld a, 80
-			ld h, b
-			ld l, b
-gfx_cr2:
-			add hl, bc
-			dec a
-			jr nz, gfx_cr2
-			ld b, h
-			ld c, l
-			pop de
-			pop hl
-			push hl
-			push de
-			push hl
-			ld a, h
-			sub #80
-			ld d, a
-			ld e, l
-			pop hl
-			ldir
-			pop de
-			pop hl
-			ld a, h
-			add a, 8
-			ld h, a
-			dec d
-			jr nz, gfx_cr1
-			ld bc, (ntc_rampt)
-			out (c), c
 			ret
 ;## ntc_plat_scroll ntc_plat_data ntc_data @shared @romram  (ROM: runs from RAM)
 ntc_plat_scroll:
@@ -9265,19 +8770,24 @@ ntc_irq_nohook:
 ntc_irq_jp:
 			jp (hl)
 ntc_irq_rom:
-			ld a, (ntc_uroff)
-			or a
-			jr z, ntc_irq_jp
 			push bc
 			ld a, (ntc_smode)
 			or #84
 			ld b, #7F
 			out (c), a
+			ld bc, (ntc_rx_s0)		; B = #DF, C = the main ROM's slot
+			out (c), c
 			call ntc_irq_jp
+			ld bc, (ntc_rx_cur)		; the ROM that was in
+			out (c), c
+			ld a, (ntc_uroff)
+			or a
+			jr z, ntc_irq_ron
 			ld a, (ntc_smode)
 			or #8C
 			ld b, #7F
 			out (c), a
+ntc_irq_ron:
 			pop bc
 			ret
 ntc_urom_off:
@@ -9366,27 +8876,18 @@ ntc_rom_bssend:
 			ASSERT (mem_a2 & #FFFF) == #8851, "mem_a2 moved: variables and constants keep their place (a new size or value needs a new name)"
 			ASSERT (mem_a3 & #FFFF) == #8853, "mem_a3 moved: variables and constants keep their place (a new size or value needs a new name)"
 			ASSERT (mem_res & #FFFF) == #8855, "mem_res moved: variables and constants keep their place (a new size or value needs a new name)"
-			ASSERT (gfx_x0 & #FFFF) == #887B, "gfx_x0 moved: variables and constants keep their place (a new size or value needs a new name)"
-			ASSERT (gfx_y0 & #FFFF) == #887D, "gfx_y0 moved: variables and constants keep their place (a new size or value needs a new name)"
-			ASSERT (gfx_x1 & #FFFF) == #887F, "gfx_x1 moved: variables and constants keep their place (a new size or value needs a new name)"
-			ASSERT (gfx_y1 & #FFFF) == #8881, "gfx_y1 moved: variables and constants keep their place (a new size or value needs a new name)"
-			ASSERT (gfx_pen & #FFFF) == #8889, "gfx_pen moved: variables and constants keep their place (a new size or value needs a new name)"
-			ASSERT (gfx_clip & #FFFF) == #888A, "gfx_clip moved: variables and constants keep their place (a new size or value needs a new name)"
-			ASSERT (gfx_base & #FFFF) == #888B, "gfx_base moved: variables and constants keep their place (a new size or value needs a new name)"
-			ASSERT (gfx_dbl & #FFFF) == #888C, "gfx_dbl moved: variables and constants keep their place (a new size or value needs a new name)"
-			ASSERT (gfx_sp & #FFFF) == #888E, "gfx_sp moved: variables and constants keep their place (a new size or value needs a new name)"
-			ASSERT (ntc_isln & #FFFF) == #8890, "ntc_isln moved: variables and constants keep their place (a new size or value needs a new name)"
-			ASSERT (ntc_isldue & #FFFF) == #8891, "ntc_isldue moved: variables and constants keep their place (a new size or value needs a new name)"
-			ASSERT (ntc_islshn & #FFFF) == #8898, "ntc_islshn moved: variables and constants keep their place (a new size or value needs a new name)"
+			ASSERT (ntc_isln & #FFFF) == #887B, "ntc_isln moved: variables and constants keep their place (a new size or value needs a new name)"
+			ASSERT (ntc_isldue & #FFFF) == #887C, "ntc_isldue moved: variables and constants keep their place (a new size or value needs a new name)"
+			ASSERT (ntc_islshn & #FFFF) == #8883, "ntc_islshn moved: variables and constants keep their place (a new size or value needs a new name)"
 			ASSERT (ntc_isl & #FFFF) == #9786, "ntc_isl moved: variables and constants keep their place (a new size or value needs a new name)"
-			ASSERT (ntc_curx & #FFFF) == #8899, "ntc_curx moved: variables and constants keep their place (a new size or value needs a new name)"
-			ASSERT (ntc_cury & #FFFF) == #889A, "ntc_cury moved: variables and constants keep their place (a new size or value needs a new name)"
-			ASSERT (ntc_smode & #FFFF) == #889B, "ntc_smode moved: variables and constants keep their place (a new size or value needs a new name)"
-			ASSERT (ntc_scols & #FFFF) == #889E, "ntc_scols moved: variables and constants keep their place (a new size or value needs a new name)"
-			ASSERT (ntc_irqv & #FFFF) == #88B6, "ntc_irqv moved: variables and constants keep their place (a new size or value needs a new name)"
-			ASSERT (ntc_v_free & #FFFF) == #88C5, "ntc_v_free moved: variables and constants keep their place (a new size or value needs a new name)"
-			ASSERT (ntc_v_start & #FFFF) == #88C7, "ntc_v_start moved: variables and constants keep their place (a new size or value needs a new name)"
-			ASSERT (ntc_v_stamp & #FFFF) == #88C9, "ntc_v_stamp moved: variables and constants keep their place (a new size or value needs a new name)"
-			ASSERT (ntc_v_romen & #FFFF) == #88CB, "ntc_v_romen moved: variables and constants keep their place (a new size or value needs a new name)"
-			ASSERT (ntc_v_rom & #FFFF) == #88CC, "ntc_v_rom moved: variables and constants keep their place (a new size or value needs a new name)"
-			ASSERT (ntc_v_romold & #FFFF) == #88CD, "ntc_v_romold moved: variables and constants keep their place (a new size or value needs a new name)"
+			ASSERT (ntc_curx & #FFFF) == #8884, "ntc_curx moved: variables and constants keep their place (a new size or value needs a new name)"
+			ASSERT (ntc_cury & #FFFF) == #8885, "ntc_cury moved: variables and constants keep their place (a new size or value needs a new name)"
+			ASSERT (ntc_smode & #FFFF) == #8886, "ntc_smode moved: variables and constants keep their place (a new size or value needs a new name)"
+			ASSERT (ntc_scols & #FFFF) == #8889, "ntc_scols moved: variables and constants keep their place (a new size or value needs a new name)"
+			ASSERT (ntc_irqv & #FFFF) == #88A1, "ntc_irqv moved: variables and constants keep their place (a new size or value needs a new name)"
+			ASSERT (ntc_v_free & #FFFF) == #88B0, "ntc_v_free moved: variables and constants keep their place (a new size or value needs a new name)"
+			ASSERT (ntc_v_start & #FFFF) == #88B2, "ntc_v_start moved: variables and constants keep their place (a new size or value needs a new name)"
+			ASSERT (ntc_v_stamp & #FFFF) == #88B4, "ntc_v_stamp moved: variables and constants keep their place (a new size or value needs a new name)"
+			ASSERT (ntc_v_romen & #FFFF) == #88B6, "ntc_v_romen moved: variables and constants keep their place (a new size or value needs a new name)"
+			ASSERT (ntc_v_rom & #FFFF) == #88B7, "ntc_v_rom moved: variables and constants keep their place (a new size or value needs a new name)"
+			ASSERT (ntc_v_romold & #FFFF) == #88B8, "ntc_v_romold moved: variables and constants keep their place (a new size or value needs a new name)"

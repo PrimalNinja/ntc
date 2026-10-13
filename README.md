@@ -448,7 +448,37 @@ name and file (`NTC CPC` NTCCPC.ROM, `NTC CPCMIN` NTCMIN.ROM, `NTC CPCFW` NTCFW.
 - Firmware and AMSDOS calls from the ROM return to it (the firmware restores the upper ROM
   selection); all three checked on the real 6128 ROMs with `realcpc` (`XROM=`): self tests,
   files, overlays, pages, interrupt classes, the Memory class, cube3d.
-- Sizes: NTCCPC about 2.6K free, NTCMIN about 0.8K, NTCFW about 1.6K.
+- Sizes (one ROM each, Graphics out): NTCCPC about 2.9K free, NTCMIN about 1.0K, NTCFW about 1.4K.
+- **ROM sets** (`ntcRomAsm(platform, registry, { place, measure })`, `genrom.js --cap --place
+  --out`). Sections marked `@far` (real stack code: `ntc_memcore2` - the part of the Memory
+  core after the `mem_go` wrappers -, `ntc_mem`, `ntc_memcopy`, `ntc_list`, `ntc_listsort`)
+  may go into ROM 2, 3 ... (`place`: section -> ROM). genrom measures (one oversized ROM from
+  #4000 with markers round each `@far` section), moves groups of `@far` sections that name
+  each other (`chunks[].deps`: header deps and the labels they use) out until the main ROM
+  fits `--cap` (16384), builds, and moves one more while a ROM is too big. Each other ROM has
+  a header (background ROM, `scf / ret` init), names `NTC CPCMIN2` ..., and the block
+  `"NTC", 2, platform, 0, dw NTC_ROM_SET, db k, NTC_ROM_COUNT`; the main block adds `dw
+  ntc_rom_patch, ntc_rom_index, NTC_ROM_N`. `NTC_ROM_SET` is a CRC of the code and placement.
+  Crossing between ROMs is rewritten (`crossRewrite`): `call x` -> `call xc_x`, `jp / jr x` ->
+  `call xc_x : ret`, `jp cc, x` -> `jp cc, ntc_xt_n` (a trampoline `call xc_x : ret` at the
+  section's end); any other naming of another ROM's code (or djnz) stops the build. Only real
+  stack code may cross: every `call` in the library already is, and genrom lists the rewrites
+  in sections that aren't `@far` ("cross:") to check. `xc_x` (RAM, 10 bytes): `ld (ntc_rx_bc),
+  bc : ld bc, x : jp ntc_rx_c<rom>`; `ntc_rx_c<k>` saves `ntc_rx_cur` on the stack, selects ROM k
+  (`ntc_rx_sel`), restores BC, calls x through `ntc_rx_jt` (`jp 0`, written), keeps BC, selects
+  the saved ROM, restores BC, `ret` - registers and flags pass both ways. `ntc_rx_sel`: cpc /
+  cpcmin `ld b, #DF : ld (ntc_rx_cur), bc : out (c), c` (the variable first, for the interrupt
+  handler); cpcfw `call #B90F` (KL ROM SELECT, keeping AF / DE / HL and the interrupt state), so
+  the firmware's record of the ROM in stays right for its events' far calls. RAM code is
+  reached from the main ROM, so it names main ROM code directly, except a RAM section a far
+  section uses (`ntc_membank`): there all ROM code is far called. The index points a far
+  routine's number at its `xc_`. `ntc_rx_cur` / `ntc_rx_s0..7` are always there (the patcher
+  fills them from DE = the slots); cpc / cpcmin's `ntc_irq_rom` selects `ntc_rx_s0` round the
+  interrupt classes' count and `ntc_rx_cur` after. The program's start: `ntc_rj_scan` finds ROM
+  `ntc_rj_want` (0: any stamp, its count in `ntc_rj_n`; the others: the main one's stamp), the
+  slots go into `ntc_rj_slots`, then the main ROM's patcher. Checked on the real 6128 ROMs:
+  2-ROM sets on all three platforms, 4-ROM sets in slots 2, 9, 4, 12 (cpcfw, cpc), with
+  interrupt classes counting during far calls.
 
 ### Flavours (ntcPrep)
 
@@ -571,6 +601,10 @@ variables, `Declare`.
   (a load area, a screen, firmware RAM). The compiler writes one sjasmplus `ASSERT` per range
   after `ntc_end`, so the assembly stops (naming the range and the source line) if
   `ntc_start .. ntc_end` overlaps it. The program is not laid out around a range (yet).
+- `Option PressAnyKeyOnEnd ["message"]`: every end of the program (`End`, `Error`, a failed
+  `Debug.Assert`, the last line: `emitStop`) prints the message on a line of its own
+  (`kw_printnl0`, default `Press any key`) and runs `kw_waitkey` (`ntc_plat_getkey`) before
+  `kw_stop` - a program RUN" from AMSDOS resets the machine when it ends.
 - `Option Stack address`: the start code saves the caller's SP (`ntc_ssp`), sets SP, and pushes
   `ntc_sback` (switch back to the caller's SP, ret) so `End` (`kw_stop`: `ld sp,(ntc_csp) / ret`)
   still returns to the caller. ASSERT: below `ntc_start` or 64+ bytes above `ntc_end`. Options
@@ -829,7 +863,9 @@ the method's result pointer, still on the thread, and `ret`. No stack, no IX / I
 program links the `@ramonly` sections it uses into itself (`linkLibrary(..., true)` keeps only
 those), and their ROM names come through the jump block like the program's own.
 `NTC_ROMLIB` is 1 in a `Library: ROM` program, so such a section takes its ROM-mode code.
-Used for cpcmin's `ntc_plat_fsseq`: NTCMIN.ROM had no room for it.
+Used for cpcmin's `ntc_plat_fsseq` (NTCMIN.ROM had no room for it) and `ntc_gfx` (Graphics: so other
+graphics classes can sit beside it; in a Library: ROM program the compiler puts `ntcRomHook`'s
+ROM-off calls round its screen work, and `ntc_urom_off` / `on` are exported).
 
 **cpcfw interrupts** (`ntc_plat_irq` in `ntc_plat_cpcfw.asm`, `;@irq 2`: only when the
 program uses `Interrupt` or interrupt classes). The firmware keeps its interrupt handler; a
@@ -1126,7 +1162,12 @@ Makes the ROM's source with `ntcRomAsm`, assembles it, appends new registry entr
 `build/rom/NTCCPC`, `NTCMIN` or `NTCFW.ASM` / `.ROM`. Run `gen.js` after it (the registry goes
 into `ntc_lib.js`). `regress.sh` checks that it adds nothing for any of the three.
 `ntcrun.py` fits the platform's ROM image in slot 6 when the program wants it (`--library=rom`
-or `Option Library ROM`; `NTC_XROM=file` for another one). On cpc / cpcmin (cpcrun.py) the
+or `Option Library ROM`; `NTC_XROM=file` for another one, `NTC_ROMDIR=dir` for a set built
+with `--out`), and the rest of a set (`NAME2.ROM` ...) in slots 5, 4, 3 ...; it follows
+`#DFxx` writes on cpc / cpcmin and KL ROM SELECT on cpcfw (its fast ticker stub selects the
+main ROM for the event, as KL FAR ICALL does). `genrom.js [platform] [--cap=bytes]
+[--out=dir] [--place=section:rom,...]`: `--out` leaves the registry file alone (the forced
+splits regress.sh tests). On cpc / cpcmin (cpcrun.py) the
 image is at #C000 while the gate array has the upper ROM on and slot 6 is selected; writes
 go to the RAM below (the screen).
 

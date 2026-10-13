@@ -2974,7 +2974,7 @@ kw_strval:
 ; CAS IN / OUT OPEN buffer (CPC firmware) and Memory.Copy's page to page copy
 ntc_buf:		ds 2048
 
-;## ntc_memcore ntc_data ntc_mem ntc_plat_memtop @shared
+;## ntc_memcore ntc_data ntc_mem ntc_memcore2 ntc_plat_memtop @shared
 ; ------------------------------------------------------------
 ; ntc_memcore - the Memory class, the part every scheme shares. The scheme
 ; (Option Memory, else the platform's default) is the section ntc_mem -
@@ -3087,6 +3087,11 @@ mem_err:
 mem_chk_bad:
 			ld hl, MEM_BADPAGE
 			jp mem_err
+
+;## ntc_memcore2 ntc_memcore @shared @far
+; ntc_memcore2 - the rest of the shared part: far pointers, the heap, bytes
+; and words. Runs on the real stack (through mem_go), so a keyword ROM set
+; can place it in another ROM of the set (@far).
 
 ; mem_far - HL = a far pointer's address (Long: address, page): DE = the
 ; address, HL = the page (0 = plain memory). Page not 0: it must be a page
@@ -3349,7 +3354,7 @@ mem_putback:
 			pop hl
 			ret
 
-;## ntc_mem ntc_memcore ntc_membank @shared
+;## ntc_mem ntc_memcore ntc_membank @shared @far
 ; ------------------------------------------------------------
 ; ntc_mem (CPCExpansion) - 16K RAM pages in the #4000-#7FFF window (CPC gate
 ; array RAM setting: C0 = plain, C4-C7 + bank * 8 = page 0-3 of a 64K bank;
@@ -5006,7 +5011,7 @@ ntc_ovl_lno:
 			xor a
 			ret
 
-;## ntc_gfx ntc_data ntc_plat_data @shared
+;## ntc_gfx ntc_data ntc_plat_data @shared @ramonly
 ; ------------------------------------------------------------
 ; ntc_gfx - drawing on the CPC screen (Graphics class, Vector3D): lines in
 ; mode 0, 1 or 2 (ntc_smode), in a pen, XOR (drawing a line again takes it
@@ -7070,4 +7075,4 @@ ovl_spin_vsize	equ 0		; its page variables; its local memory is the rest, to #80
 			DISPLAY "  page variables ", /D, ovl_spin_vsize, ", free ", /D, #8000 - (ovl_spin_end + ovl_spin_vsize)
 			SAVEAMSDOS "CUBE3D.001", ovl_spin_start, ovl_spin_end - ovl_spin_start, #4000
 
-NTC_STAMP	equ #748C		; the build stamp: the first word of every page file
+NTC_STAMP	equ #E723		; the build stamp: the first word of every page file

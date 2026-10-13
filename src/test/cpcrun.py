@@ -102,25 +102,23 @@ class CPC:
         m.set_memory_block(0x18, bytes([0xD3, 0xDF, 0xC9]))     # RST 3: AMSDOS's far call CAS entries
         # Library: ROM - the keyword ROM's image (NTC_XROM) in upper ROM slot XSLOT: at #C000 while
         # the gate array has the upper ROM on and that slot is selected (writes go to the RAM below)
-        s.xrom = None; s.uon = False; s.romsel = 0; s.umapped = None; s.uram = None
-        x = os.environ.get('NTC_XROM')
-        if x:
-            d = open(x, 'rb').read(); s.xrom = d[128:] if len(d) == 0x4080 else d
+        s.uon = False; s.romsel = 0; s.umapped = None; s.uram = None
+        s.xroms = ntcrun.load_xroms()          # (a set of more than one ROM: slots 6, 5, 4 ...)
+        if s.xroms:
             m.set_write_callback(s.uwrite)
     def uwrite(s, a, v):
         s.uram[a - 0xC000] = v
     def umap(s):
-        if not s.xrom: return
-        import ntcrun
+        if not s.xroms: return
         want = None
-        if s.uon: want = 'x' if s.romsel == ntcrun.XSLOT else 'basic'
+        if s.uon: want = s.romsel if s.romsel in s.xroms else 'basic'
         if want == s.umapped: return
         m = s.m
         if s.umapped is not None:
             m.unmark_addrs(0xC000, 0x4000, m.WRITE_MARK); m.set_memory_block(0xC000, bytes(s.uram)); s.uram = None
         if want is not None:
             s.uram = bytearray(m.memory[0xC000:0x10000])
-            m.set_memory_block(0xC000, s.xrom if want == 'x' else bytes([0x80]) + bytes(0x3FFF))   # another ROM: BASIC's type byte
+            m.set_memory_block(0xC000, s.xroms[want] if want != 'basic' else bytes([0x80]) + bytes(0x3FFF))   # another ROM: BASIC's type byte
             m.mark_addrs(0xC000, 0x4000, m.WRITE_MARK)
         s.umapped = want
     def ramset(s,val,hi):
@@ -154,6 +152,7 @@ class CPC:
             if (val&0xC0)==0x80: s.lowrom(not (val&4)); s.uon = not (val&8); s.umap()
             elif (val&0xC0)==0xC0: s.ga.pop(); s.ramset(val,hi)
         elif hi==0xf6: s.line=val&15
+        elif hi==0xdf: s.romsel=val; s.umap()      # the upper ROM's slot (a keyword ROM set's far calls)
     def fwcall(s,lo):
         import ntcrun
         m=s.m; fw=s.fw

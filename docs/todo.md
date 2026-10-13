@@ -7,6 +7,14 @@ finished, with the date.
 
 ## done
 
+- 2026-10-13 keyword ROM sets: a platform's library in as many ROMs as it needs (NTCMIN.ROM,
+  NTCMIN2.ROM ...), one build, found by the set's stamp in any slots; `@far` sections (Memory,
+  List) move out as groups; far calls through RAM stubs (cpc / cpcmin `#DFxx`, cpcfw KL ROM
+  SELECT); the interrupt handler puts the main ROM in for interrupt classes; genrom `--cap` /
+  `--place` / `--out`; harness slots 6, 5, 4 ...; regress builds 2- and 4-ROM sets; checked on the
+  real 6128 ROMs (realcpc `XROM2=` ...)
+- 2026-10-13 Graphics out of the keyword ROMs (`@ramonly`: a Library: ROM program carries it)
+- 2026-10-13 `Option PressAnyKeyOnEnd ["message"]`: a message and a key at every end of the program
 - 2026-10-13 interrupt classes: up to 16 (was 4); `Option Class Interrupt Share` *weight* (1-100):
   shared classes split what the fixed ones (a rate, Frame) leave, by weight; test isl2 (8 classes)
 - 2026-10-13 Memory: whole 64K banks - `Banks`, `AllocBank`, `FreeBank`, `BankPage`, `CallBank`
@@ -1032,8 +1040,12 @@ measure each with the bench set (`compare/bench/`) before and after.
 - [ ] a text buffer class (optional; discussed for CyborgOS): lines of text in the heap, insert /
       delete / get / set a line - for editors and CLIs
 - [ ] Keys: the Shift / Control forms of INKEY(n) (32, 128 ...) for the Locomotive flavour
-- [ ] NTCMIN.ROM is nearly full (about 180 bytes free): the next cpcmin additions go `@ramonly`
-      or something moves out
+- [ ] ROMDISC: files in ROMs (a directory with name, length, flags - compressed later -, ROM and
+      offset), FileSystem device `ROM` (read only: Load, Open ForRead, Exists, Size, list);
+      overlays and page files loading from ROM; a packer for the images (after ROM sets: done)
+- [ ] ROM sets: one set for all three CPC platforms (the platform layer in the program's RAM, a
+      call table) - later
+- [ ] ROM sets: far call stubs made by the patcher from a 3 byte table (saves RAM image space)
 
 ## possibly future
 

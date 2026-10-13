@@ -287,6 +287,46 @@ printf 'Print "x"\n' > t/nr.bas
 check "ROM: not fitted" "^ROM NTC CPCFW (NTCFW.ROM) not found" "$(NTC_XROM=  $R t/nr.bas 'x' --platform=cpcfw --library=rom 2>&1)"
 printf 'Option Library ROM\nPrint "x"\n' > t/nr2.bas
 node cli.js t/nr2.bas --platform=cpcfw 2>/dev/null | grep -q "^ntc_rj_block:" && node cli.js t/nr2.bas --platform=cpm 2>&1 >/dev/null | grep -q "no keyword library ROM for cpm" && echo "ok   ROM: Option Library ROM (cpcfw; refused on cpm)" || { echo "FAIL ROM: Option Library ROM"; fail=1; }
+# Graphics in a Library: ROM program (the Graphics code is in the program, @ramonly, with the ROM
+# off around its screen work); the sums of #C000 read the ROM there, so only the #4000 ones count
+for pl in cpc cpcmin; do
+  cp gfx/lines.bas t/; o=$($R t/lines.bas '' --platform=$pl --library=rom 2>&1 | grep -v "^--- " | awk '{sub(/:.*/, ":", $1); print $1, $2, $3}')
+  if [ "$o" == "$(awk '{sub(/:.*/, ":", $1); print $1, $2, $3}' ref/gfx_lines.txt)" ]; then echo "ok   ROM: Graphics lines $pl"; else echo "FAIL ROM: Graphics lines $pl"; echo "$o" | head -4; fail=1; fi
+done
+# keyword ROM sets of more than one ROM: forced with --cap (the @far sections move to ROM 2) and
+# --place (4 ROMs, far calls between ROMs 2, 3, 4), the harness fits them in slots 6, 5, 4, 3;
+# Memory, List, banks, interrupt classes while far calls run (normal mode), 8 interrupt classes
+rm -rf t/romset2 t/romset4
+for pl in cpc cpcmin cpcfw; do
+  node genrom.js $pl --cap=13000 --out=t/romset2 > /dev/null || { echo "FAIL ROM set: build $pl --cap"; fail=1; }
+  node genrom.js $pl --out=t/romset4 --place=ntc_memcore2:1,ntc_mem:2,ntc_memcopy:2,ntc_list:3,ntc_listsort:3 > /dev/null || { echo "FAIL ROM set: build $pl --place"; fail=1; }
+done
+cp list_t.bas mem_t.bas bank_t.bas t/; rm -rf t/irqfar t/isl2; cp -r irqfar isl2 t/
+for d in romset2 romset4; do
+  [ -f t/$d/NTCMIN2.ROM ] && [ -f t/$d/NTCFW2.ROM ] && [ -f t/$d/NTCCPC2.ROM ] && echo "ok   ROM set $d: more than one ROM" || { echo "FAIL ROM set $d: one ROM"; fail=1; }
+  for m in --turbo ""; do
+    for c in "cpc 128 list_cpc" "cpcmin 576 list_cpc"; do
+      set -- $c; o=$(NTC_ROMDIR=t/$d timeout 300 python3 ntcrun.py t/list_t.bas '' --library=rom --platform=$1 --ram=$2 $m 2>&1 | grep -v "^--- ")
+      if [ "$o" == "$(cat ref/$3.txt)" ]; then echo "ok   ROM set $d: list $1 ${m:-normal}"; else echo "FAIL ROM set $d: list $1 ${m:-normal}"; echo "$o" | head -5; fail=1; fi
+    done
+    for c in "576 cpc" "128 cpcfw" "128 cpcmin"; do
+      set -- $c; o=$(NTC_ROMDIR=t/$d timeout 300 python3 ntcrun.py t/mem_t.bas '' --library=rom --platform=$2 --ram=$1 $m 2>&1 | grep -v "^--- ")
+      if [ "$o" == "$(cat ref/mem_$1.txt)" ]; then echo "ok   ROM set $d: memory $1K $2 ${m:-normal}"; else echo "FAIL ROM set $d: memory $1K $2 ${m:-normal}"; echo "$o" | head -5; fail=1; fi
+    done
+    for pl in cpc cpcmin cpcfw; do
+      o=$(NTC_ROMDIR=t/$d timeout 200 python3 ntcrun.py t/bank_t.bas '' --library=rom --platform=$pl --ram=576 $m 2>&1 | grep -v "^--- ")
+      if [ "$o" == "$(cat ref/bank_576.txt)" ]; then echo "ok   ROM set $d: banks $pl ${m:-normal}"; else echo "FAIL ROM set $d: banks $pl ${m:-normal}"; echo "$o" | head -5; fail=1; fi
+    done
+  done
+  for pl in cpc cpcmin cpcfw; do
+    o=$(NTC_ROMDIR=t/$d timeout 300 python3 ntcrun.py t/irqfar/Main.bas '' t/irqfar/Count.cls --library=rom --platform=$pl --ram=576 2>&1 | grep -v "^--- ")
+    if [ "$o" == "$(cat ref/irqfar.txt)" ]; then echo "ok   ROM set $d: interrupts during far calls $pl"; else echo "FAIL ROM set $d: interrupts during far calls $pl"; echo "$o" | head -5; fail=1; fi
+    o=$(NTC_ROMDIR=t/$d timeout 200 python3 ntcrun.py t/isl2/Main.bas '' $I2 --library=rom --platform=$pl 2>&1 | grep -v "^--- ")
+    if [ "$o" == "$(cat ref/isl2.txt)" ]; then echo "ok   ROM set $d: 8 interrupt classes $pl"; else echo "FAIL ROM set $d: 8 interrupt classes $pl"; echo "$o" | head -5; fail=1; fi
+  done
+done
+mkdir -p t/romset1; cp t/romset2/NTCFW.ROM t/romset1/
+check "ROM set: a part missing" "^ROM NTCFW<n>.ROM not found: n = #0002" "$(NTC_ROMDIR=t/romset1 $R t/nr.bas 'x' --platform=cpcfw --library=rom 2>&1)"
 # JS flavour (a flavour preprocessor: JS -> VB5 text -> the one parser): a JS program, a VB main
 # with a JS class and module, a JS main with a JS class (#asm, Turbo), on the platforms, both modes;
 # the translation itself (JS in, VB5 text out); the refused forms (one message each, the JS line)
@@ -319,6 +359,19 @@ for pl in cpcfw cpcmin; do for m in --turbo ""; do
 done; done
 o=$(node cli.js t/loc/classic.loc --platform=test --vb 2>/dev/null)
 if [ "$o" == "$(cat ref/loc_classic_vb.txt)" ]; then echo "ok   Locomotive: translation"; else echo "FAIL Locomotive: translation"; diff <(echo "$o") ref/loc_classic_vb.txt | head -5; fail=1; fi
+# Option PressAnyKeyOnEnd "message": at End (here in a Sub), Error and the last line, the message
+# and a key; without a key it waits (not halted)
+printf 'Option PressAnyKeyOnEnd "Done - press a key"\nPrint "a";\nQuit\nPrint "b"\nSub Quit()\n  End\nEnd Sub\n' > t/pak1.bas
+printf 'Option PressAnyKeyOnEnd\nPrint "c"\n' > t/pak2.bas
+printf 'Option PressAnyKeyOnEnd "Oops - a key"\nError "bad"\n' > t/pak3.bas
+for pl in test cpc cpcfw cpm; do
+  check "PressAnyKeyOnEnd End in a Sub $pl" "^Done - press a key" "$(timeout 60 python3 ntcrun.py t/pak1.bas 'x' --platform=$pl 2>&1)"
+  check "PressAnyKeyOnEnd last line $pl" "^Press any key" "$(timeout 60 python3 ntcrun.py t/pak2.bas 'x' --platform=$pl 2>&1)"
+  check "PressAnyKeyOnEnd Error $pl" "^Oops - a key" "$(timeout 60 python3 ntcrun.py t/pak3.bas 'x' --platform=$pl 2>&1)"
+done
+o=$(timeout 60 python3 ntcrun.py t/pak1.bas '' --platform=cpm 2>&1)
+echo "$o" | grep -q "^--- NOT halted" && ! echo "$o" | grep -q "^b" && echo "ok   PressAnyKeyOnEnd waits for the key" || { echo "FAIL PressAnyKeyOnEnd waits for the key"; fail=1; }
+check "PressAnyKeyOnEnd ROM cpcfw" "^Done - press a key" "$(timeout 60 python3 ntcrun.py t/pak1.bas 'x' --platform=cpcfw --library=rom 2>&1)"
 # Option NoTurbo: one copy of everything (normal mode), Turbo On / Off do nothing; still runs
 (echo "Option NoTurbo"; cat $P/shellsort.bas) > t/ssn.bas; cp $P/shellsort.bas t/ss.bas
 node cli.js t/ss.bas > t/ss.asm 2>/dev/null; node cli.js t/ssn.bas > t/ssn.asm 2> t/ssn.err

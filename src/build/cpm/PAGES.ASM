@@ -888,7 +888,7 @@ ntc_cf_none:
 ntc_capres:		dw 0
 ntc_capname:	dw 0
 
-;## ntc_memcore ntc_data ntc_mem ntc_plat_memtop @shared
+;## ntc_memcore ntc_data ntc_mem ntc_memcore2 ntc_plat_memtop @shared
 ; ------------------------------------------------------------
 ; ntc_memcore - the Memory class, the part every scheme shares. The scheme
 ; (Option Memory, else the platform's default) is the section ntc_mem -
@@ -1001,6 +1001,11 @@ mem_err:
 mem_chk_bad:
 			ld hl, MEM_BADPAGE
 			jp mem_err
+
+;## ntc_memcore2 ntc_memcore @shared @far
+; ntc_memcore2 - the rest of the shared part: far pointers, the heap, bytes
+; and words. Runs on the real stack (through mem_go), so a keyword ROM set
+; can place it in another ROM of the set (@far).
 
 ; mem_far - HL = a far pointer's address (Long: address, page): DE = the
 ; address, HL = the page (0 = plain memory). Page not 0: it must be a page
@@ -1263,7 +1268,7 @@ mem_putback:
 			pop hl
 			ret
 
-;## ntc_mem ntc_memcore ntc_plat_memtop @shared
+;## ntc_mem ntc_memcore ntc_plat_memtop @shared @far
 ; ------------------------------------------------------------
 ; ntc_mem (Small) - no paging: Alloc / Free over the free main RAM, from the
 ; program's end up to the first of: the platform's top (ntc_plat_memtop),
@@ -3581,4 +3586,4 @@ ovl_ending_vsize	equ 0		; its page variables; its local memory is the rest, to #
 			DISPLAY "  page variables ", /D, ovl_ending_vsize, ", free ", /D, #8000 - (ovl_ending_end + ovl_ending_vsize)
 			OUTEND
 
-NTC_STAMP	equ #4533		; the build stamp: the first word of every page file
+NTC_STAMP	equ #1C00		; the build stamp: the first word of every page file

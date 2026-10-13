@@ -917,7 +917,7 @@ ntc_font:		ds 95 * 8
 ; CAS IN / OUT OPEN buffer (CPC firmware) and Memory.Copy's page to page copy
 ntc_buf:		ds 2048
 
-;## ntc_memcore ntc_data ntc_mem ntc_plat_memtop @shared
+;## ntc_memcore ntc_data ntc_mem ntc_memcore2 ntc_plat_memtop @shared
 ; ------------------------------------------------------------
 ; ntc_memcore - the Memory class, the part every scheme shares. The scheme
 ; (Option Memory, else the platform's default) is the section ntc_mem -
@@ -1030,6 +1030,11 @@ mem_err:
 mem_chk_bad:
 			ld hl, MEM_BADPAGE
 			jp mem_err
+
+;## ntc_memcore2 ntc_memcore @shared @far
+; ntc_memcore2 - the rest of the shared part: far pointers, the heap, bytes
+; and words. Runs on the real stack (through mem_go), so a keyword ROM set
+; can place it in another ROM of the set (@far).
 
 ; mem_far - HL = a far pointer's address (Long: address, page): DE = the
 ; address, HL = the page (0 = plain memory). Page not 0: it must be a page
@@ -1292,7 +1297,7 @@ mem_putback:
 			pop hl
 			ret
 
-;## ntc_mem ntc_memcore ntc_membank @shared
+;## ntc_mem ntc_memcore ntc_membank @shared @far
 ; ------------------------------------------------------------
 ; ntc_mem (CPCExpansion) - 16K RAM pages in the #4000-#7FFF window (CPC gate
 ; array RAM setting: C0 = plain, C4-C7 + bank * 8 = page 0-3 of a 64K bank;
@@ -3611,22 +3616,28 @@ ntc_irq_nohook:
 ntc_irq_jp:
 			jp (hl)
 		IF NTC_ROMLIB
-; (ROM) the counting is in the ROM: the upper ROM on for the call while the
-; screen code has it off
+; (ROM) the counting is in the main ROM of the set: the upper ROM on and the
+; main ROM selected for the call (the screen code may have the upper ROM off,
+; a far routine may have another ROM of the set in), then both as they were
 ntc_irq_rom:
-			ld a, (ntc_uroff)
-			or a
-			jr z, ntc_irq_jp
 			push bc
 			ld a, (ntc_smode)
 			or #84
 			ld b, #7F
 			out (c), a
+			ld bc, (ntc_rx_s0)		; B = #DF, C = the main ROM's slot
+			out (c), c
 			call ntc_irq_jp
+			ld bc, (ntc_rx_cur)		; the ROM that was in
+			out (c), c
+			ld a, (ntc_uroff)
+			or a
+			jr z, ntc_irq_ron
 			ld a, (ntc_smode)
 			or #8C
 			ld b, #7F
 			out (c), a
+ntc_irq_ron:
 			pop bc
 			ret
 		ENDIF
@@ -4552,4 +4563,4 @@ ovl_ending_vsize	equ 0		; its page variables; its local memory is the rest, to #
 			DISPLAY "  page variables ", /D, ovl_ending_vsize, ", free ", /D, #8000 - (ovl_ending_end + ovl_ending_vsize)
 			SAVEAMSDOS "PAGES.004", ovl_ending_start, ovl_ending_end - ovl_ending_start, #4000
 
-NTC_STAMP	equ #4BA8		; the build stamp: the first word of every page file
+NTC_STAMP	equ #1B12		; the build stamp: the first word of every page file

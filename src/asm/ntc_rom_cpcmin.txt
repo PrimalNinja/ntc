@@ -288,13 +288,13 @@
 280	code	ntc_ovl_kunload
 281	code	ntc_ovl_kloaded
 282	code	ntc_ovl_kpage
-283	code	gfx_begin
-284	code	gfx_end
-285	code	gfx_width
-286	code	gfx_line
-287	code	gfx_flip
-288	code	gfx_double
-289	code	gfx_copyrows
+283	gone	gfx_begin
+284	gone	gfx_end
+285	gone	gfx_width
+286	gone	gfx_line
+287	gone	gfx_flip
+288	gone	gfx_double
+289	gone	gfx_copyrows
 290	code	ntc_isl_tick
 291	code	kw_bssinit
 292	code	lst_create
@@ -347,6 +347,8 @@
 339	code	fs_namevol
 340	code	fs_name
 341	code	ntc_plat_rmr
+342	code	ntc_urom_off
+343	code	ntc_urom_on
 -	data	ntc_csp	#8800
 -	data	ntc_ip	#8802
 -	data	ntc_ticks	#8804
@@ -372,35 +374,27 @@
 -	data	ovl_lblk	#8893
 -	data	ntc_ovl_lc	#8897
 -	data	ntc_ovl_body	#8898
--	data	gfx_x0	#8907
--	data	gfx_y0	#8909
--	data	gfx_x1	#890B
--	data	gfx_y1	#890D
--	data	gfx_pen	#8915
--	data	gfx_clip	#8916
--	data	gfx_base	#8917
--	data	gfx_dbl	#8918
--	data	gfx_sp	#891A
--	data	ntc_isln	#891C
--	data	ntc_isldue	#891D
--	data	ntc_islshn	#8924
+-	data	ntc_isln	#8907
+-	data	ntc_isldue	#8908
+-	data	ntc_islshn	#890F
 -	bss	ntc_isl	#9786
--	data	ntc_curx	#8925
--	data	ntc_cury	#8926
--	data	ntc_smode	#8927
--	data	ntc_scols	#892A
--	data	ntc_irqv	#8942
+-	data	ntc_curx	#8910
+-	data	ntc_cury	#8911
+-	data	ntc_smode	#8912
+-	data	ntc_scols	#8915
+-	data	ntc_irqv	#892D
 -	const	FS_NOTFOUND	#FFFE
 -	const	FS_FAILED	#FFF7
--	data	fs_a1	#8951
--	data	fs_a2	#8953
--	data	fs_a3	#8955
--	data	fs_res	#8957
--	data	fs_hmode	#8964
+-	data	fs_a1	#893C
+-	data	fs_a2	#893E
+-	data	fs_a3	#8940
+-	data	fs_res	#8942
+-	data	fs_hmode	#894F
 -	const	fs_buf	#9B05
--	data	ntc_v_free	#8984
--	data	ntc_v_start	#8986
--	data	ntc_v_stamp	#8988
--	data	ntc_v_romen	#898A
--	data	ntc_v_rom	#898B
--	data	ntc_v_romold	#898C
+-	data	ntc_v_free	#896F
+-	data	ntc_v_start	#8971
+-	data	ntc_v_stamp	#8973
+-	data	ntc_v_romen	#8975
+-	data	ntc_v_rom	#8976
+-	data	ntc_v_romold	#8977
+344	code	kw_waitkey

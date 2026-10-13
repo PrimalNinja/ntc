@@ -1355,6 +1355,10 @@ function ntcParse(arrFiles_a, objDefines_a)
 		{
 			record('option', { what: 'library', value: trim(strText.substr(8)) });	// Library ROM: the keywords in the ROM
 		}
+		else if ((strText === 'pressanykeyonend') || left(strText, 'pressanykeyonend '))
+		{
+			record('option', { what: 'pressanykeyonend', value: trim(strSrc.replace(/^\s*option\s+pressanykeyonend\b/i, '').replace(/\s+'.*$/, '')) });	// a message and a key at the end
+		}
 		else if (left(strText, 'romenable '))
 		{
 			record('option', { what: 'romenable', value: trim(strText.substr(10)) });	// CPC firmware: the ROMs to start

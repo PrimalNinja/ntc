@@ -3342,7 +3342,7 @@ ntc_font:		ds 95 * 8
 ; Platform class capabilities
 ; ============================================================
 
-;## ntc_gfx ntc_data ntc_plat_data @shared
+;## ntc_gfx ntc_data ntc_plat_data @shared @ramonly
 ; ------------------------------------------------------------
 ; ntc_gfx - drawing on the CPC screen (Graphics class, Vector3D): lines in
 ; mode 0, 1 or 2 (ntc_smode), in a pen, XOR (drawing a line again takes it
@@ -4628,22 +4628,28 @@ ntc_irq_nohook:
 ntc_irq_jp:
 			jp (hl)
 		IF NTC_ROMLIB
-; (ROM) the counting is in the ROM: the upper ROM on for the call while the
-; screen code has it off
+; (ROM) the counting is in the main ROM of the set: the upper ROM on and the
+; main ROM selected for the call (the screen code may have the upper ROM off,
+; a far routine may have another ROM of the set in), then both as they were
 ntc_irq_rom:
-			ld a, (ntc_uroff)
-			or a
-			jr z, ntc_irq_jp
 			push bc
 			ld a, (ntc_smode)
 			or #84
 			ld b, #7F
 			out (c), a
+			ld bc, (ntc_rx_s0)		; B = #DF, C = the main ROM's slot
+			out (c), c
 			call ntc_irq_jp
+			ld bc, (ntc_rx_cur)		; the ROM that was in
+			out (c), c
+			ld a, (ntc_uroff)
+			or a
+			jr z, ntc_irq_ron
 			ld a, (ntc_smode)
 			or #8C
 			ld b, #7F
 			out (c), a
+ntc_irq_ron:
 			pop bc
 			ret
 		ENDIF
