@@ -5,8 +5,32 @@ the bank switch), running up to 8 CP/M-style programs, each in its own 64K bank.
 hypervisor is an ordinary NTC program; the programs use a new compiler target, cyb, which
 is very close to the cpm platform. It is also a show of what NTC BASIC can do.
 
-Status: design agreed (2026-10-14), not started. The core NTC parts it needs are mostly done
-(see "What NTC already has").
+Status (2026-10-14): a first version runs - `bas/cyborgos/` (Main.bas, Hyp.cls; test programs
+in `tasks/`), on `build/dsk/cyborgos.dsk`. Checked in the harness (4 slots with 576K, 1 slot
+with 128K) and on the real 6128 ROMs (realcpc: 1 slot). What it does now, and where it differs
+from the design below:
+
+- The switch at #0040 is in every cpc / cpcmin / cpcfw program's start code (`jr` over
+  #0042-#004C: #0042 main RAM's SP, #0044 `out (c), c`, #0046 `jp` the landing
+  `ld sp, (#0042) : ret`). A bank has `out (c), c` at #0044 and its own `jp` at #0046.
+- The task entry is a CP/M BDOS at #0005 (decided: programs built for the cpm platform run
+  unchanged). Handled now: 0 (end), 1, 2, 6, 9, 11, 12 (gives 2.2), 25; files not yet (255).
+- Programs are `.CYB` files: a cpm build with an AMSDOS header (AMSDOS reads a headerless file
+  as ASCII text, to the first #1A). `RUN name` loads name.CYB at #0100 of the slot's bank.
+- Scheduling is round robin from the hypervisor's main loop: a program runs until its next
+  BDOS call or an interrupt (NTC's safe points let interrupts in: a program with no BDOS
+  calls still gives the CPU back). The interrupt classes as the scheduler (fixed / Share) are
+  the next step.
+- The hypervisor keeps the firmware's alternate registers (BC') around each run, and runs
+  the firmware's interrupt handler (`rst #38`) for an interrupt that stopped a program.
+- The command line is one copy in the hypervisor, with each slot's line in arrays (RUN, FG,
+  PS, KILL, WAIT, CLS, MEM, HELP, QUIT). Control + 1-8 brings a slot to the front.
+- Each slot's text page (80 x 25) is at #F700 of its bank; the BDOS stubs at #F600 (the top of
+  the TPA), the saved SP at #FFFE: about 62K for a program.
+- Speed: each BDOS call is a round trip through BASIC (tens of thousands of T states), so a
+  program that calls the BDOS in a tight loop runs slowly.
+- `Option Buffer &H8000` (new) puts the library's 2K buffer outside the program, which keeps
+  the hypervisor under #4000.
 
 ## 1. The pieces
 

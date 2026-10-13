@@ -92,6 +92,9 @@ same assembly, so every label is shared and nothing is linked at load time.
       | entry (cpc, cpcmin: NTC's handler; cpcfw:  |
       | the firmware's)                            |
 #0040 +--------------------------------------------+  default org
+      | jr over #0042-#004C: the bank switch -     |
+      | #0042 main RAM's SP, #0044 out (c), c,     |
+      | #0046 jp the landing (ld sp, (#0042) : ret)|
       | the program: start code, threads, stubs,   |
       | variables, literals, its library sections  |
       +--------------------------------------------+  ntc_end

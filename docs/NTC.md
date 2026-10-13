@@ -257,6 +257,8 @@ Files (ES5, no node, no Python):
 | `lib/<platform>/*.cls` | the platform classes: `StdIO.cls` (console), `System.cls` (what the machine is), `FileSystem.cls` (files), `Memory.cls` (RAM pages, heap), `List.cls` (linked lists); the CPC platforms also `Graphics.cls` and `Keys.cls` (keys held down, joysticks) |
 | `../docs/requirements.md` | What you need to use NTC, rebuild its generated files and run the tests; the targets it builds for |
 | `../docs/userguide.md` | Language reference: every keyword by topic, with an example and its VB5 / VB6 differences |
+| `../docs/architecture.md` | Memory maps, the ROM structure, interrupts and start up |
+| `../docs/cyborgos.md`, `../docs/cyborgos-userguide.md` | CyborgOS (`bas/cyborgos`): the design and status; how to use it and make programs for it |
 | `../docs/tutorial/` | The tutorial: 77 small pages (1.1 the IDE ... 14.4 a game loop in a Tick), contents in `README.md`; every example is checked by `test/tutcheck.py` |
 | `build/` | Test builds: every program in `bas/` compiled for every platform (`.ASM`), and `build.bat` to assemble them all with sjasmplus on Windows / MS-DOS (CPC: AMSDOS `.BIN` files, CP/M: `.COM`) |
 | `compare/smallc/` | The sieve (`bas/sievetime.bas`) in Small C, as Z80 source, for timing NTC against a classic Z80 C compiler (results in its README) |

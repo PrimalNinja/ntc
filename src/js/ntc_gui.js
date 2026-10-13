@@ -548,7 +548,7 @@ function ntcOptions()
 		library: $('#ge-library').val(),
 		sourcecomments: $('#ge-comments').is(':checked'),
 		turbo: ($('#ge-mode').val() === 'turbo'),
-		amsdos: ($('#ge-amsdos').is(':checked') && /^cpc/.test($('#ge-platform').val())) ? String(m_objProject.name || 'PROGRAM') : '',
+		amsdos: ($('#ge-amsdos').is(':checked') && /^(cpc|cpm)/.test($('#ge-platform').val())) ? String(m_objProject.name || 'PROGRAM') : '',
 		name: String(m_objProject.name || 'PROGRAM')		// the program's name: page files are NAME.001 ...
 	};
 }

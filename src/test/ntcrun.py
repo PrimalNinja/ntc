@@ -341,7 +341,10 @@ class Host:
             s.cas_ascii = False; s.cas_in = d[128:128 + h[1]]; s.cas_chars = s.cas_in; m.bc = h[1]; m.de = h[0]; m.a = 2; return True
         if f == 'cas_in_char':
             c = getattr(s, 'cas_chars', None); p = getattr(s, 'cas_pos', 0)
-            if c is None or p >= len(c): m.a = 0x1A; return False
+            # the end: AMSDOS's soft end of file (#1A) for ASCII, hard (#0F) for binary; a #1A
+            # byte inside a binary file comes as a soft end of file too (and reading goes on)
+            if c is None or p >= len(c): m.a = 0x1A if s.cas_ascii else 0x0F; return False
+            if not s.cas_ascii and c[p] == 0x1A: m.a = 0x1A; s.cas_pos = p + 1; return False
             m.a = c[p]; s.cas_pos = p + 1; return True
         if f == 'cas_test_eof':
             c = getattr(s, 'cas_chars', None)

@@ -49,6 +49,7 @@ function ntcCompile(input_a, objOptions_a)
 	var objOvlVars = {};		// overlay class -> its paged variables (declarations)			// interrupt classes: { module, rate (0 = Frame), tick }
 	var intStrMax = 40;			// the longest string in the program (findStrMax)
 	var arrReserve = [];		// Option Reserve: { start, size, file, line }
+	var intBufAt = -1;			// Option Buffer: where the 2K buffer is (-1: in the program)
 	var arrRomEnable = null;	// Option RomEnable (cpcfw): null none, ['all'], or ROM numbers
 	var objStack = null;		// Option Stack: { addr, file, line } - the real stack's start
 	var strTerminal = 'none';	// Option Terminal (CP/M): none, vt52, ansi		// platform class names the project replaces with its own
@@ -8370,6 +8371,12 @@ function ntcCompile(input_a, objOptions_a)
 			if ((objItem.s === true) || (objItem.t === true))
 			{
 				arrResult.push(objSection.header);
+				if ((objSection.name === 'ntc_buf2k') && (intBufAt >= 0))
+				{
+					arrResult.push('ntc_buf\tequ ' + intBufAt + '\t\t; Option Buffer: the 2K buffer outside the program');
+					arrResult.push('');
+					continue;
+				}
 				arrResult.push(objSection.lines.join('\n').replace(/\s+$/, ''));
 				arrResult.push('');
 				if ((objSection.name === 'ntc_gfx') && (String(objOptions.platform).toLowerCase() === 'cpm'))
@@ -8488,6 +8495,21 @@ function ntcCompile(input_a, objOptions_a)
 			else if (objRec.what === 'reserve')
 			{
 				readReserve(objRec);
+			}
+			else if (objRec.what === 'buffer')
+			{
+				// Option Buffer address: the library's 2K buffer (FileSystem, Memory.Copy) there,
+				// not in the program - kept out of like an Option Reserve range
+				intValue = parseNumber(String(objRec.value));
+				if (isNaN(intValue) || (intValue < 0) || (intValue > 65536 - 2048))
+				{
+					arrErrors.push({ file: objRec.file, line: objRec.line, msg: 'Option Buffer: an address 0-&HF800 (2K from there)' });
+				}
+				else
+				{
+					intBufAt = intValue;
+					arrReserve.push({ start: intValue, size: 2048, file: objRec.file, line: objRec.line });
+				}
 			}
 			else if (objRec.what === 'memory')
 			{
@@ -8744,6 +8766,23 @@ function ntcCompile(input_a, objOptions_a)
 	// the options in a fixed order, wherever they are in the source: the stack first (the
 	// ROM start runs on it), then the ROMs, then the program
 	arrAsm.push('ntc_start:');
+	if ((['cpc', 'cpcmin', 'cpcfw'].indexOf(String(objOptions.platform).toLowerCase()) >= 0) && (parseInt(String(objOptions.org).replace(/^#|^&H|^0x/i, ''), 16) === 0x40))
+	{
+		// the bank switch every 64K bank and main RAM share (CyborgOS, docs/cyborgos.md): the
+		// side handing over pushes where it carries on, keeps SP at its own #0042, loads BC with
+		// the other side's RAM setting and jumps to #0044; after the out the next byte comes
+		// from the other side's #0046 - here main RAM's own landing: its SP back, ret
+		arrAsm.push(strIndent + 'jr ntc_start2');
+		arrAsm.push('ntc_bk_sp:\t\tdw 0\t\t\t; #0042: main RAM\'s SP while a bank runs');
+		arrAsm.push('ntc_bk_out:');
+		arrAsm.push(strIndent + 'out (c), c\t\t; #0044: BC = the other side\'s RAM setting');
+		arrAsm.push(strIndent + 'jp ntc_bk_land\t\t; #0046: main RAM switched in');
+		arrAsm.push('ntc_bk_land:');
+		arrAsm.push(strIndent + 'ld sp, (ntc_bk_sp)');
+		arrAsm.push(strIndent + 'ret\t\t\t\t; to where main RAM handed over');
+		arrAsm.push(strIndent + 'ASSERT ntc_bk_out == #0044, "the bank switch must be at #0044"');
+		arrAsm.push('ntc_start2:');
+	}
 	arrAsm.push(strIndent + 'di');
 	if (objOptions.library === 'rom')
 	{
@@ -9432,7 +9471,8 @@ function ntcCompile(input_a, objOptions_a)
 	if (String(objOptions.amsdos || '').length > 0)
 	{
 		// an AMSDOS file (128 byte header): RUN"name loads it at the org and starts it
-		arrAsm.push(strIndent + 'SAVEAMSDOS "' + String(objOptions.amsdos).toUpperCase().replace(/[^A-Z0-9]/g, '').substr(0, 8) + '.BIN", ntc_start, ntc_end - ntc_start, ntc_start');
+		// (cpm: NAME.CYB, a CyborgOS program - AMSDOS reads a file without a header as text)
+		arrAsm.push(strIndent + 'SAVEAMSDOS "' + String(objOptions.amsdos).toUpperCase().replace(/[^A-Z0-9]/g, '').substr(0, 8) + ((objOptions.platform === 'cpm') ? '.CYB' : '.BIN') + '", ntc_start, ntc_end - ntc_start, ntc_start');
 	}
 	var strLen = '';
 	if (arrOvlOrder.length > 0)

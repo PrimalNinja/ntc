@@ -43,4 +43,18 @@ for p in cpc cpcmin cpcfw cpcrom cpcminrom cpcfwrom cpm; do
   done
   rm -rf $w
 done
+# CyborgOS: CYBORGOS.BIN (cpcfw) and its programs - cpm builds as .CYB, with an AMSDOS header
+# (AMSDOS reads a headerless file as ASCII text, to the first #1A)
+w=t/dsk_cyb; rm -rf $w; mkdir -p $w; cp ../build/cpcfw/CYBORGOS.ASM $w/
+(cd $w && $SJ --nologo --msg=err CYBORGOS.ASM > /dev/null) || { echo "gendsk: CYBORGOS did not assemble"; fail=1; }
+for g in TICKER CRUNCH; do
+  cp ../build/cpm/$g.ASM $w/
+  (cd $w && $SJ --nologo --msg=err --raw=$g.COM $g.ASM > /dev/null) || { echo "gendsk: $g did not assemble"; fail=1; }
+  python3 -c "import sys; sys.path.insert(0, '.'); import ntcrun; d = open('$w/$g.COM', 'rb').read(); open('$w/$g.CYB', 'wb').write(ntcrun.amsdos_header(d, 0x100) + d)"
+done
+d=../build/dsk/cyborgos.dsk; rm -f $d
+dskform -type dsk -format cpcdata $d > /dev/null 2>&1
+for f in $w/CYBORGOS.BIN $w/TICKER.CYB $w/CRUNCH.CYB; do cpmcp -f cpcdata -T dsk $d $f 0:$(basename $f) || fail=1; done
+echo "build/dsk/cyborgos.dsk: $(cpmls -f cpcdata -T dsk $d | grep -vc '^[0-9]*:$') files"
+rm -rf $w
 exit $fail

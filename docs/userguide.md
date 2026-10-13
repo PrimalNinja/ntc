@@ -2233,6 +2233,16 @@ Print "here"
 
 **VB:** not in VB.
 
+### Option Buffer
+
+`Option Buffer` *address*
+
+The library's 2K buffer - the one FileSystem's files (the CPC firmware's cassette buffer) and
+`Memory.Copy` (page to page) use - at that address instead of inside the program. The program
+gets 2K smaller, and the range is kept out of like an `Option Reserve` range. Use free main RAM
+outside the program and outside the `#4000` window (a copy between pages goes through it),
+e.g. `Option Buffer &H8000` on cpcfw.
+
 ### Option Reserve
 
 `Option Reserve` *start*`,` *size* [`,` *start*`,` *size*] ...
@@ -3304,6 +3314,7 @@ change.
 | `Option Class` | [10](#option-class) |
 | `Option Memory` | [16](#option-memory) |
 | `Option Page`, `Option Home` | [10](#option-page) |
+| `Option Buffer` | [16](#option-buffer) |
 | `Option Reserve` | [16](#option-reserve) |
 | `Option Flavour` | [16](#option-flavour) |
 | `Option Library` | [16](#option-library) |

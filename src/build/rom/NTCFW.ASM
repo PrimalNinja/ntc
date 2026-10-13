@@ -9,7 +9,7 @@ NTC_STRMAX	equ 255			; strings up to 255 characters (programs built for the ROM 
 NTC_MEMBANKS	equ 64			; the Memory class: up to 4MB
 NTC_ROM_N	equ 350			; numbers in the index
 NTC_ROM_COUNT	equ 1			; ROMs in the set (NTCFW.ROM)
-NTC_ROM_SET	equ #AF3D		; the set's stamp (its ROMs find each other by it)
+NTC_ROM_SET	equ #72F2		; the set's stamp (its ROMs find each other by it)
 MEM_WIN		equ #4000
 MEM_BADPAGE	equ -2
 MEM_BANKS	equ NTC_MEMBANKS	; 0 - 64
@@ -9154,6 +9154,7 @@ fs_open:
 			call #BC77			; CAS IN OPEN
 			ld hl, FS_NOTFOUND
 			ret nc
+			ld (fs_ftype), a
 			ld a, 1
 			jr fs_op_ok
 fs_op_out:
@@ -9211,7 +9212,7 @@ fs_cl_ok:
 fs_readb:
 			ld a, 1
 			call fs_hchk
-			call #BC80			; CAS IN CHAR
+			call fs_inchar
 			ld hl, FS_EOFST
 			ret nc
 			ld l, a
@@ -9225,6 +9226,20 @@ fs_writeb:
 			ld hl, FS_FAILED
 			ret nc
 			ld hl, 0
+			ret
+fs_inchar:
+			call #BC80			; CAS IN CHAR
+			ret c
+			cp #1A
+			jr nz, fs_ic_end
+			ld a, (fs_ftype)
+			and #0E
+			cp 2
+			ld a, #1A
+			scf
+			ret z				; binary: the byte #1A
+fs_ic_end:
+			or a
 			ret
 fs_read:
 			ld a, 1
@@ -9241,7 +9256,7 @@ fs_rd_lp:
 			push hl
 			push de
 			push bc
-			call #BC80			; CAS IN CHAR
+			call fs_inchar
 			pop bc
 			pop de
 			pop hl
@@ -9575,6 +9590,7 @@ fs_n_a1:		db "A", 0
 fs_ptr:			dw 0
 fs_cnt:			db 0
 fs_cap:			db 0
+fs_ftype:		db 0			; Open for reading: the file's type (CAS IN OPEN's A: 2 binary, #16 ASCII)
 ntc_rx_cur:	dw 0			; the ROM of the set selected now (C = its slot, B = #DF)
 ntc_rx_bc:	dw 0			; a far call: BC kept here
 ntc_rx_s0:	dw 0			; ROM 0 of the set: its slot (B = #DF, C = slot)

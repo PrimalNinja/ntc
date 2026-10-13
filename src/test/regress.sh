@@ -436,6 +436,20 @@ for v in 22 31; do o=$(NTC_CPMVER=$v NTC_GFXCHK=1 timeout 300 python3 ntcrun.py 
 # CITY3D (bas/city3d): a few frames on cpcfw with the keys held (turn, climb, roll), then Q
 rm -rf t/city; mkdir -p t/city; cp $P/city3d/* t/city/
 check "city3d demo cpcfw" "^Bye" "$(timeout 300 python3 ntcrun.py t/city/Main.bas " {8}{8}{63}{63}{31}{31}~~~~{67}" t/city/City.cls --platform=cpcfw 2>&1)"
+# CyborgOS (bas/cyborgos): CP/M programs (.CYB: a cpm build with an AMSDOS header) in 64K banks
+# under the hypervisor (cpcfw): CRUNCH (stopped only by interrupts) in slot 2, TICKER (a BDOS
+# call a loop) in slot 3 brought to the front and ended with a key, WAIT for CRUNCH, QUIT. 576K:
+# 4 slots; 128K (a 6128): 1 slot, the two in turn
+rm -rf t/cy t/files; mkdir -p t/cy t/files/A; cp $P/cyborgos/*.bas $P/cyborgos/*.cls t/cy/
+for g in TICKER CRUNCH; do
+  node cli.js $P/cyborgos/tasks/$g.bas --platform=cpm > t/cy/$g.asm 2>/dev/null
+  (cd t/cy && ${SJASMPLUS:-sjasmplus} --nologo --msg=err --raw=$g.COM $g.asm > /dev/null)
+  python3 -c "import ntcrun; d = open('t/cy/$g.COM', 'rb').read(); open('t/files/A/$g.CYB', 'wb').write(ntcrun.amsdos_header(d, 0x100) + d)"
+done
+W=$(printf '~%.0s' $(seq 1 40))
+check "CyborgOS 4 slots" "CyborgOS ended, 2 programs ran" "$(timeout 600 python3 ntcrun.py t/cy/Main.bas "run CRUNCH 2\nrun TICKER 3\nfg 3\n${W}xwait\nquit\n" t/cy/Hyp.cls --platform=cpcfw --ram=576 2>&1)"
+check "CyborgOS 1 slot (6128)" "CyborgOS ended, 2 programs ran" "$(timeout 600 python3 ntcrun.py t/cy/Main.bas "run CRUNCH\n${W}run TICKER\n${W}xquit\n" t/cy/Hyp.cls --platform=cpcfw --ram=128 2>&1)"
+check "CyborgOS 4 slots, Library: ROM" "CyborgOS ended, 2 programs ran" "$(timeout 600 python3 ntcrun.py t/cy/Main.bas "run CRUNCH 2\nrun TICKER 3\nfg 3\n${W}xwait\nquit\n" t/cy/Hyp.cls --platform=cpcfw --ram=576 --library=rom 2>&1)"
 # Graphics: XOR lines in modes 0, 1, 2 on #C000 and on #4000 (double buffering), cpc and cpcmin
 for pl in cpc cpcmin; do
   cp gfx/lines.bas t/; o=$(timeout 300 python3 ntcrun.py t/lines.bas '' --platform=$pl 2>&1 | grep -v "^--- ")

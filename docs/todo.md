@@ -11,6 +11,15 @@ finished, with the date.
   picks the way. CP/M 2.2 draws on #C000 in the program's 64K; CP/M Plus copies the line loop to
   #C000 (common memory) and draws each line from there with C1 (screen = block 1 at #4000), C2
   back. Harness: NTC_CPMVER (22 / 31, Plus modelled as C2 with the gate array), NTC_GFXCHK
+- 2026-10-14 **CyborgOS** first version (`bas/cyborgos`, cpcfw, `build/dsk/cyborgos.dsk`): slots in
+  whole 64K banks running cpm-built programs (.CYB = with an AMSDOS header) at #0100; BDOS at
+  #0005 as far calls into the hypervisor; interrupts stop a program and hand back; per-slot text
+  pages, a shared command line (RUN / FG / PS / KILL / WAIT ...), Control + 1-8. Checked in the
+  harness and on the real 6128 ROMs. See docs/cyborgos.md for what is next (the interrupt classes
+  as the scheduler, files, drivers, speed). Core: the bank switch at #0040-#004C in every cpc /
+  cpcmin / cpcfw start code; `Option Buffer address` (the 2K buffer out of the program); cpcfw
+  FileSystem Read / ReadByte read a #1A in a binary file as a byte (AMSDOS reports it as a soft
+  end of file); the harness gives #0F (hard end) at the end of a binary file
 - 2026-10-14 **CITY3D** demo (cpcfw, `bas/city3d`): a wireframe city to fly through - 64 x 64
   repeating cells (streets every 4th row / column, 1-7 storeys, taller in the middle), camera
   free in all directions (Elite's keys + cursors, T turbo), ~2000 units seen, buildings out of

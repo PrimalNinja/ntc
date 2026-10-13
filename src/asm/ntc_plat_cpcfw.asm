@@ -905,6 +905,7 @@ fs_open:
 			call #BC77			; CAS IN OPEN
 			ld hl, FS_NOTFOUND
 			ret nc
+			ld (fs_ftype), a
 			ld a, 1
 			jr fs_op_ok
 fs_op_out:
@@ -969,7 +970,7 @@ fs_cl_ok:
 fs_readb:
 			ld a, 1
 			call fs_hchk
-			call #BC80			; CAS IN CHAR
+			call fs_inchar
 			ld hl, FS_EOFST
 			ret nc
 			ld l, a
@@ -987,6 +988,25 @@ fs_writeb:
 			ld hl, 0
 			ret
 
+; fs_inchar - CAS IN CHAR for ReadByte / Read: in a binary file AMSDOS still reports a #1A
+; byte as the soft end of file (no carry, A = #1A) and goes on after it: that is the byte
+; #1A. Carry = a byte in A; no carry = the end (or an error)
+fs_inchar:
+			call #BC80			; CAS IN CHAR
+			ret c
+			cp #1A
+			jr nz, fs_ic_end
+			ld a, (fs_ftype)
+			and #0E
+			cp 2
+			ld a, #1A
+			scf
+			ret z				; binary: the byte #1A
+fs_ic_end:
+			or a
+			ret
+fs_ftype:		db 0			; Open for reading: the file's type (CAS IN OPEN's A: 2 binary, #16 ASCII)
+
 ; Read(h, addr, count): bytes read (fewer at the end)
 fs_read:
 			ld a, 1
@@ -1003,7 +1023,7 @@ fs_rd_lp:
 			push hl
 			push de
 			push bc
-			call #BC80			; CAS IN CHAR
+			call fs_inchar
 			pop bc
 			pop de
 			pop hl

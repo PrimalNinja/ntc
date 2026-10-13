@@ -1375,6 +1375,10 @@ function ntcParse(arrFiles_a, objDefines_a)
 		{
 			record('option', { what: 'memory', value: trim(strText.substr(7)) });	// the Memory class's scheme: small, cpcexpansion [maxpages]
 		}
+		else if (left(strText, 'buffer '))
+		{
+			record('option', { what: 'buffer', value: trim(strText.substr(7)) });	// the shared 2K buffer at a fixed address
+		}
 		else if (left(strText, 'reserve '))
 		{
 			record('option', { what: 'reserve', value: trim(strText.substr(8)) });	// memory the program must not reach into

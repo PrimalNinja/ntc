@@ -14,6 +14,16 @@ NTC_ROMLIB	equ 1		; 1 = the library is the keyword ROM (Library: ROM; ntcRomAsm 
 NTC_CPMGFX	equ 0		; 1 = CP/M: Graphics draws on an Amstrad CPC's screen (2.2: #C000, Plus: block 1 from common memory)
 
 ntc_start:
+			jr ntc_start2
+ntc_bk_sp:		dw 0			; #0042: main RAM's SP while a bank runs
+ntc_bk_out:
+			out (c), c		; #0044: BC = the other side's RAM setting
+			jp ntc_bk_land		; #0046: main RAM switched in
+ntc_bk_land:
+			ld sp, (ntc_bk_sp)
+			ret				; to where main RAM handed over
+			ASSERT ntc_bk_out == #0044, "the bank switch must be at #0044"
+ntc_start2:
 			di
 			call ntc_rj_find		; Library: ROM - find the ROM, patch the jump block
 			jr nc, ntc_rj_ok
@@ -867,4 +877,4 @@ ovl_ending_vsize	equ 0		; its page variables; its local memory is the rest, to #
 			DISPLAY "  page variables ", /D, ovl_ending_vsize, ", free ", /D, #8000 - (ovl_ending_end + ovl_ending_vsize)
 			SAVEAMSDOS "PAGES.004", ovl_ending_start, ovl_ending_end - ovl_ending_start, #4000
 
-NTC_STAMP	equ #4F71		; the build stamp: the first word of every page file
+NTC_STAMP	equ #BA95		; the build stamp: the first word of every page file
