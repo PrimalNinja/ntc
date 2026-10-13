@@ -10,7 +10,7 @@ NTC_TERM	equ 0		; Option Terminal: 0 none, 1 VT52, 2 ANSI (CP/M)
 NTC_STRMAX	equ 40		; the longest string (library buffers, temps)
 NTC_MEMBANKS	equ 64		; Option Memory: the most 64K banks the Memory class looks for
 NTC_ROMENABLE	equ 0		; Option RomEnable (cpcfw, cpcmin): the start code starts the ROMs
-NTC_ROMLIB	equ 0		; 1 only when the library itself is built as a ROM (ntcRomAsm)
+NTC_ROMLIB	equ 0		; 1 = the library is the keyword ROM (Library: ROM; ntcRomAsm builds it)
 
 ntc_start:
 			di
@@ -831,22 +831,29 @@ ntc_lpr_back:
 
 ;## ntc_islots ntc_data @shared
 ; ------------------------------------------------------------
-; ntc_islots - interrupt classes (Option Class Interrupt rate | Frame): up to
-; 4 classes whose Tick Sub runs at a rate, at the next safe point after it is
-; due (normal mode). Slot n, 8 bytes at ntc_isl + n * 8:
-;   +0 count (dw)  +2 reload (dw: interrupts between runs, 0 = every frame)
-;   +4 running (db: Tick started, its return stub clears it)  +5 due (db)
-;   +6 Tick's call stub (dw)
-; The start code fills the slots and puts ntc_isl_tick in ntc_irqv, which
-; the platform's interrupt handler calls. The counts start at 1, 2, 3, 4 so
-; classes of the same rate take turns.
+; ntc_islots - interrupt classes (Option Class Interrupt rate | Frame | Share n):
+; up to 16 classes whose Tick Sub runs at the next safe point after it is due
+; (normal mode). Slot n, 8 bytes at ntc_isl + n * 8:
+;   +0 count (dw)  +2 reload (dw: interrupts between runs, 0 = every frame,
+;   #8000 + weight = a shared class)  +4 running (db: Tick started, its return
+;   stub clears it)  +5 due (db)  +6 Tick's call stub (dw)
+; Fixed classes (a rate, Frame) are counted every interrupt. Shared classes take
+; turns in the interrupts no fixed class fell due in: the current one is marked
+; due on each such interrupt until it has had its weight of turns, then the
+; next shared one. The start code fills the slots and puts ntc_isl_tick in
+; ntc_irqv, which the platform's interrupt handler calls. The counts start a
+; slot apart so classes of the same rate take turns.
 ; ------------------------------------------------------------
 ntc_isln:		db 0			; slots in use
 ntc_isldue:		db 0			; 1 = a slot may be due
 ntc_islvs:		db 0			; vertical sync at the last interrupt
 ntc_islfr:		db 0			; 1 = this interrupt is the frame's (sync just started)
 ntc_islph:		db 0			; interrupts since the frame's (0-5)
-ntc_isl:		ds 32
+ntc_islfx:		db 0			; 1 = a fixed class fell due in this interrupt
+ntc_islsc:		db 0			; the shared class having its turns (slot number)
+ntc_islsw:		db 0			; turns it has left
+ntc_islshn:		db 0			; shared classes (0 = none)
+ntc_isl:		ds 128			; 16 slots
 
 ; ntc_isl_tick - from the interrupt handler (call, real stack): count each
 ; slot, mark the ones due. Keeps BC, DE, IX, IY.
@@ -880,19 +887,25 @@ ntc_it_ph2:
 			inc a
 ntc_it_fr:
 			ld (ntc_islfr), a
+			xor a
+			ld (ntc_islfx), a
 			ld a, (ntc_isln)
 			or a
-			jr z, ntc_it_end
+			jp z, ntc_it_end
 			ld b, a
 			ld hl, ntc_isl
 ntc_it_lp:
 			push hl
 			inc hl
 			inc hl
-			ld a, (hl)
+			ld e, (hl)
 			inc hl
-			or (hl)
+			ld d, (hl)
 			pop hl
+			bit 7, d				; a shared class: the turns below mark it
+			jr nz, ntc_it_nx
+			ld a, d
+			or e
 			jr nz, ntc_it_rate
 			ld a, (ntc_islfr)		; every frame: when the sync starts
 			or a
@@ -928,10 +941,56 @@ ntc_it_due:
 			pop hl
 			ld a, 1
 			ld (ntc_isldue), a
+			ld (ntc_islfx), a
 ntc_it_nx:
 			ld de, 8
 			add hl, de
 			djnz ntc_it_lp
+			; shared classes: an interrupt no fixed class used is a turn
+			ld a, (ntc_islfx)
+			or a
+			jp nz, ntc_it_end
+			ld a, (ntc_islshn)
+			or a
+			jp z, ntc_it_end
+			ld a, (ntc_islsw)
+			or a
+			jr nz, ntc_it_take
+			ld a, (ntc_islsc)		; its turns are used: the next shared class
+ntc_it_find:
+			inc a
+			ld hl, ntc_isln
+			cp (hl)
+			jr c, ntc_it_fi2
+			xor a
+ntc_it_fi2:
+			ld l, a
+			ld h, 0
+			add hl, hl
+			add hl, hl
+			add hl, hl
+			ld de, ntc_isl + 2
+			add hl, de
+			ld e, (hl)				; E = the weight
+			inc hl
+			bit 7, (hl)
+			jr z, ntc_it_find		; not shared (there is one: ntc_islshn)
+			ld (ntc_islsc), a
+			ld a, e
+ntc_it_take:
+			dec a
+			ld (ntc_islsw), a
+			ld a, (ntc_islsc)
+			ld l, a
+			ld h, 0
+			add hl, hl
+			add hl, hl
+			add hl, hl
+			ld de, ntc_isl + 5
+			add hl, de
+			ld (hl), 1				; due
+			ld a, 1
+			ld (ntc_isldue), a
 ntc_it_end:
 			pop de
 			pop bc

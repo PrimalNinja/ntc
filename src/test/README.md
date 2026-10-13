@@ -2,7 +2,7 @@
 
 | File | What |
 |---|---|
-| `cli.js` | compile .bas / .cls files to .asm from the command line (`node cli.js main.bas [more files] [--turbo] [--nocomments] [--platform=cpm]`) |
+| `cli.js` | compile .bas / .cls / .js files to .asm from the command line (`node cli.js main.bas [more files] [--turbo] [--nocomments] [--platform=cpm] [--library=rom] [--flavour=js]`); `--vb` prints the VB5 text every file becomes (the JS flavour's translation) |
 | `cpcrun.py` | compile, assemble (sjasmplus) and run on an emulated CPC: IM 1 interrupts every 13333 T, keyboard matrix, typed input, prints the screen text. The lower ROM is emulated only for the font (`font_standin.txt`, a public domain font standing in for Amstrad's). Typed text: `\n` = Return, `~` = one look at the keyboard that finds no key. `python3 cpcrun.py prog.bas 'typed\n' [more files] [--turbo]` |
 | `ntcrun.py` | the same as `cpcrun.py` with `--platform=cpc\|cpcfw\|cpm\|test`: the host platforms run on a plain Z80 with the firmware jumpblock / BDOS / test ports handed to the harness, which keeps a text screen |
 | `stdio.bas`, `via/` + `ref/stdio.*.txt`, `ref/via.txt` | the StdIO / System platform classes on each platform, and a project with its own StdIO |
@@ -16,6 +16,8 @@
 | `guitest*.py` | Playwright tests of `ntc.html` (examples compile with no errors, procedure list, .vbp open) |
 | `for.bas gs.bas gs2.bas scr0.bas scr2.bas` + `ref/` | FOR / GOSUB / screen tests with expected output |
 | `vbp/` | a .vbp with its files for `guitest4.py` |
+| `loc/` + `ref/loc_*.txt` | Locomotive BASIC flavour tests: a type-in style listing (with its warnings) on every platform, and its translation |
+| `jsf/` + `ref/jsf_*.txt` | JS flavour tests: a JS program, a VB main with a JS class and module, a JS main with a JS class (#asm, Turbo), the translation, the refused forms |
 
 Needs: python3 with `pip install z80` (Z80Machine), sjasmplus on the PATH (or `SJASMPLUS=/path/to/sjasmplus`),
 node with `npm install` here (acorn for the ES5 check), Playwright + Chromium for the GUI tests.

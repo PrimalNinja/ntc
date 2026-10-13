@@ -1,14 +1,15 @@
 ' FileSystem - files. NTC platform class: Amstrad CPC through the firmware
 '
-' Load and Save only (for now), through the firmware's cassette calls (CAS IN / CAS OUT
-' DIRECT): with AMSDOS they go to the disc drive that is selected, else to tape - the same
+' Load and Save (CAS IN / CAS OUT DIRECT), and one open file read or written byte by byte
+' (CAS IN CHAR / CAS OUT CHAR): with AMSDOS they go to the disc drive that is selected, else to tape - the same
 ' as BASIC's LOAD and SAVE, with the firmware's own messages ("Press PLAY then any key",
-' disc errors with Retry / Cancel). Capability: LOAD, SAVE, DEVICES, VOLUMES (True),
-' MAXOPEN 0. Everything else returns NotSupported. Uses a 2K buffer (CAS IN / OUT OPEN).
+' disc errors with Retry / Cancel). Capability: LOAD, SAVE, SEQUENTIAL, DEVICES, VOLUMES
+' (True), MAXOPEN 1. Seek, Delete, Exists, Rename, Size return NotSupported. Uses a 2K buffer (CAS IN / OUT OPEN).
 ' Devices: TAPE, and DISC with a DOS (|TAPE, |DISC). Volumes: any name the DOS has a command
 ' for (|A, |B, |C, |M ... - AMSDOS, M4, UniDOS, ...); the ones that work join Volumes().
 ' RUN" of a binary drops AMSDOS (tape then): Option RomEnable 7 starts it again.
-' A file saved here is a binary file (type 2): BASIC can LOAD "NAME", address it back.
+' A file saved here is a binary file (type 2): BASIC can LOAD "NAME", address it back. A file
+' written with Open ForWrite is a text file: BASIC's OPENIN / LINE INPUT #9 read it.
 
 ' ---- status
 Public Const OK = 0
@@ -40,12 +41,14 @@ caps:       db "LOAD", 0
             dw -1
             db "SAVE", 0
             dw -1
+            db "SEQUENTIAL", 0
+            dw -1
             db "DEVICES", 0
             dw -1
             db "VOLUMES", 0
             dw -1
             db "MAXOPEN", 0
-            dw 0
+            dw 1
             db 0
 #endasm
 End Function
@@ -111,44 +114,174 @@ Public Function Size(ByVal name As String) As Long
     Size = NotSupported
 End Function
 
+' ---- one open file (handle 1)
+
+' Open(name, mode): 1, or a status. ForRead: any file, read byte by byte (CAS IN CHAR).
+' ForWrite: a new text file (CAS OUT CHAR; BASIC's OPENIN reads it). ForUpdate: NotSupported.
+' One file open at a time (NoHandle); Load and Save return Failed while it is
 Public Function Open(ByVal name As String, ByVal mode As Integer) As Integer
-    Open = NotSupported
+#asm
+            pop hl
+            ld (fs_a1), hl
+            pop hl
+            ld e, (hl)
+            inc hl
+            ld d, (hl)
+            ld (fs_a2), de
+            pop hl
+            ld (fs_res), hl
+            ld hl, fs_open
+            jp fs_go
+#endasm
 End Function
 
 Public Function Close(ByVal h As Integer) As Integer
-    Close = NotSupported
+#asm
+            pop hl
+            ld e, (hl)
+            inc hl
+            ld d, (hl)
+            ld (fs_a1), de
+            pop hl
+            ld (fs_res), hl
+            ld hl, fs_closeh
+            jp fs_go
+#endasm
 End Function
 
+' ReadByte(h): 0-255, or EndOfFile
 Public Function ReadByte(ByVal h As Integer) As Integer
-    ReadByte = NotSupported
+#asm
+            pop hl
+            ld e, (hl)
+            inc hl
+            ld d, (hl)
+            ld (fs_a1), de
+            pop hl
+            ld (fs_res), hl
+            ld hl, fs_readb
+            jp fs_go
+#endasm
 End Function
 
 Public Function WriteByte(ByVal h As Integer, ByVal b As Integer) As Integer
-    WriteByte = NotSupported
+#asm
+            pop hl
+            ld e, (hl)
+            inc hl
+            ld d, (hl)
+            ld (fs_a1), de
+            pop hl
+            ld e, (hl)
+            inc hl
+            ld d, (hl)
+            ld (fs_a2), de
+            pop hl
+            ld (fs_res), hl
+            ld hl, fs_writeb
+            jp fs_go
+#endasm
 End Function
 
+' Read(h, address, count): bytes read into memory (fewer at the end of the file)
 Public Function Read(ByVal h As Integer, ByVal addr As Integer, ByVal count As Integer) As Integer
-    Read = NotSupported
+#asm
+            pop hl
+            ld e, (hl)
+            inc hl
+            ld d, (hl)
+            ld (fs_a1), de
+            pop hl
+            ld e, (hl)
+            inc hl
+            ld d, (hl)
+            ld (fs_a2), de
+            pop hl
+            ld e, (hl)
+            inc hl
+            ld d, (hl)
+            ld (fs_a3), de
+            pop hl
+            ld (fs_res), hl
+            ld hl, fs_read
+            jp fs_go
+#endasm
 End Function
 
+' Write(h, address, count): bytes from memory. count, or a status
 Public Function Write(ByVal h As Integer, ByVal addr As Integer, ByVal count As Integer) As Integer
-    Write = NotSupported
+#asm
+            pop hl
+            ld e, (hl)
+            inc hl
+            ld d, (hl)
+            ld (fs_a1), de
+            pop hl
+            ld e, (hl)
+            inc hl
+            ld d, (hl)
+            ld (fs_a2), de
+            pop hl
+            ld e, (hl)
+            inc hl
+            ld d, (hl)
+            ld (fs_a3), de
+            pop hl
+            ld (fs_res), hl
+            ld hl, fs_write
+            jp fs_go
+#endasm
 End Function
 
 Public Function Seek(ByVal h As Integer, ByVal position As Long) As Integer
     Seek = NotSupported
 End Function
 
+' Eof(h): True when there is nothing more to read
 Public Function Eof(ByVal h As Integer) As Integer
-    Eof = -1
+#asm
+            pop hl
+            ld e, (hl)
+            inc hl
+            ld d, (hl)
+            ld (fs_a1), de
+            pop hl
+            ld (fs_res), hl
+            ld hl, fs_eof
+            jp fs_go
+#endasm
 End Function
 
+' ReadLine(h): the next line of text (up to LF; CR LF / LF not kept), "" at the end
 Public Function ReadLine(ByVal h As Integer) As String
-    ReadLine = ""
+#asm
+            pop hl
+            ld e, (hl)
+            inc hl
+            ld d, (hl)
+            ld (fs_a1), de
+            pop hl
+            ld (fs_res), hl
+            ld hl, fs_readln
+            jp fs_go0
+#endasm
 End Function
 
+' WriteLine(h, text): the text and CR LF
 Public Function WriteLine(ByVal h As Integer, ByVal text As String) As Integer
-    WriteLine = NotSupported
+#asm
+            pop hl
+            ld e, (hl)
+            inc hl
+            ld d, (hl)
+            ld (fs_a1), de
+            pop hl
+            ld (fs_a2), hl
+            pop hl
+            ld (fs_res), hl
+            ld hl, fs_writeln
+            jp fs_go
+#endasm
 End Function
 
 ' ---- devices

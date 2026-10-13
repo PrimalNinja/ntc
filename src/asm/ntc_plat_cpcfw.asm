@@ -351,6 +351,7 @@ fs_six:			dw 0
 fs_siy:			dw 0
 fs_len:			dw 0
 fs_nostore:		db 0
+fs_hmode:		db 0			; 0 no file open, 1 reading, 2 writing (Open)
 fs_init:		db 0			; 1 = checked: is AMSDOS running?
 fs_dos:			db 0			; 1 = a DOS is there (|DISC found)
 fs_devd:		db 0			; the device in use: 0 tape, 1 disc
@@ -801,6 +802,10 @@ fs_nm_end:
 ; A file longer than maxlen is not loaded: FS_TOOBIG
 fs_load:
 			call fs_start
+			ld a, (fs_hmode)	; the buffer is the open file's
+			or a
+			ld hl, FS_FAILED
+			jp nz, fs_err
 			call fs_name
 			ld de, fs_buf
 			call #BC77			; CAS IN OPEN: BC = length, carry = ok
@@ -834,6 +839,10 @@ fs_ld_read:
 ; Save(name, addr, len): a binary file (type 2, BASIC can LOAD it back). 0 or a status
 fs_save:
 			call fs_start
+			ld a, (fs_hmode)	; the buffer is the open file's
+			or a
+			ld hl, FS_FAILED
+			jp nz, fs_err
 			call fs_name
 			ld de, fs_buf
 			call #BC8C			; CAS OUT OPEN
@@ -858,6 +867,264 @@ fs_sv_done:
 			ld hl, 0
 			ret
 
+;## ntc_plat_fsseq ntc_plat_fs @shared
+; ---- one open file (handle 1), through CAS IN CHAR / CAS OUT CHAR: read a
+; file (any type) byte by byte, or write a new text file (type ASCII, as
+; BASIC's OPENOUT / PRINT #9 make it). The 2K buffer is the one Load / Save
+; use, so Load and Save are refused while a file is open.
+FS_NOHANDLE	equ -5
+FS_BADHANDLE	equ -6
+FS_EOFST	equ -7
+FS_BADMODE	equ -11
+FS_NOTSUP	equ -1
+fs_ptr:			dw 0
+fs_cnt:			db 0
+fs_cap:			db 0
+
+; Open(name, mode): 1, or a status. ForUpdate: NotSupported
+fs_open:
+			call fs_start
+			ld a, (fs_hmode)
+			or a
+			ld hl, FS_NOHANDLE
+			ret nz
+			ld hl, (fs_a2)
+			ld a, h
+			or a
+			jr nz, fs_op_bad
+			ld a, l
+			cp 3
+			ld hl, FS_NOTSUP
+			ret z
+			jr nc, fs_op_bad
+			cp 1
+			jr c, fs_op_bad
+			jr nz, fs_op_out
+			call fs_name
+			ld de, fs_buf
+			call #BC77			; CAS IN OPEN
+			ld hl, FS_NOTFOUND
+			ret nc
+			ld a, 1
+			jr fs_op_ok
+fs_op_out:
+			call fs_name
+			ld de, fs_buf
+			call #BC8C			; CAS OUT OPEN
+			ld hl, FS_FAILED
+			ret nc
+			ld a, 2
+fs_op_ok:
+			ld (fs_hmode), a
+			ld hl, 1
+			ret
+fs_op_bad:
+			ld hl, FS_BADMODE
+			ret
+
+; fs_hchk - (fs_a1) must be handle 1 open for A (1 read, 2 write), else
+; fs_err BadHandle
+fs_hchk:
+			ld hl, (fs_a1)
+			dec hl
+			ld b, a
+			ld a, h
+			or l
+			jr nz, fs_hc_bad
+			ld a, (fs_hmode)
+			cp b
+			ret z
+fs_hc_bad:
+			ld hl, FS_BADHANDLE
+			jp fs_err
+
+; Close(h): OK, or a status (Failed: the last of a written file didn't go)
+fs_closeh:
+			ld hl, (fs_a1)
+			dec hl
+			ld a, h
+			or l
+			jr nz, fs_hc_bad
+			ld a, (fs_hmode)
+			or a
+			jr z, fs_hc_bad
+			ld b, a
+			xor a
+			ld (fs_hmode), a
+			ld a, b
+			cp 1
+			jr nz, fs_cl_out
+			call #BC7A			; CAS IN CLOSE
+			jr fs_cl_ok
+fs_cl_out:
+			call #BC8F			; CAS OUT CLOSE
+			ld hl, FS_FAILED
+			ret nc
+fs_cl_ok:
+			call fs_namevol
+			ld hl, 0
+			ret
+
+; ReadByte(h): 0-255, or EndOfFile
+fs_readb:
+			ld a, 1
+			call fs_hchk
+			call #BC80			; CAS IN CHAR
+			ld hl, FS_EOFST
+			ret nc
+			ld l, a
+			ld h, 0
+			ret
+
+; WriteByte(h, b): OK, or Failed
+fs_writeb:
+			ld a, 2
+			call fs_hchk
+			ld a, (fs_a2)
+			call #BC95			; CAS OUT CHAR
+			ld hl, FS_FAILED
+			ret nc
+			ld hl, 0
+			ret
+
+; Read(h, addr, count): bytes read (fewer at the end)
+fs_read:
+			ld a, 1
+			call fs_hchk
+			ld hl, (fs_a2)
+			ld de, (fs_a3)
+			ld bc, 0
+fs_rd_lp:
+			ld a, d
+			or e
+			jr z, fs_rd_end
+			bit 7, d
+			jr nz, fs_rd_end
+			push hl
+			push de
+			push bc
+			call #BC80			; CAS IN CHAR
+			pop bc
+			pop de
+			pop hl
+			jr nc, fs_rd_end
+			ld (hl), a
+			inc hl
+			inc bc
+			dec de
+			jr fs_rd_lp
+fs_rd_end:
+			ld h, b
+			ld l, c
+			ret
+
+; Write(h, addr, count): count, or Failed
+fs_write:
+			ld a, 2
+			call fs_hchk
+			ld hl, (fs_a2)
+			ld de, (fs_a3)
+fs_wr_lp:
+			ld a, d
+			or e
+			jr z, fs_wr_end
+			bit 7, d
+			jr nz, fs_wr_end
+			ld a, (hl)
+			push hl
+			push de
+			call #BC95			; CAS OUT CHAR
+			pop de
+			pop hl
+			jr nc, fs_wr_fail
+			inc hl
+			dec de
+			jr fs_wr_lp
+fs_wr_end:
+			ld hl, (fs_a3)
+			ret
+fs_wr_fail:
+			ld hl, FS_FAILED
+			ret
+
+; Eof(h): True (-1) when there is nothing more to read (or h is not a file being read)
+fs_eof:
+			ld hl, (fs_a1)
+			dec hl
+			ld a, h
+			or l
+			jr nz, fs_ef_yes
+			ld a, (fs_hmode)
+			cp 1
+			jr nz, fs_ef_yes
+			call #BC89			; CAS TEST EOF: carry = more to read
+			ld hl, 0
+			ret c
+fs_ef_yes:
+			ld hl, -1
+			ret
+
+; ReadLine(h): the next line (up to LF; CR dropped), "" at the end
+fs_readln:
+			ld hl, (fs_res)
+			ld (hl), 0
+			dec hl
+			ld a, (hl)
+			ld (fs_cap), a			; the result's capacity
+			inc hl
+			ld (fs_ptr), hl
+			xor a
+			ld (fs_cnt), a
+			ld a, 1
+			call fs_hchk
+fs_rl_lp:
+			call #BC80			; CAS IN CHAR
+			jr nc, fs_rl_end
+			cp 10
+			jr z, fs_rl_end
+			cp 13
+			jr z, fs_rl_lp
+			ld c, a
+			ld a, (fs_cap)
+			ld hl, fs_cnt
+			cp (hl)
+			jr z, fs_rl_lp			; full: the rest of the line is dropped
+			inc (hl)
+			ld hl, (fs_ptr)
+			ld (hl), c
+			inc hl
+			ld (fs_ptr), hl
+			jr fs_rl_lp
+fs_rl_end:
+			ld hl, (fs_ptr)
+			ld (hl), 0
+			ret
+
+; WriteLine(h, s): the text and CR LF. OK, or Failed
+fs_writeln:
+			ld a, 2
+			call fs_hchk
+			ld hl, (fs_a2)
+fs_wl_lp:
+			ld a, (hl)
+			or a
+			jr z, fs_wl_end
+			push hl
+			call #BC95			; CAS OUT CHAR
+			pop hl
+			jp nc, fs_wr_fail
+			inc hl
+			jr fs_wl_lp
+fs_wl_end:
+			ld a, 13
+			call #BC95
+			jp nc, fs_wr_fail
+			ld a, 10
+			call #BC95
+			jp nc, fs_wr_fail
+			ld hl, 0
+			ret
+
 ;## ntc_plat_memtop ntc_plat_data
 ; ntc_plat_memtop - HL = the first byte the Memory class's Small heap must not
 ; use: #A600 (the firmware's and AMSDOS's RAM is above), #A5F0 when the fast
@@ -865,4 +1132,14 @@ fs_sv_done:
 ; real stack (call / ret).
 ntc_plat_memtop:
 			ld hl, (ntc_fwtop)
+			ret
+
+;## ntc_plat_rmr ntc_plat_data
+; ntc_plat_rmr - A = the gate array's ROM / mode byte now: the firmware keeps
+; it in C' (B' = #7F), so Memory's CallBank can turn both ROMs off and put
+; them back. Keeps BC, DE, HL.
+ntc_plat_rmr:
+			exx
+			ld a, c
+			exx
 			ret

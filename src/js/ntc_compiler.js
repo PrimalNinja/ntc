@@ -7258,6 +7258,10 @@ function ntcCompile(input_a, objOptions_a)
 					{
 						objCurrent.romram = true;		// in the keyword library ROM this runs from RAM (ntcRomAsm)
 					}
+					else if (arrParts[intJ] === '@ramonly')
+					{
+						objCurrent.ramonly = true;		// not in the keyword library ROM: a Library: ROM program has its own copy
+					}
 					else if (arrParts[intJ].substr(0, 4) === '@if:')
 					{
 						// only when that #Const is set (NTC_MEM_SMALL ...): else the section isn't there
@@ -8031,7 +8035,7 @@ function ntcCompile(input_a, objOptions_a)
 				'Public Function LocalAlloc(ByVal size As Integer) As Integer', '#asm', '\t\t\tpop hl', '\t\t\tld e, (hl)', '\t\t\tinc hl', '\t\t\tld d, (hl)', '\t\t\tld (mem_a1), de', '\t\t\tpop hl', '\t\t\tld (mem_res), hl', '\t\t\tld hl, ' + strBlk, '\t\t\tld (ovl_lblk), hl', '\t\t\tld hl, ntc_ovl_lalloc', '\t\t\tjp mem_go', '#endasm', 'End Function',
 				'Public Function LocalFree(ByVal addr As Integer) As Integer', '#asm', '\t\t\tpop hl', '\t\t\tld e, (hl)', '\t\t\tinc hl', '\t\t\tld d, (hl)', '\t\t\tld (mem_a1), de', '\t\t\tpop hl', '\t\t\tld (mem_res), hl', '\t\t\tld hl, ' + strBlk, '\t\t\tld (ovl_lblk), hl', '\t\t\tld hl, ntc_ovl_lfree', '\t\t\tjp mem_go', '#endasm', 'End Function'
 			].join('\n') + '\n';
-			return { name: objFile_a.name, text: strText, platform: objFile_a.platform };
+			return { name: objFile_a.name, text: strText, platform: objFile_a.platform, lines: objFile_a.lines, orig: objFile_a.orig };
 		});
 	}
 
@@ -8068,7 +8072,7 @@ function ntcCompile(input_a, objOptions_a)
 			}
 			return;
 		}
-		if ((arrMatch = strValue.match(/^\s*interrupt\s+(frame|\d+)\s*$/i)))
+		if ((arrMatch = strValue.match(/^\s*interrupt\s+(frame|\d+|share\s+\d+)\s*$/i)))
 		{
 			if (!objPlat.irq)
 			{
@@ -8085,15 +8089,29 @@ function ntcCompile(input_a, objOptions_a)
 				arrErrors.push({ file: objRec_a.file, line: objRec_a.line, msg: 'Option Class Interrupt: given twice' });
 				return;
 			}
-			intRate = (arrMatch[1].toLowerCase() === 'frame') ? 0 : parseInt(arrMatch[1], 10);
-			if ((arrMatch[1].toLowerCase() !== 'frame') && ((intRate < 1) || (intRate > 300)))
+			var intShare = 0;		// Share n: a shared class, weight n (turns in the interrupts no fixed class uses)
+			if (/^share/i.test(arrMatch[1]))
 			{
-				arrErrors.push({ file: objRec_a.file, line: objRec_a.line, msg: 'Option Class Interrupt: a rate of 1 - 300 times a second, or Frame' });
+				intShare = parseInt(arrMatch[1].replace(/^share\s+/i, ''), 10);
+				intRate = -1;
+				if ((intShare < 1) || (intShare > 100))
+				{
+					arrErrors.push({ file: objRec_a.file, line: objRec_a.line, msg: 'Option Class Interrupt Share: a weight of 1 - 100' });
+					return;
+				}
+			}
+			else
+			{
+				intRate = (arrMatch[1].toLowerCase() === 'frame') ? 0 : parseInt(arrMatch[1], 10);
+			}
+			if ((intShare === 0) && (arrMatch[1].toLowerCase() !== 'frame') && ((intRate < 1) || (intRate > 300)))
+			{
+				arrErrors.push({ file: objRec_a.file, line: objRec_a.line, msg: 'Option Class Interrupt: a rate of 1 - 300 times a second, Frame, or Share n' });
 				return;
 			}
-			if (arrIslots.length >= 4)
+			if (arrIslots.length >= 16)
 			{
-				arrErrors.push({ file: objRec_a.file, line: objRec_a.line, msg: 'Option Class Interrupt: 4 interrupt classes at most' });
+				arrErrors.push({ file: objRec_a.file, line: objRec_a.line, msg: 'Option Class Interrupt: 16 interrupt classes at most' });
 				return;
 			}
 			if (objClassKind[objRec_a.module] !== undefined)
@@ -8105,10 +8123,10 @@ function ntcCompile(input_a, objOptions_a)
 			{
 				objClassKind[objRec_a.module] = { kind: 'interrupt', rate: intRate, slot: arrIslots.length, isl: { rate: intRate, slot: arrIslots.length } };
 			}
-			arrIslots.push({ module: objRec_a.module, rate: intRate, file: objRec_a.file, line: objRec_a.line });
+			arrIslots.push({ module: objRec_a.module, rate: intRate, share: intShare, file: objRec_a.file, line: objRec_a.line });
 			return;
 		}
-		arrErrors.push({ file: objRec_a.file, line: objRec_a.line, msg: 'Option Class Resident | Overlay ["FILE"] | Interrupt rate | Interrupt Frame: ' + strValue });
+		arrErrors.push({ file: objRec_a.file, line: objRec_a.line, msg: 'Option Class Resident | Overlay ["FILE"] | Interrupt rate | Interrupt Frame | Interrupt Share n: ' + strValue });
 	}
 
 	// the platform's own classes (StdIO, System ...) join the project when the
@@ -8210,7 +8228,7 @@ function ntcCompile(input_a, objOptions_a)
 		return (objPlat.irq !== 2) || (arrIslots.length > 0) || (Object.keys(objHookProcs).length > 0);
 	}
 
-	function linkLibrary(objUsedT_a, objUsedN_a, blnIrq_a)
+	function linkLibrary(objUsedT_a, objUsedN_a, blnIrq_a, blnRamOnly_a)
 	{
 		var arrOrder = arrLibOrder;
 		var arrQueue = [];
@@ -8303,9 +8321,9 @@ function ntcCompile(input_a, objOptions_a)
 		{
 			objItem = objNeeded[arrOrder[intI]];
 			objSection = objSections[arrOrder[intI]];
-			if (objItem === undefined)
+			if ((objItem === undefined) || (blnRamOnly_a && !objSection.ramonly))
 			{
-				continue;
+				continue;		// (Library: ROM - only the sections the ROM hasn't got)
 			}
 			if ((objItem.s === true) || (objItem.t === true))
 			{
@@ -8328,13 +8346,22 @@ function ntcCompile(input_a, objOptions_a)
 	// main
 	// ------------------------------------------------------------
 
-	var arrFiles = (typeof input_a === 'string') ? [{ name: 'main.bas', text: input_a }] : input_a;
+	// the flavour preprocessor first: every file as VB5 text (ntcPrep)
+	var objPrep = ntcPrep(input_a, objOptions);
+	var arrFiles = objPrep.files;
+	var objOrigName = {};		// translated file name -> the name the user gave (messages)
 	var intI = 0;
 	var intJ = 0;
 	var intValue = 0;
 	var objRec = null;
 	var strCur = '';
 
+	arrFiles.forEach(function(objFile_a) { if (objFile_a.orig) { objOrigName[objFile_a.name] = objFile_a.orig; } });
+	arrWarnings = arrWarnings.concat(objPrep.warnings);		// a flavour's (Locomotive: the lines left out)
+	if (objPrep.errors.length > 0)
+	{
+		return { asm: '', libasm: '', layout: [], errors: objPrep.errors, warnings: objPrep.warnings, xref: [], map: '', procs: [], vbfiles: arrFiles, stats: { threadbytes: 0, keywords: 0, variables: 0, temps: 0, stemps: 0, normal: false, start: 'n' } };
+	}
 	readPlatform();
 	if ((objOptions.org === null) || (objOptions.org === undefined))
 	{
@@ -8654,7 +8681,7 @@ function ntcCompile(input_a, objOptions_a)
 	arrAsm.push('NTC_STRMAX\tequ ' + intStrMax + '\t\t; the longest string (library buffers, temps)');
 	arrAsm.push('NTC_MEMBANKS\tequ ' + Math.max(0, Math.min(64, Math.floor((Math.min(257, Math.max(1, objMemory.max || 257)) - 1) / 4))) + '\t\t; Option Memory: the most 64K banks the Memory class looks for');
 	arrAsm.push('NTC_ROMENABLE\tequ ' + ((arrRomEnable !== null) ? 1 : 0) + '\t\t; Option RomEnable (cpcfw, cpcmin): the start code starts the ROMs');
-	arrAsm.push('NTC_ROMLIB\tequ 0\t\t; 1 only when the library itself is built as a ROM (ntcRomAsm)');
+	arrAsm.push('NTC_ROMLIB\tequ ' + ((objOptions.library === 'rom') ? 1 : 0) + '\t\t; 1 = the library is the keyword ROM (Library: ROM; ntcRomAsm builds it)');
 	arrAsm.push('');
 	// the options in a fixed order, wherever they are in the source: the stack first (the
 	// ROM start runs on it), then the ROMs, then the program
@@ -8733,6 +8760,16 @@ function ntcCompile(input_a, objOptions_a)
 			{
 				return;
 			}
+			if (objSlot_a.share)
+			{
+				arrAsm.push(strIndent + 'ld hl, #8000 + ' + objSlot_a.share + '\t\t; ' + objSlot_a.module + ': shared, weight ' + objSlot_a.share + ' (turns in the interrupts no fixed class uses)');
+				arrAsm.push(strIndent + 'ld (ntc_isl + ' + (intSlot_a * 8 + 2) + '), hl');
+				arrAsm.push(strIndent + 'ld hl, 0');
+				arrAsm.push(strIndent + 'ld (ntc_isl + ' + (intSlot_a * 8) + '), hl');
+				arrAsm.push(strIndent + 'ld hl, ' + procLabel(objSlot_a.tick, 'n') + '_c');
+				arrAsm.push(strIndent + 'ld (ntc_isl + ' + (intSlot_a * 8 + 6) + '), hl');
+				return;
+			}
 			arrAsm.push(strIndent + 'ld hl, ' + ((objSlot_a.rate === 0) ? 0 : Math.max(1, Math.round(300 / objSlot_a.rate))) + '\t\t; ' + objSlot_a.module + ': ' + ((objSlot_a.rate === 0) ? 'every frame' : ('every ' + Math.max(1, Math.round(300 / objSlot_a.rate)) + ' interrupts')));
 			arrAsm.push(strIndent + 'ld (ntc_isl + ' + (intSlot_a * 8 + 2) + '), hl');
 			arrAsm.push(strIndent + 'ld hl, ' + (((objSlot_a.rate === 0) ? 0 : Math.max(1, Math.round(300 / objSlot_a.rate))) + intSlot_a + 1) + '\t\t\t; the first after one period (+ the slot, so they take turns)');
@@ -8742,6 +8779,11 @@ function ntcCompile(input_a, objOptions_a)
 		});
 		arrAsm.push(strIndent + 'ld a, ' + arrIslots.length);
 		arrAsm.push(strIndent + 'ld (ntc_isln), a');
+		if (arrIslots.some(function(o_a) { return o_a.share; }))
+		{
+			arrAsm.push(strIndent + 'ld a, ' + arrIslots.filter(function(o_a) { return o_a.share; }).length);
+			arrAsm.push(strIndent + 'ld (ntc_islshn), a\t\t; shared classes');
+		}
 		arrAsm.push(strIndent + ((objOptions.library === 'rom') ? 'ld hl, (ntc_isl_tick + 1)\t; (Library: ROM: its address in the ROM - the jump block, low in RAM, is hidden by the lower ROM in the interrupt)' : 'ld hl, ntc_isl_tick'));
 		arrAsm.push(strIndent + 'ld (ntc_irqv), hl\t\t; the interrupt handler counts for them');
 		objUsedT['ntc_islots'] = true;
@@ -9127,6 +9169,14 @@ function ntcCompile(input_a, objOptions_a)
 	{
 		intRomAt = arrAsm.length;
 		arrAsm.push('');
+		// sections marked @ramonly aren't in the ROM: the program has the ones it uses (the
+		// ROM's routines and variables they use come through the jump block, as the program's)
+		strLibAsm = linkLibrary(objUsedT, objUsedN, irqNeeded(), true);
+		if (strLibAsm.replace(/\s/g, '').length > 0)
+		{
+			arrAsm.push('; (not in the ROM - the library sections this program uses that the ROM leaves out)');
+			arrAsm.push(strLibAsm);
+		}
 	}
 	else if (objOptions.library !== 'none')
 	{
@@ -9425,9 +9475,15 @@ function ntcCompile(input_a, objOptions_a)
 		})();
 	}
 
+	// messages name the files the user gave (a JS file, not its VB5 text)
+	[arrErrors, arrWarnings, arrXref].forEach(function(arrList_a)
+	{
+		arrList_a.forEach(function(objE_a) { if (objE_a.file && (objOrigName[objE_a.file] !== undefined)) { objE_a.file = objOrigName[objE_a.file]; } });
+	});
 	return {
 		asm: arrAsm.join('\n'),
 		libasm: strLibAsm,
+		vbfiles: arrFiles,
 		layout: arrLayout,
 		errors: arrErrors,
 		warnings: arrWarnings,
@@ -9463,7 +9519,7 @@ function ntcCompile(input_a, objOptions_a)
 // library labels the compiler's own code uses (besides every section's name and what the
 // platform classes' #asm blocks name): what a ROM must export
 var NTC_ROM_RUNTIME = ['kw_absv', 'kw_aget', 'kw_aget8', 'kw_bssinit', 'kw_callp', 'kw_callv', 'kw_stop', 'kw_irq', 'kw_turbo_off', 'kw_turbo_on',
-	'mem_a1', 'mem_go', 'mem_res', 'mem_sel', 'ntc_csp', 'ntc_font', 'ntc_irqv', 'ntc_isl', 'ntc_isl_tick', 'ntc_isln', 'ntc_next', 'ntc_ovl_body',
+	'mem_a1', 'mem_go', 'mem_res', 'mem_sel', 'ntc_csp', 'ntc_font', 'ntc_irqv', 'ntc_isl', 'ntc_isl_tick', 'ntc_isln', 'ntc_islshn', 'ntc_next', 'ntc_ovl_body',
 	'ntc_ovl_enter', 'ntc_ovl_enterc', 'ntc_ovl_ret', 'ntc_ovl_kload', 'ntc_ovl_kloaded', 'ntc_ovl_kpage', 'ntc_ovl_kunload', 'ntc_ovl_lalloc', 'ntc_ovl_lc',
 	'ntc_ovl_lfree', 'ntc_plat_irqon', 'ntc_xn', 'ovl_kres', 'ovl_lblk', 'ntc_nmode', 'ntc_isldue', 'ntc_hookpend', 'ntc_hookon', 'ntc_hookset', 'ntc_hook',
 	'ntc_ip', 'ntc_ticks', 'ntc_mode', 'ntc_ivar', 'ntc_v_free', 'ntc_v_start', 'ntc_v_stamp', 'ntc_v_romen', 'ntc_v_rom', 'ntc_v_romold', 'ntc_rampt',
@@ -9471,6 +9527,70 @@ var NTC_ROM_RUNTIME = ['kw_absv', 'kw_aget', 'kw_aget8', 'kw_bssinit', 'kw_callp
 var NTC_ROM_DATA = 0x8800;		// the ROM's initialised variables (and its RAM code): #8800 - #93FF
 var NTC_ROM_BSS = 0x9400;		// the rest of its variables (cleared): #9400 - #A5EF
 var NTC_ROM_END = 0xA5F0;		// (#A5F0: the cpcfw fast ticker block)
+
+// ============================================================
+// ntcPrep - the flavour preprocessor: every file as VB5 text for the one parser and compiler.
+// input_a: one text or [{ name, text }] (as ntcCompile); objOptions_a.flavour: the default
+// for files that don't say (a file's first line "Option Flavour JS" / "//# Option Flavour JS"
+// wins; a .js name means js; else vb5). Returns { files: [{ name, text, lines, orig }], errors }:
+// lines = the source line of each VB line (messages), orig = the name the user gave.
+// The flavours come from a factory (ntcFlavours): one function each, (file, options) ->
+// { text, lines, cls, errors }; vb5 passes the text through.
+// ============================================================
+function ntcFlavours()
+{
+	return {
+		vb5: function(objFile_a)
+		{
+			// the Option Flavour line itself is the preprocessor's: blanked (the lines stay put)
+			return { text: String(objFile_a.text).replace(/^(\s*)(?:'#\s*)?option\s+flavour\b.*$/im, '$1'), errors: [] };
+		},
+		js: (typeof ntcFlavourJs === 'function') ? ntcFlavourJs : undefined,
+		locomotive: (typeof ntcFlavourLoco === 'function') ? ntcFlavourLoco : undefined
+	};
+}
+
+function ntcPrep(input_a, objOptions_a)
+{
+	var objOptions = objOptions_a || {};
+	var arrIn = (typeof input_a === 'string') ? [{ name: '', text: input_a }] : input_a;
+	var objFlavours = ntcFlavours();
+	var arrFiles = [];
+	var arrErrors = [];
+	var arrWarnings = [];
+
+	arrIn.forEach(function(objFile_a)
+	{
+		var strText = String(objFile_a.text || '');
+		var arrFirst = strText.match(/^\s*(?:\d+\s+)?(?:\/\/#\s*|'#\s*|rem\s*#\s*)?option\s+flavour\s+(\w+)/i);
+		var strFlavour = arrFirst ? arrFirst[1].toLowerCase() : (/\.js$/i.test(objFile_a.name || '') ? 'js' : (/\.loc$/i.test(objFile_a.name || '') ? 'locomotive' : String(objOptions.flavour || 'vb5').toLowerCase()));
+		var fnFlavour = objFlavours[strFlavour];
+		var objR = null;
+		var strStem = String(objFile_a.name || 'main').replace(/\.[^.\/\\]*$/, '');
+
+		if (!objFile_a.name)
+		{
+			objFile_a = { name: (strFlavour === 'js') ? 'main.js' : 'main.bas', text: strText, platform: objFile_a.platform };		// one text: main.bas / main.js
+		}
+
+		if (typeof fnFlavour !== 'function')
+		{
+			arrErrors.push({ file: objFile_a.name, line: 1, msg: 'no such flavour: ' + strFlavour + ' (' + Object.keys(objFlavours).filter(function(k_a) { return typeof objFlavours[k_a] === 'function'; }).join(', ') + ')' });
+			return;
+		}
+		if (strFlavour === 'vb5')
+		{
+			objR = fnFlavour(objFile_a, objOptions);
+			arrFiles.push({ name: objFile_a.name, text: objR.text, platform: objFile_a.platform });
+			return;
+		}
+		objR = fnFlavour(objFile_a, objOptions);
+		arrErrors = arrErrors.concat(objR.errors);
+		arrWarnings = arrWarnings.concat(objR.warnings || []);
+		arrFiles.push({ name: strStem + (objR.cls ? '.cls' : '.bas'), text: objR.text, lines: objR.lines, orig: objFile_a.name, flavour: strFlavour, platform: objFile_a.platform });
+	});
+	return { files: arrFiles, errors: arrErrors, warnings: arrWarnings };
+}
 
 // the ROM's file name (8 letters): NTCFW, NTCMIN, NTCCPC
 function ntcRomFile(strPlatform_a)
@@ -9555,6 +9675,18 @@ function ntcRomAsm(strPlatform_a, strReg_a)
 		{
 			objSec.lines.push(strLine_a);
 		}
+	});
+	// @ramonly sections stay out of the ROM (a program has its own copy); what they name of
+	// the ROM's is exported (registry entries) for that copy
+	var arrRamOnlyUses = [];
+	arrSections = arrSections.filter(function(objSec_a)
+	{
+		if (!/\s@ramonly\b/.test(objSec_a.header))
+		{
+			return true;
+		}
+		objSec_a.lines.forEach(function(str_a) { arrRamOnlyUses = arrRamOnlyUses.concat(str_a.replace(/"[^"]*"|'[^']*'/g, '').replace(/;.*$/, '').match(/[A-Za-z_]\w*/g) || []); });
+		return false;
 	});
 	// one Interrupt-hook window for both: ntc_xnh (it is a superset of ntc_xn)
 	arrSections = arrSections.filter(function(objSec_a) { return !((objSec_a.name === 'ntc_xn') && !/\(normal mode copy\)/.test(objSec_a.header) && (objSec_a.lines.join('\n').indexOf('ntc_hookpend') < 0)); });
@@ -9938,6 +10070,7 @@ function ntcRomAsm(strPlatform_a, strReg_a)
 	var objExport = {};
 	arrSections.forEach(function(objSec_a) { objExport[objSec_a.name] = true; });
 	NTC_ROM_RUNTIME.forEach(function(str_a) { objExport[str_a] = true; });
+	arrRamOnlyUses.forEach(function(str_a) { objExport[str_a] = true; });
 	if (typeof NTC_PLATFORM_CLASSES !== 'undefined')
 	{
 		Object.keys(NTC_PLATFORM_CLASSES[strPlatform_a] || {}).forEach(function(strFile_a)
@@ -10167,7 +10300,7 @@ function ntcRomAsm(strPlatform_a, strReg_a)
 
 		if (objEntry && (objEntry.value !== null) && ((objSym_a.kind === 'data') || (objSym_a.kind === 'bss') || (objSym_a.kind === 'const')))
 		{
-			arrOut.push(strIndent + 'ASSERT ' + objSym_a.name + ' == ' + hex4(objEntry.value) + ', "' + objSym_a.name + ' moved: variables and constants keep their place (a new size or value needs a new name)"');
+			arrOut.push(strIndent + 'ASSERT (' + objSym_a.name + ' & #FFFF) == ' + hex4(objEntry.value) + ', "' + objSym_a.name + ' moved: variables and constants keep their place (a new size or value needs a new name)"');
 		}
 	});
 	return { asm: arrOut.join('\n') + '\n', errors: arrErrors, symbols: arrSyms, vars: arrVars };

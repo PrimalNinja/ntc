@@ -1,0 +1,9 @@
+[Player 1  100 ]
+[Player 2  200 ]
+[Player 3  300 ]
+[end]
+first Player 1  100
+space-1  joy 0
+held
+joy 16
+done

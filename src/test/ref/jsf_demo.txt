@@ -1,0 +1,4 @@
+Hello from ntc120
+len: 3
+total is right
+10 7 4 1

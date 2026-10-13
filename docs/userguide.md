@@ -32,7 +32,7 @@ New to NTC BASIC? The [tutorial](tutorial/README.md) goes through it a small ste
 14. [Inline assembly](#14-inline-assembly)
 15. [Diagnostics](#15-diagnostics)
 16. [Compiler directives and options](#16-compiler-directives-and-options)
-17. [Platforms and the console classes](#17-platforms-and-the-console-classes) (StdIO, System, FileSystem)
+17. [Platforms and the console classes](#17-platforms-and-the-console-classes) (StdIO, System, FileSystem, Memory, List, Graphics, Keys)
 18. [Not in NTC BASIC](#18-not-in-ntc-basic)
 19. [Keyword index](#19-keyword-index)
 
@@ -1493,7 +1493,7 @@ copies of its data keeps them itself (in arrays).
 
 ### Option Class
 
-`Option Class Resident` | `Option Class Overlay` [*Name* | `"FILE.EXT"`] | `Option Class Interrupt` *rate* | `Option Class Interrupt Frame`
+`Option Class Resident` | `Option Class Overlay` [*Name* | `"FILE.EXT"`] | `Option Class Interrupt` *rate* | `Option Class Interrupt Frame` | `Option Class Interrupt Share` *weight*
 
 In a `.cls` file: what kind of class it is. Without it (or `Resident`) the class is part of
 the program as above.
@@ -1667,10 +1667,11 @@ Main RAM, called from pages: score
 The example `bas/pages/` has a title, two levels sharing copied classes, credits, and a class
 in main RAM that every page calls.
 
-**Interrupt** *rate* / **Interrupt Frame** (cpc, cpcmin: NTC's own interrupt handler; cpcfw: a
-firmware fast ticker event, as for [Interrupt](#interrupt)): the
-class's `Sub Tick()` (no parameters - it must have one) runs *rate* times a second (1 - 300),
-or once a frame (just after the vertical sync), while the program does its own thing.
+**Interrupt** *rate* / **Interrupt Frame** / **Interrupt Share** *weight* (cpc, cpcmin: NTC's
+own interrupt handler; cpcfw: a firmware fast ticker event, as for [Interrupt](#interrupt)):
+the class's `Sub Tick()` (no parameters - it must have one) runs *rate* times a second
+(1 - 300), or once a frame (just after the vertical sync), or as its share of the time the
+fixed ones leave (below), while the program does its own thing.
 
 ```
 ' Clock.cls
@@ -1681,10 +1682,28 @@ Public Sub Tick()
 End Sub
 ```
 
-- Up to 4 interrupt classes. The interrupt (300 a second) only counts and marks a class as
+- Up to 16 interrupt classes. The interrupt (300 a second) only counts and marks a class as
   due; `Tick` runs at the program's next safe point, like [Interrupt](#interrupt) - so it is
   ordinary BASIC, and can use anything. Classes of the same rate take turns (they don't fall
   on the same interrupt).
+- **Fixed and shared.** A class with a rate or `Frame` is *fixed*: it gets its rate, whatever
+  the others do. A class with `Share` *weight* (1 - 100) is *shared*: the shared classes split
+  what is left between them by weight. At an interrupt where no fixed class falls due, one
+  shared class is marked due; each shared class gets *weight* turns in a row, then the next one
+  does. So with `Share 1`, `Share 2` and `Share 3` the third gets three times the turns of the
+  first. You choose the split: put the classes that must keep time (music, a clock, game
+  movement) at a rate, and the rest (background work, an animation, a status line) as shares.
+  The shares get what the fixed classes leave, so the more fixed classes fall due, the less the
+  shared ones run - they slow down, they never hold up a fixed one.
+
+```
+' Music.cls - fixed: 50 a second whatever else runs
+Option Class Interrupt 50
+' Clouds.cls / Status.cls - shared: Clouds gets 3 turns for each 1 of Status
+Option Class Interrupt Share 3
+Option Class Interrupt Share 1
+```
+
 - Normal mode only: in turbo mode there are no safe points, so `Tick` waits.
 - A `Tick` that is still running when it is due again runs again after it returns.
 - Keep `Tick` short: it runs between the program's own statements.
@@ -1822,6 +1841,9 @@ Do
 Loop While k$ = ""
 Print "you pressed "; k$
 ```
+
+For keys held down (games: several at once, no auto repeat) and the joysticks, see the
+[Keys](#keys) class.
 
 **VB:** these are from classic BASIC; VB uses key events.
 
@@ -2259,6 +2281,100 @@ On other platforms it gives a warning and does nothing.
 
 **VB:** not in VB.
 
+### Option Flavour
+
+`Option Flavour JS` / `Option Flavour VB5` (in a JS file: `//# Option Flavour JS`)
+
+On a file's first line: the syntax that file is written in. `VB5` (everything in this guide)
+is the default; a file named `.js` is JS without the line. Files of both flavours mix in one
+project: a VB main can use a JS class and the other way round. A JS file is turned into VB5
+text, line for line, and compiled like any other module (a flavour preprocessor), so messages
+name the JS file and line.
+
+The JS flavour is a JS syntax over NTC (as JSCC does it), not a JavaScript engine: ES5 / ES6
+forms that map onto what NTC has. The full table, and what comes later, is in
+`docs/js_flavour.md`. In this first version:
+
+```
+//# Option Flavour JS
+const MAX = 10;
+let total = 0;            //#long
+let squares = new Array(MAX);
+
+function square(n)
+{
+	return n * n;
+}
+
+for (let i = 0; i < MAX; i++)
+{
+	squares[i] = square(i);
+	total += squares[i];
+}
+console.log(`total ${total}`);
+```
+
+- **Variables:** `let` / `var` / `const`; the type from the start value (text: String, else
+  Integer) or a hint after the line: `//#long`, `//#byte`, `//#bool`, `//#string`,
+  `//#string*20`, `//#stringmax 80`. Arrays: `new Array(n)` (0 .. n-1), `new Array(n, m)`.
+  Names ignore case.
+- **Functions:** `function name(a, b = 5)`; a `return` with a value makes it a Function (its
+  type from what it returns, or `//#long` after the `)`); a parameter used as text is a String,
+  else Integer, or `/*#long*/` / `/*#byref*/` after it. `export function` = Public.
+- **Flow:** `if` / `else if` / `else`, `while`, `for (;;)` (a counting one becomes For / Next),
+  `break`, `continue`, `switch` (each `case` ends with `break`), `return`.
+- **Classes:** one `class Name { }` per file (ES6). Fields `x = 0;` (Public), `#x = 0;`
+  (Private), methods, `#method()`, `get x()` / `set x(v)`, `this.x`. `let c = new Name();` is a
+  second name for the class's one set of members (no constructors: give the class a method to
+  set it up).
+- **Expressions:** the JS operators (`===` / `==` are `=`, `&&` / `||` work out both sides, `%`,
+  `**`, `? :`, `<<` / `>>` by a number), template text, `s.length`, `toUpperCase`, `substr`,
+  `indexOf`, `charCodeAt`, `String.fromCharCode`, `Math.abs` ... and
+  `Math.floor(Math.random() * n)` (= `Rnd(n)`). Whole numbers only: `/` divides whole numbers.
+- **Statements:** `console.log(a, b)` (= `Print a; b`), `print(a)` (no new line), `cls()`,
+  `locate(x, y)`, `mode(n)`, `poke(a, v)`, `peek(a)`, `inkey()`, `exit()` ...
+- **NTC lines stay comments,** so the file is still valid JS: `//# Turbo On`,
+  `//# Option Page ...`, `//# #If NTC_CPC Then` on a line of their own; inline assembly as
+  `/* #asm ... */`.
+- **Refused with a message:** closures and arrow functions, `do ... while`, `try` / `catch`,
+  object and array literals, `extends`, constructors, `null`, floating point, `switch` falling
+  through, a function inside a function.
+
+**The Locomotive BASIC flavour** (`'# Option Flavour Locomotive` / `REM #Option Flavour
+Locomotive` on the first line, or a `.loc` file) takes the CPC's own BASIC as typed in: line
+numbers, `:` between statements, whole numbers only. A line NTC can't do (`a = 3 * COS(x)`,
+`INK 1, 24`, `DEFINT a-z`) becomes a comment and a warning - the program compiles without it,
+and the warnings name the lines. The full table is in `docs/locomotive_flavour.md`; in this
+first version:
+
+```
+10 DIM sc(5), nm$(5)
+20 total = 0 '#long
+30 FOR i = 1 TO 5: READ nm$(i), sc(i): total = total + sc(i): NEXT i
+40 DEF FNdbl(x) = x * 2
+50 PRINT "Total"; total; FNdbl(21)
+60 GOSUB 1000: END
+1000 PRINT "in a GOSUB": RETURN
+2000 DATA Ann, 50, Bob, 60, "Cy, Jr", 70, Dee, 80, Eve, 90
+```
+
+- `a`, `a%` and `a$` are three variables (renamed in the VB text when they clash: `a`, `a_i`,
+  `a_s`); a plain name is an Integer; `'#long` (`'#byte` ...) after a line is a type hint, also on
+  `DIM`. Arrays used without `DIM` are `DIM name(10)`.
+- `PRINT` spaces numbers as the CPC does (`Option VBPrint`); `INPUT`, `LINE INPUT`, `INKEY$`,
+  `CLS`, `MODE`, `LOCATE`, `GOTO` / `GOSUB` / `ON ... GOTO / GOSUB`, `IF ... THEN line / ELSE`, `FOR`
+  / `NEXT i, j`, `WHILE` / `WEND`, `DATA` / `READ` / `RESTORE n`, `DEF FN`, `SWAP`, `MID$(a$, i, n) =`,
+  `MAX` / `MIN`, `BIN$`, `HEX$(n, d)`, `INT(RND * n)`, `TIME`, `PEEK` / `POKE` / `INP` / `OUT` / `CALL`,
+  `WAIT`, `LOAD` / `SAVE` (binary), `END` / `STOP`.
+- Warnings (left out): real numbers and `SIN` / `COS` ..., `DEFINT` / `DEFSTR`, colours (`INK`,
+  `PEN`, `PAPER`, `BORDER`), graphics, sound, `EVERY` / `AFTER`, streams and files other than
+  `LOAD` / `SAVE`, error trapping, editor commands. Most will come later as classes.
+
+`test/cli.js file.js --vb` (or `file.loc`) shows the VB5 text a file becomes; only the line
+numbers something jumps to are kept.
+
+**VB:** not in VB.
+
 ### Option Library
 
 `Option Library ROM` / `Option Library RAM`
@@ -2562,14 +2678,14 @@ hasn't got it. Yes / no capabilities are True (-1); some are numbers.
 | Name | Means | cpc | cpcfw | cpm | test |
 |---|---|---|---|---|---|
 | `LOAD`, `SAVE` | whole file to / from memory | - | True (cpcmin too) | True | - |
-| `SEQUENTIAL` | `Open`, read and write in order | - | - | True | - |
+| `SEQUENTIAL` | `Open`, read and write in order | - | True (cpcmin too) | True | - |
 | `RANDOMACCESS` | `Seek` anywhere, read and write | - | - | True | - |
 | `DELETE`, `RENAME`, `EXISTS`, `SIZE` | those methods | - | - | True | - |
 | `MULTIPLE` | more than one file open at once | - | - | True | - |
 | `DEVICES` | `Devices`, `SelectDevice`, `CurrentDevice` | - | True | True | - |
 | `VOLUMES` | `Volumes`, `SelectVolume`, `CurrentVolume` | - | True | True | - |
 | `CPMVERSION` | BDOS's version: `&H22` CP/M 2.2, `&H31` CP/M 3 | - | - | yes | - |
-| `MAXOPEN` | how many files can be open | 0 | 0 | 2 | 0 |
+| `MAXOPEN` | how many files can be open | 0 | 1 | 2 | 0 |
 | `RECORDSIZE` | the disc's record size | - | - | 128 | - |
 
 A name the platform doesn't know is 0, so a program can ask for anything.
@@ -2640,7 +2756,15 @@ r = FileSystem.Close(h)
 - **CPC firmware** (`cpcfw`): `Load` and `Save`, through the firmware's cassette calls - to
   the selected disc drive with AMSDOS, else to tape, as BASIC's `LOAD` and `SAVE` do, with
   the firmware's own messages. A saved file is a binary file: BASIC can
-  `LOAD "HISCORE.DAT", &4000` it. Uses a 2K buffer. Devices `TAPE` and `DISC` (`|TAPE`,
+  `LOAD "HISCORE.DAT", &4000` it. Uses a 2K buffer.
+
+  **One open file** (`SEQUENTIAL`, `MAXOPEN` 1): `Open` gives handle 1. `ForRead` reads any
+  file byte by byte (`ReadByte`, `Read`, `ReadLine`, `Eof`); `ForWrite` makes a new text file
+  (`WriteByte`, `Write`, `WriteLine`) - the kind BASIC's `OPENOUT` / `PRINT #9` make, so
+  BASIC's `OPENIN` / `LINE INPUT #9` read it back. `ForUpdate` and `Seek` are
+  `NotSupported`, as are `Delete`, `Exists`, `Rename` and `Size`. A second `Open` while one is
+  open gives `NoHandle`; `Load` and `Save` give `Failed` while a file is open (they share the
+  2K buffer). `Close` a written file, or its last part isn't written. Devices `TAPE` and `DISC` (`|TAPE`,
   `|DISC`); volumes: any name the disc system has a command for (`|A`, `|B`, `|C` ...).
 
   **Disc or tape?** `RUN"NAME` of a binary resets the firmware, and that drops AMSDOS: files
@@ -2656,8 +2780,10 @@ r = FileSystem.Close(h)
   has used so far and the current one; `SelectVolume "B"` makes B the drive for names
   without a drive letter. CP/M 3 returns `NotFound` for a drive that isn't there; CP/M 2.2
   stops with its own BDOS error.
-- **CPC minimal firmware** (`cpcmin`): the same as `cpcfw` (Load / Save, devices, volumes), each
-  call handed to the firmware for its length.
+- **CPC minimal firmware** (`cpcmin`): the same as `cpcfw` (Load / Save, one open file, devices,
+  volumes), each call handed to the firmware for its length. Its keyword ROM has no room for
+  the open-file code: with `Option Library ROM` the program carries that part itself (about
+  450 bytes).
 - **CPC, no firmware** (`cpc`) and **test**: no files - every method returns `NotSupported`.
 
 See `bas/files.bas`.
@@ -2696,9 +2822,10 @@ Every page has a type:
 | `TypeData` | D | the heap | `Alloc` / `Free` work inside these; one left empty goes back to free |
 | `TypeIrq` | I | interrupt handler blocks | a label for now |
 | `TypeUser` | U | the program's own: music, level data, anything it manages itself | a label: the program uses the page as it likes |
+| `TypeBank` | B | the 4 pages of a whole 64K bank (`AllocBank`) | `CallBank` runs code in it |
 | `TypeFree` | - | not allocated | |
 
-Every page is on one list: free, C, D, I or U. Free pages come from two lists - main RAM and
+Every page is on one list: free, C, D, I, U or B. Free pages come from two lists - main RAM and
 the standard 512K for C, I and U pages, the blocks above it for D pages (the heap) - and each
 falls back to the other. So on a big machine a growing heap uses the upper blocks and leaves
 the standard 512K for code, music and levels; on 576K or less it is all one list.
@@ -2749,6 +2876,34 @@ plain memory, nothing switched). `Alloc` gives them; `CLng(page) * 65536 + addre
 | `ReadByte(ptr)`, `ReadWord(ptr)` | |
 | `WriteByte ptr, value`, `WriteWord ptr, value` | |
 | `Copy(src, dst, length)` | far pointer to far pointer; past the end of a page it carries on at the start of the next page |
+| `Banks()` | whole 64K banks there are (bank 1 = pages 2-5, bank 2 = pages 6-9 ...); 0 = none |
+| `AllocBank()` | a bank whose 4 pages are all free, now `TypeBank`; 0 = none left |
+| `FreeBank(bank)` | its 4 pages back to free (`BadPage`: not a bank, or not taken with `AllocBank`) |
+| `BankPage(bank, n)` | the page number of the bank's part n (0 = its `#0000-#3FFF` ... 3 = `#C000-#FFFF`), to fill it with `SelectPage`, `WriteByte`, `Copy`, `FileSystem.Load` |
+| `CallBank(bank, address, value)` | runs the bank's code at `address` with the whole 64K being that bank; it gets `value` in HL and gives back HL |
+| `BankStub()` | where `CallBank` puts its switch code in the bank (`BankStubSize` bytes) |
+
+**Whole banks.** `AllocBank` takes the 4 pages of one 64K bank together, and `CallBank` runs
+machine code in it with the gate array's RAM setting C2: all 64K, `#0000` to `#FFFF`, is that
+bank - none of the program, the screen or the firmware is in sight. Fill the bank first
+through the window (`BankPage` gives each part's page), then call it:
+
+```
+b = Memory.AllocBank()
+If b = 0 Then Print "No spare 64K"
+p = CLng(Memory.BankPage(b, 0)) * 65536 + &H5000      ' the bank's #1000, seen in the window
+Memory.WriteByte p, &H23 : Memory.WriteByte p + 1, &HC9 ' inc hl : ret
+r = Memory.CallBank(b, &H1000, 41)                      ' 42
+```
+
+- `CallBank` copies its switch code (16 bytes, at `BankStub()`: the same address it has in
+  the program) into the bank first, so keep the bank's own code and data off those bytes.
+- While the bank's code runs: interrupts off, both ROMs off, the stack starts at the bank's
+  top (`#FFFF` down). It ends with `ret` (HL is the result) and must keep the alternate
+  registers (`BC'`, `DE'`, `HL'` - the firmware's interrupt uses them). Main RAM, the page in
+  the window, the ROMs and the interrupts are put back as they were.
+- `Small`, or a machine without a second 64K: `Banks()` and `AllocBank()` are 0, the others
+  `BadPage`.
 
 Constants: `WindowStart`, `WindowSize` (`CPCExpansion`: `&H4000`, `&H4000`; `Small`: 0, 0).
 With `CPCExpansion`, `Alloc` uses D pages - the one in the window first, then the others,
@@ -2865,6 +3020,37 @@ Loop
 ```
 
 See `bas/cube3d/` (Vector3D draws through it).
+
+### Keys
+
+Keys held down, and the joysticks (cpc, cpcmin, cpcfw). `Inkey` / `Inkey$` give the characters
+typed; `Keys` tells whether a key is down right now - several at once, held keys, no auto
+repeat - which is what games want. The keyboard matrix is read from the hardware at every
+call, so it works with and without the firmware, in turbo and normal mode.
+
+| Method | Does |
+|---|---|
+| `Down(key)` | True (-1) while that key is held down, else False (0; also for a number not 0-79) |
+| `Joystick(n)` | joystick 0 or 1: the directions and fire buttons held, as bits (0 = none) |
+
+Key numbers are the CPC's own, the same as Locomotive BASIC's `INKEY(n)` (the manual's key
+number chart). Constants for the usual ones: `KeyUp` (0), `KeyRight` (1), `KeyDown` (2),
+`KeyLeft` (8), `KeyCopy` (9), `KeyEnter` (6, the small one), `KeyReturn` (18), `KeyShift`
+(21), `KeyControl` (23), `KeySpace` (47), `KeyEsc` (66), `KeyTab` (68), `KeyCaps` (70),
+`KeyDel` (79), and `KeyQ`, `KeyA`, `KeyW`, `KeyS`, `KeyD`, `KeyZ`, `KeyX`. Joystick bits:
+`JoyUp` (1), `JoyDown` (2), `JoyLeft` (4), `JoyRight` (8), `JoyFire2` (16), `JoyFire1` (32) -
+the same as Locomotive BASIC's `JOY(n)`. Joystick 1 shares its wires with the keys 6, 5, R,
+T, G, F (48-53), as on any CPC.
+
+```
+Do
+  If Keys.Down(Keys.KeyLeft) Then x = x - 1
+  If Keys.Down(Keys.KeyRight) Then x = x + 1
+  j = Keys.Joystick(0)
+  If j And Keys.JoyFire1 Then Fire
+  Frame
+Loop
+```
 
 ### Your own StdIO
 
@@ -3017,6 +3203,7 @@ change.
 | `Option Memory` | [16](#option-memory) |
 | `Option Page`, `Option Home` | [10](#option-page) |
 | `Option Reserve` | [16](#option-reserve) |
+| `Option Flavour` | [16](#option-flavour) |
 | `Option Library` | [16](#option-library) |
 | `Option RomEnable` | [16](#option-romenable) |
 | `Option Stack` | [16](#option-stack) |

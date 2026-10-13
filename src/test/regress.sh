@@ -96,6 +96,44 @@ for m in --turbo ""; do
     check "files $pl ${m:-normal}" "Press a key" "$(timeout 100 python3 ntcrun.py t/ex/files.bas '~x' --platform=$pl $m 2>&1)"
   done
 done
+# FileSystem on the CPC with the firmware: one open file (Open / ReadByte / WriteLine ... CAS IN / OUT CHAR)
+for m in --turbo ""; do
+  for pl in cpcfw cpcmin; do
+    rm -rf t/files; cp seq_t.bas t/
+    o=$(timeout 100 python3 ntcrun.py t/seq_t.bas '' --platform=$pl $m 2>&1 | grep -v "^--- ")
+    if [ "$o" == "$(cat ref/seq.txt)" ]; then echo "ok   sequential files $pl ${m:-normal}"; else echo "FAIL sequential files $pl ${m:-normal}"; echo "$o" | head -5; fail=1; fi
+  done
+done
+# Keys class: Down(n) / Joystick(n) from the keyboard matrix ({n} = the harness holds key n)
+for m in --turbo ""; do
+  for pl in cpc cpcmin cpcfw; do
+    cp keys_t.bas t/
+    o=$(timeout 100 python3 ntcrun.py t/keys_t.bas '{47}{69}{77}{73}{50}' --platform=$pl $m 2>&1 | grep -v "^--- ")
+    if [ "$o" == "$(cat ref/keys.txt)" ]; then echo "ok   keys $pl ${m:-normal}"; else echo "FAIL keys $pl ${m:-normal}"; echo "$o" | head -5; fail=1; fi
+  done
+done
+# the same with Library: ROM (the keyword ROMs; cpcmin's sequential file code is not in its ROM -
+# the program has its own copy, @ramonly): banks, keys, sequential files, 8 interrupt classes
+for pl in cpc cpcmin cpcfw; do
+  cp bank_t.bas keys_t.bas seq_t.bas t/
+  o=$(timeout 200 python3 ntcrun.py t/bank_t.bas '' --library=rom --platform=$pl --ram=576 2>&1 | grep -v "^--- ")
+  if [ "$o" == "$(cat ref/bank_576.txt)" ]; then echo "ok   ROM: memory banks $pl"; else echo "FAIL ROM: memory banks $pl"; echo "$o" | head -5; fail=1; fi
+  o=$(timeout 100 python3 ntcrun.py t/keys_t.bas '{47}{69}{77}{73}{50}' --library=rom --platform=$pl 2>&1 | grep -v "^--- ")
+  if [ "$o" == "$(cat ref/keys.txt)" ]; then echo "ok   ROM: keys $pl"; else echo "FAIL ROM: keys $pl"; echo "$o" | head -5; fail=1; fi
+  if [ $pl != cpc ]; then
+    rm -rf t/files
+    o=$(timeout 100 python3 ntcrun.py t/seq_t.bas '' --library=rom --platform=$pl 2>&1 | grep -v "^--- ")
+    if [ "$o" == "$(cat ref/seq.txt)" ]; then echo "ok   ROM: sequential files $pl"; else echo "FAIL ROM: sequential files $pl"; echo "$o" | head -5; fail=1; fi
+  fi
+done
+# Memory class: whole 64K banks - AllocBank, CallBank (the bank as all 64K), FreeBank
+for m in --turbo ""; do
+  for c in "64 cpc" "128 cpcmin" "128 cpcfw" "576 cpc"; do
+    set -- $c; cp bank_t.bas t/
+    o=$(timeout 200 python3 ntcrun.py t/bank_t.bas '' --platform=$2 --ram=$1 $m 2>&1 | grep -v "^--- ")
+    if [ "$o" == "$(cat ref/bank_$1.txt)" ]; then echo "ok   memory banks $1K $2 ${m:-normal}"; else echo "FAIL memory banks $1K $2 ${m:-normal}"; echo "$o" | head -5; fail=1; fi
+  done
+done
 # Memory class: RAM pages probed on a 64K, 128K, 576K and 4MB CPC; the same on cpcmin / cpcfw; both modes
 for m in --turbo ""; do
   for c in "64 cpc" "128 cpc" "576 cpc" "4160 cpc" "128 cpcmin" "128 cpcfw"; do
@@ -110,7 +148,7 @@ check "memmap cpc 576K" "^Bank 8 " "$(timeout 200 python3 ntcrun.py t/ex/memmap.
 check "memmap cpc 4MB" "^&7E DD---" "$(timeout 300 python3 ntcrun.py t/ex/memmap.bas '~x~x' --platform=cpc --ram=4160 2>&1)"
 check "memmap cpcfw 128K" "^Pages UCU--" "$(timeout 200 python3 ntcrun.py t/ex/memmap.bas '~x~x' --platform=cpcfw 2>&1)"
 # a program ending near #4000: the page tables only take what fits, so fewer pages
-printf 'Option Reserve &H4000, &H4000\nDim big(6000) As Integer\nIf Memory.Pages() > 1 And Memory.Pages() < 257 And Memory.TableEnd() <= &H4000 Then Print "tables fit"\n' > t/lim.bas
+printf 'Option Reserve &H4000, &H4000\nDim big(5800) As Integer\nIf Memory.Pages() > 1 And Memory.Pages() < 257 And Memory.TableEnd() <= &H4000 Then Print "tables fit"\n' > t/lim.bas
 check "memory tables near #4000" "^tables fit" "$(timeout 200 python3 ntcrun.py t/lim.bas '' --platform=cpc --ram=4160 2>&1)"
 # Option Memory Small: a heap in main RAM, on every platform; both modes
 for m in --turbo ""; do
@@ -210,6 +248,15 @@ for pl in cpc cpcmin cpcfw; do
   o=$(timeout 200 python3 ntcrun.py t/isl/Main.bas '' t/isl/Music.cls t/isl/Fast.cls t/isl/Slow.cls t/isl/Frames.cls --platform=$pl 2>&1 | grep -v "^--- ")
   if [ "$o" == "$(cat ref/isl.txt)" ]; then echo "ok   interrupt classes $pl"; else echo "FAIL interrupt classes $pl"; echo "$o" | head -5; fail=1; fi
 done
+# more than 4 interrupt classes, and shared ones (Share n: turns, by weight, in the interrupts the fixed ones leave)
+I2="t/isl2/F50.cls t/isl2/F10.cls t/isl2/S1a.cls t/isl2/S1b.cls t/isl2/S2a.cls t/isl2/S2b.cls t/isl2/S3a.cls t/isl2/S3b.cls"
+for pl in cpc cpcmin cpcfw; do
+  rm -rf t/isl2; mkdir -p t/isl2; cp isl2/* t/isl2/
+  o=$(timeout 200 python3 ntcrun.py t/isl2/Main.bas '' $I2 --platform=$pl 2>&1 | grep -v "^--- ")
+  if [ "$o" == "$(cat ref/isl2.txt)" ]; then echo "ok   interrupt classes: 8, shared by weight $pl"; else echo "FAIL interrupt classes: 8, shared $pl"; echo "$o" | head -5; fail=1; fi
+  o=$(timeout 200 python3 ntcrun.py t/isl2/Main.bas '' $I2 --library=rom --platform=$pl 2>&1 | grep -v "^--- ")
+  if [ "$o" == "$(cat ref/isl2.txt)" ]; then echo "ok   interrupt classes: 8, shared by weight $pl ROM"; else echo "FAIL interrupt classes: 8, shared $pl ROM"; echo "$o" | head -5; fail=1; fi
+done
 node cli.js t/isl/Main.bas t/isl/Music.cls --platform=cpm 2>&1 >/dev/null | grep -q "Option Class Interrupt needs a CPC platform" && echo "ok   interrupt classes refused (cpm)" || { echo "FAIL interrupt classes refused"; fail=1; }
 cp hook.bas t/hook.bas; o=$(timeout 60 python3 ntcrun.py t/hook.bas '' --platform=cpcfw 2>&1 | grep -v "^--- ")
 if [ "$o" == "$(cat ref/hook.txt)" ]; then echo "ok   hook cpcfw"; else echo "FAIL hook cpcfw"; echo "$o" | head -3; fail=1; fi
@@ -240,6 +287,38 @@ printf 'Print "x"\n' > t/nr.bas
 check "ROM: not fitted" "^ROM NTC CPCFW (NTCFW.ROM) not found" "$(NTC_XROM=  $R t/nr.bas 'x' --platform=cpcfw --library=rom 2>&1)"
 printf 'Option Library ROM\nPrint "x"\n' > t/nr2.bas
 node cli.js t/nr2.bas --platform=cpcfw 2>/dev/null | grep -q "^ntc_rj_block:" && node cli.js t/nr2.bas --platform=cpm 2>&1 >/dev/null | grep -q "no keyword library ROM for cpm" && echo "ok   ROM: Option Library ROM (cpcfw; refused on cpm)" || { echo "FAIL ROM: Option Library ROM"; fail=1; }
+# JS flavour (a flavour preprocessor: JS -> VB5 text -> the one parser): a JS program, a VB main
+# with a JS class and module, a JS main with a JS class (#asm, Turbo), on the platforms, both modes;
+# the translation itself (JS in, VB5 text out); the refused forms (one message each, the JS line)
+rm -rf t/jsf; mkdir -p t/jsf; cp jsf/* t/jsf/
+for pl in test cpc cpcfw cpm; do for m in --turbo ""; do
+  o=$(timeout 100 python3 ntcrun.py t/jsf/demo.js '' --platform=$pl $m 2>&1 | grep -v "^--- ")
+  if [ "$o" == "$(cat ref/jsf_demo.txt)" ]; then echo "ok   JS: demo $pl ${m:-normal}"; else echo "FAIL JS: demo $pl ${m:-normal}"; echo "$o" | head -5; fail=1; fi
+  o=$(timeout 100 python3 ntcrun.py t/jsf/Mixed.bas '' t/jsf/Counter.js t/jsf/Util.js --platform=$pl $m 2>&1 | grep -v "^--- ")
+  if [ "$o" == "$(cat ref/jsf_mixed.txt)" ]; then echo "ok   JS: VB main, JS class $pl ${m:-normal}"; else echo "FAIL JS: VB main, JS class $pl ${m:-normal}"; echo "$o" | head -5; fail=1; fi
+  o=$(timeout 100 python3 ntcrun.py t/jsf/m2.js '' t/jsf/Counter.js --platform=$pl $m 2>&1 | grep -v "^--- ")
+  if [ "$o" == "$(cat ref/jsf_m2.txt)" ]; then echo "ok   JS: JS main, class, #asm $pl ${m:-normal}"; else echo "FAIL JS: JS main, class, #asm $pl ${m:-normal}"; echo "$o" | head -5; fail=1; fi
+done; done
+o=$(node cli.js t/jsf/demo.js --platform=test --vb 2>&1)
+if [ "$o" == "$(cat ref/jsf_demo_vb.txt)" ]; then echo "ok   JS: translation"; else echo "FAIL JS: translation"; diff <(echo "$o") ref/jsf_demo_vb.txt | head -5; fail=1; fi
+o=$( (node cli.js t/jsf/bad.js --platform=test; node cli.js t/jsf/arrow.js --platform=test) 2>&1 >/dev/null | sed 's/^ERR [^:]*:/ERR X:/')
+if [ "$o" == "$(cat ref/jsf_bad.txt)" ]; then echo "ok   JS: refused forms"; else echo "FAIL JS: refused forms"; echo "$o" | head -5; fail=1; fi
+# Locomotive BASIC flavour (the CPC's BASIC -> VB5 text): a type-in style listing (DATA / READ /
+# RESTORE, DEF FN, SWAP, a / a% / a$, MID$ on the left, ON GOSUB, line number targets) on the
+# platforms, both modes - with its warnings (the lines NTC can't do are left out); the translation
+rm -rf t/loc; mkdir -p t/loc; cp loc/* t/loc/
+for pl in test cpc cpcmin cpcfw cpm; do for m in --turbo ""; do
+  o=$(timeout 100 python3 ntcrun.py t/loc/classic.loc '' --platform=$pl $m 2>&1 | grep -v "^--- ")
+  if [ "$o" == "$(cat ref/loc_classic.txt)" ]; then echo "ok   Locomotive: classic $pl ${m:-normal}"; else echo "FAIL Locomotive: classic $pl ${m:-normal}"; echo "$o" | head -5; fail=1; fi
+done; done
+# Locomotive files and keys: OPENOUT / PRINT #9 / CLOSEOUT, OPENIN / LINE INPUT #9 / EOF, INKEY(n), JOY(n)
+for pl in cpcfw cpcmin; do for m in --turbo ""; do
+  rm -rf t/files
+  o=$(timeout 100 python3 ntcrun.py t/loc/files.loc '{47}~~{76}' --platform=$pl $m 2>&1 | grep -v "^--- ")
+  if [ "$o" == "$(cat ref/loc_files.txt)" ]; then echo "ok   Locomotive: files and keys $pl ${m:-normal}"; else echo "FAIL Locomotive: files and keys $pl ${m:-normal}"; echo "$o" | head -5; fail=1; fi
+done; done
+o=$(node cli.js t/loc/classic.loc --platform=test --vb 2>/dev/null)
+if [ "$o" == "$(cat ref/loc_classic_vb.txt)" ]; then echo "ok   Locomotive: translation"; else echo "FAIL Locomotive: translation"; diff <(echo "$o") ref/loc_classic_vb.txt | head -5; fail=1; fi
 # Option NoTurbo: one copy of everything (normal mode), Turbo On / Off do nothing; still runs
 (echo "Option NoTurbo"; cat $P/shellsort.bas) > t/ssn.bas; cp $P/shellsort.bas t/ss.bas
 node cli.js t/ss.bas > t/ss.asm 2>/dev/null; node cli.js t/ssn.bas > t/ssn.asm 2> t/ssn.err
@@ -352,7 +431,7 @@ node cli.js t/stk2.bas --platform=cpm > t/stk2.asm && (cd t && $SJ --nologo --ms
 # the Small C sieve (compare/smallc) runs on the CP/M host and finds 1007 primes
 o=$(timeout 200 python3 -c "import ntcrun; h = ntcrun.Host('cpm', open('t/bc/cpm/SIEVEC.COM', 'rb').read(), 0x100, 'xx'); h.run(); print(h.scr.text()); print('--- halted' if h.m.halted else '--- NOT halted')" 2>&1)
 check "Small C sieve cpm" "^01007" "$o"
-for f in ../js/ntc_parser.js ../js/ntc_compiler.js ../js/ntc_gui.js ../js/ntc_lib.js ../js/ntc_examples.js; do
+for f in ../js/ntc_parser.js ../js/ntc_compiler.js ../js/ntc_flavour_js.js ../js/ntc_flavour_loco.js ../js/ntc_gui.js ../js/ntc_lib.js ../js/ntc_examples.js; do
   node -e "require('acorn').parse(require('fs').readFileSync('$f','utf8'),{ecmaVersion:5})" || { echo "FAIL ES5 $f"; fail=1; }
 done
 echo "ES5 checked"

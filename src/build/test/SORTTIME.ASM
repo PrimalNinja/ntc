@@ -9,7 +9,7 @@ NTC_TERM	equ 0		; Option Terminal: 0 none, 1 VT52, 2 ANSI (CP/M)
 NTC_STRMAX	equ 40		; the longest string (library buffers, temps)
 NTC_MEMBANKS	equ 64		; Option Memory: the most 64K banks the Memory class looks for
 NTC_ROMENABLE	equ 0		; Option RomEnable (cpcfw, cpcmin): the start code starts the ROMs
-NTC_ROMLIB	equ 0		; 1 only when the library itself is built as a ROM (ntcRomAsm)
+NTC_ROMLIB	equ 0		; 1 = the library is the keyword ROM (Library: ROM; ntcRomAsm builds it)
 
 ntc_start:
 			di
@@ -2368,11 +2368,16 @@ mem_ramsize:
 mem_model:
 mem_curpage:
 mem_allocpage:
+mem_bankcount:
+mem_allocbank:
+mem_bkstub:
 			ld hl, 0
 			ret
 mem_pagetype:
 mem_freepage:
 mem_selpage:
+mem_freebank:
+mem_callbank:
 			jp mem_chk_bad
 mem_tableend:
 			ld hl, ntc_free

@@ -316,6 +316,14 @@
 308	code	ntc_plat_irqon
 309	code	ntc_plat_exit
 310	code	ntc_plat_memtop
+311	code	mem_bankcount
+312	code	mem_allocbank
+313	code	mem_bkstub
+314	code	mem_freebank
+315	code	mem_callbank
+316	code	ntc_kdown
+317	code	ntc_kjoy
+318	code	ntc_plat_rmr
 -	data	ntc_csp	#8800
 -	data	ntc_ip	#8802
 -	data	ntc_ticks	#8804
@@ -348,15 +356,16 @@
 -	data	gfx_sp	#888E
 -	data	ntc_isln	#8890
 -	data	ntc_isldue	#8891
+-	data	ntc_islshn	#8898
 -	bss	ntc_isl	#9786
--	data	ntc_curx	#8895
--	data	ntc_cury	#8896
--	data	ntc_smode	#8897
--	data	ntc_scols	#889A
--	data	ntc_irqv	#88B2
--	data	ntc_v_free	#88C1
--	data	ntc_v_start	#88C3
--	data	ntc_v_stamp	#88C5
--	data	ntc_v_romen	#88C7
--	data	ntc_v_rom	#88C8
--	data	ntc_v_romold	#88C9
+-	data	ntc_curx	#8899
+-	data	ntc_cury	#889A
+-	data	ntc_smode	#889B
+-	data	ntc_scols	#889E
+-	data	ntc_irqv	#88B6
+-	data	ntc_v_free	#88C5
+-	data	ntc_v_start	#88C7
+-	data	ntc_v_stamp	#88C9
+-	data	ntc_v_romen	#88CB
+-	data	ntc_v_rom	#88CC
+-	data	ntc_v_romold	#88CD

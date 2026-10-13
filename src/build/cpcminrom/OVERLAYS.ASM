@@ -10,7 +10,7 @@ NTC_TERM	equ 0		; Option Terminal: 0 none, 1 VT52, 2 ANSI (CP/M)
 NTC_STRMAX	equ 255		; the longest string (library buffers, temps)
 NTC_MEMBANKS	equ 64		; Option Memory: the most 64K banks the Memory class looks for
 NTC_ROMENABLE	equ 1		; Option RomEnable (cpcfw, cpcmin): the start code starts the ROMs
-NTC_ROMLIB	equ 0		; 1 only when the library itself is built as a ROM (ntcRomAsm)
+NTC_ROMLIB	equ 1		; 1 = the library is the keyword ROM (Library: ROM; ntcRomAsm builds it)
 
 ntc_start:
 			di
@@ -369,42 +369,42 @@ fn_level2_localsize:		; function localsize (asm keyword), Level2.cls line 54
 			ld (hl), d		; Level2.cls 59
 			ret			; end of #asm
 
-fn_memory_pages:		; function pages (asm keyword), Memory.cls line 68
-            pop hl		; Memory.cls 69
-            ld (mem_res), hl		; Memory.cls 70
-            ld hl, mem_pages		; Memory.cls 71
-            jp mem_go		; Memory.cls 72
+fn_memory_pages:		; function pages (asm keyword), Memory.cls line 70
+            pop hl		; Memory.cls 71
+            ld (mem_res), hl		; Memory.cls 72
+            ld hl, mem_pages		; Memory.cls 73
+            jp mem_go		; Memory.cls 74
 			ret			; end of #asm
 
-fn_memory_ramsize:		; function ramsize (asm keyword), Memory.cls line 88
-            pop hl		; Memory.cls 89
-            ld (mem_res), hl		; Memory.cls 90
-            ld hl, mem_ramsize		; Memory.cls 91
-            jp mem_go		; Memory.cls 92
+fn_memory_ramsize:		; function ramsize (asm keyword), Memory.cls line 90
+            pop hl		; Memory.cls 91
+            ld (mem_res), hl		; Memory.cls 92
+            ld hl, mem_ramsize		; Memory.cls 93
+            jp mem_go		; Memory.cls 94
 			ret			; end of #asm
 
-fn_memory_map:		; function map (asm keyword), Memory.cls line 194
-            pop hl		; Memory.cls 195
-            ld e, (hl)		; Memory.cls 196
-            inc hl		; Memory.cls 197
-            ld d, (hl)		; Memory.cls 198
-            ld (mem_a1), de		; Memory.cls 199
-            pop hl		; Memory.cls 200
-            ld e, (hl)		; Memory.cls 201
-            inc hl		; Memory.cls 202
-            ld d, (hl)		; Memory.cls 203
-            ld (mem_a2), de		; Memory.cls 204
-            pop hl		; Memory.cls 205
-            ld (mem_res), hl		; Memory.cls 206
-            ld hl, mem_map		; Memory.cls 207
-            jp mem_go0		; Memory.cls 208
+fn_memory_map:		; function map (asm keyword), Memory.cls line 196
+            pop hl		; Memory.cls 197
+            ld e, (hl)		; Memory.cls 198
+            inc hl		; Memory.cls 199
+            ld d, (hl)		; Memory.cls 200
+            ld (mem_a1), de		; Memory.cls 201
+            pop hl		; Memory.cls 202
+            ld e, (hl)		; Memory.cls 203
+            inc hl		; Memory.cls 204
+            ld d, (hl)		; Memory.cls 205
+            ld (mem_a2), de		; Memory.cls 206
+            pop hl		; Memory.cls 207
+            ld (mem_res), hl		; Memory.cls 208
+            ld hl, mem_map		; Memory.cls 209
+            jp mem_go0		; Memory.cls 210
 			ret			; end of #asm
 
-fn_memory_largest:		; function largest (asm keyword), Memory.cls line 303
-            pop hl		; Memory.cls 304
-            ld (mem_res), hl		; Memory.cls 305
-            ld hl, mem_largest		; Memory.cls 306
-            jp mem_go		; Memory.cls 307
+fn_memory_largest:		; function largest (asm keyword), Memory.cls line 305
+            pop hl		; Memory.cls 306
+            ld (mem_res), hl		; Memory.cls 307
+            ld hl, mem_largest		; Memory.cls 308
+            jp mem_go		; Memory.cls 309
 			ret			; end of #asm
 
 
@@ -541,11 +541,11 @@ mem_res	equ #8855		; ROM data
 ntc_csp	equ #8800		; ROM data
 ntc_font	equ #948E		; ROM bss
 ntc_nmode	equ #8807		; ROM data
-ntc_v_free	equ #897F		; ROM data
-ntc_v_romen	equ #8985		; ROM data
-ntc_v_romold	equ #8987		; ROM data
-ntc_v_stamp	equ #8983		; ROM data
-ntc_v_start	equ #8981		; ROM data
+ntc_v_free	equ #8984		; ROM data
+ntc_v_romen	equ #898A		; ROM data
+ntc_v_romold	equ #898C		; ROM data
+ntc_v_stamp	equ #8988		; ROM data
+ntc_v_start	equ #8986		; ROM data
 ovl_kres	equ #888D		; ROM data
 			ASSERT ntc_free <= #8800, "Library: ROM - the program and its arrays must end below #8800 (the ROM's RAM)"
 
@@ -787,4 +787,4 @@ ovl_level2_vsize	equ 0		; its page variables; its local memory is the rest, to #
 			DISPLAY "  page variables ", /D, ovl_level2_vsize, ", free ", /D, #8000 - (ovl_level2_end + ovl_level2_vsize)
 			SAVEAMSDOS "OVERLAYS.002", ovl_level2_start, ovl_level2_end - ovl_level2_start, #4000
 
-NTC_STAMP	equ #9CD3		; the build stamp: the first word of every page file
+NTC_STAMP	equ #2B1A		; the build stamp: the first word of every page file

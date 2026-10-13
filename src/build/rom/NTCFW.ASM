@@ -8,11 +8,12 @@ NTC_ROMDATA	equ #8800		; its initialised variables (and RAM code), copied by ntc
 NTC_ROMBSS	equ #9400		; its other variables, cleared
 NTC_STRMAX	equ 255			; strings up to 255 characters (programs built for the ROM use 255)
 NTC_MEMBANKS	equ 64			; the Memory class: up to 4MB
-NTC_ROM_N	equ 329			; numbers in the index
+NTC_ROM_N	equ 346			; numbers in the index
 MEM_WIN		equ #4000
 MEM_BADPAGE	equ -2
 MEM_BANKS	equ NTC_MEMBANKS	; 0 - 64
-MEM_LISTS	equ 6
+MEM_LISTS	equ 7
+MEM_LB		equ 6			; the whole-bank list
 OVL_NOPAGE	equ -12
 OVL_STALE	equ -14			; a page file from another build of the program (its stamp differs)
 LST_FIRST	equ 0
@@ -33,6 +34,11 @@ FS_TOOBIG	equ -8
 FS_FAILED	equ -9
 FS_BADNAME	equ -4
 fs_buf			equ ntc_buf		; the 2K buffer CAS IN OPEN / CAS OUT OPEN want (shared with Memory.Copy)
+FS_NOHANDLE	equ -5
+FS_BADHANDLE	equ -6
+FS_EOFST	equ -7
+FS_BADMODE	equ -11
+FS_NOTSUP	equ -1
 			OUTPUT "NTCFW.ROM"
 			ORG #C000 - 128		; an AMSDOS header (WinAPE and ROM tools take it): binary, #C000, 16K
 			db 0, "NTCFW   ", "ROM"	; user 0, the file name
@@ -456,6 +462,23 @@ ntc_rom_index:
 			dw ntc_plat_memtop		; 326
 			dw gfx_begin		; 327
 			dw gfx_end		; 328
+			dw mem_bankcount		; 329
+			dw mem_allocbank		; 330
+			dw mem_bkstub		; 331
+			dw mem_freebank		; 332
+			dw mem_callbank		; 333
+			dw ntc_kdown		; 334
+			dw ntc_kjoy		; 335
+			dw fs_open		; 336
+			dw fs_closeh		; 337
+			dw fs_readb		; 338
+			dw fs_writeb		; 339
+			dw fs_read		; 340
+			dw fs_write		; 341
+			dw fs_eof		; 342
+			dw fs_readln		; 343
+			dw fs_writeln		; 344
+			dw ntc_plat_rmr		; 345
 ; ---- the library (code)
 ;## ntc_data @shared
 ntc_next:		ret				; IX target that continues the thread
@@ -5839,7 +5862,7 @@ mem_putback:
 			call mem_sel
 			pop hl
 			ret
-;## ntc_mem ntc_memcore @shared
+;## ntc_mem ntc_memcore ntc_membank @shared
 mem_start:
 			ld a, (mem_init)
 			or a
@@ -6254,7 +6277,7 @@ mem_listof:
 			ld a, (hl)
 			push bc
 			ld hl, mem_kinds + 2
-			ld b, 4
+			ld b, 5
 			ld c, 2
 mem_lo_lp:
 			cp (hl)
@@ -6464,6 +6487,163 @@ mem_curpage:
 			ret z
 			ld hl, (mem_cur)
 			ret
+mem_bankcount:
+			ld hl, (mem_count)
+			ld a, h
+			or l
+			ret z
+			dec hl
+			srl h
+			rr l
+			srl h
+			rr l
+			ret
+mem_bkfirst:
+			call mem_bankcount
+			ld de, (mem_a1)
+			ld a, d
+			or e
+			jp z, mem_chk_bad
+			or a
+			sbc hl, de
+			jp c, mem_chk_bad
+			ex de, hl
+			dec hl
+			add hl, hl
+			add hl, hl
+			inc hl
+			inc hl
+			ld b, h
+			ld c, l
+			ret
+mem_allocbank:
+			call mem_bankcount
+			ld a, l
+			or a
+			jr z, mem_ab_none
+			ld (mem_tl), a			; banks left to try
+			ld bc, 2
+mem_ab_lp:
+			push bc
+			ld d, 4
+mem_ab_chk:
+			call mem_listof
+			cp 2
+			jr nc, mem_ab_used
+			inc bc
+			dec d
+			jr nz, mem_ab_chk
+			pop bc					; all 4 free: onto the bank list
+			push bc
+			ld d, 4
+mem_ab_take:
+			call mem_listof
+			call mem_remove
+			ld a, MEM_LB
+			call mem_push
+			inc bc
+			dec d
+			jr nz, mem_ab_take
+			pop hl					; bank = (first page + 2) / 4
+			inc hl
+			inc hl
+			srl h
+			rr l
+			srl h
+			rr l
+			ret
+mem_ab_used:
+			pop bc
+			ld hl, 4
+			add hl, bc
+			ld b, h
+			ld c, l
+			ld a, (mem_tl)
+			dec a
+			ld (mem_tl), a
+			jr nz, mem_ab_lp
+mem_ab_none:
+			ld hl, 0
+			ret
+mem_bkstub:
+			ld hl, ntc_bk_stub
+			ret
+mem_freebank:
+			call mem_bkfirst
+			push bc
+			ld d, 4
+mem_fb_chk:
+			call mem_listof
+			cp MEM_LB
+			jp nz, mem_chk_bad
+			inc bc
+			dec d
+			jr nz, mem_fb_chk
+			pop bc
+			ld d, 4
+mem_fb_lp:
+			ld a, MEM_LB
+			call mem_remove
+			call mem_tofree
+			inc bc
+			dec d
+			jr nz, mem_fb_lp
+			ld hl, 0
+			ret
+mem_callbank:
+			call mem_bkfirst
+			call mem_listof
+			cp MEM_LB
+			jp nz, mem_chk_bad
+			ld hl, ntc_bk_stub		; copy the switch code into the bank
+mem_cb_cp:
+			push bc
+			ld a, h					; its page in the bank: address / #4000
+			rlca
+			rlca
+			and 3
+			add a, c
+			ld c, a
+			jr nc, mem_cb_nc
+			inc b
+mem_cb_nc:
+			push hl
+			ld h, b
+			ld l, c
+			call mem_sel
+			pop hl
+			ld b, (hl)
+			ld a, h
+			and #3F
+			or #40
+			ld d, a
+			ld e, l
+			ld a, b
+			ld (de), a
+			pop bc
+			inc hl
+			ld a, l
+			cp low ntc_bk_end
+			jr nz, mem_cb_cp
+			ld a, h
+			cp high ntc_bk_end
+			jr nz, mem_cb_cp
+			ld hl, (mem_keep)
+			call mem_sel
+			ld hl, (mem_a1)			; BC = C2 for the bank: its page 0 setting
+			dec hl					; (#C4 + bank bits) and #F8, or 2
+			add hl, hl
+			ld de, mem_bank
+			add hl, de
+			ld a, (hl)
+			and #F8
+			or 2
+			ld c, a
+			inc hl
+			ld b, (hl)
+			ld de, (mem_a2)
+			ld hl, (mem_a3)
+			jp ntc_bk_go
 mem_alloc:
 			ld hl, (mem_count)
 			ld a, h
@@ -6621,6 +6801,94 @@ mem_lg_end:
 			ret z
 			dec hl
 			dec hl
+			ret
+;## ntc_keys ntc_data @shared
+ntc_kdown:
+			ld a, h
+			or a
+			jr nz, ntc_kd_no
+			ld a, l
+			cp 80
+			jr nc, ntc_kd_no
+			ld (ntc_karg), a
+			xor a
+			jr ntc_kscan
+ntc_kjoy:
+			ld a, l
+			and 1
+			ld (ntc_karg), a
+			ld a, 1
+ntc_kscan:
+			ld (ntc_kwhat), a
+			ld bc, #F40E		; PSG register 14
+			out (c), c
+			ld bc, #F6C0		; PSG: select register
+			out (c), c
+			ld bc, #F600		; PSG: inactive
+			out (c), c
+			ld bc, #F792		; PPI port A input
+			out (c), c
+			ld hl, ntc_kmat
+			ld a, #40			; PSG read + line 0
+ntc_ksc_line:
+			ld b, #F6
+			out (c), a
+			ld b, #F4
+			in d, (c)
+			ld (hl), d
+			inc hl
+			inc a
+			cp #4A
+			jr nz, ntc_ksc_line
+			ld bc, #F782		; PPI port A output
+			out (c), c
+			ld bc, #F600
+			out (c), c
+			ld a, (ntc_kwhat)
+			or a
+			jr nz, ntc_kj_got
+			ld a, (ntc_karg)	; line = n / 8, bit = n and 7
+			ld c, a
+			rrca
+			rrca
+			rrca
+			and 31
+			ld e, a
+			ld d, 0
+			ld hl, ntc_kmat
+			add hl, de
+			ld a, c
+			and 7
+			ld b, a
+			inc b
+			ld a, (hl)
+ntc_kd_rot:
+			rrca
+			djnz ntc_kd_rot
+			ld de, 0
+			jr c, ntc_k_set		; 1 = not pressed
+			dec de
+			jr ntc_k_set
+ntc_kd_no:
+			ld de, 0
+			jr ntc_k_set
+ntc_kj_got:
+			ld a, (ntc_karg)	; joystick 0 = line 9, 1 = line 6
+			ld hl, ntc_kmat + 9
+			or a
+			jr z, ntc_kj_line
+			ld hl, ntc_kmat + 6
+ntc_kj_line:
+			ld a, (hl)
+			cpl
+			and #3F
+			ld e, a
+			ld d, 0
+ntc_k_set:
+			pop hl
+			ld (hl), e
+			inc hl
+			ld (hl), d
 			ret
 ;## ntc_memcopy ntc_mem ntc_buf2k @shared
 mem_copy:
@@ -7197,19 +7465,25 @@ ntc_it_ph2:
 			inc a
 ntc_it_fr:
 			ld (ntc_islfr), a
+			xor a
+			ld (ntc_islfx), a
 			ld a, (ntc_isln)
 			or a
-			jr z, ntc_it_end
+			jp z, ntc_it_end
 			ld b, a
 			ld hl, ntc_isl
 ntc_it_lp:
 			push hl
 			inc hl
 			inc hl
-			ld a, (hl)
+			ld e, (hl)
 			inc hl
-			or (hl)
+			ld d, (hl)
 			pop hl
+			bit 7, d				; a shared class: the turns below mark it
+			jr nz, ntc_it_nx
+			ld a, d
+			or e
 			jr nz, ntc_it_rate
 			ld a, (ntc_islfr)		; every frame: when the sync starts
 			or a
@@ -7245,10 +7519,55 @@ ntc_it_due:
 			pop hl
 			ld a, 1
 			ld (ntc_isldue), a
+			ld (ntc_islfx), a
 ntc_it_nx:
 			ld de, 8
 			add hl, de
 			djnz ntc_it_lp
+			ld a, (ntc_islfx)
+			or a
+			jp nz, ntc_it_end
+			ld a, (ntc_islshn)
+			or a
+			jp z, ntc_it_end
+			ld a, (ntc_islsw)
+			or a
+			jr nz, ntc_it_take
+			ld a, (ntc_islsc)		; its turns are used: the next shared class
+ntc_it_find:
+			inc a
+			ld hl, ntc_isln
+			cp (hl)
+			jr c, ntc_it_fi2
+			xor a
+ntc_it_fi2:
+			ld l, a
+			ld h, 0
+			add hl, hl
+			add hl, hl
+			add hl, hl
+			ld de, ntc_isl + 2
+			add hl, de
+			ld e, (hl)				; E = the weight
+			inc hl
+			bit 7, (hl)
+			jr z, ntc_it_find		; not shared (there is one: ntc_islshn)
+			ld (ntc_islsc), a
+			ld a, e
+ntc_it_take:
+			dec a
+			ld (ntc_islsw), a
+			ld a, (ntc_islsc)
+			ld l, a
+			ld h, 0
+			add hl, hl
+			add hl, hl
+			add hl, hl
+			ld de, ntc_isl + 5
+			add hl, de
+			ld (hl), 1				; due
+			ld a, 1
+			ld (ntc_isldue), a
 ntc_it_end:
 			pop de
 			pop bc
@@ -8721,6 +9040,10 @@ fs_nm_end:
 			ret
 fs_load:
 			call fs_start
+			ld a, (fs_hmode)	; the buffer is the open file's
+			or a
+			ld hl, FS_FAILED
+			jp nz, fs_err
 			call fs_name
 			ld de, fs_buf
 			call #BC77			; CAS IN OPEN: BC = length, carry = ok
@@ -8752,6 +9075,10 @@ fs_ld_read:
 			ret
 fs_save:
 			call fs_start
+			ld a, (fs_hmode)	; the buffer is the open file's
+			or a
+			ld hl, FS_FAILED
+			jp nz, fs_err
 			call fs_name
 			ld de, fs_buf
 			call #BC8C			; CAS OUT OPEN
@@ -8775,9 +9102,239 @@ fs_sv_done:
 			call fs_namevol
 			ld hl, 0
 			ret
+;## ntc_plat_fsseq ntc_plat_fs @shared
+fs_open:
+			call fs_start
+			ld a, (fs_hmode)
+			or a
+			ld hl, FS_NOHANDLE
+			ret nz
+			ld hl, (fs_a2)
+			ld a, h
+			or a
+			jr nz, fs_op_bad
+			ld a, l
+			cp 3
+			ld hl, FS_NOTSUP
+			ret z
+			jr nc, fs_op_bad
+			cp 1
+			jr c, fs_op_bad
+			jr nz, fs_op_out
+			call fs_name
+			ld de, fs_buf
+			call #BC77			; CAS IN OPEN
+			ld hl, FS_NOTFOUND
+			ret nc
+			ld a, 1
+			jr fs_op_ok
+fs_op_out:
+			call fs_name
+			ld de, fs_buf
+			call #BC8C			; CAS OUT OPEN
+			ld hl, FS_FAILED
+			ret nc
+			ld a, 2
+fs_op_ok:
+			ld (fs_hmode), a
+			ld hl, 1
+			ret
+fs_op_bad:
+			ld hl, FS_BADMODE
+			ret
+fs_hchk:
+			ld hl, (fs_a1)
+			dec hl
+			ld b, a
+			ld a, h
+			or l
+			jr nz, fs_hc_bad
+			ld a, (fs_hmode)
+			cp b
+			ret z
+fs_hc_bad:
+			ld hl, FS_BADHANDLE
+			jp fs_err
+fs_closeh:
+			ld hl, (fs_a1)
+			dec hl
+			ld a, h
+			or l
+			jr nz, fs_hc_bad
+			ld a, (fs_hmode)
+			or a
+			jr z, fs_hc_bad
+			ld b, a
+			xor a
+			ld (fs_hmode), a
+			ld a, b
+			cp 1
+			jr nz, fs_cl_out
+			call #BC7A			; CAS IN CLOSE
+			jr fs_cl_ok
+fs_cl_out:
+			call #BC8F			; CAS OUT CLOSE
+			ld hl, FS_FAILED
+			ret nc
+fs_cl_ok:
+			call fs_namevol
+			ld hl, 0
+			ret
+fs_readb:
+			ld a, 1
+			call fs_hchk
+			call #BC80			; CAS IN CHAR
+			ld hl, FS_EOFST
+			ret nc
+			ld l, a
+			ld h, 0
+			ret
+fs_writeb:
+			ld a, 2
+			call fs_hchk
+			ld a, (fs_a2)
+			call #BC95			; CAS OUT CHAR
+			ld hl, FS_FAILED
+			ret nc
+			ld hl, 0
+			ret
+fs_read:
+			ld a, 1
+			call fs_hchk
+			ld hl, (fs_a2)
+			ld de, (fs_a3)
+			ld bc, 0
+fs_rd_lp:
+			ld a, d
+			or e
+			jr z, fs_rd_end
+			bit 7, d
+			jr nz, fs_rd_end
+			push hl
+			push de
+			push bc
+			call #BC80			; CAS IN CHAR
+			pop bc
+			pop de
+			pop hl
+			jr nc, fs_rd_end
+			ld (hl), a
+			inc hl
+			inc bc
+			dec de
+			jr fs_rd_lp
+fs_rd_end:
+			ld h, b
+			ld l, c
+			ret
+fs_write:
+			ld a, 2
+			call fs_hchk
+			ld hl, (fs_a2)
+			ld de, (fs_a3)
+fs_wr_lp:
+			ld a, d
+			or e
+			jr z, fs_wr_end
+			bit 7, d
+			jr nz, fs_wr_end
+			ld a, (hl)
+			push hl
+			push de
+			call #BC95			; CAS OUT CHAR
+			pop de
+			pop hl
+			jr nc, fs_wr_fail
+			inc hl
+			dec de
+			jr fs_wr_lp
+fs_wr_end:
+			ld hl, (fs_a3)
+			ret
+fs_wr_fail:
+			ld hl, FS_FAILED
+			ret
+fs_eof:
+			ld hl, (fs_a1)
+			dec hl
+			ld a, h
+			or l
+			jr nz, fs_ef_yes
+			ld a, (fs_hmode)
+			cp 1
+			jr nz, fs_ef_yes
+			call #BC89			; CAS TEST EOF: carry = more to read
+			ld hl, 0
+			ret c
+fs_ef_yes:
+			ld hl, -1
+			ret
+fs_readln:
+			ld hl, (fs_res)
+			ld (hl), 0
+			dec hl
+			ld a, (hl)
+			ld (fs_cap), a			; the result's capacity
+			inc hl
+			ld (fs_ptr), hl
+			xor a
+			ld (fs_cnt), a
+			ld a, 1
+			call fs_hchk
+fs_rl_lp:
+			call #BC80			; CAS IN CHAR
+			jr nc, fs_rl_end
+			cp 10
+			jr z, fs_rl_end
+			cp 13
+			jr z, fs_rl_lp
+			ld c, a
+			ld a, (fs_cap)
+			ld hl, fs_cnt
+			cp (hl)
+			jr z, fs_rl_lp			; full: the rest of the line is dropped
+			inc (hl)
+			ld hl, (fs_ptr)
+			ld (hl), c
+			inc hl
+			ld (fs_ptr), hl
+			jr fs_rl_lp
+fs_rl_end:
+			ld hl, (fs_ptr)
+			ld (hl), 0
+			ret
+fs_writeln:
+			ld a, 2
+			call fs_hchk
+			ld hl, (fs_a2)
+fs_wl_lp:
+			ld a, (hl)
+			or a
+			jr z, fs_wl_end
+			push hl
+			call #BC95			; CAS OUT CHAR
+			pop hl
+			jp nc, fs_wr_fail
+			inc hl
+			jr fs_wl_lp
+fs_wl_end:
+			ld a, 13
+			call #BC95
+			jp nc, fs_wr_fail
+			ld a, 10
+			call #BC95
+			jp nc, fs_wr_fail
+			ld hl, 0
+			ret
 ;## ntc_plat_memtop ntc_plat_data
 ntc_plat_memtop:
 			ld hl, (ntc_fwtop)
+			ret
+;## ntc_plat_rmr ntc_plat_data
+ntc_plat_rmr:
+			exx
+			ld a, c
+			exx
 			ret
 ; ---- initialised variables and the code that runs from RAM: assembled for NTC_ROMDATA, copied there
 ntc_rom_img:
@@ -8874,6 +9431,10 @@ ntc_isldue:		db 0			; 1 = a slot may be due
 ntc_islvs:		db 0			; vertical sync at the last interrupt
 ntc_islfr:		db 0			; 1 = this interrupt is the frame's (sync just started)
 ntc_islph:		db 0			; interrupts since the frame's (0-5)
+ntc_islfx:		db 0			; 1 = a fixed class fell due in this interrupt
+ntc_islsc:		db 0			; the shared class having its turns (slot number)
+ntc_islsw:		db 0			; turns it has left
+ntc_islshn:		db 0			; shared classes (0 = none)
 ntc_curx:		db 0			; cursor column (0 based) - kept here for Tab
 ntc_cury:		db 0			; cursor row (0 based)
 ntc_scols:		db 40			; columns in this mode
@@ -8893,6 +9454,7 @@ fs_six:			dw 0
 fs_siy:			dw 0
 fs_len:			dw 0
 fs_nostore:		db 0
+fs_hmode:		db 0			; 0 no file open, 1 reading, 2 writing (Open)
 fs_init:		db 0			; 1 = checked: is AMSDOS running?
 fs_dos:			db 0			; 1 = a DOS is there (|DISC found)
 fs_devd:		db 0			; the device in use: 0 tape, 1 disc
@@ -8975,7 +9537,11 @@ mem_ttype:		dw 0			; types (1 byte a page)
 mem_tend:		dw 0			; the first byte after them
 mem_banks:		db 0			; 64K banks found
 mem_tl:			db 0
-mem_kinds:		db "--CDIU"		; the type character of each list
+mem_kinds:		db "--CDIUB"		; the type character of each list
+mem_bksp:		dw 0			; CallBank: the real stack while bank code runs
+mem_bkrmr:		db 0			; and the ROM / mode byte to put back
+ntc_karg:		db 0
+ntc_kwhat:		db 0
 ntc_bsa:		dw 0
 ntc_bsz:		dw 0
 ntc_bsp:		dw 0
@@ -8992,7 +9558,45 @@ ntc_fwtop:		dw NTC_ROMDATA		; the top of free RAM (#A5F0 with the fast ticker's 
 ntc_pclink:		dw 0
 ntc_kslink:		dw 0
 fs_n_a1:		db "A", 0
+fs_ptr:			dw 0
+fs_cnt:			db 0
+fs_cap:			db 0
 ; ---- code that runs from RAM (addresses may change between ROMs: programs reach it through their jump block)
+;## ntc_membank ntc_plat_rmr @shared @romram  (ROM: runs from RAM)
+ntc_bk_go:
+			ld a, i					; P/V = interrupts were on
+			di
+			push af
+			ld (mem_bksp), sp
+			call ntc_plat_rmr
+			ld (mem_bkrmr), a
+			or #0C					; both ROMs off
+			push bc
+			ld b, #7F
+			out (c), a
+			pop bc
+ntc_bk_stub:
+			out (c), c				; the bank is all 64K now
+			ld sp, 0
+			ld bc, ntc_bk_ret
+			push bc
+			push de
+			ret						; to the bank's code, HL = value
+ntc_bk_ret:
+			ld bc, #7FC0
+			out (c), c				; main RAM again
+ntc_bk_end:
+			ld sp, (mem_bksp)
+			ld a, (mem_bkrmr)
+			ld b, #7F
+			out (c), a				; the ROMs as they were
+			ld bc, (ntc_rampt)
+			out (c), c				; and the window's page
+			pop af
+			jp po, ntc_bk_di
+			ei
+ntc_bk_di:
+			ret
 ;## ntc_gfx ntc_data ntc_plat_data @shared  (ROM: runs from RAM)
 gfx_begin:
 			call ntc_urom_off	; (ROM: the upper ROM hides the screen)
@@ -9546,7 +10150,7 @@ ntc_numbuf:		ds 14			; printint / long print: digits (+ spaces for Option VBPrin
 ntc_gstack:		ds 128
 ntc_gstack_top:
 ntc_font:		ds 95 * 8
-ntc_isl:		ds 32
+ntc_isl:		ds 128			; 16 slots
 fs_vol:			ds 9			; the volume in use ("" = not known)
 fs_vols:		ds 145			; the volumes that worked, "A,C,M" (up to 16 of up to 8 letters)
 fs_tmpn:		ds 9			; a volume name, capitals
@@ -9563,6 +10167,7 @@ mem_head:		ds MEM_LISTS * 2	; each list's first page
 mem_cnt:		ds MEM_LISTS * 2	; and how many (must follow mem_head)
 mem_bank:		ds MEM_BANKS * 2 + 1	; per bank found: setting for its page 0, port high byte
 mem_save:		ds MEM_BANKS + 1	; probe: the bytes the markers replace
+ntc_kmat:		ds 10			; the matrix (0 = pressed)
 lst_h:			ds 4			; the list's header
 lst_n:			ds 4			; nodes, far pointers (address, page)
 lst_m:			ds 4
@@ -9573,55 +10178,56 @@ lst_s1:			ds 4
 lst_s2:			ds 4
 ntc_rom_bssend:
 			ASSERT ntc_rom_bssend <= #A5F0, "the ROM's variables reach #A5F0"
-			ASSERT ntc_csp == #8800, "ntc_csp moved: variables and constants keep their place (a new size or value needs a new name)"
-			ASSERT ntc_ip == #8802, "ntc_ip moved: variables and constants keep their place (a new size or value needs a new name)"
-			ASSERT ntc_ticks == #8804, "ntc_ticks moved: variables and constants keep their place (a new size or value needs a new name)"
-			ASSERT ntc_nmode == #8807, "ntc_nmode moved: variables and constants keep their place (a new size or value needs a new name)"
-			ASSERT ntc_mode == #8808, "ntc_mode moved: variables and constants keep their place (a new size or value needs a new name)"
-			ASSERT ntc_sptr == #880E, "ntc_sptr moved: variables and constants keep their place (a new size or value needs a new name)"
-			ASSERT ntc_ivar == #8814, "ntc_ivar moved: variables and constants keep their place (a new size or value needs a new name)"
-			ASSERT ntc_hookon == #8818, "ntc_hookon moved: variables and constants keep their place (a new size or value needs a new name)"
-			ASSERT ntc_hookset == #8819, "ntc_hookset moved: variables and constants keep their place (a new size or value needs a new name)"
-			ASSERT ntc_hookpend == #881A, "ntc_hookpend moved: variables and constants keep their place (a new size or value needs a new name)"
-			ASSERT ntc_hook == #881B, "ntc_hook moved: variables and constants keep their place (a new size or value needs a new name)"
-			ASSERT ntc_rampt == #881F, "ntc_rampt moved: variables and constants keep their place (a new size or value needs a new name)"
-			ASSERT ntc_gsp == #884B, "ntc_gsp moved: variables and constants keep their place (a new size or value needs a new name)"
-			ASSERT ntc_gstack == #940E, "ntc_gstack moved: variables and constants keep their place (a new size or value needs a new name)"
-			ASSERT ntc_gstack_top == #948E, "ntc_gstack_top moved: variables and constants keep their place (a new size or value needs a new name)"
-			ASSERT ntc_rnd_seed == #884D, "ntc_rnd_seed moved: variables and constants keep their place (a new size or value needs a new name)"
-			ASSERT ntc_font == #948E, "ntc_font moved: variables and constants keep their place (a new size or value needs a new name)"
-			ASSERT mem_a1 == #884F, "mem_a1 moved: variables and constants keep their place (a new size or value needs a new name)"
-			ASSERT mem_a2 == #8851, "mem_a2 moved: variables and constants keep their place (a new size or value needs a new name)"
-			ASSERT mem_a3 == #8853, "mem_a3 moved: variables and constants keep their place (a new size or value needs a new name)"
-			ASSERT mem_res == #8855, "mem_res moved: variables and constants keep their place (a new size or value needs a new name)"
-			ASSERT ovl_kres == #888D, "ovl_kres moved: variables and constants keep their place (a new size or value needs a new name)"
-			ASSERT ovl_lblk == #8893, "ovl_lblk moved: variables and constants keep their place (a new size or value needs a new name)"
-			ASSERT ntc_ovl_lc == #8897, "ntc_ovl_lc moved: variables and constants keep their place (a new size or value needs a new name)"
-			ASSERT ntc_ovl_body == #8898, "ntc_ovl_body moved: variables and constants keep their place (a new size or value needs a new name)"
-			ASSERT gfx_x0 == #8907, "gfx_x0 moved: variables and constants keep their place (a new size or value needs a new name)"
-			ASSERT gfx_y0 == #8909, "gfx_y0 moved: variables and constants keep their place (a new size or value needs a new name)"
-			ASSERT gfx_x1 == #890B, "gfx_x1 moved: variables and constants keep their place (a new size or value needs a new name)"
-			ASSERT gfx_y1 == #890D, "gfx_y1 moved: variables and constants keep their place (a new size or value needs a new name)"
-			ASSERT gfx_pen == #8915, "gfx_pen moved: variables and constants keep their place (a new size or value needs a new name)"
-			ASSERT gfx_clip == #8916, "gfx_clip moved: variables and constants keep their place (a new size or value needs a new name)"
-			ASSERT gfx_base == #8917, "gfx_base moved: variables and constants keep their place (a new size or value needs a new name)"
-			ASSERT gfx_dbl == #8918, "gfx_dbl moved: variables and constants keep their place (a new size or value needs a new name)"
-			ASSERT gfx_sp == #891A, "gfx_sp moved: variables and constants keep their place (a new size or value needs a new name)"
-			ASSERT ntc_isln == #891C, "ntc_isln moved: variables and constants keep their place (a new size or value needs a new name)"
-			ASSERT ntc_isldue == #891D, "ntc_isldue moved: variables and constants keep their place (a new size or value needs a new name)"
-			ASSERT ntc_isl == #9786, "ntc_isl moved: variables and constants keep their place (a new size or value needs a new name)"
-			ASSERT ntc_curx == #8921, "ntc_curx moved: variables and constants keep their place (a new size or value needs a new name)"
-			ASSERT ntc_cury == #8922, "ntc_cury moved: variables and constants keep their place (a new size or value needs a new name)"
-			ASSERT ntc_scols == #8923, "ntc_scols moved: variables and constants keep their place (a new size or value needs a new name)"
-			ASSERT ntc_smode == #8924, "ntc_smode moved: variables and constants keep their place (a new size or value needs a new name)"
-			ASSERT ntc_irqv == #8928, "ntc_irqv moved: variables and constants keep their place (a new size or value needs a new name)"
-			ASSERT fs_a1 == #892C, "fs_a1 moved: variables and constants keep their place (a new size or value needs a new name)"
-			ASSERT fs_a2 == #892E, "fs_a2 moved: variables and constants keep their place (a new size or value needs a new name)"
-			ASSERT fs_a3 == #8930, "fs_a3 moved: variables and constants keep their place (a new size or value needs a new name)"
-			ASSERT fs_res == #8932, "fs_res moved: variables and constants keep their place (a new size or value needs a new name)"
-			ASSERT ntc_v_free == #895E, "ntc_v_free moved: variables and constants keep their place (a new size or value needs a new name)"
-			ASSERT ntc_v_start == #8960, "ntc_v_start moved: variables and constants keep their place (a new size or value needs a new name)"
-			ASSERT ntc_v_stamp == #8962, "ntc_v_stamp moved: variables and constants keep their place (a new size or value needs a new name)"
-			ASSERT ntc_v_romen == #8964, "ntc_v_romen moved: variables and constants keep their place (a new size or value needs a new name)"
-			ASSERT ntc_v_rom == #8965, "ntc_v_rom moved: variables and constants keep their place (a new size or value needs a new name)"
-			ASSERT ntc_v_romold == #8966, "ntc_v_romold moved: variables and constants keep their place (a new size or value needs a new name)"
+			ASSERT (ntc_csp & #FFFF) == #8800, "ntc_csp moved: variables and constants keep their place (a new size or value needs a new name)"
+			ASSERT (ntc_ip & #FFFF) == #8802, "ntc_ip moved: variables and constants keep their place (a new size or value needs a new name)"
+			ASSERT (ntc_ticks & #FFFF) == #8804, "ntc_ticks moved: variables and constants keep their place (a new size or value needs a new name)"
+			ASSERT (ntc_nmode & #FFFF) == #8807, "ntc_nmode moved: variables and constants keep their place (a new size or value needs a new name)"
+			ASSERT (ntc_mode & #FFFF) == #8808, "ntc_mode moved: variables and constants keep their place (a new size or value needs a new name)"
+			ASSERT (ntc_sptr & #FFFF) == #880E, "ntc_sptr moved: variables and constants keep their place (a new size or value needs a new name)"
+			ASSERT (ntc_ivar & #FFFF) == #8814, "ntc_ivar moved: variables and constants keep their place (a new size or value needs a new name)"
+			ASSERT (ntc_hookon & #FFFF) == #8818, "ntc_hookon moved: variables and constants keep their place (a new size or value needs a new name)"
+			ASSERT (ntc_hookset & #FFFF) == #8819, "ntc_hookset moved: variables and constants keep their place (a new size or value needs a new name)"
+			ASSERT (ntc_hookpend & #FFFF) == #881A, "ntc_hookpend moved: variables and constants keep their place (a new size or value needs a new name)"
+			ASSERT (ntc_hook & #FFFF) == #881B, "ntc_hook moved: variables and constants keep their place (a new size or value needs a new name)"
+			ASSERT (ntc_rampt & #FFFF) == #881F, "ntc_rampt moved: variables and constants keep their place (a new size or value needs a new name)"
+			ASSERT (ntc_gsp & #FFFF) == #884B, "ntc_gsp moved: variables and constants keep their place (a new size or value needs a new name)"
+			ASSERT (ntc_gstack & #FFFF) == #940E, "ntc_gstack moved: variables and constants keep their place (a new size or value needs a new name)"
+			ASSERT (ntc_gstack_top & #FFFF) == #948E, "ntc_gstack_top moved: variables and constants keep their place (a new size or value needs a new name)"
+			ASSERT (ntc_rnd_seed & #FFFF) == #884D, "ntc_rnd_seed moved: variables and constants keep their place (a new size or value needs a new name)"
+			ASSERT (ntc_font & #FFFF) == #948E, "ntc_font moved: variables and constants keep their place (a new size or value needs a new name)"
+			ASSERT (mem_a1 & #FFFF) == #884F, "mem_a1 moved: variables and constants keep their place (a new size or value needs a new name)"
+			ASSERT (mem_a2 & #FFFF) == #8851, "mem_a2 moved: variables and constants keep their place (a new size or value needs a new name)"
+			ASSERT (mem_a3 & #FFFF) == #8853, "mem_a3 moved: variables and constants keep their place (a new size or value needs a new name)"
+			ASSERT (mem_res & #FFFF) == #8855, "mem_res moved: variables and constants keep their place (a new size or value needs a new name)"
+			ASSERT (ovl_kres & #FFFF) == #888D, "ovl_kres moved: variables and constants keep their place (a new size or value needs a new name)"
+			ASSERT (ovl_lblk & #FFFF) == #8893, "ovl_lblk moved: variables and constants keep their place (a new size or value needs a new name)"
+			ASSERT (ntc_ovl_lc & #FFFF) == #8897, "ntc_ovl_lc moved: variables and constants keep their place (a new size or value needs a new name)"
+			ASSERT (ntc_ovl_body & #FFFF) == #8898, "ntc_ovl_body moved: variables and constants keep their place (a new size or value needs a new name)"
+			ASSERT (gfx_x0 & #FFFF) == #8907, "gfx_x0 moved: variables and constants keep their place (a new size or value needs a new name)"
+			ASSERT (gfx_y0 & #FFFF) == #8909, "gfx_y0 moved: variables and constants keep their place (a new size or value needs a new name)"
+			ASSERT (gfx_x1 & #FFFF) == #890B, "gfx_x1 moved: variables and constants keep their place (a new size or value needs a new name)"
+			ASSERT (gfx_y1 & #FFFF) == #890D, "gfx_y1 moved: variables and constants keep their place (a new size or value needs a new name)"
+			ASSERT (gfx_pen & #FFFF) == #8915, "gfx_pen moved: variables and constants keep their place (a new size or value needs a new name)"
+			ASSERT (gfx_clip & #FFFF) == #8916, "gfx_clip moved: variables and constants keep their place (a new size or value needs a new name)"
+			ASSERT (gfx_base & #FFFF) == #8917, "gfx_base moved: variables and constants keep their place (a new size or value needs a new name)"
+			ASSERT (gfx_dbl & #FFFF) == #8918, "gfx_dbl moved: variables and constants keep their place (a new size or value needs a new name)"
+			ASSERT (gfx_sp & #FFFF) == #891A, "gfx_sp moved: variables and constants keep their place (a new size or value needs a new name)"
+			ASSERT (ntc_isln & #FFFF) == #891C, "ntc_isln moved: variables and constants keep their place (a new size or value needs a new name)"
+			ASSERT (ntc_isldue & #FFFF) == #891D, "ntc_isldue moved: variables and constants keep their place (a new size or value needs a new name)"
+			ASSERT (ntc_islshn & #FFFF) == #8924, "ntc_islshn moved: variables and constants keep their place (a new size or value needs a new name)"
+			ASSERT (ntc_isl & #FFFF) == #9786, "ntc_isl moved: variables and constants keep their place (a new size or value needs a new name)"
+			ASSERT (ntc_curx & #FFFF) == #8925, "ntc_curx moved: variables and constants keep their place (a new size or value needs a new name)"
+			ASSERT (ntc_cury & #FFFF) == #8926, "ntc_cury moved: variables and constants keep their place (a new size or value needs a new name)"
+			ASSERT (ntc_scols & #FFFF) == #8927, "ntc_scols moved: variables and constants keep their place (a new size or value needs a new name)"
+			ASSERT (ntc_smode & #FFFF) == #8928, "ntc_smode moved: variables and constants keep their place (a new size or value needs a new name)"
+			ASSERT (ntc_irqv & #FFFF) == #892C, "ntc_irqv moved: variables and constants keep their place (a new size or value needs a new name)"
+			ASSERT (fs_a1 & #FFFF) == #8930, "fs_a1 moved: variables and constants keep their place (a new size or value needs a new name)"
+			ASSERT (fs_a2 & #FFFF) == #8932, "fs_a2 moved: variables and constants keep their place (a new size or value needs a new name)"
+			ASSERT (fs_a3 & #FFFF) == #8934, "fs_a3 moved: variables and constants keep their place (a new size or value needs a new name)"
+			ASSERT (fs_res & #FFFF) == #8936, "fs_res moved: variables and constants keep their place (a new size or value needs a new name)"
+			ASSERT (ntc_v_free & #FFFF) == #8963, "ntc_v_free moved: variables and constants keep their place (a new size or value needs a new name)"
+			ASSERT (ntc_v_start & #FFFF) == #8965, "ntc_v_start moved: variables and constants keep their place (a new size or value needs a new name)"
+			ASSERT (ntc_v_stamp & #FFFF) == #8967, "ntc_v_stamp moved: variables and constants keep their place (a new size or value needs a new name)"
+			ASSERT (ntc_v_romen & #FFFF) == #8969, "ntc_v_romen moved: variables and constants keep their place (a new size or value needs a new name)"
+			ASSERT (ntc_v_rom & #FFFF) == #896A, "ntc_v_rom moved: variables and constants keep their place (a new size or value needs a new name)"
+			ASSERT (ntc_v_romold & #FFFF) == #896B, "ntc_v_romold moved: variables and constants keep their place (a new size or value needs a new name)"

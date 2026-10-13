@@ -10,7 +10,7 @@ NTC_TERM	equ 0		; Option Terminal: 0 none, 1 VT52, 2 ANSI (CP/M)
 NTC_STRMAX	equ 40		; the longest string (library buffers, temps)
 NTC_MEMBANKS	equ 64		; Option Memory: the most 64K banks the Memory class looks for
 NTC_ROMENABLE	equ 1		; Option RomEnable (cpcfw, cpcmin): the start code starts the ROMs
-NTC_ROMLIB	equ 0		; 1 only when the library itself is built as a ROM (ntcRomAsm)
+NTC_ROMLIB	equ 0		; 1 = the library is the keyword ROM (Library: ROM; ntcRomAsm builds it)
 
 ntc_start:
 			di
@@ -38,11 +38,11 @@ ntc_roms_on:
 main_thread:
 			dw kw_bssinit, ntc_bss, ntc_bss_size		; the arrays: do they fit, clear them
 
-			; main.bas 19: Print "Files on "; System.Platform
+			; main.bas 20: Print "Files on "; System.Platform
 			dw kw_printstrvar, str1
 			dw kw_printnl
 
-			; main.bas 20: Print "LOAD "; FileSystem.Capability("LOAD"); "  SAVE "; FileSystem.Capability("SAVE")
+			; main.bas 21: Print "LOAD "; FileSystem.Capability("LOAD"); "  SAVE "; FileSystem.Capability("SAVE")
 			dw fn_filesystem_capability, str2, var_filesystem_capability_capability
 			dw kw_printstrvar, str3
 			dw kw_printint, var_filesystem_capability_capability
@@ -51,7 +51,7 @@ main_thread:
 			dw kw_printint, var_filesystem_capability_capability
 			dw kw_printnl
 
-			; main.bas 21: Print "SEQUENTIAL "; FileSystem.Capability("SEQUENTIAL"); "  RANDOMACCESS "; FileSystem.Capability("RANDOMACCESS")
+			; main.bas 22: Print "SEQUENTIAL "; FileSystem.Capability("SEQUENTIAL"); "  RANDOMACCESS "; FileSystem.Capability("RANDOMACCESS")
 			dw fn_filesystem_capability, str6, var_filesystem_capability_capability
 			dw kw_printstrvar, str7
 			dw kw_printint, var_filesystem_capability_capability
@@ -60,13 +60,13 @@ main_thread:
 			dw kw_printint, var_filesystem_capability_capability
 			dw kw_printnl
 
-			; main.bas 22: Print "MAXOPEN "; FileSystem.Capability("MAXOPEN")
+			; main.bas 23: Print "MAXOPEN "; FileSystem.Capability("MAXOPEN")
 			dw fn_filesystem_capability, str10, var_filesystem_capability_capability
 			dw kw_printstrvar, str11
 			dw kw_printint, var_filesystem_capability_capability
 			dw kw_printnl
 
-			; main.bas 23: If FileSystem.Capability("DEVICES") Then Print "Devices "; FileSystem.Devices(); " - using "; FileSystem.CurrentDevice()
+			; main.bas 24: If FileSystem.Capability("DEVICES") Then Print "Devices "; FileSystem.Devices(); " - using "; FileSystem.CurrentDevice()
 			dw fn_filesystem_capability, str12, var_filesystem_capability_capability
 			dw kw_goto_ifzero_n, var_filesystem_capability_capability, if1_1
 			dw fn_filesystem_devices, var_filesystem_devices_devices
@@ -78,7 +78,7 @@ main_thread:
 			dw kw_printnl
 if1_1:
 
-			; main.bas 24: If FileSystem.Capability("VOLUMES") Then Print "Volumes known "; FileSystem.Volumes(); " - using "; FileSystem.CurrentVolume()
+			; main.bas 25: If FileSystem.Capability("VOLUMES") Then Print "Volumes known "; FileSystem.Volumes(); " - using "; FileSystem.CurrentVolume()
 			dw fn_filesystem_capability, str15, var_filesystem_capability_capability
 			dw kw_goto_ifzero_n, var_filesystem_capability_capability, if2_1
 			dw fn_filesystem_volumes, var_filesystem_volumes_volumes
@@ -90,14 +90,14 @@ if1_1:
 			dw kw_printnl
 if2_1:
 
-			; main.bas 25: Print
+			; main.bas 26: Print
 			dw kw_printnl
 
-			; main.bas 27: If FileSystem.Capability("SAVE") Then
+			; main.bas 28: If FileSystem.Capability("SAVE") Then
 			dw fn_filesystem_capability, str4, var_filesystem_capability_capability
 			dw kw_goto_ifzero_n, var_filesystem_capability_capability, if3_1
 
-			; main.bas 28: For i = 0 To 9 : hs(i) = 1000 - i * 50 : Next
+			; main.bas 29: For i = 0 To 9 : hs(i) = 1000 - i * 50 : Next
 			dw kw_ztov, var_i
 for4_t:
 			dw kw_mulvl, var_i, 50, tmp2
@@ -106,22 +106,22 @@ for4_t:
 			dw kw_next1l_n, var_i, 9, for4_t
 for4_e:
 
-			; main.bas 29: r = FileSystem.Save("HISCORE.DAT", VarPtr(hs), 20)
+			; main.bas 30: r = FileSystem.Save("HISCORE.DAT", VarPtr(hs), 20)
 			dw fn_filesystem_save, str17, vp_arr_hs, lit_20, var_r
 
-			; main.bas 30: Print "Save HISCORE.DAT: "; r
+			; main.bas 31: Print "Save HISCORE.DAT: "; r
 			dw kw_printstrvar, str18
 			dw kw_printint, var_r
 			dw kw_printnl
 
-			; main.bas 31: If FileSystem.Capability("LOAD") Then
+			; main.bas 32: If FileSystem.Capability("LOAD") Then
 			dw fn_filesystem_capability, str2, var_filesystem_capability_capability
 			dw kw_goto_ifzero_n, var_filesystem_capability_capability, if3_e
 
-			; main.bas 32: r = FileSystem.Load("HISCORE.DAT", VarPtr(back), 20)
+			; main.bas 33: r = FileSystem.Load("HISCORE.DAT", VarPtr(back), 20)
 			dw fn_filesystem_load, str17, vp_arr_back, lit_20, var_r
 
-			; main.bas 33: Print "Load: "; r; " bytes, "; back(0); " ... "; back(9)
+			; main.bas 34: Print "Load: "; r; " bytes, "; back(0); " ... "; back(9)
 			dw kw_printstrvar, str19
 			dw kw_printint, var_r
 			dw kw_printstrvar, str20
@@ -130,76 +130,70 @@ for4_e:
 			dw kw_printint, arr_back+18
 			dw kw_printnl
 
-			; main.bas 34: End If
+			; main.bas 35: End If
 if5_1:
 
-			; main.bas 35: Else
+			; main.bas 36: Else
 			dw if3_e_go
 if3_1:
 
-			; main.bas 36: Print "No saving on this platform"
+			; main.bas 37: Print "No saving on this platform"
 			dw kw_printstrvar, str22
 			dw kw_printnl
 
-			; main.bas 37: End If
+			; main.bas 38: End If
 if3_e:
 
-			; main.bas 39: If FileSystem.Capability("SEQUENTIAL") Then
+			; main.bas 40: If FileSystem.Capability("SEQUENTIAL") Then
 			dw fn_filesystem_capability, str6, var_filesystem_capability_capability
 			dw kw_goto_ifzero_n, var_filesystem_capability_capability, if6_1
 
-			; main.bas 40: h = FileSystem.Open("NOTES.TXT", FileSystem.ForWrite)
-			dw p_filesystem_open_c, str23, lit_2
-			dw kw_vtov, var_filesystem_open_open, var_h
+			; main.bas 41: h = FileSystem.Open("NOTES.TXT", FileSystem.ForWrite)
+			dw fn_filesystem_open, str23, lit_2, var_h
 
-			; main.bas 41: r = FileSystem.WriteLine(h, "Written by NTC BASIC")
-			dw p_filesystem_writeline_c, var_h, str24
-			dw kw_vtov, var_filesystem_writeline_writeline, var_r
+			; main.bas 42: r = FileSystem.WriteLine(h, "Written by NTC BASIC")
+			dw fn_filesystem_writeline, var_h, str24, var_r
 
-			; main.bas 42: r = FileSystem.WriteLine(h, "Line two")
-			dw p_filesystem_writeline_c, var_h, str25
-			dw kw_vtov, var_filesystem_writeline_writeline, var_r
+			; main.bas 43: r = FileSystem.WriteLine(h, "Line two")
+			dw fn_filesystem_writeline, var_h, str25, var_r
 
-			; main.bas 43: r = FileSystem.Close(h)
-			dw p_filesystem_close_c, var_h
-			dw kw_vtov, var_filesystem_close_close, var_r
+			; main.bas 44: r = FileSystem.Close(h)
+			dw fn_filesystem_close, var_h, var_r
 
-			; main.bas 44: Print "NOTES.TXT:"
+			; main.bas 45: Print "NOTES.TXT:"
 			dw kw_printstrvar, str26
 			dw kw_printnl
 
-			; main.bas 45: h = FileSystem.Open("NOTES.TXT", FileSystem.ForRead)
-			dw p_filesystem_open_c, str23, lit_1
-			dw kw_vtov, var_filesystem_open_open, var_h
+			; main.bas 46: h = FileSystem.Open("NOTES.TXT", FileSystem.ForRead)
+			dw fn_filesystem_open, str23, lit_1, var_h
 
-			; main.bas 46: Do While Not FileSystem.Eof(h)
+			; main.bas 47: Do While Not FileSystem.Eof(h)
 do7_t:
-			dw p_filesystem_eof_c, var_h
+			dw fn_filesystem_eof, var_h, var_filesystem_eof_eof
 			dw kw_vtov, var_filesystem_eof_eof, tmp0
 			dw kw_notv, tmp0, tmp0
 			dw kw_goto_ifzero_n, tmp0, do7_e
 
-			; main.bas 47: Print "> "; FileSystem.ReadLine(h)
-			dw p_filesystem_readline_c, var_h
+			; main.bas 48: Print "> "; FileSystem.ReadLine(h)
+			dw fn_filesystem_readline, var_h, var_filesystem_readline_readline
 			dw kw_printstrvar, str27
 			dw kw_printstrvar, var_filesystem_readline_readline
 			dw kw_printnl
 
-			; main.bas 48: Loop
+			; main.bas 49: Loop
 			dw do7_t_go
 do7_e:
 
-			; main.bas 49: r = FileSystem.Close(h)
-			dw p_filesystem_close_c, var_h
-			dw kw_vtov, var_filesystem_close_close, var_r
+			; main.bas 50: r = FileSystem.Close(h)
+			dw fn_filesystem_close, var_h, var_r
 
-			; main.bas 50: End If
+			; main.bas 51: End If
 if6_1:
 
-			; main.bas 52: Print "Press a key";
+			; main.bas 53: Print "Press a key";
 			dw kw_printstrvar, str28
 
-			; main.bas 53: Do While Inkey <> 0 : Loop          ' no key left waiting from before
+			; main.bas 54: Do While Inkey <> 0 : Loop          ' no key left waiting from before
 do8_t:
 			dw kw_inkey, tmp0
 			dw kw_cpnevl, tmp0, 0
@@ -207,7 +201,7 @@ do8_t:
 			dw do8_t_go
 do8_e:
 
-			; main.bas 54: Do : Frame : Loop Until Inkey <> 0
+			; main.bas 55: Do : Frame : Loop Until Inkey <> 0
 do9_t:
 			dw kw_frame
 			dw kw_inkey, tmp0
@@ -215,61 +209,11 @@ do9_t:
 			dw kw_goto_iffalse_n, do9_t
 do9_e:
 
-			; main.bas 55: Print
+			; main.bas 56: Print
 			dw kw_printnl
 
-			; main.bas 56: End
+			; main.bas 57: End
 			dw kw_stop
-
-; ============================================================
-; function open (normal mode)
-; ============================================================
-
-p_filesystem_open:
-
-			; FileSystem.cls 115: Open = NotSupported
-			dw kw_ltov, -1, var_filesystem_open_open
-			dw p_filesystem_open_r
-
-; ============================================================
-; function close (normal mode)
-; ============================================================
-
-p_filesystem_close:
-
-			; FileSystem.cls 119: Close = NotSupported
-			dw kw_ltov, -1, var_filesystem_close_close
-			dw p_filesystem_close_r
-
-; ============================================================
-; function eof (normal mode)
-; ============================================================
-
-p_filesystem_eof:
-
-			; FileSystem.cls 143: Eof = -1
-			dw kw_ltov, -1, var_filesystem_eof_eof
-			dw p_filesystem_eof_r
-
-; ============================================================
-; function readline (normal mode)
-; ============================================================
-
-p_filesystem_readline:
-
-			; FileSystem.cls 147: ReadLine = ""
-			dw kw_strcpy, var_filesystem_readline_readline, str29
-			dw p_filesystem_readline_r
-
-; ============================================================
-; function writeline (normal mode)
-; ============================================================
-
-p_filesystem_writeline:
-
-			; FileSystem.cls 151: WriteLine = NotSupported
-			dw kw_ltov, -1, var_filesystem_writeline_writeline
-			dw p_filesystem_writeline_r
 
 ; ============================================================
 ; Jump stubs (code, ROMable)
@@ -287,191 +231,158 @@ do7_t_go:			ld sp, do7_t
 do8_t_go:			ld sp, do8_t
 			jp ntc_xn
 
-p_filesystem_open_c:		; call open (normal)
-			pop hl			; name
-			ld de, var_filesystem_open_name
-			ld b, 40
-p_filesystem_open_si0:
-			ld a, (hl)
-			ld (de), a
-			or a
-			jr z, p_filesystem_open_si0_e
-			inc hl
-			inc de
-			djnz p_filesystem_open_si0
-			xor a
-			ld (de), a
-p_filesystem_open_si0_e:
-			pop hl			; mode
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			ld (var_filesystem_open_mode), de
-			ld hl, 0
-			ld (var_filesystem_open_open), hl
-			ld (p_filesystem_open_rs), sp
-			ld sp, p_filesystem_open
-			jp ntc_xn
-p_filesystem_open_r:		; end of open
-			ld sp, (p_filesystem_open_rs)
-			jp ntc_xn
-p_filesystem_close_c:		; call close (normal)
-			pop hl			; h
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			ld (var_filesystem_close_h), de
-			ld hl, 0
-			ld (var_filesystem_close_close), hl
-			ld (p_filesystem_close_rs), sp
-			ld sp, p_filesystem_close
-			jp ntc_xn
-p_filesystem_close_r:		; end of close
-			ld sp, (p_filesystem_close_rs)
-			jp ntc_xn
-p_filesystem_eof_c:		; call eof (normal)
-			pop hl			; h
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			ld (var_filesystem_eof_h), de
-			ld hl, 0
-			ld (var_filesystem_eof_eof), hl
-			ld (p_filesystem_eof_rs), sp
-			ld sp, p_filesystem_eof
-			jp ntc_xn
-p_filesystem_eof_r:		; end of eof
-			ld sp, (p_filesystem_eof_rs)
-			jp ntc_xn
-p_filesystem_readline_c:		; call readline (normal)
-			pop hl			; h
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			ld (var_filesystem_readline_h), de
-			xor a
-			ld (var_filesystem_readline_readline), a
-			ld (p_filesystem_readline_rs), sp
-			ld sp, p_filesystem_readline
-			jp ntc_xn
-p_filesystem_readline_r:		; end of readline
-			ld sp, (p_filesystem_readline_rs)
-			jp ntc_xn
-p_filesystem_writeline_c:		; call writeline (normal)
-			pop hl			; h
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			ld (var_filesystem_writeline_h), de
-			pop hl			; text
-			ld de, var_filesystem_writeline_text
-			ld b, 40
-p_filesystem_writeline_si1:
-			ld a, (hl)
-			ld (de), a
-			or a
-			jr z, p_filesystem_writeline_si1_e
-			inc hl
-			inc de
-			djnz p_filesystem_writeline_si1
-			xor a
-			ld (de), a
-p_filesystem_writeline_si1_e:
-			ld hl, 0
-			ld (var_filesystem_writeline_writeline), hl
-			ld (p_filesystem_writeline_rs), sp
-			ld sp, p_filesystem_writeline
-			jp ntc_xn
-p_filesystem_writeline_r:		; end of writeline
-			ld sp, (p_filesystem_writeline_rs)
-			jp ntc_xn
-
 ; ============================================================
 ; Inline assembly (#asm ... #endasm)
 ; ============================================================
 
-fn_filesystem_capability:		; function capability (asm keyword), FileSystem.cls line 34
-            pop hl		; FileSystem.cls 35
-            pop de		; FileSystem.cls 36
-            ld bc, fn_filesystem_capability_caps		; FileSystem.cls 37
-            jp ntc_capfind		; FileSystem.cls 38
-fn_filesystem_capability_caps:       db "LOAD", 0		; FileSystem.cls 39
-            dw -1		; FileSystem.cls 40
-            db "SAVE", 0		; FileSystem.cls 41
-            dw -1		; FileSystem.cls 42
-            db "DEVICES", 0		; FileSystem.cls 43
-            dw -1		; FileSystem.cls 44
-            db "VOLUMES", 0		; FileSystem.cls 45
-            dw -1		; FileSystem.cls 46
-            db "MAXOPEN", 0		; FileSystem.cls 47
-            dw 0		; FileSystem.cls 48
-            db 0		; FileSystem.cls 49
+fn_filesystem_capability:		; function capability (asm keyword), FileSystem.cls line 35
+            pop hl		; FileSystem.cls 36
+            pop de		; FileSystem.cls 37
+            ld bc, fn_filesystem_capability_caps		; FileSystem.cls 38
+            jp ntc_capfind		; FileSystem.cls 39
+fn_filesystem_capability_caps:       db "LOAD", 0		; FileSystem.cls 40
+            dw -1		; FileSystem.cls 41
+            db "SAVE", 0		; FileSystem.cls 42
+            dw -1		; FileSystem.cls 43
+            db "SEQUENTIAL", 0		; FileSystem.cls 44
+            dw -1		; FileSystem.cls 45
+            db "DEVICES", 0		; FileSystem.cls 46
+            dw -1		; FileSystem.cls 47
+            db "VOLUMES", 0		; FileSystem.cls 48
+            dw -1		; FileSystem.cls 49
+            db "MAXOPEN", 0		; FileSystem.cls 50
+            dw 1		; FileSystem.cls 51
+            db 0		; FileSystem.cls 52
 			ret			; end of #asm
 
-fn_filesystem_load:		; function load (asm keyword), FileSystem.cls line 56
-            pop hl		; FileSystem.cls 57
-            ld (fs_a1), hl		; FileSystem.cls 58
-            pop hl		; FileSystem.cls 59
-            ld e, (hl)		; FileSystem.cls 60
-            inc hl		; FileSystem.cls 61
-            ld d, (hl)		; FileSystem.cls 62
-            ld (fs_a2), de		; FileSystem.cls 63
-            pop hl		; FileSystem.cls 64
-            ld e, (hl)		; FileSystem.cls 65
-            inc hl		; FileSystem.cls 66
-            ld d, (hl)		; FileSystem.cls 67
-            ld (fs_a3), de		; FileSystem.cls 68
-            pop hl		; FileSystem.cls 69
-            ld (fs_res), hl		; FileSystem.cls 70
-            ld hl, fs_load		; FileSystem.cls 71
-            jp fs_go		; FileSystem.cls 72
+fn_filesystem_load:		; function load (asm keyword), FileSystem.cls line 59
+            pop hl		; FileSystem.cls 60
+            ld (fs_a1), hl		; FileSystem.cls 61
+            pop hl		; FileSystem.cls 62
+            ld e, (hl)		; FileSystem.cls 63
+            inc hl		; FileSystem.cls 64
+            ld d, (hl)		; FileSystem.cls 65
+            ld (fs_a2), de		; FileSystem.cls 66
+            pop hl		; FileSystem.cls 67
+            ld e, (hl)		; FileSystem.cls 68
+            inc hl		; FileSystem.cls 69
+            ld d, (hl)		; FileSystem.cls 70
+            ld (fs_a3), de		; FileSystem.cls 71
+            pop hl		; FileSystem.cls 72
+            ld (fs_res), hl		; FileSystem.cls 73
+            ld hl, fs_load		; FileSystem.cls 74
+            jp fs_go		; FileSystem.cls 75
 			ret			; end of #asm
 
-fn_filesystem_save:		; function save (asm keyword), FileSystem.cls line 78
-            pop hl		; FileSystem.cls 79
-            ld (fs_a1), hl		; FileSystem.cls 80
-            pop hl		; FileSystem.cls 81
-            ld e, (hl)		; FileSystem.cls 82
-            inc hl		; FileSystem.cls 83
-            ld d, (hl)		; FileSystem.cls 84
-            ld (fs_a2), de		; FileSystem.cls 85
-            pop hl		; FileSystem.cls 86
-            ld e, (hl)		; FileSystem.cls 87
-            inc hl		; FileSystem.cls 88
-            ld d, (hl)		; FileSystem.cls 89
-            ld (fs_a3), de		; FileSystem.cls 90
-            pop hl		; FileSystem.cls 91
-            ld (fs_res), hl		; FileSystem.cls 92
-            ld hl, fs_save		; FileSystem.cls 93
-            jp fs_go		; FileSystem.cls 94
+fn_filesystem_save:		; function save (asm keyword), FileSystem.cls line 81
+            pop hl		; FileSystem.cls 82
+            ld (fs_a1), hl		; FileSystem.cls 83
+            pop hl		; FileSystem.cls 84
+            ld e, (hl)		; FileSystem.cls 85
+            inc hl		; FileSystem.cls 86
+            ld d, (hl)		; FileSystem.cls 87
+            ld (fs_a2), de		; FileSystem.cls 88
+            pop hl		; FileSystem.cls 89
+            ld e, (hl)		; FileSystem.cls 90
+            inc hl		; FileSystem.cls 91
+            ld d, (hl)		; FileSystem.cls 92
+            ld (fs_a3), de		; FileSystem.cls 93
+            pop hl		; FileSystem.cls 94
+            ld (fs_res), hl		; FileSystem.cls 95
+            ld hl, fs_save		; FileSystem.cls 96
+            jp fs_go		; FileSystem.cls 97
 			ret			; end of #asm
 
-fn_filesystem_devices:		; function devices (asm keyword), FileSystem.cls line 158
-            pop hl		; FileSystem.cls 159
-            ld (fs_res), hl		; FileSystem.cls 160
-            ld hl, fs_devices		; FileSystem.cls 161
-            jp fs_go0		; FileSystem.cls 162
+fn_filesystem_open:		; function open (asm keyword), FileSystem.cls line 123
+            pop hl		; FileSystem.cls 124
+            ld (fs_a1), hl		; FileSystem.cls 125
+            pop hl		; FileSystem.cls 126
+            ld e, (hl)		; FileSystem.cls 127
+            inc hl		; FileSystem.cls 128
+            ld d, (hl)		; FileSystem.cls 129
+            ld (fs_a2), de		; FileSystem.cls 130
+            pop hl		; FileSystem.cls 131
+            ld (fs_res), hl		; FileSystem.cls 132
+            ld hl, fs_open		; FileSystem.cls 133
+            jp fs_go		; FileSystem.cls 134
 			ret			; end of #asm
 
-fn_filesystem_currentdevice:		; function currentdevice (asm keyword), FileSystem.cls line 168
-            pop hl		; FileSystem.cls 169
-            ld (fs_res), hl		; FileSystem.cls 170
-            ld hl, fs_curdev		; FileSystem.cls 171
-            jp fs_go0		; FileSystem.cls 172
+fn_filesystem_close:		; function close (asm keyword), FileSystem.cls line 139
+            pop hl		; FileSystem.cls 140
+            ld e, (hl)		; FileSystem.cls 141
+            inc hl		; FileSystem.cls 142
+            ld d, (hl)		; FileSystem.cls 143
+            ld (fs_a1), de		; FileSystem.cls 144
+            pop hl		; FileSystem.cls 145
+            ld (fs_res), hl		; FileSystem.cls 146
+            ld hl, fs_closeh		; FileSystem.cls 147
+            jp fs_go		; FileSystem.cls 148
 			ret			; end of #asm
 
-fn_filesystem_volumes:		; function volumes (asm keyword), FileSystem.cls line 191
-            pop hl		; FileSystem.cls 192
-            ld (fs_res), hl		; FileSystem.cls 193
-            ld hl, fs_volumes		; FileSystem.cls 194
-            jp fs_go0		; FileSystem.cls 195
+fn_filesystem_eof:		; function eof (asm keyword), FileSystem.cls line 242
+            pop hl		; FileSystem.cls 243
+            ld e, (hl)		; FileSystem.cls 244
+            inc hl		; FileSystem.cls 245
+            ld d, (hl)		; FileSystem.cls 246
+            ld (fs_a1), de		; FileSystem.cls 247
+            pop hl		; FileSystem.cls 248
+            ld (fs_res), hl		; FileSystem.cls 249
+            ld hl, fs_eof		; FileSystem.cls 250
+            jp fs_go		; FileSystem.cls 251
 			ret			; end of #asm
 
-fn_filesystem_currentvolume:		; function currentvolume (asm keyword), FileSystem.cls line 201
-            pop hl		; FileSystem.cls 202
-            ld (fs_res), hl		; FileSystem.cls 203
-            ld hl, fs_curvol		; FileSystem.cls 204
-            jp fs_go0		; FileSystem.cls 205
+fn_filesystem_readline:		; function readline (asm keyword), FileSystem.cls line 257
+            pop hl		; FileSystem.cls 258
+            ld e, (hl)		; FileSystem.cls 259
+            inc hl		; FileSystem.cls 260
+            ld d, (hl)		; FileSystem.cls 261
+            ld (fs_a1), de		; FileSystem.cls 262
+            pop hl		; FileSystem.cls 263
+            ld (fs_res), hl		; FileSystem.cls 264
+            ld hl, fs_readln		; FileSystem.cls 265
+            jp fs_go0		; FileSystem.cls 266
+			ret			; end of #asm
+
+fn_filesystem_writeline:		; function writeline (asm keyword), FileSystem.cls line 272
+            pop hl		; FileSystem.cls 273
+            ld e, (hl)		; FileSystem.cls 274
+            inc hl		; FileSystem.cls 275
+            ld d, (hl)		; FileSystem.cls 276
+            ld (fs_a1), de		; FileSystem.cls 277
+            pop hl		; FileSystem.cls 278
+            ld (fs_a2), hl		; FileSystem.cls 279
+            pop hl		; FileSystem.cls 280
+            ld (fs_res), hl		; FileSystem.cls 281
+            ld hl, fs_writeln		; FileSystem.cls 282
+            jp fs_go		; FileSystem.cls 283
+			ret			; end of #asm
+
+fn_filesystem_devices:		; function devices (asm keyword), FileSystem.cls line 291
+            pop hl		; FileSystem.cls 292
+            ld (fs_res), hl		; FileSystem.cls 293
+            ld hl, fs_devices		; FileSystem.cls 294
+            jp fs_go0		; FileSystem.cls 295
+			ret			; end of #asm
+
+fn_filesystem_currentdevice:		; function currentdevice (asm keyword), FileSystem.cls line 301
+            pop hl		; FileSystem.cls 302
+            ld (fs_res), hl		; FileSystem.cls 303
+            ld hl, fs_curdev		; FileSystem.cls 304
+            jp fs_go0		; FileSystem.cls 305
+			ret			; end of #asm
+
+fn_filesystem_volumes:		; function volumes (asm keyword), FileSystem.cls line 324
+            pop hl		; FileSystem.cls 325
+            ld (fs_res), hl		; FileSystem.cls 326
+            ld hl, fs_volumes		; FileSystem.cls 327
+            jp fs_go0		; FileSystem.cls 328
+			ret			; end of #asm
+
+fn_filesystem_currentvolume:		; function currentvolume (asm keyword), FileSystem.cls line 334
+            pop hl		; FileSystem.cls 335
+            ld (fs_res), hl		; FileSystem.cls 336
+            ld hl, fs_curvol		; FileSystem.cls 337
+            jp fs_go0		; FileSystem.cls 338
 			ret			; end of #asm
 
 
@@ -491,26 +402,9 @@ var_filesystem_currentvolume_currentvolume:			ds 41
 var_i:			dw 0
 var_r:			dw 0
 var_h:			dw 0
-var_filesystem_open_open:			dw 0
-var_filesystem_writeline_writeline:			dw 0
-var_filesystem_close_close:			dw 0
 var_filesystem_eof_eof:			dw 0
 			db 40			; capacity
 var_filesystem_readline_readline:			ds 41
-p_filesystem_open_rs:			dw 0
-			db 40			; capacity
-var_filesystem_open_name:			ds 41
-var_filesystem_open_mode:			dw 0
-p_filesystem_close_rs:			dw 0
-var_filesystem_close_h:			dw 0
-p_filesystem_eof_rs:			dw 0
-var_filesystem_eof_h:			dw 0
-p_filesystem_readline_rs:			dw 0
-var_filesystem_readline_h:			dw 0
-p_filesystem_writeline_rs:			dw 0
-var_filesystem_writeline_h:			dw 0
-			db 40			; capacity
-var_filesystem_writeline_text:			ds 41
 tmp0:			dw 0
 tmp1:			dw 0
 tmp2:			dw 0
@@ -726,16 +620,6 @@ ntc_n1l_nc_n:
 			sbc a, a
 			jp ntc_for_le_n
 
-;## kw_ltov
-;kw_ltov, <literal>, <destvar>
-kw_ltov:
-			pop de
-			pop hl
-			ld (hl), e
-			inc hl
-			ld (hl), d
-			ret
-
 ;## kw_vtov
 ;kw_vtov, <sourcevar>, <destvar>
 kw_vtov:
@@ -931,27 +815,6 @@ kw_aset:
 			ld (hl), c
 			inc hl
 			ld (hl), b
-			ret
-
-;## kw_strcpy
-;kw_strcpy, <destaddr>, <srcaddr>  - cut at the destination's capacity byte
-kw_strcpy:
-			pop de
-			pop hl
-			dec de
-			ld a, (de)
-			ld b, a
-			inc de
-ntc_strcpy_loop:
-			ld a, (hl)
-			ld (de), a
-			or a
-			ret z
-			inc hl
-			inc de
-			djnz ntc_strcpy_loop
-			xor a
-			ld (de), a
 			ret
 
 ;## ntc_printbuf ntc_data ntc_plat_screen
@@ -1455,6 +1318,7 @@ fs_six:			dw 0
 fs_siy:			dw 0
 fs_len:			dw 0
 fs_nostore:		db 0
+fs_hmode:		db 0			; 0 no file open, 1 reading, 2 writing (Open)
 fs_init:		db 0			; 1 = checked: is AMSDOS running?
 fs_dos:			db 0			; 1 = a DOS is there (|DISC found)
 fs_devd:		db 0			; the device in use: 0 tape, 1 disc
@@ -1905,6 +1769,10 @@ fs_nm_end:
 ; A file longer than maxlen is not loaded: FS_TOOBIG
 fs_load:
 			call fs_start
+			ld a, (fs_hmode)	; the buffer is the open file's
+			or a
+			ld hl, FS_FAILED
+			jp nz, fs_err
 			call fs_name
 			ld de, fs_buf
 			call #BC77			; CAS IN OPEN: BC = length, carry = ok
@@ -1938,6 +1806,10 @@ fs_ld_read:
 ; Save(name, addr, len): a binary file (type 2, BASIC can LOAD it back). 0 or a status
 fs_save:
 			call fs_start
+			ld a, (fs_hmode)	; the buffer is the open file's
+			or a
+			ld hl, FS_FAILED
+			jp nz, fs_err
 			call fs_name
 			ld de, fs_buf
 			call #BC8C			; CAS OUT OPEN
@@ -1959,6 +1831,264 @@ fs_sv_done:
 			ld hl, FS_FAILED
 			ret nc
 			call fs_namevol
+			ld hl, 0
+			ret
+
+;## ntc_plat_fsseq ntc_plat_fs @shared
+; ---- one open file (handle 1), through CAS IN CHAR / CAS OUT CHAR: read a
+; file (any type) byte by byte, or write a new text file (type ASCII, as
+; BASIC's OPENOUT / PRINT #9 make it). The 2K buffer is the one Load / Save
+; use, so Load and Save are refused while a file is open.
+FS_NOHANDLE	equ -5
+FS_BADHANDLE	equ -6
+FS_EOFST	equ -7
+FS_BADMODE	equ -11
+FS_NOTSUP	equ -1
+fs_ptr:			dw 0
+fs_cnt:			db 0
+fs_cap:			db 0
+
+; Open(name, mode): 1, or a status. ForUpdate: NotSupported
+fs_open:
+			call fs_start
+			ld a, (fs_hmode)
+			or a
+			ld hl, FS_NOHANDLE
+			ret nz
+			ld hl, (fs_a2)
+			ld a, h
+			or a
+			jr nz, fs_op_bad
+			ld a, l
+			cp 3
+			ld hl, FS_NOTSUP
+			ret z
+			jr nc, fs_op_bad
+			cp 1
+			jr c, fs_op_bad
+			jr nz, fs_op_out
+			call fs_name
+			ld de, fs_buf
+			call #BC77			; CAS IN OPEN
+			ld hl, FS_NOTFOUND
+			ret nc
+			ld a, 1
+			jr fs_op_ok
+fs_op_out:
+			call fs_name
+			ld de, fs_buf
+			call #BC8C			; CAS OUT OPEN
+			ld hl, FS_FAILED
+			ret nc
+			ld a, 2
+fs_op_ok:
+			ld (fs_hmode), a
+			ld hl, 1
+			ret
+fs_op_bad:
+			ld hl, FS_BADMODE
+			ret
+
+; fs_hchk - (fs_a1) must be handle 1 open for A (1 read, 2 write), else
+; fs_err BadHandle
+fs_hchk:
+			ld hl, (fs_a1)
+			dec hl
+			ld b, a
+			ld a, h
+			or l
+			jr nz, fs_hc_bad
+			ld a, (fs_hmode)
+			cp b
+			ret z
+fs_hc_bad:
+			ld hl, FS_BADHANDLE
+			jp fs_err
+
+; Close(h): OK, or a status (Failed: the last of a written file didn't go)
+fs_closeh:
+			ld hl, (fs_a1)
+			dec hl
+			ld a, h
+			or l
+			jr nz, fs_hc_bad
+			ld a, (fs_hmode)
+			or a
+			jr z, fs_hc_bad
+			ld b, a
+			xor a
+			ld (fs_hmode), a
+			ld a, b
+			cp 1
+			jr nz, fs_cl_out
+			call #BC7A			; CAS IN CLOSE
+			jr fs_cl_ok
+fs_cl_out:
+			call #BC8F			; CAS OUT CLOSE
+			ld hl, FS_FAILED
+			ret nc
+fs_cl_ok:
+			call fs_namevol
+			ld hl, 0
+			ret
+
+; ReadByte(h): 0-255, or EndOfFile
+fs_readb:
+			ld a, 1
+			call fs_hchk
+			call #BC80			; CAS IN CHAR
+			ld hl, FS_EOFST
+			ret nc
+			ld l, a
+			ld h, 0
+			ret
+
+; WriteByte(h, b): OK, or Failed
+fs_writeb:
+			ld a, 2
+			call fs_hchk
+			ld a, (fs_a2)
+			call #BC95			; CAS OUT CHAR
+			ld hl, FS_FAILED
+			ret nc
+			ld hl, 0
+			ret
+
+; Read(h, addr, count): bytes read (fewer at the end)
+fs_read:
+			ld a, 1
+			call fs_hchk
+			ld hl, (fs_a2)
+			ld de, (fs_a3)
+			ld bc, 0
+fs_rd_lp:
+			ld a, d
+			or e
+			jr z, fs_rd_end
+			bit 7, d
+			jr nz, fs_rd_end
+			push hl
+			push de
+			push bc
+			call #BC80			; CAS IN CHAR
+			pop bc
+			pop de
+			pop hl
+			jr nc, fs_rd_end
+			ld (hl), a
+			inc hl
+			inc bc
+			dec de
+			jr fs_rd_lp
+fs_rd_end:
+			ld h, b
+			ld l, c
+			ret
+
+; Write(h, addr, count): count, or Failed
+fs_write:
+			ld a, 2
+			call fs_hchk
+			ld hl, (fs_a2)
+			ld de, (fs_a3)
+fs_wr_lp:
+			ld a, d
+			or e
+			jr z, fs_wr_end
+			bit 7, d
+			jr nz, fs_wr_end
+			ld a, (hl)
+			push hl
+			push de
+			call #BC95			; CAS OUT CHAR
+			pop de
+			pop hl
+			jr nc, fs_wr_fail
+			inc hl
+			dec de
+			jr fs_wr_lp
+fs_wr_end:
+			ld hl, (fs_a3)
+			ret
+fs_wr_fail:
+			ld hl, FS_FAILED
+			ret
+
+; Eof(h): True (-1) when there is nothing more to read (or h is not a file being read)
+fs_eof:
+			ld hl, (fs_a1)
+			dec hl
+			ld a, h
+			or l
+			jr nz, fs_ef_yes
+			ld a, (fs_hmode)
+			cp 1
+			jr nz, fs_ef_yes
+			call #BC89			; CAS TEST EOF: carry = more to read
+			ld hl, 0
+			ret c
+fs_ef_yes:
+			ld hl, -1
+			ret
+
+; ReadLine(h): the next line (up to LF; CR dropped), "" at the end
+fs_readln:
+			ld hl, (fs_res)
+			ld (hl), 0
+			dec hl
+			ld a, (hl)
+			ld (fs_cap), a			; the result's capacity
+			inc hl
+			ld (fs_ptr), hl
+			xor a
+			ld (fs_cnt), a
+			ld a, 1
+			call fs_hchk
+fs_rl_lp:
+			call #BC80			; CAS IN CHAR
+			jr nc, fs_rl_end
+			cp 10
+			jr z, fs_rl_end
+			cp 13
+			jr z, fs_rl_lp
+			ld c, a
+			ld a, (fs_cap)
+			ld hl, fs_cnt
+			cp (hl)
+			jr z, fs_rl_lp			; full: the rest of the line is dropped
+			inc (hl)
+			ld hl, (fs_ptr)
+			ld (hl), c
+			inc hl
+			ld (fs_ptr), hl
+			jr fs_rl_lp
+fs_rl_end:
+			ld hl, (fs_ptr)
+			ld (hl), 0
+			ret
+
+; WriteLine(h, s): the text and CR LF. OK, or Failed
+fs_writeln:
+			ld a, 2
+			call fs_hchk
+			ld hl, (fs_a2)
+fs_wl_lp:
+			ld a, (hl)
+			or a
+			jr z, fs_wl_end
+			push hl
+			call #BC95			; CAS OUT CHAR
+			pop hl
+			jp nc, fs_wr_fail
+			inc hl
+			jr fs_wl_lp
+fs_wl_end:
+			ld a, 13
+			call #BC95
+			jp nc, fs_wr_fail
+			ld a, 10
+			call #BC95
+			jp nc, fs_wr_fail
 			ld hl, 0
 			ret
 

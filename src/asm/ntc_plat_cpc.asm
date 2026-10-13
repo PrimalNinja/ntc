@@ -760,3 +760,16 @@ ntc_plat_memtop:
 			ld hl, #A600
 		ENDIF
 			ret
+
+;## ntc_plat_rmr ntc_plat_data
+; ntc_plat_rmr - A = the gate array's ROM / mode byte now (#8x: screen mode,
+; lower and upper ROM on / off), so Memory's CallBank can turn both ROMs off
+; and put them back. Keeps BC, DE, HL.
+ntc_plat_rmr:
+			ld a, (ntc_smode)
+		IF NTC_ROMLIB
+			or #84				; (ROM: the upper ROM on)
+		ELSE
+			or #8C
+		ENDIF
+			ret

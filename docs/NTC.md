@@ -254,7 +254,7 @@ Files (ES5, no node, no Python):
 | `asm/ntc_plat_cpm.asm` | CP/M platform (BDOS console, own stack, warm boot) |
 | `asm/ntc_plat_test.asm` | test harness platform (console through I/O ports, for `test/ntcrun.py`) |
 | `asm/ntc_plat_cpcmin.asm` | CPC platform with minimal firmware: the `cpc` screen / keys / interrupts, the firmware kept for discs and ROMs (handed back per call) |
-| `lib/<platform>/*.cls` | the platform classes: `StdIO.cls` (console), `System.cls` (what the machine is), `FileSystem.cls` (files), `Memory.cls` (RAM pages, heap), `List.cls` (linked lists) |
+| `lib/<platform>/*.cls` | the platform classes: `StdIO.cls` (console), `System.cls` (what the machine is), `FileSystem.cls` (files), `Memory.cls` (RAM pages, heap), `List.cls` (linked lists); the CPC platforms also `Graphics.cls` and `Keys.cls` (keys held down, joysticks) |
 | `../docs/requirements.md` | What you need to use NTC, rebuild its generated files and run the tests; the targets it builds for |
 | `../docs/userguide.md` | Language reference: every keyword by topic, with an example and its VB5 / VB6 differences |
 | `../docs/tutorial/` | The tutorial: 77 small pages (1.1 the IDE ... 14.4 a game loop in a Tick), contents in `README.md`; every example is checked by `test/tutcheck.py` |
@@ -449,6 +449,27 @@ name and file (`NTC CPC` NTCCPC.ROM, `NTC CPCMIN` NTCMIN.ROM, `NTC CPCFW` NTCFW.
   selection); all three checked on the real 6128 ROMs with `realcpc` (`XROM=`): self tests,
   files, overlays, pages, interrupt classes, the Memory class, cube3d.
 - Sizes: NTCCPC about 2.6K free, NTCMIN about 0.8K, NTCFW about 1.6K.
+
+### Flavours (ntcPrep)
+
+`ntcCompile` first hands its files to `ntcPrep`, the flavour preprocessor: every file comes
+back as VB5 text for the one parser and compiler. A file's first line (`Option Flavour JS`,
+`//# Option Flavour JS`) picks its flavour, else a `.js` name, else `options.flavour`, else
+`vb5`. The flavours come from a factory, `ntcFlavours()`: one function each, `(file, options) ->
+{ text, lines, cls, errors }`; `vb5` passes the text through (only the Option Flavour line is
+blanked). A translated file carries `lines` (the source line of each VB line: the parser's
+`srcLine`), `orig` (the user's file name: messages are renamed back at the end) and a `.cls`
+name when it is a class. The JS flavour is `js/ntc_flavour_js.js` (`ntcFlavourJs`): tokens,
+then a recursive reader that writes VB lines; expressions fully bracketed so VB's precedence
+never matters; text typing (`+` with text -> `&`) from what the file declares. The result has
+`vbfiles` (the VB5 text of every file); `cli.js --vb` prints it. Plan and table:
+`docs/js_flavour.md`. The Locomotive flavour (`js/ntc_flavour_loco.js`, `ntcFlavourLoco`) is
+line based: pass 1 tokenises each line (keywords, `a` / `a%` / `a$`, `'#` hints, DATA items, DIM
+sizes), pass 2 writes each line's statements as one VB line (`:` joined, so a one-line `If`
+keeps them all), the declarations and the DATA table at the top, `End`, the DEF FN functions
+and helpers at the end. A line using something unsupported throws inside pass 2: the line
+becomes `' WARNING: ...` (its number kept when something jumps to it) and a warning - flavours
+return `warnings`, ntcPrep passes them on, ntcCompile adds them to its own.
 
 ### Project explorer (GUI)
 
@@ -661,8 +682,11 @@ plus every volume used successfully (SelectVolume, or a Load / Save with "C:NAME
 `Capability("CPMVERSION")`: BDOS 12. CP/M: everything, through
 BDOS FCBs and random records (`ntc_plat_cpm.asm`, section `ntc_plat_fs`: two handles plus
 a slot for the whole-file calls, 170 bytes each). CPC firmware: Load / Save through the
-cassette calls (CAS IN / OUT DIRECT: disc with AMSDOS, else tape). CPC hardware and test:
-none yet. The file routines run on the real stack with interrupts on (`fs_go`), like the
+cassette calls (CAS IN / OUT DIRECT: disc with AMSDOS, else tape), and one open file
+(handle 1: CAS IN CHAR / CAS TEST EOF for ForRead, CAS OUT CHAR for ForWrite - an ASCII file
+as BASIC's OPENOUT makes; section `ntc_plat_fsseq`, sharing the 2K buffer, so Load / Save
+give Failed while it is open; `fs_hmode` is in `ntc_plat_fs`). cpcmin: the same; its
+`ntc_plat_fsseq` is `@ramonly` (below). CPC hardware and test: none yet. The file routines run on the real stack with interrupts on (`fs_go`), like the
 other host calls; `ntc_capfind` (in `ntc_lib.asm`) searches a class's capability table and
 leaves Z set when found. Details in `userguide.md` section 17.
 
@@ -694,7 +718,19 @@ future interrupt handler to put back. The program and its stack must be out of t
 (`Option Reserve &H4000, &H4000`), else `Pages() = 0`. cpm: no pages. Code: `ntc_lib.asm`
 sections `ntc_memcore`, `ntc_mem` (two, one per scheme), `ntc_memcopy`, `ntc_buf2k`;
 `bas/memmap.bas` draws the map. *maxpages* becomes `NTC_MEMBANKS equ` (the banks probed, and
-the size of the fixed bank data).
+the size of the fixed bank data). **Whole banks**: list 6, type B (`mem_kinds` "--CDIUB";
+`mem_listof` looks at 5 kinds, `mem_kindlist` still 4, so AllocPage can't ask for B).
+`mem_allocbank` takes the first bank whose 4 pages (2 + 4 x bank ...) are all free (only
+banks the tables cover: `mem_bankcount` = (pages - 1) / 4). `mem_callbank`: copies
+`ntc_bk_stub` .. `ntc_bk_end` (16 bytes) into the bank at its own address, byte by byte
+through the window (`mem_sel` of the bank's page for that address), then `ntc_bk_go`
+(section `ntc_membank`, `@romram`): interrupt state saved (`ld a, i`), `di`, the real SP in
+`mem_bksp`, both ROMs off (`ntc_plat_rmr` gives the ROM / mode byte now: cpc / cpcmin from
+`ntc_smode`, cpcfw from the firmware's C'), then `out (c), c` with C2 for the bank - the next
+byte comes from the bank's copy of the stub, which sets SP to 0, pushes the return to
+`ntc_bk_ret` and jumps to the address (HL = value). `ntc_bk_ret`: `#7FC0` out (main RAM: the
+next byte is the program's copy again), SP, the ROM byte, `ntc_rampt` (the window's page) and
+the interrupt state back.
 
 **Overlay classes** (`Option Class Overlay ["FILE"]`, cpcmin / cpcfw with CPCExpansion; for
 Small and cpm see one overlay area below). The
@@ -769,14 +805,31 @@ sync; `gfx_begin` / `gfx_end` put main RAM in the window around drawing on `#400
 setting in `ntc_rampt` back (the Memory class's `mem_sel` keeps it). Called on the real stack;
 uses IX and IY.
 
-**Interrupt classes** (`Option Class Interrupt rate | Frame`, cpc / cpcmin / cpcfw). Section
-`ntc_islots`: 4 slots (count, reload, running, due, Tick's call stub), filled by the start
-code. The platform's interrupt handler calls `ntc_irqv` (`ntc_isl_tick`): it counts each
+**Interrupt classes** (`Option Class Interrupt rate | Frame | Share weight`, cpc / cpcmin /
+cpcfw). Section `ntc_islots`: 16 slots of 8 bytes (count, reload, running, due, Tick's call
+stub), filled by the start code. A reload of `#8000 + weight` marks a shared slot; the
+counting loop skips those. After it, if no fixed slot fell due (`ntc_islfx`) and there are
+shared slots (`ntc_islshn`), the current shared slot (`ntc_islsc`) is marked due and its
+turns (`ntc_islsw`, loaded from its weight) go down by one; at 0 the next shared slot takes
+over. The platform's interrupt handler calls `ntc_irqv` (`ntc_isl_tick`): it counts each
 slot down (or, for Frame, looks for the start of the vertical sync on PPI port B) and marks
 it due. `ntc_xnh` (the normal mode safe point) runs a due slot's Tick that isn't running, as
 a call from that point - like the `Interrupt` hook - and Tick's return stub clears its
 running flag. Tick is ordinary BASIC, so nothing runs inside the hardware interrupt but the
 counting.
+
+**Keys** (`lib/<cpc platforms>/Keys.cls`, section `ntc_keys` in `ntc_lib.asm`): `ntc_kdown`
+(HL = key number) and `ntc_kjoy` (HL = 0 / 1) read all 10 matrix lines through the PPI / PSG
+into `ntc_kmat` - straight from the hardware on all three CPC platforms (in a keyword,
+interrupts are off, so the firmware's own scan can't cut in) - then put the result through
+the method's result pointer, still on the thread, and `ret`. No stack, no IX / IY.
+
+**`@ramonly` sections.** A library section marked `@ramonly` is left out of the keyword ROM
+(`ntcRomAsm`); what it names of the ROM's gets registry entries anyway. A `Library: ROM`
+program links the `@ramonly` sections it uses into itself (`linkLibrary(..., true)` keeps only
+those), and their ROM names come through the jump block like the program's own.
+`NTC_ROMLIB` is 1 in a `Library: ROM` program, so such a section takes its ROM-mode code.
+Used for cpcmin's `ntc_plat_fsseq`: NTCMIN.ROM had no room for it.
 
 **cpcfw interrupts** (`ntc_plat_irq` in `ntc_plat_cpcfw.asm`, `;@irq 2`: only when the
 program uses `Interrupt` or interrupt classes). The firmware keeps its interrupt handler; a

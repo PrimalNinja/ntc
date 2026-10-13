@@ -44,6 +44,8 @@ Public Const TypeCode = 67        ' "C" code (pageable classes, compiled sprites
 Public Const TypeData = 68        ' "D" the heap: Alloc / Free
 Public Const TypeIrq = 73         ' "I" interrupt handler
 Public Const TypeUser = 85        ' "U" the program's own (music, level data ...)
+Public Const TypeBank = 66        ' "B" a whole 64K bank (AllocBank)
+Public Const BankStubSize = 16    ' the bytes CallBank puts in a bank at BankStub()
 
 ' ---- the window (CPCExpansion), worked out when compiling - use these, not &H4000
 #If NTC_MEM_CPCEXPANSION Then
@@ -401,6 +403,93 @@ Public Function Copy(ByVal src As Long, ByVal dst As Long, ByVal length As Integ
             pop hl
             ld (mem_res), hl
             ld hl, mem_copy
+            jp mem_go
+#endasm
+End Function
+
+' ---- whole 64K banks (an expansion's 64K blocks: bank 1 = pages 2-5, bank 2 = pages 6-9 ...)
+
+' Banks(): whole banks there are (0 = none: a 64K machine, or no paging)
+Public Function Banks() As Integer
+#asm
+            pop hl
+            ld (mem_res), hl
+            ld hl, mem_bankcount
+            jp mem_go
+#endasm
+End Function
+
+' AllocBank(): a bank whose 4 pages are all free, now TypeBank; 0 = none left
+Public Function AllocBank() As Integer
+#asm
+            pop hl
+            ld (mem_res), hl
+            ld hl, mem_allocbank
+            jp mem_go
+#endasm
+End Function
+
+' FreeBank(bank): its 4 pages back to free. OK, or BadPage (not a bank, or not taken
+' with AllocBank)
+Public Function FreeBank(ByVal bank As Integer) As Integer
+#asm
+            pop hl
+            ld e, (hl)
+            inc hl
+            ld d, (hl)
+            ld (mem_a1), de
+            pop hl
+            ld (mem_res), hl
+            ld hl, mem_freebank
+            jp mem_go
+#endasm
+End Function
+
+' BankPage(bank, n): the page number of the bank's 16K part n (0 = its #0000-#3FFF ...
+' 3 = #C000-#FFFF), for SelectPage, ReadByte, WriteByte and Copy (a far pointer is
+' address #4000-#7FFF plus page * 65536)
+Public Function BankPage(ByVal bank As Integer, ByVal n As Integer) As Integer
+    BankPage = 4 * bank - 2 + n
+End Function
+
+' CallBank(bank, address, value): runs the bank's code at address with the whole 64K
+' being that bank; it gets value in HL and its HL comes back. The bank must be taken
+' (AllocBank). The switch code (about 20 bytes, at BankStub()) is copied into the bank
+' at the same address first, so keep the bank's code and data away from it. While the
+' bank's code runs: interrupts off, both ROMs off, nothing of the program or the screen
+' in sight, the stack starts at the bank's top (#FFFF down). It ends with ret and must
+' keep the alternate registers (BC', DE', HL'). BadPage = not a bank, or not taken.
+Public Function CallBank(ByVal bank As Integer, ByVal address As Integer, ByVal value As Integer) As Integer
+#asm
+            pop hl
+            ld e, (hl)
+            inc hl
+            ld d, (hl)
+            ld (mem_a1), de
+            pop hl
+            ld e, (hl)
+            inc hl
+            ld d, (hl)
+            ld (mem_a2), de
+            pop hl
+            ld e, (hl)
+            inc hl
+            ld d, (hl)
+            ld (mem_a3), de
+            pop hl
+            ld (mem_res), hl
+            ld hl, mem_callbank
+            jp mem_go
+#endasm
+End Function
+
+' BankStub(): where the switch code goes in a bank CallBank runs (it is BankStubSize
+' bytes long; 0 = no banks)
+Public Function BankStub() As Integer
+#asm
+            pop hl
+            ld (mem_res), hl
+            ld hl, mem_bkstub
             jp mem_go
 #endasm
 End Function

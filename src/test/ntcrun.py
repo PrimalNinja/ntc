@@ -1,7 +1,7 @@
 # run an NTC program on an emulated host - scratch test tool, not delivered
 #   python3 ntcrun.py prog.bas 'typed\n' [more files] [--turbo] [--platform=cpc|cpcmin|cpcfw|cpm|test] [--ram=64|128|576|4160]
 #   [--cmdline='file.txt'] (CP/M: the command tail at #80, made capitals as CP/M does)
-#   (in the typed text: \n = Return, ~ = one look at the keyboard that finds no key)
+#   (in the typed text: \n = Return, ~ = one look at the keyboard that finds no key, {n} = key number n held - Keys class)
 # cpc   : the CPC hardware emulation in cpcrun.py (screen read back from video RAM)
 # cpcmin: the same, with stand-ins for the firmware calls its FileSystem / System.Command make
 # test  : the port console of asm/ntc_plat_test.asm
@@ -16,6 +16,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 FW = {0xBB06: 'km_wait', 0xBB09: 'km_read', 0xBB5A: 'txt_out', 0xBB6C: 'txt_clear', 0xBB75: 'txt_cursor',
       0xBC0E: 'scr_mode', 0xBD19: 'mc_flyback', 0xBD0D: 'kl_time',
       0xBC77: 'cas_in_open', 0xBC7A: 'cas_in_close', 0xBC7D: 'cas_in_abandon', 0xBC83: 'cas_in_direct',
+      0xBC80: 'cas_in_char', 0xBC89: 'cas_test_eof', 0xBC95: 'cas_out_char',
       0xBC8C: 'cas_out_open', 0xBC8F: 'cas_out_close', 0xBC92: 'cas_out_abandon', 0xBC98: 'cas_out_direct',
       0xBCCB: 'kl_rom_walk', 0xBCCE: 'kl_init_back', 0xBCD4: 'kl_find_command', 0x001B: 'kl_far_pcall',
       0xBCE0: 'kl_new_fast_ticker', 0xBCE6: 'kl_del_fast_ticker',
@@ -135,6 +136,7 @@ class Host:
         if s.typed and s.typed[0] == '~':
             s.typed.pop(0)
             return 0
+        if s.typed and s.typed[0] == '{': return 0     # a held key for the matrix (Keys), not a typed one
         return ord(s.typed.pop(0)) if s.typed else 0
     def ticks(s):
         return (s.T // 13333) & 0xFFFF
@@ -142,6 +144,8 @@ class Host:
         lo = port & 0xFF; m = s.m
         if s.p != 'cpm' and 0x78 <= (port >> 8) <= 0x7F and (val & 0xC0) == 0xC0:
             s.ram.set(val, port >> 8); return
+        if s.p == 'cpcfw' and (port >> 8) == 0xF6:
+            s.line = val & 15; return          # the PPI's port C: the keyboard line (Keys class)
         if s.p == 'test':
             if lo == 0xFE: s.scr.put(chr(val) if 32 <= val < 127 else '?')
             elif lo == 0xF9: s.scr.newline()
@@ -299,28 +303,60 @@ class Host:
             p = name()
             if not os.path.exists(p): m.a = 0x92; return False
             d = open(p, 'rb').read(); h = amsdos_header_of(d)
-            if h is None: s.cas_in = None; s.cas_ascii = True; m.bc = 0; m.de = 0; m.a = 0x16; return True
-            s.cas_ascii = False; s.cas_in = d[128:128 + h[1]]; m.bc = h[1]; m.de = h[0]; m.a = 2; return True
+            s.cas_pos = 0
+            if h is None:
+                # ASCII: CAS IN CHAR reads it, up to a ^Z
+                s.cas_in = None; s.cas_ascii = True; s.cas_chars = d.split(b'\x1a')[0]; m.bc = 0; m.de = 0; m.a = 0x16; return True
+            s.cas_ascii = False; s.cas_in = d[128:128 + h[1]]; s.cas_chars = s.cas_in; m.bc = h[1]; m.de = h[0]; m.a = 2; return True
+        if f == 'cas_in_char':
+            c = getattr(s, 'cas_chars', None); p = getattr(s, 'cas_pos', 0)
+            if c is None or p >= len(c): m.a = 0x1A; return False
+            m.a = c[p]; s.cas_pos = p + 1; return True
+        if f == 'cas_test_eof':
+            c = getattr(s, 'cas_chars', None)
+            return c is not None and getattr(s, 'cas_pos', 0) < len(c)
         if f == 'cas_in_direct':
             if s.cas_in is None: return False
             for i, x in enumerate(s.cas_in): mem[(m.hl + i) & 0xFFFF] = x
             m.hl = 0; return True
         if f in ('cas_in_close', 'cas_in_abandon'):
-            s.cas_in = None; return True
+            s.cas_in = None; s.cas_chars = None; return True
         if f == 'cas_out_open':
-            s.cas_out = [name(), b'']; return True
+            s.cas_out = [name(), b'']; s.cas_outch = None; return True
+        if f == 'cas_out_char':
+            if s.cas_out is None: return False
+            if getattr(s, 'cas_outch', None) is None: s.cas_outch = bytearray()
+            s.cas_outch.append(m.a); return True
         if f == 'cas_out_direct':
             if s.cas_out is None: return False
             s.cas_load = m.hl
             s.cas_out[1] = bytes(mem[(m.hl + i) & 0xFFFF] for i in range(m.de)); return True
         if f == 'cas_out_close':
             if s.cas_out is None: return False
+            if getattr(s, 'cas_outch', None) is not None:
+                # CAS OUT CHAR: an ASCII file, no header, ^Z at the end (as AMSDOS writes it)
+                open(s.cas_out[0], 'wb').write(bytes(s.cas_outch) + b'\x1a'); s.cas_out = None; s.cas_outch = None; return True
             open(s.cas_out[0], 'wb').write(amsdos_header(s.cas_out[1], s.cas_load) + s.cas_out[1]); s.cas_out = None; return True
         if f == 'cas_out_abandon':
             s.cas_out = None; return True
         return False
     def inp(s, port):
         lo = port & 0xFF
+        if s.p == 'cpcfw' and (port >> 8) == 0xF4:
+            # the keyboard matrix (Keys class): {n} in the typed text holds key n for 12 scans
+            v = 0xFF; h = getattr(s, 'held', None); line = getattr(s, 'line', 0)
+            if h is not None and line == h // 8: v &= ~(1 << (h % 8))
+            if line == 9:
+                s.hscans = getattr(s, 'hscans', 0) + 1
+                if h is not None and s.hscans >= 12: s.held = None
+                elif h is None and s.typed and s.typed[0] == '{':
+                    s.typed.pop(0); n = ''
+                    while s.typed and s.typed[0] != '}': n += s.typed.pop(0)
+                    if s.typed: s.typed.pop(0)
+                    s.held = int(n); s.hscans = 0
+                elif h is None and s.typed and s.typed[0] == '~':
+                    s.typed.pop(0)
+            return v & 0xFF
         if s.p == 'test':
             if lo == 0xFD: return s.key() or 13
             if lo == 0xF8: return s.key()

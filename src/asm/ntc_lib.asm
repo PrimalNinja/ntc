@@ -5927,7 +5927,7 @@ mem_putback:
 			pop hl
 			ret
 
-;## ntc_mem ntc_memcore @shared @if:ntc_mem_cpcexpansion
+;## ntc_mem ntc_memcore ntc_membank @shared @if:ntc_mem_cpcexpansion
 ; ------------------------------------------------------------
 ; ntc_mem (CPCExpansion) - 16K RAM pages in the #4000-#7FFF window (CPC gate
 ; array RAM setting: C0 = plain, C4-C7 + bank * 8 = page 0-3 of a 64K bank;
@@ -5943,7 +5943,8 @@ mem_putback:
 ; what the probe finds (3 bytes a page: next link, type); fewer pages
 ; when there isn't room below #4000 (or below the real stack).
 ; Lists: every page is on one - 0 free low (main + the #7F block),
-; 1 free high (#78-#7E), 2 C, 3 D, 4 I, 5 U. C / I / U pages come from
+; 1 free high (#78-#7E), 2 C, 3 D, 4 I, 5 U, 6 B (the 4 pages of a whole
+; bank, AllocBank). C / I / U pages come from
 ; the low list first, D pages from the high one; each falls back to the
 ; other. On 576K or less every page is low, so it is one list.
 ; The page in the window is kept in mem_cur, written before the port,
@@ -5951,7 +5952,8 @@ mem_putback:
 ; A new D page is one free block of #4000.
 ; ------------------------------------------------------------
 MEM_BANKS	equ NTC_MEMBANKS	; 0 - 64
-MEM_LISTS	equ 6
+MEM_LISTS	equ 7
+MEM_LB		equ 6			; the whole-bank list
 
 mem_count:		dw 0			; pages (0 = no paging)
 mem_tnext:		dw 0			; the tables: next links (2 bytes a page)
@@ -5961,9 +5963,11 @@ mem_head:		ds MEM_LISTS * 2	; each list's first page
 mem_cnt:		ds MEM_LISTS * 2	; and how many (must follow mem_head)
 mem_banks:		db 0			; 64K banks found
 mem_tl:			db 0
-mem_kinds:		db "--CDIU"		; the type character of each list
+mem_kinds:		db "--CDIUB"		; the type character of each list
 mem_bank:		ds MEM_BANKS * 2 + 1	; per bank found: setting for its page 0, port high byte
 mem_save:		ds MEM_BANKS + 1	; probe: the bytes the markers replace
+mem_bksp:		dw 0			; CallBank: the real stack while bank code runs
+mem_bkrmr:		db 0			; and the ROM / mode byte to put back
 
 ; mem_start - the first call: can this program page, what is fitted, the tables
 mem_start:
@@ -6410,7 +6414,7 @@ mem_listof:
 			ld a, (hl)
 			push bc
 			ld hl, mem_kinds + 2
-			ld b, 4
+			ld b, 5
 			ld c, 2
 mem_lo_lp:
 			cp (hl)
@@ -6654,6 +6658,184 @@ mem_curpage:
 			ld hl, (mem_cur)
 			ret
 
+; ---- whole 64K banks (page numbers 4 * bank - 2 .. 4 * bank + 1)
+
+; Banks(): whole banks the tables cover (0 = none)
+mem_bankcount:
+			ld hl, (mem_count)
+			ld a, h
+			or l
+			ret z
+			dec hl
+			srl h
+			rr l
+			srl h
+			rr l
+			ret
+
+; mem_bkfirst - (mem_a1) = a bank, 1 .. Banks(): BC = its first page, else
+; mem_err BadPage
+mem_bkfirst:
+			call mem_bankcount
+			ld de, (mem_a1)
+			ld a, d
+			or e
+			jp z, mem_chk_bad
+			or a
+			sbc hl, de
+			jp c, mem_chk_bad
+			ex de, hl
+			dec hl
+			add hl, hl
+			add hl, hl
+			inc hl
+			inc hl
+			ld b, h
+			ld c, l
+			ret
+
+; AllocBank(): a bank whose 4 pages are all free, now type B; 0 = none
+mem_allocbank:
+			call mem_bankcount
+			ld a, l
+			or a
+			jr z, mem_ab_none
+			ld (mem_tl), a			; banks left to try
+			ld bc, 2
+mem_ab_lp:
+			push bc
+			ld d, 4
+mem_ab_chk:
+			call mem_listof
+			cp 2
+			jr nc, mem_ab_used
+			inc bc
+			dec d
+			jr nz, mem_ab_chk
+			pop bc					; all 4 free: onto the bank list
+			push bc
+			ld d, 4
+mem_ab_take:
+			call mem_listof
+			call mem_remove
+			ld a, MEM_LB
+			call mem_push
+			inc bc
+			dec d
+			jr nz, mem_ab_take
+			pop hl					; bank = (first page + 2) / 4
+			inc hl
+			inc hl
+			srl h
+			rr l
+			srl h
+			rr l
+			ret
+mem_ab_used:
+			pop bc
+			ld hl, 4
+			add hl, bc
+			ld b, h
+			ld c, l
+			ld a, (mem_tl)
+			dec a
+			ld (mem_tl), a
+			jr nz, mem_ab_lp
+mem_ab_none:
+			ld hl, 0
+			ret
+
+; FreeBank(bank): its 4 pages back to free. OK, or BadPage (not a bank,
+; or not taken with AllocBank)
+mem_bkstub:
+			ld hl, ntc_bk_stub
+			ret
+
+mem_freebank:
+			call mem_bkfirst
+			push bc
+			ld d, 4
+mem_fb_chk:
+			call mem_listof
+			cp MEM_LB
+			jp nz, mem_chk_bad
+			inc bc
+			dec d
+			jr nz, mem_fb_chk
+			pop bc
+			ld d, 4
+mem_fb_lp:
+			ld a, MEM_LB
+			call mem_remove
+			call mem_tofree
+			inc bc
+			dec d
+			jr nz, mem_fb_lp
+			ld hl, 0
+			ret
+
+; CallBank(bank, address, value): runs the bank's code at address with the
+; whole 64K being that bank (RAM setting C2), HL = value; its HL comes back.
+; The bank must be taken (AllocBank). The switch code (ntc_bk_stub, about
+; 20 bytes) is copied into the bank at its own address first, so those
+; bytes of the bank are overwritten. Interrupts are off and both ROMs are
+; off while the bank code runs; it starts with the stack at the bank's top
+; (#FFFF down) and ends with ret. It must keep the alternate registers.
+mem_callbank:
+			call mem_bkfirst
+			call mem_listof
+			cp MEM_LB
+			jp nz, mem_chk_bad
+			ld hl, ntc_bk_stub		; copy the switch code into the bank
+mem_cb_cp:
+			push bc
+			ld a, h					; its page in the bank: address / #4000
+			rlca
+			rlca
+			and 3
+			add a, c
+			ld c, a
+			jr nc, mem_cb_nc
+			inc b
+mem_cb_nc:
+			push hl
+			ld h, b
+			ld l, c
+			call mem_sel
+			pop hl
+			ld b, (hl)
+			ld a, h
+			and #3F
+			or #40
+			ld d, a
+			ld e, l
+			ld a, b
+			ld (de), a
+			pop bc
+			inc hl
+			ld a, l
+			cp low ntc_bk_end
+			jr nz, mem_cb_cp
+			ld a, h
+			cp high ntc_bk_end
+			jr nz, mem_cb_cp
+			ld hl, (mem_keep)
+			call mem_sel
+			ld hl, (mem_a1)			; BC = C2 for the bank: its page 0 setting
+			dec hl					; (#C4 + bank bits) and #F8, or 2
+			add hl, hl
+			ld de, mem_bank
+			add hl, de
+			ld a, (hl)
+			and #F8
+			or 2
+			ld c, a
+			inc hl
+			ld b, (hl)
+			ld de, (mem_a2)
+			ld hl, (mem_a3)
+			jp ntc_bk_go
+
 ; ---- heap in D pages
 
 ; Alloc(size): a far pointer to size bytes in a D page, 0 = no room.
@@ -6825,6 +7007,49 @@ mem_lg_end:
 			dec hl
 			ret
 
+;## ntc_membank ntc_plat_rmr @shared @romram
+; ------------------------------------------------------------
+; ntc_membank - Memory's CallBank switch (CPCExpansion). Runs from RAM
+; (a keyword ROM can't be seen once both ROMs are off). BC = the C2
+; setting and port for the bank, DE = the address in the bank, HL = value.
+; ntc_bk_stub .. ntc_bk_end is also copied into the bank at the same
+; address: each out is followed by the next byte from the other 64K.
+; ------------------------------------------------------------
+ntc_bk_go:
+			ld a, i					; P/V = interrupts were on
+			di
+			push af
+			ld (mem_bksp), sp
+			call ntc_plat_rmr
+			ld (mem_bkrmr), a
+			or #0C					; both ROMs off
+			push bc
+			ld b, #7F
+			out (c), a
+			pop bc
+ntc_bk_stub:
+			out (c), c				; the bank is all 64K now
+			ld sp, 0
+			ld bc, ntc_bk_ret
+			push bc
+			push de
+			ret						; to the bank's code, HL = value
+ntc_bk_ret:
+			ld bc, #7FC0
+			out (c), c				; main RAM again
+ntc_bk_end:
+			ld sp, (mem_bksp)
+			ld a, (mem_bkrmr)
+			ld b, #7F
+			out (c), a				; the ROMs as they were
+			ld bc, (ntc_rampt)
+			out (c), c				; and the window's page
+			pop af
+			jp po, ntc_bk_di
+			ei
+ntc_bk_di:
+			ret
+
 ;## ntc_mem ntc_memcore ntc_plat_memtop @shared @if:ntc_mem_small
 ; ------------------------------------------------------------
 ; ntc_mem (Small) - no paging: Alloc / Free over the free main RAM, from the
@@ -6939,11 +7164,16 @@ mem_ramsize:
 mem_model:
 mem_curpage:
 mem_allocpage:
+mem_bankcount:
+mem_allocbank:
+mem_bkstub:
 			ld hl, 0
 			ret
 mem_pagetype:
 mem_freepage:
 mem_selpage:
+mem_freebank:
+mem_callbank:
 			jp mem_chk_bad
 mem_tableend:
 			ld hl, ntc_free
@@ -7011,6 +7241,109 @@ mem_largest:
 			ret z
 			dec hl
 			dec hl
+			ret
+
+;## ntc_keys ntc_data @shared
+; ------------------------------------------------------------
+; ntc_keys - the Keys class (CPC): the keyboard matrix read straight from the
+; hardware (PSG register 14 through the PPI), all 10 lines each time, so it
+; works with or without the firmware, in turbo and normal mode. Entered
+; with jp from a method, with the method's result pointer still on the
+; thread: the result goes there and ret carries on. No stack used.
+;   ntc_kdown - HL = a key number 0-79 (the CPC's, as INKEY(n)): -1 held, 0 not
+;   ntc_kjoy  - HL = joystick 0 / 1: bits up 1, down 2, left 4, right 8,
+;               fire 2 16, fire 1 32 (as JOY(n))
+; ------------------------------------------------------------
+ntc_kmat:		ds 10			; the matrix (0 = pressed)
+ntc_karg:		db 0
+ntc_kwhat:		db 0
+
+ntc_kdown:
+			ld a, h
+			or a
+			jr nz, ntc_kd_no
+			ld a, l
+			cp 80
+			jr nc, ntc_kd_no
+			ld (ntc_karg), a
+			xor a
+			jr ntc_kscan
+ntc_kjoy:
+			ld a, l
+			and 1
+			ld (ntc_karg), a
+			ld a, 1
+ntc_kscan:
+			ld (ntc_kwhat), a
+			ld bc, #F40E		; PSG register 14
+			out (c), c
+			ld bc, #F6C0		; PSG: select register
+			out (c), c
+			ld bc, #F600		; PSG: inactive
+			out (c), c
+			ld bc, #F792		; PPI port A input
+			out (c), c
+			ld hl, ntc_kmat
+			ld a, #40			; PSG read + line 0
+ntc_ksc_line:
+			ld b, #F6
+			out (c), a
+			ld b, #F4
+			in d, (c)
+			ld (hl), d
+			inc hl
+			inc a
+			cp #4A
+			jr nz, ntc_ksc_line
+			ld bc, #F782		; PPI port A output
+			out (c), c
+			ld bc, #F600
+			out (c), c
+			ld a, (ntc_kwhat)
+			or a
+			jr nz, ntc_kj_got
+			ld a, (ntc_karg)	; line = n / 8, bit = n and 7
+			ld c, a
+			rrca
+			rrca
+			rrca
+			and 31
+			ld e, a
+			ld d, 0
+			ld hl, ntc_kmat
+			add hl, de
+			ld a, c
+			and 7
+			ld b, a
+			inc b
+			ld a, (hl)
+ntc_kd_rot:
+			rrca
+			djnz ntc_kd_rot
+			ld de, 0
+			jr c, ntc_k_set		; 1 = not pressed
+			dec de
+			jr ntc_k_set
+ntc_kd_no:
+			ld de, 0
+			jr ntc_k_set
+ntc_kj_got:
+			ld a, (ntc_karg)	; joystick 0 = line 9, 1 = line 6
+			ld hl, ntc_kmat + 9
+			or a
+			jr z, ntc_kj_line
+			ld hl, ntc_kmat + 6
+ntc_kj_line:
+			ld a, (hl)
+			cpl
+			and #3F
+			ld e, a
+			ld d, 0
+ntc_k_set:
+			pop hl
+			ld (hl), e
+			inc hl
+			ld (hl), d
 			ret
 
 ;## ntc_memcopy ntc_mem ntc_buf2k @shared
@@ -8462,22 +8795,29 @@ gfx_cr2:
 
 ;## ntc_islots ntc_data @shared
 ; ------------------------------------------------------------
-; ntc_islots - interrupt classes (Option Class Interrupt rate | Frame): up to
-; 4 classes whose Tick Sub runs at a rate, at the next safe point after it is
-; due (normal mode). Slot n, 8 bytes at ntc_isl + n * 8:
-;   +0 count (dw)  +2 reload (dw: interrupts between runs, 0 = every frame)
-;   +4 running (db: Tick started, its return stub clears it)  +5 due (db)
-;   +6 Tick's call stub (dw)
-; The start code fills the slots and puts ntc_isl_tick in ntc_irqv, which
-; the platform's interrupt handler calls. The counts start at 1, 2, 3, 4 so
-; classes of the same rate take turns.
+; ntc_islots - interrupt classes (Option Class Interrupt rate | Frame | Share n):
+; up to 16 classes whose Tick Sub runs at the next safe point after it is due
+; (normal mode). Slot n, 8 bytes at ntc_isl + n * 8:
+;   +0 count (dw)  +2 reload (dw: interrupts between runs, 0 = every frame,
+;   #8000 + weight = a shared class)  +4 running (db: Tick started, its return
+;   stub clears it)  +5 due (db)  +6 Tick's call stub (dw)
+; Fixed classes (a rate, Frame) are counted every interrupt. Shared classes take
+; turns in the interrupts no fixed class fell due in: the current one is marked
+; due on each such interrupt until it has had its weight of turns, then the
+; next shared one. The start code fills the slots and puts ntc_isl_tick in
+; ntc_irqv, which the platform's interrupt handler calls. The counts start a
+; slot apart so classes of the same rate take turns.
 ; ------------------------------------------------------------
 ntc_isln:		db 0			; slots in use
 ntc_isldue:		db 0			; 1 = a slot may be due
 ntc_islvs:		db 0			; vertical sync at the last interrupt
 ntc_islfr:		db 0			; 1 = this interrupt is the frame's (sync just started)
 ntc_islph:		db 0			; interrupts since the frame's (0-5)
-ntc_isl:		ds 32
+ntc_islfx:		db 0			; 1 = a fixed class fell due in this interrupt
+ntc_islsc:		db 0			; the shared class having its turns (slot number)
+ntc_islsw:		db 0			; turns it has left
+ntc_islshn:		db 0			; shared classes (0 = none)
+ntc_isl:		ds 128			; 16 slots
 
 ; ntc_isl_tick - from the interrupt handler (call, real stack): count each
 ; slot, mark the ones due. Keeps BC, DE, IX, IY.
@@ -8511,19 +8851,25 @@ ntc_it_ph2:
 			inc a
 ntc_it_fr:
 			ld (ntc_islfr), a
+			xor a
+			ld (ntc_islfx), a
 			ld a, (ntc_isln)
 			or a
-			jr z, ntc_it_end
+			jp z, ntc_it_end
 			ld b, a
 			ld hl, ntc_isl
 ntc_it_lp:
 			push hl
 			inc hl
 			inc hl
-			ld a, (hl)
+			ld e, (hl)
 			inc hl
-			or (hl)
+			ld d, (hl)
 			pop hl
+			bit 7, d				; a shared class: the turns below mark it
+			jr nz, ntc_it_nx
+			ld a, d
+			or e
 			jr nz, ntc_it_rate
 			ld a, (ntc_islfr)		; every frame: when the sync starts
 			or a
@@ -8559,10 +8905,56 @@ ntc_it_due:
 			pop hl
 			ld a, 1
 			ld (ntc_isldue), a
+			ld (ntc_islfx), a
 ntc_it_nx:
 			ld de, 8
 			add hl, de
 			djnz ntc_it_lp
+			; shared classes: an interrupt no fixed class used is a turn
+			ld a, (ntc_islfx)
+			or a
+			jp nz, ntc_it_end
+			ld a, (ntc_islshn)
+			or a
+			jp z, ntc_it_end
+			ld a, (ntc_islsw)
+			or a
+			jr nz, ntc_it_take
+			ld a, (ntc_islsc)		; its turns are used: the next shared class
+ntc_it_find:
+			inc a
+			ld hl, ntc_isln
+			cp (hl)
+			jr c, ntc_it_fi2
+			xor a
+ntc_it_fi2:
+			ld l, a
+			ld h, 0
+			add hl, hl
+			add hl, hl
+			add hl, hl
+			ld de, ntc_isl + 2
+			add hl, de
+			ld e, (hl)				; E = the weight
+			inc hl
+			bit 7, (hl)
+			jr z, ntc_it_find		; not shared (there is one: ntc_islshn)
+			ld (ntc_islsc), a
+			ld a, e
+ntc_it_take:
+			dec a
+			ld (ntc_islsw), a
+			ld a, (ntc_islsc)
+			ld l, a
+			ld h, 0
+			add hl, hl
+			add hl, hl
+			add hl, hl
+			ld de, ntc_isl + 5
+			add hl, de
+			ld (hl), 1				; due
+			ld a, 1
+			ld (ntc_isldue), a
 ntc_it_end:
 			pop de
 			pop bc

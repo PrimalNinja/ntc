@@ -10,7 +10,7 @@ NTC_TERM	equ 0		; Option Terminal: 0 none, 1 VT52, 2 ANSI (CP/M)
 NTC_STRMAX	equ 255		; the longest string (library buffers, temps)
 NTC_MEMBANKS	equ 64		; Option Memory: the most 64K banks the Memory class looks for
 NTC_ROMENABLE	equ 0		; Option RomEnable (cpcfw, cpcmin): the start code starts the ROMs
-NTC_ROMLIB	equ 0		; 1 only when the library itself is built as a ROM (ntcRomAsm)
+NTC_ROMLIB	equ 1		; 1 = the library is the keyword ROM (Library: ROM; ntcRomAsm builds it)
 
 ntc_start:
 			di
@@ -276,17 +276,17 @@ ntc_plat_getkey:	jp 313
 ntc_plat_irqon:	jp 316
 NTC_RJ_N	equ 19		; entries
 ntc_csp	equ #8800		; ROM data
-ntc_curx	equ #8921		; ROM data
+ntc_curx	equ #8925		; ROM data
 ntc_font	equ #948E		; ROM bss
 ntc_ivar	equ #8814		; ROM data
 ntc_nmode	equ #8807		; ROM data
-ntc_scols	equ #8926		; ROM data
+ntc_scols	equ #892A		; ROM data
 ntc_sptr	equ #880E		; ROM data
-ntc_v_free	equ #897F		; ROM data
-ntc_v_romen	equ #8985		; ROM data
-ntc_v_romold	equ #8987		; ROM data
-ntc_v_stamp	equ #8983		; ROM data
-ntc_v_start	equ #8981		; ROM data
+ntc_v_free	equ #8984		; ROM data
+ntc_v_romen	equ #898A		; ROM data
+ntc_v_romold	equ #898C		; ROM data
+ntc_v_stamp	equ #8988		; ROM data
+ntc_v_start	equ #8986		; ROM data
 			ASSERT ntc_free <= #8800, "Library: ROM - the program and its arrays must end below #8800 (the ROM's RAM)"
 
 ; the start: find the ROM in slots 0 - 31, have it patch the jump block. NC = ready;

@@ -9,7 +9,7 @@ NTC_TERM	equ 0		; Option Terminal: 0 none, 1 VT52, 2 ANSI (CP/M)
 NTC_STRMAX	equ 40		; the longest string (library buffers, temps)
 NTC_MEMBANKS	equ 64		; Option Memory: the most 64K banks the Memory class looks for
 NTC_ROMENABLE	equ 0		; Option RomEnable (cpcfw, cpcmin): the start code starts the ROMs
-NTC_ROMLIB	equ 0		; 1 only when the library itself is built as a ROM (ntcRomAsm)
+NTC_ROMLIB	equ 0		; 1 = the library is the keyword ROM (Library: ROM; ntcRomAsm builds it)
 
 ntc_start:
 			di
@@ -26,11 +26,11 @@ ntc_start:
 main_thread:
 			dw kw_bssinit, ntc_bss, ntc_bss_size		; the arrays: do they fit, clear them
 
-			; main.bas 19: Print "Files on "; System.Platform
+			; main.bas 20: Print "Files on "; System.Platform
 			dw kw_printstrvar, str1
 			dw kw_printnl
 
-			; main.bas 20: Print "LOAD "; FileSystem.Capability("LOAD"); "  SAVE "; FileSystem.Capability("SAVE")
+			; main.bas 21: Print "LOAD "; FileSystem.Capability("LOAD"); "  SAVE "; FileSystem.Capability("SAVE")
 			dw fn_filesystem_capability, str2, var_filesystem_capability_capability
 			dw kw_printstrvar, str3
 			dw kw_printint, var_filesystem_capability_capability
@@ -39,7 +39,7 @@ main_thread:
 			dw kw_printint, var_filesystem_capability_capability
 			dw kw_printnl
 
-			; main.bas 21: Print "SEQUENTIAL "; FileSystem.Capability("SEQUENTIAL"); "  RANDOMACCESS "; FileSystem.Capability("RANDOMACCESS")
+			; main.bas 22: Print "SEQUENTIAL "; FileSystem.Capability("SEQUENTIAL"); "  RANDOMACCESS "; FileSystem.Capability("RANDOMACCESS")
 			dw fn_filesystem_capability, str6, var_filesystem_capability_capability
 			dw kw_printstrvar, str7
 			dw kw_printint, var_filesystem_capability_capability
@@ -48,13 +48,13 @@ main_thread:
 			dw kw_printint, var_filesystem_capability_capability
 			dw kw_printnl
 
-			; main.bas 22: Print "MAXOPEN "; FileSystem.Capability("MAXOPEN")
+			; main.bas 23: Print "MAXOPEN "; FileSystem.Capability("MAXOPEN")
 			dw fn_filesystem_capability, str10, var_filesystem_capability_capability
 			dw kw_printstrvar, str11
 			dw kw_printint, var_filesystem_capability_capability
 			dw kw_printnl
 
-			; main.bas 23: If FileSystem.Capability("DEVICES") Then Print "Devices "; FileSystem.Devices(); " - using "; FileSystem.CurrentDevice()
+			; main.bas 24: If FileSystem.Capability("DEVICES") Then Print "Devices "; FileSystem.Devices(); " - using "; FileSystem.CurrentDevice()
 			dw fn_filesystem_capability, str12, var_filesystem_capability_capability
 			dw kw_goto_ifzero_n, var_filesystem_capability_capability, if1_1
 			dw p_filesystem_devices_c
@@ -66,7 +66,7 @@ main_thread:
 			dw kw_printnl
 if1_1:
 
-			; main.bas 24: If FileSystem.Capability("VOLUMES") Then Print "Volumes known "; FileSystem.Volumes(); " - using "; FileSystem.CurrentVolume()
+			; main.bas 25: If FileSystem.Capability("VOLUMES") Then Print "Volumes known "; FileSystem.Volumes(); " - using "; FileSystem.CurrentVolume()
 			dw fn_filesystem_capability, str15, var_filesystem_capability_capability
 			dw kw_goto_ifzero_n, var_filesystem_capability_capability, if2_1
 			dw p_filesystem_volumes_c
@@ -78,14 +78,14 @@ if1_1:
 			dw kw_printnl
 if2_1:
 
-			; main.bas 25: Print
+			; main.bas 26: Print
 			dw kw_printnl
 
-			; main.bas 27: If FileSystem.Capability("SAVE") Then
+			; main.bas 28: If FileSystem.Capability("SAVE") Then
 			dw fn_filesystem_capability, str4, var_filesystem_capability_capability
 			dw kw_goto_ifzero_n, var_filesystem_capability_capability, if3_1
 
-			; main.bas 28: For i = 0 To 9 : hs(i) = 1000 - i * 50 : Next
+			; main.bas 29: For i = 0 To 9 : hs(i) = 1000 - i * 50 : Next
 			dw kw_ztov, var_i
 for4_t:
 			dw kw_mulvl, var_i, 50, tmp2
@@ -94,24 +94,24 @@ for4_t:
 			dw kw_next1l_n, var_i, 9, for4_t
 for4_e:
 
-			; main.bas 29: r = FileSystem.Save("HISCORE.DAT", VarPtr(hs), 20)
+			; main.bas 30: r = FileSystem.Save("HISCORE.DAT", VarPtr(hs), 20)
 			dw p_filesystem_save_c, str17, vp_arr_hs, lit_20
 			dw kw_vtov, var_filesystem_save_save, var_r
 
-			; main.bas 30: Print "Save HISCORE.DAT: "; r
+			; main.bas 31: Print "Save HISCORE.DAT: "; r
 			dw kw_printstrvar, str18
 			dw kw_printint, var_r
 			dw kw_printnl
 
-			; main.bas 31: If FileSystem.Capability("LOAD") Then
+			; main.bas 32: If FileSystem.Capability("LOAD") Then
 			dw fn_filesystem_capability, str2, var_filesystem_capability_capability
 			dw kw_goto_ifzero_n, var_filesystem_capability_capability, if3_e
 
-			; main.bas 32: r = FileSystem.Load("HISCORE.DAT", VarPtr(back), 20)
+			; main.bas 33: r = FileSystem.Load("HISCORE.DAT", VarPtr(back), 20)
 			dw p_filesystem_load_c, str17, vp_arr_back, lit_20
 			dw kw_vtov, var_filesystem_load_load, var_r
 
-			; main.bas 33: Print "Load: "; r; " bytes, "; back(0); " ... "; back(9)
+			; main.bas 34: Print "Load: "; r; " bytes, "; back(0); " ... "; back(9)
 			dw kw_printstrvar, str19
 			dw kw_printint, var_r
 			dw kw_printstrvar, str20
@@ -120,76 +120,76 @@ for4_e:
 			dw kw_printint, arr_back+18
 			dw kw_printnl
 
-			; main.bas 34: End If
+			; main.bas 35: End If
 if5_1:
 
-			; main.bas 35: Else
+			; main.bas 36: Else
 			dw if3_e_go
 if3_1:
 
-			; main.bas 36: Print "No saving on this platform"
+			; main.bas 37: Print "No saving on this platform"
 			dw kw_printstrvar, str22
 			dw kw_printnl
 
-			; main.bas 37: End If
+			; main.bas 38: End If
 if3_e:
 
-			; main.bas 39: If FileSystem.Capability("SEQUENTIAL") Then
+			; main.bas 40: If FileSystem.Capability("SEQUENTIAL") Then
 			dw fn_filesystem_capability, str6, var_filesystem_capability_capability
 			dw kw_goto_ifzero_n, var_filesystem_capability_capability, if6_1
 
-			; main.bas 40: h = FileSystem.Open("NOTES.TXT", FileSystem.ForWrite)
+			; main.bas 41: h = FileSystem.Open("NOTES.TXT", FileSystem.ForWrite)
 			dw p_filesystem_open_c, str23, lit_2
 			dw kw_vtov, var_filesystem_open_open, var_h
 
-			; main.bas 41: r = FileSystem.WriteLine(h, "Written by NTC BASIC")
+			; main.bas 42: r = FileSystem.WriteLine(h, "Written by NTC BASIC")
 			dw p_filesystem_writeline_c, var_h, str24
 			dw kw_vtov, var_filesystem_writeline_writeline, var_r
 
-			; main.bas 42: r = FileSystem.WriteLine(h, "Line two")
+			; main.bas 43: r = FileSystem.WriteLine(h, "Line two")
 			dw p_filesystem_writeline_c, var_h, str25
 			dw kw_vtov, var_filesystem_writeline_writeline, var_r
 
-			; main.bas 43: r = FileSystem.Close(h)
+			; main.bas 44: r = FileSystem.Close(h)
 			dw p_filesystem_close_c, var_h
 			dw kw_vtov, var_filesystem_close_close, var_r
 
-			; main.bas 44: Print "NOTES.TXT:"
+			; main.bas 45: Print "NOTES.TXT:"
 			dw kw_printstrvar, str26
 			dw kw_printnl
 
-			; main.bas 45: h = FileSystem.Open("NOTES.TXT", FileSystem.ForRead)
+			; main.bas 46: h = FileSystem.Open("NOTES.TXT", FileSystem.ForRead)
 			dw p_filesystem_open_c, str23, lit_1
 			dw kw_vtov, var_filesystem_open_open, var_h
 
-			; main.bas 46: Do While Not FileSystem.Eof(h)
+			; main.bas 47: Do While Not FileSystem.Eof(h)
 do7_t:
 			dw p_filesystem_eof_c, var_h
 			dw kw_vtov, var_filesystem_eof_eof, tmp0
 			dw kw_notv, tmp0, tmp0
 			dw kw_goto_ifzero_n, tmp0, do7_e
 
-			; main.bas 47: Print "> "; FileSystem.ReadLine(h)
+			; main.bas 48: Print "> "; FileSystem.ReadLine(h)
 			dw p_filesystem_readline_c, var_h
 			dw kw_printstrvar, str27
 			dw kw_printstrvar, var_filesystem_readline_readline
 			dw kw_printnl
 
-			; main.bas 48: Loop
+			; main.bas 49: Loop
 			dw do7_t_go
 do7_e:
 
-			; main.bas 49: r = FileSystem.Close(h)
+			; main.bas 50: r = FileSystem.Close(h)
 			dw p_filesystem_close_c, var_h
 			dw kw_vtov, var_filesystem_close_close, var_r
 
-			; main.bas 50: End If
+			; main.bas 51: End If
 if6_1:
 
-			; main.bas 52: Print "Press a key";
+			; main.bas 53: Print "Press a key";
 			dw kw_printstrvar, str28
 
-			; main.bas 53: Do While Inkey <> 0 : Loop          ' no key left waiting from before
+			; main.bas 54: Do While Inkey <> 0 : Loop          ' no key left waiting from before
 do8_t:
 			dw kw_inkey, tmp0
 			dw kw_cpnevl, tmp0, 0
@@ -197,7 +197,7 @@ do8_t:
 			dw do8_t_go
 do8_e:
 
-			; main.bas 54: Do : Frame : Loop Until Inkey <> 0
+			; main.bas 55: Do : Frame : Loop Until Inkey <> 0
 do9_t:
 			dw kw_frame
 			dw kw_inkey, tmp0
@@ -205,10 +205,10 @@ do9_t:
 			dw kw_goto_iffalse_n, do9_t
 do9_e:
 
-			; main.bas 55: Print
+			; main.bas 56: Print
 			dw kw_printnl
 
-			; main.bas 56: End
+			; main.bas 57: End
 			dw kw_stop
 
 ; ============================================================

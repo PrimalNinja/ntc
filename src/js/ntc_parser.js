@@ -2131,6 +2131,11 @@ function ntcParse(arrFiles_a, objDefines_a)
 	var objAsm = null;				// open #asm block { line, lines }
 	var blnPubMember = false;		// declaring Public members of a class
 	var arrProcMatch = null;
+	var arrLineMap = null;
+	function srcLine(intJ_a)
+	{
+		return (arrLineMap && (arrLineMap[intJ_a] !== undefined)) ? arrLineMap[intJ_a] : intJ_a + 1;
+	}
 
 	// a module named like a public procedure (ShellSort in shellsort.bas)
 	// would share names with the procedure's locals: such a module gets _mod
@@ -2158,6 +2163,7 @@ function ntcParse(arrFiles_a, objDefines_a)
 		strExt = (strFile.lastIndexOf('.') > -1) ? strFile.substr(strFile.lastIndexOf('.') + 1).toLowerCase() : 'bas';
 		strName = strFile.replace(/^.*[\/\\]/, '').replace(/\.[^.]*$/, '').toLowerCase().replace(/[^\w]/g, '_');
 		blnInClass = (strExt === 'cls');
+		arrLineMap = objFile.lines || null;		// a flavour's VB5 text: the source line of each line
 		blnInProc = false;
 		blnInType = false;
 		strProc = '';
@@ -2207,7 +2213,7 @@ function ntcParse(arrFiles_a, objDefines_a)
 					{
 						intLine = objAsm.line;
 						strSrc = '#asm';
-						record('asm', { lines: objAsm.lines, endline: intJ + 1 });
+						record('asm', { lines: objAsm.lines, endline: srcLine(intJ) });
 					}
 					objAsm = null;
 				}
@@ -2219,12 +2225,12 @@ function ntcParse(arrFiles_a, objDefines_a)
 			}
 			if (/^\s*#asm\b/i.test(arrLines[intJ]) && (strJoined.length === 0))
 			{
-				objAsm = { line: intJ + 1, lines: [] };
+				objAsm = { line: srcLine(intJ), lines: [] };
 				continue;
 			}
 			if (/^\s*#endasm\b/i.test(arrLines[intJ]))
 			{
-				intLine = intJ + 1;
+				intLine = srcLine(intJ);
 				error('#endasm without #asm');
 				continue;
 			}
@@ -2233,14 +2239,14 @@ function ntcParse(arrFiles_a, objDefines_a)
 			{
 				if (strJoined.length === 0)
 				{
-					intLine = intJ + 1;
+					intLine = srcLine(intJ);
 				}
 				strJoined += arrLines[intJ].replace(/\s_\s*$/, ' ');
 				continue;
 			}
 			if (strJoined.length === 0)
 			{
-				intLine = intJ + 1;
+				intLine = srcLine(intJ);
 			}
 			strSrc = (strJoined + arrLines[intJ]).replace(/^\s+|\s+$/g, '');
 			parseLine(strJoined + arrLines[intJ]);

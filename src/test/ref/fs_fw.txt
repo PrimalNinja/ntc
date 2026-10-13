@@ -1,9 +1,9 @@
-cap-1-10
+cap-1-1-1
 save0
 load20099
 toobig-8
 missing-2
-open-1-1
+open1-10
 devices TAPE,DISC now DISC-1-1
 volumes A now A
 vol b0 now B save0

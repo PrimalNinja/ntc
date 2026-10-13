@@ -335,6 +335,18 @@
 327	code	fs_load
 328	code	fs_save
 329	code	ntc_plat_memtop
+330	code	mem_bankcount
+331	code	mem_allocbank
+332	code	mem_bkstub
+333	code	mem_freebank
+334	code	mem_callbank
+335	code	ntc_kdown
+336	code	ntc_kjoy
+337	code	fs_err
+338	code	fs_start
+339	code	fs_namevol
+340	code	fs_name
+341	code	ntc_plat_rmr
 -	data	ntc_csp	#8800
 -	data	ntc_ip	#8802
 -	data	ntc_ticks	#8804
@@ -371,19 +383,24 @@
 -	data	gfx_sp	#891A
 -	data	ntc_isln	#891C
 -	data	ntc_isldue	#891D
+-	data	ntc_islshn	#8924
 -	bss	ntc_isl	#9786
--	data	ntc_curx	#8921
--	data	ntc_cury	#8922
--	data	ntc_smode	#8923
--	data	ntc_scols	#8926
--	data	ntc_irqv	#893E
--	data	fs_a1	#894D
--	data	fs_a2	#894F
--	data	fs_a3	#8951
--	data	fs_res	#8953
--	data	ntc_v_free	#897F
--	data	ntc_v_start	#8981
--	data	ntc_v_stamp	#8983
--	data	ntc_v_romen	#8985
--	data	ntc_v_rom	#8986
--	data	ntc_v_romold	#8987
+-	data	ntc_curx	#8925
+-	data	ntc_cury	#8926
+-	data	ntc_smode	#8927
+-	data	ntc_scols	#892A
+-	data	ntc_irqv	#8942
+-	const	FS_NOTFOUND	#FFFE
+-	const	FS_FAILED	#FFF7
+-	data	fs_a1	#8951
+-	data	fs_a2	#8953
+-	data	fs_a3	#8955
+-	data	fs_res	#8957
+-	data	fs_hmode	#8964
+-	const	fs_buf	#9B05
+-	data	ntc_v_free	#8984
+-	data	ntc_v_start	#8986
+-	data	ntc_v_stamp	#8988
+-	data	ntc_v_romen	#898A
+-	data	ntc_v_rom	#898B
+-	data	ntc_v_romold	#898C

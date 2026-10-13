@@ -7,6 +7,29 @@ finished, with the date.
 
 ## done
 
+- 2026-10-13 interrupt classes: up to 16 (was 4); `Option Class Interrupt Share` *weight* (1-100):
+  shared classes split what the fixed ones (a rate, Frame) leave, by weight; test isl2 (8 classes)
+- 2026-10-13 Memory: whole 64K banks - `Banks`, `AllocBank`, `FreeBank`, `BankPage`, `CallBank`
+  (the bank as all 64K, RAM setting C2, a 16 byte switch copied into the bank), `BankStub`;
+  type B; the harness's RAM model has C1-C3 (C2 = a full bank swap); test bank_t
+- 2026-10-13 FileSystem on cpcfw / cpcmin: one open file - Open ForRead / ForWrite, ReadByte,
+  WriteByte, Read, Write, Eof, ReadLine, WriteLine, Close (CAS IN / OUT CHAR); test seq_t
+- 2026-10-13 Keys class (cpc, cpcmin, cpcfw): `Down(key)` (CPC key numbers), `Joystick(n)`, from
+  the matrix; harness `{n}` holds key n; test keys_t
+- 2026-10-13 Locomotive flavour: INKEY(n), JOY(n), OPENIN / OPENOUT / CLOSEIN / CLOSEOUT /
+  PRINT #9 / INPUT #9 / LINE INPUT #9 / EOF mapped onto Keys and FileSystem; test loc/files.loc
+- 2026-10-13 `@ramonly` library sections: left out of the keyword ROM, linked into a Library: ROM
+  program that uses them (cpcmin's open-file code: NTCMIN.ROM was full); `NTC_ROMLIB` is 1 in a
+  Library: ROM program; ROM registry asserts on constants compare 16 bit (negative values)
+- 2026-10-13 Locomotive BASIC flavour, step 1: `.loc` / `'# Option Flavour Locomotive`; line
+  numbers (only jump targets kept), a / a% / a$ renaming, '# type hints, DATA / READ / RESTORE,
+  DEF FN, SWAP, MID$ on the left, MAX / MIN, BIN$, WAIT, IF ... THEN line; unsupported lines become
+  comments + warnings; GUI + Locomotive; example loco_demo; tests (test/loc)
+- 2026-10-13 JS flavour, first version: `Option Flavour JS` / a `.js` file; ntcPrep (a flavour
+  preprocessor with a factory of flavours: vb5 passes through, js -> VB5 text line for line);
+  let/var/const with //# type hints, functions, if/while/for/switch/break/continue/return, ES6
+  classes (one per file), JS operators and string / Math methods, //# NTC lines, /* #asm */;
+  refused forms give messages; GUI + JS; example js_demo; regression tests (test/jsf)
 - 2026-10-13 keyword library in ROM (cpc, cpcmin, cpcfw): `Option Library ROM` / GUI Library "in ROM";
   `ntcRomAsm` + test/genrom.js build `build/rom/NTCFW.ROM` (16K + AMSDOS header, background
   ROM "NTC CPCFW"); permanent append-only registry of numbers / variable addresses; the program
@@ -477,6 +500,9 @@ finished, with the date.
 
 ## todo
 
+- [ ] JS flavour, next (docs/js_flavour.md): the ES5 class form, the four open decisions,
+      VB `'#` hints and `Dim n = 0`, `+` joining a number and text, the GUI view of the VB text
+
 ### Language
 
 - [ ] **`Interrupts` class - interrupt handlers as separately compiled frames** (decided in
@@ -637,8 +663,9 @@ finished, with the date.
         PRIMAL style) straight into the branch with no value stored
       - `Capability` for `System` and `StdIO` too, in place of the CanPosition / HasHook ...
         constants (one pattern for every platform class and later drivers)
-      - CPC firmware: SEQUENTIAL through CAS IN CHAR / CAS OUT CHAR (one file in, one out),
-        DELETE / RENAME through AMSDOS's |ERA / |REN (RSX, only with AMSDOS)
+      - [x] CPC firmware: SEQUENTIAL through CAS IN CHAR / CAS OUT CHAR - one file open at a
+        time (done 2026-10-13). Later: one in and one out at once (a second 2K buffer)
+      - CPC firmware: DELETE / RENAME through AMSDOS's |ERA / |REN (RSX, only with AMSDOS)
       - [x] CPC hardware with the firmware for files: done as the cpcmin platform (2026-10-12).
         An own FDC (uPD765) driver for `cpc` - later, if ever
       - cpcmin: check in WinAPE (AMSDOS test); messages on/off as an option (CAS NOISY #BC6B
@@ -1001,6 +1028,12 @@ measure each with the bench set (`compare/bench/`) before and after.
 - [ ] `asm/ntc_plat_test.asm` is left over from the removed Python harness - delete?
 
 ---
+
+- [ ] a text buffer class (optional; discussed for CyborgOS): lines of text in the heap, insert /
+      delete / get / set a line - for editors and CLIs
+- [ ] Keys: the Shift / Control forms of INKEY(n) (32, 128 ...) for the Locomotive flavour
+- [ ] NTCMIN.ROM is nearly full (about 180 bytes free): the next cpcmin additions go `@ramonly`
+      or something moves out
 
 ## possibly future
 

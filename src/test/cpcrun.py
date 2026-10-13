@@ -15,30 +15,41 @@ KEYS['-']=(3,1,False); KEYS['0']=(4,0,False)
 LOWROM=bytearray(0x4000)
 LOWROM[0x3900:0x3900+760]=bytes(int(x,16) for l in open(os.path.join(os.path.dirname(os.path.abspath(__file__)),'font_standin.txt')) if not l.startswith(';') for x in l.split(';')[0].split())
 class RamBanks:
-    # the gate array's RAM setting (port #78xx-#7Fxx, value #C0-#FF) on a machine with kb K of RAM:
-    # C0 = the plain 64K, C4-C7 (+ bank * 8) = page 0-3 of a 64K bank at #4000-#7FFF; the port's
-    # high byte picks the 512K block (#7F = the first, #7E the second ... #78 the eighth: 4MB).
-    # Banks past the ones fitted wrap round (a 6128 has one: every setting is bank 0; a 512K
-    # expansion ignores the block), a 64K machine ignores C4-C7. C1-C3 are not emulated.
-    # NTC_RAM sets kb (total RAM: 64, 128, 576 = a 512K expansion, 4160 = 4MB; default 128).
+    # the gate array's RAM setting (port #78xx-#7Fxx, value #C0-#FF) on a machine with kb K of RAM.
+    # The setting's low 3 bits pick what is in the four 16K slots (main RAM pages 0-3, a bank's
+    # pages 4-7): C0 0,1,2,3  C1 0,1,2,7  C2 4,5,6,7 (the whole bank)  C3 0,3,2,7  C4-C7 0,n,2,3.
+    # Bits 3-5 pick the 64K bank, the port's high byte the 512K block (#7F = the first ... #78 the
+    # eighth: 4MB). Banks past the ones fitted wrap round (a 6128 has one), a 64K machine ignores
+    # every setting. NTC_RAM sets kb (64, 128, 576 = a 512K expansion, 4160 = 4MB; default 128).
+    MAP = {0: (0, 1, 2, 3), 1: (0, 1, 2, 7), 2: (4, 5, 6, 7), 3: (0, 3, 2, 7), 4: (0, 4, 2, 3), 5: (0, 5, 2, 3), 6: (0, 6, 2, 3), 7: (0, 7, 2, 3)}
     def __init__(s, m, kb=None):
         kb = int(kb or os.environ.get('NTC_RAM', '128'))
         s.m = m; s.nb = max(0, (kb - 64) // 64); s.ext = bytearray(s.nb * 0x10000)
-        s.main = None; s.cur = None; s.writes = 0
+        s.mainp = [None] * 4; s.view = [('m', 0), ('m', 1), ('m', 2), ('m', 3)]; s.writes = 0
     def set(s, val, hi=0x7F):
         s.writes += 1
-        want = None
-        if (val & 7) in (1, 2, 3): print('RamBanks: setting %02X not emulated' % val)
-        if s.nb and (val & 4): want = ((((0x7F - hi) & 7) * 8 + ((val >> 3) & 7)) % s.nb, val & 3)
-        if want == s.cur: return
-        win = bytes(s.m.memory[0x4000:0x8000])
-        if s.cur is None: s.main = win
-        else:
-            o = s.cur[0] * 0x10000 + s.cur[1] * 0x4000; s.ext[o:o + 0x4000] = win
-        if want is None: s.m.set_memory_block(0x4000, s.main)
-        else:
-            o = want[0] * 0x10000 + want[1] * 0x4000; s.m.set_memory_block(0x4000, bytes(s.ext[o:o + 0x4000]))
-        s.cur = want
+        cfg = val & 7
+        if s.nb == 0: cfg = 0
+        bank = ((((0x7F - hi) & 7) * 8 + ((val >> 3) & 7)) % s.nb) if s.nb else 0
+        new = [('m', p) if p < 4 else ('x', bank, p - 4) for p in RamBanks.MAP[cfg]]
+        if new == s.view: return
+        mem = s.m.memory
+        for k in range(4):
+            if s.view[k] != new[k]: s.store(s.view[k], bytes(mem[k * 0x4000:(k + 1) * 0x4000]))
+        for k in range(4):
+            if s.view[k] != new[k]: s.m.set_memory_block(k * 0x4000, s.load(new[k]))
+        s.view = new
+    def store(s, pid, data):
+        if pid[0] == 'm': s.mainp[pid[1]] = data
+        else: o = pid[1] * 0x10000 + pid[2] * 0x4000; s.ext[o:o + 0x4000] = data
+    def load(s, pid):
+        if pid[0] == 'm': return s.mainp[pid[1]]
+        o = pid[1] * 0x10000 + pid[2] * 0x4000; return bytes(s.ext[o:o + 0x4000])
+    def main_page(s, i):
+        # main RAM's page i as it is now (the CRTC always shows main RAM: page 3 is the screen)
+        for k in range(4):
+            if s.view[k] == ('m', i): return bytes(s.m.memory[k * 0x4000:(k + 1) * 0x4000])
+        return s.mainp[i]
 def assemble(path):
     # sjasmplus runs in the .asm's folder, so files it writes itself (overlay classes'
     # .PAG files, OUTPUT) land there; they are copied to the harness's disc folders
@@ -112,6 +123,15 @@ class CPC:
             m.set_memory_block(0xC000, s.xrom if want == 'x' else bytes([0x80]) + bytes(0x3FFF))   # another ROM: BASIC's type byte
             m.mark_addrs(0xC000, 0x4000, m.WRITE_MARK)
         s.umapped = want
+    def ramset(s,val,hi):
+        # a RAM setting: the ROM images come off the slots while the pages move, then back on
+        lo=s.romon; was=s.umapped
+        if lo: s.lowrom(False)
+        if was is not None:
+            m=s.m; m.unmark_addrs(0xC000,0x4000,m.WRITE_MARK); m.set_memory_block(0xC000,bytes(s.uram)); s.uram=None; s.umapped=None
+        s.ram.set(val,hi)
+        if lo: s.lowrom(True)
+        s.umap()
     def lowrom(s,on):
         # the lower ROM over #0000-#3FFF: reads give the ROM, writes still go to the RAM below
         m=s.m
@@ -128,11 +148,11 @@ class CPC:
             s.fwcall(lo); return     # a stand-in's out (n),a - not a real port write with that low byte
         hi=(port>>8)&0xff
         if 0x78<=hi<=0x7e and (val&0xC0)==0xC0:
-            s.ram.set(val,hi); return       # a RAM setting for another 512K block (4MB)
+            s.ramset(val,hi); return       # a RAM setting for another 512K block (4MB)
         if hi==0x7f:
             s.ga.append(val); s.mode=val&3 if (val&0xC0)==0x80 else s.mode
             if (val&0xC0)==0x80: s.lowrom(not (val&4)); s.uon = not (val&8); s.umap()
-            elif (val&0xC0)==0xC0: s.ga.pop(); s.ram.set(val,hi)
+            elif (val&0xC0)==0xC0: s.ga.pop(); s.ramset(val,hi)
         elif hi==0xf6: s.line=val&15
     def fwcall(s,lo):
         import ntcrun
@@ -178,7 +198,13 @@ class CPC:
         s.scans+=1
         if s.phase==0 and s.typed and s.scans%3==0:
             c=s.typed.pop(0)
-            s.cur=None if c=='~' else KEYS[c]; s.phase=1     # ~ = a pause: no key for one press
+            if c=='{':                                      # {n} = key number n held (Keys class)
+                n=''
+                while s.typed and s.typed[0]!='}': n+=s.typed.pop(0)
+                if s.typed: s.typed.pop(0)
+                s.cur=(int(n)//8,int(n)%8,False); s.phase=1
+            else:
+                s.cur=None if c=='~' else KEYS[c]; s.phase=1     # ~ = a pause: no key for one press
         elif s.phase==1 and s.scans%3==0: s.cur=None; s.phase=0
     def run(s,limit=30000):
         # CPC: an interrupt every 13333 T, held until the Z80 takes it
@@ -193,8 +219,9 @@ class CPC:
             if n>limit: print('TIMEOUT pc=%04x sp=%04x'%(s.m.pc,s.m.sp)); break
         s.chunks=n
     def screen(s,font):
-        mem=s.m.memory
-        if s.uram is not None: mem=bytearray(mem); mem[0xC000:0x10000]=s.uram     # the screen under the ROM
+        mem=bytearray(s.m.memory)
+        if s.uram is not None and s.ram.view[3]==('m',3): mem[0xC000:0x10000]=s.uram     # the screen under the ROM
+        else: mem[0xC000:0x10000]=s.ram.main_page(3)                                     # the CRTC shows main RAM
         mode=s.syms and s.m.memory[s.syms['ntc_smode']]
         bpc,cols={0:(4,20),1:(2,40),2:(1,80)}[mode]
         out=[]

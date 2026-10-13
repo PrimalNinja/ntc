@@ -8,6 +8,8 @@ var D = path.join(__dirname, '..') + '/';
 eval(fs.readFileSync(D + 'js/ntc_lib.js', 'utf8').replace(/^var /gm, 'global.'));
 eval(fs.readFileSync(D + 'js/ntc_parser.js', 'utf8').replace(/^var /gm, 'global.').replace('function IFtoPF', 'global.IFtoPF = function IFtoPF').replace('function ntcParse', 'global.ntcParse = function ntcParse'));
 eval(fs.readFileSync(D + 'js/ntc_compiler.js', 'utf8').replace('function ntcCompile', 'global.ntcCompile = function ntcCompile'));
+eval(fs.readFileSync(D + 'js/ntc_flavour_js.js', 'utf8'));
+eval(fs.readFileSync(D + 'js/ntc_flavour_loco.js', 'utf8'));
 
 // AMSDOS / CP/M names: 8 characters at most
 var arrPrograms = [
@@ -45,7 +47,9 @@ var arrPrograms = [
 	{ name: 'VBTEST12', files: ['vb_test12.bas'] },
 	{ name: 'CLASSDEM', files: ['class_demo/Main.bas', 'class_demo/Counter.cls'] },
 	{ name: 'CONSOLE', files: ['console_classes.bas'] },
-	{ name: 'OWNSTDIO', files: ['own_stdio/Main.bas', 'own_stdio/StdIO.cls'] }
+	{ name: 'OWNSTDIO', files: ['own_stdio/Main.bas', 'own_stdio/StdIO.cls'] },
+	{ name: 'JSDEMO', files: ['js_demo/Main.js', 'js_demo/Counter.js'] },
+	{ name: 'LOCODEMO', files: ['loco_demo/Main.loc'] }
 ];
 var arrPlatforms = ['cpc', 'cpcmin', 'cpcfw', 'cpm', 'test', 'cpcrom', 'cpcminrom', 'cpcfwrom'];	// ...rom: Library: ROM (needs NTCCPC / NTCMIN / NTCFW.ROM)
 var intErrors = 0;
@@ -89,7 +93,7 @@ arrPlatforms.forEach(function(strPlat)
 		{
 			objOpts.amsdos = objProg.name;		// the assembler writes NAME.BIN with an AMSDOS header
 		}
-		objResult = ntcCompile((arrFiles.length === 1) ? arrFiles[0].text : arrFiles, objOpts);
+		objResult = ntcCompile(((arrFiles.length === 1) && !/\.(js|loc)$/i.test(arrFiles[0].name)) ? arrFiles[0].text : arrFiles, objOpts);
 		objResult.errors.forEach(function(objErr)
 		{
 			console.error('ERR ' + strPlat + ' ' + objProg.name + ': ' + (objErr.file || '') + ':' + objErr.line + ': ' + objErr.msg);

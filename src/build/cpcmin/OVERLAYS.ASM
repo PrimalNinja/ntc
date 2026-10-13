@@ -10,7 +10,7 @@ NTC_TERM	equ 0		; Option Terminal: 0 none, 1 VT52, 2 ANSI (CP/M)
 NTC_STRMAX	equ 40		; the longest string (library buffers, temps)
 NTC_MEMBANKS	equ 64		; Option Memory: the most 64K banks the Memory class looks for
 NTC_ROMENABLE	equ 1		; Option RomEnable (cpcfw, cpcmin): the start code starts the ROMs
-NTC_ROMLIB	equ 0		; 1 only when the library itself is built as a ROM (ntcRomAsm)
+NTC_ROMLIB	equ 0		; 1 = the library is the keyword ROM (Library: ROM; ntcRomAsm builds it)
 
 ntc_start:
 			di
@@ -361,42 +361,42 @@ fn_level2_localsize:		; function localsize (asm keyword), Level2.cls line 54
 			ld (hl), d		; Level2.cls 59
 			ret			; end of #asm
 
-fn_memory_pages:		; function pages (asm keyword), Memory.cls line 68
-            pop hl		; Memory.cls 69
-            ld (mem_res), hl		; Memory.cls 70
-            ld hl, mem_pages		; Memory.cls 71
-            jp mem_go		; Memory.cls 72
+fn_memory_pages:		; function pages (asm keyword), Memory.cls line 70
+            pop hl		; Memory.cls 71
+            ld (mem_res), hl		; Memory.cls 72
+            ld hl, mem_pages		; Memory.cls 73
+            jp mem_go		; Memory.cls 74
 			ret			; end of #asm
 
-fn_memory_ramsize:		; function ramsize (asm keyword), Memory.cls line 88
-            pop hl		; Memory.cls 89
-            ld (mem_res), hl		; Memory.cls 90
-            ld hl, mem_ramsize		; Memory.cls 91
-            jp mem_go		; Memory.cls 92
+fn_memory_ramsize:		; function ramsize (asm keyword), Memory.cls line 90
+            pop hl		; Memory.cls 91
+            ld (mem_res), hl		; Memory.cls 92
+            ld hl, mem_ramsize		; Memory.cls 93
+            jp mem_go		; Memory.cls 94
 			ret			; end of #asm
 
-fn_memory_map:		; function map (asm keyword), Memory.cls line 194
-            pop hl		; Memory.cls 195
-            ld e, (hl)		; Memory.cls 196
-            inc hl		; Memory.cls 197
-            ld d, (hl)		; Memory.cls 198
-            ld (mem_a1), de		; Memory.cls 199
-            pop hl		; Memory.cls 200
-            ld e, (hl)		; Memory.cls 201
-            inc hl		; Memory.cls 202
-            ld d, (hl)		; Memory.cls 203
-            ld (mem_a2), de		; Memory.cls 204
-            pop hl		; Memory.cls 205
-            ld (mem_res), hl		; Memory.cls 206
-            ld hl, mem_map		; Memory.cls 207
-            jp mem_go0		; Memory.cls 208
+fn_memory_map:		; function map (asm keyword), Memory.cls line 196
+            pop hl		; Memory.cls 197
+            ld e, (hl)		; Memory.cls 198
+            inc hl		; Memory.cls 199
+            ld d, (hl)		; Memory.cls 200
+            ld (mem_a1), de		; Memory.cls 201
+            pop hl		; Memory.cls 202
+            ld e, (hl)		; Memory.cls 203
+            inc hl		; Memory.cls 204
+            ld d, (hl)		; Memory.cls 205
+            ld (mem_a2), de		; Memory.cls 206
+            pop hl		; Memory.cls 207
+            ld (mem_res), hl		; Memory.cls 208
+            ld hl, mem_map		; Memory.cls 209
+            jp mem_go0		; Memory.cls 210
 			ret			; end of #asm
 
-fn_memory_largest:		; function largest (asm keyword), Memory.cls line 303
-            pop hl		; Memory.cls 304
-            ld (mem_res), hl		; Memory.cls 305
-            ld hl, mem_largest		; Memory.cls 306
-            jp mem_go		; Memory.cls 307
+fn_memory_largest:		; function largest (asm keyword), Memory.cls line 305
+            pop hl		; Memory.cls 306
+            ld (mem_res), hl		; Memory.cls 307
+            ld hl, mem_largest		; Memory.cls 308
+            jp mem_go		; Memory.cls 309
 			ret			; end of #asm
 
 
@@ -1322,7 +1322,7 @@ mem_putback:
 			pop hl
 			ret
 
-;## ntc_mem ntc_memcore @shared
+;## ntc_mem ntc_memcore ntc_membank @shared
 ; ------------------------------------------------------------
 ; ntc_mem (CPCExpansion) - 16K RAM pages in the #4000-#7FFF window (CPC gate
 ; array RAM setting: C0 = plain, C4-C7 + bank * 8 = page 0-3 of a 64K bank;
@@ -1338,7 +1338,8 @@ mem_putback:
 ; what the probe finds (3 bytes a page: next link, type); fewer pages
 ; when there isn't room below #4000 (or below the real stack).
 ; Lists: every page is on one - 0 free low (main + the #7F block),
-; 1 free high (#78-#7E), 2 C, 3 D, 4 I, 5 U. C / I / U pages come from
+; 1 free high (#78-#7E), 2 C, 3 D, 4 I, 5 U, 6 B (the 4 pages of a whole
+; bank, AllocBank). C / I / U pages come from
 ; the low list first, D pages from the high one; each falls back to the
 ; other. On 576K or less every page is low, so it is one list.
 ; The page in the window is kept in mem_cur, written before the port,
@@ -1346,7 +1347,8 @@ mem_putback:
 ; A new D page is one free block of #4000.
 ; ------------------------------------------------------------
 MEM_BANKS	equ NTC_MEMBANKS	; 0 - 64
-MEM_LISTS	equ 6
+MEM_LISTS	equ 7
+MEM_LB		equ 6			; the whole-bank list
 
 mem_count:		dw 0			; pages (0 = no paging)
 mem_tnext:		dw 0			; the tables: next links (2 bytes a page)
@@ -1356,9 +1358,11 @@ mem_head:		ds MEM_LISTS * 2	; each list's first page
 mem_cnt:		ds MEM_LISTS * 2	; and how many (must follow mem_head)
 mem_banks:		db 0			; 64K banks found
 mem_tl:			db 0
-mem_kinds:		db "--CDIU"		; the type character of each list
+mem_kinds:		db "--CDIUB"		; the type character of each list
 mem_bank:		ds MEM_BANKS * 2 + 1	; per bank found: setting for its page 0, port high byte
 mem_save:		ds MEM_BANKS + 1	; probe: the bytes the markers replace
+mem_bksp:		dw 0			; CallBank: the real stack while bank code runs
+mem_bkrmr:		db 0			; and the ROM / mode byte to put back
 
 ; mem_start - the first call: can this program page, what is fitted, the tables
 mem_start:
@@ -1805,7 +1809,7 @@ mem_listof:
 			ld a, (hl)
 			push bc
 			ld hl, mem_kinds + 2
-			ld b, 4
+			ld b, 5
 			ld c, 2
 mem_lo_lp:
 			cp (hl)
@@ -2049,6 +2053,184 @@ mem_curpage:
 			ld hl, (mem_cur)
 			ret
 
+; ---- whole 64K banks (page numbers 4 * bank - 2 .. 4 * bank + 1)
+
+; Banks(): whole banks the tables cover (0 = none)
+mem_bankcount:
+			ld hl, (mem_count)
+			ld a, h
+			or l
+			ret z
+			dec hl
+			srl h
+			rr l
+			srl h
+			rr l
+			ret
+
+; mem_bkfirst - (mem_a1) = a bank, 1 .. Banks(): BC = its first page, else
+; mem_err BadPage
+mem_bkfirst:
+			call mem_bankcount
+			ld de, (mem_a1)
+			ld a, d
+			or e
+			jp z, mem_chk_bad
+			or a
+			sbc hl, de
+			jp c, mem_chk_bad
+			ex de, hl
+			dec hl
+			add hl, hl
+			add hl, hl
+			inc hl
+			inc hl
+			ld b, h
+			ld c, l
+			ret
+
+; AllocBank(): a bank whose 4 pages are all free, now type B; 0 = none
+mem_allocbank:
+			call mem_bankcount
+			ld a, l
+			or a
+			jr z, mem_ab_none
+			ld (mem_tl), a			; banks left to try
+			ld bc, 2
+mem_ab_lp:
+			push bc
+			ld d, 4
+mem_ab_chk:
+			call mem_listof
+			cp 2
+			jr nc, mem_ab_used
+			inc bc
+			dec d
+			jr nz, mem_ab_chk
+			pop bc					; all 4 free: onto the bank list
+			push bc
+			ld d, 4
+mem_ab_take:
+			call mem_listof
+			call mem_remove
+			ld a, MEM_LB
+			call mem_push
+			inc bc
+			dec d
+			jr nz, mem_ab_take
+			pop hl					; bank = (first page + 2) / 4
+			inc hl
+			inc hl
+			srl h
+			rr l
+			srl h
+			rr l
+			ret
+mem_ab_used:
+			pop bc
+			ld hl, 4
+			add hl, bc
+			ld b, h
+			ld c, l
+			ld a, (mem_tl)
+			dec a
+			ld (mem_tl), a
+			jr nz, mem_ab_lp
+mem_ab_none:
+			ld hl, 0
+			ret
+
+; FreeBank(bank): its 4 pages back to free. OK, or BadPage (not a bank,
+; or not taken with AllocBank)
+mem_bkstub:
+			ld hl, ntc_bk_stub
+			ret
+
+mem_freebank:
+			call mem_bkfirst
+			push bc
+			ld d, 4
+mem_fb_chk:
+			call mem_listof
+			cp MEM_LB
+			jp nz, mem_chk_bad
+			inc bc
+			dec d
+			jr nz, mem_fb_chk
+			pop bc
+			ld d, 4
+mem_fb_lp:
+			ld a, MEM_LB
+			call mem_remove
+			call mem_tofree
+			inc bc
+			dec d
+			jr nz, mem_fb_lp
+			ld hl, 0
+			ret
+
+; CallBank(bank, address, value): runs the bank's code at address with the
+; whole 64K being that bank (RAM setting C2), HL = value; its HL comes back.
+; The bank must be taken (AllocBank). The switch code (ntc_bk_stub, about
+; 20 bytes) is copied into the bank at its own address first, so those
+; bytes of the bank are overwritten. Interrupts are off and both ROMs are
+; off while the bank code runs; it starts with the stack at the bank's top
+; (#FFFF down) and ends with ret. It must keep the alternate registers.
+mem_callbank:
+			call mem_bkfirst
+			call mem_listof
+			cp MEM_LB
+			jp nz, mem_chk_bad
+			ld hl, ntc_bk_stub		; copy the switch code into the bank
+mem_cb_cp:
+			push bc
+			ld a, h					; its page in the bank: address / #4000
+			rlca
+			rlca
+			and 3
+			add a, c
+			ld c, a
+			jr nc, mem_cb_nc
+			inc b
+mem_cb_nc:
+			push hl
+			ld h, b
+			ld l, c
+			call mem_sel
+			pop hl
+			ld b, (hl)
+			ld a, h
+			and #3F
+			or #40
+			ld d, a
+			ld e, l
+			ld a, b
+			ld (de), a
+			pop bc
+			inc hl
+			ld a, l
+			cp low ntc_bk_end
+			jr nz, mem_cb_cp
+			ld a, h
+			cp high ntc_bk_end
+			jr nz, mem_cb_cp
+			ld hl, (mem_keep)
+			call mem_sel
+			ld hl, (mem_a1)			; BC = C2 for the bank: its page 0 setting
+			dec hl					; (#C4 + bank bits) and #F8, or 2
+			add hl, hl
+			ld de, mem_bank
+			add hl, de
+			ld a, (hl)
+			and #F8
+			or 2
+			ld c, a
+			inc hl
+			ld b, (hl)
+			ld de, (mem_a2)
+			ld hl, (mem_a3)
+			jp ntc_bk_go
+
 ; ---- heap in D pages
 
 ; Alloc(size): a far pointer to size bytes in a D page, 0 = no room.
@@ -2218,6 +2400,49 @@ mem_lg_end:
 			ret z
 			dec hl
 			dec hl
+			ret
+
+;## ntc_membank ntc_plat_rmr @shared @romram
+; ------------------------------------------------------------
+; ntc_membank - Memory's CallBank switch (CPCExpansion). Runs from RAM
+; (a keyword ROM can't be seen once both ROMs are off). BC = the C2
+; setting and port for the bank, DE = the address in the bank, HL = value.
+; ntc_bk_stub .. ntc_bk_end is also copied into the bank at the same
+; address: each out is followed by the next byte from the other 64K.
+; ------------------------------------------------------------
+ntc_bk_go:
+			ld a, i					; P/V = interrupts were on
+			di
+			push af
+			ld (mem_bksp), sp
+			call ntc_plat_rmr
+			ld (mem_bkrmr), a
+			or #0C					; both ROMs off
+			push bc
+			ld b, #7F
+			out (c), a
+			pop bc
+ntc_bk_stub:
+			out (c), c				; the bank is all 64K now
+			ld sp, 0
+			ld bc, ntc_bk_ret
+			push bc
+			push de
+			ret						; to the bank's code, HL = value
+ntc_bk_ret:
+			ld bc, #7FC0
+			out (c), c				; main RAM again
+ntc_bk_end:
+			ld sp, (mem_bksp)
+			ld a, (mem_bkrmr)
+			ld b, #7F
+			out (c), a				; the ROMs as they were
+			ld bc, (ntc_rampt)
+			out (c), c				; and the window's page
+			pop af
+			jp po, ntc_bk_di
+			ei
+ntc_bk_di:
 			ret
 
 ;## ntc_ovlcom ntc_data ntc_mem ntc_plat_screen ntc_plat_key kw_stop @shared
@@ -3494,6 +3719,7 @@ fs_six:			dw 0
 fs_siy:			dw 0
 fs_len:			dw 0
 fs_nostore:		db 0
+fs_hmode:		db 0			; 0 no file open, 1 reading, 2 writing (Open)
 fs_init:		db 0			; 1 = checked: is AMSDOS running?
 fs_dos:			db 0			; 1 = a DOS is there (|DISC found)
 fs_devd:		db 0			; the device in use: 0 tape, 1 disc
@@ -3996,6 +4222,10 @@ fs_nm_end:
 ; A file longer than maxlen is not loaded: FS_TOOBIG
 fs_load:
 			call fs_start
+			ld a, (fs_hmode)	; the buffer is the open file's
+			or a
+			ld hl, FS_FAILED
+			jp nz, fs_err
 			call fs_name
 			ld de, fs_buf
 			call #BC77			; CAS IN OPEN: BC = length, carry = ok
@@ -4029,6 +4259,10 @@ fs_ld_read:
 ; Save(name, addr, len): a binary file (type 2, BASIC can LOAD it back). 0 or a status
 fs_save:
 			call fs_start
+			ld a, (fs_hmode)	; the buffer is the open file's
+			or a
+			ld hl, FS_FAILED
+			jp nz, fs_err
 			call fs_name
 			ld de, fs_buf
 			call #BC8C			; CAS OUT OPEN
@@ -4062,6 +4296,19 @@ ntc_plat_memtop:
 			ld hl, NTC_ROMDATA	; (ROM: its RAM starts there)
 		ELSE
 			ld hl, #A600
+		ENDIF
+			ret
+
+;## ntc_plat_rmr ntc_plat_data
+; ntc_plat_rmr - A = the gate array's ROM / mode byte now (#8x: screen mode,
+; lower and upper ROM on / off), so Memory's CallBank can turn both ROMs off
+; and put them back. Keeps BC, DE, HL.
+ntc_plat_rmr:
+			ld a, (ntc_smode)
+		IF NTC_ROMLIB
+			or #84				; (ROM: the upper ROM on)
+		ELSE
+			or #8C
 		ENDIF
 			ret
 
@@ -4180,4 +4427,4 @@ ovl_level2_vsize	equ 0		; its page variables; its local memory is the rest, to #
 			DISPLAY "  page variables ", /D, ovl_level2_vsize, ", free ", /D, #8000 - (ovl_level2_end + ovl_level2_vsize)
 			SAVEAMSDOS "OVERLAYS.002", ovl_level2_start, ovl_level2_end - ovl_level2_start, #4000
 
-NTC_STAMP	equ #C585		; the build stamp: the first word of every page file
+NTC_STAMP	equ #C348		; the build stamp: the first word of every page file

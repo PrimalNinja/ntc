@@ -41,6 +41,8 @@ var m_arrListFields = [
 var m_arrListOperations = [
 	{ code: 'NEWMOD', caption: '+ Module', requiresselection: false },
 	{ code: 'NEWCLS', caption: '+ Class', requiresselection: false },
+	{ code: 'NEWJS', caption: '+ JS', requiresselection: false },
+	{ code: 'NEWLOC', caption: '+ Locomotive', requiresselection: false },
 	{ code: 'RENAME', caption: 'Rename', requiresselection: false },
 	{ code: 'REMOVE', caption: '✕ Remove', requiresselection: false }
 ];
@@ -91,7 +93,7 @@ function ntcFileByName(strName_a)
 
 function ntcFileType(strName_a)
 {
-	return /\.cls$/i.test(strName_a) ? 'Class' : 'Module';
+	return /\.cls$/i.test(strName_a) ? 'Class' : (/\.js$/i.test(strName_a) ? 'JS' : (/\.loc$/i.test(strName_a) ? 'Locomotive' : 'Module'));
 }
 
 // a free name like Module1.bas / Class2.cls
@@ -99,7 +101,8 @@ function ntcFreeName(strBase_a, strExt_a)
 {
 	var intN = 1;
 
-	while (ntcFileByName(strBase_a + intN + strExt_a) !== null)
+	// (Module1.bas and Module1.js would both be module "module1": the stem must be free)
+	while ((ntcFileByName(strBase_a + intN + '.bas') !== null) || (ntcFileByName(strBase_a + intN + '.cls') !== null) || (ntcFileByName(strBase_a + intN + '.js') !== null) || (ntcFileByName(strBase_a + intN + '.loc') !== null))
 	{
 		intN++;
 	}
@@ -232,6 +235,18 @@ function ntcOperation(strOperation_a)
 			ntcSelect(objFile.id);
 			break;
 
+		case 'NEWJS':
+			// a JS flavour file (a module, or a class: one class { } in the file)
+			objFile = ntcNewFile(ntcFreeName('Module', '.js'), "// new JS flavour module (a class: one  class Name { }  in the file)\n");
+			ntcSelect(objFile.id);
+			break;
+
+		case 'NEWLOC':
+			// a Locomotive BASIC flavour file (the CPC's own BASIC: line numbers, whole numbers)
+			objFile = ntcNewFile(ntcFreeName('Module', '.loc'), "10 REM Locomotive BASIC flavour\n20 PRINT \"Hello\"\n");
+			ntcSelect(objFile.id);
+			break;
+
 		case 'NEWCLS':
 			strName = ntcFreeName('Class', '.cls');
 			objFile = ntcNewFile(strName, "' new class - use it with Dim x As New " + strName.replace(/\.cls$/i, '') + "\nPrivate mValue As Integer\n\nPublic Property Get Value() As Integer\n  Value = mValue\nEnd Property\n\nPublic Property Let Value(ByVal v As Integer)\n  mValue = v\nEnd Property\n");
@@ -243,14 +258,14 @@ function ntcOperation(strOperation_a)
 			{
 				return;
 			}
-			strName = window.prompt('New name (.bas = module, .cls = class)', objFile.name);
+			strName = window.prompt('New name (.bas = module, .cls = class, .js = JS flavour, .loc = Locomotive BASIC flavour)', objFile.name);
 			if ((strName === null) || (strName.replace(/\s/g, '').length === 0))
 			{
 				return;
 			}
-			if (!/\.(bas|cls)$/i.test(strName))
+			if (!/\.(bas|cls|js|loc)$/i.test(strName))
 			{
-				strName += /\.cls$/i.test(objFile.name) ? '.cls' : '.bas';
+				strName += (objFile.name.match(/\.(cls|js|loc)$/i) || ['.bas'])[0];
 			}
 			if ((ntcFileByName(strName) !== null) && (ntcFileByName(strName) !== objFile))
 			{
@@ -424,7 +439,7 @@ function ntcAddFiles(objFileList_a)
 				}
 				else
 				{
-					objLast = ntcNewFile(/\.(bas|cls)$/i.test(objFile_a.name) ? objFile_a.name : objFile_a.name.replace(/\.[^.]*$/, '') + '.bas', strText);
+					objLast = ntcNewFile(/\.(bas|cls|js|loc)$/i.test(objFile_a.name) ? objFile_a.name : objFile_a.name.replace(/\.[^.]*$/, '') + '.bas', strText);
 				}
 			}
 

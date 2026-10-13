@@ -1,6 +1,7 @@
 ' Files: what this platform can do, then try it. The same program builds for every
 ' platform - FileSystem.Capability says what works, so nothing is tried that can't be done.
-' CP/M: everything. CPC firmware: Load and Save (disc, or tape without AMSDOS).
+' CP/M: everything. CPC firmware (cpcfw, cpcmin): Load, Save and one open file (disc, or
+' tape without AMSDOS).
 ' CPC hardware / test platform: no files.
 Option Explicit
 #If NTC_CPCFW Then
