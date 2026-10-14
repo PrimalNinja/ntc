@@ -1721,7 +1721,7 @@ p_resetslot:
 			; Main.bas 622: ClsT s
 			dw p_clst_c, var_resetslot_s
 
-			; Main.bas 623: PutLn s, "CyborgOS slot " + N(s) + " of " + N(ns) + " - " + SK() + ", Control + ESC: TOP, HELP"
+			; Main.bas 623: PutLn s, "CyborgOS slot " + N(s) + " of " + N(ns) + " - " + SK() + ", Control + ESC TOP, HELP"
 			dw p_n_c, var_resetslot_s
 			dw kw_strcpy, stmp2, var_n_n
 			dw kw_strcpy, stmp1, str36
@@ -1764,7 +1764,7 @@ p_openslot:
 			; Main.bas 631: ClsT t
 			dw p_clst_c, var_openslot_t
 
-			; Main.bas 632: PutLn t, "CyborgOS slot " + N(t) + " of " + N(ns) + " - " + SK() + ", Control + ESC: TOP, HELP"
+			; Main.bas 632: PutLn t, "CyborgOS slot " + N(t) + " of " + N(ns) + " - " + SK() + ", Control + ESC TOP, HELP"
 			dw p_n_c, var_openslot_t
 			dw kw_strcpy, stmp2, var_n_n
 			dw kw_strcpy, stmp1, str36
@@ -1821,7 +1821,7 @@ if59_1:
 			dw if59_e_go
 if59_2:
 
-			; Main.bas 644: SK = "Control + 1-9, 0 (twice: 11-" + N(ns) + ")"
+			; Main.bas 644: SK = "Control + 1-9, 0 (twice 11-" + N(ns) + ")"
 			dw p_n_c, var_ns
 			dw kw_strcpy, stmp3, var_n_n
 			dw kw_strcpy, stmp2, str42
@@ -8917,7 +8917,7 @@ ntc_rg434_e:
 			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
 ntc_rg435:
-str39:			db ", Control + ESC: TOP, HELP", 0
+str39:			db ", Control + ESC TOP, HELP", 0
 ntc_rg435_e:
 			IF ($ < 32768) && (ntc_rg436_e - ntc_rg436 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
@@ -8935,7 +8935,7 @@ ntc_rg437_e:
 			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
 ntc_rg438:
-str42:			db "Control + 1-9, 0 (twice: 11-", 0
+str42:			db "Control + 1-9, 0 (twice 11-", 0
 ntc_rg438_e:
 			IF ($ < 32768) && (ntc_rg439_e - ntc_rg439 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
