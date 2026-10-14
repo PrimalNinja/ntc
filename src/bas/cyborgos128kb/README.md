@@ -7,4 +7,4 @@ tested any more. The 320K CyborgOS (a 256K expansion or more) will be in `../cyb
 the hypervisor takes the first expansion bank's pages (C4, then C5 ...) for its own data, and
 main RAM's #4000-#7FFF is left free (a second screen).
 
-Build: Main.bas, Hyp.cls, Hot.cls, Ent.cls - cpcfw (USERGUIDE.md: the user guide as it was then).
+Build: Main.bas, Hyp.cls, Hot.cls, Ent.cls - cpcfw (USERGUIDE.md and DESIGN.md: the user guide and design notes as they were then).

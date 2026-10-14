@@ -19,6 +19,8 @@ Option NoTurbo                    ' normal mode only (interrupt classes, the clo
 Option RomEnable All              ' every background ROM (the disc ROM in 7 - AMSDOS, UniDOS ... - and any
                                   ' others: an IDE / SD interface's, the M4's), for files
 Option Reserve &H4000, &H4000     ' the window the slots' banks are reached through (built round)
+Option Buffer Size 128            ' Memory.Copy's buffer: 128 bytes a go (PRIMAL's copy buffer) - FileSystem,
+                                  ' which needs 2K, isn't used (Hyp.FileCall)
 #If NTC_LIBRARY_ROM Then
 Option Memory CPCExpansion 33     ' 8 banks (32 pages + main RAM) at most: the page tables (3 bytes a
                                   ' page) must fit between the program and the ROM's RAM (#8800) - 4 slots
@@ -283,11 +285,11 @@ Sub PutC(ByVal t As Integer, ByVal c As Integer)
 End Sub
 
 ' BDOS 9: the slot's string at address a in its bank, to the "$": fetched 128 bytes at a time
-' (Hyp.Xfer) and written with Hyp.Con (rare: no Z80 of its own)
+' (Memory.Copy) and written with Hyp.Con (rare: no Z80 of its own)
 Sub PutMem(ByVal t As Integer, ByVal a As Integer)
   Dim n As Integer, d As Integer
   Do
-    Hyp.Xfer 0, sg(t), a, VarPtr(ob), 128
+    Memory.Copy Far(t, a), CLng(VarPtr(ob)), 128
     n = 128
     d = InStr(Left$(ob, 128), "$")
     If d > 0 Then n = d - 1
@@ -586,9 +588,9 @@ End Function
 Sub Install(ByVal t As Integer)
   Dim p As Integer, n As Integer
   p = Hyp.Info(0) : n = Hyp.Info(1)             ' (one Info result each: it is one variable)
-  Hyp.Xfer 1, sg(t), 0, p, n
+  Memory.Copy CLng(p), Far(t, 0), n
   p = Hyp.Info(2) : n = Hyp.Info(3)
-  Hyp.Xfer 1, sg(t), Hyp.STUB, p, n
+  Memory.Copy CLng(p), Far(t, Hyp.STUB), n
   Memory.WriteByte Far(t, Hyp.OBUF + 128), 0      ' no characters collected
   Memory.WriteByte Far(t, Hyp.KEY), 0             ' no key waiting
   kq(t) = 0
@@ -637,7 +639,7 @@ Sub GetNm(ByVal t As Integer)
   Dim n As Integer
   n = Memory.ReadByte(Far(t, NMLEN))
   en = Space$(12)
-  Hyp.Xfer 0, sg(t), NMBUF, VarPtr(en), n
+  Memory.Copy Far(t, NMBUF), CLng(VarPtr(en)), n
   en = Left$(en, n)
 End Sub
 
@@ -682,7 +684,7 @@ End Sub
 Sub Command(ByVal t As Integer)
   Dim c As String Max 72, p As Integer, s As Integer
   p = Memory.ReadByte(Far(t, LNLEN))              ' the command line, from the slot's bank
-  Hyp.Xfer 0, sg(t), LNBUF, VarPtr(ob), p
+  Memory.Copy Far(t, LNBUF), CLng(VarPtr(ob)), p
   c = UCase$(Trim$(Left$(ob, p)))
   a = "" : b = ""
   p = InStr(c, " ")
@@ -839,12 +841,12 @@ Sub StartTask(ByVal t As Integer, ByVal s As Integer)
     Memory.WriteByte Far(s, &H80), 0
   Else
     b = " " + b
-    Hyp.Xfer 1, sg(s), &H81, VarPtr(b), Len(b)
+    Memory.Copy CLng(VarPtr(b)), Far(s, &H81), Len(b)
     Memory.WriteByte Far(s, &H80), Len(b)
     Memory.WriteByte Far(s, &H81 + Len(b)), 0
   End If
   Memory.WriteByte Far(s, NMLEN), Len(a)
-  Hyp.Xfer 1, sg(s), NMBUF, VarPtr(a), Len(a)
+  Memory.Copy CLng(VarPtr(a)), Far(s, NMBUF), Len(a)
   kq(s) = 0
   Memory.WriteByte Far(s, &HF685), 0             ' no escape sequence rest half done
   wk(s) = -1

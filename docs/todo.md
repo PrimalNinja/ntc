@@ -7,6 +7,19 @@ finished, with the date.
 
 ## done
 
+- 2026-10-15 Two CyborgOS discs, each built from its own sources: build/dsk/cyborgos320k.dsk and
+  build/dsk/cyborgos128k.dsk (cyborgos.dsk gone)
+- 2026-10-15 CyborgOS 320K (`bas/cyborgos320kb`, now the one built and tested; the 128K version
+  kept as `bas/cyborgos128kb`): 320K at least; the hypervisor's own page (the first expansion
+  bank's page 0) taken before the slots' banks - the disc buffers there, main RAM's own
+  #4000-#7FFF left free (a second screen); up to 20 slots (Control + 1-9, 0; twice 11-20); TOP
+  fits 25 rows with 20. Tests: 20 slots, Control + 0, 2 slots on 320K, refused on 128K.
+  Harness: a held matrix key ({n}) lasts 12 scans and at least 2 frames (a program looking at
+  many keys scans many times a frame)
+- 2026-10-15 Option Buffer Size n / Option Buffer address, n: the library's buffer smaller (32-2048);
+  Memory.Copy copies that much at a time; FileSystem and List.Sort need 2048 (assembly stops).
+  CyborgOS back on Memory.Copy (PRIMAL's chunked copy) with a 128 byte buffer, Hyp.Xfer gone.
+  Tests "Option Buffer Size: Memory.Copy", "... FileSystem refused"
 - 2026-10-15 CyborgOS: HELP is a program on the disc (cmds/HELP.bas, HELP.CYB), its text out of the
   hypervisor (823 bytes of RAM back). Test "CyborgOS HELP from the disc"
 - 2026-10-15 CyborgOS: B: alone is CD B (as in CP/M), CD B: is CD B

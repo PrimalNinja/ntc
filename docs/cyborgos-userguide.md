@@ -5,26 +5,35 @@ with a command line for each. It is an NTC BASIC program (the hypervisor) runnin
 firmware; the programs are NTC BASIC programs built for the cpm platform. The design and what
 is still to come are in [cyborgos.md](cyborgos.md).
 
-This describes the first version (October 2026).
+This describes the 320K version (October 2026). The 128K version (a 6128 and up) is kept as
+`bas/cyborgos128kb/`, with its own user guide.
 
 ## 1. What you need
 
-- A CPC 6128, or a CPC with a RAM expansion. CyborgOS uses half of the extra 64K banks for
-  slots, at least 1 and at most 16; the rest is left for later (drivers, data, graphics):
+- A CPC with 320K or more: a 256K expansion or bigger (a 6128 alone gets "CyborgOS needs 320K").
+  The first expansion bank's 16K pages are the hypervisor's own (C4 first: the disc buffers;
+  C5 ... as it grows), so main RAM's own #4000-#7FFF is left free (a second screen). Half of
+  the extra 64K banks are slots, at most 20; the rest is left for later (drivers, data,
+  graphics):
 
   | Extra RAM | Slots |
   |---|---|
-  | 64K (a 6128) | 1 |
   | 256K | 2 |
   | 512K | 4 |
   | 1MB | 8 |
-| 2MB or more | 16 (CyborgOS sees at most 48 banks) |
+  | 2MB | 16 |
+  | 3MB or more | 20 (CyborgOS sees at most 48 banks) |
+
+  A program built for CyborgOS runs on the 128K version too: the slots are the same (a whole
+  64K bank from #0100, the same BDOS); there it gets one slot on a 6128.
 
 - A disc system (AMSDOS, UniDOS, an IDE or SD interface ...): CyborgOS starts every background
   ROM (`Option RomEnable All`), and programs are loaded from disc.
-- `build/dsk/cyborgos.dsk` has CYBORGOS.BIN and three test programs (TICKER.CYB, CRUNCH.CYB, LINES.CYB),
-  CRUNCH again as a plain CRUNCH.COM, CYBADD.BIN (it writes FILES.DIR), and a FILES.DIR listing
-  CYBADD.BIN and CRUNCH.COM (long name BIGCRUNCH).
+- `build/dsk/cyborgos320k.dsk` has CYBORGOS.BIN (this version), CYBADD.BIN (it writes
+  FILES.DIR), the commands (HELP.CYB, COPY.CYB, ERA.CYB, TYPE.CYB, PREP.CYB, RENAME.CYB), three
+  test programs (TICKER.CYB, CRUNCH.CYB, LINES.CYB), CRUNCH again as a plain CRUNCH.COM, and a
+  FILES.DIR listing every file on it (CRUNCH.COM with the long name BIGCRUNCH).
+  `build/dsk/cyborgos128k.dsk` is the same for the 128K version (a 6128 and up).
 
 ## 2. Starting
 
@@ -46,19 +55,20 @@ Each slot is a whole 64K bank with its own text page (80 x 25). The slot in fron
 on the screen and the one the keyboard types into; the others keep running, and their output
 goes to their own page.
 
-- **Control + 1 to 8** brings that slot to the front. With more than 8 slots, the same number
-  pressed twice quickly (within 0.3 s, Control held) is slots 9 to 16 (Control + 3, 3: slot
-  11); a single press then counts after 0.3 s, at once when Control is let go or another
-  number is pressed. With 8 slots or fewer a press counts at once. A slot used for the first time opens with
+- **Control + 1 to 9, 0** brings that slot to the front (0 is slot 10). With more than 10
+  slots, the same number pressed twice quickly (within 0.3 s, Control held) is slots 11 to 20
+  (Control + 3, 3: slot 13; 0, 0: slot 20); a single press then counts after 0.3 s, at once
+  when Control is let go or another number is pressed. With 10 slots or fewer a press counts
+  at once. A slot used for the first time opens with
   its command line. Hold Control and press the numbers one after another to step through the
   slots. The keys are looked at 50 times a second whatever runs; keys typed while Control is
   held don't go to the programs.
 - **Control + ESC** shows the TOP screen: each slot's state (command line, running), its
   program, and in the last whole second its turns, BDOS calls that reached the hypervisor and
   characters out. It is drawn once (straight into screen memory, at once) and stays (other keys
-  do nothing) until Control + ESC again or Control + a slot number. Under the slots: the memory
-  CyborgOS sees (in KB) and its map, a character a 16K page (`B` a slot's bank, `-` free; as
-  `Memory.Map`). The `TOP` command prints the same into the slot's console instead.
+  do nothing) until Control + ESC again or Control + a slot number. Under the slots: the total
+  and free memory (MEM has the map). The `TOP` command prints the same into the slot's console
+  instead.
 - **FG** *slot* does the same from a command line.
 
 A slot either shows its command line, or runs a program. When the program ends, the slot's
@@ -83,7 +93,7 @@ Typed at a slot's prompt (`1>`), in capitals or not. Backspace / DEL rub out.
 | `RESET` [*slot*] | that slot (or this one) as before its command line was first opened: its program, if any, stopped and nothing kept; this slot opens again at once, as new |
 | `WAIT` | waits until no program runs; keys typed meanwhile wait too |
 | `CLS` | clears this slot's page |
-| `MEM` | main RAM as a table (each address range and what is there: CyborgOS, the window, free RAM, the firmware and ROMs, the screen); the map of the banks, a character a 16K page (B a slot's, - free), 32 pages (8 banks) a group, two groups a line; then the totals as TOP has them. Free memory is the 16K pages nothing has (main RAM's own page is the disc buffers') |
+| `MEM` | main RAM as a table (each address range and what is there: CyborgOS, the window, free RAM, the firmware and ROMs, the screen); the map of the banks, a character a 16K page (B a slot's, U the hypervisor's, - free), 32 pages (8 banks) a group, two groups a line; then the totals as TOP has them. Free memory is the 16K pages nothing has (main RAM's own #4000-#7FFF is one: left free) |
 | `HELP` | the commands, then a line on each - a program on the disc (HELP.CYB, `bas/cyborgos/cmds/HELP.bas`), not in the hypervisor |
 | `COPY`, `ERA`, `TYPE`, `PREP`, `RENAME` | disc commands: programs on the disc ([4a](#4a-disc-commands-copy-era-type-prep-rename-and-help)), not built in |
 | `QUIT` | ends CyborgOS (it says how many programs ran) |
@@ -320,7 +330,8 @@ hypervisor is built round it, from #0040 and on from #8000; the Memory class's t
 (`Option Memory CPCExpansion 193`: up to 48 banks - all 64 of a 4MB expansion no longer fit
 there; the Library: ROM build takes 33 pages, 8 banks, below the ROM's RAM at #8800). Its file
 work (RUN's loading, DIR, CD, the programs' BDOS file calls) is `Hyp.FileCall`, Z80 on the
-firmware's cassette calls, with main RAM's #4000-#4FFF as the disc ROM's two 2K buffers. The
+firmware's cassette calls, with #4000-#4FFF of the hypervisor's own page (the first expansion
+bank's page 0, C4) as the disc ROM's two 2K buffers. The
 test programs are in `bas/cyborgos/tasks/`, the disc commands in `bas/cyborgos/cmds/` (each
 built for cpm with `CybDir.cls`, which reads and writes FILES.DIR). The regression tests run it in the harness with 4
-slots (576K), 1 slot (128K) and as a Library: ROM build.
+slots (576K), 20 slots (4MB), 2 slots (320K), refused on 128K, and as a Library: ROM build.

@@ -50,6 +50,7 @@ function ntcCompile(input_a, objOptions_a)
 	var intStrMax = 40;			// the longest string in the program (findStrMax)
 	var arrReserve = [];		// Option Reserve: { start, size, file, line }
 	var intBufAt = -1;			// Option Buffer: where the 2K buffer is (-1: in the program)
+	var intBufSize = 2048;		// Option Buffer [address], size / Option Buffer Size n: its size (FileSystem on a CPC needs 2048)
 	var arrRomEnable = null;	// Option RomEnable (cpcfw): null none, ['all'], or ROM numbers
 	var objStack = null;		// Option Stack: { addr, file, line } - the real stack's start
 	var strTerminal = 'none';	// Option Terminal (CP/M): none, vt52, ansi		// platform class names the project replaces with its own
@@ -8666,7 +8667,7 @@ function ntcCompile(input_a, objOptions_a)
 				arrResult.push(objSection.header);
 				if ((objSection.name === 'ntc_buf2k') && (intBufAt >= 0))
 				{
-					arrResult.push('ntc_buf\tequ ' + intBufAt + '\t\t; Option Buffer: the 2K buffer outside the program');
+					arrResult.push('ntc_buf\tequ ' + intBufAt + '\t\t; Option Buffer: the buffer outside the program');
 					arrResult.push('');
 					continue;
 				}
@@ -8805,15 +8806,45 @@ function ntcCompile(input_a, objOptions_a)
 			{
 				// Option Buffer address: the library's 2K buffer (FileSystem, Memory.Copy) there,
 				// not in the program - kept out of like an Option Reserve range
-				intValue = parseNumber(String(objRec.value));
-				if (isNaN(intValue) || (intValue < 0) || (intValue > 65536 - 2048))
+				// Option Buffer Size n / Option Buffer address [, size]: its size (32 - 2048; Memory.Copy
+				// copies that much at a time; FileSystem on a CPC needs the whole 2048)
+				var arrBufM = String(objRec.value).match(/^\s*size\s+(\S+)\s*$/i);
+				var strBufAt = '';
+				var strBufSize = '';
+				if (arrBufM)
 				{
-					arrErrors.push({ file: objRec.file, line: objRec.line, msg: 'Option Buffer: an address 0-&HF800 (2K from there)' });
+					strBufSize = arrBufM[1];
 				}
 				else
 				{
-					intBufAt = intValue;
-					arrReserve.push({ start: intValue, size: 2048, file: objRec.file, line: objRec.line, buffer: true });
+					arrBufM = String(objRec.value).match(/^\s*([^,\s]+)\s*(?:,\s*(\S+))?\s*$/);
+					strBufAt = arrBufM ? arrBufM[1] : 'x';
+					strBufSize = (arrBufM && arrBufM[2]) ? arrBufM[2] : '';
+				}
+				if (strBufSize !== '')
+				{
+					intValue = parseNumber(strBufSize);
+					if (isNaN(intValue) || (intValue < 32) || (intValue > 2048))
+					{
+						arrErrors.push({ file: objRec.file, line: objRec.line, msg: 'Option Buffer: a size 32-2048' });
+					}
+					else
+					{
+						intBufSize = intValue;
+					}
+				}
+				if (strBufAt !== '')
+				{
+					intValue = parseNumber(strBufAt);
+					if (isNaN(intValue) || (intValue < 0) || (intValue > 65536 - intBufSize))
+					{
+						arrErrors.push({ file: objRec.file, line: objRec.line, msg: 'Option Buffer: an address 0-&HF800 (2K from there), or Option Buffer Size n' });
+					}
+					else
+					{
+						intBufAt = intValue;
+						arrReserve.push({ start: intValue, size: intBufSize, file: objRec.file, line: objRec.line, buffer: true });
+					}
 				}
 			}
 			else if (objRec.what === 'memory')
@@ -8935,6 +8966,7 @@ function ntcCompile(input_a, objOptions_a)
 			intBufAt = -1;
 			arrReserve = arrReserve.filter(function(objR_a) { return !objR_a.buffer; });
 		}
+		intBufSize = 2048;		// (the ROM's buffer is 2K)
 	}
 
 	// pass 1 (twice, so types of undeclared variables settle)
@@ -9074,6 +9106,7 @@ function ntcCompile(input_a, objOptions_a)
 	arrAsm.push('NTC_ROMENABLE\tequ ' + ((arrRomEnable !== null) ? 1 : 0) + '\t\t; Option RomEnable (cpcfw, cpcmin): the start code starts the ROMs');
 	arrAsm.push('NTC_ROMLIB\tequ ' + ((objOptions.library === 'rom') ? 1 : 0) + '\t\t; 1 = the library is the keyword ROM (Library: ROM; ntcRomAsm builds it)');
 	arrAsm.push('NTC_WINHOLE\tequ @@WINHOLE@@\t\t; 1 = the program is built round an Option Reserve range over the window #4000-#7FFF');
+	arrAsm.push('NTC_BUFSIZE\tequ ' + intBufSize + '\t\t; the library\'s buffer (ntc_buf: FileSystem, Memory.Copy): Option Buffer');
 	arrAsm.push('NTC_CPMGFX\tequ ' + ((String(objOptions.platform).toLowerCase() === 'cpm') ? 1 : 0) + '\t\t; 1 = CP/M: Graphics draws on an Amstrad CPC\'s screen (2.2: #C000, Plus: block 1 from common memory)');
 	arrAsm.push('');
 	// the options in a fixed order, wherever they are in the source: the stack first (the
@@ -10538,7 +10571,7 @@ function ntcRomAsm(strPlatform_a, strReg_a, objOpt_a)
 	while (blnChanged)
 	{
 		blnChanged = false;
-		objDefined = { NTC_ROMDATA: 1, NTC_ROMBSS: 1, NTC_STRMAX: 1, NTC_MEMBANKS: 1, NTC_WINHOLE: 1, ntc_memtab: 1, ntc_v_free: 1, ntc_v_start: 1, ntc_v_stamp: 1, ntc_v_romen: 1, ntc_v_rom: 1, ntc_v_romold: 1, ntc_rx_cur: 1, ntc_rx_bc: 1 };
+		objDefined = { NTC_ROMDATA: 1, NTC_ROMBSS: 1, NTC_STRMAX: 1, NTC_MEMBANKS: 1, NTC_WINHOLE: 1, NTC_BUFSIZE: 1, ntc_memtab: 1, ntc_v_free: 1, ntc_v_start: 1, ntc_v_stamp: 1, ntc_v_romen: 1, ntc_v_rom: 1, ntc_v_romold: 1, ntc_rx_cur: 1, ntc_rx_bc: 1 };
 		for (var intD = 0; intD < NTC_ROM_MAXSET; intD++) { objDefined['ntc_rx_s' + intD] = 1; }
 		arrSections.forEach(function(objSec_a)
 		{
@@ -11149,6 +11182,7 @@ function ntcRomAsm(strPlatform_a, strReg_a, objOpt_a)
 	arrOut.push('NTC_MEMBANKS\tequ 64\t\t\t; the Memory class: up to 4MB');
 	arrOut.push('NTC_WINHOLE\tequ 0\t\t\t; (a program built round the window: seen at run time, its free RAM above #8000)');
 	arrOut.push('NTC_ROMLIB\tequ 1\t\t\t; this is the keyword ROM');
+	arrOut.push('NTC_BUFSIZE\tequ 2048\t\t; its buffer (ntc_buf)');
 	arrOut.push('NTC_ROM_N\tequ ' + arrSyms.length + '\t\t\t; numbers in the index');
 	arrOut.push('NTC_ROM_COUNT\tequ ' + intRoms + '\t\t\t; ROMs in the set (' + ntcRomFile(strPlatform_a) + '.ROM' + ((intRoms > 1) ? ' ... ' + ntcRomFile(strPlatform_a) + intRoms + '.ROM' : '') + ')');
 	arrOut.push('NTC_ROM_SET\tequ ' + hex4(intSet) + '\t\t; the set\'s stamp (its ROMs find each other by it)');

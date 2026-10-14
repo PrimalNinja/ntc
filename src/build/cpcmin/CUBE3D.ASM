@@ -12,6 +12,7 @@ NTC_MEMBANKS	equ 64		; Option Memory: the most 64K banks the Memory class looks 
 NTC_ROMENABLE	equ 1		; Option RomEnable (cpcfw, cpcmin): the start code starts the ROMs
 NTC_ROMLIB	equ 0		; 1 = the library is the keyword ROM (Library: ROM; ntcRomAsm builds it)
 NTC_WINHOLE	equ 1		; 1 = the program is built round an Option Reserve range over the window #4000-#7FFF
+NTC_BUFSIZE	equ 2048		; the library's buffer (ntc_buf: FileSystem, Memory.Copy): Option Buffer
 NTC_CPMGFX	equ 0		; 1 = CP/M: Graphics draws on an Amstrad CPC's screen (2.2: #C000, Plus: block 1 from common memory)
 
 ntc_start:
@@ -4579,9 +4580,10 @@ ntc_rg263_e:
 			ENDIF
 ntc_rg264:
 ;## ntc_buf2k
-; ntc_buf - a 2K buffer shared by the classes that need one: FileSystem's
-; CAS IN / OUT OPEN buffer (CPC firmware) and Memory.Copy's page to page copy
-ntc_buf:		ds 2048
+; ntc_buf - a buffer shared by the classes that need one: FileSystem's
+; CAS IN / OUT OPEN buffer (CPC firmware: 2K) and Memory.Copy's page to page
+; copy (that much at a time). NTC_BUFSIZE (Option Buffer): 2048 unless set
+ntc_buf:		ds NTC_BUFSIZE
 
 ntc_rg264_e:
 			IF ($ < 32768) && (ntc_rg265_e - ntc_rg265 + $ > 16384)	; fwdref-ok
@@ -8278,6 +8280,7 @@ fs_vol:			ds 9			; the volume in use ("" = not known)
 fs_vols:		ds 145			; the volumes that worked, "A,C,M" (up to 16 of up to 8 letters)
 fs_tmpn:		ds 9			; a volume name, capitals
 fs_rsxn:		ds 17			; a command name (last letter + #80), up to 16 letters
+			ASSERT NTC_BUFSIZE >= 2048, "FileSystem needs the whole 2K buffer (Option Buffer's size)"
 			ASSERT ntc_free <= #A600, "FileSystem on cpcmin: the program and its arrays must end below #A600 (AMSDOS's RAM)"
 
 fs_go0:
@@ -9583,4 +9586,4 @@ ovl_spin_vsize	equ 0		; its page variables; its local memory is the rest, to #80
 			DISPLAY "  page variables ", /D, ovl_spin_vsize, ", free ", /D, #8000 - (ovl_spin_end + ovl_spin_vsize)
 			SAVEAMSDOS "CUBE3D.001", ovl_spin_start, ovl_spin_end - ovl_spin_start, #4000
 
-NTC_STAMP	equ #5A6C		; the build stamp: the first word of every page file
+NTC_STAMP	equ #27CB		; the build stamp: the first word of every page file

@@ -2235,7 +2235,7 @@ Print "here"
 
 ### Option Buffer
 
-`Option Buffer` *address*
+`Option Buffer` *address* [`,` *size*]  /  `Option Buffer Size` *size*
 
 The library's 2K buffer - the one FileSystem's files (the CPC firmware's cassette buffer) and
 `Memory.Copy` (page to page) use - at that address instead of inside the program. The program
@@ -2243,6 +2243,13 @@ gets 2K smaller, and the range is kept out of like an `Option Reserve` range. Us
 outside the program and outside the `#4000` window (a copy between pages goes through it),
 e.g. `Option Buffer &H8000` on cpcfw. With `Option Library ROM` it does nothing (the 2K buffer
 is the ROM's own, in its RAM) and its range is free for the program.
+
+A size (32 - 2048) makes the buffer smaller: `Memory.Copy` then copies that much at a time
+(PRIMAL's copy buffer is 128 bytes: a page-to-page copy is still `ldir`s, a little more
+switching). Only for a program that copies but has no files: FileSystem on a CPC (the
+firmware's cassette buffer) and `List.Sort` need the whole 2K, and the assembly stops with a
+message if the buffer is smaller. `Option Buffer Size 128` keeps it in the program;
+`Option Buffer &H8000, 128` puts it there.
 
 ### Option Reserve
 

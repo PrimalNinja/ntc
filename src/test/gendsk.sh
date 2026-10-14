@@ -44,24 +44,32 @@ for p in cpc cpcmin cpcfw cpcrom cpcminrom cpcfwrom cpm; do
   done
   rm -rf $w
 done
-# CyborgOS: CYBORGOS.BIN (cpcfw) and its programs and commands (HELP, COPY, ERA, TYPE, PREP, RENAME) - cpm
-# builds as .CYB, with an AMSDOS header
-# (AMSDOS reads a headerless file as ASCII text, to the first #1A)
-w=t/dsk_cyb; rm -rf $w; mkdir -p $w; cp ../build/cpcfw/CYBORGOS.ASM ../build/cpcfw/CYBADD.ASM $w/
-for g in CYBORGOS CYBADD; do (cd $w && $SJ --nologo --msg=err $g.ASM > /dev/null) || { echo "gendsk: $g did not assemble"; fail=1; }; done
-for g in TICKER CRUNCH LINES COPY ERA TYPE PREP RENAME HELP; do
-  cp ../build/cpm/$g.ASM $w/
-  (cd $w && $SJ --nologo --msg=err --raw=$g.COM $g.ASM > /dev/null) || { echo "gendsk: $g did not assemble"; fail=1; }
-  python3 -c "import sys; sys.path.insert(0, '.'); import ntcrun; d = open('$w/$g.COM', 'rb').read(); open('$w/$g.CYB', 'wb').write(ntcrun.amsdos_header(d, 0x100) + d)"
-done
-d=../build/dsk/cyborgos.dsk; rm -f $d
-dskform -type dsk -format cpcdata $d > /dev/null 2>&1
-# FILES.DIR: every file on the disc (but itself). The CPC programs (CYBORGOS.BIN, CYBADD.BIN: run
-# from BASIC) as "other", not run by CyborgOS; the .CYB programs (run by their names) with their
-# length as CP/M reads them (the AMSDOS header left out), their names as long names (so COPY,
-# ERA, TYPE, RENAME find them by those too); CRUNCH as a CP/M .COM with no header (long name
-# BIGCRUNCH): RUN BIGCRUNCH runs it through its entry
-python3 -c "
+# CyborgOS: two discs, built from their own sources - cyborgos320k.dsk (bas/cyborgos320kb: 320K
+# or more) and cyborgos128k.dsk (bas/cyborgos128kb: the 128K version, kept as it was). Each has
+# CYBORGOS.BIN and CYBADD.BIN (cpcfw), its programs and commands (HELP, COPY, ERA, TYPE, PREP,
+# RENAME) - cpm builds as .CYB, with an AMSDOS header (AMSDOS reads a headerless file as ASCII
+# text, to the first #1A) - CRUNCH again as a plain .COM, and FILES.DIR
+rm -f ../build/dsk/cyborgos.dsk
+for v in 320 128; do
+  b=../bas/cyborgos${v}kb; w=t/dsk_cyb$v; rm -rf $w; mkdir -p $w
+  node cli.js $b/Main.bas $b/Hyp.cls $b/Hot.cls $b/Ent.cls --platform=cpcfw --amsdos=CYBORGOS --name=CYBORGOS > $w/CYBORGOS.ASM 2>/dev/null
+  node cli.js $b/tools/CYBADD.bas $b/Ent.cls --platform=cpcfw --amsdos=CYBADD --name=CYBADD > $w/CYBADD.ASM 2>/dev/null
+  for g in CYBORGOS CYBADD; do (cd $w && $SJ --nologo --msg=err $g.ASM > /dev/null) || { echo "gendsk: $v: $g did not assemble"; fail=1; }; done
+  for g in TICKER CRUNCH LINES; do node cli.js $b/tasks/$g.bas --platform=cpm > $w/$g.ASM 2>/dev/null; done
+  node cli.js $b/cmds/HELP.bas --platform=cpm > $w/HELP.ASM 2>/dev/null
+  for g in COPY ERA TYPE PREP RENAME; do node cli.js $b/cmds/$g.bas $b/cmds/CybDir.cls --platform=cpm > $w/$g.ASM 2>/dev/null; done
+  for g in TICKER CRUNCH LINES COPY ERA TYPE PREP RENAME HELP; do
+    (cd $w && $SJ --nologo --msg=err --raw=$g.COM $g.ASM > /dev/null) || { echo "gendsk: $v: $g did not assemble"; fail=1; }
+    python3 -c "import sys; sys.path.insert(0, '.'); import ntcrun; d = open('$w/$g.COM', 'rb').read(); open('$w/$g.CYB', 'wb').write(ntcrun.amsdos_header(d, 0x100) + d)"
+  done
+  d=../build/dsk/cyborgos${v}k.dsk; rm -f $d
+  dskform -type dsk -format cpcdata $d > /dev/null 2>&1
+  # FILES.DIR: every file on the disc (but itself). The CPC programs (CYBORGOS.BIN, CYBADD.BIN:
+  # run from BASIC) as "other", not run by CyborgOS; the .CYB programs (run by their names) with
+  # their length as CP/M reads them (the AMSDOS header left out), their names as long names (so
+  # COPY, ERA, TYPE, RENAME find them by those too); CRUNCH as a CP/M .COM with no header (long
+  # name BIGCRUNCH): RUN BIGCRUNCH runs it through its entry
+  python3 -c "
 import sys, os; sys.path.insert(0, '.'); import ntcrun
 w = '$w'; e = b''
 def size(f): return os.path.getsize(os.path.join(w, f))
@@ -72,7 +80,8 @@ for g in ('TICKER', 'CRUNCH', 'LINES', 'COPY', 'ERA', 'TYPE', 'PREP', 'RENAME', 
 e += ntcrun.cyb_entry('CRUNCH.COM', size('CRUNCH.COM'), 'BIGCRUNCH')
 open(os.path.join(w, 'FILES.DIR'), 'wb').write(e)
 "
-for f in $w/CYBORGOS.BIN $w/CYBADD.BIN $w/TICKER.CYB $w/CRUNCH.CYB $w/LINES.CYB $w/COPY.CYB $w/ERA.CYB $w/TYPE.CYB $w/PREP.CYB $w/RENAME.CYB $w/HELP.CYB $w/CRUNCH.COM $w/FILES.DIR; do cpmcp -f cpcdata -T dsk $d $f 0:$(basename $f) || fail=1; done
-echo "build/dsk/cyborgos.dsk: $(cpmls -f cpcdata -T dsk $d | grep -vc '^[0-9]*:$') files"
-rm -rf $w
+  for f in $w/CYBORGOS.BIN $w/CYBADD.BIN $w/TICKER.CYB $w/CRUNCH.CYB $w/LINES.CYB $w/COPY.CYB $w/ERA.CYB $w/TYPE.CYB $w/PREP.CYB $w/RENAME.CYB $w/HELP.CYB $w/CRUNCH.COM $w/FILES.DIR; do cpmcp -f cpcdata -T dsk $d $f 0:$(basename $f) || fail=1; done
+  echo "build/dsk/cyborgos${v}k.dsk: $(cpmls -f cpcdata -T dsk $d | grep -vc '^[0-9]*:$') files"
+  rm -rf $w
+done
 exit $fail

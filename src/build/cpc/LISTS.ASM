@@ -12,6 +12,7 @@ NTC_MEMBANKS	equ 64		; Option Memory: the most 64K banks the Memory class looks 
 NTC_ROMENABLE	equ 0		; Option RomEnable (cpcfw, cpcmin): the start code starts the ROMs
 NTC_ROMLIB	equ 0		; 1 = the library is the keyword ROM (Library: ROM; ntcRomAsm builds it)
 NTC_WINHOLE	equ 1		; 1 = the program is built round an Option Reserve range over the window #4000-#7FFF
+NTC_BUFSIZE	equ 2048		; the library's buffer (ntc_buf: FileSystem, Memory.Copy): Option Buffer
 NTC_CPMGFX	equ 0		; 1 = CP/M: Graphics draws on an Amstrad CPC's screen (2.2: #C000, Plus: block 1 from common memory)
 
 ntc_start:
@@ -1397,9 +1398,10 @@ ntc_rg64_e:
 			ENDIF
 ntc_rg65:
 ;## ntc_buf2k
-; ntc_buf - a 2K buffer shared by the classes that need one: FileSystem's
-; CAS IN / OUT OPEN buffer (CPC firmware) and Memory.Copy's page to page copy
-ntc_buf:		ds 2048
+; ntc_buf - a buffer shared by the classes that need one: FileSystem's
+; CAS IN / OUT OPEN buffer (CPC firmware: 2K) and Memory.Copy's page to page
+; copy (that much at a time). NTC_BUFSIZE (Option Buffer): 2048 unless set
+ntc_buf:		ds NTC_BUFSIZE
 
 ntc_rg65_e:
 			IF ($ < 32768) && (ntc_rg66_e - ntc_rg66 + $ > 16384)	; fwdref-ok
@@ -3552,6 +3554,7 @@ ntc_rg71:
 ; tails (far pointers) fill the 2K buffer (ntc_buf).
 LST_HEADS	equ ntc_buf
 LST_TAILS	equ ntc_buf + 1024
+			ASSERT NTC_BUFSIZE >= 2048, "List.Sort needs the whole 2K buffer (Option Buffer's size)"
 
 lst_ko:			dw 0			; the key's offset in a node
 lst_byte:		db 0			; 0: the low byte, 1: the high byte

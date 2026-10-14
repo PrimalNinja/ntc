@@ -9,9 +9,10 @@ NTC_STRMAX	equ 255			; strings up to 255 characters (programs built for the ROM 
 NTC_MEMBANKS	equ 64			; the Memory class: up to 4MB
 NTC_WINHOLE	equ 0			; (a program built round the window: seen at run time, its free RAM above #8000)
 NTC_ROMLIB	equ 1			; this is the keyword ROM
+NTC_BUFSIZE	equ 2048		; its buffer (ntc_buf)
 NTC_ROM_N	equ 354			; numbers in the index
 NTC_ROM_COUNT	equ 1			; ROMs in the set (NTCFW.ROM)
-NTC_ROM_SET	equ #C36E		; the set's stamp (its ROMs find each other by it)
+NTC_ROM_SET	equ #4FF5		; the set's stamp (its ROMs find each other by it)
 MEM_WIN		equ #4000
 MEM_BADPAGE	equ -2
 MEM_BANKS	equ NTC_MEMBANKS	; 0 - 64
@@ -6933,7 +6934,7 @@ mem_cp_lp:
 			ld a, h
 			or l
 			jr z, mem_cp_done
-			ld de, 2048
+			ld de, NTC_BUFSIZE
 			call mem_min
 			ld de, (mem_srcp)
 			ld a, d
@@ -8208,6 +8209,7 @@ lst_ds_hdr:
 			ld hl, 0
 			ret
 ;## ntc_listsort ntc_list ntc_buf2k @shared @far
+			ASSERT NTC_BUFSIZE >= 2048, "List.Sort needs the whole 2K buffer (Option Buffer's size)"
 lst_rs_sel:
 			ld a, d
 			or e
@@ -8673,6 +8675,7 @@ ntc_fe_nohook:
 			ret z
 			jp (hl)
 ;## ntc_plat_fs ntc_data ntc_buf2k @shared
+			ASSERT NTC_BUFSIZE >= 2048, "FileSystem needs the whole 2K buffer (Option Buffer's size)"
 fs_go0:
 			ld a, 1
 			ld (fs_nostore), a
@@ -9717,7 +9720,7 @@ ntc_la:			ds 4
 ntc_lb:			ds 4
 ntc_lr:			ds 4
 ntc_lt:			ds 4
-ntc_buf:		ds 2048
+ntc_buf:		ds NTC_BUFSIZE
 mem_found:		ds MEM_BANKS + 1	; probe: the banks found (0-63), in order
 mem_save:		ds MEM_BANKS + 1	; probe: the bytes the markers replace
 ntc_kmat:		ds 10			; the matrix (0 = pressed)

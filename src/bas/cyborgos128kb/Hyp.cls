@@ -1138,14 +1138,32 @@ fl_hl_n:
             ld d, 0
             add hl, de
             ld (fl_cnt), hl
-            ld de, ({buf})
             ld hl, (fl_at)
+            ld c, b
+            ld b, 0
+            call fl_fits
+            jr c, fl_hl_slow
+            push bc
+            call fl_sel             ; in one page: one ldir
+            ex de, hl
+            ld hl, ({buf})
+            pop bc
+            push bc
+            ldir
+            pop bc
+            ld hl, (fl_at)
+            add hl, bc
+            jr fl_hl_put
+fl_hl_slow:
+            ld b, c
+            ld de, ({buf})
 fl_hl_cp:
             ld a, (de)              ; into the slot
             call fl_poke
             inc hl
             inc de
             djnz fl_hl_cp
+fl_hl_put:
             ld (fl_at), hl
             ld a, (fl_want)
             ld b, a
@@ -1332,7 +1350,18 @@ fl_rd_pad:
             inc hl
             djnz fl_rd_pad
 fl_rd_put:
-            ld hl, ({buf})          ; into the slot's DMA
+            ld hl, ({dma})          ; into the slot's DMA: in one page, one ldir
+            ld bc, 128
+            call fl_fits
+            jr c, fl_rd_slow
+            call fl_sel
+            ex de, hl
+            ld hl, ({buf})
+            ld bc, 128
+            ldir
+            jp fl_ok
+fl_rd_slow:                         ; (across two pages: a byte at a time)
+            ld hl, ({buf})
             ld de, ({dma})
             ld b, 128
 fl_rd_cp:
@@ -1356,6 +1385,15 @@ fl_write:
             call fl_isout
             jp nz, fl_done
             ld hl, ({dma})          ; the slot's DMA into buf
+            ld bc, 128
+            call fl_fits
+            jr c, fl_wr_slow
+            call fl_sel
+            ld de, ({buf})
+            ld bc, 128
+            ldir
+            jr fl_wr_got
+fl_wr_slow:
             ld de, ({buf})
             ld b, 128
 fl_wr_cp:
@@ -1364,6 +1402,7 @@ fl_wr_cp:
             inc hl
             inc de
             djnz fl_wr_cp
+fl_wr_got:
             call fl_plain
             ld hl, ({buf})
             ld b, 128
@@ -1442,6 +1481,27 @@ fl_rr_end:
             ld (fl_n), a            ; (128 again for the next)
             ld a, c
             or a
+            ret
+fl_fits:                            ; HL = a slot address, BC = bytes: NC = all in its 16K page.
+            push hl                 ; Keeps BC, DE, HL
+            ld a, h
+            and #3F
+            ld h, a
+            add hl, bc
+            ld a, h
+            cp #40
+            jr c, fl_ft_ok
+            jr nz, fl_ft_no
+            ld a, l
+            or a
+            jr nz, fl_ft_no
+fl_ft_ok:
+            pop hl
+            or a
+            ret
+fl_ft_no:
+            pop hl
+            scf
             ret
 fl_plain:                           ; main RAM's own #4000 in the window (the buffers)
             ld bc, #7FC0
@@ -1582,63 +1642,6 @@ fl_inname:  ds 17                   ; the one being read's (33 going back)
 fl_exit:
 #endasm
 End Function
-
-' Xfer(toslot, setting, addr, p, n): n bytes between main RAM at p and the slot (its RAM
-' setting) at addr - into the slot when toslot <> 0, else out of it. Through the window (a
-' page's end carries on in the next), the page that was there put back. (Memory.Copy goes
-' through the 2K buffer, which CyborgOS no longer has)
-Public Sub Xfer(ByVal toslot As Integer, ByVal setting As Integer, ByVal addr As Integer, ByVal p As Integer, ByVal n As Integer)
-#asm
-            ld hl, ({n})
-            ld (xf_left), hl
-            ld hl, ({addr})
-            ld de, ({p})
-xf_lp:
-            ld bc, (xf_left)
-            ld a, b
-            or c
-            jr z, xf_done
-            dec bc
-            ld (xf_left), bc
-            ld a, h                 ; the slot's page holding HL in the window
-            rlca
-            rlca
-            and 3
-            add a, 4
-            ld c, a
-            ld a, ({setting})
-            and #F8
-            or c
-            ld c, a
-            ld a, ({setting} + 1)
-            ld b, a
-            out (c), c
-            ld a, h                 ; BC = there in the window
-            and #3F
-            or #40
-            ld b, a
-            ld c, l
-            ld a, ({toslot})
-            or a
-            jr z, xf_get
-            ld a, (de)
-            ld (bc), a
-            jr xf_next
-xf_get:
-            ld a, (bc)
-            ld (de), a
-xf_next:
-            inc hl
-            inc de
-            jr xf_lp
-xf_done:
-            ld bc, (ntc_rampt)
-            out (c), c
-            jr xf_end
-xf_left:    dw 0
-xf_end:
-#endasm
-End Sub
 
 ' FileShut(slot): its files closed (its program ended, was killed or reset)
 Public Sub FileShut(ByVal slot As Integer)

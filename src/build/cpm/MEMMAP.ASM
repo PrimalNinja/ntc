@@ -11,6 +11,7 @@ NTC_MEMBANKS	equ 64		; Option Memory: the most 64K banks the Memory class looks 
 NTC_ROMENABLE	equ 0		; Option RomEnable (cpcfw, cpcmin): the start code starts the ROMs
 NTC_ROMLIB	equ 0		; 1 = the library is the keyword ROM (Library: ROM; ntcRomAsm builds it)
 NTC_WINHOLE	equ 0		; 1 = the program is built round an Option Reserve range over the window #4000-#7FFF
+NTC_BUFSIZE	equ 2048		; the library's buffer (ntc_buf: FileSystem, Memory.Copy): Option Buffer
 NTC_CPMGFX	equ 1		; 1 = CP/M: Graphics draws on an Amstrad CPC's screen (2.2: #C000, Plus: block 1 from common memory)
 
 ntc_start:
@@ -2354,9 +2355,10 @@ ntc_lpr_back:
 			jp ntc_printbuf
 
 ;## ntc_buf2k
-; ntc_buf - a 2K buffer shared by the classes that need one: FileSystem's
-; CAS IN / OUT OPEN buffer (CPC firmware) and Memory.Copy's page to page copy
-ntc_buf:		ds 2048
+; ntc_buf - a buffer shared by the classes that need one: FileSystem's
+; CAS IN / OUT OPEN buffer (CPC firmware: 2K) and Memory.Copy's page to page
+; copy (that much at a time). NTC_BUFSIZE (Option Buffer): 2048 unless set
+ntc_buf:		ds NTC_BUFSIZE
 
 ;## ntc_memcore ntc_data ntc_mem ntc_memcore2 ntc_plat_memtop @shared
 ; ------------------------------------------------------------
@@ -2932,8 +2934,8 @@ mem_largest:
 			ret
 
 ;## ntc_memcopy ntc_mem ntc_buf2k @shared @far
-; Copy(src, dst, length): far pointer to far pointer, up to 2K at a time
-; through ntc_buf (so page to page works with one window). A page's end
+; Copy(src, dst, length): far pointer to far pointer, up to NTC_BUFSIZE at a
+; time through ntc_buf (so page to page works with one window). A page's end
 ; (#8000) carries on at #4000 of the next page. The window is put back.
 ; OK, or BadPage.
 mem_copy:
@@ -2952,7 +2954,7 @@ mem_cp_lp:
 			ld a, h
 			or l
 			jr z, mem_cp_done
-			ld de, 2048
+			ld de, NTC_BUFSIZE
 			call mem_min
 			ld de, (mem_srcp)
 			ld a, d

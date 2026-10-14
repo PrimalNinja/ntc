@@ -142,6 +142,12 @@ for m in --turbo ""; do
     if [ "$o" == "$(cat ref/mem_$1.txt)" ]; then echo "ok   memory $1K $2 ${m:-normal}"; else echo "FAIL memory $1K $2 ${m:-normal}"; echo "$o" | head -5; fail=1; fi
   done
 done
+# Option Buffer Size: Memory.Copy 64 bytes at a time (the same results); FileSystem with less than 2K refused
+{ printf 'Option Buffer Size 64\n'; cat mem_t.bas; } > t/mem_b.bas
+o=$(timeout 200 python3 ntcrun.py t/mem_b.bas '' --platform=cpc --ram=576 2>&1 | grep -v "^--- ")
+if [ "$o" == "$(cat ref/mem_576.txt)" ]; then echo "ok   Option Buffer Size: Memory.Copy"; else echo "FAIL Option Buffer Size: Memory.Copy"; echo "$o" | head -5; fail=1; fi
+printf 'Option Buffer Size 128\nPrint FileSystem.Exists("A.TXT")\n' > t/buf_fs.bas
+node cli.js t/buf_fs.bas --platform=cpcfw > t/buf_fs.asm 2>/dev/null; (cd t && ${SJASMPLUS:-sjasmplus} --nologo --msg=err buf_fs.asm 2>&1) | grep -q "FileSystem needs the whole 2K buffer" && echo "ok   Option Buffer Size: FileSystem refused" || { echo "FAIL Option Buffer Size: FileSystem refused"; fail=1; }
 cp $P/memmap.bas t/ex/
 check "memmap cpc 64K" "^After Free: 0 pages free" "$(timeout 200 python3 ntcrun.py t/ex/memmap.bas '~x~x' --platform=cpc --ram=64 2>&1)"
 check "memmap cpc 576K" "^Bank 8 " "$(timeout 200 python3 ntcrun.py t/ex/memmap.bas '~x~x' --platform=cpc --ram=576 2>&1)"
@@ -450,16 +456,16 @@ done
 # under the hypervisor (cpcfw): CRUNCH (stopped only by interrupts) in slot 2, TICKER (a BDOS
 # call a loop) in slot 3 brought to the front and ended with a key, WAIT for CRUNCH, QUIT. 576K:
 # 4 slots; 128K (a 6128): 1 slot, the two in turn
-rm -rf t/cy t/files; mkdir -p t/cy t/files/A; cp $P/cyborgos/*.bas $P/cyborgos/*.cls t/cy/
+rm -rf t/cy t/files; mkdir -p t/cy t/files/A; cp $P/cyborgos320kb/*.bas $P/cyborgos320kb/*.cls t/cy/
 for g in TICKER CRUNCH; do
-  node cli.js $P/cyborgos/tasks/$g.bas --platform=cpm > t/cy/$g.asm 2>/dev/null
+  node cli.js $P/cyborgos320kb/tasks/$g.bas --platform=cpm > t/cy/$g.asm 2>/dev/null
   (cd t/cy && ${SJASMPLUS:-sjasmplus} --nologo --msg=err --raw=$g.COM $g.asm > /dev/null)
   python3 -c "import ntcrun; d = open('t/cy/$g.COM', 'rb').read(); open('t/files/A/$g.CYB', 'wb').write(ntcrun.amsdos_header(d, 0x100) + d)"
 done
 node cli.js str9.bas --platform=cpm > t/cy/STR9.asm 2>/dev/null
 (cd t/cy && ${SJASMPLUS:-sjasmplus} --nologo --msg=err --raw=STR9.COM STR9.asm > /dev/null)
 python3 -c "import ntcrun; d = open('t/cy/STR9.COM', 'rb').read(); open('t/files/A/STR9.CYB', 'wb').write(ntcrun.amsdos_header(d, 0x100) + d)"
-node cli.js $P/cyborgos/tasks/LINES.bas --platform=cpm > t/cy/LINES.asm 2>/dev/null
+node cli.js $P/cyborgos320kb/tasks/LINES.bas --platform=cpm > t/cy/LINES.asm 2>/dev/null
 (cd t/cy && ${SJASMPLUS:-sjasmplus} --nologo --msg=err --raw=LINES.COM LINES.asm > /dev/null)
 python3 -c "import ntcrun; d = open('t/cy/LINES.COM', 'rb').read(); open('t/files/A/LINES.CYB', 'wb').write(ntcrun.amsdos_header(d, 0x100) + d)"
 W=$(printf '~%.0s' $(seq 1 40))
@@ -469,11 +475,11 @@ if echo "$o" | grep -q "^line199 the quick" && echo "$o" | grep -q "^line200 the
 # BDOS 9: a "$" string over 128 bytes (fetched with Memory.Copy in pieces), the screen left showing
 o=$(timeout 300 python3 ntcrun.py t/cy/Main.bas "run STR9\n${W}" t/cy/Hyp.cls t/cy/Hot.cls t/cy/Ent.cls --platform=cpcfw --ram=576 2>&1)
 if echo "$o" | grep -q "^s9 tail ok"; then echo "ok   CyborgOS BDOS 9 string"; else echo "FAIL CyborgOS BDOS 9 string"; echo "$o" | tail -5; fail=1; fi
-# 4MB: 16 slots; Control + 3 twice (Control held) is slot 11, once is slot 3
+# 4MB: 20 slots; Control + 3 twice (Control held) is slot 13, Control + 0 once is slot 10
 o=$(timeout 300 python3 ntcrun.py t/cy/Main.bas "run CRUNCH 12\n~~~~~~~~~~{23,57}{23}{23,57}~~~~~~~~~~ps\n~~~~~~~~~~" t/cy/Hyp.cls t/cy/Hot.cls t/cy/Ent.cls --platform=cpcfw --ram=4160 2>&1)
-if echo "$o" | grep -q "^CyborgOS slot 11 of 16" && echo "$o" | grep -q "^ 11 \* command line" && echo "$o" | grep -q "^ 12   CRUNCH.CYB"; then echo "ok   CyborgOS 16 slots, Control + a number twice"; else echo "FAIL CyborgOS 16 slots, Control + a number twice"; echo "$o" | tail -5; fail=1; fi
-o=$(timeout 300 python3 ntcrun.py t/cy/Main.bas "~~~~~~~~~~{23,57}${W}${W}ps\n~~~~~~~~~~" t/cy/Hyp.cls t/cy/Hot.cls t/cy/Ent.cls --platform=cpcfw --ram=4160 2>&1)
-if echo "$o" | grep -q "^CyborgOS slot 3 of 16" && echo "$o" | grep -q "^  3 \* command line"; then echo "ok   CyborgOS 16 slots, Control + a number once"; else echo "FAIL CyborgOS 16 slots, Control + a number once"; echo "$o" | tail -5; fail=1; fi
+if echo "$o" | grep -q "^CyborgOS slot 13 of 20" && echo "$o" | grep -q "^ 13 \* command line" && echo "$o" | grep -q "^ 12   CRUNCH.CYB"; then echo "ok   CyborgOS 20 slots, Control + a number twice"; else echo "FAIL CyborgOS 20 slots, Control + a number twice"; echo "$o" | tail -5; fail=1; fi
+o=$(timeout 300 python3 ntcrun.py t/cy/Main.bas "~~~~~~~~~~{23,32}${W}${W}ps\n~~~~~~~~~~" t/cy/Hyp.cls t/cy/Hot.cls t/cy/Ent.cls --platform=cpcfw --ram=4160 2>&1)
+if echo "$o" | grep -q "^CyborgOS slot 10 of 20" && echo "$o" | grep -q "^ 10 \* command line"; then echo "ok   CyborgOS 20 slots, Control + 0 once"; else echo "FAIL CyborgOS 20 slots, Control + 0 once"; echo "$o" | tail -5; fail=1; fi
 # RESET: slot 2's program stopped and the slot closed; RESET on its own: this slot as new
 o=$(timeout 300 python3 ntcrun.py t/cy/Main.bas "run CRUNCH 2\n${W}reset 2\nps\n${W}reset\n${W}ps\n${W}" t/cy/Hyp.cls t/cy/Hot.cls t/cy/Ent.cls --platform=cpcfw --ram=576 2>&1)
 if echo "$o" | grep -q "^  2   -" && [ "$(echo "$o" | grep -c "^CyborgOS slot 1 of 4")" == 1 ] && ! echo "$o" | grep -q "reset 2"; then echo "ok   CyborgOS RESET"; else echo "FAIL CyborgOS RESET"; echo "$o" | tail -5; fail=1; fi
@@ -482,14 +488,14 @@ o=$(timeout 300 python3 ntcrun.py t/cy/Main.bas "run CRUNCH 2\n${W}top\n${W}" t/
 if echo "$o" | grep -q "^  2   running        CRUNCH.CYB" && echo "$o" | grep -q "^SLOT  STATE" && echo "$o" | grep -q "^CyborgOS TOP$" && echo "$o" | grep -q "^Total memory: 576 KB   Free memory: 256 KB" && ! echo "$o" | grep -q "^[-B]\{32\}"; then echo "ok   CyborgOS TOP command"; else echo "FAIL CyborgOS TOP command"; echo "$o" | tail -5; fail=1; fi
 # MEM: main RAM as a table, the map (TOP has none: 32 pages a group, two groups a line), the totals
 o=$(timeout 300 python3 ntcrun.py t/cy/Main.bas "mem\n${W}" t/cy/Hyp.cls t/cy/Hot.cls t/cy/Ent.cls --platform=cpcfw --ram=4160 2>&1)
-if echo "$o" | grep -q "^#0040-#3FFF  CyborgOS" && echo "$o" | grep -q "^#C000-#FFFF  screen" && echo "$o" | grep -q "^Total memory: 3136 KB   Free memory: 2048 KB" && echo "$o" | grep -q "^-\{32\}  -\{32\}$" && echo "$o" | grep -q "^B\{32\}  B\{32\}$"; then echo "ok   CyborgOS MEM map"; else echo "FAIL CyborgOS MEM map"; echo "$o" | tail -8; fail=1; fi
+if echo "$o" | grep -q "^#0040-#3FFF  CyborgOS" && echo "$o" | grep -q "^#C000-#FFFF  screen" && echo "$o" | grep -q "^Total memory: 3136 KB   Free memory: 1792 KB" && echo "$o" | grep -q "^-\{32\}  -\{32\}$" && echo "$o" | grep -q "^U---B\{28\}  B\{32\}$"; then echo "ok   CyborgOS MEM map"; else echo "FAIL CyborgOS MEM map"; echo "$o" | tail -8; fail=1; fi
 # a CP/M program with no header (.COM): runs only with an entry - from NAME.HDR (TICKER: 16
 # #1A bytes in it, read ForReadRaw) or FILES.DIR (made by CYBADD: CRUNCH, by its long name);
 # NONE has none. CD B: drive B's FILES.DIR (TICKER as TICK); CD C: no such drive; A: alone and
 # CD B: as CD A, CD B
 cp t/cy/TICKER.COM t/cy/CRUNCH.COM t/files/A/; cp t/cy/CRUNCH.COM t/files/A/NONE.COM; rm -f t/files/A/FILES.DIR
 python3 -c "import ntcrun; d = open('t/cy/TICKER.COM', 'rb').read(); open('t/files/A/TICKER.HDR', 'wb').write(ntcrun.cyb_entry('TICKER.COM', len(d)))"
-cp $P/cyborgos/tools/CYBADD.bas t/cy/
+cp $P/cyborgos320kb/tools/CYBADD.bas t/cy/
 SZ=$(python3 -c "import os; n = os.path.getsize('t/cy/CRUNCH.COM'); print((n + 127) // 128 * 128)")   # to its last record
 o=$(timeout 300 python3 ntcrun.py t/cy/CYBADD.bas "\ncrunch.com\nbigcrunch\n\n\nx" t/cy/Ent.cls --platform=cpcfw 2>&1)
 if echo "$o" | grep -q "^CRUNCH.COM: $SZ bytes, in FILES.DIR" && echo "$o" | grep -q "^A:FILES.DIR: 1 entries"; then echo "ok   CYBADD"; else echo "FAIL CYBADD"; echo "$o" | tail -8; fail=1; fi
@@ -504,7 +510,7 @@ rm -rf t/files/A/*.COM t/files/A/TICKER.HDR t/files/A/FILES.DIR t/files/B
 # line their command tail; found on A when the slot's drive hasn't got them): PREP B (twice: the
 # second leaves it), TYPE by a long name, COPY to B (by its disc name, by its long name to a new
 # name), CD B, ERA there, TYPE from A, RUN TYPE, a name that is nowhere
-mkdir -p t/cmd t/files/A; cp $P/cyborgos/cmds/* t/cmd/
+mkdir -p t/cmd t/files/A; cp $P/cyborgos320kb/cmds/* t/cmd/
 for g in COPY ERA TYPE PREP RENAME HELP; do
   node cli.js t/cmd/$g.bas t/cmd/CybDir.cls --platform=cpm > t/cmd/$g.asm 2>/dev/null
   (cd t/cmd && ${SJASMPLUS:-sjasmplus} --nologo --msg=err --raw=$g.COM $g.asm > /dev/null)
@@ -529,7 +535,8 @@ printf '#If NTC_LIBRARY_ROM Then\nOption Memory CPCExpansion 33\n#Else\nOption M
 a1=$(node cli.js t/memif.bas --platform=cpcfw 2>/dev/null | grep "^NTC_MEMBANKS"); a2=$(node cli.js t/memif.bas --platform=cpcfw --library=rom 2>/dev/null | grep "^NTC_MEMBANKS")
 if echo "$a1" | grep -q "equ 48" && echo "$a2" | grep -q "equ 8"; then echo "ok   Option Memory in #If"; else echo "FAIL Option Memory in #If: $a1 / $a2"; fail=1; fi
 check "CyborgOS 4 slots" "CyborgOS ended, 2 programs ran" "$(timeout 600 python3 ntcrun.py t/cy/Main.bas "run CRUNCH 2\nrun TICKER 3\nfg 3\n${W}xwait\nquit\n" t/cy/Hyp.cls t/cy/Hot.cls t/cy/Ent.cls --platform=cpcfw --ram=576 2>&1)"
-check "CyborgOS 1 slot (6128)" "CyborgOS ended, 2 programs ran" "$(timeout 600 python3 ntcrun.py t/cy/Main.bas "run CRUNCH\n${W}run TICKER\n${W}xquit\n" t/cy/Hyp.cls t/cy/Hot.cls t/cy/Ent.cls --platform=cpcfw --ram=128 2>&1)"
+check "CyborgOS 2 slots (320K)" "CyborgOS ended, 2 programs ran" "$(timeout 600 python3 ntcrun.py t/cy/Main.bas "run CRUNCH 2\nrun TICKER\n${W}xwait\nquit\n" t/cy/Hyp.cls t/cy/Hot.cls t/cy/Ent.cls --platform=cpcfw --ram=320 2>&1)"
+check "CyborgOS refused on 128K" "^CyborgOS needs 320K" "$(timeout 100 python3 ntcrun.py t/cy/Main.bas "x" t/cy/Hyp.cls t/cy/Hot.cls t/cy/Ent.cls --platform=cpcfw --ram=128 2>&1)"
 check "CyborgOS 4 slots, Library: ROM" "CyborgOS ended, 2 programs ran" "$(timeout 600 python3 ntcrun.py t/cy/Main.bas "run CRUNCH 2\nrun TICKER 3\nfg 3\n${W}xwait\nquit\n" t/cy/Hyp.cls t/cy/Hot.cls t/cy/Ent.cls --platform=cpcfw --ram=576 --library=rom 2>&1)"
 # Graphics: XOR lines in modes 0, 1, 2 on #C000 and on #4000 (double buffering), cpc and cpcmin
 for pl in cpc cpcmin; do

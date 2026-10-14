@@ -22,7 +22,7 @@ This describes the first version (October 2026).
 
 - A disc system (AMSDOS, UniDOS, an IDE or SD interface ...): CyborgOS starts every background
   ROM (`Option RomEnable All`), and programs are loaded from disc.
-- `build/dsk/cyborgos.dsk` has CYBORGOS.BIN and three test programs (TICKER.CYB, CRUNCH.CYB, LINES.CYB),
+- `build/dsk/cyborgos128k.dsk` has CYBORGOS.BIN and three test programs (TICKER.CYB, CRUNCH.CYB, LINES.CYB),
   CRUNCH again as a plain CRUNCH.COM, CYBADD.BIN (it writes FILES.DIR), and a FILES.DIR listing
   CYBADD.BIN and CRUNCH.COM (long name BIGCRUNCH).
 
@@ -75,6 +75,7 @@ Typed at a slot's prompt (`1>`), in capitals or not. Backspace / DEL rub out.
 | `RUN` *name* *slot* | runs it in another slot (which keeps running in the background while this command line stays) |
 | `DIR` | lists FILES.DIR: each program's disc name, length in bytes and long name |
 | `CD` [*drive*] | this slot's drive: the disc system's `|`*drive* command is run (AMSDOS's A, B; UniDOS's and the M4's own letters), and the drive is kept only when it is there and has a FILES.DIR. Each slot has its own (A to start with), as in CP/M; RUN and DIR use it. `CD` alone: the slot's drive |
+| *drive*`:` | the same as `CD` *drive*: `B:` alone is `CD B`, as in CP/M; `CD B:` works too |
 | `FG` *slot* | that slot to the front |
 | `PS` | the slots: what each is doing (`*` = in front) |
 | `TOP` | the TOP table (each slot's state, program, and in the last whole second its turns, BDOS calls and characters), then `Total memory: n KB   Free memory: n KB`, printed once into this slot's console, like PS |
@@ -83,8 +84,8 @@ Typed at a slot's prompt (`1>`), in capitals or not. Backspace / DEL rub out.
 | `WAIT` | waits until no program runs; keys typed meanwhile wait too |
 | `CLS` | clears this slot's page |
 | `MEM` | main RAM as a table (each address range and what is there: CyborgOS, the window, free RAM, the firmware and ROMs, the screen); the map of the banks, a character a 16K page (B a slot's, - free), 32 pages (8 banks) a group, two groups a line; then the totals as TOP has them. Free memory is the 16K pages nothing has (main RAM's own page is the disc buffers') |
-| `HELP` | the commands, then a line on each |
-| `COPY`, `ERA`, `TYPE`, `PREP`, `RENAME` | disc commands: programs on the disc ([4a](#4a-disc-commands-copy-era-type-prep-rename)), not built in |
+| `HELP` | the commands, then a line on each - a program on the disc (HELP.CYB, `bas/cyborgos/cmds/HELP.bas`), not in the hypervisor |
+| `COPY`, `ERA`, `TYPE`, `PREP`, `RENAME` | disc commands: programs on the disc ([4a](#4a-disc-commands-copy-era-type-prep-rename-and-help)), not built in |
 | `QUIT` | ends CyborgOS (it says how many programs ran) |
 
 ```
@@ -104,7 +105,7 @@ A program's name is found as *name*.CYB, else *name*.COM (only with an entry:
 [6](#6-plain-com-files-filesdir-and-namehdr)), else the .COM whose FILES.DIR entry has the long
 name *name*; `NAME.COM` / `NAME.CYB` take that one.
 
-## 4a. Disc commands: COPY, ERA, TYPE, PREP, RENAME
+## 4a. Disc commands: COPY, ERA, TYPE, PREP, RENAME (and HELP)
 
 Programs on the CyborgOS disc (`.CYB`, NTC BASIC built for cpm: `bas/cyborgos/cmds`), run by
 their names like any program. They only touch files that are in the volume's FILES.DIR (the
@@ -113,7 +114,7 @@ by its disc name (`README.TXT`; `NAME` alone also finds `NAME.COM`) or its long 
 
 | Command | Does |
 |---|---|
-| `PREP` *v* | makes an empty FILES.DIR on volume *v* (`B` or `B:`), then looks for it again. A volume that has one already is left alone. CD needs it, and COPY's target |
+| `PREP` *v* | makes an empty FILES.DIR on volume *v* (`B` or `B:`) - one 128 byte record of unused entries, as a disc ROM may make no file for an empty one - then looks for it again. A volume that has one already is left alone. CD needs it, and COPY's target |
 | `COPY` [*v1*:]*name* *v2*[:*newname*] | copies the file to volume *v2* (which needs a FILES.DIR: PREP), as *newname* or the same name, and puts its entry (length, long name, flags) in *v2*'s FILES.DIR |
 | `ERA` [*v*:]*name* | deletes the file and its entry |
 | `TYPE` [*v*:]*name* | shows the text file, to its end or first ^Z |

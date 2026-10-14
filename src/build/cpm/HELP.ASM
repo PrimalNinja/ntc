@@ -11,6 +11,7 @@ NTC_MEMBANKS	equ 64		; Option Memory: the most 64K banks the Memory class looks 
 NTC_ROMENABLE	equ 0		; Option RomEnable (cpcfw, cpcmin): the start code starts the ROMs
 NTC_ROMLIB	equ 0		; 1 = the library is the keyword ROM (Library: ROM; ntcRomAsm builds it)
 NTC_WINHOLE	equ 0		; 1 = the program is built round an Option Reserve range over the window #4000-#7FFF
+NTC_BUFSIZE	equ 2048		; the library's buffer (ntc_buf: FileSystem, Memory.Copy): Option Buffer
 NTC_CPMGFX	equ 1		; 1 = CP/M: Graphics draws on an Amstrad CPC's screen (2.2: #C000, Plus: block 1 from common memory)
 
 ntc_start:
@@ -93,12 +94,12 @@ main_thread:
 			; 20: Print
 			dw kw_printnl
 
-			; 21: Print "Control + a slot's number: that slot to the front (more than 8 slots:"
+			; 21: Print "Control + 1-9, 0: that slot to the front (more than 10 slots: the number"
 			dw kw_irq		; let interrupts in
 			dw kw_printstrvar, str14
 			dw kw_printnl
 
-			; 22: Print "the number twice for 9-16)   Control + ESC: TOP"
+			; 22: Print "twice for 11-20)   Control + ESC: TOP"
 			dw kw_printstrvar, str15
 			dw kw_printnl
 			dw kw_stop
@@ -126,8 +127,8 @@ str10:			db "DIR, CD [drive]   the files in FILES.DIR; this slot's drive (B: alo
 str11:			db "WAIT, CLS, QUIT   until no program runs; clear; end CyborgOS", 0
 str12:			db "COPY [v:]name v[:newname]   ERA [v:]name   TYPE [v:]name   PREP v", 0
 str13:			db "RENAME [v:]name newname     (only files in the volume's FILES.DIR)", 0
-str14:			db "Control + a slot's number: that slot to the front (more than 8 slots:", 0
-str15:			db "the number twice for 9-16)   Control + ESC: TOP", 0
+str14:			db "Control + 1-9, 0: that slot to the front (more than 10 slots: the number", 0
+str15:			db "twice for 11-20)   Control + ESC: TOP", 0
 
 ; ============================================================
 ; Keyword library (used)

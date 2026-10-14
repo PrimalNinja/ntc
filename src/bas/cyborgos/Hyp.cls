@@ -1643,63 +1643,6 @@ fl_exit:
 #endasm
 End Function
 
-' Xfer(toslot, setting, addr, p, n): n bytes between main RAM at p and the slot (its RAM
-' setting) at addr - into the slot when toslot <> 0, else out of it. Through the window (a
-' page's end carries on in the next), the page that was there put back. (Memory.Copy goes
-' through the 2K buffer, which CyborgOS no longer has)
-Public Sub Xfer(ByVal toslot As Integer, ByVal setting As Integer, ByVal addr As Integer, ByVal p As Integer, ByVal n As Integer)
-#asm
-            ld hl, ({n})
-            ld (xf_left), hl
-            ld hl, ({addr})
-            ld de, ({p})
-xf_lp:
-            ld bc, (xf_left)
-            ld a, b
-            or c
-            jr z, xf_done
-            dec bc
-            ld (xf_left), bc
-            ld a, h                 ; the slot's page holding HL in the window
-            rlca
-            rlca
-            and 3
-            add a, 4
-            ld c, a
-            ld a, ({setting})
-            and #F8
-            or c
-            ld c, a
-            ld a, ({setting} + 1)
-            ld b, a
-            out (c), c
-            ld a, h                 ; BC = there in the window
-            and #3F
-            or #40
-            ld b, a
-            ld c, l
-            ld a, ({toslot})
-            or a
-            jr z, xf_get
-            ld a, (de)
-            ld (bc), a
-            jr xf_next
-xf_get:
-            ld a, (bc)
-            ld (de), a
-xf_next:
-            inc hl
-            inc de
-            jr xf_lp
-xf_done:
-            ld bc, (ntc_rampt)
-            out (c), c
-            jr xf_end
-xf_left:    dw 0
-xf_end:
-#endasm
-End Sub
-
 ' FileShut(slot): its files closed (its program ended, was killed or reset)
 Public Sub FileShut(ByVal slot As Integer)
 #asm

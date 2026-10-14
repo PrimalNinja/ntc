@@ -463,20 +463,21 @@ class Host:
             # (Graphics.Flip waits for it; the firmware itself is trapped, not run)
             return 0xFE | (1 if (s.T + 4000 - s.m.ticks_to_stop) % 80000 < 1500 else 0)
         if s.p == 'cpcfw' and (port >> 8) == 0xF4:
-            # the keyboard matrix (Keys class): {n} in the typed text holds key n for 12 scans,
-            # {n,m} keys n and m together (e.g. {23,40}: Control + 8)
+            # the keyboard matrix (Keys class): {n} in the typed text holds key n for 12 scans and
+            # at least 2 frames (40 ms: a Keys.Down reads every line, so a program that looks at
+            # many keys scans many times a frame), {n,m} keys n and m together ({23,40}: Control + 8)
             v = 0xFF; h = getattr(s, 'held', None); line = getattr(s, 'line', 0)
             if h is not None:
                 for hk in h:
                     if line == hk // 8: v &= ~(1 << (hk % 8))
             if line == 9:
                 s.hscans = getattr(s, 'hscans', 0) + 1
-                if h is not None and s.hscans >= 12: s.held = None
+                if h is not None and s.hscans >= 12 and s.T - getattr(s, 'hstart', 0) >= 160000: s.held = None
                 elif h is None and s.typed and s.typed[0] == '{':
                     s.typed.pop(0); n = ''
                     while s.typed and s.typed[0] != '}': n += s.typed.pop(0)
                     if s.typed: s.typed.pop(0)
-                    s.held = [int(x) for x in n.split(',')]; s.hscans = 0
+                    s.held = [int(x) for x in n.split(',')]; s.hstart = s.T; s.hscans = 0
                 elif h is None and s.typed and s.typed[0] == '~':
                     s.typed.pop(0)
             return v & 0xFF

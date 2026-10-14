@@ -5588,9 +5588,10 @@ ntc_capres:		dw 0
 ntc_capname:	dw 0
 
 ;## ntc_buf2k
-; ntc_buf - a 2K buffer shared by the classes that need one: FileSystem's
-; CAS IN / OUT OPEN buffer (CPC firmware) and Memory.Copy's page to page copy
-ntc_buf:		ds 2048
+; ntc_buf - a buffer shared by the classes that need one: FileSystem's
+; CAS IN / OUT OPEN buffer (CPC firmware: 2K) and Memory.Copy's page to page
+; copy (that much at a time). NTC_BUFSIZE (Option Buffer): 2048 unless set
+ntc_buf:		ds NTC_BUFSIZE
 
 ;## ntc_memcore ntc_data ntc_mem ntc_memcore2 ntc_plat_memtop @shared
 ; ------------------------------------------------------------
@@ -8082,8 +8083,8 @@ rd_ns:
 			ret
 
 ;## ntc_memcopy ntc_mem ntc_buf2k @shared @far
-; Copy(src, dst, length): far pointer to far pointer, up to 2K at a time
-; through ntc_buf (so page to page works with one window). A page's end
+; Copy(src, dst, length): far pointer to far pointer, up to NTC_BUFSIZE at a
+; time through ntc_buf (so page to page works with one window). A page's end
 ; (#8000) carries on at #4000 of the next page. The window is put back.
 ; OK, or BadPage.
 mem_copy:
@@ -8102,7 +8103,7 @@ mem_cp_lp:
 			ld a, h
 			or l
 			jr z, mem_cp_done
-			ld de, 2048
+			ld de, NTC_BUFSIZE
 			call mem_min
 			ld de, (mem_srcp)
 			ld a, d
@@ -10505,6 +10506,7 @@ lst_ds_hdr:
 ; tails (far pointers) fill the 2K buffer (ntc_buf).
 LST_HEADS	equ ntc_buf
 LST_TAILS	equ ntc_buf + 1024
+			ASSERT NTC_BUFSIZE >= 2048, "List.Sort needs the whole 2K buffer (Option Buffer's size)"
 
 lst_ko:			dw 0			; the key's offset in a node
 lst_byte:		db 0			; 0: the low byte, 1: the high byte

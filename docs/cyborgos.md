@@ -1,15 +1,16 @@
 # CyborgOS - design
 
 CyborgOS is a hypervisor for the Amstrad CPC, written in NTC BASIC (with `#asm` only for
-the bank switch), running up to 16 CP/M-style programs, each in its own 64K bank. The
+the bank switch), running up to 20 CP/M-style programs, each in its own 64K bank. The
 hypervisor is an ordinary NTC program; the programs use a new compiler target, cyb, which
 is very close to the cpm platform. It is also a show of what NTC BASIC can do.
 
-Status (2026-10-15): the 128K version - `bas/cyborgos/` (Main.bas, Hyp.cls, Hot.cls,
-Ent.cls; test programs in `tasks/`, disc commands in `cmds/`), on `build/dsk/cyborgos.dsk`, kept
-as `bas/cyborgos128kb/`; the next one needs 320K (`bas/cyborgos320kb/`, below). Checked in the
-harness (4 slots with 576K, 16 with 4MB, 1 with 128K) and on the real 6128 ROMs (realcpc: 1 slot). What it does now, and where it differs
-from the design below:
+Status (2026-10-15): the 320K version - `bas/cyborgos320kb/` (Main.bas, Hyp.cls, Hot.cls,
+Ent.cls; test programs in `tasks/`, disc commands in `cmds/`), on `build/dsk/cyborgos320k.dsk`. The
+128K version (a 6128 and up, 16 slots at most) is kept as `bas/cyborgos128kb/` (`build/dsk/cyborgos128k.dsk`). Checked in the
+harness (2 slots with 320K, 4 with 576K, 20 with 4MB; refused with 128K) and, for the 128K
+version, on the real 6128 ROMs (realcpc: 1 slot). What it does now, and where it differs from
+the design below:
 
 - The switch at #0040 is in every cpc / cpcmin / cpcfw program's start code (`jr` over
   #0042-#004C: #0042 main RAM's SP, #0044 `out (c), c`, #0046 `jp` the landing
@@ -70,11 +71,13 @@ from the design below:
   it, 3 bytes a page (its RAT, 1 byte, and each page's port, 2: PRIMAL's layout), up to the top
   of free RAM (#A5F0 with AMSDOS alone; lower when the ROMs started take more). Option Memory
   CPCExpansion 193: 48 banks at most (all 64 of 4MB don't fit); about 1.4K is left over with 48
-  banks, more with fewer, less with ROMs like UniDOS - MEM's "free" line shows it. Main RAM's
-  own #4000-#7FFF (page 1) is the disc ROM's two 2K file buffers (taken as a U page at the
-  start). The Library: ROM build ends about #8685, tables for 8 banks (4 slots) to #8800.
+  banks, more with fewer, less with ROMs like UniDOS - MEM's "free" line shows it. The disc ROM's
+  two 2K file buffers are #4000-#4FFF of the hypervisor's own page (the first expansion bank's
+  page 0, taken before any slot's bank); main RAM's own #4000-#7FFF is left free. The Library: ROM build ends about #8685, tables for 8 banks (4 slots) to #8800.
 - Room: the file work in Z80 (Hyp.FileCall, no FileSystem class or 2K buffer), the program
-  names in each bank (#F6D8), HELP on the disc. AMSDOS's own messages ("NAME.CYB not found" when RUN looks) are kept off
+  names in each bank (#F6D8), HELP on the disc. Copies between main RAM and a slot are
+  `Memory.Copy` through a 128 byte buffer (`Option Buffer Size 128`: PRIMAL's copy buffer size).
+  AMSDOS's own messages ("NAME.CYB not found" when RUN looks) are kept off
   the console with TXT VDU DISABLE (Hyp.Vdu 0; on again for the last Print). Firmware
   jumpblock calls only - nothing in a ROM's own RAM (every CPC model's ROMs differ): so a disc
   error's "Retry, Ignore or Cancel?" is asked unseen and waits for a key (R / I / C).
@@ -92,25 +95,26 @@ window, files, drivers, the screen. A task sees only its own 64K and the switch.
 
 ## 2. How many tasks
 
-Instances = half the extra 64K banks, at least 1, at most 16 (4 in the Library: ROM build).
-They are allocated first (`AllocBank`, before anything else takes pages): up to 8 from the
-first 512K block (port #7F), slots 9-16 from the next (#7E). The rest of the banks are left for
-data, classes and drivers.
+Instances = half the extra 64K banks, at most 20 (4 in the Library: ROM build); 320K at least.
+The hypervisor's page (the first bank's page 0) is taken first, then the slots' banks
+(`AllocBank`): up to 7 from the first 512K block (port #7F), the rest from the next ones. The
+rest of the banks are left for data, classes and drivers.
 
 | Extra RAM | Banks | Tasks | Left for data, classes, drivers |
 |---|---|---|---|
-| 64K (6128) | 1 | 1 | none |
-| 256K | 4 | 2 | 128K |
+| 64K (6128) | 1 | - (the 128K version: 1) | - |
+| 256K | 4 | 2 | 1 bank: the hypervisor's pages (3 of them free) |
 | 512K | 8 | 4 | 256K |
 | 1024K | 16 | 8 | 512K |
 | 2MB | 32 | 16 | 1MB |
-| 4MB | 64 (48 in the tables) | 16 | 2MB (of the 48) |
+| 3MB, 4MB | 48 (in the tables) | 20 | 28 banks |
 
-The 320K version (next, `bas/cyborgos320kb/`): 320K at least (a 256K expansion; a 6128 alone
-won't do). The hypervisor takes the first expansion bank's pages for its own data (C4 first,
-then C5 ... as it grows: the memory tables - a RAT and the port table -, the disc buffers, the
-font), never a slot; slots = banks - 1 (320K: 3, 576K: 7, 2MB and more: 16); main RAM's own
-#4000-#7FFF is left free (a second screen).
+The 320K version (`bas/cyborgos320kb/`): 320K at least (a 256K expansion; a 6128 alone won't
+do). The hypervisor takes the first expansion bank's pages for its own data (C4 first: the disc
+buffers; C5 ... as it grows: the memory tables, the font), never a slot; slots = half the
+banks, at most 20 (Control + 1-9, 0; twice: 11-20); main RAM's own #4000-#7FFF is left free (a
+second screen). Not yet moved there: the Memory class's tables (still after the program, in
+main RAM) and the font.
 
 ## 3. Gate array settings
 
