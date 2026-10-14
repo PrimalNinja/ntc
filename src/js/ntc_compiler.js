@@ -108,6 +108,7 @@ function ntcCompile(input_a, objOptions_a)
 	var strMode = 't';			// current mode: t = turbo, n = normal, E = the procedure's entry mode (pass 1)
 	var strStartMode = 't';
 	var blnNoTurbo = false;		// Option NoTurbo: normal mode only (one copy of each procedure and keyword)
+	var blnRomDrop = false;		// Library: ROM: its start code is last, the arrays start on it (holeLayout)
 	var objNoTurboLine = null;
 	var intLastComment = -1;
 	var strLastCommentFile = '';
@@ -8376,23 +8377,36 @@ function ntcCompile(input_a, objOptions_a)
 			}
 			if (strL === '@@BSS@@')
 			{
-				// the arrays: after the program, or after the hole they would reach into
+				// the arrays: after the program, or after the hole they would reach into. Library:
+				// ROM: from the start code on, when it is last (it has run by then)
+				if (blnRomDrop)
+				{
+					arrOut.push(strIndentG + 'IF ntc_rj_dropend == ntc_end\t; fwdref-ok');
+					arrOut.push('ntc_bssfrom\tequ ntc_rj_drop\t\t; the arrays over the start code (it has run)');
+					arrOut.push(strIndentG + 'ELSE');
+					arrOut.push('ntc_bssfrom\tequ ntc_end');
+					arrOut.push(strIndentG + 'ENDIF');
+				}
+				else
+				{
+					arrOut.push('ntc_bssfrom\tequ ntc_end');
+				}
 				var arrB = [];
 				arrHoles.forEach(function(objH_a, intH_a)
 				{
-					arrB.push(strIndentG + ((intH_a === 0) ? 'IF' : 'ELSEIF') + ' (ntc_end < ' + objH_a.e + ') && (ntc_end + ntc_bss_size > ' + objH_a.s + ')\t; fwdref-ok');
+					arrB.push(strIndentG + ((intH_a === 0) ? 'IF' : 'ELSEIF') + ' (ntc_bssfrom < ' + objH_a.e + ') && (ntc_bssfrom + ntc_bss_size > ' + objH_a.s + ')\t; fwdref-ok');
 					arrB.push('ntc_bss\t\tequ ' + objH_a.e + '\t\t; after Option Reserve ' + hex4(objH_a.s) + '-' + hex4(objH_a.e - 1));
 				});
 				if (arrB.length > 0)
 				{
 					arrOut = arrOut.concat(arrB);
 					arrOut.push(strIndentG + 'ELSE');
-					arrOut.push('ntc_bss\t\tequ ntc_end');
+					arrOut.push('ntc_bss\t\tequ ntc_bssfrom');
 					arrOut.push(strIndentG + 'ENDIF');
 				}
 				else
 				{
-					arrOut.push('ntc_bss\t\tequ ntc_end');
+					arrOut.push('ntc_bss\t\tequ ntc_bssfrom');
 				}
 				continue;
 			}
@@ -9466,6 +9480,7 @@ function ntcCompile(input_a, objOptions_a)
 	arrAsm.push('; ============================================================');
 	arrAsm.push('');
 	var intRomAt = -1;		// Library: ROM - where the jump block goes (made when the program is complete)
+	blnRomDrop = false;		// (set when its start code goes last, for the arrays to start on)
 	if (objOptions.library === 'rom')
 	{
 		intRomAt = arrAsm.length;
@@ -9738,7 +9753,20 @@ function ntcCompile(input_a, objOptions_a)
 
 	if (intRomAt >= 0)
 	{
-		arrAsm[intRomAt] = ntcRomJumpBlock(objOptions.platform, arrAsm, (objPageOut !== null), (arrRomEnable !== null), arrErrors).join('\n');
+		var arrRj = ntcRomJumpBlock(objOptions.platform, arrAsm, (objPageOut !== null), (arrRomEnable !== null), arrErrors);
+		var intProbeAt = arrRj.indexOf('@@PROBE@@');
+		var intEndAt = arrAsm.indexOf('ntc_end:\t\t\t\t; the end of the program (and of its file)');
+		if ((intProbeAt >= 0) && (intEndAt >= 0))
+		{
+			// the start code last, so the arrays can start on it once it has run (see ntcRomJumpBlock)
+			arrAsm[intRomAt] = arrRj.slice(0, intProbeAt).join('\n');
+			arrAsm.splice(intEndAt, 0, ['', '; the start code (Library: ROM): run once, then the arrays go over it', 'ntc_rj_drop:'].concat(arrRj.slice(intProbeAt + 1), ['ntc_rj_dropend:']).join('\n'));
+			blnRomDrop = true;
+		}
+		else
+		{
+			arrAsm[intRomAt] = arrRj.filter(function(str_a) { return str_a !== '@@PROBE@@'; }).join('\n');
+		}
 	}
 
 	var arrLayout = [];
@@ -11319,8 +11347,8 @@ function ntcRomJumpBlock(strPlatform_a, arrAsm_a, blnStamp_a, blnRomEnable_a, ar
 	arrOut.push(strIndent + 'jp c, ntc_rj_lacks');
 	// the ROM's Memory class takes its tables from ntc_v_free up: with the arrays put after an
 	// Option Reserve range over the window, that is the end of the program below it
-	arrOut.push(strIndent + 'IF (ntc_bss >= 32768) && (ntc_end <= 16384)\t; fwdref-ok');
-	arrOut.push(strIndent + 'ld hl, ntc_end');
+	arrOut.push(strIndent + 'IF (ntc_bss >= 32768) && (ntc_bssfrom <= 16384)\t; fwdref-ok');
+	arrOut.push(strIndent + 'ld hl, ntc_bssfrom\t\t; (the end of the program - or this start code, which tables may go over)');
 	arrOut.push(strIndent + 'ELSE');
 	arrOut.push(strIndent + 'ld hl, ntc_free');
 	arrOut.push(strIndent + 'ENDIF');
@@ -11477,5 +11505,13 @@ function ntcRomJumpBlock(strPlatform_a, arrAsm_a, blnStamp_a, blnRomEnable_a, ar
 	arrOut.push('ntc_rj_tlk:\t\tdb "ROM NTC ' + strPlatform_a.toUpperCase() + ' too old: no routine #", 0');
 	arrOut.push('ntc_rj_tpt:\t\tdb "ROM ' + ntcRomFile(strPlatform_a) + '<n>.ROM not found: n = #", 0');
 	arrOut.push('ntc_rj_tnl:\t\tdb 13, 10, "Press a key", 13, 10, 0');
-	return arrOut;
+	// the start code (find, patch, messages) runs once: it goes last in the program, and the
+	// arrays (and Memory's tables) start on it - kw_bssinit clears them after it has run, as
+	// PRIMAL drops its relocation table. End's ntc_rj_exit and ntc_rj_old stay in front of it
+	var intProbe = arrOut.indexOf('; the start: find the ROM set in slots 0 - 31 (its main ROM, then the others with the same');
+	var intExit = arrOut.indexOf('; End: the caller\'s ROM selection again, then back to the caller');
+	var intOld = arrOut.indexOf('ntc_rj_old:\t\tdw 0\t\t\t; the caller\'s ROM selection (C) and state (B)');
+	var arrKeep = arrOut.slice(intExit, intOld + 1);
+	var arrProbe = arrOut.slice(intProbe, intExit).concat(arrOut.slice(intOld + 1));
+	return arrOut.slice(0, intProbe).concat(arrKeep, ['@@PROBE@@'], arrProbe);
 }

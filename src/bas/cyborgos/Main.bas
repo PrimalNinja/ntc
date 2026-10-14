@@ -16,7 +16,7 @@
 Option PressAnyKeyOnEnd "Press a key"     ' at the end: a message and a key (a RUN" program resets when it ends)
 Option Explicit
 Option NoTurbo                    ' normal mode only (interrupt classes, the clock): one copy of each keyword
-Option RomEnable 7                ' AMSDOS, for the programs' files
+Option RomEnable 7                ' the disc ROM (AMSDOS, or a replacement such as UniDOS), for files
 Option NoRomDisc                  ' no ROMDISC (volume R): its FileSystem code (1.1K) left out
 Option Reserve &H4000, &H4000     ' the window the slots' banks are reached through (built round)
 Option Buffer &H8000             ' the library's 2K buffer (files, Memory.Copy)
@@ -29,6 +29,10 @@ Dim front As Integer, back As Integer, cur As Integer, quit As Integer, wt As In
 Dim fr As Integer, td As Integer, tt As Integer               ' front's turn next; TOP: last second's start
 Dim bk(16) As Integer, sg(16) As Integer, st(16) As Integer       ' bank, RAM setting, state (0 closed, 1 command line, 2 running)
 Dim kq(16) As Integer, wp(16) As Integer                         ' key handed to it; the RAM setting with its page 3 in the window
+#If NTC_LIBRARY_ROM Then
+#Else
+Dim dv(16) As Integer                                           ' its drive (CD: the letter's code; 0: A)
+#End If
 '| Dim cx(16) As Integer, cy(8) As Integer, es(8) As Integer, ey(8) As Integer   (the console state: now in each bank, #F682)
 Dim ra(16) As Integer, wk(16) As Integer                         ' the BDOS answer; waiting for a key since (Ticks, -1 not)
 Dim tn(16) As Integer, nb(16) As Integer, nc(16) As Integer       ' TOP: turns, BDOS calls, characters this second
@@ -44,7 +48,7 @@ Const LNBUF = &HF690              ' ... and its characters (70 at most, to #F6D5
 Const NMLEN = &HF6D8              ' in a slot's bank: the length of the name of the program it runs
 Const NMBUF = &HF6D9              ' ... and its characters (12 at most)
 Dim ob As String Max 130
-Dim en As String Max 40           ' ... the name looked for; a disc name (Hyp.EntDisc)
+Dim en As String Max 60           ' ... the name looked for; a disc name (Ent.DiscName); a DIR line
 Dim dn As String Max 12           ' ... the file of entries looked in
 Dim a As String, b As String      ' a command's first and second words (the rest of the line)
 Dim txn As Integer, txs As Integer                             ' TOP: lines written, the slot they go to (0: the screen)
@@ -434,8 +438,7 @@ Sub TopLines(ByVal mark As Integer, ByVal keys As Integer)
   TopAdd "CyborgOS TOP - " + N(ns) + " slots, " + N(Memory.Banks()) + " banks of 64K, " + N(Memory.FreePages()) + " pages free"
   If keys Then TopAdd "Control + ESC: back, " + SK() + ": that slot"
   TopAdd ""
-  TopAdd "In the last whole second:"
-  TopAdd "SLOT  STATE          PROGRAM         TURNS/S   BDOS/S  CHARS/S"
+  TopAdd "SLOT  STATE          PROGRAM         TURNS/S   BDOS/S  CHARS/S   (the last second)"
   For j = 1 To ns
     If st(j) = 0 Then
       s = "-"
@@ -449,6 +452,11 @@ Sub TopLines(ByVal mark As Integer, ByVal keys As Integer)
     en = ""
     If st(j) = 2 Then GetNm j
     TopAdd " " + Right$(" " + N(j), 2) + IIf(j = mark, "*", " ") + "  " + Left$(s + Space$(15), 15) + Left$(en + Space$(13), 13) + Pad(Rate(lt(j), ld)) + Pad(Rate(lb(j), ld)) + Pad(Rate(lc(j), ld))
+  Next
+  TopAdd ""                                      ' the memory: 3 rows of 80 pages at most (193 pages
+  TopAdd N(Memory.RamSize()) + " KB of total memory - a character a 16K page (B slot, - free):"
+  For j = 1 To Memory.Pages() Step 80            ' with 4MB): 25 rows with 16 slots and the keys
+    TopAdd Memory.Map(j, 80)
   Next
 End Sub
 
@@ -498,6 +506,10 @@ End Sub
 ' nothing kept. The slot in front (the one typing it) opens again at once, as new
 Sub ResetSlot(ByVal s As Integer)
   st(s) = 0
+#If NTC_LIBRARY_ROM Then
+#Else
+  dv(s) = 0
+#End If
   kq(s) = 0
   wk(s) = -1
   tn(s) = 0 : nb(s) = 0 : nc(s) = 0
@@ -590,13 +602,20 @@ Sub Command(ByVal t As Integer)
     b = Trim$(Mid$(a, p + 1))
     a = Left$(a, p - 1)
   End If
+#If NTC_LIBRARY_ROM Then
+#Else
+  If c = "RUN" Or c = "DIR" Then        ' the slot's own drive (CD), as CP/M has one each
+    If dv(t) = 0 Then dv(t) = 65                     ' (A to start with)
+    p = Hyp.Drive(dv(t))
+  End If
+#End If
   Select Case c
     Case ""
     Case "HELP"
       PutLn t, "RUN name [slot]  FG slot  PS  TOP  KILL slot  RESET [slot]  WAIT  CLS  MEM  QUIT"
 #If NTC_LIBRARY_ROM Then
 #Else
-      PutLn t, "ADD name.COM [long name]"
+      PutLn t, "DIR: the programs in FILES.DIR   CD [drive]: this slot's drive"
 #End If
       PutLn t, SK() + ": a slot to the front   Control + ESC: TOP"
     Case "CLS"
@@ -633,14 +652,20 @@ Sub Command(ByVal t As Integer)
         ResetSlot s
         If s <> t Then PutLn t, "slot " + N(s) + " reset"
       End If
-    Case "ADD"
+    Case "CD"
 #If NTC_LIBRARY_ROM Then
-      PutLn t, "ADD: not in this build (CYBORGOS without Library: ROM has it)"
+      PutLn t, "CD: not in this build (CYBORGOS without Library: ROM has it)"
 #Else
-      AddEnt t
+      ChDrive t
+#End If
+    Case "DIR"
+#If NTC_LIBRARY_ROM Then
+      PutLn t, "DIR: not in this build (CYBORGOS without Library: ROM has it)"
+#Else
+      DirList t
 #End If
     Case "MEM"
-      PutLn t, N(Memory.Banks()) + " banks of 64K, " + N(ns) + " slots, " + N(Memory.FreePages()) + " pages of 16K free"
+      PutLn t, N(ns) + " slots, " + N(Memory.Banks()) + " banks of 64K, " + N(Memory.FreePages()) + " pages free"
     Case "WAIT"
       If Running() > 0 Then wt = t
     Case "QUIT"
@@ -679,7 +704,7 @@ Sub StartTask(ByVal t As Integer, ByVal s As Integer)
     If n = 0 Then PutLn t, a + ": not found" : Exit Sub
     rest = n                                     ' (an Integer used unsigned: up to #F400)
     en = Space$(12)
-    a = Left$(en, Hyp.EntDisc(&H4000, VarPtr(en)))
+    a = Left$(en, Ent.DiscName(&H4000, VarPtr(en)))
     h = FileSystem.Open(a, FileSystem.ForReadRaw)
   End If
   If h < 0 Then PutLn t, a + ": not found" : Exit Sub
@@ -725,11 +750,57 @@ End Sub
 ' name.HDR holds the entry for name.COM alone; FILES.DIR any number. Either may be a binary file
 ' (SAVE "FILES.DIR",B,...) or have no header: they are read ForReadRaw.
 
+#If NTC_LIBRARY_ROM Then
+#Else
+' CD [letter]: this slot's drive - the disc system's |letter command (AMSDOS's A, B; UniDOS's,
+' the M4's ...), kept only when it is there and the drive has a FILES.DIR. RUN and DIR
+' then use it, each slot its own, as CP/M has. CD alone: the slot's drive
+Sub ChDrive(ByVal t As Integer)
+  Dim r As Integer, h As Integer
+  If dv(t) = 0 Then dv(t) = 65
+  If a <> "" Then
+    h = -1
+    If Hyp.Drive(Asc(a)) Then h = FileSystem.Open("FILES.DIR", FileSystem.ForReadRaw)
+    If h < 0 Then
+      PutLn t, Left$(a, 1) + ": no such drive, or no FILES.DIR there"
+    Else
+      r = FileSystem.Close(h)
+      dv(t) = Asc(a)
+    End If
+    r = Hyp.Drive(dv(t))
+  End If
+  PutLn t, "drive " + Chr$(dv(t))
+End Sub
+#End If
+
+#If NTC_LIBRARY_ROM Then
+#Else
+' DIR: FILES.DIR's entries listed (disc name, length, long name) - until CyborgOS reads the
+' disc's own directory. Each entry read into slot t's #4000 (nothing there for a command line);
+' the page is put back in the window before each read (PutLn's console moves it). Not in the
+' Library: ROM build (as ADD: no room below #4000 for the Memory class's tables with it)
+Sub DirList(ByVal t As Integer)
+  Dim h As Integer, r As Integer, k As Integer
+  h = FileSystem.Open("FILES.DIR", FileSystem.ForReadRaw)
+  If h < 0 Then PutLn t, "no FILES.DIR" : Exit Sub
+  k = 0
+  Do
+    Memory.SelectPage Memory.BankPage(bk(t), 1)
+    If FileSystem.Read(h, &H4000, 64) < 64 Then Exit Do
+    en = Space$(60)
+    r = Ent.Show(&H4000, VarPtr(en))
+    If r > 0 Then PutLn t, Left$(en, r) : k = k + 1
+  Loop
+  r = FileSystem.Close(h)
+  PutLn t, N(k) + " in FILES.DIR"
+End Sub
+#End If
+
 ' en's entry (read at #4000: a bank's page in the window): from NAME.HDR, else FILES.DIR (by its disc name, or its long name):
 ' its length, or 0
 Function FindCom() As Integer
   Dim r As Integer
-  Hyp.EntSet VarPtr(en), Len(en)
+  Ent.SetName VarPtr(en), Len(en)
   dn = en
   r = InStr(dn, ".")
   If r > 0 Then dn = Left$(dn, r - 1)
@@ -746,7 +817,7 @@ Function FindEnt() As Integer
   h = FileSystem.Open(dn, FileSystem.ForReadRaw)
   If h >= 0 Then
     Do While FileSystem.Read(h, &H4000, 64) = 64
-      r = Hyp.EntIs(&H4000, VarPtr(en), Len(en))
+      r = Ent.Length(&H4000, VarPtr(en), Len(en))
       If r <> 0 Then Exit Do
     Loop
     FileSystem.Close h
@@ -754,47 +825,6 @@ Function FindEnt() As Integer
   FindEnt = r
 End Function
 
-#If NTC_LIBRARY_ROM Then
-#Else
-' ADD name.COM [long name] (a, b): its entry into FILES.DIR (over one of that name, or after them
-' all), its length read from the disc: to the end of its last record, all AMSDOS knows. Slot
-' t's own bank holds it while it is counted, then FILES.DIR (#4000-#7FFF: nothing there for a
-' command line); FILES.DIR is saved as a binary file (an AMSDOS header, then the entries).
-' Not in the Library: ROM build: its 900 bytes would leave no room below #4000 for the Memory
-' class's tables (no banks)
-Sub AddEnt(ByVal t As Integer)
-  Dim h As Integer, r As Integer, m As Integer, o As Integer, k As Integer, sz As Integer
-  If a = "" Then PutLn t, "ADD what?" : Exit Sub
-  If InStr(a, ".") = 0 Then a = a + ".COM"
-  h = FileSystem.Open(a, FileSystem.ForReadRaw)
-  If h < 0 Then PutLn t, a + ": not found" : Exit Sub
-  Memory.SelectPage Memory.BankPage(bk(t), 1)
-  sz = 0                                  ' (an Integer used unsigned)
-  k = 0
-  Do
-    r = FileSystem.Read(h, &H4000, &H4000)
-    sz = sz + r
-    k = k + 1
-  Loop Until r < &H4000 Or k = 4
-  FileSystem.Close h
-  If sz = 0 Or r = &H4000 Or (sz < 0 And sz > &HF400) Then PutLn t, a + ": empty, or too big" : Exit Sub
-  en = a
-  Hyp.EntSet VarPtr(en), Len(en)
-  m = 0
-  h = FileSystem.Open("FILES.DIR", FileSystem.ForReadRaw)
-  If h >= 0 Then
-    m = FileSystem.Read(h, &H4000, &H3FC0)
-    FileSystem.Close h
-  End If
-  m = m And &HFFC0
-  o = Hyp.EntAt(&H4000, m)               ' one of this name already: replaced
-  If o = m Then m = m + 64
-  Hyp.EntMake &H4000 + o, VarPtr(b), Len(b), sz
-  r = FileSystem.Save("FILES.DIR", &H4000, m)
-  If r <> 0 Then PutLn t, "FILES.DIR not saved" : Exit Sub
-  PutLn t, a + " in FILES.DIR (" + N(m \ 64) + " entries)"
-End Sub
-#End If
 
 Sub EndTask(ByVal t As Integer)
   Dim c As Integer

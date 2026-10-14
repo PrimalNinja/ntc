@@ -4142,10 +4142,11 @@ ntc_plat_memtop:
 ntc_rg61_e:
 ntc_end:				; the end of the program (and of its file)
 ; arrays: after the program, not in its file - kw_bssinit checks they fit and clears them
-			IF (ntc_end < 37888) && (ntc_end + ntc_bss_size > 16384)	; fwdref-ok
+ntc_bssfrom	equ ntc_end
+			IF (ntc_bssfrom < 37888) && (ntc_bssfrom + ntc_bss_size > 16384)	; fwdref-ok
 ntc_bss		equ 37888		; after Option Reserve #4000-#93FF
 			ELSE
-ntc_bss		equ ntc_end
+ntc_bss		equ ntc_bssfrom
 			ENDIF
 arr_city_bas		equ ntc_bss + 0		; 18 bytes
 ntc_bss_size	equ 18

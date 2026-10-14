@@ -7,9 +7,16 @@ finished, with the date.
 
 ## done
 
+- 2026-10-14 Library: ROM: the start code (find the ROM set, patch the jump block, messages:
+  about 460 bytes) goes last and the arrays / Memory tables start on it - it has run by then
+  (as PRIMAL drops its relocation table). Hello: free RAM from #0089 instead of #0251
+- 2026-10-14 CyborgOS: MEM as TOP's first line (slots, banks, free pages); TOP shows the memory
+  (KB) and its page map under the slots
+
 - 2026-10-14 CyborgOS: plain CP/M .COM files (no AMSDOS header) run when FILES.DIR or NAME.HDR
   has a 64 byte entry for them (disc name, length, long name ...; RUN by a long name too);
-  `ADD NAME.COM [LONGNAME]` makes one; a .COM without one is not run. The entry code is Z80
+  CYBADD.BIN (a CPC program) writes FILES.DIR, `DIR` lists it, `CD` picks a slot's drive (the
+  disc system's |letter); a .COM without an entry is not run. The entry code is Z80
   (Hyp.cls). AMSDOS's messages kept off the console (TXT VDU DISABLE). Program names moved into
   each bank. Tests "CyborgOS .COM with FILES.DIR / .HDR" and on the real ROMs (realcpc)
 - 2026-10-14 FileSystem `ForReadRaw` (cpcfw, cpcmin; CP/M and the ROMDISC take it as ForRead):

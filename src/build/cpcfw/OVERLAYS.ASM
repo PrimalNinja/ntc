@@ -3877,10 +3877,11 @@ ntc_rg43_e:
 ntc_end:				; the end of the program (and of its file)
 fs_buf			equ ntc_buf		; the 2K buffer CAS IN OPEN / CAS OUT OPEN want (shared with Memory.Copy)
 ; arrays: after the program, not in its file - kw_bssinit checks they fit and clears them
-			IF (ntc_end < 32768) && (ntc_end + ntc_bss_size > 16384)	; fwdref-ok
+ntc_bssfrom	equ ntc_end
+			IF (ntc_bssfrom < 32768) && (ntc_bssfrom + ntc_bss_size > 16384)	; fwdref-ok
 ntc_bss		equ 32768		; after Option Reserve #4000-#7FFF
 			ELSE
-ntc_bss		equ ntc_end
+ntc_bss		equ ntc_bssfrom
 			ENDIF
 ntc_bss_size	equ 0
 ntc_free	equ ntc_bss + ntc_bss_size	; the first free byte (heap, Memory tables)

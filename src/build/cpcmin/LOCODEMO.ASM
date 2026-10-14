@@ -2564,7 +2564,8 @@ ntc_plat_memtop:
 
 ntc_end:				; the end of the program (and of its file)
 ; arrays: after the program, not in its file - kw_bssinit checks they fit and clears them
-ntc_bss		equ ntc_end
+ntc_bssfrom	equ ntc_end
+ntc_bss		equ ntc_bssfrom
 arr_nm_s		equ ntc_bss + 0		; 246 bytes
 arr_sc		equ ntc_bss + 246		; 12 bytes
 arr_loco_d		equ ntc_bss + 258		; 410 bytes

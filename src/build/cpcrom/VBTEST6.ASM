@@ -573,6 +573,16 @@ ntc_v_stamp	equ #88B4		; ROM data
 ntc_v_start	equ #88B2		; ROM data
 			ASSERT ntc_free <= #8800, "Library: ROM - the program and its arrays must end below #8800 (the ROM's RAM)"
 
+; End: the caller's ROM selection again, then back to the caller
+ntc_rj_exit:
+			ld bc, (ntc_rj_old)
+			call #B918		; KL ROM DESELECT
+			ret
+ntc_rj_old:		dw 0			; the caller's ROM selection (C) and state (B)
+
+
+; the start code (Library: ROM): run once, then the arrays go over it
+ntc_rj_drop:
 ; the start: find the ROM set in slots 0 - 31 (its main ROM, then the others with the same
 ; stamp), have the main one patch the jump block. NC = ready; C = not there / too old
 ; (the message is shown, the caller's ROM selection is back)
@@ -618,8 +628,8 @@ ntc_rj_all:
 ntc_rj_call:
 			call 0				; HL = jump block, BC = entries, A = slot, DE = slots; C: DE = a number it hasn't got
 			jp c, ntc_rj_lacks
-			IF (ntc_bss >= 32768) && (ntc_end <= 16384)	; fwdref-ok
-			ld hl, ntc_end
+			IF (ntc_bss >= 32768) && (ntc_bssfrom <= 16384)	; fwdref-ok
+			ld hl, ntc_bssfrom		; (the end of the program - or this start code, which tables may go over)
 			ELSE
 			ld hl, ntc_free
 			ENDIF
@@ -758,12 +768,6 @@ ntc_rj_dig:
 			adc a, #40
 			daa
 			jp #BB5A
-; End: the caller's ROM selection again, then back to the caller
-ntc_rj_exit:
-			ld bc, (ntc_rj_old)
-			call #B918		; KL ROM DESELECT
-			ret
-ntc_rj_old:		dw 0			; the caller's ROM selection (C) and state (B)
 ntc_rj_num:		dw 0
 ntc_rj_pn:		db 0			; 1 = a number goes after the message
 ntc_rj_want:	db 0			; the ROM of the set looked for
@@ -776,10 +780,15 @@ ntc_rj_tnf:		db "ROM NTC CPC (NTCCPC.ROM) not found", 0
 ntc_rj_tlk:		db "ROM NTC CPC too old: no routine #", 0
 ntc_rj_tpt:		db "ROM NTCCPC<n>.ROM not found: n = #", 0
 ntc_rj_tnl:		db 13, 10, "Press a key", 13, 10, 0
-
+ntc_rj_dropend:
 ntc_end:				; the end of the program (and of its file)
 ; arrays: after the program, not in its file - kw_bssinit checks they fit and clears them
-ntc_bss		equ ntc_end
+			IF ntc_rj_dropend == ntc_end	; fwdref-ok
+ntc_bssfrom	equ ntc_rj_drop		; the arrays over the start code (it has run)
+			ELSE
+ntc_bssfrom	equ ntc_end
+			ENDIF
+ntc_bss		equ ntc_bssfrom
 arr_buf		equ ntc_bss + 0		; 10 bytes
 pa_dyn		equ ntc_bss + 10		; 12 bytes
 pa_names		equ ntc_bss + 22		; 12 bytes

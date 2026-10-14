@@ -17,11 +17,14 @@ from the design below:
   unchanged). Handled now: 0 (end), 1, 2, 6, 9, 11, 12 (gives 2.2), 25; files not yet (255).
 - Programs are `.CYB` files: a cpm build with an AMSDOS header. `RUN name` loads name.CYB at
   #0100 of the slot's bank. A plain `.COM` (no header) runs when FILES.DIR or NAME.HDR has an
-  entry for it (64 bytes: its disc name, length, long name ...; `ADD NAME.COM [LONGNAME]` makes
-  one) - the length AMSDOS can't give, and the say-so that it runs. Read with
+  entry for it (64 bytes: its disc name, length, long name ...; CYBADD.BIN writes
+  them) - the length AMSDOS can't give, and the say-so that it runs. Read with
   `FileSystem.ForReadRaw` (each #1A is AMSDOS's "soft" end of file, and reading goes on to the
-  last record: checked on the real ROMs). The entry routines are Z80 in Hyp.cls (EntSet, EntIs,
-  EntMake, EntAt, EntDisc): in BASIC they made CyborgOS 3K bigger. Until the disc's own
+  last record: checked on the real ROMs). The entry routines are Z80 in Ent.cls (SetName, Length,
+  Make, Where, DiscName, Show): in BASIC they made CyborgOS 3K bigger. CYBADD (a separate CPC
+  program, `bas/cyborgos/tools/`) writes FILES.DIR: in CyborgOS, ADD cost 900 bytes, which took
+  the Memory class's room for 16 slots. CD runs the disc system's |letter (KL FIND COMMAND, KL
+  FAR PCALL) per slot. Until the disc's own
   directory is read (record counts, random access), then for long names and virtual
   directories.
 - Scheduling is from the hypervisor's main loop: a program runs for a time slice of 6

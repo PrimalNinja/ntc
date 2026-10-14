@@ -451,209 +451,12 @@ ntc_v_stamp	equ #8973		; ROM data
 ntc_v_start	equ #8971		; ROM data
 			ASSERT ntc_free <= #8800, "Library: ROM - the program and its arrays must end below #8800 (the ROM's RAM)"
 
-; the start: find the ROM set in slots 0 - 31 (its main ROM, then the others with the same
-; stamp), have the main one patch the jump block. NC = ready; C = not there / too old
-; (the message is shown, the caller's ROM selection is back)
-ntc_rj_find:
-			ld c, 0
-			call #B90F		; KL ROM SELECT: B / C = the caller's state and selection
-			ld (ntc_rj_old), bc
-			xor a
-			ld (ntc_rj_want), a
-			call ntc_rj_scan		; the main ROM
-			jp c, ntc_rj_nf
-			ld (ntc_rj_slots), a
-			ld e, (hl)
-			inc hl
-			ld d, (hl)			; its patcher
-			ld (ntc_rj_call + 1), de
-			ld a, 1
-ntc_rj_more:				; the other ROMs of the set
-			ld (ntc_rj_want), a
-			ld hl, ntc_rj_n
-			cp (hl)
-			jr nc, ntc_rj_all
-			call ntc_rj_scan
-			jp c, ntc_rj_part
-			ld b, a
-			ld a, (ntc_rj_want)
-			ld e, a
-			ld d, 0
-			ld hl, ntc_rj_slots
-			add hl, de
-			ld (hl), b
-			inc a
-			jr ntc_rj_more
-ntc_rj_all:
-			ld a, (ntc_rj_slots)
-			ld c, a
-			call #B90F		; KL ROM SELECT: the main ROM
-			di					; (KL ROM SELECT lets interrupts in)
-			ld a, (ntc_rj_slots)	; its slot
-			ld hl, ntc_rj_block
-			ld bc, NTC_RJ_N
-			ld de, ntc_rj_slots
-ntc_rj_call:
-			call 0				; HL = jump block, BC = entries, A = slot, DE = slots; C: DE = a number it hasn't got
-			jp c, ntc_rj_lacks
-			IF (ntc_bss >= 32768) && (ntc_end <= 16384)	; fwdref-ok
-			ld hl, ntc_end
-			ELSE
-			ld hl, ntc_free
-			ENDIF
-			ld (ntc_v_free), hl
-			ld hl, ntc_start
-			ld (ntc_v_start), hl
-			ld hl, 0
-			ld (ntc_v_stamp), hl
-			ld a, 1
-			ld (ntc_v_romen), a
-			ld a, (ntc_rj_old)
-			ld (ntc_v_romold), a
-			or a				; NC: ready
-			ret
-; ntc_rj_scan - a ROM of the set: ROM ntc_rj_want (0 = the main one, any stamp; the others
-; with the main one's stamp). NC: A = its slot, HL = past its block's count byte (the main
-; one: at its patcher), it is selected. C: not there
-ntc_rj_scan:
-			ld c, 0
-ntc_rj_next:
-			push bc
-			call #B90F		; KL ROM SELECT: ROM C
-			pop bc
-			ld a, (#C000)
-			cp 1				; a background ROM?
-			jr nz, ntc_rj_skip
-			ld hl, (#C004)		; its names
-			ld a, h
-			cp #C0
-			jr c, ntc_rj_skip
-ntc_rj_name:
-			ld a, (hl)
-			inc hl
-			or a
-			jr nz, ntc_rj_name		; to the 0 after the names
-			ld de, ntc_rj_sig
-			ld b, ntc_rj_sige - ntc_rj_sig
-ntc_rj_cmp:
-			ld a, (de)
-			cp (hl)
-			jr nz, ntc_rj_skip
-			inc de
-			inc hl
-			djnz ntc_rj_cmp
-			ld e, (hl)
-			inc hl
-			ld d, (hl)			; DE = its set's stamp
-			inc hl
-			ld a, (ntc_rj_want)
-			cp (hl)				; its place in the set
-			jr nz, ntc_rj_skip
-			or a
-			jr z, ntc_rj_got
-			push hl
-			ld hl, (ntc_rj_set)
-			or a
-			sbc hl, de
-			pop hl
-			jr nz, ntc_rj_skip		; another build's
-ntc_rj_got:
-			ld (ntc_rj_set), de
-			inc hl
-			ld a, (hl)
-			ld (ntc_rj_n), a		; ROMs in the set
-			inc hl
-			ld a, c
-			or a				; NC
-			ret
-ntc_rj_skip:
-			inc c
-			ld a, c
-			cp 32
-			jr c, ntc_rj_next
-			scf					; C: not there
-			ret
-ntc_rj_nf:
-			ld hl, ntc_rj_tnf
-			jr ntc_rj_fail
-ntc_rj_part:				; a ROM of the set is missing: its number (1 = the main one)
-			ld a, (ntc_rj_want)
-			inc a
-			ld e, a
-			ld d, 0
-			ld (ntc_rj_num), de
-			ld hl, ntc_rj_tpt
-			jr ntc_rj_fnum
-ntc_rj_lacks:
-			ld (ntc_rj_num), de
-			ld hl, ntc_rj_tlk
-ntc_rj_fnum:
-			ld a, 1
-			ld (ntc_rj_pn), a		; the number after the message
-ntc_rj_fail:
-			push hl
-			ld bc, (ntc_rj_old)
-			call #B918		; KL ROM DESELECT: the caller's selection again
-			pop hl
-			call ntc_rj_puts
-			ld a, (ntc_rj_pn)
-			or a
-			jr z, ntc_rj_nl
-			ld a, (ntc_rj_num + 1)
-			call ntc_rj_hex
-			ld a, (ntc_rj_num)
-			call ntc_rj_hex
-ntc_rj_nl:
-			ld hl, ntc_rj_tnl
-			call ntc_rj_puts
-			ei
-			call #BB06		; KM WAIT CHAR: a key first (a RUN" program's return resets the machine)
-			di
-			scf
-			ret
-ntc_rj_puts:				; HL = text, 0 ends; DE = its start
-			ld d, h
-			ld e, l
-ntc_rj_pl:
-			ld a, (hl)
-			or a
-			ret z
-			call #BB5A		; TXT OUTPUT
-			inc hl
-			jr ntc_rj_pl
-ntc_rj_hex:
-			push af
-			rrca
-			rrca
-			rrca
-			rrca
-			call ntc_rj_dig
-			pop af
-ntc_rj_dig:
-			and 15
-			add a, #90
-			daa
-			adc a, #40
-			daa
-			jp #BB5A
 ; End: the caller's ROM selection again, then back to the caller
 ntc_rj_exit:
 			ld bc, (ntc_rj_old)
 			call #B918		; KL ROM DESELECT
 			ret
 ntc_rj_old:		dw 0			; the caller's ROM selection (C) and state (B)
-ntc_rj_num:		dw 0
-ntc_rj_pn:		db 0			; 1 = a number goes after the message
-ntc_rj_want:	db 0			; the ROM of the set looked for
-ntc_rj_n:		db 1			; ROMs in the set
-ntc_rj_set:		dw 0			; the set's stamp
-ntc_rj_slots:	ds 8			; each ROM's slot, the main one first
-ntc_rj_sig:		db "NTC", 2, "CPCMIN", 0	; the ROMs' NTC block
-ntc_rj_sige:
-ntc_rj_tnf:		db "ROM NTC CPCMIN (NTCMIN.ROM) not found", 0
-ntc_rj_tlk:		db "ROM NTC CPCMIN too old: no routine #", 0
-ntc_rj_tpt:		db "ROM NTCMIN<n>.ROM not found: n = #", 0
-ntc_rj_tnl:		db 13, 10, "Press a key", 13, 10, 0
 ; (not in the ROM - the library sections this program uses that the ROM leaves out)
 ;## ntc_romdisc ntc_data ntc_plat_romsel @shared @ramonly
 ; ------------------------------------------------------------
@@ -1516,9 +1319,215 @@ rd_nsl:
 			ret
 
 
+
+; the start code (Library: ROM): run once, then the arrays go over it
+ntc_rj_drop:
+; the start: find the ROM set in slots 0 - 31 (its main ROM, then the others with the same
+; stamp), have the main one patch the jump block. NC = ready; C = not there / too old
+; (the message is shown, the caller's ROM selection is back)
+ntc_rj_find:
+			ld c, 0
+			call #B90F		; KL ROM SELECT: B / C = the caller's state and selection
+			ld (ntc_rj_old), bc
+			xor a
+			ld (ntc_rj_want), a
+			call ntc_rj_scan		; the main ROM
+			jp c, ntc_rj_nf
+			ld (ntc_rj_slots), a
+			ld e, (hl)
+			inc hl
+			ld d, (hl)			; its patcher
+			ld (ntc_rj_call + 1), de
+			ld a, 1
+ntc_rj_more:				; the other ROMs of the set
+			ld (ntc_rj_want), a
+			ld hl, ntc_rj_n
+			cp (hl)
+			jr nc, ntc_rj_all
+			call ntc_rj_scan
+			jp c, ntc_rj_part
+			ld b, a
+			ld a, (ntc_rj_want)
+			ld e, a
+			ld d, 0
+			ld hl, ntc_rj_slots
+			add hl, de
+			ld (hl), b
+			inc a
+			jr ntc_rj_more
+ntc_rj_all:
+			ld a, (ntc_rj_slots)
+			ld c, a
+			call #B90F		; KL ROM SELECT: the main ROM
+			di					; (KL ROM SELECT lets interrupts in)
+			ld a, (ntc_rj_slots)	; its slot
+			ld hl, ntc_rj_block
+			ld bc, NTC_RJ_N
+			ld de, ntc_rj_slots
+ntc_rj_call:
+			call 0				; HL = jump block, BC = entries, A = slot, DE = slots; C: DE = a number it hasn't got
+			jp c, ntc_rj_lacks
+			IF (ntc_bss >= 32768) && (ntc_bssfrom <= 16384)	; fwdref-ok
+			ld hl, ntc_bssfrom		; (the end of the program - or this start code, which tables may go over)
+			ELSE
+			ld hl, ntc_free
+			ENDIF
+			ld (ntc_v_free), hl
+			ld hl, ntc_start
+			ld (ntc_v_start), hl
+			ld hl, 0
+			ld (ntc_v_stamp), hl
+			ld a, 1
+			ld (ntc_v_romen), a
+			ld a, (ntc_rj_old)
+			ld (ntc_v_romold), a
+			or a				; NC: ready
+			ret
+; ntc_rj_scan - a ROM of the set: ROM ntc_rj_want (0 = the main one, any stamp; the others
+; with the main one's stamp). NC: A = its slot, HL = past its block's count byte (the main
+; one: at its patcher), it is selected. C: not there
+ntc_rj_scan:
+			ld c, 0
+ntc_rj_next:
+			push bc
+			call #B90F		; KL ROM SELECT: ROM C
+			pop bc
+			ld a, (#C000)
+			cp 1				; a background ROM?
+			jr nz, ntc_rj_skip
+			ld hl, (#C004)		; its names
+			ld a, h
+			cp #C0
+			jr c, ntc_rj_skip
+ntc_rj_name:
+			ld a, (hl)
+			inc hl
+			or a
+			jr nz, ntc_rj_name		; to the 0 after the names
+			ld de, ntc_rj_sig
+			ld b, ntc_rj_sige - ntc_rj_sig
+ntc_rj_cmp:
+			ld a, (de)
+			cp (hl)
+			jr nz, ntc_rj_skip
+			inc de
+			inc hl
+			djnz ntc_rj_cmp
+			ld e, (hl)
+			inc hl
+			ld d, (hl)			; DE = its set's stamp
+			inc hl
+			ld a, (ntc_rj_want)
+			cp (hl)				; its place in the set
+			jr nz, ntc_rj_skip
+			or a
+			jr z, ntc_rj_got
+			push hl
+			ld hl, (ntc_rj_set)
+			or a
+			sbc hl, de
+			pop hl
+			jr nz, ntc_rj_skip		; another build's
+ntc_rj_got:
+			ld (ntc_rj_set), de
+			inc hl
+			ld a, (hl)
+			ld (ntc_rj_n), a		; ROMs in the set
+			inc hl
+			ld a, c
+			or a				; NC
+			ret
+ntc_rj_skip:
+			inc c
+			ld a, c
+			cp 32
+			jr c, ntc_rj_next
+			scf					; C: not there
+			ret
+ntc_rj_nf:
+			ld hl, ntc_rj_tnf
+			jr ntc_rj_fail
+ntc_rj_part:				; a ROM of the set is missing: its number (1 = the main one)
+			ld a, (ntc_rj_want)
+			inc a
+			ld e, a
+			ld d, 0
+			ld (ntc_rj_num), de
+			ld hl, ntc_rj_tpt
+			jr ntc_rj_fnum
+ntc_rj_lacks:
+			ld (ntc_rj_num), de
+			ld hl, ntc_rj_tlk
+ntc_rj_fnum:
+			ld a, 1
+			ld (ntc_rj_pn), a		; the number after the message
+ntc_rj_fail:
+			push hl
+			ld bc, (ntc_rj_old)
+			call #B918		; KL ROM DESELECT: the caller's selection again
+			pop hl
+			call ntc_rj_puts
+			ld a, (ntc_rj_pn)
+			or a
+			jr z, ntc_rj_nl
+			ld a, (ntc_rj_num + 1)
+			call ntc_rj_hex
+			ld a, (ntc_rj_num)
+			call ntc_rj_hex
+ntc_rj_nl:
+			ld hl, ntc_rj_tnl
+			call ntc_rj_puts
+			ei
+			call #BB06		; KM WAIT CHAR: a key first (a RUN" program's return resets the machine)
+			di
+			scf
+			ret
+ntc_rj_puts:				; HL = text, 0 ends; DE = its start
+			ld d, h
+			ld e, l
+ntc_rj_pl:
+			ld a, (hl)
+			or a
+			ret z
+			call #BB5A		; TXT OUTPUT
+			inc hl
+			jr ntc_rj_pl
+ntc_rj_hex:
+			push af
+			rrca
+			rrca
+			rrca
+			rrca
+			call ntc_rj_dig
+			pop af
+ntc_rj_dig:
+			and 15
+			add a, #90
+			daa
+			adc a, #40
+			daa
+			jp #BB5A
+ntc_rj_num:		dw 0
+ntc_rj_pn:		db 0			; 1 = a number goes after the message
+ntc_rj_want:	db 0			; the ROM of the set looked for
+ntc_rj_n:		db 1			; ROMs in the set
+ntc_rj_set:		dw 0			; the set's stamp
+ntc_rj_slots:	ds 8			; each ROM's slot, the main one first
+ntc_rj_sig:		db "NTC", 2, "CPCMIN", 0	; the ROMs' NTC block
+ntc_rj_sige:
+ntc_rj_tnf:		db "ROM NTC CPCMIN (NTCMIN.ROM) not found", 0
+ntc_rj_tlk:		db "ROM NTC CPCMIN too old: no routine #", 0
+ntc_rj_tpt:		db "ROM NTCMIN<n>.ROM not found: n = #", 0
+ntc_rj_tnl:		db 13, 10, "Press a key", 13, 10, 0
+ntc_rj_dropend:
 ntc_end:				; the end of the program (and of its file)
 ; arrays: after the program, not in its file - kw_bssinit checks they fit and clears them
-ntc_bss		equ ntc_end
+			IF ntc_rj_dropend == ntc_end	; fwdref-ok
+ntc_bssfrom	equ ntc_rj_drop		; the arrays over the start code (it has run)
+			ELSE
+ntc_bssfrom	equ ntc_end
+			ENDIF
+ntc_bss		equ ntc_bssfrom
 arr_a		equ ntc_bss + 0		; 20 bytes
 arr_b		equ ntc_bss + 20		; 20 bytes
 ntc_bss_size	equ 40

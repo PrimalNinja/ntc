@@ -2439,6 +2439,10 @@ Print "Hello"          ' a few hundred bytes: the jump block, the start code, th
 
 - **Smaller programs.** On cpcfw GUESS goes from 1539 bytes to 661, SIEVE from 1588 to 680,
   the pages demo from 7819 to 1285 (cube3d: 13079 to 5344). The difference is the library code.
+- **The start code is only on disc.** Finding the ROM set and patching the jump block (about
+  460 bytes with its messages) runs once, so it goes last in the program and the arrays (and
+  the Memory class's tables) start on it: they take that RAM back once it has run. `Print
+  "Hello"` is 529 bytes on disc, and its free RAM starts after the first 73.
 - **Slower.** Every keyword goes through the jump block: 10 T more each time. On short
   keywords that is a lot - the sieve timing takes about 25% longer.
 - **Turbo still works.** The ROM holds both copies of every keyword (turbo and normal), so

@@ -488,6 +488,35 @@ ntc_v_stamp	equ #8952		; ROM data
 ntc_v_start	equ #8950		; ROM data
 			ASSERT ntc_free <= #8800, "Library: ROM - the program and its arrays must end below #8800 (the ROM's RAM)"
 
+; End: the caller's ROM selection again, then back to the caller
+ntc_rj_exit:
+			ld bc, (ntc_rj_old)
+			call #B918		; KL ROM DESELECT
+			ret
+ntc_rj_old:		dw 0			; the caller's ROM selection (C) and state (B)
+
+; pages (Option Page / Option Class Overlay): the RAM page each is loaded in (0 = not loaded),
+; the end of its code and the size of its page variables, its file and its name
+ovl_blk_intro:	dw 0, ovl_intro_end, ovl_intro_vsize
+			db "PAGES.001", 0, "Intro", 0	; its file, its name (for the messages)
+ovl_blk_stage1:	dw 0, ovl_stage1_end, ovl_stage1_vsize
+			db "PAGES.002", 0, "Stage1", 0	; its file, its name (for the messages)
+ovl_blk_stage2:	dw 0, ovl_stage2_end, ovl_stage2_vsize
+			db "PAGES.003", 0, "Stage2", 0	; its file, its name (for the messages)
+ovl_blk_ending:	dw 0, ovl_ending_end, ovl_ending_vsize
+			db "PAGES.004", 0, "Ending", 0	; its file, its name (for the messages)
+; classes in more than one page: for each procedure, its copies (the home first): page, body
+p_maths_square_ct:	db 2
+			dw ovl_blk_stage1, p_maths_square
+			dw ovl_blk_stage2, p_maths_square__stage2
+p_stars_add_ct:	db 1		; paged variables: the home copy only
+			dw ovl_blk_stage1, p_stars_add
+p_stars_count_ct:	db 1		; paged variables: the home copy only
+			dw ovl_blk_stage1, p_stars_count
+
+
+; the start code (Library: ROM): run once, then the arrays go over it
+ntc_rj_drop:
 ; the start: find the ROM set in slots 0 - 31 (its main ROM, then the others with the same
 ; stamp), have the main one patch the jump block. NC = ready; C = not there / too old
 ; (the message is shown, the caller's ROM selection is back)
@@ -533,8 +562,8 @@ ntc_rj_all:
 ntc_rj_call:
 			call 0				; HL = jump block, BC = entries, A = slot, DE = slots; C: DE = a number it hasn't got
 			jp c, ntc_rj_lacks
-			IF (ntc_bss >= 32768) && (ntc_end <= 16384)	; fwdref-ok
-			ld hl, ntc_end
+			IF (ntc_bss >= 32768) && (ntc_bssfrom <= 16384)	; fwdref-ok
+			ld hl, ntc_bssfrom		; (the end of the program - or this start code, which tables may go over)
 			ELSE
 			ld hl, ntc_free
 			ENDIF
@@ -673,12 +702,6 @@ ntc_rj_dig:
 			adc a, #40
 			daa
 			jp #BB5A
-; End: the caller's ROM selection again, then back to the caller
-ntc_rj_exit:
-			ld bc, (ntc_rj_old)
-			call #B918		; KL ROM DESELECT
-			ret
-ntc_rj_old:		dw 0			; the caller's ROM selection (C) and state (B)
 ntc_rj_num:		dw 0
 ntc_rj_pn:		db 0			; 1 = a number goes after the message
 ntc_rj_want:	db 0			; the ROM of the set looked for
@@ -691,33 +714,19 @@ ntc_rj_tnf:		db "ROM NTC CPCFW (NTCFW.ROM) not found", 0
 ntc_rj_tlk:		db "ROM NTC CPCFW too old: no routine #", 0
 ntc_rj_tpt:		db "ROM NTCFW<n>.ROM not found: n = #", 0
 ntc_rj_tnl:		db 13, 10, "Press a key", 13, 10, 0
-
-; pages (Option Page / Option Class Overlay): the RAM page each is loaded in (0 = not loaded),
-; the end of its code and the size of its page variables, its file and its name
-ovl_blk_intro:	dw 0, ovl_intro_end, ovl_intro_vsize
-			db "PAGES.001", 0, "Intro", 0	; its file, its name (for the messages)
-ovl_blk_stage1:	dw 0, ovl_stage1_end, ovl_stage1_vsize
-			db "PAGES.002", 0, "Stage1", 0	; its file, its name (for the messages)
-ovl_blk_stage2:	dw 0, ovl_stage2_end, ovl_stage2_vsize
-			db "PAGES.003", 0, "Stage2", 0	; its file, its name (for the messages)
-ovl_blk_ending:	dw 0, ovl_ending_end, ovl_ending_vsize
-			db "PAGES.004", 0, "Ending", 0	; its file, its name (for the messages)
-; classes in more than one page: for each procedure, its copies (the home first): page, body
-p_maths_square_ct:	db 2
-			dw ovl_blk_stage1, p_maths_square
-			dw ovl_blk_stage2, p_maths_square__stage2
-p_stars_add_ct:	db 1		; paged variables: the home copy only
-			dw ovl_blk_stage1, p_stars_add
-p_stars_count_ct:	db 1		; paged variables: the home copy only
-			dw ovl_blk_stage1, p_stars_count
-
+ntc_rj_dropend:
 ntc_rg13_e:
 ntc_end:				; the end of the program (and of its file)
 ; arrays: after the program, not in its file - kw_bssinit checks they fit and clears them
-			IF (ntc_end < 32768) && (ntc_end + ntc_bss_size > 16384)	; fwdref-ok
+			IF ntc_rj_dropend == ntc_end	; fwdref-ok
+ntc_bssfrom	equ ntc_rj_drop		; the arrays over the start code (it has run)
+			ELSE
+ntc_bssfrom	equ ntc_end
+			ENDIF
+			IF (ntc_bssfrom < 32768) && (ntc_bssfrom + ntc_bss_size > 16384)	; fwdref-ok
 ntc_bss		equ 32768		; after Option Reserve #4000-#7FFF
 			ELSE
-ntc_bss		equ ntc_end
+ntc_bss		equ ntc_bssfrom
 			ENDIF
 ntc_bss_size	equ 0
 ntc_free	equ ntc_bss + ntc_bss_size	; the first free byte (heap, Memory tables)
@@ -956,4 +965,4 @@ ovl_ending_vsize	equ 0		; its page variables; its local memory is the rest, to #
 			DISPLAY "  page variables ", /D, ovl_ending_vsize, ", free ", /D, #8000 - (ovl_ending_end + ovl_ending_vsize)
 			SAVEAMSDOS "PAGES.004", ovl_ending_start, ovl_ending_end - ovl_ending_start, #4000
 
-NTC_STAMP	equ #0ADF		; the build stamp: the first word of every page file
+NTC_STAMP	equ #0921		; the build stamp: the first word of every page file

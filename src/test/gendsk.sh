@@ -33,7 +33,7 @@ for p in cpc cpcmin cpcfw cpcrom cpcminrom cpcfwrom cpm; do
       b=$(basename $f)
       if echo "$b" | grep -qE '^(NTCTEST|VBTEST|LONGTEST)'; then t=test; else t=""; fi
       [ "$t" == "$k" ] || continue
-      case $b in CYBORGOS*) continue;; esac   # CyborgOS has its own disc (cyborgos.dsk, below)
+      case $b in CYBORGOS*|CYBADD*) continue;; esac   # CyborgOS has its own disc (cyborgos.dsk, below)
       cpmcp -f cpcdata -T dsk $d $f 0:$b || { echo "gendsk: $p$k: $b did not fit"; fail=1; }
     done
     # Library: ROM programs: the ROM image on the disc too (for ROM tools / ROM boards)
@@ -46,8 +46,8 @@ for p in cpc cpcmin cpcfw cpcrom cpcminrom cpcfwrom cpm; do
 done
 # CyborgOS: CYBORGOS.BIN (cpcfw) and its programs - cpm builds as .CYB, with an AMSDOS header
 # (AMSDOS reads a headerless file as ASCII text, to the first #1A)
-w=t/dsk_cyb; rm -rf $w; mkdir -p $w; cp ../build/cpcfw/CYBORGOS.ASM $w/
-(cd $w && $SJ --nologo --msg=err CYBORGOS.ASM > /dev/null) || { echo "gendsk: CYBORGOS did not assemble"; fail=1; }
+w=t/dsk_cyb; rm -rf $w; mkdir -p $w; cp ../build/cpcfw/CYBORGOS.ASM ../build/cpcfw/CYBADD.ASM $w/
+for g in CYBORGOS CYBADD; do (cd $w && $SJ --nologo --msg=err $g.ASM > /dev/null) || { echo "gendsk: $g did not assemble"; fail=1; }; done
 for g in TICKER CRUNCH LINES; do
   cp ../build/cpm/$g.ASM $w/
   (cd $w && $SJ --nologo --msg=err --raw=$g.COM $g.ASM > /dev/null) || { echo "gendsk: $g did not assemble"; fail=1; }
@@ -55,10 +55,11 @@ for g in TICKER CRUNCH LINES; do
 done
 d=../build/dsk/cyborgos.dsk; rm -f $d
 dskform -type dsk -format cpcdata $d > /dev/null 2>&1
-# CRUNCH also as a CP/M .COM with no header, and its FILES.DIR entry (long name BIGCRUNCH):
-# RUN CRUNCH.COM or RUN BIGCRUNCH (a .COM runs only with an entry)
-python3 -c "import sys; sys.path.insert(0, '.'); import ntcrun; d = open('$w/CRUNCH.COM', 'rb').read(); open('$w/FILES.DIR', 'wb').write(ntcrun.cyb_entry('CRUNCH.COM', len(d), 'BIGCRUNCH'))"
-for f in $w/CYBORGOS.BIN $w/TICKER.CYB $w/CRUNCH.CYB $w/LINES.CYB $w/CRUNCH.COM $w/FILES.DIR; do cpmcp -f cpcdata -T dsk $d $f 0:$(basename $f) || fail=1; done
+# FILES.DIR: CYBADD.BIN (the tool that writes it - a CPC program, run from BASIC: listed, not
+# run by CyborgOS) and CRUNCH as a CP/M .COM with no header (long name BIGCRUNCH): RUN
+# CRUNCH.COM or RUN BIGCRUNCH (a .COM runs only with an entry)
+python3 -c "import sys; sys.path.insert(0, '.'); import ntcrun; c = open('$w/CYBADD.BIN', 'rb').read(); d = open('$w/CRUNCH.COM', 'rb').read(); open('$w/FILES.DIR', 'wb').write(ntcrun.cyb_entry('CYBADD.BIN', len(c) - 128, 'CYBADD', what=0, flags=0, load=0x40, exe=0x40) + ntcrun.cyb_entry('CRUNCH.COM', len(d), 'BIGCRUNCH'))"
+for f in $w/CYBORGOS.BIN $w/CYBADD.BIN $w/TICKER.CYB $w/CRUNCH.CYB $w/LINES.CYB $w/CRUNCH.COM $w/FILES.DIR; do cpmcp -f cpcdata -T dsk $d $f 0:$(basename $f) || fail=1; done
 echo "build/dsk/cyborgos.dsk: $(cpmls -f cpcdata -T dsk $d | grep -vc '^[0-9]*:$') files"
 rm -rf $w
 exit $fail

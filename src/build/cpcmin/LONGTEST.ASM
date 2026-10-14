@@ -3257,7 +3257,8 @@ ntc_plat_memtop:
 
 ntc_end:				; the end of the program (and of its file)
 ; arrays: after the program, not in its file - kw_bssinit checks they fit and clears them
-ntc_bss		equ ntc_end
+ntc_bssfrom	equ ntc_end
+ntc_bss		equ ntc_bssfrom
 arr_arr		equ ntc_bss + 0		; 20 bytes
 ntc_bss_size	equ 20
 ntc_free	equ ntc_bss + ntc_bss_size	; the first free byte (heap, Memory tables)

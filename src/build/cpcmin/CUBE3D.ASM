@@ -7996,10 +7996,11 @@ glyph_75			equ ntc_font + 680		; "u"
 glyph_79			equ ntc_font + 712		; "y"
 fs_buf			equ ntc_buf		; the 2K buffer CAS IN OPEN / CAS OUT OPEN want (shared with Memory.Copy)
 ; arrays: after the program, not in its file - kw_bssinit checks they fit and clears them
-			IF (ntc_end < 32768) && (ntc_end + ntc_bss_size > 16384)	; fwdref-ok
+ntc_bssfrom	equ ntc_end
+			IF (ntc_bssfrom < 32768) && (ntc_bssfrom + ntc_bss_size > 16384)	; fwdref-ok
 ntc_bss		equ 32768		; after Option Reserve #4000-#7FFF
 			ELSE
-ntc_bss		equ ntc_end
+ntc_bss		equ ntc_bssfrom
 			ENDIF
 arr_vector3d_px		equ ntc_bss + 0		; 48 bytes
 arr_vector3d_py		equ ntc_bss + 48		; 48 bytes
