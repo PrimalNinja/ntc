@@ -1,4 +1,4 @@
-' CybDir - a volume's FILES.DIR for CyborgOS's commands (COPY, ERA, TYPE, PREP): build them for
+' CybDir - a volume's FILES.DIR for CyborgOS's commands (COPY, ERA, TYPE, PREP, RENAME): build them for
 ' cpm, with this class. The entries (64 bytes, see Ent.cls) are read into memory, changed there
 ' and written back whole. Names: "NAME.EXT"; a name with no "." is also looked for as NAME.COM.
 ' A volume is "" (the slot's drive) or "B:".
@@ -111,7 +111,33 @@ End Sub
 ' PutAs(name): the kept entry, renamed name on the disc, in place of an entry with that name or
 ' added at the end. False when FILES.DIR is full
 Public Function PutAs(ByVal name As String) As Integer
-  Dim i As Integer, o As Integer, p As Integer, b As String Max 8, x As String Max 3, s As Long
+  Dim i As Integer, o As Integer
+  Named name
+  o = Find(name)
+  If o < 0 Then
+    If m >= MAXBYTES Then PutAs = False : Exit Function
+    o = m
+    m = m + 64
+  End If
+  For i = 0 To 63
+    d(o + i) = e(i)
+  Next
+  PutAs = True
+End Function
+
+' RenameAt(o, name): the entry at o's disc name made name (its place and the rest kept)
+Public Sub RenameAt(ByVal o As Integer, ByVal name As String)
+  Dim i As Integer
+  Take o
+  Named name
+  For i = 0 To 63
+    d(o + i) = e(i)
+  Next
+End Sub
+
+' the kept entry's disc name made name ("NAME.EXT"), its sum again
+Private Sub Named(ByVal name As String)
+  Dim i As Integer, p As Integer, b As String Max 8, x As String Max 3, s As Long
   p = InStr(name, ".")
   If p = 0 Then
     b = Left$(name, 8) : x = ""
@@ -132,17 +158,7 @@ Public Function PutAs(ByVal name As String) As Integer
   Next
   e(62) = CInt(s And 255)
   e(63) = CInt((s \ 256) And 255)
-  o = Find(name)
-  If o < 0 Then
-    If m >= MAXBYTES Then PutAs = False : Exit Function
-    o = m
-    m = m + 64
-  End If
-  For i = 0 To 63
-    d(o + i) = e(i)
-  Next
-  PutAs = True
-End Function
+End Sub
 
 ' the entry at o's sum right (a damaged one is left alone)
 Private Function Sum(ByVal o As Integer) As Integer

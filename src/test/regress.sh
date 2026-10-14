@@ -479,10 +479,10 @@ o=$(timeout 300 python3 ntcrun.py t/cy/Main.bas "run CRUNCH 2\n${W}reset 2\nps\n
 if echo "$o" | grep -q "^  2   -" && [ "$(echo "$o" | grep -c "^CyborgOS slot 1 of 4")" == 1 ] && ! echo "$o" | grep -q "reset 2"; then echo "ok   CyborgOS RESET"; else echo "FAIL CyborgOS RESET"; echo "$o" | tail -5; fail=1; fi
 # the TOP command: the table printed into the slot's console
 o=$(timeout 300 python3 ntcrun.py t/cy/Main.bas "run CRUNCH 2\n${W}top\n${W}" t/cy/Hyp.cls t/cy/Hot.cls t/cy/Ent.cls --platform=cpcfw --ram=576 2>&1)
-if echo "$o" | grep -q "^  2   running        CRUNCH.CYB" && echo "$o" | grep -q "^SLOT  STATE" && ! echo "$o" | grep -q "^[-B]\{32\}"; then echo "ok   CyborgOS TOP command"; else echo "FAIL CyborgOS TOP command"; echo "$o" | tail -5; fail=1; fi
-# MEM: the map (TOP has none) - main RAM's line, the banks 32 pages a group, two groups a line
+if echo "$o" | grep -q "^  2   running        CRUNCH.CYB" && echo "$o" | grep -q "^SLOT  STATE" && echo "$o" | grep -q "^CyborgOS TOP$" && echo "$o" | grep -q "^Total memory: 576 KB   Free memory: 256 KB" && ! echo "$o" | grep -q "^[-B]\{32\}"; then echo "ok   CyborgOS TOP command"; else echo "FAIL CyborgOS TOP command"; echo "$o" | tail -5; fail=1; fi
+# MEM: main RAM as a table, the map (TOP has none: 32 pages a group, two groups a line), the totals
 o=$(timeout 300 python3 ntcrun.py t/cy/Main.bas "mem\n${W}" t/cy/Hyp.cls t/cy/Hot.cls t/cy/Ent.cls --platform=cpcfw --ram=4160 2>&1)
-if echo "$o" | grep -q "^16 slots, 48 banks of 64K" && echo "$o" | grep -q "^main 64K: CyborgOS #0040-#3FFF" && echo "$o" | grep -q "^-\{32\}  -\{32\}$" && echo "$o" | grep -q "^B\{32\}  B\{32\}$"; then echo "ok   CyborgOS MEM map"; else echo "FAIL CyborgOS MEM map"; echo "$o" | tail -8; fail=1; fi
+if echo "$o" | grep -q "^#0040-#3FFF  CyborgOS" && echo "$o" | grep -q "^#C000-#FFFF  screen" && echo "$o" | grep -q "^Total memory: 3136 KB   Free memory: 2048 KB" && echo "$o" | grep -q "^-\{32\}  -\{32\}$" && echo "$o" | grep -q "^B\{32\}  B\{32\}$"; then echo "ok   CyborgOS MEM map"; else echo "FAIL CyborgOS MEM map"; echo "$o" | tail -8; fail=1; fi
 # a CP/M program with no header (.COM): runs only with an entry - from NAME.HDR (TICKER: 16
 # #1A bytes in it, read ForReadRaw) or FILES.DIR (made by CYBADD: CRUNCH, by its long name);
 # NONE has none. CD B: drive B's FILES.DIR (TICKER as TICK); CD C: no such drive

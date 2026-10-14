@@ -31,17 +31,22 @@ Const BUF = &HF700                ' a slot's text page in its bank (80 x 25)
 Dim ns As Integer, i As Integer, k As Integer, hk As Integer
 Dim front As Integer, back As Integer, cur As Integer, quit As Integer, wt As Integer, runs As Integer, pk As Integer
 Dim fr As Integer, td As Integer, tt As Integer               ' front's turn next; TOP: last second's start
-Dim bk(16) As Integer, sg(16) As Integer, st(16) As Integer       ' bank, RAM setting, state (0 closed, 1 command line, 2 running)
-Dim kq(16) As Integer, wp(16) As Integer                         ' key handed to it; the RAM setting with its page 3 in the window
-Dim dm(16) As Integer                                           ' its DMA address (CP/M's record buffer, BDOS 26)
+#If NTC_LIBRARY_ROM Then
+Const MAXS = 4                    ' the most slots (Library: ROM: 8 banks of tables - 4 slots)
+#Else
+Const MAXS = 16                   ' the most slots
+#End If
+Dim bk(MAXS) As Integer, sg(MAXS) As Integer, st(MAXS) As Integer       ' bank, RAM setting, state (0 closed, 1 command line, 2 running)
+Dim kq(MAXS) As Integer, wp(MAXS) As Integer                         ' key handed to it; the RAM setting with its page 3 in the window
+Dim dm(MAXS) As Integer                                           ' its DMA address (CP/M's record buffer, BDOS 26)
 #If NTC_LIBRARY_ROM Then
 #Else
-Dim dv(16) As Integer                                           ' its drive (CD: the letter's code; 0: A)
+Dim dv(MAXS) As Integer                                           ' its drive (CD: the letter's code; 0: A)
 #End If
 '| Dim cx(16) As Integer, cy(8) As Integer, es(8) As Integer, ey(8) As Integer   (the console state: now in each bank, #F682)
-Dim ra(16) As Integer, wk(16) As Integer                         ' the BDOS answer; waiting for a key since (Ticks, -1 not)
-Dim tn(16) As Integer, nb(16) As Integer, nc(16) As Integer       ' TOP: turns, BDOS calls, characters this second
-Dim lt(16) As Integer, lb(16) As Integer, lc(16) As Integer, ld As Integer   ' ... and in the last whole second (ld ticks)
+Dim ra(MAXS) As Integer, wk(MAXS) As Integer                         ' the BDOS answer; waiting for a key since (Ticks, -1 not)
+Dim tn(MAXS) As Integer, nb(MAXS) As Integer, nc(MAXS) As Integer       ' TOP: turns, BDOS calls, characters this second
+Dim lt(MAXS) As Integer, lb(MAXS) As Integer, lc(MAXS) As Integer, ld As Integer   ' ... and in the last whole second (ld ticks)
 '| Dim pt(8) As Integer                                        (the page ring's top row: now in the bank, #F684)
 '| Dim tp(8) As Long                                           (the text page as a far pointer: Hyp.Con reaches it through wp)
 '| Dim nm(16) As String Max 12        (each program's name: now in its bank, NMLEN / NMBUF - 221
@@ -70,7 +75,7 @@ Hyp.Vdu 0                         ' the firmware's text off (TXT VDU DISABLE): A
 k = Memory.Banks()
 ns = k \ 2
 If ns < 1 Then ns = k
-If ns > 16 Then ns = 16
+If ns > MAXS Then ns = MAXS
 Hot.Slots ns                                    ' (more than 8: Control + a number twice is 9-16)
 If ns = 0 Then Hyp.Vdu 1 : Print "CyborgOS needs a 6128 or more RAM" : End
 For i = 1 To ns
@@ -81,6 +86,7 @@ For i = 1 To ns
 '|   tp(i) = Hyp.FarPtr(Memory.BankPage(bk(i), 3), BUF)
   wk(i) = -1
 Next
+k = Memory.AllocPage(Memory.TypeUser)           ' page 1 (main RAM's #4000-#7FFF): the disc buffers
 '| blank = Space$(80)
 '| row = Space$(80)
 ob = Space$(128)
@@ -154,15 +160,24 @@ Sub RunNext()
     If Running() = 0 Then Frame     ' nothing to run: wait a frame (a program waiting for a
     Exit Sub                        ' key looks again when the clock moves on)
   End If
-  Hyp.Reply ra(t), ra(t)
-  r = Hyp.Run(sg(t))
-  tn(t) = tn(t) + 1
-  If kq(t) <> 0 Then
-    If Memory.ReadByte(Far(t, Hyp.KEY)) = 0 Then kq(t) = 0     ' the program took its key
-  End If
-  c = Hyp.Count()
-  If c > 0 Then Collected t, c
-  If r = 1 Then Bdos t
+  n = 0
+  Do
+    Hyp.Reply ra(t), ra(t)
+    r = Hyp.Run(sg(t))
+    tn(t) = tn(t) + 1
+    If kq(t) <> 0 Then
+      If Memory.ReadByte(Far(t, Hyp.KEY)) = 0 Then kq(t) = 0     ' the program took its key
+    End If
+    c = Hyp.Count()
+    If c > 0 Then Collected t, c
+    If r <> 1 Then Exit Do
+    c = Hyp.Fn()
+    Bdos t
+    ' a file call (13-35, DMA 26 too): the same slot straight on, up to 32 calls a turn - the
+    ' main loop's work (keys, the other slots) between each record made a copy crawl
+    n = n + 1
+    If c < 13 Or c > 35 Or n >= 32 Or st(t) <> 2 Then Exit Do
+  Loop
 End Sub
 
 ' a slot's BDOS call: Hyp.Fn() = C, Hyp.Arg() = DE; the answer in ra(t)
@@ -474,10 +489,10 @@ End Sub
 Sub TopLines(ByVal mark As Integer, ByVal keys As Integer)
   Dim j As Integer, s As String Max 14
   txn = 0
-  TopAdd "CyborgOS TOP - " + N(ns) + " slots, " + N(Memory.Banks()) + " banks of 64K, " + N(Memory.FreePages()) + " pages free"
+  TopAdd "CyborgOS TOP"
   If keys Then TopAdd "Control + ESC: back, " + SK() + ": that slot"
   TopAdd ""
-  TopAdd "SLOT  STATE          PROGRAM         TURNS/S   BDOS/S  CHARS/S   (the last second)"
+  TopAdd "SLOT  STATE          PROGRAM         TURNS/S   BDOS/S  CHARS/S   (last second)"
   For j = 1 To ns
     If st(j) = 0 Then
       s = "-"
@@ -492,27 +507,38 @@ Sub TopLines(ByVal mark As Integer, ByVal keys As Integer)
     If st(j) = 2 Then GetNm j
     TopAdd " " + Right$(" " + N(j), 2) + IIf(j = mark, "*", " ") + "  " + Left$(s + Space$(15), 15) + Left$(en + Space$(13), 13) + Pad(Rate(lt(j), ld)) + Pad(Rate(lb(j), ld)) + Pad(Rate(lc(j), ld))
   Next
-#If NTC_LIBRARY_ROM Then
-#Else
-  TopAdd ""                                      ' (the memory map: MEM)
-  TopAdd N(Memory.RamSize()) + " KB of total memory (MEM: the map)"
-#End If
+  TopAdd ""
+  Totals
+  TopAdd en
 End Sub
 
-' MEM: slots, banks, free pages; then main RAM (what is where), and the banks' pages - a
-' character a 16K page (B a slot's, - free), 32 pages (8 banks) a group, two groups a line
+' en = "Total memory: n KB   Free memory: n KB" (free: the 16K pages no slot or anything has)
+Sub Totals()
+  en = "Total memory: " + N(Memory.RamSize()) + " KB   Free memory: " + N(Memory.FreePages() * 16) + " KB"
+End Sub
+
+' MEM: main RAM as a table (address range, what is there), the banks' pages - a character a
+' 16K page (B a slot's, - free), 32 pages (8 banks) a group, two groups a line - and the totals
 Sub MemShow(ByVal t As Integer)
   Dim j As Integer
-  PutLn t, N(ns) + " slots, " + N(Memory.Banks()) + " banks of 64K, " + N(Memory.FreePages()) + " pages free"
 #If NTC_LIBRARY_ROM Then
 #Else
-  PutLn t, "main 64K: CyborgOS #0040-#3FFF and #8000-#" + H4(Memory.TableEnd() - 1) + ", free to #" + H4(Memory.Top() - 1) + ","
-  PutLn t, "  window #4000-#7FFF, firmware and ROMs #" + H4(Memory.Top()) + "-#BFFF, screen #C000-#FFFF"
-  PutLn t, "banks (B slot, - free):"
+  PutLn t, "#0000-#003F  firmware restarts"
+  PutLn t, "#0040-#3FFF  CyborgOS"
+  PutLn t, "#4000-#7FFF  the window (the banks' pages); main RAM's own: the disc buffers"
+  PutLn t, "#8000-#" + H4(Memory.TableEnd() - 1) + "  CyborgOS, its arrays, the memory tables"
+  PutLn t, "#" + H4(Memory.TableEnd()) + "-#" + H4(Memory.Top() - 1) + "  free"
+  PutLn t, "#" + H4(Memory.Top()) + "-#BFFF  firmware and ROMs"
+  PutLn t, "#C000-#FFFF  screen"
+  PutLn t, ""
+  PutLn t, "Banks (B slot, - free):"
   For j = 2 To Memory.Pages() Step 64
     PutLn t, Memory.Map(j, 32) + "  " + Memory.Map(j + 32, 32)
   Next
+  PutLn t, ""
 #End If
+  Totals
+  PutLn t, en
 End Sub
 
 #If NTC_LIBRARY_ROM Then
@@ -677,16 +703,21 @@ Sub Command(ByVal t As Integer)
     Case ""
     Case "HELP"
 #If NTC_LIBRARY_ROM Then
+      PutLn t, "Commands: RUN, FG, PS, TOP, KILL, RESET, WAIT, CLS, MEM, QUIT"
 #Else
-      PutLn t, "name [args]: run name from this drive   RUN name [args]: the disc's, not a command's"
-#End If
-      PutLn t, "RUN name slot  FG slot  PS  TOP  KILL slot  RESET [slot]  WAIT  CLS  MEM  QUIT"
-#If NTC_LIBRARY_ROM Then
-#Else
-      PutLn t, "DIR: the programs in FILES.DIR   CD [drive]: this slot's drive"
-#End If
-#If NTC_LIBRARY_ROM Then
-#Else
+      PutLn t, "Commands: RUN, FG, PS, TOP, KILL, RESET, WAIT, CLS, MEM, DIR, CD, QUIT"
+      PutLn t, "On the disc: COPY, ERA, TYPE, PREP, RENAME"
+      PutLn t, ""
+      PutLn t, "name [args]       runs the program name (this slot's drive, then A)"
+      PutLn t, "RUN name [args]   the same, even when a command has that name"
+      PutLn t, "RUN name slot     runs it in that slot"
+      PutLn t, "FG slot           that slot to the front"
+      PutLn t, "KILL slot         stops its program"
+      PutLn t, "RESET [slot]      that slot (or this one) as new"
+      PutLn t, "PS, TOP           the slots; with their speed"
+      PutLn t, "MEM               the memory: main RAM, the banks"
+      PutLn t, "DIR, CD [drive]   the files in FILES.DIR; this slot's drive"
+      PutLn t, "WAIT, CLS, QUIT   until no program runs; clear; end CyborgOS"
       PutLn t, SK() + ": a slot to the front   Control + ESC: TOP"
 #End If
     Case "CLS"

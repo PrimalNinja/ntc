@@ -30,13 +30,13 @@ ntc_start:
 main_thread:
 			dw kw_bssinit, ntc_bss, ntc_bss_size		; the arrays: do they fit, clear them
 
-			; PREP.bas 9: a = UCase$(Trim$(System.CommandLine()))
+			; PREP.bas 12: a = UCase$(Trim$(System.CommandLine()))
 			dw fn_system_commandline, var_system_commandline_commandline
 			dw kw_strcpy, stmp0, var_system_commandline_commandline
 			dw kw_strtrim, stmp0, stmp0
 			dw kw_strucase, var_a, stmp0
 
-			; PREP.bas 10: If Len(a) = 2 And Right$(a, 1) = ":" Then a = Left$(a, 1)
+			; PREP.bas 13: If Len(a) = 2 And Right$(a, 1) = ":" Then a = Left$(a, 1)
 			dw kw_strlen, var_a, tmp0
 			dw kw_cpeqvl, tmp0, 2
 			dw kw_ftov, tmp0
@@ -48,7 +48,7 @@ main_thread:
 			dw kw_strleft, var_a, var_a, lit_1
 if1_1:
 
-			; PREP.bas 11: If Len(a) <> 1 Then Print "PREP v (a volume: A, B ...)" : End
+			; PREP.bas 14: If Len(a) <> 1 Then Print "PREP v (a volume: A, B ...)" : End
 			dw kw_strlen, var_a, tmp0
 			dw kw_cpnevl, tmp0, 1
 			dw kw_goto_iffalse_n, if2_1
@@ -57,11 +57,11 @@ if1_1:
 			dw kw_stop
 if2_1:
 
-			; PREP.bas 12: v = a + ":"
+			; PREP.bas 15: v = a + ":"
 			dw kw_strcpy, var_v, var_a
 			dw kw_strcat, var_v, str0
 
-			; PREP.bas 13: If FileSystem.Exists(v + "FILES.DIR") Then Print v; " has a FILES.DIR already" : End
+			; PREP.bas 16: If FileSystem.Exists(v + "FILES.DIR") Then Print v; " has a FILES.DIR already" : End
 			dw kw_strcpy, stmp0, var_v
 			dw kw_strcat, stmp0, str2
 			dw fn_filesystem_exists, stmp0, var_filesystem_exists_exists
@@ -72,38 +72,61 @@ if2_1:
 			dw kw_stop
 if3_1:
 
-			; PREP.bas 14: r = FileSystem.Save(v + "FILES.DIR", 0, 0)
+			; PREP.bas 17: r = FileSystem.Save(v + "FILES.DIR", VarPtr(z), 128)
 			dw kw_strcpy, stmp0, var_v
 			dw kw_strcat, stmp0, str2
-			dw fn_filesystem_save, stmp0, lit_0, lit_0, var_r
+			dw fn_filesystem_save, stmp0, vp_arr_z, lit_128, var_r
 
-			; PREP.bas 15: If FileSystem.Exists(v + "FILES.DIR") And CybDir.Load(v) Then
+			; PREP.bas 18: x = FileSystem.Exists(v + "FILES.DIR")
 			dw kw_strcpy, stmp0, var_v
 			dw kw_strcat, stmp0, str2
-			dw fn_filesystem_exists, stmp0, var_filesystem_exists_exists
-			dw kw_vtov, var_filesystem_exists_exists, tmp0
+			dw fn_filesystem_exists, stmp0, var_x
+
+			; PREP.bas 19: If x And CybDir.Load(v) Then
 			dw p_cybdir_load_c, var_v
 			dw kw_vtov, var_cybdir_load_load, tmp1
-			dw kw_andvv, tmp0, tmp1, tmp0
+			dw kw_andvv, var_x, tmp1, tmp0
 			dw kw_goto_ifzero_n, tmp0, if4_1
 
-			; PREP.bas 16: Print v; "FILES.DIR made (no entries)"
+			; PREP.bas 20: Print v; "FILES.DIR made (no entries)"
 			dw kw_printstrvar, var_v
 			dw kw_printstrvar, str4
 			dw kw_printnl
 
-			; PREP.bas 17: Else
+			; PREP.bas 21: ElseIf r <> 0 Then
 			dw if4_e_go
 if4_1:
+			dw kw_cpnevl, var_r, 0
+			dw kw_goto_iffalse_n, if4_2
 
-			; PREP.bas 18: Print v; "FILES.DIR could not be made ("; r; ")"
+			; PREP.bas 22: Print v; "FILES.DIR could not be written ("; r; ")"
 			dw kw_printstrvar, var_v
 			dw kw_printstrvar, str5
 			dw kw_printint, var_r
 			dw kw_printstrvar, str6
 			dw kw_printnl
 
-			; PREP.bas 19: End If
+			; PREP.bas 23: ElseIf x = 0 Then
+			dw if4_e_go
+if4_2:
+			dw kw_cpeqvl, var_x, 0
+			dw kw_goto_iffalse_n, if4_3
+
+			; PREP.bas 24: Print v; "FILES.DIR written, but not found again"
+			dw kw_printstrvar, var_v
+			dw kw_printstrvar, str7
+			dw kw_printnl
+
+			; PREP.bas 25: Else
+			dw if4_e_go
+if4_3:
+
+			; PREP.bas 26: Print v; "FILES.DIR written and found, but not read"
+			dw kw_printstrvar, var_v
+			dw kw_printstrvar, str8
+			dw kw_printnl
+
+			; PREP.bas 27: End If
 if4_e:
 			dw kw_stop
 
@@ -319,6 +342,7 @@ var_system_commandline_commandline:			ds 41
 var_v:			ds 3
 var_filesystem_exists_exists:			dw 0
 var_r:			dw 0
+var_x:			dw 0
 var_cybdir_load_load:			dw 0
 p_cybdir_load_rs:			dw 0
 			db 40			; capacity
@@ -344,10 +368,12 @@ ltmp2:			dw 0, 0
 
 ; numbers passed by address (read only)
 lit_1:			dw 1
-lit_0:			dw 0
+vp_arr_z:			dw arr_z
+lit_128:			dw 128
 lit_4:			dw 4
 vp_arr_cybdir_d:			dw arr_cybdir_d
 lit_4096:			dw 4096
+lit_0:			dw 0
 llit_256:			dw 256, 0
 lit_8:			dw 8
 lit_3:			dw 3
@@ -363,11 +389,13 @@ str1:			db "PREP v (a volume: A, B ...)", 0
 str2:			db "FILES.DIR", 0
 str3:			db " has a FILES.DIR already", 0
 str4:			db "FILES.DIR made (no entries)", 0
-str5:			db "FILES.DIR could not be made (", 0
+str5:			db "FILES.DIR could not be written (", 0
 str6:			db ")", 0
-str7:			db ".", 0
-str8:			db ".COM", 0
-str9:			db 0
+str7:			db "FILES.DIR written, but not found again", 0
+str8:			db "FILES.DIR written and found, but not read", 0
+str9:			db ".", 0
+str10:			db ".COM", 0
+str11:			db 0
 
 ; ============================================================
 ; Keyword library (used)
@@ -2381,8 +2409,9 @@ ntc_end:				; the end of the program (and of its file)
 ; arrays: after the program, not in its file - kw_bssinit checks they fit and clears them
 ntc_bssfrom	equ ntc_end
 ntc_bss		equ ntc_bssfrom
-arr_cybdir_d		equ ntc_bss + 0		; 4096 bytes
-arr_cybdir_e		equ ntc_bss + 4096		; 64 bytes
-ntc_bss_size	equ 4160
+arr_z		equ ntc_bss + 0		; 128 bytes
+arr_cybdir_d		equ ntc_bss + 128		; 4096 bytes
+arr_cybdir_e		equ ntc_bss + 4224		; 64 bytes
+ntc_bss_size	equ 4288
 ntc_free	equ ntc_bss + ntc_bss_size	; the first free byte (heap, Memory tables)
 ntc_memtab	equ ntc_free		; the Memory class's tables

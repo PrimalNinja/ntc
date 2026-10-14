@@ -1034,8 +1034,8 @@ End Sub
 ' read and one written at a time (AMSDOS has one of each), by any slots: another asking gets
 ' 255; a slot's new open replaces the file it was reading (CP/M needs no close after reading).
 ' A record goes through main RAM (buf: 128 bytes). Random records (33, 34): read on, or
-' from the start again; written, only the next one. Search (17, 18), rename (23), size (35):
-' not yet (255)
+' from the start again; written, only the next one. Rename (23): the disc ROM's |REN.
+' Search (17, 18), size (35): not yet (255)
 ' FileCall(f, fcb, slot, setting, dma, drive, buf): the call's A. setting = the slot's RAM
 ' setting (sg), drive = the slot's drive letter (0: none), buf = 128 bytes of main RAM
 Public Function FileCall(ByVal f As Integer, ByVal fcb As Integer, ByVal slot As Integer, ByVal setting As Integer, ByVal dma As Integer, ByVal drive As Integer, ByVal buf As Integer) As Integer
@@ -1055,6 +1055,8 @@ Public Function FileCall(ByVal f As Integer, ByVal fcb As Integer, ByVal slot As
             jp z, fl_close
             cp 19
             jp z, fl_del
+            cp 23
+            jp z, fl_ren
             cp 20
             jp z, fl_rdseq
             cp 33
@@ -1230,6 +1232,40 @@ fl_del:
             jp nc, fl_done
             ld ix, fl_par
             ld a, 1                 ; one parameter: the string
+            call #001B              ; KL FAR PCALL
+            di
+            jp fl_ok
+; ---- 23: rename (the disc ROM's |REN, "new", "old"): the old name at FCB 0-11, the new
+; at 16-27 (its drive 0: the old one's)
+fl_ren:
+            ld hl, ({fcb})
+            call fl_peek
+            ld (fl_dfl), a
+            ld de, 16
+            add hl, de
+            call fl_namehl          ; the new name
+            xor a
+            ld (fl_dfl), a
+            ld hl, fl_name_s
+            ld de, fl_new_s
+            ld bc, 17
+            ldir
+            call fl_name            ; the old one
+            call fl_plain
+            ld hl, fl_name_s + 1
+            ld (fl_desc + 1), hl
+            ld a, (fl_name_s)
+            ld (fl_desc), a
+            ld hl, fl_new_s + 1
+            ld (fl_desc2 + 1), hl
+            ld a, (fl_new_s)
+            ld (fl_desc2), a
+            ld hl, fl_rencmd
+            call #BCD4              ; KL FIND COMMAND
+            di
+            jp nc, fl_done
+            ld ix, fl_par2          ; IX+0: the last parameter (the old name), IX+2: the new
+            ld a, 2
             call #001B              ; KL FAR PCALL
             di
             jp fl_ok
@@ -1450,9 +1486,13 @@ fl_poke:                            ; the slot's byte at HL = A (BC, DE, HL kept
             pop bc
             ret
 fl_name:                            ; fl_name_s = the FCB's file: length, "B:NAME.EXT"
-            ld de, fl_name_s + 1
             ld hl, ({fcb})
-            call fl_peek            ; its drive: 0 = the slot's
+fl_namehl:                          ; (HL = an FCB in the slot)
+            ld de, fl_name_s + 1
+            call fl_peek            ; its drive: 0 = the slot's (or fl_dfl's)
+            or a
+            jr nz, fl_nm_d
+            ld a, (fl_dfl)
             or a
             jr nz, fl_nm_d
             ld a, ({drive})
@@ -1515,6 +1555,12 @@ fl_d8:
             ld sp, ({hsp})
             jp fl_exit
 fl_era:     db "ER", "A" + #80
+fl_rencmd:  db "RE", "N" + #80
+fl_par2:    dw fl_desc, fl_desc2
+fl_desc2:   db 0
+            dw 0
+fl_dfl:     db 0                    ; fl_name: the drive for an FCB whose own is 0 (rename)
+fl_new_s:   ds 17
 fl_par:     dw fl_desc
 fl_desc:    db 0
             dw 0

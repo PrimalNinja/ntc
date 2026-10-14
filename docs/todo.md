@@ -7,6 +7,17 @@ finished, with the date.
 
 ## done
 
+- 2026-10-15 CyborgOS file speed: a slot's file calls run on in the same turn (up to 32), and a
+  record goes into / out of the slot with one ldir when it is in one 16K page (38K COPY: about
+  35 s of CPC time down to about 22 s, in the harness). Library: ROM build: 4 slots at most (its
+  per-slot arrays sized to that)
+- 2026-10-15 PREP writes FILES.DIR as one 128 byte record of unused entries, not an empty file (a
+  disc ROM may make no file for an empty one: PREP said it failed on UniDOS); its message says
+  which step failed
+- 2026-10-14 CyborgOS output tidied: TOP's first line just "CyborgOS TOP", "(last second)" (fits 80
+  columns), "Total memory: n KB   Free memory: n KB" (TOP and MEM); MEM's main RAM as a table
+  (address range, what is there), blank lines round the map; HELP: the names with commas, then a
+  line each. Main RAM's own page 1 (the disc buffers) taken at the start, so it isn't counted free
 - 2026-10-14 CyborgOS: RENAME (cmds/RENAME.bas: on the disc and in FILES.DIR; the hypervisor's BDOS 23
   through the disc ROM's |REN); the disc's FILES.DIR lists every file on it (test "CyborgOS
   command RENAME"). Built round the window, variables are laid out one by one as strings are

@@ -81,6 +81,7 @@ For i = 1 To ns
 '|   tp(i) = Hyp.FarPtr(Memory.BankPage(bk(i), 3), BUF)
   wk(i) = -1
 Next
+k = Memory.AllocPage(Memory.TypeUser)           ' page 1 (main RAM's #4000-#7FFF): the disc buffers
 '| blank = Space$(80)
 '| row = Space$(80)
 ob = Space$(128)
@@ -474,10 +475,10 @@ End Sub
 Sub TopLines(ByVal mark As Integer, ByVal keys As Integer)
   Dim j As Integer, s As String Max 14
   txn = 0
-  TopAdd "CyborgOS TOP - " + N(ns) + " slots, " + N(Memory.Banks()) + " banks of 64K, " + N(Memory.FreePages()) + " pages free"
+  TopAdd "CyborgOS TOP"
   If keys Then TopAdd "Control + ESC: back, " + SK() + ": that slot"
   TopAdd ""
-  TopAdd "SLOT  STATE          PROGRAM         TURNS/S   BDOS/S  CHARS/S   (the last second)"
+  TopAdd "SLOT  STATE          PROGRAM         TURNS/S   BDOS/S  CHARS/S   (last second)"
   For j = 1 To ns
     If st(j) = 0 Then
       s = "-"
@@ -492,16 +493,47 @@ Sub TopLines(ByVal mark As Integer, ByVal keys As Integer)
     If st(j) = 2 Then GetNm j
     TopAdd " " + Right$(" " + N(j), 2) + IIf(j = mark, "*", " ") + "  " + Left$(s + Space$(15), 15) + Left$(en + Space$(13), 13) + Pad(Rate(lt(j), ld)) + Pad(Rate(lb(j), ld)) + Pad(Rate(lc(j), ld))
   Next
+  TopAdd ""
+  Totals
+  TopAdd en
+End Sub
+
+' en = "Total memory: n KB   Free memory: n KB" (free: the 16K pages no slot or anything has)
+Sub Totals()
+  en = "Total memory: " + N(Memory.RamSize()) + " KB   Free memory: " + N(Memory.FreePages() * 16) + " KB"
+End Sub
+
+' MEM: main RAM as a table (address range, what is there), the banks' pages - a character a
+' 16K page (B a slot's, - free), 32 pages (8 banks) a group, two groups a line - and the totals
+Sub MemShow(ByVal t As Integer)
+  Dim j As Integer
 #If NTC_LIBRARY_ROM Then
 #Else
-  TopAdd ""                                      ' the memory: 3 rows of 80 pages at most (193 pages
-  TopAdd N(Memory.RamSize()) + " KB of total memory - a character a 16K page (B slot, - free):"
-  For j = 1 To Memory.Pages() Step 80            ' with 4MB): 25 rows with 16 slots and the keys.
-                                                 ' (Not in the Library: ROM build: no room)
-    TopAdd Memory.Map(j, 80)
+  PutLn t, "#0000-#003F  firmware restarts"
+  PutLn t, "#0040-#3FFF  CyborgOS"
+  PutLn t, "#4000-#7FFF  the window (the banks' pages); main RAM's own: the disc buffers"
+  PutLn t, "#8000-#" + H4(Memory.TableEnd() - 1) + "  CyborgOS, its arrays, the memory tables"
+  PutLn t, "#" + H4(Memory.TableEnd()) + "-#" + H4(Memory.Top() - 1) + "  free"
+  PutLn t, "#" + H4(Memory.Top()) + "-#BFFF  firmware and ROMs"
+  PutLn t, "#C000-#FFFF  screen"
+  PutLn t, ""
+  PutLn t, "Banks (B slot, - free):"
+  For j = 2 To Memory.Pages() Step 64
+    PutLn t, Memory.Map(j, 32) + "  " + Memory.Map(j + 32, 32)
   Next
+  PutLn t, ""
 #End If
+  Totals
+  PutLn t, en
 End Sub
+
+#If NTC_LIBRARY_ROM Then
+#Else
+' v as 4 hex digits
+Function H4(ByVal v As Integer) As String
+  H4 = Right$("000" + Hex$(v), 4)
+End Function
+#End If
 
 Sub TopAdd(ByVal s As String)
   If txs = 0 Then
@@ -657,15 +689,23 @@ Sub Command(ByVal t As Integer)
     Case ""
     Case "HELP"
 #If NTC_LIBRARY_ROM Then
+      PutLn t, "Commands: RUN, FG, PS, TOP, KILL, RESET, WAIT, CLS, MEM, QUIT"
 #Else
-      PutLn t, "name [args]: run name from this drive   RUN name [args]: the disc's, not a command's"
-#End If
-      PutLn t, "RUN name slot  FG slot  PS  TOP  KILL slot  RESET [slot]  WAIT  CLS  MEM  QUIT"
-#If NTC_LIBRARY_ROM Then
-#Else
-      PutLn t, "DIR: the programs in FILES.DIR   CD [drive]: this slot's drive"
-#End If
+      PutLn t, "Commands: RUN, FG, PS, TOP, KILL, RESET, WAIT, CLS, MEM, DIR, CD, QUIT"
+      PutLn t, "On the disc: COPY, ERA, TYPE, PREP, RENAME"
+      PutLn t, ""
+      PutLn t, "name [args]       runs the program name (this slot's drive, then A)"
+      PutLn t, "RUN name [args]   the same, even when a command has that name"
+      PutLn t, "RUN name slot     runs it in that slot"
+      PutLn t, "FG slot           that slot to the front"
+      PutLn t, "KILL slot         stops its program"
+      PutLn t, "RESET [slot]      that slot (or this one) as new"
+      PutLn t, "PS, TOP           the slots; with their speed"
+      PutLn t, "MEM               the memory: main RAM, the banks"
+      PutLn t, "DIR, CD [drive]   the files in FILES.DIR; this slot's drive"
+      PutLn t, "WAIT, CLS, QUIT   until no program runs; clear; end CyborgOS"
       PutLn t, SK() + ": a slot to the front   Control + ESC: TOP"
+#End If
     Case "CLS"
       ClsT t
     Case "RUN"                                 ' RUN name [tail]: the program on the disc even when a
@@ -700,20 +740,15 @@ Sub Command(ByVal t As Integer)
         ResetSlot s
         If s <> t Then PutLn t, "slot " + N(s) + " reset"
       End If
-    Case "CD"
 #If NTC_LIBRARY_ROM Then
-      PutLn t, "CD: not in this build"
 #Else
+    Case "CD"                                  ' (not in the Library: ROM build - no room)
       ChDrive t
-#End If
     Case "DIR"
-#If NTC_LIBRARY_ROM Then
-      PutLn t, "DIR: not in this build"
-#Else
       DirList t
 #End If
     Case "MEM"
-      PutLn t, N(ns) + " slots, " + N(Memory.Banks()) + " banks of 64K, " + N(Memory.FreePages()) + " pages free"
+      MemShow t
     Case "WAIT"
       If Running() > 0 Then wt = t
     Case "QUIT"
