@@ -47,8 +47,9 @@ goes to their own page.
   held don't go to the programs.
 - **Control + ESC** shows the TOP screen: each slot's state (command line, running), its
   program, and in the last whole second its turns, BDOS calls that reached the hypervisor and
-  characters out. It is drawn once and stays (other keys do nothing) until Control + ESC again
-  or Control + a slot number.
+  characters out. It is drawn once (straight into screen memory, at once) and stays (other keys
+  do nothing) until Control + ESC again or Control + a slot number. The `TOP` command prints the
+  same table into the slot's console instead.
 - **FG** *slot* does the same from a command line.
 
 A slot either shows its command line, or runs a program. When the program ends, the slot's
@@ -63,6 +64,7 @@ Typed at a slot's prompt (`1>`), in capitals or not. Backspace / DEL rub out.
 | `RUN` *name* [*slot*] | loads *name*.CYB from disc and runs it - in this slot, or in another one (which keeps running in the background while this command line stays) |
 | `FG` *slot* | that slot to the front |
 | `PS` | the slots: what each is doing (`*` = in front) |
+| `TOP` | the TOP table (each slot's state, program, and in the last whole second its turns, BDOS calls and characters) printed once into this slot's console, like PS |
 | `KILL` *slot* | stops the program in that slot (its command line comes back) |
 | `WAIT` | waits until no program runs; keys typed meanwhile wait too |
 | `CLS` | clears this slot's page |
@@ -157,12 +159,12 @@ it only gives the CPU back at its next BDOS call.
   BDOS stub there answers functions 1, 6 (#FF, #FE) and 11 from it. A program looking for a
   key costs no more than a call.
 - **Characters out don't stop the program**: the BDOS stub collects them (128 at most) and
-  hands them over at a line end, when 128 wait, at another BDOS call or at the end of a slice.
-  The hypervisor writes each run of them into the slot's page and, for the slot in front,
-  straight into screen memory (mode 2; the firmware's text output is far slower). The page is
-  a ring of 25 rows, so scrolling it copies nothing.
+  hands them over when 128 wait, at another BDOS call or at the end of a slice (so text shows
+  at most 1/50 s late). The hypervisor's console (Z80) writes them into the slot's page and,
+  for the slot in front, straight into screen memory (mode 2; the firmware's text output is
+  far slower). The page is a ring of 25 rows, so scrolling it copies nothing.
 
-Measured on the real 6128 ROMs (realcpc): 200 lines of 62 characters scroll by at about 8 a
+Measured on the real 6128 ROMs (realcpc): 200 lines of 62 characters scroll by at about 16 a
 second.
 
 ### A slot's bank
@@ -178,6 +180,7 @@ second.
 | #F500 | the BDOS and interrupt stubs |
 | #F600-#F680 | the characters out it collected, and their count |
 | #F681 | the slot's next key (0: none), put there by the hypervisor |
+| #F682-#F686 | its console: column, row, the page ring's top row, escape state and row |
 | #F700-#FECF | the slot's text page (80 x 25) |
 | #FFFE | the slot's saved SP |
 

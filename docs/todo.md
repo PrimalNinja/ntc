@@ -7,6 +7,18 @@ finished, with the date.
 
 ## done
 
+- 2026-10-14 CyborgOS: the TOP screen drawn straight into screen memory (Hyp.Say: about 0.1 s,
+  was about 0.7 s through TXT OUTPUT); the TOP command back, printing the table once into the
+  slot's console (test "CyborgOS TOP command")
+- 2026-10-14 CyborgOS console in Z80 (Hyp.Con, Hyp.Show): the slot's page 3 in the window once,
+  the characters read where the program collected them, page (ring) and screen written in one
+  routine, page / screen pointers stepped along a run, the glyph loop unrolled, screen addresses
+  from SCR GET LOCATION (was SCR CHAR POSITION per character), SCR HW ROLL to scroll (was 4 TXT
+  calls); the console state in the bank (#F682). The BASIC it replaced (Collected / Out / PutC /
+  NewLine / RowA / ClsT / ToFront) kept in Main.bas as comments, with why. The bank no longer
+  hands over at each line end (at the slice's end: one BASIC turn per line less). Real ROMs: 16
+  lines a second (was 8; harness: about 100,000 T a line, was 216,000). realcpc PROF=file: a
+  profile by address (main RAM, bank, lower / upper ROM), "profon" in the script restarts it
 - 2026-10-14 CyborgOS speed and fixes: text for the front slot written straight into screen
   memory (Hyp.Text: the firmware's matrices via TXT SET M TABLE, SCR CHAR POSITION; mode 2),
   the slot's page a ring of 25 rows (no copy to scroll), the control-code scan in Z80

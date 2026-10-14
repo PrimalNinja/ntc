@@ -25,24 +25,28 @@ from the design below:
   interrupt class (Hot.cls, 50 a second).
 - Keys: the hypervisor puts the slot's next key in its bank (#F681); the BDOS stub answers 1,
   6 (#FF / #FE) and 11 from it, with no switch.
-- Characters out are collected by the BDOS stub in the bank (128) and handed over at a line
-  end, when full, at a far call or at the end of a slice (IX = how many). The hypervisor writes
-  runs of them into the slot's page (a ring of 25 rows: no copy to scroll) and, for the front
-  slot, straight into screen memory (Hyp.Text: the firmware's matrices, SCR CHAR POSITION).
+- Characters out are collected by the BDOS stub in the bank (128) and handed over when full,
+  at a far call or at the end of a slice (IX = how many). The console is Z80 (Hyp.Con): with
+  the slot's page 3 in the window once, it reads them from the bank, writes the slot's page (a
+  ring of 25 rows: no copy to scroll; the column, row, ring and escape state in the bank at
+  #F682) and, for the front slot, screen memory directly (the firmware's matrices, its own
+  addresses from SCR GET LOCATION; SCR HW ROLL to scroll). Main.bas keeps the BASIC it
+  replaced, commented out, for comparison.
   TOP (Control + ESC) shows the last whole second's turns, BDOS calls and characters per slot,
-  drawn once.
+  drawn once (Hyp.Say, straight into screen memory); the TOP command prints it into the console.
 - Every register is kept for a program over a BDOS call and an interrupt (IX, IY, the
   alternate set); the hypervisor keeps its own (the firmware's BC') round each run, runs the
   firmware's interrupt handler (`rst #38`) for an interrupt that stopped a program, and turns
   the upper ROM off while a program runs (Library: ROM has the keyword ROM on).
 - The command line is one copy in the hypervisor, with each slot's line in arrays (RUN, FG,
-  PS, KILL, WAIT, CLS, MEM, HELP, QUIT). Control + 1-8 brings a slot to the front.
+  PS, TOP, KILL, WAIT, CLS, MEM, HELP, QUIT). Control + 1-8 brings a slot to the front.
 - Each slot's text page (80 x 25) is at #F700 of its bank; the BDOS stubs at #F500 (the top of
   the TPA), the characters out at #F600, the saved SP at #FFFE: about 61K for a program.
-- Speed: 200 lines of 62 characters scroll at about 8 lines a second on the real ROMs (was
-  about 3, and the screen didn't scroll: the firmware scrolls only when the next character
-  goes below the last line). A BDOS call that reaches the hypervisor is still a round trip
-  through BASIC.
+- Speed: 200 lines of 62 characters scroll at about 16 lines a second on the real ROMs (was 3,
+  then 8 with the BASIC console; and the screen didn't scroll). Profiled on the real ROMs
+  (realcpc PROF): the firmware (its interrupts, 300 a second) about 33%, Hyp.Con 27%, the
+  program 18%, the hypervisor's BASIC the rest. A BDOS call that reaches the hypervisor is
+  still a round trip through BASIC.
 - `Option Reserve` now builds round the range: the hypervisor (about 19K) fills #0040-#3FFF
   and goes on at #8800 (after `Option Buffer &H8000`'s 2K); the Memory class's tables follow
   it, so a 4MB expansion gives all 64 banks (it gave 5 when the tables had to fit below #4000).

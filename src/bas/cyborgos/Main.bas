@@ -7,7 +7,7 @@
 ' page; the slot in front is on the screen.
 '   Control + 1-8   that slot to the front (opened as a command line the first time)
 '   Control + ESC   the TOP screen (Control + ESC again, or Control + a slot: back)
-'   commands        RUN name [slot]  FG slot  PS  KILL slot  WAIT  CLS  MEM  HELP  QUIT
+'   commands        RUN name [slot]  FG slot  PS  TOP  KILL slot  WAIT  CLS  MEM  HELP  QUIT
 ' Slots: half the extra 64K banks (1 on a 6128, 8 with 1MB or more), taken first.
 ' cpcfw (the firmware runs; files through AMSDOS). Not yet: CP/M files for the programs, the
 ' shared drivers.
@@ -22,14 +22,17 @@ Dim ns As Integer, i As Integer, k As Integer, hk As Integer
 Dim front As Integer, back As Integer, cur As Integer, quit As Integer, wt As Integer, runs As Integer, pk As Integer
 Dim fr As Integer, td As Integer, tt As Integer               ' front's turn next; TOP: last second's start
 Dim bk(8) As Integer, sg(8) As Integer, st(8) As Integer       ' bank, RAM setting, state (0 closed, 1 command line, 2 running)
-Dim cx(8) As Integer, cy(8) As Integer, es(8) As Integer, ey(8) As Integer, kq(8) As Integer
+Dim kq(8) As Integer, wp(8) As Integer                         ' key handed to it; the RAM setting with its page 3 in the window
+'| Dim cx(8) As Integer, cy(8) As Integer, es(8) As Integer, ey(8) As Integer   (the console state: now in each bank, #F682)
 Dim ra(8) As Integer, wk(8) As Integer                         ' the BDOS answer; waiting for a key since (Ticks, -1 not)
 Dim tn(8) As Integer, nb(8) As Integer, nc(8) As Integer       ' TOP: turns, BDOS calls, characters this second
 Dim lt(8) As Integer, lb(8) As Integer, lc(8) As Integer, ld As Integer   ' ... and in the last whole second (ld ticks)
-Dim pt(8) As Integer                                           ' the text page's top row (it scrolls by moving this)
-Dim tp(8) As Long                                              ' the text page (a far pointer)
+'| Dim pt(8) As Integer                                        (the page ring's top row: now in the bank, #F684)
+'| Dim tp(8) As Long                                           (the text page as a far pointer: Hyp.Con reaches it through wp)
 Dim nm(8) As String Max 12, ln(8) As String Max 72
-Dim blank As String Max 80, row As String Max 80, ob As String Max 130
+Dim ob As String Max 130
+Dim txn As Integer, txs As Integer                             ' TOP: lines written, the slot they go to (0: the screen)
+'| Dim blank As String Max 80, row As String Max 80               (Hyp.Con clears and draws rows itself)
 
 Mode 2
 Hyp.FontInit
@@ -42,11 +45,12 @@ For i = 1 To ns
   bk(i) = Memory.AllocBank()
   Memory.SelectPage Memory.BankPage(bk(i), 0)
   sg(i) = Hyp.Setting()
-  tp(i) = Hyp.FarPtr(Memory.BankPage(bk(i), 3), BUF)
+  wp(i) = (sg(i) And &HFFF8) Or 7                ' its page 3 (#C000-#FFFF: OBUF, the console) in the window
+'|   tp(i) = Hyp.FarPtr(Memory.BankPage(bk(i), 3), BUF)
   wk(i) = -1
 Next
-blank = Space$(80)
-row = Space$(80)
+'| blank = Space$(80)
+'| row = Space$(80)
 ob = Space$(128)
 front = 1
 OpenSlot 1
@@ -168,101 +172,33 @@ Sub Bdos(ByVal t As Integer)
   ra(t) = a
 End Sub
 
-' the n characters slot t collected at OBUF in its bank: runs of printable ones written to its
-' page (and the screen) at once, the others one by one
+' ---- the slots' consoles: each slot's 80 x 25 page is in its bank (#F700, a ring of 25 rows),
+' with its column, row, top row and escape state (#F682); the slot in front is on the screen
+' too. All of it is Hyp.Con, in Z80 - see the BASIC it replaced, kept below for comparison.
+
+' the n characters slot t collected at OBUF in its bank
 Sub Collected(ByVal t As Integer, ByVal n As Integer)
   nc(t) = nc(t) + n
-  Memory.Copy Far(t, Hyp.OBUF), CLng(VarPtr(ob)), n
-  Out t, n
+  Hyp.Con wp(t), 0, n, IIf(t = front, 1, 0)       ' straight from the bank: no copy to main RAM
 End Sub
 
-' the first n characters of ob to slot t's page (and the screen if it is in front): each run of
-' printable ones with one Memory.Copy and one Print, the others through PutC
-Sub Out(ByVal t As Integer, ByVal n As Integer)
-  Dim p As Integer, j As Integer, q As Integer, c As Integer, w As Integer
-  p = VarPtr(ob)
-  j = 0
-  Do While j < n
-    c = Peek(p + j)
-    If c >= 32 And es(t) = 0 Then
-      w = 80 - cx(t)
-      If w > n - j Then w = n - j
-      q = j + Hyp.Printable(p + j, w)
-      Memory.Copy CLng(p + j), RowA(t, cy(t)) + cx(t), q - j
-      If t = front Then
-        Hyp.Text p + j, q - j, cx(t), cy(t)
-      End If
-      cx(t) = cx(t) + q - j
-      If cx(t) >= 80 Then cx(t) = 0 : NewLine t
-      j = q
-    Else
-      PutC t, c
-      j = j + 1
-    End If
-  Loop
-End Sub
-
-' ---- the text pages: an 80 x 25 page in each slot's bank, the front one on the screen too
-
-' a character to slot t's page (VT52: ESC E clears, ESC Y row col moves; CR, LF, BS)
-Sub PutC(ByVal t As Integer, ByVal c As Integer)
-  If es(t) = 1 Then
-    es(t) = 0
-    If c = 69 Then ClsT t
-    If c = 89 Then es(t) = 2
-    If c = 72 Then cx(t) = 0 : cy(t) = 0
-  ElseIf es(t) = 2 Then
-    ey(t) = c - 32 : es(t) = 3
-  ElseIf es(t) = 3 Then
-    es(t) = 0
-    cx(t) = c - 32 : cy(t) = ey(t)
-    If cx(t) < 0 Or cx(t) > 79 Then cx(t) = 0
-    If cy(t) < 0 Or cy(t) > 24 Then cy(t) = 0
-  ElseIf c = 27 Then
-    es(t) = 1
-  ElseIf c = 13 Then
-    cx(t) = 0
-  ElseIf c = 10 Then
-    NewLine t
-  ElseIf c = 8 Then
-    If cx(t) > 0 Then cx(t) = cx(t) - 1
-  ElseIf c >= 32 Then
-    Memory.WriteByte RowA(t, cy(t)) + cx(t), c
-    If t = front Then
-      Hyp.Char c, cx(t), cy(t)
-    End If
-    cx(t) = cx(t) + 1
-    If cx(t) = 80 Then cx(t) = 0 : NewLine t
-  End If
-End Sub
-
-Sub NewLine(ByVal t As Integer)
-  cy(t) = cy(t) + 1
-  If cy(t) < 25 Then Exit Sub
-  cy(t) = 24
-  pt(t) = pt(t) + 1                ' the page scrolls: its top row moves on, the new last row is cleared
-  If pt(t) = 25 Then pt(t) = 0
-  Memory.Copy CLng(VarPtr(blank)), RowA(t, 24), 80
-  If t = front Then
-    Locate 1, 25                  ' the screen scrolls: the firmware scrolls when a character
-    Print                         ' goes below the last line (not at the line feed itself)
-    Print " ";
-  End If
-End Sub
-
+' a string to slot t's console (the command line, messages)
 Sub PutS(ByVal t As Integer, ByVal s As String)
   ob = Left$(s, 128)
-  Out t, Len(ob)
+  Hyp.Con wp(t), VarPtr(ob), Len(ob), IIf(t = front, 1, 0)
 End Sub
 
 Sub PutLn(ByVal t As Integer, ByVal s As String)
-  PutS t, s
-  PutC t, 13
-  PutC t, 10
+  PutS t, s + Chr$(13) + Chr$(10)
+End Sub
+
+' one character (or control code) to slot t's console
+Sub PutC(ByVal t As Integer, ByVal c As Integer)
+  Hyp.Con wp(t), VarPtr(c), 1, IIf(t = front, 1, 0)   ' (the Integer's low byte is the character)
 End Sub
 
 ' BDOS 9: the slot's string at address a in its bank, to the "$": fetched 128 bytes at a time
-' with Memory.Copy (through the 2K buffer), each piece written with Out
+' with Memory.Copy (through the 2K buffer) and written with Hyp.Con (rare: no Z80 of its own)
 Sub PutMem(ByVal t As Integer, ByVal a As Integer)
   Dim la As Long, n As Integer, d As Integer, tot As Integer
   la = a
@@ -275,7 +211,7 @@ Sub PutMem(ByVal t As Integer, ByVal a As Integer)
     d = InStr(Left$(ob, n), "$")
     If d > 0 Then n = d - 1
     nc(t) = nc(t) + n
-    Out t, n
+    Hyp.Con wp(t), VarPtr(ob), n, IIf(t = front, 1, 0)
     If d > 0 Then Exit Sub
     la = la + n
     tot = tot + n
@@ -287,47 +223,197 @@ Function Far(ByVal t As Integer, ByVal a As Integer) As Long
   Far = Hyp.FarPtr(Memory.BankPage(bk(t), ((a And &HC000) \ 16384) And 3), a)
 End Function
 
-' row r (0-24) of slot t's text page: the page is a ring of 25 rows starting at pt(t)
-Function RowA(ByVal t As Integer, ByVal r As Integer) As Long
-  r = r + pt(t)
-  If r >= 25 Then r = r - 25
-  RowA = tp(t) + r * 80
-End Function
-
+' slot t's page cleared (ESC E: Hyp.Con clears the page, its state, and the screen if in front)
 Sub ClsT(ByVal t As Integer)
-  Dim j As Integer
-  For j = 0 To 24
-    Memory.Copy CLng(VarPtr(blank)), tp(t) + j * 80, 80
-  Next
-  pt(t) = 0
-  cx(t) = 0 : cy(t) = 0
-  If t = front Then Cls
+  PutS t, Chr$(27) + "E"
 End Sub
 
 ' slot t to the front: its page drawn
 Sub ToFront(ByVal t As Integer)
-  Dim j As Integer
   front = t
   If st(t) = 0 Then OpenSlot t : Exit Sub
   Cls
-  For j = 0 To 24
-    Memory.Copy RowA(t, j), CLng(VarPtr(row)), 80
-    Hyp.Text VarPtr(row), 80, 0, j
-  Next
+  Hyp.Show wp(t)
 End Sub
+
+' ---- the BASIC Hyp.Con replaced (2026-10-14), kept for comparison - not compiled.
+' Why it went to Z80: it ran for every character a program printed. A line of 62 characters
+' cost about 200,000 T here (measured, test LINES): about 4 Memory calls a line (Collected's copy
+' out of the bank, Out's copy into the page, NewLine's blank row, and Far()'s Memory.BankPage),
+' each turning Long far pointers into a page and an address and switching pages in and out;
+' Long sums for every page address (RowA, tp(t) + r * 80); the escape state and the column in
+' arrays; a keyword per step and a normal-mode safe point at every branch. Hyp.Con switches the
+' slot's page in once and reads the characters where the program left them.
+'
+'| ' the n characters slot t collected at OBUF in its bank: runs of printable ones written to its
+'| ' page (and the screen) at once, the others one by one
+'| Sub Collected(ByVal t As Integer, ByVal n As Integer)
+'|   nc(t) = nc(t) + n
+'|   Memory.Copy Far(t, Hyp.OBUF), CLng(VarPtr(ob)), n
+'|   Out t, n
+'| End Sub
+'|
+'| ' the first n characters of ob to slot t's page (and the screen if it is in front): each run of
+'| ' printable ones with one Memory.Copy and one Print, the others through PutC
+'| Sub Out(ByVal t As Integer, ByVal n As Integer)
+'|   Dim p As Integer, j As Integer, q As Integer, c As Integer, w As Integer
+'|   p = VarPtr(ob)
+'|   j = 0
+'|   Do While j < n
+'|     c = Peek(p + j)
+'|     If c >= 32 And es(t) = 0 Then
+'|       w = 80 - cx(t)
+'|       If w > n - j Then w = n - j
+'|       q = j + Hyp.Printable(p + j, w)
+'|       Memory.Copy CLng(p + j), RowA(t, cy(t)) + cx(t), q - j
+'|       If t = front Then
+'|         Hyp.Text p + j, q - j, cx(t), cy(t)
+'|       End If
+'|       cx(t) = cx(t) + q - j
+'|       If cx(t) >= 80 Then cx(t) = 0 : NewLine t
+'|       j = q
+'|     Else
+'|       PutC t, c
+'|       j = j + 1
+'|     End If
+'|   Loop
+'| End Sub
+'|
+'| ' ---- the text pages: an 80 x 25 page in each slot's bank, the front one on the screen too
+'|
+'| ' a character to slot t's page (VT52: ESC E clears, ESC Y row col moves; CR, LF, BS)
+'| Sub PutC(ByVal t As Integer, ByVal c As Integer)
+'|   If es(t) = 1 Then
+'|     es(t) = 0
+'|     If c = 69 Then ClsT t
+'|     If c = 89 Then es(t) = 2
+'|     If c = 72 Then cx(t) = 0 : cy(t) = 0
+'|   ElseIf es(t) = 2 Then
+'|     ey(t) = c - 32 : es(t) = 3
+'|   ElseIf es(t) = 3 Then
+'|     es(t) = 0
+'|     cx(t) = c - 32 : cy(t) = ey(t)
+'|     If cx(t) < 0 Or cx(t) > 79 Then cx(t) = 0
+'|     If cy(t) < 0 Or cy(t) > 24 Then cy(t) = 0
+'|   ElseIf c = 27 Then
+'|     es(t) = 1
+'|   ElseIf c = 13 Then
+'|     cx(t) = 0
+'|   ElseIf c = 10 Then
+'|     NewLine t
+'|   ElseIf c = 8 Then
+'|     If cx(t) > 0 Then cx(t) = cx(t) - 1
+'|   ElseIf c >= 32 Then
+'|     Memory.WriteByte RowA(t, cy(t)) + cx(t), c
+'|     If t = front Then
+'|       Hyp.Char c, cx(t), cy(t)
+'|     End If
+'|     cx(t) = cx(t) + 1
+'|     If cx(t) = 80 Then cx(t) = 0 : NewLine t
+'|   End If
+'| End Sub
+'|
+'| Sub NewLine(ByVal t As Integer)
+'|   cy(t) = cy(t) + 1
+'|   If cy(t) < 25 Then Exit Sub
+'|   cy(t) = 24
+'|   pt(t) = pt(t) + 1                ' the page scrolls: its top row moves on, the new last row is cleared
+'|   If pt(t) = 25 Then pt(t) = 0
+'|   Memory.Copy CLng(VarPtr(blank)), RowA(t, 24), 80
+'|   If t = front Then
+'|     Locate 1, 25                  ' the screen scrolls: the firmware scrolls when a character
+'|     Print                         ' goes below the last line (not at the line feed itself)
+'|     Print " ";
+'|   End If
+'| End Sub
+'|
+'| Sub PutS(ByVal t As Integer, ByVal s As String)
+'|   ob = Left$(s, 128)
+'|   Out t, Len(ob)
+'| End Sub
+'|
+'| Sub PutLn(ByVal t As Integer, ByVal s As String)
+'|   PutS t, s
+'|   PutC t, 13
+'|   PutC t, 10
+'| End Sub
+'|
+'| ' BDOS 9: the slot's string at address a in its bank, to the "$": fetched 128 bytes at a time
+'| ' with Memory.Copy (through the 2K buffer), each piece written with Out
+'| Sub PutMem(ByVal t As Integer, ByVal a As Integer)
+'|   Dim la As Long, n As Integer, d As Integer, tot As Integer
+'|   la = a
+'|   If la < 0 Then la = la + 65536
+'|   Do
+'|     n = 128
+'|     If la + n > 65536 Then n = 65536 - la
+'|     If n <= 0 Then Exit Sub
+'|     Memory.Copy Far(t, la), CLng(VarPtr(ob)), n
+'|     d = InStr(Left$(ob, n), "$")
+'|     If d > 0 Then n = d - 1
+'|     nc(t) = nc(t) + n
+'|     Out t, n
+'|     If d > 0 Then Exit Sub
+'|     la = la + n
+'|     tot = tot + n
+'|   Loop Until tot > 4000
+'| End Sub
+'|
+'| ' a far pointer to address a of slot t's bank
+'| Function Far(ByVal t As Integer, ByVal a As Integer) As Long
+'|   Far = Hyp.FarPtr(Memory.BankPage(bk(t), ((a And &HC000) \ 16384) And 3), a)
+'| End Function
+'|
+'| ' row r (0-24) of slot t's text page: the page is a ring of 25 rows starting at pt(t)
+'| Function RowA(ByVal t As Integer, ByVal r As Integer) As Long
+'|   r = r + pt(t)
+'|   If r >= 25 Then r = r - 25
+'|   RowA = tp(t) + r * 80
+'| End Function
+'|
+'| Sub ClsT(ByVal t As Integer)
+'|   Dim j As Integer
+'|   For j = 0 To 24
+'|     Memory.Copy CLng(VarPtr(blank)), tp(t) + j * 80, 80
+'|   Next
+'|   pt(t) = 0
+'|   cx(t) = 0 : cy(t) = 0
+'|   If t = front Then Cls
+'| End Sub
+'|
+'| ' slot t to the front: its page drawn
+'| Sub ToFront(ByVal t As Integer)
+'|   Dim j As Integer
+'|   front = t
+'|   If st(t) = 0 Then OpenSlot t : Exit Sub
+'|   Cls
+'|   For j = 0 To 24
+'|     Memory.Copy RowA(t, j), CLng(VarPtr(row)), 80
+'|     Hyp.Text VarPtr(row), 80, 0, j
+'|   Next
+'| End Sub
 
 ' ---- TOP: every slot, its program and what it did in the last second (Control + ESC, TOP)
 
 Sub ShowTop()
-  Dim j As Integer, s As String Max 14
+  Dim j As Integer
   If front <> 0 Then back = front
   front = 0
   Cls
-  Print "CyborgOS TOP - " + N(ns) + " slots, " + N(Memory.Banks()) + " banks of 64K, " + N(Memory.FreePages()) + " pages free"
-  Print "Control + ESC: back, Control + 1-" + N(ns) + ": that slot"
-  Print
-  Print "In the last whole second:"
-  Print "SLOT  STATE          PROGRAM         TURNS/S   BDOS/S  CHARS/S"
+  txs = 0
+  TopLines back, 1
+End Sub
+
+' the TOP lines, to the screen (txs = 0) or slot txs's console: the slot marked with * is mark;
+' keys <> 0: the line with the keys
+Sub TopLines(ByVal mark As Integer, ByVal keys As Integer)
+  Dim j As Integer, s As String Max 14
+  txn = 0
+  TopAdd "CyborgOS TOP - " + N(ns) + " slots, " + N(Memory.Banks()) + " banks of 64K, " + N(Memory.FreePages()) + " pages free"
+  If keys Then TopAdd "Control + ESC: back, Control + 1-" + N(ns) + ": that slot"
+  TopAdd ""
+  TopAdd "In the last whole second:"
+  TopAdd "SLOT  STATE          PROGRAM         TURNS/S   BDOS/S  CHARS/S"
   For j = 1 To ns
     If st(j) = 0 Then
       s = "-"
@@ -338,8 +424,18 @@ Sub ShowTop()
     Else
       s = "running"
     End If
-    Print " "; Right$(" " + N(j), 2); IIf(j = back, "*", " "); "  "; Left$(s + Space$(15), 15); Left$(IIf(st(j) = 2, nm(j), "") + Space$(13), 13); Pad(Rate(lt(j), ld)); Pad(Rate(lb(j), ld)); Pad(Rate(lc(j), ld))
+    TopAdd " " + Right$(" " + N(j), 2) + IIf(j = mark, "*", " ") + "  " + Left$(s + Space$(15), 15) + Left$(IIf(st(j) = 2, nm(j), "") + Space$(13), 13) + Pad(Rate(lt(j), ld)) + Pad(Rate(lb(j), ld)) + Pad(Rate(lc(j), ld))
   Next
+End Sub
+
+Sub TopAdd(ByVal s As String)
+  If txs = 0 Then
+    ob = s
+    Hyp.Say VarPtr(ob), Len(ob), 0, txn          ' straight into screen memory (Print took ~0.7 s)
+  Else
+    PutLn txs, s
+  End If
+  txn = txn + 1
 End Sub
 
 ' each second: this second's counts become the last second's (TOP shows those, once)
@@ -435,7 +531,7 @@ Sub Command(ByVal t As Integer)
   Select Case c
     Case ""
     Case "HELP"
-      PutLn t, "RUN name [slot]  FG slot  PS  KILL slot  WAIT  CLS  MEM  QUIT"
+      PutLn t, "RUN name [slot]  FG slot  PS  TOP  KILL slot  WAIT  CLS  MEM  QUIT"
       PutLn t, "Control + 1-" + N(ns) + ": a slot to the front   Control + ESC: TOP (again: back)"
     Case "CLS"
       ClsT t
@@ -448,6 +544,9 @@ Sub Command(ByVal t As Integer)
     Case "FG"
       s = Val(a)
       If s >= 1 And s <= ns Then ToFront s Else PutLn t, "no slot " + a
+    Case "TOP"
+      txs = t
+      TopLines front, 0                        ' printed into this slot's console, once
     Case "PS"
       For s = 1 To ns
         If st(s) = 0 Then a = "-" Else If st(s) = 1 Then a = "command line" Else a = nm(s)
@@ -501,7 +600,7 @@ Sub StartTask(ByVal t As Integer, ByVal s As Integer, ByVal f As String)
   Memory.WriteWord Far(s, &HFFFE), &HFEFC
   nm(s) = f
   kq(s) = 0
-  es(s) = 0
+  Memory.WriteByte Far(s, &HF685), 0             ' no escape sequence left half done
   wk(s) = -1
   st(s) = 2
   If s <> t Then PutLn t, f + " runs in slot" + Str$(s)

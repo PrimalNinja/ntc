@@ -35,11 +35,23 @@
 
 static cpc_t cpc;
 static int nwatch = 0; static unsigned watch[16]; static long hits[16], romhits[16];
+// PROF=file: a profile - every clock tick counted against the address of the instruction it
+// belongs to, apart for main RAM (RAM setting 0), a bank (other settings), the lower ROM and
+// the upper ROM; written to the file at the end ("where address ticks" lines)
+static int prof = 0; static unsigned lastpc = 0; static int lastkind = 0;
+static unsigned long pcnt[4][65536];
 static void dbg(void* u, uint64_t pins) {
     if ((pins & Z80_M1) && (pins & Z80_MREQ) && (pins & Z80_RD)) {
         unsigned a = Z80_GET_ADDR(pins);
         for (int i = 0; i < nwatch; i++) if (watch[i] == a) { hits[i]++; if (!(cpc.ga.regs.config & AM40010_CONFIG_LROMEN)) romhits[i]++; }
+        if (prof) {
+            lastpc = a;
+            if (a < 0x4000 && !(cpc.ga.regs.config & AM40010_CONFIG_LROMEN)) lastkind = 2;
+            else if (a >= 0xC000 && !(cpc.ga.regs.config & AM40010_CONFIG_HROMEN)) lastkind = 3;
+            else lastkind = ((cpc.ga.ram_config & 7) == 2) ? 1 : 0;   // C2: a task's whole bank
+        }
     }
+    if (prof) pcnt[lastkind][lastpc]++;
 }
 static chips_range_t rd(const char* p) {
     FILE* f = fopen(p, "rb"); if (!f) { perror(p); exit(1); }
@@ -80,6 +92,8 @@ int main(int argc, char** argv) {
     sprintf(p, "%s/cpc6128_basic.bin", R); desc.roms.cpc6128.basic = rd(p);
     sprintf(p, "%s/cpc6128_amsdos.bin", R); desc.roms.cpc6128.amsdos = rd(p);
     char* w = getenv("WATCH");
+    char* pf = getenv("PROF");
+    if (pf && !w) { prof = 1; desc.debug.callback.func = dbg; static bool st2 = false; desc.debug.stopped = &st2; }
     if (w) { char* t = strtok(w, ","); while (t && nwatch < 16) { watch[nwatch++] = strtoul(t, 0, 16); t = strtok(0, ","); } desc.debug.callback.func = dbg; static bool st = false; desc.debug.stopped = &st; }
     for (int k = 1; k <= 8; k++) {
         char nx[16], ns[16]; sprintf(nx, (k == 1) ? "XROM" : "XROM%d", k); sprintf(ns, (k == 1) ? "XSLOT" : "XSLOT%d", k);
@@ -113,6 +127,12 @@ int main(int argc, char** argv) {
         else if (!strcmp(cmd, "mem")) { unsigned a = strtoul(arg, 0, 16); printf("t=%.2f %04X:", now, a); for (int i = 0; i < 16; i++) printf(" %02X", cpc.ram[((a + i) & 0xFFFF) >> 14][(a + i) & 0x3FFF]); printf("\n"); }
         else if (!strcmp(cmd, "hits")) { printf("t=%.2f", now); for (int i = 0; i < nwatch; i++) printf(" %04X:%ld(rom %ld)", watch[i], hits[i], romhits[i]); printf("\n"); }
         else if (!strcmp(cmd, "end")) break;
+        else if (!strcmp(cmd, "profon")) memset(pcnt, 0, sizeof pcnt);
+    }
+    if (prof) {
+        FILE* o = fopen(pf, "w"); const char* kn[4] = { "main", "bank", "lrom", "urom" };
+        for (int k = 0; k < 4; k++) for (int a = 0; a < 65536; a++) if (pcnt[k][a]) fprintf(o, "%s %04X %lu\n", kn[k], a, pcnt[k][a]);
+        fclose(o);
     }
     return 0;
 }

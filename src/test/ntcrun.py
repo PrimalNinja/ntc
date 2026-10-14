@@ -25,7 +25,7 @@ FW = {0xBB06: 'km_wait', 0xBB09: 'km_read', 0xBB5A: 'txt_out', 0xBB6C: 'txt_clea
       0xBC8C: 'cas_out_open', 0xBC8F: 'cas_out_close', 0xBC92: 'cas_out_abandon', 0xBC98: 'cas_out_direct',
       0xBCCB: 'kl_rom_walk', 0xBCCE: 'kl_init_back', 0xBCD4: 'kl_find_command', 0x001B: 'kl_far_pcall',
       0xBCE0: 'kl_new_fast_ticker', 0xBCE6: 'kl_del_fast_ticker',
-      0xB906: 'kl_l_rom_enable', 0xB90C: 'kl_rom_restore', 0xBBA5: 'txt_matrix', 0xBBAB: 'txt_set_m_table', 0xBC1A: 'scr_char_pos',
+      0xBBAB: 'txt_set_m_table', 0xBC0B: 'scr_get_location', 0xBC4D: 'scr_hw_roll',
       0xB900: 'kl_u_rom_enable', 0xB903: 'kl_u_rom_disable', 0xB90F: 'kl_rom_select', 0xB918: 'kl_rom_deselect'}
 # Library: ROM (cpcfw): the keyword ROM's image in upper ROM slot XSLOT - at #C000 while selected
 XSLOT = 6
@@ -172,9 +172,10 @@ class Host:
             if platform == 'cpcfw':
                 s.scr.immediate = True; s.scr.mem = m; s.scr.clear()
                 for i, a in enumerate(sorted(FW)):
-                    m.set_memory_block(a, bytes([0xD3, (0xE0 + i) & 0xFF, 0xC9]))
-                s.fwport = {(0xE0 + i) & 0xFF: FW[a] for i, a in enumerate(sorted(FW))}
+                    m.set_memory_block(a, bytes([0xD3, 0xE0 + i, 0xC9]))
+                s.fwport = {0xE0 + i: FW[a] for i, a in enumerate(sorted(FW))}
                 m.set_memory_block(0x18, bytes([0xD3, 0xDF, 0xC9]))   # RST 3: a far call (AMSDOS's CAS entries)
+                m.set_memory_block(0xB90C, bytes([0xC9]))   # KL ROM RESTORE: nothing to put back here (no stand-in: 32 ports at most)
         s.ram = cpcrun.RamBanks(m)                          # the gate array's RAM setting (Memory class)
         s.romsel = 0
         s.xroms = load_xroms() if platform == 'cpcfw' else {}
@@ -266,6 +267,10 @@ class Host:
                 if m.d == 0: m.set_memory_block(m.hl, bytes(sum(([c] + [0] * 7 for c in range(m.e, 256)), [])))
             elif f == 'scr_char_pos':
                 m.hl = 0xC000 + ((s.scr.off + m.l * 80 + m.h) & 0x7FF); m.b = 1
+            elif f == 'scr_get_location':
+                m.a = 0xC0; m.hl = s.scr.off
+            elif f == 'scr_hw_roll':
+                if m.b: s.scr.cells.pop(0); s.scr.cells.append([' '] * 80); s.scr.scrolled()
             elif f in ('kl_l_rom_enable', 'kl_u_rom_disable', 'kl_u_rom_enable'): m.a = 0
             elif f == 'kl_rom_restore': pass
             elif f == 'scr_mode': s.scr.cols = {0: 20, 1: 40}.get(val, 80); s.scr.clear()

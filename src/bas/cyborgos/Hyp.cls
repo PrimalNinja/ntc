@@ -64,29 +64,30 @@ Public Function FarPtr(ByVal page As Integer, ByVal address As Integer) As Long
             ld (hl), b
 #endasm
 End Function
-
-' Printable(p, n): how many of the n bytes at p (main RAM) come before the first control code
-' (below 32) - the run Out writes at once
-Public Function Printable(ByVal p As Integer, ByVal n As Integer) As Integer
-#asm
-            ld hl, ({p})
-            ld bc, ({n})
-            ld de, 0
-pr_lp:
-            ld a, b
-            or c
-            jr z, pr_end
-            ld a, (hl)
-            cp 32
-            jr c, pr_end
-            inc hl
-            inc de
-            dec bc
-            jr pr_lp
-pr_end:
-            ld ({result}), de
-#endasm
-End Function
+' ---- replaced by Con (kept for comparison): Printable found the run of printable characters
+' for Main's Out, which then still did a Memory.Copy and a Print / Text per run
+'| ' Printable(p, n): how many of the n bytes at p (main RAM) come before the first control code
+'| ' (below 32) - the run Out writes at once
+'| Public Function Printable(ByVal p As Integer, ByVal n As Integer) As Integer
+'| #asm
+'|             ld hl, ({p})
+'|             ld bc, ({n})
+'|             ld de, 0
+'| pr_lp:
+'|             ld a, b
+'|             or c
+'|             jr z, pr_end
+'|             ld a, (hl)
+'|             cp 32
+'|             jr c, pr_end
+'|             inc hl
+'|             inc de
+'|             dec bc
+'|             jr pr_lp
+'| pr_end:
+'|             ld ({result}), de
+'| #endasm
+'| End Function
 
 ' FontInit(): the firmware's character matrices 32-127 copied to RAM (once, after Mode 2), for
 ' Text. TXT SET M TABLE copies them into a table (the 2K buffer, free then); 96 are kept and the
@@ -109,15 +110,515 @@ Public Sub FontInit()
             ld sp, ({hsp})
 #endasm
 End Sub
+' ---- replaced by Con (kept for comparison): Text and Char drew characters for Main's Out /
+' PutC / ToFront, one call (with its BASIC around it) per run or per character
+'| ' Text(p, n, col, row): the n characters at p (main RAM) on the screen from col, row (0-based),
+'| ' written straight into screen memory in mode 2 (pen 1 on paper 0) - the firmware's text
+'| ' output is far slower. Each character's place comes from SCR CHAR POSITION (it follows the
+'| ' hardware scroll). Nothing past column 79; the firmware's cursor is left where it was
+'| Public Sub Text(ByVal p As Integer, ByVal n As Integer, ByVal col As Integer, ByVal row As Integer)
+'| #asm
+'|             ld ({hsp}), sp
+'|             ld sp, (ntc_csp)
+'|             ld hl, ({p})
+'|             ld a, ({n})
+'|             ld b, a
+'|             ld a, ({col})
+'|             ld d, a
+'|             ld a, ({row})
+'|             ld e, a
+'|             call hy_text
+'|             ld sp, ({hsp})
+'|             jr hy_end
+'| ; hy_text: B characters at HL to the screen from column D, row E (called on the real stack)
+'| hy_text:
+'|             ld a, b
+'|             or a
+'|             ret z
+'| hy_tx_lp:
+'|             ld a, d
+'|             cp 80
+'|             ret nc
+'|             push bc
+'|             push de
+'|             ld a, (hl)
+'|             inc hl
+'|             push hl
+'|             sub 32
+'|             cp 96
+'|             jr c, hy_tx_ok
+'|             ld a, '?' - 32
+'| hy_tx_ok:
+'|             ld l, a
+'|             ld h, 0
+'|             add hl, hl
+'|             add hl, hl
+'|             add hl, hl
+'|             ld bc, {font}
+'|             add hl, bc
+'|             push hl                 ; the character's matrix
+'|             ld h, d
+'|             ld l, e
+'|             call #BC1A              ; SCR CHAR POSITION: HL = its screen address
+'|             di                      ; (firmware calls come back with interrupts on: the thread
+'|                                     ; must not get an interrupt pushed into it)
+'|             pop de
+'|             ld b, 8
+'| hy_tx_ln:
+'|             ld a, (de)
+'|             ld (hl), a
+'|             inc de
+'|             ld a, h
+'|             add a, 8
+'|             ld h, a
+'|             djnz hy_tx_ln
+'|             pop hl
+'|             pop de
+'|             pop bc
+'|             inc d
+'|             djnz hy_tx_lp
+'|             ret
+'| hy_end:
+'| #endasm
+'| End Sub
+'| 
+'| ' Char(c, col, row): one character, as Text
+'| Public Sub Char(ByVal c As Integer, ByVal col As Integer, ByVal row As Integer)
+'|   Text VarPtr(c), 1, col, row
+'| End Sub
 
-' Text(p, n, col, row): the n characters at p (main RAM) on the screen from col, row (0-based),
-' written straight into screen memory in mode 2 (pen 1 on paper 0) - the firmware's text
-' output is far slower. Each character's place comes from SCR CHAR POSITION (it follows the
-' hardware scroll). Nothing past column 79; the firmware's cursor is left where it was
-Public Sub Text(ByVal p As Integer, ByVal n As Integer, ByVal col As Integer, ByVal row As Integer)
+' ---- the console, in Z80: it runs for every character a program prints, so it is not BASIC.
+' Con(pg, src, n, front): n characters to a slot's console, with its page 3 (#C000-#FFFF of its
+' bank) in the window - pg is that RAM setting (bank C2 setting with layout 7: #C7 + bank * 8).
+' src: the characters in main RAM, or 0 for the ones the program collected at OBUF in its bank.
+' front <> 0: the slot is on the screen, so each character is also drawn there.
+' n < 0: no characters - the whole page drawn on the screen (a slot brought to the front).
+' The slot's console state is in its bank (#F682: column, row, top row of the page ring, escape
+' state, escape row), so nothing about it passes through BASIC. Handles CR, LF, BS and the VT52
+' codes ESC E (clear), ESC H (home), ESC Y row col (move); the page is a ring of 25 rows (a
+' scroll moves its top row and clears one row); the screen scrolls through the firmware (it
+' scrolls when a character goes below the last line). The window's page is put back at the end.
+' Why Z80: this was Main.bas's Collected / Out / PutC / NewLine / RowA / ClsT / PutMem / ToFront
+' - per line about 4 Memory calls (each one turning Long far pointers into a page and an
+' address and switching pages in and out), several hundred keywords and a safe point at every
+' branch: about 200,000 T a line. Here the page is switched in once and each character costs a
+' few hundred T (most of it the 8 screen bytes and SCR CHAR POSITION).
+Public Sub Con(ByVal pg As Integer, ByVal src As Integer, ByVal n As Integer, ByVal front As Integer)
 #asm
             ld ({hsp}), sp
             ld sp, (ntc_csp)
+            ld bc, ({pg})
+            out (c), c              ; the slot's page 3 at #4000: OBUF #7600, state #7682, page #7700
+            xor a
+            ld (cn_pv), a
+            ld a, ({front})
+            ld (cn_front), a
+            or a
+            call nz, cn_loc         ; in front: where the screen starts now (hardware scroll)
+            ld hl, ({n})
+            bit 7, h
+            jp nz, cn_show
+            ld (cn_left), hl
+            ld hl, ({src})
+            ld a, h
+            or l
+            jr nz, cn_src
+            ld hl, #7600            ; src 0: the characters the program collected (OBUF)
+cn_src:
+            ld (cn_ptr), hl
+cn_lp:
+            ld hl, (cn_left)
+            ld a, h
+            or l
+            jr z, cn_done
+            dec hl
+            ld (cn_left), hl
+            ld hl, (cn_ptr)
+            ld a, (hl)
+            inc hl
+            ld (cn_ptr), hl
+            call cn_char
+            jr cn_lp
+cn_done:
+            ld bc, (ntc_rampt)      ; the window's page back
+            out (c), c
+            ld sp, ({hsp})
+            jp cn_end
+
+; the whole page to the screen (it was cleared): every character that isn't a space
+cn_show:
+            ld e, 0
+cn_sh_row:
+            push de
+            ld a, e
+            call cn_rowa            ; HL = row e of the page
+            pop de
+            ld d, 0
+cn_sh_col:
+            ld a, (hl)
+            inc hl
+            cp 33
+            jr c, cn_sh_skip
+            push hl
+            push de
+            call cn_glyph
+            pop de
+            pop hl
+cn_sh_skip:
+            inc d
+            ld a, d
+            cp 80
+            jr c, cn_sh_col
+            inc e
+            ld a, e
+            cp 25
+            jr c, cn_sh_row
+            jr cn_done
+
+; cn_char: A = one character
+cn_char:
+            ld b, a
+            ld a, (#7685)           ; in an escape sequence?
+            or a
+            jr nz, cn_esc0
+            ld a, b
+            cp 32
+            jp nc, cn_print
+            ld hl, cn_pv            ; a control code: the cursor may move (the pointers redone)
+            ld (hl), 0
+            cp 27
+            jr z, cn_setesc
+            cp 13
+            jr z, cn_cr
+            cp 10
+            jp z, cn_nl
+            cp 8
+            ret nz                  ; other control codes: nothing
+            ld a, (#7682)           ; BS: back one (not past the start of the row)
+            or a
+            ret z
+            dec a
+            ld (#7682), a
+            ret
+cn_setesc:
+            ld a, 1
+            ld (#7685), a
+            ret
+cn_cr:
+            xor a
+            ld (#7682), a
+            ret
+cn_esc0:
+            ld hl, cn_pv
+            ld (hl), 0
+cn_esc:
+            cp 1
+            jr nz, cn_esc2
+            xor a                   ; ESC x
+            ld (#7685), a
+            ld a, b
+            cp 'E'
+            jp z, cn_clear
+            cp 'H'
+            jr z, cn_home
+            cp 'Y'
+            ret nz
+            ld a, 2
+            ld (#7685), a
+            ret
+cn_home:
+            xor a
+            ld (#7682), a
+            ld (#7683), a
+            ret
+cn_esc2:
+            cp 2
+            jr nz, cn_esc3
+            ld a, b                 ; ESC Y row
+            sub 32
+            ld (#7686), a
+            ld a, 3
+            ld (#7685), a
+            ret
+cn_esc3:
+            xor a                   ; ESC Y row col
+            ld (#7685), a
+            ld a, b
+            sub 32
+            cp 80
+            jr c, cn_e3_col
+            xor a
+cn_e3_col:
+            ld (#7682), a
+            ld a, (#7686)
+            cp 25
+            jr c, cn_e3_row
+            xor a
+cn_e3_row:
+            ld (#7683), a
+            ret
+
+; a printable character (B): into the page, on the screen if in front, the column on. The page
+; and screen pointers are worked out at the first character after the cursor moved (cn_pv 0),
+; then just stepped on - a run of characters costs the 8 screen bytes each, not a sum each
+cn_print:
+            ld a, (cn_pv)
+            or a
+            jr nz, cn_pr_have
+            ld a, (#7683)
+            call cn_rowa
+            ld a, (#7682)
+            ld e, a
+            ld d, 0
+            add hl, de
+            ld (cn_pp), hl
+            ld a, (cn_front)
+            or a
+            jr z, cn_pr_set
+            ld a, (#7682)
+            ld d, a
+            ld a, (#7683)
+            ld e, a
+            push bc                 ; (B: the character)
+            call cn_scr
+            pop bc
+            ld (cn_sp), hl
+cn_pr_set:
+            ld a, 1
+            ld (cn_pv), a
+cn_pr_have:
+            ld hl, (cn_pp)          ; the page
+            ld (hl), b
+            inc hl
+            ld (cn_pp), hl
+            ld a, (cn_front)
+            or a
+            jr z, cn_pr_adv
+            ld hl, (cn_sp)          ; the screen
+            push hl
+            ld a, b
+            call cn_glyph8
+            pop hl
+            ld a, l                 ; the next column: + 1 within the 2K line block
+            add a, 1
+            ld l, a
+            ld a, h
+            adc a, 0
+            and #07
+            ld c, a
+            ld a, h
+            and #F8
+            or c
+            ld h, a
+            ld (cn_sp), hl
+cn_pr_adv:
+            ld hl, #7682
+            inc (hl)
+            ld a, (hl)
+            cp 80
+            ret c
+            ld (hl), 0              ; past the last column: the next row
+            xor a
+            ld (cn_pv), a
+; a line feed: the next row, or the page (and the screen) scroll
+cn_nl:
+            ld hl, #7683
+            ld a, (hl)
+            inc a
+            cp 25
+            jr nc, cn_scroll
+            ld (hl), a
+            ret
+cn_scroll:
+            ld a, (#7684)           ; the ring's top row moves on (no copy)
+            inc a
+            cp 25
+            jr c, cn_sc_top
+            xor a
+cn_sc_top:
+            ld (#7684), a
+            ld a, 24
+            call cn_rowa            ; the new last row cleared
+            ld b, 80
+cn_sc_cl:
+            ld (hl), ' '
+            inc hl
+            djnz cn_sc_cl
+            ld a, (cn_front)
+            or a
+            ret z
+            ld b, 1                 ; the screen: SCR HW ROLL up, the new line in paper ink 0 -
+            xor a                   ; one firmware call (it was 4 TXT calls: set the cursor, CR,
+            call #BC4D              ; LF and a space, as the firmware scrolls only at a character
+            di                      ; below the last line); firmware calls come back with ei
+            jp cn_loc               ; the screen's start moved
+
+; ESC E: the page cleared, column, row and ring back to 0; the screen too if in front
+cn_clear:
+            ld hl, #7700
+            ld de, #7701
+            ld (hl), ' '
+            ld bc, 25 * 80 - 1
+            ldir
+            xor a
+            ld (#7682), a
+            ld (#7683), a
+            ld (#7684), a
+            ld a, (cn_front)
+            or a
+            ret z
+            call #BB6C              ; TXT CLEAR WINDOW
+            di
+            jp cn_loc
+
+; cn_rowa: A = row 0-24 of the screen -> HL = its row in the page ring (#7700 + ((top + A) mod 25) * 80)
+cn_rowa:
+            ld hl, #7684
+            add a, (hl)
+            cp 25
+            jr c, cn_ra_in
+            sub 25
+cn_ra_in:
+            ld l, a
+            ld h, 0
+            add hl, hl
+            add hl, hl
+            add hl, hl
+            add hl, hl              ; * 16
+            ld d, h
+            ld e, l
+            add hl, hl
+            add hl, hl              ; * 64
+            add hl, de              ; * 80
+            ld de, #7700
+            add hl, de
+            ret
+
+; cn_glyph: A = character, D = column, E = row: drawn (cn_show)
+cn_glyph:
+            push af
+            call cn_scr
+            pop af
+; cn_glyph8: A = character, HL = its screen address: its 8 bytes into screen memory (mode 2, pen
+; 1 on paper 0), one per pixel line (#800 apart; unrolled)
+cn_glyph8:
+            sub 32
+            cp 96
+            jr c, cn_gl_ok
+            ld a, '?' - 32
+cn_gl_ok:
+            push hl
+            ld l, a
+            ld h, 0
+            add hl, hl
+            add hl, hl
+            add hl, hl
+            ld de, {font}
+            add hl, de
+            ex de, hl               ; DE = its matrix
+            pop hl
+            ld a, (de)
+            ld (hl), a
+            inc de
+            ld a, h
+            add a, 8
+            ld h, a
+            ld a, (de)
+            ld (hl), a
+            inc de
+            ld a, h
+            add a, 8
+            ld h, a
+            ld a, (de)
+            ld (hl), a
+            inc de
+            ld a, h
+            add a, 8
+            ld h, a
+            ld a, (de)
+            ld (hl), a
+            inc de
+            ld a, h
+            add a, 8
+            ld h, a
+            ld a, (de)
+            ld (hl), a
+            inc de
+            ld a, h
+            add a, 8
+            ld h, a
+            ld a, (de)
+            ld (hl), a
+            inc de
+            ld a, h
+            add a, 8
+            ld h, a
+            ld a, (de)
+            ld (hl), a
+            inc de
+            ld a, h
+            add a, 8
+            ld h, a
+            ld a, (de)
+            ld (hl), a
+            ret
+; cn_scr: D = column, E = row -> HL = the screen address: the screen's start (cn_off) + row * 80
+; + column, within each 2K line block, at #C000 (it was SCR CHAR POSITION for every character:
+; a firmware call through the jumpblock and the lower ROM)
+cn_scr:
+            ld l, e
+            ld h, 0
+            add hl, hl
+            add hl, hl
+            add hl, hl
+            add hl, hl              ; row * 16
+            push hl
+            add hl, hl
+            add hl, hl              ; * 64
+            pop bc
+            add hl, bc              ; * 80
+            ld c, d
+            ld b, 0
+            add hl, bc
+            ld bc, (cn_off)
+            add hl, bc
+            ld a, h
+            and #07
+            ld b, a
+            ld a, (cn_base)
+            or b
+            ld h, a
+            ret
+; cn_loc: the screen's start (SCR GET LOCATION: A = its base, HL = its offset)
+cn_loc:
+            call #BC0B
+            di
+            ld (cn_base), a
+            ld (cn_off), hl
+            ret
+cn_front:   db 0
+cn_pv:      db 0                    ; cn_pp / cn_sp valid (0: the cursor moved)
+cn_pp:      dw 0                    ; the page byte for the next character
+cn_sp:      dw 0                    ; its screen address
+cn_base:    db #C0
+cn_off:     dw 0
+cn_left:    dw 0
+cn_ptr:     dw 0
+cn_end:
+#endasm
+End Sub
+
+' Say(p, n, col, row): n characters at p (main RAM) straight onto the screen from col, row
+' (0-based) - no slot's page, no cursor (the TOP screen). Why Z80: TOP printed through the
+' firmware (TXT OUTPUT, about 1,000 characters a second) took most of a second to appear.
+Public Sub Say(ByVal p As Integer, ByVal n As Integer, ByVal col As Integer, ByVal row As Integer)
+#asm
+            ld ({hsp}), sp
+            ld sp, (ntc_csp)
+            call #BC0B              ; SCR GET LOCATION: A = the screen's base, HL = its offset
+            di
+            ld (sy_base), a
+            ld (sy_off), hl
             ld hl, ({p})
             ld a, ({n})
             ld b, a
@@ -125,28 +626,23 @@ Public Sub Text(ByVal p As Integer, ByVal n As Integer, ByVal col As Integer, By
             ld d, a
             ld a, ({row})
             ld e, a
-            call hy_text
-            ld sp, ({hsp})
-            jr hy_end
-; hy_text: B characters at HL to the screen from column D, row E (called on the real stack)
-hy_text:
-            ld a, b
-            or a
-            ret z
-hy_tx_lp:
+            inc b
+sy_lp:
+            dec b
+            jr z, sy_done
             ld a, d
             cp 80
-            ret nc
-            push bc
-            push de
+            jr nc, sy_done
             ld a, (hl)
             inc hl
             push hl
-            sub 32
+            push bc
+            push de
+            sub 32                  ; the character's matrix
             cp 96
-            jr c, hy_tx_ok
+            jr c, sy_ok
             ld a, '?' - 32
-hy_tx_ok:
+sy_ok:
             ld l, a
             ld h, 0
             add hl, hl
@@ -154,36 +650,58 @@ hy_tx_ok:
             add hl, hl
             ld bc, {font}
             add hl, bc
-            push hl                 ; the character's matrix
-            ld h, d
-            ld l, e
-            call #BC1A              ; SCR CHAR POSITION: HL = its screen address
-            di                      ; (firmware calls come back with interrupts on: the thread
-                                    ; must not get an interrupt pushed into it)
+            push hl
+            ld l, e                 ; its screen address: start + row * 80 + column, in 2K
+            ld h, 0
+            add hl, hl
+            add hl, hl
+            add hl, hl
+            add hl, hl
+            push hl
+            add hl, hl
+            add hl, hl
+            pop bc
+            add hl, bc
+            ld c, d
+            ld b, 0
+            add hl, bc
+            ld bc, (sy_off)
+            add hl, bc
+            ld a, h
+            and #07
+            ld b, a
+            ld a, (sy_base)
+            or b
+            ld h, a
             pop de
             ld b, 8
-hy_tx_ln:
+sy_ln:
             ld a, (de)
             ld (hl), a
             inc de
             ld a, h
             add a, 8
             ld h, a
-            djnz hy_tx_ln
-            pop hl
+            djnz sy_ln
             pop de
             pop bc
+            pop hl
             inc d
-            djnz hy_tx_lp
-            ret
-hy_end:
+            jr sy_lp
+sy_done:
+            ld sp, ({hsp})
+            jr sy_end
+sy_base:    db #C0
+sy_off:     dw 0
+sy_end:
 #endasm
 End Sub
 
-' Char(c, col, row): one character, as Text
-Public Sub Char(ByVal c As Integer, ByVal col As Integer, ByVal row As Integer)
-  Text VarPtr(c), 1, col, row
+' Show(pg): the slot's whole page on the (cleared) screen
+Public Sub Show(ByVal pg As Integer)
+  Con pg, 0, -1, 1
 End Sub
+
 
 ' Reply a, hl: what the task's BDOS call gives back at the next Run
 Public Sub Reply(ByVal a As Integer, ByVal hl As Integer)
@@ -388,9 +906,9 @@ sb_put:
             ld (hl), e
             cp 127
             jr nc, sb_flush                     ; full
-            ld a, e
-            cp 10
-            jr z, sb_flush                      ; a line end: shown now
+;           ld a, e                             ; (was: a line end shown at once - a trip
+;           cp 10                               ; through the hypervisor's BASIC for every
+;           jr z, sb_flush                      ; line; now at the end of the time slice, 1/50 s)
             ei
             ret
 sb_flush:
