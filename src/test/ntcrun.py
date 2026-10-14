@@ -56,6 +56,16 @@ RSX = ['TAPE', 'DISC', 'A', 'B', 'C', 'M']   # AMSDOS's commands, and an M4-like
 # files for the FileSystem class (cpm: BDOS FCB calls, cpcfw: CAS calls) live in this folder
 FILES = os.environ.get('NTC_FILES', os.path.join(HERE, 't', 'files'))
 
+def cyb_entry(name, length, long_name='', kind=1, what=1, flags=1, load=0x100, exe=0x100):
+    """a CyborgOS FILES.DIR / NAME.HDR entry (64 bytes, bas/cyborgos/Main.bas): kind, the 8 + 3
+    disc name, what (1 a CP/M .COM), flags, length, load, exec, long name, the sum of bytes 0-61"""
+    b, _, x = name.upper().partition('.')
+    e = bytearray(64); e[0] = kind; e[1:12] = (b.ljust(8)[:8] + x.ljust(3)[:3]).encode()
+    e[12] = what; e[13] = flags; e[14:16] = length.to_bytes(2, 'little')
+    e[16:18] = load.to_bytes(2, 'little'); e[18:20] = exe.to_bytes(2, 'little')
+    ln = long_name.encode()[:38]; e[24:24 + len(ln)] = ln
+    e[62:64] = (sum(e[:62]) & 0xFFFF).to_bytes(2, 'little'); return bytes(e)
+
 def amsdos_header(data, load=0, typ=2):
     # the 128 byte header AMSDOS writes for a binary file (as sjasmplus's SAVEAMSDOS does)
     h = bytearray(128); n = len(data)
@@ -176,6 +186,7 @@ class Host:
                 s.fwport = {0xE0 + i: FW[a] for i, a in enumerate(sorted(FW))}
                 m.set_memory_block(0x18, bytes([0xD3, 0xDF, 0xC9]))   # RST 3: a far call (AMSDOS's CAS entries)
                 m.set_memory_block(0xB90C, bytes([0xC9]))   # KL ROM RESTORE: nothing to put back here (no stand-in: 32 ports at most)
+                m.set_memory_block(0xBB54, bytes([0xC9, 0, 0, 0xC9]))   # TXT VDU ENABLE / DISABLE: nothing (this screen shows Print anyway)
         s.ram = cpcrun.RamBanks(m)                          # the gate array's RAM setting (Memory class)
         s.romsel = 0
         s.xroms = load_xroms() if platform == 'cpcfw' else {}
@@ -385,15 +396,17 @@ class Host:
             d = open(p, 'rb').read(); h = amsdos_header_of(d)
             s.cas_pos = 0
             if h is None:
-                # ASCII: CAS IN CHAR reads it, up to a ^Z
-                s.cas_in = None; s.cas_ascii = True; s.cas_chars = d.split(b'\x1a')[0]; m.bc = 0; m.de = 0; m.a = 0x16; return True
+                # ASCII (no header): CAS IN CHAR reads it; each ^Z is a soft end of file and
+                # reading goes on after it, to the end of the last 128 byte record (real AMSDOS,
+                # checked with realcpc); the last record padded with ^Z (as AMSDOS and cpmcp -t do)
+                s.cas_in = None; s.cas_ascii = True; s.cas_chars = d + b'\x1a' * (-len(d) % 128); m.bc = 0; m.de = 0; m.a = 0x16; return True
             s.cas_ascii = False; s.cas_in = d[128:128 + h[1]]; s.cas_chars = s.cas_in; m.bc = h[1]; m.de = h[0]; m.a = 2; return True
         if f == 'cas_in_char':
             c = getattr(s, 'cas_chars', None); p = getattr(s, 'cas_pos', 0)
-            # the end: AMSDOS's soft end of file (#1A) for ASCII, hard (#0F) for binary; a #1A
-            # byte inside a binary file comes as a soft end of file too (and reading goes on)
-            if c is None or p >= len(c): m.a = 0x1A if s.cas_ascii else 0x0F; return False
-            if not s.cas_ascii and c[p] == 0x1A: m.a = 0x1A; s.cas_pos = p + 1; return False
+            # the end: hard (#0F); a #1A byte comes as a soft end of file (A = #1A, no carry) and
+            # reading goes on after it, in a binary or an ASCII file
+            if c is None or p >= len(c): m.a = 0x0F; return False
+            if c[p] == 0x1A: m.a = 0x1A; s.cas_pos = p + 1; return False
             m.a = c[p]; s.cas_pos = p + 1; return True
         if f == 'cas_test_eof':
             c = getattr(s, 'cas_chars', None)

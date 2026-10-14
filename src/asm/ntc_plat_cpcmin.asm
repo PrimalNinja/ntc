@@ -1385,6 +1385,8 @@ fs_open:
 			or a
 			jr nz, fs_op_bad
 			ld a, l
+			cp 4
+			jr z, fs_op_in			; ForReadRaw
 			cp 3
 			ld hl, FS_NOTSUP
 			ret z
@@ -1392,6 +1394,10 @@ fs_open:
 			cp 1
 			jr c, fs_op_bad
 			jr nz, fs_op_out
+fs_op_in:
+			ld (fs_raw), a			; 4: raw (a #1A is data), 1: not
+			ld hl, fs_pend
+			ld (hl), 0
 			call fs_name
 			ld de, fs_buf
 			call #BC77			; CAS IN OPEN
@@ -1461,7 +1467,7 @@ fs_cl_ok:
 fs_readb:
 			ld a, 1
 			call fs_hchk
-			call #BC80			; CAS IN CHAR
+			call fs_inchar
 			ld hl, FS_EOFST
 			ret nc
 			ld l, a
@@ -1479,6 +1485,35 @@ fs_writeb:
 			ld hl, 0
 			ret
 
+; fs_inchar - CAS IN CHAR for ReadByte / Read: in a file opened ForReadRaw a #1A (AMSDOS's
+; soft end of file: no carry, A = #1A) is the byte #1A and reading goes on to the hard end.
+; Carry = a byte in A; no carry = the end (or an error)
+fs_inchar:
+			ld a, (fs_pend)
+			or a
+			jr z, fs_ic_rd
+			xor a
+			ld (fs_pend), a
+			ld a, (fs_pendc)		; the byte Eof read ahead
+			scf
+			ret
+fs_ic_rd:
+			call #BC80			; CAS IN CHAR
+			ret c
+			cp #1A
+			jr nz, fs_ic_end
+			ld a, (fs_raw)
+			cp 4
+			ld a, #1A
+			scf
+			ret z
+fs_ic_end:
+			or a
+			ret
+fs_raw:			db 0			; Open for reading: 4 = ForReadRaw
+fs_pend:		db 0			; 1: Eof read a byte ahead, in fs_pendc
+fs_pendc:		db 0
+
 ; Read(h, addr, count): bytes read (fewer at the end)
 fs_read:
 			ld a, 1
@@ -1495,7 +1530,7 @@ fs_rd_lp:
 			push hl
 			push de
 			push bc
-			call #BC80			; CAS IN CHAR
+			call fs_inchar
 			pop bc
 			pop de
 			pop hl
@@ -1549,9 +1584,14 @@ fs_eof:
 			ld a, (fs_hmode)
 			cp 1
 			jr nz, fs_ef_yes
-			call #BC89			; CAS TEST EOF: carry = more to read
+			call fs_inchar			; a byte read ahead (CAS TEST EOF at a #1A - a soft end
+			ld hl, -1			; of file - loses bytes: the #1A and more)
+			ret nc
+			ld (fs_pendc), a
+			ld a, 1
+			ld (fs_pend), a
 			ld hl, 0
-			ret c
+			ret
 fs_ef_yes:
 			ld hl, -1
 			ret
@@ -1570,7 +1610,7 @@ fs_readln:
 			ld a, 1
 			call fs_hchk
 fs_rl_lp:
-			call #BC80			; CAS IN CHAR
+			call fs_inchar
 			jr nc, fs_rl_end
 			cp 10
 			jr z, fs_rl_end

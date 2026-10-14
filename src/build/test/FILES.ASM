@@ -200,7 +200,7 @@ if6_1:
 
 p_filesystem_load:
 
-			; FileSystem.cls 39: Load = NotSupported
+			; FileSystem.cls 40: Load = NotSupported
 			dw kw_ltov, -1, var_filesystem_load_load
 			dw p_filesystem_load_r
 
@@ -210,7 +210,7 @@ p_filesystem_load:
 
 p_filesystem_save:
 
-			; FileSystem.cls 43: Save = NotSupported
+			; FileSystem.cls 44: Save = NotSupported
 			dw kw_ltov, -1, var_filesystem_save_save
 			dw p_filesystem_save_r
 
@@ -220,7 +220,7 @@ p_filesystem_save:
 
 p_filesystem_open:
 
-			; FileSystem.cls 63: Open = NotSupported
+			; FileSystem.cls 64: Open = NotSupported
 			dw kw_ltov, -1, var_filesystem_open_open
 			dw p_filesystem_open_r
 
@@ -230,7 +230,7 @@ p_filesystem_open:
 
 p_filesystem_close:
 
-			; FileSystem.cls 67: Close = NotSupported
+			; FileSystem.cls 68: Close = NotSupported
 			dw kw_ltov, -1, var_filesystem_close_close
 			dw p_filesystem_close_r
 
@@ -240,7 +240,7 @@ p_filesystem_close:
 
 p_filesystem_eof:
 
-			; FileSystem.cls 91: Eof = -1
+			; FileSystem.cls 92: Eof = -1
 			dw kw_ltov, -1, var_filesystem_eof_eof
 			dw p_filesystem_eof_r
 
@@ -250,7 +250,7 @@ p_filesystem_eof:
 
 p_filesystem_readline:
 
-			; FileSystem.cls 95: ReadLine = ""
+			; FileSystem.cls 96: ReadLine = ""
 			dw kw_strcpy, var_filesystem_readline_readline, str29
 			dw p_filesystem_readline_r
 
@@ -260,7 +260,7 @@ p_filesystem_readline:
 
 p_filesystem_writeline:
 
-			; FileSystem.cls 99: WriteLine = NotSupported
+			; FileSystem.cls 100: WriteLine = NotSupported
 			dw kw_ltov, -1, var_filesystem_writeline_writeline
 			dw p_filesystem_writeline_r
 
@@ -270,7 +270,7 @@ p_filesystem_writeline:
 
 p_filesystem_devices:
 
-			; FileSystem.cls 102: Devices = ""
+			; FileSystem.cls 103: Devices = ""
 			dw kw_strcpy, var_filesystem_devices_devices, str29
 			dw p_filesystem_devices_r
 
@@ -280,7 +280,7 @@ p_filesystem_devices:
 
 p_filesystem_currentdevice:
 
-			; FileSystem.cls 105: CurrentDevice = ""
+			; FileSystem.cls 106: CurrentDevice = ""
 			dw kw_strcpy, var_filesystem_currentdevice_currentdevice, str29
 			dw p_filesystem_currentdevice_r
 
@@ -290,7 +290,7 @@ p_filesystem_currentdevice:
 
 p_filesystem_volumes:
 
-			; FileSystem.cls 111: Volumes = ""
+			; FileSystem.cls 112: Volumes = ""
 			dw kw_strcpy, var_filesystem_volumes_volumes, str29
 			dw p_filesystem_volumes_r
 
@@ -300,7 +300,7 @@ p_filesystem_volumes:
 
 p_filesystem_currentvolume:
 
-			; FileSystem.cls 114: CurrentVolume = ""
+			; FileSystem.cls 115: CurrentVolume = ""
 			dw kw_strcpy, var_filesystem_currentvolume_currentvolume, str29
 			dw p_filesystem_currentvolume_r
 
@@ -523,12 +523,12 @@ p_filesystem_currentvolume_r:		; end of currentvolume
 ; Inline assembly (#asm ... #endasm)
 ; ============================================================
 
-fn_filesystem_capability:		; function capability (asm keyword), FileSystem.cls line 29
-            pop hl		; FileSystem.cls 30
-            pop de		; FileSystem.cls 31
-            ld bc, fn_filesystem_capability_caps		; FileSystem.cls 32
-            jp ntc_capfind		; FileSystem.cls 33
-fn_filesystem_capability_caps:       db 0		; FileSystem.cls 34
+fn_filesystem_capability:		; function capability (asm keyword), FileSystem.cls line 30
+            pop hl		; FileSystem.cls 31
+            pop de		; FileSystem.cls 32
+            ld bc, fn_filesystem_capability_caps		; FileSystem.cls 33
+            jp ntc_capfind		; FileSystem.cls 34
+fn_filesystem_capability_caps:       db 0		; FileSystem.cls 35
 			ret			; end of #asm
 
 

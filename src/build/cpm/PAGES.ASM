@@ -2998,6 +2998,11 @@ fs_op_got:
 			or a
 			jr nz, fs_op_bad
 			ld a, e
+			cp 4				; ForReadRaw: ForRead (CP/M reads every record anyway)
+			jr nz, fs_op_m
+			ld a, 1
+			ld (fs_a2), a
+fs_op_m:
 			cp 1
 			jr z, fs_op_rd
 			cp 2
@@ -3710,4 +3715,4 @@ ovl_ending_vsize	equ 0		; its page variables; its local memory is the rest, to #
 			DISPLAY "  page variables ", /D, ovl_ending_vsize, ", free ", /D, #8000 - (ovl_ending_end + ovl_ending_vsize)
 			OUTEND
 
-NTC_STAMP	equ #14B1		; the build stamp: the first word of every page file
+NTC_STAMP	equ #A5B0		; the build stamp: the first word of every page file

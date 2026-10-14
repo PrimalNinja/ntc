@@ -10,7 +10,7 @@ NTC_MEMBANKS	equ 64			; the Memory class: up to 4MB
 NTC_WINHOLE	equ 0			; (a program built round the window has its library in RAM)
 NTC_ROM_N	equ 350			; numbers in the index
 NTC_ROM_COUNT	equ 1			; ROMs in the set (NTCFW.ROM)
-NTC_ROM_SET	equ #D708		; the set's stamp (its ROMs find each other by it)
+NTC_ROM_SET	equ #51AA		; the set's stamp (its ROMs find each other by it)
 MEM_WIN		equ #4000
 MEM_BADPAGE	equ -2
 MEM_BANKS	equ NTC_MEMBANKS	; 0 - 64
@@ -9162,6 +9162,8 @@ fs_open:
 			or a
 			jr nz, fs_op_bad
 			ld a, l
+			cp 4
+			jr z, fs_op_in			; ForReadRaw
 			cp 3
 			ld hl, FS_NOTSUP
 			ret z
@@ -9169,6 +9171,10 @@ fs_open:
 			cp 1
 			jr c, fs_op_bad
 			jr nz, fs_op_out
+fs_op_in:
+			ld (fs_raw), a			; 4: raw (a #1A is data), 1: not
+			ld hl, fs_pend
+			ld (hl), 0
 			call fs_name
 			ld de, fs_buf
 			call #BC77			; CAS IN OPEN
@@ -9248,10 +9254,24 @@ fs_writeb:
 			ld hl, 0
 			ret
 fs_inchar:
+			ld a, (fs_pend)
+			or a
+			jr z, fs_ic_rd
+			xor a
+			ld (fs_pend), a
+			ld a, (fs_pendc)		; the byte Eof read ahead
+			scf
+			ret
+fs_ic_rd:
 			call #BC80			; CAS IN CHAR
 			ret c
 			cp #1A
 			jr nz, fs_ic_end
+			ld a, (fs_raw)
+			cp 4
+			ld a, #1A
+			scf
+			ret z				; raw: the byte #1A
 			ld a, (fs_ftype)
 			and #0E
 			cp 2
@@ -9326,9 +9346,14 @@ fs_eof:
 			ld a, (fs_hmode)
 			cp 1
 			jr nz, fs_ef_yes
-			call #BC89			; CAS TEST EOF: carry = more to read
+			call fs_inchar			; a byte read ahead (CAS TEST EOF at a #1A - a soft end
+			ld hl, -1			; of file - loses bytes: the #1A and more)
+			ret nc
+			ld (fs_pendc), a
+			ld a, 1
+			ld (fs_pend), a
 			ld hl, 0
-			ret c
+			ret
 fs_ef_yes:
 			ld hl, -1
 			ret
@@ -9345,7 +9370,7 @@ fs_readln:
 			ld a, 1
 			call fs_hchk
 fs_rl_lp:
-			call #BC80			; CAS IN CHAR
+			call fs_inchar
 			jr nc, fs_rl_end
 			cp 10
 			jr z, fs_rl_end
@@ -9610,6 +9635,9 @@ fs_n_a1:		db "A", 0
 fs_ptr:			dw 0
 fs_cnt:			db 0
 fs_cap:			db 0
+fs_raw:			db 0			; Open for reading: 4 = ForReadRaw
+fs_pend:		db 0			; 1: Eof read a byte ahead, in fs_pendc
+fs_pendc:		db 0
 fs_ftype:		db 0			; Open for reading: the file's type (CAS IN OPEN's A: 2 binary, #16 ASCII)
 ntc_rx_cur:	dw 0			; the ROM of the set selected now (C = its slot, B = #DF)
 ntc_rx_bc:	dw 0			; a far call: BC kept here

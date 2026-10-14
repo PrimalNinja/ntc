@@ -7639,6 +7639,16 @@ function ntcCompile(input_a, objOptions_a)
 		return strResult;
 	}
 
+	// Option NoRomDisc: read before parsing - the platform's FileSystem class leaves out the
+	// ROMDISC (volume R) routing through #If NTC_NOROMDISC, and so its code (about 1.1K)
+	function findNoRomDisc(arrFiles_a)
+	{
+		return arrFiles_a.some(function(objFile_a)
+		{
+			return /^[ \t]*option[ \t]+noromdisc\b/im.test(String(objFile_a.text));
+		});
+	}
+
 	// Option Memory: the Memory class's scheme (decided before parsing: it sets
 	// NTC_MEM_SMALL / NTC_MEM_CPCEXPANSION). Default: the CPC expansion RAM on the
 	// CPC platforms, Small (main RAM only) elsewhere
@@ -8599,6 +8609,14 @@ function ntcCompile(input_a, objOptions_a)
 	objDefinesIn = { ntc: -1 };
 	objDefinesIn['ntc_' + String(objOptions.platform).toLowerCase()] = -1;	// #If NTC_CPM Then ...
 	strTerminal = findTerminal(arrFiles);
+	if (objOptions.library === 'rom')
+	{
+		objDefinesIn.ntc_library_rom = -1;		// #If NTC_LIBRARY_ROM Then ... (built for the keyword library ROM)
+	}
+	if (findNoRomDisc(arrFiles))
+	{
+		objDefinesIn.ntc_noromdisc = -1;		// Option NoRomDisc: FileSystem goes straight to the disc (no volume R code)
+	}
 	objDefinesIn['ntc_mem_' + objMemory.scheme] = -1;		// #If NTC_MEM_SMALL Then ... (and @if: library sections)
 	if (strTerminal !== 'none')
 	{
@@ -8644,6 +8662,10 @@ function ntcCompile(input_a, objOptions_a)
 			else if (objRec.what === 'normal')
 			{
 				strStartMode = 'n';
+			}
+			else if (objRec.what === 'noromdisc')
+			{
+				// read before parsing (findNoRomDisc)
 			}
 			else if (objRec.what === 'noturbo')
 			{

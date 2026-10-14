@@ -15,8 +15,15 @@ from the design below:
   `ld sp, (#0042) : ret`). A bank has `out (c), c` at #0044 and its own `jp` at #0046.
 - The task entry is a CP/M BDOS at #0005 (decided: programs built for the cpm platform run
   unchanged). Handled now: 0 (end), 1, 2, 6, 9, 11, 12 (gives 2.2), 25; files not yet (255).
-- Programs are `.CYB` files: a cpm build with an AMSDOS header (AMSDOS reads a headerless file
-  as ASCII text, to the first #1A). `RUN name` loads name.CYB at #0100 of the slot's bank.
+- Programs are `.CYB` files: a cpm build with an AMSDOS header. `RUN name` loads name.CYB at
+  #0100 of the slot's bank. A plain `.COM` (no header) runs when FILES.DIR or NAME.HDR has an
+  entry for it (64 bytes: its disc name, length, long name ...; `ADD NAME.COM [LONGNAME]` makes
+  one) - the length AMSDOS can't give, and the say-so that it runs. Read with
+  `FileSystem.ForReadRaw` (each #1A is AMSDOS's "soft" end of file, and reading goes on to the
+  last record: checked on the real ROMs). The entry routines are Z80 in Hyp.cls (EntSet, EntIs,
+  EntMake, EntAt, EntDisc): in BASIC they made CyborgOS 3K bigger. Until the disc's own
+  directory is read (record counts, random access), then for long names and virtual
+  directories.
 - Scheduling is from the hypervisor's main loop: a program runs for a time slice of 6
   interrupts (1/50 s; the interrupts inside a slice are handled in Hyp.Run's code, with no trip
   through BASIC) or until a BDOS call that needs the hypervisor. NTC's safe points let
@@ -52,8 +59,12 @@ from the design below:
   and goes on at #8800 (after `Option Buffer &H8000`'s 2K); the Memory class's tables follow
   it (Option Memory CPCExpansion 193: 48 banks at most - 16 slots and 32 banks over; all 64 of
   4MB no longer fit as the hypervisor grew; it gave 5 when the tables had to fit below #4000).
-- `.COM` files directly: not yet - AMSDOS's end of file at a #1A in a headerless file stays
-  (checked on the real ROMs), so they need sector reading (with the file system).
+- Room: `Option NoRomDisc` (FileSystem without volume R, 1.1K less) and the program names in
+  each bank (#F6D8) made room for the .COM entries; the Library: ROM build ends about 100
+  bytes below #8800. AMSDOS's own messages ("NAME.CYB not found" when RUN looks) are kept off
+  the console with TXT VDU DISABLE (Hyp.Vdu 0; on again for the last Print). Firmware
+  jumpblock calls only - nothing in a ROM's own RAM (every CPC model's ROMs differ): so a disc
+  error's "Retry, Ignore or Cancel?" is asked unseen and waits for a key (R / I / C).
 
 ## 1. The pieces
 

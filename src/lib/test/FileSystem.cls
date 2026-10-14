@@ -17,12 +17,13 @@ Public Const EndOfFile = -7
 Public Const TooBig = -8          ' Load: the file holds more than maxlen
 Public Const Failed = -9
 Public Const AlreadyExists = -10  ' Rename: the new name is taken
-Public Const BadMode = -11        ' Open: mode not 1-3; writing to a file open for reading
+Public Const BadMode = -11        ' Open: mode not 1-4; writing to a file open for reading
 
 ' ---- Open modes
 Public Const ForRead = 1          ' the file must be there
 Public Const ForWrite = 2         ' a new file (an old one of that name is deleted)
 Public Const ForUpdate = 3        ' read and write, Seek anywhere (made if not there)
+Public Const ForReadRaw = 4       ' ForRead, every byte to the end of the file: a #1A is data (a file with no header)
 
 ' Capability("NAME"): the value, or 0 when this platform hasn't got it
 Public Function Capability(ByVal name As String) As Integer

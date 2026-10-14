@@ -226,163 +226,163 @@ do7_t_go:			ld sp, do7_t
 ; Inline assembly (#asm ... #endasm)
 ; ============================================================
 
-fn_filesystem_capability:		; function capability (asm keyword), FileSystem.cls line 39
-            pop hl		; FileSystem.cls 40
-            pop de		; FileSystem.cls 41
-            ld bc, fn_filesystem_capability_caps		; FileSystem.cls 42
-            jp ntc_capfind		; FileSystem.cls 43
-fn_filesystem_capability_caps:       db "LOAD", 0		; FileSystem.cls 44
-            dw -1		; FileSystem.cls 45
-            db "SAVE", 0		; FileSystem.cls 46
-            dw -1		; FileSystem.cls 47
-            db "SEQUENTIAL", 0		; FileSystem.cls 48
-            dw -1		; FileSystem.cls 49
-            db "DEVICES", 0		; FileSystem.cls 50
-            dw -1		; FileSystem.cls 51
-            db "VOLUMES", 0		; FileSystem.cls 52
-            dw -1		; FileSystem.cls 53
-            db "ROMDISC", 0		; FileSystem.cls 54
-            dw -1		; FileSystem.cls 55
-            db "MAXOPEN", 0		; FileSystem.cls 56
-            dw 1		; FileSystem.cls 57
-            db 0		; FileSystem.cls 58
+fn_filesystem_capability:		; function capability (asm keyword), FileSystem.cls line 63
+            pop hl		; FileSystem.cls 64
+            pop de		; FileSystem.cls 65
+            ld bc, fn_filesystem_capability_caps		; FileSystem.cls 66
+            jp ntc_capfind		; FileSystem.cls 67
+fn_filesystem_capability_caps:       db "LOAD", 0		; FileSystem.cls 68
+            dw -1		; FileSystem.cls 69
+            db "SAVE", 0		; FileSystem.cls 70
+            dw -1		; FileSystem.cls 71
+            db "SEQUENTIAL", 0		; FileSystem.cls 72
+            dw -1		; FileSystem.cls 73
+            db "DEVICES", 0		; FileSystem.cls 74
+            dw -1		; FileSystem.cls 75
+            db "VOLUMES", 0		; FileSystem.cls 76
+            dw -1		; FileSystem.cls 77
+            db "ROMDISC", 0		; FileSystem.cls 78
+            dw -1		; FileSystem.cls 79
+            db "MAXOPEN", 0		; FileSystem.cls 80
+            dw 1		; FileSystem.cls 81
+            db 0		; FileSystem.cls 82
 			ret			; end of #asm
 
-fn_filesystem_load:		; function load (asm keyword), FileSystem.cls line 65
-            pop hl		; FileSystem.cls 66
-            ld (fs_a1), hl		; FileSystem.cls 67
-            pop hl		; FileSystem.cls 68
-            ld e, (hl)		; FileSystem.cls 69
-            inc hl		; FileSystem.cls 70
-            ld d, (hl)		; FileSystem.cls 71
-            ld (fs_a2), de		; FileSystem.cls 72
-            pop hl		; FileSystem.cls 73
-            ld e, (hl)		; FileSystem.cls 74
-            inc hl		; FileSystem.cls 75
-            ld d, (hl)		; FileSystem.cls 76
-            ld (fs_a3), de		; FileSystem.cls 77
-            pop hl		; FileSystem.cls 78
-            ld (fs_res), hl		; FileSystem.cls 79
-            ld hl, fs_load		; FileSystem.cls 80
-            ld de, rd_load		; FileSystem.cls 81
-            jp rd_route		; FileSystem.cls 82
+fn_filesystem_load:		; function load (asm keyword), FileSystem.cls line 110
+            pop hl		; FileSystem.cls 111
+            ld (fs_a1), hl		; FileSystem.cls 112
+            pop hl		; FileSystem.cls 113
+            ld e, (hl)		; FileSystem.cls 114
+            inc hl		; FileSystem.cls 115
+            ld d, (hl)		; FileSystem.cls 116
+            ld (fs_a2), de		; FileSystem.cls 117
+            pop hl		; FileSystem.cls 118
+            ld e, (hl)		; FileSystem.cls 119
+            inc hl		; FileSystem.cls 120
+            ld d, (hl)		; FileSystem.cls 121
+            ld (fs_a3), de		; FileSystem.cls 122
+            pop hl		; FileSystem.cls 123
+            ld (fs_res), hl		; FileSystem.cls 124
+            ld hl, fs_load		; FileSystem.cls 125
+            ld de, rd_load		; FileSystem.cls 126
+            jp rd_route		; FileSystem.cls 127
 			ret			; end of #asm
 
-fn_filesystem_save:		; function save (asm keyword), FileSystem.cls line 88
-            pop hl		; FileSystem.cls 89
-            ld (fs_a1), hl		; FileSystem.cls 90
-            pop hl		; FileSystem.cls 91
-            ld e, (hl)		; FileSystem.cls 92
-            inc hl		; FileSystem.cls 93
-            ld d, (hl)		; FileSystem.cls 94
-            ld (fs_a2), de		; FileSystem.cls 95
-            pop hl		; FileSystem.cls 96
-            ld e, (hl)		; FileSystem.cls 97
-            inc hl		; FileSystem.cls 98
-            ld d, (hl)		; FileSystem.cls 99
-            ld (fs_a3), de		; FileSystem.cls 100
-            pop hl		; FileSystem.cls 101
-            ld (fs_res), hl		; FileSystem.cls 102
-            ld hl, fs_save		; FileSystem.cls 103
-            ld de, rd_ns		; FileSystem.cls 104
-            jp rd_route		; FileSystem.cls 105
-			ret			; end of #asm
-
-fn_filesystem_open:		; function open (asm keyword), FileSystem.cls line 149
-            pop hl		; FileSystem.cls 150
-            ld (fs_a1), hl		; FileSystem.cls 151
-            pop hl		; FileSystem.cls 152
-            ld e, (hl)		; FileSystem.cls 153
-            inc hl		; FileSystem.cls 154
-            ld d, (hl)		; FileSystem.cls 155
-            ld (fs_a2), de		; FileSystem.cls 156
+fn_filesystem_save:		; function save (asm keyword), FileSystem.cls line 154
+            pop hl		; FileSystem.cls 155
+            ld (fs_a1), hl		; FileSystem.cls 156
             pop hl		; FileSystem.cls 157
-            ld (fs_res), hl		; FileSystem.cls 158
-            ld hl, fs_open		; FileSystem.cls 159
-            ld de, rd_open		; FileSystem.cls 160
-            jp rd_route		; FileSystem.cls 161
-			ret			; end of #asm
-
-fn_filesystem_close:		; function close (asm keyword), FileSystem.cls line 166
+            ld e, (hl)		; FileSystem.cls 158
+            inc hl		; FileSystem.cls 159
+            ld d, (hl)		; FileSystem.cls 160
+            ld (fs_a2), de		; FileSystem.cls 161
+            pop hl		; FileSystem.cls 162
+            ld e, (hl)		; FileSystem.cls 163
+            inc hl		; FileSystem.cls 164
+            ld d, (hl)		; FileSystem.cls 165
+            ld (fs_a3), de		; FileSystem.cls 166
             pop hl		; FileSystem.cls 167
-            ld e, (hl)		; FileSystem.cls 168
-            inc hl		; FileSystem.cls 169
-            ld d, (hl)		; FileSystem.cls 170
-            ld (fs_a1), de		; FileSystem.cls 171
-            pop hl		; FileSystem.cls 172
-            ld (fs_res), hl		; FileSystem.cls 173
-            ld hl, fs_closeh		; FileSystem.cls 174
-            ld de, rd_close		; FileSystem.cls 175
-            jp rd_routeh		; FileSystem.cls 176
+            ld (fs_res), hl		; FileSystem.cls 168
+            ld hl, fs_save		; FileSystem.cls 169
+            ld de, rd_ns		; FileSystem.cls 170
+            jp rd_route		; FileSystem.cls 171
 			ret			; end of #asm
 
-fn_filesystem_eof:		; function eof (asm keyword), FileSystem.cls line 274
-            pop hl		; FileSystem.cls 275
-            ld e, (hl)		; FileSystem.cls 276
-            inc hl		; FileSystem.cls 277
-            ld d, (hl)		; FileSystem.cls 278
-            ld (fs_a1), de		; FileSystem.cls 279
-            pop hl		; FileSystem.cls 280
-            ld (fs_res), hl		; FileSystem.cls 281
-            ld hl, fs_eof		; FileSystem.cls 282
-            ld de, rd_eof		; FileSystem.cls 283
-            jp rd_routeh		; FileSystem.cls 284
+fn_filesystem_open:		; function open (asm keyword), FileSystem.cls line 239
+            pop hl		; FileSystem.cls 240
+            ld (fs_a1), hl		; FileSystem.cls 241
+            pop hl		; FileSystem.cls 242
+            ld e, (hl)		; FileSystem.cls 243
+            inc hl		; FileSystem.cls 244
+            ld d, (hl)		; FileSystem.cls 245
+            ld (fs_a2), de		; FileSystem.cls 246
+            pop hl		; FileSystem.cls 247
+            ld (fs_res), hl		; FileSystem.cls 248
+            ld hl, fs_open		; FileSystem.cls 249
+            ld de, rd_open		; FileSystem.cls 250
+            jp rd_route		; FileSystem.cls 251
 			ret			; end of #asm
 
-fn_filesystem_readline:		; function readline (asm keyword), FileSystem.cls line 290
-            pop hl		; FileSystem.cls 291
-            ld e, (hl)		; FileSystem.cls 292
-            inc hl		; FileSystem.cls 293
-            ld d, (hl)		; FileSystem.cls 294
-            ld (fs_a1), de		; FileSystem.cls 295
-            pop hl		; FileSystem.cls 296
-            ld (fs_res), hl		; FileSystem.cls 297
-            ld hl, fs_readln		; FileSystem.cls 298
-            ld de, rd_readln		; FileSystem.cls 299
-            jp rd_routeh0		; FileSystem.cls 300
+fn_filesystem_close:		; function close (asm keyword), FileSystem.cls line 270
+            pop hl		; FileSystem.cls 271
+            ld e, (hl)		; FileSystem.cls 272
+            inc hl		; FileSystem.cls 273
+            ld d, (hl)		; FileSystem.cls 274
+            ld (fs_a1), de		; FileSystem.cls 275
+            pop hl		; FileSystem.cls 276
+            ld (fs_res), hl		; FileSystem.cls 277
+            ld hl, fs_closeh		; FileSystem.cls 278
+            ld de, rd_close		; FileSystem.cls 279
+            jp rd_routeh		; FileSystem.cls 280
 			ret			; end of #asm
 
-fn_filesystem_writeline:		; function writeline (asm keyword), FileSystem.cls line 306
-            pop hl		; FileSystem.cls 307
-            ld e, (hl)		; FileSystem.cls 308
-            inc hl		; FileSystem.cls 309
-            ld d, (hl)		; FileSystem.cls 310
-            ld (fs_a1), de		; FileSystem.cls 311
-            pop hl		; FileSystem.cls 312
-            ld (fs_a2), hl		; FileSystem.cls 313
-            pop hl		; FileSystem.cls 314
-            ld (fs_res), hl		; FileSystem.cls 315
-            ld hl, fs_writeln		; FileSystem.cls 316
-            ld de, rd_ns		; FileSystem.cls 317
-            jp rd_routeh		; FileSystem.cls 318
+fn_filesystem_eof:		; function eof (asm keyword), FileSystem.cls line 473
+            pop hl		; FileSystem.cls 474
+            ld e, (hl)		; FileSystem.cls 475
+            inc hl		; FileSystem.cls 476
+            ld d, (hl)		; FileSystem.cls 477
+            ld (fs_a1), de		; FileSystem.cls 478
+            pop hl		; FileSystem.cls 479
+            ld (fs_res), hl		; FileSystem.cls 480
+            ld hl, fs_eof		; FileSystem.cls 481
+            ld de, rd_eof		; FileSystem.cls 482
+            jp rd_routeh		; FileSystem.cls 483
 			ret			; end of #asm
 
-fn_filesystem_devices:		; function devices (asm keyword), FileSystem.cls line 326
-            pop hl		; FileSystem.cls 327
-            ld (fs_res), hl		; FileSystem.cls 328
-            ld hl, fs_devices		; FileSystem.cls 329
-            jp fs_go0		; FileSystem.cls 330
+fn_filesystem_readline:		; function readline (asm keyword), FileSystem.cls line 503
+            pop hl		; FileSystem.cls 504
+            ld e, (hl)		; FileSystem.cls 505
+            inc hl		; FileSystem.cls 506
+            ld d, (hl)		; FileSystem.cls 507
+            ld (fs_a1), de		; FileSystem.cls 508
+            pop hl		; FileSystem.cls 509
+            ld (fs_res), hl		; FileSystem.cls 510
+            ld hl, fs_readln		; FileSystem.cls 511
+            ld de, rd_readln		; FileSystem.cls 512
+            jp rd_routeh0		; FileSystem.cls 513
 			ret			; end of #asm
 
-fn_filesystem_currentdevice:		; function currentdevice (asm keyword), FileSystem.cls line 336
-            pop hl		; FileSystem.cls 337
-            ld (fs_res), hl		; FileSystem.cls 338
-            ld hl, fs_curdev		; FileSystem.cls 339
-            jp fs_go0		; FileSystem.cls 340
+fn_filesystem_writeline:		; function writeline (asm keyword), FileSystem.cls line 535
+            pop hl		; FileSystem.cls 536
+            ld e, (hl)		; FileSystem.cls 537
+            inc hl		; FileSystem.cls 538
+            ld d, (hl)		; FileSystem.cls 539
+            ld (fs_a1), de		; FileSystem.cls 540
+            pop hl		; FileSystem.cls 541
+            ld (fs_a2), hl		; FileSystem.cls 542
+            pop hl		; FileSystem.cls 543
+            ld (fs_res), hl		; FileSystem.cls 544
+            ld hl, fs_writeln		; FileSystem.cls 545
+            ld de, rd_ns		; FileSystem.cls 546
+            jp rd_routeh		; FileSystem.cls 547
 			ret			; end of #asm
 
-fn_filesystem_volumes:		; function volumes (asm keyword), FileSystem.cls line 359
-            pop hl		; FileSystem.cls 360
-            ld (fs_res), hl		; FileSystem.cls 361
-            ld hl, fs_volumes		; FileSystem.cls 362
-            jp fs_go0		; FileSystem.cls 363
+fn_filesystem_devices:		; function devices (asm keyword), FileSystem.cls line 556
+            pop hl		; FileSystem.cls 557
+            ld (fs_res), hl		; FileSystem.cls 558
+            ld hl, fs_devices		; FileSystem.cls 559
+            jp fs_go0		; FileSystem.cls 560
 			ret			; end of #asm
 
-fn_filesystem_currentvolume:		; function currentvolume (asm keyword), FileSystem.cls line 369
-            pop hl		; FileSystem.cls 370
-            ld (fs_res), hl		; FileSystem.cls 371
-            ld hl, fs_curvol		; FileSystem.cls 372
-            jp fs_go0		; FileSystem.cls 373
+fn_filesystem_currentdevice:		; function currentdevice (asm keyword), FileSystem.cls line 566
+            pop hl		; FileSystem.cls 567
+            ld (fs_res), hl		; FileSystem.cls 568
+            ld hl, fs_curdev		; FileSystem.cls 569
+            jp fs_go0		; FileSystem.cls 570
+			ret			; end of #asm
+
+fn_filesystem_volumes:		; function volumes (asm keyword), FileSystem.cls line 589
+            pop hl		; FileSystem.cls 590
+            ld (fs_res), hl		; FileSystem.cls 591
+            ld hl, fs_volumes		; FileSystem.cls 592
+            jp fs_go0		; FileSystem.cls 593
+			ret			; end of #asm
+
+fn_filesystem_currentvolume:		; function currentvolume (asm keyword), FileSystem.cls line 599
+            pop hl		; FileSystem.cls 600
+            ld (fs_res), hl		; FileSystem.cls 601
+            ld hl, fs_curvol		; FileSystem.cls 602
+            jp fs_go0		; FileSystem.cls 603
 			ret			; end of #asm
 
 
@@ -1374,6 +1374,11 @@ rd_open:
 			ld hl, RD_NOHANDLE
 			ret nz
 			ld hl, (rd_a2)
+			ld a, l
+			cp 4				; ForReadRaw: the same (a ROMDISC file is read to its length)
+			jr nz, rd_op_m
+			ld l, 1
+rd_op_m:
 			dec hl
 			ld a, h
 			or l
@@ -2462,6 +2467,8 @@ fs_open:
 			or a
 			jr nz, fs_op_bad
 			ld a, l
+			cp 4
+			jr z, fs_op_in			; ForReadRaw
 			cp 3
 			ld hl, FS_NOTSUP
 			ret z
@@ -2469,6 +2476,10 @@ fs_open:
 			cp 1
 			jr c, fs_op_bad
 			jr nz, fs_op_out
+fs_op_in:
+			ld (fs_raw), a			; 4: raw (a #1A is data), 1: not
+			ld hl, fs_pend
+			ld (hl), 0
 			call fs_name
 			ld de, fs_buf
 			call #BC77			; CAS IN OPEN
@@ -2559,12 +2570,28 @@ fs_writeb:
 
 ; fs_inchar - CAS IN CHAR for ReadByte / Read: in a binary file AMSDOS still reports a #1A
 ; byte as the soft end of file (no carry, A = #1A) and goes on after it: that is the byte
-; #1A. Carry = a byte in A; no carry = the end (or an error)
+; #1A. The same in any file opened ForReadRaw (a file with no header: AMSDOS calls it ASCII
+; text, but the real end is the hard one, #0F, after the last record). Carry = a byte in A;
+; no carry = the end (or an error)
 fs_inchar:
+			ld a, (fs_pend)
+			or a
+			jr z, fs_ic_rd
+			xor a
+			ld (fs_pend), a
+			ld a, (fs_pendc)		; the byte Eof read ahead
+			scf
+			ret
+fs_ic_rd:
 			call #BC80			; CAS IN CHAR
 			ret c
 			cp #1A
 			jr nz, fs_ic_end
+			ld a, (fs_raw)
+			cp 4
+			ld a, #1A
+			scf
+			ret z				; raw: the byte #1A
 			ld a, (fs_ftype)
 			and #0E
 			cp 2
@@ -2574,6 +2601,9 @@ fs_inchar:
 fs_ic_end:
 			or a
 			ret
+fs_raw:			db 0			; Open for reading: 4 = ForReadRaw
+fs_pend:		db 0			; 1: Eof read a byte ahead, in fs_pendc
+fs_pendc:		db 0
 fs_ftype:		db 0			; Open for reading: the file's type (CAS IN OPEN's A: 2 binary, #16 ASCII)
 
 ; Read(h, addr, count): bytes read (fewer at the end)
@@ -2646,9 +2676,14 @@ fs_eof:
 			ld a, (fs_hmode)
 			cp 1
 			jr nz, fs_ef_yes
-			call #BC89			; CAS TEST EOF: carry = more to read
+			call fs_inchar			; a byte read ahead (CAS TEST EOF at a #1A - a soft end
+			ld hl, -1			; of file - loses bytes: the #1A and more)
+			ret nc
+			ld (fs_pendc), a
+			ld a, 1
+			ld (fs_pend), a
 			ld hl, 0
-			ret c
+			ret
 fs_ef_yes:
 			ld hl, -1
 			ret
@@ -2667,7 +2702,7 @@ fs_readln:
 			ld a, 1
 			call fs_hchk
 fs_rl_lp:
-			call #BC80			; CAS IN CHAR
+			call fs_inchar
 			jr nc, fs_rl_end
 			cp 10
 			jr z, fs_rl_end

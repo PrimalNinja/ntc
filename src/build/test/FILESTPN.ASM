@@ -159,7 +159,7 @@ do3_e:
 
 p_filesystem_load:
 
-			; FileSystem.cls 39: Load = NotSupported
+			; FileSystem.cls 40: Load = NotSupported
 			dw kw_ltov, -1, var_filesystem_load_load
 			dw p_filesystem_load_r
 
@@ -169,7 +169,7 @@ p_filesystem_load:
 
 p_filesystem_save:
 
-			; FileSystem.cls 43: Save = NotSupported
+			; FileSystem.cls 44: Save = NotSupported
 			dw kw_ltov, -1, var_filesystem_save_save
 			dw p_filesystem_save_r
 
@@ -179,7 +179,7 @@ p_filesystem_save:
 
 p_filesystem_devices:
 
-			; FileSystem.cls 102: Devices = ""
+			; FileSystem.cls 103: Devices = ""
 			dw kw_strcpy, var_filesystem_devices_devices, str18
 			dw p_filesystem_devices_r
 
@@ -189,7 +189,7 @@ p_filesystem_devices:
 
 p_filesystem_currentdevice:
 
-			; FileSystem.cls 105: CurrentDevice = ""
+			; FileSystem.cls 106: CurrentDevice = ""
 			dw kw_strcpy, var_filesystem_currentdevice_currentdevice, str18
 			dw p_filesystem_currentdevice_r
 
@@ -199,7 +199,7 @@ p_filesystem_currentdevice:
 
 p_filesystem_currentvolume:
 
-			; FileSystem.cls 114: CurrentVolume = ""
+			; FileSystem.cls 115: CurrentVolume = ""
 			dw kw_strcpy, var_filesystem_currentvolume_currentvolume, str18
 			dw p_filesystem_currentvolume_r
 
@@ -320,12 +320,12 @@ p_filesystem_currentvolume_r:		; end of currentvolume
 ; Inline assembly (#asm ... #endasm)
 ; ============================================================
 
-fn_filesystem_capability:		; function capability (asm keyword), FileSystem.cls line 29
-            pop hl		; FileSystem.cls 30
-            pop de		; FileSystem.cls 31
-            ld bc, fn_filesystem_capability_caps		; FileSystem.cls 32
-            jp ntc_capfind		; FileSystem.cls 33
-fn_filesystem_capability_caps:       db 0		; FileSystem.cls 34
+fn_filesystem_capability:		; function capability (asm keyword), FileSystem.cls line 30
+            pop hl		; FileSystem.cls 31
+            pop de		; FileSystem.cls 32
+            ld bc, fn_filesystem_capability_caps		; FileSystem.cls 33
+            jp ntc_capfind		; FileSystem.cls 34
+fn_filesystem_capability_caps:       db 0		; FileSystem.cls 35
 			ret			; end of #asm
 
 

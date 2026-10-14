@@ -2297,6 +2297,18 @@ On other platforms it gives a warning and does nothing.
 
 **VB:** not in VB.
 
+### Option NoRomDisc
+
+`Option NoRomDisc`
+
+CPC firmware platforms (`cpcfw`, `cpcmin`): `FileSystem` without the ROMDISC (volume R) - its
+methods go straight to the disc or tape, and the ROMDISC's code (about 1.1K) is left out.
+`Capability("ROMDISC")` gives 0; `Exists` and `Size` give `NotSupported`, `DirEntry` `""`.
+For a program short of room that doesn't read files from ROMs (CyborgOS). Elsewhere it does
+nothing.
+
+**VB:** not in VB.
+
 ### Option Flavour
 
 `Option Flavour JS` / `Option Flavour VB5` (in a JS file: `//# Option Flavour JS`)
@@ -2764,7 +2776,7 @@ The methods all return a number: 0 or more is a result (a count, a handle, a byt
 | `Save(name, address, length)` | a new file with those bytes |
 | `Delete(name)`, `Exists(name)`, `Rename(old, new)` | `Exists` gives True / False |
 | `Size(name)` | bytes (a Long) |
-| `Open(name, mode)` | a handle; mode `ForRead` (1), `ForWrite` (2, a new file), `ForUpdate` (3, read and write) |
+| `Open(name, mode)` | a handle; mode `ForRead` (1), `ForWrite` (2, a new file), `ForUpdate` (3, read and write), `ForReadRaw` (4: `ForRead`, but a file with no header is read to its last record - a #1A byte is data, not the end; CP/M and the ROMDISC: the same as `ForRead`) |
 | `Close(h)` | |
 | `ReadByte(h)`, `WriteByte(h, b)` | `ReadByte` gives 0-255 or `EndOfFile` |
 | `Read(h, address, count)`, `Write(h, address, count)` | bytes to / from memory; `Read` gives how many it got |
@@ -2823,7 +2835,10 @@ r = FileSystem.Close(h)
   `LOAD "HISCORE.DAT", &4000` it. Uses a 2K buffer.
 
   **One open file** (`SEQUENTIAL`, `MAXOPEN` 1): `Open` gives handle 1. `ForRead` reads any
-  file byte by byte (`ReadByte`, `Read`, `ReadLine`, `Eof`); `ForWrite` makes a new text file
+  file byte by byte (`ReadByte`, `Read`, `ReadLine`, `Eof`): a file with no header is text to
+  AMSDOS, ending at its first #1A; `ForReadRaw` reads one to the end of its last 128 byte record
+  (a CP/M `.COM`, say), each #1A a byte. `Eof` reads one byte ahead (the firmware's CAS TEST
+  EOF loses bytes at a #1A). `ForWrite` makes a new text file
   (`WriteByte`, `Write`, `WriteLine`) - the kind BASIC's `OPENOUT` / `PRINT #9` make, so
   BASIC's `OPENIN` / `LINE INPUT #9` read it back. `ForUpdate` and `Seek` are
   `NotSupported`, as are `Delete`, `Exists`, `Rename` and `Size`. A second `Open` while one is
@@ -3325,6 +3340,7 @@ change.
 | `Option Flavour` | [16](#option-flavour) |
 | `Option Library` | [16](#option-library) |
 | `Option RomEnable` | [16](#option-romenable) |
+| `Option NoRomDisc` | [16](#option-noromdisc) |
 | `Option Stack` | [16](#option-stack) |
 | `Option Terminal` | [16](#option-terminal) |
 | `Option NoTurbo` | [13](#option-noturbo) |

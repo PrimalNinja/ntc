@@ -7841,6 +7841,11 @@ rd_open:
 			ld hl, RD_NOHANDLE
 			ret nz
 			ld hl, (rd_a2)
+			ld a, l
+			cp 4				; ForReadRaw: the same (a ROMDISC file is read to its length)
+			jr nz, rd_op_m
+			ld l, 1
+rd_op_m:
 			dec hl
 			ld a, h
 			or l

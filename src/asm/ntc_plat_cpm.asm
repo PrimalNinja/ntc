@@ -955,6 +955,11 @@ fs_op_got:
 			or a
 			jr nz, fs_op_bad
 			ld a, e
+			cp 4				; ForReadRaw: ForRead (CP/M reads every record anyway)
+			jr nz, fs_op_m
+			ld a, 1
+			ld (fs_a2), a
+fs_op_m:
 			cp 1
 			jr z, fs_op_rd
 			cp 2

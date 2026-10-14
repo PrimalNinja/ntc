@@ -1327,6 +1327,10 @@ function ntcParse(arrFiles_a, objDefines_a)
 		{
 			record('option', { what: 'normal' });
 		}
+		else if (strText === 'noromdisc')
+		{
+			record('option', { what: 'noromdisc' });	// FileSystem without the ROMDISC (volume R): read before parsing (NTC_NOROMDISC)
+		}
 		else if (strText === 'noturbo')
 		{
 			record('option', { what: 'noturbo' });	// normal mode only: one copy of everything, Turbo On / Off do nothing

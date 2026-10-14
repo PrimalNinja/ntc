@@ -347,7 +347,7 @@ do7_e:
 
 p_filesystem_save:
 
-			; FileSystem.cls 82: Save = NotSupported
+			; FileSystem.cls 83: Save = NotSupported
 			dw kw_ltov, -1, var_filesystem_save_save
 			dw p_filesystem_save_r
 
@@ -357,7 +357,7 @@ p_filesystem_save:
 
 p_filesystem_devices:
 
-			; FileSystem.cls 239: If SelectVolume("R") = OK Then Devices = "ROM" Else Devices = ""
+			; FileSystem.cls 240: If SelectVolume("R") = OK Then Devices = "ROM" Else Devices = ""
 			dw p_filesystem_selectvolume_c, str10
 			dw kw_vtov, var_filesystem_selectvolume_selectvolume, tmp0
 			dw kw_cpeqvl, tmp0, 0
@@ -375,7 +375,7 @@ if8_e:
 
 p_filesystem_currentdevice:
 
-			; FileSystem.cls 243: CurrentDevice = "ROM"
+			; FileSystem.cls 244: CurrentDevice = "ROM"
 			dw kw_strcpy, var_filesystem_currentdevice_currentdevice, str11
 			dw p_filesystem_currentdevice_r
 
@@ -385,7 +385,7 @@ p_filesystem_currentdevice:
 
 p_filesystem_volumes:
 
-			; FileSystem.cls 253: If SelectVolume("R") = OK Then Volumes = "R" Else Volumes = ""
+			; FileSystem.cls 254: If SelectVolume("R") = OK Then Volumes = "R" Else Volumes = ""
 			dw p_filesystem_selectvolume_c, str10
 			dw kw_vtov, var_filesystem_selectvolume_selectvolume, tmp0
 			dw kw_cpeqvl, tmp0, 0
@@ -403,7 +403,7 @@ if10_e:
 
 p_filesystem_currentvolume:
 
-			; FileSystem.cls 257: CurrentVolume = "R"
+			; FileSystem.cls 258: CurrentVolume = "R"
 			dw kw_strcpy, var_filesystem_currentvolume_currentvolume, str10
 			dw p_filesystem_currentvolume_r
 
@@ -413,13 +413,13 @@ p_filesystem_currentvolume:
 
 p_filesystem_selectvolume:
 
-			; FileSystem.cls 262: Dim v As String
+			; FileSystem.cls 263: Dim v As String
 
-			; FileSystem.cls 263: v = UCase$(name)
+			; FileSystem.cls 264: v = UCase$(name)
 			dw kw_strucase, stmp0, var_filesystem_selectvolume_name
 			dw kw_strcpy, var_filesystem_selectvolume_v, stmp0
 
-			; FileSystem.cls 264: If v = "R" Or v = "R:" Then
+			; FileSystem.cls 265: If v = "R" Or v = "R:" Then
 			dw kw_strcmpeq, var_filesystem_selectvolume_v, str10
 			dw kw_ftov, tmp0
 			dw kw_strcmpeq, var_filesystem_selectvolume_v, str12
@@ -427,17 +427,17 @@ p_filesystem_selectvolume:
 			dw kw_orvv, tmp0, tmp1, tmp0
 			dw kw_goto_ifzero_n, tmp0, if11_1
 
-			; FileSystem.cls 265: SelectVolume = SelVol()
+			; FileSystem.cls 266: SelectVolume = SelVol()
 			dw fn_filesystem_selvol, var_filesystem_selectvolume_selectvolume
 
-			; FileSystem.cls 266: Else
+			; FileSystem.cls 267: Else
 			dw if11_e_go
 if11_1:
 
-			; FileSystem.cls 267: SelectVolume = NotFound
+			; FileSystem.cls 268: SelectVolume = NotFound
 			dw kw_ltov, -2, var_filesystem_selectvolume_selectvolume
 
-			; FileSystem.cls 268: End If
+			; FileSystem.cls 269: End If
 if11_e:
 			dw p_filesystem_selectvolume_r
 
@@ -569,30 +569,30 @@ p_filesystem_selectvolume_r:		; end of selectvolume
 ; Inline assembly (#asm ... #endasm)
 ; ============================================================
 
-fn_filesystem_load:		; function load (asm keyword), FileSystem.cls line 61
-            pop hl		; FileSystem.cls 62
-            ld (rd_a1), hl		; FileSystem.cls 63
-            pop hl		; FileSystem.cls 64
-            ld e, (hl)		; FileSystem.cls 65
-            inc hl		; FileSystem.cls 66
-            ld d, (hl)		; FileSystem.cls 67
-            ld (rd_a2), de		; FileSystem.cls 68
-            pop hl		; FileSystem.cls 69
-            ld e, (hl)		; FileSystem.cls 70
-            inc hl		; FileSystem.cls 71
-            ld d, (hl)		; FileSystem.cls 72
-            ld (rd_a3), de		; FileSystem.cls 73
-            pop hl		; FileSystem.cls 74
-            ld (rd_res), hl		; FileSystem.cls 75
-            ld hl, rd_load		; FileSystem.cls 76
-            jp rd_go		; FileSystem.cls 77
+fn_filesystem_load:		; function load (asm keyword), FileSystem.cls line 62
+            pop hl		; FileSystem.cls 63
+            ld (rd_a1), hl		; FileSystem.cls 64
+            pop hl		; FileSystem.cls 65
+            ld e, (hl)		; FileSystem.cls 66
+            inc hl		; FileSystem.cls 67
+            ld d, (hl)		; FileSystem.cls 68
+            ld (rd_a2), de		; FileSystem.cls 69
+            pop hl		; FileSystem.cls 70
+            ld e, (hl)		; FileSystem.cls 71
+            inc hl		; FileSystem.cls 72
+            ld d, (hl)		; FileSystem.cls 73
+            ld (rd_a3), de		; FileSystem.cls 74
+            pop hl		; FileSystem.cls 75
+            ld (rd_res), hl		; FileSystem.cls 76
+            ld hl, rd_load		; FileSystem.cls 77
+            jp rd_go		; FileSystem.cls 78
 			ret			; end of #asm
 
-fn_filesystem_selvol:		; function selvol (asm keyword), FileSystem.cls line 272
-            pop hl		; FileSystem.cls 273
-            ld (rd_res), hl		; FileSystem.cls 274
-            ld hl, rd_selvol		; FileSystem.cls 275
-            jp rd_go		; FileSystem.cls 276
+fn_filesystem_selvol:		; function selvol (asm keyword), FileSystem.cls line 273
+            pop hl		; FileSystem.cls 274
+            ld (rd_res), hl		; FileSystem.cls 275
+            ld hl, rd_selvol		; FileSystem.cls 276
+            jp rd_go		; FileSystem.cls 277
 			ret			; end of #asm
 
 
@@ -1436,6 +1436,11 @@ rd_open:
 			ld hl, RD_NOHANDLE
 			ret nz
 			ld hl, (rd_a2)
+			ld a, l
+			cp 4				; ForReadRaw: the same (a ROMDISC file is read to its length)
+			jr nz, rd_op_m
+			ld l, 1
+rd_op_m:
 			dec hl
 			ld a, h
 			or l

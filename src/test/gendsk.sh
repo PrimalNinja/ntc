@@ -55,7 +55,10 @@ for g in TICKER CRUNCH LINES; do
 done
 d=../build/dsk/cyborgos.dsk; rm -f $d
 dskform -type dsk -format cpcdata $d > /dev/null 2>&1
-for f in $w/CYBORGOS.BIN $w/TICKER.CYB $w/CRUNCH.CYB $w/LINES.CYB; do cpmcp -f cpcdata -T dsk $d $f 0:$(basename $f) || fail=1; done
+# CRUNCH also as a CP/M .COM with no header, and its FILES.DIR entry (long name BIGCRUNCH):
+# RUN CRUNCH.COM or RUN BIGCRUNCH (a .COM runs only with an entry)
+python3 -c "import sys; sys.path.insert(0, '.'); import ntcrun; d = open('$w/CRUNCH.COM', 'rb').read(); open('$w/FILES.DIR', 'wb').write(ntcrun.cyb_entry('CRUNCH.COM', len(d), 'BIGCRUNCH'))"
+for f in $w/CYBORGOS.BIN $w/TICKER.CYB $w/CRUNCH.CYB $w/LINES.CYB $w/CRUNCH.COM $w/FILES.DIR; do cpmcp -f cpcdata -T dsk $d $f 0:$(basename $f) || fail=1; done
 echo "build/dsk/cyborgos.dsk: $(cpmls -f cpcdata -T dsk $d | grep -vc '^[0-9]*:$') files"
 rm -rf $w
 exit $fail

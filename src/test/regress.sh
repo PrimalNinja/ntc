@@ -439,6 +439,13 @@ check "city3d demo cpcfw" "^Bye" "$(timeout 300 python3 ntcrun.py t/city/Main.ba
 # Option Reserve builds round the range: a program too big for #0040-#3FFF goes on above #8000
 cp hole.bas t/
 for pl in cpc cpcmin cpcfw; do check "Option Reserve round the hole $pl" "^a3 7 big at .* end [89]" "$(timeout 60 python3 ntcrun.py t/hole.bas '' --platform=$pl 2>&1)"; done
+# FileSystem ForReadRaw: a headerless file read to its last record, #1A bytes kept; Eof reads ahead
+for pl in cpcfw cpcmin; do
+  rm -rf t/files; mkdir -p t/files/A; cp raw_t.bas t/
+  python3 -c "d = bytearray((i * 7 + 1) & 0x7F for i in range(300)); d[10] = 0x1A; d[200] = 0x1A; d[299] = 0x55; open('t/files/A/RAW.COM', 'wb').write(d)"
+  o=$(timeout 120 python3 ntcrun.py t/raw_t.bas '' --platform=$pl 2>&1 | grep -v "^--- " | tr '\n' ' ')
+  if echo "$o" | grep -q "text10 raw38426782685 eof384-1"; then echo "ok   FileSystem ForReadRaw $pl"; else echo "FAIL FileSystem ForReadRaw $pl: $o"; fail=1; fi
+done
 # CyborgOS (bas/cyborgos): CP/M programs (.CYB: a cpm build with an AMSDOS header) in 64K banks
 # under the hypervisor (cpcfw): CRUNCH (stopped only by interrupts) in slot 2, TICKER (a BDOS
 # call a loop) in slot 3 brought to the front and ended with a key, WAIT for CRUNCH, QUIT. 576K:
@@ -473,6 +480,13 @@ if echo "$o" | grep -q "^  2   -" && [ "$(echo "$o" | grep -c "^CyborgOS slot 1 
 # the TOP command: the table printed into the slot's console
 o=$(timeout 300 python3 ntcrun.py t/cy/Main.bas "run CRUNCH 2\n${W}top\n${W}" t/cy/Hyp.cls t/cy/Hot.cls --platform=cpcfw --ram=576 2>&1)
 if echo "$o" | grep -q "^  2   running        CRUNCH.CYB" && echo "$o" | grep -q "^SLOT  STATE"; then echo "ok   CyborgOS TOP command"; else echo "FAIL CyborgOS TOP command"; echo "$o" | tail -5; fail=1; fi
+# a CP/M program with no header (.COM): runs only with an entry - from NAME.HDR (TICKER: 16
+# #1A bytes in it, read ForReadRaw) or FILES.DIR (ADD: CRUNCH, by its long name); NONE has none
+cp t/cy/TICKER.COM t/cy/CRUNCH.COM t/files/A/; cp t/cy/CRUNCH.COM t/files/A/NONE.COM; rm -f t/files/A/FILES.DIR
+python3 -c "import ntcrun; d = open('t/cy/TICKER.COM', 'rb').read(); open('t/files/A/TICKER.HDR', 'wb').write(ntcrun.cyb_entry('TICKER.COM', len(d)))"
+o=$(timeout 600 python3 ntcrun.py t/cy/Main.bas "run none\nadd crunch.com bigcrunch\nrun bigcrunch\n${W}run ticker\n${W}x" t/cy/Hyp.cls t/cy/Hot.cls --platform=cpcfw --ram=576 2>&1)
+if echo "$o" | grep -q "^NONE: not found" && echo "$o" | grep -q "^CRUNCH.COM in FILES.DIR (1 entries)" && echo "$o" | grep -q "^Crunch: 450015000" && echo "$o" | grep -q "^Ticker done"; then echo "ok   CyborgOS .COM with FILES.DIR / .HDR"; else echo "FAIL CyborgOS .COM with FILES.DIR / .HDR"; echo "$o" | tail -8; fail=1; fi
+rm -f t/files/A/*.COM t/files/A/TICKER.HDR t/files/A/FILES.DIR
 check "CyborgOS 4 slots" "CyborgOS ended, 2 programs ran" "$(timeout 600 python3 ntcrun.py t/cy/Main.bas "run CRUNCH 2\nrun TICKER 3\nfg 3\n${W}xwait\nquit\n" t/cy/Hyp.cls t/cy/Hot.cls --platform=cpcfw --ram=576 2>&1)"
 check "CyborgOS 1 slot (6128)" "CyborgOS ended, 2 programs ran" "$(timeout 600 python3 ntcrun.py t/cy/Main.bas "run CRUNCH\n${W}run TICKER\n${W}xquit\n" t/cy/Hyp.cls t/cy/Hot.cls --platform=cpcfw --ram=128 2>&1)"
 check "CyborgOS 4 slots, Library: ROM" "CyborgOS ended, 2 programs ran" "$(timeout 600 python3 ntcrun.py t/cy/Main.bas "run CRUNCH 2\nrun TICKER 3\nfg 3\n${W}xwait\nquit\n" t/cy/Hyp.cls t/cy/Hot.cls --platform=cpcfw --ram=576 --library=rom 2>&1)"

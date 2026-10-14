@@ -21,7 +21,8 @@ This describes the first version (October 2026).
 | 2MB or more | 16 (CyborgOS sees at most 48 banks) |
 
 - AMSDOS (a disc drive): programs are loaded from disc.
-- `build/dsk/cyborgos.dsk` has CYBORGOS.BIN and three test programs (TICKER.CYB, CRUNCH.CYB, LINES.CYB).
+- `build/dsk/cyborgos.dsk` has CYBORGOS.BIN and three test programs (TICKER.CYB, CRUNCH.CYB, LINES.CYB),
+  and CRUNCH again as a plain CRUNCH.COM with its FILES.DIR entry (long name BIGCRUNCH).
 
 ## 2. Starting
 
@@ -66,7 +67,8 @@ Typed at a slot's prompt (`1>`), in capitals or not. Backspace / DEL rub out.
 
 | Command | Does |
 |---|---|
-| `RUN` *name* [*slot*] | loads *name*.CYB from disc and runs it - in this slot, or in another one (which keeps running in the background while this command line stays) |
+| `RUN` *name* [*slot*] | loads the program from disc and runs it - in this slot, or in another one (which keeps running in the background while this command line stays). *name*: *name*.CYB, else *name*.COM (only with an entry: [6](#6-plain-com-files-filesdir-and-namehdr)), else the .COM whose FILES.DIR entry has the long name *name*; `RUN NAME.COM` / `RUN NAME.CYB` take that one |
+| `ADD` *name*.COM [*long name*] | puts an entry for a plain .COM into FILES.DIR (replacing one for that file), so RUN takes it; its length is read from the disc |
 | `FG` *slot* | that slot to the front |
 | `PS` | the slots: what each is doing (`*` = in front) |
 | `TOP` | the TOP table (each slot's state, program, and in the last whole second its turns, BDOS calls and characters) printed once into this slot's console, like PS |
@@ -124,8 +126,8 @@ CPC's screen, which a program in a bank can't see).
 
 ### Making a .CYB
 
-A `.CYB` file is a cpm build of the program with an AMSDOS header (AMSDOS reads a file without
-a header as text, up to the first #1A byte, so a plain `.COM` can't be loaded whole).
+A `.CYB` file is a cpm build of the program with an AMSDOS header (the header gives its length;
+a plain `.COM` needs an entry for that - [6](#6-plain-com-files-filesdir-and-namehdr)).
 
 - **The GUI:** platform **cpm**, tick **AMSDOS .BIN / .CYB**: assembling the program writes
   *NAME*.CYB beside the .COM (NAME is the project's name).
@@ -188,22 +190,62 @@ second.
 | #F681 | the slot's next key (0: none), put there by the hypervisor |
 | #F682-#F686 | its console: column, row, the page ring's top row, escape state and row |
 | #F68F-#F6D5 | the slot's command line being typed (its length, then up to 70 characters) |
+| #F6D8-#F6E4 | the name of the program it runs (its length, then up to 12 characters) |
 | #F700-#FECF | the slot's text page (80 x 25) |
 | #FFFE | the slot's saved SP |
 
-## 6. Not yet
+## 6. Plain .COM files: FILES.DIR and NAME.HDR
+
+A CP/M program copied to the disc as it is (a `.COM`, no AMSDOS header) runs too, once it has
+an **entry**: AMSDOS can't say how long a file with no header is (it reads it as text and
+reports each #1A byte as an end of file), so the entry says it - and it is also the say-so
+that the program runs here: a `.COM` with no entry is not run (`NAME: not found`), so a
+stray or broken one isn't started.
+
+- **FILES.DIR** - one file of entries for the disc. `ADD NAME.COM` makes or adds to it (the
+  length is read from the disc, to the end of the file's last 128 byte record: all AMSDOS
+  knows); `ADD NAME.COM LONGNAME` gives it a long name too, and `RUN LONGNAME` runs it.
+  The long name is one word for now (the command line splits at spaces).
+- **NAME.HDR** - the entry for NAME.COM alone, beside it. RUN looks here first.
+- `ADD` is not in the Library: ROM build of CyborgOS (no room below #4000 with it for the
+  Memory class's tables); RUN reads the entries there too.
+
+RUN then reads the .COM with `FileSystem.ForReadRaw`: every byte to its length, a #1A just a
+byte (checked on the real ROMs: AMSDOS goes on after its "soft" end of file).
+
+An entry is 64 bytes (both files: one after another; FILES.DIR as `ADD` saves it has an
+AMSDOS header first, which AMSDOS takes off; one written without is read the same):
+
+| Bytes | |
+|---|---|
+| 0 | 1 = a file (0 unused; 2 will be a virtual directory) |
+| 1-11 | its name on the disc, CP/M style: 8 + 3 characters, capitals, spaces after |
+| 12 | what it is: 1 = a CP/M .COM (RUN takes only these) |
+| 13 | flags: bit 0 = it runs here |
+| 14-15 | its length in bytes (#F400 at most: #0100-#F4FF) |
+| 16-17, 18-19 | load and run address (#0100 for a .COM) |
+| 20, 21 | the virtual directory it is in, a directory's own number (not used yet) |
+| 22-23 | not used yet |
+| 24-61 | its long name, up to 38 characters, 0 after |
+| 62-63 | the sum of bytes 0-61 (a damaged entry is not used) |
+
+The entries stand in until CyborgOS reads the disc's own directory (file sizes from the
+record counts, random access); then plain `.COM` files need nothing - but the entries can
+keep what a directory can't: long names, virtual directories, more about each program.
+`src/test/ntcrun.py`'s `cyb_entry()` writes one on a PC (`gendsk.sh` uses it).
+
+## 7. Not yet
 
 - Files for the programs (CP/M file calls), and `LOAD`, `SAVE`, `DISC`, `TAPE`, `CD`.
-- Running a plain `.COM`: AMSDOS reads a file without a header as text, and on the real ROMs
-  its "end of file" at the first #1A byte stays (CAS IN CHAR gives #1A again); CAS IN DIRECT
-  refuses a file without a header. A `.COM` needs the disc read sector by sector (AMSDOS's
-  sector command, #84), which comes with the file system work; `.CYB` files keep working
-  then, and can carry more (a name, a size, what they need). Programs such as BBC BASIC also
-  call the BIOS through the jump table at (#0001), which a slot's bank doesn't have yet.
+- A plain `.COM` without an entry ([6](#6-plain-com-files-filesdir-and-namehdr)): that needs the
+  disc's own directory read (record counts, AMSDOS's sector command #84), which comes with
+  the file system work, and random access with it. Programs such as BBC BASIC also call the
+  BIOS through the jump table at (#0001), which a slot's bank doesn't have yet.
+- Virtual directories and long names with spaces (FILES.DIR has room for both).
 - Drivers (printer, serial, sound ...) that programs reach with far calls.
 - Faster BDOS calls.
 
-## 7. For developers
+## 8. For developers
 
 CyborgOS itself is `bas/cyborgos/Main.bas`, `Hyp.cls` (the bank side, the switch) and
 `Hot.cls` (the system keys, an interrupt class), built for **cpcfw** (also with `Option Library

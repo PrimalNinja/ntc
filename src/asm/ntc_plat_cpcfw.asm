@@ -893,6 +893,8 @@ fs_open:
 			or a
 			jr nz, fs_op_bad
 			ld a, l
+			cp 4
+			jr z, fs_op_in			; ForReadRaw
 			cp 3
 			ld hl, FS_NOTSUP
 			ret z
@@ -900,6 +902,10 @@ fs_open:
 			cp 1
 			jr c, fs_op_bad
 			jr nz, fs_op_out
+fs_op_in:
+			ld (fs_raw), a			; 4: raw (a #1A is data), 1: not
+			ld hl, fs_pend
+			ld (hl), 0
 			call fs_name
 			ld de, fs_buf
 			call #BC77			; CAS IN OPEN
@@ -990,12 +996,28 @@ fs_writeb:
 
 ; fs_inchar - CAS IN CHAR for ReadByte / Read: in a binary file AMSDOS still reports a #1A
 ; byte as the soft end of file (no carry, A = #1A) and goes on after it: that is the byte
-; #1A. Carry = a byte in A; no carry = the end (or an error)
+; #1A. The same in any file opened ForReadRaw (a file with no header: AMSDOS calls it ASCII
+; text, but the real end is the hard one, #0F, after the last record). Carry = a byte in A;
+; no carry = the end (or an error)
 fs_inchar:
+			ld a, (fs_pend)
+			or a
+			jr z, fs_ic_rd
+			xor a
+			ld (fs_pend), a
+			ld a, (fs_pendc)		; the byte Eof read ahead
+			scf
+			ret
+fs_ic_rd:
 			call #BC80			; CAS IN CHAR
 			ret c
 			cp #1A
 			jr nz, fs_ic_end
+			ld a, (fs_raw)
+			cp 4
+			ld a, #1A
+			scf
+			ret z				; raw: the byte #1A
 			ld a, (fs_ftype)
 			and #0E
 			cp 2
@@ -1005,6 +1027,9 @@ fs_inchar:
 fs_ic_end:
 			or a
 			ret
+fs_raw:			db 0			; Open for reading: 4 = ForReadRaw
+fs_pend:		db 0			; 1: Eof read a byte ahead, in fs_pendc
+fs_pendc:		db 0
 fs_ftype:		db 0			; Open for reading: the file's type (CAS IN OPEN's A: 2 binary, #16 ASCII)
 
 ; Read(h, addr, count): bytes read (fewer at the end)
@@ -1077,9 +1102,14 @@ fs_eof:
 			ld a, (fs_hmode)
 			cp 1
 			jr nz, fs_ef_yes
-			call #BC89			; CAS TEST EOF: carry = more to read
+			call fs_inchar			; a byte read ahead (CAS TEST EOF at a #1A - a soft end
+			ld hl, -1			; of file - loses bytes: the #1A and more)
+			ret nc
+			ld (fs_pendc), a
+			ld a, 1
+			ld (fs_pend), a
 			ld hl, 0
-			ret c
+			ret
 fs_ef_yes:
 			ld hl, -1
 			ret
@@ -1098,7 +1128,7 @@ fs_readln:
 			ld a, 1
 			call fs_hchk
 fs_rl_lp:
-			call #BC80			; CAS IN CHAR
+			call fs_inchar
 			jr nc, fs_rl_end
 			cp 10
 			jr z, fs_rl_end

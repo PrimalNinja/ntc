@@ -7,6 +7,19 @@ finished, with the date.
 
 ## done
 
+- 2026-10-14 CyborgOS: plain CP/M .COM files (no AMSDOS header) run when FILES.DIR or NAME.HDR
+  has a 64 byte entry for them (disc name, length, long name ...; RUN by a long name too);
+  `ADD NAME.COM [LONGNAME]` makes one; a .COM without one is not run. The entry code is Z80
+  (Hyp.cls). AMSDOS's messages kept off the console (TXT VDU DISABLE). Program names moved into
+  each bank. Tests "CyborgOS .COM with FILES.DIR / .HDR" and on the real ROMs (realcpc)
+- 2026-10-14 FileSystem `ForReadRaw` (cpcfw, cpcmin; CP/M and the ROMDISC take it as ForRead):
+  a headerless file read to its last record, #1A bytes kept (AMSDOS goes on after its soft end
+  of file - checked on the real ROMs). `Eof` reads a byte ahead instead of CAS TEST EOF (which
+  lost bytes at a #1A). Harness: a headerless file reads as AMSDOS does (each #1A a soft end,
+  then on to the last record). Test "FileSystem ForReadRaw cpcfw / cpcmin"
+- 2026-10-14 `Option NoRomDisc` (cpcfw, cpcmin): FileSystem without the ROMDISC, 1.1K less (#If
+  NTC_NOROMDISC in the platform's FileSystem class)
+
 - 2026-10-14 CyborgOS: RESET [slot] (the slot as before its command line was first opened: its
   program stopped, nothing kept; this slot opens again at once); Option Memory CPCExpansion 193
   (48 banks: the page tables no longer fit for all 64 of 4MB). Test "CyborgOS RESET"
@@ -589,6 +602,9 @@ finished, with the date.
 
 ## todo
 
+- CyborgOS: read the disc's own directory (record counts: file sizes; CP/M Plus / cpmtools
+  keep the last record's byte count in byte 13 of an entry - exact sizes), random access; then
+  FILES.DIR only for long names (with spaces) and virtual directories
 - [ ] JS flavour, next (docs/js_flavour.md): the ES5 class form, the four open decisions,
       VB `'#` hints and `Dim n = 0`, `+` joining a number and text, the GUI view of the VB text
 
@@ -758,7 +774,7 @@ finished, with the date.
       - [x] CPC hardware with the firmware for files: done as the cpcmin platform (2026-10-12).
         An own FDC (uPD765) driver for `cpc` - later, if ever
       - cpcmin: check in WinAPE (AMSDOS test); messages on/off as an option (CAS NOISY #BC6B
-        for tape, AMSDOS's #BE78 = #FF for disc errors); System.Command with arguments
+        for tape; not AMSDOS's #BE78 - ROM-internal, differs by model: jumpblocks only); System.Command with arguments
       - CPC (cpcfw / cpcmin), later: a directory listing (CAS CATALOG / |DIR print to the screen;
         names back into the program needs more); Delete / Rename via |ERA / |REN once Command
         takes arguments

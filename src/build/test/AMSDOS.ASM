@@ -267,7 +267,7 @@ do7_e:
 
 p_filesystem_load:
 
-			; FileSystem.cls 39: Load = NotSupported
+			; FileSystem.cls 40: Load = NotSupported
 			dw kw_ltov, -1, var_filesystem_load_load
 			dw p_filesystem_load_r
 
@@ -277,7 +277,7 @@ p_filesystem_load:
 
 p_filesystem_save:
 
-			; FileSystem.cls 43: Save = NotSupported
+			; FileSystem.cls 44: Save = NotSupported
 			dw kw_ltov, -1, var_filesystem_save_save
 			dw p_filesystem_save_r
 
@@ -287,7 +287,7 @@ p_filesystem_save:
 
 p_filesystem_devices:
 
-			; FileSystem.cls 102: Devices = ""
+			; FileSystem.cls 103: Devices = ""
 			dw kw_strcpy, var_filesystem_devices_devices, str12
 			dw p_filesystem_devices_r
 
@@ -297,7 +297,7 @@ p_filesystem_devices:
 
 p_filesystem_currentdevice:
 
-			; FileSystem.cls 105: CurrentDevice = ""
+			; FileSystem.cls 106: CurrentDevice = ""
 			dw kw_strcpy, var_filesystem_currentdevice_currentdevice, str12
 			dw p_filesystem_currentdevice_r
 
@@ -307,7 +307,7 @@ p_filesystem_currentdevice:
 
 p_filesystem_volumes:
 
-			; FileSystem.cls 111: Volumes = ""
+			; FileSystem.cls 112: Volumes = ""
 			dw kw_strcpy, var_filesystem_volumes_volumes, str12
 			dw p_filesystem_volumes_r
 
@@ -317,7 +317,7 @@ p_filesystem_volumes:
 
 p_filesystem_currentvolume:
 
-			; FileSystem.cls 114: CurrentVolume = ""
+			; FileSystem.cls 115: CurrentVolume = ""
 			dw kw_strcpy, var_filesystem_currentvolume_currentvolume, str12
 			dw p_filesystem_currentvolume_r
 
@@ -327,7 +327,7 @@ p_filesystem_currentvolume:
 
 p_filesystem_selectvolume:
 
-			; FileSystem.cls 117: SelectVolume = NotSupported
+			; FileSystem.cls 118: SelectVolume = NotSupported
 			dw kw_ltov, -1, var_filesystem_selectvolume_selectvolume
 			dw p_filesystem_selectvolume_r
 
