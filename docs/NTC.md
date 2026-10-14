@@ -253,7 +253,7 @@ Files (ES5, no node, no Python):
 | `js/ntc_examples.js` | Example projects for the GUI (generated from `bas/`) |
 | `js/ntc_gui.js`, `css/ntc_gui.css` | GUI code and style |
 | `js/listRenderer.js`, `css/listRenderer.css` | Project file and procedure lists |
-| `asm/ntc_lib.asm` | Keyword library, sections marked `;## name deps [@shared]` |
+| `asm/ntc_lib.asm` | Keyword library, sections marked `;## name deps [@shared] [@data] [@unit] ...` (`@data` / `@unit`: linked when linked code names them - docs/architecture.md) |
 | `asm/ntc_plat_cpc.asm` | CPC platform layer, straight to the hardware (screen, keys, frame, interrupt handler, exit) |
 | `asm/ntc_plat_cpcfw.asm` | CPC platform through the firmware (text, keys, mode, clock) |
 | `asm/ntc_plat_cpm.asm` | CP/M platform (BDOS console, own stack, warm boot) |
@@ -766,9 +766,11 @@ RAM #4000), medium (128K, 5), large (up to a 512K expansion, 33), huge (4MB, 257
 call probes (markers written to bank 63 down to 0 and main RAM, read back, so banks the
 hardware doesn't decode show up). Page numbers are 16 bit. Page types: C code (overlay
 classes load into these), D the heap (`Alloc` / `Free`), I interrupt handler blocks (a label
-for now), U the program's own (music, level data). Every page is on one list (free
-low, free high, C, D, I, U - linked through a next table); C / I / U take from the low free
-list (main + the #7F block), D from the high one (#78-#7E), each falling back to the other.
+for now), U the program's own (music, level data). Two tables, one entry a page: the
+RAT (its type: - free, C, D, I, U, B) and the port table (the 2 bytes that select it, so
+selecting a page is a look-up). A free page is found by scanning the RAT (CPIR), freed by
+writing - back - no lists. C / I / U take from the low block first (main + the #7F block), D
+from the high one (#78-#7E), each falling back to the other.
 The tables (3 bytes a page) go from `ntc_end` up, sized to what the probe finds, fewer pages
 when they don't fit below #4000. `AllocPage` / `FreePage`, `SelectPage`, `Map(first,
 count)`, a heap in D pages (`Alloc` / `Free`, far pointers as Longs: page in the high word).

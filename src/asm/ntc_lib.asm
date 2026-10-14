@@ -69,35 +69,69 @@
 ;   All are entered with jp, return address in IX, end with jp (ix).
 ; ============================================================
 
-;## ntc_data @shared
+;## ntc_data @shared ntc_d_nmode
 ; ------------------------------------------------------------
-; Scratch space
+; Scratch space: the core every program has (with ntc_d_nmode). The rest of
+; the run time's variables are @data sections, each linked only when a
+; linked section's code names one of its labels (no header lists them).
+; They stay in this order: the keyword ROM's registry keeps each variable's
+; address (a Library: ROM program has them as fixed addresses)
 ; ------------------------------------------------------------
 ntc_next:		ret				; IX target that continues the thread
 ntc_csp:		dw 0			; caller SP, for kw_stop (and the normal mode stack)
 ntc_ip:			dw 0			; normal mode: thread position while out of the thread
+
+;## ntc_d_ticks @data
 ntc_ticks:		dw 0			; interrupt count (normal mode, platform handler)
+
+;## ntc_d_gnlo @data
 ntc_gnlo:		db 0			; ntc_getn: low byte
+
+;## ntc_d_nmode @data
 ntc_nmode:		db 0			; 1 = running in normal mode (waits let interrupts in)
+
+;## ntc_d_div @data
 ntc_mode:		db 0			; div mode 0=quotient 1=remainder
 ntc_sgnq:		db 0			; quotient sign (bit 7)
 ntc_sgnr:		db 0			; remainder sign (bit 7)
+
+;## ntc_d_lead @data
 ntc_lead:		db 0			; printint: digit seen
+
+;## ntc_d_icnt @data
 ntc_icnt:		db 0			; gets: chars typed
 ntc_icap:		db 0			; gets: the buffer's capacity
+
+;## ntc_d_sptr @data
 ntc_sptr:		dw 0			; printbuf: text pointer
+
+;## ntc_d_iptr @data
 ntc_iptr:		dw 0			; gets: buffer pointer
 ntc_ilink:		dw 0			; gets: where to go when done
+
+;## ntc_d_ivar @data
 ntc_ivar:		dw 0			; inputint / inkey: dest var
+
+;## ntc_d_aptr @data
 ntc_aptr:		dw 0			; atoi: text pointer
+
+;## ntc_d_hook @data
 ntc_hookon:		db 0			; 1 = the Interrupt hook may run (set, and not running now)
 ntc_hookset:	db 0			; 1 = an Interrupt hook is set
 ntc_hookpend:	db 0			; 1 = an interrupt came, the hook runs at the next safe point
 ntc_hook:		dw 0			; the hook Sub's call stub
+
+;## ntc_d_hostix @data
 ntc_hostix:		dw 0			; host platforms: IX kept over a firmware / BDOS call
+
+;## ntc_d_rampt @data
 ntc_rampt:		dw #7FC0		; the gate array's RAM setting now (B = port, C = value): the
 								; Memory class keeps it, Graphics puts it back after drawing
+
+;## ntc_d_numbuf @data
 ntc_numbuf:		ds 14			; printint / long print: digits (+ spaces for Option VBPrint)
+
+;## ntc_d_inbuf @data
 				db 40			; ntc_inbuf's capacity (as every string variable has)
 ntc_inbuf:		ds 41			; inputint: typed text
 
@@ -5951,31 +5985,33 @@ mem_putback:
 ;   No pages at all when the program (ntc_start .. ntc_free) or the
 ;   real stack is in the window: switching would hide them.
 ; Tables, made by the first call (mem_start) from ntc_free up, sized to
-; what the probe finds (3 bytes a page: next link, type); fewer pages
-; when there isn't room below #4000 (or below the real stack).
-; Lists: every page is on one - 0 free low (main + the #7F block),
-; 1 free high (#78-#7E), 2 C, 3 D, 4 I, 5 U, 6 B (the 4 pages of a whole
-; bank, AllocBank). C / I / U pages come from
-; the low list first, D pages from the high one; each falls back to the
-; other. On 576K or less every page is low, so it is one list.
+; what the probe finds (3 bytes a page); fewer pages when there isn't room
+; below #4000 (or below the real stack):
+;   the port table - 2 bytes a page: the BC that selects it (out (c), c),
+;                    so selecting a page is a look-up, nothing worked out
+;   the RAT        - 1 byte a page, its type: - free, C, D, I, U, B (the 4
+;                    pages of a whole bank, AllocBank)
+; No lists: a free page or bank is found by scanning the RAT (CPIR), a page
+; is freed by writing - back. C / I / U pages come from the low block first
+; (main + the #7F block), D pages from the high one (#78-#7E); each falls
+; back to the other. On 576K or less every page is low.
 ; The page in the window is kept in mem_cur, written before the port,
 ; so an interrupt handler can always put the right page back.
 ; A new D page is one free block of #4000.
 ; ------------------------------------------------------------
 MEM_BANKS	equ NTC_MEMBANKS	; 0 - 64
-MEM_LISTS	equ 7
-MEM_LB		equ 6			; the whole-bank list
+MEM_LB		equ 6			; the whole-bank kind (mem_kinds)
 
 mem_count:		dw 0			; pages (0 = no paging)
-mem_tnext:		dw 0			; the tables: next links (2 bytes a page)
-mem_ttype:		dw 0			; types (1 byte a page)
+mem_tport:		dw 0			; the port table (2 bytes a page: its BC)
+mem_ttype:		dw 0			; the RAT (1 byte a page: its type)
 mem_tend:		dw 0			; the first byte after them
-mem_head:		ds MEM_LISTS * 2	; each list's first page
-mem_cnt:		ds MEM_LISTS * 2	; and how many (must follow mem_head)
+mem_fp:			dw 0			; (making the port table: the next bank found)
 mem_banks:		db 0			; 64K banks found
 mem_tl:			db 0
-mem_kinds:		db "--CDIUB"		; the type character of each list
-mem_bank:		ds MEM_BANKS * 2 + 1	; per bank found: setting for its page 0, port high byte
+mem_sw:			db 0			; mem_scan: 0 low, 1 high, 2 any
+mem_kinds:		db "--CDIUB"		; the type character of each kind (0, 1 free)
+mem_found:		ds MEM_BANKS + 1	; probe: the banks found (0-63), in order
 mem_save:		ds MEM_BANKS + 1	; probe: the bytes the markers replace
 mem_bksp:		dw 0			; CallBank: the real stack while bank code runs
 mem_bkrmr:		db 0			; and the ROM / mode byte to put back
@@ -5991,6 +6027,11 @@ mem_start:
 			ld (mem_tend), hl
 	IF NTC_WINHOLE
 			jr mem_st_prog			; the program is built round the window (Option Reserve)
+	ENDIF
+	IF NTC_ROMLIB					; the keyword ROM: free RAM from #8000 on = built round it
+			ld a, h
+			cp #80
+			jr nc, mem_st_prog
 	ENDIF
 			ld de, MEM_WIN + 1		; the program must be out of the window:
 			or a					; it ends by #4000 ...
@@ -6053,7 +6094,7 @@ mem_pr_mark:
 			out (c), c
 			ld a, #A5
 			ld (MEM_WIN), a
-			ld hl, mem_bank
+			ld hl, mem_found
 			ld d, 0
 			ld e, 0
 mem_pr_read:
@@ -6066,9 +6107,7 @@ mem_pr_read:
 			cp (hl)
 			pop hl
 			jr nz, mem_pr_none
-			ld (hl), c				; this bank is there
-			inc hl
-			ld (hl), b
+			ld (hl), e				; this bank is there
 			inc hl
 			inc d
 mem_pr_none:
@@ -6109,6 +6148,15 @@ mem_pr_di:
 	IF NTC_WINHOLE
 			call ntc_plat_memtop		; built round the window: the tables go above it
 			jr mem_tb_lim			; (ntc_memtab), up to the platform's top
+	ENDIF
+	IF NTC_ROMLIB					; the keyword ROM: a program built round the window (it has no
+			ld hl, ntc_free			; NTC_WINHOLE here) has its free RAM above it - up to the top
+			ld a, h
+			cp #80
+			jr c, mem_tb_low
+			call ntc_plat_memtop
+			jr mem_tb_lim
+mem_tb_low:
 	ENDIF
 			ld de, (ntc_csp)		; the tables must end by #4000, or 128 bytes
 			ld hl, MEM_WIN			; under the real stack when it is lower
@@ -6159,19 +6207,62 @@ mem_tb_ok:
 	ELSE
 			ld hl, ntc_free
 	ENDIF
-			ld (mem_tnext), hl
+			ld (mem_tport), hl
 			ld de, (mem_count)
 			add hl, de
 			add hl, de
 			ld (mem_ttype), hl
-			ld bc, (mem_count)		; every page onto its free list, the last
-mem_tb_free:						; first, so the lowest page comes out first
+			ld bc, (mem_count)		; the RAT: every page free
+			ld (hl), '-'
+			dec bc
 			ld a, b
 			or c
+			jr z, mem_tb_ports
+			ld d, h
+			ld e, l
+			inc de
+			ldir
+mem_tb_ports:						; the port table: page 1 main RAM, then 4 a bank found
+			ld hl, (mem_tport)
+			ld (hl), #C0
+			inc hl
+			ld (hl), #7F
+			inc hl
+			ld de, (mem_count)
+			dec de					; DE = pages left
+			ld bc, mem_found
+			ld (mem_fp), bc
+mem_tb_bk:
+			ld a, d
+			or e
 			ret z
-			call mem_tofree
-			dec bc
-			jr mem_tb_free
+			push de
+			ld bc, (mem_fp)
+			ld a, (bc)
+			inc bc
+			ld (mem_fp), bc
+			ld e, a
+			call mem_jbc			; BC = its page 0's port (keeps DE, HL)
+			pop de
+			ld a, 4
+mem_tb_pg:
+			ld (hl), c
+			inc hl
+			ld (hl), b
+			inc hl
+			inc c
+			dec de
+			push af
+			ld a, d
+			or e
+			jr z, mem_tb_pend		; (fewer pages than found: the rest left out)
+			pop af
+			dec a
+			jr nz, mem_tb_pg
+			jr mem_tb_bk
+mem_tb_pend:
+			pop af
+			ret
 
 ; mem_jbc - E = bank 0-63: BC = the port for its page 0 (B = #7F - E / 8,
 ; C = #C4 + (E and 7) * 8). Keeps DE, HL.
@@ -6209,27 +6300,17 @@ mem_sel:
 			jr z, mem_se_end
 mem_se_do:
 			ld (mem_cur), hl
-			dec hl
 			ld a, h
 			or l
-			ld bc, #7FC0
+			ld bc, #7FC0			; (0: plain RAM)
 			jr z, mem_se_out
-			dec hl					; page 2+: bank (page - 2) / 4, page in it (page - 2) and 3
-			ld a, l
-			and 3
-			ld c, a
-			srl h
-			rr l
-			srl h
-			rr l
-			add hl, hl
-			ld de, mem_bank
+			add hl, hl				; its port from the port table
+			ld de, (mem_tport)
 			add hl, de
-			ld a, (hl)
-			add a, c
-			ld c, a
-			inc hl
+			dec hl
 			ld b, (hl)
+			dec hl
+			ld c, (hl)
 mem_se_out:
 			ld (ntc_rampt), bc
 			out (c), c
@@ -6255,51 +6336,15 @@ mem_chk:
 			pop de
 			ret nc
 			jp mem_chk_bad
-; ---- the tables and lists (BC = a page)
+; ---- the tables (BC = a page)
 
-; mem_tpb - HL = its type byte. Keeps A, BC, DE.
+; mem_tpb - HL = its type byte (in the RAT). Keeps A, BC, DE.
 mem_tpb:
 			ld hl, (mem_ttype)
 			add hl, bc
 			dec hl
 			ret
-; mem_npb - HL = its next link. Keeps A, BC, DE.
-mem_npb:
-			ld hl, (mem_tnext)
-			add hl, bc
-			add hl, bc
-			dec hl
-			dec hl
-			ret
-; mem_lha - A = a list: HL = its head (its count is MEM_LISTS * 2 on). Keeps A, BC, DE.
-mem_lha:
-			push de
-			ld l, a
-			ld h, 0
-			add hl, hl
-			ld de, mem_head
-			add hl, de
-			pop de
-			ret
-; mem_cntadd - HL = a list's head, A = 1 / -1: its count + A. Keeps BC.
-mem_cntadd:
-			push de
-			ld de, MEM_LISTS * 2
-			add hl, de
-			ld e, a
-			rla
-			sbc a, a
-			ld d, a					; DE = A, sign extended
-			ld a, (hl)
-			add a, e
-			ld (hl), a
-			inc hl
-			ld a, (hl)
-			adc a, d
-			ld (hl), a
-			pop de
-			ret
-; mem_push - A = a list: the page goes first on it (and gets its type). Keeps A, BC.
+; mem_push - A = a kind (mem_kinds: 2-6): the page is of that kind now. Keeps A, BC, DE.
 mem_push:
 			push af
 			push de
@@ -6310,135 +6355,98 @@ mem_push:
 			ld a, (hl)
 			call mem_tpb
 			ld (hl), a
-			ld a, e
-			call mem_lha
-			ld e, (hl)				; DE = the old first page
-			inc hl
-			ld d, (hl)
-			ld (hl), b				; the page is first now
-			dec hl
-			ld (hl), c
-			push hl
-			call mem_npb
-			ld (hl), e
-			inc hl
-			ld (hl), d
-			pop hl
-			ld a, 1
-			call mem_cntadd
 			pop de
 			pop af
 			ret
-; mem_pop - A = a list: BC = its first page, taken off it. NZ, or Z = empty.
-; Keeps DE.
-mem_pop:
-			push de
-			call mem_lha
-			ld c, (hl)
-			inc hl
-			ld b, (hl)
-			dec hl
-			ld a, b
-			or c
-			jr z, mem_po_end
-			push hl
-			call mem_npb
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			pop hl
-			ld (hl), e
-			inc hl
-			ld (hl), d
-			dec hl
-			ld a, -1
-			call mem_cntadd
-			ld a, 1
-			or a
-mem_po_end:
-			pop de
-			ret
-; mem_remove - A = a list: the page taken off it. NZ, or Z = not on it. Keeps BC, DE.
+; mem_remove - (A = a kind) nothing to take it off: the RAT has no lists. NZ. Keeps BC, DE.
 mem_remove:
-			push de
-			call mem_lha
-			push hl					; the head, for the count
-mem_rm_lp:							; HL = a link (the head, or a page's next)
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			dec hl
-			ld a, d
-			or e
-			jr z, mem_rm_no
-			ld a, e
-			cp c
-			jr nz, mem_rm_nx
-			ld a, d
-			cp b
-			jr z, mem_rm_hit
-mem_rm_nx:
-			push bc
-			ld b, d
-			ld c, e
-			call mem_npb
-			pop bc
-			jr mem_rm_lp
-mem_rm_hit:
-			push hl					; the link now skips the page
-			call mem_npb
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			pop hl
-			ld (hl), e
-			inc hl
-			ld (hl), d
-			pop hl
-			ld a, -1
-			call mem_cntadd
 			ld a, 1
 			or a
-			pop de
 			ret
-mem_rm_no:
-			pop hl
-			xor a
-			pop de
-			ret
-; mem_lowhigh - A = the free list the page belongs on: 0 (main, or the #7F
-; block) or 1. Keeps BC, DE.
+; mem_lowhigh - A = the block the page is in: 0 low (main, or the #7F
+; block) or 1 high. Keeps BC, DE.
 mem_lowhigh:
 			push de
 			ld h, b
 			ld l, c
-			dec hl
-			ld a, h
-			or l
-			jr z, mem_lh_low
-			dec hl
-			srl h
-			rr l
-			srl h
-			rr l
 			add hl, hl
-			ld de, mem_bank + 1
+			ld de, (mem_tport)
 			add hl, de
+			dec hl					; its port's high byte
 			ld a, (hl)
+			pop de
 			cp #7F
-			jr z, mem_lh_low
-			ld a, 1
-			pop de
+			ld a, 0
+			ret z
+			inc a
 			ret
-mem_lh_low:
-			xor a
-			pop de
-			ret
-; mem_tofree - the page (on no list) onto its free list. Keeps BC.
+; mem_tofree - the page free again. Keeps BC, DE.
 mem_tofree:
+			call mem_tpb
+			ld (hl), '-'
+			ret
+; mem_scan - A = 0 low, 1 high, 2 either: BC = the first free page in it, NZ;
+; Z = none
+mem_scan:
+			ld (mem_sw), a
+			ld hl, (mem_ttype)
+			ld bc, (mem_count)
+mem_sc_lp:
+			ld a, b
+			or c
+			ret z
+			ld a, '-'
+			cpir
+			jr nz, mem_sc_none
+			push bc
+			push hl
+			ld de, (mem_ttype)
+			or a
+			sbc hl, de				; the page: its entry is at HL - 1
+			ld b, h
+			ld c, l
+			ld a, (mem_sw)
+			cp 2
+			jr z, mem_sc_hit
 			call mem_lowhigh
-			jp mem_push
-; mem_listof - A = the list the page is on. Keeps BC, DE.
+			ld hl, mem_sw
+			cp (hl)
+			jr z, mem_sc_hit
+			pop hl
+			pop bc
+			jr mem_sc_lp
+mem_sc_hit:
+			pop af
+			pop af
+			ld a, 1
+			or a
+			ret
+mem_sc_none:
+			xor a
+			ret
+; mem_dnext - BC = a page (0: before the first): BC = the next D page, NZ;
+; Z = none
+mem_dnext:
+			ld hl, (mem_count)
+			or a
+			sbc hl, bc
+			ret z
+			push hl
+			ld hl, (mem_ttype)
+			add hl, bc
+			pop bc
+			ld a, 'D'
+			cpir
+			jr nz, mem_sc_none
+			ld de, (mem_ttype)
+			or a
+			sbc hl, de
+			ld b, h
+			ld c, l
+			ld a, 1
+			or a
+			ret
+; mem_listof - A = the page's kind (2-6), or its free block (0, 1). Keeps BC, DE.
 mem_listof:
 			call mem_tpb
 			ld a, (hl)
@@ -6453,12 +6461,12 @@ mem_lo_lp:
 			inc c
 			djnz mem_lo_lp
 			pop bc
-			jr mem_lowhigh
+			jp mem_lowhigh
 mem_lo_got:
 			ld a, c
 			pop bc
 			ret
-; mem_kindlist - A = a type character: A = its list (2-5), NZ; Z = not one.
+; mem_kindlist - A = a type character: A = its kind (2-5), NZ; Z = not one.
 mem_kindlist:
 			ld hl, mem_kinds + 2
 			ld b, 4
@@ -6475,26 +6483,20 @@ mem_kl_got:
 			ld a, c
 			or a
 			ret
-; mem_take - A = a list (2-5): a free page onto it - D from the high
-; free list first, the others from the low one - a D page made one free
+; mem_take - A = a kind (2-5): a free page of that kind now - D from the
+; high block first, the others from the low one - a D page made one free
 ; block. BC = the page, NZ; Z = none left.
 mem_take:
 			ld (mem_tl), a
 			cp 3
-			jr z, mem_tk_high
-			xor a
-			call mem_pop
-			jr nz, mem_tk_got
 			ld a, 1
-			call mem_pop
-			ret z
-			jr mem_tk_got
-mem_tk_high:
-			ld a, 1
-			call mem_pop
-			jr nz, mem_tk_got
+			jr z, mem_tk_s
 			xor a
-			call mem_pop
+mem_tk_s:
+			call mem_scan
+			jr nz, mem_tk_got
+			ld a, 2
+			call mem_scan
 			ret z
 mem_tk_got:
 			ld a, (mem_tl)
@@ -6520,11 +6522,26 @@ mem_pages:
 			ld hl, (mem_count)
 			ret
 
-; FreePages(): pages on the free lists
+; FreePages(): the free pages (- in the RAT)
 mem_freepages:
-			ld hl, (mem_cnt)
-			ld de, (mem_cnt + 2)
-			add hl, de
+			ld hl, (mem_count)
+			ld a, h
+			or l
+			ret z
+			ld b, h
+			ld c, l
+			ld hl, (mem_ttype)
+			ld de, 0
+mem_fp_lp:
+			ld a, '-'
+			cpir
+			jr nz, mem_fp_end
+			inc de
+			ld a, b
+			or c
+			jr nz, mem_fp_lp
+mem_fp_end:
+			ex de, hl
 			ret
 
 ; RamSize(): K of RAM the probe found (64 + 64 a bank), 0 = not probed
@@ -6851,17 +6868,19 @@ mem_cb_nc:
 			jr nz, mem_cb_cp
 			ld hl, (mem_keep)
 			call mem_sel
-			ld hl, (mem_a1)			; BC = C2 for the bank: its page 0 setting
-			dec hl					; (#C4 + bank bits) and #F8, or 2
+			call mem_bkfirst		; BC = C2 for the bank: its page 0's port
+			ld h, b					; ((#C4 + bank bits) and #F8, or 2)
+			ld l, c
 			add hl, hl
-			ld de, mem_bank
+			ld de, (mem_tport)
 			add hl, de
+			dec hl
+			ld b, (hl)
+			dec hl
 			ld a, (hl)
 			and #F8
 			or 2
 			ld c, a
-			inc hl
-			ld b, (hl)
 			ld de, (mem_a2)
 			ld hl, (mem_a3)
 			jp ntc_bk_go
@@ -6901,30 +6920,20 @@ mem_al_size:
 			call mem_try
 			jr z, mem_al_got
 mem_al_scan:
-			ld a, 3
-			call mem_lha
-			ld c, (hl)
-			inc hl
-			ld b, (hl)
+			ld bc, 0
 mem_al_lp:
-			ld a, b
-			or c
+			call mem_dnext
 			jr z, mem_al_new
 			ld hl, (mem_keep)
 			or a
 			sbc hl, bc
-			jr z, mem_al_nx
+			jr z, mem_al_lp
 			push bc
 			ld h, b
 			ld l, c
 			call mem_try
 			pop bc
 			jr z, mem_al_got
-mem_al_nx:
-			call mem_npb
-			ld c, (hl)
-			inc hl
-			ld b, (hl)
 			jr mem_al_lp
 mem_al_new:
 			ld a, 3
@@ -6999,21 +7008,14 @@ mem_err_page:
 mem_largest:
 			ld hl, 0
 			ld (mem_max), hl
-			ld hl, (mem_cnt)		; a free page: a whole page
-			ld de, (mem_cnt + 2)
-			add hl, de
+			call mem_freepages		; a free page: a whole page
 			ld a, h
 			or l
 			ld hl, #3FFE
 			ret nz
-			ld a, 3
-			call mem_lha
-			ld c, (hl)
-			inc hl
-			ld b, (hl)
+			ld bc, 0
 mem_lg_lp:
-			ld a, b
-			or c
+			call mem_dnext
 			jr z, mem_lg_end
 			ld h, b
 			ld l, c
@@ -7021,10 +7023,6 @@ mem_lg_lp:
 			push bc
 			call mem_big
 			pop bc
-			call mem_npb
-			ld c, (hl)
-			inc hl
-			ld b, (hl)
 			jr mem_lg_lp
 mem_lg_end:
 			ld hl, (mem_keep)

@@ -20,7 +20,8 @@ This describes the first version (October 2026).
   | 1MB | 8 |
 | 2MB or more | 16 (CyborgOS sees at most 48 banks) |
 
-- AMSDOS (a disc drive): programs are loaded from disc.
+- A disc system (AMSDOS, UniDOS, an IDE or SD interface ...): CyborgOS starts every background
+  ROM (`Option RomEnable All`), and programs are loaded from disc.
 - `build/dsk/cyborgos.dsk` has CYBORGOS.BIN and three test programs (TICKER.CYB, CRUNCH.CYB, LINES.CYB),
   CRUNCH again as a plain CRUNCH.COM, CYBADD.BIN (it writes FILES.DIR), and a FILES.DIR listing
   CYBADD.BIN and CRUNCH.COM (long name BIGCRUNCH).
@@ -69,18 +70,21 @@ Typed at a slot's prompt (`1>`), in capitals or not. Backspace / DEL rub out.
 
 | Command | Does |
 |---|---|
-| `RUN` *name* [*slot*] | loads the program from disc and runs it - in this slot, or in another one (which keeps running in the background while this command line stays). *name*: *name*.CYB, else *name*.COM (only with an entry: [6](#6-plain-com-files-filesdir-and-namehdr)), else the .COM whose FILES.DIR entry has the long name *name*; `RUN NAME.COM` / `RUN NAME.CYB` take that one |
+| *name* [*args*] | not a command: runs the program *name* from this slot's drive (if it isn't there: from A, where the disc commands are), in this slot; the rest of the line is its command tail (#0080, as CP/M has it: `System.CommandLine` in NTC). Not found anywhere: `? NAME (HELP)` |
+| `RUN` *name* [*args*] | the same, but always the program on the disc - `RUN CLS` runs CLS.CYB, not the CLS command |
+| `RUN` *name* *slot* | runs it in another slot (which keeps running in the background while this command line stays) |
 | `DIR` | lists FILES.DIR: each program's disc name, length in bytes and long name |
 | `CD` [*drive*] | this slot's drive: the disc system's `|`*drive* command is run (AMSDOS's A, B; UniDOS's and the M4's own letters), and the drive is kept only when it is there and has a FILES.DIR. Each slot has its own (A to start with), as in CP/M; RUN and DIR use it. `CD` alone: the slot's drive |
 | `FG` *slot* | that slot to the front |
 | `PS` | the slots: what each is doing (`*` = in front) |
-| `TOP` | the TOP table (each slot's state, program, and in the last whole second its turns, BDOS calls and characters, then the memory and its map) printed once into this slot's console, like PS |
+| `TOP` | the TOP table (each slot's state, program, and in the last whole second its turns, BDOS calls and characters, then the total memory) printed once into this slot's console, like PS |
 | `KILL` *slot* | stops the program in that slot (its command line comes back) |
 | `RESET` [*slot*] | that slot (or this one) as before its command line was first opened: its program, if any, stopped and nothing kept; this slot opens again at once, as new |
 | `WAIT` | waits until no program runs; keys typed meanwhile wait too |
 | `CLS` | clears this slot's page |
-| `MEM` | slots, 64K banks, free 16K pages (as TOP's first line) |
+| `MEM` | slots, 64K banks, free 16K pages (as TOP's first line); then main RAM (where CyborgOS, the free RAM, the window, the firmware and ROMs, the screen are) and the map: a character a 16K page of the banks (B a slot's, - free), 32 pages (8 banks) a group, two groups a line |
 | `HELP` | the commands |
+| `COPY`, `ERA`, `TYPE`, `PREP`, `RENAME` | disc commands: programs on the disc ([4a](#4a-disc-commands-copy-era-type-prep-rename)), not built in |
 | `QUIT` | ends CyborgOS (it says how many programs ran) |
 
 ```
@@ -95,6 +99,38 @@ TICKER.CYB runs in slot 3
  4   -
 1> fg 3
 ```
+
+A program's name is found as *name*.CYB, else *name*.COM (only with an entry:
+[6](#6-plain-com-files-filesdir-and-namehdr)), else the .COM whose FILES.DIR entry has the long
+name *name*; `NAME.COM` / `NAME.CYB` take that one.
+
+## 4a. Disc commands: COPY, ERA, TYPE, PREP, RENAME
+
+Programs on the CyborgOS disc (`.CYB`, NTC BASIC built for cpm: `bas/cyborgos/cmds`), run by
+their names like any program. They only touch files that are in the volume's FILES.DIR (the
+files added there); a volume is `A:`, `B:` ..., or none for the slot's drive. A file is named
+by its disc name (`README.TXT`; `NAME` alone also finds `NAME.COM`) or its long name.
+
+| Command | Does |
+|---|---|
+| `PREP` *v* | makes an empty FILES.DIR on volume *v* (`B` or `B:`), then looks for it again. A volume that has one already is left alone. CD needs it, and COPY's target |
+| `COPY` [*v1*:]*name* *v2*[:*newname*] | copies the file to volume *v2* (which needs a FILES.DIR: PREP), as *newname* or the same name, and puts its entry (length, long name, flags) in *v2*'s FILES.DIR |
+| `ERA` [*v*:]*name* | deletes the file and its entry |
+| `TYPE` [*v*:]*name* | shows the text file, to its end or first ^Z |
+| `RENAME` [*v*:]*name* *newname* | renames the file on the disc and in its entry (its long name and the rest stay); *newname* is a disc name (NAME.EXT) on the same volume, not one taken already |
+
+```
+1> prep b
+B:FILES.DIR made (no entries)
+1> copy readme.txt b:
+A:README.TXT to B:README.TXT: 20 bytes
+1> type b:readme.txt
+```
+
+COPY copies what CP/M sees: whole 128 byte records, without an AMSDOS header. A plain file
+or `.COM` comes out the same (its exact length is in the entry); a CPC `.BIN` loses its header
+and a `.CYB` copy no longer runs as a `.CYB`. The files go through the hypervisor's BDOS calls
+(below), one file read and one written at a time.
 
 ## 5. Programs
 
@@ -116,16 +152,31 @@ The BDOS calls handled now:
 | 9 | the string at DE, to `$` |
 | 11 | is a key waiting |
 | 12 | the version: 2.2 |
-| 25 | the drive: A |
-| others (files ...) | answer #FF (not yet) |
+| 13, 32 | reset the discs, the user number: nothing to do (0) |
+| 14 | select a disc: the slot's drive (as CD) |
+| 15, 16 | open (to read), close |
+| 19 | delete (the disc ROM's `|ERA`) |
+| 20, 33 | read the next record / record *n* (the file read again from its start when *n* is behind) |
+| 21, 34 | write the next record (34 writes in order too) |
+| 22 | make a file (to write) |
+| 25 | the slot's drive |
+| 26 | the DMA address |
+| others | answer #FF (not yet) |
+
+Files go through the firmware's cassette calls (the disc ROM's: AMSDOS, UniDOS ...): one file
+being read and one being written at a time, over all the slots (another gets #FF until it is
+closed); a slot's open files are closed when its program ends, is killed or reset. CP/M lets a
+program open a file to read and never close it (a new open replaces it): until then it holds
+the one file being read, and RUN, DIR and CD (which read files too) say "not found". A file is
+read as CP/M sees it: 128 byte records, the last one padded with ^Z, an AMSDOS header left out.
 
 The console understands CR, LF, backspace and the VT52 codes NTC uses with `Option Terminal
 VT52`: ESC E (clear), ESC H (home), ESC Y *row col* (move). So in a program: `Print`, `Inkey`,
 `Input`, and with `Option Terminal VT52` also `Cls` and `Locate`. `End`, and
 `Option PressAnyKeyOnEnd` (it waits for a key in its own slot), work as usual.
 
-Not yet: files (the FileSystem class gives errors), and the Graphics class (it writes the
-CPC's screen, which a program in a bank can't see).
+Not yet: the Graphics class (it writes the CPC's screen, which a program in a bank can't see),
+directory searches (BDOS 17, 18), rename (23) and file sizes (35).
 
 ### Making a .CYB
 
@@ -212,6 +263,13 @@ stray or broken one isn't started.
   (an entry for a file already in it is replaced). `RUN LONGNAME` then runs it. FILES.DIR lists
   CYBADD.BIN itself (as "other": shown by DIR, not run by CyborgOS).
 - **NAME.HDR** - the entry for NAME.COM alone, beside it. RUN looks here first.
+- **The long name** is a second name for the file, not a description: one word (the command
+  line splits at spaces), up to 38 characters. `RUN LONGNAME` runs a .COM by it, and COPY, ERA,
+  TYPE and RENAME take it as well as the disc name; DIR shows it. (A description - with spaces -
+  would need its own field; the entry has room: bytes 22-23 and a directory of its own later.)
+- The CyborgOS disc's FILES.DIR lists every file on it: the CPC programs (CYBORGOS.BIN,
+  CYBADD.BIN) as "other", the .CYB programs with their names as long names, and CRUNCH.COM
+  (long name BIGCRUNCH).
 - `DIR` lists FILES.DIR (until the disc's own directory is read, it is the directory).
 - `DIR` and `CD` are not in the Library: ROM build of CyborgOS (no room below #4000 with them
   for the Memory class's tables); RUN reads the entries there too.
@@ -242,7 +300,7 @@ keep what a directory can't: long names, virtual directories, more about each pr
 
 ## 7. Not yet
 
-- Files for the programs (CP/M file calls: BDOS 15-36), and `LOAD`, `SAVE`, `DISC`, `TAPE`.
+- The rest of the CP/M file calls (searches, rename, sizes), and `LOAD`, `SAVE`, `DISC`, `TAPE`.
 - A plain `.COM` without an entry ([6](#6-plain-com-files-filesdir-and-namehdr)): that needs the
   disc's own directory read (record counts, AMSDOS's sector command #84), which comes with
   the file system work, and random access with it. Programs such as BBC BASIC also call the
@@ -257,8 +315,11 @@ CyborgOS itself is `bas/cyborgos/Main.bas`, `Hyp.cls` (the bank side, the switch
 (the system keys, an interrupt class) and `Ent.cls` (FILES.DIR entries, in Z80 - CYBADD,
 `bas/cyborgos/tools/CYBADD.bas`, uses it too), built for **cpcfw** (also with `Option Library
 ROM`). `Option Reserve &H4000, &H4000` keeps the window it reaches the banks through free: the
-hypervisor (about 19K) is built round it, from #0040 and on from #8800, after the 2K file
-buffer `Option Buffer &H8000` puts at #8000; the Memory class's tables follow it (`Option Memory
-CPCExpansion 193`: up to 48 banks - all 64 of a 4MB expansion no longer fit there). The
-test programs are in `bas/cyborgos/tasks/`. The regression tests run it in the harness with 4
+hypervisor is built round it, from #0040 and on from #8000; the Memory class's tables follow it
+(`Option Memory CPCExpansion 193`: up to 48 banks - all 64 of a 4MB expansion no longer fit
+there; the Library: ROM build takes 33 pages, 8 banks, below the ROM's RAM at #8800). Its file
+work (RUN's loading, DIR, CD, the programs' BDOS file calls) is `Hyp.FileCall`, Z80 on the
+firmware's cassette calls, with main RAM's #4000-#4FFF as the disc ROM's two 2K buffers. The
+test programs are in `bas/cyborgos/tasks/`, the disc commands in `bas/cyborgos/cmds/` (each
+built for cpm with `CybDir.cls`, which reads and writes FILES.DIR). The regression tests run it in the harness with 4
 slots (576K), 1 slot (128K) and as a Library: ROM build.

@@ -7,7 +7,7 @@
 ' Ent.cls (the entries, in Z80) is CyborgOS's; build: CYBADD.bas, ../Ent.cls - cpcfw.
 Option PressAnyKeyOnEnd "Press a key"
 Option Explicit
-Option RomEnable 7                ' the disc ROM (AMSDOS, or a replacement), for the files
+Option RomEnable All              ' every background ROM (the disc ROM, an IDE / SD interface's ...), for the files
 Option NoRomDisc                  ' no ROMDISC: its FileSystem code left out
 Dim buf(2047) As Byte             ' a file read through (its length counted)
 Dim dir(4095) As Byte             ' FILES.DIR: 64 entries at most

@@ -96,6 +96,9 @@ ntc_nl_done:
 			ld ix, (ntc_pclink)
 			jp (ix)
 
+ntc_pclink:		dw 0
+
+;## ntc_plat_backspace @unit ntc_plat_screen ntc_plat_bdos ntc_plat_data ntc_data
 ; ntc_plat_backspace - BS, space, BS (only on the current line)
 ntc_plat_backspace:
 			ld a, (ntc_curx)
@@ -121,12 +124,13 @@ ntc_bs_back:
 ntc_bs_none:
 			jp (ix)
 
+;## ntc_plat_cls @unit ntc_plat_screen ntc_plat_bdos ntc_plat_data ntc_data
 	IF NTC_TERM = 0
 ; ntc_plat_cls - a stream can't be cleared: a new line (unless at the start)
 ntc_plat_cls:
 			ld a, (ntc_curx)
 			or a
-			jr nz, ntc_plat_newline
+			jp nz, ntc_plat_newline
 			jp (ix)
 
 ; ntc_plat_locate - nothing on a stream
@@ -264,10 +268,10 @@ ntc_term_cls:	db 27, "[2J", 27, "[H", 0	; ANSI: clear, home
 		ENDIF
 	ENDIF
 
+;## ntc_plat_mode @unit ntc_plat_screen ntc_plat_bdos ntc_plat_data ntc_data
 ; ntc_plat_mode - nothing on a terminal
 ntc_plat_mode:
 			jp (ix)
-ntc_pclink:		dw 0
 
 ;## ntc_plat_key ntc_plat_bdos ntc_data
 ; ntc_plat_scankey - A = key or 0 (BDOS 6, E = #FF)

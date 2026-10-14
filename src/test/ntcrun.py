@@ -52,7 +52,7 @@ def load_xroms():
     return out
 # NTC_PROF=file: the PC at the end of each 13333 T chunk, with the symbols, written there (a profile)
 PROF = [] if os.environ.get('NTC_PROF') else None
-RSX = ['TAPE', 'DISC', 'A', 'B', 'C', 'M']   # AMSDOS's commands, and an M4-like DOS's C and M
+RSX = ['TAPE', 'DISC', 'A', 'B', 'C', 'M', 'ERA', 'REN']   # AMSDOS's commands, and an M4-like DOS's C and M
 # files for the FileSystem class (cpm: BDOS FCB calls, cpcfw: CAS calls) live in this folder
 FILES = os.environ.get('NTC_FILES', os.path.join(HERE, 't', 'files'))
 
@@ -215,7 +215,8 @@ class Host:
                 if s.ram.view[3] == ('m', 3): s.m.mark_addrs(0xC000, 0x4000, s.m.WRITE_MARK)
                 else: s.m.unmark_addrs(0xC000, 0x4000, s.m.WRITE_MARK)
             return
-        if s.p == 'cpcfw' and (port >> 8) == 0xF6:
+        if s.p == 'cpcfw' and (port >> 8) == 0xF6 and lo != 0xDF and lo not in getattr(s, 'fwport', {}):
+            # (out (#DF), a: the stand-in RST 3 with A = #F6 - a byte just read - is not the PPI)
             s.line = val & 15; return          # the PPI's port C: the keyboard line (Keys class)
         if s.p == 'test':
             if lo == 0xFE: s.scr.put(chr(val) if 32 <= val < 127 else '?')
@@ -299,7 +300,7 @@ class Host:
                 ok = s.cas(f)
                 m.f = (m.f | 1) if ok else (m.f & 0xFE)
             elif f == 'kl_rom_walk' or (f == 'kl_init_back' and m.c == 7):
-                s.amsdos_on(); m.hl = 0xA6FB
+                s.amsdos_on(); m.hl = int(os.environ.get('NTC_ROMTOP', '0xA6FB'), 16)   # the highest byte the ROMs left (NTC_ROMTOP: more ROMs)
             elif f == 'kl_find_command':
                 a = m.hl; n = ''
                 while True:
@@ -332,7 +333,25 @@ class Host:
                 m.c = old; m.b = 0
             elif f == 'kl_far_pcall':
                 n = RSX[m.hl - 0x4000]
-                if n == 'TAPE': s.cas_dev = 'TAPE'
+                if n == 'REN':
+                    # |REN,"new","old": IX+0 the old name's descriptor, IX+2 the new one's
+                    mem = m.memory
+                    def sname(at):
+                        d = mem[at] | (mem[at + 1] << 8); a = mem[d + 1] | (mem[d + 2] << 8)
+                        nm = bytes(mem[a:a + mem[d]]).decode().upper(); dv = s.cas_dev
+                        if ':' in nm: dv, nm = nm.split(':', 1)
+                        return os.path.join(FILES, dv, nm)
+                    po, pn = sname(m.ix), sname(m.ix + 2)
+                    if os.path.exists(po) and not os.path.exists(pn): os.rename(po, pn)
+                elif n == 'ERA':
+                    # |ERA,"name": IX = the parameters, the one there the string's descriptor (length, address)
+                    mem = m.memory; d = mem[m.ix] | (mem[m.ix + 1] << 8)
+                    a = mem[d + 1] | (mem[d + 2] << 8)
+                    nm = bytes(mem[a:a + mem[d]]).decode().upper(); dv = s.cas_dev
+                    if ':' in nm: dv, nm = nm.split(':', 1)
+                    p = os.path.join(FILES, dv, nm)
+                    if os.path.exists(p): os.remove(p)
+                elif n == 'TAPE': s.cas_dev = 'TAPE'
                 elif n == 'DISC': s.cas_dev = s.disk
                 else:
                     s.disk = n
@@ -383,6 +402,7 @@ class Host:
     def cas(s, f):
         # the firmware's cassette calls (AMSDOS: disc) on the folder FILES; carry = ok
         m = s.m; mem = m.memory
+        if os.environ.get('NTC_CASLOG'): print('--- cas', f, hex(m.hl), m.b, file=sys.stderr)
         def name():
             n = bytes(mem[m.hl:m.hl + m.b]).decode().upper(); d = s.cas_dev
             if ':' in n and s.cas_dev != 'TAPE': d, n = n.split(':', 1)     # "C:NAME": volume C
@@ -523,6 +543,10 @@ def main():
         if CPMVER >= 0x30:
             h.ram.mainp = [bytes(0x4000)] * 4; h.ram.view = [('x', 0, 0), ('x', 0, 1), ('x', 0, 2), ('x', 0, 3)]
     h.run(int(os.environ.get('NTC_LIMIT', '30000')))
+    if os.environ.get('NTC_BPEEK'):     # bank memory: "bank:address" (hex address in the bank's 64K), 16 bytes
+        for a in os.environ['NTC_BPEEK'].split(','):
+            bk, ad = a.split(':'); o = int(bk) * 0x10000 + int(ad, 16)
+            print('--- bpeek %s: %s' % (a, ' '.join('%02x' % x for x in h.ram.ext[o:o + 16])))
     if os.environ.get('NTC_PEEK'):
         for a in os.environ['NTC_PEEK'].split(','): print('--- peek %s: %s' % (a, ' '.join('%02x' % h.m.memory[int(a, 16) + i] for i in range(8))))
     print(h.scr.text())

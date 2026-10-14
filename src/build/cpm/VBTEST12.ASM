@@ -678,35 +678,51 @@ str34:			db "1234567890123456", 0
 ; Keyword library (used)
 ; ============================================================
 
-;## ntc_data @shared
+;## ntc_data @shared ntc_d_nmode
 ; ------------------------------------------------------------
-; Scratch space
+; Scratch space: the core every program has (with ntc_d_nmode). The rest of
+; the run time's variables are @data sections, each linked only when a
+; linked section's code names one of its labels (no header lists them).
+; They stay in this order: the keyword ROM's registry keeps each variable's
+; address (a Library: ROM program has them as fixed addresses)
 ; ------------------------------------------------------------
 ntc_next:		ret				; IX target that continues the thread
 ntc_csp:		dw 0			; caller SP, for kw_stop (and the normal mode stack)
 ntc_ip:			dw 0			; normal mode: thread position while out of the thread
-ntc_ticks:		dw 0			; interrupt count (normal mode, platform handler)
+
+;## ntc_d_gnlo @data
 ntc_gnlo:		db 0			; ntc_getn: low byte
+
+;## ntc_d_nmode @data
 ntc_nmode:		db 0			; 1 = running in normal mode (waits let interrupts in)
-ntc_mode:		db 0			; div mode 0=quotient 1=remainder
-ntc_sgnq:		db 0			; quotient sign (bit 7)
-ntc_sgnr:		db 0			; remainder sign (bit 7)
+
+;## ntc_d_lead @data
 ntc_lead:		db 0			; printint: digit seen
+
+;## ntc_d_icnt @data
 ntc_icnt:		db 0			; gets: chars typed
 ntc_icap:		db 0			; gets: the buffer's capacity
+
+;## ntc_d_sptr @data
 ntc_sptr:		dw 0			; printbuf: text pointer
+
+;## ntc_d_iptr @data
 ntc_iptr:		dw 0			; gets: buffer pointer
 ntc_ilink:		dw 0			; gets: where to go when done
+
+;## ntc_d_ivar @data
 ntc_ivar:		dw 0			; inputint / inkey: dest var
+
+;## ntc_d_aptr @data
 ntc_aptr:		dw 0			; atoi: text pointer
-ntc_hookon:		db 0			; 1 = the Interrupt hook may run (set, and not running now)
-ntc_hookset:	db 0			; 1 = an Interrupt hook is set
-ntc_hookpend:	db 0			; 1 = an interrupt came, the hook runs at the next safe point
-ntc_hook:		dw 0			; the hook Sub's call stub
+
+;## ntc_d_hostix @data
 ntc_hostix:		dw 0			; host platforms: IX kept over a firmware / BDOS call
-ntc_rampt:		dw #7FC0		; the gate array's RAM setting now (B = port, C = value): the
-								; Memory class keeps it, Graphics puts it back after drawing
+
+;## ntc_d_numbuf @data
 ntc_numbuf:		ds 14			; printint / long print: digits (+ spaces for Option VBPrint)
+
+;## ntc_d_inbuf @data
 				db 40			; ntc_inbuf's capacity (as every string variable has)
 ntc_inbuf:		ds 41			; inputint: typed text
 
@@ -2227,6 +2243,9 @@ ntc_nl_done:
 			ld ix, (ntc_pclink)
 			jp (ix)
 
+ntc_pclink:		dw 0
+
+;## ntc_plat_backspace @unit ntc_plat_screen ntc_plat_bdos ntc_plat_data ntc_data
 ; ntc_plat_backspace - BS, space, BS (only on the current line)
 ntc_plat_backspace:
 			ld a, (ntc_curx)
@@ -2252,12 +2271,13 @@ ntc_bs_back:
 ntc_bs_none:
 			jp (ix)
 
+;## ntc_plat_cls @unit ntc_plat_screen ntc_plat_bdos ntc_plat_data ntc_data
 	IF NTC_TERM = 0
 ; ntc_plat_cls - a stream can't be cleared: a new line (unless at the start)
 ntc_plat_cls:
 			ld a, (ntc_curx)
 			or a
-			jr nz, ntc_plat_newline
+			jp nz, ntc_plat_newline
 			jp (ix)
 
 ; ntc_plat_locate - nothing on a stream
@@ -2394,11 +2414,6 @@ ntc_term_cls:	db 27, "E", 27, "H", 0		; VT52: clear, home
 ntc_term_cls:	db 27, "[2J", 27, "[H", 0	; ANSI: clear, home
 		ENDIF
 	ENDIF
-
-; ntc_plat_mode - nothing on a terminal
-ntc_plat_mode:
-			jp (ix)
-ntc_pclink:		dw 0
 
 ;## ntc_plat_key ntc_plat_bdos ntc_data
 ; ntc_plat_scankey - A = key or 0 (BDOS 6, E = #FF)

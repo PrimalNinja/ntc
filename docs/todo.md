@@ -7,6 +7,46 @@ finished, with the date.
 
 ## done
 
+- 2026-10-14 CyborgOS: RENAME (cmds/RENAME.bas: on the disc and in FILES.DIR; the hypervisor's BDOS 23
+  through the disc ROM's |REN); the disc's FILES.DIR lists every file on it (test "CyborgOS
+  command RENAME"). Built round the window, variables are laid out one by one as strings are
+  (a section moving whole above the hole wasted 2.7K below it). Library: ROM build of CyborgOS:
+  no CD / DIR, shorter HELP (room)
+- 2026-10-14 CyborgOS: the memory map moved from TOP to MEM - main RAM's breakdown, then the banks'
+  pages 32 a group, two groups a line (test "CyborgOS MEM map")
+- 2026-10-14 Memory class (CPCExpansion): PRIMAL's layout - a RAT (1 byte a page: its type) and
+  a port table (2 bytes a page: the BC that selects it); no linked lists. A free page is found
+  by CPIR, freed by writing - back; selecting a page is a look-up (no bank arithmetic). The
+  per-bank table (129 bytes) and the 7 list heads / counts (28) are gone; the ROMs' RAM 92
+  bytes smaller. bank_t.bas's bank code moved to #3000 (CallBank's switch code landed on it)
+- 2026-10-14 CyborgOS's 128K version archived in `bas/cyborgos128kb` (not built or tested). Next:
+  320K minimum - the hypervisor's data in the first expansion bank's pages (C4 first), main
+  RAM's #4000-#7FFF left free, slots = banks - 1
+- 2026-10-14 CyborgOS: programs run by their names (not a command: NAME [args] runs NAME from
+  the slot's drive, else from A; the rest of the line is the CP/M command tail at #0080); RUN
+  NAME [args] forces the disc's (RUN CLS runs CLS.CYB), RUN NAME slot as before. Disc commands
+  COPY, ERA, TYPE, PREP (`bas/cyborgos/cmds`, cpm builds with CybDir.cls; only files in
+  FILES.DIR). Hypervisor BDOS file calls 13-16, 19-22, 25, 26, 32-34 (Hyp.FileCall, Z80 on the
+  cassette calls); RUN, DIR, CD read through it too (FileSystem and Option Buffer left out).
+  Test "CyborgOS commands COPY ERA TYPE PREP"
+- 2026-10-14 Library: ROM with a program built round the window (#4000-#7FFF): the ROM's
+  Memory class probes and puts its tables above the window (it ended with no banks: CyborgOS's
+  Library: ROM build said "needs a 6128"). Option Memory honours #If (test "Option Memory in
+  #If"). Built round the window, the strings are laid out one by one, filling what is left
+  below the hole
+- 2026-10-14 Harness: an `out (#DF), a` stand-in firmware call with A = #F6 (a byte just read)
+  was taken as the PPI (CAS IN CHAR lost); |ERA
+- 2026-10-14 CyborgOS and CYBADD start every background ROM (`Option RomEnable All`: IDE / SD
+  interfaces' ROMs too). Option RomEnable: when the ROMs take more RAM than AMSDOS's, cpcfw
+  moves its top (event block, heap / Memory tables limit) under it; it stops (with the address
+  the ROMs reached) only when the program itself would overlap
+
+- 2026-10-14 Finer linking: `@data` (variables) and `@unit` (small routines) sections are linked
+  when linked code names one of their labels - no header lists them. `ntc_data` split into a
+  core and `ntc_d_*` variables; Backspace / Cls / Mode / Locate split from each platform's
+  putc / newline. Print "Hello": cpcfw 555 -> 310 bytes, cpm 531 -> 470 (its 256-byte stack
+  stays). The ROMs keep their registry (same RAM addresses); 4 new routine numbers
+
 - 2026-10-14 Library: ROM: the start code (find the ROM set, patch the jump block, messages:
   about 460 bytes) goes last and the arrays / Memory tables start on it - it has run by then
   (as PRIMAL drops its relocation table). Hello: free RAM from #0089 instead of #0251

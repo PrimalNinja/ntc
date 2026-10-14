@@ -9,9 +9,9 @@ If b = 0 Then
   End
 End If
 Print Memory.Map(1, 9)
-' bank code at &1000: ld de,(&C000) : add hl,de : add hl,de : ld bc,(&C002) : add hl,bc : ret
+' bank code at &3000 (clear of the switch code CallBank copies to its own address): ld de,(&C000) : add hl,de : add hl,de : ld bc,(&C002) : add hl,bc : ret
 ' so value + 2 * word(&C000) + word(&C002)
-p = CLng(Memory.BankPage(b, 0)) * 65536 + &H5000
+p = CLng(Memory.BankPage(b, 0)) * 65536 + &H7000
 Memory.WriteByte p, &HED
 Memory.WriteByte p + 1, &H5B
 Memory.WriteByte p + 2, 0
@@ -27,9 +27,9 @@ Memory.WriteByte p + 11, &HC9
 p = CLng(Memory.BankPage(b, 3)) * 65536 + &H4000
 Memory.WriteWord p, 1000
 Memory.WriteWord p + 2, 7
-r = Memory.CallBank(b, &H1000, 5)
+r = Memory.CallBank(b, &H3000, 5)
 Print "call "; r
-r = Memory.CallBank(b, &H1000, 100)
+r = Memory.CallBank(b, &H3000, 100)
 Print "again "; r
 a = Memory.BankStub()
 p = CLng(Memory.BankPage(b, (a And &H7FFF) \ 16384 - 2 * (a < 0))) * 65536 + &H4000 + (a And &H3FFF)
@@ -40,7 +40,7 @@ r = Memory.FreeBank(b)
 Print "free "; r
 r = Memory.FreeBank(b)
 Print "free again "; r
-r = Memory.CallBank(b, &H1000, 5)
+r = Memory.CallBank(b, &H3000, 5)
 Print "call freed "; r
 r = Memory.CallBank(99, &H1000, 5)
 Print "call 99 "; r

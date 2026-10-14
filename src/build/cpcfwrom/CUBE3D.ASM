@@ -37,12 +37,54 @@ ntc_rj_ok:
 			ld (ntc_csp), sp
 			ld a, (#BC77)		; Option RomEnable: start the ROMs again
 			cp #DF			; AMSDOS has the cassette calls: they are running
-			jr z, ntc_roms_on
+			jp z, ntc_roms_on
 			ei
-			ld de, ntc_free		; the lowest address the ROMs may use (above the arrays)
+			ld de, #A5F0		; the lowest address the ROMs may use (the keyword ROM's RAM is below)
 			ld hl, #ABFF		; the highest (as usual for AMSDOS: it takes about #A700-#ABFF)
 			ld c, 7
 			call #BCCE		; KL INIT BACK: ROM 7 (DE / HL come back as the new limits)
+			inc hl			; the first byte the ROMs took
+			ld (ntc_roms_at), hl
+			ld de, #A600
+			or a
+			sbc hl, de
+			jp nc, ntc_roms_fit	; AMSDOS alone (or no more): as usual
+			ld hl, ntc_roms_msg
+			call ntc_roms_puts
+			ld a, (ntc_roms_at + 1)
+			call ntc_roms_hex
+			ld a, (ntc_roms_at)
+			call ntc_roms_hex
+			ld hl, ntc_roms_msg2
+			call ntc_roms_puts
+			call #BB06		; KM WAIT CHAR
+			rst 0			; (the machine starts again)
+ntc_roms_puts:
+			ld a, (hl)
+			or a
+			ret z
+			call #BB5A		; TXT OUTPUT
+			inc hl
+			jr ntc_roms_puts
+ntc_roms_hex:
+			push af
+			rrca
+			rrca
+			rrca
+			rrca
+			call ntc_roms_dig
+			pop af
+ntc_roms_dig:
+			and 15
+			add a, #90
+			daa
+			adc a, #40
+			daa
+			jp #BB5A
+ntc_roms_at:	dw 0
+ntc_roms_msg:	db "The ROMs' RAM reaches down to #", 0
+ntc_roms_msg2:	db ": no room for this program", 13, 10, "(fewer ROMs, or a smaller program)", 13, 10, "Press a key", 13, 10, 0
+ntc_roms_fit:
 			di
 			ASSERT ntc_free <= #A600, "Option RomEnable: the program and its arrays must end below #A600 (the ROMs take their RAM from #ABFF down)"
 ntc_roms_on:
@@ -2098,202 +2140,1082 @@ ntc_rg26:
 ; Variables
 ; ============================================================
 
-var_scr:			dw 0
-p_vector3d_clear_rs:			dw 0
-var_vector3d_np:			dw 0
-var_vector3d_ne:			dw 0
-p_vector3d_addpoint_rs:			dw 0
-var_vector3d_addpoint_x:			dw 0
-var_vector3d_addpoint_y:			dw 0
-var_vector3d_addpoint_z:			dw 0
-var_vector3d_addpoint_addpoint:			dw 0
-p_vector3d_addedge_rs:			dw 0
-var_vector3d_addedge_a:			dw 0
-var_vector3d_addedge_b:			dw 0
-p_vector3d_view_rs:			dw 0
-var_vector3d_view_x:			dw 0
-var_vector3d_view_y:			dw 0
-var_vector3d_view_scale:			dw 0
-var_vector3d_view_distance:			dw 0
-var_vector3d_cx:			dw 0
-var_vector3d_cy:			dw 0
-var_vector3d_scl:			dw 0
-var_vector3d_dst:			dw 0
-p_vector3d_points_rs:			dw 0
-var_vector3d_points_points:			dw 0
-p_vector3d_show_rs:			dw 0
-p_vector3d_hide_rs:			dw 0
-var_graphics_buffering_buffering:			dw 0
-p_vector3d_forget_rs:			dw 0
-var_vector3d_shown:			dw 0
-var_vector3d_shown2:			dw 0
-p_vector3d_turn_rs:			dw 0
-var_vector3d_turn_ax:			dw 0
-var_vector3d_turn_ay:			dw 0
-var_vector3d_turn_az:			dw 0
-var_vector3d_spsave:			dw 0
-var_vector3d_sinx:			dw 0
-var_vector3d_cosx:			dw 0
-var_vector3d_siny:			dw 0
-var_vector3d_cosy:			dw 0
-var_vector3d_sinz:			dw 0
-var_vector3d_cosz:			dw 0
-var_vector3d_pk:			dw 0
-var_vector3d_pn:			dw 0
-var_vector3d_tx:			dw 0
-var_vector3d_ty:			dw 0
-var_vector3d_tz:			dw 0
-var_vector3d_td:			dw 0
-p_vector3d_draw_rs:			dw 0
-var_vector3d_draw_visible:			dw 0
-var_vector3d_vis:			dw 0
-var_vector3d_xo:			dw 0
-var_vector3d_yo:			dw 0
-var_vector3d_ek:			dw 0
-var_vector3d_xs:			dw 0
-var_vector3d_ys:			dw 0
-var_vector3d_ia:			dw 0
-var_vector3d_ib:			dw 0
-var_vector3d_dm:			dw 0
-var_vector3d_en:			dw 0
-p_spin_run_rs:			dw 0
-			db 40			; capacity
-var_spin_run_k:			ds 41
-var_spin_run_t:			dw 0
-p_spin_run_pg:			dw 0
-var_spin_size:			dw 0
-var_spin_shape:			dw 0
-var_spin_mode:			dw 0
-var_spin_fast:			dw 0
-var_spin_frames:			dw 0
-var_spin_fps:			dw 0
-var_keys_down_down:			dw 0
-var_spin_paused:			dw 0
-var_spin_dbl:			dw 0
-p_spin_frame1_rs:			dw 0
-p_spin_frame1_pg:			dw 0
-var_spin_ax:			dw 0
-var_spin_ay:			dw 0
-var_spin_az:			dw 0
-var_spin_fx:			dw 0
-var_spin_fy:			dw 0
-var_spin_fz:			dw 0
-p_spin_screen_rs:			dw 0
-p_spin_screen_pg:			dw 0
-p_spin_status_rs:			dw 0
-p_spin_status_pg:			dw 0
-p_spin_makeshape_rs:			dw 0
-p_spin_makeshape_pg:			dw 0
-var_spin_makeshape___sel23:			dw 0
-p_spin_cube_rs:			dw 0
-var_spin_cube_x:			dw 0
-var_spin_cube_y:			dw 0
-var_spin_cube_h:			dw 0
-var_spin_cube_p:			dw 0
-var_spin_cube_i:			dw 0
-p_spin_cube_pg:			dw 0
-p_spin_pyramid_rs:			dw 0
-var_spin_pyramid_x:			dw 0
-var_spin_pyramid_y:			dw 0
-var_spin_pyramid_h:			dw 0
-var_spin_pyramid_p:			dw 0
-var_spin_pyramid_r:			dw 0
-var_spin_pyramid_i:			dw 0
-p_spin_pyramid_pg:			dw 0
-p_spin_cobra_rs:			dw 0
-var_spin_cobra_r:			dw 0
-p_spin_cobra_pg:			dw 0
-p_spin_edge_rs:			dw 0
-var_spin_edge_a:			dw 0
-var_spin_edge_b:			dw 0
-p_spin_edge_pg:			dw 0
-tmp0:			dw 0
-tmp1:			dw 0
-tmp2:			dw 0
-tmp3:			dw 0
-tmp4:			dw 0
-			db 255			; capacity
-stmp0:			ds 256
-
-; numbers passed by address (read only)
-lit_85:			dw 85
-lit_1:			dw 1
-lit_0:			dw 0
-lit_28:			dw 28
-lit_160:			dw 160
-lit_112:			dw 112
-lit_768:			dw 768
-lit_25:			dw 25
-vp_var_spin_fx:			dw var_spin_fx
-vp_var_spin_fy:			dw var_spin_fy
-vp_var_spin_fz:			dw var_spin_fz
-lit_3:			dw 3
-lit_128:			dw 128
-lit_m170:			dw -170
-lit_64:			dw 64
-lit_170:			dw 170
-lit_40:			dw 40
-lit_213:			dw 213
-lit_m85:			dw -85
-lit_m238:			dw -238
-lit_m128:			dw -128
-lit_m256:			dw -256
-lit_m213:			dw -213
-lit_m34:			dw -34
-lit_256:			dw 256
-lit_238:			dw 238
-lit_42:			dw 42
-lit_59:			dw 59
-lit_2:			dw 2
-lit_4:			dw 4
-lit_5:			dw 5
-lit_6:			dw 6
-lit_7:			dw 7
-lit_8:			dw 8
-lit_9:			dw 9
-lit_10:			dw 10
-lit_11:			dw 11
-lit_12:			dw 12
-lit_13:			dw 13
-
 ntc_rg26_e:
 			IF ($ < 32768) && (ntc_rg27_e - ntc_rg27 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
 ntc_rg27:
-; ============================================================
-; Strings
-; ============================================================
-
-str0:			db "Page 1 is taken - no double buffering", 0
-str1:			db "Press a key", 0
-str2:			db "Bye", 0
-str3:			db "1", 0
-str4:			db "2", 0
-str5:			db "3", 0
-str6:			db "4", 0
-str7:			db "P", 0
-str8:			db "A", 0
-str9:			db "B", 0
-str10:			db "C", 0
-str11:			db "D", 0
-str12:			db "T", 0
-str13:			db "X", 0
-str14:			db "1-4 shape A-C mode", 0
-str15:			db "D double T turbo +-PX", 0
-str16:			db "M", 0
-str17:			db " dbl", 0
-str18:			db " one", 0
-str19:			db 0
-str20:			db " turbo ", 0
-str21:			db " normal ", 0
-str22:			db "fps  ", 0
-
+var_scr:			dw 0
 ntc_rg27_e:
 			IF ($ < 32768) && (ntc_rg28_e - ntc_rg28 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
 ntc_rg28:
+p_vector3d_clear_rs:			dw 0
+ntc_rg28_e:
+			IF ($ < 32768) && (ntc_rg29_e - ntc_rg29 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg29:
+var_vector3d_np:			dw 0
+ntc_rg29_e:
+			IF ($ < 32768) && (ntc_rg30_e - ntc_rg30 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg30:
+var_vector3d_ne:			dw 0
+ntc_rg30_e:
+			IF ($ < 32768) && (ntc_rg31_e - ntc_rg31 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg31:
+p_vector3d_addpoint_rs:			dw 0
+ntc_rg31_e:
+			IF ($ < 32768) && (ntc_rg32_e - ntc_rg32 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg32:
+var_vector3d_addpoint_x:			dw 0
+ntc_rg32_e:
+			IF ($ < 32768) && (ntc_rg33_e - ntc_rg33 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg33:
+var_vector3d_addpoint_y:			dw 0
+ntc_rg33_e:
+			IF ($ < 32768) && (ntc_rg34_e - ntc_rg34 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg34:
+var_vector3d_addpoint_z:			dw 0
+ntc_rg34_e:
+			IF ($ < 32768) && (ntc_rg35_e - ntc_rg35 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg35:
+var_vector3d_addpoint_addpoint:			dw 0
+ntc_rg35_e:
+			IF ($ < 32768) && (ntc_rg36_e - ntc_rg36 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg36:
+p_vector3d_addedge_rs:			dw 0
+ntc_rg36_e:
+			IF ($ < 32768) && (ntc_rg37_e - ntc_rg37 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg37:
+var_vector3d_addedge_a:			dw 0
+ntc_rg37_e:
+			IF ($ < 32768) && (ntc_rg38_e - ntc_rg38 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg38:
+var_vector3d_addedge_b:			dw 0
+ntc_rg38_e:
+			IF ($ < 32768) && (ntc_rg39_e - ntc_rg39 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg39:
+p_vector3d_view_rs:			dw 0
+ntc_rg39_e:
+			IF ($ < 32768) && (ntc_rg40_e - ntc_rg40 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg40:
+var_vector3d_view_x:			dw 0
+ntc_rg40_e:
+			IF ($ < 32768) && (ntc_rg41_e - ntc_rg41 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg41:
+var_vector3d_view_y:			dw 0
+ntc_rg41_e:
+			IF ($ < 32768) && (ntc_rg42_e - ntc_rg42 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg42:
+var_vector3d_view_scale:			dw 0
+ntc_rg42_e:
+			IF ($ < 32768) && (ntc_rg43_e - ntc_rg43 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg43:
+var_vector3d_view_distance:			dw 0
+ntc_rg43_e:
+			IF ($ < 32768) && (ntc_rg44_e - ntc_rg44 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg44:
+var_vector3d_cx:			dw 0
+ntc_rg44_e:
+			IF ($ < 32768) && (ntc_rg45_e - ntc_rg45 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg45:
+var_vector3d_cy:			dw 0
+ntc_rg45_e:
+			IF ($ < 32768) && (ntc_rg46_e - ntc_rg46 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg46:
+var_vector3d_scl:			dw 0
+ntc_rg46_e:
+			IF ($ < 32768) && (ntc_rg47_e - ntc_rg47 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg47:
+var_vector3d_dst:			dw 0
+ntc_rg47_e:
+			IF ($ < 32768) && (ntc_rg48_e - ntc_rg48 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg48:
+p_vector3d_points_rs:			dw 0
+ntc_rg48_e:
+			IF ($ < 32768) && (ntc_rg49_e - ntc_rg49 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg49:
+var_vector3d_points_points:			dw 0
+ntc_rg49_e:
+			IF ($ < 32768) && (ntc_rg50_e - ntc_rg50 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg50:
+p_vector3d_show_rs:			dw 0
+ntc_rg50_e:
+			IF ($ < 32768) && (ntc_rg51_e - ntc_rg51 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg51:
+p_vector3d_hide_rs:			dw 0
+ntc_rg51_e:
+			IF ($ < 32768) && (ntc_rg52_e - ntc_rg52 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg52:
+var_graphics_buffering_buffering:			dw 0
+ntc_rg52_e:
+			IF ($ < 32768) && (ntc_rg53_e - ntc_rg53 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg53:
+p_vector3d_forget_rs:			dw 0
+ntc_rg53_e:
+			IF ($ < 32768) && (ntc_rg54_e - ntc_rg54 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg54:
+var_vector3d_shown:			dw 0
+ntc_rg54_e:
+			IF ($ < 32768) && (ntc_rg55_e - ntc_rg55 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg55:
+var_vector3d_shown2:			dw 0
+ntc_rg55_e:
+			IF ($ < 32768) && (ntc_rg56_e - ntc_rg56 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg56:
+p_vector3d_turn_rs:			dw 0
+ntc_rg56_e:
+			IF ($ < 32768) && (ntc_rg57_e - ntc_rg57 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg57:
+var_vector3d_turn_ax:			dw 0
+ntc_rg57_e:
+			IF ($ < 32768) && (ntc_rg58_e - ntc_rg58 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg58:
+var_vector3d_turn_ay:			dw 0
+ntc_rg58_e:
+			IF ($ < 32768) && (ntc_rg59_e - ntc_rg59 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg59:
+var_vector3d_turn_az:			dw 0
+ntc_rg59_e:
+			IF ($ < 32768) && (ntc_rg60_e - ntc_rg60 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg60:
+var_vector3d_spsave:			dw 0
+ntc_rg60_e:
+			IF ($ < 32768) && (ntc_rg61_e - ntc_rg61 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg61:
+var_vector3d_sinx:			dw 0
+ntc_rg61_e:
+			IF ($ < 32768) && (ntc_rg62_e - ntc_rg62 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg62:
+var_vector3d_cosx:			dw 0
+ntc_rg62_e:
+			IF ($ < 32768) && (ntc_rg63_e - ntc_rg63 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg63:
+var_vector3d_siny:			dw 0
+ntc_rg63_e:
+			IF ($ < 32768) && (ntc_rg64_e - ntc_rg64 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg64:
+var_vector3d_cosy:			dw 0
+ntc_rg64_e:
+			IF ($ < 32768) && (ntc_rg65_e - ntc_rg65 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg65:
+var_vector3d_sinz:			dw 0
+ntc_rg65_e:
+			IF ($ < 32768) && (ntc_rg66_e - ntc_rg66 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg66:
+var_vector3d_cosz:			dw 0
+ntc_rg66_e:
+			IF ($ < 32768) && (ntc_rg67_e - ntc_rg67 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg67:
+var_vector3d_pk:			dw 0
+ntc_rg67_e:
+			IF ($ < 32768) && (ntc_rg68_e - ntc_rg68 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg68:
+var_vector3d_pn:			dw 0
+ntc_rg68_e:
+			IF ($ < 32768) && (ntc_rg69_e - ntc_rg69 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg69:
+var_vector3d_tx:			dw 0
+ntc_rg69_e:
+			IF ($ < 32768) && (ntc_rg70_e - ntc_rg70 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg70:
+var_vector3d_ty:			dw 0
+ntc_rg70_e:
+			IF ($ < 32768) && (ntc_rg71_e - ntc_rg71 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg71:
+var_vector3d_tz:			dw 0
+ntc_rg71_e:
+			IF ($ < 32768) && (ntc_rg72_e - ntc_rg72 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg72:
+var_vector3d_td:			dw 0
+ntc_rg72_e:
+			IF ($ < 32768) && (ntc_rg73_e - ntc_rg73 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg73:
+p_vector3d_draw_rs:			dw 0
+ntc_rg73_e:
+			IF ($ < 32768) && (ntc_rg74_e - ntc_rg74 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg74:
+var_vector3d_draw_visible:			dw 0
+ntc_rg74_e:
+			IF ($ < 32768) && (ntc_rg75_e - ntc_rg75 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg75:
+var_vector3d_vis:			dw 0
+ntc_rg75_e:
+			IF ($ < 32768) && (ntc_rg76_e - ntc_rg76 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg76:
+var_vector3d_xo:			dw 0
+ntc_rg76_e:
+			IF ($ < 32768) && (ntc_rg77_e - ntc_rg77 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg77:
+var_vector3d_yo:			dw 0
+ntc_rg77_e:
+			IF ($ < 32768) && (ntc_rg78_e - ntc_rg78 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg78:
+var_vector3d_ek:			dw 0
+ntc_rg78_e:
+			IF ($ < 32768) && (ntc_rg79_e - ntc_rg79 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg79:
+var_vector3d_xs:			dw 0
+ntc_rg79_e:
+			IF ($ < 32768) && (ntc_rg80_e - ntc_rg80 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg80:
+var_vector3d_ys:			dw 0
+ntc_rg80_e:
+			IF ($ < 32768) && (ntc_rg81_e - ntc_rg81 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg81:
+var_vector3d_ia:			dw 0
+ntc_rg81_e:
+			IF ($ < 32768) && (ntc_rg82_e - ntc_rg82 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg82:
+var_vector3d_ib:			dw 0
+ntc_rg82_e:
+			IF ($ < 32768) && (ntc_rg83_e - ntc_rg83 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg83:
+var_vector3d_dm:			dw 0
+ntc_rg83_e:
+			IF ($ < 32768) && (ntc_rg84_e - ntc_rg84 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg84:
+var_vector3d_en:			dw 0
+ntc_rg84_e:
+			IF ($ < 32768) && (ntc_rg85_e - ntc_rg85 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg85:
+p_spin_run_rs:			dw 0
+ntc_rg85_e:
+			IF ($ < 32768) && (ntc_rg86_e - ntc_rg86 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg86:
+			db 40			; capacity
+var_spin_run_k:			ds 41
+ntc_rg86_e:
+			IF ($ < 32768) && (ntc_rg87_e - ntc_rg87 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg87:
+var_spin_run_t:			dw 0
+ntc_rg87_e:
+			IF ($ < 32768) && (ntc_rg88_e - ntc_rg88 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg88:
+p_spin_run_pg:			dw 0
+ntc_rg88_e:
+			IF ($ < 32768) && (ntc_rg89_e - ntc_rg89 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg89:
+var_spin_size:			dw 0
+ntc_rg89_e:
+			IF ($ < 32768) && (ntc_rg90_e - ntc_rg90 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg90:
+var_spin_shape:			dw 0
+ntc_rg90_e:
+			IF ($ < 32768) && (ntc_rg91_e - ntc_rg91 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg91:
+var_spin_mode:			dw 0
+ntc_rg91_e:
+			IF ($ < 32768) && (ntc_rg92_e - ntc_rg92 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg92:
+var_spin_fast:			dw 0
+ntc_rg92_e:
+			IF ($ < 32768) && (ntc_rg93_e - ntc_rg93 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg93:
+var_spin_frames:			dw 0
+ntc_rg93_e:
+			IF ($ < 32768) && (ntc_rg94_e - ntc_rg94 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg94:
+var_spin_fps:			dw 0
+ntc_rg94_e:
+			IF ($ < 32768) && (ntc_rg95_e - ntc_rg95 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg95:
+var_keys_down_down:			dw 0
+ntc_rg95_e:
+			IF ($ < 32768) && (ntc_rg96_e - ntc_rg96 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg96:
+var_spin_paused:			dw 0
+ntc_rg96_e:
+			IF ($ < 32768) && (ntc_rg97_e - ntc_rg97 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg97:
+var_spin_dbl:			dw 0
+ntc_rg97_e:
+			IF ($ < 32768) && (ntc_rg98_e - ntc_rg98 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg98:
+p_spin_frame1_rs:			dw 0
+ntc_rg98_e:
+			IF ($ < 32768) && (ntc_rg99_e - ntc_rg99 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg99:
+p_spin_frame1_pg:			dw 0
+ntc_rg99_e:
+			IF ($ < 32768) && (ntc_rg100_e - ntc_rg100 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg100:
+var_spin_ax:			dw 0
+ntc_rg100_e:
+			IF ($ < 32768) && (ntc_rg101_e - ntc_rg101 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg101:
+var_spin_ay:			dw 0
+ntc_rg101_e:
+			IF ($ < 32768) && (ntc_rg102_e - ntc_rg102 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg102:
+var_spin_az:			dw 0
+ntc_rg102_e:
+			IF ($ < 32768) && (ntc_rg103_e - ntc_rg103 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg103:
+var_spin_fx:			dw 0
+ntc_rg103_e:
+			IF ($ < 32768) && (ntc_rg104_e - ntc_rg104 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg104:
+var_spin_fy:			dw 0
+ntc_rg104_e:
+			IF ($ < 32768) && (ntc_rg105_e - ntc_rg105 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg105:
+var_spin_fz:			dw 0
+ntc_rg105_e:
+			IF ($ < 32768) && (ntc_rg106_e - ntc_rg106 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg106:
+p_spin_screen_rs:			dw 0
+ntc_rg106_e:
+			IF ($ < 32768) && (ntc_rg107_e - ntc_rg107 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg107:
+p_spin_screen_pg:			dw 0
+ntc_rg107_e:
+			IF ($ < 32768) && (ntc_rg108_e - ntc_rg108 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg108:
+p_spin_status_rs:			dw 0
+ntc_rg108_e:
+			IF ($ < 32768) && (ntc_rg109_e - ntc_rg109 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg109:
+p_spin_status_pg:			dw 0
+ntc_rg109_e:
+			IF ($ < 32768) && (ntc_rg110_e - ntc_rg110 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg110:
+p_spin_makeshape_rs:			dw 0
+ntc_rg110_e:
+			IF ($ < 32768) && (ntc_rg111_e - ntc_rg111 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg111:
+p_spin_makeshape_pg:			dw 0
+ntc_rg111_e:
+			IF ($ < 32768) && (ntc_rg112_e - ntc_rg112 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg112:
+var_spin_makeshape___sel23:			dw 0
+ntc_rg112_e:
+			IF ($ < 32768) && (ntc_rg113_e - ntc_rg113 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg113:
+p_spin_cube_rs:			dw 0
+ntc_rg113_e:
+			IF ($ < 32768) && (ntc_rg114_e - ntc_rg114 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg114:
+var_spin_cube_x:			dw 0
+ntc_rg114_e:
+			IF ($ < 32768) && (ntc_rg115_e - ntc_rg115 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg115:
+var_spin_cube_y:			dw 0
+ntc_rg115_e:
+			IF ($ < 32768) && (ntc_rg116_e - ntc_rg116 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg116:
+var_spin_cube_h:			dw 0
+ntc_rg116_e:
+			IF ($ < 32768) && (ntc_rg117_e - ntc_rg117 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg117:
+var_spin_cube_p:			dw 0
+ntc_rg117_e:
+			IF ($ < 32768) && (ntc_rg118_e - ntc_rg118 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg118:
+var_spin_cube_i:			dw 0
+ntc_rg118_e:
+			IF ($ < 32768) && (ntc_rg119_e - ntc_rg119 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg119:
+p_spin_cube_pg:			dw 0
+ntc_rg119_e:
+			IF ($ < 32768) && (ntc_rg120_e - ntc_rg120 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg120:
+p_spin_pyramid_rs:			dw 0
+ntc_rg120_e:
+			IF ($ < 32768) && (ntc_rg121_e - ntc_rg121 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg121:
+var_spin_pyramid_x:			dw 0
+ntc_rg121_e:
+			IF ($ < 32768) && (ntc_rg122_e - ntc_rg122 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg122:
+var_spin_pyramid_y:			dw 0
+ntc_rg122_e:
+			IF ($ < 32768) && (ntc_rg123_e - ntc_rg123 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg123:
+var_spin_pyramid_h:			dw 0
+ntc_rg123_e:
+			IF ($ < 32768) && (ntc_rg124_e - ntc_rg124 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg124:
+var_spin_pyramid_p:			dw 0
+ntc_rg124_e:
+			IF ($ < 32768) && (ntc_rg125_e - ntc_rg125 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg125:
+var_spin_pyramid_r:			dw 0
+ntc_rg125_e:
+			IF ($ < 32768) && (ntc_rg126_e - ntc_rg126 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg126:
+var_spin_pyramid_i:			dw 0
+ntc_rg126_e:
+			IF ($ < 32768) && (ntc_rg127_e - ntc_rg127 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg127:
+p_spin_pyramid_pg:			dw 0
+ntc_rg127_e:
+			IF ($ < 32768) && (ntc_rg128_e - ntc_rg128 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg128:
+p_spin_cobra_rs:			dw 0
+ntc_rg128_e:
+			IF ($ < 32768) && (ntc_rg129_e - ntc_rg129 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg129:
+var_spin_cobra_r:			dw 0
+ntc_rg129_e:
+			IF ($ < 32768) && (ntc_rg130_e - ntc_rg130 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg130:
+p_spin_cobra_pg:			dw 0
+ntc_rg130_e:
+			IF ($ < 32768) && (ntc_rg131_e - ntc_rg131 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg131:
+p_spin_edge_rs:			dw 0
+ntc_rg131_e:
+			IF ($ < 32768) && (ntc_rg132_e - ntc_rg132 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg132:
+var_spin_edge_a:			dw 0
+ntc_rg132_e:
+			IF ($ < 32768) && (ntc_rg133_e - ntc_rg133 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg133:
+var_spin_edge_b:			dw 0
+ntc_rg133_e:
+			IF ($ < 32768) && (ntc_rg134_e - ntc_rg134 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg134:
+p_spin_edge_pg:			dw 0
+ntc_rg134_e:
+			IF ($ < 32768) && (ntc_rg135_e - ntc_rg135 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg135:
+tmp0:			dw 0
+ntc_rg135_e:
+			IF ($ < 32768) && (ntc_rg136_e - ntc_rg136 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg136:
+tmp1:			dw 0
+ntc_rg136_e:
+			IF ($ < 32768) && (ntc_rg137_e - ntc_rg137 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg137:
+tmp2:			dw 0
+ntc_rg137_e:
+			IF ($ < 32768) && (ntc_rg138_e - ntc_rg138 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg138:
+tmp3:			dw 0
+ntc_rg138_e:
+			IF ($ < 32768) && (ntc_rg139_e - ntc_rg139 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg139:
+tmp4:			dw 0
+ntc_rg139_e:
+			IF ($ < 32768) && (ntc_rg140_e - ntc_rg140 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg140:
+			db 255			; capacity
+stmp0:			ds 256
+
+; numbers passed by address (read only)
+ntc_rg140_e:
+			IF ($ < 32768) && (ntc_rg141_e - ntc_rg141 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg141:
+lit_85:			dw 85
+ntc_rg141_e:
+			IF ($ < 32768) && (ntc_rg142_e - ntc_rg142 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg142:
+lit_1:			dw 1
+ntc_rg142_e:
+			IF ($ < 32768) && (ntc_rg143_e - ntc_rg143 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg143:
+lit_0:			dw 0
+ntc_rg143_e:
+			IF ($ < 32768) && (ntc_rg144_e - ntc_rg144 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg144:
+lit_28:			dw 28
+ntc_rg144_e:
+			IF ($ < 32768) && (ntc_rg145_e - ntc_rg145 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg145:
+lit_160:			dw 160
+ntc_rg145_e:
+			IF ($ < 32768) && (ntc_rg146_e - ntc_rg146 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg146:
+lit_112:			dw 112
+ntc_rg146_e:
+			IF ($ < 32768) && (ntc_rg147_e - ntc_rg147 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg147:
+lit_768:			dw 768
+ntc_rg147_e:
+			IF ($ < 32768) && (ntc_rg148_e - ntc_rg148 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg148:
+lit_25:			dw 25
+ntc_rg148_e:
+			IF ($ < 32768) && (ntc_rg149_e - ntc_rg149 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg149:
+vp_var_spin_fx:			dw var_spin_fx
+ntc_rg149_e:
+			IF ($ < 32768) && (ntc_rg150_e - ntc_rg150 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg150:
+vp_var_spin_fy:			dw var_spin_fy
+ntc_rg150_e:
+			IF ($ < 32768) && (ntc_rg151_e - ntc_rg151 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg151:
+vp_var_spin_fz:			dw var_spin_fz
+ntc_rg151_e:
+			IF ($ < 32768) && (ntc_rg152_e - ntc_rg152 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg152:
+lit_3:			dw 3
+ntc_rg152_e:
+			IF ($ < 32768) && (ntc_rg153_e - ntc_rg153 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg153:
+lit_128:			dw 128
+ntc_rg153_e:
+			IF ($ < 32768) && (ntc_rg154_e - ntc_rg154 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg154:
+lit_m170:			dw -170
+ntc_rg154_e:
+			IF ($ < 32768) && (ntc_rg155_e - ntc_rg155 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg155:
+lit_64:			dw 64
+ntc_rg155_e:
+			IF ($ < 32768) && (ntc_rg156_e - ntc_rg156 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg156:
+lit_170:			dw 170
+ntc_rg156_e:
+			IF ($ < 32768) && (ntc_rg157_e - ntc_rg157 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg157:
+lit_40:			dw 40
+ntc_rg157_e:
+			IF ($ < 32768) && (ntc_rg158_e - ntc_rg158 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg158:
+lit_213:			dw 213
+ntc_rg158_e:
+			IF ($ < 32768) && (ntc_rg159_e - ntc_rg159 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg159:
+lit_m85:			dw -85
+ntc_rg159_e:
+			IF ($ < 32768) && (ntc_rg160_e - ntc_rg160 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg160:
+lit_m238:			dw -238
+ntc_rg160_e:
+			IF ($ < 32768) && (ntc_rg161_e - ntc_rg161 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg161:
+lit_m128:			dw -128
+ntc_rg161_e:
+			IF ($ < 32768) && (ntc_rg162_e - ntc_rg162 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg162:
+lit_m256:			dw -256
+ntc_rg162_e:
+			IF ($ < 32768) && (ntc_rg163_e - ntc_rg163 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg163:
+lit_m213:			dw -213
+ntc_rg163_e:
+			IF ($ < 32768) && (ntc_rg164_e - ntc_rg164 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg164:
+lit_m34:			dw -34
+ntc_rg164_e:
+			IF ($ < 32768) && (ntc_rg165_e - ntc_rg165 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg165:
+lit_256:			dw 256
+ntc_rg165_e:
+			IF ($ < 32768) && (ntc_rg166_e - ntc_rg166 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg166:
+lit_238:			dw 238
+ntc_rg166_e:
+			IF ($ < 32768) && (ntc_rg167_e - ntc_rg167 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg167:
+lit_42:			dw 42
+ntc_rg167_e:
+			IF ($ < 32768) && (ntc_rg168_e - ntc_rg168 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg168:
+lit_59:			dw 59
+ntc_rg168_e:
+			IF ($ < 32768) && (ntc_rg169_e - ntc_rg169 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg169:
+lit_2:			dw 2
+ntc_rg169_e:
+			IF ($ < 32768) && (ntc_rg170_e - ntc_rg170 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg170:
+lit_4:			dw 4
+ntc_rg170_e:
+			IF ($ < 32768) && (ntc_rg171_e - ntc_rg171 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg171:
+lit_5:			dw 5
+ntc_rg171_e:
+			IF ($ < 32768) && (ntc_rg172_e - ntc_rg172 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg172:
+lit_6:			dw 6
+ntc_rg172_e:
+			IF ($ < 32768) && (ntc_rg173_e - ntc_rg173 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg173:
+lit_7:			dw 7
+ntc_rg173_e:
+			IF ($ < 32768) && (ntc_rg174_e - ntc_rg174 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg174:
+lit_8:			dw 8
+ntc_rg174_e:
+			IF ($ < 32768) && (ntc_rg175_e - ntc_rg175 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg175:
+lit_9:			dw 9
+ntc_rg175_e:
+			IF ($ < 32768) && (ntc_rg176_e - ntc_rg176 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg176:
+lit_10:			dw 10
+ntc_rg176_e:
+			IF ($ < 32768) && (ntc_rg177_e - ntc_rg177 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg177:
+lit_11:			dw 11
+ntc_rg177_e:
+			IF ($ < 32768) && (ntc_rg178_e - ntc_rg178 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg178:
+lit_12:			dw 12
+ntc_rg178_e:
+			IF ($ < 32768) && (ntc_rg179_e - ntc_rg179 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg179:
+lit_13:			dw 13
+
+ntc_rg179_e:
+			IF ($ < 32768) && (ntc_rg180_e - ntc_rg180 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg180:
+; ============================================================
+; Strings
+; ============================================================
+
+ntc_rg180_e:
+			IF ($ < 32768) && (ntc_rg181_e - ntc_rg181 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg181:
+str0:			db "Page 1 is taken - no double buffering", 0
+ntc_rg181_e:
+			IF ($ < 32768) && (ntc_rg182_e - ntc_rg182 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg182:
+str1:			db "Press a key", 0
+ntc_rg182_e:
+			IF ($ < 32768) && (ntc_rg183_e - ntc_rg183 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg183:
+str2:			db "Bye", 0
+ntc_rg183_e:
+			IF ($ < 32768) && (ntc_rg184_e - ntc_rg184 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg184:
+str3:			db "1", 0
+ntc_rg184_e:
+			IF ($ < 32768) && (ntc_rg185_e - ntc_rg185 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg185:
+str4:			db "2", 0
+ntc_rg185_e:
+			IF ($ < 32768) && (ntc_rg186_e - ntc_rg186 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg186:
+str5:			db "3", 0
+ntc_rg186_e:
+			IF ($ < 32768) && (ntc_rg187_e - ntc_rg187 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg187:
+str6:			db "4", 0
+ntc_rg187_e:
+			IF ($ < 32768) && (ntc_rg188_e - ntc_rg188 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg188:
+str7:			db "P", 0
+ntc_rg188_e:
+			IF ($ < 32768) && (ntc_rg189_e - ntc_rg189 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg189:
+str8:			db "A", 0
+ntc_rg189_e:
+			IF ($ < 32768) && (ntc_rg190_e - ntc_rg190 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg190:
+str9:			db "B", 0
+ntc_rg190_e:
+			IF ($ < 32768) && (ntc_rg191_e - ntc_rg191 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg191:
+str10:			db "C", 0
+ntc_rg191_e:
+			IF ($ < 32768) && (ntc_rg192_e - ntc_rg192 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg192:
+str11:			db "D", 0
+ntc_rg192_e:
+			IF ($ < 32768) && (ntc_rg193_e - ntc_rg193 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg193:
+str12:			db "T", 0
+ntc_rg193_e:
+			IF ($ < 32768) && (ntc_rg194_e - ntc_rg194 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg194:
+str13:			db "X", 0
+ntc_rg194_e:
+			IF ($ < 32768) && (ntc_rg195_e - ntc_rg195 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg195:
+str14:			db "1-4 shape A-C mode", 0
+ntc_rg195_e:
+			IF ($ < 32768) && (ntc_rg196_e - ntc_rg196 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg196:
+str15:			db "D double T turbo +-PX", 0
+ntc_rg196_e:
+			IF ($ < 32768) && (ntc_rg197_e - ntc_rg197 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg197:
+str16:			db "M", 0
+ntc_rg197_e:
+			IF ($ < 32768) && (ntc_rg198_e - ntc_rg198 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg198:
+str17:			db " dbl", 0
+ntc_rg198_e:
+			IF ($ < 32768) && (ntc_rg199_e - ntc_rg199 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg199:
+str18:			db " one", 0
+ntc_rg199_e:
+			IF ($ < 32768) && (ntc_rg200_e - ntc_rg200 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg200:
+str19:			db 0
+ntc_rg200_e:
+			IF ($ < 32768) && (ntc_rg201_e - ntc_rg201 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg201:
+str20:			db " turbo ", 0
+ntc_rg201_e:
+			IF ($ < 32768) && (ntc_rg202_e - ntc_rg202 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg202:
+str21:			db " normal ", 0
+ntc_rg202_e:
+			IF ($ < 32768) && (ntc_rg203_e - ntc_rg203 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg203:
+str22:			db "fps  ", 0
+
+ntc_rg203_e:
+			IF ($ < 32768) && (ntc_rg204_e - ntc_rg204 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg204:
 ; ============================================================
 ; Keyword library (rom)
 ; ============================================================
@@ -2377,11 +3299,11 @@ ntc_rj_exit:
 			ret
 ntc_rj_old:		dw 0			; the caller's ROM selection (C) and state (B)
 ; (not in the ROM - the library sections this program uses that the ROM leaves out)
-ntc_rg28_e:
-			IF ($ < 32768) && (ntc_rg29_e - ntc_rg29 + $ > 16384)	; fwdref-ok
+ntc_rg204_e:
+			IF ($ < 32768) && (ntc_rg205_e - ntc_rg205 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg29:
+ntc_rg205:
 ;## ntc_gfx ntc_data ntc_plat_data @shared @ramonly
 ; ------------------------------------------------------------
 ; ntc_gfx - drawing on the CPC screen (Graphics class, Vector3D): lines in
@@ -3258,7 +4180,7 @@ ntc_rj_tlk:		db "ROM NTC CPCFW too old: no routine #", 0
 ntc_rj_tpt:		db "ROM NTCFW<n>.ROM not found: n = #", 0
 ntc_rj_tnl:		db 13, 10, "Press a key", 13, 10, 0
 ntc_rj_dropend:
-ntc_rg29_e:
+ntc_rg205_e:
 ntc_end:				; the end of the program (and of its file)
 ; arrays: after the program, not in its file - kw_bssinit checks they fit and clears them
 			IF ntc_rj_dropend == ntc_end	; fwdref-ok
@@ -3934,4 +4856,4 @@ ovl_spin_vsize	equ 0		; its page variables; its local memory is the rest, to #80
 			DISPLAY "  page variables ", /D, ovl_spin_vsize, ", free ", /D, #8000 - (ovl_spin_end + ovl_spin_vsize)
 			SAVEAMSDOS "CUBE3D.001", ovl_spin_start, ovl_spin_end - ovl_spin_start, #4000
 
-NTC_STAMP	equ #8140		; the build stamp: the first word of every page file
+NTC_STAMP	equ #CBBB		; the build stamp: the first word of every page file

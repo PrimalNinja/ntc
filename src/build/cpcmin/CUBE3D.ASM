@@ -29,12 +29,54 @@ ntc_start2:
 			ld (ntc_csp), sp
 			ld a, (#BC77)		; Option RomEnable: start the ROMs again
 			cp #DF			; AMSDOS has the cassette calls: they are running
-			jr z, ntc_roms_on
+			jp z, ntc_roms_on
 			ei
 			ld de, ntc_free		; the lowest address the ROMs may use (above the arrays)
 			ld hl, #ABFF		; the highest (as usual for AMSDOS: it takes about #A700-#ABFF)
 			ld c, 7
 			call #BCCE		; KL INIT BACK: ROM 7 (DE / HL come back as the new limits)
+			inc hl			; the first byte the ROMs took
+			ld (ntc_roms_at), hl
+			ld de, #A600
+			or a
+			sbc hl, de
+			jp nc, ntc_roms_fit	; AMSDOS alone (or no more): as usual
+			ld hl, ntc_roms_msg
+			call ntc_roms_puts
+			ld a, (ntc_roms_at + 1)
+			call ntc_roms_hex
+			ld a, (ntc_roms_at)
+			call ntc_roms_hex
+			ld hl, ntc_roms_msg2
+			call ntc_roms_puts
+			call #BB06		; KM WAIT CHAR
+			rst 0			; (the machine starts again)
+ntc_roms_puts:
+			ld a, (hl)
+			or a
+			ret z
+			call #BB5A		; TXT OUTPUT
+			inc hl
+			jr ntc_roms_puts
+ntc_roms_hex:
+			push af
+			rrca
+			rrca
+			rrca
+			rrca
+			call ntc_roms_dig
+			pop af
+ntc_roms_dig:
+			and 15
+			add a, #90
+			daa
+			adc a, #40
+			daa
+			jp #BB5A
+ntc_roms_at:	dw 0
+ntc_roms_msg:	db "The ROMs' RAM reaches down to #", 0
+ntc_roms_msg2:	db ": no room for this program", 13, 10, "(fewer ROMs, or a smaller program)", 13, 10, "Press a key", 13, 10, 0
+ntc_roms_fit:
 			di
 			ASSERT ntc_free <= #A600, "Option RomEnable: the program and its arrays must end below #A600 (the ROMs take their RAM from #ABFF down)"
 ntc_roms_on:
@@ -2102,251 +2144,1171 @@ ntc_rg26:
 ; Variables
 ; ============================================================
 
-var_scr:			dw 0
-p_vector3d_clear_rs:			dw 0
-var_vector3d_np:			dw 0
-var_vector3d_ne:			dw 0
-p_vector3d_addpoint_rs:			dw 0
-var_vector3d_addpoint_x:			dw 0
-var_vector3d_addpoint_y:			dw 0
-var_vector3d_addpoint_z:			dw 0
-var_vector3d_addpoint_addpoint:			dw 0
-p_vector3d_addedge_rs:			dw 0
-var_vector3d_addedge_a:			dw 0
-var_vector3d_addedge_b:			dw 0
-p_vector3d_view_rs:			dw 0
-var_vector3d_view_x:			dw 0
-var_vector3d_view_y:			dw 0
-var_vector3d_view_scale:			dw 0
-var_vector3d_view_distance:			dw 0
-var_vector3d_cx:			dw 0
-var_vector3d_cy:			dw 0
-var_vector3d_scl:			dw 0
-var_vector3d_dst:			dw 0
-p_vector3d_points_rs:			dw 0
-var_vector3d_points_points:			dw 0
-p_vector3d_show_rs:			dw 0
-p_vector3d_hide_rs:			dw 0
-var_graphics_buffering_buffering:			dw 0
-p_vector3d_forget_rs:			dw 0
-var_vector3d_shown:			dw 0
-var_vector3d_shown2:			dw 0
-p_vector3d_turn_rs:			dw 0
-var_vector3d_turn_ax:			dw 0
-var_vector3d_turn_ay:			dw 0
-var_vector3d_turn_az:			dw 0
-var_vector3d_spsave:			dw 0
-var_vector3d_sinx:			dw 0
-var_vector3d_cosx:			dw 0
-var_vector3d_siny:			dw 0
-var_vector3d_cosy:			dw 0
-var_vector3d_sinz:			dw 0
-var_vector3d_cosz:			dw 0
-var_vector3d_pk:			dw 0
-var_vector3d_pn:			dw 0
-var_vector3d_tx:			dw 0
-var_vector3d_ty:			dw 0
-var_vector3d_tz:			dw 0
-var_vector3d_td:			dw 0
-p_vector3d_draw_rs:			dw 0
-var_vector3d_draw_visible:			dw 0
-var_vector3d_vis:			dw 0
-var_vector3d_xo:			dw 0
-var_vector3d_yo:			dw 0
-var_vector3d_ek:			dw 0
-var_vector3d_xs:			dw 0
-var_vector3d_ys:			dw 0
-var_vector3d_ia:			dw 0
-var_vector3d_ib:			dw 0
-var_vector3d_dm:			dw 0
-var_vector3d_en:			dw 0
-p_spin_run_rs:			dw 0
-			db 40			; capacity
-var_spin_run_k:			ds 41
-var_spin_run_t:			dw 0
-p_spin_run_pg:			dw 0
-var_spin_size:			dw 0
-var_spin_shape:			dw 0
-var_spin_mode:			dw 0
-var_spin_fast:			dw 0
-var_spin_frames:			dw 0
-var_spin_fps:			dw 0
-var_keys_down_down:			dw 0
-var_spin_paused:			dw 0
-var_spin_dbl:			dw 0
-p_spin_frame1_rs:			dw 0
-p_spin_frame1_pg:			dw 0
-var_spin_ax:			dw 0
-var_spin_ay:			dw 0
-var_spin_az:			dw 0
-var_spin_fx:			dw 0
-var_spin_fy:			dw 0
-var_spin_fz:			dw 0
-p_spin_screen_rs:			dw 0
-p_spin_screen_pg:			dw 0
-p_spin_status_rs:			dw 0
-p_spin_status_pg:			dw 0
-p_spin_makeshape_rs:			dw 0
-p_spin_makeshape_pg:			dw 0
-var_spin_makeshape___sel23:			dw 0
-p_spin_cube_rs:			dw 0
-var_spin_cube_x:			dw 0
-var_spin_cube_y:			dw 0
-var_spin_cube_h:			dw 0
-var_spin_cube_p:			dw 0
-var_spin_cube_i:			dw 0
-p_spin_cube_pg:			dw 0
-p_spin_pyramid_rs:			dw 0
-var_spin_pyramid_x:			dw 0
-var_spin_pyramid_y:			dw 0
-var_spin_pyramid_h:			dw 0
-var_spin_pyramid_p:			dw 0
-var_spin_pyramid_r:			dw 0
-var_spin_pyramid_i:			dw 0
-p_spin_pyramid_pg:			dw 0
-p_spin_cobra_rs:			dw 0
-var_spin_cobra_r:			dw 0
-p_spin_cobra_pg:			dw 0
-p_spin_edge_rs:			dw 0
-var_spin_edge_a:			dw 0
-var_spin_edge_b:			dw 0
-p_spin_edge_pg:			dw 0
-tmp0:			dw 0
-tmp1:			dw 0
-tmp2:			dw 0
-tmp3:			dw 0
-tmp4:			dw 0
-			db 40			; capacity
-stmp0:			ds 41
-
-; numbers passed by address (read only)
-lit_85:			dw 85
-lit_1:			dw 1
-lit_0:			dw 0
-lit_28:			dw 28
-lit_160:			dw 160
-lit_112:			dw 112
-lit_768:			dw 768
-lit_25:			dw 25
-vp_var_spin_fx:			dw var_spin_fx
-vp_var_spin_fy:			dw var_spin_fy
-vp_var_spin_fz:			dw var_spin_fz
-lit_3:			dw 3
-lit_128:			dw 128
-lit_m170:			dw -170
-lit_64:			dw 64
-lit_170:			dw 170
-lit_40:			dw 40
-lit_213:			dw 213
-lit_m85:			dw -85
-lit_m238:			dw -238
-lit_m128:			dw -128
-lit_m256:			dw -256
-lit_m213:			dw -213
-lit_m34:			dw -34
-lit_256:			dw 256
-lit_238:			dw 238
-lit_42:			dw 42
-lit_59:			dw 59
-lit_2:			dw 2
-lit_4:			dw 4
-lit_5:			dw 5
-lit_6:			dw 6
-lit_7:			dw 7
-lit_8:			dw 8
-lit_9:			dw 9
-lit_10:			dw 10
-lit_11:			dw 11
-lit_12:			dw 12
-lit_13:			dw 13
-
 ntc_rg26_e:
 			IF ($ < 32768) && (ntc_rg27_e - ntc_rg27 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
 ntc_rg27:
-; ============================================================
-; ZOSCII glyphs - each points at its 8 byte bitmap in ntc_font
-; ============================================================
-
-
+var_scr:			dw 0
 ntc_rg27_e:
 			IF ($ < 32768) && (ntc_rg28_e - ntc_rg28 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
 ntc_rg28:
-; ============================================================
-; Strings
-; ============================================================
-
-str0:			db "1", 0
-str1:			db "2", 0
-str2:			db "3", 0
-str3:			db "4", 0
-str4:			db "P", 0
-str5:			db "A", 0
-str6:			db "B", 0
-str7:			db "C", 0
-str8:			db "D", 0
-str9:			db "T", 0
-str10:			db "X", 0
-str11:			db " dbl", 0
-str12:			db " one", 0
-str13:			db 0
-str14:			db " turbo ", 0
-str15:			db " normal ", 0
-
+p_vector3d_clear_rs:			dw 0
 ntc_rg28_e:
 			IF ($ < 32768) && (ntc_rg29_e - ntc_rg29 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
 ntc_rg29:
-; ============================================================
-; Keyword library (used)
-; ============================================================
-
+var_vector3d_np:			dw 0
 ntc_rg29_e:
 			IF ($ < 32768) && (ntc_rg30_e - ntc_rg30 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
 ntc_rg30:
-;## ntc_data @shared
-; ------------------------------------------------------------
-; Scratch space
-; ------------------------------------------------------------
-ntc_next:		ret				; IX target that continues the thread
-ntc_csp:		dw 0			; caller SP, for kw_stop (and the normal mode stack)
-ntc_ip:			dw 0			; normal mode: thread position while out of the thread
-ntc_ticks:		dw 0			; interrupt count (normal mode, platform handler)
-ntc_gnlo:		db 0			; ntc_getn: low byte
-ntc_nmode:		db 0			; 1 = running in normal mode (waits let interrupts in)
-ntc_mode:		db 0			; div mode 0=quotient 1=remainder
-ntc_sgnq:		db 0			; quotient sign (bit 7)
-ntc_sgnr:		db 0			; remainder sign (bit 7)
-ntc_lead:		db 0			; printint: digit seen
-ntc_icnt:		db 0			; gets: chars typed
-ntc_icap:		db 0			; gets: the buffer's capacity
-ntc_sptr:		dw 0			; printbuf: text pointer
-ntc_iptr:		dw 0			; gets: buffer pointer
-ntc_ilink:		dw 0			; gets: where to go when done
-ntc_ivar:		dw 0			; inputint / inkey: dest var
-ntc_aptr:		dw 0			; atoi: text pointer
-ntc_hookon:		db 0			; 1 = the Interrupt hook may run (set, and not running now)
-ntc_hookset:	db 0			; 1 = an Interrupt hook is set
-ntc_hookpend:	db 0			; 1 = an interrupt came, the hook runs at the next safe point
-ntc_hook:		dw 0			; the hook Sub's call stub
-ntc_hostix:		dw 0			; host platforms: IX kept over a firmware / BDOS call
-ntc_rampt:		dw #7FC0		; the gate array's RAM setting now (B = port, C = value): the
-								; Memory class keeps it, Graphics puts it back after drawing
-ntc_numbuf:		ds 14			; printint / long print: digits (+ spaces for Option VBPrint)
-				db 40			; ntc_inbuf's capacity (as every string variable has)
-ntc_inbuf:		ds 41			; inputint: typed text
-
+var_vector3d_ne:			dw 0
 ntc_rg30_e:
 			IF ($ < 32768) && (ntc_rg31_e - ntc_rg31 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
 ntc_rg31:
+p_vector3d_addpoint_rs:			dw 0
+ntc_rg31_e:
+			IF ($ < 32768) && (ntc_rg32_e - ntc_rg32 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg32:
+var_vector3d_addpoint_x:			dw 0
+ntc_rg32_e:
+			IF ($ < 32768) && (ntc_rg33_e - ntc_rg33 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg33:
+var_vector3d_addpoint_y:			dw 0
+ntc_rg33_e:
+			IF ($ < 32768) && (ntc_rg34_e - ntc_rg34 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg34:
+var_vector3d_addpoint_z:			dw 0
+ntc_rg34_e:
+			IF ($ < 32768) && (ntc_rg35_e - ntc_rg35 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg35:
+var_vector3d_addpoint_addpoint:			dw 0
+ntc_rg35_e:
+			IF ($ < 32768) && (ntc_rg36_e - ntc_rg36 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg36:
+p_vector3d_addedge_rs:			dw 0
+ntc_rg36_e:
+			IF ($ < 32768) && (ntc_rg37_e - ntc_rg37 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg37:
+var_vector3d_addedge_a:			dw 0
+ntc_rg37_e:
+			IF ($ < 32768) && (ntc_rg38_e - ntc_rg38 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg38:
+var_vector3d_addedge_b:			dw 0
+ntc_rg38_e:
+			IF ($ < 32768) && (ntc_rg39_e - ntc_rg39 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg39:
+p_vector3d_view_rs:			dw 0
+ntc_rg39_e:
+			IF ($ < 32768) && (ntc_rg40_e - ntc_rg40 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg40:
+var_vector3d_view_x:			dw 0
+ntc_rg40_e:
+			IF ($ < 32768) && (ntc_rg41_e - ntc_rg41 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg41:
+var_vector3d_view_y:			dw 0
+ntc_rg41_e:
+			IF ($ < 32768) && (ntc_rg42_e - ntc_rg42 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg42:
+var_vector3d_view_scale:			dw 0
+ntc_rg42_e:
+			IF ($ < 32768) && (ntc_rg43_e - ntc_rg43 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg43:
+var_vector3d_view_distance:			dw 0
+ntc_rg43_e:
+			IF ($ < 32768) && (ntc_rg44_e - ntc_rg44 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg44:
+var_vector3d_cx:			dw 0
+ntc_rg44_e:
+			IF ($ < 32768) && (ntc_rg45_e - ntc_rg45 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg45:
+var_vector3d_cy:			dw 0
+ntc_rg45_e:
+			IF ($ < 32768) && (ntc_rg46_e - ntc_rg46 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg46:
+var_vector3d_scl:			dw 0
+ntc_rg46_e:
+			IF ($ < 32768) && (ntc_rg47_e - ntc_rg47 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg47:
+var_vector3d_dst:			dw 0
+ntc_rg47_e:
+			IF ($ < 32768) && (ntc_rg48_e - ntc_rg48 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg48:
+p_vector3d_points_rs:			dw 0
+ntc_rg48_e:
+			IF ($ < 32768) && (ntc_rg49_e - ntc_rg49 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg49:
+var_vector3d_points_points:			dw 0
+ntc_rg49_e:
+			IF ($ < 32768) && (ntc_rg50_e - ntc_rg50 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg50:
+p_vector3d_show_rs:			dw 0
+ntc_rg50_e:
+			IF ($ < 32768) && (ntc_rg51_e - ntc_rg51 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg51:
+p_vector3d_hide_rs:			dw 0
+ntc_rg51_e:
+			IF ($ < 32768) && (ntc_rg52_e - ntc_rg52 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg52:
+var_graphics_buffering_buffering:			dw 0
+ntc_rg52_e:
+			IF ($ < 32768) && (ntc_rg53_e - ntc_rg53 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg53:
+p_vector3d_forget_rs:			dw 0
+ntc_rg53_e:
+			IF ($ < 32768) && (ntc_rg54_e - ntc_rg54 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg54:
+var_vector3d_shown:			dw 0
+ntc_rg54_e:
+			IF ($ < 32768) && (ntc_rg55_e - ntc_rg55 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg55:
+var_vector3d_shown2:			dw 0
+ntc_rg55_e:
+			IF ($ < 32768) && (ntc_rg56_e - ntc_rg56 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg56:
+p_vector3d_turn_rs:			dw 0
+ntc_rg56_e:
+			IF ($ < 32768) && (ntc_rg57_e - ntc_rg57 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg57:
+var_vector3d_turn_ax:			dw 0
+ntc_rg57_e:
+			IF ($ < 32768) && (ntc_rg58_e - ntc_rg58 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg58:
+var_vector3d_turn_ay:			dw 0
+ntc_rg58_e:
+			IF ($ < 32768) && (ntc_rg59_e - ntc_rg59 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg59:
+var_vector3d_turn_az:			dw 0
+ntc_rg59_e:
+			IF ($ < 32768) && (ntc_rg60_e - ntc_rg60 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg60:
+var_vector3d_spsave:			dw 0
+ntc_rg60_e:
+			IF ($ < 32768) && (ntc_rg61_e - ntc_rg61 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg61:
+var_vector3d_sinx:			dw 0
+ntc_rg61_e:
+			IF ($ < 32768) && (ntc_rg62_e - ntc_rg62 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg62:
+var_vector3d_cosx:			dw 0
+ntc_rg62_e:
+			IF ($ < 32768) && (ntc_rg63_e - ntc_rg63 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg63:
+var_vector3d_siny:			dw 0
+ntc_rg63_e:
+			IF ($ < 32768) && (ntc_rg64_e - ntc_rg64 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg64:
+var_vector3d_cosy:			dw 0
+ntc_rg64_e:
+			IF ($ < 32768) && (ntc_rg65_e - ntc_rg65 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg65:
+var_vector3d_sinz:			dw 0
+ntc_rg65_e:
+			IF ($ < 32768) && (ntc_rg66_e - ntc_rg66 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg66:
+var_vector3d_cosz:			dw 0
+ntc_rg66_e:
+			IF ($ < 32768) && (ntc_rg67_e - ntc_rg67 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg67:
+var_vector3d_pk:			dw 0
+ntc_rg67_e:
+			IF ($ < 32768) && (ntc_rg68_e - ntc_rg68 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg68:
+var_vector3d_pn:			dw 0
+ntc_rg68_e:
+			IF ($ < 32768) && (ntc_rg69_e - ntc_rg69 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg69:
+var_vector3d_tx:			dw 0
+ntc_rg69_e:
+			IF ($ < 32768) && (ntc_rg70_e - ntc_rg70 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg70:
+var_vector3d_ty:			dw 0
+ntc_rg70_e:
+			IF ($ < 32768) && (ntc_rg71_e - ntc_rg71 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg71:
+var_vector3d_tz:			dw 0
+ntc_rg71_e:
+			IF ($ < 32768) && (ntc_rg72_e - ntc_rg72 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg72:
+var_vector3d_td:			dw 0
+ntc_rg72_e:
+			IF ($ < 32768) && (ntc_rg73_e - ntc_rg73 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg73:
+p_vector3d_draw_rs:			dw 0
+ntc_rg73_e:
+			IF ($ < 32768) && (ntc_rg74_e - ntc_rg74 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg74:
+var_vector3d_draw_visible:			dw 0
+ntc_rg74_e:
+			IF ($ < 32768) && (ntc_rg75_e - ntc_rg75 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg75:
+var_vector3d_vis:			dw 0
+ntc_rg75_e:
+			IF ($ < 32768) && (ntc_rg76_e - ntc_rg76 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg76:
+var_vector3d_xo:			dw 0
+ntc_rg76_e:
+			IF ($ < 32768) && (ntc_rg77_e - ntc_rg77 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg77:
+var_vector3d_yo:			dw 0
+ntc_rg77_e:
+			IF ($ < 32768) && (ntc_rg78_e - ntc_rg78 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg78:
+var_vector3d_ek:			dw 0
+ntc_rg78_e:
+			IF ($ < 32768) && (ntc_rg79_e - ntc_rg79 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg79:
+var_vector3d_xs:			dw 0
+ntc_rg79_e:
+			IF ($ < 32768) && (ntc_rg80_e - ntc_rg80 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg80:
+var_vector3d_ys:			dw 0
+ntc_rg80_e:
+			IF ($ < 32768) && (ntc_rg81_e - ntc_rg81 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg81:
+var_vector3d_ia:			dw 0
+ntc_rg81_e:
+			IF ($ < 32768) && (ntc_rg82_e - ntc_rg82 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg82:
+var_vector3d_ib:			dw 0
+ntc_rg82_e:
+			IF ($ < 32768) && (ntc_rg83_e - ntc_rg83 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg83:
+var_vector3d_dm:			dw 0
+ntc_rg83_e:
+			IF ($ < 32768) && (ntc_rg84_e - ntc_rg84 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg84:
+var_vector3d_en:			dw 0
+ntc_rg84_e:
+			IF ($ < 32768) && (ntc_rg85_e - ntc_rg85 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg85:
+p_spin_run_rs:			dw 0
+ntc_rg85_e:
+			IF ($ < 32768) && (ntc_rg86_e - ntc_rg86 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg86:
+			db 40			; capacity
+var_spin_run_k:			ds 41
+ntc_rg86_e:
+			IF ($ < 32768) && (ntc_rg87_e - ntc_rg87 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg87:
+var_spin_run_t:			dw 0
+ntc_rg87_e:
+			IF ($ < 32768) && (ntc_rg88_e - ntc_rg88 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg88:
+p_spin_run_pg:			dw 0
+ntc_rg88_e:
+			IF ($ < 32768) && (ntc_rg89_e - ntc_rg89 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg89:
+var_spin_size:			dw 0
+ntc_rg89_e:
+			IF ($ < 32768) && (ntc_rg90_e - ntc_rg90 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg90:
+var_spin_shape:			dw 0
+ntc_rg90_e:
+			IF ($ < 32768) && (ntc_rg91_e - ntc_rg91 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg91:
+var_spin_mode:			dw 0
+ntc_rg91_e:
+			IF ($ < 32768) && (ntc_rg92_e - ntc_rg92 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg92:
+var_spin_fast:			dw 0
+ntc_rg92_e:
+			IF ($ < 32768) && (ntc_rg93_e - ntc_rg93 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg93:
+var_spin_frames:			dw 0
+ntc_rg93_e:
+			IF ($ < 32768) && (ntc_rg94_e - ntc_rg94 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg94:
+var_spin_fps:			dw 0
+ntc_rg94_e:
+			IF ($ < 32768) && (ntc_rg95_e - ntc_rg95 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg95:
+var_keys_down_down:			dw 0
+ntc_rg95_e:
+			IF ($ < 32768) && (ntc_rg96_e - ntc_rg96 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg96:
+var_spin_paused:			dw 0
+ntc_rg96_e:
+			IF ($ < 32768) && (ntc_rg97_e - ntc_rg97 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg97:
+var_spin_dbl:			dw 0
+ntc_rg97_e:
+			IF ($ < 32768) && (ntc_rg98_e - ntc_rg98 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg98:
+p_spin_frame1_rs:			dw 0
+ntc_rg98_e:
+			IF ($ < 32768) && (ntc_rg99_e - ntc_rg99 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg99:
+p_spin_frame1_pg:			dw 0
+ntc_rg99_e:
+			IF ($ < 32768) && (ntc_rg100_e - ntc_rg100 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg100:
+var_spin_ax:			dw 0
+ntc_rg100_e:
+			IF ($ < 32768) && (ntc_rg101_e - ntc_rg101 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg101:
+var_spin_ay:			dw 0
+ntc_rg101_e:
+			IF ($ < 32768) && (ntc_rg102_e - ntc_rg102 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg102:
+var_spin_az:			dw 0
+ntc_rg102_e:
+			IF ($ < 32768) && (ntc_rg103_e - ntc_rg103 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg103:
+var_spin_fx:			dw 0
+ntc_rg103_e:
+			IF ($ < 32768) && (ntc_rg104_e - ntc_rg104 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg104:
+var_spin_fy:			dw 0
+ntc_rg104_e:
+			IF ($ < 32768) && (ntc_rg105_e - ntc_rg105 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg105:
+var_spin_fz:			dw 0
+ntc_rg105_e:
+			IF ($ < 32768) && (ntc_rg106_e - ntc_rg106 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg106:
+p_spin_screen_rs:			dw 0
+ntc_rg106_e:
+			IF ($ < 32768) && (ntc_rg107_e - ntc_rg107 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg107:
+p_spin_screen_pg:			dw 0
+ntc_rg107_e:
+			IF ($ < 32768) && (ntc_rg108_e - ntc_rg108 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg108:
+p_spin_status_rs:			dw 0
+ntc_rg108_e:
+			IF ($ < 32768) && (ntc_rg109_e - ntc_rg109 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg109:
+p_spin_status_pg:			dw 0
+ntc_rg109_e:
+			IF ($ < 32768) && (ntc_rg110_e - ntc_rg110 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg110:
+p_spin_makeshape_rs:			dw 0
+ntc_rg110_e:
+			IF ($ < 32768) && (ntc_rg111_e - ntc_rg111 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg111:
+p_spin_makeshape_pg:			dw 0
+ntc_rg111_e:
+			IF ($ < 32768) && (ntc_rg112_e - ntc_rg112 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg112:
+var_spin_makeshape___sel23:			dw 0
+ntc_rg112_e:
+			IF ($ < 32768) && (ntc_rg113_e - ntc_rg113 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg113:
+p_spin_cube_rs:			dw 0
+ntc_rg113_e:
+			IF ($ < 32768) && (ntc_rg114_e - ntc_rg114 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg114:
+var_spin_cube_x:			dw 0
+ntc_rg114_e:
+			IF ($ < 32768) && (ntc_rg115_e - ntc_rg115 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg115:
+var_spin_cube_y:			dw 0
+ntc_rg115_e:
+			IF ($ < 32768) && (ntc_rg116_e - ntc_rg116 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg116:
+var_spin_cube_h:			dw 0
+ntc_rg116_e:
+			IF ($ < 32768) && (ntc_rg117_e - ntc_rg117 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg117:
+var_spin_cube_p:			dw 0
+ntc_rg117_e:
+			IF ($ < 32768) && (ntc_rg118_e - ntc_rg118 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg118:
+var_spin_cube_i:			dw 0
+ntc_rg118_e:
+			IF ($ < 32768) && (ntc_rg119_e - ntc_rg119 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg119:
+p_spin_cube_pg:			dw 0
+ntc_rg119_e:
+			IF ($ < 32768) && (ntc_rg120_e - ntc_rg120 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg120:
+p_spin_pyramid_rs:			dw 0
+ntc_rg120_e:
+			IF ($ < 32768) && (ntc_rg121_e - ntc_rg121 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg121:
+var_spin_pyramid_x:			dw 0
+ntc_rg121_e:
+			IF ($ < 32768) && (ntc_rg122_e - ntc_rg122 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg122:
+var_spin_pyramid_y:			dw 0
+ntc_rg122_e:
+			IF ($ < 32768) && (ntc_rg123_e - ntc_rg123 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg123:
+var_spin_pyramid_h:			dw 0
+ntc_rg123_e:
+			IF ($ < 32768) && (ntc_rg124_e - ntc_rg124 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg124:
+var_spin_pyramid_p:			dw 0
+ntc_rg124_e:
+			IF ($ < 32768) && (ntc_rg125_e - ntc_rg125 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg125:
+var_spin_pyramid_r:			dw 0
+ntc_rg125_e:
+			IF ($ < 32768) && (ntc_rg126_e - ntc_rg126 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg126:
+var_spin_pyramid_i:			dw 0
+ntc_rg126_e:
+			IF ($ < 32768) && (ntc_rg127_e - ntc_rg127 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg127:
+p_spin_pyramid_pg:			dw 0
+ntc_rg127_e:
+			IF ($ < 32768) && (ntc_rg128_e - ntc_rg128 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg128:
+p_spin_cobra_rs:			dw 0
+ntc_rg128_e:
+			IF ($ < 32768) && (ntc_rg129_e - ntc_rg129 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg129:
+var_spin_cobra_r:			dw 0
+ntc_rg129_e:
+			IF ($ < 32768) && (ntc_rg130_e - ntc_rg130 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg130:
+p_spin_cobra_pg:			dw 0
+ntc_rg130_e:
+			IF ($ < 32768) && (ntc_rg131_e - ntc_rg131 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg131:
+p_spin_edge_rs:			dw 0
+ntc_rg131_e:
+			IF ($ < 32768) && (ntc_rg132_e - ntc_rg132 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg132:
+var_spin_edge_a:			dw 0
+ntc_rg132_e:
+			IF ($ < 32768) && (ntc_rg133_e - ntc_rg133 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg133:
+var_spin_edge_b:			dw 0
+ntc_rg133_e:
+			IF ($ < 32768) && (ntc_rg134_e - ntc_rg134 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg134:
+p_spin_edge_pg:			dw 0
+ntc_rg134_e:
+			IF ($ < 32768) && (ntc_rg135_e - ntc_rg135 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg135:
+tmp0:			dw 0
+ntc_rg135_e:
+			IF ($ < 32768) && (ntc_rg136_e - ntc_rg136 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg136:
+tmp1:			dw 0
+ntc_rg136_e:
+			IF ($ < 32768) && (ntc_rg137_e - ntc_rg137 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg137:
+tmp2:			dw 0
+ntc_rg137_e:
+			IF ($ < 32768) && (ntc_rg138_e - ntc_rg138 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg138:
+tmp3:			dw 0
+ntc_rg138_e:
+			IF ($ < 32768) && (ntc_rg139_e - ntc_rg139 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg139:
+tmp4:			dw 0
+ntc_rg139_e:
+			IF ($ < 32768) && (ntc_rg140_e - ntc_rg140 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg140:
+			db 40			; capacity
+stmp0:			ds 41
+
+; numbers passed by address (read only)
+ntc_rg140_e:
+			IF ($ < 32768) && (ntc_rg141_e - ntc_rg141 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg141:
+lit_85:			dw 85
+ntc_rg141_e:
+			IF ($ < 32768) && (ntc_rg142_e - ntc_rg142 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg142:
+lit_1:			dw 1
+ntc_rg142_e:
+			IF ($ < 32768) && (ntc_rg143_e - ntc_rg143 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg143:
+lit_0:			dw 0
+ntc_rg143_e:
+			IF ($ < 32768) && (ntc_rg144_e - ntc_rg144 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg144:
+lit_28:			dw 28
+ntc_rg144_e:
+			IF ($ < 32768) && (ntc_rg145_e - ntc_rg145 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg145:
+lit_160:			dw 160
+ntc_rg145_e:
+			IF ($ < 32768) && (ntc_rg146_e - ntc_rg146 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg146:
+lit_112:			dw 112
+ntc_rg146_e:
+			IF ($ < 32768) && (ntc_rg147_e - ntc_rg147 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg147:
+lit_768:			dw 768
+ntc_rg147_e:
+			IF ($ < 32768) && (ntc_rg148_e - ntc_rg148 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg148:
+lit_25:			dw 25
+ntc_rg148_e:
+			IF ($ < 32768) && (ntc_rg149_e - ntc_rg149 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg149:
+vp_var_spin_fx:			dw var_spin_fx
+ntc_rg149_e:
+			IF ($ < 32768) && (ntc_rg150_e - ntc_rg150 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg150:
+vp_var_spin_fy:			dw var_spin_fy
+ntc_rg150_e:
+			IF ($ < 32768) && (ntc_rg151_e - ntc_rg151 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg151:
+vp_var_spin_fz:			dw var_spin_fz
+ntc_rg151_e:
+			IF ($ < 32768) && (ntc_rg152_e - ntc_rg152 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg152:
+lit_3:			dw 3
+ntc_rg152_e:
+			IF ($ < 32768) && (ntc_rg153_e - ntc_rg153 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg153:
+lit_128:			dw 128
+ntc_rg153_e:
+			IF ($ < 32768) && (ntc_rg154_e - ntc_rg154 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg154:
+lit_m170:			dw -170
+ntc_rg154_e:
+			IF ($ < 32768) && (ntc_rg155_e - ntc_rg155 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg155:
+lit_64:			dw 64
+ntc_rg155_e:
+			IF ($ < 32768) && (ntc_rg156_e - ntc_rg156 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg156:
+lit_170:			dw 170
+ntc_rg156_e:
+			IF ($ < 32768) && (ntc_rg157_e - ntc_rg157 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg157:
+lit_40:			dw 40
+ntc_rg157_e:
+			IF ($ < 32768) && (ntc_rg158_e - ntc_rg158 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg158:
+lit_213:			dw 213
+ntc_rg158_e:
+			IF ($ < 32768) && (ntc_rg159_e - ntc_rg159 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg159:
+lit_m85:			dw -85
+ntc_rg159_e:
+			IF ($ < 32768) && (ntc_rg160_e - ntc_rg160 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg160:
+lit_m238:			dw -238
+ntc_rg160_e:
+			IF ($ < 32768) && (ntc_rg161_e - ntc_rg161 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg161:
+lit_m128:			dw -128
+ntc_rg161_e:
+			IF ($ < 32768) && (ntc_rg162_e - ntc_rg162 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg162:
+lit_m256:			dw -256
+ntc_rg162_e:
+			IF ($ < 32768) && (ntc_rg163_e - ntc_rg163 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg163:
+lit_m213:			dw -213
+ntc_rg163_e:
+			IF ($ < 32768) && (ntc_rg164_e - ntc_rg164 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg164:
+lit_m34:			dw -34
+ntc_rg164_e:
+			IF ($ < 32768) && (ntc_rg165_e - ntc_rg165 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg165:
+lit_256:			dw 256
+ntc_rg165_e:
+			IF ($ < 32768) && (ntc_rg166_e - ntc_rg166 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg166:
+lit_238:			dw 238
+ntc_rg166_e:
+			IF ($ < 32768) && (ntc_rg167_e - ntc_rg167 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg167:
+lit_42:			dw 42
+ntc_rg167_e:
+			IF ($ < 32768) && (ntc_rg168_e - ntc_rg168 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg168:
+lit_59:			dw 59
+ntc_rg168_e:
+			IF ($ < 32768) && (ntc_rg169_e - ntc_rg169 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg169:
+lit_2:			dw 2
+ntc_rg169_e:
+			IF ($ < 32768) && (ntc_rg170_e - ntc_rg170 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg170:
+lit_4:			dw 4
+ntc_rg170_e:
+			IF ($ < 32768) && (ntc_rg171_e - ntc_rg171 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg171:
+lit_5:			dw 5
+ntc_rg171_e:
+			IF ($ < 32768) && (ntc_rg172_e - ntc_rg172 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg172:
+lit_6:			dw 6
+ntc_rg172_e:
+			IF ($ < 32768) && (ntc_rg173_e - ntc_rg173 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg173:
+lit_7:			dw 7
+ntc_rg173_e:
+			IF ($ < 32768) && (ntc_rg174_e - ntc_rg174 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg174:
+lit_8:			dw 8
+ntc_rg174_e:
+			IF ($ < 32768) && (ntc_rg175_e - ntc_rg175 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg175:
+lit_9:			dw 9
+ntc_rg175_e:
+			IF ($ < 32768) && (ntc_rg176_e - ntc_rg176 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg176:
+lit_10:			dw 10
+ntc_rg176_e:
+			IF ($ < 32768) && (ntc_rg177_e - ntc_rg177 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg177:
+lit_11:			dw 11
+ntc_rg177_e:
+			IF ($ < 32768) && (ntc_rg178_e - ntc_rg178 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg178:
+lit_12:			dw 12
+ntc_rg178_e:
+			IF ($ < 32768) && (ntc_rg179_e - ntc_rg179 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg179:
+lit_13:			dw 13
+
+ntc_rg179_e:
+			IF ($ < 32768) && (ntc_rg180_e - ntc_rg180 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg180:
+; ============================================================
+; ZOSCII glyphs - each points at its 8 byte bitmap in ntc_font
+; ============================================================
+
+
+ntc_rg180_e:
+			IF ($ < 32768) && (ntc_rg181_e - ntc_rg181 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg181:
+; ============================================================
+; Strings
+; ============================================================
+
+ntc_rg181_e:
+			IF ($ < 32768) && (ntc_rg182_e - ntc_rg182 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg182:
+str0:			db "1", 0
+ntc_rg182_e:
+			IF ($ < 32768) && (ntc_rg183_e - ntc_rg183 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg183:
+str1:			db "2", 0
+ntc_rg183_e:
+			IF ($ < 32768) && (ntc_rg184_e - ntc_rg184 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg184:
+str2:			db "3", 0
+ntc_rg184_e:
+			IF ($ < 32768) && (ntc_rg185_e - ntc_rg185 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg185:
+str3:			db "4", 0
+ntc_rg185_e:
+			IF ($ < 32768) && (ntc_rg186_e - ntc_rg186 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg186:
+str4:			db "P", 0
+ntc_rg186_e:
+			IF ($ < 32768) && (ntc_rg187_e - ntc_rg187 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg187:
+str5:			db "A", 0
+ntc_rg187_e:
+			IF ($ < 32768) && (ntc_rg188_e - ntc_rg188 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg188:
+str6:			db "B", 0
+ntc_rg188_e:
+			IF ($ < 32768) && (ntc_rg189_e - ntc_rg189 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg189:
+str7:			db "C", 0
+ntc_rg189_e:
+			IF ($ < 32768) && (ntc_rg190_e - ntc_rg190 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg190:
+str8:			db "D", 0
+ntc_rg190_e:
+			IF ($ < 32768) && (ntc_rg191_e - ntc_rg191 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg191:
+str9:			db "T", 0
+ntc_rg191_e:
+			IF ($ < 32768) && (ntc_rg192_e - ntc_rg192 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg192:
+str10:			db "X", 0
+ntc_rg192_e:
+			IF ($ < 32768) && (ntc_rg193_e - ntc_rg193 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg193:
+str11:			db " dbl", 0
+ntc_rg193_e:
+			IF ($ < 32768) && (ntc_rg194_e - ntc_rg194 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg194:
+str12:			db " one", 0
+ntc_rg194_e:
+			IF ($ < 32768) && (ntc_rg195_e - ntc_rg195 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg195:
+str13:			db 0
+ntc_rg195_e:
+			IF ($ < 32768) && (ntc_rg196_e - ntc_rg196 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg196:
+str14:			db " turbo ", 0
+ntc_rg196_e:
+			IF ($ < 32768) && (ntc_rg197_e - ntc_rg197 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg197:
+str15:			db " normal ", 0
+
+ntc_rg197_e:
+			IF ($ < 32768) && (ntc_rg198_e - ntc_rg198 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg198:
+; ============================================================
+; Keyword library (used)
+; ============================================================
+
+ntc_rg198_e:
+			IF ($ < 32768) && (ntc_rg199_e - ntc_rg199 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg199:
+;## ntc_data @shared ntc_d_nmode
+; ------------------------------------------------------------
+; Scratch space: the core every program has (with ntc_d_nmode). The rest of
+; the run time's variables are @data sections, each linked only when a
+; linked section's code names one of its labels (no header lists them).
+; They stay in this order: the keyword ROM's registry keeps each variable's
+; address (a Library: ROM program has them as fixed addresses)
+; ------------------------------------------------------------
+ntc_next:		ret				; IX target that continues the thread
+ntc_csp:		dw 0			; caller SP, for kw_stop (and the normal mode stack)
+ntc_ip:			dw 0			; normal mode: thread position while out of the thread
+
+ntc_rg199_e:
+			IF ($ < 32768) && (ntc_rg200_e - ntc_rg200 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg200:
+;## ntc_d_ticks @data
+ntc_ticks:		dw 0			; interrupt count (normal mode, platform handler)
+
+ntc_rg200_e:
+			IF ($ < 32768) && (ntc_rg201_e - ntc_rg201 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg201:
+;## ntc_d_nmode @data
+ntc_nmode:		db 0			; 1 = running in normal mode (waits let interrupts in)
+
+ntc_rg201_e:
+			IF ($ < 32768) && (ntc_rg202_e - ntc_rg202 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg202:
+;## ntc_d_div @data
+ntc_mode:		db 0			; div mode 0=quotient 1=remainder
+ntc_sgnq:		db 0			; quotient sign (bit 7)
+ntc_sgnr:		db 0			; remainder sign (bit 7)
+
+ntc_rg202_e:
+			IF ($ < 32768) && (ntc_rg203_e - ntc_rg203 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg203:
+;## ntc_d_lead @data
+ntc_lead:		db 0			; printint: digit seen
+
+ntc_rg203_e:
+			IF ($ < 32768) && (ntc_rg204_e - ntc_rg204 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg204:
+;## ntc_d_sptr @data
+ntc_sptr:		dw 0			; printbuf: text pointer
+
+ntc_rg204_e:
+			IF ($ < 32768) && (ntc_rg205_e - ntc_rg205 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg205:
+;## ntc_d_ivar @data
+ntc_ivar:		dw 0			; inputint / inkey: dest var
+
+ntc_rg205_e:
+			IF ($ < 32768) && (ntc_rg206_e - ntc_rg206 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg206:
+;## ntc_d_aptr @data
+ntc_aptr:		dw 0			; atoi: text pointer
+
+ntc_rg206_e:
+			IF ($ < 32768) && (ntc_rg207_e - ntc_rg207 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg207:
+;## ntc_d_hook @data
+ntc_hookon:		db 0			; 1 = the Interrupt hook may run (set, and not running now)
+ntc_hookset:	db 0			; 1 = an Interrupt hook is set
+ntc_hookpend:	db 0			; 1 = an interrupt came, the hook runs at the next safe point
+ntc_hook:		dw 0			; the hook Sub's call stub
+
+ntc_rg207_e:
+			IF ($ < 32768) && (ntc_rg208_e - ntc_rg208 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg208:
+;## ntc_d_rampt @data
+ntc_rampt:		dw #7FC0		; the gate array's RAM setting now (B = port, C = value): the
+								; Memory class keeps it, Graphics puts it back after drawing
+
+ntc_rg208_e:
+			IF ($ < 32768) && (ntc_rg209_e - ntc_rg209 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg209:
+;## ntc_d_numbuf @data
+ntc_numbuf:		ds 14			; printint / long print: digits (+ spaces for Option VBPrint)
+
+ntc_rg209_e:
+			IF ($ < 32768) && (ntc_rg210_e - ntc_rg210 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg210:
+;## ntc_d_inbuf @data
+				db 40			; ntc_inbuf's capacity (as every string variable has)
+ntc_inbuf:		ds 41			; inputint: typed text
+
+ntc_rg210_e:
+			IF ($ < 32768) && (ntc_rg211_e - ntc_rg211 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg211:
 ;## kw_stop ntc_data ntc_plat_exit @shared
 kw_stop:
 			ld ix, ntc_stop_back
@@ -2356,22 +3318,22 @@ ntc_stop_back:
 			ei
 			ret
 
-ntc_rg31_e:
-			IF ($ < 32768) && (ntc_rg32_e - ntc_rg32 + $ > 16384)	; fwdref-ok
+ntc_rg211_e:
+			IF ($ < 32768) && (ntc_rg212_e - ntc_rg212 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg32:
+ntc_rg212:
 ;## kw_waitkey ntc_data ntc_plat_key
 ; kw_waitkey - wait for a key (Option PressAnyKeyOnEnd, before kw_stop)
 kw_waitkey:
 			ld ix, ntc_next
 			jp ntc_plat_getkey
 
-ntc_rg32_e:
-			IF ($ < 32768) && (ntc_rg33_e - ntc_rg33 + $ > 16384)	; fwdref-ok
+ntc_rg212_e:
+			IF ($ < 32768) && (ntc_rg213_e - ntc_rg213 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg33:
+ntc_rg213:
 ;## ntc_xn ntc_data @shared
 ; normal mode "next": every normal mode keyword ends here (its ret
 ; became jp ntc_xn). Thread position to ntc_ip, real stack, one
@@ -2385,11 +3347,11 @@ ntc_xn:
 			ld sp, (ntc_ip)
 			ret
 
-ntc_rg33_e:
-			IF ($ < 32768) && (ntc_rg34_e - ntc_rg34 + $ > 16384)	; fwdref-ok
+ntc_rg213_e:
+			IF ($ < 32768) && (ntc_rg214_e - ntc_rg214 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg34:
+ntc_rg214:
 ;## kw_turbo_on ntc_data @shared
 ;kw_turbo_on  - Turbo On, used in normal mode: SP is already the thread
 ;  and interrupts are off inside a keyword, so just carry on.
@@ -2398,11 +3360,11 @@ kw_turbo_on:
 			ld (ntc_nmode), a
 			ret
 
-ntc_rg34_e:
-			IF ($ < 32768) && (ntc_rg35_e - ntc_rg35 + $ > 16384)	; fwdref-ok
+ntc_rg214_e:
+			IF ($ < 32768) && (ntc_rg215_e - ntc_rg215 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg35:
+ntc_rg215:
 ;## kw_turbo_off ntc_xn ntc_data @shared
 ;kw_turbo_off  - Turbo Off, used in turbo mode: continue in normal mode
 kw_turbo_off:
@@ -2410,11 +3372,11 @@ kw_turbo_off:
 			ld (ntc_nmode), a
 			jp ntc_xn
 
-ntc_rg35_e:
-			IF ($ < 32768) && (ntc_rg36_e - ntc_rg36 + $ > 16384)	; fwdref-ok
+ntc_rg215_e:
+			IF ($ < 32768) && (ntc_rg216_e - ntc_rg216 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg36:
+ntc_rg216:
 ;## kw_goto_iffalse
 ;kw_goto_iffalse, <label>  - branch if NZ (false)
 kw_goto_iffalse:
@@ -2423,11 +3385,11 @@ kw_goto_iffalse:
 			ld sp, hl
 			ret
 
-ntc_rg36_e:
-			IF ($ < 32768) && (ntc_rg37_e - ntc_rg37 + $ > 16384)	; fwdref-ok
+ntc_rg216_e:
+			IF ($ < 32768) && (ntc_rg217_e - ntc_rg217 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg37:
+ntc_rg217:
 ;## kw_goto_iffalse (normal mode copy)
 ;kw_goto_iffalse, <label>  - branch if NZ (false)
 kw_goto_iffalse_n:
@@ -2436,11 +3398,11 @@ kw_goto_iffalse_n:
 			ld sp, hl
 			jp ntc_xn
 
-ntc_rg37_e:
-			IF ($ < 32768) && (ntc_rg38_e - ntc_rg38 + $ > 16384)	; fwdref-ok
+ntc_rg217_e:
+			IF ($ < 32768) && (ntc_rg218_e - ntc_rg218 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg38:
+ntc_rg218:
 ;## kw_goto_ifzero (normal mode copy)
 ;kw_goto_ifzero, <var>, <label>  - branch if var = 0
 kw_goto_ifzero_n:
@@ -2453,11 +3415,11 @@ kw_goto_ifzero_n:
 			ld sp, hl
 			jp ntc_xn
 
-ntc_rg38_e:
-			IF ($ < 32768) && (ntc_rg39_e - ntc_rg39 + $ > 16384)	; fwdref-ok
+ntc_rg218_e:
+			IF ($ < 32768) && (ntc_rg219_e - ntc_rg219 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg39:
+ntc_rg219:
 ;## ntc_for_jump (normal mode copy)
 ; tails for the FOR / NEXT keywords. DE = var value, HL = limit,
 ; SP = thread at the label word. Signed compare by flipping bit 15.
@@ -2528,11 +3490,11 @@ ntc_for_end_n:
 			pop hl
 			jp ntc_xn
 
-ntc_rg39_e:
-			IF ($ < 32768) && (ntc_rg40_e - ntc_rg40 + $ > 16384)	; fwdref-ok
+ntc_rg219_e:
+			IF ($ < 32768) && (ntc_rg220_e - ntc_rg220 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg40:
+ntc_rg220:
 ;## kw_next1l (normal mode copy) ntc_for_jump
 ;kw_next1l, <var>, <literal limit>, <toplabel>
 ;  NEXT for STEP 1: inc var, back to the top while var <= limit
@@ -2553,11 +3515,11 @@ ntc_n1l_nc_n:
 			sbc a, a
 			jp ntc_for_le_n
 
-ntc_rg40_e:
-			IF ($ < 32768) && (ntc_rg41_e - ntc_rg41 + $ > 16384)	; fwdref-ok
+ntc_rg220_e:
+			IF ($ < 32768) && (ntc_rg221_e - ntc_rg221 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg41:
+ntc_rg221:
 ;## kw_ltov
 ;kw_ltov, <literal>, <destvar>
 kw_ltov:
@@ -2568,11 +3530,11 @@ kw_ltov:
 			ld (hl), d
 			ret
 
-ntc_rg41_e:
-			IF ($ < 32768) && (ntc_rg42_e - ntc_rg42 + $ > 16384)	; fwdref-ok
+ntc_rg221_e:
+			IF ($ < 32768) && (ntc_rg222_e - ntc_rg222 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg42:
+ntc_rg222:
 ;## kw_vtov
 ;kw_vtov, <sourcevar>, <destvar>
 kw_vtov:
@@ -2586,11 +3548,11 @@ kw_vtov:
 			ld (hl), d
 			ret
 
-ntc_rg42_e:
-			IF ($ < 32768) && (ntc_rg43_e - ntc_rg43 + $ > 16384)	; fwdref-ok
+ntc_rg222_e:
+			IF ($ < 32768) && (ntc_rg223_e - ntc_rg223 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg43:
+ntc_rg223:
 ;## kw_ztov
 ;kw_ztov, <destvar>
 kw_ztov:
@@ -2601,11 +3563,11 @@ kw_ztov:
 			ld (hl), a
 			ret
 
-ntc_rg43_e:
-			IF ($ < 32768) && (ntc_rg44_e - ntc_rg44 + $ > 16384)	; fwdref-ok
+ntc_rg223_e:
+			IF ($ < 32768) && (ntc_rg224_e - ntc_rg224 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg44:
+ntc_rg224:
 ;## kw_ftov
 ;kw_ftov, <destvar>  - Z flag to var: true = -1, false = 0
 kw_ftov:
@@ -2625,11 +3587,11 @@ ntc_ftov_t:
 ; Arithmetic
 ; ============================================================
 
-ntc_rg44_e:
-			IF ($ < 32768) && (ntc_rg45_e - ntc_rg45 + $ > 16384)	; fwdref-ok
+ntc_rg224_e:
+			IF ($ < 32768) && (ntc_rg225_e - ntc_rg225 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg45:
+ntc_rg225:
 ;## kw_inc
 ;kw_inc, <var>
 kw_inc:
@@ -2640,11 +3602,11 @@ kw_inc:
 			inc (hl)
 			ret
 
-ntc_rg45_e:
-			IF ($ < 32768) && (ntc_rg46_e - ntc_rg46 + $ > 16384)	; fwdref-ok
+ntc_rg225_e:
+			IF ($ < 32768) && (ntc_rg226_e - ntc_rg226 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg46:
+ntc_rg226:
 ;## kw_add
 ;kw_add, <var1>, <var2>, <destvar>
 kw_add:
@@ -2665,11 +3627,11 @@ kw_add:
 			ld (hl), d
 			ret
 
-ntc_rg46_e:
-			IF ($ < 32768) && (ntc_rg47_e - ntc_rg47 + $ > 16384)	; fwdref-ok
+ntc_rg226_e:
+			IF ($ < 32768) && (ntc_rg227_e - ntc_rg227 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg47:
+ntc_rg227:
 ;## kw_addl
 ;kw_addl, <var>, <literal>, <destvar>
 kw_addl:
@@ -2686,11 +3648,11 @@ kw_addl:
 			ld (hl), d
 			ret
 
-ntc_rg47_e:
-			IF ($ < 32768) && (ntc_rg48_e - ntc_rg48 + $ > 16384)	; fwdref-ok
+ntc_rg227_e:
+			IF ($ < 32768) && (ntc_rg228_e - ntc_rg228 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg48:
+ntc_rg228:
 ;## kw_subvv
 ;kw_subvv, <var1>, <var2>, <destvar>  - var1 - var2
 kw_subvv:
@@ -2713,11 +3675,11 @@ kw_subvv:
 			ld (hl), d
 			ret
 
-ntc_rg48_e:
-			IF ($ < 32768) && (ntc_rg49_e - ntc_rg49 + $ > 16384)	; fwdref-ok
+ntc_rg228_e:
+			IF ($ < 32768) && (ntc_rg229_e - ntc_rg229 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg49:
+ntc_rg229:
 ;## ntc_div ntc_data
 ; HL / DE signed, truncating. (ntc_mode) 0 = quotient, 1 = remainder.
 ; Remainder takes the dividend's sign. Divide by zero gives
@@ -2798,11 +3760,11 @@ ntc_div_store:
 			ld (hl), d
 			ret
 
-ntc_rg49_e:
-			IF ($ < 32768) && (ntc_rg50_e - ntc_rg50 + $ > 16384)	; fwdref-ok
+ntc_rg229_e:
+			IF ($ < 32768) && (ntc_rg230_e - ntc_rg230 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg50:
+ntc_rg230:
 ;## kw_divlv ntc_div
 ;kw_divlv, <literal>, <var>, <destvar>
 kw_divlv:
@@ -2818,11 +3780,11 @@ ntc_divlv:
 			ld l, c
 			jp ntc_div
 
-ntc_rg50_e:
-			IF ($ < 32768) && (ntc_rg51_e - ntc_rg51 + $ > 16384)	; fwdref-ok
+ntc_rg230_e:
+			IF ($ < 32768) && (ntc_rg231_e - ntc_rg231 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg51:
+ntc_rg231:
 ;## kw_negv
 ;kw_negv, <var>, <destvar>
 kw_negv:
@@ -2840,11 +3802,11 @@ kw_negv:
 			ld (hl), d
 			ret
 
-ntc_rg51_e:
-			IF ($ < 32768) && (ntc_rg52_e - ntc_rg52 + $ > 16384)	; fwdref-ok
+ntc_rg231_e:
+			IF ($ < 32768) && (ntc_rg232_e - ntc_rg232 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg52:
+ntc_rg232:
 ;## kw_andvv
 ;kw_andvv, <var1>, <var2>, <destvar>
 kw_andvv:
@@ -2866,11 +3828,11 @@ kw_andvv:
 			ld (hl), d
 			ret
 
-ntc_rg52_e:
-			IF ($ < 32768) && (ntc_rg53_e - ntc_rg53 + $ > 16384)	; fwdref-ok
+ntc_rg232_e:
+			IF ($ < 32768) && (ntc_rg233_e - ntc_rg233 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg53:
+ntc_rg233:
 ;## kw_andvl
 ;kw_andvl, <var>, <literal>, <destvar>
 kw_andvl:
@@ -2889,11 +3851,11 @@ kw_andvl:
 			ld (hl), d
 			ret
 
-ntc_rg53_e:
-			IF ($ < 32768) && (ntc_rg54_e - ntc_rg54 + $ > 16384)	; fwdref-ok
+ntc_rg233_e:
+			IF ($ < 32768) && (ntc_rg234_e - ntc_rg234 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg54:
+ntc_rg234:
 ;## kw_orvv
 ;kw_orvv, <var1>, <var2>, <destvar>
 kw_orvv:
@@ -2915,11 +3877,11 @@ kw_orvv:
 			ld (hl), d
 			ret
 
-ntc_rg54_e:
-			IF ($ < 32768) && (ntc_rg55_e - ntc_rg55 + $ > 16384)	; fwdref-ok
+ntc_rg234_e:
+			IF ($ < 32768) && (ntc_rg235_e - ntc_rg235 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg55:
+ntc_rg235:
 ;## kw_notv
 ;kw_notv, <var>, <destvar>
 kw_notv:
@@ -2942,11 +3904,11 @@ kw_notv:
 ; Tails take DE = a, HL = b and test a <rel> b.
 ; ============================================================
 
-ntc_rg55_e:
-			IF ($ < 32768) && (ntc_rg56_e - ntc_rg56 + $ > 16384)	; fwdref-ok
+ntc_rg235_e:
+			IF ($ < 32768) && (ntc_rg236_e - ntc_rg236 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg56:
+ntc_rg236:
 ;## ntc_cmp
 ntc_cmp_slt:
 			ld a, d
@@ -3014,11 +3976,11 @@ ntc_cmp_ne_f:
 			or 1
 			ret
 
-ntc_rg56_e:
-			IF ($ < 32768) && (ntc_rg57_e - ntc_rg57 + $ > 16384)	; fwdref-ok
+ntc_rg236_e:
+			IF ($ < 32768) && (ntc_rg237_e - ntc_rg237 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg57:
+ntc_rg237:
 ;## kw_scpltvl ntc_cmp
 ;kw_scpltvl, <var>, <literal>
 kw_scpltvl:
@@ -3029,11 +3991,11 @@ kw_scpltvl:
 			pop hl
 			jp ntc_cmp_slt
 
-ntc_rg57_e:
-			IF ($ < 32768) && (ntc_rg58_e - ntc_rg58 + $ > 16384)	; fwdref-ok
+ntc_rg237_e:
+			IF ($ < 32768) && (ntc_rg238_e - ntc_rg238 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg58:
+ntc_rg238:
 ;## kw_scpgtvl ntc_cmp
 kw_scpgtvl:
 			pop hl
@@ -3043,11 +4005,11 @@ kw_scpgtvl:
 			pop hl
 			jp ntc_cmp_sgt
 
-ntc_rg58_e:
-			IF ($ < 32768) && (ntc_rg59_e - ntc_rg59 + $ > 16384)	; fwdref-ok
+ntc_rg238_e:
+			IF ($ < 32768) && (ntc_rg239_e - ntc_rg239 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg59:
+ntc_rg239:
 ;## kw_scpgevl ntc_cmp
 kw_scpgevl:
 			pop hl
@@ -3057,11 +4019,11 @@ kw_scpgevl:
 			pop hl
 			jp ntc_cmp_sge
 
-ntc_rg59_e:
-			IF ($ < 32768) && (ntc_rg60_e - ntc_rg60 + $ > 16384)	; fwdref-ok
+ntc_rg239_e:
+			IF ($ < 32768) && (ntc_rg240_e - ntc_rg240 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg60:
+ntc_rg240:
 ;## kw_cpeqvl ntc_cmp
 kw_cpeqvl:
 			pop hl
@@ -3071,11 +4033,11 @@ kw_cpeqvl:
 			pop hl
 			jp ntc_cmp_eq
 
-ntc_rg60_e:
-			IF ($ < 32768) && (ntc_rg61_e - ntc_rg61 + $ > 16384)	; fwdref-ok
+ntc_rg240_e:
+			IF ($ < 32768) && (ntc_rg241_e - ntc_rg241 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg61:
+ntc_rg241:
 ;## kw_cpnevl ntc_cmp
 kw_cpnevl:
 			pop hl
@@ -3089,11 +4051,11 @@ kw_cpnevl:
 ; Memory (PEEK / POKE / DEEK / DOKE)
 ; ============================================================
 
-ntc_rg61_e:
-			IF ($ < 32768) && (ntc_rg62_e - ntc_rg62 + $ > 16384)	; fwdref-ok
+ntc_rg241_e:
+			IF ($ < 32768) && (ntc_rg242_e - ntc_rg242 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg62:
+ntc_rg242:
 ;## kw_vptrtov8
 ;kw_vptrtov8, <addrvar>, <destvar>  - PEEK(var)
 kw_vptrtov8:
@@ -3108,11 +4070,11 @@ kw_vptrtov8:
 			ld (hl), 0
 			ret
 
-ntc_rg62_e:
-			IF ($ < 32768) && (ntc_rg63_e - ntc_rg63 + $ > 16384)	; fwdref-ok
+ntc_rg242_e:
+			IF ($ < 32768) && (ntc_rg243_e - ntc_rg243 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg63:
+ntc_rg243:
 ;## kw_aset
 ;kw_aset, <arraybase>, <indexvar>, <sourcevar>
 kw_aset:
@@ -3135,11 +4097,11 @@ kw_aset:
 			ld (hl), b
 			ret
 
-ntc_rg63_e:
-			IF ($ < 32768) && (ntc_rg64_e - ntc_rg64 + $ > 16384)	; fwdref-ok
+ntc_rg243_e:
+			IF ($ < 32768) && (ntc_rg244_e - ntc_rg244 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg64:
+ntc_rg244:
 ;## kw_strcpy
 ;kw_strcpy, <destaddr>, <srcaddr>  - cut at the destination's capacity byte
 kw_strcpy:
@@ -3161,11 +4123,11 @@ ntc_strcpy_loop:
 			ld (de), a
 			ret
 
-ntc_rg64_e:
-			IF ($ < 32768) && (ntc_rg65_e - ntc_rg65 + $ > 16384)	; fwdref-ok
+ntc_rg244_e:
+			IF ($ < 32768) && (ntc_rg245_e - ntc_rg245 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg65:
+ntc_rg245:
 ;## kw_strcmpeq
 ;kw_strcmpeq, <addr1>, <addr2>  - Z if equal
 kw_strcmpeq:
@@ -3181,11 +4143,11 @@ ntc_streq_loop:
 			inc de
 			jr ntc_streq_loop
 
-ntc_rg65_e:
-			IF ($ < 32768) && (ntc_rg66_e - ntc_rg66 + $ > 16384)	; fwdref-ok
+ntc_rg245_e:
+			IF ($ < 32768) && (ntc_rg246_e - ntc_rg246 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg66:
+ntc_rg246:
 ;## ntc_printbuf ntc_data ntc_plat_screen
 ; print the 0 terminated ASCII text at (ntc_sptr), then ret (thread)
 ntc_printbuf:
@@ -3198,11 +4160,11 @@ ntc_printbuf:
 			ld ix, ntc_printbuf
 			jp ntc_plat_putc
 
-ntc_rg66_e:
-			IF ($ < 32768) && (ntc_rg67_e - ntc_rg67 + $ > 16384)	; fwdref-ok
+ntc_rg246_e:
+			IF ($ < 32768) && (ntc_rg247_e - ntc_rg247 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg67:
+ntc_rg247:
 ;## kw_printzoscii ntc_data ntc_font ntc_plat_screen
 ;kw_printzoscii / dw glyph, glyph, ..., 0  - ZOSCII text inline in the thread
 ;  each word points at an 8 byte glyph bitmap. 1 = newline, 0 = end (only those two:
@@ -3224,11 +4186,11 @@ ntc_pz_ctl:
 			ld ix, kw_printzoscii
 			jp ntc_plat_newline
 
-ntc_rg67_e:
-			IF ($ < 32768) && (ntc_rg68_e - ntc_rg68 + $ > 16384)	; fwdref-ok
+ntc_rg247_e:
+			IF ($ < 32768) && (ntc_rg248_e - ntc_rg248 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg68:
+ntc_rg248:
 ;## kw_printstrvar ntc_printbuf
 ;kw_printstrvar, <straddr>
 kw_printstrvar:
@@ -3236,11 +4198,11 @@ kw_printstrvar:
 			ld (ntc_sptr), hl
 			jp ntc_printbuf
 
-ntc_rg68_e:
-			IF ($ < 32768) && (ntc_rg69_e - ntc_rg69 + $ > 16384)	; fwdref-ok
+ntc_rg248_e:
+			IF ($ < 32768) && (ntc_rg249_e - ntc_rg249 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg69:
+ntc_rg249:
 ;## ntc_itoa ntc_data
 ; HL = signed value, DE = buffer: writes the digits and a 0 (DE ends on
 ; the 0). jp (ix) back. Uses A, BC, IY.
@@ -3299,11 +4261,11 @@ ntc_ia_last:
 			jp (ix)
 ntc_pow10:		dw 10000, 1000, 100, 10, 0
 
-ntc_rg69_e:
-			IF ($ < 32768) && (ntc_rg70_e - ntc_rg70 + $ > 16384)	; fwdref-ok
+ntc_rg249_e:
+			IF ($ < 32768) && (ntc_rg250_e - ntc_rg250 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg70:
+ntc_rg250:
 ;## kw_printint ntc_printbuf ntc_itoa
 ;kw_printint, <var>  - signed decimal
 kw_printint:
@@ -3320,11 +4282,11 @@ ntc_pi_done:
 			ld (ntc_sptr), hl
 			jp ntc_printbuf
 
-ntc_rg70_e:
-			IF ($ < 32768) && (ntc_rg71_e - ntc_rg71 + $ > 16384)	; fwdref-ok
+ntc_rg250_e:
+			IF ($ < 32768) && (ntc_rg251_e - ntc_rg251 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg71:
+ntc_rg251:
 ;## kw_printnl0 ntc_data ntc_plat_screen
 ;kw_printnl0  - new line unless the cursor is at the start of a line
 kw_printnl0:
@@ -3334,11 +4296,11 @@ kw_printnl0:
 			ld ix, ntc_next
 			jp ntc_plat_newline
 
-ntc_rg71_e:
-			IF ($ < 32768) && (ntc_rg72_e - ntc_rg72 + $ > 16384)	; fwdref-ok
+ntc_rg251_e:
+			IF ($ < 32768) && (ntc_rg252_e - ntc_rg252 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg72:
+ntc_rg252:
 ;## ntc_atoi ntc_data
 ; text to number into the var at (ntc_ivar). ntc_atoi reads ntc_inbuf,
 ; ntc_atoi_hl reads HL. Spaces first, then - , then digits (or &H hex).
@@ -3428,11 +4390,11 @@ ntc_atoi_store:
 			ld (hl), d
 			ret
 
-ntc_rg72_e:
-			IF ($ < 32768) && (ntc_rg73_e - ntc_rg73 + $ > 16384)	; fwdref-ok
+ntc_rg252_e:
+			IF ($ < 32768) && (ntc_rg253_e - ntc_rg253 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg73:
+ntc_rg253:
 ;## kw_inkeys ntc_data ntc_plat_key
 ;kw_inkeys, <dest>  - Inkey$: the new key press as a string, "" if none
 kw_inkeys:
@@ -3449,11 +4411,11 @@ ntc_inks_got:
 			ld (hl), 0
 			ret
 
-ntc_rg73_e:
-			IF ($ < 32768) && (ntc_rg74_e - ntc_rg74 + $ > 16384)	; fwdref-ok
+ntc_rg253_e:
+			IF ($ < 32768) && (ntc_rg254_e - ntc_rg254 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg74:
+ntc_rg254:
 ;## kw_scrinit ntc_data ntc_plat_screen
 ;kw_scrinit  - first word of any program that prints or reads keys:
 ;  mode 1, ROMs off, clear screen
@@ -3462,11 +4424,11 @@ kw_scrinit:
 			ld ix, ntc_next
 			jp ntc_plat_mode
 
-ntc_rg74_e:
-			IF ($ < 32768) && (ntc_rg75_e - ntc_rg75 + $ > 16384)	; fwdref-ok
+ntc_rg254_e:
+			IF ($ < 32768) && (ntc_rg255_e - ntc_rg255 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg75:
+ntc_rg255:
 ;## kw_locatell ntc_data ntc_plat_screen
 ;kw_locatell, <x>, <y>  - 1 based
 kw_locatell:
@@ -3477,11 +4439,11 @@ kw_locatell:
 			ld ix, ntc_next
 			jp ntc_plat_locate
 
-ntc_rg75_e:
-			IF ($ < 32768) && (ntc_rg76_e - ntc_rg76 + $ > 16384)	; fwdref-ok
+ntc_rg255_e:
+			IF ($ < 32768) && (ntc_rg256_e - ntc_rg256 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg76:
+ntc_rg256:
 ;## kw_model ntc_data ntc_plat_screen
 ;kw_model, <literal>  - 0, 1 or 2, clears the screen
 kw_model:
@@ -3490,11 +4452,11 @@ kw_model:
 			ld ix, ntc_next
 			jp ntc_plat_mode
 
-ntc_rg76_e:
-			IF ($ < 32768) && (ntc_rg77_e - ntc_rg77 + $ > 16384)	; fwdref-ok
+ntc_rg256_e:
+			IF ($ < 32768) && (ntc_rg257_e - ntc_rg257 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg77:
+ntc_rg257:
 ;## kw_modev ntc_data ntc_plat_screen
 ;kw_modev, <var>
 kw_modev:
@@ -3503,22 +4465,22 @@ kw_modev:
 			ld ix, ntc_next
 			jp ntc_plat_mode
 
-ntc_rg77_e:
-			IF ($ < 32768) && (ntc_rg78_e - ntc_rg78 + $ > 16384)	; fwdref-ok
+ntc_rg257_e:
+			IF ($ < 32768) && (ntc_rg258_e - ntc_rg258 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg78:
+ntc_rg258:
 ;## kw_frame ntc_data ntc_plat_frame
 ;kw_frame  - wait for the start of the next frame flyback
 kw_frame:
 			ld ix, ntc_next
 			jp ntc_plat_frame
 
-ntc_rg78_e:
-			IF ($ < 32768) && (ntc_rg79_e - ntc_rg79 + $ > 16384)	; fwdref-ok
+ntc_rg258_e:
+			IF ($ < 32768) && (ntc_rg259_e - ntc_rg259 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg79:
+ntc_rg259:
 ;## kw_ticks ntc_data ntc_plat_ticks
 ;kw_ticks, <destvar>  - tick count from the platform (CPC: interrupts, 300 a second,
 ;  only moving in normal mode)
@@ -3541,11 +4503,11 @@ ntc_tk_got:
 ; string buffer (41 bytes). Dest may be the same as the source.
 ; ============================================================
 
-ntc_rg79_e:
-			IF ($ < 32768) && (ntc_rg80_e - ntc_rg80 + $ > 16384)	; fwdref-ok
+ntc_rg259_e:
+			IF ($ < 32768) && (ntc_rg260_e - ntc_rg260 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg80:
+ntc_rg260:
 ;## kw_strucase
 ;kw_strucase, <dest>, <src>  - UCase$
 kw_strucase:
@@ -3566,11 +4528,11 @@ ntc_uc_put:
 			inc de
 			jr ntc_uc_loop
 
-ntc_rg80_e:
-			IF ($ < 32768) && (ntc_rg81_e - ntc_rg81 + $ > 16384)	; fwdref-ok
+ntc_rg260_e:
+			IF ($ < 32768) && (ntc_rg261_e - ntc_rg261 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg81:
+ntc_rg261:
 ;## kw_strasc
 ;kw_strasc, <src>, <destvar>  - Asc(src), 0 if empty
 kw_strasc:
@@ -3582,11 +4544,11 @@ kw_strasc:
 			ld (hl), 0
 			ret
 
-ntc_rg81_e:
-			IF ($ < 32768) && (ntc_rg82_e - ntc_rg82 + $ > 16384)	; fwdref-ok
+ntc_rg261_e:
+			IF ($ < 32768) && (ntc_rg262_e - ntc_rg262 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg82:
+ntc_rg262:
 ;## kw_strval ntc_atoi
 ;kw_strval, <src>, <destvar>  - Val(src): decimal or &H hex
 kw_strval:
@@ -3595,11 +4557,11 @@ kw_strval:
 			ld (ntc_ivar), de
 			jp ntc_atoi_hl
 
-ntc_rg82_e:
-			IF ($ < 32768) && (ntc_rg83_e - ntc_rg83 + $ > 16384)	; fwdref-ok
+ntc_rg262_e:
+			IF ($ < 32768) && (ntc_rg263_e - ntc_rg263 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg83:
+ntc_rg263:
 ;## ntc_font
 ; 8x8 font buffer, chars 32-126, 8 bytes each, bit 7 = leftmost pixel.
 ; The platform fills it at start: the CPC copies its own font from the
@@ -3611,21 +4573,21 @@ ntc_font:		ds 95 * 8
 ; Platform class capabilities
 ; ============================================================
 
-ntc_rg83_e:
-			IF ($ < 32768) && (ntc_rg84_e - ntc_rg84 + $ > 16384)	; fwdref-ok
+ntc_rg263_e:
+			IF ($ < 32768) && (ntc_rg264_e - ntc_rg264 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg84:
+ntc_rg264:
 ;## ntc_buf2k
 ; ntc_buf - a 2K buffer shared by the classes that need one: FileSystem's
 ; CAS IN / OUT OPEN buffer (CPC firmware) and Memory.Copy's page to page copy
 ntc_buf:		ds 2048
 
-ntc_rg84_e:
-			IF ($ < 32768) && (ntc_rg85_e - ntc_rg85 + $ > 16384)	; fwdref-ok
+ntc_rg264_e:
+			IF ($ < 32768) && (ntc_rg265_e - ntc_rg265 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg85:
+ntc_rg265:
 ;## ntc_memcore ntc_data ntc_mem ntc_memcore2 ntc_plat_memtop @shared
 ; ------------------------------------------------------------
 ; ntc_memcore - the Memory class, the part every scheme shares. The scheme
@@ -3740,11 +4702,11 @@ mem_chk_bad:
 			ld hl, MEM_BADPAGE
 			jp mem_err
 
-ntc_rg85_e:
-			IF ($ < 32768) && (ntc_rg86_e - ntc_rg86 + $ > 16384)	; fwdref-ok
+ntc_rg265_e:
+			IF ($ < 32768) && (ntc_rg266_e - ntc_rg266 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg86:
+ntc_rg266:
 ;## ntc_memcore2 ntc_memcore @shared @far
 ; ntc_memcore2 - the rest of the shared part: far pointers, the heap, bytes
 ; and words. Runs on the real stack (through mem_go), so a keyword ROM set
@@ -4011,11 +4973,11 @@ mem_putback:
 			pop hl
 			ret
 
-ntc_rg86_e:
-			IF ($ < 32768) && (ntc_rg87_e - ntc_rg87 + $ > 16384)	; fwdref-ok
+ntc_rg266_e:
+			IF ($ < 32768) && (ntc_rg267_e - ntc_rg267 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg87:
+ntc_rg267:
 ;## ntc_mem ntc_memcore ntc_membank @shared @far
 ; ------------------------------------------------------------
 ; ntc_mem (CPCExpansion) - 16K RAM pages in the #4000-#7FFF window (CPC gate
@@ -4029,31 +4991,33 @@ ntc_rg87:
 ;   No pages at all when the program (ntc_start .. ntc_free) or the
 ;   real stack is in the window: switching would hide them.
 ; Tables, made by the first call (mem_start) from ntc_free up, sized to
-; what the probe finds (3 bytes a page: next link, type); fewer pages
-; when there isn't room below #4000 (or below the real stack).
-; Lists: every page is on one - 0 free low (main + the #7F block),
-; 1 free high (#78-#7E), 2 C, 3 D, 4 I, 5 U, 6 B (the 4 pages of a whole
-; bank, AllocBank). C / I / U pages come from
-; the low list first, D pages from the high one; each falls back to the
-; other. On 576K or less every page is low, so it is one list.
+; what the probe finds (3 bytes a page); fewer pages when there isn't room
+; below #4000 (or below the real stack):
+;   the port table - 2 bytes a page: the BC that selects it (out (c), c),
+;                    so selecting a page is a look-up, nothing worked out
+;   the RAT        - 1 byte a page, its type: - free, C, D, I, U, B (the 4
+;                    pages of a whole bank, AllocBank)
+; No lists: a free page or bank is found by scanning the RAT (CPIR), a page
+; is freed by writing - back. C / I / U pages come from the low block first
+; (main + the #7F block), D pages from the high one (#78-#7E); each falls
+; back to the other. On 576K or less every page is low.
 ; The page in the window is kept in mem_cur, written before the port,
 ; so an interrupt handler can always put the right page back.
 ; A new D page is one free block of #4000.
 ; ------------------------------------------------------------
 MEM_BANKS	equ NTC_MEMBANKS	; 0 - 64
-MEM_LISTS	equ 7
-MEM_LB		equ 6			; the whole-bank list
+MEM_LB		equ 6			; the whole-bank kind (mem_kinds)
 
 mem_count:		dw 0			; pages (0 = no paging)
-mem_tnext:		dw 0			; the tables: next links (2 bytes a page)
-mem_ttype:		dw 0			; types (1 byte a page)
+mem_tport:		dw 0			; the port table (2 bytes a page: its BC)
+mem_ttype:		dw 0			; the RAT (1 byte a page: its type)
 mem_tend:		dw 0			; the first byte after them
-mem_head:		ds MEM_LISTS * 2	; each list's first page
-mem_cnt:		ds MEM_LISTS * 2	; and how many (must follow mem_head)
+mem_fp:			dw 0			; (making the port table: the next bank found)
 mem_banks:		db 0			; 64K banks found
 mem_tl:			db 0
-mem_kinds:		db "--CDIUB"		; the type character of each list
-mem_bank:		ds MEM_BANKS * 2 + 1	; per bank found: setting for its page 0, port high byte
+mem_sw:			db 0			; mem_scan: 0 low, 1 high, 2 any
+mem_kinds:		db "--CDIUB"		; the type character of each kind (0, 1 free)
+mem_found:		ds MEM_BANKS + 1	; probe: the banks found (0-63), in order
 mem_save:		ds MEM_BANKS + 1	; probe: the bytes the markers replace
 mem_bksp:		dw 0			; CallBank: the real stack while bank code runs
 mem_bkrmr:		db 0			; and the ROM / mode byte to put back
@@ -4069,6 +5033,11 @@ mem_start:
 			ld (mem_tend), hl
 	IF NTC_WINHOLE
 			jr mem_st_prog			; the program is built round the window (Option Reserve)
+	ENDIF
+	IF NTC_ROMLIB					; the keyword ROM: free RAM from #8000 on = built round it
+			ld a, h
+			cp #80
+			jr nc, mem_st_prog
 	ENDIF
 			ld de, MEM_WIN + 1		; the program must be out of the window:
 			or a					; it ends by #4000 ...
@@ -4131,7 +5100,7 @@ mem_pr_mark:
 			out (c), c
 			ld a, #A5
 			ld (MEM_WIN), a
-			ld hl, mem_bank
+			ld hl, mem_found
 			ld d, 0
 			ld e, 0
 mem_pr_read:
@@ -4144,9 +5113,7 @@ mem_pr_read:
 			cp (hl)
 			pop hl
 			jr nz, mem_pr_none
-			ld (hl), c				; this bank is there
-			inc hl
-			ld (hl), b
+			ld (hl), e				; this bank is there
 			inc hl
 			inc d
 mem_pr_none:
@@ -4187,6 +5154,15 @@ mem_pr_di:
 	IF NTC_WINHOLE
 			call ntc_plat_memtop		; built round the window: the tables go above it
 			jr mem_tb_lim			; (ntc_memtab), up to the platform's top
+	ENDIF
+	IF NTC_ROMLIB					; the keyword ROM: a program built round the window (it has no
+			ld hl, ntc_free			; NTC_WINHOLE here) has its free RAM above it - up to the top
+			ld a, h
+			cp #80
+			jr c, mem_tb_low
+			call ntc_plat_memtop
+			jr mem_tb_lim
+mem_tb_low:
 	ENDIF
 			ld de, (ntc_csp)		; the tables must end by #4000, or 128 bytes
 			ld hl, MEM_WIN			; under the real stack when it is lower
@@ -4237,19 +5213,62 @@ mem_tb_ok:
 	ELSE
 			ld hl, ntc_free
 	ENDIF
-			ld (mem_tnext), hl
+			ld (mem_tport), hl
 			ld de, (mem_count)
 			add hl, de
 			add hl, de
 			ld (mem_ttype), hl
-			ld bc, (mem_count)		; every page onto its free list, the last
-mem_tb_free:						; first, so the lowest page comes out first
+			ld bc, (mem_count)		; the RAT: every page free
+			ld (hl), '-'
+			dec bc
 			ld a, b
 			or c
+			jr z, mem_tb_ports
+			ld d, h
+			ld e, l
+			inc de
+			ldir
+mem_tb_ports:						; the port table: page 1 main RAM, then 4 a bank found
+			ld hl, (mem_tport)
+			ld (hl), #C0
+			inc hl
+			ld (hl), #7F
+			inc hl
+			ld de, (mem_count)
+			dec de					; DE = pages left
+			ld bc, mem_found
+			ld (mem_fp), bc
+mem_tb_bk:
+			ld a, d
+			or e
 			ret z
-			call mem_tofree
-			dec bc
-			jr mem_tb_free
+			push de
+			ld bc, (mem_fp)
+			ld a, (bc)
+			inc bc
+			ld (mem_fp), bc
+			ld e, a
+			call mem_jbc			; BC = its page 0's port (keeps DE, HL)
+			pop de
+			ld a, 4
+mem_tb_pg:
+			ld (hl), c
+			inc hl
+			ld (hl), b
+			inc hl
+			inc c
+			dec de
+			push af
+			ld a, d
+			or e
+			jr z, mem_tb_pend		; (fewer pages than found: the rest left out)
+			pop af
+			dec a
+			jr nz, mem_tb_pg
+			jr mem_tb_bk
+mem_tb_pend:
+			pop af
+			ret
 
 ; mem_jbc - E = bank 0-63: BC = the port for its page 0 (B = #7F - E / 8,
 ; C = #C4 + (E and 7) * 8). Keeps DE, HL.
@@ -4287,27 +5306,17 @@ mem_sel:
 			jr z, mem_se_end
 mem_se_do:
 			ld (mem_cur), hl
-			dec hl
 			ld a, h
 			or l
-			ld bc, #7FC0
+			ld bc, #7FC0			; (0: plain RAM)
 			jr z, mem_se_out
-			dec hl					; page 2+: bank (page - 2) / 4, page in it (page - 2) and 3
-			ld a, l
-			and 3
-			ld c, a
-			srl h
-			rr l
-			srl h
-			rr l
-			add hl, hl
-			ld de, mem_bank
+			add hl, hl				; its port from the port table
+			ld de, (mem_tport)
 			add hl, de
-			ld a, (hl)
-			add a, c
-			ld c, a
-			inc hl
+			dec hl
 			ld b, (hl)
+			dec hl
+			ld c, (hl)
 mem_se_out:
 			ld (ntc_rampt), bc
 			out (c), c
@@ -4333,51 +5342,15 @@ mem_chk:
 			pop de
 			ret nc
 			jp mem_chk_bad
-; ---- the tables and lists (BC = a page)
+; ---- the tables (BC = a page)
 
-; mem_tpb - HL = its type byte. Keeps A, BC, DE.
+; mem_tpb - HL = its type byte (in the RAT). Keeps A, BC, DE.
 mem_tpb:
 			ld hl, (mem_ttype)
 			add hl, bc
 			dec hl
 			ret
-; mem_npb - HL = its next link. Keeps A, BC, DE.
-mem_npb:
-			ld hl, (mem_tnext)
-			add hl, bc
-			add hl, bc
-			dec hl
-			dec hl
-			ret
-; mem_lha - A = a list: HL = its head (its count is MEM_LISTS * 2 on). Keeps A, BC, DE.
-mem_lha:
-			push de
-			ld l, a
-			ld h, 0
-			add hl, hl
-			ld de, mem_head
-			add hl, de
-			pop de
-			ret
-; mem_cntadd - HL = a list's head, A = 1 / -1: its count + A. Keeps BC.
-mem_cntadd:
-			push de
-			ld de, MEM_LISTS * 2
-			add hl, de
-			ld e, a
-			rla
-			sbc a, a
-			ld d, a					; DE = A, sign extended
-			ld a, (hl)
-			add a, e
-			ld (hl), a
-			inc hl
-			ld a, (hl)
-			adc a, d
-			ld (hl), a
-			pop de
-			ret
-; mem_push - A = a list: the page goes first on it (and gets its type). Keeps A, BC.
+; mem_push - A = a kind (mem_kinds: 2-6): the page is of that kind now. Keeps A, BC, DE.
 mem_push:
 			push af
 			push de
@@ -4388,135 +5361,98 @@ mem_push:
 			ld a, (hl)
 			call mem_tpb
 			ld (hl), a
-			ld a, e
-			call mem_lha
-			ld e, (hl)				; DE = the old first page
-			inc hl
-			ld d, (hl)
-			ld (hl), b				; the page is first now
-			dec hl
-			ld (hl), c
-			push hl
-			call mem_npb
-			ld (hl), e
-			inc hl
-			ld (hl), d
-			pop hl
-			ld a, 1
-			call mem_cntadd
 			pop de
 			pop af
 			ret
-; mem_pop - A = a list: BC = its first page, taken off it. NZ, or Z = empty.
-; Keeps DE.
-mem_pop:
-			push de
-			call mem_lha
-			ld c, (hl)
-			inc hl
-			ld b, (hl)
-			dec hl
-			ld a, b
-			or c
-			jr z, mem_po_end
-			push hl
-			call mem_npb
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			pop hl
-			ld (hl), e
-			inc hl
-			ld (hl), d
-			dec hl
-			ld a, -1
-			call mem_cntadd
-			ld a, 1
-			or a
-mem_po_end:
-			pop de
-			ret
-; mem_remove - A = a list: the page taken off it. NZ, or Z = not on it. Keeps BC, DE.
+; mem_remove - (A = a kind) nothing to take it off: the RAT has no lists. NZ. Keeps BC, DE.
 mem_remove:
-			push de
-			call mem_lha
-			push hl					; the head, for the count
-mem_rm_lp:							; HL = a link (the head, or a page's next)
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			dec hl
-			ld a, d
-			or e
-			jr z, mem_rm_no
-			ld a, e
-			cp c
-			jr nz, mem_rm_nx
-			ld a, d
-			cp b
-			jr z, mem_rm_hit
-mem_rm_nx:
-			push bc
-			ld b, d
-			ld c, e
-			call mem_npb
-			pop bc
-			jr mem_rm_lp
-mem_rm_hit:
-			push hl					; the link now skips the page
-			call mem_npb
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			pop hl
-			ld (hl), e
-			inc hl
-			ld (hl), d
-			pop hl
-			ld a, -1
-			call mem_cntadd
 			ld a, 1
 			or a
-			pop de
 			ret
-mem_rm_no:
-			pop hl
-			xor a
-			pop de
-			ret
-; mem_lowhigh - A = the free list the page belongs on: 0 (main, or the #7F
-; block) or 1. Keeps BC, DE.
+; mem_lowhigh - A = the block the page is in: 0 low (main, or the #7F
+; block) or 1 high. Keeps BC, DE.
 mem_lowhigh:
 			push de
 			ld h, b
 			ld l, c
-			dec hl
-			ld a, h
-			or l
-			jr z, mem_lh_low
-			dec hl
-			srl h
-			rr l
-			srl h
-			rr l
 			add hl, hl
-			ld de, mem_bank + 1
+			ld de, (mem_tport)
 			add hl, de
+			dec hl					; its port's high byte
 			ld a, (hl)
+			pop de
 			cp #7F
-			jr z, mem_lh_low
-			ld a, 1
-			pop de
+			ld a, 0
+			ret z
+			inc a
 			ret
-mem_lh_low:
-			xor a
-			pop de
-			ret
-; mem_tofree - the page (on no list) onto its free list. Keeps BC.
+; mem_tofree - the page free again. Keeps BC, DE.
 mem_tofree:
+			call mem_tpb
+			ld (hl), '-'
+			ret
+; mem_scan - A = 0 low, 1 high, 2 either: BC = the first free page in it, NZ;
+; Z = none
+mem_scan:
+			ld (mem_sw), a
+			ld hl, (mem_ttype)
+			ld bc, (mem_count)
+mem_sc_lp:
+			ld a, b
+			or c
+			ret z
+			ld a, '-'
+			cpir
+			jr nz, mem_sc_none
+			push bc
+			push hl
+			ld de, (mem_ttype)
+			or a
+			sbc hl, de				; the page: its entry is at HL - 1
+			ld b, h
+			ld c, l
+			ld a, (mem_sw)
+			cp 2
+			jr z, mem_sc_hit
 			call mem_lowhigh
-			jp mem_push
-; mem_listof - A = the list the page is on. Keeps BC, DE.
+			ld hl, mem_sw
+			cp (hl)
+			jr z, mem_sc_hit
+			pop hl
+			pop bc
+			jr mem_sc_lp
+mem_sc_hit:
+			pop af
+			pop af
+			ld a, 1
+			or a
+			ret
+mem_sc_none:
+			xor a
+			ret
+; mem_dnext - BC = a page (0: before the first): BC = the next D page, NZ;
+; Z = none
+mem_dnext:
+			ld hl, (mem_count)
+			or a
+			sbc hl, bc
+			ret z
+			push hl
+			ld hl, (mem_ttype)
+			add hl, bc
+			pop bc
+			ld a, 'D'
+			cpir
+			jr nz, mem_sc_none
+			ld de, (mem_ttype)
+			or a
+			sbc hl, de
+			ld b, h
+			ld c, l
+			ld a, 1
+			or a
+			ret
+; mem_listof - A = the page's kind (2-6), or its free block (0, 1). Keeps BC, DE.
 mem_listof:
 			call mem_tpb
 			ld a, (hl)
@@ -4531,12 +5467,12 @@ mem_lo_lp:
 			inc c
 			djnz mem_lo_lp
 			pop bc
-			jr mem_lowhigh
+			jp mem_lowhigh
 mem_lo_got:
 			ld a, c
 			pop bc
 			ret
-; mem_kindlist - A = a type character: A = its list (2-5), NZ; Z = not one.
+; mem_kindlist - A = a type character: A = its kind (2-5), NZ; Z = not one.
 mem_kindlist:
 			ld hl, mem_kinds + 2
 			ld b, 4
@@ -4553,26 +5489,20 @@ mem_kl_got:
 			ld a, c
 			or a
 			ret
-; mem_take - A = a list (2-5): a free page onto it - D from the high
-; free list first, the others from the low one - a D page made one free
+; mem_take - A = a kind (2-5): a free page of that kind now - D from the
+; high block first, the others from the low one - a D page made one free
 ; block. BC = the page, NZ; Z = none left.
 mem_take:
 			ld (mem_tl), a
 			cp 3
-			jr z, mem_tk_high
-			xor a
-			call mem_pop
-			jr nz, mem_tk_got
 			ld a, 1
-			call mem_pop
-			ret z
-			jr mem_tk_got
-mem_tk_high:
-			ld a, 1
-			call mem_pop
-			jr nz, mem_tk_got
+			jr z, mem_tk_s
 			xor a
-			call mem_pop
+mem_tk_s:
+			call mem_scan
+			jr nz, mem_tk_got
+			ld a, 2
+			call mem_scan
 			ret z
 mem_tk_got:
 			ld a, (mem_tl)
@@ -4598,11 +5528,26 @@ mem_pages:
 			ld hl, (mem_count)
 			ret
 
-; FreePages(): pages on the free lists
+; FreePages(): the free pages (- in the RAT)
 mem_freepages:
-			ld hl, (mem_cnt)
-			ld de, (mem_cnt + 2)
-			add hl, de
+			ld hl, (mem_count)
+			ld a, h
+			or l
+			ret z
+			ld b, h
+			ld c, l
+			ld hl, (mem_ttype)
+			ld de, 0
+mem_fp_lp:
+			ld a, '-'
+			cpir
+			jr nz, mem_fp_end
+			inc de
+			ld a, b
+			or c
+			jr nz, mem_fp_lp
+mem_fp_end:
+			ex de, hl
 			ret
 
 ; RamSize(): K of RAM the probe found (64 + 64 a bank), 0 = not probed
@@ -4929,17 +5874,19 @@ mem_cb_nc:
 			jr nz, mem_cb_cp
 			ld hl, (mem_keep)
 			call mem_sel
-			ld hl, (mem_a1)			; BC = C2 for the bank: its page 0 setting
-			dec hl					; (#C4 + bank bits) and #F8, or 2
+			call mem_bkfirst		; BC = C2 for the bank: its page 0's port
+			ld h, b					; ((#C4 + bank bits) and #F8, or 2)
+			ld l, c
 			add hl, hl
-			ld de, mem_bank
+			ld de, (mem_tport)
 			add hl, de
+			dec hl
+			ld b, (hl)
+			dec hl
 			ld a, (hl)
 			and #F8
 			or 2
 			ld c, a
-			inc hl
-			ld b, (hl)
 			ld de, (mem_a2)
 			ld hl, (mem_a3)
 			jp ntc_bk_go
@@ -4979,30 +5926,20 @@ mem_al_size:
 			call mem_try
 			jr z, mem_al_got
 mem_al_scan:
-			ld a, 3
-			call mem_lha
-			ld c, (hl)
-			inc hl
-			ld b, (hl)
+			ld bc, 0
 mem_al_lp:
-			ld a, b
-			or c
+			call mem_dnext
 			jr z, mem_al_new
 			ld hl, (mem_keep)
 			or a
 			sbc hl, bc
-			jr z, mem_al_nx
+			jr z, mem_al_lp
 			push bc
 			ld h, b
 			ld l, c
 			call mem_try
 			pop bc
 			jr z, mem_al_got
-mem_al_nx:
-			call mem_npb
-			ld c, (hl)
-			inc hl
-			ld b, (hl)
 			jr mem_al_lp
 mem_al_new:
 			ld a, 3
@@ -5077,21 +6014,14 @@ mem_err_page:
 mem_largest:
 			ld hl, 0
 			ld (mem_max), hl
-			ld hl, (mem_cnt)		; a free page: a whole page
-			ld de, (mem_cnt + 2)
-			add hl, de
+			call mem_freepages		; a free page: a whole page
 			ld a, h
 			or l
 			ld hl, #3FFE
 			ret nz
-			ld a, 3
-			call mem_lha
-			ld c, (hl)
-			inc hl
-			ld b, (hl)
+			ld bc, 0
 mem_lg_lp:
-			ld a, b
-			or c
+			call mem_dnext
 			jr z, mem_lg_end
 			ld h, b
 			ld l, c
@@ -5099,10 +6029,6 @@ mem_lg_lp:
 			push bc
 			call mem_big
 			pop bc
-			call mem_npb
-			ld c, (hl)
-			inc hl
-			ld b, (hl)
 			jr mem_lg_lp
 mem_lg_end:
 			ld hl, (mem_keep)
@@ -5115,11 +6041,11 @@ mem_lg_end:
 			dec hl
 			ret
 
-ntc_rg87_e:
-			IF ($ < 32768) && (ntc_rg88_e - ntc_rg88 + $ > 16384)	; fwdref-ok
+ntc_rg267_e:
+			IF ($ < 32768) && (ntc_rg268_e - ntc_rg268 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg88:
+ntc_rg268:
 ;## ntc_membank ntc_plat_rmr @shared @romram
 ; ------------------------------------------------------------
 ; ntc_membank - Memory's CallBank switch (CPCExpansion). Runs from RAM
@@ -5163,11 +6089,11 @@ ntc_bk_end:
 ntc_bk_di:
 			ret
 
-ntc_rg88_e:
-			IF ($ < 32768) && (ntc_rg89_e - ntc_rg89 + $ > 16384)	; fwdref-ok
+ntc_rg268_e:
+			IF ($ < 32768) && (ntc_rg269_e - ntc_rg269 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg89:
+ntc_rg269:
 ;## ntc_keys ntc_data @shared
 ; ------------------------------------------------------------
 ; ntc_keys - the Keys class (CPC): the keyboard matrix read straight from the
@@ -5271,11 +6197,11 @@ ntc_k_set:
 			ld (hl), d
 			ret
 
-ntc_rg89_e:
-			IF ($ < 32768) && (ntc_rg90_e - ntc_rg90 + $ > 16384)	; fwdref-ok
+ntc_rg269_e:
+			IF ($ < 32768) && (ntc_rg270_e - ntc_rg270 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg90:
+ntc_rg270:
 ;## ntc_ovlcom ntc_data ntc_mem ntc_plat_screen ntc_plat_key kw_stop @shared
 ; ------------------------------------------------------------
 ; ntc_ovlcom - what both overlay schemes share (ntc_ovl has the rest): the
@@ -5543,11 +6469,11 @@ ntc_ovl_lfree:
 			ld hl, 0
 			ret
 
-ntc_rg90_e:
-			IF ($ < 32768) && (ntc_rg91_e - ntc_rg91 + $ > 16384)	; fwdref-ok
+ntc_rg270_e:
+			IF ($ < 32768) && (ntc_rg271_e - ntc_rg271 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg91:
+ntc_rg271:
 ;## ntc_ovl ntc_ovlcom ntc_mem ntc_plat_fs @shared
 ; ------------------------------------------------------------
 ; ntc_ovl - overlay classes (Option Class Overlay "FILE"): the class's
@@ -5815,11 +6741,11 @@ ntc_ovl_lno:
 			xor a
 			ret
 
-ntc_rg91_e:
-			IF ($ < 32768) && (ntc_rg92_e - ntc_rg92 + $ > 16384)	; fwdref-ok
+ntc_rg271_e:
+			IF ($ < 32768) && (ntc_rg272_e - ntc_rg272 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg92:
+ntc_rg272:
 ;## ntc_gfx ntc_data ntc_plat_data @shared @ramonly
 ; ------------------------------------------------------------
 ; ntc_gfx - drawing on the CPC screen (Graphics class, Vector3D): lines in
@@ -6475,11 +7401,11 @@ gfx_cr2:
 			out (c), c
 			ret
 
-ntc_rg92_e:
-			IF ($ < 32768) && (ntc_rg93_e - ntc_rg93 + $ > 16384)	; fwdref-ok
+ntc_rg272_e:
+			IF ($ < 32768) && (ntc_rg273_e - ntc_rg273 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg93:
+ntc_rg273:
 ;## kw_bssinit ntc_data ntc_plat_memtop ntc_plat_screen kw_stop @shared
 ;kw_bssinit, <start>, <size>  - the start of the main thread: the program's arrays live after
 ;  it (from ntc_end, not in its file). Check they fit under the platform's top (and 256 bytes
@@ -6548,11 +7474,11 @@ ntc_bsz:		dw 0
 ntc_bsp:		dw 0
 ntc_bstxt:		db "Not enough memory for the arrays", 0
 
-ntc_rg93_e:
-			IF ($ < 32768) && (ntc_rg94_e - ntc_rg94 + $ > 16384)	; fwdref-ok
+ntc_rg273_e:
+			IF ($ < 32768) && (ntc_rg274_e - ntc_rg274 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg94:
+ntc_rg274:
 ;## ntc_plat_data
 ntc_curx:		db 0			; cursor column (0 based)
 ntc_cury:		db 0			; cursor row (0 based)
@@ -6585,11 +7511,11 @@ ntc_modetab:	db 4, 20, #C0, 2		; mode 0
 
 ; (ntc_plat_scroll, ntc_plat_cls: their own section - the ROM runs them from RAM)
 
-ntc_rg94_e:
-			IF ($ < 32768) && (ntc_rg95_e - ntc_rg95 + $ > 16384)	; fwdref-ok
+ntc_rg274_e:
+			IF ($ < 32768) && (ntc_rg275_e - ntc_rg275 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg95:
+ntc_rg275:
 ;## ntc_plat_screen ntc_plat_data ntc_font ntc_data ntc_plat_scroll @shared
 ; ------------------------------------------------------------
 ; ntc_plat_putc - A = character 32-126 (others print as ?), draw it
@@ -6765,31 +7691,12 @@ ntc_nl_do:
 			ld (ntc_cury), a
 			jp (ix)
 
-; ------------------------------------------------------------
-; ntc_plat_backspace - cursor back one and blank that cell
-; ------------------------------------------------------------
-ntc_plat_backspace:
-			xor a
-			ld (ntc_wrapped), a
-			ld a, (ntc_curx)
-			or a
-			jr nz, ntc_bs_col
-			ld a, (ntc_cury)
-			or a
-			jr z, ntc_bs_none
-			dec a
-			ld (ntc_cury), a
-			ld a, (ntc_scols)
-ntc_bs_col:
-			dec a
-			ld (ntc_curx), a
-			ld a, 1
-			ld (ntc_noadv), a
-			ld de, ntc_font		; space
-			jp ntc_plat_putglyph
-ntc_bs_none:
-			jp (ix)
-
+ntc_rg275_e:
+			IF ($ < 32768) && (ntc_rg276_e - ntc_rg276 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg276:
+;## ntc_plat_mode @unit ntc_plat_screen ntc_plat_data ntc_font ntc_data ntc_plat_scroll @shared
 ; ------------------------------------------------------------
 ; ntc_plat_mode - A = mode (0-2, 3 = 2). Gate array mode with both
 ; ROMs off, set text layout, clear screen
@@ -6860,6 +7767,12 @@ ntc_fontcopy:
 			jp ntc_md_set
 ntc_fontcopy_end:
 
+ntc_rg276_e:
+			IF ($ < 32768) && (ntc_rg277_e - ntc_rg277 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg277:
+;## ntc_plat_locate @unit ntc_plat_screen ntc_plat_data ntc_font ntc_data ntc_plat_scroll @shared
 ; ------------------------------------------------------------
 ; ntc_plat_locate - H = column, L = row, 1 based, kept on screen
 ; ------------------------------------------------------------
@@ -6891,11 +7804,11 @@ ntc_lc_ymax:
 			ld (ntc_cury), a
 			jp (ix)
 
-ntc_rg95_e:
-			IF ($ < 32768) && (ntc_rg96_e - ntc_rg96 + $ > 16384)	; fwdref-ok
+ntc_rg277_e:
+			IF ($ < 32768) && (ntc_rg278_e - ntc_rg278 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg96:
+ntc_rg278:
 ;## ntc_plat_scroll ntc_plat_data ntc_data @shared @romram
 ; ------------------------------------------------------------
 ; ntc_plat_scroll - move rows 1-24 up one, clear row 24
@@ -7001,11 +7914,11 @@ ntc_cl_close:
 			ld (ntc_cury), a
 			jp (ix)
 
-ntc_rg96_e:
-			IF ($ < 32768) && (ntc_rg97_e - ntc_rg97 + $ > 16384)	; fwdref-ok
+ntc_rg278_e:
+			IF ($ < 32768) && (ntc_rg279_e - ntc_rg279 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg97:
+ntc_rg279:
 ;## ntc_plat_key ntc_plat_data ntc_data @shared
 ; ------------------------------------------------------------
 ; ntc_plat_scankey - A = ASCII of a key pressed since the last scan,
@@ -7153,11 +8066,11 @@ ntc_keymaps:
 			db "!", 34, 27, "Q", 9, "A", 0, "Z"
 			db 0, 0, 0, 0, 0, 0, 0, 127
 
-ntc_rg97_e:
-			IF ($ < 32768) && (ntc_rg98_e - ntc_rg98 + $ > 16384)	; fwdref-ok
+ntc_rg279_e:
+			IF ($ < 32768) && (ntc_rg280_e - ntc_rg280 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg98:
+ntc_rg280:
 ;## ntc_plat_frame ntc_data @shared
 ; ------------------------------------------------------------
 ; ntc_plat_frame - wait for the start of vsync (PPI port B bit 0)
@@ -7188,11 +8101,11 @@ ntc_fr_wait:
 ntc_fr_done:
 			jp (ix)
 
-ntc_rg98_e:
-			IF ($ < 32768) && (ntc_rg99_e - ntc_rg99 + $ > 16384)	; fwdref-ok
+ntc_rg280_e:
+			IF ($ < 32768) && (ntc_rg281_e - ntc_rg281 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg99:
+ntc_rg281:
 ;## ntc_plat_ticks ntc_data
 ; ------------------------------------------------------------
 ; ntc_plat_ticks - HL = interrupt count (300 a second, normal mode)
@@ -7201,11 +8114,11 @@ ntc_plat_ticks:
 			ld hl, (ntc_ticks)
 			jp (ix)
 
-ntc_rg99_e:
-			IF ($ < 32768) && (ntc_rg100_e - ntc_rg100 + $ > 16384)	; fwdref-ok
+ntc_rg281_e:
+			IF ($ < 32768) && (ntc_rg282_e - ntc_rg282 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg100:
+ntc_rg282:
 ;## ntc_plat_irq ntc_plat_data ntc_data ntc_plat_irqh @shared
 ; ------------------------------------------------------------
 ; ntc_plat_irqon - put the interrupt handler at #38 (IM 1)
@@ -7223,11 +8136,11 @@ ntc_plat_irqon:
 			ld (ntc_irqset), a
 			jp (ix)
 
-ntc_rg100_e:
-			IF ($ < 32768) && (ntc_rg101_e - ntc_rg101 + $ > 16384)	; fwdref-ok
+ntc_rg282_e:
+			IF ($ < 32768) && (ntc_rg283_e - ntc_rg283 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg101:
+ntc_rg283:
 ;## ntc_plat_irqh ntc_plat_data ntc_data @shared @romram
 ; the handler: runs on the real stack, between keywords. Counts ticks
 ; (300 a second). AF goes to AF', HL to RAM; interrupt classes' counting
@@ -7284,11 +8197,11 @@ ntc_irq_ron:
 			ret
 		ENDIF
 
-ntc_rg101_e:
-			IF ($ < 32768) && (ntc_rg102_e - ntc_rg102 + $ > 16384)	; fwdref-ok
+ntc_rg283_e:
+			IF ($ < 32768) && (ntc_rg284_e - ntc_rg284 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg102:
+ntc_rg284:
 ;## ntc_plat_exit ntc_plat_data
 ; ------------------------------------------------------------
 ; ntc_plat_exit - before returning to the caller: interrupt handler
@@ -7336,11 +8249,11 @@ FS_TOOBIG	equ -8
 FS_FAILED	equ -9
 FS_BADNAME	equ -4
 
-ntc_rg102_e:
-			IF ($ < 32768) && (ntc_rg103_e - ntc_rg103 + $ > 16384)	; fwdref-ok
+ntc_rg284_e:
+			IF ($ < 32768) && (ntc_rg285_e - ntc_rg285 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg103:
+ntc_rg285:
 ;## ntc_plat_fs ntc_plat_data ntc_plat_irq ntc_data ntc_buf2k @shared
 fs_a1:			dw 0
 fs_a2:			dw 0
@@ -7919,11 +8832,11 @@ fs_sv_done:
 			ld hl, 0
 			ret
 
-ntc_rg103_e:
-			IF ($ < 32768) && (ntc_rg104_e - ntc_rg104 + $ > 16384)	; fwdref-ok
+ntc_rg285_e:
+			IF ($ < 32768) && (ntc_rg286_e - ntc_rg286 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg104:
+ntc_rg286:
 ;## ntc_plat_memtop
 ; ntc_plat_memtop - HL = the first byte the Memory class's Small heap must not
 ; use: #A600 (the firmware's and AMSDOS's RAM is above). Called on the real
@@ -7936,11 +8849,11 @@ ntc_plat_memtop:
 		ENDIF
 			ret
 
-ntc_rg104_e:
-			IF ($ < 32768) && (ntc_rg105_e - ntc_rg105 + $ > 16384)	; fwdref-ok
+ntc_rg286_e:
+			IF ($ < 32768) && (ntc_rg287_e - ntc_rg287 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg105:
+ntc_rg287:
 ;## ntc_plat_rmr ntc_plat_data
 ; ntc_plat_rmr - A = the gate array's ROM / mode byte now (#8x: screen mode,
 ; lower and upper ROM on / off), so Memory's CallBank can turn both ROMs off
@@ -7960,7 +8873,7 @@ ntc_plat_rmr:
 ovl_blk_spin:	dw 0, ovl_spin_end, ovl_spin_vsize
 			db "CUBE3D.001", 0, "Spin", 0	; its file, its name (for the messages)
 
-ntc_rg105_e:
+ntc_rg287_e:
 ntc_end:				; the end of the program (and of its file)
 glyph_20			equ ntc_font + 0		; " "
 glyph_2B			equ ntc_font + 88		; "+"
@@ -8670,4 +9583,4 @@ ovl_spin_vsize	equ 0		; its page variables; its local memory is the rest, to #80
 			DISPLAY "  page variables ", /D, ovl_spin_vsize, ", free ", /D, #8000 - (ovl_spin_end + ovl_spin_vsize)
 			SAVEAMSDOS "CUBE3D.001", ovl_spin_start, ovl_spin_end - ovl_spin_start, #4000
 
-NTC_STAMP	equ #3024		; the build stamp: the first word of every page file
+NTC_STAMP	equ #5A6C		; the build stamp: the first word of every page file

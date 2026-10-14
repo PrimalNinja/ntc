@@ -635,37 +635,29 @@ str29:			db 0
 ; Keyword library (used)
 ; ============================================================
 
-;## ntc_data @shared
+;## ntc_data @shared ntc_d_nmode
 ; ------------------------------------------------------------
-; Scratch space
+; Scratch space: the core every program has (with ntc_d_nmode). The rest of
+; the run time's variables are @data sections, each linked only when a
+; linked section's code names one of its labels (no header lists them).
+; They stay in this order: the keyword ROM's registry keeps each variable's
+; address (a Library: ROM program has them as fixed addresses)
 ; ------------------------------------------------------------
 ntc_next:		ret				; IX target that continues the thread
 ntc_csp:		dw 0			; caller SP, for kw_stop (and the normal mode stack)
 ntc_ip:			dw 0			; normal mode: thread position while out of the thread
-ntc_ticks:		dw 0			; interrupt count (normal mode, platform handler)
-ntc_gnlo:		db 0			; ntc_getn: low byte
+
+;## ntc_d_nmode @data
 ntc_nmode:		db 0			; 1 = running in normal mode (waits let interrupts in)
-ntc_mode:		db 0			; div mode 0=quotient 1=remainder
-ntc_sgnq:		db 0			; quotient sign (bit 7)
-ntc_sgnr:		db 0			; remainder sign (bit 7)
+
+;## ntc_d_lead @data
 ntc_lead:		db 0			; printint: digit seen
-ntc_icnt:		db 0			; gets: chars typed
-ntc_icap:		db 0			; gets: the buffer's capacity
+
+;## ntc_d_sptr @data
 ntc_sptr:		dw 0			; printbuf: text pointer
-ntc_iptr:		dw 0			; gets: buffer pointer
-ntc_ilink:		dw 0			; gets: where to go when done
-ntc_ivar:		dw 0			; inputint / inkey: dest var
-ntc_aptr:		dw 0			; atoi: text pointer
-ntc_hookon:		db 0			; 1 = the Interrupt hook may run (set, and not running now)
-ntc_hookset:	db 0			; 1 = an Interrupt hook is set
-ntc_hookpend:	db 0			; 1 = an interrupt came, the hook runs at the next safe point
-ntc_hook:		dw 0			; the hook Sub's call stub
-ntc_hostix:		dw 0			; host platforms: IX kept over a firmware / BDOS call
-ntc_rampt:		dw #7FC0		; the gate array's RAM setting now (B = port, C = value): the
-								; Memory class keeps it, Graphics puts it back after drawing
+
+;## ntc_d_numbuf @data
 ntc_numbuf:		ds 14			; printint / long print: digits (+ spaces for Option VBPrint)
-				db 40			; ntc_inbuf's capacity (as every string variable has)
-ntc_inbuf:		ds 41			; inputint: typed text
 
 ;## kw_stop ntc_data ntc_plat_exit @shared
 kw_stop:
@@ -1228,89 +1220,6 @@ ntc_nl_do:
 			ld a, 24
 ntc_nl_row:
 			ld (ntc_cury), a
-			jp (ix)
-
-; ntc_plat_backspace - back one and blank that cell
-ntc_plat_backspace:
-			xor a
-			ld (ntc_wrapped), a
-			ld a, (ntc_curx)
-			or a
-			jr nz, ntc_bs_col
-			ld a, (ntc_cury)
-			or a
-			jr z, ntc_bs_none
-			dec a
-			ld (ntc_cury), a
-			ld a, (ntc_scols)
-ntc_bs_col:
-			dec a
-			ld (ntc_curx), a
-			out (#f5), a
-ntc_bs_none:
-			jp (ix)
-
-; ntc_plat_cls - clear, cursor home
-ntc_plat_cls:
-			out (#fc), a
-			xor a
-			ld (ntc_wrapped), a
-			ld (ntc_curx), a
-			ld (ntc_cury), a
-			jp (ix)
-
-; ntc_plat_mode - A = mode 0-2 (3 = 2): columns, clear
-ntc_plat_mode:
-			cp 3
-			jr c, ntc_md_ok
-			ld a, 2
-ntc_md_ok:
-			out (#fa), a
-			ld b, 20
-			or a
-			jr z, ntc_md_set
-			ld b, 40
-			dec a
-			jr z, ntc_md_set
-			ld b, 80
-ntc_md_set:
-			ld a, b
-			ld (ntc_scols), a
-			jr ntc_plat_cls
-
-; ntc_plat_locate - H = column, L = row, 1 based, kept on screen
-ntc_plat_locate:
-			xor a
-			ld (ntc_wrapped), a
-			ld a, h
-			or a
-			jr z, ntc_lc_x0
-			dec a
-ntc_lc_x0:
-			ld c, a
-			ld a, (ntc_scols)
-			dec a
-			cp c
-			jr c, ntc_lc_xmax
-			ld a, c
-ntc_lc_xmax:
-			ld (ntc_curx), a
-			ld a, l
-			or a
-			jr z, ntc_lc_y0
-			dec a
-ntc_lc_y0:
-			cp 25
-			jr c, ntc_lc_ymax
-			ld a, 24
-ntc_lc_ymax:
-			ld (ntc_cury), a
-			ld a, (ntc_curx)
-			inc a
-			out (#fb), a
-			ld a, (ntc_cury)
-			inc a
-			out (#fb), a
 			jp (ix)
 
 ;## ntc_plat_key ntc_data

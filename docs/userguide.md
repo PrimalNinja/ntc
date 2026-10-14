@@ -2283,7 +2283,13 @@ CPC firmware platforms (`cpcfw`, `cpcmin`) only. `RUN"NAME` of a binary resets t
 background ROMs - AMSDOS (ROM 7) and any others - are dropped. With this option the program
 starts them again before anything else: `All` starts every background ROM (KL ROM WALK), a
 list starts those ROM numbers (KL INIT BACK). The ROMs take their RAM from `#ABFF` down, so
-the program must end below `#A600` (checked when assembling). If the ROMs are still running
+the program must end below `#A600` (checked when assembling). If the ROMs started take more
+than AMSDOS's `#A700`-`#ABFF` (several ROMs: an IDE or SD interface's beside AMSDOS), cpcfw
+moves its top under their RAM - the interrupt event block, and with it the top of free RAM
+(the heap, the Memory class's tables: fewer pages if they don't fit) - and stops only when the
+program and its arrays reach their RAM: "The ROMs' RAM reaches down to #xxxx: no room for this
+program". cpcmin and Library: ROM programs (the keyword ROM's RAM is fixed below `#A5F0`) need
+the ROMs to stay at `#A600` and above, else the same message. If the ROMs are still running
 (the program was loaded from BASIC and CALLed), nothing is started again.
 
 Without the option nothing is started: a program started with `RUN"` has no AMSDOS (files
@@ -2454,6 +2460,11 @@ Print "Hello"          ' a few hundred bytes: the jump block, the start code, th
   arrays must end below `#8800` (checked when assembling), and the Memory class's heap stops
   there. A program CALLed from BASIC needs `MEMORY &87FF` (or lower) first, or BASIC's strings
   and the ROM's variables overwrite each other. `End` puts the caller's ROM selection back.
+  A program built round `Option Reserve &H4000, &H4000` (its code from #0040 and on from
+  #8000) works with the ROM too: the Memory class sees its free RAM starts above the window
+  and puts its tables there, up to #8800 - so give it `Option Memory CPCExpansion` few enough
+  pages (3 bytes each) to fit. `#If NTC_LIBRARY_ROM Then` round two `Option Memory` lines
+  picks a smaller number for the ROM build only.
 - **The screen.** The upper ROM covers the screen's RAM at `#C000` for reading. On cpc and
   cpcmin the ROM stays on and NTC turns it off only while it reads the screen (scroll, Cls,
   Graphics), from code it runs in RAM; on cpcfw the Graphics routines do the same through
@@ -2955,7 +2966,8 @@ gets `Pages() = 0`. Anything the program reads or writes in the window (`Poke`, 
 a file. Use `Memory.WindowStart` and `Memory.WindowSize` rather than `&H4000`: they are
 constants, worked out when compiling.
 
-The class's tables (3 bytes a page: a 6128 15 bytes, 4MB 771) go from the program's end
+The class's tables (3 bytes a page: a 6128 15 bytes, 4MB 771 - each page's type, the RAT that
+`Map` shows, and the 2 bytes that select it) go from the program's end
 up, made by the first Memory call - so don't keep your own data straight after the program.
 `TableEnd()` gives the first byte after them. When they don't fit below `#4000` (or below
 the stack), the class keeps fewer pages.

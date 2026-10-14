@@ -37,12 +37,53 @@ ntc_rj_ok:
 			ld (ntc_csp), sp
 			ld a, (#BC77)		; Option RomEnable: start the ROMs again
 			cp #DF			; AMSDOS has the cassette calls: they are running
-			jr z, ntc_roms_on
+			jp z, ntc_roms_on
 			ei
-			ld de, ntc_free		; the lowest address the ROMs may use (above the arrays)
+			ld de, #A5F0		; the lowest address the ROMs may use (the keyword ROM's RAM is below)
 			ld hl, #ABFF		; the highest (as usual for AMSDOS: it takes about #A700-#ABFF)
-			ld c, 7
-			call #BCCE		; KL INIT BACK: ROM 7 (DE / HL come back as the new limits)
+			call #BCCB		; KL ROM WALK: every background ROM
+			inc hl			; the first byte the ROMs took
+			ld (ntc_roms_at), hl
+			ld de, #A600
+			or a
+			sbc hl, de
+			jp nc, ntc_roms_fit	; AMSDOS alone (or no more): as usual
+			ld hl, ntc_roms_msg
+			call ntc_roms_puts
+			ld a, (ntc_roms_at + 1)
+			call ntc_roms_hex
+			ld a, (ntc_roms_at)
+			call ntc_roms_hex
+			ld hl, ntc_roms_msg2
+			call ntc_roms_puts
+			call #BB06		; KM WAIT CHAR
+			rst 0			; (the machine starts again)
+ntc_roms_puts:
+			ld a, (hl)
+			or a
+			ret z
+			call #BB5A		; TXT OUTPUT
+			inc hl
+			jr ntc_roms_puts
+ntc_roms_hex:
+			push af
+			rrca
+			rrca
+			rrca
+			rrca
+			call ntc_roms_dig
+			pop af
+ntc_roms_dig:
+			and 15
+			add a, #90
+			daa
+			adc a, #40
+			daa
+			jp #BB5A
+ntc_roms_at:	dw 0
+ntc_roms_msg:	db "The ROMs' RAM reaches down to #", 0
+ntc_roms_msg2:	db ": no room for this program", 13, 10, "(fewer ROMs, or a smaller program)", 13, 10, "Press a key", 13, 10, 0
+ntc_roms_fit:
 			di
 			ASSERT ntc_free <= #A600, "Option RomEnable: the program and its arrays must end below #A600 (the ROMs take their RAM from #ABFF down)"
 ntc_roms_on:

@@ -364,3 +364,6 @@
 -	data	ntc_v_romold	#88B8
 321	code	kw_waitkey
 -	data	ntc_rx_cur	#88B9
+322	code	ntc_plat_backspace
+323	code	ntc_plat_mode
+324	code	ntc_plat_locate

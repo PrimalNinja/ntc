@@ -406,7 +406,7 @@ registry's exported variables keep fixed addresses).
 | `src/js/ntc_parser.js` | the parser: records and the element table |
 | `src/js/ntc_compiler.js` | the code generator, the library linker, the start code, `ntcRomAsm` (builds a ROM set), `ntcRomJumpBlock` (a ROM program's side) |
 | `src/js/ntc_flavour_js.js`, `ntc_flavour_loco.js` | the JS and Locomotive BASIC flavours (to VB5 text) |
-| `src/asm/ntc_lib.asm` | the keyword library: sections `;## name deps [@shared] [@far] [@romram] [@ramonly] [@if:x]` |
+| `src/asm/ntc_lib.asm` | the keyword library: sections `;## name deps [@shared] [@far] [@romram] [@ramonly] [@data] [@unit] [@if:x]` |
 | `src/asm/ntc_plat_*.asm` | the platform layers: screen, keys, interrupts, exit, files (`IF NTC_ROMLIB` marks what differs in a ROM) |
 | `src/asm/ntc_rom_*.txt` | the ROM registries |
 | `src/lib/<platform>/*.cls` | the platform classes: StdIO, System, FileSystem, Memory, List, Graphics, Keys |
@@ -416,4 +416,15 @@ registry's exported variables keep fixed addresses).
 Section header words: `@shared` - one copy for both modes (its SP loads are real stack
 switches); `@far` - real stack code a ROM set may place in another ROM; `@romram` - runs from
 RAM in a ROM; `@ramonly` - not in the ROM, a ROM program carries it; `@if:x` - only when
-`#Const x` is set (Option Memory's scheme).
+`#Const x` is set (Option Memory's scheme). `@data` - variables (one copy for both modes), and `@unit` - a small
+routine: neither needs to be named in any header - a section is linked when a linked
+section's code names one of its labels (the compiler scans each linked section for them), so
+a program gets only the variables and routines it touches. The core scratch (`ntc_data`:
+`ntc_next`, `ntc_csp`, `ntc_ip`, with `ntc_d_nmode`) is always linked; Input's buffer, number
+printing, division, the Interrupt hook ... are `@data` sections (`ntc_d_*`), and each
+platform's Backspace, Cls, Mode and Locate are `@unit` sections apart from putc / newline. A
+`@unit` that runs on into the next routine (no jump at its end) must stay one section with
+it, and a `jr` can't cross from one section to another. The ROM builder keeps `@data`
+sections that follow each other as one run, so their variables keep the addresses the
+registry has (a section's first, unlabelled byte - a capacity - goes with the variable after
+it).

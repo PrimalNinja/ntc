@@ -20,6 +20,7 @@ Public Const OBUF = &HF600         ' a program's characters out, collected (128)
 Public Const KEY = &HF681          ' the slot's next key (0 none): the bank's BDOS answers 1, 6 and 11 from it
 Private sps As Integer, ra As Integer, rhl As Integer, rfn As Integer, rde As Integer, rcnt As Integer
 Private slc As Integer, hsp As Integer, rclr As Integer, rrom As Integer
+Private fin As Integer, fout As Integer   ' FileCall: the slot reading a file, the one writing one (0: none)
 Private font(767) As Byte          ' the matrices of characters 32-127 (FontInit), for Text
 Const SLICE = 6                    ' interrupts in a task's time slice (6: 1/50 s)
 
@@ -1021,6 +1022,653 @@ vd_off:
             call #BB57              ; TXT VDU DISABLE
 vd_done:
             di
+            ld sp, ({hsp})
+#endasm
+End Sub
+
+' ---- the slots' files: CP/M's file calls (BDOS 15, 16, 19-22, 33, 34; Main's Bdos), in Z80
+' (in BASIC they took 2.4K). Through the firmware's cassette calls (AMSDOS, UniDOS ...), with
+' their 2K buffers in main RAM's #4000-#4FFF - the window's own RAM (page 1), which nothing
+' else uses - put in the window for each call, then the page that was there back; so a slot's
+' file stays open between its calls while the hypervisor's Memory.Copy uses #8000. One file
+' read and one written at a time (AMSDOS has one of each), by any slots: another asking gets
+' 255; a slot's new open replaces the file it was reading (CP/M needs no close after reading).
+' A record goes through main RAM (buf: 128 bytes). Random records (33, 34): read on, or
+' from the start again; written, only the next one. Rename (23): the disc ROM's |REN.
+' Search (17, 18), size (35): not yet (255)
+' FileCall(f, fcb, slot, setting, dma, drive, buf): the call's A. setting = the slot's RAM
+' setting (sg), drive = the slot's drive letter (0: none), buf = 128 bytes of main RAM
+Public Function FileCall(ByVal f As Integer, ByVal fcb As Integer, ByVal slot As Integer, ByVal setting As Integer, ByVal dma As Integer, ByVal drive As Integer, ByVal buf As Integer) As Integer
+#asm
+            ld ({hsp}), sp
+            ld sp, (ntc_csp)
+            ld (fl_ix), ix
+            ld (fl_iy), iy
+            ld a, 255
+            ld (fl_res), a
+            ld a, ({slot})
+            ld (fl_slot), a
+            ld a, ({f})
+            cp 15
+            jp z, fl_open
+            cp 16
+            jp z, fl_close
+            cp 19
+            jp z, fl_del
+            cp 23
+            jp z, fl_ren
+            cp 20
+            jp z, fl_rdseq
+            cp 33
+            jp z, fl_rdran
+            cp 21
+            jp z, fl_write
+            cp 34
+            jp z, fl_write
+            cp 22
+            jp z, fl_make
+            cp 100
+            jp z, fl_hopen
+            cp 101
+            jp z, fl_hread
+            cp 102
+            jp z, fl_hclose
+            cp 103
+            jp z, fl_hload
+            jp fl_done
+; ---- the hypervisor's own reading (RUN, DIR, CD): 100 open the file named at fcb (dma
+; characters, main RAM); 101 read dma bytes (128 at most) to buf: how many; 102 close; 103 the
+; rest of it into the slot (setting) from address dma, fcb bytes at most: how many. Not while
+; a slot reads a file (255)
+fl_hopen:
+            ld a, ({fin})
+            or a
+            jp nz, fl_done
+            ld hl, ({fcb})
+            ld de, fl_name_s + 1
+            ld bc, ({dma})
+            ld a, c
+            ld (fl_name_s), a
+            ldir
+            call fl_inopen
+            jp nc, fl_done
+            ld a, 99                ; (99: the hypervisor's)
+            ld ({fin}), a
+            jp fl_ok
+fl_hread:
+            ld a, ({dma})
+            ld (fl_n), a
+            call fl_rdrec
+            ld (fl_res), a
+            jp fl_done
+fl_hclose:
+            ld a, ({fin})
+            cp 99
+            jp nz, fl_done
+            call fl_inclose
+            jp fl_ok
+fl_hload:
+            ld hl, 0
+            ld (fl_cnt), hl
+            ld hl, ({dma})
+            ld (fl_at), hl
+fl_hl_lp:
+            ld hl, ({fcb})          ; what is left to load (fcb bytes at most)
+            ld de, (fl_cnt)
+            or a
+            sbc hl, de
+            jr z, fl_hl_end
+            ld a, h
+            or a
+            ld a, 128
+            jr nz, fl_hl_n
+            ld a, l
+            cp 128
+            jr c, fl_hl_n
+            ld a, 128
+fl_hl_n:
+            ld (fl_n), a
+            ld (fl_want), a
+            call fl_rdrec           ; a record's worth into buf
+            jr z, fl_hl_end
+            ld b, a
+            ld (fl_want + 1), a
+            ld hl, (fl_cnt)
+            ld e, a
+            ld d, 0
+            add hl, de
+            ld (fl_cnt), hl
+            ld de, ({buf})
+            ld hl, (fl_at)
+fl_hl_cp:
+            ld a, (de)              ; into the slot
+            call fl_poke
+            inc hl
+            inc de
+            djnz fl_hl_cp
+            ld (fl_at), hl
+            ld a, (fl_want)
+            ld b, a
+            ld a, (fl_want + 1)
+            cp b
+            jr z, fl_hl_lp          ; a whole one: on
+fl_hl_end:
+            ld hl, (fl_cnt)
+            ld (fl_res16), hl
+            ld a, 1
+            ld (fl_r16), a
+            jp fl_done
+; ---- 15: open (to read)
+fl_open:
+            ld a, ({fin})
+            or a
+            jr z, fl_op_new
+            ld b, a
+            ld a, (fl_slot)
+            cp b
+            jp nz, fl_done          ; another slot's being read
+            call fl_inclose         ; this slot's: CP/M needs no close after reading - this open
+fl_op_new:                          ; replaces it (Exists opens and leaves it)
+            call fl_name
+            call fl_inopen
+            jp nc, fl_done
+            ld hl, fl_name_s        ; kept, to open it again (33 going back)
+            ld de, fl_inname
+            ld bc, 17
+            ldir
+            ld a, (fl_slot)
+            ld ({fin}), a
+            ld hl, ({fcb})
+            ld (fl_infcb), hl
+            ld hl, 0
+            ld (fl_inrec), hl
+            jp fl_ok
+; ---- 22: make (a new file, to write)
+fl_make:
+            ld a, ({fout})
+            or a
+            jp nz, fl_done
+            call fl_name
+            call fl_plain
+            ld hl, fl_name_s + 1
+            ld a, (fl_name_s)
+            ld b, a
+            ld de, #4800
+            call #BC8C              ; CAS OUT OPEN
+            di
+            jp nc, fl_done
+            ld a, (fl_slot)
+            ld ({fout}), a
+            ld hl, ({fcb})
+            ld (fl_outfcb), hl
+            jp fl_ok
+; ---- 16: close
+fl_close:
+            call fl_isin
+            jr nz, fl_cl_out
+            call fl_inclose
+            jp fl_ok
+fl_cl_out:
+            call fl_isout
+            jp nz, fl_done
+            xor a
+            ld ({fout}), a
+            call fl_plain
+            call #BC8F              ; CAS OUT CLOSE
+            di
+            jp nc, fl_done
+            jp fl_ok
+; ---- 19: delete (|ERA, "name")
+fl_del:
+            call fl_name
+            call fl_plain
+            ld hl, fl_name_s + 1
+            ld (fl_desc + 1), hl
+            ld a, (fl_name_s)
+            ld (fl_desc), a
+            ld hl, fl_era
+            call #BCD4              ; KL FIND COMMAND: C = its ROM, HL = its address
+            di
+            jp nc, fl_done
+            ld ix, fl_par
+            ld a, 1                 ; one parameter: the string
+            call #001B              ; KL FAR PCALL
+            di
+            jp fl_ok
+; ---- 23: rename (the disc ROM's |REN, "new", "old"): the old name at FCB 0-11, the new
+; at 16-27 (its drive 0: the old one's)
+fl_ren:
+            ld hl, ({fcb})
+            call fl_peek
+            ld (fl_dfl), a
+            ld de, 16
+            add hl, de
+            call fl_namehl          ; the new name
+            xor a
+            ld (fl_dfl), a
+            ld hl, fl_name_s
+            ld de, fl_new_s
+            ld bc, 17
+            ldir
+            call fl_name            ; the old one
+            call fl_plain
+            ld hl, fl_name_s + 1
+            ld (fl_desc + 1), hl
+            ld a, (fl_name_s)
+            ld (fl_desc), a
+            ld hl, fl_new_s + 1
+            ld (fl_desc2 + 1), hl
+            ld a, (fl_new_s)
+            ld (fl_desc2), a
+            ld hl, fl_rencmd
+            call #BCD4              ; KL FIND COMMAND
+            di
+            jp nc, fl_done
+            ld ix, fl_par2          ; IX+0: the last parameter (the old name), IX+2: the new
+            ld a, 2
+            call #001B              ; KL FAR PCALL
+            di
+            jp fl_ok
+; ---- 33: read record r0-r1: on to it (from the start again if it is behind)
+fl_rdran:
+            call fl_isin
+            jp nz, fl_rdout
+            ld hl, ({fcb})
+            ld de, 33
+            add hl, de
+            call fl_peek
+            ld e, a
+            inc hl
+            call fl_peek
+            ld d, a
+            ld (fl_want), de
+            ld hl, (fl_inrec)
+            or a
+            sbc hl, de
+            jr c, fl_rr_on
+            jr z, fl_rr_on
+            call fl_inclose         ; behind: open it again
+            ld hl, fl_inname
+            ld de, fl_name_s
+            ld bc, 17
+            ldir
+            call fl_inopen
+            jp nc, fl_done
+            ld a, (fl_slot)
+            ld ({fin}), a
+            ld hl, 0
+            ld (fl_inrec), hl
+fl_rr_on:
+            ld hl, (fl_inrec)
+            ld de, (fl_want)
+            or a
+            sbc hl, de
+            jr nc, fl_rdseq
+            call fl_rdrec
+            jp z, fl_eof
+            ld hl, (fl_inrec)
+            inc hl
+            ld (fl_inrec), hl
+            jr fl_rr_on
+; ---- 20: read the next record
+fl_rdseq:
+            call fl_isin
+            jr nz, fl_rdout
+            call fl_rdrec
+            jr z, fl_eof
+            ex de, hl
+            ld hl, (fl_inrec)
+            inc hl
+            ld (fl_inrec), hl
+            ex de, hl
+            ld b, a                 ; the record padded with #1A
+            ld a, 128
+            sub b
+            jr z, fl_rd_put
+            ld b, a
+            ld a, #1A
+fl_rd_pad:
+            ld (hl), a
+            inc hl
+            djnz fl_rd_pad
+fl_rd_put:
+            ld hl, ({buf})          ; into the slot's DMA
+            ld de, ({dma})
+            ld b, 128
+fl_rd_cp:
+            ld a, (hl)
+            ex de, hl
+            call fl_poke
+            ex de, hl
+            inc hl
+            inc de
+            djnz fl_rd_cp
+            jp fl_ok
+fl_rdout:
+            call fl_isout           ; a file being written: nothing to read back
+            jp nz, fl_done
+fl_eof:
+            ld a, 1
+            ld (fl_res), a
+            jp fl_done
+; ---- 21 / 34: write the next record
+fl_write:
+            call fl_isout
+            jp nz, fl_done
+            ld hl, ({dma})          ; the slot's DMA into buf
+            ld de, ({buf})
+            ld b, 128
+fl_wr_cp:
+            call fl_peek
+            ld (de), a
+            inc hl
+            inc de
+            djnz fl_wr_cp
+            call fl_plain
+            ld hl, ({buf})
+            ld b, 128
+fl_wr_lp:
+            ld a, (hl)
+            push bc
+            push hl
+            call #BC95              ; CAS OUT CHAR
+            di
+            pop hl
+            pop bc
+            jp nc, fl_done
+            inc hl
+            djnz fl_wr_lp
+            jp fl_ok
+; ---- the parts
+fl_isin:                            ; Z: the file being read is this slot's, this FCB
+            ld a, ({fin})
+            ld hl, fl_infcb
+            jr fl_is
+fl_isout:
+            ld a, ({fout})
+            ld hl, fl_outfcb
+fl_is:
+            ld b, a
+            ld a, (fl_slot)
+            cp b
+            ret nz
+            ld e, (hl)
+            inc hl
+            ld d, (hl)
+            ld hl, ({fcb})
+            or a
+            sbc hl, de
+            ret
+fl_inopen:                          ; open fl_name_s to read: carry = done
+            call fl_plain
+            ld hl, fl_name_s + 1
+            ld a, (fl_name_s)
+            ld b, a
+            ld de, #4000
+            call #BC77              ; CAS IN OPEN
+            di
+            ret
+fl_inclose:
+            xor a
+            ld ({fin}), a
+            call fl_plain
+            call #BC7A              ; CAS IN CLOSE
+            di
+            ret
+fl_rdrec:                           ; read up to fl_n bytes (128) into buf: A = how many (Z
+            call fl_plain           ; none), HL past them. A #1A is a byte (the soft end of file)
+            ld hl, ({buf})
+            ld a, (fl_n)
+            ld b, a
+fl_rr_lp:
+            push bc
+            push hl
+            call #BC80              ; CAS IN CHAR
+            di
+            pop hl
+            pop bc
+            jr c, fl_rr_b
+            cp #1A
+            jr nz, fl_rr_end
+fl_rr_b:
+            ld (hl), a
+            inc hl
+            djnz fl_rr_lp
+fl_rr_end:
+            ld a, (fl_n)
+            sub b
+            ld c, a
+            ld a, 128
+            ld (fl_n), a            ; (128 again for the next)
+            ld a, c
+            or a
+            ret
+fl_plain:                           ; main RAM's own #4000 in the window (the buffers)
+            ld bc, #7FC0
+            out (c), c
+            ret
+fl_sel:                             ; the slot's page holding HL in the window: HL = there
+            push de
+            ld a, h
+            rlca
+            rlca
+            and 3
+            add a, 4
+            ld e, a
+            ld bc, ({setting})
+            ld a, c
+            and #F8
+            or e
+            ld c, a
+            out (c), c
+            ld a, h
+            and #3F
+            or #40
+            ld h, a
+            pop de
+            ret
+fl_peek:                            ; A = the slot's byte at HL (BC, DE, HL kept)
+            push bc
+            push hl
+            call fl_sel
+            ld a, (hl)
+            pop hl
+            pop bc
+            ret
+fl_poke:                            ; the slot's byte at HL = A (BC, DE, HL kept)
+            push bc
+            push hl
+            push af
+            call fl_sel
+            pop af
+            ld (hl), a
+            pop hl
+            pop bc
+            ret
+fl_name:                            ; fl_name_s = the FCB's file: length, "B:NAME.EXT"
+            ld hl, ({fcb})
+fl_namehl:                          ; (HL = an FCB in the slot)
+            ld de, fl_name_s + 1
+            call fl_peek            ; its drive: 0 = the slot's (or fl_dfl's)
+            or a
+            jr nz, fl_nm_d
+            ld a, (fl_dfl)
+            or a
+            jr nz, fl_nm_d
+            ld a, ({drive})
+            or a
+            jr z, fl_nm_nod
+            sub 64
+fl_nm_d:
+            add a, 64
+            ld (de), a
+            inc de
+            ld a, ':'
+            ld (de), a
+            inc de
+fl_nm_nod:
+            ld b, 11
+fl_nm_lp:
+            inc hl
+            ld a, b
+            cp 3
+            jr nz, fl_nm_c
+            ld a, '.'
+            ld (de), a
+            inc de
+fl_nm_c:
+            call fl_peek
+            and #7F
+            cp ' ' + 1
+            jr c, fl_nm_sk
+            ld (de), a
+            inc de
+fl_nm_sk:
+            djnz fl_nm_lp
+            ex de, hl
+            ld de, fl_name_s + 1
+            or a
+            sbc hl, de
+            ld a, l
+            ld (fl_name_s), a
+            ret
+fl_ok:
+            xor a
+            ld (fl_res), a
+fl_done:
+            di
+            ld bc, (ntc_rampt)      ; the page that was in the window back
+            out (c), c
+            ld a, (fl_res)
+            ld l, a
+            ld h, 0
+            ld a, (fl_r16)
+            or a
+            jr z, fl_d8
+            ld hl, (fl_res16)
+            xor a
+            ld (fl_r16), a
+fl_d8:
+            ld ({result}), hl
+            ld ix, (fl_ix)
+            ld iy, (fl_iy)
+            ld sp, ({hsp})
+            jp fl_exit
+fl_era:     db "ER", "A" + #80
+fl_rencmd:  db "RE", "N" + #80
+fl_par2:    dw fl_desc, fl_desc2
+fl_desc2:   db 0
+            dw 0
+fl_dfl:     db 0                    ; fl_name: the drive for an FCB whose own is 0 (rename)
+fl_new_s:   ds 17
+fl_par:     dw fl_desc
+fl_desc:    db 0
+            dw 0
+fl_ix:      dw 0
+fl_iy:      dw 0
+fl_res:     db 0
+fl_r16:     db 0                    ; 1: the result is fl_res16
+fl_res16:   dw 0
+fl_n:       db 128                  ; bytes fl_rdrec reads
+fl_cnt:     dw 0
+fl_at:      dw 0
+fl_slot:    db 0
+fl_infcb:   dw 0
+fl_inrec:   dw 0
+fl_want:    dw 0
+fl_outfcb:  dw 0
+fl_name_s:  ds 17                   ; length, then "B:NAME.EXT"
+fl_inname:  ds 17                   ; the one being read's (33 going back)
+fl_exit:
+#endasm
+End Function
+
+' Xfer(toslot, setting, addr, p, n): n bytes between main RAM at p and the slot (its RAM
+' setting) at addr - into the slot when toslot <> 0, else out of it. Through the window (a
+' page's end carries on in the next), the page that was there put back. (Memory.Copy goes
+' through the 2K buffer, which CyborgOS no longer has)
+Public Sub Xfer(ByVal toslot As Integer, ByVal setting As Integer, ByVal addr As Integer, ByVal p As Integer, ByVal n As Integer)
+#asm
+            ld hl, ({n})
+            ld (xf_left), hl
+            ld hl, ({addr})
+            ld de, ({p})
+xf_lp:
+            ld bc, (xf_left)
+            ld a, b
+            or c
+            jr z, xf_done
+            dec bc
+            ld (xf_left), bc
+            ld a, h                 ; the slot's page holding HL in the window
+            rlca
+            rlca
+            and 3
+            add a, 4
+            ld c, a
+            ld a, ({setting})
+            and #F8
+            or c
+            ld c, a
+            ld a, ({setting} + 1)
+            ld b, a
+            out (c), c
+            ld a, h                 ; BC = there in the window
+            and #3F
+            or #40
+            ld b, a
+            ld c, l
+            ld a, ({toslot})
+            or a
+            jr z, xf_get
+            ld a, (de)
+            ld (bc), a
+            jr xf_next
+xf_get:
+            ld a, (bc)
+            ld (de), a
+xf_next:
+            inc hl
+            inc de
+            jr xf_lp
+xf_done:
+            ld bc, (ntc_rampt)
+            out (c), c
+            jr xf_end
+xf_left:    dw 0
+xf_end:
+#endasm
+End Sub
+
+' FileShut(slot): its files closed (its program ended, was killed or reset)
+Public Sub FileShut(ByVal slot As Integer)
+#asm
+            ld ({hsp}), sp
+            ld sp, (ntc_csp)
+            ld bc, #7FC0
+            out (c), c
+            ld a, ({slot})
+            ld b, a
+            ld a, ({fin})
+            cp b
+            jr nz, fs_out
+            xor a
+            ld ({fin}), a
+            push bc
+            call #BC7A              ; CAS IN CLOSE
+            di
+            pop bc
+fs_out:
+            ld a, ({fout})
+            cp b
+            jr nz, fs_done
+            xor a
+            ld ({fout}), a
+            call #BC8F              ; CAS OUT CLOSE
+            di
+fs_done:
+            ld bc, (ntc_rampt)
+            out (c), c
             ld sp, ({hsp})
 #endasm
 End Sub

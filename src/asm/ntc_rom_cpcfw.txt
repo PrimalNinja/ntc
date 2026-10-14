@@ -400,3 +400,7 @@
 348	code	kw_waitkey
 349	code	fs_addvol
 -	bss	fs_vol	#9806
+350	code	ntc_plat_backspace
+351	code	ntc_plat_cls
+352	code	ntc_plat_mode
+353	code	ntc_plat_locate

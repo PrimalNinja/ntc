@@ -68,6 +68,8 @@ ntc_nl_row:
 			ld (ntc_cury), a
 			jp (ix)
 
+
+;## ntc_plat_backspace @unit ntc_plat_screen ntc_plat_data ntc_data
 ; ntc_plat_backspace - back one and blank that cell
 ntc_plat_backspace:
 			xor a
@@ -88,6 +90,7 @@ ntc_bs_col:
 ntc_bs_none:
 			jp (ix)
 
+;## ntc_plat_cls @unit ntc_plat_screen ntc_plat_data ntc_data
 ; ntc_plat_cls - clear, cursor home
 ntc_plat_cls:
 			out (#fc), a
@@ -97,6 +100,7 @@ ntc_plat_cls:
 			ld (ntc_cury), a
 			jp (ix)
 
+;## ntc_plat_mode @unit ntc_plat_screen ntc_plat_data ntc_data
 ; ntc_plat_mode - A = mode 0-2 (3 = 2): columns, clear
 ntc_plat_mode:
 			cp 3
@@ -114,8 +118,9 @@ ntc_md_ok:
 ntc_md_set:
 			ld a, b
 			ld (ntc_scols), a
-			jr ntc_plat_cls
+			jp ntc_plat_cls
 
+;## ntc_plat_locate @unit ntc_plat_screen ntc_plat_data ntc_data
 ; ntc_plat_locate - H = column, L = row, 1 based, kept on screen
 ntc_plat_locate:
 			xor a
@@ -150,7 +155,6 @@ ntc_lc_ymax:
 			inc a
 			out (#fb), a
 			jp (ix)
-
 ;## ntc_plat_key ntc_data
 ; ntc_plat_scankey - A = key pressed or 0
 ntc_plat_scankey:

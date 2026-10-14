@@ -29,12 +29,62 @@ ntc_start2:
 			ld (ntc_csp), sp
 			ld a, (#BC77)		; Option RomEnable: start the ROMs again
 			cp #DF			; AMSDOS has the cassette calls: they are running
-			jr z, ntc_roms_on
+			jp z, ntc_roms_on
 			ei
 			ld de, ntc_free		; the lowest address the ROMs may use (above the arrays)
 			ld hl, #ABFF		; the highest (as usual for AMSDOS: it takes about #A700-#ABFF)
-			ld c, 7
-			call #BCCE		; KL INIT BACK: ROM 7 (DE / HL come back as the new limits)
+			call #BCCB		; KL ROM WALK: every background ROM
+			inc hl			; the first byte the ROMs took
+			ld (ntc_roms_at), hl
+			ld de, #A600
+			or a
+			sbc hl, de
+			jp nc, ntc_roms_fit	; AMSDOS alone (or no more): as usual
+			ld hl, (ntc_roms_at)
+			ld de, -16
+			add hl, de		; the event block under the ROMs' RAM: the new top
+			ld (ntc_fwblk), hl
+			ld (ntc_fwtop), hl
+			ld de, ntc_free
+			or a
+			sbc hl, de
+			jp nc, ntc_roms_fit	; the program still ends below it
+			ld hl, ntc_roms_msg
+			call ntc_roms_puts
+			ld a, (ntc_roms_at + 1)
+			call ntc_roms_hex
+			ld a, (ntc_roms_at)
+			call ntc_roms_hex
+			ld hl, ntc_roms_msg2
+			call ntc_roms_puts
+			call #BB06		; KM WAIT CHAR
+			rst 0			; (the machine starts again)
+ntc_roms_puts:
+			ld a, (hl)
+			or a
+			ret z
+			call #BB5A		; TXT OUTPUT
+			inc hl
+			jr ntc_roms_puts
+ntc_roms_hex:
+			push af
+			rrca
+			rrca
+			rrca
+			rrca
+			call ntc_roms_dig
+			pop af
+ntc_roms_dig:
+			and 15
+			add a, #90
+			daa
+			adc a, #40
+			daa
+			jp #BB5A
+ntc_roms_at:	dw 0
+ntc_roms_msg:	db "The ROMs' RAM reaches down to #", 0
+ntc_roms_msg2:	db ": no room for this program", 13, 10, "(fewer ROMs, or a smaller program)", 13, 10, "Press a key", 13, 10, 0
+ntc_roms_fit:
 			di
 			ASSERT ntc_free <= #A600, "Option RomEnable: the program and its arrays must end below #A600 (the ROMs take their RAM from #ABFF down)"
 ntc_roms_on:
@@ -57,8 +107,8 @@ ntc_go:
 			ld sp, main_thread
 			ret
 
-			IF ($ < 34816) && (ntc_rg1_e - ntc_rg1 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			IF ($ < 32768) && (ntc_rg1_e - ntc_rg1 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
 ntc_rg1:
 ; ============================================================
@@ -68,37 +118,37 @@ ntc_rg1:
 main_thread:
 			dw kw_bssinit, ntc_bss, ntc_bss_size		; the arrays: do they fit, clear them
 
-			; Main.bas 57: Mode 2
+			; Main.bas 64: Mode 2
 			dw kw_model, 2
 
-			; Main.bas 58: Hyp.FontInit
+			; Main.bas 65: Hyp.FontInit
 			dw fn_hyp_fontinit
 
-			; Main.bas 59: Hyp.Vdu 0                         ' the firmware's text off (TXT VDU DISABLE): AMSDOS says "NAME.CYB not
+			; Main.bas 66: Hyp.Vdu 0                         ' the firmware's text off (TXT VDU DISABLE): AMSDOS says "NAME.CYB not
 			dw p_hyp_vdu_c, lit_0
 
-			; Main.bas 63: k = Memory.Banks()
+			; Main.bas 70: k = Memory.Banks()
 			dw fn_memory_banks, var_k
 
-			; Main.bas 64: ns = k \ 2
+			; Main.bas 71: ns = k \ 2
 			dw kw_divvl, var_k, 2, var_ns
 
-			; Main.bas 65: If ns < 1 Then ns = k
+			; Main.bas 72: If ns < 1 Then ns = k
 			dw kw_scpltvl, var_ns, 1
 			dw kw_goto_iffalse_n, if1_1
 			dw kw_vtov, var_k, var_ns
 if1_1:
 
-			; Main.bas 66: If ns > 16 Then ns = 16
+			; Main.bas 73: If ns > 16 Then ns = 16
 			dw kw_scpgtvl, var_ns, 16
 			dw kw_goto_iffalse_n, if2_1
 			dw kw_ltov, 16, var_ns
 if2_1:
 
-			; Main.bas 67: Hot.Slots ns                                    ' (more than 8: Control + a number twice is 9-16)
+			; Main.bas 74: Hot.Slots ns                                    ' (more than 8: Control + a number twice is 9-16)
 			dw p_hot_slots_c, var_ns
 
-			; Main.bas 68: If ns = 0 Then Hyp.Vdu 1 : Print "CyborgOS needs a 6128 or more RAM" : End
+			; Main.bas 75: If ns = 0 Then Hyp.Vdu 1 : Print "CyborgOS needs a 6128 or more RAM" : End
 			dw kw_cpeqvl, var_ns, 0
 			dw kw_goto_iffalse_n, if3_1
 			dw p_hyp_vdu_c, lit_1
@@ -110,59 +160,59 @@ if2_1:
 			dw kw_stop
 if3_1:
 
-			; Main.bas 69: For i = 1 To ns
+			; Main.bas 76: For i = 1 To ns
 			dw kw_ltov, 1, var_i
 			dw kw_vtov, var_ns, for4_l
 			dw kw_forupv_n, var_i, for4_l, for4_e
 for4_t:
 
-			; Main.bas 70: bk(i) = Memory.AllocBank()
+			; Main.bas 77: bk(i) = Memory.AllocBank()
 			dw fn_memory_allocbank, var_memory_allocbank_allocbank
 			dw kw_aset, arr_bk, var_i, var_memory_allocbank_allocbank
 
-			; Main.bas 71: Memory.SelectPage Memory.BankPage(bk(i), 0)
+			; Main.bas 78: Memory.SelectPage Memory.BankPage(bk(i), 0)
 			dw kw_aget, arr_bk, var_i, tmp0
 			dw p_memory_bankpage_c, tmp0, lit_0
 			dw fn_memory_selectpage, var_memory_bankpage_bankpage, var_memory_selectpage_selectpage
 
-			; Main.bas 72: sg(i) = Hyp.Setting()
+			; Main.bas 79: sg(i) = Hyp.Setting()
 			dw fn_hyp_setting, var_hyp_setting_setting
 			dw kw_aset, arr_sg, var_i, var_hyp_setting_setting
 
-			; Main.bas 73: wp(i) = (sg(i) And &HFFF8) Or 7                ' its page 3 (#C000-#FFFF: OBUF, the console) in the window
+			; Main.bas 80: wp(i) = (sg(i) And &HFFF8) Or 7                ' its page 3 (#C000-#FFFF: OBUF, the console) in the window
 			dw kw_aget, arr_sg, var_i, tmp1
 			dw kw_andvl, tmp1, -8, tmp1
 			dw kw_orvl, tmp1, 7, tmp1
 			dw kw_aset, arr_wp, var_i, tmp1
 
-			; Main.bas 75: wk(i) = -1
+			; Main.bas 82: wk(i) = -1
 			dw kw_asetl, arr_wk, var_i, -1
 
-			; Main.bas 76: Next
+			; Main.bas 83: Next
 			dw kw_next1v_n, var_i, for4_l, for4_t
 for4_e:
 
-			; Main.bas 79: ob = Space$(128)
+			; Main.bas 86: ob = Space$(128)
 			dw kw_strspace, var_ob, lit_128
 
-			; Main.bas 80: front = 1
+			; Main.bas 87: front = 1
 			dw kw_ltov, 1, var_front
 
-			; Main.bas 81: OpenSlot 1
+			; Main.bas 88: OpenSlot 1
 			dw p_openslot_c, lit_1
 
-			; Main.bas 82: Do
+			; Main.bas 89: Do
 do5_t:
 
-			; Main.bas 83: hk = Hot.Take()
+			; Main.bas 90: hk = Hot.Take()
 			dw p_hot_take_c
 			dw kw_vtov, var_hot_take_take, var_hk
 
-			; Main.bas 84: If hk = Hot.TOPKEY Then
+			; Main.bas 91: If hk = Hot.TOPKEY Then
 			dw kw_cpeqvl, var_hk, 99
 			dw kw_goto_iffalse_n, if6_1
 
-			; Main.bas 85: If front = 0 Then ToFront back Else ShowTop      ' Control + ESC: TOP, and again: back
+			; Main.bas 92: If front = 0 Then ToFront back Else ShowTop      ' Control + ESC: TOP, and again: back
 			dw kw_cpeqvl, var_front, 0
 			dw kw_goto_iffalse_n, if7_1
 			dw p_tofront_c, var_back
@@ -171,7 +221,7 @@ if7_1:
 			dw p_showtop_c
 if7_e:
 
-			; Main.bas 86: ElseIf hk > 0 And hk <= ns Then
+			; Main.bas 93: ElseIf hk > 0 And hk <= ns Then
 			dw if6_e_go
 if6_1:
 			dw kw_scpgtvl, var_hk, 0
@@ -181,31 +231,31 @@ if6_1:
 			dw kw_andvv, tmp0, tmp1, tmp0
 			dw kw_goto_ifzero_n, tmp0, if6_2
 
-			; Main.bas 87: ToFront hk
+			; Main.bas 94: ToFront hk
 			dw p_tofront_c, var_hk
 
-			; Main.bas 88: End If
+			; Main.bas 95: End If
 if6_2:
 if6_e:
 
-			; Main.bas 89: If pk <> 0 Then
+			; Main.bas 96: If pk <> 0 Then
 			dw kw_cpnevl, var_pk, 0
 			dw kw_goto_iffalse_n, if8_1
 
-			; Main.bas 90: k = pk : pk = 0
+			; Main.bas 97: k = pk : pk = 0
 			dw kw_vtov, var_pk, var_k
 			dw kw_ztov, var_pk
 
-			; Main.bas 91: KeyIn k
+			; Main.bas 98: KeyIn k
 			dw p_keyin_c, var_k
 
-			; Main.bas 92: ElseIf wt = 0 Then
+			; Main.bas 99: ElseIf wt = 0 Then
 			dw if8_e_go
 if8_1:
 			dw kw_cpeqvl, var_wt, 0
 			dw kw_goto_iffalse_n, if8_2
 
-			; Main.bas 94: If front = 0 Or st(front) <> 2 Or kq(front) = 0 Then
+			; Main.bas 101: If front = 0 Or st(front) <> 2 Or kq(front) = 0 Then
 			dw kw_cpeqvl, var_front, 0
 			dw kw_ftov, tmp0
 			dw kw_aget, arr_st, var_front, tmp1
@@ -218,11 +268,11 @@ if8_1:
 			dw kw_orvv, tmp0, tmp1, tmp0
 			dw kw_goto_ifzero_n, tmp0, if8_e
 
-			; Main.bas 95: k = Inkey
+			; Main.bas 102: k = Inkey
 			dw kw_inkey, tmp0
 			dw kw_vtov, tmp0, var_k
 
-			; Main.bas 96: If k <> 0 And Hot.Control() = 0 Then KeyIn k
+			; Main.bas 103: If k <> 0 And Hot.Control() = 0 Then KeyIn k
 			dw kw_cpnevl, var_k, 0
 			dw kw_ftov, tmp0
 			dw p_hot_control_c
@@ -234,10 +284,10 @@ if8_1:
 			dw p_keyin_c, var_k
 if10_1:
 
-			; Main.bas 97: End If
+			; Main.bas 104: End If
 if9_1:
 
-			; Main.bas 98: ElseIf Running() = 0 Then
+			; Main.bas 105: ElseIf Running() = 0 Then
 			dw if8_e_go
 if8_2:
 			dw p_running_c
@@ -245,15 +295,15 @@ if8_2:
 			dw kw_cpeqvl, tmp0, 0
 			dw kw_goto_iffalse_n, if8_3
 
-			; Main.bas 99: Prompt wt : wt = 0          ' WAIT: nothing runs any more
+			; Main.bas 106: Prompt wt : wt = 0          ' WAIT: nothing runs any more
 			dw p_prompt_c, var_wt
 			dw kw_ztov, var_wt
 
-			; Main.bas 100: End If
+			; Main.bas 107: End If
 if8_3:
 if8_e:
 
-			; Main.bas 101: If Ticks - td >= 300 Then Roll
+			; Main.bas 108: If Ticks - td >= 300 Then Roll
 			dw kw_ticks, tmp0
 			dw kw_subvv, tmp0, var_td, tmp0
 			dw kw_scpgevl, tmp0, 300
@@ -261,34 +311,34 @@ if8_e:
 			dw p_roll_c
 if11_1:
 
-			; Main.bas 102: RunNext
+			; Main.bas 109: RunNext
 			dw p_runnext_c
 
-			; Main.bas 103: Loop Until quit
+			; Main.bas 110: Loop Until quit
 			dw kw_goto_ifzero_n, var_quit, do5_t
 do5_e:
 
-			; Main.bas 104: Hyp.Vdu 1
+			; Main.bas 111: Hyp.Vdu 1
 			dw p_hyp_vdu_c, lit_1
 
-			; Main.bas 105: Mode 1
+			; Main.bas 112: Mode 1
 			dw kw_model, 1
 
-			; Main.bas 106: Print "CyborgOS ended, "; runs; " programs ran"
+			; Main.bas 113: Print "CyborgOS ended, "; runs; " programs ran"
 			dw kw_printstrvar, str2
 			dw kw_printint, var_runs
 			dw kw_printstrvar, str3
 			dw kw_printnl
 
-			; Main.bas 107: End
+			; Main.bas 114: End
 			dw kw_printnl0
 			dw kw_printstrvar, str1
 			dw kw_waitkey
 			dw kw_stop
 
 ntc_rg1_e:
-			IF ($ < 34816) && (ntc_rg2_e - ntc_rg2 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			IF ($ < 32768) && (ntc_rg2_e - ntc_rg2 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
 ntc_rg2:
 ; ============================================================
@@ -297,29 +347,29 @@ ntc_rg2:
 
 p_running:
 
-			; Main.bas 111: Dim j As Integer
+			; Main.bas 118: Dim j As Integer
 
-			; Main.bas 112: For j = 1 To ns
+			; Main.bas 119: For j = 1 To ns
 			dw kw_ltov, 1, var_running_j
 			dw kw_vtov, var_ns, for12_l
 			dw kw_forupv_n, var_running_j, for12_l, for12_e
 for12_t:
 
-			; Main.bas 113: If st(j) = 2 Then Running = Running + 1
+			; Main.bas 120: If st(j) = 2 Then Running = Running + 1
 			dw kw_aget, arr_st, var_running_j, tmp0
 			dw kw_cpeqvl, tmp0, 2
 			dw kw_goto_iffalse_n, if13_1
 			dw kw_inc, var_running_running
 if13_1:
 
-			; Main.bas 114: Next
+			; Main.bas 121: Next
 			dw kw_next1v_n, var_running_j, for12_l, for12_t
 for12_e:
 			dw p_running_r
 
 ntc_rg2_e:
-			IF ($ < 34816) && (ntc_rg3_e - ntc_rg3 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			IF ($ < 32768) && (ntc_rg3_e - ntc_rg3 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
 ntc_rg3:
 ; ============================================================
@@ -328,23 +378,23 @@ ntc_rg3:
 
 p_ready:
 
-			; Main.bas 120: Ready = 0
+			; Main.bas 127: Ready = 0
 			dw kw_ztov, var_ready_ready
 
-			; Main.bas 121: If t < 1 Then Exit Function
+			; Main.bas 128: If t < 1 Then Exit Function
 			dw kw_scpltvl, var_ready_t, 1
 			dw kw_goto_iffalse_n, if14_1
 			dw p_ready_r
 if14_1:
 
-			; Main.bas 122: If st(t) <> 2 Then Exit Function
+			; Main.bas 129: If st(t) <> 2 Then Exit Function
 			dw kw_aget, arr_st, var_ready_t, tmp0
 			dw kw_cpnevl, tmp0, 2
 			dw kw_goto_iffalse_n, if15_1
 			dw p_ready_r
 if15_1:
 
-			; Main.bas 123: If wk(t) = Ticks And kq(t) = 0 Then Exit Function
+			; Main.bas 130: If wk(t) = Ticks And kq(t) = 0 Then Exit Function
 			dw kw_aget, arr_wk, var_ready_t, tmp0
 			dw kw_ticks, tmp1
 			dw kw_cpeqvv, tmp0, tmp1
@@ -357,13 +407,13 @@ if15_1:
 			dw p_ready_r
 if16_1:
 
-			; Main.bas 124: Ready = -1
+			; Main.bas 131: Ready = -1
 			dw kw_ltov, -1, var_ready_ready
 			dw p_ready_r
 
 ntc_rg3_e:
-			IF ($ < 34816) && (ntc_rg4_e - ntc_rg4 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			IF ($ < 32768) && (ntc_rg4_e - ntc_rg4 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
 ntc_rg4:
 ; ============================================================
@@ -372,81 +422,81 @@ ntc_rg4:
 
 p_runnext:
 
-			; Main.bas 129: Dim n As Integer, t As Integer, r As Integer, c As Integer
+			; Main.bas 136: Dim n As Integer, t As Integer, r As Integer, c As Integer
 
-			; Main.bas 130: fr = Not fr
+			; Main.bas 137: fr = Not fr
 			dw kw_notv, var_fr, var_fr
 
-			; Main.bas 131: If fr Then
+			; Main.bas 138: If fr Then
 			dw kw_goto_ifzero_n, var_fr, if17_1
 
-			; Main.bas 132: If Ready(front) Then t = front
+			; Main.bas 139: If Ready(front) Then t = front
 			dw p_ready_c, var_front
 			dw kw_goto_ifzero_n, var_ready_ready, if18_1
 			dw kw_vtov, var_front, var_runnext_t
 if18_1:
 
-			; Main.bas 133: End If
+			; Main.bas 140: End If
 if17_1:
 
-			; Main.bas 134: If t = 0 Then
+			; Main.bas 141: If t = 0 Then
 			dw kw_cpeqvl, var_runnext_t, 0
 			dw kw_goto_iffalse_n, if19_1
 
-			; Main.bas 135: For n = 1 To ns
+			; Main.bas 142: For n = 1 To ns
 			dw kw_ltov, 1, var_runnext_n
 			dw kw_vtov, var_ns, for20_l
 			dw kw_forupv_n, var_runnext_n, for20_l, for20_e
 for20_t:
 
-			; Main.bas 136: cur = cur + 1
+			; Main.bas 143: cur = cur + 1
 			dw kw_inc, var_cur
 
-			; Main.bas 137: If cur > ns Then cur = 1
+			; Main.bas 144: If cur > ns Then cur = 1
 			dw kw_scpgtvv, var_cur, var_ns
 			dw kw_goto_iffalse_n, if21_1
 			dw kw_ltov, 1, var_cur
 if21_1:
 
-			; Main.bas 138: If cur <> front Then
+			; Main.bas 145: If cur <> front Then
 			dw kw_cpnevv, var_cur, var_front
 			dw kw_goto_iffalse_n, if22_1
 
-			; Main.bas 139: If Ready(cur) Then t = cur : Exit For
+			; Main.bas 146: If Ready(cur) Then t = cur : Exit For
 			dw p_ready_c, var_cur
 			dw kw_goto_ifzero_n, var_ready_ready, if23_1
 			dw kw_vtov, var_cur, var_runnext_t
 			dw for20_e_go
 if23_1:
 
-			; Main.bas 140: End If
+			; Main.bas 147: End If
 if22_1:
 
-			; Main.bas 141: Next
+			; Main.bas 148: Next
 			dw kw_next1v_n, var_runnext_n, for20_l, for20_t
 for20_e:
 
-			; Main.bas 142: End If
+			; Main.bas 149: End If
 if19_1:
 
-			; Main.bas 143: If t = 0 Then
+			; Main.bas 150: If t = 0 Then
 			dw kw_cpeqvl, var_runnext_t, 0
 			dw kw_goto_iffalse_n, if24_1
 
-			; Main.bas 144: If Ready(front) Then t = front
+			; Main.bas 151: If Ready(front) Then t = front
 			dw p_ready_c, var_front
 			dw kw_goto_ifzero_n, var_ready_ready, if25_1
 			dw kw_vtov, var_front, var_runnext_t
 if25_1:
 
-			; Main.bas 145: End If
+			; Main.bas 152: End If
 if24_1:
 
-			; Main.bas 146: If t = 0 Then
+			; Main.bas 153: If t = 0 Then
 			dw kw_cpeqvl, var_runnext_t, 0
 			dw kw_goto_iffalse_n, if26_1
 
-			; Main.bas 147: If Running() = 0 Then Frame     ' nothing to run: wait a frame (a program waiting for a
+			; Main.bas 154: If Running() = 0 Then Frame     ' nothing to run: wait a frame (a program waiting for a
 			dw p_running_c
 			dw kw_vtov, var_running_running, tmp0
 			dw kw_cpeqvl, tmp0, 0
@@ -454,33 +504,33 @@ if24_1:
 			dw kw_frame
 if27_1:
 
-			; Main.bas 148: Exit Sub                        ' key looks again when the clock moves on)
+			; Main.bas 155: Exit Sub                        ' key looks again when the clock moves on)
 			dw p_runnext_r
 
-			; Main.bas 149: End If
+			; Main.bas 156: End If
 if26_1:
 
-			; Main.bas 150: Hyp.Reply ra(t), ra(t)
+			; Main.bas 157: Hyp.Reply ra(t), ra(t)
 			dw kw_aget, arr_ra, var_runnext_t, tmp0
 			dw kw_aget, arr_ra, var_runnext_t, tmp1
 			dw p_hyp_reply_c, tmp0, tmp1
 
-			; Main.bas 151: r = Hyp.Run(sg(t))
+			; Main.bas 158: r = Hyp.Run(sg(t))
 			dw kw_aget, arr_sg, var_runnext_t, tmp0
 			dw p_hyp_run_c, tmp0
 			dw kw_vtov, var_hyp_run_run, var_runnext_r
 
-			; Main.bas 152: tn(t) = tn(t) + 1
+			; Main.bas 159: tn(t) = tn(t) + 1
 			dw kw_aget, arr_tn, var_runnext_t, tmp1
 			dw kw_inc, tmp1
 			dw kw_aset, arr_tn, var_runnext_t, tmp1
 
-			; Main.bas 153: If kq(t) <> 0 Then
+			; Main.bas 160: If kq(t) <> 0 Then
 			dw kw_aget, arr_kq, var_runnext_t, tmp0
 			dw kw_cpnevl, tmp0, 0
 			dw kw_goto_iffalse_n, if28_1
 
-			; Main.bas 154: If Memory.ReadByte(Far(t, Hyp.KEY)) = 0 Then kq(t) = 0     ' the program took its key
+			; Main.bas 161: If Memory.ReadByte(Far(t, Hyp.KEY)) = 0 Then kq(t) = 0     ' the program took its key
 			dw p_far_c, var_runnext_t, lit_m2431
 			dw kw_l_mov, var_far_far, ltmp0
 			dw fn_memory_readbyte, ltmp0, var_memory_readbyte_readbyte
@@ -490,20 +540,20 @@ if26_1:
 			dw kw_asetl, arr_kq, var_runnext_t, 0
 if29_1:
 
-			; Main.bas 155: End If
+			; Main.bas 162: End If
 if28_1:
 
-			; Main.bas 156: c = Hyp.Count()
+			; Main.bas 163: c = Hyp.Count()
 			dw p_hyp_count_c
 			dw kw_vtov, var_hyp_count_count, var_runnext_c
 
-			; Main.bas 157: If c > 0 Then Collected t, c
+			; Main.bas 164: If c > 0 Then Collected t, c
 			dw kw_scpgtvl, var_runnext_c, 0
 			dw kw_goto_iffalse_n, if30_1
 			dw p_collected_c, var_runnext_t, var_runnext_c
 if30_1:
 
-			; Main.bas 158: If r = 1 Then Bdos t
+			; Main.bas 165: If r = 1 Then Bdos t
 			dw kw_cpeqvl, var_runnext_r, 1
 			dw kw_goto_iffalse_n, if31_1
 			dw p_bdos_c, var_runnext_t
@@ -511,8 +561,8 @@ if31_1:
 			dw p_runnext_r
 
 ntc_rg4_e:
-			IF ($ < 34816) && (ntc_rg5_e - ntc_rg5 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			IF ($ < 32768) && (ntc_rg5_e - ntc_rg5 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
 ntc_rg5:
 ; ============================================================
@@ -521,9 +571,9 @@ ntc_rg5:
 
 p_bdos:
 
-			; Main.bas 163: Dim f As Integer, e As Integer, a As Integer
+			; Main.bas 170: Dim f As Integer, e As Integer, a As Integer
 
-			; Main.bas 164: f = Hyp.Fn() : e = Hyp.Arg() And 255 : a = 0
+			; Main.bas 171: f = Hyp.Fn() : e = Hyp.Arg() And 255 : a = 0
 			dw p_hyp_fn_c
 			dw kw_vtov, var_hyp_fn_fn, var_bdos_f
 			dw p_hyp_arg_c
@@ -531,39 +581,39 @@ p_bdos:
 			dw kw_andvl, tmp0, 255, var_bdos_e
 			dw kw_ztov, var_bdos_a
 
-			; Main.bas 165: nb(t) = nb(t) + 1
+			; Main.bas 172: nb(t) = nb(t) + 1
 			dw kw_aget, arr_nb, var_bdos_t, tmp1
 			dw kw_inc, tmp1
 			dw kw_aset, arr_nb, var_bdos_t, tmp1
 
-			; Main.bas 166: wk(t) = -1
+			; Main.bas 173: wk(t) = -1
 			dw kw_asetl, arr_wk, var_bdos_t, -1
 
-			; Main.bas 167: Select Case f
+			; Main.bas 174: Select Case f
 			dw kw_vtov, var_bdos_f, var_bdos___sel32
 
-			; Main.bas 168: Case 0
+			; Main.bas 175: Case 0
 			dw kw_cpeqvl, var_bdos___sel32, 0
 			dw kw_goto_iffalse_n, sel32_1
 sel32_b1:
 
-			; Main.bas 169: EndTask t
+			; Main.bas 176: EndTask t
 			dw p_endtask_c, var_bdos_t
 
-			; Main.bas 170: Exit Sub
+			; Main.bas 177: Exit Sub
 			dw p_bdos_r
 
-			; Main.bas 171: Case 1
+			; Main.bas 178: Case 1
 sel32_1:
 			dw kw_cpeqvl, var_bdos___sel32, 1
 			dw kw_goto_iffalse_n, sel32_2
 sel32_b2:
 
-			; Main.bas 172: a = kq(t) : kq(t) = 0
+			; Main.bas 179: a = kq(t) : kq(t) = 0
 			dw kw_aget, arr_kq, var_bdos_t, var_bdos_a
 			dw kw_asetl, arr_kq, var_bdos_t, 0
 
-			; Main.bas 173: If a <> 0 Then PutC t, a Else wk(t) = Ticks
+			; Main.bas 180: If a <> 0 Then PutC t, a Else wk(t) = Ticks
 			dw kw_cpnevl, var_bdos_a, 0
 			dw kw_goto_iffalse_n, if33_1
 			dw p_putc_c, var_bdos_t, var_bdos_a
@@ -573,45 +623,45 @@ if33_1:
 			dw kw_aset, arr_wk, var_bdos_t, tmp1
 if33_e:
 
-			; Main.bas 174: Case 2
+			; Main.bas 181: Case 2
 			dw sel32_e_go
 sel32_2:
 			dw kw_cpeqvl, var_bdos___sel32, 2
 			dw kw_goto_iffalse_n, sel32_3
 sel32_b3:
 
-			; Main.bas 175: PutC t, e
+			; Main.bas 182: PutC t, e
 			dw p_putc_c, var_bdos_t, var_bdos_e
 
-			; Main.bas 176: Case 6
+			; Main.bas 183: Case 6
 			dw sel32_e_go
 sel32_3:
 			dw kw_cpeqvl, var_bdos___sel32, 6
 			dw kw_goto_iffalse_n, sel32_4
 sel32_b4:
 
-			; Main.bas 177: If e = 255 Then
+			; Main.bas 184: If e = 255 Then
 			dw kw_cpeqvl, var_bdos_e, 255
 			dw kw_goto_iffalse_n, if34_1
 
-			; Main.bas 178: a = kq(t) : kq(t) = 0
+			; Main.bas 185: a = kq(t) : kq(t) = 0
 			dw kw_aget, arr_kq, var_bdos_t, var_bdos_a
 			dw kw_asetl, arr_kq, var_bdos_t, 0
 
-			; Main.bas 179: If a = 0 Then wk(t) = Ticks
+			; Main.bas 186: If a = 0 Then wk(t) = Ticks
 			dw kw_cpeqvl, var_bdos_a, 0
 			dw kw_goto_iffalse_n, sel32_e
 			dw kw_ticks, tmp1
 			dw kw_aset, arr_wk, var_bdos_t, tmp1
 if35_1:
 
-			; Main.bas 180: ElseIf e = 254 Then
+			; Main.bas 187: ElseIf e = 254 Then
 			dw sel32_e_go
 if34_1:
 			dw kw_cpeqvl, var_bdos_e, 254
 			dw kw_goto_iffalse_n, if34_2
 
-			; Main.bas 181: If kq(t) <> 0 Then a = 255 Else wk(t) = Ticks
+			; Main.bas 188: If kq(t) <> 0 Then a = 255 Else wk(t) = Ticks
 			dw kw_aget, arr_kq, var_bdos_t, tmp0
 			dw kw_cpnevl, tmp0, 0
 			dw kw_goto_iffalse_n, if36_1
@@ -622,35 +672,35 @@ if36_1:
 			dw kw_aset, arr_wk, var_bdos_t, tmp1
 if36_e:
 
-			; Main.bas 182: Else
+			; Main.bas 189: Else
 			dw sel32_e_go
 if34_2:
 
-			; Main.bas 183: PutC t, e
+			; Main.bas 190: PutC t, e
 			dw p_putc_c, var_bdos_t, var_bdos_e
 
-			; Main.bas 184: End If
+			; Main.bas 191: End If
 if34_e:
 
-			; Main.bas 185: Case 9
+			; Main.bas 192: Case 9
 			dw sel32_e_go
 sel32_4:
 			dw kw_cpeqvl, var_bdos___sel32, 9
 			dw kw_goto_iffalse_n, sel32_5
 sel32_b5:
 
-			; Main.bas 186: PutMem t, Hyp.Arg()
+			; Main.bas 193: PutMem t, Hyp.Arg()
 			dw p_hyp_arg_c
 			dw p_putmem_c, var_bdos_t, var_hyp_arg_arg
 
-			; Main.bas 187: Case 11
+			; Main.bas 194: Case 11
 			dw sel32_e_go
 sel32_5:
 			dw kw_cpeqvl, var_bdos___sel32, 11
 			dw kw_goto_iffalse_n, sel32_6
 sel32_b6:
 
-			; Main.bas 188: If kq(t) <> 0 Then a = 255 Else wk(t) = Ticks
+			; Main.bas 195: If kq(t) <> 0 Then a = 255 Else wk(t) = Ticks
 			dw kw_aget, arr_kq, var_bdos_t, tmp0
 			dw kw_cpnevl, tmp0, 0
 			dw kw_goto_iffalse_n, if37_1
@@ -661,97 +711,194 @@ if37_1:
 			dw kw_aset, arr_wk, var_bdos_t, tmp1
 if37_e:
 
-			; Main.bas 189: Case 12
+			; Main.bas 196: Case 12
 			dw sel32_e_go
 sel32_6:
 			dw kw_cpeqvl, var_bdos___sel32, 12
 			dw kw_goto_iffalse_n, sel32_7
 sel32_b7:
 
-			; Main.bas 190: a = &H22                    ' CP/M 2.2
+			; Main.bas 197: a = &H22                    ' CP/M 2.2
 			dw kw_ltov, 34, var_bdos_a
 
-			; Main.bas 191: Case 25
+			; Main.bas 198: Case 13, 32                   ' reset the discs; user number: nothing to do here
 			dw sel32_e_go
 sel32_7:
-			dw kw_cpeqvl, var_bdos___sel32, 25
+			dw kw_cpeqvl, var_bdos___sel32, 13
+			dw kw_goto_iftrue_n, sel32_b8
+			dw kw_cpeqvl, var_bdos___sel32, 32
 			dw kw_goto_iffalse_n, sel32_8
 sel32_b8:
 
-			; Main.bas 192: a = 0
+			; Main.bas 199: a = 0
 			dw kw_ztov, var_bdos_a
 
-			; Main.bas 193: Case 128
+			; Main.bas 200: Case 14                       ' select a disc: the slot's drive (as CD)
 			dw sel32_e_go
 sel32_8:
-			dw kw_cpeqvl, var_bdos___sel32, 128
+			dw kw_cpeqvl, var_bdos___sel32, 14
 			dw kw_goto_iffalse_n, sel32_9
 sel32_b9:
 
-			; Main.bas 195: Case Else
+			; Main.bas 203: dv(t) = 65 + e
+			dw kw_addl, var_bdos_e, 65, tmp1
+			dw kw_aset, arr_dv, var_bdos_t, tmp1
+
+			; Main.bas 205: Case 25
 			dw sel32_e_go
 sel32_9:
+			dw kw_cpeqvl, var_bdos___sel32, 25
+			dw kw_goto_iffalse_n, sel32_10
+sel32_b10:
 
-			; Main.bas 196: a = 255                     ' not here yet (files)
+			; Main.bas 209: If dv(t) = 0 Then a = 0 Else a = dv(t) - 65
+			dw kw_aget, arr_dv, var_bdos_t, tmp0
+			dw kw_cpeqvl, tmp0, 0
+			dw kw_goto_iffalse_n, if38_1
+			dw kw_ztov, var_bdos_a
+			dw sel32_e_go
+if38_1:
+			dw kw_aget, arr_dv, var_bdos_t, tmp0
+			dw kw_addl, tmp0, -65, var_bdos_a
+if38_e:
+
+			; Main.bas 211: Case 26                       ' the DMA address (CP/M's record buffer)
+			dw sel32_e_go
+sel32_10:
+			dw kw_cpeqvl, var_bdos___sel32, 26
+			dw kw_goto_iffalse_n, sel32_11
+sel32_b11:
+
+			; Main.bas 212: dm(t) = Hyp.Arg()
+			dw p_hyp_arg_c
+			dw kw_aset, arr_dm, var_bdos_t, var_hyp_arg_arg
+
+			; Main.bas 213: Case 15 To 35                 ' files: Hyp.FileCall
+			dw sel32_e_go
+sel32_11:
+			dw kw_scpltvl, var_bdos___sel32, 15
+			dw kw_goto_iftrue_n, sel32_12
+			dw kw_scplevl, var_bdos___sel32, 35
+			dw kw_goto_iffalse_n, sel32_12
+sel32_b12:
+
+			; Main.bas 217: a = Hyp.FileCall(f, Hyp.Arg(), t, sg(t), dm(t), dv(t), VarPtr(ob))
+			dw p_hyp_arg_c
+			dw kw_vtov, var_hyp_arg_arg, tmp1
+			dw kw_aget, arr_sg, var_bdos_t, tmp3
+			dw kw_aget, arr_dm, var_bdos_t, tmp4
+			dw kw_aget, arr_dv, var_bdos_t, tmp5
+			dw p_hyp_filecall_c, var_bdos_f, tmp1, var_bdos_t, tmp3, tmp4, tmp5, vp_var_ob
+			dw kw_vtov, var_hyp_filecall_filecall, var_bdos_a
+
+			; Main.bas 219: Case 128
+			dw sel32_e_go
+sel32_12:
+			dw kw_cpeqvl, var_bdos___sel32, 128
+			dw kw_goto_iffalse_n, sel32_13
+sel32_b13:
+
+			; Main.bas 221: Case Else
+			dw sel32_e_go
+sel32_13:
+
+			; Main.bas 222: a = 255
 			dw kw_ltov, 255, var_bdos_a
 
-			; Main.bas 197: End Select
+			; Main.bas 223: End Select
 sel32_e:
 
-			; Main.bas 198: ra(t) = a
+			; Main.bas 224: ra(t) = a
 			dw kw_aset, arr_ra, var_bdos_t, var_bdos_a
 			dw p_bdos_r
 
 ntc_rg5_e:
-			IF ($ < 34816) && (ntc_rg6_e - ntc_rg6 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			IF ($ < 32768) && (ntc_rg6_e - ntc_rg6 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
 ntc_rg6:
+; ============================================================
+; function hopen (normal mode)
+; ============================================================
+
+p_hopen:
+
+			; Main.bas 230: HOpen = (Hyp.FileCall(100, VarPtr(dn), 0, 0, Len(dn), 0, 0) = 0)
+			dw kw_strlen, var_dn, tmp4
+			dw p_hyp_filecall_c, lit_100, vp_var_dn, lit_0, lit_0, tmp4, lit_0, lit_0
+			dw kw_vtov, var_hyp_filecall_filecall, tmp0
+			dw kw_cpeqvl, tmp0, 0
+			dw kw_ftov, var_hopen_hopen
+			dw p_hopen_r
+
+ntc_rg6_e:
+			IF ($ < 32768) && (ntc_rg7_e - ntc_rg7 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg7:
+; ============================================================
+; function hread (normal mode)
+; ============================================================
+
+p_hread:
+
+			; Main.bas 233: HRead = Hyp.FileCall(101, 0, 0, 0, n, 0, VarPtr(ob))
+			dw p_hyp_filecall_c, lit_101, lit_0, lit_0, lit_0, var_hread_n, lit_0, vp_var_ob
+			dw kw_vtov, var_hyp_filecall_filecall, var_hread_hread
+			dw p_hread_r
+
+ntc_rg7_e:
+			IF ($ < 32768) && (ntc_rg8_e - ntc_rg8 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg8:
+; ============================================================
+; sub hclose (normal mode)
+; ============================================================
+
+p_hclose:
+
+			; Main.bas 236: Dim r As Integer
+
+			; Main.bas 237: r = Hyp.FileCall(102, 0, 0, 0, 0, 0, 0)
+			dw p_hyp_filecall_c, lit_102, lit_0, lit_0, lit_0, lit_0, lit_0, lit_0
+			dw kw_vtov, var_hyp_filecall_filecall, var_hclose_r
+			dw p_hclose_r
+
+ntc_rg8_e:
+			IF ($ < 32768) && (ntc_rg9_e - ntc_rg9 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg9:
+; ============================================================
+; sub filesshut (normal mode)
+; ============================================================
+
+p_filesshut:
+
+			; Main.bas 242: Hyp.FileShut t
+			dw p_hyp_fileshut_c, var_filesshut_t
+			dw p_filesshut_r
+
+ntc_rg9_e:
+			IF ($ < 32768) && (ntc_rg10_e - ntc_rg10 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg10:
 ; ============================================================
 ; sub collected (normal mode)
 ; ============================================================
 
 p_collected:
 
-			; Main.bas 207: nc(t) = nc(t) + n
+			; Main.bas 251: nc(t) = nc(t) + n
 			dw kw_aget, arr_nc, var_collected_t, tmp1
 			dw kw_add, tmp1, var_collected_n, tmp1
 			dw kw_aset, arr_nc, var_collected_t, tmp1
 
-			; Main.bas 208: Hyp.Con wp(t), 0, n, IIf(t = front, 1, 0)       ' straight from the bank: no copy to main RAM
+			; Main.bas 252: Hyp.Con wp(t), 0, n, IIf(t = front, 1, 0)       ' straight from the bank: no copy to main RAM
 			dw kw_aget, arr_wp, var_collected_t, tmp0
 			dw kw_cpeqvv, var_collected_t, var_front
-			dw kw_ftov, tmp3
-			dw kw_goto_ifzero_n, tmp3, ch38_0
-			dw kw_ltov, 1, tmp3
-			dw ch38_e_go
-ch38_0:
-			dw kw_ztov, tmp3
-			dw ch38_e_go
-ch38_1:
-			dw kw_ztov, tmp3
-ch38_e:
-			dw p_hyp_con_c, tmp0, lit_0, var_collected_n, tmp3
-			dw p_collected_r
-
-ntc_rg6_e:
-			IF ($ < 34816) && (ntc_rg7_e - ntc_rg7 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
-			ENDIF
-ntc_rg7:
-; ============================================================
-; sub puts (normal mode)
-; ============================================================
-
-p_puts:
-
-			; Main.bas 213: ob = Left$(s, 128)
-			dw kw_strleft, var_ob, var_puts_s, lit_128
-
-			; Main.bas 214: Hyp.Con wp(t), VarPtr(ob), Len(ob), IIf(t = front, 1, 0)
-			dw kw_aget, arr_wp, var_puts_t, tmp0
-			dw kw_strlen, var_ob, tmp2
-			dw kw_cpeqvv, var_puts_t, var_front
 			dw kw_ftov, tmp3
 			dw kw_goto_ifzero_n, tmp3, ch39_0
 			dw kw_ltov, 1, tmp3
@@ -762,41 +909,27 @@ ch39_0:
 ch39_1:
 			dw kw_ztov, tmp3
 ch39_e:
-			dw p_hyp_con_c, tmp0, vp_var_ob, tmp2, tmp3
-			dw p_puts_r
+			dw p_hyp_con_c, tmp0, lit_0, var_collected_n, tmp3
+			dw p_collected_r
 
-ntc_rg7_e:
-			IF ($ < 34816) && (ntc_rg8_e - ntc_rg8 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+ntc_rg10_e:
+			IF ($ < 32768) && (ntc_rg11_e - ntc_rg11 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg8:
+ntc_rg11:
 ; ============================================================
-; sub putln (normal mode)
-; ============================================================
-
-p_putln:
-
-			; Main.bas 218: PutS t, s + Chr$(13) + Chr$(10)
-			dw kw_strcpy, stmp1, var_putln_s
-			dw kw_strcat, stmp1, str4
-			dw kw_strcat, stmp1, str5
-			dw p_puts_c, var_putln_t, stmp1
-			dw p_putln_r
-
-ntc_rg8_e:
-			IF ($ < 34816) && (ntc_rg9_e - ntc_rg9 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
-			ENDIF
-ntc_rg9:
-; ============================================================
-; sub putc (normal mode)
+; sub puts (normal mode)
 ; ============================================================
 
-p_putc:
+p_puts:
 
-			; Main.bas 223: Hyp.Con wp(t), VarPtr(c), 1, IIf(t = front, 1, 0)   ' (the Integer's low byte is the character)
-			dw kw_aget, arr_wp, var_putc_t, tmp0
-			dw kw_cpeqvv, var_putc_t, var_front
+			; Main.bas 257: ob = Left$(s, 128)
+			dw kw_strleft, var_ob, var_puts_s, lit_128
+
+			; Main.bas 258: Hyp.Con wp(t), VarPtr(ob), Len(ob), IIf(t = front, 1, 0)
+			dw kw_aget, arr_wp, var_puts_t, tmp0
+			dw kw_strlen, var_ob, tmp2
+			dw kw_cpeqvv, var_puts_t, var_front
 			dw kw_ftov, tmp3
 			dw kw_goto_ifzero_n, tmp3, ch40_0
 			dw kw_ltov, 1, tmp3
@@ -807,224 +940,238 @@ ch40_0:
 ch40_1:
 			dw kw_ztov, tmp3
 ch40_e:
+			dw p_hyp_con_c, tmp0, vp_var_ob, tmp2, tmp3
+			dw p_puts_r
+
+ntc_rg11_e:
+			IF ($ < 32768) && (ntc_rg12_e - ntc_rg12 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg12:
+; ============================================================
+; sub putln (normal mode)
+; ============================================================
+
+p_putln:
+
+			; Main.bas 262: PutS t, s + Chr$(13) + Chr$(10)
+			dw kw_strcpy, stmp1, var_putln_s
+			dw kw_strcat, stmp1, str4
+			dw kw_strcat, stmp1, str5
+			dw p_puts_c, var_putln_t, stmp1
+			dw p_putln_r
+
+ntc_rg12_e:
+			IF ($ < 32768) && (ntc_rg13_e - ntc_rg13 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg13:
+; ============================================================
+; sub putc (normal mode)
+; ============================================================
+
+p_putc:
+
+			; Main.bas 267: Hyp.Con wp(t), VarPtr(c), 1, IIf(t = front, 1, 0)   ' (the Integer's low byte is the character)
+			dw kw_aget, arr_wp, var_putc_t, tmp0
+			dw kw_cpeqvv, var_putc_t, var_front
+			dw kw_ftov, tmp3
+			dw kw_goto_ifzero_n, tmp3, ch41_0
+			dw kw_ltov, 1, tmp3
+			dw ch41_e_go
+ch41_0:
+			dw kw_ztov, tmp3
+			dw ch41_e_go
+ch41_1:
+			dw kw_ztov, tmp3
+ch41_e:
 			dw p_hyp_con_c, tmp0, vp_var_putc_c, lit_1, tmp3
 			dw p_putc_r
 
-ntc_rg9_e:
-			IF ($ < 34816) && (ntc_rg10_e - ntc_rg10 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+ntc_rg13_e:
+			IF ($ < 32768) && (ntc_rg14_e - ntc_rg14 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg10:
+ntc_rg14:
 ; ============================================================
 ; sub putmem (normal mode)
 ; ============================================================
 
 p_putmem:
 
-			; Main.bas 229: Dim la As Long, n As Integer, d As Integer, tot As Integer
+			; Main.bas 273: Dim n As Integer, d As Integer
 
-			; Main.bas 230: la = a
-			dw kw_l_itol, var_putmem_a, var_putmem_la
-
-			; Main.bas 231: If la < 0 Then la = la + 65536
-			dw kw_l_cplt, var_putmem_la, llit_0
-			dw kw_goto_iffalse_n, if41_1
-			dw kw_l_add, var_putmem_la, llit_65536, var_putmem_la
-if41_1:
-
-			; Main.bas 232: Do
+			; Main.bas 274: Do
 do42_t:
 
-			; Main.bas 233: n = 128
+			; Main.bas 275: Hyp.Xfer 0, sg(t), a, VarPtr(ob), 128
+			dw kw_aget, arr_sg, var_putmem_t, tmp1
+			dw p_hyp_xfer_c, lit_0, tmp1, var_putmem_a, vp_var_ob, lit_128
+
+			; Main.bas 276: n = 128
 			dw kw_ltov, 128, var_putmem_n
 
-			; Main.bas 234: If la + n > 65536 Then n = 65536 - la
-			dw kw_l_itol, var_putmem_n, ltmp1
-			dw kw_l_add, var_putmem_la, ltmp1, ltmp0
-			dw kw_l_cpgt, ltmp0, llit_65536
-			dw kw_goto_iffalse_n, if43_1
-			dw kw_l_sub, llit_65536, var_putmem_la, ltmp0
-			dw kw_l_ltoi, ltmp0, var_putmem_n
-if43_1:
-
-			; Main.bas 235: If n <= 0 Then Exit Sub
-			dw kw_scplevl, var_putmem_n, 0
-			dw kw_goto_iffalse_n, if44_1
-			dw p_putmem_r
-if44_1:
-
-			; Main.bas 236: Memory.Copy Far(t, la), CLng(VarPtr(ob)), n
-			dw kw_l_ltoi, var_putmem_la, tmp1
-			dw p_far_c, var_putmem_t, tmp1
-			dw kw_l_itol, vp_var_ob, ltmp1
-			dw fn_memory_copy, var_far_far, ltmp1, var_putmem_n, var_memory_copy_copy
-
-			; Main.bas 237: d = InStr(Left$(ob, n), "$")
-			dw kw_strleft, stmp0, var_ob, var_putmem_n
+			; Main.bas 277: d = InStr(Left$(ob, 128), "$")
+			dw kw_strleft, stmp0, var_ob, lit_128
 			dw kw_strinstr, lit_1, stmp0, str6, var_putmem_d
 
-			; Main.bas 238: If d > 0 Then n = d - 1
+			; Main.bas 278: If d > 0 Then n = d - 1
 			dw kw_scpgtvl, var_putmem_d, 0
-			dw kw_goto_iffalse_n, if45_1
+			dw kw_goto_iffalse_n, if43_1
 			dw kw_addl, var_putmem_d, -1, var_putmem_n
-if45_1:
+if43_1:
 
-			; Main.bas 239: nc(t) = nc(t) + n
+			; Main.bas 279: nc(t) = nc(t) + n
 			dw kw_aget, arr_nc, var_putmem_t, tmp1
 			dw kw_add, tmp1, var_putmem_n, tmp1
 			dw kw_aset, arr_nc, var_putmem_t, tmp1
 
-			; Main.bas 240: Hyp.Con wp(t), VarPtr(ob), n, IIf(t = front, 1, 0)
+			; Main.bas 280: Hyp.Con wp(t), VarPtr(ob), n, IIf(t = front, 1, 0)
 			dw kw_aget, arr_wp, var_putmem_t, tmp0
 			dw kw_cpeqvv, var_putmem_t, var_front
 			dw kw_ftov, tmp3
-			dw kw_goto_ifzero_n, tmp3, ch46_0
+			dw kw_goto_ifzero_n, tmp3, ch44_0
 			dw kw_ltov, 1, tmp3
-			dw ch46_e_go
-ch46_0:
+			dw ch44_e_go
+ch44_0:
 			dw kw_ztov, tmp3
-			dw ch46_e_go
-ch46_1:
+			dw ch44_e_go
+ch44_1:
 			dw kw_ztov, tmp3
-ch46_e:
+ch44_e:
 			dw p_hyp_con_c, tmp0, vp_var_ob, var_putmem_n, tmp3
 
-			; Main.bas 241: If d > 0 Then Exit Sub
+			; Main.bas 281: If d > 0 Then Exit Sub
 			dw kw_scpgtvl, var_putmem_d, 0
-			dw kw_goto_iffalse_n, if47_1
+			dw kw_goto_iffalse_n, if45_1
 			dw p_putmem_r
-if47_1:
+if45_1:
 
-			; Main.bas 242: la = la + n
-			dw kw_l_itol, var_putmem_n, ltmp1
-			dw kw_l_add, var_putmem_la, ltmp1, var_putmem_la
+			; Main.bas 282: a = a + 128
+			dw kw_addl, var_putmem_a, 128, var_putmem_a
 
-			; Main.bas 243: tot = tot + n
-			dw kw_add, var_putmem_tot, var_putmem_n, var_putmem_tot
-
-			; Main.bas 244: Loop Until tot > 4000
-			dw kw_scpgtvl, var_putmem_tot, 4000
-			dw kw_goto_iffalse_n, do42_t
+			; Main.bas 283: Loop
+			dw do42_t_go
 do42_e:
 			dw p_putmem_r
 
-ntc_rg10_e:
-			IF ($ < 34816) && (ntc_rg11_e - ntc_rg11 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+ntc_rg14_e:
+			IF ($ < 32768) && (ntc_rg15_e - ntc_rg15 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg11:
+ntc_rg15:
 ; ============================================================
 ; function far (normal mode)
 ; ============================================================
 
 p_far:
 
-			; Main.bas 249: Far = Hyp.FarPtr(Memory.BankPage(bk(t), ((a And &HC000) \ 16384) And 3), a)
-			dw kw_aget, arr_bk, var_far_t, tmp1
-			dw kw_andvl, var_far_a, -16384, tmp2
-			dw kw_divvl, tmp2, 16384, tmp2
-			dw kw_andvl, tmp2, 3, tmp2
-			dw p_memory_bankpage_c, tmp1, tmp2
-			dw kw_vtov, var_memory_bankpage_bankpage, tmp1
-			dw fn_hyp_farptr, tmp1, var_far_a, var_far_far
+			; Main.bas 288: Far = Hyp.FarPtr(Memory.BankPage(bk(t), ((a And &HC000) \ 16384) And 3), a)
+			dw kw_aget, arr_bk, var_far_t, tmp0
+			dw kw_andvl, var_far_a, -16384, tmp1
+			dw kw_divvl, tmp1, 16384, tmp1
+			dw kw_andvl, tmp1, 3, tmp1
+			dw p_memory_bankpage_c, tmp0, tmp1
+			dw kw_vtov, var_memory_bankpage_bankpage, tmp0
+			dw fn_hyp_farptr, tmp0, var_far_a, var_far_far
 			dw p_far_r
 
-ntc_rg11_e:
-			IF ($ < 34816) && (ntc_rg12_e - ntc_rg12 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+ntc_rg15_e:
+			IF ($ < 32768) && (ntc_rg16_e - ntc_rg16 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg12:
+ntc_rg16:
 ; ============================================================
 ; sub clst (normal mode)
 ; ============================================================
 
 p_clst:
 
-			; Main.bas 254: PutS t, Chr$(27) + "E"
+			; Main.bas 293: PutS t, Chr$(27) + "E"
 			dw kw_strcpy, stmp1, str7
 			dw kw_strcat, stmp1, str8
 			dw p_puts_c, var_clst_t, stmp1
 			dw p_clst_r
 
-ntc_rg12_e:
-			IF ($ < 34816) && (ntc_rg13_e - ntc_rg13 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+ntc_rg16_e:
+			IF ($ < 32768) && (ntc_rg17_e - ntc_rg17 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg13:
+ntc_rg17:
 ; ============================================================
 ; sub tofront (normal mode)
 ; ============================================================
 
 p_tofront:
 
-			; Main.bas 259: front = t
+			; Main.bas 298: front = t
 			dw kw_vtov, var_tofront_t, var_front
 
-			; Main.bas 260: If st(t) = 0 Then OpenSlot t : Exit Sub
+			; Main.bas 299: If st(t) = 0 Then OpenSlot t : Exit Sub
 			dw kw_aget, arr_st, var_tofront_t, tmp0
 			dw kw_cpeqvl, tmp0, 0
-			dw kw_goto_iffalse_n, if48_1
+			dw kw_goto_iffalse_n, if46_1
 			dw p_openslot_c, var_tofront_t
 			dw p_tofront_r
-if48_1:
+if46_1:
 
-			; Main.bas 261: Cls
+			; Main.bas 300: Cls
 			dw kw_cls
 
-			; Main.bas 262: Hyp.Show wp(t)
+			; Main.bas 301: Hyp.Show wp(t)
 			dw kw_aget, arr_wp, var_tofront_t, tmp0
 			dw p_hyp_show_c, tmp0
 			dw p_tofront_r
 
-ntc_rg13_e:
-			IF ($ < 34816) && (ntc_rg14_e - ntc_rg14 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+ntc_rg17_e:
+			IF ($ < 32768) && (ntc_rg18_e - ntc_rg18 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg14:
+ntc_rg18:
 ; ============================================================
 ; sub showtop (normal mode)
 ; ============================================================
 
 p_showtop:
 
-			; Main.bas 425: Dim j As Integer
+			; Main.bas 464: Dim j As Integer
 
-			; Main.bas 426: If front <> 0 Then back = front
+			; Main.bas 465: If front <> 0 Then back = front
 			dw kw_cpnevl, var_front, 0
-			dw kw_goto_iffalse_n, if49_1
+			dw kw_goto_iffalse_n, if47_1
 			dw kw_vtov, var_front, var_back
-if49_1:
+if47_1:
 
-			; Main.bas 427: front = 0
+			; Main.bas 466: front = 0
 			dw kw_ztov, var_front
 
-			; Main.bas 428: Cls
+			; Main.bas 467: Cls
 			dw kw_cls
 
-			; Main.bas 429: txs = 0
+			; Main.bas 468: txs = 0
 			dw kw_ztov, var_txs
 
-			; Main.bas 430: TopLines back, 1
+			; Main.bas 469: TopLines back, 1
 			dw p_toplines_c, var_back, lit_1
 			dw p_showtop_r
 
-ntc_rg14_e:
-			IF ($ < 34816) && (ntc_rg15_e - ntc_rg15 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+ntc_rg18_e:
+			IF ($ < 32768) && (ntc_rg19_e - ntc_rg19 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg15:
+ntc_rg19:
 ; ============================================================
 ; sub toplines (normal mode)
 ; ============================================================
 
 p_toplines:
 
-			; Main.bas 436: Dim j As Integer, s As String Max 14
+			; Main.bas 475: Dim j As Integer, s As String Max 14
 
-			; Main.bas 437: txn = 0
+			; Main.bas 476: txn = 0
 			dw kw_ztov, var_txn
 
-			; Main.bas 438: TopAdd "CyborgOS TOP - " + N(ns) + " slots, " + N(Memory.Banks()) + " banks of 64K, " + N(Memory.FreePages()) + " pages free"
+			; Main.bas 477: TopAdd "CyborgOS TOP - " + N(ns) + " slots, " + N(Memory.Banks()) + " banks of 64K, " + N(Memory.FreePages()) + " pages free"
 			dw p_n_c, var_ns
 			dw kw_strcpy, stmp1, var_n_n
 			dw kw_strcpy, stmp0, str9
@@ -1044,77 +1191,77 @@ p_toplines:
 			dw kw_strcat, stmp0, str12
 			dw p_topadd_c, stmp0
 
-			; Main.bas 439: If keys Then TopAdd "Control + ESC: back, " + SK() + ": that slot"
-			dw kw_goto_ifzero_n, var_toplines_keys, if50_1
+			; Main.bas 478: If keys Then TopAdd "Control + ESC: back, " + SK() + ": that slot"
+			dw kw_goto_ifzero_n, var_toplines_keys, if48_1
 			dw p_sk_c
 			dw kw_strcpy, stmp1, var_sk_sk
 			dw kw_strcpy, stmp0, str13
 			dw kw_strcat, stmp0, stmp1
 			dw kw_strcat, stmp0, str14
 			dw p_topadd_c, stmp0
-if50_1:
+if48_1:
 
-			; Main.bas 440: TopAdd ""
+			; Main.bas 479: TopAdd ""
 			dw p_topadd_c, str15
 
-			; Main.bas 441: TopAdd "SLOT  STATE          PROGRAM         TURNS/S   BDOS/S  CHARS/S   (the last second)"
+			; Main.bas 480: TopAdd "SLOT  STATE          PROGRAM         TURNS/S   BDOS/S  CHARS/S   (the last second)"
 			dw p_topadd_c, str16
 
-			; Main.bas 442: For j = 1 To ns
+			; Main.bas 481: For j = 1 To ns
 			dw kw_ltov, 1, var_toplines_j
-			dw kw_vtov, var_ns, for51_l
-			dw kw_forupv_n, var_toplines_j, for51_l, for51_e
-for51_t:
+			dw kw_vtov, var_ns, for49_l
+			dw kw_forupv_n, var_toplines_j, for49_l, for49_e
+for49_t:
 
-			; Main.bas 443: If st(j) = 0 Then
+			; Main.bas 482: If st(j) = 0 Then
 			dw kw_aget, arr_st, var_toplines_j, tmp0
 			dw kw_cpeqvl, tmp0, 0
-			dw kw_goto_iffalse_n, if52_1
+			dw kw_goto_iffalse_n, if50_1
 
-			; Main.bas 444: s = "-"
+			; Main.bas 483: s = "-"
 			dw kw_strcpy, var_toplines_s, str17
 
-			; Main.bas 445: ElseIf st(j) = 1 Then
-			dw if52_e_go
-if52_1:
+			; Main.bas 484: ElseIf st(j) = 1 Then
+			dw if50_e_go
+if50_1:
 			dw kw_aget, arr_st, var_toplines_j, tmp0
 			dw kw_cpeqvl, tmp0, 1
-			dw kw_goto_iffalse_n, if52_2
+			dw kw_goto_iffalse_n, if50_2
 
-			; Main.bas 446: s = "command line"
+			; Main.bas 485: s = "command line"
 			dw kw_strcpy, var_toplines_s, str18
 
-			; Main.bas 447: ElseIf wk(j) >= 0 Then
-			dw if52_e_go
-if52_2:
+			; Main.bas 486: ElseIf wk(j) >= 0 Then
+			dw if50_e_go
+if50_2:
 			dw kw_aget, arr_wk, var_toplines_j, tmp0
 			dw kw_scpgevl, tmp0, 0
-			dw kw_goto_iffalse_n, if52_3
+			dw kw_goto_iffalse_n, if50_3
 
-			; Main.bas 448: s = "waiting (key)"
+			; Main.bas 487: s = "waiting (key)"
 			dw kw_strcpy, var_toplines_s, str19
 
-			; Main.bas 449: Else
-			dw if52_e_go
-if52_3:
+			; Main.bas 488: Else
+			dw if50_e_go
+if50_3:
 
-			; Main.bas 450: s = "running"
+			; Main.bas 489: s = "running"
 			dw kw_strcpy, var_toplines_s, str20
 
-			; Main.bas 451: End If
-if52_e:
+			; Main.bas 490: End If
+if50_e:
 
-			; Main.bas 452: en = ""
+			; Main.bas 491: en = ""
 			dw kw_strcpy, var_en, str15
 
-			; Main.bas 453: If st(j) = 2 Then GetNm j
+			; Main.bas 492: If st(j) = 2 Then GetNm j
 			dw kw_aget, arr_st, var_toplines_j, tmp0
 			dw kw_cpeqvl, tmp0, 2
-			dw kw_goto_iffalse_n, if53_1
+			dw kw_goto_iffalse_n, if51_1
 			dw p_getnm_c, var_toplines_j
-if53_1:
+if51_1:
 
-			; Main.bas 454: TopAdd " " + Right$(" " + N(j), 2) + IIf(j = mark, "*", " ") + "  " + Left$(s + Space$(15), 15) + Left$(en + Space$(13), 13) + Pad(Rate(lt(j), ld)) + Pad(Rate(lb(j), ld)) + Pad(Rate(lc(j), ld))
+			; Main.bas 493: TopAdd " " + Right$(" " + N(j), 2) + IIf(j = mark, "*", " ") + "  " + Left$(s + Space$(15), 15) + Left$(en + Space$(13), 13) + Pad(Rate(lt(j), ld)) + Pad(Rate(lb(j), ld)) + Pad(Rate(lc(j), ld))
 			dw p_n_c, var_toplines_j
 			dw kw_strcpy, stmp2, var_n_n
 			dw kw_strcpy, stmp1, str21
@@ -1124,15 +1271,15 @@ if53_1:
 			dw kw_strcat, stmp0, stmp1
 			dw kw_cpeqvv, var_toplines_j, var_toplines_mark
 			dw kw_ftov, tmp1
-			dw kw_goto_ifzero_n, tmp1, ch54_0
+			dw kw_goto_ifzero_n, tmp1, ch52_0
 			dw kw_strcpy, stmp1, str22
-			dw ch54_e_go
-ch54_0:
+			dw ch52_e_go
+ch52_0:
 			dw kw_strcpy, stmp1, str21
-			dw ch54_e_go
-ch54_1:
+			dw ch52_e_go
+ch52_1:
 			dw kw_strcpy, stmp1, str15
-ch54_e:
+ch52_e:
 			dw kw_strcat, stmp0, stmp1
 			dw kw_strcat, stmp0, str23
 			dw kw_strspace, stmp2, lit_15
@@ -1165,932 +1312,36 @@ ch54_e:
 			dw kw_strcat, stmp0, stmp1
 			dw p_topadd_c, stmp0
 
-			; Main.bas 455: Next
-			dw kw_next1v_n, var_toplines_j, for51_l, for51_t
-for51_e:
+			; Main.bas 494: Next
+			dw kw_next1v_n, var_toplines_j, for49_l, for49_t
+for49_e:
 
-			; Main.bas 456: TopAdd ""                                      ' the memory: 3 rows of 80 pages at most (193 pages
+			; Main.bas 497: TopAdd ""                                      ' (the memory map: MEM)
 			dw p_topadd_c, str15
 
-			; Main.bas 457: TopAdd N(Memory.RamSize()) + " KB of total memory - a character a 16K page (B slot, - free):"
+			; Main.bas 498: TopAdd N(Memory.RamSize()) + " KB of total memory (MEM: the map)"
 			dw fn_memory_ramsize, var_memory_ramsize_ramsize
 			dw kw_vtov, var_memory_ramsize_ramsize, tmp0
 			dw p_n_c, tmp0
 			dw kw_strcpy, stmp0, var_n_n
 			dw kw_strcat, stmp0, str24
 			dw p_topadd_c, stmp0
-
-			; Main.bas 458: For j = 1 To Memory.Pages() Step 80            ' with 4MB): 25 rows with 16 slots and the keys
-			dw kw_ltov, 1, var_toplines_j
-			dw fn_memory_pages, for55_l
-			dw kw_forupv_n, var_toplines_j, for55_l, for55_e
-for55_t:
-
-			; Main.bas 459: TopAdd Memory.Map(j, 80)
-			dw fn_memory_map, var_toplines_j, lit_80, var_memory_map_map
-			dw p_topadd_c, var_memory_map_map
-
-			; Main.bas 460: Next
-			dw kw_nextupv_n, var_toplines_j, 80, for55_l, for55_t
-for55_e:
 			dw p_toplines_r
 
-ntc_rg15_e:
-			IF ($ < 34816) && (ntc_rg16_e - ntc_rg16 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
-			ENDIF
-ntc_rg16:
-; ============================================================
-; sub topadd (normal mode)
-; ============================================================
-
-p_topadd:
-
-			; Main.bas 464: If txs = 0 Then
-			dw kw_cpeqvl, var_txs, 0
-			dw kw_goto_iffalse_n, if56_1
-
-			; Main.bas 465: ob = s
-			dw kw_strcpy, var_ob, var_topadd_s
-
-			; Main.bas 466: Hyp.Say VarPtr(ob), Len(ob), 0, txn          ' straight into screen memory (Print took ~0.7 s)
-			dw kw_strlen, var_ob, tmp1
-			dw p_hyp_say_c, vp_var_ob, tmp1, lit_0, var_txn
-
-			; Main.bas 467: Else
-			dw if56_e_go
-if56_1:
-
-			; Main.bas 468: PutLn txs, s
-			dw p_putln_c, var_txs, var_topadd_s
-
-			; Main.bas 469: End If
-if56_e:
-
-			; Main.bas 470: txn = txn + 1
-			dw kw_inc, var_txn
-			dw p_topadd_r
-
-ntc_rg16_e:
-			IF ($ < 34816) && (ntc_rg17_e - ntc_rg17 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
-			ENDIF
-ntc_rg17:
-; ============================================================
-; sub roll (normal mode)
-; ============================================================
-
-p_roll:
-
-			; Main.bas 475: Dim j As Integer
-
-			; Main.bas 476: ld = Ticks - td
-			dw kw_ticks, tmp0
-			dw kw_subvv, tmp0, var_td, var_ld
-
-			; Main.bas 477: td = Ticks
-			dw kw_ticks, tmp0
-			dw kw_vtov, tmp0, var_td
-
-			; Main.bas 478: For j = 1 To ns
-			dw kw_ltov, 1, var_roll_j
-			dw kw_vtov, var_ns, for57_l
-			dw kw_forupv_n, var_roll_j, for57_l, for57_e
-for57_t:
-
-			; Main.bas 479: lt(j) = tn(j) : lb(j) = nb(j) : lc(j) = nc(j)
-			dw kw_aget, arr_tn, var_roll_j, tmp1
-			dw kw_aset, arr_lt, var_roll_j, tmp1
-			dw kw_aget, arr_nb, var_roll_j, tmp1
-			dw kw_aset, arr_lb, var_roll_j, tmp1
-			dw kw_aget, arr_nc, var_roll_j, tmp1
-			dw kw_aset, arr_lc, var_roll_j, tmp1
-
-			; Main.bas 480: tn(j) = 0 : nb(j) = 0 : nc(j) = 0
-			dw kw_asetl, arr_tn, var_roll_j, 0
-			dw kw_asetl, arr_nb, var_roll_j, 0
-			dw kw_asetl, arr_nc, var_roll_j, 0
-
-			; Main.bas 481: Next
-			dw kw_next1v_n, var_roll_j, for57_l, for57_t
-for57_e:
-			dw p_roll_r
-
-ntc_rg17_e:
-			IF ($ < 34816) && (ntc_rg18_e - ntc_rg18 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
-			ENDIF
-ntc_rg18:
-; ============================================================
-; function pad (normal mode)
-; ============================================================
-
-p_pad:
-
-			; Main.bas 486: Pad = Right$(Space$(9) + N(v), 9)
-			dw kw_strspace, stmp1, lit_9
-			dw p_n_c, var_pad_v
-			dw kw_strcpy, stmp2, var_n_n
-			dw kw_strcat, stmp1, stmp2
-			dw kw_strright, var_pad_pad, stmp1, lit_9
-			dw p_pad_r
-
-ntc_rg18_e:
-			IF ($ < 34816) && (ntc_rg19_e - ntc_rg19 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
-			ENDIF
-ntc_rg19:
-; ============================================================
-; function rate (normal mode)
-; ============================================================
-
-p_rate:
-
-			; Main.bas 491: If n > 1000 Then Rate = n \ (d \ 300 + 1) Else Rate = n * 30 \ (d \ 10 + 1)
-			dw kw_scpgtvl, var_rate_n, 1000
-			dw kw_goto_iffalse_n, if58_1
-			dw kw_divvl, var_rate_d, 300, tmp2
-			dw kw_inc, tmp2
-			dw kw_divvv, var_rate_n, tmp2, var_rate_rate
-			dw if58_e_go
-if58_1:
-			dw kw_mulvl, var_rate_n, 30, tmp1
-			dw kw_divvl, var_rate_d, 10, tmp2
-			dw kw_inc, tmp2
-			dw kw_divvv, tmp1, tmp2, var_rate_rate
-if58_e:
-			dw p_rate_r
-
 ntc_rg19_e:
-			IF ($ < 34816) && (ntc_rg20_e - ntc_rg20 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+			IF ($ < 32768) && (ntc_rg20_e - ntc_rg20 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
 ntc_rg20:
 ; ============================================================
-; sub install (normal mode)
+; sub memshow (normal mode)
 ; ============================================================
 
-p_install:
+p_memshow:
 
-			; Main.bas 498: Memory.Copy CLng(Hyp.Info(0)), Far(t, 0), Hyp.Info(1)
-			dw fn_hyp_info, lit_0, var_hyp_info_info
-			dw kw_vtov, var_hyp_info_info, tmp0
-			dw kw_l_itol, tmp0, ltmp0
-			dw p_far_c, var_install_t, lit_0
-			dw fn_hyp_info, lit_1, var_hyp_info_info
-			dw fn_memory_copy, ltmp0, var_far_far, var_hyp_info_info, var_memory_copy_copy
+			; Main.bas 505: Dim j As Integer
 
-			; Main.bas 499: Memory.Copy CLng(Hyp.Info(2)), Far(t, Hyp.STUB), Hyp.Info(3)
-			dw fn_hyp_info, lit_2, var_hyp_info_info
-			dw kw_vtov, var_hyp_info_info, tmp0
-			dw kw_l_itol, tmp0, ltmp0
-			dw p_far_c, var_install_t, lit_m2816
-			dw fn_hyp_info, lit_3, var_hyp_info_info
-			dw fn_memory_copy, ltmp0, var_far_far, var_hyp_info_info, var_memory_copy_copy
-
-			; Main.bas 500: Memory.WriteByte Far(t, Hyp.OBUF + 128), 0      ' no characters collected
-			dw p_far_c, var_install_t, lit_m2432
-			dw fn_memory_writebyte, var_far_far, lit_0
-
-			; Main.bas 501: Memory.WriteByte Far(t, Hyp.KEY), 0             ' no key waiting
-			dw p_far_c, var_install_t, lit_m2431
-			dw fn_memory_writebyte, var_far_far, lit_0
-
-			; Main.bas 502: kq(t) = 0
-			dw kw_asetl, arr_kq, var_install_t, 0
-			dw p_install_r
-
-ntc_rg20_e:
-			IF ($ < 34816) && (ntc_rg21_e - ntc_rg21 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
-			ENDIF
-ntc_rg21:
-; ============================================================
-; sub resetslot (normal mode)
-; ============================================================
-
-p_resetslot:
-
-			; Main.bas 508: st(s) = 0
-			dw kw_asetl, arr_st, var_resetslot_s, 0
-
-			; Main.bas 511: dv(s) = 0
-			dw kw_asetl, arr_dv, var_resetslot_s, 0
-
-			; Main.bas 513: kq(s) = 0
-			dw kw_asetl, arr_kq, var_resetslot_s, 0
-
-			; Main.bas 514: wk(s) = -1
-			dw kw_asetl, arr_wk, var_resetslot_s, -1
-
-			; Main.bas 515: tn(s) = 0 : nb(s) = 0 : nc(s) = 0
-			dw kw_asetl, arr_tn, var_resetslot_s, 0
-			dw kw_asetl, arr_nb, var_resetslot_s, 0
-			dw kw_asetl, arr_nc, var_resetslot_s, 0
-
-			; Main.bas 516: lt(s) = 0 : lb(s) = 0 : lc(s) = 0
-			dw kw_asetl, arr_lt, var_resetslot_s, 0
-			dw kw_asetl, arr_lb, var_resetslot_s, 0
-			dw kw_asetl, arr_lc, var_resetslot_s, 0
-
-			; Main.bas 517: If s = front Then
-			dw kw_cpeqvv, var_resetslot_s, var_front
-			dw kw_goto_iffalse_n, if59_1
-
-			; Main.bas 518: Install s
-			dw p_install_c, var_resetslot_s
-
-			; Main.bas 519: st(s) = 1
-			dw kw_asetl, arr_st, var_resetslot_s, 1
-
-			; Main.bas 520: ClsT s
-			dw p_clst_c, var_resetslot_s
-
-			; Main.bas 521: PutLn s, "CyborgOS slot " + N(s) + " of " + N(ns) + " - " + SK() + ", Control + ESC: TOP, HELP"
-			dw p_n_c, var_resetslot_s
-			dw kw_strcpy, stmp2, var_n_n
-			dw kw_strcpy, stmp1, str25
-			dw kw_strcat, stmp1, stmp2
-			dw kw_strcat, stmp1, str26
-			dw p_n_c, var_ns
-			dw kw_strcpy, stmp2, var_n_n
-			dw kw_strcat, stmp1, stmp2
-			dw kw_strcat, stmp1, str27
-			dw p_sk_c
-			dw kw_strcpy, stmp2, var_sk_sk
-			dw kw_strcat, stmp1, stmp2
-			dw kw_strcat, stmp1, str28
-			dw p_putln_c, var_resetslot_s, stmp1
-
-			; Main.bas 522: PutLn s, ""                   ' a blank line under the title
-			dw p_putln_c, var_resetslot_s, str15
-
-			; Main.bas 523: End If                          ' (the prompt: the command line puts it after the command)
-if59_1:
-			dw p_resetslot_r
-
-ntc_rg21_e:
-			IF ($ < 34816) && (ntc_rg22_e - ntc_rg22 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
-			ENDIF
-ntc_rg22:
-; ============================================================
-; sub openslot (normal mode)
-; ============================================================
-
-p_openslot:
-
-			; Main.bas 527: Install t
-			dw p_install_c, var_openslot_t
-
-			; Main.bas 528: st(t) = 1
-			dw kw_asetl, arr_st, var_openslot_t, 1
-
-			; Main.bas 529: ClsT t
-			dw p_clst_c, var_openslot_t
-
-			; Main.bas 530: PutLn t, "CyborgOS slot " + N(t) + " of " + N(ns) + " - " + SK() + ", Control + ESC: TOP, HELP"
-			dw p_n_c, var_openslot_t
-			dw kw_strcpy, stmp2, var_n_n
-			dw kw_strcpy, stmp1, str25
-			dw kw_strcat, stmp1, stmp2
-			dw kw_strcat, stmp1, str26
-			dw p_n_c, var_ns
-			dw kw_strcpy, stmp2, var_n_n
-			dw kw_strcat, stmp1, stmp2
-			dw kw_strcat, stmp1, str27
-			dw p_sk_c
-			dw kw_strcpy, stmp2, var_sk_sk
-			dw kw_strcat, stmp1, stmp2
-			dw kw_strcat, stmp1, str28
-			dw p_putln_c, var_openslot_t, stmp1
-
-			; Main.bas 531: PutLn t, ""                     ' a blank line under the title
-			dw p_putln_c, var_openslot_t, str15
-
-			; Main.bas 532: Prompt t
-			dw p_prompt_c, var_openslot_t
-			dw p_openslot_r
-
-ntc_rg22_e:
-			IF ($ < 34816) && (ntc_rg23_e - ntc_rg23 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
-			ENDIF
-ntc_rg23:
-; ============================================================
-; function sk (normal mode)
-; ============================================================
-
-p_sk:
-
-			; Main.bas 537: If ns <= 8 Then SK = "Control + 1-" + N(ns) Else SK = "Control + 1-8 (twice: 9-" + N(ns) + ")"
-			dw kw_scplevl, var_ns, 8
-			dw kw_goto_iffalse_n, if60_1
-			dw p_n_c, var_ns
-			dw kw_strcpy, stmp3, var_n_n
-			dw kw_strcpy, var_sk_sk, str29
-			dw kw_strcat, var_sk_sk, stmp3
-			dw if60_e_go
-if60_1:
-			dw p_n_c, var_ns
-			dw kw_strcpy, stmp3, var_n_n
-			dw kw_strcpy, stmp2, str30
-			dw kw_strcat, stmp2, stmp3
-			dw kw_strcpy, var_sk_sk, stmp2
-			dw kw_strcat, var_sk_sk, str31
-if60_e:
-			dw p_sk_r
-
-ntc_rg23_e:
-			IF ($ < 34816) && (ntc_rg24_e - ntc_rg24 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
-			ENDIF
-ntc_rg24:
-; ============================================================
-; sub getnm (normal mode)
-; ============================================================
-
-p_getnm:
-
-			; Main.bas 544: Dim n As Integer
-
-			; Main.bas 545: n = Memory.ReadByte(Far(t, NMLEN))
-			dw p_far_c, var_getnm_t, lit_m2344
-			dw kw_l_mov, var_far_far, ltmp0
-			dw fn_memory_readbyte, ltmp0, var_getnm_n
-
-			; Main.bas 546: en = Space$(12)
-			dw kw_strspace, stmp0, lit_12
-			dw kw_strcpy, var_en, stmp0
-
-			; Main.bas 547: Memory.Copy Far(t, NMBUF), CLng(VarPtr(en)), n
-			dw p_far_c, var_getnm_t, lit_m2343
-			dw kw_l_itol, vp_var_en, ltmp1
-			dw fn_memory_copy, var_far_far, ltmp1, var_getnm_n, var_memory_copy_copy
-
-			; Main.bas 548: en = Left$(en, n)
-			dw kw_strleft, stmp0, var_en, var_getnm_n
-			dw kw_strcpy, var_en, stmp0
-			dw p_getnm_r
-
-ntc_rg24_e:
-			IF ($ < 34816) && (ntc_rg25_e - ntc_rg25 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
-			ENDIF
-ntc_rg25:
-; ============================================================
-; function n (normal mode)
-; ============================================================
-
-p_n:
-
-			; Main.bas 552: N = Trim$(Str$(v))
-			dw kw_strstr, stmp3, var_n_v
-			dw kw_strtrim, var_n_n, stmp3
-			dw p_n_r
-
-ntc_rg25_e:
-			IF ($ < 34816) && (ntc_rg26_e - ntc_rg26 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
-			ENDIF
-ntc_rg26:
-; ============================================================
-; sub prompt (normal mode)
-; ============================================================
-
-p_prompt:
-
-			; Main.bas 556: Memory.WriteByte Far(t, LNLEN), 0                ' an empty command line
-			dw p_far_c, var_prompt_t, lit_m2417
-			dw fn_memory_writebyte, var_far_far, lit_0
-
-			; Main.bas 557: PutS t, N(t) + "> "
-			dw p_n_c, var_prompt_t
-			dw kw_strcpy, stmp1, var_n_n
-			dw kw_strcat, stmp1, str32
-			dw p_puts_c, var_prompt_t, stmp1
-			dw p_prompt_r
-
-ntc_rg26_e:
-			IF ($ < 34816) && (ntc_rg27_e - ntc_rg27 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
-			ENDIF
-ntc_rg27:
-; ============================================================
-; sub keyin (normal mode)
-; ============================================================
-
-p_keyin:
-
-			; Main.bas 562: Dim t As Integer, n As Integer
-
-			; Main.bas 563: If front = 0 Then
-			dw kw_cpeqvl, var_front, 0
-			dw kw_goto_iffalse_n, if61_1
-
-			; Main.bas 564: Exit Sub                      ' TOP stays until Control + ESC or Control + a slot
-			dw p_keyin_r
-
-			; Main.bas 565: End If
-if61_1:
-
-			; Main.bas 566: t = front
-			dw kw_vtov, var_front, var_keyin_t
-
-			; Main.bas 567: If st(t) = 2 Then
-			dw kw_aget, arr_st, var_keyin_t, tmp0
-			dw kw_cpeqvl, tmp0, 2
-			dw kw_goto_iffalse_n, if62_1
-
-			; Main.bas 568: kq(t) = k                                     ' the key into its bank: its BDOS answers from it
-			dw kw_aset, arr_kq, var_keyin_t, var_keyin_k
-
-			; Main.bas 569: Memory.WriteByte Far(t, Hyp.KEY), k
-			dw p_far_c, var_keyin_t, lit_m2431
-			dw fn_memory_writebyte, var_far_far, var_keyin_k
-
-			; Main.bas 570: Exit Sub
-			dw p_keyin_r
-
-			; Main.bas 571: End If
-if62_1:
-
-			; Main.bas 572: n = Memory.ReadByte(Far(t, LNLEN))             ' the command line so far (in the slot's bank)
-			dw p_far_c, var_keyin_t, lit_m2417
-			dw kw_l_mov, var_far_far, ltmp0
-			dw fn_memory_readbyte, ltmp0, var_keyin_n
-
-			; Main.bas 573: If k = 13 Then
-			dw kw_cpeqvl, var_keyin_k, 13
-			dw kw_goto_iffalse_n, if63_1
-
-			; Main.bas 574: PutLn t, ""
-			dw p_putln_c, var_keyin_t, str15
-
-			; Main.bas 575: Command t
-			dw p_command_c, var_keyin_t
-
-			; Main.bas 576: If st(t) = 1 And wt = 0 And front = t Then Prompt t
-			dw kw_aget, arr_st, var_keyin_t, tmp0
-			dw kw_cpeqvl, tmp0, 1
-			dw kw_ftov, tmp0
-			dw kw_cpeqvl, var_wt, 0
-			dw kw_ftov, tmp1
-			dw kw_andvv, tmp0, tmp1, tmp0
-			dw kw_cpeqvv, var_front, var_keyin_t
-			dw kw_ftov, tmp1
-			dw kw_andvv, tmp0, tmp1, tmp0
-			dw kw_goto_ifzero_n, tmp0, if63_e
-			dw p_prompt_c, var_keyin_t
-if64_1:
-
-			; Main.bas 577: ElseIf k = 127 Or k = 8 Then
-			dw if63_e_go
-if63_1:
-			dw kw_cpeqvl, var_keyin_k, 127
-			dw kw_ftov, tmp0
-			dw kw_cpeqvl, var_keyin_k, 8
-			dw kw_ftov, tmp1
-			dw kw_orvv, tmp0, tmp1, tmp0
-			dw kw_goto_ifzero_n, tmp0, if63_2
-
-			; Main.bas 578: If n > 0 Then
-			dw kw_scpgtvl, var_keyin_n, 0
-			dw kw_goto_iffalse_n, if63_e
-
-			; Main.bas 579: Memory.WriteByte Far(t, LNLEN), n - 1
-			dw p_far_c, var_keyin_t, lit_m2417
-			dw kw_addl, var_keyin_n, -1, tmp1
-			dw fn_memory_writebyte, var_far_far, tmp1
-
-			; Main.bas 580: PutC t, 8 : PutC t, 32 : PutC t, 8
-			dw p_putc_c, var_keyin_t, lit_8
-			dw p_putc_c, var_keyin_t, lit_32
-			dw p_putc_c, var_keyin_t, lit_8
-
-			; Main.bas 581: End If
-if65_1:
-
-			; Main.bas 582: ElseIf k >= 32 And k < 127 And n < 70 Then
-			dw if63_e_go
-if63_2:
-			dw kw_scpgevl, var_keyin_k, 32
-			dw kw_ftov, tmp0
-			dw kw_scpltvl, var_keyin_k, 127
-			dw kw_ftov, tmp1
-			dw kw_andvv, tmp0, tmp1, tmp0
-			dw kw_scpltvl, var_keyin_n, 70
-			dw kw_ftov, tmp1
-			dw kw_andvv, tmp0, tmp1, tmp0
-			dw kw_goto_ifzero_n, tmp0, if63_3
-
-			; Main.bas 583: Memory.WriteByte Far(t, LNBUF + n), k
-			dw kw_addl, var_keyin_n, -2416, tmp1
-			dw p_far_c, var_keyin_t, tmp1
-			dw fn_memory_writebyte, var_far_far, var_keyin_k
-
-			; Main.bas 584: Memory.WriteByte Far(t, LNLEN), n + 1
-			dw p_far_c, var_keyin_t, lit_m2417
-			dw kw_addl, var_keyin_n, 1, tmp1
-			dw fn_memory_writebyte, var_far_far, tmp1
-
-			; Main.bas 585: PutC t, k
-			dw p_putc_c, var_keyin_t, var_keyin_k
-
-			; Main.bas 586: End If
-if63_3:
-if63_e:
-			dw p_keyin_r
-
-ntc_rg27_e:
-			IF ($ < 34816) && (ntc_rg28_e - ntc_rg28 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
-			ENDIF
-ntc_rg28:
-; ============================================================
-; sub command (normal mode)
-; ============================================================
-
-p_command:
-
-			; Main.bas 590: Dim c As String, p As Integer, s As Integer
-
-			; Main.bas 591: p = Memory.ReadByte(Far(t, LNLEN))              ' the command line, from the slot's bank
-			dw p_far_c, var_command_t, lit_m2417
-			dw kw_l_mov, var_far_far, ltmp0
-			dw fn_memory_readbyte, ltmp0, var_command_p
-
-			; Main.bas 592: Memory.Copy Far(t, LNBUF), CLng(VarPtr(ob)), p
-			dw p_far_c, var_command_t, lit_m2416
-			dw kw_l_itol, vp_var_ob, ltmp1
-			dw fn_memory_copy, var_far_far, ltmp1, var_command_p, var_memory_copy_copy
-
-			; Main.bas 593: c = UCase$(Trim$(Left$(ob, p)))
-			dw kw_strleft, stmp0, var_ob, var_command_p
-			dw kw_strtrim, stmp0, stmp0
-			dw kw_strucase, stmp0, stmp0
-			dw kw_strcpy, var_command_c, stmp0
-
-			; Main.bas 594: a = "" : b = ""
-			dw kw_strcpy, var_a, str15
-			dw kw_strcpy, var_b, str15
-
-			; Main.bas 595: p = InStr(c, " ")
-			dw kw_strinstr, lit_1, var_command_c, str21, var_command_p
-
-			; Main.bas 596: If p > 0 Then
-			dw kw_scpgtvl, var_command_p, 0
-			dw kw_goto_iffalse_n, if66_1
-
-			; Main.bas 597: a = Trim$(Mid$(c, p + 1))
-			dw kw_addl, var_command_p, 1, tmp1
-			dw kw_strmid, stmp0, var_command_c, tmp1, lit_255
-			dw kw_strtrim, stmp0, stmp0
-			dw kw_strcpy, var_a, stmp0
-
-			; Main.bas 598: c = Left$(c, p - 1)
-			dw kw_addl, var_command_p, -1, tmp1
-			dw kw_strleft, stmp0, var_command_c, tmp1
-			dw kw_strcpy, var_command_c, stmp0
-
-			; Main.bas 599: End If
-if66_1:
-
-			; Main.bas 600: p = InStr(a, " ")
-			dw kw_strinstr, lit_1, var_a, str21, var_command_p
-
-			; Main.bas 601: If p > 0 Then
-			dw kw_scpgtvl, var_command_p, 0
-			dw kw_goto_iffalse_n, if67_1
-
-			; Main.bas 602: b = Trim$(Mid$(a, p + 1))
-			dw kw_addl, var_command_p, 1, tmp1
-			dw kw_strmid, stmp0, var_a, tmp1, lit_255
-			dw kw_strtrim, stmp0, stmp0
-			dw kw_strcpy, var_b, stmp0
-
-			; Main.bas 603: a = Left$(a, p - 1)
-			dw kw_addl, var_command_p, -1, tmp1
-			dw kw_strleft, stmp0, var_a, tmp1
-			dw kw_strcpy, var_a, stmp0
-
-			; Main.bas 604: End If
-if67_1:
-
-			; Main.bas 607: If c = "RUN" Or c = "DIR" Then        ' the slot's own drive (CD), as CP/M has one each
-			dw kw_strcmpeq, var_command_c, str33
-			dw kw_ftov, tmp0
-			dw kw_strcmpeq, var_command_c, str34
-			dw kw_ftov, tmp1
-			dw kw_orvv, tmp0, tmp1, tmp0
-			dw kw_goto_ifzero_n, tmp0, if68_1
-
-			; Main.bas 608: If dv(t) = 0 Then dv(t) = 65                     ' (A to start with)
-			dw kw_aget, arr_dv, var_command_t, tmp0
-			dw kw_cpeqvl, tmp0, 0
-			dw kw_goto_iffalse_n, if69_1
-			dw kw_asetl, arr_dv, var_command_t, 65
-if69_1:
-
-			; Main.bas 609: p = Hyp.Drive(dv(t))
-			dw kw_aget, arr_dv, var_command_t, tmp0
-			dw p_hyp_drive_c, tmp0
-			dw kw_vtov, var_hyp_drive_drive, var_command_p
-
-			; Main.bas 610: End If
-if68_1:
-
-			; Main.bas 612: Select Case c
-			dw kw_strcpy, var_command___sel70, var_command_c
-
-			; Main.bas 613: Case ""
-			dw kw_strcmpeq, var_command___sel70, str15
-			dw kw_goto_iffalse_n, sel70_1
-sel70_b1:
-
-			; Main.bas 614: Case "HELP"
-			dw sel70_e_go
-sel70_1:
-			dw kw_strcmpeq, var_command___sel70, str35
-			dw kw_goto_iffalse_n, sel70_2
-sel70_b2:
-
-			; Main.bas 615: PutLn t, "RUN name [slot]  FG slot  PS  TOP  KILL slot  RESET [slot]  WAIT  CLS  MEM  QUIT"
-			dw p_putln_c, var_command_t, str36
-
-			; Main.bas 618: PutLn t, "DIR: the programs in FILES.DIR   CD [drive]: this slot's drive"
-			dw p_putln_c, var_command_t, str37
-
-			; Main.bas 620: PutLn t, SK() + ": a slot to the front   Control + ESC: TOP"
-			dw p_sk_c
-			dw kw_strcpy, stmp1, var_sk_sk
-			dw kw_strcat, stmp1, str38
-			dw p_putln_c, var_command_t, stmp1
-
-			; Main.bas 621: Case "CLS"
-			dw sel70_e_go
-sel70_2:
-			dw kw_strcmpeq, var_command___sel70, str39
-			dw kw_goto_iffalse_n, sel70_3
-sel70_b3:
-
-			; Main.bas 622: ClsT t
-			dw p_clst_c, var_command_t
-
-			; Main.bas 623: Case "RUN"
-			dw sel70_e_go
-sel70_3:
-			dw kw_strcmpeq, var_command___sel70, str33
-			dw kw_goto_iffalse_n, sel70_4
-sel70_b4:
-
-			; Main.bas 624: s = t
-			dw kw_vtov, var_command_t, var_command_s
-
-			; Main.bas 625: If b <> "" Then s = Val(b)
-			dw kw_strcmpne, var_b, str15
-			dw kw_goto_iffalse_n, if71_1
-			dw kw_strval, var_b, var_command_s
-if71_1:
-
-			; Main.bas 626: If s < 1 Or s > ns Then PutLn t, "no slot" + Str$(s) : Exit Sub
-			dw kw_scpltvl, var_command_s, 1
-			dw kw_ftov, tmp0
-			dw kw_scpgtvv, var_command_s, var_ns
-			dw kw_ftov, tmp1
-			dw kw_orvv, tmp0, tmp1, tmp0
-			dw kw_goto_ifzero_n, tmp0, if72_1
-			dw kw_strstr, stmp2, var_command_s
-			dw kw_strcpy, stmp1, str40
-			dw kw_strcat, stmp1, stmp2
-			dw p_putln_c, var_command_t, stmp1
-			dw p_command_r
-if72_1:
-
-			; Main.bas 627: If st(s) = 2 Then PutLn t, "slot" + Str$(s) + " is busy" : Exit Sub
-			dw kw_aget, arr_st, var_command_s, tmp0
-			dw kw_cpeqvl, tmp0, 2
-			dw kw_goto_iffalse_n, if73_1
-			dw kw_strstr, stmp2, var_command_s
-			dw kw_strcpy, stmp1, str41
-			dw kw_strcat, stmp1, stmp2
-			dw kw_strcat, stmp1, str42
-			dw p_putln_c, var_command_t, stmp1
-			dw p_command_r
-if73_1:
-
-			; Main.bas 628: StartTask t, s
-			dw p_starttask_c, var_command_t, var_command_s
-
-			; Main.bas 629: Case "FG"
-			dw sel70_e_go
-sel70_4:
-			dw kw_strcmpeq, var_command___sel70, str43
-			dw kw_goto_iffalse_n, sel70_5
-sel70_b5:
-
-			; Main.bas 630: s = Val(a)
-			dw kw_strval, var_a, var_command_s
-
-			; Main.bas 631: If s >= 1 And s <= ns Then ToFront s Else PutLn t, "no slot " + a
-			dw kw_scpgevl, var_command_s, 1
-			dw kw_ftov, tmp0
-			dw kw_scplevv, var_command_s, var_ns
-			dw kw_ftov, tmp1
-			dw kw_andvv, tmp0, tmp1, tmp0
-			dw kw_goto_ifzero_n, tmp0, if74_1
-			dw p_tofront_c, var_command_s
-			dw sel70_e_go
-if74_1:
-			dw kw_strcpy, stmp1, str44
-			dw kw_strcat, stmp1, var_a
-			dw p_putln_c, var_command_t, stmp1
-if74_e:
-
-			; Main.bas 632: Case "TOP"
-			dw sel70_e_go
-sel70_5:
-			dw kw_strcmpeq, var_command___sel70, str45
-			dw kw_goto_iffalse_n, sel70_6
-sel70_b6:
-
-			; Main.bas 633: txs = t
-			dw kw_vtov, var_command_t, var_txs
-
-			; Main.bas 634: TopLines front, 0                        ' printed into this slot's console, once
-			dw p_toplines_c, var_front, lit_0
-
-			; Main.bas 635: Case "PS"
-			dw sel70_e_go
-sel70_6:
-			dw kw_strcmpeq, var_command___sel70, str46
-			dw kw_goto_iffalse_n, sel70_7
-sel70_b7:
-
-			; Main.bas 636: For s = 1 To ns
-			dw kw_ltov, 1, var_command_s
-			dw kw_vtov, var_ns, for75_l
-			dw kw_forupv_n, var_command_s, for75_l, sel70_e
-for75_t:
-
-			; Main.bas 637: If st(s) = 0 Then a = "-" Else If st(s) = 1 Then a = "command line" Else GetNm s : a = en
-			dw kw_aget, arr_st, var_command_s, tmp0
-			dw kw_cpeqvl, tmp0, 0
-			dw kw_goto_iffalse_n, if76_1
-			dw kw_strcpy, var_a, str17
-			dw if76_e_go
-if76_1:
-			dw kw_aget, arr_st, var_command_s, tmp0
-			dw kw_cpeqvl, tmp0, 1
-			dw kw_goto_iffalse_n, if77_1
-			dw kw_strcpy, var_a, str18
-			dw if77_e_go
-if77_1:
-			dw p_getnm_c, var_command_s
-			dw kw_strcpy, var_a, var_en
-if77_e:
-if76_e:
-
-			; Main.bas 638: PutLn t, Right$("  " + N(s), 3) + IIf(s = front, " * ", "   ") + a
-			dw p_n_c, var_command_s
-			dw kw_strcpy, stmp2, var_n_n
-			dw kw_strcpy, stmp1, str23
-			dw kw_strcat, stmp1, stmp2
-			dw kw_strright, stmp1, stmp1, lit_3
-			dw kw_cpeqvv, var_command_s, var_front
-			dw kw_ftov, tmp2
-			dw kw_goto_ifzero_n, tmp2, ch78_0
-			dw kw_strcpy, stmp2, str47
-			dw ch78_e_go
-ch78_0:
-			dw kw_strcpy, stmp2, str48
-			dw ch78_e_go
-ch78_1:
-			dw kw_strcpy, stmp2, str15
-ch78_e:
-			dw kw_strcat, stmp1, stmp2
-			dw kw_strcat, stmp1, var_a
-			dw p_putln_c, var_command_t, stmp1
-
-			; Main.bas 639: Next
-			dw kw_next1v_n, var_command_s, for75_l, for75_t
-for75_e:
-
-			; Main.bas 640: Case "KILL"
-			dw sel70_e_go
-sel70_7:
-			dw kw_strcmpeq, var_command___sel70, str49
-			dw kw_goto_iffalse_n, sel70_8
-sel70_b8:
-
-			; Main.bas 641: s = Val(a)
-			dw kw_strval, var_a, var_command_s
-
-			; Main.bas 642: If s >= 1 And s <= ns And st(s) = 2 Then
-			dw kw_scpgevl, var_command_s, 1
-			dw kw_ftov, tmp0
-			dw kw_scplevv, var_command_s, var_ns
-			dw kw_ftov, tmp1
-			dw kw_andvv, tmp0, tmp1, tmp0
-			dw kw_aget, arr_st, var_command_s, tmp1
-			dw kw_cpeqvl, tmp1, 2
-			dw kw_ftov, tmp1
-			dw kw_andvv, tmp0, tmp1, tmp0
-			dw kw_goto_ifzero_n, tmp0, if79_1
-
-			; Main.bas 643: EndTask s
-			dw p_endtask_c, var_command_s
-
-			; Main.bas 644: Else
-			dw sel70_e_go
-if79_1:
-
-			; Main.bas 645: PutLn t, "nothing running in slot " + a
-			dw kw_strcpy, stmp1, str50
-			dw kw_strcat, stmp1, var_a
-			dw p_putln_c, var_command_t, stmp1
-
-			; Main.bas 646: End If
-if79_e:
-
-			; Main.bas 647: Case "RESET"
-			dw sel70_e_go
-sel70_8:
-			dw kw_strcmpeq, var_command___sel70, str51
-			dw kw_goto_iffalse_n, sel70_9
-sel70_b9:
-
-			; Main.bas 648: If a = "" Then s = t Else s = Val(a)
-			dw kw_strcmpeq, var_a, str15
-			dw kw_goto_iffalse_n, if80_1
-			dw kw_vtov, var_command_t, var_command_s
-			dw if80_e_go
-if80_1:
-			dw kw_strval, var_a, var_command_s
-if80_e:
-
-			; Main.bas 649: If s < 1 Or s > ns Then
-			dw kw_scpltvl, var_command_s, 1
-			dw kw_ftov, tmp0
-			dw kw_scpgtvv, var_command_s, var_ns
-			dw kw_ftov, tmp1
-			dw kw_orvv, tmp0, tmp1, tmp0
-			dw kw_goto_ifzero_n, tmp0, if81_1
-
-			; Main.bas 650: PutLn t, "no slot " + a
-			dw kw_strcpy, stmp1, str44
-			dw kw_strcat, stmp1, var_a
-			dw p_putln_c, var_command_t, stmp1
-
-			; Main.bas 651: Else
-			dw sel70_e_go
-if81_1:
-
-			; Main.bas 652: ResetSlot s
-			dw p_resetslot_c, var_command_s
-
-			; Main.bas 653: If s <> t Then PutLn t, "slot " + N(s) + " reset"
-			dw kw_cpnevv, var_command_s, var_command_t
-			dw kw_goto_iffalse_n, sel70_e
-			dw p_n_c, var_command_s
-			dw kw_strcpy, stmp2, var_n_n
-			dw kw_strcpy, stmp1, str52
-			dw kw_strcat, stmp1, stmp2
-			dw kw_strcat, stmp1, str53
-			dw p_putln_c, var_command_t, stmp1
-if82_1:
-
-			; Main.bas 654: End If
-if81_e:
-
-			; Main.bas 655: Case "CD"
-			dw sel70_e_go
-sel70_9:
-			dw kw_strcmpeq, var_command___sel70, str54
-			dw kw_goto_iffalse_n, sel70_10
-sel70_b10:
-
-			; Main.bas 659: ChDrive t
-			dw p_chdrive_c, var_command_t
-
-			; Main.bas 661: Case "DIR"
-			dw sel70_e_go
-sel70_10:
-			dw kw_strcmpeq, var_command___sel70, str34
-			dw kw_goto_iffalse_n, sel70_11
-sel70_b11:
-
-			; Main.bas 665: DirList t
-			dw p_dirlist_c, var_command_t
-
-			; Main.bas 667: Case "MEM"
-			dw sel70_e_go
-sel70_11:
-			dw kw_strcmpeq, var_command___sel70, str55
-			dw kw_goto_iffalse_n, sel70_12
-sel70_b12:
-
-			; Main.bas 668: PutLn t, N(ns) + " slots, " + N(Memory.Banks()) + " banks of 64K, " + N(Memory.FreePages()) + " pages free"
+			; Main.bas 506: PutLn t, N(ns) + " slots, " + N(Memory.Banks()) + " banks of 64K, " + N(Memory.FreePages()) + " pages free"
 			dw p_n_c, var_ns
 			dw kw_strcpy, stmp1, var_n_n
 			dw kw_strcat, stmp1, str10
@@ -2106,766 +1357,1880 @@ sel70_b12:
 			dw kw_strcpy, stmp2, var_n_n
 			dw kw_strcat, stmp1, stmp2
 			dw kw_strcat, stmp1, str12
+			dw p_putln_c, var_memshow_t, stmp1
+
+			; Main.bas 509: PutLn t, "main 64K: CyborgOS #0040-#3FFF and #8000-#" + H4(Memory.TableEnd() - 1) + ", free to #" + H4(Memory.Top() - 1) + ","
+			dw fn_memory_tableend, var_memory_tableend_tableend
+			dw kw_vtov, var_memory_tableend_tableend, tmp2
+			dw kw_dec, tmp2
+			dw p_h4_c, tmp2
+			dw kw_strcpy, stmp2, var_h4_h4
+			dw kw_strcpy, stmp1, str25
+			dw kw_strcat, stmp1, stmp2
+			dw kw_strcat, stmp1, str26
+			dw fn_memory_top, var_memory_top_top
+			dw kw_vtov, var_memory_top_top, tmp2
+			dw kw_dec, tmp2
+			dw p_h4_c, tmp2
+			dw kw_strcpy, stmp2, var_h4_h4
+			dw kw_strcat, stmp1, stmp2
+			dw kw_strcat, stmp1, str27
+			dw p_putln_c, var_memshow_t, stmp1
+
+			; Main.bas 510: PutLn t, "  window #4000-#7FFF, firmware and ROMs #" + H4(Memory.Top()) + "-#BFFF, screen #C000-#FFFF"
+			dw fn_memory_top, var_memory_top_top
+			dw kw_vtov, var_memory_top_top, tmp2
+			dw p_h4_c, tmp2
+			dw kw_strcpy, stmp2, var_h4_h4
+			dw kw_strcpy, stmp1, str28
+			dw kw_strcat, stmp1, stmp2
+			dw kw_strcat, stmp1, str29
+			dw p_putln_c, var_memshow_t, stmp1
+
+			; Main.bas 511: PutLn t, "banks (B slot, - free):"
+			dw p_putln_c, var_memshow_t, str30
+
+			; Main.bas 512: For j = 2 To Memory.Pages() Step 64
+			dw kw_ltov, 2, var_memshow_j
+			dw fn_memory_pages, for53_l
+			dw kw_forupv_n, var_memshow_j, for53_l, for53_e
+for53_t:
+
+			; Main.bas 513: PutLn t, Memory.Map(j, 32) + "  " + Memory.Map(j + 32, 32)
+			dw fn_memory_map, var_memshow_j, lit_32, var_memory_map_map
+			dw kw_strcpy, stmp1, var_memory_map_map
+			dw kw_strcat, stmp1, str23
+			dw kw_addl, var_memshow_j, 32, tmp2
+			dw fn_memory_map, tmp2, lit_32, var_memory_map_map
+			dw kw_strcpy, stmp2, var_memory_map_map
+			dw kw_strcat, stmp1, stmp2
+			dw p_putln_c, var_memshow_t, stmp1
+
+			; Main.bas 514: Next
+			dw kw_nextupv_n, var_memshow_j, 64, for53_l, for53_t
+for53_e:
+			dw p_memshow_r
+
+ntc_rg20_e:
+			IF ($ < 32768) && (ntc_rg21_e - ntc_rg21 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg21:
+; ============================================================
+; function h4 (normal mode)
+; ============================================================
+
+p_h4:
+
+			; Main.bas 522: H4 = Right$("000" + Hex$(v), 4)
+			dw kw_strhex, stmp3, var_h4_v
+			dw kw_strcpy, stmp2, str31
+			dw kw_strcat, stmp2, stmp3
+			dw kw_strright, var_h4_h4, stmp2, lit_4
+			dw p_h4_r
+
+ntc_rg21_e:
+			IF ($ < 32768) && (ntc_rg22_e - ntc_rg22 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg22:
+; ============================================================
+; sub topadd (normal mode)
+; ============================================================
+
+p_topadd:
+
+			; Main.bas 527: If txs = 0 Then
+			dw kw_cpeqvl, var_txs, 0
+			dw kw_goto_iffalse_n, if54_1
+
+			; Main.bas 528: ob = s
+			dw kw_strcpy, var_ob, var_topadd_s
+
+			; Main.bas 529: Hyp.Say VarPtr(ob), Len(ob), 0, txn          ' straight into screen memory (Print took ~0.7 s)
+			dw kw_strlen, var_ob, tmp1
+			dw p_hyp_say_c, vp_var_ob, tmp1, lit_0, var_txn
+
+			; Main.bas 530: Else
+			dw if54_e_go
+if54_1:
+
+			; Main.bas 531: PutLn txs, s
+			dw p_putln_c, var_txs, var_topadd_s
+
+			; Main.bas 532: End If
+if54_e:
+
+			; Main.bas 533: txn = txn + 1
+			dw kw_inc, var_txn
+			dw p_topadd_r
+
+ntc_rg22_e:
+			IF ($ < 32768) && (ntc_rg23_e - ntc_rg23 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg23:
+; ============================================================
+; sub roll (normal mode)
+; ============================================================
+
+p_roll:
+
+			; Main.bas 538: Dim j As Integer
+
+			; Main.bas 539: ld = Ticks - td
+			dw kw_ticks, tmp0
+			dw kw_subvv, tmp0, var_td, var_ld
+
+			; Main.bas 540: td = Ticks
+			dw kw_ticks, tmp0
+			dw kw_vtov, tmp0, var_td
+
+			; Main.bas 541: For j = 1 To ns
+			dw kw_ltov, 1, var_roll_j
+			dw kw_vtov, var_ns, for55_l
+			dw kw_forupv_n, var_roll_j, for55_l, for55_e
+for55_t:
+
+			; Main.bas 542: lt(j) = tn(j) : lb(j) = nb(j) : lc(j) = nc(j)
+			dw kw_aget, arr_tn, var_roll_j, tmp1
+			dw kw_aset, arr_lt, var_roll_j, tmp1
+			dw kw_aget, arr_nb, var_roll_j, tmp1
+			dw kw_aset, arr_lb, var_roll_j, tmp1
+			dw kw_aget, arr_nc, var_roll_j, tmp1
+			dw kw_aset, arr_lc, var_roll_j, tmp1
+
+			; Main.bas 543: tn(j) = 0 : nb(j) = 0 : nc(j) = 0
+			dw kw_asetl, arr_tn, var_roll_j, 0
+			dw kw_asetl, arr_nb, var_roll_j, 0
+			dw kw_asetl, arr_nc, var_roll_j, 0
+
+			; Main.bas 544: Next
+			dw kw_next1v_n, var_roll_j, for55_l, for55_t
+for55_e:
+			dw p_roll_r
+
+ntc_rg23_e:
+			IF ($ < 32768) && (ntc_rg24_e - ntc_rg24 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg24:
+; ============================================================
+; function pad (normal mode)
+; ============================================================
+
+p_pad:
+
+			; Main.bas 549: Pad = Right$(Space$(9) + N(v), 9)
+			dw kw_strspace, stmp1, lit_9
+			dw p_n_c, var_pad_v
+			dw kw_strcpy, stmp2, var_n_n
+			dw kw_strcat, stmp1, stmp2
+			dw kw_strright, var_pad_pad, stmp1, lit_9
+			dw p_pad_r
+
+ntc_rg24_e:
+			IF ($ < 32768) && (ntc_rg25_e - ntc_rg25 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg25:
+; ============================================================
+; function rate (normal mode)
+; ============================================================
+
+p_rate:
+
+			; Main.bas 554: If n > 1000 Then Rate = n \ (d \ 300 + 1) Else Rate = n * 30 \ (d \ 10 + 1)
+			dw kw_scpgtvl, var_rate_n, 1000
+			dw kw_goto_iffalse_n, if56_1
+			dw kw_divvl, var_rate_d, 300, tmp2
+			dw kw_inc, tmp2
+			dw kw_divvv, var_rate_n, tmp2, var_rate_rate
+			dw if56_e_go
+if56_1:
+			dw kw_mulvl, var_rate_n, 30, tmp1
+			dw kw_divvl, var_rate_d, 10, tmp2
+			dw kw_inc, tmp2
+			dw kw_divvv, tmp1, tmp2, var_rate_rate
+if56_e:
+			dw p_rate_r
+
+ntc_rg25_e:
+			IF ($ < 32768) && (ntc_rg26_e - ntc_rg26 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg26:
+; ============================================================
+; sub install (normal mode)
+; ============================================================
+
+p_install:
+
+			; Main.bas 561: Dim p As Integer, n As Integer
+
+			; Main.bas 562: p = Hyp.Info(0) : n = Hyp.Info(1)             ' (one Info result each: it is one variable)
+			dw fn_hyp_info, lit_0, var_install_p
+			dw fn_hyp_info, lit_1, var_install_n
+
+			; Main.bas 563: Hyp.Xfer 1, sg(t), 0, p, n
+			dw kw_aget, arr_sg, var_install_t, tmp1
+			dw p_hyp_xfer_c, lit_1, tmp1, lit_0, var_install_p, var_install_n
+
+			; Main.bas 564: p = Hyp.Info(2) : n = Hyp.Info(3)
+			dw fn_hyp_info, lit_2, var_install_p
+			dw fn_hyp_info, lit_3, var_install_n
+
+			; Main.bas 565: Hyp.Xfer 1, sg(t), Hyp.STUB, p, n
+			dw kw_aget, arr_sg, var_install_t, tmp1
+			dw p_hyp_xfer_c, lit_1, tmp1, lit_m2816, var_install_p, var_install_n
+
+			; Main.bas 566: Memory.WriteByte Far(t, Hyp.OBUF + 128), 0      ' no characters collected
+			dw p_far_c, var_install_t, lit_m2432
+			dw fn_memory_writebyte, var_far_far, lit_0
+
+			; Main.bas 567: Memory.WriteByte Far(t, Hyp.KEY), 0             ' no key waiting
+			dw p_far_c, var_install_t, lit_m2431
+			dw fn_memory_writebyte, var_far_far, lit_0
+
+			; Main.bas 568: kq(t) = 0
+			dw kw_asetl, arr_kq, var_install_t, 0
+			dw p_install_r
+
+ntc_rg26_e:
+			IF ($ < 32768) && (ntc_rg27_e - ntc_rg27 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg27:
+; ============================================================
+; sub resetslot (normal mode)
+; ============================================================
+
+p_resetslot:
+
+			; Main.bas 574: FilesShut s
+			dw p_filesshut_c, var_resetslot_s
+
+			; Main.bas 575: st(s) = 0
+			dw kw_asetl, arr_st, var_resetslot_s, 0
+
+			; Main.bas 578: dv(s) = 0
+			dw kw_asetl, arr_dv, var_resetslot_s, 0
+
+			; Main.bas 580: kq(s) = 0
+			dw kw_asetl, arr_kq, var_resetslot_s, 0
+
+			; Main.bas 581: wk(s) = -1
+			dw kw_asetl, arr_wk, var_resetslot_s, -1
+
+			; Main.bas 582: tn(s) = 0 : nb(s) = 0 : nc(s) = 0
+			dw kw_asetl, arr_tn, var_resetslot_s, 0
+			dw kw_asetl, arr_nb, var_resetslot_s, 0
+			dw kw_asetl, arr_nc, var_resetslot_s, 0
+
+			; Main.bas 583: lt(s) = 0 : lb(s) = 0 : lc(s) = 0
+			dw kw_asetl, arr_lt, var_resetslot_s, 0
+			dw kw_asetl, arr_lb, var_resetslot_s, 0
+			dw kw_asetl, arr_lc, var_resetslot_s, 0
+
+			; Main.bas 584: If s = front Then
+			dw kw_cpeqvv, var_resetslot_s, var_front
+			dw kw_goto_iffalse_n, if57_1
+
+			; Main.bas 585: Install s
+			dw p_install_c, var_resetslot_s
+
+			; Main.bas 586: st(s) = 1
+			dw kw_asetl, arr_st, var_resetslot_s, 1
+
+			; Main.bas 587: ClsT s
+			dw p_clst_c, var_resetslot_s
+
+			; Main.bas 588: PutLn s, "CyborgOS slot " + N(s) + " of " + N(ns) + " - " + SK() + ", Control + ESC: TOP, HELP"
+			dw p_n_c, var_resetslot_s
+			dw kw_strcpy, stmp2, var_n_n
+			dw kw_strcpy, stmp1, str32
+			dw kw_strcat, stmp1, stmp2
+			dw kw_strcat, stmp1, str33
+			dw p_n_c, var_ns
+			dw kw_strcpy, stmp2, var_n_n
+			dw kw_strcat, stmp1, stmp2
+			dw kw_strcat, stmp1, str34
+			dw p_sk_c
+			dw kw_strcpy, stmp2, var_sk_sk
+			dw kw_strcat, stmp1, stmp2
+			dw kw_strcat, stmp1, str35
+			dw p_putln_c, var_resetslot_s, stmp1
+
+			; Main.bas 589: PutLn s, ""                   ' a blank line under the title
+			dw p_putln_c, var_resetslot_s, str15
+
+			; Main.bas 590: End If                          ' (the prompt: the command line puts it after the command)
+if57_1:
+			dw p_resetslot_r
+
+ntc_rg27_e:
+			IF ($ < 32768) && (ntc_rg28_e - ntc_rg28 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg28:
+; ============================================================
+; sub openslot (normal mode)
+; ============================================================
+
+p_openslot:
+
+			; Main.bas 594: Install t
+			dw p_install_c, var_openslot_t
+
+			; Main.bas 595: st(t) = 1
+			dw kw_asetl, arr_st, var_openslot_t, 1
+
+			; Main.bas 596: ClsT t
+			dw p_clst_c, var_openslot_t
+
+			; Main.bas 597: PutLn t, "CyborgOS slot " + N(t) + " of " + N(ns) + " - " + SK() + ", Control + ESC: TOP, HELP"
+			dw p_n_c, var_openslot_t
+			dw kw_strcpy, stmp2, var_n_n
+			dw kw_strcpy, stmp1, str32
+			dw kw_strcat, stmp1, stmp2
+			dw kw_strcat, stmp1, str33
+			dw p_n_c, var_ns
+			dw kw_strcpy, stmp2, var_n_n
+			dw kw_strcat, stmp1, stmp2
+			dw kw_strcat, stmp1, str34
+			dw p_sk_c
+			dw kw_strcpy, stmp2, var_sk_sk
+			dw kw_strcat, stmp1, stmp2
+			dw kw_strcat, stmp1, str35
+			dw p_putln_c, var_openslot_t, stmp1
+
+			; Main.bas 598: PutLn t, ""                     ' a blank line under the title
+			dw p_putln_c, var_openslot_t, str15
+
+			; Main.bas 599: Prompt t
+			dw p_prompt_c, var_openslot_t
+			dw p_openslot_r
+
+ntc_rg28_e:
+			IF ($ < 32768) && (ntc_rg29_e - ntc_rg29 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg29:
+; ============================================================
+; function sk (normal mode)
+; ============================================================
+
+p_sk:
+
+			; Main.bas 604: If ns <= 8 Then SK = "Control + 1-" + N(ns) Else SK = "Control + 1-8 (twice: 9-" + N(ns) + ")"
+			dw kw_scplevl, var_ns, 8
+			dw kw_goto_iffalse_n, if58_1
+			dw p_n_c, var_ns
+			dw kw_strcpy, stmp3, var_n_n
+			dw kw_strcpy, var_sk_sk, str36
+			dw kw_strcat, var_sk_sk, stmp3
+			dw if58_e_go
+if58_1:
+			dw p_n_c, var_ns
+			dw kw_strcpy, stmp3, var_n_n
+			dw kw_strcpy, stmp2, str37
+			dw kw_strcat, stmp2, stmp3
+			dw kw_strcpy, var_sk_sk, stmp2
+			dw kw_strcat, var_sk_sk, str38
+if58_e:
+			dw p_sk_r
+
+ntc_rg29_e:
+			IF ($ < 32768) && (ntc_rg30_e - ntc_rg30 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg30:
+; ============================================================
+; sub getnm (normal mode)
+; ============================================================
+
+p_getnm:
+
+			; Main.bas 611: Dim n As Integer
+
+			; Main.bas 612: n = Memory.ReadByte(Far(t, NMLEN))
+			dw p_far_c, var_getnm_t, lit_m2344
+			dw kw_l_mov, var_far_far, ltmp0
+			dw fn_memory_readbyte, ltmp0, var_getnm_n
+
+			; Main.bas 613: en = Space$(12)
+			dw kw_strspace, stmp0, lit_12
+			dw kw_strcpy, var_en, stmp0
+
+			; Main.bas 614: Hyp.Xfer 0, sg(t), NMBUF, VarPtr(en), n
+			dw kw_aget, arr_sg, var_getnm_t, tmp1
+			dw p_hyp_xfer_c, lit_0, tmp1, lit_m2343, vp_var_en, var_getnm_n
+
+			; Main.bas 615: en = Left$(en, n)
+			dw kw_strleft, stmp0, var_en, var_getnm_n
+			dw kw_strcpy, var_en, stmp0
+			dw p_getnm_r
+
+ntc_rg30_e:
+			IF ($ < 32768) && (ntc_rg31_e - ntc_rg31 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg31:
+; ============================================================
+; function n (normal mode)
+; ============================================================
+
+p_n:
+
+			; Main.bas 619: N = Trim$(Str$(v))
+			dw kw_strstr, stmp3, var_n_v
+			dw kw_strtrim, var_n_n, stmp3
+			dw p_n_r
+
+ntc_rg31_e:
+			IF ($ < 32768) && (ntc_rg32_e - ntc_rg32 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg32:
+; ============================================================
+; sub prompt (normal mode)
+; ============================================================
+
+p_prompt:
+
+			; Main.bas 623: Memory.WriteByte Far(t, LNLEN), 0                ' an empty command line
+			dw p_far_c, var_prompt_t, lit_m2417
+			dw fn_memory_writebyte, var_far_far, lit_0
+
+			; Main.bas 624: PutS t, N(t) + "> "
+			dw p_n_c, var_prompt_t
+			dw kw_strcpy, stmp1, var_n_n
+			dw kw_strcat, stmp1, str39
+			dw p_puts_c, var_prompt_t, stmp1
+			dw p_prompt_r
+
+ntc_rg32_e:
+			IF ($ < 32768) && (ntc_rg33_e - ntc_rg33 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg33:
+; ============================================================
+; sub keyin (normal mode)
+; ============================================================
+
+p_keyin:
+
+			; Main.bas 629: Dim t As Integer, n As Integer
+
+			; Main.bas 630: If front = 0 Then
+			dw kw_cpeqvl, var_front, 0
+			dw kw_goto_iffalse_n, if59_1
+
+			; Main.bas 631: Exit Sub                      ' TOP stays until Control + ESC or Control + a slot
+			dw p_keyin_r
+
+			; Main.bas 632: End If
+if59_1:
+
+			; Main.bas 633: t = front
+			dw kw_vtov, var_front, var_keyin_t
+
+			; Main.bas 634: If st(t) = 2 Then
+			dw kw_aget, arr_st, var_keyin_t, tmp0
+			dw kw_cpeqvl, tmp0, 2
+			dw kw_goto_iffalse_n, if60_1
+
+			; Main.bas 635: kq(t) = k                                     ' the key into its bank: its BDOS answers from it
+			dw kw_aset, arr_kq, var_keyin_t, var_keyin_k
+
+			; Main.bas 636: Memory.WriteByte Far(t, Hyp.KEY), k
+			dw p_far_c, var_keyin_t, lit_m2431
+			dw fn_memory_writebyte, var_far_far, var_keyin_k
+
+			; Main.bas 637: Exit Sub
+			dw p_keyin_r
+
+			; Main.bas 638: End If
+if60_1:
+
+			; Main.bas 639: n = Memory.ReadByte(Far(t, LNLEN))             ' the command line so far (in the slot's bank)
+			dw p_far_c, var_keyin_t, lit_m2417
+			dw kw_l_mov, var_far_far, ltmp0
+			dw fn_memory_readbyte, ltmp0, var_keyin_n
+
+			; Main.bas 640: If k = 13 Then
+			dw kw_cpeqvl, var_keyin_k, 13
+			dw kw_goto_iffalse_n, if61_1
+
+			; Main.bas 641: PutLn t, ""
+			dw p_putln_c, var_keyin_t, str15
+
+			; Main.bas 642: Command t
+			dw p_command_c, var_keyin_t
+
+			; Main.bas 643: If st(t) = 1 And wt = 0 And front = t Then Prompt t
+			dw kw_aget, arr_st, var_keyin_t, tmp0
+			dw kw_cpeqvl, tmp0, 1
+			dw kw_ftov, tmp0
+			dw kw_cpeqvl, var_wt, 0
+			dw kw_ftov, tmp1
+			dw kw_andvv, tmp0, tmp1, tmp0
+			dw kw_cpeqvv, var_front, var_keyin_t
+			dw kw_ftov, tmp1
+			dw kw_andvv, tmp0, tmp1, tmp0
+			dw kw_goto_ifzero_n, tmp0, if61_e
+			dw p_prompt_c, var_keyin_t
+if62_1:
+
+			; Main.bas 644: ElseIf k = 127 Or k = 8 Then
+			dw if61_e_go
+if61_1:
+			dw kw_cpeqvl, var_keyin_k, 127
+			dw kw_ftov, tmp0
+			dw kw_cpeqvl, var_keyin_k, 8
+			dw kw_ftov, tmp1
+			dw kw_orvv, tmp0, tmp1, tmp0
+			dw kw_goto_ifzero_n, tmp0, if61_2
+
+			; Main.bas 645: If n > 0 Then
+			dw kw_scpgtvl, var_keyin_n, 0
+			dw kw_goto_iffalse_n, if61_e
+
+			; Main.bas 646: Memory.WriteByte Far(t, LNLEN), n - 1
+			dw p_far_c, var_keyin_t, lit_m2417
+			dw kw_addl, var_keyin_n, -1, tmp1
+			dw fn_memory_writebyte, var_far_far, tmp1
+
+			; Main.bas 647: PutC t, 8 : PutC t, 32 : PutC t, 8
+			dw p_putc_c, var_keyin_t, lit_8
+			dw p_putc_c, var_keyin_t, lit_32
+			dw p_putc_c, var_keyin_t, lit_8
+
+			; Main.bas 648: End If
+if63_1:
+
+			; Main.bas 649: ElseIf k >= 32 And k < 127 And n < 70 Then
+			dw if61_e_go
+if61_2:
+			dw kw_scpgevl, var_keyin_k, 32
+			dw kw_ftov, tmp0
+			dw kw_scpltvl, var_keyin_k, 127
+			dw kw_ftov, tmp1
+			dw kw_andvv, tmp0, tmp1, tmp0
+			dw kw_scpltvl, var_keyin_n, 70
+			dw kw_ftov, tmp1
+			dw kw_andvv, tmp0, tmp1, tmp0
+			dw kw_goto_ifzero_n, tmp0, if61_3
+
+			; Main.bas 650: Memory.WriteByte Far(t, LNBUF + n), k
+			dw kw_addl, var_keyin_n, -2416, tmp1
+			dw p_far_c, var_keyin_t, tmp1
+			dw fn_memory_writebyte, var_far_far, var_keyin_k
+
+			; Main.bas 651: Memory.WriteByte Far(t, LNLEN), n + 1
+			dw p_far_c, var_keyin_t, lit_m2417
+			dw kw_addl, var_keyin_n, 1, tmp1
+			dw fn_memory_writebyte, var_far_far, tmp1
+
+			; Main.bas 652: PutC t, k
+			dw p_putc_c, var_keyin_t, var_keyin_k
+
+			; Main.bas 653: End If
+if61_3:
+if61_e:
+			dw p_keyin_r
+
+ntc_rg33_e:
+			IF ($ < 32768) && (ntc_rg34_e - ntc_rg34 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg34:
+; ============================================================
+; sub command (normal mode)
+; ============================================================
+
+p_command:
+
+			; Main.bas 657: Dim c As String Max 72, p As Integer, s As Integer
+
+			; Main.bas 658: p = Memory.ReadByte(Far(t, LNLEN))              ' the command line, from the slot's bank
+			dw p_far_c, var_command_t, lit_m2417
+			dw kw_l_mov, var_far_far, ltmp0
+			dw fn_memory_readbyte, ltmp0, var_command_p
+
+			; Main.bas 659: Hyp.Xfer 0, sg(t), LNBUF, VarPtr(ob), p
+			dw kw_aget, arr_sg, var_command_t, tmp1
+			dw p_hyp_xfer_c, lit_0, tmp1, lit_m2416, vp_var_ob, var_command_p
+
+			; Main.bas 660: c = UCase$(Trim$(Left$(ob, p)))
+			dw kw_strleft, stmp0, var_ob, var_command_p
+			dw kw_strtrim, stmp0, stmp0
+			dw kw_strucase, stmp0, stmp0
+			dw kw_strcpy, var_command_c, stmp0
+
+			; Main.bas 661: a = "" : b = ""
+			dw kw_strcpy, var_a, str15
+			dw kw_strcpy, var_b, str15
+
+			; Main.bas 662: p = InStr(c, " ")
+			dw kw_strinstr, lit_1, var_command_c, str21, var_command_p
+
+			; Main.bas 663: If p > 0 Then
+			dw kw_scpgtvl, var_command_p, 0
+			dw kw_goto_iffalse_n, if64_1
+
+			; Main.bas 664: a = Trim$(Mid$(c, p + 1))
+			dw kw_addl, var_command_p, 1, tmp1
+			dw kw_strmid, stmp0, var_command_c, tmp1, lit_255
+			dw kw_strtrim, stmp0, stmp0
+			dw kw_strcpy, var_a, stmp0
+
+			; Main.bas 665: c = Left$(c, p - 1)
+			dw kw_addl, var_command_p, -1, tmp1
+			dw kw_strleft, stmp0, var_command_c, tmp1
+			dw kw_strcpy, var_command_c, stmp0
+
+			; Main.bas 666: End If
+if64_1:
+
+			; Main.bas 667: p = InStr(a, " ")
+			dw kw_strinstr, lit_1, var_a, str21, var_command_p
+
+			; Main.bas 668: If p > 0 Then
+			dw kw_scpgtvl, var_command_p, 0
+			dw kw_goto_iffalse_n, if65_1
+
+			; Main.bas 669: b = Trim$(Mid$(a, p + 1))
+			dw kw_addl, var_command_p, 1, tmp1
+			dw kw_strmid, stmp0, var_a, tmp1, lit_255
+			dw kw_strtrim, stmp0, stmp0
+			dw kw_strcpy, var_b, stmp0
+
+			; Main.bas 670: a = Left$(a, p - 1)
+			dw kw_addl, var_command_p, -1, tmp1
+			dw kw_strleft, stmp0, var_a, tmp1
+			dw kw_strcpy, var_a, stmp0
+
+			; Main.bas 671: End If
+if65_1:
+
+			; Main.bas 674: If c = "DIR" Then OwnDrive t
+			dw kw_strcmpeq, var_command_c, str40
+			dw kw_goto_iffalse_n, if66_1
+			dw p_owndrive_c, var_command_t
+if66_1:
+
+			; Main.bas 676: Select Case c
+			dw kw_strcpy, var_command___sel67, var_command_c
+
+			; Main.bas 677: Case ""
+			dw kw_strcmpeq, var_command___sel67, str15
+			dw kw_goto_iffalse_n, sel67_1
+sel67_b1:
+
+			; Main.bas 678: Case "HELP"
+			dw sel67_e_go
+sel67_1:
+			dw kw_strcmpeq, var_command___sel67, str41
+			dw kw_goto_iffalse_n, sel67_2
+sel67_b2:
+
+			; Main.bas 681: PutLn t, "name [args]: run name from this drive   RUN name [args]: the disc's, not a command's"
+			dw p_putln_c, var_command_t, str42
+
+			; Main.bas 683: PutLn t, "RUN name slot  FG slot  PS  TOP  KILL slot  RESET [slot]  WAIT  CLS  MEM  QUIT"
+			dw p_putln_c, var_command_t, str43
+
+			; Main.bas 686: PutLn t, "DIR: the programs in FILES.DIR   CD [drive]: this slot's drive"
+			dw p_putln_c, var_command_t, str44
+
+			; Main.bas 690: PutLn t, SK() + ": a slot to the front   Control + ESC: TOP"
+			dw p_sk_c
+			dw kw_strcpy, stmp1, var_sk_sk
+			dw kw_strcat, stmp1, str45
 			dw p_putln_c, var_command_t, stmp1
 
-			; Main.bas 669: Case "WAIT"
-			dw sel70_e_go
-sel70_12:
-			dw kw_strcmpeq, var_command___sel70, str56
-			dw kw_goto_iffalse_n, sel70_13
-sel70_b13:
+			; Main.bas 692: Case "CLS"
+			dw sel67_e_go
+sel67_2:
+			dw kw_strcmpeq, var_command___sel67, str46
+			dw kw_goto_iffalse_n, sel67_3
+sel67_b3:
 
-			; Main.bas 670: If Running() > 0 Then wt = t
+			; Main.bas 693: ClsT t
+			dw p_clst_c, var_command_t
+
+			; Main.bas 694: Case "RUN"                                 ' RUN name [tail]: the program on the disc even when a
+			dw sel67_e_go
+sel67_3:
+			dw kw_strcmpeq, var_command___sel67, str47
+			dw kw_goto_iffalse_n, sel67_4
+sel67_b4:
+
+			; Main.bas 695: s = t                                    ' command has its name; RUN name slot: in that slot
+			dw kw_vtov, var_command_t, var_command_s
+
+			; Main.bas 696: If b <> "" And N(Val(b)) = b Then s = Val(b) : b = ""
+			dw kw_strcmpne, var_b, str15
+			dw kw_ftov, tmp0
+			dw kw_strval, var_b, tmp1
+			dw p_n_c, tmp1
+			dw kw_strcpy, stmp1, var_n_n
+			dw kw_strcmpeq, stmp1, var_b
+			dw kw_ftov, tmp1
+			dw kw_andvv, tmp0, tmp1, tmp0
+			dw kw_goto_ifzero_n, tmp0, if68_1
+			dw kw_strval, var_b, var_command_s
+			dw kw_strcpy, var_b, str15
+if68_1:
+
+			; Main.bas 697: If s < 1 Or s > ns Then PutLn t, "no slot" + Str$(s) : Exit Sub
+			dw kw_scpltvl, var_command_s, 1
+			dw kw_ftov, tmp0
+			dw kw_scpgtvv, var_command_s, var_ns
+			dw kw_ftov, tmp1
+			dw kw_orvv, tmp0, tmp1, tmp0
+			dw kw_goto_ifzero_n, tmp0, if69_1
+			dw kw_strstr, stmp2, var_command_s
+			dw kw_strcpy, stmp1, str48
+			dw kw_strcat, stmp1, stmp2
+			dw p_putln_c, var_command_t, stmp1
+			dw p_command_r
+if69_1:
+
+			; Main.bas 698: If st(s) = 2 Then PutLn t, "slot" + Str$(s) + " is busy" : Exit Sub
+			dw kw_aget, arr_st, var_command_s, tmp0
+			dw kw_cpeqvl, tmp0, 2
+			dw kw_goto_iffalse_n, if70_1
+			dw kw_strstr, stmp2, var_command_s
+			dw kw_strcpy, stmp1, str49
+			dw kw_strcat, stmp1, stmp2
+			dw kw_strcat, stmp1, str50
+			dw p_putln_c, var_command_t, stmp1
+			dw p_command_r
+if70_1:
+
+			; Main.bas 699: StartTask t, s
+			dw p_starttask_c, var_command_t, var_command_s
+
+			; Main.bas 700: Case "FG"
+			dw sel67_e_go
+sel67_4:
+			dw kw_strcmpeq, var_command___sel67, str51
+			dw kw_goto_iffalse_n, sel67_5
+sel67_b5:
+
+			; Main.bas 701: s = Val(a)
+			dw kw_strval, var_a, var_command_s
+
+			; Main.bas 702: If s >= 1 And s <= ns Then ToFront s Else PutLn t, "no slot " + a
+			dw kw_scpgevl, var_command_s, 1
+			dw kw_ftov, tmp0
+			dw kw_scplevv, var_command_s, var_ns
+			dw kw_ftov, tmp1
+			dw kw_andvv, tmp0, tmp1, tmp0
+			dw kw_goto_ifzero_n, tmp0, if71_1
+			dw p_tofront_c, var_command_s
+			dw sel67_e_go
+if71_1:
+			dw kw_strcpy, stmp1, str52
+			dw kw_strcat, stmp1, var_a
+			dw p_putln_c, var_command_t, stmp1
+if71_e:
+
+			; Main.bas 703: Case "TOP"
+			dw sel67_e_go
+sel67_5:
+			dw kw_strcmpeq, var_command___sel67, str53
+			dw kw_goto_iffalse_n, sel67_6
+sel67_b6:
+
+			; Main.bas 704: txs = t
+			dw kw_vtov, var_command_t, var_txs
+
+			; Main.bas 705: TopLines front, 0                        ' printed into this slot's console, once
+			dw p_toplines_c, var_front, lit_0
+
+			; Main.bas 706: Case "PS"
+			dw sel67_e_go
+sel67_6:
+			dw kw_strcmpeq, var_command___sel67, str54
+			dw kw_goto_iffalse_n, sel67_7
+sel67_b7:
+
+			; Main.bas 707: For s = 1 To ns
+			dw kw_ltov, 1, var_command_s
+			dw kw_vtov, var_ns, for72_l
+			dw kw_forupv_n, var_command_s, for72_l, sel67_e
+for72_t:
+
+			; Main.bas 708: If st(s) = 0 Then a = "-" Else If st(s) = 1 Then a = "command line" Else GetNm s : a = en
+			dw kw_aget, arr_st, var_command_s, tmp0
+			dw kw_cpeqvl, tmp0, 0
+			dw kw_goto_iffalse_n, if73_1
+			dw kw_strcpy, var_a, str17
+			dw if73_e_go
+if73_1:
+			dw kw_aget, arr_st, var_command_s, tmp0
+			dw kw_cpeqvl, tmp0, 1
+			dw kw_goto_iffalse_n, if74_1
+			dw kw_strcpy, var_a, str18
+			dw if74_e_go
+if74_1:
+			dw p_getnm_c, var_command_s
+			dw kw_strcpy, var_a, var_en
+if74_e:
+if73_e:
+
+			; Main.bas 709: PutLn t, Right$("  " + N(s), 3) + IIf(s = front, " * ", "   ") + a
+			dw p_n_c, var_command_s
+			dw kw_strcpy, stmp2, var_n_n
+			dw kw_strcpy, stmp1, str23
+			dw kw_strcat, stmp1, stmp2
+			dw kw_strright, stmp1, stmp1, lit_3
+			dw kw_cpeqvv, var_command_s, var_front
+			dw kw_ftov, tmp2
+			dw kw_goto_ifzero_n, tmp2, ch75_0
+			dw kw_strcpy, stmp2, str55
+			dw ch75_e_go
+ch75_0:
+			dw kw_strcpy, stmp2, str56
+			dw ch75_e_go
+ch75_1:
+			dw kw_strcpy, stmp2, str15
+ch75_e:
+			dw kw_strcat, stmp1, stmp2
+			dw kw_strcat, stmp1, var_a
+			dw p_putln_c, var_command_t, stmp1
+
+			; Main.bas 710: Next
+			dw kw_next1v_n, var_command_s, for72_l, for72_t
+for72_e:
+
+			; Main.bas 711: Case "KILL"
+			dw sel67_e_go
+sel67_7:
+			dw kw_strcmpeq, var_command___sel67, str57
+			dw kw_goto_iffalse_n, sel67_8
+sel67_b8:
+
+			; Main.bas 712: s = Val(a)
+			dw kw_strval, var_a, var_command_s
+
+			; Main.bas 713: If s >= 1 And s <= ns And st(s) = 2 Then
+			dw kw_scpgevl, var_command_s, 1
+			dw kw_ftov, tmp0
+			dw kw_scplevv, var_command_s, var_ns
+			dw kw_ftov, tmp1
+			dw kw_andvv, tmp0, tmp1, tmp0
+			dw kw_aget, arr_st, var_command_s, tmp1
+			dw kw_cpeqvl, tmp1, 2
+			dw kw_ftov, tmp1
+			dw kw_andvv, tmp0, tmp1, tmp0
+			dw kw_goto_ifzero_n, tmp0, if76_1
+
+			; Main.bas 714: EndTask s
+			dw p_endtask_c, var_command_s
+
+			; Main.bas 715: Else
+			dw sel67_e_go
+if76_1:
+
+			; Main.bas 716: PutLn t, "nothing running in slot " + a
+			dw kw_strcpy, stmp1, str58
+			dw kw_strcat, stmp1, var_a
+			dw p_putln_c, var_command_t, stmp1
+
+			; Main.bas 717: End If
+if76_e:
+
+			; Main.bas 718: Case "RESET"
+			dw sel67_e_go
+sel67_8:
+			dw kw_strcmpeq, var_command___sel67, str59
+			dw kw_goto_iffalse_n, sel67_9
+sel67_b9:
+
+			; Main.bas 719: If a = "" Then s = t Else s = Val(a)
+			dw kw_strcmpeq, var_a, str15
+			dw kw_goto_iffalse_n, if77_1
+			dw kw_vtov, var_command_t, var_command_s
+			dw if77_e_go
+if77_1:
+			dw kw_strval, var_a, var_command_s
+if77_e:
+
+			; Main.bas 720: If s < 1 Or s > ns Then
+			dw kw_scpltvl, var_command_s, 1
+			dw kw_ftov, tmp0
+			dw kw_scpgtvv, var_command_s, var_ns
+			dw kw_ftov, tmp1
+			dw kw_orvv, tmp0, tmp1, tmp0
+			dw kw_goto_ifzero_n, tmp0, if78_1
+
+			; Main.bas 721: PutLn t, "no slot " + a
+			dw kw_strcpy, stmp1, str52
+			dw kw_strcat, stmp1, var_a
+			dw p_putln_c, var_command_t, stmp1
+
+			; Main.bas 722: Else
+			dw sel67_e_go
+if78_1:
+
+			; Main.bas 723: ResetSlot s
+			dw p_resetslot_c, var_command_s
+
+			; Main.bas 724: If s <> t Then PutLn t, "slot " + N(s) + " reset"
+			dw kw_cpnevv, var_command_s, var_command_t
+			dw kw_goto_iffalse_n, sel67_e
+			dw p_n_c, var_command_s
+			dw kw_strcpy, stmp2, var_n_n
+			dw kw_strcpy, stmp1, str60
+			dw kw_strcat, stmp1, stmp2
+			dw kw_strcat, stmp1, str61
+			dw p_putln_c, var_command_t, stmp1
+if79_1:
+
+			; Main.bas 725: End If
+if78_e:
+
+			; Main.bas 728: Case "CD"                                  ' (not in the Library: ROM build - no room)
+			dw sel67_e_go
+sel67_9:
+			dw kw_strcmpeq, var_command___sel67, str62
+			dw kw_goto_iffalse_n, sel67_10
+sel67_b10:
+
+			; Main.bas 729: ChDrive t
+			dw p_chdrive_c, var_command_t
+
+			; Main.bas 730: Case "DIR"
+			dw sel67_e_go
+sel67_10:
+			dw kw_strcmpeq, var_command___sel67, str40
+			dw kw_goto_iffalse_n, sel67_11
+sel67_b11:
+
+			; Main.bas 731: DirList t
+			dw p_dirlist_c, var_command_t
+
+			; Main.bas 733: Case "MEM"
+			dw sel67_e_go
+sel67_11:
+			dw kw_strcmpeq, var_command___sel67, str63
+			dw kw_goto_iffalse_n, sel67_12
+sel67_b12:
+
+			; Main.bas 734: MemShow t
+			dw p_memshow_c, var_command_t
+
+			; Main.bas 735: Case "WAIT"
+			dw sel67_e_go
+sel67_12:
+			dw kw_strcmpeq, var_command___sel67, str64
+			dw kw_goto_iffalse_n, sel67_13
+sel67_b13:
+
+			; Main.bas 736: If Running() > 0 Then wt = t
 			dw p_running_c
 			dw kw_vtov, var_running_running, tmp0
 			dw kw_scpgtvl, tmp0, 0
-			dw kw_goto_iffalse_n, sel70_e
+			dw kw_goto_iffalse_n, sel67_e
 			dw kw_vtov, var_command_t, var_wt
-if83_1:
+if80_1:
 
-			; Main.bas 671: Case "QUIT"
-			dw sel70_e_go
-sel70_13:
-			dw kw_strcmpeq, var_command___sel70, str57
-			dw kw_goto_iffalse_n, sel70_14
-sel70_b14:
+			; Main.bas 737: Case "QUIT"
+			dw sel67_e_go
+sel67_13:
+			dw kw_strcmpeq, var_command___sel67, str65
+			dw kw_goto_iffalse_n, sel67_14
+sel67_b14:
 
-			; Main.bas 672: quit = -1
+			; Main.bas 738: quit = -1
 			dw kw_ltov, -1, var_quit
 
-			; Main.bas 673: Case Else
-			dw sel70_e_go
-sel70_14:
+			; Main.bas 739: Case Else                                  ' not a command: the program of that name from the
+			dw sel67_e_go
+sel67_14:
 
-			; Main.bas 674: PutLn t, "? " + c + " (HELP)"
-			dw kw_strcpy, stmp1, str58
-			dw kw_strcat, stmp1, var_command_c
-			dw kw_strcat, stmp1, str59
-			dw p_putln_c, var_command_t, stmp1
+			; Main.bas 740: b = Trim$(a + " " + b)                   ' slot's drive, the rest of the line its tail
+			dw kw_strcpy, stmp0, var_a
+			dw kw_strcat, stmp0, str21
+			dw kw_strcat, stmp0, var_b
+			dw kw_strtrim, stmp0, stmp0
+			dw kw_strcpy, var_b, stmp0
 
-			; Main.bas 675: End Select
-sel70_e:
+			; Main.bas 741: a = c
+			dw kw_strcpy, var_a, var_command_c
+
+			; Main.bas 742: bare = -1
+			dw kw_ltov, -1, var_bare
+
+			; Main.bas 743: StartTask t, t
+			dw p_starttask_c, var_command_t, var_command_t
+
+			; Main.bas 744: bare = 0
+			dw kw_ztov, var_bare
+
+			; Main.bas 745: End Select
+sel67_e:
 			dw p_command_r
 
-ntc_rg28_e:
-			IF ($ < 34816) && (ntc_rg29_e - ntc_rg29 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+ntc_rg34_e:
+			IF ($ < 32768) && (ntc_rg35_e - ntc_rg35 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg29:
+ntc_rg35:
 ; ============================================================
 ; sub starttask (normal mode)
 ; ============================================================
 
 p_starttask:
 
-			; Main.bas 688: Dim h As Integer, n As Integer, p As Integer, want As Integer, rest As Integer, com As Integer
+			; Main.bas 758: Dim h As Integer, n As Integer, rest As Integer, com As Integer, w As String Max 72, d As Integer
 
-			; Main.bas 689: If a = "" Then PutLn t, "RUN what?" : Exit Sub
+			; Main.bas 759: If a = "" Then PutLn t, "RUN what?" : Exit Sub
 			dw kw_strcmpeq, var_a, str15
-			dw kw_goto_iffalse_n, if84_1
-			dw p_putln_c, var_starttask_t, str60
+			dw kw_goto_iffalse_n, if81_1
+			dw p_putln_c, var_starttask_t, str66
 			dw p_starttask_r
-if84_1:
+if81_1:
 
-			; Main.bas 690: h = -1
-			dw kw_ltov, -1, var_starttask_h
+			; Main.bas 760: w = a
+			dw kw_strcpy, var_starttask_w, var_a
 
-			; Main.bas 691: If InStr(a, ".") = 0 Then
-			dw kw_strinstr, lit_1, var_a, str61, tmp0
+			; Main.bas 761: d = 0                                          ' the drive looked on: the slot's (0), then A
+			dw kw_ztov, var_starttask_d
+
+			; Main.bas 762: Do
+do82_t:
+
+			; Main.bas 765: If d = 0 Then OwnDrive t Else n = Hyp.Drive(65)
+			dw kw_cpeqvl, var_starttask_d, 0
+			dw kw_goto_iffalse_n, if83_1
+			dw p_owndrive_c, var_starttask_t
+			dw if83_e_go
+if83_1:
+			dw p_hyp_drive_c, lit_65
+			dw kw_vtov, var_hyp_drive_drive, var_starttask_n
+if83_e:
+
+			; Main.bas 767: a = w : h = 0 : com = 0
+			dw kw_strcpy, var_a, var_starttask_w
+			dw kw_ztov, var_starttask_h
+			dw kw_ztov, var_starttask_com
+
+			; Main.bas 768: If InStr(a, ".") = 0 Then
+			dw kw_strinstr, lit_1, var_a, str67, tmp0
 			dw kw_cpeqvl, tmp0, 0
-			dw kw_goto_iffalse_n, if85_1
+			dw kw_goto_iffalse_n, if84_1
 
-			; Main.bas 692: h = FileSystem.Open(a + ".CYB", FileSystem.ForRead)
-			dw kw_strcpy, stmp0, var_a
-			dw kw_strcat, stmp0, str62
-			dw fn_filesystem_open, stmp0, lit_1, var_starttask_h
+			; Main.bas 769: dn = a + ".CYB"
+			dw kw_strcpy, var_dn, var_a
+			dw kw_strcat, var_dn, str68
 
-			; Main.bas 693: If h >= 0 Then a = a + ".CYB" Else com = -1
-			dw kw_scpgevl, var_starttask_h, 0
-			dw kw_goto_iffalse_n, if86_1
-			dw kw_strcat, var_a, str62
-			dw if85_e_go
-if86_1:
-			dw kw_ltov, -1, var_starttask_com
-if86_e:
+			; Main.bas 770: h = HOpen()
+			dw p_hopen_c
+			dw kw_vtov, var_hopen_hopen, var_starttask_h
 
-			; Main.bas 694: ElseIf Right$(a, 4) = ".COM" Then
-			dw if85_e_go
+			; Main.bas 771: If h Then a = dn Else com = -1
+			dw kw_goto_ifzero_n, var_starttask_h, if85_1
+			dw kw_strcpy, var_a, var_dn
+			dw if84_e_go
 if85_1:
-			dw kw_strright, stmp0, var_a, lit_4
-			dw kw_strcmpeq, stmp0, str63
-			dw kw_goto_iffalse_n, if85_2
-
-			; Main.bas 695: com = -1
 			dw kw_ltov, -1, var_starttask_com
-
-			; Main.bas 696: Else
-			dw if85_e_go
-if85_2:
-
-			; Main.bas 697: h = FileSystem.Open(a, FileSystem.ForRead)
-			dw fn_filesystem_open, var_a, lit_1, var_starttask_h
-
-			; Main.bas 698: End If
 if85_e:
 
-			; Main.bas 699: rest = &HF400                                  ' #0100 to the stub (#F500)
+			; Main.bas 772: ElseIf Right$(a, 4) = ".COM" Then
+			dw if84_e_go
+if84_1:
+			dw kw_strright, stmp0, var_a, lit_4
+			dw kw_strcmpeq, stmp0, str69
+			dw kw_goto_iffalse_n, if84_2
+
+			; Main.bas 773: com = -1
+			dw kw_ltov, -1, var_starttask_com
+
+			; Main.bas 774: Else
+			dw if84_e_go
+if84_2:
+
+			; Main.bas 775: dn = a
+			dw kw_strcpy, var_dn, var_a
+
+			; Main.bas 776: h = HOpen()
+			dw p_hopen_c
+			dw kw_vtov, var_hopen_hopen, var_starttask_h
+
+			; Main.bas 777: End If
+if84_e:
+
+			; Main.bas 778: rest = &HF400                                ' #0100 to the stub (#F500)
 			dw kw_ltov, -3072, var_starttask_rest
 
-			; Main.bas 700: If com Then
-			dw kw_goto_ifzero_n, var_starttask_com, if87_1
+			; Main.bas 779: If com Then
+			dw kw_goto_ifzero_n, var_starttask_com, if86_1
 
-			; Main.bas 701: Memory.SelectPage Memory.BankPage(bk(s), 1)  ' the entry read into slot s's #4000 (loaded over later)
-			dw kw_aget, arr_bk, var_starttask_s, tmp0
-			dw p_memory_bankpage_c, tmp0, lit_1
-			dw fn_memory_selectpage, var_memory_bankpage_bankpage, var_memory_selectpage_selectpage
-
-			; Main.bas 702: en = a
+			; Main.bas 780: en = a
 			dw kw_strcpy, var_en, var_a
 
-			; Main.bas 703: n = FindCom()
+			; Main.bas 781: n = FindCom()                              ' (the entry in ob)
 			dw p_findcom_c
 			dw kw_vtov, var_findcom_findcom, var_starttask_n
 
-			; Main.bas 704: If n = 0 Then PutLn t, a + ": not found" : Exit Sub
-			dw kw_cpeqvl, var_starttask_n, 0
-			dw kw_goto_iffalse_n, if88_1
-			dw kw_strcpy, stmp1, var_a
-			dw kw_strcat, stmp1, str64
-			dw p_putln_c, var_starttask_t, stmp1
-			dw p_starttask_r
-if88_1:
+			; Main.bas 782: If n > 0 Then
+			dw kw_scpgtvl, var_starttask_n, 0
+			dw kw_goto_iffalse_n, if87_1
 
-			; Main.bas 705: rest = n                                     ' (an Integer used unsigned: up to #F400)
+			; Main.bas 783: rest = n                                 ' (an Integer used unsigned: up to #F400)
 			dw kw_vtov, var_starttask_n, var_starttask_rest
 
-			; Main.bas 706: en = Space$(12)
+			; Main.bas 784: en = Space$(12)
 			dw kw_strspace, stmp0, lit_12
 			dw kw_strcpy, var_en, stmp0
 
-			; Main.bas 707: a = Left$(en, Ent.DiscName(&H4000, VarPtr(en)))
-			dw p_ent_discname_c, lit_16384, vp_var_en
+			; Main.bas 785: a = Left$(en, Ent.DiscName(VarPtr(ob), VarPtr(en)))
+			dw p_ent_discname_c, vp_var_ob, vp_var_en
 			dw kw_vtov, var_ent_discname_discname, tmp1
 			dw kw_strleft, stmp0, var_en, tmp1
 			dw kw_strcpy, var_a, stmp0
 
-			; Main.bas 708: h = FileSystem.Open(a, FileSystem.ForReadRaw)
-			dw fn_filesystem_open, var_a, lit_4, var_starttask_h
+			; Main.bas 786: dn = a
+			dw kw_strcpy, var_dn, var_a
 
-			; Main.bas 709: End If
+			; Main.bas 787: h = HOpen()                              ' (read raw: a #1A is a byte)
+			dw p_hopen_c
+			dw kw_vtov, var_hopen_hopen, var_starttask_h
+
+			; Main.bas 788: End If
 if87_1:
 
-			; Main.bas 710: If h < 0 Then PutLn t, a + ": not found" : Exit Sub
-			dw kw_scpltvl, var_starttask_h, 0
-			dw kw_goto_iffalse_n, if89_1
-			dw kw_strcpy, stmp1, var_a
-			dw kw_strcat, stmp1, str64
-			dw p_putln_c, var_starttask_t, stmp1
-			dw p_starttask_r
+			; Main.bas 789: End If
+if86_1:
+
+			; Main.bas 790: If h Then Exit Do
+			dw kw_goto_ifzero_n, var_starttask_h, if88_1
+			dw do82_e_go
+if88_1:
+
+			; Main.bas 794: If d = 1 Or dv(t) = 65 Then Exit Do          ' not on the slot's drive: on A (the commands)
+			dw kw_cpeqvl, var_starttask_d, 1
+			dw kw_ftov, tmp0
+			dw kw_aget, arr_dv, var_starttask_t, tmp1
+			dw kw_cpeqvl, tmp1, 65
+			dw kw_ftov, tmp1
+			dw kw_orvv, tmp0, tmp1, tmp0
+			dw kw_goto_ifzero_n, tmp0, if89_1
+			dw do82_e_go
 if89_1:
 
-			; Main.bas 711: If st(s) = 0 Then OpenSlot s
-			dw kw_aget, arr_st, var_starttask_s, tmp0
-			dw kw_cpeqvl, tmp0, 0
+			; Main.bas 795: d = 1
+			dw kw_ltov, 1, var_starttask_d
+
+			; Main.bas 797: Loop
+			dw do82_t_go
+do82_e:
+
+			; Main.bas 798: If h = 0 Then
+			dw kw_cpeqvl, var_starttask_h, 0
 			dw kw_goto_iffalse_n, if90_1
-			dw p_openslot_c, var_starttask_s
+
+			; Main.bas 799: a = w
+			dw kw_strcpy, var_a, var_starttask_w
+
+			; Main.bas 802: OwnDrive t
+			dw p_owndrive_c, var_starttask_t
+
+			; Main.bas 804: NotFound t
+			dw p_notfound_c, var_starttask_t
+
+			; Main.bas 805: Exit Sub
+			dw p_starttask_r
+
+			; Main.bas 806: End If
 if90_1:
 
-			; Main.bas 712: If s <> t Then PutLn s, "RUN " + a
-			dw kw_cpnevv, var_starttask_s, var_starttask_t
+			; Main.bas 807: If st(s) = 0 Then OpenSlot s
+			dw kw_aget, arr_st, var_starttask_s, tmp0
+			dw kw_cpeqvl, tmp0, 0
 			dw kw_goto_iffalse_n, if91_1
-			dw kw_strcpy, stmp1, str65
-			dw kw_strcat, stmp1, var_a
-			dw p_putln_c, var_starttask_s, stmp1
+			dw p_openslot_c, var_starttask_s
 if91_1:
 
-			; Main.bas 713: Install s
+			; Main.bas 808: If s <> t Then PutLn s, "RUN " + a
+			dw kw_cpnevv, var_starttask_s, var_starttask_t
+			dw kw_goto_iffalse_n, if92_1
+			dw kw_strcpy, stmp1, str70
+			dw kw_strcat, stmp1, var_a
+			dw p_putln_c, var_starttask_s, stmp1
+if92_1:
+
+			; Main.bas 809: Install s
 			dw p_install_c, var_starttask_s
 
-			; Main.bas 714: p = 0
-			dw kw_ztov, var_starttask_p
+			; Main.bas 810: n = Hyp.FileCall(103, rest, s, sg(s), &H100, 0, VarPtr(ob))  ' at #0100, rest bytes at most
+			dw kw_aget, arr_sg, var_starttask_s, tmp3
+			dw p_hyp_filecall_c, lit_103, var_starttask_rest, var_starttask_s, tmp3, lit_256, lit_0, vp_var_ob
+			dw kw_vtov, var_hyp_filecall_filecall, var_starttask_n
 
-			; Main.bas 715: Do
-do92_t:
+			; Main.bas 811: HClose
+			dw p_hclose_c
 
-			; Main.bas 716: Memory.SelectPage Memory.BankPage(bk(s), p)
-			dw kw_aget, arr_bk, var_starttask_s, tmp0
-			dw p_memory_bankpage_c, tmp0, var_starttask_p
-			dw fn_memory_selectpage, var_memory_bankpage_bankpage, var_memory_selectpage_selectpage
-
-			; Main.bas 717: If p = 0 Then want = &H3F00 Else want = &H4000
-			dw kw_cpeqvl, var_starttask_p, 0
+			; Main.bas 814: If d = 1 Then OwnDrive t                       ' (loaded from A: the slot's drive again)
+			dw kw_cpeqvl, var_starttask_d, 1
 			dw kw_goto_iffalse_n, if93_1
-			dw kw_ltov, 16128, var_starttask_want
-			dw if93_e_go
+			dw p_owndrive_c, var_starttask_t
 if93_1:
-			dw kw_ltov, 16384, var_starttask_want
-if93_e:
 
-			; Main.bas 718: If p = 3 Then want = &H3500
-			dw kw_cpeqvl, var_starttask_p, 3
-			dw kw_goto_iffalse_n, if94_1
-			dw kw_ltov, 13568, var_starttask_want
-if94_1:
-
-			; Main.bas 719: If rest >= 0 And want > rest Then want = rest   ' (rest unsigned: below 0 is over 32767)
-			dw kw_scpgevl, var_starttask_rest, 0
-			dw kw_ftov, tmp0
-			dw kw_scpgtvv, var_starttask_want, var_starttask_rest
-			dw kw_ftov, tmp1
-			dw kw_andvv, tmp0, tmp1, tmp0
-			dw kw_goto_ifzero_n, tmp0, if95_1
-			dw kw_vtov, var_starttask_rest, var_starttask_want
-if95_1:
-
-			; Main.bas 720: If p = 0 Then n = FileSystem.Read(h, &H4100, want) Else n = FileSystem.Read(h, &H4000, want)
-			dw kw_cpeqvl, var_starttask_p, 0
-			dw kw_goto_iffalse_n, if96_1
-			dw fn_filesystem_read, var_starttask_h, lit_16640, var_starttask_want, var_starttask_n
-			dw if96_e_go
-if96_1:
-			dw fn_filesystem_read, var_starttask_h, lit_16384, var_starttask_want, var_starttask_n
-if96_e:
-
-			; Main.bas 721: rest = rest - n
-			dw kw_subvv, var_starttask_rest, var_starttask_n, var_starttask_rest
-
-			; Main.bas 722: p = p + 1
-			dw kw_inc, var_starttask_p
-
-			; Main.bas 723: Loop Until n < want Or rest = 0 Or p = 4
-			dw kw_scpltvv, var_starttask_n, var_starttask_want
-			dw kw_ftov, tmp0
-			dw kw_cpeqvl, var_starttask_rest, 0
-			dw kw_ftov, tmp1
-			dw kw_orvv, tmp0, tmp1, tmp0
-			dw kw_cpeqvl, var_starttask_p, 4
-			dw kw_ftov, tmp1
-			dw kw_orvv, tmp0, tmp1, tmp0
-			dw kw_goto_ifzero_n, tmp0, do92_t
-do92_e:
-
-			; Main.bas 724: FileSystem.Close h
-			dw fn_filesystem_close, var_starttask_h, var_filesystem_close_close
-
-			; Main.bas 725: If com And rest > 0 Then PutLn t, a + ": shorter than FILES.DIR says" : Exit Sub
-			dw kw_scpgtvl, var_starttask_rest, 0
+			; Main.bas 816: If com And n <> rest Then PutLn t, a + ": shorter than FILES.DIR says" : Exit Sub
+			dw kw_cpnevv, var_starttask_n, var_starttask_rest
 			dw kw_ftov, tmp1
 			dw kw_andvv, var_starttask_com, tmp1, tmp0
-			dw kw_goto_ifzero_n, tmp0, if97_1
+			dw kw_goto_ifzero_n, tmp0, if94_1
 			dw kw_strcpy, stmp1, var_a
-			dw kw_strcat, stmp1, str66
+			dw kw_strcat, stmp1, str71
 			dw p_putln_c, var_starttask_t, stmp1
 			dw p_starttask_r
-if97_1:
+if94_1:
 
-			; Main.bas 727: Memory.WriteWord Far(s, &HFEFC), &H100
+			; Main.bas 818: Memory.WriteWord Far(s, &HFEFC), &H100
 			dw p_far_c, var_starttask_s, lit_m260
 			dw fn_memory_writeword, var_far_far, lit_256
 
-			; Main.bas 728: Memory.WriteWord Far(s, &HFEFE), 0
+			; Main.bas 819: Memory.WriteWord Far(s, &HFEFE), 0
 			dw p_far_c, var_starttask_s, lit_m258
 			dw fn_memory_writeword, var_far_far, lit_0
 
-			; Main.bas 729: Memory.WriteWord Far(s, &HFFFE), &HFEFC
+			; Main.bas 820: Memory.WriteWord Far(s, &HFFFE), &HFEFC
 			dw p_far_c, var_starttask_s, lit_m2
 			dw fn_memory_writeword, var_far_far, lit_m260
 
-			; Main.bas 730: Memory.WriteByte Far(s, NMLEN), Len(a)
+			; Main.bas 822: If b = "" Then
+			dw kw_strcmpeq, var_b, str15
+			dw kw_goto_iffalse_n, if95_1
+
+			; Main.bas 823: Memory.WriteByte Far(s, &H80), 0
+			dw p_far_c, var_starttask_s, lit_128
+			dw fn_memory_writebyte, var_far_far, lit_0
+
+			; Main.bas 824: Else
+			dw if95_e_go
+if95_1:
+
+			; Main.bas 825: b = " " + b
+			dw kw_strcpy, stmp0, str21
+			dw kw_strcat, stmp0, var_b
+			dw kw_strcpy, var_b, stmp0
+
+			; Main.bas 826: Hyp.Xfer 1, sg(s), &H81, VarPtr(b), Len(b)
+			dw kw_aget, arr_sg, var_starttask_s, tmp1
+			dw kw_strlen, var_b, tmp4
+			dw p_hyp_xfer_c, lit_1, tmp1, lit_129, vp_var_b, tmp4
+
+			; Main.bas 827: Memory.WriteByte Far(s, &H80), Len(b)
+			dw p_far_c, var_starttask_s, lit_128
+			dw kw_strlen, var_b, tmp1
+			dw fn_memory_writebyte, var_far_far, tmp1
+
+			; Main.bas 828: Memory.WriteByte Far(s, &H81 + Len(b)), 0
+			dw kw_strlen, var_b, tmp2
+			dw kw_addl, tmp2, 129, tmp1
+			dw p_far_c, var_starttask_s, tmp1
+			dw fn_memory_writebyte, var_far_far, lit_0
+
+			; Main.bas 829: End If
+if95_e:
+
+			; Main.bas 830: Memory.WriteByte Far(s, NMLEN), Len(a)
 			dw p_far_c, var_starttask_s, lit_m2344
 			dw kw_strlen, var_a, tmp1
 			dw fn_memory_writebyte, var_far_far, tmp1
 
-			; Main.bas 731: Memory.Copy CLng(VarPtr(a)), Far(s, NMBUF), Len(a)
-			dw kw_l_itol, vp_var_a, ltmp0
-			dw p_far_c, var_starttask_s, lit_m2343
-			dw kw_strlen, var_a, tmp2
-			dw fn_memory_copy, ltmp0, var_far_far, tmp2, var_memory_copy_copy
+			; Main.bas 831: Hyp.Xfer 1, sg(s), NMBUF, VarPtr(a), Len(a)
+			dw kw_aget, arr_sg, var_starttask_s, tmp1
+			dw kw_strlen, var_a, tmp4
+			dw p_hyp_xfer_c, lit_1, tmp1, lit_m2343, vp_var_a, tmp4
 
-			; Main.bas 732: kq(s) = 0
+			; Main.bas 832: kq(s) = 0
 			dw kw_asetl, arr_kq, var_starttask_s, 0
 
-			; Main.bas 733: Memory.WriteByte Far(s, &HF685), 0             ' no escape sequence rest half done
+			; Main.bas 833: Memory.WriteByte Far(s, &HF685), 0             ' no escape sequence rest half done
 			dw p_far_c, var_starttask_s, lit_m2427
 			dw fn_memory_writebyte, var_far_far, lit_0
 
-			; Main.bas 734: wk(s) = -1
+			; Main.bas 834: wk(s) = -1
 			dw kw_asetl, arr_wk, var_starttask_s, -1
 
-			; Main.bas 735: st(s) = 2
+			; Main.bas 835: dm(s) = &H80                                   ' CP/M's record buffer to start with
+			dw kw_asetl, arr_dm, var_starttask_s, 128
+
+			; Main.bas 836: st(s) = 2
 			dw kw_asetl, arr_st, var_starttask_s, 2
 
-			; Main.bas 736: If s <> t Then PutLn t, a + " runs in slot" + Str$(s)
+			; Main.bas 837: If s <> t Then PutLn t, a + " runs in slot" + Str$(s)
 			dw kw_cpnevv, var_starttask_s, var_starttask_t
-			dw kw_goto_iffalse_n, if98_1
+			dw kw_goto_iffalse_n, if96_1
 			dw kw_strcpy, stmp1, var_a
-			dw kw_strcat, stmp1, str67
+			dw kw_strcat, stmp1, str72
 			dw kw_strstr, stmp2, var_starttask_s
 			dw kw_strcat, stmp1, stmp2
 			dw p_putln_c, var_starttask_t, stmp1
-if98_1:
+if96_1:
 			dw p_starttask_r
 
-ntc_rg29_e:
-			IF ($ < 34816) && (ntc_rg30_e - ntc_rg30 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+ntc_rg35_e:
+			IF ($ < 32768) && (ntc_rg36_e - ntc_rg36 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg30:
+ntc_rg36:
+; ============================================================
+; sub notfound (normal mode)
+; ============================================================
+
+p_notfound:
+
+			; Main.bas 841: If bare Then PutLn t, "? " + a + " (HELP)" Else PutLn t, a + ": not found"
+			dw kw_goto_ifzero_n, var_bare, if97_1
+			dw kw_strcpy, stmp1, str73
+			dw kw_strcat, stmp1, var_a
+			dw kw_strcat, stmp1, str74
+			dw p_putln_c, var_notfound_t, stmp1
+			dw if97_e_go
+if97_1:
+			dw kw_strcpy, stmp1, var_a
+			dw kw_strcat, stmp1, str75
+			dw p_putln_c, var_notfound_t, stmp1
+if97_e:
+			dw p_notfound_r
+
+ntc_rg36_e:
+			IF ($ < 32768) && (ntc_rg37_e - ntc_rg37 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg37:
+; ============================================================
+; sub owndrive (normal mode)
+; ============================================================
+
+p_owndrive:
+
+			; Main.bas 848: Dim r As Integer
+
+			; Main.bas 849: If dv(t) = 0 Then dv(t) = 65
+			dw kw_aget, arr_dv, var_owndrive_t, tmp0
+			dw kw_cpeqvl, tmp0, 0
+			dw kw_goto_iffalse_n, if98_1
+			dw kw_asetl, arr_dv, var_owndrive_t, 65
+if98_1:
+
+			; Main.bas 850: r = Hyp.Drive(dv(t))
+			dw kw_aget, arr_dv, var_owndrive_t, tmp0
+			dw p_hyp_drive_c, tmp0
+			dw kw_vtov, var_hyp_drive_drive, var_owndrive_r
+			dw p_owndrive_r
+
+ntc_rg37_e:
+			IF ($ < 32768) && (ntc_rg38_e - ntc_rg38 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg38:
 ; ============================================================
 ; sub chdrive (normal mode)
 ; ============================================================
 
 p_chdrive:
 
-			; Main.bas 759: Dim r As Integer, h As Integer
+			; Main.bas 874: Dim r As Integer, h As Integer
 
-			; Main.bas 760: If dv(t) = 0 Then dv(t) = 65
+			; Main.bas 875: If dv(t) = 0 Then dv(t) = 65
 			dw kw_aget, arr_dv, var_chdrive_t, tmp0
 			dw kw_cpeqvl, tmp0, 0
 			dw kw_goto_iffalse_n, if99_1
 			dw kw_asetl, arr_dv, var_chdrive_t, 65
 if99_1:
 
-			; Main.bas 761: If a <> "" Then
+			; Main.bas 876: If a <> "" Then
 			dw kw_strcmpne, var_a, str15
 			dw kw_goto_iffalse_n, if100_1
 
-			; Main.bas 762: h = -1
-			dw kw_ltov, -1, var_chdrive_h
+			; Main.bas 877: h = 0
+			dw kw_ztov, var_chdrive_h
 
-			; Main.bas 763: If Hyp.Drive(Asc(a)) Then h = FileSystem.Open("FILES.DIR", FileSystem.ForReadRaw)
+			; Main.bas 878: dn = "FILES.DIR"
+			dw kw_strcpy, var_dn, str76
+
+			; Main.bas 879: If Hyp.Drive(Asc(a)) Then h = HOpen()
 			dw kw_strasc, var_a, tmp0
 			dw p_hyp_drive_c, tmp0
 			dw kw_goto_ifzero_n, var_hyp_drive_drive, if101_1
-			dw fn_filesystem_open, str68, lit_4, var_chdrive_h
+			dw p_hopen_c
+			dw kw_vtov, var_hopen_hopen, var_chdrive_h
 if101_1:
 
-			; Main.bas 764: If h < 0 Then
-			dw kw_scpltvl, var_chdrive_h, 0
+			; Main.bas 880: If h = 0 Then
+			dw kw_cpeqvl, var_chdrive_h, 0
 			dw kw_goto_iffalse_n, if102_1
 
-			; Main.bas 765: PutLn t, Left$(a, 1) + ": no such drive, or no FILES.DIR there"
+			; Main.bas 881: PutLn t, Left$(a, 1) + ": no such drive, or no FILES.DIR there"
 			dw kw_strleft, stmp1, var_a, lit_1
-			dw kw_strcat, stmp1, str69
+			dw kw_strcat, stmp1, str77
 			dw p_putln_c, var_chdrive_t, stmp1
 
-			; Main.bas 766: Else
+			; Main.bas 882: Else
 			dw if102_e_go
 if102_1:
 
-			; Main.bas 767: r = FileSystem.Close(h)
-			dw fn_filesystem_close, var_chdrive_h, var_chdrive_r
+			; Main.bas 883: HClose
+			dw p_hclose_c
 
-			; Main.bas 768: dv(t) = Asc(a)
+			; Main.bas 884: dv(t) = Asc(a)
 			dw kw_strasc, var_a, tmp1
 			dw kw_aset, arr_dv, var_chdrive_t, tmp1
 
-			; Main.bas 769: End If
+			; Main.bas 885: End If
 if102_e:
 
-			; Main.bas 770: r = Hyp.Drive(dv(t))
+			; Main.bas 886: r = Hyp.Drive(dv(t))
 			dw kw_aget, arr_dv, var_chdrive_t, tmp0
 			dw p_hyp_drive_c, tmp0
 			dw kw_vtov, var_hyp_drive_drive, var_chdrive_r
 
-			; Main.bas 771: End If
+			; Main.bas 887: End If
 if100_1:
 
-			; Main.bas 772: PutLn t, "drive " + Chr$(dv(t))
+			; Main.bas 888: PutLn t, "drive " + Chr$(dv(t))
 			dw kw_aget, arr_dv, var_chdrive_t, tmp2
 			dw kw_strchr, stmp2, tmp2
-			dw kw_strcpy, stmp1, str70
+			dw kw_strcpy, stmp1, str78
 			dw kw_strcat, stmp1, stmp2
 			dw p_putln_c, var_chdrive_t, stmp1
 			dw p_chdrive_r
 
-ntc_rg30_e:
-			IF ($ < 34816) && (ntc_rg31_e - ntc_rg31 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+ntc_rg38_e:
+			IF ($ < 32768) && (ntc_rg39_e - ntc_rg39 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg31:
+ntc_rg39:
 ; ============================================================
 ; sub dirlist (normal mode)
 ; ============================================================
 
 p_dirlist:
 
-			; Main.bas 783: Dim h As Integer, r As Integer, k As Integer
+			; Main.bas 899: Dim r As Integer, k As Integer
 
-			; Main.bas 784: h = FileSystem.Open("FILES.DIR", FileSystem.ForReadRaw)
-			dw fn_filesystem_open, str68, lit_4, var_dirlist_h
+			; Main.bas 900: dn = "FILES.DIR"
+			dw kw_strcpy, var_dn, str76
 
-			; Main.bas 785: If h < 0 Then PutLn t, "no FILES.DIR" : Exit Sub
-			dw kw_scpltvl, var_dirlist_h, 0
+			; Main.bas 901: If HOpen() = 0 Then PutLn t, "no FILES.DIR" : Exit Sub
+			dw p_hopen_c
+			dw kw_vtov, var_hopen_hopen, tmp0
+			dw kw_cpeqvl, tmp0, 0
 			dw kw_goto_iffalse_n, if103_1
-			dw p_putln_c, var_dirlist_t, str71
+			dw p_putln_c, var_dirlist_t, str79
 			dw p_dirlist_r
 if103_1:
 
-			; Main.bas 786: k = 0
+			; Main.bas 902: k = 0
 			dw kw_ztov, var_dirlist_k
 
-			; Main.bas 787: Do
+			; Main.bas 903: Do While HRead(64) = 64                         ' (into ob; PutLn uses ob after it is shown)
 do104_t:
+			dw p_hread_c, lit_64
+			dw kw_vtov, var_hread_hread, tmp0
+			dw kw_cpeqvl, tmp0, 64
+			dw kw_goto_iffalse_n, do104_e
 
-			; Main.bas 788: Memory.SelectPage Memory.BankPage(bk(t), 1)
-			dw kw_aget, arr_bk, var_dirlist_t, tmp0
-			dw p_memory_bankpage_c, tmp0, lit_1
-			dw fn_memory_selectpage, var_memory_bankpage_bankpage, var_memory_selectpage_selectpage
-
-			; Main.bas 789: If FileSystem.Read(h, &H4000, 64) < 64 Then Exit Do
-			dw fn_filesystem_read, var_dirlist_h, lit_16384, lit_64, var_filesystem_read_read
-			dw kw_vtov, var_filesystem_read_read, tmp0
-			dw kw_scpltvl, tmp0, 64
-			dw kw_goto_iffalse_n, if105_1
-			dw do104_e_go
-if105_1:
-
-			; Main.bas 790: en = Space$(60)
+			; Main.bas 904: en = Space$(60)
 			dw kw_strspace, stmp0, lit_60
 			dw kw_strcpy, var_en, stmp0
 
-			; Main.bas 791: r = Ent.Show(&H4000, VarPtr(en))
-			dw p_ent_show_c, lit_16384, vp_var_en
+			; Main.bas 905: r = Ent.Show(VarPtr(ob), VarPtr(en))
+			dw p_ent_show_c, vp_var_ob, vp_var_en
 			dw kw_vtov, var_ent_show_show, var_dirlist_r
 
-			; Main.bas 792: If r > 0 Then PutLn t, Left$(en, r) : k = k + 1
+			; Main.bas 906: If r > 0 Then PutLn t, Left$(en, r) : k = k + 1
 			dw kw_scpgtvl, var_dirlist_r, 0
 			dw kw_goto_iffalse_n, do104_t
 			dw kw_strleft, stmp1, var_en, var_dirlist_r
 			dw p_putln_c, var_dirlist_t, stmp1
 			dw kw_inc, var_dirlist_k
-if106_1:
+if105_1:
 
-			; Main.bas 793: Loop
+			; Main.bas 907: Loop
 			dw do104_t_go
 do104_e:
 
-			; Main.bas 794: r = FileSystem.Close(h)
-			dw fn_filesystem_close, var_dirlist_h, var_dirlist_r
+			; Main.bas 908: HClose
+			dw p_hclose_c
 
-			; Main.bas 795: PutLn t, N(k) + " in FILES.DIR"
+			; Main.bas 909: PutLn t, N(k) + " in FILES.DIR"
 			dw p_n_c, var_dirlist_k
 			dw kw_strcpy, stmp1, var_n_n
-			dw kw_strcat, stmp1, str72
+			dw kw_strcat, stmp1, str80
 			dw p_putln_c, var_dirlist_t, stmp1
 			dw p_dirlist_r
 
-ntc_rg31_e:
-			IF ($ < 34816) && (ntc_rg32_e - ntc_rg32 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+ntc_rg39_e:
+			IF ($ < 32768) && (ntc_rg40_e - ntc_rg40 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg32:
+ntc_rg40:
 ; ============================================================
 ; function findcom (normal mode)
 ; ============================================================
 
 p_findcom:
 
-			; Main.bas 802: Dim r As Integer
+			; Main.bas 916: Dim r As Integer
 
-			; Main.bas 803: Ent.SetName VarPtr(en), Len(en)
+			; Main.bas 917: Ent.SetName VarPtr(en), Len(en)
 			dw kw_strlen, var_en, tmp1
 			dw p_ent_setname_c, vp_var_en, tmp1
 
-			; Main.bas 804: dn = en
+			; Main.bas 918: dn = en
 			dw kw_strcpy, var_dn, var_en
 
-			; Main.bas 805: r = InStr(dn, ".")
-			dw kw_strinstr, lit_1, var_dn, str61, var_findcom_r
+			; Main.bas 919: r = InStr(dn, ".")
+			dw kw_strinstr, lit_1, var_dn, str67, var_findcom_r
 
-			; Main.bas 806: If r > 0 Then dn = Left$(dn, r - 1)
+			; Main.bas 920: If r > 0 Then dn = Left$(dn, r - 1)
 			dw kw_scpgtvl, var_findcom_r, 0
-			dw kw_goto_iffalse_n, if107_1
+			dw kw_goto_iffalse_n, if106_1
 			dw kw_addl, var_findcom_r, -1, tmp1
 			dw kw_strleft, stmp0, var_dn, tmp1
 			dw kw_strcpy, var_dn, stmp0
-if107_1:
+if106_1:
 
-			; Main.bas 807: r = 0
+			; Main.bas 921: r = 0
 			dw kw_ztov, var_findcom_r
 
-			; Main.bas 808: If Len(dn) <= 8 Then dn = dn + ".HDR" : r = FindEnt()      ' (a longer name: only a long name)
+			; Main.bas 922: If Len(dn) <= 8 Then dn = dn + ".HDR" : r = FindEnt()      ' (a longer name: only a long name)
 			dw kw_strlen, var_dn, tmp0
 			dw kw_scplevl, tmp0, 8
+			dw kw_goto_iffalse_n, if107_1
+			dw kw_strcat, var_dn, str81
+			dw p_findent_c
+			dw kw_vtov, var_findent_findent, var_findcom_r
+if107_1:
+
+			; Main.bas 923: If r = 0 Then dn = "FILES.DIR" : r = FindEnt()
+			dw kw_cpeqvl, var_findcom_r, 0
 			dw kw_goto_iffalse_n, if108_1
-			dw kw_strcat, var_dn, str73
+			dw kw_strcpy, var_dn, str76
 			dw p_findent_c
 			dw kw_vtov, var_findent_findent, var_findcom_r
 if108_1:
 
-			; Main.bas 809: If r = 0 Then dn = "FILES.DIR" : r = FindEnt()
-			dw kw_cpeqvl, var_findcom_r, 0
-			dw kw_goto_iffalse_n, if109_1
-			dw kw_strcpy, var_dn, str68
-			dw p_findent_c
-			dw kw_vtov, var_findent_findent, var_findcom_r
-if109_1:
-
-			; Main.bas 810: FindCom = r
+			; Main.bas 924: FindCom = r
 			dw kw_vtov, var_findcom_r, var_findcom_findcom
 			dw p_findcom_r
 
-ntc_rg32_e:
-			IF ($ < 34816) && (ntc_rg33_e - ntc_rg33 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+ntc_rg40_e:
+			IF ($ < 32768) && (ntc_rg41_e - ntc_rg41 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg33:
+ntc_rg41:
 ; ============================================================
 ; function findent (normal mode)
 ; ============================================================
 
 p_findent:
 
-			; Main.bas 815: Dim h As Integer, r As Integer
+			; Main.bas 929: Dim r As Integer
 
-			; Main.bas 816: r = 0
+			; Main.bas 930: r = 0
 			dw kw_ztov, var_findent_r
 
-			; Main.bas 817: h = FileSystem.Open(dn, FileSystem.ForReadRaw)
-			dw fn_filesystem_open, var_dn, lit_4, var_findent_h
+			; Main.bas 931: If HOpen() Then
+			dw p_hopen_c
+			dw kw_goto_ifzero_n, var_hopen_hopen, if109_1
 
-			; Main.bas 818: If h >= 0 Then
-			dw kw_scpgevl, var_findent_h, 0
-			dw kw_goto_iffalse_n, if110_1
-
-			; Main.bas 819: Do While FileSystem.Read(h, &H4000, 64) = 64
-do111_t:
-			dw fn_filesystem_read, var_findent_h, lit_16384, lit_64, var_filesystem_read_read
-			dw kw_vtov, var_filesystem_read_read, tmp0
+			; Main.bas 932: Do While HRead(64) = 64
+do110_t:
+			dw p_hread_c, lit_64
+			dw kw_vtov, var_hread_hread, tmp0
 			dw kw_cpeqvl, tmp0, 64
-			dw kw_goto_iffalse_n, do111_e
+			dw kw_goto_iffalse_n, do110_e
 
-			; Main.bas 820: r = Ent.Length(&H4000, VarPtr(en), Len(en))
+			; Main.bas 933: r = Ent.Length(VarPtr(ob), VarPtr(en), Len(en))
 			dw kw_strlen, var_en, tmp2
-			dw p_ent_length_c, lit_16384, vp_var_en, tmp2
+			dw p_ent_length_c, vp_var_ob, vp_var_en, tmp2
 			dw kw_vtov, var_ent_length_length, var_findent_r
 
-			; Main.bas 821: If r <> 0 Then Exit Do
+			; Main.bas 934: If r <> 0 Then Exit Do
 			dw kw_cpnevl, var_findent_r, 0
-			dw kw_goto_iffalse_n, do111_t
-			dw do111_e_go
-if112_1:
+			dw kw_goto_iffalse_n, do110_t
+			dw do110_e_go
+if111_1:
 
-			; Main.bas 822: Loop
-			dw do111_t_go
-do111_e:
+			; Main.bas 935: Loop
+			dw do110_t_go
+do110_e:
 
-			; Main.bas 823: FileSystem.Close h
-			dw fn_filesystem_close, var_findent_h, var_filesystem_close_close
+			; Main.bas 936: HClose
+			dw p_hclose_c
 
-			; Main.bas 824: End If
-if110_1:
+			; Main.bas 937: End If
+if109_1:
 
-			; Main.bas 825: FindEnt = r
+			; Main.bas 938: FindEnt = r
 			dw kw_vtov, var_findent_r, var_findent_findent
 			dw p_findent_r
 
-ntc_rg33_e:
-			IF ($ < 34816) && (ntc_rg34_e - ntc_rg34 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+ntc_rg41_e:
+			IF ($ < 32768) && (ntc_rg42_e - ntc_rg42 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg34:
+ntc_rg42:
 ; ============================================================
 ; sub endtask (normal mode)
 ; ============================================================
 
 p_endtask:
 
-			; Main.bas 830: Dim c As Integer
+			; Main.bas 943: Dim c As Integer
 
-			; Main.bas 831: st(t) = 1
+			; Main.bas 944: FilesShut t
+			dw p_filesshut_c, var_endtask_t
+
+			; Main.bas 945: st(t) = 1
 			dw kw_asetl, arr_st, var_endtask_t, 1
 
-			; Main.bas 832: runs = runs + 1
+			; Main.bas 946: runs = runs + 1
 			dw kw_inc, var_runs
 
-			; Main.bas 833: PutLn t, ""
+			; Main.bas 947: PutLn t, ""
 			dw p_putln_c, var_endtask_t, str15
 
-			; Main.bas 834: GetNm t
+			; Main.bas 948: GetNm t
 			dw p_getnm_c, var_endtask_t
 
-			; Main.bas 835: PutLn t, "[" + en + " ended]"
-			dw kw_strcpy, stmp1, str74
+			; Main.bas 949: PutLn t, "[" + en + " ended]"
+			dw kw_strcpy, stmp1, str82
 			dw kw_strcat, stmp1, var_en
-			dw kw_strcat, stmp1, str75
+			dw kw_strcat, stmp1, str83
 			dw p_putln_c, var_endtask_t, stmp1
 
-			; Main.bas 836: Prompt t
+			; Main.bas 950: Prompt t
 			dw p_prompt_c, var_endtask_t
 
-			; Main.bas 837: c = kq(t) : kq(t) = 0
+			; Main.bas 951: c = kq(t) : kq(t) = 0
 			dw kw_aget, arr_kq, var_endtask_t, var_endtask_c
 			dw kw_asetl, arr_kq, var_endtask_t, 0
 
-			; Main.bas 838: If c <> 0 And t = front Then pk = c    ' a key typed for it after its last look: the command line's
+			; Main.bas 952: If c <> 0 And t = front Then pk = c    ' a key typed for it after its last look: the command line's
 			dw kw_cpnevl, var_endtask_c, 0
 			dw kw_ftov, tmp0
 			dw kw_cpeqvv, var_endtask_t, var_front
 			dw kw_ftov, tmp1
 			dw kw_andvv, tmp0, tmp1, tmp0
-			dw kw_goto_ifzero_n, tmp0, if113_1
+			dw kw_goto_ifzero_n, tmp0, if112_1
 			dw kw_vtov, var_endtask_c, var_pk
-if113_1:
+if112_1:
 			dw p_endtask_r
 
-ntc_rg34_e:
-			IF ($ < 34816) && (ntc_rg35_e - ntc_rg35 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+ntc_rg42_e:
+			IF ($ < 32768) && (ntc_rg43_e - ntc_rg43 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg35:
+ntc_rg43:
 ; ============================================================
 ; sub con (normal mode)
 ; ============================================================
 
 p_hyp_con:
 
-			; Hyp.cls 207: #asm
-			dw asm_1_207_n
+			; Hyp.cls 208: #asm
+			dw asm_1_208_n
 			dw p_hyp_con_r
 
-ntc_rg35_e:
-			IF ($ < 34816) && (ntc_rg36_e - ntc_rg36 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+ntc_rg43_e:
+			IF ($ < 32768) && (ntc_rg44_e - ntc_rg44 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg36:
+ntc_rg44:
 ; ============================================================
 ; sub say (normal mode)
 ; ============================================================
 
 p_hyp_say:
 
-			; Hyp.cls 615: #asm
-			dw asm_1_615_n
+			; Hyp.cls 616: #asm
+			dw asm_1_616_n
 			dw p_hyp_say_r
 
-ntc_rg36_e:
-			IF ($ < 34816) && (ntc_rg37_e - ntc_rg37 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+ntc_rg44_e:
+			IF ($ < 32768) && (ntc_rg45_e - ntc_rg45 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg37:
+ntc_rg45:
 ; ============================================================
 ; sub show (normal mode)
 ; ============================================================
 
 p_hyp_show:
 
-			; Hyp.cls 702: Con pg, 0, -1, 1
+			; Hyp.cls 703: Con pg, 0, -1, 1
 			dw p_hyp_con_c, var_hyp_show_pg, lit_0, lit_m1, lit_1
 			dw p_hyp_show_r
 
-ntc_rg37_e:
-			IF ($ < 34816) && (ntc_rg38_e - ntc_rg38 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+ntc_rg45_e:
+			IF ($ < 32768) && (ntc_rg46_e - ntc_rg46 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg38:
+ntc_rg46:
 ; ============================================================
 ; sub reply (normal mode)
 ; ============================================================
 
 p_hyp_reply:
 
-			; Hyp.cls 708: ra = a : rhl = hl
+			; Hyp.cls 709: ra = a : rhl = hl
 			dw kw_vtov, var_hyp_reply_a, var_hyp_ra
 			dw kw_vtov, var_hyp_reply_hl, var_hyp_rhl
 			dw p_hyp_reply_r
 
-ntc_rg38_e:
-			IF ($ < 34816) && (ntc_rg39_e - ntc_rg39 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+ntc_rg46_e:
+			IF ($ < 32768) && (ntc_rg47_e - ntc_rg47 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg39:
+ntc_rg47:
 ; ============================================================
 ; function fn (normal mode)
 ; ============================================================
 
 p_hyp_fn:
 
-			; Hyp.cls 712: Fn = rfn And 255
+			; Hyp.cls 713: Fn = rfn And 255
 			dw kw_andvl, var_hyp_rfn, 255, var_hyp_fn_fn
 			dw p_hyp_fn_r
 
-ntc_rg39_e:
-			IF ($ < 34816) && (ntc_rg40_e - ntc_rg40 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+ntc_rg47_e:
+			IF ($ < 32768) && (ntc_rg48_e - ntc_rg48 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg40:
+ntc_rg48:
 ; ============================================================
 ; function arg (normal mode)
 ; ============================================================
 
 p_hyp_arg:
 
-			; Hyp.cls 716: Arg = rde
+			; Hyp.cls 717: Arg = rde
 			dw kw_vtov, var_hyp_rde, var_hyp_arg_arg
 			dw p_hyp_arg_r
 
-ntc_rg40_e:
-			IF ($ < 34816) && (ntc_rg41_e - ntc_rg41 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+ntc_rg48_e:
+			IF ($ < 32768) && (ntc_rg49_e - ntc_rg49 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg41:
+ntc_rg49:
 ; ============================================================
 ; function count (normal mode)
 ; ============================================================
 
 p_hyp_count:
 
-			; Hyp.cls 721: Count = rcnt
+			; Hyp.cls 722: Count = rcnt
 			dw kw_vtov, var_hyp_rcnt, var_hyp_count_count
 			dw p_hyp_count_r
 
-ntc_rg41_e:
-			IF ($ < 34816) && (ntc_rg42_e - ntc_rg42 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+ntc_rg49_e:
+			IF ($ < 32768) && (ntc_rg50_e - ntc_rg50 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg42:
+ntc_rg50:
 ; ============================================================
 ; function run (normal mode)
 ; ============================================================
 
 p_hyp_run:
 
-			; Hyp.cls 726: #asm
-			dw asm_1_726_n
+			; Hyp.cls 727: #asm
+			dw asm_1_727_n
 			dw p_hyp_run_r
 
-ntc_rg42_e:
-			IF ($ < 34816) && (ntc_rg43_e - ntc_rg43 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+ntc_rg50_e:
+			IF ($ < 32768) && (ntc_rg51_e - ntc_rg51 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg43:
+ntc_rg51:
 ; ============================================================
 ; sub vdu (normal mode)
 ; ============================================================
 
 p_hyp_vdu:
 
-			; Hyp.cls 1012: #asm
-			dw asm_1_1012_n
+			; Hyp.cls 1013: #asm
+			dw asm_1_1013_n
 			dw p_hyp_vdu_r
 
-ntc_rg43_e:
-			IF ($ < 34816) && (ntc_rg44_e - ntc_rg44 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+ntc_rg51_e:
+			IF ($ < 32768) && (ntc_rg52_e - ntc_rg52 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg44:
+ntc_rg52:
+; ============================================================
+; function filecall (normal mode)
+; ============================================================
+
+p_hyp_filecall:
+
+			; Hyp.cls 1042: #asm
+			dw asm_1_1042_n
+			dw p_hyp_filecall_r
+
+ntc_rg52_e:
+			IF ($ < 32768) && (ntc_rg53_e - ntc_rg53 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg53:
+; ============================================================
+; sub xfer (normal mode)
+; ============================================================
+
+p_hyp_xfer:
+
+			; Hyp.cls 1591: #asm
+			dw asm_1_1591_n
+			dw p_hyp_xfer_r
+
+ntc_rg53_e:
+			IF ($ < 32768) && (ntc_rg54_e - ntc_rg54 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg54:
+; ============================================================
+; sub fileshut (normal mode)
+; ============================================================
+
+p_hyp_fileshut:
+
+			; Hyp.cls 1645: #asm
+			dw asm_1_1645_n
+			dw p_hyp_fileshut_r
+
+ntc_rg54_e:
+			IF ($ < 32768) && (ntc_rg55_e - ntc_rg55 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg55:
 ; ============================================================
 ; function drive (normal mode)
 ; ============================================================
 
 p_hyp_drive:
 
-			; Hyp.cls 1033: #asm
-			dw asm_1_1033_n
+			; Hyp.cls 1681: #asm
+			dw asm_1_1681_n
 			dw p_hyp_drive_r
 
-ntc_rg44_e:
-			IF ($ < 34816) && (ntc_rg45_e - ntc_rg45 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+ntc_rg55_e:
+			IF ($ < 32768) && (ntc_rg56_e - ntc_rg56 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg45:
+ntc_rg56:
 ; ============================================================
 ; sub slots (normal mode)
 ; ============================================================
@@ -2876,11 +3241,11 @@ p_hot_slots:
 			dw kw_vtov, var_hot_slots_n, var_hot_ns
 			dw p_hot_slots_r
 
-ntc_rg45_e:
-			IF ($ < 34816) && (ntc_rg46_e - ntc_rg46 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+ntc_rg56_e:
+			IF ($ < 32768) && (ntc_rg57_e - ntc_rg57 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg46:
+ntc_rg57:
 ; ============================================================
 ; sub tick (normal mode)
 ; ============================================================
@@ -2893,159 +3258,159 @@ p_hot_tick:
 			dw fn_keys_down, lit_23, var_hot_ctl
 
 			; Hot.cls 21: If ctl Then
-			dw kw_goto_ifzero_n, var_hot_ctl, if114_1
+			dw kw_goto_ifzero_n, var_hot_ctl, if113_1
 
 			; Hot.cls 22: If Keys.Down(64) Then k = 1
 			dw fn_keys_down, lit_64, var_keys_down_down
-			dw kw_goto_ifzero_n, var_keys_down_down, if115_1
+			dw kw_goto_ifzero_n, var_keys_down_down, if114_1
 			dw kw_ltov, 1, var_hot_tick_k
-if115_1:
+if114_1:
 
 			; Hot.cls 23: If Keys.Down(65) Then k = 2
 			dw fn_keys_down, lit_65, var_keys_down_down
-			dw kw_goto_ifzero_n, var_keys_down_down, if116_1
+			dw kw_goto_ifzero_n, var_keys_down_down, if115_1
 			dw kw_ltov, 2, var_hot_tick_k
-if116_1:
+if115_1:
 
 			; Hot.cls 24: If Keys.Down(57) Then k = 3
 			dw fn_keys_down, lit_57, var_keys_down_down
-			dw kw_goto_ifzero_n, var_keys_down_down, if117_1
+			dw kw_goto_ifzero_n, var_keys_down_down, if116_1
 			dw kw_ltov, 3, var_hot_tick_k
-if117_1:
+if116_1:
 
 			; Hot.cls 25: If Keys.Down(56) Then k = 4
 			dw fn_keys_down, lit_56, var_keys_down_down
-			dw kw_goto_ifzero_n, var_keys_down_down, if118_1
+			dw kw_goto_ifzero_n, var_keys_down_down, if117_1
 			dw kw_ltov, 4, var_hot_tick_k
-if118_1:
+if117_1:
 
 			; Hot.cls 26: If Keys.Down(49) Then k = 5
 			dw fn_keys_down, lit_49, var_keys_down_down
-			dw kw_goto_ifzero_n, var_keys_down_down, if119_1
+			dw kw_goto_ifzero_n, var_keys_down_down, if118_1
 			dw kw_ltov, 5, var_hot_tick_k
-if119_1:
+if118_1:
 
 			; Hot.cls 27: If Keys.Down(48) Then k = 6
 			dw fn_keys_down, lit_48, var_keys_down_down
-			dw kw_goto_ifzero_n, var_keys_down_down, if120_1
+			dw kw_goto_ifzero_n, var_keys_down_down, if119_1
 			dw kw_ltov, 6, var_hot_tick_k
-if120_1:
+if119_1:
 
 			; Hot.cls 28: If Keys.Down(41) Then k = 7
 			dw fn_keys_down, lit_41, var_keys_down_down
-			dw kw_goto_ifzero_n, var_keys_down_down, if121_1
+			dw kw_goto_ifzero_n, var_keys_down_down, if120_1
 			dw kw_ltov, 7, var_hot_tick_k
-if121_1:
+if120_1:
 
 			; Hot.cls 29: If Keys.Down(40) Then k = 8
 			dw fn_keys_down, lit_40, var_keys_down_down
-			dw kw_goto_ifzero_n, var_keys_down_down, if122_1
+			dw kw_goto_ifzero_n, var_keys_down_down, if121_1
 			dw kw_ltov, 8, var_hot_tick_k
-if122_1:
+if121_1:
 
 			; Hot.cls 30: If Keys.Down(Keys.KeyEsc) Then k = TOPKEY
 			dw fn_keys_down, lit_66, var_keys_down_down
-			dw kw_goto_ifzero_n, var_keys_down_down, if123_1
+			dw kw_goto_ifzero_n, var_keys_down_down, if122_1
 			dw kw_ltov, 99, var_hot_tick_k
-if123_1:
+if122_1:
 
 			; Hot.cls 31: End If
-if114_1:
+if113_1:
 
 			; Hot.cls 32: If k <> 0 And k <> last Then
 			dw kw_cpnevl, var_hot_tick_k, 0
-			dw kw_ftov, tmp4
+			dw kw_ftov, tmp6
 			dw kw_cpnevv, var_hot_tick_k, var_hot_last
-			dw kw_ftov, tmp5
-			dw kw_andvv, tmp4, tmp5, tmp4
-			dw kw_goto_ifzero_n, tmp4, if124_1
+			dw kw_ftov, tmp7
+			dw kw_andvv, tmp6, tmp7, tmp6
+			dw kw_goto_ifzero_n, tmp6, if123_1
 
 			; Hot.cls 33: If k = TOPKEY Or ns <= 8 Then
 			dw kw_cpeqvl, var_hot_tick_k, 99
-			dw kw_ftov, tmp4
+			dw kw_ftov, tmp6
 			dw kw_scplevl, var_hot_ns, 8
-			dw kw_ftov, tmp5
-			dw kw_orvv, tmp4, tmp5, tmp4
-			dw kw_goto_ifzero_n, tmp4, if125_1
+			dw kw_ftov, tmp7
+			dw kw_orvv, tmp6, tmp7, tmp6
+			dw kw_goto_ifzero_n, tmp6, if124_1
 
 			; Hot.cls 34: If one <> 0 Then one = 0
 			dw kw_cpnevl, var_hot_one, 0
-			dw kw_goto_iffalse_n, if126_1
+			dw kw_goto_iffalse_n, if125_1
 			dw kw_ztov, var_hot_one
-if126_1:
+if125_1:
 
 			; Hot.cls 35: pend = k                          ' at once (no double taps to wait for)
 			dw kw_vtov, var_hot_tick_k, var_hot_pend
 
 			; Hot.cls 36: ElseIf one = k Then
-			dw if125_e_go
-if125_1:
+			dw if124_e_go
+if124_1:
 			dw kw_cpeqvv, var_hot_one, var_hot_tick_k
-			dw kw_goto_iffalse_n, if125_2
+			dw kw_goto_iffalse_n, if124_2
 
 			; Hot.cls 37: one = 0
 			dw kw_ztov, var_hot_one
 
 			; Hot.cls 38: If k + 8 <= ns Then pend = k + 8 Else pend = k    ' the second press: slot 9-16
-			dw kw_addl, var_hot_tick_k, 8, tmp4
-			dw kw_scplevv, tmp4, var_hot_ns
-			dw kw_goto_iffalse_n, if127_1
+			dw kw_addl, var_hot_tick_k, 8, tmp6
+			dw kw_scplevv, tmp6, var_hot_ns
+			dw kw_goto_iffalse_n, if126_1
 			dw kw_addl, var_hot_tick_k, 8, var_hot_pend
-			dw if125_e_go
-if127_1:
+			dw if124_e_go
+if126_1:
 			dw kw_vtov, var_hot_tick_k, var_hot_pend
-if127_e:
+if126_e:
 
 			; Hot.cls 39: Else
-			dw if125_e_go
-if125_2:
+			dw if124_e_go
+if124_2:
 
 			; Hot.cls 40: If one <> 0 Then pend = one       ' another number: the waiting one counts now
 			dw kw_cpnevl, var_hot_one, 0
-			dw kw_goto_iffalse_n, if128_1
+			dw kw_goto_iffalse_n, if127_1
 			dw kw_vtov, var_hot_one, var_hot_pend
-if128_1:
+if127_1:
 
 			; Hot.cls 41: one = k : age = 0
 			dw kw_vtov, var_hot_tick_k, var_hot_one
 			dw kw_ztov, var_hot_age
 
 			; Hot.cls 42: End If
-if125_e:
+if124_e:
 
 			; Hot.cls 43: End If
-if124_1:
+if123_1:
 
 			; Hot.cls 44: If one <> 0 Then
 			dw kw_cpnevl, var_hot_one, 0
-			dw kw_goto_iffalse_n, if129_1
+			dw kw_goto_iffalse_n, if128_1
 
 			; Hot.cls 45: age = age + 1
 			dw kw_inc, var_hot_age
 
 			; Hot.cls 46: If age > DOUBLE Or ctl = 0 Then pend = one : one = 0    ' no second press (or Control let go)
 			dw kw_scpgtvl, var_hot_age, 15
-			dw kw_ftov, tmp4
+			dw kw_ftov, tmp6
 			dw kw_cpeqvl, var_hot_ctl, 0
-			dw kw_ftov, tmp5
-			dw kw_orvv, tmp4, tmp5, tmp4
-			dw kw_goto_ifzero_n, tmp4, if130_1
+			dw kw_ftov, tmp7
+			dw kw_orvv, tmp6, tmp7, tmp6
+			dw kw_goto_ifzero_n, tmp6, if129_1
 			dw kw_vtov, var_hot_one, var_hot_pend
 			dw kw_ztov, var_hot_one
-if130_1:
+if129_1:
 
 			; Hot.cls 47: End If
-if129_1:
+if128_1:
 
 			; Hot.cls 48: last = k
 			dw kw_vtov, var_hot_tick_k, var_hot_last
 			dw p_hot_tick_r
 
-ntc_rg46_e:
-			IF ($ < 34816) && (ntc_rg47_e - ntc_rg47 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+ntc_rg57_e:
+			IF ($ < 32768) && (ntc_rg58_e - ntc_rg58 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg47:
+ntc_rg58:
 ; ============================================================
 ; function take (normal mode)
 ; ============================================================
@@ -3059,11 +3424,11 @@ p_hot_take:
 			dw kw_ztov, var_hot_pend
 			dw p_hot_take_r
 
-ntc_rg47_e:
-			IF ($ < 34816) && (ntc_rg48_e - ntc_rg48 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+ntc_rg58_e:
+			IF ($ < 32768) && (ntc_rg59_e - ntc_rg59 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg48:
+ntc_rg59:
 ; ============================================================
 ; function control (normal mode)
 ; ============================================================
@@ -3074,11 +3439,11 @@ p_hot_control:
 			dw kw_vtov, var_hot_ctl, var_hot_control_control
 			dw p_hot_control_r
 
-ntc_rg48_e:
-			IF ($ < 34816) && (ntc_rg49_e - ntc_rg49 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+ntc_rg59_e:
+			IF ($ < 32768) && (ntc_rg60_e - ntc_rg60 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg49:
+ntc_rg60:
 ; ============================================================
 ; sub setname (normal mode)
 ; ============================================================
@@ -3089,11 +3454,11 @@ p_ent_setname:
 			dw asm_3_21_n
 			dw p_ent_setname_r
 
-ntc_rg49_e:
-			IF ($ < 34816) && (ntc_rg50_e - ntc_rg50 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+ntc_rg60_e:
+			IF ($ < 32768) && (ntc_rg61_e - ntc_rg61 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg50:
+ntc_rg61:
 ; ============================================================
 ; function length (normal mode)
 ; ============================================================
@@ -3104,11 +3469,11 @@ p_ent_length:
 			dw asm_3_89_n
 			dw p_ent_length_r
 
-ntc_rg50_e:
-			IF ($ < 34816) && (ntc_rg51_e - ntc_rg51 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+ntc_rg61_e:
+			IF ($ < 32768) && (ntc_rg62_e - ntc_rg62 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg51:
+ntc_rg62:
 ; ============================================================
 ; function discname (normal mode)
 ; ============================================================
@@ -3119,11 +3484,11 @@ p_ent_discname:
 			dw asm_3_245_n
 			dw p_ent_discname_r
 
-ntc_rg51_e:
-			IF ($ < 34816) && (ntc_rg52_e - ntc_rg52 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+ntc_rg62_e:
+			IF ($ < 32768) && (ntc_rg63_e - ntc_rg63 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg52:
+ntc_rg63:
 ; ============================================================
 ; function show (normal mode)
 ; ============================================================
@@ -3134,11 +3499,11 @@ p_ent_show:
 			dw asm_3_328_n
 			dw p_ent_show_r
 
-ntc_rg52_e:
-			IF ($ < 34816) && (ntc_rg53_e - ntc_rg53 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+ntc_rg63_e:
+			IF ($ < 32768) && (ntc_rg64_e - ntc_rg64 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg53:
+ntc_rg64:
 ; ============================================================
 ; function bankpage (normal mode)
 ; ============================================================
@@ -3146,9 +3511,9 @@ ntc_rg53:
 p_memory_bankpage:
 
 			; Memory.cls 452: BankPage = 4 * bank - 2 + n
-			dw kw_4x, var_memory_bankpage_bank, tmp1
-			dw kw_addl, tmp1, -2, tmp1
-			dw kw_add, tmp1, var_memory_bankpage_n, var_memory_bankpage_bankpage
+			dw kw_4x, var_memory_bankpage_bank, tmp0
+			dw kw_addl, tmp0, -2, tmp0
+			dw kw_add, tmp0, var_memory_bankpage_n, var_memory_bankpage_bankpage
 			dw p_memory_bankpage_r
 
 ; ============================================================
@@ -3168,53 +3533,59 @@ for20_e_go:			ld sp, for20_e
 			jp ntc_xn
 sel32_e_go:			ld sp, sel32_e
 			jp ntc_xn
-ch38_e_go:			ld sp, ch38_e
-			jp ntc_xn
 ch39_e_go:			ld sp, ch39_e
 			jp ntc_xn
 ch40_e_go:			ld sp, ch40_e
 			jp ntc_xn
-ch46_e_go:			ld sp, ch46_e
+ch41_e_go:			ld sp, ch41_e
 			jp ntc_xn
-if52_e_go:			ld sp, if52_e
+ch44_e_go:			ld sp, ch44_e
 			jp ntc_xn
-ch54_e_go:			ld sp, ch54_e
+do42_t_go:			ld sp, do42_t
+			jp ntc_xn
+if50_e_go:			ld sp, if50_e
+			jp ntc_xn
+ch52_e_go:			ld sp, ch52_e
+			jp ntc_xn
+if54_e_go:			ld sp, if54_e
 			jp ntc_xn
 if56_e_go:			ld sp, if56_e
 			jp ntc_xn
 if58_e_go:			ld sp, if58_e
 			jp ntc_xn
-if60_e_go:			ld sp, if60_e
+if61_e_go:			ld sp, if61_e
 			jp ntc_xn
-if63_e_go:			ld sp, if63_e
+sel67_e_go:			ld sp, sel67_e
 			jp ntc_xn
-sel70_e_go:			ld sp, sel70_e
+if73_e_go:			ld sp, if73_e
 			jp ntc_xn
-if76_e_go:			ld sp, if76_e
+if74_e_go:			ld sp, if74_e
+			jp ntc_xn
+ch75_e_go:			ld sp, ch75_e
 			jp ntc_xn
 if77_e_go:			ld sp, if77_e
 			jp ntc_xn
-ch78_e_go:			ld sp, ch78_e
+if83_e_go:			ld sp, if83_e
 			jp ntc_xn
-if80_e_go:			ld sp, if80_e
+if84_e_go:			ld sp, if84_e
 			jp ntc_xn
-if85_e_go:			ld sp, if85_e
+do82_e_go:			ld sp, do82_e
 			jp ntc_xn
-if93_e_go:			ld sp, if93_e
+do82_t_go:			ld sp, do82_t
 			jp ntc_xn
-if96_e_go:			ld sp, if96_e
+if95_e_go:			ld sp, if95_e
+			jp ntc_xn
+if97_e_go:			ld sp, if97_e
 			jp ntc_xn
 if102_e_go:			ld sp, if102_e
 			jp ntc_xn
-do104_e_go:			ld sp, do104_e
-			jp ntc_xn
 do104_t_go:			ld sp, do104_t
 			jp ntc_xn
-do111_e_go:			ld sp, do111_e
+do110_e_go:			ld sp, do110_e
 			jp ntc_xn
-do111_t_go:			ld sp, do111_t
+do110_t_go:			ld sp, do110_t
 			jp ntc_xn
-if125_e_go:			ld sp, if125_e
+if124_e_go:			ld sp, if124_e
 			jp ntc_xn
 
 p_running_c:		; call running (normal)
@@ -3274,6 +3645,50 @@ p_bdos_c:		; call bdos (normal)
 			jp ntc_xn
 p_bdos_r:		; end of bdos
 			ld sp, (p_bdos_rs)
+			jp ntc_xn
+p_hopen_c:		; call hopen (normal)
+			ld hl, 0
+			ld (var_hopen_hopen), hl
+			ld (p_hopen_rs), sp
+			ld sp, p_hopen
+			jp ntc_xn
+p_hopen_r:		; end of hopen
+			ld sp, (p_hopen_rs)
+			jp ntc_xn
+p_hread_c:		; call hread (normal)
+			pop hl			; n
+			ld e, (hl)
+			inc hl
+			ld d, (hl)
+			ld (var_hread_n), de
+			ld hl, 0
+			ld (var_hread_hread), hl
+			ld (p_hread_rs), sp
+			ld sp, p_hread
+			jp ntc_xn
+p_hread_r:		; end of hread
+			ld sp, (p_hread_rs)
+			jp ntc_xn
+p_hclose_c:		; call hclose (normal)
+			ld hl, 0
+			ld (var_hclose_r), hl
+			ld (p_hclose_rs), sp
+			ld sp, p_hclose
+			jp ntc_xn
+p_hclose_r:		; end of hclose
+			ld sp, (p_hclose_rs)
+			jp ntc_xn
+p_filesshut_c:		; call filesshut (normal)
+			pop hl			; t
+			ld e, (hl)
+			inc hl
+			ld d, (hl)
+			ld (var_filesshut_t), de
+			ld (p_filesshut_rs), sp
+			ld sp, p_filesshut
+			jp ntc_xn
+p_filesshut_r:		; end of filesshut
+			ld sp, (p_filesshut_rs)
 			jp ntc_xn
 p_collected_c:		; call collected (normal)
 			pop hl			; t
@@ -3373,14 +3788,9 @@ p_putmem_c:		; call putmem (normal)
 			ld d, (hl)
 			ld (var_putmem_a), de
 			ld hl, 0
-			ld (var_putmem_la), hl
-			ld (var_putmem_la+2), hl
-			ld hl, 0
 			ld (var_putmem_n), hl
 			ld hl, 0
 			ld (var_putmem_d), hl
-			ld hl, 0
-			ld (var_putmem_tot), hl
 			ld (p_putmem_rs), sp
 			ld sp, p_putmem
 			jp ntc_xn
@@ -3461,6 +3871,34 @@ p_toplines_c:		; call toplines (normal)
 p_toplines_r:		; end of toplines
 			ld sp, (p_toplines_rs)
 			jp ntc_xn
+p_memshow_c:		; call memshow (normal)
+			pop hl			; t
+			ld e, (hl)
+			inc hl
+			ld d, (hl)
+			ld (var_memshow_t), de
+			ld hl, 0
+			ld (var_memshow_j), hl
+			ld (p_memshow_rs), sp
+			ld sp, p_memshow
+			jp ntc_xn
+p_memshow_r:		; end of memshow
+			ld sp, (p_memshow_rs)
+			jp ntc_xn
+p_h4_c:		; call h4 (normal)
+			pop hl			; v
+			ld e, (hl)
+			inc hl
+			ld d, (hl)
+			ld (var_h4_v), de
+			xor a
+			ld (var_h4_h4), a
+			ld (p_h4_rs), sp
+			ld sp, p_h4
+			jp ntc_xn
+p_h4_r:		; end of h4
+			ld sp, (p_h4_rs)
+			jp ntc_xn
 p_topadd_c:		; call topadd (normal)
 			pop hl			; s
 			ld de, var_topadd_s
@@ -3530,6 +3968,10 @@ p_install_c:		; call install (normal)
 			inc hl
 			ld d, (hl)
 			ld (var_install_t), de
+			ld hl, 0
+			ld (var_install_p), hl
+			ld hl, 0
+			ld (var_install_n), hl
 			ld (p_install_rs), sp
 			ld sp, p_install
 			jp ntc_xn
@@ -3659,18 +4101,44 @@ p_starttask_c:		; call starttask (normal)
 			ld hl, 0
 			ld (var_starttask_n), hl
 			ld hl, 0
-			ld (var_starttask_p), hl
-			ld hl, 0
-			ld (var_starttask_want), hl
-			ld hl, 0
 			ld (var_starttask_rest), hl
 			ld hl, 0
 			ld (var_starttask_com), hl
+			xor a
+			ld (var_starttask_w), a
+			ld hl, 0
+			ld (var_starttask_d), hl
 			ld (p_starttask_rs), sp
 			ld sp, p_starttask
 			jp ntc_xn
 p_starttask_r:		; end of starttask
 			ld sp, (p_starttask_rs)
+			jp ntc_xn
+p_notfound_c:		; call notfound (normal)
+			pop hl			; t
+			ld e, (hl)
+			inc hl
+			ld d, (hl)
+			ld (var_notfound_t), de
+			ld (p_notfound_rs), sp
+			ld sp, p_notfound
+			jp ntc_xn
+p_notfound_r:		; end of notfound
+			ld sp, (p_notfound_rs)
+			jp ntc_xn
+p_owndrive_c:		; call owndrive (normal)
+			pop hl			; t
+			ld e, (hl)
+			inc hl
+			ld d, (hl)
+			ld (var_owndrive_t), de
+			ld hl, 0
+			ld (var_owndrive_r), hl
+			ld (p_owndrive_rs), sp
+			ld sp, p_owndrive
+			jp ntc_xn
+p_owndrive_r:		; end of owndrive
+			ld sp, (p_owndrive_rs)
 			jp ntc_xn
 p_chdrive_c:		; call chdrive (normal)
 			pop hl			; t
@@ -3695,8 +4163,6 @@ p_dirlist_c:		; call dirlist (normal)
 			ld d, (hl)
 			ld (var_dirlist_t), de
 			ld hl, 0
-			ld (var_dirlist_h), hl
-			ld hl, 0
 			ld (var_dirlist_r), hl
 			ld hl, 0
 			ld (var_dirlist_k), hl
@@ -3720,8 +4186,6 @@ p_findcom_r:		; end of findcom
 p_findent_c:		; call findent (normal)
 			ld hl, 0
 			ld (var_findent_findent), hl
-			ld hl, 0
-			ld (var_findent_h), hl
 			ld hl, 0
 			ld (var_findent_r), hl
 			ld (p_findent_rs), sp
@@ -3880,6 +4344,94 @@ p_hyp_vdu_c:		; call vdu (normal)
 p_hyp_vdu_r:		; end of vdu
 			ld sp, (p_hyp_vdu_rs)
 			jp ntc_xn
+p_hyp_filecall_c:		; call filecall (normal)
+			pop hl			; f
+			ld e, (hl)
+			inc hl
+			ld d, (hl)
+			ld (var_hyp_filecall_f), de
+			pop hl			; fcb
+			ld e, (hl)
+			inc hl
+			ld d, (hl)
+			ld (var_hyp_filecall_fcb), de
+			pop hl			; slot
+			ld e, (hl)
+			inc hl
+			ld d, (hl)
+			ld (var_hyp_filecall_slot), de
+			pop hl			; setting
+			ld e, (hl)
+			inc hl
+			ld d, (hl)
+			ld (var_hyp_filecall_setting), de
+			pop hl			; dma
+			ld e, (hl)
+			inc hl
+			ld d, (hl)
+			ld (var_hyp_filecall_dma), de
+			pop hl			; drive
+			ld e, (hl)
+			inc hl
+			ld d, (hl)
+			ld (var_hyp_filecall_drive), de
+			pop hl			; buf
+			ld e, (hl)
+			inc hl
+			ld d, (hl)
+			ld (var_hyp_filecall_buf), de
+			ld hl, 0
+			ld (var_hyp_filecall_filecall), hl
+			ld (p_hyp_filecall_rs), sp
+			ld sp, p_hyp_filecall
+			jp ntc_xn
+p_hyp_filecall_r:		; end of filecall
+			ld sp, (p_hyp_filecall_rs)
+			jp ntc_xn
+p_hyp_xfer_c:		; call xfer (normal)
+			pop hl			; toslot
+			ld e, (hl)
+			inc hl
+			ld d, (hl)
+			ld (var_hyp_xfer_toslot), de
+			pop hl			; setting
+			ld e, (hl)
+			inc hl
+			ld d, (hl)
+			ld (var_hyp_xfer_setting), de
+			pop hl			; addr
+			ld e, (hl)
+			inc hl
+			ld d, (hl)
+			ld (var_hyp_xfer_addr), de
+			pop hl			; p
+			ld e, (hl)
+			inc hl
+			ld d, (hl)
+			ld (var_hyp_xfer_p), de
+			pop hl			; n
+			ld e, (hl)
+			inc hl
+			ld d, (hl)
+			ld (var_hyp_xfer_n), de
+			ld (p_hyp_xfer_rs), sp
+			ld sp, p_hyp_xfer
+			jp ntc_xn
+p_hyp_xfer_r:		; end of xfer
+			ld sp, (p_hyp_xfer_rs)
+			jp ntc_xn
+p_hyp_fileshut_c:		; call fileshut (normal)
+			pop hl			; slot
+			ld e, (hl)
+			inc hl
+			ld d, (hl)
+			ld (var_hyp_fileshut_slot), de
+			ld (p_hyp_fileshut_rs), sp
+			ld sp, p_hyp_fileshut
+			jp ntc_xn
+p_hyp_fileshut_r:		; end of fileshut
+			ld sp, (p_hyp_fileshut_rs)
+			jp ntc_xn
 p_hyp_drive_c:		; call drive (normal)
 			pop hl			; letter
 			ld e, (hl)
@@ -4034,871 +4586,1495 @@ p_memory_bankpage_r:		; end of bankpage
 			ld sp, (p_memory_bankpage_rs)
 			jp ntc_xn
 
-ntc_rg53_e:
-			IF ($ < 34816) && (ntc_rg54_e - ntc_rg54 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+ntc_rg64_e:
+			IF ($ < 32768) && (ntc_rg65_e - ntc_rg65 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg54:
+ntc_rg65:
 ; ============================================================
 ; Inline assembly (#asm ... #endasm)
 ; ============================================================
 
-fn_hyp_setting:		; function setting (asm keyword), Hyp.cls line 29
-            ld de, (ntc_rampt)		; Hyp.cls 30
-            ld a, e		; Hyp.cls 31
-            and #F8		; Hyp.cls 32
-            or 2		; Hyp.cls 33
-            ld e, a		; Hyp.cls 34
-            pop hl		; Hyp.cls 35
-            ld (hl), e		; Hyp.cls 36
-            inc hl		; Hyp.cls 37
-            ld (hl), d		; Hyp.cls 38
+fn_hyp_setting:		; function setting (asm keyword), Hyp.cls line 30
+            ld de, (ntc_rampt)		; Hyp.cls 31
+            ld a, e		; Hyp.cls 32
+            and #F8		; Hyp.cls 33
+            or 2		; Hyp.cls 34
+            ld e, a		; Hyp.cls 35
+            pop hl		; Hyp.cls 36
+            ld (hl), e		; Hyp.cls 37
+            inc hl		; Hyp.cls 38
+            ld (hl), d		; Hyp.cls 39
 			ret			; end of #asm
 
-fn_hyp_farptr:		; function farptr (asm keyword), Hyp.cls line 45
-            pop hl		; Hyp.cls 46
-            ld c, (hl)		; Hyp.cls 47
-            inc hl		; Hyp.cls 48
-            ld b, (hl)              ; BC = page [49]
-            pop hl		; Hyp.cls 50
-            ld e, (hl)		; Hyp.cls 51
-            inc hl		; Hyp.cls 52
-            ld a, (hl)		; Hyp.cls 53
-            and #3F		; Hyp.cls 54
-            or #40		; Hyp.cls 55
-            ld d, a                 ; DE = #4000 + the address's low 14 bits [56]
-            pop hl		; Hyp.cls 57
-            ld (hl), e		; Hyp.cls 58
-            inc hl		; Hyp.cls 59
-            ld (hl), d		; Hyp.cls 60
-            inc hl		; Hyp.cls 61
-            ld (hl), c		; Hyp.cls 62
-            inc hl		; Hyp.cls 63
-            ld (hl), b		; Hyp.cls 64
+fn_hyp_farptr:		; function farptr (asm keyword), Hyp.cls line 46
+            pop hl		; Hyp.cls 47
+            ld c, (hl)		; Hyp.cls 48
+            inc hl		; Hyp.cls 49
+            ld b, (hl)              ; BC = page [50]
+            pop hl		; Hyp.cls 51
+            ld e, (hl)		; Hyp.cls 52
+            inc hl		; Hyp.cls 53
+            ld a, (hl)		; Hyp.cls 54
+            and #3F		; Hyp.cls 55
+            or #40		; Hyp.cls 56
+            ld d, a                 ; DE = #4000 + the address's low 14 bits [57]
+            pop hl		; Hyp.cls 58
+            ld (hl), e		; Hyp.cls 59
+            inc hl		; Hyp.cls 60
+            ld (hl), d		; Hyp.cls 61
+            inc hl		; Hyp.cls 62
+            ld (hl), c		; Hyp.cls 63
+            inc hl		; Hyp.cls 64
+            ld (hl), b		; Hyp.cls 65
 			ret			; end of #asm
 
-fn_hyp_fontinit:		; sub fontinit (asm keyword), Hyp.cls line 96
-            ld (var_hyp_hsp), sp		; Hyp.cls 97
-            ld sp, (ntc_csp)		; Hyp.cls 98
-            ld de, 32               ; D = 0: a table, E = its first character [99]
-            ld hl, #4000		; Hyp.cls 100
-            call #BBAB              ; TXT SET M TABLE (the matrices from 32 on, copied there) [101]
-            di		; Hyp.cls 102
-            ld hl, #4000		; Hyp.cls 103
-            ld de, arr_hyp_font		; Hyp.cls 104
-            ld bc, 96 * 8		; Hyp.cls 105
-            ldir		; Hyp.cls 106
-            ld de, #FF00            ; D <> 0: no table of its own any more [107]
-            call #BBAB		; Hyp.cls 108
-            di		; Hyp.cls 109
-            ld sp, (var_hyp_hsp)		; Hyp.cls 110
+fn_hyp_fontinit:		; sub fontinit (asm keyword), Hyp.cls line 97
+            ld (var_hyp_hsp), sp		; Hyp.cls 98
+            ld sp, (ntc_csp)		; Hyp.cls 99
+            ld de, 32               ; D = 0: a table, E = its first character [100]
+            ld hl, #4000		; Hyp.cls 101
+            call #BBAB              ; TXT SET M TABLE (the matrices from 32 on, copied there) [102]
+            di		; Hyp.cls 103
+            ld hl, #4000		; Hyp.cls 104
+            ld de, arr_hyp_font		; Hyp.cls 105
+            ld bc, 96 * 8		; Hyp.cls 106
+            ldir		; Hyp.cls 107
+            ld de, #FF00            ; D <> 0: no table of its own any more [108]
+            call #BBAB		; Hyp.cls 109
+            di		; Hyp.cls 110
+            ld sp, (var_hyp_hsp)		; Hyp.cls 111
 			ret			; end of #asm
 
-asm_1_207_n:		; #asm, Hyp.cls line 207 (normal)
-            ld (var_hyp_hsp), sp		; Hyp.cls 208
-            ld sp, (ntc_csp)		; Hyp.cls 209
-            ld bc, (var_hyp_con_pg)		; Hyp.cls 210
-            out (c), c              ; the slot's page 3 at #4000: OBUF #7600, state #7682, page #7700 [211]
-            xor a		; Hyp.cls 212
-            ld (asm_1_207_n_cn_pv), a		; Hyp.cls 213
-            ld a, (var_hyp_con_front)		; Hyp.cls 214
-            ld (asm_1_207_n_cn_front), a		; Hyp.cls 215
-            or a		; Hyp.cls 216
-            call nz, asm_1_207_n_cn_loc         ; in front: where the screen starts now (hardware scroll) [217]
-            ld hl, (var_hyp_con_n)		; Hyp.cls 218
-            bit 7, h		; Hyp.cls 219
-            jp nz, asm_1_207_n_cn_show		; Hyp.cls 220
-            ld (asm_1_207_n_cn_left), hl		; Hyp.cls 221
-            ld hl, (var_hyp_con_src)		; Hyp.cls 222
-            ld a, h		; Hyp.cls 223
-            or l		; Hyp.cls 224
-            jr nz, asm_1_207_n_cn_src		; Hyp.cls 225
-            ld hl, #7600            ; src 0: the characters the program collected (OBUF) [226]
-asm_1_207_n_cn_src:		; Hyp.cls 227
-            ld (asm_1_207_n_cn_ptr), hl		; Hyp.cls 228
-asm_1_207_n_cn_lp:		; Hyp.cls 229
-            ld hl, (asm_1_207_n_cn_left)		; Hyp.cls 230
-            ld a, h		; Hyp.cls 231
-            or l		; Hyp.cls 232
-            jr z, asm_1_207_n_cn_done		; Hyp.cls 233
-            dec hl		; Hyp.cls 234
-            ld (asm_1_207_n_cn_left), hl		; Hyp.cls 235
-            ld hl, (asm_1_207_n_cn_ptr)		; Hyp.cls 236
-            ld a, (hl)		; Hyp.cls 237
-            inc hl		; Hyp.cls 238
-            ld (asm_1_207_n_cn_ptr), hl		; Hyp.cls 239
-            call asm_1_207_n_cn_char		; Hyp.cls 240
-            jr asm_1_207_n_cn_lp		; Hyp.cls 241
-asm_1_207_n_cn_done:		; Hyp.cls 242
-            ld bc, (ntc_rampt)      ; the window's page back [243]
-            out (c), c		; Hyp.cls 244
-            ld sp, (var_hyp_hsp)		; Hyp.cls 245
-            jp asm_1_207_n_cn_end		; Hyp.cls 246
+asm_1_208_n:		; #asm, Hyp.cls line 208 (normal)
+            ld (var_hyp_hsp), sp		; Hyp.cls 209
+            ld sp, (ntc_csp)		; Hyp.cls 210
+            ld bc, (var_hyp_con_pg)		; Hyp.cls 211
+            out (c), c              ; the slot's page 3 at #4000: OBUF #7600, state #7682, page #7700 [212]
+            xor a		; Hyp.cls 213
+            ld (asm_1_208_n_cn_pv), a		; Hyp.cls 214
+            ld a, (var_hyp_con_front)		; Hyp.cls 215
+            ld (asm_1_208_n_cn_front), a		; Hyp.cls 216
+            or a		; Hyp.cls 217
+            call nz, asm_1_208_n_cn_loc         ; in front: where the screen starts now (hardware scroll) [218]
+            ld hl, (var_hyp_con_n)		; Hyp.cls 219
+            bit 7, h		; Hyp.cls 220
+            jp nz, asm_1_208_n_cn_show		; Hyp.cls 221
+            ld (asm_1_208_n_cn_left), hl		; Hyp.cls 222
+            ld hl, (var_hyp_con_src)		; Hyp.cls 223
+            ld a, h		; Hyp.cls 224
+            or l		; Hyp.cls 225
+            jr nz, asm_1_208_n_cn_src		; Hyp.cls 226
+            ld hl, #7600            ; src 0: the characters the program collected (OBUF) [227]
+asm_1_208_n_cn_src:		; Hyp.cls 228
+            ld (asm_1_208_n_cn_ptr), hl		; Hyp.cls 229
+asm_1_208_n_cn_lp:		; Hyp.cls 230
+            ld hl, (asm_1_208_n_cn_left)		; Hyp.cls 231
+            ld a, h		; Hyp.cls 232
+            or l		; Hyp.cls 233
+            jr z, asm_1_208_n_cn_done		; Hyp.cls 234
+            dec hl		; Hyp.cls 235
+            ld (asm_1_208_n_cn_left), hl		; Hyp.cls 236
+            ld hl, (asm_1_208_n_cn_ptr)		; Hyp.cls 237
+            ld a, (hl)		; Hyp.cls 238
+            inc hl		; Hyp.cls 239
+            ld (asm_1_208_n_cn_ptr), hl		; Hyp.cls 240
+            call asm_1_208_n_cn_char		; Hyp.cls 241
+            jr asm_1_208_n_cn_lp		; Hyp.cls 242
+asm_1_208_n_cn_done:		; Hyp.cls 243
+            ld bc, (ntc_rampt)      ; the window's page back [244]
+            out (c), c		; Hyp.cls 245
+            ld sp, (var_hyp_hsp)		; Hyp.cls 246
+            jp asm_1_208_n_cn_end		; Hyp.cls 247
 
 ; the whole page to the screen (it was cleared): every character that isn't a space
-asm_1_207_n_cn_show:		; Hyp.cls 249
-            ld e, 0		; Hyp.cls 250
-asm_1_207_n_cn_sh_row:		; Hyp.cls 251
-            push de		; Hyp.cls 252
-            ld a, e		; Hyp.cls 253
-            call asm_1_207_n_cn_rowa            ; HL = row e of the page [254]
-            pop de		; Hyp.cls 255
-            ld d, 0		; Hyp.cls 256
-asm_1_207_n_cn_sh_col:		; Hyp.cls 257
-            ld a, (hl)		; Hyp.cls 258
-            inc hl		; Hyp.cls 259
-            cp 33		; Hyp.cls 260
-            jr c, asm_1_207_n_cn_sh_skip		; Hyp.cls 261
-            push hl		; Hyp.cls 262
-            push de		; Hyp.cls 263
-            call asm_1_207_n_cn_glyph		; Hyp.cls 264
-            pop de		; Hyp.cls 265
-            pop hl		; Hyp.cls 266
-asm_1_207_n_cn_sh_skip:		; Hyp.cls 267
-            inc d		; Hyp.cls 268
-            ld a, d		; Hyp.cls 269
-            cp 80		; Hyp.cls 270
-            jr c, asm_1_207_n_cn_sh_col		; Hyp.cls 271
-            inc e		; Hyp.cls 272
-            ld a, e		; Hyp.cls 273
-            cp 25		; Hyp.cls 274
-            jr c, asm_1_207_n_cn_sh_row		; Hyp.cls 275
-            jr asm_1_207_n_cn_done		; Hyp.cls 276
+asm_1_208_n_cn_show:		; Hyp.cls 250
+            ld e, 0		; Hyp.cls 251
+asm_1_208_n_cn_sh_row:		; Hyp.cls 252
+            push de		; Hyp.cls 253
+            ld a, e		; Hyp.cls 254
+            call asm_1_208_n_cn_rowa            ; HL = row e of the page [255]
+            pop de		; Hyp.cls 256
+            ld d, 0		; Hyp.cls 257
+asm_1_208_n_cn_sh_col:		; Hyp.cls 258
+            ld a, (hl)		; Hyp.cls 259
+            inc hl		; Hyp.cls 260
+            cp 33		; Hyp.cls 261
+            jr c, asm_1_208_n_cn_sh_skip		; Hyp.cls 262
+            push hl		; Hyp.cls 263
+            push de		; Hyp.cls 264
+            call asm_1_208_n_cn_glyph		; Hyp.cls 265
+            pop de		; Hyp.cls 266
+            pop hl		; Hyp.cls 267
+asm_1_208_n_cn_sh_skip:		; Hyp.cls 268
+            inc d		; Hyp.cls 269
+            ld a, d		; Hyp.cls 270
+            cp 80		; Hyp.cls 271
+            jr c, asm_1_208_n_cn_sh_col		; Hyp.cls 272
+            inc e		; Hyp.cls 273
+            ld a, e		; Hyp.cls 274
+            cp 25		; Hyp.cls 275
+            jr c, asm_1_208_n_cn_sh_row		; Hyp.cls 276
+            jr asm_1_208_n_cn_done		; Hyp.cls 277
 
 ; cn_char: A = one character
-asm_1_207_n_cn_char:		; Hyp.cls 279
-            ld b, a		; Hyp.cls 280
-            ld a, (#7685)           ; in an escape sequence? [281]
-            or a		; Hyp.cls 282
-            jr nz, asm_1_207_n_cn_esc0		; Hyp.cls 283
-            ld a, b		; Hyp.cls 284
-            cp 32		; Hyp.cls 285
-            jp nc, asm_1_207_n_cn_print		; Hyp.cls 286
-            ld hl, asm_1_207_n_cn_pv            ; a control code: the cursor may move (the pointers redone) [287]
-            ld (hl), 0		; Hyp.cls 288
-            cp 27		; Hyp.cls 289
-            jr z, asm_1_207_n_cn_setesc		; Hyp.cls 290
-            cp 13		; Hyp.cls 291
-            jr z, asm_1_207_n_cn_cr		; Hyp.cls 292
-            cp 10		; Hyp.cls 293
-            jp z, asm_1_207_n_cn_nl		; Hyp.cls 294
-            cp 8		; Hyp.cls 295
-            ret nz                  ; other control codes: nothing [296]
-            ld a, (#7682)           ; BS: back one (not past the start of the row) [297]
-            or a		; Hyp.cls 298
-            ret z		; Hyp.cls 299
-            dec a		; Hyp.cls 300
-            ld (#7682), a		; Hyp.cls 301
-            ret		; Hyp.cls 302
-asm_1_207_n_cn_setesc:		; Hyp.cls 303
-            ld a, 1		; Hyp.cls 304
-            ld (#7685), a		; Hyp.cls 305
-            ret		; Hyp.cls 306
-asm_1_207_n_cn_cr:		; Hyp.cls 307
-            xor a		; Hyp.cls 308
-            ld (#7682), a		; Hyp.cls 309
-            ret		; Hyp.cls 310
-asm_1_207_n_cn_esc0:		; Hyp.cls 311
-            ld hl, asm_1_207_n_cn_pv		; Hyp.cls 312
-            ld (hl), 0		; Hyp.cls 313
-asm_1_207_n_cn_esc:		; Hyp.cls 314
-            cp 1		; Hyp.cls 315
-            jr nz, asm_1_207_n_cn_esc2		; Hyp.cls 316
-            xor a                   ; ESC x [317]
-            ld (#7685), a		; Hyp.cls 318
-            ld a, b		; Hyp.cls 319
-            cp 'E'		; Hyp.cls 320
-            jp z, asm_1_207_n_cn_clear		; Hyp.cls 321
-            cp 'H'		; Hyp.cls 322
-            jr z, asm_1_207_n_cn_home		; Hyp.cls 323
-            cp 'Y'		; Hyp.cls 324
-            ret nz		; Hyp.cls 325
-            ld a, 2		; Hyp.cls 326
-            ld (#7685), a		; Hyp.cls 327
-            ret		; Hyp.cls 328
-asm_1_207_n_cn_home:		; Hyp.cls 329
-            xor a		; Hyp.cls 330
-            ld (#7682), a		; Hyp.cls 331
-            ld (#7683), a		; Hyp.cls 332
-            ret		; Hyp.cls 333
-asm_1_207_n_cn_esc2:		; Hyp.cls 334
-            cp 2		; Hyp.cls 335
-            jr nz, asm_1_207_n_cn_esc3		; Hyp.cls 336
-            ld a, b                 ; ESC Y row [337]
-            sub 32		; Hyp.cls 338
-            ld (#7686), a		; Hyp.cls 339
-            ld a, 3		; Hyp.cls 340
-            ld (#7685), a		; Hyp.cls 341
-            ret		; Hyp.cls 342
-asm_1_207_n_cn_esc3:		; Hyp.cls 343
-            xor a                   ; ESC Y row col [344]
-            ld (#7685), a		; Hyp.cls 345
-            ld a, b		; Hyp.cls 346
-            sub 32		; Hyp.cls 347
-            cp 80		; Hyp.cls 348
-            jr c, asm_1_207_n_cn_e3_col		; Hyp.cls 349
-            xor a		; Hyp.cls 350
-asm_1_207_n_cn_e3_col:		; Hyp.cls 351
-            ld (#7682), a		; Hyp.cls 352
-            ld a, (#7686)		; Hyp.cls 353
-            cp 25		; Hyp.cls 354
-            jr c, asm_1_207_n_cn_e3_row		; Hyp.cls 355
-            xor a		; Hyp.cls 356
-asm_1_207_n_cn_e3_row:		; Hyp.cls 357
-            ld (#7683), a		; Hyp.cls 358
-            ret		; Hyp.cls 359
+asm_1_208_n_cn_char:		; Hyp.cls 280
+            ld b, a		; Hyp.cls 281
+            ld a, (#7685)           ; in an escape sequence? [282]
+            or a		; Hyp.cls 283
+            jr nz, asm_1_208_n_cn_esc0		; Hyp.cls 284
+            ld a, b		; Hyp.cls 285
+            cp 32		; Hyp.cls 286
+            jp nc, asm_1_208_n_cn_print		; Hyp.cls 287
+            ld hl, asm_1_208_n_cn_pv            ; a control code: the cursor may move (the pointers redone) [288]
+            ld (hl), 0		; Hyp.cls 289
+            cp 27		; Hyp.cls 290
+            jr z, asm_1_208_n_cn_setesc		; Hyp.cls 291
+            cp 13		; Hyp.cls 292
+            jr z, asm_1_208_n_cn_cr		; Hyp.cls 293
+            cp 10		; Hyp.cls 294
+            jp z, asm_1_208_n_cn_nl		; Hyp.cls 295
+            cp 8		; Hyp.cls 296
+            ret nz                  ; other control codes: nothing [297]
+            ld a, (#7682)           ; BS: back one (not past the start of the row) [298]
+            or a		; Hyp.cls 299
+            ret z		; Hyp.cls 300
+            dec a		; Hyp.cls 301
+            ld (#7682), a		; Hyp.cls 302
+            ret		; Hyp.cls 303
+asm_1_208_n_cn_setesc:		; Hyp.cls 304
+            ld a, 1		; Hyp.cls 305
+            ld (#7685), a		; Hyp.cls 306
+            ret		; Hyp.cls 307
+asm_1_208_n_cn_cr:		; Hyp.cls 308
+            xor a		; Hyp.cls 309
+            ld (#7682), a		; Hyp.cls 310
+            ret		; Hyp.cls 311
+asm_1_208_n_cn_esc0:		; Hyp.cls 312
+            ld hl, asm_1_208_n_cn_pv		; Hyp.cls 313
+            ld (hl), 0		; Hyp.cls 314
+asm_1_208_n_cn_esc:		; Hyp.cls 315
+            cp 1		; Hyp.cls 316
+            jr nz, asm_1_208_n_cn_esc2		; Hyp.cls 317
+            xor a                   ; ESC x [318]
+            ld (#7685), a		; Hyp.cls 319
+            ld a, b		; Hyp.cls 320
+            cp 'E'		; Hyp.cls 321
+            jp z, asm_1_208_n_cn_clear		; Hyp.cls 322
+            cp 'H'		; Hyp.cls 323
+            jr z, asm_1_208_n_cn_home		; Hyp.cls 324
+            cp 'Y'		; Hyp.cls 325
+            ret nz		; Hyp.cls 326
+            ld a, 2		; Hyp.cls 327
+            ld (#7685), a		; Hyp.cls 328
+            ret		; Hyp.cls 329
+asm_1_208_n_cn_home:		; Hyp.cls 330
+            xor a		; Hyp.cls 331
+            ld (#7682), a		; Hyp.cls 332
+            ld (#7683), a		; Hyp.cls 333
+            ret		; Hyp.cls 334
+asm_1_208_n_cn_esc2:		; Hyp.cls 335
+            cp 2		; Hyp.cls 336
+            jr nz, asm_1_208_n_cn_esc3		; Hyp.cls 337
+            ld a, b                 ; ESC Y row [338]
+            sub 32		; Hyp.cls 339
+            ld (#7686), a		; Hyp.cls 340
+            ld a, 3		; Hyp.cls 341
+            ld (#7685), a		; Hyp.cls 342
+            ret		; Hyp.cls 343
+asm_1_208_n_cn_esc3:		; Hyp.cls 344
+            xor a                   ; ESC Y row col [345]
+            ld (#7685), a		; Hyp.cls 346
+            ld a, b		; Hyp.cls 347
+            sub 32		; Hyp.cls 348
+            cp 80		; Hyp.cls 349
+            jr c, asm_1_208_n_cn_e3_col		; Hyp.cls 350
+            xor a		; Hyp.cls 351
+asm_1_208_n_cn_e3_col:		; Hyp.cls 352
+            ld (#7682), a		; Hyp.cls 353
+            ld a, (#7686)		; Hyp.cls 354
+            cp 25		; Hyp.cls 355
+            jr c, asm_1_208_n_cn_e3_row		; Hyp.cls 356
+            xor a		; Hyp.cls 357
+asm_1_208_n_cn_e3_row:		; Hyp.cls 358
+            ld (#7683), a		; Hyp.cls 359
+            ret		; Hyp.cls 360
 
 ; a printable character (B): into the page, on the screen if in front, the column on. The page
 ; and screen pointers are worked out at the first character after the cursor moved (cn_pv 0),
 ; then just stepped on - a run of characters costs the 8 screen bytes each, not a sum each
-asm_1_207_n_cn_print:		; Hyp.cls 364
-            ld a, (asm_1_207_n_cn_pv)		; Hyp.cls 365
-            or a		; Hyp.cls 366
-            jr nz, asm_1_207_n_cn_pr_have		; Hyp.cls 367
-            ld a, (#7683)		; Hyp.cls 368
-            call asm_1_207_n_cn_rowa		; Hyp.cls 369
-            ld a, (#7682)		; Hyp.cls 370
-            ld e, a		; Hyp.cls 371
-            ld d, 0		; Hyp.cls 372
-            add hl, de		; Hyp.cls 373
-            ld (asm_1_207_n_cn_pp), hl		; Hyp.cls 374
-            ld a, (asm_1_207_n_cn_front)		; Hyp.cls 375
-            or a		; Hyp.cls 376
-            jr z, asm_1_207_n_cn_pr_set		; Hyp.cls 377
-            ld a, (#7682)		; Hyp.cls 378
-            ld d, a		; Hyp.cls 379
-            ld a, (#7683)		; Hyp.cls 380
-            ld e, a		; Hyp.cls 381
-            push bc                 ; (B: the character) [382]
-            call asm_1_207_n_cn_scr		; Hyp.cls 383
-            pop bc		; Hyp.cls 384
-            ld (asm_1_207_n_cn_sp), hl		; Hyp.cls 385
-asm_1_207_n_cn_pr_set:		; Hyp.cls 386
-            ld a, 1		; Hyp.cls 387
-            ld (asm_1_207_n_cn_pv), a		; Hyp.cls 388
-asm_1_207_n_cn_pr_have:		; Hyp.cls 389
-            ld hl, (asm_1_207_n_cn_pp)          ; the page [390]
-            ld (hl), b		; Hyp.cls 391
-            inc hl		; Hyp.cls 392
-            ld (asm_1_207_n_cn_pp), hl		; Hyp.cls 393
-            ld a, (asm_1_207_n_cn_front)		; Hyp.cls 394
-            or a		; Hyp.cls 395
-            jr z, asm_1_207_n_cn_pr_adv		; Hyp.cls 396
-            ld hl, (asm_1_207_n_cn_sp)          ; the screen [397]
-            push hl		; Hyp.cls 398
-            ld a, b		; Hyp.cls 399
-            call asm_1_207_n_cn_glyph8		; Hyp.cls 400
-            pop hl		; Hyp.cls 401
-            ld a, l                 ; the next column: + 1 within the 2K line block [402]
-            add a, 1		; Hyp.cls 403
-            ld l, a		; Hyp.cls 404
-            ld a, h		; Hyp.cls 405
-            adc a, 0		; Hyp.cls 406
-            and #07		; Hyp.cls 407
-            ld c, a		; Hyp.cls 408
-            ld a, h		; Hyp.cls 409
-            and #F8		; Hyp.cls 410
-            or c		; Hyp.cls 411
-            ld h, a		; Hyp.cls 412
-            ld (asm_1_207_n_cn_sp), hl		; Hyp.cls 413
-asm_1_207_n_cn_pr_adv:		; Hyp.cls 414
-            ld hl, #7682		; Hyp.cls 415
-            inc (hl)		; Hyp.cls 416
-            ld a, (hl)		; Hyp.cls 417
-            cp 80		; Hyp.cls 418
-            ret c		; Hyp.cls 419
-            ld (hl), 0              ; past the last column: the next row [420]
-            xor a		; Hyp.cls 421
-            ld (asm_1_207_n_cn_pv), a		; Hyp.cls 422
+asm_1_208_n_cn_print:		; Hyp.cls 365
+            ld a, (asm_1_208_n_cn_pv)		; Hyp.cls 366
+            or a		; Hyp.cls 367
+            jr nz, asm_1_208_n_cn_pr_have		; Hyp.cls 368
+            ld a, (#7683)		; Hyp.cls 369
+            call asm_1_208_n_cn_rowa		; Hyp.cls 370
+            ld a, (#7682)		; Hyp.cls 371
+            ld e, a		; Hyp.cls 372
+            ld d, 0		; Hyp.cls 373
+            add hl, de		; Hyp.cls 374
+            ld (asm_1_208_n_cn_pp), hl		; Hyp.cls 375
+            ld a, (asm_1_208_n_cn_front)		; Hyp.cls 376
+            or a		; Hyp.cls 377
+            jr z, asm_1_208_n_cn_pr_set		; Hyp.cls 378
+            ld a, (#7682)		; Hyp.cls 379
+            ld d, a		; Hyp.cls 380
+            ld a, (#7683)		; Hyp.cls 381
+            ld e, a		; Hyp.cls 382
+            push bc                 ; (B: the character) [383]
+            call asm_1_208_n_cn_scr		; Hyp.cls 384
+            pop bc		; Hyp.cls 385
+            ld (asm_1_208_n_cn_sp), hl		; Hyp.cls 386
+asm_1_208_n_cn_pr_set:		; Hyp.cls 387
+            ld a, 1		; Hyp.cls 388
+            ld (asm_1_208_n_cn_pv), a		; Hyp.cls 389
+asm_1_208_n_cn_pr_have:		; Hyp.cls 390
+            ld hl, (asm_1_208_n_cn_pp)          ; the page [391]
+            ld (hl), b		; Hyp.cls 392
+            inc hl		; Hyp.cls 393
+            ld (asm_1_208_n_cn_pp), hl		; Hyp.cls 394
+            ld a, (asm_1_208_n_cn_front)		; Hyp.cls 395
+            or a		; Hyp.cls 396
+            jr z, asm_1_208_n_cn_pr_adv		; Hyp.cls 397
+            ld hl, (asm_1_208_n_cn_sp)          ; the screen [398]
+            push hl		; Hyp.cls 399
+            ld a, b		; Hyp.cls 400
+            call asm_1_208_n_cn_glyph8		; Hyp.cls 401
+            pop hl		; Hyp.cls 402
+            ld a, l                 ; the next column: + 1 within the 2K line block [403]
+            add a, 1		; Hyp.cls 404
+            ld l, a		; Hyp.cls 405
+            ld a, h		; Hyp.cls 406
+            adc a, 0		; Hyp.cls 407
+            and #07		; Hyp.cls 408
+            ld c, a		; Hyp.cls 409
+            ld a, h		; Hyp.cls 410
+            and #F8		; Hyp.cls 411
+            or c		; Hyp.cls 412
+            ld h, a		; Hyp.cls 413
+            ld (asm_1_208_n_cn_sp), hl		; Hyp.cls 414
+asm_1_208_n_cn_pr_adv:		; Hyp.cls 415
+            ld hl, #7682		; Hyp.cls 416
+            inc (hl)		; Hyp.cls 417
+            ld a, (hl)		; Hyp.cls 418
+            cp 80		; Hyp.cls 419
+            ret c		; Hyp.cls 420
+            ld (hl), 0              ; past the last column: the next row [421]
+            xor a		; Hyp.cls 422
+            ld (asm_1_208_n_cn_pv), a		; Hyp.cls 423
 ; a line feed: the next row, or the page (and the screen) scroll
-asm_1_207_n_cn_nl:		; Hyp.cls 424
-            ld hl, #7683		; Hyp.cls 425
-            ld a, (hl)		; Hyp.cls 426
-            inc a		; Hyp.cls 427
-            cp 25		; Hyp.cls 428
-            jr nc, asm_1_207_n_cn_scroll		; Hyp.cls 429
-            ld (hl), a		; Hyp.cls 430
-            ret		; Hyp.cls 431
-asm_1_207_n_cn_scroll:		; Hyp.cls 432
-            ld a, (#7684)           ; the ring's top row moves on (no copy) [433]
-            inc a		; Hyp.cls 434
-            cp 25		; Hyp.cls 435
-            jr c, asm_1_207_n_cn_sc_top		; Hyp.cls 436
-            xor a		; Hyp.cls 437
-asm_1_207_n_cn_sc_top:		; Hyp.cls 438
-            ld (#7684), a		; Hyp.cls 439
-            ld a, 24		; Hyp.cls 440
-            call asm_1_207_n_cn_rowa            ; the new last row cleared [441]
-            ld b, 80		; Hyp.cls 442
-asm_1_207_n_cn_sc_cl:		; Hyp.cls 443
-            ld (hl), ' '		; Hyp.cls 444
-            inc hl		; Hyp.cls 445
-            djnz asm_1_207_n_cn_sc_cl		; Hyp.cls 446
-            ld a, (asm_1_207_n_cn_front)		; Hyp.cls 447
-            or a		; Hyp.cls 448
-            ret z		; Hyp.cls 449
-            ld b, 1                 ; the screen: SCR HW ROLL up, the new line in paper ink 0 - [450]
-            xor a                   ; one firmware call (it was 4 TXT calls: set the cursor, CR, [451]
-            call #BC4D              ; LF and a space, as the firmware scrolls only at a character [452]
-            di                      ; below the last line); firmware calls come back with ei [453]
-            jp asm_1_207_n_cn_loc               ; the screen's start moved [454]
+asm_1_208_n_cn_nl:		; Hyp.cls 425
+            ld hl, #7683		; Hyp.cls 426
+            ld a, (hl)		; Hyp.cls 427
+            inc a		; Hyp.cls 428
+            cp 25		; Hyp.cls 429
+            jr nc, asm_1_208_n_cn_scroll		; Hyp.cls 430
+            ld (hl), a		; Hyp.cls 431
+            ret		; Hyp.cls 432
+asm_1_208_n_cn_scroll:		; Hyp.cls 433
+            ld a, (#7684)           ; the ring's top row moves on (no copy) [434]
+            inc a		; Hyp.cls 435
+            cp 25		; Hyp.cls 436
+            jr c, asm_1_208_n_cn_sc_top		; Hyp.cls 437
+            xor a		; Hyp.cls 438
+asm_1_208_n_cn_sc_top:		; Hyp.cls 439
+            ld (#7684), a		; Hyp.cls 440
+            ld a, 24		; Hyp.cls 441
+            call asm_1_208_n_cn_rowa            ; the new last row cleared [442]
+            ld b, 80		; Hyp.cls 443
+asm_1_208_n_cn_sc_cl:		; Hyp.cls 444
+            ld (hl), ' '		; Hyp.cls 445
+            inc hl		; Hyp.cls 446
+            djnz asm_1_208_n_cn_sc_cl		; Hyp.cls 447
+            ld a, (asm_1_208_n_cn_front)		; Hyp.cls 448
+            or a		; Hyp.cls 449
+            ret z		; Hyp.cls 450
+            ld b, 1                 ; the screen: SCR HW ROLL up, the new line in paper ink 0 - [451]
+            xor a                   ; one firmware call (it was 4 TXT calls: set the cursor, CR, [452]
+            call #BC4D              ; LF and a space, as the firmware scrolls only at a character [453]
+            di                      ; below the last line); firmware calls come back with ei [454]
+            jp asm_1_208_n_cn_loc               ; the screen's start moved [455]
 
 ; ESC E: the page cleared, column, row and ring back to 0; the screen too if in front
-asm_1_207_n_cn_clear:		; Hyp.cls 457
-            ld hl, #7700		; Hyp.cls 458
-            ld de, #7701		; Hyp.cls 459
-            ld (hl), ' '		; Hyp.cls 460
-            ld bc, 25 * 80 - 1		; Hyp.cls 461
-            ldir		; Hyp.cls 462
-            xor a		; Hyp.cls 463
-            ld (#7682), a		; Hyp.cls 464
-            ld (#7683), a		; Hyp.cls 465
-            ld (#7684), a		; Hyp.cls 466
-            ld a, (asm_1_207_n_cn_front)		; Hyp.cls 467
-            or a		; Hyp.cls 468
-            ret z		; Hyp.cls 469
-            call #BB6C              ; TXT CLEAR WINDOW [470]
-            di		; Hyp.cls 471
-            jp asm_1_207_n_cn_loc		; Hyp.cls 472
+asm_1_208_n_cn_clear:		; Hyp.cls 458
+            ld hl, #7700		; Hyp.cls 459
+            ld de, #7701		; Hyp.cls 460
+            ld (hl), ' '		; Hyp.cls 461
+            ld bc, 25 * 80 - 1		; Hyp.cls 462
+            ldir		; Hyp.cls 463
+            xor a		; Hyp.cls 464
+            ld (#7682), a		; Hyp.cls 465
+            ld (#7683), a		; Hyp.cls 466
+            ld (#7684), a		; Hyp.cls 467
+            ld a, (asm_1_208_n_cn_front)		; Hyp.cls 468
+            or a		; Hyp.cls 469
+            ret z		; Hyp.cls 470
+            call #BB6C              ; TXT CLEAR WINDOW [471]
+            di		; Hyp.cls 472
+            jp asm_1_208_n_cn_loc		; Hyp.cls 473
 
 ; cn_rowa: A = row 0-24 of the screen -> HL = its row in the page ring (#7700 + ((top + A) mod 25) * 80)
-asm_1_207_n_cn_rowa:		; Hyp.cls 475
-            ld hl, #7684		; Hyp.cls 476
-            add a, (hl)		; Hyp.cls 477
-            cp 25		; Hyp.cls 478
-            jr c, asm_1_207_n_cn_ra_in		; Hyp.cls 479
-            sub 25		; Hyp.cls 480
-asm_1_207_n_cn_ra_in:		; Hyp.cls 481
-            ld l, a		; Hyp.cls 482
-            ld h, 0		; Hyp.cls 483
-            add hl, hl		; Hyp.cls 484
+asm_1_208_n_cn_rowa:		; Hyp.cls 476
+            ld hl, #7684		; Hyp.cls 477
+            add a, (hl)		; Hyp.cls 478
+            cp 25		; Hyp.cls 479
+            jr c, asm_1_208_n_cn_ra_in		; Hyp.cls 480
+            sub 25		; Hyp.cls 481
+asm_1_208_n_cn_ra_in:		; Hyp.cls 482
+            ld l, a		; Hyp.cls 483
+            ld h, 0		; Hyp.cls 484
             add hl, hl		; Hyp.cls 485
             add hl, hl		; Hyp.cls 486
-            add hl, hl              ; * 16 [487]
-            ld d, h		; Hyp.cls 488
-            ld e, l		; Hyp.cls 489
-            add hl, hl		; Hyp.cls 490
-            add hl, hl              ; * 64 [491]
-            add hl, de              ; * 80 [492]
-            ld de, #7700		; Hyp.cls 493
-            add hl, de		; Hyp.cls 494
-            ret		; Hyp.cls 495
+            add hl, hl		; Hyp.cls 487
+            add hl, hl              ; * 16 [488]
+            ld d, h		; Hyp.cls 489
+            ld e, l		; Hyp.cls 490
+            add hl, hl		; Hyp.cls 491
+            add hl, hl              ; * 64 [492]
+            add hl, de              ; * 80 [493]
+            ld de, #7700		; Hyp.cls 494
+            add hl, de		; Hyp.cls 495
+            ret		; Hyp.cls 496
 
 ; cn_glyph: A = character, D = column, E = row: drawn (cn_show)
-asm_1_207_n_cn_glyph:		; Hyp.cls 498
-            push af		; Hyp.cls 499
-            call asm_1_207_n_cn_scr		; Hyp.cls 500
-            pop af		; Hyp.cls 501
+asm_1_208_n_cn_glyph:		; Hyp.cls 499
+            push af		; Hyp.cls 500
+            call asm_1_208_n_cn_scr		; Hyp.cls 501
+            pop af		; Hyp.cls 502
 ; cn_glyph8: A = character, HL = its screen address: its 8 bytes into screen memory (mode 2, pen
 ; 1 on paper 0), one per pixel line (#800 apart; unrolled)
-asm_1_207_n_cn_glyph8:		; Hyp.cls 504
-            sub 32		; Hyp.cls 505
-            cp 96		; Hyp.cls 506
-            jr c, asm_1_207_n_cn_gl_ok		; Hyp.cls 507
-            ld a, '?' - 32		; Hyp.cls 508
-asm_1_207_n_cn_gl_ok:		; Hyp.cls 509
-            push hl		; Hyp.cls 510
-            ld l, a		; Hyp.cls 511
-            ld h, 0		; Hyp.cls 512
-            add hl, hl		; Hyp.cls 513
+asm_1_208_n_cn_glyph8:		; Hyp.cls 505
+            sub 32		; Hyp.cls 506
+            cp 96		; Hyp.cls 507
+            jr c, asm_1_208_n_cn_gl_ok		; Hyp.cls 508
+            ld a, '?' - 32		; Hyp.cls 509
+asm_1_208_n_cn_gl_ok:		; Hyp.cls 510
+            push hl		; Hyp.cls 511
+            ld l, a		; Hyp.cls 512
+            ld h, 0		; Hyp.cls 513
             add hl, hl		; Hyp.cls 514
             add hl, hl		; Hyp.cls 515
-            ld de, arr_hyp_font		; Hyp.cls 516
-            add hl, de		; Hyp.cls 517
-            ex de, hl               ; DE = its matrix [518]
-            pop hl		; Hyp.cls 519
-            ld a, (de)		; Hyp.cls 520
-            ld (hl), a		; Hyp.cls 521
-            inc de		; Hyp.cls 522
-            ld a, h		; Hyp.cls 523
-            add a, 8		; Hyp.cls 524
-            ld h, a		; Hyp.cls 525
-            ld a, (de)		; Hyp.cls 526
-            ld (hl), a		; Hyp.cls 527
-            inc de		; Hyp.cls 528
-            ld a, h		; Hyp.cls 529
-            add a, 8		; Hyp.cls 530
-            ld h, a		; Hyp.cls 531
-            ld a, (de)		; Hyp.cls 532
-            ld (hl), a		; Hyp.cls 533
-            inc de		; Hyp.cls 534
-            ld a, h		; Hyp.cls 535
-            add a, 8		; Hyp.cls 536
-            ld h, a		; Hyp.cls 537
-            ld a, (de)		; Hyp.cls 538
-            ld (hl), a		; Hyp.cls 539
-            inc de		; Hyp.cls 540
-            ld a, h		; Hyp.cls 541
-            add a, 8		; Hyp.cls 542
-            ld h, a		; Hyp.cls 543
-            ld a, (de)		; Hyp.cls 544
-            ld (hl), a		; Hyp.cls 545
-            inc de		; Hyp.cls 546
-            ld a, h		; Hyp.cls 547
-            add a, 8		; Hyp.cls 548
-            ld h, a		; Hyp.cls 549
-            ld a, (de)		; Hyp.cls 550
-            ld (hl), a		; Hyp.cls 551
-            inc de		; Hyp.cls 552
-            ld a, h		; Hyp.cls 553
-            add a, 8		; Hyp.cls 554
-            ld h, a		; Hyp.cls 555
-            ld a, (de)		; Hyp.cls 556
-            ld (hl), a		; Hyp.cls 557
-            inc de		; Hyp.cls 558
-            ld a, h		; Hyp.cls 559
-            add a, 8		; Hyp.cls 560
-            ld h, a		; Hyp.cls 561
-            ld a, (de)		; Hyp.cls 562
-            ld (hl), a		; Hyp.cls 563
-            ret		; Hyp.cls 564
+            add hl, hl		; Hyp.cls 516
+            ld de, arr_hyp_font		; Hyp.cls 517
+            add hl, de		; Hyp.cls 518
+            ex de, hl               ; DE = its matrix [519]
+            pop hl		; Hyp.cls 520
+            ld a, (de)		; Hyp.cls 521
+            ld (hl), a		; Hyp.cls 522
+            inc de		; Hyp.cls 523
+            ld a, h		; Hyp.cls 524
+            add a, 8		; Hyp.cls 525
+            ld h, a		; Hyp.cls 526
+            ld a, (de)		; Hyp.cls 527
+            ld (hl), a		; Hyp.cls 528
+            inc de		; Hyp.cls 529
+            ld a, h		; Hyp.cls 530
+            add a, 8		; Hyp.cls 531
+            ld h, a		; Hyp.cls 532
+            ld a, (de)		; Hyp.cls 533
+            ld (hl), a		; Hyp.cls 534
+            inc de		; Hyp.cls 535
+            ld a, h		; Hyp.cls 536
+            add a, 8		; Hyp.cls 537
+            ld h, a		; Hyp.cls 538
+            ld a, (de)		; Hyp.cls 539
+            ld (hl), a		; Hyp.cls 540
+            inc de		; Hyp.cls 541
+            ld a, h		; Hyp.cls 542
+            add a, 8		; Hyp.cls 543
+            ld h, a		; Hyp.cls 544
+            ld a, (de)		; Hyp.cls 545
+            ld (hl), a		; Hyp.cls 546
+            inc de		; Hyp.cls 547
+            ld a, h		; Hyp.cls 548
+            add a, 8		; Hyp.cls 549
+            ld h, a		; Hyp.cls 550
+            ld a, (de)		; Hyp.cls 551
+            ld (hl), a		; Hyp.cls 552
+            inc de		; Hyp.cls 553
+            ld a, h		; Hyp.cls 554
+            add a, 8		; Hyp.cls 555
+            ld h, a		; Hyp.cls 556
+            ld a, (de)		; Hyp.cls 557
+            ld (hl), a		; Hyp.cls 558
+            inc de		; Hyp.cls 559
+            ld a, h		; Hyp.cls 560
+            add a, 8		; Hyp.cls 561
+            ld h, a		; Hyp.cls 562
+            ld a, (de)		; Hyp.cls 563
+            ld (hl), a		; Hyp.cls 564
+            ret		; Hyp.cls 565
 ; cn_scr: D = column, E = row -> HL = the screen address: the screen's start (cn_off) + row * 80
 ; + column, within each 2K line block, at #C000 (it was SCR CHAR POSITION for every character:
 ; a firmware call through the jumpblock and the lower ROM)
-asm_1_207_n_cn_scr:		; Hyp.cls 568
-            ld l, e		; Hyp.cls 569
-            ld h, 0		; Hyp.cls 570
-            add hl, hl		; Hyp.cls 571
+asm_1_208_n_cn_scr:		; Hyp.cls 569
+            ld l, e		; Hyp.cls 570
+            ld h, 0		; Hyp.cls 571
             add hl, hl		; Hyp.cls 572
             add hl, hl		; Hyp.cls 573
-            add hl, hl              ; row * 16 [574]
-            push hl		; Hyp.cls 575
-            add hl, hl		; Hyp.cls 576
-            add hl, hl              ; * 64 [577]
-            pop bc		; Hyp.cls 578
-            add hl, bc              ; * 80 [579]
-            ld c, d		; Hyp.cls 580
-            ld b, 0		; Hyp.cls 581
-            add hl, bc		; Hyp.cls 582
-            ld bc, (asm_1_207_n_cn_off)		; Hyp.cls 583
-            add hl, bc		; Hyp.cls 584
-            ld a, h		; Hyp.cls 585
-            and #07		; Hyp.cls 586
-            ld b, a		; Hyp.cls 587
-            ld a, (asm_1_207_n_cn_base)		; Hyp.cls 588
-            or b		; Hyp.cls 589
-            ld h, a		; Hyp.cls 590
-            ret		; Hyp.cls 591
+            add hl, hl		; Hyp.cls 574
+            add hl, hl              ; row * 16 [575]
+            push hl		; Hyp.cls 576
+            add hl, hl		; Hyp.cls 577
+            add hl, hl              ; * 64 [578]
+            pop bc		; Hyp.cls 579
+            add hl, bc              ; * 80 [580]
+            ld c, d		; Hyp.cls 581
+            ld b, 0		; Hyp.cls 582
+            add hl, bc		; Hyp.cls 583
+            ld bc, (asm_1_208_n_cn_off)		; Hyp.cls 584
+            add hl, bc		; Hyp.cls 585
+            ld a, h		; Hyp.cls 586
+            and #07		; Hyp.cls 587
+            ld b, a		; Hyp.cls 588
+            ld a, (asm_1_208_n_cn_base)		; Hyp.cls 589
+            or b		; Hyp.cls 590
+            ld h, a		; Hyp.cls 591
+            ret		; Hyp.cls 592
 ; cn_loc: the screen's start (SCR GET LOCATION: A = its base, HL = its offset)
-asm_1_207_n_cn_loc:		; Hyp.cls 593
-            call #BC0B		; Hyp.cls 594
-            di		; Hyp.cls 595
-            ld (asm_1_207_n_cn_base), a		; Hyp.cls 596
-            ld (asm_1_207_n_cn_off), hl		; Hyp.cls 597
-            ret		; Hyp.cls 598
-asm_1_207_n_cn_front:   db 0		; Hyp.cls 599
-asm_1_207_n_cn_pv:      db 0                    ; cn_pp / cn_sp valid (0: the cursor moved) [600]
-asm_1_207_n_cn_pp:      dw 0                    ; the page byte for the next character [601]
-asm_1_207_n_cn_sp:      dw 0                    ; its screen address [602]
-asm_1_207_n_cn_base:    db #C0		; Hyp.cls 603
-asm_1_207_n_cn_off:     dw 0		; Hyp.cls 604
-asm_1_207_n_cn_left:    dw 0		; Hyp.cls 605
-asm_1_207_n_cn_ptr:     dw 0		; Hyp.cls 606
-asm_1_207_n_cn_end:		; Hyp.cls 607
+asm_1_208_n_cn_loc:		; Hyp.cls 594
+            call #BC0B		; Hyp.cls 595
+            di		; Hyp.cls 596
+            ld (asm_1_208_n_cn_base), a		; Hyp.cls 597
+            ld (asm_1_208_n_cn_off), hl		; Hyp.cls 598
+            ret		; Hyp.cls 599
+asm_1_208_n_cn_front:   db 0		; Hyp.cls 600
+asm_1_208_n_cn_pv:      db 0                    ; cn_pp / cn_sp valid (0: the cursor moved) [601]
+asm_1_208_n_cn_pp:      dw 0                    ; the page byte for the next character [602]
+asm_1_208_n_cn_sp:      dw 0                    ; its screen address [603]
+asm_1_208_n_cn_base:    db #C0		; Hyp.cls 604
+asm_1_208_n_cn_off:     dw 0		; Hyp.cls 605
+asm_1_208_n_cn_left:    dw 0		; Hyp.cls 606
+asm_1_208_n_cn_ptr:     dw 0		; Hyp.cls 607
+asm_1_208_n_cn_end:		; Hyp.cls 608
 			ret			; end of #asm
 
-asm_1_615_n:		; #asm, Hyp.cls line 615 (normal)
-            ld (var_hyp_hsp), sp		; Hyp.cls 616
-            ld sp, (ntc_csp)		; Hyp.cls 617
-            call #BC0B              ; SCR GET LOCATION: A = the screen's base, HL = its offset [618]
-            di		; Hyp.cls 619
-            ld (asm_1_615_n_sy_base), a		; Hyp.cls 620
-            ld (asm_1_615_n_sy_off), hl		; Hyp.cls 621
-            ld hl, (var_hyp_say_p)		; Hyp.cls 622
-            ld a, (var_hyp_say_n)		; Hyp.cls 623
-            ld b, a		; Hyp.cls 624
-            ld a, (var_hyp_say_col)		; Hyp.cls 625
-            ld d, a		; Hyp.cls 626
-            ld a, (var_hyp_say_row)		; Hyp.cls 627
-            ld e, a		; Hyp.cls 628
-            inc b		; Hyp.cls 629
-asm_1_615_n_sy_lp:		; Hyp.cls 630
-            dec b		; Hyp.cls 631
-            jr z, asm_1_615_n_sy_done		; Hyp.cls 632
-            ld a, d		; Hyp.cls 633
-            cp 80		; Hyp.cls 634
-            jr nc, asm_1_615_n_sy_done		; Hyp.cls 635
-            ld a, (hl)		; Hyp.cls 636
-            inc hl		; Hyp.cls 637
-            push hl		; Hyp.cls 638
-            push bc		; Hyp.cls 639
-            push de		; Hyp.cls 640
-            sub 32                  ; the character's matrix [641]
-            cp 96		; Hyp.cls 642
-            jr c, asm_1_615_n_sy_ok		; Hyp.cls 643
-            ld a, '?' - 32		; Hyp.cls 644
-asm_1_615_n_sy_ok:		; Hyp.cls 645
-            ld l, a		; Hyp.cls 646
-            ld h, 0		; Hyp.cls 647
-            add hl, hl		; Hyp.cls 648
+asm_1_616_n:		; #asm, Hyp.cls line 616 (normal)
+            ld (var_hyp_hsp), sp		; Hyp.cls 617
+            ld sp, (ntc_csp)		; Hyp.cls 618
+            call #BC0B              ; SCR GET LOCATION: A = the screen's base, HL = its offset [619]
+            di		; Hyp.cls 620
+            ld (asm_1_616_n_sy_base), a		; Hyp.cls 621
+            ld (asm_1_616_n_sy_off), hl		; Hyp.cls 622
+            ld hl, (var_hyp_say_p)		; Hyp.cls 623
+            ld a, (var_hyp_say_n)		; Hyp.cls 624
+            ld b, a		; Hyp.cls 625
+            ld a, (var_hyp_say_col)		; Hyp.cls 626
+            ld d, a		; Hyp.cls 627
+            ld a, (var_hyp_say_row)		; Hyp.cls 628
+            ld e, a		; Hyp.cls 629
+            inc b		; Hyp.cls 630
+asm_1_616_n_sy_lp:		; Hyp.cls 631
+            dec b		; Hyp.cls 632
+            jr z, asm_1_616_n_sy_done		; Hyp.cls 633
+            ld a, d		; Hyp.cls 634
+            cp 80		; Hyp.cls 635
+            jr nc, asm_1_616_n_sy_done		; Hyp.cls 636
+            ld a, (hl)		; Hyp.cls 637
+            inc hl		; Hyp.cls 638
+            push hl		; Hyp.cls 639
+            push bc		; Hyp.cls 640
+            push de		; Hyp.cls 641
+            sub 32                  ; the character's matrix [642]
+            cp 96		; Hyp.cls 643
+            jr c, asm_1_616_n_sy_ok		; Hyp.cls 644
+            ld a, '?' - 32		; Hyp.cls 645
+asm_1_616_n_sy_ok:		; Hyp.cls 646
+            ld l, a		; Hyp.cls 647
+            ld h, 0		; Hyp.cls 648
             add hl, hl		; Hyp.cls 649
             add hl, hl		; Hyp.cls 650
-            ld bc, arr_hyp_font		; Hyp.cls 651
-            add hl, bc		; Hyp.cls 652
-            push hl		; Hyp.cls 653
-            ld l, e                 ; its screen address: start + row * 80 + column, in 2K [654]
-            ld h, 0		; Hyp.cls 655
-            add hl, hl		; Hyp.cls 656
+            add hl, hl		; Hyp.cls 651
+            ld bc, arr_hyp_font		; Hyp.cls 652
+            add hl, bc		; Hyp.cls 653
+            push hl		; Hyp.cls 654
+            ld l, e                 ; its screen address: start + row * 80 + column, in 2K [655]
+            ld h, 0		; Hyp.cls 656
             add hl, hl		; Hyp.cls 657
             add hl, hl		; Hyp.cls 658
             add hl, hl		; Hyp.cls 659
-            push hl		; Hyp.cls 660
-            add hl, hl		; Hyp.cls 661
+            add hl, hl		; Hyp.cls 660
+            push hl		; Hyp.cls 661
             add hl, hl		; Hyp.cls 662
-            pop bc		; Hyp.cls 663
-            add hl, bc		; Hyp.cls 664
-            ld c, d		; Hyp.cls 665
-            ld b, 0		; Hyp.cls 666
-            add hl, bc		; Hyp.cls 667
-            ld bc, (asm_1_615_n_sy_off)		; Hyp.cls 668
-            add hl, bc		; Hyp.cls 669
-            ld a, h		; Hyp.cls 670
-            and #07		; Hyp.cls 671
-            ld b, a		; Hyp.cls 672
-            ld a, (asm_1_615_n_sy_base)		; Hyp.cls 673
-            or b		; Hyp.cls 674
-            ld h, a		; Hyp.cls 675
-            pop de		; Hyp.cls 676
-            ld b, 8		; Hyp.cls 677
-asm_1_615_n_sy_ln:		; Hyp.cls 678
-            ld a, (de)		; Hyp.cls 679
-            ld (hl), a		; Hyp.cls 680
-            inc de		; Hyp.cls 681
-            ld a, h		; Hyp.cls 682
-            add a, 8		; Hyp.cls 683
-            ld h, a		; Hyp.cls 684
-            djnz asm_1_615_n_sy_ln		; Hyp.cls 685
-            pop de		; Hyp.cls 686
-            pop bc		; Hyp.cls 687
-            pop hl		; Hyp.cls 688
-            inc d		; Hyp.cls 689
-            jr asm_1_615_n_sy_lp		; Hyp.cls 690
-asm_1_615_n_sy_done:		; Hyp.cls 691
-            ld sp, (var_hyp_hsp)		; Hyp.cls 692
-            jr asm_1_615_n_sy_end		; Hyp.cls 693
-asm_1_615_n_sy_base:    db #C0		; Hyp.cls 694
-asm_1_615_n_sy_off:     dw 0		; Hyp.cls 695
-asm_1_615_n_sy_end:		; Hyp.cls 696
+            add hl, hl		; Hyp.cls 663
+            pop bc		; Hyp.cls 664
+            add hl, bc		; Hyp.cls 665
+            ld c, d		; Hyp.cls 666
+            ld b, 0		; Hyp.cls 667
+            add hl, bc		; Hyp.cls 668
+            ld bc, (asm_1_616_n_sy_off)		; Hyp.cls 669
+            add hl, bc		; Hyp.cls 670
+            ld a, h		; Hyp.cls 671
+            and #07		; Hyp.cls 672
+            ld b, a		; Hyp.cls 673
+            ld a, (asm_1_616_n_sy_base)		; Hyp.cls 674
+            or b		; Hyp.cls 675
+            ld h, a		; Hyp.cls 676
+            pop de		; Hyp.cls 677
+            ld b, 8		; Hyp.cls 678
+asm_1_616_n_sy_ln:		; Hyp.cls 679
+            ld a, (de)		; Hyp.cls 680
+            ld (hl), a		; Hyp.cls 681
+            inc de		; Hyp.cls 682
+            ld a, h		; Hyp.cls 683
+            add a, 8		; Hyp.cls 684
+            ld h, a		; Hyp.cls 685
+            djnz asm_1_616_n_sy_ln		; Hyp.cls 686
+            pop de		; Hyp.cls 687
+            pop bc		; Hyp.cls 688
+            pop hl		; Hyp.cls 689
+            inc d		; Hyp.cls 690
+            jr asm_1_616_n_sy_lp		; Hyp.cls 691
+asm_1_616_n_sy_done:		; Hyp.cls 692
+            ld sp, (var_hyp_hsp)		; Hyp.cls 693
+            jr asm_1_616_n_sy_end		; Hyp.cls 694
+asm_1_616_n_sy_base:    db #C0		; Hyp.cls 695
+asm_1_616_n_sy_off:     dw 0		; Hyp.cls 696
+asm_1_616_n_sy_end:		; Hyp.cls 697
 			ret			; end of #asm
 
-asm_1_726_n:		; #asm, Hyp.cls line 726 (normal)
-            ld (var_hyp_sps), sp		; Hyp.cls 727
-            ld sp, (ntc_csp)		; Hyp.cls 728
-            call #B903              ; KL U ROM DISABLE: the task's top 16K, not a ROM (Library: [729]
-            di                      ; ROM has the keyword ROM on), while it runs [730]
-            ld (var_hyp_rrom), a		; Hyp.cls 731
-            ld a, 6		; Hyp.cls 732
-            ld (var_hyp_slc), a		; Hyp.cls 733
-            ld a, 1                 ; from BASIC: it has taken the characters (Collected) [734]
-            ld (var_hyp_rclr), a		; Hyp.cls 735
-asm_1_726_n_rn_again:		; Hyp.cls 736
-            push ix                 ; IX, IY and [737]
-            push iy		; Hyp.cls 738
-            db #08                  ; ex af, af': the alternate registers kept - the [739]
-            exx                     ; firmware's (BC' = its ROM / mode setting); a task [740]
-            push af                 ; may use them [741]
-            push bc		; Hyp.cls 742
-            push de		; Hyp.cls 743
-            push hl		; Hyp.cls 744
-            exx		; Hyp.cls 745
-            db #08		; Hyp.cls 746
-            ld hl, asm_1_726_n_rn_back		; Hyp.cls 747
-            push hl                 ; where main RAM carries on [748]
-            ld (ntc_bk_sp), sp		; Hyp.cls 749
-            ld a, (var_hyp_rclr)		; Hyp.cls 750
-            ld e, a                 ; E = 1: the bank empties its characters out (BASIC has them) [751]
-            ld a, (var_hyp_ra)		; Hyp.cls 752
-            ld hl, (var_hyp_rhl)		; Hyp.cls 753
-            ld bc, (var_hyp_run_setting)		; Hyp.cls 754
-            jp ntc_bk_out           ; out (c), c: the task's bank; its #0046 lands it [755]
-asm_1_726_n_rn_back:		; Hyp.cls 756
-            ld (var_hyp_rcnt), ix         ; the characters it collected (the stubs put them in IX) [757]
-            db #08                  ; ex af, af' [758]
-            exx		; Hyp.cls 759
-            pop hl                  ; the alternate registers back [760]
-            pop de		; Hyp.cls 761
-            pop bc		; Hyp.cls 762
-            pop af		; Hyp.cls 763
-            exx		; Hyp.cls 764
-            db #08		; Hyp.cls 765
-            pop iy		; Hyp.cls 766
-            pop ix		; Hyp.cls 767
-            push af                 ; carry: a BDOS call (A = C, DE = DE) [768]
-            push bc		; Hyp.cls 769
-            ld bc, (ntc_rampt)      ; the window's page back [770]
-            out (c), c		; Hyp.cls 771
-            pop bc		; Hyp.cls 772
-            pop af		; Hyp.cls 773
-            jr c, asm_1_726_n_rn_far		; Hyp.cls 774
-            rst #38                 ; an interrupt stopped the task: the firmware's handler [775]
-            di		; Hyp.cls 776
-            ld hl, var_hyp_slc            ; a time slice is SLICE interrupts: until it is used up the [777]
-            dec (hl)                ; task carries on straight away (no trip through BASIC) [778]
-            jr z, asm_1_726_n_rn_int		; Hyp.cls 779
-            ld a, (ntc_isldue)      ; ... unless an interrupt class (the system keys) is due [780]
-            or a		; Hyp.cls 781
-            jr nz, asm_1_726_n_rn_int		; Hyp.cls 782
-            xor a                   ; its characters stay in its bank (and the count goes on) [783]
-            ld (var_hyp_rclr), a		; Hyp.cls 784
-            jp asm_1_726_n_rn_again		; Hyp.cls 785
-asm_1_726_n_rn_int:		; Hyp.cls 786
-            ld hl, 0		; Hyp.cls 787
-            jr asm_1_726_n_rn_end		; Hyp.cls 788
-asm_1_726_n_rn_far:		; Hyp.cls 789
-            ld (var_hyp_rfn), a		; Hyp.cls 790
-            ld (var_hyp_rde), de		; Hyp.cls 791
-            ld hl, 1		; Hyp.cls 792
-asm_1_726_n_rn_end:		; Hyp.cls 793
-            ld (var_hyp_run_run), hl		; Hyp.cls 794
-            ld a, (var_hyp_rrom)		; Hyp.cls 795
-            call #B90C              ; KL ROM RESTORE [796]
-            di		; Hyp.cls 797
-            ld sp, (var_hyp_sps)		; Hyp.cls 798
+asm_1_727_n:		; #asm, Hyp.cls line 727 (normal)
+            ld (var_hyp_sps), sp		; Hyp.cls 728
+            ld sp, (ntc_csp)		; Hyp.cls 729
+            call #B903              ; KL U ROM DISABLE: the task's top 16K, not a ROM (Library: [730]
+            di                      ; ROM has the keyword ROM on), while it runs [731]
+            ld (var_hyp_rrom), a		; Hyp.cls 732
+            ld a, 6		; Hyp.cls 733
+            ld (var_hyp_slc), a		; Hyp.cls 734
+            ld a, 1                 ; from BASIC: it has taken the characters (Collected) [735]
+            ld (var_hyp_rclr), a		; Hyp.cls 736
+asm_1_727_n_rn_again:		; Hyp.cls 737
+            push ix                 ; IX, IY and [738]
+            push iy		; Hyp.cls 739
+            db #08                  ; ex af, af': the alternate registers kept - the [740]
+            exx                     ; firmware's (BC' = its ROM / mode setting); a task [741]
+            push af                 ; may use them [742]
+            push bc		; Hyp.cls 743
+            push de		; Hyp.cls 744
+            push hl		; Hyp.cls 745
+            exx		; Hyp.cls 746
+            db #08		; Hyp.cls 747
+            ld hl, asm_1_727_n_rn_back		; Hyp.cls 748
+            push hl                 ; where main RAM carries on [749]
+            ld (ntc_bk_sp), sp		; Hyp.cls 750
+            ld a, (var_hyp_rclr)		; Hyp.cls 751
+            ld e, a                 ; E = 1: the bank empties its characters out (BASIC has them) [752]
+            ld a, (var_hyp_ra)		; Hyp.cls 753
+            ld hl, (var_hyp_rhl)		; Hyp.cls 754
+            ld bc, (var_hyp_run_setting)		; Hyp.cls 755
+            jp ntc_bk_out           ; out (c), c: the task's bank; its #0046 lands it [756]
+asm_1_727_n_rn_back:		; Hyp.cls 757
+            ld (var_hyp_rcnt), ix         ; the characters it collected (the stubs put them in IX) [758]
+            db #08                  ; ex af, af' [759]
+            exx		; Hyp.cls 760
+            pop hl                  ; the alternate registers back [761]
+            pop de		; Hyp.cls 762
+            pop bc		; Hyp.cls 763
+            pop af		; Hyp.cls 764
+            exx		; Hyp.cls 765
+            db #08		; Hyp.cls 766
+            pop iy		; Hyp.cls 767
+            pop ix		; Hyp.cls 768
+            push af                 ; carry: a BDOS call (A = C, DE = DE) [769]
+            push bc		; Hyp.cls 770
+            ld bc, (ntc_rampt)      ; the window's page back [771]
+            out (c), c		; Hyp.cls 772
+            pop bc		; Hyp.cls 773
+            pop af		; Hyp.cls 774
+            jr c, asm_1_727_n_rn_far		; Hyp.cls 775
+            rst #38                 ; an interrupt stopped the task: the firmware's handler [776]
+            di		; Hyp.cls 777
+            ld hl, var_hyp_slc            ; a time slice is SLICE interrupts: until it is used up the [778]
+            dec (hl)                ; task carries on straight away (no trip through BASIC) [779]
+            jr z, asm_1_727_n_rn_int		; Hyp.cls 780
+            ld a, (ntc_isldue)      ; ... unless an interrupt class (the system keys) is due [781]
+            or a		; Hyp.cls 782
+            jr nz, asm_1_727_n_rn_int		; Hyp.cls 783
+            xor a                   ; its characters stay in its bank (and the count goes on) [784]
+            ld (var_hyp_rclr), a		; Hyp.cls 785
+            jp asm_1_727_n_rn_again		; Hyp.cls 786
+asm_1_727_n_rn_int:		; Hyp.cls 787
+            ld hl, 0		; Hyp.cls 788
+            jr asm_1_727_n_rn_end		; Hyp.cls 789
+asm_1_727_n_rn_far:		; Hyp.cls 790
+            ld (var_hyp_rfn), a		; Hyp.cls 791
+            ld (var_hyp_rde), de		; Hyp.cls 792
+            ld hl, 1		; Hyp.cls 793
+asm_1_727_n_rn_end:		; Hyp.cls 794
+            ld (var_hyp_run_run), hl		; Hyp.cls 795
+            ld a, (var_hyp_rrom)		; Hyp.cls 796
+            call #B90C              ; KL ROM RESTORE [797]
+            di		; Hyp.cls 798
+            ld sp, (var_hyp_sps)		; Hyp.cls 799
 
 			ret			; end of #asm
 
-fn_hyp_info:		; function info (asm keyword), Hyp.cls line 806
-            pop hl		; Hyp.cls 807
-            ld a, (hl)		; Hyp.cls 808
-            ld hl, fn_hyp_info_hi_p0		; Hyp.cls 809
-            or a		; Hyp.cls 810
-            jr z, fn_hyp_info_in_e		; Hyp.cls 811
-            ld hl, fn_hyp_info_hi_p0e - fn_hyp_info_hi_p0		; Hyp.cls 812
-            dec a		; Hyp.cls 813
-            jr z, fn_hyp_info_in_e		; Hyp.cls 814
-            ld hl, fn_hyp_info_sb_start		; Hyp.cls 815
-            dec a		; Hyp.cls 816
-            jr z, fn_hyp_info_in_e		; Hyp.cls 817
-            ld hl, fn_hyp_info_sb_end - fn_hyp_info_sb_start		; Hyp.cls 818
-fn_hyp_info_in_e:		; Hyp.cls 819
-            ex de, hl		; Hyp.cls 820
-            pop hl		; Hyp.cls 821
-            ld (hl), e		; Hyp.cls 822
-            inc hl		; Hyp.cls 823
-            ld (hl), d		; Hyp.cls 824
-            ret		; Hyp.cls 825
+fn_hyp_info:		; function info (asm keyword), Hyp.cls line 807
+            pop hl		; Hyp.cls 808
+            ld a, (hl)		; Hyp.cls 809
+            ld hl, fn_hyp_info_hi_p0		; Hyp.cls 810
+            or a		; Hyp.cls 811
+            jr z, fn_hyp_info_in_e		; Hyp.cls 812
+            ld hl, fn_hyp_info_hi_p0e - fn_hyp_info_hi_p0		; Hyp.cls 813
+            dec a		; Hyp.cls 814
+            jr z, fn_hyp_info_in_e		; Hyp.cls 815
+            ld hl, fn_hyp_info_sb_start		; Hyp.cls 816
+            dec a		; Hyp.cls 817
+            jr z, fn_hyp_info_in_e		; Hyp.cls 818
+            ld hl, fn_hyp_info_sb_end - fn_hyp_info_sb_start		; Hyp.cls 819
+fn_hyp_info_in_e:		; Hyp.cls 820
+            ex de, hl		; Hyp.cls 821
+            pop hl		; Hyp.cls 822
+            ld (hl), e		; Hyp.cls 823
+            inc hl		; Hyp.cls 824
+            ld (hl), d		; Hyp.cls 825
+            ret		; Hyp.cls 826
 ; page zero (#0000-#0080)
-fn_hyp_info_hi_p0:		; Hyp.cls 827
-            db #C3		; Hyp.cls 828
-            dw 62720 + (fn_hyp_info_sb_exit - fn_hyp_info_sb_start)    ; #0000: warm boot = the task ends [829]
-            db 0, 0		; Hyp.cls 830
-            db #C3		; Hyp.cls 831
-            dw 62720                           ; #0005: BDOS (#0006: the top of the TPA) [832]
-            ds #38 - 8		; Hyp.cls 833
-            db #C3		; Hyp.cls 834
-            dw 62720 + (fn_hyp_info_sb_int - fn_hyp_info_sb_start)     ; #0038: the interrupt [835]
-            ds #44 - #3B		; Hyp.cls 836
-            db #ED, #49                         ; #0044: out (c), c [837]
-            db #C3		; Hyp.cls 838
-            dw 62720 + (fn_hyp_info_sb_land - fn_hyp_info_sb_start)    ; #0046: this bank switched in [839]
-            ds #5C - #49		; Hyp.cls 840
-            db 0, "           "                 ; #005C: the default FCB [841]
-            ds #80 - #68		; Hyp.cls 842
-            db 0                                ; #0080: no command tail [843]
-fn_hyp_info_hi_p0e:		; Hyp.cls 844
+fn_hyp_info_hi_p0:		; Hyp.cls 828
+            db #C3		; Hyp.cls 829
+            dw 62720 + (fn_hyp_info_sb_exit - fn_hyp_info_sb_start)    ; #0000: warm boot = the task ends [830]
+            db 0, 0		; Hyp.cls 831
+            db #C3		; Hyp.cls 832
+            dw 62720                           ; #0005: BDOS (#0006: the top of the TPA) [833]
+            ds #38 - 8		; Hyp.cls 834
+            db #C3		; Hyp.cls 835
+            dw 62720 + (fn_hyp_info_sb_int - fn_hyp_info_sb_start)     ; #0038: the interrupt [836]
+            ds #44 - #3B		; Hyp.cls 837
+            db #ED, #49                         ; #0044: out (c), c [838]
+            db #C3		; Hyp.cls 839
+            dw 62720 + (fn_hyp_info_sb_land - fn_hyp_info_sb_start)    ; #0046: this bank switched in [840]
+            ds #5C - #49		; Hyp.cls 841
+            db 0, "           "                 ; #005C: the default FCB [842]
+            ds #80 - #68		; Hyp.cls 843
+            db 0                                ; #0080: no command tail [844]
+fn_hyp_info_hi_p0e:		; Hyp.cls 845
 ; the stubs: assembled here, run at STUB in the bank (jumps inside them are to STUB + offset).
 ; Characters out (BDOS 2, 6 with E < #FE) are collected at OBUF with no switch; the hypervisor
 ; gets them (IX = how many) at the next far call or interrupt, at a line end, or when 128 wait
-fn_hyp_info_sb_start:		; Hyp.cls 848
-            di                                  ; BDOS: C = function, DE = argument [849]
-            ld a, c		; Hyp.cls 850
-            cp 2		; Hyp.cls 851
-            jr z, fn_hyp_info_sb_put		; Hyp.cls 852
-            cp 6		; Hyp.cls 853
-            jr z, fn_hyp_info_sb_f6		; Hyp.cls 854
-            cp 11		; Hyp.cls 855
-            jr z, fn_hyp_info_sb_stat		; Hyp.cls 856
-            cp 1		; Hyp.cls 857
-            jr z, fn_hyp_info_sb_f1		; Hyp.cls 858
-            jr fn_hyp_info_sb_call		; Hyp.cls 859
-fn_hyp_info_sb_f6:		; Hyp.cls 860
-            ld a, e		; Hyp.cls 861
-            cp #FF		; Hyp.cls 862
-            jr z, fn_hyp_info_sb_get		; Hyp.cls 863
-            cp #FE		; Hyp.cls 864
-            jr c, fn_hyp_info_sb_put		; Hyp.cls 865
+fn_hyp_info_sb_start:		; Hyp.cls 849
+            di                                  ; BDOS: C = function, DE = argument [850]
+            ld a, c		; Hyp.cls 851
+            cp 2		; Hyp.cls 852
+            jr z, fn_hyp_info_sb_put		; Hyp.cls 853
+            cp 6		; Hyp.cls 854
+            jr z, fn_hyp_info_sb_f6		; Hyp.cls 855
+            cp 11		; Hyp.cls 856
+            jr z, fn_hyp_info_sb_stat		; Hyp.cls 857
+            cp 1		; Hyp.cls 858
+            jr z, fn_hyp_info_sb_f1		; Hyp.cls 859
+            jr fn_hyp_info_sb_call		; Hyp.cls 860
+fn_hyp_info_sb_f6:		; Hyp.cls 861
+            ld a, e		; Hyp.cls 862
+            cp #FF		; Hyp.cls 863
+            jr z, fn_hyp_info_sb_get		; Hyp.cls 864
+            cp #FE		; Hyp.cls 865
+            jr c, fn_hyp_info_sb_put		; Hyp.cls 866
 ; keys: the hypervisor leaves the slot's next key at KEY (0 none), so these never switch
-fn_hyp_info_sb_stat:		; Hyp.cls 867
-            ld a, (63105)                       ; 6 / #FE, 11: is a key waiting (#FF / 0) [868]
-            or a		; Hyp.cls 869
-            jr z, fn_hyp_info_sb_ret		; Hyp.cls 870
-            ld a, #FF		; Hyp.cls 871
-fn_hyp_info_sb_ret:		; Hyp.cls 872
-            ld l, a		; Hyp.cls 873
-            ld h, 0		; Hyp.cls 874
-            ei		; Hyp.cls 875
-            ret		; Hyp.cls 876
-fn_hyp_info_sb_get:		; Hyp.cls 877
-            ld hl, 63105                        ; 6 / #FF: the key or 0 [878]
-            ld a, (hl)		; Hyp.cls 879
-            ld (hl), 0		; Hyp.cls 880
-            jr fn_hyp_info_sb_ret		; Hyp.cls 881
-fn_hyp_info_sb_f1:		; Hyp.cls 882
-            ld hl, 63105                        ; 1: the key (echoed) or 0 [883]
-            ld a, (hl)		; Hyp.cls 884
-            or a		; Hyp.cls 885
-            jr z, fn_hyp_info_sb_ret		; Hyp.cls 886
-            ld (hl), 0		; Hyp.cls 887
-            ld e, a		; Hyp.cls 888
-            ld hl, 62976 + 128                 ; the echo, collected (not when full) [889]
-            ld a, (hl)		; Hyp.cls 890
-            cp 127		; Hyp.cls 891
-            ld a, e		; Hyp.cls 892
-            jr nc, fn_hyp_info_sb_ret		; Hyp.cls 893
-            inc (hl)		; Hyp.cls 894
-            ld l, (hl)		; Hyp.cls 895
-            dec l		; Hyp.cls 896
-            ld h, 62976 / 256		; Hyp.cls 897
-            ld (hl), a		; Hyp.cls 898
-            jr fn_hyp_info_sb_ret		; Hyp.cls 899
-fn_hyp_info_sb_put:		; Hyp.cls 900
-            ld hl, 62976 + 128                 ; the count [901]
-            ld a, (hl)		; Hyp.cls 902
-            inc (hl)		; Hyp.cls 903
-            ld l, a		; Hyp.cls 904
-            ld h, 62976 / 256		; Hyp.cls 905
-            ld (hl), e		; Hyp.cls 906
-            cp 127		; Hyp.cls 907
-            jr nc, fn_hyp_info_sb_flush                     ; full [908]
+fn_hyp_info_sb_stat:		; Hyp.cls 868
+            ld a, (63105)                       ; 6 / #FE, 11: is a key waiting (#FF / 0) [869]
+            or a		; Hyp.cls 870
+            jr z, fn_hyp_info_sb_ret		; Hyp.cls 871
+            ld a, #FF		; Hyp.cls 872
+fn_hyp_info_sb_ret:		; Hyp.cls 873
+            ld l, a		; Hyp.cls 874
+            ld h, 0		; Hyp.cls 875
+            ei		; Hyp.cls 876
+            ret		; Hyp.cls 877
+fn_hyp_info_sb_get:		; Hyp.cls 878
+            ld hl, 63105                        ; 6 / #FF: the key or 0 [879]
+            ld a, (hl)		; Hyp.cls 880
+            ld (hl), 0		; Hyp.cls 881
+            jr fn_hyp_info_sb_ret		; Hyp.cls 882
+fn_hyp_info_sb_f1:		; Hyp.cls 883
+            ld hl, 63105                        ; 1: the key (echoed) or 0 [884]
+            ld a, (hl)		; Hyp.cls 885
+            or a		; Hyp.cls 886
+            jr z, fn_hyp_info_sb_ret		; Hyp.cls 887
+            ld (hl), 0		; Hyp.cls 888
+            ld e, a		; Hyp.cls 889
+            ld hl, 62976 + 128                 ; the echo, collected (not when full) [890]
+            ld a, (hl)		; Hyp.cls 891
+            cp 127		; Hyp.cls 892
+            ld a, e		; Hyp.cls 893
+            jr nc, fn_hyp_info_sb_ret		; Hyp.cls 894
+            inc (hl)		; Hyp.cls 895
+            ld l, (hl)		; Hyp.cls 896
+            dec l		; Hyp.cls 897
+            ld h, 62976 / 256		; Hyp.cls 898
+            ld (hl), a		; Hyp.cls 899
+            jr fn_hyp_info_sb_ret		; Hyp.cls 900
+fn_hyp_info_sb_put:		; Hyp.cls 901
+            ld hl, 62976 + 128                 ; the count [902]
+            ld a, (hl)		; Hyp.cls 903
+            inc (hl)		; Hyp.cls 904
+            ld l, a		; Hyp.cls 905
+            ld h, 62976 / 256		; Hyp.cls 906
+            ld (hl), e		; Hyp.cls 907
+            cp 127		; Hyp.cls 908
+            jr nc, fn_hyp_info_sb_flush                     ; full [909]
 ;           ld a, e                             ; (was: a line end shown at once - a trip
 ;           cp 10                               ; through the hypervisor's BASIC for every
 ;           jr z, sb_flush                      ; line; now at the end of the time slice, 1/50 s)
-            ei		; Hyp.cls 912
-            ret		; Hyp.cls 913
-fn_hyp_info_sb_flush:		; Hyp.cls 914
-            ld c, #80                           ; (function #80: only the characters) [915]
-fn_hyp_info_sb_call:		; Hyp.cls 916
-            push ix                             ; IX, IY and the alternate registers kept [917]
-            push iy                             ; over the call (ex af, af') [918]
-            db #08		; Hyp.cls 919
-            exx		; Hyp.cls 920
-            push af		; Hyp.cls 921
-            push bc		; Hyp.cls 922
-            push de		; Hyp.cls 923
-            push hl		; Hyp.cls 924
-            exx		; Hyp.cls 925
-            db #08		; Hyp.cls 926
-            ld a, (62976 + 128)		; Hyp.cls 927
-            ld ixl, a		; Hyp.cls 928
-            ld ixh, 0		; Hyp.cls 929
-            ld a, c		; Hyp.cls 930
-            ld hl, 62720 + (fn_hyp_info_sb_far - fn_hyp_info_sb_start)		; Hyp.cls 931
-            push hl		; Hyp.cls 932
-            ld (#FFFE), sp		; Hyp.cls 933
-            ld bc, #7FC0		; Hyp.cls 934
-            scf                                 ; carry: a far call [935]
-            jp #0044		; Hyp.cls 936
-fn_hyp_info_sb_far:		; Hyp.cls 937
-            db #08                              ; the answer in A and HL; the program's [938]
-            exx                                 ; other registers back [939]
-            pop hl		; Hyp.cls 940
-            pop de		; Hyp.cls 941
-            pop bc		; Hyp.cls 942
-            pop af		; Hyp.cls 943
-            exx		; Hyp.cls 944
-            db #08		; Hyp.cls 945
-            pop iy		; Hyp.cls 946
-            pop ix		; Hyp.cls 947
-            ei		; Hyp.cls 948
-            ret		; Hyp.cls 949
-fn_hyp_info_sb_int:		; Hyp.cls 950
-            push af                             ; an interrupt: everything kept [951]
-            push bc		; Hyp.cls 952
-            push de		; Hyp.cls 953
-            push hl		; Hyp.cls 954
-            db #08                              ; ex af, af' [955]
-            exx		; Hyp.cls 956
-            push af		; Hyp.cls 957
-            push bc		; Hyp.cls 958
-            push de		; Hyp.cls 959
-            push hl		; Hyp.cls 960
-            push ix		; Hyp.cls 961
-            push iy		; Hyp.cls 962
-            ld a, (62976 + 128)		; Hyp.cls 963
-            ld ixl, a		; Hyp.cls 964
-            ld ixh, 0		; Hyp.cls 965
-            ld hl, 62720 + (fn_hyp_info_sb_rest - fn_hyp_info_sb_start)		; Hyp.cls 966
-            push hl		; Hyp.cls 967
-            ld (#FFFE), sp		; Hyp.cls 968
-            ld bc, #7FC0		; Hyp.cls 969
-            or a                                ; no carry: an interrupt [970]
-            jp #0044		; Hyp.cls 971
-fn_hyp_info_sb_rest:		; Hyp.cls 972
-            pop iy		; Hyp.cls 973
-            pop ix		; Hyp.cls 974
-            pop hl		; Hyp.cls 975
-            pop de		; Hyp.cls 976
-            pop bc		; Hyp.cls 977
-            pop af		; Hyp.cls 978
-            exx		; Hyp.cls 979
-            db #08                              ; ex af, af' [980]
-            pop hl		; Hyp.cls 981
-            pop de		; Hyp.cls 982
-            pop bc		; Hyp.cls 983
-            pop af		; Hyp.cls 984
-            ei		; Hyp.cls 985
-            ret		; Hyp.cls 986
-fn_hyp_info_sb_land:		; Hyp.cls 987
-            ld sp, (#FFFE)                      ; this bank's SP [988]
-            push af		; Hyp.cls 989
-            ld a, e                             ; E = 1: the hypervisor has the characters [990]
-            or a		; Hyp.cls 991
-            jr z, fn_hyp_info_sb_lkeep		; Hyp.cls 992
-            xor a		; Hyp.cls 993
-            ld (62976 + 128), a		; Hyp.cls 994
-fn_hyp_info_sb_lkeep:		; Hyp.cls 995
-            pop af		; Hyp.cls 996
-            ret		; Hyp.cls 997
-fn_hyp_info_sb_exit:		; Hyp.cls 998
-            ld c, 0		; Hyp.cls 999
-            jp 62720		; Hyp.cls 1000
-fn_hyp_info_sb_end:		; Hyp.cls 1001
-            ASSERT fn_hyp_info_sb_end - fn_hyp_info_sb_start <= 256, "the bank stubs must fit below OBUF"		; Hyp.cls 1002
+            ei		; Hyp.cls 913
+            ret		; Hyp.cls 914
+fn_hyp_info_sb_flush:		; Hyp.cls 915
+            ld c, #80                           ; (function #80: only the characters) [916]
+fn_hyp_info_sb_call:		; Hyp.cls 917
+            push ix                             ; IX, IY and the alternate registers kept [918]
+            push iy                             ; over the call (ex af, af') [919]
+            db #08		; Hyp.cls 920
+            exx		; Hyp.cls 921
+            push af		; Hyp.cls 922
+            push bc		; Hyp.cls 923
+            push de		; Hyp.cls 924
+            push hl		; Hyp.cls 925
+            exx		; Hyp.cls 926
+            db #08		; Hyp.cls 927
+            ld a, (62976 + 128)		; Hyp.cls 928
+            ld ixl, a		; Hyp.cls 929
+            ld ixh, 0		; Hyp.cls 930
+            ld a, c		; Hyp.cls 931
+            ld hl, 62720 + (fn_hyp_info_sb_far - fn_hyp_info_sb_start)		; Hyp.cls 932
+            push hl		; Hyp.cls 933
+            ld (#FFFE), sp		; Hyp.cls 934
+            ld bc, #7FC0		; Hyp.cls 935
+            scf                                 ; carry: a far call [936]
+            jp #0044		; Hyp.cls 937
+fn_hyp_info_sb_far:		; Hyp.cls 938
+            db #08                              ; the answer in A and HL; the program's [939]
+            exx                                 ; other registers back [940]
+            pop hl		; Hyp.cls 941
+            pop de		; Hyp.cls 942
+            pop bc		; Hyp.cls 943
+            pop af		; Hyp.cls 944
+            exx		; Hyp.cls 945
+            db #08		; Hyp.cls 946
+            pop iy		; Hyp.cls 947
+            pop ix		; Hyp.cls 948
+            ei		; Hyp.cls 949
+            ret		; Hyp.cls 950
+fn_hyp_info_sb_int:		; Hyp.cls 951
+            push af                             ; an interrupt: everything kept [952]
+            push bc		; Hyp.cls 953
+            push de		; Hyp.cls 954
+            push hl		; Hyp.cls 955
+            db #08                              ; ex af, af' [956]
+            exx		; Hyp.cls 957
+            push af		; Hyp.cls 958
+            push bc		; Hyp.cls 959
+            push de		; Hyp.cls 960
+            push hl		; Hyp.cls 961
+            push ix		; Hyp.cls 962
+            push iy		; Hyp.cls 963
+            ld a, (62976 + 128)		; Hyp.cls 964
+            ld ixl, a		; Hyp.cls 965
+            ld ixh, 0		; Hyp.cls 966
+            ld hl, 62720 + (fn_hyp_info_sb_rest - fn_hyp_info_sb_start)		; Hyp.cls 967
+            push hl		; Hyp.cls 968
+            ld (#FFFE), sp		; Hyp.cls 969
+            ld bc, #7FC0		; Hyp.cls 970
+            or a                                ; no carry: an interrupt [971]
+            jp #0044		; Hyp.cls 972
+fn_hyp_info_sb_rest:		; Hyp.cls 973
+            pop iy		; Hyp.cls 974
+            pop ix		; Hyp.cls 975
+            pop hl		; Hyp.cls 976
+            pop de		; Hyp.cls 977
+            pop bc		; Hyp.cls 978
+            pop af		; Hyp.cls 979
+            exx		; Hyp.cls 980
+            db #08                              ; ex af, af' [981]
+            pop hl		; Hyp.cls 982
+            pop de		; Hyp.cls 983
+            pop bc		; Hyp.cls 984
+            pop af		; Hyp.cls 985
+            ei		; Hyp.cls 986
+            ret		; Hyp.cls 987
+fn_hyp_info_sb_land:		; Hyp.cls 988
+            ld sp, (#FFFE)                      ; this bank's SP [989]
+            push af		; Hyp.cls 990
+            ld a, e                             ; E = 1: the hypervisor has the characters [991]
+            or a		; Hyp.cls 992
+            jr z, fn_hyp_info_sb_lkeep		; Hyp.cls 993
+            xor a		; Hyp.cls 994
+            ld (62976 + 128), a		; Hyp.cls 995
+fn_hyp_info_sb_lkeep:		; Hyp.cls 996
+            pop af		; Hyp.cls 997
+            ret		; Hyp.cls 998
+fn_hyp_info_sb_exit:		; Hyp.cls 999
+            ld c, 0		; Hyp.cls 1000
+            jp 62720		; Hyp.cls 1001
+fn_hyp_info_sb_end:		; Hyp.cls 1002
+            ASSERT fn_hyp_info_sb_end - fn_hyp_info_sb_start <= 256, "the bank stubs must fit below OBUF"		; Hyp.cls 1003
 
 			ret			; end of #asm
 
-asm_1_1012_n:		; #asm, Hyp.cls line 1012 (normal)
-            ld (var_hyp_hsp), sp		; Hyp.cls 1013
-            ld sp, (ntc_csp)		; Hyp.cls 1014
-            ld a, (var_hyp_vdu_on)		; Hyp.cls 1015
-            or a		; Hyp.cls 1016
-            jr z, asm_1_1012_n_vd_off		; Hyp.cls 1017
-            call #BB54              ; TXT VDU ENABLE [1018]
-            jr asm_1_1012_n_vd_done		; Hyp.cls 1019
-asm_1_1012_n_vd_off:		; Hyp.cls 1020
-            call #BB57              ; TXT VDU DISABLE [1021]
-asm_1_1012_n_vd_done:		; Hyp.cls 1022
-            di		; Hyp.cls 1023
-            ld sp, (var_hyp_hsp)		; Hyp.cls 1024
+asm_1_1013_n:		; #asm, Hyp.cls line 1013 (normal)
+            ld (var_hyp_hsp), sp		; Hyp.cls 1014
+            ld sp, (ntc_csp)		; Hyp.cls 1015
+            ld a, (var_hyp_vdu_on)		; Hyp.cls 1016
+            or a		; Hyp.cls 1017
+            jr z, asm_1_1013_n_vd_off		; Hyp.cls 1018
+            call #BB54              ; TXT VDU ENABLE [1019]
+            jr asm_1_1013_n_vd_done		; Hyp.cls 1020
+asm_1_1013_n_vd_off:		; Hyp.cls 1021
+            call #BB57              ; TXT VDU DISABLE [1022]
+asm_1_1013_n_vd_done:		; Hyp.cls 1023
+            di		; Hyp.cls 1024
+            ld sp, (var_hyp_hsp)		; Hyp.cls 1025
 			ret			; end of #asm
 
-asm_1_1033_n:		; #asm, Hyp.cls line 1033 (normal)
-            ld (var_hyp_hsp), sp		; Hyp.cls 1034
-            ld sp, (ntc_csp)		; Hyp.cls 1035
-            ld (asm_1_1033_n_dv_ix), ix		; Hyp.cls 1036
-            ld (asm_1_1033_n_dv_iy), iy		; Hyp.cls 1037
-            ld hl, 0		; Hyp.cls 1038
-            ld (var_hyp_drive_drive), hl		; Hyp.cls 1039
-            ld a, (var_hyp_drive_letter)		; Hyp.cls 1040
-            or #80                  ; a one letter command name: its last letter + #80 [1041]
-            ld (asm_1_1033_n_dv_nm), a		; Hyp.cls 1042
-            ld hl, asm_1_1033_n_dv_nm		; Hyp.cls 1043
-            call #BCD4              ; KL FIND COMMAND: carry = found, C = its ROM, HL = its address [1044]
-            di		; Hyp.cls 1045
-            jr nc, asm_1_1033_n_dv_done		; Hyp.cls 1046
-            xor a                   ; no parameters [1047]
-            call #001B              ; KL FAR PCALL [1048]
-            di		; Hyp.cls 1049
-            ld hl, -1		; Hyp.cls 1050
-            ld (var_hyp_drive_drive), hl		; Hyp.cls 1051
-            jr asm_1_1033_n_dv_done		; Hyp.cls 1052
-asm_1_1033_n_dv_nm:      db 0		; Hyp.cls 1053
-asm_1_1033_n_dv_ix:      dw 0		; Hyp.cls 1054
-asm_1_1033_n_dv_iy:      dw 0		; Hyp.cls 1055
-asm_1_1033_n_dv_done:		; Hyp.cls 1056
-            ld ix, (asm_1_1033_n_dv_ix)		; Hyp.cls 1057
-            ld iy, (asm_1_1033_n_dv_iy)		; Hyp.cls 1058
-            ld sp, (var_hyp_hsp)		; Hyp.cls 1059
+asm_1_1042_n:		; #asm, Hyp.cls line 1042 (normal)
+            ld (var_hyp_hsp), sp		; Hyp.cls 1043
+            ld sp, (ntc_csp)		; Hyp.cls 1044
+            ld (asm_1_1042_n_fl_ix), ix		; Hyp.cls 1045
+            ld (asm_1_1042_n_fl_iy), iy		; Hyp.cls 1046
+            ld a, 255		; Hyp.cls 1047
+            ld (asm_1_1042_n_fl_res), a		; Hyp.cls 1048
+            ld a, (var_hyp_filecall_slot)		; Hyp.cls 1049
+            ld (asm_1_1042_n_fl_slot), a		; Hyp.cls 1050
+            ld a, (var_hyp_filecall_f)		; Hyp.cls 1051
+            cp 15		; Hyp.cls 1052
+            jp z, asm_1_1042_n_fl_open		; Hyp.cls 1053
+            cp 16		; Hyp.cls 1054
+            jp z, asm_1_1042_n_fl_close		; Hyp.cls 1055
+            cp 19		; Hyp.cls 1056
+            jp z, asm_1_1042_n_fl_del		; Hyp.cls 1057
+            cp 23		; Hyp.cls 1058
+            jp z, asm_1_1042_n_fl_ren		; Hyp.cls 1059
+            cp 20		; Hyp.cls 1060
+            jp z, asm_1_1042_n_fl_rdseq		; Hyp.cls 1061
+            cp 33		; Hyp.cls 1062
+            jp z, asm_1_1042_n_fl_rdran		; Hyp.cls 1063
+            cp 21		; Hyp.cls 1064
+            jp z, asm_1_1042_n_fl_write		; Hyp.cls 1065
+            cp 34		; Hyp.cls 1066
+            jp z, asm_1_1042_n_fl_write		; Hyp.cls 1067
+            cp 22		; Hyp.cls 1068
+            jp z, asm_1_1042_n_fl_make		; Hyp.cls 1069
+            cp 100		; Hyp.cls 1070
+            jp z, asm_1_1042_n_fl_hopen		; Hyp.cls 1071
+            cp 101		; Hyp.cls 1072
+            jp z, asm_1_1042_n_fl_hread		; Hyp.cls 1073
+            cp 102		; Hyp.cls 1074
+            jp z, asm_1_1042_n_fl_hclose		; Hyp.cls 1075
+            cp 103		; Hyp.cls 1076
+            jp z, asm_1_1042_n_fl_hload		; Hyp.cls 1077
+            jp asm_1_1042_n_fl_done		; Hyp.cls 1078
+; ---- the hypervisor's own reading (RUN, DIR, CD): 100 open the file named at fcb (dma
+; characters, main RAM); 101 read dma bytes (128 at most) to buf: how many; 102 close; 103 the
+; rest of it into the slot (setting) from address dma, fcb bytes at most: how many. Not while
+; a slot reads a file (255)
+asm_1_1042_n_fl_hopen:		; Hyp.cls 1083
+            ld a, (var_hyp_fin)		; Hyp.cls 1084
+            or a		; Hyp.cls 1085
+            jp nz, asm_1_1042_n_fl_done		; Hyp.cls 1086
+            ld hl, (var_hyp_filecall_fcb)		; Hyp.cls 1087
+            ld de, asm_1_1042_n_fl_name_s + 1		; Hyp.cls 1088
+            ld bc, (var_hyp_filecall_dma)		; Hyp.cls 1089
+            ld a, c		; Hyp.cls 1090
+            ld (asm_1_1042_n_fl_name_s), a		; Hyp.cls 1091
+            ldir		; Hyp.cls 1092
+            call asm_1_1042_n_fl_inopen		; Hyp.cls 1093
+            jp nc, asm_1_1042_n_fl_done		; Hyp.cls 1094
+            ld a, 99                ; (99: the hypervisor's) [1095]
+            ld (var_hyp_fin), a		; Hyp.cls 1096
+            jp asm_1_1042_n_fl_ok		; Hyp.cls 1097
+asm_1_1042_n_fl_hread:		; Hyp.cls 1098
+            ld a, (var_hyp_filecall_dma)		; Hyp.cls 1099
+            ld (asm_1_1042_n_fl_n), a		; Hyp.cls 1100
+            call asm_1_1042_n_fl_rdrec		; Hyp.cls 1101
+            ld (asm_1_1042_n_fl_res), a		; Hyp.cls 1102
+            jp asm_1_1042_n_fl_done		; Hyp.cls 1103
+asm_1_1042_n_fl_hclose:		; Hyp.cls 1104
+            ld a, (var_hyp_fin)		; Hyp.cls 1105
+            cp 99		; Hyp.cls 1106
+            jp nz, asm_1_1042_n_fl_done		; Hyp.cls 1107
+            call asm_1_1042_n_fl_inclose		; Hyp.cls 1108
+            jp asm_1_1042_n_fl_ok		; Hyp.cls 1109
+asm_1_1042_n_fl_hload:		; Hyp.cls 1110
+            ld hl, 0		; Hyp.cls 1111
+            ld (asm_1_1042_n_fl_cnt), hl		; Hyp.cls 1112
+            ld hl, (var_hyp_filecall_dma)		; Hyp.cls 1113
+            ld (asm_1_1042_n_fl_at), hl		; Hyp.cls 1114
+asm_1_1042_n_fl_hl_lp:		; Hyp.cls 1115
+            ld hl, (var_hyp_filecall_fcb)          ; what is left to load (fcb bytes at most) [1116]
+            ld de, (asm_1_1042_n_fl_cnt)		; Hyp.cls 1117
+            or a		; Hyp.cls 1118
+            sbc hl, de		; Hyp.cls 1119
+            jr z, asm_1_1042_n_fl_hl_end		; Hyp.cls 1120
+            ld a, h		; Hyp.cls 1121
+            or a		; Hyp.cls 1122
+            ld a, 128		; Hyp.cls 1123
+            jr nz, asm_1_1042_n_fl_hl_n		; Hyp.cls 1124
+            ld a, l		; Hyp.cls 1125
+            cp 128		; Hyp.cls 1126
+            jr c, asm_1_1042_n_fl_hl_n		; Hyp.cls 1127
+            ld a, 128		; Hyp.cls 1128
+asm_1_1042_n_fl_hl_n:		; Hyp.cls 1129
+            ld (asm_1_1042_n_fl_n), a		; Hyp.cls 1130
+            ld (asm_1_1042_n_fl_want), a		; Hyp.cls 1131
+            call asm_1_1042_n_fl_rdrec           ; a record's worth into buf [1132]
+            jr z, asm_1_1042_n_fl_hl_end		; Hyp.cls 1133
+            ld b, a		; Hyp.cls 1134
+            ld (asm_1_1042_n_fl_want + 1), a		; Hyp.cls 1135
+            ld hl, (asm_1_1042_n_fl_cnt)		; Hyp.cls 1136
+            ld e, a		; Hyp.cls 1137
+            ld d, 0		; Hyp.cls 1138
+            add hl, de		; Hyp.cls 1139
+            ld (asm_1_1042_n_fl_cnt), hl		; Hyp.cls 1140
+            ld de, (var_hyp_filecall_buf)		; Hyp.cls 1141
+            ld hl, (asm_1_1042_n_fl_at)		; Hyp.cls 1142
+asm_1_1042_n_fl_hl_cp:		; Hyp.cls 1143
+            ld a, (de)              ; into the slot [1144]
+            call asm_1_1042_n_fl_poke		; Hyp.cls 1145
+            inc hl		; Hyp.cls 1146
+            inc de		; Hyp.cls 1147
+            djnz asm_1_1042_n_fl_hl_cp		; Hyp.cls 1148
+            ld (asm_1_1042_n_fl_at), hl		; Hyp.cls 1149
+            ld a, (asm_1_1042_n_fl_want)		; Hyp.cls 1150
+            ld b, a		; Hyp.cls 1151
+            ld a, (asm_1_1042_n_fl_want + 1)		; Hyp.cls 1152
+            cp b		; Hyp.cls 1153
+            jr z, asm_1_1042_n_fl_hl_lp          ; a whole one: on [1154]
+asm_1_1042_n_fl_hl_end:		; Hyp.cls 1155
+            ld hl, (asm_1_1042_n_fl_cnt)		; Hyp.cls 1156
+            ld (asm_1_1042_n_fl_res16), hl		; Hyp.cls 1157
+            ld a, 1		; Hyp.cls 1158
+            ld (asm_1_1042_n_fl_r16), a		; Hyp.cls 1159
+            jp asm_1_1042_n_fl_done		; Hyp.cls 1160
+; ---- 15: open (to read)
+asm_1_1042_n_fl_open:		; Hyp.cls 1162
+            ld a, (var_hyp_fin)		; Hyp.cls 1163
+            or a		; Hyp.cls 1164
+            jr z, asm_1_1042_n_fl_op_new		; Hyp.cls 1165
+            ld b, a		; Hyp.cls 1166
+            ld a, (asm_1_1042_n_fl_slot)		; Hyp.cls 1167
+            cp b		; Hyp.cls 1168
+            jp nz, asm_1_1042_n_fl_done          ; another slot's being read [1169]
+            call asm_1_1042_n_fl_inclose         ; this slot's: CP/M needs no close after reading - this open [1170]
+asm_1_1042_n_fl_op_new:                          ; replaces it (Exists opens and leaves it) [1171]
+            call asm_1_1042_n_fl_name		; Hyp.cls 1172
+            call asm_1_1042_n_fl_inopen		; Hyp.cls 1173
+            jp nc, asm_1_1042_n_fl_done		; Hyp.cls 1174
+            ld hl, asm_1_1042_n_fl_name_s        ; kept, to open it again (33 going back) [1175]
+            ld de, asm_1_1042_n_fl_inname		; Hyp.cls 1176
+            ld bc, 17		; Hyp.cls 1177
+            ldir		; Hyp.cls 1178
+            ld a, (asm_1_1042_n_fl_slot)		; Hyp.cls 1179
+            ld (var_hyp_fin), a		; Hyp.cls 1180
+            ld hl, (var_hyp_filecall_fcb)		; Hyp.cls 1181
+            ld (asm_1_1042_n_fl_infcb), hl		; Hyp.cls 1182
+            ld hl, 0		; Hyp.cls 1183
+            ld (asm_1_1042_n_fl_inrec), hl		; Hyp.cls 1184
+            jp asm_1_1042_n_fl_ok		; Hyp.cls 1185
+; ---- 22: make (a new file, to write)
+asm_1_1042_n_fl_make:		; Hyp.cls 1187
+            ld a, (var_hyp_fout)		; Hyp.cls 1188
+            or a		; Hyp.cls 1189
+            jp nz, asm_1_1042_n_fl_done		; Hyp.cls 1190
+            call asm_1_1042_n_fl_name		; Hyp.cls 1191
+            call asm_1_1042_n_fl_plain		; Hyp.cls 1192
+            ld hl, asm_1_1042_n_fl_name_s + 1		; Hyp.cls 1193
+            ld a, (asm_1_1042_n_fl_name_s)		; Hyp.cls 1194
+            ld b, a		; Hyp.cls 1195
+            ld de, #4800		; Hyp.cls 1196
+            call #BC8C              ; CAS OUT OPEN [1197]
+            di		; Hyp.cls 1198
+            jp nc, asm_1_1042_n_fl_done		; Hyp.cls 1199
+            ld a, (asm_1_1042_n_fl_slot)		; Hyp.cls 1200
+            ld (var_hyp_fout), a		; Hyp.cls 1201
+            ld hl, (var_hyp_filecall_fcb)		; Hyp.cls 1202
+            ld (asm_1_1042_n_fl_outfcb), hl		; Hyp.cls 1203
+            jp asm_1_1042_n_fl_ok		; Hyp.cls 1204
+; ---- 16: close
+asm_1_1042_n_fl_close:		; Hyp.cls 1206
+            call asm_1_1042_n_fl_isin		; Hyp.cls 1207
+            jr nz, asm_1_1042_n_fl_cl_out		; Hyp.cls 1208
+            call asm_1_1042_n_fl_inclose		; Hyp.cls 1209
+            jp asm_1_1042_n_fl_ok		; Hyp.cls 1210
+asm_1_1042_n_fl_cl_out:		; Hyp.cls 1211
+            call asm_1_1042_n_fl_isout		; Hyp.cls 1212
+            jp nz, asm_1_1042_n_fl_done		; Hyp.cls 1213
+            xor a		; Hyp.cls 1214
+            ld (var_hyp_fout), a		; Hyp.cls 1215
+            call asm_1_1042_n_fl_plain		; Hyp.cls 1216
+            call #BC8F              ; CAS OUT CLOSE [1217]
+            di		; Hyp.cls 1218
+            jp nc, asm_1_1042_n_fl_done		; Hyp.cls 1219
+            jp asm_1_1042_n_fl_ok		; Hyp.cls 1220
+; ---- 19: delete (|ERA, "name")
+asm_1_1042_n_fl_del:		; Hyp.cls 1222
+            call asm_1_1042_n_fl_name		; Hyp.cls 1223
+            call asm_1_1042_n_fl_plain		; Hyp.cls 1224
+            ld hl, asm_1_1042_n_fl_name_s + 1		; Hyp.cls 1225
+            ld (asm_1_1042_n_fl_desc + 1), hl		; Hyp.cls 1226
+            ld a, (asm_1_1042_n_fl_name_s)		; Hyp.cls 1227
+            ld (asm_1_1042_n_fl_desc), a		; Hyp.cls 1228
+            ld hl, asm_1_1042_n_fl_era		; Hyp.cls 1229
+            call #BCD4              ; KL FIND COMMAND: C = its ROM, HL = its address [1230]
+            di		; Hyp.cls 1231
+            jp nc, asm_1_1042_n_fl_done		; Hyp.cls 1232
+            ld ix, asm_1_1042_n_fl_par		; Hyp.cls 1233
+            ld a, 1                 ; one parameter: the string [1234]
+            call #001B              ; KL FAR PCALL [1235]
+            di		; Hyp.cls 1236
+            jp asm_1_1042_n_fl_ok		; Hyp.cls 1237
+; ---- 23: rename (the disc ROM's |REN, "new", "old"): the old name at FCB 0-11, the new
+; at 16-27 (its drive 0: the old one's)
+asm_1_1042_n_fl_ren:		; Hyp.cls 1240
+            ld hl, (var_hyp_filecall_fcb)		; Hyp.cls 1241
+            call asm_1_1042_n_fl_peek		; Hyp.cls 1242
+            ld (asm_1_1042_n_fl_dfl), a		; Hyp.cls 1243
+            ld de, 16		; Hyp.cls 1244
+            add hl, de		; Hyp.cls 1245
+            call asm_1_1042_n_fl_namehl          ; the new name [1246]
+            xor a		; Hyp.cls 1247
+            ld (asm_1_1042_n_fl_dfl), a		; Hyp.cls 1248
+            ld hl, asm_1_1042_n_fl_name_s		; Hyp.cls 1249
+            ld de, asm_1_1042_n_fl_new_s		; Hyp.cls 1250
+            ld bc, 17		; Hyp.cls 1251
+            ldir		; Hyp.cls 1252
+            call asm_1_1042_n_fl_name            ; the old one [1253]
+            call asm_1_1042_n_fl_plain		; Hyp.cls 1254
+            ld hl, asm_1_1042_n_fl_name_s + 1		; Hyp.cls 1255
+            ld (asm_1_1042_n_fl_desc + 1), hl		; Hyp.cls 1256
+            ld a, (asm_1_1042_n_fl_name_s)		; Hyp.cls 1257
+            ld (asm_1_1042_n_fl_desc), a		; Hyp.cls 1258
+            ld hl, asm_1_1042_n_fl_new_s + 1		; Hyp.cls 1259
+            ld (asm_1_1042_n_fl_desc2 + 1), hl		; Hyp.cls 1260
+            ld a, (asm_1_1042_n_fl_new_s)		; Hyp.cls 1261
+            ld (asm_1_1042_n_fl_desc2), a		; Hyp.cls 1262
+            ld hl, asm_1_1042_n_fl_rencmd		; Hyp.cls 1263
+            call #BCD4              ; KL FIND COMMAND [1264]
+            di		; Hyp.cls 1265
+            jp nc, asm_1_1042_n_fl_done		; Hyp.cls 1266
+            ld ix, asm_1_1042_n_fl_par2          ; IX+0: the last parameter (the old name), IX+2: the new [1267]
+            ld a, 2		; Hyp.cls 1268
+            call #001B              ; KL FAR PCALL [1269]
+            di		; Hyp.cls 1270
+            jp asm_1_1042_n_fl_ok		; Hyp.cls 1271
+; ---- 33: read record r0-r1: on to it (from the start again if it is behind)
+asm_1_1042_n_fl_rdran:		; Hyp.cls 1273
+            call asm_1_1042_n_fl_isin		; Hyp.cls 1274
+            jp nz, asm_1_1042_n_fl_rdout		; Hyp.cls 1275
+            ld hl, (var_hyp_filecall_fcb)		; Hyp.cls 1276
+            ld de, 33		; Hyp.cls 1277
+            add hl, de		; Hyp.cls 1278
+            call asm_1_1042_n_fl_peek		; Hyp.cls 1279
+            ld e, a		; Hyp.cls 1280
+            inc hl		; Hyp.cls 1281
+            call asm_1_1042_n_fl_peek		; Hyp.cls 1282
+            ld d, a		; Hyp.cls 1283
+            ld (asm_1_1042_n_fl_want), de		; Hyp.cls 1284
+            ld hl, (asm_1_1042_n_fl_inrec)		; Hyp.cls 1285
+            or a		; Hyp.cls 1286
+            sbc hl, de		; Hyp.cls 1287
+            jr c, asm_1_1042_n_fl_rr_on		; Hyp.cls 1288
+            jr z, asm_1_1042_n_fl_rr_on		; Hyp.cls 1289
+            call asm_1_1042_n_fl_inclose         ; behind: open it again [1290]
+            ld hl, asm_1_1042_n_fl_inname		; Hyp.cls 1291
+            ld de, asm_1_1042_n_fl_name_s		; Hyp.cls 1292
+            ld bc, 17		; Hyp.cls 1293
+            ldir		; Hyp.cls 1294
+            call asm_1_1042_n_fl_inopen		; Hyp.cls 1295
+            jp nc, asm_1_1042_n_fl_done		; Hyp.cls 1296
+            ld a, (asm_1_1042_n_fl_slot)		; Hyp.cls 1297
+            ld (var_hyp_fin), a		; Hyp.cls 1298
+            ld hl, 0		; Hyp.cls 1299
+            ld (asm_1_1042_n_fl_inrec), hl		; Hyp.cls 1300
+asm_1_1042_n_fl_rr_on:		; Hyp.cls 1301
+            ld hl, (asm_1_1042_n_fl_inrec)		; Hyp.cls 1302
+            ld de, (asm_1_1042_n_fl_want)		; Hyp.cls 1303
+            or a		; Hyp.cls 1304
+            sbc hl, de		; Hyp.cls 1305
+            jr nc, asm_1_1042_n_fl_rdseq		; Hyp.cls 1306
+            call asm_1_1042_n_fl_rdrec		; Hyp.cls 1307
+            jp z, asm_1_1042_n_fl_eof		; Hyp.cls 1308
+            ld hl, (asm_1_1042_n_fl_inrec)		; Hyp.cls 1309
+            inc hl		; Hyp.cls 1310
+            ld (asm_1_1042_n_fl_inrec), hl		; Hyp.cls 1311
+            jr asm_1_1042_n_fl_rr_on		; Hyp.cls 1312
+; ---- 20: read the next record
+asm_1_1042_n_fl_rdseq:		; Hyp.cls 1314
+            call asm_1_1042_n_fl_isin		; Hyp.cls 1315
+            jr nz, asm_1_1042_n_fl_rdout		; Hyp.cls 1316
+            call asm_1_1042_n_fl_rdrec		; Hyp.cls 1317
+            jr z, asm_1_1042_n_fl_eof		; Hyp.cls 1318
+            ex de, hl		; Hyp.cls 1319
+            ld hl, (asm_1_1042_n_fl_inrec)		; Hyp.cls 1320
+            inc hl		; Hyp.cls 1321
+            ld (asm_1_1042_n_fl_inrec), hl		; Hyp.cls 1322
+            ex de, hl		; Hyp.cls 1323
+            ld b, a                 ; the record padded with #1A [1324]
+            ld a, 128		; Hyp.cls 1325
+            sub b		; Hyp.cls 1326
+            jr z, asm_1_1042_n_fl_rd_put		; Hyp.cls 1327
+            ld b, a		; Hyp.cls 1328
+            ld a, #1A		; Hyp.cls 1329
+asm_1_1042_n_fl_rd_pad:		; Hyp.cls 1330
+            ld (hl), a		; Hyp.cls 1331
+            inc hl		; Hyp.cls 1332
+            djnz asm_1_1042_n_fl_rd_pad		; Hyp.cls 1333
+asm_1_1042_n_fl_rd_put:		; Hyp.cls 1334
+            ld hl, (var_hyp_filecall_buf)          ; into the slot's DMA [1335]
+            ld de, (var_hyp_filecall_dma)		; Hyp.cls 1336
+            ld b, 128		; Hyp.cls 1337
+asm_1_1042_n_fl_rd_cp:		; Hyp.cls 1338
+            ld a, (hl)		; Hyp.cls 1339
+            ex de, hl		; Hyp.cls 1340
+            call asm_1_1042_n_fl_poke		; Hyp.cls 1341
+            ex de, hl		; Hyp.cls 1342
+            inc hl		; Hyp.cls 1343
+            inc de		; Hyp.cls 1344
+            djnz asm_1_1042_n_fl_rd_cp		; Hyp.cls 1345
+            jp asm_1_1042_n_fl_ok		; Hyp.cls 1346
+asm_1_1042_n_fl_rdout:		; Hyp.cls 1347
+            call asm_1_1042_n_fl_isout           ; a file being written: nothing to read back [1348]
+            jp nz, asm_1_1042_n_fl_done		; Hyp.cls 1349
+asm_1_1042_n_fl_eof:		; Hyp.cls 1350
+            ld a, 1		; Hyp.cls 1351
+            ld (asm_1_1042_n_fl_res), a		; Hyp.cls 1352
+            jp asm_1_1042_n_fl_done		; Hyp.cls 1353
+; ---- 21 / 34: write the next record
+asm_1_1042_n_fl_write:		; Hyp.cls 1355
+            call asm_1_1042_n_fl_isout		; Hyp.cls 1356
+            jp nz, asm_1_1042_n_fl_done		; Hyp.cls 1357
+            ld hl, (var_hyp_filecall_dma)          ; the slot's DMA into buf [1358]
+            ld de, (var_hyp_filecall_buf)		; Hyp.cls 1359
+            ld b, 128		; Hyp.cls 1360
+asm_1_1042_n_fl_wr_cp:		; Hyp.cls 1361
+            call asm_1_1042_n_fl_peek		; Hyp.cls 1362
+            ld (de), a		; Hyp.cls 1363
+            inc hl		; Hyp.cls 1364
+            inc de		; Hyp.cls 1365
+            djnz asm_1_1042_n_fl_wr_cp		; Hyp.cls 1366
+            call asm_1_1042_n_fl_plain		; Hyp.cls 1367
+            ld hl, (var_hyp_filecall_buf)		; Hyp.cls 1368
+            ld b, 128		; Hyp.cls 1369
+asm_1_1042_n_fl_wr_lp:		; Hyp.cls 1370
+            ld a, (hl)		; Hyp.cls 1371
+            push bc		; Hyp.cls 1372
+            push hl		; Hyp.cls 1373
+            call #BC95              ; CAS OUT CHAR [1374]
+            di		; Hyp.cls 1375
+            pop hl		; Hyp.cls 1376
+            pop bc		; Hyp.cls 1377
+            jp nc, asm_1_1042_n_fl_done		; Hyp.cls 1378
+            inc hl		; Hyp.cls 1379
+            djnz asm_1_1042_n_fl_wr_lp		; Hyp.cls 1380
+            jp asm_1_1042_n_fl_ok		; Hyp.cls 1381
+; ---- the parts
+asm_1_1042_n_fl_isin:                            ; Z: the file being read is this slot's, this FCB [1383]
+            ld a, (var_hyp_fin)		; Hyp.cls 1384
+            ld hl, asm_1_1042_n_fl_infcb		; Hyp.cls 1385
+            jr asm_1_1042_n_fl_is		; Hyp.cls 1386
+asm_1_1042_n_fl_isout:		; Hyp.cls 1387
+            ld a, (var_hyp_fout)		; Hyp.cls 1388
+            ld hl, asm_1_1042_n_fl_outfcb		; Hyp.cls 1389
+asm_1_1042_n_fl_is:		; Hyp.cls 1390
+            ld b, a		; Hyp.cls 1391
+            ld a, (asm_1_1042_n_fl_slot)		; Hyp.cls 1392
+            cp b		; Hyp.cls 1393
+            ret nz		; Hyp.cls 1394
+            ld e, (hl)		; Hyp.cls 1395
+            inc hl		; Hyp.cls 1396
+            ld d, (hl)		; Hyp.cls 1397
+            ld hl, (var_hyp_filecall_fcb)		; Hyp.cls 1398
+            or a		; Hyp.cls 1399
+            sbc hl, de		; Hyp.cls 1400
+            ret		; Hyp.cls 1401
+asm_1_1042_n_fl_inopen:                          ; open fl_name_s to read: carry = done [1402]
+            call asm_1_1042_n_fl_plain		; Hyp.cls 1403
+            ld hl, asm_1_1042_n_fl_name_s + 1		; Hyp.cls 1404
+            ld a, (asm_1_1042_n_fl_name_s)		; Hyp.cls 1405
+            ld b, a		; Hyp.cls 1406
+            ld de, #4000		; Hyp.cls 1407
+            call #BC77              ; CAS IN OPEN [1408]
+            di		; Hyp.cls 1409
+            ret		; Hyp.cls 1410
+asm_1_1042_n_fl_inclose:		; Hyp.cls 1411
+            xor a		; Hyp.cls 1412
+            ld (var_hyp_fin), a		; Hyp.cls 1413
+            call asm_1_1042_n_fl_plain		; Hyp.cls 1414
+            call #BC7A              ; CAS IN CLOSE [1415]
+            di		; Hyp.cls 1416
+            ret		; Hyp.cls 1417
+asm_1_1042_n_fl_rdrec:                           ; read up to fl_n bytes (128) into buf: A = how many (Z [1418]
+            call asm_1_1042_n_fl_plain           ; none), HL past them. A #1A is a byte (the soft end of file) [1419]
+            ld hl, (var_hyp_filecall_buf)		; Hyp.cls 1420
+            ld a, (asm_1_1042_n_fl_n)		; Hyp.cls 1421
+            ld b, a		; Hyp.cls 1422
+asm_1_1042_n_fl_rr_lp:		; Hyp.cls 1423
+            push bc		; Hyp.cls 1424
+            push hl		; Hyp.cls 1425
+            call #BC80              ; CAS IN CHAR [1426]
+            di		; Hyp.cls 1427
+            pop hl		; Hyp.cls 1428
+            pop bc		; Hyp.cls 1429
+            jr c, asm_1_1042_n_fl_rr_b		; Hyp.cls 1430
+            cp #1A		; Hyp.cls 1431
+            jr nz, asm_1_1042_n_fl_rr_end		; Hyp.cls 1432
+asm_1_1042_n_fl_rr_b:		; Hyp.cls 1433
+            ld (hl), a		; Hyp.cls 1434
+            inc hl		; Hyp.cls 1435
+            djnz asm_1_1042_n_fl_rr_lp		; Hyp.cls 1436
+asm_1_1042_n_fl_rr_end:		; Hyp.cls 1437
+            ld a, (asm_1_1042_n_fl_n)		; Hyp.cls 1438
+            sub b		; Hyp.cls 1439
+            ld c, a		; Hyp.cls 1440
+            ld a, 128		; Hyp.cls 1441
+            ld (asm_1_1042_n_fl_n), a            ; (128 again for the next) [1442]
+            ld a, c		; Hyp.cls 1443
+            or a		; Hyp.cls 1444
+            ret		; Hyp.cls 1445
+asm_1_1042_n_fl_plain:                           ; main RAM's own #4000 in the window (the buffers) [1446]
+            ld bc, #7FC0		; Hyp.cls 1447
+            out (c), c		; Hyp.cls 1448
+            ret		; Hyp.cls 1449
+asm_1_1042_n_fl_sel:                             ; the slot's page holding HL in the window: HL = there [1450]
+            push de		; Hyp.cls 1451
+            ld a, h		; Hyp.cls 1452
+            rlca		; Hyp.cls 1453
+            rlca		; Hyp.cls 1454
+            and 3		; Hyp.cls 1455
+            add a, 4		; Hyp.cls 1456
+            ld e, a		; Hyp.cls 1457
+            ld bc, (var_hyp_filecall_setting)		; Hyp.cls 1458
+            ld a, c		; Hyp.cls 1459
+            and #F8		; Hyp.cls 1460
+            or e		; Hyp.cls 1461
+            ld c, a		; Hyp.cls 1462
+            out (c), c		; Hyp.cls 1463
+            ld a, h		; Hyp.cls 1464
+            and #3F		; Hyp.cls 1465
+            or #40		; Hyp.cls 1466
+            ld h, a		; Hyp.cls 1467
+            pop de		; Hyp.cls 1468
+            ret		; Hyp.cls 1469
+asm_1_1042_n_fl_peek:                            ; A = the slot's byte at HL (BC, DE, HL kept) [1470]
+            push bc		; Hyp.cls 1471
+            push hl		; Hyp.cls 1472
+            call asm_1_1042_n_fl_sel		; Hyp.cls 1473
+            ld a, (hl)		; Hyp.cls 1474
+            pop hl		; Hyp.cls 1475
+            pop bc		; Hyp.cls 1476
+            ret		; Hyp.cls 1477
+asm_1_1042_n_fl_poke:                            ; the slot's byte at HL = A (BC, DE, HL kept) [1478]
+            push bc		; Hyp.cls 1479
+            push hl		; Hyp.cls 1480
+            push af		; Hyp.cls 1481
+            call asm_1_1042_n_fl_sel		; Hyp.cls 1482
+            pop af		; Hyp.cls 1483
+            ld (hl), a		; Hyp.cls 1484
+            pop hl		; Hyp.cls 1485
+            pop bc		; Hyp.cls 1486
+            ret		; Hyp.cls 1487
+asm_1_1042_n_fl_name:                            ; fl_name_s = the FCB's file: length, "B:NAME.EXT" [1488]
+            ld hl, (var_hyp_filecall_fcb)		; Hyp.cls 1489
+asm_1_1042_n_fl_namehl:                          ; (HL = an FCB in the slot) [1490]
+            ld de, asm_1_1042_n_fl_name_s + 1		; Hyp.cls 1491
+            call asm_1_1042_n_fl_peek            ; its drive: 0 = the slot's (or fl_dfl's) [1492]
+            or a		; Hyp.cls 1493
+            jr nz, asm_1_1042_n_fl_nm_d		; Hyp.cls 1494
+            ld a, (asm_1_1042_n_fl_dfl)		; Hyp.cls 1495
+            or a		; Hyp.cls 1496
+            jr nz, asm_1_1042_n_fl_nm_d		; Hyp.cls 1497
+            ld a, (var_hyp_filecall_drive)		; Hyp.cls 1498
+            or a		; Hyp.cls 1499
+            jr z, asm_1_1042_n_fl_nm_nod		; Hyp.cls 1500
+            sub 64		; Hyp.cls 1501
+asm_1_1042_n_fl_nm_d:		; Hyp.cls 1502
+            add a, 64		; Hyp.cls 1503
+            ld (de), a		; Hyp.cls 1504
+            inc de		; Hyp.cls 1505
+            ld a, ':'		; Hyp.cls 1506
+            ld (de), a		; Hyp.cls 1507
+            inc de		; Hyp.cls 1508
+asm_1_1042_n_fl_nm_nod:		; Hyp.cls 1509
+            ld b, 11		; Hyp.cls 1510
+asm_1_1042_n_fl_nm_lp:		; Hyp.cls 1511
+            inc hl		; Hyp.cls 1512
+            ld a, b		; Hyp.cls 1513
+            cp 3		; Hyp.cls 1514
+            jr nz, asm_1_1042_n_fl_nm_c		; Hyp.cls 1515
+            ld a, '.'		; Hyp.cls 1516
+            ld (de), a		; Hyp.cls 1517
+            inc de		; Hyp.cls 1518
+asm_1_1042_n_fl_nm_c:		; Hyp.cls 1519
+            call asm_1_1042_n_fl_peek		; Hyp.cls 1520
+            and #7F		; Hyp.cls 1521
+            cp ' ' + 1		; Hyp.cls 1522
+            jr c, asm_1_1042_n_fl_nm_sk		; Hyp.cls 1523
+            ld (de), a		; Hyp.cls 1524
+            inc de		; Hyp.cls 1525
+asm_1_1042_n_fl_nm_sk:		; Hyp.cls 1526
+            djnz asm_1_1042_n_fl_nm_lp		; Hyp.cls 1527
+            ex de, hl		; Hyp.cls 1528
+            ld de, asm_1_1042_n_fl_name_s + 1		; Hyp.cls 1529
+            or a		; Hyp.cls 1530
+            sbc hl, de		; Hyp.cls 1531
+            ld a, l		; Hyp.cls 1532
+            ld (asm_1_1042_n_fl_name_s), a		; Hyp.cls 1533
+            ret		; Hyp.cls 1534
+asm_1_1042_n_fl_ok:		; Hyp.cls 1535
+            xor a		; Hyp.cls 1536
+            ld (asm_1_1042_n_fl_res), a		; Hyp.cls 1537
+asm_1_1042_n_fl_done:		; Hyp.cls 1538
+            di		; Hyp.cls 1539
+            ld bc, (ntc_rampt)      ; the page that was in the window back [1540]
+            out (c), c		; Hyp.cls 1541
+            ld a, (asm_1_1042_n_fl_res)		; Hyp.cls 1542
+            ld l, a		; Hyp.cls 1543
+            ld h, 0		; Hyp.cls 1544
+            ld a, (asm_1_1042_n_fl_r16)		; Hyp.cls 1545
+            or a		; Hyp.cls 1546
+            jr z, asm_1_1042_n_fl_d8		; Hyp.cls 1547
+            ld hl, (asm_1_1042_n_fl_res16)		; Hyp.cls 1548
+            xor a		; Hyp.cls 1549
+            ld (asm_1_1042_n_fl_r16), a		; Hyp.cls 1550
+asm_1_1042_n_fl_d8:		; Hyp.cls 1551
+            ld (var_hyp_filecall_filecall), hl		; Hyp.cls 1552
+            ld ix, (asm_1_1042_n_fl_ix)		; Hyp.cls 1553
+            ld iy, (asm_1_1042_n_fl_iy)		; Hyp.cls 1554
+            ld sp, (var_hyp_hsp)		; Hyp.cls 1555
+            jp asm_1_1042_n_fl_exit		; Hyp.cls 1556
+asm_1_1042_n_fl_era:     db "ER", "A" + #80		; Hyp.cls 1557
+asm_1_1042_n_fl_rencmd:  db "RE", "N" + #80		; Hyp.cls 1558
+asm_1_1042_n_fl_par2:    dw asm_1_1042_n_fl_desc, asm_1_1042_n_fl_desc2		; Hyp.cls 1559
+asm_1_1042_n_fl_desc2:   db 0		; Hyp.cls 1560
+            dw 0		; Hyp.cls 1561
+asm_1_1042_n_fl_dfl:     db 0                    ; fl_name: the drive for an FCB whose own is 0 (rename) [1562]
+asm_1_1042_n_fl_new_s:   ds 17		; Hyp.cls 1563
+asm_1_1042_n_fl_par:     dw asm_1_1042_n_fl_desc		; Hyp.cls 1564
+asm_1_1042_n_fl_desc:    db 0		; Hyp.cls 1565
+            dw 0		; Hyp.cls 1566
+asm_1_1042_n_fl_ix:      dw 0		; Hyp.cls 1567
+asm_1_1042_n_fl_iy:      dw 0		; Hyp.cls 1568
+asm_1_1042_n_fl_res:     db 0		; Hyp.cls 1569
+asm_1_1042_n_fl_r16:     db 0                    ; 1: the result is fl_res16 [1570]
+asm_1_1042_n_fl_res16:   dw 0		; Hyp.cls 1571
+asm_1_1042_n_fl_n:       db 128                  ; bytes fl_rdrec reads [1572]
+asm_1_1042_n_fl_cnt:     dw 0		; Hyp.cls 1573
+asm_1_1042_n_fl_at:      dw 0		; Hyp.cls 1574
+asm_1_1042_n_fl_slot:    db 0		; Hyp.cls 1575
+asm_1_1042_n_fl_infcb:   dw 0		; Hyp.cls 1576
+asm_1_1042_n_fl_inrec:   dw 0		; Hyp.cls 1577
+asm_1_1042_n_fl_want:    dw 0		; Hyp.cls 1578
+asm_1_1042_n_fl_outfcb:  dw 0		; Hyp.cls 1579
+asm_1_1042_n_fl_name_s:  ds 17                   ; length, then "B:NAME.EXT" [1580]
+asm_1_1042_n_fl_inname:  ds 17                   ; the one being read's (33 going back) [1581]
+asm_1_1042_n_fl_exit:		; Hyp.cls 1582
+			ret			; end of #asm
+
+asm_1_1591_n:		; #asm, Hyp.cls line 1591 (normal)
+            ld hl, (var_hyp_xfer_n)		; Hyp.cls 1592
+            ld (asm_1_1591_n_xf_left), hl		; Hyp.cls 1593
+            ld hl, (var_hyp_xfer_addr)		; Hyp.cls 1594
+            ld de, (var_hyp_xfer_p)		; Hyp.cls 1595
+asm_1_1591_n_xf_lp:		; Hyp.cls 1596
+            ld bc, (asm_1_1591_n_xf_left)		; Hyp.cls 1597
+            ld a, b		; Hyp.cls 1598
+            or c		; Hyp.cls 1599
+            jr z, asm_1_1591_n_xf_done		; Hyp.cls 1600
+            dec bc		; Hyp.cls 1601
+            ld (asm_1_1591_n_xf_left), bc		; Hyp.cls 1602
+            ld a, h                 ; the slot's page holding HL in the window [1603]
+            rlca		; Hyp.cls 1604
+            rlca		; Hyp.cls 1605
+            and 3		; Hyp.cls 1606
+            add a, 4		; Hyp.cls 1607
+            ld c, a		; Hyp.cls 1608
+            ld a, (var_hyp_xfer_setting)		; Hyp.cls 1609
+            and #F8		; Hyp.cls 1610
+            or c		; Hyp.cls 1611
+            ld c, a		; Hyp.cls 1612
+            ld a, (var_hyp_xfer_setting + 1)		; Hyp.cls 1613
+            ld b, a		; Hyp.cls 1614
+            out (c), c		; Hyp.cls 1615
+            ld a, h                 ; BC = there in the window [1616]
+            and #3F		; Hyp.cls 1617
+            or #40		; Hyp.cls 1618
+            ld b, a		; Hyp.cls 1619
+            ld c, l		; Hyp.cls 1620
+            ld a, (var_hyp_xfer_toslot)		; Hyp.cls 1621
+            or a		; Hyp.cls 1622
+            jr z, asm_1_1591_n_xf_get		; Hyp.cls 1623
+            ld a, (de)		; Hyp.cls 1624
+            ld (bc), a		; Hyp.cls 1625
+            jr asm_1_1591_n_xf_next		; Hyp.cls 1626
+asm_1_1591_n_xf_get:		; Hyp.cls 1627
+            ld a, (bc)		; Hyp.cls 1628
+            ld (de), a		; Hyp.cls 1629
+asm_1_1591_n_xf_next:		; Hyp.cls 1630
+            inc hl		; Hyp.cls 1631
+            inc de		; Hyp.cls 1632
+            jr asm_1_1591_n_xf_lp		; Hyp.cls 1633
+asm_1_1591_n_xf_done:		; Hyp.cls 1634
+            ld bc, (ntc_rampt)		; Hyp.cls 1635
+            out (c), c		; Hyp.cls 1636
+            jr asm_1_1591_n_xf_end		; Hyp.cls 1637
+asm_1_1591_n_xf_left:    dw 0		; Hyp.cls 1638
+asm_1_1591_n_xf_end:		; Hyp.cls 1639
+			ret			; end of #asm
+
+asm_1_1645_n:		; #asm, Hyp.cls line 1645 (normal)
+            ld (var_hyp_hsp), sp		; Hyp.cls 1646
+            ld sp, (ntc_csp)		; Hyp.cls 1647
+            ld bc, #7FC0		; Hyp.cls 1648
+            out (c), c		; Hyp.cls 1649
+            ld a, (var_hyp_fileshut_slot)		; Hyp.cls 1650
+            ld b, a		; Hyp.cls 1651
+            ld a, (var_hyp_fin)		; Hyp.cls 1652
+            cp b		; Hyp.cls 1653
+            jr nz, asm_1_1645_n_fs_out		; Hyp.cls 1654
+            xor a		; Hyp.cls 1655
+            ld (var_hyp_fin), a		; Hyp.cls 1656
+            push bc		; Hyp.cls 1657
+            call #BC7A              ; CAS IN CLOSE [1658]
+            di		; Hyp.cls 1659
+            pop bc		; Hyp.cls 1660
+asm_1_1645_n_fs_out:		; Hyp.cls 1661
+            ld a, (var_hyp_fout)		; Hyp.cls 1662
+            cp b		; Hyp.cls 1663
+            jr nz, asm_1_1645_n_fs_done		; Hyp.cls 1664
+            xor a		; Hyp.cls 1665
+            ld (var_hyp_fout), a		; Hyp.cls 1666
+            call #BC8F              ; CAS OUT CLOSE [1667]
+            di		; Hyp.cls 1668
+asm_1_1645_n_fs_done:		; Hyp.cls 1669
+            ld bc, (ntc_rampt)		; Hyp.cls 1670
+            out (c), c		; Hyp.cls 1671
+            ld sp, (var_hyp_hsp)		; Hyp.cls 1672
+			ret			; end of #asm
+
+asm_1_1681_n:		; #asm, Hyp.cls line 1681 (normal)
+            ld (var_hyp_hsp), sp		; Hyp.cls 1682
+            ld sp, (ntc_csp)		; Hyp.cls 1683
+            ld (asm_1_1681_n_dv_ix), ix		; Hyp.cls 1684
+            ld (asm_1_1681_n_dv_iy), iy		; Hyp.cls 1685
+            ld hl, 0		; Hyp.cls 1686
+            ld (var_hyp_drive_drive), hl		; Hyp.cls 1687
+            ld a, (var_hyp_drive_letter)		; Hyp.cls 1688
+            or #80                  ; a one letter command name: its last letter + #80 [1689]
+            ld (asm_1_1681_n_dv_nm), a		; Hyp.cls 1690
+            ld hl, asm_1_1681_n_dv_nm		; Hyp.cls 1691
+            call #BCD4              ; KL FIND COMMAND: carry = found, C = its ROM, HL = its address [1692]
+            di		; Hyp.cls 1693
+            jr nc, asm_1_1681_n_dv_done		; Hyp.cls 1694
+            xor a                   ; no parameters [1695]
+            call #001B              ; KL FAR PCALL [1696]
+            di		; Hyp.cls 1697
+            ld hl, -1		; Hyp.cls 1698
+            ld (var_hyp_drive_drive), hl		; Hyp.cls 1699
+            jr asm_1_1681_n_dv_done		; Hyp.cls 1700
+asm_1_1681_n_dv_nm:      db 0		; Hyp.cls 1701
+asm_1_1681_n_dv_ix:      dw 0		; Hyp.cls 1702
+asm_1_1681_n_dv_iy:      dw 0		; Hyp.cls 1703
+asm_1_1681_n_dv_done:		; Hyp.cls 1704
+            ld ix, (asm_1_1681_n_dv_ix)		; Hyp.cls 1705
+            ld iy, (asm_1_1681_n_dv_iy)		; Hyp.cls 1706
+            ld sp, (var_hyp_hsp)		; Hyp.cls 1707
 			ret			; end of #asm
 
 asm_3_21_n:		; #asm, Ent.cls line 21 (normal)
@@ -5218,54 +6394,6 @@ asm_3_328_n_el_done:		; Ent.cls 454
             ld sp, (var_ent_hsp)		; Ent.cls 455
 			ret			; end of #asm
 
-fn_filesystem_open:		; function open (asm keyword), FileSystem.cls line 225
-            pop hl		; FileSystem.cls 226
-            ld (fs_a1), hl		; FileSystem.cls 227
-            pop hl		; FileSystem.cls 228
-            ld e, (hl)		; FileSystem.cls 229
-            inc hl		; FileSystem.cls 230
-            ld d, (hl)		; FileSystem.cls 231
-            ld (fs_a2), de		; FileSystem.cls 232
-            pop hl		; FileSystem.cls 233
-            ld (fs_res), hl		; FileSystem.cls 234
-            ld hl, fs_open		; FileSystem.cls 235
-            jp fs_go		; FileSystem.cls 236
-			ret			; end of #asm
-
-fn_filesystem_close:		; function close (asm keyword), FileSystem.cls line 258
-            pop hl		; FileSystem.cls 259
-            ld e, (hl)		; FileSystem.cls 260
-            inc hl		; FileSystem.cls 261
-            ld d, (hl)		; FileSystem.cls 262
-            ld (fs_a1), de		; FileSystem.cls 263
-            pop hl		; FileSystem.cls 264
-            ld (fs_res), hl		; FileSystem.cls 265
-            ld hl, fs_closeh		; FileSystem.cls 266
-            jp fs_go		; FileSystem.cls 267
-			ret			; end of #asm
-
-fn_filesystem_read:		; function read (asm keyword), FileSystem.cls line 357
-            pop hl		; FileSystem.cls 358
-            ld e, (hl)		; FileSystem.cls 359
-            inc hl		; FileSystem.cls 360
-            ld d, (hl)		; FileSystem.cls 361
-            ld (fs_a1), de		; FileSystem.cls 362
-            pop hl		; FileSystem.cls 363
-            ld e, (hl)		; FileSystem.cls 364
-            inc hl		; FileSystem.cls 365
-            ld d, (hl)		; FileSystem.cls 366
-            ld (fs_a2), de		; FileSystem.cls 367
-            pop hl		; FileSystem.cls 368
-            ld e, (hl)		; FileSystem.cls 369
-            inc hl		; FileSystem.cls 370
-            ld d, (hl)		; FileSystem.cls 371
-            ld (fs_a3), de		; FileSystem.cls 372
-            pop hl		; FileSystem.cls 373
-            ld (fs_res), hl		; FileSystem.cls 374
-            ld hl, fs_read		; FileSystem.cls 375
-            jp fs_go		; FileSystem.cls 376
-			ret			; end of #asm
-
 fn_keys_down:		; function down (asm keyword), Keys.cls line 44
             pop hl		; Keys.cls 45
             ld e, (hl)		; Keys.cls 46
@@ -5294,6 +6422,20 @@ fn_memory_ramsize:		; function ramsize (asm keyword), Memory.cls line 90
             ld (mem_res), hl		; Memory.cls 92
             ld hl, mem_ramsize		; Memory.cls 93
             jp mem_go		; Memory.cls 94
+			ret			; end of #asm
+
+fn_memory_tableend:		; function tableend (asm keyword), Memory.cls line 146
+            pop hl		; Memory.cls 147
+            ld (mem_res), hl		; Memory.cls 148
+            ld hl, mem_tableend		; Memory.cls 149
+            jp mem_go		; Memory.cls 150
+			ret			; end of #asm
+
+fn_memory_top:		; function top (asm keyword), Memory.cls line 176
+            pop hl		; Memory.cls 177
+            ld (mem_res), hl		; Memory.cls 178
+            ld hl, mem_top		; Memory.cls 179
+            jp mem_go		; Memory.cls 180
 			ret			; end of #asm
 
 fn_memory_map:		; function map (asm keyword), Memory.cls line 196
@@ -5358,22 +6500,6 @@ fn_memory_writeword:		; sub writeword (asm keyword), Memory.cls line 376
             jp mem_go0		; Memory.cls 385
 			ret			; end of #asm
 
-fn_memory_copy:		; function copy (asm keyword), Memory.cls line 393
-            pop hl		; Memory.cls 394
-            ld (mem_a1), hl		; Memory.cls 395
-            pop hl		; Memory.cls 396
-            ld (mem_a2), hl		; Memory.cls 397
-            pop hl		; Memory.cls 398
-            ld e, (hl)		; Memory.cls 399
-            inc hl		; Memory.cls 400
-            ld d, (hl)		; Memory.cls 401
-            ld (mem_a3), de		; Memory.cls 402
-            pop hl		; Memory.cls 403
-            ld (mem_res), hl		; Memory.cls 404
-            ld hl, mem_copy		; Memory.cls 405
-            jp mem_go		; Memory.cls 406
-			ret			; end of #asm
-
 fn_memory_banks:		; function banks (asm keyword), Memory.cls line 414
             pop hl		; Memory.cls 415
             ld (mem_res), hl		; Memory.cls 416
@@ -5389,464 +6515,2664 @@ fn_memory_allocbank:		; function allocbank (asm keyword), Memory.cls line 424
 			ret			; end of #asm
 
 
-ntc_rg54_e:
-			IF ($ < 34816) && (ntc_rg55_e - ntc_rg55 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+ntc_rg65_e:
+			IF ($ < 32768) && (ntc_rg66_e - ntc_rg66 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg55:
+ntc_rg66:
 ; ============================================================
 ; Variables
 ; ============================================================
 
+ntc_rg66_e:
+			IF ($ < 32768) && (ntc_rg67_e - ntc_rg67 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg67:
 var_k:			dw 0
+ntc_rg67_e:
+			IF ($ < 32768) && (ntc_rg68_e - ntc_rg68 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg68:
 var_ns:			dw 0
+ntc_rg68_e:
+			IF ($ < 32768) && (ntc_rg69_e - ntc_rg69 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg69:
 var_i:			dw 0
+ntc_rg69_e:
+			IF ($ < 32768) && (ntc_rg70_e - ntc_rg70 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg70:
 for4_l:			dw 0
+ntc_rg70_e:
+			IF ($ < 32768) && (ntc_rg71_e - ntc_rg71 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg71:
 var_memory_allocbank_allocbank:			dw 0
+ntc_rg71_e:
+			IF ($ < 32768) && (ntc_rg72_e - ntc_rg72 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg72:
 var_memory_bankpage_bankpage:			dw 0
+ntc_rg72_e:
+			IF ($ < 32768) && (ntc_rg73_e - ntc_rg73 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg73:
 var_memory_selectpage_selectpage:			dw 0
+ntc_rg73_e:
+			IF ($ < 32768) && (ntc_rg74_e - ntc_rg74 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg74:
 var_hyp_setting_setting:			dw 0
+ntc_rg74_e:
+			IF ($ < 32768) && (ntc_rg75_e - ntc_rg75 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg75:
 			db 130			; capacity
 var_ob:			ds 131
+ntc_rg75_e:
+			IF ($ < 32768) && (ntc_rg76_e - ntc_rg76 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg76:
 var_front:			dw 0
+ntc_rg76_e:
+			IF ($ < 32768) && (ntc_rg77_e - ntc_rg77 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg77:
 var_hk:			dw 0
+ntc_rg77_e:
+			IF ($ < 32768) && (ntc_rg78_e - ntc_rg78 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg78:
 var_hot_take_take:			dw 0
+ntc_rg78_e:
+			IF ($ < 32768) && (ntc_rg79_e - ntc_rg79 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg79:
 var_back:			dw 0
+ntc_rg79_e:
+			IF ($ < 32768) && (ntc_rg80_e - ntc_rg80 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg80:
 var_pk:			dw 0
+ntc_rg80_e:
+			IF ($ < 32768) && (ntc_rg81_e - ntc_rg81 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg81:
 var_wt:			dw 0
+ntc_rg81_e:
+			IF ($ < 32768) && (ntc_rg82_e - ntc_rg82 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg82:
 var_hot_control_control:			dw 0
+ntc_rg82_e:
+			IF ($ < 32768) && (ntc_rg83_e - ntc_rg83 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg83:
 var_running_running:			dw 0
+ntc_rg83_e:
+			IF ($ < 32768) && (ntc_rg84_e - ntc_rg84 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg84:
 var_td:			dw 0
+ntc_rg84_e:
+			IF ($ < 32768) && (ntc_rg85_e - ntc_rg85 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg85:
 var_quit:			dw 0
+ntc_rg85_e:
+			IF ($ < 32768) && (ntc_rg86_e - ntc_rg86 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg86:
 var_runs:			dw 0
+ntc_rg86_e:
+			IF ($ < 32768) && (ntc_rg87_e - ntc_rg87 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg87:
 p_running_rs:			dw 0
+ntc_rg87_e:
+			IF ($ < 32768) && (ntc_rg88_e - ntc_rg88 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg88:
 var_running_j:			dw 0
+ntc_rg88_e:
+			IF ($ < 32768) && (ntc_rg89_e - ntc_rg89 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg89:
 for12_l:			dw 0
+ntc_rg89_e:
+			IF ($ < 32768) && (ntc_rg90_e - ntc_rg90 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg90:
 p_ready_rs:			dw 0
+ntc_rg90_e:
+			IF ($ < 32768) && (ntc_rg91_e - ntc_rg91 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg91:
 var_ready_t:			dw 0
+ntc_rg91_e:
+			IF ($ < 32768) && (ntc_rg92_e - ntc_rg92 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg92:
 var_ready_ready:			dw 0
+ntc_rg92_e:
+			IF ($ < 32768) && (ntc_rg93_e - ntc_rg93 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg93:
 p_runnext_rs:			dw 0
+ntc_rg93_e:
+			IF ($ < 32768) && (ntc_rg94_e - ntc_rg94 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg94:
 var_runnext_n:			dw 0
+ntc_rg94_e:
+			IF ($ < 32768) && (ntc_rg95_e - ntc_rg95 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg95:
 var_runnext_t:			dw 0
+ntc_rg95_e:
+			IF ($ < 32768) && (ntc_rg96_e - ntc_rg96 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg96:
 var_runnext_r:			dw 0
+ntc_rg96_e:
+			IF ($ < 32768) && (ntc_rg97_e - ntc_rg97 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg97:
 var_runnext_c:			dw 0
+ntc_rg97_e:
+			IF ($ < 32768) && (ntc_rg98_e - ntc_rg98 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg98:
 var_fr:			dw 0
+ntc_rg98_e:
+			IF ($ < 32768) && (ntc_rg99_e - ntc_rg99 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg99:
 for20_l:			dw 0
+ntc_rg99_e:
+			IF ($ < 32768) && (ntc_rg100_e - ntc_rg100 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg100:
 var_cur:			dw 0
+ntc_rg100_e:
+			IF ($ < 32768) && (ntc_rg101_e - ntc_rg101 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg101:
 var_hyp_run_run:			dw 0
+ntc_rg101_e:
+			IF ($ < 32768) && (ntc_rg102_e - ntc_rg102 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg102:
 var_far_far:			dw 0, 0
+ntc_rg102_e:
+			IF ($ < 32768) && (ntc_rg103_e - ntc_rg103 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg103:
 var_memory_readbyte_readbyte:			dw 0
+ntc_rg103_e:
+			IF ($ < 32768) && (ntc_rg104_e - ntc_rg104 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg104:
 var_hyp_count_count:			dw 0
+ntc_rg104_e:
+			IF ($ < 32768) && (ntc_rg105_e - ntc_rg105 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg105:
 p_bdos_rs:			dw 0
+ntc_rg105_e:
+			IF ($ < 32768) && (ntc_rg106_e - ntc_rg106 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg106:
 var_bdos_t:			dw 0
+ntc_rg106_e:
+			IF ($ < 32768) && (ntc_rg107_e - ntc_rg107 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg107:
 var_bdos_f:			dw 0
+ntc_rg107_e:
+			IF ($ < 32768) && (ntc_rg108_e - ntc_rg108 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg108:
 var_bdos_e:			dw 0
+ntc_rg108_e:
+			IF ($ < 32768) && (ntc_rg109_e - ntc_rg109 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg109:
 var_bdos_a:			dw 0
+ntc_rg109_e:
+			IF ($ < 32768) && (ntc_rg110_e - ntc_rg110 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg110:
 var_hyp_fn_fn:			dw 0
+ntc_rg110_e:
+			IF ($ < 32768) && (ntc_rg111_e - ntc_rg111 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg111:
 var_hyp_arg_arg:			dw 0
+ntc_rg111_e:
+			IF ($ < 32768) && (ntc_rg112_e - ntc_rg112 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg112:
 var_bdos___sel32:			dw 0
+ntc_rg112_e:
+			IF ($ < 32768) && (ntc_rg113_e - ntc_rg113 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg113:
+var_hyp_filecall_filecall:			dw 0
+ntc_rg113_e:
+			IF ($ < 32768) && (ntc_rg114_e - ntc_rg114 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg114:
+p_hopen_rs:			dw 0
+ntc_rg114_e:
+			IF ($ < 32768) && (ntc_rg115_e - ntc_rg115 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg115:
+var_hopen_hopen:			dw 0
+ntc_rg115_e:
+			IF ($ < 32768) && (ntc_rg116_e - ntc_rg116 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg116:
+			db 16			; capacity
+var_dn:			ds 17
+ntc_rg116_e:
+			IF ($ < 32768) && (ntc_rg117_e - ntc_rg117 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg117:
+p_hread_rs:			dw 0
+ntc_rg117_e:
+			IF ($ < 32768) && (ntc_rg118_e - ntc_rg118 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg118:
+var_hread_n:			dw 0
+ntc_rg118_e:
+			IF ($ < 32768) && (ntc_rg119_e - ntc_rg119 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg119:
+var_hread_hread:			dw 0
+ntc_rg119_e:
+			IF ($ < 32768) && (ntc_rg120_e - ntc_rg120 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg120:
+p_hclose_rs:			dw 0
+ntc_rg120_e:
+			IF ($ < 32768) && (ntc_rg121_e - ntc_rg121 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg121:
+var_hclose_r:			dw 0
+ntc_rg121_e:
+			IF ($ < 32768) && (ntc_rg122_e - ntc_rg122 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg122:
+p_filesshut_rs:			dw 0
+ntc_rg122_e:
+			IF ($ < 32768) && (ntc_rg123_e - ntc_rg123 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg123:
+var_filesshut_t:			dw 0
+ntc_rg123_e:
+			IF ($ < 32768) && (ntc_rg124_e - ntc_rg124 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg124:
 p_collected_rs:			dw 0
+ntc_rg124_e:
+			IF ($ < 32768) && (ntc_rg125_e - ntc_rg125 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg125:
 var_collected_t:			dw 0
+ntc_rg125_e:
+			IF ($ < 32768) && (ntc_rg126_e - ntc_rg126 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg126:
 var_collected_n:			dw 0
+ntc_rg126_e:
+			IF ($ < 32768) && (ntc_rg127_e - ntc_rg127 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg127:
 p_puts_rs:			dw 0
+ntc_rg127_e:
+			IF ($ < 32768) && (ntc_rg128_e - ntc_rg128 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg128:
 var_puts_t:			dw 0
+ntc_rg128_e:
+			IF ($ < 32768) && (ntc_rg129_e - ntc_rg129 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg129:
 			db 130			; capacity
 var_puts_s:			ds 131
+ntc_rg129_e:
+			IF ($ < 32768) && (ntc_rg130_e - ntc_rg130 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg130:
 p_putln_rs:			dw 0
+ntc_rg130_e:
+			IF ($ < 32768) && (ntc_rg131_e - ntc_rg131 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg131:
 var_putln_t:			dw 0
+ntc_rg131_e:
+			IF ($ < 32768) && (ntc_rg132_e - ntc_rg132 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg132:
 			db 130			; capacity
 var_putln_s:			ds 131
+ntc_rg132_e:
+			IF ($ < 32768) && (ntc_rg133_e - ntc_rg133 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg133:
 p_putc_rs:			dw 0
+ntc_rg133_e:
+			IF ($ < 32768) && (ntc_rg134_e - ntc_rg134 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg134:
 var_putc_t:			dw 0
+ntc_rg134_e:
+			IF ($ < 32768) && (ntc_rg135_e - ntc_rg135 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg135:
 var_putc_c:			dw 0
+ntc_rg135_e:
+			IF ($ < 32768) && (ntc_rg136_e - ntc_rg136 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg136:
 p_putmem_rs:			dw 0
+ntc_rg136_e:
+			IF ($ < 32768) && (ntc_rg137_e - ntc_rg137 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg137:
 var_putmem_t:			dw 0
+ntc_rg137_e:
+			IF ($ < 32768) && (ntc_rg138_e - ntc_rg138 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg138:
 var_putmem_a:			dw 0
-var_putmem_la:			dw 0, 0
+ntc_rg138_e:
+			IF ($ < 32768) && (ntc_rg139_e - ntc_rg139 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg139:
 var_putmem_n:			dw 0
+ntc_rg139_e:
+			IF ($ < 32768) && (ntc_rg140_e - ntc_rg140 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg140:
 var_putmem_d:			dw 0
-var_putmem_tot:			dw 0
-var_memory_copy_copy:			dw 0
+ntc_rg140_e:
+			IF ($ < 32768) && (ntc_rg141_e - ntc_rg141 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg141:
 p_far_rs:			dw 0
+ntc_rg141_e:
+			IF ($ < 32768) && (ntc_rg142_e - ntc_rg142 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg142:
 var_far_t:			dw 0
+ntc_rg142_e:
+			IF ($ < 32768) && (ntc_rg143_e - ntc_rg143 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg143:
 var_far_a:			dw 0
+ntc_rg143_e:
+			IF ($ < 32768) && (ntc_rg144_e - ntc_rg144 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg144:
 p_clst_rs:			dw 0
+ntc_rg144_e:
+			IF ($ < 32768) && (ntc_rg145_e - ntc_rg145 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg145:
 var_clst_t:			dw 0
+ntc_rg145_e:
+			IF ($ < 32768) && (ntc_rg146_e - ntc_rg146 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg146:
 p_tofront_rs:			dw 0
+ntc_rg146_e:
+			IF ($ < 32768) && (ntc_rg147_e - ntc_rg147 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg147:
 var_tofront_t:			dw 0
+ntc_rg147_e:
+			IF ($ < 32768) && (ntc_rg148_e - ntc_rg148 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg148:
 p_showtop_rs:			dw 0
+ntc_rg148_e:
+			IF ($ < 32768) && (ntc_rg149_e - ntc_rg149 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg149:
 var_showtop_j:			dw 0
+ntc_rg149_e:
+			IF ($ < 32768) && (ntc_rg150_e - ntc_rg150 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg150:
 var_txs:			dw 0
+ntc_rg150_e:
+			IF ($ < 32768) && (ntc_rg151_e - ntc_rg151 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg151:
 p_toplines_rs:			dw 0
+ntc_rg151_e:
+			IF ($ < 32768) && (ntc_rg152_e - ntc_rg152 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg152:
 var_toplines_mark:			dw 0
+ntc_rg152_e:
+			IF ($ < 32768) && (ntc_rg153_e - ntc_rg153 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg153:
 var_toplines_keys:			dw 0
+ntc_rg153_e:
+			IF ($ < 32768) && (ntc_rg154_e - ntc_rg154 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg154:
 var_toplines_j:			dw 0
+ntc_rg154_e:
+			IF ($ < 32768) && (ntc_rg155_e - ntc_rg155 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg155:
 			db 14			; capacity
 var_toplines_s:			ds 15
+ntc_rg155_e:
+			IF ($ < 32768) && (ntc_rg156_e - ntc_rg156 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg156:
 var_txn:			dw 0
+ntc_rg156_e:
+			IF ($ < 32768) && (ntc_rg157_e - ntc_rg157 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg157:
 			db 130			; capacity
 var_n_n:			ds 131
+ntc_rg157_e:
+			IF ($ < 32768) && (ntc_rg158_e - ntc_rg158 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg158:
 var_memory_banks_banks:			dw 0
+ntc_rg158_e:
+			IF ($ < 32768) && (ntc_rg159_e - ntc_rg159 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg159:
 var_memory_freepages_freepages:			dw 0
+ntc_rg159_e:
+			IF ($ < 32768) && (ntc_rg160_e - ntc_rg160 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg160:
 			db 130			; capacity
 var_sk_sk:			ds 131
-for51_l:			dw 0
+ntc_rg160_e:
+			IF ($ < 32768) && (ntc_rg161_e - ntc_rg161 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg161:
+for49_l:			dw 0
+ntc_rg161_e:
+			IF ($ < 32768) && (ntc_rg162_e - ntc_rg162 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg162:
 			db 60			; capacity
 var_en:			ds 61
+ntc_rg162_e:
+			IF ($ < 32768) && (ntc_rg163_e - ntc_rg163 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg163:
 var_ld:			dw 0
+ntc_rg163_e:
+			IF ($ < 32768) && (ntc_rg164_e - ntc_rg164 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg164:
 var_rate_rate:			dw 0
+ntc_rg164_e:
+			IF ($ < 32768) && (ntc_rg165_e - ntc_rg165 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg165:
 			db 130			; capacity
 var_pad_pad:			ds 131
+ntc_rg165_e:
+			IF ($ < 32768) && (ntc_rg166_e - ntc_rg166 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg166:
 var_memory_ramsize_ramsize:			dw 0
-for55_l:			dw 0
+ntc_rg166_e:
+			IF ($ < 32768) && (ntc_rg167_e - ntc_rg167 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg167:
+p_memshow_rs:			dw 0
+ntc_rg167_e:
+			IF ($ < 32768) && (ntc_rg168_e - ntc_rg168 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg168:
+var_memshow_t:			dw 0
+ntc_rg168_e:
+			IF ($ < 32768) && (ntc_rg169_e - ntc_rg169 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg169:
+var_memshow_j:			dw 0
+ntc_rg169_e:
+			IF ($ < 32768) && (ntc_rg170_e - ntc_rg170 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg170:
+var_memory_tableend_tableend:			dw 0
+ntc_rg170_e:
+			IF ($ < 32768) && (ntc_rg171_e - ntc_rg171 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg171:
+			db 130			; capacity
+var_h4_h4:			ds 131
+ntc_rg171_e:
+			IF ($ < 32768) && (ntc_rg172_e - ntc_rg172 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg172:
+var_memory_top_top:			dw 0
+ntc_rg172_e:
+			IF ($ < 32768) && (ntc_rg173_e - ntc_rg173 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg173:
+for53_l:			dw 0
+ntc_rg173_e:
+			IF ($ < 32768) && (ntc_rg174_e - ntc_rg174 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg174:
 			db 130			; capacity
 var_memory_map_map:			ds 131
+ntc_rg174_e:
+			IF ($ < 32768) && (ntc_rg175_e - ntc_rg175 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg175:
+p_h4_rs:			dw 0
+ntc_rg175_e:
+			IF ($ < 32768) && (ntc_rg176_e - ntc_rg176 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg176:
+var_h4_v:			dw 0
+ntc_rg176_e:
+			IF ($ < 32768) && (ntc_rg177_e - ntc_rg177 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg177:
 p_topadd_rs:			dw 0
+ntc_rg177_e:
+			IF ($ < 32768) && (ntc_rg178_e - ntc_rg178 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg178:
 			db 130			; capacity
 var_topadd_s:			ds 131
+ntc_rg178_e:
+			IF ($ < 32768) && (ntc_rg179_e - ntc_rg179 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg179:
 p_roll_rs:			dw 0
+ntc_rg179_e:
+			IF ($ < 32768) && (ntc_rg180_e - ntc_rg180 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg180:
 var_roll_j:			dw 0
-for57_l:			dw 0
+ntc_rg180_e:
+			IF ($ < 32768) && (ntc_rg181_e - ntc_rg181 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg181:
+for55_l:			dw 0
+ntc_rg181_e:
+			IF ($ < 32768) && (ntc_rg182_e - ntc_rg182 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg182:
 p_pad_rs:			dw 0
+ntc_rg182_e:
+			IF ($ < 32768) && (ntc_rg183_e - ntc_rg183 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg183:
 var_pad_v:			dw 0
+ntc_rg183_e:
+			IF ($ < 32768) && (ntc_rg184_e - ntc_rg184 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg184:
 p_rate_rs:			dw 0
+ntc_rg184_e:
+			IF ($ < 32768) && (ntc_rg185_e - ntc_rg185 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg185:
 var_rate_n:			dw 0
+ntc_rg185_e:
+			IF ($ < 32768) && (ntc_rg186_e - ntc_rg186 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg186:
 var_rate_d:			dw 0
+ntc_rg186_e:
+			IF ($ < 32768) && (ntc_rg187_e - ntc_rg187 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg187:
 p_install_rs:			dw 0
+ntc_rg187_e:
+			IF ($ < 32768) && (ntc_rg188_e - ntc_rg188 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg188:
 var_install_t:			dw 0
-var_hyp_info_info:			dw 0
+ntc_rg188_e:
+			IF ($ < 32768) && (ntc_rg189_e - ntc_rg189 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg189:
+var_install_p:			dw 0
+ntc_rg189_e:
+			IF ($ < 32768) && (ntc_rg190_e - ntc_rg190 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg190:
+var_install_n:			dw 0
+ntc_rg190_e:
+			IF ($ < 32768) && (ntc_rg191_e - ntc_rg191 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg191:
 p_resetslot_rs:			dw 0
+ntc_rg191_e:
+			IF ($ < 32768) && (ntc_rg192_e - ntc_rg192 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg192:
 var_resetslot_s:			dw 0
+ntc_rg192_e:
+			IF ($ < 32768) && (ntc_rg193_e - ntc_rg193 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg193:
 p_openslot_rs:			dw 0
+ntc_rg193_e:
+			IF ($ < 32768) && (ntc_rg194_e - ntc_rg194 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg194:
 var_openslot_t:			dw 0
+ntc_rg194_e:
+			IF ($ < 32768) && (ntc_rg195_e - ntc_rg195 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg195:
 p_sk_rs:			dw 0
+ntc_rg195_e:
+			IF ($ < 32768) && (ntc_rg196_e - ntc_rg196 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg196:
 p_getnm_rs:			dw 0
+ntc_rg196_e:
+			IF ($ < 32768) && (ntc_rg197_e - ntc_rg197 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg197:
 var_getnm_t:			dw 0
+ntc_rg197_e:
+			IF ($ < 32768) && (ntc_rg198_e - ntc_rg198 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg198:
 var_getnm_n:			dw 0
+ntc_rg198_e:
+			IF ($ < 32768) && (ntc_rg199_e - ntc_rg199 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg199:
 p_n_rs:			dw 0
+ntc_rg199_e:
+			IF ($ < 32768) && (ntc_rg200_e - ntc_rg200 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg200:
 var_n_v:			dw 0
+ntc_rg200_e:
+			IF ($ < 32768) && (ntc_rg201_e - ntc_rg201 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg201:
 p_prompt_rs:			dw 0
+ntc_rg201_e:
+			IF ($ < 32768) && (ntc_rg202_e - ntc_rg202 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg202:
 var_prompt_t:			dw 0
+ntc_rg202_e:
+			IF ($ < 32768) && (ntc_rg203_e - ntc_rg203 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg203:
 p_keyin_rs:			dw 0
+ntc_rg203_e:
+			IF ($ < 32768) && (ntc_rg204_e - ntc_rg204 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg204:
 var_keyin_k:			dw 0
+ntc_rg204_e:
+			IF ($ < 32768) && (ntc_rg205_e - ntc_rg205 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg205:
 var_keyin_t:			dw 0
+ntc_rg205_e:
+			IF ($ < 32768) && (ntc_rg206_e - ntc_rg206 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg206:
 var_keyin_n:			dw 0
+ntc_rg206_e:
+			IF ($ < 32768) && (ntc_rg207_e - ntc_rg207 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg207:
 p_command_rs:			dw 0
+ntc_rg207_e:
+			IF ($ < 32768) && (ntc_rg208_e - ntc_rg208 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg208:
 var_command_t:			dw 0
-			db 40			; capacity
-var_command_c:			ds 41
+ntc_rg208_e:
+			IF ($ < 32768) && (ntc_rg209_e - ntc_rg209 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg209:
+			db 72			; capacity
+var_command_c:			ds 73
+ntc_rg209_e:
+			IF ($ < 32768) && (ntc_rg210_e - ntc_rg210 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg210:
 var_command_p:			dw 0
+ntc_rg210_e:
+			IF ($ < 32768) && (ntc_rg211_e - ntc_rg211 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg211:
 var_command_s:			dw 0
-			db 40			; capacity
-var_a:			ds 41
-			db 40			; capacity
-var_b:			ds 41
-var_hyp_drive_drive:			dw 0
+ntc_rg211_e:
+			IF ($ < 32768) && (ntc_rg212_e - ntc_rg212 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg212:
+			db 72			; capacity
+var_a:			ds 73
+ntc_rg212_e:
+			IF ($ < 32768) && (ntc_rg213_e - ntc_rg213 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg213:
+			db 72			; capacity
+var_b:			ds 73
+ntc_rg213_e:
+			IF ($ < 32768) && (ntc_rg214_e - ntc_rg214 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg214:
 			db 130			; capacity
-var_command___sel70:			ds 131
-for75_l:			dw 0
+var_command___sel67:			ds 131
+ntc_rg214_e:
+			IF ($ < 32768) && (ntc_rg215_e - ntc_rg215 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg215:
+for72_l:			dw 0
+ntc_rg215_e:
+			IF ($ < 32768) && (ntc_rg216_e - ntc_rg216 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg216:
+var_bare:			dw 0
+ntc_rg216_e:
+			IF ($ < 32768) && (ntc_rg217_e - ntc_rg217 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg217:
 p_starttask_rs:			dw 0
+ntc_rg217_e:
+			IF ($ < 32768) && (ntc_rg218_e - ntc_rg218 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg218:
 var_starttask_t:			dw 0
+ntc_rg218_e:
+			IF ($ < 32768) && (ntc_rg219_e - ntc_rg219 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg219:
 var_starttask_s:			dw 0
+ntc_rg219_e:
+			IF ($ < 32768) && (ntc_rg220_e - ntc_rg220 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg220:
 var_starttask_h:			dw 0
+ntc_rg220_e:
+			IF ($ < 32768) && (ntc_rg221_e - ntc_rg221 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg221:
 var_starttask_n:			dw 0
-var_starttask_p:			dw 0
-var_starttask_want:			dw 0
+ntc_rg221_e:
+			IF ($ < 32768) && (ntc_rg222_e - ntc_rg222 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg222:
 var_starttask_rest:			dw 0
+ntc_rg222_e:
+			IF ($ < 32768) && (ntc_rg223_e - ntc_rg223 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg223:
 var_starttask_com:			dw 0
+ntc_rg223_e:
+			IF ($ < 32768) && (ntc_rg224_e - ntc_rg224 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg224:
+			db 72			; capacity
+var_starttask_w:			ds 73
+ntc_rg224_e:
+			IF ($ < 32768) && (ntc_rg225_e - ntc_rg225 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg225:
+var_starttask_d:			dw 0
+ntc_rg225_e:
+			IF ($ < 32768) && (ntc_rg226_e - ntc_rg226 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg226:
+var_hyp_drive_drive:			dw 0
+ntc_rg226_e:
+			IF ($ < 32768) && (ntc_rg227_e - ntc_rg227 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg227:
 var_findcom_findcom:			dw 0
+ntc_rg227_e:
+			IF ($ < 32768) && (ntc_rg228_e - ntc_rg228 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg228:
 var_ent_discname_discname:			dw 0
-var_filesystem_close_close:			dw 0
+ntc_rg228_e:
+			IF ($ < 32768) && (ntc_rg229_e - ntc_rg229 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg229:
+p_notfound_rs:			dw 0
+ntc_rg229_e:
+			IF ($ < 32768) && (ntc_rg230_e - ntc_rg230 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg230:
+var_notfound_t:			dw 0
+ntc_rg230_e:
+			IF ($ < 32768) && (ntc_rg231_e - ntc_rg231 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg231:
+p_owndrive_rs:			dw 0
+ntc_rg231_e:
+			IF ($ < 32768) && (ntc_rg232_e - ntc_rg232 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg232:
+var_owndrive_t:			dw 0
+ntc_rg232_e:
+			IF ($ < 32768) && (ntc_rg233_e - ntc_rg233 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg233:
+var_owndrive_r:			dw 0
+ntc_rg233_e:
+			IF ($ < 32768) && (ntc_rg234_e - ntc_rg234 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg234:
 p_chdrive_rs:			dw 0
+ntc_rg234_e:
+			IF ($ < 32768) && (ntc_rg235_e - ntc_rg235 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg235:
 var_chdrive_t:			dw 0
+ntc_rg235_e:
+			IF ($ < 32768) && (ntc_rg236_e - ntc_rg236 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg236:
 var_chdrive_r:			dw 0
+ntc_rg236_e:
+			IF ($ < 32768) && (ntc_rg237_e - ntc_rg237 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg237:
 var_chdrive_h:			dw 0
+ntc_rg237_e:
+			IF ($ < 32768) && (ntc_rg238_e - ntc_rg238 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg238:
 p_dirlist_rs:			dw 0
+ntc_rg238_e:
+			IF ($ < 32768) && (ntc_rg239_e - ntc_rg239 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg239:
 var_dirlist_t:			dw 0
-var_dirlist_h:			dw 0
+ntc_rg239_e:
+			IF ($ < 32768) && (ntc_rg240_e - ntc_rg240 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg240:
 var_dirlist_r:			dw 0
+ntc_rg240_e:
+			IF ($ < 32768) && (ntc_rg241_e - ntc_rg241 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg241:
 var_dirlist_k:			dw 0
-var_filesystem_read_read:			dw 0
+ntc_rg241_e:
+			IF ($ < 32768) && (ntc_rg242_e - ntc_rg242 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg242:
 var_ent_show_show:			dw 0
+ntc_rg242_e:
+			IF ($ < 32768) && (ntc_rg243_e - ntc_rg243 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg243:
 p_findcom_rs:			dw 0
+ntc_rg243_e:
+			IF ($ < 32768) && (ntc_rg244_e - ntc_rg244 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg244:
 var_findcom_r:			dw 0
-			db 12			; capacity
-var_dn:			ds 13
+ntc_rg244_e:
+			IF ($ < 32768) && (ntc_rg245_e - ntc_rg245 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg245:
 var_findent_findent:			dw 0
+ntc_rg245_e:
+			IF ($ < 32768) && (ntc_rg246_e - ntc_rg246 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg246:
 p_findent_rs:			dw 0
-var_findent_h:			dw 0
+ntc_rg246_e:
+			IF ($ < 32768) && (ntc_rg247_e - ntc_rg247 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg247:
 var_findent_r:			dw 0
+ntc_rg247_e:
+			IF ($ < 32768) && (ntc_rg248_e - ntc_rg248 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg248:
 var_ent_length_length:			dw 0
+ntc_rg248_e:
+			IF ($ < 32768) && (ntc_rg249_e - ntc_rg249 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg249:
 p_endtask_rs:			dw 0
+ntc_rg249_e:
+			IF ($ < 32768) && (ntc_rg250_e - ntc_rg250 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg250:
 var_endtask_t:			dw 0
+ntc_rg250_e:
+			IF ($ < 32768) && (ntc_rg251_e - ntc_rg251 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg251:
 var_endtask_c:			dw 0
+ntc_rg251_e:
+			IF ($ < 32768) && (ntc_rg252_e - ntc_rg252 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg252:
 var_hyp_hsp:			dw 0
+ntc_rg252_e:
+			IF ($ < 32768) && (ntc_rg253_e - ntc_rg253 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg253:
 p_hyp_con_rs:			dw 0
+ntc_rg253_e:
+			IF ($ < 32768) && (ntc_rg254_e - ntc_rg254 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg254:
 var_hyp_con_pg:			dw 0
+ntc_rg254_e:
+			IF ($ < 32768) && (ntc_rg255_e - ntc_rg255 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg255:
 var_hyp_con_src:			dw 0
+ntc_rg255_e:
+			IF ($ < 32768) && (ntc_rg256_e - ntc_rg256 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg256:
 var_hyp_con_n:			dw 0
+ntc_rg256_e:
+			IF ($ < 32768) && (ntc_rg257_e - ntc_rg257 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg257:
 var_hyp_con_front:			dw 0
+ntc_rg257_e:
+			IF ($ < 32768) && (ntc_rg258_e - ntc_rg258 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg258:
 p_hyp_say_rs:			dw 0
+ntc_rg258_e:
+			IF ($ < 32768) && (ntc_rg259_e - ntc_rg259 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg259:
 var_hyp_say_p:			dw 0
+ntc_rg259_e:
+			IF ($ < 32768) && (ntc_rg260_e - ntc_rg260 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg260:
 var_hyp_say_n:			dw 0
+ntc_rg260_e:
+			IF ($ < 32768) && (ntc_rg261_e - ntc_rg261 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg261:
 var_hyp_say_col:			dw 0
+ntc_rg261_e:
+			IF ($ < 32768) && (ntc_rg262_e - ntc_rg262 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg262:
 var_hyp_say_row:			dw 0
+ntc_rg262_e:
+			IF ($ < 32768) && (ntc_rg263_e - ntc_rg263 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg263:
 p_hyp_show_rs:			dw 0
+ntc_rg263_e:
+			IF ($ < 32768) && (ntc_rg264_e - ntc_rg264 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg264:
 var_hyp_show_pg:			dw 0
+ntc_rg264_e:
+			IF ($ < 32768) && (ntc_rg265_e - ntc_rg265 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg265:
 p_hyp_reply_rs:			dw 0
+ntc_rg265_e:
+			IF ($ < 32768) && (ntc_rg266_e - ntc_rg266 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg266:
 var_hyp_reply_a:			dw 0
+ntc_rg266_e:
+			IF ($ < 32768) && (ntc_rg267_e - ntc_rg267 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg267:
 var_hyp_reply_hl:			dw 0
+ntc_rg267_e:
+			IF ($ < 32768) && (ntc_rg268_e - ntc_rg268 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg268:
 var_hyp_ra:			dw 0
+ntc_rg268_e:
+			IF ($ < 32768) && (ntc_rg269_e - ntc_rg269 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg269:
 var_hyp_rhl:			dw 0
+ntc_rg269_e:
+			IF ($ < 32768) && (ntc_rg270_e - ntc_rg270 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg270:
 p_hyp_fn_rs:			dw 0
+ntc_rg270_e:
+			IF ($ < 32768) && (ntc_rg271_e - ntc_rg271 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg271:
 var_hyp_rfn:			dw 0
+ntc_rg271_e:
+			IF ($ < 32768) && (ntc_rg272_e - ntc_rg272 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg272:
 p_hyp_arg_rs:			dw 0
+ntc_rg272_e:
+			IF ($ < 32768) && (ntc_rg273_e - ntc_rg273 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg273:
 var_hyp_rde:			dw 0
+ntc_rg273_e:
+			IF ($ < 32768) && (ntc_rg274_e - ntc_rg274 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg274:
 p_hyp_count_rs:			dw 0
+ntc_rg274_e:
+			IF ($ < 32768) && (ntc_rg275_e - ntc_rg275 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg275:
 var_hyp_rcnt:			dw 0
+ntc_rg275_e:
+			IF ($ < 32768) && (ntc_rg276_e - ntc_rg276 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg276:
 p_hyp_run_rs:			dw 0
+ntc_rg276_e:
+			IF ($ < 32768) && (ntc_rg277_e - ntc_rg277 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg277:
 var_hyp_run_setting:			dw 0
+ntc_rg277_e:
+			IF ($ < 32768) && (ntc_rg278_e - ntc_rg278 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg278:
 var_hyp_sps:			dw 0
+ntc_rg278_e:
+			IF ($ < 32768) && (ntc_rg279_e - ntc_rg279 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg279:
 var_hyp_rrom:			dw 0
+ntc_rg279_e:
+			IF ($ < 32768) && (ntc_rg280_e - ntc_rg280 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg280:
 var_hyp_slc:			dw 0
+ntc_rg280_e:
+			IF ($ < 32768) && (ntc_rg281_e - ntc_rg281 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg281:
 var_hyp_rclr:			dw 0
+ntc_rg281_e:
+			IF ($ < 32768) && (ntc_rg282_e - ntc_rg282 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg282:
 p_hyp_vdu_rs:			dw 0
+ntc_rg282_e:
+			IF ($ < 32768) && (ntc_rg283_e - ntc_rg283 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg283:
 var_hyp_vdu_on:			dw 0
+ntc_rg283_e:
+			IF ($ < 32768) && (ntc_rg284_e - ntc_rg284 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg284:
+p_hyp_filecall_rs:			dw 0
+ntc_rg284_e:
+			IF ($ < 32768) && (ntc_rg285_e - ntc_rg285 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg285:
+var_hyp_filecall_f:			dw 0
+ntc_rg285_e:
+			IF ($ < 32768) && (ntc_rg286_e - ntc_rg286 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg286:
+var_hyp_filecall_fcb:			dw 0
+ntc_rg286_e:
+			IF ($ < 32768) && (ntc_rg287_e - ntc_rg287 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg287:
+var_hyp_filecall_slot:			dw 0
+ntc_rg287_e:
+			IF ($ < 32768) && (ntc_rg288_e - ntc_rg288 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg288:
+var_hyp_filecall_setting:			dw 0
+ntc_rg288_e:
+			IF ($ < 32768) && (ntc_rg289_e - ntc_rg289 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg289:
+var_hyp_filecall_dma:			dw 0
+ntc_rg289_e:
+			IF ($ < 32768) && (ntc_rg290_e - ntc_rg290 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg290:
+var_hyp_filecall_drive:			dw 0
+ntc_rg290_e:
+			IF ($ < 32768) && (ntc_rg291_e - ntc_rg291 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg291:
+var_hyp_filecall_buf:			dw 0
+ntc_rg291_e:
+			IF ($ < 32768) && (ntc_rg292_e - ntc_rg292 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg292:
+var_hyp_fin:			dw 0
+ntc_rg292_e:
+			IF ($ < 32768) && (ntc_rg293_e - ntc_rg293 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg293:
+var_hyp_fout:			dw 0
+ntc_rg293_e:
+			IF ($ < 32768) && (ntc_rg294_e - ntc_rg294 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg294:
+p_hyp_xfer_rs:			dw 0
+ntc_rg294_e:
+			IF ($ < 32768) && (ntc_rg295_e - ntc_rg295 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg295:
+var_hyp_xfer_toslot:			dw 0
+ntc_rg295_e:
+			IF ($ < 32768) && (ntc_rg296_e - ntc_rg296 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg296:
+var_hyp_xfer_setting:			dw 0
+ntc_rg296_e:
+			IF ($ < 32768) && (ntc_rg297_e - ntc_rg297 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg297:
+var_hyp_xfer_addr:			dw 0
+ntc_rg297_e:
+			IF ($ < 32768) && (ntc_rg298_e - ntc_rg298 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg298:
+var_hyp_xfer_p:			dw 0
+ntc_rg298_e:
+			IF ($ < 32768) && (ntc_rg299_e - ntc_rg299 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg299:
+var_hyp_xfer_n:			dw 0
+ntc_rg299_e:
+			IF ($ < 32768) && (ntc_rg300_e - ntc_rg300 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg300:
+p_hyp_fileshut_rs:			dw 0
+ntc_rg300_e:
+			IF ($ < 32768) && (ntc_rg301_e - ntc_rg301 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg301:
+var_hyp_fileshut_slot:			dw 0
+ntc_rg301_e:
+			IF ($ < 32768) && (ntc_rg302_e - ntc_rg302 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg302:
 p_hyp_drive_rs:			dw 0
+ntc_rg302_e:
+			IF ($ < 32768) && (ntc_rg303_e - ntc_rg303 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg303:
 var_hyp_drive_letter:			dw 0
+ntc_rg303_e:
+			IF ($ < 32768) && (ntc_rg304_e - ntc_rg304 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg304:
 p_hot_slots_rs:			dw 0
+ntc_rg304_e:
+			IF ($ < 32768) && (ntc_rg305_e - ntc_rg305 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg305:
 var_hot_slots_n:			dw 0
+ntc_rg305_e:
+			IF ($ < 32768) && (ntc_rg306_e - ntc_rg306 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg306:
 var_hot_ns:			dw 0
+ntc_rg306_e:
+			IF ($ < 32768) && (ntc_rg307_e - ntc_rg307 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg307:
 p_hot_tick_rs:			dw 0
+ntc_rg307_e:
+			IF ($ < 32768) && (ntc_rg308_e - ntc_rg308 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg308:
 var_hot_tick_k:			dw 0
+ntc_rg308_e:
+			IF ($ < 32768) && (ntc_rg309_e - ntc_rg309 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg309:
 var_hot_ctl:			dw 0
+ntc_rg309_e:
+			IF ($ < 32768) && (ntc_rg310_e - ntc_rg310 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg310:
 var_keys_down_down:			dw 0
+ntc_rg310_e:
+			IF ($ < 32768) && (ntc_rg311_e - ntc_rg311 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg311:
 var_hot_last:			dw 0
+ntc_rg311_e:
+			IF ($ < 32768) && (ntc_rg312_e - ntc_rg312 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg312:
 var_hot_one:			dw 0
+ntc_rg312_e:
+			IF ($ < 32768) && (ntc_rg313_e - ntc_rg313 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg313:
 var_hot_pend:			dw 0
+ntc_rg313_e:
+			IF ($ < 32768) && (ntc_rg314_e - ntc_rg314 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg314:
 var_hot_age:			dw 0
+ntc_rg314_e:
+			IF ($ < 32768) && (ntc_rg315_e - ntc_rg315 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg315:
 p_hot_take_rs:			dw 0
+ntc_rg315_e:
+			IF ($ < 32768) && (ntc_rg316_e - ntc_rg316 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg316:
 p_hot_control_rs:			dw 0
+ntc_rg316_e:
+			IF ($ < 32768) && (ntc_rg317_e - ntc_rg317 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg317:
 p_ent_setname_rs:			dw 0
+ntc_rg317_e:
+			IF ($ < 32768) && (ntc_rg318_e - ntc_rg318 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg318:
 var_ent_setname_p:			dw 0
+ntc_rg318_e:
+			IF ($ < 32768) && (ntc_rg319_e - ntc_rg319 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg319:
 var_ent_setname_n:			dw 0
+ntc_rg319_e:
+			IF ($ < 32768) && (ntc_rg320_e - ntc_rg320 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg320:
 p_ent_length_rs:			dw 0
+ntc_rg320_e:
+			IF ($ < 32768) && (ntc_rg321_e - ntc_rg321 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg321:
 var_ent_length_p:			dw 0
+ntc_rg321_e:
+			IF ($ < 32768) && (ntc_rg322_e - ntc_rg322 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg322:
 var_ent_length_s:			dw 0
+ntc_rg322_e:
+			IF ($ < 32768) && (ntc_rg323_e - ntc_rg323 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg323:
 var_ent_length_n:			dw 0
+ntc_rg323_e:
+			IF ($ < 32768) && (ntc_rg324_e - ntc_rg324 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg324:
 p_ent_discname_rs:			dw 0
+ntc_rg324_e:
+			IF ($ < 32768) && (ntc_rg325_e - ntc_rg325 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg325:
 var_ent_discname_p:			dw 0
+ntc_rg325_e:
+			IF ($ < 32768) && (ntc_rg326_e - ntc_rg326 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg326:
 var_ent_discname_d:			dw 0
+ntc_rg326_e:
+			IF ($ < 32768) && (ntc_rg327_e - ntc_rg327 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg327:
 p_ent_show_rs:			dw 0
+ntc_rg327_e:
+			IF ($ < 32768) && (ntc_rg328_e - ntc_rg328 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg328:
 var_ent_show_p:			dw 0
+ntc_rg328_e:
+			IF ($ < 32768) && (ntc_rg329_e - ntc_rg329 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg329:
 var_ent_show_d:			dw 0
+ntc_rg329_e:
+			IF ($ < 32768) && (ntc_rg330_e - ntc_rg330 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg330:
 var_ent_hsp:			dw 0
+ntc_rg330_e:
+			IF ($ < 32768) && (ntc_rg331_e - ntc_rg331 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg331:
 p_memory_bankpage_rs:			dw 0
+ntc_rg331_e:
+			IF ($ < 32768) && (ntc_rg332_e - ntc_rg332 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg332:
 var_memory_bankpage_bank:			dw 0
+ntc_rg332_e:
+			IF ($ < 32768) && (ntc_rg333_e - ntc_rg333 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg333:
 var_memory_bankpage_n:			dw 0
+ntc_rg333_e:
+			IF ($ < 32768) && (ntc_rg334_e - ntc_rg334 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg334:
 tmp0:			dw 0
+ntc_rg334_e:
+			IF ($ < 32768) && (ntc_rg335_e - ntc_rg335 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg335:
 tmp1:			dw 0
+ntc_rg335_e:
+			IF ($ < 32768) && (ntc_rg336_e - ntc_rg336 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg336:
 tmp2:			dw 0
+ntc_rg336_e:
+			IF ($ < 32768) && (ntc_rg337_e - ntc_rg337 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg337:
 tmp3:			dw 0
+ntc_rg337_e:
+			IF ($ < 32768) && (ntc_rg338_e - ntc_rg338 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg338:
 tmp4:			dw 0
+ntc_rg338_e:
+			IF ($ < 32768) && (ntc_rg339_e - ntc_rg339 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg339:
 tmp5:			dw 0
+ntc_rg339_e:
+			IF ($ < 32768) && (ntc_rg340_e - ntc_rg340 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg340:
+tmp6:			dw 0
+ntc_rg340_e:
+			IF ($ < 32768) && (ntc_rg341_e - ntc_rg341 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg341:
+tmp7:			dw 0
+ntc_rg341_e:
+			IF ($ < 32768) && (ntc_rg342_e - ntc_rg342 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg342:
 			db 130			; capacity
 stmp0:			ds 131
+ntc_rg342_e:
+			IF ($ < 32768) && (ntc_rg343_e - ntc_rg343 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg343:
 			db 130			; capacity
 stmp1:			ds 131
+ntc_rg343_e:
+			IF ($ < 32768) && (ntc_rg344_e - ntc_rg344 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg344:
 			db 130			; capacity
 stmp2:			ds 131
+ntc_rg344_e:
+			IF ($ < 32768) && (ntc_rg345_e - ntc_rg345 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg345:
 			db 130			; capacity
 stmp3:			ds 131
+ntc_rg345_e:
+			IF ($ < 32768) && (ntc_rg346_e - ntc_rg346 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg346:
 ltmp0:			dw 0, 0
-ltmp1:			dw 0, 0
 
 ; numbers passed by address (read only)
-lit_0:			dw 0
-lit_1:			dw 1
-lit_128:			dw 128
-lit_m2431:			dw -2431
-vp_var_ob:			dw var_ob
-vp_var_putc_c:			dw var_putc_c
-llit_0:			dw 0, 0
-llit_65536:			dw 0, 1
-lit_2:			dw 2
-lit_15:			dw 15
-lit_13:			dw 13
-lit_80:			dw 80
-lit_9:			dw 9
-lit_m2816:			dw -2816
-lit_3:			dw 3
-lit_m2432:			dw -2432
-lit_m2344:			dw -2344
-lit_12:			dw 12
-lit_m2343:			dw -2343
-vp_var_en:			dw var_en
-lit_m2417:			dw -2417
-lit_8:			dw 8
-lit_32:			dw 32
-lit_m2416:			dw -2416
-lit_255:			dw 255
-lit_4:			dw 4
-lit_16384:			dw 16384
-lit_16640:			dw 16640
-lit_m260:			dw -260
-lit_256:			dw 256
-lit_m258:			dw -258
-lit_m2:			dw -2
-vp_var_a:			dw var_a
-lit_m2427:			dw -2427
-lit_64:			dw 64
-lit_60:			dw 60
-lit_m1:			dw -1
-lit_23:			dw 23
-lit_65:			dw 65
-lit_57:			dw 57
-lit_56:			dw 56
-lit_49:			dw 49
-lit_48:			dw 48
-lit_41:			dw 41
-lit_40:			dw 40
-lit_66:			dw 66
-llit_m1:			dw 65535, 65535
-
-ntc_rg55_e:
-			IF ($ < 34816) && (ntc_rg56_e - ntc_rg56 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+ntc_rg346_e:
+			IF ($ < 32768) && (ntc_rg347_e - ntc_rg347 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg56:
+ntc_rg347:
+lit_0:			dw 0
+ntc_rg347_e:
+			IF ($ < 32768) && (ntc_rg348_e - ntc_rg348 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg348:
+lit_1:			dw 1
+ntc_rg348_e:
+			IF ($ < 32768) && (ntc_rg349_e - ntc_rg349 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg349:
+lit_128:			dw 128
+ntc_rg349_e:
+			IF ($ < 32768) && (ntc_rg350_e - ntc_rg350 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg350:
+lit_m2431:			dw -2431
+ntc_rg350_e:
+			IF ($ < 32768) && (ntc_rg351_e - ntc_rg351 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg351:
+vp_var_ob:			dw var_ob
+ntc_rg351_e:
+			IF ($ < 32768) && (ntc_rg352_e - ntc_rg352 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg352:
+vp_var_dn:			dw var_dn
+ntc_rg352_e:
+			IF ($ < 32768) && (ntc_rg353_e - ntc_rg353 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg353:
+lit_100:			dw 100
+ntc_rg353_e:
+			IF ($ < 32768) && (ntc_rg354_e - ntc_rg354 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg354:
+lit_101:			dw 101
+ntc_rg354_e:
+			IF ($ < 32768) && (ntc_rg355_e - ntc_rg355 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg355:
+lit_102:			dw 102
+ntc_rg355_e:
+			IF ($ < 32768) && (ntc_rg356_e - ntc_rg356 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg356:
+vp_var_putc_c:			dw var_putc_c
+ntc_rg356_e:
+			IF ($ < 32768) && (ntc_rg357_e - ntc_rg357 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg357:
+lit_2:			dw 2
+ntc_rg357_e:
+			IF ($ < 32768) && (ntc_rg358_e - ntc_rg358 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg358:
+lit_15:			dw 15
+ntc_rg358_e:
+			IF ($ < 32768) && (ntc_rg359_e - ntc_rg359 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg359:
+lit_13:			dw 13
+ntc_rg359_e:
+			IF ($ < 32768) && (ntc_rg360_e - ntc_rg360 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg360:
+lit_32:			dw 32
+ntc_rg360_e:
+			IF ($ < 32768) && (ntc_rg361_e - ntc_rg361 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg361:
+lit_4:			dw 4
+ntc_rg361_e:
+			IF ($ < 32768) && (ntc_rg362_e - ntc_rg362 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg362:
+lit_9:			dw 9
+ntc_rg362_e:
+			IF ($ < 32768) && (ntc_rg363_e - ntc_rg363 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg363:
+lit_3:			dw 3
+ntc_rg363_e:
+			IF ($ < 32768) && (ntc_rg364_e - ntc_rg364 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg364:
+lit_m2816:			dw -2816
+ntc_rg364_e:
+			IF ($ < 32768) && (ntc_rg365_e - ntc_rg365 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg365:
+lit_m2432:			dw -2432
+ntc_rg365_e:
+			IF ($ < 32768) && (ntc_rg366_e - ntc_rg366 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg366:
+lit_m2344:			dw -2344
+ntc_rg366_e:
+			IF ($ < 32768) && (ntc_rg367_e - ntc_rg367 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg367:
+lit_12:			dw 12
+ntc_rg367_e:
+			IF ($ < 32768) && (ntc_rg368_e - ntc_rg368 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg368:
+lit_m2343:			dw -2343
+ntc_rg368_e:
+			IF ($ < 32768) && (ntc_rg369_e - ntc_rg369 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg369:
+vp_var_en:			dw var_en
+ntc_rg369_e:
+			IF ($ < 32768) && (ntc_rg370_e - ntc_rg370 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg370:
+lit_m2417:			dw -2417
+ntc_rg370_e:
+			IF ($ < 32768) && (ntc_rg371_e - ntc_rg371 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg371:
+lit_8:			dw 8
+ntc_rg371_e:
+			IF ($ < 32768) && (ntc_rg372_e - ntc_rg372 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg372:
+lit_m2416:			dw -2416
+ntc_rg372_e:
+			IF ($ < 32768) && (ntc_rg373_e - ntc_rg373 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg373:
+lit_255:			dw 255
+ntc_rg373_e:
+			IF ($ < 32768) && (ntc_rg374_e - ntc_rg374 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg374:
+lit_65:			dw 65
+ntc_rg374_e:
+			IF ($ < 32768) && (ntc_rg375_e - ntc_rg375 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg375:
+lit_103:			dw 103
+ntc_rg375_e:
+			IF ($ < 32768) && (ntc_rg376_e - ntc_rg376 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg376:
+lit_256:			dw 256
+ntc_rg376_e:
+			IF ($ < 32768) && (ntc_rg377_e - ntc_rg377 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg377:
+lit_m260:			dw -260
+ntc_rg377_e:
+			IF ($ < 32768) && (ntc_rg378_e - ntc_rg378 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg378:
+lit_m258:			dw -258
+ntc_rg378_e:
+			IF ($ < 32768) && (ntc_rg379_e - ntc_rg379 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg379:
+lit_m2:			dw -2
+ntc_rg379_e:
+			IF ($ < 32768) && (ntc_rg380_e - ntc_rg380 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg380:
+lit_129:			dw 129
+ntc_rg380_e:
+			IF ($ < 32768) && (ntc_rg381_e - ntc_rg381 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg381:
+vp_var_b:			dw var_b
+ntc_rg381_e:
+			IF ($ < 32768) && (ntc_rg382_e - ntc_rg382 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg382:
+vp_var_a:			dw var_a
+ntc_rg382_e:
+			IF ($ < 32768) && (ntc_rg383_e - ntc_rg383 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg383:
+lit_m2427:			dw -2427
+ntc_rg383_e:
+			IF ($ < 32768) && (ntc_rg384_e - ntc_rg384 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg384:
+lit_64:			dw 64
+ntc_rg384_e:
+			IF ($ < 32768) && (ntc_rg385_e - ntc_rg385 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg385:
+lit_60:			dw 60
+ntc_rg385_e:
+			IF ($ < 32768) && (ntc_rg386_e - ntc_rg386 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg386:
+lit_m1:			dw -1
+ntc_rg386_e:
+			IF ($ < 32768) && (ntc_rg387_e - ntc_rg387 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg387:
+lit_23:			dw 23
+ntc_rg387_e:
+			IF ($ < 32768) && (ntc_rg388_e - ntc_rg388 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg388:
+lit_57:			dw 57
+ntc_rg388_e:
+			IF ($ < 32768) && (ntc_rg389_e - ntc_rg389 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg389:
+lit_56:			dw 56
+ntc_rg389_e:
+			IF ($ < 32768) && (ntc_rg390_e - ntc_rg390 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg390:
+lit_49:			dw 49
+ntc_rg390_e:
+			IF ($ < 32768) && (ntc_rg391_e - ntc_rg391 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg391:
+lit_48:			dw 48
+ntc_rg391_e:
+			IF ($ < 32768) && (ntc_rg392_e - ntc_rg392 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg392:
+lit_41:			dw 41
+ntc_rg392_e:
+			IF ($ < 32768) && (ntc_rg393_e - ntc_rg393 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg393:
+lit_40:			dw 40
+ntc_rg393_e:
+			IF ($ < 32768) && (ntc_rg394_e - ntc_rg394 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg394:
+lit_66:			dw 66
+
+ntc_rg394_e:
+			IF ($ < 32768) && (ntc_rg395_e - ntc_rg395 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg395:
 ; ============================================================
 ; Strings
 ; ============================================================
 
-str0:			db "CyborgOS needs a 6128 or more RAM", 0
-str1:			db "Press a key", 0
-str2:			db "CyborgOS ended, ", 0
-str3:			db " programs ran", 0
-str4:			db 13, 0
-str5:			db 10, 0
-str6:			db "$", 0
-str7:			db 27, 0
-str8:			db "E", 0
-str9:			db "CyborgOS TOP - ", 0
-str10:			db " slots, ", 0
-str11:			db " banks of 64K, ", 0
-str12:			db " pages free", 0
-str13:			db "Control + ESC: back, ", 0
-str14:			db ": that slot", 0
-str15:			db 0
-str16:			db "SLOT  STATE          PROGRAM         TURNS/S   BDOS/S  CHARS/S   (the last second)", 0
-str17:			db "-", 0
-str18:			db "command line", 0
-str19:			db "waiting (key)", 0
-str20:			db "running", 0
-str21:			db " ", 0
-str22:			db "*", 0
-str23:			db "  ", 0
-str24:			db " KB of total memory - a character a 16K page (B slot, - free):", 0
-str25:			db "CyborgOS slot ", 0
-str26:			db " of ", 0
-str27:			db " - ", 0
-str28:			db ", Control + ESC: TOP, HELP", 0
-str29:			db "Control + 1-", 0
-str30:			db "Control + 1-8 (twice: 9-", 0
-str31:			db ")", 0
-str32:			db "> ", 0
-str33:			db "RUN", 0
-str34:			db "DIR", 0
-str35:			db "HELP", 0
-str36:			db "RUN name [slot]  FG slot  PS  TOP  KILL slot  RESET [slot]  WAIT  CLS  MEM  QUIT", 0
-str37:			db "DIR: the programs in FILES.DIR   CD [drive]: this slot's drive", 0
-str38:			db ": a slot to the front   Control + ESC: TOP", 0
-str39:			db "CLS", 0
-str40:			db "no slot", 0
-str41:			db "slot", 0
-str42:			db " is busy", 0
-str43:			db "FG", 0
-str44:			db "no slot ", 0
-str45:			db "TOP", 0
-str46:			db "PS", 0
-str47:			db " * ", 0
-str48:			db "   ", 0
-str49:			db "KILL", 0
-str50:			db "nothing running in slot ", 0
-str51:			db "RESET", 0
-str52:			db "slot ", 0
-str53:			db " reset", 0
-str54:			db "CD", 0
-str55:			db "MEM", 0
-str56:			db "WAIT", 0
-str57:			db "QUIT", 0
-str58:			db "? ", 0
-str59:			db " (HELP)", 0
-str60:			db "RUN what?", 0
-str61:			db ".", 0
-str62:			db ".CYB", 0
-str63:			db ".COM", 0
-str64:			db ": not found", 0
-str65:			db "RUN ", 0
-str66:			db ": shorter than FILES.DIR says", 0
-str67:			db " runs in slot", 0
-str68:			db "FILES.DIR", 0
-str69:			db ": no such drive, or no FILES.DIR there", 0
-str70:			db "drive ", 0
-str71:			db "no FILES.DIR", 0
-str72:			db " in FILES.DIR", 0
-str73:			db ".HDR", 0
-str74:			db "[", 0
-str75:			db " ended]", 0
-
-ntc_rg56_e:
-			IF ($ < 34816) && (ntc_rg57_e - ntc_rg57 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+ntc_rg395_e:
+			IF ($ < 32768) && (ntc_rg396_e - ntc_rg396 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg57:
+ntc_rg396:
+str0:			db "CyborgOS needs a 6128 or more RAM", 0
+ntc_rg396_e:
+			IF ($ < 32768) && (ntc_rg397_e - ntc_rg397 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg397:
+str1:			db "Press a key", 0
+ntc_rg397_e:
+			IF ($ < 32768) && (ntc_rg398_e - ntc_rg398 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg398:
+str2:			db "CyborgOS ended, ", 0
+ntc_rg398_e:
+			IF ($ < 32768) && (ntc_rg399_e - ntc_rg399 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg399:
+str3:			db " programs ran", 0
+ntc_rg399_e:
+			IF ($ < 32768) && (ntc_rg400_e - ntc_rg400 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg400:
+str4:			db 13, 0
+ntc_rg400_e:
+			IF ($ < 32768) && (ntc_rg401_e - ntc_rg401 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg401:
+str5:			db 10, 0
+ntc_rg401_e:
+			IF ($ < 32768) && (ntc_rg402_e - ntc_rg402 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg402:
+str6:			db "$", 0
+ntc_rg402_e:
+			IF ($ < 32768) && (ntc_rg403_e - ntc_rg403 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg403:
+str7:			db 27, 0
+ntc_rg403_e:
+			IF ($ < 32768) && (ntc_rg404_e - ntc_rg404 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg404:
+str8:			db "E", 0
+ntc_rg404_e:
+			IF ($ < 32768) && (ntc_rg405_e - ntc_rg405 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg405:
+str9:			db "CyborgOS TOP - ", 0
+ntc_rg405_e:
+			IF ($ < 32768) && (ntc_rg406_e - ntc_rg406 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg406:
+str10:			db " slots, ", 0
+ntc_rg406_e:
+			IF ($ < 32768) && (ntc_rg407_e - ntc_rg407 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg407:
+str11:			db " banks of 64K, ", 0
+ntc_rg407_e:
+			IF ($ < 32768) && (ntc_rg408_e - ntc_rg408 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg408:
+str12:			db " pages free", 0
+ntc_rg408_e:
+			IF ($ < 32768) && (ntc_rg409_e - ntc_rg409 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg409:
+str13:			db "Control + ESC: back, ", 0
+ntc_rg409_e:
+			IF ($ < 32768) && (ntc_rg410_e - ntc_rg410 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg410:
+str14:			db ": that slot", 0
+ntc_rg410_e:
+			IF ($ < 32768) && (ntc_rg411_e - ntc_rg411 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg411:
+str15:			db 0
+ntc_rg411_e:
+			IF ($ < 32768) && (ntc_rg412_e - ntc_rg412 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg412:
+str16:			db "SLOT  STATE          PROGRAM         TURNS/S   BDOS/S  CHARS/S   (the last second)", 0
+ntc_rg412_e:
+			IF ($ < 32768) && (ntc_rg413_e - ntc_rg413 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg413:
+str17:			db "-", 0
+ntc_rg413_e:
+			IF ($ < 32768) && (ntc_rg414_e - ntc_rg414 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg414:
+str18:			db "command line", 0
+ntc_rg414_e:
+			IF ($ < 32768) && (ntc_rg415_e - ntc_rg415 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg415:
+str19:			db "waiting (key)", 0
+ntc_rg415_e:
+			IF ($ < 32768) && (ntc_rg416_e - ntc_rg416 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg416:
+str20:			db "running", 0
+ntc_rg416_e:
+			IF ($ < 32768) && (ntc_rg417_e - ntc_rg417 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg417:
+str21:			db " ", 0
+ntc_rg417_e:
+			IF ($ < 32768) && (ntc_rg418_e - ntc_rg418 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg418:
+str22:			db "*", 0
+ntc_rg418_e:
+			IF ($ < 32768) && (ntc_rg419_e - ntc_rg419 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg419:
+str23:			db "  ", 0
+ntc_rg419_e:
+			IF ($ < 32768) && (ntc_rg420_e - ntc_rg420 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg420:
+str24:			db " KB of total memory (MEM: the map)", 0
+ntc_rg420_e:
+			IF ($ < 32768) && (ntc_rg421_e - ntc_rg421 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg421:
+str25:			db "main 64K: CyborgOS #0040-#3FFF and #8000-#", 0
+ntc_rg421_e:
+			IF ($ < 32768) && (ntc_rg422_e - ntc_rg422 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg422:
+str26:			db ", free to #", 0
+ntc_rg422_e:
+			IF ($ < 32768) && (ntc_rg423_e - ntc_rg423 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg423:
+str27:			db ",", 0
+ntc_rg423_e:
+			IF ($ < 32768) && (ntc_rg424_e - ntc_rg424 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg424:
+str28:			db "  window #4000-#7FFF, firmware and ROMs #", 0
+ntc_rg424_e:
+			IF ($ < 32768) && (ntc_rg425_e - ntc_rg425 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg425:
+str29:			db "-#BFFF, screen #C000-#FFFF", 0
+ntc_rg425_e:
+			IF ($ < 32768) && (ntc_rg426_e - ntc_rg426 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg426:
+str30:			db "banks (B slot, - free):", 0
+ntc_rg426_e:
+			IF ($ < 32768) && (ntc_rg427_e - ntc_rg427 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg427:
+str31:			db "000", 0
+ntc_rg427_e:
+			IF ($ < 32768) && (ntc_rg428_e - ntc_rg428 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg428:
+str32:			db "CyborgOS slot ", 0
+ntc_rg428_e:
+			IF ($ < 32768) && (ntc_rg429_e - ntc_rg429 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg429:
+str33:			db " of ", 0
+ntc_rg429_e:
+			IF ($ < 32768) && (ntc_rg430_e - ntc_rg430 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg430:
+str34:			db " - ", 0
+ntc_rg430_e:
+			IF ($ < 32768) && (ntc_rg431_e - ntc_rg431 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg431:
+str35:			db ", Control + ESC: TOP, HELP", 0
+ntc_rg431_e:
+			IF ($ < 32768) && (ntc_rg432_e - ntc_rg432 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg432:
+str36:			db "Control + 1-", 0
+ntc_rg432_e:
+			IF ($ < 32768) && (ntc_rg433_e - ntc_rg433 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg433:
+str37:			db "Control + 1-8 (twice: 9-", 0
+ntc_rg433_e:
+			IF ($ < 32768) && (ntc_rg434_e - ntc_rg434 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg434:
+str38:			db ")", 0
+ntc_rg434_e:
+			IF ($ < 32768) && (ntc_rg435_e - ntc_rg435 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg435:
+str39:			db "> ", 0
+ntc_rg435_e:
+			IF ($ < 32768) && (ntc_rg436_e - ntc_rg436 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg436:
+str40:			db "DIR", 0
+ntc_rg436_e:
+			IF ($ < 32768) && (ntc_rg437_e - ntc_rg437 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg437:
+str41:			db "HELP", 0
+ntc_rg437_e:
+			IF ($ < 32768) && (ntc_rg438_e - ntc_rg438 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg438:
+str42:			db "name [args]: run name from this drive   RUN name [args]: the disc's, not a command's", 0
+ntc_rg438_e:
+			IF ($ < 32768) && (ntc_rg439_e - ntc_rg439 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg439:
+str43:			db "RUN name slot  FG slot  PS  TOP  KILL slot  RESET [slot]  WAIT  CLS  MEM  QUIT", 0
+ntc_rg439_e:
+			IF ($ < 32768) && (ntc_rg440_e - ntc_rg440 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg440:
+str44:			db "DIR: the programs in FILES.DIR   CD [drive]: this slot's drive", 0
+ntc_rg440_e:
+			IF ($ < 32768) && (ntc_rg441_e - ntc_rg441 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg441:
+str45:			db ": a slot to the front   Control + ESC: TOP", 0
+ntc_rg441_e:
+			IF ($ < 32768) && (ntc_rg442_e - ntc_rg442 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg442:
+str46:			db "CLS", 0
+ntc_rg442_e:
+			IF ($ < 32768) && (ntc_rg443_e - ntc_rg443 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg443:
+str47:			db "RUN", 0
+ntc_rg443_e:
+			IF ($ < 32768) && (ntc_rg444_e - ntc_rg444 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg444:
+str48:			db "no slot", 0
+ntc_rg444_e:
+			IF ($ < 32768) && (ntc_rg445_e - ntc_rg445 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg445:
+str49:			db "slot", 0
+ntc_rg445_e:
+			IF ($ < 32768) && (ntc_rg446_e - ntc_rg446 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg446:
+str50:			db " is busy", 0
+ntc_rg446_e:
+			IF ($ < 32768) && (ntc_rg447_e - ntc_rg447 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg447:
+str51:			db "FG", 0
+ntc_rg447_e:
+			IF ($ < 32768) && (ntc_rg448_e - ntc_rg448 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg448:
+str52:			db "no slot ", 0
+ntc_rg448_e:
+			IF ($ < 32768) && (ntc_rg449_e - ntc_rg449 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg449:
+str53:			db "TOP", 0
+ntc_rg449_e:
+			IF ($ < 32768) && (ntc_rg450_e - ntc_rg450 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg450:
+str54:			db "PS", 0
+ntc_rg450_e:
+			IF ($ < 32768) && (ntc_rg451_e - ntc_rg451 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg451:
+str55:			db " * ", 0
+ntc_rg451_e:
+			IF ($ < 32768) && (ntc_rg452_e - ntc_rg452 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg452:
+str56:			db "   ", 0
+ntc_rg452_e:
+			IF ($ < 32768) && (ntc_rg453_e - ntc_rg453 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg453:
+str57:			db "KILL", 0
+ntc_rg453_e:
+			IF ($ < 32768) && (ntc_rg454_e - ntc_rg454 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg454:
+str58:			db "nothing running in slot ", 0
+ntc_rg454_e:
+			IF ($ < 32768) && (ntc_rg455_e - ntc_rg455 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg455:
+str59:			db "RESET", 0
+ntc_rg455_e:
+			IF ($ < 32768) && (ntc_rg456_e - ntc_rg456 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg456:
+str60:			db "slot ", 0
+ntc_rg456_e:
+			IF ($ < 32768) && (ntc_rg457_e - ntc_rg457 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg457:
+str61:			db " reset", 0
+ntc_rg457_e:
+			IF ($ < 32768) && (ntc_rg458_e - ntc_rg458 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg458:
+str62:			db "CD", 0
+ntc_rg458_e:
+			IF ($ < 32768) && (ntc_rg459_e - ntc_rg459 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg459:
+str63:			db "MEM", 0
+ntc_rg459_e:
+			IF ($ < 32768) && (ntc_rg460_e - ntc_rg460 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg460:
+str64:			db "WAIT", 0
+ntc_rg460_e:
+			IF ($ < 32768) && (ntc_rg461_e - ntc_rg461 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg461:
+str65:			db "QUIT", 0
+ntc_rg461_e:
+			IF ($ < 32768) && (ntc_rg462_e - ntc_rg462 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg462:
+str66:			db "RUN what?", 0
+ntc_rg462_e:
+			IF ($ < 32768) && (ntc_rg463_e - ntc_rg463 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg463:
+str67:			db ".", 0
+ntc_rg463_e:
+			IF ($ < 32768) && (ntc_rg464_e - ntc_rg464 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg464:
+str68:			db ".CYB", 0
+ntc_rg464_e:
+			IF ($ < 32768) && (ntc_rg465_e - ntc_rg465 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg465:
+str69:			db ".COM", 0
+ntc_rg465_e:
+			IF ($ < 32768) && (ntc_rg466_e - ntc_rg466 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg466:
+str70:			db "RUN ", 0
+ntc_rg466_e:
+			IF ($ < 32768) && (ntc_rg467_e - ntc_rg467 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg467:
+str71:			db ": shorter than FILES.DIR says", 0
+ntc_rg467_e:
+			IF ($ < 32768) && (ntc_rg468_e - ntc_rg468 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg468:
+str72:			db " runs in slot", 0
+ntc_rg468_e:
+			IF ($ < 32768) && (ntc_rg469_e - ntc_rg469 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg469:
+str73:			db "? ", 0
+ntc_rg469_e:
+			IF ($ < 32768) && (ntc_rg470_e - ntc_rg470 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg470:
+str74:			db " (HELP)", 0
+ntc_rg470_e:
+			IF ($ < 32768) && (ntc_rg471_e - ntc_rg471 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg471:
+str75:			db ": not found", 0
+ntc_rg471_e:
+			IF ($ < 32768) && (ntc_rg472_e - ntc_rg472 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg472:
+str76:			db "FILES.DIR", 0
+ntc_rg472_e:
+			IF ($ < 32768) && (ntc_rg473_e - ntc_rg473 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg473:
+str77:			db ": no such drive, or no FILES.DIR there", 0
+ntc_rg473_e:
+			IF ($ < 32768) && (ntc_rg474_e - ntc_rg474 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg474:
+str78:			db "drive ", 0
+ntc_rg474_e:
+			IF ($ < 32768) && (ntc_rg475_e - ntc_rg475 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg475:
+str79:			db "no FILES.DIR", 0
+ntc_rg475_e:
+			IF ($ < 32768) && (ntc_rg476_e - ntc_rg476 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg476:
+str80:			db " in FILES.DIR", 0
+ntc_rg476_e:
+			IF ($ < 32768) && (ntc_rg477_e - ntc_rg477 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg477:
+str81:			db ".HDR", 0
+ntc_rg477_e:
+			IF ($ < 32768) && (ntc_rg478_e - ntc_rg478 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg478:
+str82:			db "[", 0
+ntc_rg478_e:
+			IF ($ < 32768) && (ntc_rg479_e - ntc_rg479 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg479:
+str83:			db " ended]", 0
+
+ntc_rg479_e:
+			IF ($ < 32768) && (ntc_rg480_e - ntc_rg480 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg480:
 ; ============================================================
 ; Keyword library (used)
 ; ============================================================
 
-ntc_rg57_e:
-			IF ($ < 34816) && (ntc_rg58_e - ntc_rg58 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+ntc_rg480_e:
+			IF ($ < 32768) && (ntc_rg481_e - ntc_rg481 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg58:
-;## ntc_data @shared
+ntc_rg481:
+;## ntc_data @shared ntc_d_nmode
 ; ------------------------------------------------------------
-; Scratch space
+; Scratch space: the core every program has (with ntc_d_nmode). The rest of
+; the run time's variables are @data sections, each linked only when a
+; linked section's code names one of its labels (no header lists them).
+; They stay in this order: the keyword ROM's registry keeps each variable's
+; address (a Library: ROM program has them as fixed addresses)
 ; ------------------------------------------------------------
 ntc_next:		ret				; IX target that continues the thread
 ntc_csp:		dw 0			; caller SP, for kw_stop (and the normal mode stack)
 ntc_ip:			dw 0			; normal mode: thread position while out of the thread
-ntc_ticks:		dw 0			; interrupt count (normal mode, platform handler)
+
+ntc_rg481_e:
+			IF ($ < 32768) && (ntc_rg482_e - ntc_rg482 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg482:
+;## ntc_d_gnlo @data
 ntc_gnlo:		db 0			; ntc_getn: low byte
+
+ntc_rg482_e:
+			IF ($ < 32768) && (ntc_rg483_e - ntc_rg483 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg483:
+;## ntc_d_nmode @data
 ntc_nmode:		db 0			; 1 = running in normal mode (waits let interrupts in)
+
+ntc_rg483_e:
+			IF ($ < 32768) && (ntc_rg484_e - ntc_rg484 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg484:
+;## ntc_d_div @data
 ntc_mode:		db 0			; div mode 0=quotient 1=remainder
 ntc_sgnq:		db 0			; quotient sign (bit 7)
 ntc_sgnr:		db 0			; remainder sign (bit 7)
+
+ntc_rg484_e:
+			IF ($ < 32768) && (ntc_rg485_e - ntc_rg485 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg485:
+;## ntc_d_lead @data
 ntc_lead:		db 0			; printint: digit seen
-ntc_icnt:		db 0			; gets: chars typed
-ntc_icap:		db 0			; gets: the buffer's capacity
+
+ntc_rg485_e:
+			IF ($ < 32768) && (ntc_rg486_e - ntc_rg486 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg486:
+;## ntc_d_sptr @data
 ntc_sptr:		dw 0			; printbuf: text pointer
+
+ntc_rg486_e:
+			IF ($ < 32768) && (ntc_rg487_e - ntc_rg487 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg487:
+;## ntc_d_iptr @data
 ntc_iptr:		dw 0			; gets: buffer pointer
 ntc_ilink:		dw 0			; gets: where to go when done
+
+ntc_rg487_e:
+			IF ($ < 32768) && (ntc_rg488_e - ntc_rg488 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg488:
+;## ntc_d_ivar @data
 ntc_ivar:		dw 0			; inputint / inkey: dest var
+
+ntc_rg488_e:
+			IF ($ < 32768) && (ntc_rg489_e - ntc_rg489 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg489:
+;## ntc_d_aptr @data
 ntc_aptr:		dw 0			; atoi: text pointer
+
+ntc_rg489_e:
+			IF ($ < 32768) && (ntc_rg490_e - ntc_rg490 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg490:
+;## ntc_d_hook @data
 ntc_hookon:		db 0			; 1 = the Interrupt hook may run (set, and not running now)
 ntc_hookset:	db 0			; 1 = an Interrupt hook is set
 ntc_hookpend:	db 0			; 1 = an interrupt came, the hook runs at the next safe point
 ntc_hook:		dw 0			; the hook Sub's call stub
+
+ntc_rg490_e:
+			IF ($ < 32768) && (ntc_rg491_e - ntc_rg491 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg491:
+;## ntc_d_hostix @data
 ntc_hostix:		dw 0			; host platforms: IX kept over a firmware / BDOS call
+
+ntc_rg491_e:
+			IF ($ < 32768) && (ntc_rg492_e - ntc_rg492 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg492:
+;## ntc_d_rampt @data
 ntc_rampt:		dw #7FC0		; the gate array's RAM setting now (B = port, C = value): the
 								; Memory class keeps it, Graphics puts it back after drawing
+
+ntc_rg492_e:
+			IF ($ < 32768) && (ntc_rg493_e - ntc_rg493 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg493:
+;## ntc_d_numbuf @data
 ntc_numbuf:		ds 14			; printint / long print: digits (+ spaces for Option VBPrint)
+
+ntc_rg493_e:
+			IF ($ < 32768) && (ntc_rg494_e - ntc_rg494 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg494:
+;## ntc_d_inbuf @data
 				db 40			; ntc_inbuf's capacity (as every string variable has)
 ntc_inbuf:		ds 41			; inputint: typed text
 
-ntc_rg58_e:
-			IF ($ < 34816) && (ntc_rg59_e - ntc_rg59 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+ntc_rg494_e:
+			IF ($ < 32768) && (ntc_rg495_e - ntc_rg495 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg59:
+ntc_rg495:
 ;## kw_stop ntc_data ntc_plat_exit @shared
 kw_stop:
 			ld ix, ntc_stop_back
@@ -5856,22 +9182,22 @@ ntc_stop_back:
 			ei
 			ret
 
-ntc_rg59_e:
-			IF ($ < 34816) && (ntc_rg60_e - ntc_rg60 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+ntc_rg495_e:
+			IF ($ < 32768) && (ntc_rg496_e - ntc_rg496 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg60:
+ntc_rg496:
 ;## kw_waitkey ntc_data ntc_plat_key
 ; kw_waitkey - wait for a key (Option PressAnyKeyOnEnd, before kw_stop)
 kw_waitkey:
 			ld ix, ntc_next
 			jp ntc_plat_getkey
 
-ntc_rg60_e:
-			IF ($ < 34816) && (ntc_rg61_e - ntc_rg61 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+ntc_rg496_e:
+			IF ($ < 32768) && (ntc_rg497_e - ntc_rg497 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg61:
+ntc_rg497:
 ;## ntc_xnh ntc_data ntc_islots @shared
 ; ntc_xn for a program with an Interrupt hook (Interrupt MySub) or interrupt
 ; classes (Option Class Interrupt): the same window, then a pending hook
@@ -5943,11 +9269,11 @@ ntc_xn_hook:
 			ld hl, (ntc_hook)
 			jp (hl)
 
-ntc_rg61_e:
-			IF ($ < 34816) && (ntc_rg62_e - ntc_rg62 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+ntc_rg497_e:
+			IF ($ < 32768) && (ntc_rg498_e - ntc_rg498 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg62:
+ntc_rg498:
 ;## kw_goto_iffalse (normal mode copy)
 ;kw_goto_iffalse, <label>  - branch if NZ (false)
 kw_goto_iffalse_n:
@@ -5956,11 +9282,24 @@ kw_goto_iffalse_n:
 			ld sp, hl
 			jp ntc_xn
 
-ntc_rg62_e:
-			IF ($ < 34816) && (ntc_rg63_e - ntc_rg63 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+ntc_rg498_e:
+			IF ($ < 32768) && (ntc_rg499_e - ntc_rg499 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg63:
+ntc_rg499:
+;## kw_goto_iftrue (normal mode copy)
+;kw_goto_iftrue, <label>  - branch if Z (true)
+kw_goto_iftrue_n:
+			pop hl
+			jp nz, ntc_xn
+			ld sp, hl
+			jp ntc_xn
+
+ntc_rg499_e:
+			IF ($ < 32768) && (ntc_rg500_e - ntc_rg500 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg500:
 ;## kw_goto_ifzero (normal mode copy)
 ;kw_goto_ifzero, <var>, <label>  - branch if var = 0
 kw_goto_ifzero_n:
@@ -5973,11 +9312,11 @@ kw_goto_ifzero_n:
 			ld sp, hl
 			jp ntc_xn
 
-ntc_rg63_e:
-			IF ($ < 34816) && (ntc_rg64_e - ntc_rg64 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+ntc_rg500_e:
+			IF ($ < 32768) && (ntc_rg501_e - ntc_rg501 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg64:
+ntc_rg501:
 ;## ntc_for_jump (normal mode copy)
 ; tails for the FOR / NEXT keywords. DE = var value, HL = limit,
 ; SP = thread at the label word. Signed compare by flipping bit 15.
@@ -6048,11 +9387,11 @@ ntc_for_end_n:
 			pop hl
 			jp ntc_xn
 
-ntc_rg64_e:
-			IF ($ < 34816) && (ntc_rg65_e - ntc_rg65 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+ntc_rg501_e:
+			IF ($ < 32768) && (ntc_rg502_e - ntc_rg502 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg65:
+ntc_rg502:
 ;## kw_forupv (normal mode copy) ntc_for_jump
 ;kw_forupv, <var>, <limit var>, <endlabel>
 kw_forupv_n:
@@ -6067,11 +9406,11 @@ kw_forupv_n:
 			ld l, a
 			jp ntc_for_gt_n
 
-ntc_rg65_e:
-			IF ($ < 34816) && (ntc_rg66_e - ntc_rg66 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+ntc_rg502_e:
+			IF ($ < 32768) && (ntc_rg503_e - ntc_rg503 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg66:
+ntc_rg503:
 ;## kw_next1v (normal mode copy) ntc_for_jump
 ;kw_next1v, <var>, <limit var>, <toplabel>
 kw_next1v_n:
@@ -6095,11 +9434,11 @@ ntc_n1v_nc_n:
 			sbc a, a
 			jp ntc_for_le_n
 
-ntc_rg66_e:
-			IF ($ < 34816) && (ntc_rg67_e - ntc_rg67 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+ntc_rg503_e:
+			IF ($ < 32768) && (ntc_rg504_e - ntc_rg504 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg67:
+ntc_rg504:
 ;## ntc_nextadd
 ; var += literal step. Pops var and step. Leaves DE = new value, A = #FF when
 ; it went past 32767 or -32768 (the loop ends), else 0.
@@ -6122,11 +9461,11 @@ ntc_nextadd:
 ntc_na_ok:
 			jp (ix)
 
-ntc_rg67_e:
-			IF ($ < 34816) && (ntc_rg68_e - ntc_rg68 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+ntc_rg504_e:
+			IF ($ < 32768) && (ntc_rg505_e - ntc_rg505 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg68:
+ntc_rg505:
 ;## kw_nextupv (normal mode copy) ntc_nextadd ntc_for_jump
 ;kw_nextupv, <var>, <literal step>, <limit var>, <toplabel>
 kw_nextupv_n:
@@ -6140,11 +9479,11 @@ ntc_nuv_back_n:
 			ld l, c
 			jp ntc_for_le_n
 
-ntc_rg68_e:
-			IF ($ < 34816) && (ntc_rg69_e - ntc_rg69 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+ntc_rg505_e:
+			IF ($ < 32768) && (ntc_rg506_e - ntc_rg506 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg69:
+ntc_rg506:
 ;## kw_ltov
 ;kw_ltov, <literal>, <destvar>
 kw_ltov:
@@ -6155,11 +9494,11 @@ kw_ltov:
 			ld (hl), d
 			ret
 
-ntc_rg69_e:
-			IF ($ < 34816) && (ntc_rg70_e - ntc_rg70 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+ntc_rg506_e:
+			IF ($ < 32768) && (ntc_rg507_e - ntc_rg507 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg70:
+ntc_rg507:
 ;## kw_vtov
 ;kw_vtov, <sourcevar>, <destvar>
 kw_vtov:
@@ -6173,11 +9512,11 @@ kw_vtov:
 			ld (hl), d
 			ret
 
-ntc_rg70_e:
-			IF ($ < 34816) && (ntc_rg71_e - ntc_rg71 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+ntc_rg507_e:
+			IF ($ < 32768) && (ntc_rg508_e - ntc_rg508 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg71:
+ntc_rg508:
 ;## kw_ztov
 ;kw_ztov, <destvar>
 kw_ztov:
@@ -6188,11 +9527,11 @@ kw_ztov:
 			ld (hl), a
 			ret
 
-ntc_rg71_e:
-			IF ($ < 34816) && (ntc_rg72_e - ntc_rg72 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+ntc_rg508_e:
+			IF ($ < 32768) && (ntc_rg509_e - ntc_rg509 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg72:
+ntc_rg509:
 ;## kw_ftov
 ;kw_ftov, <destvar>  - Z flag to var: true = -1, false = 0
 kw_ftov:
@@ -6212,11 +9551,11 @@ ntc_ftov_t:
 ; Arithmetic
 ; ============================================================
 
-ntc_rg72_e:
-			IF ($ < 34816) && (ntc_rg73_e - ntc_rg73 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+ntc_rg509_e:
+			IF ($ < 32768) && (ntc_rg510_e - ntc_rg510 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg73:
+ntc_rg510:
 ;## kw_inc
 ;kw_inc, <var>
 kw_inc:
@@ -6227,11 +9566,28 @@ kw_inc:
 			inc (hl)
 			ret
 
-ntc_rg73_e:
-			IF ($ < 34816) && (ntc_rg74_e - ntc_rg74 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+ntc_rg510_e:
+			IF ($ < 32768) && (ntc_rg511_e - ntc_rg511 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg74:
+ntc_rg511:
+;## kw_dec
+;kw_dec, <var>
+kw_dec:
+			pop hl
+			ld a, (hl)
+			dec (hl)
+			or a
+			ret nz
+			inc hl
+			dec (hl)
+			ret
+
+ntc_rg511_e:
+			IF ($ < 32768) && (ntc_rg512_e - ntc_rg512 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg512:
 ;## kw_add
 ;kw_add, <var1>, <var2>, <destvar>
 kw_add:
@@ -6252,11 +9608,11 @@ kw_add:
 			ld (hl), d
 			ret
 
-ntc_rg74_e:
-			IF ($ < 34816) && (ntc_rg75_e - ntc_rg75 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+ntc_rg512_e:
+			IF ($ < 32768) && (ntc_rg513_e - ntc_rg513 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg75:
+ntc_rg513:
 ;## kw_addl
 ;kw_addl, <var>, <literal>, <destvar>
 kw_addl:
@@ -6273,11 +9629,11 @@ kw_addl:
 			ld (hl), d
 			ret
 
-ntc_rg75_e:
-			IF ($ < 34816) && (ntc_rg76_e - ntc_rg76 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+ntc_rg513_e:
+			IF ($ < 32768) && (ntc_rg514_e - ntc_rg514 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg76:
+ntc_rg514:
 ;## kw_subvv
 ;kw_subvv, <var1>, <var2>, <destvar>  - var1 - var2
 kw_subvv:
@@ -6300,11 +9656,11 @@ kw_subvv:
 			ld (hl), d
 			ret
 
-ntc_rg76_e:
-			IF ($ < 34816) && (ntc_rg77_e - ntc_rg77 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+ntc_rg514_e:
+			IF ($ < 32768) && (ntc_rg515_e - ntc_rg515 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg77:
+ntc_rg515:
 ;## kw_4x
 ;kw_4x, <var>, <destvar>
 kw_4x:
@@ -6322,11 +9678,11 @@ kw_4x:
 			ld (hl), d
 			ret
 
-ntc_rg77_e:
-			IF ($ < 34816) && (ntc_rg78_e - ntc_rg78 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+ntc_rg515_e:
+			IF ($ < 32768) && (ntc_rg516_e - ntc_rg516 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg78:
+ntc_rg516:
 ;## ntc_mul
 ; BC * DE -> pop destvar, store. Low 16 bits (same signed/unsigned)
 ntc_mul:
@@ -6348,11 +9704,11 @@ ntc_mul_skip:
 			ld (hl), d
 			ret
 
-ntc_rg78_e:
-			IF ($ < 34816) && (ntc_rg79_e - ntc_rg79 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+ntc_rg516_e:
+			IF ($ < 32768) && (ntc_rg517_e - ntc_rg517 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg79:
+ntc_rg517:
 ;## kw_mulvl ntc_mul
 ;kw_mulvl, <var>, <literal>, <destvar>
 kw_mulvl:
@@ -6363,11 +9719,11 @@ kw_mulvl:
 			pop de
 			jp ntc_mul
 
-ntc_rg79_e:
-			IF ($ < 34816) && (ntc_rg80_e - ntc_rg80 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+ntc_rg517_e:
+			IF ($ < 32768) && (ntc_rg518_e - ntc_rg518 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg80:
+ntc_rg518:
 ;## ntc_div ntc_data
 ; HL / DE signed, truncating. (ntc_mode) 0 = quotient, 1 = remainder.
 ; Remainder takes the dividend's sign. Divide by zero gives
@@ -6448,11 +9804,11 @@ ntc_div_store:
 			ld (hl), d
 			ret
 
-ntc_rg80_e:
-			IF ($ < 34816) && (ntc_rg81_e - ntc_rg81 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+ntc_rg518_e:
+			IF ($ < 32768) && (ntc_rg519_e - ntc_rg519 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg81:
+ntc_rg519:
 ;## kw_divvv ntc_div
 ;kw_divvv, <var1>, <var2>, <destvar>  - var1 / var2
 kw_divvv:
@@ -6471,11 +9827,11 @@ ntc_divvv:
 			ld l, c
 			jp ntc_div
 
-ntc_rg81_e:
-			IF ($ < 34816) && (ntc_rg82_e - ntc_rg82 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+ntc_rg519_e:
+			IF ($ < 32768) && (ntc_rg520_e - ntc_rg520 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg82:
+ntc_rg520:
 ;## kw_divvl ntc_div
 ;kw_divvl, <var>, <literal>, <destvar>
 kw_divvl:
@@ -6490,11 +9846,11 @@ ntc_divvl:
 			pop de
 			jp ntc_div
 
-ntc_rg82_e:
-			IF ($ < 34816) && (ntc_rg83_e - ntc_rg83 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+ntc_rg520_e:
+			IF ($ < 32768) && (ntc_rg521_e - ntc_rg521 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg83:
+ntc_rg521:
 ;## kw_andvv
 ;kw_andvv, <var1>, <var2>, <destvar>
 kw_andvv:
@@ -6516,11 +9872,11 @@ kw_andvv:
 			ld (hl), d
 			ret
 
-ntc_rg83_e:
-			IF ($ < 34816) && (ntc_rg84_e - ntc_rg84 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+ntc_rg521_e:
+			IF ($ < 32768) && (ntc_rg522_e - ntc_rg522 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg84:
+ntc_rg522:
 ;## kw_andvl
 ;kw_andvl, <var>, <literal>, <destvar>
 kw_andvl:
@@ -6539,11 +9895,11 @@ kw_andvl:
 			ld (hl), d
 			ret
 
-ntc_rg84_e:
-			IF ($ < 34816) && (ntc_rg85_e - ntc_rg85 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+ntc_rg522_e:
+			IF ($ < 32768) && (ntc_rg523_e - ntc_rg523 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg85:
+ntc_rg523:
 ;## kw_orvv
 ;kw_orvv, <var1>, <var2>, <destvar>
 kw_orvv:
@@ -6565,11 +9921,11 @@ kw_orvv:
 			ld (hl), d
 			ret
 
-ntc_rg85_e:
-			IF ($ < 34816) && (ntc_rg86_e - ntc_rg86 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+ntc_rg523_e:
+			IF ($ < 32768) && (ntc_rg524_e - ntc_rg524 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg86:
+ntc_rg524:
 ;## kw_orvl
 ;kw_orvl, <var>, <literal>, <destvar>
 kw_orvl:
@@ -6588,11 +9944,11 @@ kw_orvl:
 			ld (hl), d
 			ret
 
-ntc_rg86_e:
-			IF ($ < 34816) && (ntc_rg87_e - ntc_rg87 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+ntc_rg524_e:
+			IF ($ < 32768) && (ntc_rg525_e - ntc_rg525 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg87:
+ntc_rg525:
 ;## kw_notv
 ;kw_notv, <var>, <destvar>
 kw_notv:
@@ -6615,11 +9971,11 @@ kw_notv:
 ; Tails take DE = a, HL = b and test a <rel> b.
 ; ============================================================
 
-ntc_rg87_e:
-			IF ($ < 34816) && (ntc_rg88_e - ntc_rg88 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+ntc_rg525_e:
+			IF ($ < 32768) && (ntc_rg526_e - ntc_rg526 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg88:
+ntc_rg526:
 ;## ntc_cmp
 ntc_cmp_slt:
 			ld a, d
@@ -6687,30 +10043,11 @@ ntc_cmp_ne_f:
 			or 1
 			ret
 
-ntc_rg88_e:
-			IF ($ < 34816) && (ntc_rg89_e - ntc_rg89 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+ntc_rg526_e:
+			IF ($ < 32768) && (ntc_rg527_e - ntc_rg527 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg89:
-;## kw_scpltvv ntc_cmp
-;kw_scpltvv, <var1>, <var2>  - signed var1 < var2
-kw_scpltvv:
-			pop hl
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			pop hl
-			ld a, (hl)
-			inc hl
-			ld h, (hl)
-			ld l, a
-			jp ntc_cmp_slt
-
-ntc_rg89_e:
-			IF ($ < 34816) && (ntc_rg90_e - ntc_rg90 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
-			ENDIF
-ntc_rg90:
+ntc_rg527:
 ;## kw_scpltvl ntc_cmp
 ;kw_scpltvl, <var>, <literal>
 kw_scpltvl:
@@ -6721,11 +10058,11 @@ kw_scpltvl:
 			pop hl
 			jp ntc_cmp_slt
 
-ntc_rg90_e:
-			IF ($ < 34816) && (ntc_rg91_e - ntc_rg91 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+ntc_rg527_e:
+			IF ($ < 32768) && (ntc_rg528_e - ntc_rg528 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg91:
+ntc_rg528:
 ;## kw_scplevv ntc_cmp
 kw_scplevv:
 			pop hl
@@ -6739,11 +10076,11 @@ kw_scplevv:
 			ld l, a
 			jp ntc_cmp_sle
 
-ntc_rg91_e:
-			IF ($ < 34816) && (ntc_rg92_e - ntc_rg92 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+ntc_rg528_e:
+			IF ($ < 32768) && (ntc_rg529_e - ntc_rg529 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg92:
+ntc_rg529:
 ;## kw_scplevl ntc_cmp
 kw_scplevl:
 			pop hl
@@ -6753,11 +10090,11 @@ kw_scplevl:
 			pop hl
 			jp ntc_cmp_sle
 
-ntc_rg92_e:
-			IF ($ < 34816) && (ntc_rg93_e - ntc_rg93 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+ntc_rg529_e:
+			IF ($ < 32768) && (ntc_rg530_e - ntc_rg530 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg93:
+ntc_rg530:
 ;## kw_scpgtvv ntc_cmp
 kw_scpgtvv:
 			pop hl
@@ -6771,11 +10108,11 @@ kw_scpgtvv:
 			ld l, a
 			jp ntc_cmp_sgt
 
-ntc_rg93_e:
-			IF ($ < 34816) && (ntc_rg94_e - ntc_rg94 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+ntc_rg530_e:
+			IF ($ < 32768) && (ntc_rg531_e - ntc_rg531 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg94:
+ntc_rg531:
 ;## kw_scpgtvl ntc_cmp
 kw_scpgtvl:
 			pop hl
@@ -6785,11 +10122,11 @@ kw_scpgtvl:
 			pop hl
 			jp ntc_cmp_sgt
 
-ntc_rg94_e:
-			IF ($ < 34816) && (ntc_rg95_e - ntc_rg95 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+ntc_rg531_e:
+			IF ($ < 32768) && (ntc_rg532_e - ntc_rg532 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg95:
+ntc_rg532:
 ;## kw_scpgevl ntc_cmp
 kw_scpgevl:
 			pop hl
@@ -6799,11 +10136,11 @@ kw_scpgevl:
 			pop hl
 			jp ntc_cmp_sge
 
-ntc_rg95_e:
-			IF ($ < 34816) && (ntc_rg96_e - ntc_rg96 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+ntc_rg532_e:
+			IF ($ < 32768) && (ntc_rg533_e - ntc_rg533 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg96:
+ntc_rg533:
 ;## kw_cpeqvv ntc_cmp
 ;kw_cpeqvv, <var1>, <var2>
 kw_cpeqvv:
@@ -6818,11 +10155,11 @@ kw_cpeqvv:
 			ld l, a
 			jp ntc_cmp_eq
 
-ntc_rg96_e:
-			IF ($ < 34816) && (ntc_rg97_e - ntc_rg97 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+ntc_rg533_e:
+			IF ($ < 32768) && (ntc_rg534_e - ntc_rg534 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg97:
+ntc_rg534:
 ;## kw_cpeqvl ntc_cmp
 kw_cpeqvl:
 			pop hl
@@ -6832,11 +10169,11 @@ kw_cpeqvl:
 			pop hl
 			jp ntc_cmp_eq
 
-ntc_rg97_e:
-			IF ($ < 34816) && (ntc_rg98_e - ntc_rg98 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+ntc_rg534_e:
+			IF ($ < 32768) && (ntc_rg535_e - ntc_rg535 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg98:
+ntc_rg535:
 ;## kw_cpnevv ntc_cmp
 kw_cpnevv:
 			pop hl
@@ -6850,11 +10187,11 @@ kw_cpnevv:
 			ld l, a
 			jp ntc_cmp_ne
 
-ntc_rg98_e:
-			IF ($ < 34816) && (ntc_rg99_e - ntc_rg99 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+ntc_rg535_e:
+			IF ($ < 32768) && (ntc_rg536_e - ntc_rg536 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg99:
+ntc_rg536:
 ;## kw_cpnevl ntc_cmp
 kw_cpnevl:
 			pop hl
@@ -6868,11 +10205,11 @@ kw_cpnevl:
 ; Memory (PEEK / POKE / DEEK / DOKE)
 ; ============================================================
 
-ntc_rg99_e:
-			IF ($ < 34816) && (ntc_rg100_e - ntc_rg100 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+ntc_rg536_e:
+			IF ($ < 32768) && (ntc_rg537_e - ntc_rg537 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg100:
+ntc_rg537:
 ;## kw_aget
 ;kw_aget, <arraybase>, <indexvar>, <destvar>
 kw_aget:
@@ -6893,11 +10230,11 @@ kw_aget:
 			ld (hl), d
 			ret
 
-ntc_rg100_e:
-			IF ($ < 34816) && (ntc_rg101_e - ntc_rg101 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+ntc_rg537_e:
+			IF ($ < 32768) && (ntc_rg538_e - ntc_rg538 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg101:
+ntc_rg538:
 ;## kw_aset
 ;kw_aset, <arraybase>, <indexvar>, <sourcevar>
 kw_aset:
@@ -6920,11 +10257,11 @@ kw_aset:
 			ld (hl), b
 			ret
 
-ntc_rg101_e:
-			IF ($ < 34816) && (ntc_rg102_e - ntc_rg102 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+ntc_rg538_e:
+			IF ($ < 32768) && (ntc_rg539_e - ntc_rg539 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg102:
+ntc_rg539:
 ;## kw_asetl
 ;kw_asetl, <arraybase>, <indexvar>, <literal>
 kw_asetl:
@@ -6946,11 +10283,11 @@ kw_asetl:
 ; Random (16 bit xorshift 7,9,8 - period 65535)
 ; ============================================================
 
-ntc_rg102_e:
-			IF ($ < 34816) && (ntc_rg103_e - ntc_rg103 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+ntc_rg539_e:
+			IF ($ < 32768) && (ntc_rg540_e - ntc_rg540 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg103:
+ntc_rg540:
 ;## kw_strcpy
 ;kw_strcpy, <destaddr>, <srcaddr>  - cut at the destination's capacity byte
 kw_strcpy:
@@ -6972,11 +10309,11 @@ ntc_strcpy_loop:
 			ld (de), a
 			ret
 
-ntc_rg103_e:
-			IF ($ < 34816) && (ntc_rg104_e - ntc_rg104 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+ntc_rg540_e:
+			IF ($ < 32768) && (ntc_rg541_e - ntc_rg541 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg104:
+ntc_rg541:
 ;## kw_strcat
 ;kw_strcat, <destaddr>, <srcaddr>  - cut at the destination's capacity byte
 kw_strcat:
@@ -7007,11 +10344,11 @@ ntc_strcat_loop:
 			ld (de), a
 			ret
 
-ntc_rg104_e:
-			IF ($ < 34816) && (ntc_rg105_e - ntc_rg105 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+ntc_rg541_e:
+			IF ($ < 32768) && (ntc_rg542_e - ntc_rg542 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg105:
+ntc_rg542:
 ;## kw_strlen
 ;kw_strlen, <straddr>, <destvar>
 kw_strlen:
@@ -7031,11 +10368,11 @@ ntc_strlen_done:
 			ld (hl), b
 			ret
 
-ntc_rg105_e:
-			IF ($ < 34816) && (ntc_rg106_e - ntc_rg106 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+ntc_rg542_e:
+			IF ($ < 32768) && (ntc_rg543_e - ntc_rg543 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg106:
+ntc_rg543:
 ;## kw_strcmpeq
 ;kw_strcmpeq, <addr1>, <addr2>  - Z if equal
 kw_strcmpeq:
@@ -7051,11 +10388,11 @@ ntc_streq_loop:
 			inc de
 			jr ntc_streq_loop
 
-ntc_rg106_e:
-			IF ($ < 34816) && (ntc_rg107_e - ntc_rg107 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+ntc_rg543_e:
+			IF ($ < 32768) && (ntc_rg544_e - ntc_rg544 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg107:
+ntc_rg544:
 ;## kw_strcmpne
 ;kw_strcmpne, <addr1>, <addr2>  - Z if not equal
 kw_strcmpne:
@@ -7084,11 +10421,11 @@ ntc_strne_f:
 ; ld ix, ntc_next (a ret) so the routine continues the thread.
 ; ============================================================
 
-ntc_rg107_e:
-			IF ($ < 34816) && (ntc_rg108_e - ntc_rg108 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+ntc_rg544_e:
+			IF ($ < 32768) && (ntc_rg545_e - ntc_rg545 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg108:
+ntc_rg545:
 ;## ntc_printbuf ntc_data ntc_plat_screen
 ; print the 0 terminated ASCII text at (ntc_sptr), then ret (thread)
 ntc_printbuf:
@@ -7101,11 +10438,11 @@ ntc_printbuf:
 			ld ix, ntc_printbuf
 			jp ntc_plat_putc
 
-ntc_rg108_e:
-			IF ($ < 34816) && (ntc_rg109_e - ntc_rg109 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+ntc_rg545_e:
+			IF ($ < 32768) && (ntc_rg546_e - ntc_rg546 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg109:
+ntc_rg546:
 ;## kw_printstrvar ntc_printbuf
 ;kw_printstrvar, <straddr>
 kw_printstrvar:
@@ -7113,11 +10450,11 @@ kw_printstrvar:
 			ld (ntc_sptr), hl
 			jp ntc_printbuf
 
-ntc_rg109_e:
-			IF ($ < 34816) && (ntc_rg110_e - ntc_rg110 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+ntc_rg546_e:
+			IF ($ < 32768) && (ntc_rg547_e - ntc_rg547 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg110:
+ntc_rg547:
 ;## ntc_itoa ntc_data
 ; HL = signed value, DE = buffer: writes the digits and a 0 (DE ends on
 ; the 0). jp (ix) back. Uses A, BC, IY.
@@ -7176,11 +10513,11 @@ ntc_ia_last:
 			jp (ix)
 ntc_pow10:		dw 10000, 1000, 100, 10, 0
 
-ntc_rg110_e:
-			IF ($ < 34816) && (ntc_rg111_e - ntc_rg111 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+ntc_rg547_e:
+			IF ($ < 32768) && (ntc_rg548_e - ntc_rg548 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg111:
+ntc_rg548:
 ;## kw_printint ntc_printbuf ntc_itoa
 ;kw_printint, <var>  - signed decimal
 kw_printint:
@@ -7197,11 +10534,11 @@ ntc_pi_done:
 			ld (ntc_sptr), hl
 			jp ntc_printbuf
 
-ntc_rg111_e:
-			IF ($ < 34816) && (ntc_rg112_e - ntc_rg112 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+ntc_rg548_e:
+			IF ($ < 32768) && (ntc_rg549_e - ntc_rg549 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg112:
+ntc_rg549:
 ;## kw_printnl0 ntc_data ntc_plat_screen
 ;kw_printnl0  - new line unless the cursor is at the start of a line
 kw_printnl0:
@@ -7211,22 +10548,22 @@ kw_printnl0:
 			ld ix, ntc_next
 			jp ntc_plat_newline
 
-ntc_rg112_e:
-			IF ($ < 34816) && (ntc_rg113_e - ntc_rg113 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+ntc_rg549_e:
+			IF ($ < 32768) && (ntc_rg550_e - ntc_rg550 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg113:
+ntc_rg550:
 ;## kw_printnl ntc_data ntc_plat_screen
 ;kw_printnl
 kw_printnl:
 			ld ix, ntc_next
 			jp ntc_plat_newline
 
-ntc_rg113_e:
-			IF ($ < 34816) && (ntc_rg114_e - ntc_rg114 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+ntc_rg550_e:
+			IF ($ < 32768) && (ntc_rg551_e - ntc_rg551 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg114:
+ntc_rg551:
 ;## ntc_atoi ntc_data
 ; text to number into the var at (ntc_ivar). ntc_atoi reads ntc_inbuf,
 ; ntc_atoi_hl reads HL. Spaces first, then - , then digits (or &H hex).
@@ -7316,11 +10653,11 @@ ntc_atoi_store:
 			ld (hl), d
 			ret
 
-ntc_rg114_e:
-			IF ($ < 34816) && (ntc_rg115_e - ntc_rg115 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+ntc_rg551_e:
+			IF ($ < 32768) && (ntc_rg552_e - ntc_rg552 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg115:
+ntc_rg552:
 ;## kw_inkey ntc_data ntc_plat_key
 ;kw_inkey, <destvar>  - new key press or 0, no wait
 kw_inkey:
@@ -7335,22 +10672,22 @@ ntc_inkey_got:
 			ld (hl), 0
 			ret
 
-ntc_rg115_e:
-			IF ($ < 34816) && (ntc_rg116_e - ntc_rg116 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+ntc_rg552_e:
+			IF ($ < 32768) && (ntc_rg553_e - ntc_rg553 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg116:
+ntc_rg553:
 ;## kw_cls ntc_data ntc_plat_screen
 ;kw_cls
 kw_cls:
 			ld ix, ntc_next
 			jp ntc_plat_cls
 
-ntc_rg116_e:
-			IF ($ < 34816) && (ntc_rg117_e - ntc_rg117 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+ntc_rg553_e:
+			IF ($ < 32768) && (ntc_rg554_e - ntc_rg554 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg117:
+ntc_rg554:
 ;## kw_model ntc_data ntc_plat_screen
 ;kw_model, <literal>  - 0, 1 or 2, clears the screen
 kw_model:
@@ -7359,22 +10696,22 @@ kw_model:
 			ld ix, ntc_next
 			jp ntc_plat_mode
 
-ntc_rg117_e:
-			IF ($ < 34816) && (ntc_rg118_e - ntc_rg118 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+ntc_rg554_e:
+			IF ($ < 32768) && (ntc_rg555_e - ntc_rg555 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg118:
+ntc_rg555:
 ;## kw_frame ntc_data ntc_plat_frame
 ;kw_frame  - wait for the start of the next frame flyback
 kw_frame:
 			ld ix, ntc_next
 			jp ntc_plat_frame
 
-ntc_rg118_e:
-			IF ($ < 34816) && (ntc_rg119_e - ntc_rg119 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+ntc_rg555_e:
+			IF ($ < 32768) && (ntc_rg556_e - ntc_rg556 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg119:
+ntc_rg556:
 ;## kw_ticks ntc_data ntc_plat_ticks
 ;kw_ticks, <destvar>  - tick count from the platform (CPC: interrupts, 300 a second,
 ;  only moving in normal mode)
@@ -7397,11 +10734,11 @@ ntc_tk_got:
 ; string buffer (41 bytes). Dest may be the same as the source.
 ; ============================================================
 
-ntc_rg119_e:
-			IF ($ < 34816) && (ntc_rg120_e - ntc_rg120 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+ntc_rg556_e:
+			IF ($ < 32768) && (ntc_rg557_e - ntc_rg557 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg120:
+ntc_rg557:
 ;## ntc_getn ntc_data
 ; BC = address of a word: A = its value limited to 0..255
 ; (below 0 = 0, above 255 = 255). jp (ix) back. Keeps DE, HL.
@@ -7422,11 +10759,11 @@ ntc_gn_max:
 			ld a, 255
 			jp (ix)
 
-ntc_rg120_e:
-			IF ($ < 34816) && (ntc_rg121_e - ntc_rg121 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+ntc_rg557_e:
+			IF ($ < 32768) && (ntc_rg558_e - ntc_rg558 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg121:
+ntc_rg558:
 ;## kw_strleft ntc_getn
 ;kw_strleft, <dest>, <src>, <nvar>  - Left$(src, n)
 kw_strleft:
@@ -7455,11 +10792,11 @@ ntc_sn_end:
 			ld (de), a
 			ret
 
-ntc_rg121_e:
-			IF ($ < 34816) && (ntc_rg122_e - ntc_rg122 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+ntc_rg558_e:
+			IF ($ < 32768) && (ntc_rg559_e - ntc_rg559 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg122:
+ntc_rg559:
 ;## kw_strright ntc_getn kw_strleft
 ;kw_strright, <dest>, <src>, <nvar>  - Right$(src, n)
 kw_strright:
@@ -7492,11 +10829,11 @@ ntc_sr_skip:
 			ld b, 255
 			jp ntc_strncpy
 
-ntc_rg122_e:
-			IF ($ < 34816) && (ntc_rg123_e - ntc_rg123 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+ntc_rg559_e:
+			IF ($ < 32768) && (ntc_rg560_e - ntc_rg560 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg123:
+ntc_rg560:
 ;## kw_strmid ntc_getn kw_strleft
 ;kw_strmid, <dest>, <src>, <startvar>, <lenvar>  - Mid$(src, start, len)
 kw_strmid:
@@ -7528,11 +10865,11 @@ ntc_sm_n:
 			ld b, a
 			jp ntc_strncpy
 
-ntc_rg123_e:
-			IF ($ < 34816) && (ntc_rg124_e - ntc_rg124 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+ntc_rg560_e:
+			IF ($ < 32768) && (ntc_rg561_e - ntc_rg561 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg124:
+ntc_rg561:
 ;## kw_strchr
 ;kw_strchr, <dest>, <nvar>  - Chr$(n)
 kw_strchr:
@@ -7545,11 +10882,11 @@ kw_strchr:
 			ld (de), a
 			ret
 
-ntc_rg124_e:
-			IF ($ < 34816) && (ntc_rg125_e - ntc_rg125 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+ntc_rg561_e:
+			IF ($ < 32768) && (ntc_rg562_e - ntc_rg562 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg125:
+ntc_rg562:
 ;## kw_strstr ntc_itoa
 ;kw_strstr, <dest>, <nvar>  - Str$(n): a space before 0 and positives
 kw_strstr:
@@ -7568,11 +10905,61 @@ ntc_st_go:
 			ld ix, ntc_next
 			jp ntc_itoa
 
-ntc_rg125_e:
-			IF ($ < 34816) && (ntc_rg126_e - ntc_rg126 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+ntc_rg562_e:
+			IF ($ < 32768) && (ntc_rg563_e - ntc_rg563 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg126:
+ntc_rg563:
+;## kw_strhex
+;kw_strhex, <dest>, <nvar>  - Hex$(n), no leading zeros
+kw_strhex:
+			pop de
+			pop hl
+			ld a, (hl)
+			inc hl
+			ld h, (hl)
+			ld l, a
+			ld b, 4
+			ld c, 0
+ntc_hx_loop:
+			xor a
+			add hl, hl
+			rla
+			add hl, hl
+			rla
+			add hl, hl
+			rla
+			add hl, hl
+			rla
+			bit 0, c
+			jr nz, ntc_hx_out
+			or a
+			jr nz, ntc_hx_first
+			ld a, b
+			dec a
+			jr nz, ntc_hx_next
+			xor a
+ntc_hx_first:
+			set 0, c
+ntc_hx_out:
+			add a, '0'
+			cp '9' + 1
+			jr c, ntc_hx_put
+			add a, 7
+ntc_hx_put:
+			ld (de), a
+			inc de
+ntc_hx_next:
+			djnz ntc_hx_loop
+			xor a
+			ld (de), a
+			ret
+
+ntc_rg563_e:
+			IF ($ < 32768) && (ntc_rg564_e - ntc_rg564 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg564:
 ;## kw_strspace ntc_getn
 ;kw_strspace, <dest>, <nvar>  - Space$(n)
 kw_strspace:
@@ -7604,11 +10991,11 @@ ntc_sf_end:
 			ld (de), a
 			ret
 
-ntc_rg126_e:
-			IF ($ < 34816) && (ntc_rg127_e - ntc_rg127 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+ntc_rg564_e:
+			IF ($ < 32768) && (ntc_rg565_e - ntc_rg565 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg127:
+ntc_rg565:
 ;## kw_strucase
 ;kw_strucase, <dest>, <src>  - UCase$
 kw_strucase:
@@ -7629,11 +11016,11 @@ ntc_uc_put:
 			inc de
 			jr ntc_uc_loop
 
-ntc_rg127_e:
-			IF ($ < 34816) && (ntc_rg128_e - ntc_rg128 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+ntc_rg565_e:
+			IF ($ < 32768) && (ntc_rg566_e - ntc_rg566 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg128:
+ntc_rg566:
 ;## kw_strrtrim ntc_data
 ;kw_strrtrim, <dest>, <src>  - RTrim$
 kw_strrtrim:
@@ -7663,11 +11050,11 @@ ntc_rt_loop:
 			ld (hl), 0
 			jr ntc_rt_loop
 
-ntc_rg128_e:
-			IF ($ < 34816) && (ntc_rg129_e - ntc_rg129 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+ntc_rg566_e:
+			IF ($ < 32768) && (ntc_rg567_e - ntc_rg567 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg129:
+ntc_rg567:
 ;## kw_strtrim kw_strrtrim
 ;kw_strtrim, <dest>, <src>  - Trim$
 kw_strtrim:
@@ -7683,11 +11070,11 @@ ntc_tr_go:
 			ld (ntc_sptr), de
 			jp ntc_rt_copy
 
-ntc_rg129_e:
-			IF ($ < 34816) && (ntc_rg130_e - ntc_rg130 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+ntc_rg567_e:
+			IF ($ < 32768) && (ntc_rg568_e - ntc_rg568 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg130:
+ntc_rg568:
 ;## kw_strasc
 ;kw_strasc, <src>, <destvar>  - Asc(src), 0 if empty
 kw_strasc:
@@ -7699,11 +11086,11 @@ kw_strasc:
 			ld (hl), 0
 			ret
 
-ntc_rg130_e:
-			IF ($ < 34816) && (ntc_rg131_e - ntc_rg131 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+ntc_rg568_e:
+			IF ($ < 32768) && (ntc_rg569_e - ntc_rg569 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg131:
+ntc_rg569:
 ;## kw_strval ntc_atoi
 ;kw_strval, <src>, <destvar>  - Val(src): decimal or &H hex
 kw_strval:
@@ -7712,11 +11099,11 @@ kw_strval:
 			ld (ntc_ivar), de
 			jp ntc_atoi_hl
 
-ntc_rg131_e:
-			IF ($ < 34816) && (ntc_rg132_e - ntc_rg132 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+ntc_rg569_e:
+			IF ($ < 32768) && (ntc_rg570_e - ntc_rg570 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg132:
+ntc_rg570:
 ;## kw_strinstr ntc_getn ntc_data
 ;kw_strinstr, <startvar>, <s1>, <s2>, <destvar>  - InStr(start, s1, s2)
 kw_strinstr:
@@ -7773,26 +11160,11 @@ ntc_in_found:
 			ld (hl), 0
 			ret
 
-ntc_rg132_e:
-			IF ($ < 34816) && (ntc_rg133_e - ntc_rg133 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+ntc_rg570_e:
+			IF ($ < 32768) && (ntc_rg571_e - ntc_rg571 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg133:
-;## ntc_ldata
-ntc_la:			ds 4
-ntc_lb:			ds 4
-ntc_lr:			ds 4
-ntc_lt:			ds 4
-ntc_lsgn:		db 0
-ntc_lcnt:		db 0
-ntc_ldst:		dw 0
-ntc_lix:		dw 0
-
-ntc_rg133_e:
-			IF ($ < 34816) && (ntc_rg134_e - ntc_rg134 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
-			ENDIF
-ntc_rg134:
+ntc_rg571:
 ;## kw_l_mov
 ;kw_l_mov, <src>, <dest>  - dest = src (4 bytes)
 kw_l_mov:
@@ -7804,204 +11176,11 @@ kw_l_mov:
 			ldi
 			ret
 
-ntc_rg134_e:
-			IF ($ < 34816) && (ntc_rg135_e - ntc_rg135 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+ntc_rg571_e:
+			IF ($ < 32768) && (ntc_rg572_e - ntc_rg572 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg135:
-;## kw_l_itol
-;kw_l_itol, <intvar>, <dest>  - Integer to Long (sign extended)
-kw_l_itol:
-			pop hl
-			pop de
-			ld a, (hl)
-			ld (de), a
-			inc hl
-			inc de
-			ld a, (hl)
-			ld (de), a
-			inc de
-			rla
-			sbc a, a
-			ld (de), a
-			inc de
-			ld (de), a
-			ret
-
-ntc_rg135_e:
-			IF ($ < 34816) && (ntc_rg136_e - ntc_rg136 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
-			ENDIF
-ntc_rg136:
-;## kw_l_ltoi
-;kw_l_ltoi, <long>, <intdest>  - Long to Integer (low 16 bits)
-kw_l_ltoi:
-			pop hl
-			pop de
-			ldi
-			ldi
-			ret
-
-ntc_rg136_e:
-			IF ($ < 34816) && (ntc_rg137_e - ntc_rg137 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
-			ENDIF
-ntc_rg137:
-;## kw_l_add
-;kw_l_add, <a>, <b>, <dest>  - a + b
-kw_l_add:
-			pop hl
-			pop de
-			pop ix
-			ld a, (de)
-			add a, (hl)
-			ld (ix+0), a
-			inc hl
-			inc de
-			ld a, (de)
-			adc a, (hl)
-			ld (ix+1), a
-			inc hl
-			inc de
-			ld a, (de)
-			adc a, (hl)
-			ld (ix+2), a
-			inc hl
-			inc de
-			ld a, (de)
-			adc a, (hl)
-			ld (ix+3), a
-			ret
-
-ntc_rg137_e:
-			IF ($ < 34816) && (ntc_rg138_e - ntc_rg138 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
-			ENDIF
-ntc_rg138:
-;## kw_l_sub
-;kw_l_sub, <a>, <b>, <dest>  - a - b
-kw_l_sub:
-			pop de
-			pop hl
-			pop ix
-			ld a, (de)
-			sub (hl)
-			ld (ix+0), a
-			inc hl
-			inc de
-			ld a, (de)
-			sbc a, (hl)
-			ld (ix+1), a
-			inc hl
-			inc de
-			ld a, (de)
-			sbc a, (hl)
-			ld (ix+2), a
-			inc hl
-			inc de
-			ld a, (de)
-			sbc a, (hl)
-			ld (ix+3), a
-			ret
-
-ntc_rg138_e:
-			IF ($ < 34816) && (ntc_rg139_e - ntc_rg139 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
-			ENDIF
-ntc_rg139:
-;## ntc_lcmp ntc_ldata
-; DE = a, HL = b: work out a - b. ntc_lsgn = #80 if a < b (signed),
-; ntc_lcnt = 0 if a = b. jp (ix) back.
-ntc_lcmp:
-			ld a, (de)
-			sub (hl)
-			ld (ntc_lr), a
-			inc hl
-			inc de
-			ld a, (de)
-			sbc a, (hl)
-			ld (ntc_lr+1), a
-			inc hl
-			inc de
-			ld a, (de)
-			sbc a, (hl)
-			ld (ntc_lr+2), a
-			inc hl
-			inc de
-			ld a, (de)
-			sbc a, (hl)
-			ld (ntc_lr+3), a
-			ld b, 0
-			jp po, ntc_lcm_nov
-			ld b, #80
-ntc_lcm_nov:
-			xor b
-			and #80
-			ld (ntc_lsgn), a
-			ld hl, ntc_lr
-			ld a, (hl)
-			inc hl
-			or (hl)
-			inc hl
-			or (hl)
-			inc hl
-			or (hl)
-			ld (ntc_lcnt), a
-			jp (ix)
-
-ntc_rg139_e:
-			IF ($ < 34816) && (ntc_rg140_e - ntc_rg140 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
-			ENDIF
-ntc_rg140:
-;## kw_l_cplt ntc_lcmp
-;kw_l_cplt, <a>, <b>  - Z if a < b
-kw_l_cplt:
-			pop de
-			pop hl
-			ld ix, ntc_lclt
-			jp ntc_lcmp
-ntc_lclt:
-			ld a, (ntc_lsgn)
-			xor #80
-			ret
-
-ntc_rg140_e:
-			IF ($ < 34816) && (ntc_rg141_e - ntc_rg141 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
-			ENDIF
-ntc_rg141:
-;## kw_l_cpgt ntc_lcmp
-;kw_l_cpgt, <a>, <b>  - Z if a > b
-kw_l_cpgt:
-			pop de
-			pop hl
-			ld ix, ntc_lcgt
-			jp ntc_lcmp
-ntc_lcgt:
-			ld a, (ntc_lcnt)
-			or a
-			jr z, ntc_lcgt_f
-			ld a, (ntc_lsgn)
-			or a
-			ret
-ntc_lcgt_f:
-			or 1
-			ret
-
-ntc_rg141_e:
-			IF ($ < 34816) && (ntc_rg142_e - ntc_rg142 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
-			ENDIF
-ntc_rg142:
-;## ntc_buf2k
-ntc_buf	equ 32768		; Option Buffer: the 2K buffer outside the program
-
-ntc_rg142_e:
-			IF ($ < 34816) && (ntc_rg143_e - ntc_rg143 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
-			ENDIF
-ntc_rg143:
+ntc_rg572:
 ;## ntc_memcore ntc_data ntc_mem ntc_memcore2 ntc_plat_memtop @shared
 ; ------------------------------------------------------------
 ; ntc_memcore - the Memory class, the part every scheme shares. The scheme
@@ -8116,11 +11295,11 @@ mem_chk_bad:
 			ld hl, MEM_BADPAGE
 			jp mem_err
 
-ntc_rg143_e:
-			IF ($ < 34816) && (ntc_rg144_e - ntc_rg144 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+ntc_rg572_e:
+			IF ($ < 32768) && (ntc_rg573_e - ntc_rg573 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg144:
+ntc_rg573:
 ;## ntc_memcore2 ntc_memcore @shared @far
 ; ntc_memcore2 - the rest of the shared part: far pointers, the heap, bytes
 ; and words. Runs on the real stack (through mem_go), so a keyword ROM set
@@ -8387,11 +11566,11 @@ mem_putback:
 			pop hl
 			ret
 
-ntc_rg144_e:
-			IF ($ < 34816) && (ntc_rg145_e - ntc_rg145 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+ntc_rg573_e:
+			IF ($ < 32768) && (ntc_rg574_e - ntc_rg574 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg145:
+ntc_rg574:
 ;## ntc_mem ntc_memcore ntc_membank @shared @far
 ; ------------------------------------------------------------
 ; ntc_mem (CPCExpansion) - 16K RAM pages in the #4000-#7FFF window (CPC gate
@@ -8405,31 +11584,33 @@ ntc_rg145:
 ;   No pages at all when the program (ntc_start .. ntc_free) or the
 ;   real stack is in the window: switching would hide them.
 ; Tables, made by the first call (mem_start) from ntc_free up, sized to
-; what the probe finds (3 bytes a page: next link, type); fewer pages
-; when there isn't room below #4000 (or below the real stack).
-; Lists: every page is on one - 0 free low (main + the #7F block),
-; 1 free high (#78-#7E), 2 C, 3 D, 4 I, 5 U, 6 B (the 4 pages of a whole
-; bank, AllocBank). C / I / U pages come from
-; the low list first, D pages from the high one; each falls back to the
-; other. On 576K or less every page is low, so it is one list.
+; what the probe finds (3 bytes a page); fewer pages when there isn't room
+; below #4000 (or below the real stack):
+;   the port table - 2 bytes a page: the BC that selects it (out (c), c),
+;                    so selecting a page is a look-up, nothing worked out
+;   the RAT        - 1 byte a page, its type: - free, C, D, I, U, B (the 4
+;                    pages of a whole bank, AllocBank)
+; No lists: a free page or bank is found by scanning the RAT (CPIR), a page
+; is freed by writing - back. C / I / U pages come from the low block first
+; (main + the #7F block), D pages from the high one (#78-#7E); each falls
+; back to the other. On 576K or less every page is low.
 ; The page in the window is kept in mem_cur, written before the port,
 ; so an interrupt handler can always put the right page back.
 ; A new D page is one free block of #4000.
 ; ------------------------------------------------------------
 MEM_BANKS	equ NTC_MEMBANKS	; 0 - 64
-MEM_LISTS	equ 7
-MEM_LB		equ 6			; the whole-bank list
+MEM_LB		equ 6			; the whole-bank kind (mem_kinds)
 
 mem_count:		dw 0			; pages (0 = no paging)
-mem_tnext:		dw 0			; the tables: next links (2 bytes a page)
-mem_ttype:		dw 0			; types (1 byte a page)
+mem_tport:		dw 0			; the port table (2 bytes a page: its BC)
+mem_ttype:		dw 0			; the RAT (1 byte a page: its type)
 mem_tend:		dw 0			; the first byte after them
-mem_head:		ds MEM_LISTS * 2	; each list's first page
-mem_cnt:		ds MEM_LISTS * 2	; and how many (must follow mem_head)
+mem_fp:			dw 0			; (making the port table: the next bank found)
 mem_banks:		db 0			; 64K banks found
 mem_tl:			db 0
-mem_kinds:		db "--CDIUB"		; the type character of each list
-mem_bank:		ds MEM_BANKS * 2 + 1	; per bank found: setting for its page 0, port high byte
+mem_sw:			db 0			; mem_scan: 0 low, 1 high, 2 any
+mem_kinds:		db "--CDIUB"		; the type character of each kind (0, 1 free)
+mem_found:		ds MEM_BANKS + 1	; probe: the banks found (0-63), in order
 mem_save:		ds MEM_BANKS + 1	; probe: the bytes the markers replace
 mem_bksp:		dw 0			; CallBank: the real stack while bank code runs
 mem_bkrmr:		db 0			; and the ROM / mode byte to put back
@@ -8445,6 +11626,11 @@ mem_start:
 			ld (mem_tend), hl
 	IF NTC_WINHOLE
 			jr mem_st_prog			; the program is built round the window (Option Reserve)
+	ENDIF
+	IF NTC_ROMLIB					; the keyword ROM: free RAM from #8000 on = built round it
+			ld a, h
+			cp #80
+			jr nc, mem_st_prog
 	ENDIF
 			ld de, MEM_WIN + 1		; the program must be out of the window:
 			or a					; it ends by #4000 ...
@@ -8507,7 +11693,7 @@ mem_pr_mark:
 			out (c), c
 			ld a, #A5
 			ld (MEM_WIN), a
-			ld hl, mem_bank
+			ld hl, mem_found
 			ld d, 0
 			ld e, 0
 mem_pr_read:
@@ -8520,9 +11706,7 @@ mem_pr_read:
 			cp (hl)
 			pop hl
 			jr nz, mem_pr_none
-			ld (hl), c				; this bank is there
-			inc hl
-			ld (hl), b
+			ld (hl), e				; this bank is there
 			inc hl
 			inc d
 mem_pr_none:
@@ -8563,6 +11747,15 @@ mem_pr_di:
 	IF NTC_WINHOLE
 			call ntc_plat_memtop		; built round the window: the tables go above it
 			jr mem_tb_lim			; (ntc_memtab), up to the platform's top
+	ENDIF
+	IF NTC_ROMLIB					; the keyword ROM: a program built round the window (it has no
+			ld hl, ntc_free			; NTC_WINHOLE here) has its free RAM above it - up to the top
+			ld a, h
+			cp #80
+			jr c, mem_tb_low
+			call ntc_plat_memtop
+			jr mem_tb_lim
+mem_tb_low:
 	ENDIF
 			ld de, (ntc_csp)		; the tables must end by #4000, or 128 bytes
 			ld hl, MEM_WIN			; under the real stack when it is lower
@@ -8613,19 +11806,62 @@ mem_tb_ok:
 	ELSE
 			ld hl, ntc_free
 	ENDIF
-			ld (mem_tnext), hl
+			ld (mem_tport), hl
 			ld de, (mem_count)
 			add hl, de
 			add hl, de
 			ld (mem_ttype), hl
-			ld bc, (mem_count)		; every page onto its free list, the last
-mem_tb_free:						; first, so the lowest page comes out first
+			ld bc, (mem_count)		; the RAT: every page free
+			ld (hl), '-'
+			dec bc
 			ld a, b
 			or c
+			jr z, mem_tb_ports
+			ld d, h
+			ld e, l
+			inc de
+			ldir
+mem_tb_ports:						; the port table: page 1 main RAM, then 4 a bank found
+			ld hl, (mem_tport)
+			ld (hl), #C0
+			inc hl
+			ld (hl), #7F
+			inc hl
+			ld de, (mem_count)
+			dec de					; DE = pages left
+			ld bc, mem_found
+			ld (mem_fp), bc
+mem_tb_bk:
+			ld a, d
+			or e
 			ret z
-			call mem_tofree
-			dec bc
-			jr mem_tb_free
+			push de
+			ld bc, (mem_fp)
+			ld a, (bc)
+			inc bc
+			ld (mem_fp), bc
+			ld e, a
+			call mem_jbc			; BC = its page 0's port (keeps DE, HL)
+			pop de
+			ld a, 4
+mem_tb_pg:
+			ld (hl), c
+			inc hl
+			ld (hl), b
+			inc hl
+			inc c
+			dec de
+			push af
+			ld a, d
+			or e
+			jr z, mem_tb_pend		; (fewer pages than found: the rest left out)
+			pop af
+			dec a
+			jr nz, mem_tb_pg
+			jr mem_tb_bk
+mem_tb_pend:
+			pop af
+			ret
 
 ; mem_jbc - E = bank 0-63: BC = the port for its page 0 (B = #7F - E / 8,
 ; C = #C4 + (E and 7) * 8). Keeps DE, HL.
@@ -8663,27 +11899,17 @@ mem_sel:
 			jr z, mem_se_end
 mem_se_do:
 			ld (mem_cur), hl
-			dec hl
 			ld a, h
 			or l
-			ld bc, #7FC0
+			ld bc, #7FC0			; (0: plain RAM)
 			jr z, mem_se_out
-			dec hl					; page 2+: bank (page - 2) / 4, page in it (page - 2) and 3
-			ld a, l
-			and 3
-			ld c, a
-			srl h
-			rr l
-			srl h
-			rr l
-			add hl, hl
-			ld de, mem_bank
+			add hl, hl				; its port from the port table
+			ld de, (mem_tport)
 			add hl, de
-			ld a, (hl)
-			add a, c
-			ld c, a
-			inc hl
+			dec hl
 			ld b, (hl)
+			dec hl
+			ld c, (hl)
 mem_se_out:
 			ld (ntc_rampt), bc
 			out (c), c
@@ -8709,51 +11935,15 @@ mem_chk:
 			pop de
 			ret nc
 			jp mem_chk_bad
-; ---- the tables and lists (BC = a page)
+; ---- the tables (BC = a page)
 
-; mem_tpb - HL = its type byte. Keeps A, BC, DE.
+; mem_tpb - HL = its type byte (in the RAT). Keeps A, BC, DE.
 mem_tpb:
 			ld hl, (mem_ttype)
 			add hl, bc
 			dec hl
 			ret
-; mem_npb - HL = its next link. Keeps A, BC, DE.
-mem_npb:
-			ld hl, (mem_tnext)
-			add hl, bc
-			add hl, bc
-			dec hl
-			dec hl
-			ret
-; mem_lha - A = a list: HL = its head (its count is MEM_LISTS * 2 on). Keeps A, BC, DE.
-mem_lha:
-			push de
-			ld l, a
-			ld h, 0
-			add hl, hl
-			ld de, mem_head
-			add hl, de
-			pop de
-			ret
-; mem_cntadd - HL = a list's head, A = 1 / -1: its count + A. Keeps BC.
-mem_cntadd:
-			push de
-			ld de, MEM_LISTS * 2
-			add hl, de
-			ld e, a
-			rla
-			sbc a, a
-			ld d, a					; DE = A, sign extended
-			ld a, (hl)
-			add a, e
-			ld (hl), a
-			inc hl
-			ld a, (hl)
-			adc a, d
-			ld (hl), a
-			pop de
-			ret
-; mem_push - A = a list: the page goes first on it (and gets its type). Keeps A, BC.
+; mem_push - A = a kind (mem_kinds: 2-6): the page is of that kind now. Keeps A, BC, DE.
 mem_push:
 			push af
 			push de
@@ -8764,135 +11954,98 @@ mem_push:
 			ld a, (hl)
 			call mem_tpb
 			ld (hl), a
-			ld a, e
-			call mem_lha
-			ld e, (hl)				; DE = the old first page
-			inc hl
-			ld d, (hl)
-			ld (hl), b				; the page is first now
-			dec hl
-			ld (hl), c
-			push hl
-			call mem_npb
-			ld (hl), e
-			inc hl
-			ld (hl), d
-			pop hl
-			ld a, 1
-			call mem_cntadd
 			pop de
 			pop af
 			ret
-; mem_pop - A = a list: BC = its first page, taken off it. NZ, or Z = empty.
-; Keeps DE.
-mem_pop:
-			push de
-			call mem_lha
-			ld c, (hl)
-			inc hl
-			ld b, (hl)
-			dec hl
-			ld a, b
-			or c
-			jr z, mem_po_end
-			push hl
-			call mem_npb
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			pop hl
-			ld (hl), e
-			inc hl
-			ld (hl), d
-			dec hl
-			ld a, -1
-			call mem_cntadd
-			ld a, 1
-			or a
-mem_po_end:
-			pop de
-			ret
-; mem_remove - A = a list: the page taken off it. NZ, or Z = not on it. Keeps BC, DE.
+; mem_remove - (A = a kind) nothing to take it off: the RAT has no lists. NZ. Keeps BC, DE.
 mem_remove:
-			push de
-			call mem_lha
-			push hl					; the head, for the count
-mem_rm_lp:							; HL = a link (the head, or a page's next)
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			dec hl
-			ld a, d
-			or e
-			jr z, mem_rm_no
-			ld a, e
-			cp c
-			jr nz, mem_rm_nx
-			ld a, d
-			cp b
-			jr z, mem_rm_hit
-mem_rm_nx:
-			push bc
-			ld b, d
-			ld c, e
-			call mem_npb
-			pop bc
-			jr mem_rm_lp
-mem_rm_hit:
-			push hl					; the link now skips the page
-			call mem_npb
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			pop hl
-			ld (hl), e
-			inc hl
-			ld (hl), d
-			pop hl
-			ld a, -1
-			call mem_cntadd
 			ld a, 1
 			or a
-			pop de
 			ret
-mem_rm_no:
-			pop hl
-			xor a
-			pop de
-			ret
-; mem_lowhigh - A = the free list the page belongs on: 0 (main, or the #7F
-; block) or 1. Keeps BC, DE.
+; mem_lowhigh - A = the block the page is in: 0 low (main, or the #7F
+; block) or 1 high. Keeps BC, DE.
 mem_lowhigh:
 			push de
 			ld h, b
 			ld l, c
-			dec hl
-			ld a, h
-			or l
-			jr z, mem_lh_low
-			dec hl
-			srl h
-			rr l
-			srl h
-			rr l
 			add hl, hl
-			ld de, mem_bank + 1
+			ld de, (mem_tport)
 			add hl, de
+			dec hl					; its port's high byte
 			ld a, (hl)
+			pop de
 			cp #7F
-			jr z, mem_lh_low
-			ld a, 1
-			pop de
+			ld a, 0
+			ret z
+			inc a
 			ret
-mem_lh_low:
-			xor a
-			pop de
-			ret
-; mem_tofree - the page (on no list) onto its free list. Keeps BC.
+; mem_tofree - the page free again. Keeps BC, DE.
 mem_tofree:
+			call mem_tpb
+			ld (hl), '-'
+			ret
+; mem_scan - A = 0 low, 1 high, 2 either: BC = the first free page in it, NZ;
+; Z = none
+mem_scan:
+			ld (mem_sw), a
+			ld hl, (mem_ttype)
+			ld bc, (mem_count)
+mem_sc_lp:
+			ld a, b
+			or c
+			ret z
+			ld a, '-'
+			cpir
+			jr nz, mem_sc_none
+			push bc
+			push hl
+			ld de, (mem_ttype)
+			or a
+			sbc hl, de				; the page: its entry is at HL - 1
+			ld b, h
+			ld c, l
+			ld a, (mem_sw)
+			cp 2
+			jr z, mem_sc_hit
 			call mem_lowhigh
-			jp mem_push
-; mem_listof - A = the list the page is on. Keeps BC, DE.
+			ld hl, mem_sw
+			cp (hl)
+			jr z, mem_sc_hit
+			pop hl
+			pop bc
+			jr mem_sc_lp
+mem_sc_hit:
+			pop af
+			pop af
+			ld a, 1
+			or a
+			ret
+mem_sc_none:
+			xor a
+			ret
+; mem_dnext - BC = a page (0: before the first): BC = the next D page, NZ;
+; Z = none
+mem_dnext:
+			ld hl, (mem_count)
+			or a
+			sbc hl, bc
+			ret z
+			push hl
+			ld hl, (mem_ttype)
+			add hl, bc
+			pop bc
+			ld a, 'D'
+			cpir
+			jr nz, mem_sc_none
+			ld de, (mem_ttype)
+			or a
+			sbc hl, de
+			ld b, h
+			ld c, l
+			ld a, 1
+			or a
+			ret
+; mem_listof - A = the page's kind (2-6), or its free block (0, 1). Keeps BC, DE.
 mem_listof:
 			call mem_tpb
 			ld a, (hl)
@@ -8907,12 +12060,12 @@ mem_lo_lp:
 			inc c
 			djnz mem_lo_lp
 			pop bc
-			jr mem_lowhigh
+			jp mem_lowhigh
 mem_lo_got:
 			ld a, c
 			pop bc
 			ret
-; mem_kindlist - A = a type character: A = its list (2-5), NZ; Z = not one.
+; mem_kindlist - A = a type character: A = its kind (2-5), NZ; Z = not one.
 mem_kindlist:
 			ld hl, mem_kinds + 2
 			ld b, 4
@@ -8929,26 +12082,20 @@ mem_kl_got:
 			ld a, c
 			or a
 			ret
-; mem_take - A = a list (2-5): a free page onto it - D from the high
-; free list first, the others from the low one - a D page made one free
+; mem_take - A = a kind (2-5): a free page of that kind now - D from the
+; high block first, the others from the low one - a D page made one free
 ; block. BC = the page, NZ; Z = none left.
 mem_take:
 			ld (mem_tl), a
 			cp 3
-			jr z, mem_tk_high
-			xor a
-			call mem_pop
-			jr nz, mem_tk_got
 			ld a, 1
-			call mem_pop
-			ret z
-			jr mem_tk_got
-mem_tk_high:
-			ld a, 1
-			call mem_pop
-			jr nz, mem_tk_got
+			jr z, mem_tk_s
 			xor a
-			call mem_pop
+mem_tk_s:
+			call mem_scan
+			jr nz, mem_tk_got
+			ld a, 2
+			call mem_scan
 			ret z
 mem_tk_got:
 			ld a, (mem_tl)
@@ -8974,11 +12121,26 @@ mem_pages:
 			ld hl, (mem_count)
 			ret
 
-; FreePages(): pages on the free lists
+; FreePages(): the free pages (- in the RAT)
 mem_freepages:
-			ld hl, (mem_cnt)
-			ld de, (mem_cnt + 2)
-			add hl, de
+			ld hl, (mem_count)
+			ld a, h
+			or l
+			ret z
+			ld b, h
+			ld c, l
+			ld hl, (mem_ttype)
+			ld de, 0
+mem_fp_lp:
+			ld a, '-'
+			cpir
+			jr nz, mem_fp_end
+			inc de
+			ld a, b
+			or c
+			jr nz, mem_fp_lp
+mem_fp_end:
+			ex de, hl
 			ret
 
 ; RamSize(): K of RAM the probe found (64 + 64 a bank), 0 = not probed
@@ -9305,17 +12467,19 @@ mem_cb_nc:
 			jr nz, mem_cb_cp
 			ld hl, (mem_keep)
 			call mem_sel
-			ld hl, (mem_a1)			; BC = C2 for the bank: its page 0 setting
-			dec hl					; (#C4 + bank bits) and #F8, or 2
+			call mem_bkfirst		; BC = C2 for the bank: its page 0's port
+			ld h, b					; ((#C4 + bank bits) and #F8, or 2)
+			ld l, c
 			add hl, hl
-			ld de, mem_bank
+			ld de, (mem_tport)
 			add hl, de
+			dec hl
+			ld b, (hl)
+			dec hl
 			ld a, (hl)
 			and #F8
 			or 2
 			ld c, a
-			inc hl
-			ld b, (hl)
 			ld de, (mem_a2)
 			ld hl, (mem_a3)
 			jp ntc_bk_go
@@ -9355,30 +12519,20 @@ mem_al_size:
 			call mem_try
 			jr z, mem_al_got
 mem_al_scan:
-			ld a, 3
-			call mem_lha
-			ld c, (hl)
-			inc hl
-			ld b, (hl)
+			ld bc, 0
 mem_al_lp:
-			ld a, b
-			or c
+			call mem_dnext
 			jr z, mem_al_new
 			ld hl, (mem_keep)
 			or a
 			sbc hl, bc
-			jr z, mem_al_nx
+			jr z, mem_al_lp
 			push bc
 			ld h, b
 			ld l, c
 			call mem_try
 			pop bc
 			jr z, mem_al_got
-mem_al_nx:
-			call mem_npb
-			ld c, (hl)
-			inc hl
-			ld b, (hl)
 			jr mem_al_lp
 mem_al_new:
 			ld a, 3
@@ -9453,21 +12607,14 @@ mem_err_page:
 mem_largest:
 			ld hl, 0
 			ld (mem_max), hl
-			ld hl, (mem_cnt)		; a free page: a whole page
-			ld de, (mem_cnt + 2)
-			add hl, de
+			call mem_freepages		; a free page: a whole page
 			ld a, h
 			or l
 			ld hl, #3FFE
 			ret nz
-			ld a, 3
-			call mem_lha
-			ld c, (hl)
-			inc hl
-			ld b, (hl)
+			ld bc, 0
 mem_lg_lp:
-			ld a, b
-			or c
+			call mem_dnext
 			jr z, mem_lg_end
 			ld h, b
 			ld l, c
@@ -9475,10 +12622,6 @@ mem_lg_lp:
 			push bc
 			call mem_big
 			pop bc
-			call mem_npb
-			ld c, (hl)
-			inc hl
-			ld b, (hl)
 			jr mem_lg_lp
 mem_lg_end:
 			ld hl, (mem_keep)
@@ -9491,11 +12634,11 @@ mem_lg_end:
 			dec hl
 			ret
 
-ntc_rg145_e:
-			IF ($ < 34816) && (ntc_rg146_e - ntc_rg146 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+ntc_rg574_e:
+			IF ($ < 32768) && (ntc_rg575_e - ntc_rg575 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg146:
+ntc_rg575:
 ;## ntc_membank ntc_plat_rmr @shared @romram
 ; ------------------------------------------------------------
 ; ntc_membank - Memory's CallBank switch (CPCExpansion). Runs from RAM
@@ -9539,11 +12682,11 @@ ntc_bk_end:
 ntc_bk_di:
 			ret
 
-ntc_rg146_e:
-			IF ($ < 34816) && (ntc_rg147_e - ntc_rg147 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+ntc_rg575_e:
+			IF ($ < 32768) && (ntc_rg576_e - ntc_rg576 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg147:
+ntc_rg576:
 ;## ntc_keys ntc_data @shared
 ; ------------------------------------------------------------
 ; ntc_keys - the Keys class (CPC): the keyboard matrix read straight from the
@@ -9647,126 +12790,11 @@ ntc_k_set:
 			ld (hl), d
 			ret
 
-ntc_rg147_e:
-			IF ($ < 34816) && (ntc_rg148_e - ntc_rg148 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+ntc_rg576_e:
+			IF ($ < 32768) && (ntc_rg577_e - ntc_rg577 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg148:
-;## ntc_memcopy ntc_mem ntc_buf2k @shared @far
-; Copy(src, dst, length): far pointer to far pointer, up to 2K at a time
-; through ntc_buf (so page to page works with one window). A page's end
-; (#8000) carries on at #4000 of the next page. The window is put back.
-; OK, or BadPage.
-mem_copy:
-			ld hl, (mem_a1)
-			call mem_far
-			ld (mem_srca), de
-			ld (mem_srcp), hl
-			ld hl, (mem_a2)
-			call mem_far
-			ld (mem_dsta), de
-			ld (mem_dstp), hl
-			ld hl, (mem_a3)
-			ld (mem_left), hl
-mem_cp_lp:
-			ld hl, (mem_left)
-			ld a, h
-			or l
-			jr z, mem_cp_done
-			ld de, 2048
-			call mem_min
-			ld de, (mem_srcp)
-			ld a, d
-			or e
-			ld de, (mem_srca)
-			call nz, mem_room
-			ld de, (mem_dstp)
-			ld a, d
-			or e
-			ld de, (mem_dsta)
-			call nz, mem_room
-			ld (mem_chunk), hl
-			ld hl, (mem_srcp)
-			ld a, h
-			or l
-			call nz, mem_cp_sel
-			ld hl, (mem_srca)
-			ld de, ntc_buf
-			ld bc, (mem_chunk)
-			ldir
-			ld (mem_srca), hl
-			ld hl, (mem_dstp)
-			ld a, h
-			or l
-			call nz, mem_cp_sel
-			ld hl, ntc_buf
-			ld de, (mem_dsta)
-			ld bc, (mem_chunk)
-			ldir
-			ld (mem_dsta), de
-			ld hl, mem_srcp
-			ld de, (mem_srca)
-			call mem_cp_wrap
-			ld (mem_srca), de
-			ld hl, mem_dstp
-			ld de, (mem_dsta)
-			call mem_cp_wrap
-			ld (mem_dsta), de
-			ld hl, (mem_left)
-			ld de, (mem_chunk)
-			or a
-			sbc hl, de
-			ld (mem_left), hl
-			jp mem_cp_lp
-mem_cp_done:
-			ld hl, (mem_keep)
-			call mem_sel
-			ld hl, 0
-			ret
-mem_cp_sel:
-			call mem_chk			; a page past the last one: BadPage
-			jp mem_sel
-; HL = the smaller of HL and DE
-mem_min:
-			push hl
-			or a
-			sbc hl, de
-			pop hl
-			ret c
-			ex de, hl
-			ret
-; DE = an address in the window: HL = no more than #8000 - DE
-mem_room:
-			push hl
-			ld hl, #8000
-			or a
-			sbc hl, de
-			ex de, hl
-			pop hl
-			jr mem_min
-; HL = a page word, DE = the address: #8000 in a page -> #4000 of the next
-mem_cp_wrap:
-			ld a, (hl)
-			inc hl
-			or (hl)
-			dec hl
-			ret z
-			ld a, d
-			cp #80
-			ret nz
-			inc (hl)
-			jr nz, mem_cw_hi
-			inc hl
-			inc (hl)
-mem_cw_hi:
-			ld d, #40
-			ret
-
-ntc_rg148_e:
-			IF ($ < 34816) && (ntc_rg149_e - ntc_rg149 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
-			ENDIF
-ntc_rg149:
+ntc_rg577:
 ;## ntc_islots ntc_data @shared
 ; ------------------------------------------------------------
 ; ntc_islots - interrupt classes (Option Class Interrupt rate | Frame | Share n):
@@ -9934,11 +12962,11 @@ ntc_it_end:
 			pop bc
 			ret
 
-ntc_rg149_e:
-			IF ($ < 34816) && (ntc_rg150_e - ntc_rg150 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+ntc_rg577_e:
+			IF ($ < 32768) && (ntc_rg578_e - ntc_rg578 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg150:
+ntc_rg578:
 ;## kw_bssinit ntc_data ntc_plat_memtop ntc_plat_screen kw_stop @shared
 ;kw_bssinit, <start>, <size>  - the start of the main thread: the program's arrays live after
 ;  it (from ntc_end, not in its file). Check they fit under the platform's top (and 256 bytes
@@ -10007,11 +13035,11 @@ ntc_bsz:		dw 0
 ntc_bsp:		dw 0
 ntc_bstxt:		db "Not enough memory for the arrays", 0
 
-ntc_rg150_e:
-			IF ($ < 34816) && (ntc_rg151_e - ntc_rg151 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+ntc_rg578_e:
+			IF ($ < 32768) && (ntc_rg579_e - ntc_rg579 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg151:
+ntc_rg579:
 ;## ntc_plat_data
 ntc_curx:		db 0			; cursor column (0 based) - kept here for Tab
 ntc_cury:		db 0			; cursor row (0 based)
@@ -10024,12 +13052,14 @@ ntc_irqv:		dw 0			; interrupt classes' counting (ntc_isl_tick), 0 = none
 ntc_irqix:		dw 0
 NTC_FWBLK	equ #A5F0		; the fast ticker's event block (central 32K, below the firmware)
 ntc_fwtop:		dw #A600		; the top of free RAM (#A5F0 with the fast ticker's block)
+ntc_fwblk:		dw NTC_FWBLK		; the fast ticker's event block: lower (and the top with it) when the ROMs
+								; started take more RAM than AMSDOS's #A700-#ABFF (Option RomEnable)
 
-ntc_rg151_e:
-			IF ($ < 34816) && (ntc_rg152_e - ntc_rg152 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+ntc_rg579_e:
+			IF ($ < 32768) && (ntc_rg580_e - ntc_rg580 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg152:
+ntc_rg580:
 ;## ntc_plat_fw ntc_plat_data ntc_data @shared
 ; ------------------------------------------------------------
 ; ntc_fwcall - IY = firmware address; A, BC, DE, HL go in and come
@@ -10050,11 +13080,11 @@ ntc_fwcall:
 ntc_fwjp:
 			jp (iy)
 
-ntc_rg152_e:
-			IF ($ < 34816) && (ntc_rg153_e - ntc_rg153 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+ntc_rg580_e:
+			IF ($ < 32768) && (ntc_rg581_e - ntc_rg581 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg153:
+ntc_rg581:
 ;## ntc_plat_screen ntc_plat_fw ntc_plat_data ntc_data
 ; ntc_plat_putc - A = character: TXT OUTPUT. The firmware wraps by itself after
 ; the last column, so only the column is counted here; a new line straight after
@@ -10114,40 +13144,14 @@ ntc_nl_row:
 			ld ix, (ntc_pclink)
 			jp (ix)
 
-; ntc_plat_backspace - back one, blank it, back again
-ntc_plat_backspace:
-			xor a
-			ld (ntc_fwwrap), a
-			ld a, (ntc_curx)
-			or a
-			jr nz, ntc_bs_col
-			ld a, (ntc_cury)
-			or a
-			jr z, ntc_bs_none
-			dec a
-			ld (ntc_cury), a
-			ld a, (ntc_scols)
-ntc_bs_col:
-			dec a
-			ld (ntc_curx), a
-			ld (ntc_pclink), ix
-			ld a, 8
-			ld iy, #BB5A
-			ld ix, ntc_bs_sp
-			jp ntc_fwcall
-ntc_bs_sp:
-			ld a, ' '
-			ld iy, #BB5A
-			ld ix, ntc_bs_back
-			jp ntc_fwcall
-ntc_bs_back:
-			ld a, 8
-			ld iy, #BB5A
-			ld ix, (ntc_pclink)
-			jp ntc_fwcall
-ntc_bs_none:
-			jp (ix)
+ntc_pclink:		dw 0
 
+ntc_rg581_e:
+			IF ($ < 32768) && (ntc_rg582_e - ntc_rg582 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg582:
+;## ntc_plat_cls @unit ntc_plat_screen ntc_plat_fw ntc_plat_data ntc_data
 ; ntc_plat_cls - TXT CLEAR WINDOW, cursor home
 ntc_plat_cls:
 			xor a
@@ -10157,6 +13161,12 @@ ntc_plat_cls:
 			ld iy, #BB6C			; TXT CLEAR WINDOW
 			jp ntc_fwcall
 
+ntc_rg582_e:
+			IF ($ < 32768) && (ntc_rg583_e - ntc_rg583 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg583:
+;## ntc_plat_mode @unit ntc_plat_screen ntc_plat_fw ntc_plat_data ntc_data
 ; ntc_plat_mode - A = mode 0-2 (3 = 2): SCR SET MODE (clears)
 ntc_plat_mode:
 			cp 3
@@ -10183,35 +13193,11 @@ ntc_md_set:
 			ld iy, #BC0E			; SCR SET MODE
 			jp ntc_fwcall
 
-; ntc_plat_locate - H = column, L = row, 1 based: TXT SET CURSOR
-ntc_plat_locate:
-			ld a, h
-			or a
-			jr nz, ntc_lc_x
-			inc h
-ntc_lc_x:
-			ld a, l
-			or a
-			jr nz, ntc_lc_y
-			inc l
-ntc_lc_y:
-			xor a
-			ld (ntc_fwwrap), a
-			ld a, h
-			dec a
-			ld (ntc_curx), a
-			ld a, l
-			dec a
-			ld (ntc_cury), a
-			ld iy, #BB75			; TXT SET CURSOR
-			jp ntc_fwcall
-ntc_pclink:		dw 0
-
-ntc_rg153_e:
-			IF ($ < 34816) && (ntc_rg154_e - ntc_rg154 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+ntc_rg583_e:
+			IF ($ < 32768) && (ntc_rg584_e - ntc_rg584 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg154:
+ntc_rg584:
 ;## ntc_plat_key ntc_plat_fw ntc_data
 ; ntc_plat_scankey - A = key from the firmware's buffer, or 0
 ntc_plat_scankey:
@@ -10234,33 +13220,33 @@ ntc_plat_getkey:
 			jp ntc_fwcall
 ntc_kslink:		dw 0
 
-ntc_rg154_e:
-			IF ($ < 34816) && (ntc_rg155_e - ntc_rg155 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+ntc_rg584_e:
+			IF ($ < 32768) && (ntc_rg585_e - ntc_rg585 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg155:
+ntc_rg585:
 ;## ntc_plat_frame ntc_plat_fw
 ; ntc_plat_frame - MC WAIT FLYBACK
 ntc_plat_frame:
 			ld iy, #BD19
 			jp ntc_fwcall
 
-ntc_rg155_e:
-			IF ($ < 34816) && (ntc_rg156_e - ntc_rg156 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+ntc_rg585_e:
+			IF ($ < 32768) && (ntc_rg586_e - ntc_rg586 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg156:
+ntc_rg586:
 ;## ntc_plat_ticks ntc_plat_fw
 ; ntc_plat_ticks - HL = the firmware's 1/300 s clock (KL TIME PLEASE, low word)
 ntc_plat_ticks:
 			ld iy, #BD0D
 			jp ntc_fwcall
 
-ntc_rg156_e:
-			IF ($ < 34816) && (ntc_rg157_e - ntc_rg157 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+ntc_rg586_e:
+			IF ($ < 32768) && (ntc_rg587_e - ntc_rg587 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg157:
+ntc_rg587:
 ;## ntc_plat_exit ntc_plat_data ntc_plat_fw
 ntc_plat_exit:
 			ld bc, #7FC0		; RAM setting back to plain (a Memory page may be in #4000)
@@ -10271,7 +13257,7 @@ ntc_plat_exit:
 			xor a
 			ld (ntc_irqset), a
 			ld (ntc_irqix), ix
-			ld hl, NTC_FWBLK
+			ld hl, (ntc_fwblk)
 			ld iy, #BCE6		; KL DEL FAST TICKER
 			ld ix, ntc_ex_back
 			jp ntc_fwcall
@@ -10280,11 +13266,11 @@ ntc_ex_back:
 ntc_ex_done:
 			jp (ix)
 
-ntc_rg157_e:
-			IF ($ < 34816) && (ntc_rg158_e - ntc_rg158 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+ntc_rg587_e:
+			IF ($ < 32768) && (ntc_rg588_e - ntc_rg588 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg158:
+ntc_rg588:
 ;## ntc_plat_irq ntc_plat_data ntc_plat_fw ntc_data @shared
 ; ------------------------------------------------------------
 ; ntc_plat_irqon - normal mode's interrupt work under the firmware: the
@@ -10303,7 +13289,7 @@ ntc_rg158:
 ; ------------------------------------------------------------
 ntc_plat_irqon:
 			ld (ntc_irqix), ix
-			ld hl, NTC_FWBLK
+			ld hl, (ntc_fwblk)
 			ld (ntc_fwtop), hl
 			ld b, #80				; asynchronous, far address (not express: see above)
 			ld c, #FF				; ROM select: upper and lower ROM off
@@ -10353,859 +13339,11 @@ ntc_fe_nohook:
 ; fs_go runs it on the real stack with interrupts on and stores its
 ; HL result; a routine that fails jumps to fs_err with HL = status.
 
-ntc_rg158_e:
-			IF ($ < 34816) && (ntc_rg159_e - ntc_rg159 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+ntc_rg588_e:
+			IF ($ < 32768) && (ntc_rg589_e - ntc_rg589 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg159:
-;## ntc_plat_fs ntc_data ntc_buf2k @shared
-FS_NOTFOUND	equ -2
-FS_TOOBIG	equ -8
-FS_FAILED	equ -9
-FS_BADNAME	equ -4
-fs_a1:			dw 0
-fs_a2:			dw 0
-fs_a3:			dw 0
-fs_res:			dw 0
-fs_sp:			dw 0
-fs_esp:			dw 0
-fs_six:			dw 0
-fs_siy:			dw 0
-fs_len:			dw 0
-fs_nostore:		db 0
-fs_hmode:		db 0			; 0 no file open, 1 reading, 2 writing (Open)
-fs_init:		db 0			; 1 = checked: is AMSDOS running?
-fs_dos:			db 0			; 1 = a DOS is there (|DISC found)
-fs_devd:		db 0			; the device in use: 0 tape, 1 disc
-fs_n_tape:		db "TAPE", 0
-fs_n_disc:		db "DISC", 0
-fs_n_all:		db "TAPE,DISC", 0
-fs_c_tape:		db "TAP", "E" + #80
-fs_c_disc:		db "DIS", "C" + #80
-fs_vol:			ds 9			; the volume in use ("" = not known)
-fs_vols:		ds 145			; the volumes that worked, "A,C,M" (up to 16 of up to 8 letters)
-fs_tmpn:		ds 9			; a volume name, capitals
-fs_rsxn:		ds 17			; a command name (last letter + #80), up to 16 letters
-			ASSERT ntc_free <= #A600, "FileSystem on cpcfw: the program and its arrays must end below #A600 (AMSDOS's RAM)"
-
-fs_go0:
-			ld a, 1
-			ld (fs_nostore), a
-			jr fs_gostart
-fs_go:
-			xor a
-			ld (fs_nostore), a
-fs_gostart:
-			ld (fs_sp), sp
-			ld sp, (ntc_csp)
-			ld (fs_six), ix
-			ld (fs_siy), iy
-			ei
-			ld (fs_esp), sp
-			call fs_jphl
-fs_back:
-			di
-			ld ix, (fs_six)
-			ld iy, (fs_siy)
-			ld a, (fs_nostore)
-			or a
-			jr nz, fs_gone
-			ex de, hl
-			ld hl, (fs_res)
-			ld (hl), e
-			inc hl
-			ld (hl), d
-fs_gone:
-			ld sp, (fs_sp)
-			ret
-fs_jphl:
-			jp (hl)
-fs_err:
-			ld sp, (fs_esp)
-			jr fs_back
-
-; fs_start - the first file call: is AMSDOS running? (no ROMs are started here:
-; Option RomEnable does that in the start code)
-fs_start:
-			ld a, (fs_init)
-			or a
-			ret nz
-			inc a
-			ld (fs_init), a
-			ld a, (#BC77)
-			cp #DF				; a far call: AMSDOS has the cassette calls
-			jr nz, fs_st_find	; not running (RUN" dropped it), or |TAPE: tape
-			ld a, 1
-			ld (fs_devd), a
-		IF NTC_ROMENABLE
-			ld hl, fs_n_a1		; started by the program: AMSDOS starts on drive A
-			call fs_addvol
-			ld hl, fs_n_a1
-			ld de, fs_vol
-			ld bc, 2
-			ldir
-		ENDIF
-fs_st_find:
-			ld hl, fs_c_disc
-			call #BCD4			; KL FIND COMMAND: is |DISC there?
-			ld a, 1
-			jr c, fs_st_dos
-			xor a
-fs_st_dos:
-			ld (fs_dos), a
-			ret
-fs_n_a1:		db "A", 0
-
-; fs_rsx - HL = an AMSDOS command's name (last letter + #80): run it, no arguments.
-; Not there goes to fs_err (NotFound)
-fs_rsx:
-			call #BCD4			; KL FIND COMMAND: HL = address, C = ROM
-			jr nc, fs_rx_none
-			xor a				; no arguments
-			ld ix, fs_rx_none	; (the argument list: none)
-			call #001B			; KL FAR PCALL
-			ret
-fs_rx_none:
-			ld hl, FS_NOTFOUND
-			jp fs_err
-
-; fs_strout - HL = text (0 ended) into the String result at (fs_res), cut at its size
-fs_strout:
-			ex de, hl
-			ld hl, (fs_res)
-			dec hl
-			ld b, (hl)			; the capacity
-			inc hl
-			ex de, hl
-fs_so_lp:
-			ld a, (hl)
-			or a
-			jr z, fs_so_end
-			ld c, a
-			ld a, b
-			or a
-			jr z, fs_so_end
-			ld a, c
-			ld (de), a
-			inc hl
-			inc de
-			dec b
-			jr fs_so_lp
-fs_so_end:
-			xor a
-			ld (de), a
-			ret
-
-; fs_same - HL = the program's text, DE = a name in capitals: Z when the same (any case)
-fs_same:
-			ld a, (hl)
-			call fs_up
-			ld c, a
-			ld a, (de)
-			cp c
-			ret nz
-			or a
-			ret z
-			inc hl
-			inc de
-			jr fs_same
-
-; fs_volname - HL = text: a volume name (up to 8 letters, a ':' after it is allowed) into
-; fs_tmpn (capitals) and fs_rsxn (last letter + #80). NZ: not a name
-fs_volname:
-			ld de, fs_tmpn
-			ld b, 0
-fs_vn_lp:
-			ld a, (hl)
-			or a
-			jr z, fs_vn_end
-			cp ':'
-			jr z, fs_vn_colon
-			call fs_up
-			ld (de), a
-			inc hl
-			inc de
-			inc b
-			ld a, b
-			cp 9
-			jr c, fs_vn_lp
-			or a				; too long: NZ (A = 9)
-			ret
-fs_vn_colon:
-			inc hl
-			ld a, (hl)
-			or a
-			ret nz				; something after the ':'
-fs_vn_end:
-			xor a
-			ld (de), a
-			ld a, b
-			or a
-			jr z, fs_vn_bad
-			ld hl, fs_tmpn
-			ld de, fs_rsxn
-			ld c, b
-			ld b, 0
-			ldir
-			dec de
-			ld a, (de)
-			or #80
-			ld (de), a
-			xor a				; Z: a name
-			ret
-fs_vn_bad:
-			inc a				; NZ
-			ret
-
-; fs_addvol - HL = a volume name (capitals, 0 ended): into fs_vols if not there and room
-fs_addvol:
-			ld (fs_len), hl		; (the name)
-			ld de, fs_vols
-fs_av_entry:
-			ld a, (de)
-			or a
-			jr z, fs_av_add		; the end of the list: not there
-			ld hl, (fs_len)
-fs_av_cmp:
-			ld a, (de)
-			cp ','
-			jr z, fs_av_sep
-			or a
-			jr z, fs_av_sep
-			cp (hl)
-			jr nz, fs_av_skip
-			inc hl
-			inc de
-			jr fs_av_cmp
-fs_av_sep:
-			ld a, (hl)			; the entry ended: the same if the name ended too
-			or a
-			ret z
-fs_av_skip:
-			ld a, (de)			; on to the next entry
-			or a
-			jr z, fs_av_add
-			inc de
-			cp ','
-			jr nz, fs_av_skip
-			jr fs_av_entry
-fs_av_add:
-			ld hl, (fs_len)		; DE = the 0 at the end: room for "," + name + 0?
-			push hl
-			ld b, 0
-fs_av_len:
-			ld a, (hl)
-			or a
-			jr z, fs_av_room
-			inc hl
-			inc b
-			jr fs_av_len
-fs_av_room:
-			pop hl
-			push hl
-			ld hl, fs_vols + 145 - 2
-			or a
-			sbc hl, de
-			ld a, h
-			or a
-			jr nz, fs_av_ok		; plenty
-			ld a, l
-			cp b
-			jr nc, fs_av_ok
-			pop hl
-			ret					; full: not added
-fs_av_ok:
-			pop hl
-			ld a, e
-			cp low fs_vols
-			jr nz, fs_av_comma
-			ld a, d
-			cp high fs_vols
-			jr z, fs_av_copy
-fs_av_comma:
-			ld a, ','
-			ld (de), a
-			inc de
-fs_av_copy:
-			ld a, (hl)
-			ld (de), a
-			inc hl
-			inc de
-			or a
-			jr nz, fs_av_copy
-			ret
-
-; fs_namevol - after a Load / Save that worked: a volume in its name ("C:NAME") joins the list
-fs_namevol:
-			ld hl, (fs_a1)
-			ld b, 9
-fs_nv_lp:
-			ld a, (hl)
-			or a
-			ret z
-			cp ':'
-			jr z, fs_nv_found
-			inc hl
-			djnz fs_nv_lp
-			ret
-fs_nv_found:
-			ld a, 9
-			sub b
-			ret z				; ":NAME": no volume
-			ld hl, (fs_a1)
-			ld de, fs_tmpn
-			ld c, a
-			ld b, 0
-fs_nv_cp:
-			ld a, (hl)
-			call fs_up
-			ld (de), a
-			inc hl
-			inc de
-			dec c
-			jr nz, fs_nv_cp
-			xor a
-			ld (de), a
-			ld hl, fs_tmpn
-			jp fs_addvol
-
-; Devices(): "TAPE,DISC" with a DOS, "TAPE" without
-fs_devices:
-			call fs_start
-			ld hl, fs_n_all
-			ld a, (fs_dos)
-			or a
-			jp nz, fs_strout
-			ld hl, fs_n_tape
-			jp fs_strout
-
-; CurrentDevice(): "TAPE" or "DISC"
-fs_curdev:
-			call fs_start
-			ld hl, fs_n_tape
-			ld a, (fs_devd)
-			or a
-			jp z, fs_strout
-			ld hl, fs_n_disc
-			jp fs_strout
-
-; SelectDevice(name): "TAPE" or "DISC" (any case). OK, NotFound
-fs_select:
-			call fs_start
-			ld hl, (fs_a1)
-			ld de, fs_n_tape
-			call fs_same
-			jr z, fs_se_tape
-			ld hl, (fs_a1)
-			ld de, fs_n_disc
-			call fs_same
-			jr nz, fs_se_bad
-			ld a, (fs_dos)
-			or a
-			jr z, fs_se_bad		; no DOS: no disc
-			ld hl, fs_c_disc
-			call fs_rsx
-			ld a, 1
-			jr fs_se_done
-fs_se_tape:
-			ld a, (fs_dos)
-			or a
-			jr z, fs_se_t2		; no DOS: tape anyway
-			ld hl, fs_c_tape
-			call fs_rsx
-fs_se_t2:
-			xor a
-fs_se_done:
-			ld (fs_devd), a
-			ld hl, 0
-			ret
-fs_se_bad:
-			ld hl, FS_NOTFOUND
-			ret
-
-; Volumes(): the volumes that worked so far ("A,C")
-fs_volumes:
-			call fs_start
-			ld hl, fs_vols
-			jp fs_strout
-
-; CurrentVolume(): the volume last selected ("" = not known)
-fs_curvol:
-			call fs_start
-			ld hl, fs_vol
-			jp fs_strout
-
-; SelectVolume(name): runs the DOS's command of that name (|A, |B, |C, |M ... whatever
-; the DOS has). OK, NotFound (no such command). It joins Volumes()
-fs_selvol:
-			call fs_start
-			ld hl, (fs_a1)
-			call fs_volname
-			jr nz, fs_se_bad
-			ld hl, fs_rsxn
-			call fs_rsx
-			ld hl, fs_tmpn
-			ld de, fs_vol
-			ld bc, 9
-			ldir
-			ld hl, fs_tmpn
-			call fs_addvol
-			ld hl, 0
-			ret
-
-; Command(name): run a ROM's command (an RSX: |NAME) with no arguments - AMSDOS, M4,
-; a utility ROM ... OK, NotFound (no ROM has it). Up to 16 letters
-fs_command:
-			call fs_start
-			ld hl, (fs_a1)
-			ld de, fs_rsxn
-			ld b, 0
-fs_cm_lp:
-			ld a, (hl)
-			or a
-			jr z, fs_cm_end
-			call fs_up
-			ld (de), a
-			inc hl
-			inc de
-			inc b
-			ld a, b
-			cp 17
-			jr c, fs_cm_lp
-fs_cm_bad:
-			ld hl, FS_NOTFOUND
-			ret
-fs_cm_end:
-			ld a, b
-			or a
-			jr z, fs_cm_bad
-			dec de
-			ld a, (de)
-			or #80
-			ld (de), a
-			ld hl, fs_rsxn
-			call fs_rsx
-			ld hl, 0
-			ret
-
-fs_up:
-			cp 'a'
-			ret c
-			cp 'z' + 1
-			ret nc
-			sub 32
-			ret
-
-; fs_name - B = length of the name at (fs_a1), HL = the name; an empty or too long name goes to fs_err
-fs_name:
-			ld hl, (fs_a1)
-			ld b, 0
-fs_nm_lp:
-			ld a, (hl)
-			or a
-			jr z, fs_nm_end
-			inc hl
-			inc b
-			ld a, b
-			cp 17
-			jr c, fs_nm_lp
-fs_nm_bad:
-			ld hl, FS_BADNAME
-			jp fs_err
-fs_nm_end:
-			ld a, b
-			or a
-			jr z, fs_nm_bad
-			ld hl, (fs_a1)
-			ret
-
-; Load(name, addr, maxlen): bytes loaded (the file's length), or a status.
-; A file longer than maxlen is not loaded: FS_TOOBIG
-fs_load:
-			call fs_start
-			ld a, (fs_hmode)	; the buffer is the open file's
-			or a
-			ld hl, FS_FAILED
-			jp nz, fs_err
-			call fs_name
-			ld de, fs_buf
-			call #BC77			; CAS IN OPEN: BC = length, carry = ok
-			jr c, fs_ld_open
-			ld hl, FS_NOTFOUND
-			jp fs_err
-fs_ld_open:
-			ld (fs_len), bc
-			ld hl, (fs_a3)
-			or a
-			sbc hl, bc
-			jr nc, fs_ld_fits
-			call #BC7D			; CAS IN ABANDON
-			ld hl, FS_TOOBIG
-			jp fs_err
-fs_ld_fits:
-			ld hl, (fs_a2)
-			call #BC83			; CAS IN DIRECT
-			jr c, fs_ld_read
-			call #BC7D
-			ld hl, FS_FAILED
-			jp fs_err
-fs_ld_read:
-			call #BC7A			; CAS IN CLOSE
-			ld hl, (fs_len)
-			push hl
-			call fs_namevol
-			pop hl
-			ret
-
-; Save(name, addr, len): a binary file (type 2, BASIC can LOAD it back). 0 or a status
-fs_save:
-			call fs_start
-			ld a, (fs_hmode)	; the buffer is the open file's
-			or a
-			ld hl, FS_FAILED
-			jp nz, fs_err
-			call fs_name
-			ld de, fs_buf
-			call #BC8C			; CAS OUT OPEN
-			jr c, fs_sv_open
-			ld hl, FS_FAILED
-			jp fs_err
-fs_sv_open:
-			ld hl, (fs_a2)
-			ld de, (fs_a3)
-			ld bc, 0			; entry address: none
-			ld a, 2				; binary
-			call #BC98			; CAS OUT DIRECT
-			jr c, fs_sv_done
-			call #BC92			; CAS OUT ABANDON
-			ld hl, FS_FAILED
-			jp fs_err
-fs_sv_done:
-			call #BC8F			; CAS OUT CLOSE
-			ld hl, FS_FAILED
-			ret nc
-			call fs_namevol
-			ld hl, 0
-			ret
-
-ntc_rg159_e:
-			IF ($ < 34816) && (ntc_rg160_e - ntc_rg160 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
-			ENDIF
-ntc_rg160:
-;## ntc_plat_fsseq ntc_plat_fs @shared
-; ---- one open file (handle 1), through CAS IN CHAR / CAS OUT CHAR: read a
-; file (any type) byte by byte, or write a new text file (type ASCII, as
-; BASIC's OPENOUT / PRINT #9 make it). The 2K buffer is the one Load / Save
-; use, so Load and Save are refused while a file is open.
-FS_NOHANDLE	equ -5
-FS_BADHANDLE	equ -6
-FS_EOFST	equ -7
-FS_BADMODE	equ -11
-FS_NOTSUP	equ -1
-fs_ptr:			dw 0
-fs_cnt:			db 0
-fs_cap:			db 0
-
-; Open(name, mode): 1, or a status. ForUpdate: NotSupported
-fs_open:
-			call fs_start
-			ld a, (fs_hmode)
-			or a
-			ld hl, FS_NOHANDLE
-			ret nz
-			ld hl, (fs_a2)
-			ld a, h
-			or a
-			jr nz, fs_op_bad
-			ld a, l
-			cp 4
-			jr z, fs_op_in			; ForReadRaw
-			cp 3
-			ld hl, FS_NOTSUP
-			ret z
-			jr nc, fs_op_bad
-			cp 1
-			jr c, fs_op_bad
-			jr nz, fs_op_out
-fs_op_in:
-			ld (fs_raw), a			; 4: raw (a #1A is data), 1: not
-			ld hl, fs_pend
-			ld (hl), 0
-			call fs_name
-			ld de, fs_buf
-			call #BC77			; CAS IN OPEN
-			ld hl, FS_NOTFOUND
-			ret nc
-			ld (fs_ftype), a
-			ld a, 1
-			jr fs_op_ok
-fs_op_out:
-			call fs_name
-			ld de, fs_buf
-			call #BC8C			; CAS OUT OPEN
-			ld hl, FS_FAILED
-			ret nc
-			ld a, 2
-fs_op_ok:
-			ld (fs_hmode), a
-			ld hl, 1
-			ret
-fs_op_bad:
-			ld hl, FS_BADMODE
-			ret
-
-; fs_hchk - (fs_a1) must be handle 1 open for A (1 read, 2 write), else
-; fs_err BadHandle
-fs_hchk:
-			ld hl, (fs_a1)
-			dec hl
-			ld b, a
-			ld a, h
-			or l
-			jr nz, fs_hc_bad
-			ld a, (fs_hmode)
-			cp b
-			ret z
-fs_hc_bad:
-			ld hl, FS_BADHANDLE
-			jp fs_err
-
-; Close(h): OK, or a status (Failed: the last of a written file didn't go)
-fs_closeh:
-			ld hl, (fs_a1)
-			dec hl
-			ld a, h
-			or l
-			jr nz, fs_hc_bad
-			ld a, (fs_hmode)
-			or a
-			jr z, fs_hc_bad
-			ld b, a
-			xor a
-			ld (fs_hmode), a
-			ld a, b
-			cp 1
-			jr nz, fs_cl_out
-			call #BC7A			; CAS IN CLOSE
-			jr fs_cl_ok
-fs_cl_out:
-			call #BC8F			; CAS OUT CLOSE
-			ld hl, FS_FAILED
-			ret nc
-fs_cl_ok:
-			call fs_namevol
-			ld hl, 0
-			ret
-
-; ReadByte(h): 0-255, or EndOfFile
-fs_readb:
-			ld a, 1
-			call fs_hchk
-			call fs_inchar
-			ld hl, FS_EOFST
-			ret nc
-			ld l, a
-			ld h, 0
-			ret
-
-; WriteByte(h, b): OK, or Failed
-fs_writeb:
-			ld a, 2
-			call fs_hchk
-			ld a, (fs_a2)
-			call #BC95			; CAS OUT CHAR
-			ld hl, FS_FAILED
-			ret nc
-			ld hl, 0
-			ret
-
-; fs_inchar - CAS IN CHAR for ReadByte / Read: in a binary file AMSDOS still reports a #1A
-; byte as the soft end of file (no carry, A = #1A) and goes on after it: that is the byte
-; #1A. The same in any file opened ForReadRaw (a file with no header: AMSDOS calls it ASCII
-; text, but the real end is the hard one, #0F, after the last record). Carry = a byte in A;
-; no carry = the end (or an error)
-fs_inchar:
-			ld a, (fs_pend)
-			or a
-			jr z, fs_ic_rd
-			xor a
-			ld (fs_pend), a
-			ld a, (fs_pendc)		; the byte Eof read ahead
-			scf
-			ret
-fs_ic_rd:
-			call #BC80			; CAS IN CHAR
-			ret c
-			cp #1A
-			jr nz, fs_ic_end
-			ld a, (fs_raw)
-			cp 4
-			ld a, #1A
-			scf
-			ret z				; raw: the byte #1A
-			ld a, (fs_ftype)
-			and #0E
-			cp 2
-			ld a, #1A
-			scf
-			ret z				; binary: the byte #1A
-fs_ic_end:
-			or a
-			ret
-fs_raw:			db 0			; Open for reading: 4 = ForReadRaw
-fs_pend:		db 0			; 1: Eof read a byte ahead, in fs_pendc
-fs_pendc:		db 0
-fs_ftype:		db 0			; Open for reading: the file's type (CAS IN OPEN's A: 2 binary, #16 ASCII)
-
-; Read(h, addr, count): bytes read (fewer at the end)
-fs_read:
-			ld a, 1
-			call fs_hchk
-			ld hl, (fs_a2)
-			ld de, (fs_a3)
-			ld bc, 0
-fs_rd_lp:
-			ld a, d
-			or e
-			jr z, fs_rd_end
-			bit 7, d
-			jr nz, fs_rd_end
-			push hl
-			push de
-			push bc
-			call fs_inchar
-			pop bc
-			pop de
-			pop hl
-			jr nc, fs_rd_end
-			ld (hl), a
-			inc hl
-			inc bc
-			dec de
-			jr fs_rd_lp
-fs_rd_end:
-			ld h, b
-			ld l, c
-			ret
-
-; Write(h, addr, count): count, or Failed
-fs_write:
-			ld a, 2
-			call fs_hchk
-			ld hl, (fs_a2)
-			ld de, (fs_a3)
-fs_wr_lp:
-			ld a, d
-			or e
-			jr z, fs_wr_end
-			bit 7, d
-			jr nz, fs_wr_end
-			ld a, (hl)
-			push hl
-			push de
-			call #BC95			; CAS OUT CHAR
-			pop de
-			pop hl
-			jr nc, fs_wr_fail
-			inc hl
-			dec de
-			jr fs_wr_lp
-fs_wr_end:
-			ld hl, (fs_a3)
-			ret
-fs_wr_fail:
-			ld hl, FS_FAILED
-			ret
-
-; Eof(h): True (-1) when there is nothing more to read (or h is not a file being read)
-fs_eof:
-			ld hl, (fs_a1)
-			dec hl
-			ld a, h
-			or l
-			jr nz, fs_ef_yes
-			ld a, (fs_hmode)
-			cp 1
-			jr nz, fs_ef_yes
-			call fs_inchar			; a byte read ahead (CAS TEST EOF at a #1A - a soft end
-			ld hl, -1			; of file - loses bytes: the #1A and more)
-			ret nc
-			ld (fs_pendc), a
-			ld a, 1
-			ld (fs_pend), a
-			ld hl, 0
-			ret
-fs_ef_yes:
-			ld hl, -1
-			ret
-
-; ReadLine(h): the next line (up to LF; CR dropped), "" at the end
-fs_readln:
-			ld hl, (fs_res)
-			ld (hl), 0
-			dec hl
-			ld a, (hl)
-			ld (fs_cap), a			; the result's capacity
-			inc hl
-			ld (fs_ptr), hl
-			xor a
-			ld (fs_cnt), a
-			ld a, 1
-			call fs_hchk
-fs_rl_lp:
-			call fs_inchar
-			jr nc, fs_rl_end
-			cp 10
-			jr z, fs_rl_end
-			cp 13
-			jr z, fs_rl_lp
-			ld c, a
-			ld a, (fs_cap)
-			ld hl, fs_cnt
-			cp (hl)
-			jr z, fs_rl_lp			; full: the rest of the line is dropped
-			inc (hl)
-			ld hl, (fs_ptr)
-			ld (hl), c
-			inc hl
-			ld (fs_ptr), hl
-			jr fs_rl_lp
-fs_rl_end:
-			ld hl, (fs_ptr)
-			ld (hl), 0
-			ret
-
-; WriteLine(h, s): the text and CR LF. OK, or Failed
-fs_writeln:
-			ld a, 2
-			call fs_hchk
-			ld hl, (fs_a2)
-fs_wl_lp:
-			ld a, (hl)
-			or a
-			jr z, fs_wl_end
-			push hl
-			call #BC95			; CAS OUT CHAR
-			pop hl
-			jp nc, fs_wr_fail
-			inc hl
-			jr fs_wl_lp
-fs_wl_end:
-			ld a, 13
-			call #BC95
-			jp nc, fs_wr_fail
-			ld a, 10
-			call #BC95
-			jp nc, fs_wr_fail
-			ld hl, 0
-			ret
-
-ntc_rg160_e:
-			IF ($ < 34816) && (ntc_rg161_e - ntc_rg161 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
-			ENDIF
-ntc_rg161:
+ntc_rg589:
 ;## ntc_plat_memtop ntc_plat_data
 ; ntc_plat_memtop - HL = the first byte the Memory class's Small heap must not
 ; use: #A600 (the firmware's and AMSDOS's RAM is above), #A5F0 when the fast
@@ -11215,11 +13353,11 @@ ntc_plat_memtop:
 			ld hl, (ntc_fwtop)
 			ret
 
-ntc_rg161_e:
-			IF ($ < 34816) && (ntc_rg162_e - ntc_rg162 + $ > 16384)	; fwdref-ok
-			ds 34816 - $		; Option Reserve #4000-#87FF: round it
+ntc_rg589_e:
+			IF ($ < 32768) && (ntc_rg590_e - ntc_rg590 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg162:
+ntc_rg590:
 ;## ntc_plat_rmr ntc_plat_data
 ; ntc_plat_rmr - A = the gate array's ROM / mode byte now: the firmware keeps
 ; it in C' (B' = #7F), so Memory's CallBank can turn both ROMs off and put
@@ -11231,13 +13369,12 @@ ntc_plat_rmr:
 			ret
 
 
-ntc_rg162_e:
+ntc_rg590_e:
 ntc_end:				; the end of the program (and of its file)
-fs_buf			equ ntc_buf		; the 2K buffer CAS IN OPEN / CAS OUT OPEN want (shared with Memory.Copy)
 ; arrays: after the program, not in its file - kw_bssinit checks they fit and clears them
 ntc_bssfrom	equ ntc_end
-			IF (ntc_bssfrom < 34816) && (ntc_bssfrom + ntc_bss_size > 16384)	; fwdref-ok
-ntc_bss		equ 34816		; after Option Reserve #4000-#87FF
+			IF (ntc_bssfrom < 32768) && (ntc_bssfrom + ntc_bss_size > 16384)	; fwdref-ok
+ntc_bss		equ 32768		; after Option Reserve #4000-#7FFF
 			ELSE
 ntc_bss		equ ntc_bssfrom
 			ENDIF
@@ -11246,25 +13383,25 @@ arr_sg		equ ntc_bss + 34		; 34 bytes
 arr_st		equ ntc_bss + 68		; 34 bytes
 arr_kq		equ ntc_bss + 102		; 34 bytes
 arr_wp		equ ntc_bss + 136		; 34 bytes
-arr_dv		equ ntc_bss + 170		; 34 bytes
-arr_ra		equ ntc_bss + 204		; 34 bytes
-arr_wk		equ ntc_bss + 238		; 34 bytes
-arr_tn		equ ntc_bss + 272		; 34 bytes
-arr_nb		equ ntc_bss + 306		; 34 bytes
-arr_nc		equ ntc_bss + 340		; 34 bytes
-arr_lt		equ ntc_bss + 374		; 34 bytes
-arr_lb		equ ntc_bss + 408		; 34 bytes
-arr_lc		equ ntc_bss + 442		; 34 bytes
-arr_hyp_font		equ ntc_bss + 476		; 768 bytes
-arr_ent_en		equ ntc_bss + 1244		; 12 bytes
-ntc_bss_size	equ 1256
+arr_dm		equ ntc_bss + 170		; 34 bytes
+arr_dv		equ ntc_bss + 204		; 34 bytes
+arr_ra		equ ntc_bss + 238		; 34 bytes
+arr_wk		equ ntc_bss + 272		; 34 bytes
+arr_tn		equ ntc_bss + 306		; 34 bytes
+arr_nb		equ ntc_bss + 340		; 34 bytes
+arr_nc		equ ntc_bss + 374		; 34 bytes
+arr_lt		equ ntc_bss + 408		; 34 bytes
+arr_lb		equ ntc_bss + 442		; 34 bytes
+arr_lc		equ ntc_bss + 476		; 34 bytes
+arr_hyp_font		equ ntc_bss + 510		; 768 bytes
+arr_ent_en		equ ntc_bss + 1278		; 12 bytes
+ntc_bss_size	equ 1290
 ntc_free	equ ntc_bss + ntc_bss_size	; the first free byte (heap, Memory tables)
-			IF ntc_free <= 34816	; fwdref-ok
-ntc_memtab	equ 34816		; the Memory class's tables: above the window (Option Reserve)
+			IF ntc_free <= 32768	; fwdref-ok
+ntc_memtab	equ 32768		; the Memory class's tables: above the window (Option Reserve)
 			ELSE
 ntc_memtab	equ ntc_free
 			ENDIF
 ; Option Reserve: the program and its arrays (ntc_start .. ntc_free) must stay out of these
 			ASSERT (ntc_free <= 16384) || (ntc_bss >= 32768), "the program (or its arrays) reaches into Option Reserve #4000-#7FFF (Main.bas line 21)"
-			ASSERT (ntc_free <= 32768) || (ntc_bss >= 34816), "the program (or its arrays) reaches into Option Reserve #8000-#87FF (Main.bas line 22)"
 			SAVEAMSDOS "CYBORGOS.BIN", ntc_start, ntc_end - ntc_start, ntc_start

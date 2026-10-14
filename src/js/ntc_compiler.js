@@ -7270,6 +7270,15 @@ function ntcCompile(input_a, objOptions_a)
 					{
 						objCurrent.shared = true;
 					}
+					else if (arrParts[intJ] === '@data')
+					{
+						objCurrent.shared = true;		// variables: one copy for both modes
+						objCurrent.auto = true;			// linked when a linked section names one of its labels
+					}
+					else if (arrParts[intJ] === '@unit')
+					{
+						objCurrent.auto = true;			// a small routine: linked when a linked section names it
+					}
 					else if (arrParts[intJ] === '@romram')
 					{
 						objCurrent.romram = true;		// in the keyword library ROM this runs from RAM (ntcRomAsm)
@@ -7481,6 +7490,7 @@ function ntcCompile(input_a, objOptions_a)
 	var objLibModeLabels = {};
 	var blnLibLoaded = false;
 	var objLibLabelSection = {};
+	var objLibAutoLabel = {};		// a @data / @unit section's label -> the section
 
 	// the platform file's ;@key value lines: what the compiler needs to know
 	// about the target (org, text form, screen set up, interrupt handler ...)
@@ -7653,14 +7663,27 @@ function ntcCompile(input_a, objOptions_a)
 	// Option Memory: the Memory class's scheme (decided before parsing: it sets
 	// NTC_MEM_SMALL / NTC_MEM_CPCEXPANSION). Default: the CPC expansion RAM on the
 	// CPC platforms, Small (main RAM only) elsewhere
-	function findMemory(arrFiles_a)
+	function findMemory(arrFiles_a, blnActive_a)
 	{
 		var objResult = { scheme: ((objOptions.platform === 'cpc') || (objOptions.platform === 'cpcmin') || (objOptions.platform === 'cpcfw')) ? 'cpcexpansion' : 'small', max: 257 };
 
 		arrFiles_a.forEach(function(objFile_a)
 		{
-			var arrMatch = String(objFile_a.text).match(/^[ \t]*option[ \t]+memory[ \t]+(small|cpcexpansion)\b[ \t,]*(&h[0-9a-f]+|#[0-9a-f]+|\d+)?/im);
+			var arrMatch = null;
 
+			if (blnActive_a)
+			{
+				// (the defines are known: an Option Memory in a #If that is off doesn't count)
+				activeLines(objFile_a.text).some(function(objLine_a)
+				{
+					arrMatch = String(objLine_a.text).match(/^[ \t]*option[ \t]+memory[ \t]+(small|cpcexpansion)\b[ \t,]*(&h[0-9a-f]+|#[0-9a-f]+|\d+)?/i);
+					return arrMatch !== null;
+				});
+			}
+			else
+			{
+				arrMatch = String(objFile_a.text).match(/^[ \t]*option[ \t]+memory[ \t]+(small|cpcexpansion)\b[ \t,]*(&h[0-9a-f]+|#[0-9a-f]+|\d+)?/im);
+			}
 			if (arrMatch)
 			{
 				objResult.scheme = arrMatch[1].toLowerCase();
@@ -8232,8 +8255,56 @@ function ntcCompile(input_a, objOptions_a)
 				}
 			});
 		});
+		// @data / @unit sections: linked by name - each section's words that are one of their
+		// labels (defined once) - so no header has to list them (linkLibrary)
+		objLibAutoLabel = {};
+		var objCount = {};
+		arrLibOrder.forEach(function(strName_a)
+		{
+			var objSeen = {};		// (a label twice in one section - IF / ELSE - counts once)
+			objLibSections[strName_a].labels.forEach(function(strLabel_a)
+			{
+				if (!objSeen[strLabel_a]) { objSeen[strLabel_a] = true; objCount[strLabel_a] = (objCount[strLabel_a] || 0) + 1; }
+			});
+		});
+		arrLibOrder.forEach(function(strName_a)
+		{
+			if (objLibSections[strName_a].auto)
+			{
+				objLibSections[strName_a].labels.forEach(function(strLabel_a)
+				{
+					if (objCount[strLabel_a] === 1)
+					{
+						objLibAutoLabel[strLabel_a] = strName_a;
+					}
+				});
+			}
+		});
 		blnLibLoaded = true;
 		return '';
+	}
+
+	// the @data / @unit sections a section's code names (cached on the section)
+	function autoUses(objSection_a)
+	{
+		if (objSection_a.autouses === undefined)
+		{
+			var objU = {};
+			objSection_a.lines.forEach(function(strLine_a)
+			{
+				var strCode = strLine_a.substr(0, codePart(strLine_a)).replace(/"[^"]*"/g, '').replace(/'[^']*'/g, '');
+				(strCode.replace(/^[A-Za-z_]\w*:/, '').match(/[A-Za-z_]\w*/g) || []).forEach(function(str_a)
+				{
+					var strSec = objLibAutoLabel[str_a];
+					if ((strSec !== undefined) && (strSec !== objSection_a.name))
+					{
+						objU[strSec] = true;
+					}
+				});
+			});
+			objSection_a.autouses = Object.keys(objU);
+		}
+		return objSection_a.autouses;
 	}
 
 	// a keyword that has a normal mode copy (else one copy for both modes)
@@ -8279,6 +8350,8 @@ function ntcCompile(input_a, objOptions_a)
 		var blnLib = false;
 		var intI = 0;
 		var blnWin = false;
+		var blnStrs = false;
+		var blnVars = false;
 
 		arrReserve.filter(function(objR_a) { return objR_a.start > orgNum(); }).map(function(objR_a) { return { s: objR_a.start, e: objR_a.start + objR_a.size }; })
 			.sort(function(a_a, b_a) { return a_a.s - b_a.s; }).forEach(function(objH_a)
@@ -8436,7 +8509,25 @@ function ntcCompile(input_a, objOptions_a)
 					if (/^; Keyword library \(/.test(strL)) { blnLib = true; }
 					if (/^;## /.test(strL) || (!blnLib && (strL === '; ============================================================') && (arrIn[intI + 2] === '; ============================================================')))
 					{
+						blnStrs = !blnLib && (arrIn[intI + 1] === '; Strings');
+						blnVars = !blnLib && (arrIn[intI + 1] === '; Variables');
 						guard();
+					}
+					else if (blnStrs && /^str\w*:/.test(strL))
+					{
+						guard();	// each string on its own: the strings fill what is left below the hole
+					}
+					else if (blnVars)
+					{
+						// each variable on its own too, with a prefix line before it (a string's
+						// capacity byte) kept with it
+						var blnLabel = /^[A-Za-z_]\w*:/.test(strL);
+						var blnPrefix = !blnLabel && /^\s+(db|dw)\b/i.test(strL) && /^[A-Za-z_]\w*:/.test(arrIn[intI + 1] || '');
+						var blnAfterPrefix = blnLabel && /^\s+(db|dw)\b/i.test(arrIn[intI - 1] || '') && !/^[A-Za-z_]\w*:/.test(arrIn[intI - 1] || '');
+						if (blnPrefix || (blnLabel && !blnAfterPrefix))
+						{
+							guard();
+						}
 					}
 				}
 			}
@@ -8556,6 +8647,10 @@ function ntcCompile(input_a, objOptions_a)
 			{
 				arrQueue.push({ name: objSection.deps[intI], mode: (strMode_ === 's') ? 't' : strMode_ });
 			}
+			autoUses(objSection).forEach(function(strSec_a)
+			{
+				arrQueue.push({ name: strSec_a, mode: (strMode_ === 's') ? 't' : strMode_ });
+			});
 		}
 
 		for (intI = 0; intI < arrOrder.length; intI++)
@@ -8639,7 +8734,7 @@ function ntcCompile(input_a, objOptions_a)
 	}
 	scanPages(arrFiles);
 	arrFiles = addOverlayMembers(arrFiles);
-	objMemory = findMemory(arrFiles);
+	objMemory = findMemory(arrFiles, true);
 	blnMemoryUsed = arrFiles.some(function(objFile_a) { return /(^|[\/\\])(memory|list)\.cls$/i.test(String(objFile_a.name)); });
 	if (strTerminal !== 'none')
 	{
@@ -9036,9 +9131,16 @@ function ntcCompile(input_a, objOptions_a)
 		// A program that was CALLed still has them (CAS IN OPEN is AMSDOS's far call, #DF)
 		arrAsm.push(strIndent + 'ld a, (#BC77)\t\t; Option RomEnable: start the ROMs again');
 		arrAsm.push(strIndent + 'cp #DF\t\t\t; AMSDOS has the cassette calls: they are running');
-		arrAsm.push(strIndent + 'jr z, ntc_roms_on');
+		arrAsm.push(strIndent + 'jp z, ntc_roms_on');
 		arrAsm.push(strIndent + 'ei');
-		arrAsm.push(strIndent + 'ld de, ntc_free\t\t; the lowest address the ROMs may use (above the arrays)');
+		if (objOptions.library === 'rom')
+		{
+			arrAsm.push(strIndent + 'ld de, #A5F0\t\t; the lowest address the ROMs may use (the keyword ROM\'s RAM is below)');
+		}
+		else
+		{
+			arrAsm.push(strIndent + 'ld de, ntc_free\t\t; the lowest address the ROMs may use (above the arrays)');
+		}
 		arrAsm.push(strIndent + 'ld hl, #ABFF\t\t; the highest (as usual for AMSDOS: it takes about #A700-#ABFF)');
 		if (arrRomEnable[0] === 'all')
 		{
@@ -9052,6 +9154,66 @@ function ntcCompile(input_a, objOptions_a)
 				arrAsm.push(strIndent + 'call #BCCE\t\t; KL INIT BACK: ROM ' + intRom_a + ' (DE / HL come back as the new limits)');
 			});
 		}
+		// the ROMs took their RAM from #ABFF down: HL = the highest byte left. More ROMs than
+		// AMSDOS (an IDE / SD interface's ...) may take more than #A700-#ABFF. cpcfw (library in
+		// RAM): the event block and the top of free RAM (heap, Memory's tables) go under the
+		// ROMs' RAM - stopped only when the program and its arrays reach it. Elsewhere (cpcmin,
+		// Library: ROM - the ROM's RAM is fixed): #A600 and up must be left free
+		arrAsm.push(strIndent + 'inc hl\t\t\t; the first byte the ROMs took');
+		arrAsm.push(strIndent + 'ld (ntc_roms_at), hl');
+		arrAsm.push(strIndent + 'ld de, #A600');
+		arrAsm.push(strIndent + 'or a');
+		arrAsm.push(strIndent + 'sbc hl, de');
+		arrAsm.push(strIndent + 'jp nc, ntc_roms_fit\t; AMSDOS alone (or no more): as usual');
+		if ((objOptions.platform === 'cpcfw') && (objOptions.library !== 'rom'))
+		{
+			objUsedT['ntc_plat_data'] = true;
+			arrAsm.push(strIndent + 'ld hl, (ntc_roms_at)');
+			arrAsm.push(strIndent + 'ld de, -16');
+			arrAsm.push(strIndent + 'add hl, de\t\t; the event block under the ROMs\' RAM: the new top');
+			arrAsm.push(strIndent + 'ld (ntc_fwblk), hl');
+			arrAsm.push(strIndent + 'ld (ntc_fwtop), hl');
+			arrAsm.push(strIndent + 'ld de, ntc_free');
+			arrAsm.push(strIndent + 'or a');
+			arrAsm.push(strIndent + 'sbc hl, de');
+			arrAsm.push(strIndent + 'jp nc, ntc_roms_fit\t; the program still ends below it');
+		}
+		arrAsm.push(strIndent + 'ld hl, ntc_roms_msg');
+		arrAsm.push(strIndent + 'call ntc_roms_puts');
+		arrAsm.push(strIndent + 'ld a, (ntc_roms_at + 1)');
+		arrAsm.push(strIndent + 'call ntc_roms_hex');
+		arrAsm.push(strIndent + 'ld a, (ntc_roms_at)');
+		arrAsm.push(strIndent + 'call ntc_roms_hex');
+		arrAsm.push(strIndent + 'ld hl, ntc_roms_msg2');
+		arrAsm.push(strIndent + 'call ntc_roms_puts');
+		arrAsm.push(strIndent + 'call #BB06\t\t; KM WAIT CHAR');
+		arrAsm.push(strIndent + 'rst 0\t\t\t; (the machine starts again)');
+		arrAsm.push('ntc_roms_puts:');
+		arrAsm.push(strIndent + 'ld a, (hl)');
+		arrAsm.push(strIndent + 'or a');
+		arrAsm.push(strIndent + 'ret z');
+		arrAsm.push(strIndent + 'call #BB5A\t\t; TXT OUTPUT');
+		arrAsm.push(strIndent + 'inc hl');
+		arrAsm.push(strIndent + 'jr ntc_roms_puts');
+		arrAsm.push('ntc_roms_hex:');
+		arrAsm.push(strIndent + 'push af');
+		arrAsm.push(strIndent + 'rrca');
+		arrAsm.push(strIndent + 'rrca');
+		arrAsm.push(strIndent + 'rrca');
+		arrAsm.push(strIndent + 'rrca');
+		arrAsm.push(strIndent + 'call ntc_roms_dig');
+		arrAsm.push(strIndent + 'pop af');
+		arrAsm.push('ntc_roms_dig:');
+		arrAsm.push(strIndent + 'and 15');
+		arrAsm.push(strIndent + 'add a, #90');
+		arrAsm.push(strIndent + 'daa');
+		arrAsm.push(strIndent + 'adc a, #40');
+		arrAsm.push(strIndent + 'daa');
+		arrAsm.push(strIndent + 'jp #BB5A');
+		arrAsm.push('ntc_roms_at:\tdw 0');
+		arrAsm.push('ntc_roms_msg:\tdb "The ROMs\' RAM reaches down to #", 0');
+		arrAsm.push('ntc_roms_msg2:\tdb ": no room for this program", 13, 10, "(fewer ROMs, or a smaller program)", 13, 10, "Press a key", 13, 10, 0');
+		arrAsm.push('ntc_roms_fit:');
 		arrAsm.push(strIndent + 'di');
 		arrAsm.push(strIndent + 'ASSERT ntc_free <= #A600, "Option RomEnable: the program and its arrays must end below #A600 (the ROMs take their RAM from #ABFF down)"');
 		arrAsm.push('ntc_roms_on:');
@@ -10400,6 +10562,7 @@ function ntcRomAsm(strPlatform_a, strReg_a, objOpt_a)
 	// cleared), constants. A label with data after it is a variable; unlabelled data between
 	// instructions is code (inline opcodes). The Graphics section runs from RAM: it reads the
 	// screen, which the upper ROM hides
+	var blnPrevData = false;
 	arrSections.forEach(function(objSec_a)
 	{
 		var objItem = null;
@@ -10407,7 +10570,15 @@ function ntcRomAsm(strPlatform_a, strReg_a, objOpt_a)
 		var arrPrefix = [];			// unlabelled data after a buffer (ds): the next variable's (a capacity byte)
 		var blnRam = (objSec_a.name === 'ntc_gfx') || /\s@romram\b/.test(objSec_a.header);
 
-		intRun++;		// a run: variables one after another in the source - kept together, in order
+		// a run: variables one after another in the source - kept together, in order. @data
+		// sections straight after each other (ntc_data's split) stay one run: the registry
+		// keeps the order their variables had as one section
+		var blnDataSec = /\s@data\b/.test(objSec_a.header);
+		if (!(blnDataSec && blnPrevData))
+		{
+			intRun++;
+		}
+		blnPrevData = blnDataSec || (objSec_a.name === 'ntc_data');
 		var arrTo = blnRam ? arrInit : arrCode;		// the code that runs from RAM goes into the image
 
 		function prefixBack()
@@ -10481,6 +10652,11 @@ function ntcRomAsm(strPlatform_a, strReg_a, objOpt_a)
 				prefixBack();
 				objItem.lines.push(strLine_a);
 				objItem.ds = objItem.ds && blnDs;
+				return;
+			}
+			if (blnData && blnDataSec && (objItem === null) && (arrPending.length === 0))
+			{
+				arrPrefix.push(strLine_a);		// a @data section's first, unlabelled data: the next variable's (a capacity byte)
 				return;
 			}
 			if (objItem !== null)
@@ -10971,7 +11147,8 @@ function ntcRomAsm(strPlatform_a, strReg_a, objOpt_a)
 	arrOut.push('NTC_ROMBSS\tequ ' + hex4(NTC_ROM_BSS) + '\t\t; its other variables, cleared');
 	arrOut.push('NTC_STRMAX\tequ 255\t\t\t; strings up to 255 characters (programs built for the ROM use 255)');
 	arrOut.push('NTC_MEMBANKS\tequ 64\t\t\t; the Memory class: up to 4MB');
-	arrOut.push('NTC_WINHOLE\tequ 0\t\t\t; (a program built round the window has its library in RAM)');
+	arrOut.push('NTC_WINHOLE\tequ 0\t\t\t; (a program built round the window: seen at run time, its free RAM above #8000)');
+	arrOut.push('NTC_ROMLIB\tequ 1\t\t\t; this is the keyword ROM');
 	arrOut.push('NTC_ROM_N\tequ ' + arrSyms.length + '\t\t\t; numbers in the index');
 	arrOut.push('NTC_ROM_COUNT\tequ ' + intRoms + '\t\t\t; ROMs in the set (' + ntcRomFile(strPlatform_a) + '.ROM' + ((intRoms > 1) ? ' ... ' + ntcRomFile(strPlatform_a) + intRoms + '.ROM' : '') + ')');
 	arrOut.push('NTC_ROM_SET\tequ ' + hex4(intSet) + '\t\t; the set\'s stamp (its ROMs find each other by it)');

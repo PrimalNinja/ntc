@@ -242,6 +242,8 @@ ntc_nl_do:
 			ld (ntc_cury), a
 			jp (ix)
 
+
+;## ntc_plat_backspace @unit ntc_plat_screen ntc_plat_data ntc_font ntc_data ntc_plat_scroll @shared
 ; ------------------------------------------------------------
 ; ntc_plat_backspace - cursor back one and blank that cell
 ; ------------------------------------------------------------
@@ -267,6 +269,7 @@ ntc_bs_col:
 ntc_bs_none:
 			jp (ix)
 
+;## ntc_plat_mode @unit ntc_plat_screen ntc_plat_data ntc_font ntc_data ntc_plat_scroll @shared
 ; ------------------------------------------------------------
 ; ntc_plat_mode - A = mode (0-2, 3 = 2). Gate array mode with both
 ; ROMs off, set text layout, clear screen
@@ -337,6 +340,7 @@ ntc_fontcopy:
 			jp ntc_md_set
 ntc_fontcopy_end:
 
+;## ntc_plat_locate @unit ntc_plat_screen ntc_plat_data ntc_font ntc_data ntc_plat_scroll @shared
 ; ------------------------------------------------------------
 ; ntc_plat_locate - H = column, L = row, 1 based, kept on screen
 ; ------------------------------------------------------------
@@ -367,7 +371,6 @@ ntc_lc_y0:
 ntc_lc_ymax:
 			ld (ntc_cury), a
 			jp (ix)
-
 ;## ntc_plat_scroll ntc_plat_data ntc_data @shared @romram
 ; ------------------------------------------------------------
 ; ntc_plat_scroll - move rows 1-24 up one, clear row 24

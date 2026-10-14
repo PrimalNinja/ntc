@@ -42,6 +42,8 @@ ntc_irqv:		dw 0			; interrupt classes' counting (ntc_isl_tick), 0 = none
 ntc_irqix:		dw 0
 NTC_FWBLK	equ #A5F0		; the fast ticker's event block (central 32K, below the firmware)
 ntc_fwtop:		dw #A600		; the top of free RAM (#A5F0 with the fast ticker's block)
+ntc_fwblk:		dw NTC_FWBLK		; the fast ticker's event block: lower (and the top with it) when the ROMs
+								; started take more RAM than AMSDOS's #A700-#ABFF (Option RomEnable)
 
 ;## ntc_plat_fw ntc_plat_data ntc_data @shared
 ; ------------------------------------------------------------
@@ -122,6 +124,9 @@ ntc_nl_row:
 			ld ix, (ntc_pclink)
 			jp (ix)
 
+ntc_pclink:		dw 0
+
+;## ntc_plat_backspace @unit ntc_plat_screen ntc_plat_fw ntc_plat_data ntc_data
 ; ntc_plat_backspace - back one, blank it, back again
 ntc_plat_backspace:
 			xor a
@@ -156,6 +161,7 @@ ntc_bs_back:
 ntc_bs_none:
 			jp (ix)
 
+;## ntc_plat_cls @unit ntc_plat_screen ntc_plat_fw ntc_plat_data ntc_data
 ; ntc_plat_cls - TXT CLEAR WINDOW, cursor home
 ntc_plat_cls:
 			xor a
@@ -165,6 +171,7 @@ ntc_plat_cls:
 			ld iy, #BB6C			; TXT CLEAR WINDOW
 			jp ntc_fwcall
 
+;## ntc_plat_mode @unit ntc_plat_screen ntc_plat_fw ntc_plat_data ntc_data
 ; ntc_plat_mode - A = mode 0-2 (3 = 2): SCR SET MODE (clears)
 ntc_plat_mode:
 			cp 3
@@ -191,6 +198,7 @@ ntc_md_set:
 			ld iy, #BC0E			; SCR SET MODE
 			jp ntc_fwcall
 
+;## ntc_plat_locate @unit ntc_plat_screen ntc_plat_fw ntc_plat_data ntc_data
 ; ntc_plat_locate - H = column, L = row, 1 based: TXT SET CURSOR
 ntc_plat_locate:
 			ld a, h
@@ -213,8 +221,6 @@ ntc_lc_y:
 			ld (ntc_cury), a
 			ld iy, #BB75			; TXT SET CURSOR
 			jp ntc_fwcall
-ntc_pclink:		dw 0
-
 ;## ntc_plat_key ntc_plat_fw ntc_data
 ; ntc_plat_scankey - A = key from the firmware's buffer, or 0
 ntc_plat_scankey:
@@ -259,7 +265,7 @@ ntc_plat_exit:
 			xor a
 			ld (ntc_irqset), a
 			ld (ntc_irqix), ix
-			ld hl, NTC_FWBLK
+			ld hl, (ntc_fwblk)
 			ld iy, #BCE6		; KL DEL FAST TICKER
 			ld ix, ntc_ex_back
 			jp ntc_fwcall
@@ -286,7 +292,7 @@ ntc_ex_done:
 ; ------------------------------------------------------------
 ntc_plat_irqon:
 			ld (ntc_irqix), ix
-			ld hl, NTC_FWBLK
+			ld hl, (ntc_fwblk)
 			ld (ntc_fwtop), hl
 			ld b, #80				; asynchronous, far address (not express: see above)
 			ld c, #FF				; ROM select: upper and lower ROM off

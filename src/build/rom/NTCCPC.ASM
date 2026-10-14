@@ -7,15 +7,15 @@ NTC_ROMDATA	equ #8800		; its initialised variables (and RAM code), copied by ntc
 NTC_ROMBSS	equ #9400		; its other variables, cleared
 NTC_STRMAX	equ 255			; strings up to 255 characters (programs built for the ROM use 255)
 NTC_MEMBANKS	equ 64			; the Memory class: up to 4MB
-NTC_WINHOLE	equ 0			; (a program built round the window has its library in RAM)
-NTC_ROM_N	equ 322			; numbers in the index
+NTC_WINHOLE	equ 0			; (a program built round the window: seen at run time, its free RAM above #8000)
+NTC_ROMLIB	equ 1			; this is the keyword ROM
+NTC_ROM_N	equ 325			; numbers in the index
 NTC_ROM_COUNT	equ 1			; ROMs in the set (NTCCPC.ROM)
-NTC_ROM_SET	equ #1D12		; the set's stamp (its ROMs find each other by it)
+NTC_ROM_SET	equ #9BC1		; the set's stamp (its ROMs find each other by it)
 MEM_WIN		equ #4000
 MEM_BADPAGE	equ -2
 MEM_BANKS	equ NTC_MEMBANKS	; 0 - 64
-MEM_LISTS	equ 7
-MEM_LB		equ 6			; the whole-bank list
+MEM_LB		equ 6			; the whole-bank kind (mem_kinds)
 LST_FIRST	equ 0
 LST_LAST	equ 4
 LST_COUNT	equ 8
@@ -462,9 +462,27 @@ ntc_rom_index:
 			dw ntc_urom_off		; 319
 			dw ntc_urom_on		; 320
 			dw kw_waitkey		; 321
+			dw ntc_plat_backspace		; 322
+			dw ntc_plat_mode		; 323
+			dw ntc_plat_locate		; 324
 ; ---- the library (code)
-;## ntc_data @shared
+;## ntc_data @shared ntc_d_nmode
 ntc_next:		ret				; IX target that continues the thread
+;## ntc_d_ticks @data
+;## ntc_d_gnlo @data
+;## ntc_d_nmode @data
+;## ntc_d_div @data
+;## ntc_d_lead @data
+;## ntc_d_icnt @data
+;## ntc_d_sptr @data
+;## ntc_d_iptr @data
+;## ntc_d_ivar @data
+;## ntc_d_aptr @data
+;## ntc_d_hook @data
+;## ntc_d_hostix @data
+;## ntc_d_rampt @data
+;## ntc_d_numbuf @data
+;## ntc_d_inbuf @data
 ;## ntc_gstack
 ;## kw_stop ntc_data ntc_plat_exit @shared
 kw_stop:
@@ -5879,6 +5897,9 @@ mem_start:
 	IF NTC_WINHOLE
 			jr mem_st_prog			; the program is built round the window (Option Reserve)
 	ENDIF
+			ld a, h
+			cp #80
+			jr nc, mem_st_prog
 			ld de, MEM_WIN + 1		; the program must be out of the window:
 			or a					; it ends by #4000 ...
 			sbc hl, de
@@ -5934,7 +5955,7 @@ mem_pr_mark:
 			out (c), c
 			ld a, #A5
 			ld (MEM_WIN), a
-			ld hl, mem_bank
+			ld hl, mem_found
 			ld d, 0
 			ld e, 0
 mem_pr_read:
@@ -5947,9 +5968,7 @@ mem_pr_read:
 			cp (hl)
 			pop hl
 			jr nz, mem_pr_none
-			ld (hl), c				; this bank is there
-			inc hl
-			ld (hl), b
+			ld (hl), e				; this bank is there
 			inc hl
 			inc d
 mem_pr_none:
@@ -5990,6 +6009,13 @@ mem_pr_di:
 			call ntc_plat_memtop		; built round the window: the tables go above it
 			jr mem_tb_lim			; (ntc_memtab), up to the platform's top
 	ENDIF
+			ld hl, (ntc_v_free)			; NTC_WINHOLE here) has its free RAM above it - up to the top
+			ld a, h
+			cp #80
+			jr c, mem_tb_low
+			call ntc_plat_memtop
+			jr mem_tb_lim
+mem_tb_low:
 			ld de, (ntc_csp)		; the tables must end by #4000, or 128 bytes
 			ld hl, MEM_WIN			; under the real stack when it is lower
 			or a
@@ -6039,19 +6065,62 @@ mem_tb_ok:
 	ELSE
 			ld hl, (ntc_v_free)
 	ENDIF
-			ld (mem_tnext), hl
+			ld (mem_tport), hl
 			ld de, (mem_count)
 			add hl, de
 			add hl, de
 			ld (mem_ttype), hl
-			ld bc, (mem_count)		; every page onto its free list, the last
-mem_tb_free:
+			ld bc, (mem_count)		; the RAT: every page free
+			ld (hl), '-'
+			dec bc
 			ld a, b
 			or c
+			jr z, mem_tb_ports
+			ld d, h
+			ld e, l
+			inc de
+			ldir
+mem_tb_ports:
+			ld hl, (mem_tport)
+			ld (hl), #C0
+			inc hl
+			ld (hl), #7F
+			inc hl
+			ld de, (mem_count)
+			dec de					; DE = pages left
+			ld bc, mem_found
+			ld (mem_fp), bc
+mem_tb_bk:
+			ld a, d
+			or e
 			ret z
-			call mem_tofree
-			dec bc
-			jr mem_tb_free
+			push de
+			ld bc, (mem_fp)
+			ld a, (bc)
+			inc bc
+			ld (mem_fp), bc
+			ld e, a
+			call mem_jbc			; BC = its page 0's port (keeps DE, HL)
+			pop de
+			ld a, 4
+mem_tb_pg:
+			ld (hl), c
+			inc hl
+			ld (hl), b
+			inc hl
+			inc c
+			dec de
+			push af
+			ld a, d
+			or e
+			jr z, mem_tb_pend		; (fewer pages than found: the rest left out)
+			pop af
+			dec a
+			jr nz, mem_tb_pg
+			jr mem_tb_bk
+mem_tb_pend:
+			pop af
+			ret
 mem_jbc:
 			ld a, e
 			rrca
@@ -6083,27 +6152,17 @@ mem_sel:
 			jr z, mem_se_end
 mem_se_do:
 			ld (mem_cur), hl
-			dec hl
 			ld a, h
 			or l
-			ld bc, #7FC0
+			ld bc, #7FC0			; (0: plain RAM)
 			jr z, mem_se_out
-			dec hl					; page 2+: bank (page - 2) / 4, page in it (page - 2) and 3
-			ld a, l
-			and 3
-			ld c, a
-			srl h
-			rr l
-			srl h
-			rr l
-			add hl, hl
-			ld de, mem_bank
+			add hl, hl				; its port from the port table
+			ld de, (mem_tport)
 			add hl, de
-			ld a, (hl)
-			add a, c
-			ld c, a
-			inc hl
+			dec hl
 			ld b, (hl)
+			dec hl
+			ld c, (hl)
 mem_se_out:
 			ld (ntc_rampt), bc
 			out (c), c
@@ -6131,39 +6190,6 @@ mem_tpb:
 			add hl, bc
 			dec hl
 			ret
-mem_npb:
-			ld hl, (mem_tnext)
-			add hl, bc
-			add hl, bc
-			dec hl
-			dec hl
-			ret
-mem_lha:
-			push de
-			ld l, a
-			ld h, 0
-			add hl, hl
-			ld de, mem_head
-			add hl, de
-			pop de
-			ret
-mem_cntadd:
-			push de
-			ld de, MEM_LISTS * 2
-			add hl, de
-			ld e, a
-			rla
-			sbc a, a
-			ld d, a					; DE = A, sign extended
-			ld a, (hl)
-			add a, e
-			ld (hl), a
-			inc hl
-			ld a, (hl)
-			adc a, d
-			ld (hl), a
-			pop de
-			ret
 mem_push:
 			push af
 			push de
@@ -6174,128 +6200,89 @@ mem_push:
 			ld a, (hl)
 			call mem_tpb
 			ld (hl), a
-			ld a, e
-			call mem_lha
-			ld e, (hl)				; DE = the old first page
-			inc hl
-			ld d, (hl)
-			ld (hl), b				; the page is first now
-			dec hl
-			ld (hl), c
-			push hl
-			call mem_npb
-			ld (hl), e
-			inc hl
-			ld (hl), d
-			pop hl
-			ld a, 1
-			call mem_cntadd
 			pop de
 			pop af
 			ret
-mem_pop:
-			push de
-			call mem_lha
-			ld c, (hl)
-			inc hl
-			ld b, (hl)
-			dec hl
-			ld a, b
-			or c
-			jr z, mem_po_end
-			push hl
-			call mem_npb
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			pop hl
-			ld (hl), e
-			inc hl
-			ld (hl), d
-			dec hl
-			ld a, -1
-			call mem_cntadd
-			ld a, 1
-			or a
-mem_po_end:
-			pop de
-			ret
 mem_remove:
-			push de
-			call mem_lha
-			push hl					; the head, for the count
-mem_rm_lp:
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			dec hl
-			ld a, d
-			or e
-			jr z, mem_rm_no
-			ld a, e
-			cp c
-			jr nz, mem_rm_nx
-			ld a, d
-			cp b
-			jr z, mem_rm_hit
-mem_rm_nx:
-			push bc
-			ld b, d
-			ld c, e
-			call mem_npb
-			pop bc
-			jr mem_rm_lp
-mem_rm_hit:
-			push hl					; the link now skips the page
-			call mem_npb
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			pop hl
-			ld (hl), e
-			inc hl
-			ld (hl), d
-			pop hl
-			ld a, -1
-			call mem_cntadd
 			ld a, 1
 			or a
-			pop de
-			ret
-mem_rm_no:
-			pop hl
-			xor a
-			pop de
 			ret
 mem_lowhigh:
 			push de
 			ld h, b
 			ld l, c
-			dec hl
-			ld a, h
-			or l
-			jr z, mem_lh_low
-			dec hl
-			srl h
-			rr l
-			srl h
-			rr l
 			add hl, hl
-			ld de, mem_bank + 1
+			ld de, (mem_tport)
 			add hl, de
+			dec hl					; its port's high byte
 			ld a, (hl)
+			pop de
 			cp #7F
-			jr z, mem_lh_low
-			ld a, 1
-			pop de
-			ret
-mem_lh_low:
-			xor a
-			pop de
+			ld a, 0
+			ret z
+			inc a
 			ret
 mem_tofree:
+			call mem_tpb
+			ld (hl), '-'
+			ret
+mem_scan:
+			ld (mem_sw), a
+			ld hl, (mem_ttype)
+			ld bc, (mem_count)
+mem_sc_lp:
+			ld a, b
+			or c
+			ret z
+			ld a, '-'
+			cpir
+			jr nz, mem_sc_none
+			push bc
+			push hl
+			ld de, (mem_ttype)
+			or a
+			sbc hl, de				; the page: its entry is at HL - 1
+			ld b, h
+			ld c, l
+			ld a, (mem_sw)
+			cp 2
+			jr z, mem_sc_hit
 			call mem_lowhigh
-			jp mem_push
+			ld hl, mem_sw
+			cp (hl)
+			jr z, mem_sc_hit
+			pop hl
+			pop bc
+			jr mem_sc_lp
+mem_sc_hit:
+			pop af
+			pop af
+			ld a, 1
+			or a
+			ret
+mem_sc_none:
+			xor a
+			ret
+mem_dnext:
+			ld hl, (mem_count)
+			or a
+			sbc hl, bc
+			ret z
+			push hl
+			ld hl, (mem_ttype)
+			add hl, bc
+			pop bc
+			ld a, 'D'
+			cpir
+			jr nz, mem_sc_none
+			ld de, (mem_ttype)
+			or a
+			sbc hl, de
+			ld b, h
+			ld c, l
+			ld a, 1
+			or a
+			ret
 mem_listof:
 			call mem_tpb
 			ld a, (hl)
@@ -6310,7 +6297,7 @@ mem_lo_lp:
 			inc c
 			djnz mem_lo_lp
 			pop bc
-			jr mem_lowhigh
+			jp mem_lowhigh
 mem_lo_got:
 			ld a, c
 			pop bc
@@ -6334,20 +6321,14 @@ mem_kl_got:
 mem_take:
 			ld (mem_tl), a
 			cp 3
-			jr z, mem_tk_high
-			xor a
-			call mem_pop
-			jr nz, mem_tk_got
 			ld a, 1
-			call mem_pop
-			ret z
-			jr mem_tk_got
-mem_tk_high:
-			ld a, 1
-			call mem_pop
-			jr nz, mem_tk_got
+			jr z, mem_tk_s
 			xor a
-			call mem_pop
+mem_tk_s:
+			call mem_scan
+			jr nz, mem_tk_got
+			ld a, 2
+			call mem_scan
 			ret z
 mem_tk_got:
 			ld a, (mem_tl)
@@ -6369,9 +6350,24 @@ mem_pages:
 			ld hl, (mem_count)
 			ret
 mem_freepages:
-			ld hl, (mem_cnt)
-			ld de, (mem_cnt + 2)
-			add hl, de
+			ld hl, (mem_count)
+			ld a, h
+			or l
+			ret z
+			ld b, h
+			ld c, l
+			ld hl, (mem_ttype)
+			ld de, 0
+mem_fp_lp:
+			ld a, '-'
+			cpir
+			jr nz, mem_fp_end
+			inc de
+			ld a, b
+			or c
+			jr nz, mem_fp_lp
+mem_fp_end:
+			ex de, hl
 			ret
 mem_ramsize:
 			ld hl, (mem_count)
@@ -6654,17 +6650,19 @@ mem_cb_nc:
 			jr nz, mem_cb_cp
 			ld hl, (mem_keep)
 			call mem_sel
-			ld hl, (mem_a1)			; BC = C2 for the bank: its page 0 setting
-			dec hl					; (#C4 + bank bits) and #F8, or 2
+			call mem_bkfirst		; BC = C2 for the bank: its page 0's port
+			ld h, b					; ((#C4 + bank bits) and #F8, or 2)
+			ld l, c
 			add hl, hl
-			ld de, mem_bank
+			ld de, (mem_tport)
 			add hl, de
+			dec hl
+			ld b, (hl)
+			dec hl
 			ld a, (hl)
 			and #F8
 			or 2
 			ld c, a
-			inc hl
-			ld b, (hl)
 			ld de, (mem_a2)
 			ld hl, (mem_a3)
 			jp ntc_bk_go
@@ -6698,30 +6696,20 @@ mem_al_size:
 			call mem_try
 			jr z, mem_al_got
 mem_al_scan:
-			ld a, 3
-			call mem_lha
-			ld c, (hl)
-			inc hl
-			ld b, (hl)
+			ld bc, 0
 mem_al_lp:
-			ld a, b
-			or c
+			call mem_dnext
 			jr z, mem_al_new
 			ld hl, (mem_keep)
 			or a
 			sbc hl, bc
-			jr z, mem_al_nx
+			jr z, mem_al_lp
 			push bc
 			ld h, b
 			ld l, c
 			call mem_try
 			pop bc
 			jr z, mem_al_got
-mem_al_nx:
-			call mem_npb
-			ld c, (hl)
-			inc hl
-			ld b, (hl)
 			jr mem_al_lp
 mem_al_new:
 			ld a, 3
@@ -6789,21 +6777,14 @@ mem_err_page:
 mem_largest:
 			ld hl, 0
 			ld (mem_max), hl
-			ld hl, (mem_cnt)		; a free page: a whole page
-			ld de, (mem_cnt + 2)
-			add hl, de
+			call mem_freepages		; a free page: a whole page
 			ld a, h
 			or l
 			ld hl, #3FFE
 			ret nz
-			ld a, 3
-			call mem_lha
-			ld c, (hl)
-			inc hl
-			ld b, (hl)
+			ld bc, 0
 mem_lg_lp:
-			ld a, b
-			or c
+			call mem_dnext
 			jr z, mem_lg_end
 			ld h, b
 			ld l, c
@@ -6811,10 +6792,6 @@ mem_lg_lp:
 			push bc
 			call mem_big
 			pop bc
-			call mem_npb
-			ld c, (hl)
-			inc hl
-			ld b, (hl)
 			jr mem_lg_lp
 mem_lg_end:
 			ld hl, (mem_keep)
@@ -8164,6 +8141,7 @@ ntc_nl_do:
 			jp nc, ntc_plat_scroll
 			ld (ntc_cury), a
 			jp (ix)
+;## ntc_plat_backspace @unit ntc_plat_screen ntc_plat_data ntc_font ntc_data ntc_plat_scroll @shared
 ntc_plat_backspace:
 			xor a
 			ld (ntc_wrapped), a
@@ -8185,6 +8163,7 @@ ntc_bs_col:
 			jp ntc_plat_putglyph
 ntc_bs_none:
 			jp (ix)
+;## ntc_plat_mode @unit ntc_plat_screen ntc_plat_data ntc_font ntc_data ntc_plat_scroll @shared
 ntc_plat_mode:
 			cp 3
 			jr c, ntc_md_ok
@@ -8225,6 +8204,7 @@ ntc_fontcopy:
 			out (c), c
 			jp ntc_md_set
 ntc_fontcopy_end:
+;## ntc_plat_locate @unit ntc_plat_screen ntc_plat_data ntc_font ntc_data ntc_plat_scroll @shared
 ntc_plat_locate:
 			xor a
 			ld (ntc_wrapped), a
@@ -8599,12 +8579,14 @@ ntc_lpwe:		dw 0
 ntc_capres:		dw 0
 ntc_capname:	dw 0
 mem_count:		dw 0			; pages (0 = no paging)
-mem_tnext:		dw 0			; the tables: next links (2 bytes a page)
-mem_ttype:		dw 0			; types (1 byte a page)
+mem_tport:		dw 0			; the port table (2 bytes a page: its BC)
+mem_ttype:		dw 0			; the RAT (1 byte a page: its type)
 mem_tend:		dw 0			; the first byte after them
+mem_fp:			dw 0			; (making the port table: the next bank found)
 mem_banks:		db 0			; 64K banks found
 mem_tl:			db 0
-mem_kinds:		db "--CDIUB"		; the type character of each list
+mem_sw:			db 0			; mem_scan: 0 low, 1 high, 2 any
+mem_kinds:		db "--CDIUB"		; the type character of each kind (0, 1 free)
 mem_bksp:		dw 0			; CallBank: the real stack while bank code runs
 mem_bkrmr:		db 0			; and the ROM / mode byte to put back
 ntc_karg:		db 0
@@ -8860,9 +8842,7 @@ ntc_lb:			ds 4
 ntc_lr:			ds 4
 ntc_lt:			ds 4
 ntc_buf:		ds 2048
-mem_head:		ds MEM_LISTS * 2	; each list's first page
-mem_cnt:		ds MEM_LISTS * 2	; and how many (must follow mem_head)
-mem_bank:		ds MEM_BANKS * 2 + 1	; per bank found: setting for its page 0, port high byte
+mem_found:		ds MEM_BANKS + 1	; probe: the banks found (0-63), in order
 mem_save:		ds MEM_BANKS + 1	; probe: the bytes the markers replace
 ntc_kmat:		ds 10			; the matrix (0 = pressed)
 lst_h:			ds 4			; the list's header
