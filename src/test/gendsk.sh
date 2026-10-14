@@ -44,12 +44,12 @@ for p in cpc cpcmin cpcfw cpcrom cpcminrom cpcfwrom cpm; do
   done
   rm -rf $w
 done
-# CyborgOS: CYBORGOS.BIN (cpcfw) and its programs and commands (COPY, ERA, TYPE, PREP, RENAME) - cpm
+# CyborgOS: CYBORGOS.BIN (cpcfw) and its programs and commands (HELP, COPY, ERA, TYPE, PREP, RENAME) - cpm
 # builds as .CYB, with an AMSDOS header
 # (AMSDOS reads a headerless file as ASCII text, to the first #1A)
 w=t/dsk_cyb; rm -rf $w; mkdir -p $w; cp ../build/cpcfw/CYBORGOS.ASM ../build/cpcfw/CYBADD.ASM $w/
 for g in CYBORGOS CYBADD; do (cd $w && $SJ --nologo --msg=err $g.ASM > /dev/null) || { echo "gendsk: $g did not assemble"; fail=1; }; done
-for g in TICKER CRUNCH LINES COPY ERA TYPE PREP RENAME; do
+for g in TICKER CRUNCH LINES COPY ERA TYPE PREP RENAME HELP; do
   cp ../build/cpm/$g.ASM $w/
   (cd $w && $SJ --nologo --msg=err --raw=$g.COM $g.ASM > /dev/null) || { echo "gendsk: $g did not assemble"; fail=1; }
   python3 -c "import sys; sys.path.insert(0, '.'); import ntcrun; d = open('$w/$g.COM', 'rb').read(); open('$w/$g.CYB', 'wb').write(ntcrun.amsdos_header(d, 0x100) + d)"
@@ -67,12 +67,12 @@ w = '$w'; e = b''
 def size(f): return os.path.getsize(os.path.join(w, f))
 for f in ('CYBORGOS.BIN', 'CYBADD.BIN'):
     e += ntcrun.cyb_entry(f, size(f) - 128, f.split('.')[0], what=0, flags=0, load=0x40, exe=0x40)
-for g in ('TICKER', 'CRUNCH', 'LINES', 'COPY', 'ERA', 'TYPE', 'PREP', 'RENAME'):
+for g in ('TICKER', 'CRUNCH', 'LINES', 'COPY', 'ERA', 'TYPE', 'PREP', 'RENAME', 'HELP'):
     e += ntcrun.cyb_entry(g + '.CYB', size(g + '.CYB') - 128, g, what=0)
 e += ntcrun.cyb_entry('CRUNCH.COM', size('CRUNCH.COM'), 'BIGCRUNCH')
 open(os.path.join(w, 'FILES.DIR'), 'wb').write(e)
 "
-for f in $w/CYBORGOS.BIN $w/CYBADD.BIN $w/TICKER.CYB $w/CRUNCH.CYB $w/LINES.CYB $w/COPY.CYB $w/ERA.CYB $w/TYPE.CYB $w/PREP.CYB $w/RENAME.CYB $w/CRUNCH.COM $w/FILES.DIR; do cpmcp -f cpcdata -T dsk $d $f 0:$(basename $f) || fail=1; done
+for f in $w/CYBORGOS.BIN $w/CYBADD.BIN $w/TICKER.CYB $w/CRUNCH.CYB $w/LINES.CYB $w/COPY.CYB $w/ERA.CYB $w/TYPE.CYB $w/PREP.CYB $w/RENAME.CYB $w/HELP.CYB $w/CRUNCH.COM $w/FILES.DIR; do cpmcp -f cpcdata -T dsk $d $f 0:$(basename $f) || fail=1; done
 echo "build/dsk/cyborgos.dsk: $(cpmls -f cpcdata -T dsk $d | grep -vc '^[0-9]*:$') files"
 rm -rf $w
 exit $fail

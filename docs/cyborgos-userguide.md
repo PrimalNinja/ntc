@@ -84,8 +84,8 @@ Typed at a slot's prompt (`1>`), in capitals or not. Backspace / DEL rub out.
 | `WAIT` | waits until no program runs; keys typed meanwhile wait too |
 | `CLS` | clears this slot's page |
 | `MEM` | main RAM as a table (each address range and what is there: CyborgOS, the window, free RAM, the firmware and ROMs, the screen); the map of the banks, a character a 16K page (B a slot's, - free), 32 pages (8 banks) a group, two groups a line; then the totals as TOP has them. Free memory is the 16K pages nothing has (main RAM's own page is the disc buffers') |
-| `HELP` | the commands, then a line on each |
-| `COPY`, `ERA`, `TYPE`, `PREP`, `RENAME` | disc commands: programs on the disc ([4a](#4a-disc-commands-copy-era-type-prep-rename)), not built in |
+| `HELP` | the commands, then a line on each - a program on the disc (HELP.CYB, `bas/cyborgos/cmds/HELP.bas`), not in the hypervisor |
+| `COPY`, `ERA`, `TYPE`, `PREP`, `RENAME` | disc commands: programs on the disc ([4a](#4a-disc-commands-copy-era-type-prep-rename-and-help)), not built in |
 | `QUIT` | ends CyborgOS (it says how many programs ran) |
 
 ```
@@ -105,7 +105,7 @@ A program's name is found as *name*.CYB, else *name*.COM (only with an entry:
 [6](#6-plain-com-files-filesdir-and-namehdr)), else the .COM whose FILES.DIR entry has the long
 name *name*; `NAME.COM` / `NAME.CYB` take that one.
 
-## 4a. Disc commands: COPY, ERA, TYPE, PREP, RENAME
+## 4a. Disc commands: COPY, ERA, TYPE, PREP, RENAME (and HELP)
 
 Programs on the CyborgOS disc (`.CYB`, NTC BASIC built for cpm: `bas/cyborgos/cmds`), run by
 their names like any program. They only touch files that are in the volume's FILES.DIR (the

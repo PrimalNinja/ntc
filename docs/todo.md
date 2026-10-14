@@ -7,6 +7,8 @@ finished, with the date.
 
 ## done
 
+- 2026-10-15 CyborgOS: HELP is a program on the disc (cmds/HELP.bas, HELP.CYB), its text out of the
+  hypervisor (823 bytes of RAM back). Test "CyborgOS HELP from the disc"
 - 2026-10-15 CyborgOS: B: alone is CD B (as in CP/M), CD B: is CD B
 - 2026-10-15 CyborgOS file speed: a slot's file calls run on in the same turn (up to 32), and a
   record goes into / out of the slot with one ldir when it is in one 16K page (38K COPY: about

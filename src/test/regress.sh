@@ -505,7 +505,7 @@ rm -rf t/files/A/*.COM t/files/A/TICKER.HDR t/files/A/FILES.DIR t/files/B
 # second leaves it), TYPE by a long name, COPY to B (by its disc name, by its long name to a new
 # name), CD B, ERA there, TYPE from A, RUN TYPE, a name that is nowhere
 mkdir -p t/cmd t/files/A; cp $P/cyborgos/cmds/* t/cmd/
-for g in COPY ERA TYPE PREP RENAME; do
+for g in COPY ERA TYPE PREP RENAME HELP; do
   node cli.js t/cmd/$g.bas t/cmd/CybDir.cls --platform=cpm > t/cmd/$g.asm 2>/dev/null
   (cd t/cmd && ${SJASMPLUS:-sjasmplus} --nologo --msg=err --raw=$g.COM $g.asm > /dev/null)
   python3 -c "import ntcrun; d = open('t/cmd/$g.COM', 'rb').read(); open('t/files/A/$g.CYB', 'wb').write(ntcrun.amsdos_header(d, 0x100) + d)"
@@ -520,7 +520,10 @@ if echo "$o" | grep -q "^B:FILES.DIR made (no entries)" && echo "$o" | grep -q "
 # RENAME: on the disc and in FILES.DIR (the long name kept, found by it); another volume refused
 o=$(NTC_LIMIT=40000 timeout 1500 python3 ntcrun.py t/cy/Main.bas "rename b:readme.txt b:notes.txt\n${W2}rename b:read a:x.txt\n${W2}cd b\ndir\n" t/cy/Hyp.cls t/cy/Hot.cls t/cy/Ent.cls --platform=cpcfw --ram=576 2>&1)
 if echo "$o" | grep -q "^B:README.TXT is B:NOTES.TXT now" && echo "$o" | grep -q "^RENAME can't move a file to another volume" && echo "$o" | grep -q "^NOTES.TXT  *20  READ" && [ -e t/files/B/NOTES.TXT ] && [ ! -e t/files/B/README.TXT ]; then echo "ok   CyborgOS command RENAME"; else echo "FAIL CyborgOS command RENAME"; echo "$o" | tail -10; fail=1; fi
-rm -rf t/files/A/COPY.CYB t/files/A/ERA.CYB t/files/A/TYPE.CYB t/files/A/PREP.CYB t/files/A/RENAME.CYB t/files/A/README.TXT t/files/A/FILES.DIR t/files/B
+# HELP: a program on the disc (HELP.CYB), not in the hypervisor
+o=$(timeout 600 python3 ntcrun.py t/cy/Main.bas "help\n${W2}" t/cy/Hyp.cls t/cy/Hot.cls t/cy/Ent.cls --platform=cpcfw --ram=576 2>&1)
+if echo "$o" | grep -q "^Commands: RUN, FG, PS, TOP" && echo "$o" | grep -q "^RENAME \[v:\]name newname" && echo "$o" | grep -q "^\[HELP.CYB ended\]"; then echo "ok   CyborgOS HELP from the disc"; else echo "FAIL CyborgOS HELP from the disc"; echo "$o" | tail -6; fail=1; fi
+rm -rf t/files/A/COPY.CYB t/files/A/ERA.CYB t/files/A/TYPE.CYB t/files/A/PREP.CYB t/files/A/RENAME.CYB t/files/A/HELP.CYB t/files/A/README.TXT t/files/A/FILES.DIR t/files/B
 # Option Memory in a #If: only the one that is on counts (CyborgOS: fewer pages with Library: ROM)
 printf '#If NTC_LIBRARY_ROM Then\nOption Memory CPCExpansion 33\n#Else\nOption Memory CPCExpansion 193\n#End If\nPrint 1\n' > t/memif.bas
 a1=$(node cli.js t/memif.bas --platform=cpcfw 2>/dev/null | grep "^NTC_MEMBANKS"); a2=$(node cli.js t/memif.bas --platform=cpcfw --library=rom 2>/dev/null | grep "^NTC_MEMBANKS")

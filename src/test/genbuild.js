@@ -36,6 +36,7 @@ var arrPrograms = [
 	{ name: 'TYPE', files: ['cyborgos/cmds/TYPE.bas', 'cyborgos/cmds/CybDir.cls'], platforms: ['cpm'] },
 	{ name: 'PREP', files: ['cyborgos/cmds/PREP.bas', 'cyborgos/cmds/CybDir.cls'], platforms: ['cpm'] },
 	{ name: 'RENAME', files: ['cyborgos/cmds/RENAME.bas', 'cyborgos/cmds/CybDir.cls'], platforms: ['cpm'] },
+	{ name: 'HELP', files: ['cyborgos/cmds/HELP.bas'], platforms: ['cpm'] },
 	{ name: 'CITY3D', files: ['city3d/Main.bas', 'city3d/City.cls'], platforms: ['cpcfw'] },
 	{ name: 'CUBE3D', files: ['cube3d/Main.bas', 'cube3d/Vector3D.cls', 'cube3d/Spin.cls'], platforms: ['cpc', 'cpcmin', 'cpcfw', 'cpm'] },
 	{ name: 'OVERLAYS', files: ['overlays/Main.bas', 'overlays/Level1.cls', 'overlays/Level2.cls'], platforms: ['cpcmin', 'cpcfw', 'cpm'] },

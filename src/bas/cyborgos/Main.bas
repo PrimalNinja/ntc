@@ -705,25 +705,6 @@ Sub Command(ByVal t As Integer)
 #End If
   Select Case c
     Case ""
-    Case "HELP"
-#If NTC_LIBRARY_ROM Then
-      PutLn t, "Commands: RUN, FG, PS, TOP, KILL, RESET, WAIT, CLS, MEM, QUIT"
-#Else
-      PutLn t, "Commands: RUN, FG, PS, TOP, KILL, RESET, WAIT, CLS, MEM, DIR, CD, QUIT"
-      PutLn t, "On the disc: COPY, ERA, TYPE, PREP, RENAME"
-      PutLn t, ""
-      PutLn t, "name [args]       runs the program name (this slot's drive, then A)"
-      PutLn t, "RUN name [args]   the same, even when a command has that name"
-      PutLn t, "RUN name slot     runs it in that slot"
-      PutLn t, "FG slot           that slot to the front"
-      PutLn t, "KILL slot         stops its program"
-      PutLn t, "RESET [slot]      that slot (or this one) as new"
-      PutLn t, "PS, TOP           the slots; with their speed"
-      PutLn t, "MEM               the memory: main RAM, the banks"
-      PutLn t, "DIR, CD [drive]   the files in FILES.DIR; this slot's drive (B: alone: CD B)"
-      PutLn t, "WAIT, CLS, QUIT   until no program runs; clear; end CyborgOS"
-      PutLn t, SK() + ": a slot to the front   Control + ESC: TOP"
-#End If
     Case "CLS"
       ClsT t
     Case "RUN"                                 ' RUN name [tail]: the program on the disc even when a
