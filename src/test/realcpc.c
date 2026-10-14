@@ -5,7 +5,8 @@
 // usage: CPCROMS=<dir with cpc6128_os.bin, cpc6128_basic.bin, cpc6128_amsdos.bin> \
 //        [WATCH=hex,hex...] realcpc disc.dsk|- script out_prefix
 // It boots BASIC, puts the disc in, then follows the script (times in seconds from power on).
-// script lines:  <seconds> type <text>   (\n = Return)
+// script lines:  <seconds> type <text>   (\n = Return; \c1-\c8, \ce: Control + 1-8, ESC)
+//                <seconds> down <hex> / up <hex>  (a key held / let go: 8A = Control, 38 = '8')
 //                <seconds> shot <name>   (PPM of the screen)
 //                <seconds> pc            (print PC, SP)
 //                <seconds> mem <hex>     (16 bytes of RAM, as the CPU sees it with no ROMs)
@@ -106,6 +107,7 @@ int main(int argc, char** argv) {
     // Control + 1-8 typed as \c1 ... \c8 (codes #81-#88), Control + ESC as \ce (#89)
     for (int i = 1; i <= 8; i++) cpc.kbd.key_masks[0x80 + i] = cpc.kbd.key_masks['0' + i] | (2 << (KBD_MAX_COLUMNS + KBD_MAX_LINES));
     cpc.kbd.key_masks[0x89] = cpc.kbd.key_masks[0x03] | (2 << (KBD_MAX_COLUMNS + KBD_MAX_LINES));
+    kbd_register_key(&cpc.kbd, 0x8A, 2, 7, 0);   // Control on its own (script: down 8A ... up 8A)
     run(2.5);
     if (strcmp(argv[1], "-")) cpc_insert_disc(&cpc, rd(argv[1]));
     FILE* s = fopen(argv[2], "r"); char line[512];
@@ -128,6 +130,8 @@ int main(int argc, char** argv) {
         else if (!strcmp(cmd, "hits")) { printf("t=%.2f", now); for (int i = 0; i < nwatch; i++) printf(" %04X:%ld(rom %ld)", watch[i], hits[i], romhits[i]); printf("\n"); }
         else if (!strcmp(cmd, "end")) break;
         else if (!strcmp(cmd, "profon")) memset(pcnt, 0, sizeof pcnt);
+        else if (!strcmp(cmd, "down")) cpc_key_down(&cpc, strtoul(arg, 0, 16));   // a key held (hex code: 8A Control, 31 '1' ...)
+        else if (!strcmp(cmd, "up")) cpc_key_up(&cpc, strtoul(arg, 0, 16));
     }
     if (prof) {
         FILE* o = fopen(pf, "w"); const char* kn[4] = { "main", "bank", "lrom", "urom" };

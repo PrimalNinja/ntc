@@ -1,14 +1,16 @@
 ' CYBORGOS: a hypervisor for the CPC in NTC BASIC (docs/cyborgos.md, cyborgos-userguide.md).
-' Up to 8 slots, each its own 64K bank: a command line, or a CP/M program (.CYB: a cpm build
+' Up to 16 slots, each its own 64K bank: a command line, or a CP/M program (.CYB: a cpm build
 ' with an AMSDOS header) running in the whole bank from #0100. The programs run in turn (the
 ' one in front gets half the time); each BDOS call is a far call into this program (console,
 ' keys, version, exit) and characters out are collected in the bank and sent a line at a time;
 ' an interrupt stops a program and hands the CPU back here. Every slot has its own 80 x 25 text
 ' page; the slot in front is on the screen.
-'   Control + 1-8   that slot to the front (opened as a command line the first time)
+'   Control + 1-8   that slot to the front (opened as a command line the first time); with more
+'                   than 8 slots, the same number twice quickly (Control held) is slots 9-16
 '   Control + ESC   the TOP screen (Control + ESC again, or Control + a slot: back)
-'   commands        RUN name [slot]  FG slot  PS  TOP  KILL slot  WAIT  CLS  MEM  HELP  QUIT
-' Slots: half the extra 64K banks (1 on a 6128, 8 with 1MB or more), taken first.
+'   commands        RUN name [slot]  FG slot  PS  TOP  KILL slot  RESET [slot]  WAIT  CLS  MEM
+'                   HELP  QUIT
+' Slots: half the extra 64K banks (1 on a 6128, 8 with 1MB, 16 with 2MB or more), taken first.
 ' cpcfw (the firmware runs; files through AMSDOS). Not yet: CP/M files for the programs, the
 ' shared drivers.
 Option PressAnyKeyOnEnd "Press a key"     ' at the end: a message and a key (a RUN" program resets when it ends)
@@ -17,19 +19,26 @@ Option NoTurbo                    ' normal mode only (interrupt classes, the clo
 Option RomEnable 7                ' AMSDOS, for the programs' files
 Option Reserve &H4000, &H4000     ' the window the slots' banks are reached through (built round)
 Option Buffer &H8000             ' the library's 2K buffer (files, Memory.Copy)
+Option Memory CPCExpansion 193    ' 48 banks (192 pages + main RAM) at most: the page tables (3 bytes a
+                                  ' page) must fit between the program and the firmware - 16 slots and
+                                  ' 32 banks over on 3MB or more (all 64 banks of 4MB no longer fit)
 Const BUF = &HF700                ' a slot's text page in its bank (80 x 25)
 Dim ns As Integer, i As Integer, k As Integer, hk As Integer
 Dim front As Integer, back As Integer, cur As Integer, quit As Integer, wt As Integer, runs As Integer, pk As Integer
 Dim fr As Integer, td As Integer, tt As Integer               ' front's turn next; TOP: last second's start
-Dim bk(8) As Integer, sg(8) As Integer, st(8) As Integer       ' bank, RAM setting, state (0 closed, 1 command line, 2 running)
-Dim kq(8) As Integer, wp(8) As Integer                         ' key handed to it; the RAM setting with its page 3 in the window
-'| Dim cx(8) As Integer, cy(8) As Integer, es(8) As Integer, ey(8) As Integer   (the console state: now in each bank, #F682)
-Dim ra(8) As Integer, wk(8) As Integer                         ' the BDOS answer; waiting for a key since (Ticks, -1 not)
-Dim tn(8) As Integer, nb(8) As Integer, nc(8) As Integer       ' TOP: turns, BDOS calls, characters this second
-Dim lt(8) As Integer, lb(8) As Integer, lc(8) As Integer, ld As Integer   ' ... and in the last whole second (ld ticks)
+Dim bk(16) As Integer, sg(16) As Integer, st(16) As Integer       ' bank, RAM setting, state (0 closed, 1 command line, 2 running)
+Dim kq(16) As Integer, wp(16) As Integer                         ' key handed to it; the RAM setting with its page 3 in the window
+'| Dim cx(16) As Integer, cy(8) As Integer, es(8) As Integer, ey(8) As Integer   (the console state: now in each bank, #F682)
+Dim ra(16) As Integer, wk(16) As Integer                         ' the BDOS answer; waiting for a key since (Ticks, -1 not)
+Dim tn(16) As Integer, nb(16) As Integer, nc(16) As Integer       ' TOP: turns, BDOS calls, characters this second
+Dim lt(16) As Integer, lb(16) As Integer, lc(16) As Integer, ld As Integer   ' ... and in the last whole second (ld ticks)
 '| Dim pt(8) As Integer                                        (the page ring's top row: now in the bank, #F684)
 '| Dim tp(8) As Long                                           (the text page as a far pointer: Hyp.Con reaches it through wp)
-Dim nm(8) As String Max 12, ln(8) As String Max 72
+Dim nm(16) As String Max 12
+'| Dim ln(16) As String Max 72      (each slot's command line: now in its bank, LNLEN / LNBUF - 16 of
+'|                                  them were 1.2K, more than the Library: ROM build has room for)
+Const LNLEN = &HF68F              ' in a slot's bank: the length of the command line being typed
+Const LNBUF = &HF690              ' ... and its characters (70 at most, to #F6D5)
 Dim ob As String Max 130
 Dim txn As Integer, txs As Integer                             ' TOP: lines written, the slot they go to (0: the screen)
 '| Dim blank As String Max 80, row As String Max 80               (Hyp.Con clears and draws rows itself)
@@ -39,7 +48,8 @@ Hyp.FontInit
 k = Memory.Banks()
 ns = k \ 2
 If ns < 1 Then ns = k
-If ns > 8 Then ns = 8
+If ns > 16 Then ns = 16
+Hot.Slots ns                                    ' (more than 8: Control + a number twice is 9-16)
 If ns = 0 Then Print "CyborgOS needs a 6128 or more RAM" : End
 For i = 1 To ns
   bk(i) = Memory.AllocBank()
@@ -56,7 +66,7 @@ front = 1
 OpenSlot 1
 Do
   hk = Hot.Take()
-  If hk = 9 Then
+  If hk = Hot.TOPKEY Then
     If front = 0 Then ToFront back Else ShowTop      ' Control + ESC: TOP, and again: back
   ElseIf hk > 0 And hk <= ns Then
     ToFront hk
@@ -410,7 +420,7 @@ Sub TopLines(ByVal mark As Integer, ByVal keys As Integer)
   Dim j As Integer, s As String Max 14
   txn = 0
   TopAdd "CyborgOS TOP - " + N(ns) + " slots, " + N(Memory.Banks()) + " banks of 64K, " + N(Memory.FreePages()) + " pages free"
-  If keys Then TopAdd "Control + ESC: back, Control + 1-" + N(ns) + ": that slot"
+  If keys Then TopAdd "Control + ESC: back, " + SK() + ": that slot"
   TopAdd ""
   TopAdd "In the last whole second:"
   TopAdd "SLOT  STATE          PROGRAM         TURNS/S   BDOS/S  CHARS/S"
@@ -470,13 +480,35 @@ Sub Install(ByVal t As Integer)
   kq(t) = 0
 End Sub
 
+' RESET: the slot as before its command line was first opened - its program (if any) stopped,
+' nothing kept. The slot in front (the one typing it) opens again at once, as new
+Sub ResetSlot(ByVal s As Integer)
+  st(s) = 0
+  nm(s) = ""
+  kq(s) = 0
+  wk(s) = -1
+  tn(s) = 0 : nb(s) = 0 : nc(s) = 0
+  lt(s) = 0 : lb(s) = 0 : lc(s) = 0
+  If s = front Then
+    Install s
+    st(s) = 1
+    ClsT s
+    PutLn s, "CyborgOS slot " + N(s) + " of " + N(ns) + " - " + SK() + ", Control + ESC: TOP, HELP"
+  End If                          ' (the prompt: the command line puts it after the command)
+End Sub
+
 Sub OpenSlot(ByVal t As Integer)
   Install t
   st(t) = 1
   ClsT t
-  PutLn t, "CyborgOS slot " + N(t) + " of " + N(ns) + " - Control + 1-" + N(ns) + ", Control + ESC: TOP, HELP"
+  PutLn t, "CyborgOS slot " + N(t) + " of " + N(ns) + " - " + SK() + ", Control + ESC: TOP, HELP"
   Prompt t
 End Sub
+
+' the keys for the slots, as the help lines say them
+Function SK() As String
+  If ns <= 8 Then SK = "Control + 1-" + N(ns) Else SK = "Control + 1-8 (twice: 9-" + N(ns) + ")"
+End Function
 
 ' a number without the space Str$ puts before it
 Function N(ByVal v As Integer) As String
@@ -484,13 +516,13 @@ Function N(ByVal v As Integer) As String
 End Function
 
 Sub Prompt(ByVal t As Integer)
-  ln(t) = ""
+  Memory.WriteByte Far(t, LNLEN), 0                ' an empty command line
   PutS t, N(t) + "> "
 End Sub
 
 ' a key typed: to the program in front, or its command line (none while TOP shows)
 Sub KeyIn(ByVal k As Integer)
-  Dim t As Integer
+  Dim t As Integer, n As Integer
   If front = 0 Then
     Exit Sub                      ' TOP stays until Control + ESC or Control + a slot
   End If
@@ -500,24 +532,28 @@ Sub KeyIn(ByVal k As Integer)
     Memory.WriteByte Far(t, Hyp.KEY), k
     Exit Sub
   End If
+  n = Memory.ReadByte(Far(t, LNLEN))             ' the command line so far (in the slot's bank)
   If k = 13 Then
     PutLn t, ""
     Command t
     If st(t) = 1 And wt = 0 And front = t Then Prompt t
   ElseIf k = 127 Or k = 8 Then
-    If Len(ln(t)) > 0 Then
-      ln(t) = Left$(ln(t), Len(ln(t)) - 1)
+    If n > 0 Then
+      Memory.WriteByte Far(t, LNLEN), n - 1
       PutC t, 8 : PutC t, 32 : PutC t, 8
     End If
-  ElseIf k >= 32 And k < 127 And Len(ln(t)) < 70 Then
-    ln(t) = ln(t) + Chr$(k)
+  ElseIf k >= 32 And k < 127 And n < 70 Then
+    Memory.WriteByte Far(t, LNBUF + n), k
+    Memory.WriteByte Far(t, LNLEN), n + 1
     PutC t, k
   End If
 End Sub
 
 Sub Command(ByVal t As Integer)
   Dim c As String, a As String, b As String, p As Integer, s As Integer
-  c = UCase$(Trim$(ln(t)))
+  p = Memory.ReadByte(Far(t, LNLEN))              ' the command line, from the slot's bank
+  Memory.Copy Far(t, LNBUF), CLng(VarPtr(ob)), p
+  c = UCase$(Trim$(Left$(ob, p)))
   p = InStr(c, " ")
   If p > 0 Then
     a = Trim$(Mid$(c, p + 1))
@@ -531,8 +567,8 @@ Sub Command(ByVal t As Integer)
   Select Case c
     Case ""
     Case "HELP"
-      PutLn t, "RUN name [slot]  FG slot  PS  TOP  KILL slot  WAIT  CLS  MEM  QUIT"
-      PutLn t, "Control + 1-" + N(ns) + ": a slot to the front   Control + ESC: TOP (again: back)"
+      PutLn t, "RUN name [slot]  FG slot  PS  TOP  KILL slot  RESET [slot]  WAIT  CLS  MEM  QUIT"
+      PutLn t, SK() + ": a slot to the front   Control + ESC: TOP"
     Case "CLS"
       ClsT t
     Case "RUN"
@@ -550,7 +586,7 @@ Sub Command(ByVal t As Integer)
     Case "PS"
       For s = 1 To ns
         If st(s) = 0 Then a = "-" Else If st(s) = 1 Then a = "command line" Else a = nm(s)
-        PutLn t, Str$(s) + IIf(s = front, " * ", "   ") + a
+        PutLn t, Right$("  " + N(s), 3) + IIf(s = front, " * ", "   ") + a
       Next
     Case "KILL"
       s = Val(a)
@@ -558,6 +594,14 @@ Sub Command(ByVal t As Integer)
         EndTask s
       Else
         PutLn t, "nothing running in slot " + a
+      End If
+    Case "RESET"
+      If a = "" Then s = t Else s = Val(a)
+      If s < 1 Or s > ns Then
+        PutLn t, "no slot " + a
+      Else
+        ResetSlot s
+        If s <> t Then PutLn t, "slot " + N(s) + " reset"
       End If
     Case "MEM"
       PutLn t, N(Memory.Banks()) + " banks of 64K, " + N(ns) + " slots, " + N(Memory.FreePages()) + " pages of 16K free"

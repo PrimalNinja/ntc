@@ -462,6 +462,14 @@ if echo "$o" | grep -q "^line199 the quick" && echo "$o" | grep -q "^line200 the
 # BDOS 9: a "$" string over 128 bytes (fetched with Memory.Copy in pieces), the screen left showing
 o=$(timeout 300 python3 ntcrun.py t/cy/Main.bas "run STR9\n${W}" t/cy/Hyp.cls t/cy/Hot.cls --platform=cpcfw --ram=576 2>&1)
 if echo "$o" | grep -q "^s9 tail ok"; then echo "ok   CyborgOS BDOS 9 string"; else echo "FAIL CyborgOS BDOS 9 string"; echo "$o" | tail -5; fail=1; fi
+# 4MB: 16 slots; Control + 3 twice (Control held) is slot 11, once is slot 3
+o=$(timeout 300 python3 ntcrun.py t/cy/Main.bas "run CRUNCH 12\n~~~~~~~~~~{23,57}{23}{23,57}~~~~~~~~~~ps\n~~~~~~~~~~" t/cy/Hyp.cls t/cy/Hot.cls --platform=cpcfw --ram=4160 2>&1)
+if echo "$o" | grep -q "^CyborgOS slot 11 of 16" && echo "$o" | grep -q "^ 11 \* command line" && echo "$o" | grep -q "^ 12   CRUNCH.CYB"; then echo "ok   CyborgOS 16 slots, Control + a number twice"; else echo "FAIL CyborgOS 16 slots, Control + a number twice"; echo "$o" | tail -5; fail=1; fi
+o=$(timeout 300 python3 ntcrun.py t/cy/Main.bas "~~~~~~~~~~{23,57}${W}${W}ps\n~~~~~~~~~~" t/cy/Hyp.cls t/cy/Hot.cls --platform=cpcfw --ram=4160 2>&1)
+if echo "$o" | grep -q "^CyborgOS slot 3 of 16" && echo "$o" | grep -q "^  3 \* command line"; then echo "ok   CyborgOS 16 slots, Control + a number once"; else echo "FAIL CyborgOS 16 slots, Control + a number once"; echo "$o" | tail -5; fail=1; fi
+# RESET: slot 2's program stopped and the slot closed; RESET on its own: this slot as new
+o=$(timeout 300 python3 ntcrun.py t/cy/Main.bas "run CRUNCH 2\n${W}reset 2\nps\n${W}reset\n${W}ps\n${W}" t/cy/Hyp.cls t/cy/Hot.cls --platform=cpcfw --ram=576 2>&1)
+if echo "$o" | grep -q "^  2   -" && [ "$(echo "$o" | grep -c "^CyborgOS slot 1 of 4")" == 1 ] && ! echo "$o" | grep -q "reset 2"; then echo "ok   CyborgOS RESET"; else echo "FAIL CyborgOS RESET"; echo "$o" | tail -5; fail=1; fi
 # the TOP command: the table printed into the slot's console
 o=$(timeout 300 python3 ntcrun.py t/cy/Main.bas "run CRUNCH 2\n${W}top\n${W}" t/cy/Hyp.cls t/cy/Hot.cls --platform=cpcfw --ram=576 2>&1)
 if echo "$o" | grep -q "^  2   running        CRUNCH.CYB" && echo "$o" | grep -q "^SLOT  STATE"; then echo "ok   CyborgOS TOP command"; else echo "FAIL CyborgOS TOP command"; echo "$o" | tail -5; fail=1; fi

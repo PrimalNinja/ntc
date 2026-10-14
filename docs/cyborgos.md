@@ -22,7 +22,8 @@ from the design below:
   through BASIC) or until a BDOS call that needs the hypervisor. NTC's safe points let
   interrupts in, so a program with no BDOS calls still gives the CPU back. The front slot gets
   every other turn (half the time). The system keys (Control + 1-8, Control + ESC) are an
-  interrupt class (Hot.cls, 50 a second).
+  interrupt class (Hot.cls, 50 a second); with more than 8 slots (16 on 2MB or more) a number
+  pressed twice quickly is slots 9-16. Each slot's command line is kept in its bank (#F68F).
 - Keys: the hypervisor puts the slot's next key in its bank (#F681); the BDOS stub answers 1,
   6 (#FF / #FE) and 11 from it, with no switch.
 - Characters out are collected by the BDOS stub in the bank (128) and handed over when full,
@@ -39,7 +40,7 @@ from the design below:
   firmware's interrupt handler (`rst #38`) for an interrupt that stopped a program, and turns
   the upper ROM off while a program runs (Library: ROM has the keyword ROM on).
 - The command line is one copy in the hypervisor, with each slot's line in arrays (RUN, FG,
-  PS, TOP, KILL, WAIT, CLS, MEM, HELP, QUIT). Control + 1-8 brings a slot to the front.
+  PS, TOP, KILL, RESET, WAIT, CLS, MEM, HELP, QUIT). Control + 1-8 brings a slot to the front.
 - Each slot's text page (80 x 25) is at #F700 of its bank; the BDOS stubs at #F500 (the top of
   the TPA), the characters out at #F600, the saved SP at #FFFE: about 61K for a program.
 - Speed: 200 lines of 62 characters scroll at about 16 lines a second on the real ROMs (was 3,
@@ -49,7 +50,8 @@ from the design below:
   still a round trip through BASIC.
 - `Option Reserve` now builds round the range: the hypervisor (about 19K) fills #0040-#3FFF
   and goes on at #8800 (after `Option Buffer &H8000`'s 2K); the Memory class's tables follow
-  it, so a 4MB expansion gives all 64 banks (it gave 5 when the tables had to fit below #4000).
+  it (Option Memory CPCExpansion 193: 48 banks at most - 16 slots and 32 banks over; all 64 of
+  4MB no longer fit as the hypervisor grew; it gave 5 when the tables had to fit below #4000).
 - `.COM` files directly: not yet - AMSDOS's end of file at a #1A in a headerless file stays
   (checked on the real ROMs), so they need sector reading (with the file system).
 

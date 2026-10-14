@@ -33,6 +33,7 @@ for p in cpc cpcmin cpcfw cpcrom cpcminrom cpcfwrom cpm; do
       b=$(basename $f)
       if echo "$b" | grep -qE '^(NTCTEST|VBTEST|LONGTEST)'; then t=test; else t=""; fi
       [ "$t" == "$k" ] || continue
+      case $b in CYBORGOS*) continue;; esac   # CyborgOS has its own disc (cyborgos.dsk, below)
       cpmcp -f cpcdata -T dsk $d $f 0:$b || { echo "gendsk: $p$k: $b did not fit"; fail=1; }
     done
     # Library: ROM programs: the ROM image on the disc too (for ROM tools / ROM boards)

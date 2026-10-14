@@ -7,6 +7,14 @@ finished, with the date.
 
 ## done
 
+- 2026-10-14 CyborgOS: RESET [slot] (the slot as before its command line was first opened: its
+  program stopped, nothing kept; this slot opens again at once); Option Memory CPCExpansion 193
+  (48 banks: the page tables no longer fit for all 64 of 4MB). Test "CyborgOS RESET"
+- 2026-10-14 CyborgOS: up to 16 slots (half the extra banks: 16 on 2MB or more); Control + a
+  number twice quickly (Control held, 0.3 s) is slots 9-16, a single press waits 0.3 s only when
+  there are more than 8 slots; each slot's command line kept in its bank (#F68F / #F690 - 16
+  in BASIC arrays did not fit the Library: ROM build). Harness: {n,m} holds keys together;
+  realcpc: down / up (8A: Control). Tests: 16 slots, Control + 3 twice / once
 - 2026-10-14 CyborgOS: the TOP screen drawn straight into screen memory (Hyp.Say: about 0.1 s,
   was about 0.7 s through TXT OUTPUT); the TOP command back, printing the table once into the
   slot's console (test "CyborgOS TOP command")

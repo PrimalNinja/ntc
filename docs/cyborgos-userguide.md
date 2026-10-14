@@ -10,14 +10,15 @@ This describes the first version (October 2026).
 ## 1. What you need
 
 - A CPC 6128, or a CPC with a RAM expansion. CyborgOS uses half of the extra 64K banks for
-  slots, at least 1 and at most 8; the rest is left for later (drivers, data, graphics):
+  slots, at least 1 and at most 16; the rest is left for later (drivers, data, graphics):
 
   | Extra RAM | Slots |
   |---|---|
   | 64K (a 6128) | 1 |
   | 256K | 2 |
   | 512K | 4 |
-  | 1MB or more | 8 |
+  | 1MB | 8 |
+| 2MB or more | 16 (CyborgOS sees at most 48 banks) |
 
 - AMSDOS (a disc drive): programs are loaded from disc.
 - `build/dsk/cyborgos.dsk` has CYBORGOS.BIN and three test programs (TICKER.CYB, CRUNCH.CYB, LINES.CYB).
@@ -41,7 +42,10 @@ Each slot is a whole 64K bank with its own text page (80 x 25). The slot in fron
 on the screen and the one the keyboard types into; the others keep running, and their output
 goes to their own page.
 
-- **Control + 1 to 8** brings that slot to the front. A slot used for the first time opens with
+- **Control + 1 to 8** brings that slot to the front. With more than 8 slots, the same number
+  pressed twice quickly (within 0.3 s, Control held) is slots 9 to 16 (Control + 3, 3: slot
+  11); a single press then counts after 0.3 s, at once when Control is let go or another
+  number is pressed. With 8 slots or fewer a press counts at once. A slot used for the first time opens with
   its command line. Hold Control and press the numbers one after another to step through the
   slots. The keys are looked at 50 times a second whatever runs; keys typed while Control is
   held don't go to the programs.
@@ -66,6 +70,7 @@ Typed at a slot's prompt (`1>`), in capitals or not. Backspace / DEL rub out.
 | `PS` | the slots: what each is doing (`*` = in front) |
 | `TOP` | the TOP table (each slot's state, program, and in the last whole second its turns, BDOS calls and characters) printed once into this slot's console, like PS |
 | `KILL` *slot* | stops the program in that slot (its command line comes back) |
+| `RESET` [*slot*] | that slot (or this one) as before its command line was first opened: its program, if any, stopped and nothing kept; this slot opens again at once, as new |
 | `WAIT` | waits until no program runs; keys typed meanwhile wait too |
 | `CLS` | clears this slot's page |
 | `MEM` | 64K banks, slots, free 16K pages |
@@ -181,6 +186,7 @@ second.
 | #F600-#F680 | the characters out it collected, and their count |
 | #F681 | the slot's next key (0: none), put there by the hypervisor |
 | #F682-#F686 | its console: column, row, the page ring's top row, escape state and row |
+| #F68F-#F6D5 | the slot's command line being typed (its length, then up to 70 characters) |
 | #F700-#FECF | the slot's text page (80 x 25) |
 | #FFFE | the slot's saved SP |
 
@@ -202,7 +208,7 @@ CyborgOS itself is `bas/cyborgos/Main.bas`, `Hyp.cls` (the bank side, the switch
 `Hot.cls` (the system keys, an interrupt class), built for **cpcfw** (also with `Option Library
 ROM`). `Option Reserve &H4000, &H4000` keeps the window it reaches the banks through free: the
 hypervisor (about 19K) is built round it, from #0040 and on from #8800, after the 2K file
-buffer `Option Buffer &H8000` puts at #8000; the Memory class's tables follow it (all 64 banks
-of a 4MB expansion). The
+buffer `Option Buffer &H8000` puts at #8000; the Memory class's tables follow it (`Option Memory
+CPCExpansion 193`: up to 48 banks - all 64 of a 4MB expansion no longer fit there). The
 test programs are in `bas/cyborgos/tasks/`. The regression tests run it in the harness with 4
 slots (576K), 1 slot (128K) and as a Library: ROM build.
