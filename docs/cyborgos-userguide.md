@@ -33,6 +33,7 @@ The screen goes to mode 2 (80 x 25) and slot 1 shows its command line:
 
 ```
 CyborgOS slot 1 of 4 - Control + 1-4, Control + ESC: TOP, HELP
+
 1>
 ```
 

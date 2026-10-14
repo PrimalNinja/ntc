@@ -494,6 +494,7 @@ Sub ResetSlot(ByVal s As Integer)
     st(s) = 1
     ClsT s
     PutLn s, "CyborgOS slot " + N(s) + " of " + N(ns) + " - " + SK() + ", Control + ESC: TOP, HELP"
+    PutLn s, ""                   ' a blank line under the title
   End If                          ' (the prompt: the command line puts it after the command)
 End Sub
 
@@ -502,6 +503,7 @@ Sub OpenSlot(ByVal t As Integer)
   st(t) = 1
   ClsT t
   PutLn t, "CyborgOS slot " + N(t) + " of " + N(ns) + " - " + SK() + ", Control + ESC: TOP, HELP"
+  PutLn t, ""                     ' a blank line under the title
   Prompt t
 End Sub
 

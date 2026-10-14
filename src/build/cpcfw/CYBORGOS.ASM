@@ -1395,7 +1395,10 @@ p_resetslot:
 			dw kw_strcat, stmp1, str28
 			dw p_putln_c, var_resetslot_s, stmp1
 
-			; Main.bas 497: End If                          ' (the prompt: the command line puts it after the command)
+			; Main.bas 497: PutLn s, ""                   ' a blank line under the title
+			dw p_putln_c, var_resetslot_s, str15
+
+			; Main.bas 498: End If                          ' (the prompt: the command line puts it after the command)
 if58_1:
 			dw p_resetslot_r
 
@@ -1410,16 +1413,16 @@ ntc_rg22:
 
 p_openslot:
 
-			; Main.bas 501: Install t
+			; Main.bas 502: Install t
 			dw p_install_c, var_openslot_t
 
-			; Main.bas 502: st(t) = 1
+			; Main.bas 503: st(t) = 1
 			dw kw_asetl, arr_st, var_openslot_t, 1
 
-			; Main.bas 503: ClsT t
+			; Main.bas 504: ClsT t
 			dw p_clst_c, var_openslot_t
 
-			; Main.bas 504: PutLn t, "CyborgOS slot " + N(t) + " of " + N(ns) + " - " + SK() + ", Control + ESC: TOP, HELP"
+			; Main.bas 505: PutLn t, "CyborgOS slot " + N(t) + " of " + N(ns) + " - " + SK() + ", Control + ESC: TOP, HELP"
 			dw p_n_c, var_openslot_t
 			dw kw_strcpy, stmp2, var_n_n
 			dw kw_strcpy, stmp1, str25
@@ -1435,7 +1438,10 @@ p_openslot:
 			dw kw_strcat, stmp1, str28
 			dw p_putln_c, var_openslot_t, stmp1
 
-			; Main.bas 505: Prompt t
+			; Main.bas 506: PutLn t, ""                     ' a blank line under the title
+			dw p_putln_c, var_openslot_t, str15
+
+			; Main.bas 507: Prompt t
 			dw p_prompt_c, var_openslot_t
 			dw p_openslot_r
 
@@ -1450,7 +1456,7 @@ ntc_rg23:
 
 p_sk:
 
-			; Main.bas 510: If ns <= 8 Then SK = "Control + 1-" + N(ns) Else SK = "Control + 1-8 (twice: 9-" + N(ns) + ")"
+			; Main.bas 512: If ns <= 8 Then SK = "Control + 1-" + N(ns) Else SK = "Control + 1-8 (twice: 9-" + N(ns) + ")"
 			dw kw_scplevl, var_ns, 8
 			dw kw_goto_iffalse_n, if59_1
 			dw p_n_c, var_ns
@@ -1479,7 +1485,7 @@ ntc_rg24:
 
 p_n:
 
-			; Main.bas 515: N = Trim$(Str$(v))
+			; Main.bas 517: N = Trim$(Str$(v))
 			dw kw_strstr, stmp3, var_n_v
 			dw kw_strtrim, var_n_n, stmp3
 			dw p_n_r
@@ -1495,11 +1501,11 @@ ntc_rg25:
 
 p_prompt:
 
-			; Main.bas 519: Memory.WriteByte Far(t, LNLEN), 0                ' an empty command line
+			; Main.bas 521: Memory.WriteByte Far(t, LNLEN), 0                ' an empty command line
 			dw p_far_c, var_prompt_t, lit_m2417
 			dw fn_memory_writebyte, var_far_far, lit_0
 
-			; Main.bas 520: PutS t, N(t) + "> "
+			; Main.bas 522: PutS t, N(t) + "> "
 			dw p_n_c, var_prompt_t
 			dw kw_strcpy, stmp1, var_n_n
 			dw kw_strcat, stmp1, str32
@@ -1517,55 +1523,55 @@ ntc_rg26:
 
 p_keyin:
 
-			; Main.bas 525: Dim t As Integer, n As Integer
+			; Main.bas 527: Dim t As Integer, n As Integer
 
-			; Main.bas 526: If front = 0 Then
+			; Main.bas 528: If front = 0 Then
 			dw kw_cpeqvl, var_front, 0
 			dw kw_goto_iffalse_n, if60_1
 
-			; Main.bas 527: Exit Sub                      ' TOP stays until Control + ESC or Control + a slot
+			; Main.bas 529: Exit Sub                      ' TOP stays until Control + ESC or Control + a slot
 			dw p_keyin_r
 
-			; Main.bas 528: End If
+			; Main.bas 530: End If
 if60_1:
 
-			; Main.bas 529: t = front
+			; Main.bas 531: t = front
 			dw kw_vtov, var_front, var_keyin_t
 
-			; Main.bas 530: If st(t) = 2 Then
+			; Main.bas 532: If st(t) = 2 Then
 			dw kw_aget, arr_st, var_keyin_t, tmp0
 			dw kw_cpeqvl, tmp0, 2
 			dw kw_goto_iffalse_n, if61_1
 
-			; Main.bas 531: kq(t) = k                                     ' the key into its bank: its BDOS answers from it
+			; Main.bas 533: kq(t) = k                                     ' the key into its bank: its BDOS answers from it
 			dw kw_aset, arr_kq, var_keyin_t, var_keyin_k
 
-			; Main.bas 532: Memory.WriteByte Far(t, Hyp.KEY), k
+			; Main.bas 534: Memory.WriteByte Far(t, Hyp.KEY), k
 			dw p_far_c, var_keyin_t, lit_m2431
 			dw fn_memory_writebyte, var_far_far, var_keyin_k
 
-			; Main.bas 533: Exit Sub
+			; Main.bas 535: Exit Sub
 			dw p_keyin_r
 
-			; Main.bas 534: End If
+			; Main.bas 536: End If
 if61_1:
 
-			; Main.bas 535: n = Memory.ReadByte(Far(t, LNLEN))             ' the command line so far (in the slot's bank)
+			; Main.bas 537: n = Memory.ReadByte(Far(t, LNLEN))             ' the command line so far (in the slot's bank)
 			dw p_far_c, var_keyin_t, lit_m2417
 			dw kw_l_mov, var_far_far, ltmp0
 			dw fn_memory_readbyte, ltmp0, var_keyin_n
 
-			; Main.bas 536: If k = 13 Then
+			; Main.bas 538: If k = 13 Then
 			dw kw_cpeqvl, var_keyin_k, 13
 			dw kw_goto_iffalse_n, if62_1
 
-			; Main.bas 537: PutLn t, ""
+			; Main.bas 539: PutLn t, ""
 			dw p_putln_c, var_keyin_t, str15
 
-			; Main.bas 538: Command t
+			; Main.bas 540: Command t
 			dw p_command_c, var_keyin_t
 
-			; Main.bas 539: If st(t) = 1 And wt = 0 And front = t Then Prompt t
+			; Main.bas 541: If st(t) = 1 And wt = 0 And front = t Then Prompt t
 			dw kw_aget, arr_st, var_keyin_t, tmp0
 			dw kw_cpeqvl, tmp0, 1
 			dw kw_ftov, tmp0
@@ -1579,7 +1585,7 @@ if61_1:
 			dw p_prompt_c, var_keyin_t
 if63_1:
 
-			; Main.bas 540: ElseIf k = 127 Or k = 8 Then
+			; Main.bas 542: ElseIf k = 127 Or k = 8 Then
 			dw if62_e_go
 if62_1:
 			dw kw_cpeqvl, var_keyin_k, 127
@@ -1589,24 +1595,24 @@ if62_1:
 			dw kw_orvv, tmp0, tmp1, tmp0
 			dw kw_goto_ifzero_n, tmp0, if62_2
 
-			; Main.bas 541: If n > 0 Then
+			; Main.bas 543: If n > 0 Then
 			dw kw_scpgtvl, var_keyin_n, 0
 			dw kw_goto_iffalse_n, if62_e
 
-			; Main.bas 542: Memory.WriteByte Far(t, LNLEN), n - 1
+			; Main.bas 544: Memory.WriteByte Far(t, LNLEN), n - 1
 			dw p_far_c, var_keyin_t, lit_m2417
 			dw kw_addl, var_keyin_n, -1, tmp1
 			dw fn_memory_writebyte, var_far_far, tmp1
 
-			; Main.bas 543: PutC t, 8 : PutC t, 32 : PutC t, 8
+			; Main.bas 545: PutC t, 8 : PutC t, 32 : PutC t, 8
 			dw p_putc_c, var_keyin_t, lit_8
 			dw p_putc_c, var_keyin_t, lit_32
 			dw p_putc_c, var_keyin_t, lit_8
 
-			; Main.bas 544: End If
+			; Main.bas 546: End If
 if64_1:
 
-			; Main.bas 545: ElseIf k >= 32 And k < 127 And n < 70 Then
+			; Main.bas 547: ElseIf k >= 32 And k < 127 And n < 70 Then
 			dw if62_e_go
 if62_2:
 			dw kw_scpgevl, var_keyin_k, 32
@@ -1619,20 +1625,20 @@ if62_2:
 			dw kw_andvv, tmp0, tmp1, tmp0
 			dw kw_goto_ifzero_n, tmp0, if62_3
 
-			; Main.bas 546: Memory.WriteByte Far(t, LNBUF + n), k
+			; Main.bas 548: Memory.WriteByte Far(t, LNBUF + n), k
 			dw kw_addl, var_keyin_n, -2416, tmp1
 			dw p_far_c, var_keyin_t, tmp1
 			dw fn_memory_writebyte, var_far_far, var_keyin_k
 
-			; Main.bas 547: Memory.WriteByte Far(t, LNLEN), n + 1
+			; Main.bas 549: Memory.WriteByte Far(t, LNLEN), n + 1
 			dw p_far_c, var_keyin_t, lit_m2417
 			dw kw_addl, var_keyin_n, 1, tmp1
 			dw fn_memory_writebyte, var_far_far, tmp1
 
-			; Main.bas 548: PutC t, k
+			; Main.bas 550: PutC t, k
 			dw p_putc_c, var_keyin_t, var_keyin_k
 
-			; Main.bas 549: End If
+			; Main.bas 551: End If
 if62_3:
 if62_e:
 			dw p_keyin_r
@@ -1648,117 +1654,117 @@ ntc_rg27:
 
 p_command:
 
-			; Main.bas 553: Dim c As String, a As String, b As String, p As Integer, s As Integer
+			; Main.bas 555: Dim c As String, a As String, b As String, p As Integer, s As Integer
 
-			; Main.bas 554: p = Memory.ReadByte(Far(t, LNLEN))              ' the command line, from the slot's bank
+			; Main.bas 556: p = Memory.ReadByte(Far(t, LNLEN))              ' the command line, from the slot's bank
 			dw p_far_c, var_command_t, lit_m2417
 			dw kw_l_mov, var_far_far, ltmp0
 			dw fn_memory_readbyte, ltmp0, var_command_p
 
-			; Main.bas 555: Memory.Copy Far(t, LNBUF), CLng(VarPtr(ob)), p
+			; Main.bas 557: Memory.Copy Far(t, LNBUF), CLng(VarPtr(ob)), p
 			dw p_far_c, var_command_t, lit_m2416
 			dw kw_l_itol, vp_var_ob, ltmp1
 			dw fn_memory_copy, var_far_far, ltmp1, var_command_p, var_memory_copy_copy
 
-			; Main.bas 556: c = UCase$(Trim$(Left$(ob, p)))
+			; Main.bas 558: c = UCase$(Trim$(Left$(ob, p)))
 			dw kw_strleft, stmp0, var_ob, var_command_p
 			dw kw_strtrim, stmp0, stmp0
 			dw kw_strucase, stmp0, stmp0
 			dw kw_strcpy, var_command_c, stmp0
 
-			; Main.bas 557: p = InStr(c, " ")
+			; Main.bas 559: p = InStr(c, " ")
 			dw kw_strinstr, lit_1, var_command_c, str22, var_command_p
 
-			; Main.bas 558: If p > 0 Then
+			; Main.bas 560: If p > 0 Then
 			dw kw_scpgtvl, var_command_p, 0
 			dw kw_goto_iffalse_n, if65_1
 
-			; Main.bas 559: a = Trim$(Mid$(c, p + 1))
+			; Main.bas 561: a = Trim$(Mid$(c, p + 1))
 			dw kw_addl, var_command_p, 1, tmp1
 			dw kw_strmid, stmp0, var_command_c, tmp1, lit_255
 			dw kw_strtrim, stmp0, stmp0
 			dw kw_strcpy, var_command_a, stmp0
 
-			; Main.bas 560: c = Left$(c, p - 1)
+			; Main.bas 562: c = Left$(c, p - 1)
 			dw kw_addl, var_command_p, -1, tmp1
 			dw kw_strleft, stmp0, var_command_c, tmp1
 			dw kw_strcpy, var_command_c, stmp0
 
-			; Main.bas 561: End If
+			; Main.bas 563: End If
 if65_1:
 
-			; Main.bas 562: p = InStr(a, " ")
+			; Main.bas 564: p = InStr(a, " ")
 			dw kw_strinstr, lit_1, var_command_a, str22, var_command_p
 
-			; Main.bas 563: If p > 0 Then
+			; Main.bas 565: If p > 0 Then
 			dw kw_scpgtvl, var_command_p, 0
 			dw kw_goto_iffalse_n, if66_1
 
-			; Main.bas 564: b = Trim$(Mid$(a, p + 1))
+			; Main.bas 566: b = Trim$(Mid$(a, p + 1))
 			dw kw_addl, var_command_p, 1, tmp1
 			dw kw_strmid, stmp0, var_command_a, tmp1, lit_255
 			dw kw_strtrim, stmp0, stmp0
 			dw kw_strcpy, var_command_b, stmp0
 
-			; Main.bas 565: a = Left$(a, p - 1)
+			; Main.bas 567: a = Left$(a, p - 1)
 			dw kw_addl, var_command_p, -1, tmp1
 			dw kw_strleft, stmp0, var_command_a, tmp1
 			dw kw_strcpy, var_command_a, stmp0
 
-			; Main.bas 566: End If
+			; Main.bas 568: End If
 if66_1:
 
-			; Main.bas 567: Select Case c
+			; Main.bas 569: Select Case c
 			dw kw_strcpy, var_command___sel67, var_command_c
 
-			; Main.bas 568: Case ""
+			; Main.bas 570: Case ""
 			dw kw_strcmpeq, var_command___sel67, str15
 			dw kw_goto_iffalse_n, sel67_1
 sel67_b1:
 
-			; Main.bas 569: Case "HELP"
+			; Main.bas 571: Case "HELP"
 			dw sel67_e_go
 sel67_1:
 			dw kw_strcmpeq, var_command___sel67, str33
 			dw kw_goto_iffalse_n, sel67_2
 sel67_b2:
 
-			; Main.bas 570: PutLn t, "RUN name [slot]  FG slot  PS  TOP  KILL slot  RESET [slot]  WAIT  CLS  MEM  QUIT"
+			; Main.bas 572: PutLn t, "RUN name [slot]  FG slot  PS  TOP  KILL slot  RESET [slot]  WAIT  CLS  MEM  QUIT"
 			dw p_putln_c, var_command_t, str34
 
-			; Main.bas 571: PutLn t, SK() + ": a slot to the front   Control + ESC: TOP"
+			; Main.bas 573: PutLn t, SK() + ": a slot to the front   Control + ESC: TOP"
 			dw p_sk_c
 			dw kw_strcpy, stmp1, var_sk_sk
 			dw kw_strcat, stmp1, str35
 			dw p_putln_c, var_command_t, stmp1
 
-			; Main.bas 572: Case "CLS"
+			; Main.bas 574: Case "CLS"
 			dw sel67_e_go
 sel67_2:
 			dw kw_strcmpeq, var_command___sel67, str36
 			dw kw_goto_iffalse_n, sel67_3
 sel67_b3:
 
-			; Main.bas 573: ClsT t
+			; Main.bas 575: ClsT t
 			dw p_clst_c, var_command_t
 
-			; Main.bas 574: Case "RUN"
+			; Main.bas 576: Case "RUN"
 			dw sel67_e_go
 sel67_3:
 			dw kw_strcmpeq, var_command___sel67, str37
 			dw kw_goto_iffalse_n, sel67_4
 sel67_b4:
 
-			; Main.bas 575: s = t
+			; Main.bas 577: s = t
 			dw kw_vtov, var_command_t, var_command_s
 
-			; Main.bas 576: If b <> "" Then s = Val(b)
+			; Main.bas 578: If b <> "" Then s = Val(b)
 			dw kw_strcmpne, var_command_b, str15
 			dw kw_goto_iffalse_n, if68_1
 			dw kw_strval, var_command_b, var_command_s
 if68_1:
 
-			; Main.bas 577: If s < 1 Or s > ns Then PutLn t, "no slot" + Str$(s) : Exit Sub
+			; Main.bas 579: If s < 1 Or s > ns Then PutLn t, "no slot" + Str$(s) : Exit Sub
 			dw kw_scpltvl, var_command_s, 1
 			dw kw_ftov, tmp0
 			dw kw_scpgtvv, var_command_s, var_ns
@@ -1772,7 +1778,7 @@ if68_1:
 			dw p_command_r
 if69_1:
 
-			; Main.bas 578: If st(s) = 2 Then PutLn t, "slot" + Str$(s) + " is busy" : Exit Sub
+			; Main.bas 580: If st(s) = 2 Then PutLn t, "slot" + Str$(s) + " is busy" : Exit Sub
 			dw kw_aget, arr_st, var_command_s, tmp0
 			dw kw_cpeqvl, tmp0, 2
 			dw kw_goto_iffalse_n, if70_1
@@ -1784,20 +1790,20 @@ if69_1:
 			dw p_command_r
 if70_1:
 
-			; Main.bas 579: StartTask t, s, a
+			; Main.bas 581: StartTask t, s, a
 			dw p_starttask_c, var_command_t, var_command_s, var_command_a
 
-			; Main.bas 580: Case "FG"
+			; Main.bas 582: Case "FG"
 			dw sel67_e_go
 sel67_4:
 			dw kw_strcmpeq, var_command___sel67, str41
 			dw kw_goto_iffalse_n, sel67_5
 sel67_b5:
 
-			; Main.bas 581: s = Val(a)
+			; Main.bas 583: s = Val(a)
 			dw kw_strval, var_command_a, var_command_s
 
-			; Main.bas 582: If s >= 1 And s <= ns Then ToFront s Else PutLn t, "no slot " + a
+			; Main.bas 584: If s >= 1 And s <= ns Then ToFront s Else PutLn t, "no slot " + a
 			dw kw_scpgevl, var_command_s, 1
 			dw kw_ftov, tmp0
 			dw kw_scplevv, var_command_s, var_ns
@@ -1812,33 +1818,33 @@ if71_1:
 			dw p_putln_c, var_command_t, stmp1
 if71_e:
 
-			; Main.bas 583: Case "TOP"
+			; Main.bas 585: Case "TOP"
 			dw sel67_e_go
 sel67_5:
 			dw kw_strcmpeq, var_command___sel67, str43
 			dw kw_goto_iffalse_n, sel67_6
 sel67_b6:
 
-			; Main.bas 584: txs = t
+			; Main.bas 586: txs = t
 			dw kw_vtov, var_command_t, var_txs
 
-			; Main.bas 585: TopLines front, 0                        ' printed into this slot's console, once
+			; Main.bas 587: TopLines front, 0                        ' printed into this slot's console, once
 			dw p_toplines_c, var_front, lit_0
 
-			; Main.bas 586: Case "PS"
+			; Main.bas 588: Case "PS"
 			dw sel67_e_go
 sel67_6:
 			dw kw_strcmpeq, var_command___sel67, str44
 			dw kw_goto_iffalse_n, sel67_7
 sel67_b7:
 
-			; Main.bas 587: For s = 1 To ns
+			; Main.bas 589: For s = 1 To ns
 			dw kw_ltov, 1, var_command_s
 			dw kw_vtov, var_ns, for72_l
 			dw kw_forupv_n, var_command_s, for72_l, sel67_e
 for72_t:
 
-			; Main.bas 588: If st(s) = 0 Then a = "-" Else If st(s) = 1 Then a = "command line" Else a = nm(s)
+			; Main.bas 590: If st(s) = 0 Then a = "-" Else If st(s) = 1 Then a = "command line" Else a = nm(s)
 			dw kw_aget, arr_st, var_command_s, tmp0
 			dw kw_cpeqvl, tmp0, 0
 			dw kw_goto_iffalse_n, if73_1
@@ -1856,7 +1862,7 @@ if74_1:
 if74_e:
 if73_e:
 
-			; Main.bas 589: PutLn t, Right$("  " + N(s), 3) + IIf(s = front, " * ", "   ") + a
+			; Main.bas 591: PutLn t, Right$("  " + N(s), 3) + IIf(s = front, " * ", "   ") + a
 			dw p_n_c, var_command_s
 			dw kw_strcpy, stmp2, var_n_n
 			dw kw_strcpy, stmp1, str24
@@ -1877,21 +1883,21 @@ ch75_e:
 			dw kw_strcat, stmp1, var_command_a
 			dw p_putln_c, var_command_t, stmp1
 
-			; Main.bas 590: Next
+			; Main.bas 592: Next
 			dw kw_next1v_n, var_command_s, for72_l, for72_t
 for72_e:
 
-			; Main.bas 591: Case "KILL"
+			; Main.bas 593: Case "KILL"
 			dw sel67_e_go
 sel67_7:
 			dw kw_strcmpeq, var_command___sel67, str47
 			dw kw_goto_iffalse_n, sel67_8
 sel67_b8:
 
-			; Main.bas 592: s = Val(a)
+			; Main.bas 594: s = Val(a)
 			dw kw_strval, var_command_a, var_command_s
 
-			; Main.bas 593: If s >= 1 And s <= ns And st(s) = 2 Then
+			; Main.bas 595: If s >= 1 And s <= ns And st(s) = 2 Then
 			dw kw_scpgevl, var_command_s, 1
 			dw kw_ftov, tmp0
 			dw kw_scplevv, var_command_s, var_ns
@@ -1903,29 +1909,29 @@ sel67_b8:
 			dw kw_andvv, tmp0, tmp1, tmp0
 			dw kw_goto_ifzero_n, tmp0, if76_1
 
-			; Main.bas 594: EndTask s
+			; Main.bas 596: EndTask s
 			dw p_endtask_c, var_command_s
 
-			; Main.bas 595: Else
+			; Main.bas 597: Else
 			dw sel67_e_go
 if76_1:
 
-			; Main.bas 596: PutLn t, "nothing running in slot " + a
+			; Main.bas 598: PutLn t, "nothing running in slot " + a
 			dw kw_strcpy, stmp1, str48
 			dw kw_strcat, stmp1, var_command_a
 			dw p_putln_c, var_command_t, stmp1
 
-			; Main.bas 597: End If
+			; Main.bas 599: End If
 if76_e:
 
-			; Main.bas 598: Case "RESET"
+			; Main.bas 600: Case "RESET"
 			dw sel67_e_go
 sel67_8:
 			dw kw_strcmpeq, var_command___sel67, str49
 			dw kw_goto_iffalse_n, sel67_9
 sel67_b9:
 
-			; Main.bas 599: If a = "" Then s = t Else s = Val(a)
+			; Main.bas 601: If a = "" Then s = t Else s = Val(a)
 			dw kw_strcmpeq, var_command_a, str15
 			dw kw_goto_iffalse_n, if77_1
 			dw kw_vtov, var_command_t, var_command_s
@@ -1934,7 +1940,7 @@ if77_1:
 			dw kw_strval, var_command_a, var_command_s
 if77_e:
 
-			; Main.bas 600: If s < 1 Or s > ns Then
+			; Main.bas 602: If s < 1 Or s > ns Then
 			dw kw_scpltvl, var_command_s, 1
 			dw kw_ftov, tmp0
 			dw kw_scpgtvv, var_command_s, var_ns
@@ -1942,19 +1948,19 @@ if77_e:
 			dw kw_orvv, tmp0, tmp1, tmp0
 			dw kw_goto_ifzero_n, tmp0, if78_1
 
-			; Main.bas 601: PutLn t, "no slot " + a
+			; Main.bas 603: PutLn t, "no slot " + a
 			dw kw_strcpy, stmp1, str42
 			dw kw_strcat, stmp1, var_command_a
 			dw p_putln_c, var_command_t, stmp1
 
-			; Main.bas 602: Else
+			; Main.bas 604: Else
 			dw sel67_e_go
 if78_1:
 
-			; Main.bas 603: ResetSlot s
+			; Main.bas 605: ResetSlot s
 			dw p_resetslot_c, var_command_s
 
-			; Main.bas 604: If s <> t Then PutLn t, "slot " + N(s) + " reset"
+			; Main.bas 606: If s <> t Then PutLn t, "slot " + N(s) + " reset"
 			dw kw_cpnevv, var_command_s, var_command_t
 			dw kw_goto_iffalse_n, sel67_e
 			dw p_n_c, var_command_s
@@ -1965,17 +1971,17 @@ if78_1:
 			dw p_putln_c, var_command_t, stmp1
 if79_1:
 
-			; Main.bas 605: End If
+			; Main.bas 607: End If
 if78_e:
 
-			; Main.bas 606: Case "MEM"
+			; Main.bas 608: Case "MEM"
 			dw sel67_e_go
 sel67_9:
 			dw kw_strcmpeq, var_command___sel67, str52
 			dw kw_goto_iffalse_n, sel67_10
 sel67_b10:
 
-			; Main.bas 607: PutLn t, N(Memory.Banks()) + " banks of 64K, " + N(ns) + " slots, " + N(Memory.FreePages()) + " pages of 16K free"
+			; Main.bas 609: PutLn t, N(Memory.Banks()) + " banks of 64K, " + N(ns) + " slots, " + N(Memory.FreePages()) + " pages of 16K free"
 			dw fn_memory_banks, var_memory_banks_banks
 			dw kw_vtov, var_memory_banks_banks, tmp1
 			dw p_n_c, tmp1
@@ -1993,14 +1999,14 @@ sel67_b10:
 			dw kw_strcat, stmp1, str53
 			dw p_putln_c, var_command_t, stmp1
 
-			; Main.bas 608: Case "WAIT"
+			; Main.bas 610: Case "WAIT"
 			dw sel67_e_go
 sel67_10:
 			dw kw_strcmpeq, var_command___sel67, str54
 			dw kw_goto_iffalse_n, sel67_11
 sel67_b11:
 
-			; Main.bas 609: If Running() > 0 Then wt = t
+			; Main.bas 611: If Running() > 0 Then wt = t
 			dw p_running_c
 			dw kw_vtov, var_running_running, tmp0
 			dw kw_scpgtvl, tmp0, 0
@@ -2008,27 +2014,27 @@ sel67_b11:
 			dw kw_vtov, var_command_t, var_wt
 if80_1:
 
-			; Main.bas 610: Case "QUIT"
+			; Main.bas 612: Case "QUIT"
 			dw sel67_e_go
 sel67_11:
 			dw kw_strcmpeq, var_command___sel67, str55
 			dw kw_goto_iffalse_n, sel67_12
 sel67_b12:
 
-			; Main.bas 611: quit = -1
+			; Main.bas 613: quit = -1
 			dw kw_ltov, -1, var_quit
 
-			; Main.bas 612: Case Else
+			; Main.bas 614: Case Else
 			dw sel67_e_go
 sel67_12:
 
-			; Main.bas 613: PutLn t, "? " + c + " (HELP)"
+			; Main.bas 615: PutLn t, "? " + c + " (HELP)"
 			dw kw_strcpy, stmp1, str56
 			dw kw_strcat, stmp1, var_command_c
 			dw kw_strcat, stmp1, str57
 			dw p_putln_c, var_command_t, stmp1
 
-			; Main.bas 614: End Select
+			; Main.bas 616: End Select
 sel67_e:
 			dw p_command_r
 
@@ -2043,26 +2049,26 @@ ntc_rg28:
 
 p_starttask:
 
-			; Main.bas 619: Dim h As Integer, n As Integer, p As Integer, want As Integer
+			; Main.bas 621: Dim h As Integer, n As Integer, p As Integer, want As Integer
 
-			; Main.bas 620: If f = "" Then PutLn t, "RUN what?" : Exit Sub
+			; Main.bas 622: If f = "" Then PutLn t, "RUN what?" : Exit Sub
 			dw kw_strcmpeq, var_starttask_f, str15
 			dw kw_goto_iffalse_n, if81_1
 			dw p_putln_c, var_starttask_t, str58
 			dw p_starttask_r
 if81_1:
 
-			; Main.bas 621: If InStr(f, ".") = 0 Then f = f + ".CYB"
+			; Main.bas 623: If InStr(f, ".") = 0 Then f = f + ".CYB"
 			dw kw_strinstr, lit_1, var_starttask_f, str59, tmp0
 			dw kw_cpeqvl, tmp0, 0
 			dw kw_goto_iffalse_n, if82_1
 			dw kw_strcat, var_starttask_f, str60
 if82_1:
 
-			; Main.bas 622: h = FileSystem.Open(f, FileSystem.ForRead)
+			; Main.bas 624: h = FileSystem.Open(f, FileSystem.ForRead)
 			dw fn_filesystem_open, var_starttask_f, lit_1, var_starttask_h
 
-			; Main.bas 623: If h < 0 Then PutLn t, f + ": not found" : Exit Sub
+			; Main.bas 625: If h < 0 Then PutLn t, f + ": not found" : Exit Sub
 			dw kw_scpltvl, var_starttask_h, 0
 			dw kw_goto_iffalse_n, if83_1
 			dw kw_strcpy, stmp1, var_starttask_f
@@ -2071,14 +2077,14 @@ if82_1:
 			dw p_starttask_r
 if83_1:
 
-			; Main.bas 624: If st(s) = 0 Then OpenSlot s
+			; Main.bas 626: If st(s) = 0 Then OpenSlot s
 			dw kw_aget, arr_st, var_starttask_s, tmp0
 			dw kw_cpeqvl, tmp0, 0
 			dw kw_goto_iffalse_n, if84_1
 			dw p_openslot_c, var_starttask_s
 if84_1:
 
-			; Main.bas 625: If s <> t Then PutLn s, "RUN " + f
+			; Main.bas 627: If s <> t Then PutLn s, "RUN " + f
 			dw kw_cpnevv, var_starttask_s, var_starttask_t
 			dw kw_goto_iffalse_n, if85_1
 			dw kw_strcpy, stmp1, str62
@@ -2086,53 +2092,53 @@ if84_1:
 			dw p_putln_c, var_starttask_s, stmp1
 if85_1:
 
-			; Main.bas 626: Install s
+			; Main.bas 628: Install s
 			dw p_install_c, var_starttask_s
 
-			; Main.bas 627: p = 0
+			; Main.bas 629: p = 0
 			dw kw_ztov, var_starttask_p
 
-			; Main.bas 628: Do
+			; Main.bas 630: Do
 do86_t:
 
-			; Main.bas 629: Memory.SelectPage Memory.BankPage(bk(s), p)
+			; Main.bas 631: Memory.SelectPage Memory.BankPage(bk(s), p)
 			dw kw_aget, arr_bk, var_starttask_s, tmp0
 			dw p_memory_bankpage_c, tmp0, var_starttask_p
 			dw fn_memory_selectpage, var_memory_bankpage_bankpage, var_memory_selectpage_selectpage
 
-			; Main.bas 630: If p = 0 Then
+			; Main.bas 632: If p = 0 Then
 			dw kw_cpeqvl, var_starttask_p, 0
 			dw kw_goto_iffalse_n, if87_1
 
-			; Main.bas 631: want = &H3F00
+			; Main.bas 633: want = &H3F00
 			dw kw_ltov, 16128, var_starttask_want
 
-			; Main.bas 632: n = FileSystem.Read(h, &H4100, want)
+			; Main.bas 634: n = FileSystem.Read(h, &H4100, want)
 			dw fn_filesystem_read, var_starttask_h, lit_16640, var_starttask_want, var_starttask_n
 
-			; Main.bas 633: Else
+			; Main.bas 635: Else
 			dw if87_e_go
 if87_1:
 
-			; Main.bas 634: want = &H4000
+			; Main.bas 636: want = &H4000
 			dw kw_ltov, 16384, var_starttask_want
 
-			; Main.bas 635: If p = 3 Then want = &H3500
+			; Main.bas 637: If p = 3 Then want = &H3500
 			dw kw_cpeqvl, var_starttask_p, 3
 			dw kw_goto_iffalse_n, if88_1
 			dw kw_ltov, 13568, var_starttask_want
 if88_1:
 
-			; Main.bas 636: n = FileSystem.Read(h, &H4000, want)
+			; Main.bas 638: n = FileSystem.Read(h, &H4000, want)
 			dw fn_filesystem_read, var_starttask_h, lit_16384, var_starttask_want, var_starttask_n
 
-			; Main.bas 637: End If
+			; Main.bas 639: End If
 if87_e:
 
-			; Main.bas 638: p = p + 1
+			; Main.bas 640: p = p + 1
 			dw kw_inc, var_starttask_p
 
-			; Main.bas 639: Loop Until n < want Or p = 4
+			; Main.bas 641: Loop Until n < want Or p = 4
 			dw kw_scpltvv, var_starttask_n, var_starttask_want
 			dw kw_ftov, tmp0
 			dw kw_cpeqvl, var_starttask_p, 4
@@ -2141,38 +2147,38 @@ if87_e:
 			dw kw_goto_ifzero_n, tmp0, do86_t
 do86_e:
 
-			; Main.bas 640: FileSystem.Close h
+			; Main.bas 642: FileSystem.Close h
 			dw fn_filesystem_close, var_starttask_h, var_filesystem_close_close
 
-			; Main.bas 642: Memory.WriteWord Far(s, &HFEFC), &H100
+			; Main.bas 644: Memory.WriteWord Far(s, &HFEFC), &H100
 			dw p_far_c, var_starttask_s, lit_m260
 			dw fn_memory_writeword, var_far_far, lit_256
 
-			; Main.bas 643: Memory.WriteWord Far(s, &HFEFE), 0
+			; Main.bas 645: Memory.WriteWord Far(s, &HFEFE), 0
 			dw p_far_c, var_starttask_s, lit_m258
 			dw fn_memory_writeword, var_far_far, lit_0
 
-			; Main.bas 644: Memory.WriteWord Far(s, &HFFFE), &HFEFC
+			; Main.bas 646: Memory.WriteWord Far(s, &HFFFE), &HFEFC
 			dw p_far_c, var_starttask_s, lit_m2
 			dw fn_memory_writeword, var_far_far, lit_m260
 
-			; Main.bas 645: nm(s) = f
+			; Main.bas 647: nm(s) = f
 			dw kw_sset, arr_nm, var_starttask_s, var_starttask_f, 13
 
-			; Main.bas 646: kq(s) = 0
+			; Main.bas 648: kq(s) = 0
 			dw kw_asetl, arr_kq, var_starttask_s, 0
 
-			; Main.bas 647: Memory.WriteByte Far(s, &HF685), 0             ' no escape sequence left half done
+			; Main.bas 649: Memory.WriteByte Far(s, &HF685), 0             ' no escape sequence left half done
 			dw p_far_c, var_starttask_s, lit_m2427
 			dw fn_memory_writebyte, var_far_far, lit_0
 
-			; Main.bas 648: wk(s) = -1
+			; Main.bas 650: wk(s) = -1
 			dw kw_asetl, arr_wk, var_starttask_s, -1
 
-			; Main.bas 649: st(s) = 2
+			; Main.bas 651: st(s) = 2
 			dw kw_asetl, arr_st, var_starttask_s, 2
 
-			; Main.bas 650: If s <> t Then PutLn t, f + " runs in slot" + Str$(s)
+			; Main.bas 652: If s <> t Then PutLn t, f + " runs in slot" + Str$(s)
 			dw kw_cpnevv, var_starttask_s, var_starttask_t
 			dw kw_goto_iffalse_n, if89_1
 			dw kw_strcpy, stmp1, var_starttask_f
@@ -2194,32 +2200,32 @@ ntc_rg29:
 
 p_endtask:
 
-			; Main.bas 654: Dim c As Integer
+			; Main.bas 656: Dim c As Integer
 
-			; Main.bas 655: st(t) = 1
+			; Main.bas 657: st(t) = 1
 			dw kw_asetl, arr_st, var_endtask_t, 1
 
-			; Main.bas 656: runs = runs + 1
+			; Main.bas 658: runs = runs + 1
 			dw kw_inc, var_runs
 
-			; Main.bas 657: PutLn t, ""
+			; Main.bas 659: PutLn t, ""
 			dw p_putln_c, var_endtask_t, str15
 
-			; Main.bas 658: PutLn t, "[" + nm(t) + " ended]"
+			; Main.bas 660: PutLn t, "[" + nm(t) + " ended]"
 			dw kw_sget, arr_nm, var_endtask_t, stmp2, 13
 			dw kw_strcpy, stmp1, str64
 			dw kw_strcat, stmp1, stmp2
 			dw kw_strcat, stmp1, str65
 			dw p_putln_c, var_endtask_t, stmp1
 
-			; Main.bas 659: Prompt t
+			; Main.bas 661: Prompt t
 			dw p_prompt_c, var_endtask_t
 
-			; Main.bas 660: c = kq(t) : kq(t) = 0
+			; Main.bas 662: c = kq(t) : kq(t) = 0
 			dw kw_aget, arr_kq, var_endtask_t, var_endtask_c
 			dw kw_asetl, arr_kq, var_endtask_t, 0
 
-			; Main.bas 661: If c <> 0 And t = front Then pk = c    ' a key typed for it after its last look: the command line's
+			; Main.bas 663: If c <> 0 And t = front Then pk = c    ' a key typed for it after its last look: the command line's
 			dw kw_cpnevl, var_endtask_c, 0
 			dw kw_ftov, tmp0
 			dw kw_cpeqvv, var_endtask_t, var_front
