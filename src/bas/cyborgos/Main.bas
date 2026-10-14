@@ -697,6 +697,10 @@ Sub Command(ByVal t As Integer)
   End If
 #If NTC_LIBRARY_ROM Then
 #Else
+  If Len(c) = 2 And Right$(c, 1) = ":" And a = "" Then   ' B: alone: CD B, as in CP/M
+    If Asc(c) >= 65 And Asc(c) <= 90 Then a = Left$(c, 1) : c = "CD"
+  End If
+  If c = "CD" And Len(a) = 2 And Right$(a, 1) = ":" Then a = Left$(a, 1)   ' CD B: as CD B
   If c = "DIR" Then OwnDrive t
 #End If
   Select Case c
@@ -716,7 +720,7 @@ Sub Command(ByVal t As Integer)
       PutLn t, "RESET [slot]      that slot (or this one) as new"
       PutLn t, "PS, TOP           the slots; with their speed"
       PutLn t, "MEM               the memory: main RAM, the banks"
-      PutLn t, "DIR, CD [drive]   the files in FILES.DIR; this slot's drive"
+      PutLn t, "DIR, CD [drive]   the files in FILES.DIR; this slot's drive (B: alone: CD B)"
       PutLn t, "WAIT, CLS, QUIT   until no program runs; clear; end CyborgOS"
       PutLn t, SK() + ": a slot to the front   Control + ESC: TOP"
 #End If

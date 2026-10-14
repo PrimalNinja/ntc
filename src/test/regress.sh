@@ -485,7 +485,8 @@ o=$(timeout 300 python3 ntcrun.py t/cy/Main.bas "mem\n${W}" t/cy/Hyp.cls t/cy/Ho
 if echo "$o" | grep -q "^#0040-#3FFF  CyborgOS" && echo "$o" | grep -q "^#C000-#FFFF  screen" && echo "$o" | grep -q "^Total memory: 3136 KB   Free memory: 2048 KB" && echo "$o" | grep -q "^-\{32\}  -\{32\}$" && echo "$o" | grep -q "^B\{32\}  B\{32\}$"; then echo "ok   CyborgOS MEM map"; else echo "FAIL CyborgOS MEM map"; echo "$o" | tail -8; fail=1; fi
 # a CP/M program with no header (.COM): runs only with an entry - from NAME.HDR (TICKER: 16
 # #1A bytes in it, read ForReadRaw) or FILES.DIR (made by CYBADD: CRUNCH, by its long name);
-# NONE has none. CD B: drive B's FILES.DIR (TICKER as TICK); CD C: no such drive
+# NONE has none. CD B: drive B's FILES.DIR (TICKER as TICK); CD C: no such drive; A: alone and
+# CD B: as CD A, CD B
 cp t/cy/TICKER.COM t/cy/CRUNCH.COM t/files/A/; cp t/cy/CRUNCH.COM t/files/A/NONE.COM; rm -f t/files/A/FILES.DIR
 python3 -c "import ntcrun; d = open('t/cy/TICKER.COM', 'rb').read(); open('t/files/A/TICKER.HDR', 'wb').write(ntcrun.cyb_entry('TICKER.COM', len(d)))"
 cp $P/cyborgos/tools/CYBADD.bas t/cy/
@@ -496,6 +497,8 @@ mkdir -p t/files/B; cp t/cy/TICKER.COM t/files/B/
 python3 -c "import ntcrun; d = open('t/cy/TICKER.COM', 'rb').read(); open('t/files/B/FILES.DIR', 'wb').write(ntcrun.cyb_entry('TICKER.COM', len(d), 'TICK'))"
 o=$(timeout 600 python3 ntcrun.py t/cy/Main.bas "run none\nrun bigcrunch\n${W}run ticker\n${W}xdir\ncd c\ncd b\nrun tick\n${W}x" t/cy/Hyp.cls t/cy/Hot.cls t/cy/Ent.cls --platform=cpcfw --ram=576 2>&1)
 if echo "$o" | grep -q "^NONE: not found" && echo "$o" | grep -q "^Crunch: 450015000" && [ "$(echo "$o" | grep -c "^Ticker done")" == 2 ] && echo "$o" | grep -q "^CRUNCH.COM *$SZ  BIGCRUNCH" && echo "$o" | grep -q "^C: no such drive" && echo "$o" | grep -q "^drive B"; then echo "ok   CyborgOS .COM with FILES.DIR / .HDR, DIR, CD"; else echo "FAIL CyborgOS .COM with FILES.DIR / .HDR, DIR, CD"; echo "$o" | tail -8; fail=1; fi
+o=$(timeout 300 python3 ntcrun.py t/cy/Main.bas "b:\na:\ncd b:\n" t/cy/Hyp.cls t/cy/Hot.cls t/cy/Ent.cls --platform=cpcfw --ram=576 2>&1)
+if [ "$(echo "$o" | grep -c "^drive B")" == 2 ] && echo "$o" | grep -q "^drive A"; then echo "ok   CyborgOS B: alone, CD B:"; else echo "FAIL CyborgOS B: alone, CD B:"; echo "$o" | tail -8; fail=1; fi
 rm -rf t/files/A/*.COM t/files/A/TICKER.HDR t/files/A/FILES.DIR t/files/B
 # the commands (cmds: COPY, ERA, TYPE, PREP - .CYB programs, run by their names, the rest of the
 # line their command tail; found on A when the slot's drive hasn't got them): PREP B (twice: the

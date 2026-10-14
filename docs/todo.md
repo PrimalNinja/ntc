@@ -7,6 +7,7 @@ finished, with the date.
 
 ## done
 
+- 2026-10-15 CyborgOS: B: alone is CD B (as in CP/M), CD B: is CD B
 - 2026-10-15 CyborgOS file speed: a slot's file calls run on in the same turn (up to 32), and a
   record goes into / out of the slot with one ldir when it is in one 16K page (38K COPY: about
   35 s of CPC time down to about 22 s, in the harness). Library: ROM build: 4 slots at most (its

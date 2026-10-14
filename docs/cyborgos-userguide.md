@@ -75,6 +75,7 @@ Typed at a slot's prompt (`1>`), in capitals or not. Backspace / DEL rub out.
 | `RUN` *name* *slot* | runs it in another slot (which keeps running in the background while this command line stays) |
 | `DIR` | lists FILES.DIR: each program's disc name, length in bytes and long name |
 | `CD` [*drive*] | this slot's drive: the disc system's `|`*drive* command is run (AMSDOS's A, B; UniDOS's and the M4's own letters), and the drive is kept only when it is there and has a FILES.DIR. Each slot has its own (A to start with), as in CP/M; RUN and DIR use it. `CD` alone: the slot's drive |
+| *drive*`:` | the same as `CD` *drive*: `B:` alone is `CD B`, as in CP/M; `CD B:` works too |
 | `FG` *slot* | that slot to the front |
 | `PS` | the slots: what each is doing (`*` = in front) |
 | `TOP` | the TOP table (each slot's state, program, and in the last whole second its turns, BDOS calls and characters), then `Total memory: n KB   Free memory: n KB`, printed once into this slot's console, like PS |
