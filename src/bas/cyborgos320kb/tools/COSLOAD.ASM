@@ -15,8 +15,9 @@
 ;     last, so a load that stops part way leaves no Z that looks whole. Then D_POOL gets those
 ;     pages (page, RAM setting) and the signature its checksum. Z not loaded (it doesn't fit, a
 ;     file missing): CyborgOS makes Z from CYBORGOS.Z as before
-;   4 a small loader put above where CYBORGOS.BIN reaches (its end), with its 2K buffer: it loads
-;     CYBORGOS.BIN over this program at #0040 and jumps there. CyborgOS finds the ROMs running
+;   4 a small loader put in screen RAM (#C780, its 2K buffer #E000: nothing needs the screen
+;     then, so main RAM needs no more than CyborgOS itself): it loads CYBORGOS.BIN over this
+;     program at #0040 and jumps there. CyborgOS finds the ROMs running
 ;     (as when CALLed), takes its slots' banks, then claims Z (ProbeDiscs)
 ; No CP/M, no NTC: firmware calls only (TXT OUTPUT, KM WAIT CHAR, CAS IN ..., KL ROM WALK).
 
@@ -25,9 +26,10 @@
 
 COS_BUF     equ #0800               ; CAS IN OPEN's 2K buffer, then the copies' 2K step (and the probe's bytes)
 COS_LOAD    equ #1000               ; a Z file (32K at most: to #8FFF)
-LDR         equ CYB_END             ; the loader: where CYBORGOS.BIN ends (it loads up to there)
-LDR_BUF     equ LDR + ldr_len       ; ... and its CAS IN OPEN buffer (2K)
-LDR_TOP     equ LDR_BUF + #800      ; the lowest byte the ROMs may take
+LDR         equ #C780               ; the loader: in screen RAM (row 24 and the 48 bytes after it in the
+LDR_BUF     equ #E000               ; first 2K block), its CAS IN OPEN buffer #E000-#E7FF - nothing
+                                    ; needs the screen while CYBORGOS.BIN loads, and main RAM then needs
+                                    ; no more than CyborgOS itself (it was past CYBORGOS.BIN's end: 2.1K)
 FW_TOP      equ #A600               ; the firmware's top of free RAM with AMSDOS alone
 NBANKS      equ 64                  ; the banks the Memory class looks for (Option Memory CPCExpansion 257)
 MAXS        equ 20                  ; CyborgOS's most slots
@@ -66,18 +68,13 @@ cos_up:
             ld a, ldr_nlen + 2
             ld (ldr_nl - ldr_start + ldr_img), a
 cos_nodrv:
-            ; the ROMs: as CYBORGOS.BIN's start code does (Option RomEnable All), but not below
-            ; the loader's buffer
-            ld de, LDR_TOP
+            ; the ROMs: as CYBORGOS.BIN's start code does (Option RomEnable All): not below its
+            ; arrays' end
+            ld de, CYB_FREE
             ld hl, #ABFF
             call #BCCB              ; KL ROM WALK
             inc hl                  ; the first byte the ROMs took
             ld (roms_at), hl
-            ld de, LDR_TOP
-            or a
-            sbc hl, de
-            jp c, cos_noroom        ; (they took the loader's RAM: too many ROMs for CyborgOS)
-            ld hl, (roms_at)
             ld de, FW_TOP
             or a
             sbc hl, de
@@ -94,8 +91,8 @@ cos_fwok:
             ; the banks, and where Z's data pages go: page 4 * (slots + 2) - 2 on (the bank
             ; after the slots'); Z fits when its last page is one the machine has (4 * banks + 1)
             call probe
-            cp 4
-            jp c, cos_go            ; (under 320K: CyborgOS says so)
+            cp 8
+            jp c, cos_go            ; (under 576K: no Z - CyborgOS has none there either)
             ld l, a
             ld h, 0
             add hl, hl
@@ -580,7 +577,8 @@ name:       ds 16                   ; "d:CYBORGOS.Zn", 0
             INCLUDE "COSZ.INC"      ; COSZ_FILES, COSZ_PAGES, COSZ_CLAIM, cosz_files (first page, pages, name's length, name)
 cos_end:
             ASSERT cos_end <= COS_BUF, "COSLOAD.BIN must end below its buffer (#0800)"
-            ASSERT LDR_TOP <= #A5F0, "COSLOAD.BIN: CYBORGOS.BIN's end + the loader + 2K reach the firmware's RAM"
+            ASSERT LDR + ldr_len <= #C800, "COSLOAD.BIN: the loader doesn't fit in the screen's first 2K block's row 24"
+            ASSERT CYB_END <= LDR, "COSLOAD.BIN: CYBORGOS.BIN would load over the loader"
             ASSERT COSZ_FILES > 0, "COSLOAD.BIN: no Z files"
             ASSERT COSZ_CLAIM >= COSZ_PAGES, "COSLOAD.BIN: Z keeps fewer pages than its files have"
 

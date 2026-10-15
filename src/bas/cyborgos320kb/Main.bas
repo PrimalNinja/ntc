@@ -144,7 +144,9 @@ End If
 #Else
 bd = 65                                         ' the boot drive: "CYB d" (A without it)
 If a <> "" Then bd = Asc(a)
-If ProbeDiscs() = 0 Then                        ' no RAM discs survived a reset: make Z from the disc
+If ProbeDiscs() = 0 And Memory.Banks() >= 8 Then ' no RAM discs survived a reset: make Z from the disc - only
+                                                ' from 576K (8 banks) up; less: no Z, the commands run
+                                                ' from the boot drive, the rest left free
   a = "RAMDISC" : b = "Z SYSTEM " + Chr$(bd)    ' the system drive Z: the files CYBORGOS.Z names copied
   StartTask 1, 1                                ' to a RAM disc; the command line waits for it (WAIT)
   If st(1) = 2 Then wt = 1

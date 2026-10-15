@@ -9,6 +9,44 @@ version.
 
 ## done
 
+- 2026-10-16 Under 576K: no system drive Z (made only with 8 expansion banks or more; COSLOAD's Z
+  doesn't fit on 320K either) - the commands run from the boot drive; on 320K 96K left free (C6,
+  C7, bank 4) for RAM discs, stores and the like. No main RAM cost
+
+- 2026-10-16 COSLOAD's loader and its 2K buffer in screen RAM (#C780, #E000) instead of past
+  CYBORGOS.BIN's end: COSLOAD needed the ROMs' RAM above about #A31D, CyborgOS itself only above
+  its arrays' end + 16 (#9DC4) - with more ROMs than AMSDOS COSLOAD refused where CYBORGOS.BIN ran.
+  Now the same limit as CyborgOS (KL ROM WALK with DE = its ntc_free). gendsk prints CyborgOS's
+  main RAM end each build
+
+- 2026-10-16 MON, MON2: the map (SYSTEM.MAP) closed once read (BDOS 16). Left open, it held
+  CyborgOS's one read file for as long as MON ran: in every other slot CD said "no such drive,
+  or no FILES.DIR there" and DIR listed nothing. Still open: any CP/M program that reads a file
+  and doesn't close it (CP/M doesn't need the close) does the same while it runs - FileCall's 15
+  refuses another slot's open (fin). A fix would be in the hypervisor (main RAM)
+
+- 2026-10-16 MON2 (apps/mon2/MON2.bas, with apps/mon's Bml, Mouse and SYSTEM.MAP): MON on the whole
+  screen - row 0 the toolbar (tools, the link's URL, line / lines), rows 1-23 the page (80
+  columns), column 81 the current line's <, column 83 the scroll bar. A line at a time the page
+  scrolls with the console's hardware scroll (LF on row 23 on, ESC I on row 0 back; the toolbar
+  drawn again after); further, drawn again. ESC Y sent raw (Locate stops at column 80, Print
+  turns ESC into ?). 40 lines down from the top: 4.85 s (MON 13.41 s, its window redrawn)
+- 2026-10-16 The console: VT52 ESC I (reverse line feed: on the top row the page ring and the
+  screen scroll back a row - the hardware scroll the other way). 100 bytes of main RAM
+- 2026-10-16 MON: its 8BML writers in Z80 (asm keywords E, EQ, H2, H4, NmU, HexRows, TextRows -
+  the BASIC kept as '| comments) and Bml's r lines straight into the line (Put): the hex page
+  18.8 s -> 7.7 s, the text page 8.0 s -> 4.3 s (emulator, from MON's map home). Same screens
+  (test/monnw/cmp: cmp.sh, timing.py). Next: Bml's NextP / Put / NewLine / Emit in Z80 (half
+  the hex page's time now; the base of the web browser)
+- 2026-10-16 Fast boot: COSLOAD.BIN (tools/COSLOAD.ASM, built per build) loads Z ready-made from
+  CYBORGOS.Z1 ... (test/packz.py: Z's pages, 32K a file) into the pages the slow way gives it (C6,
+  C7, the bank after the slots - worked out from a bank probe as the Memory class does; D_POOL
+  and its checksum written for them), keeps Z after a reset, then CYBORGOS.BIN (a loader put
+  past its end). Z not loaded when it doesn't fit (320K: 9 pages, 6 free) or a file is missing:
+  CyborgOS makes Z from CYBORGOS.Z as before. CyborgOS itself unchanged. Three discs carry it to
+  IDE: cos-disk1 (CyborgOS, COSLOAD, the apps, FILES.DIR of all three), cos-disk2 (the commands
+  Z has), cos-disk3 (the Z files), each with its own INSTALL.BAS (replaces cyborgos320k.dsk)
+
 - 2026-10-16 PREP keeps FILES.DIR (replaces the AMSDOS CYBADD, which is dropped from the 320K disc):
   PREP [v:]pattern ADD / REMOVE, wildcards (* ?). ADD sees a RAM disc's real directory (Z and
   RAMDISC drives); a floppy's own catalogue is still unread. CybDir.AddFile; CRUNCH.COM folded

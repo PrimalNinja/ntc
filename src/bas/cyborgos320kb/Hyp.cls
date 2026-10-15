@@ -265,7 +265,8 @@ End Sub
 ' The slot's console state is in its bank (#F682: column, row, top row of the page ring, escape
 ' state, escape row; #F687 its columns and rows - MODE; #F68A the status strip's text), so
 ' nothing about it passes through BASIC. Handles CR, LF, BS, TAB and the VT52 codes ESC E
-' (clear), ESC H (home), ESC Y row col (move); the page (#F700, 2K at most) is a ring of its rows
+' (clear), ESC H (home), ESC I (reverse line feed: on the top row the screen scrolls back), ESC Y
+' row col (move); the page (#F700, 2K at most) is a ring of its rows
 ' (a scroll moves its top row and clears one row); on the screen a scroll moves the screen's
 ' start a row on (the CRTC's R12 / R13: the hardware scroll, in Scr's mode - not the firmware's,
 ' which knows only 80 x 25) and clears the new last row. The window's page is put back at the end.
@@ -406,6 +407,8 @@ cn_esc:
             jp z, cn_clear
             cp 'H'
             jr z, cn_home
+            cp 'I'
+            jp z, cn_rev
             cp 'Y'
             ret nz
             ld a, 2
@@ -538,6 +541,7 @@ cn_sc_cl:
             ld a, (cn_r)
             dec a
             ld e, a
+cn_sc_clr:                          ; E = a screen row: cleared, then the status strip again
             ld d, 0
             call cn_scr
             ld b, 8
@@ -557,6 +561,47 @@ cn_sc_b:
             pop bc
             djnz cn_sc_ln
             jp cn_strip
+
+; ESC I (reverse line feed): the row before, or on the top row the page (and the screen) scroll
+; back: the ring's top row a row back, the new top row cleared; on the screen its start a row
+; back (R12, R13) and the new top row cleared - the line feed's scroll the other way
+cn_rev:
+            ld a, (#7683)
+            or a
+            jr z, cn_rv_sc
+            dec a
+            ld (#7683), a
+            ret
+cn_rv_sc:
+            ld a, (#7684)
+            or a
+            jr nz, cn_rv_top
+            ld a, (cn_r)
+cn_rv_top:
+            dec a
+            ld (#7684), a
+            xor a
+            call cn_rowa            ; (row 0 of the page now)
+            ld a, (cn_c)
+            ld b, a
+cn_rv_cl:
+            ld (hl), ' '
+            inc hl
+            djnz cn_rv_cl
+            ld a, (cn_front)
+            or a
+            ret z
+            ld hl, ({sco})
+            ld de, ({scc})
+            or a
+            sbc hl, de
+            ld a, h
+            and #07
+            ld h, a
+            ld ({sco}), hl
+            call cn_crtc
+            ld e, 0
+            jp cn_sc_clr
 
 ; ESC E: the page cleared, column, row and ring back to 0; the screen too if in front (written,
 ; not copied: the Library: ROM build may have the keyword ROM over it for reads)

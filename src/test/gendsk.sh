@@ -64,10 +64,11 @@ for v in 320 128; do
   for g in TICKER CRUNCH LINES; do node cli.js $b/tasks/$g.bas --platform=cpm > $w/$g.ASM 2>/dev/null; done
   node cli.js $b/cmds/HELP.bas --platform=cpm > $w/HELP.ASM 2>/dev/null
   for g in $c; do node cli.js $b/cmds/$g.bas $(cyb_cls $b $g) --platform=cpm > $w/$g.ASM 2>/dev/null; done
-  ap=""; [ $v == 320 ] && ap="MON"      # the applications (apps/: MON, with its classes)
+  ap=""; [ $v == 320 ] && ap="MON MON2" # the applications (apps/: MON, with its classes; MON2: MON on the whole screen, its classes)
   [ -n "$ap" ] && cp $b/apps/mon/SYSTEM.MAP $w/   # (MON's map: a text file)
   [ $v == 320 ] && cp $b/tools/INSTALL.BAS $w/     # (ASCII BASIC: this disc in B to IDE:)
   [ -n "$ap" ] && node cli.js $b/apps/mon/MON.bas $b/apps/mon/Bml.cls $b/apps/mon/Mouse.cls $b/cmds/CybSys.cls --platform=cpm > $w/MON.ASM 2>/dev/null
+  [ -n "$ap" ] && node cli.js $b/apps/mon2/MON2.bas $b/apps/mon/Bml.cls $b/apps/mon/Mouse.cls $b/cmds/CybSys.cls --platform=cpm > $w/MON2.ASM 2>/dev/null
   for g in TICKER CRUNCH LINES $c HELP $ap; do
     (cd $w && $SJ --nologo --msg=err --raw=$g.COM $g.ASM > /dev/null) || { echo "gendsk: $v: $g did not assemble"; fail=1; }
     python3 -c "import sys; sys.path.insert(0, '.'); import ntcrun; d = open('$w/$g.COM', 'rb').read(); open('$w/$g.CYB', 'wb').write(ntcrun.amsdos_header(d, 0x100) + d)"
@@ -81,6 +82,7 @@ for v in 320 128; do
     printf '%s\r\n' HELP.CYB $(for g in $c; do echo $g.CYB; done) > $w/CYBORGOS.Z
     rm -rf $w/zb; mkdir -p $w/zb; cp $w/*.CYB $w/CYBORGOS.Z $w/zb/
     python3 packz.py $w/zb $w $b/Main.bas $b/Hyp.cls $b/Hot.cls $b/Ent.cls --sym=$w/CYBORGOS.SYM || { echo "gendsk: $v: packz failed"; fail=1; }
+    echo "CYBORGOS.BIN: main RAM to #$(grep -E '^ntc_free:' $w/CYBORGOS.SYM | grep -oE '[0-9A-F]{4}$') (program to #$(grep -E '^ntc_end:' $w/CYBORGOS.SYM | grep -oE '[0-9A-F]{4}$'), then its arrays)"
     rm -rf $w/zb
     cp $b/tools/COSLOAD.ASM $w/
     (cd $w && $SJ --nologo --msg=err COSLOAD.ASM > /dev/null) || { echo "gendsk: $v: COSLOAD did not assemble"; fail=1; }
@@ -131,7 +133,7 @@ if '$v' == '320':      # (FILES.DIR, on cos-disk1, lists the files of all three 
       [ $n != 1 ] && { rm -f $dn; dskform -type dsk -format cpcdata $dn > /dev/null 2>&1; }
       grep -v '^1000 ' $b/tools/INSTALL.BAS > $w/INSTALL.BAS
       echo $fl | tr ' ' '\n' | paste -d, - - - - - - | sed 's/,*$//; s/[^,]*/"&"/g' | awk '{printf "%d DATA %s\r\n", 1000 + NR * 10, $0}' >> $w/INSTALL.BAS
-      printf '2000 DATA "*"\r\n' >> $w/INSTALL.BAS
+      printf '2000 DATA "*"\r\n\x1a' >> $w/INSTALL.BAS
       for f in $fl INSTALL.BAS; do cpmcp -f cpcdata -T dsk $dn $w/$f 0:$f || { echo "gendsk: cos-disk$n: $f did not fit"; fail=1; }; done
       echo "build/dsk/cos-disk$n.dsk: $(cpmls -f cpcdata -T dsk $dn | grep -vc '^[0-9]*:$') files"
     done

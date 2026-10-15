@@ -87,8 +87,11 @@ Private Sub Cmd(ByVal c As Integer)
       ln = "" : Emit 0
     Case 104                                     ' h
       ln = String$(w, "-") : Emit 0
-    Case 114                                     ' r: as it is
-      If NextP() Then ln = Left$(PT(), w) : Emit 0
+    Case 114                                     ' r: as it is - straight from the page into the line (no string)
+      If NextP() Then
+        a = NewLine()
+        If a <> 0 Then Put a, w : nl = nl + 1
+      End If
     Case 45                                      ' - "version","title"
       If NextP() Then
         If NextP() Then tt = Left$(PT(), 80)
