@@ -920,7 +920,7 @@ function ntcParse(arrFiles_a, objDefines_a)
 		arrParts = splitTop(strText, ',');
 		for (intI = 0; intI < arrParts.length; intI++)
 		{
-			arrMatch = trim(arrParts[intI]).match(/^(optional\s+)?(byval\s+|byref\s+)?(paramarray\s+)?([a-z_]\w*[%&!#@$]?)\s*(\(\s*\))?\s*(as\s+([a-z_]\w*))?\s*(=\s*(.+))?$/);
+			arrMatch = trim(arrParts[intI]).match(/^(optional\s+)?(byval\s+|byref\s+)?(paramarray\s+)?([a-z_]\w*[%&!#@$]?)\s*(\(\s*\))?\s*(as\s+([a-z_]\w*)(\s+max\s+(\w+))?)?\s*(=\s*(.+))?$/);
 			if (!arrMatch)
 			{
 				error('bad parameter: ' + trim(arrParts[intI]));
@@ -937,8 +937,9 @@ function ntcParse(arrFiles_a, objDefines_a)
 				typed: !!(arrMatch[7] || objSuffix.type),
 				byval: (arrMatch[2] !== undefined) && left(arrMatch[2], 'byval'),
 				optional: !!arrMatch[1],
-				def: arrMatch[9] ? trim(arrMatch[9]) : '',
-				isarray: !!arrMatch[5]
+				def: arrMatch[11] ? trim(arrMatch[11]) : '',
+				isarray: !!arrMatch[5],
+				strmax: arrMatch[9] || 0			// ByVal s As String Max n: its copy n long (NTC)
 			});
 		}
 
@@ -948,7 +949,7 @@ function ntcParse(arrFiles_a, objDefines_a)
 	// sub / function / property get|let|set header
 	function procBegin(strScope_a, strKind_a, strText_a, blnStatic_a)
 	{
-		var arrMatch = strText_a.match(/^([a-z_]\w*[%&!#@$]?)\s*(\((.*)\))?\s*(as\s+([a-z_]\w*))?\s*$/);
+		var arrMatch = strText_a.match(/^([a-z_]\w*[%&!#@$]?)\s*(\((.*)\))?\s*(as\s+([a-z_]\w*)(\s+max\s+(\w+))?)?\s*$/);
 		var arrParams = [];
 		var intI = 0;
 		var objSuffix = null;
@@ -1002,12 +1003,12 @@ function ntcParse(arrFiles_a, objDefines_a)
 		for (intI = 0; intI < arrParams.length; intI++)
 		{
 			arrParams[intI].full = strProc + '.' + arrParams[intI].name;
-			elementAdd(arrParams[intI].isarray ? 'array' : 'param', 'local', arrParams[intI].full, arrParams[intI].name, { datatype: arrParams[intI].type, typed: arrParams[intI].typed, byval: arrParams[intI].byval, index: intI, dims: arrParams[intI].isarray ? [] : null });
+			elementAdd(arrParams[intI].isarray ? 'array' : 'param', 'local', arrParams[intI].full, arrParams[intI].name, { datatype: arrParams[intI].type, typed: arrParams[intI].typed, byval: arrParams[intI].byval, index: intI, dims: arrParams[intI].isarray ? [] : null, strmax: arrParams[intI].strmax });
 		}
 		// a function's name is its result variable
 		if ((strKind_a === 'function') || (strKind_a === 'propget'))
 		{
-			elementAdd('result', 'local', strProc + '.' + objSuffix.name, objSuffix.name, { datatype: objProc.datatype, typed: objProc.typed });
+			elementAdd('result', 'local', strProc + '.' + objSuffix.name, objSuffix.name, { datatype: objProc.datatype, typed: objProc.typed, strmax: arrMatch[7] || 0 });	// As String Max n
 		}
 
 		record('proc', { kind: strKind_a, full: strProc, name: objSuffix.name, params: arrParams, scope: strScope_a });

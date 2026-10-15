@@ -31,16 +31,16 @@ ntc_start:
 main_thread:
 			dw kw_bssinit, ntc_bss, ntc_bss_size		; the arrays: do they fit, clear them
 
-			; COPY.bas 14: a1 = UCase$(Trim$(System.CommandLine()))
+			; COPY.bas 19: a1 = UCase$(Trim$(System.CommandLine()))
 			dw fn_system_commandline, var_system_commandline_commandline
 			dw kw_strcpy, stmp0, var_system_commandline_commandline
 			dw kw_strtrim, stmp0, stmp0
 			dw kw_strucase, var_a1, stmp0
 
-			; COPY.bas 15: p = InStr(a1, " ")
+			; COPY.bas 20: p = InStr(a1, " ")
 			dw kw_strinstr, lit_1, var_a1, str0, var_p
 
-			; COPY.bas 16: If p = 0 Then Print "COPY [v1:]name v2[:newname]" : End
+			; COPY.bas 21: If p = 0 Then Print "COPY [v1:]name v2[:newname]   COPY [v1:]pattern v2" : End
 			dw kw_cpeqvl, var_p, 0
 			dw kw_goto_iffalse_n, if1_1
 			dw kw_printstrvar, str1
@@ -48,73 +48,73 @@ main_thread:
 			dw kw_stop
 if1_1:
 
-			; COPY.bas 17: a2 = Trim$(Mid$(a1, p + 1))
+			; COPY.bas 22: a2 = Trim$(Mid$(a1, p + 1))
 			dw kw_addl, var_p, 1, tmp1
 			dw kw_strmid, stmp0, var_a1, tmp1, lit_255
 			dw kw_strtrim, var_a2, stmp0
 
-			; COPY.bas 18: a1 = Left$(a1, p - 1)
+			; COPY.bas 23: a1 = Left$(a1, p - 1)
 			dw kw_addl, var_p, -1, tmp1
 			dw kw_strleft, var_a1, var_a1, tmp1
 
-			; COPY.bas 19: If Mid$(a1, 2, 1) = ":" Then
+			; COPY.bas 24: If Mid$(a1, 2, 1) = ":" Then
 			dw kw_strmid, stmp0, var_a1, lit_2, lit_1
 			dw kw_strcmpeq, stmp0, str2
 			dw kw_goto_iffalse_n, if2_1
 
-			; COPY.bas 20: v1 = Left$(a1, 2) : f1 = Mid$(a1, 3)
+			; COPY.bas 25: v1 = Left$(a1, 2) : f1 = Mid$(a1, 3)
 			dw kw_strleft, stmp0, var_a1, lit_2
 			dw kw_strcpy, var_v1, stmp0
 			dw kw_strmid, var_f1, var_a1, lit_3, lit_255
 
-			; COPY.bas 21: Else
+			; COPY.bas 26: Else
 			dw if2_e_go
 if2_1:
 
-			; COPY.bas 22: v1 = Here() : f1 = a1
+			; COPY.bas 27: v1 = Here() : f1 = a1
 			dw p_here_c
 			dw kw_strcpy, var_v1, var_here_here
 			dw kw_strcpy, var_f1, var_a1
 
-			; COPY.bas 23: End If
+			; COPY.bas 28: End If
 if2_e:
 
-			; COPY.bas 24: If Len(a2) = 1 Then
+			; COPY.bas 29: If Len(a2) = 1 Then
 			dw kw_strlen, var_a2, tmp0
 			dw kw_cpeqvl, tmp0, 1
 			dw kw_goto_iffalse_n, if3_1
 
-			; COPY.bas 25: v2 = a2 + ":" : f2 = ""
+			; COPY.bas 30: v2 = a2 + ":" : f2 = ""
 			dw kw_strcpy, var_v2, var_a2
 			dw kw_strcat, var_v2, str2
 			dw kw_strcpy, var_f2, str3
 
-			; COPY.bas 26: ElseIf Mid$(a2, 2, 1) = ":" Then
+			; COPY.bas 31: ElseIf Mid$(a2, 2, 1) = ":" Then
 			dw if3_e_go
 if3_1:
 			dw kw_strmid, stmp0, var_a2, lit_2, lit_1
 			dw kw_strcmpeq, stmp0, str2
 			dw kw_goto_iffalse_n, if3_2
 
-			; COPY.bas 27: v2 = Left$(a2, 2) : f2 = Mid$(a2, 3)
+			; COPY.bas 32: v2 = Left$(a2, 2) : f2 = Mid$(a2, 3)
 			dw kw_strleft, stmp0, var_a2, lit_2
 			dw kw_strcpy, var_v2, stmp0
 			dw kw_strmid, stmp0, var_a2, lit_3, lit_255
 			dw kw_strcpy, var_f2, stmp0
 
-			; COPY.bas 28: Else
+			; COPY.bas 33: Else
 			dw if3_e_go
 if3_2:
 
-			; COPY.bas 29: v2 = Here() : f2 = a2
+			; COPY.bas 34: v2 = Here() : f2 = a2
 			dw p_here_c
 			dw kw_strcpy, var_v2, var_here_here
 			dw kw_strcpy, var_f2, var_a2
 
-			; COPY.bas 30: End If
+			; COPY.bas 35: End If
 if3_e:
 
-			; COPY.bas 31: If CybDir.Load(v1) = False Then Print v1; " has no FILES.DIR" : End
+			; COPY.bas 36: If CybDir.Load(v1) = False Then Print v1; " has no FILES.DIR" : End
 			dw p_cybdir_load_c, var_v1
 			dw kw_vtov, var_cybdir_load_load, tmp0
 			dw kw_cpeqvl, tmp0, 0
@@ -125,209 +125,288 @@ if3_e:
 			dw kw_stop
 if4_1:
 
-			; COPY.bas 32: o = CybDir.Find(f1)
+			; COPY.bas 38: If InStr(f1, "*") > 0 Or InStr(f1, "?") > 0 Then
+			dw kw_strinstr, lit_1, var_f1, str5, tmp0
+			dw kw_scpgtvl, tmp0, 0
+			dw kw_ftov, tmp0
+			dw kw_strinstr, lit_1, var_f1, str6, tmp1
+			dw kw_scpgtvl, tmp1, 0
+			dw kw_ftov, tmp1
+			dw kw_orvv, tmp0, tmp1, tmp0
+			dw kw_goto_ifzero_n, tmp0, if5_1
+
+			; COPY.bas 40: If f2 <> "" Then Print "COPY "; f1; ": a pattern copies to a drive (v2 alone), same names" : End
+			dw kw_strcmpne, var_f2, str3
+			dw kw_goto_iffalse_n, if6_1
+			dw kw_printstrvar, str7
+			dw kw_printstrvar, var_f1
+			dw kw_printstrvar, str8
+			dw kw_printnl
+			dw kw_stop
+if6_1:
+
+			; COPY.bas 41: If v1 = v2 Then Print "a file can't be copied over itself" : End
+			dw kw_strcmpeq, var_v1, var_v2
+			dw kw_goto_iffalse_n, if7_1
+			dw kw_printstrvar, str9
+			dw kw_printnl
+			dw kw_stop
+if7_1:
+
+			; COPY.bas 42: k = 0
+			dw kw_ztov, var_k
+
+			; COPY.bas 43: For o = 0 To CybDir.Count() * 64 - 64 Step 64
+			dw kw_ztov, var_o
+			dw p_cybdir_count_c
+			dw kw_vtov, var_cybdir_count_count, tmp0
+			dw kw_mulvl, tmp0, 64, tmp0
+			dw kw_addl, tmp0, -64, for8_l
+			dw kw_forupv_n, var_o, for8_l, for8_e
+for8_t:
+
+			; COPY.bas 44: If CybDir.Match(o, f1) And k < 64 Then
+			dw p_cybdir_match_c, var_o, var_f1
+			dw kw_vtov, var_cybdir_match_match, tmp0
+			dw kw_scpltvl, var_k, 64
+			dw kw_ftov, tmp1
+			dw kw_andvv, tmp0, tmp1, tmp0
+			dw kw_goto_ifzero_n, tmp0, if9_1
+
+			; COPY.bas 45: CybDir.Keep o, VarPtr(ents) + k * 64
+			dw kw_mulvl, var_k, 64, tmp2
+			dw kw_add, vp_arr_ents, tmp2, tmp1
+			dw p_cybdir_keep_c, var_o, tmp1
+
+			; COPY.bas 46: sns(k) = CybDir.DiscName(o)
+			dw p_cybdir_discname_c, var_o
+			dw kw_sset, arr_sns, var_k, var_cybdir_discname_discname, 13
+
+			; COPY.bas 47: k = k + 1
+			dw kw_inc, var_k
+
+			; COPY.bas 48: End If
+if9_1:
+
+			; COPY.bas 49: Next
+			dw kw_nextupv_n, var_o, 64, for8_l, for8_t
+for8_e:
+
+			; COPY.bas 50: If k = 0 Then Print v1; f1; ": no file in FILES.DIR fits" : End
+			dw kw_cpeqvl, var_k, 0
+			dw kw_goto_iffalse_n, if10_1
+			dw kw_printstrvar, var_v1
+			dw kw_printstrvar, var_f1
+			dw kw_printstrvar, str10
+			dw kw_printnl
+			dw kw_stop
+if10_1:
+
+			; COPY.bas 51: If CybDir.Load(v2) = False Then Print v2; " has no FILES.DIR (PREP "; Left$(v2, 1); " makes one)" : End
+			dw p_cybdir_load_c, var_v2
+			dw kw_vtov, var_cybdir_load_load, tmp0
+			dw kw_cpeqvl, tmp0, 0
+			dw kw_goto_iffalse_n, if11_1
+			dw kw_printstrvar, var_v2
+			dw kw_strleft, stmp0, var_v2, lit_1
+			dw kw_printstrvar, str11
+			dw kw_printstrvar, stmp0
+			dw kw_printstrvar, str12
+			dw kw_printnl
+			dw kw_stop
+if11_1:
+
+			; COPY.bas 52: nd = 0
+			dw kw_ztov, var_nd
+
+			; COPY.bas 53: For i = 0 To k - 1
+			dw kw_ztov, var_i
+			dw kw_addl, var_k, -1, for12_l
+			dw kw_forupv_n, var_i, for12_l, for12_e
+for12_t:
+
+			; COPY.bas 54: size = CLng(ents(i * 64 + 14)) + CLng(ents(i * 64 + 15)) * 256
+			dw kw_mulvl, var_i, 64, tmp0
+			dw kw_addl, tmp0, 14, tmp0
+			dw kw_aget8, arr_ents, tmp0, tmp0
+			dw kw_l_itol, tmp0, ltmp0
+			dw kw_mulvl, var_i, 64, tmp1
+			dw kw_addl, tmp1, 15, tmp1
+			dw kw_aget8, arr_ents, tmp1, tmp1
+			dw kw_l_itol, tmp1, ltmp1
+			dw kw_l_mul, ltmp1, llit_256, ltmp1
+			dw kw_l_add, ltmp0, ltmp1, var_size
+
+			; COPY.bas 55: r = CopyOne(sns(i), sns(i), size)
+			dw kw_sget, arr_sns, var_i, stmp0, 13
+			dw kw_sget, arr_sns, var_i, stmp1, 13
+			dw p_copyone_c, stmp0, stmp1, var_size
+			dw kw_l_ltoi, var_copyone_copyone, var_r
+
+			; COPY.bas 56: If r >= 0 Then
+			dw kw_scpgevl, var_r, 0
+			dw kw_goto_iffalse_n, if13_1
+
+			; COPY.bas 57: CybDir.Back VarPtr(ents) + i * 64
+			dw kw_mulvl, var_i, 64, tmp1
+			dw kw_add, vp_arr_ents, tmp1, tmp0
+			dw p_cybdir_back_c, tmp0
+
+			; COPY.bas 58: If CybDir.PutAs(sns(i)) = False Then Print v2; "FILES.DIR is full" : Exit For
+			dw kw_sget, arr_sns, var_i, stmp0, 13
+			dw p_cybdir_putas_c, stmp0
+			dw kw_vtov, var_cybdir_putas_putas, tmp0
+			dw kw_cpeqvl, tmp0, 0
+			dw kw_goto_iffalse_n, if14_1
+			dw kw_printstrvar, var_v2
+			dw kw_printstrvar, str13
+			dw kw_printnl
+			dw for12_e_go
+if14_1:
+
+			; COPY.bas 59: nd = nd + 1
+			dw kw_inc, var_nd
+
+			; COPY.bas 60: End If
+if13_1:
+
+			; COPY.bas 61: If r = -2 Then Exit For                    ' (the disc full)
+			dw kw_cpeqvl, var_r, -2
+			dw kw_goto_iffalse_n, if15_1
+			dw for12_e_go
+if15_1:
+
+			; COPY.bas 62: Next
+			dw kw_next1v_n, var_i, for12_l, for12_t
+for12_e:
+
+			; COPY.bas 63: If nd > 0 Then
+			dw kw_scpgtvl, var_nd, 0
+			dw kw_goto_iffalse_n, if16_1
+
+			; COPY.bas 64: r = CybDir.Save(v2)
+			dw p_cybdir_save_c, var_v2
+			dw kw_vtov, var_cybdir_save_save, var_r
+
+			; COPY.bas 65: If r <> 0 Then Print v2; "FILES.DIR not written ("; r; ")" : End
+			dw kw_cpnevl, var_r, 0
+			dw kw_goto_iffalse_n, if17_1
+			dw kw_printstrvar, var_v2
+			dw kw_printstrvar, str14
+			dw kw_printint, var_r
+			dw kw_printstrvar, str15
+			dw kw_printnl
+			dw kw_stop
+if17_1:
+
+			; COPY.bas 66: End If
+if16_1:
+
+			; COPY.bas 67: Print nd; " of "; k; " files copied"
+			dw kw_printint, var_nd
+			dw kw_printstrvar, str16
+			dw kw_printint, var_k
+			dw kw_printstrvar, str17
+			dw kw_printnl
+
+			; COPY.bas 68: End
+			dw kw_stop
+
+			; COPY.bas 69: End If
+if5_1:
+
+			; COPY.bas 71: o = CybDir.Find(f1)
 			dw p_cybdir_find_c, var_f1
 			dw kw_vtov, var_cybdir_find_find, var_o
 
-			; COPY.bas 33: If o < 0 Then Print v1; f1; ": not in FILES.DIR" : End
+			; COPY.bas 72: If o < 0 Then Print v1; f1; ": not in FILES.DIR" : End
 			dw kw_scpltvl, var_o, 0
-			dw kw_goto_iffalse_n, if5_1
+			dw kw_goto_iffalse_n, if18_1
 			dw kw_printstrvar, var_v1
 			dw kw_printstrvar, var_f1
-			dw kw_printstrvar, str5
+			dw kw_printstrvar, str18
 			dw kw_printnl
 			dw kw_stop
-if5_1:
+if18_1:
 
-			; COPY.bas 34: sn = CybDir.DiscName(o)
+			; COPY.bas 73: sn = CybDir.DiscName(o)
 			dw p_cybdir_discname_c, var_o
 			dw kw_strcpy, var_sn, var_cybdir_discname_discname
 
-			; COPY.bas 35: size = CybDir.Length(o)
+			; COPY.bas 74: size = CybDir.Length(o)
 			dw p_cybdir_length_c, var_o
 			dw kw_l_mov, var_cybdir_length_length, var_size
 
-			; COPY.bas 36: CybDir.Take o
+			; COPY.bas 75: CybDir.Take o
 			dw p_cybdir_take_c, var_o
 
-			; COPY.bas 37: If f2 = "" Then f2 = sn
+			; COPY.bas 76: If f2 = "" Then f2 = sn
 			dw kw_strcmpeq, var_f2, str3
-			dw kw_goto_iffalse_n, if6_1
+			dw kw_goto_iffalse_n, if19_1
 			dw kw_strcpy, var_f2, var_sn
-if6_1:
+if19_1:
 
-			; COPY.bas 38: If v1 = v2 And f2 = sn Then Print "a file can't be copied over itself" : End
+			; COPY.bas 77: If v1 = v2 And f2 = sn Then Print "a file can't be copied over itself" : End
 			dw kw_strcmpeq, var_v1, var_v2
 			dw kw_ftov, tmp0
 			dw kw_strcmpeq, var_f2, var_sn
 			dw kw_ftov, tmp1
 			dw kw_andvv, tmp0, tmp1, tmp0
-			dw kw_goto_ifzero_n, tmp0, if7_1
-			dw kw_printstrvar, str6
-			dw kw_printnl
-			dw kw_stop
-if7_1:
-
-			; COPY.bas 39: If CybDir.Load(v2) = False Then Print v2; " has no FILES.DIR (PREP "; Left$(v2, 1); " makes one)" : End
-			dw p_cybdir_load_c, var_v2
-			dw kw_vtov, var_cybdir_load_load, tmp0
-			dw kw_cpeqvl, tmp0, 0
-			dw kw_goto_iffalse_n, if8_1
-			dw kw_printstrvar, var_v2
-			dw kw_strleft, stmp0, var_v2, lit_1
-			dw kw_printstrvar, str7
-			dw kw_printstrvar, stmp0
-			dw kw_printstrvar, str8
-			dw kw_printnl
-			dw kw_stop
-if8_1:
-
-			; COPY.bas 40: hi = FileSystem.Open(v1 + sn, FileSystem.ForReadRaw)
-			dw kw_strcpy, stmp0, var_v1
-			dw kw_strcat, stmp0, var_sn
-			dw fn_filesystem_open, stmp0, lit_4, var_hi
-
-			; COPY.bas 41: If hi < 0 Then Print v1; sn; ": not on the disc" : End
-			dw kw_scpltvl, var_hi, 0
-			dw kw_goto_iffalse_n, if9_1
-			dw kw_printstrvar, var_v1
-			dw kw_printstrvar, var_sn
+			dw kw_goto_ifzero_n, tmp0, if20_1
 			dw kw_printstrvar, str9
 			dw kw_printnl
 			dw kw_stop
-if9_1:
+if20_1:
 
-			; COPY.bas 42: ho = FileSystem.Open(v2 + f2, FileSystem.ForWrite)
-			dw kw_strcpy, stmp0, var_v2
-			dw kw_strcat, stmp0, var_f2
-			dw fn_filesystem_open, stmp0, lit_2, var_ho
-
-			; COPY.bas 43: If ho < 0 Then r = FileSystem.Close(hi) : Print v2; f2; ": can't be made ("; ho; ")" : End
-			dw kw_scpltvl, var_ho, 0
-			dw kw_goto_iffalse_n, if10_1
-			dw fn_filesystem_close, var_hi, var_r
+			; COPY.bas 78: If CybDir.Load(v2) = False Then Print v2; " has no FILES.DIR (PREP "; Left$(v2, 1); " makes one)" : End
+			dw p_cybdir_load_c, var_v2
+			dw kw_vtov, var_cybdir_load_load, tmp0
+			dw kw_cpeqvl, tmp0, 0
+			dw kw_goto_iffalse_n, if21_1
 			dw kw_printstrvar, var_v2
-			dw kw_printstrvar, var_f2
-			dw kw_printstrvar, str10
-			dw kw_printint, var_ho
+			dw kw_strleft, stmp0, var_v2, lit_1
 			dw kw_printstrvar, str11
-			dw kw_printnl
-			dw kw_stop
-if10_1:
-
-			; COPY.bas 44: total = 0
-			dw kw_l_mov, llit_0, var_total
-
-			; COPY.bas 45: Do While total < size
-do11_t:
-			dw kw_l_cplt, var_total, var_size
-			dw kw_goto_iffalse_n, do11_e
-
-			; COPY.bas 46: If size - total > 8192 Then n = 8192 Else n = CInt(size - total)
-			dw kw_l_sub, var_size, var_total, ltmp0
-			dw kw_l_cpgt, ltmp0, llit_8192
-			dw kw_goto_iffalse_n, if12_1
-			dw kw_ltov, 8192, var_n
-			dw if12_e_go
-if12_1:
-			dw kw_l_sub, var_size, var_total, ltmp0
-			dw kw_l_ltoi, ltmp0, tmp0
-			dw kw_vtov, tmp0, var_n
-if12_e:
-
-			; COPY.bas 47: r = FileSystem.Read(hi, VarPtr(buf), n)
-			dw fn_filesystem_read, var_hi, vp_arr_buf, var_n, var_r
-
-			; COPY.bas 48: If r <= 0 Then Exit Do
-			dw kw_scplevl, var_r, 0
-			dw kw_goto_iffalse_n, if13_1
-			dw do11_e_go
-if13_1:
-
-			; COPY.bas 49: w = FileSystem.Write(ho, VarPtr(buf), r)
-			dw fn_filesystem_write, var_ho, vp_arr_buf, var_r, var_w
-
-			; COPY.bas 50: If w <> r Then Print v2; f2; ": the disc is full, or a write failed" : Exit Do
-			dw kw_cpnevv, var_w, var_r
-			dw kw_goto_iffalse_n, if14_1
-			dw kw_printstrvar, var_v2
-			dw kw_printstrvar, var_f2
+			dw kw_printstrvar, stmp0
 			dw kw_printstrvar, str12
 			dw kw_printnl
-			dw do11_e_go
-if14_1:
+			dw kw_stop
+if21_1:
 
-			; COPY.bas 51: total = total + r
-			dw kw_l_itol, var_r, ltmp1
-			dw kw_l_add, var_total, ltmp1, var_total
+			; COPY.bas 79: If CopyOne(sn, f2, size) < 0 Then End
+			dw p_copyone_c, var_sn, var_f2, var_size
+			dw kw_l_mov, var_copyone_copyone, ltmp0
+			dw kw_l_cplt, ltmp0, llit_0
+			dw kw_goto_iffalse_n, if22_1
+			dw kw_stop
+if22_1:
 
-			; COPY.bas 52: If r < n Then Exit Do
-			dw kw_scpltvv, var_r, var_n
-			dw kw_goto_iffalse_n, do11_t
-			dw do11_e_go
-if15_1:
-
-			; COPY.bas 53: Loop
-			dw do11_t_go
-do11_e:
-
-			; COPY.bas 54: r = FileSystem.Close(hi)
-			dw fn_filesystem_close, var_hi, var_r
-
-			; COPY.bas 55: r = FileSystem.Close(ho)
-			dw fn_filesystem_close, var_ho, var_r
-
-			; COPY.bas 56: If total < size Then Print v1; sn; ": shorter than FILES.DIR says ("; total; " of "; size; " bytes)"
-			dw kw_l_cplt, var_total, var_size
-			dw kw_goto_iffalse_n, if16_1
-			dw kw_printstrvar, var_v1
-			dw kw_printstrvar, var_sn
-			dw kw_printstrvar, str13
-			dw kw_l_print, var_total
-			dw kw_printstrvar, str14
-			dw kw_l_print, var_size
-			dw kw_printstrvar, str15
-			dw kw_printnl
-if16_1:
-
-			; COPY.bas 57: If CybDir.PutAs(f2) = False Then Print v2; "FILES.DIR is full" : End
+			; COPY.bas 80: If CybDir.PutAs(f2) = False Then Print v2; "FILES.DIR is full" : End
 			dw p_cybdir_putas_c, var_f2
 			dw kw_vtov, var_cybdir_putas_putas, tmp0
 			dw kw_cpeqvl, tmp0, 0
-			dw kw_goto_iffalse_n, if17_1
+			dw kw_goto_iffalse_n, if23_1
 			dw kw_printstrvar, var_v2
-			dw kw_printstrvar, str16
+			dw kw_printstrvar, str13
 			dw kw_printnl
 			dw kw_stop
-if17_1:
+if23_1:
 
-			; COPY.bas 58: r = CybDir.Save(v2)
+			; COPY.bas 81: r = CybDir.Save(v2)
 			dw p_cybdir_save_c, var_v2
 			dw kw_vtov, var_cybdir_save_save, var_r
 
-			; COPY.bas 59: If r <> 0 Then Print v2; "FILES.DIR not written ("; r; ")" : End
+			; COPY.bas 82: If r <> 0 Then Print v2; "FILES.DIR not written ("; r; ")" : End
 			dw kw_cpnevl, var_r, 0
-			dw kw_goto_iffalse_n, if18_1
+			dw kw_goto_iffalse_n, if24_1
 			dw kw_printstrvar, var_v2
-			dw kw_printstrvar, str17
+			dw kw_printstrvar, str14
 			dw kw_printint, var_r
-			dw kw_printstrvar, str11
+			dw kw_printstrvar, str15
 			dw kw_printnl
 			dw kw_stop
-if18_1:
+if24_1:
 
-			; COPY.bas 60: Print v1; sn; " to "; v2; f2; ": "; total; " bytes"
-			dw kw_printstrvar, var_v1
-			dw kw_printstrvar, var_sn
-			dw kw_printstrvar, str18
-			dw kw_printstrvar, var_v2
-			dw kw_printstrvar, var_f2
-			dw kw_printstrvar, str19
-			dw kw_l_print, var_total
-			dw kw_printstrvar, str20
-			dw kw_printnl
-
-			; COPY.bas 61: End
+			; COPY.bas 83: End
 			dw kw_stop
 
 ; ============================================================
@@ -336,12 +415,159 @@ if18_1:
 
 p_here:
 
-			; COPY.bas 65: Here = FileSystem.CurrentVolume() + ":"
+			; COPY.bas 87: Here = FileSystem.CurrentVolume() + ":"
 			dw fn_filesystem_currentvolume, var_filesystem_currentvolume_currentvolume
 			dw kw_strcpy, stmp0, var_filesystem_currentvolume_currentvolume
 			dw kw_strcpy, var_here_here, stmp0
 			dw kw_strcat, var_here_here, str2
 			dw p_here_r
+
+; ============================================================
+; function copyone (normal mode)
+; ============================================================
+
+p_copyone:
+
+			; COPY.bas 93: Dim hi As Integer, ho As Integer, n As Integer, w As Integer, rr As Integer, total As Long
+
+			; COPY.bas 94: CopyOne = -1
+			dw kw_l_mov, llit_m1, var_copyone_copyone
+
+			; COPY.bas 95: hi = FileSystem.Open(v1 + s, FileSystem.ForReadRaw)
+			dw kw_strcpy, stmp0, var_v1
+			dw kw_strcat, stmp0, var_copyone_s
+			dw fn_filesystem_open, stmp0, lit_4, var_copyone_hi
+
+			; COPY.bas 96: If hi < 0 Then Print v1; s; ": not on the disc" : Exit Function
+			dw kw_scpltvl, var_copyone_hi, 0
+			dw kw_goto_iffalse_n, if25_1
+			dw kw_printstrvar, var_v1
+			dw kw_printstrvar, var_copyone_s
+			dw kw_printstrvar, str19
+			dw kw_printnl
+			dw p_copyone_r
+if25_1:
+
+			; COPY.bas 97: ho = FileSystem.Open(v2 + t, FileSystem.ForWrite)
+			dw kw_strcpy, stmp0, var_v2
+			dw kw_strcat, stmp0, var_copyone_t
+			dw fn_filesystem_open, stmp0, lit_2, var_copyone_ho
+
+			; COPY.bas 98: If ho < 0 Then rr = FileSystem.Close(hi) : Print v2; t; ": can't be made ("; ho; ")" : Exit Function
+			dw kw_scpltvl, var_copyone_ho, 0
+			dw kw_goto_iffalse_n, if26_1
+			dw fn_filesystem_close, var_copyone_hi, var_copyone_rr
+			dw kw_printstrvar, var_v2
+			dw kw_printstrvar, var_copyone_t
+			dw kw_printstrvar, str20
+			dw kw_printint, var_copyone_ho
+			dw kw_printstrvar, str15
+			dw kw_printnl
+			dw p_copyone_r
+if26_1:
+
+			; COPY.bas 99: total = 0
+			dw kw_l_mov, llit_0, var_copyone_total
+
+			; COPY.bas 100: Do While total < size
+do27_t:
+			dw kw_l_cplt, var_copyone_total, var_copyone_size
+			dw kw_goto_iffalse_n, do27_e
+
+			; COPY.bas 101: If size - total > 8192 Then n = 8192 Else n = CInt(size - total)
+			dw kw_l_sub, var_copyone_size, var_copyone_total, ltmp0
+			dw kw_l_cpgt, ltmp0, llit_8192
+			dw kw_goto_iffalse_n, if28_1
+			dw kw_ltov, 8192, var_copyone_n
+			dw if28_e_go
+if28_1:
+			dw kw_l_sub, var_copyone_size, var_copyone_total, ltmp0
+			dw kw_l_ltoi, ltmp0, tmp0
+			dw kw_vtov, tmp0, var_copyone_n
+if28_e:
+
+			; COPY.bas 102: rr = FileSystem.Read(hi, VarPtr(buf), n)
+			dw fn_filesystem_read, var_copyone_hi, vp_arr_buf, var_copyone_n, var_copyone_rr
+
+			; COPY.bas 103: If rr <= 0 Then Exit Do
+			dw kw_scplevl, var_copyone_rr, 0
+			dw kw_goto_iffalse_n, if29_1
+			dw do27_e_go
+if29_1:
+
+			; COPY.bas 104: w = FileSystem.Write(ho, VarPtr(buf), rr)
+			dw fn_filesystem_write, var_copyone_ho, vp_arr_buf, var_copyone_rr, var_copyone_w
+
+			; COPY.bas 105: If w <> rr Then
+			dw kw_cpnevv, var_copyone_w, var_copyone_rr
+			dw kw_goto_iffalse_n, if30_1
+
+			; COPY.bas 106: Print v2; t; ": the disc is full, or a write failed"
+			dw kw_printstrvar, var_v2
+			dw kw_printstrvar, var_copyone_t
+			dw kw_printstrvar, str21
+			dw kw_printnl
+
+			; COPY.bas 107: rr = FileSystem.Close(hi) : rr = FileSystem.Close(ho)
+			dw fn_filesystem_close, var_copyone_hi, var_copyone_rr
+			dw fn_filesystem_close, var_copyone_ho, var_copyone_rr
+
+			; COPY.bas 108: CopyOne = -2
+			dw kw_l_mov, llit_m2, var_copyone_copyone
+
+			; COPY.bas 109: Exit Function
+			dw p_copyone_r
+
+			; COPY.bas 110: End If
+if30_1:
+
+			; COPY.bas 111: total = total + rr
+			dw kw_l_itol, var_copyone_rr, ltmp1
+			dw kw_l_add, var_copyone_total, ltmp1, var_copyone_total
+
+			; COPY.bas 112: If rr < n Then Exit Do
+			dw kw_scpltvv, var_copyone_rr, var_copyone_n
+			dw kw_goto_iffalse_n, do27_t
+			dw do27_e_go
+if31_1:
+
+			; COPY.bas 113: Loop
+			dw do27_t_go
+do27_e:
+
+			; COPY.bas 114: rr = FileSystem.Close(hi)
+			dw fn_filesystem_close, var_copyone_hi, var_copyone_rr
+
+			; COPY.bas 115: rr = FileSystem.Close(ho)
+			dw fn_filesystem_close, var_copyone_ho, var_copyone_rr
+
+			; COPY.bas 116: If total < size Then Print v1; s; ": shorter than FILES.DIR says ("; total; " of "; size; " bytes)"
+			dw kw_l_cplt, var_copyone_total, var_copyone_size
+			dw kw_goto_iffalse_n, if32_1
+			dw kw_printstrvar, var_v1
+			dw kw_printstrvar, var_copyone_s
+			dw kw_printstrvar, str22
+			dw kw_l_print, var_copyone_total
+			dw kw_printstrvar, str16
+			dw kw_l_print, var_copyone_size
+			dw kw_printstrvar, str23
+			dw kw_printnl
+if32_1:
+
+			; COPY.bas 117: Print v1; s; " to "; v2; t; ": "; total; " bytes"
+			dw kw_printstrvar, var_v1
+			dw kw_printstrvar, var_copyone_s
+			dw kw_printstrvar, str24
+			dw kw_printstrvar, var_v2
+			dw kw_printstrvar, var_copyone_t
+			dw kw_printstrvar, str25
+			dw kw_l_print, var_copyone_total
+			dw kw_printstrvar, str26
+			dw kw_printnl
+
+			; COPY.bas 118: CopyOne = total
+			dw kw_l_mov, var_copyone_total, var_copyone_copyone
+			dw p_copyone_r
 
 ; ============================================================
 ; function load (normal mode)
@@ -359,14 +585,14 @@ p_cybdir_load:
 
 			; CybDir.cls 16: h = FileSystem.Open(vol + "FILES.DIR", FileSystem.ForReadRaw)
 			dw kw_strcpy, stmp0, var_cybdir_load_vol
-			dw kw_strcat, stmp0, str21
+			dw kw_strcat, stmp0, str27
 			dw fn_filesystem_open, stmp0, lit_4, var_cybdir_load_h
 
 			; CybDir.cls 17: If h < 0 Then Exit Function
 			dw kw_scpltvl, var_cybdir_load_h, 0
-			dw kw_goto_iffalse_n, if19_1
+			dw kw_goto_iffalse_n, if33_1
 			dw p_cybdir_load_r
-if19_1:
+if33_1:
 
 			; CybDir.cls 18: m = FileSystem.Read(h, VarPtr(d), MAXBYTES)
 			dw fn_filesystem_read, var_cybdir_load_h, vp_arr_cybdir_d, lit_4096, var_cybdir_m
@@ -376,17 +602,17 @@ if19_1:
 
 			; CybDir.cls 20: If m < 0 Then m = 0
 			dw kw_scpltvl, var_cybdir_m, 0
-			dw kw_goto_iffalse_n, if20_1
+			dw kw_goto_iffalse_n, if34_1
 			dw kw_ztov, var_cybdir_m
-if20_1:
+if34_1:
 
 			; CybDir.cls 21: m = m And &HFFC0
 			dw kw_andvl, var_cybdir_m, -64, var_cybdir_m
 
 			; CybDir.cls 22: Do While m > 0                        ' the last record's padding (#1A, or an unused entry) dropped
-do21_t:
+do35_t:
 			dw kw_scpgtvl, var_cybdir_m, 0
-			dw kw_goto_iffalse_n, do21_e
+			dw kw_goto_iffalse_n, do35_e
 
 			; CybDir.cls 23: If d(m - 64) = 1 Or d(m - 64) = 2 Then Exit Do
 			dw kw_addl, var_cybdir_m, -64, tmp0
@@ -398,16 +624,16 @@ do21_t:
 			dw kw_cpeqvl, tmp1, 2
 			dw kw_ftov, tmp1
 			dw kw_orvv, tmp0, tmp1, tmp0
-			dw kw_goto_ifzero_n, tmp0, if22_1
-			dw do21_e_go
-if22_1:
+			dw kw_goto_ifzero_n, tmp0, if36_1
+			dw do35_e_go
+if36_1:
 
 			; CybDir.cls 24: m = m - 64
 			dw kw_addl, var_cybdir_m, -64, var_cybdir_m
 
 			; CybDir.cls 25: Loop
-			dw do21_t_go
-do21_e:
+			dw do35_t_go
+do35_e:
 
 			; CybDir.cls 26: Load = True
 			dw kw_ltov, -1, var_cybdir_load_load
@@ -427,32 +653,63 @@ p_cybdir_save:
 			; CybDir.cls 34: If (n And 127) <> 0 Then
 			dw kw_andvl, var_cybdir_save_n, 127, tmp0
 			dw kw_cpnevl, tmp0, 0
-			dw kw_goto_iffalse_n, if23_1
+			dw kw_goto_iffalse_n, if37_1
 
 			; CybDir.cls 35: For i = n To n + 63
 			dw kw_vtov, var_cybdir_save_n, var_cybdir_save_i
-			dw kw_addl, var_cybdir_save_n, 63, for24_l
-			dw kw_forupv_n, var_cybdir_save_i, for24_l, for24_e
-for24_t:
+			dw kw_addl, var_cybdir_save_n, 63, for38_l
+			dw kw_forupv_n, var_cybdir_save_i, for38_l, for38_e
+for38_t:
 
 			; CybDir.cls 36: d(i) = 0
 			dw kw_aset8, arr_cybdir_d, var_cybdir_save_i, lit_0
 
 			; CybDir.cls 37: Next
-			dw kw_next1v_n, var_cybdir_save_i, for24_l, for24_t
-for24_e:
+			dw kw_next1v_n, var_cybdir_save_i, for38_l, for38_t
+for38_e:
 
 			; CybDir.cls 38: n = n + 64
 			dw kw_addl, var_cybdir_save_n, 64, var_cybdir_save_n
 
 			; CybDir.cls 39: End If
-if23_1:
+if37_1:
 
-			; CybDir.cls 40: Save = FileSystem.Save(vol + "FILES.DIR", VarPtr(d), n)
+			; CybDir.cls 40: If n = 0 Then                      ' no entries left: one empty 128 byte record, never a 0 byte
+			dw kw_cpeqvl, var_cybdir_save_n, 0
+			dw kw_goto_iffalse_n, if39_1
+
+			; CybDir.cls 41: For i = 0 To 127                  ' file (a disc ROM can't store that, so FILES.DIR would vanish)
+			dw kw_ztov, var_cybdir_save_i
+for40_t:
+
+			; CybDir.cls 42: d(i) = 0
+			dw kw_aset8, arr_cybdir_d, var_cybdir_save_i, lit_0
+
+			; CybDir.cls 43: Next
+			dw kw_next1l_n, var_cybdir_save_i, 127, for40_t
+for40_e:
+
+			; CybDir.cls 44: n = 128
+			dw kw_ltov, 128, var_cybdir_save_n
+
+			; CybDir.cls 45: End If
+if39_1:
+
+			; CybDir.cls 46: Save = FileSystem.Save(vol + "FILES.DIR", VarPtr(d), n)
 			dw kw_strcpy, stmp0, var_cybdir_save_vol
-			dw kw_strcat, stmp0, str21
+			dw kw_strcat, stmp0, str27
 			dw fn_filesystem_save, stmp0, vp_arr_cybdir_d, var_cybdir_save_n, var_cybdir_save_save
 			dw p_cybdir_save_r
+
+; ============================================================
+; function count (normal mode)
+; ============================================================
+
+p_cybdir_count:
+
+			; CybDir.cls 51: Count = m \ 64
+			dw kw_divvl, var_cybdir_m, 64, var_cybdir_count_count
+			dw p_cybdir_count_r
 
 ; ============================================================
 ; function find (normal mode)
@@ -460,38 +717,38 @@ if23_1:
 
 p_cybdir_find:
 
-			; CybDir.cls 50: Dim o As Integer
+			; CybDir.cls 56: Dim o As Integer
 
-			; CybDir.cls 51: Find = -1
+			; CybDir.cls 57: Find = -1
 			dw kw_ltov, -1, var_cybdir_find_find
 
-			; CybDir.cls 52: For o = 0 To m - 64 Step 64
+			; CybDir.cls 58: For o = 0 To m - 64 Step 64
 			dw kw_ztov, var_cybdir_find_o
-			dw kw_addl, var_cybdir_m, -64, for25_l
-			dw kw_forupv_n, var_cybdir_find_o, for25_l, for25_e
-for25_t:
+			dw kw_addl, var_cybdir_m, -64, for41_l
+			dw kw_forupv_n, var_cybdir_find_o, for41_l, for41_e
+for41_t:
 
-			; CybDir.cls 53: If d(o) = 1 And Sum(o) Then
+			; CybDir.cls 59: If d(o) = 1 And Sum(o) Then
 			dw kw_aget8, arr_cybdir_d, var_cybdir_find_o, tmp0
 			dw kw_cpeqvl, tmp0, 1
 			dw kw_ftov, tmp0
 			dw p_cybdir_sum_c, var_cybdir_find_o
 			dw kw_vtov, var_cybdir_sum_sum, tmp1
 			dw kw_andvv, tmp0, tmp1, tmp0
-			dw kw_goto_ifzero_n, tmp0, if26_1
+			dw kw_goto_ifzero_n, tmp0, if42_1
 
-			; CybDir.cls 54: If DiscName(o) = name Or (InStr(name, ".") = 0 And DiscName(o) = name + ".COM") Or LongName(o) = name Then
+			; CybDir.cls 60: If DiscName(o) = name Or (InStr(name, ".") = 0 And DiscName(o) = name + ".COM") Or LongName(o) = name Then
 			dw p_cybdir_discname_c, var_cybdir_find_o
 			dw kw_strcpy, stmp0, var_cybdir_discname_discname
 			dw kw_strcmpeq, stmp0, var_cybdir_find_name
 			dw kw_ftov, tmp0
-			dw kw_strinstr, lit_1, var_cybdir_find_name, str22, tmp1
+			dw kw_strinstr, lit_1, var_cybdir_find_name, str28, tmp1
 			dw kw_cpeqvl, tmp1, 0
 			dw kw_ftov, tmp1
 			dw p_cybdir_discname_c, var_cybdir_find_o
 			dw kw_strcpy, stmp2, var_cybdir_discname_discname
 			dw kw_strcpy, stmp3, var_cybdir_find_name
-			dw kw_strcat, stmp3, str23
+			dw kw_strcat, stmp3, str29
 			dw kw_strcmpeq, stmp2, stmp3
 			dw kw_ftov, tmp2
 			dw kw_andvv, tmp1, tmp2, tmp1
@@ -501,23 +758,23 @@ for25_t:
 			dw kw_strcmpeq, stmp1, var_cybdir_find_name
 			dw kw_ftov, tmp1
 			dw kw_orvv, tmp0, tmp1, tmp0
-			dw kw_goto_ifzero_n, tmp0, if27_1
+			dw kw_goto_ifzero_n, tmp0, if43_1
 
-			; CybDir.cls 55: Find = o
+			; CybDir.cls 61: Find = o
 			dw kw_vtov, var_cybdir_find_o, var_cybdir_find_find
 
-			; CybDir.cls 56: Exit Function
+			; CybDir.cls 62: Exit Function
 			dw p_cybdir_find_r
 
-			; CybDir.cls 57: End If
-if27_1:
+			; CybDir.cls 63: End If
+if43_1:
 
-			; CybDir.cls 58: End If
-if26_1:
+			; CybDir.cls 64: End If
+if42_1:
 
-			; CybDir.cls 59: Next
-			dw kw_nextupv_n, var_cybdir_find_o, 64, for25_l, for25_t
-for25_e:
+			; CybDir.cls 65: Next
+			dw kw_nextupv_n, var_cybdir_find_o, 64, for41_l, for41_t
+for41_e:
 			dw p_cybdir_find_r
 
 ; ============================================================
@@ -526,62 +783,62 @@ for25_e:
 
 p_cybdir_discname:
 
-			; CybDir.cls 64: Dim i As Integer, s As String Max 12
+			; CybDir.cls 86: Dim i As Integer, s As String Max 12
 
-			; CybDir.cls 65: s = ""
+			; CybDir.cls 87: s = ""
 			dw kw_strcpy, var_cybdir_discname_s, str3
 
-			; CybDir.cls 66: For i = 1 To 8
+			; CybDir.cls 88: For i = 1 To 8
 			dw kw_ltov, 1, var_cybdir_discname_i
-for28_t:
+for49_t:
 
-			; CybDir.cls 67: If d(o + i) > 32 Then s = s + Chr$(d(o + i))
+			; CybDir.cls 89: If d(o + i) > 32 Then s = s + Chr$(d(o + i))
 			dw kw_add, var_cybdir_discname_o, var_cybdir_discname_i, tmp2
 			dw kw_aget8, arr_cybdir_d, tmp2, tmp2
 			dw kw_scpgtvl, tmp2, 32
-			dw kw_goto_iffalse_n, if29_1
+			dw kw_goto_iffalse_n, if50_1
 			dw kw_add, var_cybdir_discname_o, var_cybdir_discname_i, tmp3
 			dw kw_aget8, arr_cybdir_d, tmp3, tmp3
 			dw kw_strchr, stmp3, tmp3
 			dw kw_strcat, var_cybdir_discname_s, stmp3
-if29_1:
+if50_1:
 
-			; CybDir.cls 68: Next
-			dw kw_next1l_n, var_cybdir_discname_i, 8, for28_t
-for28_e:
+			; CybDir.cls 90: Next
+			dw kw_next1l_n, var_cybdir_discname_i, 8, for49_t
+for49_e:
 
-			; CybDir.cls 69: If d(o + 9) > 32 Then
+			; CybDir.cls 91: If d(o + 9) > 32 Then
 			dw kw_addl, var_cybdir_discname_o, 9, tmp2
 			dw kw_aget8, arr_cybdir_d, tmp2, tmp2
 			dw kw_scpgtvl, tmp2, 32
-			dw kw_goto_iffalse_n, if30_1
+			dw kw_goto_iffalse_n, if51_1
 
-			; CybDir.cls 70: s = s + "."
-			dw kw_strcat, var_cybdir_discname_s, str22
+			; CybDir.cls 92: s = s + "."
+			dw kw_strcat, var_cybdir_discname_s, str28
 
-			; CybDir.cls 71: For i = 9 To 11
+			; CybDir.cls 93: For i = 9 To 11
 			dw kw_ltov, 9, var_cybdir_discname_i
-for31_t:
+for52_t:
 
-			; CybDir.cls 72: If d(o + i) > 32 Then s = s + Chr$(d(o + i))
+			; CybDir.cls 94: If d(o + i) > 32 Then s = s + Chr$(d(o + i))
 			dw kw_add, var_cybdir_discname_o, var_cybdir_discname_i, tmp2
 			dw kw_aget8, arr_cybdir_d, tmp2, tmp2
 			dw kw_scpgtvl, tmp2, 32
-			dw kw_goto_iffalse_n, if32_1
+			dw kw_goto_iffalse_n, if53_1
 			dw kw_add, var_cybdir_discname_o, var_cybdir_discname_i, tmp3
 			dw kw_aget8, arr_cybdir_d, tmp3, tmp3
 			dw kw_strchr, stmp3, tmp3
 			dw kw_strcat, var_cybdir_discname_s, stmp3
-if32_1:
+if53_1:
 
-			; CybDir.cls 73: Next
-			dw kw_next1l_n, var_cybdir_discname_i, 11, for31_t
-for31_e:
+			; CybDir.cls 95: Next
+			dw kw_next1l_n, var_cybdir_discname_i, 11, for52_t
+for52_e:
 
-			; CybDir.cls 74: End If
-if30_1:
+			; CybDir.cls 96: End If
+if51_1:
 
-			; CybDir.cls 75: DiscName = s
+			; CybDir.cls 97: DiscName = s
 			dw kw_strcpy, var_cybdir_discname_discname, var_cybdir_discname_s
 			dw p_cybdir_discname_r
 
@@ -591,34 +848,34 @@ if30_1:
 
 p_cybdir_longname:
 
-			; CybDir.cls 80: Dim i As Integer, s As String Max 38
+			; CybDir.cls 102: Dim i As Integer, s As String Max 38
 
-			; CybDir.cls 81: s = ""
+			; CybDir.cls 103: s = ""
 			dw kw_strcpy, var_cybdir_longname_s, str3
 
-			; CybDir.cls 82: For i = 24 To 61
+			; CybDir.cls 104: For i = 24 To 61
 			dw kw_ltov, 24, var_cybdir_longname_i
-for33_t:
+for54_t:
 
-			; CybDir.cls 83: If d(o + i) = 0 Then Exit For
+			; CybDir.cls 105: If d(o + i) = 0 Then Exit For
 			dw kw_add, var_cybdir_longname_o, var_cybdir_longname_i, tmp1
 			dw kw_aget8, arr_cybdir_d, tmp1, tmp1
 			dw kw_cpeqvl, tmp1, 0
-			dw kw_goto_iffalse_n, if34_1
-			dw for33_e_go
-if34_1:
+			dw kw_goto_iffalse_n, if55_1
+			dw for54_e_go
+if55_1:
 
-			; CybDir.cls 84: s = s + Chr$(d(o + i))
+			; CybDir.cls 106: s = s + Chr$(d(o + i))
 			dw kw_add, var_cybdir_longname_o, var_cybdir_longname_i, tmp2
 			dw kw_aget8, arr_cybdir_d, tmp2, tmp2
 			dw kw_strchr, stmp2, tmp2
 			dw kw_strcat, var_cybdir_longname_s, stmp2
 
-			; CybDir.cls 85: Next
-			dw kw_next1l_n, var_cybdir_longname_i, 61, for33_t
-for33_e:
+			; CybDir.cls 107: Next
+			dw kw_next1l_n, var_cybdir_longname_i, 61, for54_t
+for54_e:
 
-			; CybDir.cls 86: LongName = s
+			; CybDir.cls 108: LongName = s
 			dw kw_strcpy, var_cybdir_longname_longname, var_cybdir_longname_s
 			dw p_cybdir_longname_r
 
@@ -628,7 +885,7 @@ for33_e:
 
 p_cybdir_length:
 
-			; CybDir.cls 91: Length = CLng(d(o + 14)) + CLng(d(o + 15)) * 256
+			; CybDir.cls 113: Length = CLng(d(o + 14)) + CLng(d(o + 15)) * 256
 			dw kw_addl, var_cybdir_length_o, 14, tmp0
 			dw kw_aget8, arr_cybdir_d, tmp0, tmp0
 			dw kw_l_itol, tmp0, ltmp0
@@ -645,21 +902,219 @@ p_cybdir_length:
 
 p_cybdir_take:
 
-			; CybDir.cls 105: Dim i As Integer
+			; CybDir.cls 127: Dim i As Integer
 
-			; CybDir.cls 106: For i = 0 To 63
+			; CybDir.cls 128: For i = 0 To 63
 			dw kw_ztov, var_cybdir_take_i
-for36_t:
+for57_t:
 
-			; CybDir.cls 107: e(i) = d(o + i)
+			; CybDir.cls 129: e(i) = d(o + i)
 			dw kw_add, var_cybdir_take_o, var_cybdir_take_i, tmp1
 			dw kw_aget8, arr_cybdir_d, tmp1, tmp1
 			dw kw_aset8, arr_cybdir_e, var_cybdir_take_i, tmp1
 
-			; CybDir.cls 108: Next
-			dw kw_next1l_n, var_cybdir_take_i, 63, for36_t
-for36_e:
+			; CybDir.cls 130: Next
+			dw kw_next1l_n, var_cybdir_take_i, 63, for57_t
+for57_e:
 			dw p_cybdir_take_r
+
+; ============================================================
+; sub keep (normal mode)
+; ============================================================
+
+p_cybdir_keep:
+
+			; CybDir.cls 136: Dim i As Integer
+
+			; CybDir.cls 137: For i = 0 To 63
+			dw kw_ztov, var_cybdir_keep_i
+for58_t:
+
+			; CybDir.cls 138: Poke a + i, d(o + i)
+			dw kw_add, var_cybdir_keep_a, var_cybdir_keep_i, tmp0
+			dw kw_add, var_cybdir_keep_o, var_cybdir_keep_i, tmp1
+			dw kw_aget8, arr_cybdir_d, tmp1, tmp1
+			dw kw_vtovptr8, tmp1, tmp0
+
+			; CybDir.cls 139: Next
+			dw kw_next1l_n, var_cybdir_keep_i, 63, for58_t
+for58_e:
+			dw p_cybdir_keep_r
+
+; ============================================================
+; sub back (normal mode)
+; ============================================================
+
+p_cybdir_back:
+
+			; CybDir.cls 142: Dim i As Integer
+
+			; CybDir.cls 143: For i = 0 To 63
+			dw kw_ztov, var_cybdir_back_i
+for59_t:
+
+			; CybDir.cls 144: e(i) = Peek(a + i)
+			dw kw_add, var_cybdir_back_a, var_cybdir_back_i, tmp1
+			dw kw_vptrtov8, tmp1, tmp1
+			dw kw_aset8, arr_cybdir_e, var_cybdir_back_i, tmp1
+
+			; CybDir.cls 145: Next
+			dw kw_next1l_n, var_cybdir_back_i, 63, for59_t
+for59_e:
+			dw p_cybdir_back_r
+
+; ============================================================
+; function match (normal mode)
+; ============================================================
+
+p_cybdir_match:
+
+			; CybDir.cls 151: Match = False
+			dw kw_ztov, var_cybdir_match_match
+
+			; CybDir.cls 152: If d(o) <> 1 Then Exit Function
+			dw kw_aget8, arr_cybdir_d, var_cybdir_match_o, tmp0
+			dw kw_cpnevl, tmp0, 1
+			dw kw_goto_iffalse_n, if60_1
+			dw p_cybdir_match_r
+if60_1:
+
+			; CybDir.cls 153: If Sum(o) = 0 Then Exit Function
+			dw p_cybdir_sum_c, var_cybdir_match_o
+			dw kw_vtov, var_cybdir_sum_sum, tmp0
+			dw kw_cpeqvl, tmp0, 0
+			dw kw_goto_iffalse_n, if61_1
+			dw p_cybdir_match_r
+if61_1:
+
+			; CybDir.cls 154: If pat = "*.*" Then pat = "*"
+			dw kw_strcmpeq, var_cybdir_match_pat, str30
+			dw kw_goto_iffalse_n, if62_1
+			dw kw_strcpy, var_cybdir_match_pat, str5
+if62_1:
+
+			; CybDir.cls 155: If Fits(DiscName(o), pat) Then Match = True : Exit Function
+			dw p_cybdir_discname_c, var_cybdir_match_o
+			dw kw_strcpy, stmp0, var_cybdir_discname_discname
+			dw p_cybdir_fits_c, stmp0, var_cybdir_match_pat
+			dw kw_goto_ifzero_n, var_cybdir_fits_fits, if63_1
+			dw kw_ltov, -1, var_cybdir_match_match
+			dw p_cybdir_match_r
+if63_1:
+
+			; CybDir.cls 156: If Fits(LongName(o), pat) Then Match = True
+			dw p_cybdir_longname_c, var_cybdir_match_o
+			dw kw_strcpy, stmp0, var_cybdir_longname_longname
+			dw p_cybdir_fits_c, stmp0, var_cybdir_match_pat
+			dw kw_goto_ifzero_n, var_cybdir_fits_fits, if64_1
+			dw kw_ltov, -1, var_cybdir_match_match
+if64_1:
+			dw p_cybdir_match_r
+
+; ============================================================
+; function fits (normal mode)
+; ============================================================
+
+p_cybdir_fits:
+
+			; CybDir.cls 162: Dim i As Integer, j As Integer, si As Integer, sj As Integer, c As String Max 1
+
+			; CybDir.cls 163: i = 1 : j = 1 : si = 0 : sj = 0
+			dw kw_ltov, 1, var_cybdir_fits_i
+			dw kw_ltov, 1, var_cybdir_fits_j
+			dw kw_ztov, var_cybdir_fits_si
+			dw kw_ztov, var_cybdir_fits_sj
+
+			; CybDir.cls 164: Fits = False
+			dw kw_ztov, var_cybdir_fits_fits
+
+			; CybDir.cls 165: If t = "" Then Exit Function
+			dw kw_strcmpeq, var_cybdir_fits_t, str3
+			dw kw_goto_iffalse_n, if65_1
+			dw p_cybdir_fits_r
+if65_1:
+
+			; CybDir.cls 166: Do While i <= Len(t)
+do66_t:
+			dw kw_strlen, var_cybdir_fits_t, tmp1
+			dw kw_scplevv, var_cybdir_fits_i, tmp1
+			dw kw_goto_iffalse_n, do66_e
+
+			; CybDir.cls 167: c = Mid$(p, j, 1)
+			dw kw_strmid, stmp0, var_cybdir_fits_p, var_cybdir_fits_j, lit_1
+			dw kw_strcpy, var_cybdir_fits_c, stmp0
+
+			; CybDir.cls 168: If c = "*" Then
+			dw kw_strcmpeq, var_cybdir_fits_c, str5
+			dw kw_goto_iffalse_n, if67_1
+
+			; CybDir.cls 169: si = i : sj = j : j = j + 1
+			dw kw_vtov, var_cybdir_fits_i, var_cybdir_fits_si
+			dw kw_vtov, var_cybdir_fits_j, var_cybdir_fits_sj
+			dw kw_inc, var_cybdir_fits_j
+
+			; CybDir.cls 170: ElseIf j <= Len(p) And (c = "?" Or c = Mid$(t, i, 1)) Then
+			dw do66_t_go
+if67_1:
+			dw kw_strlen, var_cybdir_fits_p, tmp1
+			dw kw_scplevv, var_cybdir_fits_j, tmp1
+			dw kw_ftov, tmp0
+			dw kw_strcmpeq, var_cybdir_fits_c, str6
+			dw kw_ftov, tmp1
+			dw kw_strmid, stmp3, var_cybdir_fits_t, var_cybdir_fits_i, lit_1
+			dw kw_strcmpeq, var_cybdir_fits_c, stmp3
+			dw kw_ftov, tmp2
+			dw kw_orvv, tmp1, tmp2, tmp1
+			dw kw_andvv, tmp0, tmp1, tmp0
+			dw kw_goto_ifzero_n, tmp0, if67_2
+
+			; CybDir.cls 171: i = i + 1 : j = j + 1
+			dw kw_inc, var_cybdir_fits_i
+			dw kw_inc, var_cybdir_fits_j
+
+			; CybDir.cls 172: ElseIf sj > 0 Then
+			dw do66_t_go
+if67_2:
+			dw kw_scpgtvl, var_cybdir_fits_sj, 0
+			dw kw_goto_iffalse_n, if67_3
+
+			; CybDir.cls 173: si = si + 1 : i = si : j = sj + 1
+			dw kw_inc, var_cybdir_fits_si
+			dw kw_vtov, var_cybdir_fits_si, var_cybdir_fits_i
+			dw kw_addl, var_cybdir_fits_sj, 1, var_cybdir_fits_j
+
+			; CybDir.cls 174: Else
+			dw do66_t_go
+if67_3:
+
+			; CybDir.cls 175: Exit Function
+			dw p_cybdir_fits_r
+
+			; CybDir.cls 176: End If
+if67_e:
+
+			; CybDir.cls 177: Loop
+			dw do66_t_go
+do66_e:
+
+			; CybDir.cls 178: Do While Mid$(p, j, 1) = "*"
+do68_t:
+			dw kw_strmid, stmp0, var_cybdir_fits_p, var_cybdir_fits_j, lit_1
+			dw kw_strcmpeq, stmp0, str5
+			dw kw_goto_iffalse_n, do68_e
+
+			; CybDir.cls 179: j = j + 1
+			dw kw_inc, var_cybdir_fits_j
+
+			; CybDir.cls 180: Loop
+			dw do68_t_go
+do68_e:
+
+			; CybDir.cls 181: Fits = (j > Len(p))
+			dw kw_strlen, var_cybdir_fits_p, tmp1
+			dw kw_scpgtvv, var_cybdir_fits_j, tmp1
+			dw kw_ftov, var_cybdir_fits_fits
+			dw p_cybdir_fits_r
 
 ; ============================================================
 ; function putas (normal mode)
@@ -667,49 +1122,49 @@ for36_e:
 
 p_cybdir_putas:
 
-			; CybDir.cls 114: Dim i As Integer, o As Integer
+			; CybDir.cls 187: Dim i As Integer, o As Integer
 
-			; CybDir.cls 115: Named name
+			; CybDir.cls 188: Named name
 			dw p_cybdir_named_c, var_cybdir_putas_name
 
-			; CybDir.cls 116: o = Find(name)
+			; CybDir.cls 189: o = Find(name)
 			dw p_cybdir_find_c, var_cybdir_putas_name
 			dw kw_vtov, var_cybdir_find_find, var_cybdir_putas_o
 
-			; CybDir.cls 117: If o < 0 Then
+			; CybDir.cls 190: If o < 0 Then
 			dw kw_scpltvl, var_cybdir_putas_o, 0
-			dw kw_goto_iffalse_n, if37_1
+			dw kw_goto_iffalse_n, if69_1
 
-			; CybDir.cls 118: If m >= MAXBYTES Then PutAs = False : Exit Function
+			; CybDir.cls 191: If m >= MAXBYTES Then PutAs = False : Exit Function
 			dw kw_scpgevl, var_cybdir_m, 4096
-			dw kw_goto_iffalse_n, if38_1
+			dw kw_goto_iffalse_n, if70_1
 			dw kw_ztov, var_cybdir_putas_putas
 			dw p_cybdir_putas_r
-if38_1:
+if70_1:
 
-			; CybDir.cls 119: o = m
+			; CybDir.cls 192: o = m
 			dw kw_vtov, var_cybdir_m, var_cybdir_putas_o
 
-			; CybDir.cls 120: m = m + 64
+			; CybDir.cls 193: m = m + 64
 			dw kw_addl, var_cybdir_m, 64, var_cybdir_m
 
-			; CybDir.cls 121: End If
-if37_1:
+			; CybDir.cls 194: End If
+if69_1:
 
-			; CybDir.cls 122: For i = 0 To 63
+			; CybDir.cls 195: For i = 0 To 63
 			dw kw_ztov, var_cybdir_putas_i
-for39_t:
+for71_t:
 
-			; CybDir.cls 123: d(o + i) = e(i)
+			; CybDir.cls 196: d(o + i) = e(i)
 			dw kw_add, var_cybdir_putas_o, var_cybdir_putas_i, tmp0
 			dw kw_aget8, arr_cybdir_e, var_cybdir_putas_i, tmp1
 			dw kw_aset8, arr_cybdir_d, tmp0, tmp1
 
-			; CybDir.cls 124: Next
-			dw kw_next1l_n, var_cybdir_putas_i, 63, for39_t
-for39_e:
+			; CybDir.cls 197: Next
+			dw kw_next1l_n, var_cybdir_putas_i, 63, for71_t
+for71_e:
 
-			; CybDir.cls 125: PutAs = True
+			; CybDir.cls 198: PutAs = True
 			dw kw_ltov, -1, var_cybdir_putas_putas
 			dw p_cybdir_putas_r
 
@@ -719,25 +1174,25 @@ for39_e:
 
 p_cybdir_named:
 
-			; CybDir.cls 140: Dim i As Integer, p As Integer, b As String Max 8, x As String Max 3, s As Long
+			; CybDir.cls 230: Dim i As Integer, p As Integer, b As String Max 8, x As String Max 3, s As Long
 
-			; CybDir.cls 141: p = InStr(name, ".")
-			dw kw_strinstr, lit_1, var_cybdir_named_name, str22, var_cybdir_named_p
+			; CybDir.cls 231: p = InStr(name, ".")
+			dw kw_strinstr, lit_1, var_cybdir_named_name, str28, var_cybdir_named_p
 
-			; CybDir.cls 142: If p = 0 Then
+			; CybDir.cls 232: If p = 0 Then
 			dw kw_cpeqvl, var_cybdir_named_p, 0
-			dw kw_goto_iffalse_n, if41_1
+			dw kw_goto_iffalse_n, if76_1
 
-			; CybDir.cls 143: b = Left$(name, 8) : x = ""
+			; CybDir.cls 233: b = Left$(name, 8) : x = ""
 			dw kw_strleft, stmp0, var_cybdir_named_name, lit_8
 			dw kw_strcpy, var_cybdir_named_b, stmp0
 			dw kw_strcpy, var_cybdir_named_x, str3
 
-			; CybDir.cls 144: Else
-			dw if41_e_go
-if41_1:
+			; CybDir.cls 234: Else
+			dw if76_e_go
+if76_1:
 
-			; CybDir.cls 145: b = Left$(name, p - 1) : x = Mid$(name, p + 1, 3)
+			; CybDir.cls 235: b = Left$(name, p - 1) : x = Mid$(name, p + 1, 3)
 			dw kw_addl, var_cybdir_named_p, -1, tmp1
 			dw kw_strleft, stmp0, var_cybdir_named_name, tmp1
 			dw kw_strcpy, var_cybdir_named_b, stmp0
@@ -745,72 +1200,72 @@ if41_1:
 			dw kw_strmid, stmp0, var_cybdir_named_name, tmp1, lit_3
 			dw kw_strcpy, var_cybdir_named_x, stmp0
 
-			; CybDir.cls 146: End If
-if41_e:
+			; CybDir.cls 236: End If
+if76_e:
 
-			; CybDir.cls 147: b = Left$(b + Space$(8), 8)
+			; CybDir.cls 237: b = Left$(b + Space$(8), 8)
 			dw kw_strspace, stmp1, lit_8
 			dw kw_strcpy, stmp0, var_cybdir_named_b
 			dw kw_strcat, stmp0, stmp1
 			dw kw_strleft, stmp0, stmp0, lit_8
 			dw kw_strcpy, var_cybdir_named_b, stmp0
 
-			; CybDir.cls 148: x = Left$(x + Space$(3), 3)
+			; CybDir.cls 238: x = Left$(x + Space$(3), 3)
 			dw kw_strspace, stmp1, lit_3
 			dw kw_strcpy, stmp0, var_cybdir_named_x
 			dw kw_strcat, stmp0, stmp1
 			dw kw_strleft, stmp0, stmp0, lit_3
 			dw kw_strcpy, var_cybdir_named_x, stmp0
 
-			; CybDir.cls 149: For i = 1 To 8
+			; CybDir.cls 239: For i = 1 To 8
 			dw kw_ltov, 1, var_cybdir_named_i
-for42_t:
+for77_t:
 
-			; CybDir.cls 150: e(i) = Asc(Mid$(b, i, 1))
+			; CybDir.cls 240: e(i) = Asc(Mid$(b, i, 1))
 			dw kw_strmid, stmp1, var_cybdir_named_b, var_cybdir_named_i, lit_1
 			dw kw_strasc, stmp1, tmp1
 			dw kw_aset8, arr_cybdir_e, var_cybdir_named_i, tmp1
 
-			; CybDir.cls 151: Next
-			dw kw_next1l_n, var_cybdir_named_i, 8, for42_t
-for42_e:
+			; CybDir.cls 241: Next
+			dw kw_next1l_n, var_cybdir_named_i, 8, for77_t
+for77_e:
 
-			; CybDir.cls 152: For i = 1 To 3
+			; CybDir.cls 242: For i = 1 To 3
 			dw kw_ltov, 1, var_cybdir_named_i
-for43_t:
+for78_t:
 
-			; CybDir.cls 153: e(8 + i) = Asc(Mid$(x, i, 1))
+			; CybDir.cls 243: e(8 + i) = Asc(Mid$(x, i, 1))
 			dw kw_addl, var_cybdir_named_i, 8, tmp0
 			dw kw_strmid, stmp1, var_cybdir_named_x, var_cybdir_named_i, lit_1
 			dw kw_strasc, stmp1, tmp1
 			dw kw_aset8, arr_cybdir_e, tmp0, tmp1
 
-			; CybDir.cls 154: Next
-			dw kw_next1l_n, var_cybdir_named_i, 3, for43_t
-for43_e:
+			; CybDir.cls 244: Next
+			dw kw_next1l_n, var_cybdir_named_i, 3, for78_t
+for78_e:
 
-			; CybDir.cls 155: s = 0
+			; CybDir.cls 245: s = 0
 			dw kw_l_mov, llit_0, var_cybdir_named_s
 
-			; CybDir.cls 156: For i = 0 To 61
+			; CybDir.cls 246: For i = 0 To 61
 			dw kw_ztov, var_cybdir_named_i
-for44_t:
+for79_t:
 
-			; CybDir.cls 157: s = s + e(i)
+			; CybDir.cls 247: s = s + e(i)
 			dw kw_aget8, arr_cybdir_e, var_cybdir_named_i, tmp1
 			dw kw_l_itol, tmp1, ltmp1
 			dw kw_l_add, var_cybdir_named_s, ltmp1, var_cybdir_named_s
 
-			; CybDir.cls 158: Next
-			dw kw_next1l_n, var_cybdir_named_i, 61, for44_t
-for44_e:
+			; CybDir.cls 248: Next
+			dw kw_next1l_n, var_cybdir_named_i, 61, for79_t
+for79_e:
 
-			; CybDir.cls 159: e(62) = CInt(s And 255)
+			; CybDir.cls 249: e(62) = CInt(s And 255)
 			dw kw_l_and, var_cybdir_named_s, llit_255, ltmp1
 			dw kw_l_ltoi, ltmp1, tmp1
 			dw kw_vtolptr8, tmp1, arr_cybdir_e+62
 
-			; CybDir.cls 160: e(63) = CInt((s \ 256) And 255)
+			; CybDir.cls 250: e(63) = CInt((s \ 256) And 255)
 			dw kw_l_div, var_cybdir_named_s, llit_256, ltmp1
 			dw kw_l_and, ltmp1, llit_255, ltmp1
 			dw kw_l_ltoi, ltmp1, tmp1
@@ -823,26 +1278,26 @@ for44_e:
 
 p_cybdir_sum:
 
-			; CybDir.cls 165: Dim i As Integer, s As Long
+			; CybDir.cls 255: Dim i As Integer, s As Long
 
-			; CybDir.cls 166: s = 0
+			; CybDir.cls 256: s = 0
 			dw kw_l_mov, llit_0, var_cybdir_sum_s
 
-			; CybDir.cls 167: For i = 0 To 61
+			; CybDir.cls 257: For i = 0 To 61
 			dw kw_ztov, var_cybdir_sum_i
-for45_t:
+for80_t:
 
-			; CybDir.cls 168: s = s + d(o + i)
+			; CybDir.cls 258: s = s + d(o + i)
 			dw kw_add, var_cybdir_sum_o, var_cybdir_sum_i, tmp2
 			dw kw_aget8, arr_cybdir_d, tmp2, tmp2
 			dw kw_l_itol, tmp2, ltmp2
 			dw kw_l_add, var_cybdir_sum_s, ltmp2, var_cybdir_sum_s
 
-			; CybDir.cls 169: Next
-			dw kw_next1l_n, var_cybdir_sum_i, 61, for45_t
-for45_e:
+			; CybDir.cls 259: Next
+			dw kw_next1l_n, var_cybdir_sum_i, 61, for80_t
+for80_e:
 
-			; CybDir.cls 170: Sum = (CInt(s And 255) = d(o + 62)) And (CInt((s \ 256) And 255) = d(o + 63))
+			; CybDir.cls 260: Sum = (CInt(s And 255) = d(o + 62)) And (CInt((s \ 256) And 255) = d(o + 63))
 			dw kw_l_and, var_cybdir_sum_s, llit_255, ltmp1
 			dw kw_l_ltoi, ltmp1, tmp1
 			dw kw_addl, var_cybdir_sum_o, 62, tmp2
@@ -872,19 +1327,25 @@ if2_e_go:			ld sp, if2_e
 			jp ntc_xn
 if3_e_go:			ld sp, if3_e
 			jp ntc_xn
-if12_e_go:			ld sp, if12_e
+for12_e_go:			ld sp, for12_e
 			jp ntc_xn
-do11_e_go:			ld sp, do11_e
+if28_e_go:			ld sp, if28_e
 			jp ntc_xn
-do11_t_go:			ld sp, do11_t
+do27_e_go:			ld sp, do27_e
 			jp ntc_xn
-do21_e_go:			ld sp, do21_e
+do27_t_go:			ld sp, do27_t
 			jp ntc_xn
-do21_t_go:			ld sp, do21_t
+do35_e_go:			ld sp, do35_e
 			jp ntc_xn
-for33_e_go:			ld sp, for33_e
+do35_t_go:			ld sp, do35_t
 			jp ntc_xn
-if41_e_go:			ld sp, if41_e
+for54_e_go:			ld sp, for54_e
+			jp ntc_xn
+do66_t_go:			ld sp, do66_t
+			jp ntc_xn
+do68_t_go:			ld sp, do68_t
+			jp ntc_xn
+if76_e_go:			ld sp, if76_e
 			jp ntc_xn
 
 p_here_c:		; call here (normal)
@@ -895,6 +1356,61 @@ p_here_c:		; call here (normal)
 			jp ntc_xn
 p_here_r:		; end of here
 			ld sp, (p_here_rs)
+			jp ntc_xn
+p_copyone_c:		; call copyone (normal)
+			pop hl			; s
+			ld de, var_copyone_s
+			ld b, 40
+p_copyone_si0:
+			ld a, (hl)
+			ld (de), a
+			or a
+			jr z, p_copyone_si0_e
+			inc hl
+			inc de
+			djnz p_copyone_si0
+			xor a
+			ld (de), a
+p_copyone_si0_e:
+			pop hl			; t
+			ld de, var_copyone_t
+			ld b, 40
+p_copyone_si1:
+			ld a, (hl)
+			ld (de), a
+			or a
+			jr z, p_copyone_si1_e
+			inc hl
+			inc de
+			djnz p_copyone_si1
+			xor a
+			ld (de), a
+p_copyone_si1_e:
+			pop hl			; size
+			ld de, var_copyone_size
+			ld bc, 4
+			ldir
+			ld hl, 0
+			ld (var_copyone_copyone), hl
+			ld (var_copyone_copyone+2), hl
+			ld hl, 0
+			ld (var_copyone_hi), hl
+			ld hl, 0
+			ld (var_copyone_ho), hl
+			ld hl, 0
+			ld (var_copyone_n), hl
+			ld hl, 0
+			ld (var_copyone_w), hl
+			ld hl, 0
+			ld (var_copyone_rr), hl
+			ld hl, 0
+			ld (var_copyone_total), hl
+			ld (var_copyone_total+2), hl
+			ld (p_copyone_rs), sp
+			ld sp, p_copyone
+			jp ntc_xn
+p_copyone_r:		; end of copyone
+			ld sp, (p_copyone_rs)
 			jp ntc_xn
 p_cybdir_load_c:		; call load (normal)
 			pop hl			; vol
@@ -949,6 +1465,15 @@ p_cybdir_save_si0_e:
 			jp ntc_xn
 p_cybdir_save_r:		; end of save
 			ld sp, (p_cybdir_save_rs)
+			jp ntc_xn
+p_cybdir_count_c:		; call count (normal)
+			ld hl, 0
+			ld (var_cybdir_count_count), hl
+			ld (p_cybdir_count_rs), sp
+			ld sp, p_cybdir_count
+			jp ntc_xn
+p_cybdir_count_r:		; end of count
+			ld sp, (p_cybdir_count_rs)
 			jp ntc_xn
 p_cybdir_find_c:		; call find (normal)
 			pop hl			; name
@@ -1039,6 +1564,114 @@ p_cybdir_take_c:		; call take (normal)
 			jp ntc_xn
 p_cybdir_take_r:		; end of take
 			ld sp, (p_cybdir_take_rs)
+			jp ntc_xn
+p_cybdir_keep_c:		; call keep (normal)
+			pop hl			; o
+			ld e, (hl)
+			inc hl
+			ld d, (hl)
+			ld (var_cybdir_keep_o), de
+			pop hl			; a
+			ld e, (hl)
+			inc hl
+			ld d, (hl)
+			ld (var_cybdir_keep_a), de
+			ld hl, 0
+			ld (var_cybdir_keep_i), hl
+			ld (p_cybdir_keep_rs), sp
+			ld sp, p_cybdir_keep
+			jp ntc_xn
+p_cybdir_keep_r:		; end of keep
+			ld sp, (p_cybdir_keep_rs)
+			jp ntc_xn
+p_cybdir_back_c:		; call back (normal)
+			pop hl			; a
+			ld e, (hl)
+			inc hl
+			ld d, (hl)
+			ld (var_cybdir_back_a), de
+			ld hl, 0
+			ld (var_cybdir_back_i), hl
+			ld (p_cybdir_back_rs), sp
+			ld sp, p_cybdir_back
+			jp ntc_xn
+p_cybdir_back_r:		; end of back
+			ld sp, (p_cybdir_back_rs)
+			jp ntc_xn
+p_cybdir_match_c:		; call match (normal)
+			pop hl			; o
+			ld e, (hl)
+			inc hl
+			ld d, (hl)
+			ld (var_cybdir_match_o), de
+			pop hl			; pat
+			ld de, var_cybdir_match_pat
+			ld b, 40
+p_cybdir_match_si1:
+			ld a, (hl)
+			ld (de), a
+			or a
+			jr z, p_cybdir_match_si1_e
+			inc hl
+			inc de
+			djnz p_cybdir_match_si1
+			xor a
+			ld (de), a
+p_cybdir_match_si1_e:
+			ld hl, 0
+			ld (var_cybdir_match_match), hl
+			ld (p_cybdir_match_rs), sp
+			ld sp, p_cybdir_match
+			jp ntc_xn
+p_cybdir_match_r:		; end of match
+			ld sp, (p_cybdir_match_rs)
+			jp ntc_xn
+p_cybdir_fits_c:		; call fits (normal)
+			pop hl			; t
+			ld de, var_cybdir_fits_t
+			ld b, 40
+p_cybdir_fits_si0:
+			ld a, (hl)
+			ld (de), a
+			or a
+			jr z, p_cybdir_fits_si0_e
+			inc hl
+			inc de
+			djnz p_cybdir_fits_si0
+			xor a
+			ld (de), a
+p_cybdir_fits_si0_e:
+			pop hl			; p
+			ld de, var_cybdir_fits_p
+			ld b, 40
+p_cybdir_fits_si1:
+			ld a, (hl)
+			ld (de), a
+			or a
+			jr z, p_cybdir_fits_si1_e
+			inc hl
+			inc de
+			djnz p_cybdir_fits_si1
+			xor a
+			ld (de), a
+p_cybdir_fits_si1_e:
+			ld hl, 0
+			ld (var_cybdir_fits_fits), hl
+			ld hl, 0
+			ld (var_cybdir_fits_i), hl
+			ld hl, 0
+			ld (var_cybdir_fits_j), hl
+			ld hl, 0
+			ld (var_cybdir_fits_si), hl
+			ld hl, 0
+			ld (var_cybdir_fits_sj), hl
+			xor a
+			ld (var_cybdir_fits_c), a
+			ld (p_cybdir_fits_rs), sp
+			ld sp, p_cybdir_fits
+			jp ntc_xn
+p_cybdir_fits_r:		; end of fits
+			ld sp, (p_cybdir_fits_rs)
 			jp ntc_xn
 p_cybdir_putas_c:		; call putas (normal)
 			pop hl			; name
@@ -1247,25 +1880,40 @@ var_v2:			ds 3
 			db 12			; capacity
 var_f2:			ds 13
 var_cybdir_load_load:			dw 0
+var_k:			dw 0
 var_o:			dw 0
+var_cybdir_count_count:			dw 0
+for8_l:			dw 0
+var_cybdir_match_match:			dw 0
+			db 40			; capacity
+var_cybdir_discname_discname:			ds 41
+var_nd:			dw 0
+var_i:			dw 0
+for12_l:			dw 0
+var_size:			dw 0, 0
+var_r:			dw 0
+var_copyone_copyone:			dw 0, 0
+var_cybdir_putas_putas:			dw 0
+var_cybdir_save_save:			dw 0
 var_cybdir_find_find:			dw 0
 			db 12			; capacity
 var_sn:			ds 13
-			db 40			; capacity
-var_cybdir_discname_discname:			ds 41
-var_size:			dw 0, 0
 var_cybdir_length_length:			dw 0, 0
-var_hi:			dw 0
-var_ho:			dw 0
-var_r:			dw 0
-var_total:			dw 0, 0
-var_n:			dw 0
-var_w:			dw 0
-var_cybdir_putas_putas:			dw 0
-var_cybdir_save_save:			dw 0
 p_here_rs:			dw 0
 			db 40			; capacity
 var_filesystem_currentvolume_currentvolume:			ds 41
+p_copyone_rs:			dw 0
+			db 40			; capacity
+var_copyone_s:			ds 41
+			db 40			; capacity
+var_copyone_t:			ds 41
+var_copyone_size:			dw 0, 0
+var_copyone_hi:			dw 0
+var_copyone_ho:			dw 0
+var_copyone_n:			dw 0
+var_copyone_w:			dw 0
+var_copyone_rr:			dw 0
+var_copyone_total:			dw 0, 0
 p_cybdir_load_rs:			dw 0
 			db 40			; capacity
 var_cybdir_load_vol:			ds 41
@@ -1277,12 +1925,13 @@ p_cybdir_save_rs:			dw 0
 var_cybdir_save_vol:			ds 41
 var_cybdir_save_i:			dw 0
 var_cybdir_save_n:			dw 0
-for24_l:			dw 0
+for38_l:			dw 0
+p_cybdir_count_rs:			dw 0
 p_cybdir_find_rs:			dw 0
 			db 40			; capacity
 var_cybdir_find_name:			ds 41
 var_cybdir_find_o:			dw 0
-for25_l:			dw 0
+for41_l:			dw 0
 var_cybdir_sum_sum:			dw 0
 			db 40			; capacity
 var_cybdir_longname_longname:			ds 41
@@ -1301,6 +1950,29 @@ var_cybdir_length_o:			dw 0
 p_cybdir_take_rs:			dw 0
 var_cybdir_take_o:			dw 0
 var_cybdir_take_i:			dw 0
+p_cybdir_keep_rs:			dw 0
+var_cybdir_keep_o:			dw 0
+var_cybdir_keep_a:			dw 0
+var_cybdir_keep_i:			dw 0
+p_cybdir_back_rs:			dw 0
+var_cybdir_back_a:			dw 0
+var_cybdir_back_i:			dw 0
+p_cybdir_match_rs:			dw 0
+var_cybdir_match_o:			dw 0
+			db 40			; capacity
+var_cybdir_match_pat:			ds 41
+var_cybdir_fits_fits:			dw 0
+p_cybdir_fits_rs:			dw 0
+			db 40			; capacity
+var_cybdir_fits_t:			ds 41
+			db 40			; capacity
+var_cybdir_fits_p:			ds 41
+var_cybdir_fits_i:			dw 0
+var_cybdir_fits_j:			dw 0
+var_cybdir_fits_si:			dw 0
+var_cybdir_fits_sj:			dw 0
+			db 1			; capacity
+var_cybdir_fits_c:			ds 2
 p_cybdir_putas_rs:			dw 0
 			db 40			; capacity
 var_cybdir_putas_name:			ds 41
@@ -1341,45 +2013,55 @@ lit_1:			dw 1
 lit_255:			dw 255
 lit_2:			dw 2
 lit_3:			dw 3
-lit_4:			dw 4
+vp_arr_ents:			dw arr_ents
+llit_256:			dw 256, 0
 llit_0:			dw 0, 0
+llit_m1:			dw 65535, 65535
+lit_4:			dw 4
 llit_8192:			dw 8192, 0
 vp_arr_buf:			dw arr_buf
+llit_m2:			dw 65534, 65535
 vp_arr_cybdir_d:			dw arr_cybdir_d
 lit_4096:			dw 4096
 lit_0:			dw 0
-llit_256:			dw 256, 0
-lit_8:			dw 8
 llit_255:			dw 255, 0
+lit_8:			dw 8
 
 ; ============================================================
 ; Strings
 ; ============================================================
 
 str0:			db " ", 0
-str1:			db "COPY [v1:]name v2[:newname]", 0
+str1:			db "COPY [v1:]name v2[:newname]   COPY [v1:]pattern v2", 0
 str2:			db ":", 0
 str3:			db 0
 str4:			db " has no FILES.DIR", 0
-str5:			db ": not in FILES.DIR", 0
-str6:			db "a file can't be copied over itself", 0
-str7:			db " has no FILES.DIR (PREP ", 0
-str8:			db " makes one)", 0
-str9:			db ": not on the disc", 0
-str10:			db ": can't be made (", 0
-str11:			db ")", 0
-str12:			db ": the disc is full, or a write failed", 0
-str13:			db ": shorter than FILES.DIR says (", 0
-str14:			db " of ", 0
-str15:			db " bytes)", 0
-str16:			db "FILES.DIR is full", 0
-str17:			db "FILES.DIR not written (", 0
-str18:			db " to ", 0
-str19:			db ": ", 0
-str20:			db " bytes", 0
-str21:			db "FILES.DIR", 0
-str22:			db ".", 0
-str23:			db ".COM", 0
+str5:			db "*", 0
+str6:			db "?", 0
+str7:			db "COPY ", 0
+str8:			db ": a pattern copies to a drive (v2 alone), same names", 0
+str9:			db "a file can't be copied over itself", 0
+str10:			db ": no file in FILES.DIR fits", 0
+str11:			db " has no FILES.DIR (PREP ", 0
+str12:			db " makes one)", 0
+str13:			db "FILES.DIR is full", 0
+str14:			db "FILES.DIR not written (", 0
+str15:			db ")", 0
+str16:			db " of ", 0
+str17:			db " files copied", 0
+str18:			db ": not in FILES.DIR", 0
+str19:			db ": not on the disc", 0
+str20:			db ": can't be made (", 0
+str21:			db ": the disc is full, or a write failed", 0
+str22:			db ": shorter than FILES.DIR says (", 0
+str23:			db " bytes)", 0
+str24:			db " to ", 0
+str25:			db ": ", 0
+str26:			db " bytes", 0
+str27:			db "FILES.DIR", 0
+str28:			db ".", 0
+str29:			db ".COM", 0
+str30:			db "*.*", 0
 
 ; ============================================================
 ; Keyword library (used)
@@ -1402,6 +2084,11 @@ ntc_gnlo:		db 0			; ntc_getn: low byte
 
 ;## ntc_d_nmode @data
 ntc_nmode:		db 0			; 1 = running in normal mode (waits let interrupts in)
+
+;## ntc_d_div @data
+ntc_mode:		db 0			; div mode 0=quotient 1=remainder
+ntc_sgnq:		db 0			; quotient sign (bit 7)
+ntc_sgnr:		db 0			; remainder sign (bit 7)
 
 ;## ntc_d_lead @data
 ntc_lead:		db 0			; printint: digit seen
@@ -1675,6 +2362,16 @@ ntc_ftov_t:
 ; Arithmetic
 ; ============================================================
 
+;## kw_inc
+;kw_inc, <var>
+kw_inc:
+			pop hl
+			inc (hl)
+			ret nz
+			inc hl
+			inc (hl)
+			ret
+
 ;## kw_add
 ;kw_add, <var1>, <var2>, <destvar>
 kw_add:
@@ -1710,6 +2407,131 @@ kw_addl:
 			inc hl
 			ld (hl), d
 			ret
+
+;## ntc_mul
+; BC * DE -> pop destvar, store. Low 16 bits (same signed/unsigned)
+ntc_mul:
+			ld hl, 0
+			ld a, 16
+ntc_mul_loop:
+			add hl, hl
+			sla e
+			rl d
+			jr nc, ntc_mul_skip
+			add hl, bc
+ntc_mul_skip:
+			dec a
+			jr nz, ntc_mul_loop
+			ex de, hl
+			pop hl
+			ld (hl), e
+			inc hl
+			ld (hl), d
+			ret
+
+;## kw_mulvl ntc_mul
+;kw_mulvl, <var>, <literal>, <destvar>
+kw_mulvl:
+			pop hl
+			ld c, (hl)
+			inc hl
+			ld b, (hl)
+			pop de
+			jp ntc_mul
+
+;## ntc_div ntc_data
+; HL / DE signed, truncating. (ntc_mode) 0 = quotient, 1 = remainder.
+; Remainder takes the dividend's sign. Divide by zero gives
+; quotient 0, remainder = dividend. Pops destvar and stores.
+ntc_div:
+			ld a, d
+			or e
+			jr nz, ntc_div_nz
+			ld a, (ntc_mode)
+			or a
+			jr nz, ntc_div_store
+			ld hl, 0
+			jr ntc_div_store
+ntc_div_nz:
+			ld a, h
+			ld (ntc_sgnr), a
+			xor d
+			ld (ntc_sgnq), a
+			bit 7, h
+			jr z, ntc_div_hpos
+			xor a
+			sub l
+			ld l, a
+			sbc a, a
+			sub h
+			ld h, a
+ntc_div_hpos:
+			bit 7, d
+			jr z, ntc_div_dpos
+			xor a
+			sub e
+			ld e, a
+			sbc a, a
+			sub d
+			ld d, a
+ntc_div_dpos:
+			ld a, h
+			ld c, l
+			ld hl, 0
+			ld b, 16
+ntc_div_loop:
+			sla c
+			rla
+			adc hl, hl
+			sbc hl, de
+			jr nc, ntc_div_one
+			add hl, de
+			djnz ntc_div_loop
+			jr ntc_div_done
+ntc_div_one:
+			inc c
+			djnz ntc_div_loop
+ntc_div_done:
+			ld b, a
+			ld a, (ntc_mode)
+			or a
+			jr z, ntc_div_q
+			ld a, (ntc_sgnr)
+			jr ntc_div_sign
+ntc_div_q:
+			ld h, b
+			ld l, c
+			ld a, (ntc_sgnq)
+ntc_div_sign:
+			rla
+			jr nc, ntc_div_store
+			xor a
+			sub l
+			ld l, a
+			sbc a, a
+			sub h
+			ld h, a
+ntc_div_store:
+			ex de, hl
+			pop hl
+			ld (hl), e
+			inc hl
+			ld (hl), d
+			ret
+
+;## kw_divvl ntc_div
+;kw_divvl, <var>, <literal>, <destvar>
+kw_divvl:
+			xor a
+			ld (ntc_mode), a
+ntc_divvl:
+			pop hl
+			ld a, (hl)
+			inc hl
+			ld h, (hl)
+			ld l, a
+			pop de
+			jp ntc_div
 
 ;## kw_andvv
 ;kw_andvv, <var1>, <var2>, <destvar>
@@ -1862,6 +2684,19 @@ kw_scpltvl:
 			pop hl
 			jp ntc_cmp_slt
 
+;## kw_scplevv ntc_cmp
+kw_scplevv:
+			pop hl
+			ld e, (hl)
+			inc hl
+			ld d, (hl)
+			pop hl
+			ld a, (hl)
+			inc hl
+			ld h, (hl)
+			ld l, a
+			jp ntc_cmp_sle
+
 ;## kw_scplevl ntc_cmp
 kw_scplevl:
 			pop hl
@@ -1870,6 +2705,19 @@ kw_scplevl:
 			ld d, (hl)
 			pop hl
 			jp ntc_cmp_sle
+
+;## kw_scpgtvv ntc_cmp
+kw_scpgtvv:
+			pop hl
+			ld e, (hl)
+			inc hl
+			ld d, (hl)
+			pop hl
+			ld a, (hl)
+			inc hl
+			ld h, (hl)
+			ld l, a
+			jp ntc_cmp_sgt
 
 ;## kw_scpgtvl ntc_cmp
 kw_scpgtvl:
@@ -1937,6 +2785,33 @@ kw_cpnevl:
 ; ============================================================
 ; Memory (PEEK / POKE / DEEK / DOKE)
 ; ============================================================
+
+;## kw_vptrtov8
+;kw_vptrtov8, <addrvar>, <destvar>  - PEEK(var)
+kw_vptrtov8:
+			pop hl
+			ld e, (hl)
+			inc hl
+			ld d, (hl)
+			ld a, (de)
+			pop hl
+			ld (hl), a
+			inc hl
+			ld (hl), 0
+			ret
+
+;## kw_vtovptr8
+;kw_vtovptr8, <sourcevar>, <addrvar>  - POKE var, var
+kw_vtovptr8:
+			pop hl
+			ld c, (hl)
+			pop hl
+			ld e, (hl)
+			inc hl
+			ld d, (hl)
+			ex de, hl
+			ld (hl), c
+			ret
 
 ;## kw_vtolptr8
 ;kw_vtolptr8, <sourcevar>, <literaladdr>  - POKE literal, var
@@ -2064,6 +2939,34 @@ ntc_streq_loop:
 			inc hl
 			inc de
 			jr ntc_streq_loop
+
+;## kw_strcmpne
+;kw_strcmpne, <addr1>, <addr2>  - Z if not equal
+kw_strcmpne:
+			pop de
+			pop hl
+ntc_strne_loop:
+			ld a, (de)
+			cp (hl)
+			jr nz, ntc_strne_t
+			or a
+			jr z, ntc_strne_f
+			inc hl
+			inc de
+			jr ntc_strne_loop
+ntc_strne_t:
+			xor a
+			ret
+ntc_strne_f:
+			inc a
+			ret
+
+; ============================================================
+; I/O - no firmware, no call, no push. SP stays in the thread.
+; Shared routines are entered with jp and the return address in
+; IX, and end with jp (ix). Keywords that are done use
+; ld ix, ntc_next (a ret) so the routine continues the thread.
+; ============================================================
 
 ;## ntc_printbuf ntc_data ntc_plat_screen
 ; print the 0 terminated ASCII text at (ntc_sptr), then ret (thread)
@@ -2416,6 +3319,84 @@ ntc_in_found:
 			inc hl
 			ld (hl), 0
 			ret
+
+;## ntc_saddr ntc_data
+; DE = base, HL = index var address, (ntc_sasz) = element size:
+; HL = base + index * size. jp (ix)
+ntc_saddr:
+			ld a, (hl)
+			inc hl
+			ld h, (hl)
+			ld l, a
+			ld a, (ntc_sasz + 1)		; element size 256 (String Max 255): index * 256
+			or a
+			jr z, ntc_sa_mul
+			ld h, l
+			ld l, 0
+			add hl, de
+			jp (ix)
+ntc_sa_mul:
+			ld b, h
+			ld c, l
+			ld hl, 0
+			ld a, (ntc_sasz)
+ntc_sa_bit:
+			srl a
+			jr nc, ntc_sa_no
+			add hl, bc
+ntc_sa_no:
+			sla c
+			rl b
+			or a
+			jr nz, ntc_sa_bit
+			add hl, de
+			jp (ix)
+ntc_sasz:		dw 0
+
+;## kw_sget ntc_saddr
+;kw_sget, <arraybase>, <indexvar>, <dest>, <element size>  - dest = array(index)
+kw_sget:
+			pop de
+			pop hl
+			pop bc
+			ld (ntc_sgd), bc
+			pop bc
+			ld (ntc_sasz), bc
+			ld ix, ntc_sg_a
+			jp ntc_saddr
+ntc_sg_a:
+			ld de, (ntc_sgd)
+			ld bc, (ntc_sasz)
+			ldir
+			ret
+ntc_sgd:		dw 0
+
+;## kw_sset ntc_saddr kw_strcpy
+;kw_sset, <arraybase>, <indexvar>, <src>, <element size>  - array(index) = src, cut at the element
+kw_sset:
+			pop de
+			pop hl
+			pop bc
+			ld (ntc_sgs), bc
+			pop bc
+			ld (ntc_sasz), bc
+			ld ix, ntc_ssa
+			jp ntc_saddr
+ntc_ssa:
+			ex de, hl
+			ld hl, (ntc_sgs)
+			ld a, (ntc_sasz)
+			dec a
+			ld b, a
+			jp ntc_strcpy_loop
+ntc_sgs:		dw 0
+
+; ============================================================
+; Array parameters and dynamic arrays. A procedure gets the address of a
+; 12 byte descriptor: dw base, lower bound 1, lower bound 2, count 1,
+; count 2, element size. The call stub copies it into the parameter's own
+; descriptor; ReDim fills a dynamic array's descriptor.
+; ============================================================
 
 ;## ntc_ldata
 ntc_la:			ds 4
@@ -3343,7 +4324,7 @@ fs_pa_sp:
 			call fs_upper
 			sub 'A' - 1
 			jr c, fs_pa_bad
-			cp 17
+			cp 27				; A-Z: CP/M's are A-P, Q-Z for systems that have more (CyborgOS's Z)
 			jr nc, fs_pa_bad
 			ld (ix + 0), a
 			inc hl
@@ -4308,8 +5289,10 @@ ntc_end:				; the end of the program (and of its file)
 ntc_bssfrom	equ ntc_end
 ntc_bss		equ ntc_bssfrom
 arr_buf		equ ntc_bss + 0		; 8192 bytes
-arr_cybdir_d		equ ntc_bss + 8192		; 4096 bytes
-arr_cybdir_e		equ ntc_bss + 12288		; 64 bytes
-ntc_bss_size	equ 12352
+arr_ents		equ ntc_bss + 8192		; 4096 bytes
+arr_sns		equ ntc_bss + 12288		; 832 bytes
+arr_cybdir_d		equ ntc_bss + 13120		; 4096 bytes
+arr_cybdir_e		equ ntc_bss + 17216		; 64 bytes
+ntc_bss_size	equ 17280
 ntc_free	equ ntc_bss + ntc_bss_size	; the first free byte (heap, Memory tables)
 ntc_memtab	equ ntc_free		; the Memory class's tables

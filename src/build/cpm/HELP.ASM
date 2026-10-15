@@ -29,78 +29,98 @@ ntc_start:
 
 main_thread:
 
-			; 4: Print "Commands: RUN, FG, PS, TOP, KILL, RESET, WAIT, CLS, MEM, DIR, CD, QUIT"
+			; 4: Print "Built in: RUN, CLS, QUIT. On the system drive Z (from the boot disc): FG, PS,"
 			dw kw_printstrvar, str0
 			dw kw_printnl
 
-			; 5: Print "On the disc: HELP, COPY, ERA, TYPE, PREP, RENAME"
+			; 5: Print "TOP, KILL, RESET, WAIT, MEM, DIR, CD, HELP, COPY, ERA, TYPE, PREP, RENAME,"
 			dw kw_printstrvar, str1
 			dw kw_printnl
 
-			; 6: Print
-			dw kw_printnl
-
-			; 7: Print "name [args]       runs the program name (this slot's drive, then A)"
+			; 6: Print "RAMDISC, MODE"
 			dw kw_printstrvar, str2
 			dw kw_printnl
 
-			; 8: Print "RUN name [args]   the same, even when a command has that name"
+			; 7: Print
+			dw kw_printnl
+
+			; 8: Print "name [args]       runs that program (from Z, the slot's drive, the boot drive)"
 			dw kw_printstrvar, str3
 			dw kw_printnl
 
-			; 9: Print "RUN name slot     runs it in that slot"
+			; 9: Print "RUN [slot] name [args]   the same, even when a command has that name;"
 			dw kw_printstrvar, str4
 			dw kw_printnl
 
-			; 10: Print "FG slot           that slot to the front"
+			; 10: Print "                  with a slot: runs it there (RUN 2 CRUNCH)"
 			dw kw_printstrvar, str5
 			dw kw_printnl
 
-			; 11: Print "KILL slot         stops its program"
+			; 11: Print "FG slot           that slot to the front"
 			dw kw_printstrvar, str6
 			dw kw_printnl
 
-			; 12: Print "RESET [slot]      that slot (or this one) as new"
+			; 12: Print "KILL slot         stops its program"
 			dw kw_printstrvar, str7
 			dw kw_printnl
 
-			; 13: Print "PS, TOP           the slots; with their speed"
+			; 13: Print "RESET [slot]      that slot (or this one) as new"
 			dw kw_printstrvar, str8
 			dw kw_printnl
 
-			; 14: Print "MEM               the memory: main RAM, the banks"
+			; 14: Print "PS, TOP           the slots; with their speed"
 			dw kw_printstrvar, str9
 			dw kw_printnl
 
-			; 15: Print "DIR, CD [drive]   the files in FILES.DIR; this slot's drive (B: alone: CD B)"
+			; 15: Print "MEM               the memory: main RAM, the banks"
 			dw kw_printstrvar, str10
 			dw kw_printnl
 
-			; 16: Print "WAIT, CLS, QUIT   until no program runs; clear; end CyborgOS"
+			; 16: Print "DIR [v:][*.CYB] [FULL]   the names (FULL: sizes, long names); CD v the drive"
 			dw kw_printstrvar, str11
 			dw kw_printnl
 
-			; 17: Print
-			dw kw_printnl
-
-			; 18: Print "COPY [v:]name v[:newname]   ERA [v:]name   TYPE [v:]name   PREP v"
+			; 17: Print "WAIT, CLS, QUIT   until no program runs; clear; end CyborgOS"
 			dw kw_printstrvar, str12
 			dw kw_printnl
 
-			; 19: Print "RENAME [v:]name newname     (only files in the volume's FILES.DIR)"
+			; 18: Print "MODE [m]          this slot's screen: 2 80x25, S 84x24 (80x24 and a status"
 			dw kw_printstrvar, str13
 			dw kw_printnl
 
-			; 20: Print
-			dw kw_printnl
-
-			; 21: Print "Control + 1-9, 0: that slot to the front (more than 10 slots: the number"
-			dw kw_irq		; let interrupts in
+			; 19: Print "                  strip), W 88x23, UW 96x21, P 64x32"
 			dw kw_printstrvar, str14
 			dw kw_printnl
 
-			; 22: Print "twice for 11-20)   Control + ESC: TOP"
+			; 20: Print
+			dw kw_irq		; let interrupts in
+			dw kw_printnl
+
+			; 21: Print "COPY [v:]name v[:newname]   COPY [v:]pattern v (*.CYB, T?.*: same names)"
 			dw kw_printstrvar, str15
+			dw kw_printnl
+
+			; 22: Print "ERA [v:]name   TYPE [v:]name   PREP v (PREP [v:]pat ADD / REMOVE keeps FILES.DIR)"
+			dw kw_printstrvar, str16
+			dw kw_printnl
+
+			; 23: Print "RENAME [v:]name newname     (only files in the volume's FILES.DIR)"
+			dw kw_printstrvar, str17
+			dw kw_printnl
+
+			; 24: Print "RAMDISC [v size | v 0]      a RAM disc as drive v (64K, 1MB ...); dropped; list"
+			dw kw_printstrvar, str18
+			dw kw_printnl
+
+			; 25: Print
+			dw kw_printnl
+
+			; 26: Print "Control + 1-9, 0: that slot to the front (more than 10 slots: the number"
+			dw kw_printstrvar, str19
+			dw kw_printnl
+
+			; 27: Print "twice for 11-20)   Control + ESC: TOP"
+			dw kw_printstrvar, str20
 			dw kw_printnl
 			dw kw_stop
 
@@ -113,22 +133,27 @@ main_thread:
 ; Strings
 ; ============================================================
 
-str0:			db "Commands: RUN, FG, PS, TOP, KILL, RESET, WAIT, CLS, MEM, DIR, CD, QUIT", 0
-str1:			db "On the disc: HELP, COPY, ERA, TYPE, PREP, RENAME", 0
-str2:			db "name [args]       runs the program name (this slot's drive, then A)", 0
-str3:			db "RUN name [args]   the same, even when a command has that name", 0
-str4:			db "RUN name slot     runs it in that slot", 0
-str5:			db "FG slot           that slot to the front", 0
-str6:			db "KILL slot         stops its program", 0
-str7:			db "RESET [slot]      that slot (or this one) as new", 0
-str8:			db "PS, TOP           the slots; with their speed", 0
-str9:			db "MEM               the memory: main RAM, the banks", 0
-str10:			db "DIR, CD [drive]   the files in FILES.DIR; this slot's drive (B: alone: CD B)", 0
-str11:			db "WAIT, CLS, QUIT   until no program runs; clear; end CyborgOS", 0
-str12:			db "COPY [v:]name v[:newname]   ERA [v:]name   TYPE [v:]name   PREP v", 0
-str13:			db "RENAME [v:]name newname     (only files in the volume's FILES.DIR)", 0
-str14:			db "Control + 1-9, 0: that slot to the front (more than 10 slots: the number", 0
-str15:			db "twice for 11-20)   Control + ESC: TOP", 0
+str0:			db "Built in: RUN, CLS, QUIT. On the system drive Z (from the boot disc): FG, PS,", 0
+str1:			db "TOP, KILL, RESET, WAIT, MEM, DIR, CD, HELP, COPY, ERA, TYPE, PREP, RENAME,", 0
+str2:			db "RAMDISC, MODE", 0
+str3:			db "name [args]       runs that program (from Z, the slot's drive, the boot drive)", 0
+str4:			db "RUN [slot] name [args]   the same, even when a command has that name;", 0
+str5:			db "                  with a slot: runs it there (RUN 2 CRUNCH)", 0
+str6:			db "FG slot           that slot to the front", 0
+str7:			db "KILL slot         stops its program", 0
+str8:			db "RESET [slot]      that slot (or this one) as new", 0
+str9:			db "PS, TOP           the slots; with their speed", 0
+str10:			db "MEM               the memory: main RAM, the banks", 0
+str11:			db "DIR [v:][*.CYB] [FULL]   the names (FULL: sizes, long names); CD v the drive", 0
+str12:			db "WAIT, CLS, QUIT   until no program runs; clear; end CyborgOS", 0
+str13:			db "MODE [m]          this slot's screen: 2 80x25, S 84x24 (80x24 and a status", 0
+str14:			db "                  strip), W 88x23, UW 96x21, P 64x32", 0
+str15:			db "COPY [v:]name v[:newname]   COPY [v:]pattern v (*.CYB, T?.*: same names)", 0
+str16:			db "ERA [v:]name   TYPE [v:]name   PREP v (PREP [v:]pat ADD / REMOVE keeps FILES.DIR)", 0
+str17:			db "RENAME [v:]name newname     (only files in the volume's FILES.DIR)", 0
+str18:			db "RAMDISC [v size | v 0]      a RAM disc as drive v (64K, 1MB ...); dropped; list", 0
+str19:			db "Control + 1-9, 0: that slot to the front (more than 10 slots: the number", 0
+str20:			db "twice for 11-20)   Control + ESC: TOP", 0
 
 ; ============================================================
 ; Keyword library (used)

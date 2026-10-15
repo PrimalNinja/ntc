@@ -1,24 +1,28 @@
 # CyborgOS - design
 
-CyborgOS is a hypervisor for the Amstrad CPC, written in NTC BASIC (with `#asm` only for
-the bank switch), running up to 20 CP/M-style programs, each in its own 64K bank. The
-hypervisor is an ordinary NTC program; the programs use a new compiler target, cyb, which
-is very close to the cpm platform. It is also a show of what NTC BASIC can do.
+CyborgOS is a hypervisor for the Amstrad CPC, written in NTC BASIC (with `#asm` where speed or
+the bank switch needs it), running up to 20 CP/M programs, each in its own 64K bank. It is a
+separate project from NTC BASIC (see [cyborgos-readme.md](cyborgos-readme.md): the two
+versions and what each is for); the hypervisor is an ordinary NTC program for cpcfw, and the
+programs are cpm builds.
 
 Status (2026-10-15): the 320K version - `bas/cyborgos320kb/` (Main.bas, Hyp.cls, Hot.cls,
-Ent.cls; test programs in `tasks/`, disc commands in `cmds/`), on `build/dsk/cyborgos320k.dsk`. The
-128K version (a 6128 and up, 16 slots at most) is kept as `bas/cyborgos128kb/` (`build/dsk/cyborgos128k.dsk`). Checked in the
-harness (2 slots with 320K, 4 with 576K, 20 with 4MB; refused with 128K) and, for the 128K
-version, on the real 6128 ROMs (realcpc: 1 slot). What it does now, and where it differs from
-the design below:
+Ent.cls; test programs in `tasks/`, disc commands in `cmds/`), on `build/dsk/cyborgos320k.dsk`,
+is where work goes. The 128K version (a 6128 and up: one program with about 61K - console
+programs, ones that work the hardware) is frozen as `bas/cyborgos128kb/`
+(`build/dsk/cyborgos128k.dsk`). Checked in the harness (2 slots with 320K, 4 with 576K, 20 with
+4MB; refused with 128K) and, for the 128K version, on the real 6128 ROMs (realcpc: 1 slot).
+What it does now, and where it differs from the design below:
 
 - The switch at #0040 is in every cpc / cpcmin / cpcfw program's start code (`jr` over
   #0042-#004C: #0042 main RAM's SP, #0044 `out (c), c`, #0046 `jp` the landing
   `ld sp, (#0042) : ret`). A bank has `out (c), c` at #0044 and its own `jp` at #0046.
-- The task entry is a CP/M BDOS at #0005 (decided: programs built for the cpm platform run
-  unchanged). Handled now: 0 (end), 1, 2, 6, 9, 11, 12 (gives 2.2), 13, 14, 25, 26, 32 and the
-  file calls 15, 16, 19-23, 33, 34 (Hyp.FileCall, Z80 on the disc ROM's cassette calls; delete
-  and rename through its |ERA and |REN). Search (17, 18) and size (35) not yet (255).
+- The task entry is a CP/M BDOS at #0005, with a CP/M 2.2 BIOS jump table at (#0001) (decided:
+  programs built for the cpm platform run unchanged, other CP/M 2.2 programs as far as they keep
+  to the BDOS and BIOS). The whole list is in the user guide (section 5). On discs the file
+  calls are Hyp.FileCall, Z80 on the disc ROM's cassette calls (delete and rename through its
+  |ERA and |REN; random records by reading on; search through FILES.DIR); on RAM discs they are
+  the driver's, with real random access.
 - Programs are `.CYB` files: a cpm build with an AMSDOS header. `RUN name` loads name.CYB at
   #0100 of the slot's bank. A plain `.COM` (no header) runs when FILES.DIR or NAME.HDR has an
   entry for it (64 bytes: its disc name, length, long name ...; CYBADD.BIN writes
@@ -26,14 +30,15 @@ the design below:
   `FileSystem.ForReadRaw` (each #1A is AMSDOS's "soft" end of file, and reading goes on to the
   last record: checked on the real ROMs). The entry routines are Z80 in Ent.cls (SetName, Length,
   Make, Where, DiscName, Show): in BASIC they made CyborgOS 3K bigger. CYBADD (a separate CPC
-  program, `bas/cyborgos/tools/`) writes FILES.DIR: in CyborgOS, ADD cost 900 bytes, which took
+  program, `bas/cyborgos320kb/tools/`) writes FILES.DIR: in CyborgOS, ADD cost 900 bytes, which took
   the Memory class's room for 16 slots. CD runs the disc system's |letter (KL FIND COMMAND, KL
   FAR PCALL) per slot. Until the disc's own
   directory is read (record counts, random access), then for long names and virtual
   directories.
 - Scheduling is from the hypervisor's main loop: a program runs for a time slice of 6
   interrupts (1/50 s; the interrupts inside a slice are handled in Hyp.Run's code, with no trip
-  through BASIC) or until a BDOS call that needs the hypervisor. NTC's safe points let
+  through BASIC) or until a BDOS call that needs the hypervisor; a turn is up to 3 slices (the
+  main loop's BASIC between slices took a fifth of the CPU). NTC's safe points let
   interrupts in, so a program with no BDOS calls still gives the CPU back. The front slot gets
   every other turn (half the time). The system keys (Control + 1-8, Control + ESC) are an
   interrupt class (Hot.cls, 50 a second); with more than 8 slots (16 on 2MB or more) a number
@@ -58,22 +63,57 @@ the design below:
   that program from the slot's drive (then A), the rest of the line its command tail. HELP,
   COPY, ERA, TYPE, PREP and RENAME are programs on the disc (`cmds/`). Control + 1-8 brings a
   slot to the front (more than 8 slots: the number twice for 9-16).
-- Each slot's text page (80 x 25) is at #F700 of its bank; the BDOS stubs at #F500 (the top of
-  the TPA), the characters out at #F600, the saved SP at #FFFE: about 61K for a program.
+- MODE per slot (Hyp.Scr's table: 2 80 x 25, S 84 x 24 - the console 80 x 24 and a status strip
+  of 4 columns on the right, the default -, W 88 x 23, UW 96 x 21, P 64 x 32): columns x rows <=
+  2048 so each pixel line of the text stays in its 2K block and the hardware scroll still works.
+  CyborgOS sets the CRTC itself (R1, R2, R6, R7: widths, heights, sync positions centred on the
+  standard; R12 / R13: the start, kept within 2K - MA10 / MA11 clear) and draws and scrolls by
+  its own columns (Hyp.Con: scc, sco), not through the firmware's screen pack (it knows only
+  80 x 25). The slot's columns, rows and mode are in its bank (#F687): the console wraps and
+  scrolls by them, the bank's BDOS answers 49 (CP/M 3's SCB: #1A width - 1, #1C rows) from them.
+  The screen follows the slot in front (ToFront: Hyp.Scr(mode, 2), then its page drawn); TOP is
+  drawn in MODE 2; QUIT puts 80 x 25 back before the firmware's Mode.
+- Each slot's text page (2K at most: a ring of its rows) is at #F700 of its bank; the BDOS, the CP/M BIOS jump table
+  and the stubs at #EF00 (the top of the TPA), the font at #F300 (the console draws from the
+  bank's own copy), the characters out at #F600, the saved SP at #FFFE: 59.5K for a program.
+- The system drive Z: at start RAMDISC.CYB copies the files the boot drive's CYBORGOS.Z names to a
+  RAM disc Z; names typed are looked for on Z, the slot's drive, the boot drive. Built in only
+  RUN, CLS, QUIT - the other commands are programs that ask the hypervisor through BDOS 131.
+- RAM discs (RAMDISC.CYB): drives A-P made of free 16K pages, with real CP/M random access. The
+  driver (Z80, ~3K, carried by RAMDISC.CYB) goes into a page of its own and runs there at
+  #4000; Hyp.FileCall offers it every file call first (it answers its drives', the rest go on
+  to the disc ROM); its copies go through a 30-byte routine in the hypervisor (it can't switch
+  the window it runs in). Files are 2K-block chains; an open file is its FCB (d0, d1 its entry),
+  so any number are open. Main RAM cost: about 600 bytes.
+- BDOS 1, 2, 3-11 and 27-31 are answered in the bank; the default FCBs are filled from the
+  command tail before #0100 runs; search (17, 18) reads FILES.DIR, size (35) counts records.
 - Speed: 200 lines of 62 characters scroll at about 16 lines a second on the real ROMs (was 3,
   then 8 with the BASIC console; and the screen didn't scroll). Profiled on the real ROMs
   (realcpc PROF): the firmware (its interrupts, 300 a second) about 33%, Hyp.Con 27%, the
   program 18%, the hypervisor's BASIC the rest. A BDOS call that reaches the hypervisor is
   still a round trip through BASIC.
 - Memory (the RAM build): `Option Reserve` builds round the window - the hypervisor fills
-  #0040-#3FFF and goes on at #8000 to about #9E04 with its arrays (strings and variables are
+  #0040-#3FFF and goes on at #8000 to about #999C with its arrays (strings and variables are
   laid out one by one, filling what is left below the window); the Memory class's tables follow
   it, 3 bytes a page (its RAT, 1 byte, and each page's port, 2: PRIMAL's layout), up to the top
   of free RAM (#A5F0 with AMSDOS alone; lower when the ROMs started take more). Option Memory
-  CPCExpansion 193: 48 banks at most (all 64 of 4MB don't fit); about 1.4K is left over with 48
-  banks, more with fewer, less with ROMs like UniDOS - MEM's "free" line shows it. The disc ROM's
-  two 2K file buffers are #4000-#4FFF of the hypervisor's own page (the first expansion bank's
-  page 0, taken before any slot's bank); main RAM's own #4000-#7FFF is left free. The Library: ROM build ends about #8685, tables for 8 banks (4 slots) to #8800.
+  CPCExpansion 257: all 64 banks of 4MB; about 2.3K is left over with 4MB (3K on 576K), less
+  with ROMs like UniDOS - MEM's "free" line shows it. The
+  hypervisor's own page (the first expansion bank's page 0, C4, taken before any slot's bank):
+  #4000-#4FFF the disc ROM's two 2K file buffers, #5000-#52FF the font, from #5300 the bank
+  image (page zero, the stubs: Install copies them into each bank) and FileCall's page code -
+  window data (NTC's `; @window`): in CYBORGOS.BIN at #5300 of the window hole, copied into the
+  page by FileCall 99 at the start, never in main RAM. FileCall's main RAM part keeps only the
+  entry, the RAM disc driver's turn, the copies that switch the window to a slot's page (the
+  page code can't: it runs in the window) and the way back. Main RAM's own #4000-#7FFF is free
+  once that copy is done. The service page (the first bank's page 1, C5): the services of BDOS
+  131 ops 10, 11, 13, 14, 15 (memory reads, the pointer, the store's blocks, the tables - MON's,
+  any program's), Z80 from #6000 (Hyp.Svc: window data at #6000 of the hole, copied there by
+  Svc(0) at the start); main RAM keeps its entry and the copy that switches the window (sv_dx).
+  The rule: main RAM holds the core (the switch, interrupts, the main loop, entries); the rest
+  goes in the hypervisor's pages. Every string parameter, function result and temp is the longest
+  declared string (82: a screen line and CR LF; was 130). The Library: ROM build ends at about
+  #8212 (with MODE), its tables to #8800.
 - Room: the file work in Z80 (Hyp.FileCall, no FileSystem class or 2K buffer), the program
   names in each bank (#F6D8), HELP on the disc. Copies between main RAM and a slot are
   `Memory.Copy` through a 128 byte buffer (`Option Buffer Size 128`: PRIMAL's copy buffer size).
@@ -107,14 +147,22 @@ rest of the banks are left for data, classes and drivers.
 | 512K | 8 | 4 | 256K |
 | 1024K | 16 | 8 | 512K |
 | 2MB | 32 | 16 | 1MB |
-| 3MB, 4MB | 48 (in the tables) | 20 | 28 banks |
+| 3MB | 48 | 20 | 28 banks |
+| 4MB | 64 | 20 | 44 banks |
 
 The 320K version (`bas/cyborgos320kb/`): 320K at least (a 256K expansion; a 6128 alone won't
 do). The hypervisor takes the first expansion bank's pages for its own data (C4 first: the disc
-buffers; C5 ... as it grows: the memory tables, the font), never a slot; slots = half the
+buffers, the font, the bank image, FileCall's page code; C5 the services; C6, C7 as it grows),
+never a slot; slots = half the
 banks, at most 20 (Control + 1-9, 0; twice: 11-20); main RAM's own #4000-#7FFF is left free (a
 second screen). Not yet moved there: the Memory class's tables (still after the program, in
-main RAM) and the font.
+main RAM).
+- RAM discs survive a reset. Each driver page has "CYBD", a magic word and a checksum of D_POOL
+  at #7F00 (kept up to date as discs and pages are made or dropped). A reset leaves the expansion
+  RAM as it was, so at boot - after the hypervisor's pages and the slots' banks, before RAMDISC -
+  the probe (Main's ProbeDiscs) scans the free pages for the signature, and on a valid one
+  reclaims that page and every page its D_POOL lists (Hyp.ClaimPage). Z and any other RAM disc
+  are then live with no loading; only a cold start (no signature found) builds Z from the disc.
 
 ## 3. Gate array settings
 
@@ -205,7 +253,7 @@ per-task state in arrays indexed by task number.
 | #0100 up | the program |
 | top of the TPA | the receiver, save / restore, far call stub, stack, 2K text buffer, front flag |
 
-About 61K for the program. A task that asks for graphics gets a 16K screen block (any RAM).
+59.5K for the program (#0100-#EEFF). A task that asks for graphics gets a 16K screen block (any RAM).
 
 ## 8. The screen
 

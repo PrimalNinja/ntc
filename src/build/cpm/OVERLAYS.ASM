@@ -2614,7 +2614,7 @@ fs_pa_sp:
 			call fs_upper
 			sub 'A' - 1
 			jr c, fs_pa_bad
-			cp 17
+			cp 27				; A-Z: CP/M's are A-P, Q-Z for systems that have more (CyborgOS's Z)
 			jr nc, fs_pa_bad
 			ld (ix + 0), a
 			inc hl
@@ -3642,4 +3642,4 @@ ovl_level2_vsize	equ 0		; its page variables; its local memory is the rest, to #
 			DISPLAY "  page variables ", /D, ovl_level2_vsize, ", free ", /D, #8000 - (ovl_level2_end + ovl_level2_vsize)
 			OUTEND
 
-NTC_STAMP	equ #375D		; the build stamp: the first word of every page file
+NTC_STAMP	equ #4E76		; the build stamp: the first word of every page file

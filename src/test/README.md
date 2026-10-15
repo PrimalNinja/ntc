@@ -20,6 +20,7 @@
 | `vbp/` | a .vbp with its files for `guitest4.py` |
 | `loc/` + `ref/loc_*.txt` | Locomotive BASIC flavour tests: a type-in style listing (with its warnings) on every platform, and its translation |
 | `jsf/` + `ref/jsf_*.txt` | JS flavour tests: a JS program, a VB main with a JS class and module, a JS main with a JS class (#asm, Turbo), the translation, the refused forms |
+| `cpm/cpmt.asm`, `cpm/rdt.asm` | CyborgOS test programs in plain Z80 (cpm, `.CYB`): its CP/M calls (default FCBs, TAB, the BIOS, BDOS 1, 10, 12, 17, 18, 24, 35, 36); random access on a RAM disc. Kept out of this folder: `regress.sh` ends by deleting `*.asm` here |
 
 Needs: python3 with `pip install z80` (Z80Machine), sjasmplus on the PATH (or `SJASMPLUS=/path/to/sjasmplus`),
 node with `npm install` here (acorn for the ES5 check), Playwright + Chromium for the GUI tests.

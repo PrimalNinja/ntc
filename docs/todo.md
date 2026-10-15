@@ -7,55 +7,22 @@ finished, with the date.
 
 ## done
 
-- 2026-10-15 Two CyborgOS discs, each built from its own sources: build/dsk/cyborgos320k.dsk and
-  build/dsk/cyborgos128k.dsk (cyborgos.dsk gone)
-- 2026-10-15 CyborgOS 320K (`bas/cyborgos320kb`, now the one built and tested; the 128K version
-  kept as `bas/cyborgos128kb`): 320K at least; the hypervisor's own page (the first expansion
-  bank's page 0) taken before the slots' banks - the disc buffers there, main RAM's own
-  #4000-#7FFF left free (a second screen); up to 20 slots (Control + 1-9, 0; twice 11-20); TOP
-  fits 25 rows with 20. Tests: 20 slots, Control + 0, 2 slots on 320K, refused on 128K.
-  Harness: a held matrix key ({n}) lasts 12 scans and at least 2 frames (a program looking at
-  many keys scans many times a frame)
+CyborgOS (a separate project built with NTC BASIC) keeps its own list: [cyborgos-todo.md](cyborgos-todo.md).
+
+- 2026-10-15 `As String Max n` on a ByVal parameter and a function's result (parser): its buffer n
+  long instead of the program's longest string (MON: 1K smaller)
 - 2026-10-15 Option Buffer Size n / Option Buffer address, n: the library's buffer smaller (32-2048);
   Memory.Copy copies that much at a time; FileSystem and List.Sort need 2048 (assembly stops).
   CyborgOS back on Memory.Copy (PRIMAL's chunked copy) with a 128 byte buffer, Hyp.Xfer gone.
   Tests "Option Buffer Size: Memory.Copy", "... FileSystem refused"
-- 2026-10-15 CyborgOS: HELP is a program on the disc (cmds/HELP.bas, HELP.CYB), its text out of the
-  hypervisor (823 bytes of RAM back). Test "CyborgOS HELP from the disc"
-- 2026-10-15 CyborgOS: B: alone is CD B (as in CP/M), CD B: is CD B
-- 2026-10-15 CyborgOS file speed: a slot's file calls run on in the same turn (up to 32), and a
-  record goes into / out of the slot with one ldir when it is in one 16K page (38K COPY: about
-  35 s of CPC time down to about 22 s, in the harness). Library: ROM build: 4 slots at most (its
-  per-slot arrays sized to that)
 - 2026-10-15 PREP writes FILES.DIR as one 128 byte record of unused entries, not an empty file (a
   disc ROM may make no file for an empty one: PREP said it failed on UniDOS); its message says
   which step failed
-- 2026-10-14 CyborgOS output tidied: TOP's first line just "CyborgOS TOP", "(last second)" (fits 80
-  columns), "Total memory: n KB   Free memory: n KB" (TOP and MEM); MEM's main RAM as a table
-  (address range, what is there), blank lines round the map; HELP: the names with commas, then a
-  line each. Main RAM's own page 1 (the disc buffers) taken at the start, so it isn't counted free
-- 2026-10-14 CyborgOS: RENAME (cmds/RENAME.bas: on the disc and in FILES.DIR; the hypervisor's BDOS 23
-  through the disc ROM's |REN); the disc's FILES.DIR lists every file on it (test "CyborgOS
-  command RENAME"). Built round the window, variables are laid out one by one as strings are
-  (a section moving whole above the hole wasted 2.7K below it). Library: ROM build of CyborgOS:
-  no CD / DIR, shorter HELP (room)
-- 2026-10-14 CyborgOS: the memory map moved from TOP to MEM - main RAM's breakdown, then the banks'
-  pages 32 a group, two groups a line (test "CyborgOS MEM map")
 - 2026-10-14 Memory class (CPCExpansion): PRIMAL's layout - a RAT (1 byte a page: its type) and
   a port table (2 bytes a page: the BC that selects it); no linked lists. A free page is found
   by CPIR, freed by writing - back; selecting a page is a look-up (no bank arithmetic). The
   per-bank table (129 bytes) and the 7 list heads / counts (28) are gone; the ROMs' RAM 92
   bytes smaller. bank_t.bas's bank code moved to #3000 (CallBank's switch code landed on it)
-- 2026-10-14 CyborgOS's 128K version archived in `bas/cyborgos128kb` (not built or tested). Next:
-  320K minimum - the hypervisor's data in the first expansion bank's pages (C4 first), main
-  RAM's #4000-#7FFF left free, slots = banks - 1
-- 2026-10-14 CyborgOS: programs run by their names (not a command: NAME [args] runs NAME from
-  the slot's drive, else from A; the rest of the line is the CP/M command tail at #0080); RUN
-  NAME [args] forces the disc's (RUN CLS runs CLS.CYB), RUN NAME slot as before. Disc commands
-  COPY, ERA, TYPE, PREP (`bas/cyborgos/cmds`, cpm builds with CybDir.cls; only files in
-  FILES.DIR). Hypervisor BDOS file calls 13-16, 19-22, 25, 26, 32-34 (Hyp.FileCall, Z80 on the
-  cassette calls); RUN, DIR, CD read through it too (FileSystem and Option Buffer left out).
-  Test "CyborgOS commands COPY ERA TYPE PREP"
 - 2026-10-14 Library: ROM with a program built round the window (#4000-#7FFF): the ROM's
   Memory class probes and puts its tables above the window (it ended with no banks: CyborgOS's
   Library: ROM build said "needs a 6128"). Option Memory honours #If (test "Option Memory in
@@ -63,11 +30,6 @@ finished, with the date.
   below the hole
 - 2026-10-14 Harness: an `out (#DF), a` stand-in firmware call with A = #F6 (a byte just read)
   was taken as the PPI (CAS IN CHAR lost); |ERA
-- 2026-10-14 CyborgOS and CYBADD start every background ROM (`Option RomEnable All`: IDE / SD
-  interfaces' ROMs too). Option RomEnable: when the ROMs take more RAM than AMSDOS's, cpcfw
-  moves its top (event block, heap / Memory tables limit) under it; it stops (with the address
-  the ROMs reached) only when the program itself would overlap
-
 - 2026-10-14 Finer linking: `@data` (variables) and `@unit` (small routines) sections are linked
   when linked code names one of their labels - no header lists them. `ntc_data` split into a
   core and `ntc_d_*` variables; Backspace / Cls / Mode / Locate split from each platform's
@@ -77,15 +39,6 @@ finished, with the date.
 - 2026-10-14 Library: ROM: the start code (find the ROM set, patch the jump block, messages:
   about 460 bytes) goes last and the arrays / Memory tables start on it - it has run by then
   (as PRIMAL drops its relocation table). Hello: free RAM from #0089 instead of #0251
-- 2026-10-14 CyborgOS: MEM as TOP's first line (slots, banks, free pages); TOP shows the memory
-  (KB) and its page map under the slots
-
-- 2026-10-14 CyborgOS: plain CP/M .COM files (no AMSDOS header) run when FILES.DIR or NAME.HDR
-  has a 64 byte entry for them (disc name, length, long name ...; RUN by a long name too);
-  CYBADD.BIN (a CPC program) writes FILES.DIR, `DIR` lists it, `CD` picks a slot's drive (the
-  disc system's |letter); a .COM without an entry is not run. The entry code is Z80
-  (Hyp.cls). AMSDOS's messages kept off the console (TXT VDU DISABLE). Program names moved into
-  each bank. Tests "CyborgOS .COM with FILES.DIR / .HDR" and on the real ROMs (realcpc)
 - 2026-10-14 FileSystem `ForReadRaw` (cpcfw, cpcmin; CP/M and the ROMDISC take it as ForRead):
   a headerless file read to its last record, #1A bytes kept (AMSDOS goes on after its soft end
   of file - checked on the real ROMs). `Eof` reads a byte ahead instead of CAS TEST EOF (which
@@ -94,42 +47,6 @@ finished, with the date.
 - 2026-10-14 `Option NoRomDisc` (cpcfw, cpcmin): FileSystem without the ROMDISC, 1.1K less (#If
   NTC_NOROMDISC in the platform's FileSystem class)
 
-- 2026-10-14 CyborgOS: RESET [slot] (the slot as before its command line was first opened: its
-  program stopped, nothing kept; this slot opens again at once); Option Memory CPCExpansion 193
-  (48 banks: the page tables no longer fit for all 64 of 4MB). Test "CyborgOS RESET"
-- 2026-10-14 CyborgOS: up to 16 slots (half the extra banks: 16 on 2MB or more); Control + a
-  number twice quickly (Control held, 0.3 s) is slots 9-16, a single press waits 0.3 s only when
-  there are more than 8 slots; each slot's command line kept in its bank (#F68F / #F690 - 16
-  in BASIC arrays did not fit the Library: ROM build). Harness: {n,m} holds keys together;
-  realcpc: down / up (8A: Control). Tests: 16 slots, Control + 3 twice / once
-- 2026-10-14 CyborgOS: the TOP screen drawn straight into screen memory (Hyp.Say: about 0.1 s,
-  was about 0.7 s through TXT OUTPUT); the TOP command back, printing the table once into the
-  slot's console (test "CyborgOS TOP command")
-- 2026-10-14 CyborgOS console in Z80 (Hyp.Con, Hyp.Show): the slot's page 3 in the window once,
-  the characters read where the program collected them, page (ring) and screen written in one
-  routine, page / screen pointers stepped along a run, the glyph loop unrolled, screen addresses
-  from SCR GET LOCATION (was SCR CHAR POSITION per character), SCR HW ROLL to scroll (was 4 TXT
-  calls); the console state in the bank (#F682). The BASIC it replaced (Collected / Out / PutC /
-  NewLine / RowA / ClsT / ToFront) kept in Main.bas as comments, with why. The bank no longer
-  hands over at each line end (at the slice's end: one BASIC turn per line less). Real ROMs: 16
-  lines a second (was 8; harness: about 100,000 T a line, was 216,000). realcpc PROF=file: a
-  profile by address (main RAM, bank, lower / upper ROM), "profon" in the script restarts it
-- 2026-10-14 CyborgOS speed and fixes: text for the front slot written straight into screen
-  memory (Hyp.Text: the firmware's matrices via TXT SET M TABLE, SCR CHAR POSITION; mode 2),
-  the slot's page a ring of 25 rows (no copy to scroll), the control-code scan in Z80
-  (Hyp.Printable); keys answered in the bank (#F681: BDOS 1, 6, 11 with no switch); time
-  slices of 6 interrupts handled in Hyp.Run (no BASIC between); BDOS 9 fetched with
-  Memory.Copy. Fixes: the screen didn't scroll on the real ROMs (the firmware scrolls only at the
-  next character below the last line); TOP closed at once (the ESC of Control + ESC) and
-  refreshed - now drawn once, Control + ESC / Control + a slot go back, the TOP command is gone;
-  firmware calls come back with interrupts on (di after them, or an interrupt is pushed into the
-  thread); the upper ROM is off while a program runs (Library: ROM had the keyword ROM over the
-  bank's top 16K). Library: ROM: Option Buffer has no buffer to place (the ROM has its own), and
-  the ROM's Memory tables start at the end of the program below the window when the arrays went
-  after an Option Reserve range. Harness: screen memory text (mode 2) for cpcfw, the RAM under
-  the keyword ROM, TXT SET M TABLE / SCR CHAR POSITION / ROM enable stand-ins, NTC_PROF
-  (a profile), NTC_LIMIT, NTC_PEEK; realcpc: Control + 1-8 / ESC (\c1 ... \ce). Measured on the
-  real ROMs: about 8 lines a second (was 3)
 - 2026-10-14 Graphics and CUBE3D on cpm (an Amstrad CPC, mode 2, one screen, no firmware): BDOS 12
   picks the way. CP/M 2.2 draws on #C000 in the program's 64K; CP/M Plus copies the line loop to
   #C000 (common memory) and draws each line from there with C1 (screen = block 1 at #4000), C2
@@ -139,19 +56,6 @@ finished, with the date.
   next part would reach into it (sjasmplus sizes from its earlier pass); a jr that crosses parts
   becomes jp; names that are another label + n go after everything; the arrays go after the
   hole; NTC_WINHOLE / ntc_memtab put the Memory class's tables above the window. Test hole.bas
-- 2026-10-14 CyborgOS: the front slot gets half the turns, a program with no key gives up its
-  turns until the clock moves, characters out collected in the bank (128) and written in runs,
-  the system keys from an interrupt class (Hot.cls; Control held, numbers in turn), TOP
-  (Control + ESC), every register kept for the programs (IX, IY, alternates). 4MB: 64 banks
-- 2026-10-14 **CyborgOS** first version (`bas/cyborgos`, cpcfw, `build/dsk/cyborgos.dsk`): slots in
-  whole 64K banks running cpm-built programs (.CYB = with an AMSDOS header) at #0100; BDOS at
-  #0005 as far calls into the hypervisor; interrupts stop a program and hand back; per-slot text
-  pages, a shared command line (RUN / FG / PS / KILL / WAIT ...), Control + 1-8. Checked in the
-  harness and on the real 6128 ROMs. See docs/cyborgos.md for what is next (the interrupt classes
-  as the scheduler, files, drivers, speed). Core: the bank switch at #0040-#004C in every cpc /
-  cpcmin / cpcfw start code; `Option Buffer address` (the 2K buffer out of the program); cpcfw
-  FileSystem Read / ReadByte read a #1A in a binary file as a byte (AMSDOS reports it as a soft
-  end of file); the harness gives #0F (hard end) at the end of a binary file
 - 2026-10-14 **CITY3D** demo (cpcfw, `bas/city3d`): a wireframe city to fly through - 64 x 64
   repeating cells (streets every 4th row / column, 1-7 storeys, taller in the middle), camera
   free in all directions (Elite's keys + cursors, T turbo), ~2000 units seen, buildings out of
@@ -676,9 +580,10 @@ finished, with the date.
 
 ## todo
 
-- CyborgOS: read the disc's own directory (record counts: file sizes; CP/M Plus / cpmtools
-  keep the last record's byte count in byte 13 of an entry - exact sizes), random access; then
-  FILES.DIR only for long names (with spaces) and virtual directories
+- [ ] Scalar strings' buffers (variables, locals, params, results, temps) after the program like
+      the arrays, not in its file - their capacity bytes set at the start from a small table:
+      a program's file 3K or so smaller (MON's 31K has 36 buffers of 82 bytes), loading faster
+      (the 320K disc is full)
 - [ ] JS flavour, next (docs/js_flavour.md): the ES5 class form, the four open decisions,
       VB `'#` hints and `Dim n = 0`, `+` joining a number and text, the GUI view of the VB text
 

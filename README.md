@@ -263,7 +263,7 @@ Files (ES5, no node, no Python):
 | `../docs/requirements.md` | What you need to use NTC, rebuild its generated files and run the tests; the targets it builds for |
 | `../docs/userguide.md` | Language reference: every keyword by topic, with an example and its VB5 / VB6 differences |
 | `../docs/architecture.md` | Memory maps, the ROM structure, interrupts and start up |
-| `../docs/cyborgos.md`, `../docs/cyborgos-userguide.md` | CyborgOS (`bas/cyborgos`): the design and status; how to use it and make programs for it |
+| `../docs/cyborgos-readme.md` | CyborgOS: a separate project written in NTC BASIC (`bas/cyborgos320kb`, `bas/cyborgos128kb`) - its own README, user guide, design and todo list |
 | `../docs/tutorial/` | The tutorial: 77 small pages (1.1 the IDE ... 14.4 a game loop in a Tick), contents in `README.md`; every example is checked by `test/tutcheck.py` |
 | `build/` | Test builds: every program in `bas/` compiled for every platform (`.ASM`), and `build.bat` to assemble them all with sjasmplus on Windows / MS-DOS (CPC: AMSDOS `.BIN` files, CP/M: `.COM`) |
 | `compare/smallc/` | The sieve (`bas/sievetime.bas`) in Small C, as Z80 source, for timing NTC against a classic Z80 C compiler (results in its README) |
@@ -543,7 +543,9 @@ VB5 / VB6 style. Differences from VB are listed after each part.
   bit, True = -1; an array of Byte is 1 byte per element), `String` (40 chars),
   `String * n` (n = 1 .. 255: VB's fixed length - starts as n spaces, every assignment and
   Input pads with spaces or cuts to n), `String Max n` (n = 1 .. 255, NTC: at most n chars,
-  not padded).
+  not padded). Also on a `ByVal` parameter (`ByVal k As String Max 1`: its copy n long, longer
+  ones cut) and a function's result (`Function H2(v As Integer) As String Max 2`) - else they
+  are as long as the program's longest string, each one that long in the program's file.
 - Strings are fixed buffers (no heap). A scalar string (variable, local, temp, param,
   result, Type field) has its capacity in the byte before it: `[cap][text...][0]`, so `{s}`
   and every address passed around is still the first char. Array elements are cap + 1
@@ -1019,6 +1021,15 @@ About 90 T against about 205 T through the stubs.
   is, its BASIC name, file and line (`Save .map` in the GUI, `--map=file` in cli.js). It is
   made fresh each time, nothing to maintain; use it to find a label in an emulator or
   debugger.
+- **Window data**: in a program built round the window (`Option Reserve &H4000, &H4000`), the
+  lines of `#asm` blocks between `; @window` and `; @endwindow` are put in the window hole
+  itself, from #4000 (a sjasmplus macro, `ntc_windata`, expanded by the guard that skips the
+  hole; a program that ends below #4000 gets them after `ntc_end`, and the file then ends at
+  `ntc_fileend`). They are in the file but not in the program's RAM: the program copies them
+  at its start, before anything uses the window, into a page that it later switches into the
+  window and calls (code assembled for its address there, data). The labels stay the
+  block's (renamed as usual), so the block's own code reaches them. CyborgOS keeps its bank
+  image and FileCall's page code there (about 2.8K of main RAM)
 - Rules: SP is the thread - no `call` / `push` unless SP is first switched to the real stack
   (`ld (ntc_ip), sp / ld sp, (ntc_csp) / ... / ld sp, (ntc_ip)`); no registers are kept
   between keywords; interrupts are off. A block that moves SP (`ld sp,`) is a branch: its

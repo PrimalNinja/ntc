@@ -27,6 +27,8 @@ FW = {0xBB06: 'km_wait', 0xBB09: 'km_read', 0xBB5A: 'txt_out', 0xBB6C: 'txt_clea
       0xBCE0: 'kl_new_fast_ticker', 0xBCE6: 'kl_del_fast_ticker',
       0xBBAB: 'txt_set_m_table', 0xBC0B: 'scr_get_location', 0xBC4D: 'scr_hw_roll',
       0xB900: 'kl_u_rom_enable', 0xB903: 'kl_u_rom_disable', 0xB90F: 'kl_rom_select', 0xB918: 'kl_rom_deselect'}
+# the stand-ins' out (n), a - the PC after each (the firmware entries', RST 3's, the interrupt stub's)
+STANDPC = set(a + 2 for a in FW) | {0x1A, 0xBF86, 0xBF8B}
 # Library: ROM (cpcfw): the keyword ROM's image in upper ROM slot XSLOT - at #C000 while selected
 XSLOT = 6
 def load_xroms():
@@ -87,6 +89,7 @@ class Screen:
         # addresses; the matrices from TXT GET MATRIX hold the character code in their first
         # byte) are shown too; the firmware's scroll moves the screen's start (off)
         s.off = 0
+        s.crtc = [0] * 32; s.crtc[1] = 40; s.crtc[6] = 25; s.crtc[12] = 0x30
         if getattr(s, 'mem', None) is not None: s.vset(0xC000, bytes(0x800))
     def vset(s, a, data):
         # screen RAM: the machine's memory, or (Library: ROM - the keyword ROM is at #C000) the
@@ -94,7 +97,12 @@ class Screen:
         if getattr(s, 'vram', None) is not None: s.vram[a - 0xC000:a - 0xC000 + len(data)] = data
         else: s.mem.set_memory_block(a, data)
     def vget(s, a):
-        return s.vram[a - 0xC000] if getattr(s, 'vram', None) is not None else s.mem.memory[a]
+        if getattr(s, 'vram', None) is not None: return s.vram[a - 0xC000]
+        r = getattr(s, 'ram', None)
+        if r is not None and r.view[3] != ('m', 3):
+            # a bank's page is at #C000 now (a slot running): main RAM's page 3 from where it is kept
+            return r.main_page(3)[a - 0xC000]
+        return s.mem.memory[a]
     def scrolled(s):
         if getattr(s, 'mem', None) is None: return
         s.off = (s.off + 80) & 0x7FF
@@ -150,6 +158,13 @@ class Screen:
     def locate(s, x, y):
         s.x = max(0, min(s.cols - 1, x - 1)); s.y = max(0, min(s.rows - 1, y - 1))
     def text(s):
+        if getattr(s, 'mem', None) is not None and s.cols == 80 and getattr(s, 'crtc_used', False):
+            # the CRTC was set by the program: its own width (R1 words), rows (R6) and start
+            # (R12 / R13) - every row straight from screen memory
+            c = s.crtc; cols = c[1] * 2; off = (((c[12] & 3) << 8) | c[13]) * 2
+            out = [''.join(chr(b) if 32 <= b < 127 else ' ' for b in (s.vget(0xC000 + ((off + r * cols + x) & 0x7FF)) for x in range(cols))).rstrip() for r in range(c[6])]
+            while out and not out[-1]: out.pop()
+            return '\n'.join(out)
         if getattr(s, 'mem', None) is not None and s.cols == 80:
             for r in range(min(s.rows, 25)):
                 for c in range(80):
@@ -187,7 +202,17 @@ class Host:
                 m.set_memory_block(0x18, bytes([0xD3, 0xDF, 0xC9]))   # RST 3: a far call (AMSDOS's CAS entries)
                 m.set_memory_block(0xB90C, bytes([0xC9]))   # KL ROM RESTORE: nothing to put back here (no stand-in: 32 ports at most)
                 m.set_memory_block(0xBB54, bytes([0xC9, 0, 0, 0xC9]))   # TXT VDU ENABLE / DISABLE: nothing (this screen shows Print anyway)
+                # KM SET DELAY / KM GET DELAY (#BB3F / #BB42): the delays kept at #BFD8 (start 30, repeat 2)
+                m.set_memory_block(0xBB3F, bytes([0xC3, 0xC0, 0xBF, 0xC3, 0xC4, 0xBF]))
+                m.set_memory_block(0xBFC0, bytes([0x22, 0xD8, 0xBF, 0xC9, 0x2A, 0xD8, 0xBF, 0xC9]))
+                m.set_memory_block(0xBFD8, bytes([2, 30]))
+        for pk in filter(None, os.environ.get('NTC_POKE', '').split(';')):
+            # NTC_POKE=addr=text;...: text (0 after it) put at the hex address before the start (#BE80:
+            # CyborgOS's command line)
+            ad, _, tx = pk.partition('=')
+            m.set_memory_block(int(ad, 16), tx.encode() + b'\0')
         s.ram = cpcrun.RamBanks(m)                          # the gate array's RAM setting (Memory class)
+        s.scr.ram = s.ram                                   # (the screen is main RAM's page 3, wherever it is now)
         s.romsel = 0
         s.xroms = load_xroms() if platform == 'cpcfw' else {}
         if s.xroms and platform == 'cpcfw':
@@ -214,6 +239,13 @@ class Host:
                 # is at #C000 (a task's bank there is written as it is)
                 if s.ram.view[3] == ('m', 3): s.m.mark_addrs(0xC000, 0x4000, s.m.WRITE_MARK)
                 else: s.m.unmark_addrs(0xC000, 0x4000, s.m.WRITE_MARK)
+            return
+        if s.p == 'cpcfw' and (port >> 8) in (0xBC, 0xBD) and m.pc not in STANDPC:
+            # the CRTC (CyborgOS's screen modes and hardware scroll): register select, write -
+            # the screen's text is read with its width, height and start (Screen.text). Not the
+            # stand-ins' own out (n), a (their A can be #BC / #BD): known by where they are
+            if (port >> 8) == 0xBC: s.scr.creg = val & 31
+            else: s.scr.crtc[getattr(s.scr, 'creg', 0)] = val; s.scr.crtc_used = True
             return
         if s.p == 'cpcfw' and (port >> 8) == 0xF6 and lo != 0xDF and lo not in getattr(s, 'fwport', {}):
             # (out (#DF), a: the stand-in RST 3 with A = #F6 - a byte just read - is not the PPI)
@@ -259,6 +291,7 @@ class Host:
             # RST 3 from a CAS entry AMSDOS took over (DF lo hi): carry it out; the caller of
             # the entry gets the result (the RST's own return address is dropped)
             sp = m.sp; ret = m.memory[sp] | (m.memory[sp + 1] << 8)
+            if (ret - 1) not in FW: print(s.scr.text(), file=sys.stderr); raise RuntimeError('out (#%04X), #%02X at pc=#%04X is not the RST 3 stand-in' % (port, val, m.pc))
             ok = s.cas(FW[ret - 1])
             m.f = (m.f | 1) if ok else (m.f & 0xFE)
             m.sp = sp + 2
@@ -402,7 +435,7 @@ class Host:
     def cas(s, f):
         # the firmware's cassette calls (AMSDOS: disc) on the folder FILES; carry = ok
         m = s.m; mem = m.memory
-        if os.environ.get('NTC_CASLOG'): print('--- cas', f, hex(m.hl), m.b, file=sys.stderr)
+        if os.environ.get('NTC_CASLOG'): print('--- cas', f, hex(m.hl), m.b, bytes(mem[m.hl:m.hl + m.b]).decode('latin-1') if f.endswith('open') else '', file=sys.stderr)
         def name():
             n = bytes(mem[m.hl:m.hl + m.b]).decode().upper(); d = s.cas_dev
             if ':' in n and s.cas_dev != 'TAPE': d, n = n.split(':', 1)     # "C:NAME": volume C
@@ -412,7 +445,7 @@ class Host:
             # AMSDOS: a file with a header is binary (its length from the header); one without
             # is ASCII text - CAS IN DIRECT won't load that (so a file needs its header)
             p = name()
-            if not os.path.exists(p): m.a = 0x92; return False
+            if not os.path.isfile(p): m.a = 0x92; return False
             d = open(p, 'rb').read(); h = amsdos_header_of(d)
             s.cas_pos = 0
             if h is None:
@@ -458,6 +491,12 @@ class Host:
         return False
     def inp(s, port):
         lo = port & 0xFF
+        if s.p in ('cpcfw', 'cpm') and port in (0xF991, 0xF994, 0xF995) and os.environ.get('NTC_MOUSE'):
+            q = getattr(s, 'mq', [])
+            if port == 0xF994: return (q[0][0] & 0xFF) if q else 0
+            if port == 0xF995: return (q[0][1] & 0xFF) if q else 0
+            if q: s.mbt = q.pop(0)[2]
+            return (getattr(s, 'mbt', 0) & 7) << 4
         if s.p == 'cpcfw' and (port >> 8) == 0xF5:
             # the PPI's port B: bit 0 the vertical sync, for the first 1500 T of each 80000 T frame
             # (Graphics.Flip waits for it; the firmware itself is trapped, not run)
@@ -477,7 +516,13 @@ class Host:
                     s.typed.pop(0); n = ''
                     while s.typed and s.typed[0] != '}': n += s.typed.pop(0)
                     if s.typed: s.typed.pop(0)
-                    s.held = [int(x) for x in n.split(',')]; s.hstart = s.T; s.hscans = 0
+                    if n.startswith('m'):
+                        # {mdx,dy,b}: the mouse (NTC_MOUSE=1: the Amiga mouse card at #F991 / #F994
+                        # / #F995): queued, one poll each (X, Y, then the buttons: b 1 left ...)
+                        if not hasattr(s, 'mq'): s.mq = []
+                        s.mq.append([int(x) for x in n[1:].split(',')])
+                    else:
+                        s.held = [int(x) for x in n.split(',')]; s.hstart = s.T; s.hscans = 0
                 elif h is None and s.typed and s.typed[0] == '~':
                     s.typed.pop(0)
             return v & 0xFF
@@ -557,6 +602,7 @@ def main():
     if PROF is not None:
         import json; json.dump({'pc': PROF, 'syms': syms}, open(os.environ['NTC_PROF'], 'w'))
     print('--- halted' if h.m.halted else '--- NOT halted', 'pc=%04x' % h.m.pc, 'sp=%04x' % h.m.sp, 'ints=%d' % h.ints, 'T=%d' % h.T)
+    if plat == 'cpcfw' and bytes(h.m.memory[0xBFD8:0xBFDA]) != bytes([2, 30]): print('--- keys: start %d, repeat %d' % (h.m.memory[0xBFD9], h.m.memory[0xBFD8]))
 
 if __name__ == '__main__':
     main()

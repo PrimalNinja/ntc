@@ -27,7 +27,6 @@ var arrPrograms = [
 	{ name: 'SORTTIME', files: ['sorttime.bas'] },
 	{ name: 'CMDLINE', files: ['cmdline.bas'] },
 	{ name: 'CYBORGOS', files: ['cyborgos320kb/Main.bas', 'cyborgos320kb/Hyp.cls', 'cyborgos320kb/Hot.cls', 'cyborgos320kb/Ent.cls'], platforms: ['cpcfw'] },
-	{ name: 'CYBADD', files: ['cyborgos320kb/tools/CYBADD.bas', 'cyborgos320kb/Ent.cls'], platforms: ['cpcfw'] },
 	{ name: 'TICKER', files: ['cyborgos320kb/tasks/TICKER.bas'], platforms: ['cpm'] },
 	{ name: 'LINES', files: ['cyborgos320kb/tasks/LINES.bas'], platforms: ['cpm'] },
 	{ name: 'CRUNCH', files: ['cyborgos320kb/tasks/CRUNCH.bas'], platforms: ['cpm'] },

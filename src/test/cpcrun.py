@@ -72,7 +72,7 @@ def assemble(path):
         m=re.match(r'^(\S+):\s+EQU\s+0x([0-9A-Fa-f]+)',line)
         if m: syms[m.group(1).lower()]=int(m.group(2),16)
     data=open(os.path.join(d,b),'rb').read()
-    if 'ntc_end' in syms and 'ntc_start' in syms: data=data[:syms['ntc_end']-syms['ntc_start']]
+    if 'ntc_end' in syms and 'ntc_start' in syms: data=data[:syms.get('ntc_fileend',syms['ntc_end'])-syms['ntc_start']]   # (ntc_fileend: the window data after the program, in the file)
     import ntcrun
     # NTC_KEEPPAGES=1: leave the disc folders' page files as they are (a test of a page file
     # from another build: the loader must refuse it)

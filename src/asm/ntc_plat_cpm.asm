@@ -498,7 +498,7 @@ fs_pa_sp:
 			call fs_upper
 			sub 'A' - 1
 			jr c, fs_pa_bad
-			cp 17
+			cp 27				; A-Z: CP/M's are A-P, Q-Z for systems that have more (CyborgOS's Z)
 			jr nc, fs_pa_bad
 			ld (ix + 0), a
 			inc hl

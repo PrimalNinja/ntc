@@ -37,6 +37,12 @@ Public Function Save(ByVal vol As String) As Integer
     Next
     n = n + 64
   End If
+  If n = 0 Then                      ' no entries left: one empty 128 byte record, never a 0 byte
+    For i = 0 To 127                  ' file (a disc ROM can't store that, so FILES.DIR would vanish)
+      d(i) = 0
+    Next
+    n = 128
+  End If
   Save = FileSystem.Save(vol + "FILES.DIR", VarPtr(d), n)
 End Function
 
@@ -55,6 +61,22 @@ Public Function Find(ByVal name As String) As Integer
         Find = o
         Exit Function
       End If
+    End If
+  Next
+End Function
+
+' Has(a): the entry (in use) whose disc name is the 11 bytes at a (8 + 3, spaces after: a CP/M
+' directory entry's from its byte 1), or -1 - bytes compared, no strings (DIR: each file the
+' directory search gives)
+Public Function Has(ByVal a As Integer) As Integer
+  Dim o As Integer, i As Integer
+  Has = -1
+  For o = 0 To m - 64 Step 64
+    If d(o) = 1 Then
+      For i = 1 To 11
+        If (d(o + i) And 127) <> (Peek(a + i - 1) And 127) Then Exit For
+      Next
+      If i > 11 Then Has = o : Exit Function
     End If
   Next
 End Function
@@ -108,6 +130,57 @@ Public Sub Take(ByVal o As Integer)
   Next
 End Sub
 
+' Keep(o, a): the entry at o copied to a (64 bytes: a program's own list of entries); Back(a): the
+' entry at a kept, as Take does (for PutAs)
+Public Sub Keep(ByVal o As Integer, ByVal a As Integer)
+  Dim i As Integer
+  For i = 0 To 63
+    Poke a + i, d(o + i)
+  Next
+End Sub
+Public Sub Back(ByVal a As Integer)
+  Dim i As Integer
+  For i = 0 To 63
+    e(i) = Peek(a + i)
+  Next
+End Sub
+
+' Match(o, pattern): True when the entry at o (in use, its sum right) has a disc name or long name
+' that fits pattern: * any characters, ? any one ("*.*" is "*": a name with no extension too)
+Public Function Match(ByVal o As Integer, ByVal pat As String) As Integer
+  Match = False
+  If d(o) <> 1 Then Exit Function
+  If Sum(o) = 0 Then Exit Function
+  If pat = "*.*" Then pat = "*"
+  If Fits(DiscName(o), pat) Then Match = True : Exit Function
+  If Fits(LongName(o), pat) Then Match = True
+End Function
+
+' Fits(t, p): t fits p (* any characters, ? any one; "" never fits) - the usual walk, the last *
+' tried again a character on
+Public Function Fits(ByVal t As String, ByVal p As String) As Integer
+  Dim i As Integer, j As Integer, si As Integer, sj As Integer, c As String Max 1
+  i = 1 : j = 1 : si = 0 : sj = 0
+  Fits = False
+  If t = "" Then Exit Function
+  Do While i <= Len(t)
+    c = Mid$(p, j, 1)
+    If c = "*" Then
+      si = i : sj = j : j = j + 1
+    ElseIf j <= Len(p) And (c = "?" Or c = Mid$(t, i, 1)) Then
+      i = i + 1 : j = j + 1
+    ElseIf sj > 0 Then
+      si = si + 1 : i = si : j = sj + 1
+    Else
+      Exit Function
+    End If
+  Loop
+  Do While Mid$(p, j, 1) = "*"
+    j = j + 1
+  Loop
+  Fits = (j > Len(p))
+End Function
+
 ' PutAs(name): the kept entry, renamed name on the disc, in place of an entry with that name or
 ' added at the end. False when FILES.DIR is full
 Public Function PutAs(ByVal name As String) As Integer
@@ -123,6 +196,23 @@ Public Function PutAs(ByVal name As String) As Integer
     d(o + i) = e(i)
   Next
   PutAs = True
+End Function
+
+' AddFile(name, length, longname, what): a fresh entry (kind 1, load / exec #0100, flags 0) for
+' name, in place of one with that disc name or added at the end. False when FILES.DIR is full
+Public Function AddFile(ByVal name As String, ByVal length As Long, ByVal longname As String, ByVal what As Integer) As Integer
+  Dim i As Integer
+  For i = 0 To 63
+    e(i) = 0
+  Next
+  e(0) = 1
+  e(12) = what
+  e(14) = CInt(length And 255) : e(15) = CInt((length \ 256) And 255)
+  e(16) = 0 : e(17) = 1 : e(18) = 0 : e(19) = 1      ' load / exec #0100
+  For i = 1 To Len(longname)
+    If i <= 38 Then e(23 + i) = Asc(Mid$(longname, i, 1))
+  Next
+  AddFile = PutAs(name)              ' (Named sets the disc name and the checksum, then inserts)
 End Function
 
 ' RenameAt(o, name): the entry at o's disc name made name (its place and the rest kept)

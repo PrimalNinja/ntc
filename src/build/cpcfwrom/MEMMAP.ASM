@@ -933,87 +933,87 @@ fn_memory_allocpage:		; function allocpage (asm keyword), Memory.cls line 219
             jp mem_go		; Memory.cls 228
 			ret			; end of #asm
 
-fn_memory_alloc:		; function alloc (asm keyword), Memory.cls line 277
-            pop hl		; Memory.cls 278
-            ld e, (hl)		; Memory.cls 279
-            inc hl		; Memory.cls 280
-            ld d, (hl)		; Memory.cls 281
-            ld (mem_a1), de		; Memory.cls 282
-            pop hl		; Memory.cls 283
-            ld (mem_res), hl		; Memory.cls 284
-            ld hl, mem_alloc		; Memory.cls 285
-            jp mem_go4		; Memory.cls 286
+fn_memory_alloc:		; function alloc (asm keyword), Memory.cls line 299
+            pop hl		; Memory.cls 300
+            ld e, (hl)		; Memory.cls 301
+            inc hl		; Memory.cls 302
+            ld d, (hl)		; Memory.cls 303
+            ld (mem_a1), de		; Memory.cls 304
+            pop hl		; Memory.cls 305
+            ld (mem_res), hl		; Memory.cls 306
+            ld hl, mem_alloc		; Memory.cls 307
+            jp mem_go4		; Memory.cls 308
 			ret			; end of #asm
 
-fn_memory_free:		; function free (asm keyword), Memory.cls line 293
-            pop hl		; Memory.cls 294
-            ld (mem_a1), hl		; Memory.cls 295
-            pop hl		; Memory.cls 296
-            ld (mem_res), hl		; Memory.cls 297
-            ld hl, mem_free		; Memory.cls 298
-            jp mem_go		; Memory.cls 299
-			ret			; end of #asm
-
-fn_memory_largest:		; function largest (asm keyword), Memory.cls line 305
-            pop hl		; Memory.cls 306
-            ld (mem_res), hl		; Memory.cls 307
-            ld hl, mem_largest		; Memory.cls 308
-            jp mem_go		; Memory.cls 309
-			ret			; end of #asm
-
-fn_memory_pageof:		; function pageof (asm keyword), Memory.cls line 315
+fn_memory_free:		; function free (asm keyword), Memory.cls line 315
             pop hl		; Memory.cls 316
             ld (mem_a1), hl		; Memory.cls 317
             pop hl		; Memory.cls 318
             ld (mem_res), hl		; Memory.cls 319
-            ld hl, mem_pageof		; Memory.cls 320
+            ld hl, mem_free		; Memory.cls 320
             jp mem_go		; Memory.cls 321
 			ret			; end of #asm
 
-fn_memory_address:		; function address (asm keyword), Memory.cls line 327
+fn_memory_largest:		; function largest (asm keyword), Memory.cls line 327
             pop hl		; Memory.cls 328
-            ld (mem_a1), hl		; Memory.cls 329
-            pop hl		; Memory.cls 330
-            ld (mem_res), hl		; Memory.cls 331
-            ld hl, mem_address		; Memory.cls 332
-            jp mem_go		; Memory.cls 333
+            ld (mem_res), hl		; Memory.cls 329
+            ld hl, mem_largest		; Memory.cls 330
+            jp mem_go		; Memory.cls 331
 			ret			; end of #asm
 
-fn_memory_readword:		; function readword (asm keyword), Memory.cls line 351
+fn_memory_pageof:		; function pageof (asm keyword), Memory.cls line 337
+            pop hl		; Memory.cls 338
+            ld (mem_a1), hl		; Memory.cls 339
+            pop hl		; Memory.cls 340
+            ld (mem_res), hl		; Memory.cls 341
+            ld hl, mem_pageof		; Memory.cls 342
+            jp mem_go		; Memory.cls 343
+			ret			; end of #asm
+
+fn_memory_address:		; function address (asm keyword), Memory.cls line 349
+            pop hl		; Memory.cls 350
+            ld (mem_a1), hl		; Memory.cls 351
             pop hl		; Memory.cls 352
-            ld (mem_a1), hl		; Memory.cls 353
-            pop hl		; Memory.cls 354
-            ld (mem_res), hl		; Memory.cls 355
-            ld hl, mem_readword		; Memory.cls 356
-            jp mem_go		; Memory.cls 357
+            ld (mem_res), hl		; Memory.cls 353
+            ld hl, mem_address		; Memory.cls 354
+            jp mem_go		; Memory.cls 355
 			ret			; end of #asm
 
-fn_memory_writeword:		; sub writeword (asm keyword), Memory.cls line 376
-            pop hl		; Memory.cls 377
-            ld (mem_a1), hl		; Memory.cls 378
-            pop hl		; Memory.cls 379
-            ld e, (hl)		; Memory.cls 380
-            inc hl		; Memory.cls 381
-            ld d, (hl)		; Memory.cls 382
-            ld (mem_a2), de		; Memory.cls 383
-            ld hl, mem_writeword		; Memory.cls 384
-            jp mem_go0		; Memory.cls 385
+fn_memory_readword:		; function readword (asm keyword), Memory.cls line 373
+            pop hl		; Memory.cls 374
+            ld (mem_a1), hl		; Memory.cls 375
+            pop hl		; Memory.cls 376
+            ld (mem_res), hl		; Memory.cls 377
+            ld hl, mem_readword		; Memory.cls 378
+            jp mem_go		; Memory.cls 379
 			ret			; end of #asm
 
-fn_memory_copy:		; function copy (asm keyword), Memory.cls line 393
-            pop hl		; Memory.cls 394
-            ld (mem_a1), hl		; Memory.cls 395
-            pop hl		; Memory.cls 396
-            ld (mem_a2), hl		; Memory.cls 397
-            pop hl		; Memory.cls 398
-            ld e, (hl)		; Memory.cls 399
-            inc hl		; Memory.cls 400
-            ld d, (hl)		; Memory.cls 401
-            ld (mem_a3), de		; Memory.cls 402
-            pop hl		; Memory.cls 403
-            ld (mem_res), hl		; Memory.cls 404
-            ld hl, mem_copy		; Memory.cls 405
-            jp mem_go		; Memory.cls 406
+fn_memory_writeword:		; sub writeword (asm keyword), Memory.cls line 398
+            pop hl		; Memory.cls 399
+            ld (mem_a1), hl		; Memory.cls 400
+            pop hl		; Memory.cls 401
+            ld e, (hl)		; Memory.cls 402
+            inc hl		; Memory.cls 403
+            ld d, (hl)		; Memory.cls 404
+            ld (mem_a2), de		; Memory.cls 405
+            ld hl, mem_writeword		; Memory.cls 406
+            jp mem_go0		; Memory.cls 407
+			ret			; end of #asm
+
+fn_memory_copy:		; function copy (asm keyword), Memory.cls line 415
+            pop hl		; Memory.cls 416
+            ld (mem_a1), hl		; Memory.cls 417
+            pop hl		; Memory.cls 418
+            ld (mem_a2), hl		; Memory.cls 419
+            pop hl		; Memory.cls 420
+            ld e, (hl)		; Memory.cls 421
+            inc hl		; Memory.cls 422
+            ld d, (hl)		; Memory.cls 423
+            ld (mem_a3), de		; Memory.cls 424
+            pop hl		; Memory.cls 425
+            ld (mem_res), hl		; Memory.cls 426
+            ld hl, mem_copy		; Memory.cls 427
+            jp mem_go		; Memory.cls 428
 			ret			; end of #asm
 
 

@@ -8362,6 +8362,30 @@ function ntcCompile(input_a, objOptions_a)
 				if (objLast && (objH_a.s <= objLast.e)) { objLast.e = Math.max(objLast.e, objH_a.e); } else { arrHoles.push({ s: objH_a.s, e: objH_a.e }); }
 			});
 		blnWin = arrHoles.some(function(objH_a) { return (objH_a.s <= 0x4000) && (objH_a.e >= 0x8000); });
+		// window data: the lines of #asm blocks between "; @window" and "; @endwindow" go into the
+		// window hole itself (from #4000: in the file, not in the program's RAM) - code and data
+		// the program copies from there at its start (into a page that it then calls in the
+		// window), before anything uses the window. A macro, defined first: the guard that
+		// skips the hole puts it there (only one guard does)
+		var arrWinData = [];
+		(function()
+		{
+			var arrKeep = [];
+			var blnWd = false;
+
+			arrIn.forEach(function(strL_a)
+			{
+				if (/^\s*;\s*@window\b/i.test(strL_a)) { blnWd = true; return; }
+				if (/^\s*;\s*@endwindow\b/i.test(strL_a)) { blnWd = false; return; }
+				(blnWd ? arrWinData : arrKeep).push(strL_a);
+			});
+			arrIn = arrKeep;
+		})();
+		if ((arrWinData.length > 0) && !blnWin)
+		{
+			arrErrors.push({ file: '', line: 0, msg: '; @window data needs the program built round the window (Option Reserve &H4000, &H4000)' });
+			arrWinData = [];
+		}
 		var strFrom = (arrIn.indexOf('ntc_start2:') >= 0) ? 'ntc_start2:' : 'ntc_start:';
 		var arrLate = [];
 		// a jr from one part to another may end up across the hole: those become jp
@@ -8416,10 +8440,23 @@ function ntcCompile(input_a, objOptions_a)
 			arrHoles.forEach(function(objH_a)
 			{
 				arrOut.push(strIndentG + 'IF ($ < ' + objH_a.e + ') && (ntc_rg' + intK + '_e - ntc_rg' + intK + ' + $ > ' + objH_a.s + ')\t; fwdref-ok');
+				if ((arrWinData.length > 0) && (objH_a.s <= 0x4000) && (objH_a.e >= 0x8000))
+				{
+					arrOut.push(strIndentG + 'ds #4000 - $\t\t; the window data (; @window), from #4000');
+					arrOut.push(strIndentG + 'ntc_windata');
+					arrOut.push(strIndentG + 'ASSERT $ <= ' + objH_a.e + ', "the window data (; @window) must fit in the window"');
+				}
 				arrOut.push(strIndentG + 'ds ' + objH_a.e + ' - $\t\t; Option Reserve ' + hex4(objH_a.s) + '-' + hex4(objH_a.e - 1) + ': round it');
 				arrOut.push(strIndentG + 'ENDIF');
 			});
 			arrOut.push('ntc_rg' + intK + ':');
+		}
+		if (arrWinData.length > 0)
+		{
+			arrOut.push('; the window data (; @window ... ; @endwindow in #asm): put in the window hole by its guard');
+			arrOut.push(strIndentG + 'MACRO ntc_windata');
+			arrOut = arrOut.concat(arrWinData);
+			arrOut.push(strIndentG + 'ENDM');
 		}
 		for (intI = 0; intI < arrIn.length; intI++)
 		{
@@ -8497,6 +8534,17 @@ function ntcCompile(input_a, objOptions_a)
 					// names that are another label + n (a glyph in the font, fs_buf): after
 					// everything, so sjasmplus has their final values by its last pass
 					arrOut = arrOut.concat(arrLate);
+					if (arrWinData.length > 0)
+					{
+						// a program that ends below the window (no guard skipped it): the window
+						// data after it, still in the file (ntc_fileend), not in the program
+						arrOut.push(strIndentG + 'IF $ < #4000\t; fwdref-ok');
+						arrOut.push(strIndentG + 'ds #4000 - $\t\t; the window data (; @window), from #4000');
+						arrOut.push(strIndentG + 'ntc_windata');
+						arrOut.push(strIndentG + 'ASSERT $ <= #8000, "the window data (; @window) must fit in the window"');
+						arrOut.push(strIndentG + 'ENDIF');
+						arrOut.push('ntc_fileend:\t\t\t; the file ends here (the window data in it)');
+					}
 					blnIn = false;
 					continue;
 				}
@@ -8531,6 +8579,10 @@ function ntcCompile(input_a, objOptions_a)
 						}
 					}
 				}
+			}
+			if ((arrWinData.length > 0) && /^\s+SAVEAMSDOS\s.*,\s*ntc_start,\s*ntc_end - ntc_start,/.test(strL))
+			{
+				strL = strL.replace('ntc_end - ntc_start', 'ntc_fileend - ntc_start');		// (the window data too)
 			}
 			arrOut.push(strL);
 		}

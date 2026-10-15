@@ -339,7 +339,28 @@ for16_e:
 			; CybDir.cls 39: End If
 if15_1:
 
-			; CybDir.cls 40: Save = FileSystem.Save(vol + "FILES.DIR", VarPtr(d), n)
+			; CybDir.cls 40: If n = 0 Then                      ' no entries left: one empty 128 byte record, never a 0 byte
+			dw kw_cpeqvl, var_cybdir_save_n, 0
+			dw kw_goto_iffalse_n, if17_1
+
+			; CybDir.cls 41: For i = 0 To 127                  ' file (a disc ROM can't store that, so FILES.DIR would vanish)
+			dw kw_ztov, var_cybdir_save_i
+for18_t:
+
+			; CybDir.cls 42: d(i) = 0
+			dw kw_aset8, arr_cybdir_d, var_cybdir_save_i, lit_0
+
+			; CybDir.cls 43: Next
+			dw kw_next1l_n, var_cybdir_save_i, 127, for18_t
+for18_e:
+
+			; CybDir.cls 44: n = 128
+			dw kw_ltov, 128, var_cybdir_save_n
+
+			; CybDir.cls 45: End If
+if17_1:
+
+			; CybDir.cls 46: Save = FileSystem.Save(vol + "FILES.DIR", VarPtr(d), n)
 			dw kw_strcpy, stmp0, var_cybdir_save_vol
 			dw kw_strcat, stmp0, str15
 			dw fn_filesystem_save, stmp0, vp_arr_cybdir_d, var_cybdir_save_n, var_cybdir_save_save
@@ -351,27 +372,27 @@ if15_1:
 
 p_cybdir_find:
 
-			; CybDir.cls 50: Dim o As Integer
+			; CybDir.cls 56: Dim o As Integer
 
-			; CybDir.cls 51: Find = -1
+			; CybDir.cls 57: Find = -1
 			dw kw_ltov, -1, var_cybdir_find_find
 
-			; CybDir.cls 52: For o = 0 To m - 64 Step 64
+			; CybDir.cls 58: For o = 0 To m - 64 Step 64
 			dw kw_ztov, var_cybdir_find_o
-			dw kw_addl, var_cybdir_m, -64, for17_l
-			dw kw_forupv_n, var_cybdir_find_o, for17_l, for17_e
-for17_t:
+			dw kw_addl, var_cybdir_m, -64, for19_l
+			dw kw_forupv_n, var_cybdir_find_o, for19_l, for19_e
+for19_t:
 
-			; CybDir.cls 53: If d(o) = 1 And Sum(o) Then
+			; CybDir.cls 59: If d(o) = 1 And Sum(o) Then
 			dw kw_aget8, arr_cybdir_d, var_cybdir_find_o, tmp0
 			dw kw_cpeqvl, tmp0, 1
 			dw kw_ftov, tmp0
 			dw p_cybdir_sum_c, var_cybdir_find_o
 			dw kw_vtov, var_cybdir_sum_sum, tmp1
 			dw kw_andvv, tmp0, tmp1, tmp0
-			dw kw_goto_ifzero_n, tmp0, if18_1
+			dw kw_goto_ifzero_n, tmp0, if20_1
 
-			; CybDir.cls 54: If DiscName(o) = name Or (InStr(name, ".") = 0 And DiscName(o) = name + ".COM") Or LongName(o) = name Then
+			; CybDir.cls 60: If DiscName(o) = name Or (InStr(name, ".") = 0 And DiscName(o) = name + ".COM") Or LongName(o) = name Then
 			dw p_cybdir_discname_c, var_cybdir_find_o
 			dw kw_strcpy, stmp0, var_cybdir_discname_discname
 			dw kw_strcmpeq, stmp0, var_cybdir_find_name
@@ -392,23 +413,23 @@ for17_t:
 			dw kw_strcmpeq, stmp1, var_cybdir_find_name
 			dw kw_ftov, tmp1
 			dw kw_orvv, tmp0, tmp1, tmp0
-			dw kw_goto_ifzero_n, tmp0, if19_1
+			dw kw_goto_ifzero_n, tmp0, if21_1
 
-			; CybDir.cls 55: Find = o
+			; CybDir.cls 61: Find = o
 			dw kw_vtov, var_cybdir_find_o, var_cybdir_find_find
 
-			; CybDir.cls 56: Exit Function
+			; CybDir.cls 62: Exit Function
 			dw p_cybdir_find_r
 
-			; CybDir.cls 57: End If
-if19_1:
+			; CybDir.cls 63: End If
+if21_1:
 
-			; CybDir.cls 58: End If
-if18_1:
+			; CybDir.cls 64: End If
+if20_1:
 
-			; CybDir.cls 59: Next
-			dw kw_nextupv_n, var_cybdir_find_o, 64, for17_l, for17_t
-for17_e:
+			; CybDir.cls 65: Next
+			dw kw_nextupv_n, var_cybdir_find_o, 64, for19_l, for19_t
+for19_e:
 			dw p_cybdir_find_r
 
 ; ============================================================
@@ -417,62 +438,62 @@ for17_e:
 
 p_cybdir_discname:
 
-			; CybDir.cls 64: Dim i As Integer, s As String Max 12
+			; CybDir.cls 86: Dim i As Integer, s As String Max 12
 
-			; CybDir.cls 65: s = ""
+			; CybDir.cls 87: s = ""
 			dw kw_strcpy, var_cybdir_discname_s, str5
 
-			; CybDir.cls 66: For i = 1 To 8
+			; CybDir.cls 88: For i = 1 To 8
 			dw kw_ltov, 1, var_cybdir_discname_i
-for20_t:
+for27_t:
 
-			; CybDir.cls 67: If d(o + i) > 32 Then s = s + Chr$(d(o + i))
+			; CybDir.cls 89: If d(o + i) > 32 Then s = s + Chr$(d(o + i))
 			dw kw_add, var_cybdir_discname_o, var_cybdir_discname_i, tmp2
 			dw kw_aget8, arr_cybdir_d, tmp2, tmp2
 			dw kw_scpgtvl, tmp2, 32
-			dw kw_goto_iffalse_n, if21_1
+			dw kw_goto_iffalse_n, if28_1
 			dw kw_add, var_cybdir_discname_o, var_cybdir_discname_i, tmp3
 			dw kw_aget8, arr_cybdir_d, tmp3, tmp3
 			dw kw_strchr, stmp3, tmp3
 			dw kw_strcat, var_cybdir_discname_s, stmp3
-if21_1:
+if28_1:
 
-			; CybDir.cls 68: Next
-			dw kw_next1l_n, var_cybdir_discname_i, 8, for20_t
-for20_e:
+			; CybDir.cls 90: Next
+			dw kw_next1l_n, var_cybdir_discname_i, 8, for27_t
+for27_e:
 
-			; CybDir.cls 69: If d(o + 9) > 32 Then
+			; CybDir.cls 91: If d(o + 9) > 32 Then
 			dw kw_addl, var_cybdir_discname_o, 9, tmp2
 			dw kw_aget8, arr_cybdir_d, tmp2, tmp2
 			dw kw_scpgtvl, tmp2, 32
-			dw kw_goto_iffalse_n, if22_1
+			dw kw_goto_iffalse_n, if29_1
 
-			; CybDir.cls 70: s = s + "."
+			; CybDir.cls 92: s = s + "."
 			dw kw_strcat, var_cybdir_discname_s, str4
 
-			; CybDir.cls 71: For i = 9 To 11
+			; CybDir.cls 93: For i = 9 To 11
 			dw kw_ltov, 9, var_cybdir_discname_i
-for23_t:
+for30_t:
 
-			; CybDir.cls 72: If d(o + i) > 32 Then s = s + Chr$(d(o + i))
+			; CybDir.cls 94: If d(o + i) > 32 Then s = s + Chr$(d(o + i))
 			dw kw_add, var_cybdir_discname_o, var_cybdir_discname_i, tmp2
 			dw kw_aget8, arr_cybdir_d, tmp2, tmp2
 			dw kw_scpgtvl, tmp2, 32
-			dw kw_goto_iffalse_n, if24_1
+			dw kw_goto_iffalse_n, if31_1
 			dw kw_add, var_cybdir_discname_o, var_cybdir_discname_i, tmp3
 			dw kw_aget8, arr_cybdir_d, tmp3, tmp3
 			dw kw_strchr, stmp3, tmp3
 			dw kw_strcat, var_cybdir_discname_s, stmp3
-if24_1:
+if31_1:
 
-			; CybDir.cls 73: Next
-			dw kw_next1l_n, var_cybdir_discname_i, 11, for23_t
-for23_e:
+			; CybDir.cls 95: Next
+			dw kw_next1l_n, var_cybdir_discname_i, 11, for30_t
+for30_e:
 
-			; CybDir.cls 74: End If
-if22_1:
+			; CybDir.cls 96: End If
+if29_1:
 
-			; CybDir.cls 75: DiscName = s
+			; CybDir.cls 97: DiscName = s
 			dw kw_strcpy, var_cybdir_discname_discname, var_cybdir_discname_s
 			dw p_cybdir_discname_r
 
@@ -482,34 +503,34 @@ if22_1:
 
 p_cybdir_longname:
 
-			; CybDir.cls 80: Dim i As Integer, s As String Max 38
+			; CybDir.cls 102: Dim i As Integer, s As String Max 38
 
-			; CybDir.cls 81: s = ""
+			; CybDir.cls 103: s = ""
 			dw kw_strcpy, var_cybdir_longname_s, str5
 
-			; CybDir.cls 82: For i = 24 To 61
+			; CybDir.cls 104: For i = 24 To 61
 			dw kw_ltov, 24, var_cybdir_longname_i
-for25_t:
+for32_t:
 
-			; CybDir.cls 83: If d(o + i) = 0 Then Exit For
+			; CybDir.cls 105: If d(o + i) = 0 Then Exit For
 			dw kw_add, var_cybdir_longname_o, var_cybdir_longname_i, tmp1
 			dw kw_aget8, arr_cybdir_d, tmp1, tmp1
 			dw kw_cpeqvl, tmp1, 0
-			dw kw_goto_iffalse_n, if26_1
-			dw for25_e_go
-if26_1:
+			dw kw_goto_iffalse_n, if33_1
+			dw for32_e_go
+if33_1:
 
-			; CybDir.cls 84: s = s + Chr$(d(o + i))
+			; CybDir.cls 106: s = s + Chr$(d(o + i))
 			dw kw_add, var_cybdir_longname_o, var_cybdir_longname_i, tmp2
 			dw kw_aget8, arr_cybdir_d, tmp2, tmp2
 			dw kw_strchr, stmp2, tmp2
 			dw kw_strcat, var_cybdir_longname_s, stmp2
 
-			; CybDir.cls 85: Next
-			dw kw_next1l_n, var_cybdir_longname_i, 61, for25_t
-for25_e:
+			; CybDir.cls 107: Next
+			dw kw_next1l_n, var_cybdir_longname_i, 61, for32_t
+for32_e:
 
-			; CybDir.cls 86: LongName = s
+			; CybDir.cls 108: LongName = s
 			dw kw_strcpy, var_cybdir_longname_longname, var_cybdir_longname_s
 			dw p_cybdir_longname_r
 
@@ -519,20 +540,20 @@ for25_e:
 
 p_cybdir_take:
 
-			; CybDir.cls 105: Dim i As Integer
+			; CybDir.cls 127: Dim i As Integer
 
-			; CybDir.cls 106: For i = 0 To 63
+			; CybDir.cls 128: For i = 0 To 63
 			dw kw_ztov, var_cybdir_take_i
-for28_t:
+for35_t:
 
-			; CybDir.cls 107: e(i) = d(o + i)
+			; CybDir.cls 129: e(i) = d(o + i)
 			dw kw_add, var_cybdir_take_o, var_cybdir_take_i, tmp1
 			dw kw_aget8, arr_cybdir_d, tmp1, tmp1
 			dw kw_aset8, arr_cybdir_e, var_cybdir_take_i, tmp1
 
-			; CybDir.cls 108: Next
-			dw kw_next1l_n, var_cybdir_take_i, 63, for28_t
-for28_e:
+			; CybDir.cls 130: Next
+			dw kw_next1l_n, var_cybdir_take_i, 63, for35_t
+for35_e:
 			dw p_cybdir_take_r
 
 ; ============================================================
@@ -541,26 +562,26 @@ for28_e:
 
 p_cybdir_renameat:
 
-			; CybDir.cls 130: Dim i As Integer
+			; CybDir.cls 220: Dim i As Integer
 
-			; CybDir.cls 131: Take o
+			; CybDir.cls 221: Take o
 			dw p_cybdir_take_c, var_cybdir_renameat_o
 
-			; CybDir.cls 132: Named name
+			; CybDir.cls 222: Named name
 			dw p_cybdir_named_c, var_cybdir_renameat_name
 
-			; CybDir.cls 133: For i = 0 To 63
+			; CybDir.cls 223: For i = 0 To 63
 			dw kw_ztov, var_cybdir_renameat_i
-for32_t:
+for53_t:
 
-			; CybDir.cls 134: d(o + i) = e(i)
+			; CybDir.cls 224: d(o + i) = e(i)
 			dw kw_add, var_cybdir_renameat_o, var_cybdir_renameat_i, tmp0
 			dw kw_aget8, arr_cybdir_e, var_cybdir_renameat_i, tmp1
 			dw kw_aset8, arr_cybdir_d, tmp0, tmp1
 
-			; CybDir.cls 135: Next
-			dw kw_next1l_n, var_cybdir_renameat_i, 63, for32_t
-for32_e:
+			; CybDir.cls 225: Next
+			dw kw_next1l_n, var_cybdir_renameat_i, 63, for53_t
+for53_e:
 			dw p_cybdir_renameat_r
 
 ; ============================================================
@@ -569,25 +590,25 @@ for32_e:
 
 p_cybdir_named:
 
-			; CybDir.cls 140: Dim i As Integer, p As Integer, b As String Max 8, x As String Max 3, s As Long
+			; CybDir.cls 230: Dim i As Integer, p As Integer, b As String Max 8, x As String Max 3, s As Long
 
-			; CybDir.cls 141: p = InStr(name, ".")
+			; CybDir.cls 231: p = InStr(name, ".")
 			dw kw_strinstr, lit_1, var_cybdir_named_name, str4, var_cybdir_named_p
 
-			; CybDir.cls 142: If p = 0 Then
+			; CybDir.cls 232: If p = 0 Then
 			dw kw_cpeqvl, var_cybdir_named_p, 0
-			dw kw_goto_iffalse_n, if33_1
+			dw kw_goto_iffalse_n, if54_1
 
-			; CybDir.cls 143: b = Left$(name, 8) : x = ""
+			; CybDir.cls 233: b = Left$(name, 8) : x = ""
 			dw kw_strleft, stmp0, var_cybdir_named_name, lit_8
 			dw kw_strcpy, var_cybdir_named_b, stmp0
 			dw kw_strcpy, var_cybdir_named_x, str5
 
-			; CybDir.cls 144: Else
-			dw if33_e_go
-if33_1:
+			; CybDir.cls 234: Else
+			dw if54_e_go
+if54_1:
 
-			; CybDir.cls 145: b = Left$(name, p - 1) : x = Mid$(name, p + 1, 3)
+			; CybDir.cls 235: b = Left$(name, p - 1) : x = Mid$(name, p + 1, 3)
 			dw kw_addl, var_cybdir_named_p, -1, tmp1
 			dw kw_strleft, stmp0, var_cybdir_named_name, tmp1
 			dw kw_strcpy, var_cybdir_named_b, stmp0
@@ -595,72 +616,72 @@ if33_1:
 			dw kw_strmid, stmp0, var_cybdir_named_name, tmp1, lit_3
 			dw kw_strcpy, var_cybdir_named_x, stmp0
 
-			; CybDir.cls 146: End If
-if33_e:
+			; CybDir.cls 236: End If
+if54_e:
 
-			; CybDir.cls 147: b = Left$(b + Space$(8), 8)
+			; CybDir.cls 237: b = Left$(b + Space$(8), 8)
 			dw kw_strspace, stmp1, lit_8
 			dw kw_strcpy, stmp0, var_cybdir_named_b
 			dw kw_strcat, stmp0, stmp1
 			dw kw_strleft, stmp0, stmp0, lit_8
 			dw kw_strcpy, var_cybdir_named_b, stmp0
 
-			; CybDir.cls 148: x = Left$(x + Space$(3), 3)
+			; CybDir.cls 238: x = Left$(x + Space$(3), 3)
 			dw kw_strspace, stmp1, lit_3
 			dw kw_strcpy, stmp0, var_cybdir_named_x
 			dw kw_strcat, stmp0, stmp1
 			dw kw_strleft, stmp0, stmp0, lit_3
 			dw kw_strcpy, var_cybdir_named_x, stmp0
 
-			; CybDir.cls 149: For i = 1 To 8
+			; CybDir.cls 239: For i = 1 To 8
 			dw kw_ltov, 1, var_cybdir_named_i
-for34_t:
+for55_t:
 
-			; CybDir.cls 150: e(i) = Asc(Mid$(b, i, 1))
+			; CybDir.cls 240: e(i) = Asc(Mid$(b, i, 1))
 			dw kw_strmid, stmp1, var_cybdir_named_b, var_cybdir_named_i, lit_1
 			dw kw_strasc, stmp1, tmp1
 			dw kw_aset8, arr_cybdir_e, var_cybdir_named_i, tmp1
 
-			; CybDir.cls 151: Next
-			dw kw_next1l_n, var_cybdir_named_i, 8, for34_t
-for34_e:
+			; CybDir.cls 241: Next
+			dw kw_next1l_n, var_cybdir_named_i, 8, for55_t
+for55_e:
 
-			; CybDir.cls 152: For i = 1 To 3
+			; CybDir.cls 242: For i = 1 To 3
 			dw kw_ltov, 1, var_cybdir_named_i
-for35_t:
+for56_t:
 
-			; CybDir.cls 153: e(8 + i) = Asc(Mid$(x, i, 1))
+			; CybDir.cls 243: e(8 + i) = Asc(Mid$(x, i, 1))
 			dw kw_addl, var_cybdir_named_i, 8, tmp0
 			dw kw_strmid, stmp1, var_cybdir_named_x, var_cybdir_named_i, lit_1
 			dw kw_strasc, stmp1, tmp1
 			dw kw_aset8, arr_cybdir_e, tmp0, tmp1
 
-			; CybDir.cls 154: Next
-			dw kw_next1l_n, var_cybdir_named_i, 3, for35_t
-for35_e:
+			; CybDir.cls 244: Next
+			dw kw_next1l_n, var_cybdir_named_i, 3, for56_t
+for56_e:
 
-			; CybDir.cls 155: s = 0
+			; CybDir.cls 245: s = 0
 			dw kw_l_mov, llit_0, var_cybdir_named_s
 
-			; CybDir.cls 156: For i = 0 To 61
+			; CybDir.cls 246: For i = 0 To 61
 			dw kw_ztov, var_cybdir_named_i
-for36_t:
+for57_t:
 
-			; CybDir.cls 157: s = s + e(i)
+			; CybDir.cls 247: s = s + e(i)
 			dw kw_aget8, arr_cybdir_e, var_cybdir_named_i, tmp1
 			dw kw_l_itol, tmp1, ltmp1
 			dw kw_l_add, var_cybdir_named_s, ltmp1, var_cybdir_named_s
 
-			; CybDir.cls 158: Next
-			dw kw_next1l_n, var_cybdir_named_i, 61, for36_t
-for36_e:
+			; CybDir.cls 248: Next
+			dw kw_next1l_n, var_cybdir_named_i, 61, for57_t
+for57_e:
 
-			; CybDir.cls 159: e(62) = CInt(s And 255)
+			; CybDir.cls 249: e(62) = CInt(s And 255)
 			dw kw_l_and, var_cybdir_named_s, llit_255, ltmp1
 			dw kw_l_ltoi, ltmp1, tmp1
 			dw kw_vtolptr8, tmp1, arr_cybdir_e+62
 
-			; CybDir.cls 160: e(63) = CInt((s \ 256) And 255)
+			; CybDir.cls 250: e(63) = CInt((s \ 256) And 255)
 			dw kw_l_div, var_cybdir_named_s, llit_256, ltmp1
 			dw kw_l_and, ltmp1, llit_255, ltmp1
 			dw kw_l_ltoi, ltmp1, tmp1
@@ -673,26 +694,26 @@ for36_e:
 
 p_cybdir_sum:
 
-			; CybDir.cls 165: Dim i As Integer, s As Long
+			; CybDir.cls 255: Dim i As Integer, s As Long
 
-			; CybDir.cls 166: s = 0
+			; CybDir.cls 256: s = 0
 			dw kw_l_mov, llit_0, var_cybdir_sum_s
 
-			; CybDir.cls 167: For i = 0 To 61
+			; CybDir.cls 257: For i = 0 To 61
 			dw kw_ztov, var_cybdir_sum_i
-for37_t:
+for58_t:
 
-			; CybDir.cls 168: s = s + d(o + i)
+			; CybDir.cls 258: s = s + d(o + i)
 			dw kw_add, var_cybdir_sum_o, var_cybdir_sum_i, tmp2
 			dw kw_aget8, arr_cybdir_d, tmp2, tmp2
 			dw kw_l_itol, tmp2, ltmp2
 			dw kw_l_add, var_cybdir_sum_s, ltmp2, var_cybdir_sum_s
 
-			; CybDir.cls 169: Next
-			dw kw_next1l_n, var_cybdir_sum_i, 61, for37_t
-for37_e:
+			; CybDir.cls 259: Next
+			dw kw_next1l_n, var_cybdir_sum_i, 61, for58_t
+for58_e:
 
-			; CybDir.cls 170: Sum = (CInt(s And 255) = d(o + 62)) And (CInt((s \ 256) And 255) = d(o + 63))
+			; CybDir.cls 260: Sum = (CInt(s And 255) = d(o + 62)) And (CInt((s \ 256) And 255) = d(o + 63))
 			dw kw_l_and, var_cybdir_sum_s, llit_255, ltmp1
 			dw kw_l_ltoi, ltmp1, tmp1
 			dw kw_addl, var_cybdir_sum_o, 62, tmp2
@@ -724,9 +745,9 @@ do13_e_go:			ld sp, do13_e
 			jp ntc_xn
 do13_t_go:			ld sp, do13_t
 			jp ntc_xn
-for25_e_go:			ld sp, for25_e
+for32_e_go:			ld sp, for32_e
 			jp ntc_xn
-if33_e_go:			ld sp, if33_e
+if54_e_go:			ld sp, if54_e
 			jp ntc_xn
 
 p_cybdir_load_c:		; call load (normal)
@@ -1085,7 +1106,7 @@ p_cybdir_find_rs:			dw 0
 			db 40			; capacity
 var_cybdir_find_name:			ds 41
 var_cybdir_find_o:			dw 0
-for17_l:			dw 0
+for19_l:			dw 0
 var_cybdir_sum_sum:			dw 0
 			db 40			; capacity
 var_cybdir_longname_longname:			ds 41
@@ -1147,9 +1168,9 @@ vp_arr_cybdir_d:			dw arr_cybdir_d
 lit_4096:			dw 4096
 lit_0:			dw 0
 llit_256:			dw 256, 0
+llit_255:			dw 255, 0
 lit_8:			dw 8
 llit_0:			dw 0, 0
-llit_255:			dw 255, 0
 
 ; ============================================================
 ; Strings
@@ -1172,6 +1193,9 @@ str13:			db " is ", 0
 str14:			db " now", 0
 str15:			db "FILES.DIR", 0
 str16:			db ".COM", 0
+str17:			db "*.*", 0
+str18:			db "*", 0
+str19:			db "?", 0
 
 ; ============================================================
 ; Keyword library (used)
@@ -2947,7 +2971,7 @@ fs_pa_sp:
 			call fs_upper
 			sub 'A' - 1
 			jr c, fs_pa_bad
-			cp 17
+			cp 27				; A-Z: CP/M's are A-P, Q-Z for systems that have more (CyborgOS's Z)
 			jr nc, fs_pa_bad
 			ld (ix + 0), a
 			inc hl

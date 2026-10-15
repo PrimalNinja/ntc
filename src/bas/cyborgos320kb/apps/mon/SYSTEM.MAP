@@ -1,0 +1,136 @@
+; SYSTEM.MAP: MON's map of CyborgOS 320K, made by hand (the directives: the user guide, MON)
+
+title "MON - CyborgOS monitor"
+text "What the CPC and CyborgOS are doing, from this map (SYSTEM.MAP, a text file)."
+tool home "Home"
+tool slots "Slots"
+tool mem "Memory"
+tool roms "rOms"
+tool drives "Drives"
+tool dir/Z "Z"
+tool fw "Firmware"
+tool main "mAin RAM"
+
+cat "CyborgOS"
+
+node slots "Slots - what each one runs"
+src os 0
+count b 0
+rec 16 16 base 1
+f "Slot" #
+f "State" b 0 enum "-,command line,running"
+f "Mode" b 2 enum "2,S,W,UW,P,F"
+f "Program" sl 4 3
+go slot {#}
+view list
+
+node slot n "A slot"
+title "Slot {1}"
+link hex slot {1} #0000 "Its memory in hex, from #0000"
+link hex slot {1} #0100 "Its program, from #0100"
+link text slot {1} #F700 "Its console's text"
+link store {1} "Its store's 16K pages"
+
+node store n "A slot's store"
+title "Slot {1}'s store"
+text "#FF00 in the slot: a page each 8 blocks of 2K"
+src slot {1} #FF00 32
+rec 1
+count 32
+skip b 0 0
+f "Blocks" #
+f "Page" b 0
+go hex page {Page} #0000
+view list
+
+node mem "Memory - the 16K pages, who has each"
+src os 1
+rec 16
+f "Memory (K)" w 6
+f "Pages" w 4
+f "Free pages" w 8
+f "Tables end" hw 0
+f "Main RAM free to" hw 2
+view data
+link hex page 1 #0000 "Page 1: main RAM's #4000-#7FFF"
+rec 1 16
+count w 4
+skip b 0 0
+f "Page" #
+f "Who" b 0 enum "66=a slot,85=CyborgOS's (U),45=free"
+go hex page {Page} #0000
+view list
+
+node main "Main RAM - what CyborgOS keeps where"
+link hex main 0 #0000 "#0000-#3FFF CyborgOS (from #0040)"
+link hex main 0 #4000 "#4000-#7FFF the window (kept free)"
+link hex main 0 #8000 "#8000-#9FFF CyborgOS, its tables"
+link hex main 0 #A000 "#A000-#BFFF free, the firmware's RAM"
+link hex main 0 #C000 "#C000-#FFFF the screen"
+
+node fw "Firmware - the jumpblock"
+text "KM #BB00, TXT #BB4E, GRA #BBBA, SCR #BBFF, CAS #BC65, SOUND #BCA7, KL #BCC8,"
+text "MC #BD13"
+src main 0 #BB00 288
+rec 3
+f "Entry" a
+f "RST" hb 0
+f "To" hw 1
+view list
+
+cat "The CPC"
+
+node roms "ROMs - the upper ROMs, their names"
+src os 2
+rec 128
+count 16
+dup 16
+f "ROM" #
+f "Type" b 0 enum "0=foreground,1=background,2=extension,128=BASIC (on board)" mask 127
+f "Version" ver 1
+f "Name" n7 16
+go rom {#}
+view list
+
+node rom r "A ROM"
+title "ROM {1}"
+link hex rom {1} #C000 "Its first 1K in hex"
+src rom {1} #C000 16
+rec 16
+f "Type" b 0 enum "0=foreground,1=background,2=extension,128=BASIC (on board)" mask 127
+f "Version" ver 1
+f "Names at" hw 4
+view data
+sub "Its names (its own, then its RSXs)"
+deref w 4 1K
+view words
+
+cat "Drives"
+
+node drives "Drives - the RAM discs"
+src os 3
+rec 16
+count 8
+skip b 0 0
+f "Drive" c 0
+f "Size" w 2 x2 "K"
+f "Free" w 4 x2 "K"
+go dir {Drive}
+view list
+
+node dir d "Drive {1}"
+src dir {1}
+rec 16
+f "File" fn 1
+f "Size" b 15 x128
+view list
+
+node hex k p a "Memory in hex"
+title "Hex: {1} {2} {3}"
+src {1} {2} {3}
+view hex
+
+node text k p a "Memory as text"
+title "Text: {1} {2} {3}"
+src {1} {2} {3}
+view text
