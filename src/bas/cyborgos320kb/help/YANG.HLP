@@ -1,0 +1,11 @@
+YANG [address]
+  A web browser: 8BML pages, on the whole screen (YING: in a window).
+  address: http://host[:port]/path?parameters (http only, no https -
+  for now a made-up test page), or a file - A:NAME.8BM, NAME.8BM - read
+  from the disc: local pages linked like AmigaGuide's. None: HOME.8BM
+  (this drive, else A:, else Z:). A tab: YANG in another slot.
+  Keys: G an address typed (Enter goes, ESC not), H home, Tab / right
+  the next link, left the one before, up / down a line, Shift + up /
+  down a page, Control + up / down the top / end, Enter or Copy the
+  link, 1-5 or a tool's capital letter the toolbar, B or DEL back,
+  R again, Q or ESC quits.

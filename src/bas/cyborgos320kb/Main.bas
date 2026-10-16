@@ -42,7 +42,7 @@ Dim dp As Integer                 ' the RAM discs' driver's page (RAMDISC.CYB's;
 Dim bd As Integer                 ' the boot drive (A, or "CYB d" at #BE80): the slots' first drive, CYBORGOS.Z
 #End If
 Dim front As Integer, back As Integer, cur As Integer, quit As Integer, wt As Integer, runs As Integer, pk As Integer
-Dim fr As Integer, td As Integer, tt As Integer               ' front's turn next; TOP: last second's start
+Dim fr As Integer, td As Integer, tt As Integer, tc As Integer               ' front's turn next; TOP: last second's start
 #If NTC_LIBRARY_ROM Then
 Const MAXS = 4                    ' the most slots (Library: ROM: 8 banks of tables - 4 slots)
 #Else
@@ -189,6 +189,9 @@ Do
     Prompt wt : wt = 0          ' WAIT: nothing runs any more
   End If
   If Ticks - td >= 300 Then Roll
+  If front <> 0 Then
+    If Ticks - tc >= 150 Then tc = Ticks : Hyp.Con wp(front), 0, -3, 1   ' the cursor flashes (0.5 s)
+  End If
   RunNext
 Loop Until quit
 i = Hyp.Scr(0, 2)                 ' the CRTC as the firmware has it (80 x 25)
@@ -319,7 +322,12 @@ Sub Bdos(ByVal t As Integer)
 #If NTC_LIBRARY_ROM Then
       a = 1
 #Else
-      If dv(t) = 0 Then a = 1 Else a = dv(t) - 64   ' (A 1, B 2)
+      a = 1                       ' (a bit a drive: A 1, B 2, C 4 - A to H: the low byte)
+      If dv(t) <> 0 Then
+        For e = 1 To (dv(t) - 65) And 7
+          a = a * 2
+        Next
+      End If
 #End If
     Case 15 To 36                 ' files: Hyp.FileCall
 #If NTC_LIBRARY_ROM Then

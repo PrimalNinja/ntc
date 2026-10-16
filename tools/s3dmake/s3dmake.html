@@ -1,0 +1,507 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S3D Make</title>
+<style>
+:root { --bg: #f6f6f3; --fg: #1d1d1b; --mut: #6a6a64; --line: #d4d4cc; --acc: #1f5fa8; --box: #ffffff; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --bg: #161615; --fg: #e8e8e2; --mut: #9a9a92; --line: #3a3a36; --acc: #7fb0ea; --box: #1f1f1d; } }
+:root[data-theme="dark"] { --bg: #161615; --fg: #e8e8e2; --mut: #9a9a92; --line: #3a3a36; --acc: #7fb0ea; --box: #1f1f1d; }
+body { background: var(--bg); color: var(--fg); font: 15px/1.45 system-ui, sans-serif; margin: 0; padding: 24px 16px; }
+main { max-width: 720px; margin: 0 auto; }
+h1 { font-size: 22px; margin: 0 0 4px; }
+p { margin: 6px 0 14px; color: var(--mut); }
+fieldset { border: 1px solid var(--line); background: var(--box); border-radius: 6px; margin: 0 0 14px; padding: 12px 14px; }
+legend { padding: 0 6px; font-weight: 600; }
+label { display: inline-block; margin: 4px 14px 4px 0; }
+input[type=number], input[type=text] { width: 110px; font: inherit; padding: 3px 5px; background: var(--bg); color: var(--fg); border: 1px solid var(--line); border-radius: 4px; }
+button { font: inherit; padding: 7px 16px; border-radius: 5px; border: 1px solid var(--acc); background: var(--acc); color: #fff; cursor: pointer; }
+button:disabled { opacity: .5; cursor: default; }
+#log { white-space: pre-wrap; font: 13px/1.4 ui-monospace, monospace; background: var(--box); border: 1px solid var(--line); border-radius: 6px; padding: 10px; min-height: 60px; overflow-x: auto; }
+#dls a { display: block; margin: 8px 0; color: var(--acc); font-weight: 600; }
+</style>
+</head>
+<body>
+<main>
+<h1>S3D Make</h1>
+<p>Turns an OSM Cut file (<code>NAME-cut.txt.gz</code>, or its parts) into the data file a STATE3D program (AUCKLAND.BIN) flies through: <code>AUCKLAND.DAT</code>, 16K blocks for the CPC's expansion RAM. Everything runs in this page.</p>
+
+<fieldset>
+<legend>1. The OSM Cut file (all its parts, if it was split)</legend>
+<input type="file" id="file" accept=".gz,.1of2,.2of2,.1of3,.2of3,.3of3,*" multiple>
+</fieldset>
+
+<fieldset>
+<legend>2. The data</legend>
+<label>Name <input type="text" id="name" value="AUCKLAND" maxlength="8"></label>
+<label>At most <input type="number" id="kb" value="3968" min="64" step="16"> K</label>
+<p style="margin:6px 0 0">3968K: 248 blocks of 16K, for a 4MB CPC (the program and the screens need the rest). Smaller: the smallest buildings and the minor roads go first.</p>
+</fieldset>
+
+<button id="go" disabled>Make</button>
+<div id="dls"></div>
+<div id="log">Pick the file.</div>
+</main>
+
+<script>
+"use strict";
+// ---- S3D Make: OSM Cut text -> S3D data (STATE3D's AUCKLAND.DAT). The format (all little endian):
+// Block 0 (16384 bytes):
+//   0 "S3D1"; 4 word nx, 6 word nz (tiles across, north); 8 word blocks (data blocks after this);
+//   10 word x0, 12 word z0 (the grid's south-west corner, world units); 14 word tile size (units);
+//   16 word start x, 18 word start z (world units), 20 byte start heading (0-255: 0 north, 64 east);
+//   21 byte -; 22 word landmark tiles (n), 24 word their list's offset; 26 word the directory's
+//   offset; 32 the name (16 characters, 0 padded)
+//   the directory: nx * nz entries (tile ix + iz * nx), 3 bytes: block (1.., 0 empty), offset (word)
+//   the landmark list: n words, tile numbers whose 3D lines are drawn from further away
+// World units: 0.5 m; x east, z north; 0 = the world's middle.
+// A tile (384 m, 768 units), at its block and offset (never across two blocks):
+//   word nb0, nb1, nb2 (buildings: big, middle, small - drawn to less distance in that order),
+//   word nl (ground lines), n3 (3D lines), nt (trees), word where its 3D lines start, word where
+//   its trees start (from the tile's start: 16 bytes of header, then the buildings ...)
+//   building: byte n (points), byte h (height, 2 m units), n x (sbyte x, sbyte z)
+//   ground line: byte n, byte type, n x (sbyte x, sbyte z)
+//   3D line: byte n, byte type, n x (sbyte x, sbyte z, byte h)
+//   tree: sbyte x, sbyte z
+//   x, z: 2 m units from the tile's middle (-127 .. 127: 254 m each way, the tile 192 m each way)
+// Line types: 0 motorway, 1 major road, 2 minor road, 3 railway, 4 coast, 5 water, 6 stream,
+// 7 pier, 8 the Harbour Bridge, 9 landmark, 10 volcano, 11 a bridge (a road on it)
+// The landmark tiles (block 0's list: drawn from further away): those with types 8, 9, 10
+
+const U = 2;                // world units a metre
+const TILE = 384;           // metres
+const Q = 2;                // metres a local step
+const BLK = 16384;
+
+// ---- the cut file's lines -> objects
+function parseCut(text) {
+  const o = { ways: [], rels: new Map(), nodes: [] };
+  for (const line of text.split("\n")) {
+    const c = line[0];
+    if (c !== "W" && c !== "R" && c !== "N") continue;
+    const p = line.split("\t");
+    if (p.length < 4) continue;
+    const tags = {};
+    for (const kv of p[2].split("|")) { const i = kv.indexOf("="); if (i > 0) tags[kv.slice(0, i)] = kv.slice(i + 1); }
+    const pts = [];
+    let x = 0, y = 0, first = true;
+    for (const s of p[3].split(" ")) {
+      const j = s.indexOf(","); if (j < 0) continue;
+      const a = +s.slice(0, j), b = +s.slice(j + 1);
+      if (first) { x = a; y = b; first = false; } else { x += a; y += b; }
+      pts.push([x, y]);
+    }
+    if (c === "N") o.nodes.push({ id: p[1], tags, x: pts[0][0], y: pts[0][1] });
+    else if (c === "W") o.ways.push({ id: p[1], tags, pts });
+    else {
+      if (!o.rels.has(p[1])) o.rels.set(p[1], { id: p[1], tags, outer: [], inner: [] });
+      const r = o.rels.get(p[1]);
+      (tags.role === "inner" ? r.inner : r.outer).push(pts);
+    }
+  }
+  return o;
+}
+
+// ---- geometry
+function area(pts) { let a = 0; for (let i = 0, n = pts.length; i < n; i++) { const p = pts[i], q = pts[(i + 1) % n]; a += p[0] * q[1] - q[0] * p[1]; } return a / 2; }
+function centroid(pts) { let x = 0, y = 0; for (const p of pts) { x += p[0]; y += p[1]; } return [x / pts.length, y / pts.length]; }
+function closedOpen(pts) { // a ring without its repeated last point
+  if (pts.length > 1 && pts[0][0] === pts[pts.length - 1][0] && pts[0][1] === pts[pts.length - 1][1]) return pts.slice(0, -1);
+  return pts;
+}
+function segDist(p, a, b) {
+  const dx = b[0] - a[0], dy = b[1] - a[1], l = dx * dx + dy * dy;
+  let t = l ? ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / l : 0; t = Math.max(0, Math.min(1, t));
+  const x = a[0] + t * dx - p[0], y = a[1] + t * dy - p[1]; return Math.sqrt(x * x + y * y);
+}
+function dp(pts, tol) { // Douglas-Peucker, an open line
+  if (pts.length < 3) return pts.slice();
+  const keep = new Uint8Array(pts.length); keep[0] = keep[pts.length - 1] = 1;
+  const st = [[0, pts.length - 1]];
+  while (st.length) {
+    const [a, b] = st.pop(); let m = -1, md = tol;
+    for (let i = a + 1; i < b; i++) { const d = segDist(pts[i], pts[a], pts[b]); if (d > md) { md = d; m = i; } }
+    if (m >= 0) { keep[m] = 1; st.push([a, m], [m, b]); }
+  }
+  return pts.filter((_, i) => keep[i]);
+}
+function simplifyRing(ring, maxPts) {
+  ring = closedOpen(ring);
+  if (ring.length < 3) return null;
+  let tol = 1.0, r;
+  for (;;) {
+    // split at the point furthest from the first, simplify the two halves
+    let far = 0, fd = -1;
+    for (let i = 1; i < ring.length; i++) { const d = Math.hypot(ring[i][0] - ring[0][0], ring[i][1] - ring[0][1]); if (d > fd) { fd = d; far = i; } }
+    const a = dp(ring.slice(0, far + 1), tol), b = dp(ring.slice(far).concat([ring[0]]), tol);
+    r = a.concat(b.slice(1, -1));
+    if (r.length <= maxPts || tol > 64) break;
+    tol *= 1.6;
+  }
+  if (r.length > maxPts) { const k = r.length / maxPts; r = Array.from({ length: maxPts }, (_, i) => r[Math.floor(i * k)]); }
+  return r.length >= 3 ? r : null;
+}
+function inPoly(x, y, ring) {
+  let c = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const a = ring[i], b = ring[j];
+    if ((a[1] > y) !== (b[1] > y) && x < (b[0] - a[0]) * (y - a[1]) / (b[1] - a[1]) + a[0]) c = !c;
+  }
+  return c;
+}
+function offsetLine(pts, d) { // the line moved d metres to its left
+  const out = [];
+  for (let i = 0; i < pts.length; i++) {
+    const a = pts[Math.max(0, i - 1)], b = pts[Math.min(pts.length - 1, i + 1)];
+    let nx = -(b[1] - a[1]), ny = b[0] - a[0]; const l = Math.hypot(nx, ny) || 1; nx /= l; ny /= l;
+    out.push([pts[i][0] + nx * d, pts[i][1] + ny * d, pts[i][2]]);
+  }
+  return out;
+}
+
+// ---- the heights
+function num(s) { if (s === undefined) return NaN; const m = /^\s*([0-9.]+)/.exec(s); return m ? parseFloat(m[1]) : NaN; }
+function heightOf(t, ar, nearCBD) {
+  let h = num(t.height);
+  if (!isNaN(h) && h > 0) return h;
+  const lv = num(t["building:levels"]);
+  if (!isNaN(lv) && lv > 0) return lv * 3.2 + 1;
+  const b = t.building;
+  switch (b) {
+    case "house": case "residential": case "detached": case "semidetached_house": case "terrace": case "bungalow":
+      return ar > 400 ? 8 : 6;
+    case "garage": case "garages": case "carport": case "shed": case "roof": case "container": case "hut": case "kiosk":
+      return 3;
+    case "apartments": return ar > 600 ? 20 : 12;
+    case "commercial": case "retail": case "office": case "hotel":
+      return nearCBD && ar > 300 ? 30 : ar > 1500 ? 12 : 8;
+    case "industrial": case "warehouse": case "service": return 8;
+    case "school": case "university": case "college": case "hospital": return 10;
+    case "church": case "cathedral": return 14;
+  }
+  if (nearCBD && ar > 300) return 28;
+  return ar < 120 ? 5 : ar < 400 ? 7 : ar < 1500 ? 9 : 12;
+}
+
+// ---- the world: tiles
+class World {
+  constructor(x0, z0, nx, nz) { this.x0 = x0; this.z0 = z0; this.nx = nx; this.nz = nz; this.t = new Map(); }
+  tileAt(x, z) { const i = Math.floor((x - this.x0) / TILE), j = Math.floor((z - this.z0) / TILE); return (i < 0 || j < 0 || i >= this.nx || j >= this.nz) ? -1 : i + j * this.nx; }
+  mid(t) { return [this.x0 + ((t % this.nx) + 0.5) * TILE, this.z0 + (Math.floor(t / this.nx) + 0.5) * TILE]; }
+  T(t) { if (!this.t.has(t)) this.t.set(t, { b: [], l: [], d3: [], tr: [] }); return this.t.get(t); }
+  loc(t, x, z) { const m = this.mid(t); return [Math.max(-127, Math.min(127, Math.round((x - m[0]) / Q))), Math.max(-127, Math.min(127, Math.round((z - m[1]) / Q)))]; }
+  // a line (points [x, z, h?]) cut at the tiles' edges, each piece into its tile
+  addLine(pts, type, is3d) {
+    let cur = null, ct = -2;
+    for (let i = 0; i + 1 < pts.length; i++) {
+      const a = pts[i], b = pts[i + 1];
+      const ts = [0, 1];
+      const gx = (v) => (v - this.x0) / TILE, gz = (v) => (v - this.z0) / TILE;
+      for (const [ga, gb] of [[gx(a[0]), gx(b[0])], [gz(a[1]), gz(b[1])]]) {
+        if (ga === gb) continue;
+        for (let k = Math.ceil(Math.min(ga, gb)); k <= Math.floor(Math.max(ga, gb)); k++) { const t = (k - ga) / (gb - ga); if (t > 0 && t < 1) ts.push(t); }
+      }
+      ts.sort((p, q) => p - q);
+      for (let k = 0; k + 1 < ts.length; k++) {
+        const t0 = ts[k], t1 = ts[k + 1]; if (t1 - t0 < 1e-9) continue;
+        const L = (t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, (a[2] || 0) + ((b[2] || 0) - (a[2] || 0)) * t];
+        const tm = (t0 + t1) / 2, mp = L(tm), tile = this.tileAt(mp[0], mp[1]);
+        if (tile !== ct) { if (cur && cur.length > 1) this._put(ct, cur, type, is3d); cur = []; ct = tile; cur.push(L(t0)); }
+        cur.push(L(t1));
+      }
+    }
+    if (cur && cur.length > 1) this._put(ct, cur, type, is3d);
+  }
+  _put(t, pts, type, is3d) {
+    if (t < 0) return;
+    const T = this.T(t), q = [];
+    for (const p of pts) {
+      const [x, z] = this.loc(t, p[0], p[1]);
+      const h = Math.max(0, Math.min(255, Math.round((p[2] || 0) / Q)));
+      const l = q[q.length - 1];
+      if (l && l[0] === x && l[1] === z && l[2] === h) continue;
+      q.push([x, z, h]);
+    }
+    for (let i = 0; i + 1 < q.length; i += 254) { const part = q.slice(i, i + 255); if (part.length > 1) (is3d ? T.d3 : T.l).push({ type, pts: part }); }
+  }
+}
+
+// the cut -> the world (opts: name, kb); log(text)
+async function make(text, opts, log) {
+  await log("reading the cut ...");
+  const o = parseCut(text);
+  await log(o.ways.length + " ways, " + o.rels.size + " multipolygons, " + o.nodes.length + " nodes");
+
+  // the buildings' extent: the world (2% trimmed at each side, then 300 m more)
+  const bx = [], bz = [];
+  for (const w of o.ways) if (w.tags.building) { bx.push(w.pts[0][0]); bz.push(w.pts[0][1]); }
+  bx.sort((a, b) => a - b); bz.sort((a, b) => a - b);
+  const q = (a, f) => a[Math.floor(f * (a.length - 1))];
+  let minx = q(bx, 0.002) - 300, maxx = q(bx, 0.998) + 300, minz = q(bz, 0.002) - 300, maxz = q(bz, 0.998) + 300;
+  const cx = Math.round((minx + maxx) / 2), cz = Math.round((minz + maxz) / 2);
+  const nx = Math.ceil((maxx - minx) / TILE), nz = Math.ceil((maxz - minz) / TILE);
+  const W = new World(cx - nx * TILE / 2, cz - nz * TILE / 2, nx, nz);
+  await log("world " + (nx * TILE / 1000).toFixed(1) + " x " + (nz * TILE / 1000).toFixed(1) + " km: " + nx + " x " + nz + " tiles of " + TILE + " m");
+  if (nx * nz * 3 + 64 + 2048 > BLK) throw new Error("too many tiles for block 0");
+  // world units from the cut's metres
+  const inW = (x, z) => W.tileAt(x, z) >= 0;
+
+  // landmarks: the Sky Tower, the Harbour Bridge, Rangitoto (named), the volcanoes (natural=volcano with ele)
+  let sky = null, bridge = null, rangi = null;
+  for (const r of o.rels.values()) {
+    if (/Sky Tower/i.test(r.tags.name || "") && r.outer.length) sky = centroid(closedOpen(r.outer[0]));
+    if (/^Rangitoto Island$/i.test(r.tags.name || "") && r.outer.length) { let best = r.outer[0]; for (const ring of r.outer) if (Math.abs(area(ring)) > Math.abs(area(best))) best = ring; rangi = closedOpen(best); }
+  }
+  for (const w of o.ways) {
+    if (!sky && /Sky Tower/i.test(w.tags.name || "")) sky = centroid(closedOpen(w.pts));
+    if (/Auckland Harbour Bridge/i.test(w.tags.name || "") && w.tags.man_made === "bridge") bridge = closedOpen(w.pts);
+  }
+  const vols = [];
+  for (const n of o.nodes) {
+    const e = num(n.tags.ele);
+    if ((n.tags.natural === "volcano" || n.tags.natural === "peak") && e >= 25 && inW(n.x, n.y)) {
+      const near = vols.find((v) => Math.hypot(v.x - n.x, v.y - n.y) < 300);
+      if (near) { if (e > near.e) { near.e = e; near.x = n.x; near.y = n.y; near.name = n.tags.name; } }
+      else vols.push({ x: n.x, y: n.y, e, name: n.tags.name || "" });
+    }
+  }
+  const lmTiles = new Set();
+  const add3d = (pts, type) => { const before = new Map([...W.t].map(([k, v]) => [k, v.d3.length])); W.addLine(pts, type, true); for (const [k, v] of W.t) if (v.d3.length > (before.get(k) || 0)) lmTiles.add(k); };
+  // the volcanoes: cones (rings at a quarter, a half, three quarters, the crater), 8 lines up
+  for (const v of vols) {
+    const isR = /Rangitoto/.test(v.name) && v.e > 200 && rangi;
+    const base = isR ? rangi.map((p) => [p[0], p[1]]) : Array.from({ length: 16 }, (_, i) => { const a = i * Math.PI / 8, R = Math.min(700, v.e * 2.2 + 120); return [v.x + R * Math.cos(a), v.y + R * Math.sin(a)]; });
+    const simple = isR ? dp(base.concat([base[0]]), 60).slice(0, -1) : base;
+    const B = simple.length;
+    const ringS = (f, hh) => { const r = simple.map((p) => [v.x + (p[0] - v.x) * f, v.y + (p[1] - v.y) * f, hh]); r.push(r[0]); return r; };
+    if (!isR) add3d(ringS(1, 0), 10);                    // (Rangitoto's foot: its coast)
+    for (const f of [0.75, 0.5, 0.25]) add3d(ringS(f, v.e * (1 - f)), 10);
+    add3d(ringS(0.07, v.e * 0.97), 10);
+    for (let i = 0; i < 8; i++) { const p = simple[Math.floor(i * B / 8)]; add3d([[p[0], p[1], 0], [v.x + (p[0] - v.x) * 0.07, v.y + (p[1] - v.y) * 0.07, v.e * 0.97]], 10); }
+  }
+  // the Sky Tower: a shaft, the pod, the mast (328 m)
+  if (sky) {
+    const [x, y] = sky;
+    const sq = (r, h) => [[x - r, y - r, h], [x + r, y - r, h], [x + r, y + r, h], [x - r, y + r, h], [x - r, y - r, h]];
+    const oc = (r, h) => Array.from({ length: 9 }, (_, i) => [x + r * Math.cos(i * Math.PI / 4), y + r * Math.sin(i * Math.PI / 4), h]);
+    for (const [dx, dy] of [[-6, -6], [6, -6], [6, 6], [-6, 6]]) add3d([[x + dx, y + dy, 0], [x + dx, y + dy, 186]], 9);
+    add3d(sq(6, 0), 9); add3d(oc(18, 186), 9); add3d(oc(22, 194), 9); add3d(oc(20, 212), 9); add3d(oc(10, 222), 9);
+    add3d([[x - 18, y, 186], [x - 22, y, 194], [x - 20, y, 212], [x - 10, y, 222]], 9);
+    add3d([[x + 18, y, 186], [x + 22, y, 194], [x + 20, y, 212], [x + 10, y, 222]], 9);
+    add3d([[x, y, 222], [x, y, 328]], 9);
+  }
+  // the Harbour Bridge: its deck (two edges, up to 43 m at the middle) and the truss over the main span
+  let bridgeBox = null;
+  if (bridge) {
+    const [mx, my] = centroid(bridge);
+    let sxx = 0, sxy = 0, syy = 0; for (const p of bridge) { const a = p[0] - mx, b = p[1] - my; sxx += a * a; sxy += a * b; syy += b * b; }
+    const ang = 0.5 * Math.atan2(2 * sxy, sxx - syy), ux = Math.cos(ang), uy = Math.sin(ang);
+    let t0 = Infinity, t1 = -Infinity; for (const p of bridge) { const t = (p[0] - mx) * ux + (p[1] - my) * uy; t0 = Math.min(t0, t); t1 = Math.max(t1, t); }
+    const L = t1 - t0, tm = (t0 + t1) / 2, H = 43;
+    bridgeBox = { mx, my, ux, uy, t0, t1 };
+    const deckH = (t) => { const u = (t - tm) / (L / 2); return Math.max(0, H * (1 - u * u)); };
+    for (const side of [-10, 10]) {
+      const line = [];
+      for (let t = t0; t <= t1 + 0.1; t += L / 24) line.push([mx + ux * t - uy * side, my + uy * t + ux * side, deckH(t)]);
+      add3d(line, 8);
+      const span = 243, s0 = tm - span / 2 + L * 0.08; // the main span, a little north of the middle
+      const top = [], verts = [];
+      for (let k = 0; k <= 8; k++) {
+        const t = s0 + k * span / 8, u = (k - 4) / 4, hh = deckH(t) + 22 * (1 - u * u) + 4;
+        const px = mx + ux * t - uy * side, py = my + uy * t + ux * side;
+        top.push([px, py, hh]); verts.push([[px, py, deckH(t)], [px, py, hh]]);
+      }
+      add3d(top, 8); for (const v of verts) add3d(v, 8);
+    }
+  }
+  await log("landmarks: Sky Tower " + (sky ? "yes" : "no") + ", Harbour Bridge " + (bridge ? "yes" : "no") + ", Rangitoto outline " + (rangi ? "yes" : "no") + ", " + vols.length + " volcano cones");
+
+  // the buildings
+  const SKY = sky;
+  let nb = 0, drop = 0;
+  const addB = (ring, tags) => {
+    if (/Sky Tower/i.test(tags.name || "")) return;
+    const r = simplifyRing(ring, 12); if (!r) { drop++; return; }
+    const ar = Math.abs(area(r)); if (ar < 8) { drop++; return; }
+    const c = centroid(r), t = W.tileAt(c[0], c[1]); if (t < 0) { drop++; return; }
+    const near = SKY ? Math.hypot(c[0] - SKY[0], c[1] - SKY[1]) < 1300 : false;
+    const h = Math.max(3, Math.min(508, heightOf(tags, ar, near)));
+    const pts = []; for (const p of r) { const l = W.loc(t, p[0], p[1]); const z = pts[pts.length - 1]; if (!z || z[0] !== l[0] || z[1] !== l[1]) pts.push(l); }
+    if (pts.length > 1 && pts[0][0] === pts[pts.length - 1][0] && pts[0][1] === pts[pts.length - 1][1]) pts.pop();
+    if (pts.length < 3) { drop++; return; }
+    const cls = h >= 20 || ar >= 2000 ? 0 : h >= 9 || ar >= 400 ? 1 : 2;
+    W.T(t).b.push({ h: Math.round(h / Q), pts, cls, size: ar * h });
+    nb++;
+  };
+  for (const w of o.ways) if (w.tags.building) addB(w.pts, w.tags);
+  for (const r of o.rels.values()) if (r.tags.building) for (const ring of r.outer) addB(ring, r.tags);
+  await log(nb + " buildings (" + drop + " left out: too small, or outside)");
+
+  // the ground lines: roads (major: two lines), railways, coast, water, streams, piers
+  const RW = { motorway: 14, trunk: 12, primary: 9, secondary: 8, tertiary: 7, motorway_link: 6, trunk_link: 6, primary_link: 6, secondary_link: 6, tertiary_link: 5 };
+  let nl = 0;
+  const inBridge = (p) => { if (!bridgeBox) return false; const a = p[0] - bridgeBox.mx, b = p[1] - bridgeBox.my, t = a * bridgeBox.ux + b * bridgeBox.uy, s = -a * bridgeBox.uy + b * bridgeBox.ux; return t >= bridgeBox.t0 - 20 && t <= bridgeBox.t1 + 20 && Math.abs(s) < 40; };
+  const minorKinds = new Set(["residential", "unclassified", "living_street", "pedestrian", "road"]);
+  const minor = [];
+  for (const w of o.ways) {
+    const t = w.tags; let pts = w.pts;
+    if (t.highway) {
+      const hw = t.highway;
+      if (t.tunnel && t.tunnel !== "no") continue;
+      const isBridge = t.bridge && t.bridge !== "no";
+      if (isBridge && inBridge(pts[Math.floor(pts.length / 2)])) continue;   // the Harbour Bridge model has it
+      const type = hw.startsWith("motorway") ? 0 : RW[hw] ? 1 : minorKinds.has(hw) ? 2 : -1;
+      if (type < 0) continue;
+      let p3 = pts.map((p) => [p[0], p[1], 0]);
+      if (isBridge) { let L = 0; for (let i = 1; i < pts.length; i++) L += Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]); const H = Math.max(6, Math.min(20, L / 30)); p3 = p3.map((p) => [p[0], p[1], H]); }
+      p3 = dp(p3, 1.5);
+      if (type === 2) { minor.push({ p3, isBridge }); continue; }
+      const half = (RW[hw] || 8) / 2;
+      for (const side of [-half, half]) { const ln = offsetLine(p3, side); if (isBridge) W.addLine(ln, 11, true); else W.addLine(ln, type, false); }
+      nl++;
+    } else if (t.railway === "rail" || t.railway === "light_rail") { W.addLine(dp(pts, 2), 3, false); nl++; }
+    else if (t.natural === "coastline") { W.addLine(dp(pts, 3), 4, false); nl++; }
+    else if (t.natural === "water" || t.water) { W.addLine(dp(pts, 3), 5, false); nl++; }
+    else if (t.waterway === "river" || t.waterway === "stream" || t.waterway === "canal") { W.addLine(dp(pts, 3), 6, false); nl++; }
+    else if (t.man_made === "pier" || t.man_made === "breakwater") { W.addLine(dp(pts, 1.5), 7, false); nl++; }
+  }
+  for (const r of o.rels.values()) if (r.tags.natural === "water" || r.tags.water) for (const ring of r.outer) { W.addLine(dp(ring, 3), 5, false); nl++; }
+  for (const m of minor) { if (m.isBridge) W.addLine(m.p3, 11, true); else W.addLine(m.p3, 2, false); nl++; }
+  await log(nl + " lines (roads, railways, coast, water, piers)");
+
+  // trees: the mapped ones, then woods and scrub filled (every 35 m)
+  let nt = 0;
+  const addT = (x, z) => { const t = W.tileAt(x, z); if (t < 0) return; const l = W.loc(t, x, z); W.T(t).tr.push(l); nt++; };
+  for (const n of o.nodes) if (n.tags.natural === "tree") addT(n.x, n.y);
+  const woods = [];
+  for (const w of o.ways) if (w.tags.natural === "wood" || w.tags.landuse === "forest" || w.tags.natural === "scrub") woods.push(closedOpen(w.pts));
+  for (const r of o.rels.values()) if (r.tags.natural === "wood" || r.tags.landuse === "forest" || r.tags.natural === "scrub") for (const ring of r.outer) woods.push(closedOpen(ring));
+  const SP = 35;
+  for (const ring of woods) {
+    let x0 = Infinity, x1 = -Infinity, z0 = Infinity, z1 = -Infinity;
+    for (const p of ring) { x0 = Math.min(x0, p[0]); x1 = Math.max(x1, p[0]); z0 = Math.min(z0, p[1]); z1 = Math.max(z1, p[1]); }
+    for (let z = Math.ceil(z0 / SP) * SP; z <= z1; z += SP) for (let x = Math.ceil(x0 / SP) * SP; x <= x1; x += SP) {
+      const jx = x + ((x * 7919 + z * 104729) % 13) - 6, jz = z + ((x * 31337 + z * 7) % 13) - 6;
+      if (inPoly(jx, jz, ring)) addT(jx, jz);
+    }
+  }
+  await log(nt + " trees (" + woods.length + " woods filled)");
+
+  // the tiles to bytes; what doesn't fit the size asked for goes, smallest first
+  const tiles = [...W.t.keys()].sort((a, b) => a - b);
+  const enc = (T, cut) => {
+    const b = [...T.b].sort((p, q) => p.cls - q.cls || q.size - p.size).slice(0, T.b.length - cut.b);
+    const lines = T.l.slice(0, T.l.length - cut.l);
+    const by = [];
+    const w16 = (v) => by.push(v & 255, (v >> 8) & 255);
+    const nb0 = b.filter((x) => x.cls === 0).length, nb1 = b.filter((x) => x.cls === 1).length, nb2 = b.length - nb0 - nb1;
+    w16(nb0); w16(nb1); w16(nb2); w16(lines.length); w16(T.d3.length); w16(Math.min(T.tr.length, 65535)); w16(0); w16(0);
+    for (const x of b) { by.push(x.pts.length, x.h); for (const p of x.pts) by.push(p[0] & 255, p[1] & 255); }
+    for (const x of lines) { by.push(x.pts.length, x.type); for (const p of x.pts) by.push(p[0] & 255, p[1] & 255); }
+    by[12] = by.length & 255; by[13] = (by.length >> 8) & 255;
+    for (const x of T.d3) { by.push(x.pts.length, x.type); for (const p of x.pts) by.push(p[0] & 255, p[1] & 255, p[2] & 255); }
+    by[14] = by.length & 255; by[15] = (by.length >> 8) & 255;
+    for (const p of T.tr) by.push(p[0] & 255, p[1] & 255);
+    return by;
+  };
+  // lines least important first: minor roads (type 2) last in each tile's list - they go first
+  for (const k of tiles) { const T = W.t.get(k); T.l.sort((a, b) => (a.type === 2) - (b.type === 2)); }
+  const cuts = new Map(tiles.map((k) => [k, { b: 0, l: 0 }]));
+  let encs = new Map(tiles.map((k) => [k, enc(W.t.get(k), cuts.get(k))]));
+  // a tile over 16K - 16: its smallest buildings go until it fits
+  for (const k of tiles) {
+    while (encs.get(k).length > BLK - 16) { cuts.get(k).b += 20; encs.set(k, enc(W.t.get(k), cuts.get(k))); }
+  }
+  const budget = opts.kb * 1024 - BLK;
+  const total = () => { let s = 0; for (const e of encs.values()) s += e.length; return s; };
+  let tot = total();
+  await log("data before fitting: " + (tot / 1024).toFixed(0) + "K (" + (opts.kb - 16) + "K room)");
+  let cutB = 0, cutL = 0;
+  // over the size: minor roads first (all tiles, a share each round), then small buildings
+  let round = 0;
+  while (tot > budget * 0.985 && round < 400) {
+    round++;
+    for (const k of tiles) {
+      const T = W.t.get(k), c = cuts.get(k);
+      const minorLeft = T.l.filter((x) => x.type === 2).length - c.l;
+      if (round <= 20 && minorLeft > 0) { const n = Math.max(1, Math.ceil(minorLeft * 0.1)); c.l += n; cutL += n; }
+      else if (round > 20) { const small = T.b.filter((x) => x.cls === 2).length - c.b; if (small > 0) { const n = Math.max(1, Math.ceil(T.b.length * 0.02)); c.b += Math.min(n, small); cutB += Math.min(n, small); } }
+      encs.set(k, enc(T, c));
+    }
+    tot = total();
+  }
+  if (cutB || cutL) await log("to fit: " + cutL + " minor road pieces and " + cutB + " small buildings left out");
+
+  // the blocks: tiles packed in order (first fit)
+  const blocks = [];
+  const dir = new Uint8Array(nx * nz * 3);
+  for (const k of tiles) {
+    const e = encs.get(k);
+    let bi = blocks.findIndex((b) => b.used + e.length <= BLK);
+    if (bi < 0) { blocks.push({ used: 0, data: new Uint8Array(BLK) }); bi = blocks.length - 1; }
+    const b = blocks[bi]; b.data.set(e, b.used);
+    dir[k * 3] = bi + 1; dir[k * 3 + 1] = b.used & 255; dir[k * 3 + 2] = b.used >> 8;
+    b.used += e.length;
+  }
+  if (blocks.length > 254) throw new Error(blocks.length + " blocks: more than 254");
+  // block 0
+  const h0 = new Uint8Array(BLK), dv = new DataView(h0.buffer);
+  h0.set([83, 51, 68, 49], 0);
+  dv.setUint16(4, nx, true); dv.setUint16(6, nz, true); dv.setUint16(8, blocks.length, true);
+  dv.setInt16(10, (W.x0 - cx) * U, true); dv.setInt16(12, (W.z0 - cz) * U, true); dv.setUint16(14, TILE * U, true);
+  const start = SKY ? [SKY[0] - 300, SKY[1] - 1400] : [cx, cz];   // south of the Sky Tower, looking north
+  dv.setInt16(16, Math.round((start[0] - cx) * U), true); dv.setInt16(18, Math.round((start[1] - cz) * U), true); h0[20] = 0;
+  const lm = [...lmTiles].filter((k) => encs.has(k)).sort((a, b) => a - b);
+  const dirOff = 64, lmOff = dirOff + dir.length;
+  dv.setUint16(22, lm.length, true); dv.setUint16(24, lmOff, true); dv.setUint16(26, dirOff, true);
+  const nm = (opts.name || "S3D").toUpperCase().slice(0, 16); for (let i = 0; i < nm.length; i++) h0[32 + i] = nm.charCodeAt(i);
+  h0.set(dir, dirOff);
+  for (let i = 0; i < lm.length; i++) dv.setUint16(lmOff + i * 2, lm[i], true);
+  if (lmOff + lm.length * 2 > BLK) throw new Error("block 0 too full");
+  const out = new Uint8Array(BLK * (blocks.length + 1));
+  out.set(h0, 0); blocks.forEach((b, i) => out.set(b.data, BLK * (i + 1)));
+  let used = 0; for (const b of blocks) used += b.used;
+  let cB = 0, cL = 0, c3 = 0, cT = 0; for (const k of tiles) { const T = W.t.get(k), c = cuts.get(k); cB += T.b.length - c.b; cL += T.l.length - c.l; c3 += T.d3.length; cT += T.tr.length; }
+  await log("done: " + (out.length / 1024) + "K - block 0 and " + blocks.length + " data blocks (" + (100 * used / (blocks.length * BLK)).toFixed(1) + "% full), " + tiles.length + " tiles with something, " + lm.length + " with landmarks\n" +
+    "  " + cB + " buildings, " + cL + " ground lines, " + c3 + " 3D lines, " + cT + " trees");
+  return out;
+}
+
+async function gunzipAll(bufs) {
+  const all = new Blob(bufs);
+  const ds = new DecompressionStream("gzip");
+  return await new Response(all.stream().pipeThrough(ds)).text();
+}
+
+if (typeof document !== "undefined") {
+  const $ = (id) => document.getElementById(id);
+  const logEl = $("log");
+  const log = (s) => { logEl.textContent += "\n" + s; return new Promise((r) => setTimeout(r)); };
+  $("file").addEventListener("change", () => {
+    const fs = [...$("file").files].sort((a, b) => a.name.localeCompare(b.name));
+    $("go").disabled = !fs.length;
+    logEl.textContent = fs.length ? "Ready: " + fs.map((f) => f.name).join(", ") : "Pick the file.";
+  });
+  $("go").addEventListener("click", async () => {
+    const fs = [...$("file").files].sort((a, b) => a.name.localeCompare(b.name));
+    if (!fs.length) return;
+    $("go").disabled = true; $("dls").innerHTML = "";
+    logEl.textContent = "Reading " + fs.length + " file(s) ...";
+    try {
+      const text = await gunzipAll(fs);
+      const name = ($("name").value || "S3D").toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 8) || "S3D";
+      const out = await make(text, { name, kb: +$("kb").value || 3968 }, log);
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(new Blob([out], { type: "application/octet-stream" }));
+      a.download = name + ".DAT"; a.textContent = "Download " + name + ".DAT (" + (out.length / 1024) + "K)";
+      $("dls").appendChild(a);
+    } catch (err) { await log("ERROR: " + err.message); console.error(err); }
+    $("go").disabled = false;
+  });
+} else if (typeof module !== "undefined") {
+  module.exports = { make, parseCut };
+}
+</script>
+</body>
+</html>

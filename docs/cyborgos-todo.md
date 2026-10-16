@@ -41,6 +41,42 @@ version.
 - 2026-10-16 FLOPPY's syntax: FLOPPY A, FLOPPY A folder, FLOPPY A NAME.DSK (INSTALL gone); FLOPPY
   folder A / NAME.DSK A (onto a floppy) say "not yet"
 
+- 2026-10-16 COPY name FOLDER made a file of the folder - and the folder's contents were lost:
+  COPY's make (the Library deletes first, BDOS 19) went to |ERA with Y waiting (put there for
+  RMDIR), and UniDOS's |ERA takes a folder with all it holds. Now: a CP/M delete answers N (a
+  folder is never deleted by one), only RMDIR asks for Y (BDOS 30 op 8, just before its delete of
+  the empty folder); COPY into a folder (its name or name/: CybDir.Into, a free letter C-P with
+  the folder's path for the copy). Test: COPY into a folder, a folder never deleted by ERA
+- 2026-10-16 INSTALL.BAS: Line too long - its CR LF line ends had become LF (an edit); back to
+  CR LF, its lines kept to 120 characters (comments split, 4 names a DATA line); gendsk checks
+- 2026-10-16 The console's VT52, the rest of it (VDE couldn't rub out or clear: it sends these):
+  ESC A B C D (cursor up, down, right, left), K (clear to the end of the row), J (to the end of
+  the page), L (insert a row), M (delete a row), and Amstrad's l (clear the row), o (the row up to
+  the cursor), d (the page up to it). The page changes first, then the rows drawn again from it
+  (test: console VT52, cpm/vt52t.asm). ESC e f j k p q ...: ignored
+- 2026-10-16 Open: BBC BASIC's FILETEST stops at line 80 on UniDOS / AMSDOS drives (passes on a RAM
+  disc). The disc files go through the cassette calls: one file read and one written at a time,
+  writing only forward - BDOS 35 on a file being written fails, OPENUP / PTR# writes / update in
+  place can't be done. Choice pending: files copied into expansion RAM while open (written back
+  at close), or the stream kept (RAM discs for random access), or UniDOS's seek calls
+- 2026-10-16 YING and YANG (apps/ying, apps/yang): web browsers from MON and MON2 - the same
+  browser (Web.cls: addresses, fetching; Bml.cls: the layout) on MON's window and MON2's whole
+  screen. http only; the request gets an empty 8bml parameter (not shown). The fetch is a stub (a
+  made-up page) until there is a network driver (M4, Net4CPC ...). Files as pages (A:NAME.8BM):
+  local pages, AmigaGuide-like. Disc 4 (cos-disk4) carries them: discs 1-3 are full
+- 2026-10-16 BBC BASIC couldn't open a file for output (VDE couldn't save either, probably the
+  same): BBC BASIC makes the file (BDOS 22) at its FCB, then copies the FCB into the channel's own
+  and reads / writes / closes through the copy (CMOS.Z80: OPEN3). The hypervisor knew a file by
+  the FCB's address, so every call through the copy got 255 ("Disk full"). Now the first call
+  through another FCB after an open / make takes that one as the file's from then on - unless it is
+  the slot's other open file's FCB (the Library's FileSystem reads the record it writes through
+  the written file's FCB). The check (fl_is) is in main RAM: the page code had no room (test: BBC
+  BASIC's files, cpm/bbct.asm, run twice). BDOS 24 (login vector) gives a bit for the drive (C: 4), not its
+  number
+- 2026-10-16 The cursor: an underline XORed into the cell where the next character goes, flashing
+  (on / off each 0.5 s, Main's loop: Hyp.Con mode -3); off at every Con call before it prints, so
+  it never smears; Scr (a cleared screen) forgets it
+
 - 2026-10-16 A plain .COM on a RAM disc runs by its name (BBC BASIC put on E: with FLOPPY ...
   INSTALL E: didn't, from IDE:BEEB it did): the RAM disc driver answers the hypervisor's own
   open (FileCall 100) itself, so the UniDOS .CYB -> .COM fallback never reached it. The driver

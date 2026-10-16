@@ -55,7 +55,7 @@ def load_xroms():
 # NTC_PROF=file: the PC at the end of each 13333 T chunk, with the symbols, written there (a profile)
 PROF = [] if os.environ.get('NTC_PROF') else None
 RSX = ['TAPE', 'DISC', 'A', 'B', 'C', 'M', 'ERA', 'REN']   # AMSDOS's commands, and an M4-like DOS's C and M
-# NTC_UNIDOS=IDE,SD: UniDOS stands in (cpcfw) - its Ctrl J BIOS command (devices, examine) and
+# NTC_UNIDOS=IDE,SD: UniDOS stands in (cpcfw) - its Ctrl J BIOS command (devices, examine, read) and
 # paths "IDE:GAMES/NAME.EXT" in the CAS calls: each device a folder in FILES (FILES/IDE/GAMES), as
 # A and B are (logical drives). NTC_UNIDOS_NOEX=A: drives Ctrl J can't examine (AMSDOS's floppies)
 UNIDOS = [x for x in os.environ.get('NTC_UNIDOS', '').split(',') if x]
@@ -596,9 +596,11 @@ class Host:
                 # reading goes on after it, to the end of the last 128 byte record (real AMSDOS,
                 # checked with realcpc); the last record padded with ^Z (as AMSDOS and cpmcp -t do)
                 s.cas_in = None; s.cas_ascii = True; s.cas_chars = d + b'\x1a' * (-len(d) % 128); m.bc = 0; m.de = 0; m.a = 0x16
+                s.cas_raw = d
                 hd = bytearray(69); hd[18] = 0x16; hd[64:67] = b'\x00\x00\x80'      # (UniDOS's made-up header: 24 bit length #800000)
             else:
                 s.cas_ascii = False; s.cas_in = d[128:128 + h[1]]; s.cas_chars = s.cas_in; m.bc = h[1]; m.de = h[0]; m.a = 2
+                s.cas_raw = s.cas_in
                 hd = bytearray(d[:69]); hd[19] = hd[20] = 0                  # (its header, as UniDOS keeps it: BufferLeft 0)
             for i, x in enumerate(hd): mem[0xA700 + i] = x
             m.hl = 0xA700; return True
@@ -671,6 +673,14 @@ class Host:
             ds = ('Emulated ' + n).encode(); info += ds[:-1] + bytes([ds[-1] | 0x80])
             for i, x in enumerate(info): mem[o + i] = x
             zf(True); return
+        if c == 5:
+            # cmd_cas_in_read: DE bytes of the file being read (its real length: no ^Z padding)
+            # to HL; DE = how many, Z
+            d = getattr(s, 'cas_raw', None); p = getattr(s, 'cas_pos', 0)
+            if d is None: m.a = 0x0F; zf(False); return
+            n = max(0, min(m.de, len(d) - p))
+            for i in range(n): mem[(m.hl + i) & 0xFFFF] = d[p + i]
+            s.cas_pos = p + n; m.de = n; zf(True); return
         if c == 12:
             n = bytes(mem[m.hl:m.hl + m.b]).decode('latin-1').upper()
             p, d = s.upath(n)
@@ -803,6 +813,9 @@ def main():
     if os.environ.get('NTC_PEEK'):
         for a in os.environ['NTC_PEEK'].split(','): print('--- peek %s: %s' % (a, ' '.join('%02x' % h.m.memory[int(a, 16) + i] for i in range(8))))
     print(h.scr.text())
+    if os.environ.get('NTC_SHOT') and getattr(h, 'ram', None) is not None:
+        # NTC_SHOT=file: main RAM's #4000 and #C000 (the two screens) and the CRTC's R12 at the end
+        open(os.environ['NTC_SHOT'], 'wb').write(bytes([getattr(h.scr, 'crtc', [0] * 16)[12] & 255]) + h.ram.main_page(1) + h.ram.main_page(3))
     if plat == 'cpm' and os.environ.get('NTC_GFXCHK'):
         scr = h.ram.main_page(1) if CPMVER >= 0x30 else bytes(h.m.memory[0xC000:0xF000])
         print('--- screen bytes set: %d' % sum(1 for x in scr if x))

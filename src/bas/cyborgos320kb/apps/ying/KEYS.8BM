@@ -1,0 +1,19 @@
+-"1","Keys":
+p"Keys":n:
+r"Tab, right       the next link":
+r"left             the link before":
+r"up, down         the line (the page scrolls)":
+r"Shift + up/down  a page":
+r"Ctrl + up/down   the top, the end":
+r"Enter, Copy      the link":
+r"B, DEL           back":
+r"R                again (fetched afresh)":
+r"H                home":
+r"G                an address typed (Enter goes, ESC not)":
+r"Q, ESC           quit":
+r"1-5              the toolbar":
+n:
+t"The mouse: left button on a link, the toolbar or the scroll bar.":n:
+l"HOME.8BM","Home":n:
+<:
+.

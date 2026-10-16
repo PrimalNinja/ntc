@@ -15,6 +15,7 @@ Private m As Integer                    ' how many
 Private ub(71) As Byte                  ' BDOS 30's block: CyborgOS's UniDOS call
 Private f(35) As Byte, dm(127) As Byte  ' (a RAM disc) the search's FCB, its DMA
 Private hsp As Integer
+Private flt As Integer                  ' Into's drive letter (its path the folder), 0 none
 
 ' LoadAll(vol): vol's files read in (folders left out) - True when its directory could be read
 ' (UniDOS's listing, or a RAM disc's), False when there is none to read (AMSDOS's drives)
@@ -147,6 +148,63 @@ Public Function Fits(ByVal t As String, ByVal p As String) As Integer
   Loop
   Fits = (j > Len(p))
 End Function
+
+' Into(v, name): when name (or name/) is a folder in drive v's folder (UniDOS), a free drive
+' letter (C-P, no path, not a RAM disc) given its path, for a copy into it: "L:" - "" when it
+' isn't a folder, "!" a folder but no letter free. Release gives the letter its own place back
+Public Function Into(ByVal v As String, ByVal nm As String) As String
+  Dim p As String Max 40, c As Integer
+  Into = ""
+  If Right$(nm, 1) = "/" Then nm = Left$(nm, Len(nm) - 1)
+  If nm = "" Or InStr(nm, "*") > 0 Or InStr(nm, "?") > 0 Or InStr(nm, "/") > 0 Then Exit Function
+  p = PathOf(Asc(v))
+  If p = "" Then p = Left$(v, 1) + ":"
+  p = p + nm + "/"
+  If Len(p) > 31 Then Exit Function
+  ub(0) = &HC5 : ub(1) = 0 : ub(2) = 0 : ub(3) = 0     ' a folder: its listing (0 an entry, 1 empty)
+  SetS 28, p
+  c = Call30(VarPtr(ub))
+  If c <> 0 And c <> 1 Then Exit Function
+  For c = 67 To 80
+    If PathOf(c) = "" And IsRam(c) = 0 Then
+      ub(0) = &HC2 : ub(1) = c
+      SetS 2, p
+      If Call30(VarPtr(ub)) = 0 Then Into = Chr$(c) + ":" : flt = c
+      Exit Function
+    End If
+  Next
+  Into = "!"                                     ' a folder, but no letter free
+End Function
+
+Public Sub Release()
+  Dim r As Integer
+  If flt = 0 Then Exit Sub
+  ub(0) = &HC2 : ub(1) = flt : ub(2) = 0
+  r = Call30(VarPtr(ub))
+  flt = 0
+End Sub
+
+' drive letter lt's path (UniDOS: CD's), "" none
+Private Function PathOf(ByVal lt As Integer) As String
+  Dim c As Integer, t As String Max 40
+  PathOf = ""
+  ub(0) = &HC1 : ub(1) = lt
+  If Call30(VarPtr(ub)) <> 0 Then Exit Function
+  t = ""
+  For c = 1 To ub(2)
+    t = t + Chr$(ub(c + 2))
+  Next
+  PathOf = t
+End Function
+
+' s into the block from byte i: its length, then its characters
+Private Sub SetS(ByVal i As Integer, ByVal s As String)
+  Dim c As Integer
+  ub(i) = Len(s)
+  For c = 1 To Len(s)
+    ub(i + c) = Asc(Mid$(s, c, 1))
+  Next
+End Sub
 
 ' True when the drive letter lt is a RAM disc (RAMDISC's list: "F: ...")
 Private Function IsRam(ByVal lt As Integer) As Integer

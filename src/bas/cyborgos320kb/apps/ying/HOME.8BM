@@ -1,0 +1,13 @@
+-"1","YING and YANG":
+p"YING and YANG":n:
+t"Web browsers for CyborgOS 320K. This is a local page, HOME.8BM - a file, like AmigaGuide's: its links go to other files on this drive, or to the web.":n:
+t"G (or the Go to tool) types an address: http://host/path?parameters, or a file - A:NAME.8BM, NAME.8BM.":n:
+n:
+s"Local pages":n:
+l"KEYS.8BM","The keys":n:
+n:
+s"The web (a made-up test page for now)":n:
+l"http://example.com/","http://example.com/":n:
+l"http://example.com/find?q=cpc","http://example.com/find?q=cpc (parameters)":n:
+l"https://example.com/","https://example.com/ (not supported: http only)":n:
+.

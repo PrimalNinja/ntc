@@ -34,6 +34,7 @@ Private hps As Integer             ' the hypervisor's page's RAM setting (UsePag
 Private drs As Integer             ' the RAM discs' driver's page's RAM setting (UseDriver; 0: none)
 Private hdr As Integer             ' the drive the hypervisor's own reading (FileCall 100-104) is on (Drive)
 Private dxb As Integer             ' the driver's copies go through it (128 bytes of main RAM: UseDriver)
+Private ccu As Integer                  ' Con: the cursor is on the screen (Scr: cleared, off)
 Private scc As Integer, sco As Integer   ' the screen (Scr): its columns, its start (bytes, in each 2K line
 Private scw As Integer             ' block: the hardware scroll); scw: CRTC R1 (words a row)
 Private pon As Integer, pox As Integer, poy As Integer   ' the pointer (Svc 11): drawn, at its column, row
@@ -266,7 +267,9 @@ End Sub
 ' state, escape row; #F687 its columns and rows - MODE; #F68A the status strip's text), so
 ' nothing about it passes through BASIC. Handles CR, LF, BS, TAB and the VT52 codes ESC E
 ' (clear), ESC H (home), ESC I (reverse line feed: on the top row the screen scrolls back), ESC Y
-' row col (move); the page (#F700, 2K at most) is a ring of its rows
+' row col (move), ESC A B C D (up, down, right, left), ESC K J (clear to the end of the row, of
+' the page), ESC L M (insert, delete a row) and Amstrad's ESC l o d (clear the row, to the cursor
+' in the row, in the page); the page (#F700, 2K at most) is a ring of its rows
 ' (a scroll moves its top row and clears one row); on the screen a scroll moves the screen's
 ' start a row on (the CRTC's R12 / R13: the hardware scroll, in Scr's mode - not the firmware's,
 ' which knows only 80 x 25) and clears the new last row. The window's page is put back at the end.
@@ -295,6 +298,10 @@ CN_SB:      equ 0
             ld (cn_c), a
             ld a, (#7688)
             ld (cn_r), a
+            ld a, ({ccu})           ; the cursor off first, whatever comes (it was on: cn_was)
+            ld (cn_was), a
+            or a
+            call nz, cn_cuxor
             ld hl, ({n})
             bit 7, h
             jp nz, cn_neg
@@ -343,6 +350,27 @@ cn_done:
 ; n < 0: -1 the whole page to the screen (it was cleared: Show), not looking back any more; -2
 ; the scrollback (src: the key - #F4 Shift + Up a screen back, #F5 Shift + Down one on), drawn
 cn_neg:
+            ld a, l
+            cp #FD                  ; -3: the cursor flashes - on (it was off), an underline XORed
+            jr nz, cn_neg1          ; where the next character goes; off (it was on: done above)
+            ld a, (cn_front)
+            or a
+            jr z, cn_done
+            ld a, (cn_was)
+            or a
+            jr nz, cn_done
+            ld a, (#7682)
+            ld d, a
+            ld a, (#7683)
+            ld e, a
+            call cn_scr
+            ld a, h
+            add a, #38              ; (its cell's last pixel line)
+            ld h, a
+            ld (cn_ca), hl
+            call cn_cuxor
+            jr cn_done
+cn_neg1:
             IF CN_SB
             inc hl
             ld a, h
@@ -636,9 +664,58 @@ cn_esc:
             cp 'I'
             jp z, cn_rev
             cp 'Y'
-            ret nz
+            jr z, cn_sety
+            cp 'A'
+            jr z, cn_up
+            cp 'B'
+            jr z, cn_down
+            cp 'C'
+            jr z, cn_right
+            cp 'D'
+            jr z, cn_lft
+            cp 'K'
+            jp z, cn_eol
+            cp 'J'
+            jp z, cn_eos
+            cp 'l'
+            jp z, cn_eln
+            cp 'o'
+            jp z, cn_sol
+            cp 'd'
+            jp z, cn_sos
+            cp 'M'
+            jp z, cn_dell
+            cp 'L'
+            jp z, cn_insl
+            ret                     ; (the rest - e f j k p q ...: nothing)
+cn_sety:
             ld a, 2
             ld (#7685), a
+            ret
+cn_up:                              ; ESC A, B, C, D: up, down, right, left (not past the edge)
+            ld hl, #7683
+            jr cn_dec
+cn_lft:
+            ld hl, #7682
+cn_dec:
+            ld a, (hl)
+            or a
+            ret z
+            dec (hl)
+            ret
+cn_down:
+            ld de, #7683
+            ld hl, cn_r
+            jr cn_inc
+cn_right:
+            ld de, #7682
+            ld hl, cn_c
+cn_inc:
+            ld a, (de)
+            inc a
+            cp (hl)
+            ret nc
+            ld (de), a
             ret
 cn_home:
             xor a
@@ -833,6 +910,190 @@ cn_rv_cl:
             call cn_crtc
             ld e, 0
             jp cn_sc_clr
+
+; ESC K the row from the cursor on cleared, J the rest of the page too, l the whole row, o the
+; row up to the cursor, d the page up to it; M the cursor's row deleted (those below up a row, a
+; blank one at the end), L a blank one put in (those below down, the last gone) - the column 0.
+; The page changed first, then its rows drawn again on the screen when in front
+cn_eol:
+            ld a, (cn_c)
+            ld hl, #7682
+            sub (hl)
+            ld b, a
+            ld d, (hl)
+            ld a, (#7683)
+            ld e, a
+            jp cn_wipen
+cn_eos:
+            call cn_eol
+            ld a, (#7683)
+cn_eos_lp:
+            inc a
+            ld hl, cn_r
+            cp (hl)
+            ret nc
+            push af
+            ld e, a
+            call cn_wrow
+            pop af
+            jr cn_eos_lp
+cn_eln:
+            ld a, (#7683)
+            ld e, a
+            jp cn_wrow
+cn_sol:
+            ld a, (#7682)
+            inc a
+            ld b, a
+            ld d, 0
+            ld a, (#7683)
+            ld e, a
+            jp cn_wipen
+cn_sos:
+            call cn_sol
+            ld a, (#7683)
+cn_sos_lp:
+            or a
+            ret z
+            dec a
+            push af
+            ld e, a
+            call cn_wrow
+            pop af
+            jr cn_sos_lp
+cn_dell:
+            xor a
+            ld (#7682), a
+            ld a, (#7683)
+            ld b, a                 ; B: the row filled from the one below
+cn_dl_lp:
+            ld a, (cn_r)
+            dec a
+            cp b
+            jr z, cn_dl_end
+            ld c, b
+            inc c
+            ld a, b
+            push bc
+            call cn_cpr
+            pop bc
+            inc b
+            jr cn_dl_lp
+cn_dl_end:
+            ld e, b
+            call cn_wrow            ; the last row blank
+            ld a, (cn_r)
+            dec a
+            ld c, a
+            ld a, (#7683)
+            jr cn_redr
+cn_insl:
+            xor a
+            ld (#7682), a
+            ld a, (cn_r)
+            dec a
+            ld b, a                 ; B: the row filled from the one above
+cn_il_lp:
+            ld a, (#7683)
+            cp b
+            jr z, cn_il_end
+            ld c, b
+            dec c
+            ld a, b
+            push bc
+            call cn_cpr
+            pop bc
+            dec b
+            jr cn_il_lp
+cn_il_end:
+            ld e, b
+            call cn_wrow            ; the cursor's row blank
+            ld a, (cn_r)
+            ld c, a
+            ld a, (#7683)
+            inc a
+; cn_redr: rows A to C - 1 drawn again from the page
+cn_redr:
+            cp c
+            ret nc
+            push af
+            push bc
+            ld e, a
+            ld d, 0
+            ld a, (cn_c)
+            ld b, a
+            call cn_drwn
+            pop bc
+            pop af
+            inc a
+            jr cn_redr
+; cn_cpr: the page's row C copied to its row A
+cn_cpr:
+            push af
+            ld a, c
+            call cn_rowa
+            pop af
+            push hl
+            call cn_rowa
+            ex de, hl
+            pop hl
+            ld a, (cn_c)
+            ld c, a
+            ld b, 0
+            ldir
+            ret
+; cn_wrow: row E blank; cn_wipen: B characters of row E from column D blank (B > 0) - in the page,
+; then drawn (cn_drwn: B characters of row E from column D, from the page, when in front)
+cn_wrow:
+            ld d, 0
+            ld a, (cn_c)
+            ld b, a
+cn_wipen:
+            push de
+            push bc
+            ld a, e
+            call cn_rowa
+            pop bc
+            pop de
+            push bc
+            ld a, l
+            add a, d
+            ld l, a
+            jr nc, cn_wn_lp
+            inc h
+cn_wn_lp:
+            ld (hl), ' '
+            inc hl
+            djnz cn_wn_lp
+            pop bc
+cn_drwn:
+            ld a, (cn_front)
+            or a
+            ret z
+            push de
+            push bc
+            ld a, e
+            call cn_rowa
+            pop bc
+            pop de
+            ld a, l
+            add a, d
+            ld l, a
+            jr nc, cn_dw_lp
+            inc h
+cn_dw_lp:
+            ld a, (hl)
+            inc hl
+            push hl
+            push de
+            push bc
+            call cn_glyph
+            pop bc
+            pop de
+            pop hl
+            inc d
+            djnz cn_dw_lp
+            ret
 
 ; ESC E: the page cleared, column, row and ring back to 0; the screen too if in front (written,
 ; not copied: the Library: ROM build may have the keyword ROM over it for reads)
@@ -1046,6 +1307,17 @@ cn_scr:
             or #C0
             ld h, a
             ret
+cn_cuxor:                           ; the cursor's underline XORed at cn_ca, on <-> off
+            ld hl, (cn_ca)
+            ld a, (hl)
+            cpl
+            ld (hl), a
+            ld a, ({ccu})
+            xor 1
+            ld ({ccu}), a
+            ret
+cn_was:     db 0
+cn_ca:      dw 0
 cn_front:   db 0
 cn_c:       db 80                   ; the slot's columns, rows
 cn_r:       db 25
@@ -1167,6 +1439,8 @@ Public Function Scr(ByVal m As Integer, ByVal k As Integer) As Integer
 #asm
             ld ({hsp}), sp          ; (the real stack: SP is the thread)
             ld sp, (ntc_csp)
+            xor a
+            ld ({ccu}), a           ; (the screen cleared: no cursor on it)
             ld a, ({m})
             cp 6
             jr c, sm_ok
@@ -2231,6 +2505,63 @@ fl_res:     db 0
 fl_r16:     db 0                    ; 1: the result is fl_res16
 fl_res16:   dw 0
 fl_slot:    db 0
+; (main RAM: the page code calls them - no room left in the page)
+fl_isin:                            ; Z: the file being read is this slot's, this FCB
+            ld a, ({fin})
+            ld hl, fl_infcb
+            jr fl_is
+fl_isout:
+            ld a, ({fout})
+            ld hl, fl_outfcb
+fl_is:                              ; (its FCB: the one it was opened with - or, the first
+            ld b, a                 ; call after with another, that one: a program's own copy
+            ld a, (fl_slot)         ; of it, BBC BASIC's channels)
+            cp b
+            ret nz
+            ld e, (hl)
+            inc hl
+            ld d, (hl)
+            inc hl
+            push hl
+            call fl_cmpf
+            pop de
+            ret z
+            ld a, (de)              ; (the open's FCB still: this one from now on - unless it
+            xor 1                   ; is the other file's: a program reading the record it
+            ret nz                  ; writes, through that file's FCB)
+            push de
+            ld a, ({fin})
+            ld de, (fl_infcb)
+            call fl_oth
+            jr z, fl_is_no
+            ld a, ({fout})
+            ld de, (fl_outfcb)
+            call fl_oth
+fl_is_no:
+            pop de
+            jr nz, fl_is_re
+            inc a                   ; (NZ: not this one)
+            ret
+fl_is_re:
+            xor a
+            ld (de), a
+            ld hl, ({fcb})
+            ex de, hl
+            dec hl
+            ld (hl), d
+            dec hl
+            ld (hl), e
+            ret
+fl_oth:                             ; Z: the slot's file (A: fin / fout), its FCB DE the call's
+            ld b, a
+            ld a, (fl_slot)
+            cp b
+            ret nz
+fl_cmpf:                            ; Z: the call's FCB is DE
+            ld hl, ({fcb})
+            or a
+            sbc hl, de
+            ret
 ; @window
 ; ---- the page code: in the hypervisor's page (window data), called with it in the window
 fp_start:
@@ -2425,6 +2756,8 @@ fl_op_new:                          ; replaces it (Exists opens and leaves it)
             ld ({fin}), a
             ld hl, ({fcb})
             ld (fl_infcb), hl
+            ld a, 1
+            ld (fl_infcb + 2), a
             ld hl, 0
             ld (fl_inrec), hl
             jp fl_ok
@@ -2446,6 +2779,8 @@ fl_make:
             ld ({fout}), a
             ld hl, ({fcb})
             ld (fl_outfcb), hl
+            ld a, 1
+            ld (fl_outfcb + 2), a
             ld hl, 0
             ld (fl_outrec), hl
             jp fl_ok
@@ -2473,10 +2808,17 @@ fl_del:
             ld (fl_desc + 1), hl
             ld a, (fl_name_s)
             ld (fl_desc), a
-            ld a, 'Y'               ; (UniDOS asks before it deletes a folder, a read-only or a
-            call #BB0C              ; hidden file - KM WAIT CHAR, its text unseen: the VDU is off.
-            ld hl, fl_era           ; KM CHAR RETURN: a Y waiting for it; KM READ CHAR after
-            call #BCD4              ; takes it back when nothing asked) KL FIND COMMAND
+            ld hl, fl_yes           ; (UniDOS asks before it deletes a folder - all it holds too -,
+            ld a, (hl)              ; a read-only or a hidden file: KM WAIT CHAR, its text unseen,
+            ld (hl), 0              ; the VDU off. KM CHAR RETURN: the answer waiting for it - N,
+            or a                    ; so a CP/M program's delete never takes a folder; Y only after
+            ld a, 'N'               ; BDOS 30 op 8, RMDIR's, for its empty folder)
+            jr z, fl_del_n
+            ld a, 'Y'
+fl_del_n:
+            call #BB0C
+            ld hl, fl_era           ; KL FIND COMMAND; KM READ CHAR after
+            call #BCD4              ; takes the answer back when nothing asked
             di
             jp nc, fp_done
             ld ix, fl_par
@@ -2926,25 +3268,6 @@ fl_ranput:                          ; the FCB's r0-r2 = HL
             xor a
             jp fl_poke
 ; ---- the parts
-fl_isin:                            ; Z: the file being read is this slot's, this FCB
-            ld a, ({fin})
-            ld hl, fl_infcb
-            jr fl_is
-fl_isout:
-            ld a, ({fout})
-            ld hl, fl_outfcb
-fl_is:
-            ld b, a
-            ld a, (fl_slot)
-            cp b
-            ret nz
-            ld e, (hl)
-            inc hl
-            ld d, (hl)
-            ld hl, ({fcb})
-            or a
-            sbc hl, de
-            ret
 fl_inopen:                          ; open fl_name_s to read: carry = done
             call fl_plain
             ld hl, fl_name_s + 1
@@ -3077,9 +3400,11 @@ fl_n:       db 128                  ; bytes fl_rdrec reads
 fl_cnt:     dw 0
 fl_at:      dw 0
 fl_infcb:   dw 0
+            db 0                    ; (1: fl_infcb the open's - fl_is)
 fl_inrec:   dw 0
 fl_want:    dw 0
 fl_outfcb:  dw 0
+            db 0
 fl_outrec:  dw 0                    ; the next record written (36)
 fl_had:     db 0                    ; 35: this slot's read file closed for it
 fp_sp:      dw 0
@@ -3263,7 +3588,7 @@ fl_uc_in:
             djnz fl_uc_in
             ld a, (FL_UB)
             sub #C0
-            cp 8
+            cp 9
             jp nc, fp_done          ; (CP/M's 30)
             ld (FL_UB), a
             call fl_uni
@@ -3283,6 +3608,8 @@ fl_uc_in:
             jp z, fl_uc_dir
             dec a
             jr z, fl_uc_md
+            cp 2
+            jr z, fl_uc_yes
             ld a, ({fin})           ; 7: the header of the file this slot reads (the disc ROM's,
             ld hl, fl_slot          ; from CAS IN OPEN: 69 bytes) to Byte(2)
             cp (hl)
@@ -3295,6 +3622,11 @@ fl_uc_in:
             ld b, 71
             jp fl_uc_back
 fl_hdr:     dw 0
+fl_uc_yes:                          ; 8: the next delete (19) may take a folder (RMDIR's)
+            ld a, 1
+            ld (fl_yes), a
+            jp fl_ok
+fl_yes:     db 0
 fl_uc_md:                           ; 6: a folder made (CAS OUT OPEN, the path ending "/")
             ld a, ({fout})
             or a

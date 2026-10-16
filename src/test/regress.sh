@@ -508,6 +508,25 @@ for lib in ram rom; do
   if [ "$r" == ok ]; then echo "ok   CyborgOS CP/M calls ($lib)"; else echo "FAIL CyborgOS CP/M calls ($lib) $r"; echo "$o" | tail -14; fail=1; fi
 done
 rm -f t/files/A/CPMT.CYB t/files/A/README.TXT t/files/A/NOTES.TXT
+# BBC BASIC's files (cpm/bbct.asm): made at one FCB, written and closed through the program's copy
+# of it (its channel's), random write with zero fill (40); opened, read through a copy. Twice: the
+# second run's copies at the first's addresses (no old file's FCB in the way)
+${SJASMPLUS:-sjasmplus} --nologo --msg=err --raw=t/cy/BBCT.COM cpm/bbct.asm
+python3 -c "
+import ntcrun
+d = open('t/cy/BBCT.COM', 'rb').read(); open('t/files/A/BBCT.CYB', 'wb').write(ntcrun.amsdos_header(d, 0x100) + d)"
+o=$(NTC_UNIDOS=IDE timeout 600 python3 ntcrun.py t/cy/Main.bas "bbct\n${W}bbct\n${W}" t/cy/Hyp.cls t/cy/Hot.cls t/cy/Ent.cls --platform=cpcfw --ram=576 2>&1)
+if [ "$(echo "$o" | grep -cF "C=00/00 00/00 01/00 00/00 00/00 00/00 00/00 00/00")" == 2 ] && [ "$(echo "$o" | grep -c "^R=SECND")" == 2 ]; then echo "ok   CyborgOS BBC BASIC's files (a copied FCB)"; else echo "FAIL CyborgOS BBC BASIC's files (a copied FCB)"; echo "$o" | tail -6; fail=1; fi
+rm -f t/files/A/BBCT.CYB t/files/A/T.BBC
+# the console's VT52 (cpm/vt52t.asm - what editors such as VDE send): ESC K (to the end of the
+# row), M (a row deleted), L (one put in), A and C (up, right), J (to the end of the page)
+${SJASMPLUS:-sjasmplus} --nologo --msg=err --raw=t/cy/VT.COM cpm/vt52t.asm
+python3 -c "
+import ntcrun
+d = open('t/cy/VT.COM', 'rb').read(); open('t/files/A/VT.CYB', 'wb').write(ntcrun.amsdos_header(d, 0x100) + d)"
+o=$(NTC_LIMIT=30000 timeout 1500 python3 ntcrun.py t/cy/Main.bas "vt\n${W}" t/cy/Hyp.cls t/cy/Hot.cls t/cy/Ent.cls --platform=cpcfw --ram=576 2>&1)
+if echo "$o" | grep -A6 "^ \{80\}\[1\]$" | tr '\n' '|' | grep -qF "AA    X|CCCCCCCC|D|||vt52 done|"; then echo "ok   CyborgOS console VT52 (K J L M A C)"; else echo "FAIL CyborgOS console VT52"; echo "$o" | tail -12; fail=1; fi
+rm -f t/files/A/VT.CYB
 # 4MB: 20 slots; Control + 3 twice (Control held) is slot 13, Control + 0 once is slot 10
 o=$(timeout 300 python3 ntcrun.py t/cy/Main.bas "run 12 CRUNCH\n~~~~~~~~~~{23,57}{23}{23,57}~~~~~~~~~~ps\n~~~~~~~~~~" t/cy/Hyp.cls t/cy/Hot.cls t/cy/Ent.cls --platform=cpcfw --ram=4160 2>&1)
 if echo "$o" | grep -q "^13> ps" && echo "$o" | grep -q "^ 13 \* PS.CYB" && echo "$o" | grep -q "^ 12   CRUNCH.CYB"; then echo "ok   CyborgOS 20 slots, Control + a number twice"; else echo "FAIL CyborgOS 20 slots, Control + a number twice"; echo "$o" | tail -5; fail=1; fi
@@ -598,6 +617,25 @@ o2=$(NTC_MOUSE=1 NTC_LIMIT=30000 timeout 2500 python3 ntcrun.py t/cy/Main.bas "m
 o3=$(NTC_LIMIT=40000 timeout 2500 python3 ntcrun.py t/cy/Main.bas "run 2 list\n${W}mon test.map 2\n${W}${W}\n${W}${W}" t/cy/Hyp.cls t/cy/Hot.cls t/cy/Ent.cls --platform=cpcfw --ram=576 2>&1)
 if echo "$o" | grep -q "^+- Hex: main 0 #0000 " && echo "$o" | grep -q "^|0040  18 0C " && echo "$o2" | grep -q "^+- ROMs " && echo "$o2" | grep -q "BASIC (on board)" && echo "$o3" | grep -qE "^\|#8020 +40 +N4 "; then echo "ok   CyborgOS MON"; else echo "FAIL CyborgOS MON"; echo "$o" | head -8; echo "$o2" | head -8; echo "$o3" | tail -24; fail=1; fi
 rm -f t/files/A/MON.CYB t/files/A/SYSTEM.MAP t/files/A/TEST.MAP t/files/A/LIST.CYB
+# YING, YANG (apps/ying, apps/yang: the web browsers - Web.cls, MON's / MON2's screen): HOME.8BM
+# from the disc, Enter on its first link (KEYS.8BM: a file, its Home link from its drive); G and
+# an address (DEL rubs out the one there): the stub's page - asked for with &8bml= after the
+# parameters, the place (#) left out; https: not supported
+mkdir -p t/web; B=$P/cyborgos320kb/apps
+for g in YING YANG; do
+  node cli.js $B/$(echo $g | tr A-Z a-z)/$g.bas $B/ying/Web.cls $B/mon/Bml.cls $B/mon/Mouse.cls $P/cyborgos320kb/cmds/CybSys.cls --platform=cpm > t/web/$g.asm 2>/dev/null
+  (cd t/web && ${SJASMPLUS:-sjasmplus} --nologo --msg=err --raw=$g.COM $g.asm > /dev/null)
+  python3 -c "import ntcrun; d = open('t/web/$g.COM', 'rb').read(); open('t/files/A/$g.CYB', 'wb').write(ntcrun.amsdos_header(d, 0x100) + d)"
+done
+cp $B/ying/*.8BM t/files/A/
+DL=$(printf '\\x7f%.0s' $(seq 1 30))
+o=$(NTC_LIMIT=60000 timeout 2500 python3 ntcrun.py t/cy/Main.bas "ying\n${W}${W}\n${W}${W}" t/cy/Hyp.cls t/cy/Hot.cls t/cy/Ent.cls --platform=cpcfw --ram=576 2>&1)
+o2=$(NTC_LIMIT=60000 timeout 2500 python3 ntcrun.py t/cy/Main.bas "ying\n${W}${W}g${W}${DL}example.com/a/b.8bml?x=1#top\n${W}${W}" t/cy/Hyp.cls t/cy/Hot.cls t/cy/Ent.cls --platform=cpcfw --ram=576 2>&1)
+o3=$(NTC_LIMIT=60000 timeout 2500 python3 ntcrun.py t/cy/Main.bas "yang\n${W}${W}g${W}${DL}https://x.org/\n${W}${W}" t/cy/Hyp.cls t/cy/Hot.cls t/cy/Ent.cls --platform=cpcfw --ram=576 2>&1)
+o4=$(NTC_LIMIT=60000 timeout 2500 python3 ntcrun.py t/cy/Main.bas "yang\n${W}${W}\n${W}${W}" t/cy/Hyp.cls t/cy/Hot.cls t/cy/Ent.cls --platform=cpcfw --ram=576 2>&1)
+if echo "$o" | grep -q "^+- Keys -" && echo "$o" | grep -q "^| HOME.8BM " && echo "$o2" | grep -q "^|Asked for as: http://example.com/a/b.8bml?x=1&8bml= " && echo "$o2" | grep -q "^|Address: http://example.com/a/b.8bml?x=1#top " && echo "$o2" | grep -q "^| http://example.com/ " \
+  && echo "$o3" | grep -q "^https isn't supported - http only:" && echo "$o4" | grep -qE "^1:Back 2:Reload 3:Home 4:Go to 5:Quit \| HOME.8BM +1 / 21$"; then echo "ok   CyborgOS YING, YANG (web browsers)"; else echo "FAIL CyborgOS YING, YANG (web browsers)"; echo "$o" | tail -6; echo "$o2" | tail -24; echo "$o3" | tail -8; echo "$o4" | tail -4; fail=1; fi
+rm -f t/files/A/YING.CYB t/files/A/YANG.CYB t/files/A/*.8BM
 # RAM discs (RAMDISC: the driver into a page of its own, the hypervisor's file calls offered to
 # it first): J and L made, files copied there, DIR of one, RDT (cpm/rdt.asm: random reads and
 # writes in place, sizes, searches, delete) run from L (the slot's drive); then the list
@@ -653,6 +691,13 @@ if echo "$o" | grep -q "^drive C: --> IDE:$" && echo "$o" | grep -q "^IDE:WORK/ 
 # RMDIR: an empty folder only (UniDOS's |ERA takes a folder with all it holds)
 o=$(NTC_UNIDOS=IDE NTC_LIMIT=40000 timeout 2000 python3 ntcrun.py t/cy/Main.bas "ide:\n${W}mkdir old\n${W}rmdir games\n${W}rmdir old\n${W}" t/cy/Hyp.cls t/cy/Hot.cls t/cy/Ent.cls --platform=cpcfw --ram=576 2>&1)
 if echo "$o" | grep -q "^IDE:GAMES/ is not empty" && echo "$o" | grep -q "^IDE:OLD/ removed" && [ -d t/files/IDE/GAMES ] && [ ! -e t/files/IDE/OLD ]; then echo "ok   CyborgOS UniDOS: RMDIR"; else echo "FAIL CyborgOS UniDOS: RMDIR"; echo "$o" | tail -12; fail=1; fi
+# COPY into a folder (its name, or name/ - never written over: once COPY made a file of the folder,
+# its delete answered Y and UniDOS took the folder and all it held); a CP/M delete (ERA) of a
+# folder: the hypervisor answers N - only RMDIR's (BDOS 30 op 8) may take one
+mkdir -p t/files/IDE/KEEP; printf 'keep\r\n' > t/files/IDE/KEEP/K.TXT; printf 'one\r\n' > t/files/IDE/S.TXT; printf 'two\r\n' > t/files/IDE/T.TXT
+o=$(NTC_UNIDOS=IDE NTC_LIMIT=40000 timeout 2000 python3 ntcrun.py t/cy/Main.bas "ide:\n${W}copy s.txt keep\n${W}copy t.txt keep/\n${W}copy *.txt keep\n${W}era keep\n${W}" t/cy/Hyp.cls t/cy/Hot.cls t/cy/Ent.cls --platform=cpcfw --ram=576 2>&1)
+if [ -d t/files/IDE/KEEP ] && [ -f t/files/IDE/KEEP/K.TXT ] && [ "$(head -c 3 t/files/IDE/KEEP/S.TXT)" == "one" ] && [ -f t/files/IDE/KEEP/T.TXT ] && echo "$o" | grep -q "^2 of 2 files copied"; then echo "ok   CyborgOS COPY into a folder, a folder never deleted by ERA"; else echo "FAIL CyborgOS COPY into a folder"; echo "$o" | tail -16; ls -laR t/files/IDE | head -20; fail=1; fi
+rm -rf t/files/IDE/KEEP t/files/IDE/S.TXT t/files/IDE/T.TXT
 # FLOPPY (the harness's floppy controller, NTC_FDC: .DSK images in drives A and B): a data format
 # disc listed, its files (one over 16K, one with an AMSDOS header) copied into a folder it makes,
 # each the disc's records exactly; a system format disc (a user 3 file); no disc in the drive

@@ -65,11 +65,13 @@ for v in 320 128; do
   for g in TICKER CRUNCH LINES; do node cli.js $b/tasks/$g.bas --platform=cpm > $w/$g.ASM 2>/dev/null; done
   node cli.js $b/cmds/HELP.bas --platform=cpm > $w/HELP.ASM 2>/dev/null
   for g in $c; do node cli.js $b/cmds/$g.bas $(cyb_cls $b $g) --platform=cpm > $w/$g.ASM 2>/dev/null; done
-  ap=""; [ $v == 320 ] && ap="MON MON2" # the applications (apps/: MON, with its classes; MON2: MON on the whole screen, its classes)
+  ap=""; [ $v == 320 ] && ap="MON MON2 YING YANG" # the applications (apps/: MON, with its classes; MON2: MON on the whole screen; YING, YANG: the web browsers - MON's and MON2's screens, Web.cls)
   [ -n "$ap" ] && cp $b/apps/mon/SYSTEM.MAP $w/   # (MON's map: a text file)
   [ $v == 320 ] && cp $b/tools/INSTALL.BAS $w/     # (ASCII BASIC: this disc in B to IDE:)
   [ $v == 320 ] && cp $b/help/*.HLP $w/            # (HELP's text files: HELP name shows NAME.HLP)
   [ -n "$ap" ] && node cli.js $b/apps/mon/MON.bas $b/apps/mon/Bml.cls $b/apps/mon/Mouse.cls $b/cmds/CybSys.cls --platform=cpm > $w/MON.ASM 2>/dev/null
+  [ -n "$ap" ] && cp $b/apps/ying/*.8BM $w/      # (the browsers' local pages: HOME.8BM, KEYS.8BM)
+  for g in YING YANG; do [ -n "$ap" ] && node cli.js $b/apps/$(echo $g | tr A-Z a-z)/$g.bas $b/apps/ying/Web.cls $b/apps/mon/Bml.cls $b/apps/mon/Mouse.cls $b/cmds/CybSys.cls --platform=cpm > $w/$g.ASM 2>/dev/null; done
   [ -n "$ap" ] && node cli.js $b/apps/mon2/MON2.bas $b/apps/mon/Bml.cls $b/apps/mon/Mouse.cls $b/cmds/CybSys.cls --platform=cpm > $w/MON2.ASM 2>/dev/null
   for g in TICKER CRUNCH LINES $c HELP $ap; do
     (cd $w && $SJ --nologo --msg=err --raw=$g.COM $g.ASM > /dev/null) || { echo "gendsk: $v: $g did not assemble"; fail=1; }
@@ -124,21 +126,29 @@ open(os.path.join(w, 'FILES.DIR'), 'wb').write(e)
 "
   x="$w/CYBADD.BIN"; [ $v == 320 ] && x=""
   if [ $v == 320 ]; then
-    # three discs carry it to drive A's CYBORGOS folder (RUN"INSTALL from disc 1 in B): cos-disk1
+    # four discs carry it to drive A's CYBORGOS folder (RUN"INSTALL from disc 1 in B): cos-disk1
     # CyborgOS, COSLOAD, the programs, MON and the help texts (to CYBORGOS/HELP); cos-disk2 the
-    # commands Z has (to CYBORGOS/C - CYBORGOS.Z names them) and FLOPPY; cos-disk3 Z ready-made
-    # (CYBORGOS.Z1 ...). Each name as it goes in CYBORGOS (a folder first: C/, HELP/)
-    f1="CYBORGOS.BAS WINAPE.BAS COSLOAD.BIN CYBORGOS.BIN CYBORGOS.Z SYSTEM.MAP TICKER.CYB CRUNCH.CYB LINES.CYB CRUNCH.COM $(for g in $ap; do echo $g.CYB; done) $(cd $w && ls *.HLP | sed 's|^|HELP/|')"
+    # commands Z has (to CYBORGOS/C - CYBORGOS.Z names them), and FLOPPY; cos-disk3 Z ready-made
+    # (CYBORGOS.Z1 ...); cos-disk4 YING, YANG and their pages (HOME.8BM, KEYS.8BM). Each name as it goes in CYBORGOS (a folder first: C/, HELP/)
+    f1="CYBORGOS.BAS WINAPE.BAS COSLOAD.BIN CYBORGOS.BIN CYBORGOS.Z SYSTEM.MAP TICKER.CYB CRUNCH.CYB LINES.CYB CRUNCH.COM MON.CYB MON2.CYB $(cd $w && ls *.HLP | sed 's|^|HELP/|')"
     f2="$(for g in $zc; do echo C/$g; done) FLOPPY.CYB"
     f3="$(ls $w | grep -E '^CYBORGOS\.Z[0-9]+$' | sort -t Z -k2 -n)"
+    f4="YING.CYB YANG.CYB HOME.8BM KEYS.8BM"     # (the web browsers and their local pages: the other discs are full)
     # INSTALL.BAS, on cos-disk1 only: every disc's files as DATA from 1000 - how many, then "#n" and
     # disc n's files, "*" at the end
     grep -v '^1000 ' $b/tools/INSTALL.BAS > $w/INSTALL.BAS
-    printf '1000 DATA %d\r\n' $(echo $f1 $f2 $f3 | wc -w) >> $w/INSTALL.BAS
-    for n in 1 2 3; do eval echo '"#$n"' \$f$n; done | tr ' ' '\n' | paste -d, - - - - - - | sed 's/,*$//; s/[^,]*/"&"/g' | awk '{printf "%d DATA %s\r\n", 1000 + NR * 10, $0}' >> $w/INSTALL.BAS
+    printf '1000 DATA %d\r\n' $(echo $f1 $f2 $f3 $f4 | wc -w) >> $w/INSTALL.BAS
+    for n in 1 2 3 4; do eval echo '"#$n"' \$f$n; done | tr ' ' '\n' | paste -d, - - - - | sed 's/,*$//; s/[^,]*/"&"/g' | awk '{printf "%d DATA %s\r\n", 1000 + NR * 10, $0}' >> $w/INSTALL.BAS
     printf '5000 DATA "*"\r\n\x1a' >> $w/INSTALL.BAS
+    # (Locomotive BASIC loads an ASCII file line by line: each line CR LF - kept to 120 characters: longer ones gave Line too long)
+    python3 -c "
+import sys
+b = open('$w/INSTALL.BAS', 'rb').read().rstrip(b'\x1a')
+ls = b.split(b'\r\n')
+bad = [i for i, l in enumerate(ls[:-1]) if b'\n' in l or b'\r' in l or len(l) > 120]
+sys.exit(1 if bad or ls[-1] else 0)" || { echo "gendsk: INSTALL.BAS: a line not ending CR LF, or longer than 120"; fail=1; }
     f1="$f1 INSTALL.BAS"
-    for n in 1 2 3; do
+    for n in 1 2 3 4; do
       dn=../build/dsk/cos-disk$n.dsk; eval fl=\$f$n
       [ $n != 1 ] && { rm -f $dn; dskform -type dsk -format cpcdata $dn > /dev/null 2>&1; }
       for f in $fl; do f=$(basename $f); cpmcp -f cpcdata -T dsk $dn $w/$f 0:$f || { echo "gendsk: cos-disk$n: $f did not fit"; fail=1; }; done

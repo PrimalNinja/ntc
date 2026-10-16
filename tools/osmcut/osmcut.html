@@ -1,0 +1,381 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OSM Cut</title>
+<style>
+:root { --bg: #f6f6f3; --fg: #1d1d1b; --mut: #6a6a64; --line: #d4d4cc; --acc: #1f5fa8; --box: #ffffff; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --bg: #161615; --fg: #e8e8e2; --mut: #9a9a92; --line: #3a3a36; --acc: #7fb0ea; --box: #1f1f1d; } }
+:root[data-theme="dark"] { --bg: #161615; --fg: #e8e8e2; --mut: #9a9a92; --line: #3a3a36; --acc: #7fb0ea; --box: #1f1f1d; }
+body { background: var(--bg); color: var(--fg); font: 15px/1.45 system-ui, sans-serif; margin: 0; padding: 24px 16px; }
+main { max-width: 720px; margin: 0 auto; }
+h1 { font-size: 22px; margin: 0 0 4px; }
+p { margin: 6px 0 14px; color: var(--mut); }
+fieldset { border: 1px solid var(--line); background: var(--box); border-radius: 6px; margin: 0 0 14px; padding: 12px 14px; }
+legend { padding: 0 6px; font-weight: 600; }
+label { display: inline-block; margin: 4px 14px 4px 0; }
+input[type=number] { width: 120px; font: inherit; padding: 3px 5px; background: var(--bg); color: var(--fg); border: 1px solid var(--line); border-radius: 4px; }
+button { font: inherit; padding: 7px 16px; border-radius: 5px; border: 1px solid var(--acc); background: var(--acc); color: #fff; cursor: pointer; }
+button:disabled { opacity: .5; cursor: default; }
+#log { white-space: pre-wrap; font: 13px/1.4 ui-monospace, monospace; background: var(--box); border: 1px solid var(--line); border-radius: 6px; padding: 10px; min-height: 60px; overflow-x: auto; }
+#dls a { display: block; margin: 8px 0; color: var(--acc); font-weight: 600; }
+</style>
+</head>
+<body>
+<main>
+<h1>OSM Cut</h1>
+<p>Cuts an OpenStreetMap <code>.osm.pbf</code> down to what STATE3D needs: buildings (heights, levels, names), roads, railways, coastline, water, woods and parks, trees, peaks, towers and bridges, inside the box. Everything runs in this page; nothing is sent anywhere.</p>
+
+<fieldset>
+<legend>1. The .osm.pbf file</legend>
+<input type="file" id="file" accept=".pbf">
+</fieldset>
+
+<fieldset>
+<legend>2. The box (degrees)</legend>
+<label>South <input type="number" id="s" step="0.001" value="-36.930"></label>
+<label>North <input type="number" id="n" step="0.001" value="-36.700"></label><br>
+<label>West <input type="number" id="w" step="0.001" value="174.680"></label>
+<label>East <input type="number" id="e" step="0.001" value="174.930"></label><br>
+<label><input type="checkbox" id="all"> the whole file (no box)</label>
+<p style="margin:6px 0 0">Default: Auckland from the CBD and Ponsonby north to Albany, out to Rangitoto, Devonport and Birkdale.</p>
+</fieldset>
+
+<button id="go" disabled>Cut</button>
+<label style="margin-left:14px">Parts of at most <input type="number" id="part" value="4" min="1" step="1" style="width:60px"> MB</label>
+<div id="dls"></div>
+<div id="log">Pick the file.</div>
+</main>
+
+<script>
+"use strict";
+// ---- OSM Cut: a PBF reader (protobuf, zlib through DecompressionStream) and the cut.
+// Output (gzipped text, one record a line, tab separated):
+//   # comment lines
+//   O lat0 lon0                the projection's origin (degrees): x east, y north, metres
+//   X minx miny maxx maxy      the box in metres
+//   W id tags x,y dx,dy ...    a way (tags: k=v|k=v, only the kept keys): its first point, then
+//                              each one as a step from the one before
+//   R id tags x,y x,y ...      a multipolygon relation's member way: its tags plus role= and way=
+//   N id tags x,y              a node (trees, peaks, towers ...)
+
+const KEEP = new Set(["building", "building:part", "height", "min_height", "building:levels",
+  "building:min_level", "roof:shape", "roof:height", "name", "highway", "bridge", "tunnel", "layer",
+  "railway", "natural", "water", "waterway", "landuse", "leisure", "man_made", "tower:type", "ele",
+  "type", "place", "aeroway", "amenity", "historic", "tourism", "bridge:structure", "lanes"]);
+const WAY_KEYS = ["building", "building:part", "highway", "railway", "natural", "water", "waterway",
+  "landuse", "leisure", "man_made", "aeroway", "place"];
+const NODE_WANT = (t) => t.natural === "tree" || t.natural === "peak" || t.natural === "volcano" ||
+  t.man_made === "tower" || t.man_made === "lighthouse" || t.man_made === "mast" ||
+  (t.place && t.name) || t.natural === "cape" || t.tourism === "attraction";
+const LANDUSE = new Set(["forest", "reservoir", "grass", "recreation_ground", "cemetery", "farmland", "meadow", "orchard", "vineyard", "basin"]);
+const NATURAL_W = new Set(["coastline", "water", "wood", "scrub", "beach", "wetland", "heath", "grassland", "bare_rock", "sand", "cliff", "ridge", "volcano", "peak", "tree_row"]);
+const HIGHWAY = new Set(["motorway", "trunk", "primary", "secondary", "tertiary", "unclassified", "residential",
+  "motorway_link", "trunk_link", "primary_link", "secondary_link", "tertiary_link", "living_street", "service", "pedestrian", "road"]);
+
+function wantWay(t) {
+  if (t.building || t["building:part"]) return true;
+  if (t.highway && HIGHWAY.has(t.highway)) return true;
+  if (t.railway === "rail" || t.railway === "light_rail" || t.railway === "subway") return true;
+  if (t.natural && NATURAL_W.has(t.natural)) return true;
+  if (t.water || t.waterway) return true;
+  if (t.landuse && LANDUSE.has(t.landuse)) return true;
+  if (t.leisure === "park" || t.leisure === "golf_course" || t.leisure === "nature_reserve" || t.leisure === "pitch" || t.leisure === "marina") return true;
+  if (t.man_made === "bridge" || t.man_made === "pier" || t.man_made === "breakwater" || t.man_made === "tower" || t.man_made === "lighthouse") return true;
+  if (t.aeroway === "runway" || t.aeroway === "aerodrome") return true;
+  if (t.place === "island" || t.place === "islet") return true;
+  return false;
+}
+function wantRel(t) {
+  return (t.type === "multipolygon" || t.type === "building") && wantWay(t);
+}
+
+// ---- protobuf
+class PB {
+  constructor(buf, pos, end) { this.b = buf; this.p = pos || 0; this.e = end === undefined ? buf.length : end; }
+  more() { return this.p < this.e; }
+  vi() { // varint as a Number (exact to 2^53)
+    let r = 0, s = 1, c; const b = this.b;
+    do { c = b[this.p++]; r += (c & 0x7f) * s; s *= 128; } while (c & 0x80);
+    return r;
+  }
+  zz() { const v = this.vi(); return v % 2 ? -(v + 1) / 2 : v / 2; }
+  key() { const k = this.vi(); this.f = Math.floor(k / 8); this.w = k & 7; return this.f; }
+  len() { const n = this.vi(); const s = this.p; this.p += n; return [s, s + n]; }
+  sub() { const [s, e] = this.len(); return new PB(this.b, s, e); }
+  bytes() { const [s, e] = this.len(); return this.b.subarray(s, e); }
+  skip() {
+    if (this.w === 0) this.vi(); else if (this.w === 1) this.p += 8;
+    else if (this.w === 2) this.len(); else if (this.w === 5) this.p += 4;
+    else throw new Error("protobuf: wire type " + this.w);
+  }
+  packed(fn) { const [s, e] = this.len(); const save = this.e, out = []; const q = new PB(this.b, s, e); while (q.more()) out.push(fn(q)); return out; }
+}
+const pv = (q) => q.vi(), pz = (q) => q.zz();
+const dec = new TextDecoder();
+
+async function inflate(u8) {
+  const ds = new DecompressionStream("deflate");
+  const r = new Response(new Blob([u8]).stream().pipeThrough(ds));
+  return new Uint8Array(await r.arrayBuffer());
+}
+
+// the file's blocks: [{type, data (inflated)}] one at a time
+async function* blocks(buf) {
+  const dv = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
+  let p = 0;
+  while (p + 4 <= buf.length) {
+    const hl = dv.getUint32(p); p += 4;
+    const h = new PB(buf, p, p + hl); p += hl;
+    let type = "", ds = 0;
+    while (h.more()) { const f = h.key(); if (f === 1) type = dec.decode(h.bytes()); else if (f === 3) ds = h.vi(); else h.skip(); }
+    const b = new PB(buf, p, p + ds); p += ds;
+    let raw = null, z = null;
+    while (b.more()) { const f = b.key(); if (f === 1) raw = b.bytes(); else if (f === 3) z = b.bytes(); else b.skip(); }
+    if (type !== "OSMData") continue;
+    yield z ? await inflate(z) : raw;
+  }
+}
+
+// a PrimitiveBlock's string table, granularity, offsets and groups
+function block(d) {
+  const q = new PB(d);
+  const blk = { st: [], gran: 100, lato: 0, lono: 0, groups: [] };
+  while (q.more()) {
+    const f = q.key();
+    if (f === 1) { const s = q.sub(); while (s.more()) { if (s.key() === 1) blk.st.push(dec.decode(s.bytes())); else s.skip(); } }
+    else if (f === 2) { const [a, e] = q.len(); blk.groups.push([a, e]); }
+    else if (f === 17) blk.gran = q.vi(); else if (f === 19) blk.lato = q.vi(); else if (f === 20) blk.lono = q.vi();
+    else q.skip();
+  }
+  blk.d = d;
+  return blk;
+}
+function tagsOf(st, keys, vals) {
+  const t = {};
+  for (let i = 0; i < keys.length; i++) t[st[keys[i]]] = st[vals[i]];
+  return t;
+}
+
+// ---- the node store: ids (sorted as PBF has them, else a Map), lat / lon in 1e-7 degrees
+class Nodes {
+  constructor() { this.n = 0; this.id = new Float64Array(1 << 20); this.la = new Int32Array(1 << 20); this.lo = new Int32Array(1 << 20); this.sorted = true; this.map = null; }
+  add(id, la, lo) {
+    if (this.n === this.id.length) { const g = (a, T) => { const x = new T(a.length * 2); x.set(a); return x; }; this.id = g(this.id, Float64Array); this.la = g(this.la, Int32Array); this.lo = g(this.lo, Int32Array); }
+    if (this.n && id <= this.id[this.n - 1]) this.sorted = false;
+    this.id[this.n] = id; this.la[this.n] = la; this.lo[this.n] = lo; this.n++;
+  }
+  find(id) {
+    if (!this.sorted) {
+      if (!this.map) { this.map = new Map(); for (let i = 0; i < this.n; i++) this.map.set(this.id[i], i); }
+      const i = this.map.get(id); return i === undefined ? -1 : i;
+    }
+    let a = 0, b = this.n - 1;
+    while (a <= b) { const m = (a + b) >> 1, v = this.id[m]; if (v === id) return m; if (v < id) a = m + 1; else b = m - 1; }
+    return -1;
+  }
+}
+
+function cleanTags(t, extra) {
+  const out = [];
+  for (const k in t) if (KEEP.has(k)) out.push(k + "=" + String(t[k]).replace(/[\t|\n\r]/g, " "));
+  if (extra) out.push(...extra);
+  return out.join("|");
+}
+
+// the cut: buf (the file), box {s,n,w,e} or null, log(text). Its text (not gzipped) and counts
+async function cut(buf, box, log) {
+  const t0 = Date.now();
+  // pass 1: the relations wanted, their member ways
+  log("pass 1: relations ...");
+  const relWays = new Map();   // way id -> [{rel, role}]
+  const rels = [];
+  let nb = 0;
+  for await (const d of blocks(buf)) {
+    nb++;
+    const blk = block(d);
+    for (const [a, e] of blk.groups) {
+      const g = new PB(d, a, e);
+      while (g.more()) {
+        if (g.key() !== 4) { g.skip(); continue; }
+        const r = g.sub();
+        let id = 0, keys = [], vals = [], roles = [], mem = [], types = [];
+        while (r.more()) {
+          const f = r.key();
+          if (f === 1) id = r.vi(); else if (f === 2) keys = r.packed(pv); else if (f === 3) vals = r.packed(pv);
+          else if (f === 8) roles = r.packed(pv); else if (f === 9) mem = r.packed(pz); else if (f === 10) types = r.packed(pv);
+          else r.skip();
+        }
+        const t = tagsOf(blk.st, keys, vals);
+        if (!wantRel(t)) continue;
+        const ri = rels.length; rels.push({ id, t });
+        let m = 0;
+        for (let i = 0; i < mem.length; i++) {
+          m += mem[i];
+          if (types[i] !== 1) continue;
+          if (!relWays.has(m)) relWays.set(m, []);
+          relWays.get(m).push({ rel: ri, role: blk.st[roles[i]] || "outer" });
+        }
+      }
+    }
+  }
+  log("pass 1: " + nb + " blocks, " + rels.length + " multipolygons, " + relWays.size + " member ways");
+
+  // pass 2: nodes (all kept: ways may cross the box), the ways
+  const N = new Nodes();
+  const out = [];
+  const cnt = { ways: 0, members: 0, nodes: 0, buildings: 0, roads: 0, trees: 0 };
+  let lat0, lon0, kx, ky;
+  if (box) { lat0 = (box.s + box.n) / 2; lon0 = (box.w + box.e) / 2; }
+  const inBox = (la, lo) => !box || (la >= box.s * 1e7 && la <= box.n * 1e7 && lo >= box.w * 1e7 && lo <= box.e * 1e7);
+  const pendingNodes = [];
+  let ready = false;
+  const setOrigin = () => {
+    if (lat0 === undefined) { // whole file: the nodes' middle
+      let a = Infinity, b = -Infinity, c = Infinity, dd = -Infinity;
+      for (let i = 0; i < N.n; i++) { const la = N.la[i], lo = N.lo[i]; if (la < a) a = la; if (la > b) b = la; if (lo < c) c = lo; if (lo > dd) dd = lo; }
+      lat0 = (a + b) / 2e7; lon0 = (c + dd) / 2e7;
+    }
+    ky = 110946.0 / 1e7; kx = 111319.49 * Math.cos(lat0 * Math.PI / 180) / 1e7;
+    ready = true;
+    for (const s of pendingNodes) out.push(s());
+    pendingNodes.length = 0;
+  };
+  const X = (lo) => Math.round((lo - lon0 * 1e7) * kx), Y = (la) => Math.round((la - lat0 * 1e7) * ky);
+  const geom = (refs) => {
+    const xy = []; let any = false;
+    let px = 0, py = 0;
+    for (const r of refs) {
+      const i = N.find(r); if (i < 0) continue;
+      if (inBox(N.la[i], N.lo[i])) any = true;
+      const x = X(N.lo[i]), y = Y(N.la[i]);
+      xy.push(xy.length ? (x - px) + "," + (y - py) : x + "," + y);   // the first whole, the rest steps
+      px = x; py = y;
+    }
+    return any && xy.length > 1 ? xy.join(" ") : null;
+  };
+  log("pass 2: nodes and ways ...");
+  nb = 0;
+  for await (const d of blocks(buf)) {
+    nb++;
+    if (nb % 50 === 0) await log("pass 2: block " + nb + ", " + N.n + " nodes, " + cnt.ways + " ways kept");
+    const blk = block(d);
+    const g9 = blk.gran, lato = blk.lato, lono = blk.lono;
+    const la7 = (v) => Math.round((lato + g9 * v) / 100), lo7 = (v) => Math.round((lono + g9 * v) / 100);
+    for (const [a, e] of blk.groups) {
+      const g = new PB(d, a, e);
+      while (g.more()) {
+        const f = g.key();
+        if (f === 2) { // dense nodes
+          const q = g.sub();
+          let ids = [], lats = [], lons = [], kv = [];
+          while (q.more()) { const ff = q.key(); if (ff === 1) ids = q.packed(pz); else if (ff === 8) lats = q.packed(pz); else if (ff === 9) lons = q.packed(pz); else if (ff === 10) kv = q.packed(pv); else q.skip(); }
+          let id = 0, la = 0, lo = 0, k = 0;
+          for (let i = 0; i < ids.length; i++) {
+            id += ids[i]; la += lats[i]; lo += lons[i];
+            const LA = la7(la), LO = lo7(lo);
+            N.add(id, LA, LO);
+            if (k < kv.length) {
+              let t = null;
+              while (k < kv.length && kv[k] !== 0) { if (!t) t = {}; t[blk.st[kv[k]]] = blk.st[kv[k + 1]]; k += 2; }
+              k++;
+              if (t && NODE_WANT(t) && inBox(LA, LO)) {
+                const nid = id, tt = t;
+                const s = () => "N\t" + nid + "\t" + cleanTags(tt) + "\t" + X(LO) + "," + Y(LA);
+                if (ready) out.push(s()); else pendingNodes.push(s);
+                cnt.nodes++; if (t.natural === "tree") cnt.trees++;
+              }
+            }
+          }
+        } else if (f === 1) { // a plain node
+          const q = g.sub();
+          let id = 0, la = 0, lo = 0, keys = [], vals = [];
+          while (q.more()) { const ff = q.key(); if (ff === 1) id = q.zz(); else if (ff === 8) la = q.zz(); else if (ff === 9) lo = q.zz(); else if (ff === 2) keys = q.packed(pv); else if (ff === 3) vals = q.packed(pv); else q.skip(); }
+          const LA = la7(la), LO = lo7(lo);
+          N.add(id, LA, LO);
+          const t = tagsOf(blk.st, keys, vals);
+          if (keys.length && NODE_WANT(t) && inBox(LA, LO)) {
+            const s = () => "N\t" + id + "\t" + cleanTags(t) + "\t" + X(LO) + "," + Y(LA);
+            if (ready) out.push(s()); else pendingNodes.push(s);
+            cnt.nodes++; if (t.natural === "tree") cnt.trees++;
+          }
+        } else if (f === 3) { // a way
+          if (!ready) setOrigin();
+          const q = g.sub();
+          let id = 0, keys = [], vals = [], refs = [];
+          while (q.more()) { const ff = q.key(); if (ff === 1) id = q.vi(); else if (ff === 2) keys = q.packed(pv); else if (ff === 3) vals = q.packed(pv); else if (ff === 8) refs = q.packed(pz); else q.skip(); }
+          for (let i = 1; i < refs.length; i++) refs[i] += refs[i - 1];
+          const t = tagsOf(blk.st, keys, vals);
+          const want = wantWay(t), mem = relWays.get(id);
+          if (!want && !mem) continue;
+          const xy = geom(refs);
+          if (!xy) continue;
+          if (want) {
+            out.push("W\t" + id + "\t" + cleanTags(t) + "\t" + xy);
+            cnt.ways++; if (t.building || t["building:part"]) cnt.buildings++; if (t.highway) cnt.roads++;
+          }
+          if (mem) for (const m of mem) {
+            const r = rels[m.rel];
+            out.push("R\t" + r.id + "\t" + cleanTags(r.t, ["role=" + m.role, "way=" + id]) + "\t" + xy);
+            cnt.members++;
+          }
+        } else g.skip();
+      }
+    }
+  }
+  if (!ready) setOrigin();
+  const bx = box ? [X(box.w * 1e7), Y(box.s * 1e7), X(box.e * 1e7), Y(box.n * 1e7)] : ["-", "-", "-", "-"];
+  const head = ["# STATE3D OSM cut 2 - OpenStreetMap data (c) OpenStreetMap contributors, ODbL",
+    "# W way, R multipolygon member way (role=, way=), N node; x east, y north in metres from O;",
+    "# a way's points: the first one, then each as a step (dx,dy) from the one before",
+    "O\t" + lat0.toFixed(7) + "\t" + lon0.toFixed(7),
+    "X\t" + bx.join("\t")];
+  const text = head.join("\n") + "\n" + out.join("\n") + "\n";
+  log("done in " + ((Date.now() - t0) / 1000).toFixed(1) + " s: " + N.n + " nodes read; kept " + cnt.ways + " ways (" +
+    cnt.buildings + " buildings, " + cnt.roads + " roads), " + cnt.members + " multipolygon members, " + cnt.nodes + " nodes (" + cnt.trees + " trees)");
+  return text;
+}
+
+async function gzip(text) {
+  const cs = new CompressionStream("gzip");
+  const r = new Response(new Blob([text]).stream().pipeThrough(cs));
+  return new Blob([await r.arrayBuffer()], { type: "application/gzip" });
+}
+
+// ---- the page (not under node: the test runs cut() itself)
+if (typeof document !== "undefined") {
+  const $ = (id) => document.getElementById(id);
+  const logEl = $("log");
+  const log = (s) => { logEl.textContent += "\n" + s; };
+  $("file").addEventListener("change", () => { $("go").disabled = !$("file").files.length; logEl.textContent = $("file").files.length ? "Ready: " + $("file").files[0].name + " (" + ($("file").files[0].size / 1048576).toFixed(1) + " MB)" : "Pick the file."; });
+  $("go").addEventListener("click", async () => {
+    const f = $("file").files[0]; if (!f) return;
+    $("go").disabled = true; $("dls").innerHTML = "";
+    logEl.textContent = "Reading " + f.name + " ...";
+    try {
+      if (typeof DecompressionStream === "undefined") throw new Error("this browser has no DecompressionStream - use a current Chrome, Edge or Firefox");
+      const buf = new Uint8Array(await f.arrayBuffer());
+      const box = $("all").checked ? null : { s: +$("s").value, n: +$("n").value, w: +$("w").value, e: +$("e").value };
+      const text = await cut(buf, box, (s) => { log(s); return new Promise((r) => setTimeout(r)); });
+      const gz = await gzip(text);
+      const base = f.name.replace(/\.osm\.pbf$|\.pbf$/i, "").replace(/[^A-Za-z0-9._-]+/g, "_") + "-cut.txt.gz";
+      const ps = Math.max(1, +$("part").value || 4) * 1048576, np = Math.ceil(gz.size / ps);
+      for (let i = 0; i < np; i++) {   // the gzip cut into parts: joined again in order (cat), it is the file
+        const a = document.createElement("a");
+        const name = np > 1 ? base + "." + (i + 1) + "of" + np : base;
+        const part = gz.slice(i * ps, Math.min(gz.size, (i + 1) * ps));
+        a.href = URL.createObjectURL(part); a.download = name;
+        a.textContent = "Download " + name + " (" + (part.size / 1048576).toFixed(2) + " MB)";
+        $("dls").appendChild(a);
+      }
+      log("text " + (text.length / 1048576).toFixed(1) + " MB, gzipped " + (gz.size / 1048576).toFixed(2) + " MB" + (np > 1 ? " in " + np + " parts - attach them all" : " - attach that file"));
+    } catch (err) { log("ERROR: " + err.message); console.error(err); }
+    $("go").disabled = false;
+  });
+} else if (typeof module !== "undefined") {
+  module.exports = { cut, gzip };
+}
+</script>
+</body>
+</html>

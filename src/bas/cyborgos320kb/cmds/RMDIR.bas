@@ -39,6 +39,8 @@ b(0) = &HC2 : b(1) = Asc(v)                      ' the letter's path: the parent
 SetStr 2, pa
 r = Bdos(30, VarPtr(b))
 If r <> 0 Then Print pa; ": not a folder (UniDOS: "; Trim$(Str$(r)); ")" : End
+b(0) = &HC8                                      ' (the delete may take a folder: only RMDIR asks)
+r = Bdos(30, VarPtr(b))
 r = FileSystem.Delete(v + ":" + nm)
 b(0) = &HC2 : b(1) = Asc(v) : b(2) = 0           ' no path again
 j = Bdos(30, VarPtr(b))

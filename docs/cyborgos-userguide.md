@@ -37,18 +37,19 @@ in `bas/cyborgos128kb/`, with its own user guide.
   directories - UniDOS's listing for its drives and folders, a RAM disc's own for Z and RAMDISC's.
   It has no file list of its own (the FILES.DIR of earlier versions is gone). On AMSDOS alone it
   runs programs, but DIR, COPY's patterns and ERA's can't see a floppy's files (FLOPPY A can).
-- The 320K version comes on three discs, `build/dsk/cos-disk1.dsk` - `cos-disk3.dsk`. Disc 1:
+- The 320K version comes on four discs, `build/dsk/cos-disk1.dsk` - `cos-disk4.dsk`. Disc 1:
   CYBORGOS.BAS (the loader: RUN"CYBORGOS), WINAPE.BAS (the same for WinAPE: KEYREP 10), COSLOAD.BIN, CYBORGOS.BIN (this version), CYBORGOS.Z
   (the commands for the system drive Z), MON and its SYSTEM.MAP, three test programs (TICKER.CYB,
   CRUNCH.CYB, LINES.CYB; CRUNCH also as a plain CRUNCH.COM), the help texts (*.HLP) and
   INSTALL.BAS. Disc 2: the commands (.CYB: HELP, PS, TOP, KILL, RESET, FG, WAIT, MEM, MODE, DIR,
   CD, MKDIR, RMDIR, DRIVE, COPY, ERA, TYPE, RENAME, RAMDISC) and FLOPPY. Disc 3: Z ready-made
-  (CYBORGOS.Z1 ...).
-- INSTALL.BAS (on disc 1 only; `RUN"INSTALL` from BASIC) puts all three in a folder CYBORGOS on
+  (CYBORGOS.Z1 ...). Disc 4: the web browsers YING and YANG, with their local pages HOME.8BM and
+  KEYS.8BM.
+- INSTALL.BAS (on disc 1 only; `RUN"INSTALL` from BASIC) puts all four in a folder CYBORGOS on
   your mass storage. Map the floppy drive as drive B and the mass storage (IDE, SD ...) as drive
   A first (UniDOS: `|DRIVE,"A","IDE:"`, `|DRIVE,"B","DFA:"`) - the installer says so at the top.
   It makes `A:CYBORGOS/`, `CYBORGOS/C/` (the commands Z is made from) and `CYBORGOS/HELP/` (the
-  help texts) with `|SAVE`, copies disc 1, then asks for disc 2 and disc 3 in drive B (a key when
+  help texts) with `|SAVE`, copies disc 1, then asks for discs 2, 3 and 4 in drive B (a key when
   each is in), each file with `|COPY` (over one already there), with a bar and how far it has got
   (%). At the end: 1 run it on a real CPC, 2 run it on WinAPE (`KEYREP 10`: keys repeat 10 times
   slower), 3 exit. 1 and 2 make A's path the CYBORGOS folder (`|DRIVE,"A","CYBORGOS"` - UniDOS
@@ -110,6 +111,7 @@ drive; `NAME` alone also finds `NAME.COM`.
 |---|---|
 | `COPY` [*v1*:]*name* *v2*[:*newname*] | copies the file to volume *v2*, as *newname* or the same name |
 | `COPY` [*v1*:]*pattern* *v2* | each file that fits the pattern (`*` any characters, `?` any one: `*.CYB`, `T*`, `????.COM`, `*.*`) copied to *v2* with its own name; it stops when the disc is full, says how many were copied |
+| `COPY` [*v1*:]*name* / *pattern* [*v2*:]*folder*[`/`] | (UniDOS) into that folder, same names - a name that is a folder is never written over (through a free drive letter, C-P, for the copy) |
 | `ERA` [*v*:]*name*, `ERA` [*v*:]*pattern* | deletes the file; a pattern (`*.BAK`) each that fits. A folder: RMDIR |
 | `TYPE` [*v*:]*name* | shows the text file, to its end or first ^Z - long lines word wrapped to the console, a page at a time (`-- more --`: space a page, Enter a line, Q / ESC / Control + C the end) |
 | `RENAME` [*v*:]*name* *newname* | renames the file; *newname* is a disc name (NAME.EXT) on the same volume, not one taken already |
@@ -383,12 +385,53 @@ fields as `|____|`), `w` (a select: `[ text v]`). Not yet: filling in forms, ima
 CyborgOS's own: `r"text"` - a line as it is (not wrapped, its spaces kept), for hex dumps and
 lists.
 
+## 4d. YING and YANG: web browsers
+
+`YING` and `YANG` (`apps/ying/`, `apps/yang/`) browse 8BML pages. They are the same browser -
+`Web.cls` (in `apps/ying/`, both build with it) does the addresses and the fetching, Bml.cls lays
+the pages out - on two screens: YING in MON's window (toolbar, page, status line), YANG on
+MON2's whole screen (the toolbar on row 0, the hardware scroll). Tabs are CyborgOS's slots: a
+browser in each.
+
+```
+YING                HOME.8BM: this drive's, else A:'s, else Z:'s
+YING address        that page
+```
+
+- **Addresses:** `http://host[:port]/path?parameters` - http only (https gets a page saying it
+  isn't supported). One typed with no `http://` gets it. The page is asked for as 8BML: an empty
+  `8bml` parameter goes on the request (`?8bml=`, or `&8bml=` after other parameters) - never
+  shown in the address. **For now there is no network:** the fetch is a stub that makes up a test
+  page (the address, the request as it would be sent, links: relative, with parameters, up a
+  folder, another host and port, https).
+- **Files:** `A:NAME.8BM`, `NAME.8BM` (this drive) or `file:NAME.EXT` - an 8BML file read from the
+  disc (8K at most), its links from its own drive: local pages linked to each other, like
+  AmigaGuide. HOME.8BM and KEYS.8BM come with them.
+- **Links** are relative to the page: `/path` (the host's), `?parameters`, `../`, `./`, or whole.
+- **Toolbar:** 1 Back, 2 Reload, 3 Home, 4 Go to (an address typed in the status line - YANG:
+  the toolbar's row - the page's to start with; Enter goes, ESC not, DEL rubs out), 5 Quit; or
+  the letter (B, R, H, G, Q). The rest of the keys and the mouse are MON's.
+
 ## 5. Programs
 
 **Keys.** A program gets every key typed while its slot is in front, Control + a letter too
 (WordStar's Control + E, X, S, D ..., Control + C); ESC comes as #1B (CP/M's ESC, as Amstrad's
 CP/M gives it - the firmware's own is #FC). Control + 1-9, 0 (a slot to the front) and Control +
 ESC (TOP) are CyborgOS's and never reach a program.
+
+**The cursor.** The front slot shows where the next character goes with a flashing underline
+(half a second on, half off).
+
+**The screen codes** (VT52, as CP/M programs and editors such as VDE expect): ESC E clear, ESC H
+home, ESC Y row col (each + 32) move, ESC A / B / C / D up / down / right / left, ESC K clear to
+the end of the row, ESC J to the end of the screen, ESC L insert a row, ESC M delete one, ESC I
+reverse line feed; Amstrad's ESC l (clear the row), ESC o (the row up to the cursor), ESC d (the
+screen up to it). CR, LF, BS (back, not rubbing out), TAB. Others are ignored.
+
+**Files on UniDOS / AMSDOS drives** go through the firmware's file calls: one file being read
+and one being written at a time (any slots), written from the start to the end. Programs that
+update a file in place or move about in it (BBC BASIC's OPENUP, PTR# with writes) need a RAM disc
+(RAMDISC) for that file.
 
 ### What runs
 
