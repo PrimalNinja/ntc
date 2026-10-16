@@ -154,7 +154,8 @@ main_thread:
 
 			; 63: Chk LenOf(big), 90
 			dw p_lenof_c, var_big
-			dw p_chk_c, var_lenof_lenof, lit_90
+			dw kw_vtov, var_lenof_lenof, tmp0
+			dw p_chk_c, tmp0, lit_90
 
 			; 66: Fill short
 			dw p_fill_c, var_short
@@ -853,6 +854,19 @@ ntc_n1l_nc_n:
 ;kw_ltov, <literal>, <destvar>
 kw_ltov:
 			pop de
+			pop hl
+			ld (hl), e
+			inc hl
+			ld (hl), d
+			ret
+
+;## kw_vtov
+;kw_vtov, <sourcevar>, <destvar>
+kw_vtov:
+			pop hl
+			ld e, (hl)
+			inc hl
+			ld d, (hl)
 			pop hl
 			ld (hl), e
 			inc hl

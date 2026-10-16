@@ -4,6 +4,7 @@
 '                                     file that fits, same names
 '   COPY [v1:]name|pattern [v2:]folder[/]   into that folder (UniDOS), same names - a name that
 '                                     is a folder is never written over
+'   COPY v1:name|pattern .            to where this slot is (its drive and folder), same names
 ' Any file the drive has (its own directory: UniDOS's folder, a RAM disc's). A file is copied as
 ' CP/M sees it, 8K at a time: from UniDOS to its exact length (from its listing), else to its
 ' last record. An AMSDOS header (a CPC .BIN's) is not copied (CP/M reads past it)
@@ -12,7 +13,7 @@ Dim buf(8191) As Byte
 Dim sns(63) As String Max 12, szs(63) As Long, k As Integer
 Dim a1 As String Max 40, a2 As String Max 40, v1 As String Max 2, v2 As String Max 2
 Dim f1 As String Max 40, f2 As String Max 12, sn As String Max 12
-Dim p As Integer, o As Integer, r As Integer, i As Integer, nd As Integer
+Dim p As Integer, o As Integer, r As Long, i As Integer, nd As Integer   ' (r: CopyOne's bytes - a Long)
 Dim size As Long
 
 a1 = UCase$(Trim$(System.CommandLine()))
@@ -25,7 +26,9 @@ If Mid$(a1, 2, 1) = ":" Then
 Else
   v1 = Here() : f1 = a1
 End If
-If Len(a2) = 1 Then
+If a2 = "." Then                                 ' . : where this slot is (its drive, its folder)
+  v2 = Here() : f2 = ""
+ElseIf Len(a2) = 1 Then
   v2 = a2 + ":" : f2 = ""
 ElseIf Mid$(a2, 2, 1) = ":" Then
   v2 = Left$(a2, 2) : f2 = Mid$(a2, 3)

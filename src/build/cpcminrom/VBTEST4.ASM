@@ -89,7 +89,8 @@ for1_e:
 
 			; 27: Chk Total(nums), 45
 			dw p_total_c, ad_arr_nums
-			dw p_chk_c, var_total_total, lit_45
+			dw kw_vtov, var_total_total, tmp0
+			dw p_chk_c, tmp0, lit_45
 
 			; 28: SortUp nums
 			dw p_sortup_c, ad_arr_nums
@@ -102,7 +103,8 @@ for1_e:
 
 			; 31: Chk Total(nums), 45
 			dw p_total_c, ad_arr_nums
-			dw p_chk_c, var_total_total, lit_45
+			dw kw_vtov, var_total_total, tmp0
+			dw p_chk_c, tmp0, lit_45
 
 			; 32: For i = 1 To 4
 			dw kw_ltov, 1, var_i
@@ -118,19 +120,23 @@ for2_e:
 
 			; 35: Chk Total(odd), 30
 			dw p_total_c, ad_arr_odd
-			dw p_chk_c, var_total_total, lit_30
+			dw kw_vtov, var_total_total, tmp0
+			dw p_chk_c, tmp0, lit_30
 
 			; 36: Chk Lo(odd), 1
 			dw p_lo_c, ad_arr_odd
-			dw p_chk_c, var_lo_lo, lit_1
+			dw kw_vtov, var_lo_lo, tmp0
+			dw p_chk_c, tmp0, lit_1
 
 			; 37: Chk Hi(odd), 4
 			dw p_hi_c, ad_arr_odd
-			dw p_chk_c, var_hi_hi, lit_4
+			dw kw_vtov, var_hi_hi, tmp0
+			dw p_chk_c, tmp0, lit_4
 
 			; 38: Chk Count(nums), 6
 			dw p_count_c, ad_arr_nums
-			dw p_chk_c, var_count_count, lit_6
+			dw kw_vtov, var_count_count, tmp0
+			dw p_chk_c, tmp0, lit_6
 
 			; 39: words(0) = "pear"
 			dw kw_strcpyn, arr_words, str0, 40
@@ -143,7 +149,8 @@ for2_e:
 
 			; 42: ChkS Longest(words), "apple"
 			dw p_longest_c, ad_arr_words
-			dw p_chks_c, var_longest_longest, str1
+			dw kw_strcpy, stmp0, var_longest_longest
+			dw p_chks_c, stmp0, str1
 
 			; 43: Shout words
 			dw p_shout_c, ad_arr_words
@@ -159,7 +166,8 @@ for2_e:
 
 			; 47: ChkL BigSum(big), 350000
 			dw p_bigsum_c, ad_arr_big
-			dw p_chkl_c, var_bigsum_bigsum, llit_350000
+			dw kw_l_mov, var_bigsum_bigsum, ltmp0
+			dw p_chkl_c, ltmp0, llit_350000
 
 			; 49: Print
 			dw kw_printnl

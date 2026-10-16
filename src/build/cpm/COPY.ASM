@@ -31,16 +31,16 @@ ntc_start:
 main_thread:
 			dw kw_bssinit, ntc_bss, ntc_bss_size		; the arrays: do they fit, clear them
 
-			; COPY.bas 18: a1 = UCase$(Trim$(System.CommandLine()))
+			; COPY.bas 19: a1 = UCase$(Trim$(System.CommandLine()))
 			dw fn_system_commandline, var_system_commandline_commandline
 			dw kw_strcpy, stmp0, var_system_commandline_commandline
 			dw kw_strtrim, stmp0, stmp0
 			dw kw_strucase, var_a1, stmp0
 
-			; COPY.bas 19: p = InStr(a1, " ")
+			; COPY.bas 20: p = InStr(a1, " ")
 			dw kw_strinstr, lit_1, var_a1, str0, var_p
 
-			; COPY.bas 20: If p = 0 Then Print "COPY [v1:]name v2[:newname]   COPY [v1:]pattern v2" : End
+			; COPY.bas 21: If p = 0 Then Print "COPY [v1:]name v2[:newname]   COPY [v1:]pattern v2" : End
 			dw kw_cpeqvl, var_p, 0
 			dw kw_goto_iffalse_n, if1_1
 			dw kw_printstrvar, str1
@@ -48,162 +48,173 @@ main_thread:
 			dw kw_stop
 if1_1:
 
-			; COPY.bas 21: a2 = Trim$(Mid$(a1, p + 1))
+			; COPY.bas 22: a2 = Trim$(Mid$(a1, p + 1))
 			dw kw_addl, var_p, 1, tmp1
 			dw kw_strmid, stmp0, var_a1, tmp1, lit_255
 			dw kw_strtrim, var_a2, stmp0
 
-			; COPY.bas 22: a1 = Left$(a1, p - 1)
+			; COPY.bas 23: a1 = Left$(a1, p - 1)
 			dw kw_addl, var_p, -1, tmp1
 			dw kw_strleft, var_a1, var_a1, tmp1
 
-			; COPY.bas 23: If Mid$(a1, 2, 1) = ":" Then
+			; COPY.bas 24: If Mid$(a1, 2, 1) = ":" Then
 			dw kw_strmid, stmp0, var_a1, lit_2, lit_1
 			dw kw_strcmpeq, stmp0, str2
 			dw kw_goto_iffalse_n, if2_1
 
-			; COPY.bas 24: v1 = Left$(a1, 2) : f1 = Mid$(a1, 3)
+			; COPY.bas 25: v1 = Left$(a1, 2) : f1 = Mid$(a1, 3)
 			dw kw_strleft, stmp0, var_a1, lit_2
 			dw kw_strcpy, var_v1, stmp0
 			dw kw_strmid, var_f1, var_a1, lit_3, lit_255
 
-			; COPY.bas 25: Else
+			; COPY.bas 26: Else
 			dw if2_e_go
 if2_1:
 
-			; COPY.bas 26: v1 = Here() : f1 = a1
+			; COPY.bas 27: v1 = Here() : f1 = a1
 			dw p_here_c
 			dw kw_strcpy, var_v1, var_here_here
 			dw kw_strcpy, var_f1, var_a1
 
-			; COPY.bas 27: End If
+			; COPY.bas 28: End If
 if2_e:
 
-			; COPY.bas 28: If Len(a2) = 1 Then
-			dw kw_strlen, var_a2, tmp0
-			dw kw_cpeqvl, tmp0, 1
+			; COPY.bas 29: If a2 = "." Then                                 ' . : where this slot is (its drive, its folder)
+			dw kw_strcmpeq, var_a2, str3
 			dw kw_goto_iffalse_n, if3_1
 
-			; COPY.bas 29: v2 = a2 + ":" : f2 = ""
-			dw kw_strcpy, var_v2, var_a2
-			dw kw_strcat, var_v2, str2
-			dw kw_strcpy, var_f2, str3
+			; COPY.bas 30: v2 = Here() : f2 = ""
+			dw p_here_c
+			dw kw_strcpy, var_v2, var_here_here
+			dw kw_strcpy, var_f2, str4
 
-			; COPY.bas 30: ElseIf Mid$(a2, 2, 1) = ":" Then
+			; COPY.bas 31: ElseIf Len(a2) = 1 Then
 			dw if3_e_go
 if3_1:
-			dw kw_strmid, stmp0, var_a2, lit_2, lit_1
-			dw kw_strcmpeq, stmp0, str2
+			dw kw_strlen, var_a2, tmp0
+			dw kw_cpeqvl, tmp0, 1
 			dw kw_goto_iffalse_n, if3_2
 
-			; COPY.bas 31: v2 = Left$(a2, 2) : f2 = Mid$(a2, 3)
+			; COPY.bas 32: v2 = a2 + ":" : f2 = ""
+			dw kw_strcpy, var_v2, var_a2
+			dw kw_strcat, var_v2, str2
+			dw kw_strcpy, var_f2, str4
+
+			; COPY.bas 33: ElseIf Mid$(a2, 2, 1) = ":" Then
+			dw if3_e_go
+if3_2:
+			dw kw_strmid, stmp0, var_a2, lit_2, lit_1
+			dw kw_strcmpeq, stmp0, str2
+			dw kw_goto_iffalse_n, if3_3
+
+			; COPY.bas 34: v2 = Left$(a2, 2) : f2 = Mid$(a2, 3)
 			dw kw_strleft, stmp0, var_a2, lit_2
 			dw kw_strcpy, var_v2, stmp0
 			dw kw_strmid, stmp0, var_a2, lit_3, lit_255
 			dw kw_strcpy, var_f2, stmp0
 
-			; COPY.bas 32: Else
+			; COPY.bas 35: Else
 			dw if3_e_go
-if3_2:
+if3_3:
 
-			; COPY.bas 33: v2 = Here() : f2 = a2
+			; COPY.bas 36: v2 = Here() : f2 = a2
 			dw p_here_c
 			dw kw_strcpy, var_v2, var_here_here
 			dw kw_strcpy, var_f2, var_a2
 
-			; COPY.bas 34: End If
+			; COPY.bas 37: End If
 if3_e:
 
-			; COPY.bas 35: If f2 <> "" Then                                 ' a folder there: into it (through a free letter)
-			dw kw_strcmpne, var_f2, str3
+			; COPY.bas 38: If f2 <> "" Then                                 ' a folder there: into it (through a free letter)
+			dw kw_strcmpne, var_f2, str4
 			dw kw_goto_iffalse_n, if4_1
 
-			; COPY.bas 36: a1 = CybDir.Into(v2, f2)
+			; COPY.bas 39: a1 = CybDir.Into(v2, f2)
 			dw p_cybdir_into_c, var_v2, var_f2
 			dw kw_strcpy, var_a1, var_cybdir_into_into
 
-			; COPY.bas 37: If a1 = "!" Then Print v2; f2; " is a folder: no drive letter free (C-P) to copy into it" : End
-			dw kw_strcmpeq, var_a1, str4
+			; COPY.bas 40: If a1 = "!" Then Print v2; f2; " is a folder: no drive letter free (C-P) to copy into it" : End
+			dw kw_strcmpeq, var_a1, str5
 			dw kw_goto_iffalse_n, if5_1
 			dw kw_printstrvar, var_v2
 			dw kw_printstrvar, var_f2
-			dw kw_printstrvar, str5
+			dw kw_printstrvar, str6
 			dw kw_printnl
 			dw kw_stop
 if5_1:
 
-			; COPY.bas 38: If a1 <> "" Then
-			dw kw_strcmpne, var_a1, str3
+			; COPY.bas 41: If a1 <> "" Then
+			dw kw_strcmpne, var_a1, str4
 			dw kw_goto_iffalse_n, if6_1
 
-			; COPY.bas 39: v2 = a1 : f2 = ""
+			; COPY.bas 42: v2 = a1 : f2 = ""
 			dw kw_strcpy, var_v2, var_a1
-			dw kw_strcpy, var_f2, str3
+			dw kw_strcpy, var_f2, str4
 
-			; COPY.bas 40: ElseIf Right$(f2, 1) = "/" Then
+			; COPY.bas 43: ElseIf Right$(f2, 1) = "/" Then
 			dw if6_e_go
 if6_1:
 			dw kw_strright, stmp0, var_f2, lit_1
-			dw kw_strcmpeq, stmp0, str6
+			dw kw_strcmpeq, stmp0, str7
 			dw kw_goto_iffalse_n, if6_2
 
-			; COPY.bas 41: Print v2; f2; ": no such folder" : End
+			; COPY.bas 44: Print v2; f2; ": no such folder" : End
 			dw kw_printstrvar, var_v2
 			dw kw_printstrvar, var_f2
-			dw kw_printstrvar, str7
+			dw kw_printstrvar, str8
 			dw kw_printnl
 			dw kw_stop
 
-			; COPY.bas 42: End If
+			; COPY.bas 45: End If
 if6_2:
 if6_e:
 
-			; COPY.bas 43: End If
+			; COPY.bas 46: End If
 if4_1:
 
-			; COPY.bas 44: If CybDir.LoadAll(v1) = False Then Print v1; ": its files can't be listed (UniDOS, or a RAM disc)" : Done
+			; COPY.bas 47: If CybDir.LoadAll(v1) = False Then Print v1; ": its files can't be listed (UniDOS, or a RAM disc)" : Done
 			dw p_cybdir_loadall_c, var_v1
 			dw kw_vtov, var_cybdir_loadall_loadall, tmp0
 			dw kw_cpeqvl, tmp0, 0
 			dw kw_goto_iffalse_n, if7_1
 			dw kw_printstrvar, var_v1
-			dw kw_printstrvar, str8
+			dw kw_printstrvar, str9
 			dw kw_printnl
 			dw p_done_c
 if7_1:
 
-			; COPY.bas 46: If InStr(f1, "*") > 0 Or InStr(f1, "?") > 0 Then
-			dw kw_strinstr, lit_1, var_f1, str9, tmp0
+			; COPY.bas 49: If InStr(f1, "*") > 0 Or InStr(f1, "?") > 0 Then
+			dw kw_strinstr, lit_1, var_f1, str10, tmp0
 			dw kw_scpgtvl, tmp0, 0
 			dw kw_ftov, tmp0
-			dw kw_strinstr, lit_1, var_f1, str10, tmp1
+			dw kw_strinstr, lit_1, var_f1, str11, tmp1
 			dw kw_scpgtvl, tmp1, 0
 			dw kw_ftov, tmp1
 			dw kw_orvv, tmp0, tmp1, tmp0
 			dw kw_goto_ifzero_n, tmp0, if8_1
 
-			; COPY.bas 48: If f2 <> "" Then Print "COPY "; f1; ": a pattern copies to a drive (v2 alone), same names" : Done
-			dw kw_strcmpne, var_f2, str3
+			; COPY.bas 51: If f2 <> "" Then Print "COPY "; f1; ": a pattern copies to a drive (v2 alone), same names" : Done
+			dw kw_strcmpne, var_f2, str4
 			dw kw_goto_iffalse_n, if9_1
-			dw kw_printstrvar, str11
-			dw kw_printstrvar, var_f1
 			dw kw_printstrvar, str12
+			dw kw_printstrvar, var_f1
+			dw kw_printstrvar, str13
 			dw kw_printnl
 			dw p_done_c
 if9_1:
 
-			; COPY.bas 49: If v1 = v2 Then Print "a file can't be copied over itself" : Done
+			; COPY.bas 52: If v1 = v2 Then Print "a file can't be copied over itself" : Done
 			dw kw_strcmpeq, var_v1, var_v2
 			dw kw_goto_iffalse_n, if10_1
-			dw kw_printstrvar, str13
+			dw kw_printstrvar, str14
 			dw kw_printnl
 			dw p_done_c
 if10_1:
 
-			; COPY.bas 50: k = 0
+			; COPY.bas 53: k = 0
 			dw kw_ztov, var_k
 
-			; COPY.bas 51: For o = 0 To CybDir.Count() - 1
+			; COPY.bas 54: For o = 0 To CybDir.Count() - 1
 			dw kw_ztov, var_o
 			dw p_cybdir_count_c
 			dw kw_vtov, var_cybdir_count_count, tmp0
@@ -211,7 +222,7 @@ if10_1:
 			dw kw_forupv_n, var_o, for11_l, for11_e
 for11_t:
 
-			; COPY.bas 52: If CybDir.Match(o, f1) And k < 64 Then
+			; COPY.bas 55: If CybDir.Match(o, f1) And k < 64 Then
 			dw p_cybdir_match_c, var_o, var_f1
 			dw kw_vtov, var_cybdir_match_match, tmp0
 			dw kw_scpltvl, var_k, 64
@@ -219,122 +230,122 @@ for11_t:
 			dw kw_andvv, tmp0, tmp1, tmp0
 			dw kw_goto_ifzero_n, tmp0, if12_1
 
-			; COPY.bas 53: sns(k) = CybDir.DiscName(o) : szs(k) = CybDir.Length(o)
+			; COPY.bas 56: sns(k) = CybDir.DiscName(o) : szs(k) = CybDir.Length(o)
 			dw p_cybdir_discname_c, var_o
 			dw kw_sset, arr_sns, var_k, var_cybdir_discname_discname, 13
 			dw p_cybdir_length_c, var_o
 			dw kw_l_aset, arr_szs, var_k, var_cybdir_length_length
 
-			; COPY.bas 54: k = k + 1
+			; COPY.bas 57: k = k + 1
 			dw kw_inc, var_k
 
-			; COPY.bas 55: End If
+			; COPY.bas 58: End If
 if12_1:
 
-			; COPY.bas 56: Next
+			; COPY.bas 59: Next
 			dw kw_next1v_n, var_o, for11_l, for11_t
 for11_e:
 
-			; COPY.bas 57: If k = 0 Then Print v1; f1; ": no file fits" : Done
+			; COPY.bas 60: If k = 0 Then Print v1; f1; ": no file fits" : Done
 			dw kw_cpeqvl, var_k, 0
 			dw kw_goto_iffalse_n, if13_1
 			dw kw_printstrvar, var_v1
 			dw kw_printstrvar, var_f1
-			dw kw_printstrvar, str14
+			dw kw_printstrvar, str15
 			dw kw_printnl
 			dw p_done_c
 if13_1:
 
-			; COPY.bas 58: nd = 0
+			; COPY.bas 61: nd = 0
 			dw kw_ztov, var_nd
 
-			; COPY.bas 59: For i = 0 To k - 1
+			; COPY.bas 62: For i = 0 To k - 1
 			dw kw_ztov, var_i
 			dw kw_addl, var_k, -1, for14_l
 			dw kw_forupv_n, var_i, for14_l, for14_e
 for14_t:
 
-			; COPY.bas 60: r = CopyOne(sns(i), sns(i), szs(i))
+			; COPY.bas 63: r = CopyOne(sns(i), sns(i), szs(i))
 			dw kw_sget, arr_sns, var_i, stmp0, 13
 			dw kw_sget, arr_sns, var_i, stmp1, 13
 			dw kw_l_aget, arr_szs, var_i, ltmp2
 			dw p_copyone_c, stmp0, stmp1, ltmp2
-			dw kw_l_ltoi, var_copyone_copyone, var_r
+			dw kw_l_mov, var_copyone_copyone, var_r
 
-			; COPY.bas 61: If r >= 0 Then nd = nd + 1
-			dw kw_scpgevl, var_r, 0
+			; COPY.bas 64: If r >= 0 Then nd = nd + 1
+			dw kw_l_cpge, var_r, llit_0
 			dw kw_goto_iffalse_n, if15_1
 			dw kw_inc, var_nd
 if15_1:
 
-			; COPY.bas 62: If r = -2 Then Exit For                    ' (the disc full)
-			dw kw_cpeqvl, var_r, -2
+			; COPY.bas 65: If r = -2 Then Exit For                    ' (the disc full)
+			dw kw_l_cpeq, var_r, llit_m2
 			dw kw_goto_iffalse_n, if16_1
 			dw for14_e_go
 if16_1:
 
-			; COPY.bas 63: Next
+			; COPY.bas 66: Next
 			dw kw_next1v_n, var_i, for14_l, for14_t
 for14_e:
 
-			; COPY.bas 64: Print nd; " of "; k; " files copied"
+			; COPY.bas 67: Print nd; " of "; k; " files copied"
 			dw kw_printint, var_nd
-			dw kw_printstrvar, str15
-			dw kw_printint, var_k
 			dw kw_printstrvar, str16
+			dw kw_printint, var_k
+			dw kw_printstrvar, str17
 			dw kw_printnl
 
-			; COPY.bas 65: Done
+			; COPY.bas 68: Done
 			dw p_done_c
 
-			; COPY.bas 66: End If
+			; COPY.bas 69: End If
 if8_1:
 
-			; COPY.bas 68: o = CybDir.Find(f1)
+			; COPY.bas 71: o = CybDir.Find(f1)
 			dw p_cybdir_find_c, var_f1
 			dw kw_vtov, var_cybdir_find_find, var_o
 
-			; COPY.bas 69: If o < 0 Then Print v1; f1; ": not found" : Done
+			; COPY.bas 72: If o < 0 Then Print v1; f1; ": not found" : Done
 			dw kw_scpltvl, var_o, 0
 			dw kw_goto_iffalse_n, if17_1
 			dw kw_printstrvar, var_v1
 			dw kw_printstrvar, var_f1
-			dw kw_printstrvar, str17
+			dw kw_printstrvar, str18
 			dw kw_printnl
 			dw p_done_c
 if17_1:
 
-			; COPY.bas 70: sn = CybDir.DiscName(o)
+			; COPY.bas 73: sn = CybDir.DiscName(o)
 			dw p_cybdir_discname_c, var_o
 			dw kw_strcpy, var_sn, var_cybdir_discname_discname
 
-			; COPY.bas 71: size = CybDir.Length(o)
+			; COPY.bas 74: size = CybDir.Length(o)
 			dw p_cybdir_length_c, var_o
 			dw kw_l_mov, var_cybdir_length_length, var_size
 
-			; COPY.bas 72: If f2 = "" Then f2 = sn
-			dw kw_strcmpeq, var_f2, str3
+			; COPY.bas 75: If f2 = "" Then f2 = sn
+			dw kw_strcmpeq, var_f2, str4
 			dw kw_goto_iffalse_n, if18_1
 			dw kw_strcpy, var_f2, var_sn
 if18_1:
 
-			; COPY.bas 73: If v1 = v2 And f2 = sn Then Print "a file can't be copied over itself" : Done
+			; COPY.bas 76: If v1 = v2 And f2 = sn Then Print "a file can't be copied over itself" : Done
 			dw kw_strcmpeq, var_v1, var_v2
 			dw kw_ftov, tmp0
 			dw kw_strcmpeq, var_f2, var_sn
 			dw kw_ftov, tmp1
 			dw kw_andvv, tmp0, tmp1, tmp0
 			dw kw_goto_ifzero_n, tmp0, if19_1
-			dw kw_printstrvar, str13
+			dw kw_printstrvar, str14
 			dw kw_printnl
 			dw p_done_c
 if19_1:
 
-			; COPY.bas 74: r = CopyOne(sn, f2, size)
+			; COPY.bas 77: r = CopyOne(sn, f2, size)
 			dw p_copyone_c, var_sn, var_f2, var_size
-			dw kw_l_ltoi, var_copyone_copyone, var_r
+			dw kw_l_mov, var_copyone_copyone, var_r
 
-			; COPY.bas 75: Done
+			; COPY.bas 78: Done
 			dw p_done_c
 			dw kw_stop
 
@@ -344,7 +355,7 @@ if19_1:
 
 p_here:
 
-			; COPY.bas 79: Here = FileSystem.CurrentVolume() + ":"
+			; COPY.bas 82: Here = FileSystem.CurrentVolume() + ":"
 			dw fn_filesystem_currentvolume, var_filesystem_currentvolume_currentvolume
 			dw kw_strcpy, stmp0, var_filesystem_currentvolume_currentvolume
 			dw kw_strcpy, var_here_here, stmp0
@@ -357,53 +368,53 @@ p_here:
 
 p_copyone:
 
-			; COPY.bas 85: Dim hi As Integer, ho As Integer, n As Integer, w As Integer, rr As Integer, total As Long
+			; COPY.bas 88: Dim hi As Integer, ho As Integer, n As Integer, w As Integer, rr As Integer, total As Long
 
-			; COPY.bas 86: CopyOne = -1
+			; COPY.bas 89: CopyOne = -1
 			dw kw_l_mov, llit_m1, var_copyone_copyone
 
-			; COPY.bas 87: hi = FileSystem.Open(v1 + s, FileSystem.ForReadRaw)
+			; COPY.bas 90: hi = FileSystem.Open(v1 + s, FileSystem.ForReadRaw)
 			dw kw_strcpy, stmp0, var_v1
 			dw kw_strcat, stmp0, var_copyone_s
 			dw fn_filesystem_open, stmp0, lit_4, var_copyone_hi
 
-			; COPY.bas 88: If hi < 0 Then Print v1; s; ": not found" : Exit Function
+			; COPY.bas 91: If hi < 0 Then Print v1; s; ": not found" : Exit Function
 			dw kw_scpltvl, var_copyone_hi, 0
 			dw kw_goto_iffalse_n, if20_1
 			dw kw_printstrvar, var_v1
 			dw kw_printstrvar, var_copyone_s
-			dw kw_printstrvar, str17
+			dw kw_printstrvar, str18
 			dw kw_printnl
 			dw p_copyone_r
 if20_1:
 
-			; COPY.bas 89: ho = FileSystem.Open(v2 + t, FileSystem.ForWrite)
+			; COPY.bas 92: ho = FileSystem.Open(v2 + t, FileSystem.ForWrite)
 			dw kw_strcpy, stmp0, var_v2
 			dw kw_strcat, stmp0, var_copyone_t
 			dw fn_filesystem_open, stmp0, lit_2, var_copyone_ho
 
-			; COPY.bas 90: If ho < 0 Then rr = FileSystem.Close(hi) : Print v2; t; ": can't be made ("; ho; ")" : Exit Function
+			; COPY.bas 93: If ho < 0 Then rr = FileSystem.Close(hi) : Print v2; t; ": can't be made ("; ho; ")" : Exit Function
 			dw kw_scpltvl, var_copyone_ho, 0
 			dw kw_goto_iffalse_n, if21_1
 			dw fn_filesystem_close, var_copyone_hi, var_copyone_rr
 			dw kw_printstrvar, var_v2
 			dw kw_printstrvar, var_copyone_t
-			dw kw_printstrvar, str18
-			dw kw_printint, var_copyone_ho
 			dw kw_printstrvar, str19
+			dw kw_printint, var_copyone_ho
+			dw kw_printstrvar, str20
 			dw kw_printnl
 			dw p_copyone_r
 if21_1:
 
-			; COPY.bas 91: total = 0
+			; COPY.bas 94: total = 0
 			dw kw_l_mov, llit_0, var_copyone_total
 
-			; COPY.bas 92: Do While total < size
+			; COPY.bas 95: Do While total < size
 do22_t:
 			dw kw_l_cplt, var_copyone_total, var_copyone_size
 			dw kw_goto_iffalse_n, do22_e
 
-			; COPY.bas 93: If size - total > 8192 Then n = 8192 Else n = CInt(size - total)
+			; COPY.bas 96: If size - total > 8192 Then n = 8192 Else n = CInt(size - total)
 			dw kw_l_sub, var_copyone_size, var_copyone_total, ltmp0
 			dw kw_l_cpgt, ltmp0, llit_8192
 			dw kw_goto_iffalse_n, if23_1
@@ -415,73 +426,73 @@ if23_1:
 			dw kw_vtov, tmp0, var_copyone_n
 if23_e:
 
-			; COPY.bas 94: rr = FileSystem.Read(hi, VarPtr(buf), n)
+			; COPY.bas 97: rr = FileSystem.Read(hi, VarPtr(buf), n)
 			dw fn_filesystem_read, var_copyone_hi, vp_arr_buf, var_copyone_n, var_copyone_rr
 
-			; COPY.bas 95: If rr <= 0 Then Exit Do
+			; COPY.bas 98: If rr <= 0 Then Exit Do
 			dw kw_scplevl, var_copyone_rr, 0
 			dw kw_goto_iffalse_n, if24_1
 			dw do22_e_go
 if24_1:
 
-			; COPY.bas 96: w = FileSystem.Write(ho, VarPtr(buf), rr)
+			; COPY.bas 99: w = FileSystem.Write(ho, VarPtr(buf), rr)
 			dw fn_filesystem_write, var_copyone_ho, vp_arr_buf, var_copyone_rr, var_copyone_w
 
-			; COPY.bas 97: If w <> rr Then
+			; COPY.bas 100: If w <> rr Then
 			dw kw_cpnevv, var_copyone_w, var_copyone_rr
 			dw kw_goto_iffalse_n, if25_1
 
-			; COPY.bas 98: Print v2; t; ": the disc is full, or a write failed"
+			; COPY.bas 101: Print v2; t; ": the disc is full, or a write failed"
 			dw kw_printstrvar, var_v2
 			dw kw_printstrvar, var_copyone_t
-			dw kw_printstrvar, str20
+			dw kw_printstrvar, str21
 			dw kw_printnl
 
-			; COPY.bas 99: rr = FileSystem.Close(hi) : rr = FileSystem.Close(ho)
+			; COPY.bas 102: rr = FileSystem.Close(hi) : rr = FileSystem.Close(ho)
 			dw fn_filesystem_close, var_copyone_hi, var_copyone_rr
 			dw fn_filesystem_close, var_copyone_ho, var_copyone_rr
 
-			; COPY.bas 100: CopyOne = -2
+			; COPY.bas 103: CopyOne = -2
 			dw kw_l_mov, llit_m2, var_copyone_copyone
 
-			; COPY.bas 101: Exit Function
+			; COPY.bas 104: Exit Function
 			dw p_copyone_r
 
-			; COPY.bas 102: End If
+			; COPY.bas 105: End If
 if25_1:
 
-			; COPY.bas 103: total = total + rr
+			; COPY.bas 106: total = total + rr
 			dw kw_l_itol, var_copyone_rr, ltmp1
 			dw kw_l_add, var_copyone_total, ltmp1, var_copyone_total
 
-			; COPY.bas 104: If rr < n Then Exit Do
+			; COPY.bas 107: If rr < n Then Exit Do
 			dw kw_scpltvv, var_copyone_rr, var_copyone_n
 			dw kw_goto_iffalse_n, do22_t
 			dw do22_e_go
 if26_1:
 
-			; COPY.bas 105: Loop
+			; COPY.bas 108: Loop
 			dw do22_t_go
 do22_e:
 
-			; COPY.bas 106: rr = FileSystem.Close(hi)
+			; COPY.bas 109: rr = FileSystem.Close(hi)
 			dw fn_filesystem_close, var_copyone_hi, var_copyone_rr
 
-			; COPY.bas 107: rr = FileSystem.Close(ho)
+			; COPY.bas 110: rr = FileSystem.Close(ho)
 			dw fn_filesystem_close, var_copyone_ho, var_copyone_rr
 
-			; COPY.bas 108: Print v1; s; " to "; v2; t; ": "; total; " bytes"
+			; COPY.bas 111: Print v1; s; " to "; v2; t; ": "; total; " bytes"
 			dw kw_printstrvar, var_v1
 			dw kw_printstrvar, var_copyone_s
-			dw kw_printstrvar, str21
+			dw kw_printstrvar, str22
 			dw kw_printstrvar, var_v2
 			dw kw_printstrvar, var_copyone_t
-			dw kw_printstrvar, str22
-			dw kw_l_print, var_copyone_total
 			dw kw_printstrvar, str23
+			dw kw_l_print, var_copyone_total
+			dw kw_printstrvar, str24
 			dw kw_printnl
 
-			; COPY.bas 109: CopyOne = total
+			; COPY.bas 112: CopyOne = total
 			dw kw_l_mov, var_copyone_total, var_copyone_copyone
 			dw p_copyone_r
 
@@ -491,10 +502,10 @@ do22_e:
 
 p_done:
 
-			; COPY.bas 114: CybDir.Release
+			; COPY.bas 117: CybDir.Release
 			dw p_cybdir_release_c
 
-			; COPY.bas 115: End
+			; COPY.bas 118: End
 			dw kw_stop
 
 ; ============================================================
@@ -509,7 +520,7 @@ p_cybdir_loadall:
 			dw kw_ztov, var_cybdir_m
 
 			; CybDir.cls 25: If vol = "" Then lt = Asc(FileSystem.CurrentVolume()) Else lt = Asc(vol)
-			dw kw_strcmpeq, var_cybdir_loadall_vol, str3
+			dw kw_strcmpeq, var_cybdir_loadall_vol, str4
 			dw kw_goto_iffalse_n, if27_1
 			dw fn_filesystem_currentvolume, var_filesystem_currentvolume_currentvolume
 			dw kw_strcpy, stmp0, var_filesystem_currentvolume_currentvolume
@@ -831,7 +842,7 @@ for42_t:
 			dw kw_strcpy, stmp0, var_cybdir_discname_discname
 			dw kw_strcmpeq, stmp0, var_cybdir_find_name
 			dw kw_ftov, tmp0
-			dw kw_strinstr, lit_1, var_cybdir_find_name, str24, tmp1
+			dw kw_strinstr, lit_1, var_cybdir_find_name, str3, tmp1
 			dw kw_cpeqvl, tmp1, 0
 			dw kw_ftov, tmp1
 			dw p_cybdir_discname_c, var_cybdir_find_i
@@ -861,7 +872,7 @@ p_cybdir_discname:
 			; CybDir.cls 100: Dim j As Integer, s As String Max 12
 
 			; CybDir.cls 101: s = ""
-			dw kw_strcpy, var_cybdir_discname_s, str3
+			dw kw_strcpy, var_cybdir_discname_s, str4
 
 			; CybDir.cls 102: For j = 0 To 7
 			dw kw_ztov, var_cybdir_discname_j
@@ -892,7 +903,7 @@ for44_e:
 			dw kw_goto_iffalse_n, if46_1
 
 			; CybDir.cls 106: s = s + "."
-			dw kw_strcat, var_cybdir_discname_s, str24
+			dw kw_strcat, var_cybdir_discname_s, str3
 
 			; CybDir.cls 107: For j = 8 To 10
 			dw kw_ltov, 8, var_cybdir_discname_j
@@ -963,7 +974,7 @@ p_cybdir_match:
 			; CybDir.cls 123: If pat = "*.*" Then pat = "*"
 			dw kw_strcmpeq, var_cybdir_match_pat, str26
 			dw kw_goto_iffalse_n, if49_1
-			dw kw_strcpy, var_cybdir_match_pat, str9
+			dw kw_strcpy, var_cybdir_match_pat, str10
 if49_1:
 
 			; CybDir.cls 124: Match = Fits(DiscName(i), pat)
@@ -991,7 +1002,7 @@ p_cybdir_fits:
 			dw kw_ztov, var_cybdir_fits_fits
 
 			; CybDir.cls 133: If t = "" Then Exit Function
-			dw kw_strcmpeq, var_cybdir_fits_t, str3
+			dw kw_strcmpeq, var_cybdir_fits_t, str4
 			dw kw_goto_iffalse_n, if50_1
 			dw p_cybdir_fits_r
 if50_1:
@@ -1007,7 +1018,7 @@ do51_t:
 			dw kw_strcpy, var_cybdir_fits_c, stmp0
 
 			; CybDir.cls 136: If c = "*" Then
-			dw kw_strcmpeq, var_cybdir_fits_c, str9
+			dw kw_strcmpeq, var_cybdir_fits_c, str10
 			dw kw_goto_iffalse_n, if52_1
 
 			; CybDir.cls 137: si = i : sj = j : j = j + 1
@@ -1021,7 +1032,7 @@ if52_1:
 			dw kw_strlen, var_cybdir_fits_p, tmp1
 			dw kw_scplevv, var_cybdir_fits_j, tmp1
 			dw kw_ftov, tmp0
-			dw kw_strcmpeq, var_cybdir_fits_c, str10
+			dw kw_strcmpeq, var_cybdir_fits_c, str11
 			dw kw_ftov, tmp1
 			dw kw_strmid, stmp3, var_cybdir_fits_t, var_cybdir_fits_i, lit_1
 			dw kw_strcmpeq, var_cybdir_fits_c, stmp3
@@ -1062,7 +1073,7 @@ do51_e:
 			; CybDir.cls 146: Do While Mid$(p, j, 1) = "*"
 do53_t:
 			dw kw_strmid, stmp0, var_cybdir_fits_p, var_cybdir_fits_j, lit_1
-			dw kw_strcmpeq, stmp0, str9
+			dw kw_strcmpeq, stmp0, str10
 			dw kw_goto_iffalse_n, do53_e
 
 			; CybDir.cls 147: j = j + 1
@@ -1087,11 +1098,11 @@ p_cybdir_into:
 			; CybDir.cls 156: Dim p As String Max 40, c As Integer
 
 			; CybDir.cls 157: Into = ""
-			dw kw_strcpy, var_cybdir_into_into, str3
+			dw kw_strcpy, var_cybdir_into_into, str4
 
 			; CybDir.cls 158: If Right$(nm, 1) = "/" Then nm = Left$(nm, Len(nm) - 1)
 			dw kw_strright, stmp0, var_cybdir_into_nm, lit_1
-			dw kw_strcmpeq, stmp0, str6
+			dw kw_strcmpeq, stmp0, str7
 			dw kw_goto_iffalse_n, if54_1
 			dw kw_strlen, var_cybdir_into_nm, tmp1
 			dw kw_dec, tmp1
@@ -1099,17 +1110,17 @@ p_cybdir_into:
 if54_1:
 
 			; CybDir.cls 159: If nm = "" Or InStr(nm, "*") > 0 Or InStr(nm, "?") > 0 Or InStr(nm, "/") > 0 Then Exit Function
-			dw kw_strcmpeq, var_cybdir_into_nm, str3
+			dw kw_strcmpeq, var_cybdir_into_nm, str4
 			dw kw_ftov, tmp0
-			dw kw_strinstr, lit_1, var_cybdir_into_nm, str9, tmp1
-			dw kw_scpgtvl, tmp1, 0
-			dw kw_ftov, tmp1
-			dw kw_orvv, tmp0, tmp1, tmp0
 			dw kw_strinstr, lit_1, var_cybdir_into_nm, str10, tmp1
 			dw kw_scpgtvl, tmp1, 0
 			dw kw_ftov, tmp1
 			dw kw_orvv, tmp0, tmp1, tmp0
-			dw kw_strinstr, lit_1, var_cybdir_into_nm, str6, tmp1
+			dw kw_strinstr, lit_1, var_cybdir_into_nm, str11, tmp1
+			dw kw_scpgtvl, tmp1, 0
+			dw kw_ftov, tmp1
+			dw kw_orvv, tmp0, tmp1, tmp0
+			dw kw_strinstr, lit_1, var_cybdir_into_nm, str7, tmp1
 			dw kw_scpgtvl, tmp1, 0
 			dw kw_ftov, tmp1
 			dw kw_orvv, tmp0, tmp1, tmp0
@@ -1123,7 +1134,7 @@ if55_1:
 			dw kw_strcpy, var_cybdir_into_p, var_cybdir_pathof_pathof
 
 			; CybDir.cls 161: If p = "" Then p = Left$(v, 1) + ":"
-			dw kw_strcmpeq, var_cybdir_into_p, str3
+			dw kw_strcmpeq, var_cybdir_into_p, str4
 			dw kw_goto_iffalse_n, if56_1
 			dw kw_strleft, stmp0, var_cybdir_into_v, lit_1
 			dw kw_strcpy, var_cybdir_into_p, stmp0
@@ -1134,7 +1145,7 @@ if56_1:
 			dw kw_strcpy, stmp0, var_cybdir_into_p
 			dw kw_strcat, stmp0, var_cybdir_into_nm
 			dw kw_strcpy, var_cybdir_into_p, stmp0
-			dw kw_strcat, var_cybdir_into_p, str6
+			dw kw_strcat, var_cybdir_into_p, str7
 
 			; CybDir.cls 163: If Len(p) > 31 Then Exit Function
 			dw kw_strlen, var_cybdir_into_p, tmp0
@@ -1173,7 +1184,7 @@ for59_t:
 			; CybDir.cls 169: If PathOf(c) = "" And IsRam(c) = 0 Then
 			dw p_cybdir_pathof_c, var_cybdir_into_c
 			dw kw_strcpy, stmp0, var_cybdir_pathof_pathof
-			dw kw_strcmpeq, stmp0, str3
+			dw kw_strcmpeq, stmp0, str4
 			dw kw_ftov, tmp0
 			dw p_cybdir_isram_c, var_cybdir_into_c
 			dw kw_vtov, var_cybdir_isram_isram, tmp1
@@ -1211,7 +1222,7 @@ if60_1:
 for59_e:
 
 			; CybDir.cls 176: Into = "!"                                     ' a folder, but no letter free
-			dw kw_strcpy, var_cybdir_into_into, str4
+			dw kw_strcpy, var_cybdir_into_into, str5
 			dw p_cybdir_into_r
 
 ; ============================================================
@@ -1250,7 +1261,7 @@ p_cybdir_pathof:
 			; CybDir.cls 189: Dim c As Integer, t As String Max 40
 
 			; CybDir.cls 190: PathOf = ""
-			dw kw_strcpy, var_cybdir_pathof_pathof, str3
+			dw kw_strcpy, var_cybdir_pathof_pathof, str4
 
 			; CybDir.cls 191: ub(0) = &HC1 : ub(1) = lt
 			dw kw_ltolptr8, 193, arr_cybdir_ub
@@ -1265,7 +1276,7 @@ p_cybdir_pathof:
 if63_1:
 
 			; CybDir.cls 193: t = ""
-			dw kw_strcpy, var_cybdir_pathof_t, str3
+			dw kw_strcpy, var_cybdir_pathof_t, str4
 
 			; CybDir.cls 194: For c = 1 To ub(2)
 			dw kw_ltov, 1, var_cybdir_pathof_c
@@ -1940,7 +1951,7 @@ var_cybdir_length_length:			dw 0, 0
 var_nd:			dw 0
 var_i:			dw 0
 for14_l:			dw 0
-var_r:			dw 0
+var_r:			dw 0, 0
 var_copyone_copyone:			dw 0, 0
 var_cybdir_find_find:			dw 0
 			db 12			; capacity
@@ -2059,12 +2070,12 @@ lit_1:			dw 1
 lit_255:			dw 255
 lit_2:			dw 2
 lit_3:			dw 3
+llit_0:			dw 0, 0
+llit_m2:			dw 65534, 65535
 llit_m1:			dw 65535, 65535
 lit_4:			dw 4
-llit_0:			dw 0, 0
 llit_8192:			dw 8192, 0
 vp_arr_buf:			dw arr_buf
-llit_m2:			dw 65534, 65535
 vp_arr_cybdir_ub:			dw arr_cybdir_ub
 lit_63:			dw 63
 lit_0:			dw 0
@@ -2088,28 +2099,28 @@ lit_30:			dw 30
 str0:			db " ", 0
 str1:			db "COPY [v1:]name v2[:newname]   COPY [v1:]pattern v2", 0
 str2:			db ":", 0
-str3:			db 0
-str4:			db "!", 0
-str5:			db " is a folder: no drive letter free (C-P) to copy into it", 0
-str6:			db "/", 0
-str7:			db ": no such folder", 0
-str8:			db ": its files can't be listed (UniDOS, or a RAM disc)", 0
-str9:			db "*", 0
-str10:			db "?", 0
-str11:			db "COPY ", 0
-str12:			db ": a pattern copies to a drive (v2 alone), same names", 0
-str13:			db "a file can't be copied over itself", 0
-str14:			db ": no file fits", 0
-str15:			db " of ", 0
-str16:			db " files copied", 0
-str17:			db ": not found", 0
-str18:			db ": can't be made (", 0
-str19:			db ")", 0
-str20:			db ": the disc is full, or a write failed", 0
-str21:			db " to ", 0
-str22:			db ": ", 0
-str23:			db " bytes", 0
-str24:			db ".", 0
+str3:			db ".", 0
+str4:			db 0
+str5:			db "!", 0
+str6:			db " is a folder: no drive letter free (C-P) to copy into it", 0
+str7:			db "/", 0
+str8:			db ": no such folder", 0
+str9:			db ": its files can't be listed (UniDOS, or a RAM disc)", 0
+str10:			db "*", 0
+str11:			db "?", 0
+str12:			db "COPY ", 0
+str13:			db ": a pattern copies to a drive (v2 alone), same names", 0
+str14:			db "a file can't be copied over itself", 0
+str15:			db ": no file fits", 0
+str16:			db " of ", 0
+str17:			db " files copied", 0
+str18:			db ": not found", 0
+str19:			db ": can't be made (", 0
+str20:			db ")", 0
+str21:			db ": the disc is full, or a write failed", 0
+str22:			db " to ", 0
+str23:			db ": ", 0
+str24:			db " bytes", 0
 str25:			db ".COM", 0
 str26:			db "*.*", 0
 
@@ -2754,15 +2765,6 @@ kw_scpgtvl:
 			ld d, (hl)
 			pop hl
 			jp ntc_cmp_sgt
-
-;## kw_scpgevl ntc_cmp
-kw_scpgevl:
-			pop hl
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			pop hl
-			jp ntc_cmp_sge
 
 ;## kw_cpeqvv ntc_cmp
 ;kw_cpeqvv, <var1>, <var2>
@@ -3569,6 +3571,30 @@ kw_l_cplt:
 ntc_lclt:
 			ld a, (ntc_lsgn)
 			xor #80
+			ret
+
+;## kw_l_cpge ntc_lcmp
+;kw_l_cpge, <a>, <b>  - Z if a >= b
+kw_l_cpge:
+			pop de
+			pop hl
+			ld ix, ntc_lcge
+			jp ntc_lcmp
+ntc_lcge:
+			ld a, (ntc_lsgn)
+			or a
+			ret
+
+;## kw_l_cpeq ntc_lcmp
+;kw_l_cpeq, <a>, <b>  - Z if a = b
+kw_l_cpeq:
+			pop de
+			pop hl
+			ld ix, ntc_lceq
+			jp ntc_lcmp
+ntc_lceq:
+			ld a, (ntc_lcnt)
+			or a
 			ret
 
 ;## kw_l_cpgt ntc_lcmp

@@ -65,6 +65,28 @@ CyborgOS (a separate project built with NTC BASIC) keeps its own list: [cyborgos
   speed (aimed at WinAPE 1000% for now). Harness: cpcfw now gives the vertical sync (#F5xx).
   Interrupts are let in while Render works (it runs ~0.1-1 s with them off otherwise, and the
   lost ticks made the FPS read ~10x high); the start screen shows the buildings and RAM used
+- 2026-10-16 **AUCKLAND** (STATE3D) demo (cpcfw, 4 MB, `bas/auckland`): Auckland from
+  OpenStreetMap - 233,935 buildings, roads, coast, 50,040 trees, the Sky Tower, Harbour Bridge,
+  volcanoes - in AUCKLAND.DAT (3808K, 16K blocks of 384 m tiles) read into the expansion RAM;
+  City3d's camera and clipping, the tiles 7 x 7 round the camera nearest first with a line budget,
+  landmarks further (Rangitoto, the Sky Tower, the Harbour Bridge to 11 km). Starts 200 m up out
+  in the gulf flying in, Rangitoto ahead on the right; P pauses. Made by tools/osmcut +
+  tools/s3dmake (browser). About 0.3 frames a second (City3d 0.6). Test: a made-up town
+  (src/test/s3d). Its file buffer is in S3d's tables (Option Buffer &H9000): with it in the
+  program the Memory class's page tables (3 bytes a page, after the program) ran into those
+  tables and the frames drew garbage.
+  Option RomEnable All (RUN" dropped UniDOS: no file, no block read). Its tables moved under the
+  ROMs' RAM - #8F50-#A2EF (UniDOS with an IDE node takes #A309 up): heights to 191 (382 m), 256
+  landmark tiles, 12 points a building; it stops with a message when the ROMs' RAM (or the page
+  tables) would reach them.
+  S: frames skipped (0, 4, 8: S3d.Move moves the camera as a frame does, not drawn); a compass
+  (Z80, in Render: an arrow bottom right pointing north). Dive is the cursor up key alone now.
+- Compiler (open): the Memory class's page tables go after the program (ntc_free) even when an
+  Option Reserve range starts soon after - nothing warns when they run into it (their size is
+  only known at run time: 3 bytes a page).
+- 2026-10-16 **Compiler**: a call with function calls among its arguments (`S 1, F(2), F(3)`)
+  passed the last call's result for all of them (each was its function's result variable): each
+  is now kept in the argument's temporary first. Test argfn.
 - 2026-10-14 CUBE3D: + / - (the ; and - keys) are held keys (Keys class) on the CPC platforms -
   the size changes every frame while held (cpm keeps Inkey$). MAXPOINTS 24, MAXEDGES 40 (room
   for Keys on cpcmin). Harness (cpcrun): a Keys scan no longer moves typed keys on

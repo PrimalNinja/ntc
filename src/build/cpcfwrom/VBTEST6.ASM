@@ -91,7 +91,8 @@ for1_e:
 
 			; 34: Chk ByteSum(buf), 255 + 30 + 60 + 90 + 120 + 150 + 180 + 210 + 240 + 14
 			dw p_bytesum_c, ad_arr_buf
-			dw p_chk_c, var_bytesum_bytesum, lit_1349
+			dw kw_vtov, var_bytesum_bytesum, tmp0
+			dw p_chk_c, tmp0, lit_1349
 
 			; 37: ReDim dyn(5)
 			dw kw_redim, pa_dyn, pa_dyn_data, 0, 2, 6, 1
@@ -154,7 +155,8 @@ for2_e:
 
 			; 53: Chk Total(dyn), 9
 			dw p_total_c, pa_dyn
-			dw p_chk_c, var_total_total, lit_9
+			dw kw_vtov, var_total_total, tmp0
+			dw p_chk_c, tmp0, lit_9
 
 			; 54: Erase dyn
 			dw kw_redim, pa_dyn, pa_dyn_data, 0, 2, 0, 0
@@ -495,6 +497,7 @@ kw_forupv_n:	jp 25
 kw_next1l_n:	jp 31
 kw_next1v_n:	jp 33
 kw_ltov:		jp 47
+kw_vtov:		jp 48
 kw_ztov:		jp 49
 kw_inc:		jp 51
 kw_add:		jp 53
@@ -525,7 +528,7 @@ kw_l_ltoi:	jp 208
 kw_l_div:	jp 229
 kw_bssinit:	jp 288
 kw_waitkey:	jp 348
-NTC_RJ_N	equ 37		; entries
+NTC_RJ_N	equ 38		; entries
 ntc_csp	equ #8800		; ROM data
 ntc_nmode	equ #8807		; ROM data
 ntc_v_free	equ #894E		; ROM data

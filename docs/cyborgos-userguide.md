@@ -42,17 +42,17 @@ in `bas/cyborgos128kb/`, with its own user guide.
   (the commands for the system drive Z), MON and its SYSTEM.MAP, three test programs (TICKER.CYB,
   CRUNCH.CYB, LINES.CYB; CRUNCH also as a plain CRUNCH.COM), the help texts (*.HLP) and
   INSTALL.BAS. Disc 2: the commands (.CYB: HELP, PS, TOP, KILL, RESET, FG, WAIT, MEM, MODE, DIR,
-  CD, MKDIR, RMDIR, DRIVE, COPY, ERA, TYPE, RENAME, RAMDISC) and FLOPPY. Disc 3: Z ready-made
+  CD, CV, MKDIR, RMDIR, DRIVE, COPY, ERA, TYPE, RENAME, RAMDISC) and FLOPPY. Disc 3: Z ready-made
   (CYBORGOS.Z1 ...). Disc 4: the web browsers YING and YANG, with their local pages HOME.8BM and
   KEYS.8BM.
 - INSTALL.BAS (on disc 1 only; `RUN"INSTALL` from BASIC) puts all four in a folder CYBORGOS on
-  your mass storage. Map the floppy drive as drive B and the mass storage (IDE, SD ...) as drive
-  A first (UniDOS: `|DRIVE,"A","IDE:"`, `|DRIVE,"B","DFA:"`) - the installer says so at the top.
-  It makes `A:CYBORGOS/`, `CYBORGOS/C/` (the commands Z is made from) and `CYBORGOS/HELP/` (the
+  your mass storage. Map the floppy drive as drive B first (UniDOS: `|DRIVE,"B","DFA:"`). It asks
+  the device (Enter: IDE) and sets drive A to its top (`|DRIVE,"A","IDE:"` - so installing again
+  goes to the same place, never CYBORGOS/CYBORGOS). It makes `A:CYBORGOS/`, `CYBORGOS/C/` (the commands Z is made from) and `CYBORGOS/HELP/` (the
   help texts) with `|SAVE`, copies disc 1, then asks for discs 2, 3 and 4 in drive B (a key when
   each is in), each file with `|COPY` (over one already there), with a bar and how far it has got
   (%). At the end: 1 run it on a real CPC, 2 run it on WinAPE (`KEYREP 10`: keys repeat 10 times
-  slower), 3 exit. 1 and 2 make A's path the CYBORGOS folder (`|DRIVE,"A","CYBORGOS"` - UniDOS
+  slower), 3 exit. 1 and 2 make A's path the CYBORGOS folder (`|DRIVE,"A","IDE:CYBORGOS"` - UniDOS
   keeps it), then start it as CYBORGOS.BAS does. It runs on BASIC 1.0 too: RSXs get their
   strings as `@p1$`, never as literals; SPEED KEY 100,100 while it runs (WinAPE at full speed).
   `build/dsk/cyborgos128k.dsk` is the 128K version's (a 6128 and up); it keeps CYBADD.BIN, PREP
@@ -67,8 +67,8 @@ they need nothing of the hypervisor's RAM, only a BDOS call (131) for what the h
 | *name* [*args*] | runs the program *name* - from Z, else this slot's drive, else the boot drive - in this slot; the rest of the line is its command tail (#0080, as CP/M has it: `System.CommandLine` in NTC). Not found anywhere: `? NAME (HELP)` |
 | `RUN` [*slot*] *name* [*args*] | the same, also for a name that is a built-in command - `RUN CLS` runs CLS.CYB, not the CLS command. With a slot first: runs it there (it keeps running in the background while this command line stays) - `RUN 2 CRUNCH 3` |
 | `DIR` [*v*:][*pattern*] [`FULL`] | the drive's files (UniDOS's listing; a RAM disc's own directory), across the screen - 13 columns each, as many as the console's width takes (BDOS 49), a name never split - with nothing else. A pattern (`*.CYB`, `T?*`) picks them; `B` alone is drive B. `FULL`: a line each - name, length in bytes (a RAM disc's from its records), UniDOS's date - and how many |
-| `CD` [*drive*] | this slot's drive (A-P, a RAM disc too): kept only when the drive is there. Each slot has its own (the boot drive to start with), as in CP/M; programs, RUN and DIR use it. `CD` alone: the slot's drive |
-| *drive*`:` | the same as `CD` *drive*: `B:` alone is `CD B`, as in CP/M; `CD B:` works too |
+| `CV` [*drive*] | change volume: this slot's drive (A-P, a RAM disc too): kept only when the drive is there. Each slot has its own (the boot drive to start with), as in CP/M; programs, RUN and DIR use it. `CV` alone: the slot's drive (with UniDOS also the drives with paths and the devices). `CD` changes folders (below) |
+| *drive*`:` | the same as `CV` *drive*: `B:` alone is `CV B:`, as in CP/M; `CV B` works too |
 | `FG` *slot* | that slot to the front |
 | `PS` | the slots: what each is doing (`*` = in front) |
 | `TOP` | the TOP table (each slot's state, program, and in the last whole second its turns, BDOS calls and characters), then `Total memory: n KB   Free memory: n KB`, printed once into this slot's console, like PS |
@@ -78,7 +78,7 @@ they need nothing of the hypervisor's RAM, only a BDOS call (131) for what the h
 | `CLS` | clears this slot's page (built in) |
 | `MODE` [*m*] | this slot's screen mode: `2`, `S`, `W`, `UW`, `P` (its console cleared); alone, the modes and this slot's (from BDOS 49) |
 | `MEM` | main RAM as a table (each address range and what is there: CyborgOS, the window, free RAM, the firmware and ROMs, the screen); the map of the banks, a character a 16K page (B a slot's, U the hypervisor's: disc buffers, RAM discs - Z too -, - free), 32 pages (8 banks) a group, two groups a line; then the totals as TOP has them. Not in the Library: ROM build |
-| `HELP` [*name*] | the commands (HELP.HLP); `HELP DIR`, `HELP CD` ...: that one's text, NAME.HLP (a name with a `.` as it is: `HELP MY.TXT`). Looked for on this slot's drive, then in the HELP folder of A or B (`CYBORGOS/HELP`, where the installer puts them - UniDOS), then on A and Z. The .HLP files are plain text (CR LF lines, ^Z at the end) - any can be edited, and a program can have one of its own |
+| `HELP` [*name*] | the commands (HELP.HLP); `HELP DIR`, `HELP CV` ...: that one's text, NAME.HLP (a name with a `.` as it is: `HELP MY.TXT`). Looked for on this slot's drive, then in the HELP folder of A or B (`CYBORGOS/HELP`, where the installer puts them - UniDOS), then on A and Z. The .HLP files are plain text (CR LF lines, ^Z at the end) - any can be edited, and a program can have one of its own |
 | `FLOPPY` *from* [*to*] | CPC floppy discs read and written track by track, as COPY (*d*: `A`, `DFA`, `FDA`; `B`, `DFB`, `FDB`): `FLOPPY A` its files listed; `FLOPPY A` *folder* / *NAME*`.DSK` its files copied there, or the disc as an image; `FLOPPY` *folder* / *NAME*`.DSK` `A` the other way, onto the disc ([4a3](#4a3-floppy-floppy-discs-read-and-written-track-by-track)) |
 | `COPY`, `ERA`, `TYPE`, `RENAME` | disc commands ([4a](#4a-disc-commands-copy-era-type-rename-and-help)) |
 | `RAMDISC` | RAM discs ([4b](#4b-ram-discs-ramdisc)) |
@@ -137,15 +137,15 @@ nothing changes. A path is for every slot (it is the letter's); 31 characters at
 
 | Command | What it does |
 |---|---|
-| `CD IDE:`, `CD IDE`, `IDE:` alone, `CD SD:GAMES/ACTION` | this slot's drive gets that path. With `CD` the `:` after a device's name doesn't matter (`CD IDE` is `CD IDE:`; a folder named as a device: `CD SD/`); any word ending in `:` typed alone is `CD` it (`B:`, `IDE:`, `DFB:`). On `A` or `B` (UniDOS's own two logical drives - the boot drive is one of them, so it is never moved) the first letter from `C` with no path and no RAM disc gets it instead, and becomes this slot's drive |
-| `CD GAMES` | a folder in this drive's (from `A`/`B`: as above, the path `A:GAMES/`) |
-| `CD ..` | the folder this drive's is in |
-| `CD C: IDE:WORK` | drive `C`'s path set, `C` this slot's drive |
-| `CD C: -` | drive `C`'s path dropped |
-| (a RAM disc) | a RAM disc's letter never has a path: RAMDISC drops one it had, and `CD IDE:` from a RAM disc takes another letter |
-| `CD` | this slot's drive and its path, every drive with a path, the devices UniDOS has |
-| `CD B` | as before (UniDOS lists the folder) |
-| `CD DFA:`, `CD DFB:` | a floppy as a path: UniDOS can't examine it, so it is taken as it is (`FLOPPY A` lists its files) |
+| `CV IDE:`, `CV IDE`, `IDE:` alone, `CV SD:GAMES/ACTION` | this slot's drive gets that path (`CV IDE` is `CV IDE:`); any word ending in `:` typed alone is `CV` it (`B:`, `IDE:`, `DFB:`). On `A` or `B` (UniDOS's own two logical drives - the boot drive is one of them, so it is never moved) the first letter from `C` with no path and no RAM disc gets it instead, and becomes this slot's drive |
+| `CD GAMES`, `CD GAMES/ACTION` | a folder in this drive's (any name - `CD C` is the folder C; from `A`/`B`: as above, the path `A:GAMES/`). `CD` only changes folders: a drive or device is `CV` |
+| `CD ..`, `CD /` | the folder this drive's is in; the device's top |
+| `CV C: IDE:WORK` | drive `C`'s path set, `C` this slot's drive |
+| `CV C: -` | drive `C`'s path dropped |
+| (a RAM disc) | a RAM disc's letter never has a path: RAMDISC drops one it had, and `CV IDE:` from a RAM disc takes another letter |
+| `CV`; `CD` | this slot's drive and its path, every drive with a path, the devices UniDOS has; `CD` alone: this slot's drive and its folder |
+| `CV B:`, `CV B` | drive B |
+| `CV DFA:`, `CV DFB:` | a floppy as a path: UniDOS can't examine it, so it is taken as it is (`FLOPPY A` lists its files) |
 | `MKDIR WORK`, `MKDIR IDE:GAMES/NEW` | a folder made, in this drive's folder or anywhere |
 | `RMDIR WORK`, `RMDIR IDE:GAMES/OLD` | an empty folder removed (UniDOS deletes a folder with all it holds, so RMDIR looks first and refuses one that isn't empty) |
 | `FLOPPY A GAMES` | a floppy's files copied into a folder ([4a3](#4a3-floppy-floppy-discs-read-and-written-track-by-track)) |
@@ -461,7 +461,7 @@ slot's bank, without the hypervisor):
 | 11 | is a key waiting (*bank*) |
 | 12 | the version: #22 (CP/M 2.2) |
 | 13, 32 | reset the discs, the user number: nothing to do (0) |
-| 14 | select a disc: the slot's drive (as CD) |
+| 14 | select a disc: the slot's drive (as CV) |
 | 15, 16 | open (to read; on a RAM disc to read and write), close |
 | 17, 18 | search for the first / next file matching the FCB's name (`?` any character): its entry in the slot's drive's (or the FCB's drive's) folder as UniDOS lists it (a RAM disc: its own directory; an AMSDOS floppy: none), as a CP/M directory entry at the DMA (A = 0; the record count from its length, 128 at most); #FF none |
 | 19 | delete (the disc ROM's `|ERA`) |
@@ -625,7 +625,7 @@ NTC window data (`; @window` in the #asm): in CYBORGOS.BIN's window hole, copied
 at the start, so they take no main RAM. The
 test programs are in `bas/cyborgos320kb/tasks/`, the commands in `bas/cyborgos320kb/cmds/`, each
 built for cpm: COPY, ERA, DIR with `CybDir.cls` (a drive's own directory read: UniDOS's listing,
-a RAM disc's); PS, KILL, RESET, FG, WAIT, TOP, MEM with `CybSys.cls` (BDOS 131); HELP, CD, RAMDISC,
+a RAM disc's); PS, KILL, RESET, FG, WAIT, TOP, MEM with `CybSys.cls` (BDOS 131); CD, CV with `CybVol.cls` (drive letters, paths, devices); HELP, RAMDISC,
 MKDIR, RMDIR, DRIVE, FLOPPY, TYPE, RENAME alone (HELP's texts: `bas/cyborgos320kb/help/*.HLP`, on disc 1). CyborgOS's own BDOS functions, for these commands:
 
 | BDOS | DE = a block in the program | Does |

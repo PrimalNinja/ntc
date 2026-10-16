@@ -72,7 +72,8 @@ for1_e:
 
 			; 34: Chk ByteSum(buf), 255 + 30 + 60 + 90 + 120 + 150 + 180 + 210 + 240 + 14
 			dw p_bytesum_c, ad_arr_buf
-			dw p_chk_c, var_bytesum_bytesum, lit_1349
+			dw kw_vtov, var_bytesum_bytesum, tmp0
+			dw p_chk_c, tmp0, lit_1349
 
 			; 37: ReDim dyn(5)
 			dw kw_redim, pa_dyn, pa_dyn_data, 0, 2, 6, 1
@@ -135,7 +136,8 @@ for2_e:
 
 			; 53: Chk Total(dyn), 9
 			dw p_total_c, pa_dyn
-			dw p_chk_c, var_total_total, lit_9
+			dw kw_vtov, var_total_total, tmp0
+			dw p_chk_c, tmp0, lit_9
 
 			; 54: Erase dyn
 			dw kw_redim, pa_dyn, pa_dyn_data, 0, 2, 0, 0
@@ -656,6 +658,19 @@ ntc_n1v_nc_n:
 ;kw_ltov, <literal>, <destvar>
 kw_ltov:
 			pop de
+			pop hl
+			ld (hl), e
+			inc hl
+			ld (hl), d
+			ret
+
+;## kw_vtov
+;kw_vtov, <sourcevar>, <destvar>
+kw_vtov:
+			pop hl
+			ld e, (hl)
+			inc hl
+			ld d, (hl)
 			pop hl
 			ld (hl), e
 			inc hl

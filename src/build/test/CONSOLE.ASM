@@ -33,7 +33,8 @@ main_thread:
 
 			; main.bas 5: StdIO.PutInt StdIO.Cols()
 			dw fn_stdio_cols, var_stdio_cols_cols
-			dw fn_stdio_putint, var_stdio_cols_cols
+			dw kw_vtov, var_stdio_cols_cols, tmp0
+			dw fn_stdio_putint, tmp0
 
 			; main.bas 6: StdIO.NewLine
 			dw fn_stdio_newline
@@ -172,6 +173,7 @@ var_stdio_cols_cols:			dw 0
 var_s:			ds 41
 var_k:			dw 0
 var_stdio_column_column:			dw 0
+tmp0:			dw 0
 			db 40			; capacity
 stmp0:			ds 41
 
@@ -260,6 +262,19 @@ ntc_xn:
 			nop					; an interrupt can be taken here
 			di
 			ld sp, (ntc_ip)
+			ret
+
+;## kw_vtov
+;kw_vtov, <sourcevar>, <destvar>
+kw_vtov:
+			pop hl
+			ld e, (hl)
+			inc hl
+			ld d, (hl)
+			pop hl
+			ld (hl), e
+			inc hl
+			ld (hl), d
 			ret
 
 ;## kw_strcpy

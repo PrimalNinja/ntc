@@ -2576,6 +2576,25 @@ function ntcCompile(input_a, objOptions_a)
 				{
 					objWritten[objArg.el.full] = true;
 				}
+				// a function's result: a later argument's call would overwrite it - keep a copy
+				if (objArg.fres)
+				{
+					if (objArg.k === 's')
+					{
+						emit('kw_strcpy', [stmp(intSlot_a + intI), objArg.n]);
+						objArg = sv(stmp(intSlot_a + intI));
+					}
+					else if (objArg.k === 'd')
+					{
+						emit('kw_l_mov', [objArg.n, ltmp(intSlot_a + intI)]);
+						objArg = { k: 'd', n: ltmp(intSlot_a + intI) };
+					}
+					else if (objArg.k === 'v')
+					{
+						emit('kw_vtov', [objArg, tmp(intSlot_a + intI)]);
+						objArg = vr(tmp(intSlot_a + intI));
+					}
+				}
 			}
 
 			if (strType === 'str')

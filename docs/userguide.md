@@ -3159,6 +3159,14 @@ Loop
 
 See `bas/cube3d/` (Vector3D draws through it) and `bas/city3d/` (a wireframe city to fly through, cpcfw).
 
+`bas/auckland/` (AUCKLAND.BIN, cpcfw, a 4 MB CPC) is the big one: Auckland from OpenStreetMap -
+234,000 buildings, the roads, the coast, 50,000 trees, the Sky Tower, the Harbour Bridge and the
+volcanoes, read from AUCKLAND.DAT (3.8 MB) into the expansion RAM. The data is made in a browser:
+`tools/osmcut` cuts an OpenStreetMap .osm.pbf, `tools/s3dmake` turns the cut into the .DAT (see
+their READMEs). It starts 200 m up out in the gulf, flying in at Auckland with Rangitoto ahead on
+the right. Keys 1-9: the views; B: the line budget (600, 1200, 2400 a frame); S: frames skipped (0, 4, 8 -
+faster over the ground); P: pause. A compass arrow (bottom right) points north.
+
 **Graphics on CP/M (an Amstrad CPC).** The `cpm` platform has the class too, for CP/M on a
 CPC: mode 2 only (the console's mode: 640 x 200, pens 0-1), one screen (`DoubleBuffer`, `Flip`
 and `CopyText` do nothing, `Back()` is 0). It writes to the screen memory itself, not through

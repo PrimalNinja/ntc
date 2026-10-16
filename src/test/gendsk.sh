@@ -53,11 +53,11 @@ done
 # tools/, cos-disk1 only): RUN"INSTALL - the three discs (B) to drive A's CYBORGOS folder
 rm -f ../build/dsk/cyborgos.dsk
 cyb_cls() {   # the class a CyborgOS command is built with: CybDir (a drive's directory), CybSys (BDOS 131), none
-  case $2 in PS|KILL|RESET|FG|WAIT|TOP|MEM|MODE) echo $1/cmds/CybSys.cls;; CD|RAMDISC|HELP|MKDIR|RMDIR|DRIVE) ;; TYPE|RENAME) [ $1 == ../bas/cyborgos128kb ] && echo $1/cmds/CybDir.cls;; *) echo $1/cmds/CybDir.cls;; esac
+  case $2 in PS|KILL|RESET|FG|WAIT|TOP|MEM|MODE) echo $1/cmds/CybSys.cls;; CD|CV) [ -f $1/cmds/CybVol.cls ] && echo $1/cmds/CybVol.cls;; RAMDISC|HELP|MKDIR|RMDIR|DRIVE) ;; TYPE|RENAME) [ $1 == ../bas/cyborgos128kb ] && echo $1/cmds/CybDir.cls;; *) echo $1/cmds/CybDir.cls;; esac
 }
 for v in 320 128; do
   b=../bas/cyborgos${v}kb; w=t/dsk_cyb$v; rm -rf $w; mkdir -p $w
-  c="COPY ERA TYPE PREP RENAME"; [ $v == 320 ] && c="COPY ERA TYPE RENAME RAMDISC DIR CD MKDIR RMDIR DRIVE FLOPPY PS KILL RESET FG WAIT TOP MEM MODE"
+  c="COPY ERA TYPE PREP RENAME"; [ $v == 320 ] && c="COPY ERA TYPE RENAME RAMDISC DIR CD CV MKDIR RMDIR DRIVE FLOPPY PS KILL RESET FG WAIT TOP MEM MODE"
   node cli.js $b/Main.bas $b/Hyp.cls $b/Hot.cls $b/Ent.cls --platform=cpcfw --amsdos=CYBORGOS --name=CYBORGOS > $w/CYBORGOS.ASM 2>/dev/null
   cg=CYBORGOS                                    # 320K drops CYBADD (and FILES.DIR)
   [ $v != 320 ] && { node cli.js $b/tools/CYBADD.bas $b/Ent.cls --platform=cpcfw --amsdos=CYBADD --name=CYBADD > $w/CYBADD.ASM 2>/dev/null; cg="CYBORGOS CYBADD"; }

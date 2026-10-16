@@ -4,12 +4,14 @@
 ' piers, trees (a trunk and a crown), and landmarks as 3D lines (the Sky Tower, the Harbour
 ' Bridge, the volcanoes) seen from further away. Freescape-style lines, no hidden line removal,
 ' as CITY3D (bas/city3d: the camera, the clipping and the projection are its, unchanged).
-' The tiles round the camera (7 x 7, nearest first) are drawn: big buildings to 1.6 km, middle
-' ones to 1.2 km, small ones to 650 m, minor roads to 800 m, trees to 350 m - and no more than
-' the line budget (SetBudget) in a frame. Each tile's block is put in the window (#4000) while
+' The tiles round the camera (7 x 7, nearest first) are drawn: big buildings to 1.9 km, middle
+' ones to 1 km, small ones to 400 m (all their edges to 200 m, the top and the uprights to 600
+' m, then the top), minor roads to 800 m, trees to 350 m - and no more than the line budget
+' (SetBudget) in a frame; the landmark tiles to 3.5 km (Rangitoto, the Sky Tower, the Harbour Bridge to 11 km). Each tile's block is put in the window (#4000) while
 ' it is read; the Graphics class puts main RAM back there while it draws (the second screen).
-' World units: 0.5 m (x east, z north, y up). Main RAM #9000-#A5FF: its tables (Option Reserve
-' &H9000, &H1600: the program goes on at #8000 when it is past #4000, the Memory class's tables
+' World units: 0.5 m (x east, z north, y up). Main RAM #8F50-#A2EF: its tables (Option Reserve
+' &H8F50, &H13A0 - under the ROMs' RAM: UniDOS with an IDE node takes #A309 up, its event block
+' 16 below); the program goes on at #8000 when it is past #4000, the Memory class's tables
 ' after it).
 ' All the work is Z80 (#asm). Platform: cpcfw (the Graphics class, the firmware's file calls).
 Option Explicit
@@ -20,20 +22,22 @@ Private rp As Integer, rr As Integer, ry As Integer, spd As Integer
 Private sps As Integer
 Private pg(255) As Integer                    ' the data's pages: 0 block 0 (the directory), b block b
 Private nx As Integer, nz As Integer, x0 As Integer, z0 As Integer, x1 As Integer, z1 As Integer
+Private lmf As Integer
+Private mvo As Integer                        ' 1: Render only moves the camera (Move)
 Private dro As Integer, nlm As Integer, lmax As Integer, nlines As Integer, cjf As Integer
-Private Const TX = &H9000           ' 256 x 6: a local x's (2 m steps, signed) camera X, Y, Z
-Private Const TZ = &H9600           ' ... a local z's
-Private Const TH = &H9C00           ' ... a height's (2 m steps, 0-255)
-Private Const LMT = &HA200          ' the landmark tiles: ti, tj (a byte each), up to 280
-Private Const VTX = &HA430          ' vertices, 12 bytes each: 12 a building's ground, 12 its top
-Public Const LANDMARKS = 280
+Private Const TX = &H8F50           ' 256 x 6: a local x's (2 m steps, signed) camera X, Y, Z
+Private Const TZ = &H9550           ' ... a local z's
+Private Const TH = &H9B50           ' 192 x 6: a height's (2 m steps, 0-191: 382 m)
+Private Const LMT = &H9FD0          ' the landmark tiles: ti, tj (a byte each), up to 256
+Private Const VTX = &HA1D0          ' vertices, 12 bytes each: 12 a building's ground, 12 its top (12 points at most)
+Public Const LANDMARKS = 256
 
 ' SetPage(i, page): block i of the data is in RAM page page
 Public Sub SetPage(ByVal i As Integer, ByVal page As Integer)
   pg(i) = page
 End Sub
 
-' SetLandmark(i, ti, tj): landmark tile i
+' SetLandmark(i, ti, tj): landmark tile i (ti + 128: a far one - drawn to 11 km, not 3.5)
 Public Sub SetLandmark(ByVal i As Integer, ByVal ti As Integer, ByVal tj As Integer)
   Poke LMT + i * 2, ti
   Poke LMT + i * 2 + 1, tj
@@ -41,17 +45,27 @@ End Sub
 
 ' Setup: the world (tiles across, north; its south-west corner in world units; block 0's
 ' directory offset; landmark tiles), the camera at sx, sz, 120 m up, looking north
-Public Sub Setup(ByVal tx As Integer, ByVal tz As Integer, ByVal wx As Integer, ByVal wz As Integer, ByVal doff As Integer, ByVal lms As Integer, ByVal sx As Integer, ByVal sz As Integer)
-  nx = tx : nz = tz : x0 = wx : z0 = wz : dro = doff : nlm = lms
+Public Sub Setup(ByVal ntx As Integer, ByVal ntz As Integer, ByVal wx As Integer, ByVal wz As Integer, ByVal doff As Integer, ByVal lms As Integer, ByVal sx As Integer, ByVal sz As Integer)
+  nx = ntx : nz = ntz : x0 = wx : z0 = wz : dro = doff : nlm = lms
   x1 = x0 + nx * 768 : z1 = z0 + nz * 768
   bas(0) = 16384 : bas(4) = 16384 : bas(8) = 16384
   qx = CLng(sx) * 16384
   qy = CLng(240) * 16384
   qz = CLng(sz) * 16384
-  lmax = 900
+  lmax = 1800
 End Sub
 
-' SetBudget(n): lines tried a frame at most (900 to start with)
+' Place x, z, height (world units), fx, fz (the way to look, level: 16384 = 1): the camera there
+Public Sub Place(ByVal px As Integer, ByVal pz As Integer, ByVal ph As Integer, ByVal fx As Integer, ByVal fz As Integer)
+  bas(0) = fz : bas(1) = 0 : bas(2) = -fx
+  bas(3) = 0 : bas(4) = 16384 : bas(5) = 0
+  bas(6) = fx : bas(7) = 0 : bas(8) = fz
+  qx = CLng(px) * 16384
+  qy = CLng(ph) * 16384
+  qz = CLng(pz) * 16384
+End Sub
+
+' SetBudget(n): lines tried a frame at most (1800 to start with)
 Public Sub SetBudget(ByVal n As Integer)
   lmax = n
 End Sub
@@ -61,6 +75,17 @@ End Sub
 Public Sub Steer(ByVal pitch As Integer, ByVal roll As Integer, ByVal yaw As Integer, ByVal speed As Integer)
   rp = pitch : rr = roll : ry = yaw : spd = speed
 End Sub
+
+' Move(): the camera turned and moved as a frame does (Steer's turns, its speed) - for frames
+' skipped (Render does it once itself)
+Public Sub Move()
+  mvo = 1 : Render : mvo = 0
+End Sub
+
+' Basis(i): the camera's axes, 16384 = 1: right x, y, z (0-2), up (3-5), forward (6-8) - z north
+Public Function Basis(ByVal i As Integer) As Integer
+  Basis = bas(i)
+End Function
 
 ' Altitude(): metres
 Public Function Altitude() As Integer
@@ -194,18 +219,148 @@ Public Sub Render()
             call r_turn
             call r_tidy
             call r_fly
+            ld a, ({mvo})           ; (Move: no more)
+            or a
+            jr nz, rn_end
             call r_tabs
             call r_clear
             call r_world
             ld hl, (w_nl)
+            ld de, (w_nlm)
+            add hl, de
             ld ({nlines}), hl
             ld hl, 0
             call mem_sel            ; main RAM back in the window
+            call r_comp
+rn_end:
             di
             ld sp, ({sps})
             ret
 
-; ---- the camera
+; ---- the compass: an arrow at (296, 182) pointing north as seen from above (up the screen:
+; ahead) - north's part across (the right axis' z) and ahead (the forward axis' z), scaled so
+; the larger is 64-127, then / 8: the arrow's half length 8-15 pixels. Pen 3
+r_comp:
+            ld hl, ({bas} + 4)      ; right z
+            call cp_s7
+            ld (w_va), a
+            ld hl, ({bas} + 16)     ; forward z
+            call cp_s7
+            ld (w_vb), a
+            ld b, 6
+cp_nm:
+            ld a, (w_va)
+            call cp_abs
+            ld c, a
+            ld a, (w_vb)
+            call cp_abs
+            or c
+            and #C0
+            jr nz, cp_go            ; (the larger is 64 or more)
+            ld a, (w_va)
+            add a, a
+            ld (w_va), a
+            ld a, (w_vb)
+            add a, a
+            ld (w_vb), a
+            djnz cp_nm
+            ret                     ; (both 0: looking straight up or down)
+cp_go:
+            ld a, (w_va)
+            sra a
+            sra a
+            sra a
+            ld (w_va), a            ; dx
+            ld a, (w_vb)
+            sra a
+            sra a
+            sra a
+            ld (w_vb), a            ; dz
+            ld a, 3
+            ld (gfx_pen), a
+            ld a, (w_va)            ; the shaft: (296 - dx, 182 + dz) - (296 + dx, 182 - dz)
+            neg
+            call cp_x
+            ld (gfx_x0), hl
+            ld a, (w_vb)
+            call cp_y
+            ld (gfx_y0), hl
+            call cp_tip
+            call gfx_line
+            ld a, (w_vb)            ; the head: the tip to (296 + dx/2 -+ dz/2, 182 - dz/2 -+ dx/2)
+            sra a
+            ld c, a
+            ld a, (w_va)
+            sra a
+            ld b, a
+            push bc
+            sub c
+            call cp_x
+            ld (gfx_x0), hl
+            pop bc
+            push bc
+            ld a, c
+            add a, b
+            neg
+            call cp_y
+            ld (gfx_y0), hl
+            call cp_tip
+            call gfx_line
+            pop bc
+            ld a, b
+            add a, c
+            call cp_x
+            ld (gfx_x0), hl
+            ld a, b
+            sub c
+            call cp_y
+            ld (gfx_y0), hl
+            call cp_tip
+            jp gfx_line
+; cp_tip - the line's other end: the tip (296 + dx, 182 - dz)
+cp_tip:
+            ld a, (w_va)
+            call cp_x
+            ld (gfx_x1), hl
+            ld a, (w_vb)
+            neg
+            call cp_y
+            ld (gfx_y1), hl
+            ret
+; cp_x / cp_y - HL = 296 / 182 + A (signed)
+cp_x:
+            ld hl, 296
+            jr cp_add
+cp_y:
+            ld hl, 182
+cp_add:
+            ld e, a
+            rlca
+            sbc a, a
+            ld d, a
+            add hl, de
+            ret
+; cp_s7 - A = HL / 128 (signed), kept to -127 .. 127
+cp_s7:
+            bit 7, h                ; (Z: positive - add hl, hl keeps Z)
+            add hl, hl              ; H = HL / 128
+            ld a, h
+            jr nz, cs_neg
+            cp 128
+            ret nz
+            ld a, 127               ; (+16384: 127)
+            ret
+cs_neg:
+            cp 128
+            ret nz
+            ld a, 129               ; (-16384: -127)
+            ret
+; cp_abs - A = |A|
+cp_abs:
+            or a
+            ret p
+            neg
+            ret
 
 ; ---- the camera
 
@@ -522,7 +677,7 @@ r_tabs:
             ld ix, {TZ}
             ld a, 1
             call tb_three
-            ld iy, {bas} + 2        ; {TH}: y (heights: 0 - 255)
+            ld iy, {bas} + 2        ; {TH}: y (heights: 0 - 191)
             ld ix, {TH}
             xor a
 ; tb_three - the three numbers of each entry from IX: the basis at IY, IY + 6, IY + 12; A = 1
@@ -584,7 +739,7 @@ to_u:
             ld (w_acc + 2), a
             ld a, 128
             call tb_run
-            ld a, 128
+            ld a, 64                ; (heights: 192 entries)
 ; tb_run - A entries from IX: (acc >> 8), acc + v each
 tb_run:
             ld (w_cnt), a
@@ -680,7 +835,7 @@ r_world:
             sbc hl, de
             call d768
             ld (w_cj), a
-            ld a, 1                 ; the landmarks: 4 to 13 tiles away
+            ld a, 1                 ; the landmarks: 4 to 9 tiles away (the far ones to 29)
             ld (w_mode), a
             ld hl, {LMT}
             ld bc, ({nlm})
@@ -690,6 +845,10 @@ rw_lm:
             jr z, rw_near
             push bc
             ld a, (hl)
+            and 128
+            ld ({lmf}), a           ; (bit 7: a far one - to 29 tiles)
+            ld a, (hl)
+            and 127
             ld (w_ti), a
             inc hl
             ld a, (hl)
@@ -709,7 +868,16 @@ rw_lm:
 rw_lm1:
             cp 4
             jr c, rw_lm2
-            cp 14
+            ld c, a
+            ld a, ({lmf})
+            or a
+            ld a, c
+            jr z, rw_lm3
+            cp 30                   ; far: to 29 tiles (11 km: the tile's middle stays in 16 bits)
+            call c, tl_one
+            jr rw_lm2
+rw_lm3:
+            cp 10
             call c, tl_one
 rw_lm2:
             pop hl
@@ -717,6 +885,10 @@ rw_lm2:
             dec bc
             jr rw_lm
 rw_near:
+            ld hl, (w_nl)           ; (the landmarks' lines: not in the budget)
+            ld (w_nlm), hl
+            ld hl, 0
+            ld (w_nl), hl
             xor a
             ld (w_mode), a
             ld hl, rw_ring
@@ -847,9 +1019,9 @@ tl_z1:
             ld hl, #4000
             add hl, de
             ld (w_tb), hl
-            add a, a
-            ld l, a
+            ld l, a                 ; (its page: pg(block) - a word each, blocks up to 255)
             ld h, 0
+            add hl, hl
             ld de, {pg}
             add hl, de
             ld a, (hl)
@@ -857,6 +1029,14 @@ tl_z1:
             ld h, (hl)
             ld l, a
             call mem_sel            ; its block in the window
+            ld hl, (w_nl)           ; the tile's share of the frame's lines: a quarter of the budget
+            ld de, ({lmax})
+            srl d
+            rr e
+            srl d
+            rr e
+            add hl, de
+            ld (w_tcap), hl
             ld a, (w_mode)
             or a
             jp nz, tl_3d
@@ -866,16 +1046,16 @@ tl_z1:
             ld h, (ix + 1)
             ld de, (w_tz)
             push hl
-            ld hl, 2400
+            ld hl, 2000
             call cmps
             pop hl
-            jr c, tl_bn             ; (2400 < Z: big ones only)
+            jr c, tl_bn             ; (2000 < Z: big ones only)
             ld e, (ix + 2)
             ld d, (ix + 3)
             add hl, de
             push hl
             ld hl, (w_tz)
-            ld de, 1300
+            ld de, 800
             call cmps
             pop hl
             jr nc, tl_bn
@@ -884,6 +1064,19 @@ tl_z1:
             add hl, de
 tl_bn:
             ld (w_cnt2), hl
+            ld hl, (w_tz)           ; the buildings' edges: all nearer than 300 m; the top and the
+            ld de, 400              ; uprights to 600 m; further only the top
+            call cmps
+            ld a, 3
+            jr c, tl_lod
+            ld hl, (w_tz)
+            ld de, 1200
+            call cmps
+            ld a, 2
+            jr c, tl_lod
+            xor a
+tl_lod:
+            ld (w_lod), a
             ld hl, (w_tb)
             ld de, 16
             add hl, de
@@ -898,15 +1091,19 @@ tl_b_lp:
             dec hl
             ld (w_cnt2), hl
             call tl_budget
-            ret c
+            jr c, tl_bcap
             call b_one
             jr tl_b_lp
+tl_bcap:
+            ld a, (w_stop)          ; the frame's lines used up: done; the tile's share: on to
+            or a                    ; its lines (and its 3D lines)
+            ret nz
             ; the ground lines: all nearer than 800 m, else not the minor roads; none past 1.5 km
 tl_lines:
             ld hl, (w_tz)
             ld de, 3000
             call cmps
-            jr nc, tl_3d
+            jp nc, tl_3d
             ld ix, (w_tb)
             ld l, (ix + 0)          ; the start of the lines: past all the buildings
             ld h, (ix + 1)
@@ -938,6 +1135,16 @@ tl_skb:
             ld (w_p), hl
             jr tl_skb
 tl_l0:
+            ld hl, (w_nl)           ; the lines' own share: an eighth of the budget
+            ld de, ({lmax})
+            srl d
+            rr e
+            srl d
+            rr e
+            srl d
+            rr e
+            add hl, de
+            ld (w_tcap), hl
             ld ix, (w_tb)
             ld l, (ix + 6)
             ld h, (ix + 7)
@@ -954,13 +1161,18 @@ tl_l_lp:
             ld hl, (w_cnt2)
             ld a, h
             or l
-            jr z, tl_3d
+            jp z, tl_3d
             dec hl
             ld (w_cnt2), hl
             call tl_budget
-            ret c
+            jr c, tl_lcap
             call l_one
             jr tl_l_lp
+tl_lcap:
+            ld a, (w_stop)
+            or a
+            ret nz
+            jp tl_3d
             ; the 3D lines (landmarks, bridges)
 tl_3d:
             ld ix, (w_tb)
@@ -1012,13 +1224,19 @@ tl_t_lp:
             ret c
             call t_one
             jr tl_t_lp
-; tl_budget - carry (and w_stop) when the frame's lines are used up
+; tl_budget - carry (and w_stop) when the frame's lines are used up; carry alone when the
+; tile's share is (w_tcap)
 tl_budget:
             ld hl, (w_nl)
             ld de, ({lmax})
             call cmps
+            jr nc, tb_stop
+            ld hl, (w_nl)
+            ld de, (w_tcap)
+            call cmps               ; carry: still room
             ccf
-            ret nc
+            ret
+tb_stop:
             ld a, 1
             ld (w_stop), a
             scf
@@ -1093,39 +1311,58 @@ vx_xz:
             add hl, de
             ex de, hl               ; DE = {TZ} entry
             pop hl                  ; HL = {TX} entry
-            ld b, 3
-            ld ix, w_gx
-            ld iy, w_tx
-vx_lp:
-            ld a, (de)
+            ld a, (de)              ; x
             add a, (hl)
             ld c, a
-            inc de
             inc hl
+            inc de
             ld a, (de)
             adc a, (hl)
-            inc de
-            inc hl
-            push hl
-            ld h, a
-            ld l, c
-            ld c, (iy + 0)
-            ld a, (iy + 1)
-            push bc
             ld b, a
+            inc hl
+            inc de
+            push hl
+            ld hl, (w_tx)
             add hl, bc
-            pop bc
-            ld (ix + 0), l
-            ld (ix + 1), h
+            ld (w_gx), hl
             pop hl
-            inc ix
-            inc ix
-            inc iy
-            inc iy
-            djnz vx_lp
+            ld a, (de)              ; y
+            add a, (hl)
+            ld c, a
+            inc hl
+            inc de
+            ld a, (de)
+            adc a, (hl)
+            ld b, a
+            inc hl
+            inc de
+            push hl
+            ld hl, (w_ty)
+            add hl, bc
+            ld (w_gy), hl
+            pop hl
+            ld a, (de)              ; z
+            add a, (hl)
+            ld c, a
+            inc hl
+            inc de
+            ld a, (de)
+            adc a, (hl)
+            ld b, a
+            inc hl
+            inc de
+            push hl
+            ld hl, (w_tz)
+            add hl, bc
+            ld (w_gz), hl
+            pop hl
             ret
 ; vx_h - A = a height (2 m steps): (w_hx, w_hy, w_hz) its {TH} entry
 vx_h:
+            cp 192
+            jr c, vh_ok
+            ld a, 191               ; (the table's last)
+vh_ok:
             ld l, a
             ld h, 0
             add hl, hl
@@ -1173,6 +1410,13 @@ vp_g:
 vp_oc:
             call ve_oc
             ld (ix + 6), a
+            ld hl, w_and
+            and (hl)
+            ld (hl), a              ; (all the vertices' outcodes ANDed: a building wholly off
+            ld a, (w_noproj)        ; one side is left out)
+            or a
+            ret nz
+            ld a, (ix + 6)
             or a
             ret nz
             jp ve_proj
@@ -1186,7 +1430,63 @@ b_one:
             ld a, (hl)
             inc hl
             ld (w_q), hl
+            push af
+            cp 10
+            jr nc, bo_go            ; (20 m or more: no quick look)
+            ld b, (hl)              ; a quick look at its first corner: more than 75 m behind,
+            inc hl                  ; or 75 m off the side of the view - left out
+            ld c, (hl)
+            call vx_xz
+            ld hl, (w_gz)
+            ld de, -150
+            call cmps
+            jr c, bo_skip
+            ld hl, (w_gx)
+            call habs
+            ld de, (w_gz)
+            or a
+            sbc hl, de
+            ld de, 150
+            call cmps
+            jr nc, bo_skip
+            pop af                  ; below the view: its top (the height's Y added) under the
+            push af                 ; bottom edge by more than 37 m (-4Y - 3Z > 600)
             call vx_h
+            ld hl, (w_gy)
+            ld de, (w_hy)
+            add hl, de
+            call hneg
+            add hl, hl
+            add hl, hl
+            push hl
+            ld hl, (w_gz)
+            ld e, l
+            ld d, h
+            add hl, hl
+            add hl, de
+            ex de, hl
+            pop hl
+            or a
+            sbc hl, de
+            ld de, 600
+            call cmps
+            jr c, bo_go
+bo_skip:
+            pop af
+            ld a, (w_n)             ; past it
+            add a, a
+            ld e, a
+            ld d, 0
+            ld hl, (w_q)
+            add hl, de
+            ld (w_p), hl
+            ret
+bo_go:
+            pop af
+            call vx_h
+            ld a, #FF
+            ld (w_and), a
+            ld (w_noproj), a        ; (first the outcodes only)
             ld ix, {VTX}
             ld a, (w_n)
             ld b, a
@@ -1201,8 +1501,12 @@ bo_v:
             push ix
             call vx_xz
             pop ix
+            ld a, (w_lod)
+            or a
+            jr z, bo_ng             ; (the top only: the ground not needed on the screen)
             xor a
             call vx_put             ; the ground
+bo_ng:
             push ix
             ld de, 144
             add ix, de
@@ -1215,6 +1519,34 @@ bo_v:
             djnz bo_v
             ld hl, (w_q)
             ld (w_p), hl
+            xor a
+            ld (w_noproj), a
+            ld a, (w_and)
+            or a
+            ret nz                  ; wholly off one side of the view: nothing to draw
+            ld ix, {VTX}              ; the vertices in view onto the screen
+            ld a, (w_n)
+            ld b, a
+bo_pj:
+            push bc
+            ld a, (w_lod)
+            or a
+            jr z, bo_pj1
+            ld a, (ix + 6)
+            or a
+            call z, ve_proj
+bo_pj1:
+            push ix
+            ld de, 144
+            add ix, de
+            ld a, (ix + 6)
+            or a
+            call z, ve_proj
+            pop ix
+            ld de, 12
+            add ix, de
+            pop bc
+            djnz bo_pj
             xor a                   ; the edges
             ld (w_i), a
 bo_e:
@@ -1232,7 +1564,9 @@ bo_e1:
             call vx12
             ld (w_eb), hl
             ld (w_vb), hl
-            call ed_cnt             ; ground i - ground i+1
+            ld a, (w_lod)
+            bit 0, a
+            call nz, ed_cnt         ; ground i - ground i+1
             ld hl, (w_va)
             ld de, 144
             add hl, de
@@ -1241,12 +1575,16 @@ bo_e1:
             add hl, de
             ld (w_eb), hl
             call ed_cnt             ; top i - top i+1
+            ld a, (w_lod)
+            bit 1, a
+            jr z, bo_nv
             ld hl, (w_va)
             ld (w_ea), hl
             ld de, 144
             add hl, de
             ld (w_eb), hl
             call ed_cnt             ; ground i - top i
+bo_nv:
             ld a, (w_i)
             inc a
             ld (w_i), a
@@ -1723,21 +2061,94 @@ pj_div:
             ld h, c                 ; HL = the top 16 bits, B = the low 8
             ld de, (w_pzv)
             ld c, 0
-            ld a, 8
-pd_lp:
             sla b
             adc hl, hl
             sla c
             or a
             sbc hl, de
-            jr nc, pd_y
+            jr nc, pd_y0
             add hl, de
-            jr pd_n
-pd_y:
+            jr pd_n0
+pd_y0:
             inc c
-pd_n:
-            dec a
-            jr nz, pd_lp
+pd_n0:
+            sla b
+            adc hl, hl
+            sla c
+            or a
+            sbc hl, de
+            jr nc, pd_y1
+            add hl, de
+            jr pd_n1
+pd_y1:
+            inc c
+pd_n1:
+            sla b
+            adc hl, hl
+            sla c
+            or a
+            sbc hl, de
+            jr nc, pd_y2
+            add hl, de
+            jr pd_n2
+pd_y2:
+            inc c
+pd_n2:
+            sla b
+            adc hl, hl
+            sla c
+            or a
+            sbc hl, de
+            jr nc, pd_y3
+            add hl, de
+            jr pd_n3
+pd_y3:
+            inc c
+pd_n3:
+            sla b
+            adc hl, hl
+            sla c
+            or a
+            sbc hl, de
+            jr nc, pd_y4
+            add hl, de
+            jr pd_n4
+pd_y4:
+            inc c
+pd_n4:
+            sla b
+            adc hl, hl
+            sla c
+            or a
+            sbc hl, de
+            jr nc, pd_y5
+            add hl, de
+            jr pd_n5
+pd_y5:
+            inc c
+pd_n5:
+            sla b
+            adc hl, hl
+            sla c
+            or a
+            sbc hl, de
+            jr nc, pd_y6
+            add hl, de
+            jr pd_n6
+pd_y6:
+            inc c
+pd_n6:
+            sla b
+            adc hl, hl
+            sla c
+            or a
+            sbc hl, de
+            jr nc, pd_y7
+            add hl, de
+            jr pd_n7
+pd_y7:
+            inc c
+pd_n7:
             ld l, c
             ld h, 0
             ret
@@ -2144,6 +2555,10 @@ w_crp:      dw 0
 w_e0:       ds 12
 w_e1:       ds 12
 w_nl:       dw 0
+w_nlm:      dw 0
+w_lod:      db 0
+w_and:      db 0
+w_noproj:   db 0
 w_stop:     db 0
 w_mode:     db 0
 w_ti:       db 0
@@ -2155,6 +2570,7 @@ w_i:        db 0
 w_sgn:      db 0
 w_cnt:      db 0
 w_acc:      ds 3
+w_tcap:     dw 0
 w_v:        dw 0
 w_lo:       dw 0
 w_hi:       dw 0

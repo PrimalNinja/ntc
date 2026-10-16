@@ -54,14 +54,16 @@ main_thread:
 
 			; 18: Chk Add3(10), 13
 			dw fn_add3, lit_10, var_add3_add3
-			dw p_chk_c, var_add3_add3, lit_13
+			dw kw_vtov, var_add3_add3, tmp0
+			dw p_chk_c, tmp0, lit_13
 
 			; 19: a = 20
 			dw kw_ltov, 20, var_a
 
 			; 20: Chk Add3(a), 23
 			dw fn_add3, var_a, var_add3_add3
-			dw p_chk_c, var_add3_add3, lit_23
+			dw kw_vtov, var_add3_add3, tmp0
+			dw p_chk_c, tmp0, lit_23
 
 			; 21: Chk Add3(a * 2) + Add3(1), 47
 			dw kw_2x, var_a, tmp0
@@ -78,7 +80,8 @@ main_thread:
 			dw fn_add3, tmp0, var_add3_add3
 			dw kw_vtov, var_add3_add3, tmp0
 			dw fn_add3, tmp0, var_add3_add3
-			dw p_chk_c, var_add3_add3, lit_9
+			dw kw_vtov, var_add3_add3, tmp0
+			dw p_chk_c, tmp0, lit_9
 
 			; 25: a = Add3(5)
 			dw fn_add3, lit_5, var_a
@@ -95,7 +98,8 @@ main_thread:
 
 			; 31: Chk AddXY(7, 8), 15
 			dw fn_addxy, lit_7, lit_8, var_addxy_addxy
-			dw p_chk_c, var_addxy_addxy, lit_15
+			dw kw_vtov, var_addxy_addxy, tmp0
+			dw p_chk_c, tmp0, lit_15
 
 			; 32: b = AddXY(a, 5) * 2
 			dw fn_addxy, var_a, lit_5, var_addxy_addxy
@@ -152,11 +156,13 @@ main_thread:
 
 			; 55: Chk AddC(1), 4
 			dw fn_addc, lit_1, var_addc_addc
-			dw p_chk_c, var_addc_addc, lit_4
+			dw kw_vtov, var_addc_addc, tmp0
+			dw p_chk_c, tmp0, lit_4
 
 			; 58: Chk Twice(21), 42
 			dw p_twice_c, lit_21
-			dw p_chk_c, var_twice_twice, lit_42
+			dw kw_vtov, var_twice_twice, tmp0
+			dw p_chk_c, tmp0, lit_42
 
 			; 61: c = 0
 			dw kw_ztov, var_c

@@ -2731,7 +2731,8 @@ for3_t:
 			; Main.bas 118: Memory.SelectPage Memory.BankPage(bk(i), 0)
 			dw kw_aget, arr_bk, var_i, tmp0
 			dw p_memory_bankpage_c, tmp0, lit_0
-			dw fn_memory_selectpage, var_memory_bankpage_bankpage, var_memory_selectpage_selectpage
+			dw kw_vtov, var_memory_bankpage_bankpage, tmp0
+			dw fn_memory_selectpage, tmp0, var_memory_selectpage_selectpage
 
 			; Main.bas 119: sg(i) = Hyp.Setting()
 			dw fn_hyp_setting, var_hyp_setting_setting
@@ -3614,11 +3615,13 @@ if51_1:
 
 			; Main.bas 370: Memory.Copy f, Hyp.FarPtr(dp, 0), Memory.ReadWord(Far(t, p + 4))
 			dw fn_hyp_farptr, var_dp, lit_0, var_hyp_farptr_farptr
+			dw kw_l_mov, var_hyp_farptr_farptr, ltmp1
 			dw kw_addl, var_ramdisc_p, 4, tmp3
 			dw p_far_c, var_ramdisc_t, tmp3
 			dw kw_l_mov, var_far_far, ltmp2
 			dw fn_memory_readword, ltmp2, var_memory_readword_readword
-			dw fn_memory_copy, var_ramdisc_f, var_hyp_farptr_farptr, var_memory_readword_readword, var_memory_copy_copy
+			dw kw_vtov, var_memory_readword_readword, tmp2
+			dw fn_memory_copy, var_ramdisc_f, ltmp1, tmp2, var_memory_copy_copy
 
 			; Main.bas 371: g = Memory.SelectPage(dp)
 			dw fn_memory_selectpage, var_dp, var_ramdisc_g
@@ -3746,7 +3749,8 @@ if59_1:
 			; Main.bas 403: Memory.WriteByte Far(t, STORE + j), g
 			dw kw_addl, var_storesize_j, -256, tmp1
 			dw p_far_c, var_storesize_t, tmp1
-			dw fn_memory_writebyte, var_far_far, var_storesize_g
+			dw kw_l_mov, var_far_far, ltmp0
+			dw fn_memory_writebyte, ltmp0, var_storesize_g
 
 			; Main.bas 404: ElseIf j >= n And g <> 0 Then
 			dw if58_e_go
@@ -3765,7 +3769,8 @@ if58_1:
 			; Main.bas 406: Memory.WriteByte Far(t, STORE + j), 0
 			dw kw_addl, var_storesize_j, -256, tmp1
 			dw p_far_c, var_storesize_t, tmp1
-			dw fn_memory_writebyte, var_far_far, lit_0
+			dw kw_l_mov, var_far_far, ltmp0
+			dw fn_memory_writebyte, ltmp0, lit_0
 
 			; Main.bas 407: End If
 if58_2:
@@ -4075,20 +4080,26 @@ if67_5:
 			; Main.bas 489: Memory.WriteWord Far(t, p + 2), Memory.TableEnd()
 			dw kw_addl, var_sys_p, 2, tmp1
 			dw p_far_c, var_sys_t, tmp1
+			dw kw_l_mov, var_far_far, ltmp0
 			dw fn_memory_tableend, var_memory_tableend_tableend
-			dw fn_memory_writeword, var_far_far, var_memory_tableend_tableend
+			dw kw_vtov, var_memory_tableend_tableend, tmp1
+			dw fn_memory_writeword, ltmp0, tmp1
 
 			; Main.bas 490: Memory.WriteWord Far(t, p + 4), Memory.Top()
 			dw kw_addl, var_sys_p, 4, tmp1
 			dw p_far_c, var_sys_t, tmp1
+			dw kw_l_mov, var_far_far, ltmp0
 			dw fn_memory_top, var_memory_top_top
-			dw fn_memory_writeword, var_far_far, var_memory_top_top
+			dw kw_vtov, var_memory_top_top, tmp1
+			dw fn_memory_writeword, ltmp0, tmp1
 
 			; Main.bas 491: Memory.WriteWord Far(t, p + 6), Memory.Pages()
 			dw kw_addl, var_sys_p, 6, tmp1
 			dw p_far_c, var_sys_t, tmp1
+			dw kw_l_mov, var_far_far, ltmp0
 			dw fn_memory_pages, var_memory_pages_pages
-			dw fn_memory_writeword, var_far_far, var_memory_pages_pages
+			dw kw_vtov, var_memory_pages_pages, tmp1
+			dw fn_memory_writeword, ltmp0, tmp1
 
 			; Main.bas 492: Totals
 			dw p_totals_c
@@ -4158,12 +4169,14 @@ if72_1:
 			; Main.bas 506: Memory.WriteByte Far(t, p + 2), st(s)
 			dw kw_addl, var_sys_p, 2, tmp1
 			dw p_far_c, var_sys_t, tmp1
+			dw kw_l_mov, var_far_far, ltmp0
 			dw kw_aget, arr_st, var_sys_s, tmp1
-			dw fn_memory_writebyte, var_far_far, tmp1
+			dw fn_memory_writebyte, ltmp0, tmp1
 
 			; Main.bas 507: Memory.WriteByte Far(t, p + 3), IIf(s = front, 1, 0)
 			dw kw_addl, var_sys_p, 3, tmp1
 			dw p_far_c, var_sys_t, tmp1
+			dw kw_l_mov, var_far_far, ltmp0
 			dw kw_cpeqvv, var_sys_s, var_front
 			dw kw_ftov, tmp1
 			dw kw_goto_ifzero_n, tmp1, ch74_0
@@ -4175,7 +4188,7 @@ ch74_0:
 ch74_1:
 			dw kw_ztov, tmp1
 ch74_e:
-			dw fn_memory_writebyte, var_far_far, tmp1
+			dw fn_memory_writebyte, ltmp0, tmp1
 
 			; Main.bas 508: en = ""
 			dw kw_strcpy, var_en, str2
@@ -4252,15 +4265,18 @@ p_puten:
 
 			; Main.bas 523: Memory.WriteByte Far(t, a), Len(en)
 			dw p_far_c, var_puten_t, var_puten_a
+			dw kw_l_mov, var_far_far, ltmp0
 			dw kw_strlen, var_en, tmp1
-			dw fn_memory_writebyte, var_far_far, tmp1
+			dw fn_memory_writebyte, ltmp0, tmp1
 
 			; Main.bas 524: Memory.Copy NearP(VarPtr(en)), Far(t, a + 1), Len(en)
 			dw p_nearp_c, vp_var_en
+			dw kw_l_mov, var_nearp_nearp, ltmp0
 			dw kw_addl, var_puten_a, 1, tmp2
 			dw p_far_c, var_puten_t, tmp2
+			dw kw_l_mov, var_far_far, ltmp1
 			dw kw_strlen, var_en, tmp2
-			dw fn_memory_copy, var_nearp_nearp, var_far_far, tmp2, var_memory_copy_copy
+			dw fn_memory_copy, ltmp0, ltmp1, tmp2, var_memory_copy_copy
 			dw p_puten_r
 
 ntc_rg11_e:
@@ -4567,17 +4583,22 @@ p_setmode:
 
 			; Main.bas 617: Memory.WriteByte Far(t, Hyp.CCOLS), Hyp.Scr(m, 0)
 			dw p_far_c, var_setmode_t, lit_m2425
+			dw kw_l_mov, var_far_far, ltmp0
 			dw p_hyp_scr_c, var_setmode_m, lit_0
-			dw fn_memory_writebyte, var_far_far, var_hyp_scr_scr
+			dw kw_vtov, var_hyp_scr_scr, tmp1
+			dw fn_memory_writebyte, ltmp0, tmp1
 
 			; Main.bas 618: Memory.WriteByte Far(t, Hyp.CROWS), Hyp.Scr(m, 1)
 			dw p_far_c, var_setmode_t, lit_m2424
+			dw kw_l_mov, var_far_far, ltmp0
 			dw p_hyp_scr_c, var_setmode_m, lit_1
-			dw fn_memory_writebyte, var_far_far, var_hyp_scr_scr
+			dw kw_vtov, var_hyp_scr_scr, tmp1
+			dw fn_memory_writebyte, ltmp0, tmp1
 
 			; Main.bas 619: Memory.WriteByte Far(t, Hyp.CMODE), m
 			dw p_far_c, var_setmode_t, lit_m2423
-			dw fn_memory_writebyte, var_far_far, var_setmode_m
+			dw kw_l_mov, var_far_far, ltmp0
+			dw fn_memory_writebyte, ltmp0, var_setmode_m
 
 			; Main.bas 620: en = Left$("[" + N(t) + "]   ", 4)
 			dw p_n_c, var_setmode_t
@@ -4590,8 +4611,10 @@ p_setmode:
 
 			; Main.bas 621: Memory.Copy NearP(VarPtr(en)), Far(t, Hyp.CSTRIP), 4
 			dw p_nearp_c, vp_var_en
+			dw kw_l_mov, var_nearp_nearp, ltmp0
 			dw p_far_c, var_setmode_t, lit_m2422
-			dw fn_memory_copy, var_nearp_nearp, var_far_far, lit_4, var_memory_copy_copy
+			dw kw_l_mov, var_far_far, ltmp1
+			dw fn_memory_copy, ltmp0, ltmp1, lit_4, var_memory_copy_copy
 
 			; Main.bas 622: If t = front Then r = Hyp.Scr(m, 2)
 			dw kw_cpeqvv, var_setmode_t, var_front
@@ -4986,8 +5009,10 @@ p_install:
 
 			; Main.bas 866: Memory.Copy Hyp.FarPtr(hp, p), Far(t, 0), n   ' (from the hypervisor's page)
 			dw fn_hyp_farptr, var_hp, var_install_p, var_hyp_farptr_farptr
+			dw kw_l_mov, var_hyp_farptr_farptr, ltmp0
 			dw p_far_c, var_install_t, lit_0
-			dw fn_memory_copy, var_hyp_farptr_farptr, var_far_far, var_install_n, var_memory_copy_copy
+			dw kw_l_mov, var_far_far, ltmp1
+			dw fn_memory_copy, ltmp0, ltmp1, var_install_n, var_memory_copy_copy
 
 			; Main.bas 867: p = Hyp.Info(2) : n = Hyp.Info(3)
 			dw fn_hyp_info, lit_2, var_install_p
@@ -4995,21 +5020,27 @@ p_install:
 
 			; Main.bas 868: Memory.Copy Hyp.FarPtr(hp, p), Far(t, Hyp.STUB), n
 			dw fn_hyp_farptr, var_hp, var_install_p, var_hyp_farptr_farptr
+			dw kw_l_mov, var_hyp_farptr_farptr, ltmp0
 			dw p_far_c, var_install_t, lit_m4352
-			dw fn_memory_copy, var_hyp_farptr_farptr, var_far_far, var_install_n, var_memory_copy_copy
+			dw kw_l_mov, var_far_far, ltmp1
+			dw fn_memory_copy, ltmp0, ltmp1, var_install_n, var_memory_copy_copy
 
 			; Main.bas 869: Memory.Copy Hyp.FarPtr(hp, Hyp.HFONT), Far(t, Hyp.FONT), 768   ' the font (Con draws from it)
 			dw fn_hyp_farptr, var_hp, lit_4096, var_hyp_farptr_farptr
+			dw kw_l_mov, var_hyp_farptr_farptr, ltmp0
 			dw p_far_c, var_install_t, lit_m3328
-			dw fn_memory_copy, var_hyp_farptr_farptr, var_far_far, lit_768, var_memory_copy_copy
+			dw kw_l_mov, var_far_far, ltmp1
+			dw fn_memory_copy, ltmp0, ltmp1, lit_768, var_memory_copy_copy
 
 			; Main.bas 870: Memory.WriteByte Far(t, Hyp.OBUF + 128), 0      ' no characters collected
 			dw p_far_c, var_install_t, lit_m2432
-			dw fn_memory_writebyte, var_far_far, lit_0
+			dw kw_l_mov, var_far_far, ltmp0
+			dw fn_memory_writebyte, ltmp0, lit_0
 
 			; Main.bas 871: Memory.WriteByte Far(t, Hyp.KEY), 0             ' no key waiting
 			dw p_far_c, var_install_t, lit_m2431
-			dw fn_memory_writebyte, var_far_far, lit_0
+			dw kw_l_mov, var_far_far, ltmp0
+			dw fn_memory_writebyte, ltmp0, lit_0
 
 			; Main.bas 872: kq(t) = 0
 			dw kw_asetl, arr_kq, var_install_t, 0
@@ -5021,7 +5052,8 @@ for93_t:
 			; Main.bas 876: Memory.WriteByte Far(t, STORE + n), 0
 			dw kw_addl, var_install_n, -256, tmp1
 			dw p_far_c, var_install_t, tmp1
-			dw fn_memory_writebyte, var_far_far, lit_0
+			dw kw_l_mov, var_far_far, ltmp0
+			dw fn_memory_writebyte, ltmp0, lit_0
 
 			; Main.bas 877: Next
 			dw kw_next1l_n, var_install_n, 31, for93_t
@@ -5232,8 +5264,10 @@ p_getnm:
 
 			; Main.bas 934: Memory.Copy Far(t, NMBUF), NearP(VarPtr(en)), n
 			dw p_far_c, var_getnm_t, lit_m2343
+			dw kw_l_mov, var_far_far, ltmp0
 			dw p_nearp_c, vp_var_en
-			dw fn_memory_copy, var_far_far, var_nearp_nearp, var_getnm_n, var_memory_copy_copy
+			dw kw_l_mov, var_nearp_nearp, ltmp1
+			dw fn_memory_copy, ltmp0, ltmp1, var_getnm_n, var_memory_copy_copy
 
 			; Main.bas 935: en = Left$(en, n)
 			dw kw_strleft, stmp0, var_en, var_getnm_n
@@ -5275,7 +5309,8 @@ p_prompt:
 
 			; Main.bas 943: Memory.WriteByte Far(t, LNLEN), 0                ' an empty command line
 			dw p_far_c, var_prompt_t, lit_m2417
-			dw fn_memory_writebyte, var_far_far, lit_0
+			dw kw_l_mov, var_far_far, ltmp0
+			dw fn_memory_writebyte, ltmp0, lit_0
 
 			; Main.bas 944: PutS t, N(t) + "> "
 			dw p_n_c, var_prompt_t
@@ -5329,7 +5364,8 @@ if99_1:
 
 			; Main.bas 960: Memory.WriteByte Far(t, Hyp.KEY), k
 			dw p_far_c, var_keyin_t, lit_m2431
-			dw fn_memory_writebyte, var_far_far, var_keyin_k
+			dw kw_l_mov, var_far_far, ltmp0
+			dw fn_memory_writebyte, ltmp0, var_keyin_k
 
 			; Main.bas 961: Exit Sub
 			dw p_keyin_r
@@ -5382,8 +5418,9 @@ if100_1:
 
 			; Main.bas 970: Memory.WriteByte Far(t, LNLEN), n - 1
 			dw p_far_c, var_keyin_t, lit_m2417
+			dw kw_l_mov, var_far_far, ltmp0
 			dw kw_addl, var_keyin_n, -1, tmp1
-			dw fn_memory_writebyte, var_far_far, tmp1
+			dw fn_memory_writebyte, ltmp0, tmp1
 
 			; Main.bas 971: PutC t, 8 : PutC t, 32 : PutC t, 8
 			dw p_putc_c, var_keyin_t, lit_8
@@ -5409,12 +5446,14 @@ if100_2:
 			; Main.bas 974: Memory.WriteByte Far(t, LNBUF + n), k
 			dw kw_addl, var_keyin_n, -2416, tmp1
 			dw p_far_c, var_keyin_t, tmp1
-			dw fn_memory_writebyte, var_far_far, var_keyin_k
+			dw kw_l_mov, var_far_far, ltmp0
+			dw fn_memory_writebyte, ltmp0, var_keyin_k
 
 			; Main.bas 975: Memory.WriteByte Far(t, LNLEN), n + 1
 			dw p_far_c, var_keyin_t, lit_m2417
+			dw kw_l_mov, var_far_far, ltmp0
 			dw kw_addl, var_keyin_n, 1, tmp1
-			dw fn_memory_writebyte, var_far_far, tmp1
+			dw fn_memory_writebyte, ltmp0, tmp1
 
 			; Main.bas 976: PutC t, k
 			dw p_putc_c, var_keyin_t, var_keyin_k
@@ -5447,8 +5486,10 @@ p_command:
 
 			; Main.bas 983: Memory.Copy Far(t, LNBUF), NearP(VarPtr(ob)), p
 			dw p_far_c, var_command_t, lit_m2416
+			dw kw_l_mov, var_far_far, ltmp0
 			dw p_nearp_c, vp_var_ob
-			dw fn_memory_copy, var_far_far, var_nearp_nearp, var_command_p, var_memory_copy_copy
+			dw kw_l_mov, var_nearp_nearp, ltmp1
+			dw fn_memory_copy, ltmp0, ltmp1, var_command_p, var_memory_copy_copy
 
 			; Main.bas 984: c = UCase$(Trim$(Left$(ob, p)))
 			dw kw_strleft, stmp0, var_ob, var_command_p
@@ -5502,7 +5543,7 @@ if103_1:
 			; Main.bas 995: End If
 if104_1:
 
-			; Main.bas 996: If Right$(c, 1) = ":" And a = "" Then a = c : c = "CD"   ' B: or IDE: alone: CD B:, CD IDE: (CD.CYB)
+			; Main.bas 996: If Right$(c, 1) = ":" And a = "" Then a = c : c = "CV"   ' B: or IDE: alone: CV B:, CV IDE: (CV.CYB)
 			dw kw_strright, stmp0, var_command_c, lit_1
 			dw kw_strcmpeq, stmp0, str37
 			dw kw_ftov, tmp0
@@ -5844,16 +5885,20 @@ if125_1:
 
 			; Main.bas 1086: Memory.WriteWord Far(s, &HF2FC), Hyp.Info(4)
 			dw p_far_c, var_starttask_s, lit_m3332
+			dw kw_l_mov, var_far_far, ltmp0
 			dw fn_hyp_info, lit_4, var_hyp_info_info
-			dw fn_memory_writeword, var_far_far, var_hyp_info_info
+			dw kw_vtov, var_hyp_info_info, tmp1
+			dw fn_memory_writeword, ltmp0, tmp1
 
 			; Main.bas 1087: Memory.WriteWord Far(s, &HF2FE), 0
 			dw p_far_c, var_starttask_s, lit_m3330
-			dw fn_memory_writeword, var_far_far, lit_0
+			dw kw_l_mov, var_far_far, ltmp0
+			dw fn_memory_writeword, ltmp0, lit_0
 
 			; Main.bas 1088: Memory.WriteWord Far(s, &HFFFE), &HF2FC
 			dw p_far_c, var_starttask_s, lit_m2
-			dw fn_memory_writeword, var_far_far, lit_m3332
+			dw kw_l_mov, var_far_far, ltmp0
+			dw fn_memory_writeword, ltmp0, lit_m3332
 
 			; Main.bas 1090: If b = "" Then
 			dw kw_strcmpeq, var_b, str2
@@ -5861,7 +5906,8 @@ if125_1:
 
 			; Main.bas 1091: Memory.WriteByte Far(s, &H80), 0
 			dw p_far_c, var_starttask_s, lit_128
-			dw fn_memory_writebyte, var_far_far, lit_0
+			dw kw_l_mov, var_far_far, ltmp0
+			dw fn_memory_writebyte, ltmp0, lit_0
 
 			; Main.bas 1092: Else
 			dw if126_e_go
@@ -5874,41 +5920,49 @@ if126_1:
 
 			; Main.bas 1094: Memory.Copy NearP(VarPtr(b)), Far(s, &H81), Len(b)
 			dw p_nearp_c, vp_var_b
+			dw kw_l_mov, var_nearp_nearp, ltmp0
 			dw p_far_c, var_starttask_s, lit_129
+			dw kw_l_mov, var_far_far, ltmp1
 			dw kw_strlen, var_b, tmp2
-			dw fn_memory_copy, var_nearp_nearp, var_far_far, tmp2, var_memory_copy_copy
+			dw fn_memory_copy, ltmp0, ltmp1, tmp2, var_memory_copy_copy
 
 			; Main.bas 1095: Memory.WriteByte Far(s, &H80), Len(b)
 			dw p_far_c, var_starttask_s, lit_128
+			dw kw_l_mov, var_far_far, ltmp0
 			dw kw_strlen, var_b, tmp1
-			dw fn_memory_writebyte, var_far_far, tmp1
+			dw fn_memory_writebyte, ltmp0, tmp1
 
 			; Main.bas 1096: Memory.WriteByte Far(s, &H81 + Len(b)), 0
 			dw kw_strlen, var_b, tmp2
 			dw kw_addl, tmp2, 129, tmp1
 			dw p_far_c, var_starttask_s, tmp1
-			dw fn_memory_writebyte, var_far_far, lit_0
+			dw kw_l_mov, var_far_far, ltmp0
+			dw fn_memory_writebyte, ltmp0, lit_0
 
 			; Main.bas 1097: End If
 if126_e:
 
 			; Main.bas 1098: Memory.WriteByte Far(s, NMLEN), Len(a)
 			dw p_far_c, var_starttask_s, lit_m2344
+			dw kw_l_mov, var_far_far, ltmp0
 			dw kw_strlen, var_a, tmp1
-			dw fn_memory_writebyte, var_far_far, tmp1
+			dw fn_memory_writebyte, ltmp0, tmp1
 
 			; Main.bas 1099: Memory.Copy NearP(VarPtr(a)), Far(s, NMBUF), Len(a)
 			dw p_nearp_c, vp_var_a
+			dw kw_l_mov, var_nearp_nearp, ltmp0
 			dw p_far_c, var_starttask_s, lit_m2343
+			dw kw_l_mov, var_far_far, ltmp1
 			dw kw_strlen, var_a, tmp2
-			dw fn_memory_copy, var_nearp_nearp, var_far_far, tmp2, var_memory_copy_copy
+			dw fn_memory_copy, ltmp0, ltmp1, tmp2, var_memory_copy_copy
 
 			; Main.bas 1100: kq(s) = 0
 			dw kw_asetl, arr_kq, var_starttask_s, 0
 
 			; Main.bas 1101: Memory.WriteByte Far(s, &HF685), 0             ' no escape sequence rest half done
 			dw p_far_c, var_starttask_s, lit_m2427
-			dw fn_memory_writebyte, var_far_far, lit_0
+			dw kw_l_mov, var_far_far, ltmp0
+			dw fn_memory_writebyte, ltmp0, lit_0
 
 			; Main.bas 1102: wk(s) = -1
 			dw kw_asetl, arr_wk, var_starttask_s, -1
@@ -6649,7 +6703,7 @@ ntc_rg67:
 
 p_memory_bankpage:
 
-			; Memory.cls 474: BankPage = 4 * bank - 2 + n
+			; Memory.cls 452: BankPage = 4 * bank - 2 + n
 			dw kw_4x, var_memory_bankpage_bank, tmp2
 			dw kw_addl, tmp2, -2, tmp2
 			dw kw_add, tmp2, var_memory_bankpage_n, var_memory_bankpage_bankpage
@@ -9810,88 +9864,88 @@ fn_memory_freepage:		; function freepage (asm keyword), Memory.cls line 235
             jp mem_go		; Memory.cls 244
 			ret			; end of #asm
 
-fn_memory_selectpage:		; function selectpage (asm keyword), Memory.cls line 272
-            pop hl		; Memory.cls 273
-            ld e, (hl)		; Memory.cls 274
-            inc hl		; Memory.cls 275
-            ld d, (hl)		; Memory.cls 276
-            ld (mem_a1), de		; Memory.cls 277
-            pop hl		; Memory.cls 278
-            ld (mem_res), hl		; Memory.cls 279
-            ld hl, mem_selpage		; Memory.cls 280
-            jp mem_go		; Memory.cls 281
+fn_memory_selectpage:		; function selectpage (asm keyword), Memory.cls line 250
+            pop hl		; Memory.cls 251
+            ld e, (hl)		; Memory.cls 252
+            inc hl		; Memory.cls 253
+            ld d, (hl)		; Memory.cls 254
+            ld (mem_a1), de		; Memory.cls 255
+            pop hl		; Memory.cls 256
+            ld (mem_res), hl		; Memory.cls 257
+            ld hl, mem_selpage		; Memory.cls 258
+            jp mem_go		; Memory.cls 259
 			ret			; end of #asm
 
-fn_memory_readbyte:		; function readbyte (asm keyword), Memory.cls line 362
+fn_memory_readbyte:		; function readbyte (asm keyword), Memory.cls line 340
+            pop hl		; Memory.cls 341
+            ld (mem_a1), hl		; Memory.cls 342
+            pop hl		; Memory.cls 343
+            ld (mem_res), hl		; Memory.cls 344
+            ld hl, mem_readbyte		; Memory.cls 345
+            jp mem_go		; Memory.cls 346
+			ret			; end of #asm
+
+fn_memory_readword:		; function readword (asm keyword), Memory.cls line 351
+            pop hl		; Memory.cls 352
+            ld (mem_a1), hl		; Memory.cls 353
+            pop hl		; Memory.cls 354
+            ld (mem_res), hl		; Memory.cls 355
+            ld hl, mem_readword		; Memory.cls 356
+            jp mem_go		; Memory.cls 357
+			ret			; end of #asm
+
+fn_memory_writebyte:		; sub writebyte (asm keyword), Memory.cls line 362
             pop hl		; Memory.cls 363
             ld (mem_a1), hl		; Memory.cls 364
             pop hl		; Memory.cls 365
-            ld (mem_res), hl		; Memory.cls 366
-            ld hl, mem_readbyte		; Memory.cls 367
-            jp mem_go		; Memory.cls 368
+            ld e, (hl)		; Memory.cls 366
+            inc hl		; Memory.cls 367
+            ld d, (hl)		; Memory.cls 368
+            ld (mem_a2), de		; Memory.cls 369
+            ld hl, mem_writebyte		; Memory.cls 370
+            jp mem_go0		; Memory.cls 371
 			ret			; end of #asm
 
-fn_memory_readword:		; function readword (asm keyword), Memory.cls line 373
-            pop hl		; Memory.cls 374
-            ld (mem_a1), hl		; Memory.cls 375
-            pop hl		; Memory.cls 376
-            ld (mem_res), hl		; Memory.cls 377
-            ld hl, mem_readword		; Memory.cls 378
-            jp mem_go		; Memory.cls 379
+fn_memory_writeword:		; sub writeword (asm keyword), Memory.cls line 376
+            pop hl		; Memory.cls 377
+            ld (mem_a1), hl		; Memory.cls 378
+            pop hl		; Memory.cls 379
+            ld e, (hl)		; Memory.cls 380
+            inc hl		; Memory.cls 381
+            ld d, (hl)		; Memory.cls 382
+            ld (mem_a2), de		; Memory.cls 383
+            ld hl, mem_writeword		; Memory.cls 384
+            jp mem_go0		; Memory.cls 385
 			ret			; end of #asm
 
-fn_memory_writebyte:		; sub writebyte (asm keyword), Memory.cls line 384
-            pop hl		; Memory.cls 385
-            ld (mem_a1), hl		; Memory.cls 386
-            pop hl		; Memory.cls 387
-            ld e, (hl)		; Memory.cls 388
-            inc hl		; Memory.cls 389
-            ld d, (hl)		; Memory.cls 390
-            ld (mem_a2), de		; Memory.cls 391
-            ld hl, mem_writebyte		; Memory.cls 392
-            jp mem_go0		; Memory.cls 393
+fn_memory_copy:		; function copy (asm keyword), Memory.cls line 393
+            pop hl		; Memory.cls 394
+            ld (mem_a1), hl		; Memory.cls 395
+            pop hl		; Memory.cls 396
+            ld (mem_a2), hl		; Memory.cls 397
+            pop hl		; Memory.cls 398
+            ld e, (hl)		; Memory.cls 399
+            inc hl		; Memory.cls 400
+            ld d, (hl)		; Memory.cls 401
+            ld (mem_a3), de		; Memory.cls 402
+            pop hl		; Memory.cls 403
+            ld (mem_res), hl		; Memory.cls 404
+            ld hl, mem_copy		; Memory.cls 405
+            jp mem_go		; Memory.cls 406
 			ret			; end of #asm
 
-fn_memory_writeword:		; sub writeword (asm keyword), Memory.cls line 398
-            pop hl		; Memory.cls 399
-            ld (mem_a1), hl		; Memory.cls 400
-            pop hl		; Memory.cls 401
-            ld e, (hl)		; Memory.cls 402
-            inc hl		; Memory.cls 403
-            ld d, (hl)		; Memory.cls 404
-            ld (mem_a2), de		; Memory.cls 405
-            ld hl, mem_writeword		; Memory.cls 406
-            jp mem_go0		; Memory.cls 407
+fn_memory_banks:		; function banks (asm keyword), Memory.cls line 414
+            pop hl		; Memory.cls 415
+            ld (mem_res), hl		; Memory.cls 416
+            ld hl, mem_bankcount		; Memory.cls 417
+            jp mem_go		; Memory.cls 418
 			ret			; end of #asm
 
-fn_memory_copy:		; function copy (asm keyword), Memory.cls line 415
-            pop hl		; Memory.cls 416
-            ld (mem_a1), hl		; Memory.cls 417
-            pop hl		; Memory.cls 418
-            ld (mem_a2), hl		; Memory.cls 419
-            pop hl		; Memory.cls 420
-            ld e, (hl)		; Memory.cls 421
-            inc hl		; Memory.cls 422
-            ld d, (hl)		; Memory.cls 423
-            ld (mem_a3), de		; Memory.cls 424
+fn_memory_allocbank:		; function allocbank (asm keyword), Memory.cls line 424
             pop hl		; Memory.cls 425
             ld (mem_res), hl		; Memory.cls 426
-            ld hl, mem_copy		; Memory.cls 427
+            ld hl, mem_allocbank		; Memory.cls 427
             jp mem_go		; Memory.cls 428
-			ret			; end of #asm
-
-fn_memory_banks:		; function banks (asm keyword), Memory.cls line 436
-            pop hl		; Memory.cls 437
-            ld (mem_res), hl		; Memory.cls 438
-            ld hl, mem_bankcount		; Memory.cls 439
-            jp mem_go		; Memory.cls 440
-			ret			; end of #asm
-
-fn_memory_allocbank:		; function allocbank (asm keyword), Memory.cls line 446
-            pop hl		; Memory.cls 447
-            ld (mem_res), hl		; Memory.cls 448
-            ld hl, mem_allocbank		; Memory.cls 449
-            jp mem_go		; Memory.cls 450
 			ret			; end of #asm
 
 
@@ -13892,7 +13946,7 @@ ntc_rg508_e:
 			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
 ntc_rg509:
-str38:			db "CD", 0
+str38:			db "CV", 0
 ntc_rg509_e:
 			IF ($ < 32768) && (ntc_rg510_e - ntc_rg510 + $ > 16384)	; fwdref-ok
 			ds #4000 - $		; the window data (; @window), from #4000

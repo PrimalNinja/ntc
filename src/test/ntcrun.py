@@ -302,6 +302,7 @@ class Host:
         s.loc = []; s.out_log = []; s.dma = 0x80; s.cas_in = None; s.cas_out = None
         s.drive = 0; s.logged = 1                     # CP/M: current drive A, A logged in
         s.amsdos = False; s.cas_dev = 'TAPE'; s.disk = 'A'   # CPC: AMSDOS dropped by RUN" until KL ROM WALK
+        s.amsdos_at_start = bool(os.environ.get('NTC_AMSDOS'))   # NTC_AMSDOS=1: AMSDOS on from the start (RUN" from a disc)
         s.cas_ascii = False; s.cas_load = 0
         os.makedirs(FILES, exist_ok=True)
         m.set_memory_block(org, binary)
@@ -343,6 +344,7 @@ class Host:
             m.mark_addrs(0xC000, 0x4000, m.WRITE_MARK)
             m.set_write_callback(lambda a, v: s.scr.vram.__setitem__(a - 0xC000, v))
         m.set_output_callback(s.out); m.set_input_callback(s.inp)
+        if s.amsdos_at_start and platform == 'cpcfw': s.amsdos_on()
     def key(s):
         # '~' in the typed text: this look at the keyboard finds no key (then the rest follow)
         if s.typed and s.typed[0] == '~':
@@ -813,9 +815,10 @@ def main():
     if os.environ.get('NTC_PEEK'):
         for a in os.environ['NTC_PEEK'].split(','): print('--- peek %s: %s' % (a, ' '.join('%02x' % h.m.memory[int(a, 16) + i] for i in range(8))))
     print(h.scr.text())
+    if os.environ.get('NTC_DUMP'): open(os.environ['NTC_DUMP'], 'wb').write(bytes(h.m.memory[0:0x10000]))   # NTC_DUMP=file: the 64K the Z80 sees at the end
     if os.environ.get('NTC_SHOT') and getattr(h, 'ram', None) is not None:
         # NTC_SHOT=file: main RAM's #4000 and #C000 (the two screens) and the CRTC's R12 at the end
-        open(os.environ['NTC_SHOT'], 'wb').write(bytes([getattr(h.scr, 'crtc', [0] * 16)[12] & 255]) + h.ram.main_page(1) + h.ram.main_page(3))
+        open(os.environ['NTC_SHOT'], 'wb').write(bytes([getattr(h.scr, 'crtc', [0] * 16)[12] & 255]) + h.ram.main_page(1) + (bytes(h.scr.vram) if getattr(h.scr, 'vram', None) is not None else h.ram.main_page(3)))
     if plat == 'cpm' and os.environ.get('NTC_GFXCHK'):
         scr = h.ram.main_page(1) if CPMVER >= 0x30 else bytes(h.m.memory[0xC000:0xF000])
         print('--- screen bytes set: %d' % sum(1 for x in scr if x))

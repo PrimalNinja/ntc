@@ -152,7 +152,8 @@ for7_t:
 			dw p_cybdir_match_c, var_i, var_f
 			dw kw_goto_ifzero_n, var_cybdir_match_match, if8_1
 			dw p_cybdir_discname_c, var_i
-			dw p_gone_c, var_cybdir_discname_discname
+			dw kw_strcpy, stmp0, var_cybdir_discname_discname
+			dw p_gone_c, stmp0
 			dw kw_inc, var_k
 if8_1:
 

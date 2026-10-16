@@ -13,6 +13,9 @@
 | `genrom.js` | `node genrom.js cpc\|cpcmin\|cpcfw`: builds that platform's keyword library ROM (`build/rom/NTCCPC`, `NTCMIN`, `NTCFW` `.ASM` / `.ROM`) and appends new entries to its registry `asm/ntc_rom_<platform>.txt` (then run `gen.js`); a set of more than one ROM (`NTCMIN2.ROM` ...) when it doesn't fit. `--cap=bytes` (a smaller ROM: forces a split), `--place=section:rom,...` (by hand), `--out=dir` (elsewhere, registry file left alone) |
 | `genbuild.js` | writes `build/<platform>/NAME.ASM` (every program in `bas/` for every platform) for `build/build.bat` |
 | `guitest6.py` | every example on every platform in the GUI |
+| `argfn/` | function results as arguments (`Show 1, 2, F(3), F(4) ...`: each call's result kept before the next call - once all got the last one's) |
+| `s3d/mkcut.py`, `s3d/make.js` | the AUCKLAND test: `mkcut.py out.txt.gz` writes a made-up 2 km town as an OSM Cut file (tools/osmcut's text); `node make.js s3dmake.html cut.txt.gz OUT.DAT [NAME]` runs tools/s3dmake's converter on it; regress.sh then flies AUCKLAND.BIN through it (`--ram=4160`, `NTC_AMSDOS=1`) |
+| harness: `NTC_AMSDOS=1`, `NTC_SHOT=file`, `NTC_DUMP=file`, `shot.py` | ntcrun.py: AMSDOS on from the start (a program RUN from a disc: its files on A, not tape); at the end the CRTC's R12, main RAM #4000-#7FFF and the screen at #C000 written to a file (`python3 shot.py file out.png`: both screens as mode 1 pictures, side by side); the 64K the Z80 sees written to a file |
 | `regress.sh` | every test program in both modes on the CPC, then on the test / cpcfw / cpm platforms, the platform classes, + ES5 check of the JS. Ends with ALL PASS |
 | `gen.js` | rebuilds `js/ntc_lib.js` (from `asm/*.asm`) and `js/ntc_examples.js` (from `bas/`) - run after changing the library or examples |
 | `guitest*.py` | Playwright tests of `ntc.html` (examples compile with no errors, procedure list, .vbp open) |

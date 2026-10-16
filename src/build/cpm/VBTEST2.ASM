@@ -83,11 +83,13 @@ for2_e:
 
 			; Main.bas 39: Chk Area(3), 9
 			dw p_area_c, lit_3, lit_m1
-			dw p_chk_c, var_area_area, lit_9
+			dw kw_vtov, var_area_area, tmp0
+			dw p_chk_c, tmp0, lit_9
 
 			; Main.bas 40: Chk Area(3, 4), 12
 			dw p_area_c, lit_3, lit_4
-			dw p_chk_c, var_area_area, lit_12
+			dw kw_vtov, var_area_area, tmp0
+			dw p_chk_c, tmp0, lit_12
 
 			; Main.bas 42: s = "abc"
 			dw kw_strcpy, var_s, str4
@@ -149,11 +151,13 @@ for3_e:
 
 			; Main.bas 59: Chk FindPair(7), 25
 			dw p_findpair_c, lit_7
-			dw p_chk_c, var_findpair_findpair, lit_25
+			dw kw_vtov, var_findpair_findpair, tmp0
+			dw p_chk_c, tmp0, lit_25
 
 			; Main.bas 61: Chk Inner(), 111
 			dw p_inner_c
-			dw p_chk_c, var_inner_inner, lit_111
+			dw kw_vtov, var_inner_inner, tmp0
+			dw p_chk_c, tmp0, lit_111
 
 			; Main.bas 63: Shared = 41
 			dw kw_ltov, 41, var_shared
@@ -166,11 +170,13 @@ for3_e:
 
 			; Main.bas 67: Chk Helper(), 1
 			dw p_helper_c
-			dw p_chk_c, var_helper_helper, lit_1
+			dw kw_vtov, var_helper_helper, tmp0
+			dw p_chk_c, tmp0, lit_1
 
 			; Main.bas 68: Chk Mod2Helper(), 2
 			dw p_mod2helper_c
-			dw p_chk_c, var_mod2helper_mod2helper, lit_2
+			dw kw_vtov, var_mod2helper_mod2helper, tmp0
+			dw p_chk_c, tmp0, lit_2
 
 			; Main.bas 70: folk(1).name = "Ann"
 			dw kw_strcpyn, arr_folk_name, str10, 40
@@ -268,7 +274,8 @@ if8_e:
 
 			; Main.bas 98: Chk GetSeven(), 7
 			dw p_getseven_c
-			dw p_chk_c, var_getseven_getseven, lit_7
+			dw kw_vtov, var_getseven_getseven, tmp0
+			dw p_chk_c, tmp0, lit_7
 
 			; Main.bas 99: Chk GetSeven + 1, 8
 			dw p_getseven_c
@@ -277,15 +284,18 @@ if8_e:
 
 			; Main.bas 101: ChkS Sz(5), "small"
 			dw p_sz_c, lit_5
-			dw p_chks_c, var_sz_sz, str13
+			dw kw_strcpy, stmp0, var_sz_sz
+			dw p_chks_c, stmp0, str13
 
 			; Main.bas 102: ChkS Sz(50), "mid"
 			dw p_sz_c, lit_50
-			dw p_chks_c, var_sz_sz, str14
+			dw kw_strcpy, stmp0, var_sz_sz
+			dw p_chks_c, stmp0, str14
 
 			; Main.bas 103: ChkS Sz(500), "big"
 			dw p_sz_c, lit_500
-			dw p_chks_c, var_sz_sz, str15
+			dw kw_strcpy, stmp0, var_sz_sz
+			dw p_chks_c, stmp0, str15
 
 			; Main.bas 104: Print
 			dw kw_printnl

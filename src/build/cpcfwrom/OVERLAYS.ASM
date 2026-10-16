@@ -426,11 +426,11 @@ fn_memory_map:		; function map (asm keyword), Memory.cls line 196
             jp mem_go0		; Memory.cls 210
 			ret			; end of #asm
 
-fn_memory_largest:		; function largest (asm keyword), Memory.cls line 327
-            pop hl		; Memory.cls 328
-            ld (mem_res), hl		; Memory.cls 329
-            ld hl, mem_largest		; Memory.cls 330
-            jp mem_go		; Memory.cls 331
+fn_memory_largest:		; function largest (asm keyword), Memory.cls line 305
+            pop hl		; Memory.cls 306
+            ld (mem_res), hl		; Memory.cls 307
+            ld hl, mem_largest		; Memory.cls 308
+            jp mem_go		; Memory.cls 309
 			ret			; end of #asm
 
 
@@ -1150,4 +1150,4 @@ ovl_level2_vsize	equ 0		; its page variables; its local memory is the rest, to #
 			DISPLAY "  page variables ", /D, ovl_level2_vsize, ", free ", /D, #8000 - (ovl_level2_end + ovl_level2_vsize)
 			SAVEAMSDOS "OVERLAYS.002", ovl_level2_start, ovl_level2_end - ovl_level2_start, #4000
 
-NTC_STAMP	equ #74E3		; the build stamp: the first word of every page file
+NTC_STAMP	equ #D29D		; the build stamp: the first word of every page file

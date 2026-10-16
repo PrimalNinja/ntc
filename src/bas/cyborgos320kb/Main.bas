@@ -993,7 +993,7 @@ Sub Command(ByVal t As Integer)
     b = Trim$(Mid$(a, p + 1))
     a = Left$(a, p - 1)
   End If
-  If Right$(c, 1) = ":" And a = "" Then a = c : c = "CD"   ' B: or IDE: alone: CD B:, CD IDE: (CD.CYB)
+  If Right$(c, 1) = ":" And a = "" Then a = c : c = "CV"   ' B: or IDE: alone: CV B:, CV IDE: (CV.CYB)
   Select Case c
     Case ""
     Case "CLS"

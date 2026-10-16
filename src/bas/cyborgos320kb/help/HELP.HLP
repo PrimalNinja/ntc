@@ -1,6 +1,6 @@
 CyborgOS - HELP name shows NAME.HLP (HELP DIR, HELP CD ...)
 Built in: RUN, CLS, QUIT. On the system drive Z (from the boot disc): FG, PS,
-TOP, KILL, RESET, WAIT, MEM, DIR, CD, HELP, COPY, ERA, TYPE, RENAME,
+TOP, KILL, RESET, WAIT, MEM, DIR, CD, CV, HELP, COPY, ERA, TYPE, RENAME,
 RAMDISC, MODE, MKDIR, RMDIR, DRIVE. On the boot drive: FLOPPY, MON
 
 name [args]       runs that program (from Z, the slot's drive, the boot drive)
@@ -11,14 +11,15 @@ KILL slot         stops its program
 RESET [slot]      that slot (or this one) as new
 PS, TOP           the slots; with their speed
 MEM               the memory: main RAM, the banks
-DIR, CD, DRIVE    files; this slot's drive; the drives and devices
+DIR, DRIVE        files; the drives and devices
+CV, CD            this slot's drive or device; a folder (UniDOS)
 MKDIR, RMDIR      folders (UniDOS)
 FLOPPY from to    floppy discs: A to a folder or .DSK, and back (HELP FLOPPY)
 WAIT, CLS, QUIT   until no program runs; clear; end CyborgOS
 MODE [m]          this slot's screen
 COPY, ERA, TYPE, RENAME   files (HELP COPY ...)
 RAMDISC           RAM discs
-IDE: (any word ending ":")      CD to that drive or device
+IDE: (any word ending ":")      CV to that drive or device
 
 Control + 1-9, 0: that slot to the front (more than 10 slots: the number
 twice for 11-20)   Control + ESC: TOP

@@ -52,17 +52,20 @@ button:disabled { opacity: .5; cursor: default; }
 //   10 word x0, 12 word z0 (the grid's south-west corner, world units); 14 word tile size (units);
 //   16 word start x, 18 word start z (world units), 20 byte start heading (0-255: 0 north, 64 east);
 //   21 byte -; 22 word landmark tiles (n), 24 word their list's offset; 26 word the directory's
-//   offset; 32 the name (16 characters, 0 padded)
+//   offset; 28 word views (n), 30 word their list's offset; 32 the name (16 characters, 0 padded)
+//   a view (32 bytes): word x, z (world units), height (units), forward x, z (16384 = 1: the
+//   way it looks, level), then its name (22 characters, 0 padded)
 //   the directory: nx * nz entries (tile ix + iz * nx), 3 bytes: block (1.., 0 empty), offset (word)
-//   the landmark list: n words, tile numbers whose 3D lines are drawn from further away
+//   the landmark list: n words, tile numbers whose 3D lines are drawn from further away (to 3.5 km;
+//   bit 15 set: to 11 km - Rangitoto, the Sky Tower, the Harbour Bridge)
 // World units: 0.5 m; x east, z north; 0 = the world's middle.
 // A tile (384 m, 768 units), at its block and offset (never across two blocks):
 //   word nb0, nb1, nb2 (buildings: big, middle, small - drawn to less distance in that order),
 //   word nl (ground lines), n3 (3D lines), nt (trees), word where its 3D lines start, word where
 //   its trees start (from the tile's start: 16 bytes of header, then the buildings ...)
-//   building: byte n (points), byte h (height, 2 m units), n x (sbyte x, sbyte z)
+//   building: byte n (points, 12 at most), byte h (height, 2 m units, 0-191: 382 m), n x (sbyte x, sbyte z)
 //   ground line: byte n, byte type, n x (sbyte x, sbyte z)
-//   3D line: byte n, byte type, n x (sbyte x, sbyte z, byte h)
+//   3D line: byte n, byte type, n x (sbyte x, sbyte z, byte h - 0-191)
 //   tree: sbyte x, sbyte z
 //   x, z: 2 m units from the tile's middle (-127 .. 127: 254 m each way, the tile 192 m each way)
 // Line types: 0 motorway, 1 major road, 2 minor road, 3 railway, 4 coast, 5 water, 6 stream,
@@ -218,7 +221,7 @@ class World {
     const T = this.T(t), q = [];
     for (const p of pts) {
       const [x, z] = this.loc(t, p[0], p[1]);
-      const h = Math.max(0, Math.min(255, Math.round((p[2] || 0) / Q)));
+      const h = Math.max(0, Math.min(191, Math.round((p[2] || 0) / Q)));
       const l = q[q.length - 1];
       if (l && l[0] === x && l[1] === z && l[2] === h) continue;
       q.push([x, z, h]);
@@ -266,21 +269,25 @@ async function make(text, opts, log) {
       else vols.push({ x: n.x, y: n.y, e, name: n.tags.name || "" });
     }
   }
-  const lmTiles = new Set();
-  const add3d = (pts, type) => { const before = new Map([...W.t].map(([k, v]) => [k, v.d3.length])); W.addLine(pts, type, true); for (const [k, v] of W.t) if (v.d3.length > (before.get(k) || 0)) lmTiles.add(k); };
+  const lmTiles = new Set(), farTiles = new Set();   // (far: Rangitoto, the Sky Tower, the Harbour Bridge - drawn to 11 km)
+  let far = false;
+  const add3d = (pts, type) => { const before = new Map([...W.t].map(([k, v]) => [k, v.d3.length])); W.addLine(pts, type, true); for (const [k, v] of W.t) if (v.d3.length > (before.get(k) || 0)) { lmTiles.add(k); if (far) farTiles.add(k); } };
+  let RANGI = null;
   // the volcanoes: cones (rings at a quarter, a half, three quarters, the crater), 8 lines up
   for (const v of vols) {
     const isR = /Rangitoto/.test(v.name) && v.e > 200 && rangi;
-    const base = isR ? rangi.map((p) => [p[0], p[1]]) : Array.from({ length: 16 }, (_, i) => { const a = i * Math.PI / 8, R = Math.min(700, v.e * 2.2 + 120); return [v.x + R * Math.cos(a), v.y + R * Math.sin(a)]; });
-    const simple = isR ? dp(base.concat([base[0]]), 60).slice(0, -1) : base;
+    far = !!isR; if (isR) RANGI = [v.x, v.y];
+    const base = isR ? rangi.map((p) => [p[0], p[1]]) : Array.from({ length: 12 }, (_, i) => { const a = i * Math.PI / 6, R = Math.min(700, v.e * 2.2 + 120); return [v.x + R * Math.cos(a), v.y + R * Math.sin(a)]; });
+    const simple = isR ? dp(base.concat([base[0]]), 120).slice(0, -1) : base;
     const B = simple.length;
     const ringS = (f, hh) => { const r = simple.map((p) => [v.x + (p[0] - v.x) * f, v.y + (p[1] - v.y) * f, hh]); r.push(r[0]); return r; };
     if (!isR) add3d(ringS(1, 0), 10);                    // (Rangitoto's foot: its coast)
-    for (const f of [0.75, 0.5, 0.25]) add3d(ringS(f, v.e * (1 - f)), 10);
-    add3d(ringS(0.07, v.e * 0.97), 10);
-    for (let i = 0; i < 8; i++) { const p = simple[Math.floor(i * B / 8)]; add3d([[p[0], p[1], 0], [v.x + (p[0] - v.x) * 0.07, v.y + (p[1] - v.y) * 0.07, v.e * 0.97]], 10); }
+    for (const f of [0.66, 0.33]) add3d(ringS(f, v.e * (1 - f)), 10);
+    add3d(ringS(0.08, v.e * 0.96), 10);
+    for (let i = 0; i < 6; i++) { const p = simple[Math.floor(i * B / 6)]; add3d([[p[0], p[1], 0], [v.x + (p[0] - v.x) * 0.08, v.y + (p[1] - v.y) * 0.08, v.e * 0.96]], 10); }
   }
   // the Sky Tower: a shaft, the pod, the mast (328 m)
+  far = true;
   if (sky) {
     const [x, y] = sky;
     const sq = (r, h) => [[x - r, y - r, h], [x + r, y - r, h], [x + r, y + r, h], [x - r, y + r, h], [x - r, y - r, h]];
@@ -315,6 +322,7 @@ async function make(text, opts, log) {
       add3d(top, 8); for (const v of verts) add3d(v, 8);
     }
   }
+  far = false;
   await log("landmarks: Sky Tower " + (sky ? "yes" : "no") + ", Harbour Bridge " + (bridge ? "yes" : "no") + ", Rangitoto outline " + (rangi ? "yes" : "no") + ", " + vols.length + " volcano cones");
 
   // the buildings
@@ -326,7 +334,7 @@ async function make(text, opts, log) {
     const ar = Math.abs(area(r)); if (ar < 8) { drop++; return; }
     const c = centroid(r), t = W.tileAt(c[0], c[1]); if (t < 0) { drop++; return; }
     const near = SKY ? Math.hypot(c[0] - SKY[0], c[1] - SKY[1]) < 1300 : false;
-    const h = Math.max(3, Math.min(508, heightOf(tags, ar, near)));
+    const h = Math.max(3, Math.min(382, heightOf(tags, ar, near)));   // (heights to 191: 382 m - the engine's table)
     const pts = []; for (const p of r) { const l = W.loc(t, p[0], p[1]); const z = pts[pts.length - 1]; if (!z || z[0] !== l[0] || z[1] !== l[1]) pts.push(l); }
     if (pts.length > 1 && pts[0][0] === pts[pts.length - 1][0] && pts[0][1] === pts[pts.length - 1][1]) pts.pop();
     if (pts.length < 3) { drop++; return; }
@@ -445,20 +453,57 @@ async function make(text, opts, log) {
     b.used += e.length;
   }
   if (blocks.length > 254) throw new Error(blocks.length + " blocks: more than 254");
+  // block 0 (the landmark list keeps bit 15 for a far one: tiles across up to 127 - 48 km)
+  if (nx > 127) throw new Error("too wide: " + nx + " tiles across (127 at most)");
   // block 0
   const h0 = new Uint8Array(BLK), dv = new DataView(h0.buffer);
   h0.set([83, 51, 68, 49], 0);
   dv.setUint16(4, nx, true); dv.setUint16(6, nz, true); dv.setUint16(8, blocks.length, true);
   dv.setInt16(10, (W.x0 - cx) * U, true); dv.setInt16(12, (W.z0 - cz) * U, true); dv.setUint16(14, TILE * U, true);
-  const start = SKY ? [SKY[0] - 300, SKY[1] - 1400] : [cx, cz];   // south of the Sky Tower, looking north
+  // the start: up in the air (200 m), flying in from the gulf at Auckland, Rangitoto 4 km off a little
+  // right of ahead (15 degrees: half past twelve), the city as near ahead as that allows - else
+  // south of the Sky Tower, looking north
+  let start = SKY ? [SKY[0] - 300, SKY[1] - 1400] : [cx, cz], sdir = SKY ? [SKY[0], SKY[1]] : [cx, cz + 1000], sh = 120, sname = "Start: south of the CBD";
+  if (SKY && RANGI) {
+    const brg = (a, b) => Math.atan2(b[0] - a[0], b[1] - a[1]), inW = (p) => p[0] > W.x0 + 400 && p[0] < W.x0 + nx * TILE - 400 && p[1] > W.z0 + 400 && p[1] < W.z0 + nz * TILE - 400;
+    const rel = (a) => { a = a * 180 / Math.PI; return ((a % 360) + 540) % 360 - 180; };
+    let best = null;
+    for (let a = 0; a < 360; a += 2) {
+      const r = a * Math.PI / 180, P = [RANGI[0] + 4000 * Math.sin(r), RANGI[1] + 4000 * Math.cos(r)];
+      if (!inW(P) || Math.hypot(P[0] - RANGI[0], P[1] - RANGI[1]) < 2500) continue;
+      const hd = brg(P, RANGI) - 15 * Math.PI / 180, err = Math.abs(rel(brg(P, SKY) - hd));
+      if (!best || err < best.err) best = { err, P, hd };
+    }
+    if (best && best.err < 70) { start = best.P; sdir = [start[0] + 1000 * Math.sin(best.hd), start[1] + 1000 * Math.cos(best.hd)]; sh = 200; sname = "Approaching Auckland"; }
+  }
   dv.setInt16(16, Math.round((start[0] - cx) * U), true); dv.setInt16(18, Math.round((start[1] - cz) * U), true); h0[20] = 0;
-  const lm = [...lmTiles].filter((k) => encs.has(k)).sort((a, b) => a - b);
-  const dirOff = 64, lmOff = dirOff + dir.length;
+  const lm = [...lmTiles].filter((k) => encs.has(k)).sort((a, b) => (farTiles.has(b) - farTiles.has(a)) || a - b).slice(0, 256).sort((a, b) => a - b);   // (256 at most: the engine's list - the far ones first)
+  // the views: from the start, and round the landmarks (looking at them from 700 m off)
+  const views = [{ name: sname, x: start[0], z: start[1], h: sh, tx: sdir[0], tz: sdir[1] }];
+  if (sname !== "Start: south of the CBD" && SKY) views.push({ name: "South of the CBD", x: SKY[0] - 300, z: SKY[1] - 1400, h: 120, tx: SKY[0], tz: SKY[1] });
+  if (SKY) views.push({ name: "Sky Tower", x: SKY[0] - 500, z: SKY[1] - 500, h: 150, tx: SKY[0], tz: SKY[1] });
+  if (bridgeBox) { const b = bridgeBox, t = (b.t0 + b.t1) / 2 + (b.t1 - b.t0) * 0.08, mx = b.mx + b.ux * t, mz = b.my + b.uy * t; views.push({ name: "Harbour Bridge", x: mx + 230 * b.uy, z: mz - 230 * b.ux, h: 8, tx: mx, tz: mz }); }   // low, 230 m off the main span: the arch against the sky
+  const vic = vols.find((v) => /Victoria/.test(v.name));
+  if (vic) views.push({ name: "Devonport", x: vic.x - 300, z: vic.y - 1100, h: 90, tx: vic.x + 300, tz: vic.y + 200 });
+  for (const v of vols.slice().sort((a, b) => b.e - a.e).slice(0, 9 - views.length)) views.push({ name: (v.name || "Volcano").split(" / ").pop().slice(0, 22), x: v.x - 900, z: v.y - 900, h: Math.max(80, v.e + 40), tx: v.x, tz: v.y });
+  const viewBytes = new Uint8Array(views.length * 32), vv = new DataView(viewBytes.buffer);
+  views.forEach((v, i) => {
+    const o = i * 32, dx = v.tx - v.x, dz = v.tz - v.z, l = Math.hypot(dx, dz) || 1;
+    const clampW = (p, lo, hi) => Math.max(lo, Math.min(hi, p));
+    vv.setInt16(o, Math.round((clampW(v.x, W.x0 + 40, W.x0 + nx * TILE - 40) - cx) * U), true);
+    vv.setInt16(o + 2, Math.round((clampW(v.z, W.z0 + 40, W.z0 + nz * TILE - 40) - cz) * U), true);
+    vv.setInt16(o + 4, Math.round(v.h * U), true);
+    vv.setInt16(o + 6, Math.round(16384 * dx / l), true); vv.setInt16(o + 8, Math.round(16384 * dz / l), true);
+    for (let k = 0; k < Math.min(22, v.name.length); k++) viewBytes[o + 10 + k] = v.name.charCodeAt(k) & 127;
+  });
+  const dirOff = 64, lmOff = dirOff + dir.length, vwOff = lmOff + lm.length * 2;
   dv.setUint16(22, lm.length, true); dv.setUint16(24, lmOff, true); dv.setUint16(26, dirOff, true);
+  dv.setUint16(28, views.length, true); dv.setUint16(30, vwOff, true);
   const nm = (opts.name || "S3D").toUpperCase().slice(0, 16); for (let i = 0; i < nm.length; i++) h0[32 + i] = nm.charCodeAt(i);
   h0.set(dir, dirOff);
-  for (let i = 0; i < lm.length; i++) dv.setUint16(lmOff + i * 2, lm[i], true);
-  if (lmOff + lm.length * 2 > BLK) throw new Error("block 0 too full");
+  for (let i = 0; i < lm.length; i++) dv.setUint16(lmOff + i * 2, lm[i] | (farTiles.has(lm[i]) ? 0x8000 : 0), true);   // (bit 15: drawn to 11 km)
+  h0.set(viewBytes, vwOff);
+  if (vwOff + viewBytes.length > BLK) throw new Error("block 0 too full");
   const out = new Uint8Array(BLK * (blocks.length + 1));
   out.set(h0, 0); blocks.forEach((b, i) => out.set(b.data, BLK * (i + 1)));
   let used = 0; for (const b of blocks) used += b.used;

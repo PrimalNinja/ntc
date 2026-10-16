@@ -1,0 +1,14 @@
+CV [drive or device]
+  Change volume: this slot's drive. CV alone: the drive (and its path), the
+  drives with paths and the devices. B: or IDE: alone is CV B:, CV IDE:.
+  CD changes folders.
+  CV B  CV B:                  drive B (not Z: CyborgOS's own)
+UniDOS - a drive letter can be a path (a device's folder):
+  CV IDE:  CV IDE              a device's top: this drive's path (from A, B
+                               or a RAM disc: the first free letter from C)
+  CV SD:GAMES/ACTION           a device's folder
+  CV C: IDE:WORK               drive C's path set, C this slot's drive
+  CV C: -                      drive C's path dropped
+  CV DFA:  CV DFB:             a floppy (FLOPPY A lists its files)
+  A RAM disc's letter has no path. C: --> IDE:  means drive C goes to IDE:.
+

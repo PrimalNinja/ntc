@@ -371,7 +371,8 @@ for3_e:
 
 			; 123: ChkL Twice(123456), 246912
 			dw p_twice_c, llit_123456
-			dw p_chkl_c, var_twice_twice, llit_246912
+			dw kw_l_mov, var_twice_twice, ltmp0
+			dw p_chkl_c, ltmp0, llit_246912
 
 			; 124: a = 5
 			dw kw_l_mov, llit_5, var_a
@@ -384,7 +385,8 @@ for3_e:
 
 			; 127: ChkL Fact(12), 479001600
 			dw p_fact_c, lit_12
-			dw p_chkl_c, var_fact_fact, llit_479001600
+			dw kw_l_mov, var_fact_fact, ltmp0
+			dw p_chkl_c, ltmp0, llit_479001600
 
 			; 130: total = 0
 			dw kw_l_mov, llit_0, var_total

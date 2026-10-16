@@ -1,8 +1,10 @@
 COPY [v1:]name v2[:newname]
 COPY [v1:]pattern v2
 COPY [v1:]name|pattern [v2:]folder[/]
+COPY v1:name|pattern .
   Copies a file to drive v2 (B or B:), as newname or the same name; a
   pattern (*.CYB, T*, ????.COM, *.*) copies each file that fits.
   A folder there (UniDOS) as the target: the files go into it, same
   names - a folder is never written over.
+  . as the target: where this slot is (its drive and folder).
   Any file the drive has (UniDOS's folder, a RAM disc's directory).

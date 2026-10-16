@@ -54,6 +54,14 @@ version.
   the page), L (insert a row), M (delete a row), and Amstrad's l (clear the row), o (the row up to
   the cursor), d (the page up to it). The page changes first, then the rows drawn again from it
   (test: console VT52, cpm/vt52t.asm). ESC e f j k p q ...: ignored
+- 2026-10-17 CV (change volume) and CD (change directory) split: CV the drive, a device, a drive
+  letter's path (CV B, CV IDE:, CV C: IDE:WORK, CV C: -; B: or IDE: alone is CV), CD only folders
+  (CD C is the folder C - CYBORGOS/C, the commands -, CD .., CD /). CD with a letter always took the
+  drive. CybVol.cls: their drive letters, paths, devices (test: CyborgOS UniDOS: CD C). COPY said
+  "0 of 1 files copied" for a file over 32K (its byte count went into an Integer). INSTALL asks the device (Enter: IDE) and sets A to its top
+  (|DRIVE,"A","IDE:") before it makes CYBORGOS/, then A to IDE:CYBORGOS to run it - A keeps the
+  last path set, so a second install went in CYBORGOS/CYBORGOS, a third deeper (|DRIVE,"A",":"
+  gave Bad command)
 - 2026-10-16 Open: BBC BASIC's FILETEST stops at line 80 on UniDOS / AMSDOS drives (passes on a RAM
   disc). The disc files go through the cassette calls: one file read and one written at a time,
   writing only forward - BDOS 35 on a file being written fails, OPENUP / PTR# writes / update in
@@ -409,6 +417,12 @@ version.
 
 - Folders on RAM discs (the directory entry has a folder byte already): CD J:\WORK, a slot's
   folder, MD / RD, paths in COPY, ERA, TYPE, RENAME
+- Idea (Julian, 2026-10-17): random access on a stream-only drive by a file per record or block -
+  a folder named as the file (DATA.DAT/), one small file each (8.3 names: up to 65,534 in a
+  folder); each access opens, reads or writes, closes. Any size, several files open, survives a
+  reset; costs a cluster per piece (16K blocks better than 128-byte records), an open per access,
+  and a format only CyborgOS reads (COPY to join / split). Alongside option 1 (the file in
+  expansion RAM while open, written back at close) for files too big for RAM
 - Random access on discs (UniDOS: Ctrl J seek); exact lengths for files COPY writes (CP/M
   writes whole records, and AMSDOS / UniDOS add a ^Z: a 20 byte file is 129 bytes)
 - FLOPPY: two sides, 80 tracks; FLOPPY A B (disc to disc); a blank disc formatted (FLOPPY FORMAT A?)

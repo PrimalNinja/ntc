@@ -580,96 +580,102 @@ ntc_rg33_e:
 			ENDIF
 ntc_rg34:
 p_score_total_rs:			dw 0
-
-; numbers passed by address (read only)
 ntc_rg34_e:
 			IF ($ < 32768) && (ntc_rg35_e - ntc_rg35 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
 ntc_rg35:
-lit_7:			dw 7
+tmp0:			dw 0
+
+; numbers passed by address (read only)
 ntc_rg35_e:
 			IF ($ < 32768) && (ntc_rg36_e - ntc_rg36 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
 ntc_rg36:
-lit_10:			dw 10
-
+lit_7:			dw 7
 ntc_rg36_e:
 			IF ($ < 32768) && (ntc_rg37_e - ntc_rg37 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
 ntc_rg37:
-; ============================================================
-; Strings
-; ============================================================
+lit_10:			dw 10
 
 ntc_rg37_e:
 			IF ($ < 32768) && (ntc_rg38_e - ntc_rg38 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
 ntc_rg38:
-str0:			db "Maths from main: 7 squared is ", 0
+; ============================================================
+; Strings
+; ============================================================
+
 ntc_rg38_e:
 			IF ($ < 32768) && (ntc_rg39_e - ntc_rg39 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
 ntc_rg39:
-str1:			db "Stars from main (Stage1's copy): ", 0
+str0:			db "Maths from main: 7 squared is ", 0
 ntc_rg39_e:
 			IF ($ < 32768) && (ntc_rg40_e - ntc_rg40 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
 ntc_rg40:
-str2:			db "Press a key", 0
+str1:			db "Stars from main (Stage1's copy): ", 0
 ntc_rg40_e:
 			IF ($ < 32768) && (ntc_rg41_e - ntc_rg41 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
 ntc_rg41:
-str3:			db "== PAGES DEMO ==", 0
+str2:			db "Press a key", 0
 ntc_rg41_e:
 			IF ($ < 32768) && (ntc_rg42_e - ntc_rg42 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
 ntc_rg42:
-str4:			db "Score: ", 0
+str3:			db "== PAGES DEMO ==", 0
 ntc_rg42_e:
 			IF ($ < 32768) && (ntc_rg43_e - ntc_rg43 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
 ntc_rg43:
-str5:			db "Level 1: score ", 0
+str4:			db "Score: ", 0
 ntc_rg43_e:
 			IF ($ < 32768) && (ntc_rg44_e - ntc_rg44 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
 ntc_rg44:
-str6:			db ", stars here ", 0
+str5:			db "Level 1: score ", 0
 ntc_rg44_e:
 			IF ($ < 32768) && (ntc_rg45_e - ntc_rg45 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
 ntc_rg45:
-str7:			db "Level 2: score ", 0
+str6:			db ", stars here ", 0
 ntc_rg45_e:
 			IF ($ < 32768) && (ntc_rg46_e - ntc_rg46 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
 ntc_rg46:
-str8:			db "Final score ", 0
+str7:			db "Level 2: score ", 0
 ntc_rg46_e:
 			IF ($ < 32768) && (ntc_rg47_e - ntc_rg47 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
 ntc_rg47:
-str9:			db " - thanks for playing", 0
-
+str8:			db "Final score ", 0
 ntc_rg47_e:
 			IF ($ < 32768) && (ntc_rg48_e - ntc_rg48 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
 ntc_rg48:
+str9:			db " - thanks for playing", 0
+
+ntc_rg48_e:
+			IF ($ < 32768) && (ntc_rg49_e - ntc_rg49 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg49:
 ; ============================================================
 ; Keyword library (rom)
 ; ============================================================
@@ -933,7 +939,7 @@ ntc_rj_tlk:		db "ROM NTC CPCFW too old: no routine #", 0
 ntc_rj_tpt:		db "ROM NTCFW<n>.ROM not found: n = #", 0
 ntc_rj_tnl:		db 13, 10, "Press a key", 13, 10, 0
 ntc_rj_dropend:
-ntc_rg48_e:
+ntc_rg49_e:
 ntc_end:				; the end of the program (and of its file)
 ; arrays: after the program, not in its file - kw_bssinit checks they fit and clears them
 			IF ntc_rj_dropend == ntc_end	; fwdref-ok
@@ -1008,7 +1014,8 @@ for1_t:
 
 			; Level1.cls 5: Score.Add Maths.Square(i)
 			dw p_maths_square_cl, var_level1_play_i
-			dw p_score_add_c, var_maths_square_square
+			dw kw_vtov, var_maths_square_square, tmp0
+			dw p_score_add_c, tmp0
 
 			; Level1.cls 6: Stars.Add
 			dw p_stars_add_cl
@@ -1090,7 +1097,8 @@ p_level2_play:
 
 			; Level2.cls 3: Score.Add Maths.Square(10)
 			dw p_maths_square_cl__stage2, lit_10
-			dw p_score_add_c, var_maths_square_square
+			dw kw_vtov, var_maths_square_square, tmp0
+			dw p_score_add_c, tmp0
 
 			; Level2.cls 4: Stars.Add
 			dw p_stars_add_cl__stage2
@@ -1183,4 +1191,4 @@ ovl_ending_vsize	equ 0		; its page variables; its local memory is the rest, to #
 			DISPLAY "  page variables ", /D, ovl_ending_vsize, ", free ", /D, #8000 - (ovl_ending_end + ovl_ending_vsize)
 			SAVEAMSDOS "PAGES.004", ovl_ending_start, ovl_ending_end - ovl_ending_start, #4000
 
-NTC_STAMP	equ #C8A7		; the build stamp: the first word of every page file
+NTC_STAMP	equ #B532		; the build stamp: the first word of every page file

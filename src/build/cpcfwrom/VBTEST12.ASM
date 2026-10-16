@@ -173,7 +173,8 @@ main_thread:
 
 			; 63: Chk LenOf(big), 90
 			dw p_lenof_c, var_big
-			dw p_chk_c, var_lenof_lenof, lit_90
+			dw kw_vtov, var_lenof_lenof, tmp0
+			dw p_chk_c, tmp0, lit_90
 
 			; 66: Fill short
 			dw p_fill_c, var_short
@@ -706,6 +707,7 @@ ntc_xn:		jp 2
 kw_goto_iffalse_n:	jp 11
 kw_next1l_n:	jp 31
 kw_ltov:		jp 47
+kw_vtov:		jp 48
 kw_ztov:		jp 49
 kw_ftov:		jp 50
 kw_inc:		jp 51
@@ -743,7 +745,7 @@ kw_psets:	jp 200
 kw_ubound:	jp 205
 kw_bssinit:	jp 288
 kw_waitkey:	jp 348
-NTC_RJ_N	equ 42		; entries
+NTC_RJ_N	equ 43		; entries
 ntc_csp	equ #8800		; ROM data
 ntc_nmode	equ #8807		; ROM data
 ntc_v_free	equ #894E		; ROM data

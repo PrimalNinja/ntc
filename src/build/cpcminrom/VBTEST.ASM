@@ -70,7 +70,8 @@ main_thread:
 
 			; main.bas 31: Chk Add(2, 3), 5
 			dw p_add_c, lit_2, lit_3
-			dw p_chk_n_c, var_add_add, lit_5
+			dw kw_vtov, var_add_add, tmp0
+			dw p_chk_n_c, tmp0, lit_5
 
 			; main.bas 32: Chk Add(Add(1, 2), Add(3, 4)), 10
 			dw p_add_c, lit_1, lit_2
@@ -78,11 +79,13 @@ main_thread:
 			dw p_add_c, lit_3, lit_4
 			dw kw_vtov, var_add_add, tmp1
 			dw p_add_c, tmp0, tmp1
-			dw p_chk_n_c, var_add_add, lit_10
+			dw kw_vtov, var_add_add, tmp0
+			dw p_chk_n_c, tmp0, lit_10
 
 			; main.bas 33: Chk Twice(21), 42
 			dw p_twice_c, lit_21
-			dw p_chk_n_c, var_twice_twice, lit_42
+			dw kw_vtov, var_twice_twice, tmp0
+			dw p_chk_n_c, tmp0, lit_42
 
 			; main.bas 34: n = 5
 			dw kw_ltov, 5, var_n
@@ -110,63 +113,78 @@ main_thread:
 
 			; main.bas 42: Chk Fact(7), 5040
 			dw p_fact_c, lit_7
-			dw p_chk_n_c, var_fact_fact, lit_5040
+			dw kw_vtov, var_fact_fact, tmp0
+			dw p_chk_n_c, tmp0, lit_5040
 
 			; main.bas 43: Chk Counter(), 1
 			dw p_counter_c
-			dw p_chk_n_c, var_counter_counter, lit_1
+			dw kw_vtov, var_counter_counter, tmp0
+			dw p_chk_n_c, tmp0, lit_1
 
 			; main.bas 44: Chk Counter(), 2
 			dw p_counter_c
-			dw p_chk_n_c, var_counter_counter, lit_2
+			dw kw_vtov, var_counter_counter, tmp0
+			dw p_chk_n_c, tmp0, lit_2
 
 			; main.bas 45: Chk Fresh(), 1
 			dw p_fresh_c
-			dw p_chk_n_c, var_fresh_fresh, lit_1
+			dw kw_vtov, var_fresh_fresh, tmp0
+			dw p_chk_n_c, tmp0, lit_1
 
 			; main.bas 46: Chk Fresh(), 1
 			dw p_fresh_c
-			dw p_chk_n_c, var_fresh_fresh, lit_1
+			dw kw_vtov, var_fresh_fresh, tmp0
+			dw p_chk_n_c, tmp0, lit_1
 
 			; main.bas 47: Chk Clamp(50), 10
 			dw p_clamp_c, lit_50
-			dw p_chk_n_c, var_clamp_clamp, lit_10
+			dw kw_vtov, var_clamp_clamp, tmp0
+			dw p_chk_n_c, tmp0, lit_10
 
 			; main.bas 48: Chk Clamp(-4), 0
 			dw p_clamp_c, lit_m4
-			dw p_chk_n_c, var_clamp_clamp, lit_0
+			dw kw_vtov, var_clamp_clamp, tmp0
+			dw p_chk_n_c, tmp0, lit_0
 
 			; main.bas 49: Chk Clamp(7), 7
 			dw p_clamp_c, lit_7
-			dw p_chk_n_c, var_clamp_clamp, lit_7
+			dw kw_vtov, var_clamp_clamp, tmp0
+			dw p_chk_n_c, tmp0, lit_7
 
 			; main.bas 52: Chk Grade(95), 1
 			dw p_grade_c, lit_95
-			dw p_chk_n_c, var_grade_grade, lit_1
+			dw kw_vtov, var_grade_grade, tmp0
+			dw p_chk_n_c, tmp0, lit_1
 
 			; main.bas 53: Chk Grade(85), 2
 			dw p_grade_c, lit_85
-			dw p_chk_n_c, var_grade_grade, lit_2
+			dw kw_vtov, var_grade_grade, tmp0
+			dw p_chk_n_c, tmp0, lit_2
 
 			; main.bas 54: Chk Grade(70), 3
 			dw p_grade_c, lit_70
-			dw p_chk_n_c, var_grade_grade, lit_3
+			dw kw_vtov, var_grade_grade, tmp0
+			dw p_chk_n_c, tmp0, lit_3
 
 			; main.bas 55: Chk Grade(3), 4
 			dw p_grade_c, lit_3
-			dw p_chk_n_c, var_grade_grade, lit_4
+			dw kw_vtov, var_grade_grade, tmp0
+			dw p_chk_n_c, tmp0, lit_4
 
 			; main.bas 56: Chk Kind("apple"), 1
 			dw p_kind_c, str3
-			dw p_chk_n_c, var_kind_kind, lit_1
+			dw kw_vtov, var_kind_kind, tmp0
+			dw p_chk_n_c, tmp0, lit_1
 
 			; main.bas 57: Chk Kind("pear"), 2
 			dw p_kind_c, str4
-			dw p_chk_n_c, var_kind_kind, lit_2
+			dw kw_vtov, var_kind_kind, tmp0
+			dw p_chk_n_c, tmp0, lit_2
 
 			; main.bas 58: Chk Kind("zzz"), 0
 			dw p_kind_c, str5
-			dw p_chk_n_c, var_kind_kind, lit_0
+			dw kw_vtov, var_kind_kind, tmp0
+			dw p_chk_n_c, tmp0, lit_0
 
 			; main.bas 61: a$ = "Hello"
 			dw kw_strcpy, var_a, str6
@@ -480,14 +498,16 @@ for6_e:
 
 			; main.bas 143: Chk Sum3(1, 2, 3), 6
 			dw p_sum3_n_c, lit_1, lit_2, lit_3
-			dw p_chk_n_c, var_sum3_sum3, lit_6
+			dw kw_vtov, var_sum3_sum3, tmp0
+			dw p_chk_n_c, tmp0, lit_6
 
 			; main.bas 144: Turbo On
 			dw kw_turbo_on
 
 			; main.bas 145: Chk Sum3(4, 5, 6), 15
 			dw p_sum3_c, lit_4, lit_5, lit_6
-			dw p_chk_c, var_sum3_sum3, lit_15
+			dw kw_vtov, var_sum3_sum3, tmp0
+			dw p_chk_c, tmp0, lit_15
 
 			; main.bas 146: Turbo Off
 			dw kw_turbo_off

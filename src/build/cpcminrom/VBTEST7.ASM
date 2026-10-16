@@ -68,7 +68,8 @@ main_thread:
 
 			; 30: Chk Dist2(p), 25
 			dw p_dist2_c, var_p_x, var_p_y
-			dw p_chk_c, var_dist2_dist2, lit_25
+			dw kw_vtov, var_dist2_dist2, tmp0
+			dw p_chk_c, tmp0, lit_25
 
 			; 31: Grow p, 10
 			dw p_grow_c, var_p_x, var_p_y, lit_10
@@ -117,7 +118,8 @@ main_thread:
 
 			; 45: Chk Twice2(p), 49
 			dw p_twice2_c, var_p_x, var_p_y
-			dw p_chk_c, var_twice2_twice2, lit_49
+			dw kw_vtov, var_twice2_twice2, tmp0
+			dw p_chk_c, tmp0, lit_49
 
 			; 48: For i = 0 To 2
 			dw kw_ztov, var_i
@@ -144,15 +146,18 @@ for1_e:
 
 			; 53: Chk Corner(grid), 23
 			dw p_corner_c, ad_arr_grid
-			dw p_chk_c, var_corner_corner, lit_23
+			dw kw_vtov, var_corner_corner, tmp0
+			dw p_chk_c, tmp0, lit_23
 
 			; 54: Chk Sum2(grid), 0 + 1 + 2 + 3 + 10 + 11 + 12 + 13 + 20 + 21 + 22 + 23
 			dw p_sum2_c, ad_arr_grid
-			dw p_chk_c, var_sum2_sum2, lit_138
+			dw kw_vtov, var_sum2_sum2, tmp0
+			dw p_chk_c, tmp0, lit_138
 
 			; 55: Chk Cols(grid), 3
 			dw p_cols_c, ad_arr_grid
-			dw p_chk_c, var_cols_cols, lit_3
+			dw kw_vtov, var_cols_cols, tmp0
+			dw p_chk_c, tmp0, lit_3
 
 			; 56: Clear2 grid
 			dw p_clear2_c, ad_arr_grid

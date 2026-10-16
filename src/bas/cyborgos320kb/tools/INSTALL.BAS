@@ -6,14 +6,18 @@
 30 ' DATA from 1000: how many files, then "#n" (disc n) and its files as
 32 ' they go in CYBORGOS (C/..., HELP/...), "*" the end (gendsk writes them)
 40 SPEED KEY 100,100:MODE 2:PRINT "CyborgOS Installer":PRINT "------------------":PRINT
-50 PRINT "Map your floppy drive as drive B, and your mass storage unit (IDE, SD ...)"
-60 q$=CHR$(34):PRINT "as drive A - UniDOS: |DRIVE,";q$;"A";q$;",";q$;"IDE:";q$;
-65 PRINT " and |DRIVE,";q$;"B";q$;",";q$;"DFA:";q$;"."
-70 PRINT "CyborgOS goes in A:CYBORGOS/ - its commands in CYBORGOS/C, its help in"
+50 PRINT "Map your floppy drive as drive B (UniDOS: |DRIVE,";CHR$(34);"B";CHR$(34);",";CHR$(34);"DFA:";CHR$(34);")."
+60 PRINT "CyborgOS goes on a device (IDE, SD ...): drive A is set to its top."
+70 PRINT "It goes in CYBORGOS/ - its commands in CYBORGOS/C, its help in"
 75 PRINT "CYBORGOS/HELP; files there already are replaced. Four discs: cos-disk1"
 78 PRINT "(this one), cos-disk2, cos-disk3 and cos-disk4."
 80 RESTORE:READ t:n=0:d=0
-90 PRINT:PRINT "Press a key to start (ESC twice stops)":GOSUB 500
+85 PRINT:INPUT "The device (Enter: IDE)";v$:v$=UPPER$(v$):IF v$="" THEN v$="IDE"
+87 IF RIGHT$(v$,1)=":" THEN v$=LEFT$(v$,LEN(v$)-1)
+90 PRINT:PRINT "To ";v$;":CYBORGOS/ - press a key to start (ESC twice stops)":GOSUB 500
+92 ' A to the device's top first (a path with the device: from its top) - else
+93 ' a second install went in CYBORGOS/CYBORGOS (A keeps the path last set)
+94 p1$="A":p2$=v$+":":|DRIVE,@p1$,@p2$
 95 p1$="A:CYBORGOS/":|SAVE,@p1$:p1$="A:CYBORGOS/C/":|SAVE,@p1$:p1$="A:CYBORGOS/HELP/":|SAVE,@p1$
 100 READ f$:IF f$="*" THEN 300
 110 IF LEFT$(f$,1)<>"#" THEN 150
@@ -24,7 +28,7 @@
 160 p2$="B:"+s$:|COPY,@p2$,@p1$
 180 b=INT(40*n/t):PRINT "[";STRING$(b,"#");STRING$(40-b,".");"] ";:PRINT USING "###%";INT(100*n/t);:PRINT "  ";f$
 190 GOTO 100
-300 PRINT:PRINT "CyborgOS installed in A:CYBORGOS/ -";n;"files.":PRINT
+300 PRINT:PRINT "CyborgOS installed in ";v$;":CYBORGOS/ -";n;"files.":PRINT
 310 PRINT "1  Run it on a real CPC"
 312 PRINT "2  Run it on WinAPE (keys repeat 10 times slower: KEYREP 10)":PRINT "3  Exit"
 320 WHILE INKEY$<>"":WEND
@@ -32,7 +36,7 @@
 340 SPEED KEY 30,2:IF k$="3" THEN END
 350 ' A's path the CYBORGOS folder (UniDOS keeps it), A the current drive,
 355 ' CyborgOS's command line to &BE80 (as CYBORGOS.BAS does), COSLOAD
-360 p1$="A":p2$="CYBORGOS":|DRIVE,@p1$,@p2$:|A
+360 p1$="A":p2$=v$+":CYBORGOS":|DRIVE,@p1$,@p2$:|A
 370 o$="":IF k$="2" THEN o$=" KEYREP 10"
 380 a$="CYB A"+o$:FOR i=1 TO LEN(a$):POKE &BE7F+i,ASC(MID$(a$,i,1)):NEXT:POKE &BE80+LEN(a$),0
 390 RUN"COSLOAD.BIN"

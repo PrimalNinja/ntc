@@ -419,7 +419,8 @@ p_mainmap:
 
 			; main.bas 116: Area Memory.ProgramStart(), e, "program and arrays"
 			dw fn_memory_programstart, var_memory_programstart_programstart
-			dw p_area_c, var_memory_programstart_programstart, var_mainmap_e, str44
+			dw kw_vtov, var_memory_programstart_programstart, tmp0
+			dw p_area_c, tmp0, var_mainmap_e, str44
 
 			; main.bas 117: If U(t) > U(e) Then Area e, t, "page tables"
 			dw p_u_c, var_mainmap_t

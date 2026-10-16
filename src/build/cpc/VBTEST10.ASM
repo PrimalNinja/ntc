@@ -113,7 +113,8 @@ for5_e:
 
 			; Main.bas 41: Chk SumOf(a), 30
 			dw p_sumof_c, ad_arr_a
-			dw p_chk_c, var_sumof_sumof, lit_30
+			dw kw_vtov, var_sumof_sumof, tmp0
+			dw p_chk_c, tmp0, lit_30
 
 			; Main.bas 42: ReDim d(1 To 3)
 			dw kw_redim, pa_d, pa_d_data, 1, 4, 3, 1
@@ -160,27 +161,33 @@ for7_e:
 
 			; Main.bas 55: Chk Bag.Item(3), 42
 			dw p_bag_item_get_c, lit_3
-			dw p_chk_c, var_bag_item_get_item, lit_42
+			dw kw_vtov, var_bag_item_get_item, tmp0
+			dw p_chk_c, tmp0, lit_42
 
 			; Main.bas 56: Chk Bag.Item(4), 43
 			dw p_bag_item_get_c, lit_4
-			dw p_chk_c, var_bag_item_get_item, lit_43
+			dw kw_vtov, var_bag_item_get_item, tmp0
+			dw p_chk_c, tmp0, lit_43
 
 			; Main.bas 59: Chk Fresh(), 5
 			dw p_fresh_c
-			dw p_chk_c, var_fresh_fresh, lit_5
+			dw kw_vtov, var_fresh_fresh, tmp0
+			dw p_chk_c, tmp0, lit_5
 
 			; Main.bas 60: Chk Fresh(), 5
 			dw p_fresh_c
-			dw p_chk_c, var_fresh_fresh, lit_5
+			dw kw_vtov, var_fresh_fresh, tmp0
+			dw p_chk_c, tmp0, lit_5
 
 			; Main.bas 61: Chk Kept(), 5
 			dw p_kept_c
-			dw p_chk_c, var_kept_kept, lit_5
+			dw kw_vtov, var_kept_kept, tmp0
+			dw p_chk_c, tmp0, lit_5
 
 			; Main.bas 62: Chk Kept(), 10
 			dw p_kept_c
-			dw p_chk_c, var_kept_kept, lit_10
+			dw kw_vtov, var_kept_kept, tmp0
+			dw p_chk_c, tmp0, lit_10
 
 			; Main.bas 65: x = 1
 			dw kw_ltov, 1, var_x
@@ -217,11 +224,13 @@ for8_e:
 
 			; Main.bas 79: Chk TotalX(pts), 60
 			dw p_totalx_c, ad_arr_pts_x, ad_arr_pts_name
-			dw p_chk_c, var_totalx_totalx, lit_60
+			dw kw_vtov, var_totalx_totalx, tmp0
+			dw p_chk_c, tmp0, lit_60
 
 			; Main.bas 80: ChkS Names(pts), "n1n3"
 			dw p_names_c, ad_arr_pts_x, ad_arr_pts_name
-			dw p_chks_c, var_names_names, str6
+			dw kw_strcpy, stmp0, var_names_names
+			dw p_chks_c, stmp0, str6
 
 			; Main.bas 81: BumpX pts
 			dw p_bumpx_c, ad_arr_pts_x, ad_arr_pts_name

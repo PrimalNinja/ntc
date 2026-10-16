@@ -71,19 +71,23 @@ main_thread:
 
 			; Main.bas 27: Chk AddAsm(30, 12), 42
 			dw p_addasm_c, lit_30, lit_12
-			dw p_chk_c, var_addasm_addasm, lit_42
+			dw kw_vtov, var_addasm_addasm, tmp0
+			dw p_chk_c, tmp0, lit_42
 
 			; Main.bas 28: Chk Times3(7), 21
 			dw p_times3_c, lit_7
-			dw p_chk_c, var_times3_times3, lit_21
+			dw kw_vtov, var_times3_times3, tmp0
+			dw p_chk_c, tmp0, lit_21
 
 			; Main.bas 29: Chk CountBits(255), 8
 			dw p_countbits_c, lit_255
-			dw p_chk_c, var_countbits_countbits, lit_8
+			dw kw_vtov, var_countbits_countbits, tmp0
+			dw p_chk_c, tmp0, lit_8
 
 			; Main.bas 30: Chk CountBits(&H8001), 2
 			dw p_countbits_c, lit_m32767
-			dw p_chk_c, var_countbits_countbits, lit_2
+			dw kw_vtov, var_countbits_countbits, tmp0
+			dw p_chk_c, tmp0, lit_2
 
 			; Main.bas 31: n = 9
 			dw kw_ltov, 9, var_n
@@ -99,7 +103,8 @@ main_thread:
 
 			; Main.bas 35: Chk ThirdOf(tbl), 77
 			dw p_thirdof_c, ad_arr_tbl
-			dw p_chk_c, var_thirdof_thirdof, lit_77
+			dw kw_vtov, var_thirdof_thirdof, tmp0
+			dw p_chk_c, tmp0, lit_77
 
 			; Main.bas 38: v = Inp(&HF500)
 			dw kw_inp, lit_m2816, var_v
@@ -159,15 +164,18 @@ as1_ok:
 
 			; Main.bas 53: Chk Pool.Value(h1), 16
 			dw p_pool_value_c, var_h1
-			dw p_chk_c, var_pool_value_value, lit_16
+			dw kw_vtov, var_pool_value_value, tmp0
+			dw p_chk_c, tmp0, lit_16
 
 			; Main.bas 54: Chk Pool.Value(h2), 27
 			dw p_pool_value_c, var_h2
-			dw p_chk_c, var_pool_value_value, lit_27
+			dw kw_vtov, var_pool_value_value, tmp0
+			dw p_chk_c, tmp0, lit_27
 
 			; Main.bas 55: Chk Pool.Uses(h1), 2
 			dw p_pool_uses_c, var_h1
-			dw p_chk_c, var_pool_uses_uses, lit_2
+			dw kw_vtov, var_pool_uses_uses, tmp0
+			dw p_chk_c, tmp0, lit_2
 
 			; Main.bas 56: Chk Pool.MAXSLOTS, 4
 			dw p_chk_c, lit_4, lit_4
@@ -177,19 +185,23 @@ as1_ok:
 
 			; Main.bas 58: Chk Pool.Open(30), 0
 			dw p_pool_open_c, lit_30
-			dw p_chk_c, var_pool_open_open, lit_0
+			dw kw_vtov, var_pool_open_open, tmp0
+			dw p_chk_c, tmp0, lit_0
 
 			; Main.bas 59: Chk Pool.Open(1), 2
 			dw p_pool_open_c, lit_1
-			dw p_chk_c, var_pool_open_open, lit_2
+			dw kw_vtov, var_pool_open_open, tmp0
+			dw p_chk_c, tmp0, lit_2
 
 			; Main.bas 60: Chk Pool.Open(1), 3
 			dw p_pool_open_c, lit_1
-			dw p_chk_c, var_pool_open_open, lit_3
+			dw kw_vtov, var_pool_open_open, tmp0
+			dw p_chk_c, tmp0, lit_3
 
 			; Main.bas 61: Chk Pool.Open(1), -1
 			dw p_pool_open_c, lit_1
-			dw p_chk_c, var_pool_open_open, lit_m1
+			dw kw_vtov, var_pool_open_open, tmp0
+			dw p_chk_c, tmp0, lit_m1
 
 			; Main.bas 63: Print
 			dw kw_printnl

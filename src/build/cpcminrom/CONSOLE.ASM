@@ -56,7 +56,8 @@ main_thread:
 
 			; main.bas 5: StdIO.PutInt StdIO.Cols()
 			dw fn_stdio_cols, var_stdio_cols_cols
-			dw fn_stdio_putint, var_stdio_cols_cols
+			dw kw_vtov, var_stdio_cols_cols, tmp0
+			dw fn_stdio_putint, tmp0
 
 			; main.bas 6: StdIO.NewLine
 			dw fn_stdio_newline
@@ -204,6 +205,7 @@ var_stdio_cols_cols:			dw 0
 var_s:			ds 41
 var_k:			dw 0
 var_stdio_column_column:			dw 0
+tmp0:			dw 0
 			db 255			; capacity
 stmp0:			ds 256
 
@@ -259,6 +261,7 @@ ntc_rj_block:
 ntc_next:	jp 0
 kw_stop:		jp 1
 ntc_xn:		jp 2
+kw_vtov:		jp 48
 kw_strcpy:	jp 122
 kw_strcat:	jp 124
 ntc_printbuf:	jp 128
@@ -273,7 +276,7 @@ ntc_plat_newline:	jp 311
 ntc_plat_getkey:	jp 313
 ntc_plat_irqon:	jp 316
 kw_waitkey:	jp 344
-NTC_RJ_N	equ 17		; entries
+NTC_RJ_N	equ 18		; entries
 ntc_csp	equ #8800		; ROM data
 ntc_curx	equ #8910		; ROM data
 ntc_font	equ #948E		; ROM bss

@@ -595,36 +595,42 @@ ntc_rg33_e:
 			ENDIF
 ntc_rg34:
 p_score_total_rs:			dw 0
-
-; numbers passed by address (read only)
 ntc_rg34_e:
 			IF ($ < 32768) && (ntc_rg35_e - ntc_rg35 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
 ntc_rg35:
-lit_7:			dw 7
+tmp0:			dw 0
+
+; numbers passed by address (read only)
 ntc_rg35_e:
 			IF ($ < 32768) && (ntc_rg36_e - ntc_rg36 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
 ntc_rg36:
-lit_10:			dw 10
-
+lit_7:			dw 7
 ntc_rg36_e:
 			IF ($ < 32768) && (ntc_rg37_e - ntc_rg37 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
 ntc_rg37:
-; ============================================================
-; ZOSCII glyphs - each points at its 8 byte bitmap in ntc_font
-; ============================================================
-
+lit_10:			dw 10
 
 ntc_rg37_e:
 			IF ($ < 32768) && (ntc_rg38_e - ntc_rg38 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
 ntc_rg38:
+; ============================================================
+; ZOSCII glyphs - each points at its 8 byte bitmap in ntc_font
+; ============================================================
+
+
+ntc_rg38_e:
+			IF ($ < 32768) && (ntc_rg39_e - ntc_rg39 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg39:
 ; ============================================================
 ; Keyword library (rom)
 ; ============================================================
@@ -891,7 +897,7 @@ ntc_rj_tlk:		db "ROM NTC CPCMIN too old: no routine #", 0
 ntc_rj_tpt:		db "ROM NTCMIN<n>.ROM not found: n = #", 0
 ntc_rj_tnl:		db 13, 10, "Press a key", 13, 10, 0
 ntc_rj_dropend:
-ntc_rg38_e:
+ntc_rg39_e:
 ntc_end:				; the end of the program (and of its file)
 glyph_20			equ ntc_font + 0		; " "
 glyph_27			equ ntc_font + 56		; "'"
@@ -1011,7 +1017,8 @@ for1_t:
 
 			; Level1.cls 5: Score.Add Maths.Square(i)
 			dw p_maths_square_cl, var_level1_play_i
-			dw p_score_add_c, var_maths_square_square
+			dw kw_vtov, var_maths_square_square, tmp0
+			dw p_score_add_c, tmp0
 
 			; Level1.cls 6: Stars.Add
 			dw p_stars_add_cl
@@ -1097,7 +1104,8 @@ p_level2_play:
 
 			; Level2.cls 3: Score.Add Maths.Square(10)
 			dw p_maths_square_cl__stage2, lit_10
-			dw p_score_add_c, var_maths_square_square
+			dw kw_vtov, var_maths_square_square, tmp0
+			dw p_score_add_c, tmp0
 
 			; Level2.cls 4: Stars.Add
 			dw p_stars_add_cl__stage2
@@ -1198,4 +1206,4 @@ ovl_ending_vsize	equ 0		; its page variables; its local memory is the rest, to #
 			DISPLAY "  page variables ", /D, ovl_ending_vsize, ", free ", /D, #8000 - (ovl_ending_end + ovl_ending_vsize)
 			SAVEAMSDOS "PAGES.004", ovl_ending_start, ovl_ending_end - ovl_ending_start, #4000
 
-NTC_STAMP	equ #0BFB		; the build stamp: the first word of every page file
+NTC_STAMP	equ #25DF		; the build stamp: the first word of every page file
