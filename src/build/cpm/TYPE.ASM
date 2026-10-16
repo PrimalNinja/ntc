@@ -6,7 +6,7 @@
 			org #0100
 
 NTC_TERM	equ 0		; Option Terminal: 0 none, 1 VT52, 2 ANSI (CP/M)
-NTC_STRMAX	equ 40		; the longest string (library buffers, temps)
+NTC_STRMAX	equ 255		; the longest string (library buffers, temps)
 NTC_MEMBANKS	equ 64		; Option Memory: the most 64K banks the Memory class looks for
 NTC_ROMENABLE	equ 0		; Option RomEnable (cpcfw, cpcmin): the start code starts the ROMs
 NTC_ROMLIB	equ 0		; 1 = the library is the keyword ROM (Library: ROM; ntcRomAsm builds it)
@@ -29,14 +29,16 @@ ntc_start:
 ; ============================================================
 
 main_thread:
+			dw kw_bssinit, ntc_bss, ntc_bss_size		; the arrays: do they fit, clear them
 
-			; main.bas 8: a = UCase$(Trim$(System.CommandLine()))
+			; main.bas 11: a = UCase$(Trim$(System.CommandLine()))
 			dw fn_system_commandline, var_system_commandline_commandline
 			dw kw_strcpy, stmp0, var_system_commandline_commandline
 			dw kw_strtrim, stmp0, stmp0
-			dw kw_strucase, var_a, stmp0
+			dw kw_strucase, stmp0, stmp0
+			dw kw_strcpy, var_a, stmp0
 
-			; main.bas 9: If a = "" Or InStr(a, " ") > 0 Then Print "TYPE [v:]name" : End
+			; main.bas 12: If a = "" Or InStr(a, " ") > 0 Then Print "TYPE [v:]name" : End
 			dw kw_strcmpeq, var_a, str0
 			dw kw_ftov, tmp0
 			dw kw_strinstr, lit_1, var_a, str1, tmp1
@@ -49,36 +51,37 @@ main_thread:
 			dw kw_stop
 if1_1:
 
-			; main.bas 10: If Mid$(a, 2, 1) = ":" Then
+			; main.bas 13: If Mid$(a, 2, 1) = ":" Then
 			dw kw_strmid, stmp0, var_a, lit_2, lit_1
 			dw kw_strcmpeq, stmp0, str3
 			dw kw_goto_iffalse_n, if2_1
 
-			; main.bas 11: v = Left$(a, 2) : f = Mid$(a, 3)
+			; main.bas 14: v = Left$(a, 2) : f = Mid$(a, 3)
 			dw kw_strleft, stmp0, var_a, lit_2
 			dw kw_strcpy, var_v, stmp0
-			dw kw_strmid, var_f, var_a, lit_3, lit_255
+			dw kw_strmid, stmp0, var_a, lit_3, lit_255
+			dw kw_strcpy, var_f, stmp0
 
-			; main.bas 12: Else
+			; main.bas 15: Else
 			dw if2_e_go
 if2_1:
 
-			; main.bas 13: v = FileSystem.CurrentVolume() + ":" : f = a
+			; main.bas 16: v = FileSystem.CurrentVolume() + ":" : f = a
 			dw fn_filesystem_currentvolume, var_filesystem_currentvolume_currentvolume
 			dw kw_strcpy, stmp0, var_filesystem_currentvolume_currentvolume
 			dw kw_strcpy, var_v, stmp0
 			dw kw_strcat, var_v, str3
 			dw kw_strcpy, var_f, var_a
 
-			; main.bas 14: End If
+			; main.bas 17: End If
 if2_e:
 
-			; main.bas 15: h = FileSystem.Open(v + f, FileSystem.ForRead)
+			; main.bas 18: h = FileSystem.Open(v + f, FileSystem.ForRead)
 			dw kw_strcpy, stmp0, var_v
 			dw kw_strcat, stmp0, var_f
 			dw fn_filesystem_open, stmp0, lit_1, var_h
 
-			; main.bas 16: If h < 0 Then Print v; f; ": not found" : End
+			; main.bas 19: If h < 0 Then Print v; f; ": not found" : End
 			dw kw_scpltvl, var_h, 0
 			dw kw_goto_iffalse_n, if3_1
 			dw kw_printstrvar, var_v
@@ -88,25 +91,278 @@ if2_e:
 			dw kw_stop
 if3_1:
 
-			; main.bas 17: Do While Not FileSystem.Eof(h)
+			; main.bas 20: Do While Not FileSystem.Eof(h)
 do4_t:
 			dw fn_filesystem_eof, var_h, var_filesystem_eof_eof
 			dw kw_vtov, var_filesystem_eof_eof, tmp0
 			dw kw_notv, tmp0, tmp0
 			dw kw_goto_ifzero_n, tmp0, do4_e
 
-			; main.bas 18: Print FileSystem.ReadLine(h)
+			; main.bas 21: ln = FileSystem.ReadLine(h) : Wrap ln
 			dw fn_filesystem_readline, var_h, var_filesystem_readline_readline
-			dw kw_printstrvar, var_filesystem_readline_readline
-			dw kw_printnl
+			dw kw_strcpy, var_ln, var_filesystem_readline_readline
+			dw p_wrap_c, var_ln
 
-			; main.bas 19: Loop
+			; main.bas 22: Loop
 			dw do4_t_go
 do4_e:
 
-			; main.bas 20: r = FileSystem.Close(h)
+			; main.bas 23: r = FileSystem.Close(h)
 			dw fn_filesystem_close, var_h, var_r
+
+			; main.bas 24: End
 			dw kw_stop
+
+; ============================================================
+; sub wrap (normal mode)
+; ============================================================
+
+p_wrap:
+
+			; main.bas 29: Dim k As Integer, ind As Integer
+
+			; main.bas 30: If cw = 0 Then
+			dw kw_cpeqvl, var_cw, 0
+			dw kw_goto_iffalse_n, if5_1
+
+			; main.bas 31: pb(0) = &H1A : cw = Bdos(49, VarPtr(pb))      ' (CP/M 3's #1A: the width - 1)
+			dw kw_ltolptr8, 26, arr_pb
+			dw p_bdos_c, lit_49, vp_arr_pb
+			dw kw_vtov, var_bdos_bdos, var_cw
+
+			; main.bas 32: If cw < 12 Or cw > 200 Then cw = 79
+			dw kw_scpltvl, var_cw, 12
+			dw kw_ftov, tmp0
+			dw kw_scpgtvl, var_cw, 200
+			dw kw_ftov, tmp1
+			dw kw_orvv, tmp0, tmp1, tmp0
+			dw kw_goto_ifzero_n, tmp0, if6_1
+			dw kw_ltov, 79, var_cw
+if6_1:
+
+			; main.bas 33: End If
+if5_1:
+
+			; main.bas 34: ind = 0
+			dw kw_ztov, var_wrap_ind
+
+			; main.bas 35: Do While ind < Len(t)
+do7_t:
+			dw kw_strlen, var_wrap_t, tmp1
+			dw kw_scpltvv, var_wrap_ind, tmp1
+			dw kw_goto_iffalse_n, do7_e
+
+			; main.bas 36: If Mid$(t, ind + 1, 1) <> " " Then Exit Do
+			dw kw_addl, var_wrap_ind, 1, tmp1
+			dw kw_strmid, stmp0, var_wrap_t, tmp1, lit_1
+			dw kw_strcmpne, stmp0, str1
+			dw kw_goto_iffalse_n, if8_1
+			dw do7_e_go
+if8_1:
+
+			; main.bas 37: ind = ind + 1
+			dw kw_inc, var_wrap_ind
+
+			; main.bas 38: Loop
+			dw do7_t_go
+do7_e:
+
+			; main.bas 39: If ind > cw \ 2 Then ind = 0
+			dw kw_divvl, var_cw, 2, tmp1
+			dw kw_scpgtvv, var_wrap_ind, tmp1
+			dw kw_goto_iffalse_n, if9_1
+			dw kw_ztov, var_wrap_ind
+if9_1:
+
+			; main.bas 40: Do While Len(t) > cw
+do10_t:
+			dw kw_strlen, var_wrap_t, tmp0
+			dw kw_scpgtvv, tmp0, var_cw
+			dw kw_goto_iffalse_n, do10_e
+
+			; main.bas 41: k = cw + 1
+			dw kw_addl, var_cw, 1, var_wrap_k
+
+			; main.bas 42: Do While k > ind + 1
+do11_t:
+			dw kw_addl, var_wrap_ind, 1, tmp1
+			dw kw_scpgtvv, var_wrap_k, tmp1
+			dw kw_goto_iffalse_n, do11_e
+
+			; main.bas 43: If Mid$(t, k, 1) = " " Then Exit Do
+			dw kw_strmid, stmp0, var_wrap_t, var_wrap_k, lit_1
+			dw kw_strcmpeq, stmp0, str1
+			dw kw_goto_iffalse_n, if12_1
+			dw do11_e_go
+if12_1:
+
+			; main.bas 44: k = k - 1
+			dw kw_dec, var_wrap_k
+
+			; main.bas 45: Loop
+			dw do11_t_go
+do11_e:
+
+			; main.bas 46: If k <= ind + 1 Then
+			dw kw_addl, var_wrap_ind, 1, tmp1
+			dw kw_scplevv, var_wrap_k, tmp1
+			dw kw_goto_iffalse_n, if13_1
+
+			; main.bas 47: Out1 Left$(t, cw) : t = Mid$(t, cw + 1)
+			dw kw_strleft, stmp0, var_wrap_t, var_cw
+			dw p_out1_c, stmp0
+			dw kw_addl, var_cw, 1, tmp1
+			dw kw_strmid, var_wrap_t, var_wrap_t, tmp1, lit_255
+
+			; main.bas 48: Else
+			dw if13_e_go
+if13_1:
+
+			; main.bas 49: Out1 Left$(t, k - 1) : t = Mid$(t, k + 1)
+			dw kw_addl, var_wrap_k, -1, tmp1
+			dw kw_strleft, stmp0, var_wrap_t, tmp1
+			dw p_out1_c, stmp0
+			dw kw_addl, var_wrap_k, 1, tmp1
+			dw kw_strmid, var_wrap_t, var_wrap_t, tmp1, lit_255
+
+			; main.bas 50: End If
+if13_e:
+
+			; main.bas 51: Do While Left$(t, 1) = " "
+do14_t:
+			dw kw_strleft, stmp0, var_wrap_t, lit_1
+			dw kw_strcmpeq, stmp0, str1
+			dw kw_goto_iffalse_n, do14_e
+
+			; main.bas 52: t = Mid$(t, 2)
+			dw kw_strmid, var_wrap_t, var_wrap_t, lit_2, lit_255
+
+			; main.bas 53: Loop
+			dw do14_t_go
+do14_e:
+
+			; main.bas 54: If t = "" Then Exit Sub
+			dw kw_strcmpeq, var_wrap_t, str0
+			dw kw_goto_iffalse_n, if15_1
+			dw p_wrap_r
+if15_1:
+
+			; main.bas 55: t = Space$(ind) + t
+			dw kw_strspace, stmp0, var_wrap_ind
+			dw kw_strcat, stmp0, var_wrap_t
+			dw kw_strcpy, var_wrap_t, stmp0
+
+			; main.bas 56: Loop
+			dw do10_t_go
+do10_e:
+
+			; main.bas 57: Out1 t
+			dw p_out1_c, var_wrap_t
+			dw p_wrap_r
+
+; ============================================================
+; sub out1 (normal mode)
+; ============================================================
+
+p_out1:
+
+			; main.bas 63: Dim k As Integer
+
+			; main.bas 64: If pr = 0 Then
+			dw kw_cpeqvl, var_pr, 0
+			dw kw_goto_iffalse_n, if16_1
+
+			; main.bas 65: pb(0) = &H1C : pr = Bdos(49, VarPtr(pb))     ' (CP/M 3's #1C: the page length)
+			dw kw_ltolptr8, 28, arr_pb
+			dw p_bdos_c, lit_49, vp_arr_pb
+			dw kw_vtov, var_bdos_bdos, var_pr
+
+			; main.bas 66: If pr < 4 Or pr > 100 Then pr = 24
+			dw kw_scpltvl, var_pr, 4
+			dw kw_ftov, tmp0
+			dw kw_scpgtvl, var_pr, 100
+			dw kw_ftov, tmp1
+			dw kw_orvv, tmp0, tmp1, tmp0
+			dw kw_goto_ifzero_n, tmp0, if17_1
+			dw kw_ltov, 24, var_pr
+if17_1:
+
+			; main.bas 67: End If
+if16_1:
+
+			; main.bas 68: If nl >= pr - 1 Then
+			dw kw_addl, var_pr, -1, tmp1
+			dw kw_scpgevv, var_nl, tmp1
+			dw kw_goto_iffalse_n, if18_1
+
+			; main.bas 69: Print "-- more (space, Enter, Q) --";
+			dw kw_printstrvar, str5
+
+			; main.bas 70: Do
+do19_t:
+
+			; main.bas 71: k = Bdos(6, &HFF)
+			dw p_bdos_c, lit_6, lit_255
+			dw kw_vtov, var_bdos_bdos, var_out1_k
+
+			; main.bas 72: Loop While k = 0
+			dw kw_cpeqvl, var_out1_k, 0
+			dw kw_goto_iftrue_n, do19_t
+do19_e:
+
+			; main.bas 73: Print String$(28, 8); Space$(28); String$(28, 8);   ' (the prompt rubbed out: BS, spaces, BS)
+			dw kw_strstring, stmp0, lit_28, lit_8
+			dw kw_printstrvar, stmp0
+			dw kw_strspace, stmp0, lit_28
+			dw kw_printstrvar, stmp0
+			dw kw_strstring, stmp0, lit_28, lit_8
+			dw kw_printstrvar, stmp0
+
+			; main.bas 74: If k = 81 Or k = 113 Or k = 27 Or k = 3 Then End
+			dw kw_cpeqvl, var_out1_k, 81
+			dw kw_ftov, tmp0
+			dw kw_cpeqvl, var_out1_k, 113
+			dw kw_ftov, tmp1
+			dw kw_orvv, tmp0, tmp1, tmp0
+			dw kw_cpeqvl, var_out1_k, 27
+			dw kw_ftov, tmp1
+			dw kw_orvv, tmp0, tmp1, tmp0
+			dw kw_cpeqvl, var_out1_k, 3
+			dw kw_ftov, tmp1
+			dw kw_orvv, tmp0, tmp1, tmp0
+			dw kw_goto_ifzero_n, tmp0, if20_1
+			dw kw_stop
+if20_1:
+
+			; main.bas 75: If k = 13 Then nl = pr - 2 Else nl = 0
+			dw kw_cpeqvl, var_out1_k, 13
+			dw kw_goto_iffalse_n, if21_1
+			dw kw_addl, var_pr, -2, var_nl
+			dw if21_e_go
+if21_1:
+			dw kw_ztov, var_nl
+if21_e:
+
+			; main.bas 76: End If
+if18_1:
+
+			; main.bas 77: Print t
+			dw kw_printstrvar, var_out1_t
+			dw kw_printnl
+
+			; main.bas 78: nl = nl + 1
+			dw kw_inc, var_nl
+			dw p_out1_r
+
+; ============================================================
+; function bdos (normal mode)
+; ============================================================
+
+p_bdos:
+
+			; main.bas 83: #asm
+			dw asm_0_83_n
+			dw p_bdos_r
 
 ; ============================================================
 ; Jump stubs (code, ROMable)
@@ -121,10 +377,109 @@ if2_e_go:			ld sp, if2_e
 			jp ntc_xn
 do4_t_go:			ld sp, do4_t
 			jp ntc_xn
+do7_e_go:			ld sp, do7_e
+			jp ntc_xn
+do7_t_go:			ld sp, do7_t
+			jp ntc_xn
+do11_e_go:			ld sp, do11_e
+			jp ntc_xn
+do11_t_go:			ld sp, do11_t
+			jp ntc_xn
+if13_e_go:			ld sp, if13_e
+			jp ntc_xn
+do14_t_go:			ld sp, do14_t
+			jp ntc_xn
+do10_t_go:			ld sp, do10_t
+			jp ntc_xn
+if21_e_go:			ld sp, if21_e
+			jp ntc_xn
+
+p_wrap_c:		; call wrap (normal)
+			pop hl			; t
+			ld de, var_wrap_t
+			ld b, 255
+p_wrap_si0:
+			ld a, (hl)
+			ld (de), a
+			or a
+			jr z, p_wrap_si0_e
+			inc hl
+			inc de
+			djnz p_wrap_si0
+			xor a
+			ld (de), a
+p_wrap_si0_e:
+			ld hl, 0
+			ld (var_wrap_k), hl
+			ld hl, 0
+			ld (var_wrap_ind), hl
+			ld (p_wrap_rs), sp
+			ld sp, p_wrap
+			jp ntc_xn
+p_wrap_r:		; end of wrap
+			ld sp, (p_wrap_rs)
+			jp ntc_xn
+p_out1_c:		; call out1 (normal)
+			pop hl			; t
+			ld de, var_out1_t
+			ld b, 255
+p_out1_si0:
+			ld a, (hl)
+			ld (de), a
+			or a
+			jr z, p_out1_si0_e
+			inc hl
+			inc de
+			djnz p_out1_si0
+			xor a
+			ld (de), a
+p_out1_si0_e:
+			ld hl, 0
+			ld (var_out1_k), hl
+			ld (p_out1_rs), sp
+			ld sp, p_out1
+			jp ntc_xn
+p_out1_r:		; end of out1
+			ld sp, (p_out1_rs)
+			jp ntc_xn
+p_bdos_c:		; call bdos (normal)
+			pop hl			; fn
+			ld e, (hl)
+			inc hl
+			ld d, (hl)
+			ld (var_bdos_fn), de
+			pop hl			; dd
+			ld e, (hl)
+			inc hl
+			ld d, (hl)
+			ld (var_bdos_dd), de
+			ld hl, 0
+			ld (var_bdos_bdos), hl
+			ld (p_bdos_rs), sp
+			ld sp, p_bdos
+			jp ntc_xn
+p_bdos_r:		; end of bdos
+			ld sp, (p_bdos_rs)
+			jp ntc_xn
 
 ; ============================================================
 ; Inline assembly (#asm ... #endasm)
 ; ============================================================
+
+asm_0_83_n:		; #asm, main.bas line 83 (normal)
+            ld (var_hsp), sp		; main.bas 84
+            ld sp, (ntc_csp)		; main.bas 85
+            ld a, (var_bdos_fn)		; main.bas 86
+            ld c, a		; main.bas 87
+            ld de, (var_bdos_dd)		; main.bas 88
+            ei                      ; (CP/M's BDOS: interrupts on) [89]
+            call 5		; main.bas 90
+            di                      ; (off before SP is the threaded code again: it comes back with them on) [91]
+            ld l, a		; main.bas 92
+            ld h, 0		; main.bas 93
+            ld (var_bdos_bdos), hl		; main.bas 94
+            ld sp, (var_hsp)		; main.bas 95
+			ret			; end of #asm
 
 fn_filesystem_open:		; function open (asm keyword), FileSystem.cls line 175
             pop hl		; FileSystem.cls 176
@@ -195,29 +550,53 @@ fn_system_commandline:		; function commandline (asm keyword), System.cls line 70
 
 			db 40			; capacity
 var_a:			ds 41
-			db 40			; capacity
-var_system_commandline_commandline:			ds 41
+			db 255			; capacity
+var_system_commandline_commandline:			ds 256
 			db 2			; capacity
 var_v:			ds 3
 			db 40			; capacity
 var_f:			ds 41
-			db 40			; capacity
-var_filesystem_currentvolume_currentvolume:			ds 41
+			db 255			; capacity
+var_filesystem_currentvolume_currentvolume:			ds 256
 var_h:			dw 0
 var_filesystem_eof_eof:			dw 0
-			db 40			; capacity
-var_filesystem_readline_readline:			ds 41
+			db 255			; capacity
+var_ln:			ds 256
+			db 255			; capacity
+var_filesystem_readline_readline:			ds 256
 var_r:			dw 0
+p_wrap_rs:			dw 0
+			db 255			; capacity
+var_wrap_t:			ds 256
+var_wrap_k:			dw 0
+var_wrap_ind:			dw 0
+var_cw:			dw 0
+var_bdos_bdos:			dw 0
+p_out1_rs:			dw 0
+			db 255			; capacity
+var_out1_t:			ds 256
+var_out1_k:			dw 0
+var_pr:			dw 0
+var_nl:			dw 0
+p_bdos_rs:			dw 0
+var_bdos_fn:			dw 0
+var_bdos_dd:			dw 0
+var_hsp:			dw 0
 tmp0:			dw 0
 tmp1:			dw 0
-			db 40			; capacity
-stmp0:			ds 41
+			db 255			; capacity
+stmp0:			ds 256
 
 ; numbers passed by address (read only)
 lit_1:			dw 1
 lit_2:			dw 2
 lit_3:			dw 3
 lit_255:			dw 255
+vp_arr_pb:			dw arr_pb
+lit_49:			dw 49
+lit_6:			dw 6
+lit_28:			dw 28
+lit_8:			dw 8
 
 ; ============================================================
 ; Strings
@@ -228,6 +607,7 @@ str1:			db " ", 0
 str2:			db "TYPE [v:]name", 0
 str3:			db ":", 0
 str4:			db ": not found", 0
+str5:			db "-- more (space, Enter, Q) --", 0
 
 ; ============================================================
 ; Keyword library (used)
@@ -250,6 +630,11 @@ ntc_gnlo:		db 0			; ntc_getn: low byte
 
 ;## ntc_d_nmode @data
 ntc_nmode:		db 0			; 1 = running in normal mode (waits let interrupts in)
+
+;## ntc_d_div @data
+ntc_mode:		db 0			; div mode 0=quotient 1=remainder
+ntc_sgnq:		db 0			; quotient sign (bit 7)
+ntc_sgnr:		db 0			; remainder sign (bit 7)
 
 ;## ntc_d_sptr @data
 ntc_sptr:		dw 0			; printbuf: text pointer
@@ -291,6 +676,14 @@ kw_goto_iffalse_n:
 			ld sp, hl
 			jp ntc_xn
 
+;## kw_goto_iftrue (normal mode copy)
+;kw_goto_iftrue, <label>  - branch if Z (true)
+kw_goto_iftrue_n:
+			pop hl
+			jp nz, ntc_xn
+			ld sp, hl
+			jp ntc_xn
+
 ;## kw_goto_ifzero (normal mode copy)
 ;kw_goto_ifzero, <var>, <label>  - branch if var = 0
 kw_goto_ifzero_n:
@@ -303,6 +696,16 @@ kw_goto_ifzero_n:
 			ld sp, hl
 			jp ntc_xn
 
+;## kw_ltov
+;kw_ltov, <literal>, <destvar>
+kw_ltov:
+			pop de
+			pop hl
+			ld (hl), e
+			inc hl
+			ld (hl), d
+			ret
+
 ;## kw_vtov
 ;kw_vtov, <sourcevar>, <destvar>
 kw_vtov:
@@ -314,6 +717,16 @@ kw_vtov:
 			ld (hl), e
 			inc hl
 			ld (hl), d
+			ret
+
+;## kw_ztov
+;kw_ztov, <destvar>
+kw_ztov:
+			xor a
+			pop hl
+			ld (hl), a
+			inc hl
+			ld (hl), a
 			ret
 
 ;## kw_ftov
@@ -334,6 +747,138 @@ ntc_ftov_t:
 ; ============================================================
 ; Arithmetic
 ; ============================================================
+
+;## kw_inc
+;kw_inc, <var>
+kw_inc:
+			pop hl
+			inc (hl)
+			ret nz
+			inc hl
+			inc (hl)
+			ret
+
+;## kw_dec
+;kw_dec, <var>
+kw_dec:
+			pop hl
+			ld a, (hl)
+			dec (hl)
+			or a
+			ret nz
+			inc hl
+			dec (hl)
+			ret
+
+;## kw_addl
+;kw_addl, <var>, <literal>, <destvar>
+kw_addl:
+			pop hl
+			ld e, (hl)
+			inc hl
+			ld d, (hl)
+			pop hl
+			add hl, de
+			ex de, hl
+			pop hl
+			ld (hl), e
+			inc hl
+			ld (hl), d
+			ret
+
+;## ntc_div ntc_data
+; HL / DE signed, truncating. (ntc_mode) 0 = quotient, 1 = remainder.
+; Remainder takes the dividend's sign. Divide by zero gives
+; quotient 0, remainder = dividend. Pops destvar and stores.
+ntc_div:
+			ld a, d
+			or e
+			jr nz, ntc_div_nz
+			ld a, (ntc_mode)
+			or a
+			jr nz, ntc_div_store
+			ld hl, 0
+			jr ntc_div_store
+ntc_div_nz:
+			ld a, h
+			ld (ntc_sgnr), a
+			xor d
+			ld (ntc_sgnq), a
+			bit 7, h
+			jr z, ntc_div_hpos
+			xor a
+			sub l
+			ld l, a
+			sbc a, a
+			sub h
+			ld h, a
+ntc_div_hpos:
+			bit 7, d
+			jr z, ntc_div_dpos
+			xor a
+			sub e
+			ld e, a
+			sbc a, a
+			sub d
+			ld d, a
+ntc_div_dpos:
+			ld a, h
+			ld c, l
+			ld hl, 0
+			ld b, 16
+ntc_div_loop:
+			sla c
+			rla
+			adc hl, hl
+			sbc hl, de
+			jr nc, ntc_div_one
+			add hl, de
+			djnz ntc_div_loop
+			jr ntc_div_done
+ntc_div_one:
+			inc c
+			djnz ntc_div_loop
+ntc_div_done:
+			ld b, a
+			ld a, (ntc_mode)
+			or a
+			jr z, ntc_div_q
+			ld a, (ntc_sgnr)
+			jr ntc_div_sign
+ntc_div_q:
+			ld h, b
+			ld l, c
+			ld a, (ntc_sgnq)
+ntc_div_sign:
+			rla
+			jr nc, ntc_div_store
+			xor a
+			sub l
+			ld l, a
+			sbc a, a
+			sub h
+			ld h, a
+ntc_div_store:
+			ex de, hl
+			pop hl
+			ld (hl), e
+			inc hl
+			ld (hl), d
+			ret
+
+;## kw_divvl ntc_div
+;kw_divvl, <var>, <literal>, <destvar>
+kw_divvl:
+			xor a
+			ld (ntc_mode), a
+ntc_divvl:
+			pop hl
+			ld a, (hl)
+			inc hl
+			ld h, (hl)
+			ld l, a
+			pop de
+			jp ntc_div
 
 ;## kw_orvv
 ;kw_orvv, <var1>, <var2>, <destvar>
@@ -445,6 +990,20 @@ ntc_cmp_ne_f:
 			or 1
 			ret
 
+;## kw_scpltvv ntc_cmp
+;kw_scpltvv, <var1>, <var2>  - signed var1 < var2
+kw_scpltvv:
+			pop hl
+			ld e, (hl)
+			inc hl
+			ld d, (hl)
+			pop hl
+			ld a, (hl)
+			inc hl
+			ld h, (hl)
+			ld l, a
+			jp ntc_cmp_slt
+
 ;## kw_scpltvl ntc_cmp
 ;kw_scpltvl, <var>, <literal>
 kw_scpltvl:
@@ -455,6 +1014,32 @@ kw_scpltvl:
 			pop hl
 			jp ntc_cmp_slt
 
+;## kw_scplevv ntc_cmp
+kw_scplevv:
+			pop hl
+			ld e, (hl)
+			inc hl
+			ld d, (hl)
+			pop hl
+			ld a, (hl)
+			inc hl
+			ld h, (hl)
+			ld l, a
+			jp ntc_cmp_sle
+
+;## kw_scpgtvv ntc_cmp
+kw_scpgtvv:
+			pop hl
+			ld e, (hl)
+			inc hl
+			ld d, (hl)
+			pop hl
+			ld a, (hl)
+			inc hl
+			ld h, (hl)
+			ld l, a
+			jp ntc_cmp_sgt
+
 ;## kw_scpgtvl ntc_cmp
 kw_scpgtvl:
 			pop hl
@@ -463,6 +1048,36 @@ kw_scpgtvl:
 			ld d, (hl)
 			pop hl
 			jp ntc_cmp_sgt
+
+;## kw_scpgevv ntc_cmp
+kw_scpgevv:
+			pop hl
+			ld e, (hl)
+			inc hl
+			ld d, (hl)
+			pop hl
+			ld a, (hl)
+			inc hl
+			ld h, (hl)
+			ld l, a
+			jp ntc_cmp_sge
+
+;## kw_cpeqvl ntc_cmp
+kw_cpeqvl:
+			pop hl
+			ld e, (hl)
+			inc hl
+			ld d, (hl)
+			pop hl
+			jp ntc_cmp_eq
+
+;## kw_ltolptr8
+;kw_ltolptr8, <literal>, <literaladdr>  - POKE literal, literal
+kw_ltolptr8:
+			pop bc
+			pop hl
+			ld (hl), c
+			ret
 
 ;## kw_strcpy
 ;kw_strcpy, <destaddr>, <srcaddr>  - cut at the destination's capacity byte
@@ -515,6 +1130,25 @@ ntc_strcat_loop:
 			ld (de), a
 			ret
 
+;## kw_strlen
+;kw_strlen, <straddr>, <destvar>
+kw_strlen:
+			pop hl
+			ld bc, 0
+ntc_strlen_loop:
+			ld a, (hl)
+			or a
+			jr z, ntc_strlen_done
+			inc hl
+			inc c
+			jr ntc_strlen_loop
+ntc_strlen_done:
+			pop hl
+			ld (hl), c
+			inc hl
+			ld (hl), b
+			ret
+
 ;## kw_strcmpeq
 ;kw_strcmpeq, <addr1>, <addr2>  - Z if equal
 kw_strcmpeq:
@@ -529,6 +1163,34 @@ ntc_streq_loop:
 			inc hl
 			inc de
 			jr ntc_streq_loop
+
+;## kw_strcmpne
+;kw_strcmpne, <addr1>, <addr2>  - Z if not equal
+kw_strcmpne:
+			pop de
+			pop hl
+ntc_strne_loop:
+			ld a, (de)
+			cp (hl)
+			jr nz, ntc_strne_t
+			or a
+			jr z, ntc_strne_f
+			inc hl
+			inc de
+			jr ntc_strne_loop
+ntc_strne_t:
+			xor a
+			ret
+ntc_strne_f:
+			inc a
+			ret
+
+; ============================================================
+; I/O - no firmware, no call, no push. SP stays in the thread.
+; Shared routines are entered with jp and the return address in
+; IX, and end with jp (ix). Keywords that are done use
+; ld ix, ntc_next (a ret) so the routine continues the thread.
+; ============================================================
 
 ;## ntc_printbuf ntc_data ntc_plat_screen
 ; print the 0 terminated ASCII text at (ntc_sptr), then ret (thread)
@@ -633,6 +1295,49 @@ ntc_sm_len:
 ntc_sm_n:
 			ld b, a
 			jp ntc_strncpy
+
+;## kw_strspace ntc_getn
+;kw_strspace, <dest>, <nvar>  - Space$(n)
+kw_strspace:
+			pop de
+			pop bc
+			ld ix, ntc_sp_n
+			jp ntc_getn
+ntc_sp_n:
+			ld c, ' '
+; A = count (NTC_STRMAX at most), C = char, DE = dest
+ntc_strfill:
+	IF NTC_STRMAX < 255
+			cp NTC_STRMAX + 1
+			jr c, ntc_sf_ok
+			ld a, NTC_STRMAX
+ntc_sf_ok:
+	ENDIF
+			ld b, a
+			inc b
+ntc_sf_loop:
+			dec b
+			jr z, ntc_sf_end
+			ld a, c
+			ld (de), a
+			inc de
+			jr ntc_sf_loop
+ntc_sf_end:
+			xor a
+			ld (de), a
+			ret
+
+;## kw_strstring kw_strspace
+;kw_strstring, <dest>, <nvar>, <charvar>  - String$(n, char code)
+kw_strstring:
+			pop de
+			pop bc
+			ld ix, ntc_ss_n
+			jp ntc_getn
+ntc_ss_n:
+			pop hl
+			ld c, (hl)
+			jp ntc_strfill
 
 ;## kw_strucase
 ;kw_strucase, <dest>, <src>  - UCase$
@@ -815,6 +1520,74 @@ ntc_cf_none:
 			ret
 ntc_capres:		dw 0
 ntc_capname:	dw 0
+
+;## kw_bssinit ntc_data ntc_plat_memtop ntc_plat_screen kw_stop @shared
+;kw_bssinit, <start>, <size>  - the start of the main thread: the program's arrays live after
+;  it (from ntc_end, not in its file). Check they fit under the platform's top (and 256 bytes
+;  under the real stack when that is above them), then clear them. Too big: a message, the
+;  program stops.
+kw_bssinit:
+			pop hl
+			ld (ntc_bsa), hl
+			pop bc
+			ld (ntc_bsz), bc
+			ld (ntc_bsp), sp
+			ld sp, (ntc_csp)
+			add hl, bc				; HL = their end
+			ex de, hl
+			call ntc_plat_memtop	; HL = the platform's top
+			or a
+			sbc hl, de
+			jr c, ntc_bs_big
+			ld hl, (ntc_csp)		; the real stack, when above them
+			ld bc, (ntc_bsa)
+			or a
+			sbc hl, bc
+			jr c, ntc_bs_ok
+			ld hl, (ntc_csp)
+			ld bc, -256
+			add hl, bc
+			or a
+			sbc hl, de
+			jr c, ntc_bs_big
+ntc_bs_ok:
+			ld bc, (ntc_bsz)
+			ld a, b
+			or c
+			jr z, ntc_bs_done
+			ld hl, (ntc_bsa)
+			ld (hl), 0
+			dec bc
+			ld a, b
+			or c
+			jr z, ntc_bs_done
+			ld d, h
+			ld e, l
+			inc de
+			ldir
+ntc_bs_done:
+			ld sp, (ntc_bsp)
+			ret
+ntc_bs_big:
+			ld hl, ntc_bstxt
+ntc_bs_pl:
+			ld a, (hl)
+			or a
+			jr z, ntc_bs_stop
+			inc hl
+			ld (ntc_bsa), hl
+			ld ix, ntc_bs_pn
+			jp ntc_plat_putc
+ntc_bs_pn:
+			ld hl, (ntc_bsa)
+			jr ntc_bs_pl
+ntc_bs_stop:
+			ld ix, kw_stop
+			jp ntc_plat_newline
+ntc_bsa:		dw 0
+ntc_bsz:		dw 0
+ntc_bsp:		dw 0
+ntc_bstxt:		db "Not enough memory for the arrays", 0
 
 ;## ntc_plat_data
 ntc_curx:		db 0			; column (0 based) - counted for Tab
@@ -2017,11 +2790,31 @@ ntc_cg_end:
 			ld (de), a
 			ret
 
+;## ntc_plat_memtop ntc_plat_data
+; ntc_plat_memtop - HL = the first byte the Memory class's Small heap must not
+; use: the BDOS (its address is at 6; the CCP below it is free, the program
+; ends with a warm boot), or ntc_cpmtop when lower (Graphics on CP/M Plus sets
+; it to its copy at GFH_AT). Called on the real stack (call / ret), only by the
+; Memory class.
+ntc_plat_memtop:
+			push de
+			ld hl, (ntc_cpmtop)
+			ld de, (6)
+			or a
+			sbc hl, de
+			add hl, de
+			jr c, ntc_mt1			; ntc_cpmtop lower
+			ex de, hl
+ntc_mt1:
+			pop de
+			ret
+
 
 ntc_end:				; the end of the program (and of its file)
 ; arrays: after the program, not in its file - kw_bssinit checks they fit and clears them
 ntc_bssfrom	equ ntc_end
 ntc_bss		equ ntc_bssfrom
-ntc_bss_size	equ 0
+arr_pb		equ ntc_bss + 0		; 4 bytes
+ntc_bss_size	equ 4
 ntc_free	equ ntc_bss + ntc_bss_size	; the first free byte (heap, Memory tables)
 ntc_memtab	equ ntc_free		; the Memory class's tables

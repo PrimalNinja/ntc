@@ -6,7 +6,7 @@
 			org #0100
 
 NTC_TERM	equ 0		; Option Terminal: 0 none, 1 VT52, 2 ANSI (CP/M)
-NTC_STRMAX	equ 40		; the longest string (library buffers, temps)
+NTC_STRMAX	equ 255		; the longest string (library buffers, temps)
 NTC_MEMBANKS	equ 64		; Option Memory: the most 64K banks the Memory class looks for
 NTC_ROMENABLE	equ 0		; Option RomEnable (cpcfw, cpcmin): the start code starts the ROMs
 NTC_ROMLIB	equ 0		; 1 = the library is the keyword ROM (Library: ROM; ntcRomAsm builds it)
@@ -31,35 +31,37 @@ ntc_start:
 main_thread:
 			dw kw_bssinit, ntc_bss, ntc_bss_size		; the arrays: do they fit, clear them
 
-			; main.bas 12: a = UCase$(Trim$(System.CommandLine()))
+			; main.bas 14: a = UCase$(Trim$(System.CommandLine()))
 			dw fn_system_commandline, var_system_commandline_commandline
 			dw kw_strcpy, stmp0, var_system_commandline_commandline
 			dw kw_strtrim, stmp0, stmp0
-			dw kw_strucase, var_a, stmp0
+			dw kw_strucase, stmp0, stmp0
+			dw kw_strcpy, var_a, stmp0
 
-			; main.bas 13: If a = "" Then a = "HELP"
+			; main.bas 15: If a = "" Then a = "HELP"
 			dw kw_strcmpeq, var_a, str0
 			dw kw_goto_iffalse_n, if1_1
 			dw kw_strcpy, var_a, str1
 if1_1:
 
-			; main.bas 14: If InStr(a, " ") > 0 Then a = Left$(a, InStr(a, " ") - 1)
+			; main.bas 16: If InStr(a, " ") > 0 Then a = Left$(a, InStr(a, " ") - 1)
 			dw kw_strinstr, lit_1, var_a, str2, tmp0
 			dw kw_scpgtvl, tmp0, 0
 			dw kw_goto_iffalse_n, if2_1
 			dw kw_strinstr, lit_1, var_a, str2, tmp1
 			dw kw_dec, tmp1
-			dw kw_strleft, var_a, var_a, tmp1
+			dw kw_strleft, stmp0, var_a, tmp1
+			dw kw_strcpy, var_a, stmp0
 if2_1:
 
-			; main.bas 15: If InStr(a, ".") = 0 Then a = a + ".HLP"
+			; main.bas 17: If InStr(a, ".") = 0 Then a = a + ".HLP"
 			dw kw_strinstr, lit_1, var_a, str3, tmp0
 			dw kw_cpeqvl, tmp0, 0
 			dw kw_goto_iffalse_n, if3_1
 			dw kw_strcat, var_a, str4
 if3_1:
 
-			; main.bas 16: If InStr(a, ":") > 0 Then Show "" : Show2
+			; main.bas 18: If InStr(a, ":") > 0 Then Show "" : Show2
 			dw kw_strinstr, lit_1, var_a, str5, tmp0
 			dw kw_scpgtvl, tmp0, 0
 			dw kw_goto_iffalse_n, if4_1
@@ -67,31 +69,31 @@ if3_1:
 			dw p_show2_c
 if4_1:
 
-			; main.bas 17: Show ""
+			; main.bas 19: Show ""
 			dw p_show_c, str0
 
-			; main.bas 18: b(0) = &HC0
+			; main.bas 20: b(0) = &HC0
 			dw kw_ltolptr8, 192, arr_b
 
-			; main.bas 19: If Bdos(30, VarPtr(b)) = 0 Then                  ' UniDOS: A:HELP/, B:HELP/
+			; main.bas 21: If Bdos(30, VarPtr(b)) = 0 Then                  ' UniDOS: A:HELP/, B:HELP/
 			dw p_bdos_c, lit_30, vp_arr_b
 			dw kw_vtov, var_bdos_bdos, tmp0
 			dw kw_cpeqvl, tmp0, 0
 			dw kw_goto_iffalse_n, if5_1
 
-			; main.bas 20: v = FreeLetter()
+			; main.bas 22: v = FreeLetter()
 			dw p_freeletter_c
 			dw kw_strcpy, var_v, var_freeletter_freeletter
 
-			; main.bas 21: If v <> "" Then
+			; main.bas 23: If v <> "" Then
 			dw kw_strcmpne, var_v, str0
 			dw kw_goto_iffalse_n, if6_1
 
-			; main.bas 22: For i = 0 To 1
+			; main.bas 24: For i = 0 To 1
 			dw kw_ztov, var_i
 for7_t:
 
-			; main.bas 23: b(0) = &HC2 : b(1) = Asc(v) : s = Chr$(65 + i) + ":HELP/" : b(2) = Len(s)
+			; main.bas 25: b(0) = &HC2 : b(1) = Asc(v) : s = Chr$(65 + i) + ":HELP/" : b(2) = Len(s)
 			dw kw_ltolptr8, 194, arr_b
 			dw kw_strasc, var_v, tmp1
 			dw kw_vtolptr8, tmp1, arr_b+1
@@ -102,23 +104,23 @@ for7_t:
 			dw kw_strlen, var_s, tmp1
 			dw kw_vtolptr8, tmp1, arr_b+2
 
-			; main.bas 24: For j = 1 To Len(s)
+			; main.bas 26: For j = 1 To Len(s)
 			dw kw_ltov, 1, var_j
 			dw kw_strlen, var_s, for8_l
 			dw kw_forupv_n, var_j, for8_l, for8_e
 for8_t:
 
-			; main.bas 25: b(j + 2) = Asc(Mid$(s, j, 1))
+			; main.bas 27: b(j + 2) = Asc(Mid$(s, j, 1))
 			dw kw_addl, var_j, 2, tmp0
 			dw kw_strmid, stmp1, var_s, var_j, lit_1
 			dw kw_strasc, stmp1, tmp1
 			dw kw_aset8, arr_b, tmp0, tmp1
 
-			; main.bas 26: Next
+			; main.bas 28: Next
 			dw kw_next1v_n, var_j, for8_l, for8_t
 for8_e:
 
-			; main.bas 27: If Bdos(30, VarPtr(b)) = 0 Then Show v + ":"
+			; main.bas 29: If Bdos(30, VarPtr(b)) = 0 Then Show v + ":"
 			dw p_bdos_c, lit_30, vp_arr_b
 			dw kw_vtov, var_bdos_bdos, tmp0
 			dw kw_cpeqvl, tmp0, 0
@@ -128,26 +130,26 @@ for8_e:
 			dw p_show_c, stmp0
 if9_1:
 
-			; main.bas 28: Next
+			; main.bas 30: Next
 			dw kw_next1l_n, var_i, 1, for7_t
 for7_e:
 
-			; main.bas 29: NoPath
+			; main.bas 31: NoPath
 			dw p_nopath_c
 
-			; main.bas 30: End If
+			; main.bas 32: End If
 if6_1:
 
-			; main.bas 31: End If
+			; main.bas 33: End If
 if5_1:
 
-			; main.bas 32: Show "A:"
+			; main.bas 34: Show "A:"
 			dw p_show_c, str7
 
-			; main.bas 33: Show "Z:"
+			; main.bas 35: Show "Z:"
 			dw p_show_c, str8
 
-			; main.bas 34: Show2
+			; main.bas 36: Show2
 			dw p_show2_c
 			dw kw_stop
 
@@ -157,40 +159,40 @@ if5_1:
 
 p_show:
 
-			; main.bas 38: h = FileSystem.Open(d + a, FileSystem.ForRead)
+			; main.bas 40: h = FileSystem.Open(d + a, FileSystem.ForRead)
 			dw kw_strcpy, stmp0, var_show_d
 			dw kw_strcat, stmp0, var_a
 			dw fn_filesystem_open, stmp0, lit_1, var_h
 
-			; main.bas 39: If h < 0 Then Exit Sub
+			; main.bas 41: If h < 0 Then Exit Sub
 			dw kw_scpltvl, var_h, 0
 			dw kw_goto_iffalse_n, if10_1
 			dw p_show_r
 if10_1:
 
-			; main.bas 40: Do While Not FileSystem.Eof(h)
+			; main.bas 42: Do While Not FileSystem.Eof(h)
 do11_t:
 			dw fn_filesystem_eof, var_h, var_filesystem_eof_eof
 			dw kw_vtov, var_filesystem_eof_eof, tmp0
 			dw kw_notv, tmp0, tmp0
 			dw kw_goto_ifzero_n, tmp0, do11_e
 
-			; main.bas 41: Print FileSystem.ReadLine(h)
+			; main.bas 43: ln = FileSystem.ReadLine(h) : Wrap ln
 			dw fn_filesystem_readline, var_h, var_filesystem_readline_readline
-			dw kw_printstrvar, var_filesystem_readline_readline
-			dw kw_printnl
+			dw kw_strcpy, var_ln, var_filesystem_readline_readline
+			dw p_wrap_c, var_ln
 
-			; main.bas 42: Loop
+			; main.bas 44: Loop
 			dw do11_t_go
 do11_e:
 
-			; main.bas 43: r = FileSystem.Close(h)
+			; main.bas 45: r = FileSystem.Close(h)
 			dw fn_filesystem_close, var_h, var_r
 
-			; main.bas 44: NoPath
+			; main.bas 46: NoPath
 			dw p_nopath_c
 
-			; main.bas 45: End
+			; main.bas 47: End
 			dw kw_stop
 
 ; ============================================================
@@ -199,14 +201,255 @@ do11_e:
 
 p_show2:
 
-			; main.bas 49: Print "No help for "; a; " (HELP: the commands)"
+			; main.bas 51: Print "No help for "; a; " (HELP: the commands)"
 			dw kw_printstrvar, str9
 			dw kw_printstrvar, var_a
 			dw kw_printstrvar, str10
 			dw kw_printnl
 
-			; main.bas 50: End
+			; main.bas 52: End
 			dw kw_stop
+
+; ============================================================
+; sub wrap (normal mode)
+; ============================================================
+
+p_wrap:
+
+			; main.bas 58: Dim k As Integer, ind As Integer
+
+			; main.bas 59: If cw = 0 Then
+			dw kw_cpeqvl, var_cw, 0
+			dw kw_goto_iffalse_n, if12_1
+
+			; main.bas 60: pb(0) = &H1A : cw = Bdos(49, VarPtr(pb))      ' (CP/M 3's #1A: the width - 1)
+			dw kw_ltolptr8, 26, arr_pb
+			dw p_bdos_c, lit_49, vp_arr_pb
+			dw kw_vtov, var_bdos_bdos, var_cw
+
+			; main.bas 61: If cw < 12 Or cw > 200 Then cw = 79
+			dw kw_scpltvl, var_cw, 12
+			dw kw_ftov, tmp0
+			dw kw_scpgtvl, var_cw, 200
+			dw kw_ftov, tmp1
+			dw kw_orvv, tmp0, tmp1, tmp0
+			dw kw_goto_ifzero_n, tmp0, if13_1
+			dw kw_ltov, 79, var_cw
+if13_1:
+
+			; main.bas 62: End If
+if12_1:
+
+			; main.bas 63: ind = 0
+			dw kw_ztov, var_wrap_ind
+
+			; main.bas 64: Do While ind < Len(t)
+do14_t:
+			dw kw_strlen, var_wrap_t, tmp1
+			dw kw_scpltvv, var_wrap_ind, tmp1
+			dw kw_goto_iffalse_n, do14_e
+
+			; main.bas 65: If Mid$(t, ind + 1, 1) <> " " Then Exit Do
+			dw kw_addl, var_wrap_ind, 1, tmp1
+			dw kw_strmid, stmp0, var_wrap_t, tmp1, lit_1
+			dw kw_strcmpne, stmp0, str2
+			dw kw_goto_iffalse_n, if15_1
+			dw do14_e_go
+if15_1:
+
+			; main.bas 66: ind = ind + 1
+			dw kw_inc, var_wrap_ind
+
+			; main.bas 67: Loop
+			dw do14_t_go
+do14_e:
+
+			; main.bas 68: If ind > cw \ 2 Then ind = 0
+			dw kw_divvl, var_cw, 2, tmp1
+			dw kw_scpgtvv, var_wrap_ind, tmp1
+			dw kw_goto_iffalse_n, if16_1
+			dw kw_ztov, var_wrap_ind
+if16_1:
+
+			; main.bas 69: Do While Len(t) > cw
+do17_t:
+			dw kw_strlen, var_wrap_t, tmp0
+			dw kw_scpgtvv, tmp0, var_cw
+			dw kw_goto_iffalse_n, do17_e
+
+			; main.bas 70: k = cw + 1
+			dw kw_addl, var_cw, 1, var_wrap_k
+
+			; main.bas 71: Do While k > ind + 1
+do18_t:
+			dw kw_addl, var_wrap_ind, 1, tmp1
+			dw kw_scpgtvv, var_wrap_k, tmp1
+			dw kw_goto_iffalse_n, do18_e
+
+			; main.bas 72: If Mid$(t, k, 1) = " " Then Exit Do
+			dw kw_strmid, stmp0, var_wrap_t, var_wrap_k, lit_1
+			dw kw_strcmpeq, stmp0, str2
+			dw kw_goto_iffalse_n, if19_1
+			dw do18_e_go
+if19_1:
+
+			; main.bas 73: k = k - 1
+			dw kw_dec, var_wrap_k
+
+			; main.bas 74: Loop
+			dw do18_t_go
+do18_e:
+
+			; main.bas 75: If k <= ind + 1 Then
+			dw kw_addl, var_wrap_ind, 1, tmp1
+			dw kw_scplevv, var_wrap_k, tmp1
+			dw kw_goto_iffalse_n, if20_1
+
+			; main.bas 76: Out1 Left$(t, cw) : t = Mid$(t, cw + 1)
+			dw kw_strleft, stmp0, var_wrap_t, var_cw
+			dw p_out1_c, stmp0
+			dw kw_addl, var_cw, 1, tmp1
+			dw kw_strmid, var_wrap_t, var_wrap_t, tmp1, lit_255
+
+			; main.bas 77: Else
+			dw if20_e_go
+if20_1:
+
+			; main.bas 78: Out1 Left$(t, k - 1) : t = Mid$(t, k + 1)
+			dw kw_addl, var_wrap_k, -1, tmp1
+			dw kw_strleft, stmp0, var_wrap_t, tmp1
+			dw p_out1_c, stmp0
+			dw kw_addl, var_wrap_k, 1, tmp1
+			dw kw_strmid, var_wrap_t, var_wrap_t, tmp1, lit_255
+
+			; main.bas 79: End If
+if20_e:
+
+			; main.bas 80: Do While Left$(t, 1) = " "
+do21_t:
+			dw kw_strleft, stmp0, var_wrap_t, lit_1
+			dw kw_strcmpeq, stmp0, str2
+			dw kw_goto_iffalse_n, do21_e
+
+			; main.bas 81: t = Mid$(t, 2)
+			dw kw_strmid, var_wrap_t, var_wrap_t, lit_2, lit_255
+
+			; main.bas 82: Loop
+			dw do21_t_go
+do21_e:
+
+			; main.bas 83: If t = "" Then Exit Sub
+			dw kw_strcmpeq, var_wrap_t, str0
+			dw kw_goto_iffalse_n, if22_1
+			dw p_wrap_r
+if22_1:
+
+			; main.bas 84: t = Space$(ind) + t
+			dw kw_strspace, stmp0, var_wrap_ind
+			dw kw_strcat, stmp0, var_wrap_t
+			dw kw_strcpy, var_wrap_t, stmp0
+
+			; main.bas 85: Loop
+			dw do17_t_go
+do17_e:
+
+			; main.bas 86: Out1 t
+			dw p_out1_c, var_wrap_t
+			dw p_wrap_r
+
+; ============================================================
+; sub out1 (normal mode)
+; ============================================================
+
+p_out1:
+
+			; main.bas 92: Dim k As Integer
+
+			; main.bas 93: If pr = 0 Then
+			dw kw_cpeqvl, var_pr, 0
+			dw kw_goto_iffalse_n, if23_1
+
+			; main.bas 94: pb(0) = &H1C : pr = Bdos(49, VarPtr(pb))     ' (CP/M 3's #1C: the page length)
+			dw kw_ltolptr8, 28, arr_pb
+			dw p_bdos_c, lit_49, vp_arr_pb
+			dw kw_vtov, var_bdos_bdos, var_pr
+
+			; main.bas 95: If pr < 4 Or pr > 100 Then pr = 24
+			dw kw_scpltvl, var_pr, 4
+			dw kw_ftov, tmp0
+			dw kw_scpgtvl, var_pr, 100
+			dw kw_ftov, tmp1
+			dw kw_orvv, tmp0, tmp1, tmp0
+			dw kw_goto_ifzero_n, tmp0, if24_1
+			dw kw_ltov, 24, var_pr
+if24_1:
+
+			; main.bas 96: End If
+if23_1:
+
+			; main.bas 97: If nl >= pr - 1 Then
+			dw kw_addl, var_pr, -1, tmp1
+			dw kw_scpgevv, var_nl, tmp1
+			dw kw_goto_iffalse_n, if25_1
+
+			; main.bas 98: Print "-- more (space, Enter, Q) --";
+			dw kw_printstrvar, str11
+
+			; main.bas 99: Do
+do26_t:
+
+			; main.bas 100: k = Bdos(6, &HFF)
+			dw p_bdos_c, lit_6, lit_255
+			dw kw_vtov, var_bdos_bdos, var_out1_k
+
+			; main.bas 101: Loop While k = 0
+			dw kw_cpeqvl, var_out1_k, 0
+			dw kw_goto_iftrue_n, do26_t
+do26_e:
+
+			; main.bas 102: Print String$(28, 8); Space$(28); String$(28, 8);   ' (the prompt rubbed out: BS, spaces, BS)
+			dw kw_strstring, stmp0, lit_28, lit_8
+			dw kw_printstrvar, stmp0
+			dw kw_strspace, stmp0, lit_28
+			dw kw_printstrvar, stmp0
+			dw kw_strstring, stmp0, lit_28, lit_8
+			dw kw_printstrvar, stmp0
+
+			; main.bas 103: If k = 81 Or k = 113 Or k = 27 Or k = 3 Then End
+			dw kw_cpeqvl, var_out1_k, 81
+			dw kw_ftov, tmp0
+			dw kw_cpeqvl, var_out1_k, 113
+			dw kw_ftov, tmp1
+			dw kw_orvv, tmp0, tmp1, tmp0
+			dw kw_cpeqvl, var_out1_k, 27
+			dw kw_ftov, tmp1
+			dw kw_orvv, tmp0, tmp1, tmp0
+			dw kw_cpeqvl, var_out1_k, 3
+			dw kw_ftov, tmp1
+			dw kw_orvv, tmp0, tmp1, tmp0
+			dw kw_goto_ifzero_n, tmp0, if27_1
+			dw kw_stop
+if27_1:
+
+			; main.bas 104: If k = 13 Then nl = pr - 2 Else nl = 0
+			dw kw_cpeqvl, var_out1_k, 13
+			dw kw_goto_iffalse_n, if28_1
+			dw kw_addl, var_pr, -2, var_nl
+			dw if28_e_go
+if28_1:
+			dw kw_ztov, var_nl
+if28_e:
+
+			; main.bas 105: End If
+if25_1:
+
+			; main.bas 106: Print t
+			dw kw_printstrvar, var_out1_t
+			dw kw_printnl
+
+			; main.bas 107: nl = nl + 1
+			dw kw_inc, var_nl
+			dw p_out1_r
 
 ; ============================================================
 ; sub nopath (normal mode)
@@ -214,23 +457,23 @@ p_show2:
 
 p_nopath:
 
-			; main.bas 55: If v = "" Then Exit Sub
+			; main.bas 112: If v = "" Then Exit Sub
 			dw kw_strcmpeq, var_v, str0
-			dw kw_goto_iffalse_n, if12_1
+			dw kw_goto_iffalse_n, if29_1
 			dw p_nopath_r
-if12_1:
+if29_1:
 
-			; main.bas 56: b(0) = &HC2 : b(1) = Asc(v) : b(2) = 0
+			; main.bas 113: b(0) = &HC2 : b(1) = Asc(v) : b(2) = 0
 			dw kw_ltolptr8, 194, arr_b
 			dw kw_strasc, var_v, tmp1
 			dw kw_vtolptr8, tmp1, arr_b+1
 			dw kw_ltolptr8, 0, arr_b+2
 
-			; main.bas 57: r = Bdos(30, VarPtr(b))
+			; main.bas 114: r = Bdos(30, VarPtr(b))
 			dw p_bdos_c, lit_30, vp_arr_b
 			dw kw_vtov, var_bdos_bdos, var_r
 
-			; main.bas 58: v = ""
+			; main.bas 115: v = ""
 			dw kw_strcpy, var_v, str0
 			dw p_nopath_r
 
@@ -240,48 +483,48 @@ if12_1:
 
 p_freeletter:
 
-			; main.bas 63: Dim c As Integer, n As Integer, rd As String Max 16
+			; main.bas 120: Dim c As Integer, n As Integer, rd As String Max 16
 
-			; main.bas 64: rd = ""
+			; main.bas 121: rd = ""
 			dw kw_strcpy, var_freeletter_rd, str0
 
-			; main.bas 65: For n = 0 To 7                                   ' the RAM discs (RAMDISC's list: "F: ...")
+			; main.bas 122: For n = 0 To 7                                   ' the RAM discs (RAMDISC's list: "F: ...")
 			dw kw_ztov, var_freeletter_n
-for13_t:
+for30_t:
 
-			; main.bas 66: q(0) = 3 : q(1) = n
+			; main.bas 123: q(0) = 3 : q(1) = n
 			dw kw_ltolptr8, 3, arr_q
 			dw kw_vtolptr8, var_freeletter_n, arr_q+1
 
-			; main.bas 67: If Bdos(130, VarPtr(q)) <> 0 Then Exit For
+			; main.bas 124: If Bdos(130, VarPtr(q)) <> 0 Then Exit For
 			dw p_bdos_c, lit_130, vp_arr_q
 			dw kw_vtov, var_bdos_bdos, tmp0
 			dw kw_cpnevl, tmp0, 0
-			dw kw_goto_iffalse_n, if14_1
-			dw for13_e_go
-if14_1:
+			dw kw_goto_iffalse_n, if31_1
+			dw for30_e_go
+if31_1:
 
-			; main.bas 68: rd = rd + Chr$(q(3))
+			; main.bas 125: rd = rd + Chr$(q(3))
 			dw kw_lptrtov8, arr_q+3, tmp1
 			dw kw_strchr, stmp1, tmp1
 			dw kw_strcat, var_freeletter_rd, stmp1
 
-			; main.bas 69: Next
-			dw kw_next1l_n, var_freeletter_n, 7, for13_t
-for13_e:
+			; main.bas 126: Next
+			dw kw_next1l_n, var_freeletter_n, 7, for30_t
+for30_e:
 
-			; main.bas 70: FreeLetter = ""
+			; main.bas 127: FreeLetter = ""
 			dw kw_strcpy, var_freeletter_freeletter, str0
 
-			; main.bas 71: For c = 80 To 67 Step -1
+			; main.bas 128: For c = 80 To 67 Step -1
 			dw kw_ltov, 80, var_freeletter_c
-for15_t:
+for32_t:
 
-			; main.bas 72: b(0) = &HC1 : b(1) = c
+			; main.bas 129: b(0) = &HC1 : b(1) = c
 			dw kw_ltolptr8, 193, arr_b
 			dw kw_vtolptr8, var_freeletter_c, arr_b+1
 
-			; main.bas 73: If Bdos(30, VarPtr(b)) = 0 And b(2) = 0 And InStr(rd, Chr$(c)) = 0 Then FreeLetter = Chr$(c) : Exit Function
+			; main.bas 130: If Bdos(30, VarPtr(b)) = 0 And b(2) = 0 And InStr(rd, Chr$(c)) = 0 Then FreeLetter = Chr$(c) : Exit Function
 			dw p_bdos_c, lit_30, vp_arr_b
 			dw kw_vtov, var_bdos_bdos, tmp0
 			dw kw_cpeqvl, tmp0, 0
@@ -295,14 +538,14 @@ for15_t:
 			dw kw_cpeqvl, tmp1, 0
 			dw kw_ftov, tmp1
 			dw kw_andvv, tmp0, tmp1, tmp0
-			dw kw_goto_ifzero_n, tmp0, if16_1
+			dw kw_goto_ifzero_n, tmp0, if33_1
 			dw kw_strchr, var_freeletter_freeletter, var_freeletter_c
 			dw p_freeletter_r
-if16_1:
+if33_1:
 
-			; main.bas 74: Next
-			dw kw_nextdnl_n, var_freeletter_c, -1, 67, for15_t
-for15_e:
+			; main.bas 131: Next
+			dw kw_nextdnl_n, var_freeletter_c, -1, 67, for32_t
+for32_e:
 			dw p_freeletter_r
 
 ; ============================================================
@@ -311,8 +554,8 @@ for15_e:
 
 p_bdos:
 
-			; main.bas 79: #asm
-			dw asm_0_79_n
+			; main.bas 136: #asm
+			dw asm_0_136_n
 			dw p_bdos_r
 
 ; ============================================================
@@ -326,13 +569,29 @@ p_bdos:
 
 do11_t_go:			ld sp, do11_t
 			jp ntc_xn
-for13_e_go:			ld sp, for13_e
+do14_e_go:			ld sp, do14_e
+			jp ntc_xn
+do14_t_go:			ld sp, do14_t
+			jp ntc_xn
+do18_e_go:			ld sp, do18_e
+			jp ntc_xn
+do18_t_go:			ld sp, do18_t
+			jp ntc_xn
+if20_e_go:			ld sp, if20_e
+			jp ntc_xn
+do21_t_go:			ld sp, do21_t
+			jp ntc_xn
+do17_t_go:			ld sp, do17_t
+			jp ntc_xn
+if28_e_go:			ld sp, if28_e
+			jp ntc_xn
+for30_e_go:			ld sp, for30_e
 			jp ntc_xn
 
 p_show_c:		; call show (normal)
 			pop hl			; d
 			ld de, var_show_d
-			ld b, 40
+			ld b, 255
 p_show_si0:
 			ld a, (hl)
 			ld (de), a
@@ -356,6 +615,54 @@ p_show2_c:		; call show2 (normal)
 			jp ntc_xn
 p_show2_r:		; end of show2
 			ld sp, (p_show2_rs)
+			jp ntc_xn
+p_wrap_c:		; call wrap (normal)
+			pop hl			; t
+			ld de, var_wrap_t
+			ld b, 255
+p_wrap_si0:
+			ld a, (hl)
+			ld (de), a
+			or a
+			jr z, p_wrap_si0_e
+			inc hl
+			inc de
+			djnz p_wrap_si0
+			xor a
+			ld (de), a
+p_wrap_si0_e:
+			ld hl, 0
+			ld (var_wrap_k), hl
+			ld hl, 0
+			ld (var_wrap_ind), hl
+			ld (p_wrap_rs), sp
+			ld sp, p_wrap
+			jp ntc_xn
+p_wrap_r:		; end of wrap
+			ld sp, (p_wrap_rs)
+			jp ntc_xn
+p_out1_c:		; call out1 (normal)
+			pop hl			; t
+			ld de, var_out1_t
+			ld b, 255
+p_out1_si0:
+			ld a, (hl)
+			ld (de), a
+			or a
+			jr z, p_out1_si0_e
+			inc hl
+			inc de
+			djnz p_out1_si0
+			xor a
+			ld (de), a
+p_out1_si0_e:
+			ld hl, 0
+			ld (var_out1_k), hl
+			ld (p_out1_rs), sp
+			ld sp, p_out1
+			jp ntc_xn
+p_out1_r:		; end of out1
+			ld sp, (p_out1_rs)
 			jp ntc_xn
 p_nopath_c:		; call nopath (normal)
 			ld (p_nopath_rs), sp
@@ -403,19 +710,19 @@ p_bdos_r:		; end of bdos
 ; Inline assembly (#asm ... #endasm)
 ; ============================================================
 
-asm_0_79_n:		; #asm, main.bas line 79 (normal)
-            ld (var_hsp), sp		; main.bas 80
-            ld sp, (ntc_csp)		; main.bas 81
-            ld a, (var_bdos_fn)		; main.bas 82
-            ld c, a		; main.bas 83
-            ld de, (var_bdos_dd)		; main.bas 84
-            ei                      ; (CP/M's BDOS: interrupts on) [85]
-            call 5		; main.bas 86
-            di                      ; (off before SP is the threaded code again: it comes back with them on) [87]
-            ld l, a		; main.bas 88
-            ld h, 0		; main.bas 89
-            ld (var_bdos_bdos), hl		; main.bas 90
-            ld sp, (var_hsp)		; main.bas 91
+asm_0_136_n:		; #asm, main.bas line 136 (normal)
+            ld (var_hsp), sp		; main.bas 137
+            ld sp, (ntc_csp)		; main.bas 138
+            ld a, (var_bdos_fn)		; main.bas 139
+            ld c, a		; main.bas 140
+            ld de, (var_bdos_dd)		; main.bas 141
+            ei                      ; (CP/M's BDOS: interrupts on) [142]
+            call 5		; main.bas 143
+            di                      ; (off before SP is the threaded code again: it comes back with them on) [144]
+            ld l, a		; main.bas 145
+            ld h, 0		; main.bas 146
+            ld (var_bdos_bdos), hl		; main.bas 147
+            ld sp, (var_hsp)		; main.bas 148
 			ret			; end of #asm
 
 fn_filesystem_open:		; function open (asm keyword), FileSystem.cls line 175
@@ -480,27 +787,41 @@ fn_system_commandline:		; function commandline (asm keyword), System.cls line 70
 
 			db 40			; capacity
 var_a:			ds 41
-			db 40			; capacity
-var_system_commandline_commandline:			ds 41
+			db 255			; capacity
+var_system_commandline_commandline:			ds 256
 var_bdos_bdos:			dw 0
 			db 2			; capacity
 var_v:			ds 3
-			db 40			; capacity
-var_freeletter_freeletter:			ds 41
+			db 255			; capacity
+var_freeletter_freeletter:			ds 256
 var_i:			dw 0
 			db 8			; capacity
 var_s:			ds 9
 var_j:			dw 0
 for8_l:			dw 0
 p_show_rs:			dw 0
-			db 40			; capacity
-var_show_d:			ds 41
+			db 255			; capacity
+var_show_d:			ds 256
 var_h:			dw 0
 var_filesystem_eof_eof:			dw 0
-			db 40			; capacity
-var_filesystem_readline_readline:			ds 41
+			db 255			; capacity
+var_ln:			ds 256
+			db 255			; capacity
+var_filesystem_readline_readline:			ds 256
 var_r:			dw 0
 p_show2_rs:			dw 0
+p_wrap_rs:			dw 0
+			db 255			; capacity
+var_wrap_t:			ds 256
+var_wrap_k:			dw 0
+var_wrap_ind:			dw 0
+var_cw:			dw 0
+p_out1_rs:			dw 0
+			db 255			; capacity
+var_out1_t:			ds 256
+var_out1_k:			dw 0
+var_pr:			dw 0
+var_nl:			dw 0
 p_nopath_rs:			dw 0
 p_freeletter_rs:			dw 0
 var_freeletter_c:			dw 0
@@ -513,17 +834,24 @@ var_bdos_dd:			dw 0
 var_hsp:			dw 0
 tmp0:			dw 0
 tmp1:			dw 0
-			db 40			; capacity
-stmp0:			ds 41
-			db 40			; capacity
-stmp1:			ds 41
-			db 40			; capacity
-stmp2:			ds 41
+			db 255			; capacity
+stmp0:			ds 256
+			db 255			; capacity
+stmp1:			ds 256
+			db 255			; capacity
+stmp2:			ds 256
 
 ; numbers passed by address (read only)
 lit_1:			dw 1
 vp_arr_b:			dw arr_b
 lit_30:			dw 30
+vp_arr_pb:			dw arr_pb
+lit_49:			dw 49
+lit_255:			dw 255
+lit_2:			dw 2
+lit_6:			dw 6
+lit_28:			dw 28
+lit_8:			dw 8
 vp_arr_q:			dw arr_q
 lit_130:			dw 130
 
@@ -542,6 +870,7 @@ str7:			db "A:", 0
 str8:			db "Z:", 0
 str9:			db "No help for ", 0
 str10:			db " (HELP: the commands)", 0
+str11:			db "-- more (space, Enter, Q) --", 0
 
 ; ============================================================
 ; Keyword library (used)
@@ -564,6 +893,11 @@ ntc_gnlo:		db 0			; ntc_getn: low byte
 
 ;## ntc_d_nmode @data
 ntc_nmode:		db 0			; 1 = running in normal mode (waits let interrupts in)
+
+;## ntc_d_div @data
+ntc_mode:		db 0			; div mode 0=quotient 1=remainder
+ntc_sgnq:		db 0			; quotient sign (bit 7)
+ntc_sgnr:		db 0			; remainder sign (bit 7)
 
 ;## ntc_d_sptr @data
 ntc_sptr:		dw 0			; printbuf: text pointer
@@ -602,6 +936,14 @@ ntc_xn:
 kw_goto_iffalse_n:
 			pop hl
 			jp z, ntc_xn
+			ld sp, hl
+			jp ntc_xn
+
+;## kw_goto_iftrue (normal mode copy)
+;kw_goto_iftrue, <label>  - branch if Z (true)
+kw_goto_iftrue_n:
+			pop hl
+			jp nz, ntc_xn
 			ld sp, hl
 			jp ntc_xn
 
@@ -828,6 +1170,16 @@ ntc_ftov_t:
 ; Arithmetic
 ; ============================================================
 
+;## kw_inc
+;kw_inc, <var>
+kw_inc:
+			pop hl
+			inc (hl)
+			ret nz
+			inc hl
+			inc (hl)
+			ret
+
 ;## kw_dec
 ;kw_dec, <var>
 kw_dec:
@@ -856,6 +1208,100 @@ kw_addl:
 			ld (hl), d
 			ret
 
+;## ntc_div ntc_data
+; HL / DE signed, truncating. (ntc_mode) 0 = quotient, 1 = remainder.
+; Remainder takes the dividend's sign. Divide by zero gives
+; quotient 0, remainder = dividend. Pops destvar and stores.
+ntc_div:
+			ld a, d
+			or e
+			jr nz, ntc_div_nz
+			ld a, (ntc_mode)
+			or a
+			jr nz, ntc_div_store
+			ld hl, 0
+			jr ntc_div_store
+ntc_div_nz:
+			ld a, h
+			ld (ntc_sgnr), a
+			xor d
+			ld (ntc_sgnq), a
+			bit 7, h
+			jr z, ntc_div_hpos
+			xor a
+			sub l
+			ld l, a
+			sbc a, a
+			sub h
+			ld h, a
+ntc_div_hpos:
+			bit 7, d
+			jr z, ntc_div_dpos
+			xor a
+			sub e
+			ld e, a
+			sbc a, a
+			sub d
+			ld d, a
+ntc_div_dpos:
+			ld a, h
+			ld c, l
+			ld hl, 0
+			ld b, 16
+ntc_div_loop:
+			sla c
+			rla
+			adc hl, hl
+			sbc hl, de
+			jr nc, ntc_div_one
+			add hl, de
+			djnz ntc_div_loop
+			jr ntc_div_done
+ntc_div_one:
+			inc c
+			djnz ntc_div_loop
+ntc_div_done:
+			ld b, a
+			ld a, (ntc_mode)
+			or a
+			jr z, ntc_div_q
+			ld a, (ntc_sgnr)
+			jr ntc_div_sign
+ntc_div_q:
+			ld h, b
+			ld l, c
+			ld a, (ntc_sgnq)
+ntc_div_sign:
+			rla
+			jr nc, ntc_div_store
+			xor a
+			sub l
+			ld l, a
+			sbc a, a
+			sub h
+			ld h, a
+ntc_div_store:
+			ex de, hl
+			pop hl
+			ld (hl), e
+			inc hl
+			ld (hl), d
+			ret
+
+;## kw_divvl ntc_div
+;kw_divvl, <var>, <literal>, <destvar>
+kw_divvl:
+			xor a
+			ld (ntc_mode), a
+ntc_divvl:
+			pop hl
+			ld a, (hl)
+			inc hl
+			ld h, (hl)
+			ld l, a
+			pop de
+			jp ntc_div
+
 ;## kw_andvv
 ;kw_andvv, <var1>, <var2>, <destvar>
 kw_andvv:
@@ -870,6 +1316,27 @@ kw_andvv:
 			inc hl
 			ld a, (hl)
 			and d
+			ld d, a
+			pop hl
+			ld (hl), e
+			inc hl
+			ld (hl), d
+			ret
+
+;## kw_orvv
+;kw_orvv, <var1>, <var2>, <destvar>
+kw_orvv:
+			pop hl
+			ld e, (hl)
+			inc hl
+			ld d, (hl)
+			pop hl
+			ld a, (hl)
+			or e
+			ld e, a
+			inc hl
+			ld a, (hl)
+			or d
 			ld d, a
 			pop hl
 			ld (hl), e
@@ -966,6 +1433,20 @@ ntc_cmp_ne_f:
 			or 1
 			ret
 
+;## kw_scpltvv ntc_cmp
+;kw_scpltvv, <var1>, <var2>  - signed var1 < var2
+kw_scpltvv:
+			pop hl
+			ld e, (hl)
+			inc hl
+			ld d, (hl)
+			pop hl
+			ld a, (hl)
+			inc hl
+			ld h, (hl)
+			ld l, a
+			jp ntc_cmp_slt
+
 ;## kw_scpltvl ntc_cmp
 ;kw_scpltvl, <var>, <literal>
 kw_scpltvl:
@@ -976,6 +1457,32 @@ kw_scpltvl:
 			pop hl
 			jp ntc_cmp_slt
 
+;## kw_scplevv ntc_cmp
+kw_scplevv:
+			pop hl
+			ld e, (hl)
+			inc hl
+			ld d, (hl)
+			pop hl
+			ld a, (hl)
+			inc hl
+			ld h, (hl)
+			ld l, a
+			jp ntc_cmp_sle
+
+;## kw_scpgtvv ntc_cmp
+kw_scpgtvv:
+			pop hl
+			ld e, (hl)
+			inc hl
+			ld d, (hl)
+			pop hl
+			ld a, (hl)
+			inc hl
+			ld h, (hl)
+			ld l, a
+			jp ntc_cmp_sgt
+
 ;## kw_scpgtvl ntc_cmp
 kw_scpgtvl:
 			pop hl
@@ -984,6 +1491,19 @@ kw_scpgtvl:
 			ld d, (hl)
 			pop hl
 			jp ntc_cmp_sgt
+
+;## kw_scpgevv ntc_cmp
+kw_scpgevv:
+			pop hl
+			ld e, (hl)
+			inc hl
+			ld d, (hl)
+			pop hl
+			ld a, (hl)
+			inc hl
+			ld h, (hl)
+			ld l, a
+			jp ntc_cmp_sge
 
 ;## kw_cpeqvl ntc_cmp
 kw_cpeqvl:
@@ -1279,6 +1799,49 @@ kw_strchr:
 			xor a
 			ld (de), a
 			ret
+
+;## kw_strspace ntc_getn
+;kw_strspace, <dest>, <nvar>  - Space$(n)
+kw_strspace:
+			pop de
+			pop bc
+			ld ix, ntc_sp_n
+			jp ntc_getn
+ntc_sp_n:
+			ld c, ' '
+; A = count (NTC_STRMAX at most), C = char, DE = dest
+ntc_strfill:
+	IF NTC_STRMAX < 255
+			cp NTC_STRMAX + 1
+			jr c, ntc_sf_ok
+			ld a, NTC_STRMAX
+ntc_sf_ok:
+	ENDIF
+			ld b, a
+			inc b
+ntc_sf_loop:
+			dec b
+			jr z, ntc_sf_end
+			ld a, c
+			ld (de), a
+			inc de
+			jr ntc_sf_loop
+ntc_sf_end:
+			xor a
+			ld (de), a
+			ret
+
+;## kw_strstring kw_strspace
+;kw_strstring, <dest>, <nvar>, <charvar>  - String$(n, char code)
+kw_strstring:
+			pop de
+			pop bc
+			ld ix, ntc_ss_n
+			jp ntc_getn
+ntc_ss_n:
+			pop hl
+			ld c, (hl)
+			jp ntc_strfill
 
 ;## kw_strucase
 ;kw_strucase, <dest>, <src>  - UCase$
@@ -2766,8 +3329,9 @@ ntc_end:				; the end of the program (and of its file)
 ; arrays: after the program, not in its file - kw_bssinit checks they fit and clears them
 ntc_bssfrom	equ ntc_end
 ntc_bss		equ ntc_bssfrom
-arr_b		equ ntc_bss + 0		; 72 bytes
-arr_q		equ ntc_bss + 72		; 50 bytes
-ntc_bss_size	equ 122
+arr_pb		equ ntc_bss + 0		; 4 bytes
+arr_b		equ ntc_bss + 4		; 72 bytes
+arr_q		equ ntc_bss + 76		; 50 bytes
+ntc_bss_size	equ 126
 ntc_free	equ ntc_bss + ntc_bss_size	; the first free byte (heap, Memory tables)
 ntc_memtab	equ ntc_free		; the Memory class's tables

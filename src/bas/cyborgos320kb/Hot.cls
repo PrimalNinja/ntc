@@ -55,7 +55,13 @@ Public Function Take() As Integer
   pend = 0
 End Function
 
-' Control(): True while Control is held (keys typed then are system keys, not for the programs)
+' Control(): True while Control is held (with a number or ESC: system keys, not for the programs)
 Public Function Control() As Integer
   Control = ctl
+End Function
+
+' Held(): the system key held now with Control (a slot, TOPKEY), 0 none - another key with Control
+' is the program's (Control + A ... Control + Z: WordStar's keys)
+Public Function Held() As Integer
+  Held = last
 End Function

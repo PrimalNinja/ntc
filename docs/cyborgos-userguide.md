@@ -111,7 +111,7 @@ drive; `NAME` alone also finds `NAME.COM`.
 | `COPY` [*v1*:]*name* *v2*[:*newname*] | copies the file to volume *v2*, as *newname* or the same name |
 | `COPY` [*v1*:]*pattern* *v2* | each file that fits the pattern (`*` any characters, `?` any one: `*.CYB`, `T*`, `????.COM`, `*.*`) copied to *v2* with its own name; it stops when the disc is full, says how many were copied |
 | `ERA` [*v*:]*name*, `ERA` [*v*:]*pattern* | deletes the file; a pattern (`*.BAK`) each that fits. A folder: RMDIR |
-| `TYPE` [*v*:]*name* | shows the text file, to its end or first ^Z |
+| `TYPE` [*v*:]*name* | shows the text file, to its end or first ^Z - long lines word wrapped to the console, a page at a time (`-- more --`: space a page, Enter a line, Q / ESC / Control + C the end) |
 | `RENAME` [*v*:]*name* *newname* | renames the file; *newname* is a disc name (NAME.EXT) on the same volume, not one taken already |
 
 ```
@@ -384,6 +384,11 @@ CyborgOS's own: `r"text"` - a line as it is (not wrapped, its spaces kept), for 
 lists.
 
 ## 5. Programs
+
+**Keys.** A program gets every key typed while its slot is in front, Control + a letter too
+(WordStar's Control + E, X, S, D ..., Control + C); ESC comes as #1B (CP/M's ESC, as Amstrad's
+CP/M gives it - the firmware's own is #FC). Control + 1-9, 0 (a slot to the front) and Control +
+ESC (TOP) are CyborgOS's and never reach a program.
 
 ### What runs
 

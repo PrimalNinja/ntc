@@ -9,6 +9,14 @@ version.
 
 ## done
 
+- 2026-10-16 Control + a letter reaches the program (WordStar's keys, Control + C): Main dropped
+  every key typed with Control held (for Control + 1-9); now only while a system key (a number,
+  ESC) is held (Hot.Held). ESC reaches programs as #1B (the firmware's #FC), as Amstrad's CP/M.
+  64 bytes of main RAM (#9A21)
+- 2026-10-16 TYPE and HELP: lines up to 255 characters (they were cut at 40: the library's strings
+  are as long as the program's longest), word wrapped to the console, a page at a time (-- more
+  --: space, Enter, Q / ESC / Control + C)
+
 - 2026-10-16 WINAPE.BAS on disc 1 (installed in CYBORGOS/): CYBORGOS.BAS with o$=" KEYREP 10"
 - 2026-10-16 The regression's small test programs (hook, for, gs ... wrap) are built into
   src/test/out/PLATFORM[_turbo][_rom], one folder each, not over each other in src/test

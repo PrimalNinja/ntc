@@ -183,7 +183,7 @@ Do
     ' a key for the front slot (left in the keyboard buffer while its program has one waiting)
     If front = 0 Or st(front) <> 2 Or kq(front) = 0 Then
       k = Inkey
-      If k <> 0 And Hot.Control() = 0 Then KeyIn k
+      If k <> 0 And (Hot.Control() = 0 Or (k < 32 And Hot.Held() = 0)) Then KeyIn k   ' (Control + a letter: the program's)
     End If
   ElseIf Running() = 0 Then
     Prompt wt : wt = 0          ' WAIT: nothing runs any more
@@ -947,6 +947,7 @@ Sub KeyIn(ByVal k As Integer)
   If k = &HF4 Or k = &HF5 Then Hyp.Con wp(t), k, -2, 1 : Exit Sub   ' Shift + Up / Down: the scrollback
 #End If
   If st(t) = 2 Then
+    If k = &HFC Then k = 27                       ' (ESC: the firmware's #FC - CP/M's #1B, as Amstrad's CP/M)
     kq(t) = k                                     ' the key into its bank: its BDOS answers from it
     Memory.WriteByte Far(t, Hyp.KEY), k
     Exit Sub

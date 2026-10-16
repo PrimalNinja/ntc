@@ -552,6 +552,11 @@ o5=$(NTC_UNIDOS=IDE NTC_LIMIT=40000 timeout 1500 python3 ntcrun.py t/cy/Main.bas
 if echo "$o" | grep -q "^A:README.TXT to B:README.TXT: 20 bytes" && echo "$o" | grep -q "^A:README.TXT to B:NEW.TXT: 20 bytes" && echo "$o" | grep -q "^line two" && echo "$o2" | grep -q "^NEW.TXT  " && echo "$o2" | grep -q "^B:NEW.TXT deleted" && echo "$o2" | grep -q "^line two" && echo "$o2" | grep -q "^? FOO (HELP)" && [ ! -e t/files/B/NEW.TXT ] \
   && echo "$o5" | grep -q "^2 of 2 files copied" && echo "$o5" | grep -q "^NOTES.TXT    README.TXT" && echo "$o5" | grep -q "^C:NOTES.TXT deleted" && echo "$o5" | grep -q "^C:README.TXT deleted"; then echo "ok   CyborgOS commands COPY ERA TYPE (no FILES.DIR)"; else echo "FAIL CyborgOS commands COPY ERA TYPE (no FILES.DIR)"; echo "$o" | tail -8; echo "$o2" | tail -10; echo "$o5" | tail -14; fail=1; fi
 rm -f t/files/A/NOTES.TXT
+# TYPE a page at a time: 60 lines, the console's 24 rows - 23, then "-- more --" waits; Q ends it
+python3 -c "open('t/files/A/LONG.TXT', 'wb').write(b''.join(b'line %d\r\n' % i for i in range(1, 61)))"
+o=$(NTC_LIMIT=40000 timeout 1500 python3 ntcrun.py t/cy/Main.bas "type long.txt\n${W2}q${W2}" t/cy/Hyp.cls t/cy/Hot.cls t/cy/Ent.cls --platform=cpcfw --ram=576 2>&1)
+rm -f t/files/A/LONG.TXT
+if echo "$o" | grep -q "^line 23$" && ! echo "$o" | grep -q "^line 24$" && echo "$o" | grep -q "^\[TYPE.CYB ended\]"; then echo "ok   CyborgOS TYPE a page at a time"; else echo "FAIL CyborgOS TYPE a page at a time"; echo "$o" | tail -8; fail=1; fi
 # RENAME: any file; another volume refused
 o=$(NTC_UNIDOS=IDE NTC_LIMIT=40000 timeout 1500 python3 ntcrun.py t/cy/Main.bas "rename b:readme.txt b:notes.txt\n${W2}rename b:notes.txt a:x.txt\n${W2}cd b\ndir full\n" t/cy/Hyp.cls t/cy/Hot.cls t/cy/Ent.cls --platform=cpcfw --ram=576 2>&1)
 if echo "$o" | grep -q "^B:README.TXT is B:NOTES.TXT now" && echo "$o" | grep -q "^RENAME can't move a file to another volume" && echo "$o" | grep -q "^NOTES.TXT  " && [ -e t/files/B/NOTES.TXT ] && [ ! -e t/files/B/README.TXT ]; then echo "ok   CyborgOS command RENAME"; else echo "FAIL CyborgOS command RENAME"; echo "$o" | tail -10; fail=1; fi
@@ -559,12 +564,12 @@ if echo "$o" | grep -q "^B:README.TXT is B:NOTES.TXT now" && echo "$o" | grep -q
 # from NAME.HLP (on A: here), a name with none; then (UniDOS) from A's HELP folder, where the
 # installer puts them (a free letter's path for a moment)
 cp $P/cyborgos320kb/help/*.HLP t/files/A/
-o=$(timeout 600 python3 ntcrun.py t/cy/Main.bas "help\n${W2}" t/cy/Hyp.cls t/cy/Hot.cls t/cy/Ent.cls --platform=cpcfw --ram=576 2>&1)
+o=$(timeout 600 python3 ntcrun.py t/cy/Main.bas "help\n${W2} ${W2}" t/cy/Hyp.cls t/cy/Hot.cls t/cy/Ent.cls --platform=cpcfw --ram=576 2>&1)
 o2=$(timeout 600 python3 ntcrun.py t/cy/Main.bas "help rename\n${W2}help foo\n${W2}" t/cy/Hyp.cls t/cy/Hot.cls t/cy/Ent.cls --platform=cpcfw --ram=576 2>&1)
 rm -f t/files/A/*.HLP; mkdir -p t/files/A/HELP; cp $P/cyborgos320kb/help/*.HLP t/files/A/HELP/
 o3=$(NTC_UNIDOS=IDE timeout 600 python3 ntcrun.py t/cy/Main.bas "help copy\n${W2}cd\n${W2}" t/cy/Hyp.cls t/cy/Hot.cls t/cy/Ent.cls --platform=cpcfw --ram=576 2>&1)
 rm -rf t/files/A/HELP
-if echo "$o" | grep -q "^MODE \[m\]  " && echo "$o2" | grep -q "^RENAME \[v:\]name newname" && echo "$o2" | grep -q "^No help for FOO.HLP" && echo "$o" | grep -q "^\[HELP.CYB ended\]" && echo "$o3" | grep -q "^COPY \[v1:\]pattern v2" && ! echo "$o3" | grep -q "^  [C-P]: --> "; then echo "ok   CyborgOS HELP from the disc, from A:HELP/"; else echo "FAIL CyborgOS HELP from the disc"; echo "$o" | tail -6; fail=1; fi
+if echo "$o" | grep -q "^MODE \[m\]  " && echo "$o2" | grep -q "^RENAME \[v:\]name newname" && echo "$o2" | grep -q "^No help for FOO.HLP" && echo "$o" | grep -q "^\[HELP.CYB ended\]" && echo "$o3" | grep -q "^COPY \[v1:\]pattern v2" && echo "$o3" | grep -q "^  Copies a file to drive v2 (B or B:), as newname or the same name; a$" && ! echo "$o3" | grep -q "^  [C-P]: --> "; then echo "ok   CyborgOS HELP from the disc, from A:HELP/"; else echo "FAIL CyborgOS HELP from the disc"; echo "$o" | tail -6; fail=1; fi
 # MODE: each slot its own screen mode (the CRTC's widths and the hardware scroll, CyborgOS's own):
 # P in slot 1 (64 x 32; LINES' 200 lines scroll), slot 2 opened (MODE S, the default: 80 x 24
 # and the status strip on the right), back to slot 1 (its page drawn again); MODE lists the modes,

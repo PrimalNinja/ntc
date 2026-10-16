@@ -4,10 +4,12 @@
 ' Looked for on this slot's drive, then in the HELP folder of drive A or B (where the installer
 ' puts them: CYBORGOS/HELP - UniDOS, through a free drive letter whose path it is for a moment),
 ' then on A and Z. The .HLP files are plain text (CR LF lines, ^Z at the end): any can be edited,
-' and a program can have one of its own
+' and a program can have one of its own. A line longer than the console is wide is word wrapped;
+' a page at a time (-- more --)
 Option Explicit
 Dim a As String Max 40, v As String Max 2, s As String Max 8
-Dim h As Integer, r As Integer, i As Integer, j As Integer, hsp As Integer
+Dim ln As String Max 255                         ' (a line: 255 characters - the library's strings are as long as the longest declared)
+Dim h As Integer, r As Integer, i As Integer, j As Integer, hsp As Integer, cw As Integer, pr As Integer, nl As Integer, pb(3) As Byte
 Dim b(71) As Byte, q(49) As Byte
 a = UCase$(Trim$(System.CommandLine()))
 If a = "" Then a = "HELP"
@@ -38,7 +40,7 @@ Sub Show(ByVal d As String)
   h = FileSystem.Open(d + a, FileSystem.ForRead)
   If h < 0 Then Exit Sub
   Do While Not FileSystem.Eof(h)
-    Print FileSystem.ReadLine(h)
+    ln = FileSystem.ReadLine(h) : Wrap ln
   Loop
   r = FileSystem.Close(h)
   NoPath
@@ -48,6 +50,61 @@ End Sub
 Sub Show2()
   Print "No help for "; a; " (HELP: the commands)"
   End
+End Sub
+
+' t printed word wrapped to the console's width (BDOS 49): a line too long broken at its last space
+' that fits, the next part indented as far as the line was (a word longer than a line: cut)
+Sub Wrap(ByVal t As String)
+  Dim k As Integer, ind As Integer
+  If cw = 0 Then
+    pb(0) = &H1A : cw = Bdos(49, VarPtr(pb))      ' (CP/M 3's #1A: the width - 1)
+    If cw < 12 Or cw > 200 Then cw = 79
+  End If
+  ind = 0
+  Do While ind < Len(t)
+    If Mid$(t, ind + 1, 1) <> " " Then Exit Do
+    ind = ind + 1
+  Loop
+  If ind > cw \ 2 Then ind = 0
+  Do While Len(t) > cw
+    k = cw + 1
+    Do While k > ind + 1
+      If Mid$(t, k, 1) = " " Then Exit Do
+      k = k - 1
+    Loop
+    If k <= ind + 1 Then
+      Out1 Left$(t, cw) : t = Mid$(t, cw + 1)
+    Else
+      Out1 Left$(t, k - 1) : t = Mid$(t, k + 1)
+    End If
+    Do While Left$(t, 1) = " "
+      t = Mid$(t, 2)
+    Loop
+    If t = "" Then Exit Sub
+    t = Space$(ind) + t
+  Loop
+  Out1 t
+End Sub
+
+' a line out, a page at a time: when the console is full, "-- more --" waits for a key (space: a
+' page more, Enter: a line, Q / ESC / Control + C: the end)
+Sub Out1(ByVal t As String)
+  Dim k As Integer
+  If pr = 0 Then
+    pb(0) = &H1C : pr = Bdos(49, VarPtr(pb))     ' (CP/M 3's #1C: the page length)
+    If pr < 4 Or pr > 100 Then pr = 24
+  End If
+  If nl >= pr - 1 Then
+    Print "-- more (space, Enter, Q) --";
+    Do
+      k = Bdos(6, &HFF)
+    Loop While k = 0
+    Print String$(28, 8); Space$(28); String$(28, 8);   ' (the prompt rubbed out: BS, spaces, BS)
+    If k = 81 Or k = 113 Or k = 27 Or k = 3 Then End
+    If k = 13 Then nl = pr - 2 Else nl = 0
+  End If
+  Print t
+  nl = nl + 1
 End Sub
 
 ' the free letter's path dropped again
