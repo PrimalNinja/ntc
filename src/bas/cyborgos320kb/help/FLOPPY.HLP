@@ -14,6 +14,6 @@ FLOPPY GAME.DSK A
   The image onto the disc: each track formatted as the image has it, then
   its sectors written. One side, 42 tracks at most.
   The controller itself does it (not AMSDOS or UniDOS): data (C1-C9),
-  system (41-49) and IBM (01-08) formats. Nothing else should use the
-  floppy drives meanwhile.
+  system (41-49) and IBM (01-08) formats. It claims the controller (FDC
+  0) first: another program's claim on it is refused until FLOPPY ends.
 

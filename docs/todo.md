@@ -9,6 +9,9 @@ finished, with the date.
 
 CyborgOS (a separate project built with NTC BASIC) keeps its own list: [cyborgos-todo.md](cyborgos-todo.md).
 
+- 2026-10-17 VarPtr in a routine nothing calls (left out, with its variables): its address
+  constant (vp_name) was still written - "Label not found" when the program used only some of a
+  class (Http.cls's Time alone). Now left out too
 - 2026-10-15 `As String Max n` on a ByVal parameter and a function's result (parser): its buffer n
   long instead of the program's longest string (MON: 1K smaller)
 - 2026-10-15 Option Buffer Size n / Option Buffer address, n: the library's buffer smaller (32-2048);

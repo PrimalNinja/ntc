@@ -42,9 +42,9 @@ in `bas/cyborgos128kb/`, with its own user guide.
   (the commands for the system drive Z), MON and its SYSTEM.MAP, three test programs (TICKER.CYB,
   CRUNCH.CYB, LINES.CYB; CRUNCH also as a plain CRUNCH.COM), the help texts (*.HLP) and
   INSTALL.BAS. Disc 2: the commands (.CYB: HELP, PS, TOP, KILL, RESET, FG, WAIT, MEM, MODE, DIR,
-  CD, CV, MKDIR, RMDIR, DRIVE, COPY, ERA, TYPE, RENAME, RAMDISC) and FLOPPY. Disc 3: Z ready-made
-  (CYBORGOS.Z1 ...). Disc 4: the web browsers YING and YANG, with their local pages HOME.8BM and
-  KEYS.8BM.
+  CD, CV, MKDIR, RMDIR, DRIVE, COPY, ERA, TYPE, RENAME, RAMDISC, CLAIMS) and FLOPPY. Disc 3: Z
+  ready-made (CYBORGOS.Z1 ...). Disc 4: the web browsers YING and YANG, with their local pages
+  HOME.8BM and KEYS.8BM, and NET (the network).
 - INSTALL.BAS (on disc 1 only; `RUN"INSTALL` from BASIC) puts all four in a folder CYBORGOS on
   your mass storage. Map the floppy drive as drive B first (UniDOS: `|DRIVE,"B","DFA:"`). It asks
   the device (Enter: IDE) and sets drive A to its top (`|DRIVE,"A","IDE:"` - so installing again
@@ -70,7 +70,7 @@ they need nothing of the hypervisor's RAM, only a BDOS call (131) for what the h
 | `CV` [*drive*] | change volume: this slot's drive (A-P, a RAM disc too): kept only when the drive is there. Each slot has its own (the boot drive to start with), as in CP/M; programs, RUN and DIR use it. `CV` alone: the slot's drive (with UniDOS also the drives with paths and the devices). `CD` changes folders (below) |
 | *drive*`:` | the same as `CV` *drive*: `B:` alone is `CV B:`, as in CP/M; `CV B` works too |
 | `FG` *slot* | that slot to the front |
-| `PS` | the slots: what each is doing (`*` = in front) |
+| `PS` | the slots: what each is doing (`*` = in front), and in `[ ]` the hardware its program has claimed |
 | `TOP` | the TOP table (each slot's state, program, and in the last whole second its turns, BDOS calls and characters), then `Total memory: n KB   Free memory: n KB`, printed once into this slot's console, like PS |
 | `KILL` *slot* | stops the program in that slot (its command line comes back) |
 | `RESET` [*slot*] | that slot (or this one) as before its command line was first opened: its program, if any, stopped and nothing kept; this slot opens again at once, as new |
@@ -80,6 +80,8 @@ they need nothing of the hypervisor's RAM, only a BDOS call (131) for what the h
 | `MEM` | main RAM as a table (each address range and what is there: CyborgOS, the window, free RAM, the firmware and ROMs, the screen); the map of the banks, a character a 16K page (B a slot's, U the hypervisor's: disc buffers, RAM discs - Z too -, - free), 32 pages (8 banks) a group, two groups a line; then the totals as TOP has them. Not in the Library: ROM build |
 | `HELP` [*name*] | the commands (HELP.HLP); `HELP DIR`, `HELP CV` ...: that one's text, NAME.HLP (a name with a `.` as it is: `HELP MY.TXT`). Looked for on this slot's drive, then in the HELP folder of A or B (`CYBORGOS/HELP`, where the installer puts them - UniDOS), then on A and Z. The .HLP files are plain text (CR LF lines, ^Z at the end) - any can be edited, and a program can have one of its own |
 | `FLOPPY` *from* [*to*] | CPC floppy discs read and written track by track, as COPY (*d*: `A`, `DFA`, `FDA`; `B`, `DFB`, `FDB`): `FLOPPY A` its files listed; `FLOPPY A` *folder* / *NAME*`.DSK` its files copied there, or the disc as an image; `FLOPPY` *folder* / *NAME*`.DSK` `A` the other way, onto the disc ([4a3](#4a3-floppy-floppy-discs-read-and-written-track-by-track)) |
+| `NET` [`M4` \| `OFF` \| `GET` *url* \| `TEST` *url* [*n*]] | the network: on through an M4 board, off, a page fetched, GETs timed ([4e](#4e-the-network-net)) |
+| `CLAIMS` [`TAKE` *name* [*unit*]] | hardware the programs drive themselves and have claimed; one taken back ([4f](#4f-claims-hardware-a-program-drives-itself)) |
 | `COPY`, `ERA`, `TYPE`, `RENAME` | disc commands ([4a](#4a-disc-commands-copy-era-type-rename-and-help)) |
 | `RAMDISC` | RAM discs ([4b](#4b-ram-discs-ramdisc)) |
 | `QUIT` | ends CyborgOS (it says how many programs ran - the commands count too) (built in) |
@@ -399,18 +401,59 @@ YING address        that page
 ```
 
 - **Addresses:** `http://host[:port]/path?parameters` - http only (https gets a page saying it
-  isn't supported). One typed with no `http://` gets it. The page is asked for as 8BML: an empty
-  `8bml` parameter goes on the request (`?8bml=`, or `&8bml=` after other parameters) - never
-  shown in the address. **For now there is no network:** the fetch is a stub that makes up a test
-  page (the address, the request as it would be sent, links: relative, with parameters, up a
-  folder, another host and port, https).
+  isn't supported). One typed with no `http://` gets it; 255 characters at most. The page is
+  asked for as 8BML: an empty `8bml` parameter goes on the request (`?8bml=`, or `&8bml=` after
+  other parameters) - never shown in the address. It is fetched over the network (`NET M4`
+  first: [4e](#4e-the-network-net)); without it, or when it can't be fetched, a page says why.
+  An address given on the command line keeps its small letters (`YING host/Page.php`).
+- **Forms:** a text field (`y`), a text area (`z`) and a select (`w`) are links: Enter on a field,
+  then type its value in the status line (Enter keeps it, ESC not; a password shows as `*`);
+  Enter on a select is its next choice. Enter on a button (`x`) sends the form: a GET to the
+  button's address with the fields as URL parameters - `name=value&...&action=`*the button's
+  text*, encoded (`%xx`) - 255 characters in all at most (a page says so when there is more). A
+  mandatory field (`m`) left empty is chosen instead, the status line saying so. The fields are
+  the ones after the button before (a page can have several forms); 20 at most.
 - **Files:** `A:NAME.8BM`, `NAME.8BM` (this drive) or `file:NAME.EXT` - an 8BML file read from the
-  disc (8K at most), its links from its own drive: local pages linked to each other, like
+  disc (7.5K at most), its links from its own drive: local pages linked to each other, like
   AmigaGuide. HOME.8BM and KEYS.8BM come with them.
 - **Links** are relative to the page: `/path` (the host's), `?parameters`, `../`, `./`, or whole.
 - **Toolbar:** 1 Back, 2 Reload, 3 Home, 4 Go to (an address typed in the status line - YANG:
   the toolbar's row - the page's to start with; Enter goes, ESC not, DEL rubs out), 5 Quit; or
   the letter (B, R, H, G, Q). The rest of the keys and the mouse are MON's.
+
+## 4e. The network: NET
+
+CyborgOS uses an M4 board's wifi for the programs: they ask CyborgOS (BDOS 131, ops 20-27), which
+drives the M4's sockets - the programs don't touch it. `NET M4` turns it on: the M4 is found by its
+ROM's name (`M4 BOARD`) and claimed by CyborgOS (`CLAIMS`: `M4 0`, slot 255) until `NET OFF`.
+
+| Command | Does |
+|---|---|
+| `NET` | whether the network is on, through which ROM |
+| `NET M4` | on (refused when a program has claimed the M4 itself) |
+| `NET OFF` | off - any sockets still open closed |
+| `NET GET` *url* | the page: its HTTP status, its length (and where a redirect took it), its text |
+| `NET TEST` *url* [*n*] | *n* GETs in a row (5): each one's status, length and time, then the average and the bytes a second |
+
+Programs use `cmds/Http.cls` (build with it and `CybSys.cls`): `Http.Get(url, buffer, max)` - an
+HTTP/1.0 GET, the body into the buffer (its length, -1 when it failed: `Http.Message()` why),
+`Http.Code()` the status, up to 3 redirects followed (`Http.Url()`: where it ended), a host's name
+looked up (the last one kept) or `1.2.3.4`. A socket is the program's that opened it: closed when
+the program ends, is killed or reset. In the harness a GET costs about 0.15 s of the CPC's time
+(plus the network's), 6K pages come at about 25K a second.
+
+## 4f. Claims: hardware a program drives itself
+
+A program that drives some hardware itself - FLOPPY the disc controller, a player the sound chip,
+the Multiface's RAM, an NVRAM, a serial card - claims it first (`CybSys.Claim(name, unit)`): a
+name and a unit (which of them - `SOUND 0` the CPC's own AY, `SOUND 1` and `2` a PlayCity's), held
+by one slot at a time. Another program's claim is refused while it is held (`SOUND 0 busy: slot
+2`), so two programs never drive it at once. `CybSys.Release` gives it back; ending, `KILL` and
+`RESET` give back all a program's claims. `CLAIMS` lists them (`PS` shows them too); `CLAIMS TAKE
+name [unit]` takes one back from its program - free for another; the program that had it sees it
+is gone (`CybSys.Held`: not 0) and stops using it. FLOPPY claims `FDC 0`; `NET M4` claims `M4 0`
+for CyborgOS (slot 255). CyborgOS can't stop a program touching hardware it hasn't claimed:
+claims are an agreement between programs.
 
 ## 5. Programs
 
@@ -605,8 +648,11 @@ for this are gone. RUN reads it with `FileSystem.ForReadRaw`: every byte, a #1A 
 - Two-sided and 80 track floppies (FLOPPY: one side, 42 tracks); a disc to disc copy.
 - Folders on RAM discs (the directory has a folder byte for them already).
 - The printer and the punch (BDOS 4, 5; the BIOS's LIST, PUNCH).
-- Drivers (printer, serial, sound ...) that programs reach with far calls.
-- Faster BDOS calls.
+- Drivers (printer, serial, sound ...) that programs reach with far calls - for now a program
+  drives the hardware itself, claiming it first ([4f](#4f-claims-hardware-a-program-drives-itself)).
+- Faster BDOS calls (a far call into CyborgOS: about 9 ms in the harness).
+- The network: keeping a connection open for several GETs (keep-alive), forms sent as POST, other
+  network cards (Net4CPC ...); CyborgOS's own floppy file calls claiming the FDC.
 
 ## 8. For developers
 
@@ -626,12 +672,12 @@ at the start, so they take no main RAM. The
 test programs are in `bas/cyborgos320kb/tasks/`, the commands in `bas/cyborgos320kb/cmds/`, each
 built for cpm: COPY, ERA, DIR with `CybDir.cls` (a drive's own directory read: UniDOS's listing,
 a RAM disc's); PS, KILL, RESET, FG, WAIT, TOP, MEM with `CybSys.cls` (BDOS 131); CD, CV with `CybVol.cls` (drive letters, paths, devices); HELP, RAMDISC,
-MKDIR, RMDIR, DRIVE, FLOPPY, TYPE, RENAME alone (HELP's texts: `bas/cyborgos320kb/help/*.HLP`, on disc 1). CyborgOS's own BDOS functions, for these commands:
+MKDIR, RMDIR, DRIVE, FLOPPY, TYPE, RENAME alone; CLAIMS with `CybSys.cls`; NET with `Http.cls` and `CybSys.cls` (HELP's texts: `bas/cyborgos320kb/help/*.HLP`, on disc 1). A program's command tail at #0080 is in capitals, as CP/M has it; the line as it was typed stays in the slot's command line buffer while the program runs (#F68F its length, #F690 its characters): `CybSys.Tail()` takes the tail from there, its small letters kept (RUN in another slot: #0080's). BDOS 131 calls don't end a program's turn (as the file calls): up to 32 a turn. CyborgOS's own BDOS functions, for these commands:
 
 | BDOS | DE = a block in the program | Does |
 |---|---|---|
 | 130 | op, letter, the driver's address, its length (words) | RAMDISC: op 0 a RAM disc as the letter (the driver goes into a page of its own the first time), 2 a free page more for it, 1 one of its pages back, 3 a line of the RAM discs' list |
-| 131 | op, slot or value, then what comes back | op 9 MODE also 5 (F); 10 memory read (byte 1: 0 a 16K page, 1 an upper ROM, 2 main RAM, 3 a slot's memory - one in use; word 2 the page / ROM / slot, word 4 the address, word 6 where to in the slot, word 8 how many - 2K at most, a page or ROM to its end); 11 the pointer (byte 1: 0 off, 1 at byte 2, byte 3 - a column, a row; only while the slot is in front); 12 the store: word 2 K (16K pages of the slot's own, 512K at most; gone when the program ends); 13 / 14 a 2K block of it (word 2) from / to the slot (word 6, word 8); 15 a raw table into the slot at word 2 (2K at most; byte 1: 0 the slots - a word how many, then from 16 a 16 byte record each: state, in front, MODE, the name's length, the name; 1 the memory - words: the tables' end, the top of free main RAM, the pages, total K, free pages, then from 16 a byte a page: B a slot's, U CyborgOS's, - free; 2 the upper ROMs 0-31 - 64 bytes each: the first 16 of the ROM, 48 of its name table; 3 the RAM discs - the driver's table, 8 x 16: letter, -, blocks, free blocks). 10-15 not in the Library: ROM build. And: op 0 a slot's state, whether it is in front, its program's name; 1 kill; 2 reset (0: this slot); 3 to the front; 4 wait until no other program runs; 6 TOP's table into this slot; 7 the memory (the tables' end, the top, the pages, the totals line); 8 32 pages of the bank map; 9 MODE (0-4: this slot's, its console cleared; 255: which it is). 7 and 8 not in the Library: ROM build |
+| 131 | op, slot or value, then what comes back | op 9 MODE also 5 (F); 10 memory read (byte 1: 0 a 16K page, 1 an upper ROM, 2 main RAM, 3 a slot's memory - one in use; word 2 the page / ROM / slot, word 4 the address, word 6 where to in the slot, word 8 how many - 2K at most, a page or ROM to its end); 11 the pointer (byte 1: 0 off, 1 at byte 2, byte 3 - a column, a row; only while the slot is in front); 12 the store: word 2 K (16K pages of the slot's own, 512K at most; gone when the program ends); 13 / 14 a 2K block of it (word 2) from / to the slot (word 6, word 8); 15 a raw table into the slot at word 2 (2K at most; byte 1: 0 the slots - a word how many, then from 16 a 16 byte record each: state, in front, MODE, the name's length, the name; 1 the memory - words: the tables' end, the top of free main RAM, the pages, total K, free pages, then from 16 a byte a page: B a slot's, U CyborgOS's, - free; 2 the upper ROMs 0-31 - 64 bytes each: the first 16 of the ROM, 48 of its name table; 3 the RAM discs - the driver's table, 8 x 16: letter, -, blocks, free blocks). 10-15 not in the Library: ROM build. And: op 0 a slot's state, whether it is in front, its program's name; 1 kill; 2 reset (0: this slot); 3 to the front; 4 wait until no other program runs; 6 TOP's table into this slot; 7 the memory (the tables' end, the top, the pages, the totals line); 8 32 pages of the bank map; 9 MODE (0-4: this slot's, its console cleared; 255: which it is). 7 and 8 not in the Library: ROM build. The claims (byte 1 the unit, bytes 2-9 the name, spaces after it): 16 claim - 0 yours, else the slot that has it (255: the table full - 16); 17 release - 0 done, 1 not yours; 18 take - the slot that had it (0 nobody); 19 held - 0 yours, else the slot that has it (254 nobody); table 4 (op 15): 16 records of 10 bytes - the slot (0 a free record), the unit, the name. The network (the M4's sockets; 255: it is off): 20 byte 1 0 the M4's ROM (255 off), 1 on (byte 2 its ROM), 2 off, 3 the clock (300 a second) to word 6; 21 a name looked up (word 2 where, byte 4 its length): 1 started; 22 socket byte 1's 16 bytes (the M4's table: +0 the state - 0 ready, 1 connecting, 2 sending, 3 closed by the other end, 5 looking up; +2 bytes waiting; +4 an IP) to word 2 (255: the lookup's); 23 a TCP socket (255 none); 24 connect socket byte 1 to IP bytes 2-5, port word 6; 25 send word 4 bytes (240 at most) from word 2; 26 receive up to word 4 (2048) to word 2 - how many to word 6; 27 close. 16-27 not in the Library: ROM build |
 
 CyborgOS starts by running `RAMDISC Z SYSTEM` with the boot drive's letter (the system drive:
 [2](#2-starting)). The regression tests run it in the harness with 4

@@ -1,13 +1,16 @@
 ' YANG: a web browser for CyborgOS 320K - YING (apps/ying) on MON2's whole screen (apps/mon2: the
 ' toolbar on row 0, the page on rows 1-23, the hardware scroll a line at a time). The same
 ' browser, the same keys; only the screen differs. Build for cpm with ../ying/Web.cls,
-' ../mon/Bml.cls, ../mon/Mouse.cls and cmds/CybSys.cls; a .CYB. Tabs are CyborgOS's slots.
+' ../mon/Bml.cls, ../mon/Mouse.cls, cmds/Http.cls and cmds/CybSys.cls; a .CYB. Tabs are CyborgOS's slots.
 '   YANG                HOME.8BM (this drive, else A:, else Z:)
 '   YANG address        that page
 ' Addresses (Web.cls): http://host[:port]/path?parameters - http only, no https; asked for as
-' 8BML (an empty 8bml parameter added to the request, never shown). For now the fetch is a
-' stub: a made-up test page. A file - A:NAME.8BM, NAME.8BM, file:NAME.EXT - is read from the
+' 8BML (an empty 8bml parameter added to the request, never shown), fetched over the network
+' (NET M4 first: cmds/Http.cls). A file - A:NAME.8BM, NAME.8BM, file:NAME.EXT - is read from the
 ' disc: local pages linked to each other, like AmigaGuide (its links from the page's drive).
+' Forms: a text field or area - Enter, then type its value (Enter keeps it, ESC not); a select -
+' Enter is its next choice; a button - Enter sends the form (GET: the fields as URL parameters,
+' then action=the button's text; a mandatory field left empty is chosen instead).
 '
 ' The screen: MODE F (84 x 24, all of it YANG's), its own put back at the end. Row 0 the toolbar
 ' (Back, Reload, Home, Go to, Quit), then the chosen link's address - or the page's - and the
@@ -19,8 +22,12 @@
 ' it; left button: a link, the toolbar, the scroll bar
 Option Explicit
 Option Terminal VT52              ' (CyborgOS's console: Locate and Cls as ESC Y, ESC E)
-Const SBUF = &HA000               ' 8K: the page's 8BML (Bml's links point into it)
-Const LBUF = &HD000               ' 4K: Bml's lines on their way to and from the store (2 blocks)
+#Const BML_FORMS = 1              ' (Bml.cls: its forms - fields with values, Query)
+Const FBUF = &HB500               ' 2.25K: the form fields' values (Bml.Forms: 18 of 128 bytes) - the
+                                  ' program must end below it (the regression checks)
+Const SBUF = &HBE00               ' 7.5K: the page's 8BML (Bml's links point into it)
+Const LBUF = &HDC00               ' 4K: Bml's lines on their way to and from the store (2 blocks;
+                                  ' in one 16K page: #C000-#FFFF) - to #EBFF, under the TPA's end
 Const VR = 23                     ' the page's rows on the screen (1-23: row 0 is the toolbar's)
 Const VW = 80                     ' and its columns (0-79)
 Const EY = 0                      ' the address box: row, column, width (the toolbar's row)
@@ -28,24 +35,27 @@ Const EX = 0
 Const EW = 83
 Const MD = 3                      ' the mouse: its counts a character cell
 Dim sn As Integer                            ' the page's 8BML: its length (at SBUF)
-Dim hs(15) As String Max 80, hn As Integer   ' the pages before (B goes back)
-Dim cu As String Max 80                      ' this page's address
-Dim hm As String Max 80                      ' the home page's (the command line's, else HOME.8BM)
+Dim hs(7) As String Max 255, hn As Integer   ' the pages before (B goes back: 8)
+Dim cu As String Max 255                     ' this page's address
+Dim hm As String Max 72                      ' the home page's (the command line's, else HOME.8BM)
+Dim ec As Integer                            ' Edit: ESC typed (nothing changed)
+Dim ua As String Max 255                     ' an address, a value: Edit's (and OpenLink's, Submit's ...)
 Dim tp As Integer, cl As Integer, sl As Integer   ' the first line shown, the current line, the link chosen (-1 none)
 Dim ol As Integer, os As Integer             ' ... as they were last drawn
 Dim px As Integer, py As Integer, fx As Integer, fy As Integer, pv As Integer, pb As Integer, idle As Integer
 Dim ms As Integer, qt As Integer, m0 As Integer, k As Integer, r As Integer, i As Integer
 Dim tbn(7) As String Max 12, tbc(7) As Integer, tbk(7) As Integer, ntb As Integer   ' the toolbar: names, columns, keys
-Dim st As String Max 80, s As String Max 80
+Dim st As String Max 120, s As String Max 80
 Dim hsp As Integer
 Dim eb(3) As Byte                            ' ESC Y row col, ESC I, LF: to the console raw (PutMem)
 
 m0 = CybSys.Ask(9, 255)
 If m0 > 5 Then Print "YANG needs CyborgOS 320K" : End
-hm = Trim$(System.CommandLine())
+hm = CybSys.Tail()                           ' (as typed: an address's small letters kept)
 If hm = "" Then hm = Web.Home()
 r = CybSys.Ask(9, 5)                         ' MODE F
 k = Bml.Init(LBUF, 2, VW)
+Bml.Forms FBUF, 18
 ms = Mouse.Present()
 px = 40 : py = 12
 st = ""
@@ -407,18 +417,66 @@ Sub Redraw()
   PtrOn
 End Sub
 
-' the chosen link followed: "<" back, else its address (from this page's)
+' the chosen link followed: "<" back, else its address (from this page's) - a form's field: its
+' value typed (a select: its next choice); a form's button: the form sent
 Sub OpenLink()
-  Dim u As String Max 80
+  Dim f As Integer, kd As Integer
   If sl < 0 Then Exit Sub
-  u = Bml.LinkUrl(sl)
-  If u = "<" Then Back Else Go Web.Resolve(cu, u), 1
+  kd = Bml.LinkKind(sl)
+  If kd = 0 Then
+    ua = Bml.LinkUrl(sl)
+    If ua = "<" Then Back Else Go Web.Resolve(cu, ua), 1
+  ElseIf kd = 4 Then
+    Submit
+  Else
+    f = Bml.LinkField(sl)
+    If kd = 3 Then
+      Bml.Pick f
+    Else
+      ua = Bml.Value(f)
+      Edit Bml.FieldName(f) + ": ", Bml.FieldMax(f), Bml.Masked(f)
+      If ec = 0 Then Bml.SetValue f, ua
+    End If
+    Redraw
+  End If
 End Sub
 
-' link j's address, as it is shown ("<": Back)
-Function LinkAt(ByVal j As Integer) As String Max 80
-  LinkAt = Bml.LinkUrl(j)
-  If LinkAt = "<" Then LinkAt = "Back" Else LinkAt = Web.Resolve(cu, LinkAt)
+' the form of the button chosen sent: its fields as the URL's parameters (Bml.Query) - unless a
+' mandatory one is empty (it is chosen, the status line says so)
+Sub Submit()
+  Dim f As Integer, j As Integer
+  f = Bml.Missing(sl)
+  If f >= 0 Then
+    st = "Fill in " + Bml.FieldName(f) + " first"
+    j = Bml.FieldLink(f)
+    If j >= 0 Then sl = j : cl = Bml.LinkLine(j)
+    Follow
+    Exit Sub
+  End If
+  ua = Web.Resolve(cu, Bml.LinkUrl(sl))
+  j = InStr(ua, "#")
+  If j > 0 Then ua = Left$(ua, j - 1)
+  If InStr(ua, "?") > 0 Then ua = ua + "&" Else ua = ua + "?"
+  j = Len(ua)
+  ua = ua + Bml.Query(sl)
+  If Len(ua) = j Or Len(ua) > 254 Then st = "Too much in the form to send (255 characters at most)" : Follow : Exit Sub
+  Go ua, 1
+End Sub
+
+' link j's address, as it is shown ("<": Back) - a field: its name, what Enter does
+Function LinkAt(ByVal j As Integer) As String Max 120
+  Dim kd As Integer
+  kd = Bml.LinkKind(j)
+  If kd = 0 Then
+    LinkAt = Bml.LinkUrl(j)
+    If LinkAt = "<" Then LinkAt = "Back" Else LinkAt = Web.Resolve(cu, LinkAt)
+  ElseIf kd = 4 Then
+    LinkAt = "Send the form to " + Web.Resolve(cu, Bml.LinkUrl(j))
+  ElseIf kd = 3 Then
+    LinkAt = Bml.FieldName(Bml.LinkField(j)) + ": Enter - the next choice"
+  Else
+    LinkAt = Bml.FieldName(Bml.LinkField(j)) + ": Enter - type it"
+  End If
 End Function
 
 Sub Back()
@@ -428,19 +486,19 @@ Sub Back()
 End Sub
 
 ' page u fetched (Web: http, or a file), laid out and drawn; push: the one before kept for B
-Sub Go(ByVal u As String Max 80, ByVal push As Integer)
+Sub Go(ByVal u As String Max 255, ByVal push As Integer)
   u = Web.Clean(u)
   If push And cu <> "" Then
-    If hn > 15 Then
-      For i = 0 To 14
+    If hn > 7 Then
+      For i = 0 To 6
         hs(i) = hs(i + 1)
       Next
-      hn = 15
+      hn = 7
     End If
     hs(hn) = cu : hn = hn + 1
   End If
   cu = u
-  sn = Web.Fetch(u, SBUF, 8190)
+  sn = Web.Fetch(u, SBUF, 7678)
   r = Bml.Render(SBUF, sn)
   tp = -1 : cl = 0 : sl = -1
   If Bml.Links() > 0 Then sl = 0
@@ -455,7 +513,6 @@ Sub Tools()
 End Sub
 
 Sub Tool(ByVal j As Integer)
-  Dim u As String Max 80
   Select Case j
     Case 0
       Back
@@ -464,40 +521,44 @@ Sub Tool(ByVal j As Integer)
     Case 2
       Go hm, 1
     Case 3                                       ' an address typed (this page's to start with)
-      u = Edit("Go to: ", cu)
-      If u = "" Then DrawBar Else Go u, 1
+      ua = cu
+      Edit "Go to: ", 255, 0
+      ua = Trim$(ua)
+      If ec Or ua = "" Then DrawBar Else Go ua, 1
     Case 4
       qt = -1
   End Select
 End Sub
 
-' a line typed in the address box (EY, EX, EW): p, then v to start with - its end shown when it
-' is longer than the box. Enter: it; ESC: "" (DEL rubs out)
-Function Edit(ByVal p As String, ByVal v As String) As String Max 80
-  Dim e As String Max 80, c As Integer, n As Integer
-  e = v
+' ua typed in the address box (EY, EX, EW), after p - its end shown when it is longer than the
+' box; mx characters at most, mk: shown as * (a password). Enter: done; ESC: ua as it was, ec
+' set (DEL rubs out)
+Sub Edit(ByVal p As String Max 80, ByVal mx As Integer, ByVal mk As Integer)
+  Dim c As Integer, n As Integer, v As Integer
+  ec = 0 : v = Len(ua)
+  If v > mx Then ua = Left$(ua, mx)
   PtrOff
   n = EW - Len(p)
   Do
     At EY, EX
-    If Len(e) > n Then
-      Print p; Right$(e, n);
+    If Len(ua) > n Then
+      If mk Then Print p; String$(n, "*"); Else Print p; Right$(ua, n);
       At EY, EX + EW
     Else
-      Print p; e; Space$(n - Len(e));
-      At EY, EX + Len(p) + Len(e)
+      If mk Then Print p; String$(Len(ua), "*"); Else Print p; ua;
+      Print Space$(n - Len(ua));
+      At EY, EX + Len(p) + Len(ua)
     End If
     Do
       c = Inkey
     Loop Until c <> 0
     If c = 13 Then Exit Do
-    If c = 252 Then e = "" : Exit Do
+    If c = 252 Then ec = -1 : Exit Do
     If c = 127 Or c = 8 Then
-      If Len(e) > 0 Then e = Left$(e, Len(e) - 1)
-    ElseIf c >= 32 And c < 127 And Len(e) < 80 Then
-      e = e + Chr$(c)
+      If Len(ua) > 0 Then ua = Left$(ua, Len(ua) - 1)
+    ElseIf c >= 32 And c < 127 And Len(ua) < mx Then
+      ua = ua + Chr$(c)
     End If
   Loop
   PtrOn
-  Edit = Trim$(e)
-End Function
+End Sub

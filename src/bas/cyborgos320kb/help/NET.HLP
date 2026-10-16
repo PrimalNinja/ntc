@@ -1,0 +1,9 @@
+NET [M4 | OFF | GET url | TEST url [n]]
+  The network: an M4 board's wifi, used by CyborgOS for the programs
+  (YING, YANG ...: HTTP GETs, http only). NET alone: on or off.
+  NET M4 turns it on - the M4 found by its ROM's name, then claimed
+  by CyborgOS (CLAIMS: M4 0) until NET OFF. NET GET url: the page's
+  status, length and text. NET TEST url [n]: n GETs (5 if not given),
+  each one's time, then the average and the bytes a second.
+  Addresses keep their small letters: NET GET host/Page.php
+

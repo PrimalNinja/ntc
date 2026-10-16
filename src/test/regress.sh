@@ -500,9 +500,9 @@ python3 -c "import ntcrun; d = open('t/cy/LINES.COM', 'rb').read(); open('t/file
 # the commands (cmds: PS, MEM, DIR, CD, COPY ... - .CYB programs, run by their names; CyborgOS
 # starts by running RAMDISC Z SYSTEM, which finds no CYBORGOS.Z here: the commands come from A)
 mkdir -p t/cmd; cp $P/cyborgos320kb/cmds/* t/cmd/
-CYBCMDS="COPY ERA TYPE RENAME HELP RAMDISC DIR CD CV MKDIR RMDIR DRIVE FLOPPY PS KILL RESET FG WAIT TOP MEM MODE"
+CYBCMDS="COPY ERA TYPE RENAME HELP RAMDISC DIR CD CV MKDIR RMDIR DRIVE FLOPPY PS KILL RESET FG WAIT TOP MEM MODE CLAIMS NET"
 for g in $CYBCMDS; do
-  case $g in PS|KILL|RESET|FG|WAIT|TOP|MEM|MODE) c=t/cmd/CybSys.cls;; CD|CV) c=t/cmd/CybVol.cls;; RAMDISC|HELP|MKDIR|RMDIR|DRIVE|TYPE|RENAME) c="";; *) c=t/cmd/CybDir.cls;; esac
+  case $g in PS|KILL|RESET|FG|WAIT|TOP|MEM|MODE|CLAIMS) c=t/cmd/CybSys.cls;; NET) c="t/cmd/Http.cls t/cmd/CybSys.cls";; CD|CV) c=t/cmd/CybVol.cls;; RAMDISC|HELP|MKDIR|RMDIR|DRIVE|TYPE|RENAME) c="";; *) c=t/cmd/CybDir.cls;; esac
   node cli.js t/cmd/$g.bas $c --platform=cpm > t/cmd/$g.asm 2>/dev/null
   (cd t/cmd && ${SJASMPLUS:-sjasmplus} --nologo --msg=err --raw=$g.COM $g.asm > /dev/null)
   python3 -c "import ntcrun; d = open('t/cmd/$g.COM', 'rb').read(); open('t/files/A/$g.CYB', 'wb').write(ntcrun.amsdos_header(d, 0x100) + d)"
@@ -554,6 +554,18 @@ if echo "$o" | grep -q "^10> ps" && echo "$o" | grep -q "^ 10 \* PS.CYB"; then e
 # RESET: slot 2's program stopped and the slot closed; RESET on its own: this slot as new
 o=$(timeout 300 python3 ntcrun.py t/cy/Main.bas "run 2 CRUNCH\n${W}reset 2\nps\n${W}reset\n${W}ps\n${W}" t/cy/Hyp.cls t/cy/Hot.cls t/cy/Ent.cls --platform=cpcfw --ram=576 2>&1)
 if echo "$o" | grep -q "^  2   -" && [ "$(echo "$o" | grep -c "^CyborgOS slot 1 of 4")" == 1 ] && ! echo "$o" | grep -q "reset 2"; then echo "ok   CyborgOS RESET"; else echo "FAIL CyborgOS RESET"; echo "$o" | tail -5; fail=1; fi
+# CLAIMS: CLAIMT in slot 2 claims SOUND 0 (PS shows it), slot 3's claim refused, CLAIMS TAKE takes
+# it back (slot 2 sees it lost); then claimed again in slot 2, KILL 2 frees it
+node cli.js $P/cyborgos320kb/tasks/CLAIMT.bas t/cmd/CybSys.cls --platform=cpm > t/cy/CLAIMT.asm 2>/dev/null
+(cd t/cy && ${SJASMPLUS:-sjasmplus} --nologo --msg=err --raw=CLAIMT.COM CLAIMT.asm > /dev/null)
+python3 -c "import ntcrun; d = open('t/cy/CLAIMT.COM', 'rb').read(); open('t/files/A/CLAIMT.CYB', 'wb').write(ntcrun.amsdos_header(d, 0x100) + d)"
+o=$(timeout 300 python3 ntcrun.py t/cy/Main.bas "run 2 CLAIMT\n${W}claims\n${W}claims take sound\n${W}claims\n${W}run 2 CLAIMT\n${W}kill 2\n${W}claims\n${W}" t/cy/Hyp.cls t/cy/Hot.cls t/cy/Ent.cls --platform=cpcfw --ram=576 2>&1)
+o2=$(timeout 300 python3 ntcrun.py t/cy/Main.bas "run 2 CLAIMT\n${W}run 3 CLAIMT\n${W}fg 3\n${W}" t/cy/Hyp.cls t/cy/Hot.cls t/cy/Ent.cls --platform=cpcfw --ram=576 2>&1)
+o3=$(timeout 300 python3 ntcrun.py t/cy/Main.bas "run 2 CLAIMT\n${W}claims take sound 0\n${W}fg 2\n${W}" t/cy/Hyp.cls t/cy/Hot.cls t/cy/Ent.cls --platform=cpcfw --ram=576 2>&1)
+o4=$(timeout 300 python3 ntcrun.py t/cy/Main.bas "run 2 CLAIMT\n${W}ps\n${W}" t/cy/Hyp.cls t/cy/Hot.cls t/cy/Ent.cls --platform=cpcfw --ram=576 2>&1)
+if echo "$o" | grep -qE "^SOUND +0 +2  CLAIMT.CYB" && echo "$o4" | grep -q "^  2   CLAIMT.CYB  \[SOUND 0\]" && echo "$o" | grep -q "^SOUND 0 taken from slot 2" \
+  && [ "$(echo "$o" | grep -c "^No claims")" == 2 ] && echo "$o2" | grep -q "^SOUND 0 busy: slot 2" && echo "$o3" | grep -qE "^SOUND 0 lost to slot (1|254)$"; then echo "ok   CyborgOS CLAIMS: claim, refused, take, freed by KILL"; else echo "FAIL CyborgOS CLAIMS"; echo "$o" | tail -30; echo "$o2" | tail -6; echo "$o3" | tail -6; echo "$o4" | tail -6; fail=1; fi
+rm -f t/files/A/CLAIMT.CYB
 # CyborgOS's command line at #BE80 (NTC_POKE): CYB A KEYREP 10 - KM SET DELAY with the start delay
 # and the repeat 10 times as long (30 -> 255 at most, 2 -> 20); RUN 2 CRUNCH 3 - a slot first, the
 # program's tail after it
@@ -638,11 +650,12 @@ if echo "$o" | grep -q "^+- Hex: main 0 #0000 " && echo "$o" | grep -q "^|0040  
 rm -f t/files/A/MON.CYB t/files/A/SYSTEM.MAP t/files/A/TEST.MAP t/files/A/LIST.CYB
 # YING, YANG (apps/ying, apps/yang: the web browsers - Web.cls, MON's / MON2's screen): HOME.8BM
 # from the disc, Enter on its first link (KEYS.8BM: a file, its Home link from its drive); G and
-# an address (DEL rubs out the one there): the stub's page - asked for with &8bml= after the
-# parameters, the place (#) left out; https: not supported
+# an address (DEL rubs out the one there): no network yet - its page says so; https: not supported
 mkdir -p t/web; B=$P/cyborgos320kb/apps
 for g in YING YANG; do
-  node cli.js $B/$(echo $g | tr A-Z a-z)/$g.bas $B/ying/Web.cls $B/mon/Bml.cls $B/mon/Mouse.cls $P/cyborgos320kb/cmds/CybSys.cls --platform=cpm > t/web/$g.asm 2>/dev/null
+  node cli.js $B/$(echo $g | tr A-Z a-z)/$g.bas $B/ying/Web.cls $B/mon/Bml.cls $B/mon/Mouse.cls $P/cyborgos320kb/cmds/Http.cls $P/cyborgos320kb/cmds/CybSys.cls --platform=cpm > t/web/$g.asm 2>/dev/null
+  (cd t/web && ${SJASMPLUS:-sjasmplus} --nologo --msg=err --sym=$g.sym --raw=/dev/null $g.asm > /dev/null)
+  [ $((16#$(grep -E '^ntc_free:' t/web/$g.sym | grep -oE '[0-9A-F]{4}$'))) -le $((0xB500)) ] || { echo "FAIL CyborgOS $g: the program reaches its buffers (#B500)"; fail=1; }
   (cd t/web && ${SJASMPLUS:-sjasmplus} --nologo --msg=err --raw=$g.COM $g.asm > /dev/null)
   python3 -c "import ntcrun; d = open('t/web/$g.COM', 'rb').read(); open('t/files/A/$g.CYB', 'wb').write(ntcrun.amsdos_header(d, 0x100) + d)"
 done
@@ -652,8 +665,30 @@ o=$(NTC_LIMIT=60000 timeout 2500 python3 ntcrun.py t/cy/Main.bas "ying\n${W}${W}
 o2=$(NTC_LIMIT=60000 timeout 2500 python3 ntcrun.py t/cy/Main.bas "ying\n${W}${W}g${W}${DL}example.com/a/b.8bml?x=1#top\n${W}${W}" t/cy/Hyp.cls t/cy/Hot.cls t/cy/Ent.cls --platform=cpcfw --ram=576 2>&1)
 o3=$(NTC_LIMIT=60000 timeout 2500 python3 ntcrun.py t/cy/Main.bas "yang\n${W}${W}g${W}${DL}https://x.org/\n${W}${W}" t/cy/Hyp.cls t/cy/Hot.cls t/cy/Ent.cls --platform=cpcfw --ram=576 2>&1)
 o4=$(NTC_LIMIT=60000 timeout 2500 python3 ntcrun.py t/cy/Main.bas "yang\n${W}${W}\n${W}${W}" t/cy/Hyp.cls t/cy/Hot.cls t/cy/Ent.cls --platform=cpcfw --ram=576 2>&1)
-if echo "$o" | grep -q "^+- Keys -" && echo "$o" | grep -q "^| HOME.8BM " && echo "$o2" | grep -q "^|Asked for as: http://example.com/a/b.8bml?x=1&8bml= " && echo "$o2" | grep -q "^|Address: http://example.com/a/b.8bml?x=1#top " && echo "$o2" | grep -q "^| http://example.com/ " \
+if echo "$o" | grep -q "^+- Keys -" && echo "$o" | grep -q "^| HOME.8BM " && echo "$o2" | grep -q "^|No network (NET M4) " && echo "$o2" | grep -q "^|http://example.com/a/b.8bml?x=1#top " && echo "$o2" | grep -q "^+- Can't fetch it -" \
   && echo "$o3" | grep -q "^https isn't supported - http only:" && echo "$o4" | grep -qE "^1:Back 2:Reload 3:Home 4:Go to 5:Quit \| HOME.8BM +1 / 21$"; then echo "ok   CyborgOS YING, YANG (web browsers)"; else echo "FAIL CyborgOS YING, YANG (web browsers)"; echo "$o" | tail -6; echo "$o2" | tail -24; echo "$o3" | tail -8; echo "$o4" | tail -4; fail=1; fi
+# the network (NTC_M4: the harness's M4 - real sockets - and websrv.py, a web server here): NET
+# off, NET M4 (the M4 found by its ROM's name, claimed as M4 0 by CyborgOS), NET GET a redirect
+# (/moved: to /echo?moved=1 - the address's small letters kept), NET TEST, NET OFF; YING: a page
+# with a form - its fields typed (a password shown as *), a select's next choice, Send: GET
+# /echo?name=...&action=Send (the server shows the parameters); Send with a mandatory field empty:
+# that field chosen
+WP=18765; rm -rf t/www; mkdir -p t/www
+printf '%s' '-"1","Form":p"Contact":n:t"Name *":y"name","20","m","":t"Password":y"pw","10","p","":t"Message":z"msg","30","2","","":t"Computer *":w"comp","a","m","a","Amstrad CPC","c","Commodore 64":n:x"/echo","Send":.' > t/www/form.8bm
+python3 websrv.py $WP t/www > /dev/null 2>&1 & WS=$!
+sleep 1; T=$(printf '\t')
+o=$(NTC_M4=1 timeout 900 python3 ntcrun.py t/cy/Main.bas "net\n${W}net m4\n${W}${W}claims\n${W}net get localhost:$WP/moved\n${W}${W}${W}" t/cy/Hyp.cls t/cy/Hot.cls t/cy/Ent.cls --platform=cpcfw --ram=576 2>&1)
+o1=$(NTC_M4=1 timeout 900 python3 ntcrun.py t/cy/Main.bas "net m4\n${W}${W}net test 127.0.0.1:$WP/big?n=3000 2\n${W}${W}${W}${W}net off\n${W}net\n${W}" t/cy/Hyp.cls t/cy/Hot.cls t/cy/Ent.cls --platform=cpcfw --ram=576 2>&1)
+o2=$(NTC_M4=1 NTC_LIMIT=90000 timeout 3000 python3 ntcrun.py t/cy/Main.bas "net m4\n${W}${W}ying http://localhost:$WP/form.8bm\n${W}${W}${W}\n${W}Jo Ann\n${W}${T}${W}\n${W}x&y\n${W}${T}${W}\n${W}hi there\n${W}${T}${W}\n${W}${T}${W}\n${W}${W}${W}${W}" t/cy/Hyp.cls t/cy/Hot.cls t/cy/Ent.cls --platform=cpcfw --ram=576 2>&1)
+o3=$(NTC_M4=1 NTC_LIMIT=90000 timeout 3000 python3 ntcrun.py t/cy/Main.bas "net m4\n${W}${W}yang http://localhost:$WP/form.8bm\n${W}${W}${W}${T}${W}\n${W}x&y\n${W}${T}${W}${T}${W}\n${W}${T}${W}\n${W}${W}" t/cy/Hyp.cls t/cy/Hot.cls t/cy/Ent.cls --platform=cpcfw --ram=576 2>&1)
+kill $WS 2>/dev/null
+if echo "$o" | grep -q "^No network (NET M4 turns it on through an M4 board)" && echo "$o" | grep -q "^Network on: M4 (ROM 3)" && echo "$o" | grep -qE "^M4 +0 +255" \
+  && echo "$o" | grep -q "^HTTP 200, 36 bytes (moved to http://localhost:$WP/echo?moved=1)" && echo "$o" | grep -q 't"moved=1"' && echo "$o1" | grep -qE "^2: HTTP 200, 3091 bytes, [0-9]+ ms" \
+  && echo "$o1" | grep -q "^Average " && echo "$o1" | grep -q "^Network off" && echo "$o1" | grep -q "^No network (NET M4" \
+  && grep -q "^GET /moved HTTP/1.0" t/www/requests.log && grep -q "^GET /echo?moved=1 HTTP/1.0" t/www/requests.log \
+  && echo "$o2" | grep -q "^|name=Jo Ann " && echo "$o2" | grep -q "^|pw=x&y " && echo "$o2" | grep -q "^|msg=hi there " && echo "$o2" | grep -q "^|comp=c " && echo "$o2" | grep -q "^|action=Send " \
+  && grep -q "^GET /form.8bm?8bml= HTTP/1.0" t/www/requests.log && grep -qF "GET /echo?name=Jo%20Ann&pw=x%26y&msg=hi%20there&comp=c&action=Send&8bml= HTTP/1.0" t/www/requests.log \
+  && echo "$o3" | grep -q "Fill in name first" && echo "$o3" | grep -q "^|\*\*\*_______|" && echo "$o3" | grep -q "^\[ Commodore 64 v\]"; then echo "ok   CyborgOS NET M4 (the harness's M4), YING / YANG forms"; else echo "FAIL CyborgOS NET M4, YING / YANG forms"; echo "$o" | tail -30; echo "$o1" | tail -14; echo "$o2" | tail -24; echo "$o3" | tail -24; cat t/www/requests.log; fail=1; fi
 rm -f t/files/A/YING.CYB t/files/A/YANG.CYB t/files/A/*.8BM
 # RAM discs (RAMDISC: the driver into a page of its own, the hypervisor's file calls offered to
 # it first): J and L made, files copied there, DIR of one, RDT (cpm/rdt.asm: random reads and

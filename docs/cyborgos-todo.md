@@ -9,6 +9,24 @@ version.
 
 ## done
 
+- 2026-10-17 The network: NET M4 (the M4 found by its ROM's name, claimed by CyborgOS), NET OFF,
+  NET GET, NET TEST; BDOS 131 ops 20-27 in the service page (the M4's sockets, a slot's own -
+  closed when its program ends: no main RAM); cmds/Http.cls (HTTP/1.0 GETs: lookups, redirects,
+  the headers scanned in Z80, the request sent in one go). The harness has an M4 (NTC_M4: real
+  sockets) and a web server (websrv.py). A GET: 0.15 s of the CPC's time in the harness
+- 2026-10-17 YING, YANG fetch real pages (the stub gone) and send 8BML forms: text fields, text
+  areas, selects, buttons - a GET with the fields as URL parameters and action=, mandatory fields
+  checked (Bml.cls with #Const BML_FORMS: MON stays as it was). Addresses up to 255 characters;
+  the buffers moved up (#B200: values, #BC00: the page, #DC00: the lines), history 8 pages
+- 2026-10-17 Claims: CybSys.Claim / Release / Take / Held (BDOS 131 ops 16-19 - a name and a unit,
+  one slot at a time), freed when a program ends, is killed or reset; CLAIMS (CLAIMS TAKE), PS
+  shows them, FLOPPY claims FDC 0. No main RAM (the service page)
+- 2026-10-17 The command tail as it was typed (CybSys.Tail: from the line still in the slot's
+  command line buffer - #0080 stays in capitals for CP/M; no main RAM): NET, YING, YANG keep an
+  address's small letters
+- 2026-10-17 BDOS 131 calls run on in the same turn (as the file calls, 32 at most): each ended
+  the program's turn before
+
 - 2026-10-16 Control + a letter reaches the program (WordStar's keys, Control + C): Main dropped
   every key typed with Control held (for Control + 1-9); now only while a system key (a number,
   ESC) is held (Hot.Held). ESC reaches programs as #1B (the firmware's #FC), as Amstrad's CP/M.

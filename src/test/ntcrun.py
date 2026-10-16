@@ -202,6 +202,74 @@ class Fdc:
 
 FDC = Fdc(os.environ['NTC_FDC'].split(',')) if os.environ.get('NTC_FDC') else None
 
+class M4:
+    """NTC_M4=1: an M4 board (cpcfw) - its ROM in slot M4SLOT (named M4 BOARD; #FF02 the answer's
+    address #E800, #FF06 the sockets' table #FE00: 16 bytes a socket), a command's bytes out of
+    #FE00 (its size, the command, its data), a write to #FC00 runs it. Its network commands work
+    with real sockets (a test's server on this machine): name lookup, socket, connect, send,
+    recv, close. NTC_M4LOG=1: each command to stderr"""
+    SLOT = 3; RSP = 0x2800; SKT = 0x3E00
+    def __init__(s):
+        r = bytearray(0x4000); r[0] = 1; r[1:4] = bytes([2, 0, 0]); r[4:6] = (0xC010).to_bytes(2, 'little')
+        r[0x10:0x18] = b'M4 BOAR' + bytes([ord('D') | 0x80]); r[0x18] = 0
+        r[0x3F02:0x3F04] = (0xC000 + s.RSP).to_bytes(2, 'little'); r[0x3F06:0x3F08] = (0xC000 + s.SKT).to_bytes(2, 'little')
+        s.rom = r; s.buf = bytearray(); s.socks = {}; s.saved = None; s.log = bool(os.environ.get('NTC_M4LOG'))
+    def ent(s, n): return s.SKT + 16 * n
+    def refresh(s):
+        import socket as so
+        for n, k in list(s.socks.items()):
+            e = s.ent(n)
+            if s.rom[e] in (1, 2): s.rom[e] = 0
+            try:
+                d = k.recv(4096, so.MSG_PEEK | so.MSG_DONTWAIT)
+                p = len(d)
+                if p == 0: s.rom[e] = 3
+            except BlockingIOError: p = 0
+            except OSError: p = 0; s.rom[e] = 3
+            s.rom[e + 2:e + 4] = min(p, 0xFFFF).to_bytes(2, 'little')
+    def kick(s):
+        import socket as so
+        b = bytes(s.buf); s.buf = bytearray()
+        if len(b) < 3: return
+        cmd = b[1] | (b[2] << 8); d = b[3:]; R = s.RSP; s.rom[R + 3] = 0
+        if s.log: print('--- m4 %04x %r' % (cmd, d[:40]), file=sys.stderr)
+        if cmd == 0x4336:                                   # a name looked up
+            nm = d.split(b'\0')[0].decode('latin-1'); e = s.ent(0)
+            try: ip = so.inet_aton(so.gethostbyname(nm)); s.rom[e] = 0; s.rom[e + 4:e + 8] = ip
+            except OSError: s.rom[e] = 0xFF
+            s.rom[R + 3] = 1
+        elif cmd == 0x4331:                                 # a socket
+            n = next((i for i in (1, 2, 3) if i not in s.socks), 255)
+            if n != 255: s.socks[n] = so.socket(so.AF_INET, so.SOCK_STREAM); s.rom[s.ent(n):s.ent(n) + 16] = bytes(16)
+            s.rom[R + 3] = n
+        elif cmd == 0x4332:                                 # connect
+            n = d[0]; k = s.socks.get(n); e = s.ent(n)
+            if k is None: s.rom[R + 3] = 0xFF; return
+            try:
+                k.settimeout(5); k.connect((so.inet_ntoa(bytes(d[1:5])), d[5] | (d[6] << 8))); k.setblocking(False); s.rom[e] = 0
+            except OSError: s.rom[e] = 0xFC
+        elif cmd == 0x4334:                                 # send
+            n = d[0]; k = s.socks.get(n); ln = d[1] | (d[2] << 8)
+            if k is None: s.rom[R + 3] = 0xFF; return
+            try: k.setblocking(True); k.sendall(bytes(d[3:3 + ln])); k.setblocking(False)
+            except OSError: s.rom[R + 3] = 0xFF
+        elif cmd == 0x4335:                                 # recv
+            n = d[0]; k = s.socks.get(n); ln = d[1] | (d[2] << 8); got = b''
+            if k is None: s.rom[R + 3] = 0xFF; return
+            try: got = k.recv(min(ln, 2048))
+            except BlockingIOError: got = b''
+            except OSError: got = b''
+            s.rom[R + 4:R + 6] = len(got).to_bytes(2, 'little'); s.rom[R + 6:R + 6 + len(got)] = got
+        elif cmd == 0x4333:                                 # close
+            n = d[0]; k = s.socks.pop(n, None)
+            if k is not None:
+                try: k.close()
+                except OSError: pass
+            if n < 8: s.rom[s.ent(n):s.ent(n) + 16] = bytes(16)
+        s.refresh()
+
+M4B = M4() if os.environ.get('NTC_M4') else None
+
 class Screen:
     def __init__(s, cols, rows):
         s.cols = cols; s.rows = rows; s.clear()
@@ -356,6 +424,12 @@ class Host:
         return (s.T // 13333) & 0xFFFF
     def out(s, port, val):
         lo = port & 0xFF; m = s.m
+        if M4B and s.p == 'cpcfw' and lo == 0 and (port >> 8) in (0xFE, 0xFC):
+            if (port >> 8) == 0xFE: M4B.buf.append(val)
+            else:
+                M4B.kick()
+                if s.romsel == M4.SLOT: m.set_memory_block(0xC000, bytes(M4B.rom))
+            return
         if FDC and (port >> 8) in (0xFA, 0xFB) and lo in (0x7E, 0x7F):
             if (port >> 8) == 0xFA: FDC.motor = val & 1
             elif lo == 0x7F: FDC.wr(val)
@@ -500,8 +574,13 @@ class Host:
                 # the upper ROM selected: the keyword ROM's image at #C000 for its slot, anything
                 # else looks like BASIC (#80: a foreground ROM) to the program's search
                 old = s.romsel; s.romsel = m.c
-                if m.c in s.xroms: m.set_memory_block(0xC000, s.xroms[m.c])
-                else: m.set_memory_block(0xC000, b'\x80')
+                if M4B and old == M4.SLOT and m.c != M4.SLOT and M4B.saved is not None:
+                    m.set_memory_block(0xC000, M4B.saved); M4B.saved = None   # (the RAM under it back)
+                if M4B and m.c == M4.SLOT:
+                    if M4B.saved is None: M4B.saved = bytes(m.memory[0xC000:0x10000])
+                    M4B.refresh(); m.set_memory_block(0xC000, bytes(M4B.rom))
+                elif m.c in s.xroms: m.set_memory_block(0xC000, s.xroms[m.c])
+                elif not (M4B and old == M4.SLOT): m.set_memory_block(0xC000, b'\x80')
                 m.c = old; m.b = 0
             elif f == 'kl_far_pcall':
                 n = RSX[m.hl - 0x4000]

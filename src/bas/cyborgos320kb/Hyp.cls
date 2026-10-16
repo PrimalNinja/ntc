@@ -3901,8 +3901,11 @@ End Sub
 '   11  the pointer (Byte(1) 0 off, 1 at column Byte(2), row Byte(3); only while in front)
 '   13  2K block Word(2) of the slot's store from the slot (Word(6), Word(8)); 14 to the slot
 '   15  a raw table to the slot at Word(2) (Byte(1): 0 the slots, 1 the memory, 2 the ROMs 0-31, 3 the
-'       RAM discs)
-' 0 done, 255 no such page / slot / table
+'       RAM discs, 4 the claims)
+'   16-19  the claims: claim, release, take, held - hardware a program drives itself (sv_claim)
+'   20-27  the network: the M4's sockets (NET M4; sv_net)
+' 0 done, 255 no such page / slot / table. Svc(t, 0, 0, buf): slot t's claims freed, its sockets
+' closed
 Public Sub UseSvc()
 #asm
             ld hl, (ntc_rampt)
@@ -4009,6 +4012,10 @@ sv_dxn:     db 0
             ds #6000 - $
 sv_go:
             ld (sv_sp), sp
+            ld hl, ({p})            ; p 0: slot t's claims freed (Main's FilesShut)
+            ld a, h
+            or l
+            jp z, sv_cfree
             ld hl, ({p})            ; the request (16 bytes) from the slot
             ld de, ({setting})
             call sv_sw
@@ -4049,6 +4056,12 @@ sv_n1:
             jp z, sv_store
             cp 15
             jp z, sv_tab
+            cp 16
+            jp c, sv_err
+            cp 20
+            jp c, sv_claim
+            cp 28
+            jp c, sv_net
 sv_err:
             ld sp, (sv_sp)
             ld a, 255
@@ -4263,7 +4276,17 @@ sv_tab:
             jp z, sv_t2
             dec a
             jp z, sv_t3
+            dec a
+            jp z, sv_t4
             jp sv_err
+; 4: the claims - CL_N records of 10 bytes: the slot holding it (0: a free record), the unit,
+; the name (8 characters, spaces after it)
+sv_t4:
+            ld hl, sv_cl
+            ld de, (sv_da)
+            ld bc, CL_N * 10
+            call sv_out
+            jp sv_ok
 ; 0: the slots - a word how many, then from 16 a record each: state, in front, MODE, the name's
 ; length, the name
 sv_t0:
@@ -4667,6 +4690,556 @@ sv_pgset:
             dec hl
             ld c, (hl)
             ret
+; ---- 16-19: the claims - hardware a program drives itself (FDC, SOUND, MF2, NVRAM, M4 ...): a
+; name (Byte(2-9): 8 characters, spaces after) and a unit (Byte(1): which of them - a LUN), held
+; by one slot at a time; all a slot's freed when its program ends, is killed or reset (p 0). The
+; answer: 16 claim - 0 yours (now, or already), else the slot holding it (255: CL_N in use);
+; 17 release - 0 done, 1 not yours; 18 take - yours now, whoever had it: the slot that had it
+; (0 nobody); 19 held - 0 yours, else the slot holding it (254 nobody)
+CL_N:       equ 16
+sv_claim:
+            ld b, a                 ; B = the op
+            call cl_find            ; Z: HL = its record
+            ld a, ({t})
+            ld c, a                 ; C = this slot
+            jr nz, cl_none
+            ld a, b
+            cp 17
+            jr z, cl_rel
+            ld a, (hl)              ; who has it
+            ld (sv_tn), a
+            ld a, b
+            cp 18
+            jr nz, cl_who
+            ld (hl), c              ; 18: taken
+            ld a, (sv_tn)
+            jr cl_ret
+cl_who:
+            ld a, (sv_tn)           ; 16, 19: 0 when it is this slot's
+            cp c
+            jp z, sv_ok
+            jr cl_ret
+cl_rel:
+            ld a, (hl)
+            cp c
+            jr nz, cl_one
+            ld (hl), 0
+            jp sv_ok
+cl_none:
+            ld a, b
+            cp 17
+            jr z, cl_one
+            cp 19
+            ld a, 254
+            jr z, cl_ret
+            ld hl, sv_cl            ; 16, 18: into a free record
+            ld de, 10
+            ld b, CL_N
+cl_fr:
+            ld a, (hl)
+            or a
+            jr z, cl_put
+            add hl, de
+            djnz cl_fr
+            jp sv_err
+cl_put:
+            ld (hl), c
+            inc hl
+            ex de, hl
+            ld hl, sv_blk + 1
+            ld bc, 9
+            ldir
+            jp sv_ok
+cl_one:
+            ld a, 1
+cl_ret:
+            ld sp, (sv_sp)
+            ret
+; cl_find - Z: HL = the record with sv_blk's unit and name, else NZ (B kept)
+cl_find:
+            ld hl, sv_cl
+            ld c, CL_N
+cl_f1:
+            ld a, (hl)
+            or a
+            jr z, cl_f3             ; (a free record)
+            push hl
+            push bc
+            inc hl
+            ld de, sv_blk + 1
+            ld b, 9
+cl_f2:
+            ld a, (de)
+            cp (hl)
+            jr nz, cl_f4
+            inc hl
+            inc de
+            djnz cl_f2
+cl_f4:
+            pop bc
+            pop hl
+            ret z
+cl_f3:
+            ld de, 10
+            add hl, de
+            dec c
+            jr nz, cl_f1
+            or 1
+            ret
+; p 0: slot t's claims all freed
+sv_cfree:
+            ld a, ({t})
+            ld c, a
+            ld hl, sv_cl
+            ld de, 10
+            ld b, CL_N
+cl_cf:
+            ld a, (hl)
+            cp c
+            jr nz, cl_cf1
+            ld (hl), 0
+cl_cf1:
+            add hl, de
+            djnz cl_cf
+            ld a, (nt_rom)          ; its sockets closed
+            inc a
+            jp z, sv_ok
+            ld b, 0
+cl_cs:
+            ld hl, nt_own
+            ld e, b
+            ld d, 0
+            add hl, de
+            ld a, (hl)
+            cp c
+            jr nz, cl_cs1
+            push bc
+            ld a, b
+            call nt_close
+            pop bc
+cl_cs1:
+            inc b
+            ld a, b
+            cp 8
+            jr c, cl_cs
+            jp sv_ok
+; ---- 20-27: the network - the M4's sockets (NET M4 turns it on: CyborgOS uses the M4, which is
+; then claimed as M4 0 by CyborgOS itself - slot 255). A command to the M4: a packet (its size,
+; the command - a word -, its data) out of #FE00 a byte at a time, a write to #FC00; its answer
+; then in the M4's ROM, at the address its #FF02 holds (+3 the answer, +4 a word, +6 data); its
+; sockets' table at #FF06's (16 bytes a socket: +0 the state - 0 ready, 1 connecting, 2 sending,
+; 3 closed by the other end, 5 looking a name up -, +2 a word: bytes waiting, +4 an IP address;
+; the lookup's in the first). A socket is the slot's that opened it (nt_own), closed when its
+; program ends
+;   20  Byte(1) 0: the M4's ROM number (255: no network); 1: on - Byte(2) the M4's ROM; 2: off;
+;       3: the clock (300 a second: its low word) to the request's Word(6) - network or not
+;   21  a name looked up: Word(2) where it is, Byte(4) its length (63 at most) - 1: started
+;       (22 with 255 then: the state, 0 found - its IP at +4)
+;   22  socket Byte(1)'s 16 bytes to Word(2) (255: the lookup's): its state
+;   23  a TCP socket: its number (255 none)
+;   24  socket Byte(1) connected to IP Byte(2-5), port Word(6): 0 started (22: 1 still, 0 done)
+;   25  Word(4) bytes (1-240) from Word(2) sent on socket Byte(1): 0 done
+;   26  up to Word(4) bytes (2048 at most) of socket Byte(1)'s to Word(2): 0 done - how many
+;       written back to the request's Word(6)
+;   27  socket Byte(1) closed
+NT_N:       equ 8                   ; sockets 0-7
+sv_net:
+            ld b, a
+            cp 20
+            jr z, nt_20
+            ld a, (nt_rom)
+            inc a
+            jp z, sv_err            ; (no network)
+            ld a, b
+            cp 21
+            jp z, nt_look
+            cp 23
+            jp z, nt_sock
+            call nt_chk             ; (the rest: one of the slot's sockets)
+            ld a, b
+            cp 22
+            jp z, nt_stat
+            cp 24
+            jp z, nt_conn
+            cp 25
+            jp z, nt_send
+            cp 26
+            jp z, nt_recv
+            ld a, (sv_blk + 1)      ; 27
+            call nt_close
+            jr nt_ans
+nt_20:
+            ld a, (sv_blk + 1)
+            or a
+            jr nz, nt_20a
+            ld a, (nt_rom)
+            jr nt_ret
+nt_20a:
+            cp 3
+            jr z, nt_time
+            dec a
+            jr nz, nt_off
+            ld a, (sv_blk + 2)      ; on: the M4's ROM, where its answers and sockets are
+            ld (nt_rom), a
+            ld hl, #FF02
+            ld de, nt_rsp
+            ld bc, 2
+            call nt_rd
+            ld hl, #FF06
+            ld de, nt_skt
+            ld bc, 2
+            call nt_rd
+            ld c, 255               ; M4 0: CyborgOS's
+            call nt_m4c
+            jp sv_ok
+nt_off:
+            ld b, 0                 ; off: every socket closed, M4 0 given back
+nt_of1:
+            ld hl, nt_own
+            ld e, b
+            ld d, 0
+            add hl, de
+            ld a, (hl)
+            or a
+            jr z, nt_of2
+            push bc
+            ld a, b
+            call nt_close
+            pop bc
+nt_of2:
+            inc b
+            ld a, b
+            cp NT_N
+            jr c, nt_of1
+            ld c, 0
+            call nt_m4c
+            ld a, 255
+            ld (nt_rom), a
+            jp sv_ok
+nt_time:
+            call #BD0D              ; 3: KL TIME PLEASE - its low word (300 a second) to Word(6)
+            di
+            ld (sv_tmp + 4), hl
+            ld hl, ({p})
+            ld de, 6
+            add hl, de
+            ex de, hl
+            ld hl, sv_tmp + 4
+            ld bc, 2
+            call sv_out
+            jp sv_ok
+nt_ans:
+            ld a, (sv_tmp + 3)      ; the M4's answer
+nt_ret:
+            ld sp, (sv_sp)
+            ret
+; 21: a name looked up
+nt_look:
+            ld a, (sv_blk + 4)
+            cp 64
+            jp nc, sv_err
+            ld c, a
+            ld b, 0
+            ld hl, (sv_blk + 2)
+            ld de, nt_pk + 3
+            push bc
+            call sv_in
+            pop bc
+            ld hl, nt_pk + 3
+            add hl, bc
+            ld (hl), 0
+            ld a, c
+            add a, 3
+            ld hl, #4336            ; C_NETHOSTIP
+            call nt_hdr
+            call nt_go
+            jr nt_ans
+; 22: a socket's 16 bytes to the slot
+nt_stat:
+            ld a, (sv_blk + 1)
+            call nt_ent
+            ld de, sv_tmp
+            ld bc, 16
+            call nt_rd
+            ld hl, sv_tmp
+            ld de, (sv_blk + 2)
+            ld bc, 16
+            call sv_out
+            ld a, (sv_tmp)
+            jr nt_ret
+; 23: a TCP socket
+nt_sock:
+            ld hl, #0600            ; (domain 0, type 0, protocol 6: TCP)
+            ld (nt_pk + 4), hl
+            xor a
+            ld (nt_pk + 3), a
+            ld a, 5
+            ld hl, #4331            ; C_NETSOCKET
+            call nt_hdr
+            call nt_go
+            ld a, (sv_tmp + 3)
+            cp NT_N
+            jp nc, nt_sk1
+            ld e, a
+            ld d, 0
+            ld hl, nt_own
+            add hl, de
+            ld a, ({t})
+            ld (hl), a
+            jp nt_ans
+nt_sk1:
+            cp 255
+            jp z, nt_ret
+            call nt_close           ; (one this can't keep: closed)
+            ld a, 255
+            jp nt_ret
+; 24: connected to an IP address and port
+nt_conn:
+            ld hl, sv_blk + 1
+            ld de, nt_pk + 3
+            ld bc, 7
+            ldir
+            ld a, 9
+            ld hl, #4332            ; C_NETCONNECT
+            call nt_hdr
+            call nt_go
+            jp nt_ans
+; 25: bytes sent
+nt_send:
+            ld hl, (sv_blk + 4)
+            ld a, h
+            or a
+            jp nz, sv_err
+            ld a, l
+            or a
+            jp z, sv_err
+            cp 241
+            jp nc, sv_err
+            ld (nt_pk + 4), hl
+            ld a, (sv_blk + 1)
+            ld (nt_pk + 3), a
+            ld b, h
+            ld c, l
+            ld hl, (sv_blk + 2)
+            ld de, nt_pk + 6
+            call sv_in
+            ld a, (sv_blk + 4)
+            add a, 5
+            ld hl, #4334            ; C_NETSEND
+            call nt_hdr
+            call nt_go
+            jp nt_ans
+; 26: bytes received
+nt_recv:
+            ld hl, (sv_blk + 4)
+            ld de, 2049
+            or a
+            sbc hl, de
+            jp nc, sv_err
+            ld hl, (sv_blk + 4)
+            ld (nt_pk + 4), hl
+            ld a, (sv_blk + 1)
+            ld (nt_pk + 3), a
+            ld a, 5
+            ld hl, #4335            ; C_NETRECV
+            call nt_hdr
+            call nt_go
+            ld hl, 0
+            ld a, (sv_tmp + 3)
+            or a
+            jr nz, nt_rc1
+            ld hl, (sv_tmp + 4)     ; how many (no more than asked for)
+            ld de, (sv_blk + 4)
+            or a
+            sbc hl, de
+            add hl, de
+            jr c, nt_rc0
+            ex de, hl
+nt_rc0:
+            ld (sv_n), hl
+            push hl
+            ld hl, (nt_rsp)         ; from the M4's ROM to the slot
+            ld de, 6
+            add hl, de
+            ld (sv_sa), hl
+            ld a, (nt_rom)
+            ld (sv_ss), a
+            ld a, 3
+            ld (sv_sk), a
+            ld hl, (sv_blk + 2)
+            ld (sv_da), hl
+            xor a
+            ld (sv_stop), a
+            call sv_copy
+            pop hl
+nt_rc1:
+            ld (sv_tmp + 4), hl     ; how many: to the request's Word(6)
+            ld hl, ({p})
+            ld de, 6
+            add hl, de
+            ex de, hl
+            ld hl, sv_tmp + 4
+            ld bc, 2
+            call sv_out
+            jp nt_ans
+; nt_chk - Byte(1): a socket of this slot's (else the request fails)
+nt_chk:
+            ld a, (sv_blk + 1)
+            cp NT_N
+            jp nc, nt_chk1
+            ld e, a
+            ld d, 0
+            ld hl, nt_own
+            add hl, de
+            ld a, ({t})
+            cp (hl)
+            ret z
+            jp sv_err
+nt_chk1:
+            cp 255                  ; (255: the lookup's - 22 only)
+            jp nz, sv_err
+            ld a, b
+            cp 22
+            ret z
+            jp sv_err
+; nt_close - socket A closed (no longer anyone's)
+nt_close:
+            ld (nt_pk + 3), a
+            cp NT_N
+            jr nc, nt_cl1
+            ld e, a
+            ld d, 0
+            ld hl, nt_own
+            add hl, de
+            ld (hl), 0
+nt_cl1:
+            ld a, 3
+            ld hl, #4333            ; C_NETCLOSE
+            call nt_hdr
+; nt_go - the packet at nt_pk to the M4 (its size first); the answer's first 8 bytes to sv_tmp
+nt_go:
+            ld hl, nt_pk
+            ld bc, #FE00
+            ld d, (hl)
+            inc d
+nt_go1:
+            inc b
+            outi
+            dec d
+            jr nz, nt_go1
+            ld bc, #FC00
+            out (c), c
+            ld hl, (nt_rsp)
+            ld de, sv_tmp
+            ld bc, 8
+; nt_rd - BC bytes of the M4's ROM from HL to DE (here)
+nt_rd:
+            push hl
+            push de
+            push bc
+            ld a, (nt_rom)
+            ld c, a
+            call #B90F              ; KL ROM SELECT
+            di
+            ld (nt_old), bc
+            pop bc
+            pop de
+            pop hl
+            ld a, h
+            or #C0
+            ld h, a
+            ldir
+            ld bc, (nt_old)
+            call #B918              ; KL ROM DESELECT
+            di
+            ret
+; nt_hdr - the packet's size A, its command HL
+nt_hdr:
+            ld (nt_pk), a
+            ld (nt_pk + 1), hl
+            ret
+; nt_ent - socket A's 16 bytes in the M4's table: HL (255: the first - the lookup's)
+nt_ent:
+            cp 255
+            jr nz, nt_e1
+            xor a
+nt_e1:
+            ld l, a
+            ld h, 0
+            add hl, hl
+            add hl, hl
+            add hl, hl
+            add hl, hl
+            ld de, (nt_skt)
+            add hl, de
+            ret
+; nt_m4c - the claim on M4 0 held by C (255 CyborgOS, 0 given back)
+nt_m4c:
+            push bc
+            ld hl, sv_blk + 1
+            ld (hl), 0
+            inc hl
+            ld (hl), 'M'
+            inc hl
+            ld (hl), '4'
+            ld b, 6
+nt_m4c1:
+            inc hl
+            ld (hl), ' '
+            djnz nt_m4c1
+            call cl_find
+            pop bc
+            jr nz, nt_m4c2
+            ld (hl), c              ; (CyborgOS's now - or no one's)
+            ret
+nt_m4c2:
+            ld a, c
+            or a
+            ret z
+            ld hl, sv_cl            ; into a free record
+            ld de, 10
+            ld b, CL_N
+nt_m4c3:
+            ld a, (hl)
+            or a
+            jr z, nt_m4c4
+            add hl, de
+            djnz nt_m4c3
+            ret
+nt_m4c4:
+            ld (hl), c
+            inc hl
+            ex de, hl
+            ld hl, sv_blk + 1
+            ld bc, 9
+            ldir
+            ret
+; sv_in - BC bytes from the slot's HL to DE (here, in the service page)
+sv_in:
+            ld (sv_sa), hl
+            ld (sv_da), de
+            ld (sv_n), bc
+            ld a, 2
+            ld (sv_sk), a
+            ld hl, ({setting})
+            ld (sv_ss), hl
+            ld a, 1
+            ld (sv_dk), a
+            ld hl, ({svp})
+            ld (sv_ds), hl
+            xor a
+            ld (sv_stop), a
+            call sv_copy
+            ld a, 2                 ; (the copies to the slot again)
+            ld (sv_dk), a
+            ld hl, ({setting})
+            ld (sv_ds), hl
+            ret
+nt_rom:     db 255
+nt_old:     dw 0
+nt_rsp:     dw 0
+nt_skt:     dw 0
+nt_own:     ds NT_N
 sv_sp:      dw 0
 sv_n:       dw 0
 sv_c:       dw 0
@@ -4683,6 +5256,8 @@ sv_tsg:     dw 0
 sv_blk:     ds 16
 sv_tmp:     ds 16
 sv_rec:     ds 128
+sv_cl:      ds CL_N * 10            ; the claims (16-19; table 4)
+nt_pk:      ds 256                  ; a packet to the M4 (21-27)
 sv_end:
             ASSERT sv_end <= #8000, "the service page's code"
 ; @endwindow

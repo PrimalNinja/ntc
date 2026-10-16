@@ -3,9 +3,9 @@
 ' gets an empty 8bml parameter (?8bml= - &8bml= when the address has parameters already); that is
 ' never shown, the address keeps it out (Request makes it, for the fetch alone).
 '
-' Fetch is a stub for now: no network - it makes up a test page (its links: a relative one, one
-' with parameters, up a folder, another host and port, an https one, back) into the buffer, as
-' a real fetch will put the server's 8BML there.
+' Fetch gets a page from its server with Http.cls (cmds: HTTP GETs over the M4, through
+' CyborgOS - NET M4 turns the network on). A form is sent the same way: its fields as URL
+' parameters (Bml's Query).
 '
 ' Addresses: http://host[:port][/path][?parameters][#place]. One without a scheme is taken as
 ' http://; one with no path gets "/". A file is a page too - read from the disc (local pages,
@@ -17,8 +17,8 @@ Private stt As Integer                                 ' the last fetch's status
 
 ' Fetch(u, buf, max): page u (an address, as shown) fetched as 8BML into buf (max bytes at most):
 ' its length. Always a page - a status page when it couldn't be fetched. Status(): how it went
-Public Function Fetch(ByVal u As String, ByVal buf As Integer, ByVal max As Integer) As Integer
-  Dim q As String Max 90
+Public Function Fetch(ByVal u As String Max 255, ByVal buf As Integer, ByVal max As Integer) As Integer
+  Dim n As Integer
   sb = buf : smx = max : sn = 0
   u = Clean(u)
   stt = 0
@@ -34,21 +34,33 @@ Public Function Fetch(ByVal u As String, ByVal buf As Integer, ByVal max As Inte
     Head "Bad address"
     PutT "Not an http address: " + u
   Else
-    q = Request(u)
-    Stub u, q
+    n = Http.Get(Request(u), sb, smx - 4)
+    If n < 0 Then
+      stt = 4
+      Head "Can't fetch it"
+      PutT Http.Message()
+      PutT u
+    ElseIf Http.Code() <> 200 And Peek(sb) <> 45 Then
+      stt = 5                                      ' (an error with a page of its own: that page)
+      Head "HTTP " + Trim$(Str$(Http.Code()))
+      PutT "The server answered" + Str$(Http.Code()) + ": " + u
+    Else
+      sn = n
+    End If
   End If
   If IsFile(u) And stt = 0 Then PutW "." Else PutW "<:."   ' (a file: its own end; else a back link)
   Fetch = sn
 End Function
 
-' Status(): the last Fetch - 0 a page, 1 not an http address, 2 https, 3 no such file (or too big)
+' Status(): the last Fetch - 0 a page, 1 not an http address, 2 https, 3 no such file (or too big),
+' 4 not fetched (no network, no such host, no answer: its page says), 5 an HTTP error
 Public Function Status() As Integer
   Status = stt
 End Function
 
 ' Clean(u): u as an address - spaces off its ends, http:// before one with no scheme, "/" after a
 ' host with no path
-Public Function Clean(ByVal u As String) As String
+Public Function Clean(ByVal u As String Max 255) As String Max 255
   Dim j As Integer
   u = Trim$(u)
   If UCase$(Left$(u, 5)) = "FILE:" Then u = Mid$(u, 6)
@@ -64,7 +76,7 @@ Public Function Clean(ByVal u As String) As String
 End Function
 
 ' Request(u): the address the fetch asks for - the place (#...) off, the empty 8bml parameter on
-Public Function Request(ByVal u As String) As String
+Public Function Request(ByVal u As String Max 255) As String Max 255
   Dim j As Integer
   j = InStr(u, "#")
   If j > 0 Then u = Left$(u, j - 1)
@@ -77,7 +89,7 @@ Public Function Request(ByVal u As String) As String
 End Function
 
 ' Origin(u): "http://host[:port]" - u up to its path
-Public Function Origin(ByVal u As String) As String
+Public Function Origin(ByVal u As String Max 80) As String Max 80
   Dim j As Integer, k As Integer
   j = InStr(u, "://")
   If j = 0 Then Origin = "" : Exit Function
@@ -86,7 +98,7 @@ Public Function Origin(ByVal u As String) As String
 End Function
 
 ' Host(u): its host name (no port)
-Public Function Host(ByVal u As String) As String
+Public Function Host(ByVal u As String Max 80) As String Max 80
   Dim h As String Max 80, j As Integer
   j = InStr(u, "://")
   If j = 0 Then Host = "" : Exit Function
@@ -97,7 +109,7 @@ Public Function Host(ByVal u As String) As String
 End Function
 
 ' Port(u): its port (80 when it names none)
-Public Function Port(ByVal u As String) As Integer
+Public Function Port(ByVal u As String Max 80) As Integer
   Dim h As String Max 80, j As Integer
   Port = 80
   j = InStr(u, "://")
@@ -108,8 +120,8 @@ Public Function Port(ByVal u As String) As Integer
 End Function
 
 ' Path(u): its path and parameters (what an HTTP GET names), "/" at least; the place left out
-Public Function Path(ByVal u As String) As String
-  Dim p As String Max 80, j As Integer
+Public Function Path(ByVal u As String Max 255) As String Max 255
+  Dim p As String Max 255, j As Integer
   p = Mid$(u, Len(Origin(u)) + 1)
   j = InStr(p, "#")
   If j > 0 Then p = Left$(p, j - 1)
@@ -120,8 +132,8 @@ End Function
 ' Resolve(base, h): link h as an address, from page base: a whole address as it is; //host...
 ' with http:; /path from base's host; ?parameters and #place on base's path; else from base's
 ' folder (./ and ../ followed)
-Public Function Resolve(ByVal b As String, ByVal h As String) As String
-  Dim d As String Max 80, j As Integer
+Public Function Resolve(ByVal b As String Max 255, ByVal h As String Max 255) As String Max 255
+  Dim d As String Max 255, j As Integer
   h = Trim$(h)
   If h = "" Then Resolve = b : Exit Function
   If InStr(h, "://") > 0 Then Resolve = h : Exit Function
@@ -169,7 +181,7 @@ Public Function Resolve(ByVal b As String, ByVal h As String) As String
 End Function
 
 ' IsFile(u): u names a file - a drive (A:...), or NAME.8BM (no "/" - host/x.8bm is the web's)
-Public Function IsFile(ByVal u As String) As Integer
+Public Function IsFile(ByVal u As String Max 80) As Integer
   Dim c As String Max 1
   IsFile = False
   If InStr(u, "://") > 0 Then Exit Function
@@ -180,7 +192,7 @@ End Function
 
 ' Home(): the home page - HOME.8BM on this drive, else A:'s, else Z:'s (else this drive's, not
 ' there: its page says so)
-Public Function Home() As String
+Public Function Home() As String Max 12
   Home = "HOME.8BM"
   If FileSystem.Exists("HOME.8BM") Then Exit Function
   If FileSystem.Exists("A:HOME.8BM") Then Home = "A:HOME.8BM" : Exit Function
@@ -188,7 +200,7 @@ Public Function Home() As String
 End Function
 
 ' where u's host part (from j) ends: its first /, ? or # (else past the end)
-Private Function Edge(ByVal u As String, ByVal j As Integer) As Integer
+Private Function Edge(ByVal u As String Max 80, ByVal j As Integer) As Integer
   Dim c As String Max 1
   Do While j <= Len(u)
     c = Mid$(u, j, 1)
@@ -199,13 +211,13 @@ Private Function Edge(ByVal u As String, ByVal j As Integer) As Integer
 End Function
 
 ' ---- a file: read whole (to its first ^Z: CP/M's records); none, or too big: a page says so
-Private Sub LoadFile(ByVal u As String)
+Private Sub LoadFile(ByVal u As String Max 72)
   Dim n As Integer, j As Integer
   n = FileSystem.Load(u, sb, smx)
   If n < 0 Then
     stt = 3
     Head "No such page"
-    PutT "No such file (or too big for 8K): " + u
+    PutT "No such file (or too big: 7.5K at most): " + u
     Exit Sub
   End If
   For j = 0 To n - 1
@@ -214,45 +226,25 @@ Private Sub LoadFile(ByVal u As String)
   sn = n
 End Sub
 
-' ---- the stub: a made-up page for u (asked for as q)
-Private Sub Stub(ByVal u As String, ByVal q As String)
-  Head "Test page " + Path(u)
-  PutT "No network yet: Web.cls made this page up."
-  PutT "Address: " + u
-  PutT "Asked for as: " + q
-  PutT "Host " + Host(u) + ", port" + Str$(Port(u)) + ", GET " + Path(q)
-  PutW "n:"
-  PutW "s" : PutQ "Links" : PutW ":n:"
-  PutL "/", "The host's home (/)"
-  PutL "page2.8bml", "A page in this folder (page2.8bml)"
-  PutL "find?q=cpc&n=2", "A page with parameters (find?q=cpc&n=2)"
-  PutL "../up.8bml", "Up a folder (../up.8bml)"
-  PutL "http://example.com:8080/x/y.8bml", "Another host and port (example.com:8080)"
-  PutL "https://example.com/", "An https page (not supported)"
-End Sub
-
 ' the page's start ("-", its title) and its heading
-Private Sub Head(ByVal t As String)
+Private Sub Head(ByVal t As String Max 80)
   PutW "-" : PutQ "1" : PutW "," : PutQ t : PutW ":"
   PutW "p" : PutQ t : PutW ":n:"
 End Sub
 
-' a line of text; a link (then a new line)
-Private Sub PutT(ByVal s As String)
+' a line of text (then a new line)
+Private Sub PutT(ByVal s As String Max 160)
   PutW "t" : PutQ s : PutW ":n:"
-End Sub
-Private Sub PutL(ByVal h As String, ByVal s As String)
-  PutW "l" : PutQ h : PutW "," : PutQ s : PutW ":n:"
 End Sub
 
 ' s into the page as it is; quoted (" \ as \" \\)
-Private Sub PutW(ByVal s As String)
+Private Sub PutW(ByVal s As String Max 4)
   Dim j As Integer
   For j = 1 To Len(s)
     If sn < smx Then Poke sb + sn, Asc(Mid$(s, j, 1)) : sn = sn + 1
   Next
 End Sub
-Private Sub PutQ(ByVal s As String)
+Private Sub PutQ(ByVal s As String Max 160)
   Dim j As Integer, c As String Max 1
   PutW Chr$(34)
   For j = 1 To Len(s)

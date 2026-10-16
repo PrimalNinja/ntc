@@ -1,0 +1,9 @@
+CLAIMS [TAKE name [unit]]
+  Hardware a program drives itself - FDC (the disc controller), SOUND,
+  M4, MF2, NVRAM, SERIAL ... - it claims first: a name and a unit (0
+  if not given; SOUND 1 and 2 a PlayCity's), one slot at a time. Another
+  program's claim is refused while it is held. A program's claims go
+  when it ends, is KILLed or RESET. CLAIMS lists them (PS shows them
+  too); CLAIMS TAKE takes one back - free for another program (the one
+  that had it sees it is gone and stops using it).
+

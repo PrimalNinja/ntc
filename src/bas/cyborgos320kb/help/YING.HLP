@@ -1,7 +1,7 @@
 YING [address]
   A web browser: 8BML pages, in MON's window (YANG: the whole screen).
-  address: http://host[:port]/path?parameters (http only, no https -
-  for now a made-up test page), or a file - A:NAME.8BM, NAME.8BM - read
+  address: http://host[:port]/path?parameters (http only, no https;
+  the network first: NET M4), or a file - A:NAME.8BM, NAME.8BM - read
   from the disc: local pages linked like AmigaGuide's. None: HOME.8BM
   (this drive, else A:, else Z:). A tab: YING in another slot.
   Keys: G an address typed (Enter goes, ESC not), H home, Tab / right
@@ -9,3 +9,7 @@ YING [address]
   down a page, Control + up / down the top / end, Enter or Copy the
   link, 1-5 or a tool's capital letter the toolbar, B or DEL back,
   R again, Q or ESC quits.
+  Forms: on a text field Enter, then type it (Enter keeps it, ESC
+  not); on a choice Enter is its next one; on a button Enter sends
+  the form (its fields as the address's parameters - 255 characters
+  at most). A mandatory field left empty is chosen instead.

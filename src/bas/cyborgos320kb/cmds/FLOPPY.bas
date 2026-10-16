@@ -18,7 +18,8 @@
 ' AMSDOS's sector calls off): data format (sectors C1-C9), system format (41-49: 2 tracks kept
 ' for the system) and IBM (01-08: 1 track). A file is copied as CP/M sees it, record by
 ' record, with its AMSDOS header (a BASIC or binary file's), so the copy loads as the
-' original did. Nothing else should use the floppy drives while it runs
+' original did. It claims the controller (FDC 0) first: another program that claims it is
+' refused until FLOPPY ends (CLAIMS)
 Option Explicit
 Dim tb(4607) As Byte                             ' a track (up to 9 sectors of 512)
 Dim dr(2047) As Byte                             ' the directory (64 entries of 32)
@@ -70,6 +71,15 @@ If Right$(tg, 4) = ".DSK" Then                   ' a .DSK image: its folder (or 
   i = InStr(dk, ".")
   If i < 2 Or i > 9 Then Print dk; ": not a disc name (NAME.DSK)" : End
 End If
+
+' the disc controller claimed (CLAIMS: FDC 0) - while FLOPPY runs no other program may drive it
+b(0) = 16 : b(1) = 0
+For i = 2 To 9
+  b(i) = Asc(Mid$("FDC     ", i - 1, 1))
+Next
+r = Bdos(131, VarPtr(b))
+If r = 255 Then Print "The disc controller can't be claimed (CyborgOS's claims full)" : End
+If r <> 0 Then Print "The disc controller is in use: slot "; Trim$(Str$(r)); " (PS, CLAIMS)" : End
 
 ' the folder (or drive) first: to, made if it isn't there; from, there (nothing read or written
 ' on the disc if it can't be reached)

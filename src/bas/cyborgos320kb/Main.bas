@@ -262,9 +262,11 @@ Sub RunNext()
     Else
       c = Hyp.Fn()
       Bdos t
-      ' a file call (13-35, DMA 26 too): the same slot straight on, up to 32 calls a turn - the
-      ' main loop's work (keys, the other slots) between each record made a copy crawl
+      ' a file call (13-35, DMA 26 too), or CyborgOS's own (131: the network, claims, memory): the
+      ' same slot straight on, up to 32 calls a turn - the main loop's work (keys, the other
+      ' slots) between each record made a copy crawl (and an HTTP GET take 0.4 s)
       n = n + 1
+      If c = 131 Then c = 13
       If c < 13 Or c > 36 Or n >= 32 Or st(t) <> 2 Then Exit Do
     End If
   Loop
@@ -457,8 +459,8 @@ End Sub
 ' 1 kill, 2 reset (slot 0: this one), 3 to the front, 4 wait until no other program runs, 6 TOP's
 ' table into this slot, 7 the memory (the tables' end, the top, the pages, the totals line), 8 32
 ' pages of the map from page Word(2), 9 MODE (0-5 set, 255 which), 12 the slot's store (K); 10, 11,
-' 13, 14, 15 (memory, the pointer, the store's blocks, tables): Hyp.Svc, in the service page. 0
-' done, 1 nothing to do, 255 no such slot / page
+' 13, 14, 15 (memory, the pointer, the store's blocks, tables), 16-19 (the claims: claim, release,
+' take, held): Hyp.Svc, in the service page. 0 done, 1 nothing to do, 255 no such slot / page
 Function Sys(ByVal t As Integer, ByVal p As Integer) As Integer
   Dim o As Integer, s As Integer, d As Integer
   o = Memory.ReadByte(Far(t, p)) : s = Memory.ReadByte(Far(t, p + 1))
@@ -476,8 +478,8 @@ Function Sys(ByVal t As Integer, ByVal p As Integer) As Integer
     Exit Function
 #If NTC_LIBRARY_ROM Then                         ' (MON's: not in the Library: ROM build - no room)
 #Else
-  ElseIf o = 10 Or o = 11 Or o = 13 Or o = 14 Or o = 15 Then   ' memory, the pointer, the store's
-    Sys = Hyp.Svc(t, p, sg(t), VarPtr(rb))                     ' blocks, tables: in the service page
+  ElseIf o = 10 Or o = 11 Or o >= 13 Then         ' memory, the pointer, the store's blocks, tables,
+    Sys = Hyp.Svc(t, p, sg(t), VarPtr(rb))       ' the claims (16-19): in the service page
     Exit Function
   ElseIf o = 12 Then                              ' the slot's store: Word(2) K (16K pages, 512K at most)
     Sys = StoreSize(t, Memory.ReadWord(Far(t, p + 2)))
@@ -537,9 +539,14 @@ Sub HClose()
   r = Hyp.FileCall(102, 0, 0, 0, 0, 0, 0)
 End Sub
 
-' a slot's files closed (its program ended, was killed or reset)
+' a slot's files closed, its claims freed (its program ended, was killed or reset)
 Sub FilesShut(ByVal t As Integer)
+  Dim r As Integer
   Hyp.FileShut t
+#If NTC_LIBRARY_ROM Then
+#Else
+  r = Hyp.Svc(t, 0, 0, VarPtr(rb))               ' its claims freed (the service page)
+#End If
 End Sub
 
 ' ---- the slots' consoles: each slot's 80 x 25 page is in its bank (#F700, a ring of 25 rows),

@@ -104,7 +104,8 @@ What it does now, and where it differs from the design below:
   page code can't: it runs in the window) and the way back. Main RAM's own #4000-#7FFF is free
   once that copy is done. The service page (the first bank's page 1, C5): the services of BDOS
   131 ops 10, 11, 13, 14, 15 (memory reads, the pointer, the store's blocks, the tables - MON's,
-  any program's), Z80 from #6000 (Hyp.Svc: window data at #6000 of the hole, copied there by
+  any program's), 16-19 (the claims: a table of 16) and 20-27 (the network: the M4's sockets,
+  each a slot's - closed when its program ends), Z80 from #6000 (Hyp.Svc: window data at #6000 of the hole, copied there by
   Svc(0) at the start); main RAM keeps its entry and the copy that switches the window (sv_dx).
   The rule: main RAM holds the core (the switch, interrupts, the main loop, entries); the rest
   goes in the hypervisor's pages. Every string parameter, function result and temp is the longest

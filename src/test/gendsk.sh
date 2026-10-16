@@ -53,11 +53,11 @@ done
 # tools/, cos-disk1 only): RUN"INSTALL - the three discs (B) to drive A's CYBORGOS folder
 rm -f ../build/dsk/cyborgos.dsk
 cyb_cls() {   # the class a CyborgOS command is built with: CybDir (a drive's directory), CybSys (BDOS 131), none
-  case $2 in PS|KILL|RESET|FG|WAIT|TOP|MEM|MODE) echo $1/cmds/CybSys.cls;; CD|CV) [ -f $1/cmds/CybVol.cls ] && echo $1/cmds/CybVol.cls;; RAMDISC|HELP|MKDIR|RMDIR|DRIVE) ;; TYPE|RENAME) [ $1 == ../bas/cyborgos128kb ] && echo $1/cmds/CybDir.cls;; *) echo $1/cmds/CybDir.cls;; esac
+  case $2 in PS|KILL|RESET|FG|WAIT|TOP|MEM|MODE|CLAIMS) echo $1/cmds/CybSys.cls;; NET) echo $1/cmds/Http.cls $1/cmds/CybSys.cls;; CD|CV) [ -f $1/cmds/CybVol.cls ] && echo $1/cmds/CybVol.cls;; RAMDISC|HELP|MKDIR|RMDIR|DRIVE) ;; TYPE|RENAME) [ $1 == ../bas/cyborgos128kb ] && echo $1/cmds/CybDir.cls;; *) echo $1/cmds/CybDir.cls;; esac
 }
 for v in 320 128; do
   b=../bas/cyborgos${v}kb; w=t/dsk_cyb$v; rm -rf $w; mkdir -p $w
-  c="COPY ERA TYPE PREP RENAME"; [ $v == 320 ] && c="COPY ERA TYPE RENAME RAMDISC DIR CD CV MKDIR RMDIR DRIVE FLOPPY PS KILL RESET FG WAIT TOP MEM MODE"
+  c="COPY ERA TYPE PREP RENAME"; [ $v == 320 ] && c="COPY ERA TYPE RENAME RAMDISC DIR CD CV MKDIR RMDIR DRIVE FLOPPY PS KILL RESET FG WAIT TOP MEM MODE CLAIMS NET"
   node cli.js $b/Main.bas $b/Hyp.cls $b/Hot.cls $b/Ent.cls --platform=cpcfw --amsdos=CYBORGOS --name=CYBORGOS > $w/CYBORGOS.ASM 2>/dev/null
   cg=CYBORGOS                                    # 320K drops CYBADD (and FILES.DIR)
   [ $v != 320 ] && { node cli.js $b/tools/CYBADD.bas $b/Ent.cls --platform=cpcfw --amsdos=CYBADD --name=CYBADD > $w/CYBADD.ASM 2>/dev/null; cg="CYBORGOS CYBADD"; }
@@ -71,7 +71,7 @@ for v in 320 128; do
   [ $v == 320 ] && cp $b/help/*.HLP $w/            # (HELP's text files: HELP name shows NAME.HLP)
   [ -n "$ap" ] && node cli.js $b/apps/mon/MON.bas $b/apps/mon/Bml.cls $b/apps/mon/Mouse.cls $b/cmds/CybSys.cls --platform=cpm > $w/MON.ASM 2>/dev/null
   [ -n "$ap" ] && cp $b/apps/ying/*.8BM $w/      # (the browsers' local pages: HOME.8BM, KEYS.8BM)
-  for g in YING YANG; do [ -n "$ap" ] && node cli.js $b/apps/$(echo $g | tr A-Z a-z)/$g.bas $b/apps/ying/Web.cls $b/apps/mon/Bml.cls $b/apps/mon/Mouse.cls $b/cmds/CybSys.cls --platform=cpm > $w/$g.ASM 2>/dev/null; done
+  for g in YING YANG; do [ -n "$ap" ] && node cli.js $b/apps/$(echo $g | tr A-Z a-z)/$g.bas $b/apps/ying/Web.cls $b/apps/mon/Bml.cls $b/apps/mon/Mouse.cls $b/cmds/Http.cls $b/cmds/CybSys.cls --platform=cpm > $w/$g.ASM 2>/dev/null; done
   [ -n "$ap" ] && node cli.js $b/apps/mon2/MON2.bas $b/apps/mon/Bml.cls $b/apps/mon/Mouse.cls $b/cmds/CybSys.cls --platform=cpm > $w/MON2.ASM 2>/dev/null
   for g in TICKER CRUNCH LINES $c HELP $ap; do
     (cd $w && $SJ --nologo --msg=err --raw=$g.COM $g.ASM > /dev/null) || { echo "gendsk: $v: $g did not assemble"; fail=1; }
@@ -83,10 +83,10 @@ for v in 320 128; do
     # once the slow way and writes Z's pages (32K a file) for the pages after the hypervisor's.
     # COSLOAD.BIN (tools/COSLOAD.ASM, built for these): loads them into those pages - or keeps Z when a
     # reset left it there - then CYBORGOS.BIN; CYBORGOS.BAS runs it
-    # (FLOPPY isn't in Z: seldom used, 16K of Z's RAM - run from the boot drive)
+    # (FLOPPY and NET aren't in Z: seldom used, 16K and 14K of Z's RAM - run from the boot drive)
     # The installer puts the commands in CYBORGOS/C: the disc's CYBORGOS.Z names them C/NAME.CYB
     # (RAMDISC Z SYSTEM reads them from the boot drive's C folder); packz's own has them as they are
-    zc="HELP.CYB $(for g in $c; do [ $g != FLOPPY ] && echo $g.CYB; done)"
+    zc="HELP.CYB $(for g in $c; do [ $g != FLOPPY ] && [ $g != NET ] && echo $g.CYB; done)"
     rm -rf $w/zb; mkdir -p $w/zb; cp $w/*.CYB $w/zb/
     printf '%s\r\n' $zc > $w/zb/CYBORGOS.Z
     printf 'C/%s\r\n' $zc > $w/CYBORGOS.Z
@@ -129,11 +129,11 @@ open(os.path.join(w, 'FILES.DIR'), 'wb').write(e)
     # four discs carry it to drive A's CYBORGOS folder (RUN"INSTALL from disc 1 in B): cos-disk1
     # CyborgOS, COSLOAD, the programs, MON and the help texts (to CYBORGOS/HELP); cos-disk2 the
     # commands Z has (to CYBORGOS/C - CYBORGOS.Z names them), and FLOPPY; cos-disk3 Z ready-made
-    # (CYBORGOS.Z1 ...); cos-disk4 YING, YANG and their pages (HOME.8BM, KEYS.8BM). Each name as it goes in CYBORGOS (a folder first: C/, HELP/)
+    # (CYBORGOS.Z1 ...); cos-disk4 YING, YANG and their pages (HOME.8BM, KEYS.8BM), NET. Each name as it goes in CYBORGOS (a folder first: C/, HELP/)
     f1="CYBORGOS.BAS WINAPE.BAS COSLOAD.BIN CYBORGOS.BIN CYBORGOS.Z SYSTEM.MAP TICKER.CYB CRUNCH.CYB LINES.CYB CRUNCH.COM MON.CYB MON2.CYB $(cd $w && ls *.HLP | sed 's|^|HELP/|')"
     f2="$(for g in $zc; do echo C/$g; done) FLOPPY.CYB"
     f3="$(ls $w | grep -E '^CYBORGOS\.Z[0-9]+$' | sort -t Z -k2 -n)"
-    f4="YING.CYB YANG.CYB HOME.8BM KEYS.8BM"     # (the web browsers and their local pages: the other discs are full)
+    f4="YING.CYB YANG.CYB HOME.8BM KEYS.8BM NET.CYB"   # (the web browsers, their local pages, NET: the other discs are full)
     # INSTALL.BAS, on cos-disk1 only: every disc's files as DATA from 1000 - how many, then "#n" and
     # disc n's files, "*" at the end
     grep -v '^1000 ' $b/tools/INSTALL.BAS > $w/INSTALL.BAS

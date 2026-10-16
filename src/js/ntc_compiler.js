@@ -10035,6 +10035,27 @@ function ntcCompile(input_a, objOptions_a)
 		}
 	}
 
+	// a VarPtr's address (vp_ name: dw name) whose variable isn't there - it was in a routine
+	// nothing calls, left out with its variables - left out too (else: a label not found)
+	(function()
+	{
+		var objDef = {};
+		var strAll = arrAsm.join('\n');
+
+		strAll.split('\n').forEach(function(str_a)
+		{
+			var arrM = str_a.match(/^([A-Za-z_]\w*)(?::|\s+equ\b)/i);
+
+			if (arrM) { objDef[arrM[1]] = true; }
+		});
+		arrAsm = arrAsm.map(function(str_a)
+		{
+			var arrM = (typeof str_a === 'string') ? str_a.match(/^vp_\w+:\s+dw\s+([A-Za-z_]\w*)\s*$/) : null;
+
+			return (arrM && !objDef[arrM[1]]) ? '; (' + str_a.replace(/\s+/g, ' ') + ': its variable is in a routine left out)' : str_a;
+		});
+	})();
+
 	var arrLayout = [];
 	if (objPageOut !== null)
 	{
