@@ -1,0 +1,105 @@
+AUCKLAND ON A COPROCESSOR CARD - the protocol
+=============================================
+
+The card (a Raspberry Pi Pico on the CPC's bus, like the CPC-CPLINK2 or the M4) keeps
+AUCKLAND.DAT and does the 3D: the camera, the tiles, culling, transforming, clipping and
+projecting. The CPC sends its keys and draws the lines the card hands back - it stays the
+computer that runs the demo, with its own line drawing; the card is its maths and its
+storage. No RAM expansion needed on the CPC.
+
+The card serves a ROM (as the M4 does): what the card writes into its 16K, the CPC reads at
+#C000-#FFFF with that ROM selected (KL ROM SELECT / KL ROM RESTORE, or OUT #DFxx and the
+upper ROM enabled). Commands go the other way through the card's I/O port.
+
+
+THE CARD'S ROM (16K, the card writes, the CPC reads)
+----------------------------------------------------
+#C000-#C0FF   the card's own ROM header (whatever its firmware needs)
+#C100         the status block, 48 bytes:
+  +0  "S3DP"          the card is there and has the data
+  +4  seq             +1 each time a new list is complete (written last)
+  +5  which list      0: #C200, 1: #E000 - the newest
+  +6  lines (word)    lines in it
+  +8  altitude (word) metres
+  +10 compass dx      -15..15: the way to the city's centre on the screen, from above
+  +11 compass dy      (dx right, dy down: up the screen is ahead)
+  +12 views           how many (1-9 on the keys)
+  +16 message         24 characters, 0 padded: a view's name
+#C200-#DFFF   draw list 0 (7680 bytes)
+#E000-#FDFF   draw list 1 (7680 bytes)
+The card makes each new list in the one the CPC didn't just get, so the CPC can copy one
+out while the card fills the other.
+
+
+A DRAW LIST (3 bytes a point, mode 1's 320 x 200, y 0 at the top)
+-----------------------------------------------------------------
+  00 0000 0x  xxxxxxxx  yyyyyyyy    MOVE: the pen to (x, y)  (x 0-319: 9 bits)
+  01 0000 0x  xxxxxxxx  yyyyyyyy    DRAW: a line from the pen to (x, y), the pen there
+  10 0000 pp                        PEN p (1 byte): 1 white, 2 green, 3 cyan
+  11 000000                         END (1 byte)
+Every point is on the screen already (clipped by the card). Lines that join share their
+points (a building's top is one MOVE and n DRAWs): about 1.8 points a line, 5.5 bytes.
+The CPC side's loop (src/bas/aucklink/Link.cls, Draw): about 25 Z80 instructions a point,
+then the library's gfx_line.
+
+
+COMMANDS (CPC to card: a packet - the bytes out through the card's port, then a kick)
+------------------------------------------------------------------------------------
+  'H'                                  hello: the status block filled in ("S3DP", views)
+  'V' n                                the camera at view n (0-8); its name in the message
+  'N' n                                view n's name in the message
+  'F' pitch roll yaw speed skip budget the frame: pitch, roll, yaw -1 / 0 / 1 (signed bytes,
+                                       2 degrees each), speed (units of 0.5 m a frame), skip
+                                       (0-8: moved 1 + skip times), budget (word: lines at
+                                       most). The card moves the camera, makes the next list,
+                                       then seq + 1
+The stand-in ports in Link.cls (CMDP #FE00 for the bytes, KICKP #FC00 for the kick) are the
+M4's way: change them to the CPC-CPLINK2's.
+
+
+A FRAME ON THE CPC
+------------------
+  1 wait until seq changes (read #C104)            - the card's list is ready
+  2 copy the list out (LDIR from #C200 / #E000)    - 7.5K at most: about 45 ms
+  3 send 'F' with the keys                         - the card makes the next one now
+  4 clear the screen being drawn on, draw the list, the compass; Flip
+So the card works while the CPC draws: a frame costs the CPC its copy and its drawing only.
+
+
+WHAT IT GIVES (measured)
+------------------------
+The card's side (tools/s3dpi, s3dpi.c - integer only, no FPU): 0.03-0.2 ms a frame on a PC;
+on a 133 MHz RP2040, roughly 100 times slower, still a few ms - nothing next to the CPC.
+The CPC's side, drawing lists the card made (the Z80 drawing, in the NTC harness):
+  start view, 440 lines, 1.7K       0.29 s a frame   (3.4 frames a second)
+  Harbour Bridge, 300 lines, 1.3K   0.22 s           (4.5)
+  Devonport, 1270 lines, 5.6K       0.86 s           (1.2)
+  Sky Tower, 1400 lines, 7.7K       1.13 s           (0.9)
+Against the Z80 doing it all: 2.5-4.5 s a frame (0.2-0.4 frames a second). So about 4 to 10
+times faster - and now drawing the lines is nearly all the CPC's time: the next thing to
+speed up is gfx_line itself (a mode 1 line routine with octant-specific loops, or the card
+handing back runs of bytes), and a lower line budget (B) trades detail for speed.
+
+
+WHERE THE DATA LIVES
+--------------------
+- on the card: AUCKLAND.DAT (3.8 MB) in its flash, read in place (s3d_open takes a pointer:
+  on an RP2040 the flash is mapped at 0x10000000) - a board with 4 MB of flash or more
+- or at the other end of the link (a PC or a Pi), the engine running there: the card then
+  passes the 'F' packets up and the lists (7.5K a frame) down into its ROM
+
+
+THE CODE (tools/s3dpi)
+----------------------
+  s3dpi.h / s3dpi.c   the engine: s3d_open, s3d_view, s3d_steer, s3d_frame, s3d_compass
+  card.h / card.c     the card's side: card_init (the data), card_command (one packet); it
+                      writes the status block and the lists into k->rom[] - the 16K the
+                      card's firmware serves as the ROM
+  sim.c               the link simulated in one program: packets in, the status watched,
+                      the list copied out and drawn as the Z80 does (PPM pictures, and the
+                      first list as a file for the CPC side's test)
+  host.c              the engine alone: frames, their lists' sizes and times, pictures
+Build: gcc -O2 sim.c card.c s3dpi.c -o sim   (any C compiler; the Pico SDK for the card:
+card.c + s3dpi.c, with the firmware calling card_command for each packet)
+  sim AUCKLAND.DAT 2 4 out     view 3 (the Sky Tower), 4 frames: out000.ppm ..., out.LST
+CPC side: src/bas/aucklink (Main.bas, Link.cls - NTC); with no card it draws FRAME.LST.

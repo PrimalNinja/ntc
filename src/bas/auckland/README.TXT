@@ -8,6 +8,15 @@ and the volcanoes - from OpenStreetMap, 409 square km.
 
 Map data (c) OpenStreetMap contributors, ODbL (openstreetmap.org/copyright).
 
+WHY
+---
+A baseline. A whole real city - every building, road and tree of 409 square
+km - flown through in 3D on a stock Z80 with a RAM expansion: about 0.3
+frames a second, and it can't get any slower than that. Like UAE (the
+"Unusable Amiga Emulator") when it came out, which ended up awesome: from
+here every faster routine, every better table, every coprocessor card is
+measured against this.
+
 
 NEEDS
 -----
@@ -36,7 +45,8 @@ T           turbo on / off
 P           pause
 Q           quit (shows the frames drawn and the most lines in one)
 
-A compass (bottom right) points north as seen from above: up is ahead.
+A compass (bottom right) points to the city's centre (the Sky Tower) as
+seen from above: up is ahead.
 
 
 THE DATA (AUCKLAND.DAT)
@@ -83,8 +93,8 @@ THE ENGINE
   into a second screen (double buffering: main RAM #4000-#7FFF), shown at
   the frame flyback
 - trees: drawn on the screen as a trunk and a triangle
-- mode 1, 320 x 200: white buildings and roads, green trees and volcanoes,
-  cyan coast and water
+- mode 1, 320 x 200: white buildings and roads, green volcanoes, cyan
+  coast, water and trees
 - about 0.3 frames a second (2.5 to 4.5 s a frame at 1200 lines)
 
 
@@ -93,9 +103,28 @@ MEMORY
 #0040-#3FFF   the program
 #4000-#7FFF   the second screen; also the window the data pages are read
               through (the expansion RAM, 16K a page)
-#8000-#8A0C   the program, its variables
-#8A0D-#8D18   the RAM pages' tables (3 bytes a page, 4 MB: 260 pages)
+#8000-#8A7F   the program, its variables
+#8A80-#8D8B   the RAM pages' tables (3 bytes a page, 4 MB: 260 pages)
 #8F50-#A2EF   the engine's tables (the file buffer while loading)
 #A2F0-        the firmware and the ROMs' RAM (UniDOS with an IDE node takes
               #A309 up); AUCKLAND stops with a message if the ROMs need more
 #C000-#FFFF   the screen
+
+PROFILE
+-------
+Where a frame's time goes: 23 frames flown on the full data (the start view,
+the Sky Tower, the Harbour Bridge, south of the CBD), sampled at a random
+point of each 1/300 s (19,152 samples while flying; the loading left out).
+
+  18.4%  vertex transform - the frame tables' additions per corner
+  17.1%  projection - the 24-bit divide per point (x / z, y / z)
+  14.8%  drawing the lines (gfx_line)
+  14.3%  walking the data - tiles, buildings, lines, trees, paging blocks in
+  13.7%  multiplies - each tile's position against the camera (tile dots,
+         landmark tiles too), the frame tables, the trees' / 3
+  13.2%  clipping, outcodes, edges
+   4.8%  compares
+   3.6%  the rest (NTC's own code, clearing the screen 0.3%)
+
+So about 70% is calculation and walking the data, 15% putting pixels on the
+screen. A frame: 2.5 to 4.5 s at 1200 lines.

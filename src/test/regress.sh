@@ -462,6 +462,15 @@ check "s3dmake test town" "576 buildings" "$(cat t/syn.log)
 rm -rf t/akm t/s3df; mkdir -p t/akm t/s3df/A; cp $P/auckland/* t/akm/; cp t/SYN.DAT t/s3df/A/AUCKLAND.DAT
 o=$(NTC_FILES=$PWD/t/s3df NTC_AMSDOS=1 timeout 300 python3 ntcrun.py t/akm/Main.bas " ~~~~~~~~~~~~~~~~~~~~~~~~2~~~~~~~~~~~~p~~~~~~~~p~~~~~~~~~~~~{67}{67}{67}" t/akm/S3d.cls --platform=cpcfw --ram=4160 2>&1)
 check "auckland demo cpcfw" "^Bye - [3-9][0-9]* frames, up to [1-9][0-9][0-9][0-9]* lines" "$o"
+# AUCKLINK (tools/s3dpi, bas/aucklink): the coprocessor's engine in C - the link simulated (packets,
+# the status block, the lists in the card's ROM) on the made-up town; then the CPC side, with no
+# card, draws the list sim wrote (FRAME.LST)
+gcc -O2 -o t/s3dsim ../../tools/s3dpi/sim.c ../../tools/s3dpi/card.c ../../tools/s3dpi/s3dpi.c 2> t/s3dsim.err
+o=$(t/s3dsim t/SYN.DAT 1 3 t/syn 2>&1; echo "--- halted")
+check "s3dpi: the link simulated" "^frame 2: seq 3, list 1, [1-9][0-9]* lines" "$o"
+rm -rf t/alk; mkdir -p t/alk/A; cp $P/aucklink/* t/alk/; cp t/syn.LST t/alk/A/FRAME.LST
+o=$(NTC_LIMIT=4000 NTC_FILES=$PWD/t/alk NTC_AMSDOS=1 NTC_GFXCHK=1 timeout 300 python3 ntcrun.py t/alk/Main.bas "" t/alk/Link.cls --platform=cpcfw 2>&1)
+check "aucklink: a card's list drawn (no card)" "drawing FRAME.LST" "$(echo "$o"; echo '--- halted')"
 # Option Reserve builds round the range: a program too big for #0040-#3FFF goes on above #8000
 cp hole.bas t/
 for pl in cpc cpcmin cpcfw; do check "Option Reserve round the hole $pl" "^a3 7 big at .* end [89]" "$(timeout 60 python3 ntcrun.py t/hole.bas '' --platform=$pl 2>&1)"; done

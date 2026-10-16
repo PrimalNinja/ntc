@@ -27,6 +27,7 @@ that, minor roads are thinned first, then the small buildings (Auckland fits who
   highest volcanoes
 - far landmarks: Rangitoto, the Sky Tower and the Harbour Bridge are drawn to 11 km (the other
   volcanoes to 3.5 km); a world can be 127 tiles (48 km) across at most
+- the city's centre (the Sky Tower): the demo's compass points there
 - limits (the engine's tables, kept small to stay under the ROMs' RAM): heights to 382 m, 256
   landmark tiles (the far ones kept first), 12 points a building
 

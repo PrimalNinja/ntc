@@ -80,10 +80,18 @@ CyborgOS (a separate project built with NTC BASIC) keeps its own list: [cyborgos
   landmark tiles, 12 points a building; it stops with a message when the ROMs' RAM (or the page
   tables) would reach them.
   S: frames skipped (0, 4, 8: S3d.Move moves the camera as a frame does, not drawn); a compass
-  (Z80, in Render: an arrow bottom right pointing north). Dive is the cursor up key alone now.
+  (Z80, in Render: an arrow bottom right pointing to the city's centre - the Sky Tower, block 0's
+  word 48 / 50 from s3dmake). Dive is the cursor up key alone now.
 - Compiler (open): the Memory class's page tables go after the program (ntc_free) even when an
   Option Reserve range starts soon after - nothing warns when they run into it (their size is
   only known at run time: 3 bytes a page).
+- 2026-10-17 **AUCKLINK** + `tools/s3dpi`: AUCKLAND for a coprocessor card that serves a ROM (the
+  CPC-CPLINK2, M4-like): the engine in C (integer only, for an RP2040), the card keeps the data,
+  the CPC sends its keys and draws the card's line lists (3 bytes a point) out of the card's ROM
+  (PROTOCOL.TXT). sim.c runs the whole link in one program; the CPC side (bas/aucklink, Link.cls)
+  draws a list in 0.2-1.1 s (300-1400 lines): 4-10 times AUCKLAND's frame rate, drawing now the
+  limit. The card's real ports are a stand-in (M4's #FE00 / #FC00) until its docs are out. Not on
+  a disc (cpcfw.dsk is full): build it from bas/aucklink.
 - 2026-10-16 **Compiler**: a call with function calls among its arguments (`S 1, F(2), F(3)`)
   passed the last call's result for all of them (each was its function's result variable): each
   is now kept in the argument's temporary first. Test argfn.

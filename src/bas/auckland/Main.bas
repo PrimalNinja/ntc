@@ -7,7 +7,7 @@
 ' the second screen). Map data (c) OpenStreetMap contributors, ODbL.
 ' Keys (Elite's): < > roll, X climb, Space faster, ? slower; the cursor keys turn left / right
 ' and dive / climb; S frames skipped (0, 4, 8: the camera moves that many frames more between
-' those drawn - faster over the ground); a compass (bottom right: the arrow points north); 1-9 the views (the start - 400 m up, flying at the CBD, Rangitoto ahead
+' those drawn - faster over the ground); a compass (bottom right: the arrow points to the city's centre); 1-9 the views (the start - 400 m up, flying at the CBD, Rangitoto ahead
 ' on the right -, south of the CBD, the Sky Tower, the Harbour Bridge, Devonport, the volcanoes);
 ' B the line budget (600, 1200, 2400 a frame: more detail, slower); T turbo on / off; P pause;
 ' Q quits.
@@ -73,6 +73,7 @@ For i = 0 To nv - 1
 Next
 wx = Memory.ReadWord(Far(10)) : wz = Memory.ReadWord(Far(12)) : sx = Memory.ReadWord(Far(16)) : sz = Memory.ReadWord(Far(18))
 S3d.Setup nx, nz, wx, wz, dro, nlm, sx, sz
+wx = Memory.ReadWord(Far(48)) : wz = Memory.ReadWord(Far(50)) : S3d.SetCentre wx, wz   ' (the compass)
 If nv > 0 Then S3d.Place vx(0), vz(0), vh(0), vfx(0), vfz(0)
 bud = 1200 : S3d.SetBudget bud
 Locate 1, 3

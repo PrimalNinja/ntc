@@ -24,6 +24,7 @@ Private pg(255) As Integer                    ' the data's pages: 0 block 0 (the
 Private nx As Integer, nz As Integer, x0 As Integer, z0 As Integer, x1 As Integer, z1 As Integer
 Private lmf As Integer
 Private mvo As Integer                        ' 1: Render only moves the camera (Move)
+Private cnx As Integer, cnz As Integer        ' the city's centre (world units): the compass points there
 Private dro As Integer, nlm As Integer, lmax As Integer, nlines As Integer, cjf As Integer
 Private Const TX = &H8F50           ' 256 x 6: a local x's (2 m steps, signed) camera X, Y, Z
 Private Const TZ = &H9550           ' ... a local z's
@@ -80,6 +81,11 @@ End Sub
 ' skipped (Render does it once itself)
 Public Sub Move()
   mvo = 1 : Render : mvo = 0
+End Sub
+
+' SetCentre(x, z): the city's centre (world units) - the compass points there
+Public Sub SetCentre(ByVal x As Integer, ByVal z As Integer)
+  cnx = x : cnz = z
 End Sub
 
 ' Basis(i): the camera's axes, 16384 = 1: right x, y, z (0-2), up (3-5), forward (6-8) - z north
@@ -237,14 +243,49 @@ rn_end:
             ld sp, ({sps})
             ret
 
-; ---- the compass: an arrow at (296, 182) pointing north as seen from above (up the screen:
-; ahead) - north's part across (the right axis' z) and ahead (the forward axis' z), scaled so
-; the larger is 64-127, then / 8: the arrow's half length 8-15 pixels. Pen 3
+; ---- the compass: an arrow at (296, 182) pointing to the city's centre (SetCentre) as seen
+; from above (up the screen: ahead). The way there (centre - camera, scaled up to 8192-16383)
+; across (on the right axis) and ahead (on the forward axis), scaled so the larger is 64-127,
+; then / 8: the arrow's half length 8-15 pixels. Pen 3. None at the centre itself
 r_comp:
-            ld hl, ({bas} + 4)      ; right z
+            ld hl, ({cnx})
+            ld de, ({camx})
+            or a
+            sbc hl, de
+            ld (w_dx), hl
+            ld hl, ({cnz})
+            ld de, ({camz})
+            or a
+            sbc hl, de
+            ld (w_dz), hl
+            ld b, 15
+cp_vn:
+            ld hl, (w_dx)           ; both under 8192: doubled
+            call cp_ab16
+            ld c, h
+            ld hl, (w_dz)
+            call cp_ab16
+            ld a, h
+            or c
+            and #E0
+            jr nz, cp_vk
+            ld hl, (w_dx)
+            add hl, hl
+            ld (w_dx), hl
+            ld hl, (w_dz)
+            add hl, hl
+            ld (w_dz), hl
+            djnz cp_vn
+            ret                     ; (there: no arrow)
+cp_vk:
+            ld de, ({bas})          ; across: right x * dx + right z * dz, / 65536
+            ld bc, ({bas} + 4)
+            call cp_dot
             call cp_s7
             ld (w_va), a
-            ld hl, ({bas} + 16)     ; forward z
+            ld de, ({bas} + 12)     ; ahead: forward x * dx + forward z * dz
+            ld bc, ({bas} + 16)
+            call cp_dot
             call cp_s7
             ld (w_vb), a
             ld b, 6
@@ -354,6 +395,33 @@ cs_neg:
             cp 128
             ret nz
             ld a, 129               ; (-16384: -127)
+            ret
+; cp_dot - HL = (DE * dx + BC * dz) / 65536
+cp_dot:
+            push bc
+            ld bc, (w_dx)
+            call mul16s
+            pop bc
+            push de
+            push hl
+            ld de, (w_dz)
+            call mul16s
+            pop bc
+            add hl, bc
+            pop bc
+            ex de, hl
+            adc hl, bc
+            ret
+; cp_ab16 - HL = |HL|
+cp_ab16:
+            bit 7, h
+            ret z
+            xor a
+            sub l
+            ld l, a
+            sbc a, a
+            sub h
+            ld h, a
             ret
 ; cp_abs - A = |A|
 cp_abs:

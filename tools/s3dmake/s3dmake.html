@@ -53,6 +53,7 @@ button:disabled { opacity: .5; cursor: default; }
 //   16 word start x, 18 word start z (world units), 20 byte start heading (0-255: 0 north, 64 east);
 //   21 byte -; 22 word landmark tiles (n), 24 word their list's offset; 26 word the directory's
 //   offset; 28 word views (n), 30 word their list's offset; 32 the name (16 characters, 0 padded)
+//   48 word, 50 word: the city's centre (world units: the Sky Tower, else 0, 0 - the compass points there)
 //   a view (32 bytes): word x, z (world units), height (units), forward x, z (16384 = 1: the
 //   way it looks, level), then its name (22 characters, 0 padded)
 //   the directory: nx * nz entries (tile ix + iz * nx), 3 bytes: block (1.., 0 empty), offset (word)
@@ -477,6 +478,7 @@ async function make(text, opts, log) {
     if (best && best.err < 70) { start = best.P; sdir = [start[0] + 1000 * Math.sin(best.hd), start[1] + 1000 * Math.cos(best.hd)]; sh = 200; sname = "Approaching Auckland"; }
   }
   dv.setInt16(16, Math.round((start[0] - cx) * U), true); dv.setInt16(18, Math.round((start[1] - cz) * U), true); h0[20] = 0;
+  if (SKY) { dv.setInt16(48, Math.round((SKY[0] - cx) * U), true); dv.setInt16(50, Math.round((SKY[1] - cz) * U), true); }   // the city's centre: the Sky Tower (else 0, 0: the world's middle) - the compass points there
   const lm = [...lmTiles].filter((k) => encs.has(k)).sort((a, b) => (farTiles.has(b) - farTiles.has(a)) || a - b).slice(0, 256).sort((a, b) => a - b);   // (256 at most: the engine's list - the far ones first)
   // the views: from the start, and round the landmarks (looking at them from 700 m off)
   const views = [{ name: sname, x: start[0], z: start[1], h: sh, tx: sdir[0], tz: sdir[1] }];

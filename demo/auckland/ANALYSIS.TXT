@@ -1,0 +1,139 @@
+AUCKLAND - notes for speeding it up
+===================================
+
+The baseline: about 0.3 frames a second (2.5 to 4.5 s a frame at the
+default 1200 lines) on a 4 MHz CPC. Everything below was measured in the NTC
+test harness (src/test/ntcrun.py: a Z80 emulator with the CPC firmware
+stood in for, UniDOS's block read, 4 MB of RAM pages) - the same code a
+real CPC runs; the T-states are a real Z80's.
+
+THE FRAME, IN ORDER (S3d.cls, Render - one #asm block, labels fn_s3d_render_*)
+-----------------------------------------------------------------------------
+r_turn, r_tidy   the turns asked for (2 degrees each), the camera's three axes
+                 kept square and of length 1 (16-bit fixed point, 16384 = 1)
+r_fly            the camera moved forward (speed), kept inside the world
+r_tabs           the frame tables: for each local step (x: 256, z: 256,
+                 height: 192 entries, 2 m each) its camera-space X, Y, Z
+                 (6 bytes) - built by adding, from 6 multiplies. After this a
+                 point is: tile's middle + TX[x] + TZ[z] (+ TH[h]): additions
+r_clear          rows 1-24 of the screen being drawn cleared (PUSH loop)
+r_world          the landmark tiles (4-9 tiles away, the far ones 4-29: their
+                 3D lines only), then the 7 x 7 tiles round the camera,
+                 nearest first
+  tl_one         a tile: its middle against the camera (tl_dot: three 16 x 16
+                 multiplies an axis), dropped when behind, too far or off to
+                 the side; its block put in the #4000 window; its share of
+                 the line budget
+  buildings      big, middle, small - fewer the further the tile. Each: a
+                 quick test on the first corner, then every corner (vx_xz /
+                 vx_put: the table additions; ve_oc: its outcode); all
+                 corners' outcodes ANDed - out of view: dropped before any
+                 projection. Else each corner projected (ve_proj: x / z,
+                 y / z - pj_div, 8-step divides, unrolled), edges set up
+                 (ed_one), clipped (clip3d, cp_lerp: a multiply and a
+                 divide an axis), drawn
+  ground lines   ln_pts: each point to the one before (vertex, project, edge)
+  3D lines       the same with heights (bridges, landmarks)
+  trees          t_one: a trunk and a triangle on the screen, sized by
+                 distance (div3: / 3 by a 16 x 16 multiply by 85)
+r_comp           the compass
+gfx_line         the library's XOR line (Graphics class), into the screen
+                 not shown (double buffering); Flip at the frame flyback
+
+WHERE THE TIME GOES
+-------------------
+23 frames flown on the full data (start view, Sky Tower, Harbour Bridge,
+south of the CBD), a sample at a random point of each 1/300 s - 19,152
+while flying (tools: analysis/prof.py on the harness's NTC_PROF output;
+the whole list: analysis/profile.txt):
+
+  18.4%  vertex transform - table additions per corner (vx_xz 7.8%, vx12,
+         vx_put, vp_oc, vp_g, vh_ok)
+  17.1%  projection - pj_div / pd_n* (the divide), pj_xs, pj_133, pj_160,
+         pj_z, dv_lp, hneg
+  14.8%  drawing - gfx_line (gfx_chk, gfx_l_dy, gfx_l_draw ...)
+  14.3%  walking the data - tiles, buildings, line points, trees, the window
+  13.7%  multiplies - mulu16 (mu_lp 6.9%, mu_n 2.5%), the frame tables
+         (tr_lp 3.0%): tl_dot for every tile in range (landmark tiles too,
+         up to 251), clipping (cp_lerp), the trees' / 3
+  13.2%  clipping, outcodes, edges - oc1-oc4, ve_oc, ed_set, ed_one, ucap
+   4.8%  compares (cmps: signed 16-bit, called everywhere)
+   3.6%  the rest
+
+About 70% is calculation and walking, 15% pixels.
+
+WHAT LOOKS CHEAPEST TO WIN (on the Z80 alone)
+---------------------------------------------
+- the projection divide (17%): a reciprocal table (1 / z, 16-bit, by z's
+  top bits) then a multiply - or a log table (log x - log z, then exp):
+  about half of it
+- tl_dot (part of 13.7%): every landmark tile in range gets three 16 x 16
+  multiplies an axis each frame before most are thrown out. A cheap
+  distance test first, or the tiles' camera positions kept and only
+  updated by the frame's change (they move together)
+- the trees' / 3 (div3, a full 16 x 16 multiply by 85, two a tree): a shift
+  and add, or a table
+- cmps (4.8%): a signed compare as a call; inline the common ones
+- vertex transform: already additions; the corners' outcodes could be
+  worked out from the tile's (most tiles are wholly in view or wholly out)
+
+FOR A COPROCESSOR CARD: A MATHS UNIT, NOT A SECOND COMPUTER
+-----------------------------------------------------------
+(I don't know the CPC-CPLINK2's details - these are the natural places to
+cut, whatever the card does.)
+The point is the Z80 doing the demo, faster - not the CPC turned into a
+terminal for another machine. So the card is best as a fast parallel maths
+unit (an FPU for the Z80), with the Z80 keeping the data, the walking, the
+culling and the drawing:
+- the operations it would take, by what they cost now:
+    divide 24 / 16 bits (projection: x / z, y / z)          17%
+    16 x 16 multiply, 32-bit result (tile dots, clipping)    ~10%
+    3-component dot products (a tile against the 3 axes)
+    the frame tables' build (768 entries of additions)      ~3%
+- best as batches, so the Z80 isn't waiting on each answer: e.g. per point
+  "transform and project": send the tile's camera-space middle (3 words,
+  once a tile) and each corner's local x, z, h bytes; read back the screen
+  x, y and the outcode. That is vertex transform + projection + outcodes,
+  about 45% of the frame, while the Z80 walks the next building. Per
+  frame first: the 3 axes (9 words) and the camera position
+- parallel: a building's 2 to 24 corners, a tile's 49 dot products, a
+  frame's 49 tiles - all independent of each other
+- the I/O is the limit: on a CPC an OUT (n), A or IN A, (n) takes 3 us
+  (every instruction is stretched to whole microseconds); 3 bytes out and 5
+  in per corner, with the loads and stores, is in the order of 40-50 us -
+  to be weighed against the transform, divide and outcode it replaces
+  (measure the corner count per frame before deciding)
+- what the Z80 alone could still win first (above) stays worth doing: the
+  card then starts from a faster baseline
+
+FILES
+-----
+src/Main.bas, src/S3d.cls      NTC BASIC + the Z80 engine (#asm)
+src/AUCKLAND.ASM, .SYM         the whole program as one sjasmplus source
+                               (NTC's output, library included): sjasmplus
+                               AUCKLAND.ASM gives AUCKLAND.BIN (AMSDOS
+                               header); no NTC needed to change the Z80
+data/osmcut/                   osmcut.html: cuts an OpenStreetMap .pbf in a
+                               browser (BBBike's Auckland extract)
+data/s3dmake/                  s3dmake.html: the cut to AUCKLAND.DAT (the
+                               format is at the top of its script);
+                               make.js runs it with node; mkcut.py makes a
+                               small test town
+data/auckland-cut.txt.gz       the Auckland cut AUCKLAND.DAT is made from
+analysis/prof.py               a harness profile summed by routine and kind
+analysis/profile.txt           the profile above, all of it
+analysis/prof.json             its raw samples (PC, bank, SP; the symbols)
+analysis/datinfo.py            a .DAT's header, views and counts
+analysis/dat2png.py            a .DAT drawn from above (buildings, roads,
+                               trees, coast)
+analysis/*.png                 those pictures, harness screenshots
+coprocessor/                   the engine in C for a card that keeps the
+                               data (PROTOCOL.TXT: the link, the draw
+                               lists, measured speeds), the CPC side
+                               (cpc/: NTC source, AUCKLINK.ASM / .BIN)
+cpcimg/                        a Windows tool (and its C) that makes WinAPE
+                               / CF IDE images and puts files in them
+The harness itself (ntcrun.py, the profiler, NTC_SHOT screenshots) is part
+of NTC: src/test/ in the NTC distribution.
+
+Map data (c) OpenStreetMap contributors, ODbL.

@@ -3165,7 +3165,7 @@ volcanoes, read from AUCKLAND.DAT (3.8 MB) into the expansion RAM. The data is m
 `tools/osmcut` cuts an OpenStreetMap .osm.pbf, `tools/s3dmake` turns the cut into the .DAT (see
 their READMEs). It starts 200 m up out in the gulf, flying in at Auckland with Rangitoto ahead on
 the right. Keys 1-9: the views; B: the line budget (600, 1200, 2400 a frame); S: frames skipped (0, 4, 8 -
-faster over the ground); P: pause. A compass arrow (bottom right) points north.
+faster over the ground); P: pause. A compass arrow (bottom right) points to the city's centre (the Sky Tower).
 
 **Graphics on CP/M (an Amstrad CPC).** The `cpm` platform has the class too, for CP/M on a
 CPC: mode 2 only (the console's mode: 640 x 200, pens 0-1), one screen (`DoubleBuffer`, `Flip`
