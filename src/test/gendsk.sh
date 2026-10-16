@@ -41,24 +41,25 @@ for p in cpc cpcmin cpcfw cpcrom cpcminrom cpcfwrom cpm; do
     [ -n "$r" ] && [ "$k" == "" ] && { cpmcp -f cpcdata -T dsk $d ../build/rom/$r.ROM 0:$r.ROM || fail=1; }
     n=$(cpmls -f cpcdata -T dsk $d | grep -vc '^[0-9]*:$')
     echo "build/dsk/$p$k.dsk: $n files ($(du -k $d | cut -f1)K image)"
+    [ "$n" -gt 0 ] || { echo "gendsk: $p$k.dsk: no files on it (the disc tools wrote nothing?)"; fail=1; }
   done
   rm -rf $w
 done
 # CyborgOS: built from their own sources - cos-disk1/2/3.dsk (bas/cyborgos320kb: 320K or more,
 # three discs that carry it to IDE:, below) and cyborgos128k.dsk (bas/cyborgos128kb: the 128K version, kept as it was). Each has
-# CYBORGOS.BIN (128K also CYBADD.BIN; 320K uses PREP add/remove), its programs and commands (HELP, COPY, ERA, TYPE, PREP,
+# CYBORGOS.BIN (128K also CYBADD.BIN and PREP), its programs and commands (HELP, COPY, ERA, TYPE,
 # RENAME; on the 320K one RAMDISC, the CyborgOS commands and MON, apps/mon, with its SYSTEM.MAP) - cpm builds as .CYB, with an AMSDOS header (AMSDOS reads a headerless file as ASCII
-# text, to the first #1A) - CRUNCH again as a plain .COM, and FILES.DIR. INSTALL.BAS (320K:
-# tools/): RUN"INSTALL with this disc in B - its files erased on, then copied to, IDE: (|ERA, |COPY)
+# text, to the first #1A) - CRUNCH again as a plain .COM; 128K: FILES.DIR. INSTALL.BAS (320K:
+# tools/, cos-disk1 only): RUN"INSTALL - the three discs (B) to drive A's CYBORGOS folder
 rm -f ../build/dsk/cyborgos.dsk
-cyb_cls() {   # the class a CyborgOS command is built with: CybDir (FILES.DIR), CybSys (BDOS 131), none
-  case $2 in PS|KILL|RESET|FG|WAIT|TOP|MEM|MODE) echo $1/cmds/CybSys.cls;; CD|RAMDISC|HELP) ;; *) echo $1/cmds/CybDir.cls;; esac
+cyb_cls() {   # the class a CyborgOS command is built with: CybDir (a drive's directory), CybSys (BDOS 131), none
+  case $2 in PS|KILL|RESET|FG|WAIT|TOP|MEM|MODE) echo $1/cmds/CybSys.cls;; CD|RAMDISC|HELP|MKDIR|RMDIR|DRIVE) ;; TYPE|RENAME) [ $1 == ../bas/cyborgos128kb ] && echo $1/cmds/CybDir.cls;; *) echo $1/cmds/CybDir.cls;; esac
 }
 for v in 320 128; do
   b=../bas/cyborgos${v}kb; w=t/dsk_cyb$v; rm -rf $w; mkdir -p $w
-  c="COPY ERA TYPE PREP RENAME"; [ $v == 320 ] && c="$c RAMDISC DIR CD PS KILL RESET FG WAIT TOP MEM MODE"
+  c="COPY ERA TYPE PREP RENAME"; [ $v == 320 ] && c="COPY ERA TYPE RENAME RAMDISC DIR CD MKDIR RMDIR DRIVE FLOPPY PS KILL RESET FG WAIT TOP MEM MODE"
   node cli.js $b/Main.bas $b/Hyp.cls $b/Hot.cls $b/Ent.cls --platform=cpcfw --amsdos=CYBORGOS --name=CYBORGOS > $w/CYBORGOS.ASM 2>/dev/null
-  cg=CYBORGOS                                    # 320K drops CYBADD (PREP add / remove replaces it)
+  cg=CYBORGOS                                    # 320K drops CYBADD (and FILES.DIR)
   [ $v != 320 ] && { node cli.js $b/tools/CYBADD.bas $b/Ent.cls --platform=cpcfw --amsdos=CYBADD --name=CYBADD > $w/CYBADD.ASM 2>/dev/null; cg="CYBORGOS CYBADD"; }
   for g in $cg; do (cd $w && $SJ --nologo --msg=err --sym=$g.SYM $g.ASM > /dev/null) || { echo "gendsk: $v: $g did not assemble"; fail=1; }; done
   for g in TICKER CRUNCH LINES; do node cli.js $b/tasks/$g.bas --platform=cpm > $w/$g.ASM 2>/dev/null; done
@@ -67,6 +68,7 @@ for v in 320 128; do
   ap=""; [ $v == 320 ] && ap="MON MON2" # the applications (apps/: MON, with its classes; MON2: MON on the whole screen, its classes)
   [ -n "$ap" ] && cp $b/apps/mon/SYSTEM.MAP $w/   # (MON's map: a text file)
   [ $v == 320 ] && cp $b/tools/INSTALL.BAS $w/     # (ASCII BASIC: this disc in B to IDE:)
+  [ $v == 320 ] && cp $b/help/*.HLP $w/            # (HELP's text files: HELP name shows NAME.HLP)
   [ -n "$ap" ] && node cli.js $b/apps/mon/MON.bas $b/apps/mon/Bml.cls $b/apps/mon/Mouse.cls $b/cmds/CybSys.cls --platform=cpm > $w/MON.ASM 2>/dev/null
   [ -n "$ap" ] && node cli.js $b/apps/mon2/MON2.bas $b/apps/mon/Bml.cls $b/apps/mon/Mouse.cls $b/cmds/CybSys.cls --platform=cpm > $w/MON2.ASM 2>/dev/null
   for g in TICKER CRUNCH LINES $c HELP $ap; do
@@ -79,8 +81,13 @@ for v in 320 128; do
     # once the slow way and writes Z's pages (32K a file) for the pages after the hypervisor's.
     # COSLOAD.BIN (tools/COSLOAD.ASM, built for these): loads them into those pages - or keeps Z when a
     # reset left it there - then CYBORGOS.BIN; CYBORGOS.BAS runs it
-    printf '%s\r\n' HELP.CYB $(for g in $c; do echo $g.CYB; done) > $w/CYBORGOS.Z
-    rm -rf $w/zb; mkdir -p $w/zb; cp $w/*.CYB $w/CYBORGOS.Z $w/zb/
+    # (FLOPPY isn't in Z: seldom used, 16K of Z's RAM - run from the boot drive)
+    # The installer puts the commands in CYBORGOS/C: the disc's CYBORGOS.Z names them C/NAME.CYB
+    # (RAMDISC Z SYSTEM reads them from the boot drive's C folder); packz's own has them as they are
+    zc="HELP.CYB $(for g in $c; do [ $g != FLOPPY ] && echo $g.CYB; done)"
+    rm -rf $w/zb; mkdir -p $w/zb; cp $w/*.CYB $w/zb/
+    printf '%s\r\n' $zc > $w/zb/CYBORGOS.Z
+    printf 'C/%s\r\n' $zc > $w/CYBORGOS.Z
     python3 packz.py $w/zb $w $b/Main.bas $b/Hyp.cls $b/Hot.cls $b/Ent.cls --sym=$w/CYBORGOS.SYM || { echo "gendsk: $v: packz failed"; fail=1; }
     echo "CYBORGOS.BIN: main RAM to #$(grep -E '^ntc_free:' $w/CYBORGOS.SYM | grep -oE '[0-9A-F]{4}$') (program to #$(grep -E '^ntc_end:' $w/CYBORGOS.SYM | grep -oE '[0-9A-F]{4}$'), then its arrays)"
     rm -rf $w/zb
@@ -96,12 +103,14 @@ for v in 320 128; do
   # KEYREP n) to #BE80, then COSLOAD.BIN (Z ready-made, then CYBORGOS.BIN). ASCII BASIC: edit d$ for
   # another boot drive, o$ for words
   [ $v == 320 ] && printf '10 REM CyborgOS 320K: its command line to &BE80 (the boot drive - CYBORGOS.Z, the commands -, then words), then COSLOAD (Z ready-made, then CyborgOS)\r\n20 d$="A"\r\n25 o$="":REM o$=" KEYREP 10": keys repeating 10 times slower (WinAPE at 1000%%)\r\n30 a$="CYB "+d$+o$:FOR i=1 TO LEN(a$):POKE \x26BE7F+i,ASC(MID$(a$,i,1)):NEXT:POKE \x26BE80+LEN(a$),0\r\n40 RUN"COSLOAD.BIN"\r\n\x1a' > $w/CYBORGOS.BAS
-  # FILES.DIR: every file on the disc (but itself). The CPC programs (CYBORGOS.BIN; 128K CYBADD.BIN:
+  # WINAPE.BAS: the same, with KEYREP 10 (WinAPE at full speed repeats keys far too fast)
+  [ $v == 320 ] && printf '10 REM CyborgOS 320K for WinAPE (keys repeat 10 times slower: KEYREP 10): its command line to &BE80 (the boot drive - CYBORGOS.Z, the commands -, then words), then COSLOAD (Z ready-made, then CyborgOS)\r\n20 d$="A"\r\n25 o$=" KEYREP 10":REM keys repeating 10 times slower (WinAPE at 1000%%); CYBORGOS.BAS: none\r\n30 a$="CYB "+d$+o$:FOR i=1 TO LEN(a$):POKE \x26BE7F+i,ASC(MID$(a$,i,1)):NEXT:POKE \x26BE80+LEN(a$),0\r\n40 RUN"COSLOAD.BIN"\r\n\x1a' > $w/WINAPE.BAS
+  # FILES.DIR (128K only - 320K has none: its commands read the real directories): every file on the disc (but itself). The CPC programs (CYBORGOS.BIN; 128K CYBADD.BIN:
   # run from BASIC) as "other", not run by CyborgOS; the .CYB programs (run by their names) with
   # their length as CP/M reads them (the AMSDOS header left out), their names as long names (so
   # COPY, ERA, TYPE, RENAME find them by those too); CRUNCH as a CP/M .COM with no header (long
   # name BIGCRUNCH): RUN BIGCRUNCH runs it through its entry
-  python3 -c "
+  [ $v != 320 ] && python3 -c "
 import sys, os; sys.path.insert(0, '.'); import ntcrun
 w = '$w'; e = b''
 def size(f): return os.path.getsize(os.path.join(w, f))
@@ -112,34 +121,34 @@ for g in ['TICKER', 'CRUNCH', 'LINES', 'HELP'] + '$c'.split() + '$ap'.split():
     e += ntcrun.cyb_entry(g + '.CYB', size(g + '.CYB') - 128, g, what=0)
 e += ntcrun.cyb_entry('CRUNCH.COM', size('CRUNCH.COM'), 'BIGCRUNCH')
 open(os.path.join(w, 'FILES.DIR'), 'wb').write(e)
-if '$v' == '320':      # (FILES.DIR, on cos-disk1, lists the files of all three discs)
-    e += ntcrun.cyb_entry('COSLOAD.BIN', size('COSLOAD.BIN') - 128, 'COSLOAD', what=0, flags=0, load=0x40, exe=0x40)
-    for f in sorted((f for f in os.listdir(w) if f.startswith('CYBORGOS.Z') and f[10:].isdigit()), key=lambda f: int(f[10:])):
-        e += ntcrun.cyb_entry(f, size(f) - 128, '', what=0, flags=0, load=0x1000, exe=0x1000)
-    for f in ('CYBORGOS.BAS', 'CYBORGOS.Z', 'SYSTEM.MAP', 'INSTALL.BAS'):
-        e += ntcrun.cyb_entry(f, size(f), '', what=0, flags=0)
-    open(os.path.join(w, 'FILES.DIR'), 'wb').write(e)
 "
   x="$w/CYBADD.BIN"; [ $v == 320 ] && x=""
   if [ $v == 320 ]; then
-    # three discs carry it to IDE: (RUN"INSTALL with each in B): cos-disk1 CyborgOS, COSLOAD, FILES.DIR
-    # (all three discs' files), the programs and MON; cos-disk2 the commands Z has (CYBORGOS.Z
-    # names them); cos-disk3 Z ready-made (CYBORGOS.Z1 ...). Each has an INSTALL.BAS for its files
-    f1="CYBORGOS.BAS COSLOAD.BIN CYBORGOS.BIN CYBORGOS.Z FILES.DIR SYSTEM.MAP TICKER.CYB CRUNCH.CYB LINES.CYB CRUNCH.COM $(for g in $ap; do echo $g.CYB; done)"
-    f2="$(for g in HELP $c; do echo $g.CYB; done)"
+    # three discs carry it to drive A's CYBORGOS folder (RUN"INSTALL from disc 1 in B): cos-disk1
+    # CyborgOS, COSLOAD, the programs, MON and the help texts (to CYBORGOS/HELP); cos-disk2 the
+    # commands Z has (to CYBORGOS/C - CYBORGOS.Z names them) and FLOPPY; cos-disk3 Z ready-made
+    # (CYBORGOS.Z1 ...). Each name as it goes in CYBORGOS (a folder first: C/, HELP/)
+    f1="CYBORGOS.BAS WINAPE.BAS COSLOAD.BIN CYBORGOS.BIN CYBORGOS.Z SYSTEM.MAP TICKER.CYB CRUNCH.CYB LINES.CYB CRUNCH.COM $(for g in $ap; do echo $g.CYB; done) $(cd $w && ls *.HLP | sed 's|^|HELP/|')"
+    f2="$(for g in $zc; do echo C/$g; done) FLOPPY.CYB"
     f3="$(ls $w | grep -E '^CYBORGOS\.Z[0-9]+$' | sort -t Z -k2 -n)"
+    # INSTALL.BAS, on cos-disk1 only: every disc's files as DATA from 1000 - how many, then "#n" and
+    # disc n's files, "*" at the end
+    grep -v '^1000 ' $b/tools/INSTALL.BAS > $w/INSTALL.BAS
+    printf '1000 DATA %d\r\n' $(echo $f1 $f2 $f3 | wc -w) >> $w/INSTALL.BAS
+    for n in 1 2 3; do eval echo '"#$n"' \$f$n; done | tr ' ' '\n' | paste -d, - - - - - - | sed 's/,*$//; s/[^,]*/"&"/g' | awk '{printf "%d DATA %s\r\n", 1000 + NR * 10, $0}' >> $w/INSTALL.BAS
+    printf '5000 DATA "*"\r\n\x1a' >> $w/INSTALL.BAS
+    f1="$f1 INSTALL.BAS"
     for n in 1 2 3; do
       dn=../build/dsk/cos-disk$n.dsk; eval fl=\$f$n
       [ $n != 1 ] && { rm -f $dn; dskform -type dsk -format cpcdata $dn > /dev/null 2>&1; }
-      grep -v '^1000 ' $b/tools/INSTALL.BAS > $w/INSTALL.BAS
-      echo $fl | tr ' ' '\n' | paste -d, - - - - - - | sed 's/,*$//; s/[^,]*/"&"/g' | awk '{printf "%d DATA %s\r\n", 1000 + NR * 10, $0}' >> $w/INSTALL.BAS
-      printf '2000 DATA "*"\r\n\x1a' >> $w/INSTALL.BAS
-      for f in $fl INSTALL.BAS; do cpmcp -f cpcdata -T dsk $dn $w/$f 0:$f || { echo "gendsk: cos-disk$n: $f did not fit"; fail=1; }; done
-      echo "build/dsk/cos-disk$n.dsk: $(cpmls -f cpcdata -T dsk $dn | grep -vc '^[0-9]*:$') files"
+      for f in $fl; do f=$(basename $f); cpmcp -f cpcdata -T dsk $dn $w/$f 0:$f || { echo "gendsk: cos-disk$n: $f did not fit"; fail=1; }; done
+      nf=$(cpmls -f cpcdata -T dsk $dn | grep -vc '^[0-9]*:$'); echo "build/dsk/cos-disk$n.dsk: $nf files"
+      [ "$nf" -gt 0 ] || { echo "gendsk: cos-disk$n.dsk: no files on it (the disc tools wrote nothing?)"; fail=1; }
     done
   else
   for f in $w/CYBORGOS.BIN $x $w/TICKER.CYB $w/CRUNCH.CYB $w/LINES.CYB $(for g in $c $ap; do echo $w/$g.CYB; done) $w/HELP.CYB $w/CRUNCH.COM $w/FILES.DIR $(ls $w/CYBORGOS.Z $w/CYBORGOS.BAS $w/SYSTEM.MAP $w/INSTALL.BAS 2>/dev/null); do cpmcp -f cpcdata -T dsk $d $f 0:$(basename $f) || fail=1; done
-  echo "build/dsk/cyborgos${v}k.dsk: $(cpmls -f cpcdata -T dsk $d | grep -vc '^[0-9]*:$') files"
+  nf=$(cpmls -f cpcdata -T dsk $d | grep -vc '^[0-9]*:$'); echo "build/dsk/cyborgos${v}k.dsk: $nf files"
+  [ "$nf" -gt 0 ] || { echo "gendsk: cyborgos${v}k.dsk: no files on it (the disc tools wrote nothing?)"; fail=1; }
   fi
   rm -rf $w
 done

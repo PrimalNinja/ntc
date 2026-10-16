@@ -1,0 +1,10 @@
+RAMDISC
+  The RAM discs.
+RAMDISC v size
+  A RAM disc as drive v (A-P): 64K, 256KB, 1MB ... (16K steps, 4MB in all).
+  Real CP/M random access, any number of files open.
+RAMDISC v 0   (or OFF)
+  Dropped: its files are gone, its pages free again.
+  A RAM disc outlives a reset (not a power off): COPY files to a disc.
+  Z is CyborgOS's system drive (its commands).
+

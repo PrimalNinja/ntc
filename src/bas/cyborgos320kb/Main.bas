@@ -9,12 +9,14 @@
 '                     more than 10 slots, the same number twice quickly (Control held) is 11-20
 '   Control + ESC     the TOP screen (Control + ESC again, or Control + a slot: back)
 '   commands          RUN, FG, PS, TOP, KILL, RESET, WAIT, CLS, MEM, DIR, CD, QUIT; any other
-'                     name runs that program (HELP, COPY, ERA, TYPE, PREP, RENAME are on the disc)
+'                     name runs that program (HELP, COPY, ERA, TYPE, RENAME are on the disc)
 ' Needs 320K or more (a 256K expansion): the first expansion bank's pages are the hypervisor's
 ' (C4 first: the disc buffers), main RAM's own #4000-#7FFF is kept (a second screen).
 ' Slots: half the extra 64K banks (2 with 256K, 4 with 512K, 8 with 1MB, 16 with 2MB, 20 with
 ' 3MB or more), taken after the hypervisor's page. cpcfw (the firmware runs; files through the
 ' disc ROM).
+#Const SCROLLBACK = 0             ' 1: the scrollback (Shift + Up / Down) - with CN_SB 1 in Hyp.cls's Con. Off
+                                  ' for now: 526 bytes of main RAM (2026-10-16)
 Option PressAnyKeyOnEnd "Press a key"     ' at the end: a message and a key (a RUN" program resets when it ends)
 Option Explicit
 Option NoTurbo                    ' normal mode only (interrupt classes, the clock): one copy of each keyword
@@ -70,8 +72,8 @@ Const NMBUF = &HF6D9              ' ... and its characters (12 at most)
 Const STORE = &HFF00              ' in a slot's bank: its store's page numbers (32, 0: none)
 Dim ob As String Max 82           ' the command line; the longest string here sets every string parameter,
                                   ' function result and temp's size: 82 is a screen line + CR LF
-Dim rb(127) As Byte               ' a record (Hyp.FileCall's buf, the RAM disc driver's copies; FILES.DIR entries)
-Dim en As String Max 60           ' ... the name looked for; a disc name (Ent.DiscName); a DIR line
+Dim rb(127) As Byte               ' a record (Hyp.FileCall's buf, the RAM disc driver's copies)
+Dim en As String Max 60           ' ... the name looked for; a DIR line
 Dim dn As String Max 16           ' ... the file opened (Hyp.FileCall 100)
 Dim a As String Max 72, b As String Max 72   ' a command's first word after the command, the rest of the line
                                   ' (RUN and a program run by its name: the program's command tail)
@@ -118,6 +120,11 @@ For i = 1 To ns
   wp(i) = (sg(i) And &HFFF8) Or 7                ' its page 3 (#C000-#FFFF: OBUF, the console) in the window
 '|   tp(i) = Hyp.FarPtr(Memory.BankPage(bk(i), 3), BUF)
   wk(i) = -1
+#If SCROLLBACK Then
+  Memory.WriteWord Far(i, &HFF20), 0             ' no scrollback yet (Hyp.Con: below)
+  Memory.WriteWord Far(i, &HFF24), 0
+  Memory.WriteByte Far(i, &HFF26), 0
+#End If
 Next
 '| blank = Space$(80)
 '| row = Space$(80)
@@ -151,6 +158,16 @@ If ProbeDiscs() = 0 And Memory.Banks() >= 8 Then ' no RAM discs survived a reset
   StartTask 1, 1                                ' to a RAM disc; the command line waits for it (WAIT)
   If st(1) = 2 Then wt = 1
 End If
+#End If
+#If SCROLLBACK Then
+For i = 1 To ns                                 ' each slot's scrollback (Hyp.Con: 48 rows, 4 slots a free
+  If (i And 3) = 1 Then                         ' 16K page - none when there is none; after the RAM discs
+    hk = Memory.AllocPage(Memory.TypeUser) : k = 0   ' a reset left have their pages back)
+    If hk Then Memory.SelectPage hk : k = (Hyp.Setting() And &HFFF8) Or (4 + ((hk - 2) And 3))   ' (it in the window)
+  End If
+  Memory.WriteWord Far(i, &HFF22), ((i - 1) And 3) * 4096 + &H4000
+  Memory.WriteWord Far(i, &HFF20), k
+Next
 #End If
 Do
   hk = Hot.Take()
@@ -926,6 +943,9 @@ Sub KeyIn(ByVal k As Integer)
     Exit Sub                      ' TOP stays until Control + ESC or Control + a slot
   End If
   t = front
+#If SCROLLBACK Then
+  If k = &HF4 Or k = &HF5 Then Hyp.Con wp(t), k, -2, 1 : Exit Sub   ' Shift + Up / Down: the scrollback
+#End If
   If st(t) = 2 Then
     kq(t) = k                                     ' the key into its bank: its BDOS answers from it
     Memory.WriteByte Far(t, Hyp.KEY), k
@@ -964,9 +984,7 @@ Sub Command(ByVal t As Integer)
     b = Trim$(Mid$(a, p + 1))
     a = Left$(a, p - 1)
   End If
-  If Len(c) = 2 And Right$(c, 1) = ":" And a = "" Then   ' B: alone: CD B, as in CP/M (CD.CYB)
-    If Asc(c) >= 65 And Asc(c) <= 90 Then a = Left$(c, 1) : c = "CD"
-  End If
+  If Right$(c, 1) = ":" And a = "" Then a = c : c = "CD"   ' B: or IDE: alone: CD B:, CD IDE: (CD.CYB)
   Select Case c
     Case ""
     Case "CLS"
@@ -994,13 +1012,8 @@ End Sub
 
 ' RUN a: a program loaded into slot s's bank at #0100 (from slot t's command line) and started.
 '   name.CYB   a cpm build with an AMSDOS header (the header gives its length)
-'   name.COM   a CP/M program with no header: AMSDOS reads it as text, to the first #1A, and
-'              doesn't know its length - so it runs only when FILES.DIR (or name.HDR) has an
-'              entry for it (its length; the entry is also the say-so that it runs here). Read
-'              ForReadRaw: a #1A in it is a byte, not the end
-'   name       name.CYB, else name.COM, else a FILES.DIR entry whose long name is name
-' The entries (FILES.DIR, name.HDR: 64 bytes each) stand in until CyborgOS reads the disc's
-' own directory (record counts, random access); see docs/cyborgos.md
+'   name.COM   a CP/M program with no header: read to its end (UniDOS, a RAM disc know it)
+'   name       name.CYB, else name.COM
 Sub StartTask(ByVal t As Integer, ByVal s As Integer)
   Dim h As Integer, n As Integer, rest As Integer, com As Integer, w As String Max 72, d As Integer
   If a = "" Then PutLn t, "RUN what?" : Exit Sub
@@ -1031,17 +1044,7 @@ Sub StartTask(ByVal t As Integer, ByVal s As Integer)
       h = HOpen()
     End If
     rest = &HEE00                                ' #0100 to the stub (#EF00)
-    If com Then
-      en = a
-      n = FindCom()                              ' (the entry in rb)
-      If n > 0 Then
-        rest = n                                 ' (an Integer used unsigned: up to #EE00)
-        en = Space$(12)
-        a = Left$(en, Ent.DiscName(VarPtr(rb), VarPtr(en)))
-        dn = a
-        h = HOpen()                              ' (read raw: a #1A is a byte)
-      End If
-    End If
+    If com Then dn = a : h = HOpen()             ' (a .COM: UniDOS, a RAM disc read it to its end)
     If h Then Exit Do
 #If NTC_LIBRARY_ROM Then
     Exit Do
@@ -1068,7 +1071,6 @@ Sub StartTask(ByVal t As Integer, ByVal s As Integer)
 #Else
   If d <> 0 Then OwnDrive t                      ' (loaded from Z or A: the slot's drive again)
 #End If
-  If com And n <> rest Then PutLn t, a + ": shorter than FILES.DIR says" : Exit Sub
   ' its first stack: ret to the stub's start (the default FCBs from the tail, then #0100), under
   ' it #0000 (a ret from the program ends it). At the top of the stub area (#F240-#F2FF, which
   ' the stubs leave free): BDOS calls and the console run on it, so not next to the text page
@@ -1107,50 +1109,6 @@ Sub OwnDrive(ByVal t As Integer)
   r = Hyp.Drive(dv(t))
 End Sub
 #End If
-
-' ---- FILES.DIR / name.HDR: 64 byte entries (until the disc's own directory is read)
-'   0      1 a file (0 unused; 2 a virtual directory - not yet)
-'   1-11   its name on the disc, CP/M style: 8 + 3, capitals, spaces after
-'   12     what it is: 1 a CP/M .COM, 0 other
-'   13     flags (bit 0: it runs here)
-'   14-15  its length in bytes
-'   16-17  load address, 18-19 exec address (#0100 for a .COM)
-'   20     the virtual directory it is in (0: the top; not yet), 21 a directory's own number
-'   22-23  (nothing yet)
-'   24-61  its long name (38 characters at most, 0 after)
-'   62-63  the sum of bytes 0-61 (a damaged entry is not used)
-' name.HDR holds the entry for name.COM alone; FILES.DIR any number. Either may be a binary file
-' (SAVE "FILES.DIR",B,...) or have no header: they are read ForReadRaw.
-
-
-' en's entry (into rb): from NAME.HDR, else FILES.DIR (by its disc name, or its long name):
-' its length, or 0
-Function FindCom() As Integer
-  Dim r As Integer
-  Ent.SetName VarPtr(en), Len(en)
-  dn = en
-  r = InStr(dn, ".")
-  If r > 0 Then dn = Left$(dn, r - 1)
-  r = 0
-  If Len(dn) <= 8 Then dn = dn + ".HDR" : r = FindEnt()      ' (a longer name: only a long name)
-  If r = 0 Then dn = "FILES.DIR" : r = FindEnt()
-  FindCom = r
-End Function
-
-' the entry in file dn for SetName's name (or with the long name en), into rb: its length, or 0
-Function FindEnt() As Integer
-  Dim r As Integer
-  r = 0
-  If HOpen() Then
-    Do While HRead(64) = 64
-      r = Ent.Length(VarPtr(rb), VarPtr(en), Len(en))
-      If r <> 0 Then Exit Do
-    Loop
-    HClose
-  End If
-  FindEnt = r
-End Function
-
 
 Sub EndTask(ByVal t As Integer)
   Dim c As Integer

@@ -18,7 +18,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 # blocks 0-3 (the screen: block 1) are reached with C1 (Graphics). NTC_GFXCHK=1: at the end, the
 # number of screen bytes not 0 (Plus: block 1, 2.2: #C000-#EFFF)
 CPMVER = int(os.environ.get('NTC_CPMVER', '31'), 16)
-FW = {0xBB06: 'km_wait', 0xBB09: 'km_read', 0xBB5A: 'txt_out', 0xBB6C: 'txt_clear', 0xBB75: 'txt_cursor',
+FW = {0xBB06: 'km_wait', 0xBB09: 'km_read', 0xBB0C: 'km_char_return', 0xBB5A: 'txt_out', 0xBB6C: 'txt_clear', 0xBB75: 'txt_cursor',
       0xBC0E: 'scr_mode', 0xBD19: 'mc_flyback', 0xBD0D: 'kl_time',
       0xBC77: 'cas_in_open', 0xBC7A: 'cas_in_close', 0xBC7D: 'cas_in_abandon', 0xBC83: 'cas_in_direct',
       0xBC80: 'cas_in_char', 0xBC89: 'cas_test_eof', 0xBC95: 'cas_out_char',
@@ -55,6 +55,12 @@ def load_xroms():
 # NTC_PROF=file: the PC at the end of each 13333 T chunk, with the symbols, written there (a profile)
 PROF = [] if os.environ.get('NTC_PROF') else None
 RSX = ['TAPE', 'DISC', 'A', 'B', 'C', 'M', 'ERA', 'REN']   # AMSDOS's commands, and an M4-like DOS's C and M
+# NTC_UNIDOS=IDE,SD: UniDOS stands in (cpcfw) - its Ctrl J BIOS command (devices, examine) and
+# paths "IDE:GAMES/NAME.EXT" in the CAS calls: each device a folder in FILES (FILES/IDE/GAMES), as
+# A and B are (logical drives). NTC_UNIDOS_NOEX=A: drives Ctrl J can't examine (AMSDOS's floppies)
+UNIDOS = [x for x in os.environ.get('NTC_UNIDOS', '').split(',') if x]
+UNIDOS_NOEX = [x for x in os.environ.get('NTC_UNIDOS_NOEX', '').split(',') if x]
+CTRLJ = 0x4100
 # files for the FileSystem class (cpm: BDOS FCB calls, cpcfw: CAS calls) live in this folder
 FILES = os.environ.get('NTC_FILES', os.path.join(HERE, 't', 'files'))
 
@@ -79,6 +85,122 @@ def amsdos_header_of(d):
     # (load address, length) when d starts with a valid AMSDOS header, else None
     if len(d) < 128 or (sum(d[0:67]) & 0xFFFF) != int.from_bytes(d[67:69], 'little'): return None
     return int.from_bytes(d[21:23], 'little'), int.from_bytes(d[24:26], 'little')
+
+def make_dsk(path, files, fmt='data'):
+    """a CPC .DSK (40 tracks, 9 sectors of 512, interleaved): files [(user, 'NAME.EXT', bytes)] in
+    CP/M's directory - data format (#C1-#C9) or system (#41-#49, 2 tracks kept) - for NTC_FDC"""
+    base, off = (0xC1, 0) if fmt == 'data' else (0x41, 2)
+    img = bytearray([0xE5]) * (40 * 9 * 512); dr = bytearray([0xE5]) * 2048; nb = 2; e = 0
+    for u, nm, data in files:
+        n, _, x = nm.partition('.'); name = (n.ljust(8) + x.ljust(3)).encode()
+        data = data + bytes((-len(data)) % 128); recs = len(data) // 128
+        for ex in range(max(1, (recs + 127) // 128)):
+            part = data[ex * 16384:(ex + 1) * 16384]; ent = bytearray(32)
+            ent[0] = u; ent[1:12] = name; ent[12] = ex & 31; ent[14] = ex >> 5; ent[15] = min(128, len(part) // 128)
+            for j in range((len(part) + 1023) // 1024):
+                ent[16 + j] = nb; b = part[j * 1024:(j + 1) * 1024]
+                o = (off * 9 * 512) + nb * 1024; img[o:o + len(b)] = b; nb += 1
+            dr[e * 32:e * 32 + 32] = ent; e += 1
+    img[off * 9 * 512:off * 9 * 512 + 2048] = dr
+    ts = 0x100 + 9 * 512; h = bytearray(256); h[0:34] = b'MV - CPCEMU Disk-File\r\nDisk-Info\r\n'
+    h[0x30] = 40; h[0x31] = 1; h[0x32:0x34] = ts.to_bytes(2, 'little'); d = bytearray(h)
+    order = [0, 5, 1, 6, 2, 7, 3, 8, 4]
+    for t in range(40):
+        ti = bytearray(256); ti[0:12] = b'Track-Info\r\n'; ti[0x10] = t; ti[0x14] = 2; ti[0x15] = 9; ti[0x16] = 0x52; ti[0x17] = 0xE5
+        for i, sn in enumerate(order): ti[0x18 + i * 8:0x20 + i * 8] = bytes([t, 0, base + sn, 2, 0, 0, 0, 0])
+        d += ti
+        for sn in order: o = (t * 9 + sn) * 512; d += img[o:o + 512]
+    open(path, 'wb').write(d)
+
+class Fdc:
+    """NTC_FDC=a.dsk[,b.dsk]: the CPC's disc controller (uPD765 at #FB7E status / #FB7F data, the
+    motor at #FA7E) with .DSK images (standard or extended) in its drives, side 0: specify, recalibrate,
+    seek, sense interrupt / drive status, read ID, read data, write data, format a track (FLOPPY.CYB).
+    A write or a format saves the image again (as an extended DSK)"""
+    LEN = {3: 3, 4: 2, 7: 2, 8: 1, 15: 3, 10: 2, 6: 9, 12: 9, 5: 9, 13: 6}
+    def __init__(s, paths):
+        s.paths = paths
+        s.discs = [s.load(p) if p and os.path.exists(p) else ({} if p else None) for p in paths]
+        s.motor = 0; s.cmd = []; s.out = []; s.data = b''; s.di = 0; s.ints = []; s.pcn = [0, 0, 0, 0]; s.idx = 0
+        s.win = None                       # a write's or a format's bytes still to come: [what, bytes, need]
+    @staticmethod
+    def load(p):
+        d = open(p, 'rb').read(); ext = d[:8] == b'EXTENDED'
+        nt, ns = d[0x30], d[0x31]; o = 0x100; tr = {}
+        for t in range(nt * ns):
+            sz = (d[0x34 + t] * 256) if ext else (d[0x32] | d[0x33] << 8)
+            if sz == 0: continue
+            ti = d[o:o + sz]; nsec = ti[0x15]; q = o + 0x100; secs = []
+            for i in range(nsec):
+                c, h, r, n, s1, s2, al, ah = ti[0x18 + i * 8:0x20 + i * 8]
+                ln = (al | ah << 8) if ext else (128 << ti[0x14])
+                secs.append([c, h, r, n, bytearray(d[q:q + ln])]); q += ln
+            tr[(ti[0x10], ti[0x11])] = secs; o += sz
+        return tr
+    @staticmethod
+    def save(p, tr):
+        nt = max([t for t, sd in tr] + [-1]) + 1
+        h = bytearray(256); h[0:34] = b'EXTENDED CPC DSK File\r\nDisk-Info\r\n'; h[0x30] = nt; h[0x31] = 1; body = b''
+        for t in range(nt):
+            secs = tr.get((t, 0))
+            if not secs: continue
+            ti = bytearray(256); ti[0:12] = b'Track-Info\r\n'; ti[0x10] = t; ti[0x14] = secs[0][3]; ti[0x15] = len(secs); ti[0x16] = 0x4E; ti[0x17] = 0xE5
+            dat = b''
+            for i, (c, hh, r, n, b) in enumerate(secs):
+                ti[0x18 + i * 8:0x20 + i * 8] = bytes([c, hh, r, n, 0, 0, len(b) & 255, len(b) >> 8]); dat += bytes(b)
+            blk = bytes(ti) + dat; blk += bytes(-len(blk) % 256); h[0x34 + t] = len(blk) // 256; body += blk
+        open(p, 'wb').write(bytes(h) + body)
+    def msr(s):
+        if s.win: return 0xB0
+        if s.data and s.di < len(s.data): return 0xF0
+        if s.out: return 0xD0
+        return 0x90 if s.cmd else 0x80
+    def rd(s):
+        if s.data and s.di < len(s.data):
+            v = s.data[s.di]; s.di += 1
+            if s.di >= len(s.data): s.data = b''; s.out = s.res
+            return v
+        if s.out: return s.out.pop(0)
+        return 0xFF
+    def wr(s, v):
+        if s.win:                          # the execution phase: a byte to write
+            w = s.win; w[1].append(v)
+            if len(w[1]) >= w[2]: s.win = None; w[0](bytes(w[1]))
+            return
+        if s.out or s.data: return
+        s.cmd.append(v); c = s.cmd[0] & 0x1F; n = s.LEN.get(c, 1)
+        if len(s.cmd) < n: return
+        a = s.cmd; s.cmd = []; dn = a[1] & 3 if n > 1 else 0
+        disc = s.discs[dn] if dn < len(s.discs) and s.motor else None
+        if c == 3: return
+        if c == 4: s.out = [0x20 | dn]; return
+        if c == 7: s.pcn[dn] = 0; s.ints.append([0x20 | dn, 0]); return
+        if c == 15: s.pcn[dn] = a[2]; s.ints.append([0x20 | dn, a[2]]); return
+        if c == 8: s.out = s.ints.pop(0) if s.ints else [0x80]; return
+        secs = disc.get((s.pcn[dn], 0)) if disc is not None else None
+        if c == 10:
+            if not secs: s.out = [0x40 | dn, 1, 0, 0, 0, 0, 0]; return
+            q = secs[s.idx % len(secs)]; s.idx += 1
+            s.out = [dn, 0, 0, q[0], q[1], q[2], q[3]]; return
+        if c in (6, 12, 5):
+            q = [x for x in (secs or []) if x[2] == a[4]]
+            if not q: s.out = [0x40 | dn, 4 if secs else 1, 0, a[2], a[3], a[4], a[5]]; return
+            q = q[0]; res = [0x40 | dn, 0x80, 0, q[0], q[1], q[2], q[3]]
+            if c == 5:
+                def done(b, q=q, res=res, dn=dn):
+                    q[4] = bytearray(b); s.out = res; s.save(s.paths[dn], s.discs[dn])
+                s.win = [done, bytearray(), 128 << a[5]]; return
+            s.data = bytes(q[4][:128 << a[5]]); s.di = 0; s.res = res; return
+        if c == 13:                        # format: SC sectors of N, their IDs (4 bytes each) to come
+            if disc is None: s.out = [0x40 | dn, 1, 0, 0, 0, 0, 0]; return
+            nn, sc, fill, t = a[2], a[3], a[5], s.pcn[dn]
+            def fmt(b, nn=nn, sc=sc, fill=fill, t=t, dn=dn):
+                disc[(t, 0)] = [[b[i * 4], b[i * 4 + 1], b[i * 4 + 2], b[i * 4 + 3], bytearray([fill]) * (128 << nn)] for i in range(sc)]
+                s.out = [dn, 0, 0, t, 0, 0, nn]; s.save(s.paths[dn], disc)
+            s.win = [fmt, bytearray(), sc * 4]; return
+        s.out = [0x80]
+
+FDC = Fdc(os.environ['NTC_FDC'].split(',')) if os.environ.get('NTC_FDC') else None
 
 class Screen:
     def __init__(s, cols, rows):
@@ -197,8 +319,8 @@ class Host:
             if platform == 'cpcfw':
                 s.scr.immediate = True; s.scr.mem = m; s.scr.clear()
                 for i, a in enumerate(sorted(FW)):
-                    m.set_memory_block(a, bytes([0xD3, 0xE0 + i, 0xC9]))
-                s.fwport = {0xE0 + i: FW[a] for i, a in enumerate(sorted(FW))}
+                    m.set_memory_block(a, bytes([0xD3, 0xA0 + i, 0xC9]))
+                s.fwport = {0xA0 + i: FW[a] for i, a in enumerate(sorted(FW))}
                 m.set_memory_block(0x18, bytes([0xD3, 0xDF, 0xC9]))   # RST 3: a far call (AMSDOS's CAS entries)
                 m.set_memory_block(0xB90C, bytes([0xC9]))   # KL ROM RESTORE: nothing to put back here (no stand-in: 32 ports at most)
                 m.set_memory_block(0xBB54, bytes([0xC9, 0, 0, 0xC9]))   # TXT VDU ENABLE / DISABLE: nothing (this screen shows Print anyway)
@@ -232,6 +354,10 @@ class Host:
         return (s.T // 13333) & 0xFFFF
     def out(s, port, val):
         lo = port & 0xFF; m = s.m
+        if FDC and (port >> 8) in (0xFA, 0xFB) and lo in (0x7E, 0x7F):
+            if (port >> 8) == 0xFA: FDC.motor = val & 1
+            elif lo == 0x7F: FDC.wr(val)
+            return
         if (s.p != 'cpm' or CPMVER >= 0x30) and 0x78 <= (port >> 8) <= 0x7F and (val & 0xC0) == 0xC0:
             s.ram.set(val, port >> 8)
             if getattr(s.scr, 'vram', None) is not None:
@@ -291,6 +417,13 @@ class Host:
             # RST 3 from a CAS entry AMSDOS took over (DF lo hi): carry it out; the caller of
             # the entry gets the result (the RST's own return address is dropped)
             sp = m.sp; ret = m.memory[sp] | (m.memory[sp + 1] << 8)
+            if (ret - 1) not in FW and UNIDOS:
+                # RST 3, a far address after it (UniDOS's Ctrl J: CyborgOS's page code calls it so)
+                w = m.memory[ret] | (m.memory[ret + 1] << 8); fa = m.memory[w] | (m.memory[w + 1] << 8)
+                if fa != CTRLJ: print(s.scr.text(), file=sys.stderr); raise RuntimeError('RST 3 to #%04X at #%04X: not Ctrl J' % (fa, ret - 1))
+                s.ctrlj()
+                m.memory[sp] = (ret + 2) & 255; m.memory[sp + 1] = (ret + 2) >> 8
+                return
             if (ret - 1) not in FW: print(s.scr.text(), file=sys.stderr); raise RuntimeError('out (#%04X), #%02X at pc=#%04X is not the RST 3 stand-in' % (port, val, m.pc))
             ok = s.cas(FW[ret - 1])
             m.f = (m.f | 1) if ok else (m.f & 0xFE)
@@ -320,9 +453,11 @@ class Host:
             elif f == 'kl_rom_restore': pass
             elif f == 'scr_mode': s.scr.cols = {0: 20, 1: 40}.get(val, 80); s.scr.clear()
             elif f == 'km_wait':
-                m.a = s.key() or 13; m.f = m.f | 1
+                m.a = (s.kret if getattr(s, 'kret', None) is not None else s.key()) or 13; m.f = m.f | 1; s.kret = None
+            elif f == 'km_char_return':
+                s.kret = m.a                                  # (KM READ / WAIT CHAR give it next)
             elif f == 'km_read':
-                k = s.key()
+                k = s.kret if getattr(s, 'kret', None) is not None else s.key(); s.kret = None
                 if k:
                     m.a = k; m.f = m.f | 1
                 else:
@@ -339,7 +474,9 @@ class Host:
                 while True:
                     c = m.memory[a]; n += chr(c & 0x7F); a += 1
                     if c & 0x80: break
-                if s.amsdos and n in RSX:
+                if s.amsdos and UNIDOS and n == chr(0x0A):
+                    m.hl = CTRLJ; m.c = 7; m.f = m.f | 1     # UniDOS's Ctrl J (#8A)
+                elif s.amsdos and n in RSX:
                     m.hl = 0x4000 + RSX.index(n); m.c = 7; m.f = m.f | 1
                 else:
                     m.f = m.f & 0xFE
@@ -373,7 +510,7 @@ class Host:
                         d = mem[at] | (mem[at + 1] << 8); a = mem[d + 1] | (mem[d + 2] << 8)
                         nm = bytes(mem[a:a + mem[d]]).decode().upper(); dv = s.cas_dev
                         if ':' in nm: dv, nm = nm.split(':', 1)
-                        return os.path.join(FILES, dv, nm)
+                        return os.path.join(FILES, dv, *[x for x in nm.split('/') if x])
                     po, pn = sname(m.ix), sname(m.ix + 2)
                     if os.path.exists(po) and not os.path.exists(pn): os.rename(po, pn)
                 elif n == 'ERA':
@@ -382,8 +519,14 @@ class Host:
                     a = mem[d + 1] | (mem[d + 2] << 8)
                     nm = bytes(mem[a:a + mem[d]]).decode().upper(); dv = s.cas_dev
                     if ':' in nm: dv, nm = nm.split(':', 1)
-                    p = os.path.join(FILES, dv, nm)
-                    if os.path.exists(p): os.remove(p)
+                    p = os.path.join(FILES, dv, *[x for x in nm.split('/') if x])
+                    if not os.path.exists(p) and p.endswith('.'): p = p[:-1]   # ("NAME.": no extension)
+                    if os.path.isdir(p):
+                        # UniDOS: a folder, and all in it - once it is answered Y (KM WAIT CHAR:
+                        # its question; a Y waiting from KM CHAR RETURN, else a typed key)
+                        k = s.kret if getattr(s, 'kret', None) is not None else s.key(); s.kret = None
+                        if k in (ord('Y'), ord('y'), ord('A'), ord('a')): import shutil; shutil.rmtree(p)
+                    elif os.path.exists(p): os.remove(p)
                 elif n == 'TAPE': s.cas_dev = 'TAPE'
                 elif n == 'DISC': s.cas_dev = s.disk
                 else:
@@ -440,7 +583,7 @@ class Host:
             n = bytes(mem[m.hl:m.hl + m.b]).decode().upper(); d = s.cas_dev
             if ':' in n and s.cas_dev != 'TAPE': d, n = n.split(':', 1)     # "C:NAME": volume C
             os.makedirs(os.path.join(FILES, d), exist_ok=True)   # one folder per device / volume: TAPE, A, B, C ...
-            return os.path.join(FILES, d, n)
+            return os.path.join(FILES, d, *[x for x in n.split('/') if x]) if UNIDOS else os.path.join(FILES, d, n)
         if f == 'cas_in_open':
             # AMSDOS: a file with a header is binary (its length from the header); one without
             # is ASCII text - CAS IN DIRECT won't load that (so a file needs its header)
@@ -452,8 +595,13 @@ class Host:
                 # ASCII (no header): CAS IN CHAR reads it; each ^Z is a soft end of file and
                 # reading goes on after it, to the end of the last 128 byte record (real AMSDOS,
                 # checked with realcpc); the last record padded with ^Z (as AMSDOS and cpmcp -t do)
-                s.cas_in = None; s.cas_ascii = True; s.cas_chars = d + b'\x1a' * (-len(d) % 128); m.bc = 0; m.de = 0; m.a = 0x16; return True
-            s.cas_ascii = False; s.cas_in = d[128:128 + h[1]]; s.cas_chars = s.cas_in; m.bc = h[1]; m.de = h[0]; m.a = 2; return True
+                s.cas_in = None; s.cas_ascii = True; s.cas_chars = d + b'\x1a' * (-len(d) % 128); m.bc = 0; m.de = 0; m.a = 0x16
+                hd = bytearray(69); hd[18] = 0x16; hd[64:67] = b'\x00\x00\x80'      # (UniDOS's made-up header: 24 bit length #800000)
+            else:
+                s.cas_ascii = False; s.cas_in = d[128:128 + h[1]]; s.cas_chars = s.cas_in; m.bc = h[1]; m.de = h[0]; m.a = 2
+                hd = bytearray(d[:69]); hd[19] = hd[20] = 0                  # (its header, as UniDOS keeps it: BufferLeft 0)
+            for i, x in enumerate(hd): mem[0xA700 + i] = x
+            m.hl = 0xA700; return True
         if f == 'cas_in_char':
             c = getattr(s, 'cas_chars', None); p = getattr(s, 'cas_pos', 0)
             # the end: hard (#0F); a #1A byte comes as a soft end of file (A = #1A, no carry) and
@@ -471,6 +619,11 @@ class Host:
         if f in ('cas_in_close', 'cas_in_abandon'):
             s.cas_in = None; s.cas_chars = None; return True
         if f == 'cas_out_open':
+            if UNIDOS and bytes(mem[m.hl:m.hl + m.b]).endswith(b'/'):
+                # UniDOS: a path ending "/" makes a folder (no carry, Z, A = #97: a folder found)
+                p = name()
+                if os.path.isfile(p): m.a = 0x1B; m.f &= ~0x40; return False
+                os.makedirs(p, exist_ok=True); m.a = 0x97; m.f |= 0x40; return False
             s.cas_out = [name(), b'']; s.cas_outch = None; return True
         if f == 'cas_out_char':
             if s.cas_out is None: return False
@@ -489,8 +642,62 @@ class Host:
         if f == 'cas_out_abandon':
             s.cas_out = None; return True
         return False
+    def upath(s, n):
+        # a UniDOS path ("IDE:GAMES/", "A:", "GAMES/X.BAS"): its folder or file here, the device
+        d = s.cas_dev
+        if ':' in n: d, n = n.split(':', 1)
+        return os.path.join(FILES, d, *[x for x in n.split('/') if x]), d
+    def ctrlj(s):
+        # UniDOS's Ctrl J: C the command (carry: done; Z / NZ and A as UniDOS gives them)
+        m = s.m; mem = m.memory; c = m.c
+        def zf(z): m.f = (m.f | 0x41) if z else ((m.f | 1) & ~0x40)
+        def n83(fn):
+            b, _, e = fn.upper().partition('.')
+            if not b or len(b) > 8 or len(e) > 3: return None
+            return (b.ljust(8) + e.ljust(3)).encode()
+        if c == 1:
+            a = m.de
+            for d in UNIDOS:
+                bs = d.encode(); bs = bs[:-1] + bytes([bs[-1] | 0x80])
+                for x in bs: mem[a] = x; a += 1
+            mem[a] = 255; zf(True); return
+        if c == 2:
+            a = m.hl; n = ''
+            while True:
+                x = mem[a]; n += chr(x & 0x7F); a += 1
+                if x & 0x80: break
+            if n not in UNIDOS: m.f &= 0xFE; return
+            o = m.de; info = bytes([0x23, 0xFF]) + (123456).to_bytes(4, 'little') + b'\xff' * 4
+            ds = ('Emulated ' + n).encode(); info += ds[:-1] + bytes([ds[-1] | 0x80])
+            for i, x in enumerate(info): mem[o + i] = x
+            zf(True); return
+        if c == 12:
+            n = bytes(mem[m.hl:m.hl + m.b]).decode('latin-1').upper()
+            p, d = s.upath(n)
+            if d in UNIDOS_NOEX: m.f &= 0xFE; return
+            if n == '' or n.endswith('/') or n.endswith(':'):
+                if not os.path.isdir(p): m.a = 0x12; zf(False); return
+                s.ux = []
+                for fn in sorted(os.listdir(p)):
+                    k = n83(fn)
+                    if k: s.ux.append((k, os.path.join(p, fn)))
+                zf(True); return
+            if not os.path.exists(p): m.a = 0x12; zf(False); return
+            m.a = 0x10 if os.path.isdir(p) else 0
+            z = 0 if os.path.isdir(p) else os.path.getsize(p); m.bc = z >> 16; m.de = z & 0xFFFF
+            zf(True); return
+        if c == 13:
+            if not getattr(s, 'ux', None): m.a = 0x12; zf(False); return
+            k, p = s.ux.pop(0)
+            for i, x in enumerate(k): mem[m.hl + i] = x
+            for i, x in enumerate([0xEA, 0x07, 10, 16, 12, 34, 56]): mem[m.ix + i] = x
+            m.a = 0x10 if os.path.isdir(p) else 0
+            z = 0 if os.path.isdir(p) else os.path.getsize(p); m.bc = z >> 16; m.de = z & 0xFFFF
+            zf(True); return
+        m.f &= 0xFE
     def inp(s, port):
         lo = port & 0xFF
+        if FDC and (port >> 8) == 0xFB and lo in (0x7E, 0x7F): return FDC.msr() if lo == 0x7E else FDC.rd()
         if s.p in ('cpcfw', 'cpm') and port in (0xF991, 0xF994, 0xF995) and os.environ.get('NTC_MOUSE'):
             q = getattr(s, 'mq', [])
             if port == 0xF994: return (q[0][0] & 0xFF) if q else 0

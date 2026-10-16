@@ -1,0 +1,19 @@
+FLOPPY from to   (as COPY: A, DFA or FDA the first floppy; B, DFB or FDB)
+FLOPPY A
+  The floppy disc's files: names, sizes, its format.
+FLOPPY A GAMES   FLOPPY A IDE:GAMES/X   FLOPPY A C:
+  Each file copied into the folder (made if it isn't there - UniDOS), or a
+  drive (a RAM disc ...).
+FLOPPY A GAME.DSK   FLOPPY A IDE:IMGS/GAME.DSK
+  The whole disc as a .DSK image (extended): each track's sectors as read,
+  tracks 0-39 (40, 41 when formatted).
+FLOPPY GAMES A   FLOPPY C: A
+  Each file in the folder (or drive) onto the disc: added to its files (one
+  of the same name replaced), an AMSDOS header with it.
+FLOPPY GAME.DSK A
+  The image onto the disc: each track formatted as the image has it, then
+  its sectors written. One side, 42 tracks at most.
+  The controller itself does it (not AMSDOS or UniDOS): data (C1-C9),
+  system (41-49) and IBM (01-08) formats. Nothing else should use the
+  floppy drives meanwhile.
+

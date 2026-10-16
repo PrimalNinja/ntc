@@ -33,104 +33,29 @@ in `bas/cyborgos128kb/`, with its own user guide.
 
 - A disc system (AMSDOS, UniDOS, an IDE or SD interface ...): CyborgOS starts every background
   ROM (`Option RomEnable All`), and programs are loaded from disc.
-- `build/dsk/cyborgos320k.dsk` has CYBORGOS.BAS (the loader: RUN"CYBORGOS), CYBORGOS.BIN (this
-  version), CYBORGOS.Z (the files for the system drive Z), the commands (HELP, PS, TOP, KILL,
-  RESET, FG, WAIT, MEM, MODE, DIR, CD, COPY, ERA, TYPE, PREP, RENAME, RAMDISC - each a .CYB), MON
-  and its SYSTEM.MAP, three test programs (TICKER.CYB, CRUNCH.CYB, LINES.CYB), INSTALL.BAS and a
-  FILES.DIR listing every file on it. INSTALL.BAS (`RUN"INSTALL` from BASIC, the disc in B) puts
-  CyborgOS on IDE:: each file erased there first (`|ERA`), then copied from B (`|COPY,"DFB:"...,"IDE:"`). CRUNCH is also on it as a plain
-  CRUNCH.COM (long name BIGCRUNCH).
-  `build/dsk/cyborgos128k.dsk` is the 128K version's (a 6128 and up); it also carries CYBADD.BIN
-  (the 320K version drops it - `PREP ... ADD`/`REMOVE` keeps FILES.DIR instead).
-
-## 2. Starting
-
-```
-RUN"CYBORGOS
-```
-
-CYBORGOS.BAS (ASCII BASIC) puts CyborgOS's command line at #BE80 (it outlives a reset), then runs
-CYBORGOS.BIN. The line is `CYB` and the boot drive (`CYB A`), then words, a 0 after it:
-
-| Word | |
-|---|---|
-| `KEYREP` *n* | the keys' start delay and repeat *n* times as long (KM SET DELAY, 255 at most each): for an emulator running faster than a CPC - WinAPE at 1000% wants `KEYREP 10` |
-
-To start from another drive change `d$` in CYBORGOS.BAS (`CYB C` for drive C ...), for words `o$`
-(`o$=" KEYREP 10"`). CyborgOS takes A when #BE80 doesn't start with `CYB `.
-
-The screen goes to mode 2, slot 1 shows its command line (in MODE S: [3](#3-slots-and-the-screen)), and CyborgOS makes the
-**system drive Z**: it runs `RAMDISC Z SYSTEM` (the boot drive), which reads the boot drive's
-CYBORGOS.Z - a text file, one file name a line - and copies those files (the commands) from the
-boot drive to a RAM disc Z, a page bigger at a time as each needs it. Keys typed meanwhile wait.
-
-```
-CyborgOS slot 1 of 4 - Control + 1-4, Control + ESC TOP, HELP
-
-1> Z: system drive, 16 commands (86K)
-
-[RAMDISC.CYB ended]
-1>
-```
-
-A name typed at a prompt is looked for on Z first, then on the slot's drive, then on the boot
-drive. So the commands on Z start at once (a memory copy, not a disc read) and act as built-in
-ones: a program on a disc with a command's name is behind them (`RUN A:COPY` reaches it). A
-command that didn't fit on Z, or is missing from CYBORGOS.Z, still runs: from the boot drive.
-Z takes pages for as long as there are free ones: on a 320K machine that is all of them (82K:
-every command but MEM), which leaves none for other RAM discs - shorten CYBORGOS.Z to keep some. Without CYBORGOS.Z (or RAMDISC.CYB) there is no Z
-and every command comes from the disc.
-
-Z is CyborgOS's own: CyborgOS's programs name it (`Z:`, e.g. `COPY A:NEW.CYB Z:` to update a
-command), CP/M programs don't - they know A to P only, and a slot whose drive is Z can't use it
-as its own drive. CD doesn't go there. More text files (settings ...) will join CYBORGOS.Z.
-
-## 3. Slots and the screen
-
-Each slot is a whole 64K bank with its own text page. The slot in front is the one
-on the screen and the one the keyboard types into; the others keep running, and their output
-goes to their own page.
-
-**MODE.** Each slot has its own screen mode; the screen takes the mode of the slot in front.
-All of them are in the 16K screen at #C000 (mode 2 pixels: 8 a character) and keep the hardware
-scroll. The wider and taller ones use the border, for a widescreen TV's zoom or a monitor that
-shows it:
-
-| `MODE` | Screen | The console | |
-|---|---|---|---|
-| `2` | 80 x 25 | 80 x 25 | the standard CPC screen |
-| `S` | 84 x 24 | 80 x 24 | and a status strip of 4 columns on the right (the slot's number at its top, for now). **The default**: a slot opens in it |
-| `W` | 88 x 23 | 88 x 23 | wide |
-| `UW` | 96 x 21 | 96 x 21 | ultrawide |
-| `P` | 64 x 32 | 64 x 32 | portrait |
-| `F` | 84 x 24 | 84 x 24 | all of it the program's (MON: its own status columns) |
-
-`MODE` *m* clears the slot's console at the new size; `MODE` alone lists them and says this
-slot's. TOP is always shown in MODE 2 (its table is 80 wide); the slot's own mode comes back
-with it. A program learns the size of its console from BDOS 49 (CP/M 3's system control block:
-offset #1A the width - 1, #1C the page length), answered in the slot's bank; text it writes
-past the last column wraps there.
-
-- **Control + 1 to 9, 0** brings that slot to the front (0 is slot 10). With more than 10
-  slots, the same number pressed twice quickly (within 0.3 s, Control held) is slots 11 to 20
-  (Control + 3, 3: slot 13; 0, 0: slot 20); a single press then counts after 0.3 s, at once
-  when Control is let go or another number is pressed. With 10 slots or fewer a press counts
-  at once. A slot used for the first time opens with
-  its command line. Hold Control and press the numbers one after another to step through the
-  slots. The keys are looked at 50 times a second whatever runs; keys typed while Control is
-  held don't go to the programs.
-- **Control + ESC** shows the TOP screen: each slot's state (command line, running), its
-  program, and in the last whole second its turns, BDOS calls that reached the hypervisor and
-  characters out. It is drawn once (straight into screen memory, at once) and stays (other keys
-  do nothing) until Control + ESC again or Control + a slot number. Under the slots: the total
-  and free memory (MEM has the map). The `TOP` command prints the same into the slot's console
-  instead.
-- **FG** *slot* does the same from a command line.
-
-A slot either shows its command line, or runs a program. When the program ends, the slot's
-command line comes back (`[NAME.CYB ended]`).
-
-## 4. Commands
+- **UniDOS** (OffseT's DOS) is needed for the disc commands: CyborgOS reads the real
+  directories - UniDOS's listing for its drives and folders, a RAM disc's own for Z and RAMDISC's.
+  It has no file list of its own (the FILES.DIR of earlier versions is gone). On AMSDOS alone it
+  runs programs, but DIR, COPY's patterns and ERA's can't see a floppy's files (FLOPPY A can).
+- The 320K version comes on three discs, `build/dsk/cos-disk1.dsk` - `cos-disk3.dsk`. Disc 1:
+  CYBORGOS.BAS (the loader: RUN"CYBORGOS), WINAPE.BAS (the same for WinAPE: KEYREP 10), COSLOAD.BIN, CYBORGOS.BIN (this version), CYBORGOS.Z
+  (the commands for the system drive Z), MON and its SYSTEM.MAP, three test programs (TICKER.CYB,
+  CRUNCH.CYB, LINES.CYB; CRUNCH also as a plain CRUNCH.COM), the help texts (*.HLP) and
+  INSTALL.BAS. Disc 2: the commands (.CYB: HELP, PS, TOP, KILL, RESET, FG, WAIT, MEM, MODE, DIR,
+  CD, MKDIR, RMDIR, DRIVE, COPY, ERA, TYPE, RENAME, RAMDISC) and FLOPPY. Disc 3: Z ready-made
+  (CYBORGOS.Z1 ...).
+- INSTALL.BAS (on disc 1 only; `RUN"INSTALL` from BASIC) puts all three in a folder CYBORGOS on
+  your mass storage. Map the floppy drive as drive B and the mass storage (IDE, SD ...) as drive
+  A first (UniDOS: `|DRIVE,"A","IDE:"`, `|DRIVE,"B","DFA:"`) - the installer says so at the top.
+  It makes `A:CYBORGOS/`, `CYBORGOS/C/` (the commands Z is made from) and `CYBORGOS/HELP/` (the
+  help texts) with `|SAVE`, copies disc 1, then asks for disc 2 and disc 3 in drive B (a key when
+  each is in), each file with `|COPY` (over one already there), with a bar and how far it has got
+  (%). At the end: 1 run it on a real CPC, 2 run it on WinAPE (`KEYREP 10`: keys repeat 10 times
+  slower), 3 exit. 1 and 2 make A's path the CYBORGOS folder (`|DRIVE,"A","CYBORGOS"` - UniDOS
+  keeps it), then start it as CYBORGOS.BAS does. It runs on BASIC 1.0 too: RSXs get their
+  strings as `@p1$`, never as literals; SPEED KEY 100,100 while it runs (WinAPE at full speed).
+  `build/dsk/cyborgos128k.dsk` is the 128K version's (a 6128 and up); it keeps CYBADD.BIN, PREP
+  and FILES.DIR.
 
 Typed at a slot's prompt (`1>`), in capitals or not. Backspace / DEL rub out. Three are built in
 (RUN, CLS, QUIT); the rest are programs (.CYB) on the system drive Z, run like any program -
@@ -140,8 +65,8 @@ they need nothing of the hypervisor's RAM, only a BDOS call (131) for what the h
 |---|---|
 | *name* [*args*] | runs the program *name* - from Z, else this slot's drive, else the boot drive - in this slot; the rest of the line is its command tail (#0080, as CP/M has it: `System.CommandLine` in NTC). Not found anywhere: `? NAME (HELP)` |
 | `RUN` [*slot*] *name* [*args*] | the same, also for a name that is a built-in command - `RUN CLS` runs CLS.CYB, not the CLS command. With a slot first: runs it there (it keeps running in the background while this command line stays) - `RUN 2 CRUNCH 3` |
-| `DIR` [*v*:][*pattern*] [`FULL`] | the names of the files in FILES.DIR, then of the drive's other files (a RAM disc's: ones programs made), across the screen - 13 columns each, as many as the console's width takes (BDOS 49), a name never split - with nothing else. A pattern (`*.CYB`, `T?*`) picks them; `B` alone is drive B. `FULL`: a line each - disc name, length in bytes, long name (the other files' sizes from their records) - and how many |
-| `CD` [*drive*] | this slot's drive (A-P, a RAM disc too): kept only when the drive is there and has a FILES.DIR. Each slot has its own (the boot drive to start with), as in CP/M; programs, RUN and DIR use it. `CD` alone: the slot's drive |
+| `DIR` [*v*:][*pattern*] [`FULL`] | the drive's files (UniDOS's listing; a RAM disc's own directory), across the screen - 13 columns each, as many as the console's width takes (BDOS 49), a name never split - with nothing else. A pattern (`*.CYB`, `T?*`) picks them; `B` alone is drive B. `FULL`: a line each - name, length in bytes (a RAM disc's from its records), UniDOS's date - and how many |
+| `CD` [*drive*] | this slot's drive (A-P, a RAM disc too): kept only when the drive is there. Each slot has its own (the boot drive to start with), as in CP/M; programs, RUN and DIR use it. `CD` alone: the slot's drive |
 | *drive*`:` | the same as `CD` *drive*: `B:` alone is `CD B`, as in CP/M; `CD B:` works too |
 | `FG` *slot* | that slot to the front |
 | `PS` | the slots: what each is doing (`*` = in front) |
@@ -152,8 +77,9 @@ they need nothing of the hypervisor's RAM, only a BDOS call (131) for what the h
 | `CLS` | clears this slot's page (built in) |
 | `MODE` [*m*] | this slot's screen mode: `2`, `S`, `W`, `UW`, `P` (its console cleared); alone, the modes and this slot's (from BDOS 49) |
 | `MEM` | main RAM as a table (each address range and what is there: CyborgOS, the window, free RAM, the firmware and ROMs, the screen); the map of the banks, a character a 16K page (B a slot's, U the hypervisor's: disc buffers, RAM discs - Z too -, - free), 32 pages (8 banks) a group, two groups a line; then the totals as TOP has them. Not in the Library: ROM build |
-| `HELP` | the commands, then a line on each |
-| `COPY`, `ERA`, `TYPE`, `PREP`, `RENAME` | disc commands ([4a](#4a-disc-commands-copy-era-type-prep-rename-and-help)) |
+| `HELP` [*name*] | the commands (HELP.HLP); `HELP DIR`, `HELP CD` ...: that one's text, NAME.HLP (a name with a `.` as it is: `HELP MY.TXT`). Looked for on this slot's drive, then in the HELP folder of A or B (`CYBORGOS/HELP`, where the installer puts them - UniDOS), then on A and Z. The .HLP files are plain text (CR LF lines, ^Z at the end) - any can be edited, and a program can have one of its own |
+| `FLOPPY` *from* [*to*] | CPC floppy discs read and written track by track, as COPY (*d*: `A`, `DFA`, `FDA`; `B`, `DFB`, `FDB`): `FLOPPY A` its files listed; `FLOPPY A` *folder* / *NAME*`.DSK` its files copied there, or the disc as an image; `FLOPPY` *folder* / *NAME*`.DSK` `A` the other way, onto the disc ([4a3](#4a3-floppy-floppy-discs-read-and-written-track-by-track)) |
+| `COPY`, `ERA`, `TYPE`, `RENAME` | disc commands ([4a](#4a-disc-commands-copy-era-type-rename-and-help)) |
 | `RAMDISC` | RAM discs ([4b](#4b-ram-discs-ramdisc)) |
 | `QUIT` | ends CyborgOS (it says how many programs ran - the commands count too) (built in) |
 
@@ -170,41 +96,120 @@ TICKER.CYB runs in slot 3
 1> fg 3
 ```
 
-A program's name is found as *name*.CYB, else *name*.COM (only with an entry:
-[6](#6-plain-com-files-filesdir-and-namehdr)), else the .COM whose FILES.DIR entry has the long
-name *name*; `NAME.COM` / `NAME.CYB` take that one.
+A program's name is found as *name*.CYB, else *name*.COM (a plain CP/M program, read to its
+real end: [6](#6-plain-com-files)); `NAME.COM` / `NAME.CYB` take that one.
 
-## 4a. Disc commands: COPY, ERA, TYPE, PREP, RENAME (and HELP)
+## 4a. Disc commands: COPY, ERA, TYPE, RENAME (and HELP)
 
 Programs on the CyborgOS disc (`.CYB`, NTC BASIC built for cpm: `bas/cyborgos320kb/cmds`), run by
-their names like any program. They only touch files that are in the volume's FILES.DIR (the
-files added there); a volume is `A:`, `B:` ..., or none for the slot's drive. A file is named
-by its disc name (`README.TXT`; `NAME` alone also finds `NAME.COM`) or its long name.
+their names like any program. They take any file the drive has - UniDOS's listing of its folder,
+a RAM disc's own directory (Z, RAMDISC's) - a volume is `A:`, `B:` ..., or none for the slot's
+drive; `NAME` alone also finds `NAME.COM`.
 
 | Command | Does |
 |---|---|
-| `PREP` *v* | makes an empty FILES.DIR on volume *v* (`B` or `B:`) - one 128 byte record of unused entries, as a disc ROM may make no file for an empty one - then looks for it again. A volume that has one already is left alone. CD needs it, and COPY's target |
-| `PREP` [*v*:]*pattern* `ADD` | each file on *v* that fits the pattern (`*` any characters, `?` any one: `*.CYB`, `T*`, `*` all) and isn't already listed is added to FILES.DIR - its size from the directory, its long name the name before the `.`. On a RAM disc (Z and any `RAMDISC` drive) it sees the real directory; on a floppy it sees only what FILES.DIR already lists (reading a floppy's own catalogue is not done yet). It replaces the old CYBADD |
-| `PREP` [*v*:]*pattern* `REMOVE` | each listed file that fits the pattern is dropped from FILES.DIR (any drive) |
-| `COPY` [*v1*:]*name* *v2*[:*newname*] | copies the file to volume *v2* (which needs a FILES.DIR: PREP), as *newname* or the same name, and puts its entry (length, long name, flags) in *v2*'s FILES.DIR |
-| `COPY` [*v1*:]*pattern* *v2* | each file that fits the pattern (`*` any characters, `?` any one: `*.CYB`, `T*`, `????.COM`, `*.*` - its disc name or long name) copied to *v2* with its own name; *v2*'s FILES.DIR written once at the end. It stops when the disc or FILES.DIR is full, says how many were copied |
-| `ERA` [*v*:]*name* | deletes the file and its entry |
+| `COPY` [*v1*:]*name* *v2*[:*newname*] | copies the file to volume *v2*, as *newname* or the same name |
+| `COPY` [*v1*:]*pattern* *v2* | each file that fits the pattern (`*` any characters, `?` any one: `*.CYB`, `T*`, `????.COM`, `*.*`) copied to *v2* with its own name; it stops when the disc is full, says how many were copied |
+| `ERA` [*v*:]*name*, `ERA` [*v*:]*pattern* | deletes the file; a pattern (`*.BAK`) each that fits. A folder: RMDIR |
 | `TYPE` [*v*:]*name* | shows the text file, to its end or first ^Z |
-| `RENAME` [*v*:]*name* *newname* | renames the file on the disc and in its entry (its long name and the rest stay); *newname* is a disc name (NAME.EXT) on the same volume, not one taken already |
+| `RENAME` [*v*:]*name* *newname* | renames the file; *newname* is a disc name (NAME.EXT) on the same volume, not one taken already |
 
 ```
-1> prep b
-B:FILES.DIR made (no entries)
 1> copy readme.txt b:
 A:README.TXT to B:README.TXT: 20 bytes
 1> type b:readme.txt
 ```
 
-COPY copies what CP/M sees: whole 128 byte records, without an AMSDOS header. A plain file
-or `.COM` comes out the same (its exact length is in the entry); a CPC `.BIN` loses its header
-and a `.CYB` copy no longer runs as a `.CYB` from a disc (on a RAM disc it does: there a file
-is read as it is). The files go through the hypervisor's BDOS calls (below), one file read and
-one written at a time on a disc (any number on a RAM disc).
+COPY copies what CP/M sees, 8K at a time: from UniDOS to the file's exact length (its listing
+gives it), from a RAM disc to its last record. A copy is written in whole 128 byte records (CP/M's)
+and AMSDOS / UniDOS put a ^Z after the last, so a 20 byte text file is 129 bytes on the disc; a
+CPC `.BIN` loses its header (CP/M reads past it). The files go through the hypervisor's BDOS
+calls (below), one file read and one written at a time on a disc (any number on a RAM disc).
+
+## 4a2. UniDOS: devices and folders as drives
+
+With UniDOS (OffseT's DOS: X-Mass, Albireo, M4, Nova ... its devices `IDE:`, `SD:`, `UMS:`,
+`M4:`, `DFA:` ...) a drive letter can be a **path**: a device and its folders. CyborgOS finds
+UniDOS by its Ctrl J BIOS command (KL FIND COMMAND) - with AMSDOS none of this is there and
+nothing changes. A path is for every slot (it is the letter's); 31 characters at most.
+
+| Command | What it does |
+|---|---|
+| `CD IDE:`, `CD IDE`, `IDE:` alone, `CD SD:GAMES/ACTION` | this slot's drive gets that path. With `CD` the `:` after a device's name doesn't matter (`CD IDE` is `CD IDE:`; a folder named as a device: `CD SD/`); any word ending in `:` typed alone is `CD` it (`B:`, `IDE:`, `DFB:`). On `A` or `B` (UniDOS's own two logical drives - the boot drive is one of them, so it is never moved) the first letter from `C` with no path and no RAM disc gets it instead, and becomes this slot's drive |
+| `CD GAMES` | a folder in this drive's (from `A`/`B`: as above, the path `A:GAMES/`) |
+| `CD ..` | the folder this drive's is in |
+| `CD C: IDE:WORK` | drive `C`'s path set, `C` this slot's drive |
+| `CD C: -` | drive `C`'s path dropped |
+| (a RAM disc) | a RAM disc's letter never has a path: RAMDISC drops one it had, and `CD IDE:` from a RAM disc takes another letter |
+| `CD` | this slot's drive and its path, every drive with a path, the devices UniDOS has |
+| `CD B` | as before (UniDOS lists the folder) |
+| `CD DFA:`, `CD DFB:` | a floppy as a path: UniDOS can't examine it, so it is taken as it is (`FLOPPY A` lists its files) |
+| `MKDIR WORK`, `MKDIR IDE:GAMES/NEW` | a folder made, in this drive's folder or anywhere |
+| `RMDIR WORK`, `RMDIR IDE:GAMES/OLD` | an empty folder removed (UniDOS deletes a folder with all it holds, so RMDIR looks first and refuses one that isn't empty) |
+| `FLOPPY A GAMES` | a floppy's files copied into a folder ([4a3](#4a3-floppy-floppy-discs-read-and-written-track-by-track)) |
+| `DRIVE` | the drive letters in use (A, B; a letter's path; RAM discs) and UniDOS's devices by their own names (IDE, SD, UMS, M4, DFA, DFB, TAPE, ZERO ...): what each is, its free space, or "not there" |
+| *name* (a plain .COM) | where no NAME.CYB is, NAME.COM is opened instead, and UniDOS reads it to its real end (on a RAM disc too: its driver does the same). `RUN NAME.COM` too |
+| `DIR`, `DIR IDE:`, `DIR SD:GAMES/*.BAS`, `DIR GAMES/` | the folder as UniDOS lists it: files, folders (`NAME/`); hidden ones only with `FULL`. `FULL`: sizes (any size), dates |
+| `COPY`, `ERA`, `TYPE`, `RENAME` | take any file in the drive's folder |
+
+```
+1> cd ide:games
+drive C: --> IDE:GAMES/
+1> dir
+ACTION/      LIST.TXT
+1> cd
+drive C: --> IDE:GAMES/
+  C: --> IDE:GAMES/
+Devices: IDE: SD: SD2: UMS: DFA: DFB: TAPE: ZERO:
+```
+
+`C: --> IDE:GAMES/`: drive C (this slot's, here) goes to IDE:GAMES/ - anything on C is there.
+
+CP/M programs see the folder too: a file call on drive C goes to `IDE:GAMES/NAME.EXT`, and a
+directory search (BDOS 17, 18) lists the folder itself (its files: 112 at most) - a drive UniDOS
+can't examine (an AMSDOS floppy) lists nothing. The programs CyborgOS
+runs come from the slot's drive's path too. It all runs in the hypervisor's own page: main RAM
+is not touched.
+
+## 4a3. FLOPPY: floppy discs read and written track by track
+
+UniDOS turns off AMSDOS's sector calls, so a floppy (a real drive, a Gotek) that UniDOS can't read
+well is read by FLOPPY itself: it drives the CPC's disc controller (the uPD765, ports #FB7E /
+#FB7F, the motor #FA7E) with interrupts off, a track at a time. It works the same with AMSDOS. The
+format is found from a sector's number: data (C1-C9), system (41-49, 2 tracks kept for the
+system), IBM (01-08, 1 track) - 40 tracks, one side, 512 byte sectors, 1K blocks, 64 directory
+entries. FLOPPY is a program on the disc (no main RAM, no hypervisor code) - on the boot drive,
+not copied to Z (it would take another 16K page of Z for a command seldom run).
+
+| Command | Does |
+|---|---|
+| `FLOPPY A` (`DFA`, `FDA`; `B`, `DFB`, `FDB`; a `:` after it or not) | the disc's files: name, size (its records x 128), the user area when not 0; how many, the K used, the format |
+| `FLOPPY A GAMES` | each file copied into the folder `GAMES` in this drive's folder - made if it isn't there (UniDOS) |
+| `FLOPPY A IDE:GAMES/X` | the same, a folder anywhere (31 characters at most) |
+| `FLOPPY A C:` | into drive `C` as it is (a RAM disc ...; no UniDOS needed) |
+| `FLOPPY GAMES A`, `FLOPPY IDE:GAMES/X A`, `FLOPPY C: A` | the other way: each file in the folder (or drive) onto the disc, added to what it has (one of the same name replaced; the disc formatted already, its format as above) - an AMSDOS header with it (the disc ROM's copy: BDOS 30 #C7), the last record padded with ^Z; its directory written after each file. It stops at the first that won't fit |
+| `FLOPPY GAME.DSK A`, `FLOPPY IDE:IMGS/GAME.DSK A` | the image onto the disc: each track formatted as the image has it (its sectors' IDs and sizes, its gap and filler), then its sectors written (each tried 3 times; ones that couldn't be are counted). One side, 42 tracks at most; a track the image hasn't got is left as it is. A write-protected disc says so |
+| `FLOPPY A GAME.DSK`, `FLOPPY A IDE:IMGS/GAME.DSK`, `FLOPPY A C:GAME.DSK` | the whole disc as a .DSK image instead of its files - in this drive's folder, a folder (made if need be), a drive. Extended DSK: each track's sectors as they pass the head (read ID round the track first, so any sector numbers and sizes - 4608 bytes a track at most), tracks 0-39 and 40, 41 when formatted, side 0. A sector that can't be read (3 tries) is kept as it came, its ST1 / ST2 in the image |
+
+```
+1> floppy a
+BIG.DAT      20864
+READ.TXT     128
+GAME.BIN     1152
+3 files, 22K on A (data format)
+1> floppy dfa ide:games
+IDE:GAMES/ made
+BIG.DAT to IDE:GAMES/BIG.DAT: 20864 bytes
+...
+3 of 3 files copied
+```
+
+A file is copied as CP/M sees it, record by record, with its AMSDOS header if it has one, so the
+copy loads as the original did (AMSDOS adds a ^Z after the last record of a file written this
+way). A name in two user areas is copied once. Each sector is tried 4 times (the head back to
+track 0 between); a sector that still can't be read stops it, saying which. Nothing else should
+use the floppy drives while it runs (another slot's file on A or B, AMSDOS's motor timer). Not
+tried on real hardware yet.
 
 ## 4b. RAM discs: RAMDISC
 
@@ -215,7 +220,7 @@ and searches (17, 18) of the RAM disc's own directory.
 
 | Command | Does |
 |---|---|
-| `RAMDISC` *v* *size* | drive *v* (A-P) a RAM disc of *size*: `64K`, `256KB`, `1MB`, `512` (KB) ... in 16K steps, 4MB in all. It gets an empty FILES.DIR (so CD, COPY, ERA, TYPE, RENAME work on it) |
+| `RAMDISC` *v* *size* | drive *v* (A-P) a RAM disc of *size*: `64K`, `256KB`, `1MB`, `512` (KB) ... in 16K steps, 4MB in all (CD, DIR, COPY, ERA, TYPE, RENAME read its own directory) |
 | `RAMDISC` *v* `0` (or `OFF`) | dropped: its files gone, its memory free again |
 | `RAMDISC` | the RAM discs: size, files, free |
 
@@ -227,9 +232,7 @@ A:README.TXT to J:README.TXT: 20 bytes
 1> cd j
 drive J
 1> dir
-FILES.DIR     1K
-README.TXT    1K
-2 files, 250K free of 256K
+README.TXT
 ```
 
 - **Its contents go when CyborgOS ends, but survive a reset.** A RAM disc stays in its pages
@@ -333,7 +336,7 @@ layout lines before it - rec, count, f, go ... - and clears them, so a node can 
 | `src rom r addr [len]` | an upper ROM (#C000-#FFFF) |
 | `src main 0 addr [len]` | main RAM |
 | `src slot s addr [len]` | a slot's memory (one in use) |
-| `src dir d` | drive d's files (FILES.DIR's: 16 bytes each, the name at 1, its records at 15) |
+| `src dir d` | drive d's files (BDOS 17, 18 - UniDOS's listing, a RAM disc's directory: 16 bytes each, the name at 1, its records at 15) |
 | `deref w off [len]` | the source moved to the word at `off` in it (a pointer: a ROM's name table) |
 | `rec size [first] [base b]` | records: their size, where the first is, the number the first gets |
 | `count b off` / `count w off` / `count n` | how many: a byte or a word in the source, or n (else as many as fit) |
@@ -412,7 +415,7 @@ slot's bank, without the hypervisor):
 | 13, 32 | reset the discs, the user number: nothing to do (0) |
 | 14 | select a disc: the slot's drive (as CD) |
 | 15, 16 | open (to read; on a RAM disc to read and write), close |
-| 17, 18 | search for the first / next file matching the FCB's name (`?` any character): its entry in the slot's drive's (or the FCB's drive's) FILES.DIR, as a CP/M directory entry at the DMA (A = 0; the record count from its length, 128 at most); #FF none |
+| 17, 18 | search for the first / next file matching the FCB's name (`?` any character): its entry in the slot's drive's (or the FCB's drive's) folder as UniDOS lists it (a RAM disc: its own directory; an AMSDOS floppy: none), as a CP/M directory entry at the DMA (A = 0; the record count from its length, 128 at most); #FF none |
 | 19 | delete (the disc ROM's `|ERA`) |
 | 20, 33 | read the next record / record *n* (the file read again from its start when *n* is behind) |
 | 21, 34, 40 | write the next record (34 and 40 write in order too) |
@@ -452,15 +455,14 @@ is record *n* again, as in CP/M), searches list the RAM disc's directory (each e
 as the extent), and any number of files are open. What follows is about discs.
 
 Not yet: the Graphics class (it writes the CPC's screen, which a program in a bank can't see).
-On a disc, searches see what FILES.DIR lists (a file a program made isn't in it until COPY or PREP ADD adds
-it), and not while a file is being read. Random records: reading goes on from where the file
+On a disc, searches need UniDOS (an AMSDOS floppy lists nothing). Random records: reading goes on from where the file
 is (after BDOS 33, the next sequential read is the record after *n*, not *n* again); writing is
 always the next record. Sector access through the BIOS.
 
 ### Making a .CYB
 
 A `.CYB` file is a cpm build of the program with an AMSDOS header (the header gives its length;
-a plain `.COM` needs an entry for that - [6](#6-plain-com-files-filesdir-and-namehdr)).
+a plain `.COM` is read to its real end - [6](#6-plain-com-files)).
 
 - **The GUI:** platform **cpm**, tick **AMSDOS .BIN / .CYB**: assembling the program writes
   *NAME*.CYB beside the .COM (NAME is the project's name).
@@ -539,72 +541,30 @@ second.
 | #F700-#FEFF | the slot's text page: a ring of its rows (2K at most: 80 x 25, 80 x 24, 88 x 23, 96 x 21, 64 x 32) |
 | #FFFE | the slot's saved SP |
 
-## 6. Plain .COM files: FILES.DIR and NAME.HDR
+## 6. Plain .COM files
 
-A CP/M program copied to the disc as it is (a `.COM`, no AMSDOS header) runs too, once it has
-an **entry**: AMSDOS can't say how long a file with no header is (it reads it as text and
-reports each #1A byte as an end of file), so the entry says it - and it is also the say-so
-that the program runs here: a `.COM` with no entry is not run (`NAME: not found`), so a
-stray or broken one isn't started.
-
-- **FILES.DIR** - one file of entries for the disc. `PREP [v:]pattern ADD` / `REMOVE` keeps it
-  (inside CyborgOS; it replaces the old AMSDOS CYBADD): ADD takes each disc file that fits, reads
-  its length from the directory and gives it a long name (the name before the `.`); `RUN LONGNAME`
-  then runs it. ADD sees a RAM disc's real directory; a floppy's own catalogue is not read yet
-  (the 128K version still ships CYBADD for that).
-- **NAME.HDR** - the entry for NAME.COM alone, beside it. RUN looks here first.
-- **The long name** is a second name for the file, not a description: one word (the command
-  line splits at spaces), up to 38 characters. `RUN LONGNAME` runs a .COM by it, and COPY, ERA,
-  TYPE and RENAME take it as well as the disc name; DIR shows it. (A description - with spaces -
-  would need its own field; the entry has room: bytes 22-23 and a directory of its own later.)
-- The CyborgOS disc's FILES.DIR lists every file on it: CYBORGOS.BIN (and on 128K CYBADD.BIN) as
-  "other", the .CYB programs with their names as long names, and CRUNCH.COM (long name BIGCRUNCH).
-- `DIR` lists FILES.DIR (until the disc's own directory is read, it is the directory).
-- `DIR` and `CD` are not in the Library: ROM build of CyborgOS (no room below #4000 with them
-  for the Memory class's tables); RUN reads the entries there too.
-
-RUN then reads the .COM with `FileSystem.ForReadRaw`: every byte to its length, a #1A just a
-byte (checked on the real ROMs: AMSDOS goes on after its "soft" end of file).
-
-An entry is 64 bytes (both files: one after another; FILES.DIR as CYBADD saves it has an
-AMSDOS header first, which AMSDOS takes off; one written without is read the same):
-
-| Bytes | |
-|---|---|
-| 0 | 1 = a file (0 unused; 2 will be a virtual directory) |
-| 1-11 | its name on the disc, CP/M style: 8 + 3 characters, capitals, spaces after |
-| 12 | what it is: 1 = a CP/M .COM (RUN takes only these), 0 = other (a CPC .BIN ...) |
-| 13 | flags: bit 0 = it runs here |
-| 14-15 | its length in bytes (#EE00 at most: #0100-#EEFF) |
-| 16-17, 18-19 | load and run address (#0100 for a .COM) |
-| 20, 21 | the virtual directory it is in, a directory's own number (not used yet) |
-| 22-23 | not used yet |
-| 24-61 | its long name, up to 38 characters, 0 after |
-| 62-63 | the sum of bytes 0-61 (a damaged entry is not used) |
-
-The entries stand in until CyborgOS reads the disc's own directory (file sizes from the
-record counts, random access); then plain `.COM` files need nothing - but the entries can
-keep what a directory can't: long names, virtual directories, more about each program.
-`src/test/ntcrun.py`'s `cyb_entry()` writes one on a PC (`gendsk.sh` uses it).
+A CP/M program copied to the disc as it is (a `.COM`, no AMSDOS header) runs by its name
+(`CRUNCH`: CRUNCH.CYB, else CRUNCH.COM) or as `RUN CRUNCH.COM`. UniDOS reads a file with no
+header to its real end (AMSDOS alone would stop at its first #1A byte), and a RAM disc knows its
+records, so nothing more is needed - the FILES.DIR / NAME.HDR entries earlier versions wanted
+for this are gone. RUN reads it with `FileSystem.ForReadRaw`: every byte, a #1A just a byte.
 
 ## 7. Not yet
 
 - `LOAD`, `SAVE`, `DISC`, `TAPE`.
-- A plain `.COM` without an entry ([6](#6-plain-com-files-filesdir-and-namehdr)), and searches
-  of a disc's own directory: that needs the directory read (record counts, AMSDOS's sector
-  command #84), which comes with the file system work, and true random access on discs with
-  it (RAM discs have it now: [4b](#4b-ram-discs-ramdisc)).
+- True random access on discs (RAM discs have it: [4b](#4b-ram-discs-ramdisc)); an AMSDOS floppy's
+  directory through the disc calls (FLOPPY reads one itself).
+- Two-sided and 80 track floppies (FLOPPY: one side, 42 tracks); a disc to disc copy.
 - Folders on RAM discs (the directory has a folder byte for them already).
 - The printer and the punch (BDOS 4, 5; the BIOS's LIST, PUNCH).
-- Virtual directories and long names with spaces (FILES.DIR has room for both).
 - Drivers (printer, serial, sound ...) that programs reach with far calls.
 - Faster BDOS calls.
 
 ## 8. For developers
 
 CyborgOS itself is `bas/cyborgos320kb/Main.bas`, `Hyp.cls` (the bank side, the switch), `Hot.cls`
-(the system keys, an interrupt class) and `Ent.cls` (FILES.DIR entries, in Z80 - CYBADD,
-`bas/cyborgos320kb/tools/CYBADD.bas`, uses it too), built for **cpcfw** (also with `Option Library
+(the system keys, an interrupt class) and `Ent.cls` (64 byte file entries, in Z80 - unused since
+FILES.DIR went; the 128K version's CYBADD uses its own), built for **cpcfw** (also with `Option Library
 ROM`). `Option Reserve &H4000, &H4000` keeps the window it reaches the banks through free: the
 hypervisor is built round it, from #0040 and on from #8000; the Memory class's tables follow it
 (`Option Memory CPCExpansion 257`: all 64 banks of a 4MB expansion - about 400 bytes of main RAM
@@ -616,14 +576,14 @@ from #5300 after the font, with the bank image that Install copies into each slo
 NTC window data (`; @window` in the #asm): in CYBORGOS.BIN's window hole, copied into the page
 at the start, so they take no main RAM. The
 test programs are in `bas/cyborgos320kb/tasks/`, the commands in `bas/cyborgos320kb/cmds/`, each
-built for cpm: COPY, ERA, TYPE, PREP, RENAME, DIR with `CybDir.cls` (FILES.DIR read and
-written); PS, KILL, RESET, FG, WAIT, TOP, MEM with `CybSys.cls` (BDOS 131); HELP, CD, RAMDISC
-alone. CyborgOS's own BDOS functions, for these commands:
+built for cpm: COPY, ERA, DIR with `CybDir.cls` (a drive's own directory read: UniDOS's listing,
+a RAM disc's); PS, KILL, RESET, FG, WAIT, TOP, MEM with `CybSys.cls` (BDOS 131); HELP, CD, RAMDISC,
+MKDIR, RMDIR, DRIVE, FLOPPY, TYPE, RENAME alone (HELP's texts: `bas/cyborgos320kb/help/*.HLP`, on disc 1). CyborgOS's own BDOS functions, for these commands:
 
 | BDOS | DE = a block in the program | Does |
 |---|---|---|
 | 130 | op, letter, the driver's address, its length (words) | RAMDISC: op 0 a RAM disc as the letter (the driver goes into a page of its own the first time), 2 a free page more for it, 1 one of its pages back, 3 a line of the RAM discs' list |
-| 131 | op, slot or value, then what comes back | op 9 MODE also 5 (F); 10 memory read (byte 1: 0 a 16K page, 1 an upper ROM, 2 main RAM, 3 a slot's memory - one in use; word 2 the page / ROM / slot, word 4 the address, word 6 where to in the slot, word 8 how many - 2K at most, a page or ROM to its end); 11 the pointer (byte 1: 0 off, 1 at byte 2, byte 3 - a column, a row; only while the slot is in front); 12 the store: word 2 K (16K pages of the slot's own, 512K at most; gone when the program ends); 13 / 14 a 2K block of it (word 2) from / to the slot (word 6, word 8); 15 a raw table into the slot at word 2 (2K at most; byte 1: 0 the slots - a word how many, then from 16 a 16 byte record each: state, in front, MODE, the name's length, the name; 1 the memory - words: the tables' end, the top of free main RAM, the pages, total K, free pages, then from 16 a byte a page: B a slot's, U CyborgOS's, - free; 2 the upper ROMs 0-15 - 128 bytes each: the first 16 of the ROM, 112 of its name table; 3 the RAM discs - the driver's table, 8 x 16: letter, -, blocks, free blocks). 10-15 not in the Library: ROM build. And: op 0 a slot's state, whether it is in front, its program's name; 1 kill; 2 reset (0: this slot); 3 to the front; 4 wait until no other program runs; 6 TOP's table into this slot; 7 the memory (the tables' end, the top, the pages, the totals line); 8 32 pages of the bank map; 9 MODE (0-4: this slot's, its console cleared; 255: which it is). 7 and 8 not in the Library: ROM build |
+| 131 | op, slot or value, then what comes back | op 9 MODE also 5 (F); 10 memory read (byte 1: 0 a 16K page, 1 an upper ROM, 2 main RAM, 3 a slot's memory - one in use; word 2 the page / ROM / slot, word 4 the address, word 6 where to in the slot, word 8 how many - 2K at most, a page or ROM to its end); 11 the pointer (byte 1: 0 off, 1 at byte 2, byte 3 - a column, a row; only while the slot is in front); 12 the store: word 2 K (16K pages of the slot's own, 512K at most; gone when the program ends); 13 / 14 a 2K block of it (word 2) from / to the slot (word 6, word 8); 15 a raw table into the slot at word 2 (2K at most; byte 1: 0 the slots - a word how many, then from 16 a 16 byte record each: state, in front, MODE, the name's length, the name; 1 the memory - words: the tables' end, the top of free main RAM, the pages, total K, free pages, then from 16 a byte a page: B a slot's, U CyborgOS's, - free; 2 the upper ROMs 0-31 - 64 bytes each: the first 16 of the ROM, 48 of its name table; 3 the RAM discs - the driver's table, 8 x 16: letter, -, blocks, free blocks). 10-15 not in the Library: ROM build. And: op 0 a slot's state, whether it is in front, its program's name; 1 kill; 2 reset (0: this slot); 3 to the front; 4 wait until no other program runs; 6 TOP's table into this slot; 7 the memory (the tables' end, the top, the pages, the totals line); 8 32 pages of the bank map; 9 MODE (0-4: this slot's, its console cleared; 255: which it is). 7 and 8 not in the Library: ROM build |
 
 CyborgOS starts by running `RAMDISC Z SYSTEM` with the boot drive's letter (the system drive:
 [2](#2-starting)). The regression tests run it in the harness with 4

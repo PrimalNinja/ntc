@@ -82,9 +82,9 @@ cat "The CPC"
 
 node roms "ROMs - the upper ROMs, their names"
 src os 2
-rec 128
-count 16
-dup 16
+rec 64
+count 32
+dup 32
 f "ROM" #
 f "Type" b 0 enum "0=foreground,1=background,2=extension,128=BASIC (on board)" mask 127
 f "Version" ver 1

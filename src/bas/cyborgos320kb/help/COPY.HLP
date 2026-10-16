@@ -1,0 +1,6 @@
+COPY [v1:]name v2[:newname]
+COPY [v1:]pattern v2
+  Copies a file to drive v2 (B or B:), as newname or the same name; a
+  pattern (*.CYB, T*, ????.COM, *.*) copies each file that fits.
+  Any file the drive has (UniDOS's folder, a RAM disc's directory).
+

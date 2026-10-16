@@ -21,17 +21,13 @@ What it does now, and where it differs from the design below:
   programs built for the cpm platform run unchanged, other CP/M 2.2 programs as far as they keep
   to the BDOS and BIOS). The whole list is in the user guide (section 5). On discs the file
   calls are Hyp.FileCall, Z80 on the disc ROM's cassette calls (delete and rename through its
-  |ERA and |REN; random records by reading on; search through FILES.DIR); on RAM discs they are
+  |ERA and |REN; random records by reading on; search through UniDOS's listing); on RAM discs they are
   the driver's, with real random access.
 - Programs are `.CYB` files: a cpm build with an AMSDOS header. `RUN name` loads name.CYB at
-  #0100 of the slot's bank. A plain `.COM` (no header) runs when FILES.DIR or NAME.HDR has an
-  entry for it (64 bytes: its disc name, length, long name ...; CYBADD.BIN writes
-  them) - the length AMSDOS can't give, and the say-so that it runs. Read with
-  `FileSystem.ForReadRaw` (each #1A is AMSDOS's "soft" end of file, and reading goes on to the
-  last record: checked on the real ROMs). The entry routines are Z80 in Ent.cls (SetName, Length,
-  Make, Where, DiscName, Show): in BASIC they made CyborgOS 3K bigger. CYBADD (a separate CPC
-  program, `bas/cyborgos320kb/tools/`) writes FILES.DIR: in CyborgOS, ADD cost 900 bytes, which took
-  the Memory class's room for 16 slots. CD runs the disc system's |letter (KL FIND COMMAND, KL
+  #0100 of the slot's bank, else name.COM - a plain `.COM` (no header), read with
+  `FileSystem.ForReadRaw` to its real end (UniDOS knows it; a RAM disc its records). (Earlier
+  versions needed a FILES.DIR / NAME.HDR entry for one: AMSDOS can't give the length; gone with
+  FILES.DIR - the commands read the real directories now: UniDOS's listing, a RAM disc's.) CD runs the disc system's |letter (KL FIND COMMAND, KL
   FAR PCALL) per slot. Until the disc's own
   directory is read (record counts, random access), then for long names and virtual
   directories.
@@ -86,7 +82,7 @@ What it does now, and where it differs from the design below:
   the window it runs in). Files are 2K-block chains; an open file is its FCB (d0, d1 its entry),
   so any number are open. Main RAM cost: about 600 bytes.
 - BDOS 1, 2, 3-11 and 27-31 are answered in the bank; the default FCBs are filled from the
-  command tail before #0100 runs; search (17, 18) reads FILES.DIR, size (35) counts records.
+  command tail before #0100 runs; search (17, 18) reads UniDOS's listing, size (35) counts records.
 - Speed: 200 lines of 62 characters scroll at about 16 lines a second on the real ROMs (was 3,
   then 8 with the BASIC console; and the screen didn't scroll). Profiled on the real ROMs
   (realcpc PROF): the firmware (its interrupts, 300 a second) about 33%, Hyp.Con 27%, the

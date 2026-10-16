@@ -1,0 +1,4 @@
+RESET [slot]
+  The slot as before its command line was first opened - its program (if
+  any) stopped, nothing kept. No slot: this one.
+

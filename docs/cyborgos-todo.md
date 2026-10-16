@@ -9,6 +9,102 @@ version.
 
 ## done
 
+- 2026-10-16 WINAPE.BAS on disc 1 (installed in CYBORGOS/): CYBORGOS.BAS with o$=" KEYREP 10"
+- 2026-10-16 The regression's small test programs (hook, for, gs ... wrap) are built into
+  src/test/out/PLATFORM[_turbo][_rom], one folder each, not over each other in src/test
+
+- 2026-10-16 FLOPPY both ways, as COPY (from, to): FLOPPY GAMES A writes a folder's files onto a
+  formatted disc (its free blocks, its directory - one of the same name replaced; the AMSDOS
+  header from the disc ROM's copy: BDOS 30 #C7, new - the hypervisor keeps CAS IN OPEN's HL; 29
+  bytes of page code, 43 left); FLOPPY GAME.DSK A writes an image: each track formatted (uPD765
+  format, the image's IDs), its sectors written. The harness's controller writes and formats
+  too (saving the image)
+
+- 2026-10-16 FILES.DIR gone (320K): the commands read the real directories - UniDOS's listing
+  (BDOS 30 #C5), a RAM disc's own (BDOS 17, 18, 35). CybDir.cls rewritten (16 byte entries, no
+  save); COPY, ERA (patterns now), TYPE, RENAME, DIR take any file; CD needs no FILES.DIR; PREP,
+  NAME.HDR, long names gone; RUN NAME.COM opens it (Main's FindCom / FindEnt gone: main RAM
+  smaller); the hypervisor's search from FILES.DIR gone (UniDOS's listing only); RAMDISC makes no
+  FILES.DIR. UniDOS is needed for the disc commands (the 128K version keeps FILES.DIR)
+- 2026-10-16 The installer puts CyborgOS in A:CYBORGOS/ (commands in C/, help in HELP/: |SAVE
+  "PATH/", |COPY), and at the end: run on a real CPC, run on WinAPE (KEYREP 10), exit (|DRIVE
+  "A","CYBORGOS", then as CYBORGOS.BAS). RAMDISC Z SYSTEM reads CYBORGOS.Z's C/NAME.CYB lines from
+  the boot drive's folder C (a free letter's path for a moment); HELP looks in A:HELP/, B:HELP/
+- 2026-10-16 FLOPPY's syntax: FLOPPY A, FLOPPY A folder, FLOPPY A NAME.DSK (INSTALL gone); FLOPPY
+  folder A / NAME.DSK A (onto a floppy) say "not yet"
+
+- 2026-10-16 A plain .COM on a RAM disc runs by its name (BBC BASIC put on E: with FLOPPY ...
+  INSTALL E: didn't, from IDE:BEEB it did): the RAM disc driver answers the hypervisor's own
+  open (FileCall 100) itself, so the UniDOS .CYB -> .COM fallback never reached it. The driver
+  now does the same: NAME.CYB not there, NAME.COM, the caller's name made NAME.COM. No main RAM
+  (the driver's own page)
+
+- 2026-10-16 RMDIR hung or took ages on a real CPC: UniDOS's |ERA asks before it deletes a folder
+  ("is a directory" - Yes/No/All, KM WAIT CHAR), and with the firmware's text off (Vdu 0) the
+  question never showed: it waited for a Y, N or A typed by chance. The hypervisor's delete
+  (BDOS 19) now puts a Y waiting first (KM CHAR RETURN) and takes it back after (KM READ CHAR)
+  when nothing asked - also for read-only and hidden files. No main RAM (6 bytes of the page
+  code, its last). The harness's |ERA asks too (a folder only with a Y)
+
+- 2026-10-16 INSTALL.BAS: SPEED KEY 100,100 at the start (keys don't repeat on WinAPE at full
+  speed), 30,2 again at the end
+
+- 2026-10-16 INSTALL.BAS on disc 1 only: "CyborgOS Installer", map the floppy as B and the mass
+  storage as A; disc 1, then asks for disc 2 and 3; a bar and the % done per file; |ERA / |COPY with
+  @p1$ / @p2$ (BASIC 1.0: no literal strings to an RSX). gendsk writes its DATA (how many, "#n" and
+  each disc's files)
+
+- 2026-10-16 FLOPPY on a real CPC: "track 0 sector &C1: can't be read (ST0-2 &41 &90 &0)" - ST1 &90
+  is an overrun: a byte not taken within its 32 us. The read loop's wait for each byte went
+  through the timeout count (26 us more); now only the first byte has a timeout and the rest
+  come in a tight loop (22 us a byte), with interrupts off for the whole controller call (as
+  they were, after)
+
+- 2026-10-16 FLOPPY A INSTALL folder DSK [name]: the whole disc as an extended .DSK image (FLOPPY.DSK
+  by default) - two passes: each track's sector IDs (read ID round the track: the header needs the
+  tracks' sizes first), then each track read by those IDs and written; unreadable sectors kept
+  with their ST1 / ST2. Tracks 0-39, 40 and 41 when formatted, side 0
+
+- 2026-10-16 FLOPPY: a floppy disc read track by track through the uPD765 itself (UniDOS turns
+  AMSDOS's sector calls off): FLOPPY A lists the files (data, system, IBM formats), FLOPPY A
+  INSTALL folder copies each into a folder (made if needed, reached through a free letter as RMDIR
+  does) or a drive (C:). A program on the disc (disc 2, run from the boot drive; not in Z: 16K
+  of Z for a command seldom run): no main RAM. The harness has the controller
+  (NTC_FDC=a.dsk,b.dsk) and make_dsk for test discs. Not tried on real hardware yet
+
+- 2026-10-16 HELP from text files: HELP shows HELP.HLP, HELP name NAME.HLP (from the slot's drive,
+  then A, then Z) - one for each command, on disc 1, plain text anyone can edit
+
+- 2026-10-16 RMDIR (UniDOS): an empty folder removed - it looks first (UniDOS's |ERA takes a folder
+  with all it holds), then deletes it through a free letter whose path is the parent for a moment
+  (BDOS 19: no hypervisor code). DRIVES renamed DRIVE
+
+- 2026-10-16 A RAM disc's letter never has a path: a letter that got one (CD F: IDE:) then made a RAM
+  disc showed "drive F: IDE:" and DIR listed IDE: (DIR asked UniDOS for the path's folder; file
+  calls already went to the RAM disc - its driver sees them first). Now RAMDISC drops the path,
+  CD and DIR treat the letter as the RAM disc, CD IDE: from a RAM disc takes another letter
+
+- 2026-10-16 UniDOS: MKDIR (BDOS 30 #C6: CAS OUT OPEN of "NAME/"), DRIVE (the letters in use, UniDOS's
+  devices by their own names with what they are and their free space), a plain .COM with no entry
+  runs (the hypervisor's own open: NAME.CYB not there - NAME.COM, UniDOS reads it to its real end;
+  the caller's name made NAME.COM too), `IDE:` alone is CD IDE: (any word ending ":" - Main's B:
+  test made simpler: no main RAM), CD IDE as CD IDE:, CD DFB: (a floppy UniDOS can't examine:
+  taken). MON's ROMs page: ROMs 0-31 (op 15 table 2: 64 bytes each - 16 of the ROM, 48 of its
+  names). Main RAM still to #9DB4; the hypervisor's page code full (#5FFA of #6000)
+
+- 2026-10-16 UniDOS: a drive letter (A-P) can be a path - any UniDOS device's folder (`CD IDE:`,
+  `CD SD:GAMES`, `CD GAMES`, `CD ..`, `CD C: IDE:WORK`, `CD C: -`; `CD` lists the paths and the
+  devices). The hypervisor's file calls put the letter's path before the name (`IDE:GAMES/NAME.EXT`,
+  the programs it runs too); a directory search (BDOS 17, 18) lists the folder itself (Ctrl J
+  examine: no FILES.DIR needed - a floppy AMSDOS runs still uses FILES.DIR, and isn't held up by
+  another slot's read file); DIR lists folders, sizes, dates; COPY, ERA, TYPE, RENAME take any file
+  there (CybDir.LoadAll: the folder's files FILES.DIR hasn't got, never written to it). All in the
+  hypervisor's page (its page code, 124 bytes left; the FILES.DIR cache 112 entries now, the
+  paths, the longer names and BDOS 30's block above it at #7C00-#7FFF) and the bank's stub: BDOS
+  30 with #C0 on at DE is CyborgOS's UniDOS call (CP/M's own 30 still answered 0). No main RAM
+  (#9DB4 as before). The harness stands in for UniDOS (NTC_UNIDOS=IDE,SD: devices as folders,
+  Ctrl J 1, 2, 12, 13)
+
 - 2026-10-16 Under 576K: no system drive Z (made only with 8 expansion banks or more; COSLOAD's Z
   doesn't fit on 320K either) - the commands run from the boot drive; on 320K 96K left free (C6,
   C7, bank 4) for RAM discs, stores and the like. No main RAM cost
@@ -252,12 +348,26 @@ version.
 
 ## todo
 
+- Scrollback (built, switched off - `#Const SCROLLBACK` in Main.bas and `CN_SB` in Hyp.cls's Con, set
+  both to 1): Shift + Up a screen back, Shift + Down one on, any other key the live screen; 48 rows a
+  slot (2 screens), the first 80 columns, in a 16K page for 4 slots taken after the RAM discs are
+  reclaimed; rows copied 8 bytes at a time through the stack (no buffer). Off because it costs 526
+  bytes of main RAM (#9DB4 -> #9FC2); to cut: the drawing and the keys into the service page, one
+  history page for all slots (about 200-250 bytes left: saving rows as they scroll off has to be in
+  Con)
+
+- UniDOS next: random reads by seek (Ctrl J 6 with Ctrl J 5 instead of CAS IN CHAR: BDOS 33 and
+  a slot taking the read stream back without reading from the start), whole files straight into
+  a bank (Ctrl J 5: COSLOAD, RUN), the drive map kept over a reset (the hypervisor's page)
+- Own filesystem drivers (FatFS from UniDOS's open source, X-Mass / Albireo / M4 low level) in
+  driver pages, no UniDOS ROMs needed - the RAM disc driver's way (a page each, offered the file
+  calls first): needs the hypervisor to offer a call to more than one driver page
+
 - Folders on RAM discs (the directory entry has a folder byte already): CD J:\WORK, a slot's
   folder, MD / RD, paths in COPY, ERA, TYPE, RENAME
-- Read the disc's own directory (record counts: file sizes; CP/M Plus / cpmtools keep the last
-  record's byte count in byte 13 of an entry - exact sizes), random access on discs (AMSDOS's
-  sector commands #84 / #85, as the RAM disc driver does records); then FILES.DIR only for long
-  names (with spaces) and virtual directories
+- Random access on discs (UniDOS: Ctrl J seek); exact lengths for files COPY writes (CP/M
+  writes whole records, and AMSDOS / UniDOS add a ^Z: a 20 byte file is 129 bytes)
+- FLOPPY: two sides, 80 tracks; FLOPPY A B (disc to disc); a blank disc formatted (FLOPPY FORMAT A?)
 - The printer and the punch (BDOS 4, 5; the BIOS's LIST, PUNCH) - drivers, like RAM discs
 - RAM disc: save / load a whole RAM disc as one disc file; QUIT warns when one holds files
 - 128K version (only when asked): the BIOS jump table and the default FCBs are the parts worth

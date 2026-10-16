@@ -1,0 +1,7 @@
+RMDIR name             (UniDOS)
+  An empty folder removed from this drive's folder.
+RMDIR IDE:GAMES/OLD
+  ... from anywhere.
+  Only an empty one: UniDOS deletes a folder with all it holds, so RMDIR
+  looks first. It reaches the folder through a free drive letter (C-P).
+

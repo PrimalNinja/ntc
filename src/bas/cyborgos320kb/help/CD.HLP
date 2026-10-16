@@ -1,0 +1,14 @@
+CD [drive]
+  This slot's drive. CD alone: the drive (and its path), the drives with
+  paths and the devices. B: alone on the command line is CD B.
+UniDOS - a drive letter can be a path (a device's folder):
+  CD IDE:  CD IDE  IDE:      a device: this drive's path (from A, B or a RAM
+                             disc: the first free letter from C gets it)
+  CD SD:GAMES/ACTION         a device's folder
+  CD GAMES   CD ..           a folder here; the folder this one is in
+  CD C: IDE:WORK             drive C's path set, C this slot's drive
+  CD C: -                    drive C's path dropped
+  CD DFA:  CD DFB:           a floppy (FLOPPY A lists its files)
+  A folder named as a device: CD SD/. A RAM disc's letter has no path.
+  C: --> IDE:  means drive C goes to IDE:.
+

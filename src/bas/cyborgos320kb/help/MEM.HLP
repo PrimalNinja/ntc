@@ -1,0 +1,4 @@
+MEM
+  The memory: main RAM as a table, the map of the banks' 16K pages (B a
+  slot's, U CyborgOS's, - free), the totals.
+

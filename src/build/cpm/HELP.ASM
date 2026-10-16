@@ -18,6 +18,7 @@ ntc_start:
 			di
 			ld sp, ntc_cpmstack		; the platform's own real stack
 			ld (ntc_csp), sp
+			call ntc_cmdsave		; System.CommandLine: the command tail, before anything overwrites it
 			ld a, 1
 			ld (ntc_nmode), a		; normal mode: waits let interrupts in
 			ld sp, main_thread
@@ -28,132 +29,519 @@ ntc_start:
 ; ============================================================
 
 main_thread:
+			dw kw_bssinit, ntc_bss, ntc_bss_size		; the arrays: do they fit, clear them
 
-			; 4: Print "Built in: RUN, CLS, QUIT. On the system drive Z (from the boot disc): FG, PS,"
-			dw kw_printstrvar, str0
+			; main.bas 12: a = UCase$(Trim$(System.CommandLine()))
+			dw fn_system_commandline, var_system_commandline_commandline
+			dw kw_strcpy, stmp0, var_system_commandline_commandline
+			dw kw_strtrim, stmp0, stmp0
+			dw kw_strucase, var_a, stmp0
+
+			; main.bas 13: If a = "" Then a = "HELP"
+			dw kw_strcmpeq, var_a, str0
+			dw kw_goto_iffalse_n, if1_1
+			dw kw_strcpy, var_a, str1
+if1_1:
+
+			; main.bas 14: If InStr(a, " ") > 0 Then a = Left$(a, InStr(a, " ") - 1)
+			dw kw_strinstr, lit_1, var_a, str2, tmp0
+			dw kw_scpgtvl, tmp0, 0
+			dw kw_goto_iffalse_n, if2_1
+			dw kw_strinstr, lit_1, var_a, str2, tmp1
+			dw kw_dec, tmp1
+			dw kw_strleft, var_a, var_a, tmp1
+if2_1:
+
+			; main.bas 15: If InStr(a, ".") = 0 Then a = a + ".HLP"
+			dw kw_strinstr, lit_1, var_a, str3, tmp0
+			dw kw_cpeqvl, tmp0, 0
+			dw kw_goto_iffalse_n, if3_1
+			dw kw_strcat, var_a, str4
+if3_1:
+
+			; main.bas 16: If InStr(a, ":") > 0 Then Show "" : Show2
+			dw kw_strinstr, lit_1, var_a, str5, tmp0
+			dw kw_scpgtvl, tmp0, 0
+			dw kw_goto_iffalse_n, if4_1
+			dw p_show_c, str0
+			dw p_show2_c
+if4_1:
+
+			; main.bas 17: Show ""
+			dw p_show_c, str0
+
+			; main.bas 18: b(0) = &HC0
+			dw kw_ltolptr8, 192, arr_b
+
+			; main.bas 19: If Bdos(30, VarPtr(b)) = 0 Then                  ' UniDOS: A:HELP/, B:HELP/
+			dw p_bdos_c, lit_30, vp_arr_b
+			dw kw_vtov, var_bdos_bdos, tmp0
+			dw kw_cpeqvl, tmp0, 0
+			dw kw_goto_iffalse_n, if5_1
+
+			; main.bas 20: v = FreeLetter()
+			dw p_freeletter_c
+			dw kw_strcpy, var_v, var_freeletter_freeletter
+
+			; main.bas 21: If v <> "" Then
+			dw kw_strcmpne, var_v, str0
+			dw kw_goto_iffalse_n, if6_1
+
+			; main.bas 22: For i = 0 To 1
+			dw kw_ztov, var_i
+for7_t:
+
+			; main.bas 23: b(0) = &HC2 : b(1) = Asc(v) : s = Chr$(65 + i) + ":HELP/" : b(2) = Len(s)
+			dw kw_ltolptr8, 194, arr_b
+			dw kw_strasc, var_v, tmp1
+			dw kw_vtolptr8, tmp1, arr_b+1
+			dw kw_addl, var_i, 65, tmp0
+			dw kw_strchr, stmp0, tmp0
+			dw kw_strcpy, var_s, stmp0
+			dw kw_strcat, var_s, str6
+			dw kw_strlen, var_s, tmp1
+			dw kw_vtolptr8, tmp1, arr_b+2
+
+			; main.bas 24: For j = 1 To Len(s)
+			dw kw_ltov, 1, var_j
+			dw kw_strlen, var_s, for8_l
+			dw kw_forupv_n, var_j, for8_l, for8_e
+for8_t:
+
+			; main.bas 25: b(j + 2) = Asc(Mid$(s, j, 1))
+			dw kw_addl, var_j, 2, tmp0
+			dw kw_strmid, stmp1, var_s, var_j, lit_1
+			dw kw_strasc, stmp1, tmp1
+			dw kw_aset8, arr_b, tmp0, tmp1
+
+			; main.bas 26: Next
+			dw kw_next1v_n, var_j, for8_l, for8_t
+for8_e:
+
+			; main.bas 27: If Bdos(30, VarPtr(b)) = 0 Then Show v + ":"
+			dw p_bdos_c, lit_30, vp_arr_b
+			dw kw_vtov, var_bdos_bdos, tmp0
+			dw kw_cpeqvl, tmp0, 0
+			dw kw_goto_iffalse_n, if9_1
+			dw kw_strcpy, stmp0, var_v
+			dw kw_strcat, stmp0, str5
+			dw p_show_c, stmp0
+if9_1:
+
+			; main.bas 28: Next
+			dw kw_next1l_n, var_i, 1, for7_t
+for7_e:
+
+			; main.bas 29: NoPath
+			dw p_nopath_c
+
+			; main.bas 30: End If
+if6_1:
+
+			; main.bas 31: End If
+if5_1:
+
+			; main.bas 32: Show "A:"
+			dw p_show_c, str7
+
+			; main.bas 33: Show "Z:"
+			dw p_show_c, str8
+
+			; main.bas 34: Show2
+			dw p_show2_c
+			dw kw_stop
+
+; ============================================================
+; sub show (normal mode)
+; ============================================================
+
+p_show:
+
+			; main.bas 38: h = FileSystem.Open(d + a, FileSystem.ForRead)
+			dw kw_strcpy, stmp0, var_show_d
+			dw kw_strcat, stmp0, var_a
+			dw fn_filesystem_open, stmp0, lit_1, var_h
+
+			; main.bas 39: If h < 0 Then Exit Sub
+			dw kw_scpltvl, var_h, 0
+			dw kw_goto_iffalse_n, if10_1
+			dw p_show_r
+if10_1:
+
+			; main.bas 40: Do While Not FileSystem.Eof(h)
+do11_t:
+			dw fn_filesystem_eof, var_h, var_filesystem_eof_eof
+			dw kw_vtov, var_filesystem_eof_eof, tmp0
+			dw kw_notv, tmp0, tmp0
+			dw kw_goto_ifzero_n, tmp0, do11_e
+
+			; main.bas 41: Print FileSystem.ReadLine(h)
+			dw fn_filesystem_readline, var_h, var_filesystem_readline_readline
+			dw kw_printstrvar, var_filesystem_readline_readline
 			dw kw_printnl
 
-			; 5: Print "TOP, KILL, RESET, WAIT, MEM, DIR, CD, HELP, COPY, ERA, TYPE, PREP, RENAME,"
-			dw kw_printstrvar, str1
-			dw kw_printnl
+			; main.bas 42: Loop
+			dw do11_t_go
+do11_e:
 
-			; 6: Print "RAMDISC, MODE"
-			dw kw_printstrvar, str2
-			dw kw_printnl
+			; main.bas 43: r = FileSystem.Close(h)
+			dw fn_filesystem_close, var_h, var_r
 
-			; 7: Print
-			dw kw_printnl
+			; main.bas 44: NoPath
+			dw p_nopath_c
 
-			; 8: Print "name [args]       runs that program (from Z, the slot's drive, the boot drive)"
-			dw kw_printstrvar, str3
-			dw kw_printnl
+			; main.bas 45: End
+			dw kw_stop
 
-			; 9: Print "RUN [slot] name [args]   the same, even when a command has that name;"
-			dw kw_printstrvar, str4
-			dw kw_printnl
+; ============================================================
+; sub show2 (normal mode)
+; ============================================================
 
-			; 10: Print "                  with a slot: runs it there (RUN 2 CRUNCH)"
-			dw kw_printstrvar, str5
-			dw kw_printnl
+p_show2:
 
-			; 11: Print "FG slot           that slot to the front"
-			dw kw_printstrvar, str6
-			dw kw_printnl
-
-			; 12: Print "KILL slot         stops its program"
-			dw kw_printstrvar, str7
-			dw kw_printnl
-
-			; 13: Print "RESET [slot]      that slot (or this one) as new"
-			dw kw_printstrvar, str8
-			dw kw_printnl
-
-			; 14: Print "PS, TOP           the slots; with their speed"
+			; main.bas 49: Print "No help for "; a; " (HELP: the commands)"
 			dw kw_printstrvar, str9
-			dw kw_printnl
-
-			; 15: Print "MEM               the memory: main RAM, the banks"
+			dw kw_printstrvar, var_a
 			dw kw_printstrvar, str10
 			dw kw_printnl
 
-			; 16: Print "DIR [v:][*.CYB] [FULL]   the names (FULL: sizes, long names); CD v the drive"
-			dw kw_printstrvar, str11
-			dw kw_printnl
-
-			; 17: Print "WAIT, CLS, QUIT   until no program runs; clear; end CyborgOS"
-			dw kw_printstrvar, str12
-			dw kw_printnl
-
-			; 18: Print "MODE [m]          this slot's screen: 2 80x25, S 84x24 (80x24 and a status"
-			dw kw_printstrvar, str13
-			dw kw_printnl
-
-			; 19: Print "                  strip), W 88x23, UW 96x21, P 64x32"
-			dw kw_printstrvar, str14
-			dw kw_printnl
-
-			; 20: Print
-			dw kw_irq		; let interrupts in
-			dw kw_printnl
-
-			; 21: Print "COPY [v:]name v[:newname]   COPY [v:]pattern v (*.CYB, T?.*: same names)"
-			dw kw_printstrvar, str15
-			dw kw_printnl
-
-			; 22: Print "ERA [v:]name   TYPE [v:]name   PREP v (PREP [v:]pat ADD / REMOVE keeps FILES.DIR)"
-			dw kw_printstrvar, str16
-			dw kw_printnl
-
-			; 23: Print "RENAME [v:]name newname     (only files in the volume's FILES.DIR)"
-			dw kw_printstrvar, str17
-			dw kw_printnl
-
-			; 24: Print "RAMDISC [v size | v 0]      a RAM disc as drive v (64K, 1MB ...); dropped; list"
-			dw kw_printstrvar, str18
-			dw kw_printnl
-
-			; 25: Print
-			dw kw_printnl
-
-			; 26: Print "Control + 1-9, 0: that slot to the front (more than 10 slots: the number"
-			dw kw_printstrvar, str19
-			dw kw_printnl
-
-			; 27: Print "twice for 11-20)   Control + ESC: TOP"
-			dw kw_printstrvar, str20
-			dw kw_printnl
+			; main.bas 50: End
 			dw kw_stop
+
+; ============================================================
+; sub nopath (normal mode)
+; ============================================================
+
+p_nopath:
+
+			; main.bas 55: If v = "" Then Exit Sub
+			dw kw_strcmpeq, var_v, str0
+			dw kw_goto_iffalse_n, if12_1
+			dw p_nopath_r
+if12_1:
+
+			; main.bas 56: b(0) = &HC2 : b(1) = Asc(v) : b(2) = 0
+			dw kw_ltolptr8, 194, arr_b
+			dw kw_strasc, var_v, tmp1
+			dw kw_vtolptr8, tmp1, arr_b+1
+			dw kw_ltolptr8, 0, arr_b+2
+
+			; main.bas 57: r = Bdos(30, VarPtr(b))
+			dw p_bdos_c, lit_30, vp_arr_b
+			dw kw_vtov, var_bdos_bdos, var_r
+
+			; main.bas 58: v = ""
+			dw kw_strcpy, var_v, str0
+			dw p_nopath_r
+
+; ============================================================
+; function freeletter (normal mode)
+; ============================================================
+
+p_freeletter:
+
+			; main.bas 63: Dim c As Integer, n As Integer, rd As String Max 16
+
+			; main.bas 64: rd = ""
+			dw kw_strcpy, var_freeletter_rd, str0
+
+			; main.bas 65: For n = 0 To 7                                   ' the RAM discs (RAMDISC's list: "F: ...")
+			dw kw_ztov, var_freeletter_n
+for13_t:
+
+			; main.bas 66: q(0) = 3 : q(1) = n
+			dw kw_ltolptr8, 3, arr_q
+			dw kw_vtolptr8, var_freeletter_n, arr_q+1
+
+			; main.bas 67: If Bdos(130, VarPtr(q)) <> 0 Then Exit For
+			dw p_bdos_c, lit_130, vp_arr_q
+			dw kw_vtov, var_bdos_bdos, tmp0
+			dw kw_cpnevl, tmp0, 0
+			dw kw_goto_iffalse_n, if14_1
+			dw for13_e_go
+if14_1:
+
+			; main.bas 68: rd = rd + Chr$(q(3))
+			dw kw_lptrtov8, arr_q+3, tmp1
+			dw kw_strchr, stmp1, tmp1
+			dw kw_strcat, var_freeletter_rd, stmp1
+
+			; main.bas 69: Next
+			dw kw_next1l_n, var_freeletter_n, 7, for13_t
+for13_e:
+
+			; main.bas 70: FreeLetter = ""
+			dw kw_strcpy, var_freeletter_freeletter, str0
+
+			; main.bas 71: For c = 80 To 67 Step -1
+			dw kw_ltov, 80, var_freeletter_c
+for15_t:
+
+			; main.bas 72: b(0) = &HC1 : b(1) = c
+			dw kw_ltolptr8, 193, arr_b
+			dw kw_vtolptr8, var_freeletter_c, arr_b+1
+
+			; main.bas 73: If Bdos(30, VarPtr(b)) = 0 And b(2) = 0 And InStr(rd, Chr$(c)) = 0 Then FreeLetter = Chr$(c) : Exit Function
+			dw p_bdos_c, lit_30, vp_arr_b
+			dw kw_vtov, var_bdos_bdos, tmp0
+			dw kw_cpeqvl, tmp0, 0
+			dw kw_ftov, tmp0
+			dw kw_lptrtov8, arr_b+2, tmp1
+			dw kw_cpeqvl, tmp1, 0
+			dw kw_ftov, tmp1
+			dw kw_andvv, tmp0, tmp1, tmp0
+			dw kw_strchr, stmp2, var_freeletter_c
+			dw kw_strinstr, lit_1, var_freeletter_rd, stmp2, tmp1
+			dw kw_cpeqvl, tmp1, 0
+			dw kw_ftov, tmp1
+			dw kw_andvv, tmp0, tmp1, tmp0
+			dw kw_goto_ifzero_n, tmp0, if16_1
+			dw kw_strchr, var_freeletter_freeletter, var_freeletter_c
+			dw p_freeletter_r
+if16_1:
+
+			; main.bas 74: Next
+			dw kw_nextdnl_n, var_freeletter_c, -1, 67, for15_t
+for15_e:
+			dw p_freeletter_r
+
+; ============================================================
+; function bdos (normal mode)
+; ============================================================
+
+p_bdos:
+
+			; main.bas 79: #asm
+			dw asm_0_79_n
+			dw p_bdos_r
+
+; ============================================================
+; Jump stubs (code, ROMable)
+;   label_go: GOTO label
+;   label_gs: GOSUB label, return point -> label_rs (RAM)
+;   label_rt: RETURN from label
+;   p_name_c: call a procedure, p_name_r: end of it
+;   turbo mode ends with ret, normal mode with jp ntc_xn
+; ============================================================
+
+do11_t_go:			ld sp, do11_t
+			jp ntc_xn
+for13_e_go:			ld sp, for13_e
+			jp ntc_xn
+
+p_show_c:		; call show (normal)
+			pop hl			; d
+			ld de, var_show_d
+			ld b, 40
+p_show_si0:
+			ld a, (hl)
+			ld (de), a
+			or a
+			jr z, p_show_si0_e
+			inc hl
+			inc de
+			djnz p_show_si0
+			xor a
+			ld (de), a
+p_show_si0_e:
+			ld (p_show_rs), sp
+			ld sp, p_show
+			jp ntc_xn
+p_show_r:		; end of show
+			ld sp, (p_show_rs)
+			jp ntc_xn
+p_show2_c:		; call show2 (normal)
+			ld (p_show2_rs), sp
+			ld sp, p_show2
+			jp ntc_xn
+p_show2_r:		; end of show2
+			ld sp, (p_show2_rs)
+			jp ntc_xn
+p_nopath_c:		; call nopath (normal)
+			ld (p_nopath_rs), sp
+			ld sp, p_nopath
+			jp ntc_xn
+p_nopath_r:		; end of nopath
+			ld sp, (p_nopath_rs)
+			jp ntc_xn
+p_freeletter_c:		; call freeletter (normal)
+			xor a
+			ld (var_freeletter_freeletter), a
+			ld hl, 0
+			ld (var_freeletter_c), hl
+			ld hl, 0
+			ld (var_freeletter_n), hl
+			xor a
+			ld (var_freeletter_rd), a
+			ld (p_freeletter_rs), sp
+			ld sp, p_freeletter
+			jp ntc_xn
+p_freeletter_r:		; end of freeletter
+			ld sp, (p_freeletter_rs)
+			jp ntc_xn
+p_bdos_c:		; call bdos (normal)
+			pop hl			; fn
+			ld e, (hl)
+			inc hl
+			ld d, (hl)
+			ld (var_bdos_fn), de
+			pop hl			; dd
+			ld e, (hl)
+			inc hl
+			ld d, (hl)
+			ld (var_bdos_dd), de
+			ld hl, 0
+			ld (var_bdos_bdos), hl
+			ld (p_bdos_rs), sp
+			ld sp, p_bdos
+			jp ntc_xn
+p_bdos_r:		; end of bdos
+			ld sp, (p_bdos_rs)
+			jp ntc_xn
+
+; ============================================================
+; Inline assembly (#asm ... #endasm)
+; ============================================================
+
+asm_0_79_n:		; #asm, main.bas line 79 (normal)
+            ld (var_hsp), sp		; main.bas 80
+            ld sp, (ntc_csp)		; main.bas 81
+            ld a, (var_bdos_fn)		; main.bas 82
+            ld c, a		; main.bas 83
+            ld de, (var_bdos_dd)		; main.bas 84
+            ei                      ; (CP/M's BDOS: interrupts on) [85]
+            call 5		; main.bas 86
+            di                      ; (off before SP is the threaded code again: it comes back with them on) [87]
+            ld l, a		; main.bas 88
+            ld h, 0		; main.bas 89
+            ld (var_bdos_bdos), hl		; main.bas 90
+            ld sp, (var_hsp)		; main.bas 91
+			ret			; end of #asm
+
+fn_filesystem_open:		; function open (asm keyword), FileSystem.cls line 175
+            pop hl		; FileSystem.cls 176
+            ld (fs_a1), hl		; FileSystem.cls 177
+            pop hl		; FileSystem.cls 178
+            ld e, (hl)		; FileSystem.cls 179
+            inc hl		; FileSystem.cls 180
+            ld d, (hl)		; FileSystem.cls 181
+            ld (fs_a2), de		; FileSystem.cls 182
+            pop hl		; FileSystem.cls 183
+            ld (fs_res), hl		; FileSystem.cls 184
+            ld hl, fs_open		; FileSystem.cls 185
+            jp fs_go		; FileSystem.cls 186
+			ret			; end of #asm
+
+fn_filesystem_close:		; function close (asm keyword), FileSystem.cls line 191
+            pop hl		; FileSystem.cls 192
+            ld e, (hl)		; FileSystem.cls 193
+            inc hl		; FileSystem.cls 194
+            ld d, (hl)		; FileSystem.cls 195
+            ld (fs_a1), de		; FileSystem.cls 196
+            pop hl		; FileSystem.cls 197
+            ld (fs_res), hl		; FileSystem.cls 198
+            ld hl, fs_closeh		; FileSystem.cls 199
+            jp fs_go		; FileSystem.cls 200
+			ret			; end of #asm
+
+fn_filesystem_eof:		; function eof (asm keyword), FileSystem.cls line 307
+            pop hl		; FileSystem.cls 308
+            ld e, (hl)		; FileSystem.cls 309
+            inc hl		; FileSystem.cls 310
+            ld d, (hl)		; FileSystem.cls 311
+            ld (fs_a1), de		; FileSystem.cls 312
+            pop hl		; FileSystem.cls 313
+            ld (fs_res), hl		; FileSystem.cls 314
+            ld hl, fs_eof		; FileSystem.cls 315
+            jp fs_go		; FileSystem.cls 316
+			ret			; end of #asm
+
+fn_filesystem_readline:		; function readline (asm keyword), FileSystem.cls line 322
+            pop hl		; FileSystem.cls 323
+            ld e, (hl)		; FileSystem.cls 324
+            inc hl		; FileSystem.cls 325
+            ld d, (hl)		; FileSystem.cls 326
+            ld (fs_a1), de		; FileSystem.cls 327
+            pop hl		; FileSystem.cls 328
+            ld (fs_res), hl		; FileSystem.cls 329
+            ld hl, fs_readln		; FileSystem.cls 330
+            jp fs_go0		; FileSystem.cls 331
+			ret			; end of #asm
+
+fn_system_commandline:		; function commandline (asm keyword), System.cls line 70
+            pop hl		; System.cls 71
+            jp ntc_cmdget		; System.cls 72
+			ret			; end of #asm
+
 
 ; ============================================================
 ; Variables
 ; ============================================================
 
+			db 40			; capacity
+var_a:			ds 41
+			db 40			; capacity
+var_system_commandline_commandline:			ds 41
+var_bdos_bdos:			dw 0
+			db 2			; capacity
+var_v:			ds 3
+			db 40			; capacity
+var_freeletter_freeletter:			ds 41
+var_i:			dw 0
+			db 8			; capacity
+var_s:			ds 9
+var_j:			dw 0
+for8_l:			dw 0
+p_show_rs:			dw 0
+			db 40			; capacity
+var_show_d:			ds 41
+var_h:			dw 0
+var_filesystem_eof_eof:			dw 0
+			db 40			; capacity
+var_filesystem_readline_readline:			ds 41
+var_r:			dw 0
+p_show2_rs:			dw 0
+p_nopath_rs:			dw 0
+p_freeletter_rs:			dw 0
+var_freeletter_c:			dw 0
+var_freeletter_n:			dw 0
+			db 16			; capacity
+var_freeletter_rd:			ds 17
+p_bdos_rs:			dw 0
+var_bdos_fn:			dw 0
+var_bdos_dd:			dw 0
+var_hsp:			dw 0
+tmp0:			dw 0
+tmp1:			dw 0
+			db 40			; capacity
+stmp0:			ds 41
+			db 40			; capacity
+stmp1:			ds 41
+			db 40			; capacity
+stmp2:			ds 41
+
+; numbers passed by address (read only)
+lit_1:			dw 1
+vp_arr_b:			dw arr_b
+lit_30:			dw 30
+vp_arr_q:			dw arr_q
+lit_130:			dw 130
 
 ; ============================================================
 ; Strings
 ; ============================================================
 
-str0:			db "Built in: RUN, CLS, QUIT. On the system drive Z (from the boot disc): FG, PS,", 0
-str1:			db "TOP, KILL, RESET, WAIT, MEM, DIR, CD, HELP, COPY, ERA, TYPE, PREP, RENAME,", 0
-str2:			db "RAMDISC, MODE", 0
-str3:			db "name [args]       runs that program (from Z, the slot's drive, the boot drive)", 0
-str4:			db "RUN [slot] name [args]   the same, even when a command has that name;", 0
-str5:			db "                  with a slot: runs it there (RUN 2 CRUNCH)", 0
-str6:			db "FG slot           that slot to the front", 0
-str7:			db "KILL slot         stops its program", 0
-str8:			db "RESET [slot]      that slot (or this one) as new", 0
-str9:			db "PS, TOP           the slots; with their speed", 0
-str10:			db "MEM               the memory: main RAM, the banks", 0
-str11:			db "DIR [v:][*.CYB] [FULL]   the names (FULL: sizes, long names); CD v the drive", 0
-str12:			db "WAIT, CLS, QUIT   until no program runs; clear; end CyborgOS", 0
-str13:			db "MODE [m]          this slot's screen: 2 80x25, S 84x24 (80x24 and a status", 0
-str14:			db "                  strip), W 88x23, UW 96x21, P 64x32", 0
-str15:			db "COPY [v:]name v[:newname]   COPY [v:]pattern v (*.CYB, T?.*: same names)", 0
-str16:			db "ERA [v:]name   TYPE [v:]name   PREP v (PREP [v:]pat ADD / REMOVE keeps FILES.DIR)", 0
-str17:			db "RENAME [v:]name newname     (only files in the volume's FILES.DIR)", 0
-str18:			db "RAMDISC [v size | v 0]      a RAM disc as drive v (64K, 1MB ...); dropped; list", 0
-str19:			db "Control + 1-9, 0: that slot to the front (more than 10 slots: the number", 0
-str20:			db "twice for 11-20)   Control + ESC: TOP", 0
+str0:			db 0
+str1:			db "HELP", 0
+str2:			db " ", 0
+str3:			db ".", 0
+str4:			db ".HLP", 0
+str5:			db ":", 0
+str6:			db ":HELP/", 0
+str7:			db "A:", 0
+str8:			db "Z:", 0
+str9:			db "No help for ", 0
+str10:			db " (HELP: the commands)", 0
 
 ; ============================================================
 ; Keyword library (used)
@@ -171,11 +559,18 @@ ntc_next:		ret				; IX target that continues the thread
 ntc_csp:		dw 0			; caller SP, for kw_stop (and the normal mode stack)
 ntc_ip:			dw 0			; normal mode: thread position while out of the thread
 
+;## ntc_d_gnlo @data
+ntc_gnlo:		db 0			; ntc_getn: low byte
+
 ;## ntc_d_nmode @data
 ntc_nmode:		db 0			; 1 = running in normal mode (waits let interrupts in)
 
 ;## ntc_d_sptr @data
 ntc_sptr:		dw 0			; printbuf: text pointer
+
+;## ntc_d_iptr @data
+ntc_iptr:		dw 0			; gets: buffer pointer
+ntc_ilink:		dw 0			; gets: where to go when done
 
 ;## ntc_d_hostix @data
 ntc_hostix:		dw 0			; host platforms: IX kept over a firmware / BDOS call
@@ -202,11 +597,572 @@ ntc_xn:
 			ld sp, (ntc_ip)
 			ret
 
-;## kw_irq ntc_xn @shared
-;kw_irq  - normal mode: a safe point the compiler puts in long runs
-;  of keywords without a branch, so interrupts are not held off
-kw_irq:
+;## kw_goto_iffalse (normal mode copy)
+;kw_goto_iffalse, <label>  - branch if NZ (false)
+kw_goto_iffalse_n:
+			pop hl
+			jp z, ntc_xn
+			ld sp, hl
 			jp ntc_xn
+
+;## kw_goto_ifzero (normal mode copy)
+;kw_goto_ifzero, <var>, <label>  - branch if var = 0
+kw_goto_ifzero_n:
+			pop hl
+			ld a, (hl)
+			inc hl
+			or (hl)
+			pop hl
+			jp nz, ntc_xn
+			ld sp, hl
+			jp ntc_xn
+
+;## ntc_for_jump (normal mode copy)
+; tails for the FOR / NEXT keywords. DE = var value, HL = limit,
+; SP = thread at the label word. Signed compare by flipping bit 15.
+; ntc_for_gt: jump to the label if var > limit, else skip it
+ntc_for_gt_n:
+			ld a, d
+			xor #80
+			ld d, a
+			ld a, h
+			xor #80
+			ld h, a
+			or a
+			sbc hl, de			; limit - var, carry = var > limit
+			pop hl
+			jp nc, ntc_xn
+			ld sp, hl
+			jp ntc_xn
+; ntc_for_lt: jump to the label if var < limit, else skip it
+ntc_for_lt_n:
+			ld a, d
+			xor #80
+			ld d, a
+			ld a, h
+			xor #80
+			ld h, a
+			ex de, hl
+			or a
+			sbc hl, de			; var - limit, carry = var < limit
+			pop hl
+			jp nc, ntc_xn
+			ld sp, hl
+			jp ntc_xn
+; ntc_for_le: jump to the label if var <= limit (loop again). A not 0: the
+; step took var past 32767 (or -32768): the loop ends (ntc_for_ge too)
+ntc_for_le_n:
+			or a
+			jr nz, ntc_for_end_n
+			ld a, d
+			xor #80
+			ld d, a
+			ld a, h
+			xor #80
+			ld h, a
+			or a
+			sbc hl, de			; limit - var, no carry = var <= limit
+			pop hl
+			jp c, ntc_xn
+			ld sp, hl
+			jp ntc_xn
+; ntc_for_ge: jump to the label if var >= limit (loop again)
+ntc_for_ge_n:
+			or a
+			jr nz, ntc_for_end_n
+			ld a, d
+			xor #80
+			ld d, a
+			ld a, h
+			xor #80
+			ld h, a
+			ex de, hl
+			or a
+			sbc hl, de			; var - limit, no carry = var >= limit
+			pop hl
+			jp c, ntc_xn
+			ld sp, hl
+			jp ntc_xn
+ntc_for_end_n:
+			pop hl
+			jp ntc_xn
+
+;## kw_forupv (normal mode copy) ntc_for_jump
+;kw_forupv, <var>, <limit var>, <endlabel>
+kw_forupv_n:
+			pop hl
+			ld e, (hl)
+			inc hl
+			ld d, (hl)
+			pop hl
+			ld a, (hl)
+			inc hl
+			ld h, (hl)
+			ld l, a
+			jp ntc_for_gt_n
+
+;## kw_next1l (normal mode copy) ntc_for_jump
+;kw_next1l, <var>, <literal limit>, <toplabel>
+;  NEXT for STEP 1: inc var, back to the top while var <= limit
+kw_next1l_n:
+			pop hl
+			inc (hl)
+			ld e, (hl)
+			inc hl
+			jr nz, ntc_n1l_nc_n
+			inc (hl)
+ntc_n1l_nc_n:
+			ld d, (hl)
+			pop hl
+			ld a, d					; A = #FF when it went past 32767 (#8000)
+			xor #80
+			or e
+			sub 1
+			sbc a, a
+			jp ntc_for_le_n
+
+;## kw_next1v (normal mode copy) ntc_for_jump
+;kw_next1v, <var>, <limit var>, <toplabel>
+kw_next1v_n:
+			pop hl
+			inc (hl)
+			ld e, (hl)
+			inc hl
+			jr nz, ntc_n1v_nc_n
+			inc (hl)
+ntc_n1v_nc_n:
+			ld d, (hl)
+			pop hl
+			ld c, (hl)
+			inc hl
+			ld h, (hl)
+			ld l, c
+			ld a, d					; A = #FF when it went past 32767 (#8000)
+			xor #80
+			or e
+			sub 1
+			sbc a, a
+			jp ntc_for_le_n
+
+;## ntc_nextadd
+; var += literal step. Pops var and step. Leaves DE = new value, A = #FF when
+; it went past 32767 or -32768 (the loop ends), else 0.
+ntc_nextadd:
+			pop hl				; var
+			pop bc				; step
+			ld e, (hl)
+			inc hl
+			ld d, (hl)
+			ex de, hl
+			or a
+			adc hl, bc			; P/V = past the end of the Integers
+			ex de, hl			; DE = new value
+			ld (hl), d
+			dec hl
+			ld (hl), e
+			ld a, 0
+			jp po, ntc_na_ok
+			dec a
+ntc_na_ok:
+			jp (ix)
+
+;## kw_nextdnl (normal mode copy) ntc_nextadd ntc_for_jump
+;kw_nextdnl, <var>, <literal step>, <literal limit>, <toplabel>
+;  NEXT for a negative STEP: add, back to the top while var >= limit
+kw_nextdnl_n:
+			ld ix, ntc_ndl_back_n
+			jp ntc_nextadd
+ntc_ndl_back_n:
+			pop hl
+			jp ntc_for_ge_n
+
+;## kw_ltov
+;kw_ltov, <literal>, <destvar>
+kw_ltov:
+			pop de
+			pop hl
+			ld (hl), e
+			inc hl
+			ld (hl), d
+			ret
+
+;## kw_vtov
+;kw_vtov, <sourcevar>, <destvar>
+kw_vtov:
+			pop hl
+			ld e, (hl)
+			inc hl
+			ld d, (hl)
+			pop hl
+			ld (hl), e
+			inc hl
+			ld (hl), d
+			ret
+
+;## kw_ztov
+;kw_ztov, <destvar>
+kw_ztov:
+			xor a
+			pop hl
+			ld (hl), a
+			inc hl
+			ld (hl), a
+			ret
+
+;## kw_ftov
+;kw_ftov, <destvar>  - Z flag to var: true = -1, false = 0
+kw_ftov:
+			pop hl
+			jr z, ntc_ftov_t
+			ld (hl), 0
+			inc hl
+			ld (hl), 0
+			ret
+ntc_ftov_t:
+			ld (hl), #ff
+			inc hl
+			ld (hl), #ff
+			ret
+
+; ============================================================
+; Arithmetic
+; ============================================================
+
+;## kw_dec
+;kw_dec, <var>
+kw_dec:
+			pop hl
+			ld a, (hl)
+			dec (hl)
+			or a
+			ret nz
+			inc hl
+			dec (hl)
+			ret
+
+;## kw_addl
+;kw_addl, <var>, <literal>, <destvar>
+kw_addl:
+			pop hl
+			ld e, (hl)
+			inc hl
+			ld d, (hl)
+			pop hl
+			add hl, de
+			ex de, hl
+			pop hl
+			ld (hl), e
+			inc hl
+			ld (hl), d
+			ret
+
+;## kw_andvv
+;kw_andvv, <var1>, <var2>, <destvar>
+kw_andvv:
+			pop hl
+			ld e, (hl)
+			inc hl
+			ld d, (hl)
+			pop hl
+			ld a, (hl)
+			and e
+			ld e, a
+			inc hl
+			ld a, (hl)
+			and d
+			ld d, a
+			pop hl
+			ld (hl), e
+			inc hl
+			ld (hl), d
+			ret
+
+;## kw_notv
+;kw_notv, <var>, <destvar>
+kw_notv:
+			pop hl
+			ld a, (hl)
+			cpl
+			ld e, a
+			inc hl
+			ld a, (hl)
+			cpl
+			ld d, a
+			pop hl
+			ld (hl), e
+			inc hl
+			ld (hl), d
+			ret
+
+; ============================================================
+; Compares - result in Z flag (Z = true)
+; Tails take DE = a, HL = b and test a <rel> b.
+; ============================================================
+
+;## ntc_cmp
+ntc_cmp_slt:
+			ld a, d
+			xor #80
+			ld d, a
+			ld a, h
+			xor #80
+			ld h, a
+ntc_cmp_ult:
+			ex de, hl
+			or a
+			sbc hl, de
+			sbc a, a
+			inc a
+			ret
+ntc_cmp_sge:
+			ld a, d
+			xor #80
+			ld d, a
+			ld a, h
+			xor #80
+			ld h, a
+ntc_cmp_uge:
+			ex de, hl
+			or a
+			sbc hl, de
+			sbc a, a
+			ret
+ntc_cmp_sgt:
+			ld a, d
+			xor #80
+			ld d, a
+			ld a, h
+			xor #80
+			ld h, a
+ntc_cmp_ugt:
+			or a
+			sbc hl, de
+			sbc a, a
+			inc a
+			ret
+ntc_cmp_sle:
+			ld a, d
+			xor #80
+			ld d, a
+			ld a, h
+			xor #80
+			ld h, a
+ntc_cmp_ule:
+			or a
+			sbc hl, de
+			sbc a, a
+			ret
+ntc_cmp_eq:
+			or a
+			sbc hl, de
+			ret
+ntc_cmp_ne:
+			or a
+			sbc hl, de
+			jr z, ntc_cmp_ne_f
+			xor a
+			ret
+ntc_cmp_ne_f:
+			or 1
+			ret
+
+;## kw_scpltvl ntc_cmp
+;kw_scpltvl, <var>, <literal>
+kw_scpltvl:
+			pop hl
+			ld e, (hl)
+			inc hl
+			ld d, (hl)
+			pop hl
+			jp ntc_cmp_slt
+
+;## kw_scpgtvl ntc_cmp
+kw_scpgtvl:
+			pop hl
+			ld e, (hl)
+			inc hl
+			ld d, (hl)
+			pop hl
+			jp ntc_cmp_sgt
+
+;## kw_cpeqvl ntc_cmp
+kw_cpeqvl:
+			pop hl
+			ld e, (hl)
+			inc hl
+			ld d, (hl)
+			pop hl
+			jp ntc_cmp_eq
+
+;## kw_cpnevl ntc_cmp
+kw_cpnevl:
+			pop hl
+			ld e, (hl)
+			inc hl
+			ld d, (hl)
+			pop hl
+			jp ntc_cmp_ne
+
+; ============================================================
+; Memory (PEEK / POKE / DEEK / DOKE)
+; ============================================================
+
+;## kw_lptrtov8
+;kw_lptrtov8, <literaladdr>, <destvar>  - PEEK(literal)
+kw_lptrtov8:
+			pop hl
+			ld a, (hl)
+			pop hl
+			ld (hl), a
+			inc hl
+			ld (hl), 0
+			ret
+
+;## kw_ltolptr8
+;kw_ltolptr8, <literal>, <literaladdr>  - POKE literal, literal
+kw_ltolptr8:
+			pop bc
+			pop hl
+			ld (hl), c
+			ret
+
+;## kw_vtolptr8
+;kw_vtolptr8, <sourcevar>, <literaladdr>  - POKE literal, var
+kw_vtolptr8:
+			pop hl
+			ld c, (hl)
+			pop hl
+			ld (hl), c
+			ret
+
+;## kw_aset8
+;kw_aset8, <arraybase>, <indexvar>, <sourcevar>  - set a Byte array element (low byte)
+kw_aset8:
+			pop de
+			pop hl
+			ld a, (hl)
+			inc hl
+			ld h, (hl)
+			ld l, a
+			add hl, de
+			ex de, hl
+			pop hl
+			ld a, (hl)
+			ld (de), a
+			ret
+
+;## kw_strcpy
+;kw_strcpy, <destaddr>, <srcaddr>  - cut at the destination's capacity byte
+kw_strcpy:
+			pop de
+			pop hl
+			dec de
+			ld a, (de)
+			ld b, a
+			inc de
+ntc_strcpy_loop:
+			ld a, (hl)
+			ld (de), a
+			or a
+			ret z
+			inc hl
+			inc de
+			djnz ntc_strcpy_loop
+			xor a
+			ld (de), a
+			ret
+
+;## kw_strcat
+;kw_strcat, <destaddr>, <srcaddr>  - cut at the destination's capacity byte
+kw_strcat:
+			pop de
+			dec de
+			ld a, (de)
+			ld b, a
+			inc de
+ntc_strcat_end:
+			ld a, (de)
+			or a
+			jr z, ntc_strcat_copy
+			inc de
+			djnz ntc_strcat_end
+			pop hl
+			ret
+ntc_strcat_copy:
+			pop hl
+ntc_strcat_loop:
+			ld a, (hl)
+			ld (de), a
+			or a
+			ret z
+			inc hl
+			inc de
+			djnz ntc_strcat_loop
+			xor a
+			ld (de), a
+			ret
+
+;## kw_strlen
+;kw_strlen, <straddr>, <destvar>
+kw_strlen:
+			pop hl
+			ld bc, 0
+ntc_strlen_loop:
+			ld a, (hl)
+			or a
+			jr z, ntc_strlen_done
+			inc hl
+			inc c
+			jr ntc_strlen_loop
+ntc_strlen_done:
+			pop hl
+			ld (hl), c
+			inc hl
+			ld (hl), b
+			ret
+
+;## kw_strcmpeq
+;kw_strcmpeq, <addr1>, <addr2>  - Z if equal
+kw_strcmpeq:
+			pop de
+			pop hl
+ntc_streq_loop:
+			ld a, (de)
+			cp (hl)
+			ret nz
+			or a
+			ret z
+			inc hl
+			inc de
+			jr ntc_streq_loop
+
+;## kw_strcmpne
+;kw_strcmpne, <addr1>, <addr2>  - Z if not equal
+kw_strcmpne:
+			pop de
+			pop hl
+ntc_strne_loop:
+			ld a, (de)
+			cp (hl)
+			jr nz, ntc_strne_t
+			or a
+			jr z, ntc_strne_f
+			inc hl
+			inc de
+			jr ntc_strne_loop
+ntc_strne_t:
+			xor a
+			ret
+ntc_strne_f:
+			inc a
+			ret
+
+; ============================================================
+; I/O - no firmware, no call, no push. SP stays in the thread.
+; Shared routines are entered with jp and the return address in
+; IX, and end with jp (ix). Keywords that are done use
+; ld ix, ntc_next (a ret) so the routine continues the thread.
+; ============================================================
 
 ;## ntc_printbuf ntc_data ntc_plat_screen
 ; print the 0 terminated ASCII text at (ntc_sptr), then ret (thread)
@@ -232,6 +1188,358 @@ kw_printstrvar:
 kw_printnl:
 			ld ix, ntc_next
 			jp ntc_plat_newline
+
+;## ntc_getn ntc_data
+; BC = address of a word: A = its value limited to 0..255
+; (below 0 = 0, above 255 = 255). jp (ix) back. Keeps DE, HL.
+ntc_getn:
+			ld a, (bc)
+			ld (ntc_gnlo), a
+			inc bc
+			ld a, (bc)
+			or a
+			jp m, ntc_gn_zero
+			jr nz, ntc_gn_max
+			ld a, (ntc_gnlo)
+			jp (ix)
+ntc_gn_zero:
+			xor a
+			jp (ix)
+ntc_gn_max:
+			ld a, 255
+			jp (ix)
+
+;## kw_strleft ntc_getn
+;kw_strleft, <dest>, <src>, <nvar>  - Left$(src, n)
+kw_strleft:
+			pop de
+			pop hl
+			pop bc
+			ld ix, ntc_sl_n
+			jp ntc_getn
+ntc_sl_n:
+			ld b, a
+; copy up to B chars from HL to DE, then the 0
+ntc_strncpy:
+			inc b
+ntc_sn_loop:
+			dec b
+			jr z, ntc_sn_end
+			ld a, (hl)
+			or a
+			jr z, ntc_sn_end
+			ld (de), a
+			inc hl
+			inc de
+			jr ntc_sn_loop
+ntc_sn_end:
+			xor a
+			ld (de), a
+			ret
+
+;## kw_strmid ntc_getn kw_strleft
+;kw_strmid, <dest>, <src>, <startvar>, <lenvar>  - Mid$(src, start, len)
+kw_strmid:
+			pop de
+			pop hl
+			pop bc
+			ld ix, ntc_sm_s
+			jp ntc_getn
+ntc_sm_s:
+			or a
+			jr z, ntc_sm_s1
+			dec a
+ntc_sm_s1:
+			ld b, a
+			inc b
+ntc_sm_skip:
+			dec b
+			jr z, ntc_sm_len
+			ld a, (hl)
+			or a
+			jr z, ntc_sm_len
+			inc hl
+			jr ntc_sm_skip
+ntc_sm_len:
+			pop bc
+			ld ix, ntc_sm_n
+			jp ntc_getn
+ntc_sm_n:
+			ld b, a
+			jp ntc_strncpy
+
+;## kw_strchr
+;kw_strchr, <dest>, <nvar>  - Chr$(n)
+kw_strchr:
+			pop de
+			pop hl
+			ld a, (hl)
+			ld (de), a
+			inc de
+			xor a
+			ld (de), a
+			ret
+
+;## kw_strucase
+;kw_strucase, <dest>, <src>  - UCase$
+kw_strucase:
+			pop de
+			pop hl
+ntc_uc_loop:
+			ld a, (hl)
+			cp 'a'
+			jr c, ntc_uc_put
+			cp 'z' + 1
+			jr nc, ntc_uc_put
+			sub 32
+ntc_uc_put:
+			ld (de), a
+			or a
+			ret z
+			inc hl
+			inc de
+			jr ntc_uc_loop
+
+;## kw_strrtrim ntc_data
+;kw_strrtrim, <dest>, <src>  - RTrim$
+kw_strrtrim:
+			pop de
+			pop hl
+			ld (ntc_sptr), de
+ntc_rt_copy:
+			ld a, (hl)
+			ld (de), a
+			or a
+			jr z, ntc_rt_back
+			inc hl
+			inc de
+			jr ntc_rt_copy
+ntc_rt_back:
+			ld hl, (ntc_sptr)
+			ex de, hl
+ntc_rt_loop:
+			or a
+			sbc hl, de
+			add hl, de
+			ret z
+			dec hl
+			ld a, (hl)
+			cp ' '
+			ret nz
+			ld (hl), 0
+			jr ntc_rt_loop
+
+;## kw_strtrim kw_strrtrim
+;kw_strtrim, <dest>, <src>  - Trim$
+kw_strtrim:
+			pop de
+			pop hl
+ntc_tr_skip:
+			ld a, (hl)
+			cp ' '
+			jr nz, ntc_tr_go
+			inc hl
+			jr ntc_tr_skip
+ntc_tr_go:
+			ld (ntc_sptr), de
+			jp ntc_rt_copy
+
+;## kw_strasc
+;kw_strasc, <src>, <destvar>  - Asc(src), 0 if empty
+kw_strasc:
+			pop hl
+			ld a, (hl)
+			pop hl
+			ld (hl), a
+			inc hl
+			ld (hl), 0
+			ret
+
+;## kw_strinstr ntc_getn ntc_data
+;kw_strinstr, <startvar>, <s1>, <s2>, <destvar>  - InStr(start, s1, s2)
+kw_strinstr:
+			pop bc
+			ld ix, ntc_in_s
+			jp ntc_getn
+ntc_in_s:
+			or a
+			jr nz, ntc_in_s1
+			inc a
+ntc_in_s1:
+			ld c, a
+			pop hl
+			ld b, a
+ntc_in_adv:
+			dec b
+			jr z, ntc_in_try0
+			ld a, (hl)
+			or a
+			jr z, ntc_in_nfpop
+			inc hl
+			jr ntc_in_adv
+ntc_in_try0:
+			pop de
+			ld (ntc_sptr), de
+ntc_in_try:
+			ld (ntc_iptr), hl
+			ld de, (ntc_sptr)
+ntc_in_cmp:
+			ld a, (de)
+			or a
+			jr z, ntc_in_found
+			cp (hl)
+			jr nz, ntc_in_next
+			inc hl
+			inc de
+			jr ntc_in_cmp
+ntc_in_next:
+			ld hl, (ntc_iptr)
+			ld a, (hl)
+			or a
+			jr z, ntc_in_nf
+			inc hl
+			inc c
+			jr ntc_in_try
+ntc_in_nfpop:
+			pop de
+ntc_in_nf:
+			ld c, 0
+ntc_in_found:
+			pop hl
+			ld (hl), c
+			inc hl
+			ld (hl), 0
+			ret
+
+;## ntc_capfind ntc_data
+; ntc_capfind - the body of a class's Capability(name) keyword.
+;   HL = the name asked for (0 ended), DE = the result's address,
+;   BC = the class's table: name (capitals, 0 ended), dw value, ..., db 0.
+; The name is matched without regard to case. Found: the value, Z set (true).
+; Not found: 0, NZ. Runs on the thread: no call, no push.
+ntc_capfind:
+			ld (ntc_capres), de
+			ld (ntc_capname), hl
+ntc_cf_entry:
+			ld a, (bc)
+			or a
+			jr z, ntc_cf_none
+			ld hl, (ntc_capname)
+ntc_cf_cmp:
+			ld a, (hl)
+			cp 'a'
+			jr c, ntc_cf_up
+			cp 'z' + 1
+			jr nc, ntc_cf_up
+			sub 32
+ntc_cf_up:
+			ld e, a
+			ld a, (bc)
+			cp e
+			jr nz, ntc_cf_skip
+			or a
+			jr z, ntc_cf_found
+			inc hl
+			inc bc
+			jr ntc_cf_cmp
+ntc_cf_skip:
+			ld a, (bc)			; the rest of this name, its 0 and its value
+			inc bc
+			or a
+			jr nz, ntc_cf_skip
+			inc bc
+			inc bc
+			jr ntc_cf_entry
+ntc_cf_found:
+			inc bc
+			ld a, (bc)
+			ld e, a
+			inc bc
+			ld a, (bc)
+			ld d, a
+			ld hl, (ntc_capres)
+			ld (hl), e
+			inc hl
+			ld (hl), d
+			xor a				; Z: found
+			ret
+ntc_cf_none:
+			ld hl, (ntc_capres)
+			ld (hl), a
+			inc hl
+			ld (hl), a
+			inc a				; NZ: not found
+			ret
+ntc_capres:		dw 0
+ntc_capname:	dw 0
+
+;## kw_bssinit ntc_data ntc_plat_memtop ntc_plat_screen kw_stop @shared
+;kw_bssinit, <start>, <size>  - the start of the main thread: the program's arrays live after
+;  it (from ntc_end, not in its file). Check they fit under the platform's top (and 256 bytes
+;  under the real stack when that is above them), then clear them. Too big: a message, the
+;  program stops.
+kw_bssinit:
+			pop hl
+			ld (ntc_bsa), hl
+			pop bc
+			ld (ntc_bsz), bc
+			ld (ntc_bsp), sp
+			ld sp, (ntc_csp)
+			add hl, bc				; HL = their end
+			ex de, hl
+			call ntc_plat_memtop	; HL = the platform's top
+			or a
+			sbc hl, de
+			jr c, ntc_bs_big
+			ld hl, (ntc_csp)		; the real stack, when above them
+			ld bc, (ntc_bsa)
+			or a
+			sbc hl, bc
+			jr c, ntc_bs_ok
+			ld hl, (ntc_csp)
+			ld bc, -256
+			add hl, bc
+			or a
+			sbc hl, de
+			jr c, ntc_bs_big
+ntc_bs_ok:
+			ld bc, (ntc_bsz)
+			ld a, b
+			or c
+			jr z, ntc_bs_done
+			ld hl, (ntc_bsa)
+			ld (hl), 0
+			dec bc
+			ld a, b
+			or c
+			jr z, ntc_bs_done
+			ld d, h
+			ld e, l
+			inc de
+			ldir
+ntc_bs_done:
+			ld sp, (ntc_bsp)
+			ret
+ntc_bs_big:
+			ld hl, ntc_bstxt
+ntc_bs_pl:
+			ld a, (hl)
+			or a
+			jr z, ntc_bs_stop
+			inc hl
+			ld (ntc_bsa), hl
+			ld ix, ntc_bs_pn
+			jp ntc_plat_putc
+ntc_bs_pn:
+			ld hl, (ntc_bsa)
+			jr ntc_bs_pl
+ntc_bs_stop:
+			ld ix, kw_stop
+			jp ntc_plat_newline
+ntc_bsa:		dw 0
+ntc_bsz:		dw 0
+ntc_bsp:		dw 0
+ntc_bstxt:		db "Not enough memory for the arrays", 0
 
 ;## ntc_plat_data
 ntc_curx:		db 0			; column (0 based) - counted for Tab
@@ -347,11 +1655,1119 @@ FS_FAILED	equ -9
 FS_EXISTS	equ -10
 FS_BADMODE	equ -11
 
+;## ntc_plat_fs ntc_data ntc_capfind @shared
+fs_a1:			dw 0
+fs_a2:			dw 0
+fs_a3:			dw 0
+fs_res:			dw 0
+fs_hi:			dw 0
+fs_sp:			dw 0
+fs_esp:			dw 0
+fs_six:			dw 0
+fs_siy:			dw 0
+fs_cnt:			dw 0
+fs_rest:		dw 0
+fs_ptr:			dw 0
+fs_cap:			db 0
+fs_store:		db 0			; 0 none, 2 Integer, 4 Long
+fs_slots:		ds FS_SLOT * (FS_MAXH + 1)
+
+; fs_go / fs_go4 / fs_go0 - HL = the routine (see above)
+fs_go0:
+			xor a
+			jr fs_gostart
+fs_go4:
+			ld a, 4
+			jr fs_gostart
+fs_go:
+			ld a, 2
+fs_gostart:
+			ld (fs_store), a
+			ld (fs_sp), sp
+			ld sp, (ntc_csp)
+			ld (fs_six), ix
+			ld (fs_siy), iy
+			ld de, 0
+			ld (fs_hi), de
+			ei
+			ld (fs_esp), sp
+			call fs_jphl
+fs_back:
+			di
+			ld ix, (fs_six)
+			ld iy, (fs_siy)
+			ld a, (fs_store)
+			or a
+			jr z, fs_gone
+			ex de, hl
+			ld hl, (fs_res)
+			ld (hl), e
+			inc hl
+			ld (hl), d
+			cp 4
+			jr nz, fs_gone
+			ld de, (fs_hi)
+			inc hl
+			ld (hl), e
+			inc hl
+			ld (hl), d
+fs_gone:
+			ld sp, (fs_sp)
+			ret
+fs_jphl:
+			jp (hl)
+
+; fs_err - HL = status: back to fs_go with it (a Long result gets -1 high)
+fs_err:
+			ld sp, (fs_esp)
+			ld de, #FFFF
+			ld (fs_hi), de
+			jr fs_back
+
+; fs_slotix - A = slot number: IX = the slot
+fs_slotix:
+			ld ix, fs_slots
+			ld de, FS_SLOT
+			or a
+			ret z
+fs_si_lp:
+			add ix, de
+			dec a
+			jr nz, fs_si_lp
+			ret
+
+; fs_handle - HL = a handle from the program: IX = its slot (open), else fs_err
+fs_handle:
+			ld a, h
+			or a
+			jr nz, fs_badh
+			ld a, l
+			or a
+			jr z, fs_badh
+			cp FS_MAXH + 1
+			jr nc, fs_badh
+			call fs_slotix
+			ld a, (ix + FS_MODE)
+			or a
+			ret nz
+fs_badh:
+			ld hl, FS_BADHANDLE
+			jp fs_err
+
+; fs_handlew - as fs_handle, and the file must be open for writing
+fs_handlew:
+			call fs_handle
+			ld a, (ix + FS_MODE)
+			cp 1
+			ret nz
+			ld hl, FS_BADMODE
+			jp fs_err
+
+; fs_clear - zero the slot's FCB, buffer state and record number
+fs_clear:
+			push ix
+			pop hl
+			ld b, FS_BUF
+fs_cl_lp:
+			ld (hl), 0
+			inc hl
+			djnz fs_cl_lp
+			ret
+
+; fs_parse - HL = name ("D:NAME.EXT", any case): the name part of the FCB at IX
+; (bytes 0-11). A bad name goes to fs_err
+fs_parse:
+			push ix
+			pop de
+			xor a
+			ld (de), a			; drive: the current one
+			inc de
+			push de
+			ld b, 11
+			ld a, ' '
+fs_pa_sp:
+			ld (de), a
+			inc de
+			djnz fs_pa_sp
+			pop de				; DE = name field
+			ld a, (hl)
+			or a
+			jr z, fs_pa_bad
+			inc hl
+			ld a, (hl)
+			dec hl
+			cp ':'
+			jr nz, fs_pa_name
+			ld a, (hl)
+			call fs_upper
+			sub 'A' - 1
+			jr c, fs_pa_bad
+			cp 27				; A-Z: CP/M's are A-P, Q-Z for systems that have more (CyborgOS's Z)
+			jr nc, fs_pa_bad
+			ld (ix + 0), a
+			inc hl
+			inc hl
+fs_pa_name:
+			ld b, 8
+			call fs_pa_part
+			ld a, (ix + 1)
+			cp ' '
+			jr z, fs_pa_bad		; no name before the dot / the end
+			ld a, (hl)
+			or a
+			ret z
+			cp '.'
+			jr nz, fs_pa_bad
+			inc hl
+			push ix
+			pop de
+			ld a, 9
+			add a, e
+			ld e, a
+			jr nc, fs_pa_ext
+			inc d
+fs_pa_ext:
+			ld b, 3
+			call fs_pa_part
+			ld a, (hl)
+			or a
+			ret z
+fs_pa_bad:
+			ld hl, FS_BADNAME
+			jp fs_err
+; one part: up to B characters from HL to DE, stops at '.' or the end
+fs_pa_part:
+			ld a, (hl)
+			or a
+			ret z
+			cp '.'
+			ret z
+			call fs_upper
+			cp '!'
+			jr c, fs_pa_bad
+			cp 127
+			jr nc, fs_pa_bad
+			push hl
+			ld hl, fs_pa_badch
+			ld c, a
+fs_pa_chk:
+			ld a, (hl)
+			or a
+			jr z, fs_pa_ok
+			cp c
+			jr z, fs_pa_bad2
+			inc hl
+			jr fs_pa_chk
+fs_pa_bad2:
+			pop hl
+			jr fs_pa_bad
+fs_pa_ok:
+			pop hl
+			ld a, b
+			or a
+			jr z, fs_pa_bad		; too long
+			ld a, c
+			ld (de), a
+			inc de
+			inc hl
+			dec b
+			jr fs_pa_part
+fs_pa_badch:	db "*?:;<>=,[]|", 0
+
+fs_upper:
+			cp 'a'
+			ret c
+			cp 'z' + 1
+			ret nc
+			sub 32
+			ret
+
+; fs_bdos - C = function, DE = argument; IX / IY kept; A = the result
+fs_bdos:
+			push ix
+			push iy
+			call 5
+			pop iy
+			pop ix
+			ret
+; fs_fcb - C = function on the slot's FCB
+fs_fcb:
+			push ix
+			pop de
+			jr fs_bdos
+; fs_dma - the slot's buffer is where records go
+fs_dma:
+			push ix
+			pop hl
+			ld de, FS_BUF
+			add hl, de
+			ex de, hl
+			ld c, 26
+			jr fs_bdos
+; fs_bufpos - HL = the buffer at the current position
+fs_bufpos:
+			push ix
+			pop hl
+			ld de, FS_BUF
+			add hl, de
+			ld e, (ix + FS_BPOS)
+			ld d, 0
+			add hl, de
+			ret
+; fs_setrec - the record number into the FCB's random record field
+fs_setrec:
+			ld a, (ix + FS_RECL)
+			ld (ix + 33), a
+			ld a, (ix + FS_RECH)
+			ld (ix + 34), a
+			ld (ix + 35), 0
+			ret
+; fs_rdrec - read the record into the buffer: Z read, NZ none there
+fs_rdrec:
+			call fs_dma
+			call fs_setrec
+			ld c, 33
+			call fs_fcb
+			or a
+			ret
+; fs_wrrec - write the buffer as the record; a failure goes to fs_err
+fs_wrrec:
+			call fs_dma
+			call fs_setrec
+			ld c, 34
+			call fs_fcb
+			or a
+			ret z
+			ld hl, FS_FULL
+			jp fs_err
+; fs_fill - the buffer full of ^Z (CP/M's end of text)
+fs_fill:
+			push ix
+			pop hl
+			ld de, FS_BUF
+			add hl, de
+			ld b, 128
+fs_fi_lp:
+			ld (hl), 26
+			inc hl
+			djnz fs_fi_lp
+			ret
+; fs_flush - a changed buffer goes back to its record
+fs_flush:
+			ld a, (ix + FS_BST)
+			cp 2
+			ret nz
+			call fs_wrrec
+			ld (ix + FS_BST), 1
+			ret
+; fs_next - on to the next record (the buffer was used up)
+fs_next:
+			call fs_flush
+			inc (ix + FS_RECL)
+			jr nz, fs_nx_1
+			inc (ix + FS_RECH)
+fs_nx_1:
+			ld (ix + FS_BPOS), 0
+			ld (ix + FS_BST), 0
+			ret
+; fs_getb - A = the next byte, carry clear; carry set at the end of the file
+fs_getb:
+			ld a, (ix + FS_BPOS)
+			cp 128
+			call z, fs_next
+			ld a, (ix + FS_BST)
+			or a
+			jr nz, fs_gb_have
+			call fs_rdrec
+			scf
+			ret nz
+			ld (ix + FS_BST), 1
+fs_gb_have:
+			call fs_bufpos
+			ld a, (hl)
+			inc (ix + FS_BPOS)
+			or a
+			ret
+; fs_putb - A = the byte to write at the position
+fs_putb:
+			push af
+			ld a, (ix + FS_BPOS)
+			cp 128
+			call z, fs_next
+			ld a, (ix + FS_BST)
+			or a
+			jr nz, fs_pb_have
+			call fs_rdrec			; keep what the record already holds
+			call nz, fs_fill		; past the end: a fresh record
+			ld (ix + FS_BST), 1
+fs_pb_have:
+			call fs_bufpos
+			pop af
+			ld (hl), a
+			inc (ix + FS_BPOS)
+			ld (ix + FS_BST), 2
+			ret
+; fs_close - write back what is left, close the file, free the slot
+fs_close:
+			ld a, (ix + FS_MODE)
+			ld (ix + FS_MODE), 0
+			cp 1
+			jr z, fs_cs_rd
+			call fs_flush
+fs_cs_rd:
+			ld c, 16
+			call fs_fcb
+			inc a
+			ret nz
+			ld hl, FS_FAILED
+			jp fs_err
+
+; fs_named - slot 0, its FCB set from the name at (fs_a1)
+fs_named:
+			xor a
+			call fs_slotix
+			call fs_clear
+			ld hl, (fs_a1)
+			jp fs_parse
+; fs_openit - open the slot's file; not there goes to fs_err
+fs_openit:
+			ld c, 15
+			call fs_fcb
+			inc a
+			ret nz
+			ld hl, FS_NOTFOUND
+			jp fs_err
+; fs_makeit - a new empty file in place of any old one
+fs_makeit:
+			ld c, 19
+			call fs_fcb			; delete (it need not be there)
+			ld (ix + 12), 0
+			ld (ix + 14), 0
+			ld (ix + 32), 0
+			ld c, 22
+			call fs_fcb
+			inc a
+			ret nz
+			ld hl, FS_FULL
+			jp fs_err
+
+; ---- the routines the methods name ------------------------------
+
+; Load(name, addr, maxlen): the file into memory, at most maxlen bytes.
+; Bytes loaded (whole records: CP/M keeps no exact length), or a status.
+; More data than maxlen (beyond the last record's padding): FS_TOOBIG.
+fs_load:
+			call fs_named
+			call fs_openit
+			ld hl, (fs_a2)
+			ld (fs_ptr), hl
+			ld hl, (fs_a3)
+			ld (fs_rest), hl
+			ld hl, 0
+			ld (fs_cnt), hl
+fs_ld_lp:
+			call fs_rdrec
+			jr nz, fs_ld_end
+			ld hl, (fs_rest)
+			ld a, h
+			or l
+			jr nz, fs_ld_some
+			ld hl, FS_TOOBIG
+			jp fs_err
+fs_ld_some:
+			ld bc, 128			; BC = min(128, rest)
+			ld a, h
+			or a
+			jr nz, fs_ld_bc
+			ld a, l
+			cp 128
+			jr nc, fs_ld_bc
+			ld c, l
+fs_ld_bc:
+			or a
+			sbc hl, bc
+			ld (fs_rest), hl
+			ld hl, (fs_cnt)
+			add hl, bc
+			ld (fs_cnt), hl
+			push bc
+			push ix
+			pop hl
+			ld de, FS_BUF
+			add hl, de
+			ld de, (fs_ptr)
+			ldir
+			ld (fs_ptr), de
+			pop bc
+			ld a, c
+			cp 128
+			jr nz, fs_ld_end		; a part record: maxlen reached
+			inc (ix + FS_RECL)
+			jr nz, fs_ld_lp
+			inc (ix + FS_RECH)
+			jr fs_ld_lp
+fs_ld_end:
+			ld c, 16
+			call fs_fcb
+			ld hl, (fs_cnt)
+			ret
+
+; Save(name, addr, len): a new file holding len bytes (the last record padded with ^Z)
+fs_save:
+			call fs_named
+			call fs_makeit
+			ld hl, (fs_a2)
+			ld (fs_ptr), hl
+			ld hl, (fs_a3)
+			ld (fs_rest), hl
+fs_sv_lp:
+			ld hl, (fs_rest)
+			ld a, h
+			or l
+			jr z, fs_sv_end
+			ld bc, 128
+			ld a, h
+			or a
+			jr nz, fs_sv_bc
+			ld a, l
+			cp 128
+			jr nc, fs_sv_bc
+			ld c, l
+fs_sv_bc:
+			or a
+			sbc hl, bc
+			ld (fs_rest), hl
+			push bc
+			call fs_fill
+			pop bc
+			push ix
+			pop hl
+			ld de, FS_BUF
+			add hl, de
+			ex de, hl
+			ld hl, (fs_ptr)
+			ldir
+			ld (fs_ptr), hl
+			call fs_wrrec
+			inc (ix + FS_RECL)
+			jr nz, fs_sv_lp
+			inc (ix + FS_RECH)
+			jr fs_sv_lp
+fs_sv_end:
+			ld c, 16
+			call fs_fcb
+			inc a
+			ld hl, 0
+			ret nz
+			ld hl, FS_FAILED
+			ret
+
+; Delete(name)
+fs_delete:
+			call fs_named
+			ld c, 19
+			call fs_fcb
+			inc a
+			ld hl, 0
+			ret nz
+			ld hl, FS_NOTFOUND
+			ret
+
+; Exists(name): True (-1) / False (0)
+fs_exists:
+			call fs_named
+			ld c, 15
+			call fs_fcb
+			inc a
+			ld hl, 0
+			ret z
+			dec hl
+			ret
+
+; Rename(old, new) - a file called new already there: FS_EXISTS
+fs_rename:
+			ld hl, (fs_a1)			; keep the old name
+			ld (fs_a3), hl
+			ld hl, (fs_a2)
+			ld (fs_a1), hl
+			call fs_named			; is new there already?
+			ld c, 15
+			call fs_fcb
+			inc a
+			ld hl, FS_EXISTS
+			jp nz, fs_err
+			ld hl, (fs_a3)			; the old name
+			ld (fs_a1), hl
+			call fs_named
+			push ix
+			ld de, 16
+			add ix, de
+			ld hl, (fs_a2)
+			call fs_parse			; the new name at FCB + 16
+			pop ix
+			ld c, 23
+			call fs_fcb
+			inc a
+			ld hl, 0
+			ret nz
+			ld hl, FS_NOTFOUND
+			ret
+
+; Size(name) As Long: bytes (whole records)
+fs_size:
+			call fs_named
+			call fs_openit
+			ld c, 35
+			call fs_fcb
+			ld l, (ix + 33)
+			ld h, (ix + 34)
+			ld e, (ix + 35)
+			ld d, 0
+			ld b, 7
+fs_sz_lp:
+			add hl, hl
+			rl e
+			rl d
+			djnz fs_sz_lp
+			ld (fs_hi), de
+			ret
+
+; Open(name, mode): a handle (1 or 2), or a status.
+; mode 1 read (must be there), 2 write (a new file), 3 update (read and write; made if not there)
+fs_open:
+			ld a, 1
+fs_op_find:
+			push af
+			call fs_slotix
+			pop af
+			ld b, a
+			ld a, (ix + FS_MODE)
+			or a
+			jr z, fs_op_got
+			ld a, b
+			inc a
+			cp FS_MAXH + 1
+			jr c, fs_op_find
+			ld hl, FS_NOHANDLE
+			jp fs_err
+fs_op_got:
+			ld a, b
+			ld (fs_cap), a			; the handle
+			call fs_clear
+			ld hl, (fs_a1)
+			call fs_parse
+			ld a, (fs_a2)
+			ld hl, (fs_a2)
+			ld e, a
+			ld a, h
+			or a
+			jr nz, fs_op_bad
+			ld a, e
+			cp 4				; ForReadRaw: ForRead (CP/M reads every record anyway)
+			jr nz, fs_op_m
+			ld a, 1
+			ld (fs_a2), a
+fs_op_m:
+			cp 1
+			jr z, fs_op_rd
+			cp 2
+			jr z, fs_op_wr
+			cp 3
+			jr z, fs_op_up
+fs_op_bad:
+			ld hl, FS_BADMODE
+			jp fs_err
+fs_op_rd:
+			call fs_openit
+			jr fs_op_done
+fs_op_wr:
+			call fs_makeit
+			jr fs_op_done
+fs_op_up:
+			ld c, 15
+			call fs_fcb
+			inc a
+			jr nz, fs_op_done
+			ld (ix + 12), 0
+			ld (ix + 32), 0
+			call fs_makeit
+fs_op_done:
+			ld a, (fs_a2)
+			ld (ix + FS_MODE), a
+			ld a, (fs_cap)
+			ld l, a
+			ld h, 0
+			ret
+
+; Close(h)
+fs_closeh:
+			ld hl, (fs_a1)
+			call fs_handle
+			call fs_close
+			ld hl, 0
+			ret
+
+; ReadByte(h): 0-255, or FS_EOF
+fs_readb:
+			ld hl, (fs_a1)
+			call fs_handle
+			call fs_getb
+			ld hl, FS_EOF
+			ret c
+			ld l, a
+			ld h, 0
+			ret
+
+; WriteByte(h, b)
+fs_writeb:
+			ld hl, (fs_a1)
+			call fs_handlew
+			ld a, (fs_a2)
+			call fs_putb
+			ld hl, 0
+			ret
+
+; Read(h, addr, count): bytes read (fewer at the end of the file)
+fs_read:
+			ld hl, (fs_a1)
+			call fs_handle
+			ld hl, 0
+			ld (fs_cnt), hl
+fs_rd_lp:
+			ld hl, (fs_cnt)
+			ld de, (fs_a3)
+			or a
+			sbc hl, de
+			jr nc, fs_rd_end
+			call fs_getb
+			jr c, fs_rd_end
+			ld hl, (fs_a2)
+			ld de, (fs_cnt)
+			add hl, de
+			ld (hl), a
+			inc de
+			ld (fs_cnt), de
+			jr fs_rd_lp
+fs_rd_end:
+			ld hl, (fs_cnt)
+			ret
+
+; Write(h, addr, count): count, or a status
+fs_write:
+			ld hl, (fs_a1)
+			call fs_handlew
+			ld hl, 0
+			ld (fs_cnt), hl
+fs_wr_lp:
+			ld hl, (fs_cnt)
+			ld de, (fs_a3)
+			or a
+			sbc hl, de
+			jr nc, fs_wr_end
+			ld hl, (fs_a2)
+			ld de, (fs_cnt)
+			add hl, de
+			ld a, (hl)
+			inc de
+			ld (fs_cnt), de
+			call fs_putb
+			jr fs_wr_lp
+fs_wr_end:
+			ld hl, (fs_cnt)
+			ret
+
+; Seek(h, pos As Long): the next read / write is at byte pos (0 = the start)
+fs_seek:
+			ld hl, (fs_a1)
+			call fs_handle
+			ld hl, (fs_a2)			; the Long's address
+			ld c, (hl)				; byte 0
+			inc hl
+			ld e, (hl)				; byte 1
+			inc hl
+			ld d, (hl)				; byte 2
+			inc hl
+			ld a, (hl)				; byte 3
+			or a
+			jr nz, fs_sk_bad
+			bit 7, d
+			jr nz, fs_sk_bad		; beyond CP/M's 8 MB
+			ex de, hl				; HL = bytes 2:1
+			ld a, c
+			rla						; bit 7 of byte 0
+			rl l
+			rl h					; HL = the record
+			ld a, c
+			and 127
+			ld c, a					; C = position in the record
+			ld a, (ix + FS_BST)
+			or a
+			jr z, fs_sk_new
+			ld a, (ix + FS_RECL)
+			cp l
+			jr nz, fs_sk_new
+			ld a, (ix + FS_RECH)
+			cp h
+			jr z, fs_sk_pos
+fs_sk_new:
+			push hl
+			push bc
+			call fs_flush
+			pop bc
+			pop hl
+			ld (ix + FS_RECL), l
+			ld (ix + FS_RECH), h
+			ld (ix + FS_BST), 0
+fs_sk_pos:
+			ld (ix + FS_BPOS), c
+			ld hl, 0
+			ret
+fs_sk_bad:
+			ld hl, FS_FAILED
+			jp fs_err
+
+; Eof(h): True when nothing more can be read (the end, or ^Z: the end of a text)
+fs_eof:
+			ld hl, (fs_a1)
+			call fs_handle
+			ld a, (ix + FS_BPOS)
+			cp 128
+			call z, fs_next
+			ld a, (ix + FS_BST)
+			or a
+			jr nz, fs_ef_have
+			call fs_rdrec
+			jr nz, fs_ef_yes
+			ld (ix + FS_BST), 1
+fs_ef_have:
+			call fs_bufpos
+			ld a, (hl)
+			cp 26
+			jr z, fs_ef_yes
+			ld hl, 0
+			ret
+fs_ef_yes:
+			ld hl, -1
+			ret
+
+; ReadLine(h) As String: up to CR LF / LF (not kept), the end or ^Z; cut at the string's size
+fs_readln:
+			ld hl, (fs_a1)
+			call fs_handle
+			ld hl, (fs_res)
+			dec hl
+			ld a, (hl)
+			ld (fs_cap), a			; the result's capacity
+			inc hl
+			ld (fs_ptr), hl
+			ld hl, 0
+			ld (fs_cnt), hl
+fs_rl_lp:
+			call fs_getb
+			jr c, fs_rl_end
+			cp 26
+			jr z, fs_rl_z
+			cp 10
+			jr z, fs_rl_end
+			cp 13
+			jr z, fs_rl_lp
+			ld c, a
+			ld a, (fs_cap)
+			ld hl, fs_cnt
+			cp (hl)
+			jr z, fs_rl_lp			; full: the rest of the line is dropped
+			inc (hl)
+			ld hl, (fs_ptr)
+			ld (hl), c
+			inc hl
+			ld (fs_ptr), hl
+			jr fs_rl_lp
+fs_rl_z:
+			dec (ix + FS_BPOS)		; leave the ^Z: Eof sees it
+fs_rl_end:
+			ld hl, (fs_ptr)
+			ld (hl), 0
+			ret
+
+; WriteLine(h, s): the text and CR LF
+fs_writeln:
+			ld hl, (fs_a1)
+			call fs_handlew
+fs_wl_lp:
+			ld hl, (fs_a2)
+			ld a, (hl)
+			or a
+			jr z, fs_wl_end
+			inc hl
+			ld (fs_a2), hl
+			call fs_putb
+			jr fs_wl_lp
+fs_wl_end:
+			ld a, 13
+			call fs_putb
+			ld a, 10
+			call fs_putb
+			ld hl, 0
+			ret
+
+; fs_strout - HL = text (0 ended) into the String result at (fs_res), cut at its size
+fs_strout:
+			ex de, hl
+			ld hl, (fs_res)
+			dec hl
+			ld b, (hl)			; the capacity
+			inc hl
+			ex de, hl
+fs_so_lp:
+			ld a, (hl)
+			or a
+			jr z, fs_so_end
+			ld c, a
+			ld a, b
+			or a
+			jr z, fs_so_end
+			ld a, c
+			ld (de), a
+			inc hl
+			inc de
+			dec b
+			jr fs_so_lp
+fs_so_end:
+			xor a
+			ld (de), a
+			ret
+
+; Volumes(): the drives CP/M has used so far (logged in, and the current one): "A,B"
+fs_volumes:
+			ld c, 24
+			call fs_bdos			; HL = login vector
+			push hl
+			ld c, 25
+			call fs_bdos			; A = current drive
+			pop hl
+			ld b, a
+			inc b
+			ld de, 1
+fs_dv_bit:
+			dec b
+			jr z, fs_dv_or
+			ex de, hl
+			add hl, hl
+			ex de, hl
+			jr fs_dv_bit
+fs_dv_or:
+			ld a, l
+			or e
+			ld l, a
+			ld a, h
+			or d
+			ld h, a				; HL = the drives
+			ld de, fs_devtxt
+			ld c, 'A'
+fs_dv_lp:
+			srl h
+			rr l
+			jr nc, fs_dv_next
+			ld a, e
+			cp low fs_devtxt
+			jr z, fs_dv_first
+			ld a, ','
+			ld (de), a
+			inc de
+fs_dv_first:
+			ld a, c
+			ld (de), a
+			inc de
+fs_dv_next:
+			inc c
+			ld a, c
+			cp 'Q'
+			jr nz, fs_dv_lp
+			xor a
+			ld (de), a
+			ld hl, fs_devtxt
+			jp fs_strout
+fs_devtxt:		ds 33
+
+; CurrentVolume(): the current drive, "A"
+fs_curvol:
+			ld c, 25
+			call fs_bdos
+			add a, 'A'
+			ld (fs_devtxt), a
+			xor a
+			ld (fs_devtxt + 1), a
+			ld hl, fs_devtxt
+			jp fs_strout
+
+; SelectVolume(name): "B" or "B:" - the drive files without a drive letter use.
+; CP/M 3 reports a drive that isn't there (NotFound); CP/M 2.2 stops with its BDOS error
+fs_selvol:
+			ld hl, (fs_a1)
+			ld a, (hl)
+			call fs_upper
+			sub 'A'
+			jr c, fs_sl_bad
+			cp 16
+			jr nc, fs_sl_bad
+			ld b, a
+			inc hl
+			ld a, (hl)
+			cp ':'
+			jr nz, fs_sl_one
+			inc hl
+			ld a, (hl)
+fs_sl_one:
+			or a
+			jr nz, fs_sl_bad
+			push bc
+			ld c, 45
+			ld e, #FF			; CP/M 3: errors come back (2.2 ignores this)
+			call fs_bdos
+			pop bc
+			ld e, b
+			ld c, 14
+			call fs_bdos
+			inc a
+			ld hl, 0
+			ret nz
+fs_sl_bad:
+			ld hl, FS_NOTFOUND
+			ret
+
+; Devices() / CurrentDevice(): CP/M has discs only
+fs_devices:
+fs_curdev:
+			ld hl, fs_n_disc
+			jp fs_strout
+fs_n_disc:		db "DISC", 0
+
+; SelectDevice(name): "DISC" (any case) - OK; anything else NotFound
+fs_select:
+			ld hl, (fs_a1)
+			ld de, fs_n_disc
+fs_sd_lp:
+			ld a, (hl)
+			call fs_upper
+			ld c, a
+			ld a, (de)
+			cp c
+			jr nz, fs_sd_bad
+			or a
+			jr z, fs_sd_ok
+			inc hl
+			inc de
+			jr fs_sd_lp
+fs_sd_ok:
+			ld hl, 0
+			ret
+fs_sd_bad:
+			ld hl, FS_NOTFOUND
+			ret
+
+; Capability(name) - the class's table at (fs_a2); CPMVERSION (#8000 in the table) asks
+; BDOS 12: #22 = CP/M 2.2, #31 = CP/M 3
+fs_capab:
+			ld hl, (fs_a1)
+			ld de, fs_cnt
+			ld bc, (fs_a2)
+			call ntc_capfind
+			ld hl, (fs_cnt)
+			ld a, h
+			cp #80
+			ret nz
+			ld a, l
+			or a
+			ret nz
+			ld c, 12
+			call fs_bdos
+			ld l, a
+			ld h, 0
+			ret
+
+;## ntc_plat_cmdline ntc_data
+; the command line (System.CommandLine): the start code copies CP/M's command
+; tail (#80: its length, then the text - CP/M has made it capitals) here first,
+; before a disc call or Input can overwrite it
+ntc_cmdbuf:		ds 128
+; ntc_cmdsave - (call, the start code) #80 into ntc_cmdbuf, 0 ended, without the
+; spaces in front
+ntc_cmdsave:
+			ld hl, #80
+			ld b, (hl)
+			inc hl
+			ld de, ntc_cmdbuf
+			ld a, b
+			or a
+			jr z, ntc_cs_end
+ntc_cs_sp:
+			ld a, (hl)
+			cp ' '
+			jr nz, ntc_cs_cp
+			inc hl
+			djnz ntc_cs_sp
+			jr ntc_cs_end
+ntc_cs_cp:
+			ld a, (hl)
+			ld (de), a
+			inc hl
+			inc de
+			djnz ntc_cs_cp
+ntc_cs_end:
+			xor a
+			ld (de), a
+			ret
+; ntc_cmdget - (on the thread) HL = the result String: the command line, cut at
+; its capacity
+ntc_cmdget:
+			dec hl
+			ld c, (hl)
+			inc hl
+			ex de, hl
+			ld hl, ntc_cmdbuf
+ntc_cg_lp:
+			ld a, (hl)
+			or a
+			jr z, ntc_cg_end
+			inc c
+			dec c
+			jr z, ntc_cg_end
+			ld (de), a
+			inc hl
+			inc de
+			dec c
+			jr ntc_cg_lp
+ntc_cg_end:
+			xor a
+			ld (de), a
+			ret
+
+;## ntc_plat_memtop ntc_plat_data
+; ntc_plat_memtop - HL = the first byte the Memory class's Small heap must not
+; use: the BDOS (its address is at 6; the CCP below it is free, the program
+; ends with a warm boot), or ntc_cpmtop when lower (Graphics on CP/M Plus sets
+; it to its copy at GFH_AT). Called on the real stack (call / ret), only by the
+; Memory class.
+ntc_plat_memtop:
+			push de
+			ld hl, (ntc_cpmtop)
+			ld de, (6)
+			or a
+			sbc hl, de
+			add hl, de
+			jr c, ntc_mt1			; ntc_cpmtop lower
+			ex de, hl
+ntc_mt1:
+			pop de
+			ret
+
 
 ntc_end:				; the end of the program (and of its file)
 ; arrays: after the program, not in its file - kw_bssinit checks they fit and clears them
 ntc_bssfrom	equ ntc_end
 ntc_bss		equ ntc_bssfrom
-ntc_bss_size	equ 0
+arr_b		equ ntc_bss + 0		; 72 bytes
+arr_q		equ ntc_bss + 72		; 50 bytes
+ntc_bss_size	equ 122
 ntc_free	equ ntc_bss + ntc_bss_size	; the first free byte (heap, Memory tables)
 ntc_memtab	equ ntc_free		; the Memory class's tables

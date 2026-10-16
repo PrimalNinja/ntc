@@ -1,0 +1,9 @@
+MON2 [map [slot]]
+  MON on the whole screen (the hardware scroll, a scroll bar on the right).
+  The monitor of the CPC and CyborgOS: its tables, memory, ROMs, drives as
+  pages of links, from a map (SYSTEM.MAP: this drive, else A:, else Z:).
+  Keys: Tab / right the next link, left the one before, up / down a line,
+  Shift + up / down a page, Control + up / down the top / end, Enter or
+  Copy the link, 1-8 or a tool's capital letter the toolbar, B or DEL back,
+  R again, Q or ESC quits.
+

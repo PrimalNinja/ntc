@@ -277,10 +277,16 @@ End Sub
 ' few hundred T (most of it the 8 screen bytes).
 Public Sub Con(ByVal pg As Integer, ByVal src As Integer, ByVal n As Integer, ByVal front As Integer)
 #asm
+; CN_SB 1: the scrollback (Shift + Up / Down: 48 rows a slot, kept in a 16K page Main gives - #If
+; SCROLLBACK in Main.bas, set the two together). Off for now: 526 bytes of main RAM (2026-10-16)
+CN_SB:      equ 0
             ld ({hsp}), sp
             ld sp, (ntc_csp)
             ld bc, ({pg})
             out (c), c              ; the slot's page 3 at #4000: OBUF #7600, state #7682, page #7700
+            IF CN_SB
+            ld (cn_pg), bc
+            ENDIF
             xor a
             ld (cn_pv), a
             ld a, ({front})
@@ -291,8 +297,23 @@ Public Sub Con(ByVal pg As Integer, ByVal src As Integer, ByVal n As Integer, By
             ld (cn_r), a
             ld hl, ({n})
             bit 7, h
-            jp nz, cn_show
+            jp nz, cn_neg
             ld (cn_left), hl
+            IF CN_SB
+            ld a, (cn_front)        ; in front and looking back (scrollback): the page again first
+            or a
+            jr z, cn_live
+            ld a, (#7F26)
+            or a
+            jr z, cn_live
+            xor a
+            ld (#7F26), a
+            call cn_cls
+            call cn_strip
+            call cn_draw
+            ld hl, (cn_left)
+cn_live:
+            ENDIF
             ld hl, ({src})
             ld a, h
             or l
@@ -319,11 +340,105 @@ cn_done:
             ld sp, ({hsp})
             jp cn_end
 
-; the whole page to the screen (it was cleared): every character that isn't a space
+; n < 0: -1 the whole page to the screen (it was cleared: Show), not looking back any more; -2
+; the scrollback (src: the key - #F4 Shift + Up a screen back, #F5 Shift + Down one on), drawn
+cn_neg:
+            IF CN_SB
+            inc hl
+            ld a, h
+            or l
+            jr nz, cn_view
+            ld (#7F26), a
+            ENDIF
 cn_show:
             call cn_strip
+            call cn_draw
+            jr cn_done
+            IF CN_SB
+cn_view:
+            ld a, (#7F21)           ; (no history page: nothing)
+            or a
+            jr z, cn_done
+            ld a, (cn_r)
+            dec a
+            ld b, a                 ; a screen: its rows - 1
+            ld a, ({src})
+            cp #F4
+            ld a, (#7F26)
+            jr nz, cn_vw_dn
+            add a, b
+            ld hl, #7F25
+            cp (hl)
+            jr c, cn_vw_set
+            ld a, (hl)              ; (not past the oldest row kept)
+            jr cn_vw_set
+cn_vw_dn:
+            sub b
+            jr nc, cn_vw_set
+            xor a
+cn_vw_set:
+            ld hl, #7F26
+            cp (hl)
+            jr z, cn_done
+            ld (hl), a
+            call cn_cls
+            jr cn_show
+
+            ENDIF
+
+; the screen's rows: the page's - or, looking back (#FF26 rows), the history's first, then the
+; page's. Row e shows line count + e - back of history + page (count the rows kept, #FF25)
+cn_draw:
             ld e, 0
-cn_sh_row:
+            IF CN_SB
+cn_dr_row:
+            push de
+            ld a, (#7F25)
+            add a, e
+            ld hl, #7F26
+            sub (hl)                ; the line: count + e - back
+            ld hl, #7F25
+            sub (hl)
+            jr c, cn_dr_h
+            call cn_rowa            ; HL = row (line - count) of the page
+            ld a, (cn_c)
+            jr cn_dr_go
+cn_dr_h:
+            add a, (hl)
+            call cn_hget            ; HL = the history's row (copied in), 80 characters at most
+            ld a, (cn_c)
+            cp HW
+            jr c, cn_dr_go
+            ld a, HW
+cn_dr_go:
+            ld b, a
+            pop de
+            push de
+            ld d, 0
+cn_dr_col:
+            ld a, (hl)
+            inc hl
+            cp 33
+            jr c, cn_dr_sk
+            push hl
+            push de
+            push bc
+            call cn_glyph
+            pop bc
+            pop de
+            pop hl
+cn_dr_sk:
+            inc d
+            djnz cn_dr_col
+            pop de
+            inc e
+            ld a, (cn_r)
+            dec a
+            cp e
+            jr nc, cn_dr_row
+            ret
+            ELSE
+cn_sh_row:                          ; (no scrollback: the page's rows as they are)
             push de
             ld a, e
             call cn_rowa            ; HL = row e of the page
@@ -350,7 +465,118 @@ cn_sh_skip:
             dec a
             cp e
             jr nc, cn_sh_row
-            jr cn_done
+            ret
+            ENDIF
+
+            IF CN_SB
+; the scrollback: each row that scrolls off the top of the page - its first HW characters - goes
+; to the slot's history: HROWS rows (a ring) in a 16K page of its own that Main gave it (#FF20:
+; its RAM setting, 0 none; #FF22 where in it; #FF24 the next row written, #FF25 how many, #FF26
+; how far back the screen looks). Copied 8 bytes at a time through the stack - only the window
+; changes, so no main RAM for a buffer
+HW:         equ 80
+HROWS:      equ 48
+cn_hput:                            ; HL = the row going (the page)
+            ld a, (#7F21)
+            or a
+            ret z
+            ld (cn_hs), hl
+            ld hl, (cn_pg)
+            ld (cn_h1), hl
+            ld hl, (#7F20)
+            ld (cn_h2), hl
+            ld a, (#7F24)
+            call cn_haddr
+            ld (cn_hd), hl
+            ld hl, #7F24            ; the next row on, one more kept
+            ld a, (hl)
+            inc a
+            cp HROWS
+            jr c, cn_hp_h
+            xor a
+cn_hp_h:
+            ld (hl), a
+            inc hl
+            ld a, (hl)
+            cp HROWS
+            jr nc, cn_hcp
+            inc (hl)
+; cn_hcp: HW bytes from cn_hs in RAM setting cn_h1 to cn_hd in cn_h2, then the slot's page back
+cn_hcp:
+            ld a, HW / 8
+cn_hc_lp:
+            ld (cn_hn), a
+            ld bc, (cn_h1)
+            out (c), c
+            ld hl, (cn_hs)
+            ld b, 4
+cn_hc_in:
+            ld e, (hl)
+            inc hl
+            ld d, (hl)
+            inc hl
+            push de
+            djnz cn_hc_in
+            ld (cn_hs), hl
+            ld bc, (cn_h2)
+            out (c), c
+            ld hl, (cn_hd)
+            ld de, 8
+            add hl, de
+            ld (cn_hd), hl
+            ld b, 4
+cn_hc_out:
+            pop de
+            dec hl
+            ld (hl), d
+            dec hl
+            ld (hl), e
+            djnz cn_hc_out
+            ld a, (cn_hn)
+            dec a
+            jr nz, cn_hc_lp
+            ld bc, (cn_pg)
+            out (c), c
+            ret
+cn_hget:                            ; A = a line of the history (0 the oldest kept): copied to
+            ld hl, #7F24            ; #FF30 in the slot's page (HL)
+            add a, (hl)
+            inc hl
+            sub (hl)
+            jr nc, cn_hg_r
+            add a, HROWS
+cn_hg_r:
+            call cn_haddr
+            ld (cn_hs), hl
+            ld hl, (#7F20)
+            ld (cn_h1), hl
+            ld hl, (cn_pg)
+            ld (cn_h2), hl
+            ld hl, #7F30
+            ld (cn_hd), hl
+            call cn_hcp
+            ld hl, #7F30
+            ret
+cn_haddr:                           ; A = a history row: HL = its address in the history page
+            ld e, a
+            ld a, HW
+            call cn_mul
+            ld de, (#7F22)
+            add hl, de
+            ret
+; cn_cls: the screen cleared (written only: the Library: ROM build's keyword ROM may be over it)
+cn_cls:
+            ld hl, #C000
+            ld bc, #4000
+cn_cl_lp:
+            ld (hl), 0
+            inc hl
+            dec bc
+            ld a, b
+            or c
+            jr nz, cn_cl_lp
+            ret
+            ENDIF
 
 ; cn_char: A = one character
 cn_char:
@@ -520,7 +746,12 @@ cn_sc_top:
             ld (#7684), a
             ld a, (cn_r)
             dec a
-            call cn_rowa            ; the new last row cleared
+            call cn_rowa            ; the new last row cleared (the old top row: kept first)
+            IF CN_SB
+            push hl
+            call cn_hput
+            pop hl
+            ENDIF
             ld a, (cn_c)
             ld b, a
 cn_sc_cl:
@@ -823,6 +1054,14 @@ cn_pp:      dw 0                    ; the page byte for the next character
 cn_sp:      dw 0                    ; its screen address
 cn_left:    dw 0
 cn_ptr:     dw 0
+            IF CN_SB
+cn_pg:      dw 0                    ; the slot's page 3 setting (pg)
+cn_h1:      dw 0                    ; cn_hcp: from (its setting, address), to, 8-byte runs left
+cn_hs:      dw 0
+cn_h2:      dw 0
+cn_hd:      dw 0
+cn_hn:      db 0
+            ENDIF
 cn_end:
 #endasm
 End Sub
@@ -1222,8 +1461,8 @@ hi_p0e:
 ; switch - the console out (2, 9: collected at OBUF; the hypervisor gets them, IX = how many, at
 ; the next far call or interrupt, or when 128 wait), the keys (1, 6, 10, 11: from KEY, where
 ; the hypervisor leaves the slot's next key), the IOBYTE (7, 8), the disc's parameters (27, 31)
-; and the calls with nothing to do (3, 4, 5, 28, 29, 30, 37), CP/M 3's 49 for the console's
-; size (MODE); the rest is a far call. Then the
+; and the calls with nothing to do (3, 4, 5, 28, 29, 30, 37 - 30 with #C0 on at DE is CyborgOS's
+; UniDOS call), CP/M 3's 49 for the console's size (MODE); the rest is a far call. Then the
 ; BIOS (its jump table: (#0001) - 3) and the start-up (the default FCBs)
 sb_img:
             DISP {STUB}
@@ -1261,12 +1500,16 @@ sb_start:
             cp 29
             jr z, sb_zero
             cp 30
-            jr z, sb_zero
+            jr z, sb_f30
             cp 37
             jr z, sb_zero
             cp 49
             jp z, sb_scb
             jp sb_call
+sb_f30:                                         ; 30: nothing - unless #C0 on at DE: CyborgOS's
+            ld a, (de)                          ; UniDOS call (CD, DIR: the hypervisor's)
+            cp #C0
+            jp nc, sb_call
 sb_zero:
             xor a                               ; 4, 5 (the printer: not yet), 28, 29, 30, 37
 sb_ret:
@@ -1784,7 +2027,9 @@ End Sub
 ' A record goes through main RAM (buf: 128 bytes). Random records (33, 34): read on, or
 ' from the start again; written, only the next one. Rename (23): the disc ROM's |REN.
 ' Size (35): counted, reading the file through. Set random record (36): where the file is.
-' Search (17, 18): FILES.DIR's entries
+' Search (17, 18): the folder itself (UniDOS: Ctrl J examine). With
+' UniDOS a drive letter can be a path ("IDE:GAMES/": CD), put before each name (30: CD's, DIR's
+' calls - fl_unicall)
 ' FileCall(f, fcb, slot, setting, dma, drive, buf): the call's A. setting = the slot's RAM
 ' setting (sg), drive = the slot's drive letter (0: none), buf = 128 bytes of main RAM
 Public Function FileCall(ByVal f As Integer, ByVal fcb As Integer, ByVal slot As Integer, ByVal setting As Integer, ByVal dma As Integer, ByVal drive As Integer, ByVal buf As Integer) As Integer
@@ -2027,6 +2272,8 @@ fp_go:
             jp z, fl_hclose
             cp 103
             jp z, fl_hload
+            cp 30
+            jp z, fl_unicall
             jp fp_done
 ; ---- the hypervisor's own reading (RUN, DIR, CD): 100 open the file named at fcb (dma
 ; characters, main RAM); 101 read dma bytes (128 at most) to buf: how many; 102 close; 103 the
@@ -2036,14 +2283,46 @@ fl_hopen:
             ld a, ({fin})
             or a
             jp nz, fp_done
-            ld hl, ({fcb})
             ld de, fl_name_s + 1
+            ld hl, ({fcb})          ; a name with no drive: the hypervisor's drive's path first
+            ld bc, ({dma})          ; when it has one (UniDOS: CD IDE: ...)
+            ld a, ':'
+            cpir
+            jr z, fl_ho_nm
+            ld a, ({hdr})
+            call fl_pfxm
+fl_ho_nm:
+            ld hl, ({fcb})
             ld bc, ({dma})
-            ld a, c
-            ld (fl_name_s), a
             ldir
+            call fl_nlen
+            call fl_inopen
+            jr c, fl_ho_ok
+            ld hl, fl_name_s        ; NAME.CYB not there: with UniDOS NAME.COM instead (RUN - a
+            ld e, (hl)              ; .COM with no entry: UniDOS reads a file with no header to
+            ld d, 0                 ; its real end)
+            add hl, de
+            ld a, (hl)
+            cp 'B'
+            jp nz, fp_done
+            ld (hl), 'M'
+            dec hl
+            ld a, (hl)
+            cp 'Y'
+            jp nz, fp_done
+            ld (hl), 'O'
+            call fl_uni
+            jp nc, fp_done
             call fl_inopen
             jp nc, fp_done
+            ld hl, ({fcb})          ; (the caller's name too: NAME.COM)
+            ld bc, ({dma})
+            add hl, bc
+            dec hl
+            ld (hl), 'M'
+            dec hl
+            ld (hl), 'O'
+fl_ho_ok:
             ld a, 99                ; (99: the hypervisor's)
             ld ({fin}), a
             jp fl_ok
@@ -2140,7 +2419,7 @@ fl_op_new:                          ; replaces it (Exists opens and leaves it)
             jp nc, fp_done
             ld hl, fl_name_s        ; kept, to open it again (33 going back)
             ld de, fl_inname
-            ld bc, 17
+            ld bc, FL_NL
             ldir
             ld a, (fl_slot)
             ld ({fin}), a
@@ -2194,14 +2473,16 @@ fl_del:
             ld (fl_desc + 1), hl
             ld a, (fl_name_s)
             ld (fl_desc), a
-            ld hl, fl_era
-            call #BCD4              ; KL FIND COMMAND: C = its ROM, HL = its address
+            ld a, 'Y'               ; (UniDOS asks before it deletes a folder, a read-only or a
+            call #BB0C              ; hidden file - KM WAIT CHAR, its text unseen: the VDU is off.
+            ld hl, fl_era           ; KM CHAR RETURN: a Y waiting for it; KM READ CHAR after
+            call #BCD4              ; takes it back when nothing asked) KL FIND COMMAND
             di
             jp nc, fp_done
             ld ix, fl_par
             ld a, 1                 ; one parameter: the string
             call #001B              ; KL FAR PCALL
-            di
+            call #BB09              ; KM READ CHAR (interrupts: off again in fl_done)
             jp fl_ok
 ; ---- 23: rename (the disc ROM's |REN, "new", "old"): the old name at FCB 0-11, the new
 ; at 16-27 (its drive 0: the old one's)
@@ -2216,7 +2497,7 @@ fl_ren:
             ld (fl_dfl), a
             ld hl, fl_name_s
             ld de, fl_new_s
-            ld bc, 17
+            ld bc, FL_NL
             ldir
             call fl_name            ; the old one
             call fl_plain
@@ -2235,8 +2516,7 @@ fl_ren:
             ld ix, fl_par2          ; IX+0: the last parameter (the old name), IX+2: the new
             ld a, 2
             call #001B              ; KL FAR PCALL
-            di
-            jp fl_ok
+            jp fl_ok              ; (interrupts: off again in fl_done)
 ; ---- 33: read record r0-r1: on to it (from the start again if it is behind)
 fl_rdran:
             call fl_isin
@@ -2258,7 +2538,7 @@ fl_rdran:
             call fl_inclose         ; behind: open it again
             ld hl, fl_inname
             ld de, fl_name_s
-            ld bc, 17
+            ld bc, FL_NL
             ldir
             call fl_inopen
             jp nc, fp_done
@@ -2405,7 +2685,7 @@ fl_sz_back:
             jp z, fp_done
             ld hl, fl_inname        ; the slot's read file again, on to its record
             ld de, fl_name_s
-            ld bc, 17
+            ld bc, FL_NL
             ldir
             call fl_inopen
             jp nc, fp_done
@@ -2448,12 +2728,11 @@ fl_sr_lo:
 fl_sr_put:
             call fl_ranput
             jp fl_ok
-; ---- 17 / 18: search FILES.DIR (on the FCB's drive, else the slot's) for BDOS 17's name ("?"
-; any character; kept at SRCH in the bank, SRCH + 12 the entries passed - 18 goes on from
-; there): the next one, as a CP/M directory entry at the DMA (its record count from its
-; length, 128 at most). 17 reads FILES.DIR into the hypervisor's page (#6000-#7FFF: 128 entries
-; at most), then 17 and 18 look there - not the disc again for each 18 (a DIR read the file once
-; per entry). 17: not while a file is being read (255)
+; ---- 17 / 18: search the folder (UniDOS: the FCB's drive's, else the slot's) for BDOS 17's
+; name ("?" any character; kept at SRCH in the bank, SRCH + 12 the entries passed - 18 goes on
+; from there): the next one, as a CP/M directory entry at the DMA (its record count from its
+; length, 128 at most). 17 examines the folder (Ctrl J) into the hypervisor's page (#6000-#7BFF:
+; 112 entries at most), then 17 and 18 look there. No UniDOS (or an AMSDOS floppy): none (255)
 fl_srch1:
             ld hl, ({fcb})
             ld de, {SRCH}
@@ -2469,10 +2748,11 @@ fl_s1_lp:
             ex de, hl
             xor a
             call fl_poke            ; none passed
-            ld a, ({fin})
-            or a
-            jp nz, fp_done
-            ld de, fl_name_s + 1    ; "B:FILES.DIR"
+            xor a
+            ld (fl_cn), a
+            ld hl, #6000
+            ld (fl_at), hl
+            ld de, fl_name_s + 1    ; "B:" (or B's path)
             ld hl, {SRCH}
             call fl_peek
             or a
@@ -2484,43 +2764,51 @@ fl_s_own:
             or a
             jr z, fl_s_nod
 fl_s_drv:
-            ld (de), a
-            inc de
-            ld a, ':'
-            ld (de), a
-            inc de
+            call fl_pfx
 fl_s_nod:
-            ld hl, fl_fdir
-            ld bc, 9
-            ldir
-            ld hl, -(fl_name_s + 1)
-            add hl, de
-            ld a, l
-            ld (fl_name_s), a
-            xor a
-            ld (fl_cn), a
-            call fl_inopen
-            jp nc, fp_done
-            ld hl, #6000            ; FILES.DIR into the cache
-            ld (fl_at), hl
-fl_sc_ld:
-            ld a, 64
-            ld (fl_n), a
-            call fl_rdrec
-            cp 64
-            jr nz, fl_sc_end
-            ld hl, ({buf})
-            ld de, (fl_at)
+; UniDOS: the directory itself (Ctrl J examine), its files into the cache - no file opened (so
+; not held up by another slot's reading)
+            push de
+            call fl_exdir
+            pop de
+            jp nz, fp_done          ; (none to list: no UniDOS, an AMSDOS floppy - 255)
+fl_sx_lp:
+            ld hl, (fl_at)
+            inc hl                  ; (the name straight into the entry)
+            ld ix, FL_DATE
+            ld c, 13                ; examine next
+            call fl_cjc
+            jr nc, fl_sx_end
+            jr nz, fl_sx_end
+            bit 4, a
+            jr nz, fl_sx_lp         ; (a folder: not for CP/M)
+            ld hl, (fl_at)
+            ld (hl), 1              ; in use
+            ld a, b
+            or c
+            jr z, fl_sx_sz
+            ld de, #FFFF            ; (64K or more)
+fl_sx_sz:
+            ld bc, 12
+            add hl, bc
+            ld (hl), b              ; kind, flags 0
+            inc hl
+            ld (hl), b
+            inc hl
+            ld (hl), e              ; its length
+            inc hl
+            ld (hl), d
+            ld hl, (fl_at)
             ld bc, 64
-            ldir
-            ld (fl_at), de
+            add hl, bc
+            ld (fl_at), hl
             ld hl, fl_cn
             inc (hl)
             ld a, (hl)
-            cp 128
-            jr c, fl_sc_ld
-fl_sc_end:
-            call fl_inclose
+            cp FL_CMAX
+            jr c, fl_sx_lp
+fl_sx_end:
+            jp fl_srch
 fl_srch:
             ld hl, {SRCH} + 12
             call fl_peek
@@ -2621,10 +2909,9 @@ fl_s_put:
             ld a, (fl_k)
             call fl_poke
             jp fl_ok
-fl_fdir:    db "FILES.DIR"
 fl_skip:    db 0
 fl_k:       db 0
-fl_cn:      db 0                    ; FILES.DIR's entries in the cache (#6000)
+fl_cn:      db 0                    ; the folder's entries in the cache (#6000)
 fl_ranput:                          ; the FCB's r0-r2 = HL
             ex de, hl
             ld hl, ({fcb})
@@ -2666,6 +2953,7 @@ fl_inopen:                          ; open fl_name_s to read: carry = done
             ld de, #4000
             call #BC77              ; CAS IN OPEN
             di
+            ld (fl_hdr), hl         ; (its header: BDOS 30 #C7)
             ret
 fl_inclose:
             xor a
@@ -2743,11 +3031,7 @@ fl_namehl:                          ; (HL = an FCB in the slot)
             sub 64
 fl_nm_d:
             add a, 64
-            ld (de), a
-            inc de
-            ld a, ':'
-            ld (de), a
-            inc de
+            call fl_pfx             ; "B:", or B's path (UniDOS: "IDE:GAMES/")
 fl_nm_nod:
             ld b, 11
 fl_nm_lp:
@@ -2786,7 +3070,6 @@ fl_par2:    dw fl_desc, fl_desc2
 fl_desc2:   db 0
             dw 0
 fl_dfl:     db 0                    ; fl_name: the drive for an FCB whose own is 0 (rename)
-fl_new_s:   ds 17
 fl_par:     dw fl_desc
 fl_desc:    db 0
             dw 0
@@ -2799,11 +3082,443 @@ fl_want:    dw 0
 fl_outfcb:  dw 0
 fl_outrec:  dw 0                    ; the next record written (36)
 fl_had:     db 0                    ; 35: this slot's read file closed for it
-fl_name_s:  ds 17                   ; length, then "B:NAME.EXT"
-fl_inname:  ds 17                   ; the one being read's (33 going back)
 fp_sp:      dw 0
+; ---- UniDOS: its Ctrl J BIOS command (found once, KL FIND COMMAND) - a drive letter can be a
+; path (CD IDE:, CD SD:GAMES ...: any UniDOS device's folder), folders listed (examine). FL_MAP:
+; letters A-P, 32 bytes each: the path's length (0 none: the letter itself, "B:"), the path
+; ("IDE:GAMES/": a device or logical drive, its folders, the last "/" or ":"). Cleared when
+; UniDOS is found, and only set with it: with AMSDOS no letter has a path. Up there with the
+; names (48 characters: a path and NAME.EXT), BDOS 132's block, DIR's listing: the FILES.DIR
+; cache is #6000-#7BFF (112 entries)
+FL_CMAX:    equ 112                 ; the cache's entries
+FL_NL:      equ 49                  ; a name: its length, then the characters
+fl_name_s:  equ #7C00               ; length, then "B:NAME.EXT" (or "IDE:GAMES/NAME.EXT")
+fl_inname:  equ fl_name_s + FL_NL   ; the one being read's (33 going back)
+fl_new_s:   equ fl_inname + FL_NL   ; (23: the new name)
+FL_UB:      equ #7D00               ; BDOS 132's block (72 bytes)
+FL_EXK:     equ #7D48               ; the folder DIR lists (its path: length, 31 characters)
+FL_DATE:    equ #7D68               ; a date examine gives (7), then a name (11)
+FL_TN:      equ #7D70
+FL_MAP:     equ #7E00
+            ASSERT #6000 + FL_CMAX * 64 <= fl_name_s, "the search's cache, below the names"
+            ASSERT fl_new_s + FL_NL <= FL_UB, "the names, below BDOS 132's block"
+            ASSERT (FL_MAP & 255) = 0, "FL_MAP: a page's start (fl_mapa)"
+fl_cjf:     db 0                    ; 0: not looked for yet, 1: UniDOS, 2: none
+fl_cj:      dw 0                    ; Ctrl J's far address (address, ROM)
+            db 0
+fl_cjn:     db #8A                  ; (its name)
+fl_exv:     db 0                    ; FL_EXK's listing is the one UniDOS examines now ...
+fl_exi:     dw 0                    ; ... at this entry next
+fl_ue:      dw 0
+; carry: UniDOS here (the first time: looked for, the paths cleared)
+fl_uni:
+            ld a, (fl_cjf)
+            cp 1
+            jr z, fl_un_y
+            or a
+            ret nz                  ; (2: none - NC)
+            ld hl, fl_cjn
+            call #BCD4              ; KL FIND COMMAND: C = its ROM, HL = its address
+            di
+            ld a, 2
+            jr nc, fl_un_s
+            ld (fl_cj), hl
+            ld a, c
+            ld (fl_cj + 2), a
+            ld hl, FL_MAP
+            ld de, FL_MAP + 1
+            ld bc, 511
+            ld (hl), 0
+            ldir
+            ld a, 1
+fl_un_s:
+            ld (fl_cjf), a
+            jr fl_uni
+fl_un_y:
+            scf
+            ret
+; Ctrl J command C (the other registers its input; its output back)
+fl_cjc:
+            rst #18                 ; (RST 3: a far call)
+            dw fl_cj
+            di
+            ret
+; A = a drive letter: HL = its FL_MAP entry, A = its path's length (Z: none). Carry: not A-P,
+; or no UniDOS (no paths). A, HL only
+fl_mapa:
+            sub 'A'
+            cp 16
+            ccf
+            ret c
+            ld l, a
+            ld a, (fl_cjf)
+            cp 1
+            scf
+            ret nz
+            ld h, 0
+            add hl, hl
+            add hl, hl
+            add hl, hl
+            add hl, hl
+            add hl, hl
+            ld a, h
+            add a, FL_MAP / 256
+            ld h, a
+            ld a, (hl)
+            or a
+            ret
+; A = a drive letter: "B:" at DE, or its path - DE past it (BC, HL kept)
+fl_pfx:
+            push af
+            call fl_pfxm
+            jr nz, fl_px_d
+            pop af
+            ld (de), a
+            inc de
+            ld a, ':'
+            ld (de), a
+            inc de
+            ret
+fl_px_d:
+            pop af
+            ret
+; ... its path only, if it has one (NZ; Z: none, nothing put)
+fl_pfxm:
+            push hl
+            call fl_mapa
+            jr c, fl_pm_no
+            jr z, fl_pm_no
+            push bc
+            ld c, a
+            ld b, 0
+            inc hl
+            ldir
+            pop bc
+            or a
+            jr fl_pm_r
+fl_pm_no:
+            xor a
+fl_pm_r:
+            pop hl
+            ret
+fl_nlen:                            ; fl_name_s's length: its characters end at DE
+            ld hl, -(fl_name_s + 1)
+            add hl, de
+            ld a, l
+            ld (fl_name_s), a
+            ret
+; the folder whose path is at fl_name_s + 1 to DE (fl_exdir2: fl_name_s, its length set)
+; examined (Ctrl J 12): Z its listing ready (examine next: Ctrl J 13), NZ no UniDOS, a drive
+; it can't examine (AMSDOS's floppies), not a folder
+fl_exdir:
+            call fl_nlen
+fl_exdir2:
+            call fl_uni
+            jr nc, fl_ed_no
+            xor a
+            ld (fl_exv), a
+            ld hl, fl_name_s
+            ld b, (hl)
+            inc hl
+            ld ix, FL_DATE
+            ld c, 12
+            call fl_cjc
+            ret c
+fl_ed_no:
+            ld a, 254               ; (254: no UniDOS, or a drive it can't examine)
+            or a
+            ret
+; ---- 30: CP/M's set file attributes - not done here (255) - unless the block at DE (72 bytes)
+; is CyborgOS's UniDOS call (CD, DIR): Byte(0) #C0 + the call (an FCB's drive byte is 0-16:
+; never that), Byte(1) a drive letter (A-P). 255: no UniDOS (or a bad block). So Main sends it
+; here with the other file calls, nothing of its own
+;   0  UniDOS here: 0
+;   1  the letter's path to Byte(2) (its length - 0 none -, the path)
+;   2  the letter's path from Byte(2) (length, 31 at most - a "/" put at its end if it has no
+;      "/" or ":" there -; 0: none, the letter itself again): it must be a folder (examined;
+;      a drive UniDOS can't examine - DFA:, DFB:, AMSDOS's floppies - is taken as it is):
+;      0 set, else UniDOS's error (not 0; 254 a drive it can't examine - a floppy AMSDOS has)
+;   3  the devices (Ctrl J 1): 64 bytes at Byte(2) (names, the last character + #80, 255 the end)
+;   4  a device (Ctrl J 2): its name at Byte(2) (the last character + #80) - 64 bytes at
+;      Byte(8): the status (bit 0 there, 1 folders, 2 read only, 3 removable, 4 a stream, 5
+;      the new API), -, free K (4 bytes), all K (4), the description (the last + #80)
+;   5  the letter's folder's entry Word(2) (0 the first): Byte(4) its protection bits (bit 0
+;      read only, 1 hidden, 2 system, 4 a folder), Byte(5-8) its size, Byte(9-15) its date (year
+;      word, month, day, hours, minutes, seconds), Byte(16-26) its name (8 + 3): 0; 1 no more.
+;      Byte(1) 0: the folder's path at Byte(28) (length, path) instead. One after another
+;      (0, 1, 2 ...) each is the next examined, else the folder is examined again to it
+;   6  a folder made: its path at Byte(2) (length, path ending "/": "IDE:GAMES/NEW/"): 0, else
+;      UniDOS's error (255 also while a file is being written)
+;   7  the header of the file this slot reads (the disc ROM's copy, 69 bytes - UniDOS's made-up
+;      one for a file with none: its 24 bit length at 64 #800000) at Byte(2): 0; 255 none open
+fl_unicall:
+            ld hl, ({fcb})
+            ld de, FL_UB
+            ld b, 72
+fl_uc_in:
+            call fl_peek
+            ld (de), a
+            inc hl
+            inc de
+            djnz fl_uc_in
+            ld a, (FL_UB)
+            sub #C0
+            cp 8
+            jp nc, fp_done          ; (CP/M's 30)
+            ld (FL_UB), a
+            call fl_uni
+            jp nc, fp_done
+            ld a, (FL_UB)
+            or a
+            jp z, fl_ok
+            dec a
+            jp z, fl_uc_get
+            dec a
+            jp z, fl_uc_set
+            dec a
+            jp z, fl_uc_dev
+            dec a
+            jp z, fl_uc_inf
+            dec a
+            jp z, fl_uc_dir
+            dec a
+            jr z, fl_uc_md
+            ld a, ({fin})           ; 7: the header of the file this slot reads (the disc ROM's,
+            ld hl, fl_slot          ; from CAS IN OPEN: 69 bytes) to Byte(2)
+            cp (hl)
+            jp nz, fp_done
+            ld hl, (fl_hdr)
+            ld de, FL_UB + 2
+            ld bc, 69
+            ldir
+            xor a
+            ld b, 71
+            jp fl_uc_back
+fl_hdr:     dw 0
+fl_uc_md:                           ; 6: a folder made (CAS OUT OPEN, the path ending "/")
+            ld a, ({fout})
+            or a
+            jp nz, fp_done
+            ld hl, FL_UB + 2
+            ld a, (hl)
+            or a
+            jp z, fp_done
+            ld b, a
+            inc hl
+            ld de, #4800
+            call #BC8C              ; CAS OUT OPEN
+            di
+            jr nc, fl_md_nc
+            call #BC92              ; (a file: CAS OUT ABANDON - not made)
+            di
+            ld a, 1
+            jr fl_md_r
+fl_md_nc:
+            and #7F
+            cp #17                  ; (DSK_ERR_DIRECTORY_FOUND: made)
+            jp z, fl_ok
+            or a
+            jr nz, fl_md_r
+            inc a
+fl_md_r:
+            ld (fl_res), a
+            jp fp_done
+fl_uc_back:                         ; A the answer, the block's first B bytes back to the slot
+            ld (fl_res), a
+            ld a, (FL_UB)
+            add a, #C0
+            ld (FL_UB), a
+            ld hl, ({fcb})
+            ld de, FL_UB
+fl_uc_out:
+            ld a, (de)
+            call fl_poke
+            inc hl
+            inc de
+            djnz fl_uc_out
+            jp fp_done
+fl_uc_get:
+            ld a, (FL_UB + 1)
+            call fl_mapa
+            jp c, fp_done
+            ld de, FL_UB + 2
+            ld c, (hl)
+            ld b, 0
+            inc bc
+            ldir
+            xor a
+            ld b, 34
+            jr fl_uc_back
+fl_uc_dev:
+            ld de, FL_UB + 2
+            ld c, 1
+            call fl_cjc
+            jp nc, fp_done
+            xor a
+            ld b, 66
+            jr fl_uc_back
+fl_uc_inf:
+            ld hl, FL_UB + 2
+            ld de, FL_UB + 8
+            ld c, 2
+            call fl_cjc
+            jp nc, fp_done
+            xor a
+            ld b, 72
+            jr fl_uc_back
+fl_uc_set:
+            ld a, (FL_UB + 1)
+            call fl_mapa
+            jp c, fp_done
+            ld (fl_ue), hl
+            xor a
+            ld (fl_exv), a
+            ld a, (FL_UB + 2)
+            or a
+            jr z, fl_us_put         ; none: the letter itself again
+            cp 32
+            jp nc, fp_done
+            ld b, a
+            ld hl, FL_UB + 3
+fl_us_up:                           ; capitals
+            ld a, (hl)
+            cp 'a'
+            jr c, fl_us_c
+            cp 'z' + 1
+            jr nc, fl_us_c
+            sub 32
+            ld (hl), a
+fl_us_c:
+            inc hl
+            djnz fl_us_up
+            dec hl
+            ld a, (hl)
+            cp ':'
+            jr z, fl_us_ex
+            cp '/'
+            jr z, fl_us_ex
+            ld a, (FL_UB + 2)
+            cp 31
+            jp nc, fp_done
+            inc a
+            ld (FL_UB + 2), a
+            inc hl
+            ld (hl), '/'
+fl_us_ex:
+            ld hl, FL_UB + 2        ; a folder?
+            ld de, fl_name_s
+            ld bc, 32
+            ldir
+            call fl_exdir2
+            jr z, fl_us_put
+            cp 254
+            jr z, fl_us_put         ; (a floppy AMSDOS runs - DFA:, DFB: - can't be examined: taken)
+            or a
+            jr nz, fl_us_err
+            inc a
+fl_us_err:
+            ld (fl_res), a
+            jp fp_done
+fl_us_put:
+            ld hl, FL_UB + 2
+            ld de, (fl_ue)
+            ld bc, 32
+            ldir
+            jp fl_ok
+fl_uc_dir:
+            ld de, fl_name_s + 1    ; the folder's path
+            ld a, (FL_UB + 1)
+            or a
+            jr z, fl_ud_p
+            call fl_pfx
+            jr fl_ud_k
+fl_ud_p:
+            ld hl, FL_UB + 28
+            ld a, (hl)
+            cp 32
+            jp nc, fp_done
+            ld c, a
+            ld b, 0
+            inc hl
+            ldir
+fl_ud_k:
+            call fl_nlen
+            ld hl, fl_name_s        ; the same folder, still the one examined, at this entry:
+            ld de, FL_EXK           ; on from there
+            ld a, (fl_exv)
+            or a
+            jr z, fl_ud_new
+            ld a, (hl)
+            inc a
+            ld b, a
+fl_ud_cmp:
+            ld a, (de)
+            cp (hl)
+            jr nz, fl_ud_new
+            inc hl
+            inc de
+            djnz fl_ud_cmp
+            ld hl, (fl_exi)
+            ld de, (FL_UB + 2)
+            or a
+            sbc hl, de
+            jr z, fl_ud_next
+fl_ud_new:
+            ld hl, fl_name_s
+            ld de, FL_EXK
+            ld bc, 32
+            ldir
+            call fl_exdir2
+            jr z, fl_ud_ok
+            or a
+            jr nz, fl_us_err
+            inc a
+            jr fl_us_err
+fl_ud_ok:
+            ld hl, 0
+            ld (fl_exi), hl
+            ld a, 1
+            ld (fl_exv), a
+fl_ud_skip:                         ; on to entry Word(2)
+            ld hl, (fl_exi)
+            ld de, (FL_UB + 2)
+            or a
+            sbc hl, de
+            jr z, fl_ud_next
+            ld hl, FL_TN
+            ld ix, FL_DATE
+            ld c, 13
+            call fl_cjc
+            jr nc, fl_ud_end
+            jr nz, fl_ud_end
+            ld hl, (fl_exi)
+            inc hl
+            ld (fl_exi), hl
+            jr fl_ud_skip
+fl_ud_next:
+            ld hl, FL_UB + 16
+            ld ix, FL_UB + 9
+            ld c, 13
+            call fl_cjc
+            jr nc, fl_ud_end
+            jr nz, fl_ud_end
+            ld (FL_UB + 4), a
+            ld (FL_UB + 5), de
+            ld (FL_UB + 7), bc
+            ld hl, (fl_exi)
+            inc hl
+            ld (fl_exi), hl
+            xor a
+            ld b, 28
+            jp fl_uc_back
+fl_ud_end:
+            xor a
+            ld (fl_exv), a
+            inc a
+            ld (fl_res), a
+            jp fp_done
 fp_end:
-            ASSERT fp_end <= #6000, "FileCall's page code: below the FILES.DIR cache (#6000)"
+            ASSERT fp_end <= #6000, "FileCall's page code: below the search's cache (#6000)"
 ; @endwindow
 fl_exit:
 #endasm
@@ -2853,7 +3568,7 @@ End Sub
 '       page or a ROM to its end)
 '   11  the pointer (Byte(1) 0 off, 1 at column Byte(2), row Byte(3); only while in front)
 '   13  2K block Word(2) of the slot's store from the slot (Word(6), Word(8)); 14 to the slot
-'   15  a raw table to the slot at Word(2) (Byte(1): 0 the slots, 1 the memory, 2 the ROMs, 3 the
+'   15  a raw table to the slot at Word(2) (Byte(1): 0 the slots, 1 the memory, 2 the ROMs 0-31, 3 the
 '       RAM discs)
 ' 0 done, 255 no such page / slot / table
 Public Sub UseSvc()
@@ -3340,7 +4055,7 @@ sv_t1a:
             ld (sv_stop), a
             call sv_copy
             jp sv_ok
-; 2: the upper ROMs 0-15 - 128 bytes each: the first 16, then 112 of the name table (0s if none)
+; 2: the upper ROMs 0-31 - 64 bytes each: the first 16, then 48 of the name table (0s if none)
 sv_t2:
             xor a
             ld (sv_tj), a
@@ -3366,7 +4081,7 @@ sv_t2lp:
             add hl, de
             jr nc, sv_t2a
             ld de, sv_rec + 16
-            ld bc, 112
+            ld bc, 48
             ldir
 sv_t2a:
             pop bc
@@ -3374,16 +4089,16 @@ sv_t2a:
             di
             ld hl, sv_rec
             ld de, (sv_da)
-            ld bc, 128
+            ld bc, 64
             call sv_out
             ld hl, (sv_da)
-            ld de, 128
+            ld de, 64
             add hl, de
             ld (sv_da), hl
             ld hl, sv_tj
             inc (hl)
             ld a, (hl)
-            cp 16
+            cp 32
             jr c, sv_t2lp
             jp sv_ok
 ; 3: the RAM discs - the driver's table (its page, #6A00: 128 bytes), 0s if none

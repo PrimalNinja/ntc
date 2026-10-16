@@ -1,0 +1,3 @@
+KILL slot
+  Stops the program running in that slot (its command line comes back).
+

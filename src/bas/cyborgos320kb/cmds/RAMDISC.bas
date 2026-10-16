@@ -6,7 +6,9 @@
 '   RAMDISC v 0 (or OFF)          dropped: its files are gone, its pages free again
 '   RAMDISC Z SYSTEM d            (CyborgOS runs it at start, d its boot drive) the system drive Z:
 '                                 the files named in d:CYBORGOS.Z (a text file, one a line) copied
-'                                 there from d - its commands; Z grows a page at a time to fit them
+'                                 there from d - its commands; Z grows a page at a time to fit them.
+'                                 A line FOLDER/NAME.CYB (the installer's C/...): from d's folder
+'                                 (UniDOS: a free drive letter's path for a moment), else from d
 ' Its contents go when CyborgOS ends (or the CPC is reset): COPY files back to a disc first.
 ' Z is for CyborgOS's own programs (which name it, "Z:"): CP/M programs only know A-P, and a slot
 ' whose drive is Z (BDOS 14) can't use it as its own drive
@@ -15,8 +17,8 @@
 Option Explicit
 Dim a As String Max 40, v As String Max 4, s As String Max 48
 Dim p(5) As Byte                  ' BDOS 130: op, letter, the driver's address, length (words)
-Dim z(127) As Byte                ' an empty FILES.DIR record
-Dim b(49) As Byte                 ' BDOS 130 op 3: 3, the RAM disc's number; back, a line's length and text
+Dim b(71) As Byte                 ' BDOS 130 op 3: 3, the RAM disc's number; back, a line's length and text (BDOS 30's block too)
+Dim fl As String Max 2            ' (Z SYSTEM) a free drive letter whose path is a folder of d's, "" none
 Dim n As Long, k As Integer, r As Integer, i As Integer, c As Integer, mb As Integer
 Dim hsp As Integer
 Dim buf(16383) As Byte            ' RAMDISC Z SYSTEM: a file (16K at most), SYSTEM.DIR
@@ -80,23 +82,26 @@ For i = 1 To CInt(n)
     End
   End If
 Next
-r = FileSystem.Save(v + ":FILES.DIR", VarPtr(z), 128)     ' (COPY, ERA ... keep their entries in it)
+b(0) = &HC2 : b(1) = Asc(v) : b(2) = 0          ' (UniDOS: a path the letter had is dropped - the RAM disc
+k = Bdos(30, VarPtr(b))                          ' is the letter now; BDOS 30 #C2)
 Print v; ": RAM disc, "; n * 16; "K"
 
 ' RAMDISC Z SYSTEM d: Z made, the files d:CYBORGOS.Z names copied to it from d (Z a page bigger as each
 ' needs it: 7 2K blocks a page counted, 8 really but one may be the driver's block 0); stops at
 ' the first that doesn't fit (the rest stay on the disc, where CyborgOS finds them too)
 Sub SysDrive()
-  Dim f As String Max 12, m As Integer, fr As Integer, nb As Integer, kb As Integer
+  Dim f As String Max 24, m As Integer, fr As Integer, nb As Integer, kb As Integer
+  Dim fd As String Max 12, j As Integer
   If v <> "" Then v = Left$(v, 1) + ":"
+  fl = "" : fd = ""
   m = FileSystem.Load(v + "CYBORGOS.Z", VarPtr(lst), 1024)
   If m <= 0 Then Print "No "; v; "CYBORGOS.Z: no system drive Z" : End
   p(0) = 0 : p(1) = 90
   If Bdos(130, VarPtr(p)) <> 0 Then Print "Z: not made" : End
   p(0) = 2
   fr = 0 : k = 0 : kb = 0 : i = 0
-  f = "FILES.DIR"
-  r = 128
+  f = ""
+  r = 0
   Do
     If r > 0 Then
       nb = (r + 2047) \ 2048
@@ -105,12 +110,8 @@ Sub SysDrive()
         fr = fr + 7
       Loop
       If fr < nb Then Exit Do
-      If f = "FILES.DIR" Then
-        r = FileSystem.Save("Z:FILES.DIR", VarPtr(z), 128)
-      Else
-        r = FileSystem.Save("Z:" + f, VarPtr(buf), r)
-        If r = 0 Then k = k + 1 : kb = kb + nb * 2
-      End If
+      r = FileSystem.Save("Z:" + f, VarPtr(buf), r)
+      If r = 0 Then k = k + 1 : kb = kb + nb * 2
       fr = fr - nb
     End If
     f = ""
@@ -124,11 +125,54 @@ Sub SysDrive()
       End If
     Loop
     If f = "" Then Exit Do
-    r = FileSystem.Load(v + f, VarPtr(buf), 16384)
+    r = 0
+    j = InStr(f, "/")
+    If j > 0 Then                                ' FOLDER/NAME: from d's folder
+      If fd <> Left$(f, j - 1) Then fd = Left$(f, j - 1) : Folder v + fd + "/"
+      f = Mid$(f, j + 1)
+      If fl <> "" Then r = FileSystem.Load(fl + f, VarPtr(buf), 16384)
+    End If
+    If r <= 0 Then r = FileSystem.Load(v + f, VarPtr(buf), 16384)
   Loop
+  Folder ""
   Print "Z: system drive, "; Trim$(Str$(k)); " commands ("; Trim$(Str$(kb)); "K)"
   End
 End Sub
+
+' fl = a free drive letter (C-P: no path, not a RAM disc) with the path q (UniDOS), "" none; q
+' "": that letter's path dropped again
+Sub Folder(ByVal q As String)
+  Dim c As Integer, j As Integer
+  If fl <> "" Then
+    b(0) = &HC2 : b(1) = Asc(fl) : b(2) = 0
+    j = Bdos(30, VarPtr(b))
+    fl = ""
+  End If
+  If q = "" Or Len(q) > 31 Then Exit Sub
+  For c = 80 To 67 Step -1
+    b(0) = &HC1 : b(1) = c
+    If Bdos(30, VarPtr(b)) <> 0 Then Exit Sub    ' (no UniDOS)
+    If b(2) = 0 And Bdos130Ram(c) = 0 Then
+      b(0) = &HC2 : b(1) = c : b(2) = Len(q)
+      For j = 1 To Len(q)
+        b(j + 2) = Asc(Mid$(q, j, 1))
+      Next
+      If Bdos(30, VarPtr(b)) = 0 Then fl = Chr$(c) + ":"
+      Exit Sub
+    End If
+  Next
+End Sub
+
+' True when drive letter c is a RAM disc (the RAM discs' list: "F: ...")
+Function Bdos130Ram(ByVal c As Integer) As Integer
+  Dim j As Integer
+  Bdos130Ram = False
+  For j = 0 To 7
+    b(0) = 3 : b(1) = j
+    If Bdos(130, VarPtr(b)) <> 0 Then Exit Function
+    If b(3) = c Then Bdos130Ram = True : Exit Function
+  Next
+End Function
 
 ' the RAM disc dropped, a page at a time: True, False when it isn't one
 Function Drop() As Integer
@@ -1380,8 +1424,39 @@ dr_h_dot:
 dr_h_named:
             xor a
             call dr_find
+            jr c, dr_h_fnd
+            ld hl, D_PAT + 8        ; NAME.CYB not here: NAME.COM instead (RUN name - a .COM
+            ld a, (hl)              ; with no entry, as with UniDOS), the caller's name made
+            cp 'C'                  ; NAME.COM too
+            jr nz, dr_h_nf
+            inc hl
+            ld a, (hl)
+            cp 'Y'
+            jr nz, dr_h_nf
+            inc hl
+            ld a, (hl)
+            cp 'B'
+            jr nz, dr_h_nf
+            ld (hl), 'M'
+            dec hl
+            ld (hl), 'O'
+            xor a
+            call dr_find
+            jr nc, dr_h_nf
+            ld hl, (D_P + 2)
+            ld a, (D_P + 8)
+            ld e, a
+            ld d, 0
+            add hl, de
+            dec hl
+            ld (hl), 'M'
+            dec hl
+            ld (hl), 'O'
+            jr dr_h_fnd
+dr_h_nf:
             ld a, 255
-            jp nc, dr_ret
+            jp dr_ret
+dr_h_fnd:
             ld a, (d_fi)
             ld (d_hent), a
             ld a, (d_v)

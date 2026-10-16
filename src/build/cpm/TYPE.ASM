@@ -29,15 +29,14 @@ ntc_start:
 ; ============================================================
 
 main_thread:
-			dw kw_bssinit, ntc_bss, ntc_bss_size		; the arrays: do they fit, clear them
 
-			; TYPE.bas 9: a = UCase$(Trim$(System.CommandLine()))
+			; main.bas 8: a = UCase$(Trim$(System.CommandLine()))
 			dw fn_system_commandline, var_system_commandline_commandline
 			dw kw_strcpy, stmp0, var_system_commandline_commandline
 			dw kw_strtrim, stmp0, stmp0
 			dw kw_strucase, var_a, stmp0
 
-			; TYPE.bas 10: If a = "" Or InStr(a, " ") > 0 Then Print "TYPE [v:]name" : End
+			; main.bas 9: If a = "" Or InStr(a, " ") > 0 Then Print "TYPE [v:]name" : End
 			dw kw_strcmpeq, var_a, str0
 			dw kw_ftov, tmp0
 			dw kw_strinstr, lit_1, var_a, str1, tmp1
@@ -50,373 +49,64 @@ main_thread:
 			dw kw_stop
 if1_1:
 
-			; TYPE.bas 11: If Mid$(a, 2, 1) = ":" Then
+			; main.bas 10: If Mid$(a, 2, 1) = ":" Then
 			dw kw_strmid, stmp0, var_a, lit_2, lit_1
 			dw kw_strcmpeq, stmp0, str3
 			dw kw_goto_iffalse_n, if2_1
 
-			; TYPE.bas 12: v = Left$(a, 2) : f = Mid$(a, 3)
+			; main.bas 11: v = Left$(a, 2) : f = Mid$(a, 3)
 			dw kw_strleft, stmp0, var_a, lit_2
 			dw kw_strcpy, var_v, stmp0
 			dw kw_strmid, var_f, var_a, lit_3, lit_255
 
-			; TYPE.bas 13: Else
+			; main.bas 12: Else
 			dw if2_e_go
 if2_1:
 
-			; TYPE.bas 14: v = FileSystem.CurrentVolume() + ":" : f = a
+			; main.bas 13: v = FileSystem.CurrentVolume() + ":" : f = a
 			dw fn_filesystem_currentvolume, var_filesystem_currentvolume_currentvolume
 			dw kw_strcpy, stmp0, var_filesystem_currentvolume_currentvolume
 			dw kw_strcpy, var_v, stmp0
 			dw kw_strcat, var_v, str3
 			dw kw_strcpy, var_f, var_a
 
-			; TYPE.bas 15: End If
+			; main.bas 14: End If
 if2_e:
 
-			; TYPE.bas 16: If CybDir.Load(v) = False Then Print v; " has no FILES.DIR" : End
-			dw p_cybdir_load_c, var_v
-			dw kw_vtov, var_cybdir_load_load, tmp0
-			dw kw_cpeqvl, tmp0, 0
+			; main.bas 15: h = FileSystem.Open(v + f, FileSystem.ForRead)
+			dw kw_strcpy, stmp0, var_v
+			dw kw_strcat, stmp0, var_f
+			dw fn_filesystem_open, stmp0, lit_1, var_h
+
+			; main.bas 16: If h < 0 Then Print v; f; ": not found" : End
+			dw kw_scpltvl, var_h, 0
 			dw kw_goto_iffalse_n, if3_1
 			dw kw_printstrvar, var_v
+			dw kw_printstrvar, var_f
 			dw kw_printstrvar, str4
 			dw kw_printnl
 			dw kw_stop
 if3_1:
 
-			; TYPE.bas 17: o = CybDir.Find(f)
-			dw p_cybdir_find_c, var_f
-			dw kw_vtov, var_cybdir_find_find, var_o
-
-			; TYPE.bas 18: If o < 0 Then Print v; f; ": not in FILES.DIR (TYPE shows only files listed there)" : End
-			dw kw_scpltvl, var_o, 0
-			dw kw_goto_iffalse_n, if4_1
-			dw kw_printstrvar, var_v
-			dw kw_printstrvar, var_f
-			dw kw_printstrvar, str5
-			dw kw_printnl
-			dw kw_stop
-if4_1:
-
-			; TYPE.bas 19: sn = CybDir.DiscName(o)
-			dw p_cybdir_discname_c, var_o
-			dw kw_strcpy, var_sn, var_cybdir_discname_discname
-
-			; TYPE.bas 20: h = FileSystem.Open(v + sn, FileSystem.ForRead)
-			dw kw_strcpy, stmp0, var_v
-			dw kw_strcat, stmp0, var_sn
-			dw fn_filesystem_open, stmp0, lit_1, var_h
-
-			; TYPE.bas 21: If h < 0 Then Print v; sn; ": not on the disc" : End
-			dw kw_scpltvl, var_h, 0
-			dw kw_goto_iffalse_n, if5_1
-			dw kw_printstrvar, var_v
-			dw kw_printstrvar, var_sn
-			dw kw_printstrvar, str6
-			dw kw_printnl
-			dw kw_stop
-if5_1:
-
-			; TYPE.bas 22: Do While Not FileSystem.Eof(h)
-do6_t:
+			; main.bas 17: Do While Not FileSystem.Eof(h)
+do4_t:
 			dw fn_filesystem_eof, var_h, var_filesystem_eof_eof
 			dw kw_vtov, var_filesystem_eof_eof, tmp0
 			dw kw_notv, tmp0, tmp0
-			dw kw_goto_ifzero_n, tmp0, do6_e
+			dw kw_goto_ifzero_n, tmp0, do4_e
 
-			; TYPE.bas 23: Print FileSystem.ReadLine(h)
+			; main.bas 18: Print FileSystem.ReadLine(h)
 			dw fn_filesystem_readline, var_h, var_filesystem_readline_readline
 			dw kw_printstrvar, var_filesystem_readline_readline
 			dw kw_printnl
 
-			; TYPE.bas 24: Loop
-			dw do6_t_go
-do6_e:
+			; main.bas 19: Loop
+			dw do4_t_go
+do4_e:
 
-			; TYPE.bas 25: r = FileSystem.Close(h)
+			; main.bas 20: r = FileSystem.Close(h)
 			dw fn_filesystem_close, var_h, var_r
 			dw kw_stop
-
-; ============================================================
-; function load (normal mode)
-; ============================================================
-
-p_cybdir_load:
-
-			; CybDir.cls 13: Dim h As Integer, r As Integer
-
-			; CybDir.cls 14: m = 0
-			dw kw_ztov, var_cybdir_m
-
-			; CybDir.cls 15: Load = False
-			dw kw_ztov, var_cybdir_load_load
-
-			; CybDir.cls 16: h = FileSystem.Open(vol + "FILES.DIR", FileSystem.ForReadRaw)
-			dw kw_strcpy, stmp0, var_cybdir_load_vol
-			dw kw_strcat, stmp0, str7
-			dw fn_filesystem_open, stmp0, lit_4, var_cybdir_load_h
-
-			; CybDir.cls 17: If h < 0 Then Exit Function
-			dw kw_scpltvl, var_cybdir_load_h, 0
-			dw kw_goto_iffalse_n, if7_1
-			dw p_cybdir_load_r
-if7_1:
-
-			; CybDir.cls 18: m = FileSystem.Read(h, VarPtr(d), MAXBYTES)
-			dw fn_filesystem_read, var_cybdir_load_h, vp_arr_cybdir_d, lit_4096, var_cybdir_m
-
-			; CybDir.cls 19: r = FileSystem.Close(h)
-			dw fn_filesystem_close, var_cybdir_load_h, var_cybdir_load_r
-
-			; CybDir.cls 20: If m < 0 Then m = 0
-			dw kw_scpltvl, var_cybdir_m, 0
-			dw kw_goto_iffalse_n, if8_1
-			dw kw_ztov, var_cybdir_m
-if8_1:
-
-			; CybDir.cls 21: m = m And &HFFC0
-			dw kw_andvl, var_cybdir_m, -64, var_cybdir_m
-
-			; CybDir.cls 22: Do While m > 0                        ' the last record's padding (#1A, or an unused entry) dropped
-do9_t:
-			dw kw_scpgtvl, var_cybdir_m, 0
-			dw kw_goto_iffalse_n, do9_e
-
-			; CybDir.cls 23: If d(m - 64) = 1 Or d(m - 64) = 2 Then Exit Do
-			dw kw_addl, var_cybdir_m, -64, tmp0
-			dw kw_aget8, arr_cybdir_d, tmp0, tmp0
-			dw kw_cpeqvl, tmp0, 1
-			dw kw_ftov, tmp0
-			dw kw_addl, var_cybdir_m, -64, tmp1
-			dw kw_aget8, arr_cybdir_d, tmp1, tmp1
-			dw kw_cpeqvl, tmp1, 2
-			dw kw_ftov, tmp1
-			dw kw_orvv, tmp0, tmp1, tmp0
-			dw kw_goto_ifzero_n, tmp0, if10_1
-			dw do9_e_go
-if10_1:
-
-			; CybDir.cls 24: m = m - 64
-			dw kw_addl, var_cybdir_m, -64, var_cybdir_m
-
-			; CybDir.cls 25: Loop
-			dw do9_t_go
-do9_e:
-
-			; CybDir.cls 26: Load = True
-			dw kw_ltov, -1, var_cybdir_load_load
-			dw p_cybdir_load_r
-
-; ============================================================
-; function find (normal mode)
-; ============================================================
-
-p_cybdir_find:
-
-			; CybDir.cls 56: Dim o As Integer
-
-			; CybDir.cls 57: Find = -1
-			dw kw_ltov, -1, var_cybdir_find_find
-
-			; CybDir.cls 58: For o = 0 To m - 64 Step 64
-			dw kw_ztov, var_cybdir_find_o
-			dw kw_addl, var_cybdir_m, -64, for15_l
-			dw kw_forupv_n, var_cybdir_find_o, for15_l, for15_e
-for15_t:
-
-			; CybDir.cls 59: If d(o) = 1 And Sum(o) Then
-			dw kw_aget8, arr_cybdir_d, var_cybdir_find_o, tmp0
-			dw kw_cpeqvl, tmp0, 1
-			dw kw_ftov, tmp0
-			dw p_cybdir_sum_c, var_cybdir_find_o
-			dw kw_vtov, var_cybdir_sum_sum, tmp1
-			dw kw_andvv, tmp0, tmp1, tmp0
-			dw kw_goto_ifzero_n, tmp0, if16_1
-
-			; CybDir.cls 60: If DiscName(o) = name Or (InStr(name, ".") = 0 And DiscName(o) = name + ".COM") Or LongName(o) = name Then
-			dw p_cybdir_discname_c, var_cybdir_find_o
-			dw kw_strcpy, stmp0, var_cybdir_discname_discname
-			dw kw_strcmpeq, stmp0, var_cybdir_find_name
-			dw kw_ftov, tmp0
-			dw kw_strinstr, lit_1, var_cybdir_find_name, str8, tmp1
-			dw kw_cpeqvl, tmp1, 0
-			dw kw_ftov, tmp1
-			dw p_cybdir_discname_c, var_cybdir_find_o
-			dw kw_strcpy, stmp2, var_cybdir_discname_discname
-			dw kw_strcpy, stmp3, var_cybdir_find_name
-			dw kw_strcat, stmp3, str9
-			dw kw_strcmpeq, stmp2, stmp3
-			dw kw_ftov, tmp2
-			dw kw_andvv, tmp1, tmp2, tmp1
-			dw kw_orvv, tmp0, tmp1, tmp0
-			dw p_cybdir_longname_c, var_cybdir_find_o
-			dw kw_strcpy, stmp1, var_cybdir_longname_longname
-			dw kw_strcmpeq, stmp1, var_cybdir_find_name
-			dw kw_ftov, tmp1
-			dw kw_orvv, tmp0, tmp1, tmp0
-			dw kw_goto_ifzero_n, tmp0, if17_1
-
-			; CybDir.cls 61: Find = o
-			dw kw_vtov, var_cybdir_find_o, var_cybdir_find_find
-
-			; CybDir.cls 62: Exit Function
-			dw p_cybdir_find_r
-
-			; CybDir.cls 63: End If
-if17_1:
-
-			; CybDir.cls 64: End If
-if16_1:
-
-			; CybDir.cls 65: Next
-			dw kw_nextupv_n, var_cybdir_find_o, 64, for15_l, for15_t
-for15_e:
-			dw p_cybdir_find_r
-
-; ============================================================
-; function discname (normal mode)
-; ============================================================
-
-p_cybdir_discname:
-
-			; CybDir.cls 86: Dim i As Integer, s As String Max 12
-
-			; CybDir.cls 87: s = ""
-			dw kw_strcpy, var_cybdir_discname_s, str0
-
-			; CybDir.cls 88: For i = 1 To 8
-			dw kw_ltov, 1, var_cybdir_discname_i
-for23_t:
-
-			; CybDir.cls 89: If d(o + i) > 32 Then s = s + Chr$(d(o + i))
-			dw kw_add, var_cybdir_discname_o, var_cybdir_discname_i, tmp2
-			dw kw_aget8, arr_cybdir_d, tmp2, tmp2
-			dw kw_scpgtvl, tmp2, 32
-			dw kw_goto_iffalse_n, if24_1
-			dw kw_add, var_cybdir_discname_o, var_cybdir_discname_i, tmp3
-			dw kw_aget8, arr_cybdir_d, tmp3, tmp3
-			dw kw_strchr, stmp3, tmp3
-			dw kw_strcat, var_cybdir_discname_s, stmp3
-if24_1:
-
-			; CybDir.cls 90: Next
-			dw kw_next1l_n, var_cybdir_discname_i, 8, for23_t
-for23_e:
-
-			; CybDir.cls 91: If d(o + 9) > 32 Then
-			dw kw_addl, var_cybdir_discname_o, 9, tmp2
-			dw kw_aget8, arr_cybdir_d, tmp2, tmp2
-			dw kw_scpgtvl, tmp2, 32
-			dw kw_goto_iffalse_n, if25_1
-
-			; CybDir.cls 92: s = s + "."
-			dw kw_strcat, var_cybdir_discname_s, str8
-
-			; CybDir.cls 93: For i = 9 To 11
-			dw kw_ltov, 9, var_cybdir_discname_i
-for26_t:
-
-			; CybDir.cls 94: If d(o + i) > 32 Then s = s + Chr$(d(o + i))
-			dw kw_add, var_cybdir_discname_o, var_cybdir_discname_i, tmp2
-			dw kw_aget8, arr_cybdir_d, tmp2, tmp2
-			dw kw_scpgtvl, tmp2, 32
-			dw kw_goto_iffalse_n, if27_1
-			dw kw_add, var_cybdir_discname_o, var_cybdir_discname_i, tmp3
-			dw kw_aget8, arr_cybdir_d, tmp3, tmp3
-			dw kw_strchr, stmp3, tmp3
-			dw kw_strcat, var_cybdir_discname_s, stmp3
-if27_1:
-
-			; CybDir.cls 95: Next
-			dw kw_next1l_n, var_cybdir_discname_i, 11, for26_t
-for26_e:
-
-			; CybDir.cls 96: End If
-if25_1:
-
-			; CybDir.cls 97: DiscName = s
-			dw kw_strcpy, var_cybdir_discname_discname, var_cybdir_discname_s
-			dw p_cybdir_discname_r
-
-; ============================================================
-; function longname (normal mode)
-; ============================================================
-
-p_cybdir_longname:
-
-			; CybDir.cls 102: Dim i As Integer, s As String Max 38
-
-			; CybDir.cls 103: s = ""
-			dw kw_strcpy, var_cybdir_longname_s, str0
-
-			; CybDir.cls 104: For i = 24 To 61
-			dw kw_ltov, 24, var_cybdir_longname_i
-for28_t:
-
-			; CybDir.cls 105: If d(o + i) = 0 Then Exit For
-			dw kw_add, var_cybdir_longname_o, var_cybdir_longname_i, tmp1
-			dw kw_aget8, arr_cybdir_d, tmp1, tmp1
-			dw kw_cpeqvl, tmp1, 0
-			dw kw_goto_iffalse_n, if29_1
-			dw for28_e_go
-if29_1:
-
-			; CybDir.cls 106: s = s + Chr$(d(o + i))
-			dw kw_add, var_cybdir_longname_o, var_cybdir_longname_i, tmp2
-			dw kw_aget8, arr_cybdir_d, tmp2, tmp2
-			dw kw_strchr, stmp2, tmp2
-			dw kw_strcat, var_cybdir_longname_s, stmp2
-
-			; CybDir.cls 107: Next
-			dw kw_next1l_n, var_cybdir_longname_i, 61, for28_t
-for28_e:
-
-			; CybDir.cls 108: LongName = s
-			dw kw_strcpy, var_cybdir_longname_longname, var_cybdir_longname_s
-			dw p_cybdir_longname_r
-
-; ============================================================
-; function sum (normal mode)
-; ============================================================
-
-p_cybdir_sum:
-
-			; CybDir.cls 255: Dim i As Integer, s As Long
-
-			; CybDir.cls 256: s = 0
-			dw kw_l_mov, llit_0, var_cybdir_sum_s
-
-			; CybDir.cls 257: For i = 0 To 61
-			dw kw_ztov, var_cybdir_sum_i
-for54_t:
-
-			; CybDir.cls 258: s = s + d(o + i)
-			dw kw_add, var_cybdir_sum_o, var_cybdir_sum_i, tmp2
-			dw kw_aget8, arr_cybdir_d, tmp2, tmp2
-			dw kw_l_itol, tmp2, ltmp2
-			dw kw_l_add, var_cybdir_sum_s, ltmp2, var_cybdir_sum_s
-
-			; CybDir.cls 259: Next
-			dw kw_next1l_n, var_cybdir_sum_i, 61, for54_t
-for54_e:
-
-			; CybDir.cls 260: Sum = (CInt(s And 255) = d(o + 62)) And (CInt((s \ 256) And 255) = d(o + 63))
-			dw kw_l_and, var_cybdir_sum_s, llit_255, ltmp1
-			dw kw_l_ltoi, ltmp1, tmp1
-			dw kw_addl, var_cybdir_sum_o, 62, tmp2
-			dw kw_aget8, arr_cybdir_d, tmp2, tmp2
-			dw kw_cpeqvv, tmp1, tmp2
-			dw kw_ftov, tmp1
-			dw kw_l_div, var_cybdir_sum_s, llit_256, ltmp2
-			dw kw_l_and, ltmp2, llit_255, ltmp2
-			dw kw_l_ltoi, ltmp2, tmp2
-			dw kw_addl, var_cybdir_sum_o, 63, tmp3
-			dw kw_aget8, arr_cybdir_d, tmp3, tmp3
-			dw kw_cpeqvv, tmp2, tmp3
-			dw kw_ftov, tmp2
-			dw kw_andvv, tmp1, tmp2, var_cybdir_sum_sum
-			dw p_cybdir_sum_r
 
 ; ============================================================
 ; Jump stubs (code, ROMable)
@@ -429,121 +119,7 @@ for54_e:
 
 if2_e_go:			ld sp, if2_e
 			jp ntc_xn
-do6_t_go:			ld sp, do6_t
-			jp ntc_xn
-do9_e_go:			ld sp, do9_e
-			jp ntc_xn
-do9_t_go:			ld sp, do9_t
-			jp ntc_xn
-for28_e_go:			ld sp, for28_e
-			jp ntc_xn
-
-p_cybdir_load_c:		; call load (normal)
-			pop hl			; vol
-			ld de, var_cybdir_load_vol
-			ld b, 40
-p_cybdir_load_si0:
-			ld a, (hl)
-			ld (de), a
-			or a
-			jr z, p_cybdir_load_si0_e
-			inc hl
-			inc de
-			djnz p_cybdir_load_si0
-			xor a
-			ld (de), a
-p_cybdir_load_si0_e:
-			ld hl, 0
-			ld (var_cybdir_load_load), hl
-			ld hl, 0
-			ld (var_cybdir_load_h), hl
-			ld hl, 0
-			ld (var_cybdir_load_r), hl
-			ld (p_cybdir_load_rs), sp
-			ld sp, p_cybdir_load
-			jp ntc_xn
-p_cybdir_load_r:		; end of load
-			ld sp, (p_cybdir_load_rs)
-			jp ntc_xn
-p_cybdir_find_c:		; call find (normal)
-			pop hl			; name
-			ld de, var_cybdir_find_name
-			ld b, 40
-p_cybdir_find_si0:
-			ld a, (hl)
-			ld (de), a
-			or a
-			jr z, p_cybdir_find_si0_e
-			inc hl
-			inc de
-			djnz p_cybdir_find_si0
-			xor a
-			ld (de), a
-p_cybdir_find_si0_e:
-			ld hl, 0
-			ld (var_cybdir_find_find), hl
-			ld hl, 0
-			ld (var_cybdir_find_o), hl
-			ld (p_cybdir_find_rs), sp
-			ld sp, p_cybdir_find
-			jp ntc_xn
-p_cybdir_find_r:		; end of find
-			ld sp, (p_cybdir_find_rs)
-			jp ntc_xn
-p_cybdir_discname_c:		; call discname (normal)
-			pop hl			; o
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			ld (var_cybdir_discname_o), de
-			xor a
-			ld (var_cybdir_discname_discname), a
-			ld hl, 0
-			ld (var_cybdir_discname_i), hl
-			xor a
-			ld (var_cybdir_discname_s), a
-			ld (p_cybdir_discname_rs), sp
-			ld sp, p_cybdir_discname
-			jp ntc_xn
-p_cybdir_discname_r:		; end of discname
-			ld sp, (p_cybdir_discname_rs)
-			jp ntc_xn
-p_cybdir_longname_c:		; call longname (normal)
-			pop hl			; o
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			ld (var_cybdir_longname_o), de
-			xor a
-			ld (var_cybdir_longname_longname), a
-			ld hl, 0
-			ld (var_cybdir_longname_i), hl
-			xor a
-			ld (var_cybdir_longname_s), a
-			ld (p_cybdir_longname_rs), sp
-			ld sp, p_cybdir_longname
-			jp ntc_xn
-p_cybdir_longname_r:		; end of longname
-			ld sp, (p_cybdir_longname_rs)
-			jp ntc_xn
-p_cybdir_sum_c:		; call sum (normal)
-			pop hl			; o
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			ld (var_cybdir_sum_o), de
-			ld hl, 0
-			ld (var_cybdir_sum_sum), hl
-			ld hl, 0
-			ld (var_cybdir_sum_i), hl
-			ld hl, 0
-			ld (var_cybdir_sum_s), hl
-			ld (var_cybdir_sum_s+2), hl
-			ld (p_cybdir_sum_rs), sp
-			ld sp, p_cybdir_sum
-			jp ntc_xn
-p_cybdir_sum_r:		; end of sum
-			ld sp, (p_cybdir_sum_rs)
+do4_t_go:			ld sp, do4_t
 			jp ntc_xn
 
 ; ============================================================
@@ -574,28 +150,6 @@ fn_filesystem_close:		; function close (asm keyword), FileSystem.cls line 191
             ld (fs_res), hl		; FileSystem.cls 198
             ld hl, fs_closeh		; FileSystem.cls 199
             jp fs_go		; FileSystem.cls 200
-			ret			; end of #asm
-
-fn_filesystem_read:		; function read (asm keyword), FileSystem.cls line 240
-            pop hl		; FileSystem.cls 241
-            ld e, (hl)		; FileSystem.cls 242
-            inc hl		; FileSystem.cls 243
-            ld d, (hl)		; FileSystem.cls 244
-            ld (fs_a1), de		; FileSystem.cls 245
-            pop hl		; FileSystem.cls 246
-            ld e, (hl)		; FileSystem.cls 247
-            inc hl		; FileSystem.cls 248
-            ld d, (hl)		; FileSystem.cls 249
-            ld (fs_a2), de		; FileSystem.cls 250
-            pop hl		; FileSystem.cls 251
-            ld e, (hl)		; FileSystem.cls 252
-            inc hl		; FileSystem.cls 253
-            ld d, (hl)		; FileSystem.cls 254
-            ld (fs_a3), de		; FileSystem.cls 255
-            pop hl		; FileSystem.cls 256
-            ld (fs_res), hl		; FileSystem.cls 257
-            ld hl, fs_read		; FileSystem.cls 258
-            jp fs_go		; FileSystem.cls 259
 			ret			; end of #asm
 
 fn_filesystem_eof:		; function eof (asm keyword), FileSystem.cls line 307
@@ -649,75 +203,21 @@ var_v:			ds 3
 var_f:			ds 41
 			db 40			; capacity
 var_filesystem_currentvolume_currentvolume:			ds 41
-var_cybdir_load_load:			dw 0
-var_o:			dw 0
-var_cybdir_find_find:			dw 0
-			db 12			; capacity
-var_sn:			ds 13
-			db 40			; capacity
-var_cybdir_discname_discname:			ds 41
 var_h:			dw 0
 var_filesystem_eof_eof:			dw 0
 			db 40			; capacity
 var_filesystem_readline_readline:			ds 41
 var_r:			dw 0
-p_cybdir_load_rs:			dw 0
-			db 40			; capacity
-var_cybdir_load_vol:			ds 41
-var_cybdir_load_h:			dw 0
-var_cybdir_load_r:			dw 0
-var_cybdir_m:			dw 0
-p_cybdir_find_rs:			dw 0
-			db 40			; capacity
-var_cybdir_find_name:			ds 41
-var_cybdir_find_o:			dw 0
-for15_l:			dw 0
-var_cybdir_sum_sum:			dw 0
-			db 40			; capacity
-var_cybdir_longname_longname:			ds 41
-p_cybdir_discname_rs:			dw 0
-var_cybdir_discname_o:			dw 0
-var_cybdir_discname_i:			dw 0
-			db 12			; capacity
-var_cybdir_discname_s:			ds 13
-p_cybdir_longname_rs:			dw 0
-var_cybdir_longname_o:			dw 0
-var_cybdir_longname_i:			dw 0
-			db 38			; capacity
-var_cybdir_longname_s:			ds 39
-p_cybdir_sum_rs:			dw 0
-var_cybdir_sum_o:			dw 0
-var_cybdir_sum_i:			dw 0
-var_cybdir_sum_s:			dw 0, 0
 tmp0:			dw 0
 tmp1:			dw 0
-tmp2:			dw 0
-tmp3:			dw 0
 			db 40			; capacity
 stmp0:			ds 41
-			db 40			; capacity
-stmp1:			ds 41
-			db 40			; capacity
-stmp2:			ds 41
-			db 40			; capacity
-stmp3:			ds 41
-ltmp0:			dw 0, 0
-ltmp1:			dw 0, 0
-ltmp2:			dw 0, 0
 
 ; numbers passed by address (read only)
 lit_1:			dw 1
 lit_2:			dw 2
 lit_3:			dw 3
 lit_255:			dw 255
-lit_4:			dw 4
-vp_arr_cybdir_d:			dw arr_cybdir_d
-lit_4096:			dw 4096
-lit_0:			dw 0
-llit_256:			dw 256, 0
-llit_255:			dw 255, 0
-lit_8:			dw 8
-llit_0:			dw 0, 0
 
 ; ============================================================
 ; Strings
@@ -727,15 +227,7 @@ str0:			db 0
 str1:			db " ", 0
 str2:			db "TYPE [v:]name", 0
 str3:			db ":", 0
-str4:			db " has no FILES.DIR", 0
-str5:			db ": not in FILES.DIR (TYPE shows only files listed there)", 0
-str6:			db ": not on the disc", 0
-str7:			db "FILES.DIR", 0
-str8:			db ".", 0
-str9:			db ".COM", 0
-str10:			db "*.*", 0
-str11:			db "*", 0
-str12:			db "?", 0
+str4:			db ": not found", 0
 
 ; ============================================================
 ; Keyword library (used)
@@ -811,155 +303,6 @@ kw_goto_ifzero_n:
 			ld sp, hl
 			jp ntc_xn
 
-;## ntc_for_jump (normal mode copy)
-; tails for the FOR / NEXT keywords. DE = var value, HL = limit,
-; SP = thread at the label word. Signed compare by flipping bit 15.
-; ntc_for_gt: jump to the label if var > limit, else skip it
-ntc_for_gt_n:
-			ld a, d
-			xor #80
-			ld d, a
-			ld a, h
-			xor #80
-			ld h, a
-			or a
-			sbc hl, de			; limit - var, carry = var > limit
-			pop hl
-			jp nc, ntc_xn
-			ld sp, hl
-			jp ntc_xn
-; ntc_for_lt: jump to the label if var < limit, else skip it
-ntc_for_lt_n:
-			ld a, d
-			xor #80
-			ld d, a
-			ld a, h
-			xor #80
-			ld h, a
-			ex de, hl
-			or a
-			sbc hl, de			; var - limit, carry = var < limit
-			pop hl
-			jp nc, ntc_xn
-			ld sp, hl
-			jp ntc_xn
-; ntc_for_le: jump to the label if var <= limit (loop again). A not 0: the
-; step took var past 32767 (or -32768): the loop ends (ntc_for_ge too)
-ntc_for_le_n:
-			or a
-			jr nz, ntc_for_end_n
-			ld a, d
-			xor #80
-			ld d, a
-			ld a, h
-			xor #80
-			ld h, a
-			or a
-			sbc hl, de			; limit - var, no carry = var <= limit
-			pop hl
-			jp c, ntc_xn
-			ld sp, hl
-			jp ntc_xn
-; ntc_for_ge: jump to the label if var >= limit (loop again)
-ntc_for_ge_n:
-			or a
-			jr nz, ntc_for_end_n
-			ld a, d
-			xor #80
-			ld d, a
-			ld a, h
-			xor #80
-			ld h, a
-			ex de, hl
-			or a
-			sbc hl, de			; var - limit, no carry = var >= limit
-			pop hl
-			jp c, ntc_xn
-			ld sp, hl
-			jp ntc_xn
-ntc_for_end_n:
-			pop hl
-			jp ntc_xn
-
-;## kw_forupv (normal mode copy) ntc_for_jump
-;kw_forupv, <var>, <limit var>, <endlabel>
-kw_forupv_n:
-			pop hl
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			pop hl
-			ld a, (hl)
-			inc hl
-			ld h, (hl)
-			ld l, a
-			jp ntc_for_gt_n
-
-;## kw_next1l (normal mode copy) ntc_for_jump
-;kw_next1l, <var>, <literal limit>, <toplabel>
-;  NEXT for STEP 1: inc var, back to the top while var <= limit
-kw_next1l_n:
-			pop hl
-			inc (hl)
-			ld e, (hl)
-			inc hl
-			jr nz, ntc_n1l_nc_n
-			inc (hl)
-ntc_n1l_nc_n:
-			ld d, (hl)
-			pop hl
-			ld a, d					; A = #FF when it went past 32767 (#8000)
-			xor #80
-			or e
-			sub 1
-			sbc a, a
-			jp ntc_for_le_n
-
-;## ntc_nextadd
-; var += literal step. Pops var and step. Leaves DE = new value, A = #FF when
-; it went past 32767 or -32768 (the loop ends), else 0.
-ntc_nextadd:
-			pop hl				; var
-			pop bc				; step
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			ex de, hl
-			or a
-			adc hl, bc			; P/V = past the end of the Integers
-			ex de, hl			; DE = new value
-			ld (hl), d
-			dec hl
-			ld (hl), e
-			ld a, 0
-			jp po, ntc_na_ok
-			dec a
-ntc_na_ok:
-			jp (ix)
-
-;## kw_nextupv (normal mode copy) ntc_nextadd ntc_for_jump
-;kw_nextupv, <var>, <literal step>, <limit var>, <toplabel>
-kw_nextupv_n:
-			ld ix, ntc_nuv_back_n
-			jp ntc_nextadd
-ntc_nuv_back_n:
-			pop hl
-			ld c, (hl)
-			inc hl
-			ld h, (hl)
-			ld l, c
-			jp ntc_for_le_n
-
-;## kw_ltov
-;kw_ltov, <literal>, <destvar>
-kw_ltov:
-			pop de
-			pop hl
-			ld (hl), e
-			inc hl
-			ld (hl), d
-			ret
-
 ;## kw_vtov
 ;kw_vtov, <sourcevar>, <destvar>
 kw_vtov:
@@ -971,16 +314,6 @@ kw_vtov:
 			ld (hl), e
 			inc hl
 			ld (hl), d
-			ret
-
-;## kw_ztov
-;kw_ztov, <destvar>
-kw_ztov:
-			xor a
-			pop hl
-			ld (hl), a
-			inc hl
-			ld (hl), a
 			ret
 
 ;## kw_ftov
@@ -1001,81 +334,6 @@ ntc_ftov_t:
 ; ============================================================
 ; Arithmetic
 ; ============================================================
-
-;## kw_add
-;kw_add, <var1>, <var2>, <destvar>
-kw_add:
-			pop hl
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			pop hl
-			ld a, (hl)
-			inc hl
-			ld h, (hl)
-			ld l, a
-			add hl, de
-			ex de, hl
-			pop hl
-			ld (hl), e
-			inc hl
-			ld (hl), d
-			ret
-
-;## kw_addl
-;kw_addl, <var>, <literal>, <destvar>
-kw_addl:
-			pop hl
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			pop hl
-			add hl, de
-			ex de, hl
-			pop hl
-			ld (hl), e
-			inc hl
-			ld (hl), d
-			ret
-
-;## kw_andvv
-;kw_andvv, <var1>, <var2>, <destvar>
-kw_andvv:
-			pop hl
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			pop hl
-			ld a, (hl)
-			and e
-			ld e, a
-			inc hl
-			ld a, (hl)
-			and d
-			ld d, a
-			pop hl
-			ld (hl), e
-			inc hl
-			ld (hl), d
-			ret
-
-;## kw_andvl
-;kw_andvl, <var>, <literal>, <destvar>
-kw_andvl:
-			pop hl
-			pop de
-			ld a, (hl)
-			and e
-			ld e, a
-			inc hl
-			ld a, (hl)
-			and d
-			ld d, a
-			pop hl
-			ld (hl), e
-			inc hl
-			ld (hl), d
-			ret
 
 ;## kw_orvv
 ;kw_orvv, <var1>, <var2>, <destvar>
@@ -1205,46 +463,6 @@ kw_scpgtvl:
 			ld d, (hl)
 			pop hl
 			jp ntc_cmp_sgt
-
-;## kw_cpeqvv ntc_cmp
-;kw_cpeqvv, <var1>, <var2>
-kw_cpeqvv:
-			pop hl
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			pop hl
-			ld a, (hl)
-			inc hl
-			ld h, (hl)
-			ld l, a
-			jp ntc_cmp_eq
-
-;## kw_cpeqvl ntc_cmp
-kw_cpeqvl:
-			pop hl
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			pop hl
-			jp ntc_cmp_eq
-
-;## kw_aget8
-;kw_aget8, <arraybase>, <indexvar>, <destvar>  - Byte array element (0 .. 255)
-kw_aget8:
-			pop de
-			pop hl
-			ld a, (hl)
-			inc hl
-			ld h, (hl)
-			ld l, a
-			add hl, de
-			ld a, (hl)
-			pop hl
-			ld (hl), a
-			inc hl
-			ld (hl), 0
-			ret
 
 ;## kw_strcpy
 ;kw_strcpy, <destaddr>, <srcaddr>  - cut at the destination's capacity byte
@@ -1416,18 +634,6 @@ ntc_sm_n:
 			ld b, a
 			jp ntc_strncpy
 
-;## kw_strchr
-;kw_strchr, <dest>, <nvar>  - Chr$(n)
-kw_strchr:
-			pop de
-			pop hl
-			ld a, (hl)
-			ld (de), a
-			inc de
-			xor a
-			ld (de), a
-			ret
-
 ;## kw_strucase
 ;kw_strucase, <dest>, <src>  - UCase$
 kw_strucase:
@@ -1548,339 +754,6 @@ ntc_in_found:
 			ld (hl), 0
 			ret
 
-;## ntc_ldata
-ntc_la:			ds 4
-ntc_lb:			ds 4
-ntc_lr:			ds 4
-ntc_lt:			ds 4
-ntc_lsgn:		db 0
-ntc_lcnt:		db 0
-ntc_ldst:		dw 0
-ntc_lix:		dw 0
-
-;## kw_l_mov
-;kw_l_mov, <src>, <dest>  - dest = src (4 bytes)
-kw_l_mov:
-			pop hl
-			pop de
-			ldi
-			ldi
-			ldi
-			ldi
-			ret
-
-;## kw_l_itol
-;kw_l_itol, <intvar>, <dest>  - Integer to Long (sign extended)
-kw_l_itol:
-			pop hl
-			pop de
-			ld a, (hl)
-			ld (de), a
-			inc hl
-			inc de
-			ld a, (hl)
-			ld (de), a
-			inc de
-			rla
-			sbc a, a
-			ld (de), a
-			inc de
-			ld (de), a
-			ret
-
-;## kw_l_ltoi
-;kw_l_ltoi, <long>, <intdest>  - Long to Integer (low 16 bits)
-kw_l_ltoi:
-			pop hl
-			pop de
-			ldi
-			ldi
-			ret
-
-;## kw_l_add
-;kw_l_add, <a>, <b>, <dest>  - a + b
-kw_l_add:
-			pop hl
-			pop de
-			pop ix
-			ld a, (de)
-			add a, (hl)
-			ld (ix+0), a
-			inc hl
-			inc de
-			ld a, (de)
-			adc a, (hl)
-			ld (ix+1), a
-			inc hl
-			inc de
-			ld a, (de)
-			adc a, (hl)
-			ld (ix+2), a
-			inc hl
-			inc de
-			ld a, (de)
-			adc a, (hl)
-			ld (ix+3), a
-			ret
-
-;## kw_l_and
-;kw_l_and, <a>, <b>, <dest>
-kw_l_and:
-			pop hl
-			pop de
-			pop ix
-			ld a, (de)
-			and (hl)
-			ld (ix+0), a
-			inc hl
-			inc de
-			ld a, (de)
-			and (hl)
-			ld (ix+1), a
-			inc hl
-			inc de
-			ld a, (de)
-			and (hl)
-			ld (ix+2), a
-			inc hl
-			inc de
-			ld a, (de)
-			and (hl)
-			ld (ix+3), a
-			ret
-
-;## ntc_lmul ntc_ldata
-; ntc_la * ntc_lb -> ntc_lr (low 32 bits, same signed / unsigned). jp (ix)
-ntc_lmul:
-			ld hl, 0
-			ld (ntc_lr), hl
-			ld (ntc_lr+2), hl
-			ld b, 32
-ntc_lm_loop:
-			ld hl, ntc_lb+3
-			srl (hl)
-			dec hl
-			rr (hl)
-			dec hl
-			rr (hl)
-			dec hl
-			rr (hl)
-			jr nc, ntc_lm_skip
-			ld de, ntc_la
-			ld hl, ntc_lr
-			ld a, (de)
-			add a, (hl)
-			ld (hl), a
-			inc de
-			inc hl
-			ld a, (de)
-			adc a, (hl)
-			ld (hl), a
-			inc de
-			inc hl
-			ld a, (de)
-			adc a, (hl)
-			ld (hl), a
-			inc de
-			inc hl
-			ld a, (de)
-			adc a, (hl)
-			ld (hl), a
-ntc_lm_skip:
-			ld hl, ntc_la
-			sla (hl)
-			inc hl
-			rl (hl)
-			inc hl
-			rl (hl)
-			inc hl
-			rl (hl)
-			djnz ntc_lm_loop
-			jp (ix)
-
-;## ntc_lnegm
-; HL = address of a Long: negate it in place. jp (ix)
-ntc_lnegm:
-			xor a
-			sub (hl)
-			ld (hl), a
-			inc hl
-			ld a, 0
-			sbc a, (hl)
-			ld (hl), a
-			inc hl
-			ld a, 0
-			sbc a, (hl)
-			ld (hl), a
-			inc hl
-			ld a, 0
-			sbc a, (hl)
-			ld (hl), a
-			jp (ix)
-
-;## ntc_ldiv ntc_ldata ntc_lnegm
-; ntc_la / ntc_lb signed, truncating: quotient in ntc_la, remainder (with
-; the dividend's sign) in ntc_lr. Divide by 0: quotient 0, remainder =
-; dividend. jp (ix) back.
-ntc_ldiv:
-			ld (ntc_lix), ix
-			ld hl, (ntc_lb)
-			ld a, h
-			or l
-			ld hl, (ntc_lb+2)
-			or h
-			or l
-			jr nz, ntc_ld_nz
-			ld hl, (ntc_la)
-			ld (ntc_lr), hl
-			ld hl, (ntc_la+2)
-			ld (ntc_lr+2), hl
-			ld hl, 0
-			ld (ntc_la), hl
-			ld (ntc_la+2), hl
-			jp ntc_ld_out
-ntc_ld_nz:
-			ld a, (ntc_la+3)
-			ld (ntc_lsgn), a
-			ld b, a
-			ld a, (ntc_lb+3)
-			xor b
-			ld (ntc_lcnt), a
-			ld a, (ntc_la+3)
-			or a
-			jp p, ntc_ld_apos
-			ld hl, ntc_la
-			ld ix, ntc_ld_apos
-			jp ntc_lnegm
-ntc_ld_apos:
-			ld a, (ntc_lb+3)
-			or a
-			jp p, ntc_ld_bpos
-			ld hl, ntc_lb
-			ld ix, ntc_ld_bpos
-			jp ntc_lnegm
-ntc_ld_bpos:
-			ld hl, 0
-			ld (ntc_lr), hl
-			ld (ntc_lr+2), hl
-			ld b, 32
-ntc_ld_loop:
-			ld hl, ntc_la
-			sla (hl)
-			inc hl
-			rl (hl)
-			inc hl
-			rl (hl)
-			inc hl
-			rl (hl)
-			ld hl, ntc_lr
-			rl (hl)
-			inc hl
-			rl (hl)
-			inc hl
-			rl (hl)
-			inc hl
-			rl (hl)
-			ld de, ntc_lr
-			ld hl, ntc_lb
-			ld a, (de)
-			sub (hl)
-			ld (ntc_lt), a
-			inc hl
-			inc de
-			ld a, (de)
-			sbc a, (hl)
-			ld (ntc_lt+1), a
-			inc hl
-			inc de
-			ld a, (de)
-			sbc a, (hl)
-			ld (ntc_lt+2), a
-			inc hl
-			inc de
-			ld a, (de)
-			sbc a, (hl)
-			ld (ntc_lt+3), a
-			jr c, ntc_ld_no
-			ld hl, (ntc_lt)
-			ld (ntc_lr), hl
-			ld hl, (ntc_lt+2)
-			ld (ntc_lr+2), hl
-			ld hl, ntc_la
-			set 0, (hl)
-ntc_ld_no:
-			djnz ntc_ld_loop
-			ld a, (ntc_lcnt)
-			or a
-			jp p, ntc_ld_qpos
-			ld hl, ntc_la
-			ld ix, ntc_ld_qpos
-			jp ntc_lnegm
-ntc_ld_qpos:
-			ld a, (ntc_lsgn)
-			or a
-			jp p, ntc_ld_out
-			ld hl, ntc_lr
-			ld ix, ntc_ld_out
-			jp ntc_lnegm
-ntc_ld_out:
-			ld ix, (ntc_lix)
-			jp (ix)
-
-;## kw_l_mul ntc_lmul ntc_ldata
-;kw_l_mul, <a>, <b>, <dest>  - a * b
-kw_l_mul:
-			pop hl
-			ld de, ntc_la
-			ldi
-			ldi
-			ldi
-			ldi
-			pop hl
-			ld de, ntc_lb
-			ldi
-			ldi
-			ldi
-			ldi
-			pop hl
-			ld (ntc_ldst), hl
-			ld ix, ntc_lmu_back
-			jp ntc_lmul
-ntc_lmu_back:
-			ld hl, ntc_lr
-; copy the 4 bytes at HL to (ntc_ldst), then next keyword
-ntc_lstore:
-			ld de, (ntc_ldst)
-			ldi
-			ldi
-			ldi
-			ldi
-			ret
-
-;## kw_l_div ntc_ldiv kw_l_mul
-;kw_l_div, <a>, <b>, <dest>  - a \ b
-kw_l_div:
-			ld ix, ntc_ldv_back
-ntc_ldv_go:
-			pop hl
-			ld de, ntc_la
-			ldi
-			ldi
-			ldi
-			ldi
-			pop hl
-			ld de, ntc_lb
-			ldi
-			ldi
-			ldi
-			ldi
-			pop hl
-			ld (ntc_ldst), hl
-			jp ntc_ldiv
-ntc_ldv_back:
-			ld hl, ntc_la
-			jp ntc_lstore
-
 ;## ntc_capfind ntc_data
 ; ntc_capfind - the body of a class's Capability(name) keyword.
 ;   HL = the name asked for (0 ended), DE = the result's address,
@@ -1942,74 +815,6 @@ ntc_cf_none:
 			ret
 ntc_capres:		dw 0
 ntc_capname:	dw 0
-
-;## kw_bssinit ntc_data ntc_plat_memtop ntc_plat_screen kw_stop @shared
-;kw_bssinit, <start>, <size>  - the start of the main thread: the program's arrays live after
-;  it (from ntc_end, not in its file). Check they fit under the platform's top (and 256 bytes
-;  under the real stack when that is above them), then clear them. Too big: a message, the
-;  program stops.
-kw_bssinit:
-			pop hl
-			ld (ntc_bsa), hl
-			pop bc
-			ld (ntc_bsz), bc
-			ld (ntc_bsp), sp
-			ld sp, (ntc_csp)
-			add hl, bc				; HL = their end
-			ex de, hl
-			call ntc_plat_memtop	; HL = the platform's top
-			or a
-			sbc hl, de
-			jr c, ntc_bs_big
-			ld hl, (ntc_csp)		; the real stack, when above them
-			ld bc, (ntc_bsa)
-			or a
-			sbc hl, bc
-			jr c, ntc_bs_ok
-			ld hl, (ntc_csp)
-			ld bc, -256
-			add hl, bc
-			or a
-			sbc hl, de
-			jr c, ntc_bs_big
-ntc_bs_ok:
-			ld bc, (ntc_bsz)
-			ld a, b
-			or c
-			jr z, ntc_bs_done
-			ld hl, (ntc_bsa)
-			ld (hl), 0
-			dec bc
-			ld a, b
-			or c
-			jr z, ntc_bs_done
-			ld d, h
-			ld e, l
-			inc de
-			ldir
-ntc_bs_done:
-			ld sp, (ntc_bsp)
-			ret
-ntc_bs_big:
-			ld hl, ntc_bstxt
-ntc_bs_pl:
-			ld a, (hl)
-			or a
-			jr z, ntc_bs_stop
-			inc hl
-			ld (ntc_bsa), hl
-			ld ix, ntc_bs_pn
-			jp ntc_plat_putc
-ntc_bs_pn:
-			ld hl, (ntc_bsa)
-			jr ntc_bs_pl
-ntc_bs_stop:
-			ld ix, kw_stop
-			jp ntc_plat_newline
-ntc_bsa:		dw 0
-ntc_bsz:		dw 0
-ntc_bsp:		dw 0
-ntc_bstxt:		db "Not enough memory for the arrays", 0
 
 ;## ntc_plat_data
 ntc_curx:		db 0			; column (0 based) - counted for Tab
@@ -3212,32 +2017,11 @@ ntc_cg_end:
 			ld (de), a
 			ret
 
-;## ntc_plat_memtop ntc_plat_data
-; ntc_plat_memtop - HL = the first byte the Memory class's Small heap must not
-; use: the BDOS (its address is at 6; the CCP below it is free, the program
-; ends with a warm boot), or ntc_cpmtop when lower (Graphics on CP/M Plus sets
-; it to its copy at GFH_AT). Called on the real stack (call / ret), only by the
-; Memory class.
-ntc_plat_memtop:
-			push de
-			ld hl, (ntc_cpmtop)
-			ld de, (6)
-			or a
-			sbc hl, de
-			add hl, de
-			jr c, ntc_mt1			; ntc_cpmtop lower
-			ex de, hl
-ntc_mt1:
-			pop de
-			ret
-
 
 ntc_end:				; the end of the program (and of its file)
 ; arrays: after the program, not in its file - kw_bssinit checks they fit and clears them
 ntc_bssfrom	equ ntc_end
 ntc_bss		equ ntc_bssfrom
-arr_cybdir_d		equ ntc_bss + 0		; 4096 bytes
-arr_cybdir_e		equ ntc_bss + 4096		; 64 bytes
-ntc_bss_size	equ 4160
+ntc_bss_size	equ 0
 ntc_free	equ ntc_bss + ntc_bss_size	; the first free byte (heap, Memory tables)
 ntc_memtab	equ ntc_free		; the Memory class's tables

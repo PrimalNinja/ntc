@@ -1,0 +1,8 @@
+RUN [slot] name [args]
+  Runs a program: name.CYB, else name.COM (a plain CP/M program: read to
+  its end), from Z, the slot's drive, then the boot drive. The rest of the
+  line is its command tail.
+  With a slot first (RUN 2 CRUNCH) it runs in that slot.
+  A program's name alone runs it too (CRUNCH) - RUN is for one that has a
+  command's name.
+

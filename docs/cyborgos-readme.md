@@ -40,7 +40,7 @@ A program built for CyborgOS runs on both: the slot is the same 64K bank from #0
 
 | | |
 |---|---|
-| [cyborgos-userguide.md](cyborgos-userguide.md) | using the 320K version: commands, disc commands, RAM discs, programs, the BDOS and BIOS, FILES.DIR, making a .CYB |
+| [cyborgos-userguide.md](cyborgos-userguide.md) | using the 320K version: commands, disc commands, RAM discs, programs, the BDOS and BIOS, plain .COM files, making a .CYB |
 | [cyborgos.md](cyborgos.md) | the design: the bank switch, the time slices, the memory maps, decisions |
 | [cyborgos-todo.md](cyborgos-todo.md) | what has been done (dated) and what is next |
 | `src/bas/cyborgos128kb/README.md`, `USERGUIDE.md`, `DESIGN.md` | the 128K version, as it was frozen |

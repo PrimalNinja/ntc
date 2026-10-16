@@ -1,0 +1,8 @@
+MODE [m]
+  This slot's screen mode (its console cleared at the new size); each slot
+  has its own.
+  MODE        the mode now, and the modes
+  MODE m      2 (80 x 25), S (80 x 24 and a status strip), W (88 x 23),
+              UW (96 x 21), P (64 x 32), F (MON's full screen)
+  Programs get the size with BDOS 49 (CP/M 3's system control block).
+

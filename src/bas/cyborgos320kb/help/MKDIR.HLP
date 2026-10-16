@@ -1,0 +1,5 @@
+MKDIR name             (UniDOS)
+  A folder made in this drive's folder.
+MKDIR IDE:GAMES/NEW
+  A folder made anywhere (a device or a drive, then the folders).
+

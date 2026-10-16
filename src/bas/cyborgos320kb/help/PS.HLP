@@ -1,0 +1,4 @@
+PS
+  The slots: each one's state - "-" (not open), "command line", or the
+  program it runs. * marks the slot in front.
+

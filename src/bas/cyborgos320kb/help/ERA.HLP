@@ -1,0 +1,5 @@
+ERA [v:]name
+ERA [v:]pattern
+  A file deleted; a pattern (*.BAK, T*) deletes each file that fits.
+  Any file the drive has. A folder: RMDIR.
+

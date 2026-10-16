@@ -1,0 +1,9 @@
+DIR [v:][pattern] [FULL]
+  A drive's files across the screen. pattern: * any characters, ? any one
+  (*.CYB, T*). B alone: drive B. FULL: a line each, with its size.
+  With UniDOS the folder itself (folders shown NAME/):
+  DIR IDE:            DIR SD:GAMES/*.BAS      DIR GAMES/
+  FULL then: sizes, dates; hidden files too.
+  A RAM disc (Z, RAMDISC's): its own directory. A floppy AMSDOS runs:
+  FLOPPY A lists it.
+
