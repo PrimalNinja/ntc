@@ -9,6 +9,18 @@ version.
 
 ## done
 
+- 2026-10-18 The double tap (Control + a number twice: slots 11-20) in a fast emulator: KEYREP n
+  now also makes it wait n times as many ticks (Hot.Speed), so it is 0.3 s of real time - WinAPE
+  at 1000% with KEYREP 10 (WINAPE.BAS) had 0.03 s.
+
+- 2026-10-18 LUNs: MODEL keeps copies of a model's weights (as many as fit in 30000 bytes, 250 at
+  most; LUN 0 the file's, the others copied when first changed, kept in NAME.LUN): "#n" messages,
+  U (how many), R (a LUN anew; LUN 0: the file again), B (a LUN bred from two: each weight a
+  parent's, -2 to +2). RAT: "model:n" (each LUN its own deadband - 128 kept), "LUNS model",
+  "!model message". RATBOX (apps/rat, cos-disk6): a box of rats on RATBOX.MDL, a LUN a rat - males
+  and females, mating, rivals fighting in the boxing ring, babies in the pen bred from their
+  parents and nursed by their mothers, the graveyard, crowding, the naughty bed.
+
 - 2026-10-18 VDU and RVDU: remote displays over plain HTTP GETs (tools/vdu - PHP, no database:
   each screen an append-only text file of display commands and a 4-byte-a-line index; a viewer's
   pointer - 0 a replay, -1 live from the last MODE, past the end after a wipe from 0 again; one
@@ -457,6 +469,71 @@ version.
 ---
 
 ## todo
+
+- Cyborg Pluto Nuclear Tight Security (2026-10-18): the CPC edition of NTS - a short list of NTS's
+  features, as separate small programs, one a slot (not one big program). Keys and plaintext stay
+  on the CPC; the TCP/IP stack is on the M4 (a separate microcontroller), so the network only ever
+  carries what KEYMAN has encoded (the John Wick point, shown on a machine anyone can see through)
+  - KEYMAN, the service: loads the keys from a KEYS folder (KEYS/NAME.KEY - the ROM's bytes; its
+    size says which: 256 microZOSCII, 64K / 128K ZOSCII) into its store (512K at most) and encodes
+    / decodes on request; no message ever gives out a key's bytes (a monitor can still look - not
+    the point). A request names 1-3 layers, any mix and order, each a method and its own key:
+    z ZOSCII, u microUNSIGNAL, b microBRICS - E z:k1 u:k2 b:k3 text / D ... hex (short messages:
+    realtime messaging, CyborgSCIF), EF / DF layers infile outfile (files, any size - sequential,
+    slow on a CPC but steady), LIST (names, sizes), RELOAD. The inner loop in assembly
+  - KEYMGR, the user's key manager: keys from a JPEG (a chosen size of it), keys by 4 x DH (4
+    exchanges, ~64 bytes each -> a 256-byte microZOSCII ROM; the DH maths in Z80 assembly - a
+    few minutes on a CPC, seconds on CVM), list, delete, rename; tells KEYMAN to RELOAD
+  - SCIF: the CyborgSCIF client (chat), every message through KEYMAN
+  - PEER: peer-to-peer messages, CPC to CPC (or a PC), through KEYMAN
+  - ENC / DEC: a file encoded / decoded, the layers and keys on the command line
+  - FLOPWR: the CPC's USB stick - formats a floppy and writes it with direct sector writes (the
+    FDC claimed as FLOPPY does): one raw stream over the tracks, no directory, no names; always
+    the WHOLE disc, whether a "hello" or as many files as fit (their names and lengths inside the
+    encoded data); the rest filled by encoding random bytes with the same layers and keys (so the
+    disc is one stream with the same statistics throughout - nothing shows where the data ends).
+    Its own format (40 x 9 x 512 = 180K, 10 sectors a track = 200K, or bigger sectors). A standard
+    data disc as an option, for a PC with a USB floppy drive
+  - SD cards (the Next's microSD; on a CPC the M4's or Albireo's, through UniDOS - FAT): Pluto's
+    encoded files written there for a PC to read directly (only the decoding needs the keys - NTS on
+    the PC); or a container file (PLUTO.BIN, a fixed size): FLOPWR's whole-disc stream as one file -
+    always full, any number of files inside it (names and lengths encoded), the rest encoded random
+    bytes: one opaque file of the same size whatever it holds
+  - Settled (2026-10-18): six layers - z ZOSCII, u UNSIGNAL, b BRICS (16-bit / byte), mz microZOSCII,
+    mu microUNSIGNAL, mb microBRICS (8-bit / nibble) - the micro ones for key exchange, usually the
+    inner layer; the reference is Julian's protocol creator (unsignal-creator.html: its C version
+    built here to check the CPC against, byte for byte), but nibbles high first as the C# does (the
+    docs fixed later); block sizes count message bytes (micro: 255 at most)
+  - KEYMGR: keys from an ENTROPY folder too - the ROM generator's way (ROMGenerator.cs): 5 files
+    from the folder (any kind: MP3s, JPEGs...), each with a start and a direction (forward /
+    backward, wrapping) from entropy sugar - on the CPC: the 300Hz clock, the R register, the
+    times between keys pressed, free memory, slots, files - each output byte the XOR of the 5;
+    128K (or a chosen size). AMSDOS reads one file at a time: the 5 are read in turn, each XORed
+    into the key in the store (o = (i - start) mod len, + len while under the size)
+  - Needed from Julian: the microUNSIGNAL and microBRICS specs (or the PHP / C# code) and test
+    vectors - the CPC's output must decode on the PC versions; the CyborgSCIF protocol; the DH
+    channels (another KEYMGR at the other end, each exchange through a different relay - four
+    PHP mailboxes on four servers?) and group (768-bit Oakley group 1, 64 bytes of each secret?);
+    which bytes of a JPEG make the key (the first n, or the image data past the header); PEER
+    direct TCP (the M4 listening) or through a relay; Http.cls: POST (NTS's protocol) or GET forms
+    on the server
+- CVM, the CyborgOS virtual machine (docs/cvm.md, a draft): a Z80 with only what CyborgOS needs - no
+  gate array, CRTC, FDC, firmware, UniDOS or M4: 16K pages in four windows (64MB at most), a few
+  ports (pages, timer, clock, the screen page, keys), host calls for files (the host's folders as
+  drives), sockets and block copies, a text screen page the host draws. NTC gets a cvm platform;
+  CyborgOS is rebuilt on it, the .CYB programs unchanged. Still a Z80 inside: every program keeps
+  its 64K and the CPC's limits; what grows is the slots (hundreds) and the speed. Slots 1-20 keep
+  the hotkeys (Control + a number, twice for 11-20), beyond 20 only FG n (services, models,
+  servers); the hypervisor's tables (slots, claims, ports - 8 now) must grow, and the scheduler
+  give turns only to ready slots. Hosts: one C++ source for Windows and the Xbox One (CVM_UWP: the
+  UWP app, Developer Mode; without it a Win32 cvm.exe - no WinAPE needed to run CyborgOS), then
+  Linux (and the minimal-kernel boot) and the browser (WebAssembly). Order: the spec settled, the
+  core in C with a terminal test host, NTC's cvm platform, CyborgOS booting on it, the Windows
+  host, the Xbox build. To settle: the pages to start with (4MB or all the host has), the slot
+  limit (250 - a byte, BDOS 131 as it is - or two-byte slot numbers), the text screen's largest
+  size (128 x 32?), the timer (fixed 300Hz?), sound (an AY-style port or host calls)
+- KEYMAN with CyborgSCIF: realtime messaging encoded on the CPC (Julian's figure: about 57 keys a
+  second for one layer of ZOSCII in NTC BASIC-like code; the assembly loop faster)
 
 - More servers on ports - all running at once, at the mercy of 4MHz: an X Window style display
   server (programs draw through it), and once ports reach outside (the M4, a serial card) a web

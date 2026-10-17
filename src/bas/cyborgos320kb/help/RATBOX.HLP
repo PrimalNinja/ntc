@@ -1,0 +1,15 @@
+RATBOX [males females] [n]
+  A box of pet rats: a swarm on one model (RATBOX.MDL), a LUN a rat -
+  each its own habits. RAT decides for each: eat, sleep, play, TV,
+  wander, groom a friend, mate, fight a rival, nurse its babies. They
+  like or dislike each other. Two males after one female fight in the
+  boxing ring (bottom middle). Babies are born in the pen (right side),
+  fed by their mother until weaned, bred from their parents' LUNs. The
+  dead go to the graveyard (left side). Crowded (over 20): more mess,
+  more food, illness, fights, fewer babies.
+    RUN 2 MODEL RATBOX : RUN 3 RAT : RATBOX 5 5
+  RATBOX alone: the box as saved (RATBOX.SAV), else it asks how many.
+  F fill the bowl  T TV  C clean  M medicine (the ill ones)
+  . , the next / last rat (@: its state on line 2)
+  N the chosen rat to the naughty bed (top middle; less of what it did)
+  + praise  - scold (what it is doing: more / less)  Q quit (saved)

@@ -23,6 +23,10 @@
 ' level as a part of its threshold; R the R weights; LD L - D), its contenders (within 5 of the
 ' best; +n others not), kept (the deadband) or rnd/n (one of n at random); |dry at the end for a
 ' dry call); "~model ..." is dry: decided, nothing learnt or kept (PROBE: both)
+' LUNs: "model:n tag ..." decides for LUN n of the model (a copy of its weights - one creature of
+' a swarm: MODEL's "#n" messages); each LUN its own deadband. "LUNS model" - how many LUNs the
+' model has (MODEL's U: "luns lines"); "!model message" - the message to the model as it is
+' ("!PET #4 R": LUN 4 a new creature; "!PET #9 B 3 4": LUN 9 bred from 3 and 4)
 '   RUN 2 MODEL RATMODEL : RUN 3 RAT : RATS        (the four corners: apps/rat/RATS.bas)
 Option Explicit
 Const TOL = 5                                 ' weights within this of the best: as good
@@ -31,8 +35,10 @@ Dim tg(15) As String Max 15, lv(15) As Integer, nt As Integer
 Dim wn(15) As Integer, wr(15) As Integer, wl(15) As Integer, wd(15) As Integer
 Dim cand(15) As Integer, nc As Integer, sc(15) As Integer, cv As Integer
 Dim fx As Integer, fd As Integer, kp As Integer, pl As String Max 128, bs As String Max 110
-Dim lm(19) As String Max 8, lt(19) As String Max 110, nlm As Integer, cm As Integer   ' each model's last pick (the deadband)
-Dim msg As String Max 128, rp As String Max 128, md As String Max 8, wrest As String Max 128
+Const NLAST = 128                             ' the last picks kept (a model's LUN each)
+Dim lm(127) As String Max 12, lt(127) As String Max 110, nlm As Integer, cm As Integer   ' each model's (LUN's) last pick (the deadband)
+Dim msg As String Max 128, rp As String Max 128, md As String Max 12, wrest As String Max 128
+Dim lu As String Max 6                        ' the LUN asked for ("#n " before the model's messages; "" LUN 0)
 Dim r As Integer, ch As Integer, nq As Integer
 
 r = CybSys.PortOpen("RAT")
@@ -70,13 +76,29 @@ Function Decide(ByVal m As String) As String
   j = InStr(m, " ")
   If j = 0 Then Exit Function
   md = UCase$(Left$(m, j - 1))
-  cm = -1                                     ' (this model's place in the last picks)
+  If md = "LUNS" Then                         ' (LUNS model: its LUNs and lines)
+    Decide = CybSys.PortCall(UCase$(Trim$(Mid$(m, j + 1))), "U")
+    If CybSys.PortStatus() <> 0 Then Decide = "?"
+    Exit Function
+  End If
+  If Left$(md, 1) = "!" Then                  ' (!model message: passed on as it is)
+    Decide = CybSys.PortCall(Mid$(md, 2), Trim$(Mid$(m, j + 1)))
+    If CybSys.PortStatus() <> 0 Then Decide = "?"
+    Exit Function
+  End If
+  lu = ""
+  i = InStr(md, ":")                          ' (model:n - LUN n)
+  If i > 0 Then
+    If Val(Mid$(md, i + 1)) > 0 Then lu = "#" + Trim$(Str$(Val(Mid$(md, i + 1)))) + " "
+    md = Left$(md, i - 1)
+  End If
+  cm = -1                                     ' (this model's - LUN's - place in the last picks)
   For i = 0 To nlm - 1
-    If lm(i) = md Then cm = i
+    If lm(i) = md + lu Then cm = i
   Next
   If cm < 0 Then
-    If nlm < 20 Then cm = nlm : nlm = nlm + 1 Else cm = 19
-    lm(cm) = md : lt(cm) = ""
+    If nlm < NLAST Then cm = nlm : nlm = nlm + 1 Else cm = Rnd(NLAST)
+    lm(cm) = md + lu : lt(cm) = ""
   End If
   m = Trim$(Mid$(m, j + 1))
   nt = 0 : bs = ""
@@ -106,10 +128,10 @@ Function Decide(ByVal m As String) As String
     pick = Choose(lev)
     If lev = 0 Then v0 = cv
     If bs = "" Then path = tg(pick) Else path = bs + "." + tg(pick)
-    If fd = 0 Then w = CybSys.PortCall(md, "P " + path)   ' (the habit: its like grows)
+    If fd = 0 Then w = CybSys.PortCall(md, lu + "P " + path)   ' (the habit: its like grows)
     lev = lev + 1
     If lev >= DEEP Then Exit Do
-    w = CybSys.PortCall(md, "C " + path)     ' (its branches: the next level)
+    w = CybSys.PortCall(md, lu + "C " + path)   ' (its branches: the next level)
     If CybSys.PortStatus() <> 0 Or Trim$(w) = "" Then Exit Do
     bs = path : nt = 0
     Do While w <> "" And nt < 16
@@ -142,7 +164,7 @@ Function Weights() As Integer
   Weights = 0
   i = 0
   Do While i < nt
-    w = "W"
+    w = lu + "W"
     If bs <> "" Then w = w + " @" + bs
     k = i
     Do While k < nt And k < i + 6

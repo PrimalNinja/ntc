@@ -20,3 +20,9 @@ MODEL file[.MDL]
   saves; "Q" saves and ends the model; "C path" - its branches; "D n" -
   line n; "P tag n" / "X tag n" - a like up / down n; "V [cat\]tag\..\x"
   - a weight set to x from outside (a sensor, a game; cat none: L).
+  LUNs: copies of the weights - as many as fit (30000 bytes, 250 at
+  most) - each a creature of its own: a swarm on one model. LUN 0 is
+  the file's; the others start as its copies and are kept in NAME.LUN.
+  "#n " before a message makes it LUN n's ("#3 W food"). "U" - "luns
+  lines"; "R" - LUN 0: the file read again, another: the file's weights
+  again (a new creature); "#c B a b" - LUN c bred from LUNs a and b.

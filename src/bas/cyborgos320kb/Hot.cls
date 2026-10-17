@@ -4,12 +4,22 @@
 ' key while Control stays down counts (Control + 1, then 2, then 3 ...). With more than 10 slots
 ' (Slots n), the same number pressed twice within DOUBLE ticks is slot 10 + that number: a
 ' single press then waits that long (or until Control is let go, or another key comes) before
-' it counts. Take() gives the last one (0 none, 1-16 a slot, TOPKEY) and clears it.
+' it counts. Take() gives the last one (0 none, 1-16 a slot, TOPKEY) and clears it. Speed(f): an
+' emulator running f times a CPC's speed (KEYREP f) - the double tap's time f times as many ticks,
+' so it stays 0.3 s of real time (WinAPE at 1000%: 10)
 Option Class Interrupt 50
 Public Const TOPKEY = 99
 Const DOUBLE = 15                       ' ticks (0.3 s) for the second press of a double tap
 Private pend As Integer, last As Integer, ctl As Integer, ns As Integer
 Private one As Integer, age As Integer  ' a single press waiting to see if a second one comes
+Private dbl As Integer                  ' DOUBLE x the emulator's speed (Speed): 0 until set - DOUBLE
+
+' Speed(f): the CPC running f times as fast (KEYREP f): the double tap waits f times as many ticks
+Public Sub Speed(ByVal f As Integer)
+  If f < 1 Then f = 1
+  If f > 40 Then f = 40
+  dbl = DOUBLE * f
+End Sub
 
 Public Sub Slots(ByVal n As Integer)
   ns = n
@@ -45,7 +55,8 @@ Public Sub Tick()
   End If
   If one <> 0 Then
     age = age + 1
-    If age > DOUBLE Or ctl = 0 Then pend = one : one = 0    ' no second press (or Control let go)
+    If dbl = 0 Then dbl = DOUBLE
+    If age > dbl Or ctl = 0 Then pend = one : one = 0       ' no second press (or Control let go)
   End If
   last = k
 End Sub

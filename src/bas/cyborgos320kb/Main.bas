@@ -132,7 +132,7 @@ ob = Space$(82)
 front = 1
 OpenSlot 1
 ' CyborgOS's command line at #BE80 (it outlives a reset; CYBORGOS.BAS puts it there): "CYB d" - the
-' boot drive -, then words: KEYREP n (the keys' repeat n times slower: WinAPE at 1000% wants 10)
+' boot drive -, then words: KEYREP n (the keys' repeat n times slower, the double tap's wait n times longer: WinAPE at 1000% wants 10)
 a = ""
 If Peek(&HBE80) = 67 And Peek(&HBE81) = 89 And Peek(&HBE82) = 66 And Peek(&HBE83) = 32 Then
   i = &HBE84
@@ -145,7 +145,7 @@ End If
 i = InStr(a, " KEYREP ")
 If i > 0 Then
   k = Val(Mid$(a, i + 8))
-  If k > 1 Then Hyp.KeyRep k
+  If k > 1 Then Hyp.KeyRep k : Hot.Speed k             ' (the double tap's time too: real time, not ticks)
 End If
 #If NTC_LIBRARY_ROM Then
 #Else

@@ -702,10 +702,29 @@ o3=$(timeout 600 python3 ntcrun.py t/cy/Main.bas "run 2 model food\n${W}run 3 ra
 o2=$(timeout 600 python3 ntcrun.py t/cy/Main.bas "run 2 model orc\n${W}run 3 rat\n${W}probe orc attack flee:8 hide shout\n${W}probe show orc attack hide\n${W}probe ports\n${W}" t/cy/Hyp.cls t/cy/Hot.cls t/cy/Ent.cls --platform=cpcfw --ram=576 2>&1)
 if echo "$o" | grep -q "^PET      slot 2" && echo "$o" | grep -q "^DUNGEON  slot 4" && echo "$o" | grep -q "^   LD play=40 tv=40 +3 rnd/2" && echo "$o" | grep -q "^   dry" && echo "$o" | grep -qE "^   LD play=4[01] tv=4[01] \+3 kept" \
   && echo "$o" | grep -qE "^(play +20 +- +42|tv +- +- +42) " && echo "$o" | grep -q "^74 action=wait" \
-  && echo "$o1" | grep -qE "^-> food.fruit.(apple|orange) 34" && echo "$o1" | grep -q "^   N food=66" && echo "$o1" | grep -q "^   LD apple=60 orange=55 +3 rnd/2" && echo "$o1" | grep -q "^   LD food=41 +1 kept" && echo "$o1" | grep -qE "^   LD apple=6[01] orange=5[56] \+3 kept" \
+  && echo "$o1" | grep -qE "^-> food.fruit.(apple|orange) 34" && echo "$o1" | grep -q "^   N food=66" && echo "$o1" | grep -q "^   LD apple=60 orange=55 +3 rnd/2" && echo "$o1" | grep -q "^   LD food=41 +1 kept" && echo "$o1" | grep -qE "^   LD (apple=6[01] orange=5[56] \+3|apple=61 \+4) kept" \
   && [ "$(echo "$o3" | grep -c "^set$")" == 2 ] && echo "$o3" | grep -q "^-> sleep 34" && echo "$o3" | grep -q "^? (no such branch)" && echo "$o3" | grep -qE "^sleep +90 +- +30 +-" && echo "$o3" | grep -qE "^apple +- +- +20 +-" \
   && echo "$o2" | grep -q "^-> flee 20" && echo "$o2" | grep -q "^   N flee=80" && echo "$o2" | grep -qE "^attack +- +60 +50 +-" && echo "$o2" | grep -qE "^hide +- +- +- +40" \
   && echo "$o2" | grep -q "^ORC      slot 2" && echo "$o2" | grep -q "^RAT      slot 3"; then echo "ok   CyborgOS PROBE: plans, multilevel, deadband, TRY / RUN, SHOW, ASK, PORTS"; else echo "FAIL CyborgOS PROBE"; echo "$o" | tail -30; echo "$o1" | tail -24; echo "$o3" | tail -16; echo "$o2" | tail -20; fail=1; fi
+# LUNs (MODEL: copies of a model's weights, each a creature's - "#n" messages; RAT: "model:n",
+# "LUNS model", "!model message"): RATBOX.MDL's LUNs, LUN 5's food like set (V), LUN 0 untouched,
+# LUN 6 bred from 5 (B: each weight a parent's, -2 to +2), LUN 5 and LUN 7 deciding differently
+# on the same call; RATBOX (a swarm of rats, a LUN each): a new box of 3 males and 3 females for 300
+# tenths, saved (RATBOX.SAV) with the LUNs (RATBOX.LUN), then the saved box again
+cp $P/cyborgos320kb/apps/rat/RATBOX.MDL t/files/A/; rm -f t/files/A/RATBOX.LUN t/files/A/RATBOX.SAV
+node cli.js $P/cyborgos320kb/apps/rat/RATBOX.bas t/cmd/CybSys.cls --platform=cpm > t/rat/RATBOX.asm 2>/dev/null
+(cd t/rat && ${SJASMPLUS:-sjasmplus} --nologo --msg=err --raw=RATBOX.COM RATBOX.asm > /dev/null)
+python3 -c "import ntcrun; d = open('t/rat/RATBOX.COM', 'rb').read(); open('t/files/A/RATBOX.CYB', 'wb').write(ntcrun.amsdos_header(d, 0x100) + d)"
+o=$(ask "run 2 model ratbox\n${W}run 4 rat\n${W}" "ask rat LUNS RATBOX" "ask rat !RATBOX #5 V L\\food\\90" "ask rat !RATBOX #5 W food" "ask rat !RATBOX W food")
+o2=$(ask "run 2 model ratbox\n${W}run 4 rat\n${W}" "ask rat !RATBOX #5 V L\\food\\90" "ask rat ratbox:5 food:50 play:50" "ask rat ratbox:7 food:50 play:50")
+o5=$(ask "run 2 model ratbox\n${W}run 4 rat\n${W}" "ask rat !RATBOX #5 V L\\food\\90" "ask rat !RATBOX #6 B 5 5" "ask rat !RATBOX #6 W food")
+o3=$(NTC_LIMIT=150000 timeout 1500 python3 ntcrun.py t/cy/Main.bas "run 2 model ratbox\n${W}run 3 rat\n${W}ratbox 3 3 300\n${W8}" t/cy/Hyp.cls t/cy/Hot.cls t/cy/Ent.cls --platform=cpcfw --ram=576 2>&1)
+sv=$(head -1 t/files/A/RATBOX.SAV | tr -d ' \r')
+o4=$(NTC_LIMIT=150000 timeout 1500 python3 ntcrun.py t/cy/Main.bas "run 2 model ratbox\n${W}${W}${W}run 3 rat\n${W}${W}\n${W}ratbox 100\n${W8}" t/cy/Hyp.cls t/cy/Hot.cls t/cy/Ent.cls --platform=cpcfw --ram=576 2>&1)
+if [ "$o" == "250 16|ok|30,-1,90,-1|30,-1,30,-1|" ] && echo "$o2" | grep -qE "^ok\|food [0-9]+\|play [0-9]+\|$" && echo "$o5" | grep -qE "^ok\|ok\|(2[89]|3[012]),-1,(8[89]|9[012]),-1\|$" \
+  && [ "$sv" == "6" ] && [ -f t/files/A/RATBOX.LUN ] && echo "$o3" | grep -qE "^RATBOX: saved \(RATBOX.SAV\) - [56] rats, [0-9]+ born, [01] died" \
+  && echo "$o4" | grep -qE "^RATBOX: saved \(RATBOX.SAV\) - [0-9]+ rats" && echo "$o3" | grep -q "^F food T TV C clean M medicine"; then echo "ok   CyborgOS LUNs (MODEL, RAT) and RATBOX"
+else echo "FAIL CyborgOS LUNs and RATBOX: [$o] [$o2] [$o5] [$sv]"; echo "$o3" | tail -26; echo "$o4" | tail -6; fail=1; fi
 # GREEN (an IO board's bridge - docs/cyborgos-decisions.md 9): its model - water when dry, wait
 # when not; SET holds off watering; the bridge's call (the harness's ports read 255: hot)
 cp $P/cyborgos320kb/apps/rat/GREEN.MDL t/files/A/

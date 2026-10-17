@@ -1,49 +1,77 @@
-' L2TEST - is Frame in step with the screen, and does NextReg #12 swap Layer 2's buffers?
+' L2TEST - are Layer 2's two buffers swapped in step with the screen?
 ' (c) 2026 Cyborg Unicorn Pty Ltd - MIT License
 '
-' Buffer A (bank 16) is filled blue, buffer B (bank 19) red, then every frame: Frame, then swap.
-'   Steady purple-ish flicker (red / blue every frame): both work.
-'   Solid red, or solid blue: the swap (NextReg #12) isn't taking effect.
-'   Red and blue bands, rolling or jumping: Frame isn't waiting for the end of the frame.
-' The text shows the raster line read straight after each of 8 Frames (it should be 192 or
-' just after), #12 read back after the swap, and #1E's whole byte (only bit 0 should be used).
-' Press 1-4 for the CPU speed (3.5, 7, 14, 28MHz).
+' Drawn as NEON WAR draws: each frame the lines drawn on this buffer last time are taken off
+' (L2.Clear), a spinning star and 4 boxes are drawn, the frame is waited for, the buffers swap.
+' If the swap is in step with the screen the shapes are SOLID; if not they blink or vanish.
+' Two ways of waiting for the frame (key W swaps them):
+'   F  Frame: NTC's own - waits for raster line 192 (NextReg #1E / #1F), the picture's end
+'   R  the raster wrapping round: waits until the line number goes back down (the frame's start,
+'      whichever line the count starts from)
+' Keys 1-4: 3.5 / 7 / 14 / 28MHz.
 Option Explicit
 Option Turbo
 
-Dim r(7) As Integer, k As Integer, i As Integer, b12 As Integer, b1e As Integer, n As Integer
+Dim mode As Integer, t As Integer, a As Integer, b As Integer, k As Integer, x As Integer, y As Integer, wWas As Integer
+Dim sn(15) As Integer
 
-Cls
-L2.Init &HE0                           ' both buffers red
-For i = 0 To 191
-  L2.Line 0, i, 255, i, &H03           ' the buffer drawn on (A, bank 16) blue
+sn(0) = 0 : sn(1) = 24 : sn(2) = 45 : sn(3) = 59 : sn(4) = 64 : sn(5) = 59 : sn(6) = 45 : sn(7) = 24
+For k = 8 To 15
+  sn(k) = -sn(k - 8)
 Next
-Nx.Layers Nx.OrderLUS                  ' Layer 2 on top, cut to below the text (lines 48-191)
-Nx.Reg &H1C, 1
-Nx.Reg &H18, 0 : Nx.Reg &H18, 255 : Nx.Reg &H18, 48 : Nx.Reg &H18, 191
-Nx.Reg &H07, 3                         ' 28MHz to start
+Cls
+L2.Init &HE3                           ' see-through: the text shows where nothing is drawn
+Nx.Layers Nx.OrderLUS
+Nx.Reg &H07, 3
+mode = 0
+Status
 Do
+  L2.Clear
   For k = 0 To 7
-    Frame
-    r(k) = Nx.Raster()
-    L2.Flip
+    a = (t \ 2 + k * 2) And 15
+    L2.Line 128, 110, 128 + sn((a + 4) And 15), 110 + sn(a), &HFF
   Next
-  b12 = Nx.RegGet(&H12)
-  b1e = Nx.RegGet(&H1E)
-  n = n + 1
-  If (n And 7) = 0 Then
-    Locate 0, 0
-    Print "L2TEST  speed: "; Trim$(Str$(Nx.RegGet(&H07) And 3)); " (0=3.5 3=28)   "
-    Print "lines after Frame:"
-    For k = 0 To 7
-      Print " "; Trim$(Str$(r(k)));
-    Next
-    Print "     "
-    Print "#12 now: "; Trim$(Str$(b12)); "  #1E byte: "; Trim$(Str$(b1e)); "    "
-    Print "1-4: 3.5 / 7 / 14 / 28MHz"
+  For k = 0 To 3
+    x = 20 + k * 60 : y = 150 + sn((t + k * 4) And 15) \ 4
+    L2.Line x, y, x + 30, y, &H1C
+    L2.Line x + 30, y, x + 30, y + 20, &H1C
+    L2.Line x + 30, y + 20, x, y + 20, &H1C
+    L2.Line x, y + 20, x, y, &H1C
+  Next
+  If mode = 0 Then
+    Frame
+  Else
+    WaitWrap
   End If
-  If Keys.Down(Keys.Key1) Then Nx.Reg &H07, 0
-  If Keys.Down(Keys.Key2) Then Nx.Reg &H07, 1
-  If Keys.Down(Keys.Key3) Then Nx.Reg &H07, 2
-  If Keys.Down(Keys.Key4) Then Nx.Reg &H07, 3
+  L2.Flip
+  t = t + 1
+  If Keys.Down(Keys.KeyW) Then
+    If wWas = 0 Then mode = 1 - mode : Status
+    wWas = 1
+  Else
+    wWas = 0
+  End If
+  If Keys.Down(Keys.Key1) Then Nx.Reg &H07, 0 : Status
+  If Keys.Down(Keys.Key2) Then Nx.Reg &H07, 1 : Status
+  If Keys.Down(Keys.Key3) Then Nx.Reg &H07, 2 : Status
+  If Keys.Down(Keys.Key4) Then Nx.Reg &H07, 3 : Status
 Loop
+
+' wait for the raster line to wrap round (it goes back down: a new frame)
+Sub WaitWrap()
+  Dim p As Integer, q As Integer
+  p = Nx.Raster()
+  Do
+    q = Nx.Raster()
+    If q < p Then Exit Do
+    p = q
+  Loop
+End Sub
+
+Sub Status()
+  Locate 0, 0
+  Print "L2TEST  W: sync way   1-4: speed"
+  If mode = 0 Then Print "sync: F  Frame (line 192)    " Else Print "sync: R  raster wrap         "
+  Print "speed: "; Trim$(Str$(Nx.RegGet(&H07) And 3)); "  (0 = 3.5MHz, 3 = 28MHz)"
+  Print "solid shapes = in step; blinking = not"
+End Sub

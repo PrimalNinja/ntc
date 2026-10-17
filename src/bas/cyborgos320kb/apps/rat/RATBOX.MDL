@@ -1,0 +1,22 @@
+' RATBOX: the box's rats - one model, a LUN a rat (RUN 2 MODEL RATBOX; RAT decides, RATBOX asks for
+' each: RATBOX:n). N: hungry, tired, bored - below these it must eat, sleep, play. L: what a rat
+' likes - each its own copy (its LUN), growing with habit, praise (+) and scolding (-); a baby's
+' bred from its parents' (MODEL's B). D: what it dislikes. The social tags are passed only when they
+' can be done: mate (a healthy adult of the other sex it likes), groom (a friend), fight (a male it
+' dislikes), nurse (a mother with babies in the pen)
+N
+ food 30
+ bed 25
+ play 20
+L
+ food 30
+ bed 25
+ play 40
+ tv 35
+ wander 20
+ mate 45
+ groom 35
+ nurse 55
+ fight 25
+D
+ fight 15

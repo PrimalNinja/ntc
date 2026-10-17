@@ -32,171 +32,283 @@ main_thread:
 			dw kw_scrinit		; mode 1, ROMs off, clear screen
 			dw kw_bssinit, ntc_bss, ntc_bss_size		; the arrays: do they fit, clear them
 
-			; Main.bas 16: Cls
-			dw kw_cls
+			; Main.bas 18: sn(0) = 0 : sn(1) = 24 : sn(2) = 45 : sn(3) = 59 : sn(4) = 64 : sn(5) = 59 : sn(6) = 45 : sn(7) = 24
+			dw kw_ztov, arr_sn
+			dw kw_ltov, 24, arr_sn+2
+			dw kw_ltov, 45, arr_sn+4
+			dw kw_ltov, 59, arr_sn+6
+			dw kw_ltov, 64, arr_sn+8
+			dw kw_ltov, 59, arr_sn+10
+			dw kw_ltov, 45, arr_sn+12
+			dw kw_ltov, 24, arr_sn+14
 
-			; Main.bas 17: L2.Init &HE0                           ' both buffers red
-			dw p_l2_init_c, lit_224
-
-			; Main.bas 18: For i = 0 To 191
-			dw kw_ztov, var_i
+			; Main.bas 19: For k = 8 To 15
+			dw kw_ltov, 8, var_k
 for1_t:
 
-			; Main.bas 19: L2.Line 0, i, 255, i, &H03           ' the buffer drawn on (A, bank 16) blue
-			dw fn_l2_line, lit_0, var_i, lit_255, var_i, lit_3
+			; Main.bas 20: sn(k) = -sn(k - 8)
+			dw kw_addl, var_k, -8, tmp1
+			dw kw_aget, arr_sn, tmp1, tmp1
+			dw kw_negv, tmp1, tmp1
+			dw kw_aset, arr_sn, var_k, tmp1
 
-			; Main.bas 20: Next
-			dw kw_next1l, var_i, 191, for1_t
+			; Main.bas 21: Next
+			dw kw_next1l, var_k, 15, for1_t
 for1_e:
 
-			; Main.bas 21: Nx.Layers Nx.OrderLUS                  ' Layer 2 on top, cut to below the text (lines 48-191)
+			; Main.bas 22: Cls
+			dw kw_cls
+
+			; Main.bas 23: L2.Init &HE3                           ' see-through: the text shows where nothing is drawn
+			dw p_l2_init_c, lit_227
+
+			; Main.bas 24: Nx.Layers Nx.OrderLUS
 			dw fn_nx_layers, lit_3
 
-			; Main.bas 22: Nx.Reg &H1C, 1
-			dw fn_nx_reg, lit_28, lit_1
-
-			; Main.bas 23: Nx.Reg &H18, 0 : Nx.Reg &H18, 255 : Nx.Reg &H18, 48 : Nx.Reg &H18, 191
-			dw fn_nx_reg, lit_24, lit_0
-			dw fn_nx_reg, lit_24, lit_255
-			dw fn_nx_reg, lit_24, lit_48
-			dw fn_nx_reg, lit_24, lit_191
-
-			; Main.bas 24: Nx.Reg &H07, 3                         ' 28MHz to start
+			; Main.bas 25: Nx.Reg &H07, 3
 			dw fn_nx_reg, lit_7, lit_3
 
-			; Main.bas 25: Do
+			; Main.bas 26: mode = 0
+			dw kw_ztov, var_mode
+
+			; Main.bas 27: Status
+			dw p_status_c
+
+			; Main.bas 28: Do
 do2_t:
 
-			; Main.bas 26: For k = 0 To 7
+			; Main.bas 29: L2.Clear
+			dw fn_l2_clear
+
+			; Main.bas 30: For k = 0 To 7
 			dw kw_ztov, var_k
 for3_t:
 
-			; Main.bas 27: Frame
-			dw kw_frame
+			; Main.bas 31: a = (t \ 2 + k * 2) And 15
+			dw kw_divvl, var_t, 2, tmp0
+			dw kw_2x, var_k, tmp1
+			dw kw_add, tmp0, tmp1, tmp0
+			dw kw_andvl, tmp0, 15, var_a
 
-			; Main.bas 28: r(k) = Nx.Raster()
-			dw fn_nx_raster, var_nx_raster_raster
-			dw kw_aset, arr_r, var_k, var_nx_raster_raster
+			; Main.bas 32: L2.Line 128, 110, 128 + sn((a + 4) And 15), 110 + sn(a), &HFF
+			dw kw_addl, var_a, 4, tmp3
+			dw kw_andvl, tmp3, 15, tmp3
+			dw kw_aget, arr_sn, tmp3, tmp3
+			dw kw_addl, tmp3, 128, tmp2
+			dw kw_aget, arr_sn, var_a, tmp4
+			dw kw_addl, tmp4, 110, tmp3
+			dw fn_l2_line, lit_128, lit_110, tmp2, tmp3, lit_255
 
-			; Main.bas 29: L2.Flip
-			dw fn_l2_flip
-
-			; Main.bas 30: Next
+			; Main.bas 33: Next
 			dw kw_next1l, var_k, 7, for3_t
 for3_e:
 
-			; Main.bas 31: b12 = Nx.RegGet(&H12)
-			dw fn_nx_regget, lit_18, var_b12
+			; Main.bas 34: For k = 0 To 3
+			dw kw_ztov, var_k
+for4_t:
 
-			; Main.bas 32: b1e = Nx.RegGet(&H1E)
-			dw fn_nx_regget, lit_30, var_b1e
+			; Main.bas 35: x = 20 + k * 60 : y = 150 + sn((t + k * 4) And 15) \ 4
+			dw kw_mulvl, var_k, 60, tmp1
+			dw kw_addl, tmp1, 20, var_x
+			dw kw_4x, var_k, tmp2
+			dw kw_add, var_t, tmp2, tmp1
+			dw kw_andvl, tmp1, 15, tmp1
+			dw kw_aget, arr_sn, tmp1, tmp1
+			dw kw_divvl, tmp1, 4, tmp1
+			dw kw_addl, tmp1, 150, var_y
 
-			; Main.bas 33: n = n + 1
-			dw kw_inc, var_n
+			; Main.bas 36: L2.Line x, y, x + 30, y, &H1C
+			dw kw_addl, var_x, 30, tmp2
+			dw fn_l2_line, var_x, var_y, tmp2, var_y, lit_28
 
-			; Main.bas 34: If (n And 7) = 0 Then
-			dw kw_andvl, var_n, 7, tmp0
-			dw kw_cpeqvl, tmp0, 0
-			dw kw_goto_iffalse, if4_1
+			; Main.bas 37: L2.Line x + 30, y, x + 30, y + 20, &H1C
+			dw kw_addl, var_x, 30, tmp0
+			dw kw_addl, var_x, 30, tmp2
+			dw kw_addl, var_y, 20, tmp3
+			dw fn_l2_line, tmp0, var_y, tmp2, tmp3, lit_28
 
-			; Main.bas 35: Locate 0, 0
+			; Main.bas 38: L2.Line x + 30, y + 20, x, y + 20, &H1C
+			dw kw_addl, var_x, 30, tmp0
+			dw kw_addl, var_y, 20, tmp1
+			dw kw_addl, var_y, 20, tmp3
+			dw fn_l2_line, tmp0, tmp1, var_x, tmp3, lit_28
+
+			; Main.bas 39: L2.Line x, y + 20, x, y, &H1C
+			dw kw_addl, var_y, 20, tmp1
+			dw fn_l2_line, var_x, tmp1, var_x, var_y, lit_28
+
+			; Main.bas 40: Next
+			dw kw_next1l, var_k, 3, for4_t
+for4_e:
+
+			; Main.bas 41: If mode = 0 Then
+			dw kw_cpeqvl, var_mode, 0
+			dw kw_goto_iffalse, if5_1
+
+			; Main.bas 42: Frame
+			dw kw_frame
+
+			; Main.bas 43: Else
+			dw if5_e_go
+if5_1:
+
+			; Main.bas 44: WaitWrap
+			dw p_waitwrap_c
+
+			; Main.bas 45: End If
+if5_e:
+
+			; Main.bas 46: L2.Flip
+			dw fn_l2_flip
+
+			; Main.bas 47: t = t + 1
+			dw kw_inc, var_t
+
+			; Main.bas 48: If Keys.Down(Keys.KeyW) Then
+			dw fn_keys_down, lit_17, var_keys_down_down
+			dw kw_goto_ifzero, var_keys_down_down, if6_1
+
+			; Main.bas 49: If wWas = 0 Then mode = 1 - mode : Status
+			dw kw_cpeqvl, var_wwas, 0
+			dw kw_goto_iffalse, if7_1
+			dw kw_sublv, 1, var_mode, var_mode
+			dw p_status_c
+if7_1:
+
+			; Main.bas 50: wWas = 1
+			dw kw_ltov, 1, var_wwas
+
+			; Main.bas 51: Else
+			dw if6_e_go
+if6_1:
+
+			; Main.bas 52: wWas = 0
+			dw kw_ztov, var_wwas
+
+			; Main.bas 53: End If
+if6_e:
+
+			; Main.bas 54: If Keys.Down(Keys.Key1) Then Nx.Reg &H07, 0 : Status
+			dw fn_keys_down, lit_24, var_keys_down_down
+			dw kw_goto_ifzero, var_keys_down_down, if8_1
+			dw fn_nx_reg, lit_7, lit_0
+			dw p_status_c
+if8_1:
+
+			; Main.bas 55: If Keys.Down(Keys.Key2) Then Nx.Reg &H07, 1 : Status
+			dw fn_keys_down, lit_25, var_keys_down_down
+			dw kw_goto_ifzero, var_keys_down_down, if9_1
+			dw fn_nx_reg, lit_7, lit_1
+			dw p_status_c
+if9_1:
+
+			; Main.bas 56: If Keys.Down(Keys.Key3) Then Nx.Reg &H07, 2 : Status
+			dw fn_keys_down, lit_26, var_keys_down_down
+			dw kw_goto_ifzero, var_keys_down_down, if10_1
+			dw fn_nx_reg, lit_7, lit_2
+			dw p_status_c
+if10_1:
+
+			; Main.bas 57: If Keys.Down(Keys.Key4) Then Nx.Reg &H07, 3 : Status
+			dw fn_keys_down, lit_27, var_keys_down_down
+			dw kw_goto_ifzero, var_keys_down_down, do2_t
+			dw fn_nx_reg, lit_7, lit_3
+			dw p_status_c
+if11_1:
+
+			; Main.bas 58: Loop
+			dw do2_t_go
+do2_e:
+			dw kw_stop
+
+; ============================================================
+; sub waitwrap (turbo mode)
+; ============================================================
+
+p_waitwrap:
+
+			; Main.bas 62: Dim p As Integer, q As Integer
+
+			; Main.bas 63: p = Nx.Raster()
+			dw fn_nx_raster, var_waitwrap_p
+
+			; Main.bas 64: Do
+do12_t:
+
+			; Main.bas 65: q = Nx.Raster()
+			dw fn_nx_raster, var_waitwrap_q
+
+			; Main.bas 66: If q < p Then Exit Do
+			dw kw_scpltvv, var_waitwrap_q, var_waitwrap_p
+			dw kw_goto_iffalse, if13_1
+			dw do12_e_go
+if13_1:
+
+			; Main.bas 67: p = q
+			dw kw_vtov, var_waitwrap_q, var_waitwrap_p
+
+			; Main.bas 68: Loop
+			dw do12_t_go
+do12_e:
+			dw p_waitwrap_r
+
+; ============================================================
+; sub status (turbo mode)
+; ============================================================
+
+p_status:
+
+			; Main.bas 72: Locate 0, 0
 			dw kw_locatell, 0, 0
 
-			; Main.bas 36: Print "L2TEST  speed: "; Trim$(Str$(Nx.RegGet(&H07) And 3)); " (0=3.5 3=28)   "
+			; Main.bas 73: Print "L2TEST  W: sync way   1-4: speed"
+			dw kw_printzoscii
+			dw glyph_4C, glyph_32, glyph_54, glyph_45, glyph_53, glyph_54, glyph_20, glyph_20
+			dw glyph_57, glyph_3A, glyph_20, glyph_73, glyph_79, glyph_6E, glyph_63, glyph_20
+			dw glyph_77, glyph_61, glyph_79, glyph_20, glyph_20, glyph_20, glyph_31, glyph_2D
+			dw glyph_34, glyph_3A, glyph_20, glyph_73, glyph_70, glyph_65, glyph_65, glyph_64
+			dw 1, 0		; "L2TEST  W: sync way   1-4: speed\n"
+
+			; Main.bas 74: If mode = 0 Then Print "sync: F  Frame (line 192)    " Else Print "sync: R  raster wrap         "
+			dw kw_cpeqvl, var_mode, 0
+			dw kw_goto_iffalse, if14_1
+			dw kw_printzoscii
+			dw glyph_73, glyph_79, glyph_6E, glyph_63, glyph_3A, glyph_20, glyph_46, glyph_20
+			dw glyph_20, glyph_46, glyph_72, glyph_61, glyph_6D, glyph_65, glyph_20, glyph_28
+			dw glyph_6C, glyph_69, glyph_6E, glyph_65, glyph_20, glyph_31, glyph_39, glyph_32
+			dw glyph_29, glyph_20, glyph_20, glyph_20, glyph_20, 1, 0		; "sync: F  Frame (line 192)    \n"
+			dw if14_e_go
+if14_1:
+			dw kw_printzoscii
+			dw glyph_73, glyph_79, glyph_6E, glyph_63, glyph_3A, glyph_20, glyph_52, glyph_20
+			dw glyph_20, glyph_72, glyph_61, glyph_73, glyph_74, glyph_65, glyph_72, glyph_20
+			dw glyph_77, glyph_72, glyph_61, glyph_70, glyph_20, glyph_20, glyph_20, glyph_20
+			dw glyph_20, glyph_20, glyph_20, glyph_20, glyph_20, 1, 0		; "sync: R  raster wrap         \n"
+if14_e:
+
+			; Main.bas 75: Print "speed: "; Trim$(Str$(Nx.RegGet(&H07) And 3)); "  (0 = 3.5MHz, 3 = 28MHz)"
 			dw fn_nx_regget, lit_7, var_nx_regget_regget
 			dw kw_vtov, var_nx_regget_regget, tmp0
 			dw kw_andvl, tmp0, 3, tmp0
 			dw kw_strstr, stmp0, tmp0
 			dw kw_strtrim, stmp0, stmp0
 			dw kw_printzoscii
-			dw glyph_4C, glyph_32, glyph_54, glyph_45, glyph_53, glyph_54, glyph_20, glyph_20
-			dw glyph_73, glyph_70, glyph_65, glyph_65, glyph_64, glyph_3A, glyph_20, 0		; "L2TEST  speed: "
+			dw glyph_73, glyph_70, glyph_65, glyph_65, glyph_64, glyph_3A, glyph_20, 0		; "speed: "
 			dw kw_printstrvar, stmp0
 			dw kw_printzoscii
-			dw glyph_20, glyph_28, glyph_30, glyph_3D, glyph_33, glyph_2E, glyph_35, glyph_20
-			dw glyph_33, glyph_3D, glyph_32, glyph_38, glyph_29, glyph_20, glyph_20, glyph_20
-			dw 1, 0		; " (0=3.5 3=28)   \n"
+			dw glyph_20, glyph_20, glyph_28, glyph_30, glyph_20, glyph_3D, glyph_20, glyph_33
+			dw glyph_2E, glyph_35, glyph_4D, glyph_48, glyph_7A, glyph_2C, glyph_20, glyph_33
+			dw glyph_20, glyph_3D, glyph_20, glyph_32, glyph_38, glyph_4D, glyph_48, glyph_7A
+			dw glyph_29, 1, 0		; "  (0 = 3.5MHz, 3 = 28MHz)\n"
 
-			; Main.bas 37: Print "lines after Frame:"
+			; Main.bas 76: Print "solid shapes = in step; blinking = not"
 			dw kw_printzoscii
-			dw glyph_6C, glyph_69, glyph_6E, glyph_65, glyph_73, glyph_20, glyph_61, glyph_66
-			dw glyph_74, glyph_65, glyph_72, glyph_20, glyph_46, glyph_72, glyph_61, glyph_6D
-			dw glyph_65, glyph_3A, 1, 0		; "lines after Frame:\n"
-
-			; Main.bas 38: For k = 0 To 7
-			dw kw_ztov, var_k
-for5_t:
-
-			; Main.bas 39: Print " "; Trim$(Str$(r(k)));
-			dw kw_aget, arr_r, var_k, tmp0
-			dw kw_strstr, stmp0, tmp0
-			dw kw_strtrim, stmp0, stmp0
-			dw kw_printzoscii
-			dw glyph_20, 0		; " "
-			dw kw_printstrvar, stmp0
-
-			; Main.bas 40: Next
-			dw kw_next1l, var_k, 7, for5_t
-for5_e:
-
-			; Main.bas 41: Print "     "
-			dw kw_printzoscii
-			dw glyph_20, glyph_20, glyph_20, glyph_20, glyph_20, 1, 0		; "     \n"
-
-			; Main.bas 42: Print "#12 now: "; Trim$(Str$(b12)); "  #1E byte: "; Trim$(Str$(b1e)); "    "
-			dw kw_strstr, stmp0, var_b12
-			dw kw_strtrim, stmp0, stmp0
-			dw kw_printzoscii
-			dw glyph_23, glyph_31, glyph_32, glyph_20, glyph_6E, glyph_6F, glyph_77, glyph_3A
-			dw glyph_20, 0		; "#12 now: "
-			dw kw_printstrvar, stmp0
-			dw kw_strstr, stmp0, var_b1e
-			dw kw_strtrim, stmp0, stmp0
-			dw kw_printzoscii
-			dw glyph_20, glyph_20, glyph_23, glyph_31, glyph_45, glyph_20, glyph_62, glyph_79
-			dw glyph_74, glyph_65, glyph_3A, glyph_20, 0		; "  #1E byte: "
-			dw kw_printstrvar, stmp0
-			dw kw_printzoscii
-			dw glyph_20, glyph_20, glyph_20, glyph_20, 1, 0		; "    \n"
-
-			; Main.bas 43: Print "1-4: 3.5 / 7 / 14 / 28MHz"
-			dw kw_printzoscii
-			dw glyph_31, glyph_2D, glyph_34, glyph_3A, glyph_20, glyph_33, glyph_2E, glyph_35
-			dw glyph_20, glyph_2F, glyph_20, glyph_37, glyph_20, glyph_2F, glyph_20, glyph_31
-			dw glyph_34, glyph_20, glyph_2F, glyph_20, glyph_32, glyph_38, glyph_4D, glyph_48
-			dw glyph_7A, 1, 0		; "1-4: 3.5 / 7 / 14 / 28MHz\n"
-
-			; Main.bas 44: End If
-if4_1:
-
-			; Main.bas 45: If Keys.Down(Keys.Key1) Then Nx.Reg &H07, 0
-			dw fn_keys_down, lit_24, var_keys_down_down
-			dw kw_goto_ifzero, var_keys_down_down, if6_1
-			dw fn_nx_reg, lit_7, lit_0
-if6_1:
-
-			; Main.bas 46: If Keys.Down(Keys.Key2) Then Nx.Reg &H07, 1
-			dw fn_keys_down, lit_25, var_keys_down_down
-			dw kw_goto_ifzero, var_keys_down_down, if7_1
-			dw fn_nx_reg, lit_7, lit_1
-if7_1:
-
-			; Main.bas 47: If Keys.Down(Keys.Key3) Then Nx.Reg &H07, 2
-			dw fn_keys_down, lit_26, var_keys_down_down
-			dw kw_goto_ifzero, var_keys_down_down, if8_1
-			dw fn_nx_reg, lit_7, lit_2
-if8_1:
-
-			; Main.bas 48: If Keys.Down(Keys.Key4) Then Nx.Reg &H07, 3
-			dw fn_keys_down, lit_27, var_keys_down_down
-			dw kw_goto_ifzero, var_keys_down_down, do2_t
-			dw fn_nx_reg, lit_7, lit_3
-if9_1:
-
-			; Main.bas 49: Loop
-			dw do2_t_go
-do2_e:
-			dw kw_stop
+			dw glyph_73, glyph_6F, glyph_6C, glyph_69, glyph_64, glyph_20, glyph_73, glyph_68
+			dw glyph_61, glyph_70, glyph_65, glyph_73, glyph_20, glyph_3D, glyph_20, glyph_69
+			dw glyph_6E, glyph_20, glyph_73, glyph_74, glyph_65, glyph_70, glyph_3B, glyph_20
+			dw glyph_62, glyph_6C, glyph_69, glyph_6E, glyph_6B, glyph_69, glyph_6E, glyph_67
+			dw glyph_20, glyph_3D, glyph_20, glyph_6E, glyph_6F, glyph_74, 1, 0		; "solid shapes = in step; blinking = not\n"
+			dw p_status_r
 
 ; ============================================================
 ; sub init (turbo mode)
@@ -257,9 +369,37 @@ p_l2_init:
 ;   turbo mode ends with ret, normal mode with jp ntc_xn
 ; ============================================================
 
+if5_e_go:			ld sp, if5_e
+			ret
+if6_e_go:			ld sp, if6_e
+			ret
 do2_t_go:			ld sp, do2_t
 			ret
+do12_e_go:			ld sp, do12_e
+			ret
+do12_t_go:			ld sp, do12_t
+			ret
+if14_e_go:			ld sp, if14_e
+			ret
 
+p_waitwrap_c:		; call waitwrap (turbo)
+			ld hl, 0
+			ld (var_waitwrap_p), hl
+			ld hl, 0
+			ld (var_waitwrap_q), hl
+			ld (p_waitwrap_rs), sp
+			ld sp, p_waitwrap
+			ret
+p_waitwrap_r:		; end of waitwrap
+			ld sp, (p_waitwrap_rs)
+			ret
+p_status_c:		; call status (turbo)
+			ld (p_status_rs), sp
+			ld sp, p_status
+			ret
+p_status_r:		; end of status
+			ld sp, (p_status_rs)
+			ret
 p_l2_init_c:		; call init (turbo)
 			pop hl			; backcolour
 			ld e, (hl)
@@ -419,6 +559,198 @@ fn_l2_flip_fl_a:		; L2.cls 114
             ld a, (var_l2_cur)		; L2.cls 121
             xor 1		; L2.cls 122
             ld (var_l2_cur), a		; L2.cls 123
+			ret			; end of #asm
+
+fn_l2_clear:		; sub clear (asm keyword), L2.cls line 130
+            ld (var_l2_sps), sp          ; the real stack (call / ret inside) [131]
+            ld sp, (ntc_csp)		; L2.cls 132
+            ld a, (var_l2_cur)		; L2.cls 133
+            or a		; L2.cls 134
+            ld a, (var_l2_banka)		; L2.cls 135
+            jr z, fn_l2_clear_bs_a		; L2.cls 136
+            ld a, (var_l2_bankb)		; L2.cls 137
+fn_l2_clear_bs_a:		; L2.cls 138
+            add a, a		; L2.cls 139
+            ld (fn_l2_clear_dl_base), a		; L2.cls 140
+            ld a, (var_l2_bg)		; L2.cls 141
+            ld (fn_l2_clear_dl_c), a		; L2.cls 142
+            ld a, (var_l2_cur)		; L2.cls 143
+            or a		; L2.cls 144
+            ld hl, (var_l2_cnt0)		; L2.cls 145
+            ld de, arr_l2_lg		; L2.cls 146
+            jr z, fn_l2_clear_cr_a		; L2.cls 147
+            ld hl, (var_l2_cnt1)		; L2.cls 148
+            ld de, arr_l2_lg + 4096		; L2.cls 149
+fn_l2_clear_cr_a:		; L2.cls 150
+            ld (fn_l2_clear_cr_n), hl		; L2.cls 151
+            ex de, hl		; L2.cls 152
+fn_l2_clear_cr_lp:		; L2.cls 153
+            ld de, (fn_l2_clear_cr_n)		; L2.cls 154
+            ld a, d		; L2.cls 155
+            or e		; L2.cls 156
+            jr z, fn_l2_clear_cr_done		; L2.cls 157
+            dec de		; L2.cls 158
+            ld (fn_l2_clear_cr_n), de		; L2.cls 159
+            ld de, fn_l2_clear_dl_x0		; L2.cls 160
+            ldi		; L2.cls 161
+            ldi		; L2.cls 162
+            ldi		; L2.cls 163
+            ldi		; L2.cls 164
+            push hl		; L2.cls 165
+            call fn_l2_clear_dl_line		; L2.cls 166
+            pop hl		; L2.cls 167
+            jr fn_l2_clear_cr_lp		; L2.cls 168
+fn_l2_clear_cr_done:		; L2.cls 169
+            ld hl, 0		; L2.cls 170
+            ld a, (var_l2_cur)		; L2.cls 171
+            or a		; L2.cls 172
+            jr nz, fn_l2_clear_cr_b		; L2.cls 173
+            ld (var_l2_cnt0), hl		; L2.cls 174
+            jr fn_l2_clear_cr_c		; L2.cls 175
+fn_l2_clear_cr_b:		; L2.cls 176
+            ld (var_l2_cnt1), hl		; L2.cls 177
+fn_l2_clear_cr_c:		; L2.cls 178
+            ld bc, #243B            ; slot 6 back to bank 5's first half (the tiles) [179]
+            ld a, #56		; L2.cls 180
+            out (c), a		; L2.cls 181
+            inc b		; L2.cls 182
+            ld a, 10		; L2.cls 183
+            out (c), a		; L2.cls 184
+            ld sp, (var_l2_sps)		; L2.cls 185
+            ret		; L2.cls 186
+fn_l2_clear_cr_n:       dw 0		; L2.cls 187
+
+; ---- draw: dl_x0, dl_y0 -> dl_x1, dl_y1 (on the screen) in colour dl_c, Layer 2 pages from dl_base
+fn_l2_clear_dl_line:		; L2.cls 190
+            ld a, (fn_l2_clear_dl_x1)		; L2.cls 191
+            ld hl, fn_l2_clear_dl_x0		; L2.cls 192
+            sub (hl)		; L2.cls 193
+            ld c, #2C               ; inc l [194]
+            jr nc, fn_l2_clear_dl_px		; L2.cls 195
+            neg		; L2.cls 196
+            ld c, #2D               ; dec l [197]
+fn_l2_clear_dl_px:		; L2.cls 198
+            ld (fn_l2_clear_dl_dx), a		; L2.cls 199
+            ld a, c		; L2.cls 200
+            ld (fn_l2_clear_dl_xm1), a		; L2.cls 201
+            ld (fn_l2_clear_dl_xm2), a		; L2.cls 202
+            ld a, (fn_l2_clear_dl_y1)		; L2.cls 203
+            ld hl, fn_l2_clear_dl_y0		; L2.cls 204
+            sub (hl)		; L2.cls 205
+            ld c, #24               ; inc h [206]
+            jr nc, fn_l2_clear_dl_py		; L2.cls 207
+            neg		; L2.cls 208
+            ld c, #25               ; dec h [209]
+fn_l2_clear_dl_py:		; L2.cls 210
+            ld (fn_l2_clear_dl_dy), a		; L2.cls 211
+            ld a, c		; L2.cls 212
+            ld (fn_l2_clear_dl_ym1), a		; L2.cls 213
+            ld (fn_l2_clear_dl_ym2), a		; L2.cls 214
+            ld a, (fn_l2_clear_dl_y0)		; L2.cls 215
+            ld e, a		; L2.cls 216
+            and 31		; L2.cls 217
+            or #C0		; L2.cls 218
+            ld h, a		; L2.cls 219
+            ld a, (fn_l2_clear_dl_x0)		; L2.cls 220
+            ld l, a		; L2.cls 221
+            ld a, e		; L2.cls 222
+            rlca		; L2.cls 223
+            rlca		; L2.cls 224
+            rlca		; L2.cls 225
+            and 7		; L2.cls 226
+            ld e, a		; L2.cls 227
+            ld a, (fn_l2_clear_dl_base)		; L2.cls 228
+            add a, e		; L2.cls 229
+            ld (fn_l2_clear_dl_page), a		; L2.cls 230
+            call fn_l2_clear_dl_map		; L2.cls 231
+            ld a, (fn_l2_clear_dl_c)		; L2.cls 232
+            ld c, a		; L2.cls 233
+            ld a, (fn_l2_clear_dl_dx)		; L2.cls 234
+            ld d, a		; L2.cls 235
+            ld a, (fn_l2_clear_dl_dy)		; L2.cls 236
+            ld e, a		; L2.cls 237
+            cp d		; L2.cls 238
+            jr nc, fn_l2_clear_dl_ymaj		; L2.cls 239
+            ld b, d                 ; x major: dx + 1 pixels [240]
+            inc b		; L2.cls 241
+            ld a, d		; L2.cls 242
+            srl a		; L2.cls 243
+fn_l2_clear_dl_xl:		; L2.cls 244
+            ld (hl), c		; L2.cls 245
+fn_l2_clear_dl_xm1:		; L2.cls 246
+            inc l		; L2.cls 247
+            sub e		; L2.cls 248
+            jr nc, fn_l2_clear_dl_xn		; L2.cls 249
+            add a, d		; L2.cls 250
+fn_l2_clear_dl_ym1:		; L2.cls 251
+            inc h		; L2.cls 252
+            ex af, af'		; L2.cls 253
+            ld a, h		; L2.cls 254
+            and #E0		; L2.cls 255
+            cp #C0		; L2.cls 256
+            call nz, fn_l2_clear_dl_wrap		; L2.cls 257
+            ex af, af'		; L2.cls 258
+fn_l2_clear_dl_xn:		; L2.cls 259
+            djnz fn_l2_clear_dl_xl		; L2.cls 260
+            ret		; L2.cls 261
+fn_l2_clear_dl_ymaj:		; L2.cls 262
+            ld b, e                 ; y major: dy + 1 pixels [263]
+            inc b		; L2.cls 264
+            ld a, e		; L2.cls 265
+            srl a		; L2.cls 266
+fn_l2_clear_dl_yl:		; L2.cls 267
+            ld (hl), c		; L2.cls 268
+fn_l2_clear_dl_ym2:		; L2.cls 269
+            inc h		; L2.cls 270
+            ex af, af'		; L2.cls 271
+            ld a, h		; L2.cls 272
+            and #E0		; L2.cls 273
+            cp #C0		; L2.cls 274
+            call nz, fn_l2_clear_dl_wrap		; L2.cls 275
+            ex af, af'		; L2.cls 276
+            sub d		; L2.cls 277
+            jr nc, fn_l2_clear_dl_yn		; L2.cls 278
+            add a, e		; L2.cls 279
+fn_l2_clear_dl_xm2:		; L2.cls 280
+            inc l		; L2.cls 281
+fn_l2_clear_dl_yn:		; L2.cls 282
+            djnz fn_l2_clear_dl_yl		; L2.cls 283
+            ret		; L2.cls 284
+; H went off the 8K page: the next one (down) or the one before (up)
+fn_l2_clear_dl_wrap:		; L2.cls 286
+            ld a, h		; L2.cls 287
+            cp #E0		; L2.cls 288
+            jr nz, fn_l2_clear_dl_wup		; L2.cls 289
+            ld h, #C0		; L2.cls 290
+            ld a, (fn_l2_clear_dl_page)		; L2.cls 291
+            inc a		; L2.cls 292
+            jr fn_l2_clear_dl_wset		; L2.cls 293
+fn_l2_clear_dl_wup:		; L2.cls 294
+            ld h, #DF		; L2.cls 295
+            ld a, (fn_l2_clear_dl_page)		; L2.cls 296
+            dec a		; L2.cls 297
+fn_l2_clear_dl_wset:		; L2.cls 298
+            ld (fn_l2_clear_dl_page), a		; L2.cls 299
+fn_l2_clear_dl_map:		; L2.cls 300
+            push bc		; L2.cls 301
+            ld bc, #243B		; L2.cls 302
+            ld a, #56               ; MMU slot 6 (#C000-#DFFF) [303]
+            out (c), a		; L2.cls 304
+            inc b		; L2.cls 305
+            ld a, (fn_l2_clear_dl_page)		; L2.cls 306
+            out (c), a		; L2.cls 307
+            pop bc		; L2.cls 308
+            ret		; L2.cls 309
+fn_l2_clear_dl_x0:      db 0		; L2.cls 310
+fn_l2_clear_dl_y0:      db 0		; L2.cls 311
+fn_l2_clear_dl_x1:      db 0		; L2.cls 312
+fn_l2_clear_dl_y1:      db 0		; L2.cls 313
+fn_l2_clear_dl_c:       db 0		; L2.cls 314
+fn_l2_clear_dl_dx:      db 0		; L2.cls 315
+fn_l2_clear_dl_dy:      db 0		; L2.cls 316
+fn_l2_clear_dl_page:    db 0		; L2.cls 317
+fn_l2_clear_dl_base:    db 0		; L2.cls 318
+
 			ret			; end of #asm
 
 fn_l2_line:		; sub line (asm keyword), L2.cls line 325
@@ -1026,14 +1358,19 @@ fn_keys_down_kdset:		; Keys.cls 117
 ; Variables
 ; ============================================================
 
-var_i:			dw 0
 var_k:			dw 0
-var_nx_raster_raster:			dw 0
-var_b12:			dw 0
-var_b1e:			dw 0
-var_n:			dw 0
-var_nx_regget_regget:			dw 0
+var_mode:			dw 0
+var_a:			dw 0
+var_t:			dw 0
+var_x:			dw 0
+var_y:			dw 0
 var_keys_down_down:			dw 0
+var_wwas:			dw 0
+p_waitwrap_rs:			dw 0
+var_waitwrap_p:			dw 0
+var_waitwrap_q:			dw 0
+p_status_rs:			dw 0
+var_nx_regget_regget:			dw 0
 p_l2_init_rs:			dw 0
 var_l2_init_backcolour:			dw 0
 var_l2_banka:			dw 0
@@ -1044,29 +1381,34 @@ var_l2_cnt1:			dw 0
 var_l2_cur:			dw 0
 var_l2_sps:			dw 0
 tmp0:			dw 0
+tmp1:			dw 0
+tmp2:			dw 0
+tmp3:			dw 0
+tmp4:			dw 0
 			db 40			; capacity
 stmp0:			ds 41
 
 ; numbers passed by address (read only)
-lit_224:			dw 224
-lit_0:			dw 0
-lit_255:			dw 255
+lit_227:			dw 227
 lit_3:			dw 3
-lit_28:			dw 28
-lit_1:			dw 1
-lit_24:			dw 24
-lit_48:			dw 48
-lit_191:			dw 191
 lit_7:			dw 7
-lit_18:			dw 18
-lit_30:			dw 30
+lit_128:			dw 128
+lit_110:			dw 110
+lit_255:			dw 255
+lit_28:			dw 28
+lit_17:			dw 17
+lit_24:			dw 24
+lit_0:			dw 0
 lit_25:			dw 25
+lit_1:			dw 1
 lit_26:			dw 26
 lit_2:			dw 2
 lit_27:			dw 27
 lit_112:			dw 112
+lit_191:			dw 191
 lit_22:			dw 22
 lit_23:			dw 23
+lit_18:			dw 18
 lit_4667:			dw 4667
 
 ; ============================================================
@@ -1074,35 +1416,40 @@ lit_4667:			dw 4667
 ; ============================================================
 
 glyph_20			equ ntc_font + 0		; " "
-glyph_23			equ ntc_font + 24		; "#"
 glyph_28			equ ntc_font + 64		; "("
 glyph_29			equ ntc_font + 72		; ")"
+glyph_2C			equ ntc_font + 96		; ","
 glyph_2D			equ ntc_font + 104		; "-"
 glyph_2E			equ ntc_font + 112		; "."
-glyph_2F			equ ntc_font + 120		; "/"
 glyph_30			equ ntc_font + 128		; "0"
 glyph_31			equ ntc_font + 136		; "1"
 glyph_32			equ ntc_font + 144		; "2"
 glyph_33			equ ntc_font + 152		; "3"
 glyph_34			equ ntc_font + 160		; "4"
 glyph_35			equ ntc_font + 168		; "5"
-glyph_37			equ ntc_font + 184		; "7"
 glyph_38			equ ntc_font + 192		; "8"
+glyph_39			equ ntc_font + 200		; "9"
 glyph_3A			equ ntc_font + 208		; ":"
+glyph_3B			equ ntc_font + 216		; ";"
 glyph_3D			equ ntc_font + 232		; "="
 glyph_45			equ ntc_font + 296		; "E"
 glyph_46			equ ntc_font + 304		; "F"
 glyph_48			equ ntc_font + 320		; "H"
 glyph_4C			equ ntc_font + 352		; "L"
 glyph_4D			equ ntc_font + 360		; "M"
+glyph_52			equ ntc_font + 400		; "R"
 glyph_53			equ ntc_font + 408		; "S"
 glyph_54			equ ntc_font + 416		; "T"
+glyph_57			equ ntc_font + 440		; "W"
 glyph_61			equ ntc_font + 520		; "a"
 glyph_62			equ ntc_font + 528		; "b"
+glyph_63			equ ntc_font + 536		; "c"
 glyph_64			equ ntc_font + 544		; "d"
 glyph_65			equ ntc_font + 552		; "e"
-glyph_66			equ ntc_font + 560		; "f"
+glyph_67			equ ntc_font + 568		; "g"
+glyph_68			equ ntc_font + 576		; "h"
 glyph_69			equ ntc_font + 584		; "i"
+glyph_6B			equ ntc_font + 600		; "k"
 glyph_6C			equ ntc_font + 608		; "l"
 glyph_6D			equ ntc_font + 616		; "m"
 glyph_6E			equ ntc_font + 624		; "n"
@@ -1133,6 +1480,11 @@ ntc_ip:			dw 0			; normal mode: thread position while out of the thread
 
 ;## ntc_d_nmode @data
 ntc_nmode:		db 0			; 1 = running in normal mode (waits let interrupts in)
+
+;## ntc_d_div @data
+ntc_mode:		db 0			; div mode 0=quotient 1=remainder
+ntc_sgnq:		db 0			; quotient sign (bit 7)
+ntc_sgnr:		db 0			; remainder sign (bit 7)
 
 ;## ntc_d_lead @data
 ntc_lead:		db 0			; printint: digit seen
@@ -1302,6 +1654,236 @@ kw_inc:
 			inc (hl)
 			ret
 
+;## kw_add
+;kw_add, <var1>, <var2>, <destvar>
+kw_add:
+			pop hl
+			ld e, (hl)
+			inc hl
+			ld d, (hl)
+			pop hl
+			ld a, (hl)
+			inc hl
+			ld h, (hl)
+			ld l, a
+			add hl, de
+			ex de, hl
+			pop hl
+			ld (hl), e
+			inc hl
+			ld (hl), d
+			ret
+
+;## kw_addl
+;kw_addl, <var>, <literal>, <destvar>
+kw_addl:
+			pop hl
+			ld e, (hl)
+			inc hl
+			ld d, (hl)
+			pop hl
+			add hl, de
+			ex de, hl
+			pop hl
+			ld (hl), e
+			inc hl
+			ld (hl), d
+			ret
+
+;## kw_sublv
+;kw_sublv, <literal>, <var>, <destvar>  - literal - var
+kw_sublv:
+			pop de
+			pop hl
+			ld a, (hl)
+			inc hl
+			ld h, (hl)
+			ld l, a
+			ex de, hl
+			or a
+			sbc hl, de
+			ex de, hl
+			pop hl
+			ld (hl), e
+			inc hl
+			ld (hl), d
+			ret
+
+;## kw_2x
+;kw_2x, <var>, <destvar>
+kw_2x:
+			pop hl
+			ld a, (hl)
+			inc hl
+			ld h, (hl)
+			ld l, a
+			add hl, hl
+			ex de, hl
+			pop hl
+			ld (hl), e
+			inc hl
+			ld (hl), d
+			ret
+
+;## kw_4x
+;kw_4x, <var>, <destvar>
+kw_4x:
+			pop hl
+			ld a, (hl)
+			inc hl
+			ld h, (hl)
+			ld l, a
+			add hl, hl
+			add hl, hl
+			ex de, hl
+			pop hl
+			ld (hl), e
+			inc hl
+			ld (hl), d
+			ret
+
+;## ntc_mul
+; BC * DE -> pop destvar, store. Low 16 bits (same signed/unsigned)
+ntc_mul:
+			ld hl, 0
+			ld a, 16
+ntc_mul_loop:
+			add hl, hl
+			sla e
+			rl d
+			jr nc, ntc_mul_skip
+			add hl, bc
+ntc_mul_skip:
+			dec a
+			jr nz, ntc_mul_loop
+			ex de, hl
+			pop hl
+			ld (hl), e
+			inc hl
+			ld (hl), d
+			ret
+
+;## kw_mulvl ntc_mul
+;kw_mulvl, <var>, <literal>, <destvar>
+kw_mulvl:
+			pop hl
+			ld c, (hl)
+			inc hl
+			ld b, (hl)
+			pop de
+			jp ntc_mul
+
+;## ntc_div ntc_data
+; HL / DE signed, truncating. (ntc_mode) 0 = quotient, 1 = remainder.
+; Remainder takes the dividend's sign. Divide by zero gives
+; quotient 0, remainder = dividend. Pops destvar and stores.
+ntc_div:
+			ld a, d
+			or e
+			jr nz, ntc_div_nz
+			ld a, (ntc_mode)
+			or a
+			jr nz, ntc_div_store
+			ld hl, 0
+			jr ntc_div_store
+ntc_div_nz:
+			ld a, h
+			ld (ntc_sgnr), a
+			xor d
+			ld (ntc_sgnq), a
+			bit 7, h
+			jr z, ntc_div_hpos
+			xor a
+			sub l
+			ld l, a
+			sbc a, a
+			sub h
+			ld h, a
+ntc_div_hpos:
+			bit 7, d
+			jr z, ntc_div_dpos
+			xor a
+			sub e
+			ld e, a
+			sbc a, a
+			sub d
+			ld d, a
+ntc_div_dpos:
+			ld a, h
+			ld c, l
+			ld hl, 0
+			ld b, 16
+ntc_div_loop:
+			sla c
+			rla
+			adc hl, hl
+			sbc hl, de
+			jr nc, ntc_div_one
+			add hl, de
+			djnz ntc_div_loop
+			jr ntc_div_done
+ntc_div_one:
+			inc c
+			djnz ntc_div_loop
+ntc_div_done:
+			ld b, a
+			ld a, (ntc_mode)
+			or a
+			jr z, ntc_div_q
+			ld a, (ntc_sgnr)
+			jr ntc_div_sign
+ntc_div_q:
+			ld h, b
+			ld l, c
+			ld a, (ntc_sgnq)
+ntc_div_sign:
+			rla
+			jr nc, ntc_div_store
+			xor a
+			sub l
+			ld l, a
+			sbc a, a
+			sub h
+			ld h, a
+ntc_div_store:
+			ex de, hl
+			pop hl
+			ld (hl), e
+			inc hl
+			ld (hl), d
+			ret
+
+;## kw_divvl ntc_div
+;kw_divvl, <var>, <literal>, <destvar>
+kw_divvl:
+			xor a
+			ld (ntc_mode), a
+ntc_divvl:
+			pop hl
+			ld a, (hl)
+			inc hl
+			ld h, (hl)
+			ld l, a
+			pop de
+			jp ntc_div
+
+;## kw_negv
+;kw_negv, <var>, <destvar>
+kw_negv:
+			pop hl
+			xor a
+			sub (hl)
+			ld e, a
+			inc hl
+			ld a, 0
+			sbc a, (hl)
+			ld d, a
+			pop hl
+			ld (hl), e
+			inc hl
+			ld (hl), d
+			ret
+
 ;## kw_andvl
 ;kw_andvl, <var>, <literal>, <destvar>
 kw_andvl:
@@ -1386,6 +1968,20 @@ ntc_cmp_ne:
 ntc_cmp_ne_f:
 			or 1
 			ret
+
+;## kw_scpltvv ntc_cmp
+;kw_scpltvv, <var1>, <var2>  - signed var1 < var2
+kw_scpltvv:
+			pop hl
+			ld e, (hl)
+			inc hl
+			ld d, (hl)
+			pop hl
+			ld a, (hl)
+			inc hl
+			ld h, (hl)
+			ld l, a
+			jp ntc_cmp_slt
 
 ;## kw_cpeqvl ntc_cmp
 kw_cpeqvl:
@@ -2264,9 +2860,9 @@ ntc_end:				; the end of the program (and of its file)
 ; arrays: after the program, not in its file - kw_bssinit checks they fit and clears them
 ntc_bssfrom	equ ntc_end
 ntc_bss		equ ntc_bssfrom
-arr_r		equ ntc_bss + 0		; 16 bytes
-arr_l2_lg		equ ntc_bss + 16		; 8192 bytes
-ntc_bss_size	equ 8208
+arr_sn		equ ntc_bss + 0		; 32 bytes
+arr_l2_lg		equ ntc_bss + 32		; 8192 bytes
+ntc_bss_size	equ 8224
 ntc_free	equ ntc_bss + ntc_bss_size	; the first free byte (heap, Memory tables)
 ntc_memtab	equ ntc_free		; the Memory class's tables
 

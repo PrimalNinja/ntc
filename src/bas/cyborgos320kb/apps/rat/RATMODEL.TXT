@@ -112,6 +112,19 @@ then the path, then the value, \ between them). Raising an N weight makes it pan
 N\sleep\90.
 
 
+LUNs: one model, many creatures. MODEL keeps copies of the weights - as many as fit in 30000
+bytes (a byte a line each), 250 at most: a model of 16 lines has 250, one of 400 lines 76.
+LUN 0 is the file's; each other LUN starts as a copy of it and then learns its own habits
+(kept in NAME.LUN, beside the .MDL). A swarm - a box of rats, a dungeon's orcs - is one
+model and a LUN a creature: RAT's call "RATBOX:5 food:30 bed:80 play" decides for LUN 5,
+with LUN 5's weights, its habit and its deadband. To RAT: "LUNS model" - how many LUNs ("250
+16": LUNs, lines); "!model message" - a message passed to the model as it is. To MODEL ("#n
+" first: LUN n's): "#n R" - LUN n the file's weights again (a new creature in it; "R" alone:
+the file read again); "#c B a b" - LUN c bred from LUNs a and b (each weight one parent's or
+the other's, -2 to +2: babies take after their parents); "#n V L\food\90", "#n W food" - as
+for LUN 0. RATBOX (apps/rat) is the swarm sample.
+
+
 4. The file (NAME.MDL)
 ----------------------
 

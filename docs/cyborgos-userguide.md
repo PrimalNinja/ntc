@@ -47,7 +47,8 @@ in `bas/cyborgos128kb/`, with its own user guide.
   HOME.8BM and KEYS.8BM, and NET (the network). Disc 5: RAWYING and RAWYANG (the raw-page
   browsers, [4d](#4d-ying-and-yang-web-browsers)) with HOME.RAW and KEYS.RAW. Disc 6: the decision
   services (RAT, MODEL, NEURAL, PROBE, ASK, RATS, WATCH, PET, GREEN), their models and nets
-  (.MDL, .NN) and RATMODEL.TXT ([4g](#4g-ports-services-in-slots-and-the-rat)), and RVDU, the
+  (.MDL, .NN) and RATMODEL.TXT ([4g](#4g-ports-services-in-slots-and-the-rat)), RATBOX (a box of
+  rats: a swarm on one model's LUNs) and RATBOX.MDL, and RVDU, the
   remote VDU console ([4h](#4h-rvdu-remote-displays)).
 - INSTALL.BAS (on disc 1 only; `RUN"INSTALL` from BASIC) puts all six in a folder CYBORGOS on
   your mass storage. Map the floppy drive as drive B first (UniDOS: `|DRIVE,"B","DFA:"`). It asks
@@ -56,7 +57,8 @@ in `bas/cyborgos128kb/`, with its own user guide.
   help texts) with `|SAVE`, copies disc 1, then asks for discs 2 to 6 in drive B (a key when
   each is in), each file with `|COPY` (over one already there), with a bar and how far it has got
   (%). At the end: 1 run it on a real CPC, 2 run it on WinAPE (`KEYREP 10`: keys repeat 10 times
-  slower), 3 exit. 1 and 2 make A's path the CYBORGOS folder (`|DRIVE,"A","IDE:CYBORGOS"` - UniDOS
+  slower, and Control + a number twice - slots 11-20 - waits 10 times as many ticks, so a double tap
+  is still 0.3 s of real time), 3 exit. 1 and 2 make A's path the CYBORGOS folder (`|DRIVE,"A","IDE:CYBORGOS"` - UniDOS
   keeps it), then start it as CYBORGOS.BAS does. It runs on BASIC 1.0 too: RSXs get their
   strings as `@p1$`, never as literals; SPEED KEY 100,100 while it runs (WinAPE at full speed).
   `build/dsk/cyborgos128k.dsk` is the 128K version's (a 6128 and up); it keeps CYBADD.BIN, PREP
@@ -536,6 +538,16 @@ model's likes move 3, so it can be trained - and quit (Q: saved to `PET.SAV`). D
 three times running bores it (that like down 2: MODEL's `P tag n` and `X tag n`). It grows a day a
 minute; a dirty room or starving makes it ill; at 0 health it dies. `RUN 2 MODEL PET`, `RUN 3
 RAT`, `PET Rex` (`PET NEW name` for a new one).
+
+**RATBOX.** A box of pet rats, a swarm on one model: each rat is a LUN of `RATBOX.MDL` (MODEL
+keeps copies of a model's weights, as many as fit - 250 for it -, each learning its own habits;
+RAT's `model:n` decides for LUN n; `LUNS model` says how many). `RUN 2 MODEL RATBOX`, `RUN 3 RAT`,
+`RATBOX 5 5` (males, females; `RATBOX` alone: the saved box). They eat, sleep, play, watch TV,
+groom friends, mate, fight rivals in the boxing ring (bottom middle) and nurse their babies in the
+pen (right side); babies are bred from their parents' LUNs; the dead go to the graveyard (left
+side); a crowded box (over 20) is dirtier, hungrier, iller and more quarrelsome. Keys: F, T, C, M
+as PET's; `.` `,` choose a rat; N sends it to the naughty bed (top middle); + praise, - scold; Q
+quits (`RATBOX.SAV`). [cyborgos-decisions.md](cyborgos-decisions.md) has the whole of it.
 
 ## 4h. RVDU: remote displays
 

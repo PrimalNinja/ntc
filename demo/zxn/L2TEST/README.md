@@ -1,23 +1,23 @@
-# L2TEST - a check of Frame and the Layer 2 swap on a real Next
+# L2TEST - are Layer 2's buffers swapped in step with the screen?
 
 (c) 2026 Cyborg Unicorn Pty Ltd - MIT License
 
-Run `build/L2TEST.NEX`. Buffer A (bank 16) is blue, buffer B (bank 19) red, and every frame it
-does `Frame`, then `L2.Flip` (NextReg #12). Keys 1-4 set the CPU to 3.5, 7, 14 or 28MHz.
+Run `build/L2TEST.NEX`. It draws the way NEON WAR does: each frame it takes off the lines it drew
+on this buffer last time (`L2.Clear`), draws a spinning star and 4 bobbing boxes, waits for the
+frame, then swaps the two Layer 2 buffers (`L2.Flip`, NextReg #12).
 
-What you see tells which part fails:
-- **A steady red/blue flicker, the same at every speed:** both work.
-- **Solid red or solid blue:** the swap (NextReg #12) isn't taking effect.
-- **Red and blue bands, rolling or jumping, different at each speed:** `Frame` isn't waiting for
-  the end of the frame.
+- **Solid shapes:** the swap is in step with the screen.
+- **Shapes blinking or vanishing:** it isn't.
 
-The text:
-- **lines after Frame:** the raster line read straight after 8 `Frame`s. They should all be 192
-  or just after; random numbers mean `Frame` comes back early.
-- **#12 now:** the bank NextReg #12 reads back as (16 or 19).
-- **#1E byte:** NextReg #1E's whole byte. Only bit 0 should ever be set.
+Keys:
+- **W** swaps the way it waits for the frame:
+  - **F** `Frame`, NTC's own: waits for raster line 192 (NextReg #1E / #1F), the end of the picture.
+  - **R** raster wrap: waits until the line number goes back down, which is the start of a new
+    frame whichever line the count starts from.
+- **1-4** 3.5 / 7 / 14 / 28MHz.
 
-In my emulator: 192 every time, #12 swapping 16 / 19, #1E 0, and a red/blue flicker.
+If F blinks and R is solid, NTC's `Frame` is waiting for the wrong line on that machine (its line
+numbers don't start at the top of the picture), and the fix is in `ntc_plat_frame`.
 
 ## Files
 - `Main.bas`, `Nx.cls`, `L2.cls`; `build/L2TEST.NEX` (and `.asm`).

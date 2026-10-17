@@ -21,3 +21,6 @@ RAT
   is the test drive. Try it: ASK RAT ORC attack flee:80 hide shout.
   RATMODEL.TXT tells
   how a model is made.
+  LUNs: "model:n tag ..." decides for LUN n of the model (HELP MODEL) -
+  each its own habits and deadband; "LUNS model" - how many it has;
+  "!model message" - a message to the model as it is (!RATBOX #4 R).

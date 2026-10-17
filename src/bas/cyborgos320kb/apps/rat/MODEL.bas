@@ -24,8 +24,21 @@
 ' points); "X tag [n]" - scolded: down a point (n); "D n" - line n ("L 1 FOOD 40": its category,
 ' depth, name, weight; "end" past the last - PROBE shows a model with it); "S" - saved; "Q" -
 ' saved, the model ends
+' LUNs: copies of the model's weights - as many as fit (30000 bytes: 250 at most) - each its own
+' creature with its own habits, the tree shared: a swarm on one model. LUN 0 is the file's; the
+' others start as copies of it (copied when first changed) and are kept in NAME.LUN (saved with S,
+' Q and every 100 changes; written only once a LUN has changed).
+' "#n " before a message makes it LUN n's ("#3 W food bed", "#3 P food": RAT's "model:3 tag ...").
+' "U" - "luns lines": how many LUNs (0 to luns - 1) and the model's lines; "R" - LUN 0: the file
+' read again (its weights as they are there now), another LUN: the file's weights again (a new
+' creature); "#c B a b" - LUN c bred from LUNs a and b: each weight one parent's or the other's,
+' a little changed (-2 to +2)
 Option Explicit
 Const MAXN = 400
+Const LBYTES = 30000                          ' the LUNs' weights: a byte a line each (LUN 0: nw)
+Dim lw(29999) As Byte
+Dim li(249) As Byte                           ' a LUN's weights there yet (0: still the file's - copied when first changed)
+Dim nl As Integer, cl As Integer, dl As Integer   ' LUNs; this message's; LUN changes since saved
 Dim nd(MAXN) As Byte                          ' a branch's depth (0: a category line: N, R, L, D)
 Dim nw(MAXN) As Integer                       ' its weight
 Dim nm(MAXN) As String Max 15                 ' its name (a category: its letter)
@@ -35,27 +48,21 @@ Dim ln As String Max 120, msg As String Max 128, rp As String Max 128, w As Stri
 Dim kd As Integer, kdep As Integer, kname As String Max 15, kw As Integer, kcat As Integer   ' (Parse's)
 Dim kraw As String Max 15                    ' (the name as written: Save keeps it)
 
+Randomize CybSys.Clock()
 fl = UCase$(Trim$(CybSys.Tail()))
 If fl = "" Then Print "MODEL file[.MDL]: a model for RAT, served on a port named after the file" : End
 k = InStr(fl, " ")
 If k > 0 Then fl = Left$(fl, k - 1)
 If InStr(fl, ".") = 0 Then fl = fl + ".MDL"
 pn = Left$(Left$(fl, InStr(fl, ".") - 1), 8)
-h = FileSystem.Open(fl, FileSystem.ForRead)
-If h < 0 Then Print "No such model: "; fl : End
-kcat = 0
-Do While FileSystem.Eof(h) = 0
-  ln = FileSystem.ReadLine(h)
-  Parse ln
-  If kd > 0 And nn <= MAXN Then
-    nd(nn) = kdep : nw(nn) = kw : nm(nn) = kname : nn = nn + 1
-  End If
-Loop
-r = FileSystem.Close(h)
+If ReadModel() = 0 Then Print "No such model: "; fl : End
 If nn > MAXN Then Print fl; ": more than"; MAXN + 1; "branches - the rest left out" : nn = MAXN + 1
+nl = 1 : If nn > 0 Then nl = 1 + LBYTES \ nn
+If nl > 250 Then nl = 250
+LoadLuns                                      ' (the LUNs: NAME.LUN's, the rest the file's when first changed)
 r = CybSys.PortOpen(pn)
 If r <> 0 Then Print "The port "; pn; " is taken (another MODEL "; pn; "?)" : End
-Print "MODEL "; fl; ": port "; pn; ","; nn; " lines (Q saves and ends)"
+Print "MODEL "; fl; ": port "; pn; ","; nn; " lines,"; nl; " LUNs (Q saves and ends)"
 Do
   r = CybSys.PortGet(pn)
   If r = 0 Then
@@ -70,6 +77,7 @@ Do
   End If
 Loop
 If dirty > 0 Then Save
+If dl > 0 Then SaveLuns
 r = CybSys.PortClose(pn)
 Print "MODEL "; pn; ":"; nq; " messages"
 End
@@ -77,9 +85,17 @@ End
 ' a message from the port: its answer
 Function Answer(ByVal m As String) As String
   Dim c As String Max 1, t As String Max 120, j As Integer, n As Integer, b As String Max 110
+  cl = 0
+  Answer = "?"
+  If Left$(m, 1) = "#" Then                   ' (#n: LUN n's)
+    j = InStr(m, " ")
+    If j = 0 Then Exit Function
+    cl = Val(Mid$(m, 2, j - 2))
+    m = Trim$(Mid$(m, j + 1))
+    If cl < 0 Or cl >= nl Then Exit Function
+  End If
   c = UCase$(Left$(m, 1))
   m = Trim$(Mid$(m, 2))
-  Answer = "?"
   If c = "W" Then
     Answer = "" : b = ""
     Do While m <> ""
@@ -118,11 +134,7 @@ Function Answer(ByVal m As String) As String
     If n < 1 Then n = 1
     j = Find(m, "L")
     If j >= 0 Then
-      If c = "P" Then nw(j) = nw(j) + n Else nw(j) = nw(j) - n
-      If nw(j) > 100 Then nw(j) = 100
-      If nw(j) < 0 Then nw(j) = 0
-      dirty = dirty + 1
-      If dirty >= 10 Then Save
+      If c = "P" Then SetW j, GetW(j) + n Else SetW j, GetW(j) - n
     End If
     Answer = "ok"
   ElseIf c = "V" Then                         ' (V [cat\]tag\tag\...\x: that branch's weight set to x -
@@ -138,10 +150,7 @@ Function Answer(ByVal m As String) As String
       Next
       j = Find(m, t)
       If j >= 0 Then
-        If n < 0 Then n = 0
-        If n > 100 Then n = 100
-        nw(j) = n : dirty = dirty + 1 : Answer = "ok"
-        If dirty >= 10 Then Save
+        SetW j, n : Answer = "ok"
       End If
     End If
   ElseIf c = "D" Then                         ' (D n: line n - "cat depth name weight", "end" past the last)
@@ -155,12 +164,35 @@ Function Answer(ByVal m As String) As String
         Do While nd(n) > 0
           n = n - 1
         Loop
-        Answer = nm(n) + Str$(nd(j)) + " " + nm(j) + Str$(nw(j))
+        Answer = nm(n) + Str$(nd(j)) + " " + nm(j) + Str$(GetW(j))
       End If
     End If
   ElseIf c = "S" Then
     Save
+    If dl > 0 Then SaveLuns
     Answer = "ok"
+  ElseIf c = "U" Then                         ' (U: the LUNs, the lines)
+    Answer = Trim$(Str$(nl)) + " " + Trim$(Str$(nn))
+  ElseIf c = "R" Then                         ' (R: LUN 0 - the file again; another - the file's weights)
+    If cl = 0 Then
+      n = nn
+      r = ReadModel()
+      If nn <> n Then nn = n                  ' (the tree changed: its first lines kept as they were)
+      dirty = 0
+    Else
+      Reset cl
+      dl = dl + 1
+    End If
+    Answer = "ok"
+  ElseIf c = "B" Then                         ' (#c B a b: LUN c bred from LUNs a and b)
+    j = InStr(m, " ")
+    If j > 0 And cl > 0 Then
+      n = Val(Left$(m, j - 1)) : k = Val(Mid$(m, j + 1))
+      If n >= 0 And n < nl And k >= 0 And k < nl Then
+        Breed cl, n, k
+        Answer = "ok"
+      End If
+    End If
   ElseIf c = "Q" Then
     Answer = "end"
   End If
@@ -179,7 +211,7 @@ End Function
 Function Wt(ByVal t As String, ByVal c As String) As String
   Dim j As Integer
   j = Find(t, c)
-  If j < 0 Then Wt = "-1" Else Wt = Trim$(Str$(nw(j)))
+  If j < 0 Then Wt = "-1" Else Wt = Trim$(Str$(GetW(j)))
 End Function
 
 ' the branch tag t names in category c (a name, or a path: food.apple): its line, -1 none
@@ -276,4 +308,113 @@ Sub Save()
   r = FileSystem.Delete(fl)
   r = FileSystem.Rename(tf, fl)
   dirty = 0
+End Sub
+
+' line j's weight in this message's LUN (cl)
+Function GetW(ByVal j As Integer) As Integer
+  If cl = 0 Then
+    GetW = nw(j)
+  ElseIf li(cl) = 0 Then
+    GetW = nw(j)
+  Else
+    GetW = lw((cl - 1) * nn + j)
+  End If
+End Function
+
+' line j's weight in LUN cl set (0-100): saved in time (LUN 0: the file every 10 changes; the
+' others: NAME.LUN every 100)
+Sub SetW(ByVal j As Integer, ByVal v As Integer)
+  If v < 0 Then v = 0
+  If v > 100 Then v = 100
+  If cl = 0 Then
+    nw(j) = v
+    dirty = dirty + 1
+    If dirty >= 10 Then Save
+  Else
+    If li(cl) = 0 Then Reset cl
+    lw((cl - 1) * nn + j) = v
+    dl = dl + 1
+    If dl >= 100 Then SaveLuns
+  End If
+End Sub
+
+' LUN l: the file's weights (LUN 0's)
+Sub Reset(ByVal l As Integer)
+  Dim j As Integer
+  For j = 0 To nn - 1
+    lw((l - 1) * nn + j) = nw(j)
+  Next
+  li(l) = 1
+End Sub
+
+' LUN c bred from LUNs a and b: each weight from one of them, a little changed
+Sub Breed(ByVal c As Integer, ByVal a As Integer, ByVal b As Integer)
+  Dim j As Integer, v As Integer, sv As Integer
+  sv = cl
+  For j = 0 To nn - 1
+    If Rnd(2) = 0 Then cl = a Else cl = b
+    v = GetW(j) + Rnd(5) - 2
+    If nd(j) = 0 Then v = 0                   ' (a category's line: no weight)
+    If v < 0 Then v = 0
+    If v > 100 Then v = 100
+    lw((c - 1) * nn + j) = v
+  Next
+  li(c) = 1
+  cl = sv
+  dl = dl + 1
+End Sub
+
+' the model's file read: its lines (nd, nw, nm; nn of them) - 0 when it isn't there
+Function ReadModel() As Integer
+  Dim h As Integer
+  ReadModel = 0
+  h = FileSystem.Open(fl, FileSystem.ForRead)
+  If h < 0 Then Exit Function
+  nn = 0 : kcat = 0
+  Do While FileSystem.Eof(h) = 0
+    ln = FileSystem.ReadLine(h)
+    Parse ln
+    If kd > 0 And nn <= MAXN Then
+      nd(nn) = kdep : nw(nn) = kw : nm(nn) = kname : nn = nn + 1
+    End If
+  Loop
+  r = FileSystem.Close(h)
+  ReadModel = 1
+End Function
+
+' NAME.LUN: "LUN", the lines (2 bytes), the LUNs after 0 (2 bytes), then their weights - read when
+' its lines are the model's
+Sub LoadLuns()
+  Dim h As Integer, n As Integer, k As Integer, hd(6) As Byte
+  tf = Left$(fl, InStr(fl, ".")) + "LUN"
+  h = FileSystem.Open(tf, FileSystem.ForRead)
+  If h < 0 Then Exit Sub
+  r = FileSystem.Read(h, VarPtr(hd), 7)
+  n = hd(3) + hd(4) * 256 : k = hd(5) + hd(6) * 256
+  If hd(0) = 76 And hd(1) = 85 And hd(2) = 78 And n = nn Then
+    If k > nl - 1 Then k = nl - 1
+    r = FileSystem.Read(h, VarPtr(lw), k * nn)
+    For n = 1 To k
+      li(n) = 1
+    Next
+  End If
+  r = FileSystem.Close(h)
+End Sub
+
+Sub SaveLuns()
+  Dim h As Integer, k As Integer
+  tf = Left$(fl, InStr(fl, ".")) + "LUN"
+  h = FileSystem.Open(tf, FileSystem.ForWrite)
+  If h < 0 Then Exit Sub
+  r = FileSystem.WriteByte(h, 76) : r = FileSystem.WriteByte(h, 85) : r = FileSystem.WriteByte(h, 78)
+  r = FileSystem.WriteByte(h, nn And 255) : r = FileSystem.WriteByte(h, nn \ 256)
+  k = nl - 1
+  r = FileSystem.WriteByte(h, k And 255) : r = FileSystem.WriteByte(h, k \ 256)
+  For cl = 1 To k                             ' (those still the file's: their weights there now)
+    If li(cl) = 0 Then Reset cl
+  Next
+  cl = 0
+  r = FileSystem.Write(h, VarPtr(lw), k * nn)
+  r = FileSystem.Close(h)
+  dl = 0
 End Sub
