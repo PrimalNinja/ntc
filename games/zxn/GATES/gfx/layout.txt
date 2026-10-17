@@ -1,0 +1,21 @@
+# GATES OF DOOM - names for the cells of tiles.png (8 x 8) and sprites.png (16 x 16)
+# (the arena is Layer 2: tools/arena.py)
+# tile   NAME   index [count]
+# sprite NAME   column row [frames [w h]]
+# sprite palettes: 0 the art, 1 the hit flash, 2 a gate nearly shut (red-hot)
+tile   HUD      1
+tile   HUDB     2         # its bottom edge
+tile   GUN      3         # a gun working
+tile   GUNX     4         # a gun lost
+tile   GATE     5         # a gate open
+
+sprite GUN      0 0       # a gun, pointing down (the others are it turned)
+sprite CROSS    1 0       # where the guns cross
+sprite SHOT     2 0       # a laser shot (flying across; turned for up / down)
+sprite FIRE     3 0       # a fireball
+sprite GATE     4 0 4     # a gate of doom turning (twice the size)
+sprite IMP      8 0 2     # an imp: two frames
+sprite WRAITH   10 0 2    # a wraith: two frames
+sprite SKULL    12 0      # a bouncing skull
+sprite FIEND    13 0 2    # a fire fiend (twice the size): two frames
+sprite BOOM     0 1 4     # an explosion: four frames
