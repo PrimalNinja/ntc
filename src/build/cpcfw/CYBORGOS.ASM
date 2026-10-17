@@ -2,26 +2,26 @@
 			MACRO ntc_windata
 ; (the hypervisor's page from #5300 - #4000 the disc buffers, #5000 the font: Install copies
 ; these into each bank from there, FileCall 99 put them there at the start)
-            ds #5300 - $		; Hyp.cls 1713
+            ds #5300 - $		; Hyp.cls 1719
 ; page zero (#0000-#0080)
-fn_hyp_info_hi_p0:		; Hyp.cls 1715
-            db #C3		; Hyp.cls 1716
-            dw fn_hyp_info_sb_bwb                           ; #0000: warm boot - the BIOS's WBOOT (the task [1717]
-            db 0, 0                             ; ends); (#0001) - 3: the BIOS jump table [1718]
-            db #C3		; Hyp.cls 1719
-            dw fn_hyp_info_sb_start                         ; #0005: BDOS (#0006: the top of the TPA) [1720]
-            ds #38 - 8		; Hyp.cls 1721
+fn_hyp_info_hi_p0:		; Hyp.cls 1721
             db #C3		; Hyp.cls 1722
-            dw fn_hyp_info_sb_int                           ; #0038: the interrupt [1723]
-            ds #44 - #3B		; Hyp.cls 1724
-            db #ED, #49                         ; #0044: out (c), c [1725]
-            db #C3		; Hyp.cls 1726
-            dw fn_hyp_info_sb_land                          ; #0046: this bank switched in [1727]
-            ds #5C - #49		; Hyp.cls 1728
-            db 0, "           "                 ; #005C: the default FCB [1729]
-            ds #80 - #68		; Hyp.cls 1730
-            db 0                                ; #0080: no command tail [1731]
-fn_hyp_info_hi_p0e:		; Hyp.cls 1732
+            dw fn_hyp_info_sb_bwb                           ; #0000: warm boot - the BIOS's WBOOT (the task [1723]
+            db 0, 0                             ; ends); (#0001) - 3: the BIOS jump table [1724]
+            db #C3		; Hyp.cls 1725
+            dw fn_hyp_info_sb_start                         ; #0005: BDOS (#0006: the top of the TPA) [1726]
+            ds #38 - 8		; Hyp.cls 1727
+            db #C3		; Hyp.cls 1728
+            dw fn_hyp_info_sb_int                           ; #0038: the interrupt [1729]
+            ds #44 - #3B		; Hyp.cls 1730
+            db #ED, #49                         ; #0044: out (c), c [1731]
+            db #C3		; Hyp.cls 1732
+            dw fn_hyp_info_sb_land                          ; #0046: this bank switched in [1733]
+            ds #5C - #49		; Hyp.cls 1734
+            db 0, "           "                 ; #005C: the default FCB [1735]
+            ds #80 - #68		; Hyp.cls 1736
+            db 0                                ; #0080: no command tail [1737]
+fn_hyp_info_hi_p0e:		; Hyp.cls 1738
 ; the stubs: assembled here, run at STUB in the bank (DISP: their labels are the bank's
 ; addresses). The BDOS: what needs nothing of the hypervisor is answered here, with no
 ; switch - the console out (2, 9: collected at OBUF; the hypervisor gets them, IX = how many, at
@@ -30,1378 +30,1378 @@ fn_hyp_info_hi_p0e:		; Hyp.cls 1732
 ; and the calls with nothing to do (3, 4, 5, 28, 29, 30, 37 - 30 with #C0 on at DE is CyborgOS's
 ; UniDOS call), CP/M 3's 49 for the console's size (MODE); the rest is a far call. Then the
 ; BIOS (its jump table: (#0001) - 3) and the start-up (the default FCBs)
-fn_hyp_info_sb_img:		; Hyp.cls 1741
-            DISP 61184		; Hyp.cls 1742
-fn_hyp_info_sb_start:		; Hyp.cls 1743
-            di                                  ; BDOS: C = function, DE = argument [1744]
-            ld a, c		; Hyp.cls 1745
-            cp 2		; Hyp.cls 1746
-            jp z, fn_hyp_info_sb_put		; Hyp.cls 1747
-            cp 6		; Hyp.cls 1748
-            jr z, fn_hyp_info_sb_f6		; Hyp.cls 1749
-            cp 11		; Hyp.cls 1750
-            jr z, fn_hyp_info_sb_stat		; Hyp.cls 1751
-            cp 1		; Hyp.cls 1752
-            jr z, fn_hyp_info_sb_f1		; Hyp.cls 1753
-            cp 9		; Hyp.cls 1754
-            jp z, fn_hyp_info_sb_str		; Hyp.cls 1755
-            cp 10		; Hyp.cls 1756
-            jp z, fn_hyp_info_sb_line		; Hyp.cls 1757
-            cp 3		; Hyp.cls 1758
-            jr z, fn_hyp_info_sb_rdr		; Hyp.cls 1759
-            cp 7		; Hyp.cls 1760
-            jr z, fn_hyp_info_sb_iob		; Hyp.cls 1761
-            cp 8		; Hyp.cls 1762
-            jr z, fn_hyp_info_sb_siob		; Hyp.cls 1763
-            cp 27		; Hyp.cls 1764
-            jr z, fn_hyp_info_sb_alv		; Hyp.cls 1765
-            cp 31		; Hyp.cls 1766
-            jr z, fn_hyp_info_sb_dpb		; Hyp.cls 1767
-            cp 4		; Hyp.cls 1768
-            jr z, fn_hyp_info_sb_zero		; Hyp.cls 1769
-            cp 5		; Hyp.cls 1770
-            jr z, fn_hyp_info_sb_zero		; Hyp.cls 1771
-            cp 28		; Hyp.cls 1772
-            jr z, fn_hyp_info_sb_zero		; Hyp.cls 1773
-            cp 29		; Hyp.cls 1774
+fn_hyp_info_sb_img:		; Hyp.cls 1747
+            DISP 61184		; Hyp.cls 1748
+fn_hyp_info_sb_start:		; Hyp.cls 1749
+            di                                  ; BDOS: C = function, DE = argument [1750]
+            ld a, c		; Hyp.cls 1751
+            cp 2		; Hyp.cls 1752
+            jp z, fn_hyp_info_sb_put		; Hyp.cls 1753
+            cp 6		; Hyp.cls 1754
+            jr z, fn_hyp_info_sb_f6		; Hyp.cls 1755
+            cp 11		; Hyp.cls 1756
+            jr z, fn_hyp_info_sb_stat		; Hyp.cls 1757
+            cp 1		; Hyp.cls 1758
+            jr z, fn_hyp_info_sb_f1		; Hyp.cls 1759
+            cp 9		; Hyp.cls 1760
+            jp z, fn_hyp_info_sb_str		; Hyp.cls 1761
+            cp 10		; Hyp.cls 1762
+            jp z, fn_hyp_info_sb_line		; Hyp.cls 1763
+            cp 3		; Hyp.cls 1764
+            jr z, fn_hyp_info_sb_rdr		; Hyp.cls 1765
+            cp 7		; Hyp.cls 1766
+            jr z, fn_hyp_info_sb_iob		; Hyp.cls 1767
+            cp 8		; Hyp.cls 1768
+            jr z, fn_hyp_info_sb_siob		; Hyp.cls 1769
+            cp 27		; Hyp.cls 1770
+            jr z, fn_hyp_info_sb_alv		; Hyp.cls 1771
+            cp 31		; Hyp.cls 1772
+            jr z, fn_hyp_info_sb_dpb		; Hyp.cls 1773
+            cp 4		; Hyp.cls 1774
             jr z, fn_hyp_info_sb_zero		; Hyp.cls 1775
-            cp 30		; Hyp.cls 1776
-            jr z, fn_hyp_info_sb_f30		; Hyp.cls 1777
-            cp 37		; Hyp.cls 1778
+            cp 5		; Hyp.cls 1776
+            jr z, fn_hyp_info_sb_zero		; Hyp.cls 1777
+            cp 28		; Hyp.cls 1778
             jr z, fn_hyp_info_sb_zero		; Hyp.cls 1779
-            cp 49		; Hyp.cls 1780
-            jp z, fn_hyp_info_sb_scb		; Hyp.cls 1781
-            jp fn_hyp_info_sb_call		; Hyp.cls 1782
-fn_hyp_info_sb_f30:                                         ; 30: nothing - unless #C0 on at DE: CyborgOS's [1783]
-            ld a, (de)                          ; UniDOS call (CD, DIR: the hypervisor's) [1784]
-            cp #C0		; Hyp.cls 1785
-            jp nc, fn_hyp_info_sb_call		; Hyp.cls 1786
-fn_hyp_info_sb_zero:		; Hyp.cls 1787
-            xor a                               ; 4, 5 (the printer: not yet), 28, 29, 30, 37 [1788]
-fn_hyp_info_sb_ret:		; Hyp.cls 1789
-            ld l, a		; Hyp.cls 1790
-            ld h, 0		; Hyp.cls 1791
-            ei		; Hyp.cls 1792
-            ret		; Hyp.cls 1793
-fn_hyp_info_sb_rdr:		; Hyp.cls 1794
-            ld a, #1A                           ; 3: the reader - the end of a file [1795]
-            jr fn_hyp_info_sb_ret		; Hyp.cls 1796
-fn_hyp_info_sb_iob:		; Hyp.cls 1797
-            ld a, (#0003)                       ; 7: the IOBYTE [1798]
-            jr fn_hyp_info_sb_ret		; Hyp.cls 1799
-fn_hyp_info_sb_siob:		; Hyp.cls 1800
-            ld a, e                             ; 8 [1801]
-            ld (#0003), a		; Hyp.cls 1802
-            jr fn_hyp_info_sb_zero		; Hyp.cls 1803
-fn_hyp_info_sb_alv:		; Hyp.cls 1804
-            ld hl, fn_hyp_info_sb_alvec                     ; 27: the allocation vector (a CPC data disc's) [1805]
-            ei		; Hyp.cls 1806
-            ret		; Hyp.cls 1807
-fn_hyp_info_sb_dpb:		; Hyp.cls 1808
-            ld hl, fn_hyp_info_sb_dpbv                      ; 31: the disc parameter block [1809]
-            ei		; Hyp.cls 1810
-            ret		; Hyp.cls 1811
-fn_hyp_info_sb_f6:		; Hyp.cls 1812
-            ld a, e		; Hyp.cls 1813
-            cp #FF		; Hyp.cls 1814
-            jr z, fn_hyp_info_sb_get		; Hyp.cls 1815
-            cp #FE		; Hyp.cls 1816
-            jr c, fn_hyp_info_sb_put		; Hyp.cls 1817
-fn_hyp_info_sb_stat:		; Hyp.cls 1818
-            ld a, (63105)                       ; 6 / #FE, 11: is a key waiting (#FF / 0) [1819]
-            or a		; Hyp.cls 1820
-            jr z, fn_hyp_info_sb_ret		; Hyp.cls 1821
-            ld a, #FF		; Hyp.cls 1822
-            jr fn_hyp_info_sb_ret		; Hyp.cls 1823
-fn_hyp_info_sb_get:		; Hyp.cls 1824
-            ld hl, 63105                        ; 6 / #FF: the key or 0 (no wait) [1825]
-            ld a, (hl)		; Hyp.cls 1826
-            ld (hl), 0		; Hyp.cls 1827
-            jr fn_hyp_info_sb_ret		; Hyp.cls 1828
-fn_hyp_info_sb_f1:		; Hyp.cls 1829
-            call fn_hyp_info_sb_key                         ; 1: a key (waited for), echoed [1830]
-            push af		; Hyp.cls 1831
-            ld e, a		; Hyp.cls 1832
-            call fn_hyp_info_sb_putc		; Hyp.cls 1833
-            pop af		; Hyp.cls 1834
-            jr fn_hyp_info_sb_ret		; Hyp.cls 1835
-fn_hyp_info_sb_put:		; Hyp.cls 1836
-            call fn_hyp_info_sb_putc                        ; 2: E out [1837]
-            ei		; Hyp.cls 1838
-            ret		; Hyp.cls 1839
-fn_hyp_info_sb_str:		; Hyp.cls 1840
-            ld h, d                             ; 9: the string at DE, to "$" [1841]
-            ld l, e		; Hyp.cls 1842
-fn_hyp_info_sb_st_lp:		; Hyp.cls 1843
-            ld a, (hl)		; Hyp.cls 1844
-            cp '$'		; Hyp.cls 1845
-            jr z, fn_hyp_info_sb_zero		; Hyp.cls 1846
-            push hl		; Hyp.cls 1847
-            ld e, a		; Hyp.cls 1848
-            call fn_hyp_info_sb_putc		; Hyp.cls 1849
-            pop hl		; Hyp.cls 1850
-            inc hl		; Hyp.cls 1851
-            jr fn_hyp_info_sb_st_lp		; Hyp.cls 1852
+            cp 29		; Hyp.cls 1780
+            jr z, fn_hyp_info_sb_zero		; Hyp.cls 1781
+            cp 30		; Hyp.cls 1782
+            jr z, fn_hyp_info_sb_f30		; Hyp.cls 1783
+            cp 37		; Hyp.cls 1784
+            jr z, fn_hyp_info_sb_zero		; Hyp.cls 1785
+            cp 49		; Hyp.cls 1786
+            jp z, fn_hyp_info_sb_scb		; Hyp.cls 1787
+            jp fn_hyp_info_sb_call		; Hyp.cls 1788
+fn_hyp_info_sb_f30:                                         ; 30: nothing - unless #C0 on at DE: CyborgOS's [1789]
+            ld a, (de)                          ; UniDOS call (CD, DIR: the hypervisor's) [1790]
+            cp #C0		; Hyp.cls 1791
+            jp nc, fn_hyp_info_sb_call		; Hyp.cls 1792
+fn_hyp_info_sb_zero:		; Hyp.cls 1793
+            xor a                               ; 4, 5 (the printer: not yet), 28, 29, 30, 37 [1794]
+fn_hyp_info_sb_ret:		; Hyp.cls 1795
+            ld l, a		; Hyp.cls 1796
+            ld h, 0		; Hyp.cls 1797
+            ei		; Hyp.cls 1798
+            ret		; Hyp.cls 1799
+fn_hyp_info_sb_rdr:		; Hyp.cls 1800
+            ld a, #1A                           ; 3: the reader - the end of a file [1801]
+            jr fn_hyp_info_sb_ret		; Hyp.cls 1802
+fn_hyp_info_sb_iob:		; Hyp.cls 1803
+            ld a, (#0003)                       ; 7: the IOBYTE [1804]
+            jr fn_hyp_info_sb_ret		; Hyp.cls 1805
+fn_hyp_info_sb_siob:		; Hyp.cls 1806
+            ld a, e                             ; 8 [1807]
+            ld (#0003), a		; Hyp.cls 1808
+            jr fn_hyp_info_sb_zero		; Hyp.cls 1809
+fn_hyp_info_sb_alv:		; Hyp.cls 1810
+            ld hl, fn_hyp_info_sb_alvec                     ; 27: the allocation vector (a CPC data disc's) [1811]
+            ei		; Hyp.cls 1812
+            ret		; Hyp.cls 1813
+fn_hyp_info_sb_dpb:		; Hyp.cls 1814
+            ld hl, fn_hyp_info_sb_dpbv                      ; 31: the disc parameter block [1815]
+            ei		; Hyp.cls 1816
+            ret		; Hyp.cls 1817
+fn_hyp_info_sb_f6:		; Hyp.cls 1818
+            ld a, e		; Hyp.cls 1819
+            cp #FF		; Hyp.cls 1820
+            jr z, fn_hyp_info_sb_get		; Hyp.cls 1821
+            cp #FE		; Hyp.cls 1822
+            jr c, fn_hyp_info_sb_put		; Hyp.cls 1823
+fn_hyp_info_sb_stat:		; Hyp.cls 1824
+            ld a, (63105)                       ; 6 / #FE, 11: is a key waiting (#FF / 0) [1825]
+            or a		; Hyp.cls 1826
+            jr z, fn_hyp_info_sb_ret		; Hyp.cls 1827
+            ld a, #FF		; Hyp.cls 1828
+            jr fn_hyp_info_sb_ret		; Hyp.cls 1829
+fn_hyp_info_sb_get:		; Hyp.cls 1830
+            ld hl, 63105                        ; 6 / #FF: the key or 0 (no wait) [1831]
+            ld a, (hl)		; Hyp.cls 1832
+            ld (hl), 0		; Hyp.cls 1833
+            jr fn_hyp_info_sb_ret		; Hyp.cls 1834
+fn_hyp_info_sb_f1:		; Hyp.cls 1835
+            call fn_hyp_info_sb_key                         ; 1: a key (waited for), echoed [1836]
+            push af		; Hyp.cls 1837
+            ld e, a		; Hyp.cls 1838
+            call fn_hyp_info_sb_putc		; Hyp.cls 1839
+            pop af		; Hyp.cls 1840
+            jr fn_hyp_info_sb_ret		; Hyp.cls 1841
+fn_hyp_info_sb_put:		; Hyp.cls 1842
+            call fn_hyp_info_sb_putc                        ; 2: E out [1843]
+            ei		; Hyp.cls 1844
+            ret		; Hyp.cls 1845
+fn_hyp_info_sb_str:		; Hyp.cls 1846
+            ld h, d                             ; 9: the string at DE, to "$" [1847]
+            ld l, e		; Hyp.cls 1848
+fn_hyp_info_sb_st_lp:		; Hyp.cls 1849
+            ld a, (hl)		; Hyp.cls 1850
+            cp '$'		; Hyp.cls 1851
+            jr z, fn_hyp_info_sb_zero		; Hyp.cls 1852
+            push hl		; Hyp.cls 1853
+            ld e, a		; Hyp.cls 1854
+            call fn_hyp_info_sb_putc		; Hyp.cls 1855
+            pop hl		; Hyp.cls 1856
+            inc hl		; Hyp.cls 1857
+            jr fn_hyp_info_sb_st_lp		; Hyp.cls 1858
 ; sb_putc - E collected at OBUF (the hypervisor shown them when 128 wait). Interrupts off
-fn_hyp_info_sb_putc:		; Hyp.cls 1854
-            ld hl, 62976 + 128                 ; the count [1855]
-            ld a, (hl)		; Hyp.cls 1856
-            inc (hl)		; Hyp.cls 1857
-            ld l, a		; Hyp.cls 1858
-            ld h, 62976 / 256		; Hyp.cls 1859
-            ld (hl), e		; Hyp.cls 1860
-            cp 127		; Hyp.cls 1861
-            ret c		; Hyp.cls 1862
-            push bc		; Hyp.cls 1863
-            push de		; Hyp.cls 1864
-            ld c, #80                           ; full: function #80, only the characters [1865]
-            call fn_hyp_info_sb_call		; Hyp.cls 1866
-            di		; Hyp.cls 1867
-            pop de		; Hyp.cls 1868
-            pop bc		; Hyp.cls 1869
-            ret		; Hyp.cls 1870
+fn_hyp_info_sb_putc:		; Hyp.cls 1860
+            ld hl, 62976 + 128                 ; the count [1861]
+            ld a, (hl)		; Hyp.cls 1862
+            inc (hl)		; Hyp.cls 1863
+            ld l, a		; Hyp.cls 1864
+            ld h, 62976 / 256		; Hyp.cls 1865
+            ld (hl), e		; Hyp.cls 1866
+            cp 127		; Hyp.cls 1867
+            ret c		; Hyp.cls 1868
+            push bc		; Hyp.cls 1869
+            push de		; Hyp.cls 1870
+            ld c, #80                           ; full: function #80, only the characters [1871]
+            call fn_hyp_info_sb_call		; Hyp.cls 1872
+            di		; Hyp.cls 1873
+            pop de		; Hyp.cls 1874
+            pop bc		; Hyp.cls 1875
+            ret		; Hyp.cls 1876
 ; sb_key - A = the next key, waited for: none at KEY - a far call (#81) that has the hypervisor
 ; run the others until a key comes (or the clock moves on), then look again
-fn_hyp_info_sb_key:		; Hyp.cls 1873
-            ld hl, 63105		; Hyp.cls 1874
-            ld a, (hl)		; Hyp.cls 1875
-            or a		; Hyp.cls 1876
-            jr z, fn_hyp_info_sb_k_wait		; Hyp.cls 1877
-            ld (hl), 0		; Hyp.cls 1878
-            ret		; Hyp.cls 1879
-fn_hyp_info_sb_k_wait:		; Hyp.cls 1880
-            push bc		; Hyp.cls 1881
-            push de		; Hyp.cls 1882
-            ld c, #81		; Hyp.cls 1883
-            call fn_hyp_info_sb_call		; Hyp.cls 1884
-            di		; Hyp.cls 1885
-            pop de		; Hyp.cls 1886
-            pop bc		; Hyp.cls 1887
-            jr fn_hyp_info_sb_key		; Hyp.cls 1888
+fn_hyp_info_sb_key:		; Hyp.cls 1879
+            ld hl, 63105		; Hyp.cls 1880
+            ld a, (hl)		; Hyp.cls 1881
+            or a		; Hyp.cls 1882
+            jr z, fn_hyp_info_sb_k_wait		; Hyp.cls 1883
+            ld (hl), 0		; Hyp.cls 1884
+            ret		; Hyp.cls 1885
+fn_hyp_info_sb_k_wait:		; Hyp.cls 1886
+            push bc		; Hyp.cls 1887
+            push de		; Hyp.cls 1888
+            ld c, #81		; Hyp.cls 1889
+            call fn_hyp_info_sb_call		; Hyp.cls 1890
+            di		; Hyp.cls 1891
+            pop de		; Hyp.cls 1892
+            pop bc		; Hyp.cls 1893
+            jr fn_hyp_info_sb_key		; Hyp.cls 1894
 ; 10: a line typed into the buffer at DE (its size, then how many came, then them): BS / DEL
 ; rub out, Control + U / X the whole line, Control + C at its start ends the program, CR / LF
 ; end it (CR echoed)
-fn_hyp_info_sb_line:		; Hyp.cls 1892
-            ld (fn_hyp_info_sb_lbuf), de		; Hyp.cls 1893
-            xor a		; Hyp.cls 1894
-            ld (fn_hyp_info_sb_lcnt), a		; Hyp.cls 1895
-fn_hyp_info_sb_l_lp:		; Hyp.cls 1896
-            call fn_hyp_info_sb_key		; Hyp.cls 1897
-            cp 13		; Hyp.cls 1898
-            jr z, fn_hyp_info_sb_l_end		; Hyp.cls 1899
-            cp 10		; Hyp.cls 1900
-            jr z, fn_hyp_info_sb_l_end		; Hyp.cls 1901
-            cp 8		; Hyp.cls 1902
-            jr z, fn_hyp_info_sb_l_bs		; Hyp.cls 1903
-            cp 127		; Hyp.cls 1904
-            jr z, fn_hyp_info_sb_l_bs		; Hyp.cls 1905
-            cp 21		; Hyp.cls 1906
-            jr z, fn_hyp_info_sb_l_kill		; Hyp.cls 1907
-            cp 24		; Hyp.cls 1908
-            jr z, fn_hyp_info_sb_l_kill		; Hyp.cls 1909
-            cp 3		; Hyp.cls 1910
-            jr nz, fn_hyp_info_sb_l_ch		; Hyp.cls 1911
-            ld a, (fn_hyp_info_sb_lcnt)		; Hyp.cls 1912
-            or a		; Hyp.cls 1913
-            jr nz, fn_hyp_info_sb_l_lp		; Hyp.cls 1914
-            ld c, 0                             ; Control + C: the program ends [1915]
-            jp fn_hyp_info_sb_call		; Hyp.cls 1916
-fn_hyp_info_sb_l_ch:		; Hyp.cls 1917
-            cp 32		; Hyp.cls 1918
-            jr c, fn_hyp_info_sb_l_lp		; Hyp.cls 1919
-            ld b, a		; Hyp.cls 1920
-            ld hl, (fn_hyp_info_sb_lbuf)		; Hyp.cls 1921
-            ld a, (fn_hyp_info_sb_lcnt)		; Hyp.cls 1922
-            cp (hl)		; Hyp.cls 1923
-            jr nc, fn_hyp_info_sb_l_lp                      ; full [1924]
-            inc a		; Hyp.cls 1925
-            ld (fn_hyp_info_sb_lcnt), a		; Hyp.cls 1926
-            ld e, a		; Hyp.cls 1927
-            ld d, 0		; Hyp.cls 1928
-            inc hl		; Hyp.cls 1929
-            add hl, de		; Hyp.cls 1930
-            ld (hl), b		; Hyp.cls 1931
-            ld e, b		; Hyp.cls 1932
-            call fn_hyp_info_sb_putc		; Hyp.cls 1933
-            jr fn_hyp_info_sb_l_lp		; Hyp.cls 1934
-fn_hyp_info_sb_l_kill:		; Hyp.cls 1935
-            ld a, (fn_hyp_info_sb_lcnt)		; Hyp.cls 1936
-            or a		; Hyp.cls 1937
-            jr z, fn_hyp_info_sb_l_lp		; Hyp.cls 1938
-            call fn_hyp_info_sb_l_rub		; Hyp.cls 1939
-            jr fn_hyp_info_sb_l_kill		; Hyp.cls 1940
-fn_hyp_info_sb_l_bs:		; Hyp.cls 1941
+fn_hyp_info_sb_line:		; Hyp.cls 1898
+            ld (fn_hyp_info_sb_lbuf), de		; Hyp.cls 1899
+            xor a		; Hyp.cls 1900
+            ld (fn_hyp_info_sb_lcnt), a		; Hyp.cls 1901
+fn_hyp_info_sb_l_lp:		; Hyp.cls 1902
+            call fn_hyp_info_sb_key		; Hyp.cls 1903
+            cp 13		; Hyp.cls 1904
+            jr z, fn_hyp_info_sb_l_end		; Hyp.cls 1905
+            cp 10		; Hyp.cls 1906
+            jr z, fn_hyp_info_sb_l_end		; Hyp.cls 1907
+            cp 8		; Hyp.cls 1908
+            jr z, fn_hyp_info_sb_l_bs		; Hyp.cls 1909
+            cp 127		; Hyp.cls 1910
+            jr z, fn_hyp_info_sb_l_bs		; Hyp.cls 1911
+            cp 21		; Hyp.cls 1912
+            jr z, fn_hyp_info_sb_l_kill		; Hyp.cls 1913
+            cp 24		; Hyp.cls 1914
+            jr z, fn_hyp_info_sb_l_kill		; Hyp.cls 1915
+            cp 3		; Hyp.cls 1916
+            jr nz, fn_hyp_info_sb_l_ch		; Hyp.cls 1917
+            ld a, (fn_hyp_info_sb_lcnt)		; Hyp.cls 1918
+            or a		; Hyp.cls 1919
+            jr nz, fn_hyp_info_sb_l_lp		; Hyp.cls 1920
+            ld c, 0                             ; Control + C: the program ends [1921]
+            jp fn_hyp_info_sb_call		; Hyp.cls 1922
+fn_hyp_info_sb_l_ch:		; Hyp.cls 1923
+            cp 32		; Hyp.cls 1924
+            jr c, fn_hyp_info_sb_l_lp		; Hyp.cls 1925
+            ld b, a		; Hyp.cls 1926
+            ld hl, (fn_hyp_info_sb_lbuf)		; Hyp.cls 1927
+            ld a, (fn_hyp_info_sb_lcnt)		; Hyp.cls 1928
+            cp (hl)		; Hyp.cls 1929
+            jr nc, fn_hyp_info_sb_l_lp                      ; full [1930]
+            inc a		; Hyp.cls 1931
+            ld (fn_hyp_info_sb_lcnt), a		; Hyp.cls 1932
+            ld e, a		; Hyp.cls 1933
+            ld d, 0		; Hyp.cls 1934
+            inc hl		; Hyp.cls 1935
+            add hl, de		; Hyp.cls 1936
+            ld (hl), b		; Hyp.cls 1937
+            ld e, b		; Hyp.cls 1938
+            call fn_hyp_info_sb_putc		; Hyp.cls 1939
+            jr fn_hyp_info_sb_l_lp		; Hyp.cls 1940
+fn_hyp_info_sb_l_kill:		; Hyp.cls 1941
             ld a, (fn_hyp_info_sb_lcnt)		; Hyp.cls 1942
             or a		; Hyp.cls 1943
             jr z, fn_hyp_info_sb_l_lp		; Hyp.cls 1944
             call fn_hyp_info_sb_l_rub		; Hyp.cls 1945
-            jr fn_hyp_info_sb_l_lp		; Hyp.cls 1946
-fn_hyp_info_sb_l_rub:		; Hyp.cls 1947
-            dec a		; Hyp.cls 1948
-            ld (fn_hyp_info_sb_lcnt), a		; Hyp.cls 1949
-            ld e, 8		; Hyp.cls 1950
-            call fn_hyp_info_sb_putc		; Hyp.cls 1951
-            ld e, ' '		; Hyp.cls 1952
-            call fn_hyp_info_sb_putc		; Hyp.cls 1953
-            ld e, 8		; Hyp.cls 1954
-            jp fn_hyp_info_sb_putc		; Hyp.cls 1955
-fn_hyp_info_sb_l_end:		; Hyp.cls 1956
-            ld hl, (fn_hyp_info_sb_lbuf)		; Hyp.cls 1957
-            inc hl		; Hyp.cls 1958
-            ld a, (fn_hyp_info_sb_lcnt)		; Hyp.cls 1959
-            ld (hl), a		; Hyp.cls 1960
-            ld e, 13		; Hyp.cls 1961
-            call fn_hyp_info_sb_putc		; Hyp.cls 1962
-            jp fn_hyp_info_sb_zero		; Hyp.cls 1963
-fn_hyp_info_sb_lbuf:    dw 0		; Hyp.cls 1964
-fn_hyp_info_sb_lcnt:    db 0		; Hyp.cls 1965
-fn_hyp_info_sb_call:		; Hyp.cls 1966
-            push ix                             ; a far call: IX, IY and the alternate [1967]
-            push iy                             ; registers kept over it (ex af, af') [1968]
-            db #08		; Hyp.cls 1969
-            exx		; Hyp.cls 1970
-            push af		; Hyp.cls 1971
-            push bc		; Hyp.cls 1972
-            push de		; Hyp.cls 1973
-            push hl		; Hyp.cls 1974
-            exx		; Hyp.cls 1975
-            db #08		; Hyp.cls 1976
-            ld a, (62976 + 128)		; Hyp.cls 1977
-            ld ixl, a		; Hyp.cls 1978
-            ld ixh, 0		; Hyp.cls 1979
-            ld a, c		; Hyp.cls 1980
-            ld hl, fn_hyp_info_sb_far		; Hyp.cls 1981
-            push hl		; Hyp.cls 1982
-            ld (#FFFE), sp		; Hyp.cls 1983
-            ld bc, #7FC0		; Hyp.cls 1984
-            scf                                 ; carry: a far call [1985]
-            jp #0044		; Hyp.cls 1986
-fn_hyp_info_sb_far:		; Hyp.cls 1987
-            db #08                              ; the answer in A and HL; the program's [1988]
-            exx                                 ; other registers back [1989]
-            pop hl		; Hyp.cls 1990
-            pop de		; Hyp.cls 1991
-            pop bc		; Hyp.cls 1992
-            pop af		; Hyp.cls 1993
-            exx		; Hyp.cls 1994
-            db #08		; Hyp.cls 1995
-            pop iy		; Hyp.cls 1996
-            pop ix		; Hyp.cls 1997
-            ei		; Hyp.cls 1998
-            ret		; Hyp.cls 1999
-fn_hyp_info_sb_int:		; Hyp.cls 2000
-            push af                             ; an interrupt: everything kept [2001]
-            push bc		; Hyp.cls 2002
-            push de		; Hyp.cls 2003
-            push hl		; Hyp.cls 2004
-            db #08                              ; ex af, af' [2005]
-            exx		; Hyp.cls 2006
-            push af		; Hyp.cls 2007
+            jr fn_hyp_info_sb_l_kill		; Hyp.cls 1946
+fn_hyp_info_sb_l_bs:		; Hyp.cls 1947
+            ld a, (fn_hyp_info_sb_lcnt)		; Hyp.cls 1948
+            or a		; Hyp.cls 1949
+            jr z, fn_hyp_info_sb_l_lp		; Hyp.cls 1950
+            call fn_hyp_info_sb_l_rub		; Hyp.cls 1951
+            jr fn_hyp_info_sb_l_lp		; Hyp.cls 1952
+fn_hyp_info_sb_l_rub:		; Hyp.cls 1953
+            dec a		; Hyp.cls 1954
+            ld (fn_hyp_info_sb_lcnt), a		; Hyp.cls 1955
+            ld e, 8		; Hyp.cls 1956
+            call fn_hyp_info_sb_putc		; Hyp.cls 1957
+            ld e, ' '		; Hyp.cls 1958
+            call fn_hyp_info_sb_putc		; Hyp.cls 1959
+            ld e, 8		; Hyp.cls 1960
+            jp fn_hyp_info_sb_putc		; Hyp.cls 1961
+fn_hyp_info_sb_l_end:		; Hyp.cls 1962
+            ld hl, (fn_hyp_info_sb_lbuf)		; Hyp.cls 1963
+            inc hl		; Hyp.cls 1964
+            ld a, (fn_hyp_info_sb_lcnt)		; Hyp.cls 1965
+            ld (hl), a		; Hyp.cls 1966
+            ld e, 13		; Hyp.cls 1967
+            call fn_hyp_info_sb_putc		; Hyp.cls 1968
+            jp fn_hyp_info_sb_zero		; Hyp.cls 1969
+fn_hyp_info_sb_lbuf:    dw 0		; Hyp.cls 1970
+fn_hyp_info_sb_lcnt:    db 0		; Hyp.cls 1971
+fn_hyp_info_sb_call:		; Hyp.cls 1972
+            push ix                             ; a far call: IX, IY and the alternate [1973]
+            push iy                             ; registers kept over it (ex af, af') [1974]
+            db #08		; Hyp.cls 1975
+            exx		; Hyp.cls 1976
+            push af		; Hyp.cls 1977
+            push bc		; Hyp.cls 1978
+            push de		; Hyp.cls 1979
+            push hl		; Hyp.cls 1980
+            exx		; Hyp.cls 1981
+            db #08		; Hyp.cls 1982
+            ld a, (62976 + 128)		; Hyp.cls 1983
+            ld ixl, a		; Hyp.cls 1984
+            ld ixh, 0		; Hyp.cls 1985
+            ld a, c		; Hyp.cls 1986
+            ld hl, fn_hyp_info_sb_far		; Hyp.cls 1987
+            push hl		; Hyp.cls 1988
+            ld (#FFFE), sp		; Hyp.cls 1989
+            ld bc, #7FC0		; Hyp.cls 1990
+            scf                                 ; carry: a far call [1991]
+            jp #0044		; Hyp.cls 1992
+fn_hyp_info_sb_far:		; Hyp.cls 1993
+            db #08                              ; the answer in A and HL; the program's [1994]
+            exx                                 ; other registers back [1995]
+            pop hl		; Hyp.cls 1996
+            pop de		; Hyp.cls 1997
+            pop bc		; Hyp.cls 1998
+            pop af		; Hyp.cls 1999
+            exx		; Hyp.cls 2000
+            db #08		; Hyp.cls 2001
+            pop iy		; Hyp.cls 2002
+            pop ix		; Hyp.cls 2003
+            ei		; Hyp.cls 2004
+            ret		; Hyp.cls 2005
+fn_hyp_info_sb_int:		; Hyp.cls 2006
+            push af                             ; an interrupt: everything kept [2007]
             push bc		; Hyp.cls 2008
             push de		; Hyp.cls 2009
             push hl		; Hyp.cls 2010
-            push ix		; Hyp.cls 2011
-            push iy		; Hyp.cls 2012
-            ld a, (62976 + 128)		; Hyp.cls 2013
-            ld ixl, a		; Hyp.cls 2014
-            ld ixh, 0		; Hyp.cls 2015
-            ld hl, fn_hyp_info_sb_rest		; Hyp.cls 2016
-            push hl		; Hyp.cls 2017
-            ld (#FFFE), sp		; Hyp.cls 2018
-            ld bc, #7FC0		; Hyp.cls 2019
-            or a                                ; no carry: an interrupt [2020]
-            jp #0044		; Hyp.cls 2021
-fn_hyp_info_sb_rest:		; Hyp.cls 2022
-            pop iy		; Hyp.cls 2023
-            pop ix		; Hyp.cls 2024
-            pop hl		; Hyp.cls 2025
-            pop de		; Hyp.cls 2026
-            pop bc		; Hyp.cls 2027
-            pop af		; Hyp.cls 2028
-            exx		; Hyp.cls 2029
-            db #08                              ; ex af, af' [2030]
+            db #08                              ; ex af, af' [2011]
+            exx		; Hyp.cls 2012
+            push af		; Hyp.cls 2013
+            push bc		; Hyp.cls 2014
+            push de		; Hyp.cls 2015
+            push hl		; Hyp.cls 2016
+            push ix		; Hyp.cls 2017
+            push iy		; Hyp.cls 2018
+            ld a, (62976 + 128)		; Hyp.cls 2019
+            ld ixl, a		; Hyp.cls 2020
+            ld ixh, 0		; Hyp.cls 2021
+            ld hl, fn_hyp_info_sb_rest		; Hyp.cls 2022
+            push hl		; Hyp.cls 2023
+            ld (#FFFE), sp		; Hyp.cls 2024
+            ld bc, #7FC0		; Hyp.cls 2025
+            or a                                ; no carry: an interrupt [2026]
+            jp #0044		; Hyp.cls 2027
+fn_hyp_info_sb_rest:		; Hyp.cls 2028
+            pop iy		; Hyp.cls 2029
+            pop ix		; Hyp.cls 2030
             pop hl		; Hyp.cls 2031
             pop de		; Hyp.cls 2032
             pop bc		; Hyp.cls 2033
             pop af		; Hyp.cls 2034
-            ei		; Hyp.cls 2035
-            ret		; Hyp.cls 2036
-fn_hyp_info_sb_land:		; Hyp.cls 2037
-            ld sp, (#FFFE)                      ; this bank's SP [2038]
-            push af		; Hyp.cls 2039
-            ld a, e                             ; E = 1: the hypervisor has the characters [2040]
-            or a		; Hyp.cls 2041
-            jr z, fn_hyp_info_sb_lkeep		; Hyp.cls 2042
-            xor a		; Hyp.cls 2043
-            ld (62976 + 128), a		; Hyp.cls 2044
-fn_hyp_info_sb_lkeep:		; Hyp.cls 2045
-            pop af		; Hyp.cls 2046
-            ret		; Hyp.cls 2047
-fn_hyp_info_sb_scb:		; Hyp.cls 2048
-            ld h, d                             ; 49 (CP/M 3's system control block): the [2049]
-            ld l, e                             ; console's width - 1 (#1A), its page length [2050]
-            inc hl                              ; (#1C) - MODE's; other bytes 0, sets kept [2051]
-            ld a, (hl)                          ; nowhere [2052]
-            or a		; Hyp.cls 2053
-            jp nz, fn_hyp_info_sb_zero		; Hyp.cls 2054
-            ld a, (de)		; Hyp.cls 2055
-            cp #1C		; Hyp.cls 2056
-            ld hl, 63112		; Hyp.cls 2057
-            jr z, fn_hyp_info_sb_scb_a		; Hyp.cls 2058
-            cp #1A		; Hyp.cls 2059
+            exx		; Hyp.cls 2035
+            db #08                              ; ex af, af' [2036]
+            pop hl		; Hyp.cls 2037
+            pop de		; Hyp.cls 2038
+            pop bc		; Hyp.cls 2039
+            pop af		; Hyp.cls 2040
+            ei		; Hyp.cls 2041
+            ret		; Hyp.cls 2042
+fn_hyp_info_sb_land:		; Hyp.cls 2043
+            ld sp, (#FFFE)                      ; this bank's SP [2044]
+            push af		; Hyp.cls 2045
+            ld a, e                             ; E = 1: the hypervisor has the characters [2046]
+            or a		; Hyp.cls 2047
+            jr z, fn_hyp_info_sb_lkeep		; Hyp.cls 2048
+            xor a		; Hyp.cls 2049
+            ld (62976 + 128), a		; Hyp.cls 2050
+fn_hyp_info_sb_lkeep:		; Hyp.cls 2051
+            pop af		; Hyp.cls 2052
+            ret		; Hyp.cls 2053
+fn_hyp_info_sb_scb:		; Hyp.cls 2054
+            ld h, d                             ; 49 (CP/M 3's system control block): the [2055]
+            ld l, e                             ; console's width - 1 (#1A), its page length [2056]
+            inc hl                              ; (#1C) - MODE's; other bytes 0, sets kept [2057]
+            ld a, (hl)                          ; nowhere [2058]
+            or a		; Hyp.cls 2059
             jp nz, fn_hyp_info_sb_zero		; Hyp.cls 2060
-            ld a, (63111)		; Hyp.cls 2061
-            dec a		; Hyp.cls 2062
-            jp fn_hyp_info_sb_ret		; Hyp.cls 2063
-fn_hyp_info_sb_scb_a:		; Hyp.cls 2064
-            ld a, (hl)		; Hyp.cls 2065
-            jp fn_hyp_info_sb_ret		; Hyp.cls 2066
+            ld a, (de)		; Hyp.cls 2061
+            cp #1C		; Hyp.cls 2062
+            ld hl, 63112		; Hyp.cls 2063
+            jr z, fn_hyp_info_sb_scb_a		; Hyp.cls 2064
+            cp #1A		; Hyp.cls 2065
+            jp nz, fn_hyp_info_sb_zero		; Hyp.cls 2066
+            ld a, (63111)		; Hyp.cls 2067
+            dec a		; Hyp.cls 2068
+            jp fn_hyp_info_sb_ret		; Hyp.cls 2069
+fn_hyp_info_sb_scb_a:		; Hyp.cls 2070
+            ld a, (hl)		; Hyp.cls 2071
+            jp fn_hyp_info_sb_ret		; Hyp.cls 2072
 ; the BIOS: CP/M 2.2's 17 entries. The console ones as the BDOS's; the printer and punch take
 ; nothing yet; the disc ones (sectors) can't be had here: SELDSK gives 0 (no such drive),
 ; READ / WRITE 1 (an error)
-fn_hyp_info_sb_bios:		; Hyp.cls 2070
-            jp fn_hyp_info_sb_bboot                         ; BOOT [2071]
-fn_hyp_info_sb_bwb:		; Hyp.cls 2072
-            jp fn_hyp_info_sb_bboot                         ; WBOOT: (#0001) [2073]
-            jp fn_hyp_info_sb_bconst                        ; CONST [2074]
-            jp fn_hyp_info_sb_bconin                        ; CONIN [2075]
-            jp fn_hyp_info_sb_bconout                       ; CONOUT [2076]
-            jp fn_hyp_info_sb_bnone                         ; LIST [2077]
-            jp fn_hyp_info_sb_bnone                         ; PUNCH [2078]
-            jp fn_hyp_info_sb_brdr                          ; READER [2079]
-            jp fn_hyp_info_sb_bnone                         ; HOME [2080]
-            jp fn_hyp_info_sb_bseld                         ; SELDSK [2081]
-            jp fn_hyp_info_sb_bnone                         ; SETTRK [2082]
-            jp fn_hyp_info_sb_bnone                         ; SETSEC [2083]
-            jp fn_hyp_info_sb_bdma                          ; SETDMA [2084]
-            jp fn_hyp_info_sb_bfail                         ; READ [2085]
-            jp fn_hyp_info_sb_bfail                         ; WRITE [2086]
-            jp fn_hyp_info_sb_blstst                        ; LISTST [2087]
-            jp fn_hyp_info_sb_bsectr                        ; SECTRAN [2088]
-fn_hyp_info_sb_bboot:		; Hyp.cls 2089
-            ld c, 0                             ; the task ends [2090]
-            jp fn_hyp_info_sb_start		; Hyp.cls 2091
-fn_hyp_info_sb_bconst:		; Hyp.cls 2092
-            di		; Hyp.cls 2093
-            ld a, (63105)		; Hyp.cls 2094
-            or a		; Hyp.cls 2095
-            jr z, fn_hyp_info_sb_bc_n		; Hyp.cls 2096
-            ld a, #FF		; Hyp.cls 2097
-fn_hyp_info_sb_bc_n:		; Hyp.cls 2098
-            ei		; Hyp.cls 2099
-            ret		; Hyp.cls 2100
-fn_hyp_info_sb_bconin:		; Hyp.cls 2101
-            di		; Hyp.cls 2102
-            call fn_hyp_info_sb_key		; Hyp.cls 2103
-            ei		; Hyp.cls 2104
-            ret		; Hyp.cls 2105
-fn_hyp_info_sb_bconout:		; Hyp.cls 2106
-            di		; Hyp.cls 2107
-            ld e, c		; Hyp.cls 2108
-            call fn_hyp_info_sb_putc		; Hyp.cls 2109
+fn_hyp_info_sb_bios:		; Hyp.cls 2076
+            jp fn_hyp_info_sb_bboot                         ; BOOT [2077]
+fn_hyp_info_sb_bwb:		; Hyp.cls 2078
+            jp fn_hyp_info_sb_bboot                         ; WBOOT: (#0001) [2079]
+            jp fn_hyp_info_sb_bconst                        ; CONST [2080]
+            jp fn_hyp_info_sb_bconin                        ; CONIN [2081]
+            jp fn_hyp_info_sb_bconout                       ; CONOUT [2082]
+            jp fn_hyp_info_sb_bnone                         ; LIST [2083]
+            jp fn_hyp_info_sb_bnone                         ; PUNCH [2084]
+            jp fn_hyp_info_sb_brdr                          ; READER [2085]
+            jp fn_hyp_info_sb_bnone                         ; HOME [2086]
+            jp fn_hyp_info_sb_bseld                         ; SELDSK [2087]
+            jp fn_hyp_info_sb_bnone                         ; SETTRK [2088]
+            jp fn_hyp_info_sb_bnone                         ; SETSEC [2089]
+            jp fn_hyp_info_sb_bdma                          ; SETDMA [2090]
+            jp fn_hyp_info_sb_bfail                         ; READ [2091]
+            jp fn_hyp_info_sb_bfail                         ; WRITE [2092]
+            jp fn_hyp_info_sb_blstst                        ; LISTST [2093]
+            jp fn_hyp_info_sb_bsectr                        ; SECTRAN [2094]
+fn_hyp_info_sb_bboot:		; Hyp.cls 2095
+            ld c, 0                             ; the task ends [2096]
+            jp fn_hyp_info_sb_start		; Hyp.cls 2097
+fn_hyp_info_sb_bconst:		; Hyp.cls 2098
+            di		; Hyp.cls 2099
+            ld a, (63105)		; Hyp.cls 2100
+            or a		; Hyp.cls 2101
+            jr z, fn_hyp_info_sb_bc_n		; Hyp.cls 2102
+            ld a, #FF		; Hyp.cls 2103
+fn_hyp_info_sb_bc_n:		; Hyp.cls 2104
+            ei		; Hyp.cls 2105
+            ret		; Hyp.cls 2106
+fn_hyp_info_sb_bconin:		; Hyp.cls 2107
+            di		; Hyp.cls 2108
+            call fn_hyp_info_sb_key		; Hyp.cls 2109
             ei		; Hyp.cls 2110
-fn_hyp_info_sb_bnone:		; Hyp.cls 2111
-            ret		; Hyp.cls 2112
-fn_hyp_info_sb_brdr:		; Hyp.cls 2113
-            ld a, #1A		; Hyp.cls 2114
-            ret		; Hyp.cls 2115
-fn_hyp_info_sb_bseld:		; Hyp.cls 2116
-            ld hl, 0		; Hyp.cls 2117
+            ret		; Hyp.cls 2111
+fn_hyp_info_sb_bconout:		; Hyp.cls 2112
+            di		; Hyp.cls 2113
+            ld e, c		; Hyp.cls 2114
+            call fn_hyp_info_sb_putc		; Hyp.cls 2115
+            ei		; Hyp.cls 2116
+fn_hyp_info_sb_bnone:		; Hyp.cls 2117
             ret		; Hyp.cls 2118
-fn_hyp_info_sb_bdma:		; Hyp.cls 2119
-            ld d, b		; Hyp.cls 2120
-            ld e, c		; Hyp.cls 2121
-            ld c, 26		; Hyp.cls 2122
-            jp fn_hyp_info_sb_start		; Hyp.cls 2123
-fn_hyp_info_sb_bfail:		; Hyp.cls 2124
-            ld a, 1		; Hyp.cls 2125
-            ret		; Hyp.cls 2126
-fn_hyp_info_sb_blstst:		; Hyp.cls 2127
-            ld a, #FF		; Hyp.cls 2128
-            ret		; Hyp.cls 2129
-fn_hyp_info_sb_bsectr:		; Hyp.cls 2130
-            ld h, b		; Hyp.cls 2131
-            ld l, c		; Hyp.cls 2132
-            ret		; Hyp.cls 2133
+fn_hyp_info_sb_brdr:		; Hyp.cls 2119
+            ld a, #1A		; Hyp.cls 2120
+            ret		; Hyp.cls 2121
+fn_hyp_info_sb_bseld:		; Hyp.cls 2122
+            ld hl, 0		; Hyp.cls 2123
+            ret		; Hyp.cls 2124
+fn_hyp_info_sb_bdma:		; Hyp.cls 2125
+            ld d, b		; Hyp.cls 2126
+            ld e, c		; Hyp.cls 2127
+            ld c, 26		; Hyp.cls 2128
+            jp fn_hyp_info_sb_start		; Hyp.cls 2129
+fn_hyp_info_sb_bfail:		; Hyp.cls 2130
+            ld a, 1		; Hyp.cls 2131
+            ret		; Hyp.cls 2132
+fn_hyp_info_sb_blstst:		; Hyp.cls 2133
+            ld a, #FF		; Hyp.cls 2134
+            ret		; Hyp.cls 2135
+fn_hyp_info_sb_bsectr:		; Hyp.cls 2136
+            ld h, b		; Hyp.cls 2137
+            ld l, c		; Hyp.cls 2138
+            ret		; Hyp.cls 2139
 ; a CPC data format disc's parameters (31) and allocation vector (27): 180 1K blocks, 64
 ; directory entries in the first two
-fn_hyp_info_sb_dpbv:		; Hyp.cls 2136
-            dw 36                               ; SPT: 128 byte records a track [2137]
-            db 3, 7, 0                          ; BSH, BLM, EXM [2138]
-            dw 179, 63                          ; DSM, DRM [2139]
-            db #C0, 0                           ; AL0, AL1 [2140]
-            dw 16, 0                            ; CKS, OFF [2141]
-fn_hyp_info_sb_alvec:		; Hyp.cls 2142
-            db #C0		; Hyp.cls 2143
-            ds 22		; Hyp.cls 2144
+fn_hyp_info_sb_dpbv:		; Hyp.cls 2142
+            dw 36                               ; SPT: 128 byte records a track [2143]
+            db 3, 7, 0                          ; BSH, BLM, EXM [2144]
+            dw 179, 63                          ; DSM, DRM [2145]
+            db #C0, 0                           ; AL0, AL1 [2146]
+            dw 16, 0                            ; CKS, OFF [2147]
+fn_hyp_info_sb_alvec:		; Hyp.cls 2148
+            db #C0		; Hyp.cls 2149
+            ds 22		; Hyp.cls 2150
 ; the start-up: the default FCBs (#005C, #006C) from the command tail (#0080), as the CCP
 ; makes them - "B:NAME.EXT", * as ?s - then the program at #0100
-fn_hyp_info_sb_init:		; Hyp.cls 2147
-            ld hl, #005C		; Hyp.cls 2148
-            call fn_hyp_info_sb_iclr		; Hyp.cls 2149
-            ld hl, #006C		; Hyp.cls 2150
-            call fn_hyp_info_sb_iclr		; Hyp.cls 2151
-            ld hl, #0081		; Hyp.cls 2152
-            ld a, (#0080)		; Hyp.cls 2153
-            ld b, a		; Hyp.cls 2154
-            ld de, #005C		; Hyp.cls 2155
-            call fn_hyp_info_sb_parse		; Hyp.cls 2156
-            ld de, #006C		; Hyp.cls 2157
-            call fn_hyp_info_sb_parse		; Hyp.cls 2158
-            jp #0100		; Hyp.cls 2159
-fn_hyp_info_sb_iclr:		; Hyp.cls 2160
-            ld (hl), 0		; Hyp.cls 2161
-            inc hl		; Hyp.cls 2162
-            ld c, 11		; Hyp.cls 2163
-fn_hyp_info_sb_ic_sp:		; Hyp.cls 2164
-            ld (hl), ' '		; Hyp.cls 2165
-            inc hl		; Hyp.cls 2166
-            dec c		; Hyp.cls 2167
-            jr nz, fn_hyp_info_sb_ic_sp		; Hyp.cls 2168
-            ld c, 4		; Hyp.cls 2169
-fn_hyp_info_sb_ic_z:		; Hyp.cls 2170
-            ld (hl), 0		; Hyp.cls 2171
+fn_hyp_info_sb_init:		; Hyp.cls 2153
+            ld hl, #005C		; Hyp.cls 2154
+            call fn_hyp_info_sb_iclr		; Hyp.cls 2155
+            ld hl, #006C		; Hyp.cls 2156
+            call fn_hyp_info_sb_iclr		; Hyp.cls 2157
+            ld hl, #0081		; Hyp.cls 2158
+            ld a, (#0080)		; Hyp.cls 2159
+            ld b, a		; Hyp.cls 2160
+            ld de, #005C		; Hyp.cls 2161
+            call fn_hyp_info_sb_parse		; Hyp.cls 2162
+            ld de, #006C		; Hyp.cls 2163
+            call fn_hyp_info_sb_parse		; Hyp.cls 2164
+            jp #0100		; Hyp.cls 2165
+fn_hyp_info_sb_iclr:		; Hyp.cls 2166
+            ld (hl), 0		; Hyp.cls 2167
+            inc hl		; Hyp.cls 2168
+            ld c, 11		; Hyp.cls 2169
+fn_hyp_info_sb_ic_sp:		; Hyp.cls 2170
+            ld (hl), ' '		; Hyp.cls 2171
             inc hl		; Hyp.cls 2172
             dec c		; Hyp.cls 2173
-            jr nz, fn_hyp_info_sb_ic_z		; Hyp.cls 2174
-            ret		; Hyp.cls 2175
+            jr nz, fn_hyp_info_sb_ic_sp		; Hyp.cls 2174
+            ld c, 4		; Hyp.cls 2175
+fn_hyp_info_sb_ic_z:		; Hyp.cls 2176
+            ld (hl), 0		; Hyp.cls 2177
+            inc hl		; Hyp.cls 2178
+            dec c		; Hyp.cls 2179
+            jr nz, fn_hyp_info_sb_ic_z		; Hyp.cls 2180
+            ret		; Hyp.cls 2181
 ; sb_parse - HL = the tail, B = characters left; DE = an FCB: the next word into it
-fn_hyp_info_sb_parse:		; Hyp.cls 2177
-            ld a, b		; Hyp.cls 2178
-            or a		; Hyp.cls 2179
-            ret z		; Hyp.cls 2180
-            ld a, (hl)		; Hyp.cls 2181
-            cp ' '		; Hyp.cls 2182
-            jr nz, fn_hyp_info_sb_p_word		; Hyp.cls 2183
-            inc hl		; Hyp.cls 2184
-            dec b		; Hyp.cls 2185
-            jr fn_hyp_info_sb_parse		; Hyp.cls 2186
-fn_hyp_info_sb_p_word:		; Hyp.cls 2187
-            ld (fn_hyp_info_sb_pfcb), de		; Hyp.cls 2188
-            ld a, b		; Hyp.cls 2189
-            cp 2		; Hyp.cls 2190
-            jr c, fn_hyp_info_sb_p_name		; Hyp.cls 2191
-            inc hl		; Hyp.cls 2192
-            ld a, (hl)		; Hyp.cls 2193
-            dec hl		; Hyp.cls 2194
-            cp ':'		; Hyp.cls 2195
-            jr nz, fn_hyp_info_sb_p_name		; Hyp.cls 2196
-            ld a, (hl)		; Hyp.cls 2197
-            sub '@'		; Hyp.cls 2198
-            ld (de), a                          ; its drive [2199]
-            inc hl		; Hyp.cls 2200
-            inc hl		; Hyp.cls 2201
-            dec b		; Hyp.cls 2202
-            dec b		; Hyp.cls 2203
-fn_hyp_info_sb_p_name:		; Hyp.cls 2204
-            inc de		; Hyp.cls 2205
-            ld c, 8		; Hyp.cls 2206
-            call fn_hyp_info_sb_pfield		; Hyp.cls 2207
-            ld a, b		; Hyp.cls 2208
-            or a		; Hyp.cls 2209
-            ret z		; Hyp.cls 2210
-            ld a, (hl)		; Hyp.cls 2211
-            cp '.'		; Hyp.cls 2212
-            jr nz, fn_hyp_info_sb_p_skip		; Hyp.cls 2213
-            inc hl		; Hyp.cls 2214
-            dec b		; Hyp.cls 2215
-            ld de, (fn_hyp_info_sb_pfcb)		; Hyp.cls 2216
-            ld a, e		; Hyp.cls 2217
-            add a, 9		; Hyp.cls 2218
-            ld e, a		; Hyp.cls 2219
-            ld c, 3		; Hyp.cls 2220
-            call fn_hyp_info_sb_pfield		; Hyp.cls 2221
-fn_hyp_info_sb_p_skip:		; Hyp.cls 2222
-            ld a, b                             ; the rest of the word [2223]
-            or a		; Hyp.cls 2224
-            ret z		; Hyp.cls 2225
-            ld a, (hl)		; Hyp.cls 2226
-            cp ' '		; Hyp.cls 2227
-            ret z		; Hyp.cls 2228
-            inc hl		; Hyp.cls 2229
-            dec b		; Hyp.cls 2230
-            jr fn_hyp_info_sb_p_skip		; Hyp.cls 2231
+fn_hyp_info_sb_parse:		; Hyp.cls 2183
+            ld a, b		; Hyp.cls 2184
+            or a		; Hyp.cls 2185
+            ret z		; Hyp.cls 2186
+            ld a, (hl)		; Hyp.cls 2187
+            cp ' '		; Hyp.cls 2188
+            jr nz, fn_hyp_info_sb_p_word		; Hyp.cls 2189
+            inc hl		; Hyp.cls 2190
+            dec b		; Hyp.cls 2191
+            jr fn_hyp_info_sb_parse		; Hyp.cls 2192
+fn_hyp_info_sb_p_word:		; Hyp.cls 2193
+            ld (fn_hyp_info_sb_pfcb), de		; Hyp.cls 2194
+            ld a, b		; Hyp.cls 2195
+            cp 2		; Hyp.cls 2196
+            jr c, fn_hyp_info_sb_p_name		; Hyp.cls 2197
+            inc hl		; Hyp.cls 2198
+            ld a, (hl)		; Hyp.cls 2199
+            dec hl		; Hyp.cls 2200
+            cp ':'		; Hyp.cls 2201
+            jr nz, fn_hyp_info_sb_p_name		; Hyp.cls 2202
+            ld a, (hl)		; Hyp.cls 2203
+            sub '@'		; Hyp.cls 2204
+            ld (de), a                          ; its drive [2205]
+            inc hl		; Hyp.cls 2206
+            inc hl		; Hyp.cls 2207
+            dec b		; Hyp.cls 2208
+            dec b		; Hyp.cls 2209
+fn_hyp_info_sb_p_name:		; Hyp.cls 2210
+            inc de		; Hyp.cls 2211
+            ld c, 8		; Hyp.cls 2212
+            call fn_hyp_info_sb_pfield		; Hyp.cls 2213
+            ld a, b		; Hyp.cls 2214
+            or a		; Hyp.cls 2215
+            ret z		; Hyp.cls 2216
+            ld a, (hl)		; Hyp.cls 2217
+            cp '.'		; Hyp.cls 2218
+            jr nz, fn_hyp_info_sb_p_skip		; Hyp.cls 2219
+            inc hl		; Hyp.cls 2220
+            dec b		; Hyp.cls 2221
+            ld de, (fn_hyp_info_sb_pfcb)		; Hyp.cls 2222
+            ld a, e		; Hyp.cls 2223
+            add a, 9		; Hyp.cls 2224
+            ld e, a		; Hyp.cls 2225
+            ld c, 3		; Hyp.cls 2226
+            call fn_hyp_info_sb_pfield		; Hyp.cls 2227
+fn_hyp_info_sb_p_skip:		; Hyp.cls 2228
+            ld a, b                             ; the rest of the word [2229]
+            or a		; Hyp.cls 2230
+            ret z		; Hyp.cls 2231
+            ld a, (hl)		; Hyp.cls 2232
+            cp ' '		; Hyp.cls 2233
+            ret z		; Hyp.cls 2234
+            inc hl		; Hyp.cls 2235
+            dec b		; Hyp.cls 2236
+            jr fn_hyp_info_sb_p_skip		; Hyp.cls 2237
 ; sb_pfield - up to C characters into the field at DE, to a "." or a space; * fills it with ?
-fn_hyp_info_sb_pfield:		; Hyp.cls 2233
-            ld a, b		; Hyp.cls 2234
-            or a		; Hyp.cls 2235
-            ret z		; Hyp.cls 2236
-            ld a, (hl)		; Hyp.cls 2237
-            cp ' '		; Hyp.cls 2238
-            ret z		; Hyp.cls 2239
-            cp '.'		; Hyp.cls 2240
-            ret z		; Hyp.cls 2241
-            cp '*'		; Hyp.cls 2242
-            jr z, fn_hyp_info_sb_pf_star		; Hyp.cls 2243
-            inc c		; Hyp.cls 2244
-            dec c		; Hyp.cls 2245
-            jr z, fn_hyp_info_sb_pf_on                      ; (the field full: the extra left out) [2246]
-            ld (de), a		; Hyp.cls 2247
-            inc de		; Hyp.cls 2248
-            dec c		; Hyp.cls 2249
-fn_hyp_info_sb_pf_on:		; Hyp.cls 2250
-            inc hl		; Hyp.cls 2251
-            dec b		; Hyp.cls 2252
-            jr fn_hyp_info_sb_pfield		; Hyp.cls 2253
-fn_hyp_info_sb_pf_star:		; Hyp.cls 2254
-            inc c		; Hyp.cls 2255
-            dec c		; Hyp.cls 2256
-            jr z, fn_hyp_info_sb_pf_on		; Hyp.cls 2257
-            ld a, '?'		; Hyp.cls 2258
-            ld (de), a		; Hyp.cls 2259
-            inc de		; Hyp.cls 2260
-            dec c		; Hyp.cls 2261
-            jr fn_hyp_info_sb_pf_star		; Hyp.cls 2262
-fn_hyp_info_sb_pfcb:    dw 0		; Hyp.cls 2263
-fn_hyp_info_sb_end:		; Hyp.cls 2264
-            ENT		; Hyp.cls 2265
-            ASSERT fn_hyp_info_sb_end - fn_hyp_info_sb_start <= 62208 - 61184, "the bank stubs must fit below FONT"		; Hyp.cls 2266
-            ASSERT fn_hyp_info_sb_end - fn_hyp_info_sb_start <= #340, "the stubs must leave a program's first stack (#F240-#F2FF) free"		; Hyp.cls 2267
+fn_hyp_info_sb_pfield:		; Hyp.cls 2239
+            ld a, b		; Hyp.cls 2240
+            or a		; Hyp.cls 2241
+            ret z		; Hyp.cls 2242
+            ld a, (hl)		; Hyp.cls 2243
+            cp ' '		; Hyp.cls 2244
+            ret z		; Hyp.cls 2245
+            cp '.'		; Hyp.cls 2246
+            ret z		; Hyp.cls 2247
+            cp '*'		; Hyp.cls 2248
+            jr z, fn_hyp_info_sb_pf_star		; Hyp.cls 2249
+            inc c		; Hyp.cls 2250
+            dec c		; Hyp.cls 2251
+            jr z, fn_hyp_info_sb_pf_on                      ; (the field full: the extra left out) [2252]
+            ld (de), a		; Hyp.cls 2253
+            inc de		; Hyp.cls 2254
+            dec c		; Hyp.cls 2255
+fn_hyp_info_sb_pf_on:		; Hyp.cls 2256
+            inc hl		; Hyp.cls 2257
+            dec b		; Hyp.cls 2258
+            jr fn_hyp_info_sb_pfield		; Hyp.cls 2259
+fn_hyp_info_sb_pf_star:		; Hyp.cls 2260
+            inc c		; Hyp.cls 2261
+            dec c		; Hyp.cls 2262
+            jr z, fn_hyp_info_sb_pf_on		; Hyp.cls 2263
+            ld a, '?'		; Hyp.cls 2264
+            ld (de), a		; Hyp.cls 2265
+            inc de		; Hyp.cls 2266
+            dec c		; Hyp.cls 2267
+            jr fn_hyp_info_sb_pf_star		; Hyp.cls 2268
+fn_hyp_info_sb_pfcb:    dw 0		; Hyp.cls 2269
+fn_hyp_info_sb_end:		; Hyp.cls 2270
+            ENT		; Hyp.cls 2271
+            ASSERT fn_hyp_info_sb_end - fn_hyp_info_sb_start <= 62208 - 61184, "the bank stubs must fit below FONT"		; Hyp.cls 2272
+            ASSERT fn_hyp_info_sb_end - fn_hyp_info_sb_start <= #340, "the stubs must leave a program's first stack (#F240-#F2FF) free"		; Hyp.cls 2273
 ; ---- the page code: in the hypervisor's page (window data), called with it in the window
-asm_1_2310_n_fp_start:		; Hyp.cls 2567
-            ASSERT asm_1_2310_n_fp_start >= #5300, "FileCall's page code: after the disc buffers and the font"		; Hyp.cls 2568
-asm_1_2310_n_fp_go:		; Hyp.cls 2569
-            ld (asm_1_2310_n_fp_sp), sp		; Hyp.cls 2570
-            ld a, (var_hyp_filecall_f)		; Hyp.cls 2571
-            cp 15		; Hyp.cls 2572
-            jp z, asm_1_2310_n_fl_open		; Hyp.cls 2573
-            cp 16		; Hyp.cls 2574
-            jp z, asm_1_2310_n_fl_close		; Hyp.cls 2575
-            cp 19		; Hyp.cls 2576
-            jp z, asm_1_2310_n_fl_del		; Hyp.cls 2577
-            cp 23		; Hyp.cls 2578
-            jp z, asm_1_2310_n_fl_ren		; Hyp.cls 2579
-            cp 20		; Hyp.cls 2580
-            jp z, asm_1_2310_n_fl_rdseq		; Hyp.cls 2581
-            cp 33		; Hyp.cls 2582
-            jp z, asm_1_2310_n_fl_rdran		; Hyp.cls 2583
-            cp 21		; Hyp.cls 2584
-            jp z, asm_1_2310_n_fl_write		; Hyp.cls 2585
-            cp 34		; Hyp.cls 2586
-            jp z, asm_1_2310_n_fl_write		; Hyp.cls 2587
-            cp 22		; Hyp.cls 2588
-            jp z, asm_1_2310_n_fl_make		; Hyp.cls 2589
-            cp 17		; Hyp.cls 2590
-            jp z, asm_1_2310_n_fl_srch1		; Hyp.cls 2591
-            cp 18		; Hyp.cls 2592
-            jp z, asm_1_2310_n_fl_srch		; Hyp.cls 2593
-            cp 35		; Hyp.cls 2594
-            jp z, asm_1_2310_n_fl_size		; Hyp.cls 2595
-            cp 36		; Hyp.cls 2596
-            jp z, asm_1_2310_n_fl_setran		; Hyp.cls 2597
-            cp 100		; Hyp.cls 2598
-            jp z, asm_1_2310_n_fl_hopen		; Hyp.cls 2599
-            cp 101		; Hyp.cls 2600
-            jp z, asm_1_2310_n_fl_hread		; Hyp.cls 2601
-            cp 102		; Hyp.cls 2602
-            jp z, asm_1_2310_n_fl_hclose		; Hyp.cls 2603
-            cp 103		; Hyp.cls 2604
-            jp z, asm_1_2310_n_fl_hload		; Hyp.cls 2605
-            cp 30		; Hyp.cls 2606
-            jp z, asm_1_2310_n_fl_unicall		; Hyp.cls 2607
-            jp asm_1_2310_n_fp_done		; Hyp.cls 2608
+asm_1_2316_n_fp_start:		; Hyp.cls 2573
+            ASSERT asm_1_2316_n_fp_start >= #5300, "FileCall's page code: after the disc buffers and the font"		; Hyp.cls 2574
+asm_1_2316_n_fp_go:		; Hyp.cls 2575
+            ld (asm_1_2316_n_fp_sp), sp		; Hyp.cls 2576
+            ld a, (var_hyp_filecall_f)		; Hyp.cls 2577
+            cp 15		; Hyp.cls 2578
+            jp z, asm_1_2316_n_fl_open		; Hyp.cls 2579
+            cp 16		; Hyp.cls 2580
+            jp z, asm_1_2316_n_fl_close		; Hyp.cls 2581
+            cp 19		; Hyp.cls 2582
+            jp z, asm_1_2316_n_fl_del		; Hyp.cls 2583
+            cp 23		; Hyp.cls 2584
+            jp z, asm_1_2316_n_fl_ren		; Hyp.cls 2585
+            cp 20		; Hyp.cls 2586
+            jp z, asm_1_2316_n_fl_rdseq		; Hyp.cls 2587
+            cp 33		; Hyp.cls 2588
+            jp z, asm_1_2316_n_fl_rdran		; Hyp.cls 2589
+            cp 21		; Hyp.cls 2590
+            jp z, asm_1_2316_n_fl_write		; Hyp.cls 2591
+            cp 34		; Hyp.cls 2592
+            jp z, asm_1_2316_n_fl_write		; Hyp.cls 2593
+            cp 22		; Hyp.cls 2594
+            jp z, asm_1_2316_n_fl_make		; Hyp.cls 2595
+            cp 17		; Hyp.cls 2596
+            jp z, asm_1_2316_n_fl_srch1		; Hyp.cls 2597
+            cp 18		; Hyp.cls 2598
+            jp z, asm_1_2316_n_fl_srch		; Hyp.cls 2599
+            cp 35		; Hyp.cls 2600
+            jp z, asm_1_2316_n_fl_size		; Hyp.cls 2601
+            cp 36		; Hyp.cls 2602
+            jp z, asm_1_2316_n_fl_setran		; Hyp.cls 2603
+            cp 100		; Hyp.cls 2604
+            jp z, asm_1_2316_n_fl_hopen		; Hyp.cls 2605
+            cp 101		; Hyp.cls 2606
+            jp z, asm_1_2316_n_fl_hread		; Hyp.cls 2607
+            cp 102		; Hyp.cls 2608
+            jp z, asm_1_2316_n_fl_hclose		; Hyp.cls 2609
+            cp 103		; Hyp.cls 2610
+            jp z, asm_1_2316_n_fl_hload		; Hyp.cls 2611
+            cp 30		; Hyp.cls 2612
+            jp z, asm_1_2316_n_fl_unicall		; Hyp.cls 2613
+            jp asm_1_2316_n_fp_done		; Hyp.cls 2614
 ; ---- the hypervisor's own reading (RUN, DIR, CD): 100 open the file named at fcb (dma
 ; characters, main RAM); 101 read dma bytes (128 at most) to buf: how many; 102 close; 103 the
 ; rest of it into the slot (setting) from address dma, fcb bytes at most: how many. Not while
 ; a slot reads a file (255)
-asm_1_2310_n_fl_hopen:		; Hyp.cls 2613
-            ld a, (var_hyp_fin)		; Hyp.cls 2614
-            or a		; Hyp.cls 2615
-            jp nz, asm_1_2310_n_fp_done		; Hyp.cls 2616
-            ld de, asm_1_2310_n_fl_name_s + 1		; Hyp.cls 2617
-            ld hl, (var_hyp_filecall_fcb)          ; a name with no drive: the hypervisor's drive's path first [2618]
-            ld bc, (var_hyp_filecall_dma)          ; when it has one (UniDOS: CD IDE: ...) [2619]
-            ld a, ':'		; Hyp.cls 2620
-            cpir		; Hyp.cls 2621
-            jr z, asm_1_2310_n_fl_ho_nm		; Hyp.cls 2622
-            ld a, (var_hyp_hdr)		; Hyp.cls 2623
-            call asm_1_2310_n_fl_pfxm		; Hyp.cls 2624
-asm_1_2310_n_fl_ho_nm:		; Hyp.cls 2625
-            ld hl, (var_hyp_filecall_fcb)		; Hyp.cls 2626
-            ld bc, (var_hyp_filecall_dma)		; Hyp.cls 2627
-            ldir		; Hyp.cls 2628
-            call asm_1_2310_n_fl_nlen		; Hyp.cls 2629
-            call asm_1_2310_n_fl_inopen		; Hyp.cls 2630
-            jr c, asm_1_2310_n_fl_ho_ok		; Hyp.cls 2631
-            ld hl, asm_1_2310_n_fl_name_s        ; NAME.CYB not there: with UniDOS NAME.COM instead (RUN - a [2632]
-            ld e, (hl)              ; .COM with no entry: UniDOS reads a file with no header to [2633]
-            ld d, 0                 ; its real end) [2634]
-            add hl, de		; Hyp.cls 2635
-            ld a, (hl)		; Hyp.cls 2636
-            cp 'B'		; Hyp.cls 2637
-            jp nz, asm_1_2310_n_fp_done		; Hyp.cls 2638
-            ld (hl), 'M'		; Hyp.cls 2639
-            dec hl		; Hyp.cls 2640
-            ld a, (hl)		; Hyp.cls 2641
-            cp 'Y'		; Hyp.cls 2642
-            jp nz, asm_1_2310_n_fp_done		; Hyp.cls 2643
-            ld (hl), 'O'		; Hyp.cls 2644
-            call asm_1_2310_n_fl_uni		; Hyp.cls 2645
-            jp nc, asm_1_2310_n_fp_done		; Hyp.cls 2646
-            call asm_1_2310_n_fl_inopen		; Hyp.cls 2647
-            jp nc, asm_1_2310_n_fp_done		; Hyp.cls 2648
-            ld hl, (var_hyp_filecall_fcb)          ; (the caller's name too: NAME.COM) [2649]
-            ld bc, (var_hyp_filecall_dma)		; Hyp.cls 2650
-            add hl, bc		; Hyp.cls 2651
-            dec hl		; Hyp.cls 2652
-            ld (hl), 'M'		; Hyp.cls 2653
-            dec hl		; Hyp.cls 2654
-            ld (hl), 'O'		; Hyp.cls 2655
-asm_1_2310_n_fl_ho_ok:		; Hyp.cls 2656
-            ld a, 99                ; (99: the hypervisor's) [2657]
-            ld (var_hyp_fin), a		; Hyp.cls 2658
-            jp asm_1_2310_n_fl_ok		; Hyp.cls 2659
-asm_1_2310_n_fl_hread:		; Hyp.cls 2660
-            ld a, (var_hyp_filecall_dma)		; Hyp.cls 2661
-            ld (asm_1_2310_n_fl_n), a		; Hyp.cls 2662
-            call asm_1_2310_n_fl_rdrec		; Hyp.cls 2663
-            ld (asm_1_2310_n_fl_res), a		; Hyp.cls 2664
-            jp asm_1_2310_n_fp_done		; Hyp.cls 2665
-asm_1_2310_n_fl_hclose:		; Hyp.cls 2666
-            ld a, (var_hyp_fin)		; Hyp.cls 2667
-            cp 99		; Hyp.cls 2668
-            jp nz, asm_1_2310_n_fp_done		; Hyp.cls 2669
-            call asm_1_2310_n_fl_inclose		; Hyp.cls 2670
-            jp asm_1_2310_n_fl_ok		; Hyp.cls 2671
-asm_1_2310_n_fl_hload:		; Hyp.cls 2672
-            ld hl, 0		; Hyp.cls 2673
-            ld (asm_1_2310_n_fl_cnt), hl		; Hyp.cls 2674
-            ld hl, (var_hyp_filecall_dma)		; Hyp.cls 2675
-            ld (asm_1_2310_n_fl_at), hl		; Hyp.cls 2676
-asm_1_2310_n_fl_hl_lp:		; Hyp.cls 2677
-            ld hl, (var_hyp_filecall_fcb)          ; what is left to load (fcb bytes at most) [2678]
-            ld de, (asm_1_2310_n_fl_cnt)		; Hyp.cls 2679
-            or a		; Hyp.cls 2680
-            sbc hl, de		; Hyp.cls 2681
-            jr z, asm_1_2310_n_fl_hl_end		; Hyp.cls 2682
-            ld a, h		; Hyp.cls 2683
-            or a		; Hyp.cls 2684
-            ld a, 128		; Hyp.cls 2685
-            jr nz, asm_1_2310_n_fl_hl_n		; Hyp.cls 2686
-            ld a, l		; Hyp.cls 2687
-            cp 128		; Hyp.cls 2688
-            jr c, asm_1_2310_n_fl_hl_n		; Hyp.cls 2689
-            ld a, 128		; Hyp.cls 2690
-asm_1_2310_n_fl_hl_n:		; Hyp.cls 2691
-            ld (asm_1_2310_n_fl_n), a		; Hyp.cls 2692
-            ld (asm_1_2310_n_fl_want), a		; Hyp.cls 2693
-            call asm_1_2310_n_fl_rdrec           ; a record's worth into buf [2694]
-            jr z, asm_1_2310_n_fl_hl_end		; Hyp.cls 2695
-            ld b, a		; Hyp.cls 2696
-            ld (asm_1_2310_n_fl_want + 1), a		; Hyp.cls 2697
-            ld hl, (asm_1_2310_n_fl_cnt)		; Hyp.cls 2698
-            ld e, a		; Hyp.cls 2699
-            ld d, 0		; Hyp.cls 2700
-            add hl, de		; Hyp.cls 2701
-            ld (asm_1_2310_n_fl_cnt), hl		; Hyp.cls 2702
-            ld hl, (asm_1_2310_n_fl_at)		; Hyp.cls 2703
-            ld c, b		; Hyp.cls 2704
-            ld b, 0		; Hyp.cls 2705
-            call asm_1_2310_n_fl_fits		; Hyp.cls 2706
-            jr c, asm_1_2310_n_fl_hl_slow		; Hyp.cls 2707
-            push bc		; Hyp.cls 2708
-            ld de, (var_hyp_filecall_buf)          ; in one page: one ldir [2709]
-            call asm_1_2310_n_fl_toslot		; Hyp.cls 2710
-            pop bc		; Hyp.cls 2711
-            ld hl, (asm_1_2310_n_fl_at)		; Hyp.cls 2712
-            add hl, bc		; Hyp.cls 2713
-            jr asm_1_2310_n_fl_hl_put		; Hyp.cls 2714
-asm_1_2310_n_fl_hl_slow:		; Hyp.cls 2715
-            ld b, c		; Hyp.cls 2716
-            ld de, (var_hyp_filecall_buf)		; Hyp.cls 2717
-asm_1_2310_n_fl_hl_cp:		; Hyp.cls 2718
-            ld a, (de)              ; into the slot [2719]
-            call asm_1_2310_n_fl_poke		; Hyp.cls 2720
-            inc hl		; Hyp.cls 2721
-            inc de		; Hyp.cls 2722
-            djnz asm_1_2310_n_fl_hl_cp		; Hyp.cls 2723
-asm_1_2310_n_fl_hl_put:		; Hyp.cls 2724
-            ld (asm_1_2310_n_fl_at), hl		; Hyp.cls 2725
-            ld a, (asm_1_2310_n_fl_want)		; Hyp.cls 2726
-            ld b, a		; Hyp.cls 2727
-            ld a, (asm_1_2310_n_fl_want + 1)		; Hyp.cls 2728
-            cp b		; Hyp.cls 2729
-            jr z, asm_1_2310_n_fl_hl_lp          ; a whole one: on [2730]
-asm_1_2310_n_fl_hl_end:		; Hyp.cls 2731
-            ld hl, (asm_1_2310_n_fl_cnt)		; Hyp.cls 2732
-            ld (asm_1_2310_n_fl_res16), hl		; Hyp.cls 2733
-            ld a, 1		; Hyp.cls 2734
-            ld (asm_1_2310_n_fl_r16), a		; Hyp.cls 2735
-            jp asm_1_2310_n_fp_done		; Hyp.cls 2736
+asm_1_2316_n_fl_hopen:		; Hyp.cls 2619
+            ld a, (var_hyp_fin)		; Hyp.cls 2620
+            or a		; Hyp.cls 2621
+            jp nz, asm_1_2316_n_fp_done		; Hyp.cls 2622
+            ld de, asm_1_2316_n_fl_name_s + 1		; Hyp.cls 2623
+            ld hl, (var_hyp_filecall_fcb)          ; a name with no drive: the hypervisor's drive's path first [2624]
+            ld bc, (var_hyp_filecall_dma)          ; when it has one (UniDOS: CD IDE: ...) [2625]
+            ld a, ':'		; Hyp.cls 2626
+            cpir		; Hyp.cls 2627
+            jr z, asm_1_2316_n_fl_ho_nm		; Hyp.cls 2628
+            ld a, (var_hyp_hdr)		; Hyp.cls 2629
+            call asm_1_2316_n_fl_pfxm		; Hyp.cls 2630
+asm_1_2316_n_fl_ho_nm:		; Hyp.cls 2631
+            ld hl, (var_hyp_filecall_fcb)		; Hyp.cls 2632
+            ld bc, (var_hyp_filecall_dma)		; Hyp.cls 2633
+            ldir		; Hyp.cls 2634
+            call asm_1_2316_n_fl_nlen		; Hyp.cls 2635
+            call asm_1_2316_n_fl_inopen		; Hyp.cls 2636
+            jr c, asm_1_2316_n_fl_ho_ok		; Hyp.cls 2637
+            ld hl, asm_1_2316_n_fl_name_s        ; NAME.CYB not there: with UniDOS NAME.COM instead (RUN - a [2638]
+            ld e, (hl)              ; .COM with no entry: UniDOS reads a file with no header to [2639]
+            ld d, 0                 ; its real end) [2640]
+            add hl, de		; Hyp.cls 2641
+            ld a, (hl)		; Hyp.cls 2642
+            cp 'B'		; Hyp.cls 2643
+            jp nz, asm_1_2316_n_fp_done		; Hyp.cls 2644
+            ld (hl), 'M'		; Hyp.cls 2645
+            dec hl		; Hyp.cls 2646
+            ld a, (hl)		; Hyp.cls 2647
+            cp 'Y'		; Hyp.cls 2648
+            jp nz, asm_1_2316_n_fp_done		; Hyp.cls 2649
+            ld (hl), 'O'		; Hyp.cls 2650
+            call asm_1_2316_n_fl_uni		; Hyp.cls 2651
+            jp nc, asm_1_2316_n_fp_done		; Hyp.cls 2652
+            call asm_1_2316_n_fl_inopen		; Hyp.cls 2653
+            jp nc, asm_1_2316_n_fp_done		; Hyp.cls 2654
+            ld hl, (var_hyp_filecall_fcb)          ; (the caller's name too: NAME.COM) [2655]
+            ld bc, (var_hyp_filecall_dma)		; Hyp.cls 2656
+            add hl, bc		; Hyp.cls 2657
+            dec hl		; Hyp.cls 2658
+            ld (hl), 'M'		; Hyp.cls 2659
+            dec hl		; Hyp.cls 2660
+            ld (hl), 'O'		; Hyp.cls 2661
+asm_1_2316_n_fl_ho_ok:		; Hyp.cls 2662
+            ld a, 99                ; (99: the hypervisor's) [2663]
+            ld (var_hyp_fin), a		; Hyp.cls 2664
+            jp asm_1_2316_n_fl_ok		; Hyp.cls 2665
+asm_1_2316_n_fl_hread:		; Hyp.cls 2666
+            ld a, (var_hyp_filecall_dma)		; Hyp.cls 2667
+            ld (asm_1_2316_n_fl_n), a		; Hyp.cls 2668
+            call asm_1_2316_n_fl_rdrec		; Hyp.cls 2669
+            ld (asm_1_2316_n_fl_res), a		; Hyp.cls 2670
+            jp asm_1_2316_n_fp_done		; Hyp.cls 2671
+asm_1_2316_n_fl_hclose:		; Hyp.cls 2672
+            ld a, (var_hyp_fin)		; Hyp.cls 2673
+            cp 99		; Hyp.cls 2674
+            jp nz, asm_1_2316_n_fp_done		; Hyp.cls 2675
+            call asm_1_2316_n_fl_inclose		; Hyp.cls 2676
+            jp asm_1_2316_n_fl_ok		; Hyp.cls 2677
+asm_1_2316_n_fl_hload:		; Hyp.cls 2678
+            ld hl, 0		; Hyp.cls 2679
+            ld (asm_1_2316_n_fl_cnt), hl		; Hyp.cls 2680
+            ld hl, (var_hyp_filecall_dma)		; Hyp.cls 2681
+            ld (asm_1_2316_n_fl_at), hl		; Hyp.cls 2682
+asm_1_2316_n_fl_hl_lp:		; Hyp.cls 2683
+            ld hl, (var_hyp_filecall_fcb)          ; what is left to load (fcb bytes at most) [2684]
+            ld de, (asm_1_2316_n_fl_cnt)		; Hyp.cls 2685
+            or a		; Hyp.cls 2686
+            sbc hl, de		; Hyp.cls 2687
+            jr z, asm_1_2316_n_fl_hl_end		; Hyp.cls 2688
+            ld a, h		; Hyp.cls 2689
+            or a		; Hyp.cls 2690
+            ld a, 128		; Hyp.cls 2691
+            jr nz, asm_1_2316_n_fl_hl_n		; Hyp.cls 2692
+            ld a, l		; Hyp.cls 2693
+            cp 128		; Hyp.cls 2694
+            jr c, asm_1_2316_n_fl_hl_n		; Hyp.cls 2695
+            ld a, 128		; Hyp.cls 2696
+asm_1_2316_n_fl_hl_n:		; Hyp.cls 2697
+            ld (asm_1_2316_n_fl_n), a		; Hyp.cls 2698
+            ld (asm_1_2316_n_fl_want), a		; Hyp.cls 2699
+            call asm_1_2316_n_fl_rdrec           ; a record's worth into buf [2700]
+            jr z, asm_1_2316_n_fl_hl_end		; Hyp.cls 2701
+            ld b, a		; Hyp.cls 2702
+            ld (asm_1_2316_n_fl_want + 1), a		; Hyp.cls 2703
+            ld hl, (asm_1_2316_n_fl_cnt)		; Hyp.cls 2704
+            ld e, a		; Hyp.cls 2705
+            ld d, 0		; Hyp.cls 2706
+            add hl, de		; Hyp.cls 2707
+            ld (asm_1_2316_n_fl_cnt), hl		; Hyp.cls 2708
+            ld hl, (asm_1_2316_n_fl_at)		; Hyp.cls 2709
+            ld c, b		; Hyp.cls 2710
+            ld b, 0		; Hyp.cls 2711
+            call asm_1_2316_n_fl_fits		; Hyp.cls 2712
+            jr c, asm_1_2316_n_fl_hl_slow		; Hyp.cls 2713
+            push bc		; Hyp.cls 2714
+            ld de, (var_hyp_filecall_buf)          ; in one page: one ldir [2715]
+            call asm_1_2316_n_fl_toslot		; Hyp.cls 2716
+            pop bc		; Hyp.cls 2717
+            ld hl, (asm_1_2316_n_fl_at)		; Hyp.cls 2718
+            add hl, bc		; Hyp.cls 2719
+            jr asm_1_2316_n_fl_hl_put		; Hyp.cls 2720
+asm_1_2316_n_fl_hl_slow:		; Hyp.cls 2721
+            ld b, c		; Hyp.cls 2722
+            ld de, (var_hyp_filecall_buf)		; Hyp.cls 2723
+asm_1_2316_n_fl_hl_cp:		; Hyp.cls 2724
+            ld a, (de)              ; into the slot [2725]
+            call asm_1_2316_n_fl_poke		; Hyp.cls 2726
+            inc hl		; Hyp.cls 2727
+            inc de		; Hyp.cls 2728
+            djnz asm_1_2316_n_fl_hl_cp		; Hyp.cls 2729
+asm_1_2316_n_fl_hl_put:		; Hyp.cls 2730
+            ld (asm_1_2316_n_fl_at), hl		; Hyp.cls 2731
+            ld a, (asm_1_2316_n_fl_want)		; Hyp.cls 2732
+            ld b, a		; Hyp.cls 2733
+            ld a, (asm_1_2316_n_fl_want + 1)		; Hyp.cls 2734
+            cp b		; Hyp.cls 2735
+            jr z, asm_1_2316_n_fl_hl_lp          ; a whole one: on [2736]
+asm_1_2316_n_fl_hl_end:		; Hyp.cls 2737
+            ld hl, (asm_1_2316_n_fl_cnt)		; Hyp.cls 2738
+            ld (asm_1_2316_n_fl_res16), hl		; Hyp.cls 2739
+            ld a, 1		; Hyp.cls 2740
+            ld (asm_1_2316_n_fl_r16), a		; Hyp.cls 2741
+            jp asm_1_2316_n_fp_done		; Hyp.cls 2742
 ; ---- 15: open (to read)
-asm_1_2310_n_fl_open:		; Hyp.cls 2738
-            ld a, (var_hyp_fin)		; Hyp.cls 2739
-            or a		; Hyp.cls 2740
-            jr z, asm_1_2310_n_fl_op_new		; Hyp.cls 2741
-            ld b, a		; Hyp.cls 2742
-            ld a, (asm_1_2310_n_fl_slot)		; Hyp.cls 2743
-            cp b		; Hyp.cls 2744
-            jp nz, asm_1_2310_n_fp_done          ; another slot's being read [2745]
-            call asm_1_2310_n_fl_inclose         ; this slot's: CP/M needs no close after reading - this open [2746]
-asm_1_2310_n_fl_op_new:                          ; replaces it (Exists opens and leaves it) [2747]
-            call asm_1_2310_n_fl_name		; Hyp.cls 2748
-            call asm_1_2310_n_fl_inopen		; Hyp.cls 2749
-            jp nc, asm_1_2310_n_fp_done		; Hyp.cls 2750
-            ld hl, asm_1_2310_n_fl_name_s        ; kept, to open it again (33 going back) [2751]
-            ld de, asm_1_2310_n_fl_inname		; Hyp.cls 2752
-            ld bc, asm_1_2310_n_FL_NL		; Hyp.cls 2753
-            ldir		; Hyp.cls 2754
-            ld a, (asm_1_2310_n_fl_slot)		; Hyp.cls 2755
-            ld (var_hyp_fin), a		; Hyp.cls 2756
-            ld hl, (var_hyp_filecall_fcb)		; Hyp.cls 2757
-            ld (asm_1_2310_n_fl_infcb), hl		; Hyp.cls 2758
-            ld a, 1		; Hyp.cls 2759
-            ld (asm_1_2310_n_fl_infcb + 2), a		; Hyp.cls 2760
-            ld hl, 0		; Hyp.cls 2761
-            ld (asm_1_2310_n_fl_inrec), hl		; Hyp.cls 2762
-            jp asm_1_2310_n_fl_ok		; Hyp.cls 2763
+asm_1_2316_n_fl_open:		; Hyp.cls 2744
+            ld a, (var_hyp_fin)		; Hyp.cls 2745
+            or a		; Hyp.cls 2746
+            jr z, asm_1_2316_n_fl_op_new		; Hyp.cls 2747
+            ld b, a		; Hyp.cls 2748
+            ld a, (asm_1_2316_n_fl_slot)		; Hyp.cls 2749
+            cp b		; Hyp.cls 2750
+            jp nz, asm_1_2316_n_fp_done          ; another slot's being read [2751]
+            call asm_1_2316_n_fl_inclose         ; this slot's: CP/M needs no close after reading - this open [2752]
+asm_1_2316_n_fl_op_new:                          ; replaces it (Exists opens and leaves it) [2753]
+            call asm_1_2316_n_fl_name		; Hyp.cls 2754
+            call asm_1_2316_n_fl_inopen		; Hyp.cls 2755
+            jp nc, asm_1_2316_n_fp_done		; Hyp.cls 2756
+            ld hl, asm_1_2316_n_fl_name_s        ; kept, to open it again (33 going back) [2757]
+            ld de, asm_1_2316_n_fl_inname		; Hyp.cls 2758
+            ld bc, asm_1_2316_n_FL_NL		; Hyp.cls 2759
+            ldir		; Hyp.cls 2760
+            ld a, (asm_1_2316_n_fl_slot)		; Hyp.cls 2761
+            ld (var_hyp_fin), a		; Hyp.cls 2762
+            ld hl, (var_hyp_filecall_fcb)		; Hyp.cls 2763
+            ld (asm_1_2316_n_fl_infcb), hl		; Hyp.cls 2764
+            ld a, 1		; Hyp.cls 2765
+            ld (asm_1_2316_n_fl_infcb + 2), a		; Hyp.cls 2766
+            ld hl, 0		; Hyp.cls 2767
+            ld (asm_1_2316_n_fl_inrec), hl		; Hyp.cls 2768
+            jp asm_1_2316_n_fl_ok		; Hyp.cls 2769
 ; ---- 22: make (a new file, to write)
-asm_1_2310_n_fl_make:		; Hyp.cls 2765
-            ld a, (var_hyp_fout)		; Hyp.cls 2766
-            or a		; Hyp.cls 2767
-            jp nz, asm_1_2310_n_fp_done		; Hyp.cls 2768
-            call asm_1_2310_n_fl_name		; Hyp.cls 2769
-            call asm_1_2310_n_fl_plain		; Hyp.cls 2770
-            ld hl, asm_1_2310_n_fl_name_s + 1		; Hyp.cls 2771
-            ld a, (asm_1_2310_n_fl_name_s)		; Hyp.cls 2772
-            ld b, a		; Hyp.cls 2773
-            ld de, #4800		; Hyp.cls 2774
-            call #BC8C              ; CAS OUT OPEN [2775]
-            di		; Hyp.cls 2776
-            jp nc, asm_1_2310_n_fp_done		; Hyp.cls 2777
-            ld a, (asm_1_2310_n_fl_slot)		; Hyp.cls 2778
-            ld (var_hyp_fout), a		; Hyp.cls 2779
-            ld hl, (var_hyp_filecall_fcb)		; Hyp.cls 2780
-            ld (asm_1_2310_n_fl_outfcb), hl		; Hyp.cls 2781
-            ld a, 1		; Hyp.cls 2782
-            ld (asm_1_2310_n_fl_outfcb + 2), a		; Hyp.cls 2783
-            ld hl, 0		; Hyp.cls 2784
-            ld (asm_1_2310_n_fl_outrec), hl		; Hyp.cls 2785
-            jp asm_1_2310_n_fl_ok		; Hyp.cls 2786
+asm_1_2316_n_fl_make:		; Hyp.cls 2771
+            ld a, (var_hyp_fout)		; Hyp.cls 2772
+            or a		; Hyp.cls 2773
+            jp nz, asm_1_2316_n_fp_done		; Hyp.cls 2774
+            call asm_1_2316_n_fl_name		; Hyp.cls 2775
+            call asm_1_2316_n_fl_plain		; Hyp.cls 2776
+            ld hl, asm_1_2316_n_fl_name_s + 1		; Hyp.cls 2777
+            ld a, (asm_1_2316_n_fl_name_s)		; Hyp.cls 2778
+            ld b, a		; Hyp.cls 2779
+            ld de, #4800		; Hyp.cls 2780
+            call #BC8C              ; CAS OUT OPEN [2781]
+            di		; Hyp.cls 2782
+            jp nc, asm_1_2316_n_fp_done		; Hyp.cls 2783
+            ld a, (asm_1_2316_n_fl_slot)		; Hyp.cls 2784
+            ld (var_hyp_fout), a		; Hyp.cls 2785
+            ld hl, (var_hyp_filecall_fcb)		; Hyp.cls 2786
+            ld (asm_1_2316_n_fl_outfcb), hl		; Hyp.cls 2787
+            ld a, 1		; Hyp.cls 2788
+            ld (asm_1_2316_n_fl_outfcb + 2), a		; Hyp.cls 2789
+            ld hl, 0		; Hyp.cls 2790
+            ld (asm_1_2316_n_fl_outrec), hl		; Hyp.cls 2791
+            jp asm_1_2316_n_fl_ok		; Hyp.cls 2792
 ; ---- 16: close
-asm_1_2310_n_fl_close:		; Hyp.cls 2788
-            call asm_1_2310_n_fl_isin		; Hyp.cls 2789
-            jr nz, asm_1_2310_n_fl_cl_out		; Hyp.cls 2790
-            call asm_1_2310_n_fl_inclose		; Hyp.cls 2791
-            jp asm_1_2310_n_fl_ok		; Hyp.cls 2792
-asm_1_2310_n_fl_cl_out:		; Hyp.cls 2793
-            call asm_1_2310_n_fl_isout		; Hyp.cls 2794
-            jp nz, asm_1_2310_n_fp_done		; Hyp.cls 2795
-            xor a		; Hyp.cls 2796
-            ld (var_hyp_fout), a		; Hyp.cls 2797
-            call asm_1_2310_n_fl_plain		; Hyp.cls 2798
-            call #BC8F              ; CAS OUT CLOSE [2799]
-            di		; Hyp.cls 2800
-            jp nc, asm_1_2310_n_fp_done		; Hyp.cls 2801
-            jp asm_1_2310_n_fl_ok		; Hyp.cls 2802
+asm_1_2316_n_fl_close:		; Hyp.cls 2794
+            call asm_1_2316_n_fl_isin		; Hyp.cls 2795
+            jr nz, asm_1_2316_n_fl_cl_out		; Hyp.cls 2796
+            call asm_1_2316_n_fl_inclose		; Hyp.cls 2797
+            jp asm_1_2316_n_fl_ok		; Hyp.cls 2798
+asm_1_2316_n_fl_cl_out:		; Hyp.cls 2799
+            call asm_1_2316_n_fl_isout		; Hyp.cls 2800
+            jp nz, asm_1_2316_n_fp_done		; Hyp.cls 2801
+            xor a		; Hyp.cls 2802
+            ld (var_hyp_fout), a		; Hyp.cls 2803
+            call asm_1_2316_n_fl_plain		; Hyp.cls 2804
+            call #BC8F              ; CAS OUT CLOSE [2805]
+            di		; Hyp.cls 2806
+            jp nc, asm_1_2316_n_fp_done		; Hyp.cls 2807
+            jp asm_1_2316_n_fl_ok		; Hyp.cls 2808
 ; ---- 19: delete (|ERA, "name")
-asm_1_2310_n_fl_del:		; Hyp.cls 2804
-            call asm_1_2310_n_fl_name		; Hyp.cls 2805
-            call asm_1_2310_n_fl_plain		; Hyp.cls 2806
-            ld hl, asm_1_2310_n_fl_name_s + 1		; Hyp.cls 2807
-            ld (asm_1_2310_n_fl_desc + 1), hl		; Hyp.cls 2808
-            ld a, (asm_1_2310_n_fl_name_s)		; Hyp.cls 2809
-            ld (asm_1_2310_n_fl_desc), a		; Hyp.cls 2810
-            ld hl, asm_1_2310_n_fl_yes           ; (UniDOS asks before it deletes a folder - all it holds too -, [2811]
-            ld a, (hl)              ; a read-only or a hidden file: KM WAIT CHAR, its text unseen, [2812]
-            ld (hl), 0              ; the VDU off. KM CHAR RETURN: the answer waiting for it - N, [2813]
-            or a                    ; so a CP/M program's delete never takes a folder; Y only after [2814]
-            ld a, 'N'               ; BDOS 30 op 8, RMDIR's, for its empty folder) [2815]
-            jr z, asm_1_2310_n_fl_del_n		; Hyp.cls 2816
-            ld a, 'Y'		; Hyp.cls 2817
-asm_1_2310_n_fl_del_n:		; Hyp.cls 2818
-            call #BB0C		; Hyp.cls 2819
-            ld hl, asm_1_2310_n_fl_era           ; KL FIND COMMAND; KM READ CHAR after [2820]
-            call #BCD4              ; takes the answer back when nothing asked [2821]
-            di		; Hyp.cls 2822
-            jp nc, asm_1_2310_n_fp_done		; Hyp.cls 2823
-            ld ix, asm_1_2310_n_fl_par		; Hyp.cls 2824
-            ld a, 1                 ; one parameter: the string [2825]
-            call #001B              ; KL FAR PCALL [2826]
-            call #BB09              ; KM READ CHAR (interrupts: off again in fl_done) [2827]
-            jp asm_1_2310_n_fl_ok		; Hyp.cls 2828
+asm_1_2316_n_fl_del:		; Hyp.cls 2810
+            call asm_1_2316_n_fl_name		; Hyp.cls 2811
+            call asm_1_2316_n_fl_plain		; Hyp.cls 2812
+            ld hl, asm_1_2316_n_fl_name_s + 1		; Hyp.cls 2813
+            ld (asm_1_2316_n_fl_desc + 1), hl		; Hyp.cls 2814
+            ld a, (asm_1_2316_n_fl_name_s)		; Hyp.cls 2815
+            ld (asm_1_2316_n_fl_desc), a		; Hyp.cls 2816
+            ld hl, asm_1_2316_n_fl_yes           ; (UniDOS asks before it deletes a folder - all it holds too -, [2817]
+            ld a, (hl)              ; a read-only or a hidden file: KM WAIT CHAR, its text unseen, [2818]
+            ld (hl), 0              ; the VDU off. KM CHAR RETURN: the answer waiting for it - N, [2819]
+            or a                    ; so a CP/M program's delete never takes a folder; Y only after [2820]
+            ld a, 'N'               ; BDOS 30 op 8, RMDIR's, for its empty folder) [2821]
+            jr z, asm_1_2316_n_fl_del_n		; Hyp.cls 2822
+            ld a, 'Y'		; Hyp.cls 2823
+asm_1_2316_n_fl_del_n:		; Hyp.cls 2824
+            call #BB0C		; Hyp.cls 2825
+            ld hl, asm_1_2316_n_fl_era           ; KL FIND COMMAND; KM READ CHAR after [2826]
+            call #BCD4              ; takes the answer back when nothing asked [2827]
+            di		; Hyp.cls 2828
+            jp nc, asm_1_2316_n_fp_done		; Hyp.cls 2829
+            ld ix, asm_1_2316_n_fl_par		; Hyp.cls 2830
+            ld a, 1                 ; one parameter: the string [2831]
+            call #001B              ; KL FAR PCALL [2832]
+            call #BB09              ; KM READ CHAR (interrupts: off again in fl_done) [2833]
+            jp asm_1_2316_n_fl_ok		; Hyp.cls 2834
 ; ---- 23: rename (the disc ROM's |REN, "new", "old"): the old name at FCB 0-11, the new
 ; at 16-27 (its drive 0: the old one's)
-asm_1_2310_n_fl_ren:		; Hyp.cls 2831
-            ld hl, (var_hyp_filecall_fcb)		; Hyp.cls 2832
-            call asm_1_2310_n_fl_peek		; Hyp.cls 2833
-            ld (asm_1_2310_n_fl_dfl), a		; Hyp.cls 2834
-            ld de, 16		; Hyp.cls 2835
-            add hl, de		; Hyp.cls 2836
-            call asm_1_2310_n_fl_namehl          ; the new name [2837]
-            xor a		; Hyp.cls 2838
-            ld (asm_1_2310_n_fl_dfl), a		; Hyp.cls 2839
-            ld hl, asm_1_2310_n_fl_name_s		; Hyp.cls 2840
-            ld de, asm_1_2310_n_fl_new_s		; Hyp.cls 2841
-            ld bc, asm_1_2310_n_FL_NL		; Hyp.cls 2842
-            ldir		; Hyp.cls 2843
-            call asm_1_2310_n_fl_name            ; the old one [2844]
-            call asm_1_2310_n_fl_plain		; Hyp.cls 2845
-            ld hl, asm_1_2310_n_fl_name_s + 1		; Hyp.cls 2846
-            ld (asm_1_2310_n_fl_desc + 1), hl		; Hyp.cls 2847
-            ld a, (asm_1_2310_n_fl_name_s)		; Hyp.cls 2848
-            ld (asm_1_2310_n_fl_desc), a		; Hyp.cls 2849
-            ld hl, asm_1_2310_n_fl_new_s + 1		; Hyp.cls 2850
-            ld (asm_1_2310_n_fl_desc2 + 1), hl		; Hyp.cls 2851
-            ld a, (asm_1_2310_n_fl_new_s)		; Hyp.cls 2852
-            ld (asm_1_2310_n_fl_desc2), a		; Hyp.cls 2853
-            ld hl, asm_1_2310_n_fl_rencmd		; Hyp.cls 2854
-            call #BCD4              ; KL FIND COMMAND [2855]
-            di		; Hyp.cls 2856
-            jp nc, asm_1_2310_n_fp_done		; Hyp.cls 2857
-            ld ix, asm_1_2310_n_fl_par2          ; IX+0: the last parameter (the old name), IX+2: the new [2858]
-            ld a, 2		; Hyp.cls 2859
-            call #001B              ; KL FAR PCALL [2860]
-            jp asm_1_2310_n_fl_ok              ; (interrupts: off again in fl_done) [2861]
+asm_1_2316_n_fl_ren:		; Hyp.cls 2837
+            ld hl, (var_hyp_filecall_fcb)		; Hyp.cls 2838
+            call asm_1_2316_n_fl_peek		; Hyp.cls 2839
+            ld (asm_1_2316_n_fl_dfl), a		; Hyp.cls 2840
+            ld de, 16		; Hyp.cls 2841
+            add hl, de		; Hyp.cls 2842
+            call asm_1_2316_n_fl_namehl          ; the new name [2843]
+            xor a		; Hyp.cls 2844
+            ld (asm_1_2316_n_fl_dfl), a		; Hyp.cls 2845
+            ld hl, asm_1_2316_n_fl_name_s		; Hyp.cls 2846
+            ld de, asm_1_2316_n_fl_new_s		; Hyp.cls 2847
+            ld bc, asm_1_2316_n_FL_NL		; Hyp.cls 2848
+            ldir		; Hyp.cls 2849
+            call asm_1_2316_n_fl_name            ; the old one [2850]
+            call asm_1_2316_n_fl_plain		; Hyp.cls 2851
+            ld hl, asm_1_2316_n_fl_name_s + 1		; Hyp.cls 2852
+            ld (asm_1_2316_n_fl_desc + 1), hl		; Hyp.cls 2853
+            ld a, (asm_1_2316_n_fl_name_s)		; Hyp.cls 2854
+            ld (asm_1_2316_n_fl_desc), a		; Hyp.cls 2855
+            ld hl, asm_1_2316_n_fl_new_s + 1		; Hyp.cls 2856
+            ld (asm_1_2316_n_fl_desc2 + 1), hl		; Hyp.cls 2857
+            ld a, (asm_1_2316_n_fl_new_s)		; Hyp.cls 2858
+            ld (asm_1_2316_n_fl_desc2), a		; Hyp.cls 2859
+            ld hl, asm_1_2316_n_fl_rencmd		; Hyp.cls 2860
+            call #BCD4              ; KL FIND COMMAND [2861]
+            di		; Hyp.cls 2862
+            jp nc, asm_1_2316_n_fp_done		; Hyp.cls 2863
+            ld ix, asm_1_2316_n_fl_par2          ; IX+0: the last parameter (the old name), IX+2: the new [2864]
+            ld a, 2		; Hyp.cls 2865
+            call #001B              ; KL FAR PCALL [2866]
+            jp asm_1_2316_n_fl_ok              ; (interrupts: off again in fl_done) [2867]
 ; ---- 33: read record r0-r1: on to it (from the start again if it is behind)
-asm_1_2310_n_fl_rdran:		; Hyp.cls 2863
-            call asm_1_2310_n_fl_isin		; Hyp.cls 2864
-            jp nz, asm_1_2310_n_fl_rdout		; Hyp.cls 2865
-            ld hl, (var_hyp_filecall_fcb)		; Hyp.cls 2866
-            ld de, 33		; Hyp.cls 2867
-            add hl, de		; Hyp.cls 2868
-            call asm_1_2310_n_fl_peek		; Hyp.cls 2869
-            ld e, a		; Hyp.cls 2870
-            inc hl		; Hyp.cls 2871
-            call asm_1_2310_n_fl_peek		; Hyp.cls 2872
-            ld d, a		; Hyp.cls 2873
-            ld (asm_1_2310_n_fl_want), de		; Hyp.cls 2874
-            ld hl, (asm_1_2310_n_fl_inrec)		; Hyp.cls 2875
-            or a		; Hyp.cls 2876
-            sbc hl, de		; Hyp.cls 2877
-            jr c, asm_1_2310_n_fl_rr_on		; Hyp.cls 2878
-            jr z, asm_1_2310_n_fl_rr_on		; Hyp.cls 2879
-            call asm_1_2310_n_fl_inclose         ; behind: open it again [2880]
-            ld hl, asm_1_2310_n_fl_inname		; Hyp.cls 2881
-            ld de, asm_1_2310_n_fl_name_s		; Hyp.cls 2882
-            ld bc, asm_1_2310_n_FL_NL		; Hyp.cls 2883
-            ldir		; Hyp.cls 2884
-            call asm_1_2310_n_fl_inopen		; Hyp.cls 2885
-            jp nc, asm_1_2310_n_fp_done		; Hyp.cls 2886
-            ld a, (asm_1_2310_n_fl_slot)		; Hyp.cls 2887
-            ld (var_hyp_fin), a		; Hyp.cls 2888
-            ld hl, 0		; Hyp.cls 2889
-            ld (asm_1_2310_n_fl_inrec), hl		; Hyp.cls 2890
-asm_1_2310_n_fl_rr_on:		; Hyp.cls 2891
-            ld hl, (asm_1_2310_n_fl_inrec)		; Hyp.cls 2892
-            ld de, (asm_1_2310_n_fl_want)		; Hyp.cls 2893
-            or a		; Hyp.cls 2894
-            sbc hl, de		; Hyp.cls 2895
-            jr nc, asm_1_2310_n_fl_rdseq		; Hyp.cls 2896
-            call asm_1_2310_n_fl_rdrec		; Hyp.cls 2897
-            jp z, asm_1_2310_n_fl_eof		; Hyp.cls 2898
-            ld hl, (asm_1_2310_n_fl_inrec)		; Hyp.cls 2899
-            inc hl		; Hyp.cls 2900
-            ld (asm_1_2310_n_fl_inrec), hl		; Hyp.cls 2901
-            jr asm_1_2310_n_fl_rr_on		; Hyp.cls 2902
+asm_1_2316_n_fl_rdran:		; Hyp.cls 2869
+            call asm_1_2316_n_fl_isin		; Hyp.cls 2870
+            jp nz, asm_1_2316_n_fl_rdout		; Hyp.cls 2871
+            ld hl, (var_hyp_filecall_fcb)		; Hyp.cls 2872
+            ld de, 33		; Hyp.cls 2873
+            add hl, de		; Hyp.cls 2874
+            call asm_1_2316_n_fl_peek		; Hyp.cls 2875
+            ld e, a		; Hyp.cls 2876
+            inc hl		; Hyp.cls 2877
+            call asm_1_2316_n_fl_peek		; Hyp.cls 2878
+            ld d, a		; Hyp.cls 2879
+            ld (asm_1_2316_n_fl_want), de		; Hyp.cls 2880
+            ld hl, (asm_1_2316_n_fl_inrec)		; Hyp.cls 2881
+            or a		; Hyp.cls 2882
+            sbc hl, de		; Hyp.cls 2883
+            jr c, asm_1_2316_n_fl_rr_on		; Hyp.cls 2884
+            jr z, asm_1_2316_n_fl_rr_on		; Hyp.cls 2885
+            call asm_1_2316_n_fl_inclose         ; behind: open it again [2886]
+            ld hl, asm_1_2316_n_fl_inname		; Hyp.cls 2887
+            ld de, asm_1_2316_n_fl_name_s		; Hyp.cls 2888
+            ld bc, asm_1_2316_n_FL_NL		; Hyp.cls 2889
+            ldir		; Hyp.cls 2890
+            call asm_1_2316_n_fl_inopen		; Hyp.cls 2891
+            jp nc, asm_1_2316_n_fp_done		; Hyp.cls 2892
+            ld a, (asm_1_2316_n_fl_slot)		; Hyp.cls 2893
+            ld (var_hyp_fin), a		; Hyp.cls 2894
+            ld hl, 0		; Hyp.cls 2895
+            ld (asm_1_2316_n_fl_inrec), hl		; Hyp.cls 2896
+asm_1_2316_n_fl_rr_on:		; Hyp.cls 2897
+            ld hl, (asm_1_2316_n_fl_inrec)		; Hyp.cls 2898
+            ld de, (asm_1_2316_n_fl_want)		; Hyp.cls 2899
+            or a		; Hyp.cls 2900
+            sbc hl, de		; Hyp.cls 2901
+            jr nc, asm_1_2316_n_fl_rdseq		; Hyp.cls 2902
+            call asm_1_2316_n_fl_rdrec		; Hyp.cls 2903
+            jp z, asm_1_2316_n_fl_eof		; Hyp.cls 2904
+            ld hl, (asm_1_2316_n_fl_inrec)		; Hyp.cls 2905
+            inc hl		; Hyp.cls 2906
+            ld (asm_1_2316_n_fl_inrec), hl		; Hyp.cls 2907
+            jr asm_1_2316_n_fl_rr_on		; Hyp.cls 2908
 ; ---- 20: read the next record
-asm_1_2310_n_fl_rdseq:		; Hyp.cls 2904
-            call asm_1_2310_n_fl_isin		; Hyp.cls 2905
-            jr nz, asm_1_2310_n_fl_rdout		; Hyp.cls 2906
-            call asm_1_2310_n_fl_rdrec		; Hyp.cls 2907
-            jr z, asm_1_2310_n_fl_eof		; Hyp.cls 2908
-            ex de, hl		; Hyp.cls 2909
-            ld hl, (asm_1_2310_n_fl_inrec)		; Hyp.cls 2910
-            inc hl		; Hyp.cls 2911
-            ld (asm_1_2310_n_fl_inrec), hl		; Hyp.cls 2912
-            ex de, hl		; Hyp.cls 2913
-            ld b, a                 ; the record padded with #1A [2914]
-            ld a, 128		; Hyp.cls 2915
-            sub b		; Hyp.cls 2916
-            jr z, asm_1_2310_n_fl_rd_put		; Hyp.cls 2917
-            ld b, a		; Hyp.cls 2918
-            ld a, #1A		; Hyp.cls 2919
-asm_1_2310_n_fl_rd_pad:		; Hyp.cls 2920
-            ld (hl), a		; Hyp.cls 2921
-            inc hl		; Hyp.cls 2922
-            djnz asm_1_2310_n_fl_rd_pad		; Hyp.cls 2923
-asm_1_2310_n_fl_rd_put:		; Hyp.cls 2924
-            ld hl, (var_hyp_filecall_dma)          ; into the slot's DMA: in one page, one ldir [2925]
-            ld bc, 128		; Hyp.cls 2926
-            call asm_1_2310_n_fl_fits		; Hyp.cls 2927
-            jr c, asm_1_2310_n_fl_rd_slow		; Hyp.cls 2928
-            ld de, (var_hyp_filecall_buf)		; Hyp.cls 2929
-            call asm_1_2310_n_fl_toslot		; Hyp.cls 2930
-            jp asm_1_2310_n_fl_ok		; Hyp.cls 2931
-asm_1_2310_n_fl_rd_slow:                         ; (across two pages: a byte at a time) [2932]
-            ld hl, (var_hyp_filecall_buf)		; Hyp.cls 2933
-            ld de, (var_hyp_filecall_dma)		; Hyp.cls 2934
-            ld b, 128		; Hyp.cls 2935
-asm_1_2310_n_fl_rd_cp:		; Hyp.cls 2936
-            ld a, (hl)		; Hyp.cls 2937
-            ex de, hl		; Hyp.cls 2938
-            call asm_1_2310_n_fl_poke		; Hyp.cls 2939
-            ex de, hl		; Hyp.cls 2940
-            inc hl		; Hyp.cls 2941
-            inc de		; Hyp.cls 2942
-            djnz asm_1_2310_n_fl_rd_cp		; Hyp.cls 2943
-            jp asm_1_2310_n_fl_ok		; Hyp.cls 2944
-asm_1_2310_n_fl_rdout:		; Hyp.cls 2945
-            call asm_1_2310_n_fl_isout           ; a file being written: nothing to read back [2946]
-            jp nz, asm_1_2310_n_fp_done		; Hyp.cls 2947
-asm_1_2310_n_fl_eof:		; Hyp.cls 2948
-            ld a, 1		; Hyp.cls 2949
-            ld (asm_1_2310_n_fl_res), a		; Hyp.cls 2950
-            jp asm_1_2310_n_fp_done		; Hyp.cls 2951
+asm_1_2316_n_fl_rdseq:		; Hyp.cls 2910
+            call asm_1_2316_n_fl_isin		; Hyp.cls 2911
+            jr nz, asm_1_2316_n_fl_rdout		; Hyp.cls 2912
+            call asm_1_2316_n_fl_rdrec		; Hyp.cls 2913
+            jr z, asm_1_2316_n_fl_eof		; Hyp.cls 2914
+            ex de, hl		; Hyp.cls 2915
+            ld hl, (asm_1_2316_n_fl_inrec)		; Hyp.cls 2916
+            inc hl		; Hyp.cls 2917
+            ld (asm_1_2316_n_fl_inrec), hl		; Hyp.cls 2918
+            ex de, hl		; Hyp.cls 2919
+            ld b, a                 ; the record padded with #1A [2920]
+            ld a, 128		; Hyp.cls 2921
+            sub b		; Hyp.cls 2922
+            jr z, asm_1_2316_n_fl_rd_put		; Hyp.cls 2923
+            ld b, a		; Hyp.cls 2924
+            ld a, #1A		; Hyp.cls 2925
+asm_1_2316_n_fl_rd_pad:		; Hyp.cls 2926
+            ld (hl), a		; Hyp.cls 2927
+            inc hl		; Hyp.cls 2928
+            djnz asm_1_2316_n_fl_rd_pad		; Hyp.cls 2929
+asm_1_2316_n_fl_rd_put:		; Hyp.cls 2930
+            ld hl, (var_hyp_filecall_dma)          ; into the slot's DMA: in one page, one ldir [2931]
+            ld bc, 128		; Hyp.cls 2932
+            call asm_1_2316_n_fl_fits		; Hyp.cls 2933
+            jr c, asm_1_2316_n_fl_rd_slow		; Hyp.cls 2934
+            ld de, (var_hyp_filecall_buf)		; Hyp.cls 2935
+            call asm_1_2316_n_fl_toslot		; Hyp.cls 2936
+            jp asm_1_2316_n_fl_ok		; Hyp.cls 2937
+asm_1_2316_n_fl_rd_slow:                         ; (across two pages: a byte at a time) [2938]
+            ld hl, (var_hyp_filecall_buf)		; Hyp.cls 2939
+            ld de, (var_hyp_filecall_dma)		; Hyp.cls 2940
+            ld b, 128		; Hyp.cls 2941
+asm_1_2316_n_fl_rd_cp:		; Hyp.cls 2942
+            ld a, (hl)		; Hyp.cls 2943
+            ex de, hl		; Hyp.cls 2944
+            call asm_1_2316_n_fl_poke		; Hyp.cls 2945
+            ex de, hl		; Hyp.cls 2946
+            inc hl		; Hyp.cls 2947
+            inc de		; Hyp.cls 2948
+            djnz asm_1_2316_n_fl_rd_cp		; Hyp.cls 2949
+            jp asm_1_2316_n_fl_ok		; Hyp.cls 2950
+asm_1_2316_n_fl_rdout:		; Hyp.cls 2951
+            call asm_1_2316_n_fl_isout           ; a file being written: nothing to read back [2952]
+            jp nz, asm_1_2316_n_fp_done		; Hyp.cls 2953
+asm_1_2316_n_fl_eof:		; Hyp.cls 2954
+            ld a, 1		; Hyp.cls 2955
+            ld (asm_1_2316_n_fl_res), a		; Hyp.cls 2956
+            jp asm_1_2316_n_fp_done		; Hyp.cls 2957
 ; ---- 21 / 34: write the next record
-asm_1_2310_n_fl_write:		; Hyp.cls 2953
-            call asm_1_2310_n_fl_isout		; Hyp.cls 2954
-            jp nz, asm_1_2310_n_fp_done		; Hyp.cls 2955
-            ld hl, (var_hyp_filecall_dma)          ; the slot's DMA into buf [2956]
-            ld bc, 128		; Hyp.cls 2957
-            call asm_1_2310_n_fl_fits		; Hyp.cls 2958
-            jr c, asm_1_2310_n_fl_wr_slow		; Hyp.cls 2959
-            ld de, (var_hyp_filecall_buf)		; Hyp.cls 2960
-            call asm_1_2310_n_fl_fromslot		; Hyp.cls 2961
-            jr asm_1_2310_n_fl_wr_got		; Hyp.cls 2962
-asm_1_2310_n_fl_wr_slow:		; Hyp.cls 2963
-            ld de, (var_hyp_filecall_buf)		; Hyp.cls 2964
-            ld b, 128		; Hyp.cls 2965
-asm_1_2310_n_fl_wr_cp:		; Hyp.cls 2966
-            call asm_1_2310_n_fl_peek		; Hyp.cls 2967
-            ld (de), a		; Hyp.cls 2968
-            inc hl		; Hyp.cls 2969
-            inc de		; Hyp.cls 2970
-            djnz asm_1_2310_n_fl_wr_cp		; Hyp.cls 2971
-asm_1_2310_n_fl_wr_got:		; Hyp.cls 2972
-            call asm_1_2310_n_fl_plain		; Hyp.cls 2973
-            ld hl, (var_hyp_filecall_buf)		; Hyp.cls 2974
-            ld b, 128		; Hyp.cls 2975
-asm_1_2310_n_fl_wr_lp:		; Hyp.cls 2976
-            ld a, (hl)		; Hyp.cls 2977
-            push bc		; Hyp.cls 2978
-            push hl		; Hyp.cls 2979
-            call #BC95              ; CAS OUT CHAR [2980]
-            di		; Hyp.cls 2981
-            pop hl		; Hyp.cls 2982
-            pop bc		; Hyp.cls 2983
-            jp nc, asm_1_2310_n_fp_done		; Hyp.cls 2984
-            inc hl		; Hyp.cls 2985
-            djnz asm_1_2310_n_fl_wr_lp		; Hyp.cls 2986
-            ld hl, (asm_1_2310_n_fl_outrec)		; Hyp.cls 2987
-            inc hl		; Hyp.cls 2988
-            ld (asm_1_2310_n_fl_outrec), hl		; Hyp.cls 2989
-            jp asm_1_2310_n_fl_ok		; Hyp.cls 2990
+asm_1_2316_n_fl_write:		; Hyp.cls 2959
+            call asm_1_2316_n_fl_isout		; Hyp.cls 2960
+            jp nz, asm_1_2316_n_fp_done		; Hyp.cls 2961
+            ld hl, (var_hyp_filecall_dma)          ; the slot's DMA into buf [2962]
+            ld bc, 128		; Hyp.cls 2963
+            call asm_1_2316_n_fl_fits		; Hyp.cls 2964
+            jr c, asm_1_2316_n_fl_wr_slow		; Hyp.cls 2965
+            ld de, (var_hyp_filecall_buf)		; Hyp.cls 2966
+            call asm_1_2316_n_fl_fromslot		; Hyp.cls 2967
+            jr asm_1_2316_n_fl_wr_got		; Hyp.cls 2968
+asm_1_2316_n_fl_wr_slow:		; Hyp.cls 2969
+            ld de, (var_hyp_filecall_buf)		; Hyp.cls 2970
+            ld b, 128		; Hyp.cls 2971
+asm_1_2316_n_fl_wr_cp:		; Hyp.cls 2972
+            call asm_1_2316_n_fl_peek		; Hyp.cls 2973
+            ld (de), a		; Hyp.cls 2974
+            inc hl		; Hyp.cls 2975
+            inc de		; Hyp.cls 2976
+            djnz asm_1_2316_n_fl_wr_cp		; Hyp.cls 2977
+asm_1_2316_n_fl_wr_got:		; Hyp.cls 2978
+            call asm_1_2316_n_fl_plain		; Hyp.cls 2979
+            ld hl, (var_hyp_filecall_buf)		; Hyp.cls 2980
+            ld b, 128		; Hyp.cls 2981
+asm_1_2316_n_fl_wr_lp:		; Hyp.cls 2982
+            ld a, (hl)		; Hyp.cls 2983
+            push bc		; Hyp.cls 2984
+            push hl		; Hyp.cls 2985
+            call #BC95              ; CAS OUT CHAR [2986]
+            di		; Hyp.cls 2987
+            pop hl		; Hyp.cls 2988
+            pop bc		; Hyp.cls 2989
+            jp nc, asm_1_2316_n_fp_done		; Hyp.cls 2990
+            inc hl		; Hyp.cls 2991
+            djnz asm_1_2316_n_fl_wr_lp		; Hyp.cls 2992
+            ld hl, (asm_1_2316_n_fl_outrec)		; Hyp.cls 2993
+            inc hl		; Hyp.cls 2994
+            ld (asm_1_2316_n_fl_outrec), hl		; Hyp.cls 2995
+            jp asm_1_2316_n_fl_ok		; Hyp.cls 2996
 ; ---- 35: the file's size in records (r0-r2): counted, reading it through. The file this slot
 ; is reading is opened again after, at its record; another slot's being read: 255
-asm_1_2310_n_fl_size:		; Hyp.cls 2993
-            ld a, (var_hyp_fin)		; Hyp.cls 2994
-            or a		; Hyp.cls 2995
-            jr z, asm_1_2310_n_fl_sz_free		; Hyp.cls 2996
-            ld b, a		; Hyp.cls 2997
-            ld a, (asm_1_2310_n_fl_slot)		; Hyp.cls 2998
-            cp b		; Hyp.cls 2999
-            jp nz, asm_1_2310_n_fp_done		; Hyp.cls 3000
-            call asm_1_2310_n_fl_inclose		; Hyp.cls 3001
-            ld a, 1		; Hyp.cls 3002
-asm_1_2310_n_fl_sz_free:		; Hyp.cls 3003
-            ld (asm_1_2310_n_fl_had), a		; Hyp.cls 3004
-            call asm_1_2310_n_fl_name		; Hyp.cls 3005
-            call asm_1_2310_n_fl_inopen		; Hyp.cls 3006
-            jr nc, asm_1_2310_n_fl_sz_back		; Hyp.cls 3007
-            ld hl, 0		; Hyp.cls 3008
-            ld (asm_1_2310_n_fl_cnt), hl		; Hyp.cls 3009
-asm_1_2310_n_fl_sz_lp:		; Hyp.cls 3010
-            call asm_1_2310_n_fl_rdrec		; Hyp.cls 3011
-            jr z, asm_1_2310_n_fl_sz_end		; Hyp.cls 3012
-            ld hl, (asm_1_2310_n_fl_cnt)		; Hyp.cls 3013
-            inc hl		; Hyp.cls 3014
-            ld (asm_1_2310_n_fl_cnt), hl		; Hyp.cls 3015
-            cp 128		; Hyp.cls 3016
-            jr z, asm_1_2310_n_fl_sz_lp		; Hyp.cls 3017
-asm_1_2310_n_fl_sz_end:		; Hyp.cls 3018
-            call asm_1_2310_n_fl_inclose		; Hyp.cls 3019
-            ld hl, (asm_1_2310_n_fl_cnt)		; Hyp.cls 3020
-            call asm_1_2310_n_fl_ranput		; Hyp.cls 3021
-            xor a		; Hyp.cls 3022
-            ld (asm_1_2310_n_fl_res), a		; Hyp.cls 3023
-asm_1_2310_n_fl_sz_back:		; Hyp.cls 3024
-            ld a, (asm_1_2310_n_fl_had)		; Hyp.cls 3025
-            or a		; Hyp.cls 3026
-            jp z, asm_1_2310_n_fp_done		; Hyp.cls 3027
-            ld hl, asm_1_2310_n_fl_inname        ; the slot's read file again, on to its record [3028]
-            ld de, asm_1_2310_n_fl_name_s		; Hyp.cls 3029
-            ld bc, asm_1_2310_n_FL_NL		; Hyp.cls 3030
-            ldir		; Hyp.cls 3031
-            call asm_1_2310_n_fl_inopen		; Hyp.cls 3032
-            jp nc, asm_1_2310_n_fp_done		; Hyp.cls 3033
-            ld a, (asm_1_2310_n_fl_slot)		; Hyp.cls 3034
-            ld (var_hyp_fin), a		; Hyp.cls 3035
-            ld hl, (asm_1_2310_n_fl_inrec)		; Hyp.cls 3036
-asm_1_2310_n_fl_sz_skip:		; Hyp.cls 3037
-            ld a, h		; Hyp.cls 3038
-            or l		; Hyp.cls 3039
-            jp z, asm_1_2310_n_fp_done		; Hyp.cls 3040
-            push hl		; Hyp.cls 3041
-            call asm_1_2310_n_fl_rdrec		; Hyp.cls 3042
-            pop hl		; Hyp.cls 3043
-            dec hl		; Hyp.cls 3044
-            jr asm_1_2310_n_fl_sz_skip		; Hyp.cls 3045
+asm_1_2316_n_fl_size:		; Hyp.cls 2999
+            ld a, (var_hyp_fin)		; Hyp.cls 3000
+            or a		; Hyp.cls 3001
+            jr z, asm_1_2316_n_fl_sz_free		; Hyp.cls 3002
+            ld b, a		; Hyp.cls 3003
+            ld a, (asm_1_2316_n_fl_slot)		; Hyp.cls 3004
+            cp b		; Hyp.cls 3005
+            jp nz, asm_1_2316_n_fp_done		; Hyp.cls 3006
+            call asm_1_2316_n_fl_inclose		; Hyp.cls 3007
+            ld a, 1		; Hyp.cls 3008
+asm_1_2316_n_fl_sz_free:		; Hyp.cls 3009
+            ld (asm_1_2316_n_fl_had), a		; Hyp.cls 3010
+            call asm_1_2316_n_fl_name		; Hyp.cls 3011
+            call asm_1_2316_n_fl_inopen		; Hyp.cls 3012
+            jr nc, asm_1_2316_n_fl_sz_back		; Hyp.cls 3013
+            ld hl, 0		; Hyp.cls 3014
+            ld (asm_1_2316_n_fl_cnt), hl		; Hyp.cls 3015
+asm_1_2316_n_fl_sz_lp:		; Hyp.cls 3016
+            call asm_1_2316_n_fl_rdrec		; Hyp.cls 3017
+            jr z, asm_1_2316_n_fl_sz_end		; Hyp.cls 3018
+            ld hl, (asm_1_2316_n_fl_cnt)		; Hyp.cls 3019
+            inc hl		; Hyp.cls 3020
+            ld (asm_1_2316_n_fl_cnt), hl		; Hyp.cls 3021
+            cp 128		; Hyp.cls 3022
+            jr z, asm_1_2316_n_fl_sz_lp		; Hyp.cls 3023
+asm_1_2316_n_fl_sz_end:		; Hyp.cls 3024
+            call asm_1_2316_n_fl_inclose		; Hyp.cls 3025
+            ld hl, (asm_1_2316_n_fl_cnt)		; Hyp.cls 3026
+            call asm_1_2316_n_fl_ranput		; Hyp.cls 3027
+            xor a		; Hyp.cls 3028
+            ld (asm_1_2316_n_fl_res), a		; Hyp.cls 3029
+asm_1_2316_n_fl_sz_back:		; Hyp.cls 3030
+            ld a, (asm_1_2316_n_fl_had)		; Hyp.cls 3031
+            or a		; Hyp.cls 3032
+            jp z, asm_1_2316_n_fp_done		; Hyp.cls 3033
+            ld hl, asm_1_2316_n_fl_inname        ; the slot's read file again, on to its record [3034]
+            ld de, asm_1_2316_n_fl_name_s		; Hyp.cls 3035
+            ld bc, asm_1_2316_n_FL_NL		; Hyp.cls 3036
+            ldir		; Hyp.cls 3037
+            call asm_1_2316_n_fl_inopen		; Hyp.cls 3038
+            jp nc, asm_1_2316_n_fp_done		; Hyp.cls 3039
+            ld a, (asm_1_2316_n_fl_slot)		; Hyp.cls 3040
+            ld (var_hyp_fin), a		; Hyp.cls 3041
+            ld hl, (asm_1_2316_n_fl_inrec)		; Hyp.cls 3042
+asm_1_2316_n_fl_sz_skip:		; Hyp.cls 3043
+            ld a, h		; Hyp.cls 3044
+            or l		; Hyp.cls 3045
+            jp z, asm_1_2316_n_fp_done		; Hyp.cls 3046
+            push hl		; Hyp.cls 3047
+            call asm_1_2316_n_fl_rdrec		; Hyp.cls 3048
+            pop hl		; Hyp.cls 3049
+            dec hl		; Hyp.cls 3050
+            jr asm_1_2316_n_fl_sz_skip		; Hyp.cls 3051
 ; ---- 36: set the random record (r0-r2) from where the file is: the next record read or
 ; written; a file not open here: from the FCB's extent and record (ex * 128 + cr)
-asm_1_2310_n_fl_setran:		; Hyp.cls 3048
-            call asm_1_2310_n_fl_isin		; Hyp.cls 3049
-            ld hl, (asm_1_2310_n_fl_inrec)		; Hyp.cls 3050
-            jr z, asm_1_2310_n_fl_sr_put		; Hyp.cls 3051
-            call asm_1_2310_n_fl_isout		; Hyp.cls 3052
-            ld hl, (asm_1_2310_n_fl_outrec)		; Hyp.cls 3053
-            jr z, asm_1_2310_n_fl_sr_put		; Hyp.cls 3054
-            ld hl, (var_hyp_filecall_fcb)		; Hyp.cls 3055
-            ld de, 32		; Hyp.cls 3056
-            add hl, de		; Hyp.cls 3057
-            call asm_1_2310_n_fl_peek            ; cr [3058]
-            ld e, a		; Hyp.cls 3059
-            ld bc, -20		; Hyp.cls 3060
-            add hl, bc		; Hyp.cls 3061
-            call asm_1_2310_n_fl_peek            ; ex [3062]
-            ld h, a		; Hyp.cls 3063
-            srl h		; Hyp.cls 3064
-            ld a, e		; Hyp.cls 3065
-            jr nc, asm_1_2310_n_fl_sr_lo		; Hyp.cls 3066
-            or #80		; Hyp.cls 3067
-asm_1_2310_n_fl_sr_lo:		; Hyp.cls 3068
-            ld l, a		; Hyp.cls 3069
-asm_1_2310_n_fl_sr_put:		; Hyp.cls 3070
-            call asm_1_2310_n_fl_ranput		; Hyp.cls 3071
-            jp asm_1_2310_n_fl_ok		; Hyp.cls 3072
+asm_1_2316_n_fl_setran:		; Hyp.cls 3054
+            call asm_1_2316_n_fl_isin		; Hyp.cls 3055
+            ld hl, (asm_1_2316_n_fl_inrec)		; Hyp.cls 3056
+            jr z, asm_1_2316_n_fl_sr_put		; Hyp.cls 3057
+            call asm_1_2316_n_fl_isout		; Hyp.cls 3058
+            ld hl, (asm_1_2316_n_fl_outrec)		; Hyp.cls 3059
+            jr z, asm_1_2316_n_fl_sr_put		; Hyp.cls 3060
+            ld hl, (var_hyp_filecall_fcb)		; Hyp.cls 3061
+            ld de, 32		; Hyp.cls 3062
+            add hl, de		; Hyp.cls 3063
+            call asm_1_2316_n_fl_peek            ; cr [3064]
+            ld e, a		; Hyp.cls 3065
+            ld bc, -20		; Hyp.cls 3066
+            add hl, bc		; Hyp.cls 3067
+            call asm_1_2316_n_fl_peek            ; ex [3068]
+            ld h, a		; Hyp.cls 3069
+            srl h		; Hyp.cls 3070
+            ld a, e		; Hyp.cls 3071
+            jr nc, asm_1_2316_n_fl_sr_lo		; Hyp.cls 3072
+            or #80		; Hyp.cls 3073
+asm_1_2316_n_fl_sr_lo:		; Hyp.cls 3074
+            ld l, a		; Hyp.cls 3075
+asm_1_2316_n_fl_sr_put:		; Hyp.cls 3076
+            call asm_1_2316_n_fl_ranput		; Hyp.cls 3077
+            jp asm_1_2316_n_fl_ok		; Hyp.cls 3078
 ; ---- 17 / 18: search the folder (UniDOS: the FCB's drive's, else the slot's) for BDOS 17's
 ; name ("?" any character; kept at SRCH in the bank, SRCH + 12 the entries passed - 18 goes on
 ; from there): the next one, as a CP/M directory entry at the DMA (its record count from its
 ; length, 128 at most). 17 examines the folder (Ctrl J) into the hypervisor's page (#6000-#7BFF:
 ; 112 entries at most), then 17 and 18 look there. No UniDOS (or an AMSDOS floppy): none (255)
-asm_1_2310_n_fl_srch1:		; Hyp.cls 3078
-            ld hl, (var_hyp_filecall_fcb)		; Hyp.cls 3079
-            ld de, 63216		; Hyp.cls 3080
-            ld b, 12		; Hyp.cls 3081
-asm_1_2310_n_fl_s1_lp:		; Hyp.cls 3082
-            call asm_1_2310_n_fl_peek		; Hyp.cls 3083
-            ex de, hl		; Hyp.cls 3084
-            call asm_1_2310_n_fl_poke		; Hyp.cls 3085
-            ex de, hl		; Hyp.cls 3086
-            inc hl		; Hyp.cls 3087
-            inc de		; Hyp.cls 3088
-            djnz asm_1_2310_n_fl_s1_lp		; Hyp.cls 3089
+asm_1_2316_n_fl_srch1:		; Hyp.cls 3084
+            ld hl, (var_hyp_filecall_fcb)		; Hyp.cls 3085
+            ld de, 63216		; Hyp.cls 3086
+            ld b, 12		; Hyp.cls 3087
+asm_1_2316_n_fl_s1_lp:		; Hyp.cls 3088
+            call asm_1_2316_n_fl_peek		; Hyp.cls 3089
             ex de, hl		; Hyp.cls 3090
-            xor a		; Hyp.cls 3091
-            call asm_1_2310_n_fl_poke            ; none passed [3092]
-            xor a		; Hyp.cls 3093
-            ld (asm_1_2310_n_fl_cn), a		; Hyp.cls 3094
-            ld hl, #6000		; Hyp.cls 3095
-            ld (asm_1_2310_n_fl_at), hl		; Hyp.cls 3096
-            ld de, asm_1_2310_n_fl_name_s + 1    ; "B:" (or B's path) [3097]
-            ld hl, 63216		; Hyp.cls 3098
-            call asm_1_2310_n_fl_peek		; Hyp.cls 3099
-            or a		; Hyp.cls 3100
-            jr z, asm_1_2310_n_fl_s_own		; Hyp.cls 3101
-            add a, 64		; Hyp.cls 3102
-            jr asm_1_2310_n_fl_s_drv		; Hyp.cls 3103
-asm_1_2310_n_fl_s_own:		; Hyp.cls 3104
-            ld a, (var_hyp_filecall_drive)		; Hyp.cls 3105
+            call asm_1_2316_n_fl_poke		; Hyp.cls 3091
+            ex de, hl		; Hyp.cls 3092
+            inc hl		; Hyp.cls 3093
+            inc de		; Hyp.cls 3094
+            djnz asm_1_2316_n_fl_s1_lp		; Hyp.cls 3095
+            ex de, hl		; Hyp.cls 3096
+            xor a		; Hyp.cls 3097
+            call asm_1_2316_n_fl_poke            ; none passed [3098]
+            xor a		; Hyp.cls 3099
+            ld (asm_1_2316_n_fl_cn), a		; Hyp.cls 3100
+            ld hl, #6000		; Hyp.cls 3101
+            ld (asm_1_2316_n_fl_at), hl		; Hyp.cls 3102
+            ld de, asm_1_2316_n_fl_name_s + 1    ; "B:" (or B's path) [3103]
+            ld hl, 63216		; Hyp.cls 3104
+            call asm_1_2316_n_fl_peek		; Hyp.cls 3105
             or a		; Hyp.cls 3106
-            jr z, asm_1_2310_n_fl_s_nod		; Hyp.cls 3107
-asm_1_2310_n_fl_s_drv:		; Hyp.cls 3108
-            call asm_1_2310_n_fl_pfx		; Hyp.cls 3109
-asm_1_2310_n_fl_s_nod:		; Hyp.cls 3110
+            jr z, asm_1_2316_n_fl_s_own		; Hyp.cls 3107
+            add a, 64		; Hyp.cls 3108
+            jr asm_1_2316_n_fl_s_drv		; Hyp.cls 3109
+asm_1_2316_n_fl_s_own:		; Hyp.cls 3110
+            ld a, (var_hyp_filecall_drive)		; Hyp.cls 3111
+            or a		; Hyp.cls 3112
+            jr z, asm_1_2316_n_fl_s_nod		; Hyp.cls 3113
+asm_1_2316_n_fl_s_drv:		; Hyp.cls 3114
+            call asm_1_2316_n_fl_pfx		; Hyp.cls 3115
+asm_1_2316_n_fl_s_nod:		; Hyp.cls 3116
 ; UniDOS: the directory itself (Ctrl J examine), its files into the cache - no file opened (so
 ; not held up by another slot's reading)
-            push de		; Hyp.cls 3113
-            call asm_1_2310_n_fl_exdir		; Hyp.cls 3114
-            pop de		; Hyp.cls 3115
-            jp nz, asm_1_2310_n_fp_done          ; (none to list: no UniDOS, an AMSDOS floppy - 255) [3116]
-asm_1_2310_n_fl_sx_lp:		; Hyp.cls 3117
-            ld hl, (asm_1_2310_n_fl_at)		; Hyp.cls 3118
-            inc hl                  ; (the name straight into the entry) [3119]
-            ld ix, asm_1_2310_n_FL_DATE		; Hyp.cls 3120
-            ld c, 13                ; examine next [3121]
-            call asm_1_2310_n_fl_cjc		; Hyp.cls 3122
-            jr nc, asm_1_2310_n_fl_sx_end		; Hyp.cls 3123
-            jr nz, asm_1_2310_n_fl_sx_end		; Hyp.cls 3124
-            bit 4, a		; Hyp.cls 3125
-            jr nz, asm_1_2310_n_fl_sx_lp         ; (a folder: not for CP/M) [3126]
-            ld hl, (asm_1_2310_n_fl_at)		; Hyp.cls 3127
-            ld (hl), 1              ; in use [3128]
-            ld a, b		; Hyp.cls 3129
-            or c		; Hyp.cls 3130
-            jr z, asm_1_2310_n_fl_sx_sz		; Hyp.cls 3131
-            ld de, #FFFF            ; (64K or more) [3132]
-asm_1_2310_n_fl_sx_sz:		; Hyp.cls 3133
-            ld bc, 12		; Hyp.cls 3134
-            add hl, bc		; Hyp.cls 3135
-            ld (hl), b              ; kind, flags 0 [3136]
-            inc hl		; Hyp.cls 3137
-            ld (hl), b		; Hyp.cls 3138
-            inc hl		; Hyp.cls 3139
-            ld (hl), e              ; its length [3140]
-            inc hl		; Hyp.cls 3141
-            ld (hl), d		; Hyp.cls 3142
-            ld hl, (asm_1_2310_n_fl_at)		; Hyp.cls 3143
-            ld bc, 64		; Hyp.cls 3144
-            add hl, bc		; Hyp.cls 3145
-            ld (asm_1_2310_n_fl_at), hl		; Hyp.cls 3146
-            ld hl, asm_1_2310_n_fl_cn		; Hyp.cls 3147
-            inc (hl)		; Hyp.cls 3148
-            ld a, (hl)		; Hyp.cls 3149
-            cp asm_1_2310_n_FL_CMAX		; Hyp.cls 3150
-            jr c, asm_1_2310_n_fl_sx_lp		; Hyp.cls 3151
-asm_1_2310_n_fl_sx_end:		; Hyp.cls 3152
-            jp asm_1_2310_n_fl_srch		; Hyp.cls 3153
-asm_1_2310_n_fl_srch:		; Hyp.cls 3154
-            ld hl, 63216 + 12		; Hyp.cls 3155
-            call asm_1_2310_n_fl_peek		; Hyp.cls 3156
-            ld (asm_1_2310_n_fl_skip), a		; Hyp.cls 3157
-            xor a		; Hyp.cls 3158
-            ld (asm_1_2310_n_fl_k), a		; Hyp.cls 3159
-asm_1_2310_n_fl_s_lp:		; Hyp.cls 3160
-            ld a, (asm_1_2310_n_fl_cn)           ; the next entry, from the cache [3161]
-            ld b, a		; Hyp.cls 3162
-            ld a, (asm_1_2310_n_fl_k)		; Hyp.cls 3163
-            cp b		; Hyp.cls 3164
-            jp nc, asm_1_2310_n_fp_done          ; (none: 255) [3165]
-            ld l, a		; Hyp.cls 3166
-            ld h, 0		; Hyp.cls 3167
-            add hl, hl		; Hyp.cls 3168
-            add hl, hl		; Hyp.cls 3169
-            add hl, hl		; Hyp.cls 3170
-            add hl, hl		; Hyp.cls 3171
-            add hl, hl		; Hyp.cls 3172
-            add hl, hl		; Hyp.cls 3173
-            ld de, #6000		; Hyp.cls 3174
-            add hl, de		; Hyp.cls 3175
-            ld de, (var_hyp_filecall_buf)		; Hyp.cls 3176
-            ld bc, 64		; Hyp.cls 3177
-            ldir		; Hyp.cls 3178
-            ld hl, asm_1_2310_n_fl_k		; Hyp.cls 3179
-            inc (hl)		; Hyp.cls 3180
-            ld a, (asm_1_2310_n_fl_skip)		; Hyp.cls 3181
-            cp (hl)		; Hyp.cls 3182
-            jr nc, asm_1_2310_n_fl_s_lp          ; passed already [3183]
-            ld hl, (var_hyp_filecall_buf)		; Hyp.cls 3184
-            ld a, (hl)		; Hyp.cls 3185
-            dec a		; Hyp.cls 3186
-            jr nz, asm_1_2310_n_fl_s_lp          ; not in use (1) [3187]
-            inc hl		; Hyp.cls 3188
-            ld de, 63216 + 1		; Hyp.cls 3189
-            ld b, 11		; Hyp.cls 3190
-asm_1_2310_n_fl_s_cmp:		; Hyp.cls 3191
-            ex de, hl		; Hyp.cls 3192
-            call asm_1_2310_n_fl_peek		; Hyp.cls 3193
-            ex de, hl		; Hyp.cls 3194
-            and #7F		; Hyp.cls 3195
-            cp '?'		; Hyp.cls 3196
-            jr z, asm_1_2310_n_fl_s_any		; Hyp.cls 3197
-            ld c, a		; Hyp.cls 3198
-            ld a, (hl)		; Hyp.cls 3199
-            and #7F		; Hyp.cls 3200
-            cp c		; Hyp.cls 3201
-            jr nz, asm_1_2310_n_fl_s_lp		; Hyp.cls 3202
-asm_1_2310_n_fl_s_any:		; Hyp.cls 3203
-            inc hl		; Hyp.cls 3204
-            inc de		; Hyp.cls 3205
-            djnz asm_1_2310_n_fl_s_cmp		; Hyp.cls 3206
-            ld hl, (var_hyp_filecall_buf)          ; the entry: user 0, the name, extent 0, the records, no blocks [3207]
-            ld (hl), 0		; Hyp.cls 3208
-            ld de, 14		; Hyp.cls 3209
-            add hl, de		; Hyp.cls 3210
-            ld e, (hl)		; Hyp.cls 3211
-            inc hl		; Hyp.cls 3212
-            ld d, (hl)		; Hyp.cls 3213
-            ex de, hl		; Hyp.cls 3214
-            ld bc, 127		; Hyp.cls 3215
-            add hl, bc		; Hyp.cls 3216
-            jr c, asm_1_2310_n_fl_s_big		; Hyp.cls 3217
-            ld a, h		; Hyp.cls 3218
-            cp #40		; Hyp.cls 3219
-            jr nc, asm_1_2310_n_fl_s_big		; Hyp.cls 3220
-            sla l		; Hyp.cls 3221
-            rla		; Hyp.cls 3222
-            jr asm_1_2310_n_fl_s_rc		; Hyp.cls 3223
-asm_1_2310_n_fl_s_big:		; Hyp.cls 3224
-            ld a, 128		; Hyp.cls 3225
-asm_1_2310_n_fl_s_rc:		; Hyp.cls 3226
-            ex de, hl		; Hyp.cls 3227
-            ld (hl), a		; Hyp.cls 3228
-            ld b, 3		; Hyp.cls 3229
-asm_1_2310_n_fl_s_z1:		; Hyp.cls 3230
-            dec hl		; Hyp.cls 3231
-            ld (hl), 0		; Hyp.cls 3232
-            djnz asm_1_2310_n_fl_s_z1		; Hyp.cls 3233
-            ld de, 4		; Hyp.cls 3234
-            add hl, de		; Hyp.cls 3235
-            ld b, 16		; Hyp.cls 3236
-asm_1_2310_n_fl_s_z2:		; Hyp.cls 3237
+            push de		; Hyp.cls 3119
+            call asm_1_2316_n_fl_exdir		; Hyp.cls 3120
+            pop de		; Hyp.cls 3121
+            jp nz, asm_1_2316_n_fp_done          ; (none to list: no UniDOS, an AMSDOS floppy - 255) [3122]
+asm_1_2316_n_fl_sx_lp:		; Hyp.cls 3123
+            ld hl, (asm_1_2316_n_fl_at)		; Hyp.cls 3124
+            inc hl                  ; (the name straight into the entry) [3125]
+            ld ix, asm_1_2316_n_FL_DATE		; Hyp.cls 3126
+            ld c, 13                ; examine next [3127]
+            call asm_1_2316_n_fl_cjc		; Hyp.cls 3128
+            jr nc, asm_1_2316_n_fl_sx_end		; Hyp.cls 3129
+            jr nz, asm_1_2316_n_fl_sx_end		; Hyp.cls 3130
+            bit 4, a		; Hyp.cls 3131
+            jr nz, asm_1_2316_n_fl_sx_lp         ; (a folder: not for CP/M) [3132]
+            ld hl, (asm_1_2316_n_fl_at)		; Hyp.cls 3133
+            ld (hl), 1              ; in use [3134]
+            ld a, b		; Hyp.cls 3135
+            or c		; Hyp.cls 3136
+            jr z, asm_1_2316_n_fl_sx_sz		; Hyp.cls 3137
+            ld de, #FFFF            ; (64K or more) [3138]
+asm_1_2316_n_fl_sx_sz:		; Hyp.cls 3139
+            ld bc, 12		; Hyp.cls 3140
+            add hl, bc		; Hyp.cls 3141
+            ld (hl), b              ; kind, flags 0 [3142]
+            inc hl		; Hyp.cls 3143
+            ld (hl), b		; Hyp.cls 3144
+            inc hl		; Hyp.cls 3145
+            ld (hl), e              ; its length [3146]
+            inc hl		; Hyp.cls 3147
+            ld (hl), d		; Hyp.cls 3148
+            ld hl, (asm_1_2316_n_fl_at)		; Hyp.cls 3149
+            ld bc, 64		; Hyp.cls 3150
+            add hl, bc		; Hyp.cls 3151
+            ld (asm_1_2316_n_fl_at), hl		; Hyp.cls 3152
+            ld hl, asm_1_2316_n_fl_cn		; Hyp.cls 3153
+            inc (hl)		; Hyp.cls 3154
+            ld a, (hl)		; Hyp.cls 3155
+            cp asm_1_2316_n_FL_CMAX		; Hyp.cls 3156
+            jr c, asm_1_2316_n_fl_sx_lp		; Hyp.cls 3157
+asm_1_2316_n_fl_sx_end:		; Hyp.cls 3158
+            jp asm_1_2316_n_fl_srch		; Hyp.cls 3159
+asm_1_2316_n_fl_srch:		; Hyp.cls 3160
+            ld hl, 63216 + 12		; Hyp.cls 3161
+            call asm_1_2316_n_fl_peek		; Hyp.cls 3162
+            ld (asm_1_2316_n_fl_skip), a		; Hyp.cls 3163
+            xor a		; Hyp.cls 3164
+            ld (asm_1_2316_n_fl_k), a		; Hyp.cls 3165
+asm_1_2316_n_fl_s_lp:		; Hyp.cls 3166
+            ld a, (asm_1_2316_n_fl_cn)           ; the next entry, from the cache [3167]
+            ld b, a		; Hyp.cls 3168
+            ld a, (asm_1_2316_n_fl_k)		; Hyp.cls 3169
+            cp b		; Hyp.cls 3170
+            jp nc, asm_1_2316_n_fp_done          ; (none: 255) [3171]
+            ld l, a		; Hyp.cls 3172
+            ld h, 0		; Hyp.cls 3173
+            add hl, hl		; Hyp.cls 3174
+            add hl, hl		; Hyp.cls 3175
+            add hl, hl		; Hyp.cls 3176
+            add hl, hl		; Hyp.cls 3177
+            add hl, hl		; Hyp.cls 3178
+            add hl, hl		; Hyp.cls 3179
+            ld de, #6000		; Hyp.cls 3180
+            add hl, de		; Hyp.cls 3181
+            ld de, (var_hyp_filecall_buf)		; Hyp.cls 3182
+            ld bc, 64		; Hyp.cls 3183
+            ldir		; Hyp.cls 3184
+            ld hl, asm_1_2316_n_fl_k		; Hyp.cls 3185
+            inc (hl)		; Hyp.cls 3186
+            ld a, (asm_1_2316_n_fl_skip)		; Hyp.cls 3187
+            cp (hl)		; Hyp.cls 3188
+            jr nc, asm_1_2316_n_fl_s_lp          ; passed already [3189]
+            ld hl, (var_hyp_filecall_buf)		; Hyp.cls 3190
+            ld a, (hl)		; Hyp.cls 3191
+            dec a		; Hyp.cls 3192
+            jr nz, asm_1_2316_n_fl_s_lp          ; not in use (1) [3193]
+            inc hl		; Hyp.cls 3194
+            ld de, 63216 + 1		; Hyp.cls 3195
+            ld b, 11		; Hyp.cls 3196
+asm_1_2316_n_fl_s_cmp:		; Hyp.cls 3197
+            ex de, hl		; Hyp.cls 3198
+            call asm_1_2316_n_fl_peek		; Hyp.cls 3199
+            ex de, hl		; Hyp.cls 3200
+            and #7F		; Hyp.cls 3201
+            cp '?'		; Hyp.cls 3202
+            jr z, asm_1_2316_n_fl_s_any		; Hyp.cls 3203
+            ld c, a		; Hyp.cls 3204
+            ld a, (hl)		; Hyp.cls 3205
+            and #7F		; Hyp.cls 3206
+            cp c		; Hyp.cls 3207
+            jr nz, asm_1_2316_n_fl_s_lp		; Hyp.cls 3208
+asm_1_2316_n_fl_s_any:		; Hyp.cls 3209
+            inc hl		; Hyp.cls 3210
+            inc de		; Hyp.cls 3211
+            djnz asm_1_2316_n_fl_s_cmp		; Hyp.cls 3212
+            ld hl, (var_hyp_filecall_buf)          ; the entry: user 0, the name, extent 0, the records, no blocks [3213]
+            ld (hl), 0		; Hyp.cls 3214
+            ld de, 14		; Hyp.cls 3215
+            add hl, de		; Hyp.cls 3216
+            ld e, (hl)		; Hyp.cls 3217
+            inc hl		; Hyp.cls 3218
+            ld d, (hl)		; Hyp.cls 3219
+            ex de, hl		; Hyp.cls 3220
+            ld bc, 127		; Hyp.cls 3221
+            add hl, bc		; Hyp.cls 3222
+            jr c, asm_1_2316_n_fl_s_big		; Hyp.cls 3223
+            ld a, h		; Hyp.cls 3224
+            cp #40		; Hyp.cls 3225
+            jr nc, asm_1_2316_n_fl_s_big		; Hyp.cls 3226
+            sla l		; Hyp.cls 3227
+            rla		; Hyp.cls 3228
+            jr asm_1_2316_n_fl_s_rc		; Hyp.cls 3229
+asm_1_2316_n_fl_s_big:		; Hyp.cls 3230
+            ld a, 128		; Hyp.cls 3231
+asm_1_2316_n_fl_s_rc:		; Hyp.cls 3232
+            ex de, hl		; Hyp.cls 3233
+            ld (hl), a		; Hyp.cls 3234
+            ld b, 3		; Hyp.cls 3235
+asm_1_2316_n_fl_s_z1:		; Hyp.cls 3236
+            dec hl		; Hyp.cls 3237
             ld (hl), 0		; Hyp.cls 3238
-            inc hl		; Hyp.cls 3239
-            djnz asm_1_2310_n_fl_s_z2		; Hyp.cls 3240
-            ld hl, (var_hyp_filecall_dma)		; Hyp.cls 3241
-            ld de, (var_hyp_filecall_buf)		; Hyp.cls 3242
-            ld b, 32		; Hyp.cls 3243
-asm_1_2310_n_fl_s_put:		; Hyp.cls 3244
-            ld a, (de)		; Hyp.cls 3245
-            call asm_1_2310_n_fl_poke		; Hyp.cls 3246
-            inc hl		; Hyp.cls 3247
-            inc de		; Hyp.cls 3248
-            djnz asm_1_2310_n_fl_s_put		; Hyp.cls 3249
-            ld hl, 63216 + 12		; Hyp.cls 3250
-            ld a, (asm_1_2310_n_fl_k)		; Hyp.cls 3251
-            call asm_1_2310_n_fl_poke		; Hyp.cls 3252
-            jp asm_1_2310_n_fl_ok		; Hyp.cls 3253
-asm_1_2310_n_fl_skip:    db 0		; Hyp.cls 3254
-asm_1_2310_n_fl_k:       db 0		; Hyp.cls 3255
-asm_1_2310_n_fl_cn:      db 0                    ; the folder's entries in the cache (#6000) [3256]
-asm_1_2310_n_fl_ranput:                          ; the FCB's r0-r2 = HL [3257]
-            ex de, hl		; Hyp.cls 3258
-            ld hl, (var_hyp_filecall_fcb)		; Hyp.cls 3259
-            ld bc, 33		; Hyp.cls 3260
-            add hl, bc		; Hyp.cls 3261
-            ld a, e		; Hyp.cls 3262
-            call asm_1_2310_n_fl_poke		; Hyp.cls 3263
-            inc hl		; Hyp.cls 3264
-            ld a, d		; Hyp.cls 3265
-            call asm_1_2310_n_fl_poke		; Hyp.cls 3266
-            inc hl		; Hyp.cls 3267
-            xor a		; Hyp.cls 3268
-            jp asm_1_2310_n_fl_poke		; Hyp.cls 3269
+            djnz asm_1_2316_n_fl_s_z1		; Hyp.cls 3239
+            ld de, 4		; Hyp.cls 3240
+            add hl, de		; Hyp.cls 3241
+            ld b, 16		; Hyp.cls 3242
+asm_1_2316_n_fl_s_z2:		; Hyp.cls 3243
+            ld (hl), 0		; Hyp.cls 3244
+            inc hl		; Hyp.cls 3245
+            djnz asm_1_2316_n_fl_s_z2		; Hyp.cls 3246
+            ld hl, (var_hyp_filecall_dma)		; Hyp.cls 3247
+            ld de, (var_hyp_filecall_buf)		; Hyp.cls 3248
+            ld b, 32		; Hyp.cls 3249
+asm_1_2316_n_fl_s_put:		; Hyp.cls 3250
+            ld a, (de)		; Hyp.cls 3251
+            call asm_1_2316_n_fl_poke		; Hyp.cls 3252
+            inc hl		; Hyp.cls 3253
+            inc de		; Hyp.cls 3254
+            djnz asm_1_2316_n_fl_s_put		; Hyp.cls 3255
+            ld hl, 63216 + 12		; Hyp.cls 3256
+            ld a, (asm_1_2316_n_fl_k)		; Hyp.cls 3257
+            call asm_1_2316_n_fl_poke		; Hyp.cls 3258
+            jp asm_1_2316_n_fl_ok		; Hyp.cls 3259
+asm_1_2316_n_fl_skip:    db 0		; Hyp.cls 3260
+asm_1_2316_n_fl_k:       db 0		; Hyp.cls 3261
+asm_1_2316_n_fl_cn:      db 0                    ; the folder's entries in the cache (#6000) [3262]
+asm_1_2316_n_fl_ranput:                          ; the FCB's r0-r2 = HL [3263]
+            ex de, hl		; Hyp.cls 3264
+            ld hl, (var_hyp_filecall_fcb)		; Hyp.cls 3265
+            ld bc, 33		; Hyp.cls 3266
+            add hl, bc		; Hyp.cls 3267
+            ld a, e		; Hyp.cls 3268
+            call asm_1_2316_n_fl_poke		; Hyp.cls 3269
+            inc hl		; Hyp.cls 3270
+            ld a, d		; Hyp.cls 3271
+            call asm_1_2316_n_fl_poke		; Hyp.cls 3272
+            inc hl		; Hyp.cls 3273
+            xor a		; Hyp.cls 3274
+            jp asm_1_2316_n_fl_poke		; Hyp.cls 3275
 ; ---- the parts
-asm_1_2310_n_fl_inopen:                          ; open fl_name_s to read: carry = done [3271]
-            call asm_1_2310_n_fl_plain		; Hyp.cls 3272
-            ld hl, asm_1_2310_n_fl_name_s + 1		; Hyp.cls 3273
-            ld a, (asm_1_2310_n_fl_name_s)		; Hyp.cls 3274
-            ld b, a		; Hyp.cls 3275
-            ld de, #4000		; Hyp.cls 3276
-            call #BC77              ; CAS IN OPEN [3277]
-            di		; Hyp.cls 3278
-            ld (asm_1_2310_n_fl_hdr), hl         ; (its header: BDOS 30 #C7) [3279]
-            ret		; Hyp.cls 3280
-asm_1_2310_n_fl_inclose:		; Hyp.cls 3281
-            xor a		; Hyp.cls 3282
-            ld (var_hyp_fin), a		; Hyp.cls 3283
-            call asm_1_2310_n_fl_plain		; Hyp.cls 3284
-            call #BC7A              ; CAS IN CLOSE [3285]
-            di		; Hyp.cls 3286
-            ret		; Hyp.cls 3287
-asm_1_2310_n_fl_rdrec:                           ; read up to fl_n bytes (128) into buf: A = how many (Z [3288]
-            call asm_1_2310_n_fl_plain           ; none), HL past them. A #1A is a byte (the soft end of file) [3289]
-            ld hl, (var_hyp_filecall_buf)		; Hyp.cls 3290
-            ld a, (asm_1_2310_n_fl_n)		; Hyp.cls 3291
-            ld b, a		; Hyp.cls 3292
-asm_1_2310_n_fl_rr_lp:		; Hyp.cls 3293
-            push bc		; Hyp.cls 3294
-            push hl		; Hyp.cls 3295
-            call #BC80              ; CAS IN CHAR [3296]
-            di		; Hyp.cls 3297
-            pop hl		; Hyp.cls 3298
-            pop bc		; Hyp.cls 3299
-            jr c, asm_1_2310_n_fl_rr_b		; Hyp.cls 3300
-            cp #1A		; Hyp.cls 3301
-            jr nz, asm_1_2310_n_fl_rr_end		; Hyp.cls 3302
-asm_1_2310_n_fl_rr_b:		; Hyp.cls 3303
-            ld (hl), a		; Hyp.cls 3304
-            inc hl		; Hyp.cls 3305
-            djnz asm_1_2310_n_fl_rr_lp		; Hyp.cls 3306
-asm_1_2310_n_fl_rr_end:		; Hyp.cls 3307
-            ld a, (asm_1_2310_n_fl_n)		; Hyp.cls 3308
-            sub b		; Hyp.cls 3309
-            ld c, a		; Hyp.cls 3310
-            ld a, 128		; Hyp.cls 3311
-            ld (asm_1_2310_n_fl_n), a            ; (128 again for the next) [3312]
-            ld a, c		; Hyp.cls 3313
-            or a		; Hyp.cls 3314
-            ret		; Hyp.cls 3315
-asm_1_2310_n_fl_fits:                            ; HL = a slot address, BC = bytes: NC = all in its 16K page. [3316]
-            push hl                 ; Keeps BC, DE, HL [3317]
-            ld a, h		; Hyp.cls 3318
-            and #3F		; Hyp.cls 3319
-            ld h, a		; Hyp.cls 3320
-            add hl, bc		; Hyp.cls 3321
-            ld a, h		; Hyp.cls 3322
-            cp #40		; Hyp.cls 3323
-            jr c, asm_1_2310_n_fl_ft_ok		; Hyp.cls 3324
-            jr nz, asm_1_2310_n_fl_ft_no		; Hyp.cls 3325
-            ld a, l		; Hyp.cls 3326
-            or a		; Hyp.cls 3327
-            jr nz, asm_1_2310_n_fl_ft_no		; Hyp.cls 3328
-asm_1_2310_n_fl_ft_ok:		; Hyp.cls 3329
-            pop hl		; Hyp.cls 3330
-            or a		; Hyp.cls 3331
-            ret		; Hyp.cls 3332
-asm_1_2310_n_fl_ft_no:		; Hyp.cls 3333
-            pop hl		; Hyp.cls 3334
-            scf		; Hyp.cls 3335
-            ret		; Hyp.cls 3336
-asm_1_2310_n_fl_plain:                           ; the hypervisor's page in the window (the buffers) [3337]
-            ld bc, (var_hyp_hps)		; Hyp.cls 3338
-            out (c), c		; Hyp.cls 3339
-            ret		; Hyp.cls 3340
-asm_1_2310_n_fl_name:                            ; fl_name_s = the FCB's file: length, "B:NAME.EXT" [3341]
-            ld hl, (var_hyp_filecall_fcb)		; Hyp.cls 3342
-asm_1_2310_n_fl_namehl:                          ; (HL = an FCB in the slot) [3343]
-            ld de, asm_1_2310_n_fl_name_s + 1		; Hyp.cls 3344
-            call asm_1_2310_n_fl_peek            ; its drive: 0 = the slot's (or fl_dfl's) [3345]
-            or a		; Hyp.cls 3346
-            jr nz, asm_1_2310_n_fl_nm_d		; Hyp.cls 3347
-            ld a, (asm_1_2310_n_fl_dfl)		; Hyp.cls 3348
-            or a		; Hyp.cls 3349
-            jr nz, asm_1_2310_n_fl_nm_d		; Hyp.cls 3350
-            ld a, (var_hyp_filecall_drive)		; Hyp.cls 3351
+asm_1_2316_n_fl_inopen:                          ; open fl_name_s to read: carry = done [3277]
+            call asm_1_2316_n_fl_plain		; Hyp.cls 3278
+            ld hl, asm_1_2316_n_fl_name_s + 1		; Hyp.cls 3279
+            ld a, (asm_1_2316_n_fl_name_s)		; Hyp.cls 3280
+            ld b, a		; Hyp.cls 3281
+            ld de, #4000		; Hyp.cls 3282
+            call #BC77              ; CAS IN OPEN [3283]
+            di		; Hyp.cls 3284
+            ld (asm_1_2316_n_fl_hdr), hl         ; (its header: BDOS 30 #C7) [3285]
+            ret		; Hyp.cls 3286
+asm_1_2316_n_fl_inclose:		; Hyp.cls 3287
+            xor a		; Hyp.cls 3288
+            ld (var_hyp_fin), a		; Hyp.cls 3289
+            call asm_1_2316_n_fl_plain		; Hyp.cls 3290
+            call #BC7A              ; CAS IN CLOSE [3291]
+            di		; Hyp.cls 3292
+            ret		; Hyp.cls 3293
+asm_1_2316_n_fl_rdrec:                           ; read up to fl_n bytes (128) into buf: A = how many (Z [3294]
+            call asm_1_2316_n_fl_plain           ; none), HL past them. A #1A is a byte (the soft end of file) [3295]
+            ld hl, (var_hyp_filecall_buf)		; Hyp.cls 3296
+            ld a, (asm_1_2316_n_fl_n)		; Hyp.cls 3297
+            ld b, a		; Hyp.cls 3298
+asm_1_2316_n_fl_rr_lp:		; Hyp.cls 3299
+            push bc		; Hyp.cls 3300
+            push hl		; Hyp.cls 3301
+            call #BC80              ; CAS IN CHAR [3302]
+            di		; Hyp.cls 3303
+            pop hl		; Hyp.cls 3304
+            pop bc		; Hyp.cls 3305
+            jr c, asm_1_2316_n_fl_rr_b		; Hyp.cls 3306
+            cp #1A		; Hyp.cls 3307
+            jr nz, asm_1_2316_n_fl_rr_end		; Hyp.cls 3308
+asm_1_2316_n_fl_rr_b:		; Hyp.cls 3309
+            ld (hl), a		; Hyp.cls 3310
+            inc hl		; Hyp.cls 3311
+            djnz asm_1_2316_n_fl_rr_lp		; Hyp.cls 3312
+asm_1_2316_n_fl_rr_end:		; Hyp.cls 3313
+            ld a, (asm_1_2316_n_fl_n)		; Hyp.cls 3314
+            sub b		; Hyp.cls 3315
+            ld c, a		; Hyp.cls 3316
+            ld a, 128		; Hyp.cls 3317
+            ld (asm_1_2316_n_fl_n), a            ; (128 again for the next) [3318]
+            ld a, c		; Hyp.cls 3319
+            or a		; Hyp.cls 3320
+            ret		; Hyp.cls 3321
+asm_1_2316_n_fl_fits:                            ; HL = a slot address, BC = bytes: NC = all in its 16K page. [3322]
+            push hl                 ; Keeps BC, DE, HL [3323]
+            ld a, h		; Hyp.cls 3324
+            and #3F		; Hyp.cls 3325
+            ld h, a		; Hyp.cls 3326
+            add hl, bc		; Hyp.cls 3327
+            ld a, h		; Hyp.cls 3328
+            cp #40		; Hyp.cls 3329
+            jr c, asm_1_2316_n_fl_ft_ok		; Hyp.cls 3330
+            jr nz, asm_1_2316_n_fl_ft_no		; Hyp.cls 3331
+            ld a, l		; Hyp.cls 3332
+            or a		; Hyp.cls 3333
+            jr nz, asm_1_2316_n_fl_ft_no		; Hyp.cls 3334
+asm_1_2316_n_fl_ft_ok:		; Hyp.cls 3335
+            pop hl		; Hyp.cls 3336
+            or a		; Hyp.cls 3337
+            ret		; Hyp.cls 3338
+asm_1_2316_n_fl_ft_no:		; Hyp.cls 3339
+            pop hl		; Hyp.cls 3340
+            scf		; Hyp.cls 3341
+            ret		; Hyp.cls 3342
+asm_1_2316_n_fl_plain:                           ; the hypervisor's page in the window (the buffers) [3343]
+            ld bc, (var_hyp_hps)		; Hyp.cls 3344
+            out (c), c		; Hyp.cls 3345
+            ret		; Hyp.cls 3346
+asm_1_2316_n_fl_name:                            ; fl_name_s = the FCB's file: length, "B:NAME.EXT" [3347]
+            ld hl, (var_hyp_filecall_fcb)		; Hyp.cls 3348
+asm_1_2316_n_fl_namehl:                          ; (HL = an FCB in the slot) [3349]
+            ld de, asm_1_2316_n_fl_name_s + 1		; Hyp.cls 3350
+            call asm_1_2316_n_fl_peek            ; its drive: 0 = the slot's (or fl_dfl's) [3351]
             or a		; Hyp.cls 3352
-            jr z, asm_1_2310_n_fl_nm_nod		; Hyp.cls 3353
-            sub 64		; Hyp.cls 3354
-asm_1_2310_n_fl_nm_d:		; Hyp.cls 3355
-            add a, 64		; Hyp.cls 3356
-            call asm_1_2310_n_fl_pfx             ; "B:", or B's path (UniDOS: "IDE:GAMES/") [3357]
-asm_1_2310_n_fl_nm_nod:		; Hyp.cls 3358
-            ld b, 11		; Hyp.cls 3359
-asm_1_2310_n_fl_nm_lp:		; Hyp.cls 3360
-            inc hl		; Hyp.cls 3361
-            ld a, b		; Hyp.cls 3362
-            cp 3		; Hyp.cls 3363
-            jr nz, asm_1_2310_n_fl_nm_c		; Hyp.cls 3364
-            ld a, '.'		; Hyp.cls 3365
-            ld (de), a		; Hyp.cls 3366
-            inc de		; Hyp.cls 3367
-asm_1_2310_n_fl_nm_c:		; Hyp.cls 3368
-            call asm_1_2310_n_fl_peek		; Hyp.cls 3369
-            and #7F		; Hyp.cls 3370
-            cp ' ' + 1		; Hyp.cls 3371
-            jr c, asm_1_2310_n_fl_nm_sk		; Hyp.cls 3372
-            ld (de), a		; Hyp.cls 3373
-            inc de		; Hyp.cls 3374
-asm_1_2310_n_fl_nm_sk:		; Hyp.cls 3375
-            djnz asm_1_2310_n_fl_nm_lp		; Hyp.cls 3376
-            ex de, hl		; Hyp.cls 3377
-            ld de, asm_1_2310_n_fl_name_s + 1		; Hyp.cls 3378
-            or a		; Hyp.cls 3379
-            sbc hl, de		; Hyp.cls 3380
-            ld a, l		; Hyp.cls 3381
-            ld (asm_1_2310_n_fl_name_s), a		; Hyp.cls 3382
-            ret		; Hyp.cls 3383
-asm_1_2310_n_fl_ok:		; Hyp.cls 3384
-            xor a		; Hyp.cls 3385
-            ld (asm_1_2310_n_fl_res), a		; Hyp.cls 3386
-asm_1_2310_n_fp_done:                            ; back to FileCall in main RAM (fp_done) [3387]
-            ld sp, (asm_1_2310_n_fp_sp)		; Hyp.cls 3388
+            jr nz, asm_1_2316_n_fl_nm_d		; Hyp.cls 3353
+            ld a, (asm_1_2316_n_fl_dfl)		; Hyp.cls 3354
+            or a		; Hyp.cls 3355
+            jr nz, asm_1_2316_n_fl_nm_d		; Hyp.cls 3356
+            ld a, (var_hyp_filecall_drive)		; Hyp.cls 3357
+            or a		; Hyp.cls 3358
+            jr z, asm_1_2316_n_fl_nm_nod		; Hyp.cls 3359
+            sub 64		; Hyp.cls 3360
+asm_1_2316_n_fl_nm_d:		; Hyp.cls 3361
+            add a, 64		; Hyp.cls 3362
+            call asm_1_2316_n_fl_pfx             ; "B:", or B's path (UniDOS: "IDE:GAMES/") [3363]
+asm_1_2316_n_fl_nm_nod:		; Hyp.cls 3364
+            ld b, 11		; Hyp.cls 3365
+asm_1_2316_n_fl_nm_lp:		; Hyp.cls 3366
+            inc hl		; Hyp.cls 3367
+            ld a, b		; Hyp.cls 3368
+            cp 3		; Hyp.cls 3369
+            jr nz, asm_1_2316_n_fl_nm_c		; Hyp.cls 3370
+            ld a, '.'		; Hyp.cls 3371
+            ld (de), a		; Hyp.cls 3372
+            inc de		; Hyp.cls 3373
+asm_1_2316_n_fl_nm_c:		; Hyp.cls 3374
+            call asm_1_2316_n_fl_peek		; Hyp.cls 3375
+            and #7F		; Hyp.cls 3376
+            cp ' ' + 1		; Hyp.cls 3377
+            jr c, asm_1_2316_n_fl_nm_sk		; Hyp.cls 3378
+            ld (de), a		; Hyp.cls 3379
+            inc de		; Hyp.cls 3380
+asm_1_2316_n_fl_nm_sk:		; Hyp.cls 3381
+            djnz asm_1_2316_n_fl_nm_lp		; Hyp.cls 3382
+            ex de, hl		; Hyp.cls 3383
+            ld de, asm_1_2316_n_fl_name_s + 1		; Hyp.cls 3384
+            or a		; Hyp.cls 3385
+            sbc hl, de		; Hyp.cls 3386
+            ld a, l		; Hyp.cls 3387
+            ld (asm_1_2316_n_fl_name_s), a		; Hyp.cls 3388
             ret		; Hyp.cls 3389
-asm_1_2310_n_fl_era:     db "ER", "A" + #80		; Hyp.cls 3390
-asm_1_2310_n_fl_rencmd:  db "RE", "N" + #80		; Hyp.cls 3391
-asm_1_2310_n_fl_par2:    dw asm_1_2310_n_fl_desc, asm_1_2310_n_fl_desc2		; Hyp.cls 3392
-asm_1_2310_n_fl_desc2:   db 0		; Hyp.cls 3393
-            dw 0		; Hyp.cls 3394
-asm_1_2310_n_fl_dfl:     db 0                    ; fl_name: the drive for an FCB whose own is 0 (rename) [3395]
-asm_1_2310_n_fl_par:     dw asm_1_2310_n_fl_desc		; Hyp.cls 3396
-asm_1_2310_n_fl_desc:    db 0		; Hyp.cls 3397
-            dw 0		; Hyp.cls 3398
-asm_1_2310_n_fl_n:       db 128                  ; bytes fl_rdrec reads [3399]
-asm_1_2310_n_fl_cnt:     dw 0		; Hyp.cls 3400
-asm_1_2310_n_fl_at:      dw 0		; Hyp.cls 3401
-asm_1_2310_n_fl_infcb:   dw 0		; Hyp.cls 3402
-            db 0                    ; (1: fl_infcb the open's - fl_is) [3403]
-asm_1_2310_n_fl_inrec:   dw 0		; Hyp.cls 3404
-asm_1_2310_n_fl_want:    dw 0		; Hyp.cls 3405
-asm_1_2310_n_fl_outfcb:  dw 0		; Hyp.cls 3406
-            db 0		; Hyp.cls 3407
-asm_1_2310_n_fl_outrec:  dw 0                    ; the next record written (36) [3408]
-asm_1_2310_n_fl_had:     db 0                    ; 35: this slot's read file closed for it [3409]
-asm_1_2310_n_fp_sp:      dw 0		; Hyp.cls 3410
+asm_1_2316_n_fl_ok:		; Hyp.cls 3390
+            xor a		; Hyp.cls 3391
+            ld (asm_1_2316_n_fl_res), a		; Hyp.cls 3392
+asm_1_2316_n_fp_done:                            ; back to FileCall in main RAM (fp_done) [3393]
+            ld sp, (asm_1_2316_n_fp_sp)		; Hyp.cls 3394
+            ret		; Hyp.cls 3395
+asm_1_2316_n_fl_era:     db "ER", "A" + #80		; Hyp.cls 3396
+asm_1_2316_n_fl_rencmd:  db "RE", "N" + #80		; Hyp.cls 3397
+asm_1_2316_n_fl_par2:    dw asm_1_2316_n_fl_desc, asm_1_2316_n_fl_desc2		; Hyp.cls 3398
+asm_1_2316_n_fl_desc2:   db 0		; Hyp.cls 3399
+            dw 0		; Hyp.cls 3400
+asm_1_2316_n_fl_dfl:     db 0                    ; fl_name: the drive for an FCB whose own is 0 (rename) [3401]
+asm_1_2316_n_fl_par:     dw asm_1_2316_n_fl_desc		; Hyp.cls 3402
+asm_1_2316_n_fl_desc:    db 0		; Hyp.cls 3403
+            dw 0		; Hyp.cls 3404
+asm_1_2316_n_fl_n:       db 128                  ; bytes fl_rdrec reads [3405]
+asm_1_2316_n_fl_cnt:     dw 0		; Hyp.cls 3406
+asm_1_2316_n_fl_at:      dw 0		; Hyp.cls 3407
+asm_1_2316_n_fl_infcb:   dw 0		; Hyp.cls 3408
+            db 0                    ; (1: fl_infcb the open's - fl_is) [3409]
+asm_1_2316_n_fl_inrec:   dw 0		; Hyp.cls 3410
+asm_1_2316_n_fl_want:    dw 0		; Hyp.cls 3411
+asm_1_2316_n_fl_outfcb:  dw 0		; Hyp.cls 3412
+            db 0		; Hyp.cls 3413
+asm_1_2316_n_fl_outrec:  dw 0                    ; the next record written (36) [3414]
+asm_1_2316_n_fl_had:     db 0                    ; 35: this slot's read file closed for it [3415]
+asm_1_2316_n_fp_sp:      dw 0		; Hyp.cls 3416
 ; ---- UniDOS: its Ctrl J BIOS command (found once, KL FIND COMMAND) - a drive letter can be a
 ; path (CD IDE:, CD SD:GAMES ...: any UniDOS device's folder), folders listed (examine). FL_MAP:
 ; letters A-P, 32 bytes each: the path's length (0 none: the letter itself, "B:"), the path
@@ -1409,144 +1409,144 @@ asm_1_2310_n_fp_sp:      dw 0		; Hyp.cls 3410
 ; UniDOS is found, and only set with it: with AMSDOS no letter has a path. Up there with the
 ; names (48 characters: a path and NAME.EXT), BDOS 132's block, DIR's listing: the FILES.DIR
 ; cache is #6000-#7BFF (112 entries)
-asm_1_2310_n_FL_CMAX:    equ 112                 ; the cache's entries [3418]
-asm_1_2310_n_FL_NL:      equ 49                  ; a name: its length, then the characters [3419]
-asm_1_2310_n_fl_name_s:  equ #7C00               ; length, then "B:NAME.EXT" (or "IDE:GAMES/NAME.EXT") [3420]
-asm_1_2310_n_fl_inname:  equ asm_1_2310_n_fl_name_s + asm_1_2310_n_FL_NL   ; the one being read's (33 going back) [3421]
-asm_1_2310_n_fl_new_s:   equ asm_1_2310_n_fl_inname + asm_1_2310_n_FL_NL   ; (23: the new name) [3422]
-asm_1_2310_n_FL_UB:      equ #7D00               ; BDOS 132's block (72 bytes) [3423]
-asm_1_2310_n_FL_EXK:     equ #7D48               ; the folder DIR lists (its path: length, 31 characters) [3424]
-asm_1_2310_n_FL_DATE:    equ #7D68               ; a date examine gives (7), then a name (11) [3425]
-asm_1_2310_n_FL_TN:      equ #7D70		; Hyp.cls 3426
-asm_1_2310_n_FL_MAP:     equ #7E00		; Hyp.cls 3427
-            ASSERT #6000 + asm_1_2310_n_FL_CMAX * 64 <= asm_1_2310_n_fl_name_s, "the search's cache, below the names"		; Hyp.cls 3428
-            ASSERT asm_1_2310_n_fl_new_s + asm_1_2310_n_FL_NL <= asm_1_2310_n_FL_UB, "the names, below BDOS 132's block"		; Hyp.cls 3429
-            ASSERT (asm_1_2310_n_FL_MAP & 255) = 0, "asm_1_2310_n_FL_MAP: a page's start (asm_1_2310_n_fl_mapa)"		; Hyp.cls 3430
-asm_1_2310_n_fl_cjf:     db 0                    ; 0: not looked for yet, 1: UniDOS, 2: none [3431]
-asm_1_2310_n_fl_cj:      dw 0                    ; Ctrl J's far address (address, ROM) [3432]
-            db 0		; Hyp.cls 3433
-asm_1_2310_n_fl_cjn:     db #8A                  ; (its name) [3434]
-asm_1_2310_n_fl_exv:     db 0                    ; FL_EXK's listing is the one UniDOS examines now ... [3435]
-asm_1_2310_n_fl_exi:     dw 0                    ; ... at this entry next [3436]
-asm_1_2310_n_fl_ue:      dw 0		; Hyp.cls 3437
+asm_1_2316_n_FL_CMAX:    equ 112                 ; the cache's entries [3424]
+asm_1_2316_n_FL_NL:      equ 49                  ; a name: its length, then the characters [3425]
+asm_1_2316_n_fl_name_s:  equ #7C00               ; length, then "B:NAME.EXT" (or "IDE:GAMES/NAME.EXT") [3426]
+asm_1_2316_n_fl_inname:  equ asm_1_2316_n_fl_name_s + asm_1_2316_n_FL_NL   ; the one being read's (33 going back) [3427]
+asm_1_2316_n_fl_new_s:   equ asm_1_2316_n_fl_inname + asm_1_2316_n_FL_NL   ; (23: the new name) [3428]
+asm_1_2316_n_FL_UB:      equ #7D00               ; BDOS 132's block (72 bytes) [3429]
+asm_1_2316_n_FL_EXK:     equ #7D48               ; the folder DIR lists (its path: length, 31 characters) [3430]
+asm_1_2316_n_FL_DATE:    equ #7D68               ; a date examine gives (7), then a name (11) [3431]
+asm_1_2316_n_FL_TN:      equ #7D70		; Hyp.cls 3432
+asm_1_2316_n_FL_MAP:     equ #7E00		; Hyp.cls 3433
+            ASSERT #6000 + asm_1_2316_n_FL_CMAX * 64 <= asm_1_2316_n_fl_name_s, "the search's cache, below the names"		; Hyp.cls 3434
+            ASSERT asm_1_2316_n_fl_new_s + asm_1_2316_n_FL_NL <= asm_1_2316_n_FL_UB, "the names, below BDOS 132's block"		; Hyp.cls 3435
+            ASSERT (asm_1_2316_n_FL_MAP & 255) = 0, "asm_1_2316_n_FL_MAP: a page's start (asm_1_2316_n_fl_mapa)"		; Hyp.cls 3436
+asm_1_2316_n_fl_cjf:     db 0                    ; 0: not looked for yet, 1: UniDOS, 2: none [3437]
+asm_1_2316_n_fl_cj:      dw 0                    ; Ctrl J's far address (address, ROM) [3438]
+            db 0		; Hyp.cls 3439
+asm_1_2316_n_fl_cjn:     db #8A                  ; (its name) [3440]
+asm_1_2316_n_fl_exv:     db 0                    ; FL_EXK's listing is the one UniDOS examines now ... [3441]
+asm_1_2316_n_fl_exi:     dw 0                    ; ... at this entry next [3442]
+asm_1_2316_n_fl_ue:      dw 0		; Hyp.cls 3443
 ; carry: UniDOS here (the first time: looked for, the paths cleared)
-asm_1_2310_n_fl_uni:		; Hyp.cls 3439
-            ld a, (asm_1_2310_n_fl_cjf)		; Hyp.cls 3440
-            cp 1		; Hyp.cls 3441
-            jr z, asm_1_2310_n_fl_un_y		; Hyp.cls 3442
-            or a		; Hyp.cls 3443
-            ret nz                  ; (2: none - NC) [3444]
-            ld hl, asm_1_2310_n_fl_cjn		; Hyp.cls 3445
-            call #BCD4              ; KL FIND COMMAND: C = its ROM, HL = its address [3446]
-            di		; Hyp.cls 3447
-            ld a, 2		; Hyp.cls 3448
-            jr nc, asm_1_2310_n_fl_un_s		; Hyp.cls 3449
-            ld (asm_1_2310_n_fl_cj), hl		; Hyp.cls 3450
-            ld a, c		; Hyp.cls 3451
-            ld (asm_1_2310_n_fl_cj + 2), a		; Hyp.cls 3452
-            ld hl, asm_1_2310_n_FL_MAP		; Hyp.cls 3453
-            ld de, asm_1_2310_n_FL_MAP + 1		; Hyp.cls 3454
-            ld bc, 511		; Hyp.cls 3455
-            ld (hl), 0		; Hyp.cls 3456
-            ldir		; Hyp.cls 3457
-            ld a, 1		; Hyp.cls 3458
-asm_1_2310_n_fl_un_s:		; Hyp.cls 3459
-            ld (asm_1_2310_n_fl_cjf), a		; Hyp.cls 3460
-            jr asm_1_2310_n_fl_uni		; Hyp.cls 3461
-asm_1_2310_n_fl_un_y:		; Hyp.cls 3462
-            scf		; Hyp.cls 3463
-            ret		; Hyp.cls 3464
-; Ctrl J command C (the other registers its input; its output back)
-asm_1_2310_n_fl_cjc:		; Hyp.cls 3466
-            rst #18                 ; (RST 3: a far call) [3467]
-            dw asm_1_2310_n_fl_cj		; Hyp.cls 3468
-            di		; Hyp.cls 3469
+asm_1_2316_n_fl_uni:		; Hyp.cls 3445
+            ld a, (asm_1_2316_n_fl_cjf)		; Hyp.cls 3446
+            cp 1		; Hyp.cls 3447
+            jr z, asm_1_2316_n_fl_un_y		; Hyp.cls 3448
+            or a		; Hyp.cls 3449
+            ret nz                  ; (2: none - NC) [3450]
+            ld hl, asm_1_2316_n_fl_cjn		; Hyp.cls 3451
+            call #BCD4              ; KL FIND COMMAND: C = its ROM, HL = its address [3452]
+            di		; Hyp.cls 3453
+            ld a, 2		; Hyp.cls 3454
+            jr nc, asm_1_2316_n_fl_un_s		; Hyp.cls 3455
+            ld (asm_1_2316_n_fl_cj), hl		; Hyp.cls 3456
+            ld a, c		; Hyp.cls 3457
+            ld (asm_1_2316_n_fl_cj + 2), a		; Hyp.cls 3458
+            ld hl, asm_1_2316_n_FL_MAP		; Hyp.cls 3459
+            ld de, asm_1_2316_n_FL_MAP + 1		; Hyp.cls 3460
+            ld bc, 511		; Hyp.cls 3461
+            ld (hl), 0		; Hyp.cls 3462
+            ldir		; Hyp.cls 3463
+            ld a, 1		; Hyp.cls 3464
+asm_1_2316_n_fl_un_s:		; Hyp.cls 3465
+            ld (asm_1_2316_n_fl_cjf), a		; Hyp.cls 3466
+            jr asm_1_2316_n_fl_uni		; Hyp.cls 3467
+asm_1_2316_n_fl_un_y:		; Hyp.cls 3468
+            scf		; Hyp.cls 3469
             ret		; Hyp.cls 3470
+; Ctrl J command C (the other registers its input; its output back)
+asm_1_2316_n_fl_cjc:		; Hyp.cls 3472
+            rst #18                 ; (RST 3: a far call) [3473]
+            dw asm_1_2316_n_fl_cj		; Hyp.cls 3474
+            di		; Hyp.cls 3475
+            ret		; Hyp.cls 3476
 ; A = a drive letter: HL = its FL_MAP entry, A = its path's length (Z: none). Carry: not A-P,
 ; or no UniDOS (no paths). A, HL only
-asm_1_2310_n_fl_mapa:		; Hyp.cls 3473
-            sub 'A'		; Hyp.cls 3474
-            cp 16		; Hyp.cls 3475
-            ccf		; Hyp.cls 3476
-            ret c		; Hyp.cls 3477
-            ld l, a		; Hyp.cls 3478
-            ld a, (asm_1_2310_n_fl_cjf)		; Hyp.cls 3479
-            cp 1		; Hyp.cls 3480
-            scf		; Hyp.cls 3481
-            ret nz		; Hyp.cls 3482
-            ld h, 0		; Hyp.cls 3483
-            add hl, hl		; Hyp.cls 3484
-            add hl, hl		; Hyp.cls 3485
-            add hl, hl		; Hyp.cls 3486
-            add hl, hl		; Hyp.cls 3487
-            add hl, hl		; Hyp.cls 3488
-            ld a, h		; Hyp.cls 3489
-            add a, asm_1_2310_n_FL_MAP / 256		; Hyp.cls 3490
-            ld h, a		; Hyp.cls 3491
-            ld a, (hl)		; Hyp.cls 3492
-            or a		; Hyp.cls 3493
-            ret		; Hyp.cls 3494
+asm_1_2316_n_fl_mapa:		; Hyp.cls 3479
+            sub 'A'		; Hyp.cls 3480
+            cp 16		; Hyp.cls 3481
+            ccf		; Hyp.cls 3482
+            ret c		; Hyp.cls 3483
+            ld l, a		; Hyp.cls 3484
+            ld a, (asm_1_2316_n_fl_cjf)		; Hyp.cls 3485
+            cp 1		; Hyp.cls 3486
+            scf		; Hyp.cls 3487
+            ret nz		; Hyp.cls 3488
+            ld h, 0		; Hyp.cls 3489
+            add hl, hl		; Hyp.cls 3490
+            add hl, hl		; Hyp.cls 3491
+            add hl, hl		; Hyp.cls 3492
+            add hl, hl		; Hyp.cls 3493
+            add hl, hl		; Hyp.cls 3494
+            ld a, h		; Hyp.cls 3495
+            add a, asm_1_2316_n_FL_MAP / 256		; Hyp.cls 3496
+            ld h, a		; Hyp.cls 3497
+            ld a, (hl)		; Hyp.cls 3498
+            or a		; Hyp.cls 3499
+            ret		; Hyp.cls 3500
 ; A = a drive letter: "B:" at DE, or its path - DE past it (BC, HL kept)
-asm_1_2310_n_fl_pfx:		; Hyp.cls 3496
-            push af		; Hyp.cls 3497
-            call asm_1_2310_n_fl_pfxm		; Hyp.cls 3498
-            jr nz, asm_1_2310_n_fl_px_d		; Hyp.cls 3499
-            pop af		; Hyp.cls 3500
-            ld (de), a		; Hyp.cls 3501
-            inc de		; Hyp.cls 3502
-            ld a, ':'		; Hyp.cls 3503
-            ld (de), a		; Hyp.cls 3504
-            inc de		; Hyp.cls 3505
-            ret		; Hyp.cls 3506
-asm_1_2310_n_fl_px_d:		; Hyp.cls 3507
-            pop af		; Hyp.cls 3508
-            ret		; Hyp.cls 3509
+asm_1_2316_n_fl_pfx:		; Hyp.cls 3502
+            push af		; Hyp.cls 3503
+            call asm_1_2316_n_fl_pfxm		; Hyp.cls 3504
+            jr nz, asm_1_2316_n_fl_px_d		; Hyp.cls 3505
+            pop af		; Hyp.cls 3506
+            ld (de), a		; Hyp.cls 3507
+            inc de		; Hyp.cls 3508
+            ld a, ':'		; Hyp.cls 3509
+            ld (de), a		; Hyp.cls 3510
+            inc de		; Hyp.cls 3511
+            ret		; Hyp.cls 3512
+asm_1_2316_n_fl_px_d:		; Hyp.cls 3513
+            pop af		; Hyp.cls 3514
+            ret		; Hyp.cls 3515
 ; ... its path only, if it has one (NZ; Z: none, nothing put)
-asm_1_2310_n_fl_pfxm:		; Hyp.cls 3511
-            push hl		; Hyp.cls 3512
-            call asm_1_2310_n_fl_mapa		; Hyp.cls 3513
-            jr c, asm_1_2310_n_fl_pm_no		; Hyp.cls 3514
-            jr z, asm_1_2310_n_fl_pm_no		; Hyp.cls 3515
-            push bc		; Hyp.cls 3516
-            ld c, a		; Hyp.cls 3517
-            ld b, 0		; Hyp.cls 3518
-            inc hl		; Hyp.cls 3519
-            ldir		; Hyp.cls 3520
-            pop bc		; Hyp.cls 3521
-            or a		; Hyp.cls 3522
-            jr asm_1_2310_n_fl_pm_r		; Hyp.cls 3523
-asm_1_2310_n_fl_pm_no:		; Hyp.cls 3524
-            xor a		; Hyp.cls 3525
-asm_1_2310_n_fl_pm_r:		; Hyp.cls 3526
-            pop hl		; Hyp.cls 3527
-            ret		; Hyp.cls 3528
-asm_1_2310_n_fl_nlen:                            ; fl_name_s's length: its characters end at DE [3529]
-            ld hl, -(asm_1_2310_n_fl_name_s + 1)		; Hyp.cls 3530
-            add hl, de		; Hyp.cls 3531
-            ld a, l		; Hyp.cls 3532
-            ld (asm_1_2310_n_fl_name_s), a		; Hyp.cls 3533
+asm_1_2316_n_fl_pfxm:		; Hyp.cls 3517
+            push hl		; Hyp.cls 3518
+            call asm_1_2316_n_fl_mapa		; Hyp.cls 3519
+            jr c, asm_1_2316_n_fl_pm_no		; Hyp.cls 3520
+            jr z, asm_1_2316_n_fl_pm_no		; Hyp.cls 3521
+            push bc		; Hyp.cls 3522
+            ld c, a		; Hyp.cls 3523
+            ld b, 0		; Hyp.cls 3524
+            inc hl		; Hyp.cls 3525
+            ldir		; Hyp.cls 3526
+            pop bc		; Hyp.cls 3527
+            or a		; Hyp.cls 3528
+            jr asm_1_2316_n_fl_pm_r		; Hyp.cls 3529
+asm_1_2316_n_fl_pm_no:		; Hyp.cls 3530
+            xor a		; Hyp.cls 3531
+asm_1_2316_n_fl_pm_r:		; Hyp.cls 3532
+            pop hl		; Hyp.cls 3533
             ret		; Hyp.cls 3534
+asm_1_2316_n_fl_nlen:                            ; fl_name_s's length: its characters end at DE [3535]
+            ld hl, -(asm_1_2316_n_fl_name_s + 1)		; Hyp.cls 3536
+            add hl, de		; Hyp.cls 3537
+            ld a, l		; Hyp.cls 3538
+            ld (asm_1_2316_n_fl_name_s), a		; Hyp.cls 3539
+            ret		; Hyp.cls 3540
 ; the folder whose path is at fl_name_s + 1 to DE (fl_exdir2: fl_name_s, its length set)
 ; examined (Ctrl J 12): Z its listing ready (examine next: Ctrl J 13), NZ no UniDOS, a drive
 ; it can't examine (AMSDOS's floppies), not a folder
-asm_1_2310_n_fl_exdir:		; Hyp.cls 3538
-            call asm_1_2310_n_fl_nlen		; Hyp.cls 3539
-asm_1_2310_n_fl_exdir2:		; Hyp.cls 3540
-            call asm_1_2310_n_fl_uni		; Hyp.cls 3541
-            jr nc, asm_1_2310_n_fl_ed_no		; Hyp.cls 3542
-            xor a		; Hyp.cls 3543
-            ld (asm_1_2310_n_fl_exv), a		; Hyp.cls 3544
-            ld hl, asm_1_2310_n_fl_name_s		; Hyp.cls 3545
-            ld b, (hl)		; Hyp.cls 3546
-            inc hl		; Hyp.cls 3547
-            ld ix, asm_1_2310_n_FL_DATE		; Hyp.cls 3548
-            ld c, 12		; Hyp.cls 3549
-            call asm_1_2310_n_fl_cjc		; Hyp.cls 3550
-            ret c		; Hyp.cls 3551
-asm_1_2310_n_fl_ed_no:		; Hyp.cls 3552
-            ld a, 254               ; (254: no UniDOS, or a drive it can't examine) [3553]
-            or a		; Hyp.cls 3554
-            ret		; Hyp.cls 3555
+asm_1_2316_n_fl_exdir:		; Hyp.cls 3544
+            call asm_1_2316_n_fl_nlen		; Hyp.cls 3545
+asm_1_2316_n_fl_exdir2:		; Hyp.cls 3546
+            call asm_1_2316_n_fl_uni		; Hyp.cls 3547
+            jr nc, asm_1_2316_n_fl_ed_no		; Hyp.cls 3548
+            xor a		; Hyp.cls 3549
+            ld (asm_1_2316_n_fl_exv), a		; Hyp.cls 3550
+            ld hl, asm_1_2316_n_fl_name_s		; Hyp.cls 3551
+            ld b, (hl)		; Hyp.cls 3552
+            inc hl		; Hyp.cls 3553
+            ld ix, asm_1_2316_n_FL_DATE		; Hyp.cls 3554
+            ld c, 12		; Hyp.cls 3555
+            call asm_1_2316_n_fl_cjc		; Hyp.cls 3556
+            ret c		; Hyp.cls 3557
+asm_1_2316_n_fl_ed_no:		; Hyp.cls 3558
+            ld a, 254               ; (254: no UniDOS, or a drive it can't examine) [3559]
+            or a		; Hyp.cls 3560
+            ret		; Hyp.cls 3561
 ; ---- 30: CP/M's set file attributes - not done here (255) - unless the block at DE (72 bytes)
 ; is CyborgOS's UniDOS call (CD, DIR): Byte(0) #C0 + the call (an FCB's drive byte is 0-16:
 ; never that), Byte(1) a drive letter (A-P). 255: no UniDOS (or a bad block). So Main sends it
@@ -1570,1096 +1570,1100 @@ asm_1_2310_n_fl_ed_no:		; Hyp.cls 3552
 ;      UniDOS's error (255 also while a file is being written)
 ;   7  the header of the file this slot reads (the disc ROM's copy, 69 bytes - UniDOS's made-up
 ;      one for a file with none: its 24 bit length at 64 #800000) at Byte(2): 0; 255 none open
-asm_1_2310_n_fl_unicall:		; Hyp.cls 3579
-            ld hl, (var_hyp_filecall_fcb)		; Hyp.cls 3580
-            ld de, asm_1_2310_n_FL_UB		; Hyp.cls 3581
-            ld b, 72		; Hyp.cls 3582
-asm_1_2310_n_fl_uc_in:		; Hyp.cls 3583
-            call asm_1_2310_n_fl_peek		; Hyp.cls 3584
-            ld (de), a		; Hyp.cls 3585
-            inc hl		; Hyp.cls 3586
-            inc de		; Hyp.cls 3587
-            djnz asm_1_2310_n_fl_uc_in		; Hyp.cls 3588
-            ld a, (asm_1_2310_n_FL_UB)		; Hyp.cls 3589
-            sub #C0		; Hyp.cls 3590
-            cp 9		; Hyp.cls 3591
-            jp nc, asm_1_2310_n_fp_done          ; (CP/M's 30) [3592]
-            ld (asm_1_2310_n_FL_UB), a		; Hyp.cls 3593
-            call asm_1_2310_n_fl_uni		; Hyp.cls 3594
-            jp nc, asm_1_2310_n_fp_done		; Hyp.cls 3595
-            ld a, (asm_1_2310_n_FL_UB)		; Hyp.cls 3596
-            or a		; Hyp.cls 3597
-            jp z, asm_1_2310_n_fl_ok		; Hyp.cls 3598
-            dec a		; Hyp.cls 3599
-            jp z, asm_1_2310_n_fl_uc_get		; Hyp.cls 3600
-            dec a		; Hyp.cls 3601
-            jp z, asm_1_2310_n_fl_uc_set		; Hyp.cls 3602
-            dec a		; Hyp.cls 3603
-            jp z, asm_1_2310_n_fl_uc_dev		; Hyp.cls 3604
+asm_1_2316_n_fl_unicall:		; Hyp.cls 3585
+            ld hl, (var_hyp_filecall_fcb)		; Hyp.cls 3586
+            ld de, asm_1_2316_n_FL_UB		; Hyp.cls 3587
+            ld b, 72		; Hyp.cls 3588
+asm_1_2316_n_fl_uc_in:		; Hyp.cls 3589
+            call asm_1_2316_n_fl_peek		; Hyp.cls 3590
+            ld (de), a		; Hyp.cls 3591
+            inc hl		; Hyp.cls 3592
+            inc de		; Hyp.cls 3593
+            djnz asm_1_2316_n_fl_uc_in		; Hyp.cls 3594
+            ld a, (asm_1_2316_n_FL_UB)		; Hyp.cls 3595
+            sub #C0		; Hyp.cls 3596
+            cp 9		; Hyp.cls 3597
+            jp nc, asm_1_2316_n_fp_done          ; (CP/M's 30) [3598]
+            ld (asm_1_2316_n_FL_UB), a		; Hyp.cls 3599
+            call asm_1_2316_n_fl_uni		; Hyp.cls 3600
+            jp nc, asm_1_2316_n_fp_done		; Hyp.cls 3601
+            ld a, (asm_1_2316_n_FL_UB)		; Hyp.cls 3602
+            or a		; Hyp.cls 3603
+            jp z, asm_1_2316_n_fl_ok		; Hyp.cls 3604
             dec a		; Hyp.cls 3605
-            jp z, asm_1_2310_n_fl_uc_inf		; Hyp.cls 3606
+            jp z, asm_1_2316_n_fl_uc_get		; Hyp.cls 3606
             dec a		; Hyp.cls 3607
-            jp z, asm_1_2310_n_fl_uc_dir		; Hyp.cls 3608
+            jp z, asm_1_2316_n_fl_uc_set		; Hyp.cls 3608
             dec a		; Hyp.cls 3609
-            jr z, asm_1_2310_n_fl_uc_md		; Hyp.cls 3610
-            cp 2		; Hyp.cls 3611
-            jr z, asm_1_2310_n_fl_uc_yes		; Hyp.cls 3612
-            ld a, (var_hyp_fin)           ; 7: the header of the file this slot reads (the disc ROM's, [3613]
-            ld hl, asm_1_2310_n_fl_slot          ; from CAS IN OPEN: 69 bytes) to Byte(2) [3614]
-            cp (hl)		; Hyp.cls 3615
-            jp nz, asm_1_2310_n_fp_done		; Hyp.cls 3616
-            ld hl, (asm_1_2310_n_fl_hdr)		; Hyp.cls 3617
-            ld de, asm_1_2310_n_FL_UB + 2		; Hyp.cls 3618
-            ld bc, 69		; Hyp.cls 3619
-            ldir		; Hyp.cls 3620
-            xor a		; Hyp.cls 3621
-            ld b, 71		; Hyp.cls 3622
-            jp asm_1_2310_n_fl_uc_back		; Hyp.cls 3623
-asm_1_2310_n_fl_hdr:     dw 0		; Hyp.cls 3624
-asm_1_2310_n_fl_uc_yes:                          ; 8: the next delete (19) may take a folder (RMDIR's) [3625]
-            ld a, 1		; Hyp.cls 3626
-            ld (asm_1_2310_n_fl_yes), a		; Hyp.cls 3627
-            jp asm_1_2310_n_fl_ok		; Hyp.cls 3628
-asm_1_2310_n_fl_yes:     db 0		; Hyp.cls 3629
-asm_1_2310_n_fl_uc_md:                           ; 6: a folder made (CAS OUT OPEN, the path ending "/") [3630]
-            ld a, (var_hyp_fout)		; Hyp.cls 3631
-            or a		; Hyp.cls 3632
-            jp nz, asm_1_2310_n_fp_done		; Hyp.cls 3633
-            ld hl, asm_1_2310_n_FL_UB + 2		; Hyp.cls 3634
-            ld a, (hl)		; Hyp.cls 3635
-            or a		; Hyp.cls 3636
-            jp z, asm_1_2310_n_fp_done		; Hyp.cls 3637
-            ld b, a		; Hyp.cls 3638
-            inc hl		; Hyp.cls 3639
-            ld de, #4800		; Hyp.cls 3640
-            call #BC8C              ; CAS OUT OPEN [3641]
-            di		; Hyp.cls 3642
-            jr nc, asm_1_2310_n_fl_md_nc		; Hyp.cls 3643
-            call #BC92              ; (a file: CAS OUT ABANDON - not made) [3644]
-            di		; Hyp.cls 3645
-            ld a, 1		; Hyp.cls 3646
-            jr asm_1_2310_n_fl_md_r		; Hyp.cls 3647
-asm_1_2310_n_fl_md_nc:		; Hyp.cls 3648
-            and #7F		; Hyp.cls 3649
-            cp #17                  ; (DSK_ERR_DIRECTORY_FOUND: made) [3650]
-            jp z, asm_1_2310_n_fl_ok		; Hyp.cls 3651
-            or a		; Hyp.cls 3652
-            jr nz, asm_1_2310_n_fl_md_r		; Hyp.cls 3653
-            inc a		; Hyp.cls 3654
-asm_1_2310_n_fl_md_r:		; Hyp.cls 3655
-            ld (asm_1_2310_n_fl_res), a		; Hyp.cls 3656
-            jp asm_1_2310_n_fp_done		; Hyp.cls 3657
-asm_1_2310_n_fl_uc_back:                         ; A the answer, the block's first B bytes back to the slot [3658]
-            ld (asm_1_2310_n_fl_res), a		; Hyp.cls 3659
-            ld a, (asm_1_2310_n_FL_UB)		; Hyp.cls 3660
-            add a, #C0		; Hyp.cls 3661
-            ld (asm_1_2310_n_FL_UB), a		; Hyp.cls 3662
-            ld hl, (var_hyp_filecall_fcb)		; Hyp.cls 3663
-            ld de, asm_1_2310_n_FL_UB		; Hyp.cls 3664
-asm_1_2310_n_fl_uc_out:		; Hyp.cls 3665
-            ld a, (de)		; Hyp.cls 3666
-            call asm_1_2310_n_fl_poke		; Hyp.cls 3667
-            inc hl		; Hyp.cls 3668
-            inc de		; Hyp.cls 3669
-            djnz asm_1_2310_n_fl_uc_out		; Hyp.cls 3670
-            jp asm_1_2310_n_fp_done		; Hyp.cls 3671
-asm_1_2310_n_fl_uc_get:		; Hyp.cls 3672
-            ld a, (asm_1_2310_n_FL_UB + 1)		; Hyp.cls 3673
-            call asm_1_2310_n_fl_mapa		; Hyp.cls 3674
-            jp c, asm_1_2310_n_fp_done		; Hyp.cls 3675
-            ld de, asm_1_2310_n_FL_UB + 2		; Hyp.cls 3676
-            ld c, (hl)		; Hyp.cls 3677
-            ld b, 0		; Hyp.cls 3678
-            inc bc		; Hyp.cls 3679
-            ldir		; Hyp.cls 3680
-            xor a		; Hyp.cls 3681
-            ld b, 34		; Hyp.cls 3682
-            jr asm_1_2310_n_fl_uc_back		; Hyp.cls 3683
-asm_1_2310_n_fl_uc_dev:		; Hyp.cls 3684
-            ld de, asm_1_2310_n_FL_UB + 2		; Hyp.cls 3685
-            ld c, 1		; Hyp.cls 3686
-            call asm_1_2310_n_fl_cjc		; Hyp.cls 3687
-            jp nc, asm_1_2310_n_fp_done		; Hyp.cls 3688
-            xor a		; Hyp.cls 3689
-            ld b, 66		; Hyp.cls 3690
-            jr asm_1_2310_n_fl_uc_back		; Hyp.cls 3691
-asm_1_2310_n_fl_uc_inf:		; Hyp.cls 3692
-            ld hl, asm_1_2310_n_FL_UB + 2		; Hyp.cls 3693
-            ld de, asm_1_2310_n_FL_UB + 8		; Hyp.cls 3694
-            ld c, 2		; Hyp.cls 3695
-            call asm_1_2310_n_fl_cjc		; Hyp.cls 3696
-            jp nc, asm_1_2310_n_fp_done		; Hyp.cls 3697
-            xor a		; Hyp.cls 3698
-            ld b, 72		; Hyp.cls 3699
-            jr asm_1_2310_n_fl_uc_back		; Hyp.cls 3700
-asm_1_2310_n_fl_uc_set:		; Hyp.cls 3701
-            ld a, (asm_1_2310_n_FL_UB + 1)		; Hyp.cls 3702
-            call asm_1_2310_n_fl_mapa		; Hyp.cls 3703
-            jp c, asm_1_2310_n_fp_done		; Hyp.cls 3704
-            ld (asm_1_2310_n_fl_ue), hl		; Hyp.cls 3705
-            xor a		; Hyp.cls 3706
-            ld (asm_1_2310_n_fl_exv), a		; Hyp.cls 3707
-            ld a, (asm_1_2310_n_FL_UB + 2)		; Hyp.cls 3708
-            or a		; Hyp.cls 3709
-            jr z, asm_1_2310_n_fl_us_put         ; none: the letter itself again [3710]
-            cp 32		; Hyp.cls 3711
-            jp nc, asm_1_2310_n_fp_done		; Hyp.cls 3712
-            ld b, a		; Hyp.cls 3713
-            ld hl, asm_1_2310_n_FL_UB + 3		; Hyp.cls 3714
-asm_1_2310_n_fl_us_up:                           ; capitals [3715]
-            ld a, (hl)		; Hyp.cls 3716
-            cp 'a'		; Hyp.cls 3717
-            jr c, asm_1_2310_n_fl_us_c		; Hyp.cls 3718
-            cp 'z' + 1		; Hyp.cls 3719
-            jr nc, asm_1_2310_n_fl_us_c		; Hyp.cls 3720
-            sub 32		; Hyp.cls 3721
-            ld (hl), a		; Hyp.cls 3722
-asm_1_2310_n_fl_us_c:		; Hyp.cls 3723
-            inc hl		; Hyp.cls 3724
-            djnz asm_1_2310_n_fl_us_up		; Hyp.cls 3725
-            dec hl		; Hyp.cls 3726
-            ld a, (hl)		; Hyp.cls 3727
-            cp ':'		; Hyp.cls 3728
-            jr z, asm_1_2310_n_fl_us_ex		; Hyp.cls 3729
-            cp '/'		; Hyp.cls 3730
-            jr z, asm_1_2310_n_fl_us_ex		; Hyp.cls 3731
-            ld a, (asm_1_2310_n_FL_UB + 2)		; Hyp.cls 3732
-            cp 31		; Hyp.cls 3733
-            jp nc, asm_1_2310_n_fp_done		; Hyp.cls 3734
-            inc a		; Hyp.cls 3735
-            ld (asm_1_2310_n_FL_UB + 2), a		; Hyp.cls 3736
-            inc hl		; Hyp.cls 3737
-            ld (hl), '/'		; Hyp.cls 3738
-asm_1_2310_n_fl_us_ex:		; Hyp.cls 3739
-            ld hl, asm_1_2310_n_FL_UB + 2        ; a folder? [3740]
-            ld de, asm_1_2310_n_fl_name_s		; Hyp.cls 3741
-            ld bc, 32		; Hyp.cls 3742
-            ldir		; Hyp.cls 3743
-            call asm_1_2310_n_fl_exdir2		; Hyp.cls 3744
-            jr z, asm_1_2310_n_fl_us_put		; Hyp.cls 3745
-            cp 254		; Hyp.cls 3746
-            jr z, asm_1_2310_n_fl_us_put         ; (a floppy AMSDOS runs - DFA:, DFB: - can't be examined: taken) [3747]
-            or a		; Hyp.cls 3748
-            jr nz, asm_1_2310_n_fl_us_err		; Hyp.cls 3749
-            inc a		; Hyp.cls 3750
-asm_1_2310_n_fl_us_err:		; Hyp.cls 3751
-            ld (asm_1_2310_n_fl_res), a		; Hyp.cls 3752
-            jp asm_1_2310_n_fp_done		; Hyp.cls 3753
-asm_1_2310_n_fl_us_put:		; Hyp.cls 3754
-            ld hl, asm_1_2310_n_FL_UB + 2		; Hyp.cls 3755
-            ld de, (asm_1_2310_n_fl_ue)		; Hyp.cls 3756
-            ld bc, 32		; Hyp.cls 3757
-            ldir		; Hyp.cls 3758
-            jp asm_1_2310_n_fl_ok		; Hyp.cls 3759
-asm_1_2310_n_fl_uc_dir:		; Hyp.cls 3760
-            ld de, asm_1_2310_n_fl_name_s + 1    ; the folder's path [3761]
-            ld a, (asm_1_2310_n_FL_UB + 1)		; Hyp.cls 3762
-            or a		; Hyp.cls 3763
-            jr z, asm_1_2310_n_fl_ud_p		; Hyp.cls 3764
-            call asm_1_2310_n_fl_pfx		; Hyp.cls 3765
-            jr asm_1_2310_n_fl_ud_k		; Hyp.cls 3766
-asm_1_2310_n_fl_ud_p:		; Hyp.cls 3767
-            ld hl, asm_1_2310_n_FL_UB + 28		; Hyp.cls 3768
-            ld a, (hl)		; Hyp.cls 3769
-            cp 32		; Hyp.cls 3770
-            jp nc, asm_1_2310_n_fp_done		; Hyp.cls 3771
-            ld c, a		; Hyp.cls 3772
-            ld b, 0		; Hyp.cls 3773
-            inc hl		; Hyp.cls 3774
-            ldir		; Hyp.cls 3775
-asm_1_2310_n_fl_ud_k:		; Hyp.cls 3776
-            call asm_1_2310_n_fl_nlen		; Hyp.cls 3777
-            ld hl, asm_1_2310_n_fl_name_s        ; the same folder, still the one examined, at this entry: [3778]
-            ld de, asm_1_2310_n_FL_EXK           ; on from there [3779]
-            ld a, (asm_1_2310_n_fl_exv)		; Hyp.cls 3780
-            or a		; Hyp.cls 3781
-            jr z, asm_1_2310_n_fl_ud_new		; Hyp.cls 3782
-            ld a, (hl)		; Hyp.cls 3783
-            inc a		; Hyp.cls 3784
-            ld b, a		; Hyp.cls 3785
-asm_1_2310_n_fl_ud_cmp:		; Hyp.cls 3786
-            ld a, (de)		; Hyp.cls 3787
-            cp (hl)		; Hyp.cls 3788
-            jr nz, asm_1_2310_n_fl_ud_new		; Hyp.cls 3789
-            inc hl		; Hyp.cls 3790
-            inc de		; Hyp.cls 3791
-            djnz asm_1_2310_n_fl_ud_cmp		; Hyp.cls 3792
-            ld hl, (asm_1_2310_n_fl_exi)		; Hyp.cls 3793
-            ld de, (asm_1_2310_n_FL_UB + 2)		; Hyp.cls 3794
-            or a		; Hyp.cls 3795
-            sbc hl, de		; Hyp.cls 3796
-            jr z, asm_1_2310_n_fl_ud_next		; Hyp.cls 3797
-asm_1_2310_n_fl_ud_new:		; Hyp.cls 3798
-            ld hl, asm_1_2310_n_fl_name_s		; Hyp.cls 3799
-            ld de, asm_1_2310_n_FL_EXK		; Hyp.cls 3800
-            ld bc, 32		; Hyp.cls 3801
-            ldir		; Hyp.cls 3802
-            call asm_1_2310_n_fl_exdir2		; Hyp.cls 3803
-            jr z, asm_1_2310_n_fl_ud_ok		; Hyp.cls 3804
-            or a		; Hyp.cls 3805
-            jr nz, asm_1_2310_n_fl_us_err		; Hyp.cls 3806
-            inc a		; Hyp.cls 3807
-            jr asm_1_2310_n_fl_us_err		; Hyp.cls 3808
-asm_1_2310_n_fl_ud_ok:		; Hyp.cls 3809
-            ld hl, 0		; Hyp.cls 3810
-            ld (asm_1_2310_n_fl_exi), hl		; Hyp.cls 3811
-            ld a, 1		; Hyp.cls 3812
-            ld (asm_1_2310_n_fl_exv), a		; Hyp.cls 3813
-asm_1_2310_n_fl_ud_skip:                         ; on to entry Word(2) [3814]
-            ld hl, (asm_1_2310_n_fl_exi)		; Hyp.cls 3815
-            ld de, (asm_1_2310_n_FL_UB + 2)		; Hyp.cls 3816
-            or a		; Hyp.cls 3817
-            sbc hl, de		; Hyp.cls 3818
-            jr z, asm_1_2310_n_fl_ud_next		; Hyp.cls 3819
-            ld hl, asm_1_2310_n_FL_TN		; Hyp.cls 3820
-            ld ix, asm_1_2310_n_FL_DATE		; Hyp.cls 3821
-            ld c, 13		; Hyp.cls 3822
-            call asm_1_2310_n_fl_cjc		; Hyp.cls 3823
-            jr nc, asm_1_2310_n_fl_ud_end		; Hyp.cls 3824
-            jr nz, asm_1_2310_n_fl_ud_end		; Hyp.cls 3825
-            ld hl, (asm_1_2310_n_fl_exi)		; Hyp.cls 3826
-            inc hl		; Hyp.cls 3827
-            ld (asm_1_2310_n_fl_exi), hl		; Hyp.cls 3828
-            jr asm_1_2310_n_fl_ud_skip		; Hyp.cls 3829
-asm_1_2310_n_fl_ud_next:		; Hyp.cls 3830
-            ld hl, asm_1_2310_n_FL_UB + 16		; Hyp.cls 3831
-            ld ix, asm_1_2310_n_FL_UB + 9		; Hyp.cls 3832
-            ld c, 13		; Hyp.cls 3833
-            call asm_1_2310_n_fl_cjc		; Hyp.cls 3834
-            jr nc, asm_1_2310_n_fl_ud_end		; Hyp.cls 3835
-            jr nz, asm_1_2310_n_fl_ud_end		; Hyp.cls 3836
-            ld (asm_1_2310_n_FL_UB + 4), a		; Hyp.cls 3837
-            ld (asm_1_2310_n_FL_UB + 5), de		; Hyp.cls 3838
-            ld (asm_1_2310_n_FL_UB + 7), bc		; Hyp.cls 3839
-            ld hl, (asm_1_2310_n_fl_exi)		; Hyp.cls 3840
-            inc hl		; Hyp.cls 3841
-            ld (asm_1_2310_n_fl_exi), hl		; Hyp.cls 3842
-            xor a		; Hyp.cls 3843
-            ld b, 28		; Hyp.cls 3844
-            jp asm_1_2310_n_fl_uc_back		; Hyp.cls 3845
-asm_1_2310_n_fl_ud_end:		; Hyp.cls 3846
-            xor a		; Hyp.cls 3847
-            ld (asm_1_2310_n_fl_exv), a		; Hyp.cls 3848
-            inc a		; Hyp.cls 3849
-            ld (asm_1_2310_n_fl_res), a		; Hyp.cls 3850
-            jp asm_1_2310_n_fp_done		; Hyp.cls 3851
-asm_1_2310_n_fp_end:		; Hyp.cls 3852
-            ASSERT asm_1_2310_n_fp_end <= #6000, "FileCall's page code: below the search's cache (#6000)"		; Hyp.cls 3853
+            jp z, asm_1_2316_n_fl_uc_dev		; Hyp.cls 3610
+            dec a		; Hyp.cls 3611
+            jp z, asm_1_2316_n_fl_uc_inf		; Hyp.cls 3612
+            dec a		; Hyp.cls 3613
+            jp z, asm_1_2316_n_fl_uc_dir		; Hyp.cls 3614
+            dec a		; Hyp.cls 3615
+            jr z, asm_1_2316_n_fl_uc_md		; Hyp.cls 3616
+            cp 2		; Hyp.cls 3617
+            jr z, asm_1_2316_n_fl_uc_yes		; Hyp.cls 3618
+            ld a, (var_hyp_fin)           ; 7: the header of the file this slot reads (the disc ROM's, [3619]
+            ld hl, asm_1_2316_n_fl_slot          ; from CAS IN OPEN: 69 bytes) to Byte(2) [3620]
+            cp (hl)		; Hyp.cls 3621
+            jp nz, asm_1_2316_n_fp_done		; Hyp.cls 3622
+            ld hl, (asm_1_2316_n_fl_hdr)		; Hyp.cls 3623
+            ld de, asm_1_2316_n_FL_UB + 2		; Hyp.cls 3624
+            ld bc, 69		; Hyp.cls 3625
+            ldir		; Hyp.cls 3626
+            xor a		; Hyp.cls 3627
+            ld b, 71		; Hyp.cls 3628
+            jp asm_1_2316_n_fl_uc_back		; Hyp.cls 3629
+asm_1_2316_n_fl_hdr:     dw 0		; Hyp.cls 3630
+asm_1_2316_n_fl_uc_yes:                          ; 8: the next delete (19) may take a folder (RMDIR's) [3631]
+            ld a, 1		; Hyp.cls 3632
+            ld (asm_1_2316_n_fl_yes), a		; Hyp.cls 3633
+            jp asm_1_2316_n_fl_ok		; Hyp.cls 3634
+asm_1_2316_n_fl_yes:     db 0		; Hyp.cls 3635
+asm_1_2316_n_fl_uc_md:                           ; 6: a folder made (CAS OUT OPEN, the path ending "/") [3636]
+            ld a, (var_hyp_fout)		; Hyp.cls 3637
+            or a		; Hyp.cls 3638
+            jp nz, asm_1_2316_n_fp_done		; Hyp.cls 3639
+            ld hl, asm_1_2316_n_FL_UB + 2		; Hyp.cls 3640
+            ld a, (hl)		; Hyp.cls 3641
+            or a		; Hyp.cls 3642
+            jp z, asm_1_2316_n_fp_done		; Hyp.cls 3643
+            ld b, a		; Hyp.cls 3644
+            inc hl		; Hyp.cls 3645
+            ld de, #4800		; Hyp.cls 3646
+            call #BC8C              ; CAS OUT OPEN [3647]
+            di		; Hyp.cls 3648
+            jr nc, asm_1_2316_n_fl_md_nc		; Hyp.cls 3649
+            call #BC92              ; (a file: CAS OUT ABANDON - not made) [3650]
+            di		; Hyp.cls 3651
+            ld a, 1		; Hyp.cls 3652
+            jr asm_1_2316_n_fl_md_r		; Hyp.cls 3653
+asm_1_2316_n_fl_md_nc:		; Hyp.cls 3654
+            and #7F		; Hyp.cls 3655
+            cp #17                  ; (DSK_ERR_DIRECTORY_FOUND: made) [3656]
+            jp z, asm_1_2316_n_fl_ok		; Hyp.cls 3657
+            or a		; Hyp.cls 3658
+            jr nz, asm_1_2316_n_fl_md_r		; Hyp.cls 3659
+            inc a		; Hyp.cls 3660
+asm_1_2316_n_fl_md_r:		; Hyp.cls 3661
+            ld (asm_1_2316_n_fl_res), a		; Hyp.cls 3662
+            jp asm_1_2316_n_fp_done		; Hyp.cls 3663
+asm_1_2316_n_fl_uc_back:                         ; A the answer, the block's first B bytes back to the slot [3664]
+            ld (asm_1_2316_n_fl_res), a		; Hyp.cls 3665
+            ld a, (asm_1_2316_n_FL_UB)		; Hyp.cls 3666
+            add a, #C0		; Hyp.cls 3667
+            ld (asm_1_2316_n_FL_UB), a		; Hyp.cls 3668
+            ld hl, (var_hyp_filecall_fcb)		; Hyp.cls 3669
+            ld de, asm_1_2316_n_FL_UB		; Hyp.cls 3670
+asm_1_2316_n_fl_uc_out:		; Hyp.cls 3671
+            ld a, (de)		; Hyp.cls 3672
+            call asm_1_2316_n_fl_poke		; Hyp.cls 3673
+            inc hl		; Hyp.cls 3674
+            inc de		; Hyp.cls 3675
+            djnz asm_1_2316_n_fl_uc_out		; Hyp.cls 3676
+            jp asm_1_2316_n_fp_done		; Hyp.cls 3677
+asm_1_2316_n_fl_uc_get:		; Hyp.cls 3678
+            ld a, (asm_1_2316_n_FL_UB + 1)		; Hyp.cls 3679
+            call asm_1_2316_n_fl_mapa		; Hyp.cls 3680
+            jp c, asm_1_2316_n_fp_done		; Hyp.cls 3681
+            ld de, asm_1_2316_n_FL_UB + 2		; Hyp.cls 3682
+            ld c, (hl)		; Hyp.cls 3683
+            ld b, 0		; Hyp.cls 3684
+            inc bc		; Hyp.cls 3685
+            ldir		; Hyp.cls 3686
+            xor a		; Hyp.cls 3687
+            ld b, 34		; Hyp.cls 3688
+            jr asm_1_2316_n_fl_uc_back		; Hyp.cls 3689
+asm_1_2316_n_fl_uc_dev:		; Hyp.cls 3690
+            ld de, asm_1_2316_n_FL_UB + 2		; Hyp.cls 3691
+            ld c, 1		; Hyp.cls 3692
+            call asm_1_2316_n_fl_cjc		; Hyp.cls 3693
+            jp nc, asm_1_2316_n_fp_done		; Hyp.cls 3694
+            xor a		; Hyp.cls 3695
+            ld b, 66		; Hyp.cls 3696
+            jr asm_1_2316_n_fl_uc_back		; Hyp.cls 3697
+asm_1_2316_n_fl_uc_inf:		; Hyp.cls 3698
+            ld hl, asm_1_2316_n_FL_UB + 2		; Hyp.cls 3699
+            ld de, asm_1_2316_n_FL_UB + 8		; Hyp.cls 3700
+            ld c, 2		; Hyp.cls 3701
+            call asm_1_2316_n_fl_cjc		; Hyp.cls 3702
+            jp nc, asm_1_2316_n_fp_done		; Hyp.cls 3703
+            xor a		; Hyp.cls 3704
+            ld b, 72		; Hyp.cls 3705
+            jr asm_1_2316_n_fl_uc_back		; Hyp.cls 3706
+asm_1_2316_n_fl_uc_set:		; Hyp.cls 3707
+            ld a, (asm_1_2316_n_FL_UB + 1)		; Hyp.cls 3708
+            call asm_1_2316_n_fl_mapa		; Hyp.cls 3709
+            jp c, asm_1_2316_n_fp_done		; Hyp.cls 3710
+            ld (asm_1_2316_n_fl_ue), hl		; Hyp.cls 3711
+            xor a		; Hyp.cls 3712
+            ld (asm_1_2316_n_fl_exv), a		; Hyp.cls 3713
+            ld a, (asm_1_2316_n_FL_UB + 2)		; Hyp.cls 3714
+            or a		; Hyp.cls 3715
+            jr z, asm_1_2316_n_fl_us_put         ; none: the letter itself again [3716]
+            cp 32		; Hyp.cls 3717
+            jp nc, asm_1_2316_n_fp_done		; Hyp.cls 3718
+            ld b, a		; Hyp.cls 3719
+            ld hl, asm_1_2316_n_FL_UB + 3		; Hyp.cls 3720
+asm_1_2316_n_fl_us_up:                           ; capitals [3721]
+            ld a, (hl)		; Hyp.cls 3722
+            cp 'a'		; Hyp.cls 3723
+            jr c, asm_1_2316_n_fl_us_c		; Hyp.cls 3724
+            cp 'z' + 1		; Hyp.cls 3725
+            jr nc, asm_1_2316_n_fl_us_c		; Hyp.cls 3726
+            sub 32		; Hyp.cls 3727
+            ld (hl), a		; Hyp.cls 3728
+asm_1_2316_n_fl_us_c:		; Hyp.cls 3729
+            inc hl		; Hyp.cls 3730
+            djnz asm_1_2316_n_fl_us_up		; Hyp.cls 3731
+            dec hl		; Hyp.cls 3732
+            ld a, (hl)		; Hyp.cls 3733
+            cp ':'		; Hyp.cls 3734
+            jr z, asm_1_2316_n_fl_us_ex		; Hyp.cls 3735
+            cp '/'		; Hyp.cls 3736
+            jr z, asm_1_2316_n_fl_us_ex		; Hyp.cls 3737
+            ld a, (asm_1_2316_n_FL_UB + 2)		; Hyp.cls 3738
+            cp 31		; Hyp.cls 3739
+            jp nc, asm_1_2316_n_fp_done		; Hyp.cls 3740
+            inc a		; Hyp.cls 3741
+            ld (asm_1_2316_n_FL_UB + 2), a		; Hyp.cls 3742
+            inc hl		; Hyp.cls 3743
+            ld (hl), '/'		; Hyp.cls 3744
+asm_1_2316_n_fl_us_ex:		; Hyp.cls 3745
+            ld hl, asm_1_2316_n_FL_UB + 2        ; a folder? [3746]
+            ld de, asm_1_2316_n_fl_name_s		; Hyp.cls 3747
+            ld bc, 32		; Hyp.cls 3748
+            ldir		; Hyp.cls 3749
+            call asm_1_2316_n_fl_exdir2		; Hyp.cls 3750
+            jr z, asm_1_2316_n_fl_us_put		; Hyp.cls 3751
+            cp 254		; Hyp.cls 3752
+            jr z, asm_1_2316_n_fl_us_put         ; (a floppy AMSDOS runs - DFA:, DFB: - can't be examined: taken) [3753]
+            or a		; Hyp.cls 3754
+            jr nz, asm_1_2316_n_fl_us_err		; Hyp.cls 3755
+            inc a		; Hyp.cls 3756
+asm_1_2316_n_fl_us_err:		; Hyp.cls 3757
+            ld (asm_1_2316_n_fl_res), a		; Hyp.cls 3758
+            jp asm_1_2316_n_fp_done		; Hyp.cls 3759
+asm_1_2316_n_fl_us_put:		; Hyp.cls 3760
+            ld hl, asm_1_2316_n_FL_UB + 2		; Hyp.cls 3761
+            ld de, (asm_1_2316_n_fl_ue)		; Hyp.cls 3762
+            ld bc, 32		; Hyp.cls 3763
+            ldir		; Hyp.cls 3764
+            jp asm_1_2316_n_fl_ok		; Hyp.cls 3765
+asm_1_2316_n_fl_uc_dir:		; Hyp.cls 3766
+            ld de, asm_1_2316_n_fl_name_s + 1    ; the folder's path [3767]
+            ld a, (asm_1_2316_n_FL_UB + 1)		; Hyp.cls 3768
+            or a		; Hyp.cls 3769
+            jr z, asm_1_2316_n_fl_ud_p		; Hyp.cls 3770
+            call asm_1_2316_n_fl_pfx		; Hyp.cls 3771
+            jr asm_1_2316_n_fl_ud_k		; Hyp.cls 3772
+asm_1_2316_n_fl_ud_p:		; Hyp.cls 3773
+            ld hl, asm_1_2316_n_FL_UB + 28		; Hyp.cls 3774
+            ld a, (hl)		; Hyp.cls 3775
+            cp 32		; Hyp.cls 3776
+            jp nc, asm_1_2316_n_fp_done		; Hyp.cls 3777
+            ld c, a		; Hyp.cls 3778
+            ld b, 0		; Hyp.cls 3779
+            inc hl		; Hyp.cls 3780
+            ldir		; Hyp.cls 3781
+asm_1_2316_n_fl_ud_k:		; Hyp.cls 3782
+            call asm_1_2316_n_fl_nlen		; Hyp.cls 3783
+            ld hl, asm_1_2316_n_fl_name_s        ; the same folder, still the one examined, at this entry: [3784]
+            ld de, asm_1_2316_n_FL_EXK           ; on from there [3785]
+            ld a, (asm_1_2316_n_fl_exv)		; Hyp.cls 3786
+            or a		; Hyp.cls 3787
+            jr z, asm_1_2316_n_fl_ud_new		; Hyp.cls 3788
+            ld a, (hl)		; Hyp.cls 3789
+            inc a		; Hyp.cls 3790
+            ld b, a		; Hyp.cls 3791
+asm_1_2316_n_fl_ud_cmp:		; Hyp.cls 3792
+            ld a, (de)		; Hyp.cls 3793
+            cp (hl)		; Hyp.cls 3794
+            jr nz, asm_1_2316_n_fl_ud_new		; Hyp.cls 3795
+            inc hl		; Hyp.cls 3796
+            inc de		; Hyp.cls 3797
+            djnz asm_1_2316_n_fl_ud_cmp		; Hyp.cls 3798
+            ld hl, (asm_1_2316_n_fl_exi)		; Hyp.cls 3799
+            ld de, (asm_1_2316_n_FL_UB + 2)		; Hyp.cls 3800
+            or a		; Hyp.cls 3801
+            sbc hl, de		; Hyp.cls 3802
+            jr z, asm_1_2316_n_fl_ud_next		; Hyp.cls 3803
+asm_1_2316_n_fl_ud_new:		; Hyp.cls 3804
+            ld hl, asm_1_2316_n_fl_name_s		; Hyp.cls 3805
+            ld de, asm_1_2316_n_FL_EXK		; Hyp.cls 3806
+            ld bc, 32		; Hyp.cls 3807
+            ldir		; Hyp.cls 3808
+            call asm_1_2316_n_fl_exdir2		; Hyp.cls 3809
+            jr z, asm_1_2316_n_fl_ud_ok		; Hyp.cls 3810
+            or a		; Hyp.cls 3811
+            jr nz, asm_1_2316_n_fl_us_err		; Hyp.cls 3812
+            inc a		; Hyp.cls 3813
+            jr asm_1_2316_n_fl_us_err		; Hyp.cls 3814
+asm_1_2316_n_fl_ud_ok:		; Hyp.cls 3815
+            ld hl, 0		; Hyp.cls 3816
+            ld (asm_1_2316_n_fl_exi), hl		; Hyp.cls 3817
+            ld a, 1		; Hyp.cls 3818
+            ld (asm_1_2316_n_fl_exv), a		; Hyp.cls 3819
+asm_1_2316_n_fl_ud_skip:                         ; on to entry Word(2) [3820]
+            ld hl, (asm_1_2316_n_fl_exi)		; Hyp.cls 3821
+            ld de, (asm_1_2316_n_FL_UB + 2)		; Hyp.cls 3822
+            or a		; Hyp.cls 3823
+            sbc hl, de		; Hyp.cls 3824
+            jr z, asm_1_2316_n_fl_ud_next		; Hyp.cls 3825
+            ld hl, asm_1_2316_n_FL_TN		; Hyp.cls 3826
+            ld ix, asm_1_2316_n_FL_DATE		; Hyp.cls 3827
+            ld c, 13		; Hyp.cls 3828
+            call asm_1_2316_n_fl_cjc		; Hyp.cls 3829
+            jr nc, asm_1_2316_n_fl_ud_end		; Hyp.cls 3830
+            jr nz, asm_1_2316_n_fl_ud_end		; Hyp.cls 3831
+            ld hl, (asm_1_2316_n_fl_exi)		; Hyp.cls 3832
+            inc hl		; Hyp.cls 3833
+            ld (asm_1_2316_n_fl_exi), hl		; Hyp.cls 3834
+            jr asm_1_2316_n_fl_ud_skip		; Hyp.cls 3835
+asm_1_2316_n_fl_ud_next:		; Hyp.cls 3836
+            ld hl, asm_1_2316_n_FL_UB + 16		; Hyp.cls 3837
+            ld ix, asm_1_2316_n_FL_UB + 9		; Hyp.cls 3838
+            ld c, 13		; Hyp.cls 3839
+            call asm_1_2316_n_fl_cjc		; Hyp.cls 3840
+            jr nc, asm_1_2316_n_fl_ud_end		; Hyp.cls 3841
+            jr nz, asm_1_2316_n_fl_ud_end		; Hyp.cls 3842
+            ld (asm_1_2316_n_FL_UB + 4), a		; Hyp.cls 3843
+            ld (asm_1_2316_n_FL_UB + 5), de		; Hyp.cls 3844
+            ld (asm_1_2316_n_FL_UB + 7), bc		; Hyp.cls 3845
+            ld hl, (asm_1_2316_n_fl_exi)		; Hyp.cls 3846
+            inc hl		; Hyp.cls 3847
+            ld (asm_1_2316_n_fl_exi), hl		; Hyp.cls 3848
+            xor a		; Hyp.cls 3849
+            ld b, 28		; Hyp.cls 3850
+            jp asm_1_2316_n_fl_uc_back		; Hyp.cls 3851
+asm_1_2316_n_fl_ud_end:		; Hyp.cls 3852
+            xor a		; Hyp.cls 3853
+            ld (asm_1_2316_n_fl_exv), a		; Hyp.cls 3854
+            inc a		; Hyp.cls 3855
+            ld (asm_1_2316_n_fl_res), a		; Hyp.cls 3856
+            jp asm_1_2316_n_fp_done		; Hyp.cls 3857
+asm_1_2316_n_fp_end:		; Hyp.cls 3858
+            ASSERT asm_1_2316_n_fp_end <= #6000, "FileCall's page code: below the search's cache (#6000)"		; Hyp.cls 3859
 ; ---- the service page's code (window data from #6000, copied there by FileCall 99)
-            ds #6000 - $		; Hyp.cls 4012
-asm_1_3924_n_sv_go:		; Hyp.cls 4013
-            ld (asm_1_3924_n_sv_sp), sp		; Hyp.cls 4014
-            ld hl, (var_hyp_svc_p)            ; p 0: slot t's claims freed (Main's FilesShut) [4015]
-            ld a, h		; Hyp.cls 4016
-            or l		; Hyp.cls 4017
-            jp z, asm_1_3924_n_sv_cfree		; Hyp.cls 4018
-            ld hl, (var_hyp_svc_p)            ; the request (16 bytes) from the slot [4019]
-            ld de, (var_hyp_svc_setting)		; Hyp.cls 4020
-            call asm_1_3924_n_sv_sw		; Hyp.cls 4021
-            push bc		; Hyp.cls 4022
-            pop ix		; Hyp.cls 4023
-            ld iy, (var_hyp_svp)		; Hyp.cls 4024
-            ld de, asm_1_3924_n_sv_blk		; Hyp.cls 4025
-            ld a, 16		; Hyp.cls 4026
-            call asm_1_3924_n_sv_dx		; Hyp.cls 4027
-            ld hl, (asm_1_3924_n_sv_blk + 8)     ; how many: 2K at most [4028]
-            bit 7, h		; Hyp.cls 4029
-            jr nz, asm_1_3924_n_sv_n2		; Hyp.cls 4030
-            ld de, 2049		; Hyp.cls 4031
-            or a		; Hyp.cls 4032
-            sbc hl, de		; Hyp.cls 4033
-            add hl, de		; Hyp.cls 4034
-            jr c, asm_1_3924_n_sv_n1		; Hyp.cls 4035
-asm_1_3924_n_sv_n2:		; Hyp.cls 4036
-            ld hl, 2048		; Hyp.cls 4037
-asm_1_3924_n_sv_n1:		; Hyp.cls 4038
-            ld (asm_1_3924_n_sv_n), hl		; Hyp.cls 4039
-            xor a		; Hyp.cls 4040
-            ld (asm_1_3924_n_sv_stop), a		; Hyp.cls 4041
-            ld a, 2                 ; (the copies to the slot: its bank) [4042]
-            ld (asm_1_3924_n_sv_dk), a		; Hyp.cls 4043
-            ld hl, (var_hyp_svc_setting)		; Hyp.cls 4044
-            ld (asm_1_3924_n_sv_ds), hl		; Hyp.cls 4045
-            ld hl, (asm_1_3924_n_sv_blk + 6)		; Hyp.cls 4046
-            ld (asm_1_3924_n_sv_da), hl		; Hyp.cls 4047
-            ld a, (asm_1_3924_n_sv_blk)		; Hyp.cls 4048
-            cp 10		; Hyp.cls 4049
-            jp z, asm_1_3924_n_sv_mem		; Hyp.cls 4050
-            cp 11		; Hyp.cls 4051
-            jp z, asm_1_3924_n_sv_ptr		; Hyp.cls 4052
-            cp 13		; Hyp.cls 4053
-            jp z, asm_1_3924_n_sv_store		; Hyp.cls 4054
-            cp 14		; Hyp.cls 4055
-            jp z, asm_1_3924_n_sv_store		; Hyp.cls 4056
-            cp 15		; Hyp.cls 4057
-            jp z, asm_1_3924_n_sv_tab		; Hyp.cls 4058
-            cp 16		; Hyp.cls 4059
-            jp c, asm_1_3924_n_sv_err		; Hyp.cls 4060
-            cp 20		; Hyp.cls 4061
-            jp c, asm_1_3924_n_sv_claim		; Hyp.cls 4062
-            cp 28		; Hyp.cls 4063
-            jp c, asm_1_3924_n_sv_net		; Hyp.cls 4064
-asm_1_3924_n_sv_err:		; Hyp.cls 4065
-            ld sp, (asm_1_3924_n_sv_sp)		; Hyp.cls 4066
-            ld a, 255		; Hyp.cls 4067
-            ret		; Hyp.cls 4068
-asm_1_3924_n_sv_ok:		; Hyp.cls 4069
-            ld sp, (asm_1_3924_n_sv_sp)		; Hyp.cls 4070
-            xor a		; Hyp.cls 4071
-            ret		; Hyp.cls 4072
+            ds #6000 - $		; Hyp.cls 4020
+asm_1_3932_n_sv_go:		; Hyp.cls 4021
+            ld (asm_1_3932_n_sv_sp), sp		; Hyp.cls 4022
+            ld hl, (var_hyp_svc_p)            ; p 0: slot t's claims freed (Main's FilesShut) [4023]
+            ld a, h		; Hyp.cls 4024
+            or l		; Hyp.cls 4025
+            jp z, asm_1_3932_n_sv_cfree		; Hyp.cls 4026
+            ld hl, (var_hyp_svc_p)            ; the request (16 bytes) from the slot [4027]
+            ld de, (var_hyp_svc_setting)		; Hyp.cls 4028
+            call asm_1_3932_n_sv_sw		; Hyp.cls 4029
+            push bc		; Hyp.cls 4030
+            pop ix		; Hyp.cls 4031
+            ld iy, (var_hyp_svp)		; Hyp.cls 4032
+            ld de, asm_1_3932_n_sv_blk		; Hyp.cls 4033
+            ld a, 16		; Hyp.cls 4034
+            call asm_1_3932_n_sv_dx		; Hyp.cls 4035
+            ld hl, (asm_1_3932_n_sv_blk + 8)     ; how many: 2K at most [4036]
+            bit 7, h		; Hyp.cls 4037
+            jr nz, asm_1_3932_n_sv_n2		; Hyp.cls 4038
+            ld de, 2049		; Hyp.cls 4039
+            or a		; Hyp.cls 4040
+            sbc hl, de		; Hyp.cls 4041
+            add hl, de		; Hyp.cls 4042
+            jr c, asm_1_3932_n_sv_n1		; Hyp.cls 4043
+asm_1_3932_n_sv_n2:		; Hyp.cls 4044
+            ld hl, 2048		; Hyp.cls 4045
+asm_1_3932_n_sv_n1:		; Hyp.cls 4046
+            ld (asm_1_3932_n_sv_n), hl		; Hyp.cls 4047
+            xor a		; Hyp.cls 4048
+            ld (asm_1_3932_n_sv_stop), a		; Hyp.cls 4049
+            ld a, 2                 ; (the copies to the slot: its bank) [4050]
+            ld (asm_1_3932_n_sv_dk), a		; Hyp.cls 4051
+            ld hl, (var_hyp_svc_setting)		; Hyp.cls 4052
+            ld (asm_1_3932_n_sv_ds), hl		; Hyp.cls 4053
+            ld hl, (asm_1_3932_n_sv_blk + 6)		; Hyp.cls 4054
+            ld (asm_1_3932_n_sv_da), hl		; Hyp.cls 4055
+            ld a, (asm_1_3932_n_sv_blk)		; Hyp.cls 4056
+            cp 10		; Hyp.cls 4057
+            jp z, asm_1_3932_n_sv_mem		; Hyp.cls 4058
+            cp 11		; Hyp.cls 4059
+            jp z, asm_1_3932_n_sv_ptr		; Hyp.cls 4060
+            cp 13		; Hyp.cls 4061
+            jp z, asm_1_3932_n_sv_store		; Hyp.cls 4062
+            cp 14		; Hyp.cls 4063
+            jp z, asm_1_3932_n_sv_store		; Hyp.cls 4064
+            cp 15		; Hyp.cls 4065
+            jp z, asm_1_3932_n_sv_tab		; Hyp.cls 4066
+            cp 16		; Hyp.cls 4067
+            jp c, asm_1_3932_n_sv_err		; Hyp.cls 4068
+            cp 20		; Hyp.cls 4069
+            jp c, asm_1_3932_n_sv_claim		; Hyp.cls 4070
+            cp 28		; Hyp.cls 4071
+            jp c, asm_1_3932_n_sv_net		; Hyp.cls 4072
+            cp 34		; Hyp.cls 4073
+            jp c, asm_1_3932_n_sv_port		; Hyp.cls 4074
+            jp z, asm_1_3932_n_pt_list		; Hyp.cls 4075
+asm_1_3932_n_sv_err:		; Hyp.cls 4076
+            ld sp, (asm_1_3932_n_sv_sp)		; Hyp.cls 4077
+            ld a, 255		; Hyp.cls 4078
+            ret		; Hyp.cls 4079
+asm_1_3932_n_sv_ok:		; Hyp.cls 4080
+            ld sp, (asm_1_3932_n_sv_sp)		; Hyp.cls 4081
+            xor a		; Hyp.cls 4082
+            ret		; Hyp.cls 4083
 ; 10: memory
-asm_1_3924_n_sv_mem:		; Hyp.cls 4074
-            ld hl, (asm_1_3924_n_sv_blk + 4)		; Hyp.cls 4075
-            ld (asm_1_3924_n_sv_sa), hl		; Hyp.cls 4076
-            ld hl, (asm_1_3924_n_sv_blk + 2)		; Hyp.cls 4077
-            ld a, (asm_1_3924_n_sv_blk + 1)		; Hyp.cls 4078
-            or a		; Hyp.cls 4079
-            jr nz, asm_1_3924_n_sv_m1		; Hyp.cls 4080
-            ld de, (mem_count)      ; 0: a page (below Pages) [4081]
-            push hl		; Hyp.cls 4082
-            or a		; Hyp.cls 4083
-            sbc hl, de		; Hyp.cls 4084
-            pop hl		; Hyp.cls 4085
-            jp nc, asm_1_3924_n_sv_err		; Hyp.cls 4086
-            call asm_1_3924_n_sv_pgset		; Hyp.cls 4087
-            ld (asm_1_3924_n_sv_ss), bc		; Hyp.cls 4088
-            ld a, 1		; Hyp.cls 4089
-            ld (asm_1_3924_n_sv_stop), a		; Hyp.cls 4090
-            jr asm_1_3924_n_sv_mgo		; Hyp.cls 4091
-asm_1_3924_n_sv_m1:		; Hyp.cls 4092
-            dec a		; Hyp.cls 4093
-            jr nz, asm_1_3924_n_sv_m2		; Hyp.cls 4094
-            ld (asm_1_3924_n_sv_ss), hl          ; 1: a ROM [4095]
-            ld a, 1		; Hyp.cls 4096
-            ld (asm_1_3924_n_sv_stop), a		; Hyp.cls 4097
-            ld a, 3		; Hyp.cls 4098
-            jr asm_1_3924_n_sv_mgo1		; Hyp.cls 4099
-asm_1_3924_n_sv_m2:		; Hyp.cls 4100
-            dec a		; Hyp.cls 4101
-            jr nz, asm_1_3924_n_sv_m3		; Hyp.cls 4102
-            ld a, 4                 ; 2: main RAM [4103]
-            jr asm_1_3924_n_sv_mgo1		; Hyp.cls 4104
-asm_1_3924_n_sv_m3:		; Hyp.cls 4105
-            dec a		; Hyp.cls 4106
-            jp nz, asm_1_3924_n_sv_err		; Hyp.cls 4107
-            call asm_1_3924_n_sv_slot            ; 3: a slot's memory (one in use) [4108]
-            jp z, asm_1_3924_n_sv_err		; Hyp.cls 4109
-            ld (asm_1_3924_n_sv_ss), de		; Hyp.cls 4110
-            ld a, 2		; Hyp.cls 4111
-            jr asm_1_3924_n_sv_mgo1		; Hyp.cls 4112
-asm_1_3924_n_sv_mgo:		; Hyp.cls 4113
-            ld a, 1		; Hyp.cls 4114
-asm_1_3924_n_sv_mgo1:		; Hyp.cls 4115
-            ld (asm_1_3924_n_sv_sk), a		; Hyp.cls 4116
-            call asm_1_3924_n_sv_copy		; Hyp.cls 4117
-            jr asm_1_3924_n_sv_ok		; Hyp.cls 4118
+asm_1_3932_n_sv_mem:		; Hyp.cls 4085
+            ld hl, (asm_1_3932_n_sv_blk + 4)		; Hyp.cls 4086
+            ld (asm_1_3932_n_sv_sa), hl		; Hyp.cls 4087
+            ld hl, (asm_1_3932_n_sv_blk + 2)		; Hyp.cls 4088
+            ld a, (asm_1_3932_n_sv_blk + 1)		; Hyp.cls 4089
+            or a		; Hyp.cls 4090
+            jr nz, asm_1_3932_n_sv_m1		; Hyp.cls 4091
+            ld de, (mem_count)      ; 0: a page (below Pages) [4092]
+            push hl		; Hyp.cls 4093
+            or a		; Hyp.cls 4094
+            sbc hl, de		; Hyp.cls 4095
+            pop hl		; Hyp.cls 4096
+            jp nc, asm_1_3932_n_sv_err		; Hyp.cls 4097
+            call asm_1_3932_n_sv_pgset		; Hyp.cls 4098
+            ld (asm_1_3932_n_sv_ss), bc		; Hyp.cls 4099
+            ld a, 1		; Hyp.cls 4100
+            ld (asm_1_3932_n_sv_stop), a		; Hyp.cls 4101
+            jr asm_1_3932_n_sv_mgo		; Hyp.cls 4102
+asm_1_3932_n_sv_m1:		; Hyp.cls 4103
+            dec a		; Hyp.cls 4104
+            jr nz, asm_1_3932_n_sv_m2		; Hyp.cls 4105
+            ld (asm_1_3932_n_sv_ss), hl          ; 1: a ROM [4106]
+            ld a, 1		; Hyp.cls 4107
+            ld (asm_1_3932_n_sv_stop), a		; Hyp.cls 4108
+            ld a, 3		; Hyp.cls 4109
+            jr asm_1_3932_n_sv_mgo1		; Hyp.cls 4110
+asm_1_3932_n_sv_m2:		; Hyp.cls 4111
+            dec a		; Hyp.cls 4112
+            jr nz, asm_1_3932_n_sv_m3		; Hyp.cls 4113
+            ld a, 4                 ; 2: main RAM [4114]
+            jr asm_1_3932_n_sv_mgo1		; Hyp.cls 4115
+asm_1_3932_n_sv_m3:		; Hyp.cls 4116
+            dec a		; Hyp.cls 4117
+            jp nz, asm_1_3932_n_sv_err		; Hyp.cls 4118
+            call asm_1_3932_n_sv_slot            ; 3: a slot's memory (one in use) [4119]
+            jp z, asm_1_3932_n_sv_err		; Hyp.cls 4120
+            ld (asm_1_3932_n_sv_ss), de		; Hyp.cls 4121
+            ld a, 2		; Hyp.cls 4122
+            jr asm_1_3932_n_sv_mgo1		; Hyp.cls 4123
+asm_1_3932_n_sv_mgo:		; Hyp.cls 4124
+            ld a, 1		; Hyp.cls 4125
+asm_1_3932_n_sv_mgo1:		; Hyp.cls 4126
+            ld (asm_1_3932_n_sv_sk), a		; Hyp.cls 4127
+            call asm_1_3932_n_sv_copy		; Hyp.cls 4128
+            jr asm_1_3932_n_sv_ok		; Hyp.cls 4129
 ; HL = a slot number: Z when it isn't one in use, else DE = its RAM setting
-asm_1_3924_n_sv_slot:		; Hyp.cls 4120
-            ld a, h		; Hyp.cls 4121
-            or a		; Hyp.cls 4122
-            jr nz, asm_1_3924_n_sv_sl0		; Hyp.cls 4123
-            or l		; Hyp.cls 4124
-            ret z		; Hyp.cls 4125
-            ld de, (var_hyp_svns)		; Hyp.cls 4126
-            ld a, (de)		; Hyp.cls 4127
-            cp l		; Hyp.cls 4128
-            jr c, asm_1_3924_n_sv_sl0		; Hyp.cls 4129
-            add hl, hl		; Hyp.cls 4130
-            push hl		; Hyp.cls 4131
-            ld de, (var_hyp_svst)		; Hyp.cls 4132
-            add hl, de		; Hyp.cls 4133
-            ld a, (hl)		; Hyp.cls 4134
-            pop hl		; Hyp.cls 4135
-            or a		; Hyp.cls 4136
-            ret z		; Hyp.cls 4137
-            ld de, (var_hyp_svsg)		; Hyp.cls 4138
-            add hl, de		; Hyp.cls 4139
-            ld e, (hl)		; Hyp.cls 4140
-            inc hl		; Hyp.cls 4141
-            ld d, (hl)		; Hyp.cls 4142
-            or 1                    ; (NZ) [4143]
-            ret		; Hyp.cls 4144
-asm_1_3924_n_sv_sl0:		; Hyp.cls 4145
-            xor a		; Hyp.cls 4146
-            ret		; Hyp.cls 4147
+asm_1_3932_n_sv_slot:		; Hyp.cls 4131
+            ld a, h		; Hyp.cls 4132
+            or a		; Hyp.cls 4133
+            jr nz, asm_1_3932_n_sv_sl0		; Hyp.cls 4134
+            or l		; Hyp.cls 4135
+            ret z		; Hyp.cls 4136
+            ld de, (var_hyp_svns)		; Hyp.cls 4137
+            ld a, (de)		; Hyp.cls 4138
+            cp l		; Hyp.cls 4139
+            jr c, asm_1_3932_n_sv_sl0		; Hyp.cls 4140
+            add hl, hl		; Hyp.cls 4141
+            push hl		; Hyp.cls 4142
+            ld de, (var_hyp_svst)		; Hyp.cls 4143
+            add hl, de		; Hyp.cls 4144
+            ld a, (hl)		; Hyp.cls 4145
+            pop hl		; Hyp.cls 4146
+            or a		; Hyp.cls 4147
+            ret z		; Hyp.cls 4148
+            ld de, (var_hyp_svsg)		; Hyp.cls 4149
+            add hl, de		; Hyp.cls 4150
+            ld e, (hl)		; Hyp.cls 4151
+            inc hl		; Hyp.cls 4152
+            ld d, (hl)		; Hyp.cls 4153
+            or 1                    ; (NZ) [4154]
+            ret		; Hyp.cls 4155
+asm_1_3932_n_sv_sl0:		; Hyp.cls 4156
+            xor a		; Hyp.cls 4157
+            ret		; Hyp.cls 4158
 ; 13 / 14: a 2K block of the store (13 from the slot, 14 to it)
-asm_1_3924_n_sv_store:		; Hyp.cls 4149
-            ld hl, (asm_1_3924_n_sv_blk + 2)		; Hyp.cls 4150
-            ld a, h		; Hyp.cls 4151
-            or a		; Hyp.cls 4152
-            jp nz, asm_1_3924_n_sv_err		; Hyp.cls 4153
-            ld a, l		; Hyp.cls 4154
-            and 7		; Hyp.cls 4155
-            add a, a		; Hyp.cls 4156
-            add a, a		; Hyp.cls 4157
-            add a, a		; Hyp.cls 4158
-            ld (asm_1_3924_n_sv_sa + 1), a       ; the block's place in its page [4159]
-            xor a		; Hyp.cls 4160
-            ld (asm_1_3924_n_sv_sa), a		; Hyp.cls 4161
-            srl l		; Hyp.cls 4162
-            srl l		; Hyp.cls 4163
-            srl l		; Hyp.cls 4164
-            ld h, #FF               ; its page: the slot's byte at #FF00 + block / 8 [4165]
-            ld de, (var_hyp_svc_setting)		; Hyp.cls 4166
-            call asm_1_3924_n_sv_sw		; Hyp.cls 4167
-            push bc		; Hyp.cls 4168
-            pop ix		; Hyp.cls 4169
-            ld iy, (var_hyp_svp)		; Hyp.cls 4170
-            ld de, asm_1_3924_n_sv_tmp		; Hyp.cls 4171
-            ld a, 1		; Hyp.cls 4172
-            call asm_1_3924_n_sv_dx		; Hyp.cls 4173
-            ld a, (asm_1_3924_n_sv_tmp)		; Hyp.cls 4174
-            or a		; Hyp.cls 4175
-            jp z, asm_1_3924_n_sv_err		; Hyp.cls 4176
-            ld l, a		; Hyp.cls 4177
-            ld h, 0		; Hyp.cls 4178
-            call asm_1_3924_n_sv_pgset		; Hyp.cls 4179
-            ld (asm_1_3924_n_sv_ss), bc		; Hyp.cls 4180
-            ld a, 1		; Hyp.cls 4181
-            ld (asm_1_3924_n_sv_sk), a		; Hyp.cls 4182
-            ld a, (asm_1_3924_n_sv_blk)		; Hyp.cls 4183
-            cp 14		; Hyp.cls 4184
-            jr z, asm_1_3924_n_sv_st1		; Hyp.cls 4185
-            ld hl, (asm_1_3924_n_sv_sa)          ; 13: the slot to the page [4186]
-            ld (asm_1_3924_n_sv_da), hl		; Hyp.cls 4187
-            ld hl, (asm_1_3924_n_sv_ss)		; Hyp.cls 4188
-            ld (asm_1_3924_n_sv_ds), hl		; Hyp.cls 4189
-            ld a, 1		; Hyp.cls 4190
-            ld (asm_1_3924_n_sv_dk), a		; Hyp.cls 4191
-            ld hl, (asm_1_3924_n_sv_blk + 6)		; Hyp.cls 4192
-            ld (asm_1_3924_n_sv_sa), hl		; Hyp.cls 4193
-            ld hl, (var_hyp_svc_setting)		; Hyp.cls 4194
-            ld (asm_1_3924_n_sv_ss), hl		; Hyp.cls 4195
-            ld a, 2		; Hyp.cls 4196
-            ld (asm_1_3924_n_sv_sk), a		; Hyp.cls 4197
-asm_1_3924_n_sv_st1:		; Hyp.cls 4198
-            call asm_1_3924_n_sv_copy		; Hyp.cls 4199
-            jp asm_1_3924_n_sv_ok		; Hyp.cls 4200
+asm_1_3932_n_sv_store:		; Hyp.cls 4160
+            ld hl, (asm_1_3932_n_sv_blk + 2)		; Hyp.cls 4161
+            ld a, h		; Hyp.cls 4162
+            or a		; Hyp.cls 4163
+            jp nz, asm_1_3932_n_sv_err		; Hyp.cls 4164
+            ld a, l		; Hyp.cls 4165
+            and 7		; Hyp.cls 4166
+            add a, a		; Hyp.cls 4167
+            add a, a		; Hyp.cls 4168
+            add a, a		; Hyp.cls 4169
+            ld (asm_1_3932_n_sv_sa + 1), a       ; the block's place in its page [4170]
+            xor a		; Hyp.cls 4171
+            ld (asm_1_3932_n_sv_sa), a		; Hyp.cls 4172
+            srl l		; Hyp.cls 4173
+            srl l		; Hyp.cls 4174
+            srl l		; Hyp.cls 4175
+            ld h, #FF               ; its page: the slot's byte at #FF00 + block / 8 [4176]
+            ld de, (var_hyp_svc_setting)		; Hyp.cls 4177
+            call asm_1_3932_n_sv_sw		; Hyp.cls 4178
+            push bc		; Hyp.cls 4179
+            pop ix		; Hyp.cls 4180
+            ld iy, (var_hyp_svp)		; Hyp.cls 4181
+            ld de, asm_1_3932_n_sv_tmp		; Hyp.cls 4182
+            ld a, 1		; Hyp.cls 4183
+            call asm_1_3932_n_sv_dx		; Hyp.cls 4184
+            ld a, (asm_1_3932_n_sv_tmp)		; Hyp.cls 4185
+            or a		; Hyp.cls 4186
+            jp z, asm_1_3932_n_sv_err		; Hyp.cls 4187
+            ld l, a		; Hyp.cls 4188
+            ld h, 0		; Hyp.cls 4189
+            call asm_1_3932_n_sv_pgset		; Hyp.cls 4190
+            ld (asm_1_3932_n_sv_ss), bc		; Hyp.cls 4191
+            ld a, 1		; Hyp.cls 4192
+            ld (asm_1_3932_n_sv_sk), a		; Hyp.cls 4193
+            ld a, (asm_1_3932_n_sv_blk)		; Hyp.cls 4194
+            cp 14		; Hyp.cls 4195
+            jr z, asm_1_3932_n_sv_st1		; Hyp.cls 4196
+            ld hl, (asm_1_3932_n_sv_sa)          ; 13: the slot to the page [4197]
+            ld (asm_1_3932_n_sv_da), hl		; Hyp.cls 4198
+            ld hl, (asm_1_3932_n_sv_ss)		; Hyp.cls 4199
+            ld (asm_1_3932_n_sv_ds), hl		; Hyp.cls 4200
+            ld a, 1		; Hyp.cls 4201
+            ld (asm_1_3932_n_sv_dk), a		; Hyp.cls 4202
+            ld hl, (asm_1_3932_n_sv_blk + 6)		; Hyp.cls 4203
+            ld (asm_1_3932_n_sv_sa), hl		; Hyp.cls 4204
+            ld hl, (var_hyp_svc_setting)		; Hyp.cls 4205
+            ld (asm_1_3932_n_sv_ss), hl		; Hyp.cls 4206
+            ld a, 2		; Hyp.cls 4207
+            ld (asm_1_3932_n_sv_sk), a		; Hyp.cls 4208
+asm_1_3932_n_sv_st1:		; Hyp.cls 4209
+            call asm_1_3932_n_sv_copy		; Hyp.cls 4210
+            jp asm_1_3932_n_sv_ok		; Hyp.cls 4211
 ; 11: the pointer, while the slot is in front
-asm_1_3924_n_sv_ptr:		; Hyp.cls 4202
-            ld hl, (var_hyp_svfr)		; Hyp.cls 4203
-            ld a, (hl)		; Hyp.cls 4204
-            ld hl, var_hyp_svc_t		; Hyp.cls 4205
-            cp (hl)		; Hyp.cls 4206
-            jp nz, asm_1_3924_n_sv_ok		; Hyp.cls 4207
-            ld a, (var_hyp_pon)		; Hyp.cls 4208
-            or a		; Hyp.cls 4209
-            call nz, asm_1_3924_n_pt_xor		; Hyp.cls 4210
-            xor a		; Hyp.cls 4211
-            ld (var_hyp_pon), a		; Hyp.cls 4212
-            ld a, (asm_1_3924_n_sv_blk + 1)		; Hyp.cls 4213
-            or a		; Hyp.cls 4214
-            jp z, asm_1_3924_n_sv_ok		; Hyp.cls 4215
-            ld a, (asm_1_3924_n_sv_blk + 2)		; Hyp.cls 4216
-            ld hl, var_hyp_scc		; Hyp.cls 4217
-            cp (hl)		; Hyp.cls 4218
-            jp nc, asm_1_3924_n_sv_ok            ; (off the screen: none) [4219]
-            ld (var_hyp_pox), a		; Hyp.cls 4220
-            ld a, (asm_1_3924_n_sv_blk + 3)		; Hyp.cls 4221
-            ld (var_hyp_poy), a		; Hyp.cls 4222
-            call asm_1_3924_n_pt_xor		; Hyp.cls 4223
-            ld a, 1		; Hyp.cls 4224
-            ld (var_hyp_pon), a		; Hyp.cls 4225
-            jp asm_1_3924_n_sv_ok		; Hyp.cls 4226
-asm_1_3924_n_pt_xor:                             ; the checkerboard XORed at pox, poy (the screen is main RAM) [4227]
-            ld a, (var_hyp_poy)		; Hyp.cls 4228
-            ld e, a		; Hyp.cls 4229
-            ld d, 0		; Hyp.cls 4230
-            ld hl, 0		; Hyp.cls 4231
-            ld a, (var_hyp_scc)		; Hyp.cls 4232
-            ld b, 8		; Hyp.cls 4233
-asm_1_3924_n_pt_mul:		; Hyp.cls 4234
-            add hl, hl		; Hyp.cls 4235
-            rlca		; Hyp.cls 4236
-            jr nc, asm_1_3924_n_pt_mn		; Hyp.cls 4237
-            add hl, de		; Hyp.cls 4238
-asm_1_3924_n_pt_mn:		; Hyp.cls 4239
-            djnz asm_1_3924_n_pt_mul		; Hyp.cls 4240
-            ld a, (var_hyp_pox)		; Hyp.cls 4241
-            ld e, a		; Hyp.cls 4242
-            add hl, de		; Hyp.cls 4243
-            ld de, (var_hyp_sco)		; Hyp.cls 4244
-            add hl, de		; Hyp.cls 4245
-            ld a, h		; Hyp.cls 4246
-            and #07		; Hyp.cls 4247
-            or #C0		; Hyp.cls 4248
-            ld h, a		; Hyp.cls 4249
-            ld b, 4		; Hyp.cls 4250
-asm_1_3924_n_pt_ln:		; Hyp.cls 4251
-            ld a, (hl)		; Hyp.cls 4252
-            xor #AA		; Hyp.cls 4253
-            ld (hl), a		; Hyp.cls 4254
-            ld a, h		; Hyp.cls 4255
-            add a, 8		; Hyp.cls 4256
-            ld h, a		; Hyp.cls 4257
-            ld a, (hl)		; Hyp.cls 4258
-            xor #55		; Hyp.cls 4259
-            ld (hl), a		; Hyp.cls 4260
-            ld a, h		; Hyp.cls 4261
-            add a, 8		; Hyp.cls 4262
-            ld h, a		; Hyp.cls 4263
-            djnz asm_1_3924_n_pt_ln		; Hyp.cls 4264
-            ret		; Hyp.cls 4265
+asm_1_3932_n_sv_ptr:		; Hyp.cls 4213
+            ld hl, (var_hyp_svfr)		; Hyp.cls 4214
+            ld a, (hl)		; Hyp.cls 4215
+            ld hl, var_hyp_svc_t		; Hyp.cls 4216
+            cp (hl)		; Hyp.cls 4217
+            jp nz, asm_1_3932_n_sv_ok		; Hyp.cls 4218
+            ld a, (var_hyp_pon)		; Hyp.cls 4219
+            or a		; Hyp.cls 4220
+            call nz, asm_1_3932_n_pt_xor		; Hyp.cls 4221
+            xor a		; Hyp.cls 4222
+            ld (var_hyp_pon), a		; Hyp.cls 4223
+            ld a, (asm_1_3932_n_sv_blk + 1)		; Hyp.cls 4224
+            or a		; Hyp.cls 4225
+            jp z, asm_1_3932_n_sv_ok		; Hyp.cls 4226
+            ld a, (asm_1_3932_n_sv_blk + 2)		; Hyp.cls 4227
+            ld hl, var_hyp_scc		; Hyp.cls 4228
+            cp (hl)		; Hyp.cls 4229
+            jp nc, asm_1_3932_n_sv_ok            ; (off the screen: none) [4230]
+            ld (var_hyp_pox), a		; Hyp.cls 4231
+            ld a, (asm_1_3932_n_sv_blk + 3)		; Hyp.cls 4232
+            ld (var_hyp_poy), a		; Hyp.cls 4233
+            call asm_1_3932_n_pt_xor		; Hyp.cls 4234
+            ld a, 1		; Hyp.cls 4235
+            ld (var_hyp_pon), a		; Hyp.cls 4236
+            jp asm_1_3932_n_sv_ok		; Hyp.cls 4237
+asm_1_3932_n_pt_xor:                             ; the checkerboard XORed at pox, poy (the screen is main RAM) [4238]
+            ld a, (var_hyp_poy)		; Hyp.cls 4239
+            ld e, a		; Hyp.cls 4240
+            ld d, 0		; Hyp.cls 4241
+            ld hl, 0		; Hyp.cls 4242
+            ld a, (var_hyp_scc)		; Hyp.cls 4243
+            ld b, 8		; Hyp.cls 4244
+asm_1_3932_n_pt_mul:		; Hyp.cls 4245
+            add hl, hl		; Hyp.cls 4246
+            rlca		; Hyp.cls 4247
+            jr nc, asm_1_3932_n_pt_mn		; Hyp.cls 4248
+            add hl, de		; Hyp.cls 4249
+asm_1_3932_n_pt_mn:		; Hyp.cls 4250
+            djnz asm_1_3932_n_pt_mul		; Hyp.cls 4251
+            ld a, (var_hyp_pox)		; Hyp.cls 4252
+            ld e, a		; Hyp.cls 4253
+            add hl, de		; Hyp.cls 4254
+            ld de, (var_hyp_sco)		; Hyp.cls 4255
+            add hl, de		; Hyp.cls 4256
+            ld a, h		; Hyp.cls 4257
+            and #07		; Hyp.cls 4258
+            or #C0		; Hyp.cls 4259
+            ld h, a		; Hyp.cls 4260
+            ld b, 4		; Hyp.cls 4261
+asm_1_3932_n_pt_ln:		; Hyp.cls 4262
+            ld a, (hl)		; Hyp.cls 4263
+            xor #AA		; Hyp.cls 4264
+            ld (hl), a		; Hyp.cls 4265
+            ld a, h		; Hyp.cls 4266
+            add a, 8		; Hyp.cls 4267
+            ld h, a		; Hyp.cls 4268
+            ld a, (hl)		; Hyp.cls 4269
+            xor #55		; Hyp.cls 4270
+            ld (hl), a		; Hyp.cls 4271
+            ld a, h		; Hyp.cls 4272
+            add a, 8		; Hyp.cls 4273
+            ld h, a		; Hyp.cls 4274
+            djnz asm_1_3932_n_pt_ln		; Hyp.cls 4275
+            ret		; Hyp.cls 4276
 ; 15: a table
-asm_1_3924_n_sv_tab:		; Hyp.cls 4267
-            ld hl, (asm_1_3924_n_sv_blk + 2)		; Hyp.cls 4268
-            ld (asm_1_3924_n_sv_da), hl		; Hyp.cls 4269
-            ld a, (asm_1_3924_n_sv_blk + 1)		; Hyp.cls 4270
-            or a		; Hyp.cls 4271
-            jr z, asm_1_3924_n_sv_t0		; Hyp.cls 4272
-            dec a		; Hyp.cls 4273
-            jp z, asm_1_3924_n_sv_t1		; Hyp.cls 4274
-            dec a		; Hyp.cls 4275
-            jp z, asm_1_3924_n_sv_t2		; Hyp.cls 4276
-            dec a		; Hyp.cls 4277
-            jp z, asm_1_3924_n_sv_t3		; Hyp.cls 4278
-            dec a		; Hyp.cls 4279
-            jp z, asm_1_3924_n_sv_t4		; Hyp.cls 4280
-            jp asm_1_3924_n_sv_err		; Hyp.cls 4281
+asm_1_3932_n_sv_tab:		; Hyp.cls 4278
+            ld hl, (asm_1_3932_n_sv_blk + 2)		; Hyp.cls 4279
+            ld (asm_1_3932_n_sv_da), hl		; Hyp.cls 4280
+            ld a, (asm_1_3932_n_sv_blk + 1)		; Hyp.cls 4281
+            or a		; Hyp.cls 4282
+            jr z, asm_1_3932_n_sv_t0		; Hyp.cls 4283
+            dec a		; Hyp.cls 4284
+            jp z, asm_1_3932_n_sv_t1		; Hyp.cls 4285
+            dec a		; Hyp.cls 4286
+            jp z, asm_1_3932_n_sv_t2		; Hyp.cls 4287
+            dec a		; Hyp.cls 4288
+            jp z, asm_1_3932_n_sv_t3		; Hyp.cls 4289
+            dec a		; Hyp.cls 4290
+            jp z, asm_1_3932_n_sv_t4		; Hyp.cls 4291
+            jp asm_1_3932_n_sv_err		; Hyp.cls 4292
 ; 4: the claims - CL_N records of 10 bytes: the slot holding it (0: a free record), the unit,
 ; the name (8 characters, spaces after it)
-asm_1_3924_n_sv_t4:		; Hyp.cls 4284
-            ld hl, asm_1_3924_n_sv_cl		; Hyp.cls 4285
-            ld de, (asm_1_3924_n_sv_da)		; Hyp.cls 4286
-            ld bc, asm_1_3924_n_CL_N * 10		; Hyp.cls 4287
-            call asm_1_3924_n_sv_out		; Hyp.cls 4288
-            jp asm_1_3924_n_sv_ok		; Hyp.cls 4289
+asm_1_3932_n_sv_t4:		; Hyp.cls 4295
+            ld hl, asm_1_3932_n_sv_cl		; Hyp.cls 4296
+            ld de, (asm_1_3932_n_sv_da)		; Hyp.cls 4297
+            ld bc, asm_1_3932_n_CL_N * 10		; Hyp.cls 4298
+            call asm_1_3932_n_sv_out		; Hyp.cls 4299
+            jp asm_1_3932_n_sv_ok		; Hyp.cls 4300
 ; 0: the slots - a word how many, then from 16 a record each: state, in front, MODE, the name's
 ; length, the name
-asm_1_3924_n_sv_t0:		; Hyp.cls 4292
-            call asm_1_3924_n_sv_clr		; Hyp.cls 4293
-            ld hl, (var_hyp_svns)		; Hyp.cls 4294
-            ld a, (hl)		; Hyp.cls 4295
-            ld (asm_1_3924_n_sv_rec), a		; Hyp.cls 4296
-            ld (asm_1_3924_n_sv_tn), a		; Hyp.cls 4297
-            call asm_1_3924_n_sv_out16		; Hyp.cls 4298
-            ld a, 1		; Hyp.cls 4299
-            ld (asm_1_3924_n_sv_tj), a		; Hyp.cls 4300
-asm_1_3924_n_sv_t0lp:		; Hyp.cls 4301
-            ld a, (asm_1_3924_n_sv_tn)		; Hyp.cls 4302
-            ld b, a		; Hyp.cls 4303
-            ld a, (asm_1_3924_n_sv_tj)		; Hyp.cls 4304
-            cp b		; Hyp.cls 4305
-            jr z, asm_1_3924_n_sv_t0a		; Hyp.cls 4306
-            jp nc, asm_1_3924_n_sv_ok		; Hyp.cls 4307
-asm_1_3924_n_sv_t0a:		; Hyp.cls 4308
-            ld hl, (asm_1_3924_n_sv_da)		; Hyp.cls 4309
-            ld de, 16		; Hyp.cls 4310
-            add hl, de		; Hyp.cls 4311
-            ld (asm_1_3924_n_sv_da), hl		; Hyp.cls 4312
-            call asm_1_3924_n_sv_clr		; Hyp.cls 4313
-            ld a, (asm_1_3924_n_sv_tj)		; Hyp.cls 4314
-            ld l, a		; Hyp.cls 4315
-            ld h, 0		; Hyp.cls 4316
-            add hl, hl		; Hyp.cls 4317
-            ld de, (var_hyp_svst)		; Hyp.cls 4318
-            add hl, de		; Hyp.cls 4319
-            ld a, (hl)		; Hyp.cls 4320
-            ld (asm_1_3924_n_sv_rec), a          ; its state [4321]
-            ld hl, (var_hyp_svfr)		; Hyp.cls 4322
-            ld a, (asm_1_3924_n_sv_tj)		; Hyp.cls 4323
-            cp (hl)		; Hyp.cls 4324
-            jr nz, asm_1_3924_n_sv_t0b		; Hyp.cls 4325
-            ld a, 1		; Hyp.cls 4326
-            ld (asm_1_3924_n_sv_rec + 1), a      ; in front [4327]
-asm_1_3924_n_sv_t0b:		; Hyp.cls 4328
-            ld a, (asm_1_3924_n_sv_rec)		; Hyp.cls 4329
-            or a		; Hyp.cls 4330
-            jr z, asm_1_3924_n_sv_t0d		; Hyp.cls 4331
-            ld a, (asm_1_3924_n_sv_tj)           ; its RAM setting [4332]
-            ld l, a		; Hyp.cls 4333
-            ld h, 0		; Hyp.cls 4334
-            add hl, hl		; Hyp.cls 4335
-            ld de, (var_hyp_svsg)		; Hyp.cls 4336
-            add hl, de		; Hyp.cls 4337
-            ld e, (hl)		; Hyp.cls 4338
-            inc hl		; Hyp.cls 4339
-            ld d, (hl)		; Hyp.cls 4340
-            ld (asm_1_3924_n_sv_tsg), de		; Hyp.cls 4341
-            ld hl, 63113          ; MODE [4342]
-            ld a, 1		; Hyp.cls 4343
-            call asm_1_3924_n_sv_from		; Hyp.cls 4344
-            ld a, (asm_1_3924_n_sv_tmp)		; Hyp.cls 4345
-            ld (asm_1_3924_n_sv_rec + 2), a		; Hyp.cls 4346
-            ld a, (asm_1_3924_n_sv_rec)		; Hyp.cls 4347
-            cp 2		; Hyp.cls 4348
-            jr nz, asm_1_3924_n_sv_t0d		; Hyp.cls 4349
-            ld de, (asm_1_3924_n_sv_tsg)		; Hyp.cls 4350
-            ld hl, #F6D8            ; the program's name: its length, then 12 [4351]
-            ld a, 13		; Hyp.cls 4352
-            call asm_1_3924_n_sv_from		; Hyp.cls 4353
-            ld a, (asm_1_3924_n_sv_tmp)		; Hyp.cls 4354
-            cp 13		; Hyp.cls 4355
-            jr c, asm_1_3924_n_sv_t0c		; Hyp.cls 4356
-            ld a, 12		; Hyp.cls 4357
-asm_1_3924_n_sv_t0c:		; Hyp.cls 4358
-            ld (asm_1_3924_n_sv_rec + 3), a		; Hyp.cls 4359
-            ld hl, asm_1_3924_n_sv_tmp + 1		; Hyp.cls 4360
-            ld de, asm_1_3924_n_sv_rec + 4		; Hyp.cls 4361
-            ld bc, 12		; Hyp.cls 4362
-            ldir		; Hyp.cls 4363
-asm_1_3924_n_sv_t0d:		; Hyp.cls 4364
-            ld hl, asm_1_3924_n_sv_tj		; Hyp.cls 4365
-            push hl		; Hyp.cls 4366
-            call asm_1_3924_n_sv_out16		; Hyp.cls 4367
-            pop hl		; Hyp.cls 4368
-            inc (hl)		; Hyp.cls 4369
-            jp asm_1_3924_n_sv_t0lp		; Hyp.cls 4370
+asm_1_3932_n_sv_t0:		; Hyp.cls 4303
+            call asm_1_3932_n_sv_clr		; Hyp.cls 4304
+            ld hl, (var_hyp_svns)		; Hyp.cls 4305
+            ld a, (hl)		; Hyp.cls 4306
+            ld (asm_1_3932_n_sv_rec), a		; Hyp.cls 4307
+            ld (asm_1_3932_n_sv_tn), a		; Hyp.cls 4308
+            call asm_1_3932_n_sv_out16		; Hyp.cls 4309
+            ld a, 1		; Hyp.cls 4310
+            ld (asm_1_3932_n_sv_tj), a		; Hyp.cls 4311
+asm_1_3932_n_sv_t0lp:		; Hyp.cls 4312
+            ld a, (asm_1_3932_n_sv_tn)		; Hyp.cls 4313
+            ld b, a		; Hyp.cls 4314
+            ld a, (asm_1_3932_n_sv_tj)		; Hyp.cls 4315
+            cp b		; Hyp.cls 4316
+            jr z, asm_1_3932_n_sv_t0a		; Hyp.cls 4317
+            jp nc, asm_1_3932_n_sv_ok		; Hyp.cls 4318
+asm_1_3932_n_sv_t0a:		; Hyp.cls 4319
+            ld hl, (asm_1_3932_n_sv_da)		; Hyp.cls 4320
+            ld de, 16		; Hyp.cls 4321
+            add hl, de		; Hyp.cls 4322
+            ld (asm_1_3932_n_sv_da), hl		; Hyp.cls 4323
+            call asm_1_3932_n_sv_clr		; Hyp.cls 4324
+            ld a, (asm_1_3932_n_sv_tj)		; Hyp.cls 4325
+            ld l, a		; Hyp.cls 4326
+            ld h, 0		; Hyp.cls 4327
+            add hl, hl		; Hyp.cls 4328
+            ld de, (var_hyp_svst)		; Hyp.cls 4329
+            add hl, de		; Hyp.cls 4330
+            ld a, (hl)		; Hyp.cls 4331
+            ld (asm_1_3932_n_sv_rec), a          ; its state [4332]
+            ld hl, (var_hyp_svfr)		; Hyp.cls 4333
+            ld a, (asm_1_3932_n_sv_tj)		; Hyp.cls 4334
+            cp (hl)		; Hyp.cls 4335
+            jr nz, asm_1_3932_n_sv_t0b		; Hyp.cls 4336
+            ld a, 1		; Hyp.cls 4337
+            ld (asm_1_3932_n_sv_rec + 1), a      ; in front [4338]
+asm_1_3932_n_sv_t0b:		; Hyp.cls 4339
+            ld a, (asm_1_3932_n_sv_rec)		; Hyp.cls 4340
+            or a		; Hyp.cls 4341
+            jr z, asm_1_3932_n_sv_t0d		; Hyp.cls 4342
+            ld a, (asm_1_3932_n_sv_tj)           ; its RAM setting [4343]
+            ld l, a		; Hyp.cls 4344
+            ld h, 0		; Hyp.cls 4345
+            add hl, hl		; Hyp.cls 4346
+            ld de, (var_hyp_svsg)		; Hyp.cls 4347
+            add hl, de		; Hyp.cls 4348
+            ld e, (hl)		; Hyp.cls 4349
+            inc hl		; Hyp.cls 4350
+            ld d, (hl)		; Hyp.cls 4351
+            ld (asm_1_3932_n_sv_tsg), de		; Hyp.cls 4352
+            ld hl, 63113          ; MODE [4353]
+            ld a, 1		; Hyp.cls 4354
+            call asm_1_3932_n_sv_from		; Hyp.cls 4355
+            ld a, (asm_1_3932_n_sv_tmp)		; Hyp.cls 4356
+            ld (asm_1_3932_n_sv_rec + 2), a		; Hyp.cls 4357
+            ld a, (asm_1_3932_n_sv_rec)		; Hyp.cls 4358
+            cp 2		; Hyp.cls 4359
+            jr nz, asm_1_3932_n_sv_t0d		; Hyp.cls 4360
+            ld de, (asm_1_3932_n_sv_tsg)		; Hyp.cls 4361
+            ld hl, #F6D8            ; the program's name: its length, then 12 [4362]
+            ld a, 13		; Hyp.cls 4363
+            call asm_1_3932_n_sv_from		; Hyp.cls 4364
+            ld a, (asm_1_3932_n_sv_tmp)		; Hyp.cls 4365
+            cp 13		; Hyp.cls 4366
+            jr c, asm_1_3932_n_sv_t0c		; Hyp.cls 4367
+            ld a, 12		; Hyp.cls 4368
+asm_1_3932_n_sv_t0c:		; Hyp.cls 4369
+            ld (asm_1_3932_n_sv_rec + 3), a		; Hyp.cls 4370
+            ld hl, asm_1_3932_n_sv_tmp + 1		; Hyp.cls 4371
+            ld de, asm_1_3932_n_sv_rec + 4		; Hyp.cls 4372
+            ld bc, 12		; Hyp.cls 4373
+            ldir		; Hyp.cls 4374
+asm_1_3932_n_sv_t0d:		; Hyp.cls 4375
+            ld hl, asm_1_3932_n_sv_tj		; Hyp.cls 4376
+            push hl		; Hyp.cls 4377
+            call asm_1_3932_n_sv_out16		; Hyp.cls 4378
+            pop hl		; Hyp.cls 4379
+            inc (hl)		; Hyp.cls 4380
+            jp asm_1_3932_n_sv_t0lp		; Hyp.cls 4381
 ; 1: the memory - words: the tables' end, the top, the pages, total K, free pages; from 16 a byte a page
-asm_1_3924_n_sv_t1:		; Hyp.cls 4372
-            call asm_1_3924_n_sv_clr		; Hyp.cls 4373
-            ld hl, (mem_tend)		; Hyp.cls 4374
-            ld (asm_1_3924_n_sv_rec), hl		; Hyp.cls 4375
-            call mem_top		; Hyp.cls 4376
-            ld (asm_1_3924_n_sv_rec + 2), hl		; Hyp.cls 4377
-            ld hl, (mem_count)		; Hyp.cls 4378
-            ld (asm_1_3924_n_sv_rec + 4), hl		; Hyp.cls 4379
-            call mem_ramsize		; Hyp.cls 4380
-            ld (asm_1_3924_n_sv_rec + 6), hl		; Hyp.cls 4381
-            call mem_freepages		; Hyp.cls 4382
-            ld (asm_1_3924_n_sv_rec + 8), hl		; Hyp.cls 4383
-            ld hl, asm_1_3924_n_sv_rec		; Hyp.cls 4384
-            ld de, (asm_1_3924_n_sv_da)		; Hyp.cls 4385
-            ld bc, 18               ; (and pages 0, 1: 0) [4386]
-            call asm_1_3924_n_sv_out		; Hyp.cls 4387
-            ld hl, (mem_count)      ; pages 2 on: the RAT (2030 at most) [4388]
-            dec hl		; Hyp.cls 4389
-            ld a, h		; Hyp.cls 4390
-            or l		; Hyp.cls 4391
-            jp z, asm_1_3924_n_sv_ok		; Hyp.cls 4392
-            ld de, 2031		; Hyp.cls 4393
-            or a		; Hyp.cls 4394
-            sbc hl, de		; Hyp.cls 4395
-            add hl, de		; Hyp.cls 4396
-            jr c, asm_1_3924_n_sv_t1a		; Hyp.cls 4397
-            ld hl, 2030		; Hyp.cls 4398
-asm_1_3924_n_sv_t1a:		; Hyp.cls 4399
-            ld (asm_1_3924_n_sv_n), hl		; Hyp.cls 4400
-            ld hl, (mem_ttype)		; Hyp.cls 4401
-            inc hl		; Hyp.cls 4402
-            ld (asm_1_3924_n_sv_sa), hl		; Hyp.cls 4403
-            ld hl, (asm_1_3924_n_sv_blk + 2)		; Hyp.cls 4404
-            ld de, 18		; Hyp.cls 4405
-            add hl, de		; Hyp.cls 4406
-            ld (asm_1_3924_n_sv_da), hl		; Hyp.cls 4407
-            xor a		; Hyp.cls 4408
-            ld (asm_1_3924_n_sv_sk), a		; Hyp.cls 4409
-            ld (asm_1_3924_n_sv_stop), a		; Hyp.cls 4410
-            call asm_1_3924_n_sv_copy		; Hyp.cls 4411
-            jp asm_1_3924_n_sv_ok		; Hyp.cls 4412
+asm_1_3932_n_sv_t1:		; Hyp.cls 4383
+            call asm_1_3932_n_sv_clr		; Hyp.cls 4384
+            ld hl, (mem_tend)		; Hyp.cls 4385
+            ld (asm_1_3932_n_sv_rec), hl		; Hyp.cls 4386
+            call mem_top		; Hyp.cls 4387
+            ld (asm_1_3932_n_sv_rec + 2), hl		; Hyp.cls 4388
+            ld hl, (mem_count)		; Hyp.cls 4389
+            ld (asm_1_3932_n_sv_rec + 4), hl		; Hyp.cls 4390
+            call mem_ramsize		; Hyp.cls 4391
+            ld (asm_1_3932_n_sv_rec + 6), hl		; Hyp.cls 4392
+            call mem_freepages		; Hyp.cls 4393
+            ld (asm_1_3932_n_sv_rec + 8), hl		; Hyp.cls 4394
+            ld hl, asm_1_3932_n_sv_rec		; Hyp.cls 4395
+            ld de, (asm_1_3932_n_sv_da)		; Hyp.cls 4396
+            ld bc, 18               ; (and pages 0, 1: 0) [4397]
+            call asm_1_3932_n_sv_out		; Hyp.cls 4398
+            ld hl, (mem_count)      ; pages 2 on: the RAT (2030 at most) [4399]
+            dec hl		; Hyp.cls 4400
+            ld a, h		; Hyp.cls 4401
+            or l		; Hyp.cls 4402
+            jp z, asm_1_3932_n_sv_ok		; Hyp.cls 4403
+            ld de, 2031		; Hyp.cls 4404
+            or a		; Hyp.cls 4405
+            sbc hl, de		; Hyp.cls 4406
+            add hl, de		; Hyp.cls 4407
+            jr c, asm_1_3932_n_sv_t1a		; Hyp.cls 4408
+            ld hl, 2030		; Hyp.cls 4409
+asm_1_3932_n_sv_t1a:		; Hyp.cls 4410
+            ld (asm_1_3932_n_sv_n), hl		; Hyp.cls 4411
+            ld hl, (mem_ttype)		; Hyp.cls 4412
+            inc hl		; Hyp.cls 4413
+            ld (asm_1_3932_n_sv_sa), hl		; Hyp.cls 4414
+            ld hl, (asm_1_3932_n_sv_blk + 2)		; Hyp.cls 4415
+            ld de, 18		; Hyp.cls 4416
+            add hl, de		; Hyp.cls 4417
+            ld (asm_1_3932_n_sv_da), hl		; Hyp.cls 4418
+            xor a		; Hyp.cls 4419
+            ld (asm_1_3932_n_sv_sk), a		; Hyp.cls 4420
+            ld (asm_1_3932_n_sv_stop), a		; Hyp.cls 4421
+            call asm_1_3932_n_sv_copy		; Hyp.cls 4422
+            jp asm_1_3932_n_sv_ok		; Hyp.cls 4423
 ; 2: the upper ROMs 0-31 - 64 bytes each: the first 16, then 48 of the name table (0s if none)
-asm_1_3924_n_sv_t2:		; Hyp.cls 4414
-            xor a		; Hyp.cls 4415
-            ld (asm_1_3924_n_sv_tj), a		; Hyp.cls 4416
-asm_1_3924_n_sv_t2lp:		; Hyp.cls 4417
-            call asm_1_3924_n_sv_clr		; Hyp.cls 4418
-            ld a, (asm_1_3924_n_sv_tj)		; Hyp.cls 4419
-            ld c, a		; Hyp.cls 4420
-            call #B90F              ; KL ROM SELECT (#C000 only: this code at #6000 stays) [4421]
-            di		; Hyp.cls 4422
-            push bc		; Hyp.cls 4423
-            ld hl, #C000		; Hyp.cls 4424
-            ld de, asm_1_3924_n_sv_rec		; Hyp.cls 4425
-            ld bc, 16		; Hyp.cls 4426
-            ldir		; Hyp.cls 4427
-            ld hl, (asm_1_3924_n_sv_rec + 4)		; Hyp.cls 4428
-            ld a, h		; Hyp.cls 4429
-            and #C0		; Hyp.cls 4430
-            cp #C0		; Hyp.cls 4431
-            jr nz, asm_1_3924_n_sv_t2a		; Hyp.cls 4432
-            ld de, #FF90		; Hyp.cls 4433
-            or a		; Hyp.cls 4434
-            sbc hl, de		; Hyp.cls 4435
-            add hl, de		; Hyp.cls 4436
-            jr nc, asm_1_3924_n_sv_t2a		; Hyp.cls 4437
-            ld de, asm_1_3924_n_sv_rec + 16		; Hyp.cls 4438
-            ld bc, 48		; Hyp.cls 4439
-            ldir		; Hyp.cls 4440
-asm_1_3924_n_sv_t2a:		; Hyp.cls 4441
-            pop bc		; Hyp.cls 4442
-            call #B918              ; KL ROM DESELECT [4443]
-            di		; Hyp.cls 4444
-            ld hl, asm_1_3924_n_sv_rec		; Hyp.cls 4445
-            ld de, (asm_1_3924_n_sv_da)		; Hyp.cls 4446
-            ld bc, 64		; Hyp.cls 4447
-            call asm_1_3924_n_sv_out		; Hyp.cls 4448
-            ld hl, (asm_1_3924_n_sv_da)		; Hyp.cls 4449
-            ld de, 64		; Hyp.cls 4450
-            add hl, de		; Hyp.cls 4451
-            ld (asm_1_3924_n_sv_da), hl		; Hyp.cls 4452
-            ld hl, asm_1_3924_n_sv_tj		; Hyp.cls 4453
-            inc (hl)		; Hyp.cls 4454
-            ld a, (hl)		; Hyp.cls 4455
-            cp 32		; Hyp.cls 4456
-            jr c, asm_1_3924_n_sv_t2lp		; Hyp.cls 4457
-            jp asm_1_3924_n_sv_ok		; Hyp.cls 4458
+asm_1_3932_n_sv_t2:		; Hyp.cls 4425
+            xor a		; Hyp.cls 4426
+            ld (asm_1_3932_n_sv_tj), a		; Hyp.cls 4427
+asm_1_3932_n_sv_t2lp:		; Hyp.cls 4428
+            call asm_1_3932_n_sv_clr		; Hyp.cls 4429
+            ld a, (asm_1_3932_n_sv_tj)		; Hyp.cls 4430
+            ld c, a		; Hyp.cls 4431
+            call #B90F              ; KL ROM SELECT (#C000 only: this code at #6000 stays) [4432]
+            di		; Hyp.cls 4433
+            push bc		; Hyp.cls 4434
+            ld hl, #C000		; Hyp.cls 4435
+            ld de, asm_1_3932_n_sv_rec		; Hyp.cls 4436
+            ld bc, 16		; Hyp.cls 4437
+            ldir		; Hyp.cls 4438
+            ld hl, (asm_1_3932_n_sv_rec + 4)		; Hyp.cls 4439
+            ld a, h		; Hyp.cls 4440
+            and #C0		; Hyp.cls 4441
+            cp #C0		; Hyp.cls 4442
+            jr nz, asm_1_3932_n_sv_t2a		; Hyp.cls 4443
+            ld de, #FF90		; Hyp.cls 4444
+            or a		; Hyp.cls 4445
+            sbc hl, de		; Hyp.cls 4446
+            add hl, de		; Hyp.cls 4447
+            jr nc, asm_1_3932_n_sv_t2a		; Hyp.cls 4448
+            ld de, asm_1_3932_n_sv_rec + 16		; Hyp.cls 4449
+            ld bc, 48		; Hyp.cls 4450
+            ldir		; Hyp.cls 4451
+asm_1_3932_n_sv_t2a:		; Hyp.cls 4452
+            pop bc		; Hyp.cls 4453
+            call #B918              ; KL ROM DESELECT [4454]
+            di		; Hyp.cls 4455
+            ld hl, asm_1_3932_n_sv_rec		; Hyp.cls 4456
+            ld de, (asm_1_3932_n_sv_da)		; Hyp.cls 4457
+            ld bc, 64		; Hyp.cls 4458
+            call asm_1_3932_n_sv_out		; Hyp.cls 4459
+            ld hl, (asm_1_3932_n_sv_da)		; Hyp.cls 4460
+            ld de, 64		; Hyp.cls 4461
+            add hl, de		; Hyp.cls 4462
+            ld (asm_1_3932_n_sv_da), hl		; Hyp.cls 4463
+            ld hl, asm_1_3932_n_sv_tj		; Hyp.cls 4464
+            inc (hl)		; Hyp.cls 4465
+            ld a, (hl)		; Hyp.cls 4466
+            cp 32		; Hyp.cls 4467
+            jr c, asm_1_3932_n_sv_t2lp		; Hyp.cls 4468
+            jp asm_1_3932_n_sv_ok		; Hyp.cls 4469
 ; 3: the RAM discs - the driver's table (its page, #6A00: 128 bytes), 0s if none
-asm_1_3924_n_sv_t3:		; Hyp.cls 4460
-            call asm_1_3924_n_sv_clr		; Hyp.cls 4461
-            ld hl, (var_hyp_svdp)		; Hyp.cls 4462
-            ld e, (hl)		; Hyp.cls 4463
-            inc hl		; Hyp.cls 4464
-            ld d, (hl)		; Hyp.cls 4465
-            ld a, d		; Hyp.cls 4466
-            or e		; Hyp.cls 4467
-            jr z, asm_1_3924_n_sv_t3a		; Hyp.cls 4468
-            ex de, hl		; Hyp.cls 4469
-            call asm_1_3924_n_sv_pgset		; Hyp.cls 4470
-            ld (asm_1_3924_n_sv_ss), bc		; Hyp.cls 4471
-            ld hl, #6A00		; Hyp.cls 4472
-            ld (asm_1_3924_n_sv_sa), hl		; Hyp.cls 4473
-            ld hl, 128		; Hyp.cls 4474
-            ld (asm_1_3924_n_sv_n), hl		; Hyp.cls 4475
-            ld a, 1		; Hyp.cls 4476
-            ld (asm_1_3924_n_sv_sk), a		; Hyp.cls 4477
-            xor a		; Hyp.cls 4478
-            ld (asm_1_3924_n_sv_stop), a		; Hyp.cls 4479
-            call asm_1_3924_n_sv_copy		; Hyp.cls 4480
-            jp asm_1_3924_n_sv_ok		; Hyp.cls 4481
-asm_1_3924_n_sv_t3a:		; Hyp.cls 4482
-            ld hl, asm_1_3924_n_sv_rec		; Hyp.cls 4483
-            ld de, (asm_1_3924_n_sv_da)		; Hyp.cls 4484
-            ld bc, 128		; Hyp.cls 4485
-            call asm_1_3924_n_sv_out		; Hyp.cls 4486
-            jp asm_1_3924_n_sv_ok		; Hyp.cls 4487
+asm_1_3932_n_sv_t3:		; Hyp.cls 4471
+            call asm_1_3932_n_sv_clr		; Hyp.cls 4472
+            ld hl, (var_hyp_svdp)		; Hyp.cls 4473
+            ld e, (hl)		; Hyp.cls 4474
+            inc hl		; Hyp.cls 4475
+            ld d, (hl)		; Hyp.cls 4476
+            ld a, d		; Hyp.cls 4477
+            or e		; Hyp.cls 4478
+            jr z, asm_1_3932_n_sv_t3a		; Hyp.cls 4479
+            ex de, hl		; Hyp.cls 4480
+            call asm_1_3932_n_sv_pgset		; Hyp.cls 4481
+            ld (asm_1_3932_n_sv_ss), bc		; Hyp.cls 4482
+            ld hl, #6A00		; Hyp.cls 4483
+            ld (asm_1_3932_n_sv_sa), hl		; Hyp.cls 4484
+            ld hl, 128		; Hyp.cls 4485
+            ld (asm_1_3932_n_sv_n), hl		; Hyp.cls 4486
+            ld a, 1		; Hyp.cls 4487
+            ld (asm_1_3932_n_sv_sk), a		; Hyp.cls 4488
+            xor a		; Hyp.cls 4489
+            ld (asm_1_3932_n_sv_stop), a		; Hyp.cls 4490
+            call asm_1_3932_n_sv_copy		; Hyp.cls 4491
+            jp asm_1_3932_n_sv_ok		; Hyp.cls 4492
+asm_1_3932_n_sv_t3a:		; Hyp.cls 4493
+            ld hl, asm_1_3932_n_sv_rec		; Hyp.cls 4494
+            ld de, (asm_1_3932_n_sv_da)		; Hyp.cls 4495
+            ld bc, 128		; Hyp.cls 4496
+            call asm_1_3932_n_sv_out		; Hyp.cls 4497
+            jp asm_1_3932_n_sv_ok		; Hyp.cls 4498
 ; sv_from - A bytes from slot (sv_tsg's) HL into sv_tmp
-asm_1_3924_n_sv_from:		; Hyp.cls 4489
-            ld de, (asm_1_3924_n_sv_tsg)		; Hyp.cls 4490
-            push af		; Hyp.cls 4491
-            call asm_1_3924_n_sv_sw		; Hyp.cls 4492
-            push bc		; Hyp.cls 4493
-            pop ix		; Hyp.cls 4494
-            ld iy, (var_hyp_svp)		; Hyp.cls 4495
-            ld de, asm_1_3924_n_sv_tmp		; Hyp.cls 4496
-            pop af		; Hyp.cls 4497
-            jp asm_1_3924_n_sv_dx		; Hyp.cls 4498
+asm_1_3932_n_sv_from:		; Hyp.cls 4500
+            ld de, (asm_1_3932_n_sv_tsg)		; Hyp.cls 4501
+            push af		; Hyp.cls 4502
+            call asm_1_3932_n_sv_sw		; Hyp.cls 4503
+            push bc		; Hyp.cls 4504
+            pop ix		; Hyp.cls 4505
+            ld iy, (var_hyp_svp)		; Hyp.cls 4506
+            ld de, asm_1_3932_n_sv_tmp		; Hyp.cls 4507
+            pop af		; Hyp.cls 4508
+            jp asm_1_3932_n_sv_dx		; Hyp.cls 4509
 ; sv_clr - sv_rec (128 bytes) 0
-asm_1_3924_n_sv_clr:		; Hyp.cls 4500
-            ld hl, asm_1_3924_n_sv_rec		; Hyp.cls 4501
-            ld de, asm_1_3924_n_sv_rec + 1		; Hyp.cls 4502
-            ld bc, 127		; Hyp.cls 4503
-            ld (hl), 0		; Hyp.cls 4504
-            ldir		; Hyp.cls 4505
-            ret		; Hyp.cls 4506
+asm_1_3932_n_sv_clr:		; Hyp.cls 4511
+            ld hl, asm_1_3932_n_sv_rec		; Hyp.cls 4512
+            ld de, asm_1_3932_n_sv_rec + 1		; Hyp.cls 4513
+            ld bc, 127		; Hyp.cls 4514
+            ld (hl), 0		; Hyp.cls 4515
+            ldir		; Hyp.cls 4516
+            ret		; Hyp.cls 4517
 ; sv_out16 - sv_rec's first 16 to the slot at sv_da; sv_out - BC bytes from HL (here) to the slot's DE
-asm_1_3924_n_sv_out16:		; Hyp.cls 4508
-            ld hl, asm_1_3924_n_sv_rec		; Hyp.cls 4509
-            ld de, (asm_1_3924_n_sv_da)		; Hyp.cls 4510
-            ld bc, 16		; Hyp.cls 4511
-asm_1_3924_n_sv_out:		; Hyp.cls 4512
-            ld (asm_1_3924_n_sv_sa), hl		; Hyp.cls 4513
-            ld (asm_1_3924_n_sv_da), de		; Hyp.cls 4514
-            ld (asm_1_3924_n_sv_n), bc		; Hyp.cls 4515
-            ld a, 1		; Hyp.cls 4516
-            ld (asm_1_3924_n_sv_sk), a		; Hyp.cls 4517
-            ld hl, (var_hyp_svp)		; Hyp.cls 4518
-            ld (asm_1_3924_n_sv_ss), hl		; Hyp.cls 4519
-            xor a		; Hyp.cls 4520
-            ld (asm_1_3924_n_sv_stop), a		; Hyp.cls 4521
-            ld hl, (asm_1_3924_n_sv_da)		; Hyp.cls 4522
-            push hl		; Hyp.cls 4523
-            call asm_1_3924_n_sv_copy		; Hyp.cls 4524
-            pop hl		; Hyp.cls 4525
-            ld (asm_1_3924_n_sv_da), hl          ; (where it went: kept) [4526]
-            ret		; Hyp.cls 4527
+asm_1_3932_n_sv_out16:		; Hyp.cls 4519
+            ld hl, asm_1_3932_n_sv_rec		; Hyp.cls 4520
+            ld de, (asm_1_3932_n_sv_da)		; Hyp.cls 4521
+            ld bc, 16		; Hyp.cls 4522
+asm_1_3932_n_sv_out:		; Hyp.cls 4523
+            ld (asm_1_3932_n_sv_sa), hl		; Hyp.cls 4524
+            ld (asm_1_3932_n_sv_da), de		; Hyp.cls 4525
+            ld (asm_1_3932_n_sv_n), bc		; Hyp.cls 4526
+            ld a, 1		; Hyp.cls 4527
+            ld (asm_1_3932_n_sv_sk), a		; Hyp.cls 4528
+            ld hl, (var_hyp_svp)		; Hyp.cls 4529
+            ld (asm_1_3932_n_sv_ss), hl		; Hyp.cls 4530
+            xor a		; Hyp.cls 4531
+            ld (asm_1_3932_n_sv_stop), a		; Hyp.cls 4532
+            ld hl, (asm_1_3932_n_sv_da)		; Hyp.cls 4533
+            push hl		; Hyp.cls 4534
+            call asm_1_3932_n_sv_copy		; Hyp.cls 4535
+            pop hl		; Hyp.cls 4536
+            ld (asm_1_3932_n_sv_da), hl          ; (where it went: kept) [4537]
+            ret		; Hyp.cls 4538
 ; sv_copy - sv_n bytes from the source (sv_sk: 0 main RAM outside the window, 1 a page - RAM setting
 ; sv_ss, 2 a bank - C2 setting sv_ss, 3 ROM sv_ss, 4 main RAM anywhere) at sv_sa to the
 ; destination (sv_dk: 1 a page, 2 a bank; sv_ds) at sv_da, 128 at most a go, none across a 16K
 ; page's end; sv_stop: at the source's page end, stop
-asm_1_3924_n_sv_copy:		; Hyp.cls 4532
-            ld hl, (asm_1_3924_n_sv_n)		; Hyp.cls 4533
-            ld a, h		; Hyp.cls 4534
-            or l		; Hyp.cls 4535
-            ret z		; Hyp.cls 4536
-            ld bc, 128		; Hyp.cls 4537
-            or a		; Hyp.cls 4538
-            sbc hl, bc		; Hyp.cls 4539
-            add hl, bc		; Hyp.cls 4540
-            jr nc, asm_1_3924_n_sc_c1		; Hyp.cls 4541
-            ld b, h		; Hyp.cls 4542
-            ld c, l		; Hyp.cls 4543
-asm_1_3924_n_sc_c1:		; Hyp.cls 4544
-            ld (asm_1_3924_n_sv_c), bc		; Hyp.cls 4545
-            ld a, (asm_1_3924_n_sv_sk)		; Hyp.cls 4546
-            or a		; Hyp.cls 4547
-            jr z, asm_1_3924_n_sc_dl		; Hyp.cls 4548
-            ld hl, (asm_1_3924_n_sv_sa)		; Hyp.cls 4549
-            call asm_1_3924_n_sc_room		; Hyp.cls 4550
-asm_1_3924_n_sc_dl:		; Hyp.cls 4551
-            ld hl, (asm_1_3924_n_sv_da)		; Hyp.cls 4552
-            call asm_1_3924_n_sc_room		; Hyp.cls 4553
-            ld a, (asm_1_3924_n_sv_sk)           ; the source: IX its RAM setting, HL where [4554]
-            ld hl, (asm_1_3924_n_sv_sa)		; Hyp.cls 4555
-            ld ix, 0		; Hyp.cls 4556
-            or a		; Hyp.cls 4557
-            jr z, asm_1_3924_n_sc_sok		; Hyp.cls 4558
-            cp 1		; Hyp.cls 4559
-            jr nz, asm_1_3924_n_sc_s2		; Hyp.cls 4560
-            ld ix, (asm_1_3924_n_sv_ss)		; Hyp.cls 4561
-            call asm_1_3924_n_sc_win		; Hyp.cls 4562
-            jr asm_1_3924_n_sc_sok		; Hyp.cls 4563
-asm_1_3924_n_sc_s2:		; Hyp.cls 4564
-            cp 2		; Hyp.cls 4565
-            jr nz, asm_1_3924_n_sc_s3		; Hyp.cls 4566
-            ld de, (asm_1_3924_n_sv_ss)		; Hyp.cls 4567
-            call asm_1_3924_n_sv_sw		; Hyp.cls 4568
-            push bc		; Hyp.cls 4569
-            pop ix		; Hyp.cls 4570
-            jr asm_1_3924_n_sc_sok		; Hyp.cls 4571
-asm_1_3924_n_sc_s3:		; Hyp.cls 4572
-            cp 3		; Hyp.cls 4573
-            jr nz, asm_1_3924_n_sc_s4		; Hyp.cls 4574
-            ld a, (asm_1_3924_n_sv_ss)           ; a ROM: its bytes into buf first [4575]
-            ld c, a		; Hyp.cls 4576
-            call #B90F              ; KL ROM SELECT [4577]
-            di		; Hyp.cls 4578
-            push bc		; Hyp.cls 4579
-            ld hl, (asm_1_3924_n_sv_sa)		; Hyp.cls 4580
-            ld a, h		; Hyp.cls 4581
-            or #C0		; Hyp.cls 4582
-            ld h, a		; Hyp.cls 4583
-            ld de, (var_hyp_svc_buf)		; Hyp.cls 4584
-            ld bc, (asm_1_3924_n_sv_c)		; Hyp.cls 4585
-            ldir		; Hyp.cls 4586
-            pop bc		; Hyp.cls 4587
-            call #B918              ; KL ROM DESELECT [4588]
+asm_1_3932_n_sv_copy:		; Hyp.cls 4543
+            ld hl, (asm_1_3932_n_sv_n)		; Hyp.cls 4544
+            ld a, h		; Hyp.cls 4545
+            or l		; Hyp.cls 4546
+            ret z		; Hyp.cls 4547
+            ld bc, 128		; Hyp.cls 4548
+            or a		; Hyp.cls 4549
+            sbc hl, bc		; Hyp.cls 4550
+            add hl, bc		; Hyp.cls 4551
+            jr nc, asm_1_3932_n_sc_c1		; Hyp.cls 4552
+            ld b, h		; Hyp.cls 4553
+            ld c, l		; Hyp.cls 4554
+asm_1_3932_n_sc_c1:		; Hyp.cls 4555
+            ld (asm_1_3932_n_sv_c), bc		; Hyp.cls 4556
+            ld a, (asm_1_3932_n_sv_sk)		; Hyp.cls 4557
+            or a		; Hyp.cls 4558
+            jr z, asm_1_3932_n_sc_dl		; Hyp.cls 4559
+            ld hl, (asm_1_3932_n_sv_sa)		; Hyp.cls 4560
+            call asm_1_3932_n_sc_room		; Hyp.cls 4561
+asm_1_3932_n_sc_dl:		; Hyp.cls 4562
+            ld hl, (asm_1_3932_n_sv_da)		; Hyp.cls 4563
+            call asm_1_3932_n_sc_room		; Hyp.cls 4564
+            ld a, (asm_1_3932_n_sv_sk)           ; the source: IX its RAM setting, HL where [4565]
+            ld hl, (asm_1_3932_n_sv_sa)		; Hyp.cls 4566
+            ld ix, 0		; Hyp.cls 4567
+            or a		; Hyp.cls 4568
+            jr z, asm_1_3932_n_sc_sok		; Hyp.cls 4569
+            cp 1		; Hyp.cls 4570
+            jr nz, asm_1_3932_n_sc_s2		; Hyp.cls 4571
+            ld ix, (asm_1_3932_n_sv_ss)		; Hyp.cls 4572
+            call asm_1_3932_n_sc_win		; Hyp.cls 4573
+            jr asm_1_3932_n_sc_sok		; Hyp.cls 4574
+asm_1_3932_n_sc_s2:		; Hyp.cls 4575
+            cp 2		; Hyp.cls 4576
+            jr nz, asm_1_3932_n_sc_s3		; Hyp.cls 4577
+            ld de, (asm_1_3932_n_sv_ss)		; Hyp.cls 4578
+            call asm_1_3932_n_sv_sw		; Hyp.cls 4579
+            push bc		; Hyp.cls 4580
+            pop ix		; Hyp.cls 4581
+            jr asm_1_3932_n_sc_sok		; Hyp.cls 4582
+asm_1_3932_n_sc_s3:		; Hyp.cls 4583
+            cp 3		; Hyp.cls 4584
+            jr nz, asm_1_3932_n_sc_s4		; Hyp.cls 4585
+            ld a, (asm_1_3932_n_sv_ss)           ; a ROM: its bytes into buf first [4586]
+            ld c, a		; Hyp.cls 4587
+            call #B90F              ; KL ROM SELECT [4588]
             di		; Hyp.cls 4589
-            ld hl, (var_hyp_svc_buf)		; Hyp.cls 4590
-            jr asm_1_3924_n_sc_sok		; Hyp.cls 4591
-asm_1_3924_n_sc_s4:		; Hyp.cls 4592
-            ld a, h                 ; main RAM: its #4000-#7FFF is page 1 [4593]
-            and #C0		; Hyp.cls 4594
-            cp #40		; Hyp.cls 4595
-            jr nz, asm_1_3924_n_sc_sok		; Hyp.cls 4596
-            push hl		; Hyp.cls 4597
-            ld hl, 1		; Hyp.cls 4598
-            call asm_1_3924_n_sv_pgset		; Hyp.cls 4599
-            pop hl		; Hyp.cls 4600
-            push bc		; Hyp.cls 4601
-            pop ix		; Hyp.cls 4602
-asm_1_3924_n_sc_sok:		; Hyp.cls 4603
-            push hl		; Hyp.cls 4604
-            ld a, (asm_1_3924_n_sv_dk)           ; the destination: IY, DE [4605]
-            ld hl, (asm_1_3924_n_sv_da)		; Hyp.cls 4606
-            cp 1		; Hyp.cls 4607
-            jr nz, asm_1_3924_n_sc_d2		; Hyp.cls 4608
-            ld iy, (asm_1_3924_n_sv_ds)		; Hyp.cls 4609
-            call asm_1_3924_n_sc_win		; Hyp.cls 4610
-            jr asm_1_3924_n_sc_dok		; Hyp.cls 4611
-asm_1_3924_n_sc_d2:		; Hyp.cls 4612
-            ld de, (asm_1_3924_n_sv_ds)		; Hyp.cls 4613
-            call asm_1_3924_n_sv_sw		; Hyp.cls 4614
-            push bc		; Hyp.cls 4615
-            pop iy		; Hyp.cls 4616
-asm_1_3924_n_sc_dok:		; Hyp.cls 4617
-            ex de, hl		; Hyp.cls 4618
-            pop hl		; Hyp.cls 4619
-            ld a, (asm_1_3924_n_sv_c)		; Hyp.cls 4620
-            call asm_1_3924_n_sv_dx		; Hyp.cls 4621
-            ld bc, (asm_1_3924_n_sv_c)		; Hyp.cls 4622
-            ld hl, (asm_1_3924_n_sv_sa)		; Hyp.cls 4623
-            add hl, bc		; Hyp.cls 4624
-            ld (asm_1_3924_n_sv_sa), hl		; Hyp.cls 4625
-            ld hl, (asm_1_3924_n_sv_da)		; Hyp.cls 4626
-            add hl, bc		; Hyp.cls 4627
-            ld (asm_1_3924_n_sv_da), hl		; Hyp.cls 4628
-            ld hl, (asm_1_3924_n_sv_n)		; Hyp.cls 4629
-            or a		; Hyp.cls 4630
-            sbc hl, bc		; Hyp.cls 4631
-            ld (asm_1_3924_n_sv_n), hl		; Hyp.cls 4632
-            ld a, (asm_1_3924_n_sv_stop)		; Hyp.cls 4633
-            or a		; Hyp.cls 4634
-            jp z, asm_1_3924_n_sv_copy		; Hyp.cls 4635
-            ld a, (asm_1_3924_n_sv_sa + 1)		; Hyp.cls 4636
-            and #3F		; Hyp.cls 4637
-            ld b, a		; Hyp.cls 4638
-            ld a, (asm_1_3924_n_sv_sa)		; Hyp.cls 4639
-            or b		; Hyp.cls 4640
-            jp nz, asm_1_3924_n_sv_copy		; Hyp.cls 4641
-            ret		; Hyp.cls 4642
-asm_1_3924_n_sc_room:                            ; sv_c no more than to HL's 16K page's end [4643]
-            ld a, h		; Hyp.cls 4644
-            and #3F		; Hyp.cls 4645
-            ld h, a		; Hyp.cls 4646
-            ex de, hl		; Hyp.cls 4647
-            ld hl, 16384		; Hyp.cls 4648
-            or a		; Hyp.cls 4649
-            sbc hl, de		; Hyp.cls 4650
-            ld de, (asm_1_3924_n_sv_c)		; Hyp.cls 4651
-            or a		; Hyp.cls 4652
-            sbc hl, de		; Hyp.cls 4653
-            ret nc		; Hyp.cls 4654
-            add hl, de		; Hyp.cls 4655
-            ld (asm_1_3924_n_sv_c), hl		; Hyp.cls 4656
-            ret		; Hyp.cls 4657
-asm_1_3924_n_sc_win:                             ; HL: its place in the window [4658]
-            ld a, h		; Hyp.cls 4659
-            and #3F		; Hyp.cls 4660
-            or #40		; Hyp.cls 4661
-            ld h, a		; Hyp.cls 4662
-            ret		; Hyp.cls 4663
+            push bc		; Hyp.cls 4590
+            ld hl, (asm_1_3932_n_sv_sa)		; Hyp.cls 4591
+            ld a, h		; Hyp.cls 4592
+            or #C0		; Hyp.cls 4593
+            ld h, a		; Hyp.cls 4594
+            ld de, (var_hyp_svc_buf)		; Hyp.cls 4595
+            ld bc, (asm_1_3932_n_sv_c)		; Hyp.cls 4596
+            ldir		; Hyp.cls 4597
+            pop bc		; Hyp.cls 4598
+            call #B918              ; KL ROM DESELECT [4599]
+            di		; Hyp.cls 4600
+            ld hl, (var_hyp_svc_buf)		; Hyp.cls 4601
+            jr asm_1_3932_n_sc_sok		; Hyp.cls 4602
+asm_1_3932_n_sc_s4:		; Hyp.cls 4603
+            ld a, h                 ; main RAM: its #4000-#7FFF is page 1 [4604]
+            and #C0		; Hyp.cls 4605
+            cp #40		; Hyp.cls 4606
+            jr nz, asm_1_3932_n_sc_sok		; Hyp.cls 4607
+            push hl		; Hyp.cls 4608
+            ld hl, 1		; Hyp.cls 4609
+            call asm_1_3932_n_sv_pgset		; Hyp.cls 4610
+            pop hl		; Hyp.cls 4611
+            push bc		; Hyp.cls 4612
+            pop ix		; Hyp.cls 4613
+asm_1_3932_n_sc_sok:		; Hyp.cls 4614
+            push hl		; Hyp.cls 4615
+            ld a, (asm_1_3932_n_sv_dk)           ; the destination: IY, DE [4616]
+            ld hl, (asm_1_3932_n_sv_da)		; Hyp.cls 4617
+            cp 1		; Hyp.cls 4618
+            jr nz, asm_1_3932_n_sc_d2		; Hyp.cls 4619
+            ld iy, (asm_1_3932_n_sv_ds)		; Hyp.cls 4620
+            call asm_1_3932_n_sc_win		; Hyp.cls 4621
+            jr asm_1_3932_n_sc_dok		; Hyp.cls 4622
+asm_1_3932_n_sc_d2:		; Hyp.cls 4623
+            ld de, (asm_1_3932_n_sv_ds)		; Hyp.cls 4624
+            call asm_1_3932_n_sv_sw		; Hyp.cls 4625
+            push bc		; Hyp.cls 4626
+            pop iy		; Hyp.cls 4627
+asm_1_3932_n_sc_dok:		; Hyp.cls 4628
+            ex de, hl		; Hyp.cls 4629
+            pop hl		; Hyp.cls 4630
+            ld a, (asm_1_3932_n_sv_c)		; Hyp.cls 4631
+            call asm_1_3932_n_sv_dx		; Hyp.cls 4632
+            ld bc, (asm_1_3932_n_sv_c)		; Hyp.cls 4633
+            ld hl, (asm_1_3932_n_sv_sa)		; Hyp.cls 4634
+            add hl, bc		; Hyp.cls 4635
+            ld (asm_1_3932_n_sv_sa), hl		; Hyp.cls 4636
+            ld hl, (asm_1_3932_n_sv_da)		; Hyp.cls 4637
+            add hl, bc		; Hyp.cls 4638
+            ld (asm_1_3932_n_sv_da), hl		; Hyp.cls 4639
+            ld hl, (asm_1_3932_n_sv_n)		; Hyp.cls 4640
+            or a		; Hyp.cls 4641
+            sbc hl, bc		; Hyp.cls 4642
+            ld (asm_1_3932_n_sv_n), hl		; Hyp.cls 4643
+            ld a, (asm_1_3932_n_sv_stop)		; Hyp.cls 4644
+            or a		; Hyp.cls 4645
+            jp z, asm_1_3932_n_sv_copy		; Hyp.cls 4646
+            ld a, (asm_1_3932_n_sv_sa + 1)		; Hyp.cls 4647
+            and #3F		; Hyp.cls 4648
+            ld b, a		; Hyp.cls 4649
+            ld a, (asm_1_3932_n_sv_sa)		; Hyp.cls 4650
+            or b		; Hyp.cls 4651
+            jp nz, asm_1_3932_n_sv_copy		; Hyp.cls 4652
+            ret		; Hyp.cls 4653
+asm_1_3932_n_sc_room:                            ; sv_c no more than to HL's 16K page's end [4654]
+            ld a, h		; Hyp.cls 4655
+            and #3F		; Hyp.cls 4656
+            ld h, a		; Hyp.cls 4657
+            ex de, hl		; Hyp.cls 4658
+            ld hl, 16384		; Hyp.cls 4659
+            or a		; Hyp.cls 4660
+            sbc hl, de		; Hyp.cls 4661
+            ld de, (asm_1_3932_n_sv_c)		; Hyp.cls 4662
+            or a		; Hyp.cls 4663
+            sbc hl, de		; Hyp.cls 4664
+            ret nc		; Hyp.cls 4665
+            add hl, de		; Hyp.cls 4666
+            ld (asm_1_3932_n_sv_c), hl		; Hyp.cls 4667
+            ret		; Hyp.cls 4668
+asm_1_3932_n_sc_win:                             ; HL: its place in the window [4669]
+            ld a, h		; Hyp.cls 4670
+            and #3F		; Hyp.cls 4671
+            or #40		; Hyp.cls 4672
+            ld h, a		; Hyp.cls 4673
+            ret		; Hyp.cls 4674
 ; sv_sw - DE = a bank's C2 setting, HL = an address in it: BC = the setting with its page in the
 ; window, HL = the address there
-asm_1_3924_n_sv_sw:		; Hyp.cls 4666
-            ld a, h		; Hyp.cls 4667
-            rlca		; Hyp.cls 4668
-            rlca		; Hyp.cls 4669
-            and 3		; Hyp.cls 4670
-            add a, 4		; Hyp.cls 4671
-            ld b, a		; Hyp.cls 4672
-            ld a, e		; Hyp.cls 4673
-            and #F8		; Hyp.cls 4674
-            or b		; Hyp.cls 4675
-            ld c, a		; Hyp.cls 4676
-            ld b, d		; Hyp.cls 4677
-            jr asm_1_3924_n_sc_win		; Hyp.cls 4678
+asm_1_3932_n_sv_sw:		; Hyp.cls 4677
+            ld a, h		; Hyp.cls 4678
+            rlca		; Hyp.cls 4679
+            rlca		; Hyp.cls 4680
+            and 3		; Hyp.cls 4681
+            add a, 4		; Hyp.cls 4682
+            ld b, a		; Hyp.cls 4683
+            ld a, e		; Hyp.cls 4684
+            and #F8		; Hyp.cls 4685
+            or b		; Hyp.cls 4686
+            ld c, a		; Hyp.cls 4687
+            ld b, d		; Hyp.cls 4688
+            jr asm_1_3932_n_sc_win		; Hyp.cls 4689
 ; sv_pgset - HL = a page: BC = its RAM setting (the Memory class's port table; 0 main RAM)
-asm_1_3924_n_sv_pgset:		; Hyp.cls 4680
-            ld a, h		; Hyp.cls 4681
-            or l		; Hyp.cls 4682
-            ld bc, #7FC0		; Hyp.cls 4683
-            ret z		; Hyp.cls 4684
-            add hl, hl		; Hyp.cls 4685
-            ld de, (mem_tport)		; Hyp.cls 4686
-            add hl, de		; Hyp.cls 4687
-            dec hl		; Hyp.cls 4688
-            ld b, (hl)		; Hyp.cls 4689
-            dec hl		; Hyp.cls 4690
-            ld c, (hl)		; Hyp.cls 4691
-            ret		; Hyp.cls 4692
+asm_1_3932_n_sv_pgset:		; Hyp.cls 4691
+            ld a, h		; Hyp.cls 4692
+            or l		; Hyp.cls 4693
+            ld bc, #7FC0		; Hyp.cls 4694
+            ret z		; Hyp.cls 4695
+            add hl, hl		; Hyp.cls 4696
+            ld de, (mem_tport)		; Hyp.cls 4697
+            add hl, de		; Hyp.cls 4698
+            dec hl		; Hyp.cls 4699
+            ld b, (hl)		; Hyp.cls 4700
+            dec hl		; Hyp.cls 4701
+            ld c, (hl)		; Hyp.cls 4702
+            ret		; Hyp.cls 4703
 ; ---- 16-19: the claims - hardware a program drives itself (FDC, SOUND, MF2, NVRAM, M4 ...): a
 ; name (Byte(2-9): 8 characters, spaces after) and a unit (Byte(1): which of them - a LUN), held
 ; by one slot at a time; all a slot's freed when its program ends, is killed or reset (p 0). The
 ; answer: 16 claim - 0 yours (now, or already), else the slot holding it (255: CL_N in use);
 ; 17 release - 0 done, 1 not yours; 18 take - yours now, whoever had it: the slot that had it
 ; (0 nobody); 19 held - 0 yours, else the slot holding it (254 nobody)
-asm_1_3924_n_CL_N:       equ 16		; Hyp.cls 4699
-asm_1_3924_n_sv_claim:		; Hyp.cls 4700
-            ld b, a                 ; B = the op [4701]
-            call asm_1_3924_n_cl_find            ; Z: HL = its record [4702]
-            ld a, (var_hyp_svc_t)		; Hyp.cls 4703
-            ld c, a                 ; C = this slot [4704]
-            jr nz, asm_1_3924_n_cl_none		; Hyp.cls 4705
-            ld a, b		; Hyp.cls 4706
-            cp 17		; Hyp.cls 4707
-            jr z, asm_1_3924_n_cl_rel		; Hyp.cls 4708
-            ld a, (hl)              ; who has it [4709]
-            ld (asm_1_3924_n_sv_tn), a		; Hyp.cls 4710
-            ld a, b		; Hyp.cls 4711
-            cp 18		; Hyp.cls 4712
-            jr nz, asm_1_3924_n_cl_who		; Hyp.cls 4713
-            ld (hl), c              ; 18: taken [4714]
-            ld a, (asm_1_3924_n_sv_tn)		; Hyp.cls 4715
-            jr asm_1_3924_n_cl_ret		; Hyp.cls 4716
-asm_1_3924_n_cl_who:		; Hyp.cls 4717
-            ld a, (asm_1_3924_n_sv_tn)           ; 16, 19: 0 when it is this slot's [4718]
-            cp c		; Hyp.cls 4719
-            jp z, asm_1_3924_n_sv_ok		; Hyp.cls 4720
-            jr asm_1_3924_n_cl_ret		; Hyp.cls 4721
-asm_1_3924_n_cl_rel:		; Hyp.cls 4722
-            ld a, (hl)		; Hyp.cls 4723
-            cp c		; Hyp.cls 4724
-            jr nz, asm_1_3924_n_cl_one		; Hyp.cls 4725
-            ld (hl), 0		; Hyp.cls 4726
-            jp asm_1_3924_n_sv_ok		; Hyp.cls 4727
-asm_1_3924_n_cl_none:		; Hyp.cls 4728
-            ld a, b		; Hyp.cls 4729
-            cp 17		; Hyp.cls 4730
-            jr z, asm_1_3924_n_cl_one		; Hyp.cls 4731
-            cp 19		; Hyp.cls 4732
-            ld a, 254		; Hyp.cls 4733
-            jr z, asm_1_3924_n_cl_ret		; Hyp.cls 4734
-            ld hl, asm_1_3924_n_sv_cl            ; 16, 18: into a free record [4735]
-            ld de, 10		; Hyp.cls 4736
-            ld b, asm_1_3924_n_CL_N		; Hyp.cls 4737
-asm_1_3924_n_cl_fr:		; Hyp.cls 4738
-            ld a, (hl)		; Hyp.cls 4739
-            or a		; Hyp.cls 4740
-            jr z, asm_1_3924_n_cl_put		; Hyp.cls 4741
-            add hl, de		; Hyp.cls 4742
-            djnz asm_1_3924_n_cl_fr		; Hyp.cls 4743
-            jp asm_1_3924_n_sv_err		; Hyp.cls 4744
-asm_1_3924_n_cl_put:		; Hyp.cls 4745
-            ld (hl), c		; Hyp.cls 4746
-            inc hl		; Hyp.cls 4747
-            ex de, hl		; Hyp.cls 4748
-            ld hl, asm_1_3924_n_sv_blk + 1		; Hyp.cls 4749
-            ld bc, 9		; Hyp.cls 4750
-            ldir		; Hyp.cls 4751
-            jp asm_1_3924_n_sv_ok		; Hyp.cls 4752
-asm_1_3924_n_cl_one:		; Hyp.cls 4753
-            ld a, 1		; Hyp.cls 4754
-asm_1_3924_n_cl_ret:		; Hyp.cls 4755
-            ld sp, (asm_1_3924_n_sv_sp)		; Hyp.cls 4756
-            ret		; Hyp.cls 4757
+asm_1_3932_n_CL_N:       equ 16		; Hyp.cls 4710
+asm_1_3932_n_sv_claim:		; Hyp.cls 4711
+            ld b, a                 ; B = the op [4712]
+            call asm_1_3932_n_cl_find            ; Z: HL = its record [4713]
+            ld a, (var_hyp_svc_t)		; Hyp.cls 4714
+            ld c, a                 ; C = this slot [4715]
+            jr nz, asm_1_3932_n_cl_none		; Hyp.cls 4716
+            ld a, b		; Hyp.cls 4717
+            cp 17		; Hyp.cls 4718
+            jr z, asm_1_3932_n_cl_rel		; Hyp.cls 4719
+            ld a, (hl)              ; who has it [4720]
+            ld (asm_1_3932_n_sv_tn), a		; Hyp.cls 4721
+            ld a, b		; Hyp.cls 4722
+            cp 18		; Hyp.cls 4723
+            jr nz, asm_1_3932_n_cl_who		; Hyp.cls 4724
+            ld (hl), c              ; 18: taken [4725]
+            ld a, (asm_1_3932_n_sv_tn)		; Hyp.cls 4726
+            jr asm_1_3932_n_cl_ret		; Hyp.cls 4727
+asm_1_3932_n_cl_who:		; Hyp.cls 4728
+            ld a, (asm_1_3932_n_sv_tn)           ; 16, 19: 0 when it is this slot's [4729]
+            cp c		; Hyp.cls 4730
+            jp z, asm_1_3932_n_sv_ok		; Hyp.cls 4731
+            jr asm_1_3932_n_cl_ret		; Hyp.cls 4732
+asm_1_3932_n_cl_rel:		; Hyp.cls 4733
+            ld a, (hl)		; Hyp.cls 4734
+            cp c		; Hyp.cls 4735
+            jr nz, asm_1_3932_n_cl_one		; Hyp.cls 4736
+            ld (hl), 0		; Hyp.cls 4737
+            jp asm_1_3932_n_sv_ok		; Hyp.cls 4738
+asm_1_3932_n_cl_none:		; Hyp.cls 4739
+            ld a, b		; Hyp.cls 4740
+            cp 17		; Hyp.cls 4741
+            jr z, asm_1_3932_n_cl_one		; Hyp.cls 4742
+            cp 19		; Hyp.cls 4743
+            ld a, 254		; Hyp.cls 4744
+            jr z, asm_1_3932_n_cl_ret		; Hyp.cls 4745
+            ld hl, asm_1_3932_n_sv_cl            ; 16, 18: into a free record [4746]
+            ld de, 10		; Hyp.cls 4747
+            ld b, asm_1_3932_n_CL_N		; Hyp.cls 4748
+asm_1_3932_n_cl_fr:		; Hyp.cls 4749
+            ld a, (hl)		; Hyp.cls 4750
+            or a		; Hyp.cls 4751
+            jr z, asm_1_3932_n_cl_put		; Hyp.cls 4752
+            add hl, de		; Hyp.cls 4753
+            djnz asm_1_3932_n_cl_fr		; Hyp.cls 4754
+            jp asm_1_3932_n_sv_err		; Hyp.cls 4755
+asm_1_3932_n_cl_put:		; Hyp.cls 4756
+            ld (hl), c		; Hyp.cls 4757
+            inc hl		; Hyp.cls 4758
+            ex de, hl		; Hyp.cls 4759
+            ld hl, asm_1_3932_n_sv_blk + 1		; Hyp.cls 4760
+            ld bc, 9		; Hyp.cls 4761
+            ldir		; Hyp.cls 4762
+            jp asm_1_3932_n_sv_ok		; Hyp.cls 4763
+asm_1_3932_n_cl_one:		; Hyp.cls 4764
+            ld a, 1		; Hyp.cls 4765
+asm_1_3932_n_cl_ret:		; Hyp.cls 4766
+            ld sp, (asm_1_3932_n_sv_sp)		; Hyp.cls 4767
+            ret		; Hyp.cls 4768
 ; cl_find - Z: HL = the record with sv_blk's unit and name, else NZ (B kept)
-asm_1_3924_n_cl_find:		; Hyp.cls 4759
-            ld hl, asm_1_3924_n_sv_cl		; Hyp.cls 4760
-            ld c, asm_1_3924_n_CL_N		; Hyp.cls 4761
-asm_1_3924_n_cl_f1:		; Hyp.cls 4762
-            ld a, (hl)		; Hyp.cls 4763
-            or a		; Hyp.cls 4764
-            jr z, asm_1_3924_n_cl_f3             ; (a free record) [4765]
-            push hl		; Hyp.cls 4766
-            push bc		; Hyp.cls 4767
-            inc hl		; Hyp.cls 4768
-            ld de, asm_1_3924_n_sv_blk + 1		; Hyp.cls 4769
-            ld b, 9		; Hyp.cls 4770
-asm_1_3924_n_cl_f2:		; Hyp.cls 4771
-            ld a, (de)		; Hyp.cls 4772
-            cp (hl)		; Hyp.cls 4773
-            jr nz, asm_1_3924_n_cl_f4		; Hyp.cls 4774
-            inc hl		; Hyp.cls 4775
-            inc de		; Hyp.cls 4776
-            djnz asm_1_3924_n_cl_f2		; Hyp.cls 4777
-asm_1_3924_n_cl_f4:		; Hyp.cls 4778
-            pop bc		; Hyp.cls 4779
-            pop hl		; Hyp.cls 4780
-            ret z		; Hyp.cls 4781
-asm_1_3924_n_cl_f3:		; Hyp.cls 4782
-            ld de, 10		; Hyp.cls 4783
-            add hl, de		; Hyp.cls 4784
-            dec c		; Hyp.cls 4785
-            jr nz, asm_1_3924_n_cl_f1		; Hyp.cls 4786
-            or 1		; Hyp.cls 4787
-            ret		; Hyp.cls 4788
-; p 0: slot t's claims all freed
-asm_1_3924_n_sv_cfree:		; Hyp.cls 4790
-            ld a, (var_hyp_svc_t)		; Hyp.cls 4791
-            ld c, a		; Hyp.cls 4792
-            ld hl, asm_1_3924_n_sv_cl		; Hyp.cls 4793
+asm_1_3932_n_cl_find:		; Hyp.cls 4770
+            ld hl, asm_1_3932_n_sv_cl		; Hyp.cls 4771
+            ld c, asm_1_3932_n_CL_N		; Hyp.cls 4772
+asm_1_3932_n_cl_f1:		; Hyp.cls 4773
+            ld a, (hl)		; Hyp.cls 4774
+            or a		; Hyp.cls 4775
+            jr z, asm_1_3932_n_cl_f3             ; (a free record) [4776]
+            push hl		; Hyp.cls 4777
+            push bc		; Hyp.cls 4778
+            inc hl		; Hyp.cls 4779
+            ld de, asm_1_3932_n_sv_blk + 1		; Hyp.cls 4780
+            ld b, 9		; Hyp.cls 4781
+asm_1_3932_n_cl_f2:		; Hyp.cls 4782
+            ld a, (de)		; Hyp.cls 4783
+            cp (hl)		; Hyp.cls 4784
+            jr nz, asm_1_3932_n_cl_f4		; Hyp.cls 4785
+            inc hl		; Hyp.cls 4786
+            inc de		; Hyp.cls 4787
+            djnz asm_1_3932_n_cl_f2		; Hyp.cls 4788
+asm_1_3932_n_cl_f4:		; Hyp.cls 4789
+            pop bc		; Hyp.cls 4790
+            pop hl		; Hyp.cls 4791
+            ret z		; Hyp.cls 4792
+asm_1_3932_n_cl_f3:		; Hyp.cls 4793
             ld de, 10		; Hyp.cls 4794
-            ld b, asm_1_3924_n_CL_N		; Hyp.cls 4795
-asm_1_3924_n_cl_cf:		; Hyp.cls 4796
-            ld a, (hl)		; Hyp.cls 4797
-            cp c		; Hyp.cls 4798
-            jr nz, asm_1_3924_n_cl_cf1		; Hyp.cls 4799
-            ld (hl), 0		; Hyp.cls 4800
-asm_1_3924_n_cl_cf1:		; Hyp.cls 4801
-            add hl, de		; Hyp.cls 4802
-            djnz asm_1_3924_n_cl_cf		; Hyp.cls 4803
-            ld a, (asm_1_3924_n_nt_rom)          ; its sockets closed [4804]
-            inc a		; Hyp.cls 4805
-            jp z, asm_1_3924_n_sv_ok		; Hyp.cls 4806
-            ld b, 0		; Hyp.cls 4807
-asm_1_3924_n_cl_cs:		; Hyp.cls 4808
-            ld hl, asm_1_3924_n_nt_own		; Hyp.cls 4809
-            ld e, b		; Hyp.cls 4810
-            ld d, 0		; Hyp.cls 4811
-            add hl, de		; Hyp.cls 4812
-            ld a, (hl)		; Hyp.cls 4813
-            cp c		; Hyp.cls 4814
-            jr nz, asm_1_3924_n_cl_cs1		; Hyp.cls 4815
-            push bc		; Hyp.cls 4816
-            ld a, b		; Hyp.cls 4817
-            call asm_1_3924_n_nt_close		; Hyp.cls 4818
-            pop bc		; Hyp.cls 4819
-asm_1_3924_n_cl_cs1:		; Hyp.cls 4820
-            inc b		; Hyp.cls 4821
-            ld a, b		; Hyp.cls 4822
-            cp 8		; Hyp.cls 4823
-            jr c, asm_1_3924_n_cl_cs		; Hyp.cls 4824
-            jp asm_1_3924_n_sv_ok		; Hyp.cls 4825
+            add hl, de		; Hyp.cls 4795
+            dec c		; Hyp.cls 4796
+            jr nz, asm_1_3932_n_cl_f1		; Hyp.cls 4797
+            or 1		; Hyp.cls 4798
+            ret		; Hyp.cls 4799
+; p 0: slot t's claims all freed
+asm_1_3932_n_sv_cfree:		; Hyp.cls 4801
+            ld a, (var_hyp_svc_t)		; Hyp.cls 4802
+            ld c, a		; Hyp.cls 4803
+            ld hl, asm_1_3932_n_sv_cl		; Hyp.cls 4804
+            ld de, 10		; Hyp.cls 4805
+            ld b, asm_1_3932_n_CL_N		; Hyp.cls 4806
+asm_1_3932_n_cl_cf:		; Hyp.cls 4807
+            ld a, (hl)		; Hyp.cls 4808
+            cp c		; Hyp.cls 4809
+            jr nz, asm_1_3932_n_cl_cf1		; Hyp.cls 4810
+            ld (hl), 0		; Hyp.cls 4811
+asm_1_3932_n_cl_cf1:		; Hyp.cls 4812
+            add hl, de		; Hyp.cls 4813
+            djnz asm_1_3932_n_cl_cf		; Hyp.cls 4814
+            call asm_1_3932_n_pt_free            ; its ports closed, its calls forgotten (C = the slot) [4815]
+            ld a, (asm_1_3932_n_nt_rom)          ; its sockets closed [4816]
+            inc a		; Hyp.cls 4817
+            jp z, asm_1_3932_n_sv_ok		; Hyp.cls 4818
+            ld b, 0		; Hyp.cls 4819
+asm_1_3932_n_cl_cs:		; Hyp.cls 4820
+            ld hl, asm_1_3932_n_nt_own		; Hyp.cls 4821
+            ld e, b		; Hyp.cls 4822
+            ld d, 0		; Hyp.cls 4823
+            add hl, de		; Hyp.cls 4824
+            ld a, (hl)		; Hyp.cls 4825
+            cp c		; Hyp.cls 4826
+            jr nz, asm_1_3932_n_cl_cs1		; Hyp.cls 4827
+            push bc		; Hyp.cls 4828
+            ld a, b		; Hyp.cls 4829
+            call asm_1_3932_n_nt_close		; Hyp.cls 4830
+            pop bc		; Hyp.cls 4831
+asm_1_3932_n_cl_cs1:		; Hyp.cls 4832
+            inc b		; Hyp.cls 4833
+            ld a, b		; Hyp.cls 4834
+            cp 8		; Hyp.cls 4835
+            jr c, asm_1_3932_n_cl_cs		; Hyp.cls 4836
+            jp asm_1_3932_n_sv_ok		; Hyp.cls 4837
 ; ---- 20-27: the network - the M4's sockets (NET M4 turns it on: CyborgOS uses the M4, which is
 ; then claimed as M4 0 by CyborgOS itself - slot 255). A command to the M4: a packet (its size,
 ; the command - a word -, its data) out of #FE00 a byte at a time, a write to #FC00; its answer
@@ -2679,424 +2683,741 @@ asm_1_3924_n_cl_cs1:		; Hyp.cls 4820
 ;   26  up to Word(4) bytes (2048 at most) of socket Byte(1)'s to Word(2): 0 done - how many
 ;       written back to the request's Word(6)
 ;   27  socket Byte(1) closed
-asm_1_3924_n_NT_N:       equ 8                   ; sockets 0-7 [4845]
-asm_1_3924_n_sv_net:		; Hyp.cls 4846
-            ld b, a		; Hyp.cls 4847
-            cp 20		; Hyp.cls 4848
-            jr z, asm_1_3924_n_nt_20		; Hyp.cls 4849
-            ld a, (asm_1_3924_n_nt_rom)		; Hyp.cls 4850
-            inc a		; Hyp.cls 4851
-            jp z, asm_1_3924_n_sv_err            ; (no network) [4852]
-            ld a, b		; Hyp.cls 4853
-            cp 21		; Hyp.cls 4854
-            jp z, asm_1_3924_n_nt_look		; Hyp.cls 4855
-            cp 23		; Hyp.cls 4856
-            jp z, asm_1_3924_n_nt_sock		; Hyp.cls 4857
-            call asm_1_3924_n_nt_chk             ; (the rest: one of the slot's sockets) [4858]
-            ld a, b		; Hyp.cls 4859
-            cp 22		; Hyp.cls 4860
-            jp z, asm_1_3924_n_nt_stat		; Hyp.cls 4861
-            cp 24		; Hyp.cls 4862
-            jp z, asm_1_3924_n_nt_conn		; Hyp.cls 4863
-            cp 25		; Hyp.cls 4864
-            jp z, asm_1_3924_n_nt_send		; Hyp.cls 4865
-            cp 26		; Hyp.cls 4866
-            jp z, asm_1_3924_n_nt_recv		; Hyp.cls 4867
-            ld a, (asm_1_3924_n_sv_blk + 1)      ; 27 [4868]
-            call asm_1_3924_n_nt_close		; Hyp.cls 4869
-            jr asm_1_3924_n_nt_ans		; Hyp.cls 4870
-asm_1_3924_n_nt_20:		; Hyp.cls 4871
-            ld a, (asm_1_3924_n_sv_blk + 1)		; Hyp.cls 4872
-            or a		; Hyp.cls 4873
-            jr nz, asm_1_3924_n_nt_20a		; Hyp.cls 4874
-            ld a, (asm_1_3924_n_nt_rom)		; Hyp.cls 4875
-            jr asm_1_3924_n_nt_ret		; Hyp.cls 4876
-asm_1_3924_n_nt_20a:		; Hyp.cls 4877
-            cp 3		; Hyp.cls 4878
-            jr z, asm_1_3924_n_nt_time		; Hyp.cls 4879
-            dec a		; Hyp.cls 4880
-            jr nz, asm_1_3924_n_nt_off		; Hyp.cls 4881
-            ld a, (asm_1_3924_n_sv_blk + 2)      ; on: the M4's ROM, where its answers and sockets are [4882]
-            ld (asm_1_3924_n_nt_rom), a		; Hyp.cls 4883
-            ld hl, #FF02		; Hyp.cls 4884
-            ld de, asm_1_3924_n_nt_rsp		; Hyp.cls 4885
-            ld bc, 2		; Hyp.cls 4886
-            call asm_1_3924_n_nt_rd		; Hyp.cls 4887
-            ld hl, #FF06		; Hyp.cls 4888
-            ld de, asm_1_3924_n_nt_skt		; Hyp.cls 4889
-            ld bc, 2		; Hyp.cls 4890
-            call asm_1_3924_n_nt_rd		; Hyp.cls 4891
-            ld c, 255               ; M4 0: CyborgOS's [4892]
-            call asm_1_3924_n_nt_m4c		; Hyp.cls 4893
-            jp asm_1_3924_n_sv_ok		; Hyp.cls 4894
-asm_1_3924_n_nt_off:		; Hyp.cls 4895
-            ld b, 0                 ; off: every socket closed, M4 0 given back [4896]
-asm_1_3924_n_nt_of1:		; Hyp.cls 4897
-            ld hl, asm_1_3924_n_nt_own		; Hyp.cls 4898
-            ld e, b		; Hyp.cls 4899
-            ld d, 0		; Hyp.cls 4900
-            add hl, de		; Hyp.cls 4901
-            ld a, (hl)		; Hyp.cls 4902
-            or a		; Hyp.cls 4903
-            jr z, asm_1_3924_n_nt_of2		; Hyp.cls 4904
-            push bc		; Hyp.cls 4905
-            ld a, b		; Hyp.cls 4906
-            call asm_1_3924_n_nt_close		; Hyp.cls 4907
-            pop bc		; Hyp.cls 4908
-asm_1_3924_n_nt_of2:		; Hyp.cls 4909
-            inc b		; Hyp.cls 4910
-            ld a, b		; Hyp.cls 4911
-            cp asm_1_3924_n_NT_N		; Hyp.cls 4912
-            jr c, asm_1_3924_n_nt_of1		; Hyp.cls 4913
-            ld c, 0		; Hyp.cls 4914
-            call asm_1_3924_n_nt_m4c		; Hyp.cls 4915
-            ld a, 255		; Hyp.cls 4916
-            ld (asm_1_3924_n_nt_rom), a		; Hyp.cls 4917
-            jp asm_1_3924_n_sv_ok		; Hyp.cls 4918
-asm_1_3924_n_nt_time:		; Hyp.cls 4919
-            call #BD0D              ; 3: KL TIME PLEASE - its low word (300 a second) to Word(6) [4920]
-            di		; Hyp.cls 4921
-            ld (asm_1_3924_n_sv_tmp + 4), hl		; Hyp.cls 4922
-            ld hl, (var_hyp_svc_p)		; Hyp.cls 4923
-            ld de, 6		; Hyp.cls 4924
-            add hl, de		; Hyp.cls 4925
-            ex de, hl		; Hyp.cls 4926
-            ld hl, asm_1_3924_n_sv_tmp + 4		; Hyp.cls 4927
-            ld bc, 2		; Hyp.cls 4928
-            call asm_1_3924_n_sv_out		; Hyp.cls 4929
-            jp asm_1_3924_n_sv_ok		; Hyp.cls 4930
-asm_1_3924_n_nt_ans:		; Hyp.cls 4931
-            ld a, (asm_1_3924_n_sv_tmp + 3)      ; the M4's answer [4932]
-asm_1_3924_n_nt_ret:		; Hyp.cls 4933
-            ld sp, (asm_1_3924_n_sv_sp)		; Hyp.cls 4934
-            ret		; Hyp.cls 4935
+asm_1_3932_n_NT_N:       equ 8                   ; sockets 0-7 [4857]
+asm_1_3932_n_sv_net:		; Hyp.cls 4858
+            ld b, a		; Hyp.cls 4859
+            cp 20		; Hyp.cls 4860
+            jr z, asm_1_3932_n_nt_20		; Hyp.cls 4861
+            ld a, (asm_1_3932_n_nt_rom)		; Hyp.cls 4862
+            inc a		; Hyp.cls 4863
+            jp z, asm_1_3932_n_sv_err            ; (no network) [4864]
+            ld a, b		; Hyp.cls 4865
+            cp 21		; Hyp.cls 4866
+            jp z, asm_1_3932_n_nt_look		; Hyp.cls 4867
+            cp 23		; Hyp.cls 4868
+            jp z, asm_1_3932_n_nt_sock		; Hyp.cls 4869
+            call asm_1_3932_n_nt_chk             ; (the rest: one of the slot's sockets) [4870]
+            ld a, b		; Hyp.cls 4871
+            cp 22		; Hyp.cls 4872
+            jp z, asm_1_3932_n_nt_stat		; Hyp.cls 4873
+            cp 24		; Hyp.cls 4874
+            jp z, asm_1_3932_n_nt_conn		; Hyp.cls 4875
+            cp 25		; Hyp.cls 4876
+            jp z, asm_1_3932_n_nt_send		; Hyp.cls 4877
+            cp 26		; Hyp.cls 4878
+            jp z, asm_1_3932_n_nt_recv		; Hyp.cls 4879
+            ld a, (asm_1_3932_n_sv_blk + 1)      ; 27 [4880]
+            call asm_1_3932_n_nt_close		; Hyp.cls 4881
+            jr asm_1_3932_n_nt_ans		; Hyp.cls 4882
+asm_1_3932_n_nt_20:		; Hyp.cls 4883
+            ld a, (asm_1_3932_n_sv_blk + 1)		; Hyp.cls 4884
+            or a		; Hyp.cls 4885
+            jr nz, asm_1_3932_n_nt_20a		; Hyp.cls 4886
+            ld a, (asm_1_3932_n_nt_rom)		; Hyp.cls 4887
+            jr asm_1_3932_n_nt_ret		; Hyp.cls 4888
+asm_1_3932_n_nt_20a:		; Hyp.cls 4889
+            cp 3		; Hyp.cls 4890
+            jr z, asm_1_3932_n_nt_time		; Hyp.cls 4891
+            dec a		; Hyp.cls 4892
+            jr nz, asm_1_3932_n_nt_off		; Hyp.cls 4893
+            ld a, (asm_1_3932_n_sv_blk + 2)      ; on: the M4's ROM, where its answers and sockets are [4894]
+            ld (asm_1_3932_n_nt_rom), a		; Hyp.cls 4895
+            ld hl, #FF02		; Hyp.cls 4896
+            ld de, asm_1_3932_n_nt_rsp		; Hyp.cls 4897
+            ld bc, 2		; Hyp.cls 4898
+            call asm_1_3932_n_nt_rd		; Hyp.cls 4899
+            ld hl, #FF06		; Hyp.cls 4900
+            ld de, asm_1_3932_n_nt_skt		; Hyp.cls 4901
+            ld bc, 2		; Hyp.cls 4902
+            call asm_1_3932_n_nt_rd		; Hyp.cls 4903
+            ld c, 255               ; M4 0: CyborgOS's [4904]
+            call asm_1_3932_n_nt_m4c		; Hyp.cls 4905
+            jp asm_1_3932_n_sv_ok		; Hyp.cls 4906
+asm_1_3932_n_nt_off:		; Hyp.cls 4907
+            ld b, 0                 ; off: every socket closed, M4 0 given back [4908]
+asm_1_3932_n_nt_of1:		; Hyp.cls 4909
+            ld hl, asm_1_3932_n_nt_own		; Hyp.cls 4910
+            ld e, b		; Hyp.cls 4911
+            ld d, 0		; Hyp.cls 4912
+            add hl, de		; Hyp.cls 4913
+            ld a, (hl)		; Hyp.cls 4914
+            or a		; Hyp.cls 4915
+            jr z, asm_1_3932_n_nt_of2		; Hyp.cls 4916
+            push bc		; Hyp.cls 4917
+            ld a, b		; Hyp.cls 4918
+            call asm_1_3932_n_nt_close		; Hyp.cls 4919
+            pop bc		; Hyp.cls 4920
+asm_1_3932_n_nt_of2:		; Hyp.cls 4921
+            inc b		; Hyp.cls 4922
+            ld a, b		; Hyp.cls 4923
+            cp asm_1_3932_n_NT_N		; Hyp.cls 4924
+            jr c, asm_1_3932_n_nt_of1		; Hyp.cls 4925
+            ld c, 0		; Hyp.cls 4926
+            call asm_1_3932_n_nt_m4c		; Hyp.cls 4927
+            ld a, 255		; Hyp.cls 4928
+            ld (asm_1_3932_n_nt_rom), a		; Hyp.cls 4929
+            jp asm_1_3932_n_sv_ok		; Hyp.cls 4930
+asm_1_3932_n_nt_time:		; Hyp.cls 4931
+            call #BD0D              ; 3: KL TIME PLEASE - its low word (300 a second) to Word(6) [4932]
+            di		; Hyp.cls 4933
+            ld (asm_1_3932_n_sv_tmp + 4), hl		; Hyp.cls 4934
+            ld hl, (var_hyp_svc_p)		; Hyp.cls 4935
+            ld de, 6		; Hyp.cls 4936
+            add hl, de		; Hyp.cls 4937
+            ex de, hl		; Hyp.cls 4938
+            ld hl, asm_1_3932_n_sv_tmp + 4		; Hyp.cls 4939
+            ld bc, 2		; Hyp.cls 4940
+            call asm_1_3932_n_sv_out		; Hyp.cls 4941
+            jp asm_1_3932_n_sv_ok		; Hyp.cls 4942
+asm_1_3932_n_nt_ans:		; Hyp.cls 4943
+            ld a, (asm_1_3932_n_sv_tmp + 3)      ; the M4's answer [4944]
+asm_1_3932_n_nt_ret:		; Hyp.cls 4945
+            ld sp, (asm_1_3932_n_sv_sp)		; Hyp.cls 4946
+            ret		; Hyp.cls 4947
 ; 21: a name looked up
-asm_1_3924_n_nt_look:		; Hyp.cls 4937
-            ld a, (asm_1_3924_n_sv_blk + 4)		; Hyp.cls 4938
-            cp 64		; Hyp.cls 4939
-            jp nc, asm_1_3924_n_sv_err		; Hyp.cls 4940
-            ld c, a		; Hyp.cls 4941
-            ld b, 0		; Hyp.cls 4942
-            ld hl, (asm_1_3924_n_sv_blk + 2)		; Hyp.cls 4943
-            ld de, asm_1_3924_n_nt_pk + 3		; Hyp.cls 4944
-            push bc		; Hyp.cls 4945
-            call asm_1_3924_n_sv_in		; Hyp.cls 4946
-            pop bc		; Hyp.cls 4947
-            ld hl, asm_1_3924_n_nt_pk + 3		; Hyp.cls 4948
-            add hl, bc		; Hyp.cls 4949
-            ld (hl), 0		; Hyp.cls 4950
-            ld a, c		; Hyp.cls 4951
-            add a, 3		; Hyp.cls 4952
-            ld hl, #4336            ; C_NETHOSTIP [4953]
-            call asm_1_3924_n_nt_hdr		; Hyp.cls 4954
-            call asm_1_3924_n_nt_go		; Hyp.cls 4955
-            jr asm_1_3924_n_nt_ans		; Hyp.cls 4956
+asm_1_3932_n_nt_look:		; Hyp.cls 4949
+            ld a, (asm_1_3932_n_sv_blk + 4)		; Hyp.cls 4950
+            cp 64		; Hyp.cls 4951
+            jp nc, asm_1_3932_n_sv_err		; Hyp.cls 4952
+            ld c, a		; Hyp.cls 4953
+            ld b, 0		; Hyp.cls 4954
+            ld hl, (asm_1_3932_n_sv_blk + 2)		; Hyp.cls 4955
+            ld de, asm_1_3932_n_nt_pk + 3		; Hyp.cls 4956
+            push bc		; Hyp.cls 4957
+            call asm_1_3932_n_sv_in		; Hyp.cls 4958
+            pop bc		; Hyp.cls 4959
+            ld hl, asm_1_3932_n_nt_pk + 3		; Hyp.cls 4960
+            add hl, bc		; Hyp.cls 4961
+            ld (hl), 0		; Hyp.cls 4962
+            ld a, c		; Hyp.cls 4963
+            add a, 3		; Hyp.cls 4964
+            ld hl, #4336            ; C_NETHOSTIP [4965]
+            call asm_1_3932_n_nt_hdr		; Hyp.cls 4966
+            call asm_1_3932_n_nt_go		; Hyp.cls 4967
+            jr asm_1_3932_n_nt_ans		; Hyp.cls 4968
 ; 22: a socket's 16 bytes to the slot
-asm_1_3924_n_nt_stat:		; Hyp.cls 4958
-            ld a, (asm_1_3924_n_sv_blk + 1)		; Hyp.cls 4959
-            call asm_1_3924_n_nt_ent		; Hyp.cls 4960
-            ld de, asm_1_3924_n_sv_tmp		; Hyp.cls 4961
-            ld bc, 16		; Hyp.cls 4962
-            call asm_1_3924_n_nt_rd		; Hyp.cls 4963
-            ld hl, asm_1_3924_n_sv_tmp		; Hyp.cls 4964
-            ld de, (asm_1_3924_n_sv_blk + 2)		; Hyp.cls 4965
-            ld bc, 16		; Hyp.cls 4966
-            call asm_1_3924_n_sv_out		; Hyp.cls 4967
-            ld a, (asm_1_3924_n_sv_tmp)		; Hyp.cls 4968
-            jr asm_1_3924_n_nt_ret		; Hyp.cls 4969
+asm_1_3932_n_nt_stat:		; Hyp.cls 4970
+            ld a, (asm_1_3932_n_sv_blk + 1)		; Hyp.cls 4971
+            call asm_1_3932_n_nt_ent		; Hyp.cls 4972
+            ld de, asm_1_3932_n_sv_tmp		; Hyp.cls 4973
+            ld bc, 16		; Hyp.cls 4974
+            call asm_1_3932_n_nt_rd		; Hyp.cls 4975
+            ld hl, asm_1_3932_n_sv_tmp		; Hyp.cls 4976
+            ld de, (asm_1_3932_n_sv_blk + 2)		; Hyp.cls 4977
+            ld bc, 16		; Hyp.cls 4978
+            call asm_1_3932_n_sv_out		; Hyp.cls 4979
+            ld a, (asm_1_3932_n_sv_tmp)		; Hyp.cls 4980
+            jr asm_1_3932_n_nt_ret		; Hyp.cls 4981
 ; 23: a TCP socket
-asm_1_3924_n_nt_sock:		; Hyp.cls 4971
-            ld hl, #0600            ; (domain 0, type 0, protocol 6: TCP) [4972]
-            ld (asm_1_3924_n_nt_pk + 4), hl		; Hyp.cls 4973
-            xor a		; Hyp.cls 4974
-            ld (asm_1_3924_n_nt_pk + 3), a		; Hyp.cls 4975
-            ld a, 5		; Hyp.cls 4976
-            ld hl, #4331            ; C_NETSOCKET [4977]
-            call asm_1_3924_n_nt_hdr		; Hyp.cls 4978
-            call asm_1_3924_n_nt_go		; Hyp.cls 4979
-            ld a, (asm_1_3924_n_sv_tmp + 3)		; Hyp.cls 4980
-            cp asm_1_3924_n_NT_N		; Hyp.cls 4981
-            jp nc, asm_1_3924_n_nt_sk1		; Hyp.cls 4982
-            ld e, a		; Hyp.cls 4983
-            ld d, 0		; Hyp.cls 4984
-            ld hl, asm_1_3924_n_nt_own		; Hyp.cls 4985
-            add hl, de		; Hyp.cls 4986
-            ld a, (var_hyp_svc_t)		; Hyp.cls 4987
-            ld (hl), a		; Hyp.cls 4988
-            jp asm_1_3924_n_nt_ans		; Hyp.cls 4989
-asm_1_3924_n_nt_sk1:		; Hyp.cls 4990
-            cp 255		; Hyp.cls 4991
-            jp z, asm_1_3924_n_nt_ret		; Hyp.cls 4992
-            call asm_1_3924_n_nt_close           ; (one this can't keep: closed) [4993]
-            ld a, 255		; Hyp.cls 4994
-            jp asm_1_3924_n_nt_ret		; Hyp.cls 4995
+asm_1_3932_n_nt_sock:		; Hyp.cls 4983
+            ld hl, #0600            ; (domain 0, type 0, protocol 6: TCP) [4984]
+            ld (asm_1_3932_n_nt_pk + 4), hl		; Hyp.cls 4985
+            xor a		; Hyp.cls 4986
+            ld (asm_1_3932_n_nt_pk + 3), a		; Hyp.cls 4987
+            ld a, 5		; Hyp.cls 4988
+            ld hl, #4331            ; C_NETSOCKET [4989]
+            call asm_1_3932_n_nt_hdr		; Hyp.cls 4990
+            call asm_1_3932_n_nt_go		; Hyp.cls 4991
+            ld a, (asm_1_3932_n_sv_tmp + 3)		; Hyp.cls 4992
+            cp asm_1_3932_n_NT_N		; Hyp.cls 4993
+            jp nc, asm_1_3932_n_nt_sk1		; Hyp.cls 4994
+            ld e, a		; Hyp.cls 4995
+            ld d, 0		; Hyp.cls 4996
+            ld hl, asm_1_3932_n_nt_own		; Hyp.cls 4997
+            add hl, de		; Hyp.cls 4998
+            ld a, (var_hyp_svc_t)		; Hyp.cls 4999
+            ld (hl), a		; Hyp.cls 5000
+            jp asm_1_3932_n_nt_ans		; Hyp.cls 5001
+asm_1_3932_n_nt_sk1:		; Hyp.cls 5002
+            cp 255		; Hyp.cls 5003
+            jp z, asm_1_3932_n_nt_ret		; Hyp.cls 5004
+            call asm_1_3932_n_nt_close           ; (one this can't keep: closed) [5005]
+            ld a, 255		; Hyp.cls 5006
+            jp asm_1_3932_n_nt_ret		; Hyp.cls 5007
 ; 24: connected to an IP address and port
-asm_1_3924_n_nt_conn:		; Hyp.cls 4997
-            ld hl, asm_1_3924_n_sv_blk + 1		; Hyp.cls 4998
-            ld de, asm_1_3924_n_nt_pk + 3		; Hyp.cls 4999
-            ld bc, 7		; Hyp.cls 5000
-            ldir		; Hyp.cls 5001
-            ld a, 9		; Hyp.cls 5002
-            ld hl, #4332            ; C_NETCONNECT [5003]
-            call asm_1_3924_n_nt_hdr		; Hyp.cls 5004
-            call asm_1_3924_n_nt_go		; Hyp.cls 5005
-            jp asm_1_3924_n_nt_ans		; Hyp.cls 5006
+asm_1_3932_n_nt_conn:		; Hyp.cls 5009
+            ld hl, asm_1_3932_n_sv_blk + 1		; Hyp.cls 5010
+            ld de, asm_1_3932_n_nt_pk + 3		; Hyp.cls 5011
+            ld bc, 7		; Hyp.cls 5012
+            ldir		; Hyp.cls 5013
+            ld a, 9		; Hyp.cls 5014
+            ld hl, #4332            ; C_NETCONNECT [5015]
+            call asm_1_3932_n_nt_hdr		; Hyp.cls 5016
+            call asm_1_3932_n_nt_go		; Hyp.cls 5017
+            jp asm_1_3932_n_nt_ans		; Hyp.cls 5018
 ; 25: bytes sent
-asm_1_3924_n_nt_send:		; Hyp.cls 5008
-            ld hl, (asm_1_3924_n_sv_blk + 4)		; Hyp.cls 5009
-            ld a, h		; Hyp.cls 5010
-            or a		; Hyp.cls 5011
-            jp nz, asm_1_3924_n_sv_err		; Hyp.cls 5012
-            ld a, l		; Hyp.cls 5013
-            or a		; Hyp.cls 5014
-            jp z, asm_1_3924_n_sv_err		; Hyp.cls 5015
-            cp 241		; Hyp.cls 5016
-            jp nc, asm_1_3924_n_sv_err		; Hyp.cls 5017
-            ld (asm_1_3924_n_nt_pk + 4), hl		; Hyp.cls 5018
-            ld a, (asm_1_3924_n_sv_blk + 1)		; Hyp.cls 5019
-            ld (asm_1_3924_n_nt_pk + 3), a		; Hyp.cls 5020
-            ld b, h		; Hyp.cls 5021
-            ld c, l		; Hyp.cls 5022
-            ld hl, (asm_1_3924_n_sv_blk + 2)		; Hyp.cls 5023
-            ld de, asm_1_3924_n_nt_pk + 6		; Hyp.cls 5024
-            call asm_1_3924_n_sv_in		; Hyp.cls 5025
-            ld a, (asm_1_3924_n_sv_blk + 4)		; Hyp.cls 5026
-            add a, 5		; Hyp.cls 5027
-            ld hl, #4334            ; C_NETSEND [5028]
-            call asm_1_3924_n_nt_hdr		; Hyp.cls 5029
-            call asm_1_3924_n_nt_go		; Hyp.cls 5030
-            jp asm_1_3924_n_nt_ans		; Hyp.cls 5031
+asm_1_3932_n_nt_send:		; Hyp.cls 5020
+            ld hl, (asm_1_3932_n_sv_blk + 4)		; Hyp.cls 5021
+            ld a, h		; Hyp.cls 5022
+            or a		; Hyp.cls 5023
+            jp nz, asm_1_3932_n_sv_err		; Hyp.cls 5024
+            ld a, l		; Hyp.cls 5025
+            or a		; Hyp.cls 5026
+            jp z, asm_1_3932_n_sv_err		; Hyp.cls 5027
+            cp 241		; Hyp.cls 5028
+            jp nc, asm_1_3932_n_sv_err		; Hyp.cls 5029
+            ld (asm_1_3932_n_nt_pk + 4), hl		; Hyp.cls 5030
+            ld a, (asm_1_3932_n_sv_blk + 1)		; Hyp.cls 5031
+            ld (asm_1_3932_n_nt_pk + 3), a		; Hyp.cls 5032
+            ld b, h		; Hyp.cls 5033
+            ld c, l		; Hyp.cls 5034
+            ld hl, (asm_1_3932_n_sv_blk + 2)		; Hyp.cls 5035
+            ld de, asm_1_3932_n_nt_pk + 6		; Hyp.cls 5036
+            call asm_1_3932_n_sv_in		; Hyp.cls 5037
+            ld a, (asm_1_3932_n_sv_blk + 4)		; Hyp.cls 5038
+            add a, 5		; Hyp.cls 5039
+            ld hl, #4334            ; C_NETSEND [5040]
+            call asm_1_3932_n_nt_hdr		; Hyp.cls 5041
+            call asm_1_3932_n_nt_go		; Hyp.cls 5042
+            jp asm_1_3932_n_nt_ans		; Hyp.cls 5043
 ; 26: bytes received
-asm_1_3924_n_nt_recv:		; Hyp.cls 5033
-            ld hl, (asm_1_3924_n_sv_blk + 4)		; Hyp.cls 5034
-            ld de, 2049		; Hyp.cls 5035
-            or a		; Hyp.cls 5036
-            sbc hl, de		; Hyp.cls 5037
-            jp nc, asm_1_3924_n_sv_err		; Hyp.cls 5038
-            ld hl, (asm_1_3924_n_sv_blk + 4)		; Hyp.cls 5039
-            ld (asm_1_3924_n_nt_pk + 4), hl		; Hyp.cls 5040
-            ld a, (asm_1_3924_n_sv_blk + 1)		; Hyp.cls 5041
-            ld (asm_1_3924_n_nt_pk + 3), a		; Hyp.cls 5042
-            ld a, 5		; Hyp.cls 5043
-            ld hl, #4335            ; C_NETRECV [5044]
-            call asm_1_3924_n_nt_hdr		; Hyp.cls 5045
-            call asm_1_3924_n_nt_go		; Hyp.cls 5046
-            ld hl, 0		; Hyp.cls 5047
-            ld a, (asm_1_3924_n_sv_tmp + 3)		; Hyp.cls 5048
-            or a		; Hyp.cls 5049
-            jr nz, asm_1_3924_n_nt_rc1		; Hyp.cls 5050
-            ld hl, (asm_1_3924_n_sv_tmp + 4)     ; how many (no more than asked for) [5051]
-            ld de, (asm_1_3924_n_sv_blk + 4)		; Hyp.cls 5052
-            or a		; Hyp.cls 5053
-            sbc hl, de		; Hyp.cls 5054
-            add hl, de		; Hyp.cls 5055
-            jr c, asm_1_3924_n_nt_rc0		; Hyp.cls 5056
-            ex de, hl		; Hyp.cls 5057
-asm_1_3924_n_nt_rc0:		; Hyp.cls 5058
-            ld (asm_1_3924_n_sv_n), hl		; Hyp.cls 5059
-            push hl		; Hyp.cls 5060
-            ld hl, (asm_1_3924_n_nt_rsp)         ; from the M4's ROM to the slot [5061]
-            ld de, 6		; Hyp.cls 5062
-            add hl, de		; Hyp.cls 5063
-            ld (asm_1_3924_n_sv_sa), hl		; Hyp.cls 5064
-            ld a, (asm_1_3924_n_nt_rom)		; Hyp.cls 5065
-            ld (asm_1_3924_n_sv_ss), a		; Hyp.cls 5066
-            ld a, 3		; Hyp.cls 5067
-            ld (asm_1_3924_n_sv_sk), a		; Hyp.cls 5068
-            ld hl, (asm_1_3924_n_sv_blk + 2)		; Hyp.cls 5069
-            ld (asm_1_3924_n_sv_da), hl		; Hyp.cls 5070
-            xor a		; Hyp.cls 5071
-            ld (asm_1_3924_n_sv_stop), a		; Hyp.cls 5072
-            call asm_1_3924_n_sv_copy		; Hyp.cls 5073
-            pop hl		; Hyp.cls 5074
-asm_1_3924_n_nt_rc1:		; Hyp.cls 5075
-            ld (asm_1_3924_n_sv_tmp + 4), hl     ; how many: to the request's Word(6) [5076]
-            ld hl, (var_hyp_svc_p)		; Hyp.cls 5077
-            ld de, 6		; Hyp.cls 5078
-            add hl, de		; Hyp.cls 5079
-            ex de, hl		; Hyp.cls 5080
-            ld hl, asm_1_3924_n_sv_tmp + 4		; Hyp.cls 5081
-            ld bc, 2		; Hyp.cls 5082
-            call asm_1_3924_n_sv_out		; Hyp.cls 5083
-            jp asm_1_3924_n_nt_ans		; Hyp.cls 5084
+asm_1_3932_n_nt_recv:		; Hyp.cls 5045
+            ld hl, (asm_1_3932_n_sv_blk + 4)		; Hyp.cls 5046
+            ld de, 2049		; Hyp.cls 5047
+            or a		; Hyp.cls 5048
+            sbc hl, de		; Hyp.cls 5049
+            jp nc, asm_1_3932_n_sv_err		; Hyp.cls 5050
+            ld hl, (asm_1_3932_n_sv_blk + 4)		; Hyp.cls 5051
+            ld (asm_1_3932_n_nt_pk + 4), hl		; Hyp.cls 5052
+            ld a, (asm_1_3932_n_sv_blk + 1)		; Hyp.cls 5053
+            ld (asm_1_3932_n_nt_pk + 3), a		; Hyp.cls 5054
+            ld a, 5		; Hyp.cls 5055
+            ld hl, #4335            ; C_NETRECV [5056]
+            call asm_1_3932_n_nt_hdr		; Hyp.cls 5057
+            call asm_1_3932_n_nt_go		; Hyp.cls 5058
+            ld hl, 0		; Hyp.cls 5059
+            ld a, (asm_1_3932_n_sv_tmp + 3)		; Hyp.cls 5060
+            or a		; Hyp.cls 5061
+            jr nz, asm_1_3932_n_nt_rc1		; Hyp.cls 5062
+            ld hl, (asm_1_3932_n_sv_tmp + 4)     ; how many (no more than asked for) [5063]
+            ld de, (asm_1_3932_n_sv_blk + 4)		; Hyp.cls 5064
+            or a		; Hyp.cls 5065
+            sbc hl, de		; Hyp.cls 5066
+            add hl, de		; Hyp.cls 5067
+            jr c, asm_1_3932_n_nt_rc0		; Hyp.cls 5068
+            ex de, hl		; Hyp.cls 5069
+asm_1_3932_n_nt_rc0:		; Hyp.cls 5070
+            ld (asm_1_3932_n_sv_n), hl		; Hyp.cls 5071
+            push hl		; Hyp.cls 5072
+            ld hl, (asm_1_3932_n_nt_rsp)         ; from the M4's ROM to the slot [5073]
+            ld de, 6		; Hyp.cls 5074
+            add hl, de		; Hyp.cls 5075
+            ld (asm_1_3932_n_sv_sa), hl		; Hyp.cls 5076
+            ld a, (asm_1_3932_n_nt_rom)		; Hyp.cls 5077
+            ld (asm_1_3932_n_sv_ss), a		; Hyp.cls 5078
+            ld a, 3		; Hyp.cls 5079
+            ld (asm_1_3932_n_sv_sk), a		; Hyp.cls 5080
+            ld hl, (asm_1_3932_n_sv_blk + 2)		; Hyp.cls 5081
+            ld (asm_1_3932_n_sv_da), hl		; Hyp.cls 5082
+            xor a		; Hyp.cls 5083
+            ld (asm_1_3932_n_sv_stop), a		; Hyp.cls 5084
+            call asm_1_3932_n_sv_copy		; Hyp.cls 5085
+            pop hl		; Hyp.cls 5086
+asm_1_3932_n_nt_rc1:		; Hyp.cls 5087
+            ld (asm_1_3932_n_sv_tmp + 4), hl     ; how many: to the request's Word(6) [5088]
+            ld hl, (var_hyp_svc_p)		; Hyp.cls 5089
+            ld de, 6		; Hyp.cls 5090
+            add hl, de		; Hyp.cls 5091
+            ex de, hl		; Hyp.cls 5092
+            ld hl, asm_1_3932_n_sv_tmp + 4		; Hyp.cls 5093
+            ld bc, 2		; Hyp.cls 5094
+            call asm_1_3932_n_sv_out		; Hyp.cls 5095
+            jp asm_1_3932_n_nt_ans		; Hyp.cls 5096
 ; nt_chk - Byte(1): a socket of this slot's (else the request fails)
-asm_1_3924_n_nt_chk:		; Hyp.cls 5086
-            ld a, (asm_1_3924_n_sv_blk + 1)		; Hyp.cls 5087
-            cp asm_1_3924_n_NT_N		; Hyp.cls 5088
-            jp nc, asm_1_3924_n_nt_chk1		; Hyp.cls 5089
-            ld e, a		; Hyp.cls 5090
-            ld d, 0		; Hyp.cls 5091
-            ld hl, asm_1_3924_n_nt_own		; Hyp.cls 5092
-            add hl, de		; Hyp.cls 5093
-            ld a, (var_hyp_svc_t)		; Hyp.cls 5094
-            cp (hl)		; Hyp.cls 5095
-            ret z		; Hyp.cls 5096
-            jp asm_1_3924_n_sv_err		; Hyp.cls 5097
-asm_1_3924_n_nt_chk1:		; Hyp.cls 5098
-            cp 255                  ; (255: the lookup's - 22 only) [5099]
-            jp nz, asm_1_3924_n_sv_err		; Hyp.cls 5100
-            ld a, b		; Hyp.cls 5101
-            cp 22		; Hyp.cls 5102
-            ret z		; Hyp.cls 5103
-            jp asm_1_3924_n_sv_err		; Hyp.cls 5104
+asm_1_3932_n_nt_chk:		; Hyp.cls 5098
+            ld a, (asm_1_3932_n_sv_blk + 1)		; Hyp.cls 5099
+            cp asm_1_3932_n_NT_N		; Hyp.cls 5100
+            jp nc, asm_1_3932_n_nt_chk1		; Hyp.cls 5101
+            ld e, a		; Hyp.cls 5102
+            ld d, 0		; Hyp.cls 5103
+            ld hl, asm_1_3932_n_nt_own		; Hyp.cls 5104
+            add hl, de		; Hyp.cls 5105
+            ld a, (var_hyp_svc_t)		; Hyp.cls 5106
+            cp (hl)		; Hyp.cls 5107
+            ret z		; Hyp.cls 5108
+            jp asm_1_3932_n_sv_err		; Hyp.cls 5109
+asm_1_3932_n_nt_chk1:		; Hyp.cls 5110
+            cp 255                  ; (255: the lookup's - 22 only) [5111]
+            jp nz, asm_1_3932_n_sv_err		; Hyp.cls 5112
+            ld a, b		; Hyp.cls 5113
+            cp 22		; Hyp.cls 5114
+            ret z		; Hyp.cls 5115
+            jp asm_1_3932_n_sv_err		; Hyp.cls 5116
 ; nt_close - socket A closed (no longer anyone's)
-asm_1_3924_n_nt_close:		; Hyp.cls 5106
-            ld (asm_1_3924_n_nt_pk + 3), a		; Hyp.cls 5107
-            cp asm_1_3924_n_NT_N		; Hyp.cls 5108
-            jr nc, asm_1_3924_n_nt_cl1		; Hyp.cls 5109
-            ld e, a		; Hyp.cls 5110
-            ld d, 0		; Hyp.cls 5111
-            ld hl, asm_1_3924_n_nt_own		; Hyp.cls 5112
-            add hl, de		; Hyp.cls 5113
-            ld (hl), 0		; Hyp.cls 5114
-asm_1_3924_n_nt_cl1:		; Hyp.cls 5115
-            ld a, 3		; Hyp.cls 5116
-            ld hl, #4333            ; C_NETCLOSE [5117]
-            call asm_1_3924_n_nt_hdr		; Hyp.cls 5118
+asm_1_3932_n_nt_close:		; Hyp.cls 5118
+            ld (asm_1_3932_n_nt_pk + 3), a		; Hyp.cls 5119
+            cp asm_1_3932_n_NT_N		; Hyp.cls 5120
+            jr nc, asm_1_3932_n_nt_cl1		; Hyp.cls 5121
+            ld e, a		; Hyp.cls 5122
+            ld d, 0		; Hyp.cls 5123
+            ld hl, asm_1_3932_n_nt_own		; Hyp.cls 5124
+            add hl, de		; Hyp.cls 5125
+            ld (hl), 0		; Hyp.cls 5126
+asm_1_3932_n_nt_cl1:		; Hyp.cls 5127
+            ld a, 3		; Hyp.cls 5128
+            ld hl, #4333            ; C_NETCLOSE [5129]
+            call asm_1_3932_n_nt_hdr		; Hyp.cls 5130
 ; nt_go - the packet at nt_pk to the M4 (its size first); the answer's first 8 bytes to sv_tmp
-asm_1_3924_n_nt_go:		; Hyp.cls 5120
-            ld hl, asm_1_3924_n_nt_pk		; Hyp.cls 5121
-            ld bc, #FE00		; Hyp.cls 5122
-            ld d, (hl)		; Hyp.cls 5123
-            inc d		; Hyp.cls 5124
-asm_1_3924_n_nt_go1:		; Hyp.cls 5125
-            inc b		; Hyp.cls 5126
-            outi		; Hyp.cls 5127
-            dec d		; Hyp.cls 5128
-            jr nz, asm_1_3924_n_nt_go1		; Hyp.cls 5129
-            ld bc, #FC00		; Hyp.cls 5130
-            out (c), c		; Hyp.cls 5131
-            ld hl, (asm_1_3924_n_nt_rsp)		; Hyp.cls 5132
-            ld de, asm_1_3924_n_sv_tmp		; Hyp.cls 5133
-            ld bc, 8		; Hyp.cls 5134
+asm_1_3932_n_nt_go:		; Hyp.cls 5132
+            ld hl, asm_1_3932_n_nt_pk		; Hyp.cls 5133
+            ld bc, #FE00		; Hyp.cls 5134
+            ld d, (hl)		; Hyp.cls 5135
+            inc d		; Hyp.cls 5136
+asm_1_3932_n_nt_go1:		; Hyp.cls 5137
+            inc b		; Hyp.cls 5138
+            outi		; Hyp.cls 5139
+            dec d		; Hyp.cls 5140
+            jr nz, asm_1_3932_n_nt_go1		; Hyp.cls 5141
+            ld bc, #FC00		; Hyp.cls 5142
+            out (c), c		; Hyp.cls 5143
+            ld hl, (asm_1_3932_n_nt_rsp)		; Hyp.cls 5144
+            ld de, asm_1_3932_n_sv_tmp		; Hyp.cls 5145
+            ld bc, 8		; Hyp.cls 5146
 ; nt_rd - BC bytes of the M4's ROM from HL to DE (here)
-asm_1_3924_n_nt_rd:		; Hyp.cls 5136
-            push hl		; Hyp.cls 5137
-            push de		; Hyp.cls 5138
-            push bc		; Hyp.cls 5139
-            ld a, (asm_1_3924_n_nt_rom)		; Hyp.cls 5140
-            ld c, a		; Hyp.cls 5141
-            call #B90F              ; KL ROM SELECT [5142]
-            di		; Hyp.cls 5143
-            ld (asm_1_3924_n_nt_old), bc		; Hyp.cls 5144
-            pop bc		; Hyp.cls 5145
-            pop de		; Hyp.cls 5146
-            pop hl		; Hyp.cls 5147
-            ld a, h		; Hyp.cls 5148
-            or #C0		; Hyp.cls 5149
-            ld h, a		; Hyp.cls 5150
-            ldir		; Hyp.cls 5151
-            ld bc, (asm_1_3924_n_nt_old)		; Hyp.cls 5152
-            call #B918              ; KL ROM DESELECT [5153]
-            di		; Hyp.cls 5154
-            ret		; Hyp.cls 5155
+asm_1_3932_n_nt_rd:		; Hyp.cls 5148
+            push hl		; Hyp.cls 5149
+            push de		; Hyp.cls 5150
+            push bc		; Hyp.cls 5151
+            ld a, (asm_1_3932_n_nt_rom)		; Hyp.cls 5152
+            ld c, a		; Hyp.cls 5153
+            call #B90F              ; KL ROM SELECT [5154]
+            di		; Hyp.cls 5155
+            ld (asm_1_3932_n_nt_old), bc		; Hyp.cls 5156
+            pop bc		; Hyp.cls 5157
+            pop de		; Hyp.cls 5158
+            pop hl		; Hyp.cls 5159
+            ld a, h		; Hyp.cls 5160
+            or #C0		; Hyp.cls 5161
+            ld h, a		; Hyp.cls 5162
+            ldir		; Hyp.cls 5163
+            ld bc, (asm_1_3932_n_nt_old)		; Hyp.cls 5164
+            call #B918              ; KL ROM DESELECT [5165]
+            di		; Hyp.cls 5166
+            ret		; Hyp.cls 5167
 ; nt_hdr - the packet's size A, its command HL
-asm_1_3924_n_nt_hdr:		; Hyp.cls 5157
-            ld (asm_1_3924_n_nt_pk), a		; Hyp.cls 5158
-            ld (asm_1_3924_n_nt_pk + 1), hl		; Hyp.cls 5159
-            ret		; Hyp.cls 5160
+asm_1_3932_n_nt_hdr:		; Hyp.cls 5169
+            ld (asm_1_3932_n_nt_pk), a		; Hyp.cls 5170
+            ld (asm_1_3932_n_nt_pk + 1), hl		; Hyp.cls 5171
+            ret		; Hyp.cls 5172
 ; nt_ent - socket A's 16 bytes in the M4's table: HL (255: the first - the lookup's)
-asm_1_3924_n_nt_ent:		; Hyp.cls 5162
-            cp 255		; Hyp.cls 5163
-            jr nz, asm_1_3924_n_nt_e1		; Hyp.cls 5164
-            xor a		; Hyp.cls 5165
-asm_1_3924_n_nt_e1:		; Hyp.cls 5166
-            ld l, a		; Hyp.cls 5167
-            ld h, 0		; Hyp.cls 5168
-            add hl, hl		; Hyp.cls 5169
-            add hl, hl		; Hyp.cls 5170
-            add hl, hl		; Hyp.cls 5171
-            add hl, hl		; Hyp.cls 5172
-            ld de, (asm_1_3924_n_nt_skt)		; Hyp.cls 5173
-            add hl, de		; Hyp.cls 5174
-            ret		; Hyp.cls 5175
+asm_1_3932_n_nt_ent:		; Hyp.cls 5174
+            cp 255		; Hyp.cls 5175
+            jr nz, asm_1_3932_n_nt_e1		; Hyp.cls 5176
+            xor a		; Hyp.cls 5177
+asm_1_3932_n_nt_e1:		; Hyp.cls 5178
+            ld l, a		; Hyp.cls 5179
+            ld h, 0		; Hyp.cls 5180
+            add hl, hl		; Hyp.cls 5181
+            add hl, hl		; Hyp.cls 5182
+            add hl, hl		; Hyp.cls 5183
+            add hl, hl		; Hyp.cls 5184
+            ld de, (asm_1_3932_n_nt_skt)		; Hyp.cls 5185
+            add hl, de		; Hyp.cls 5186
+            ret		; Hyp.cls 5187
 ; nt_m4c - the claim on M4 0 held by C (255 CyborgOS, 0 given back)
-asm_1_3924_n_nt_m4c:		; Hyp.cls 5177
-            push bc		; Hyp.cls 5178
-            ld hl, asm_1_3924_n_sv_blk + 1		; Hyp.cls 5179
-            ld (hl), 0		; Hyp.cls 5180
-            inc hl		; Hyp.cls 5181
-            ld (hl), 'M'		; Hyp.cls 5182
-            inc hl		; Hyp.cls 5183
-            ld (hl), '4'		; Hyp.cls 5184
-            ld b, 6		; Hyp.cls 5185
-asm_1_3924_n_nt_m4c1:		; Hyp.cls 5186
-            inc hl		; Hyp.cls 5187
-            ld (hl), ' '		; Hyp.cls 5188
-            djnz asm_1_3924_n_nt_m4c1		; Hyp.cls 5189
-            call asm_1_3924_n_cl_find		; Hyp.cls 5190
-            pop bc		; Hyp.cls 5191
-            jr nz, asm_1_3924_n_nt_m4c2		; Hyp.cls 5192
-            ld (hl), c              ; (CyborgOS's now - or no one's) [5193]
-            ret		; Hyp.cls 5194
-asm_1_3924_n_nt_m4c2:		; Hyp.cls 5195
-            ld a, c		; Hyp.cls 5196
-            or a		; Hyp.cls 5197
-            ret z		; Hyp.cls 5198
-            ld hl, asm_1_3924_n_sv_cl            ; into a free record [5199]
-            ld de, 10		; Hyp.cls 5200
-            ld b, asm_1_3924_n_CL_N		; Hyp.cls 5201
-asm_1_3924_n_nt_m4c3:		; Hyp.cls 5202
-            ld a, (hl)		; Hyp.cls 5203
-            or a		; Hyp.cls 5204
-            jr z, asm_1_3924_n_nt_m4c4		; Hyp.cls 5205
-            add hl, de		; Hyp.cls 5206
-            djnz asm_1_3924_n_nt_m4c3		; Hyp.cls 5207
-            ret		; Hyp.cls 5208
-asm_1_3924_n_nt_m4c4:		; Hyp.cls 5209
-            ld (hl), c		; Hyp.cls 5210
-            inc hl		; Hyp.cls 5211
-            ex de, hl		; Hyp.cls 5212
-            ld hl, asm_1_3924_n_sv_blk + 1		; Hyp.cls 5213
-            ld bc, 9		; Hyp.cls 5214
-            ldir		; Hyp.cls 5215
-            ret		; Hyp.cls 5216
+asm_1_3932_n_nt_m4c:		; Hyp.cls 5189
+            push bc		; Hyp.cls 5190
+            ld hl, asm_1_3932_n_sv_blk + 1		; Hyp.cls 5191
+            ld (hl), 0		; Hyp.cls 5192
+            inc hl		; Hyp.cls 5193
+            ld (hl), 'M'		; Hyp.cls 5194
+            inc hl		; Hyp.cls 5195
+            ld (hl), '4'		; Hyp.cls 5196
+            ld b, 6		; Hyp.cls 5197
+asm_1_3932_n_nt_m4c1:		; Hyp.cls 5198
+            inc hl		; Hyp.cls 5199
+            ld (hl), ' '		; Hyp.cls 5200
+            djnz asm_1_3932_n_nt_m4c1		; Hyp.cls 5201
+            call asm_1_3932_n_cl_find		; Hyp.cls 5202
+            pop bc		; Hyp.cls 5203
+            jr nz, asm_1_3932_n_nt_m4c2		; Hyp.cls 5204
+            ld (hl), c              ; (CyborgOS's now - or no one's) [5205]
+            ret		; Hyp.cls 5206
+asm_1_3932_n_nt_m4c2:		; Hyp.cls 5207
+            ld a, c		; Hyp.cls 5208
+            or a		; Hyp.cls 5209
+            ret z		; Hyp.cls 5210
+            ld hl, asm_1_3932_n_sv_cl            ; into a free record [5211]
+            ld de, 10		; Hyp.cls 5212
+            ld b, asm_1_3932_n_CL_N		; Hyp.cls 5213
+asm_1_3932_n_nt_m4c3:		; Hyp.cls 5214
+            ld a, (hl)		; Hyp.cls 5215
+            or a		; Hyp.cls 5216
+            jr z, asm_1_3932_n_nt_m4c4		; Hyp.cls 5217
+            add hl, de		; Hyp.cls 5218
+            djnz asm_1_3932_n_nt_m4c3		; Hyp.cls 5219
+            ret		; Hyp.cls 5220
+asm_1_3932_n_nt_m4c4:		; Hyp.cls 5221
+            ld (hl), c		; Hyp.cls 5222
+            inc hl		; Hyp.cls 5223
+            ex de, hl		; Hyp.cls 5224
+            ld hl, asm_1_3932_n_sv_blk + 1		; Hyp.cls 5225
+            ld bc, 9		; Hyp.cls 5226
+            ldir		; Hyp.cls 5227
+            ret		; Hyp.cls 5228
 ; sv_in - BC bytes from the slot's HL to DE (here, in the service page)
-asm_1_3924_n_sv_in:		; Hyp.cls 5218
-            ld (asm_1_3924_n_sv_sa), hl		; Hyp.cls 5219
-            ld (asm_1_3924_n_sv_da), de		; Hyp.cls 5220
-            ld (asm_1_3924_n_sv_n), bc		; Hyp.cls 5221
-            ld a, 2		; Hyp.cls 5222
-            ld (asm_1_3924_n_sv_sk), a		; Hyp.cls 5223
-            ld hl, (var_hyp_svc_setting)		; Hyp.cls 5224
-            ld (asm_1_3924_n_sv_ss), hl		; Hyp.cls 5225
-            ld a, 1		; Hyp.cls 5226
-            ld (asm_1_3924_n_sv_dk), a		; Hyp.cls 5227
-            ld hl, (var_hyp_svp)		; Hyp.cls 5228
-            ld (asm_1_3924_n_sv_ds), hl		; Hyp.cls 5229
-            xor a		; Hyp.cls 5230
-            ld (asm_1_3924_n_sv_stop), a		; Hyp.cls 5231
-            call asm_1_3924_n_sv_copy		; Hyp.cls 5232
-            ld a, 2                 ; (the copies to the slot again) [5233]
-            ld (asm_1_3924_n_sv_dk), a		; Hyp.cls 5234
-            ld hl, (var_hyp_svc_setting)		; Hyp.cls 5235
-            ld (asm_1_3924_n_sv_ds), hl		; Hyp.cls 5236
-            ret		; Hyp.cls 5237
-asm_1_3924_n_nt_rom:     db 255		; Hyp.cls 5238
-asm_1_3924_n_nt_old:     dw 0		; Hyp.cls 5239
-asm_1_3924_n_nt_rsp:     dw 0		; Hyp.cls 5240
-asm_1_3924_n_nt_skt:     dw 0		; Hyp.cls 5241
-asm_1_3924_n_nt_own:     ds asm_1_3924_n_NT_N		; Hyp.cls 5242
-asm_1_3924_n_sv_sp:      dw 0		; Hyp.cls 5243
-asm_1_3924_n_sv_n:       dw 0		; Hyp.cls 5244
-asm_1_3924_n_sv_c:       dw 0		; Hyp.cls 5245
-asm_1_3924_n_sv_sk:      db 0		; Hyp.cls 5246
-asm_1_3924_n_sv_ss:      dw 0		; Hyp.cls 5247
-asm_1_3924_n_sv_sa:      dw 0		; Hyp.cls 5248
-asm_1_3924_n_sv_dk:      db 0		; Hyp.cls 5249
-asm_1_3924_n_sv_ds:      dw 0		; Hyp.cls 5250
-asm_1_3924_n_sv_da:      dw 0		; Hyp.cls 5251
-asm_1_3924_n_sv_stop:    db 0		; Hyp.cls 5252
-asm_1_3924_n_sv_tj:      db 0		; Hyp.cls 5253
-asm_1_3924_n_sv_tn:      db 0		; Hyp.cls 5254
-asm_1_3924_n_sv_tsg:     dw 0		; Hyp.cls 5255
-asm_1_3924_n_sv_blk:     ds 16		; Hyp.cls 5256
-asm_1_3924_n_sv_tmp:     ds 16		; Hyp.cls 5257
-asm_1_3924_n_sv_rec:     ds 128		; Hyp.cls 5258
-asm_1_3924_n_sv_cl:      ds asm_1_3924_n_CL_N * 10            ; the claims (16-19; table 4) [5259]
-asm_1_3924_n_nt_pk:      ds 256                  ; a packet to the M4 (21-27) [5260]
-asm_1_3924_n_sv_end:		; Hyp.cls 5261
-            ASSERT asm_1_3924_n_sv_end <= #8000, "the service page's code"		; Hyp.cls 5262
+asm_1_3932_n_sv_in:		; Hyp.cls 5230
+            ld (asm_1_3932_n_sv_sa), hl		; Hyp.cls 5231
+            ld (asm_1_3932_n_sv_da), de		; Hyp.cls 5232
+            ld (asm_1_3932_n_sv_n), bc		; Hyp.cls 5233
+            ld a, 2		; Hyp.cls 5234
+            ld (asm_1_3932_n_sv_sk), a		; Hyp.cls 5235
+            ld hl, (var_hyp_svc_setting)		; Hyp.cls 5236
+            ld (asm_1_3932_n_sv_ss), hl		; Hyp.cls 5237
+            ld a, 1		; Hyp.cls 5238
+            ld (asm_1_3932_n_sv_dk), a		; Hyp.cls 5239
+            ld hl, (var_hyp_svp)		; Hyp.cls 5240
+            ld (asm_1_3932_n_sv_ds), hl		; Hyp.cls 5241
+            xor a		; Hyp.cls 5242
+            ld (asm_1_3932_n_sv_stop), a		; Hyp.cls 5243
+            call asm_1_3932_n_sv_copy		; Hyp.cls 5244
+            ld a, 2                 ; (the copies to the slot again) [5245]
+            ld (asm_1_3932_n_sv_dk), a		; Hyp.cls 5246
+            ld hl, (var_hyp_svc_setting)		; Hyp.cls 5247
+            ld (asm_1_3932_n_sv_ds), hl		; Hyp.cls 5248
+            ret		; Hyp.cls 5249
+; ---- 28-33: the ports - a program serving others: a service (RAT: decisions, a model: its
+; weights ...) opens a port by name (8 characters); any slot calls it: its message (128 bytes at
+; most) into the port's box, the server receives it, replies, the caller gets the answer. One call
+; at a time a port (another caller meanwhile: 1, busy - try again). The request: Byte(2-9) the
+; port's name, Word(10) where the message is / goes, Byte(12) its length; back in Byte(12) the
+; length, Byte(13) the caller (32). The answers: 0 done, 1 not yet (busy, no answer, no message:
+; Main lets the slot sleep a tick), 2 no such port / not this slot's, 255 no room (8 ports)
+;   28  open the port (0: it is this slot's - now, or already; 2 another slot's)
+;   29  close it (2: not this slot's)
+;   30  call it: the message from Word(10), Byte(12) long, into its box
+;   31  the answer to this slot's call: to Word(10), its length to Byte(12) (1: none yet)
+;   32  the server's next message: to Word(10), its length to Byte(12), the caller to Byte(13)
+;   33  the server's reply to it: from Word(10), Byte(12) long (a caller that has gone: dropped)
+; A port: +0 its slot (0: free), +1 its name, +9 its state (0 free, 1 a message in, 2 received,
+; 3 answered), +10 the caller, +11 the length, +12 the box (128 bytes). Freed with its slot
+asm_1_3932_n_PT_N:       equ 8		; Hyp.cls 5265
+asm_1_3932_n_PT_SZ:      equ 140		; Hyp.cls 5266
+asm_1_3932_n_sv_port:		; Hyp.cls 5267
+            ld (asm_1_3932_n_pt_op), a		; Hyp.cls 5268
+            call asm_1_3932_n_pt_find            ; Z: HL = the port named Byte(2-9); pt_fr: a free record (0: none) [5269]
+            ld (asm_1_3932_n_pt_rec), hl		; Hyp.cls 5270
+            ld a, 0		; Hyp.cls 5271
+            jr z, asm_1_3932_n_sp_f		; Hyp.cls 5272
+            inc a		; Hyp.cls 5273
+asm_1_3932_n_sp_f:		; Hyp.cls 5274
+            ld (asm_1_3932_n_pt_has), a          ; 0 there, 1 not [5275]
+            ld a, (var_hyp_svc_t)		; Hyp.cls 5276
+            ld (asm_1_3932_n_pt_me), a		; Hyp.cls 5277
+            ld a, (asm_1_3932_n_sv_blk + 12)     ; the length: 128 at most [5278]
+            cp 129		; Hyp.cls 5279
+            jr c, asm_1_3932_n_sp_l		; Hyp.cls 5280
+            ld a, 128		; Hyp.cls 5281
+            ld (asm_1_3932_n_sv_blk + 12), a		; Hyp.cls 5282
+asm_1_3932_n_sp_l:		; Hyp.cls 5283
+            ld a, (asm_1_3932_n_pt_op)		; Hyp.cls 5284
+            cp 28		; Hyp.cls 5285
+            jr z, asm_1_3932_n_pt_open		; Hyp.cls 5286
+            ld a, (asm_1_3932_n_pt_has)		; Hyp.cls 5287
+            or a		; Hyp.cls 5288
+            jr nz, asm_1_3932_n_pt_two           ; (no such port) [5289]
+            ld hl, (asm_1_3932_n_pt_rec)		; Hyp.cls 5290
+            ld a, (asm_1_3932_n_pt_op)		; Hyp.cls 5291
+            cp 29		; Hyp.cls 5292
+            jr z, asm_1_3932_n_pt_close		; Hyp.cls 5293
+            cp 30		; Hyp.cls 5294
+            jp z, asm_1_3932_n_pt_call		; Hyp.cls 5295
+            cp 31		; Hyp.cls 5296
+            jp z, asm_1_3932_n_pt_poll		; Hyp.cls 5297
+            cp 32		; Hyp.cls 5298
+            jp z, asm_1_3932_n_pt_recv		; Hyp.cls 5299
+            jp asm_1_3932_n_pt_reply		; Hyp.cls 5300
+asm_1_3932_n_pt_two:		; Hyp.cls 5301
+            ld a, 2		; Hyp.cls 5302
+            jr asm_1_3932_n_pt_ret		; Hyp.cls 5303
+asm_1_3932_n_pt_one:		; Hyp.cls 5304
+            ld a, 1		; Hyp.cls 5305
+asm_1_3932_n_pt_ret:		; Hyp.cls 5306
+            ld sp, (asm_1_3932_n_sv_sp)		; Hyp.cls 5307
+            ret		; Hyp.cls 5308
+; 28: open
+asm_1_3932_n_pt_open:		; Hyp.cls 5310
+            ld a, (asm_1_3932_n_pt_has)		; Hyp.cls 5311
+            or a		; Hyp.cls 5312
+            jr nz, asm_1_3932_n_po_new		; Hyp.cls 5313
+            ld hl, (asm_1_3932_n_pt_rec)		; Hyp.cls 5314
+            ld a, (asm_1_3932_n_pt_me)		; Hyp.cls 5315
+            cp (hl)		; Hyp.cls 5316
+            jp z, asm_1_3932_n_sv_ok		; Hyp.cls 5317
+            jr asm_1_3932_n_pt_two		; Hyp.cls 5318
+asm_1_3932_n_po_new:		; Hyp.cls 5319
+            ld hl, (asm_1_3932_n_pt_fr)		; Hyp.cls 5320
+            ld a, h		; Hyp.cls 5321
+            or l		; Hyp.cls 5322
+            jp z, asm_1_3932_n_sv_err		; Hyp.cls 5323
+            ld a, (asm_1_3932_n_pt_me)		; Hyp.cls 5324
+            ld (hl), a		; Hyp.cls 5325
+            inc hl		; Hyp.cls 5326
+            ex de, hl		; Hyp.cls 5327
+            ld hl, asm_1_3932_n_sv_blk + 2		; Hyp.cls 5328
+            ld bc, 8		; Hyp.cls 5329
+            ldir		; Hyp.cls 5330
+            ex de, hl		; Hyp.cls 5331
+            xor a		; Hyp.cls 5332
+            ld (hl), a              ; free [5333]
+            inc hl		; Hyp.cls 5334
+            ld (hl), a              ; no caller [5335]
+            jp asm_1_3932_n_sv_ok		; Hyp.cls 5336
+; 29: close
+asm_1_3932_n_pt_close:		; Hyp.cls 5338
+            ld a, (asm_1_3932_n_pt_me)		; Hyp.cls 5339
+            cp (hl)		; Hyp.cls 5340
+            jr nz, asm_1_3932_n_pt_two		; Hyp.cls 5341
+            ld (hl), 0		; Hyp.cls 5342
+            jp asm_1_3932_n_sv_ok		; Hyp.cls 5343
+; 30: call - the message into the box (the box busy: 1)
+asm_1_3932_n_pt_call:		; Hyp.cls 5345
+            ld de, 9		; Hyp.cls 5346
+            add hl, de		; Hyp.cls 5347
+            ld a, (hl)		; Hyp.cls 5348
+            or a		; Hyp.cls 5349
+            jr nz, asm_1_3932_n_pt_one		; Hyp.cls 5350
+            inc hl		; Hyp.cls 5351
+            ld a, (asm_1_3932_n_pt_me)		; Hyp.cls 5352
+            ld (hl), a              ; the caller [5353]
+            inc hl		; Hyp.cls 5354
+            ld a, (asm_1_3932_n_sv_blk + 12)		; Hyp.cls 5355
+            ld (hl), a              ; the length [5356]
+            inc hl		; Hyp.cls 5357
+            ex de, hl               ; DE = the box [5358]
+            ld c, a		; Hyp.cls 5359
+            ld b, 0		; Hyp.cls 5360
+            ld a, b		; Hyp.cls 5361
+            or c		; Hyp.cls 5362
+            jr z, asm_1_3932_n_pc_0		; Hyp.cls 5363
+            ld hl, (asm_1_3932_n_sv_blk + 10)		; Hyp.cls 5364
+            call asm_1_3932_n_sv_in		; Hyp.cls 5365
+asm_1_3932_n_pc_0:		; Hyp.cls 5366
+            ld hl, (asm_1_3932_n_pt_rec)		; Hyp.cls 5367
+            ld de, 9		; Hyp.cls 5368
+            add hl, de		; Hyp.cls 5369
+            ld (hl), 1              ; a message in [5370]
+            jp asm_1_3932_n_sv_ok		; Hyp.cls 5371
+; 31: the answer to this slot's call
+asm_1_3932_n_pt_poll:		; Hyp.cls 5373
+            ld de, 9		; Hyp.cls 5374
+            add hl, de		; Hyp.cls 5375
+            ld a, (hl)		; Hyp.cls 5376
+            or a		; Hyp.cls 5377
+            jp z, asm_1_3932_n_pt_two            ; (no call) [5378]
+            inc hl		; Hyp.cls 5379
+            ld a, (asm_1_3932_n_pt_me)		; Hyp.cls 5380
+            cp (hl)		; Hyp.cls 5381
+            jp nz, asm_1_3932_n_pt_two           ; (not this slot's call) [5382]
+            dec hl		; Hyp.cls 5383
+            ld a, (hl)		; Hyp.cls 5384
+            cp 3		; Hyp.cls 5385
+            jp nz, asm_1_3932_n_pt_one           ; not answered yet [5386]
+            ld (hl), 0              ; the box free again [5387]
+            inc hl		; Hyp.cls 5388
+            ld (hl), 0		; Hyp.cls 5389
+            call asm_1_3932_n_pt_give            ; the answer to the slot, its length to Byte(12) [5390]
+            jp asm_1_3932_n_sv_ok		; Hyp.cls 5391
+; 32: the server's next message
+asm_1_3932_n_pt_recv:		; Hyp.cls 5393
+            ld a, (asm_1_3932_n_pt_me)		; Hyp.cls 5394
+            cp (hl)		; Hyp.cls 5395
+            jp nz, asm_1_3932_n_pt_two		; Hyp.cls 5396
+            ld de, 9		; Hyp.cls 5397
+            add hl, de		; Hyp.cls 5398
+            ld a, (hl)		; Hyp.cls 5399
+            cp 1		; Hyp.cls 5400
+            jp nz, asm_1_3932_n_pt_one           ; nothing in [5401]
+            ld (hl), 2              ; received [5402]
+            call asm_1_3932_n_pt_give		; Hyp.cls 5403
+            jp asm_1_3932_n_sv_ok		; Hyp.cls 5404
+; 33: the server's reply
+asm_1_3932_n_pt_reply:		; Hyp.cls 5406
+            ld a, (asm_1_3932_n_pt_me)		; Hyp.cls 5407
+            cp (hl)		; Hyp.cls 5408
+            jp nz, asm_1_3932_n_pt_two		; Hyp.cls 5409
+            ld de, 9		; Hyp.cls 5410
+            add hl, de		; Hyp.cls 5411
+            ld a, (hl)		; Hyp.cls 5412
+            cp 2		; Hyp.cls 5413
+            jp nz, asm_1_3932_n_pt_two           ; (nothing received to reply to) [5414]
+            inc hl		; Hyp.cls 5415
+            ld a, (hl)		; Hyp.cls 5416
+            dec hl		; Hyp.cls 5417
+            or a		; Hyp.cls 5418
+            jr nz, asm_1_3932_n_pr_1		; Hyp.cls 5419
+            ld (hl), a              ; its caller gone: dropped, the box free [5420]
+            jp asm_1_3932_n_sv_ok		; Hyp.cls 5421
+asm_1_3932_n_pr_1:		; Hyp.cls 5422
+            ld (hl), 3              ; answered [5423]
+            inc hl		; Hyp.cls 5424
+            inc hl		; Hyp.cls 5425
+            ld a, (asm_1_3932_n_sv_blk + 12)		; Hyp.cls 5426
+            ld (hl), a		; Hyp.cls 5427
+            inc hl		; Hyp.cls 5428
+            ex de, hl		; Hyp.cls 5429
+            ld c, a		; Hyp.cls 5430
+            ld b, 0		; Hyp.cls 5431
+            ld a, b		; Hyp.cls 5432
+            or c		; Hyp.cls 5433
+            jp z, asm_1_3932_n_sv_ok		; Hyp.cls 5434
+            ld hl, (asm_1_3932_n_sv_blk + 10)		; Hyp.cls 5435
+            call asm_1_3932_n_sv_in		; Hyp.cls 5436
+            jp asm_1_3932_n_sv_ok		; Hyp.cls 5437
+; 34: port Byte(1) (0-7) - its name to the request's Byte(2-9), its slot to Byte(10) (0: free);
+; 255 no such port number (PROBE lists the services with it)
+asm_1_3932_n_pt_list:		; Hyp.cls 5440
+            ld a, (asm_1_3932_n_sv_blk + 1)		; Hyp.cls 5441
+            cp asm_1_3932_n_PT_N		; Hyp.cls 5442
+            jp nc, asm_1_3932_n_sv_err		; Hyp.cls 5443
+            ld hl, asm_1_3932_n_pt_tab		; Hyp.cls 5444
+            ld de, asm_1_3932_n_PT_SZ		; Hyp.cls 5445
+            or a		; Hyp.cls 5446
+            jr z, asm_1_3932_n_pl_2		; Hyp.cls 5447
+            ld b, a		; Hyp.cls 5448
+asm_1_3932_n_pl_1:		; Hyp.cls 5449
+            add hl, de		; Hyp.cls 5450
+            djnz asm_1_3932_n_pl_1		; Hyp.cls 5451
+asm_1_3932_n_pl_2:		; Hyp.cls 5452
+            ld a, (hl)              ; the slot (0 free) [5453]
+            inc hl		; Hyp.cls 5454
+            ld de, asm_1_3932_n_sv_rec		; Hyp.cls 5455
+            ld bc, 8		; Hyp.cls 5456
+            ldir		; Hyp.cls 5457
+            ld (de), a		; Hyp.cls 5458
+            ld hl, (var_hyp_svc_p)		; Hyp.cls 5459
+            ld de, 2		; Hyp.cls 5460
+            add hl, de		; Hyp.cls 5461
+            ex de, hl		; Hyp.cls 5462
+            ld hl, asm_1_3932_n_sv_rec		; Hyp.cls 5463
+            ld bc, 9		; Hyp.cls 5464
+            call asm_1_3932_n_sv_out		; Hyp.cls 5465
+            jp asm_1_3932_n_sv_ok		; Hyp.cls 5466
+; pt_give - the port's box (pt_rec) to the slot's Word(10); its length and the caller to the
+; request's Byte(12), Byte(13)
+asm_1_3932_n_pt_give:		; Hyp.cls 5469
+            ld hl, (asm_1_3932_n_pt_rec)		; Hyp.cls 5470
+            ld de, 10		; Hyp.cls 5471
+            add hl, de		; Hyp.cls 5472
+            ld a, (hl)		; Hyp.cls 5473
+            ld (asm_1_3932_n_pt_tmp + 1), a      ; the caller [5474]
+            inc hl		; Hyp.cls 5475
+            ld a, (hl)		; Hyp.cls 5476
+            ld (asm_1_3932_n_pt_tmp), a          ; the length [5477]
+            inc hl		; Hyp.cls 5478
+            ld c, a		; Hyp.cls 5479
+            ld b, 0		; Hyp.cls 5480
+            or a		; Hyp.cls 5481
+            jr z, asm_1_3932_n_pg_0		; Hyp.cls 5482
+            ld de, (asm_1_3932_n_sv_blk + 10)		; Hyp.cls 5483
+            call asm_1_3932_n_sv_out		; Hyp.cls 5484
+asm_1_3932_n_pg_0:		; Hyp.cls 5485
+            ld hl, (var_hyp_svc_p)		; Hyp.cls 5486
+            ld de, 12		; Hyp.cls 5487
+            add hl, de		; Hyp.cls 5488
+            ex de, hl		; Hyp.cls 5489
+            ld hl, asm_1_3932_n_pt_tmp		; Hyp.cls 5490
+            ld bc, 2		; Hyp.cls 5491
+            jp asm_1_3932_n_sv_out		; Hyp.cls 5492
+; pt_find - Z: HL = the port named sv_blk's Byte(2-9), else NZ; pt_fr: a free record (0 none)
+asm_1_3932_n_pt_find:		; Hyp.cls 5494
+            ld hl, 0		; Hyp.cls 5495
+            ld (asm_1_3932_n_pt_fr), hl		; Hyp.cls 5496
+            ld hl, asm_1_3932_n_pt_tab		; Hyp.cls 5497
+            ld b, asm_1_3932_n_PT_N		; Hyp.cls 5498
+asm_1_3932_n_pf_1:		; Hyp.cls 5499
+            ld a, (hl)		; Hyp.cls 5500
+            or a		; Hyp.cls 5501
+            jr nz, asm_1_3932_n_pf_2		; Hyp.cls 5502
+            ld a, (asm_1_3932_n_pt_fr + 1)		; Hyp.cls 5503
+            or a		; Hyp.cls 5504
+            jr nz, asm_1_3932_n_pf_n		; Hyp.cls 5505
+            ld (asm_1_3932_n_pt_fr), hl		; Hyp.cls 5506
+            jr asm_1_3932_n_pf_n		; Hyp.cls 5507
+asm_1_3932_n_pf_2:		; Hyp.cls 5508
+            push hl		; Hyp.cls 5509
+            push bc		; Hyp.cls 5510
+            inc hl		; Hyp.cls 5511
+            ld de, asm_1_3932_n_sv_blk + 2		; Hyp.cls 5512
+            ld b, 8		; Hyp.cls 5513
+asm_1_3932_n_pf_3:		; Hyp.cls 5514
+            ld a, (de)		; Hyp.cls 5515
+            cp (hl)		; Hyp.cls 5516
+            jr nz, asm_1_3932_n_pf_4		; Hyp.cls 5517
+            inc hl		; Hyp.cls 5518
+            inc de		; Hyp.cls 5519
+            djnz asm_1_3932_n_pf_3		; Hyp.cls 5520
+asm_1_3932_n_pf_4:		; Hyp.cls 5521
+            pop bc		; Hyp.cls 5522
+            pop hl		; Hyp.cls 5523
+            ret z		; Hyp.cls 5524
+asm_1_3932_n_pf_n:		; Hyp.cls 5525
+            ld de, asm_1_3932_n_PT_SZ		; Hyp.cls 5526
+            add hl, de		; Hyp.cls 5527
+            djnz asm_1_3932_n_pf_1		; Hyp.cls 5528
+            or 1		; Hyp.cls 5529
+            ret		; Hyp.cls 5530
+; pt_free - slot C's ports closed; its calls forgotten (a message not received yet, an answer not
+; taken: the box free; one being worked on: its reply dropped). Keeps C
+asm_1_3932_n_pt_free:		; Hyp.cls 5533
+            ld hl, asm_1_3932_n_pt_tab		; Hyp.cls 5534
+            ld b, asm_1_3932_n_PT_N		; Hyp.cls 5535
+asm_1_3932_n_pt_fr1:		; Hyp.cls 5536
+            ld a, (hl)		; Hyp.cls 5537
+            cp c		; Hyp.cls 5538
+            jr nz, asm_1_3932_n_pt_fr2		; Hyp.cls 5539
+            ld (hl), 0		; Hyp.cls 5540
+asm_1_3932_n_pt_fr2:		; Hyp.cls 5541
+            push hl		; Hyp.cls 5542
+            ld de, 10		; Hyp.cls 5543
+            add hl, de		; Hyp.cls 5544
+            ld a, (hl)		; Hyp.cls 5545
+            cp c		; Hyp.cls 5546
+            jr nz, asm_1_3932_n_pt_fr4		; Hyp.cls 5547
+            ld (hl), 0              ; no caller [5548]
+            dec hl		; Hyp.cls 5549
+            ld a, (hl)		; Hyp.cls 5550
+            cp 2		; Hyp.cls 5551
+            jr z, asm_1_3932_n_pt_fr4            ; (being worked on: its reply dropped then) [5552]
+            ld (hl), 0		; Hyp.cls 5553
+asm_1_3932_n_pt_fr4:		; Hyp.cls 5554
+            pop hl		; Hyp.cls 5555
+            ld de, asm_1_3932_n_PT_SZ		; Hyp.cls 5556
+            add hl, de		; Hyp.cls 5557
+            djnz asm_1_3932_n_pt_fr1		; Hyp.cls 5558
+            ret		; Hyp.cls 5559
+asm_1_3932_n_pt_op:      db 0		; Hyp.cls 5560
+asm_1_3932_n_pt_has:     db 0		; Hyp.cls 5561
+asm_1_3932_n_pt_me:      db 0		; Hyp.cls 5562
+asm_1_3932_n_pt_rec:     dw 0		; Hyp.cls 5563
+asm_1_3932_n_pt_fr:      dw 0		; Hyp.cls 5564
+asm_1_3932_n_pt_tmp:     dw 0		; Hyp.cls 5565
+asm_1_3932_n_nt_rom:     db 255		; Hyp.cls 5566
+asm_1_3932_n_nt_old:     dw 0		; Hyp.cls 5567
+asm_1_3932_n_nt_rsp:     dw 0		; Hyp.cls 5568
+asm_1_3932_n_nt_skt:     dw 0		; Hyp.cls 5569
+asm_1_3932_n_nt_own:     ds asm_1_3932_n_NT_N		; Hyp.cls 5570
+asm_1_3932_n_sv_sp:      dw 0		; Hyp.cls 5571
+asm_1_3932_n_sv_n:       dw 0		; Hyp.cls 5572
+asm_1_3932_n_sv_c:       dw 0		; Hyp.cls 5573
+asm_1_3932_n_sv_sk:      db 0		; Hyp.cls 5574
+asm_1_3932_n_sv_ss:      dw 0		; Hyp.cls 5575
+asm_1_3932_n_sv_sa:      dw 0		; Hyp.cls 5576
+asm_1_3932_n_sv_dk:      db 0		; Hyp.cls 5577
+asm_1_3932_n_sv_ds:      dw 0		; Hyp.cls 5578
+asm_1_3932_n_sv_da:      dw 0		; Hyp.cls 5579
+asm_1_3932_n_sv_stop:    db 0		; Hyp.cls 5580
+asm_1_3932_n_sv_tj:      db 0		; Hyp.cls 5581
+asm_1_3932_n_sv_tn:      db 0		; Hyp.cls 5582
+asm_1_3932_n_sv_tsg:     dw 0		; Hyp.cls 5583
+asm_1_3932_n_sv_blk:     ds 16		; Hyp.cls 5584
+asm_1_3932_n_sv_tmp:     ds 16		; Hyp.cls 5585
+asm_1_3932_n_sv_rec:     ds 128		; Hyp.cls 5586
+asm_1_3932_n_sv_cl:      ds asm_1_3932_n_CL_N * 10            ; the claims (16-19; table 4) [5587]
+asm_1_3932_n_nt_pk:      ds 256                  ; a packet to the M4 (21-27) [5588]
+asm_1_3932_n_pt_tab:     ds asm_1_3932_n_PT_N * asm_1_3932_n_PT_SZ         ; the ports (28-33) [5589]
+asm_1_3932_n_sv_end:		; Hyp.cls 5590
+            ASSERT asm_1_3932_n_sv_end <= #8000, "the service page's code"		; Hyp.cls 5591
 			ENDM
 ; ============================================================
 ; NTC program - generated by NTC BASIC (VB style BASIC to NTC)
@@ -3878,16 +4199,20 @@ if40_2:
 			; Main.bas 264: Bdos t
 			dw p_bdos_c, var_runnext_t
 
-			; Main.bas 268: n = n + 1
+			; Main.bas 269: n = n + 1
 			dw kw_inc, var_runnext_n
 
-			; Main.bas 269: If c = 131 Then c = 13
+			; Main.bas 270: If c = 131 Or c = 128 Then c = 13
 			dw kw_cpeqvl, var_runnext_c, 131
-			dw kw_goto_iffalse_n, if42_1
+			dw kw_ftov, tmp0
+			dw kw_cpeqvl, var_runnext_c, 128
+			dw kw_ftov, tmp1
+			dw kw_orvv, tmp0, tmp1, tmp0
+			dw kw_goto_ifzero_n, tmp0, if42_1
 			dw kw_ltov, 13, var_runnext_c
 if42_1:
 
-			; Main.bas 270: If c < 13 Or c > 36 Or n >= 32 Or st(t) <> 2 Then Exit Do
+			; Main.bas 271: If c < 13 Or c > 36 Or n >= 32 Or st(t) <> 2 Or wk(t) <> -1 Then Exit Do   ' (asleep: a port's wait)
 			dw kw_scpltvl, var_runnext_c, 13
 			dw kw_ftov, tmp0
 			dw kw_scpgtvl, var_runnext_c, 36
@@ -3900,14 +4225,18 @@ if42_1:
 			dw kw_cpnevl, tmp1, 2
 			dw kw_ftov, tmp1
 			dw kw_orvv, tmp0, tmp1, tmp0
+			dw kw_aget, arr_wk, var_runnext_t, tmp1
+			dw kw_cpnevl, tmp1, -1
+			dw kw_ftov, tmp1
+			dw kw_orvv, tmp0, tmp1, tmp0
 			dw kw_goto_ifzero_n, tmp0, do36_t
 			dw do36_e_go
 if43_1:
 
-			; Main.bas 271: End If
+			; Main.bas 272: End If
 if40_e:
 
-			; Main.bas 272: Loop
+			; Main.bas 273: Loop
 			dw do36_t_go
 do36_e:
 			dw p_runnext_r
@@ -3926,9 +4255,9 @@ ntc_rg5:
 
 p_bdos:
 
-			; Main.bas 277: Dim f As Integer, e As Integer, a As Integer
+			; Main.bas 278: Dim f As Integer, e As Integer, a As Integer
 
-			; Main.bas 278: f = Hyp.Fn() : e = Hyp.Arg() And 255 : a = 0
+			; Main.bas 279: f = Hyp.Fn() : e = Hyp.Arg() And 255 : a = 0
 			dw p_hyp_fn_c
 			dw kw_vtov, var_hyp_fn_fn, var_bdos_f
 			dw p_hyp_arg_c
@@ -3936,44 +4265,44 @@ p_bdos:
 			dw kw_andvl, tmp0, 255, var_bdos_e
 			dw kw_ztov, var_bdos_a
 
-			; Main.bas 279: nb(t) = nb(t) + 1
+			; Main.bas 280: nb(t) = nb(t) + 1
 			dw kw_aget, arr_nb, var_bdos_t, tmp1
 			dw kw_inc, tmp1
 			dw kw_aset, arr_nb, var_bdos_t, tmp1
 
-			; Main.bas 280: wk(t) = -1
+			; Main.bas 281: wk(t) = -1
 			dw kw_asetl, arr_wk, var_bdos_t, -1
 
-			; Main.bas 281: If f = 40 Then f = 34           ' write random with zero fill: as 34
+			; Main.bas 282: If f = 40 Then f = 34           ' write random with zero fill: as 34
 			dw kw_cpeqvl, var_bdos_f, 40
 			dw kw_goto_iffalse_n, if44_1
 			dw kw_ltov, 34, var_bdos_f
 if44_1:
 
-			; Main.bas 282: Select Case f
+			; Main.bas 283: Select Case f
 			dw kw_vtov, var_bdos_f, var_bdos___sel45
 
-			; Main.bas 283: Case 0
+			; Main.bas 284: Case 0
 			dw kw_cpeqvl, var_bdos___sel45, 0
 			dw kw_goto_iffalse_n, sel45_1
 sel45_b1:
 
-			; Main.bas 284: EndTask t
+			; Main.bas 285: EndTask t
 			dw p_endtask_c, var_bdos_t
 
-			; Main.bas 285: Exit Sub
+			; Main.bas 286: Exit Sub
 			dw p_bdos_r
 
-			; Main.bas 306: Case 12
+			; Main.bas 307: Case 12
 sel45_1:
 			dw kw_cpeqvl, var_bdos___sel45, 12
 			dw kw_goto_iffalse_n, sel45_2
 sel45_b2:
 
-			; Main.bas 307: a = &H22                    ' CP/M 2.2
+			; Main.bas 308: a = &H22                    ' CP/M 2.2
 			dw kw_ltov, 34, var_bdos_a
 
-			; Main.bas 308: Case 13, 32                   ' reset the discs; user number: nothing to do here
+			; Main.bas 309: Case 13, 32                   ' reset the discs; user number: nothing to do here
 			dw sel45_e_go
 sel45_2:
 			dw kw_cpeqvl, var_bdos___sel45, 13
@@ -3982,28 +4311,28 @@ sel45_2:
 			dw kw_goto_iffalse_n, sel45_3
 sel45_b3:
 
-			; Main.bas 309: a = 0
+			; Main.bas 310: a = 0
 			dw kw_ztov, var_bdos_a
 
-			; Main.bas 310: Case 14                       ' select a disc: the slot's drive (as CD)
+			; Main.bas 311: Case 14                       ' select a disc: the slot's drive (as CD)
 			dw sel45_e_go
 sel45_3:
 			dw kw_cpeqvl, var_bdos___sel45, 14
 			dw kw_goto_iffalse_n, sel45_4
 sel45_b4:
 
-			; Main.bas 313: dv(t) = 65 + e
+			; Main.bas 314: dv(t) = 65 + e
 			dw kw_addl, var_bdos_e, 65, tmp1
 			dw kw_aset, arr_dv, var_bdos_t, tmp1
 
-			; Main.bas 315: Case 25
+			; Main.bas 316: Case 25
 			dw sel45_e_go
 sel45_4:
 			dw kw_cpeqvl, var_bdos___sel45, 25
 			dw kw_goto_iffalse_n, sel45_5
 sel45_b5:
 
-			; Main.bas 319: If dv(t) = 0 Then a = 0 Else a = dv(t) - 65
+			; Main.bas 320: If dv(t) = 0 Then a = 0 Else a = dv(t) - 65
 			dw kw_aget, arr_dv, var_bdos_t, tmp0
 			dw kw_cpeqvl, tmp0, 0
 			dw kw_goto_iffalse_n, if46_1
@@ -4014,33 +4343,33 @@ if46_1:
 			dw kw_addl, tmp0, -65, var_bdos_a
 if46_e:
 
-			; Main.bas 321: Case 26                       ' the DMA address (CP/M's record buffer)
+			; Main.bas 322: Case 26                       ' the DMA address (CP/M's record buffer)
 			dw sel45_e_go
 sel45_5:
 			dw kw_cpeqvl, var_bdos___sel45, 26
 			dw kw_goto_iffalse_n, sel45_6
 sel45_b6:
 
-			; Main.bas 322: dm(t) = Hyp.Arg()
+			; Main.bas 323: dm(t) = Hyp.Arg()
 			dw p_hyp_arg_c
 			dw kw_aset, arr_dm, var_bdos_t, var_hyp_arg_arg
 
-			; Main.bas 323: Case 24                       ' the login vector: the slot's drive
+			; Main.bas 324: Case 24                       ' the login vector: the slot's drive
 			dw sel45_e_go
 sel45_6:
 			dw kw_cpeqvl, var_bdos___sel45, 24
 			dw kw_goto_iffalse_n, sel45_7
 sel45_b7:
 
-			; Main.bas 327: a = 1                       ' (a bit a drive: A 1, B 2, C 4 - A to H: the low byte)
+			; Main.bas 328: a = 1                       ' (a bit a drive: A 1, B 2, C 4 - A to H: the low byte)
 			dw kw_ltov, 1, var_bdos_a
 
-			; Main.bas 328: If dv(t) <> 0 Then
+			; Main.bas 329: If dv(t) <> 0 Then
 			dw kw_aget, arr_dv, var_bdos_t, tmp0
 			dw kw_cpnevl, tmp0, 0
 			dw kw_goto_iffalse_n, sel45_e
 
-			; Main.bas 329: For e = 1 To (dv(t) - 65) And 7
+			; Main.bas 330: For e = 1 To (dv(t) - 65) And 7
 			dw kw_ltov, 1, var_bdos_e
 			dw kw_aget, arr_dv, var_bdos_t, tmp0
 			dw kw_addl, tmp0, -65, tmp0
@@ -4048,17 +4377,17 @@ sel45_b7:
 			dw kw_forupv_n, var_bdos_e, for48_l, sel45_e
 for48_t:
 
-			; Main.bas 330: a = a * 2
+			; Main.bas 331: a = a * 2
 			dw kw_2x, var_bdos_a, var_bdos_a
 
-			; Main.bas 331: Next
+			; Main.bas 332: Next
 			dw kw_next1v_n, var_bdos_e, for48_l, for48_t
 for48_e:
 
-			; Main.bas 332: End If
+			; Main.bas 333: End If
 if47_1:
 
-			; Main.bas 334: Case 15 To 36                 ' files: Hyp.FileCall
+			; Main.bas 335: Case 15 To 36                 ' files: Hyp.FileCall
 			dw sel45_e_go
 sel45_7:
 			dw kw_scpltvl, var_bdos___sel45, 15
@@ -4067,7 +4396,7 @@ sel45_7:
 			dw kw_goto_iffalse_n, sel45_8
 sel45_b8:
 
-			; Main.bas 338: a = Hyp.FileCall(f, Hyp.Arg(), t, sg(t), dm(t), dv(t), VarPtr(rb))
+			; Main.bas 339: a = Hyp.FileCall(f, Hyp.Arg(), t, sg(t), dm(t), dv(t), VarPtr(rb))
 			dw p_hyp_arg_c
 			dw kw_vtov, var_hyp_arg_arg, tmp1
 			dw kw_aget, arr_sg, var_bdos_t, tmp3
@@ -4076,47 +4405,47 @@ sel45_b8:
 			dw p_hyp_filecall_c, var_bdos_f, tmp1, var_bdos_t, tmp3, tmp4, tmp5, vp_arr_rb
 			dw kw_vtov, var_hyp_filecall_filecall, var_bdos_a
 
-			; Main.bas 342: Case 130                      ' RAMDISC.CYB: the RAM discs' driver
+			; Main.bas 343: Case 130                      ' RAMDISC.CYB: the RAM discs' driver
 			dw sel45_e_go
 sel45_8:
 			dw kw_cpeqvl, var_bdos___sel45, 130
 			dw kw_goto_iffalse_n, sel45_9
 sel45_b9:
 
-			; Main.bas 343: a = RamDisc(t, Hyp.Arg())
+			; Main.bas 344: a = RamDisc(t, Hyp.Arg())
 			dw p_hyp_arg_c
 			dw kw_vtov, var_hyp_arg_arg, tmp1
 			dw p_ramdisc_c, var_bdos_t, tmp1
 			dw kw_vtov, var_ramdisc_ramdisc, var_bdos_a
 
-			; Main.bas 345: Case 131                      ' CyborgOS's own commands (PS, KILL, MEM ...)
+			; Main.bas 346: Case 131                      ' CyborgOS's own commands (PS, KILL, MEM ...)
 			dw sel45_e_go
 sel45_9:
 			dw kw_cpeqvl, var_bdos___sel45, 131
 			dw kw_goto_iffalse_n, sel45_10
 sel45_b10:
 
-			; Main.bas 346: a = Sys(t, Hyp.Arg())
+			; Main.bas 347: a = Sys(t, Hyp.Arg())
 			dw p_hyp_arg_c
 			dw kw_vtov, var_hyp_arg_arg, tmp1
 			dw p_sys_c, var_bdos_t, tmp1
 			dw kw_vtov, var_sys_sys, var_bdos_a
 
-			; Main.bas 347: Case 128
+			; Main.bas 348: Case 128
 			dw sel45_e_go
 sel45_10:
 			dw kw_cpeqvl, var_bdos___sel45, 128
 			dw kw_goto_iffalse_n, sel45_11
 sel45_b11:
 
-			; Main.bas 349: Case 129                      ' the stub's key wait (BDOS 1, 10, BIOS CONIN): sleep till a key
+			; Main.bas 350: Case 129                      ' the stub's key wait (BDOS 1, 10, BIOS CONIN): sleep till a key
 			dw sel45_e_go
 sel45_11:
 			dw kw_cpeqvl, var_bdos___sel45, 129
 			dw kw_goto_iffalse_n, sel45_12
 sel45_b12:
 
-			; Main.bas 350: If kq(t) = 0 Then wk(t) = Ticks
+			; Main.bas 351: If kq(t) = 0 Then wk(t) = Ticks
 			dw kw_aget, arr_kq, var_bdos_t, tmp0
 			dw kw_cpeqvl, tmp0, 0
 			dw kw_goto_iffalse_n, sel45_e
@@ -4124,17 +4453,17 @@ sel45_b12:
 			dw kw_aset, arr_wk, var_bdos_t, tmp1
 if49_1:
 
-			; Main.bas 351: Case Else
+			; Main.bas 352: Case Else
 			dw sel45_e_go
 sel45_12:
 
-			; Main.bas 352: a = 255
+			; Main.bas 353: a = 255
 			dw kw_ltov, 255, var_bdos_a
 
-			; Main.bas 353: End Select
+			; Main.bas 354: End Select
 sel45_e:
 
-			; Main.bas 354: ra(t) = a
+			; Main.bas 355: ra(t) = a
 			dw kw_aset, arr_ra, var_bdos_t, var_bdos_a
 			dw p_bdos_r
 
@@ -4152,37 +4481,37 @@ ntc_rg6:
 
 p_ramdisc:
 
-			; Main.bas 364: Dim g As Integer, o As Integer, f As Long
+			; Main.bas 365: Dim g As Integer, o As Integer, f As Long
 
-			; Main.bas 365: o = Memory.ReadByte(Far(t, p))
+			; Main.bas 366: o = Memory.ReadByte(Far(t, p))
 			dw p_far_c, var_ramdisc_t, var_ramdisc_p
 			dw kw_l_mov, var_far_far, ltmp0
 			dw fn_memory_readbyte, ltmp0, var_ramdisc_o
 
-			; Main.bas 366: If dp = 0 Then
+			; Main.bas 367: If dp = 0 Then
 			dw kw_cpeqvl, var_dp, 0
 			dw kw_goto_iffalse_n, if50_1
 
-			; Main.bas 367: RamDisc = 255
+			; Main.bas 368: RamDisc = 255
 			dw kw_ltov, 255, var_ramdisc_ramdisc
 
-			; Main.bas 368: If o = 3 Then Exit Function                              ' (the list: none)
+			; Main.bas 369: If o = 3 Then Exit Function                              ' (the list: none)
 			dw kw_cpeqvl, var_ramdisc_o, 3
 			dw kw_goto_iffalse_n, if51_1
 			dw p_ramdisc_r
 if51_1:
 
-			; Main.bas 369: dp = Memory.AllocPage(Memory.TypeUser)
+			; Main.bas 370: dp = Memory.AllocPage(Memory.TypeUser)
 			dw fn_memory_allocpage, lit_85, var_dp
 
-			; Main.bas 370: If dp = 0 Then RamDisc = 2 : Exit Function
+			; Main.bas 371: If dp = 0 Then RamDisc = 2 : Exit Function
 			dw kw_cpeqvl, var_dp, 0
 			dw kw_goto_iffalse_n, if52_1
 			dw kw_ltov, 2, var_ramdisc_ramdisc
 			dw p_ramdisc_r
 if52_1:
 
-			; Main.bas 371: f = Far(t, Memory.ReadWord(Far(t, p + 2)))                 ' (Far's FarPtr: one result for all calls)
+			; Main.bas 372: f = Far(t, Memory.ReadWord(Far(t, p + 2)))                 ' (Far's FarPtr: one result for all calls)
 			dw kw_addl, var_ramdisc_p, 2, tmp2
 			dw p_far_c, var_ramdisc_t, tmp2
 			dw kw_l_mov, var_far_far, ltmp1
@@ -4191,7 +4520,7 @@ if52_1:
 			dw p_far_c, var_ramdisc_t, tmp1
 			dw kw_l_mov, var_far_far, var_ramdisc_f
 
-			; Main.bas 372: Memory.Copy f, Hyp.FarPtr(dp, 0), Memory.ReadWord(Far(t, p + 4))
+			; Main.bas 373: Memory.Copy f, Hyp.FarPtr(dp, 0), Memory.ReadWord(Far(t, p + 4))
 			dw fn_hyp_farptr, var_dp, lit_0, var_hyp_farptr_farptr
 			dw kw_l_mov, var_hyp_farptr_farptr, ltmp1
 			dw kw_addl, var_ramdisc_p, 4, tmp3
@@ -4201,52 +4530,52 @@ if52_1:
 			dw kw_vtov, var_memory_readword_readword, tmp2
 			dw fn_memory_copy, var_ramdisc_f, ltmp1, tmp2, var_memory_copy_copy
 
-			; Main.bas 373: g = Memory.SelectPage(dp)
+			; Main.bas 374: g = Memory.SelectPage(dp)
 			dw fn_memory_selectpage, var_dp, var_ramdisc_g
 
-			; Main.bas 374: Hyp.UseDriver VarPtr(rb)
+			; Main.bas 375: Hyp.UseDriver VarPtr(rb)
 			dw p_hyp_usedriver_c, vp_arr_rb
 
-			; Main.bas 375: g = Hyp.FileCall(110, 0, 0, 0, 0, 0, 0)                    ' (its tables cleared)
+			; Main.bas 376: g = Hyp.FileCall(110, 0, 0, 0, 0, 0, 0)                    ' (its tables cleared)
 			dw p_hyp_filecall_c, lit_110, lit_0, lit_0, lit_0, lit_0, lit_0, lit_0
 			dw kw_vtov, var_hyp_filecall_filecall, var_ramdisc_g
 
-			; Main.bas 376: End If
+			; Main.bas 377: End If
 if50_1:
 
-			; Main.bas 377: g = 0
+			; Main.bas 378: g = 0
 			dw kw_ztov, var_ramdisc_g
 
-			; Main.bas 378: If o = 2 Then
+			; Main.bas 379: If o = 2 Then
 			dw kw_cpeqvl, var_ramdisc_o, 2
 			dw kw_goto_iffalse_n, if53_1
 
-			; Main.bas 379: g = Memory.AllocPage(Memory.TypeUser)
+			; Main.bas 380: g = Memory.AllocPage(Memory.TypeUser)
 			dw fn_memory_allocpage, lit_85, var_ramdisc_g
 
-			; Main.bas 380: RamDisc = 2
+			; Main.bas 381: RamDisc = 2
 			dw kw_ltov, 2, var_ramdisc_ramdisc
 
-			; Main.bas 381: If g = 0 Then Exit Function
+			; Main.bas 382: If g = 0 Then Exit Function
 			dw kw_cpeqvl, var_ramdisc_g, 0
 			dw kw_goto_iffalse_n, if54_1
 			dw p_ramdisc_r
 if54_1:
 
-			; Main.bas 382: RamDisc = Memory.SelectPage(g)
+			; Main.bas 383: RamDisc = Memory.SelectPage(g)
 			dw fn_memory_selectpage, var_ramdisc_g, var_ramdisc_ramdisc
 
-			; Main.bas 383: End If
+			; Main.bas 384: End If
 if53_1:
 
-			; Main.bas 384: RamDisc = Hyp.FileCall(116, p, t, sg(t), g, Hyp.Setting(), 0)
+			; Main.bas 385: RamDisc = Hyp.FileCall(116, p, t, sg(t), g, Hyp.Setting(), 0)
 			dw kw_aget, arr_sg, var_ramdisc_t, tmp3
 			dw fn_hyp_setting, var_hyp_setting_setting
 			dw kw_vtov, var_hyp_setting_setting, tmp5
 			dw p_hyp_filecall_c, lit_116, var_ramdisc_p, var_ramdisc_t, tmp3, var_ramdisc_g, tmp5, lit_0
 			dw kw_vtov, var_hyp_filecall_filecall, var_ramdisc_ramdisc
 
-			; Main.bas 385: If RamDisc < 0 Then RamDisc = Memory.FreePage(RamDisc And &H7FFF) : RamDisc = 0   ' (a page back: + #8000)
+			; Main.bas 386: If RamDisc < 0 Then RamDisc = Memory.FreePage(RamDisc And &H7FFF) : RamDisc = 0   ' (a page back: + #8000)
 			dw kw_scpltvl, var_ramdisc_ramdisc, 0
 			dw kw_goto_iffalse_n, if55_1
 			dw kw_andvl, var_ramdisc_ramdisc, 32767, tmp0
@@ -4254,7 +4583,7 @@ if53_1:
 			dw kw_ztov, var_ramdisc_ramdisc
 if55_1:
 
-			; Main.bas 386: If g <> 0 And RamDisc <> 0 Then RamDisc = Memory.FreePage(g) : RamDisc = 2
+			; Main.bas 387: If g <> 0 And RamDisc <> 0 Then RamDisc = Memory.FreePage(g) : RamDisc = 2
 			dw kw_cpnevl, var_ramdisc_g, 0
 			dw kw_ftov, tmp0
 			dw kw_cpnevl, var_ramdisc_ramdisc, 0
@@ -4280,13 +4609,13 @@ ntc_rg7:
 
 p_storesize:
 
-			; Main.bas 397: Dim n As Integer, j As Integer, g As Integer
+			; Main.bas 398: Dim n As Integer, j As Integer, g As Integer
 
-			; Main.bas 398: n = (kb + 15) \ 16
+			; Main.bas 399: n = (kb + 15) \ 16
 			dw kw_addl, var_storesize_kb, 15, tmp0
 			dw kw_divvl, tmp0, 16, var_storesize_n
 
-			; Main.bas 399: If kb < 0 Or n > 32 Then n = 32
+			; Main.bas 400: If kb < 0 Or n > 32 Then n = 32
 			dw kw_scpltvl, var_storesize_kb, 0
 			dw kw_ftov, tmp0
 			dw kw_scpgtvl, var_storesize_n, 32
@@ -4296,17 +4625,17 @@ p_storesize:
 			dw kw_ltov, 32, var_storesize_n
 if57_1:
 
-			; Main.bas 400: For j = 0 To 31
+			; Main.bas 401: For j = 0 To 31
 			dw kw_ztov, var_storesize_j
 for58_t:
 
-			; Main.bas 401: g = Memory.ReadByte(Far(t, STORE + j))
+			; Main.bas 402: g = Memory.ReadByte(Far(t, STORE + j))
 			dw kw_addl, var_storesize_j, -256, tmp1
 			dw p_far_c, var_storesize_t, tmp1
 			dw kw_l_mov, var_far_far, ltmp0
 			dw fn_memory_readbyte, ltmp0, var_storesize_g
 
-			; Main.bas 402: If j < n And g = 0 Then
+			; Main.bas 403: If j < n And g = 0 Then
 			dw kw_scpltvv, var_storesize_j, var_storesize_n
 			dw kw_ftov, tmp0
 			dw kw_cpeqvl, var_storesize_g, 0
@@ -4314,23 +4643,23 @@ for58_t:
 			dw kw_andvv, tmp0, tmp1, tmp0
 			dw kw_goto_ifzero_n, tmp0, if59_1
 
-			; Main.bas 403: g = Memory.AllocPage(Memory.TypeUser)
+			; Main.bas 404: g = Memory.AllocPage(Memory.TypeUser)
 			dw fn_memory_allocpage, lit_85, var_storesize_g
 
-			; Main.bas 404: If g = 0 Then StoreSize = 2 : Exit Function
+			; Main.bas 405: If g = 0 Then StoreSize = 2 : Exit Function
 			dw kw_cpeqvl, var_storesize_g, 0
 			dw kw_goto_iffalse_n, if60_1
 			dw kw_ltov, 2, var_storesize_storesize
 			dw p_storesize_r
 if60_1:
 
-			; Main.bas 405: Memory.WriteByte Far(t, STORE + j), g
+			; Main.bas 406: Memory.WriteByte Far(t, STORE + j), g
 			dw kw_addl, var_storesize_j, -256, tmp1
 			dw p_far_c, var_storesize_t, tmp1
 			dw kw_l_mov, var_far_far, ltmp0
 			dw fn_memory_writebyte, ltmp0, var_storesize_g
 
-			; Main.bas 406: ElseIf j >= n And g <> 0 Then
+			; Main.bas 407: ElseIf j >= n And g <> 0 Then
 			dw if59_e_go
 if59_1:
 			dw kw_scpgevv, var_storesize_j, var_storesize_n
@@ -4340,21 +4669,21 @@ if59_1:
 			dw kw_andvv, tmp0, tmp1, tmp0
 			dw kw_goto_ifzero_n, tmp0, if59_2
 
-			; Main.bas 407: g = Memory.FreePage(g)
+			; Main.bas 408: g = Memory.FreePage(g)
 			dw fn_memory_freepage, var_storesize_g, var_memory_freepage_freepage
 			dw kw_vtov, var_memory_freepage_freepage, var_storesize_g
 
-			; Main.bas 408: Memory.WriteByte Far(t, STORE + j), 0
+			; Main.bas 409: Memory.WriteByte Far(t, STORE + j), 0
 			dw kw_addl, var_storesize_j, -256, tmp1
 			dw p_far_c, var_storesize_t, tmp1
 			dw kw_l_mov, var_far_far, ltmp0
 			dw fn_memory_writebyte, ltmp0, lit_0
 
-			; Main.bas 409: End If
+			; Main.bas 410: End If
 if59_2:
 if59_e:
 
-			; Main.bas 410: Next
+			; Main.bas 411: Next
 			dw kw_next1l_n, var_storesize_j, 31, for58_t
 for58_e:
 			dw p_storesize_r
@@ -4373,27 +4702,27 @@ ntc_rg8:
 
 p_probediscs:
 
-			; Main.bas 419: Dim p As Integer, su As Integer, j As Integer, a As Integer, pg As Integer, r As Integer
+			; Main.bas 420: Dim p As Integer, su As Integer, j As Integer, a As Integer, pg As Integer, r As Integer
 
-			; Main.bas 420: ProbeDiscs = 0
+			; Main.bas 421: ProbeDiscs = 0
 			dw kw_ztov, var_probediscs_probediscs
 
-			; Main.bas 421: For p = 2 To Memory.Pages()
+			; Main.bas 422: For p = 2 To Memory.Pages()
 			dw kw_ltov, 2, var_probediscs_p
 			dw fn_memory_pages, for61_l
 			dw kw_forupv_n, var_probediscs_p, for61_l, for61_e
 for61_t:
 
-			; Main.bas 422: If Memory.PageType(p) = Memory.TypeFree Then
+			; Main.bas 423: If Memory.PageType(p) = Memory.TypeFree Then
 			dw fn_memory_pagetype, var_probediscs_p, var_memory_pagetype_pagetype
 			dw kw_vtov, var_memory_pagetype_pagetype, tmp0
 			dw kw_cpeqvl, tmp0, 45
 			dw kw_goto_iffalse_n, if62_1
 
-			; Main.bas 423: r = Memory.SelectPage(p)
+			; Main.bas 424: r = Memory.SelectPage(p)
 			dw fn_memory_selectpage, var_probediscs_p, var_probediscs_r
 
-			; Main.bas 424: If Peek(&H7F00) = 67 And Peek(&H7F01) = 89 And Peek(&H7F02) = 66 And Peek(&H7F03) = 68 And Peek(&H7F04) = &H5A And Peek(&H7F05) = &HCB Then
+			; Main.bas 425: If Peek(&H7F00) = 67 And Peek(&H7F01) = 89 And Peek(&H7F02) = 66 And Peek(&H7F03) = 68 And Peek(&H7F04) = &H5A And Peek(&H7F05) = &HCB Then
 			dw kw_lptrtov8, 32512, tmp0
 			dw kw_cpeqvl, tmp0, 67
 			dw kw_ftov, tmp0
@@ -4419,23 +4748,23 @@ for61_t:
 			dw kw_andvv, tmp0, tmp1, tmp0
 			dw kw_goto_ifzero_n, tmp0, if63_1
 
-			; Main.bas 425: su = 0
+			; Main.bas 426: su = 0
 			dw kw_ztov, var_probediscs_su
 
-			; Main.bas 426: For j = &H5400 To &H59FF
+			; Main.bas 427: For j = &H5400 To &H59FF
 			dw kw_ltov, 21504, var_probediscs_j
 for64_t:
 
-			; Main.bas 427: su = (su + Peek(j)) And &HFFFF
+			; Main.bas 428: su = (su + Peek(j)) And &HFFFF
 			dw kw_vptrtov8, var_probediscs_j, tmp1
 			dw kw_add, var_probediscs_su, tmp1, tmp0
 			dw kw_vtov, tmp0, var_probediscs_su
 
-			; Main.bas 428: Next
+			; Main.bas 429: Next
 			dw kw_next1l_n, var_probediscs_j, 23039, for64_t
 for64_e:
 
-			; Main.bas 429: If su = Peek(&H7F06) + Peek(&H7F07) * 256 Then
+			; Main.bas 430: If su = Peek(&H7F06) + Peek(&H7F07) * 256 Then
 			dw kw_lptrtov8, 32518, tmp1
 			dw kw_lptrtov8, 32519, tmp2
 			dw kw_mulvl, tmp2, 256, tmp2
@@ -4443,24 +4772,24 @@ for64_e:
 			dw kw_cpeqvv, var_probediscs_su, tmp1
 			dw kw_goto_iffalse_n, if65_1
 
-			; Main.bas 430: dp = Hyp.ClaimPage(p)
+			; Main.bas 431: dp = Hyp.ClaimPage(p)
 			dw p_hyp_claimpage_c, var_probediscs_p
 			dw kw_vtov, var_hyp_claimpage_claimpage, var_dp
 
-			; Main.bas 431: For j = 0 To 255                       ' the pages D_POOL lists (owner <> 0) back too
+			; Main.bas 432: For j = 0 To 255                       ' the pages D_POOL lists (owner <> 0) back too
 			dw kw_ztov, var_probediscs_j
 for66_t:
 
-			; Main.bas 432: a = &H5400 + j * 6
+			; Main.bas 433: a = &H5400 + j * 6
 			dw kw_mulvl, var_probediscs_j, 6, tmp1
 			dw kw_addl, tmp1, 21504, var_probediscs_a
 
-			; Main.bas 433: If Peek(a) <> 0 Then
+			; Main.bas 434: If Peek(a) <> 0 Then
 			dw kw_vptrtov8, var_probediscs_a, tmp0
 			dw kw_cpnevl, tmp0, 0
 			dw kw_goto_iffalse_n, if67_1
 
-			; Main.bas 434: pg = Peek(a + 2) + Peek(a + 3) * 256
+			; Main.bas 435: pg = Peek(a + 2) + Peek(a + 3) * 256
 			dw kw_addl, var_probediscs_a, 2, tmp0
 			dw kw_vptrtov8, tmp0, tmp0
 			dw kw_addl, var_probediscs_a, 3, tmp1
@@ -4468,39 +4797,39 @@ for66_t:
 			dw kw_mulvl, tmp1, 256, tmp1
 			dw kw_add, tmp0, tmp1, var_probediscs_pg
 
-			; Main.bas 435: r = Hyp.ClaimPage(pg)
+			; Main.bas 436: r = Hyp.ClaimPage(pg)
 			dw p_hyp_claimpage_c, var_probediscs_pg
 			dw kw_vtov, var_hyp_claimpage_claimpage, var_probediscs_r
 
-			; Main.bas 436: End If
+			; Main.bas 437: End If
 if67_1:
 
-			; Main.bas 437: Next
+			; Main.bas 438: Next
 			dw kw_next1l_n, var_probediscs_j, 255, for66_t
 for66_e:
 
-			; Main.bas 438: r = Memory.SelectPage(dp)
+			; Main.bas 439: r = Memory.SelectPage(dp)
 			dw fn_memory_selectpage, var_dp, var_probediscs_r
 
-			; Main.bas 439: Hyp.UseDriver VarPtr(rb)
+			; Main.bas 440: Hyp.UseDriver VarPtr(rb)
 			dw p_hyp_usedriver_c, vp_arr_rb
 
-			; Main.bas 440: ProbeDiscs = -1
+			; Main.bas 441: ProbeDiscs = -1
 			dw kw_ltov, -1, var_probediscs_probediscs
 
-			; Main.bas 441: Exit Function
+			; Main.bas 442: Exit Function
 			dw p_probediscs_r
 
-			; Main.bas 442: End If
+			; Main.bas 443: End If
 if65_1:
 
-			; Main.bas 443: End If
+			; Main.bas 444: End If
 if63_1:
 
-			; Main.bas 444: End If
+			; Main.bas 445: End If
 if62_1:
 
-			; Main.bas 445: Next
+			; Main.bas 446: Next
 			dw kw_next1v_n, var_probediscs_p, for61_l, for61_t
 for61_e:
 			dw p_probediscs_r
@@ -4519,9 +4848,9 @@ ntc_rg9:
 
 p_storefree:
 
-			; Main.bas 451: Dim r As Integer
+			; Main.bas 452: Dim r As Integer
 
-			; Main.bas 452: r = StoreSize(t, 0)
+			; Main.bas 453: r = StoreSize(t, 0)
 			dw p_storesize_c, var_storefree_t, lit_0
 			dw kw_vtov, var_storesize_storesize, var_storefree_r
 			dw p_storefree_r
@@ -4540,9 +4869,9 @@ ntc_rg10:
 
 p_sys:
 
-			; Main.bas 465: Dim o As Integer, s As Integer, d As Integer
+			; Main.bas 467: Dim o As Integer, s As Integer, d As Integer
 
-			; Main.bas 466: o = Memory.ReadByte(Far(t, p)) : s = Memory.ReadByte(Far(t, p + 1))
+			; Main.bas 468: o = Memory.ReadByte(Far(t, p)) : s = Memory.ReadByte(Far(t, p + 1))
 			dw p_far_c, var_sys_t, var_sys_p
 			dw kw_l_mov, var_far_far, ltmp0
 			dw fn_memory_readbyte, ltmp0, var_sys_o
@@ -4551,11 +4880,11 @@ p_sys:
 			dw kw_l_mov, var_far_far, ltmp0
 			dw fn_memory_readbyte, ltmp0, var_sys_s
 
-			; Main.bas 467: If o = 4 Then
+			; Main.bas 469: If o = 4 Then
 			dw kw_cpeqvl, var_sys_o, 4
 			dw kw_goto_iffalse_n, if68_1
 
-			; Main.bas 468: If Running() > 1 Then wt = t
+			; Main.bas 470: If Running() > 1 Then wt = t
 			dw p_running_c
 			dw kw_vtov, var_running_running, tmp0
 			dw kw_scpgtvl, tmp0, 1
@@ -4563,29 +4892,29 @@ p_sys:
 			dw kw_vtov, var_sys_t, var_wt
 if69_1:
 
-			; Main.bas 469: Exit Function
+			; Main.bas 471: Exit Function
 			dw p_sys_r
 
-			; Main.bas 470: ElseIf o = 6 Then
+			; Main.bas 472: ElseIf o = 6 Then
 if68_1:
 			dw kw_cpeqvl, var_sys_o, 6
 			dw kw_goto_iffalse_n, if68_2
 
-			; Main.bas 471: txs = t
+			; Main.bas 473: txs = t
 			dw kw_vtov, var_sys_t, var_txs
 
-			; Main.bas 472: TopLines front, 0
+			; Main.bas 474: TopLines front, 0
 			dw p_toplines_c, var_front, lit_0
 
-			; Main.bas 473: Exit Function
+			; Main.bas 475: Exit Function
 			dw p_sys_r
 
-			; Main.bas 474: ElseIf o = 9 Then                               ' MODE: s 0-4 this slot's mode (its console
+			; Main.bas 476: ElseIf o = 9 Then                               ' MODE: s 0-4 this slot's mode (its console
 if68_2:
 			dw kw_cpeqvl, var_sys_o, 9
 			dw kw_goto_iffalse_n, if68_3
 
-			; Main.bas 475: If s = 255 Then Sys = Memory.ReadByte(Far(t, Hyp.CMODE)) : Exit Function   ' cleared), 255: which
+			; Main.bas 477: If s = 255 Then Sys = Memory.ReadByte(Far(t, Hyp.CMODE)) : Exit Function   ' cleared), 255: which
 			dw kw_cpeqvl, var_sys_s, 255
 			dw kw_goto_iffalse_n, if70_1
 			dw p_far_c, var_sys_t, lit_m2423
@@ -4594,20 +4923,20 @@ if68_2:
 			dw p_sys_r
 if70_1:
 
-			; Main.bas 476: If s > 5 Then Sys = 255 : Exit Function                                     ' it is
+			; Main.bas 478: If s > 5 Then Sys = 255 : Exit Function                                     ' it is
 			dw kw_scpgtvl, var_sys_s, 5
 			dw kw_goto_iffalse_n, if71_1
 			dw kw_ltov, 255, var_sys_sys
 			dw p_sys_r
 if71_1:
 
-			; Main.bas 477: SetMode t, s
+			; Main.bas 479: SetMode t, s
 			dw p_setmode_c, var_sys_t, var_sys_s
 
-			; Main.bas 478: Exit Function
+			; Main.bas 480: Exit Function
 			dw p_sys_r
 
-			; Main.bas 481: ElseIf o = 10 Or o = 11 Or o >= 13 Then         ' memory, the pointer, the store's blocks, tables,
+			; Main.bas 483: ElseIf o = 10 Or o = 11 Or o >= 13 Then         ' memory, the pointer, the store's blocks, tables,
 if68_3:
 			dw kw_cpeqvl, var_sys_o, 10
 			dw kw_ftov, tmp0
@@ -4619,20 +4948,31 @@ if68_3:
 			dw kw_orvv, tmp0, tmp1, tmp0
 			dw kw_goto_ifzero_n, tmp0, if68_4
 
-			; Main.bas 482: Sys = Hyp.Svc(t, p, sg(t), VarPtr(rb))       ' the claims (16-19): in the service page
+			; Main.bas 484: Sys = Hyp.Svc(t, p, sg(t), VarPtr(rb))       ' the claims (16-19), the network, the ports
 			dw kw_aget, arr_sg, var_sys_t, tmp2
 			dw p_hyp_svc_c, var_sys_t, var_sys_p, tmp2, vp_arr_rb
 			dw kw_vtov, var_hyp_svc_svc, var_sys_sys
 
-			; Main.bas 483: Exit Function
+			; Main.bas 485: If Sys = 1 And o >= 30 Then wk(t) = Ticks    ' (28-33): in the service page. A port's "not yet":
+			dw kw_cpeqvl, var_sys_sys, 1
+			dw kw_ftov, tmp0
+			dw kw_scpgevl, var_sys_o, 30
+			dw kw_ftov, tmp1
+			dw kw_andvv, tmp0, tmp1, tmp0
+			dw kw_goto_ifzero_n, tmp0, if72_1
+			dw kw_ticks, tmp1
+			dw kw_aset, arr_wk, var_sys_t, tmp1
+if72_1:
+
+			; Main.bas 486: Exit Function                                ' the slot sleeps a tick, as for a key
 			dw p_sys_r
 
-			; Main.bas 484: ElseIf o = 12 Then                              ' the slot's store: Word(2) K (16K pages, 512K at most)
+			; Main.bas 487: ElseIf o = 12 Then                              ' the slot's store: Word(2) K (16K pages, 512K at most)
 if68_4:
 			dw kw_cpeqvl, var_sys_o, 12
 			dw kw_goto_iffalse_n, if68_5
 
-			; Main.bas 485: Sys = StoreSize(t, Memory.ReadWord(Far(t, p + 2)))
+			; Main.bas 488: Sys = StoreSize(t, Memory.ReadWord(Far(t, p + 2)))
 			dw kw_addl, var_sys_p, 2, tmp2
 			dw p_far_c, var_sys_t, tmp2
 			dw kw_l_mov, var_far_far, ltmp1
@@ -4641,15 +4981,15 @@ if68_4:
 			dw p_storesize_c, var_sys_t, tmp1
 			dw kw_vtov, var_storesize_storesize, var_sys_sys
 
-			; Main.bas 486: Exit Function
+			; Main.bas 489: Exit Function
 			dw p_sys_r
 
-			; Main.bas 490: ElseIf o = 7 Then
+			; Main.bas 493: ElseIf o = 7 Then
 if68_5:
 			dw kw_cpeqvl, var_sys_o, 7
 			dw kw_goto_iffalse_n, if68_6
 
-			; Main.bas 491: Memory.WriteWord Far(t, p + 2), Memory.TableEnd()
+			; Main.bas 494: Memory.WriteWord Far(t, p + 2), Memory.TableEnd()
 			dw kw_addl, var_sys_p, 2, tmp1
 			dw p_far_c, var_sys_t, tmp1
 			dw kw_l_mov, var_far_far, ltmp0
@@ -4657,7 +4997,7 @@ if68_5:
 			dw kw_vtov, var_memory_tableend_tableend, tmp1
 			dw fn_memory_writeword, ltmp0, tmp1
 
-			; Main.bas 492: Memory.WriteWord Far(t, p + 4), Memory.Top()
+			; Main.bas 495: Memory.WriteWord Far(t, p + 4), Memory.Top()
 			dw kw_addl, var_sys_p, 4, tmp1
 			dw p_far_c, var_sys_t, tmp1
 			dw kw_l_mov, var_far_far, ltmp0
@@ -4665,7 +5005,7 @@ if68_5:
 			dw kw_vtov, var_memory_top_top, tmp1
 			dw fn_memory_writeword, ltmp0, tmp1
 
-			; Main.bas 493: Memory.WriteWord Far(t, p + 6), Memory.Pages()
+			; Main.bas 496: Memory.WriteWord Far(t, p + 6), Memory.Pages()
 			dw kw_addl, var_sys_p, 6, tmp1
 			dw p_far_c, var_sys_t, tmp1
 			dw kw_l_mov, var_far_far, ltmp0
@@ -4673,22 +5013,22 @@ if68_5:
 			dw kw_vtov, var_memory_pages_pages, tmp1
 			dw fn_memory_writeword, ltmp0, tmp1
 
-			; Main.bas 494: Totals
+			; Main.bas 497: Totals
 			dw p_totals_c
 
-			; Main.bas 495: PutEn t, p + 8
+			; Main.bas 498: PutEn t, p + 8
 			dw kw_addl, var_sys_p, 8, tmp1
 			dw p_puten_c, var_sys_t, tmp1
 
-			; Main.bas 496: Exit Function
+			; Main.bas 499: Exit Function
 			dw p_sys_r
 
-			; Main.bas 497: ElseIf o = 8 Then
+			; Main.bas 500: ElseIf o = 8 Then
 if68_6:
 			dw kw_cpeqvl, var_sys_o, 8
 			dw kw_goto_iffalse_n, if68_7
 
-			; Main.bas 498: en = Memory.Map(Memory.ReadWord(Far(t, p + 2)), 32)
+			; Main.bas 501: en = Memory.Map(Memory.ReadWord(Far(t, p + 2)), 32)
 			dw kw_addl, var_sys_p, 2, tmp1
 			dw p_far_c, var_sys_t, tmp1
 			dw kw_l_mov, var_far_far, ltmp0
@@ -4697,128 +5037,128 @@ if68_6:
 			dw fn_memory_map, tmp0, lit_32, var_memory_map_map
 			dw kw_strcpy, var_en, var_memory_map_map
 
-			; Main.bas 499: PutEn t, p + 4
+			; Main.bas 502: PutEn t, p + 4
 			dw kw_addl, var_sys_p, 4, tmp1
 			dw p_puten_c, var_sys_t, tmp1
 
-			; Main.bas 500: Exit Function
+			; Main.bas 503: Exit Function
 			dw p_sys_r
 
-			; Main.bas 502: End If
+			; Main.bas 505: End If
 if68_7:
 if68_e:
 
-			; Main.bas 503: If o = 2 And s = 0 Then s = t
+			; Main.bas 506: If o = 2 And s = 0 Then s = t
 			dw kw_cpeqvl, var_sys_o, 2
 			dw kw_ftov, tmp0
 			dw kw_cpeqvl, var_sys_s, 0
 			dw kw_ftov, tmp1
 			dw kw_andvv, tmp0, tmp1, tmp0
-			dw kw_goto_ifzero_n, tmp0, if72_1
+			dw kw_goto_ifzero_n, tmp0, if73_1
 			dw kw_vtov, var_sys_t, var_sys_s
-if72_1:
+if73_1:
 
-			; Main.bas 504: Sys = 255
+			; Main.bas 507: Sys = 255
 			dw kw_ltov, 255, var_sys_sys
 
-			; Main.bas 505: If s < 1 Or s > ns Then Exit Function
+			; Main.bas 508: If s < 1 Or s > ns Then Exit Function
 			dw kw_scpltvl, var_sys_s, 1
 			dw kw_ftov, tmp0
 			dw kw_scpgtvv, var_sys_s, var_ns
 			dw kw_ftov, tmp1
 			dw kw_orvv, tmp0, tmp1, tmp0
-			dw kw_goto_ifzero_n, tmp0, if73_1
+			dw kw_goto_ifzero_n, tmp0, if74_1
 			dw p_sys_r
-if73_1:
+if74_1:
 
-			; Main.bas 506: Sys = 0
+			; Main.bas 509: Sys = 0
 			dw kw_ztov, var_sys_sys
 
-			; Main.bas 507: If o = 0 Then
+			; Main.bas 510: If o = 0 Then
 			dw kw_cpeqvl, var_sys_o, 0
-			dw kw_goto_iffalse_n, if74_1
+			dw kw_goto_iffalse_n, if75_1
 
-			; Main.bas 508: Memory.WriteByte Far(t, p + 2), st(s)
+			; Main.bas 511: Memory.WriteByte Far(t, p + 2), st(s)
 			dw kw_addl, var_sys_p, 2, tmp1
 			dw p_far_c, var_sys_t, tmp1
 			dw kw_l_mov, var_far_far, ltmp0
 			dw kw_aget, arr_st, var_sys_s, tmp1
 			dw fn_memory_writebyte, ltmp0, tmp1
 
-			; Main.bas 509: Memory.WriteByte Far(t, p + 3), IIf(s = front, 1, 0)
+			; Main.bas 512: Memory.WriteByte Far(t, p + 3), IIf(s = front, 1, 0)
 			dw kw_addl, var_sys_p, 3, tmp1
 			dw p_far_c, var_sys_t, tmp1
 			dw kw_l_mov, var_far_far, ltmp0
 			dw kw_cpeqvv, var_sys_s, var_front
 			dw kw_ftov, tmp1
-			dw kw_goto_ifzero_n, tmp1, ch75_0
+			dw kw_goto_ifzero_n, tmp1, ch76_0
 			dw kw_ltov, 1, tmp1
-			dw ch75_e_go
-ch75_0:
+			dw ch76_e_go
+ch76_0:
 			dw kw_ztov, tmp1
-			dw ch75_e_go
-ch75_1:
+			dw ch76_e_go
+ch76_1:
 			dw kw_ztov, tmp1
-ch75_e:
+ch76_e:
 			dw fn_memory_writebyte, ltmp0, tmp1
 
-			; Main.bas 510: en = ""
+			; Main.bas 513: en = ""
 			dw kw_strcpy, var_en, str2
 
-			; Main.bas 511: If st(s) = 2 Then GetNm s
-			dw kw_aget, arr_st, var_sys_s, tmp0
-			dw kw_cpeqvl, tmp0, 2
-			dw kw_goto_iffalse_n, if76_1
-			dw p_getnm_c, var_sys_s
-if76_1:
-
-			; Main.bas 512: PutEn t, p + 4
-			dw kw_addl, var_sys_p, 4, tmp1
-			dw p_puten_c, var_sys_t, tmp1
-
-			; Main.bas 513: ElseIf o = 1 Then
-			dw if74_e_go
-if74_1:
-			dw kw_cpeqvl, var_sys_o, 1
-			dw kw_goto_iffalse_n, if74_2
-
-			; Main.bas 514: If st(s) = 2 Then EndTask s Else Sys = 1
+			; Main.bas 514: If st(s) = 2 Then GetNm s
 			dw kw_aget, arr_st, var_sys_s, tmp0
 			dw kw_cpeqvl, tmp0, 2
 			dw kw_goto_iffalse_n, if77_1
-			dw p_endtask_c, var_sys_s
-			dw if74_e_go
+			dw p_getnm_c, var_sys_s
 if77_1:
+
+			; Main.bas 515: PutEn t, p + 4
+			dw kw_addl, var_sys_p, 4, tmp1
+			dw p_puten_c, var_sys_t, tmp1
+
+			; Main.bas 516: ElseIf o = 1 Then
+			dw if75_e_go
+if75_1:
+			dw kw_cpeqvl, var_sys_o, 1
+			dw kw_goto_iffalse_n, if75_2
+
+			; Main.bas 517: If st(s) = 2 Then EndTask s Else Sys = 1
+			dw kw_aget, arr_st, var_sys_s, tmp0
+			dw kw_cpeqvl, tmp0, 2
+			dw kw_goto_iffalse_n, if78_1
+			dw p_endtask_c, var_sys_s
+			dw if75_e_go
+if78_1:
 			dw kw_ltov, 1, var_sys_sys
-if77_e:
+if78_e:
 
-			; Main.bas 515: ElseIf o = 2 Then
-			dw if74_e_go
-if74_2:
+			; Main.bas 518: ElseIf o = 2 Then
+			dw if75_e_go
+if75_2:
 			dw kw_cpeqvl, var_sys_o, 2
-			dw kw_goto_iffalse_n, if74_3
+			dw kw_goto_iffalse_n, if75_3
 
-			; Main.bas 516: ResetSlot s
+			; Main.bas 519: ResetSlot s
 			dw p_resetslot_c, var_sys_s
 
-			; Main.bas 517: If s = t Then Prompt t                       ' (RESET of its own slot: the program gone)
+			; Main.bas 520: If s = t Then Prompt t                       ' (RESET of its own slot: the program gone)
 			dw kw_cpeqvv, var_sys_s, var_sys_t
-			dw kw_goto_iffalse_n, if74_e
+			dw kw_goto_iffalse_n, if75_e
 			dw p_prompt_c, var_sys_t
-if78_1:
+if79_1:
 
-			; Main.bas 518: ElseIf o = 3 Then
-			dw if74_e_go
-if74_3:
+			; Main.bas 521: ElseIf o = 3 Then
+			dw if75_e_go
+if75_3:
 			dw kw_cpeqvl, var_sys_o, 3
-			dw kw_goto_iffalse_n, if74_4
+			dw kw_goto_iffalse_n, if75_4
 
-			; Main.bas 519: ToFront s
+			; Main.bas 522: ToFront s
 			dw p_tofront_c, var_sys_s
 
-			; Main.bas 520: End If
-if74_4:
-if74_e:
+			; Main.bas 523: End If
+if75_4:
+if75_e:
 			dw p_sys_r
 
 ntc_rg10_e:
@@ -4835,13 +5175,13 @@ ntc_rg11:
 
 p_puten:
 
-			; Main.bas 525: Memory.WriteByte Far(t, a), Len(en)
+			; Main.bas 528: Memory.WriteByte Far(t, a), Len(en)
 			dw p_far_c, var_puten_t, var_puten_a
 			dw kw_l_mov, var_far_far, ltmp0
 			dw kw_strlen, var_en, tmp1
 			dw fn_memory_writebyte, ltmp0, tmp1
 
-			; Main.bas 526: Memory.Copy NearP(VarPtr(en)), Far(t, a + 1), Len(en)
+			; Main.bas 529: Memory.Copy NearP(VarPtr(en)), Far(t, a + 1), Len(en)
 			dw p_nearp_c, vp_var_en
 			dw kw_l_mov, var_nearp_nearp, ltmp0
 			dw kw_addl, var_puten_a, 1, tmp2
@@ -4865,7 +5205,7 @@ ntc_rg12:
 
 p_hopen:
 
-			; Main.bas 532: HOpen = (Hyp.FileCall(100, VarPtr(dn), 0, 0, Len(dn), 0, 0) = 0)
+			; Main.bas 535: HOpen = (Hyp.FileCall(100, VarPtr(dn), 0, 0, Len(dn), 0, 0) = 0)
 			dw kw_strlen, var_dn, tmp4
 			dw p_hyp_filecall_c, lit_100, vp_var_dn, lit_0, lit_0, tmp4, lit_0, lit_0
 			dw kw_vtov, var_hyp_filecall_filecall, tmp0
@@ -4887,9 +5227,9 @@ ntc_rg13:
 
 p_hclose:
 
-			; Main.bas 538: Dim r As Integer
+			; Main.bas 541: Dim r As Integer
 
-			; Main.bas 539: r = Hyp.FileCall(102, 0, 0, 0, 0, 0, 0)
+			; Main.bas 542: r = Hyp.FileCall(102, 0, 0, 0, 0, 0, 0)
 			dw p_hyp_filecall_c, lit_102, lit_0, lit_0, lit_0, lit_0, lit_0, lit_0
 			dw kw_vtov, var_hyp_filecall_filecall, var_hclose_r
 			dw p_hclose_r
@@ -4908,12 +5248,12 @@ ntc_rg14:
 
 p_filesshut:
 
-			; Main.bas 544: Dim r As Integer
+			; Main.bas 547: Dim r As Integer
 
-			; Main.bas 545: Hyp.FileShut t
+			; Main.bas 548: Hyp.FileShut t
 			dw p_hyp_fileshut_c, var_filesshut_t
 
-			; Main.bas 548: r = Hyp.Svc(t, 0, 0, VarPtr(rb))               ' its claims freed (the service page)
+			; Main.bas 551: r = Hyp.Svc(t, 0, 0, VarPtr(rb))               ' its claims freed (the service page)
 			dw p_hyp_svc_c, var_filesshut_t, lit_0, lit_0, vp_arr_rb
 			dw kw_vtov, var_hyp_svc_svc, var_filesshut_r
 			dw p_filesshut_r
@@ -4932,24 +5272,24 @@ ntc_rg15:
 
 p_collected:
 
-			; Main.bas 558: nc(t) = nc(t) + n
+			; Main.bas 561: nc(t) = nc(t) + n
 			dw kw_aget, arr_nc, var_collected_t, tmp1
 			dw kw_add, tmp1, var_collected_n, tmp1
 			dw kw_aset, arr_nc, var_collected_t, tmp1
 
-			; Main.bas 559: Hyp.Con wp(t), 0, n, IIf(t = front, 1, 0)       ' straight from the bank: no copy to main RAM
+			; Main.bas 562: Hyp.Con wp(t), 0, n, IIf(t = front, 1, 0)       ' straight from the bank: no copy to main RAM
 			dw kw_aget, arr_wp, var_collected_t, tmp0
 			dw kw_cpeqvv, var_collected_t, var_front
 			dw kw_ftov, tmp3
-			dw kw_goto_ifzero_n, tmp3, ch79_0
+			dw kw_goto_ifzero_n, tmp3, ch80_0
 			dw kw_ltov, 1, tmp3
-			dw ch79_e_go
-ch79_0:
+			dw ch80_e_go
+ch80_0:
 			dw kw_ztov, tmp3
-			dw ch79_e_go
-ch79_1:
+			dw ch80_e_go
+ch80_1:
 			dw kw_ztov, tmp3
-ch79_e:
+ch80_e:
 			dw p_hyp_con_c, tmp0, lit_0, var_collected_n, tmp3
 			dw p_collected_r
 
@@ -4967,20 +5307,20 @@ ntc_rg16:
 
 p_puts:
 
-			; Main.bas 564: Hyp.Con wp(t), VarPtr(s), Len(s), IIf(t = front, 1, 0)
+			; Main.bas 567: Hyp.Con wp(t), VarPtr(s), Len(s), IIf(t = front, 1, 0)
 			dw kw_aget, arr_wp, var_puts_t, tmp0
 			dw kw_strlen, var_puts_s, tmp2
 			dw kw_cpeqvv, var_puts_t, var_front
 			dw kw_ftov, tmp3
-			dw kw_goto_ifzero_n, tmp3, ch80_0
+			dw kw_goto_ifzero_n, tmp3, ch81_0
 			dw kw_ltov, 1, tmp3
-			dw ch80_e_go
-ch80_0:
+			dw ch81_e_go
+ch81_0:
 			dw kw_ztov, tmp3
-			dw ch80_e_go
-ch80_1:
+			dw ch81_e_go
+ch81_1:
 			dw kw_ztov, tmp3
-ch80_e:
+ch81_e:
 			dw p_hyp_con_c, tmp0, vp_var_puts_s, tmp2, tmp3
 			dw p_puts_r
 
@@ -4998,7 +5338,7 @@ ntc_rg17:
 
 p_putln:
 
-			; Main.bas 568: PutS t, s + Chr$(13) + Chr$(10)
+			; Main.bas 571: PutS t, s + Chr$(13) + Chr$(10)
 			dw kw_strcpy, stmp1, var_putln_s
 			dw kw_strcat, stmp1, str8
 			dw kw_strcat, stmp1, str9
@@ -5019,19 +5359,19 @@ ntc_rg18:
 
 p_putc:
 
-			; Main.bas 573: Hyp.Con wp(t), VarPtr(c), 1, IIf(t = front, 1, 0)   ' (the Integer's low byte is the character)
+			; Main.bas 576: Hyp.Con wp(t), VarPtr(c), 1, IIf(t = front, 1, 0)   ' (the Integer's low byte is the character)
 			dw kw_aget, arr_wp, var_putc_t, tmp0
 			dw kw_cpeqvv, var_putc_t, var_front
 			dw kw_ftov, tmp3
-			dw kw_goto_ifzero_n, tmp3, ch81_0
+			dw kw_goto_ifzero_n, tmp3, ch82_0
 			dw kw_ltov, 1, tmp3
-			dw ch81_e_go
-ch81_0:
+			dw ch82_e_go
+ch82_0:
 			dw kw_ztov, tmp3
-			dw ch81_e_go
-ch81_1:
+			dw ch82_e_go
+ch82_1:
 			dw kw_ztov, tmp3
-ch81_e:
+ch82_e:
 			dw p_hyp_con_c, tmp0, vp_var_putc_c, lit_1, tmp3
 			dw p_putc_r
 
@@ -5049,14 +5389,14 @@ ntc_rg19:
 
 p_nearp:
 
-			; Main.bas 596: NearP = CLng(p)
+			; Main.bas 599: NearP = CLng(p)
 			dw kw_l_itol, var_nearp_p, var_nearp_nearp
 
-			; Main.bas 597: If p < 0 Then NearP = NearP + 65536
+			; Main.bas 600: If p < 0 Then NearP = NearP + 65536
 			dw kw_scpltvl, var_nearp_p, 0
-			dw kw_goto_iffalse_n, if82_1
+			dw kw_goto_iffalse_n, if83_1
 			dw kw_l_add, var_nearp_nearp, llit_65536, var_nearp_nearp
-if82_1:
+if83_1:
 			dw p_nearp_r
 
 ntc_rg19_e:
@@ -5073,7 +5413,7 @@ ntc_rg20:
 
 p_far:
 
-			; Main.bas 602: Far = Hyp.FarPtr(Memory.BankPage(bk(t), ((a And &HC000) \ 16384) And 3), a)
+			; Main.bas 605: Far = Hyp.FarPtr(Memory.BankPage(bk(t), ((a And &HC000) \ 16384) And 3), a)
 			dw kw_aget, arr_bk, var_far_t, tmp2
 			dw kw_andvl, var_far_a, -16384, tmp3
 			dw kw_divvl, tmp3, 16384, tmp3
@@ -5097,7 +5437,7 @@ ntc_rg21:
 
 p_clst:
 
-			; Main.bas 607: PutS t, Chr$(27) + "E"
+			; Main.bas 610: PutS t, Chr$(27) + "E"
 			dw kw_strcpy, stmp1, str10
 			dw kw_strcat, stmp1, str11
 			dw p_puts_c, var_clst_t, stmp1
@@ -5117,20 +5457,20 @@ ntc_rg22:
 
 p_tofront:
 
-			; Main.bas 612: Dim r As Integer
+			; Main.bas 615: Dim r As Integer
 
-			; Main.bas 613: front = t
+			; Main.bas 616: front = t
 			dw kw_vtov, var_tofront_t, var_front
 
-			; Main.bas 614: If st(t) = 0 Then OpenSlot t : Exit Sub
+			; Main.bas 617: If st(t) = 0 Then OpenSlot t : Exit Sub
 			dw kw_aget, arr_st, var_tofront_t, tmp0
 			dw kw_cpeqvl, tmp0, 0
-			dw kw_goto_iffalse_n, if83_1
+			dw kw_goto_iffalse_n, if84_1
 			dw p_openslot_c, var_tofront_t
 			dw p_tofront_r
-if83_1:
+if84_1:
 
-			; Main.bas 615: r = Hyp.Scr(Memory.ReadByte(Far(t, Hyp.CMODE)), 2)   ' the screen in its mode (cleared)
+			; Main.bas 618: r = Hyp.Scr(Memory.ReadByte(Far(t, Hyp.CMODE)), 2)   ' the screen in its mode (cleared)
 			dw p_far_c, var_tofront_t, lit_m2423
 			dw kw_l_mov, var_far_far, ltmp0
 			dw fn_memory_readbyte, ltmp0, var_memory_readbyte_readbyte
@@ -5138,7 +5478,7 @@ if83_1:
 			dw p_hyp_scr_c, tmp0, lit_2
 			dw kw_vtov, var_hyp_scr_scr, var_tofront_r
 
-			; Main.bas 616: Hyp.Show wp(t)
+			; Main.bas 619: Hyp.Show wp(t)
 			dw kw_aget, arr_wp, var_tofront_t, tmp0
 			dw p_hyp_show_c, tmp0
 			dw p_tofront_r
@@ -5157,28 +5497,28 @@ ntc_rg23:
 
 p_setmode:
 
-			; Main.bas 623: Dim r As Integer
+			; Main.bas 626: Dim r As Integer
 
-			; Main.bas 624: Memory.WriteByte Far(t, Hyp.CCOLS), Hyp.Scr(m, 0)
+			; Main.bas 627: Memory.WriteByte Far(t, Hyp.CCOLS), Hyp.Scr(m, 0)
 			dw p_far_c, var_setmode_t, lit_m2425
 			dw kw_l_mov, var_far_far, ltmp0
 			dw p_hyp_scr_c, var_setmode_m, lit_0
 			dw kw_vtov, var_hyp_scr_scr, tmp1
 			dw fn_memory_writebyte, ltmp0, tmp1
 
-			; Main.bas 625: Memory.WriteByte Far(t, Hyp.CROWS), Hyp.Scr(m, 1)
+			; Main.bas 628: Memory.WriteByte Far(t, Hyp.CROWS), Hyp.Scr(m, 1)
 			dw p_far_c, var_setmode_t, lit_m2424
 			dw kw_l_mov, var_far_far, ltmp0
 			dw p_hyp_scr_c, var_setmode_m, lit_1
 			dw kw_vtov, var_hyp_scr_scr, tmp1
 			dw fn_memory_writebyte, ltmp0, tmp1
 
-			; Main.bas 626: Memory.WriteByte Far(t, Hyp.CMODE), m
+			; Main.bas 629: Memory.WriteByte Far(t, Hyp.CMODE), m
 			dw p_far_c, var_setmode_t, lit_m2423
 			dw kw_l_mov, var_far_far, ltmp0
 			dw fn_memory_writebyte, ltmp0, var_setmode_m
 
-			; Main.bas 627: en = Left$("[" + N(t) + "]   ", 4)
+			; Main.bas 630: en = Left$("[" + N(t) + "]   ", 4)
 			dw p_n_c, var_setmode_t
 			dw kw_strcpy, stmp1, var_n_n
 			dw kw_strcpy, stmp0, str12
@@ -5187,21 +5527,21 @@ p_setmode:
 			dw kw_strleft, stmp0, stmp0, lit_4
 			dw kw_strcpy, var_en, stmp0
 
-			; Main.bas 628: Memory.Copy NearP(VarPtr(en)), Far(t, Hyp.CSTRIP), 4
+			; Main.bas 631: Memory.Copy NearP(VarPtr(en)), Far(t, Hyp.CSTRIP), 4
 			dw p_nearp_c, vp_var_en
 			dw kw_l_mov, var_nearp_nearp, ltmp0
 			dw p_far_c, var_setmode_t, lit_m2422
 			dw kw_l_mov, var_far_far, ltmp1
 			dw fn_memory_copy, ltmp0, ltmp1, lit_4, var_memory_copy_copy
 
-			; Main.bas 629: If t = front Then r = Hyp.Scr(m, 2)
+			; Main.bas 632: If t = front Then r = Hyp.Scr(m, 2)
 			dw kw_cpeqvv, var_setmode_t, var_front
-			dw kw_goto_iffalse_n, if84_1
+			dw kw_goto_iffalse_n, if85_1
 			dw p_hyp_scr_c, var_setmode_m, lit_2
 			dw kw_vtov, var_hyp_scr_scr, var_setmode_r
-if84_1:
+if85_1:
 
-			; Main.bas 630: ClsT t
+			; Main.bas 633: ClsT t
 			dw p_clst_c, var_setmode_t
 			dw p_setmode_r
 
@@ -5219,25 +5559,25 @@ ntc_rg24:
 
 p_showtop:
 
-			; Main.bas 793: Dim j As Integer
+			; Main.bas 796: Dim j As Integer
 
-			; Main.bas 794: If front <> 0 Then back = front
+			; Main.bas 797: If front <> 0 Then back = front
 			dw kw_cpnevl, var_front, 0
-			dw kw_goto_iffalse_n, if85_1
+			dw kw_goto_iffalse_n, if86_1
 			dw kw_vtov, var_front, var_back
-if85_1:
+if86_1:
 
-			; Main.bas 795: front = 0
+			; Main.bas 798: front = 0
 			dw kw_ztov, var_front
 
-			; Main.bas 796: j = Hyp.Scr(0, 2)               ' TOP in MODE 2 (80 x 25), the screen cleared
+			; Main.bas 799: j = Hyp.Scr(0, 2)               ' TOP in MODE 2 (80 x 25), the screen cleared
 			dw p_hyp_scr_c, lit_0, lit_2
 			dw kw_vtov, var_hyp_scr_scr, var_showtop_j
 
-			; Main.bas 797: txs = 0
+			; Main.bas 800: txs = 0
 			dw kw_ztov, var_txs
 
-			; Main.bas 798: TopLines back, 1
+			; Main.bas 801: TopLines back, 1
 			dw p_toplines_c, var_back, lit_1
 			dw p_showtop_r
 
@@ -5255,85 +5595,85 @@ ntc_rg25:
 
 p_toplines:
 
-			; Main.bas 804: Dim j As Integer, s As String Max 14
+			; Main.bas 807: Dim j As Integer, s As String Max 14
 
-			; Main.bas 805: txn = 0
+			; Main.bas 808: txn = 0
 			dw kw_ztov, var_txn
 
-			; Main.bas 806: TopAdd "CyborgOS TOP"
+			; Main.bas 809: TopAdd "CyborgOS TOP"
 			dw p_topadd_c, str14
 
-			; Main.bas 807: If keys Then TopAdd "Control + ESC: back, " + SK() + ": that slot" Else TopAdd ""   ' (25 rows: 20 slots)
-			dw kw_goto_ifzero_n, var_toplines_keys, if86_1
+			; Main.bas 810: If keys Then TopAdd "Control + ESC: back, " + SK() + ": that slot" Else TopAdd ""   ' (25 rows: 20 slots)
+			dw kw_goto_ifzero_n, var_toplines_keys, if87_1
 			dw p_sk_c
 			dw kw_strcpy, stmp1, var_sk_sk
 			dw kw_strcpy, stmp0, str15
 			dw kw_strcat, stmp0, stmp1
 			dw kw_strcat, stmp0, str16
 			dw p_topadd_c, stmp0
-			dw if86_e_go
-if86_1:
+			dw if87_e_go
+if87_1:
 			dw p_topadd_c, str2
-if86_e:
+if87_e:
 
-			; Main.bas 808: TopAdd "SLOT  STATE          PROGRAM         TURNS/S   BDOS/S  CHARS/S   (last second)"
+			; Main.bas 811: TopAdd "SLOT  STATE          PROGRAM         TURNS/S   BDOS/S  CHARS/S   (last second)"
 			dw p_topadd_c, str17
 
-			; Main.bas 809: For j = 1 To ns
+			; Main.bas 812: For j = 1 To ns
 			dw kw_ltov, 1, var_toplines_j
-			dw kw_vtov, var_ns, for87_l
-			dw kw_forupv_n, var_toplines_j, for87_l, for87_e
-for87_t:
+			dw kw_vtov, var_ns, for88_l
+			dw kw_forupv_n, var_toplines_j, for88_l, for88_e
+for88_t:
 
-			; Main.bas 810: If st(j) = 0 Then
+			; Main.bas 813: If st(j) = 0 Then
 			dw kw_aget, arr_st, var_toplines_j, tmp0
 			dw kw_cpeqvl, tmp0, 0
-			dw kw_goto_iffalse_n, if88_1
+			dw kw_goto_iffalse_n, if89_1
 
-			; Main.bas 811: s = "-"
+			; Main.bas 814: s = "-"
 			dw kw_strcpy, var_toplines_s, str18
 
-			; Main.bas 812: ElseIf st(j) = 1 Then
-			dw if88_e_go
-if88_1:
+			; Main.bas 815: ElseIf st(j) = 1 Then
+			dw if89_e_go
+if89_1:
 			dw kw_aget, arr_st, var_toplines_j, tmp0
 			dw kw_cpeqvl, tmp0, 1
-			dw kw_goto_iffalse_n, if88_2
+			dw kw_goto_iffalse_n, if89_2
 
-			; Main.bas 813: s = "command line"
+			; Main.bas 816: s = "command line"
 			dw kw_strcpy, var_toplines_s, str19
 
-			; Main.bas 814: ElseIf wk(j) >= 0 Then
-			dw if88_e_go
-if88_2:
+			; Main.bas 817: ElseIf wk(j) >= 0 Then
+			dw if89_e_go
+if89_2:
 			dw kw_aget, arr_wk, var_toplines_j, tmp0
 			dw kw_scpgevl, tmp0, 0
-			dw kw_goto_iffalse_n, if88_3
+			dw kw_goto_iffalse_n, if89_3
 
-			; Main.bas 815: s = "waiting (key)"
+			; Main.bas 818: s = "waiting (key)"
 			dw kw_strcpy, var_toplines_s, str20
 
-			; Main.bas 816: Else
-			dw if88_e_go
-if88_3:
+			; Main.bas 819: Else
+			dw if89_e_go
+if89_3:
 
-			; Main.bas 817: s = "running"
+			; Main.bas 820: s = "running"
 			dw kw_strcpy, var_toplines_s, str21
 
-			; Main.bas 818: End If
-if88_e:
+			; Main.bas 821: End If
+if89_e:
 
-			; Main.bas 819: en = ""
+			; Main.bas 822: en = ""
 			dw kw_strcpy, var_en, str2
 
-			; Main.bas 820: If st(j) = 2 Then GetNm j
+			; Main.bas 823: If st(j) = 2 Then GetNm j
 			dw kw_aget, arr_st, var_toplines_j, tmp0
 			dw kw_cpeqvl, tmp0, 2
-			dw kw_goto_iffalse_n, if89_1
+			dw kw_goto_iffalse_n, if90_1
 			dw p_getnm_c, var_toplines_j
-if89_1:
+if90_1:
 
-			; Main.bas 821: TopAdd " " + Right$(" " + N(j), 2) + IIf(j = mark, "*", " ") + "  " + Left$(s + Space$(15), 15) + Left$(en + Space$(13), 13) + Pad(Rate(lt(j), ld)) + Pad(Rate(lb(j), ld)) + Pad(Rate(lc(j), ld))
+			; Main.bas 824: TopAdd " " + Right$(" " + N(j), 2) + IIf(j = mark, "*", " ") + "  " + Left$(s + Space$(15), 15) + Left$(en + Space$(13), 13) + Pad(Rate(lt(j), ld)) + Pad(Rate(lb(j), ld)) + Pad(Rate(lc(j), ld))
 			dw p_n_c, var_toplines_j
 			dw kw_strcpy, stmp2, var_n_n
 			dw kw_strcpy, stmp1, str22
@@ -5343,15 +5683,15 @@ if89_1:
 			dw kw_strcat, stmp0, stmp1
 			dw kw_cpeqvv, var_toplines_j, var_toplines_mark
 			dw kw_ftov, tmp1
-			dw kw_goto_ifzero_n, tmp1, ch90_0
+			dw kw_goto_ifzero_n, tmp1, ch91_0
 			dw kw_strcpy, stmp1, str23
-			dw ch90_e_go
-ch90_0:
+			dw ch91_e_go
+ch91_0:
 			dw kw_strcpy, stmp1, str22
-			dw ch90_e_go
-ch90_1:
+			dw ch91_e_go
+ch91_1:
 			dw kw_strcpy, stmp1, str2
-ch90_e:
+ch91_e:
 			dw kw_strcat, stmp0, stmp1
 			dw kw_strcat, stmp0, str24
 			dw kw_strspace, stmp2, lit_15
@@ -5384,17 +5724,17 @@ ch90_e:
 			dw kw_strcat, stmp0, stmp1
 			dw p_topadd_c, stmp0
 
-			; Main.bas 822: Next
-			dw kw_next1v_n, var_toplines_j, for87_l, for87_t
-for87_e:
+			; Main.bas 825: Next
+			dw kw_next1v_n, var_toplines_j, for88_l, for88_t
+for88_e:
 
-			; Main.bas 823: TopAdd ""
+			; Main.bas 826: TopAdd ""
 			dw p_topadd_c, str2
 
-			; Main.bas 824: Totals
+			; Main.bas 827: Totals
 			dw p_totals_c
 
-			; Main.bas 825: TopAdd en
+			; Main.bas 828: TopAdd en
 			dw p_topadd_c, var_en
 			dw p_toplines_r
 
@@ -5412,7 +5752,7 @@ ntc_rg26:
 
 p_totals:
 
-			; Main.bas 830: en = "Total memory: " + N(Memory.RamSize()) + " KB   Free memory: " + N(Memory.FreePages() * 16) + " KB"
+			; Main.bas 833: en = "Total memory: " + N(Memory.RamSize()) + " KB   Free memory: " + N(Memory.FreePages() * 16) + " KB"
 			dw fn_memory_ramsize, var_memory_ramsize_ramsize
 			dw kw_vtov, var_memory_ramsize_ramsize, tmp1
 			dw p_n_c, tmp1
@@ -5444,25 +5784,25 @@ ntc_rg27:
 
 p_topadd:
 
-			; Main.bas 838: If txs = 0 Then
+			; Main.bas 841: If txs = 0 Then
 			dw kw_cpeqvl, var_txs, 0
-			dw kw_goto_iffalse_n, if91_1
+			dw kw_goto_iffalse_n, if92_1
 
-			; Main.bas 839: Hyp.Say VarPtr(s), Len(s), 0, txn          ' straight into screen memory (Print took ~0.7 s)
+			; Main.bas 842: Hyp.Say VarPtr(s), Len(s), 0, txn          ' straight into screen memory (Print took ~0.7 s)
 			dw kw_strlen, var_topadd_s, tmp1
 			dw p_hyp_say_c, vp_var_topadd_s, tmp1, lit_0, var_txn
 
-			; Main.bas 840: Else
-			dw if91_e_go
-if91_1:
+			; Main.bas 843: Else
+			dw if92_e_go
+if92_1:
 
-			; Main.bas 841: PutLn txs, s
+			; Main.bas 844: PutLn txs, s
 			dw p_putln_c, var_txs, var_topadd_s
 
-			; Main.bas 842: End If
-if91_e:
+			; Main.bas 845: End If
+if92_e:
 
-			; Main.bas 843: txn = txn + 1
+			; Main.bas 846: txn = txn + 1
 			dw kw_inc, var_txn
 			dw p_topadd_r
 
@@ -5480,23 +5820,23 @@ ntc_rg28:
 
 p_roll:
 
-			; Main.bas 848: Dim j As Integer
+			; Main.bas 851: Dim j As Integer
 
-			; Main.bas 849: ld = Ticks - td
+			; Main.bas 852: ld = Ticks - td
 			dw kw_ticks, tmp0
 			dw kw_subvv, tmp0, var_td, var_ld
 
-			; Main.bas 850: td = Ticks
+			; Main.bas 853: td = Ticks
 			dw kw_ticks, tmp0
 			dw kw_vtov, tmp0, var_td
 
-			; Main.bas 851: For j = 1 To ns
+			; Main.bas 854: For j = 1 To ns
 			dw kw_ltov, 1, var_roll_j
-			dw kw_vtov, var_ns, for92_l
-			dw kw_forupv_n, var_roll_j, for92_l, for92_e
-for92_t:
+			dw kw_vtov, var_ns, for93_l
+			dw kw_forupv_n, var_roll_j, for93_l, for93_e
+for93_t:
 
-			; Main.bas 852: lt(j) = tn(j) : lb(j) = nb(j) : lc(j) = nc(j)
+			; Main.bas 855: lt(j) = tn(j) : lb(j) = nb(j) : lc(j) = nc(j)
 			dw kw_aget, arr_tn, var_roll_j, tmp1
 			dw kw_aset, arr_lt, var_roll_j, tmp1
 			dw kw_aget, arr_nb, var_roll_j, tmp1
@@ -5504,14 +5844,14 @@ for92_t:
 			dw kw_aget, arr_nc, var_roll_j, tmp1
 			dw kw_aset, arr_lc, var_roll_j, tmp1
 
-			; Main.bas 853: tn(j) = 0 : nb(j) = 0 : nc(j) = 0
+			; Main.bas 856: tn(j) = 0 : nb(j) = 0 : nc(j) = 0
 			dw kw_asetl, arr_tn, var_roll_j, 0
 			dw kw_asetl, arr_nb, var_roll_j, 0
 			dw kw_asetl, arr_nc, var_roll_j, 0
 
-			; Main.bas 854: Next
-			dw kw_next1v_n, var_roll_j, for92_l, for92_t
-for92_e:
+			; Main.bas 857: Next
+			dw kw_next1v_n, var_roll_j, for93_l, for93_t
+for93_e:
 			dw p_roll_r
 
 ntc_rg28_e:
@@ -5528,7 +5868,7 @@ ntc_rg29:
 
 p_pad:
 
-			; Main.bas 859: Pad = Right$(Space$(9) + N(v), 9)
+			; Main.bas 862: Pad = Right$(Space$(9) + N(v), 9)
 			dw kw_strspace, stmp1, lit_9
 			dw p_n_c, var_pad_v
 			dw kw_strcpy, stmp2, var_n_n
@@ -5550,19 +5890,19 @@ ntc_rg30:
 
 p_rate:
 
-			; Main.bas 864: If n > 1000 Then Rate = n \ (d \ 300 + 1) Else Rate = n * 30 \ (d \ 10 + 1)
+			; Main.bas 867: If n > 1000 Then Rate = n \ (d \ 300 + 1) Else Rate = n * 30 \ (d \ 10 + 1)
 			dw kw_scpgtvl, var_rate_n, 1000
-			dw kw_goto_iffalse_n, if93_1
+			dw kw_goto_iffalse_n, if94_1
 			dw kw_divvl, var_rate_d, 300, tmp2
 			dw kw_inc, tmp2
 			dw kw_divvv, var_rate_n, tmp2, var_rate_rate
-			dw if93_e_go
-if93_1:
+			dw if94_e_go
+if94_1:
 			dw kw_mulvl, var_rate_n, 30, tmp1
 			dw kw_divvl, var_rate_d, 10, tmp2
 			dw kw_inc, tmp2
 			dw kw_divvv, tmp1, tmp2, var_rate_rate
-if93_e:
+if94_e:
 			dw p_rate_r
 
 ntc_rg30_e:
@@ -5579,63 +5919,63 @@ ntc_rg31:
 
 p_install:
 
-			; Main.bas 871: Dim p As Integer, n As Integer
+			; Main.bas 874: Dim p As Integer, n As Integer
 
-			; Main.bas 872: p = Hyp.Info(0) : n = Hyp.Info(1)             ' (one Info result each: it is one variable)
+			; Main.bas 875: p = Hyp.Info(0) : n = Hyp.Info(1)             ' (one Info result each: it is one variable)
 			dw fn_hyp_info, lit_0, var_install_p
 			dw fn_hyp_info, lit_1, var_install_n
 
-			; Main.bas 873: Memory.Copy Hyp.FarPtr(hp, p), Far(t, 0), n   ' (from the hypervisor's page)
+			; Main.bas 876: Memory.Copy Hyp.FarPtr(hp, p), Far(t, 0), n   ' (from the hypervisor's page)
 			dw fn_hyp_farptr, var_hp, var_install_p, var_hyp_farptr_farptr
 			dw kw_l_mov, var_hyp_farptr_farptr, ltmp0
 			dw p_far_c, var_install_t, lit_0
 			dw kw_l_mov, var_far_far, ltmp1
 			dw fn_memory_copy, ltmp0, ltmp1, var_install_n, var_memory_copy_copy
 
-			; Main.bas 874: p = Hyp.Info(2) : n = Hyp.Info(3)
+			; Main.bas 877: p = Hyp.Info(2) : n = Hyp.Info(3)
 			dw fn_hyp_info, lit_2, var_install_p
 			dw fn_hyp_info, lit_3, var_install_n
 
-			; Main.bas 875: Memory.Copy Hyp.FarPtr(hp, p), Far(t, Hyp.STUB), n
+			; Main.bas 878: Memory.Copy Hyp.FarPtr(hp, p), Far(t, Hyp.STUB), n
 			dw fn_hyp_farptr, var_hp, var_install_p, var_hyp_farptr_farptr
 			dw kw_l_mov, var_hyp_farptr_farptr, ltmp0
 			dw p_far_c, var_install_t, lit_m4352
 			dw kw_l_mov, var_far_far, ltmp1
 			dw fn_memory_copy, ltmp0, ltmp1, var_install_n, var_memory_copy_copy
 
-			; Main.bas 876: Memory.Copy Hyp.FarPtr(hp, Hyp.HFONT), Far(t, Hyp.FONT), 768   ' the font (Con draws from it)
+			; Main.bas 879: Memory.Copy Hyp.FarPtr(hp, Hyp.HFONT), Far(t, Hyp.FONT), 768   ' the font (Con draws from it)
 			dw fn_hyp_farptr, var_hp, lit_4096, var_hyp_farptr_farptr
 			dw kw_l_mov, var_hyp_farptr_farptr, ltmp0
 			dw p_far_c, var_install_t, lit_m3328
 			dw kw_l_mov, var_far_far, ltmp1
 			dw fn_memory_copy, ltmp0, ltmp1, lit_768, var_memory_copy_copy
 
-			; Main.bas 877: Memory.WriteByte Far(t, Hyp.OBUF + 128), 0      ' no characters collected
+			; Main.bas 880: Memory.WriteByte Far(t, Hyp.OBUF + 128), 0      ' no characters collected
 			dw p_far_c, var_install_t, lit_m2432
 			dw kw_l_mov, var_far_far, ltmp0
 			dw fn_memory_writebyte, ltmp0, lit_0
 
-			; Main.bas 878: Memory.WriteByte Far(t, Hyp.KEY), 0             ' no key waiting
+			; Main.bas 881: Memory.WriteByte Far(t, Hyp.KEY), 0             ' no key waiting
 			dw p_far_c, var_install_t, lit_m2431
 			dw kw_l_mov, var_far_far, ltmp0
 			dw fn_memory_writebyte, ltmp0, lit_0
 
-			; Main.bas 879: kq(t) = 0
+			; Main.bas 882: kq(t) = 0
 			dw kw_asetl, arr_kq, var_install_t, 0
 
-			; Main.bas 882: For n = 0 To 31                                 ' no store yet
+			; Main.bas 885: For n = 0 To 31                                 ' no store yet
 			dw kw_ztov, var_install_n
-for94_t:
+for95_t:
 
-			; Main.bas 883: Memory.WriteByte Far(t, STORE + n), 0
+			; Main.bas 886: Memory.WriteByte Far(t, STORE + n), 0
 			dw kw_addl, var_install_n, -256, tmp1
 			dw p_far_c, var_install_t, tmp1
 			dw kw_l_mov, var_far_far, ltmp0
 			dw fn_memory_writebyte, ltmp0, lit_0
 
-			; Main.bas 884: Next
-			dw kw_next1l_n, var_install_n, 31, for94_t
-for94_e:
+			; Main.bas 887: Next
+			dw kw_next1l_n, var_install_n, 31, for95_t
+for95_e:
 			dw p_install_r
 
 ntc_rg31_e:
@@ -5652,52 +5992,52 @@ ntc_rg32:
 
 p_resetslot:
 
-			; Main.bas 891: FilesShut s
+			; Main.bas 894: FilesShut s
 			dw p_filesshut_c, var_resetslot_s
 
-			; Main.bas 894: If st(s) = 2 Then StoreFree s
+			; Main.bas 897: If st(s) = 2 Then StoreFree s
 			dw kw_aget, arr_st, var_resetslot_s, tmp0
 			dw kw_cpeqvl, tmp0, 2
-			dw kw_goto_iffalse_n, if95_1
+			dw kw_goto_iffalse_n, if96_1
 			dw p_storefree_c, var_resetslot_s
-if95_1:
+if96_1:
 
-			; Main.bas 896: st(s) = 0
+			; Main.bas 899: st(s) = 0
 			dw kw_asetl, arr_st, var_resetslot_s, 0
 
-			; Main.bas 899: dv(s) = 0
+			; Main.bas 902: dv(s) = 0
 			dw kw_asetl, arr_dv, var_resetslot_s, 0
 
-			; Main.bas 901: kq(s) = 0
+			; Main.bas 904: kq(s) = 0
 			dw kw_asetl, arr_kq, var_resetslot_s, 0
 
-			; Main.bas 902: wk(s) = -1
+			; Main.bas 905: wk(s) = -1
 			dw kw_asetl, arr_wk, var_resetslot_s, -1
 
-			; Main.bas 903: tn(s) = 0 : nb(s) = 0 : nc(s) = 0
+			; Main.bas 906: tn(s) = 0 : nb(s) = 0 : nc(s) = 0
 			dw kw_asetl, arr_tn, var_resetslot_s, 0
 			dw kw_asetl, arr_nb, var_resetslot_s, 0
 			dw kw_asetl, arr_nc, var_resetslot_s, 0
 
-			; Main.bas 904: lt(s) = 0 : lb(s) = 0 : lc(s) = 0
+			; Main.bas 907: lt(s) = 0 : lb(s) = 0 : lc(s) = 0
 			dw kw_asetl, arr_lt, var_resetslot_s, 0
 			dw kw_asetl, arr_lb, var_resetslot_s, 0
 			dw kw_asetl, arr_lc, var_resetslot_s, 0
 
-			; Main.bas 905: If s = front Then
+			; Main.bas 908: If s = front Then
 			dw kw_cpeqvv, var_resetslot_s, var_front
-			dw kw_goto_iffalse_n, if96_1
+			dw kw_goto_iffalse_n, if97_1
 
-			; Main.bas 906: Install s
+			; Main.bas 909: Install s
 			dw p_install_c, var_resetslot_s
 
-			; Main.bas 907: st(s) = 1
+			; Main.bas 910: st(s) = 1
 			dw kw_asetl, arr_st, var_resetslot_s, 1
 
-			; Main.bas 908: SetMode s, 1
+			; Main.bas 911: SetMode s, 1
 			dw p_setmode_c, var_resetslot_s, lit_1
 
-			; Main.bas 909: PutLn s, "CyborgOS slot " + N(s) + " of " + N(ns) + " - " + SK() + ", Control + ESC TOP, HELP"
+			; Main.bas 912: PutLn s, "CyborgOS slot " + N(s) + " of " + N(ns) + " - " + SK() + ", Control + ESC TOP, HELP"
 			dw p_n_c, var_resetslot_s
 			dw kw_strcpy, stmp2, var_n_n
 			dw kw_strcpy, stmp1, str28
@@ -5713,11 +6053,11 @@ if95_1:
 			dw kw_strcat, stmp1, str31
 			dw p_putln_c, var_resetslot_s, stmp1
 
-			; Main.bas 910: PutLn s, ""                   ' a blank line under the title
+			; Main.bas 913: PutLn s, ""                   ' a blank line under the title
 			dw p_putln_c, var_resetslot_s, str2
 
-			; Main.bas 911: End If                          ' (the prompt: the command line puts it after the command)
-if96_1:
+			; Main.bas 914: End If                          ' (the prompt: the command line puts it after the command)
+if97_1:
 			dw p_resetslot_r
 
 ntc_rg32_e:
@@ -5734,16 +6074,16 @@ ntc_rg33:
 
 p_openslot:
 
-			; Main.bas 915: Install t
+			; Main.bas 918: Install t
 			dw p_install_c, var_openslot_t
 
-			; Main.bas 916: st(t) = 1
+			; Main.bas 919: st(t) = 1
 			dw kw_asetl, arr_st, var_openslot_t, 1
 
-			; Main.bas 917: SetMode t, 1                    ' MODE S: 80 x 24 and the status strip
+			; Main.bas 920: SetMode t, 1                    ' MODE S: 80 x 24 and the status strip
 			dw p_setmode_c, var_openslot_t, lit_1
 
-			; Main.bas 918: PutLn t, "CyborgOS slot " + N(t) + " of " + N(ns) + " - " + SK() + ", Control + ESC TOP, HELP"
+			; Main.bas 921: PutLn t, "CyborgOS slot " + N(t) + " of " + N(ns) + " - " + SK() + ", Control + ESC TOP, HELP"
 			dw p_n_c, var_openslot_t
 			dw kw_strcpy, stmp2, var_n_n
 			dw kw_strcpy, stmp1, str28
@@ -5759,10 +6099,10 @@ p_openslot:
 			dw kw_strcat, stmp1, str31
 			dw p_putln_c, var_openslot_t, stmp1
 
-			; Main.bas 919: PutLn t, ""                     ' a blank line under the title
+			; Main.bas 922: PutLn t, ""                     ' a blank line under the title
 			dw p_putln_c, var_openslot_t, str2
 
-			; Main.bas 920: Prompt t
+			; Main.bas 923: Prompt t
 			dw p_prompt_c, var_openslot_t
 			dw p_openslot_r
 
@@ -5780,30 +6120,30 @@ ntc_rg34:
 
 p_sk:
 
-			; Main.bas 925: If ns <= 9 Then
+			; Main.bas 928: If ns <= 9 Then
 			dw kw_scplevl, var_ns, 9
-			dw kw_goto_iffalse_n, if97_1
+			dw kw_goto_iffalse_n, if98_1
 
-			; Main.bas 926: SK = "Control + 1-" + N(ns)
+			; Main.bas 929: SK = "Control + 1-" + N(ns)
 			dw p_n_c, var_ns
 			dw kw_strcpy, stmp3, var_n_n
 			dw kw_strcpy, var_sk_sk, str32
 			dw kw_strcat, var_sk_sk, stmp3
 
-			; Main.bas 927: ElseIf ns = 10 Then
-			dw if97_e_go
-if97_1:
+			; Main.bas 930: ElseIf ns = 10 Then
+			dw if98_e_go
+if98_1:
 			dw kw_cpeqvl, var_ns, 10
-			dw kw_goto_iffalse_n, if97_2
+			dw kw_goto_iffalse_n, if98_2
 
-			; Main.bas 928: SK = "Control + 1-9, 0"
+			; Main.bas 931: SK = "Control + 1-9, 0"
 			dw kw_strcpy, var_sk_sk, str33
 
-			; Main.bas 929: Else
-			dw if97_e_go
-if97_2:
+			; Main.bas 932: Else
+			dw if98_e_go
+if98_2:
 
-			; Main.bas 930: SK = "Control + 1-9, 0 (twice 11-" + N(ns) + ")"
+			; Main.bas 933: SK = "Control + 1-9, 0 (twice 11-" + N(ns) + ")"
 			dw p_n_c, var_ns
 			dw kw_strcpy, stmp3, var_n_n
 			dw kw_strcpy, stmp2, str34
@@ -5811,8 +6151,8 @@ if97_2:
 			dw kw_strcpy, var_sk_sk, stmp2
 			dw kw_strcat, var_sk_sk, str35
 
-			; Main.bas 931: End If
-if97_e:
+			; Main.bas 934: End If
+if98_e:
 			dw p_sk_r
 
 ntc_rg34_e:
@@ -5829,25 +6169,25 @@ ntc_rg35:
 
 p_getnm:
 
-			; Main.bas 938: Dim n As Integer
+			; Main.bas 941: Dim n As Integer
 
-			; Main.bas 939: n = Memory.ReadByte(Far(t, NMLEN))
+			; Main.bas 942: n = Memory.ReadByte(Far(t, NMLEN))
 			dw p_far_c, var_getnm_t, lit_m2344
 			dw kw_l_mov, var_far_far, ltmp0
 			dw fn_memory_readbyte, ltmp0, var_getnm_n
 
-			; Main.bas 940: en = Space$(12)
+			; Main.bas 943: en = Space$(12)
 			dw kw_strspace, stmp0, lit_12
 			dw kw_strcpy, var_en, stmp0
 
-			; Main.bas 941: Memory.Copy Far(t, NMBUF), NearP(VarPtr(en)), n
+			; Main.bas 944: Memory.Copy Far(t, NMBUF), NearP(VarPtr(en)), n
 			dw p_far_c, var_getnm_t, lit_m2343
 			dw kw_l_mov, var_far_far, ltmp0
 			dw p_nearp_c, vp_var_en
 			dw kw_l_mov, var_nearp_nearp, ltmp1
 			dw fn_memory_copy, ltmp0, ltmp1, var_getnm_n, var_memory_copy_copy
 
-			; Main.bas 942: en = Left$(en, n)
+			; Main.bas 945: en = Left$(en, n)
 			dw kw_strleft, stmp0, var_en, var_getnm_n
 			dw kw_strcpy, var_en, stmp0
 			dw p_getnm_r
@@ -5866,7 +6206,7 @@ ntc_rg36:
 
 p_n:
 
-			; Main.bas 946: N = Trim$(Str$(v))
+			; Main.bas 949: N = Trim$(Str$(v))
 			dw kw_strstr, stmp3, var_n_v
 			dw kw_strtrim, var_n_n, stmp3
 			dw p_n_r
@@ -5885,12 +6225,12 @@ ntc_rg37:
 
 p_prompt:
 
-			; Main.bas 950: Memory.WriteByte Far(t, LNLEN), 0                ' an empty command line
+			; Main.bas 953: Memory.WriteByte Far(t, LNLEN), 0                ' an empty command line
 			dw p_far_c, var_prompt_t, lit_m2417
 			dw kw_l_mov, var_far_far, ltmp0
 			dw fn_memory_writebyte, ltmp0, lit_0
 
-			; Main.bas 951: PutS t, N(t) + "> "
+			; Main.bas 954: PutS t, N(t) + "> "
 			dw p_n_c, var_prompt_t
 			dw kw_strcpy, stmp1, var_n_n
 			dw kw_strcat, stmp1, str36
@@ -5911,62 +6251,62 @@ ntc_rg38:
 
 p_keyin:
 
-			; Main.bas 956: Dim t As Integer, n As Integer
+			; Main.bas 959: Dim t As Integer, n As Integer
 
-			; Main.bas 957: If front = 0 Then
+			; Main.bas 960: If front = 0 Then
 			dw kw_cpeqvl, var_front, 0
-			dw kw_goto_iffalse_n, if98_1
-
-			; Main.bas 958: Exit Sub                      ' TOP stays until Control + ESC or Control + a slot
-			dw p_keyin_r
-
-			; Main.bas 959: End If
-if98_1:
-
-			; Main.bas 960: t = front
-			dw kw_vtov, var_front, var_keyin_t
-
-			; Main.bas 964: If st(t) = 2 Then
-			dw kw_aget, arr_st, var_keyin_t, tmp0
-			dw kw_cpeqvl, tmp0, 2
 			dw kw_goto_iffalse_n, if99_1
 
-			; Main.bas 965: If k = &HFC Then k = 27                       ' (ESC: the firmware's #FC - CP/M's #1B, as Amstrad's CP/M)
-			dw kw_cpeqvl, var_keyin_k, 252
-			dw kw_goto_iffalse_n, if100_1
-			dw kw_ltov, 27, var_keyin_k
-if100_1:
+			; Main.bas 961: Exit Sub                      ' TOP stays until Control + ESC or Control + a slot
+			dw p_keyin_r
 
-			; Main.bas 966: kq(t) = k                                     ' the key into its bank: its BDOS answers from it
+			; Main.bas 962: End If
+if99_1:
+
+			; Main.bas 963: t = front
+			dw kw_vtov, var_front, var_keyin_t
+
+			; Main.bas 967: If st(t) = 2 Then
+			dw kw_aget, arr_st, var_keyin_t, tmp0
+			dw kw_cpeqvl, tmp0, 2
+			dw kw_goto_iffalse_n, if100_1
+
+			; Main.bas 968: If k = &HFC Then k = 27                       ' (ESC: the firmware's #FC - CP/M's #1B, as Amstrad's CP/M)
+			dw kw_cpeqvl, var_keyin_k, 252
+			dw kw_goto_iffalse_n, if101_1
+			dw kw_ltov, 27, var_keyin_k
+if101_1:
+
+			; Main.bas 969: kq(t) = k                                     ' the key into its bank: its BDOS answers from it
 			dw kw_aset, arr_kq, var_keyin_t, var_keyin_k
 
-			; Main.bas 967: Memory.WriteByte Far(t, Hyp.KEY), k
+			; Main.bas 970: Memory.WriteByte Far(t, Hyp.KEY), k
 			dw p_far_c, var_keyin_t, lit_m2431
 			dw kw_l_mov, var_far_far, ltmp0
 			dw fn_memory_writebyte, ltmp0, var_keyin_k
 
-			; Main.bas 968: Exit Sub
+			; Main.bas 971: Exit Sub
 			dw p_keyin_r
 
-			; Main.bas 969: End If
-if99_1:
+			; Main.bas 972: End If
+if100_1:
 
-			; Main.bas 970: n = Memory.ReadByte(Far(t, LNLEN))             ' the command line so far (in the slot's bank)
+			; Main.bas 973: n = Memory.ReadByte(Far(t, LNLEN))             ' the command line so far (in the slot's bank)
 			dw p_far_c, var_keyin_t, lit_m2417
 			dw kw_l_mov, var_far_far, ltmp0
 			dw fn_memory_readbyte, ltmp0, var_keyin_n
 
-			; Main.bas 971: If k = 13 Then
+			; Main.bas 974: If k = 13 Then
 			dw kw_cpeqvl, var_keyin_k, 13
-			dw kw_goto_iffalse_n, if101_1
+			dw kw_goto_iffalse_n, if102_1
 
-			; Main.bas 972: PutLn t, ""
+			; Main.bas 975: PutLn t, ""
 			dw p_putln_c, var_keyin_t, str2
 
-			; Main.bas 973: Command t
+			; Main.bas 976: Command t
 			dw p_command_c, var_keyin_t
 
-			; Main.bas 974: If st(t) = 1 And wt = 0 And front = t Then Prompt t
+			; Main.bas 977: If st(t) = 1 And wt = 0 And front = t Then Prompt t
 			dw kw_aget, arr_st, var_keyin_t, tmp0
 			dw kw_cpeqvl, tmp0, 1
 			dw kw_ftov, tmp0
@@ -5976,41 +6316,41 @@ if99_1:
 			dw kw_cpeqvv, var_front, var_keyin_t
 			dw kw_ftov, tmp1
 			dw kw_andvv, tmp0, tmp1, tmp0
-			dw kw_goto_ifzero_n, tmp0, if101_e
+			dw kw_goto_ifzero_n, tmp0, if102_e
 			dw p_prompt_c, var_keyin_t
-if102_1:
+if103_1:
 
-			; Main.bas 975: ElseIf k = 127 Or k = 8 Then
-			dw if101_e_go
-if101_1:
+			; Main.bas 978: ElseIf k = 127 Or k = 8 Then
+			dw if102_e_go
+if102_1:
 			dw kw_cpeqvl, var_keyin_k, 127
 			dw kw_ftov, tmp0
 			dw kw_cpeqvl, var_keyin_k, 8
 			dw kw_ftov, tmp1
 			dw kw_orvv, tmp0, tmp1, tmp0
-			dw kw_goto_ifzero_n, tmp0, if101_2
+			dw kw_goto_ifzero_n, tmp0, if102_2
 
-			; Main.bas 976: If n > 0 Then
+			; Main.bas 979: If n > 0 Then
 			dw kw_scpgtvl, var_keyin_n, 0
-			dw kw_goto_iffalse_n, if101_e
+			dw kw_goto_iffalse_n, if102_e
 
-			; Main.bas 977: Memory.WriteByte Far(t, LNLEN), n - 1
+			; Main.bas 980: Memory.WriteByte Far(t, LNLEN), n - 1
 			dw p_far_c, var_keyin_t, lit_m2417
 			dw kw_l_mov, var_far_far, ltmp0
 			dw kw_addl, var_keyin_n, -1, tmp1
 			dw fn_memory_writebyte, ltmp0, tmp1
 
-			; Main.bas 978: PutC t, 8 : PutC t, 32 : PutC t, 8
+			; Main.bas 981: PutC t, 8 : PutC t, 32 : PutC t, 8
 			dw p_putc_c, var_keyin_t, lit_8
 			dw p_putc_c, var_keyin_t, lit_32
 			dw p_putc_c, var_keyin_t, lit_8
 
-			; Main.bas 979: End If
-if103_1:
+			; Main.bas 982: End If
+if104_1:
 
-			; Main.bas 980: ElseIf k >= 32 And k < 127 And n < 70 Then
-			dw if101_e_go
-if101_2:
+			; Main.bas 983: ElseIf k >= 32 And k < 127 And n < 70 Then
+			dw if102_e_go
+if102_2:
 			dw kw_scpgevl, var_keyin_k, 32
 			dw kw_ftov, tmp0
 			dw kw_scpltvl, var_keyin_k, 127
@@ -6019,26 +6359,26 @@ if101_2:
 			dw kw_scpltvl, var_keyin_n, 70
 			dw kw_ftov, tmp1
 			dw kw_andvv, tmp0, tmp1, tmp0
-			dw kw_goto_ifzero_n, tmp0, if101_3
+			dw kw_goto_ifzero_n, tmp0, if102_3
 
-			; Main.bas 981: Memory.WriteByte Far(t, LNBUF + n), k
+			; Main.bas 984: Memory.WriteByte Far(t, LNBUF + n), k
 			dw kw_addl, var_keyin_n, -2416, tmp1
 			dw p_far_c, var_keyin_t, tmp1
 			dw kw_l_mov, var_far_far, ltmp0
 			dw fn_memory_writebyte, ltmp0, var_keyin_k
 
-			; Main.bas 982: Memory.WriteByte Far(t, LNLEN), n + 1
+			; Main.bas 985: Memory.WriteByte Far(t, LNLEN), n + 1
 			dw p_far_c, var_keyin_t, lit_m2417
 			dw kw_l_mov, var_far_far, ltmp0
 			dw kw_addl, var_keyin_n, 1, tmp1
 			dw fn_memory_writebyte, ltmp0, tmp1
 
-			; Main.bas 983: PutC t, k
+			; Main.bas 986: PutC t, k
 			dw p_putc_c, var_keyin_t, var_keyin_k
 
-			; Main.bas 984: End If
-if101_3:
-if101_e:
+			; Main.bas 987: End If
+if102_3:
+if102_e:
 			dw p_keyin_r
 
 ntc_rg38_e:
@@ -6055,113 +6395,113 @@ ntc_rg39:
 
 p_command:
 
-			; Main.bas 988: Dim c As String Max 72, p As Integer, s As Integer
+			; Main.bas 991: Dim c As String Max 72, p As Integer, s As Integer
 
-			; Main.bas 989: p = Memory.ReadByte(Far(t, LNLEN))              ' the command line, from the slot's bank
+			; Main.bas 992: p = Memory.ReadByte(Far(t, LNLEN))              ' the command line, from the slot's bank
 			dw p_far_c, var_command_t, lit_m2417
 			dw kw_l_mov, var_far_far, ltmp0
 			dw fn_memory_readbyte, ltmp0, var_command_p
 
-			; Main.bas 990: Memory.Copy Far(t, LNBUF), NearP(VarPtr(ob)), p
+			; Main.bas 993: Memory.Copy Far(t, LNBUF), NearP(VarPtr(ob)), p
 			dw p_far_c, var_command_t, lit_m2416
 			dw kw_l_mov, var_far_far, ltmp0
 			dw p_nearp_c, vp_var_ob
 			dw kw_l_mov, var_nearp_nearp, ltmp1
 			dw fn_memory_copy, ltmp0, ltmp1, var_command_p, var_memory_copy_copy
 
-			; Main.bas 991: c = UCase$(Trim$(Left$(ob, p)))
+			; Main.bas 994: c = UCase$(Trim$(Left$(ob, p)))
 			dw kw_strleft, stmp0, var_ob, var_command_p
 			dw kw_strtrim, stmp0, stmp0
 			dw kw_strucase, stmp0, stmp0
 			dw kw_strcpy, var_command_c, stmp0
 
-			; Main.bas 992: a = "" : b = ""
+			; Main.bas 995: a = "" : b = ""
 			dw kw_strcpy, var_a, str2
 			dw kw_strcpy, var_b, str2
 
-			; Main.bas 993: p = InStr(c, " ")
+			; Main.bas 996: p = InStr(c, " ")
 			dw kw_strinstr, lit_1, var_command_c, str22, var_command_p
 
-			; Main.bas 994: If p > 0 Then
+			; Main.bas 997: If p > 0 Then
 			dw kw_scpgtvl, var_command_p, 0
-			dw kw_goto_iffalse_n, if104_1
+			dw kw_goto_iffalse_n, if105_1
 
-			; Main.bas 995: a = Trim$(Mid$(c, p + 1))
+			; Main.bas 998: a = Trim$(Mid$(c, p + 1))
 			dw kw_addl, var_command_p, 1, tmp1
 			dw kw_strmid, stmp0, var_command_c, tmp1, lit_255
 			dw kw_strtrim, stmp0, stmp0
 			dw kw_strcpy, var_a, stmp0
 
-			; Main.bas 996: c = Left$(c, p - 1)
+			; Main.bas 999: c = Left$(c, p - 1)
 			dw kw_addl, var_command_p, -1, tmp1
 			dw kw_strleft, stmp0, var_command_c, tmp1
 			dw kw_strcpy, var_command_c, stmp0
 
-			; Main.bas 997: End If
-if104_1:
+			; Main.bas 1000: End If
+if105_1:
 
-			; Main.bas 998: p = InStr(a, " ")
+			; Main.bas 1001: p = InStr(a, " ")
 			dw kw_strinstr, lit_1, var_a, str22, var_command_p
 
-			; Main.bas 999: If p > 0 Then
+			; Main.bas 1002: If p > 0 Then
 			dw kw_scpgtvl, var_command_p, 0
-			dw kw_goto_iffalse_n, if105_1
+			dw kw_goto_iffalse_n, if106_1
 
-			; Main.bas 1000: b = Trim$(Mid$(a, p + 1))
+			; Main.bas 1003: b = Trim$(Mid$(a, p + 1))
 			dw kw_addl, var_command_p, 1, tmp1
 			dw kw_strmid, stmp0, var_a, tmp1, lit_255
 			dw kw_strtrim, stmp0, stmp0
 			dw kw_strcpy, var_b, stmp0
 
-			; Main.bas 1001: a = Left$(a, p - 1)
+			; Main.bas 1004: a = Left$(a, p - 1)
 			dw kw_addl, var_command_p, -1, tmp1
 			dw kw_strleft, stmp0, var_a, tmp1
 			dw kw_strcpy, var_a, stmp0
 
-			; Main.bas 1002: End If
-if105_1:
+			; Main.bas 1005: End If
+if106_1:
 
-			; Main.bas 1003: If Right$(c, 1) = ":" And a = "" Then a = c : c = "CV"   ' B: or IDE: alone: CV B:, CV IDE: (CV.CYB)
+			; Main.bas 1006: If Right$(c, 1) = ":" And a = "" Then a = c : c = "CV"   ' B: or IDE: alone: CV B:, CV IDE: (CV.CYB)
 			dw kw_strright, stmp0, var_command_c, lit_1
 			dw kw_strcmpeq, stmp0, str37
 			dw kw_ftov, tmp0
 			dw kw_strcmpeq, var_a, str2
 			dw kw_ftov, tmp1
 			dw kw_andvv, tmp0, tmp1, tmp0
-			dw kw_goto_ifzero_n, tmp0, if106_1
+			dw kw_goto_ifzero_n, tmp0, if107_1
 			dw kw_strcpy, var_a, var_command_c
 			dw kw_strcpy, var_command_c, str38
-if106_1:
+if107_1:
 
-			; Main.bas 1004: Select Case c
-			dw kw_strcpy, var_command___sel107, var_command_c
+			; Main.bas 1007: Select Case c
+			dw kw_strcpy, var_command___sel108, var_command_c
 
-			; Main.bas 1005: Case ""
-			dw kw_strcmpeq, var_command___sel107, str2
-			dw kw_goto_iffalse_n, sel107_1
-sel107_b1:
+			; Main.bas 1008: Case ""
+			dw kw_strcmpeq, var_command___sel108, str2
+			dw kw_goto_iffalse_n, sel108_1
+sel108_b1:
 
-			; Main.bas 1006: Case "CLS"
-			dw sel107_e_go
-sel107_1:
-			dw kw_strcmpeq, var_command___sel107, str39
-			dw kw_goto_iffalse_n, sel107_2
-sel107_b2:
+			; Main.bas 1009: Case "CLS"
+			dw sel108_e_go
+sel108_1:
+			dw kw_strcmpeq, var_command___sel108, str39
+			dw kw_goto_iffalse_n, sel108_2
+sel108_b2:
 
-			; Main.bas 1007: ClsT t
+			; Main.bas 1010: ClsT t
 			dw p_clst_c, var_command_t
 
-			; Main.bas 1008: Case "RUN"                                 ' RUN [slot] name [tail]: the program on the disc even
-			dw sel107_e_go
-sel107_2:
-			dw kw_strcmpeq, var_command___sel107, str40
-			dw kw_goto_iffalse_n, sel107_3
-sel107_b3:
+			; Main.bas 1011: Case "RUN"                                 ' RUN [slot] name [tail]: the program on the disc even
+			dw sel108_e_go
+sel108_2:
+			dw kw_strcmpeq, var_command___sel108, str40
+			dw kw_goto_iffalse_n, sel108_3
+sel108_b3:
 
-			; Main.bas 1009: s = t                                    ' when a command has its name; with a slot: in that one
+			; Main.bas 1012: s = t                                    ' when a command has its name; with a slot: in that one
 			dw kw_vtov, var_command_t, var_command_s
 
-			; Main.bas 1010: If a <> "" And N(Val(a)) = a Then
+			; Main.bas 1013: If a <> "" And N(Val(a)) = a Then
 			dw kw_strcmpne, var_a, str2
 			dw kw_ftov, tmp0
 			dw kw_strval, var_a, tmp1
@@ -6170,19 +6510,19 @@ sel107_b3:
 			dw kw_strcmpeq, stmp1, var_a
 			dw kw_ftov, tmp1
 			dw kw_andvv, tmp0, tmp1, tmp0
-			dw kw_goto_ifzero_n, tmp0, if108_1
+			dw kw_goto_ifzero_n, tmp0, if109_1
 
-			; Main.bas 1011: s = Val(a) : a = b : b = ""
+			; Main.bas 1014: s = Val(a) : a = b : b = ""
 			dw kw_strval, var_a, var_command_s
 			dw kw_strcpy, var_a, var_b
 			dw kw_strcpy, var_b, str2
 
-			; Main.bas 1012: p = InStr(a, " ")
+			; Main.bas 1015: p = InStr(a, " ")
 			dw kw_strinstr, lit_1, var_a, str22, var_command_p
 
-			; Main.bas 1013: If p > 0 Then b = Trim$(Mid$(a, p + 1)) : a = Left$(a, p - 1)
+			; Main.bas 1016: If p > 0 Then b = Trim$(Mid$(a, p + 1)) : a = Left$(a, p - 1)
 			dw kw_scpgtvl, var_command_p, 0
-			dw kw_goto_iffalse_n, if109_1
+			dw kw_goto_iffalse_n, if110_1
 			dw kw_addl, var_command_p, 1, tmp1
 			dw kw_strmid, stmp0, var_a, tmp1, lit_255
 			dw kw_strtrim, stmp0, stmp0
@@ -6190,75 +6530,75 @@ sel107_b3:
 			dw kw_addl, var_command_p, -1, tmp1
 			dw kw_strleft, stmp0, var_a, tmp1
 			dw kw_strcpy, var_a, stmp0
+if110_1:
+
+			; Main.bas 1017: End If
 if109_1:
 
-			; Main.bas 1014: End If
-if108_1:
-
-			; Main.bas 1015: If s < 1 Or s > ns Then PutLn t, "no slot" + Str$(s) : Exit Sub
+			; Main.bas 1018: If s < 1 Or s > ns Then PutLn t, "no slot" + Str$(s) : Exit Sub
 			dw kw_scpltvl, var_command_s, 1
 			dw kw_ftov, tmp0
 			dw kw_scpgtvv, var_command_s, var_ns
 			dw kw_ftov, tmp1
 			dw kw_orvv, tmp0, tmp1, tmp0
-			dw kw_goto_ifzero_n, tmp0, if110_1
+			dw kw_goto_ifzero_n, tmp0, if111_1
 			dw kw_strstr, stmp2, var_command_s
 			dw kw_strcpy, stmp1, str41
 			dw kw_strcat, stmp1, stmp2
 			dw p_putln_c, var_command_t, stmp1
 			dw p_command_r
-if110_1:
+if111_1:
 
-			; Main.bas 1016: If st(s) = 2 Then PutLn t, "slot" + Str$(s) + " is busy" : Exit Sub
+			; Main.bas 1019: If st(s) = 2 Then PutLn t, "slot" + Str$(s) + " is busy" : Exit Sub
 			dw kw_aget, arr_st, var_command_s, tmp0
 			dw kw_cpeqvl, tmp0, 2
-			dw kw_goto_iffalse_n, if111_1
+			dw kw_goto_iffalse_n, if112_1
 			dw kw_strstr, stmp2, var_command_s
 			dw kw_strcpy, stmp1, str42
 			dw kw_strcat, stmp1, stmp2
 			dw kw_strcat, stmp1, str43
 			dw p_putln_c, var_command_t, stmp1
 			dw p_command_r
-if111_1:
+if112_1:
 
-			; Main.bas 1017: StartTask t, s
+			; Main.bas 1020: StartTask t, s
 			dw p_starttask_c, var_command_t, var_command_s
 
-			; Main.bas 1018: Case "QUIT"
-			dw sel107_e_go
-sel107_3:
-			dw kw_strcmpeq, var_command___sel107, str44
-			dw kw_goto_iffalse_n, sel107_4
-sel107_b4:
+			; Main.bas 1021: Case "QUIT"
+			dw sel108_e_go
+sel108_3:
+			dw kw_strcmpeq, var_command___sel108, str44
+			dw kw_goto_iffalse_n, sel108_4
+sel108_b4:
 
-			; Main.bas 1019: quit = -1
+			; Main.bas 1022: quit = -1
 			dw kw_ltov, -1, var_quit
 
-			; Main.bas 1020: Case Else                                  ' the rest are programs (the system drive Z's, else
-			dw sel107_e_go
-sel107_4:
+			; Main.bas 1023: Case Else                                  ' the rest are programs (the system drive Z's, else
+			dw sel108_e_go
+sel108_4:
 
-			; Main.bas 1021: b = Trim$(a + " " + b)                   ' the slot's drive, else A): PS, MEM, CD, DIR ... and
+			; Main.bas 1024: b = Trim$(a + " " + b)                   ' the slot's drive, else A): PS, MEM, CD, DIR ... and
 			dw kw_strcpy, stmp0, var_a
 			dw kw_strcat, stmp0, str22
 			dw kw_strcat, stmp0, var_b
 			dw kw_strtrim, stmp0, stmp0
 			dw kw_strcpy, var_b, stmp0
 
-			; Main.bas 1022: a = c                                    ' any other, the rest of the line their tail
+			; Main.bas 1025: a = c                                    ' any other, the rest of the line their tail
 			dw kw_strcpy, var_a, var_command_c
 
-			; Main.bas 1023: bare = -1
+			; Main.bas 1026: bare = -1
 			dw kw_ltov, -1, var_bare
 
-			; Main.bas 1024: StartTask t, t
+			; Main.bas 1027: StartTask t, t
 			dw p_starttask_c, var_command_t, var_command_t
 
-			; Main.bas 1025: bare = 0
+			; Main.bas 1028: bare = 0
 			dw kw_ztov, var_bare
 
-			; Main.bas 1026: End Select
-sel107_e:
+			; Main.bas 1029: End Select
+sel108_e:
 			dw p_command_r
 
 ntc_rg39_e:
@@ -6275,121 +6615,121 @@ ntc_rg40:
 
 p_starttask:
 
-			; Main.bas 1034: Dim h As Integer, n As Integer, rest As Integer, com As Integer, w As String Max 72, d As Integer
+			; Main.bas 1037: Dim h As Integer, n As Integer, rest As Integer, com As Integer, w As String Max 72, d As Integer
 
-			; Main.bas 1035: If a = "" Then PutLn t, "RUN what?" : Exit Sub
+			; Main.bas 1038: If a = "" Then PutLn t, "RUN what?" : Exit Sub
 			dw kw_strcmpeq, var_a, str2
-			dw kw_goto_iffalse_n, if112_1
+			dw kw_goto_iffalse_n, if113_1
 			dw p_putln_c, var_starttask_t, str45
 			dw p_starttask_r
-if112_1:
+if113_1:
 
-			; Main.bas 1036: w = a
+			; Main.bas 1039: w = a
 			dw kw_strcpy, var_starttask_w, var_a
 
-			; Main.bas 1037: d = 0                                          ' the drive looked on: Z (-1, the system drive: the
+			; Main.bas 1040: d = 0                                          ' the drive looked on: Z (-1, the system drive: the
 			dw kw_ztov, var_starttask_d
 
-			; Main.bas 1040: d = -1
+			; Main.bas 1043: d = -1
 			dw kw_ltov, -1, var_starttask_d
 
-			; Main.bas 1042: Do
-do113_t:
+			; Main.bas 1045: Do
+do114_t:
 
-			; Main.bas 1045: If d = -1 Then
+			; Main.bas 1048: If d = -1 Then
 			dw kw_cpeqvl, var_starttask_d, -1
-			dw kw_goto_iffalse_n, if114_1
+			dw kw_goto_iffalse_n, if115_1
 
-			; Main.bas 1046: If Hyp.Drive(90) = 0 Then d = 0            ' (no system drive)
+			; Main.bas 1049: If Hyp.Drive(90) = 0 Then d = 0            ' (no system drive)
 			dw p_hyp_drive_c, lit_90
 			dw kw_vtov, var_hyp_drive_drive, tmp0
 			dw kw_cpeqvl, tmp0, 0
-			dw kw_goto_iffalse_n, if115_1
-			dw kw_ztov, var_starttask_d
-if115_1:
-
-			; Main.bas 1047: End If
-if114_1:
-
-			; Main.bas 1048: If d = 0 Then OwnDrive t
-			dw kw_cpeqvl, var_starttask_d, 0
 			dw kw_goto_iffalse_n, if116_1
-			dw p_owndrive_c, var_starttask_t
+			dw kw_ztov, var_starttask_d
 if116_1:
 
-			; Main.bas 1049: If d = 1 Then n = Hyp.Drive(bd)
-			dw kw_cpeqvl, var_starttask_d, 1
+			; Main.bas 1050: End If
+if115_1:
+
+			; Main.bas 1051: If d = 0 Then OwnDrive t
+			dw kw_cpeqvl, var_starttask_d, 0
 			dw kw_goto_iffalse_n, if117_1
-			dw p_hyp_drive_c, var_bd
-			dw kw_vtov, var_hyp_drive_drive, var_starttask_n
+			dw p_owndrive_c, var_starttask_t
 if117_1:
 
-			; Main.bas 1051: a = w : h = 0 : com = 0
+			; Main.bas 1052: If d = 1 Then n = Hyp.Drive(bd)
+			dw kw_cpeqvl, var_starttask_d, 1
+			dw kw_goto_iffalse_n, if118_1
+			dw p_hyp_drive_c, var_bd
+			dw kw_vtov, var_hyp_drive_drive, var_starttask_n
+if118_1:
+
+			; Main.bas 1054: a = w : h = 0 : com = 0
 			dw kw_strcpy, var_a, var_starttask_w
 			dw kw_ztov, var_starttask_h
 			dw kw_ztov, var_starttask_com
 
-			; Main.bas 1052: If InStr(a, ".") = 0 Then
+			; Main.bas 1055: If InStr(a, ".") = 0 Then
 			dw kw_strinstr, lit_1, var_a, str46, tmp0
 			dw kw_cpeqvl, tmp0, 0
-			dw kw_goto_iffalse_n, if118_1
+			dw kw_goto_iffalse_n, if119_1
 
-			; Main.bas 1053: dn = a + ".CYB"
+			; Main.bas 1056: dn = a + ".CYB"
 			dw kw_strcpy, var_dn, var_a
 			dw kw_strcat, var_dn, str47
 
-			; Main.bas 1054: h = HOpen()
+			; Main.bas 1057: h = HOpen()
 			dw p_hopen_c
 			dw kw_vtov, var_hopen_hopen, var_starttask_h
 
-			; Main.bas 1055: If h Then a = dn Else com = -1
-			dw kw_goto_ifzero_n, var_starttask_h, if119_1
+			; Main.bas 1058: If h Then a = dn Else com = -1
+			dw kw_goto_ifzero_n, var_starttask_h, if120_1
 			dw kw_strcpy, var_a, var_dn
-			dw if118_e_go
-if119_1:
+			dw if119_e_go
+if120_1:
 			dw kw_ltov, -1, var_starttask_com
-if119_e:
+if120_e:
 
-			; Main.bas 1056: ElseIf Right$(a, 4) = ".COM" Then
-			dw if118_e_go
-if118_1:
+			; Main.bas 1059: ElseIf Right$(a, 4) = ".COM" Then
+			dw if119_e_go
+if119_1:
 			dw kw_strright, stmp0, var_a, lit_4
 			dw kw_strcmpeq, stmp0, str48
-			dw kw_goto_iffalse_n, if118_2
+			dw kw_goto_iffalse_n, if119_2
 
-			; Main.bas 1057: com = -1
+			; Main.bas 1060: com = -1
 			dw kw_ltov, -1, var_starttask_com
 
-			; Main.bas 1058: Else
-			dw if118_e_go
-if118_2:
+			; Main.bas 1061: Else
+			dw if119_e_go
+if119_2:
 
-			; Main.bas 1059: dn = a
+			; Main.bas 1062: dn = a
 			dw kw_strcpy, var_dn, var_a
 
-			; Main.bas 1060: h = HOpen()
+			; Main.bas 1063: h = HOpen()
 			dw p_hopen_c
 			dw kw_vtov, var_hopen_hopen, var_starttask_h
 
-			; Main.bas 1061: End If
-if118_e:
+			; Main.bas 1064: End If
+if119_e:
 
-			; Main.bas 1062: rest = &HEE00                                ' #0100 to the stub (#EF00)
+			; Main.bas 1065: rest = &HEE00                                ' #0100 to the stub (#EF00)
 			dw kw_ltov, -4608, var_starttask_rest
 
-			; Main.bas 1063: If com Then dn = a : h = HOpen()             ' (a .COM: UniDOS, a RAM disc read it to its end)
-			dw kw_goto_ifzero_n, var_starttask_com, if120_1
+			; Main.bas 1066: If com Then dn = a : h = HOpen()             ' (a .COM: UniDOS, a RAM disc read it to its end)
+			dw kw_goto_ifzero_n, var_starttask_com, if121_1
 			dw kw_strcpy, var_dn, var_a
 			dw p_hopen_c
 			dw kw_vtov, var_hopen_hopen, var_starttask_h
-if120_1:
-
-			; Main.bas 1064: If h Then Exit Do
-			dw kw_goto_ifzero_n, var_starttask_h, if121_1
-			dw do113_e_go
 if121_1:
 
-			; Main.bas 1068: If d = 1 Or (d = 0 And dv(t) = bd) Then Exit Do   ' not on Z nor the slot's drive: the boot drive
+			; Main.bas 1067: If h Then Exit Do
+			dw kw_goto_ifzero_n, var_starttask_h, if122_1
+			dw do114_e_go
+if122_1:
+
+			; Main.bas 1071: If d = 1 Or (d = 0 And dv(t) = bd) Then Exit Do   ' not on Z nor the slot's drive: the boot drive
 			dw kw_cpeqvl, var_starttask_d, 1
 			dw kw_ftov, tmp0
 			dw kw_cpeqvl, var_starttask_d, 0
@@ -6399,104 +6739,104 @@ if121_1:
 			dw kw_ftov, tmp2
 			dw kw_andvv, tmp1, tmp2, tmp1
 			dw kw_orvv, tmp0, tmp1, tmp0
-			dw kw_goto_ifzero_n, tmp0, if122_1
-			dw do113_e_go
-if122_1:
-
-			; Main.bas 1069: d = d + 1
-			dw kw_inc, var_starttask_d
-
-			; Main.bas 1071: Loop
-			dw do113_t_go
-do113_e:
-
-			; Main.bas 1072: If h = 0 Then
-			dw kw_cpeqvl, var_starttask_h, 0
-			dw kw_goto_iffalse_n, if123_1
-
-			; Main.bas 1073: a = w
-			dw kw_strcpy, var_a, var_starttask_w
-
-			; Main.bas 1076: OwnDrive t
-			dw p_owndrive_c, var_starttask_t
-
-			; Main.bas 1078: NotFound t
-			dw p_notfound_c, var_starttask_t
-
-			; Main.bas 1079: Exit Sub
-			dw p_starttask_r
-
-			; Main.bas 1080: End If
+			dw kw_goto_ifzero_n, tmp0, if123_1
+			dw do114_e_go
 if123_1:
 
-			; Main.bas 1081: If st(s) = 0 Then OpenSlot s
-			dw kw_aget, arr_st, var_starttask_s, tmp0
-			dw kw_cpeqvl, tmp0, 0
+			; Main.bas 1072: d = d + 1
+			dw kw_inc, var_starttask_d
+
+			; Main.bas 1074: Loop
+			dw do114_t_go
+do114_e:
+
+			; Main.bas 1075: If h = 0 Then
+			dw kw_cpeqvl, var_starttask_h, 0
 			dw kw_goto_iffalse_n, if124_1
-			dw p_openslot_c, var_starttask_s
+
+			; Main.bas 1076: a = w
+			dw kw_strcpy, var_a, var_starttask_w
+
+			; Main.bas 1079: OwnDrive t
+			dw p_owndrive_c, var_starttask_t
+
+			; Main.bas 1081: NotFound t
+			dw p_notfound_c, var_starttask_t
+
+			; Main.bas 1082: Exit Sub
+			dw p_starttask_r
+
+			; Main.bas 1083: End If
 if124_1:
 
-			; Main.bas 1082: If s <> t Then PutLn s, "RUN " + a
-			dw kw_cpnevv, var_starttask_s, var_starttask_t
+			; Main.bas 1084: If st(s) = 0 Then OpenSlot s
+			dw kw_aget, arr_st, var_starttask_s, tmp0
+			dw kw_cpeqvl, tmp0, 0
 			dw kw_goto_iffalse_n, if125_1
+			dw p_openslot_c, var_starttask_s
+if125_1:
+
+			; Main.bas 1085: If s <> t Then PutLn s, "RUN " + a
+			dw kw_cpnevv, var_starttask_s, var_starttask_t
+			dw kw_goto_iffalse_n, if126_1
 			dw kw_strcpy, stmp1, str49
 			dw kw_strcat, stmp1, var_a
 			dw p_putln_c, var_starttask_s, stmp1
-if125_1:
+if126_1:
 
-			; Main.bas 1083: Install s
+			; Main.bas 1086: Install s
 			dw p_install_c, var_starttask_s
 
-			; Main.bas 1084: n = Hyp.FileCall(103, rest, s, sg(s), &H100, 0, VarPtr(rb))  ' at #0100, rest bytes at most
+			; Main.bas 1087: n = Hyp.FileCall(103, rest, s, sg(s), &H100, 0, VarPtr(rb))  ' at #0100, rest bytes at most
 			dw kw_aget, arr_sg, var_starttask_s, tmp3
 			dw p_hyp_filecall_c, lit_103, var_starttask_rest, var_starttask_s, tmp3, lit_256, lit_0, vp_arr_rb
 			dw kw_vtov, var_hyp_filecall_filecall, var_starttask_n
 
-			; Main.bas 1085: HClose
+			; Main.bas 1088: HClose
 			dw p_hclose_c
 
-			; Main.bas 1088: If d <> 0 Then OwnDrive t                      ' (loaded from Z or A: the slot's drive again)
+			; Main.bas 1091: If d <> 0 Then OwnDrive t                      ' (loaded from Z or A: the slot's drive again)
 			dw kw_cpnevl, var_starttask_d, 0
-			dw kw_goto_iffalse_n, if126_1
+			dw kw_goto_iffalse_n, if127_1
 			dw p_owndrive_c, var_starttask_t
-if126_1:
+if127_1:
 
-			; Main.bas 1093: Memory.WriteWord Far(s, &HF2FC), Hyp.Info(4)
+			; Main.bas 1096: Memory.WriteWord Far(s, &HF2FC), Hyp.Info(4)
 			dw p_far_c, var_starttask_s, lit_m3332
 			dw kw_l_mov, var_far_far, ltmp0
 			dw fn_hyp_info, lit_4, var_hyp_info_info
 			dw kw_vtov, var_hyp_info_info, tmp1
 			dw fn_memory_writeword, ltmp0, tmp1
 
-			; Main.bas 1094: Memory.WriteWord Far(s, &HF2FE), 0
+			; Main.bas 1097: Memory.WriteWord Far(s, &HF2FE), 0
 			dw p_far_c, var_starttask_s, lit_m3330
 			dw kw_l_mov, var_far_far, ltmp0
 			dw fn_memory_writeword, ltmp0, lit_0
 
-			; Main.bas 1095: Memory.WriteWord Far(s, &HFFFE), &HF2FC
+			; Main.bas 1098: Memory.WriteWord Far(s, &HFFFE), &HF2FC
 			dw p_far_c, var_starttask_s, lit_m2
 			dw kw_l_mov, var_far_far, ltmp0
 			dw fn_memory_writeword, ltmp0, lit_m3332
 
-			; Main.bas 1097: If b = "" Then
+			; Main.bas 1100: If b = "" Then
 			dw kw_strcmpeq, var_b, str2
-			dw kw_goto_iffalse_n, if127_1
+			dw kw_goto_iffalse_n, if128_1
 
-			; Main.bas 1098: Memory.WriteByte Far(s, &H80), 0
+			; Main.bas 1101: Memory.WriteByte Far(s, &H80), 0
 			dw p_far_c, var_starttask_s, lit_128
 			dw kw_l_mov, var_far_far, ltmp0
 			dw fn_memory_writebyte, ltmp0, lit_0
 
-			; Main.bas 1099: Else
-			dw if127_e_go
-if127_1:
+			; Main.bas 1102: Else
+			dw if128_e_go
+if128_1:
 
-			; Main.bas 1100: b = " " + b
+			; Main.bas 1103: b = " " + b
 			dw kw_strcpy, stmp0, str22
 			dw kw_strcat, stmp0, var_b
 			dw kw_strcpy, var_b, stmp0
 
-			; Main.bas 1101: Memory.Copy NearP(VarPtr(b)), Far(s, &H81), Len(b)
+			; Main.bas 1104: Memory.Copy NearP(VarPtr(b)), Far(s, &H81), Len(b)
 			dw p_nearp_c, vp_var_b
 			dw kw_l_mov, var_nearp_nearp, ltmp0
 			dw p_far_c, var_starttask_s, lit_129
@@ -6504,29 +6844,29 @@ if127_1:
 			dw kw_strlen, var_b, tmp2
 			dw fn_memory_copy, ltmp0, ltmp1, tmp2, var_memory_copy_copy
 
-			; Main.bas 1102: Memory.WriteByte Far(s, &H80), Len(b)
+			; Main.bas 1105: Memory.WriteByte Far(s, &H80), Len(b)
 			dw p_far_c, var_starttask_s, lit_128
 			dw kw_l_mov, var_far_far, ltmp0
 			dw kw_strlen, var_b, tmp1
 			dw fn_memory_writebyte, ltmp0, tmp1
 
-			; Main.bas 1103: Memory.WriteByte Far(s, &H81 + Len(b)), 0
+			; Main.bas 1106: Memory.WriteByte Far(s, &H81 + Len(b)), 0
 			dw kw_strlen, var_b, tmp2
 			dw kw_addl, tmp2, 129, tmp1
 			dw p_far_c, var_starttask_s, tmp1
 			dw kw_l_mov, var_far_far, ltmp0
 			dw fn_memory_writebyte, ltmp0, lit_0
 
-			; Main.bas 1104: End If
-if127_e:
+			; Main.bas 1107: End If
+if128_e:
 
-			; Main.bas 1105: Memory.WriteByte Far(s, NMLEN), Len(a)
+			; Main.bas 1108: Memory.WriteByte Far(s, NMLEN), Len(a)
 			dw p_far_c, var_starttask_s, lit_m2344
 			dw kw_l_mov, var_far_far, ltmp0
 			dw kw_strlen, var_a, tmp1
 			dw fn_memory_writebyte, ltmp0, tmp1
 
-			; Main.bas 1106: Memory.Copy NearP(VarPtr(a)), Far(s, NMBUF), Len(a)
+			; Main.bas 1109: Memory.Copy NearP(VarPtr(a)), Far(s, NMBUF), Len(a)
 			dw p_nearp_c, vp_var_a
 			dw kw_l_mov, var_nearp_nearp, ltmp0
 			dw p_far_c, var_starttask_s, lit_m2343
@@ -6534,32 +6874,32 @@ if127_e:
 			dw kw_strlen, var_a, tmp2
 			dw fn_memory_copy, ltmp0, ltmp1, tmp2, var_memory_copy_copy
 
-			; Main.bas 1107: kq(s) = 0
+			; Main.bas 1110: kq(s) = 0
 			dw kw_asetl, arr_kq, var_starttask_s, 0
 
-			; Main.bas 1108: Memory.WriteByte Far(s, &HF685), 0             ' no escape sequence rest half done
+			; Main.bas 1111: Memory.WriteByte Far(s, &HF685), 0             ' no escape sequence rest half done
 			dw p_far_c, var_starttask_s, lit_m2427
 			dw kw_l_mov, var_far_far, ltmp0
 			dw fn_memory_writebyte, ltmp0, lit_0
 
-			; Main.bas 1109: wk(s) = -1
+			; Main.bas 1112: wk(s) = -1
 			dw kw_asetl, arr_wk, var_starttask_s, -1
 
-			; Main.bas 1110: dm(s) = &H80                                   ' CP/M's record buffer to start with
+			; Main.bas 1113: dm(s) = &H80                                   ' CP/M's record buffer to start with
 			dw kw_asetl, arr_dm, var_starttask_s, 128
 
-			; Main.bas 1111: st(s) = 2
+			; Main.bas 1114: st(s) = 2
 			dw kw_asetl, arr_st, var_starttask_s, 2
 
-			; Main.bas 1112: If s <> t Then PutLn t, a + " runs in slot" + Str$(s)
+			; Main.bas 1115: If s <> t Then PutLn t, a + " runs in slot" + Str$(s)
 			dw kw_cpnevv, var_starttask_s, var_starttask_t
-			dw kw_goto_iffalse_n, if128_1
+			dw kw_goto_iffalse_n, if129_1
 			dw kw_strcpy, stmp1, var_a
 			dw kw_strcat, stmp1, str50
 			dw kw_strstr, stmp2, var_starttask_s
 			dw kw_strcat, stmp1, stmp2
 			dw p_putln_c, var_starttask_t, stmp1
-if128_1:
+if129_1:
 			dw p_starttask_r
 
 ntc_rg40_e:
@@ -6576,18 +6916,18 @@ ntc_rg41:
 
 p_notfound:
 
-			; Main.bas 1116: If bare Then PutLn t, "? " + a + " (HELP)" Else PutLn t, a + ": not found"
-			dw kw_goto_ifzero_n, var_bare, if129_1
+			; Main.bas 1119: If bare Then PutLn t, "? " + a + " (HELP)" Else PutLn t, a + ": not found"
+			dw kw_goto_ifzero_n, var_bare, if130_1
 			dw kw_strcpy, stmp1, str51
 			dw kw_strcat, stmp1, var_a
 			dw kw_strcat, stmp1, str52
 			dw p_putln_c, var_notfound_t, stmp1
-			dw if129_e_go
-if129_1:
+			dw if130_e_go
+if130_1:
 			dw kw_strcpy, stmp1, var_a
 			dw kw_strcat, stmp1, str53
 			dw p_putln_c, var_notfound_t, stmp1
-if129_e:
+if130_e:
 			dw p_notfound_r
 
 ntc_rg41_e:
@@ -6604,16 +6944,16 @@ ntc_rg42:
 
 p_owndrive:
 
-			; Main.bas 1123: Dim r As Integer
+			; Main.bas 1126: Dim r As Integer
 
-			; Main.bas 1124: If dv(t) = 0 Then dv(t) = bd
+			; Main.bas 1127: If dv(t) = 0 Then dv(t) = bd
 			dw kw_aget, arr_dv, var_owndrive_t, tmp0
 			dw kw_cpeqvl, tmp0, 0
-			dw kw_goto_iffalse_n, if130_1
+			dw kw_goto_iffalse_n, if131_1
 			dw kw_aset, arr_dv, var_owndrive_t, var_bd
-if130_1:
+if131_1:
 
-			; Main.bas 1125: r = Hyp.Drive(dv(t))
+			; Main.bas 1128: r = Hyp.Drive(dv(t))
 			dw kw_aget, arr_dv, var_owndrive_t, tmp0
 			dw p_hyp_drive_c, tmp0
 			dw kw_vtov, var_hyp_drive_drive, var_owndrive_r
@@ -6633,51 +6973,51 @@ ntc_rg43:
 
 p_endtask:
 
-			; Main.bas 1130: Dim c As Integer
+			; Main.bas 1133: Dim c As Integer
 
-			; Main.bas 1131: FilesShut t
+			; Main.bas 1134: FilesShut t
 			dw p_filesshut_c, var_endtask_t
 
-			; Main.bas 1134: StoreFree t
+			; Main.bas 1137: StoreFree t
 			dw p_storefree_c, var_endtask_t
 
-			; Main.bas 1136: st(t) = 1
+			; Main.bas 1139: st(t) = 1
 			dw kw_asetl, arr_st, var_endtask_t, 1
 
-			; Main.bas 1137: runs = runs + 1
+			; Main.bas 1140: runs = runs + 1
 			dw kw_inc, var_runs
 
-			; Main.bas 1138: PutLn t, ""
+			; Main.bas 1141: PutLn t, ""
 			dw p_putln_c, var_endtask_t, str2
 
-			; Main.bas 1139: GetNm t
+			; Main.bas 1142: GetNm t
 			dw p_getnm_c, var_endtask_t
 
-			; Main.bas 1140: PutLn t, "[" + en + " ended]"
+			; Main.bas 1143: PutLn t, "[" + en + " ended]"
 			dw kw_strcpy, stmp1, str12
 			dw kw_strcat, stmp1, var_en
 			dw kw_strcat, stmp1, str54
 			dw p_putln_c, var_endtask_t, stmp1
 
-			; Main.bas 1141: If wt <> t Then Prompt t                       ' (WAIT: the prompt when nothing runs)
+			; Main.bas 1144: If wt <> t Then Prompt t                       ' (WAIT: the prompt when nothing runs)
 			dw kw_cpnevv, var_wt, var_endtask_t
-			dw kw_goto_iffalse_n, if131_1
+			dw kw_goto_iffalse_n, if132_1
 			dw p_prompt_c, var_endtask_t
-if131_1:
+if132_1:
 
-			; Main.bas 1142: c = kq(t) : kq(t) = 0
+			; Main.bas 1145: c = kq(t) : kq(t) = 0
 			dw kw_aget, arr_kq, var_endtask_t, var_endtask_c
 			dw kw_asetl, arr_kq, var_endtask_t, 0
 
-			; Main.bas 1143: If c <> 0 And t = front Then pk = c    ' a key typed for it after its last look: the command line's
+			; Main.bas 1146: If c <> 0 And t = front Then pk = c    ' a key typed for it after its last look: the command line's
 			dw kw_cpnevl, var_endtask_c, 0
 			dw kw_ftov, tmp0
 			dw kw_cpeqvv, var_endtask_t, var_front
 			dw kw_ftov, tmp1
 			dw kw_andvv, tmp0, tmp1, tmp0
-			dw kw_goto_ifzero_n, tmp0, if132_1
+			dw kw_goto_ifzero_n, tmp0, if133_1
 			dw kw_vtov, var_endtask_c, var_pk
-if132_1:
+if133_1:
 			dw p_endtask_r
 
 ntc_rg43_e:
@@ -6751,8 +7091,8 @@ ntc_rg47:
 
 p_hyp_say:
 
-			; Hyp.cls 1345: #asm
-			dw asm_1_1345_n
+			; Hyp.cls 1351: #asm
+			dw asm_1_1351_n
 			dw p_hyp_say_r
 
 ntc_rg47_e:
@@ -6769,8 +7109,8 @@ ntc_rg48:
 
 p_hyp_scr:
 
-			; Hyp.cls 1439: #asm
-			dw asm_1_1439_n
+			; Hyp.cls 1445: #asm
+			dw asm_1_1445_n
 			dw p_hyp_scr_r
 
 ntc_rg48_e:
@@ -6787,8 +7127,8 @@ ntc_rg49:
 
 p_hyp_keyrep:
 
-			; Hyp.cls 1541: #asm
-			dw asm_1_1541_n
+			; Hyp.cls 1547: #asm
+			dw asm_1_1547_n
 			dw p_hyp_keyrep_r
 
 ntc_rg49_e:
@@ -6805,7 +7145,7 @@ ntc_rg50:
 
 p_hyp_show:
 
-			; Hyp.cls 1581: Con pg, 0, -1, 1
+			; Hyp.cls 1587: Con pg, 0, -1, 1
 			dw p_hyp_con_c, var_hyp_show_pg, lit_0, lit_m1, lit_1
 			dw p_hyp_show_r
 
@@ -6823,7 +7163,7 @@ ntc_rg51:
 
 p_hyp_reply:
 
-			; Hyp.cls 1587: ra = a : rhl = hl
+			; Hyp.cls 1593: ra = a : rhl = hl
 			dw kw_vtov, var_hyp_reply_a, var_hyp_ra
 			dw kw_vtov, var_hyp_reply_hl, var_hyp_rhl
 			dw p_hyp_reply_r
@@ -6842,7 +7182,7 @@ ntc_rg52:
 
 p_hyp_fn:
 
-			; Hyp.cls 1591: Fn = rfn And 255
+			; Hyp.cls 1597: Fn = rfn And 255
 			dw kw_andvl, var_hyp_rfn, 255, var_hyp_fn_fn
 			dw p_hyp_fn_r
 
@@ -6860,7 +7200,7 @@ ntc_rg53:
 
 p_hyp_arg:
 
-			; Hyp.cls 1595: Arg = rde
+			; Hyp.cls 1601: Arg = rde
 			dw kw_vtov, var_hyp_rde, var_hyp_arg_arg
 			dw p_hyp_arg_r
 
@@ -6878,7 +7218,7 @@ ntc_rg54:
 
 p_hyp_count:
 
-			; Hyp.cls 1600: Count = rcnt
+			; Hyp.cls 1606: Count = rcnt
 			dw kw_vtov, var_hyp_rcnt, var_hyp_count_count
 			dw p_hyp_count_r
 
@@ -6896,8 +7236,8 @@ ntc_rg55:
 
 p_hyp_run:
 
-			; Hyp.cls 1605: #asm
-			dw asm_1_1605_n
+			; Hyp.cls 1611: #asm
+			dw asm_1_1611_n
 			dw p_hyp_run_r
 
 ntc_rg55_e:
@@ -6914,8 +7254,8 @@ ntc_rg56:
 
 p_hyp_vdu:
 
-			; Hyp.cls 2278: #asm
-			dw asm_1_2278_n
+			; Hyp.cls 2284: #asm
+			dw asm_1_2284_n
 			dw p_hyp_vdu_r
 
 ntc_rg56_e:
@@ -6932,8 +7272,8 @@ ntc_rg57:
 
 p_hyp_filecall:
 
-			; Hyp.cls 2310: #asm
-			dw asm_1_2310_n
+			; Hyp.cls 2316: #asm
+			dw asm_1_2316_n
 			dw p_hyp_filecall_r
 
 ntc_rg57_e:
@@ -6950,8 +7290,8 @@ ntc_rg58:
 
 p_hyp_fileshut:
 
-			; Hyp.cls 3861: #asm
-			dw asm_1_3861_n
+			; Hyp.cls 3867: #asm
+			dw asm_1_3867_n
 			dw p_hyp_fileshut_r
 
 ntc_rg58_e:
@@ -6968,7 +7308,7 @@ ntc_rg59:
 
 p_hyp_svcvars:
 
-			; Hyp.cls 3917: svst = vst : svsg = vsg : svns = vns : svfr = vfr : svdp = vdp
+			; Hyp.cls 3925: svst = vst : svsg = vsg : svns = vns : svfr = vfr : svdp = vdp
 			dw kw_vtov, var_hyp_svcvars_vst, var_hyp_svst
 			dw kw_vtov, var_hyp_svcvars_vsg, var_hyp_svsg
 			dw kw_vtov, var_hyp_svcvars_vns, var_hyp_svns
@@ -6990,8 +7330,8 @@ ntc_rg60:
 
 p_hyp_svc:
 
-			; Hyp.cls 3924: #asm
-			dw asm_1_3924_n
+			; Hyp.cls 3932: #asm
+			dw asm_1_3932_n
 			dw p_hyp_svc_r
 
 ntc_rg60_e:
@@ -7008,8 +7348,8 @@ ntc_rg61:
 
 p_hyp_drive:
 
-			; Hyp.cls 5276: #asm
-			dw asm_1_5276_n
+			; Hyp.cls 5605: #asm
+			dw asm_1_5605_n
 			dw p_hyp_drive_r
 
 ntc_rg61_e:
@@ -7050,76 +7390,76 @@ p_hot_tick:
 			dw fn_keys_down, lit_23, var_hot_ctl
 
 			; Hot.cls 21: If ctl Then
-			dw kw_goto_ifzero_n, var_hot_ctl, if133_1
+			dw kw_goto_ifzero_n, var_hot_ctl, if134_1
 
 			; Hot.cls 22: If Keys.Down(64) Then k = 1
 			dw fn_keys_down, lit_64, var_keys_down_down
-			dw kw_goto_ifzero_n, var_keys_down_down, if134_1
+			dw kw_goto_ifzero_n, var_keys_down_down, if135_1
 			dw kw_ltov, 1, var_hot_tick_k
-if134_1:
+if135_1:
 
 			; Hot.cls 23: If Keys.Down(65) Then k = 2
 			dw fn_keys_down, lit_65, var_keys_down_down
-			dw kw_goto_ifzero_n, var_keys_down_down, if135_1
+			dw kw_goto_ifzero_n, var_keys_down_down, if136_1
 			dw kw_ltov, 2, var_hot_tick_k
-if135_1:
+if136_1:
 
 			; Hot.cls 24: If Keys.Down(57) Then k = 3
 			dw fn_keys_down, lit_57, var_keys_down_down
-			dw kw_goto_ifzero_n, var_keys_down_down, if136_1
+			dw kw_goto_ifzero_n, var_keys_down_down, if137_1
 			dw kw_ltov, 3, var_hot_tick_k
-if136_1:
+if137_1:
 
 			; Hot.cls 25: If Keys.Down(56) Then k = 4
 			dw fn_keys_down, lit_56, var_keys_down_down
-			dw kw_goto_ifzero_n, var_keys_down_down, if137_1
+			dw kw_goto_ifzero_n, var_keys_down_down, if138_1
 			dw kw_ltov, 4, var_hot_tick_k
-if137_1:
+if138_1:
 
 			; Hot.cls 26: If Keys.Down(49) Then k = 5
 			dw fn_keys_down, lit_49, var_keys_down_down
-			dw kw_goto_ifzero_n, var_keys_down_down, if138_1
+			dw kw_goto_ifzero_n, var_keys_down_down, if139_1
 			dw kw_ltov, 5, var_hot_tick_k
-if138_1:
+if139_1:
 
 			; Hot.cls 27: If Keys.Down(48) Then k = 6
 			dw fn_keys_down, lit_48, var_keys_down_down
-			dw kw_goto_ifzero_n, var_keys_down_down, if139_1
+			dw kw_goto_ifzero_n, var_keys_down_down, if140_1
 			dw kw_ltov, 6, var_hot_tick_k
-if139_1:
+if140_1:
 
 			; Hot.cls 28: If Keys.Down(41) Then k = 7
 			dw fn_keys_down, lit_41, var_keys_down_down
-			dw kw_goto_ifzero_n, var_keys_down_down, if140_1
+			dw kw_goto_ifzero_n, var_keys_down_down, if141_1
 			dw kw_ltov, 7, var_hot_tick_k
-if140_1:
+if141_1:
 
 			; Hot.cls 29: If Keys.Down(40) Then k = 8
 			dw fn_keys_down, lit_40, var_keys_down_down
-			dw kw_goto_ifzero_n, var_keys_down_down, if141_1
+			dw kw_goto_ifzero_n, var_keys_down_down, if142_1
 			dw kw_ltov, 8, var_hot_tick_k
-if141_1:
+if142_1:
 
 			; Hot.cls 30: If Keys.Down(33) Then k = 9
 			dw fn_keys_down, lit_33, var_keys_down_down
-			dw kw_goto_ifzero_n, var_keys_down_down, if142_1
+			dw kw_goto_ifzero_n, var_keys_down_down, if143_1
 			dw kw_ltov, 9, var_hot_tick_k
-if142_1:
+if143_1:
 
 			; Hot.cls 31: If Keys.Down(32) Then k = 10
 			dw fn_keys_down, lit_32, var_keys_down_down
-			dw kw_goto_ifzero_n, var_keys_down_down, if143_1
+			dw kw_goto_ifzero_n, var_keys_down_down, if144_1
 			dw kw_ltov, 10, var_hot_tick_k
-if143_1:
+if144_1:
 
 			; Hot.cls 32: If Keys.Down(Keys.KeyEsc) Then k = TOPKEY
 			dw fn_keys_down, lit_66, var_keys_down_down
-			dw kw_goto_ifzero_n, var_keys_down_down, if144_1
+			dw kw_goto_ifzero_n, var_keys_down_down, if145_1
 			dw kw_ltov, 99, var_hot_tick_k
-if144_1:
+if145_1:
 
 			; Hot.cls 33: End If
-if133_1:
+if134_1:
 
 			; Hot.cls 34: If k <> 0 And k <> last Then
 			dw kw_cpnevl, var_hot_tick_k, 0
@@ -7127,7 +7467,7 @@ if133_1:
 			dw kw_cpnevv, var_hot_tick_k, var_hot_last
 			dw kw_ftov, tmp7
 			dw kw_andvv, tmp6, tmp7, tmp6
-			dw kw_goto_ifzero_n, tmp6, if145_1
+			dw kw_goto_ifzero_n, tmp6, if146_1
 
 			; Hot.cls 35: If k = TOPKEY Or ns <= 10 Then
 			dw kw_cpeqvl, var_hot_tick_k, 99
@@ -7135,22 +7475,22 @@ if133_1:
 			dw kw_scplevl, var_hot_ns, 10
 			dw kw_ftov, tmp7
 			dw kw_orvv, tmp6, tmp7, tmp6
-			dw kw_goto_ifzero_n, tmp6, if146_1
+			dw kw_goto_ifzero_n, tmp6, if147_1
 
 			; Hot.cls 36: If one <> 0 Then one = 0
 			dw kw_cpnevl, var_hot_one, 0
-			dw kw_goto_iffalse_n, if147_1
+			dw kw_goto_iffalse_n, if148_1
 			dw kw_ztov, var_hot_one
-if147_1:
+if148_1:
 
 			; Hot.cls 37: pend = k                          ' at once (no double taps to wait for)
 			dw kw_vtov, var_hot_tick_k, var_hot_pend
 
 			; Hot.cls 38: ElseIf one = k Then
-			dw if146_e_go
-if146_1:
+			dw if147_e_go
+if147_1:
 			dw kw_cpeqvv, var_hot_one, var_hot_tick_k
-			dw kw_goto_iffalse_n, if146_2
+			dw kw_goto_iffalse_n, if147_2
 
 			; Hot.cls 39: one = 0
 			dw kw_ztov, var_hot_one
@@ -7158,36 +7498,36 @@ if146_1:
 			; Hot.cls 40: If k + 10 <= ns Then pend = k + 10 Else pend = k  ' the second press: slot 11-20
 			dw kw_addl, var_hot_tick_k, 10, tmp6
 			dw kw_scplevv, tmp6, var_hot_ns
-			dw kw_goto_iffalse_n, if148_1
+			dw kw_goto_iffalse_n, if149_1
 			dw kw_addl, var_hot_tick_k, 10, var_hot_pend
-			dw if146_e_go
-if148_1:
+			dw if147_e_go
+if149_1:
 			dw kw_vtov, var_hot_tick_k, var_hot_pend
-if148_e:
+if149_e:
 
 			; Hot.cls 41: Else
-			dw if146_e_go
-if146_2:
+			dw if147_e_go
+if147_2:
 
 			; Hot.cls 42: If one <> 0 Then pend = one       ' another number: the waiting one counts now
 			dw kw_cpnevl, var_hot_one, 0
-			dw kw_goto_iffalse_n, if149_1
+			dw kw_goto_iffalse_n, if150_1
 			dw kw_vtov, var_hot_one, var_hot_pend
-if149_1:
+if150_1:
 
 			; Hot.cls 43: one = k : age = 0
 			dw kw_vtov, var_hot_tick_k, var_hot_one
 			dw kw_ztov, var_hot_age
 
 			; Hot.cls 44: End If
-if146_e:
+if147_e:
 
 			; Hot.cls 45: End If
-if145_1:
+if146_1:
 
 			; Hot.cls 46: If one <> 0 Then
 			dw kw_cpnevl, var_hot_one, 0
-			dw kw_goto_iffalse_n, if150_1
+			dw kw_goto_iffalse_n, if151_1
 
 			; Hot.cls 47: age = age + 1
 			dw kw_inc, var_hot_age
@@ -7198,13 +7538,13 @@ if145_1:
 			dw kw_cpeqvl, var_hot_ctl, 0
 			dw kw_ftov, tmp7
 			dw kw_orvv, tmp6, tmp7, tmp6
-			dw kw_goto_ifzero_n, tmp6, if151_1
+			dw kw_goto_ifzero_n, tmp6, if152_1
 			dw kw_vtov, var_hot_one, var_hot_pend
 			dw kw_ztov, var_hot_one
-if151_1:
+if152_1:
 
 			; Hot.cls 49: End If
-if150_1:
+if151_1:
 
 			; Hot.cls 50: last = k
 			dw kw_vtov, var_hot_tick_k, var_hot_last
@@ -7312,43 +7652,43 @@ sel45_e_go:			ld sp, sel45_e
 			jp ntc_xn
 if59_e_go:			ld sp, if59_e
 			jp ntc_xn
-ch75_e_go:			ld sp, ch75_e
+ch76_e_go:			ld sp, ch76_e
 			jp ntc_xn
-if74_e_go:			ld sp, if74_e
-			jp ntc_xn
-ch79_e_go:			ld sp, ch79_e
+if75_e_go:			ld sp, if75_e
 			jp ntc_xn
 ch80_e_go:			ld sp, ch80_e
 			jp ntc_xn
 ch81_e_go:			ld sp, ch81_e
 			jp ntc_xn
-if86_e_go:			ld sp, if86_e
+ch82_e_go:			ld sp, ch82_e
 			jp ntc_xn
-if88_e_go:			ld sp, if88_e
+if87_e_go:			ld sp, if87_e
 			jp ntc_xn
-ch90_e_go:			ld sp, ch90_e
+if89_e_go:			ld sp, if89_e
 			jp ntc_xn
-if91_e_go:			ld sp, if91_e
+ch91_e_go:			ld sp, ch91_e
 			jp ntc_xn
-if93_e_go:			ld sp, if93_e
+if92_e_go:			ld sp, if92_e
 			jp ntc_xn
-if97_e_go:			ld sp, if97_e
+if94_e_go:			ld sp, if94_e
 			jp ntc_xn
-if101_e_go:			ld sp, if101_e
+if98_e_go:			ld sp, if98_e
 			jp ntc_xn
-sel107_e_go:			ld sp, sel107_e
+if102_e_go:			ld sp, if102_e
 			jp ntc_xn
-if118_e_go:			ld sp, if118_e
+sel108_e_go:			ld sp, sel108_e
 			jp ntc_xn
-do113_e_go:			ld sp, do113_e
+if119_e_go:			ld sp, if119_e
 			jp ntc_xn
-do113_t_go:			ld sp, do113_t
+do114_e_go:			ld sp, do114_e
 			jp ntc_xn
-if127_e_go:			ld sp, if127_e
+do114_t_go:			ld sp, do114_t
 			jp ntc_xn
-if129_e_go:			ld sp, if129_e
+if128_e_go:			ld sp, if128_e
 			jp ntc_xn
-if146_e_go:			ld sp, if146_e
+if130_e_go:			ld sp, if130_e
+			jp ntc_xn
+if147_e_go:			ld sp, if147_e
 			jp ntc_xn
 
 p_running_c:		; call running (normal)
@@ -9322,178 +9662,178 @@ asm_1_282_n_cn_drwn:		; Hyp.cls 1069
             ld a, l		; Hyp.cls 1079
             add a, d		; Hyp.cls 1080
             ld l, a		; Hyp.cls 1081
-            jr nc, asm_1_282_n_cn_dw_lp		; Hyp.cls 1082
+            jr nc, asm_1_282_n_cn_dw_p		; Hyp.cls 1082
             inc h		; Hyp.cls 1083
-asm_1_282_n_cn_dw_lp:		; Hyp.cls 1084
-            ld a, (hl)		; Hyp.cls 1085
-            inc hl		; Hyp.cls 1086
-            push hl		; Hyp.cls 1087
-            push de		; Hyp.cls 1088
-            push bc		; Hyp.cls 1089
-            call asm_1_282_n_cn_glyph		; Hyp.cls 1090
-            pop bc		; Hyp.cls 1091
-            pop de		; Hyp.cls 1092
-            pop hl		; Hyp.cls 1093
-            inc d		; Hyp.cls 1094
-            djnz asm_1_282_n_cn_dw_lp		; Hyp.cls 1095
-            ret		; Hyp.cls 1096
+asm_1_282_n_cn_dw_p:                            ; the screen address worked out once, then stepped on (as [1084]
+            push hl                 ; cn_print: a sum each character was a fifth of the time [1085]
+            push bc                 ; a screen of text took - ESC K's) [1086]
+            call asm_1_282_n_cn_scr		; Hyp.cls 1087
+            pop bc		; Hyp.cls 1088
+            pop de                  ; DE: the page's characters, HL the screen [1089]
+asm_1_282_n_cn_dw_lp:		; Hyp.cls 1090
+            ld a, (de)		; Hyp.cls 1091
+            inc de		; Hyp.cls 1092
+            push hl		; Hyp.cls 1093
+            push de		; Hyp.cls 1094
+            push bc		; Hyp.cls 1095
+            call asm_1_282_n_cn_glyph8		; Hyp.cls 1096
+            pop bc		; Hyp.cls 1097
+            pop de		; Hyp.cls 1098
+            pop hl		; Hyp.cls 1099
+            call asm_1_282_n_cn_next		; Hyp.cls 1100
+            djnz asm_1_282_n_cn_dw_lp		; Hyp.cls 1101
+            ret		; Hyp.cls 1102
 
 ; ESC E: the page cleared, column, row and ring back to 0; the screen too if in front (written,
 ; not copied: the Library: ROM build may have the keyword ROM over it for reads)
-asm_1_282_n_cn_clear:		; Hyp.cls 1100
-            ld hl, #7700		; Hyp.cls 1101
-            ld de, #7701		; Hyp.cls 1102
-            ld (hl), ' '		; Hyp.cls 1103
-            ld bc, 2047		; Hyp.cls 1104
-            ldir		; Hyp.cls 1105
-            xor a		; Hyp.cls 1106
-            ld (#7682), a		; Hyp.cls 1107
-            ld (#7683), a		; Hyp.cls 1108
-            ld (#7684), a		; Hyp.cls 1109
-            ld a, (asm_1_282_n_cn_front)		; Hyp.cls 1110
-            or a		; Hyp.cls 1111
-            ret z		; Hyp.cls 1112
-            ld hl, 0		; Hyp.cls 1113
-            ld (var_hyp_sco), hl		; Hyp.cls 1114
-            ld (var_hyp_pon), hl          ; (no pointer on the cleared screen) [1115]
-            call asm_1_282_n_cn_crtc		; Hyp.cls 1116
-            xor a		; Hyp.cls 1117
-            ld hl, #C000		; Hyp.cls 1118
-            ld c, #40		; Hyp.cls 1119
-asm_1_282_n_cn_cl_l:		; Hyp.cls 1120
-            ld b, 0		; Hyp.cls 1121
-asm_1_282_n_cn_cl_b:		; Hyp.cls 1122
-            ld (hl), a		; Hyp.cls 1123
-            inc hl		; Hyp.cls 1124
-            djnz asm_1_282_n_cn_cl_b		; Hyp.cls 1125
-            dec c		; Hyp.cls 1126
-            jr nz, asm_1_282_n_cn_cl_l		; Hyp.cls 1127
+asm_1_282_n_cn_clear:		; Hyp.cls 1106
+            ld hl, #7700		; Hyp.cls 1107
+            ld de, #7701		; Hyp.cls 1108
+            ld (hl), ' '		; Hyp.cls 1109
+            ld bc, 2047		; Hyp.cls 1110
+            ldir		; Hyp.cls 1111
+            xor a		; Hyp.cls 1112
+            ld (#7682), a		; Hyp.cls 1113
+            ld (#7683), a		; Hyp.cls 1114
+            ld (#7684), a		; Hyp.cls 1115
+            ld a, (asm_1_282_n_cn_front)		; Hyp.cls 1116
+            or a		; Hyp.cls 1117
+            ret z		; Hyp.cls 1118
+            ld hl, 0		; Hyp.cls 1119
+            ld (var_hyp_sco), hl		; Hyp.cls 1120
+            ld (var_hyp_pon), hl          ; (no pointer on the cleared screen) [1121]
+            call asm_1_282_n_cn_crtc		; Hyp.cls 1122
+            xor a		; Hyp.cls 1123
+            ld hl, #C000		; Hyp.cls 1124
+            ld c, #40		; Hyp.cls 1125
+asm_1_282_n_cn_cl_l:		; Hyp.cls 1126
+            ld b, 0		; Hyp.cls 1127
+asm_1_282_n_cn_cl_b:		; Hyp.cls 1128
+            ld (hl), a		; Hyp.cls 1129
+            inc hl		; Hyp.cls 1130
+            djnz asm_1_282_n_cn_cl_b		; Hyp.cls 1131
+            dec c		; Hyp.cls 1132
+            jr nz, asm_1_282_n_cn_cl_l		; Hyp.cls 1133
 ; cn_strip: MODE S (the screen wider than the console): the status strip's 4 characters (#F68A)
 ; at the top of the columns right of the console
-asm_1_282_n_cn_strip:		; Hyp.cls 1130
-            ld a, (asm_1_282_n_cn_front)		; Hyp.cls 1131
-            or a		; Hyp.cls 1132
-            ret z		; Hyp.cls 1133
-            ld a, (asm_1_282_n_cn_c)		; Hyp.cls 1134
-            ld d, a		; Hyp.cls 1135
-            ld a, (var_hyp_scc)		; Hyp.cls 1136
-            cp d		; Hyp.cls 1137
-            ret z		; Hyp.cls 1138
-            ret c		; Hyp.cls 1139
-            ld e, 0		; Hyp.cls 1140
-            ld hl, #768A		; Hyp.cls 1141
-            ld b, 4		; Hyp.cls 1142
-asm_1_282_n_cn_st_lp:		; Hyp.cls 1143
-            ld a, (hl)		; Hyp.cls 1144
-            push hl		; Hyp.cls 1145
-            push de		; Hyp.cls 1146
-            push bc		; Hyp.cls 1147
-            call asm_1_282_n_cn_glyph		; Hyp.cls 1148
-            pop bc		; Hyp.cls 1149
-            pop de		; Hyp.cls 1150
-            pop hl		; Hyp.cls 1151
-            inc hl		; Hyp.cls 1152
-            inc d		; Hyp.cls 1153
-            djnz asm_1_282_n_cn_st_lp		; Hyp.cls 1154
-            ret		; Hyp.cls 1155
+asm_1_282_n_cn_strip:		; Hyp.cls 1136
+            ld a, (asm_1_282_n_cn_front)		; Hyp.cls 1137
+            or a		; Hyp.cls 1138
+            ret z		; Hyp.cls 1139
+            ld a, (asm_1_282_n_cn_c)		; Hyp.cls 1140
+            ld d, a		; Hyp.cls 1141
+            ld a, (var_hyp_scc)		; Hyp.cls 1142
+            cp d		; Hyp.cls 1143
+            ret z		; Hyp.cls 1144
+            ret c		; Hyp.cls 1145
+            ld e, 0		; Hyp.cls 1146
+            ld hl, #768A		; Hyp.cls 1147
+            ld b, 4		; Hyp.cls 1148
+asm_1_282_n_cn_st_lp:		; Hyp.cls 1149
+            ld a, (hl)		; Hyp.cls 1150
+            push hl		; Hyp.cls 1151
+            push de		; Hyp.cls 1152
+            push bc		; Hyp.cls 1153
+            call asm_1_282_n_cn_glyph		; Hyp.cls 1154
+            pop bc		; Hyp.cls 1155
+            pop de		; Hyp.cls 1156
+            pop hl		; Hyp.cls 1157
+            inc hl		; Hyp.cls 1158
+            inc d		; Hyp.cls 1159
+            djnz asm_1_282_n_cn_st_lp		; Hyp.cls 1160
+            ret		; Hyp.cls 1161
 
 ; cn_crtc: the screen's start (sco, bytes) to the CRTC: R12 = #30 + its words' high 2 bits, R13
 ; the low 8 (#C000, MA10 / MA11 clear: kept within 2K, never the carry into the next 16K)
-asm_1_282_n_cn_crtc:		; Hyp.cls 1159
-            ld hl, (var_hyp_sco)		; Hyp.cls 1160
-            srl h		; Hyp.cls 1161
-            rr l		; Hyp.cls 1162
-            ld a, h		; Hyp.cls 1163
-            and 3		; Hyp.cls 1164
-            or #30		; Hyp.cls 1165
-            ld bc, #BC0C		; Hyp.cls 1166
-            out (c), c		; Hyp.cls 1167
-            inc b		; Hyp.cls 1168
-            out (c), a		; Hyp.cls 1169
-            ld bc, #BC0D		; Hyp.cls 1170
-            out (c), c		; Hyp.cls 1171
-            inc b		; Hyp.cls 1172
-            out (c), l		; Hyp.cls 1173
-            ret		; Hyp.cls 1174
+asm_1_282_n_cn_crtc:		; Hyp.cls 1165
+            ld hl, (var_hyp_sco)		; Hyp.cls 1166
+            srl h		; Hyp.cls 1167
+            rr l		; Hyp.cls 1168
+            ld a, h		; Hyp.cls 1169
+            and 3		; Hyp.cls 1170
+            or #30		; Hyp.cls 1171
+            ld bc, #BC0C		; Hyp.cls 1172
+            out (c), c		; Hyp.cls 1173
+            inc b		; Hyp.cls 1174
+            out (c), a		; Hyp.cls 1175
+            ld bc, #BC0D		; Hyp.cls 1176
+            out (c), c		; Hyp.cls 1177
+            inc b		; Hyp.cls 1178
+            out (c), l		; Hyp.cls 1179
+            ret		; Hyp.cls 1180
 
 ; cn_rowa: A = row of the screen -> HL = its row in the page ring (#7700 + ((top + A) mod rows)
 ; * columns)
-asm_1_282_n_cn_rowa:		; Hyp.cls 1178
-            ld hl, #7684		; Hyp.cls 1179
-            add a, (hl)		; Hyp.cls 1180
-            ld hl, asm_1_282_n_cn_r		; Hyp.cls 1181
-            cp (hl)		; Hyp.cls 1182
-            jr c, asm_1_282_n_cn_ra_in		; Hyp.cls 1183
-            sub (hl)		; Hyp.cls 1184
-asm_1_282_n_cn_ra_in:		; Hyp.cls 1185
-            ld e, a		; Hyp.cls 1186
-            ld a, (asm_1_282_n_cn_c)		; Hyp.cls 1187
-            call asm_1_282_n_cn_mul		; Hyp.cls 1188
-            ld de, #7700		; Hyp.cls 1189
-            add hl, de		; Hyp.cls 1190
-            ret		; Hyp.cls 1191
+asm_1_282_n_cn_rowa:		; Hyp.cls 1184
+            ld hl, #7684		; Hyp.cls 1185
+            add a, (hl)		; Hyp.cls 1186
+            ld hl, asm_1_282_n_cn_r		; Hyp.cls 1187
+            cp (hl)		; Hyp.cls 1188
+            jr c, asm_1_282_n_cn_ra_in		; Hyp.cls 1189
+            sub (hl)		; Hyp.cls 1190
+asm_1_282_n_cn_ra_in:		; Hyp.cls 1191
+            ld e, a		; Hyp.cls 1192
+            ld a, (asm_1_282_n_cn_c)		; Hyp.cls 1193
+            call asm_1_282_n_cn_mul		; Hyp.cls 1194
+            ld de, #7700		; Hyp.cls 1195
+            add hl, de		; Hyp.cls 1196
+            ret		; Hyp.cls 1197
 
 ; cn_mul: HL = A * E (BC kept; D = 0 after)
-asm_1_282_n_cn_mul:		; Hyp.cls 1194
-            push bc		; Hyp.cls 1195
-            ld hl, 0		; Hyp.cls 1196
-            ld d, 0		; Hyp.cls 1197
-            ld b, 8		; Hyp.cls 1198
-asm_1_282_n_cn_mu_lp:		; Hyp.cls 1199
-            add hl, hl		; Hyp.cls 1200
-            rlca		; Hyp.cls 1201
-            jr nc, asm_1_282_n_cn_mu_n		; Hyp.cls 1202
-            add hl, de		; Hyp.cls 1203
-asm_1_282_n_cn_mu_n:		; Hyp.cls 1204
-            djnz asm_1_282_n_cn_mu_lp		; Hyp.cls 1205
-            pop bc		; Hyp.cls 1206
-            ret		; Hyp.cls 1207
+asm_1_282_n_cn_mul:		; Hyp.cls 1200
+            push bc		; Hyp.cls 1201
+            ld hl, 0		; Hyp.cls 1202
+            ld d, 0		; Hyp.cls 1203
+            ld b, 8		; Hyp.cls 1204
+asm_1_282_n_cn_mu_lp:		; Hyp.cls 1205
+            add hl, hl		; Hyp.cls 1206
+            rlca		; Hyp.cls 1207
+            jr nc, asm_1_282_n_cn_mu_n		; Hyp.cls 1208
+            add hl, de		; Hyp.cls 1209
+asm_1_282_n_cn_mu_n:		; Hyp.cls 1210
+            djnz asm_1_282_n_cn_mu_lp		; Hyp.cls 1211
+            pop bc		; Hyp.cls 1212
+            ret		; Hyp.cls 1213
 
 ; cn_next: HL = the next screen byte: + 1 within its 2K line block (BC kept)
-asm_1_282_n_cn_next:		; Hyp.cls 1210
-            inc l		; Hyp.cls 1211
-            ret nz		; Hyp.cls 1212
-            ld a, h		; Hyp.cls 1213
-            inc a		; Hyp.cls 1214
-            and #07		; Hyp.cls 1215
-            push bc		; Hyp.cls 1216
-            ld c, a		; Hyp.cls 1217
-            ld a, h		; Hyp.cls 1218
-            and #F8		; Hyp.cls 1219
-            or c		; Hyp.cls 1220
-            ld h, a		; Hyp.cls 1221
-            pop bc		; Hyp.cls 1222
-            ret		; Hyp.cls 1223
+asm_1_282_n_cn_next:		; Hyp.cls 1216
+            inc l		; Hyp.cls 1217
+            ret nz		; Hyp.cls 1218
+            ld a, h		; Hyp.cls 1219
+            inc a		; Hyp.cls 1220
+            and #07		; Hyp.cls 1221
+            push bc		; Hyp.cls 1222
+            ld c, a		; Hyp.cls 1223
+            ld a, h		; Hyp.cls 1224
+            and #F8		; Hyp.cls 1225
+            or c		; Hyp.cls 1226
+            ld h, a		; Hyp.cls 1227
+            pop bc		; Hyp.cls 1228
+            ret		; Hyp.cls 1229
 
 ; cn_glyph: A = character, D = column, E = row: drawn (cn_show)
-asm_1_282_n_cn_glyph:		; Hyp.cls 1226
-            push af		; Hyp.cls 1227
-            call asm_1_282_n_cn_scr		; Hyp.cls 1228
-            pop af		; Hyp.cls 1229
+asm_1_282_n_cn_glyph:		; Hyp.cls 1232
+            push af		; Hyp.cls 1233
+            call asm_1_282_n_cn_scr		; Hyp.cls 1234
+            pop af		; Hyp.cls 1235
 ; cn_glyph8: A = character, HL = its screen address: its 8 bytes into screen memory (mode 2, pen
 ; 1 on paper 0), one per pixel line (#800 apart; unrolled)
-asm_1_282_n_cn_glyph8:		; Hyp.cls 1232
-            sub 32		; Hyp.cls 1233
-            cp 96		; Hyp.cls 1234
-            jr c, asm_1_282_n_cn_gl_ok		; Hyp.cls 1235
-            ld a, '?' - 32		; Hyp.cls 1236
-asm_1_282_n_cn_gl_ok:		; Hyp.cls 1237
-            push hl		; Hyp.cls 1238
-            ld l, a		; Hyp.cls 1239
-            ld h, 0		; Hyp.cls 1240
-            add hl, hl		; Hyp.cls 1241
-            add hl, hl		; Hyp.cls 1242
-            add hl, hl		; Hyp.cls 1243
-            ld de, 62208 - #8000   ; (the bank's page 3 in the window: FONT - #C000 + #4000) [1244]
-            add hl, de		; Hyp.cls 1245
-            ex de, hl               ; DE = its matrix [1246]
-            pop hl		; Hyp.cls 1247
-            ld a, (de)		; Hyp.cls 1248
-            ld (hl), a		; Hyp.cls 1249
-            inc de		; Hyp.cls 1250
-            ld a, h		; Hyp.cls 1251
-            add a, 8		; Hyp.cls 1252
-            ld h, a		; Hyp.cls 1253
+asm_1_282_n_cn_glyph8:		; Hyp.cls 1238
+            sub 32		; Hyp.cls 1239
+            cp 96		; Hyp.cls 1240
+            jr c, asm_1_282_n_cn_gl_ok		; Hyp.cls 1241
+            ld a, '?' - 32		; Hyp.cls 1242
+asm_1_282_n_cn_gl_ok:		; Hyp.cls 1243
+            push hl		; Hyp.cls 1244
+            ld l, a		; Hyp.cls 1245
+            ld h, 0		; Hyp.cls 1246
+            add hl, hl		; Hyp.cls 1247
+            add hl, hl		; Hyp.cls 1248
+            add hl, hl		; Hyp.cls 1249
+            ld de, 62208 - #8000   ; (the bank's page 3 in the window: FONT - #C000 + #4000) [1250]
+            add hl, de		; Hyp.cls 1251
+            ex de, hl               ; DE = its matrix [1252]
+            pop hl		; Hyp.cls 1253
             ld a, (de)		; Hyp.cls 1254
             ld (hl), a		; Hyp.cls 1255
             inc de		; Hyp.cls 1256
@@ -9532,819 +9872,825 @@ asm_1_282_n_cn_gl_ok:		; Hyp.cls 1237
             ld h, a		; Hyp.cls 1289
             ld a, (de)		; Hyp.cls 1290
             ld (hl), a		; Hyp.cls 1291
-            ret		; Hyp.cls 1292
+            inc de		; Hyp.cls 1292
+            ld a, h		; Hyp.cls 1293
+            add a, 8		; Hyp.cls 1294
+            ld h, a		; Hyp.cls 1295
+            ld a, (de)		; Hyp.cls 1296
+            ld (hl), a		; Hyp.cls 1297
+            ret		; Hyp.cls 1298
 ; cn_scr: D = column, E = row -> HL = the screen address: the screen's start (sco) + row *
 ; columns (scc) + column, within each 2K line block, at #C000
-asm_1_282_n_cn_scr:		; Hyp.cls 1295
-            push de		; Hyp.cls 1296
-            ld a, (var_hyp_scc)		; Hyp.cls 1297
-            call asm_1_282_n_cn_mul		; Hyp.cls 1298
-            pop de		; Hyp.cls 1299
-            ld c, d		; Hyp.cls 1300
-            ld b, 0		; Hyp.cls 1301
-            add hl, bc		; Hyp.cls 1302
-            ld bc, (var_hyp_sco)		; Hyp.cls 1303
-            add hl, bc		; Hyp.cls 1304
-            ld a, h		; Hyp.cls 1305
-            and #07		; Hyp.cls 1306
-            or #C0		; Hyp.cls 1307
-            ld h, a		; Hyp.cls 1308
-            ret		; Hyp.cls 1309
-asm_1_282_n_cn_cuxor:                           ; the cursor's underline XORed at cn_ca, on <-> off [1310]
-            ld hl, (asm_1_282_n_cn_ca)		; Hyp.cls 1311
-            ld a, (hl)		; Hyp.cls 1312
-            cpl		; Hyp.cls 1313
-            ld (hl), a		; Hyp.cls 1314
-            ld a, (var_hyp_ccu)		; Hyp.cls 1315
-            xor 1		; Hyp.cls 1316
-            ld (var_hyp_ccu), a		; Hyp.cls 1317
-            ret		; Hyp.cls 1318
-asm_1_282_n_cn_was:     db 0		; Hyp.cls 1319
-asm_1_282_n_cn_ca:      dw 0		; Hyp.cls 1320
-asm_1_282_n_cn_front:   db 0		; Hyp.cls 1321
-asm_1_282_n_cn_c:       db 80                   ; the slot's columns, rows [1322]
-asm_1_282_n_cn_r:       db 25		; Hyp.cls 1323
-asm_1_282_n_cn_pv:      db 0                    ; cn_pp / cn_sp valid (0: the cursor moved) [1324]
-asm_1_282_n_cn_pp:      dw 0                    ; the page byte for the next character [1325]
-asm_1_282_n_cn_sp:      dw 0                    ; its screen address [1326]
-asm_1_282_n_cn_left:    dw 0		; Hyp.cls 1327
-asm_1_282_n_cn_ptr:     dw 0		; Hyp.cls 1328
-            IF asm_1_282_n_CN_SB		; Hyp.cls 1329
-asm_1_282_n_cn_pg:      dw 0                    ; the slot's page 3 setting (pg) [1330]
-asm_1_282_n_cn_h1:      dw 0                    ; cn_hcp: from (its setting, address), to, 8-byte runs left [1331]
-asm_1_282_n_cn_hs:      dw 0		; Hyp.cls 1332
-asm_1_282_n_cn_h2:      dw 0		; Hyp.cls 1333
-asm_1_282_n_cn_hd:      dw 0		; Hyp.cls 1334
-asm_1_282_n_cn_hn:      db 0		; Hyp.cls 1335
-            ENDIF		; Hyp.cls 1336
-asm_1_282_n_cn_end:		; Hyp.cls 1337
+asm_1_282_n_cn_scr:		; Hyp.cls 1301
+            push de		; Hyp.cls 1302
+            ld a, (var_hyp_scc)		; Hyp.cls 1303
+            call asm_1_282_n_cn_mul		; Hyp.cls 1304
+            pop de		; Hyp.cls 1305
+            ld c, d		; Hyp.cls 1306
+            ld b, 0		; Hyp.cls 1307
+            add hl, bc		; Hyp.cls 1308
+            ld bc, (var_hyp_sco)		; Hyp.cls 1309
+            add hl, bc		; Hyp.cls 1310
+            ld a, h		; Hyp.cls 1311
+            and #07		; Hyp.cls 1312
+            or #C0		; Hyp.cls 1313
+            ld h, a		; Hyp.cls 1314
+            ret		; Hyp.cls 1315
+asm_1_282_n_cn_cuxor:                           ; the cursor's underline XORed at cn_ca, on <-> off [1316]
+            ld hl, (asm_1_282_n_cn_ca)		; Hyp.cls 1317
+            ld a, (hl)		; Hyp.cls 1318
+            cpl		; Hyp.cls 1319
+            ld (hl), a		; Hyp.cls 1320
+            ld a, (var_hyp_ccu)		; Hyp.cls 1321
+            xor 1		; Hyp.cls 1322
+            ld (var_hyp_ccu), a		; Hyp.cls 1323
+            ret		; Hyp.cls 1324
+asm_1_282_n_cn_was:     db 0		; Hyp.cls 1325
+asm_1_282_n_cn_ca:      dw 0		; Hyp.cls 1326
+asm_1_282_n_cn_front:   db 0		; Hyp.cls 1327
+asm_1_282_n_cn_c:       db 80                   ; the slot's columns, rows [1328]
+asm_1_282_n_cn_r:       db 25		; Hyp.cls 1329
+asm_1_282_n_cn_pv:      db 0                    ; cn_pp / cn_sp valid (0: the cursor moved) [1330]
+asm_1_282_n_cn_pp:      dw 0                    ; the page byte for the next character [1331]
+asm_1_282_n_cn_sp:      dw 0                    ; its screen address [1332]
+asm_1_282_n_cn_left:    dw 0		; Hyp.cls 1333
+asm_1_282_n_cn_ptr:     dw 0		; Hyp.cls 1334
+            IF asm_1_282_n_CN_SB		; Hyp.cls 1335
+asm_1_282_n_cn_pg:      dw 0                    ; the slot's page 3 setting (pg) [1336]
+asm_1_282_n_cn_h1:      dw 0                    ; cn_hcp: from (its setting, address), to, 8-byte runs left [1337]
+asm_1_282_n_cn_hs:      dw 0		; Hyp.cls 1338
+asm_1_282_n_cn_h2:      dw 0		; Hyp.cls 1339
+asm_1_282_n_cn_hd:      dw 0		; Hyp.cls 1340
+asm_1_282_n_cn_hn:      db 0		; Hyp.cls 1341
+            ENDIF		; Hyp.cls 1342
+asm_1_282_n_cn_end:		; Hyp.cls 1343
 			ret			; end of #asm
 
-asm_1_1345_n:		; #asm, Hyp.cls line 1345 (normal)
-            ld (var_hyp_hsp), sp		; Hyp.cls 1346
-            ld sp, (ntc_csp)		; Hyp.cls 1347
-            ld bc, (var_hyp_hps)          ; the hypervisor's page in the window: the font [1348]
-            out (c), c		; Hyp.cls 1349
-            ld hl, (var_hyp_sco)          ; the screen's start (TOP is shown in MODE 2: 80 columns) [1350]
-            ld (asm_1_1345_n_sy_off), hl		; Hyp.cls 1351
-            ld hl, (var_hyp_say_p)		; Hyp.cls 1352
-            ld a, (var_hyp_say_n)		; Hyp.cls 1353
-            ld b, a		; Hyp.cls 1354
-            ld a, (var_hyp_say_col)		; Hyp.cls 1355
-            ld d, a		; Hyp.cls 1356
-            ld a, (var_hyp_say_row)		; Hyp.cls 1357
-            ld e, a		; Hyp.cls 1358
-            inc b		; Hyp.cls 1359
-asm_1_1345_n_sy_lp:		; Hyp.cls 1360
-            dec b		; Hyp.cls 1361
-            jr z, asm_1_1345_n_sy_done		; Hyp.cls 1362
-            ld a, d		; Hyp.cls 1363
-            cp 80		; Hyp.cls 1364
-            jr nc, asm_1_1345_n_sy_done		; Hyp.cls 1365
-            ld a, (hl)		; Hyp.cls 1366
-            inc hl		; Hyp.cls 1367
-            push hl		; Hyp.cls 1368
-            push bc		; Hyp.cls 1369
-            push de		; Hyp.cls 1370
-            sub 32                  ; the character's matrix [1371]
-            cp 96		; Hyp.cls 1372
-            jr c, asm_1_1345_n_sy_ok		; Hyp.cls 1373
-            ld a, '?' - 32		; Hyp.cls 1374
-asm_1_1345_n_sy_ok:		; Hyp.cls 1375
-            ld l, a		; Hyp.cls 1376
-            ld h, 0		; Hyp.cls 1377
-            add hl, hl		; Hyp.cls 1378
-            add hl, hl		; Hyp.cls 1379
-            add hl, hl		; Hyp.cls 1380
-            ld bc, #4000 + 4096  ; (the hypervisor's page in the window) [1381]
-            add hl, bc		; Hyp.cls 1382
-            push hl		; Hyp.cls 1383
-            ld l, e                 ; its screen address: start + row * 80 + column, in 2K [1384]
-            ld h, 0		; Hyp.cls 1385
+asm_1_1351_n:		; #asm, Hyp.cls line 1351 (normal)
+            ld (var_hyp_hsp), sp		; Hyp.cls 1352
+            ld sp, (ntc_csp)		; Hyp.cls 1353
+            ld bc, (var_hyp_hps)          ; the hypervisor's page in the window: the font [1354]
+            out (c), c		; Hyp.cls 1355
+            ld hl, (var_hyp_sco)          ; the screen's start (TOP is shown in MODE 2: 80 columns) [1356]
+            ld (asm_1_1351_n_sy_off), hl		; Hyp.cls 1357
+            ld hl, (var_hyp_say_p)		; Hyp.cls 1358
+            ld a, (var_hyp_say_n)		; Hyp.cls 1359
+            ld b, a		; Hyp.cls 1360
+            ld a, (var_hyp_say_col)		; Hyp.cls 1361
+            ld d, a		; Hyp.cls 1362
+            ld a, (var_hyp_say_row)		; Hyp.cls 1363
+            ld e, a		; Hyp.cls 1364
+            inc b		; Hyp.cls 1365
+asm_1_1351_n_sy_lp:		; Hyp.cls 1366
+            dec b		; Hyp.cls 1367
+            jr z, asm_1_1351_n_sy_done		; Hyp.cls 1368
+            ld a, d		; Hyp.cls 1369
+            cp 80		; Hyp.cls 1370
+            jr nc, asm_1_1351_n_sy_done		; Hyp.cls 1371
+            ld a, (hl)		; Hyp.cls 1372
+            inc hl		; Hyp.cls 1373
+            push hl		; Hyp.cls 1374
+            push bc		; Hyp.cls 1375
+            push de		; Hyp.cls 1376
+            sub 32                  ; the character's matrix [1377]
+            cp 96		; Hyp.cls 1378
+            jr c, asm_1_1351_n_sy_ok		; Hyp.cls 1379
+            ld a, '?' - 32		; Hyp.cls 1380
+asm_1_1351_n_sy_ok:		; Hyp.cls 1381
+            ld l, a		; Hyp.cls 1382
+            ld h, 0		; Hyp.cls 1383
+            add hl, hl		; Hyp.cls 1384
+            add hl, hl		; Hyp.cls 1385
             add hl, hl		; Hyp.cls 1386
-            add hl, hl		; Hyp.cls 1387
-            add hl, hl		; Hyp.cls 1388
-            add hl, hl		; Hyp.cls 1389
-            push hl		; Hyp.cls 1390
-            add hl, hl		; Hyp.cls 1391
+            ld bc, #4000 + 4096  ; (the hypervisor's page in the window) [1387]
+            add hl, bc		; Hyp.cls 1388
+            push hl		; Hyp.cls 1389
+            ld l, e                 ; its screen address: start + row * 80 + column, in 2K [1390]
+            ld h, 0		; Hyp.cls 1391
             add hl, hl		; Hyp.cls 1392
-            pop bc		; Hyp.cls 1393
-            add hl, bc		; Hyp.cls 1394
-            ld c, d		; Hyp.cls 1395
-            ld b, 0		; Hyp.cls 1396
-            add hl, bc		; Hyp.cls 1397
-            ld bc, (asm_1_1345_n_sy_off)		; Hyp.cls 1398
-            add hl, bc		; Hyp.cls 1399
-            ld a, h		; Hyp.cls 1400
-            and #07		; Hyp.cls 1401
-            or #C0		; Hyp.cls 1402
-            ld h, a		; Hyp.cls 1403
-            pop de		; Hyp.cls 1404
-            ld b, 8		; Hyp.cls 1405
-asm_1_1345_n_sy_ln:		; Hyp.cls 1406
-            ld a, (de)		; Hyp.cls 1407
-            ld (hl), a		; Hyp.cls 1408
-            inc de		; Hyp.cls 1409
-            ld a, h		; Hyp.cls 1410
-            add a, 8		; Hyp.cls 1411
-            ld h, a		; Hyp.cls 1412
-            djnz asm_1_1345_n_sy_ln		; Hyp.cls 1413
-            pop de		; Hyp.cls 1414
-            pop bc		; Hyp.cls 1415
-            pop hl		; Hyp.cls 1416
-            inc d		; Hyp.cls 1417
-            jr asm_1_1345_n_sy_lp		; Hyp.cls 1418
-asm_1_1345_n_sy_done:		; Hyp.cls 1419
-            ld bc, (ntc_rampt)		; Hyp.cls 1420
-            out (c), c		; Hyp.cls 1421
-            ld sp, (var_hyp_hsp)		; Hyp.cls 1422
-            jr asm_1_1345_n_sy_end		; Hyp.cls 1423
-asm_1_1345_n_sy_off:     dw 0		; Hyp.cls 1424
-asm_1_1345_n_sy_end:		; Hyp.cls 1425
+            add hl, hl		; Hyp.cls 1393
+            add hl, hl		; Hyp.cls 1394
+            add hl, hl		; Hyp.cls 1395
+            push hl		; Hyp.cls 1396
+            add hl, hl		; Hyp.cls 1397
+            add hl, hl		; Hyp.cls 1398
+            pop bc		; Hyp.cls 1399
+            add hl, bc		; Hyp.cls 1400
+            ld c, d		; Hyp.cls 1401
+            ld b, 0		; Hyp.cls 1402
+            add hl, bc		; Hyp.cls 1403
+            ld bc, (asm_1_1351_n_sy_off)		; Hyp.cls 1404
+            add hl, bc		; Hyp.cls 1405
+            ld a, h		; Hyp.cls 1406
+            and #07		; Hyp.cls 1407
+            or #C0		; Hyp.cls 1408
+            ld h, a		; Hyp.cls 1409
+            pop de		; Hyp.cls 1410
+            ld b, 8		; Hyp.cls 1411
+asm_1_1351_n_sy_ln:		; Hyp.cls 1412
+            ld a, (de)		; Hyp.cls 1413
+            ld (hl), a		; Hyp.cls 1414
+            inc de		; Hyp.cls 1415
+            ld a, h		; Hyp.cls 1416
+            add a, 8		; Hyp.cls 1417
+            ld h, a		; Hyp.cls 1418
+            djnz asm_1_1351_n_sy_ln		; Hyp.cls 1419
+            pop de		; Hyp.cls 1420
+            pop bc		; Hyp.cls 1421
+            pop hl		; Hyp.cls 1422
+            inc d		; Hyp.cls 1423
+            jr asm_1_1351_n_sy_lp		; Hyp.cls 1424
+asm_1_1351_n_sy_done:		; Hyp.cls 1425
+            ld bc, (ntc_rampt)		; Hyp.cls 1426
+            out (c), c		; Hyp.cls 1427
+            ld sp, (var_hyp_hsp)		; Hyp.cls 1428
+            jr asm_1_1351_n_sy_end		; Hyp.cls 1429
+asm_1_1351_n_sy_off:     dw 0		; Hyp.cls 1430
+asm_1_1351_n_sy_end:		; Hyp.cls 1431
 			ret			; end of #asm
 
-asm_1_1439_n:		; #asm, Hyp.cls line 1439 (normal)
-            ld (var_hyp_hsp), sp          ; (the real stack: SP is the thread) [1440]
-            ld sp, (ntc_csp)		; Hyp.cls 1441
-            xor a		; Hyp.cls 1442
-            ld (var_hyp_ccu), a           ; (the screen cleared: no cursor on it) [1443]
-            ld a, (var_hyp_scr_m)		; Hyp.cls 1444
-            cp 6		; Hyp.cls 1445
-            jr c, asm_1_1439_n_sm_ok		; Hyp.cls 1446
-            xor a		; Hyp.cls 1447
-asm_1_1439_n_sm_ok:		; Hyp.cls 1448
-            ld l, a                 ; the mode's row of the table (6 bytes) [1449]
-            add a, a		; Hyp.cls 1450
-            add a, l		; Hyp.cls 1451
-            add a, a		; Hyp.cls 1452
-            ld e, a		; Hyp.cls 1453
-            ld d, 0		; Hyp.cls 1454
-            ld hl, asm_1_1439_n_sm_tab		; Hyp.cls 1455
-            add hl, de		; Hyp.cls 1456
-            ld a, (var_hyp_scr_k)		; Hyp.cls 1457
-            or a		; Hyp.cls 1458
-            jr z, asm_1_1439_n_sm_cols		; Hyp.cls 1459
-            dec a		; Hyp.cls 1460
-            jr z, asm_1_1439_n_sm_rows		; Hyp.cls 1461
-            push hl                 ; 2: the screen [1462]
-            ld e, (hl)              ; its columns [1463]
-            ld d, 0		; Hyp.cls 1464
-            ld (var_hyp_scc), de		; Hyp.cls 1465
-            srl e		; Hyp.cls 1466
-            ld (var_hyp_scw), de		; Hyp.cls 1467
-            ld hl, 0		; Hyp.cls 1468
-            ld (var_hyp_sco), hl		; Hyp.cls 1469
-            ld (var_hyp_pon), hl          ; (no pointer on the cleared screen) [1470]
-            pop hl		; Hyp.cls 1471
-            inc hl		; Hyp.cls 1472
-            inc hl                  ; R1, R2, R6, R7 [1473]
-            di		; Hyp.cls 1474
-            ld d, 1		; Hyp.cls 1475
-            call asm_1_1439_n_sm_crtc		; Hyp.cls 1476
-            ld d, 2		; Hyp.cls 1477
-            call asm_1_1439_n_sm_crtc		; Hyp.cls 1478
-            ld d, 6		; Hyp.cls 1479
-            call asm_1_1439_n_sm_crtc		; Hyp.cls 1480
-            ld d, 7		; Hyp.cls 1481
-            call asm_1_1439_n_sm_crtc		; Hyp.cls 1482
-            ld hl, asm_1_1439_n_sm_start         ; R12, R13: #C000 [1483]
-            ld d, 12		; Hyp.cls 1484
-            call asm_1_1439_n_sm_crtc		; Hyp.cls 1485
-            ld d, 13		; Hyp.cls 1486
-            call asm_1_1439_n_sm_crtc		; Hyp.cls 1487
-            xor a                   ; cleared (written, not copied: the Library: ROM build may [1488]
-            ld hl, #C000            ; have the keyword ROM over it for reads) [1489]
-            ld c, #40		; Hyp.cls 1490
-asm_1_1439_n_sm_cl:		; Hyp.cls 1491
-            ld b, 0		; Hyp.cls 1492
-asm_1_1439_n_sm_cl1:		; Hyp.cls 1493
-            ld (hl), a		; Hyp.cls 1494
-            inc hl		; Hyp.cls 1495
-            djnz asm_1_1439_n_sm_cl1		; Hyp.cls 1496
-            dec c		; Hyp.cls 1497
-            jr nz, asm_1_1439_n_sm_cl		; Hyp.cls 1498
-            ld hl, 0		; Hyp.cls 1499
-            jr asm_1_1439_n_sm_res		; Hyp.cls 1500
-asm_1_1439_n_sm_cols:		; Hyp.cls 1501
-            ld a, (hl)              ; the console's: the screen's, less the status strip's 4 (S) [1502]
-            inc hl		; Hyp.cls 1503
-            sub (hl)		; Hyp.cls 1504
-            jr asm_1_1439_n_sm_a		; Hyp.cls 1505
-asm_1_1439_n_sm_rows:		; Hyp.cls 1506
-            inc hl		; Hyp.cls 1507
-            inc hl		; Hyp.cls 1508
+asm_1_1445_n:		; #asm, Hyp.cls line 1445 (normal)
+            ld (var_hyp_hsp), sp          ; (the real stack: SP is the thread) [1446]
+            ld sp, (ntc_csp)		; Hyp.cls 1447
+            xor a		; Hyp.cls 1448
+            ld (var_hyp_ccu), a           ; (the screen cleared: no cursor on it) [1449]
+            ld a, (var_hyp_scr_m)		; Hyp.cls 1450
+            cp 6		; Hyp.cls 1451
+            jr c, asm_1_1445_n_sm_ok		; Hyp.cls 1452
+            xor a		; Hyp.cls 1453
+asm_1_1445_n_sm_ok:		; Hyp.cls 1454
+            ld l, a                 ; the mode's row of the table (6 bytes) [1455]
+            add a, a		; Hyp.cls 1456
+            add a, l		; Hyp.cls 1457
+            add a, a		; Hyp.cls 1458
+            ld e, a		; Hyp.cls 1459
+            ld d, 0		; Hyp.cls 1460
+            ld hl, asm_1_1445_n_sm_tab		; Hyp.cls 1461
+            add hl, de		; Hyp.cls 1462
+            ld a, (var_hyp_scr_k)		; Hyp.cls 1463
+            or a		; Hyp.cls 1464
+            jr z, asm_1_1445_n_sm_cols		; Hyp.cls 1465
+            dec a		; Hyp.cls 1466
+            jr z, asm_1_1445_n_sm_rows		; Hyp.cls 1467
+            push hl                 ; 2: the screen [1468]
+            ld e, (hl)              ; its columns [1469]
+            ld d, 0		; Hyp.cls 1470
+            ld (var_hyp_scc), de		; Hyp.cls 1471
+            srl e		; Hyp.cls 1472
+            ld (var_hyp_scw), de		; Hyp.cls 1473
+            ld hl, 0		; Hyp.cls 1474
+            ld (var_hyp_sco), hl		; Hyp.cls 1475
+            ld (var_hyp_pon), hl          ; (no pointer on the cleared screen) [1476]
+            pop hl		; Hyp.cls 1477
+            inc hl		; Hyp.cls 1478
+            inc hl                  ; R1, R2, R6, R7 [1479]
+            di		; Hyp.cls 1480
+            ld d, 1		; Hyp.cls 1481
+            call asm_1_1445_n_sm_crtc		; Hyp.cls 1482
+            ld d, 2		; Hyp.cls 1483
+            call asm_1_1445_n_sm_crtc		; Hyp.cls 1484
+            ld d, 6		; Hyp.cls 1485
+            call asm_1_1445_n_sm_crtc		; Hyp.cls 1486
+            ld d, 7		; Hyp.cls 1487
+            call asm_1_1445_n_sm_crtc		; Hyp.cls 1488
+            ld hl, asm_1_1445_n_sm_start         ; R12, R13: #C000 [1489]
+            ld d, 12		; Hyp.cls 1490
+            call asm_1_1445_n_sm_crtc		; Hyp.cls 1491
+            ld d, 13		; Hyp.cls 1492
+            call asm_1_1445_n_sm_crtc		; Hyp.cls 1493
+            xor a                   ; cleared (written, not copied: the Library: ROM build may [1494]
+            ld hl, #C000            ; have the keyword ROM over it for reads) [1495]
+            ld c, #40		; Hyp.cls 1496
+asm_1_1445_n_sm_cl:		; Hyp.cls 1497
+            ld b, 0		; Hyp.cls 1498
+asm_1_1445_n_sm_cl1:		; Hyp.cls 1499
+            ld (hl), a		; Hyp.cls 1500
+            inc hl		; Hyp.cls 1501
+            djnz asm_1_1445_n_sm_cl1		; Hyp.cls 1502
+            dec c		; Hyp.cls 1503
+            jr nz, asm_1_1445_n_sm_cl		; Hyp.cls 1504
+            ld hl, 0		; Hyp.cls 1505
+            jr asm_1_1445_n_sm_res		; Hyp.cls 1506
+asm_1_1445_n_sm_cols:		; Hyp.cls 1507
+            ld a, (hl)              ; the console's: the screen's, less the status strip's 4 (S) [1508]
             inc hl		; Hyp.cls 1509
-            inc hl		; Hyp.cls 1510
-            ld a, (hl)		; Hyp.cls 1511
-asm_1_1439_n_sm_a:		; Hyp.cls 1512
-            ld l, a		; Hyp.cls 1513
-            ld h, 0		; Hyp.cls 1514
-asm_1_1439_n_sm_res:		; Hyp.cls 1515
-            ld (var_hyp_scr_scr), hl		; Hyp.cls 1516
-            ld sp, (var_hyp_hsp)		; Hyp.cls 1517
-            ret                     ; (on with the thread) [1518]
-asm_1_1439_n_sm_crtc:                            ; CRTC register D = (HL), HL on [1519]
-            ld bc, #BC00		; Hyp.cls 1520
-            out (c), d		; Hyp.cls 1521
-            ld b, #BD		; Hyp.cls 1522
-            ld a, (hl)		; Hyp.cls 1523
-            out (c), a		; Hyp.cls 1524
-            inc hl		; Hyp.cls 1525
-            ret		; Hyp.cls 1526
-asm_1_1439_n_sm_start:   db #30, 0		; Hyp.cls 1527
+            sub (hl)		; Hyp.cls 1510
+            jr asm_1_1445_n_sm_a		; Hyp.cls 1511
+asm_1_1445_n_sm_rows:		; Hyp.cls 1512
+            inc hl		; Hyp.cls 1513
+            inc hl		; Hyp.cls 1514
+            inc hl		; Hyp.cls 1515
+            inc hl		; Hyp.cls 1516
+            ld a, (hl)		; Hyp.cls 1517
+asm_1_1445_n_sm_a:		; Hyp.cls 1518
+            ld l, a		; Hyp.cls 1519
+            ld h, 0		; Hyp.cls 1520
+asm_1_1445_n_sm_res:		; Hyp.cls 1521
+            ld (var_hyp_scr_scr), hl		; Hyp.cls 1522
+            ld sp, (var_hyp_hsp)		; Hyp.cls 1523
+            ret                     ; (on with the thread) [1524]
+asm_1_1445_n_sm_crtc:                            ; CRTC register D = (HL), HL on [1525]
+            ld bc, #BC00		; Hyp.cls 1526
+            out (c), d		; Hyp.cls 1527
+            ld b, #BD		; Hyp.cls 1528
+            ld a, (hl)		; Hyp.cls 1529
+            out (c), a		; Hyp.cls 1530
+            inc hl		; Hyp.cls 1531
+            ret		; Hyp.cls 1532
+asm_1_1445_n_sm_start:   db #30, 0		; Hyp.cls 1533
 ; columns, the status strip's, R1 (words a row), R2 (horizontal sync), R6 (rows), R7 (vertical sync)
-asm_1_1439_n_sm_tab:     db 80, 0, 40, 46, 25, 30		; Hyp.cls 1529
-            db 84, 4, 42, 47, 24, 30		; Hyp.cls 1530
-            db 88, 0, 44, 48, 23, 29		; Hyp.cls 1531
-            db 96, 0, 48, 50, 21, 28		; Hyp.cls 1532
-            db 64, 0, 32, 42, 32, 34		; Hyp.cls 1533
-            db 84, 0, 42, 47, 24, 30		; Hyp.cls 1534
+asm_1_1445_n_sm_tab:     db 80, 0, 40, 46, 25, 30		; Hyp.cls 1535
+            db 84, 4, 42, 47, 24, 30		; Hyp.cls 1536
+            db 88, 0, 44, 48, 23, 29		; Hyp.cls 1537
+            db 96, 0, 48, 50, 21, 28		; Hyp.cls 1538
+            db 64, 0, 32, 42, 32, 34		; Hyp.cls 1539
+            db 84, 0, 42, 47, 24, 30		; Hyp.cls 1540
 			ret			; end of #asm
 
-asm_1_1541_n:		; #asm, Hyp.cls line 1541 (normal)
-            ld (var_hyp_hsp), sp		; Hyp.cls 1542
-            ld sp, (ntc_csp)		; Hyp.cls 1543
-            call #BB42              ; KM GET DELAY: H the start delay, L the repeat [1544]
-            di		; Hyp.cls 1545
-            ld a, h		; Hyp.cls 1546
-            call asm_1_1541_n_kr_mul		; Hyp.cls 1547
-            ld h, a		; Hyp.cls 1548
-            ld a, l		; Hyp.cls 1549
-            call asm_1_1541_n_kr_mul		; Hyp.cls 1550
-            ld l, a		; Hyp.cls 1551
-            call #BB3F              ; KM SET DELAY [1552]
-            di		; Hyp.cls 1553
-            ld sp, (var_hyp_hsp)		; Hyp.cls 1554
-            jr asm_1_1541_n_kr_end		; Hyp.cls 1555
-asm_1_1541_n_kr_mul:                             ; A = A x f, 255 at most (0: 256 to the firmware - kept) [1556]
-            or a		; Hyp.cls 1557
-            ret z		; Hyp.cls 1558
-            push hl		; Hyp.cls 1559
-            ld e, a		; Hyp.cls 1560
-            ld d, 0		; Hyp.cls 1561
-            ld hl, 0		; Hyp.cls 1562
-            ld a, (var_hyp_keyrep_f)		; Hyp.cls 1563
-            ld b, a		; Hyp.cls 1564
-asm_1_1541_n_kr_lp:		; Hyp.cls 1565
-            add hl, de		; Hyp.cls 1566
-            djnz asm_1_1541_n_kr_lp		; Hyp.cls 1567
-            ld a, h		; Hyp.cls 1568
-            or a		; Hyp.cls 1569
-            ld a, l		; Hyp.cls 1570
-            pop hl		; Hyp.cls 1571
-            ret z		; Hyp.cls 1572
-            ld a, 255		; Hyp.cls 1573
-            ret		; Hyp.cls 1574
-asm_1_1541_n_kr_end:		; Hyp.cls 1575
+asm_1_1547_n:		; #asm, Hyp.cls line 1547 (normal)
+            ld (var_hyp_hsp), sp		; Hyp.cls 1548
+            ld sp, (ntc_csp)		; Hyp.cls 1549
+            call #BB42              ; KM GET DELAY: H the start delay, L the repeat [1550]
+            di		; Hyp.cls 1551
+            ld a, h		; Hyp.cls 1552
+            call asm_1_1547_n_kr_mul		; Hyp.cls 1553
+            ld h, a		; Hyp.cls 1554
+            ld a, l		; Hyp.cls 1555
+            call asm_1_1547_n_kr_mul		; Hyp.cls 1556
+            ld l, a		; Hyp.cls 1557
+            call #BB3F              ; KM SET DELAY [1558]
+            di		; Hyp.cls 1559
+            ld sp, (var_hyp_hsp)		; Hyp.cls 1560
+            jr asm_1_1547_n_kr_end		; Hyp.cls 1561
+asm_1_1547_n_kr_mul:                             ; A = A x f, 255 at most (0: 256 to the firmware - kept) [1562]
+            or a		; Hyp.cls 1563
+            ret z		; Hyp.cls 1564
+            push hl		; Hyp.cls 1565
+            ld e, a		; Hyp.cls 1566
+            ld d, 0		; Hyp.cls 1567
+            ld hl, 0		; Hyp.cls 1568
+            ld a, (var_hyp_keyrep_f)		; Hyp.cls 1569
+            ld b, a		; Hyp.cls 1570
+asm_1_1547_n_kr_lp:		; Hyp.cls 1571
+            add hl, de		; Hyp.cls 1572
+            djnz asm_1_1547_n_kr_lp		; Hyp.cls 1573
+            ld a, h		; Hyp.cls 1574
+            or a		; Hyp.cls 1575
+            ld a, l		; Hyp.cls 1576
+            pop hl		; Hyp.cls 1577
+            ret z		; Hyp.cls 1578
+            ld a, 255		; Hyp.cls 1579
+            ret		; Hyp.cls 1580
+asm_1_1547_n_kr_end:		; Hyp.cls 1581
 			ret			; end of #asm
 
-asm_1_1605_n:		; #asm, Hyp.cls line 1605 (normal)
-            ld (var_hyp_sps), sp		; Hyp.cls 1606
-            ld sp, (ntc_csp)		; Hyp.cls 1607
-            call #B903              ; KL U ROM DISABLE: the task's top 16K, not a ROM (Library: [1608]
-            di                      ; ROM has the keyword ROM on), while it runs [1609]
-            ld (var_hyp_rrom), a		; Hyp.cls 1610
-            ld a, 6		; Hyp.cls 1611
-            ld (var_hyp_slc), a		; Hyp.cls 1612
-            ld a, 1                 ; from BASIC: it has taken the characters (Collected) [1613]
-            ld (var_hyp_rclr), a		; Hyp.cls 1614
-asm_1_1605_n_rn_again:		; Hyp.cls 1615
-            push ix                 ; IX, IY and [1616]
-            push iy		; Hyp.cls 1617
-            db #08                  ; ex af, af': the alternate registers kept - the [1618]
-            exx                     ; firmware's (BC' = its ROM / mode setting); a task [1619]
-            push af                 ; may use them [1620]
-            push bc		; Hyp.cls 1621
-            push de		; Hyp.cls 1622
-            push hl		; Hyp.cls 1623
-            exx		; Hyp.cls 1624
-            db #08		; Hyp.cls 1625
-            ld hl, asm_1_1605_n_rn_back		; Hyp.cls 1626
-            push hl                 ; where main RAM carries on [1627]
-            ld (ntc_bk_sp), sp		; Hyp.cls 1628
-            ld a, (var_hyp_rclr)		; Hyp.cls 1629
-            ld e, a                 ; E = 1: the bank empties its characters out (BASIC has them) [1630]
-            ld a, (var_hyp_ra)		; Hyp.cls 1631
-            ld hl, (var_hyp_rhl)		; Hyp.cls 1632
-            ld bc, (var_hyp_run_setting)		; Hyp.cls 1633
-            jp ntc_bk_out           ; out (c), c: the task's bank; its #0046 lands it [1634]
-asm_1_1605_n_rn_back:		; Hyp.cls 1635
-            ld (var_hyp_rcnt), ix         ; the characters it collected (the stubs put them in IX) [1636]
-            db #08                  ; ex af, af' [1637]
-            exx		; Hyp.cls 1638
-            pop hl                  ; the alternate registers back [1639]
-            pop de		; Hyp.cls 1640
-            pop bc		; Hyp.cls 1641
-            pop af		; Hyp.cls 1642
-            exx		; Hyp.cls 1643
-            db #08		; Hyp.cls 1644
-            pop iy		; Hyp.cls 1645
-            pop ix		; Hyp.cls 1646
-            push af                 ; carry: a BDOS call (A = C, DE = DE) [1647]
-            push bc		; Hyp.cls 1648
-            ld bc, (ntc_rampt)      ; the window's page back [1649]
-            out (c), c		; Hyp.cls 1650
-            pop bc		; Hyp.cls 1651
-            pop af		; Hyp.cls 1652
-            jr c, asm_1_1605_n_rn_far		; Hyp.cls 1653
-            rst #38                 ; an interrupt stopped the task: the firmware's handler [1654]
-            di		; Hyp.cls 1655
-            ld hl, var_hyp_slc            ; a time slice is SLICE interrupts: until it is used up the [1656]
-            dec (hl)                ; task carries on straight away (no trip through BASIC) [1657]
-            jr z, asm_1_1605_n_rn_int		; Hyp.cls 1658
-            ld a, (ntc_isldue)      ; ... unless an interrupt class (the system keys) is due [1659]
-            or a		; Hyp.cls 1660
-            jr nz, asm_1_1605_n_rn_int		; Hyp.cls 1661
-            xor a                   ; its characters stay in its bank (and the count goes on) [1662]
-            ld (var_hyp_rclr), a		; Hyp.cls 1663
-            jp asm_1_1605_n_rn_again		; Hyp.cls 1664
-asm_1_1605_n_rn_int:		; Hyp.cls 1665
-            ld hl, 0		; Hyp.cls 1666
-            jr asm_1_1605_n_rn_end		; Hyp.cls 1667
-asm_1_1605_n_rn_far:		; Hyp.cls 1668
-            ld (var_hyp_rfn), a		; Hyp.cls 1669
-            ld (var_hyp_rde), de		; Hyp.cls 1670
-            ld hl, 1		; Hyp.cls 1671
-asm_1_1605_n_rn_end:		; Hyp.cls 1672
-            ld (var_hyp_run_run), hl		; Hyp.cls 1673
-            ld a, (var_hyp_rrom)		; Hyp.cls 1674
-            call #B90C              ; KL ROM RESTORE [1675]
-            di		; Hyp.cls 1676
-            ld sp, (var_hyp_sps)		; Hyp.cls 1677
+asm_1_1611_n:		; #asm, Hyp.cls line 1611 (normal)
+            ld (var_hyp_sps), sp		; Hyp.cls 1612
+            ld sp, (ntc_csp)		; Hyp.cls 1613
+            call #B903              ; KL U ROM DISABLE: the task's top 16K, not a ROM (Library: [1614]
+            di                      ; ROM has the keyword ROM on), while it runs [1615]
+            ld (var_hyp_rrom), a		; Hyp.cls 1616
+            ld a, 6		; Hyp.cls 1617
+            ld (var_hyp_slc), a		; Hyp.cls 1618
+            ld a, 1                 ; from BASIC: it has taken the characters (Collected) [1619]
+            ld (var_hyp_rclr), a		; Hyp.cls 1620
+asm_1_1611_n_rn_again:		; Hyp.cls 1621
+            push ix                 ; IX, IY and [1622]
+            push iy		; Hyp.cls 1623
+            db #08                  ; ex af, af': the alternate registers kept - the [1624]
+            exx                     ; firmware's (BC' = its ROM / mode setting); a task [1625]
+            push af                 ; may use them [1626]
+            push bc		; Hyp.cls 1627
+            push de		; Hyp.cls 1628
+            push hl		; Hyp.cls 1629
+            exx		; Hyp.cls 1630
+            db #08		; Hyp.cls 1631
+            ld hl, asm_1_1611_n_rn_back		; Hyp.cls 1632
+            push hl                 ; where main RAM carries on [1633]
+            ld (ntc_bk_sp), sp		; Hyp.cls 1634
+            ld a, (var_hyp_rclr)		; Hyp.cls 1635
+            ld e, a                 ; E = 1: the bank empties its characters out (BASIC has them) [1636]
+            ld a, (var_hyp_ra)		; Hyp.cls 1637
+            ld hl, (var_hyp_rhl)		; Hyp.cls 1638
+            ld bc, (var_hyp_run_setting)		; Hyp.cls 1639
+            jp ntc_bk_out           ; out (c), c: the task's bank; its #0046 lands it [1640]
+asm_1_1611_n_rn_back:		; Hyp.cls 1641
+            ld (var_hyp_rcnt), ix         ; the characters it collected (the stubs put them in IX) [1642]
+            db #08                  ; ex af, af' [1643]
+            exx		; Hyp.cls 1644
+            pop hl                  ; the alternate registers back [1645]
+            pop de		; Hyp.cls 1646
+            pop bc		; Hyp.cls 1647
+            pop af		; Hyp.cls 1648
+            exx		; Hyp.cls 1649
+            db #08		; Hyp.cls 1650
+            pop iy		; Hyp.cls 1651
+            pop ix		; Hyp.cls 1652
+            push af                 ; carry: a BDOS call (A = C, DE = DE) [1653]
+            push bc		; Hyp.cls 1654
+            ld bc, (ntc_rampt)      ; the window's page back [1655]
+            out (c), c		; Hyp.cls 1656
+            pop bc		; Hyp.cls 1657
+            pop af		; Hyp.cls 1658
+            jr c, asm_1_1611_n_rn_far		; Hyp.cls 1659
+            rst #38                 ; an interrupt stopped the task: the firmware's handler [1660]
+            di		; Hyp.cls 1661
+            ld hl, var_hyp_slc            ; a time slice is SLICE interrupts: until it is used up the [1662]
+            dec (hl)                ; task carries on straight away (no trip through BASIC) [1663]
+            jr z, asm_1_1611_n_rn_int		; Hyp.cls 1664
+            ld a, (ntc_isldue)      ; ... unless an interrupt class (the system keys) is due [1665]
+            or a		; Hyp.cls 1666
+            jr nz, asm_1_1611_n_rn_int		; Hyp.cls 1667
+            xor a                   ; its characters stay in its bank (and the count goes on) [1668]
+            ld (var_hyp_rclr), a		; Hyp.cls 1669
+            jp asm_1_1611_n_rn_again		; Hyp.cls 1670
+asm_1_1611_n_rn_int:		; Hyp.cls 1671
+            ld hl, 0		; Hyp.cls 1672
+            jr asm_1_1611_n_rn_end		; Hyp.cls 1673
+asm_1_1611_n_rn_far:		; Hyp.cls 1674
+            ld (var_hyp_rfn), a		; Hyp.cls 1675
+            ld (var_hyp_rde), de		; Hyp.cls 1676
+            ld hl, 1		; Hyp.cls 1677
+asm_1_1611_n_rn_end:		; Hyp.cls 1678
+            ld (var_hyp_run_run), hl		; Hyp.cls 1679
+            ld a, (var_hyp_rrom)		; Hyp.cls 1680
+            call #B90C              ; KL ROM RESTORE [1681]
+            di		; Hyp.cls 1682
+            ld sp, (var_hyp_sps)		; Hyp.cls 1683
 
 			ret			; end of #asm
 
-fn_hyp_info:		; function info (asm keyword), Hyp.cls line 1687
-            pop hl		; Hyp.cls 1688
-            ld a, (hl)		; Hyp.cls 1689
-            ld hl, fn_hyp_info_hi_p0		; Hyp.cls 1690
-            or a		; Hyp.cls 1691
-            jr z, fn_hyp_info_in_e		; Hyp.cls 1692
-            ld hl, fn_hyp_info_hi_p0e - fn_hyp_info_hi_p0		; Hyp.cls 1693
-            dec a		; Hyp.cls 1694
-            jr z, fn_hyp_info_in_e		; Hyp.cls 1695
-            ld hl, fn_hyp_info_sb_img		; Hyp.cls 1696
-            dec a		; Hyp.cls 1697
+fn_hyp_info:		; function info (asm keyword), Hyp.cls line 1693
+            pop hl		; Hyp.cls 1694
+            ld a, (hl)		; Hyp.cls 1695
+            ld hl, fn_hyp_info_hi_p0		; Hyp.cls 1696
+            or a		; Hyp.cls 1697
             jr z, fn_hyp_info_in_e		; Hyp.cls 1698
-            ld hl, fn_hyp_info_sb_end - fn_hyp_info_sb_start		; Hyp.cls 1699
+            ld hl, fn_hyp_info_hi_p0e - fn_hyp_info_hi_p0		; Hyp.cls 1699
             dec a		; Hyp.cls 1700
             jr z, fn_hyp_info_in_e		; Hyp.cls 1701
-            ld hl, fn_hyp_info_sb_init		; Hyp.cls 1702
-fn_hyp_info_in_e:		; Hyp.cls 1703
-            ex de, hl		; Hyp.cls 1704
-            pop hl		; Hyp.cls 1705
-            ld (hl), e		; Hyp.cls 1706
-            inc hl		; Hyp.cls 1707
-            ld (hl), d		; Hyp.cls 1708
-            ret		; Hyp.cls 1709
+            ld hl, fn_hyp_info_sb_img		; Hyp.cls 1702
+            dec a		; Hyp.cls 1703
+            jr z, fn_hyp_info_in_e		; Hyp.cls 1704
+            ld hl, fn_hyp_info_sb_end - fn_hyp_info_sb_start		; Hyp.cls 1705
+            dec a		; Hyp.cls 1706
+            jr z, fn_hyp_info_in_e		; Hyp.cls 1707
+            ld hl, fn_hyp_info_sb_init		; Hyp.cls 1708
+fn_hyp_info_in_e:		; Hyp.cls 1709
+            ex de, hl		; Hyp.cls 1710
+            pop hl		; Hyp.cls 1711
+            ld (hl), e		; Hyp.cls 1712
+            inc hl		; Hyp.cls 1713
+            ld (hl), d		; Hyp.cls 1714
+            ret		; Hyp.cls 1715
 
 			ret			; end of #asm
 
-asm_1_2278_n:		; #asm, Hyp.cls line 2278 (normal)
-            ld (var_hyp_hsp), sp		; Hyp.cls 2279
-            ld sp, (ntc_csp)		; Hyp.cls 2280
-            ld a, (var_hyp_vdu_on)		; Hyp.cls 2281
-            or a		; Hyp.cls 2282
-            jr z, asm_1_2278_n_vd_off		; Hyp.cls 2283
-            call #BB54              ; TXT VDU ENABLE [2284]
-            jr asm_1_2278_n_vd_done		; Hyp.cls 2285
-asm_1_2278_n_vd_off:		; Hyp.cls 2286
-            call #BB57              ; TXT VDU DISABLE [2287]
-asm_1_2278_n_vd_done:		; Hyp.cls 2288
-            di		; Hyp.cls 2289
-            ld sp, (var_hyp_hsp)		; Hyp.cls 2290
+asm_1_2284_n:		; #asm, Hyp.cls line 2284 (normal)
+            ld (var_hyp_hsp), sp		; Hyp.cls 2285
+            ld sp, (ntc_csp)		; Hyp.cls 2286
+            ld a, (var_hyp_vdu_on)		; Hyp.cls 2287
+            or a		; Hyp.cls 2288
+            jr z, asm_1_2284_n_vd_off		; Hyp.cls 2289
+            call #BB54              ; TXT VDU ENABLE [2290]
+            jr asm_1_2284_n_vd_done		; Hyp.cls 2291
+asm_1_2284_n_vd_off:		; Hyp.cls 2292
+            call #BB57              ; TXT VDU DISABLE [2293]
+asm_1_2284_n_vd_done:		; Hyp.cls 2294
+            di		; Hyp.cls 2295
+            ld sp, (var_hyp_hsp)		; Hyp.cls 2296
 			ret			; end of #asm
 
-asm_1_2310_n:		; #asm, Hyp.cls line 2310 (normal)
-            ld (var_hyp_hsp), sp		; Hyp.cls 2311
-            ld sp, (ntc_csp)		; Hyp.cls 2312
-            ld (asm_1_2310_n_fl_ix), ix		; Hyp.cls 2313
-            ld (asm_1_2310_n_fl_iy), iy		; Hyp.cls 2314
-            ld a, 255		; Hyp.cls 2315
-            ld (asm_1_2310_n_fl_res), a		; Hyp.cls 2316
-            ld a, (var_hyp_filecall_slot)		; Hyp.cls 2317
-            ld (asm_1_2310_n_fl_slot), a		; Hyp.cls 2318
-            ld a, (var_hyp_filecall_f)		; Hyp.cls 2319
-            cp 99		; Hyp.cls 2320
-            jp z, asm_1_2310_n_fl_inst		; Hyp.cls 2321
-            IF NTC_ROMLIB = 0		; Hyp.cls 2322
+asm_1_2316_n:		; #asm, Hyp.cls line 2316 (normal)
+            ld (var_hyp_hsp), sp		; Hyp.cls 2317
+            ld sp, (ntc_csp)		; Hyp.cls 2318
+            ld (asm_1_2316_n_fl_ix), ix		; Hyp.cls 2319
+            ld (asm_1_2316_n_fl_iy), iy		; Hyp.cls 2320
+            ld a, 255		; Hyp.cls 2321
+            ld (asm_1_2316_n_fl_res), a		; Hyp.cls 2322
+            ld a, (var_hyp_filecall_slot)		; Hyp.cls 2323
+            ld (asm_1_2316_n_fl_slot), a		; Hyp.cls 2324
+            ld a, (var_hyp_filecall_f)		; Hyp.cls 2325
+            cp 99		; Hyp.cls 2326
+            jp z, asm_1_2316_n_fl_inst		; Hyp.cls 2327
+            IF NTC_ROMLIB = 0		; Hyp.cls 2328
 ; the RAM discs' driver (RAMDISC.CYB's, in a page of its own at #4000) sees the call first:
 ; carry - it was one of its drives' (HL the answer), else on to the disc ROM. It gets IX = the
 ; call (f, fcb, slot, setting, dma, drive, buf; 100-105: drive = the hypervisor's drive), at
 ; #4003 a jump to fl_dx (its copies: it runs in the window, so can't switch it itself), at
 ; #4006 its page's RAM setting
-            ASSERT var_hyp_filecall_buf - var_hyp_filecall_f = 12, "FileCall's parameters, one after another"		; Hyp.cls 2328
-            ld a, (var_hyp_drs + 1)		; Hyp.cls 2329
-            or a		; Hyp.cls 2330
-            jr z, asm_1_2310_n_fl_nodrv		; Hyp.cls 2331
-            di		; Hyp.cls 2332
-            ld a, (var_hyp_filecall_f)		; Hyp.cls 2333
-            cp 100		; Hyp.cls 2334
-            jr c, asm_1_2310_n_fl_dr_go		; Hyp.cls 2335
-            cp 106		; Hyp.cls 2336
-            jr nc, asm_1_2310_n_fl_dr_go		; Hyp.cls 2337
-            ld hl, (var_hyp_hdr)		; Hyp.cls 2338
-            ld (var_hyp_filecall_drive), hl		; Hyp.cls 2339
-asm_1_2310_n_fl_dr_go:		; Hyp.cls 2340
-            ld bc, (var_hyp_drs)		; Hyp.cls 2341
-            out (c), c		; Hyp.cls 2342
-            ld hl, asm_1_2310_n_fl_dx		; Hyp.cls 2343
-            ld (#4004), hl		; Hyp.cls 2344
-            ld hl, (var_hyp_drs)		; Hyp.cls 2345
-            ld (#4006), hl		; Hyp.cls 2346
-            ld ix, var_hyp_filecall_f		; Hyp.cls 2347
-            call #4000		; Hyp.cls 2348
-            jr nc, asm_1_2310_n_fl_nodrv		; Hyp.cls 2349
-            ld (asm_1_2310_n_fl_res16), hl		; Hyp.cls 2350
-            ld a, 1		; Hyp.cls 2351
-            ld (asm_1_2310_n_fl_r16), a		; Hyp.cls 2352
-            jp asm_1_2310_n_fl_done		; Hyp.cls 2353
+            ASSERT var_hyp_filecall_buf - var_hyp_filecall_f = 12, "FileCall's parameters, one after another"		; Hyp.cls 2334
+            ld a, (var_hyp_drs + 1)		; Hyp.cls 2335
+            or a		; Hyp.cls 2336
+            jr z, asm_1_2316_n_fl_nodrv		; Hyp.cls 2337
+            di		; Hyp.cls 2338
+            ld a, (var_hyp_filecall_f)		; Hyp.cls 2339
+            cp 100		; Hyp.cls 2340
+            jr c, asm_1_2316_n_fl_dr_go		; Hyp.cls 2341
+            cp 106		; Hyp.cls 2342
+            jr nc, asm_1_2316_n_fl_dr_go		; Hyp.cls 2343
+            ld hl, (var_hyp_hdr)		; Hyp.cls 2344
+            ld (var_hyp_filecall_drive), hl		; Hyp.cls 2345
+asm_1_2316_n_fl_dr_go:		; Hyp.cls 2346
+            ld bc, (var_hyp_drs)		; Hyp.cls 2347
+            out (c), c		; Hyp.cls 2348
+            ld hl, asm_1_2316_n_fl_dx		; Hyp.cls 2349
+            ld (#4004), hl		; Hyp.cls 2350
+            ld hl, (var_hyp_drs)		; Hyp.cls 2351
+            ld (#4006), hl		; Hyp.cls 2352
+            ld ix, var_hyp_filecall_f		; Hyp.cls 2353
+            call #4000		; Hyp.cls 2354
+            jr nc, asm_1_2316_n_fl_nodrv		; Hyp.cls 2355
+            ld (asm_1_2316_n_fl_res16), hl		; Hyp.cls 2356
+            ld a, 1		; Hyp.cls 2357
+            ld (asm_1_2316_n_fl_r16), a		; Hyp.cls 2358
+            jp asm_1_2316_n_fl_done		; Hyp.cls 2359
 ; fl_dx - A bytes (1-128) from HL to DE through dxb: IX = HL's RAM setting, IY = DE's (0:
 ; main RAM, no switch); the driver's page back in the window after. HL, DE on past them
-asm_1_2310_n_fl_dx:		; Hyp.cls 2356
-            ld (asm_1_2310_n_fl_dxn), a		; Hyp.cls 2357
-            push de		; Hyp.cls 2358
-            ld de, (var_hyp_dxb)		; Hyp.cls 2359
-            push ix		; Hyp.cls 2360
-            pop bc		; Hyp.cls 2361
-            inc b		; Hyp.cls 2362
-            dec b		; Hyp.cls 2363
-            jr z, asm_1_2310_n_fl_dx1		; Hyp.cls 2364
-            out (c), c		; Hyp.cls 2365
-asm_1_2310_n_fl_dx1:		; Hyp.cls 2366
-            ld c, a		; Hyp.cls 2367
-            ld b, 0		; Hyp.cls 2368
-            ldir		; Hyp.cls 2369
-            pop de		; Hyp.cls 2370
-            push hl		; Hyp.cls 2371
-            push iy		; Hyp.cls 2372
-            pop bc		; Hyp.cls 2373
-            inc b		; Hyp.cls 2374
-            dec b		; Hyp.cls 2375
-            jr z, asm_1_2310_n_fl_dx2		; Hyp.cls 2376
-            out (c), c		; Hyp.cls 2377
-asm_1_2310_n_fl_dx2:		; Hyp.cls 2378
-            ld hl, (var_hyp_dxb)		; Hyp.cls 2379
-            ld a, (asm_1_2310_n_fl_dxn)		; Hyp.cls 2380
-            ld c, a		; Hyp.cls 2381
-            ld b, 0		; Hyp.cls 2382
-            ldir		; Hyp.cls 2383
-            pop hl		; Hyp.cls 2384
-            ld bc, (var_hyp_drs)		; Hyp.cls 2385
-            out (c), c		; Hyp.cls 2386
-            ret		; Hyp.cls 2387
-asm_1_2310_n_fl_dxn:     db 0		; Hyp.cls 2388
-asm_1_2310_n_fl_nodrv:		; Hyp.cls 2389
-            ENDIF		; Hyp.cls 2390
-            di		; Hyp.cls 2391
-            ld bc, (var_hyp_hps)          ; the rest runs in the hypervisor's page (window data from [2392]
-            out (c), c              ; #5300: fp_go) [2393]
-            call asm_1_2310_n_fp_go		; Hyp.cls 2394
-            jp asm_1_2310_n_fl_done		; Hyp.cls 2395
+asm_1_2316_n_fl_dx:		; Hyp.cls 2362
+            ld (asm_1_2316_n_fl_dxn), a		; Hyp.cls 2363
+            push de		; Hyp.cls 2364
+            ld de, (var_hyp_dxb)		; Hyp.cls 2365
+            push ix		; Hyp.cls 2366
+            pop bc		; Hyp.cls 2367
+            inc b		; Hyp.cls 2368
+            dec b		; Hyp.cls 2369
+            jr z, asm_1_2316_n_fl_dx1		; Hyp.cls 2370
+            out (c), c		; Hyp.cls 2371
+asm_1_2316_n_fl_dx1:		; Hyp.cls 2372
+            ld c, a		; Hyp.cls 2373
+            ld b, 0		; Hyp.cls 2374
+            ldir		; Hyp.cls 2375
+            pop de		; Hyp.cls 2376
+            push hl		; Hyp.cls 2377
+            push iy		; Hyp.cls 2378
+            pop bc		; Hyp.cls 2379
+            inc b		; Hyp.cls 2380
+            dec b		; Hyp.cls 2381
+            jr z, asm_1_2316_n_fl_dx2		; Hyp.cls 2382
+            out (c), c		; Hyp.cls 2383
+asm_1_2316_n_fl_dx2:		; Hyp.cls 2384
+            ld hl, (var_hyp_dxb)		; Hyp.cls 2385
+            ld a, (asm_1_2316_n_fl_dxn)		; Hyp.cls 2386
+            ld c, a		; Hyp.cls 2387
+            ld b, 0		; Hyp.cls 2388
+            ldir		; Hyp.cls 2389
+            pop hl		; Hyp.cls 2390
+            ld bc, (var_hyp_drs)		; Hyp.cls 2391
+            out (c), c		; Hyp.cls 2392
+            ret		; Hyp.cls 2393
+asm_1_2316_n_fl_dxn:     db 0		; Hyp.cls 2394
+asm_1_2316_n_fl_nodrv:		; Hyp.cls 2395
+            ENDIF		; Hyp.cls 2396
+            di		; Hyp.cls 2397
+            ld bc, (var_hyp_hps)          ; the rest runs in the hypervisor's page (window data from [2398]
+            out (c), c              ; #5300: fp_go) [2399]
+            call asm_1_2316_n_fp_go		; Hyp.cls 2400
+            jp asm_1_2316_n_fl_done		; Hyp.cls 2401
 ; 99: the window data (#5300 to fp_end: the bank image, the page code) copied from main RAM's
 ; own #4000-#7FFF (where the file put it) into the hypervisor's page, through buf; once, at the
 ; start, before anything else uses main RAM's #4000-#7FFF
-asm_1_2310_n_fl_inst:		; Hyp.cls 2399
-            ld hl, #5300		; Hyp.cls 2400
-asm_1_2310_n_fl_in_lp:		; Hyp.cls 2401
-            push hl		; Hyp.cls 2402
-            ld bc, #7FC0            ; main RAM's own [2403]
-            out (c), c		; Hyp.cls 2404
-            ld de, (var_hyp_filecall_buf)		; Hyp.cls 2405
-            ld bc, 128		; Hyp.cls 2406
-            ldir		; Hyp.cls 2407
-            ld bc, (var_hyp_hps)		; Hyp.cls 2408
-            out (c), c		; Hyp.cls 2409
-            pop de		; Hyp.cls 2410
-            push de		; Hyp.cls 2411
-            ld hl, (var_hyp_filecall_buf)		; Hyp.cls 2412
-            ld bc, 128		; Hyp.cls 2413
-            ldir		; Hyp.cls 2414
-            pop hl		; Hyp.cls 2415
-            ld bc, 128		; Hyp.cls 2416
-            add hl, bc		; Hyp.cls 2417
-            ld de, asm_1_2310_n_fp_end		; Hyp.cls 2418
-            or a		; Hyp.cls 2419
-            sbc hl, de		; Hyp.cls 2420
-            add hl, de		; Hyp.cls 2421
-            jr c, asm_1_2310_n_fl_in_lp		; Hyp.cls 2422
-            xor a		; Hyp.cls 2423
-            ld (asm_1_2310_n_fl_res), a		; Hyp.cls 2424
-            jp asm_1_2310_n_fl_done		; Hyp.cls 2425
+asm_1_2316_n_fl_inst:		; Hyp.cls 2405
+            ld hl, #5300		; Hyp.cls 2406
+asm_1_2316_n_fl_in_lp:		; Hyp.cls 2407
+            push hl		; Hyp.cls 2408
+            ld bc, #7FC0            ; main RAM's own [2409]
+            out (c), c		; Hyp.cls 2410
+            ld de, (var_hyp_filecall_buf)		; Hyp.cls 2411
+            ld bc, 128		; Hyp.cls 2412
+            ldir		; Hyp.cls 2413
+            ld bc, (var_hyp_hps)		; Hyp.cls 2414
+            out (c), c		; Hyp.cls 2415
+            pop de		; Hyp.cls 2416
+            push de		; Hyp.cls 2417
+            ld hl, (var_hyp_filecall_buf)		; Hyp.cls 2418
+            ld bc, 128		; Hyp.cls 2419
+            ldir		; Hyp.cls 2420
+            pop hl		; Hyp.cls 2421
+            ld bc, 128		; Hyp.cls 2422
+            add hl, bc		; Hyp.cls 2423
+            ld de, asm_1_2316_n_fp_end		; Hyp.cls 2424
+            or a		; Hyp.cls 2425
+            sbc hl, de		; Hyp.cls 2426
+            add hl, de		; Hyp.cls 2427
+            jr c, asm_1_2316_n_fl_in_lp		; Hyp.cls 2428
+            xor a		; Hyp.cls 2429
+            ld (asm_1_2316_n_fl_res), a		; Hyp.cls 2430
+            jp asm_1_2316_n_fl_done		; Hyp.cls 2431
 ; ---- what the page code can't do itself (it runs in the window): switch the window to a slot's
 ; page and back. Each puts the hypervisor's page back in the window
-asm_1_2310_n_fl_sel:                             ; the slot's page holding HL in the window: HL = there [2428]
-            push de		; Hyp.cls 2429
-            ld a, h		; Hyp.cls 2430
-            rlca		; Hyp.cls 2431
-            rlca		; Hyp.cls 2432
-            and 3		; Hyp.cls 2433
-            add a, 4		; Hyp.cls 2434
-            ld e, a		; Hyp.cls 2435
-            ld bc, (var_hyp_filecall_setting)		; Hyp.cls 2436
-            ld a, c		; Hyp.cls 2437
-            and #F8		; Hyp.cls 2438
-            or e		; Hyp.cls 2439
-            ld c, a		; Hyp.cls 2440
-            out (c), c		; Hyp.cls 2441
-            ld a, h		; Hyp.cls 2442
-            and #3F		; Hyp.cls 2443
-            or #40		; Hyp.cls 2444
-            ld h, a		; Hyp.cls 2445
-            pop de		; Hyp.cls 2446
-            ret		; Hyp.cls 2447
-asm_1_2310_n_fl_peek:                            ; A = the slot's byte at HL (BC, DE, HL kept) [2448]
-            push bc		; Hyp.cls 2449
-            push hl		; Hyp.cls 2450
-            call asm_1_2310_n_fl_sel		; Hyp.cls 2451
-            ld a, (hl)		; Hyp.cls 2452
-asm_1_2310_n_fl_pk_back:		; Hyp.cls 2453
-            ld bc, (var_hyp_hps)		; Hyp.cls 2454
-            out (c), c		; Hyp.cls 2455
-            pop hl		; Hyp.cls 2456
-            pop bc		; Hyp.cls 2457
-            ret		; Hyp.cls 2458
-asm_1_2310_n_fl_poke:                            ; the slot's byte at HL = A (BC, DE, HL kept) [2459]
-            push bc		; Hyp.cls 2460
-            push hl		; Hyp.cls 2461
-            push af		; Hyp.cls 2462
-            call asm_1_2310_n_fl_sel		; Hyp.cls 2463
-            pop af		; Hyp.cls 2464
-            ld (hl), a		; Hyp.cls 2465
-            jr asm_1_2310_n_fl_pk_back		; Hyp.cls 2466
-asm_1_2310_n_fl_toslot:                          ; BC bytes from DE (main RAM) to the slot's HL (all in one of [2467]
-            push bc                 ; its pages: fl_fits) [2468]
-            call asm_1_2310_n_fl_sel		; Hyp.cls 2469
-            pop bc		; Hyp.cls 2470
-            ex de, hl		; Hyp.cls 2471
-            ldir		; Hyp.cls 2472
-            jr asm_1_2310_n_fl_blk_back		; Hyp.cls 2473
-asm_1_2310_n_fl_fromslot:                        ; BC bytes from the slot's HL (in one page) to DE (main RAM) [2474]
-            push bc		; Hyp.cls 2475
-            call asm_1_2310_n_fl_sel		; Hyp.cls 2476
-            pop bc		; Hyp.cls 2477
+asm_1_2316_n_fl_sel:                             ; the slot's page holding HL in the window: HL = there [2434]
+            push de		; Hyp.cls 2435
+            ld a, h		; Hyp.cls 2436
+            rlca		; Hyp.cls 2437
+            rlca		; Hyp.cls 2438
+            and 3		; Hyp.cls 2439
+            add a, 4		; Hyp.cls 2440
+            ld e, a		; Hyp.cls 2441
+            ld bc, (var_hyp_filecall_setting)		; Hyp.cls 2442
+            ld a, c		; Hyp.cls 2443
+            and #F8		; Hyp.cls 2444
+            or e		; Hyp.cls 2445
+            ld c, a		; Hyp.cls 2446
+            out (c), c		; Hyp.cls 2447
+            ld a, h		; Hyp.cls 2448
+            and #3F		; Hyp.cls 2449
+            or #40		; Hyp.cls 2450
+            ld h, a		; Hyp.cls 2451
+            pop de		; Hyp.cls 2452
+            ret		; Hyp.cls 2453
+asm_1_2316_n_fl_peek:                            ; A = the slot's byte at HL (BC, DE, HL kept) [2454]
+            push bc		; Hyp.cls 2455
+            push hl		; Hyp.cls 2456
+            call asm_1_2316_n_fl_sel		; Hyp.cls 2457
+            ld a, (hl)		; Hyp.cls 2458
+asm_1_2316_n_fl_pk_back:		; Hyp.cls 2459
+            ld bc, (var_hyp_hps)		; Hyp.cls 2460
+            out (c), c		; Hyp.cls 2461
+            pop hl		; Hyp.cls 2462
+            pop bc		; Hyp.cls 2463
+            ret		; Hyp.cls 2464
+asm_1_2316_n_fl_poke:                            ; the slot's byte at HL = A (BC, DE, HL kept) [2465]
+            push bc		; Hyp.cls 2466
+            push hl		; Hyp.cls 2467
+            push af		; Hyp.cls 2468
+            call asm_1_2316_n_fl_sel		; Hyp.cls 2469
+            pop af		; Hyp.cls 2470
+            ld (hl), a		; Hyp.cls 2471
+            jr asm_1_2316_n_fl_pk_back		; Hyp.cls 2472
+asm_1_2316_n_fl_toslot:                          ; BC bytes from DE (main RAM) to the slot's HL (all in one of [2473]
+            push bc                 ; its pages: fl_fits) [2474]
+            call asm_1_2316_n_fl_sel		; Hyp.cls 2475
+            pop bc		; Hyp.cls 2476
+            ex de, hl		; Hyp.cls 2477
             ldir		; Hyp.cls 2478
-asm_1_2310_n_fl_blk_back:		; Hyp.cls 2479
-            ld bc, (var_hyp_hps)		; Hyp.cls 2480
-            out (c), c		; Hyp.cls 2481
-            ret		; Hyp.cls 2482
-asm_1_2310_n_fl_done:		; Hyp.cls 2483
-            di		; Hyp.cls 2484
-            ld bc, (ntc_rampt)      ; the page that was in the window back [2485]
-            out (c), c		; Hyp.cls 2486
-            ld a, (asm_1_2310_n_fl_res)		; Hyp.cls 2487
-            ld l, a		; Hyp.cls 2488
-            ld h, 0		; Hyp.cls 2489
-            ld a, (asm_1_2310_n_fl_r16)		; Hyp.cls 2490
-            or a		; Hyp.cls 2491
-            jr z, asm_1_2310_n_fl_d8		; Hyp.cls 2492
-            ld hl, (asm_1_2310_n_fl_res16)		; Hyp.cls 2493
-            xor a		; Hyp.cls 2494
-            ld (asm_1_2310_n_fl_r16), a		; Hyp.cls 2495
-asm_1_2310_n_fl_d8:		; Hyp.cls 2496
-            ld (var_hyp_filecall_filecall), hl		; Hyp.cls 2497
-            ld ix, (asm_1_2310_n_fl_ix)		; Hyp.cls 2498
-            ld iy, (asm_1_2310_n_fl_iy)		; Hyp.cls 2499
-            ld sp, (var_hyp_hsp)		; Hyp.cls 2500
-            jp asm_1_2310_n_fl_exit		; Hyp.cls 2501
-asm_1_2310_n_fl_ix:      dw 0		; Hyp.cls 2502
-asm_1_2310_n_fl_iy:      dw 0		; Hyp.cls 2503
-asm_1_2310_n_fl_res:     db 0		; Hyp.cls 2504
-asm_1_2310_n_fl_r16:     db 0                    ; 1: the result is fl_res16 [2505]
-asm_1_2310_n_fl_res16:   dw 0		; Hyp.cls 2506
-asm_1_2310_n_fl_slot:    db 0		; Hyp.cls 2507
+            jr asm_1_2316_n_fl_blk_back		; Hyp.cls 2479
+asm_1_2316_n_fl_fromslot:                        ; BC bytes from the slot's HL (in one page) to DE (main RAM) [2480]
+            push bc		; Hyp.cls 2481
+            call asm_1_2316_n_fl_sel		; Hyp.cls 2482
+            pop bc		; Hyp.cls 2483
+            ldir		; Hyp.cls 2484
+asm_1_2316_n_fl_blk_back:		; Hyp.cls 2485
+            ld bc, (var_hyp_hps)		; Hyp.cls 2486
+            out (c), c		; Hyp.cls 2487
+            ret		; Hyp.cls 2488
+asm_1_2316_n_fl_done:		; Hyp.cls 2489
+            di		; Hyp.cls 2490
+            ld bc, (ntc_rampt)      ; the page that was in the window back [2491]
+            out (c), c		; Hyp.cls 2492
+            ld a, (asm_1_2316_n_fl_res)		; Hyp.cls 2493
+            ld l, a		; Hyp.cls 2494
+            ld h, 0		; Hyp.cls 2495
+            ld a, (asm_1_2316_n_fl_r16)		; Hyp.cls 2496
+            or a		; Hyp.cls 2497
+            jr z, asm_1_2316_n_fl_d8		; Hyp.cls 2498
+            ld hl, (asm_1_2316_n_fl_res16)		; Hyp.cls 2499
+            xor a		; Hyp.cls 2500
+            ld (asm_1_2316_n_fl_r16), a		; Hyp.cls 2501
+asm_1_2316_n_fl_d8:		; Hyp.cls 2502
+            ld (var_hyp_filecall_filecall), hl		; Hyp.cls 2503
+            ld ix, (asm_1_2316_n_fl_ix)		; Hyp.cls 2504
+            ld iy, (asm_1_2316_n_fl_iy)		; Hyp.cls 2505
+            ld sp, (var_hyp_hsp)		; Hyp.cls 2506
+            jp asm_1_2316_n_fl_exit		; Hyp.cls 2507
+asm_1_2316_n_fl_ix:      dw 0		; Hyp.cls 2508
+asm_1_2316_n_fl_iy:      dw 0		; Hyp.cls 2509
+asm_1_2316_n_fl_res:     db 0		; Hyp.cls 2510
+asm_1_2316_n_fl_r16:     db 0                    ; 1: the result is fl_res16 [2511]
+asm_1_2316_n_fl_res16:   dw 0		; Hyp.cls 2512
+asm_1_2316_n_fl_slot:    db 0		; Hyp.cls 2513
 ; (main RAM: the page code calls them - no room left in the page)
-asm_1_2310_n_fl_isin:                            ; Z: the file being read is this slot's, this FCB [2509]
-            ld a, (var_hyp_fin)		; Hyp.cls 2510
-            ld hl, asm_1_2310_n_fl_infcb		; Hyp.cls 2511
-            jr asm_1_2310_n_fl_is		; Hyp.cls 2512
-asm_1_2310_n_fl_isout:		; Hyp.cls 2513
-            ld a, (var_hyp_fout)		; Hyp.cls 2514
-            ld hl, asm_1_2310_n_fl_outfcb		; Hyp.cls 2515
-asm_1_2310_n_fl_is:                              ; (its FCB: the one it was opened with - or, the first [2516]
-            ld b, a                 ; call after with another, that one: a program's own copy [2517]
-            ld a, (asm_1_2310_n_fl_slot)         ; of it, BBC BASIC's channels) [2518]
-            cp b		; Hyp.cls 2519
-            ret nz		; Hyp.cls 2520
-            ld e, (hl)		; Hyp.cls 2521
-            inc hl		; Hyp.cls 2522
-            ld d, (hl)		; Hyp.cls 2523
-            inc hl		; Hyp.cls 2524
-            push hl		; Hyp.cls 2525
-            call asm_1_2310_n_fl_cmpf		; Hyp.cls 2526
-            pop de		; Hyp.cls 2527
-            ret z		; Hyp.cls 2528
-            ld a, (de)              ; (the open's FCB still: this one from now on - unless it [2529]
-            xor 1                   ; is the other file's: a program reading the record it [2530]
-            ret nz                  ; writes, through that file's FCB) [2531]
-            push de		; Hyp.cls 2532
-            ld a, (var_hyp_fin)		; Hyp.cls 2533
-            ld de, (asm_1_2310_n_fl_infcb)		; Hyp.cls 2534
-            call asm_1_2310_n_fl_oth		; Hyp.cls 2535
-            jr z, asm_1_2310_n_fl_is_no		; Hyp.cls 2536
-            ld a, (var_hyp_fout)		; Hyp.cls 2537
-            ld de, (asm_1_2310_n_fl_outfcb)		; Hyp.cls 2538
-            call asm_1_2310_n_fl_oth		; Hyp.cls 2539
-asm_1_2310_n_fl_is_no:		; Hyp.cls 2540
-            pop de		; Hyp.cls 2541
-            jr nz, asm_1_2310_n_fl_is_re		; Hyp.cls 2542
-            inc a                   ; (NZ: not this one) [2543]
-            ret		; Hyp.cls 2544
-asm_1_2310_n_fl_is_re:		; Hyp.cls 2545
-            xor a		; Hyp.cls 2546
-            ld (de), a		; Hyp.cls 2547
-            ld hl, (var_hyp_filecall_fcb)		; Hyp.cls 2548
-            ex de, hl		; Hyp.cls 2549
-            dec hl		; Hyp.cls 2550
-            ld (hl), d		; Hyp.cls 2551
-            dec hl		; Hyp.cls 2552
-            ld (hl), e		; Hyp.cls 2553
-            ret		; Hyp.cls 2554
-asm_1_2310_n_fl_oth:                             ; Z: the slot's file (A: fin / fout), its FCB DE the call's [2555]
-            ld b, a		; Hyp.cls 2556
-            ld a, (asm_1_2310_n_fl_slot)		; Hyp.cls 2557
-            cp b		; Hyp.cls 2558
-            ret nz		; Hyp.cls 2559
-asm_1_2310_n_fl_cmpf:                            ; Z: the call's FCB is DE [2560]
-            ld hl, (var_hyp_filecall_fcb)		; Hyp.cls 2561
-            or a		; Hyp.cls 2562
-            sbc hl, de		; Hyp.cls 2563
-            ret		; Hyp.cls 2564
-asm_1_2310_n_fl_exit:		; Hyp.cls 3855
+asm_1_2316_n_fl_isin:                            ; Z: the file being read is this slot's, this FCB [2515]
+            ld a, (var_hyp_fin)		; Hyp.cls 2516
+            ld hl, asm_1_2316_n_fl_infcb		; Hyp.cls 2517
+            jr asm_1_2316_n_fl_is		; Hyp.cls 2518
+asm_1_2316_n_fl_isout:		; Hyp.cls 2519
+            ld a, (var_hyp_fout)		; Hyp.cls 2520
+            ld hl, asm_1_2316_n_fl_outfcb		; Hyp.cls 2521
+asm_1_2316_n_fl_is:                              ; (its FCB: the one it was opened with - or, the first [2522]
+            ld b, a                 ; call after with another, that one: a program's own copy [2523]
+            ld a, (asm_1_2316_n_fl_slot)         ; of it, BBC BASIC's channels) [2524]
+            cp b		; Hyp.cls 2525
+            ret nz		; Hyp.cls 2526
+            ld e, (hl)		; Hyp.cls 2527
+            inc hl		; Hyp.cls 2528
+            ld d, (hl)		; Hyp.cls 2529
+            inc hl		; Hyp.cls 2530
+            push hl		; Hyp.cls 2531
+            call asm_1_2316_n_fl_cmpf		; Hyp.cls 2532
+            pop de		; Hyp.cls 2533
+            ret z		; Hyp.cls 2534
+            ld a, (de)              ; (the open's FCB still: this one from now on - unless it [2535]
+            xor 1                   ; is the other file's: a program reading the record it [2536]
+            ret nz                  ; writes, through that file's FCB) [2537]
+            push de		; Hyp.cls 2538
+            ld a, (var_hyp_fin)		; Hyp.cls 2539
+            ld de, (asm_1_2316_n_fl_infcb)		; Hyp.cls 2540
+            call asm_1_2316_n_fl_oth		; Hyp.cls 2541
+            jr z, asm_1_2316_n_fl_is_no		; Hyp.cls 2542
+            ld a, (var_hyp_fout)		; Hyp.cls 2543
+            ld de, (asm_1_2316_n_fl_outfcb)		; Hyp.cls 2544
+            call asm_1_2316_n_fl_oth		; Hyp.cls 2545
+asm_1_2316_n_fl_is_no:		; Hyp.cls 2546
+            pop de		; Hyp.cls 2547
+            jr nz, asm_1_2316_n_fl_is_re		; Hyp.cls 2548
+            inc a                   ; (NZ: not this one) [2549]
+            ret		; Hyp.cls 2550
+asm_1_2316_n_fl_is_re:		; Hyp.cls 2551
+            xor a		; Hyp.cls 2552
+            ld (de), a		; Hyp.cls 2553
+            ld hl, (var_hyp_filecall_fcb)		; Hyp.cls 2554
+            ex de, hl		; Hyp.cls 2555
+            dec hl		; Hyp.cls 2556
+            ld (hl), d		; Hyp.cls 2557
+            dec hl		; Hyp.cls 2558
+            ld (hl), e		; Hyp.cls 2559
+            ret		; Hyp.cls 2560
+asm_1_2316_n_fl_oth:                             ; Z: the slot's file (A: fin / fout), its FCB DE the call's [2561]
+            ld b, a		; Hyp.cls 2562
+            ld a, (asm_1_2316_n_fl_slot)		; Hyp.cls 2563
+            cp b		; Hyp.cls 2564
+            ret nz		; Hyp.cls 2565
+asm_1_2316_n_fl_cmpf:                            ; Z: the call's FCB is DE [2566]
+            ld hl, (var_hyp_filecall_fcb)		; Hyp.cls 2567
+            or a		; Hyp.cls 2568
+            sbc hl, de		; Hyp.cls 2569
+            ret		; Hyp.cls 2570
+asm_1_2316_n_fl_exit:		; Hyp.cls 3861
 			ret			; end of #asm
 
-asm_1_3861_n:		; #asm, Hyp.cls line 3861 (normal)
-            ld (var_hyp_hsp), sp		; Hyp.cls 3862
-            ld sp, (ntc_csp)		; Hyp.cls 3863
-            ld bc, (var_hyp_hps)          ; (the buffers: the hypervisor's page) [3864]
-            out (c), c		; Hyp.cls 3865
-            ld a, (var_hyp_fileshut_slot)		; Hyp.cls 3866
-            ld b, a		; Hyp.cls 3867
-            ld a, (var_hyp_fin)		; Hyp.cls 3868
-            cp b		; Hyp.cls 3869
-            jr nz, asm_1_3861_n_fs_out		; Hyp.cls 3870
-            xor a		; Hyp.cls 3871
-            ld (var_hyp_fin), a		; Hyp.cls 3872
-            push bc		; Hyp.cls 3873
-            call #BC7A              ; CAS IN CLOSE [3874]
-            di		; Hyp.cls 3875
-            pop bc		; Hyp.cls 3876
-asm_1_3861_n_fs_out:		; Hyp.cls 3877
-            ld a, (var_hyp_fout)		; Hyp.cls 3878
-            cp b		; Hyp.cls 3879
-            jr nz, asm_1_3861_n_fs_done		; Hyp.cls 3880
-            xor a		; Hyp.cls 3881
-            ld (var_hyp_fout), a		; Hyp.cls 3882
-            call #BC8F              ; CAS OUT CLOSE [3883]
-            di		; Hyp.cls 3884
-asm_1_3861_n_fs_done:		; Hyp.cls 3885
-            ld bc, (ntc_rampt)		; Hyp.cls 3886
-            out (c), c		; Hyp.cls 3887
-            ld sp, (var_hyp_hsp)		; Hyp.cls 3888
+asm_1_3867_n:		; #asm, Hyp.cls line 3867 (normal)
+            ld (var_hyp_hsp), sp		; Hyp.cls 3868
+            ld sp, (ntc_csp)		; Hyp.cls 3869
+            ld bc, (var_hyp_hps)          ; (the buffers: the hypervisor's page) [3870]
+            out (c), c		; Hyp.cls 3871
+            ld a, (var_hyp_fileshut_slot)		; Hyp.cls 3872
+            ld b, a		; Hyp.cls 3873
+            ld a, (var_hyp_fin)		; Hyp.cls 3874
+            cp b		; Hyp.cls 3875
+            jr nz, asm_1_3867_n_fs_out		; Hyp.cls 3876
+            xor a		; Hyp.cls 3877
+            ld (var_hyp_fin), a		; Hyp.cls 3878
+            push bc		; Hyp.cls 3879
+            call #BC7A              ; CAS IN CLOSE [3880]
+            di		; Hyp.cls 3881
+            pop bc		; Hyp.cls 3882
+asm_1_3867_n_fs_out:		; Hyp.cls 3883
+            ld a, (var_hyp_fout)		; Hyp.cls 3884
+            cp b		; Hyp.cls 3885
+            jr nz, asm_1_3867_n_fs_done		; Hyp.cls 3886
+            xor a		; Hyp.cls 3887
+            ld (var_hyp_fout), a		; Hyp.cls 3888
+            call #BC8F              ; CAS OUT CLOSE [3889]
+            di		; Hyp.cls 3890
+asm_1_3867_n_fs_done:		; Hyp.cls 3891
+            ld bc, (ntc_rampt)		; Hyp.cls 3892
+            out (c), c		; Hyp.cls 3893
+            ld sp, (var_hyp_hsp)		; Hyp.cls 3894
 			ret			; end of #asm
 
-fn_hyp_usesvc:		; sub usesvc (asm keyword), Hyp.cls line 3910
-            ld hl, (ntc_rampt)		; Hyp.cls 3911
-            ld (var_hyp_svp), hl		; Hyp.cls 3912
+fn_hyp_usesvc:		; sub usesvc (asm keyword), Hyp.cls line 3918
+            ld hl, (ntc_rampt)		; Hyp.cls 3919
+            ld (var_hyp_svp), hl		; Hyp.cls 3920
 			ret			; end of #asm
 
-asm_1_3924_n:		; #asm, Hyp.cls line 3924 (normal)
-            ld (var_hyp_hsp), sp		; Hyp.cls 3925
-            ld sp, (ntc_csp)		; Hyp.cls 3926
-            ld (asm_1_3924_n_sv_ix), ix		; Hyp.cls 3927
-            ld (asm_1_3924_n_sv_iy), iy		; Hyp.cls 3928
-            di		; Hyp.cls 3929
-            ld a, (var_hyp_svc_t)		; Hyp.cls 3930
-            or a		; Hyp.cls 3931
-            jr z, asm_1_3924_n_sv_inst		; Hyp.cls 3932
-            ld bc, (var_hyp_svp)		; Hyp.cls 3933
-            out (c), c		; Hyp.cls 3934
-            call asm_1_3924_n_sv_go              ; (in the service page) A = the answer [3935]
-asm_1_3924_n_sv_back:		; Hyp.cls 3936
+asm_1_3932_n:		; #asm, Hyp.cls line 3932 (normal)
+            ld (var_hyp_hsp), sp		; Hyp.cls 3933
+            ld sp, (ntc_csp)		; Hyp.cls 3934
+            ld (asm_1_3932_n_sv_ix), ix		; Hyp.cls 3935
+            ld (asm_1_3932_n_sv_iy), iy		; Hyp.cls 3936
             di		; Hyp.cls 3937
-            ld l, a		; Hyp.cls 3938
-            ld h, 0		; Hyp.cls 3939
-            ld (var_hyp_svc_svc), hl		; Hyp.cls 3940
-            ld bc, (ntc_rampt)      ; the page that was in the window back [3941]
+            ld a, (var_hyp_svc_t)		; Hyp.cls 3938
+            or a		; Hyp.cls 3939
+            jr z, asm_1_3932_n_sv_inst		; Hyp.cls 3940
+            ld bc, (var_hyp_svp)		; Hyp.cls 3941
             out (c), c		; Hyp.cls 3942
-            ld ix, (asm_1_3924_n_sv_ix)		; Hyp.cls 3943
-            ld iy, (asm_1_3924_n_sv_iy)		; Hyp.cls 3944
-            ld sp, (var_hyp_hsp)		; Hyp.cls 3945
-            jp asm_1_3924_n_sv_exit		; Hyp.cls 3946
-asm_1_3924_n_sv_inst:		; Hyp.cls 3947
-            ld hl, #6000		; Hyp.cls 3948
-asm_1_3924_n_sv_in_lp:		; Hyp.cls 3949
-            push hl		; Hyp.cls 3950
-            ld bc, #7FC0            ; main RAM's own [3951]
-            out (c), c		; Hyp.cls 3952
-            ld de, (var_hyp_svc_buf)		; Hyp.cls 3953
-            ld bc, 128		; Hyp.cls 3954
-            ldir		; Hyp.cls 3955
-            ld bc, (var_hyp_svp)		; Hyp.cls 3956
-            out (c), c		; Hyp.cls 3957
-            pop de		; Hyp.cls 3958
-            push de		; Hyp.cls 3959
-            ld hl, (var_hyp_svc_buf)		; Hyp.cls 3960
-            ld bc, 128		; Hyp.cls 3961
-            ldir		; Hyp.cls 3962
-            pop hl		; Hyp.cls 3963
-            ld bc, 128		; Hyp.cls 3964
-            add hl, bc		; Hyp.cls 3965
-            ld de, asm_1_3924_n_sv_end		; Hyp.cls 3966
-            or a		; Hyp.cls 3967
-            sbc hl, de		; Hyp.cls 3968
-            add hl, de		; Hyp.cls 3969
-            jr c, asm_1_3924_n_sv_in_lp		; Hyp.cls 3970
-            xor a		; Hyp.cls 3971
-            jr asm_1_3924_n_sv_back		; Hyp.cls 3972
-asm_1_3924_n_sv_ix:      dw 0		; Hyp.cls 3973
-asm_1_3924_n_sv_iy:      dw 0		; Hyp.cls 3974
+            call asm_1_3932_n_sv_go              ; (in the service page) A = the answer [3943]
+asm_1_3932_n_sv_back:		; Hyp.cls 3944
+            di		; Hyp.cls 3945
+            ld l, a		; Hyp.cls 3946
+            ld h, 0		; Hyp.cls 3947
+            ld (var_hyp_svc_svc), hl		; Hyp.cls 3948
+            ld bc, (ntc_rampt)      ; the page that was in the window back [3949]
+            out (c), c		; Hyp.cls 3950
+            ld ix, (asm_1_3932_n_sv_ix)		; Hyp.cls 3951
+            ld iy, (asm_1_3932_n_sv_iy)		; Hyp.cls 3952
+            ld sp, (var_hyp_hsp)		; Hyp.cls 3953
+            jp asm_1_3932_n_sv_exit		; Hyp.cls 3954
+asm_1_3932_n_sv_inst:		; Hyp.cls 3955
+            ld hl, #6000		; Hyp.cls 3956
+asm_1_3932_n_sv_in_lp:		; Hyp.cls 3957
+            push hl		; Hyp.cls 3958
+            ld bc, #7FC0            ; main RAM's own [3959]
+            out (c), c		; Hyp.cls 3960
+            ld de, (var_hyp_svc_buf)		; Hyp.cls 3961
+            ld bc, 128		; Hyp.cls 3962
+            ldir		; Hyp.cls 3963
+            ld bc, (var_hyp_svp)		; Hyp.cls 3964
+            out (c), c		; Hyp.cls 3965
+            pop de		; Hyp.cls 3966
+            push de		; Hyp.cls 3967
+            ld hl, (var_hyp_svc_buf)		; Hyp.cls 3968
+            ld bc, 128		; Hyp.cls 3969
+            ldir		; Hyp.cls 3970
+            pop hl		; Hyp.cls 3971
+            ld bc, 128		; Hyp.cls 3972
+            add hl, bc		; Hyp.cls 3973
+            ld de, asm_1_3932_n_sv_end		; Hyp.cls 3974
+            or a		; Hyp.cls 3975
+            sbc hl, de		; Hyp.cls 3976
+            add hl, de		; Hyp.cls 3977
+            jr c, asm_1_3932_n_sv_in_lp		; Hyp.cls 3978
+            xor a		; Hyp.cls 3979
+            jr asm_1_3932_n_sv_back		; Hyp.cls 3980
+asm_1_3932_n_sv_ix:      dw 0		; Hyp.cls 3981
+asm_1_3932_n_sv_iy:      dw 0		; Hyp.cls 3982
 ; sv_dx - A bytes (1-128) from HL to DE through buf: IX = HL's RAM setting, IY = DE's (0: none -
 ; main RAM outside the window); the service page back in the window after. HL, DE on past them
-asm_1_3924_n_sv_dx:		; Hyp.cls 3977
-            ld (asm_1_3924_n_sv_dxn), a		; Hyp.cls 3978
-            push de		; Hyp.cls 3979
-            ld de, (var_hyp_svc_buf)		; Hyp.cls 3980
-            push ix		; Hyp.cls 3981
-            pop bc		; Hyp.cls 3982
-            inc b		; Hyp.cls 3983
-            dec b		; Hyp.cls 3984
-            jr z, asm_1_3924_n_sv_dx1		; Hyp.cls 3985
-            out (c), c		; Hyp.cls 3986
-asm_1_3924_n_sv_dx1:		; Hyp.cls 3987
-            ld c, a		; Hyp.cls 3988
-            ld b, 0		; Hyp.cls 3989
-            ldir		; Hyp.cls 3990
-            pop de		; Hyp.cls 3991
-            push hl		; Hyp.cls 3992
-            push iy		; Hyp.cls 3993
-            pop bc		; Hyp.cls 3994
-            inc b		; Hyp.cls 3995
-            dec b		; Hyp.cls 3996
-            jr z, asm_1_3924_n_sv_dx2		; Hyp.cls 3997
-            out (c), c		; Hyp.cls 3998
-asm_1_3924_n_sv_dx2:		; Hyp.cls 3999
-            ld hl, (var_hyp_svc_buf)		; Hyp.cls 4000
-            ld a, (asm_1_3924_n_sv_dxn)		; Hyp.cls 4001
-            ld c, a		; Hyp.cls 4002
-            ld b, 0		; Hyp.cls 4003
-            ldir		; Hyp.cls 4004
-            pop hl		; Hyp.cls 4005
-            ld bc, (var_hyp_svp)		; Hyp.cls 4006
-            out (c), c		; Hyp.cls 4007
-            ret		; Hyp.cls 4008
-asm_1_3924_n_sv_dxn:     db 0		; Hyp.cls 4009
-asm_1_3924_n_sv_exit:		; Hyp.cls 5264
+asm_1_3932_n_sv_dx:		; Hyp.cls 3985
+            ld (asm_1_3932_n_sv_dxn), a		; Hyp.cls 3986
+            push de		; Hyp.cls 3987
+            ld de, (var_hyp_svc_buf)		; Hyp.cls 3988
+            push ix		; Hyp.cls 3989
+            pop bc		; Hyp.cls 3990
+            inc b		; Hyp.cls 3991
+            dec b		; Hyp.cls 3992
+            jr z, asm_1_3932_n_sv_dx1		; Hyp.cls 3993
+            out (c), c		; Hyp.cls 3994
+asm_1_3932_n_sv_dx1:		; Hyp.cls 3995
+            ld c, a		; Hyp.cls 3996
+            ld b, 0		; Hyp.cls 3997
+            ldir		; Hyp.cls 3998
+            pop de		; Hyp.cls 3999
+            push hl		; Hyp.cls 4000
+            push iy		; Hyp.cls 4001
+            pop bc		; Hyp.cls 4002
+            inc b		; Hyp.cls 4003
+            dec b		; Hyp.cls 4004
+            jr z, asm_1_3932_n_sv_dx2		; Hyp.cls 4005
+            out (c), c		; Hyp.cls 4006
+asm_1_3932_n_sv_dx2:		; Hyp.cls 4007
+            ld hl, (var_hyp_svc_buf)		; Hyp.cls 4008
+            ld a, (asm_1_3932_n_sv_dxn)		; Hyp.cls 4009
+            ld c, a		; Hyp.cls 4010
+            ld b, 0		; Hyp.cls 4011
+            ldir		; Hyp.cls 4012
+            pop hl		; Hyp.cls 4013
+            ld bc, (var_hyp_svp)		; Hyp.cls 4014
+            out (c), c		; Hyp.cls 4015
+            ret		; Hyp.cls 4016
+asm_1_3932_n_sv_dxn:     db 0		; Hyp.cls 4017
+asm_1_3932_n_sv_exit:		; Hyp.cls 5593
 			ret			; end of #asm
 
-asm_1_5276_n:		; #asm, Hyp.cls line 5276 (normal)
-            ld (var_hyp_hsp), sp		; Hyp.cls 5277
-            ld sp, (ntc_csp)		; Hyp.cls 5278
-            ld (asm_1_5276_n_dv_ix), ix		; Hyp.cls 5279
-            ld (asm_1_5276_n_dv_iy), iy		; Hyp.cls 5280
-            ld hl, 0		; Hyp.cls 5281
-            ld (var_hyp_drive_drive), hl		; Hyp.cls 5282
-            ld hl, (var_hyp_drive_letter)		; Hyp.cls 5283
-            ld (var_hyp_hdr), hl		; Hyp.cls 5284
-            IF NTC_ROMLIB = 0		; Hyp.cls 5285
-            ld a, (var_hyp_drs + 1)		; Hyp.cls 5286
-            or a		; Hyp.cls 5287
-            jr z, asm_1_5276_n_dv_rsx		; Hyp.cls 5288
-            ld (asm_1_5276_n_dv_blk + 2), hl		; Hyp.cls 5289
-            di		; Hyp.cls 5290
-            ld bc, (var_hyp_drs)		; Hyp.cls 5291
-            out (c), c		; Hyp.cls 5292
-            ld ix, asm_1_5276_n_dv_blk		; Hyp.cls 5293
-            call #4000		; Hyp.cls 5294
-            ld bc, (ntc_rampt)		; Hyp.cls 5295
-            out (c), c		; Hyp.cls 5296
-            jr nc, asm_1_5276_n_dv_rsx		; Hyp.cls 5297
-            ld hl, -1		; Hyp.cls 5298
-            ld (var_hyp_drive_drive), hl		; Hyp.cls 5299
-            jr asm_1_5276_n_dv_done		; Hyp.cls 5300
-asm_1_5276_n_dv_blk:     dw 114, 0, 0, 0, 0, 0, 0		; Hyp.cls 5301
-            ENDIF		; Hyp.cls 5302
-asm_1_5276_n_dv_rsx:		; Hyp.cls 5303
-            ld a, (var_hyp_drive_letter)		; Hyp.cls 5304
-            or #80                  ; a one letter command name: its last letter + #80 [5305]
-            ld (asm_1_5276_n_dv_nm), a		; Hyp.cls 5306
-            ld hl, asm_1_5276_n_dv_nm		; Hyp.cls 5307
-            call #BCD4              ; KL FIND COMMAND: carry = found, C = its ROM, HL = its address [5308]
-            di		; Hyp.cls 5309
-            jr nc, asm_1_5276_n_dv_done		; Hyp.cls 5310
-            xor a                   ; no parameters [5311]
-            call #001B              ; KL FAR PCALL [5312]
-            di		; Hyp.cls 5313
-            ld hl, -1		; Hyp.cls 5314
-            ld (var_hyp_drive_drive), hl		; Hyp.cls 5315
-            jr asm_1_5276_n_dv_done		; Hyp.cls 5316
-asm_1_5276_n_dv_nm:      db 0		; Hyp.cls 5317
-asm_1_5276_n_dv_ix:      dw 0		; Hyp.cls 5318
-asm_1_5276_n_dv_iy:      dw 0		; Hyp.cls 5319
-asm_1_5276_n_dv_done:		; Hyp.cls 5320
-            ld ix, (asm_1_5276_n_dv_ix)		; Hyp.cls 5321
-            ld iy, (asm_1_5276_n_dv_iy)		; Hyp.cls 5322
-            ld sp, (var_hyp_hsp)		; Hyp.cls 5323
+asm_1_5605_n:		; #asm, Hyp.cls line 5605 (normal)
+            ld (var_hyp_hsp), sp		; Hyp.cls 5606
+            ld sp, (ntc_csp)		; Hyp.cls 5607
+            ld (asm_1_5605_n_dv_ix), ix		; Hyp.cls 5608
+            ld (asm_1_5605_n_dv_iy), iy		; Hyp.cls 5609
+            ld hl, 0		; Hyp.cls 5610
+            ld (var_hyp_drive_drive), hl		; Hyp.cls 5611
+            ld hl, (var_hyp_drive_letter)		; Hyp.cls 5612
+            ld (var_hyp_hdr), hl		; Hyp.cls 5613
+            IF NTC_ROMLIB = 0		; Hyp.cls 5614
+            ld a, (var_hyp_drs + 1)		; Hyp.cls 5615
+            or a		; Hyp.cls 5616
+            jr z, asm_1_5605_n_dv_rsx		; Hyp.cls 5617
+            ld (asm_1_5605_n_dv_blk + 2), hl		; Hyp.cls 5618
+            di		; Hyp.cls 5619
+            ld bc, (var_hyp_drs)		; Hyp.cls 5620
+            out (c), c		; Hyp.cls 5621
+            ld ix, asm_1_5605_n_dv_blk		; Hyp.cls 5622
+            call #4000		; Hyp.cls 5623
+            ld bc, (ntc_rampt)		; Hyp.cls 5624
+            out (c), c		; Hyp.cls 5625
+            jr nc, asm_1_5605_n_dv_rsx		; Hyp.cls 5626
+            ld hl, -1		; Hyp.cls 5627
+            ld (var_hyp_drive_drive), hl		; Hyp.cls 5628
+            jr asm_1_5605_n_dv_done		; Hyp.cls 5629
+asm_1_5605_n_dv_blk:     dw 114, 0, 0, 0, 0, 0, 0		; Hyp.cls 5630
+            ENDIF		; Hyp.cls 5631
+asm_1_5605_n_dv_rsx:		; Hyp.cls 5632
+            ld a, (var_hyp_drive_letter)		; Hyp.cls 5633
+            or #80                  ; a one letter command name: its last letter + #80 [5634]
+            ld (asm_1_5605_n_dv_nm), a		; Hyp.cls 5635
+            ld hl, asm_1_5605_n_dv_nm		; Hyp.cls 5636
+            call #BCD4              ; KL FIND COMMAND: carry = found, C = its ROM, HL = its address [5637]
+            di		; Hyp.cls 5638
+            jr nc, asm_1_5605_n_dv_done		; Hyp.cls 5639
+            xor a                   ; no parameters [5640]
+            call #001B              ; KL FAR PCALL [5641]
+            di		; Hyp.cls 5642
+            ld hl, -1		; Hyp.cls 5643
+            ld (var_hyp_drive_drive), hl		; Hyp.cls 5644
+            jr asm_1_5605_n_dv_done		; Hyp.cls 5645
+asm_1_5605_n_dv_nm:      db 0		; Hyp.cls 5646
+asm_1_5605_n_dv_ix:      dw 0		; Hyp.cls 5647
+asm_1_5605_n_dv_iy:      dw 0		; Hyp.cls 5648
+asm_1_5605_n_dv_done:		; Hyp.cls 5649
+            ld ix, (asm_1_5605_n_dv_ix)		; Hyp.cls 5650
+            ld iy, (asm_1_5605_n_dv_iy)		; Hyp.cls 5651
+            ld sp, (var_hyp_hsp)		; Hyp.cls 5652
 			ret			; end of #asm
 
 fn_keys_down:		; function down (asm keyword), Keys.cls line 44
@@ -11928,7 +12274,7 @@ ntc_rg221_e:
 			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
 ntc_rg222:
-for87_l:			dw 0
+for88_l:			dw 0
 ntc_rg222_e:
 			IF ($ < 32768) && (ntc_rg223_e - ntc_rg223 + $ > 16384)	; fwdref-ok
 			ds #4000 - $		; the window data (; @window), from #4000
@@ -12029,7 +12375,7 @@ ntc_rg232_e:
 			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
 ntc_rg233:
-for92_l:			dw 0
+for93_l:			dw 0
 ntc_rg233_e:
 			IF ($ < 32768) && (ntc_rg234_e - ntc_rg234 + $ > 16384)	; fwdref-ok
 			ds #4000 - $		; the window data (; @window), from #4000
@@ -12310,7 +12656,7 @@ ntc_rg263_e:
 			ENDIF
 ntc_rg264:
 			db 82			; capacity
-var_command___sel107:			ds 83
+var_command___sel108:			ds 83
 ntc_rg264_e:
 			IF ($ < 32768) && (ntc_rg265_e - ntc_rg265 + $ > 16384)	; fwdref-ok
 			ds #4000 - $		; the window data (; @window), from #4000
@@ -18962,8 +19308,12 @@ ntc_isl:		ds 128			; 16 slots
 ntc_isl_tick:
 			push bc
 			push de
+	IFDEF NTC_ZXN
+			ld a, c					; zxn: the handler's frame flag in C (1: the line 0 interrupt)
+	ELSE
 			ld b, #F5				; PPI port B bit 0: vertical sync
 			in a, (c)
+	ENDIF
 			and 1
 			ld e, a
 			ld a, (ntc_islvs)

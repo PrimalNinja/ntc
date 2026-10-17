@@ -13,7 +13,9 @@
 ' &H8F50, &H13A0 - under the ROMs' RAM: UniDOS with an IDE node takes #A309 up, its event block
 ' 16 below); the program goes on at #8000 when it is past #4000, the Memory class's tables
 ' after it).
-' All the work is Z80 (#asm). Platform: cpcfw (the Graphics class, the firmware's file calls).
+' All the work is Z80 (#asm). Platform: cpcfw (the Graphics class, the firmware's file calls);
+' zxn, the ZX Spectrum Next (IFDEF NTC_ZXN / #If NTC_ZXN): the blocks are 16K banks the NEX file
+' loaded (Option NexData), put in #4000 by zxn_sel; the Graphics class draws on Layer 2.
 Option Explicit
 Private bas(8) As Integer                     ' right (0-2), up (3-5), forward (6-8): 16384 = 1.0
 Private qx As Long, qy As Long, qz As Long    ' where the camera is: world units * 16384
@@ -182,6 +184,34 @@ End Function
 ' Inks: pen 1 white (buildings, roads, the landmarks), 2 green (trees, volcanoes), 3 cyan
 ' (coast, water), black paper and border
 Public Sub Inks()
+#If NTC_ZXN Then
+#asm
+            ld bc, #243B            ; the Next: Layer 2's first palette, entries 0-3 (RRRGGGBB)
+            ld a, #43
+            out (c), a
+            inc b
+            ld a, #10               ; (writes go to Layer 2's first palette, the index moving on)
+            out (c), a
+            dec b
+            ld a, #40
+            out (c), a
+            inc b
+            xor a
+            out (c), a
+            dec b
+            ld a, #41
+            out (c), a
+            inc b
+            xor a                   ; 0 black
+            out (c), a
+            ld a, #FF               ; 1 white
+            out (c), a
+            ld a, #1C               ; 2 green
+            out (c), a
+            ld a, #1F               ; 3 cyan
+            out (c), a
+#endasm
+#Else
 #asm
             ld ({sps}), sp
             ld sp, (ntc_csp)
@@ -201,6 +231,22 @@ Public Sub Inks()
             ld bc, 0
             call #BC38                  ; SCR SET BORDER
             di
+            ld sp, ({sps})
+#endasm
+#End If
+End Sub
+
+' Window(page): block page's RAM page in the window (#4000-#7FFF) - the Next: its 16K bank
+Public Sub Window(ByVal page As Integer)
+#asm
+            ld ({sps}), sp
+            ld sp, (ntc_csp)
+            ld hl, ({page})
+    IFDEF NTC_ZXN
+            call zxn_sel
+    ELSE
+            call mem_sel
+    ENDIF
             ld sp, ({sps})
 #endasm
 End Sub
@@ -236,7 +282,11 @@ Public Sub Render()
             add hl, de
             ld ({nlines}), hl
             ld hl, 0
+    IFDEF NTC_ZXN
+            call zxn_sel            ; (the Next: the program's own pages back in the window)
+    ELSE
             call mem_sel            ; main RAM back in the window
+    ENDIF
             call r_comp
 rn_end:
             di
@@ -841,6 +891,9 @@ tr_lp:
 
 ; r_clear - rows 1-24 of the screen being drawn on cleared (row 0 is the text line)
 r_clear:
+    IFDEF NTC_ZXN
+            jp zxn_gclr             ; (the Next: the Layer 2 buffer drawn on - all of it: the text is on
+    ENDIF                           ; the tilemap, over it)
             di                      ; SP goes through the screen: no interrupts meanwhile
             call gfx_begin
             ld (w_csp), sp
@@ -1075,7 +1128,11 @@ tl_z1:
             add hl, de
             push hl
             ld hl, ({pg})
+    IFDEF NTC_ZXN
+            call zxn_sel            ; (the Next: its 16K bank in #4000-#7FFF)
+    ELSE
             call mem_sel
+    ENDIF
             pop hl
             ld a, (hl)
             or a
@@ -1096,7 +1153,11 @@ tl_z1:
             inc hl
             ld h, (hl)
             ld l, a
+    IFDEF NTC_ZXN
+            call zxn_sel            ; its block in the window (the Next: its 16K bank)
+    ELSE
             call mem_sel            ; its block in the window
+    ENDIF
             ld hl, (w_nl)           ; the tile's share of the frame's lines: a quarter of the budget
             ld de, ({lmax})
             srl d

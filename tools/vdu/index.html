@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VDU Displays</title>
+<link rel="stylesheet" href="vdu.css">
+<script src="vdu.js"></script>
+</head>
+<body>
+<h1>VDU - remote displays</h1>
+
+<div class="gsPanel">
+<h2>Screens</h2>
+<div class="gsDim">The public ones, the latest first. Tick some and view them together, live.</div>
+<table class="gsList" id="geList"><tr><td>...</td></tr></table>
+<div class="gsBar">
+<button id="geView">View the ticked</button>
+<button id="geRefresh">Refresh</button>
+</div>
+</div>
+
+<div class="gsPanel">
+<h2>Open by id</h2>
+<div class="gsDim">A private screen isn't listed: it is seen by those given its id. Several: id,id,...</div>
+<div class="gsBar"><input type="text" id="geOpen" placeholder="id,id"><button id="geOpenGo">View</button></div>
+</div>
+
+<div class="gsPanel">
+<h2>A new screen</h2>
+<div class="gsBar">
+<input type="text" id="geTitle" placeholder="its title" maxlength="60">
+<label><input type="checkbox" id="gePublic" checked> listed</label>
+<label><input type="checkbox" id="geDemo" checked> a demo on it</label>
+<button id="geNew">Make it</button>
+</div>
+<div id="geMade" class="gsDim"></div>
+</div>
+
+<div class="gsPanel">
+<h2>Writing to a screen</h2>
+<div class="gsDim">Any program that can make an HTTP GET (a CPC through CyborgOS's NET, a PC, a script):</div>
+<pre>vdu.php?a=put&amp;s=ID&amp;k=KEY&amp;c=PRINT%20Hello        (several lines: %0A between them)
+vdu.php?a=get&amp;s=ID&amp;n=POINTER                      (0: from the start - a replay; -1: live)
+vdu.php?a=events&amp;s=ID&amp;k=KEY&amp;n=POINTER            (taps in its touch zones, keys)</pre>
+<div class="gsDim">Commands: MODE n, CLS, PRINT text[;], LOCATE x y, PEN i, PAPER i, INK i c, BORDER c, WINDOW l r t b,
+STREAM n, TITLE text, ORIGIN x y, MOVE x y, DRAW x y, PLOT x y, GPEN i, CLG [i], BOX x y w h, FILL x y w h,
+CIRCLE x y r, ZONE name x y w h, ZONE OFF. The whole of it: README.md.</div>
+</div>
+
+<script>
+(function()
+{
+	var m_strURL = 'vdu.php';
+
+	function element(strTag_a, strText_a)
+	{
+		var objE = document.createElement(strTag_a);
+		if (strText_a)
+		{
+			objE.appendChild(document.createTextNode(strText_a));
+		}
+		return objE;
+	}
+
+	function link(strText_a, strHref_a)
+	{
+		var objA = element('a', strText_a);
+		objA.href = strHref_a;
+		return objA;
+	}
+
+	function age(intWhen_a)
+	{
+		var intS = Math.floor(new Date().getTime() / 1000) - intWhen_a;
+		var strResult = intS + 's ago';
+		if (intS >= 86400)
+		{
+			strResult = Math.floor(intS / 86400) + 'd ago';
+		}
+		else if (intS >= 3600)
+		{
+			strResult = Math.floor(intS / 3600) + 'h ago';
+		}
+		else if (intS >= 60)
+		{
+			strResult = Math.floor(intS / 60) + 'm ago';
+		}
+		return strResult;
+	}
+
+	function list()
+	{
+		vduGet(m_strURL + '?a=list', function(strText_a)
+		{
+			var objTable = document.getElementById('geList');
+			var arrLines = strText_a.split('\n');
+			var intI;
+			var arrW;
+			var objRow;
+			var objCell;
+			var objBox;
+			while (objTable.rows.length > 0)
+			{
+				objTable.deleteRow(0);
+			}
+			for (intI = 1; intI < arrLines.length; intI++)
+			{
+				arrW = arrLines[intI].split(' ');
+				if (arrW.length >= 4)
+				{
+					objRow = objTable.insertRow(-1);
+					objCell = objRow.insertCell(-1);
+					objBox = document.createElement('input');
+					objBox.type = 'checkbox';
+					objBox.value = arrW[0];
+					objCell.appendChild(objBox);
+					objCell = objRow.insertCell(-1);
+					objCell.appendChild(link(arrW.slice(3).join(' '), 'view.html?s=' + arrW[0]));
+					objRow.insertCell(-1).appendChild(element('span', arrW[1] + ' lines, ' + age(parseInt(arrW[2], 10))));
+					objCell = objRow.insertCell(-1);
+					objCell.appendChild(link('text', 'text.php?s=' + arrW[0]));
+					objCell.appendChild(document.createTextNode(' '));
+					objCell.appendChild(link('rolling', 'dumb.php?s=' + arrW[0]));
+				}
+			}
+			if (objTable.rows.length === 0)
+			{
+				objTable.insertRow(-1).insertCell(-1).appendChild(element('span', strText_a.indexOf('ok') === 0 ? 'None yet' : 'vdu.php: ' + strText_a));
+			}
+		});
+	}
+
+	// a picture to start with: text, windows, graphics, two touch zones
+	function demoLines(strTitle_a)
+	{
+		return ['MODE 1', 'TITLE ' + strTitle_a, 'BORDER 0', 'INK 0 0', 'INK 1 24', 'INK 2 20', 'INK 3 6',
+			'PEN 1', 'LOCATE 2 2', 'PRINT VDU - a remote display', 'PEN 2', 'LOCATE 2 4',
+			'PRINT Any program can draw here;', 'LOCATE 2 5', 'PRINT with plain HTTP GETs.',
+			'GPEN 3', 'BOX 16 16 607 367', 'GPEN 2', 'CIRCLE 480 200 70', 'MOVE 410 200', 'DRAW 550 200',
+			'MOVE 480 130', 'DRAW 480 270', 'WINDOW 2 24 10 18', 'PAPER 2', 'PEN 0', 'CLS',
+			'PRINT A window: its own', 'PRINT cursor, its paper,', 'PRINT scrolling at its foot.',
+			'PAPER 0', 'PEN 1', 'WINDOW 1 40 1 25', 'GPEN 1', 'FILL 48 48 128 48', 'FILL 224 48 128 48',
+			'PEN 0', 'PAPER 1', 'LOCATE 5 21', 'PRINT  YES ', 'LOCATE 15 21', 'PRINT  NO  ', 'PAPER 0', 'PEN 1',
+			'ZONE yes 48 48 128 48', 'ZONE no 224 48 128 48'].join('\n');
+	}
+
+	function make()
+	{
+		var strTitle = document.getElementById('geTitle').value || 'Screen';
+		var blnPublic = document.getElementById('gePublic').checked;
+		var blnDemo = document.getElementById('geDemo').checked;
+		vduGet(m_strURL + '?a=new&t=' + encodeURIComponent(strTitle) + (blnPublic ? '' : '&p=0'), function(strText_a)
+		{
+			var arrW = strText_a.split(' ');
+			var objMade = document.getElementById('geMade');
+			var objKeys = {};
+			objMade.innerHTML = '';
+			if (arrW[0] === 'ok')
+			{
+				try
+				{
+					objKeys = JSON.parse(window.localStorage.getItem('vdu.keys') || '{}');
+					objKeys[arrW[1]] = arrW[2];
+					window.localStorage.setItem('vdu.keys', JSON.stringify(objKeys));
+				}
+				catch (objError)
+				{
+					objKeys = {};
+				}
+				objMade.appendChild(element('div', 'id ' + arrW[1] + '   key ' + arrW[2] + '   (the key writes to it: keep it)'));
+				objMade.appendChild(link('View and write to it', 'view.html?s=' + arrW[1] + '&k=' + arrW[2]));
+				if (blnDemo)
+				{
+					vduGet(m_strURL + '?a=put&s=' + arrW[1] + '&k=' + arrW[2] + '&c=' + encodeURIComponent(demoLines(strTitle)), function() { list(); });
+				}
+				else
+				{
+					list();
+				}
+			}
+			else
+			{
+				objMade.appendChild(element('div', strText_a));
+			}
+		});
+	}
+
+	document.getElementById('geRefresh').onclick = list;
+	document.getElementById('geNew').onclick = make;
+	document.getElementById('geView').onclick = function()
+	{
+		var arrBoxes = document.getElementById('geList').getElementsByTagName('input');
+		var arrIDs = [];
+		var intI;
+		for (intI = 0; intI < arrBoxes.length; intI++)
+		{
+			if (arrBoxes[intI].checked)
+			{
+				arrIDs.push(arrBoxes[intI].value);
+			}
+		}
+		if (arrIDs.length > 0)
+		{
+			window.location.href = 'view.html?s=' + arrIDs.join(',');
+		}
+	};
+	document.getElementById('geOpenGo').onclick = function()
+	{
+		var strIDs = document.getElementById('geOpen').value.replace(/\s+/g, '');
+		if (strIDs !== '')
+		{
+			window.location.href = 'view.html?s=' + strIDs;
+		}
+	};
+	list();
+})();
+</script>
+</body>
+</html>

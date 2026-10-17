@@ -17,11 +17,12 @@ build.bat ..\primal\sjasmplus\sjasmplus.exe   or give its path (relative or full
 | `rom\` | the keyword library ROMs: NTC CPC, NTC CPCMIN, NTC CPCFW | `NTCCPC.ROM`, `NTCMIN.ROM`, `NTCFW.ROM`: 16K + an AMSDOS header (16512 bytes) | a ROM board, an M4 / ROM emulator, or WinAPE's ROM slots - all three can be fitted at once |
 | `cpm\` | CP/M 2.2 / 3 | `NAME.COM` at `#0100` | copy to the CP/M disk, type `NAME` |
 | `test\` | the test harness platform | `NAME.BIN`, raw, at `#4000` | for `test/ntcrun.py` |
+| `zxn\` | ZX Spectrum Next, hardware (no files yet) | `NAME.NEX`: the program at `#0040` in RAM pages 16-21, a start stub in bank 5 | copy to the Next's SD card, run it from NextZXOS's browser |
 
 A program with pages (overlay classes: `OVERLAYS`, `PAGES` on cpcmin, cpcfw and cpm) also writes
 their page files (`OVERLAYS.001`, `OVERLAYS.002`, `PAGES.001` ... - the program's name, numbered) when it is assembled: copy them to the disc
 with the `.BIN` / `.COM`. `OVERLAYS` and `PAGES` are only built for cpcmin, cpcfw and cpm, `INTERRUP` (interrupt classes) for
-cpc, cpcmin and cpcfw.
+cpc, cpcmin, cpcfw and zxn.
 
 `dsk\` holds two disc images per platform with its programs already assembled, ready to insert
 in an emulator (WinAPE: drive A or B): `cpc.dsk`, `cpcmin.dsk`, `cpcfw.dsk` (the examples and demos:

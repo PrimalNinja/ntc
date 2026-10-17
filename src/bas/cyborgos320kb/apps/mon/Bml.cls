@@ -32,7 +32,10 @@ Private pe As Integer, cp As Integer, ps As Integer, pn As Integer, us As Intege
 Private nk As Integer, pl As Integer
 Private kl(119) As Integer, kc(119) As Integer, kn(119) As Integer, ku(119) As Integer, kv(119) As Integer
 Private tt As String Max 80, ln As String Max 80
+Private fj As Integer, fe As Integer, fls As Integer, fle As Integer, fll As Integer   ' (Wrap's)
+Private hsp As Integer
 #If BML_FORMS Then
+Private pgb As Integer, pgn As Integer, pgm As Integer   ' (Pg's page: buffer, length, room)
 Private kt(119) As Integer                       ' a link's field + 1 (0: a link)
 Private fk(31) As Integer, fp(31) As Integer, fn(31) As Integer, fm(31) As Integer, ff(31) As Integer
 Private fo(31) As Integer, fy(31) As Integer, fw(31) As Integer, fr(31) As Integer, fg(31) As Integer
@@ -68,6 +71,48 @@ Public Function Init(ByVal buf As Integer, ByVal n As Integer, ByVal cols As Int
   If ml = 0 Then ml = 16 * nb
   Init = k
 End Function
+
+#If BML_FORMS Then
+' Raw(): False - the 8BML renderer (Web.cls asks for 8bml=; apps/rawying/Bml.cls is the raw reader)
+Public Function Raw() As Integer
+  Raw = 0
+End Function
+
+' Pg(k, s, b, n, mx): Web.cls's own pages (it can't fetch one ...) made in this reader's format -
+' 8BML here: into b (n bytes there already, mx at most), the length after. k 0 the page's start,
+' its heading s; 1 a line of text s; 2 a status page's end (a back link); 3 a file's end; 4 a
+' fetched page's end (a back link)
+Public Function Pg(ByVal k As Integer, ByVal s As String Max 160, ByVal b As Integer, ByVal n As Integer, ByVal mx As Integer) As Integer
+  Dim j As Integer, r As Integer, c As Integer
+  pgb = b : pgn = n : pgm = mx
+  If k = 0 Then PgW "-" + Chr$(34) + "1" + Chr$(34) + ","
+  If k = 1 Then PgW "t"
+  If k <= 1 Then
+    For r = k To 1                               ' (k 0: s twice - the title, the heading)
+      PgW Chr$(34)
+      For j = 1 To Len(s)
+        c = Asc(Mid$(s, j, 1))
+        If c = 34 Or c = 92 Then PgW "\"
+        PgW Chr$(c)
+      Next
+      PgW Chr$(34)
+      If r = 0 Then PgW ":p"
+    Next
+    PgW ":n:"
+  ElseIf k = 3 Then
+    PgW "."
+  Else
+    PgW "<:."
+  End If
+  Pg = pgn
+End Function
+Private Sub PgW(ByVal s As String Max 6)
+  Dim j As Integer
+  For j = 1 To Len(s)
+    If pgn < pgm Then Poke pgb + pgn, Asc(Mid$(s, j, 1)) : pgn = pgn + 1
+  Next
+End Sub
+#End If
 
 ' Render(a, n): the page at a (n bytes) laid out: how many lines
 Public Function Render(ByVal a As Integer, ByVal n As Integer) As Integer
@@ -299,51 +344,111 @@ End Sub
 
 ' line nl cleared (spaces): its place, 0 when there is no room for it
 Private Function NewLine() As Integer
-  Dim a As Integer, x As Integer
+  Dim a As Integer
   NewLine = 0
   If nl >= ml Then Exit Function
   a = Sel(nl)
-  For x = 0 To w - 1
-    Poke a + x, 32
-  Next
+  Fill a, 0, 0, 0
   NewLine = a
 End Function
 
 ' the parameter's text (\x as x) at a, n characters at most: pl how many
 Private Sub Put(ByVal a As Integer, ByVal n As Integer)
-  Dim j As Integer, c As Integer, e As Integer, x As Integer
-  j = ps : e = ps + pn : x = 0
-  Do While j < e And x < n
-    c = Peek(j)
-    If c = 92 Then j = j + 1 : c = Peek(j)
-    Poke a + x, c
-    x = x + 1 : j = j + 1
-  Loop
-  pl = x
+#asm
+            ld ({hsp}), sp          ; (Z80: a character a keyword loop in BASIC was the browser's time)
+            ld sp, (ntc_csp)
+            ld hl, ({ps})
+            ld de, ({pn})
+            add hl, de
+            ld (pu_e), hl
+            ld hl, ({ps})
+            ld de, ({a})
+            ld c, 0
+pu_lp:
+            push de
+            ld de, (pu_e)
+            or a
+            sbc hl, de
+            add hl, de
+            pop de
+            jr nc, pu_done          ; (the parameter's end)
+            ld a, ({n})
+            cp c
+            jr c, pu_done
+            jr z, pu_done           ; (n characters)
+            ld a, (hl)
+            cp 92
+            jr nz, pu_ch
+            inc hl
+            ld a, (hl)
+pu_ch:
+            ld (de), a
+            inc de
+            inc hl
+            inc c
+            jr pu_lp
+pu_e:       dw 0
+pu_done:
+            ld b, 0
+            ld ({pl}), bc
+            ld sp, ({hsp})
+#endasm
 End Sub
 
 ' the next parameter of the command (ps, pn: its text in the page, \ escapes still in it); False
 ' at the command's end (a : outside quotes)
 Private Function NextP() As Integer
-  Dim c As Integer
-  NextP = 0
-  Do While cp < pe
-    c = Peek(cp)
-    If c = 58 Then Exit Function
-    cp = cp + 1
-    If c = 34 Then Exit Do
-  Loop
-  If cp >= pe Then Exit Function
-  ps = cp
-  Do While cp < pe
-    c = Peek(cp)
-    If c = 34 Then Exit Do
-    If c = 92 Then cp = cp + 1
-    cp = cp + 1
-  Loop
-  pn = cp - ps
-  cp = cp + 1
-  NextP = -1
+#asm
+            ld hl, 0
+            ld ({result}), hl
+            ld hl, ({cp})
+            ld de, ({pe})
+np_s:                               ; to its opening quote - a : first: the command's end
+            or a
+            sbc hl, de
+            add hl, de
+            jr nc, np_out
+            ld a, (hl)
+            cp 58
+            jr z, np_out
+            inc hl
+            cp 34
+            jr nz, np_s
+            or a
+            sbc hl, de
+            add hl, de
+            jr nc, np_out
+            ld ({ps}), hl
+np_q:                               ; to its closing quote (\x: x)
+            or a
+            sbc hl, de
+            add hl, de
+            jr nc, np_e
+            ld a, (hl)
+            cp 34
+            jr z, np_e
+            cp 92
+            jr nz, np_q1
+            inc hl
+np_q1:
+            inc hl
+            jr np_q
+np_e:
+            ld ({cp}), hl
+            ld bc, ({ps})
+            or a
+            sbc hl, bc
+            ld ({pn}), hl
+            ld hl, ({cp})
+            inc hl
+            ld ({cp}), hl
+            ld hl, -1
+            ld ({result}), hl
+            jr np_done
+np_out:
+            ld ({cp}), hl
+np_done:
+#endasm
 End Function
 
 ' the parameter's text (\x as x), 128 characters at most
@@ -383,83 +488,204 @@ End Function
 ' underline it with (0 none). Straight from the page into the lines (no strings): spaces run
 ' together, a word too long for a line cut
 Private Sub Flow(ByVal pre As String Max 4, ByVal al As Integer, ByVal lk As Integer, ByVal ul As Integer)
-  Dim j As Integer, e As Integer, ind As Integer, av As Integer, ls As Integer, le As Integer
-  Dim ll As Integer, ws As Integer, wl As Integer, we As Integer, c As Integer, a As Integer, x As Integer
-  Dim v As Integer, sp As Integer
+  Dim ind As Integer, av As Integer, c As Integer, a As Integer
   ind = Len(pre)
   If ind >= w Then ind = 0 : pre = ""
   av = w - ind
-  j = ps : e = ps + pn
-  Do
-    Do While j < e                               ' (spaces before the line)
-      If Peek(j) > 32 Then Exit Do
-      j = j + 1
-    Loop
-    If j >= e Then Exit Do
-    ls = j : le = j : ll = 0
-    Do                                           ' the words that fit
-      ws = j
-      Do While ws < e
-        If Peek(ws) > 32 Then Exit Do
-        ws = ws + 1
-      Loop
-      If ws >= e Then Exit Do
-      we = ws : wl = 0
-      Do While we < e
-        v = Peek(we)
-        If v <= 32 Then Exit Do
-        If v = 92 Then we = we + 1
-        we = we + 1 : wl = wl + 1
-      Loop
-      If ll > 0 Then wl = wl + 1
-      If ll + wl > av Then
-        If ll = 0 Then                           ' a word longer than the line: as much as fits
-          we = ws : wl = 0
-          Do While wl < av
-            If Peek(we) = 92 Then we = we + 1
-            we = we + 1 : wl = wl + 1
-          Loop
-          ll = wl : le = we : j = we
-        End If
-        Exit Do
-      End If
-      ll = ll + wl : le = we : j = we
-    Loop
+  fj = ps : fe = ps + pn
+  Do While Wrap(av)                              ' each line's words (Z80)
     c = 0
-    If al = 1 Then c = (w - ind - ll) \ 2
-    If al = 2 Then c = w - ind - ll
+    If al = 1 Then c = (w - ind - fll) \ 2
+    If al = 2 Then c = w - ind - fll
     If c < 0 Then c = 0
-    If lk Then AddLink nl, c + ind, ll
+    If lk Then AddLink nl, c + ind, fll
     If nl < ml Then
       a = Sel(nl)
-      For x = 0 To w - 1
-        Poke a + x, 32
-      Next
-      x = a + c
-      If ind > 0 Then
-        v = VarPtr(pre)
-        For sp = 0 To ind - 1
-          Poke x + sp, Peek(v + sp)
-        Next
-      End If
-      x = x + ind
-      sp = 0
-      Do While ls < le                           ' the words, one space between them
-        v = Peek(ls)
-        If v <= 32 Then
-          sp = -1
-        Else
-          If sp Then Poke x, 32 : x = x + 1 : sp = 0
-          If v = 92 Then ls = ls + 1 : v = Peek(ls)
-          Poke x, v : x = x + 1
-        End If
-        ls = ls + 1
-      Loop
+      Lay a, c, VarPtr(pre), ind
       nl = nl + 1
     End If
-    If ul > 0 Then ln = String$(ll, Chr$(ul)) : Emit c + ind
+    If ul > 0 Then ln = String$(fll, Chr$(ul)) : Emit c + ind
     pre = Space$(ind)
   Loop
+End Sub
+
+' Wrap(av): the next line's words from fj (to fe), av characters at most: False at the end -
+' fls, fle where they are in the page, fll their length (one space between words; a word longer
+' than a line cut), fj past them
+Private Function Wrap(ByVal av As Integer) As Integer
+#asm
+            ld hl, 0
+            ld ({result}), hl
+            ld hl, ({fj})
+            ld de, ({fe})
+wr_sp:                              ; the spaces before the line
+            or a
+            sbc hl, de
+            add hl, de
+            jp nc, wr_end
+            ld a, (hl)
+            cp 33
+            jr nc, wr_go
+            inc hl
+            jr wr_sp
+wr_go:
+            ld ({fls}), hl
+            ld ({fle}), hl
+            ld bc, 0
+            ld ({fll}), bc
+wr_word:                            ; HL: where the next word may start
+            ld (wr_j), hl
+wr_ws:
+            or a
+            sbc hl, de
+            add hl, de
+            jr nc, wr_fin
+            ld a, (hl)
+            cp 33
+            jr nc, wr_we0
+            inc hl
+            jr wr_ws
+wr_we0:
+            ld (wr_vws), hl
+            ld bc, 0                ; its length
+wr_we:
+            or a
+            sbc hl, de
+            add hl, de
+            jr nc, wr_wd
+            ld a, (hl)
+            cp 33
+            jr c, wr_wd
+            cp 92
+            jr nz, wr_we1
+            inc hl
+wr_we1:
+            inc hl
+            inc bc
+            jr wr_we
+wr_wd:
+            ld (wr_vwe), hl
+            ld hl, ({fll})
+            ld a, h
+            or l
+            jr z, wr_w1
+            inc bc                  ; (the space before it)
+wr_w1:
+            add hl, bc              ; the line with it
+            ex de, hl
+            ld hl, ({av})
+            or a
+            sbc hl, de
+            jr c, wr_over
+            ld ({fll}), de          ; it fits
+            ld hl, (wr_vwe)
+            ld ({fle}), hl
+            ld de, ({fe})
+            jr wr_word
+wr_over:
+            ld hl, ({fll})
+            ld a, h
+            or l
+            jr nz, wr_fin           ; (the line ends before it)
+            ld hl, (wr_vws)         ; longer than a line: as much as fits
+            ld bc, 0
+wr_cut:
+            ld de, ({av})
+            ld a, c
+            sub e
+            ld a, b
+            sbc a, d
+            jr nc, wr_cut2
+            ld a, (hl)
+            cp 92
+            jr nz, wr_cut1
+            inc hl
+wr_cut1:
+            inc hl
+            inc bc
+            jr wr_cut
+wr_cut2:
+            ld ({fll}), bc
+            ld ({fle}), hl
+            ld (wr_j), hl
+wr_fin:
+            ld hl, (wr_j)
+            ld ({fj}), hl
+            ld hl, -1
+            ld ({result}), hl
+            jr wr_out
+wr_end:
+            ld ({fj}), hl
+            jr wr_out
+wr_j:       dw 0
+wr_vws:     dw 0
+wr_vwe:     dw 0
+wr_out:
+#endasm
+End Function
+
+' line a: w spaces, then from column c the ind characters at pp (pre), then Wrap's words (fls to
+' fle: one space between them, \x as x)
+Private Sub Lay(ByVal a As Integer, ByVal c As Integer, ByVal pp As Integer, ByVal ind As Integer)
+#asm
+            ld hl, ({a})
+            ld a, ({w})
+            ld b, a
+ly_f:
+            ld (hl), 32
+            inc hl
+            djnz ly_f
+            ld hl, ({a})
+            ld de, ({c})
+            add hl, de
+            ex de, hl
+            ld a, ({ind})
+            or a
+            jr z, ly_w
+            ld c, a
+            ld b, 0
+            ld hl, ({pp})
+            ldir
+ly_w:
+            ld hl, ({fls})
+            ld c, 0                 ; (1: a space to come)
+ly_lp:
+            ld a, ({fle})
+            ld b, a
+            ld a, l
+            sub b
+            ld a, ({fle} + 1)
+            ld b, a
+            ld a, h
+            sbc a, b
+            jr nc, ly_done
+            ld a, (hl)
+            cp 33
+            jr nc, ly_ch
+            ld c, 1
+            inc hl
+            jr ly_lp
+ly_ch:
+            dec c
+            jr nz, ly_ch1
+            ld b, a
+            ld a, 32
+            ld (de), a
+            inc de
+            ld a, b
+ly_ch1:
+            ld c, 0
+            cp 92
+            jr nz, ly_ch2
+            inc hl
+            ld a, (hl)
+ly_ch2:
+            ld (de), a
+            inc de
+            inc hl
+            jr ly_lp
+ly_done:
+#endasm
 End Sub
 
 ' a link at line i, column c, n characters long: to us, un (us 0: back - a page is never at 0)
@@ -474,22 +700,39 @@ End Sub
 
 ' ln at column c as the next line (the rest spaces)
 Private Sub Emit(ByVal c As Integer)
-  Dim a As Integer, j As Integer, n As Integer, p As Integer
+  Dim a As Integer, n As Integer
   If nl >= ml Then Exit Sub
   a = Sel(nl)
   n = Len(ln)
   If c + n > w Then n = w - c
-  For j = 0 To c - 1
-    Poke a + j, 32
-  Next
-  p = VarPtr(ln)
-  For j = 0 To n - 1
-    Poke a + c + j, Peek(p + j)
-  Next
-  For j = c + n To w - 1
-    Poke a + j, 32
-  Next
+  Fill a, c, VarPtr(ln), n
   nl = nl + 1
+End Sub
+
+' line a: w spaces, then n characters from p at column c (n 0 or less: none)
+Private Sub Fill(ByVal a As Integer, ByVal c As Integer, ByVal p As Integer, ByVal n As Integer)
+#asm
+            ld hl, ({a})
+            ld a, ({w})
+            ld b, a
+fi_f:
+            ld (hl), 32
+            inc hl
+            djnz fi_f
+            ld bc, ({n})
+            bit 7, b
+            jr nz, fi_done
+            ld a, b
+            or c
+            jr z, fi_done
+            ld hl, ({a})
+            ld de, ({c})
+            add hl, de
+            ex de, hl
+            ld hl, ({p})
+            ldir
+fi_done:
+#endasm
 End Sub
 
 ' line i's place in the buffers: its 2K block brought in from the store if it isn't in one (the
@@ -497,6 +740,8 @@ End Sub
 ' marked written (and not fetched: its lines are written whole)
 Private Function Sel(ByVal i As Integer) As Integer
   Dim k As Integer, j As Integer, o As Integer
+  Sel = SelF(i)                                  ' (its block here already: Z80)
+  If Sel <> 0 Then Exit Function
   k = i \ 16
   o = -1
   For j = 0 To nb - 1
@@ -519,6 +764,87 @@ Private Function Sel(ByVal i As Integer) As Integer
   clu(o) = tick
   If wr Then cdy(o) = -1
   Sel = cb + o * 2048 + (i And 15) * 128
+End Function
+
+' SelF(i): line i's place when its block is in a buffer (marked used - and written while Render
+' writes), else 0: Sel's quick way, in Z80
+Private Function SelF(ByVal i As Integer) As Integer
+#asm
+            ld hl, 0
+            ld ({result}), hl
+            ld hl, ({i})
+            srl h
+            rr l
+            srl h
+            rr l
+            srl h
+            rr l
+            srl h
+            rr l
+            ex de, hl               ; DE = its block
+            ld hl, {cbk}
+            ld a, ({nb})
+            ld b, a
+            ld c, 0
+sf_lp:
+            ld a, (hl)
+            cp e
+            jr nz, sf_nx
+            inc hl
+            ld a, (hl)
+            dec hl
+            cp d
+            jr z, sf_hit
+sf_nx:
+            inc hl
+            inc hl
+            inc c
+            djnz sf_lp
+            jr sf_end
+sf_hit:                             ; C = the buffer
+            ld hl, ({tick})
+            inc hl
+            ld ({tick}), hl
+            ex de, hl
+            ld l, c
+            ld h, 0
+            add hl, hl
+            ld (sf_o2), hl
+            ld bc, {clu}
+            add hl, bc
+            ld (hl), e
+            inc hl
+            ld (hl), d
+            ld a, ({wr})
+            or a
+            jr z, sf_ad
+            ld hl, (sf_o2)
+            ld bc, {cdy}
+            add hl, bc
+            ld (hl), 255
+            inc hl
+            ld (hl), 255
+sf_ad:
+            ld hl, (sf_o2)
+            ld a, l
+            add a, a
+            add a, a
+            ld h, a
+            ld l, 0                 ; the buffer * 2048
+            ld a, ({i})
+            and 15
+            ld e, 0
+            srl a
+            rr e
+            ld d, a                 ; + the line * 128
+            add hl, de
+            ld de, ({cb})
+            add hl, de
+            ld ({result}), hl
+            jr sf_end
+sf_o2:      dw 0
+sf_end:
+#endasm
 End Function
 
 ' store block k to (o 13) or from (o 14) buffer b

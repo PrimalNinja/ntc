@@ -2282,6 +2282,22 @@ range covers #C000).
 
 **VB:** not in VB.
 
+### Option NexData
+
+`Option NexData "`*FILE*`",` *blocks*
+
+The ZX Spectrum Next (`zxn`) only: *FILE*'s first *blocks* x 16K go into the NEX file, in the
+Next's 16K banks 1-4, 6, 7, 11, then 22-111 (97 at most; a bank past 47 makes the NEX ask for a
+2MB Next). NextZXOS loads them with the program, so there is nothing to read at run time. The
+assembler reads *FILE* (next to the `.asm`): it must hold all the blocks. The program finds them at
+`ntc_nexdata` (`#asm`): the count, then each block's bank; `zxn_sel` (HL = a bank, 0 = the
+program's own pages) puts one in `#4000-#7FFF`, as a CPC program puts a RAM page in its window -
+keep the program out of that range (`Option Reserve &H4000, &H4000`).
+
+```
+Option NexData "AUCKLAND.DAT", 94     ' bas/auckland on the Next
+```
+
 ### Option RomEnable
 
 `Option RomEnable All` / `Option RomEnable` *rom* [`,` *rom*] ...
@@ -2714,17 +2730,17 @@ The constants are worked out when compiling, so a test like this costs at most o
 
 What the machine is. The same members on every platform; 0 / False means "not here".
 
-| Member | cpc | cpcfw | cpm | test |
-|---|---|---|---|---|
-| `Platform` | "CPC" | "CPC firmware" | "CP/M" | "Test" |
-| `CpuClock` (kHz, 0 = not known) | 4000 | 4000 | 0 | 4000 |
-| `TicksPerSecond` (0 = no clock) | 300 | 300 | 0 | 300 |
-| `FrameRate` (0 = not known) | 50 | 50 | 0 | 0 |
-| `HasInterrupts` (normal mode lets interrupts in) | True | True | True | True |
-| `HasHook` (the `Interrupt` statement) | True | True | False | False |
-| `HasScreen` (rows and columns, not a stream) | True | True | False* | True |
-| `HasKeyboard` | True | True | True | True |
-| `MaxHandles` (file handles, `FileSystem.Open`) | 0 | 0 | 2 | 0 |
+| Member | cpc | cpcfw | cpm | test | zxn |
+|---|---|---|---|---|---|
+| `Platform` | "CPC" | "CPC firmware" | "CP/M" | "Test" | "ZXN" |
+| `CpuClock` (kHz, 0 = not known) | 4000 | 4000 | 0 | 4000 | 28000 |
+| `TicksPerSecond` (0 = no clock) | 300 | 300 | 0 | 300 | 300 |
+| `FrameRate` (0 = not known) | 50 | 50 | 0 | 0 | 50 |
+| `HasInterrupts` (normal mode lets interrupts in) | True | True | True | True | True |
+| `HasHook` (the `Interrupt` statement) | True | True | False | False | True |
+| `HasScreen` (rows and columns, not a stream) | True | True | False* | True | True |
+| `HasKeyboard` | True | True | True | True | True |
+| `MaxHandles` (file handles, `FileSystem.Open`) | 0 | 0 | 2 | 0 | 0 |
 | `Ticks()` | the tick count, the same as `Ticks` | | | |
 | `Command(name)` | run a ROM's command (an RSX, `|NAME`, no arguments) - cpcfw and cpcmin only: 0, or -2 when no ROM has it; -1 elsewhere | | | |
 | `HasCapability(name)` | True (-1) when the platform can do it, else False - see below | | | |
@@ -3129,6 +3145,13 @@ was under it, text included. One drawing loop serves every mode (a marker of the
 moves one pixel per step), so mode 0 lines are the quickest (fewer pixels across) and mode 2
 the slowest.
 
+On the ZX Spectrum Next (`zxn`) the same class draws on Layer 2 (320 x 256, 256 colours), in the
+CPC's mode 1 size - 320 x 200, centred 28 rows down - so a CPC program's coordinates carry over:
+XOR lines, `DoubleBuffer` with two Layer 2 buffers (banks 12-16 and 17-21) and `Flip` at Layer 2's
+flyback. Layer 2 comes on with the first line (or `DoubleBuffer`), `Mode` turns it off. A pen is a
+Layer 2 palette entry (0-255; set them through NextRegs `#43`, `#40`, `#41`). Text stays on the
+tilemap, over Layer 2 (its paper see-through meanwhile), so `CopyText` has nothing to do.
+
 | Member | Does |
 |---|---|
 | `Line x0, y0, x1, y1` | a line in the pen, in pixels of the current mode |
@@ -3187,7 +3210,7 @@ writes over memory).
 
 ### Keys
 
-Keys held down, and the joysticks (cpc, cpcmin, cpcfw). `Inkey` / `Inkey$` give the characters
+Keys held down, and the joysticks (cpc, cpcmin, cpcfw, zxn). `Inkey` / `Inkey$` give the characters
 typed; `Keys` tells whether a key is down right now - several at once, held keys, no auto
 repeat - which is what games want. The keyboard matrix is read from the hardware at every
 call, so it works with and without the firmware, in turbo and normal mode.
@@ -3205,6 +3228,15 @@ number chart). Constants for the usual ones: `KeyUp` (0), `KeyRight` (1), `KeyDo
 `JoyUp` (1), `JoyDown` (2), `JoyLeft` (4), `JoyRight` (8), `JoyFire2` (16), `JoyFire1` (32) -
 the same as Locomotive BASIC's `JOY(n)`. Joystick 1 shares its wires with the keys 6, 5, R,
 T, G, F (48-53), as on any CPC.
+
+On the ZX Spectrum Next (zxn) the key numbers are the Spectrum keyboard's: half row * 8 + bit
+(0-63; bits 0-4) - `KeyCaps` (0), `KeyZ` (1) ... `KeyA` (8) ... `Key1` (24) ... `Key0` (32) ...
+`KeyEnter` (48) ... `KeySpace` (56), `KeySymbol` (57), `KeyM` ... `KeyB` (60); a constant for
+every key. The CPC names are there too: `KeyLeft` / `KeyDown` / `KeyUp` / `KeyRight` are 5, 6, 7,
+8 (the Next's cursor keys press Caps Shift with them), `KeyReturn` Enter, `KeyShift` Caps Shift,
+`KeyControl` and `KeyCopy` Symbol Shift, `KeyEsc` Space (Break is Caps + Space), `KeyDel` 0.
+`Joystick(0)` and `(1)` read the Kempston ports `#1F` and `#37` (the Next's joystick ports set
+to Kempston).
 
 ```
 Do

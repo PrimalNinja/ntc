@@ -155,6 +155,38 @@ upward from `#9400`; when the firmware is retired they can grow up into its RAM.
 |---|---|---|---|---|
 | `cpm` | `#0100` | the program's own (`ntc_cpmstack`) | the BDOS (address 6); with Graphics on CP/M Plus `#C000` (its line loop copy) | console and files through BDOS; no pages. Graphics (a CPC only) writes the screen itself: 2.2 `#C000`, Plus block 1 through C1 from common memory |
 | `test` | `#4000` | the caller's | `#C000` | console through I/O ports, for the test harness |
+| `zxn` | `#0040` | its own, from `#C000` down | `#BE00` | the ZX Spectrum Next: see 3.4 |
+
+### 3.4 ZX Spectrum Next (`zxn`)
+
+Laid out as the CPC's map (3.1), in the Next's 8K MMU slots:
+
+```
+slot  page
+ 0-1  16, 17  #0000 +--------------------------------------------+
+              |      | #0038: the interrupt handler's jump        |
+              |#0040 +--------------------------------------------+  default org
+              |      | the program, its arrays, the Small heap    |
+ 2-3  18, 19  |#4000 |                                            |
+ 4-5  20, 21  |#8000 |                                            |
+              |#BE00 +--------------------------------------------+  the platform's top
+              |      | the stack (from #C000 down)                |
+ 6-7  10, 11  |#C000 +--------------------------------------------+  bank 5: what the ULA
+              |      | #C000-#DAFF the ULA screen                 |  and the tilemap show
+              |      | #E000-#E9FF the tilemap (80 x 32 bytes)    |
+              |      | #EC00-#F3FF its characters (256 x 8)       |
+              |#FFFF +--------------------------------------------+
+```
+
+Graphics draws on Layer 2: two buffers of 5 banks (12-16, 17-21), the page being drawn on
+in slot 6 (`#C000-#DFFF`) meanwhile. `Option NexData` blocks fill banks 1-4, 6, 7, 11, 22-111
+(`zxn_sel` puts one in `#4000-#7FFF`: slots 2, 3).
+
+The NEX file holds banks 8-10 (pages 16-21: the program as assembled, `MMU 0 5, 16`), bank
+5 (a start stub at `#7E00`) and the `Option NexData` banks. NextZXOS runs the stub with banks 5, 2, 0 in `#4000-#FFFF`; it turns
+the NMI buttons off (NextReg 6 bits 3, 4), DivMMC's automatic paging off (NextReg 10 bit 4) and
+its memory out (port `#E3`), sets 28MHz and IM 1 and the slots - slot 3 last, from its copy in
+slot 7 - and jumps to `ntc_start`. NextRegs through ports `#243B` / `#253B` (no Z80N opcodes).
 
 ---
 
@@ -224,6 +256,11 @@ scroll).
 With `Option Library ROM` the handler (it runs from RAM) puts the upper ROM on and the main
 ROM of the set in for step 4, then the ROM state that was there back.
 
+**zxn - NTC's own handler** (`ntc_irq`, at `#0038`, IM 1): the same steps, but the interrupt is
+the Next's line interrupt (the ULA's frame interrupt is off): each one sets the next 52 raster
+lines on (NextReg `#22` / `#23`), 6 a frame of 312 lines, 300 a second - as the CPC's. The one at
+line 0 is a frame's first (`ntc_zxvs`: a `Frame` slot counts it).
+
 **cpcfw - the firmware's handler**: NTC leaves `#0038` alone (the lower ROM has its own
 `#0038`, used whenever the lower ROM is on). A fast ticker event (asynchronous, not express)
 calls `ntc_fwevt` 300 times a second through KL FAR ICALL, which does steps 2-4. With
@@ -290,6 +327,8 @@ ROMDISC is the only volume.
 3. SP = `ntc_csp`, `ei`, `ret` - back to the caller (with `Option Library ROM` through
    `ntc_rj_exit`: the caller's ROM selection back). A program started with `RUN"` from AMSDOS
    returns into a reset.
+
+zxn: `ntc_plat_exit` is a soft reset (NextReg 2) - back to NextZXOS: a NEX file has no caller.
 
 ---
 

@@ -1,0 +1,20 @@
+# SOLAR - names for the cells of tiles.png (8 x 8) and sprites.png (16 x 16)
+# (the ships, the planets and the sun are lines on Layer 2: the ships are Models.cls)
+# tile   NAME   index [count]
+# sprite NAME   column row [frames [w h]]
+tile   BLACK    1
+tile   SCAN     2         # the scanner's grid
+tile   SCANC    3         # its middle row
+tile   SCANT    4         # its top edge
+tile   SCANB    5         # its bottom edge
+tile   SCANL    6         # its left edge
+tile   SCANR    7         # its right edge
+tile   PANEL    8         # the panels by the scanner
+tile   BARG     16 9      # a green bar cell: 0-8 filled
+tile   BARO     136 9     # an orange bar cell
+tile   LOGO     128 3
+
+sprite CROSS    0 0       # the sights
+sprite BLIP     1 0 3     # a pirate on the scanner: level, above, below
+sprite PBLIP    4 0       # a planet
+sprite SBLIP    5 0       # the sun

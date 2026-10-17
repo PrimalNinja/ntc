@@ -1,0 +1,14 @@
+{
+ "name": "SOLAR",
+ "files": [
+  "Main.bas",
+  "Nx.cls",
+  "Spr.cls",
+  "Tiles.cls",
+  "Sfx.cls",
+  "L2.cls",
+  "View.cls",
+  "Models.cls",
+  "GfxData.cls"
+ ]
+}

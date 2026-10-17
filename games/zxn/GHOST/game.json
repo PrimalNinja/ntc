@@ -1,0 +1,1 @@
+{ "name": "GHOST", "files": ["Main.bas", "Nx.cls", "Spr.cls", "Tiles.cls", "Sfx.cls", "GfxData.cls", "Vox.cls", "World.cls"] }

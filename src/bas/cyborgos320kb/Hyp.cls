@@ -1079,19 +1079,25 @@ cn_drwn:
             ld a, l
             add a, d
             ld l, a
-            jr nc, cn_dw_lp
+            jr nc, cn_dw_p
             inc h
+cn_dw_p:                            ; the screen address worked out once, then stepped on (as
+            push hl                 ; cn_print: a sum each character was a fifth of the time
+            push bc                 ; a screen of text took - ESC K's)
+            call cn_scr
+            pop bc
+            pop de                  ; DE: the page's characters, HL the screen
 cn_dw_lp:
-            ld a, (hl)
-            inc hl
+            ld a, (de)
+            inc de
             push hl
             push de
             push bc
-            call cn_glyph
+            call cn_glyph8
             pop bc
             pop de
             pop hl
-            inc d
+            call cn_next
             djnz cn_dw_lp
             ret
 
@@ -3904,8 +3910,10 @@ End Sub
 '       RAM discs, 4 the claims)
 '   16-19  the claims: claim, release, take, held - hardware a program drives itself (sv_claim)
 '   20-27  the network: the M4's sockets (NET M4; sv_net)
+'   28-33  the ports: a program serving others (RAT, a model ...) - open, close, call, its answer,
+'          receive, reply (sv_port)
 ' 0 done, 255 no such page / slot / table. Svc(t, 0, 0, buf): slot t's claims freed, its sockets
-' closed
+' closed, its ports closed (and its calls forgotten)
 Public Sub UseSvc()
 #asm
             ld hl, (ntc_rampt)
@@ -4062,6 +4070,9 @@ sv_n1:
             jp c, sv_claim
             cp 28
             jp c, sv_net
+            cp 34
+            jp c, sv_port
+            jp z, pt_list
 sv_err:
             ld sp, (sv_sp)
             ld a, 255
@@ -4801,6 +4812,7 @@ cl_cf:
 cl_cf1:
             add hl, de
             djnz cl_cf
+            call pt_free            ; its ports closed, its calls forgotten (C = the slot)
             ld a, (nt_rom)          ; its sockets closed
             inc a
             jp z, sv_ok
@@ -5235,6 +5247,322 @@ sv_in:
             ld hl, ({setting})
             ld (sv_ds), hl
             ret
+; ---- 28-33: the ports - a program serving others: a service (RAT: decisions, a model: its
+; weights ...) opens a port by name (8 characters); any slot calls it: its message (128 bytes at
+; most) into the port's box, the server receives it, replies, the caller gets the answer. One call
+; at a time a port (another caller meanwhile: 1, busy - try again). The request: Byte(2-9) the
+; port's name, Word(10) where the message is / goes, Byte(12) its length; back in Byte(12) the
+; length, Byte(13) the caller (32). The answers: 0 done, 1 not yet (busy, no answer, no message:
+; Main lets the slot sleep a tick), 2 no such port / not this slot's, 255 no room (8 ports)
+;   28  open the port (0: it is this slot's - now, or already; 2 another slot's)
+;   29  close it (2: not this slot's)
+;   30  call it: the message from Word(10), Byte(12) long, into its box
+;   31  the answer to this slot's call: to Word(10), its length to Byte(12) (1: none yet)
+;   32  the server's next message: to Word(10), its length to Byte(12), the caller to Byte(13)
+;   33  the server's reply to it: from Word(10), Byte(12) long (a caller that has gone: dropped)
+; A port: +0 its slot (0: free), +1 its name, +9 its state (0 free, 1 a message in, 2 received,
+; 3 answered), +10 the caller, +11 the length, +12 the box (128 bytes). Freed with its slot
+PT_N:       equ 8
+PT_SZ:      equ 140
+sv_port:
+            ld (pt_op), a
+            call pt_find            ; Z: HL = the port named Byte(2-9); pt_fr: a free record (0: none)
+            ld (pt_rec), hl
+            ld a, 0
+            jr z, sp_f
+            inc a
+sp_f:
+            ld (pt_has), a          ; 0 there, 1 not
+            ld a, ({t})
+            ld (pt_me), a
+            ld a, (sv_blk + 12)     ; the length: 128 at most
+            cp 129
+            jr c, sp_l
+            ld a, 128
+            ld (sv_blk + 12), a
+sp_l:
+            ld a, (pt_op)
+            cp 28
+            jr z, pt_open
+            ld a, (pt_has)
+            or a
+            jr nz, pt_two           ; (no such port)
+            ld hl, (pt_rec)
+            ld a, (pt_op)
+            cp 29
+            jr z, pt_close
+            cp 30
+            jp z, pt_call
+            cp 31
+            jp z, pt_poll
+            cp 32
+            jp z, pt_recv
+            jp pt_reply
+pt_two:
+            ld a, 2
+            jr pt_ret
+pt_one:
+            ld a, 1
+pt_ret:
+            ld sp, (sv_sp)
+            ret
+; 28: open
+pt_open:
+            ld a, (pt_has)
+            or a
+            jr nz, po_new
+            ld hl, (pt_rec)
+            ld a, (pt_me)
+            cp (hl)
+            jp z, sv_ok
+            jr pt_two
+po_new:
+            ld hl, (pt_fr)
+            ld a, h
+            or l
+            jp z, sv_err
+            ld a, (pt_me)
+            ld (hl), a
+            inc hl
+            ex de, hl
+            ld hl, sv_blk + 2
+            ld bc, 8
+            ldir
+            ex de, hl
+            xor a
+            ld (hl), a              ; free
+            inc hl
+            ld (hl), a              ; no caller
+            jp sv_ok
+; 29: close
+pt_close:
+            ld a, (pt_me)
+            cp (hl)
+            jr nz, pt_two
+            ld (hl), 0
+            jp sv_ok
+; 30: call - the message into the box (the box busy: 1)
+pt_call:
+            ld de, 9
+            add hl, de
+            ld a, (hl)
+            or a
+            jr nz, pt_one
+            inc hl
+            ld a, (pt_me)
+            ld (hl), a              ; the caller
+            inc hl
+            ld a, (sv_blk + 12)
+            ld (hl), a              ; the length
+            inc hl
+            ex de, hl               ; DE = the box
+            ld c, a
+            ld b, 0
+            ld a, b
+            or c
+            jr z, pc_0
+            ld hl, (sv_blk + 10)
+            call sv_in
+pc_0:
+            ld hl, (pt_rec)
+            ld de, 9
+            add hl, de
+            ld (hl), 1              ; a message in
+            jp sv_ok
+; 31: the answer to this slot's call
+pt_poll:
+            ld de, 9
+            add hl, de
+            ld a, (hl)
+            or a
+            jp z, pt_two            ; (no call)
+            inc hl
+            ld a, (pt_me)
+            cp (hl)
+            jp nz, pt_two           ; (not this slot's call)
+            dec hl
+            ld a, (hl)
+            cp 3
+            jp nz, pt_one           ; not answered yet
+            ld (hl), 0              ; the box free again
+            inc hl
+            ld (hl), 0
+            call pt_give            ; the answer to the slot, its length to Byte(12)
+            jp sv_ok
+; 32: the server's next message
+pt_recv:
+            ld a, (pt_me)
+            cp (hl)
+            jp nz, pt_two
+            ld de, 9
+            add hl, de
+            ld a, (hl)
+            cp 1
+            jp nz, pt_one           ; nothing in
+            ld (hl), 2              ; received
+            call pt_give
+            jp sv_ok
+; 33: the server's reply
+pt_reply:
+            ld a, (pt_me)
+            cp (hl)
+            jp nz, pt_two
+            ld de, 9
+            add hl, de
+            ld a, (hl)
+            cp 2
+            jp nz, pt_two           ; (nothing received to reply to)
+            inc hl
+            ld a, (hl)
+            dec hl
+            or a
+            jr nz, pr_1
+            ld (hl), a              ; its caller gone: dropped, the box free
+            jp sv_ok
+pr_1:
+            ld (hl), 3              ; answered
+            inc hl
+            inc hl
+            ld a, (sv_blk + 12)
+            ld (hl), a
+            inc hl
+            ex de, hl
+            ld c, a
+            ld b, 0
+            ld a, b
+            or c
+            jp z, sv_ok
+            ld hl, (sv_blk + 10)
+            call sv_in
+            jp sv_ok
+; 34: port Byte(1) (0-7) - its name to the request's Byte(2-9), its slot to Byte(10) (0: free);
+; 255 no such port number (PROBE lists the services with it)
+pt_list:
+            ld a, (sv_blk + 1)
+            cp PT_N
+            jp nc, sv_err
+            ld hl, pt_tab
+            ld de, PT_SZ
+            or a
+            jr z, pl_2
+            ld b, a
+pl_1:
+            add hl, de
+            djnz pl_1
+pl_2:
+            ld a, (hl)              ; the slot (0 free)
+            inc hl
+            ld de, sv_rec
+            ld bc, 8
+            ldir
+            ld (de), a
+            ld hl, ({p})
+            ld de, 2
+            add hl, de
+            ex de, hl
+            ld hl, sv_rec
+            ld bc, 9
+            call sv_out
+            jp sv_ok
+; pt_give - the port's box (pt_rec) to the slot's Word(10); its length and the caller to the
+; request's Byte(12), Byte(13)
+pt_give:
+            ld hl, (pt_rec)
+            ld de, 10
+            add hl, de
+            ld a, (hl)
+            ld (pt_tmp + 1), a      ; the caller
+            inc hl
+            ld a, (hl)
+            ld (pt_tmp), a          ; the length
+            inc hl
+            ld c, a
+            ld b, 0
+            or a
+            jr z, pg_0
+            ld de, (sv_blk + 10)
+            call sv_out
+pg_0:
+            ld hl, ({p})
+            ld de, 12
+            add hl, de
+            ex de, hl
+            ld hl, pt_tmp
+            ld bc, 2
+            jp sv_out
+; pt_find - Z: HL = the port named sv_blk's Byte(2-9), else NZ; pt_fr: a free record (0 none)
+pt_find:
+            ld hl, 0
+            ld (pt_fr), hl
+            ld hl, pt_tab
+            ld b, PT_N
+pf_1:
+            ld a, (hl)
+            or a
+            jr nz, pf_2
+            ld a, (pt_fr + 1)
+            or a
+            jr nz, pf_n
+            ld (pt_fr), hl
+            jr pf_n
+pf_2:
+            push hl
+            push bc
+            inc hl
+            ld de, sv_blk + 2
+            ld b, 8
+pf_3:
+            ld a, (de)
+            cp (hl)
+            jr nz, pf_4
+            inc hl
+            inc de
+            djnz pf_3
+pf_4:
+            pop bc
+            pop hl
+            ret z
+pf_n:
+            ld de, PT_SZ
+            add hl, de
+            djnz pf_1
+            or 1
+            ret
+; pt_free - slot C's ports closed; its calls forgotten (a message not received yet, an answer not
+; taken: the box free; one being worked on: its reply dropped). Keeps C
+pt_free:
+            ld hl, pt_tab
+            ld b, PT_N
+pt_fr1:
+            ld a, (hl)
+            cp c
+            jr nz, pt_fr2
+            ld (hl), 0
+pt_fr2:
+            push hl
+            ld de, 10
+            add hl, de
+            ld a, (hl)
+            cp c
+            jr nz, pt_fr4
+            ld (hl), 0              ; no caller
+            dec hl
+            ld a, (hl)
+            cp 2
+            jr z, pt_fr4            ; (being worked on: its reply dropped then)
+            ld (hl), 0
+pt_fr4:
+            pop hl
+            ld de, PT_SZ
+            add hl, de
+            djnz pt_fr1
+            ret
+pt_op:      db 0
+pt_has:     db 0
+pt_me:      db 0
+pt_rec:     dw 0
+pt_fr:      dw 0
+pt_tmp:     dw 0
 nt_rom:     db 255
 nt_old:     dw 0
 nt_rsp:     dw 0
@@ -5258,6 +5586,7 @@ sv_tmp:     ds 16
 sv_rec:     ds 128
 sv_cl:      ds CL_N * 10            ; the claims (16-19; table 4)
 nt_pk:      ds 256                  ; a packet to the M4 (21-27)
+pt_tab:     ds PT_N * PT_SZ         ; the ports (28-33)
 sv_end:
             ASSERT sv_end <= #8000, "the service page's code"
 ; @endwindow

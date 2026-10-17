@@ -12,9 +12,16 @@
 ' B the line budget (600, 1200, 2400 a frame: more detail, slower); T turbo on / off; P pause;
 ' Q quits.
 ' cpcfw: an AMSDOS file (RUN"AUCKLAND), AUCKLAND.DAT on the same drive.
+' zxn (the ZX Spectrum Next, 2MB): AUCKLAND.NEX - the data's blocks are in it (Option NexData:
+' AUCKLAND.DAT made by tools/s3dmake with "At most" 1552K, next to the .asm when assembling),
+' loaded into the Next's banks with the program: nothing to read. Keys: N M roll, Z slower.
 Option PressAnyKeyOnEnd "Press a key"     ' at the end: a message and a key (a RUN" program resets when it ends)
 Option Explicit
+#If NTC_ZXN Then
+Option NexData "AUCKLAND.DAT", 94  ' the Next: the data's 94 blocks (s3dmake: At most 1552K) in the NEX's banks
+#Else
 Option RomEnable All              ' RUN" drops the background ROMs: AMSDOS, UniDOS and its nodes started again
+#End If
 Option Reserve &H4000, &H4000     ' main RAM's #4000-#7FFF: the second screen (and the window)
 Option Reserve &H8F50, &H13A0     ' S3d's tables (#8F50-#A2EF: under the ROMs' RAM - UniDOS with an IDE node: #A309 up)
 Option Buffer &H8F50             ' the file buffer (2K) in S3d's tables: used only while AUCKLAND.DAT is read
@@ -25,9 +32,22 @@ Dim nx As Integer, nz As Integer, nlm As Integer, lmo As Integer, dro As Integer
 Dim nv As Integer, vx(9) As Integer, vz(9) As Integer, vh(9) As Integer, vfx(9) As Integer, vfz(9) As Integer
 Dim vn(9) As String Max 22, cv As Integer, bud As Integer, msg As Integer, tf As Integer, mx As Integer
 Dim skip As Integer, mt As String Max 24
+Dim kl As Integer, kr As Integer, ks As Integer, kt As Integer
+#If NTC_ZXN Then
+kl = Keys.KeyN : kr = Keys.KeyM : ks = Keys.KeyZ : kt = Keys.KeyT    ' roll left / right, slower, turbo
+#Else
+kl = 39 : kr = 31 : ks = 30 : kt = 51                                 ' < > (the , . keys), ? (the / key), T
+#End If
 
 Mode 1
 S3d.Inks
+#If NTC_ZXN Then
+Print "AUCKLAND"
+If NexBlocks() < 2 Then Print "No data in the NEX file (Option NexData)" : End
+p0 = NexBank(0)                   ' block 0 (the header) in the window, as the CPC reads it
+S3d.Window p0
+If Hb(0) <> 83 Or Hb(3) <> 49 Then Print "AUCKLAND.DAT: not S3D data" : End
+#Else
 If RomsAt() <> 0 And RomsAt() - 16 < &HA2F0 Then ' (S3d's tables are #8F50-#A2EF: the ROMs' RAM - and its event
   Print "The ROMs' RAM reaches down to &"; Hex$(RomsAt()); " - AUCKLAND needs up to &A2FF" : End  ' block, 16 below - above)
 End If
@@ -40,9 +60,17 @@ h = FileSystem.Open("AUCKLAND.DAT", FileSystem.ForReadRaw)
 If h < 0 Then Print "AUCKLAND.DAT isn't on this drive" : End
 p0 = NewPage()
 n = S3d.Load(p0)
-If n < 64 Or Memory.ReadByte(Far(0)) <> 83 Or Memory.ReadByte(Far(3)) <> 49 Then Print "AUCKLAND.DAT: not S3D data" : End
-nx = Memory.ReadWord(Far(4)) : nz = Memory.ReadWord(Far(6)) : nb = Memory.ReadWord(Far(8))
-nlm = Memory.ReadWord(Far(22)) : lmo = Memory.ReadWord(Far(24)) : dro = Memory.ReadWord(Far(26))
+If n < 64 Or Hb(0) <> 83 Or Hb(3) <> 49 Then Print "AUCKLAND.DAT: not S3D data" : End
+#End If
+nx = Hw(4) : nz = Hw(6) : nb = Hw(8)
+nlm = Hw(22) : lmo = Hw(24) : dro = Hw(26)
+#If NTC_ZXN Then
+If NexBlocks() < nb + 1 Then Print "The data has"; nb + 1; "blocks, the NEX file"; NexBlocks() : End
+S3d.SetPage 0, p0
+For b = 1 To nb                   ' (the blocks are in their banks already)
+  S3d.SetPage b, NexBank(b)
+Next
+#Else
 If Memory.FreePages() < nb + 1 Then Print "Not enough free RAM:"; Memory.FreePages() * 16; "K free" : End
 S3d.SetPage 0, p0
 For b = 1 To nb
@@ -53,34 +81,41 @@ For b = 1 To nb
   Locate 12, 1 : Print "loading "; b * 100 \ nb; "% ";
 Next
 r = FileSystem.Close(h)
+#End If
 If nlm > S3d.LANDMARKS Then nlm = S3d.LANDMARKS
 For i = 0 To nlm - 1
-  t = Memory.ReadWord(Far(lmo + i * 2))
+  t = Hw(lmo + i * 2)
   If t < 0 Then S3d.SetLandmark i, (t And &H7FFF) Mod nx + 128, (t And &H7FFF) \ nx Else S3d.SetLandmark i, t Mod nx, t \ nx
 Next
-nv = Memory.ReadWord(Far(28)) : k = Memory.ReadWord(Far(30))
+nv = Hw(28) : k = Hw(30)
 If nv > 10 Then nv = 10
 For i = 0 To nv - 1
-  vx(i) = Memory.ReadWord(Far(k + i * 32)) : vz(i) = Memory.ReadWord(Far(k + i * 32 + 2))
-  vh(i) = Memory.ReadWord(Far(k + i * 32 + 4))
-  vfx(i) = Memory.ReadWord(Far(k + i * 32 + 6)) : vfz(i) = Memory.ReadWord(Far(k + i * 32 + 8))
+  vx(i) = Hw(k + i * 32) : vz(i) = Hw(k + i * 32 + 2)
+  vh(i) = Hw(k + i * 32 + 4)
+  vfx(i) = Hw(k + i * 32 + 6) : vfz(i) = Hw(k + i * 32 + 8)
   vn(i) = ""
   For b = 0 To 21
-    r = Memory.ReadByte(Far(k + i * 32 + 10 + b))
+    r = Hb(k + i * 32 + 10 + b)
     If r = 0 Then Exit For
     vn(i) = vn(i) + Chr$(r)
   Next
 Next
-wx = Memory.ReadWord(Far(10)) : wz = Memory.ReadWord(Far(12)) : sx = Memory.ReadWord(Far(16)) : sz = Memory.ReadWord(Far(18))
+wx = Hw(10) : wz = Hw(12) : sx = Hw(16) : sz = Hw(18)
 S3d.Setup nx, nz, wx, wz, dro, nlm, sx, sz
-wx = Memory.ReadWord(Far(48)) : wz = Memory.ReadWord(Far(50)) : S3d.SetCentre wx, wz   ' (the compass)
+wx = Hw(48) : wz = Hw(50) : S3d.SetCentre wx, wz   ' (the compass)
 If nv > 0 Then S3d.Place vx(0), vz(0), vh(0), vfx(0), vfz(0)
 bud = 1200 : S3d.SetBudget bud
 Locate 1, 3
 Print "cursors  turn, dive / climb"
+#If NTC_ZXN Then
+Print "N M      roll"
+Print "X        climb"
+Print "Space Z  faster / slower"
+#Else
 Print "< >      roll"
 Print "X        climb"
 Print "Space ?  faster / slower"
+#End If
 Print "S        frame skip 0 / 4 / 8"
 Print "1-"; Chr$(48 + nv); "      views"
 Print "B        detail"
@@ -100,12 +135,12 @@ Do
   p = 0 : r = 0 : y = 0
   If Keys.Down(Keys.KeyUp) Then p = -1                              ' dive
   If Keys.Down(Keys.KeyX) Or Keys.Down(Keys.KeyDown) Then p = 1     ' climb
-  If Keys.Down(39) Then r = -1                                      ' < (the , key)
-  If Keys.Down(31) Then r = 1                                       ' > (the . key)
+  If Keys.Down(kl) Then r = -1                                      ' < (the , key; the Next: N)
+  If Keys.Down(kr) Then r = 1                                       ' > (the . key; the Next: M)
   If Keys.Down(Keys.KeyLeft) Then y = -1
   If Keys.Down(Keys.KeyRight) Then y = 1
   If Keys.Down(Keys.KeySpace) And spd < 64 Then spd = spd + 1
-  If Keys.Down(30) And spd > 0 Then spd = spd - 1                   ' ? (the / key)
+  If Keys.Down(ks) And spd > 0 Then spd = spd - 1                   ' ? (the / key; the Next: Z)
   S3d.Steer p, r, y, spd
   For i = 1 To skip                                                 ' S: frames skipped - moved, not drawn
     S3d.Move
@@ -131,6 +166,9 @@ Do
     Else
       Print "SPEED "; spd \ 2; "M  HEIGHT "; S3d.Altitude(); "M  FPS "; fps \ 10; "."; fps Mod 10; "  LINES "; S3d.Lines(); "  ";
     End If
+#If NTC_ZXN Then
+    Locate 1, 2 : Print Space$(40);   ' (the Next: the text is over the picture, not cleared with it -
+#End If                              ' the line's end, past 40 columns, off row 2)
     Graphics.CopyText 1
   End If
   k = Inkey                                                         ' 1-9 a view, B the budget
@@ -147,7 +185,7 @@ Do
     bud = bud * 2 : If bud > 2400 Then bud = 600
     S3d.SetBudget bud
   End If
-  k = Keys.Down(51)                                                 ' T: turbo on / off
+  k = Keys.Down(kt)                                                 ' T: turbo on / off
   If k <> 0 And tk = 0 Then fast = Not fast
   tk = k
 Loop Until Keys.Down(Keys.KeyQ)
@@ -161,6 +199,24 @@ Function Far(ByVal o As Integer) As Long
   Far = CLng(p0) * 65536 + &H4000 + o
 End Function
 
+' Hw(o), Hb(o): a word, a byte of block 0 (the header) - through the Memory class (the CPC: its
+' page), from the window (the Next: S3d.Window p0 put its bank there)
+Function Hw(ByVal o As Integer) As Integer
+#If NTC_ZXN Then
+  Hw = Peek(&H4000 + o) + Peek(&H4001 + o) * 256
+#Else
+  Hw = Memory.ReadWord(Far(o))
+#End If
+End Function
+
+Function Hb(ByVal o As Integer) As Integer
+#If NTC_ZXN Then
+  Hb = Peek(&H4000 + o)
+#Else
+  Hb = Memory.ReadByte(Far(o))
+#End If
+End Function
+
 ' the next free RAM page for the data (page 1 - main RAM's #4000 - left alone: the second screen)
 Function NewPage() As Integer
   Do
@@ -168,6 +224,29 @@ Function NewPage() As Integer
   Loop While NewPage = 1
   If NewPage <= 0 Then Locate 1, 7 : Print "Out of RAM pages" : End
 End Function
+
+#If NTC_ZXN Then
+' NexBlocks(): the data's blocks in the NEX file (Option NexData); NexBank(b): block b's 16K bank
+Function NexBlocks() As Integer
+#asm
+            ld a, (ntc_nexdata)
+            ld l, a
+            ld h, 0
+            ld ({result}), hl
+#endasm
+End Function
+
+Function NexBank(ByVal b As Integer) As Integer
+#asm
+            ld hl, ({b})
+            ld de, ntc_nexdata + 1
+            add hl, de
+            ld l, (hl)
+            ld h, 0
+            ld ({result}), hl
+#endasm
+End Function
+#End If
 
 ' where the Memory class's page tables start (3 bytes a page)
 Function MemTab() As Integer

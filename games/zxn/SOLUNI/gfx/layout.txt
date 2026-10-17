@@ -1,0 +1,13 @@
+# SOL UNICORN - names for the cells of tiles.png (8 x 8) and sprites.png (16 x 16)
+# (the ships, planets, moons and unicorns are lines on Layer 2: the models are Models.cls)
+# tile   NAME   index [count]
+# sprite NAME   column row [frames [w h]]
+tile   BLACK    1
+tile   PANEL    8         # the panels at the top and the bottom
+tile   BARG     16 9      # a green bar cell: 0-8 filled
+tile   BARO     136 9     # an orange bar cell
+tile   LOGO     128 3
+
+sprite CROSS    0 0       # the sights
+sprite LOCK     1 0       # the sights over a target
+sprite ICON     2 0       # a unicorn head

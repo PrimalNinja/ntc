@@ -50,7 +50,7 @@ Dim hsp As Integer
 Dim eb(3) As Byte                            ' ESC Y row col, ESC I, LF: to the console raw (PutMem)
 
 m0 = CybSys.Ask(9, 255)
-If m0 > 5 Then Print "YANG needs CyborgOS 320K" : End
+If m0 > 5 Then Print Web.Name("YANG"); " needs CyborgOS 320K" : End
 hm = CybSys.Tail()                           ' (as typed: an address's small letters kept)
 If hm = "" Then hm = Web.Home()
 r = CybSys.Ask(9, 5)                         ' MODE F
@@ -108,10 +108,11 @@ Sub PutLine(ByVal y As Integer)
   ln = tp + y
   At y, 0
   If ln >= 0 And ln < n Then
-    PutMem Bml.LineAddr(ln), VW
+    PutTrim Bml.LineAddr(ln), VW                 ' (its spaces at the end: ESC K)
   Else
-    Print Space$(VW);
+    PutTrim 0, 0
   End If
+  At y, VW
   If ln = cl Then Print " < "; Else Print "   ";
   If y < VR Then Print BarCh(y);
 End Sub
@@ -184,6 +185,56 @@ pm_lp:
             dec bc
             jr pm_lp
 pm_done:
+            ld sp, ({hsp})
+#endasm
+End Sub
+
+' a page line: its n characters at a to the console, but its spaces at the end as ESC K (the rest
+' of the row cleared - CyborgOS draws far less): what follows on the row is drawn again after it
+Sub PutTrim(ByVal a As Integer, ByVal n As Integer)
+#asm
+            ld ({hsp}), sp
+            ld sp, (ntc_csp)
+            ld hl, ({a})
+            ld bc, ({n})
+            add hl, bc
+pt_end:                             ; its length without the spaces at its end
+            ld a, b
+            or c
+            jr z, pt_go
+            dec hl
+            ld a, (hl)
+            cp 32
+            jr nz, pt_go
+            dec bc
+            jr pt_end
+pt_go:
+            ld hl, ({a})
+pt_lp:
+            ld a, b
+            or c
+            jr z, pt_k
+            push hl
+            push bc
+            ld e, (hl)
+            ld c, 6
+            ei
+            call 5
+            di
+            pop bc
+            pop hl
+            inc hl
+            dec bc
+            jr pt_lp
+pt_k:
+            ld e, 27                ; ESC K
+            ld c, 6
+            ei
+            call 5
+            ld e, 75
+            ld c, 6
+            call 5
+            di
             ld sp, ({hsp})
 #endasm
 End Sub

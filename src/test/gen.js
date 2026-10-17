@@ -3,7 +3,7 @@ var fs = require('fs');
 var strDir = require('path').join(__dirname, '..') + '/';
 function read(f) { return fs.readFileSync(strDir + f, 'utf8'); }
 var strLib = read('asm/ntc_lib.asm');
-var arrPlat = ['cpc', 'cpcmin', 'cpcfw', 'cpm', 'test'];
+var arrPlat = ['cpc', 'cpcmin', 'cpcfw', 'cpm', 'test', 'zxn'];
 // the platform's own classes: lib/<platform>/*.cls
 var objClasses = {};
 arrPlat.forEach(function(strPlat)
@@ -59,7 +59,7 @@ var arrExamples = [
 	{ name: '3D wireframe: cube, pyramid, Cobra (cpc, cpcmin, cpcfw)', files: ['cube3d/Main.bas', 'cube3d/Vector3D.cls', 'cube3d/Spin.cls'] },
 	{ name: 'Overlays: classes loaded at #4000 (cpcmin, cpcfw, cpm)', files: ['overlays/Main.bas', 'overlays/Level1.cls', 'overlays/Level2.cls'] },
 	{ name: 'Pages: classes placed in pages, copies (cpcmin, cpcfw, cpm)', files: ['pages/Main.bas', 'pages/Title.cls', 'pages/Level1.cls', 'pages/Level2.cls', 'pages/Maths.cls', 'pages/Stars.cls', 'pages/Credits.cls', 'pages/Score.cls'] },
-	{ name: 'Interrupt classes: Tick at a rate (cpc, cpcmin, cpcfw)', files: ['interrupts/Main.bas', 'interrupts/Clock.cls', 'interrupts/Star.cls'] },
+	{ name: 'Interrupt classes: Tick at a rate (cpc, cpcmin, cpcfw, zxn)', files: ['interrupts/Main.bas', 'interrupts/Clock.cls', 'interrupts/Star.cls'] },
 	{ name: 'JS flavour: a JS program and a JS class (2 files)', files: ['js_demo/Main.js', 'js_demo/Counter.js'] },
 	{ name: 'Locomotive BASIC flavour: a CPC type-in listing', files: ['loco_demo/Main.loc'] },
 	{ name: 'Your own StdIO (2 files)', files: ['own_stdio/Main.bas', 'own_stdio/StdIO.cls'] },

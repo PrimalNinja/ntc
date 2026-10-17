@@ -1,0 +1,23 @@
+RAT
+  The decision service: a port named RAT. A program calls it with
+  "model tag tag:level ..." (16 tags at most) and gets one decision
+  back: "path value" ("?": no such model, or no tags). The model is a
+  MODEL server (HELP MODEL), named by its port. Run them in slots of
+  their own: RUN 2 MODEL RATMODEL, RUN 3 RAT.
+  The rules, the same for every model:
+  1 N: a tag under N whose level (from the caller, 0-100) is below its
+    N weight (the threshold: flee 10 brave, flee 60 fearful): the
+    lowest, as a part of its threshold, wins over everything
+  2 R: the tags under R with the highest weights (value: the weight)
+  3 L, D: among those (all the tags when none is under R) the highest
+    L - D (value: that)
+  Multilevel: when the tag chosen has branches, RAT chooses among them
+  the same way, down to one with none: food.fruit.apple.
+  Weights within 5 of the best are as good: the model's last pick stays
+  while it is among them (a deadband: no flipping back and forth), else
+  one is picked at random.
+  The pick is told to the model ("P tag"): its like grows. Q ends RAT.
+  ?model ...: the plan too; ~model ...: dry (nothing learnt). PROBE
+  is the test drive. Try it: ASK RAT ORC attack flee:80 hide shout.
+  RATMODEL.TXT tells
+  how a model is made.

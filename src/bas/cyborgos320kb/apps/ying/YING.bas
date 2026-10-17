@@ -50,7 +50,7 @@ Dim st As String Max 120, s As String Max 80
 Dim hsp As Integer
 
 m0 = CybSys.Ask(9, 255)
-If m0 > 5 Then Print "YING needs CyborgOS 320K" : End
+If m0 > 5 Then Print Web.Name("YING"); " needs CyborgOS 320K" : End
 hm = CybSys.Tail()                           ' (as typed: an address's small letters kept)
 If hm = "" Then hm = Web.Home()
 r = CybSys.Ask(9, 5)                         ' MODE F
@@ -83,7 +83,7 @@ Sub DrawAll()
   PtrOff
   Cls
   t = Bml.Title()
-  If t = "" Then t = "YING"
+  If t = "" Then t = Web.Name("YING")
   At 0, 0 : Print "+- "; Left$(t, 70); " "; String$(75 - Len(Left$(t, 70)), "-"); "+---+";
   At 1, 0 : Print "|";
   s = ""
@@ -119,21 +119,20 @@ Sub DrawPage()
   For j = 0 To VR - 1
     At 3 + j, 1
     If tp + j < n Then
-      PutMem Bml.LineAddr(tp + j), VW
+      PutTrim Bml.LineAddr(tp + j), VW           ' (its spaces at the end: ESC K - the frame again)
     Else
-      Print Space$(VW);
+      PutTrim 0, 0
     End If
-    At 3 + j, 80
-    If tp + j = cl Then Print "<"; Else Print " ";
-    Print " ";
+    At 3 + j, 79
+    If tp + j = cl Then Print "|< ";  Else Print "|  ";
     If j = 0 Then
-      Print "^";
+      Print "^|";
     ElseIf j = VR - 1 Then
-      Print "v";
+      Print "v|";
     ElseIf j - 1 >= b0 And j - 1 <= b1 Then
-      Print "#";
+      Print "#|";
     Else
-      Print ":";
+      Print ":|";
     End If
   Next
   LinkMark
@@ -181,6 +180,56 @@ pm_lp:
             dec bc
             jr pm_lp
 pm_done:
+            ld sp, ({hsp})
+#endasm
+End Sub
+
+' a page line: its n characters at a to the console, but its spaces at the end as ESC K (the rest
+' of the row cleared - CyborgOS draws far less): what follows on the row is drawn again after it
+Sub PutTrim(ByVal a As Integer, ByVal n As Integer)
+#asm
+            ld ({hsp}), sp
+            ld sp, (ntc_csp)
+            ld hl, ({a})
+            ld bc, ({n})
+            add hl, bc
+pt_end:                             ; its length without the spaces at its end
+            ld a, b
+            or c
+            jr z, pt_go
+            dec hl
+            ld a, (hl)
+            cp 32
+            jr nz, pt_go
+            dec bc
+            jr pt_end
+pt_go:
+            ld hl, ({a})
+pt_lp:
+            ld a, b
+            or c
+            jr z, pt_k
+            push hl
+            push bc
+            ld e, (hl)
+            ld c, 6
+            ei
+            call 5
+            di
+            pop bc
+            pop hl
+            inc hl
+            dec bc
+            jr pt_lp
+pt_k:
+            ld e, 27                ; ESC K
+            ld c, 6
+            ei
+            call 5
+            ld e, 75
+            ld c, 6
+            call 5
+            di
             ld sp, ({hsp})
 #endasm
 End Sub

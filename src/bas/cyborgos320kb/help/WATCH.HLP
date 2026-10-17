@@ -1,0 +1,5 @@
+WATCH [port] [prop=value ...]
+  NEURAL's inputs sample: CyborgOS's own numbers - free= (free memory,
+  K), progs= (programs running) - asked of the net every 2 seconds
+  (the port SYS when none: RUN 2 NEURAL SYS); Q quits. With prop=value
+  words it teaches instead: now's numbers and those (WATCH say=busy).

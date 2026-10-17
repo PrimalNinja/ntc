@@ -259,7 +259,8 @@ Files (ES5, no node, no Python):
 | `asm/ntc_plat_cpm.asm` | CP/M platform (BDOS console, own stack, warm boot) |
 | `asm/ntc_plat_test.asm` | test harness platform (console through I/O ports, for `test/ntcrun.py`) |
 | `asm/ntc_plat_cpcmin.asm` | CPC platform with minimal firmware: the `cpc` screen / keys / interrupts, the firmware kept for discs and ROMs (handed back per call) |
-| `lib/<platform>/*.cls` | the platform classes: `StdIO.cls` (console), `System.cls` (what the machine is), `FileSystem.cls` (files), `Memory.cls` (RAM pages, heap), `List.cls` (linked lists); the CPC platforms also `Graphics.cls` and `Keys.cls` (keys held down, joysticks) |
+| `asm/ntc_plat_zxn.asm` | ZX Spectrum Next platform, straight to the hardware, laid out as the `cpc` one: the tilemap as the text screen, the 8 x 5 keyboard, the line interrupt every 52 lines; the compiler adds the NEX file's start stub (NMI off, the MMU slots) |
+| `lib/<platform>/*.cls` | the platform classes: `StdIO.cls` (console), `System.cls` (what the machine is), `FileSystem.cls` (files), `Memory.cls` (RAM pages, heap), `List.cls` (linked lists); the CPC platforms also `Graphics.cls`, the CPC platforms and zxn `Keys.cls` (keys held down, joysticks) |
 | `../docs/requirements.md` | What you need to use NTC, rebuild its generated files and run the tests; the targets it builds for |
 | `../docs/userguide.md` | Language reference: every keyword by topic, with an example and its VB5 / VB6 differences |
 | `../docs/architecture.md` | Memory maps, the ROM structure, interrupts and start up |
@@ -352,20 +353,40 @@ A platform is one `asm/ntc_plat_<name>.asm` file plus its classes in `lib/<name>
 file starts with `;@key value` lines the compiler reads, then the `ntc_plat_*` sections the
 library links against (listed at the top of `ntc_lib.asm`):
 
-| Key | Meaning | cpc / cpcmin | cpcfw | cpm | test |
-|---|---|---|---|---|---|
-| `;@org` | default org (the GUI's Org box empty) | #0040 | #0040 | #0100 | #4000 |
-| `;@text` | `glyph`: Print text as ZOSCII glyph words; `byte`: as byte strings (string pool + `kw_printstrvar`) | glyph | byte | byte | byte |
-| `;@scrinit` | the program starts with `kw_scrinit` (mode 1, clear) when it uses the screen | 1 | 0 | 0 | 0 |
-| `;@irq` | has `ntc_plat_irqon` (own interrupt handler: normal mode ticks, `Interrupt`) | 1 | 0 | 0 | 0 |
-| `;@stack` | a label: the program's own real stack (set before `ntc_csp`) | - | - | ntc_cpmstack | - |
-| `;@cols` / `;@rows` | console size | 40 / 25 | 40 / 25 | 80 / 24 | 40 / 25 |
+| Key | Meaning | cpc / cpcmin | cpcfw | cpm | test | zxn |
+|---|---|---|---|---|---|---|
+| `;@org` | default org (the GUI's Org box empty) | #0040 | #0040 | #0100 | #4000 | #0040 |
+| `;@text` | `glyph`: Print text as ZOSCII glyph words; `byte`: as byte strings (string pool + `kw_printstrvar`) | glyph | byte | byte | byte | glyph |
+| `;@scrinit` | the program starts with `kw_scrinit` (mode 1, clear) when it uses the screen | 1 | 0 | 0 | 0 | 1 |
+| `;@irq` | has `ntc_plat_irqon` (own interrupt handler: normal mode ticks, `Interrupt`) | 1 | 0 | 0 | 0 | 1 |
+| `;@stack` | a label or address: the program's own real stack (set before `ntc_csp`) | - | - | ntc_cpmstack | - | #C000 |
+| `;@cols` / `;@rows` | console size | 40 / 25 | 40 / 25 | 80 / 24 | 40 / 25 | 40 / 32 |
 
 The CPC platforms are three amounts of firmware: `cpcfw` all of it; `cpcmin`
 (`ntc_plat_cpcmin.asm`) = the `cpc` file plus the firmware calls - each one (`fs_go`) hands
 the machine back (`fs_fwon`: the firmware's 3 bytes at #38, `ei`; `fs_fwoff`: `di`, NTC's
 handler, `#8C | mode` to the gate array, CRTC start #3000) - for FileSystem (CAS calls,
 AMSDOS RSXs) and `System.Command` (any RSX, KL FIND COMMAND + KL FAR PCALL); `cpc` none.
+
+`zxn` (`ntc_plat_zxn.asm`, `lib/zxn/`) is the ZX Spectrum Next straight to the hardware, laid out
+as the `cpc` platform so programs and their maps carry over: the program from #0040 in RAM pages
+16-21 (#0000-#BFFF), the stack from #C000 down, bank 5 - what the ULA and the tilemap show - at
+#C000-#FFFF. The compiler writes a NEX file (`DEVICE ZXSPECTRUMNEXT`, `MMU 0 5, 16` before the
+org, `SAVENEX` at the end; the name from the `name` option, else `NTC.NEX`) with a start stub in
+bank 5 at #7E00: the NMI buttons off (NextReg 6 bits 3 and 4: Multiface M1, DivMMC DRIVE),
+DivMMC's automatic paging off (NextReg 10 bit 4 - it would page DivMMC's ROM in on a fetch from
+#0038, #0066 ...) and its memory out, 28MHz, IM 1, the slots (slot 3, where the stub runs, last,
+from its copy in slot 7), then `ntc_start`. NextRegs go through ports #243B / #253B, so the
+program needs no Z80N opcodes. The text screen is the tilemap in text mode: a byte a character,
+40 x 32 (Mode 0, 1) or 80 x 32 (Mode 2), yellow on blue. Interrupts are the line interrupt, set 52
+lines on by each one - 6 a frame of 312 lines, 300 a second, as the CPC's 6 a frame; `Frame` waits
+for raster line 192. `End` is a soft reset (NextReg 2) back to NextZXOS. No files yet (FileSystem
+says NotSupported), Memory is Small only. Graphics draws on Layer 2 (320 x 256, double buffered,
+the CPC's 320 x 200 shown 28 rows down; the platform's own `ntc_gfx`, in place of the library's);
+`Option NexData "FILE", blocks` puts a data file's 16K blocks in the NEX file's banks (1-4, 6, 7,
+11, 22-111; `ntc_nexdata`: the count, then each block's bank) - `zxn_sel` (HL = a bank) puts one
+in #4000-#7FFF. `#If NTC_ZXN` is predefined; the assembly has `DEFINE NTC_ZXN` (only there:
+`IFDEF NTC_ZXN` in the library and in `#asm` - sjasmplus's IFDEF tests DEFINEs, not labels).
 
 - The library prints through `ntc_plat_putc` (A = char). On the CPC hardware platform it
   turns the char into its glyph and draws it; `kw_printzoscii` (inline glyph words) is only
@@ -1137,6 +1158,13 @@ same way as `cpcrun.py` prints the CPC screen (so the same `ref/` files fit):
   VT52 and ANSI clear / cursor codes are understood
 - files (`FileSystem` on cpm and cpcfw, the CAS IN / OUT calls on cpcfw) are real files in
   `test/t/files` (or `$NTC_FILES`)
+- `zxn` (`zxnrun.py`): a ZX Spectrum Next - the NEX file the assembly wrote, loaded as
+  NextZXOS loads one (its banks in the file's order, its PC and SP, banks 5, 2, 0 in slots 2-7);
+  the MMU slots (8K pages), NextRegs through #243B / #253B, the ULA and line interrupts (IM 1),
+  the raster line (#1E / #1F), the CPU speed, the 8 x 5 keyboard (typed text as for the CPC;
+  `{n}` = key n held, half row * 8 + bit), and the tilemap read back as text through the
+  program's font. A soft reset (NextReg 2) ends the run (`--- halted (a soft reset ...)`);
+  `NTC_ZXNREGS=1` prints the NextRegs, the slots and the palette at the end
 
 These are much faster than the CPC emulation (no screen to read back from video RAM).
 

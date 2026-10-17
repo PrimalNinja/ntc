@@ -37,19 +37,23 @@ in `bas/cyborgos128kb/`, with its own user guide.
   directories - UniDOS's listing for its drives and folders, a RAM disc's own for Z and RAMDISC's.
   It has no file list of its own (the FILES.DIR of earlier versions is gone). On AMSDOS alone it
   runs programs, but DIR, COPY's patterns and ERA's can't see a floppy's files (FLOPPY A can).
-- The 320K version comes on four discs, `build/dsk/cos-disk1.dsk` - `cos-disk4.dsk`. Disc 1:
+- The 320K version comes on six discs, `build/dsk/cos-disk1.dsk` - `cos-disk6.dsk`. Disc 1:
   CYBORGOS.BAS (the loader: RUN"CYBORGOS), WINAPE.BAS (the same for WinAPE: KEYREP 10), COSLOAD.BIN, CYBORGOS.BIN (this version), CYBORGOS.Z
   (the commands for the system drive Z), MON and its SYSTEM.MAP, three test programs (TICKER.CYB,
   CRUNCH.CYB, LINES.CYB; CRUNCH also as a plain CRUNCH.COM), the help texts (*.HLP) and
   INSTALL.BAS. Disc 2: the commands (.CYB: HELP, PS, TOP, KILL, RESET, FG, WAIT, MEM, MODE, DIR,
   CD, CV, MKDIR, RMDIR, DRIVE, COPY, ERA, TYPE, RENAME, RAMDISC, CLAIMS) and FLOPPY. Disc 3: Z
   ready-made (CYBORGOS.Z1 ...). Disc 4: the web browsers YING and YANG, with their local pages
-  HOME.8BM and KEYS.8BM, and NET (the network).
-- INSTALL.BAS (on disc 1 only; `RUN"INSTALL` from BASIC) puts all four in a folder CYBORGOS on
+  HOME.8BM and KEYS.8BM, and NET (the network). Disc 5: RAWYING and RAWYANG (the raw-page
+  browsers, [4d](#4d-ying-and-yang-web-browsers)) with HOME.RAW and KEYS.RAW. Disc 6: the decision
+  services (RAT, MODEL, NEURAL, PROBE, ASK, RATS, WATCH, PET, GREEN), their models and nets
+  (.MDL, .NN) and RATMODEL.TXT ([4g](#4g-ports-services-in-slots-and-the-rat)), and RVDU, the
+  remote VDU console ([4h](#4h-rvdu-remote-displays)).
+- INSTALL.BAS (on disc 1 only; `RUN"INSTALL` from BASIC) puts all six in a folder CYBORGOS on
   your mass storage. Map the floppy drive as drive B first (UniDOS: `|DRIVE,"B","DFA:"`). It asks
   the device (Enter: IDE) and sets drive A to its top (`|DRIVE,"A","IDE:"` - so installing again
   goes to the same place, never CYBORGOS/CYBORGOS). It makes `A:CYBORGOS/`, `CYBORGOS/C/` (the commands Z is made from) and `CYBORGOS/HELP/` (the
-  help texts) with `|SAVE`, copies disc 1, then asks for discs 2, 3 and 4 in drive B (a key when
+  help texts) with `|SAVE`, copies disc 1, then asks for discs 2 to 6 in drive B (a key when
   each is in), each file with `|COPY` (over one already there), with a bar and how far it has got
   (%). At the end: 1 run it on a real CPC, 2 run it on WinAPE (`KEYREP 10`: keys repeat 10 times
   slower), 3 exit. 1 and 2 make A's path the CYBORGOS folder (`|DRIVE,"A","IDE:CYBORGOS"` - UniDOS
@@ -402,8 +406,9 @@ YING address        that page
 
 - **Addresses:** `http://host[:port]/path?parameters` - http only (https gets a page saying it
   isn't supported). One typed with no `http://` gets it; 255 characters at most. The page is
-  asked for as 8BML: an empty `8bml` parameter goes on the request (`?8bml=`, or `&8bml=` after
-  other parameters) - never shown in the address. It is fetched over the network (`NET M4`
+  asked for as 8BML: an `8bml` parameter goes on the request - the most the browser takes, in
+  whole K (`?8bml=7`: its page buffer is 7.5K; `&8bml=7` after other parameters) - never shown in
+  the address. It is fetched over the network (`NET M4`
   first: [4e](#4e-the-network-net)); without it, or when it can't be fetched, a page says why.
   An address given on the command line keeps its small letters (`YING host/Page.php`).
 - **Forms:** a text field (`y`), a text area (`z`) and a select (`w`) are links: Enter on a field,
@@ -412,7 +417,7 @@ YING address        that page
   button's address with the fields as URL parameters - `name=value&...&action=`*the button's
   text*, encoded (`%xx`) - 255 characters in all at most (a page says so when there is more). A
   mandatory field (`m`) left empty is chosen instead, the status line saying so. The fields are
-  the ones after the button before (a page can have several forms); 20 at most.
+  the ones after the button before (a page can have several forms); 18 at most.
 - **Files:** `A:NAME.8BM`, `NAME.8BM` (this drive) or `file:NAME.EXT` - an 8BML file read from the
   disc (7.5K at most), its links from its own drive: local pages linked to each other, like
   AmigaGuide. HOME.8BM and KEYS.8BM come with them.
@@ -420,6 +425,14 @@ YING address        that page
 - **Toolbar:** 1 Back, 2 Reload, 3 Home, 4 Go to (an address typed in the status line - YANG:
   the toolbar's row - the page's to start with; Enter goes, ESC not, DEL rubs out), 5 Quit; or
   the letter (B, R, H, G, Q). The rest of the keys and the mouse are MON's.
+- **RAWYING, RAWYANG** (disc 5): YING and YANG for raw pages - built with `apps/rawying/Bml.cls`
+  instead of `apps/mon/Bml.cls`. They ask for `raw=`*width* as well (`8bml=7&raw=78`; RAWYANG
+  `raw=80`), and the server sends the page laid out for that width: its rows as they are shown, its links,
+  fields and buttons as records that go straight into the tables - no 8BML is read on the CPC.
+  A 6K page is ready in 0.45 s instead of 1.8 s (YING), and the programs are 2.4K smaller. Their
+  local pages are HOME.RAW and KEYS.RAW; keys, forms and the toolbar are YING's. The format is
+  in `tools/rawpage/RAW.TXT`; `tools/rawpage/8bml2raw.py` turns an 8BML page into a raw one
+  (the reference for a server's raw renderer - the layout is Bml.cls's).
 
 ## 4e. The network: NET
 
@@ -454,6 +467,101 @@ name [unit]` takes one back from its program - free for another; the program tha
 is gone (`CybSys.Held`: not 0) and stops using it. FLOPPY claims `FDC 0`; `NET M4` claims `M4 0`
 for CyborgOS (slot 255). CyborgOS can't stop a program touching hardware it hasn't claimed:
 claims are an agreement between programs.
+
+## 4g. Ports: services in slots, and the rat
+
+A program can be a service: it opens a port (`CybSys.PortOpen(name)` - 8 characters at most, 8
+ports in all) and other slots call it by that name. A call (`CybSys.PortCall(name, message)`, 128
+characters at most) waits for the answer and returns it; `CybSys.PortStatus()` is then 0, or 2
+when there is no such port. The service polls with `CybSys.PortGet(name)` - 0 a message came
+(`CybSys.PortMessage()`, `CybSys.PortCaller()` the slot that sent it), 1 nothing yet - and answers
+with `CybSys.PortReply(name, answer)`. A slot waiting on a port sleeps until the next tick, so a
+service polling and a caller waiting cost little. A port is closed by `CybSys.PortClose`, and when
+its program ends, is killed or reset. No main RAM: the ports are in the service page.
+
+The decision services (apps/rat; the whole picture, with how to get an AI to build models and
+how to hook one up to an IO board, is [cyborgos-decisions.md](cyborgos-decisions.md)) are the first: decision making - not talk - kept out of each
+game or tool, which asks "of these things I could do, which?" and gets one answer back.
+
+**RAT and MODEL.** `MODEL file` serves a model (a text file, `.MDL`) on a port named after the
+file; `RAT` is the decision service, on the port `RAT`. A call to RAT is `model tag tag:level ...`
+and one decision comes back: `tag value`. The model is a tree under four categories - N
+necessities (live or die: the caller passes a level, `flee:30`), R requirements (what we want of
+it: a game character's role), L likes and D dislikes (its own) - with a weight 0-100 on each
+branch; the tags name branches (`food`, or a path: `food.apple`). The tree is as deep as the
+model's maker makes it - 2 levels or 50: when the tag chosen has branches, RAT chooses among them
+the same way, and on down to a branch with none (`food.fruit.apple`; `FOOD.MDL` is the sample). RAT's rules are the same for
+every model: a necessity whose level is below its N weight (the threshold: a brave orc's `flee
+10`, a fearful goblin's `flee 60`) wins over everything; else the highest R weights; among those
+(or all, with none under R) the highest L - D. Weights within 5 of the best are as good: the model's
+last pick stays while it is among them (a deadband - near-equal choices don't flip back and forth,
+a drone fighting over itself), else one is picked at random. Each pick raises that tag's L weight a point (to 100) - a habit - and MODEL saves
+the weights back to the file every 10 picks and when it ends (Q). The caller decides what is
+possible - its senses: a dungeon NPC that sees the player passes `attack flee:<hp> hide shout`,
+one that only hears `investigate wait flee:<hp>`. Models are separate servers, a slot each: one
+application, RAT and up to 18 models in 20 slots. `RATMODEL.TXT` (on the disc) tells how a model
+is made - written to be given to an AI that makes models. Samples: `RATMODEL.MDL` and `RATS` (a rat
+in a box with four corners - BED, FOOD, PLAY, TV - whose health RATS keeps), `ORC.MDL`,
+`GOBLIN.MDL`.
+
+    RUN 2 MODEL RATMODEL
+    RUN 3 RAT
+    RATS
+    ASK RAT ORC attack flee:8 hide shout       (with RUN 4 MODEL ORC: flee 20)
+
+**NEURAL.** `NEURAL file` is a small neural net (jNeuralNetwork's way: property-based, the
+weights how often each prop=value was seen) on a port named after its training file (`.NN`: a
+record a line, `prop=value` words, `*n` seen n times). `Q prop=value ...` gives back the record
+that matches best - `score prop=value ...`, `prop?` for that prop only; numbers match by how near
+they are, `val*` by its start - `T prop=value ...` teaches it a record, `S` saves, `E` saves and
+ends. Samples: `DUNGEON.NN` (an NPC's action from its sense, distance, health, courage) and
+`SYS.NN` with `WATCH`, which asks it every 2 seconds about CyborgOS's own numbers (free memory,
+programs running) - `WATCH say=busy` teaches it now's numbers.
+
+`ASK port message` calls any port from the command line and prints the answer.
+
+**PROBE** is the test drive, with its own command line (`probe>`), or one command after `PROBE`:
+`model tag tag:level ...` gives RAT's decision and its plan - how it got there, as a database's
+query plan: the stage that chose (N, R, LD), the candidates and their weights, kept by the deadband
+or picked at random of n (RAT's `?` calls; `~` is dry - DRY ON as PROBE starts, so probing changes
+no model; `TRY` / `RUN` a dry or a real run this once). `PORTS` lists the services running, `SHOW model [tag ...]` a model's lines (MODEL's `D
+n`) or some tags' N R L D, `LIKE` / `DISLIKE` move a like, `SET model [cat\]tag\tag\x` sets a weight (MODEL's `V`: what a
+game or a sensor would do from outside - `SET FOOD N\sleep\90` makes it tired at 90), `ASK port message` asks any port.
+
+**PET.** A virtual pet in the Tamagotchi's way, on RAT and its model `PET.MDL`: it lives in a
+room with four corners - BED, FOOD (its bowl), PLAY, TV - and decides for itself what to do
+(hungry, tired or bored wins; else what it likes). You fill the bowl (F), switch the TV (T), clean
+up its mess (C), give medicine when it is ill (M), praise (+) or scold (-) what it is doing - its
+model's likes move 3, so it can be trained - and quit (Q: saved to `PET.SAV`). Doing the same thing
+three times running bores it (that like down 2: MODEL's `P tag n` and `X tag n`). It grows a day a
+minute; a dirty room or starving makes it ill; at 0 health it dies. `RUN 2 MODEL PET`, `RUN 3
+RAT`, `PET Rex` (`PET NEW name` for a new one).
+
+## 4h. RVDU: remote displays
+
+RVDU is a remote VDU console. It works with screens on a VDU server: `tools/vdu`, `vdu.php` on
+any PHP web server (`tools/vdu/README.md`). These are extra displays that any program writes to
+with HTTP GETs: game stats, debug stats, billboards, commentary, spectating. Any number of
+viewers watch the same screen: browsers (drawn as a CPC would), a text page, a 3DS's rolling log,
+CPCs running RVDU. A screen is an append-only list of display commands (`MODE`, `CLS`, `PRINT`,
+`LOCATE`, `PEN`, `INK`, `WINDOW`, graphics, `ZONE` touch zones). A viewer keeps a pointer: the
+next line it wants (0 replays the screen, -1 joins it live). The viewers' taps and keys go back
+to the screen's writer as events. `NET M4` first.
+
+| Command | Does |
+|---|---|
+| `RVDU SERVER` *url* | the server: `vdu.php`'s address (kept in `RVDU.CFG`) |
+| `RVDU` *id* | the screen, live: its text where its `LOCATE`s put it, its windows scrolled (the console: no colours or graphics). A key goes to its writer (`KEY n`); ESC quits |
+| `RVDU` *id* `ROLL` | a rolling log: each `PRINT` a line at the bottom, positions ignored (as a 3DS shows it) |
+| `RVDU` *id* `REPLAY` | from its start (line 0), then live |
+| `RVDU NEW` [*title*] | a new screen: its id and key (the key writes to it) |
+| `RVDU LIST` | the public screens |
+| `RVDU PUT` *id key text* | a command line to the screen |
+| `RVDU TEST` *id key* [*n*] | the CPC writes a test to the screen: a count in place and three touch zones. The taps in a browser come back and are shown on the CPC; a tap on QUIT, ESC or *n* seconds end it |
+
+The test page `tools/vdu/test.html` sends kinds of test to a screen: text, modes, inks, windows,
+scrolling, graphics, touch zones, a counter in place, a 500-line flood. A CPC running `RVDU id`
+shows them as they come.
 
 ## 5. Programs
 
@@ -677,7 +785,7 @@ MKDIR, RMDIR, DRIVE, FLOPPY, TYPE, RENAME alone; CLAIMS with `CybSys.cls`; NET w
 | BDOS | DE = a block in the program | Does |
 |---|---|---|
 | 130 | op, letter, the driver's address, its length (words) | RAMDISC: op 0 a RAM disc as the letter (the driver goes into a page of its own the first time), 2 a free page more for it, 1 one of its pages back, 3 a line of the RAM discs' list |
-| 131 | op, slot or value, then what comes back | op 9 MODE also 5 (F); 10 memory read (byte 1: 0 a 16K page, 1 an upper ROM, 2 main RAM, 3 a slot's memory - one in use; word 2 the page / ROM / slot, word 4 the address, word 6 where to in the slot, word 8 how many - 2K at most, a page or ROM to its end); 11 the pointer (byte 1: 0 off, 1 at byte 2, byte 3 - a column, a row; only while the slot is in front); 12 the store: word 2 K (16K pages of the slot's own, 512K at most; gone when the program ends); 13 / 14 a 2K block of it (word 2) from / to the slot (word 6, word 8); 15 a raw table into the slot at word 2 (2K at most; byte 1: 0 the slots - a word how many, then from 16 a 16 byte record each: state, in front, MODE, the name's length, the name; 1 the memory - words: the tables' end, the top of free main RAM, the pages, total K, free pages, then from 16 a byte a page: B a slot's, U CyborgOS's, - free; 2 the upper ROMs 0-31 - 64 bytes each: the first 16 of the ROM, 48 of its name table; 3 the RAM discs - the driver's table, 8 x 16: letter, -, blocks, free blocks). 10-15 not in the Library: ROM build. And: op 0 a slot's state, whether it is in front, its program's name; 1 kill; 2 reset (0: this slot); 3 to the front; 4 wait until no other program runs; 6 TOP's table into this slot; 7 the memory (the tables' end, the top, the pages, the totals line); 8 32 pages of the bank map; 9 MODE (0-4: this slot's, its console cleared; 255: which it is). 7 and 8 not in the Library: ROM build. The claims (byte 1 the unit, bytes 2-9 the name, spaces after it): 16 claim - 0 yours, else the slot that has it (255: the table full - 16); 17 release - 0 done, 1 not yours; 18 take - the slot that had it (0 nobody); 19 held - 0 yours, else the slot that has it (254 nobody); table 4 (op 15): 16 records of 10 bytes - the slot (0 a free record), the unit, the name. The network (the M4's sockets; 255: it is off): 20 byte 1 0 the M4's ROM (255 off), 1 on (byte 2 its ROM), 2 off, 3 the clock (300 a second) to word 6; 21 a name looked up (word 2 where, byte 4 its length): 1 started; 22 socket byte 1's 16 bytes (the M4's table: +0 the state - 0 ready, 1 connecting, 2 sending, 3 closed by the other end, 5 looking up; +2 bytes waiting; +4 an IP) to word 2 (255: the lookup's); 23 a TCP socket (255 none); 24 connect socket byte 1 to IP bytes 2-5, port word 6; 25 send word 4 bytes (240 at most) from word 2; 26 receive up to word 4 (2048) to word 2 - how many to word 6; 27 close. 16-27 not in the Library: ROM build |
+| 131 | op, slot or value, then what comes back | op 9 MODE also 5 (F); 10 memory read (byte 1: 0 a 16K page, 1 an upper ROM, 2 main RAM, 3 a slot's memory - one in use; word 2 the page / ROM / slot, word 4 the address, word 6 where to in the slot, word 8 how many - 2K at most, a page or ROM to its end); 11 the pointer (byte 1: 0 off, 1 at byte 2, byte 3 - a column, a row; only while the slot is in front); 12 the store: word 2 K (16K pages of the slot's own, 512K at most; gone when the program ends); 13 / 14 a 2K block of it (word 2) from / to the slot (word 6, word 8); 15 a raw table into the slot at word 2 (2K at most; byte 1: 0 the slots - a word how many, then from 16 a 16 byte record each: state, in front, MODE, the name's length, the name; 1 the memory - words: the tables' end, the top of free main RAM, the pages, total K, free pages, then from 16 a byte a page: B a slot's, U CyborgOS's, - free; 2 the upper ROMs 0-31 - 64 bytes each: the first 16 of the ROM, 48 of its name table; 3 the RAM discs - the driver's table, 8 x 16: letter, -, blocks, free blocks). 10-15 not in the Library: ROM build. And: op 0 a slot's state, whether it is in front, its program's name; 1 kill; 2 reset (0: this slot); 3 to the front; 4 wait until no other program runs; 6 TOP's table into this slot; 7 the memory (the tables' end, the top, the pages, the totals line); 8 32 pages of the bank map; 9 MODE (0-4: this slot's, its console cleared; 255: which it is). 7 and 8 not in the Library: ROM build. The claims (byte 1 the unit, bytes 2-9 the name, spaces after it): 16 claim - 0 yours, else the slot that has it (255: the table full - 16); 17 release - 0 done, 1 not yours; 18 take - the slot that had it (0 nobody); 19 held - 0 yours, else the slot that has it (254 nobody); table 4 (op 15): 16 records of 10 bytes - the slot (0 a free record), the unit, the name. The network (the M4's sockets; 255: it is off): 20 byte 1 0 the M4's ROM (255 off), 1 on (byte 2 its ROM), 2 off, 3 the clock (300 a second) to word 6; 21 a name looked up (word 2 where, byte 4 its length): 1 started; 22 socket byte 1's 16 bytes (the M4's table: +0 the state - 0 ready, 1 connecting, 2 sending, 3 closed by the other end, 5 looking up; +2 bytes waiting; +4 an IP) to word 2 (255: the lookup's); 23 a TCP socket (255 none); 24 connect socket byte 1 to IP bytes 2-5, port word 6; 25 send word 4 bytes (240 at most) from word 2; 26 receive up to word 4 (2048) to word 2 - how many to word 6; 27 close. 16-27 not in the Library: ROM build. The ports (bytes 2-9 the name, spaces after it; word 10 where the message is in the slot, byte 12 its length - 128 at most; answers 0 done, 1 not yet, 2 no such port or not yours, 255 no room - 8 ports): 28 open; 29 close; 30 call (the message to the port: 1 while the port is busy); 31 the answer to the call (1 not yet) - to word 10, its length to byte 12; 32 receive (the port's own slot; 1 nothing) - the message to word 10, its length to byte 12, the caller to byte 13; 33 reply (word 10, byte 12). A slot answered 1 by 30-33 sleeps until the next tick; 34 port byte 1 (0-7): its name to bytes 2-9, its slot to byte 10 (0 a free place), 255 past the last |
 
 CyborgOS starts by running `RAMDISC Z SYSTEM` with the boot drive's letter (the system drive:
 [2](#2-starting)). The regression tests run it in the harness with 4

@@ -1,0 +1,14 @@
+' DUNGEON: an NPC's action from what it senses (RUN 2 NEURAL DUNGEON; Q action? sense=see dist=2
+' hp=30 courage=high). Every record has the same props, so their scores compare; numbers (dist,
+' hp) match by how near they are
+sense=see dist=1 hp=80 courage=high action=attack
+sense=see dist=1 hp=20 courage=high action=flee
+sense=see dist=1 hp=80 courage=low action=flee
+sense=see dist=6 hp=80 courage=high action=charge
+sense=see dist=6 hp=80 courage=low action=hide
+sense=hear dist=6 hp=80 courage=high action=investigate
+sense=hear dist=6 hp=80 courage=low action=wait
+sense=smell dist=6 hp=80 courage=high action=follow
+sense=smell dist=6 hp=80 courage=low action=sniff
+sense=none dist=9 hp=80 courage=high action=patrol
+sense=none dist=9 hp=20 courage=low action=sleep

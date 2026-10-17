@@ -1,0 +1,9 @@
+RATS [n]
+  RAT's sample: a rat in a box with four corners - BED, FOOD, PLAY,
+  TV. RATS keeps its health (food, energy, fun: each runs down) and
+  asks RAT what it does next ("RATMODEL bed:<energy> food:<food> play
+  tv"); the rat walks to the corner and does it. Food or energy below
+  25 wins over what it likes; what it likes grows the more it does it
+  (RATMODEL.MDL's L weights, saved by MODEL).
+  First: RUN 2 MODEL RATMODEL, RUN 3 RAT. n: that many decisions, then
+  RATS ends (none: until Q).

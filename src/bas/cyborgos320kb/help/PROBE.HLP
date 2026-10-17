@@ -1,0 +1,18 @@
+PROBE [command]
+  The decision services' test drive: its own command line (probe>),
+  or one command given after PROBE. Commands:
+    model tag tag:level ...   RAT's decision, as deep as the model
+                   goes (food.fruit.apple), with its plan: a line a
+                   level - the stage (N, R, LD), the contenders and
+                   their weights, kept (deadband) or rnd/n
+    TRY / RUN model tag ...   a dry run / a real run, this once
+    PORTS          the services running (ports, slots)
+    SHOW model [tag ...]   every line of the model, or those tags'
+                   N R L D weights
+    LIKE / DISLIKE model tag [n]   a like up / down n
+    SET model [cat\]tag\..\x   a weight set to x, as a sensor would
+    SAVE model     its weights saved
+    ASK port message   any port asked (ASK DUNGEON Q action? ...)
+    PLAN ON|OFF    the plan shown;  DRY ON|OFF  nothing learnt (ON as
+                   it starts: probing doesn't change the models)
+    HELP, QUIT

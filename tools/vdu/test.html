@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VDU Test Harness</title>
+<link rel="stylesheet" href="vdu.css">
+<script src="vdu.js"></script>
+</head>
+<body>
+<h1><a href="index.html">VDU</a> - test harness</h1>
+
+<div class="gsPanel">
+<h2>The screen tested</h2>
+<div class="gsDim">Its id and key (writing needs the key). Or make one. Then watch it here, on a CPC (RVDU id),
+in text.php, in dumb.php - any number at once.</div>
+<div class="gsBar">
+<input type="text" id="geID" placeholder="id" style="max-width:110px">
+<input type="text" id="geKey" placeholder="key" style="max-width:110px">
+<button id="geUse">Use it</button>
+<button id="geNew">Make a test screen</button>
+</div>
+<div class="gsDim" id="geLinks"></div>
+</div>
+
+<div class="gsWall">
+<div class="gsTile" id="geTile">
+<div class="gsTileHead"><span class="gsTileTitle" id="geTitle">-</span><span class="gsDim" id="geStatus"></span></div>
+<div class="gsBorder"><canvas id="geCanvas" width="640" height="400"></canvas></div>
+</div>
+
+<div class="gsPanel" style="flex:1;min-width:280px">
+<h2>Tests</h2>
+<div class="gsBar" id="geTests"></div>
+<div class="gsBar">
+<input type="text" id="geLine" placeholder="a command of your own: PRINT hi">
+<button id="geSend">Send</button>
+</div>
+<h2 style="margin-top:12px">Events (taps, keys)</h2>
+<pre id="geEvents" class="gsDim">-</pre>
+<h2>Sent</h2>
+<pre id="geSent" class="gsDim">-</pre>
+</div>
+</div>
+
+<script>
+(function()
+{
+	var m_strURL = 'vdu.php';
+	var m_strID = '';
+	var m_strKey = '';
+	var m_objClient = null;
+	var m_objWall = new VduWall(m_strURL, 500);
+	var m_intEvents = 0;
+	var m_objTimer = null;
+	var m_arrSent = [];
+
+	function log(strText_a)
+	{
+		m_arrSent.unshift(strText_a);
+		if (m_arrSent.length > 12)
+		{
+			m_arrSent.pop();
+		}
+		document.getElementById('geSent').firstChild.nodeValue = m_arrSent.join('\n');
+	}
+
+	// lines to the screen, 40 a request (a URL's length kept sensible); fnDone_a when all are there
+	function send(arrLines_a, strName_a, fnDone_a)
+	{
+		var arrChunk = arrLines_a.slice(0, 40);
+		var arrRest = arrLines_a.slice(40);
+		if (m_strID === '')
+		{
+			log('No screen: its id and key first');
+		}
+		else
+		{
+			vduGet(m_strURL + '?a=put&s=' + m_strID + '&k=' + encodeURIComponent(m_strKey) + '&c=' + encodeURIComponent(arrChunk.join('\n')), function(strText_a)
+			{
+				if (arrRest.length > 0 && strText_a.indexOf('ok') === 0)
+				{
+					send(arrRest, strName_a, fnDone_a);
+				}
+				else
+				{
+					log(strName_a + ': ' + strText_a);
+					if (m_objClient)
+					{
+						m_objClient.Fetch();
+					}
+					if (fnDone_a)
+					{
+						fnDone_a();
+					}
+				}
+			});
+		}
+	}
+
+	function repeat(strText_a, intN_a)
+	{
+		var strResult = '';
+		var intI;
+		for (intI = 0; intI < intN_a; intI++)
+		{
+			strResult += strText_a;
+		}
+		return strResult;
+	}
+
+	// the tests: a name and its lines
+	var m_arrTests = [
+		{ name: 'Text', lines: function()
+		{
+			var arrL = ['MODE 1', 'TITLE Test: text', 'PEN 1'];
+			var intI;
+			var strChars = '';
+			for (intI = 32; intI < 127; intI++)
+			{
+				strChars += String.fromCharCode(intI);
+			}
+			for (intI = 1; intI <= 24; intI++)
+			{
+				arrL.push('LOCATE 1 ' + intI);
+				arrL.push('PRINT ' + (intI < 10 ? '0' : '') + intI + ' ' + (intI === 1 ? 'The rows: 1-25, 40 columns' : (intI === 3 ? strChars.substring(0, 37) : (intI === 4 ? strChars.substring(37, 74) : (intI === 5 ? strChars.substring(74) : '')))));
+			}
+			arrL.push('LOCATE 1 25');
+			arrL.push('PRINT 25 the last row, its last column ->X;');
+			return arrL;
+		} },
+		{ name: 'Modes', lines: function()
+		{
+			return ['MODE 0', 'TITLE Test: MODE 0', 'PRINT MODE 0: 20 x 25', 'PRINT 16 inks', 'PRINT', 'PRINT 12345678901234567890'];
+		} },
+		{ name: 'Mode 2', lines: function()
+		{
+			var arrL = ['MODE 2', 'TITLE Test: MODE 2', 'PRINT MODE 2: 80 x 25, 2 inks'];
+			var intI;
+			for (intI = 0; intI < 8; intI++)
+			{
+				arrL.push('PRINT ' + repeat('1234567890', 8).substring(0, 79));
+			}
+			return arrL;
+		} },
+		{ name: 'Inks', lines: function()
+		{
+			var arrL = ['MODE 0', 'TITLE Test: inks'];
+			var intI;
+			for (intI = 0; intI < 16; intI++)
+			{
+				arrL.push('PAPER ' + intI);
+				arrL.push('PEN ' + (intI === 0 ? 1 : 0));
+				arrL.push('LOCATE 1 ' + (intI + 1));
+				arrL.push('PRINT  pen/paper ' + intI + (intI < 10 ? ' ' : '') + ' ');
+			}
+			arrL.push('PAPER 0');
+			arrL.push('PEN 1');
+			arrL.push('LOCATE 1 19');
+			arrL.push('PRINT Now INK 1 6:');
+			arrL.push('INK 1 6');
+			arrL.push('BORDER 13');
+			return arrL;
+		} },
+		{ name: 'Windows', lines: function()
+		{
+			var arrL = ['MODE 1', 'TITLE Test: windows', 'PRINT Four windows, four streams:'];
+			var arrW = [[1, 19, 3, 12, 2], [22, 40, 3, 12, 3], [1, 19, 15, 24, 1], [22, 40, 15, 24, 2]];
+			var intS;
+			var intI;
+			for (intS = 0; intS < 4; intS++)
+			{
+				arrL.push('STREAM ' + (intS + 1));
+				arrL.push('WINDOW ' + arrW[intS].slice(0, 4).join(' '));
+				arrL.push('PAPER ' + arrW[intS][4]);
+				arrL.push('PEN ' + (arrW[intS][4] === 1 ? 0 : 1));
+				arrL.push('CLS');
+			}
+			for (intI = 1; intI <= 14; intI++)
+			{
+				for (intS = 0; intS < 4; intS++)
+				{
+					arrL.push('STREAM ' + (intS + 1));
+					arrL.push('PRINT stream ' + (intS + 1) + ' line ' + intI);
+				}
+			}
+			arrL.push('STREAM 0');
+			arrL.push('LOCATE 1 25');
+			arrL.push('PRINT (each scrolled on its own);');
+			return arrL;
+		} },
+		{ name: 'Scroll', lines: function()
+		{
+			var arrL = ['MODE 1', 'TITLE Test: scrolling'];
+			var intI;
+			for (intI = 1; intI <= 60; intI++)
+			{
+				arrL.push('PEN ' + (1 + intI % 3));
+				arrL.push('PRINT line ' + intI + ' of 60 ' + repeat('*', intI % 25));
+			}
+			return arrL;
+		} },
+		{ name: 'Graphics', lines: function()
+		{
+			var arrL = ['MODE 1', 'TITLE Test: graphics', 'PRINT Lines, boxes, circles, fills'];
+			var intI;
+			arrL.push('ORIGIN 160 180');
+			for (intI = 0; intI < 24; intI++)
+			{
+				arrL.push('GPEN ' + (1 + intI % 3));
+				arrL.push('MOVE 0 0');
+				arrL.push('DRAW ' + Math.round(140 * Math.cos(intI * Math.PI / 12)) + ' ' + Math.round(140 * Math.sin(intI * Math.PI / 12)));
+			}
+			arrL.push('ORIGIN 0 0');
+			arrL.push('GPEN 3');
+			arrL.push('CIRCLE 470 180 120');
+			arrL.push('GPEN 2');
+			arrL.push('CIRCLE 470 180 80');
+			arrL.push('GPEN 1');
+			arrL.push('BOX 360 20 220 60');
+			arrL.push('GPEN 3');
+			arrL.push('FILL 380 30 60 40');
+			arrL.push('GPEN 2');
+			arrL.push('FILL 460 30 60 40');
+			return arrL;
+		} },
+		{ name: 'Touch zones', lines: function()
+		{
+			var arrL = ['MODE 1', 'TITLE Test: touch zones', 'INK 0 0', 'INK 1 6', 'INK 2 18', 'INK 3 2', 'PEN 1',
+				'PRINT Tap a button: the events list it', 'PRINT (the screen clicked first: keys too)'];
+			var arrB = ['red', 'green', 'blue', 'quit'];
+			var arrCol = [4, 14, 23, 33];
+			var intI;
+			for (intI = 0; intI < 4; intI++)
+			{
+				arrL.push('GPEN ' + (intI < 3 ? intI + 1 : 1));
+				arrL.push('FILL ' + (32 + intI * 152) + ' 120 128 64');
+				arrL.push('PAPER ' + (intI < 3 ? intI + 1 : 1));
+				arrL.push('PEN 0');
+				arrL.push('LOCATE ' + arrCol[intI] + ' 16');
+				arrL.push('PRINT ' + arrB[intI]);
+				arrL.push('ZONE ' + arrB[intI] + ' ' + (32 + intI * 152) + ' 120 128 64');
+			}
+			arrL.push('PAPER 0');
+			arrL.push('PEN 1');
+			return arrL;
+		} },
+		{ name: 'Counter (in place)', lines: null, run: function()
+		{
+			var intN = 0;
+			send(['MODE 1', 'TITLE Test: a counter in place', 'PRINT A counter at 10,10: LOCATE then PRINT -', 'PRINT a rolling display shows each as a line'], 'Counter');
+			if (m_objTimer !== null)
+			{
+				window.clearInterval(m_objTimer);
+			}
+			m_objTimer = window.setInterval(function()
+			{
+				intN++;
+				send(['LOCATE 10 10', 'PEN ' + (1 + intN % 3), 'PRINT count ' + intN + ' of 20'], 'count ' + intN);
+				if (intN >= 20)
+				{
+					window.clearInterval(m_objTimer);
+					m_objTimer = null;
+				}
+			}, 1000);
+		} },
+		{ name: 'Flood (500 lines)', lines: function()
+		{
+			var arrL = ['MODE 2', 'TITLE Test: flood'];
+			var intI;
+			for (intI = 1; intI <= 500; intI++)
+			{
+				arrL.push('PRINT flood ' + intI + ' ' + repeat('=', intI % 60));
+			}
+			return arrL;
+		} }
+	];
+
+	function startTest(objTest_a)
+	{
+		if (objTest_a.run)
+		{
+			objTest_a.run();
+		}
+		else
+		{
+			send(objTest_a.lines(), objTest_a.name);
+		}
+	}
+
+	// the screen's events (its key), every second
+	function events()
+	{
+		if (m_strID !== '' && m_strKey !== '')
+		{
+			vduGet(m_strURL + '?a=events&s=' + m_strID + '&k=' + encodeURIComponent(m_strKey) + '&n=' + m_intEvents, function(strText_a)
+			{
+				var arrLines = strText_a.split('\n');
+				var arrHead = arrLines[0].split(' ');
+				var objPre = document.getElementById('geEvents');
+				var strShown = objPre.firstChild.nodeValue;
+				var intI;
+				if (arrHead[0] === 'ok')
+				{
+					for (intI = 1; intI < arrLines.length; intI++)
+					{
+						if (arrLines[intI] !== '')
+						{
+							strShown = arrLines[intI] + '\n' + (strShown === '-' ? '' : strShown);
+						}
+					}
+					objPre.firstChild.nodeValue = strShown.split('\n').slice(0, 12).join('\n');
+					m_intEvents = parseInt(arrHead[2], 10);
+				}
+			});
+		}
+	}
+
+	function use(strID_a, strKey_a)
+	{
+		var objLinks = document.getElementById('geLinks');
+		m_strID = strID_a;
+		m_strKey = strKey_a;
+		m_intEvents = 0;
+		document.getElementById('geID').value = strID_a;
+		document.getElementById('geKey').value = strKey_a;
+		objLinks.innerHTML = 'Watch it: <a href="view.html?s=' + strID_a + '">view</a> <a href="text.php?s=' + strID_a +
+			'">text</a> <a href="dumb.php?s=' + strID_a + '">rolling</a> - on a CPC: RVDU ' + strID_a;
+		if (m_objClient === null)
+		{
+			m_objClient = new VduClient({ url: m_strURL, id: strID_a, key: strKey_a, canvas: document.getElementById('geCanvas'),
+				cbStatus: function(strText_a) { document.getElementById('geStatus').innerHTML = strText_a; },
+				cbTitle: function(strText_a) { document.getElementById('geTitle').innerHTML = ''; document.getElementById('geTitle').appendChild(document.createTextNode(strText_a)); } });
+			m_objWall.Add(m_objClient);
+		}
+		else
+		{
+			window.location.href = 'test.html?s=' + strID_a + '&k=' + strKey_a;
+		}
+	}
+
+	function param(strName_a)
+	{
+		var strResult = '';
+		var arrMatch = new RegExp('[?&]' + strName_a + '=([^&]*)').exec(window.location.search);
+		if (arrMatch)
+		{
+			strResult = decodeURIComponent(arrMatch[1]);
+		}
+		return strResult;
+	}
+
+	(function()
+	{
+		var objBar = document.getElementById('geTests');
+		var intI;
+		var objB;
+		for (intI = 0; intI < m_arrTests.length; intI++)
+		{
+			objB = document.createElement('button');
+			objB.appendChild(document.createTextNode(m_arrTests[intI].name));
+			objB.onclick = (function(objTest_a) { return function() { startTest(objTest_a); }; })(m_arrTests[intI]);
+			objBar.appendChild(objB);
+		}
+		objB = document.createElement('button');
+		objB.appendChild(document.createTextNode('Wipe'));
+		objB.onclick = function()
+		{
+			vduGet(m_strURL + '?a=wipe&s=' + m_strID + '&k=' + encodeURIComponent(m_strKey), function(strText_a) { log('Wipe: ' + strText_a); m_intEvents = 0; if (m_objClient) { m_objClient.Live(); } });
+		};
+		objBar.appendChild(objB);
+	})();
+
+	document.getElementById('geUse').onclick = function()
+	{
+		use(document.getElementById('geID').value.replace(/\s+/g, ''), document.getElementById('geKey').value.replace(/\s+/g, ''));
+	};
+	document.getElementById('geNew').onclick = function()
+	{
+		vduGet(m_strURL + '?a=new&t=' + encodeURIComponent('Test screen'), function(strText_a)
+		{
+			var arrW = strText_a.split(' ');
+			if (arrW[0] === 'ok')
+			{
+				use(arrW[1], arrW[2]);
+				log('Made: id ' + arrW[1] + ' key ' + arrW[2]);
+			}
+			else
+			{
+				log(strText_a);
+			}
+		});
+	};
+	document.getElementById('geSend').onclick = function()
+	{
+		var objLine = document.getElementById('geLine');
+		if (objLine.value !== '')
+		{
+			send([objLine.value], objLine.value);
+			objLine.value = '';
+		}
+	};
+	document.getElementById('geCanvas').onclick = function(objEvent_a)
+	{
+		var objE = objEvent_a || window.event;
+		var objRect = this.getBoundingClientRect();
+		var strZone = '';
+		if (m_objClient)
+		{
+			strZone = m_objClient.Touch(objE.clientX - objRect.left, objE.clientY - objRect.top, objRect.width, objRect.height);
+			if (strZone !== '')
+			{
+				log('touched ' + strZone);
+			}
+		}
+	};
+	document.getElementById('geTile').tabIndex = 0;
+	document.getElementById('geTile').onkeypress = function(objEvent_a)
+	{
+		var objE = objEvent_a || window.event;
+		var intCode = objE.charCode || objE.keyCode;
+		if (m_objClient && (intCode >= 32 || intCode === 13))
+		{
+			m_objClient.KeyPress(intCode);
+		}
+	};
+	if (param('s') !== '')
+	{
+		use(param('s'), param('k'));
+	}
+	window.setInterval(events, 1000);
+})();
+</script>
+</body>
+</html>

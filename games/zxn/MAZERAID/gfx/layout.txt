@@ -1,0 +1,18 @@
+# MAZERAID - names for the cells of tiles.png (8 x 8) and sprites.png (16 x 16)
+# tile   NAME   index [count]
+# sprite NAME   column row [frames [w h]]
+tile   DOT      1
+tile   POWER    2 2       # a power cell, 2 frames (it flashes)
+tile   DOOR     4         # the sentries' door
+tile   LIFE     5         # a life left (the side panel)
+tile   WALL     16 16     # the maze's walls: 16 + the mask of wall neighbours (1 up 2 right 4 down 8 left)
+tile   LOGO     128 3     # title letter blocks: 3 colours
+
+sprite RIGHT    0 0 3     # the beetle facing right, jaws closed / half / open (left = mirrored)
+sprite UP       3 0 3     # facing up (down = mirrored)
+sprite SENTRY   6 0 2     # a sentry, 2 frames (its jet); spr_pal rows 0-3 colour the four
+sprite SCARED   8 0 2     # a sentry while the beetle is powered up (row 4 flashes it)
+sprite EYES     10 0 4    # its eyes looking right, down, left, up
+sprite BONUS    0 1 4     # the bonus items: gem, battery, gear, chip
+sprite PTS      4 1 4     # 200 400 800 1600
+sprite DIE      8 1 6     # the beetle caught

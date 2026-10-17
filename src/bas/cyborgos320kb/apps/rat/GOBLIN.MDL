@@ -1,0 +1,16 @@
+' GOBLIN: a fearful scout (RUN 5 MODEL GOBLIN; RAT decides) - the same tags as ORC.MDL. Fearful:
+' it flees below 60 health; its role is to raise the alarm (shout) and to follow what it smells
+N
+ flee 60
+ eat 30
+R
+ shout 35
+ follow 30
+L
+ hide 50
+ sniff 45
+ wait 40
+ attack 10
+D
+ attack 30
+ investigate 20

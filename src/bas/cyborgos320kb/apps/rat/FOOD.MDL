@@ -1,0 +1,24 @@
+' FOOD: a multilevel model - what to eat, as deep as it goes (RUN 2 MODEL FOOD; ASK RAT FOOD
+' food:20 sleep:80). RAT chooses at the top (food or sleep), then down food's branches - kind,
+' then which - to a branch with none: food.fruit.apple
+N
+ food 30
+ sleep 25
+L
+ food 40
+  fruit 50
+   apple 60
+   orange 55
+   banana 40
+   lemon 10
+   bitter_melon 0
+  meat 30
+   chicken 45
+   fish 35
+  sweets 45
+   cake 50
+   chocolate 52
+ sleep 30
+D
+ food 0
+  sweets 20

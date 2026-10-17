@@ -36,7 +36,10 @@ button:disabled { opacity: .5; cursor: default; }
 <legend>2. The data</legend>
 <label>Name <input type="text" id="name" value="AUCKLAND" maxlength="8"></label>
 <label>At most <input type="number" id="kb" value="3968" min="64" step="16"> K</label>
-<p style="margin:6px 0 0">3968K: 248 blocks of 16K, for a 4MB CPC (the program and the screens need the rest). Smaller: the smallest buildings and the minor roads go first.</p>
+<label>Start at (a street, optional) <input type="text" id="start" value="" placeholder="Gemini Place"></label>
+<label>Only the area round (a place, optional) <input type="text" id="area" value="" placeholder="Sky Tower"></label>
+<label><input type="number" id="areakm" value="3" min="1" max="40" step="0.5"> km square</label>
+<p style="margin:6px 0 0">3968K: 248 blocks of 16K, for a 4MB CPC (the program and the screens need the rest). Smaller: the smallest buildings and the minor roads go first, then the trees. Start at: the first view (key 1) looks at that street's far end from 250 m off, 60 m up - the data has no house numbers, so a short street or a cul-de-sac is best (the views to the landmarks stay).</p>
 </fieldset>
 
 <button id="go" disabled>Make</button>
@@ -105,6 +108,32 @@ function parseCut(text) {
     }
   }
   return o;
+}
+
+// a place by its name (no case): a way's or a multipolygon's middle, a node; null none
+function findPlace(o, name) {
+  const want = name.trim().toLowerCase(), is = (t) => (t.name || "").toLowerCase() === want || (t.name || "").toLowerCase().split(" / ").includes(want);
+  for (const n of o.nodes) if (is(n.tags)) return [n.x, n.y];
+  for (const r of o.rels.values()) if (is(r.tags) && r.outer.length) return centroid(closedOpen(r.outer[0]));
+  const ws = o.ways.filter((w) => is(w.tags));
+  if (!ws.length) return null;
+  const pts = [].concat(...ws.map((w) => w.pts));
+  return centroid(pts);
+}
+
+// a building's walls (the outline anticlockwise): for each, a byte - bit k set when the wall can be
+// seen from direction k (0 north, 1 north-east ... 7 north-west: where the camera is from the
+// building), its outward side facing that way or edge on (opts.masks: AUCKLAND_MASK's data, S3D2)
+function wallMasks(pts) {
+  const out = [];
+  for (let i = 0; i < pts.length; i++) {
+    const a = pts[i], b = pts[(i + 1) % pts.length], ex = b[0] - a[0], ez = b[1] - a[1], l = Math.hypot(ex, ez) || 1;
+    const nx = ez / l, nz = -ex / l;
+    let m = 0;
+    for (let k = 0; k < 8; k++) { const t = k * Math.PI / 4; if (nx * Math.sin(t) + nz * Math.cos(t) > -0.45) m |= 1 << k; }
+    out.push(m);
+  }
+  return out;
 }
 
 // ---- geometry
@@ -243,6 +272,16 @@ async function make(text, opts, log) {
   bx.sort((a, b) => a - b); bz.sort((a, b) => a - b);
   const q = (a, f) => a[Math.floor(f * (a.length - 1))];
   let minx = q(bx, 0.002) - 300, maxx = q(bx, 0.998) + 300, minz = q(bz, 0.002) - 300, maxz = q(bz, 0.998) + 300;
+  // an area of its own (opts.area: a place's name - a street, a building, a hill ... - and opts.areakm,
+  // the square's side): only that, every street and house of it (a smaller map, all its detail)
+  let areaP = null;
+  if (opts.area) {
+    const P = areaP = findPlace(o, opts.area);
+    if (!P) throw new Error("area: nothing named " + opts.area + " in the cut");
+    const h = (opts.areakm || 3) * 500;
+    minx = P[0] - h; maxx = P[0] + h; minz = P[1] - h; maxz = P[1] + h;
+    await log("area: " + opts.area + " - " + (2 * h / 1000) + " km square round " + Math.round(P[0]) + ", " + Math.round(P[1]));
+  }
   const cx = Math.round((minx + maxx) / 2), cz = Math.round((minz + maxz) / 2);
   const nx = Math.ceil((maxx - minx) / TILE), nz = Math.ceil((maxz - minz) / TILE);
   const W = new World(cx - nx * TILE / 2, cz - nz * TILE / 2, nx, nz);
@@ -339,6 +378,7 @@ async function make(text, opts, log) {
     const pts = []; for (const p of r) { const l = W.loc(t, p[0], p[1]); const z = pts[pts.length - 1]; if (!z || z[0] !== l[0] || z[1] !== l[1]) pts.push(l); }
     if (pts.length > 1 && pts[0][0] === pts[pts.length - 1][0] && pts[0][1] === pts[pts.length - 1][1]) pts.pop();
     if (pts.length < 3) { drop++; return; }
+    if (area(pts) < 0) pts.reverse();   // anticlockwise (x east, z north): a wall's outward side is known (back-face tests)
     const cls = h >= 20 || ar >= 2000 ? 0 : h >= 9 || ar >= 400 ? 1 : 2;
     W.T(t).b.push({ h: Math.round(h / Q), pts, cls, size: ar * h });
     nb++;
@@ -402,21 +442,22 @@ async function make(text, opts, log) {
   const enc = (T, cut) => {
     const b = [...T.b].sort((p, q) => p.cls - q.cls || q.size - p.size).slice(0, T.b.length - cut.b);
     const lines = T.l.slice(0, T.l.length - cut.l);
+    const tr = T.tr.slice(0, T.tr.length - (cut.t || 0));   // (the woods' fill last: it goes first)
     const by = [];
     const w16 = (v) => by.push(v & 255, (v >> 8) & 255);
     const nb0 = b.filter((x) => x.cls === 0).length, nb1 = b.filter((x) => x.cls === 1).length, nb2 = b.length - nb0 - nb1;
-    w16(nb0); w16(nb1); w16(nb2); w16(lines.length); w16(T.d3.length); w16(Math.min(T.tr.length, 65535)); w16(0); w16(0);
-    for (const x of b) { by.push(x.pts.length, x.h); for (const p of x.pts) by.push(p[0] & 255, p[1] & 255); }
+    w16(nb0); w16(nb1); w16(nb2); w16(lines.length); w16(T.d3.length); w16(Math.min(tr.length, 65535)); w16(0); w16(0);
+    for (const x of b) { by.push(x.pts.length, x.h); for (const p of x.pts) by.push(p[0] & 255, p[1] & 255); if (opts.masks) by.push(...wallMasks(x.pts)); }
     for (const x of lines) { by.push(x.pts.length, x.type); for (const p of x.pts) by.push(p[0] & 255, p[1] & 255); }
     by[12] = by.length & 255; by[13] = (by.length >> 8) & 255;
     for (const x of T.d3) { by.push(x.pts.length, x.type); for (const p of x.pts) by.push(p[0] & 255, p[1] & 255, p[2] & 255); }
     by[14] = by.length & 255; by[15] = (by.length >> 8) & 255;
-    for (const p of T.tr) by.push(p[0] & 255, p[1] & 255);
+    for (const p of tr) by.push(p[0] & 255, p[1] & 255);
     return by;
   };
   // lines least important first: minor roads (type 2) last in each tile's list - they go first
   for (const k of tiles) { const T = W.t.get(k); T.l.sort((a, b) => (a.type === 2) - (b.type === 2)); }
-  const cuts = new Map(tiles.map((k) => [k, { b: 0, l: 0 }]));
+  const cuts = new Map(tiles.map((k) => [k, { b: 0, l: 0, t: 0 }]));
   let encs = new Map(tiles.map((k) => [k, enc(W.t.get(k), cuts.get(k))]));
   // a tile over 16K - 16: its smallest buildings go until it fits
   for (const k of tiles) {
@@ -426,21 +467,25 @@ async function make(text, opts, log) {
   const total = () => { let s = 0; for (const e of encs.values()) s += e.length; return s; };
   let tot = total();
   await log("data before fitting: " + (tot / 1024).toFixed(0) + "K (" + (opts.kb - 16) + "K room)");
-  let cutB = 0, cutL = 0;
-  // over the size: minor roads first (all tiles, a share each round), then small buildings
-  let round = 0;
-  while (tot > budget * 0.985 && round < 400) {
+  let cutB = 0, cutL = 0, cutT = 0;
+  // over the size: minor roads first (all tiles, a share each round), then small buildings, then
+  // (a small size: a 1MB Next) the trees - the woods' fill first, the mapped ones last
+  let round = 0, smallLeft = true;
+  while (tot > budget * 0.985 && round < 600) {
     round++;
+    let anySmall = false;
     for (const k of tiles) {
       const T = W.t.get(k), c = cuts.get(k);
       const minorLeft = T.l.filter((x) => x.type === 2).length - c.l;
       if (round <= 20 && minorLeft > 0) { const n = Math.max(1, Math.ceil(minorLeft * 0.1)); c.l += n; cutL += n; }
-      else if (round > 20) { const small = T.b.filter((x) => x.cls === 2).length - c.b; if (small > 0) { const n = Math.max(1, Math.ceil(T.b.length * 0.02)); c.b += Math.min(n, small); cutB += Math.min(n, small); } }
+      else if (round > 20 && smallLeft) { const small = T.b.filter((x) => x.cls === 2).length - c.b; if (small > 0) { anySmall = true; const n = Math.max(1, Math.ceil(T.b.length * 0.02)); c.b += Math.min(n, small); cutB += Math.min(n, small); } }
+      else if (round > 20) { const left = T.tr.length - c.t; if (left > 0) { const n = Math.max(1, Math.ceil(T.tr.length * 0.05)); c.t += Math.min(n, left); cutT += Math.min(n, left); } }
       encs.set(k, enc(T, c));
     }
+    if (round > 20 && smallLeft && !anySmall) smallLeft = false;
     tot = total();
   }
-  if (cutB || cutL) await log("to fit: " + cutL + " minor road pieces and " + cutB + " small buildings left out");
+  if (cutB || cutL || cutT) await log("to fit: " + cutL + " minor road pieces, " + cutB + " small buildings and " + cutT + " trees left out");
 
   // the blocks: tiles packed in order (first fit)
   const blocks = [];
@@ -458,7 +503,7 @@ async function make(text, opts, log) {
   if (nx > 127) throw new Error("too wide: " + nx + " tiles across (127 at most)");
   // block 0
   const h0 = new Uint8Array(BLK), dv = new DataView(h0.buffer);
-  h0.set([83, 51, 68, 49], 0);
+  h0.set([83, 51, 68, opts.masks ? 50 : 49], 0);   // S3D1; S3D2: the buildings' wall masks after their points
   dv.setUint16(4, nx, true); dv.setUint16(6, nz, true); dv.setUint16(8, blocks.length, true);
   dv.setInt16(10, (W.x0 - cx) * U, true); dv.setInt16(12, (W.z0 - cz) * U, true); dv.setUint16(14, TILE * U, true);
   // the start: up in the air (200 m), flying in from the gulf at Auckland, Rangitoto 4 km off a little
@@ -477,12 +522,32 @@ async function make(text, opts, log) {
     }
     if (best && best.err < 70) { start = best.P; sdir = [start[0] + 1000 * Math.sin(best.hd), start[1] + 1000 * Math.cos(best.hd)]; sh = 200; sname = "Approaching Auckland"; }
   }
+  // a start of one's own (opts.start: a street's name): its far end looked at from 250 m off, back
+  // along the street and a little to its side, 60 m up
+  let own = null;
+  if (areaP && !opts.start) {                 // an area with no start of its own: its middle, from 350 m south, 70 m up
+    own = { start, sdir, sh, sname };
+    start = [areaP[0], areaP[1] - 350]; sdir = [areaP[0], areaP[1]]; sh = 70; sname = ("Start: " + opts.area).slice(0, 22);
+  }
+  if (opts.start) {
+    const want = opts.start.trim().toLowerCase(), ws = o.ways.filter((w) => w.tags.highway && (w.tags.name || "").toLowerCase() === want && w.pts.length > 1);
+    if (!ws.length) await log("start: no street named " + opts.start + " - the usual start");
+    else {
+      const w = ws.reduce((a, b) => (b.pts.length > a.pts.length ? b : a)), P = w.pts[w.pts.length - 1], Q = w.pts[0];
+      const dx = P[0] - Q[0], dz = P[1] - Q[1], l = Math.hypot(dx, dz) || 1, a = Math.atan2(dx, dz) + 25 * Math.PI / 180;
+      if (!own) own = { start, sdir, sh, sname };
+      start = [P[0] - 250 * Math.sin(a), P[1] - 250 * Math.cos(a)]; sdir = [P[0], P[1]]; sh = 60;
+      sname = ("Start: " + (w.tags.name || opts.start)).slice(0, 22);
+      await log("start: " + w.tags.name + " (its end at " + Math.round(P[0]) + ", " + Math.round(P[1]) + ")");
+    }
+  }
   dv.setInt16(16, Math.round((start[0] - cx) * U), true); dv.setInt16(18, Math.round((start[1] - cz) * U), true); h0[20] = 0;
   if (SKY) { dv.setInt16(48, Math.round((SKY[0] - cx) * U), true); dv.setInt16(50, Math.round((SKY[1] - cz) * U), true); }   // the city's centre: the Sky Tower (else 0, 0: the world's middle) - the compass points there
   const lm = [...lmTiles].filter((k) => encs.has(k)).sort((a, b) => (farTiles.has(b) - farTiles.has(a)) || a - b).slice(0, 256).sort((a, b) => a - b);   // (256 at most: the engine's list - the far ones first)
   // the views: from the start, and round the landmarks (looking at them from 700 m off)
   const views = [{ name: sname, x: start[0], z: start[1], h: sh, tx: sdir[0], tz: sdir[1] }];
-  if (sname !== "Start: south of the CBD" && SKY) views.push({ name: "South of the CBD", x: SKY[0] - 300, z: SKY[1] - 1400, h: 120, tx: SKY[0], tz: SKY[1] });
+  if (own) views.push({ name: own.sname, x: own.start[0], z: own.start[1], h: own.sh, tx: own.sdir[0], tz: own.sdir[1] });   // (the usual start: key 2)
+  if (sname !== "Start: south of the CBD" && (!own || own.sname !== "Start: south of the CBD") && SKY) views.push({ name: "South of the CBD", x: SKY[0] - 300, z: SKY[1] - 1400, h: 120, tx: SKY[0], tz: SKY[1] });
   if (SKY) views.push({ name: "Sky Tower", x: SKY[0] - 500, z: SKY[1] - 500, h: 150, tx: SKY[0], tz: SKY[1] });
   if (bridgeBox) { const b = bridgeBox, t = (b.t0 + b.t1) / 2 + (b.t1 - b.t0) * 0.08, mx = b.mx + b.ux * t, mz = b.my + b.uy * t; views.push({ name: "Harbour Bridge", x: mx + 230 * b.uy, z: mz - 230 * b.ux, h: 8, tx: mx, tz: mz }); }   // low, 230 m off the main span: the arch against the sky
   const vic = vols.find((v) => /Victoria/.test(v.name));
@@ -509,7 +574,7 @@ async function make(text, opts, log) {
   const out = new Uint8Array(BLK * (blocks.length + 1));
   out.set(h0, 0); blocks.forEach((b, i) => out.set(b.data, BLK * (i + 1)));
   let used = 0; for (const b of blocks) used += b.used;
-  let cB = 0, cL = 0, c3 = 0, cT = 0; for (const k of tiles) { const T = W.t.get(k), c = cuts.get(k); cB += T.b.length - c.b; cL += T.l.length - c.l; c3 += T.d3.length; cT += T.tr.length; }
+  let cB = 0, cL = 0, c3 = 0, cT = 0; for (const k of tiles) { const T = W.t.get(k), c = cuts.get(k); cB += T.b.length - c.b; cL += T.l.length - c.l; c3 += T.d3.length; cT += T.tr.length - (c.t || 0); }
   await log("done: " + (out.length / 1024) + "K - block 0 and " + blocks.length + " data blocks (" + (100 * used / (blocks.length * BLK)).toFixed(1) + "% full), " + tiles.length + " tiles with something, " + lm.length + " with landmarks\n" +
     "  " + cB + " buildings, " + cL + " ground lines, " + c3 + " 3D lines, " + cT + " trees");
   return out;
@@ -538,7 +603,7 @@ if (typeof document !== "undefined") {
     try {
       const text = await gunzipAll(fs);
       const name = ($("name").value || "S3D").toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 8) || "S3D";
-      const out = await make(text, { name, kb: +$("kb").value || 3968 }, log);
+      const out = await make(text, { name, kb: +$("kb").value || 3968, start: $("start").value.trim(), area: $("area").value.trim(), areakm: +$("areakm").value || 3 }, log);
       const a = document.createElement("a");
       a.href = URL.createObjectURL(new Blob([out], { type: "application/octet-stream" }));
       a.download = name + ".DAT"; a.textContent = "Download " + name + ".DAT (" + (out.length / 1024) + "K)";

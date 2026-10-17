@@ -15,6 +15,7 @@ rem   rom\    the keyword library ROMs  NTCCPC.ROM NTCMIN.ROM NTCFW.ROM: 16K + A
 rem                                     header, for ROM slots
 rem   cpm\    CP/M 2.2 / 3              NAME.COM  at #0100
 rem   test\   test harness platform     NAME.BIN  raw, at #4000 (for test\ntcrun.py)
+rem   zxn\    ZX Spectrum Next, hardware NAME.NEX  NEX file (NextZXOS: run it from the browser)
 rem
 rem On the CPC: put the .BIN files on a disk image (or an M4 / SD card) and
 rem RUN"NAME. On CP/M: copy the .COM files to the CP/M disk and type NAME.
@@ -42,6 +43,13 @@ pushd cpm
 for %%F in (*.ASM) do (
 	echo cpm\%%F
 	"%SJ%" --nologo --msg=err --raw=%%~nF.COM %%F || set FAIL=1
+)
+popd
+
+pushd zxn
+for %%F in (*.ASM) do (
+	echo zxn\%%F
+	"%SJ%" --nologo --msg=err %%F || set FAIL=1
 )
 popd
 

@@ -1886,7 +1886,7 @@ kw_asetl:
 ;## ntc_rnd_seed
 ntc_rnd_seed:	dw 1
 
-;## kw_rndv ntc_rnd_seed ntc_div
+;## kw_rndv ntc_rnd_seed ntc_div kw_rndl
 ;kw_rndv, <nvar>, <destvar>  - 0 .. n-1 (0 if n <= 0)
 kw_rndv:
 			pop hl
@@ -1929,7 +1929,7 @@ ntc_rnd_zero:
 			ld hl, 0
 			jp ntc_div_store
 
-;## kw_seedv ntc_rnd_seed
+;## kw_seedv ntc_rnd_seed kw_seedl
 ;kw_seedv, <var>  - RANDOMIZE var (0 becomes 1)
 kw_seedv:
 			pop hl
@@ -9667,8 +9667,12 @@ ntc_isl:		ds 128			; 16 slots
 ntc_isl_tick:
 			push bc
 			push de
+	IFDEF NTC_ZXN
+			ld a, c					; zxn: the handler's frame flag in C (1: the line 0 interrupt)
+	ELSE
 			ld b, #F5				; PPI port B bit 0: vertical sync
 			in a, (c)
+	ENDIF
 			and 1
 			ld e, a
 			ld a, (ntc_islvs)

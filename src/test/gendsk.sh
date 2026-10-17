@@ -65,13 +65,20 @@ for v in 320 128; do
   for g in TICKER CRUNCH LINES; do node cli.js $b/tasks/$g.bas --platform=cpm > $w/$g.ASM 2>/dev/null; done
   node cli.js $b/cmds/HELP.bas --platform=cpm > $w/HELP.ASM 2>/dev/null
   for g in $c; do node cli.js $b/cmds/$g.bas $(cyb_cls $b $g) --platform=cpm > $w/$g.ASM 2>/dev/null; done
-  ap=""; [ $v == 320 ] && ap="MON MON2 YING YANG" # the applications (apps/: MON, with its classes; MON2: MON on the whole screen; YING, YANG: the web browsers - MON's and MON2's screens, Web.cls)
+  ap=""; [ $v == 320 ] && ap="MON MON2 YING YANG RAWYING RAWYANG MODEL RAT RATS NEURAL ASK WATCH PET PROBE GREEN RVDU" # the applications (apps/: MON, with its classes; MON2: MON on the whole screen; YING, YANG: the web browsers - MON's and MON2's screens, Web.cls; apps/rat: MODEL, RAT, RATS, NEURAL, ASK, WATCH, PET, PROBE - the decision services, the virtual pet, the test drive; apps/rvdu: RVDU, the remote VDU console)
   [ -n "$ap" ] && cp $b/apps/mon/SYSTEM.MAP $w/   # (MON's map: a text file)
   [ $v == 320 ] && cp $b/tools/INSTALL.BAS $w/     # (ASCII BASIC: this disc in B to IDE:)
   [ $v == 320 ] && cp $b/help/*.HLP $w/            # (HELP's text files: HELP name shows NAME.HLP)
   [ -n "$ap" ] && node cli.js $b/apps/mon/MON.bas $b/apps/mon/Bml.cls $b/apps/mon/Mouse.cls $b/cmds/CybSys.cls --platform=cpm > $w/MON.ASM 2>/dev/null
   [ -n "$ap" ] && cp $b/apps/ying/*.8BM $w/      # (the browsers' local pages: HOME.8BM, KEYS.8BM)
   for g in YING YANG; do [ -n "$ap" ] && node cli.js $b/apps/$(echo $g | tr A-Z a-z)/$g.bas $b/apps/ying/Web.cls $b/apps/mon/Bml.cls $b/apps/mon/Mouse.cls $b/cmds/Http.cls $b/cmds/CybSys.cls --platform=cpm > $w/$g.ASM 2>/dev/null; done
+  # RAWYING, RAWYANG: YING and YANG with apps/rawying/Bml.cls (raw pages: the server lays them out) and
+  # their local pages HOME.RAW, KEYS.RAW (tools/rawpage/8bml2raw.py --local, 78 wide)
+  for g in YING YANG; do [ -n "$ap" ] && node cli.js $b/apps/$(echo $g | tr A-Z a-z)/$g.bas $b/apps/ying/Web.cls $b/apps/rawying/Bml.cls $b/apps/mon/Mouse.cls $b/cmds/Http.cls $b/cmds/CybSys.cls --platform=cpm > $w/RAW$g.ASM 2>/dev/null; done
+  [ -n "$ap" ] && for f in HOME KEYS; do python3 ../../tools/rawpage/8bml2raw.py --local $b/apps/ying/$f.8BM 78 $w/$f.RAW; done
+  for g in MODEL RAT RATS NEURAL ASK WATCH PET PROBE GREEN; do [ -n "$ap" ] && node cli.js $b/apps/rat/$g.bas $b/cmds/CybSys.cls --platform=cpm > $w/$g.ASM 2>/dev/null; done
+  [ -n "$ap" ] && cp $b/apps/rat/*.MDL $b/apps/rat/*.NN $b/apps/rat/RATMODEL.TXT $w/   # (the models, the nets' training, how a model is made: text files)
+  [ -n "$ap" ] && node cli.js $b/apps/rvdu/RVDU.bas $b/cmds/Http.cls $b/cmds/CybSys.cls --platform=cpm > $w/RVDU.ASM 2>/dev/null
   [ -n "$ap" ] && node cli.js $b/apps/mon2/MON2.bas $b/apps/mon/Bml.cls $b/apps/mon/Mouse.cls $b/cmds/CybSys.cls --platform=cpm > $w/MON2.ASM 2>/dev/null
   for g in TICKER CRUNCH LINES $c HELP $ap; do
     (cd $w && $SJ --nologo --msg=err --raw=$g.COM $g.ASM > /dev/null) || { echo "gendsk: $v: $g did not assemble"; fail=1; }
@@ -126,19 +133,22 @@ open(os.path.join(w, 'FILES.DIR'), 'wb').write(e)
 "
   x="$w/CYBADD.BIN"; [ $v == 320 ] && x=""
   if [ $v == 320 ]; then
-    # four discs carry it to drive A's CYBORGOS folder (RUN"INSTALL from disc 1 in B): cos-disk1
+    # six discs carry it to drive A's CYBORGOS folder (RUN"INSTALL from disc 1 in B): cos-disk1
     # CyborgOS, COSLOAD, the programs, MON and the help texts (to CYBORGOS/HELP); cos-disk2 the
     # commands Z has (to CYBORGOS/C - CYBORGOS.Z names them), and FLOPPY; cos-disk3 Z ready-made
-    # (CYBORGOS.Z1 ...); cos-disk4 YING, YANG and their pages (HOME.8BM, KEYS.8BM), NET. Each name as it goes in CYBORGOS (a folder first: C/, HELP/)
+    # (CYBORGOS.Z1 ...); cos-disk4 YING, YANG and their pages (HOME.8BM, KEYS.8BM), NET; cos-disk5 RAWYING,
+    # RAWYANG and theirs (HOME.RAW, KEYS.RAW); cos-disk6 the decision services (MODEL, RAT, RATS, NEURAL, ASK, WATCH, PET, PROBE, GREEN), their models and RATMODEL.TXT on cos-disk6 (disc 5 is full), and RVDU. Each name as it goes in CYBORGOS (a folder first: C/, HELP/)
     f1="CYBORGOS.BAS WINAPE.BAS COSLOAD.BIN CYBORGOS.BIN CYBORGOS.Z SYSTEM.MAP TICKER.CYB CRUNCH.CYB LINES.CYB CRUNCH.COM MON.CYB MON2.CYB $(cd $w && ls *.HLP | sed 's|^|HELP/|')"
     f2="$(for g in $zc; do echo C/$g; done) FLOPPY.CYB"
     f3="$(ls $w | grep -E '^CYBORGOS\.Z[0-9]+$' | sort -t Z -k2 -n)"
     f4="YING.CYB YANG.CYB HOME.8BM KEYS.8BM NET.CYB"   # (the web browsers, their local pages, NET: the other discs are full)
+    f5="RAWYING.CYB RAWYANG.CYB HOME.RAW KEYS.RAW"     # (the raw browsers: disc 4 is full)
+    f6="MODEL.CYB RAT.CYB RATS.CYB NEURAL.CYB ASK.CYB WATCH.CYB PET.CYB PROBE.CYB GREEN.CYB RATMODEL.MDL PET.MDL FOOD.MDL GREEN.MDL ORC.MDL GOBLIN.MDL DUNGEON.NN SYS.NN RATMODEL.TXT RVDU.CYB"   # (the decision services, their models, how a model is made; RVDU)
     # INSTALL.BAS, on cos-disk1 only: every disc's files as DATA from 1000 - how many, then "#n" and
     # disc n's files, "*" at the end
     grep -v '^1000 ' $b/tools/INSTALL.BAS > $w/INSTALL.BAS
-    printf '1000 DATA %d\r\n' $(echo $f1 $f2 $f3 $f4 | wc -w) >> $w/INSTALL.BAS
-    for n in 1 2 3 4; do eval echo '"#$n"' \$f$n; done | tr ' ' '\n' | paste -d, - - - - | sed 's/,*$//; s/[^,]*/"&"/g' | awk '{printf "%d DATA %s\r\n", 1000 + NR * 10, $0}' >> $w/INSTALL.BAS
+    printf '1000 DATA %d\r\n' $(echo $f1 $f2 $f3 $f4 $f5 $f6 | wc -w) >> $w/INSTALL.BAS
+    for n in 1 2 3 4 5 6; do eval echo '"#$n"' \$f$n; done | tr ' ' '\n' | paste -d, - - - - | sed 's/,*$//; s/[^,]*/"&"/g' | awk '{printf "%d DATA %s\r\n", 1000 + NR * 10, $0}' >> $w/INSTALL.BAS
     printf '5000 DATA "*"\r\n\x1a' >> $w/INSTALL.BAS
     # (Locomotive BASIC loads an ASCII file line by line: each line CR LF - kept to 120 characters: longer ones gave Line too long)
     python3 -c "
@@ -148,7 +158,7 @@ ls = b.split(b'\r\n')
 bad = [i for i, l in enumerate(ls[:-1]) if b'\n' in l or b'\r' in l or len(l) > 120]
 sys.exit(1 if bad or ls[-1] else 0)" || { echo "gendsk: INSTALL.BAS: a line not ending CR LF, or longer than 120"; fail=1; }
     f1="$f1 INSTALL.BAS"
-    for n in 1 2 3 4; do
+    for n in 1 2 3 4 5 6; do
       dn=../build/dsk/cos-disk$n.dsk; eval fl=\$f$n
       [ $n != 1 ] && { rm -f $dn; dskform -type dsk -format cpcdata $dn > /dev/null 2>&1; }
       for f in $fl; do f=$(basename $f); cpmcp -f cpcdata -T dsk $dn $w/$f 0:$f || { echo "gendsk: cos-disk$n: $f did not fit"; fail=1; }; done

@@ -12,7 +12,7 @@ NTC_ROMLIB	equ 1			; this is the keyword ROM
 NTC_BUFSIZE	equ 2048		; its buffer (ntc_buf)
 NTC_ROM_N	equ 325			; numbers in the index
 NTC_ROM_COUNT	equ 1			; ROMs in the set (NTCCPC.ROM)
-NTC_ROM_SET	equ #A11F		; the set's stamp (its ROMs find each other by it)
+NTC_ROM_SET	equ #E842		; the set's stamp (its ROMs find each other by it)
 MEM_WIN		equ #4000
 MEM_BADPAGE	equ -2
 MEM_BANKS	equ NTC_MEMBANKS	; 0 - 64
@@ -2295,7 +2295,7 @@ kw_asetl:
 			ld (hl), b
 			ret
 ;## ntc_rnd_seed
-;## kw_rndv ntc_rnd_seed ntc_div
+;## kw_rndv ntc_rnd_seed ntc_div kw_rndl
 kw_rndv:
 			pop hl
 			ld e, (hl)
@@ -2334,7 +2334,7 @@ ntc_rnd:
 ntc_rnd_zero:
 			ld hl, 0
 			jp ntc_div_store
-;## kw_seedv ntc_rnd_seed
+;## kw_seedv ntc_rnd_seed kw_seedl
 kw_seedv:
 			pop hl
 			ld e, (hl)

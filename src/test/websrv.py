@@ -4,9 +4,13 @@
 #   /echo?a=1&b=2  an 8BML page listing the request's parameters (t"a=1" ...), decoded
 #   /moved         a 302 to /echo?moved=1
 #   /big?n=N       an 8BML page of N bytes or so (lines of text)
+#   ...&raw=W      any of them as a raw page for a screen W wide (tools/rawpage/8bml2raw.py:
+#                  RAWYING, RAWYANG)
 # HTTP/1.0 or 1.1 (keep-alive when asked for, Content-Length always); each request logged to
 # DIR/requests.log (its first line)
 import sys, os, socket, threading, urllib.parse
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', 'tools', 'rawpage'))
+import importlib; rawpage = importlib.import_module('8bml2raw')
 
 def page(title, lines):
     q = lambda t: t.replace('\\', '\\\\').replace('"', '\\"')
@@ -42,6 +46,9 @@ def serve(c, d):
             meth, path, ver = (l.decode('latin-1').split() + ['', '', ''])[:3]
             with open(os.path.join(d, 'requests.log'), 'a') as lg: lg.write(l.decode('latin-1').strip() + '\n')
             code, hd, body = answer(path, d)
+            q = dict(urllib.parse.parse_qsl(urllib.parse.urlsplit(path).query, keep_blank_values=True))
+            if code != 302 and q.get('raw', '').isdigit():
+                body = rawpage.raw(body, int(q['raw']))
             keep = ver == 'HTTP/1.1' and h.get('connection', '').lower() != 'close'
             r = 'HTTP/1.1 %d %s\r\nContent-Length: %d\r\nContent-Type: text/plain\r\nConnection: %s\r\n' % (
                 code, {200: 'OK', 302: 'Found', 404: 'Not Found'}[code], len(body), 'keep-alive' if keep else 'close')

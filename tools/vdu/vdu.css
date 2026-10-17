@@ -1,0 +1,158 @@
+/* VDU's pages */
+:root
+{
+	--gsBack: #f2f0ea;
+	--gsText: #1d1d1b;
+	--gsDim: #6b6a64;
+	--gsPanel: #ffffff;
+	--gsLine: #d6d3c9;
+	--gsAccent: #1a5fb4;
+}
+@media (prefers-color-scheme: dark)
+{
+	:root
+	{
+		--gsBack: #16161a;
+		--gsText: #e8e6e0;
+		--gsDim: #9a988f;
+		--gsPanel: #202027;
+		--gsLine: #383842;
+		--gsAccent: #78aeed;
+	}
+}
+body
+{
+	margin: 0;
+	padding: 16px;
+	background: #f2f0ea;
+	background: var(--gsBack);
+	color: #1d1d1b;
+	color: var(--gsText);
+	font-family: Verdana, Arial, sans-serif;
+	font-size: 14px;
+}
+h1
+{
+	font-size: 20px;
+	margin: 0 0 12px 0;
+}
+h2
+{
+	font-size: 16px;
+	margin: 0 0 8px 0;
+}
+a
+{
+	color: #1a5fb4;
+	color: var(--gsAccent);
+}
+.gsPanel
+{
+	background: #ffffff;
+	background: var(--gsPanel);
+	border: 1px solid #d6d3c9;
+	border: 1px solid var(--gsLine);
+	border-radius: 6px;
+	padding: 12px;
+	margin: 0 0 16px 0;
+	max-width: 900px;
+}
+.gsDim
+{
+	color: #6b6a64;
+	color: var(--gsDim);
+	font-size: 12px;
+}
+.gsWall
+{
+	display: flex;
+	flex-wrap: wrap;
+	gap: 16px;
+}
+.gsTile
+{
+	background: #ffffff;
+	background: var(--gsPanel);
+	border: 1px solid #d6d3c9;
+	border: 1px solid var(--gsLine);
+	border-radius: 6px;
+	padding: 8px;
+	width: 100%;
+	max-width: 660px;
+	box-sizing: border-box;
+}
+.gsTile:focus
+{
+	outline: 2px solid #1a5fb4;
+	outline: 2px solid var(--gsAccent);
+}
+.gsTileHead
+{
+	display: flex;
+	justify-content: space-between;
+	align-items: baseline;
+	margin: 0 0 6px 0;
+	gap: 8px;
+}
+.gsTileTitle
+{
+	font-weight: bold;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+.gsBorder
+{
+	padding: 4%;
+	background: #000080;
+	line-height: 0;
+}
+.gsBorder canvas
+{
+	width: 100%;
+	height: auto;
+	image-rendering: pixelated;
+	image-rendering: crisp-edges;
+	cursor: pointer;
+}
+.gsBar
+{
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+	align-items: center;
+	margin: 6px 0 0 0;
+}
+.gsBar input[type=text]
+{
+	flex: 1;
+	min-width: 120px;
+	font-family: monospace;
+	font-size: 14px;
+	padding: 4px;
+}
+button, select
+{
+	font-size: 13px;
+	padding: 3px 8px;
+}
+table.gsList
+{
+	border-collapse: collapse;
+	width: 100%;
+}
+table.gsList td, table.gsList th
+{
+	text-align: left;
+	padding: 4px 8px 4px 0;
+	border-bottom: 1px solid #d6d3c9;
+	border-bottom: 1px solid var(--gsLine);
+	vertical-align: top;
+}
+code, pre
+{
+	font-family: monospace;
+	font-size: 13px;
+	word-break: break-all;
+	white-space: pre-wrap;
+}

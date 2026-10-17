@@ -280,7 +280,7 @@ var NTC_EXAMPLES = [
 		]
 	},
 	{
-		"name": "Interrupt classes: Tick at a rate (cpc, cpcmin, cpcfw)",
+		"name": "Interrupt classes: Tick at a rate (cpc, cpcmin, cpcfw, zxn)",
 		"files": [
 			{
 				"name": "Main.bas",

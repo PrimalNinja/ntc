@@ -55,27 +55,29 @@ what the platform classes (`StdIO`, `System`, `FileSystem`, `Memory`) can do.
 | Amstrad CPC, full firmware | `cpcfw` | `NAME.BIN` at `#0040` | CPC 464 / 664 / 6128 | the firmware for text, keys and files (AMSDOS, other ROMs' commands); program below `#A600` when it uses files |
 | CP/M 2.2 / 3 | `cpm` | `NAME.COM` at `#0100`, ends with a warm boot | any Z80 CP/M machine | BDOS only. Console: a stream, or 80 x 24 with `Option Terminal VT52 / ANSI` |
 | Test harness | `test` | raw `NAME.BIN` at `#4000` | `src/test/ntcrun.py` only | - |
+| ZX Spectrum Next, no ROM | `zxn` | `NAME.NEX` (banks 8-10: the program at `#0040`; bank 5: a start stub), run from NextZXOS's browser | ZX Spectrum Next (a core with the tilemap's text mode and the line interrupt; so far run only in `src/test/zxnrun.py`) | nothing: the stub turns the NMI buttons and DivMMC's paging off, maps RAM to `#0000-#BFFF` and the screen (bank 5) to `#C000-#FFFF`, sets 28MHz; own text screen (the tilemap), keys and interrupt handler; Graphics on Layer 2; data files built into the NEX (`Option NexData`). No files yet. `End` is a soft reset (back to NextZXOS) |
 
 What each target can do:
 
-| | cpc | cpcmin | cpcfw | cpm | test |
-|---|---|---|---|---|---|
-| Screen | own drawing, CPC font, modes 0 / 1 / 2 | own drawing | firmware text | BDOS console | ports |
-| Interrupts (normal mode, `Interrupt`) | own handler, 300 Hz | own handler | firmware, plus a fast ticker event for `Interrupt` | - | - |
-| Files (`FileSystem`) | - | Load / Save, tape / disc, volumes | Load / Save, tape / disc, volumes | everything (sequential, random access, delete, rename ...) | - |
-| RAM pages (`Memory`, `Option Memory CPCExpansion`) | up to a 4MB expansion | up to a 4MB expansion | up to a 4MB expansion | - | - |
-| Heap in main RAM (`Option Memory Small`) | yes | yes | yes | yes (up to the BDOS) | yes |
-| ROM commands (`System.Command`) | - | yes | yes | - | - |
-| Overlay classes (`Option Class Overlay`) | - | yes (RAM pages, or one overlay area with `Small`) | yes (the same) | yes (one overlay area) | - |
-| Pages (`Option Page`: several classes a page, classes copied into pages) | - | yes (RAM pages, or one overlay area with `Small`) | yes (the same) | yes (one overlay area) | - |
-| Linked lists (`List`) | yes | yes | yes | yes | yes |
-| Graphics (`Graphics`: lines in modes 0-2, double buffering) | yes | yes | - | - | - |
-| Interrupt classes (`Option Class Interrupt`), `Interrupt` | yes | yes | yes (firmware fast ticker event) | - | - |
+| | cpc | cpcmin | cpcfw | cpm | test | zxn |
+|---|---|---|---|---|---|---|
+| Screen | own drawing, CPC font, modes 0 / 1 / 2 | own drawing | firmware text | BDOS console | ports | the tilemap's text mode, 40 x 32 / 80 x 32 |
+| Interrupts (normal mode, `Interrupt`) | own handler, 300 Hz | own handler | firmware, plus a fast ticker event for `Interrupt` | - | - | own handler, the line interrupt: 300 Hz |
+| Files (`FileSystem`) | - | Load / Save, tape / disc, volumes | Load / Save, tape / disc, volumes | everything (sequential, random access, delete, rename ...) | - | - (later: NextZXOS / esxDOS) |
+| RAM pages (`Memory`, `Option Memory CPCExpansion`) | up to a 4MB expansion | up to a 4MB expansion | up to a 4MB expansion | - | - | - (later: the Next's 8K pages) |
+| Data in the program's file (`Option NexData`: 16K blocks loaded into banks) | - | - | - | - | - | up to 97 blocks (1.5 MB; past bank 47 a 2MB Next) |
+| Heap in main RAM (`Option Memory Small`) | yes | yes | yes | yes (up to the BDOS) | yes | yes (up to `#BE00`) |
+| ROM commands (`System.Command`) | - | yes | yes | - | - | - |
+| Overlay classes (`Option Class Overlay`) | - | yes (RAM pages, or one overlay area with `Small`) | yes (the same) | yes (one overlay area) | - | - |
+| Pages (`Option Page`: several classes a page, classes copied into pages) | - | yes (RAM pages, or one overlay area with `Small`) | yes (the same) | yes (one overlay area) | - | - |
+| Linked lists (`List`) | yes | yes | yes | yes | yes | yes |
+| Graphics (`Graphics`: lines in modes 0-2, double buffering) | yes | yes | - | - | - | Layer 2: 320 x 200 of 320 x 256, 256 colours, double buffering |
+| Interrupt classes (`Option Class Interrupt`), `Interrupt` | yes | yes | yes (firmware fast ticker event) | - | - | yes |
 
 RAM pages: 64K machines (464, 664) have 1 page, 128K (6128, or a 464 with a 64K
 expansion) 5, up to 33 with a 512K expansion and up to 257 with a 4MB expansion (WinAPE
 offers one). The program must stay out of
 `#4000-#7FFF` to use them (`Option Reserve &H4000, &H4000`).
 
-Not supported yet: CPC Plus / GX4000 extras (cartridge pages, ASIC), ZX Spectrum (looked at,
-put aside), MSX (planned). See `todo.md`.
+Not supported yet: CPC Plus / GX4000 extras (cartridge pages, ASIC), the original ZX Spectrum
+(looked at, put aside - the Next is `zxn`), MSX (planned). See `todo.md`.

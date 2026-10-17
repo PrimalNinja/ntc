@@ -51,13 +51,17 @@ function ntcCompile(input_a, objOptions_a)
 	var arrReserve = [];		// Option Reserve: { start, size, file, line }
 	var intBufAt = -1;			// Option Buffer: where the 2K buffer is (-1: in the program)
 	var intBufSize = 2048;		// Option Buffer [address], size / Option Buffer Size n: its size (FileSystem on a CPC needs 2048)
+	var objNexData = null;		// Option NexData "file", blocks (zxn): the file's 16K blocks in the NEX's banks
+	// the banks Option NexData fills, in order: not 0, 5 (the screen and the start stub), 8-10 (the
+	// program), 12-21 (Graphics: Layer 2's two buffers); past 47 a 2MB Next
+	var ZXN_NEXBANKS = [1, 2, 3, 4, 6, 7, 11].concat(Array.apply(null, Array(90)).map(function(x_a, i_a) { return 22 + i_a; }));
 	var arrRomEnable = null;	// Option RomEnable (cpcfw): null none, ['all'], or ROM numbers
 	var objStack = null;		// Option Stack: { addr, file, line } - the real stack's start
 	var strTerminal = 'none';	// Option Terminal (CP/M): none, vt52, ansi		// platform class names the project replaces with its own
 	var objOptions = {
 		org: null,				// null = the platform's (;@org)
 		library: 'used',		// used, all, none
-		platform: 'cpc',		// key into NTC_PLATFORMS: cpc, cpcmin, cpcfw, cpm, test
+		platform: 'cpc',		// key into NTC_PLATFORMS: cpc, cpcmin, cpcfw, cpm, test, zxn
 		sourcecomments: true,
 		turbo: false,			// start in turbo mode (same as Option Turbo)
 		libtext: null,
@@ -974,17 +978,31 @@ function ntcCompile(input_a, objOptions_a)
 		return arrResult;
 	}
 
-	// db line from byte codes: printable runs in quotes, the rest as numbers
+	// db line from byte codes: printable runs in quotes, the rest as numbers - 96 bytes a line at
+	// most (sjasmplus takes 128 in one DB): a longer string goes on as more db lines
 	function dbText(arrBytes_a)
 	{
+		var arrLines = [];
 		var arrParts = [];
 		var intI = 0;
 		var intCode = 0;
+		var intCount = 0;
 		var strRun = '';
 
 		for (intI = 0; intI < arrBytes_a.length; intI++)
 		{
 			intCode = arrBytes_a[intI];
+			if (intCount === 96)
+			{
+				if (strRun.length > 0)
+				{
+					arrParts.push('"' + strRun + '"');
+					strRun = '';
+				}
+				arrLines.push('db ' + arrParts.join(', '));
+				arrParts = [];
+				intCount = 0;
+			}
 			if ((intCode >= 32) && (intCode <= 126) && (intCode !== 34) && (intCode !== 92))
 			{
 				strRun += String.fromCharCode(intCode);
@@ -998,13 +1016,15 @@ function ntcCompile(input_a, objOptions_a)
 				}
 				arrParts.push(String(intCode));
 			}
+			intCount++;
 		}
 		if (strRun.length > 0)
 		{
 			arrParts.push('"' + strRun + '"');
 		}
+		arrLines.push('db ' + arrParts.join(', '));
 
-		return 'db ' + arrParts.join(', ');
+		return arrLines.join('\n\t\t\t');
 	}
 
 	// ------------------------------------------------------------
@@ -5509,7 +5529,7 @@ function ntcCompile(input_a, objOptions_a)
 				}
 				if (!objPlat.irq)
 				{
-					error('Interrupt needs a CPC platform: cpc, cpcmin or cpcfw (not ' + objOptions.platform + ')');
+					error('Interrupt needs a CPC platform or the Next: cpc, cpcmin, cpcfw or zxn (not ' + objOptions.platform + ')');
 					return;
 				}
 				objHookProcs[objElement.full] = true;
@@ -7512,6 +7532,115 @@ function ntcCompile(input_a, objOptions_a)
 	var objLibLabelSection = {};
 	var objLibAutoLabel = {};		// a @data / @unit section's label -> the section
 
+	// ZX Spectrum Next (zxn): the start stub and the NEX file, after the program. NextZXOS loads
+	// the NEX's banks - 8, 9, 10 (the program, pages 16-21) and 5 (the stub at #7E00, its page
+	// 11) - and runs the stub with banks 5, 2, 0 in #4000-#FFFF and the ROM in #0000-#3FFF. The
+	// stub: the NMI buttons off (NextReg 6 bits 3, 4: Multiface M1, DivMMC DRIVE), DivMMC's
+	// automatic paging off (NextReg 10 bit 4 - it pages DivMMC's ROM in at #0000, #0038 ...)
+	// and its memory out (port #E3), 28MHz, IM 1; the slots: pages 16-21 at #0000-#BFFF and
+	// bank 5 (pages 10, 11: the screen) at #C000-#FFFF - slot 3 (#6000-#7FFF, where the stub
+	// runs) last, from its copy at #FE00 (page 11 in slot 7 too). Then ntc_start. NextRegs
+	// through ports #243B / #253B: no Z80N opcodes
+	function zxnBoot(arrAsm_a, strIndent_a)
+	{
+		var arrBanks = [5, 8, 9, 10];
+		var arrNexOrder = [5, 2, 0, 1, 3, 4];
+		var intB = 0;
+		var blnBig = false;
+		var strName = String(objOptions.name || objOptions.amsdos || 'NTC').toUpperCase().replace(/[^A-Z0-9]/g, '').substr(0, 8) || 'NTC';
+		var arrL = [
+			'',
+			'; ============================================================',
+			'; ZX Spectrum Next: the start stub (bank 5, page 11 at #7E00) and the NEX file',
+			'; ============================================================',
+			'ASSERT ntc_free <= #BE00, "the program and its arrays must end below #BE00 (the stack is #BE00-#BFFF, the screen #C000-#FFFF)"',
+			'MMU 3, 11\t\t\t; page 11 (bank 5\'s second half) at #6000 to assemble the stub',
+			'org #7E00',
+			'zxn_boot:',
+			'di',
+			'ld bc, #243B\t\t; NextReg select (#253B: its value)',
+			'ld a, 6\t\t\t; Peripheral 2: the NMI buttons off (bit 3 Multiface M1, bit 4 DivMMC DRIVE)',
+			'out (c), a',
+			'inc b',
+			'in a, (c)',
+			'and %11100111',
+			'out (c), a',
+			'dec b',
+			'ld a, 10\t\t\t; Peripheral 5: DivMMC automatic paging off (bit 4)',
+			'out (c), a',
+			'inc b',
+			'in a, (c)',
+			'and %11101111',
+			'out (c), a',
+			'dec b',
+			'xor a',
+			'out (#E3), a\t\t; DivMMC: its memory out',
+			'ld a, 7\t\t\t; CPU speed: 28MHz',
+			'out (c), a',
+			'inc b',
+			'ld a, 3',
+			'out (c), a',
+			'dec b',
+			'ld hl, zxn_mmu\t\t; the slots but 3',
+			'ld e, 7',
+			'zxn_bmmu:',
+			'ld a, (hl)',
+			'inc hl',
+			'out (c), a',
+			'inc b',
+			'ld a, (hl)',
+			'inc hl',
+			'out (c), a',
+			'dec b',
+			'dec e',
+			'jr nz, zxn_bmmu',
+			'jp zxn_boot2 + #8000\t; on in the copy at #E000-#FFFF (page 11 in slot 7)',
+			'zxn_boot2:',
+			'ld a, #53\t\t\t; slot 3: page 19',
+			'out (c), a',
+			'inc b',
+			'ld a, 19',
+			'out (c), a',
+			'ld hl, #C9FB\t\t; #0038: ei, ret until ntc_plat_irqon puts its jump there',
+			'ld (#0038), hl',
+			'im 1',
+			'jp ntc_start',
+			'zxn_mmu:\tdb #50, 16, #51, 17, #52, 18, #54, 20, #55, 21, #56, 10, #57, 11',
+			'SAVENEX OPEN "' + strName + '.NEX", zxn_boot, #BFFE',
+			'SAVENEX CORE 3, 0, 0',
+			'SAVENEX CFG 0',
+			'SAVENEX BANK 5, 8, 9, 10',
+			'SAVENEX CLOSE'
+		];
+
+		if (objNexData !== null)
+		{
+			// the data's blocks: each into its bank (assembled at #0000-#3FFF: slots 0, 1)
+			var arrData = ['', '; Option NexData: "' + objNexData.file + '", ' + objNexData.blocks + ' blocks of 16K, in their banks'];
+			for (intB = 0; intB < objNexData.blocks; intB++)
+			{
+				arrData.push('MMU 0 1, ' + (ZXN_NEXBANKS[intB] * 2));
+				arrData.push('org #0000');
+				arrData.push('INCBIN "' + objNexData.file + '", ' + (intB * 16384) + ', 16384');
+				arrBanks.push(ZXN_NEXBANKS[intB]);
+				blnBig = blnBig || (ZXN_NEXBANKS[intB] > 47);
+			}
+			arrL.splice.apply(arrL, [5, 0].concat(arrData));
+		}
+		for (intB = 6; intB < 112; intB++) { arrNexOrder.push(intB); }
+		arrBanks.sort(function(a_a, b_a) { return arrNexOrder.indexOf(a_a) - arrNexOrder.indexOf(b_a); });
+		arrL = arrL.map(function(str_a)
+		{
+			if (str_a === 'SAVENEX BANK 5, 8, 9, 10') { return 'SAVENEX BANK ' + arrBanks.join(', '); }
+			if (str_a === 'SAVENEX CFG 0') { return blnBig ? 'SAVENEX CFG 0, 0, 0, 1\t\t; banks past 47: a 2MB Next' : str_a; }
+			return str_a;
+		});
+		arrL.forEach(function(str_a)
+		{
+			arrAsm_a.push(((str_a === '') || /^[;A-Za-z_]\w*:|^;/.test(str_a) || /^zxn_\w+:/.test(str_a)) ? str_a : (strIndent_a + str_a));
+		});
+	}
+
 	// the platform file's ;@key value lines: what the compiler needs to know
 	// about the target (org, text form, screen set up, interrupt handler ...)
 	function platformText()
@@ -8149,7 +8278,7 @@ function ntcCompile(input_a, objOptions_a)
 		{
 			if (!objPlat.irq)
 			{
-				arrErrors.push({ file: objRec_a.file, line: objRec_a.line, msg: 'Option Class Interrupt needs a CPC platform: cpc, cpcmin or cpcfw (not ' + objOptions.platform + ')' });
+				arrErrors.push({ file: objRec_a.file, line: objRec_a.line, msg: 'Option Class Interrupt needs a CPC platform or the Next: cpc, cpcmin, cpcfw or zxn (not ' + objOptions.platform + ')' });
 				return;
 			}
 			if ((objClassKind[objRec_a.module] !== undefined) && (objMemory.scheme === 'small'))
@@ -8873,6 +9002,26 @@ function ntcCompile(input_a, objOptions_a)
 			{
 				readReserve(objRec);
 			}
+			else if (objRec.what === 'nexdata')
+			{
+				// Option NexData "FILE", blocks (zxn): FILE's first blocks x 16K go in the NEX file's
+				// banks (ZXN_NEXBANKS), loaded with the program; ntc_nexdata: the count, then each
+				// block's bank. The assembler reads FILE (next to the .asm) - it must hold them all
+				var arrNexM = String(objRec.value).match(/^\s*"([^"]+)"\s*,\s*(\S+)\s*$/);
+				intValue = arrNexM ? parseNumber(arrNexM[2]) : NaN;
+				if (!arrNexM || isNaN(intValue) || (intValue < 1) || (intValue > ZXN_NEXBANKS.length))
+				{
+					arrErrors.push({ file: objRec.file, line: objRec.line, msg: 'Option NexData "FILE", blocks: blocks 1-' + ZXN_NEXBANKS.length + ' (16K each)' });
+				}
+				else if (objOptions.platform !== 'zxn')
+				{
+					arrWarnings.push({ file: objRec.file, line: objRec.line, msg: 'Option NexData is for the ZX Spectrum Next (zxn) - no effect on ' + objOptions.platform });
+				}
+				else
+				{
+					objNexData = { file: arrNexM[1], blocks: intValue };
+				}
+			}
 			else if (objRec.what === 'buffer')
 			{
 				// Option Buffer address: the library's 2K buffer (FileSystem, Memory.Copy) there,
@@ -9166,6 +9315,13 @@ function ntcCompile(input_a, objOptions_a)
 	{
 		arrAsm.push(strIndent + 'DEVICE AMSTRADCPC6128\t\t; for SAVEAMSDOS at the end');
 	}
+	if (String(objOptions.platform).toLowerCase() === 'zxn')
+	{
+		// ZX Spectrum Next: a NEX file (SAVENEX at the end). The program in RAM pages 16-21
+		// (banks 8-10), mapped at #0000-#BFFF as it runs (asm/ntc_plat_zxn.asm)
+		arrAsm.push(strIndent + 'DEVICE ZXSPECTRUMNEXT\t\t; for SAVENEX at the end');
+		arrAsm.push(strIndent + 'MMU 0 5, 16\t\t\t; #0000-#BFFF: pages 16-21 (banks 8, 9, 10)');
+	}
 	if (String(objOptions.org).replace(/\s/g, '').length > 0)
 	{
 		arrAsm.push(strIndent + 'org ' + objOptions.org);
@@ -9178,6 +9334,11 @@ function ntcCompile(input_a, objOptions_a)
 	arrAsm.push('NTC_ROMLIB\tequ ' + ((objOptions.library === 'rom') ? 1 : 0) + '\t\t; 1 = the library is the keyword ROM (Library: ROM; ntcRomAsm builds it)');
 	arrAsm.push('NTC_WINHOLE\tequ @@WINHOLE@@\t\t; 1 = the program is built round an Option Reserve range over the window #4000-#7FFF');
 	arrAsm.push('NTC_BUFSIZE\tequ ' + intBufSize + '\t\t; the library\'s buffer (ntc_buf: FileSystem, Memory.Copy): Option Buffer');
+	if (String(objOptions.platform).toLowerCase() === 'zxn')
+	{
+		arrAsm.push('; the ZX Spectrum Next: NTC_ZXN defined (a DEFINE - sjasmplus\'s IFDEF tests those, not labels)');
+		arrAsm.push(strIndent + 'DEFINE NTC_ZXN');
+	}
 	arrAsm.push('NTC_CPMGFX\tequ ' + ((String(objOptions.platform).toLowerCase() === 'cpm') ? 1 : 0) + '\t\t; 1 = CP/M: Graphics draws on an Amstrad CPC\'s screen (2.2: #C000, Plus: block 1 from common memory)');
 	arrAsm.push('');
 	// the options in a fixed order, wherever they are in the source: the stack first (the
@@ -9932,6 +10093,11 @@ function ntcCompile(input_a, objOptions_a)
 		arrAsm.push(strIndent + 'dw ' + arrReserve.map(function(objRes_a) { return String(objRes_a.start); }).concat(['0']).join(', '));
 	}
 	arrAsm.push('');
+	if (objNexData !== null)
+	{
+		arrAsm.push('; Option NexData: the data\'s 16K blocks are in these banks (the NEX file loads them)');
+		arrAsm.push('ntc_nexdata:\tdb ' + objNexData.blocks + ', ' + ZXN_NEXBANKS.slice(0, objNexData.blocks).join(', '));
+	}
 	arrAsm.push('ntc_end:\t\t\t\t; the end of the program (and of its file)');
 	arrAsm.push('; arrays: after the program, not in its file - kw_bssinit checks they fit and clears them');
 	arrAsm.push('@@BSS@@');
@@ -9961,6 +10127,10 @@ function ntcCompile(input_a, objOptions_a)
 		// an AMSDOS file (128 byte header): RUN"name loads it at the org and starts it
 		// (cpm: NAME.CYB, a CyborgOS program - AMSDOS reads a file without a header as text)
 		arrAsm.push(strIndent + 'SAVEAMSDOS "' + String(objOptions.amsdos).toUpperCase().replace(/[^A-Z0-9]/g, '').substr(0, 8) + ((objOptions.platform === 'cpm') ? '.CYB' : '.BIN') + '", ntc_start, ntc_end - ntc_start, ntc_start');
+	}
+	if (String(objOptions.platform).toLowerCase() === 'zxn')
+	{
+		zxnBoot(arrAsm, strIndent);
 	}
 	var strLen = '';
 	if (arrOvlOrder.length > 0)
@@ -10485,7 +10655,8 @@ function ntcRomAsm(strPlatform_a, strReg_a, objOpt_a)
 	arrSections = arrSections.filter(function(objSec_a) { return !((objSec_a.name === 'ntc_xn') && !/\(normal mode copy\)/.test(objSec_a.header) && (objSec_a.lines.join('\n').indexOf('ntc_hookpend') < 0)); });
 
 	// IF NTC_ROMLIB ... [ELSE ...] ENDIF in the platform files: the ROM's version kept (without
-	// the IF), the RAM version dropped; other IFs pass through
+	// the IF), the RAM version dropped; IFDEF NTC_ZXN ... [ELSE ...] ENDIF (the Next's part: no
+	// ROM there): the ELSE part kept; other IFs pass through
 	arrSections.forEach(function(objSec_a)
 	{
 		var arrStack = [];
@@ -10504,13 +10675,18 @@ function ntcRomAsm(strPlatform_a, strReg_a, objOpt_a)
 				arrStack.push({ romlib: true, keep: true });
 				return;
 			}
+			if (/^\s*IFDEF\s+NTC_ZXN\b/i.test(strCode))
+			{
+				arrStack.push({ romlib: true, keep: false });
+				return;
+			}
 			if (/^\s*IF(N?DEF|N?USED)?\b/i.test(strCode))
 			{
 				arrStack.push({ romlib: false });
 			}
 			else if (/^\s*ELSE\b/i.test(strCode) && (arrStack.length > 0) && arrStack[arrStack.length - 1].romlib)
 			{
-				arrStack[arrStack.length - 1].keep = false;
+				arrStack[arrStack.length - 1].keep = !arrStack[arrStack.length - 1].keep;
 				return;
 			}
 			else if (/^\s*ENDIF\b/i.test(strCode) && (arrStack.length > 0))

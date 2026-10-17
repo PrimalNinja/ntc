@@ -29,6 +29,99 @@ Files: AUCKLAND.BIN (the program, 35K) and AUCKLAND.DAT (the data), on the
 same drive.  RUN"AUCKLAND
 
 
+ZX SPECTRUM NEXT (AUCKLAND.NEX)
+------------------------------
+The same program (Main.bas and S3d.cls, built for the zxn platform: the
+hardware banged, no NextZXOS left running) on a 2MB Next, at 28 MHz:
+
+- AUCKLAND.NEX holds it all: the program and the data (Option NexData) -
+  NextZXOS's browser loads the data's 94 blocks straight into the Next's
+  16K banks with the program, so there is nothing to read after: it starts
+  flying at once. 1.6 MB.
+- the data is smaller than the CPC's: 1.5 MB (s3dmake, "At most" 1552K):
+  every road, the coast, the water, all 50,040 trees and the landmarks, and
+  the 64,821 biggest buildings - the 169,000 small houses are left out (the
+  Next has 2 MB, the CPC 4 MB)
+- each tile's block goes in #4000-#7FFF (MMU slots 2 and 3) as the CPC puts
+  its RAM page there; the drawing is Layer 2 at 320 x 256, 256 colours, double
+  buffered, the CPC's 320 x 200 picture centred in it; the text (the speed
+  line) stays on the tilemap over it
+- about 1.5 to 2 frames a second over the CBD (1,400-1,500 lines), 4 or more
+  out in the gulf - in the test harness's timing (28 MHz T-states)
+- keys as below, but N M roll and Z slower (the Spectrum has no < > ? keys);
+  the Next's cursor keys turn and dive / climb
+- to build it: tools/s3dmake with "At most" 1552K gives AUCKLAND.DAT (94
+  blocks); put it next to the .asm the compiler writes for the zxn platform
+  (cli.js ... --platform=zxn --name=AUCKLAND) and assemble with sjasmplus:
+  it writes AUCKLAND.NEX. A different data file: change the block count in
+  Main.bas's Option NexData (97 at most)
+- a 1MB Next (768K for programs: 16K banks up to 47): AUCKLAND1M.NEX - the
+  same program with Option NexData "AUCKLAND.DAT", 33 and s3dmake's "At most"
+  528K (33 blocks: 600K the file). To fit, all the small houses and minor
+  roads go and then the woods' trees (466 trees kept - the mapped ones first):
+  12,845 buildings, every major road, the coast, water and the landmarks.
+  The NEX needs no 2MB (no bank past 47)
+- a start of your own: s3dmake's "Start at" a street's name - key 1 looks
+  at the street's far end from 250 m off, 60 m up; the usual start is key 2
+  (AUCKLAND-BEACHHAVEN.NEX: Gemini Place, Beach Haven)
+- maps of one area, all their detail (every street, house and tree): s3dmake's
+  "Only the area round" - AUCKLAND-CBD.NEX (6 km round the Sky Tower),
+  AUCKLAND-DEVONPORT.NEX (8 km), AUCKLAND-BEACHHAVEN.NEX (8 km round Gemini
+  Place); about 450K each: a 1MB Next or a 2MB one
+
+TEST VARIANTS (hidden line removal experiments)
+-----------------------------------------------
+- bas/auckland_tern: the ternary back-face test - each wall's outward normal
+  and the way to the camera as two trits (x, z: -1, 0, +1), dotted with no
+  multiplying; a wall facing away: its ground edge left out, an upright only
+  where a wall beside it shows (s3dmake writes outlines anticlockwise, so a
+  wall's outward side is known). Same data as AUCKLAND.
+- bas/auckland_mask: the same worked out ahead of time - s3dmake's wall masks
+  (S3D2 data: a byte a wall, bit k set when it can be seen from direction k of
+  eight); the engine finds the camera's direction from a building once and
+  ANDs: no maths a wall, and a ground corner no wall beside it shows isn't
+  transformed or projected. Its data is about a third bigger.
+- measured (the harness, the CBD at 70 m, the camera still): both leave out
+  a few per cent of the edges drawn and run at the same speed as AUCKLAND
+  (78 frames against 75-78): at this distance most buildings are past 300 m,
+  where only their tops and uprights are drawn, and the time goes in finding
+  and projecting the corners, not in drawing lines
+- bas/auckland_block (the Next): the buildings as solid blocks, Lords of
+  Midnight style - each its corners' box on the screen (left, right, top,
+  foot), a generic wall texture (light grey, a floor line each 4 m storey,
+  windows), a pale outline. No building's edges are ever drawn: a corner
+  beside or behind the camera takes the block to the screen's side. The lines
+  left are the ground's (roads, the coast) and the 3D lines (the Sky Tower,
+  the Harbour Bridge, the volcanoes). The ground and 3D lines get half the
+  line budget, the blocks their own. Drawn nearest first over a floating
+  horizon: each
+  column keeps the highest row drawn so far, a block shows only above it, and
+  one wholly behind is rejected after its top is projected (its foot only
+  when it shows). The ground and the 3D lines are drawn first; each
+  tile's buildings go in 64 buckets by distance (32 m each) for the order.
+  Real hidden surface removal: buildings hide buildings. In the harness it
+  draws 58 frames to the wireframe's 78 at 70 m in the CBD (the filling and
+  the ground lines); every building drawn, none missing.
+- bas/auckland_street: auckland_mask (the wall masks, S3D2 data) at street
+  level - the eyes 2 m up on every view, no roll, the height kept: the cursor
+  keys turn and look up / down (to 78 degrees), F looks straight ahead again.
+  Turning is round the world's up, so the right axis stays level; walking is
+  the way it faces, level, whichever way it looks.
+- bas/auckland_bill (the Next): auckland_block with billboards (bk_bill):
+  each building one flat face, as wide as its outline's longer side, as tall
+  as the building, always facing the camera (a mirror cylinder: from any side
+  the same face). Only its middle is transformed, its top projected and its
+  foot's row. 49 frames to the block's 58: the faces are wider than the
+  boxes, more to fill.
+  It flies level - no banking, no diving: the cursor keys and X move it up
+  and down (S3d.Climb) - so the buildings stay upright on the screen (the
+  horizon's columns need it) and a block's feet are its tops straight down:
+  their rows alone are worked out (ve_projy), not their columns.
+- the harness's profile (NTC_PROFZ=1), the CBD at 70 m: AUCKLAND - lines 31%,
+  projecting 22%, outcodes 12%, the maths 13%, transforming 11%; the blocks -
+  projecting 25%, the ground lines 18%, filling only 10%
+
+
 KEYS
 ----
 cursors     turn left / right, dive / climb

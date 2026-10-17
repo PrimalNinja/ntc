@@ -1,7 +1,9 @@
 ' Web - the web side YING and YANG (apps/ying, apps/yang: the two CyborgOS 8BML web browsers)
 ' share: addresses and fetching. http only (no https). A page is asked for as 8BML: the request
-' gets an empty 8bml parameter (?8bml= - &8bml= when the address has parameters already); that is
-' never shown, the address keeps it out (Request makes it, for the fetch alone).
+' gets an 8bml parameter, the most it takes in K (?8bml=7 - &8bml=7 when the address has parameters
+' already: the 7.5K page buffer, whole K); that is never shown, the address keeps it out (Request makes it, for the fetch alone). Built with the
+' raw reader (apps/rawying/Bml.cls - RAWYING, RAWYANG: Bml.Raw() True) it asks for raw=the
+' width as well (8bml=7&raw=78), the server laying the page out; its own pages are raw, its local pages .RAW.
 '
 ' Fetch gets a page from its server with Http.cls (cmds: HTTP GETs over the M4, through
 ' CyborgOS - NET M4 turns the network on). A form is sent the same way: its fields as URL
@@ -26,29 +28,35 @@ Public Function Fetch(ByVal u As String Max 255, ByVal buf As Integer, ByVal max
     LoadFile u
   ElseIf UCase$(Left$(u, 8)) = "HTTPS://" Then
     stt = 2
-    Head "Not supported"
-    PutT "https isn't supported - http only:"
-    PutT u
+    sn = Bml.Pg(0, "Not supported", sb, sn, smx)
+    sn = Bml.Pg(1, "https isn't supported - http only:", sb, sn, smx)
+    sn = Bml.Pg(1, u, sb, sn, smx)
   ElseIf UCase$(Left$(u, 7)) <> "HTTP://" Or Host(u) = "" Then
     stt = 1
-    Head "Bad address"
-    PutT "Not an http address: " + u
+    sn = Bml.Pg(0, "Bad address", sb, sn, smx)
+    sn = Bml.Pg(1, "Not an http address: " + u, sb, sn, smx)
   Else
     n = Http.Get(Request(u), sb, smx - 4)
     If n < 0 Then
       stt = 4
-      Head "Can't fetch it"
-      PutT Http.Message()
-      PutT u
-    ElseIf Http.Code() <> 200 And Peek(sb) <> 45 Then
+      sn = Bml.Pg(0, "Can't fetch it", sb, sn, smx)
+      sn = Bml.Pg(1, Http.Message(), sb, sn, smx)
+      sn = Bml.Pg(1, u, sb, sn, smx)
+    ElseIf Http.Code() <> 200 And Peek(sb) <> 45 And Peek(sb) <> 84 Then
       stt = 5                                      ' (an error with a page of its own: that page)
-      Head "HTTP " + Trim$(Str$(Http.Code()))
-      PutT "The server answered" + Str$(Http.Code()) + ": " + u
+      sn = Bml.Pg(0, "HTTP " + Trim$(Str$(Http.Code())), sb, sn, smx)
+      sn = Bml.Pg(1, "The server answered" + Str$(Http.Code()) + ": " + u, sb, sn, smx)
     Else
       sn = n
     End If
   End If
-  If IsFile(u) And stt = 0 Then PutW "." Else PutW "<:."   ' (a file: its own end; else a back link)
+  If stt <> 0 Then                                 ' (the page's end - Bml's format: a status page
+    sn = Bml.Pg(2, "", sb, sn, smx)                ' a back link; a file its own end, a fetched
+  ElseIf IsFile(u) Then                            ' page a back link - raw: nothing, the page
+    sn = Bml.Pg(3, "", sb, sn, smx)                ' has its own E)
+  Else
+    sn = Bml.Pg(4, "", sb, sn, smx)
+  End If
   Fetch = sn
 End Function
 
@@ -75,15 +83,19 @@ Public Function Clean(ByVal u As String Max 255) As String Max 255
   Clean = u
 End Function
 
-' Request(u): the address the fetch asks for - the place (#...) off, the empty 8bml parameter on
+' Request(u): the address the fetch asks for - the place (#...) off, the 8bml parameter on: the most
+' the page buffer takes (Fetch's max, less 4 for its end), in whole K - 8bml=7 for 7.5K
+' (raw - RAWYING, RAWYANG: raw=the page's width after it too: the server lays the page out)
 Public Function Request(ByVal u As String Max 255) As String Max 255
-  Dim j As Integer
+  Dim j As Integer, q As String Max 20
   j = InStr(u, "#")
   If j > 0 Then u = Left$(u, j - 1)
+  q = "8bml=" + Trim$(Str$((smx - 4) \ 1024))
+  If Bml.Raw() Then q = q + "&raw=" + Trim$(Str$(Bml.Cols()))
   If InStr(u, "?") > 0 Then
-    If Right$(u, 1) = "?" Or Right$(u, 1) = "&" Then u = u + "8bml=" Else u = u + "&8bml="
+    If Right$(u, 1) = "?" Or Right$(u, 1) = "&" Then u = u + q Else u = u + "&" + q
   Else
-    u = u + "?8bml="
+    u = u + "?" + q
   End If
   Request = u
 End Function
@@ -180,23 +192,34 @@ Public Function Resolve(ByVal b As String Max 255, ByVal h As String Max 255) As
   Resolve = Origin(b) + d + h
 End Function
 
-' IsFile(u): u names a file - a drive (A:...), or NAME.8BM (no "/" - host/x.8bm is the web's)
+' IsFile(u): u names a file - a drive (A:...), or NAME.8BM - raw: NAME.RAW (no "/" - host/x.8bm
+' is the web's)
 Public Function IsFile(ByVal u As String Max 80) As Integer
   Dim c As String Max 1
   IsFile = False
   If InStr(u, "://") > 0 Then Exit Function
   c = UCase$(Left$(u, 1))
   If Mid$(u, 2, 1) = ":" And c >= "A" And c <= "P" Then IsFile = True : Exit Function
-  If UCase$(Right$(u, 4)) = ".8BM" And InStr(u, "/") = 0 Then IsFile = True
+  If UCase$(Right$(u, 4)) = Ext() And InStr(u, "/") = 0 Then IsFile = True
 End Function
 
-' Home(): the home page - HOME.8BM on this drive, else A:'s, else Z:'s (else this drive's, not
-' there: its page says so)
+' Home(): the home page - HOME.8BM (raw: HOME.RAW) on this drive, else A:'s, else Z:'s (else this
+' drive's, not there: its page says so)
 Public Function Home() As String Max 12
-  Home = "HOME.8BM"
-  If FileSystem.Exists("HOME.8BM") Then Exit Function
-  If FileSystem.Exists("A:HOME.8BM") Then Home = "A:HOME.8BM" : Exit Function
-  If FileSystem.Exists("Z:HOME.8BM") Then Home = "Z:HOME.8BM"
+  Home = "HOME" + Ext()
+  If FileSystem.Exists(Home) Then Exit Function
+  If FileSystem.Exists("A:" + Home) Then Home = "A:" + Home : Exit Function
+  If FileSystem.Exists("Z:" + Home) Then Home = "Z:" + Home
+End Function
+
+' Ext(): a local page's extension - .8BM, raw: .RAW
+Public Function Ext() As String Max 4
+  If Bml.Raw() Then Ext = ".RAW" Else Ext = ".8BM"
+End Function
+
+' Name(n): the program's name - n (YING, YANG), raw: RAWn
+Public Function Name(ByVal n As String Max 4) As String Max 8
+  If Bml.Raw() Then Name = "RAW" + n Else Name = n
 End Function
 
 ' where u's host part (from j) ends: its first /, ? or # (else past the end)
@@ -216,8 +239,8 @@ Private Sub LoadFile(ByVal u As String Max 72)
   n = FileSystem.Load(u, sb, smx)
   If n < 0 Then
     stt = 3
-    Head "No such page"
-    PutT "No such file (or too big: 7.5K at most): " + u
+    sn = Bml.Pg(0, "No such page", sb, sn, smx)
+    sn = Bml.Pg(1, "No such file (or too big: 7.5K at most): " + u, sb, sn, smx)
     Exit Sub
   End If
   For j = 0 To n - 1
@@ -226,31 +249,3 @@ Private Sub LoadFile(ByVal u As String Max 72)
   sn = n
 End Sub
 
-' the page's start ("-", its title) and its heading
-Private Sub Head(ByVal t As String Max 80)
-  PutW "-" : PutQ "1" : PutW "," : PutQ t : PutW ":"
-  PutW "p" : PutQ t : PutW ":n:"
-End Sub
-
-' a line of text (then a new line)
-Private Sub PutT(ByVal s As String Max 160)
-  PutW "t" : PutQ s : PutW ":n:"
-End Sub
-
-' s into the page as it is; quoted (" \ as \" \\)
-Private Sub PutW(ByVal s As String Max 4)
-  Dim j As Integer
-  For j = 1 To Len(s)
-    If sn < smx Then Poke sb + sn, Asc(Mid$(s, j, 1)) : sn = sn + 1
-  Next
-End Sub
-Private Sub PutQ(ByVal s As String Max 160)
-  Dim j As Integer, c As String Max 1
-  PutW Chr$(34)
-  For j = 1 To Len(s)
-    c = Mid$(s, j, 1)
-    If c = Chr$(34) Or c = "\" Then PutW "\"
-    PutW c
-  Next
-  PutW Chr$(34)
-End Sub

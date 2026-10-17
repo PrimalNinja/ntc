@@ -1,0 +1,11 @@
+RAWYANG [address]
+  YANG for raw pages: the server lays the page out for the screen
+  (the address gets &8bml=7&raw=<width>) - its rows, links and
+  form fields ready to show, no 8BML read here: quicker, and smaller.
+  On the whole screen (RAWYING: in a window).
+  address: http://host[:port]/path?parameters (the network first:
+  NET M4), or a raw file - A:NAME.RAW, NAME.RAW. None: HOME.RAW (this
+  drive, else A:, else Z:). A tab: RAWYANG in another slot.
+  Keys and forms: as YANG's (HELP YANG).
+  A server makes raw pages as tools/rawpage/8bml2raw.py does (RAW.TXT:
+  the format).

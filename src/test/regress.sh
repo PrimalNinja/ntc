@@ -78,11 +78,11 @@ host() { # platform mode
     if [ "$o" == "$(cat $rf)" ]; then echo "ok   $f $mn"; else echo "FAIL $f $mn"; fail=1; fi
   done
 }
-for pl in test cpcfw cpm; do for m in --turbo ""; do host $pl "$m"; done; done
+for pl in test cpcfw cpm zxn; do for m in --turbo ""; do host $pl "$m"; done; done
 # Library: ROM (cpcfw): the keywords in NTCFW.ROM (the harness puts its image in slot 6)
 for pl in cpc cpcmin cpcfw; do for m in "--turbo --library=rom" "--library=rom"; do host $pl "$m"; done; done
 # StdIO / System platform classes on every platform, and a project's own StdIO
-for pl in cpc cpcmin test cpcfw cpm; do
+for pl in cpc cpcmin test cpcfw cpm zxn; do
   cp stdio.bas t/stdio.bas; o=$(timeout 100 python3 ntcrun.py t/stdio.bas 'Bo\nZ' --platform=$pl 2>&1 | grep -v "^--- ")
   if [ "$o" == "$(cat ref/stdio.$pl.txt)" ]; then echo "ok   stdio $pl"; else echo "FAIL stdio $pl"; fail=1; fi
 done
@@ -93,7 +93,7 @@ done
 # FileSystem: CP/M (BDOS files), CPC firmware (Load / Save), no files (test, cpc); both modes
 for m in --turbo ""; do
   # test platform ref [harness option]: fs_fw2 without Option RomEnable - RUN" (tape) and CALLed (disc)
-  for c in "fs_cpm cpm fs_cpm" "fs_fw cpcfw fs_fw" "fs_fw2 cpcfw fs_fw2" "fs_fw2 cpcfw fs_fw2c --called" "fs_none test fs_none" "fs_none cpc fs_none_cpc" "fs_fw cpcmin fs_fw" "fs_fw2 cpcmin fs_fw2"; do
+  for c in "fs_cpm cpm fs_cpm" "fs_fw cpcfw fs_fw" "fs_fw2 cpcfw fs_fw2" "fs_fw2 cpcfw fs_fw2c --called" "fs_none test fs_none" "fs_none zxn fs_none" "fs_none cpc fs_none_cpc" "fs_fw cpcmin fs_fw" "fs_fw2 cpcmin fs_fw2"; do
     set -- $c; rm -rf t/files; cp $1.bas t/
     o=$(timeout 100 python3 ntcrun.py t/$1.bas '' --platform=$2 $4 $m 2>&1 | grep -v "^--- ")
     if [ "$o" == "$(cat ref/$3.txt)" ]; then echo "ok   $3 $2 ${m:-normal}"; else echo "FAIL $3 $2 ${m:-normal}"; echo "$o" | head -5; fail=1; fi
@@ -122,6 +122,12 @@ for m in --turbo ""; do
     o=$(timeout 100 python3 ntcrun.py t/keys_t.bas '{47}{69}{77}{73}{50}' --platform=$pl $m 2>&1 | grep -v "^--- ")
     if [ "$o" == "$(cat ref/keys.txt)" ]; then echo "ok   keys $pl ${m:-normal}"; else echo "FAIL keys $pl ${m:-normal}"; echo "$o" | head -5; fail=1; fi
   done
+done
+# Keys on the ZX Spectrum Next (zxn): its own key numbers (half row * 8 + bit), Kempston joysticks
+for m in --turbo ""; do
+  cp keys_zxn.bas t/
+  o=$(timeout 100 python3 ntcrun.py t/keys_zxn.bas '{56}{8}{60}{28}{56}' --platform=zxn $m 2>&1 | grep -v "^--- ")
+  if [ "$o" == "$(cat ref/keys_zxn.txt)" ]; then echo "ok   keys zxn ${m:-normal}"; else echo "FAIL keys zxn ${m:-normal}"; echo "$o" | head -5; fail=1; fi
 done
 # the same with Library: ROM (the keyword ROMs; cpcmin's sequential file code is not in its ROM -
 # the program has its own copy, @ramonly): banks, keys, sequential files, 8 interrupt classes
@@ -169,7 +175,7 @@ printf 'Option Reserve &H4000, &H4000\nDim big(5800) As Integer\nIf Memory.Pages
 check "memory tables after Option Reserve" "^tables fit" "$(timeout 200 python3 ntcrun.py t/lim.bas '' --platform=cpc --ram=4160 2>&1)"
 # Option Memory Small: a heap in main RAM, on every platform; both modes
 for m in --turbo ""; do
-  for pl in cpc cpcfw cpm test; do
+  for pl in cpc cpcfw cpm test zxn; do
     cp mem_s.bas t/; o=$(timeout 200 python3 ntcrun.py t/mem_s.bas '' --platform=$pl $m 2>&1 | grep -v "^--- ")
     if [ "$o" == "$(cat ref/mem_small.txt)" ]; then echo "ok   memory small $pl ${m:-normal}"; else echo "FAIL memory small $pl ${m:-normal}"; echo "$o" | head -5; fail=1; fi
   done
@@ -181,7 +187,7 @@ printf 'Option Reserve &H4000, &H4000\nOption Memory CPCExpansion 1\nPrint "page
 check "Option Memory CPCExpansion 1 on 576K" "^pages1" "$(timeout 200 python3 ntcrun.py t/cap1.bas '' --platform=cpc --ram=576 2>&1)"
 printf 'Option Memory CPCExpansion\nPrint Memory.Pages()\n' > t/capx.bas
 node cli.js t/capx.bas --platform=cpm > /dev/null 2> t/capx.err; grep -q "Option Memory CPCExpansion is for the CPC platforms" t/capx.err && echo "ok   Option Memory CPCExpansion refused on cpm" || { echo "FAIL Option Memory CPCExpansion refused on cpm"; fail=1; }
-for pl in test cpm; do check "memmap $pl" "^No paging - heap" "$(timeout 200 python3 ntcrun.py t/ex/memmap.bas '~x~x' --platform=$pl 2>&1)"; done
+for pl in test cpm zxn; do check "memmap $pl" "^No paging - heap" "$(timeout 200 python3 ntcrun.py t/ex/memmap.bas '~x~x' --platform=$pl 2>&1)"; done
 check "memmap cpm main map" "^Free main RAM: [0-9]" "$(timeout 200 python3 ntcrun.py t/ex/memmap.bas '~x~x' --platform=cpm 2>&1)"
 check "memmap cpcfw summary" "^128K, 5 pages: main + 1 banks" "$(timeout 200 python3 ntcrun.py t/ex/memmap.bas '~x~x' --platform=cpcfw 2>&1)"
 # overlay classes (Option Class Overlay): built into .PAG files in the same compile, loaded into
@@ -274,6 +280,30 @@ for pl in cpc cpcmin cpcfw; do
   o=$(timeout 200 python3 ntcrun.py t/isl2/Main.bas '' $I2 --library=rom --platform=$pl 2>&1 | grep -v "^--- ")
   if [ "$o" == "$(cat ref/isl2.txt)" ]; then echo "ok   interrupt classes: 8, shared by weight $pl ROM"; else echo "FAIL interrupt classes: 8, shared $pl ROM"; echo "$o" | head -5; fail=1; fi
 done
+# the ZX Spectrum Next (zxn): the line interrupt every 52 lines (6 a frame, 300 a second, as the
+# CPC's); its Frame really waits a frame (50 a second), so the 300 a second class is checked in a
+# loop without Frame (Tick runs at safe points: a Frame wait has none); 8 classes; the Interrupt hook
+rm -rf t/isl; mkdir -p t/isl; cp isl/* t/isl/; sed -i 's/^Do : Frame : Loop/Do : i = i + 1 : Loop/' t/isl/Main.bas
+o=$(timeout 300 python3 ntcrun.py t/isl/Main.bas '' t/isl/Music.cls t/isl/Fast.cls t/isl/Slow.cls t/isl/Frames.cls --platform=zxn 2>&1 | grep -v "^--- ")
+if [ "$o" == "$(cat ref/isl.txt)" ]; then echo "ok   interrupt classes zxn"; else echo "FAIL interrupt classes zxn"; echo "$o" | head -5; fail=1; fi
+rm -rf t/isl2; mkdir -p t/isl2; cp isl2/* t/isl2/; sed -i 's/^Do : Frame : Loop/Do : t0 = t0 + 0 : Loop/' t/isl2/Main.bas
+o=$(timeout 300 python3 ntcrun.py t/isl2/Main.bas '' $I2 --platform=zxn 2>&1 | grep -v "^--- ")
+if [ "$o" == "$(cat ref/isl2.txt)" ]; then echo "ok   interrupt classes: 8, shared by weight zxn"; else echo "FAIL interrupt classes: 8, shared zxn"; echo "$o" | head -5; fail=1; fi
+cp hook.bas t/hook.bas; o=$(timeout 60 python3 ntcrun.py t/hook.bas '' --platform=zxn 2>&1 | grep -v "^--- ")
+if [ "$o" == "$(cat ref/hook.txt)" ]; then echo "ok   hook zxn"; else echo "FAIL hook zxn"; echo "$o" | head -3; fail=1; fi
+printf 'Dim t0 As Integer, n As Integer\nt0 = Ticks\nDo : Frame : n = n + 1 : Loop Until Ticks - t0 >= 300\nPrint "frames"; n > 45; n < 56\n' > t/zfr.bas
+check "Frame and Ticks zxn: 50 frames, 300 ticks a second" "^frames-1-1" "$(timeout 300 python3 ntcrun.py t/zfr.bas '' --platform=zxn 2>&1)"
+# the NEX file and the start stub: the NMI buttons off (NextReg 6 bits 3, 4), DivMMC's automatic
+# paging off (10 bit 4), 28MHz (7 = 3), the slots (pages 16-21, then bank 5: 10, 11), the
+# tilemap (#6B: on, 40 x 32, text mode), its palette, the line interrupt, a soft reset at the end
+printf 'Print "Next"\n' > t/znex.bas
+o=$(NTC_ZXNREGS=1 timeout 100 python3 ntcrun.py t/znex.bas '' --platform=zxn 2>&1)
+python3 -c "
+import sys; sys.path.insert(0, '.'); import zxnrun
+b, pc, sp, e = zxnrun.read_nex('t/NTC.NEX')
+sys.exit(0 if sorted(b) == [5, 8, 9, 10] and pc == 0x7E00 and sp == 0xBFFE else 1)" && echo "$o" | grep -q "^Next$" && echo "$o" | grep -q "^--- mmu 16 17 18 19 20 21 10 11$" \
+  && echo "$o" | grep -q "^--- nextregs 02=01 06=00 07=03 0A=00 " && echo "$o" | grep -q " 6B=A9 6C=00 6E=20 6F=2C" && echo "$o" | grep -q "^--- palette 3/0=02 3/1=FC$" \
+  && echo "$o" | grep -q "^--- halted (a soft reset: NextReg 2)" && echo "ok   zxn: the NEX file, the start stub (NMI off), the tilemap" || { echo "FAIL zxn: the NEX file, the start stub"; echo "$o" | tail -6; fail=1; }
 node cli.js t/isl/Main.bas t/isl/Music.cls --platform=cpm 2>&1 >/dev/null | grep -q "Option Class Interrupt needs a CPC platform" && echo "ok   interrupt classes refused (cpm)" || { echo "FAIL interrupt classes refused"; fail=1; }
 cp hook.bas t/hook.bas; o=$(timeout 60 python3 ntcrun.py t/hook.bas '' --platform=cpcfw 2>&1 | grep -v "^--- ")
 if [ "$o" == "$(cat ref/hook.txt)" ]; then echo "ok   hook cpcfw"; else echo "FAIL hook cpcfw"; echo "$o" | head -3; fail=1; fi
@@ -459,9 +489,47 @@ check "city3d demo cpcfw" "^Bye" "$(timeout 300 python3 ntcrun.py t/city/Main.ba
 python3 s3d/mkcut.py t/syn.txt.gz && node s3d/make.js ../../tools/s3dmake/s3dmake.html t/syn.txt.gz t/SYN.DAT TESTTOWN > t/syn.log 2>&1
 check "s3dmake test town" "576 buildings" "$(cat t/syn.log)
 --- halted"
+# made smaller ("At most" 22K): minor roads, then small buildings, then trees go (the 1MB Next's 528K)
+check "s3dmake fitted: trees last" "to fit: 6 minor road pieces, 109 small buildings and 81 trees left out" "$(node s3d/make.js ../../tools/s3dmake/s3dmake.html t/syn.txt.gz t/SYN2.DAT TESTTOWN 22 2>&1)
+--- halted"
+# a start of one's own: a street's name (s3dmake's "Start at")
+check "s3dmake start at a street" "start: Test Street (its end at 0, 900)" "$(node s3d/make.js ../../tools/s3dmake/s3dmake.html t/syn.txt.gz t/SYN3.DAT TESTTOWN 3968 'test street' 2>&1)
+--- halted"
+# an area of its own (s3dmake's "Only the area round"): a 1 km square round Test Hill, every detail
+check "s3dmake area" "world 1.2 x 1.2 km: 3 x 3 tiles" "$(node s3d/make.js ../../tools/s3dmake/s3dmake.html t/syn.txt.gz t/SYN4.DAT TESTTOWN 3968 '' 'test hill' 1 2>&1)
+--- halted"
 rm -rf t/akm t/s3df; mkdir -p t/akm t/s3df/A; cp $P/auckland/* t/akm/; cp t/SYN.DAT t/s3df/A/AUCKLAND.DAT
 o=$(NTC_FILES=$PWD/t/s3df NTC_AMSDOS=1 timeout 300 python3 ntcrun.py t/akm/Main.bas " ~~~~~~~~~~~~~~~~~~~~~~~~2~~~~~~~~~~~~p~~~~~~~~p~~~~~~~~~~~~{67}{67}{67}" t/akm/S3d.cls --platform=cpcfw --ram=4160 2>&1)
 check "auckland demo cpcfw" "^Bye - [3-9][0-9]* frames, up to [1-9][0-9][0-9][0-9]* lines" "$o"
+# the same on the ZX Spectrum Next (zxn): the town's 2 blocks in the NEX file (Option NexData), Layer 2,
+# Q held at the end ({16*}); a picture of view 2 with lines on it
+rm -rf t/akn; mkdir -p t/akn; cp $P/auckland/Main.bas $P/auckland/S3d.cls t/akn/; cp t/SYN.DAT t/akn/AUCKLAND.DAT
+sed -i 's/^Option NexData "AUCKLAND.DAT", 94/Option NexData "AUCKLAND.DAT", 2/' t/akn/Main.bas
+o=$(NTC_LIMIT=40000 timeout 600 python3 ntcrun.py t/akn/Main.bas " ~~~~~~~~~~~~~~~~~~~~~~~~2~~~~~~~~~~~~p~~~~~~~~p~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~{16*}" t/akn/S3d.cls --platform=zxn 2>&1)
+check "auckland demo zxn" "^Bye - [3-9][0-9]* frames, up to [1-9][0-9][0-9][0-9]* lines" "$o"
+# the ternary back-face test's copy (bas/auckland_tern): the same flight, walls facing away left out
+rm -rf t/akt; mkdir -p t/akt; cp $P/auckland_tern/Main.bas $P/auckland_tern/S3d.cls t/akt/; cp t/SYN.DAT t/akt/AUCKLAND.DAT
+sed -i 's/^Option NexData "AUCKLAND.DAT", 94/Option NexData "AUCKLAND.DAT", 2/' t/akt/Main.bas
+o=$(NTC_PEEK=w_cull NTC_LIMIT=40000 timeout 600 python3 ntcrun.py t/akt/Main.bas " ~~~~~~~~~~~~~~~~~~~~~~~~2~~~~~~~~~~~~p~~~~~~~~p~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~{16*}" t/akt/S3d.cls --platform=zxn 2>&1)
+if echo "$o" | grep -qE "^Bye - [3-9][0-9]* frames" && echo "$o" | grep -qE "^--- peek w_cull = [1-9][0-9]*"; then echo "ok   auckland_tern zxn: walls left out"; else echo "FAIL auckland_tern zxn"; echo "$o" | tail -5; fail=1; fi
+# the blocks' copy (bas/auckland_block, the Next): the buildings as solid blocks over a floating
+# horizon, nearest first - the same flight; Layer 2 well covered (the blocks' fills)
+rm -rf t/akb; mkdir -p t/akb; cp $P/auckland_block/Main.bas $P/auckland_block/S3d.cls t/akb/; cp t/SYN.DAT t/akb/AUCKLAND.DAT
+sed -i 's/^Option NexData "AUCKLAND.DAT", 94/Option NexData "AUCKLAND.DAT", 2/' t/akb/Main.bas
+o=$(NTC_LIMIT=40000 timeout 600 python3 ntcrun.py t/akb/Main.bas " ~~~~~~~~~~~~~~~~~~~~~~~~2~~~~~~~~~~~~p~~~~~~~~p~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~{16*}" t/akb/S3d.cls --platform=zxn 2>&1)
+o2=$(NTC_SHOT=t/akb/s.png NTC_LIMIT=6000 timeout 600 python3 ntcrun.py t/akb/Main.bas " ~~~~~~~~~~~~2" t/akb/S3d.cls --platform=zxn 2>&1)
+if echo "$o" | grep -qE "^Bye - [3-9][0-9]* frames" && echo "$o2" | grep -qE "^--- layer 2: [1-9][0-9]{3,} pixels set"; then echo "ok   auckland_block zxn: blocks"; else echo "FAIL auckland_block zxn"; echo "$o" | tail -4; echo "$o2" | tail -3; fail=1; fi
+# the wall masks' copy (bas/auckland_mask): S3D2 data (s3dmake's masks: a byte a wall, the directions
+# it is seen from); the same flight, walls facing away left out, and the original refuses S3D2
+node s3d/make.js ../../tools/s3dmake/s3dmake.html t/syn.txt.gz t/SYN2M.DAT TESTTOWN 3968 '' '' 3 masks > /dev/null 2>&1
+rm -rf t/akk; mkdir -p t/akk; cp $P/auckland_mask/Main.bas $P/auckland_mask/S3d.cls t/akk/; cp t/SYN2M.DAT t/akk/AUCKLAND.DAT
+sed -i 's/^Option NexData "AUCKLAND.DAT", 94/Option NexData "AUCKLAND.DAT", 2/' t/akk/Main.bas
+o=$(NTC_PEEK=w_cull NTC_LIMIT=40000 timeout 600 python3 ntcrun.py t/akk/Main.bas " ~~~~~~~~~~~~~~~~~~~~~~~~2~~~~~~~~~~~~p~~~~~~~~p~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~{16*}" t/akk/S3d.cls --platform=zxn 2>&1)
+rm -rf t/akr; mkdir -p t/akr; cp t/akn/Main.bas t/akn/S3d.cls t/akr/; cp t/SYN2M.DAT t/akr/AUCKLAND.DAT
+o2=$(NTC_LIMIT=8000 timeout 600 python3 ntcrun.py t/akr/Main.bas " ~~" t/akr/S3d.cls --platform=zxn 2>&1)
+if echo "$o" | grep -qE "^Bye - [3-9][0-9]* frames" && echo "$o" | grep -qE "^--- peek w_cull = [1-9][0-9]*" && echo "$o2" | grep -q "not S3D data"; then echo "ok   auckland_mask zxn: wall masks (S3D2)"; else echo "FAIL auckland_mask zxn"; echo "$o" | tail -5; echo "$o2" | tail -3; fail=1; fi
+o=$(NTC_SHOT=t/akn/s.png NTC_LIMIT=6000 timeout 600 python3 ntcrun.py t/akn/Main.bas " ~~~~~~~~~~~~2" t/akn/S3d.cls --platform=zxn 2>&1)
+echo "$o" | grep -qE "^--- layer 2: [1-9][0-9]{3,} pixels set" && echo "$o" | grep -q "^SPEED [0-9]*M  HEIGHT 150M  FPS" && echo "ok   auckland zxn: Layer 2 drawn" || { echo "FAIL auckland zxn: Layer 2 drawn"; echo "$o" | tail -4; fail=1; }
 # AUCKLINK (tools/s3dpi, bas/aucklink): the coprocessor's engine in C - the link simulated (packets,
 # the status block, the lists in the card's ROM) on the made-up town; then the CPC side, with no
 # card, draws the list sim wrote (FRAME.LST)
@@ -474,6 +542,12 @@ check "aucklink: a card's list drawn (no card)" "drawing FRAME.LST" "$(echo "$o"
 # Option Reserve builds round the range: a program too big for #0040-#3FFF goes on above #8000
 cp hole.bas t/
 for pl in cpc cpcmin cpcfw; do check "Option Reserve round the hole $pl" "^a3 7 big at .* end [89]" "$(timeout 60 python3 ntcrun.py t/hole.bas '' --platform=$pl 2>&1)"; done
+# Rnd(variable), Randomize variable: their keywords on their own (they share Rnd(literal)'s and Randomize literal's code)
+cp rndv_t.bas t/
+for pl in cpm cpcfw; do
+  o=$(timeout 100 python3 ntcrun.py t/rndv_t.bas '' --platform=$pl 2>&1 | grep -v "^--- " | tr '\n' ' ')
+  if [ "$o" == "rnd-1-1 " ]; then echo "ok   Rnd, Randomize with variables $pl"; else echo "FAIL Rnd, Randomize with variables $pl: $o"; fail=1; fi
+done
 # FileSystem ForReadRaw: a headerless file read to its last record, #1A bytes kept; Eof reads ahead
 for pl in cpcfw cpcmin; do
   rm -rf t/files; mkdir -p t/files/A; cp raw_t.bas t/
@@ -566,6 +640,79 @@ o4=$(timeout 300 python3 ntcrun.py t/cy/Main.bas "run 2 CLAIMT\n${W}ps\n${W}" t/
 if echo "$o" | grep -qE "^SOUND +0 +2  CLAIMT.CYB" && echo "$o4" | grep -q "^  2   CLAIMT.CYB  \[SOUND 0\]" && echo "$o" | grep -q "^SOUND 0 taken from slot 2" \
   && [ "$(echo "$o" | grep -c "^No claims")" == 2 ] && echo "$o2" | grep -q "^SOUND 0 busy: slot 2" && echo "$o3" | grep -qE "^SOUND 0 lost to slot (1|254)$"; then echo "ok   CyborgOS CLAIMS: claim, refused, take, freed by KILL"; else echo "FAIL CyborgOS CLAIMS"; echo "$o" | tail -30; echo "$o2" | tail -6; echo "$o3" | tail -6; echo "$o4" | tail -6; fail=1; fi
 rm -f t/files/A/CLAIMT.CYB
+# the ports and the rat (apps/rat): MODEL RATMODEL in slot 2 (the port RATMODEL), RAT in slot 3 (the
+# port RAT), RATS asking RAT 20 times in slot 4: R first (tv or play), a necessity low (food or bed
+# below 25) over it, the habit saved (MODEL: every 10 picks, L up a point each); RATS without RAT,
+# RAT without the model
+mkdir -p t/rat
+for g in MODEL RAT RATS NEURAL ASK WATCH PET PROBE GREEN; do
+  node cli.js $P/cyborgos320kb/apps/rat/$g.bas t/cmd/CybSys.cls --platform=cpm > t/rat/$g.asm 2>/dev/null
+  (cd t/rat && ${SJASMPLUS:-sjasmplus} --nologo --msg=err --raw=$g.COM $g.asm > /dev/null)
+  python3 -c "import ntcrun; d = open('t/rat/$g.COM', 'rb').read(); open('t/files/A/$g.CYB', 'wb').write(ntcrun.amsdos_header(d, 0x100) + d)"
+done
+cp $P/cyborgos320kb/apps/rat/RATMODEL.MDL t/files/A/
+W8=$(for i in $(seq 1 150); do printf '%s' "$W"; done)
+o=$(NTC_LIMIT=300000 timeout 900 python3 ntcrun.py t/cy/Main.bas "run 2 model ratmodel\n${W}run 3 rat\n${W}run 4 rats 20\n${W8}fg 3\n${W}" t/cy/Hyp.cls t/cy/Hot.cls t/cy/Ent.cls --platform=cpcfw --ram=576 2>&1)
+lsum=$(python3 -c "
+t = open('t/files/A/RATMODEL.MDL').read().split('\n'); c = ''; n = 0
+for l in t:
+  if l[:1] in 'NRLD' and l[:1] != '': c = l[:1]
+  elif c == 'L' and l.startswith(' '): n += int(l.split()[1])
+print(n)")
+o2=$(timeout 300 python3 ntcrun.py t/cy/Main.bas "rats 3\n${W}${W}" t/cy/Hyp.cls t/cy/Hot.cls t/cy/Ent.cls --platform=cpcfw --ram=576 2>&1)
+o3=$(timeout 300 python3 ntcrun.py t/cy/Main.bas "run 3 rat\n${W}rats 2\n${W}${W}" t/cy/Hyp.cls t/cy/Hot.cls t/cy/Ent.cls --platform=cpcfw --ram=576 2>&1)
+if echo "$o" | grep -qE "^1: RATMODEL bed:70 food:60 play tv -> (tv 28|play 30)" && echo "$o" | grep -qE "^20: RATMODEL bed:[0-9]+ food:[0-9]+ play tv -> " \
+  && echo "$o" | grep -qE "(bed:([0-9]|1[0-9]|2[0-4]) .* -> bed|food:([0-9]|1[0-9]|2[0-4]) .* -> food) [0-9]+" && [ "$lsum" == 175 ] \
+  && echo "$o2" | grep -q "^No RAT service (RUN 2 MODEL RATMODEL, RUN 3 RAT)" && echo "$o3" | grep -q "^2: ?"; then echo "ok   CyborgOS ports: MODEL, RAT, RATS"; else echo "FAIL CyborgOS ports: MODEL, RAT, RATS ($lsum)"; echo "$o" | tail -24; echo "$o2" | tail -4; echo "$o3" | tail -4; fail=1; fi
+# ORC (brave: flee 10) and GOBLIN (fearful: flee 60) through RAT, ASK'd: the role, the threshold
+# (ask: the services run, the asks made; the answers, | after each - 4 at most: the screen shows them)
+ask() { s="$1"; shift; c=""; for a in "$@"; do c="$c${a}\n${W}"; done; NTC_LIMIT=60000 timeout 600 python3 ntcrun.py t/cy/Main.bas "$s$c" t/cy/Hyp.cls t/cy/Hot.cls t/cy/Ent.cls --platform=cpcfw --ram=576 2>&1 | grep -A1 "^1> ask" | grep -v "^--" | grep -v "^1> ask" | tr '\n' '|'; }
+cp $P/cyborgos320kb/apps/rat/ORC.MDL $P/cyborgos320kb/apps/rat/GOBLIN.MDL t/files/A/
+o=$(ask "run 2 model orc\n${W}run 4 rat\n${W}" "ask rat orc attack flee:80 hide shout" "ask rat orc attack flee:8 hide shout" "ask foo x")
+o2=$(ask "run 3 model goblin\n${W}run 4 rat\n${W}" "ask rat goblin attack flee:80 hide shout" "ask rat goblin attack flee:50 hide shout" "ask rat goblin investigate wait flee:90")
+if [ "$o" == "attack 60|flee 20|No port FOO|" ] && [ "$o2" == "shout 35|flee 17|wait 40|" ]; then echo "ok   CyborgOS RAT: ORC, GOBLIN (thresholds, roles), ASK"; else echo "FAIL CyborgOS RAT: ORC, GOBLIN: $o $o2"; fail=1; fi
+# NEURAL DUNGEON: queries (text, numbers by nearness, prop?, val*), training (a new record, an old one
+# again: *2), saved by E; WATCH: CyborgOS's numbers asked of NEURAL SYS, and taught (say=calm)
+cp $P/cyborgos320kb/apps/rat/DUNGEON.NN $P/cyborgos320kb/apps/rat/SYS.NN t/files/A/
+o=$(ask "run 2 neural dungeon\n${W}" "ask dungeon Q action? sense=see dist=2 hp=30 courage=high" "ask dungeon Q action? sense=see dist=2 hp=70 courage=high" "ask dungeon Q sense=hear dist=4 hp=50 courage=low" "ask dungeon Q action? sense=sm* courage=low")
+o1=$(ask "run 2 neural dungeon\n${W}" "ask dungeon Q sense=dragon" "ask dungeon T sense=dragon dist=1 hp=80 courage=high action=run" "ask dungeon T sense=smell dist=6 hp=80 courage=low action=sniff" "ask dungeon E")
+o3=$(ask "run 2 neural dungeon\n${W}" "ask dungeon Q action? sense=dragon")
+o2=$(timeout 300 python3 ntcrun.py t/cy/Main.bas "run 2 neural sys\n${W}watch\n${W}${W}q${W}watch say=calm\n${W}ask sys E\n${W}" t/cy/Hyp.cls t/cy/Hot.cls t/cy/Ent.cls --platform=cpcfw --ram=576 2>&1)
+if [ "$o" == "93 action=flee|93 action=attack|81 sense=hear dist=6 hp=80 courage=low action=wait|100 action=sniff|" ] && [ "$o1" == "?|ok 12|ok 12|end|" ] && [ "$o3" == "100 action=run|" ] \
+  && grep -q "^sense=smell dist=6 hp=80 courage=low action=sniff \*2" t/files/A/DUNGEON.NN && grep -q "^sense=dragon dist=1 hp=80 courage=high action=run" t/files/A/DUNGEON.NN && grep -q "^' DUNGEON:" t/files/A/DUNGEON.NN \
+  && echo "$o2" | grep -qE "^1: free=[0-9]+ progs=[0-9]+ -> [0-9]+ free=[0-9]+ progs=[0-9]+ say=" && echo "$o2" | grep -qE "^free=[0-9]+ progs=[0-9]+ say=calm: ok 6" && grep -qE "^free=[0-9]+ progs=[0-9]+ say=calm" t/files/A/SYS.NN; then echo "ok   CyborgOS NEURAL: queries, training saved; WATCH"; else echo "FAIL CyborgOS NEURAL: $o / $o1 / $o3"; echo "$o2" | tail -12; cat t/files/A/DUNGEON.NN; fail=1; fi
+# PET: a new pet, 400 tenths of a second - F fills the bowl, T the TV on, - scolds (its model: X), M
+# medicine; saved to PET.SAV (bowl 5, TV on) and back; without RAT: the message
+cp $P/cyborgos320kb/apps/rat/PET.MDL t/files/A/
+o=$(NTC_LIMIT=60000 timeout 900 python3 ntcrun.py t/cy/Main.bas "run 2 model pet\n${W}run 3 rat\n${W}pet new Tom 400\n${W}${W}ft-${W}${W}m" t/cy/Hyp.cls t/cy/Hot.cls t/cy/Ent.cls --platform=cpcfw --ram=576 2>&1)
+sv=$(tr -d ' \r' < t/files/A/PET.SAV | tr '\n' ',')
+o2=$(NTC_LIMIT=60000 timeout 900 python3 ntcrun.py t/cy/Main.bas "run 2 model pet\n${W}run 3 rat\n${W}pet 50\n" t/cy/Hyp.cls t/cy/Hot.cls t/cy/Ent.cls --platform=cpcfw --ram=576 2>&1)
+o3=$(timeout 300 python3 ntcrun.py t/cy/Main.bas "pet 10\n${W}" t/cy/Hyp.cls t/cy/Hot.cls t/cy/Ent.cls --platform=cpcfw --ram=576 2>&1)
+if echo "$o" | grep -q "^Tom is saved (PET.SAV), aged 0 days." && echo "$sv" | grep -qE "^Tom,0,400,([0-9]+,){5}5,1," && echo "$o" | grep -q "^F food  T TV  C clean  M medicine  + praise  - scold  Q quit" \
+  && echo "$o2" | grep -q "^Tom is saved (PET.SAV), aged 0 days." && echo "$o3" | grep -q "^No RAT service (RUN 2 MODEL PET, RUN 3 RAT)"; then echo "ok   CyborgOS PET: kept, saved, back"; else echo "FAIL CyborgOS PET: $sv"; echo "$o" | tail -24; echo "$o2" | tail -6; echo "$o3" | tail -4; fail=1; fi
+# PROBE: its own command line - PORTS (BDOS 131 op 34), decisions with their plans (dry: nothing
+# learnt; RUN: the habit learnt, the deadband keeps the last pick), SHOW (MODEL's D n, W), ASK
+# NEURAL; FOOD.MDL: multilevel - RAT goes down the tree (MODEL's C, W @path) to food.fruit.x,
+# every level's pick kept by the deadband; SET (MODEL's V: a weight set from outside, as a sensor
+# would); ORC: one command from CyborgOS's command line
+cp $P/cyborgos320kb/apps/rat/PET.MDL $P/cyborgos320kb/apps/rat/ORC.MDL $P/cyborgos320kb/apps/rat/FOOD.MDL $P/cyborgos320kb/apps/rat/DUNGEON.NN t/files/A/
+o=$(timeout 600 python3 ntcrun.py t/cy/Main.bas "run 2 model pet\n${W}run 3 rat\n${W}run 4 neural dungeon\n${W}probe\n${W}ports\n${W}pet bed:80 play:70 tv wander food:60\n${W}run pet bed:80 play:70 tv wander food:60\n${W}run pet bed:80 play:70 tv wander food:60\n${W}show pet play tv\n${W}ask dungeon Q action? sense=hear dist=3 hp=40 courage=low\n${W}" t/cy/Hyp.cls t/cy/Hot.cls t/cy/Ent.cls --platform=cpcfw --ram=576 2>&1)
+o1=$(timeout 600 python3 ntcrun.py t/cy/Main.bas "run 2 model food\n${W}run 3 rat\n${W}probe try food food:20 sleep:80\n${W}probe run food food:60 sleep:60\n${W}probe run food food:60 sleep:60\n${W}" t/cy/Hyp.cls t/cy/Hot.cls t/cy/Ent.cls --platform=cpcfw --ram=576 2>&1)
+o3=$(timeout 600 python3 ntcrun.py t/cy/Main.bas "run 2 model food\n${W}run 3 rat\n${W}probe\n${W}set food food\\fruit\\apple\\20\n${W}set food N\\sleep\\90\n${W}try food food:60 sleep:60\n${W}set food food\\xyz\\5\n${W}show food sleep apple\n${W}" t/cy/Hyp.cls t/cy/Hot.cls t/cy/Ent.cls --platform=cpcfw --ram=576 2>&1)
+o2=$(timeout 600 python3 ntcrun.py t/cy/Main.bas "run 2 model orc\n${W}run 3 rat\n${W}probe orc attack flee:8 hide shout\n${W}probe show orc attack hide\n${W}probe ports\n${W}" t/cy/Hyp.cls t/cy/Hot.cls t/cy/Ent.cls --platform=cpcfw --ram=576 2>&1)
+if echo "$o" | grep -q "^PET      slot 2" && echo "$o" | grep -q "^DUNGEON  slot 4" && echo "$o" | grep -q "^   LD play=40 tv=40 +3 rnd/2" && echo "$o" | grep -q "^   dry" && echo "$o" | grep -qE "^   LD play=4[01] tv=4[01] \+3 kept" \
+  && echo "$o" | grep -qE "^(play +20 +- +42|tv +- +- +42) " && echo "$o" | grep -q "^74 action=wait" \
+  && echo "$o1" | grep -qE "^-> food.fruit.(apple|orange) 34" && echo "$o1" | grep -q "^   N food=66" && echo "$o1" | grep -q "^   LD apple=60 orange=55 +3 rnd/2" && echo "$o1" | grep -q "^   LD food=41 +1 kept" && echo "$o1" | grep -qE "^   LD apple=6[01] orange=5[56] \+3 kept" \
+  && [ "$(echo "$o3" | grep -c "^set$")" == 2 ] && echo "$o3" | grep -q "^-> sleep 34" && echo "$o3" | grep -q "^? (no such branch)" && echo "$o3" | grep -qE "^sleep +90 +- +30 +-" && echo "$o3" | grep -qE "^apple +- +- +20 +-" \
+  && echo "$o2" | grep -q "^-> flee 20" && echo "$o2" | grep -q "^   N flee=80" && echo "$o2" | grep -qE "^attack +- +60 +50 +-" && echo "$o2" | grep -qE "^hide +- +- +- +40" \
+  && echo "$o2" | grep -q "^ORC      slot 2" && echo "$o2" | grep -q "^RAT      slot 3"; then echo "ok   CyborgOS PROBE: plans, multilevel, deadband, TRY / RUN, SHOW, ASK, PORTS"; else echo "FAIL CyborgOS PROBE"; echo "$o" | tail -30; echo "$o1" | tail -24; echo "$o3" | tail -16; echo "$o2" | tail -20; fail=1; fi
+# GREEN (an IO board's bridge - docs/cyborgos-decisions.md 9): its model - water when dry, wait
+# when not; SET holds off watering; the bridge's call (the harness's ports read 255: hot)
+cp $P/cyborgos320kb/apps/rat/GREEN.MDL t/files/A/
+o=$(timeout 600 python3 ntcrun.py t/cy/Main.bas "run 2 model green\n${W}run 3 rat\n${W}probe try green water:20 cool:60 lamp:80 wait\n${W}probe set green N\\water\\10\n${W}probe try green water:20 cool:60 lamp:80 wait\n${W}" t/cy/Hyp.cls t/cy/Hot.cls t/cy/Ent.cls --platform=cpcfw --ram=576 2>&1)
+o2=$(timeout 600 python3 ntcrun.py t/cy/Main.bas "run 2 model green\n${W}run 3 rat\n${W}green\n${W}" t/cy/Hyp.cls t/cy/Hot.cls t/cy/Ent.cls --platform=cpcfw --ram=576 2>&1)
+if echo "$o" | grep -q "^-> water 34" && echo "$o" | grep -q "^-> wait 50" && echo "$o2" | grep -q "^cool 100"; then echo "ok   CyborgOS GREEN: an IO board's bridge and its model"; else echo "FAIL CyborgOS GREEN"; echo "$o" | tail -20; fail=1; fi
+rm -f t/files/A/GREEN.CYB t/files/A/MODEL.CYB t/files/A/RAT.CYB t/files/A/RATS.CYB t/files/A/NEURAL.CYB t/files/A/ASK.CYB t/files/A/WATCH.CYB t/files/A/PET.CYB t/files/A/PROBE.CYB t/files/A/*.MDL t/files/A/*.NN t/files/A/PET.SAV
 # CyborgOS's command line at #BE80 (NTC_POKE): CYB A KEYREP 10 - KM SET DELAY with the start delay
 # and the repeat 10 times as long (30 -> 255 at most, 2 -> 20); RUN 2 CRUNCH 3 - a slot first, the
 # program's tail after it
@@ -666,7 +813,7 @@ o2=$(NTC_LIMIT=60000 timeout 2500 python3 ntcrun.py t/cy/Main.bas "ying\n${W}${W
 o3=$(NTC_LIMIT=60000 timeout 2500 python3 ntcrun.py t/cy/Main.bas "yang\n${W}${W}g${W}${DL}https://x.org/\n${W}${W}" t/cy/Hyp.cls t/cy/Hot.cls t/cy/Ent.cls --platform=cpcfw --ram=576 2>&1)
 o4=$(NTC_LIMIT=60000 timeout 2500 python3 ntcrun.py t/cy/Main.bas "yang\n${W}${W}\n${W}${W}" t/cy/Hyp.cls t/cy/Hot.cls t/cy/Ent.cls --platform=cpcfw --ram=576 2>&1)
 if echo "$o" | grep -q "^+- Keys -" && echo "$o" | grep -q "^| HOME.8BM " && echo "$o2" | grep -q "^|No network (NET M4) " && echo "$o2" | grep -q "^|http://example.com/a/b.8bml?x=1#top " && echo "$o2" | grep -q "^+- Can't fetch it -" \
-  && echo "$o3" | grep -q "^https isn't supported - http only:" && echo "$o4" | grep -qE "^1:Back 2:Reload 3:Home 4:Go to 5:Quit \| HOME.8BM +1 / 21$"; then echo "ok   CyborgOS YING, YANG (web browsers)"; else echo "FAIL CyborgOS YING, YANG (web browsers)"; echo "$o" | tail -6; echo "$o2" | tail -24; echo "$o3" | tail -8; echo "$o4" | tail -4; fail=1; fi
+  && echo "$o3" | grep -q "^https isn't supported - http only:" && echo "$o4" | grep -qE "^1:Back 2:Reload 3:Home 4:Go to 5:Quit \| HOME.8BM +1 / 24$"; then echo "ok   CyborgOS YING, YANG (web browsers)"; else echo "FAIL CyborgOS YING, YANG (web browsers)"; echo "$o" | tail -6; echo "$o2" | tail -24; echo "$o3" | tail -8; echo "$o4" | tail -4; fail=1; fi
 # the network (NTC_M4: the harness's M4 - real sockets - and websrv.py, a web server here): NET
 # off, NET M4 (the M4 found by its ROM's name, claimed as M4 0 by CyborgOS), NET GET a redirect
 # (/moved: to /echo?moved=1 - the address's small letters kept), NET TEST, NET OFF; YING: a page
@@ -687,9 +834,69 @@ if echo "$o" | grep -q "^No network (NET M4 turns it on through an M4 board)" &&
   && echo "$o1" | grep -q "^Average " && echo "$o1" | grep -q "^Network off" && echo "$o1" | grep -q "^No network (NET M4" \
   && grep -q "^GET /moved HTTP/1.0" t/www/requests.log && grep -q "^GET /echo?moved=1 HTTP/1.0" t/www/requests.log \
   && echo "$o2" | grep -q "^|name=Jo Ann " && echo "$o2" | grep -q "^|pw=x&y " && echo "$o2" | grep -q "^|msg=hi there " && echo "$o2" | grep -q "^|comp=c " && echo "$o2" | grep -q "^|action=Send " \
-  && grep -q "^GET /form.8bm?8bml= HTTP/1.0" t/www/requests.log && grep -qF "GET /echo?name=Jo%20Ann&pw=x%26y&msg=hi%20there&comp=c&action=Send&8bml= HTTP/1.0" t/www/requests.log \
+  && grep -q "^GET /form.8bm?8bml=7 HTTP/1.0" t/www/requests.log && grep -qF "GET /echo?name=Jo%20Ann&pw=x%26y&msg=hi%20there&comp=c&action=Send&8bml=7 HTTP/1.0" t/www/requests.log \
   && echo "$o3" | grep -q "Fill in name first" && echo "$o3" | grep -q "^|\*\*\*_______|" && echo "$o3" | grep -q "^\[ Commodore 64 v\]"; then echo "ok   CyborgOS NET M4 (the harness's M4), YING / YANG forms"; else echo "FAIL CyborgOS NET M4, YING / YANG forms"; echo "$o" | tail -30; echo "$o1" | tail -14; echo "$o2" | tail -24; echo "$o3" | tail -24; cat t/www/requests.log; fail=1; fi
 rm -f t/files/A/YING.CYB t/files/A/YANG.CYB t/files/A/*.8BM
+# VDU (tools/vdu: vdu.php, PHP's own server on t/vdu) and RVDU (apps/rvdu: the remote VDU console):
+# the server - a screen made, lines put, got from a pointer, from -1 (its last MODE), past the end
+# after a wipe (from 0 again), ping, events; text.php's grid, dumb.php's rolling log. Then RVDU on
+# CyborgOS through the harness's M4: RVDU SERVER, the screen live (its text where LOCATE put it, a
+# window scrolled) with a key sent back (KEY 120), ROLL (a rolling log), TEST (the CPC writing a
+# count in place; a tap on its QUIT zone - put in as a viewer would - comes back and ends it)
+if command -v php > /dev/null && command -v curl > /dev/null; then
+VP=18766; rm -rf t/vdu; mkdir -p t/vdu; cp ../../tools/vdu/*.php ../../tools/vdu/*.js ../../tools/vdu/*.html ../../tools/vdu/*.css t/vdu/
+php -S 127.0.0.1:$VP -t t/vdu > /dev/null 2>&1 & VS=$!
+sleep 1; VU=http://127.0.0.1:$VP/vdu.php
+vr=$(curl -s "$VU?a=new&t=Reg%20test"); vid=$(echo $vr | cut -d' ' -f2); vk=$(echo $vr | cut -d' ' -f3)
+v1=$(curl -s "$VU?a=put&s=$vid&k=$vk&c=MODE%201%0APRINT%20Hello%20from%20the%20server%0ALOCATE%2010%205%0APRINT%20at%2010,5%0AWINDOW%201%2020%208%2010%0APRINT%20w1%0APRINT%20w2%0APRINT%20w3%0APRINT%20w4%0ALOCATE%201%201%0APRINT%20first;%0APRINT%20%20same%20line")
+v2=$(curl -s "$VU?a=put&s=$vid&k=bad&c=x"); v3=$(curl -s "$VU?a=get&s=$vid&n=10&m=1"); v4=$(curl -s "$VU?a=get&s=$vid&n=-1&m=1")
+v5=$(curl -s "$VU?a=ping&w=$vid:12,$vid:3"); v6=$(curl -s "$VU?a=event&s=$vid&e=TOUCH%20ok%201%202"); v7=$(curl -s "$VU?a=events&s=$vid&k=$vk&n=0")
+v8=$(curl -s "http://127.0.0.1:$VP/text.php?s=$vid"); v9=$(curl -s "http://127.0.0.1:$VP/dumb.php?s=$vid")
+node cli.js $P/cyborgos320kb/apps/rvdu/RVDU.bas t/cmd/Http.cls t/cmd/CybSys.cls --platform=cpm > t/cmd/RVDU.asm 2>/dev/null
+(cd t/cmd && ${SJASMPLUS:-sjasmplus} --nologo --msg=err --raw=RVDU.COM RVDU.asm > /dev/null)
+python3 -c "import ntcrun; d = open('t/cmd/RVDU.COM', 'rb').read(); open('t/files/A/RVDU.CYB', 'wb').write(ntcrun.amsdos_header(d, 0x100) + d)"
+o=$(NTC_M4=1 NTC_LIMIT=60000 timeout 2500 python3 ntcrun.py t/cy/Main.bas "net m4\n${W}${W}rvdu server 127.0.0.1:$VP/vdu.php\n${W}${W}rvdu $vid\n${W}${W}${W}${W}x${W}${W}\\x1b${W}${W}" t/cy/Hyp.cls t/cy/Hot.cls t/cy/Ent.cls --platform=cpcfw --ram=576 2>&1)
+o2=$(NTC_M4=1 NTC_LIMIT=60000 timeout 2500 python3 ntcrun.py t/cy/Main.bas "net m4\n${W}${W}rvdu server\n${W}${W}rvdu $vid roll\n${W}${W}${W}${W}\\x1b${W}${W}" t/cy/Hyp.cls t/cy/Hot.cls t/cy/Ent.cls --platform=cpcfw --ram=576 2>&1)
+vw=$(curl -s "$VU?a=events&s=$vid&k=$vk&n=0"); va=$(curl -s "$VU?a=wipe&s=$vid&k=$vk"); vb=$(curl -s "$VU?a=get&s=$vid&n=12")
+(until curl -s "$VU?a=get&s=$vid&n=0&m=1000" | grep -q "Count: 2"; do sleep 1; done; curl -s "$VU?a=event&s=$vid&e=TOUCH%20quit%20500%2090" > /dev/null) & VI=$!
+o3=$(NTC_M4=1 NTC_LIMIT=150000 timeout 2500 python3 ntcrun.py t/cy/Main.bas "net m4\n${W}${W}rvdu test $vid $vk\n${W}${W}" t/cy/Hyp.cls t/cy/Hot.cls t/cy/Ent.cls --platform=cpcfw --ram=576 2>&1)
+kill $VI 2>/dev/null; vc=$(curl -s "$VU?a=get&s=$vid&n=0&m=1000"); kill $VS 2>/dev/null
+if [ "$v1" == "ok 12 0" ] && echo "$v2" | grep -q "^error" && [ "$v3" == "$(printf 'ok 10 11 12\nPRINT first;')" ] && [ "$v4" == "$(printf 'ok 0 1 12\nMODE 1')" ] \
+  && [ "$v5" == "ok $vid" ] && [ "$v6" == "ok 1" ] && [ "$v7" == "$(printf 'ok 0 1 1\nTOUCH ok 1 2')" ] && echo "$v8" | grep -q ">Hello from the server" \
+  && echo "$v9" | grep -q "^first same line<br>" && echo "$o2" | grep -q "^Network on: M4" && echo "$o2" | grep -q "^Server: http://127.0.0.1:$VP/vdu.php$" \
+  && echo "$o" | grep -q "^         at 10,5" && echo "$o" | grep -A1 "^first same line" | grep -q "^w4" && echo "$o" | grep -q "^RVDU: line 12 of 12" \
+  && echo "$o2" | grep -q "^RVDU $vid - rolling" && echo "$o2" | grep -q "^w4" && echo "$o2" | grep -q "^first same line" && echo "$vw" | grep -q "^KEY 120" \
+  && [ "$va" == "ok 0" ] && [ "$vb" == "ok 0 0 0" ] && echo "$o3" | grep -q "^Event: TOUCH quit 500 90" && echo "$vc" | grep -q "^PRINT The CPC's test has ended." \
+  && echo "$vc" | grep -q "^PRINT The CPC got: TOUCH quit"; then echo "ok   VDU server (tools/vdu) and RVDU (CyborgOS, the harness's M4)"
+else echo "FAIL VDU server and RVDU"; echo "[$v1][$v2][$v3][$v4][$v5][$v6][$v7][$va][$vb][$vw]"; echo "$v9"; echo "$o" | tail -30; echo "$o2" | tail -14; echo "$o3" | tail -10; echo "$vc" | tail -8; fail=1; fi
+rm -f t/files/A/RVDU.CYB t/files/A/RVDU.CFG
+else echo "ok   VDU server and RVDU: skipped (no php or curl)"; fi
+# RAWYING, RAWYANG (YING, YANG built with apps/rawying/Bml.cls: raw pages - laid out by the server,
+# tools/rawpage/8bml2raw.py - no 8BML of their own): HOME.RAW, KEYS.RAW (8bml2raw --local of the
+# 8BM pages) from the disc, Enter on the first link; the form from websrv with &raw=78 (RAWYANG
+# &raw=80): typed, sent (the request with raw=78), RAWYANG's mandatory field
+for g in YING YANG; do
+  node cli.js $B/$(echo $g | tr A-Z a-z)/$g.bas $B/ying/Web.cls $B/rawying/Bml.cls $B/mon/Mouse.cls $P/cyborgos320kb/cmds/Http.cls $P/cyborgos320kb/cmds/CybSys.cls --platform=cpm > t/web/RAW$g.asm 2>/dev/null
+  (cd t/web && ${SJASMPLUS:-sjasmplus} --nologo --msg=err --sym=RAW$g.sym --raw=RAW$g.COM RAW$g.asm > /dev/null)
+  [ $((16#$(grep -E '^ntc_free:' t/web/RAW$g.sym | grep -oE '[0-9A-F]{4}$'))) -le $((0xB500)) ] || { echo "FAIL CyborgOS RAW$g: the program reaches its buffers (#B500)"; fail=1; }
+  python3 -c "import ntcrun; d = open('t/web/RAW$g.COM', 'rb').read(); open('t/files/A/RAW$g.CYB', 'wb').write(ntcrun.amsdos_header(d, 0x100) + d)"
+done
+for f in HOME KEYS; do python3 ../../tools/rawpage/8bml2raw.py --local $B/ying/$f.8BM 78 t/files/A/$f.RAW; done
+WP=18766; rm -rf t/www; mkdir -p t/www
+printf '%s' '-"1","Form":p"Contact":n:t"Name *":y"name","20","m","":t"Password":y"pw","10","p","":t"Message":z"msg","30","2","","":t"Computer *":w"comp","a","m","a","Amstrad CPC","c","Commodore 64":n:x"/echo","Send":.' > t/www/form.8bm
+python3 websrv.py $WP t/www > /dev/null 2>&1 & WS=$!
+sleep 1
+o=$(NTC_LIMIT=60000 timeout 2500 python3 ntcrun.py t/cy/Main.bas "rawying\n${W}${W}\n${W}${W}" t/cy/Hyp.cls t/cy/Hot.cls t/cy/Ent.cls --platform=cpcfw --ram=576 2>&1)
+o1=$(NTC_LIMIT=60000 timeout 2500 python3 ntcrun.py t/cy/Main.bas "rawyang\n${W}${W}" t/cy/Hyp.cls t/cy/Hot.cls t/cy/Ent.cls --platform=cpcfw --ram=576 2>&1)
+o2=$(NTC_M4=1 NTC_LIMIT=90000 timeout 3000 python3 ntcrun.py t/cy/Main.bas "net m4\n${W}${W}rawying http://localhost:$WP/form.8bm\n${W}${W}${W}\n${W}Jo Ann\n${W}${T}${W}\n${W}x&y\n${W}${T}${W}\n${W}hi there\n${W}${T}${W}\n${W}${T}${W}\n${W}${W}${W}${W}" t/cy/Hyp.cls t/cy/Hot.cls t/cy/Ent.cls --platform=cpcfw --ram=576 2>&1)
+o3=$(NTC_M4=1 NTC_LIMIT=90000 timeout 3000 python3 ntcrun.py t/cy/Main.bas "net m4\n${W}${W}rawyang http://localhost:$WP/form.8bm\n${W}${W}${W}${T}${W}\n${W}x&y\n${W}${T}${W}${T}${W}\n${W}${T}${W}\n${W}${W}" t/cy/Hyp.cls t/cy/Hot.cls t/cy/Ent.cls --platform=cpcfw --ram=576 2>&1)
+kill $WS 2>/dev/null
+if echo "$o" | grep -q "^+- Keys -" && echo "$o" | grep -q "^|Tab, right       the next link " && echo "$o" | grep -q "^| HOME.RAW " \
+  && echo "$o1" | grep -qE "^1:Back 2:Reload 3:Home 4:Go to 5:Quit \| KEYS.RAW +1 / 25$" && echo "$o1" | grep -q "^->>The keys<" \
+  && echo "$o2" | grep -q "^|name=Jo Ann " && echo "$o2" | grep -q "^|pw=x&y " && echo "$o2" | grep -q "^|msg=hi there " && echo "$o2" | grep -q "^|comp=c " && echo "$o2" | grep -q "^|action=Send " \
+  && grep -q "^GET /form.8bm?8bml=7&raw=78 HTTP/1.0" t/www/requests.log && grep -qF "GET /echo?name=Jo%20Ann&pw=x%26y&msg=hi%20there&comp=c&action=Send&8bml=7&raw=78 HTTP/1.0" t/www/requests.log \
+  && grep -q "^GET /form.8bm?8bml=7&raw=80 HTTP/1.0" t/www/requests.log && echo "$o3" | grep -q "Fill in name first" && echo "$o3" | grep -q "^|\*\*\*_______|" && echo "$o3" | grep -q "^\[ Commodore 64 v\]"; then echo "ok   CyborgOS RAWYING, RAWYANG (raw pages)"; else echo "FAIL CyborgOS RAWYING, RAWYANG (raw pages)"; echo "$o" | tail -24; echo "$o1" | tail -4; echo "$o2" | tail -24; echo "$o3" | tail -24; cat t/www/requests.log; fail=1; fi
+rm -f t/files/A/RAWYING.CYB t/files/A/RAWYANG.CYB t/files/A/*.RAW
 # RAM discs (RAMDISC: the driver into a page of its own, the hypervisor's file calls offered to
 # it first): J and L made, files copied there, DIR of one, RDT (cpm/rdt.asm: random reads and
 # writes in place, sizes, searches, delete) run from L (the slot's drive); then the list
@@ -840,6 +1047,13 @@ check "CyborgOS 4 slots, Library: ROM" "^CyborgOS ended, " "$(timeout 600 python
 for pl in cpc cpcmin; do
   cp gfx/lines.bas t/; o=$(timeout 300 python3 ntcrun.py t/lines.bas '' --platform=$pl 2>&1 | grep -v "^--- ")
   if [ "$o" == "$(cat ref/gfx_lines.txt)" ]; then echo "ok   Graphics lines $pl"; else echo "FAIL Graphics lines $pl"; echo "$o" | head -4; fail=1; fi
+done
+# Graphics on the ZX Spectrum Next (zxn, Layer 2): the pixels of the buffer shown - one buffer: 518;
+# double buffering, a line drawn twice (off again), one of 91 flipped: 91
+for c in "1 518 0" "2 91 -1"; do
+  set -- $c; cp gfx/lines_zxn.bas t/
+  o=$(NTC_SHOT=t/lz.png timeout 120 python3 ntcrun.py t/lines_zxn.bas "$1" --platform=zxn 2>&1)
+  echo "$o" | grep -q "^--- layer 2: $2 pixels set" && echo "$o" | grep -q "^width320 back0 buffering$3" && echo "ok   Graphics lines zxn ($2)" || { echo "FAIL Graphics lines zxn ($2)"; echo "$o" | tail -4; fail=1; }
 done
 # For loops up to 32767 / down to -32768 end (they looped for ever when the step wrapped)
 for m in --turbo ""; do

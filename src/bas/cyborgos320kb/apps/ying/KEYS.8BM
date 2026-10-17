@@ -14,6 +14,7 @@ r"Q, ESC           quit":
 r"1-5              the toolbar":
 n:
 t"The mouse: left button on a link, the toolbar or the scroll bar.":n:
+t"A form: Enter on a field types its value (Enter keeps it, ESC not), on a choice its next one, on a button sends the form.":n:
 l"HOME.8BM","Home":n:
 <:
 .

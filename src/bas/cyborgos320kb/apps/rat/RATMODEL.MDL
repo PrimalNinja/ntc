@@ -1,0 +1,17 @@
+' RATMODEL: the rat in RATS' box (RUN 2 MODEL RATMODEL). A line a branch: its depth the spaces
+' before it, a name and a weight 0-100. N: live or die - RATS passes food and bed's levels; below
+' the N weight, they take over. R: what we want of it. L, D: its own likes and dislikes (L grows
+' with habit - MODEL saves it). RATMODEL.TXT tells how a model is made
+N
+ food 25
+ bed 25
+R
+ play 30
+ tv 28
+L
+ food 40
+ tv 50
+ play 45
+ bed 20
+D
+ bed 10

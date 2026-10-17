@@ -1,0 +1,22 @@
+MODEL file[.MDL]
+  A decision model for RAT, served on a port named after the file
+  (MODEL RATMODEL: the port RATMODEL). Run it in a slot of its own:
+  RUN 2 MODEL RATMODEL. The model is fixed but for its weights: an L
+  (like) weight grows a point (to 100) each time RAT picks its tag - a
+  habit - and is saved back to the file every 10 picks and when the
+  model ends (Q).
+  The file: a line a branch, its depth the spaces before it. The top
+  lines are the categories:
+    N  necessities: live or die (the caller passes a level: food:15;
+       below the N weight - its threshold - it wins over all)
+    R  requirements: what we want of it (a game character's role)
+    L  likes, D  dislikes: its own preferences
+  then branches to any depth, each a name and a weight 0-100 (none:
+  50). A tag names a branch (food) or a path to one (food.apple).
+  ' starts a comment line. Up to 401 lines. RATMODEL.TXT: the details.
+  The port's messages: "W [@path] tag ..." - each tag's weights (under
+  that branch), "n,r,l,d"
+  (-1: not in that category); "P tag" - its L weight up a point; "S"
+  saves; "Q" saves and ends the model; "C path" - its branches; "D n" -
+  line n; "P tag n" / "X tag n" - a like up / down n; "V [cat\]tag\..\x"
+  - a weight set to x from outside (a sensor, a game; cat none: L).

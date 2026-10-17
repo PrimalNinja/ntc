@@ -1388,6 +1388,10 @@ function ntcParse(arrFiles_a, objDefines_a)
 		{
 			record('option', { what: 'reserve', value: trim(strText.substr(8)) });	// memory the program must not reach into
 		}
+		else if (left(strText, 'nexdata '))
+		{
+			record('option', { what: 'nexdata', value: trim(strSrc.replace(/^\s*option\s+nexdata\s+/i, '').replace(/\s+'.*$/, '')) });	// zxn: a data file's 16K blocks in the NEX file's banks
+		}
 		else if (strText === 'compare text')
 		{
 			record('option', { what: 'comparetext' });	// string compares ignore case in this module

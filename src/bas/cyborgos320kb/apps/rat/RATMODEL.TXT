@@ -1,0 +1,247 @@
+RATMODEL.TXT - how a decision model is made, for RAT (CyborgOS)
+================================================================
+
+Give this file to a person or an AI to make a model for a use: an NPC in a game, a
+creature, a tool's choices, later CyborgShell automation. It says what a model is, how
+RAT uses it, the exact file format, and what makes good behaviour. A NEURAL training file
+(.NN, the other decision service) is at the end. The whole picture - the services, PROBE,
+the pet, and a prompt that gets an AI to build a model - is docs/cyborgos-decisions.md.
+
+What it is for: decision making, not talk. A program (a game, a tool) knows the state of
+things; it asks RAT "of these things I could do, which?" and gets one answer back. The
+logic lives in the model, not in every game or tool. It is not for mission critical work.
+
+
+1. The services
+---------------
+
+  MODEL file     serves one model (FILE.MDL) on a port named after the file. One slot a
+                 model: RUN 2 MODEL ORC, RUN 3 MODEL GOBLIN. Its L weights change with
+                 habit and are saved back into the file.
+  RAT            the decision service, port RAT. It holds no model of its own: every call
+                 names the model to use.
+
+A call to RAT (a program: CybSys.PortCall("RAT", call); the command line: ASK RAT call):
+
+  model tag tag:level tag ...
+
+  model    the model's port name (its file name: ORC for ORC.MDL)
+  tag      a thing that could be done now - a branch name in the model, or a path to one
+           (food.apple). 16 tags at most, the call 128 characters at most
+  :level   for necessities only: how much of it there is now, 0-100 (health, food,
+           energy, battery ...). 0 is none left, 100 full
+
+The answer is one tag and a value: "attack 60". "?" means no such model or no tags.
+
+The caller decides which tags are possible now. Senses belong to the caller: a dungeon
+crawler passes "attack flee:<hp> hide shout" when the NPC sees the player, "investigate
+wait flee:<hp>" when it only hears, "sniff follow" when it smells, "patrol sleep
+eat:<food>" when it senses nothing. The model decides which of those this kind of NPC
+does.
+
+
+2. The four categories
+----------------------
+
+  N  necessities   live or die. Overrides everything when low.
+  R  requirements  what WE want of it - its role: a guard attacks, a scout raises the
+                   alarm, a worker works. Fixed by the model's maker.
+  L  likes         its own preferences. They grow with habit.
+  D  dislikes      its own aversions.
+
+A tag can appear in any or all of them (food can be a necessity and a like).
+
+
+3. How RAT decides (the same rules for every model)
+---------------------------------------------------
+
+For the tags in the call, RAT asks the model for each tag's N, R, L and D weights
+(-1 where the tag is not in that category). Then:
+
+  1 Necessity. A tag under N, passed with a level, whose level is below its N weight,
+    is in danger. The N weight is the threshold: flee 10 flees only below 10 health (brave);
+    flee 60 flees below 60 (fearful). Among those in danger, the lowest level as a part of
+    its threshold (level * 100 / weight) wins, over everything. Value: 100 - that part.
+  2 Requirement. Otherwise, if any tag is under R: the tags with the highest R weight
+    (and those within 5 of it) go on to step 3. Value: its R weight.
+  3 Taste. Among those (all the tags when none was under R): the highest L - D (a missing
+    L or D counts 0) wins. Value: L - D (or the R weight, when R chose).
+
+  Ties: weights within 5 of the best are as good. The model's last pick stays picked while
+  it is among them - a deadband: near-equal choices don't flip back and forth (a drone
+  fighting over itself); otherwise one of them is picked at random.
+  Habit: the winner's L weight goes up 1 (to 100 at most) - if it has an L line. MODEL saves
+  the weights every 10 picks and when it ends.
+  A program can move L weights itself (MODEL's port, not RAT's): "P tag n" up n, "X tag n"
+  down n - PET's praise (+3) and scolding (-3), and its boredom (the same pick three times
+  running: -2), which keeps a habit from taking over.
+
+So: N is a threshold, R is a filter, L - D is the choice inside what R allows.
+
+Multilevel: a model is a tree as deep as its maker makes it - 2 levels or 50. When the tag
+chosen has branches under it (in any category), RAT chooses among them by the same rules
+(R, then L - D; the caller's levels are for the top level), then among the chosen one's
+branches, and on down to a branch with none. The answer is that branch's path and the top
+level's value (why it acted): ASK RAT FOOD food:20 sleep:80 -> food.fruit.apple 34 - it is
+hungry (food 20 is below 30), it likes fruit best, and apple. Every level's pick gets the
+habit (P food, P food.fruit, P food.fruit.apple) and the deadband (the last path is kept at
+each level while it is a contender). A caller can start lower down by passing paths:
+ASK RAT FOOD food.meat.chicken food.meat.fish -> food.meat.chicken 45.
+
+The plan: a call starting "?" (?FOOD food:20 sleep:80) gets how RAT got there after the
+answer, a level a part:
+
+  food.fruit.orange 34 |N food=66 |LD fruit=50 +2 |LD apple=60 orange=55 +3 rnd/2
+
+each level's stage that chose (N necessity: the level as a part of its threshold; R: the R
+weights; LD: each one's L - D), its contenders (within 5 of the best) with their weights, +n
+the others not in it, then kept (the deadband kept the last pick) or rnd/n (one of n at
+random); none of those: the only contender. A call starting "~" is dry: decided, but nothing
+learnt and the last pick not kept (|dry at the end of the plan). PROBE (the test drive) uses
+both: its own command line - decisions with their plans (a line a level), TRY (a dry run)
+and RUN (a real run) this once, DRY ON|OFF, PORTS (the services running), SHOW model (every
+line, or some tags' N R L D), LIKE / DISLIKE, ASK any port. MODEL's own messages: W [@path]
+tag ... (the weights; @path: the tags under that branch), C path (the branches under it),
+P tag n / X tag n (a like up / down), V [cat\]tag\tag\x (a weight set to x), D n (line n:
+"L 1 FOOD 40"), S (save), Q (save and end).
+
+Weights from outside: anything can set a weight while the model runs - a game, a sensor
+read by a program: V L\food\fruit\apple\20 (the category first - N, R, L or D; none: L -
+then the path, then the value, \ between them). Raising an N weight makes it panic sooner
+(V N\sleep\90: tired at 90), lowering an L makes it go off something. PROBE: SET model
+N\sleep\90.
+
+
+4. The file (NAME.MDL)
+----------------------
+
+Plain text, a line each, CR LF (LF is read too). Up to 401 lines that count.
+
+  ' a comment             a line starting ' (kept when MODEL saves)
+  N                       a category line: N, R, L or D at the start of the line
+   food 25                a branch: one or more spaces first (its depth), a name, a weight
+   bed                    no weight: 50
+   fruit 40               a branch under a branch: more spaces than the one above
+    apple 60
+    lemon 10
+
+  - Names: letters, digits, _ and -; no spaces, no dots, 15 characters at most. Case does
+    not matter when matching (Food = FOOD = food); MODEL keeps the case as written.
+  - Weights: whole numbers 0-100 (more is cut to 100).
+  - Depth: count of leading spaces; one more space for each level, as many levels as the
+    model needs. A tag can be a branch's own name (apple: the first apple in that category)
+    or a path (fruit.apple). A path is 110 characters at most.
+  - A branch with no weight is 50 - in D, give a parent 0 (food 0) when only its branches
+    are disliked, or the whole of food is disliked 50.
+  - Each category is its own tree: the same name under N and L are two branches.
+  - The model's port name is the file name: 8 characters at most (ORC.MDL -> ORC).
+  - Lines before the first category line, and blank lines, are ignored.
+
+
+5. Making good behaviour
+------------------------
+
+  - N weight = when it panics. 25 for "only when nearly out", 60 for "at the first sign".
+    Every necessity tag must be passed with a level, or it is never a necessity.
+  - R decides the role. If two R weights are within 5, taste chooses between them;
+    further apart, the higher always wins (until a necessity). Leave a tag out of R to let
+    taste alone decide it; leave R empty for a free spirit.
+  - L - D is personality. Courage: attack high in L; fear: hide high in L, attack in D.
+  - Habit: each pick adds 1 to that L, so the first winner pulls ahead. Two likes 5 apart
+    are a fair choice only until the leader is picked once. For variety, keep the
+    competing likes equal and well below 100, or put the variety in R (within 5) with no L
+    for them, or give a dislike to the one that should tire.
+  - Values tell the caller how strongly: a game can scale speed or animation by them.
+  - The same tags for every NPC of a game keep the caller simple; each model weighs them.
+
+
+6. Examples
+-----------
+
+ORC.MDL - a brave guard:            GOBLIN.MDL - a fearful scout:
+
+  N                                    N
+   flee 10                              flee 60
+   eat 20                               eat 30
+  R                                    R
+   attack 60                            shout 35
+   investigate 50                       follow 30
+   patrol 40                           L
+  L                                     hide 50
+   attack 50                            sniff 45
+   shout 40                             wait 40
+   sleep 30                             attack 10
+   sniff 20                            D
+  D                                     attack 30
+   hide 40                              investigate 20
+   wait 20
+
+  ASK RAT ORC attack flee:80 hide shout      -> attack 60   (its role)
+  ASK RAT ORC attack flee:8 hide shout       -> flee 20     (8 is below 10)
+  ASK RAT GOBLIN attack flee:80 hide shout   -> shout 35    (its role: the alarm)
+  ASK RAT GOBLIN attack flee:50 hide shout   -> flee 17     (50 is below 60)
+  ASK RAT GOBLIN investigate wait flee:90    -> wait 40     (no R among them: taste)
+
+FOOD.MDL - multilevel: what to eat, as deep as it goes:
+
+  N                 L                          D
+   food 30           food 40                    food 0
+   sleep 25           fruit 50                   sweets 20
+                       apple 60  orange 55
+                       banana 40  lemon 10  bitter_melon 0
+                      meat 30
+                       chicken 45  fish 35
+                      sweets 45
+                       cake 50  chocolate 52
+                     sleep 30
+  (in the file a branch a line; the columns here only to fit)
+
+  ASK RAT FOOD food:20 sleep:80   -> food.fruit.apple 34 (or orange: within 5)
+  ASK RAT FOOD food:60 sleep:60   -> food.fruit.apple 40 (not hungry: taste - food 40)
+
+RATMODEL.MDL is the rat in RATS (the four corners: bed, food, play, TV). PET.MDL is the
+virtual pet's (PET): necessities food 30, bed 25, play 20 (bored), likes that the player
+trains with + and -.
+
+
+7. A checklist (for an AI making a model)
+-----------------------------------------
+
+  1 List the tags the caller will pass - the actions possible - and which carry a level.
+  2 Put each levelled tag under N with its panic threshold.
+  3 Put the role's actions under R; space their weights 5+ apart for a fixed order, within
+    5 to let taste choose.
+  4 Put the personality in L and D. For choices within a choice (which food, which weapon,
+    which route), give the branch its own branches - as many levels as it needs; RAT goes
+    down them.
+  5 Write the file exactly as in 4: category letters alone on their lines, one space before
+    each branch, names without spaces, weights 0-100. Comments with '.
+  6 Give example calls and the answers the rules give, worked through steps 1-3.
+
+
+8. NEURAL training files (NAME.NN) - the other decision service
+---------------------------------------------------------------
+
+NEURAL learns from examples instead of weights written by hand (jNeuralNetwork's way: the
+weights are how often each prop=value was seen). RUN 2 NEURAL DUNGEON serves DUNGEON.NN on
+the port DUNGEON.
+
+  ' a comment
+  sense=see dist=1 hp=80 courage=high action=attack
+  sense=see dist=1 hp=20 courage=high action=flee *3
+
+  - A record a line: prop=value words, 8 at most, no spaces in them. *n at the end: seen
+    n times. Up to 200 records, 400 different prop=values, 64 props.
+  - Give every record the same props: a record is scored only on the asked props it has.
+  - Numbers match by how near they are (out of the range trained for that prop); text must
+    be the same (or start the same: Q name=gob*).
+
+  Messages (ASK DUNGEON ...):
+    Q prop=value ... [prop?]   the best record: "score prop=value ..." (score 0-100); prop?
+                               asks for that prop only: Q action? sense=see dist=2 hp=30
+                               courage=high -> "93 action=flee"
+    T prop=value ...           learn a record (again: its weights grow) -> "ok n"
+    S                          save;  E  save and end
+
+  WATCH (apps/rat) is the inputs sample: CyborgOS's own numbers (free=, progs=) asked of
+  SYS.NN every 2 seconds; WATCH say=busy teaches it now's numbers as busy.

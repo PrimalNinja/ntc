@@ -1,0 +1,4 @@
+ASK port message
+  Calls a port (a service in another slot) with the message and prints
+  its answer: ASK RAT ORC attack flee:80 hide shout, ASK DUNGEON Q
+  action? sense=hear dist=4 hp=50 courage=low. "No port" when none.

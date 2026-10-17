@@ -693,8 +693,12 @@ ntc_isl:		ds 128			; 16 slots
 ntc_isl_tick:
 			push bc
 			push de
+	IFDEF NTC_ZXN
+			ld a, c					; zxn: the handler's frame flag in C (1: the line 0 interrupt)
+	ELSE
 			ld b, #F5				; PPI port B bit 0: vertical sync
 			in a, (c)
+	ENDIF
 			and 1
 			ld e, a
 			ld a, (ntc_islvs)

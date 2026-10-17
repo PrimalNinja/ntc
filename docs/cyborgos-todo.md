@@ -9,6 +9,46 @@ version.
 
 ## done
 
+- 2026-10-18 VDU and RVDU: remote displays over plain HTTP GETs (tools/vdu - PHP, no database:
+  each screen an append-only text file of display commands and a 4-byte-a-line index; a viewer's
+  pointer - 0 a replay, -1 live from the last MODE, past the end after a wipe from 0 again; one
+  ping for many screens, then each drained; touch zones and keys back to the writer as events,
+  their count in each put's answer). Viewers: view.html (a canvas, the CPC's way: modes, inks,
+  windows, streams, graphics), text.php (a text grid, no script), dumb.php (a rolling log for a
+  DS / 3DS), test.html (the test harness: tests sent to a screen, its events listed). RVDU on
+  CyborgOS (apps/rvdu, cos-disk6): a screen shown on the console live, rolling or replayed, the
+  CPC's keys sent back; NEW, LIST, PUT, TEST (the CPC writing to a screen, the taps coming back).
+  The compiler: a string literal over 96 bytes goes out as more db lines (sjasmplus takes 128 in
+  one). The harness: \x1b typed is ESC.
+
+- 2026-10-17 Ports: a program opens a named port and other slots call it (BDOS 131 ops 28-33:
+  open, close, call, the answer, receive, reply; 8 ports, a 128-byte message each, in the service
+  page - no main RAM); a slot waiting on a port sleeps until the next tick. CybSys.PortOpen,
+  PortClose, PortCall, PortGet, PortMessage, PortCaller, PortReply, PortStatus, Clock. The rat
+  (apps/rat): MODEL (a decision model served on a port: N, R, L, D trees of weights, the L weights
+  growing with habit and saved to the .MDL), RAT (the decision service: "model tag tag:level ..."
+  -> "tag value"; a necessity below its N weight - the threshold - first, then R, then L - D,
+  ties within 5 at random), RATS (the four-corner sample), RATMODEL.MDL, ORC.MDL, GOBLIN.MDL and
+  RATMODEL.TXT (how a model is made: for an AI making models - NPCs, later CyborgShell automation).
+  NEURAL (jNeuralNetwork's way: records of prop=value learnt, the best match given back; numbers by
+  nearness), DUNGEON.NN, SYS.NN with WATCH (CyborgOS's numbers as inputs), ASK (any port from the
+  command line); PET (a Tamagotchi-style virtual pet on RAT: feed, TV, clean, medicine, praise /
+  scold to train its likes - MODEL's P tag n, X tag n -, boredom, illness, ageing, saved in
+  PET.SAV) - on cos-disk6 (a sixth disc: disc 5 is full), with their help. RAT's tolerance is a deadband: a model's last pick stays
+  while it is within 5 of the best (no flipping between near-equal choices), else one at random;
+  ?calls give the plan (how it chose), ~calls are dry. PROBE: the test drive (its own command
+  line: decisions with plans, PORTS - BDOS 131 op 34 -, SHOW - MODEL's D n -, ASK any port), TRY / RUN).
+  Multilevel: RAT goes down the model's tree, as deep as it is (MODEL's C path, W @path), to a
+  branch with none - food.fruit.apple (FOOD.MDL); every level gets the habit and the deadband.
+  Weights from outside: MODEL's V [cat\]tag\tag\x (PROBE: SET) - a game or a sensor sets one.
+  docs/cyborgos-decisions.md: how it all works, getting an AI to build models, hooking a model up
+  to an IO board (GREEN: a greenhouse bridge and GREEN.MDL)
+- Later: programs reading real sensors (ports, the M4) and setting a model's weights with V
+- 2026-10-17 RAWYING, RAWYANG: YING and YANG for raw pages (apps/rawying/Bml.cls in place of
+  Bml.cls): raw=width asked for, the server lays the page out - rows, links, fields and buttons as
+  records (tools/rawpage/RAW.TXT; 8bml2raw.py the reference, websrv.py answers raw=). The rows
+  copied in Z80: a 6K page laid out in 0.45 s (YING 1.8 s). On a fifth disc (cos-disk5) with
+  HOME.RAW and KEYS.RAW; INSTALL.BAS takes five discs
 - 2026-10-17 The network: NET M4 (the M4 found by its ROM's name, claimed by CyborgOS), NET OFF,
   NET GET, NET TEST; BDOS 131 ops 20-27 in the service page (the M4's sockets, a slot's own -
   closed when its program ends: no main RAM); cmds/Http.cls (HTTP/1.0 GETs: lookups, redirects,
@@ -17,7 +57,7 @@ version.
 - 2026-10-17 YING, YANG fetch real pages (the stub gone) and send 8BML forms: text fields, text
   areas, selects, buttons - a GET with the fields as URL parameters and action=, mandatory fields
   checked (Bml.cls with #Const BML_FORMS: MON stays as it was). Addresses up to 255 characters;
-  the buffers moved up (#B200: values, #BC00: the page, #DC00: the lines), history 8 pages
+  the buffers moved up (#B500: values, #BE00: the page, #DC00: the lines), history 8 pages
 - 2026-10-17 Claims: CybSys.Claim / Release / Take / Held (BDOS 131 ops 16-19 - a name and a unit,
   one slot at a time), freed when a program ends, is killed or reset; CLAIMS (CLAIMS TAKE), PS
   shows them, FLOPPY claims FDC 0. No main RAM (the service page)
@@ -417,6 +457,12 @@ version.
 ---
 
 ## todo
+
+- More servers on ports - all running at once, at the mercy of 4MHz: an X Window style display
+  server (programs draw through it), and once ports reach outside (the M4, a serial card) a web
+  server, a BBS
+- Later: a minimal Linux kernel booting natively into a virtual Z80 running CyborgOS (proven with
+  SymbOS)
 
 - Scrollback (built, switched off - `#Const SCROLLBACK` in Main.bas and `CN_SB` in Hyp.cls's Con, set
   both to 1): Shift + Up a screen back, Shift + Down one on, any other key the live screen; 48 rows a

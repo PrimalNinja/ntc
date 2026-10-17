@@ -2,7 +2,9 @@ CyborgOS - HELP name shows NAME.HLP (HELP DIR, HELP CD ...)
 Built in: RUN, CLS, QUIT. On the system drive Z (from the boot disc): FG, PS,
 TOP, KILL, RESET, WAIT, MEM, DIR, CD, CV, HELP, COPY, ERA, TYPE, RENAME,
 RAMDISC, MODE, MKDIR, RMDIR, DRIVE, CLAIMS. On the boot drive: FLOPPY, NET,
-MON, YING, YANG
+MON, YING, YANG, RAWYING, RAWYANG; the decision services: RAT, MODEL,
+NEURAL, ASK, PROBE (their test drive), RATS, WATCH; PET (a virtual pet);
+RVDU (remote displays)
 
 name [args]       runs that program (from Z, the slot's drive, the boot drive)
 RUN [slot] name [args]   the same, even when a command has that name;

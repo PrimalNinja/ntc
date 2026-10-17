@@ -1,0 +1,10 @@
+PET [name]
+  A virtual pet (a Tamagotchi's way). It lives in a room - BED, FOOD
+  (its bowl), PLAY, TV - and decides for itself what to do: RAT asks
+  its model, PET.MDL. First: RUN 2 MODEL PET, RUN 3 RAT.
+  F fill the bowl   T the TV on/off   C clean up its mess
+  M medicine (when it is ill)   + praise what it does (it likes it
+  more)   - scold it (it stops, likes it less)   Q quit (saved)
+  It grows a day a minute; a dirty room or starving makes it ill;
+  health goes when it starves, is worn out or ill - at 0 it dies.
+  PET.SAV keeps it between runs; PET NEW name starts a new one.

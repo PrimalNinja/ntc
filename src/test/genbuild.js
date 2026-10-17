@@ -40,7 +40,7 @@ var arrPrograms = [
 	{ name: 'CUBE3D', files: ['cube3d/Main.bas', 'cube3d/Vector3D.cls', 'cube3d/Spin.cls'], platforms: ['cpc', 'cpcmin', 'cpcfw', 'cpm'] },
 	{ name: 'OVERLAYS', files: ['overlays/Main.bas', 'overlays/Level1.cls', 'overlays/Level2.cls'], platforms: ['cpcmin', 'cpcfw', 'cpm'] },
 	{ name: 'PAGES', files: ['pages/Main.bas', 'pages/Title.cls', 'pages/Level1.cls', 'pages/Level2.cls', 'pages/Maths.cls', 'pages/Stars.cls', 'pages/Credits.cls', 'pages/Score.cls'], platforms: ['cpcmin', 'cpcfw', 'cpm'] },
-	{ name: 'INTERRUP', files: ['interrupts/Main.bas', 'interrupts/Clock.cls', 'interrupts/Star.cls'], platforms: ['cpc', 'cpcmin', 'cpcfw'] },
+	{ name: 'INTERRUP', files: ['interrupts/Main.bas', 'interrupts/Clock.cls', 'interrupts/Star.cls'], platforms: ['cpc', 'cpcmin', 'cpcfw', 'zxn'] },
 	{ name: 'NUMBERED', files: ['numbered.bas'] },
 	{ name: 'NTCTEST', files: ['ntc_test.bas'] },
 	{ name: 'VBTEST', files: ['vb_test.bas'] },
@@ -62,7 +62,7 @@ var arrPrograms = [
 	{ name: 'JSDEMO', files: ['js_demo/Main.js', 'js_demo/Counter.js'] },
 	{ name: 'LOCODEMO', files: ['loco_demo/Main.loc'] }
 ];
-var arrPlatforms = ['cpc', 'cpcmin', 'cpcfw', 'cpm', 'test', 'cpcrom', 'cpcminrom', 'cpcfwrom'];	// ...rom: Library: ROM (needs NTCCPC / NTCMIN / NTCFW.ROM)
+var arrPlatforms = ['cpc', 'cpcmin', 'cpcfw', 'cpm', 'test', 'zxn', 'cpcrom', 'cpcminrom', 'cpcfwrom'];	// ...rom: Library: ROM (needs NTCCPC / NTCMIN / NTCFW.ROM); zxn: NAME.NEX
 var intErrors = 0;
 
 arrPlatforms.forEach(function(strPlat)
@@ -99,7 +99,7 @@ arrPlatforms.forEach(function(strPlat)
 			return;		// a program for some platforms only
 		}
 
-		objOpts.name = objProg.name;			// page files: NAME.001 ...
+		objOpts.name = objProg.name;			// page files: NAME.001 ...; zxn: NAME.NEX
 		if ((strReal === 'cpc') || (strReal === 'cpcmin') || (strReal === 'cpcfw'))
 		{
 			objOpts.amsdos = objProg.name;		// the assembler writes NAME.BIN with an AMSDOS header

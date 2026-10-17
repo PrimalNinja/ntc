@@ -1,0 +1,20 @@
+RVDU id [ROLL | REPLAY] | SERVER url | NEW [title] | LIST |
+     PUT id key text | TEST id key [n]
+  A remote VDU console: screens on a VDU server (tools/vdu: vdu.php,
+  any PHP web server) - extra displays any program writes to with
+  HTTP GETs, any number of viewers watching (browsers, a 3DS, CPCs).
+  NET M4 first.
+    RVDU SERVER url   the server: vdu.php's address (RVDU.CFG)
+    RVDU id           the screen, live: its text where it is put (the
+                      CPC's console: no colours or graphics); a key
+                      goes back to its writer (KEY n); ESC quits
+    RVDU id ROLL      a rolling log: each PRINT a line at the bottom
+    RVDU id REPLAY    from its start, then live
+    RVDU NEW [title]  a new screen: its id and key (the key writes)
+    RVDU LIST         the public screens
+    RVDU PUT id key text   a command to it (PRINT Hello, LOCATE 5 5)
+    RVDU TEST id key [n]   the CPC writes a test: a count in place,
+                      touch zones - the taps in a browser come back
+                      and are shown here (QUIT, ESC or n seconds end it)
+  A screen's commands: MODE CLS PRINT LOCATE PEN PAPER INK BORDER
+  WINDOW STREAM TITLE, graphics, ZONE (tools/vdu/README.md)

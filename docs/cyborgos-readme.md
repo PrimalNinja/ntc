@@ -41,6 +41,8 @@ A program built for CyborgOS runs on both: the slot is the same 64K bank from #0
 | | |
 |---|---|
 | [cyborgos-userguide.md](cyborgos-userguide.md) | using the 320K version: commands, disc commands, RAM discs, programs, the BDOS and BIOS, plain .COM files, making a .CYB |
+| [cyborgos-decisions.md](cyborgos-decisions.md) | the decision services: ports, RAT and MODEL, NEURAL, PROBE, the virtual pet, and how to get an AI to build models |
+| [../tools/vdu/README.md](../tools/vdu/README.md) | VDU: remote displays over HTTP (the server, the browser, text and rolling viewers, the test page); RVDU is CyborgOS's console for them |
 | [cyborgos.md](cyborgos.md) | the design: the bank switch, the time slices, the memory maps, decisions |
 | [cyborgos-todo.md](cyborgos-todo.md) | what has been done (dated) and what is next |
 | `src/bas/cyborgos128kb/README.md`, `USERGUIDE.md`, `DESIGN.md` | the 128K version, as it was frozen |

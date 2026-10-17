@@ -1,0 +1,7 @@
+' SYS: what CyborgOS's numbers say (RUN 2 NEURAL SYS, then WATCH): free= the free memory in K,
+' progs= the programs running; say= what goes with them. WATCH say=... teaches it more
+free=448 progs=1 say=idle
+free=320 progs=2 say=working
+free=224 progs=3 say=busy
+free=128 progs=4 say=full
+free=0 progs=4 say=full

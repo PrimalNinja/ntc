@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VDU Screens</title>
+<link rel="stylesheet" href="vdu.css">
+<script src="vdu.js"></script>
+</head>
+<body>
+<h1><a href="index.html">VDU</a> - screens</h1>
+<div class="gsWall" id="geWall"></div>
+<script>
+// view.html?s=id,id,...[&k=key,key,...]: the screens, live (each with its key: a line to send
+// and Wipe; keys this browser made screens with are remembered). A tap in a touch zone, or a key
+// while a screen has the focus, goes to its writer as an event
+(function()
+{
+	var m_strURL = 'vdu.php';
+	var m_objWall = new VduWall(m_strURL, 1000);
+	var m_objKeys = {};
+
+	function param(strName_a)
+	{
+		var strResult = '';
+		var arrMatch = new RegExp('[?&]' + strName_a + '=([^&]*)').exec(window.location.search);
+		if (arrMatch)
+		{
+			strResult = decodeURIComponent(arrMatch[1].replace(/\+/g, ' '));
+		}
+		return strResult;
+	}
+
+	function element(strTag_a, strClass_a, strText_a)
+	{
+		var objE = document.createElement(strTag_a);
+		if (strClass_a)
+		{
+			objE.className = strClass_a;
+		}
+		if (strText_a)
+		{
+			objE.appendChild(document.createTextNode(strText_a));
+		}
+		return objE;
+	}
+
+	function button(strText_a, fnClick_a)
+	{
+		var objB = element('button', '', strText_a);
+		objB.onclick = fnClick_a;
+		return objB;
+	}
+
+	// a screen's tile: its title, the canvas in its border, the controls (the console with a key)
+	function addTile(strID_a, strKey_a)
+	{
+		var objTile = element('div', 'gsTile');
+		var objHead = element('div', 'gsTileHead');
+		var objTitle = element('span', 'gsTileTitle', 'Screen ' + strID_a);
+		var objLinks = element('span', 'gsDim');
+		var objBorder = element('div', 'gsBorder');
+		var objCanvas = document.createElement('canvas');
+		var objStatus = element('div', 'gsDim', '...');
+		var objBar = element('div', 'gsBar');
+		var objSpeed = document.createElement('select');
+		var objClient;
+		var objInput;
+		var arrSpeeds = [1, 4, 16, 64];
+		var intI;
+		var objOption;
+		var objText = element('a', '', 'text');
+		var objDumb = element('a', '', 'rolling');
+		objText.href = 'text.php?s=' + strID_a;
+		objDumb.href = 'dumb.php?s=' + strID_a;
+		objLinks.appendChild(objText);
+		objLinks.appendChild(document.createTextNode(' '));
+		objLinks.appendChild(objDumb);
+		objCanvas.width = 640;
+		objCanvas.height = 400;
+		objTile.tabIndex = 0;
+		objHead.appendChild(objTitle);
+		objHead.appendChild(objLinks);
+		objBorder.appendChild(objCanvas);
+		objTile.appendChild(objHead);
+		objTile.appendChild(objBorder);
+		objTile.appendChild(objStatus);
+		objClient = new VduClient({ url: m_strURL, id: strID_a, key: strKey_a, canvas: objCanvas,
+			cbStatus: function(strText_a) { objStatus.firstChild.nodeValue = strText_a; },
+			cbTitle: function(strText_a) { objTitle.firstChild.nodeValue = strText_a; } });
+		for (intI = 0; intI < arrSpeeds.length; intI++)
+		{
+			objOption = element('option', '', arrSpeeds[intI] * 25 + ' lines/s');
+			objOption.value = arrSpeeds[intI];
+			objSpeed.appendChild(objOption);
+		}
+		objSpeed.selectedIndex = 1;
+		objBar.appendChild(button('Live', function() { objClient.Live(); }));
+		objBar.appendChild(button('Replay', function() { objClient.Replay(parseInt(objSpeed.value, 10)); }));
+		objBar.appendChild(button('Pause', function() { objClient.Pause(); }));
+		objBar.appendChild(objSpeed);
+		objTile.appendChild(objBar);
+		if (strKey_a !== '')
+		{
+			objBar = element('div', 'gsBar');
+			objInput = document.createElement('input');
+			objInput.type = 'text';
+			objInput.placeholder = 'a command: PRINT Hello, LOCATE 10 5, MODE 0 ...';
+			objInput.onkeydown = function(objEvent_a)
+			{
+				var objE = objEvent_a || window.event;
+				if (objE.keyCode === 13 && objInput.value !== '')
+				{
+					objClient.Send(objInput.value, function(strAnswer_a) { objStatus.firstChild.nodeValue = 'sent: ' + strAnswer_a; });
+					objInput.value = '';
+				}
+				if (objE.stopPropagation)
+				{
+					objE.stopPropagation();
+				}
+			};
+			objBar.appendChild(objInput);
+			objBar.appendChild(button('Wipe', function()
+			{
+				if (window.confirm('Empty this screen? Its lines and events are gone for every viewer.'))
+				{
+					vduGet(m_strURL + '?a=wipe&s=' + strID_a + '&k=' + encodeURIComponent(strKey_a), function() { objClient.Live(); });
+				}
+			}));
+			objTile.appendChild(objBar);
+		}
+		objCanvas.onclick = function(objEvent_a)
+		{
+			var objE = objEvent_a || window.event;
+			var objRect = objCanvas.getBoundingClientRect();
+			var strZone = objClient.Touch(objE.clientX - objRect.left, objE.clientY - objRect.top, objRect.width, objRect.height);
+			if (strZone !== '')
+			{
+				objStatus.firstChild.nodeValue = 'touched ' + strZone;
+			}
+		};
+		objTile.onkeypress = function(objEvent_a)
+		{
+			var objE = objEvent_a || window.event;
+			var intCode = objE.charCode || objE.keyCode;
+			if (intCode >= 32 || intCode === 13)
+			{
+				objClient.KeyPress(intCode);
+			}
+		};
+		document.getElementById('geWall').appendChild(objTile);
+		m_objWall.Add(objClient);
+	}
+
+	function start()
+	{
+		var arrIDs = param('s').split(',');
+		var arrKeys = param('k').split(',');
+		var intI;
+		var strKey;
+		try
+		{
+			m_objKeys = JSON.parse(window.localStorage.getItem('vdu.keys') || '{}');
+		}
+		catch (objError)
+		{
+			m_objKeys = {};
+		}
+		for (intI = 0; intI < arrIDs.length; intI++)
+		{
+			if (/^[0-9a-f]{8}$/.test(arrIDs[intI]))
+			{
+				strKey = arrKeys[intI] || m_objKeys[arrIDs[intI]] || '';
+				addTile(arrIDs[intI], strKey);
+			}
+		}
+		if (document.getElementById('geWall').childNodes.length === 0)
+		{
+			document.getElementById('geWall').appendChild(element('p', '', 'No screens: view.html?s=id,id,... (index.html lists them)'));
+		}
+	}
+
+	start();
+})();
+</script>
+</body>
+</html>

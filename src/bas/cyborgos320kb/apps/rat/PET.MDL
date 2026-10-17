@@ -1,0 +1,13 @@
+' PET: the virtual pet's mind (RUN 2 MODEL PET; RAT decides, PET asks). N: hungry, tired, bored
+' - below these levels it must eat, sleep, play. L: what it likes; praise (+) and scolding (-)
+' in PET move them 3, each pick 1 - so it grows its own habits, and you can train it
+N
+ food 30
+ bed 25
+ play 20
+L
+ food 30
+ bed 25
+ play 40
+ tv 40
+ wander 20

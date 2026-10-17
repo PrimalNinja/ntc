@@ -1,0 +1,12 @@
+{
+ "name": "NEONWAR",
+ "files": [
+  "Main.bas",
+  "Nx.cls",
+  "Spr.cls",
+  "Tiles.cls",
+  "Sfx.cls",
+  "L2.cls",
+  "GfxData.cls"
+ ]
+}

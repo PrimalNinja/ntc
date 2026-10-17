@@ -1,0 +1,84 @@
+RAW PAGES - what RAWYING and RAWYANG read (CyborgOS 320K)
+
+RAWYING and RAWYANG are YING and YANG built with apps/rawying/Bml.cls instead of apps/mon/Bml.cls:
+they read no 8BML. The server lays the page out for the screen and sends it as records - the
+rows as they are shown, the links and form fields where they are - and the browser copies the
+rows into its lines and the records into its tables. 8bml2raw.py is the reference: a server's
+raw renderer should give the same bytes for the same page.
+
+THE REQUEST
+Every request carries what the browser needs to show the answer:
+  8bml=<K>     the most the browser takes, in whole K (its page buffer is 7.5K: 8bml=7). A page
+               longer than that is cut off
+  raw=<width>  RAWYING and RAWYANG only: a raw page wanted, laid out this many columns wide
+                   RAWYING  8bml=7&raw=78   (MON's window)
+                   RAWYANG  8bml=7&raw=80   (the whole screen; the scroll bar is beside it)
+    http://host/page?a=1&8bml=7&raw=78
+A form's button sends its fields the same way: /echo?name=Jo%20Ann&action=Send&8bml=7&raw=78.
+A server answers raw=<width> with a raw page (no more than 8bml K, within the limits below);
+8bml= alone with an 8BML page (YING, YANG).
+
+THE PAGE
+A record a line, its first character its kind, CR LF after it (LF alone is read too). Numbers
+are decimal, one space between them. A text part (a name, a value, an address, a choice) goes
+from a TAB to the next TAB or the record's end: it never holds a TAB, CR or LF. Nothing is
+escaped. Characters are bytes (Latin-1; the CPC's font above 127).
+
+  T<title>
+      the page's title (80 characters at most)
+  L<text>
+      the next row of the page (0, 1, 2 ...) as it is shown: <width> characters at most -
+      spaces at its end may be left off
+  K<row> <col> <len><TAB><url>
+      a link: row, column (from 0), length on the page; its address - http://..., a path on
+      the same server (/page), a file (NAME.RAW) or "<" (back)
+  F<kind> <row> <col> <width> <rows> <max> <flags> <form><TAB><name><TAB><value>
+      a form field. kind: 1 a text field, 2 a text area, 3 a select.
+      A text field at row, col is shown |value___| - width characters between the bars (a
+      password's value as *); an area is that on each of its rows rows, the value carried on
+      from row to row; a select is [ choice v], width the longest choice.
+      max: the most characters (126 at most); flags: 1 mandatory, 2 a password (added);
+      form: which form it is in (0, 1 ...) - a button sends its own form's fields
+  O<code><TAB><text>
+      a select's choice, after its F, in order: what is sent, what is shown. The F's value is
+      the code chosen
+  B<row> <col> <len> <form><TAB><url><TAB><action>
+      a form's button, shown [ action ] at row, col; len: the action's length (the link is
+      its characters, from col + 2). It sends its form to url:
+      url?name=value&...&action=<action>&raw=<width>   (values %-encoded)
+  E
+      the end: anything after it is left alone
+
+The rows come first, in order. The other records may follow in any order (8bml2raw.py: as the
+page has them); an O follows its F.
+
+THE BROWSER'S LIMITS (a page past them: what is past them is left out)
+  the page               8bml=<K> (7.5K: 8bml=7)
+  links (K, B, fields)   120
+  form fields            18
+  a value                126 characters
+  an address             255 characters (a form's with its parameters)
+
+AN EXAMPLE (raw=40)
+  TForm
+  L                Contact
+  L                =======
+  L
+  LName *
+  L|____________________|
+  LComputer *
+  L[ Commodore 64 v]
+  L
+  L[ Send ]
+  F1 4 0 20 1 20 1 0<TAB>name<TAB>
+  F3 6 0 12 1 126 1 0<TAB>comp<TAB>c
+  Oa<TAB>Amstrad CPC
+  Oc<TAB>Commodore 64
+  B8 0 4 0<TAB>/echo<TAB>Send
+  E
+
+THE TOOLS
+  python3 8bml2raw.py [--local] PAGE.8BM WIDTH [OUT]
+      an 8BML page as a raw one; --local: a local page's links to NAME.8BM go to NAME.RAW
+      (the disc's HOME.RAW and KEYS.RAW: HOME.8BM and KEYS.8BM at 78)
+  src/test/websrv.py (the tests' server) answers raw=<width> through it.

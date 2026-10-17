@@ -14,7 +14,7 @@ for gx in range(-12, 13):
         t = "building=yes" + ("|building:levels=%d" % random.randint(1, 20) if random.random() < 0.5 else "")
         way("W", n, t, [(x, y), (x + w, y), (x + w, y + d), (x, y + d), (x, y)]); n += 1
 way("W", n, "highway=motorway", [(-900, 0), (900, 0)]); n += 1
-way("W", n, "highway=residential", [(0, -900), (0, 900)]); n += 1
+way("W", n, "highway=residential|name=Test Street", [(0, -900), (0, 900)]); n += 1
 way("W", n, "railway=rail", [(-900, -950), (900, -950)]); n += 1
 way("W", n, "natural=coastline", [(900, 1000), (0, 1000), (-900, 1000)]); n += 1
 way("W", n, "man_made=pier", [(100, 1000), (100, 1100)]); n += 1

@@ -1,4 +1,4 @@
-10 ' INSTALL: CyborgOS 320K installer (UniDOS) - its four discs (the floppy as
+10 ' INSTALL: CyborgOS 320K installer (UniDOS) - its six discs (the floppy as
 11 ' drive B) to the folder CYBORGOS on drive A (IDE, SD ...). On cos-disk1 only
 12 ' Locomotive BASIC 1.0 too: an RSX takes strings only as @var$
 13 ' (p1$="X":|COPY,@p1$,@p2$). UniDOS: |SAVE,"PATH/" a folder made,
@@ -9,8 +9,8 @@
 50 PRINT "Map your floppy drive as drive B (UniDOS: |DRIVE,";CHR$(34);"B";CHR$(34);",";CHR$(34);"DFA:";CHR$(34);")."
 60 PRINT "CyborgOS goes on a device (IDE, SD ...): drive A is set to its top."
 70 PRINT "It goes in CYBORGOS/ - its commands in CYBORGOS/C, its help in"
-75 PRINT "CYBORGOS/HELP; files there already are replaced. Four discs: cos-disk1"
-78 PRINT "(this one), cos-disk2, cos-disk3 and cos-disk4."
+75 PRINT "CYBORGOS/HELP; files there already are replaced. Six discs: cos-disk1"
+78 PRINT "(this one), cos-disk2, cos-disk3, cos-disk4, cos-disk5 and cos-disk6."
 80 RESTORE:READ t:n=0:d=0
 85 PRINT:INPUT "The device (Enter: IDE)";v$:v$=UPPER$(v$):IF v$="" THEN v$="IDE"
 87 IF RIGHT$(v$,1)=":" THEN v$=LEFT$(v$,LEN(v$)-1)

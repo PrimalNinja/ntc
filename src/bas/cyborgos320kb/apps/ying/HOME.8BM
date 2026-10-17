@@ -6,7 +6,7 @@ n:
 s"Local pages":n:
 l"KEYS.8BM","The keys":n:
 n:
-s"The web (a made-up test page for now)":n:
+s"The web (NET M4 first)":n:
 l"http://example.com/","http://example.com/":n:
 l"http://example.com/find?q=cpc","http://example.com/find?q=cpc (parameters)":n:
 l"https://example.com/","https://example.com/ (not supported: http only)":n:

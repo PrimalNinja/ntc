@@ -1,0 +1,12 @@
+NEURAL file[.NN]
+  A small neural net (jNeuralNetwork's way), served on a port named
+  after its training file: RUN 2 NEURAL DUNGEON. It learns records -
+  prop=value words, a line each (*n: seen n times) - and, asked with
+  some props, gives back the record that matches best.
+  Messages (ASK DUNGEON ...):
+    Q prop=value ... [prop?]  the best record: "score prop=value ..."
+                   (0-100; prop?: that prop only); numbers match by
+                   how near they are, val* by its start; "?" none
+    T prop=value ...  learn a record (again: its weights grow)
+    S  save;  E  save and end (Q at its keyboard)
+  Up to 200 records, 8 props each. RATMODEL.TXT, section 8.

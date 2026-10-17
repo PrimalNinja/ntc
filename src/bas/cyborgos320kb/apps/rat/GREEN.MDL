@@ -1,0 +1,10 @@
+' GREEN: a greenhouse - water when the soil is dry, cool it when hot, light it when dark
+N
+ water 30
+ cool 20
+ lamp 15
+L
+ wait 50
+ water 10
+ cool 10
+ lamp 10

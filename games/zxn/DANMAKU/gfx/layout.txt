@@ -1,0 +1,33 @@
+# DANMAKU - names for the cells of tiles.png (8 x 8) and sprites.png (16 x 16)
+# (the backgrounds are Layer 2 blocks: tools/bgart.py)
+# tile   NAME   index [count]
+# sprite NAME   column row [frames [w h]]
+# sprite palettes (spr_pal.png rows): 0 the art, 1 hit flash, 2 pink bullets, 3 blue bullets,
+# 4 gold bullets, 5-9 the bosses, 10 the enemies' later colours
+tile   PANEL    1
+tile   PANELT   2         # a panel cell with a line along its top
+tile   BLACK    3
+tile   PANELR   4         # a line on its right
+tile   PANELL   5         # a line on its left
+tile   LIFE     6         # a ship left
+tile   BOMB     7         # a bomb left
+tile   GAUGE    16 9      # the chain gauge: 0-8 filled
+
+sprite PLAYER   0 0 3     # the ship: level, banked left, banked right
+sprite SHOT     3 0       # a shot
+sprite LASER    4 0 2     # the laser: the beam, where it hits
+sprite BULLET   6 0 3     # the bullets: small, big, star
+sprite POP      9 0 2     # a small fighter: two frames
+sprite DART     11 0      # a diving fighter
+sprite TANK     12 0      # a tank
+sprite TURRET   13 0      # a gun on the ground
+sprite CARRIER  14 0      # it drops a power-up or a bomb (twice the size)
+sprite GUNSHIP  15 0      # a heavy gunship (twice the size)
+sprite ITEM     0 1 3     # power-up, bomb, score
+sprite BOOM     3 1 4     # an explosion: four frames
+sprite SPARK    7 1       # a shot hitting
+sprite BOSS1    0 2 1 4 3 # stage 1's boss (64 x 48)
+sprite BOSS2    4 2 1 4 3 # stage 2's boss (64 x 48)
+sprite BOSS3    8 2 1 4 3 # stage 3's boss (64 x 48)
+sprite BOSS4    12 2 1 4 3 # stage 4's boss (64 x 48)
+sprite BOSS5    0 5 1 4 3 # stage 5's boss (64 x 48)

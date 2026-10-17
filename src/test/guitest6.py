@@ -12,7 +12,7 @@ async def main():
         await pg.goto('file://' + os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'ntc.html')))
         await pg.wait_for_timeout(500)
         opts = [o for o in await pg.locator('#ge-example option').all_inner_texts() if o.strip() and not o.startswith('-')]
-        for plat in ('cpc', 'cpcmin', 'cpcfw', 'cpm', 'test'):
+        for plat in ('cpc', 'cpcmin', 'cpcfw', 'cpm', 'test', 'zxn'):
             await pg.select_option('#ge-platform', plat)
             bad = []
             for o in opts:
@@ -20,7 +20,7 @@ async def main():
                 await pg.wait_for_timeout(300)
                 e = (await pg.locator('#ge-errors').inner_text()).strip()
                 e = '\n'.join(l for l in e.splitlines() if not (l.startswith('Page ') or l.startswith('Main RAM, called from pages') or l.startswith('Warning:'))).strip()
-                only = re.search(r'\(((?:cpc|cpcmin|cpcfw|cpm|test)(?:, (?:cpc|cpcmin|cpcfw|cpm|test))*)\)$', o)
+                only = re.search(r'\(((?:cpc|cpcmin|cpcfw|cpm|test|zxn)(?:, (?:cpc|cpcmin|cpcfw|cpm|test|zxn))*)\)$', o)
                 if only and plat not in only.group(1).split(', '): continue    # the example names its platforms
                 if e and 'Interrupt' not in e and 'Overlay' not in e: bad.append((o, e[:60]))
             asm = await pg.evaluate('m_strAsm')

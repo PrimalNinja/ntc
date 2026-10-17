@@ -9,6 +9,41 @@ finished, with the date.
 
 CyborgOS (a separate project built with NTC BASIC) keeps its own list: [cyborgos-todo.md](cyborgos-todo.md).
 
+- 2026-10-17 Fixed: Rnd(variable) and Randomize variable (or none) didn't assemble on their own -
+  kw_rndv and kw_seedv jump into kw_rndl's and kw_seedl's code, which wasn't pulled in with them
+  (Rnd(literal) and Randomize literal were fine)
+- 2026-10-18 bas/auckland_block (the Next): buildings as solid textured blocks over a floating
+  horizon, nearest first (bucketed by distance) - buildings hide buildings; the harness profiles
+  the Next (NTC_PROFZ=1: the PC at each interrupt, the busiest labels)
+- 2026-10-18 Hidden line removal tests: bas/auckland_tern (a ternary back-face test, per wall at run
+  time) and bas/auckland_mask (s3dmake's wall masks, S3D2: a byte a wall, eight directions; an AND
+  a wall). Both leave out walls facing away; neither is faster in the CBD (the time is in the corners'
+  projection, not the lines) - see bas/auckland/README.TXT. The harness: NTC_PEEK=label,... (words)
+- 2026-10-18 s3dmake: "Start at" a street (the first view), "Only the area round" a place (a square of
+  it, every street and house: AUCKLAND-CBD, -DEVONPORT, -BEACHHAVEN.NEX, 1MB or 2MB).
+  The Next's Layer 2 showed nothing (blue): in text mode the tilemap's paper is see-through only
+  as the global transparent colour (NextReg #14), not by #4C's index - Graphics sets it; the
+  harness (zxnrun) now puts the tilemap over Layer 2 the Next's way
+- 2026-10-18 AUCKLAND1M.NEX: AUCKLAND for a 1MB Next (33 blocks, no bank past 47: s3dmake "At
+  most" 528K); s3dmake fits a small size by thinning the trees after the small buildings (the
+  woods' fill first)
+- 2026-10-17 AUCKLAND on the ZX Spectrum Next: AUCKLAND.NEX (the same Main.bas / S3d.cls, #If /
+  IFDEF NTC_ZXN where the Next differs). Graphics for zxn on Layer 2 (320 x 256, double buffered,
+  XOR lines; the platform's own ntc_gfx); Option NexData "FILE", blocks - a data file's 16K blocks in
+  the NEX's banks; zxn_sel puts one at #4000 (as the CPC's RAM page). The data made smaller for a
+  2MB Next (s3dmake At most 1552K: 64,821 buildings, every road and tree). About 1.5-2 frames a
+  second over the CBD in the harness (the CPC: 0.3). Fixed on the way: NTC_ZXN is a DEFINE now
+  (sjasmplus's IFDEF tests DEFINEs: the library's Next-only part had never been assembled), and
+  NextRegs selected while interrupts can come keep their selection (ntc_zxsel: the handler selects
+  it again)
+- 2026-10-17 ZX Spectrum Next platform `zxn` (asm/ntc_plat_zxn.asm, lib/zxn): straight to the
+  hardware, laid out as `cpc` - the program at #0040 in RAM pages 16-21, the stack from #C000, bank
+  5 (the screen) at #C000-#FFFF. A NEX file with a start stub (the NMI buttons and DivMMC's paging
+  off, 28MHz, IM 1, the MMU slots). The text screen is the tilemap (40 x 32 / 80 x 32), the 8 x 5
+  keyboard, Keys (key numbers half row * 8 + bit, Kempston joysticks), the line interrupt every 52
+  lines (300 a second, as the CPC), Frame on the raster line, End a soft reset. StdIO, System,
+  List, Memory (Small), FileSystem (no files yet). The harness: test/zxnrun.py (a Next: NEX loader,
+  MMU, NextRegs, line interrupts, keyboard, the tilemap as text); every shared test passes on it
 - 2026-10-17 VarPtr in a routine nothing calls (left out, with its variables): its address
   constant (vp_name) was still written - "Label not found" when the program used only some of a
   class (Http.cls's Time alone). Now left out too
@@ -837,6 +872,14 @@ BASIC dialect.
 
 - [x] console on CPC firmware and CP/M (2026-10-11, platforms `cpcfw`, `cpm`)
 - [ ] more hosts: ZX Spectrum, then more (the PRIMAL target list is the guide)
+- [x] ZX Spectrum Next, native (`zxn`, 2026-10-17)
+- [ ] zxn: files through NextZXOS / esxDOS (DivMMC paged in for the call, as cpcmin hands back to
+      the firmware)
+- [ ] zxn: Memory pages - the Next's 8K pages into a slot (the interrupt lands in slot 0's page
+      and can bring the others in); CallBank-style whole 64K maps
+- [x] zxn: Graphics on Layer 2, AUCKLAND.NEX (2026-10-17)
+- [ ] zxn: the Melbourne demo, CyborgOS
+- [ ] zxn: other Next targets later (a dot command, a NextZXOS-friendly build that returns)
 - [ ] file devices as classes (Disk / RamDisk / Printer / Serial, the standard set
       MaxFiles / Ready / CanRead / CanWrite / CanSeek; `Open ... As #n` and `Print #n`
       onto them; handles from `Option Files n`; status, not errors). `Print #n` needs byte

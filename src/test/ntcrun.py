@@ -857,7 +857,7 @@ def main():
         if a == '--called': called = True; args.remove(a)   # cpcfw: CALLed from BASIC, AMSDOS still running
         if a.startswith('--ram='): os.environ['NTC_RAM'] = a[6:]; args.remove(a)   # total RAM K: 64, 128 (default), 576 (512K expansion), 4160 (4MB)
         if a.startswith('--cmdline='): cmdline = a[10:]; args.remove(a)
-    bas = args[0]; typed = (args[1] if len(args) > 1 else '').replace('\\n', '\r').replace('\\x7f', '\x7f')
+    bas = args[0]; typed = (args[1] if len(args) > 1 else '').replace('\\n', '\r').replace('\\x7f', '\x7f').replace('\\x1b', '\x1b')
     extra = args[2:]
     asm = bas[:-4] + '.asm'
     r = subprocess.run(['node', os.path.join(HERE, 'cli.js'), bas, '--platform=' + plat] + extra, capture_output=True, text=True)
@@ -872,6 +872,9 @@ def main():
         for line in open(os.path.join(HERE, '..', 'asm', 'ntc_rom_' + plat + '.txt')):
             p = line.split()
             if len(p) >= 4 and p[0] == '-' and p[1] in ('data', 'bss') and p[2] not in syms: syms[p[2]] = int(p[3].lstrip('#'), 16)
+    if plat == 'zxn':     # the ZX Spectrum Next (zxnrun.py): the NEX file the assembly wrote
+        import zxnrun; zxnrun.run(asm, syms, typed)
+        return
     if plat in ('cpc', 'cpcmin'):     # the CPC hardware emulation (cpcmin: plus the firmware stand-ins)
         c = cpcrun.CPC(b, syms.get('ntc_start', 0x4000), typed, syms); c.run()
         print(c.screen(cpcrun.loadfont(syms, c.m.memory)))

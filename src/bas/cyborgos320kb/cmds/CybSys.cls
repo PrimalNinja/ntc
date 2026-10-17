@@ -4,15 +4,25 @@
 ' 1 kill a slot's program, 2 reset a slot (0: this one), 3 a slot to the front, 4 wait until no
 ' other program runs, 6 TOP's table into this slot, 7 the memory (the tables' end, the top of
 ' free RAM, the pages, the totals line), 8 32 pages of the map from page Word(2), 9 MODE (0-4 set,
-' 255 which), 15 a table (Byte(1) 4: the claims, 10 bytes each), 16-19 the claims (Claim ...)
+' 255 which), 15 a table (Byte(1) 4: the claims, 10 bytes each), 16-19 the claims (Claim ...),
+' 20 3 the clock (Clock), 28-33 the ports (PortOpen ...), 34 a port's name (PortName)
 Option Explicit
 Private b(63) As Byte
 Private hsp As Integer
+Private pm(127) As Byte                       ' (a port's message on its way)
+Private pn As Integer, pc As Integer, ps As Integer, psl As Integer   ' its length, its caller, the last status
 
 ' Ask(op, v): the call made; its answer (A): 0 done, 1 nothing to do, 255 no such slot / not CyborgOS
 Public Function Ask(ByVal op As Integer, ByVal v As Integer) As Integer
   b(0) = op : b(1) = v
   Ask = Bdos(131, VarPtr(b))
+End Function
+
+' Clock: the CPC's clock, in 1/300 s (its low 16 bits: Clock - t is the time since t, wrapping)
+Public Function Clock() As Integer
+  b(6) = 0 : b(7) = 0
+  Clock = Ask(20, 3)
+  Clock = b(6) + b(7) * 256
 End Function
 
 ' the block's byte i, word i (from Ask), and the text at i (its length, then its characters)
@@ -63,6 +73,100 @@ Private Function Cl(ByVal op As Integer, ByVal nm As String, ByVal u As Integer)
     If k <= Len(nm) Then b(k + 1) = Asc(Mid$(nm, k, 1)) Else b(k + 1) = 32
   Next
   Cl = Bdos(131, VarPtr(b))
+End Function
+
+' The ports - a program serving others: a service (RAT, a model ...) opens a port by name (8
+' characters at most); any slot calls it with a message (128 characters at most) and gets the
+' service's answer. One call at a time a port: others wait their turn. Waiting sleeps the slot a
+' tick at a time (as a key wait does), so the server gets the CPU. A port closes when its
+' program ends (or is killed); a caller gone is forgotten.
+' PortOpen(nm): 0 the port is this program's, 2 another program's, 255 no room (8 ports)
+' PortClose(nm): 0 closed, 2 not this program's
+' PortCall(nm, msg): msg sent, the answer back (waits for it); PortStatus() 0 done, 2 no such
+' port (the answer then "")
+' PortGet(nm): the server's next message - 0 one came (PortMessage(), PortCaller()), 1 none yet
+' (the slot slept a tick: look at the keys, then again), 2 not this program's port
+' PortReply(nm, msg): the answer to the message got: 0 done, 2 nothing to answer
+Public Function PortOpen(ByVal nm As String) As Integer
+  PortOpen = Pt(28, nm, 0)
+End Function
+Public Function PortClose(ByVal nm As String) As Integer
+  PortClose = Pt(29, nm, 0)
+End Function
+Public Function PortCall(ByVal nm As String, ByVal msg As String) As String Max 128
+  Dim r As Integer
+  PortCall = ""
+  PutMsg msg
+  Do
+    r = Pt(30, nm, pn)                           ' (1: another call in the box - its turn first)
+  Loop While r = 1
+  ps = r
+  If r <> 0 Then Exit Function
+  Do
+    r = Pt(31, nm, 0)                            ' (1: not answered yet)
+  Loop While r = 1
+  ps = r
+  If r = 0 Then PortCall = GetMsg()
+End Function
+Public Function PortGet(ByVal nm As String) As Integer
+  PortGet = Pt(32, nm, 0)
+  If PortGet = 0 Then pc = b(13)
+End Function
+Public Function PortMessage() As String Max 128
+  PortMessage = GetMsg()
+End Function
+Public Function PortCaller() As Integer
+  PortCaller = pc
+End Function
+Public Function PortReply(ByVal nm As String, ByVal msg As String) As Integer
+  PutMsg msg
+  PortReply = Pt(33, nm, pn)
+End Function
+' PortName(i): port i's name (0-7: the table's places), "" a free place; its slot: PortSlot()
+Public Function PortName(ByVal i As Integer) As String
+  Dim k As Integer, t As String Max 8
+  t = "" : b(10) = 0
+  If Ask(34, i) = 0 And b(10) <> 0 Then
+    For k = 2 To 9
+      If b(k) > 32 Then t = t + Chr$(b(k))
+    Next
+  End If
+  psl = b(10)
+  PortName = t
+End Function
+Public Function PortSlot() As Integer
+  PortSlot = psl
+End Function
+Public Function PortStatus() As Integer
+  PortStatus = ps
+End Function
+Private Function Pt(ByVal op As Integer, ByVal nm As String, ByVal n As Integer) As Integer
+  Dim k As Integer, a As Integer
+  nm = UCase$(nm)
+  b(0) = op
+  For k = 1 To 8
+    If k <= Len(nm) Then b(k + 1) = Asc(Mid$(nm, k, 1)) Else b(k + 1) = 32
+  Next
+  a = VarPtr(pm)
+  b(10) = a And 255 : b(11) = ((a And &HFF00) \ 256) And 255
+  b(12) = n
+  Pt = Bdos(131, VarPtr(b))
+  pn = b(12)
+End Function
+Private Sub PutMsg(ByVal msg As String)
+  Dim k As Integer
+  pn = Len(msg)
+  If pn > 128 Then pn = 128
+  For k = 1 To pn
+    pm(k - 1) = Asc(Mid$(msg, k, 1))
+  Next
+End Sub
+Private Function GetMsg() As String Max 128
+  Dim k As Integer
+  GetMsg = ""
+  For k = 0 To pn - 1
+    GetMsg = GetMsg + Chr$(pm(k))
+  Next
 End Function
 
 ' Tail(): the command tail as it was typed (System.CommandLine's is in capitals, as CP/M has it -
