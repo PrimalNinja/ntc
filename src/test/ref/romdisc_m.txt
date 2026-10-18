@@ -1,0 +1,8 @@
+save 0 volumes A
+R 0 volumes A,R now R
+on R -2 on A 4 1234
+handles 12
+A 0 now A R size 20000 A size -1
+copied: Hello from the ROMDISC
+copied: Line two
+done

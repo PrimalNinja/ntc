@@ -1,0 +1,16 @@
+cap-1-1-1
+save0
+load20099
+toobig-8
+missing-2
+open1-10
+devices TAPE,DISC now DISC-1-1
+volumes A now A
+vol b0 now B save0
+vol x-2-2 volumes A,B
+save c:0 volumes A,B,C
+vol m00 volumes A,B,C,M
+tape0 now TAPE save0
+disc0 now DISC-2
+command0-2-2
+end

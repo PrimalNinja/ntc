@@ -1,0 +1,7 @@
+PRINT "go"
+S%=0
+FOR I%=1 TO 5000
+X%=(I%*5) DIV 3+I% MOD 13
+S%=S% EOR X%
+NEXT
+PRINT "done ";S%

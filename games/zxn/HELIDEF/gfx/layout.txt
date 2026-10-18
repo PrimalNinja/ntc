@@ -1,0 +1,30 @@
+# HELI ATTACK - names for the cells of tiles.png (8 x 8) and sprites.png (16 x 16)
+# (the landscape is Layer 2: tools/scene.py)
+# tile   NAME   index [count]
+# sprite NAME   column row [frames [w h]]
+# sprite palettes (spr_pal.png rows): 0 everything, 1 a hit flash, 2 pink bullets, 3 blue bullets,
+# 4 a mutant (a lander's greys turned green)
+tile   HUD      1
+tile   SCAN     2         # the scanner
+tile   SCANT    3         # its top edge
+tile   SCANG    4         # its bottom row, the ground along it
+tile   LIFE     5         # a helicopter left
+tile   SMART    6         # a smart bomb left
+tile   BLACK    7
+tile   DOT      96 36     # scanner dots: 96 + colour (0 UFO, 1 person, 2 you) * 12 + row * 4 + across
+
+sprite HELI     0 0 2 2 1 # you: 32 x 16 facing right (mirrored for left), the rotors in two frames
+sprite SHOT     4 0       # your tracer
+sprite LANDER   0 1 2     # takes people up; at the top they turn into mutants
+sprite MUTANT   2 1 2     # fast, mad, shoots
+sprite BOMBER   4 1 2     # drifts, drops mines
+sprite POD      6 1 2     # bursts into swarmers when shot
+sprite SWARMER  8 1 2     # small and fast
+sprite BAITER   10 1 2    # turns up when you take too long
+sprite PERSON   0 2 3     # someone on the ground: walking x2, arms up
+sprite BEAM     3 2       # a lander's pull
+sprite MINE     4 2       # a bomber's mine
+sprite BULLET   5 2 2     # small, big (pink: palette 2, blue: 3)
+sprite BOOM     7 2 4     # an explosion
+sprite WINDOW   11 2      # the scanner: what's on screen (drawn 2x across, 1.5 high)
+sprite STARS    12 2      # a hyperspace twinkle

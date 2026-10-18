@@ -1,0 +1,46 @@
+' ---- demo.bas (from demo.js)
+Const MAX = 10
+Dim total As Long
+total = 0
+Dim name As String
+name = "NTC"
+Dim squares(MAX - 1) As Integer
+Function square(ByVal n As Integer) As Integer
+square = (n * n)
+Exit Function
+End Function
+Sub fill()
+Dim i As Integer
+For i = 0 To (MAX - 1)
+squares(i) = square(i)
+Next
+End Sub
+Sub report(ByVal label As String, ByVal value As String)
+Print ((label & ": ") & value)
+End Sub
+Call fill()
+Dim i As Integer
+i = 0
+While (i < MAX)
+If ((i Mod 2) = 0) Then
+total = (total + squares(i))
+ElseIf (i = 7) Then
+i = i + 1
+GoTo jsc1
+End If
+i = i + 1
+jsc1:
+Wend
+Print ("Hello from " & (LCase$(name))); total
+Call report("len", Len(name))
+Select Case total
+Case 120
+Print "total is right"
+Case Else
+Print "total is wrong"
+End Select
+Dim j As Integer
+For j = 10 To 1 Step -3
+Print j; " ";
+Next
+Print

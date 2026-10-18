@@ -1,0 +1,81 @@
+' System - what this machine is. NTC platform class: Amstrad CPC, minimal firmware (direct hardware)
+' The same members on every platform; 0 / False = not on this machine.
+
+Public Const Platform = "CPC minimal firmware"
+Public Const CpuClock = 4000           ' kHz, 0 = not known
+Public Const TicksPerSecond = 300         ' Ticks rate, 0 = no clock
+Public Const FrameRate = 50              ' screen frames a second, 0 = not known
+Public Const HasInterrupts = True       ' normal mode lets interrupts in
+Public Const HasHook = True             ' the Interrupt statement works
+Public Const HasScreen = True           ' a screen with rows and columns (not a stream)
+Public Const HasKeyboard = True
+Public Const MaxHandles = 0             ' file handles (no file devices yet)
+
+' the tick count (the same as Ticks)
+Public Function Ticks() As Integer
+#asm
+            pop hl
+            ld (ntc_ivar), hl
+            ld ix, got
+            jp ntc_plat_ticks
+got:
+            ex de, hl
+            ld hl, (ntc_ivar)
+            ld (hl), e
+            inc hl
+            ld (hl), d
+#endasm
+End Function
+
+' Command(name): run a ROM's command (|NAME, no arguments): AMSDOS, M4, a utility ROM ...
+' OK (0), or -2 when no ROM has it
+Public Function Command(ByVal name As String) As Integer
+#asm
+            pop hl
+            ld (fs_a1), hl
+            pop hl
+            ld (fs_res), hl
+            ld hl, fs_command
+            jp fs_go
+#endasm
+End Function
+
+' HasCapability(name): True (-1) when this platform can do it, else False (0). The names:
+' COMMANDLINE (System.CommandLine has the command tail), SCREEN (rows and columns, not a
+' stream), KEYBOARD, CLOCK (Ticks counts), HOOK (the Interrupt statement), INTERRUPTCLASSES
+' (Option Class Interrupt), PAGES (RAM pages with Option Memory CPCExpansion), FILES
+' (FileSystem Load / Save ...), ROMCOMMANDS (System.Command), OVERLAYS (Option Class Overlay)
+Public Function HasCapability(ByVal name As String) As Integer
+#asm
+            pop hl
+            pop de
+            ld bc, caps
+            jp ntc_capfind
+caps:
+            db "SCREEN", 0
+            dw -1
+            db "KEYBOARD", 0
+            dw -1
+            db "CLOCK", 0
+            dw -1
+            db "HOOK", 0
+            dw -1
+            db "INTERRUPTCLASSES", 0
+            dw -1
+            db "PAGES", 0
+            dw -1
+            db "FILES", 0
+            dw -1
+            db "ROMCOMMANDS", 0
+            dw -1
+            db "OVERLAYS", 0
+            dw -1
+            db 0
+#endasm
+End Function
+
+' CommandLine(): what was typed after the program's name - "" here (no command line:
+' HasCapability("COMMANDLINE") is False)
+Public Function CommandLine() As String
+    CommandLine = ""
+End Function

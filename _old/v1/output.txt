@@ -1,0 +1,47 @@
+; Startup code goes here
+
+line0:			dw kw_cls
+line1:			dw kw_inputstr, var_name
+
+line2:			dw kw_printstrlit
+				db "Welcome", 0
+
+line3:			dw kw_printstrvar, var_name
+
+line4:			dw kw_let16, var_counter, 0
+
+line5:			dw kw_let16, var_tmp_0, 3
+
+while_loop_0:	dw kw_comparelt16, var_counter, var_tmp_0
+				dw kw_goto_iffalse, while_end_0
+
+line6:			dw kw_printstrlit
+		`		db "Looping", 0
+
+line7:			dw kw_incintvar, var_counter
+
+line8:			dw kw_goto, while_loop_0
+while_end_0:
+
+line9:			dw kw_let16, var_tmp_1, 3
+				dw kw_eq16, var_counter, var_tmp_1
+				dw kw_goto_iffalse, if_else_1
+
+				dw kw_printstrlit
+				db "Done", 0
+				dw kw_goto, if_end_1
+
+if_else_1:		dw kw_printstrlit
+				db "Error", 0
+if_end_1:
+
+line10:			dw kw_stop
+
+; Variable declarations
+var_name:    	ds 40
+				db 0
+var_counter:    dw 0
+var_tmp_0:    	dw 0
+var_tmp_1:    	dw 0
+
+; Support routines (kw_*) go here

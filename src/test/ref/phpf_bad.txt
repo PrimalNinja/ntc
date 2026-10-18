@@ -1,0 +1,6 @@
+ERR X:14: no floating point numbers in NTC
+ERR X:4: do ... while is not in the NTC PHP flavour (use while)
+ERR X:5: try / catch is not in the NTC PHP flavour
+ERR X:6: functions as values (closures) are not in the NTC PHP flavour
+ERR X:8: each case ends with break (no falling into the next case)
+ERR X:15: a function inside a function is not in the NTC PHP flavour

@@ -1,0 +1,7 @@
+ERR X:13: no floating point numbers in NTC
+ERR X:3: do ... while is not in the NTC JS flavour (use while)
+ERR X:4: try / catch is not in the NTC JS flavour
+ERR X:5: functions as values (closures) are not in the NTC JS flavour
+ERR X:7: each case ends with break (no falling into the next case)
+ERR X:15: a function inside a function (a closure) is not in the NTC JS flavour
+ERR X:3: arrow functions are not in the NTC JS flavour

@@ -1,0 +1,18 @@
+cap-1
+select R 0 volume R
+1 HELLO.TXT 34
+2 BIG.BIN 20000
+3 SMALL.DAT 10
+exists -10-1
+load 10 0 9
+too big -8
+big 20000
+sum 2549392
+open 2
+> Hello from the ROMDISC
+> Line two
+at end -7
+close 0 again -6
+read 16380 228 3619 -1
+write -1 missing -2 bad -4
+done

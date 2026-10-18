@@ -1,0 +1,6 @@
+Type=Exe
+Module=Main; Main.bas
+Class=Counter; classes\Counter.cls
+Form=Form1.frm
+Module=Gone; Gone.bas
+Startup="Sub Main"

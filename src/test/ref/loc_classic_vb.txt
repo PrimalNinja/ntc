@@ -1,0 +1,80 @@
+' ---- classic.bas (from classic.loc)
+Option VBPrint
+Dim a As Integer
+Dim a_s As String
+Dim a_i As Integer
+Dim b_s As String
+Dim i As Integer
+Dim nm_s(5) As String
+Dim q_s As String
+Dim sc(5) As Integer
+Dim total As Long
+Dim x As Integer
+Dim y As Integer
+Dim z As Integer
+Dim loco_p As Integer
+Dim loco_d(9) As String
+loco_d(0) = "Ann"
+loco_d(1) = "50"
+loco_d(2) = "Bob"
+loco_d(3) = "60"
+loco_d(4) = "Cy, Jr"
+loco_d(5) = "70"
+loco_d(6) = "Dee"
+loco_d(7) = "80"
+loco_d(8) = "Eve"
+loco_d(9) = "90"
+Dim loco_ti As Integer
+
+
+Mode 1
+' WARNING: unsupported DEFINT: DEFINT a-z
+
+total = 0
+For i = 1 To 5 : nm_s(i) = loco_d(loco_p) : loco_p = loco_p + 1 : sc(i) = Val(loco_d(loco_p)) : loco_p = loco_p + 1 : total = total + sc(i) : Next
+Print "Players:";
+For i = 1 To 5 : Print " "; nm_s(i); : Next
+Print : Print "Total"; total
+
+Print "Double 21 is"; fn_dbl(21)
+a = 7 : a_s = "seven" : a_i = 3
+Print a; a_s; a_i
+loco_ti = sc(1) : sc(1) = sc(2) : sc(2) = loco_ti : Print sc(1); sc(2)
+If total > 300 Then Print "big" Else Print "small"
+If a = 7 Then GoTo 180
+Print "not reached"
+180 GoSub 300
+On 2 GoSub 310, 320, 330
+b_s = "Hello" : Mid$(b_s, 1, 1) = "J" : Print b_s; " "; UCase$(b_s); Len(b_s)
+Print IIf((IIf((3) > (9), 3, 9)) > (4), IIf((3) > (9), 3, 9), 4); IIf((IIf((3) < (9), 3, 9)) < (4), IIf((3) < (9), 3, 9), 4); Hex$(255); " "; loco_bin(5, 8)
+x = 10 : While x > 0 : x = x - 3 : Wend : Print "x="; x
+Print 17 Mod 5; 17 \ 5; 2 ^ 10; &HFF; &X101
+' WARNING: unsupported COS: y=3*COS(1)
+loco_p = 6 : q_s = loco_d(loco_p) : loco_p = loco_p + 1 : Print "Restored: "; q_s
+If InStr("abcdef", "d") = 4 Then Print "instr ok"
+Print "Done"
+End
+300 Print "In sub 300" : Return
+310 Print "one" : Return
+320 Print "two" : Return
+330 Print "three" : Return
+
+
+
+End
+Function fn_dbl(ByVal x As Integer) As Integer
+fn_dbl = x * 2
+End Function
+Function loco_bin(ByVal n As Integer, ByVal d As Integer) As String
+  Dim loco_bs As String
+  Dim loco_bi As Integer
+  loco_bs = ""
+  For loco_bi = 0 To 15
+    If n And 1 Then loco_bs = "1" & loco_bs Else loco_bs = "0" & loco_bs
+    n = (n \ 2) And &H7FFF
+  Next
+  While Len(loco_bs) > 1 And Left$(loco_bs, 1) = "0" And Len(loco_bs) > d
+    loco_bs = Mid$(loco_bs, 2)
+  Wend
+  loco_bin = loco_bs
+End Function

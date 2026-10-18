@@ -1,0 +1,56 @@
+20040 samples (19152 while flying)
+
+ 18.4%  calc: vertex transform (table additions)
+ 17.1%  calc: projection (the divide per point)
+ 14.8%  draw: lines (gfx_line, the library)
+ 14.3%  walk: tiles, buildings, lines, trees
+ 13.7%  calc: multiplies (tile positions, frame tables, trees /3)
+ 13.2%  calc: clipping, outcodes, edges
+  4.8%  calc: compares
+  3.3%  other: ntc
+  0.3%  draw: clearing the screen
+  0.1%  other: p
+  0.1%  other: fn
+  0.0%  other: asm
+
+the labels (top 40):
+  7.8%  fn_s3d_render_vx_xz
+  6.9%  fn_s3d_render_mu_lp
+  3.8%  fn_s3d_render_cmps
+  3.0%  fn_s3d_render_tr_lp
+  2.8%  fn_s3d_render_oc3
+  2.6%  mem_sc_lp
+  2.6%  fn_s3d_render_vx12
+  2.5%  fn_s3d_render_mu_n
+  2.0%  fn_s3d_render_pj_xs
+  2.0%  fn_s3d_render_vx_put
+  1.7%  fn_s3d_render_hneg
+  1.7%  fn_s3d_render_pj_div
+  1.7%  fn_s3d_render_ve_oc
+  1.5%  fn_s3d_render_vp_oc
+  1.5%  fn_s3d_render_pj_133
+  1.5%  fn_s3d_render_ln_h0
+  1.5%  fn_s3d_render_oc2
+  1.5%  fn_s3d_render_vp_g
+  1.4%  fn_s3d_render_ucap
+  1.3%  fn_s3d_render_pj_160
+  1.3%  fn_s3d_render_dv_lp
+  1.2%  mem_lowhigh
+  1.2%  gfx_chk
+  1.2%  gfx_l_dy
+  1.2%  fn_s3d_render_oc1
+  1.2%  gfx_l_draw
+  1.2%  fn_s3d_render_ed_set
+  1.2%  fn_s3d_render_vh_ok
+  1.2%  fn_s3d_render_pj_z
+  1.1%  fn_s3d_render_ed_one
+  1.0%  fn_s3d_render_oc4
+  1.0%  fn_s3d_render_pd_n0
+  1.0%  fn_s3d_render_cm_d
+  1.0%  fn_s3d_render_pd_n2
+  1.0%  fn_s3d_render_pd_n3
+  1.0%  gfx_line
+  0.9%  fn_s3d_render_pd_n6
+  0.9%  fn_s3d_render_pd_n5
+  0.9%  fn_s3d_render_pd_n4
+  0.9%  fn_s3d_render_ln_g

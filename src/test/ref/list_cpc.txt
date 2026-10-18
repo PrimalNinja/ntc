@@ -1,0 +1,10 @@
+created-1 count0 first-1
+appended3000 pages used3
+sum4501500
+search-36 none-1
+after delete1500 last2999
+first-7 second2000 count1502
+sorted-1 walked1502 min-999 max2000
+backwards1502 bytes25 data2000
+bad-2 destroy0 pages back-1
+done

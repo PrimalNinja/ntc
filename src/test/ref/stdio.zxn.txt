@@ -1,0 +1,7 @@
+cols 40
+AB
+can position
+ZXN ticks/s 300
+name? Bo
+hi Bo
+key 90 col 7

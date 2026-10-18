@@ -1,0 +1,23 @@
+missing-2
+badname-4-4-4
+[hello]
+[world 2]
+seek200201
+update4996
+read2025625348
+readonly-11
+last43
+badhandle-6-6
+handles12-5
+badmode-11
+rename0-10
+taken-10
+delete0-2
+devices DISC now DISC0-2
+cpm49-1
+volumes A now A
+vol b0 now B volumes A,B save0
+on a-10
+vol q-20
+command-1
+end

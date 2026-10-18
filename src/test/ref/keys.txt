@@ -1,0 +1,3 @@
+space 0 bad 00
+SAJ 32J 2K 4
+done

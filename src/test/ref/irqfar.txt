@@ -1,0 +1,3 @@
+sum125350 count400
+ticks ok
+done

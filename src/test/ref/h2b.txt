@@ -1,0 +1,28 @@
+TContact
+L                Welcome
+L                =======
+LA basic page with a
+L-> link
+Lin it.
+L                 Scores
+L                 ------
+L- First
+L- Second
+L----------------------------------------
+LName                Score
+L----------------------------------------
+LAnn                 350
+LBob                 290
+LName
+L|____________________|
+LComputer
+L[ Commodore 64 v]
+L[ Send ]
+K3 3 4	http://example.com/
+K13 0 3	bob.8bm
+F1 15 0 20 1 20 1 0	name	
+F3 17 0 12 1 126 0 0	comp	c
+Oa	Amstrad CPC
+Oc	Commodore 64
+B18 0 4 0	/echo	Send
+E

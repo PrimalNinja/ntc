@@ -1,0 +1,22 @@
+pages33 model3 ram576 free33
+bad-2-2-2-2
+cur1
+user page1 type U
+cur1 7788
+page 2 at #4000:-1
+back:7788
+word4660 byte52 cur1
+kind '-':0
+too big-1
+alloc-1 largest16382
+copy0 sum4950
+free0 again-2 q0
+map U--------------------------------
+big blocks10 free pages22 largest16382
+map U--------------------------------
+wrap copy0200150101
+copy to bad page-2 cur1
+irq page4 free0 again-2 kind X0
+heap page4 D
+tables-1 free30
+done

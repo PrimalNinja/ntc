@@ -1,0 +1,4 @@
+fixed -1-1-1-1
+shared all run -1-1-1-1-1-1
+weights -1-1-1-1
+done

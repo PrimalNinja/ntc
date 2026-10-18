@@ -1,0 +1,18 @@
+WARN classic.loc:4: unsupported DEFINT - the line is left out
+WARN classic.loc:25: unsupported COS - the line is left out
+
+Players: Ann Bob Cy, Jr Dee Eve
+Total 350
+Double 21 is 42
+ 7 seven 3
+ 60  50
+big
+In sub 300
+two
+Jello JELLO 5
+ 9  3 FF 00000101
+x=-2
+ 2  3  1024  255  5
+Restored: Dee
+instr ok
+Done

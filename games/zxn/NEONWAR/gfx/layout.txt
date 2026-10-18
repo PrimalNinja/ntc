@@ -1,0 +1,19 @@
+# NEONWAR - names for the cells of tiles.png (8 x 8) and sprites.png (16 x 16)
+# (the ships, the enemies and the shots are lines on Layer 2: their shapes are in Main.bas, Shapes)
+# tile   NAME   index [count]
+# sprite NAME   column row [frames [w h]]
+tile   GRIDC    1         # the floor: a cell with the grid's corner
+tile   GRIDT    2         # its top edge
+tile   GRIDL    3         # its left edge
+tile   GRIDN    4         # plain
+tile   FRAMET   5         # the frame round the arena: top, bottom, left, right
+tile   FRAMEB   6
+tile   FRAMEL   7
+tile   FRAMER   8
+tile   CORNER   9 4       # its corners: top left, top right, bottom left, bottom right
+tile   LIFE     13
+tile   BOMB     14
+tile   LOGO     128 3
+
+sprite SPAWN    0 0 2     # where an enemy is about to appear
+sprite SHIP     2 0 8     # the player's ship: 8 ways, 0 right then clockwise (palette 1: flashing)

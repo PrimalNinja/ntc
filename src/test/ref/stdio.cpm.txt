@@ -1,0 +1,7 @@
+cols 80
+AB
+stream
+CP/M ticks/s 0
+name? Bo
+hi Bo
+key 90 col 7

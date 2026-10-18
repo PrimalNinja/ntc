@@ -1,0 +1,4 @@
+MODE 0
+PRINT "Mode 0: 20 col"
+PRINT 12345
+END

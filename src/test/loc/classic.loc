@@ -1,0 +1,35 @@
+10 REM #Option Flavour Locomotive
+20 REM A Locomotive BASIC test listing
+30 MODE 1
+35 DEFINT a-z
+40 DIM sc(5), nm$(5)
+50 total=0 '#long
+60 FOR i=1 TO 5:READ nm$(i),sc(i):total=total+sc(i):NEXT i
+70 PRINT "Players:";
+80 FOR i=1 TO 5:PRINT " ";nm$(i);:NEXT
+90 PRINT:PRINT "Total";total
+100 DEF FNdbl(x)=x*2
+110 PRINT "Double 21 is";FNdbl(21)
+120 a=7:a$="seven":a%=3
+130 PRINT a;a$;a%
+140 SWAP sc(1),sc(2):PRINT sc(1);sc(2)
+150 IF total>300 THEN PRINT "big" ELSE PRINT "small"
+160 IF a=7 THEN 180
+170 PRINT "not reached"
+180 GOSUB 300
+190 ON 2 GOSUB 310,320,330
+200 b$="Hello":MID$(b$,1,1)="J":PRINT b$;" ";UPPER$(b$);LEN(b$)
+210 PRINT MAX(3,9,4);MIN(3,9,4);HEX$(255);" ";BIN$(5,8)
+220 x=10:WHILE x>0:x=x-3:WEND:PRINT "x=";x
+230 PRINT 17 MOD 5;17\5;2^10;&FF;&X101
+240 y=3*COS(1)
+250 RESTORE 1010:READ q$:PRINT "Restored: ";q$
+260 IF INSTR("abcdef","d")=4 THEN PRINT "instr ok"
+270 PRINT "Done"
+280 END
+300 PRINT "In sub 300":RETURN
+310 PRINT "one":RETURN
+320 PRINT "two":RETURN
+330 PRINT "three":RETURN
+1000 DATA Ann,50,Bob,60,"Cy, Jr",70
+1010 DATA Dee,80,Eve,90

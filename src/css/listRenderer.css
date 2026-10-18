@@ -1,0 +1,329 @@
+/* listRenderer.css - Styles for listRenderer component */
+
+/* ============================================
+   CONTAINERS
+   ============================================ */
+
+/* List container */
+.gscr-list-container {
+	display: flex;
+	flex-direction: column;
+	border: 1px solid #dee2e6;
+	border-radius: 4px;
+}
+
+/* Remove focus outline when container is focused (for editable grids) */
+.gscr-list-container:focus {
+	outline: none;
+}
+
+/* Gallery container */
+.gscr-gallery-container {
+	display: flex;
+	flex-direction: column;
+	border: 1px solid #dee2e6;
+	border-radius: 4px;
+}
+
+/* Remove focus outline when container is focused */
+.gscr-gallery-container:focus {
+	outline: none;
+}
+
+/* ============================================
+   TOOLBAR
+   ============================================ */
+
+.gscr-list-toolbar {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	padding: 10px;
+	border-bottom: 1px solid #dee2e6;
+	background: #f8f9fa;
+}
+
+/* Toolbar search section */
+.gscr-toolbar-search {
+	display: flex;
+	gap: 8px;
+	flex: 1;
+	min-width: 250px;
+}
+
+.gscr-toolbar-search .ge-list-search {
+	flex: 1;
+}
+
+/* Toolbar operations section */
+.gscr-toolbar-operations {
+	display: flex;
+	gap: 8px;
+	flex-wrap: wrap;
+}
+
+/* ============================================
+   LIST TABLE
+   ============================================ */
+
+.gscr-list-table {
+	width: 100%;
+	margin: 0;
+}
+
+.gscr-list-table tbody tr {
+	cursor: pointer;
+}
+
+/* List header */
+.gscr-list-header {
+	background-color: #f8f9fa;
+	border-bottom: 2px solid #dee2e6;
+}
+
+/* Sortable column headers */
+.gscr-list-sortable {
+	padding: 8px;
+	user-select: none;
+}
+
+.gscr-list-sortable.gscr-sortable-active {
+	cursor: pointer;
+}
+
+.gscr-list-sortable.gscr-sortable-inactive {
+	cursor: default;
+}
+
+.gscr-list-sortable.gscr-sortable-active:hover {
+	background-color: #e9ecef;
+}
+
+/* Sort indicator */
+.gscr-sort-indicator {
+	color: #007bff;
+	font-size: 10px;
+	margin-left: 4px;
+}
+
+/* List cells */
+.gscr-list-cell {
+	padding: 8px;
+	border-top: 1px solid #dee2e6;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	max-width: 0;
+}
+
+/* Default hover state */
+.gscr-list-table tbody tr:hover {
+	background-color: #f8f9fa !important;
+}
+
+/* Selected row - overrides hover and Bootstrap */
+.gscr-list-table tbody tr.gscr-list-row-selected,
+.gscr-list-table.table tbody tr.gscr-list-row-selected {
+	background-color: #e3f2fd !important;
+}
+
+.gscr-list-table tbody tr.gscr-list-row-selected:hover,
+.gscr-list-table.table tbody tr.gscr-list-row-selected:hover {
+	background-color: #bbdefb !important;
+}
+
+/* Force selected row cells to inherit background */
+.gscr-list-table tbody tr.gscr-list-row-selected td,
+.gscr-list-table.table tbody tr.gscr-list-row-selected td {
+	background-color: transparent !important;
+}
+
+/* ============================================
+   GALLERY
+   ============================================ */
+
+/* Gallery grid */
+.gscr-gallery-grid {
+	display: grid;
+	gap: 10px;
+}
+
+/* Gallery items */
+.gscr-gallery-item {
+	cursor: pointer;
+	border: 2px solid transparent;
+	text-align: center;
+	transition: all 0.2s ease;
+	overflow: hidden;
+}
+
+.gscr-gallery-item:hover {
+	border-color: #ccc;
+}
+
+/* Selected gallery item */
+.gscr-gallery-item-selected {
+	border-color: #007bff !important;
+	box-shadow: 0 0 10px #007bff !important;
+}
+
+.gscr-gallery-item-selected:hover {
+	border-color: #0056b3 !important;
+	box-shadow: 0 0 15px #0056b3 !important;
+}
+
+/* Gallery thumbnail */
+.gscr-gallery-thumb {
+	margin: 0;
+	background: #f0f0f0;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	overflow: hidden;
+}
+
+.gscr-gallery-thumb img {
+	max-width: 100%;
+	max-height: 100%;
+}
+
+/* No image placeholder */
+.gscr-gallery-no-image {
+	color: #999;
+}
+
+/* Gallery caption */
+.gscr-gallery-caption {
+	margin-top: 5px;
+	font-size: 12px;
+	word-wrap: break-word;
+	white-space: pre-line;
+}
+
+/* ============================================
+   SCROLL CONTAINERS
+   ============================================ */
+
+.gscr-list-scroll {
+	flex: 1;
+}
+
+.gscr-gallery-scroll {
+	flex: 1;
+	padding: 10px;
+}
+
+/* ============================================
+   PAGINATION
+   ============================================ */
+
+.gscr-list-pagination {
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: space-between;
+	align-items: center;
+	padding: 10px;
+	gap: 10px;
+	border-top: 1px solid #dee2e6;
+	background: #f8f9fa;
+}
+
+.gscr-pagination-info {
+	flex: 1;
+	min-width: 200px;
+}
+
+.gscr-pagination-buttons {
+	display: flex;
+	gap: 8px;
+	flex-wrap: wrap;
+}
+
+/* ============================================
+   EMPTY STATES
+   ============================================ */
+
+.gscr-empty-state {
+	text-align: center;
+	padding: 20px;
+	color: #6c757d;
+}
+/* ============================================
+   INLINE EDITING
+   ============================================ */
+
+/* Floating editor */
+.gscr-floating-editor {
+	position: absolute;
+	z-index: 1000;
+	border: 2px solid #007bff !important;
+	box-shadow: 0 0 5px rgba(0, 123, 255, 0.5);
+}
+
+/* Row status indicators */
+.gscr-list-table tbody tr.gscr-row-new {
+	background-color: #d4edda !important; /* Light green for new */
+}
+
+.gscr-list-table tbody tr.gscr-row-updated {
+	background-color: #fff3cd !important; /* Light yellow for updated */
+}
+
+.gscr-list-table tbody tr.gscr-row-deleted {
+	background-color: #f8d7da !important; /* Light red for deleted */
+	text-decoration: line-through;
+	opacity: 0.6;
+}
+
+/* Editable cells cursor */
+.gscr-list-table tbody td.gscr-editable-cell {
+	cursor: cell;
+}
+
+.gscr-list-table tbody td.gscr-editable-cell:hover {
+	background-color: #e7f3ff !important;
+}
+
+/* Readonly cells - light grey background */
+.gscr-list-table tbody td.gscr-readonly-cell {
+	background-color: #f8f9fa;
+	cursor: default;
+}
+
+.gscr-list-table tbody td.gscr-readonly-cell:hover {
+	background-color: #f0f0f0 !important;
+}
+
+/* Blank row styling */
+.gscr-list-table tbody tr.gscr-blank-row {
+	background-color: #f8f9fa !important;
+}
+
+.gscr-list-table tbody tr.gscr-blank-row td {
+	font-style: italic;
+	color: #6c757d;
+}
+
+.gscr-placeholder {
+	color: #adb5bd;
+	user-select: none;
+}
+
+/* Row selector column */
+.gscr-row-selector {
+	width: 20px;
+	background-color: #f8f9fa;
+	border-right: 1px solid #dee2e6;
+	text-align: center;
+	vertical-align: middle;
+	font-weight: bold;
+	color: #6c757d;
+	cursor: default;
+	user-select: none;
+	padding: 0 !important;
+}
+
+.gscr-blank-row .gscr-row-selector {
+	color: #007bff;
+	font-size: 16px;
+}

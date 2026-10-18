@@ -1,0 +1,16 @@
+N%=2000:DIM A%(N%)
+X%=1:FOR I%=0 TO N%:X%=(X%*13+7) AND 1023:A%(I%)=X%:NEXT
+PRINT "go"
+G%=N% DIV 2
+WHILE G%>0
+FOR I%=G% TO N%
+T%=A%(I%):J%=I%
+WHILE J%>=G%
+IF A%(J%-G%)<=T% THEN EXIT WHILE
+A%(J%)=A%(J%-G%):J%=J%-G%
+ENDWHILE
+A%(J%)=T%
+NEXT
+G%=G% DIV 2
+ENDWHILE
+PRINT "done ";A%(0);" ";A%(1000);" ";A%(N%)

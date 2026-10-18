@@ -1,0 +1,23 @@
+10 REM Locomotive BASIC flavour: the CPC's own BASIC, turned into VB5 and compiled.
+20 REM a, a% and a$ are three variables; '#long after a line is a type hint;
+30 REM a line NTC can't do becomes a warning and is left out (line 200 below)
+'# Option PressAnyKeyOnEnd "Press a key"
+40 MODE 1
+50 DIM sc(5),nm$(5)
+60 total=0 '#long
+70 FOR i=1 TO 5:READ nm$(i),sc(i):total=total+sc(i):NEXT i
+80 PRINT "High scores"
+90 FOR i=1 TO 5:PRINT nm$(i);TAB(10);sc(i):NEXT
+100 PRINT "Total";total;" Best";MAX(sc(1),sc(2),sc(3),sc(4),sc(5))
+110 DEF FNpct(x)=x*10\(total\10)
+120 PRINT "Ann has";FNpct(sc(1));"%"
+130 a$="Hello":MID$(a$,1,1)="J":PRINT a$;" ";UPPER$(a$)
+140 GOSUB 1000
+150 ON 2 GOSUB 1010,1020
+200 y=3*COS(1)
+210 PRINT "Done"
+220 END
+1000 PRINT "In GOSUB 1000":RETURN
+1010 PRINT "one":RETURN
+1020 PRINT "two":RETURN
+2000 DATA Ann,350,Bob,290,"Cy, Jr",270,Dee,180,Eve,120

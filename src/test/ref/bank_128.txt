@@ -1,0 +1,13 @@
+banks 1
+bank 1
+-BBBB
+call 2012
+again 2107
+stub ED 49
+second 0
+free 0
+free again -2
+call freed -2
+call 99 -2
+-----
+done

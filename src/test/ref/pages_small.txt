@@ -1,0 +1,9 @@
+title
+L1 2121
+L2 5333
+L1 again 6515
+main sum 56
+main count 78 ********
+loaded -100
+credits 42
+done

@@ -1,0 +1,8 @@
+DIM F&(8000)
+PRINT "go"
+C%=0
+FOR I%=2 TO 8000:F&(I%)=1:NEXT
+FOR I%=2 TO 8000
+IF F&(I%)=1 THEN C%=C%+1:J%=I%+I%:WHILE J%<=8000:F&(J%)=0:J%=J%+I%:ENDWHILE
+NEXT
+PRINT "done ";C%

@@ -1,0 +1,15 @@
+open 1
+second -5
+load while open -9
+write 20
+read on write -6
+close 0 again -6
+update -1 mode 9 -11
+missing -2
+[ABCDEF] [second line]
+read 6 02
+rest 3456789
+at end -7 line [] write -6
+bad handle -6 eof -1
+binary 48 32 49 32
+done
