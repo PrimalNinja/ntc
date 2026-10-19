@@ -1,19 +1,17 @@
-' Scroll - the copper scrolls Layer 2 sideways: not at all at the top (the scanner), by the stars'
-' amount from line 44 (the sky), by the ground's from line 160 (the terrain). Show sets them for
-' the next frame; Upload (straight after Frame) hands the list to the copper.
+' Scroll - NTC build: the copper scrolls Layer 2 sideways from line 160 down (the terrain) and
+' not above it (the scanner). Show sets the scroll for the next frame; Upload (straight after
+' Frame) hands the list to the copper.
 ' (c) 2026 Cyborg Unicorn Pty Ltd - MIT License
 Option Explicit
 
-Private cop(19) As Byte
+Private cop(15) As Byte
 
-Public Sub Show(ByVal stars As Integer, ByVal ground As Integer)
+Public Sub Show(ByVal sx As Integer)
   cop(0) = &H80 : cop(1) = 0                ' line 0:
   cop(2) = &H16 : cop(3) = 0                '   no scroll
-  cop(4) = &H80 : cop(5) = 44               ' line 44: the sky
-  cop(6) = &H16 : cop(7) = stars And 255
-  cop(8) = &H80 : cop(9) = 160              ' line 160: the ground
-  cop(10) = &H16 : cop(11) = ground And 255
-  cop(12) = &HFF : cop(13) = &HFF           ' the end
+  cop(4) = &H80 : cop(5) = 160              ' line 160:
+  cop(6) = &H16 : cop(7) = sx And 255       '   the terrain's scroll
+  cop(8) = &HFF : cop(9) = &HFF             ' the end
 End Sub
 
 Public Sub Upload()
@@ -35,7 +33,7 @@ Public Sub Upload()
             out (c), a
             inc b
             ld hl, {cop}
-            ld e, 14
+            ld e, 10
 sc_lp:
             ld a, (hl)
             out (c), a

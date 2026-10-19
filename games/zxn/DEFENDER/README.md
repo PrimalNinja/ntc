@@ -1,56 +1,44 @@
-# DEFENDER - ZX Spectrum Next Edition (NTC BASIC)
+# DEFENDER - ZX Spectrum Next Edition (NTC BASIC build)
 
-Your friend's Defender, running under **NTC BASIC** on the **ZX Spectrum Next**, with better
-graphics, sound and play. `original_Main.bas` is his file as it came. `Main.bas` keeps his world,
-his sprite hardware code, his landers, mutants, humans, scanner and controls, and builds on them.
+Your friend's Defender, made to compile and run under **NTC BASIC** on the **ZX Spectrum Next**.
+The game itself (the ship, landers, mutants, humans, abductions, smart bombs, hyperspace, the
+scanner, the waves) and his sprite hardware code are his. `original_Main.bas` is his file as it
+came; `Main.bas` is the working one, with the changes marked `NTC:`.
 
-## What's new
+## What was changed
 
-**Graphics**
-- 16 sprite patterns instead of 5 (`tools/sprites.py` makes them; `SprData.cls` builds them in;
-  `DEFENDER.SPR` is the same set as a file, and replaces it where NTC has files):
-  - the ship with a flickering engine flame when thrusting
-  - landers and mutants with two frames each
-  - humans that walk
-  - an enemy shot, a four-frame explosion and the baiter
-- **Stars** behind, scrolling at a quarter of the ground's speed. The copper changes Layer 2's
-  sideways scroll three times down the screen: none for the scanner, slow for the sky, full for
-  the ground (`Scroll.cls`).
-- **A proper landscape:** 1024 pixels of hills and mountains all the way round. His repeated the
-  same 256 pixels four times.
-- **The scanner** shows where the screen is (marks above and below it).
-- **The ship slides across the screen** when it turns round, so there's room ahead; it used to
-  jump.
-- **Explosions** for everything shot, and for the ship.
-- **Screens:** a title with the enemies and their points, "WAVE n" at the start of each, "ATTACK
-  WAVE n COMPLETED" with the bonus at the end.
+**To compile** (the original used statements NTC doesn't have):
 
-**Sound** (on the AY)
-- Laser zap, explosions (noise), the engine's rumble while thrusting, the warble of a lander
-  grabbing a human, the scream of one falling to its death, catching a human and setting one
-  down, the smart bomb's roar (with the screen flashing white), hyperspace, the ship blowing up,
-  the end-of-wave tune, the extra-ship chime.
+| Original | Now |
+|---|---|
+| `Pen`, `Paper`, `Border`, `Locate`, `Print`, `Cls` (Amstrad CPC style) | small Subs of the same names at the bottom of `Main.bas`: the words go on the tilemap (`Board.cls`, a colour per pen), `Locate` became `At`, `Print` became `PrintS`, `Cls` became `ClsAll` |
+| `Plot`, `Draw` (CPC style, y counting up from the bottom) | Subs of the same names drawing on Layer 2 (`L2.cls`), y turned over, lines by Bresenham |
+| `Sound` | a Sub of the same name playing it on the AY (`Sfx.cls`) |
+| `Vsync` | a Sub: `Frame` (plus the sound and the copper list) |
+| `Key(n)`, `Joy(n)` | Functions of the same names: his key numbers mapped to the Next's keys (`Keys.Down`), the joystick (`Keys.Joystick`) turned into his bit layout |
+| `Return value` in Functions | the value assigned to the function's name |
+| `(sx >> 8)` | `(sx \ 256)` (NTC has no `>>`) |
+| `Open` / `Get #1` / `Close` for `DEFENDER.SPR` | `FileSystem.Load` into a buffer. The Next build of NTC has no file support yet, so it always uses his built-in sprites; the file is used where files work |
+| `Dim` inside the main loop | moved to the top |
 
-**Play**
-- **Losing a ship doesn't start the wave again.** Before, it put a fresh set of enemies on and
-  reset the count, so a wave could never be finished by losing ships. Now the enemies near you
-  are moved away, the shots are cleared, and you get two seconds of safety (the ship flashes).
-- **Enemy fire** is aimed at the ship and less of a hail. It was 1 in 35 a frame per enemy at
-  50 frames a second; now landers 1 in 220, mutants 1 in 140, baiters 1 in 60. No firing point
-  blank.
-- **Humans:**
-  - Landers come down for them less often.
-  - Shoot the lander and the human falls. Catch it for 500.
-  - Set it down for 500.
-  - If it falls from high up, it dies. A short fall is safe: 250.
-- **The baiter:** if a wave goes on for 40 seconds, a fast saucer comes after you (and another
-  every 12 seconds).
-- **Scoring:** landers and mutants 150, baiters 200. At the end of each wave, 100 × the wave
-  number for each human left (up to 5000).
-- **An extra ship and smart bomb every 10,000**, and a smart bomb each wave (up to 5).
-- **Waves** have more enemies as you go (12, 14, 16 … up to 24).
-- **Every fifth wave** the humans and the planet come back.
-- The ship flies lower (down to the hilltops), and no longer up into the scanner.
+**To work right:**
+
+- **Layer order:** he set NextReg `&H15` to `&H03` (SLU: Layer 2 over the tilemap). Now `&H0B`
+  (SUL), so the words show over the drawing.
+- **Score** is a `Long` (an `Integer` stops at 32,767).
+- **Putting a rescued human down:** humans stand at y 16-32 but the ship can't fly below
+  `PLAY_TOP` (40), and a carried human hangs 10 below the ship, so it could only touch down on the
+  highest hills. Now flying as low as the ship goes puts the human down.
+- **The terrain:** he redrew one 32-pixel slice of it per frame while the view scrolled every
+  frame, so it smeared and broke up. Redrawing all of it each frame with `Plot` / `Draw` took 5
+  frames. Now the bottom of the screen is scrolled by the copper (Layer 2's sideways scroll, from
+  line 160 down: `Scroll.cls`) and only the columns coming into view are drawn. It runs at the full
+  50 frames a second.
+- **Title:** the four preview sprites moved down (they sat on the HYPERSPACE line); the font has
+  lower case (for "or").
+
+Everything else is as he wrote it, including the game's balance: at 50 frames a second it's
+quick and the enemies shoot a lot.
 
 ## Keys
 
@@ -62,22 +50,13 @@ his sprite hardware code, his landers, mutants, humans, scanner and controls, an
 | B, M (or fire 2) | smart bomb |
 | H | hyperspace |
 
-## How it runs
-
-His CPC-style statements (`Pen`, `Plot`, `Draw`, `Sound`, `Vsync`, `Key`, `Joy` …) are Subs at
-the bottom of `Main.bas`. The words are on the tilemap (`Board.cls`) and the drawing on Layer 2
-(`L2.cls`). The terrain is drawn a column at a time as it comes into view, the copper doing the
-scrolling. It runs at the full 50 frames a second in the emulator. It hasn't been run on real
-hardware yet.
-
 ## Files
 
-- `Main.bas`: the game. `original_Main.bas`: his original.
-- `SprData.cls`: the sprites built in (made by `tools/sprites.py`, which also writes
-  `DEFENDER.SPR`).
-- `Scroll.cls`: the copper list for the sky and ground scrolling.
-- `Board.cls`, `L2.cls`, `Sfx.cls`, `Tiles.cls`, `Nx.cls`, `Spr.cls`, `GfxData.cls` (the font, from
-  `gfx/` by `gfxtool.js`; the PNGs from `tools/art_defender.py`).
+- `Main.bas`: the game (changes marked `NTC:`); `original_Main.bas`: his original.
+- `Scroll.cls`: the copper list that scrolls the terrain.
+- `Board.cls` (the words), `L2.cls` (Layer 2), `Sfx.cls` (AY sound), `Tiles.cls`, `Nx.cls`,
+  `Spr.cls`, `GfxData.cls` (the font: made from `gfx/` by `gfxtool.js`; the PNGs from
+  `tools/art_defender.py`).
 - `build.js`, `game.json`, `DEFENDER.json` (the IDE project).
 - `build/`: `DEFENDER.asm` and `DEFENDER.NEX`, ready to run.
 
@@ -85,13 +64,13 @@ hardware yet.
 
 - **IDE:** open `DEFENDER.json` in NTC BASIC's IDE (`ntc.html`), then **Save .asm** and run
   `sjasmplus DEFENDER.asm`.
-- **Command line:** `node build.js path/to/ntc/src` (run `python3 tools/sprites.py` first if you
-  change the sprites).
+- **Command line:** `node build.js path/to/ntc/src`.
 - **Running it:** copy `DEFENDER.NEX` to the SD card and run it from the browser.
+
+It runs in the emulator. It hasn't been run on real hardware yet.
 
 ## Screenshots
 
 ![title](screenshots/1_title.jpg)
-![wave 1](screenshots/2_wave1.jpg)
-![wave 3](screenshots/3_wave3.jpg)
-![a mutant](screenshots/4_mutant.jpg)
+![playing](screenshots/2_playing.jpg)
+![game over](screenshots/3_game_over.jpg)

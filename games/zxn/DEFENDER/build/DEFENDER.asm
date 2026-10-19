@@ -31,1687 +31,317 @@ ntc_start:
 main_thread:
 			dw kw_bssinit, ntc_bss, ntc_bss_size		; the arrays: do they fit, clear them
 
-			; Main.bas 940: Tiles.Init
+			; Main.bas 488: Tiles.Init
 			dw p_tiles_init_c
 
-			; Main.bas 941: Spr.Init
+			; Main.bas 489: Spr.Init
 			dw p_spr_init_c
 
-			; Main.bas 942: GfxData.Load
+			; Main.bas 490: GfxData.Load
 			dw fn_gfxdata_load
 
-			; Main.bas 943: Sfx.Init
+			; Main.bas 491: Sfx.Init
 			dw p_sfx_init_c
 
-			; Main.bas 944: Board.Init
+			; Main.bas 492: Board.Init
 			dw p_board_init_c
 
-			; Main.bas 945: L2.Init
+			; Main.bas 493: L2.Init
 			dw p_l2_init_c
 
-			; Main.bas 946: Nx.Layers Nx.OrderSUL
+			; Main.bas 494: Nx.Layers Nx.OrderSUL
 			dw fn_nx_layers, lit_2
 
-			; Main.bas 947: SetPens
+			; Main.bas 495: SetPens
 			dw p_setpens_c
 
-			; Main.bas 948: Border 0
+			; Main.bas 496: Border 0
 			dw p_border_c, lit_0
 
-			; Main.bas 949: Paper 0
+			; Main.bas 497: Paper 0
 			dw p_paper_c, lit_0
 
-			; Main.bas 950: Pen 15
+			; Main.bas 498: Pen 15
 			dw p_pen_c, lit_15
 
-			; Main.bas 951: ClsAll
+			; Main.bas 499: ClsAll
 			dw p_clsall_c
 
-			; Main.bas 952: MakeLand
-			dw p_makeland_c
-
-			; Main.bas 953: Heights
-			dw p_heights_c
-
-			; Main.bas 956: LoadSpriteTilemap("DEFENDER.SPR")
+			; Main.bas 501: LoadSpriteTilemap("DEFENDER.SPR")
 			dw p_loadspritetilemap_c, str0
 
-			; Main.bas 958: Do
+			; Main.bas 503: Do
 do1_t:
 
-			; Main.bas 959: TitleScreen
-			dw p_titlescreen_c
-
-			; Main.bas 961: score = 0 : nextBonus = 10000
-			dw kw_l_mov, llit_0, var_score
-			dw kw_l_mov, llit_10000, var_nextbonus
-
-			; Main.bas 962: lives = 3
-			dw kw_ltov, 3, var_lives
-
-			; Main.bas 963: bombs = 3
-			dw kw_ltov, 3, var_bombs
-
-			; Main.bas 964: wave = 1
-			dw kw_ltov, 1, var_wave
-
-			; Main.bas 965: game_over = False
-			dw kw_ztov, var_game_over
-
-			; Main.bas 966: InitWave()
-			dw p_initwave_c
-
-			; Main.bas 968: Do While Not game_over
-do2_t:
-			dw kw_notv, var_game_over, tmp0
-			dw kw_goto_ifzero, tmp0, do2_e
-
-			; Main.bas 969: Vsync
-			dw p_vsync_c
-
-			; Main.bas 970: frames = frames + 1
-			dw kw_inc, var_frames
-
-			; Main.bas 971: If flash_bg > 0 Then
-			dw kw_scpgtvl, var_flash_bg, 0
-			dw kw_goto_iffalse, if3_1
-
-			; Main.bas 972: flash_bg = flash_bg - 1
-			dw kw_dec, var_flash_bg
-
-			; Main.bas 973: If flash_bg = 0 Then
-			dw kw_cpeqvl, var_flash_bg, 0
-			dw kw_goto_iffalse, if4_1
-
-			; Main.bas 974: Border 0
-			dw p_border_c, lit_0
-
-			; Main.bas 975: Nx.PalEntry Nx.PalLayer2, 0, 0
-			dw fn_nx_palentry, lit_1, lit_0, lit_0
-
-			; Main.bas 976: End If
-if4_1:
-
-			; Main.bas 977: End If
-if3_1:
-
-			; Main.bas 978: If msgT > 0 Then
-			dw kw_scpgtvl, var_msgt, 0
-			dw kw_goto_iffalse, if5_1
-
-			; Main.bas 979: msgT = msgT - 1
-			dw kw_dec, var_msgt
-
-			; Main.bas 980: If msgT = 0 Then At 1, 11 : PrintS Space$(32)
-			dw kw_cpeqvl, var_msgt, 0
-			dw kw_goto_iffalse, if6_1
-			dw p_at_c, lit_1, lit_11
-			dw kw_strspace, stmp0, lit_32
-			dw p_prints_c, stmp0
-if6_1:
-
-			; Main.bas 981: End If
-if5_1:
-
-			; Main.bas 983: Controls
-			dw p_controls_c
-
-			; Main.bas 984: DrawPlayer
-			dw p_drawplayer_c
-
-			; Main.bas 985: Lasers
-			dw p_lasers_c
-
-			; Main.bas 986: Humans
-			dw p_humans_c
-
-			; Main.bas 987: Enemies
-			dw p_enemies_c
-
-			; Main.bas 988: If Not game_over Then Shots
-			dw kw_notv, var_game_over, tmp0
-			dw kw_goto_ifzero, tmp0, if7_1
-			dw p_shots_c
-if7_1:
-
-			; Main.bas 989: Booms
-			dw p_booms_c
-
-			; Main.bas 990: Terrain cam_x
-			dw p_terrain_c, var_cam_x
-
-			; Main.bas 991: ViewMarks
-			dw p_viewmarks_c
-
-			; Main.bas 992: If hudDirty Then UpdateHUD()
-			dw kw_goto_ifzero, var_huddirty, if8_1
-			dw p_updatehud_c
-if8_1:
-
-			; Main.bas 995: If enemies_alive <= 0 And enemies_to_spawn <= 0 And Not game_over Then
-			dw kw_scplevl, var_enemies_alive, 0
-			dw kw_ftov, tmp0
-			dw kw_scplevl, var_enemies_to_spawn, 0
-			dw kw_ftov, tmp1
-			dw kw_andvv, tmp0, tmp1, tmp0
-			dw kw_notv, var_game_over, tmp1
-			dw kw_andvv, tmp0, tmp1, tmp0
-			dw kw_goto_ifzero, tmp0, do2_t
-
-			; Main.bas 996: WaveDone
-			dw p_wavedone_c
-
-			; Main.bas 997: End If
-if9_1:
-
-			; Main.bas 998: Loop
-			dw do2_t_go
-do2_e:
-
-			; Main.bas 1001: HideAllSprites()
+			; Main.bas 504: HideAllSprites()
 			dw p_hideallsprites_c
 
-			; Main.bas 1002: ClsAll
+			; Main.bas 505: ClsAll
 			dw p_clsall_c
 
-			; Main.bas 1003: Scroll.Show 0, 0
-			dw p_scroll_show_c, lit_0, lit_0
+			; Main.bas 506: Pen 14
+			dw p_pen_c, lit_14
 
-			; Main.bas 1004: Pen 10
-			dw p_pen_c, lit_10
+			; Main.bas 507: At 8, 4
+			dw p_at_c, lit_8, lit_4
 
-			; Main.bas 1005: At 8, 9
-			dw p_at_c, lit_8, lit_9
-
-			; Main.bas 1006: PrintS "G A M E   O V E R"
+			; Main.bas 508: PrintS "D E F E N D E R"
 			dw p_prints_c, str1
 
-			; Main.bas 1007: Pen 15
-			dw p_pen_c, lit_15
-
-			; Main.bas 1008: At 8, 12
-			dw p_at_c, lit_8, lit_12
-
-			; Main.bas 1009: PrintS "FINAL SCORE: " & Mid$(Str$(score), 2)
-			dw kw_l_str, stmp1, var_score
-			dw kw_strmid, stmp1, stmp1, lit_2, lit_255
-			dw kw_strcpy, stmp0, str2
-			dw kw_strcat, stmp0, stmp1
-			dw p_prints_c, stmp0
-
-			; Main.bas 1010: Pen 14
-			dw p_pen_c, lit_14
-
-			; Main.bas 1011: At 8, 15
-			dw p_at_c, lit_8, lit_15
-
-			; Main.bas 1012: PrintS "REACHED WAVE: " & Mid$(Str$(wave), 2)
-			dw kw_strstr, stmp1, var_wave
-			dw kw_strmid, stmp1, stmp1, lit_2, lit_255
-			dw kw_strcpy, stmp0, str3
-			dw kw_strcat, stmp0, stmp1
-			dw p_prints_c, stmp0
-
-			; Main.bas 1013: For i = 1 To 150
-			dw kw_ltov, 1, var_i
-for10_t:
-
-			; Main.bas 1014: Vsync
-			dw p_vsync_c
-
-			; Main.bas 1015: Next i
-			dw kw_next1l, var_i, 150, for10_t
-for10_e:
-
-			; Main.bas 1016: Loop
-			dw do1_t_go
-do1_e:
-			dw kw_stop
-
-; ============================================================
-; sub writenextreg (turbo mode)
-; ============================================================
-
-p_writenextreg:
-
-			; Main.bas 154: Out PORT_NEXTREG_SEL, reg
-			dw kw_out, lit_9275, var_writenextreg_reg
-
-			; Main.bas 155: Out PORT_NEXTREG_DAT, val
-			dw kw_out, lit_9531, var_writenextreg_val
-			dw p_writenextreg_r
-
-; ============================================================
-; sub loadspritetilemap (turbo mode)
-; ============================================================
-
-p_loadspritetilemap:
-
-			; Main.bas 161: WriteNextReg(&H15, &H0B)
-			dw p_writenextreg_c, lit_21, lit_11
-
-			; Main.bas 163: WriteNextReg(&H4B, &H00)
-			dw p_writenextreg_c, lit_75, lit_0
-
-			; Main.bas 164: If FileSystem.Load(filename, VarPtr(sprbuf), 4608) = 4608 Then
-			dw p_filesystem_load_c, var_loadspritetilemap_filename, vp_arr_sprbuf, lit_4608
-			dw kw_vtov, var_filesystem_load_load, tmp0
-			dw kw_cpeqvl, tmp0, 4608
-			dw kw_goto_iffalse, if11_1
-
-			; Main.bas 165: WriteNextReg(&H43, &H20)
-			dw p_writenextreg_c, lit_67, lit_32
-
-			; Main.bas 166: WriteNextReg(&H40, 0)
-			dw p_writenextreg_c, lit_64, lit_0
-
-			; Main.bas 167: For i = 0 To 255
-			dw kw_ztov, var_i
-for12_t:
-
-			; Main.bas 168: WriteNextReg(&H44, sprbuf(i * 2))
-			dw kw_2x, var_i, tmp1
-			dw kw_aget8, arr_sprbuf, tmp1, tmp1
-			dw p_writenextreg_c, lit_68, tmp1
-
-			; Main.bas 169: WriteNextReg(&H44, sprbuf(i * 2 + 1))
-			dw kw_2x, var_i, tmp1
-			dw kw_inc, tmp1
-			dw kw_aget8, arr_sprbuf, tmp1, tmp1
-			dw p_writenextreg_c, lit_68, tmp1
-
-			; Main.bas 170: Next i
-			dw kw_next1l, var_i, 255, for12_t
-for12_e:
-
-			; Main.bas 171: Out PORT_SPRITE_SLOT, 0
-			dw kw_out, lit_12347, lit_0
-
-			; Main.bas 172: For i = 512 To 4607
-			dw kw_ltov, 512, var_i
-for13_t:
-
-			; Main.bas 173: Out PORT_SPRITE_PAT, sprbuf(i)
-			dw kw_aget8, arr_sprbuf, var_i, tmp1
-			dw kw_out, lit_91, tmp1
-
-			; Main.bas 174: Next i
-			dw kw_next1l, var_i, 4607, for13_t
-for13_e:
-
-			; Main.bas 175: Else
-			dw if11_e_go
-if11_1:
-
-			; Main.bas 176: SprData.Upload
-			dw fn_sprdata_upload
-
-			; Main.bas 177: End If
-if11_e:
-			dw p_loadspritetilemap_r
-
-; ============================================================
-; sub sethardwaresprite (turbo mode)
-; ============================================================
-
-p_sethardwaresprite:
-
-			; Main.bas 182: Dim sx1 As Integer, sy1 As Integer, attr2 As Integer
-
-			; Main.bas 183: Out PORT_SPRITE_SLOT, slot
-			dw kw_out, lit_12347, var_sethardwaresprite_slot
-
-			; Main.bas 184: If Not visible Then
-			dw kw_notv, var_sethardwaresprite_visible, tmp0
-			dw kw_goto_ifzero, tmp0, if14_1
-
-			; Main.bas 185: Out PORT_SPRITE_ATTR, 0
-			dw kw_out, lit_87, lit_0
-
-			; Main.bas 186: Out PORT_SPRITE_ATTR, 0
-			dw kw_out, lit_87, lit_0
-
-			; Main.bas 187: Out PORT_SPRITE_ATTR, 0
-			dw kw_out, lit_87, lit_0
-
-			; Main.bas 188: Out PORT_SPRITE_ATTR, 0
-			dw kw_out, lit_87, lit_0
-
-			; Main.bas 189: Exit Sub
-			dw p_sethardwaresprite_r
-
-			; Main.bas 190: End If
-if14_1:
-
-			; Main.bas 191: sx1 = px_scr + SPR_X_OFF - 8
-			dw kw_addl, var_sethardwaresprite_px_scr, 32, tmp0
-			dw kw_addl, tmp0, -8, var_sethardwaresprite_sx1
-
-			; Main.bas 192: sy1 = (191 - py_scr) + SPR_Y_OFF - 8
-			dw kw_sublv, 191, var_sethardwaresprite_py_scr, tmp0
-			dw kw_addl, tmp0, 32, tmp0
-			dw kw_addl, tmp0, -8, var_sethardwaresprite_sy1
-
-			; Main.bas 193: attr2 = (sx1 \ 256) And 1
-			dw kw_divvl, var_sethardwaresprite_sx1, 256, tmp0
-			dw kw_andvl, tmp0, 1, var_sethardwaresprite_attr2
-
-			; Main.bas 194: If hflip Then attr2 = attr2 Or 8
-			dw kw_goto_ifzero, var_sethardwaresprite_hflip, if15_1
-			dw kw_orvl, var_sethardwaresprite_attr2, 8, var_sethardwaresprite_attr2
-if15_1:
-
-			; Main.bas 195: Out PORT_SPRITE_ATTR, sx1 And 255
-			dw kw_andvl, var_sethardwaresprite_sx1, 255, tmp1
-			dw kw_out, lit_87, tmp1
-
-			; Main.bas 196: Out PORT_SPRITE_ATTR, sy1 And 255
-			dw kw_andvl, var_sethardwaresprite_sy1, 255, tmp1
-			dw kw_out, lit_87, tmp1
-
-			; Main.bas 197: Out PORT_SPRITE_ATTR, attr2
-			dw kw_out, lit_87, var_sethardwaresprite_attr2
-
-			; Main.bas 198: Out PORT_SPRITE_ATTR, 192 Or (pat And 63)
-			dw kw_andvl, var_sethardwaresprite_pat, 63, tmp2
-			dw kw_orvl, tmp2, 192, tmp1
-			dw kw_out, lit_87, tmp1
-
-			; Main.bas 199: Out PORT_SPRITE_ATTR, 0
-			dw kw_out, lit_87, lit_0
-			dw p_sethardwaresprite_r
-
-; ============================================================
-; sub hidesprite (turbo mode)
-; ============================================================
-
-p_hidesprite:
-
-			; Main.bas 203: SetHardwareSprite(slot, 0, 0, 0, False, False)
-			dw p_sethardwaresprite_c, var_hidesprite_slot, lit_0, lit_0, lit_0, lit_0, lit_0
-			dw p_hidesprite_r
-
-; ============================================================
-; sub hideallsprites (turbo mode)
-; ============================================================
-
-p_hideallsprites:
-
-			; Main.bas 207: Dim s As Integer
-
-			; Main.bas 208: Out PORT_SPRITE_SLOT, 0
-			dw kw_out, lit_12347, lit_0
-
-			; Main.bas 209: For s = 0 To 63
-			dw kw_ztov, var_hideallsprites_s
-for16_t:
-
-			; Main.bas 210: Out PORT_SPRITE_ATTR, 0
-			dw kw_out, lit_87, lit_0
-
-			; Main.bas 211: Out PORT_SPRITE_ATTR, 0
-			dw kw_out, lit_87, lit_0
-
-			; Main.bas 212: Out PORT_SPRITE_ATTR, 0
-			dw kw_out, lit_87, lit_0
-
-			; Main.bas 213: Out PORT_SPRITE_ATTR, 0
-			dw kw_out, lit_87, lit_0
-
-			; Main.bas 214: Next s
-			dw kw_next1l, var_hideallsprites_s, 63, for16_t
-for16_e:
-			dw p_hideallsprites_r
-
-; ============================================================
-; sub makeland (turbo mode)
-; ============================================================
-
-p_makeland:
-
-			; Main.bas 224: Dim h As Integer, t As Integer
-
-			; Main.bas 225: rs = 12345 : h = 14 : t = 14
-			dw kw_l_mov, llit_12345, var_rs
-			dw kw_ltov, 14, var_makeland_h
-			dw kw_ltov, 14, var_makeland_t
-
-			; Main.bas 226: For k = 0 To 255
-			dw kw_ztov, var_k
-for17_t:
-
-			; Main.bas 227: If k Mod 16 = 0 Then t = 8 + Rand(23)
-			dw kw_modvl, var_k, 16, tmp0
-			dw kw_cpeqvl, tmp0, 0
-			dw kw_goto_iffalse, if18_1
-			dw p_rand_c, lit_23
-			dw kw_vtov, var_rand_rand, tmp1
-			dw kw_addl, tmp1, 8, var_makeland_t
-if18_1:
-
-			; Main.bas 228: If h < t Then h = h + 1 + Rand(3)
-			dw kw_scpltvv, var_makeland_h, var_makeland_t
-			dw kw_goto_iffalse, if19_1
-			dw kw_addl, var_makeland_h, 1, tmp0
-			dw p_rand_c, lit_3
-			dw kw_vtov, var_rand_rand, tmp1
-			dw kw_add, tmp0, tmp1, var_makeland_h
-if19_1:
-
-			; Main.bas 229: If h > t Then h = h - 1 - Rand(3)
-			dw kw_scpgtvv, var_makeland_h, var_makeland_t
-			dw kw_goto_iffalse, if20_1
-			dw kw_addl, var_makeland_h, -1, tmp0
-			dw p_rand_c, lit_3
-			dw kw_vtov, var_rand_rand, tmp1
-			dw kw_subvv, tmp0, tmp1, var_makeland_h
-if20_1:
-
-			; Main.bas 230: If h < 8 Then h = 8
-			dw kw_scpltvl, var_makeland_h, 8
-			dw kw_goto_iffalse, if21_1
-			dw kw_ltov, 8, var_makeland_h
-if21_1:
-
-			; Main.bas 231: If h > 32 Then h = 32
-			dw kw_scpgtvl, var_makeland_h, 32
-			dw kw_goto_iffalse, if22_1
-			dw kw_ltov, 32, var_makeland_h
-if22_1:
-
-			; Main.bas 232: land(k) = h
-			dw kw_aset, arr_land, var_k, var_makeland_h
-
-			; Main.bas 233: Next k
-			dw kw_next1l, var_k, 255, for17_t
-for17_e:
-
-			; Main.bas 235: For k = 248 To 255
-			dw kw_ltov, 248, var_k
-for23_t:
-
-			; Main.bas 236: land(k) = land(247) + (land(0) - land(247)) * (k - 247) \ 9
-			dw kw_subvv, arr_land, arr_land+494, tmp2
-			dw kw_addl, var_k, -247, tmp3
-			dw kw_mulvv, tmp2, tmp3, tmp2
-			dw kw_divvl, tmp2, 9, tmp2
-			dw kw_add, arr_land+494, tmp2, tmp1
-			dw kw_aset, arr_land, var_k, tmp1
-
-			; Main.bas 237: Next k
-			dw kw_next1l, var_k, 255, for23_t
-for23_e:
-			dw p_makeland_r
-
-; ============================================================
-; function rand (turbo mode)
-; ============================================================
-
-p_rand:
-
-			; Main.bas 241: rs = (rs * 1103515245 + 12345) And &H7FFFFFFF
-			dw kw_l_mul, var_rs, llit_1103515245, ltmp1
-			dw kw_l_add, ltmp1, llit_12345, ltmp1
-			dw kw_l_and, ltmp1, llit_2147483647, var_rs
-
-			; Main.bas 242: Rand = CInt((rs \ 65536) Mod n)
-			dw kw_l_div, var_rs, llit_65536, ltmp1
-			dw kw_l_itol, var_rand_n, ltmp2
-			dw kw_l_mod, ltmp1, ltmp2, ltmp1
-			dw kw_l_ltoi, ltmp1, tmp1
-			dw kw_vtov, tmp1, var_rand_rand
-			dw p_rand_r
-
-; ============================================================
-; function getterrainy (turbo mode)
-; ============================================================
-
-p_getterrainy:
-
-			; Main.bas 246: If planet_dead Then GetTerrainY = 6 Else GetTerrainY = land((wx \ 4) And 255)
-			dw kw_goto_ifzero, var_planet_dead, if24_1
-			dw kw_ltov, 6, var_getterrainy_getterrainy
-			dw if24_e_go
-if24_1:
-			dw kw_divvl, var_getterrainy_wx, 4, tmp1
-			dw kw_andvl, tmp1, 255, tmp1
-			dw kw_aget, arr_land, tmp1, var_getterrainy_getterrainy
-if24_e:
-			dw p_getterrainy_r
-
-; ============================================================
-; function worldtoscreenx (turbo mode)
-; ============================================================
-
-p_worldtoscreenx:
-
-			; Main.bas 250: Dim d As Integer
-
-			; Main.bas 251: d = (wx - cx) And WORLD_MASK
-			dw kw_subvv, var_worldtoscreenx_wx, var_worldtoscreenx_cx, tmp0
-			dw kw_andvl, tmp0, 1023, var_worldtoscreenx_d
-
-			; Main.bas 252: If d >= 512 Then d = d - 1024
-			dw kw_scpgevl, var_worldtoscreenx_d, 512
-			dw kw_goto_iffalse, if25_1
-			dw kw_addl, var_worldtoscreenx_d, -1024, var_worldtoscreenx_d
-if25_1:
-
-			; Main.bas 253: WorldToScreenX = d
-			dw kw_vtov, var_worldtoscreenx_d, var_worldtoscreenx_worldtoscreenx
-			dw p_worldtoscreenx_r
-
-; ============================================================
-; function worldtoradarx (turbo mode)
-; ============================================================
-
-p_worldtoradarx:
-
-			; Main.bas 257: Dim rel As Integer
-
-			; Main.bas 258: rel = (wx - px + 512) And WORLD_MASK
-			dw kw_subvv, var_worldtoradarx_wx, var_px, tmp0
-			dw kw_addl, tmp0, 512, tmp0
-			dw kw_andvl, tmp0, 1023, var_worldtoradarx_rel
-
-			; Main.bas 259: WorldToRadarX = 64 + (rel \ 8)
-			dw kw_divvl, var_worldtoradarx_rel, 8, tmp1
-			dw kw_addl, tmp1, 64, var_worldtoradarx_worldtoradarx
-			dw p_worldtoradarx_r
-
-; ============================================================
-; sub updatehud (turbo mode)
-; ============================================================
-
-p_updatehud:
-
-			; Main.bas 263: Pen 15
-			dw p_pen_c, lit_15
-
-			; Main.bas 264: At 1, 1
-			dw p_at_c, lit_1, lit_1
-
-			; Main.bas 265: PrintS Right$("000000" & Mid$(Str$(score), 2), 7)
-			dw kw_l_str, stmp1, var_score
-			dw kw_strmid, stmp1, stmp1, lit_2, lit_255
-			dw kw_strcpy, stmp0, str4
-			dw kw_strcat, stmp0, stmp1
-			dw kw_strright, stmp0, stmp0, lit_7
-			dw p_prints_c, stmp0
-
-			; Main.bas 266: Pen 14
-			dw p_pen_c, lit_14
-
-			; Main.bas 267: At 10, 1
-			dw p_at_c, lit_10, lit_1
-
-			; Main.bas 268: PrintS "SHIPS" & Str$(lives) & " "
-			dw kw_strstr, stmp1, var_lives
-			dw kw_strcpy, stmp0, str5
-			dw kw_strcat, stmp0, stmp1
-			dw kw_strcat, stmp0, str6
-			dw p_prints_c, stmp0
-
-			; Main.bas 269: Pen 12
-			dw p_pen_c, lit_12
-
-			; Main.bas 270: At 19, 1
-			dw p_at_c, lit_19, lit_1
-
-			; Main.bas 271: PrintS "BOMBS" & Str$(bombs) & " "
-			dw kw_strstr, stmp1, var_bombs
-			dw kw_strcpy, stmp0, str7
-			dw kw_strcat, stmp0, stmp1
-			dw kw_strcat, stmp0, str6
-			dw p_prints_c, stmp0
-
-			; Main.bas 272: Pen 11
+			; Main.bas 509: Pen 11
 			dw p_pen_c, lit_11
 
-			; Main.bas 273: At 27, 1
-			dw p_at_c, lit_27, lit_1
+			; Main.bas 510: At 4, 6
+			dw p_at_c, lit_4, lit_6
 
-			; Main.bas 274: PrintS "WAVE" & Str$(wave) & " "
-			dw kw_strstr, stmp1, var_wave
-			dw kw_strcpy, stmp0, str8
-			dw kw_strcat, stmp0, stmp1
-			dw kw_strcat, stmp0, str6
-			dw p_prints_c, stmp0
+			; Main.bas 511: PrintS "ZX SPECTRUM NEXT EDITION"
+			dw p_prints_c, str2
 
-			; Main.bas 275: hudDirty = 0
-			dw kw_ztov, var_huddirty
-			dw p_updatehud_r
+			; Main.bas 512: Pen 15
+			dw p_pen_c, lit_15
 
-; ============================================================
-; sub drawstaticframe (turbo mode)
-; ============================================================
+			; Main.bas 513: At 4, 10
+			dw p_at_c, lit_4, lit_10
 
-p_drawstaticframe:
+			; Main.bas 514: PrintS "Q / A or UP/DN : ALTITUDE"
+			dw p_prints_c, str3
 
-			; Main.bas 279: ClsAll
-			dw p_clsall_c
+			; Main.bas 515: At 4, 12
+			dw p_at_c, lit_4, lit_12
 
-			; Main.bas 281: L2.Rect 0, 43, 256, 1, COL_DIVIDER
-			dw p_l2_rect_c, lit_0, lit_43, lit_256, lit_1, lit_139
+			; Main.bas 516: PrintS "O / P or LT/RT : THRUST"
+			dw p_prints_c, str4
 
-			; Main.bas 282: Plot 62, 152, 12
-			dw p_plot_c, lit_62, lit_152, lit_12
+			; Main.bas 517: At 4, 14
+			dw p_at_c, lit_4, lit_14
 
-			; Main.bas 283: Draw 193, 152, 12
-			dw p_draw_c, lit_193, lit_152, lit_12
+			; Main.bas 518: PrintS "SPACE / FIRE 1 : LASER"
+			dw p_prints_c, str5
 
-			; Main.bas 284: Draw 193, 182, 12
-			dw p_draw_c, lit_193, lit_182, lit_12
+			; Main.bas 519: At 4, 16
+			dw p_at_c, lit_4, lit_16
 
-			; Main.bas 285: Draw 62, 182, 12
-			dw p_draw_c, lit_62, lit_182, lit_12
+			; Main.bas 520: PrintS "B / M / FIRE 2 : SMART BOMB"
+			dw p_prints_c, str6
 
-			; Main.bas 286: Draw 62, 152, 12
-			dw p_draw_c, lit_62, lit_152, lit_12
+			; Main.bas 521: At 4, 18
+			dw p_at_c, lit_4, lit_18
 
-			; Main.bas 287: Stars
-			dw p_stars_c
+			; Main.bas 522: PrintS "H              : HYPERSPACE"
+			dw p_prints_c, str7
 
-			; Main.bas 288: mark0 = -1
-			dw kw_ltov, -1, var_mark0
+			; Main.bas 523: Pen 10
+			dw p_pen_c, lit_10
 
-			; Main.bas 289: UpdateHUD()
-			dw p_updatehud_c
-			dw p_drawstaticframe_r
+			; Main.bas 524: At 5, 22
+			dw p_at_c, lit_5, lit_22
 
-; ============================================================
-; sub stars (turbo mode)
-; ============================================================
+			; Main.bas 525: PrintS "PRESS SPACE OR FIRE"
+			dw p_prints_c, str8
 
-p_stars:
+			; Main.bas 529: SetHardwareSprite(0, 70, 32, PAT_PLAYER, False, True)
+			dw p_sethardwaresprite_c, lit_0, lit_70, lit_32, lit_0, lit_0, lit_m1
 
-			; Main.bas 294: Dim x As Integer, y As Integer
+			; Main.bas 530: SetHardwareSprite(1, 110, 32, PAT_LANDER, False, True)
+			dw p_sethardwaresprite_c, lit_1, lit_110, lit_32, lit_1, lit_0, lit_m1
 
-			; Main.bas 295: rs = 777
-			dw kw_l_mov, llit_777, var_rs
+			; Main.bas 531: SetHardwareSprite(2, 150, 32, PAT_MUTANT, False, True)
+			dw p_sethardwaresprite_c, lit_2, lit_150, lit_32, lit_2, lit_0, lit_m1
 
-			; Main.bas 296: For k = 0 To 59
-			dw kw_ztov, var_k
-for26_t:
+			; Main.bas 532: SetHardwareSprite(3, 190, 32, PAT_HUMAN, False, True)
+			dw p_sethardwaresprite_c, lit_3, lit_190, lit_32, lit_3, lit_0, lit_m1
 
-			; Main.bas 297: x = Rand(256) : y = 46 + Rand(110)
-			dw p_rand_c, lit_256
-			dw kw_vtov, var_rand_rand, var_stars_x
-			dw p_rand_c, lit_110
-			dw kw_vtov, var_rand_rand, tmp1
-			dw kw_addl, tmp1, 46, var_stars_y
+			; Main.bas 534: Do
+do2_t:
 
-			; Main.bas 298: L2.Plot x, y, Val(Mid$("073146219255", (k Mod 4) * 3 + 1, 3))
-			dw kw_modvl, var_k, 4, tmp3
-			dw kw_mulvl, tmp3, 3, tmp3
-			dw kw_inc, tmp3
-			dw kw_strmid, stmp2, str9, tmp3, lit_3
-			dw kw_strval, stmp2, tmp2
-			dw p_l2_plot_c, var_stars_x, var_stars_y, tmp2
-
-			; Main.bas 299: Next k
-			dw kw_next1l, var_k, 59, for26_t
-for26_e:
-			dw p_stars_r
-
-; ============================================================
-; sub initwave (turbo mode)
-; ============================================================
-
-p_initwave:
-
-			; Main.bas 307: HideAllSprites()
-			dw p_hideallsprites_c
-
-			; Main.bas 308: DrawStaticFrame()
-			dw p_drawstaticframe_c
-
-			; Main.bas 310: px = 512 : py = 96 : pvx = 0 : pvy = 0 : pdir = 1 : psx = 88
-			dw kw_ltov, 512, var_px
-			dw kw_ltov, 96, var_py
-			dw kw_ztov, var_pvx
-			dw kw_ztov, var_pvy
-			dw kw_ltov, 1, var_pdir
-			dw kw_ltov, 88, var_psx
-
-			; Main.bas 311: old_prx = 128 : old_pry = 165
-			dw kw_ltov, 128, var_old_prx
-			dw kw_ltov, 165, var_old_pry
-
-			; Main.bas 312: safeT = 50
-			dw kw_ltov, 50, var_safet
-
-			; Main.bas 314: For i = 0 To MAX_LASERS - 1
-			dw kw_ztov, var_i
-for27_t:
-
-			; Main.bas 315: llife(i) = 0
-			dw kw_asetl, arr_llife, var_i, 0
-
-			; Main.bas 316: Next i
-			dw kw_next1l, var_i, 3, for27_t
-for27_e:
-
-			; Main.bas 317: For i = 0 To MAX_SHOTS - 1
-			dw kw_ztov, var_i
-for28_t:
-
-			; Main.bas 318: slife(i) = 0
-			dw kw_asetl, arr_slife, var_i, 0
-
-			; Main.bas 319: Next i
-			dw kw_next1l, var_i, 5, for28_t
-for28_e:
-
-			; Main.bas 320: For i = 0 To MAX_BOOMS - 1
-			dw kw_ztov, var_i
-for29_t:
-
-			; Main.bas 321: bt(i) = 0
-			dw kw_asetl, arr_bt, var_i, 0
-
-			; Main.bas 322: Next i
-			dw kw_next1l, var_i, 3, for29_t
-for29_e:
-
-			; Main.bas 325: If wave = 1 Or (wave - 1) Mod 5 = 0 Then
-			dw kw_cpeqvl, var_wave, 1
-			dw kw_ftov, tmp0
-			dw kw_addl, var_wave, -1, tmp1
-			dw kw_modvl, tmp1, 5, tmp1
-			dw kw_cpeqvl, tmp1, 0
-			dw kw_ftov, tmp1
-			dw kw_orvv, tmp0, tmp1, tmp0
-			dw kw_goto_ifzero, tmp0, if30_1
-
-			; Main.bas 326: planet_dead = False
-			dw kw_ztov, var_planet_dead
-
-			; Main.bas 327: humans_alive = MAX_HUMANS
-			dw kw_ltov, 8, var_humans_alive
-
-			; Main.bas 328: For i = 0 To MAX_HUMANS - 1
-			dw kw_ztov, var_i
-for31_t:
-
-			; Main.bas 329: hx(i) = (i * 128 + 48) And WORLD_MASK
-			dw kw_mulvl, var_i, 128, tmp1
-			dw kw_addl, tmp1, 48, tmp1
-			dw kw_andvl, tmp1, 1023, tmp1
-			dw kw_aset, arr_hx, var_i, tmp1
-
-			; Main.bas 330: hstate(i) = H_GROUND
-			dw kw_asetl, arr_hstate, var_i, 1
-
-			; Main.bas 331: Next i
-			dw kw_next1l, var_i, 7, for31_t
-for31_e:
-
-			; Main.bas 332: End If
-if30_1:
-
-			; Main.bas 333: For i = 0 To MAX_HUMANS - 1
-			dw kw_ztov, var_i
-for32_t:
-
-			; Main.bas 334: old_hrx(i) = 0
-			dw kw_asetl, arr_old_hrx, var_i, 0
-
-			; Main.bas 335: hcarrier(i) = -1
-			dw kw_asetl, arr_hcarrier, var_i, -1
-
-			; Main.bas 336: If hstate(i) <> H_DEAD Then
-			dw kw_aget, arr_hstate, var_i, tmp0
-			dw kw_cpnevl, tmp0, 0
-			dw kw_goto_iffalse, if33_1
-
-			; Main.bas 337: hstate(i) = H_GROUND
-			dw kw_asetl, arr_hstate, var_i, 1
-
-			; Main.bas 338: hy(i) = GetTerrainY(hx(i)) + 6
-			dw kw_aget, arr_hx, var_i, tmp1
-			dw p_getterrainy_c, tmp1
-			dw kw_vtov, var_getterrainy_getterrainy, tmp1
-			dw kw_addl, tmp1, 6, tmp1
-			dw kw_aset, arr_hy, var_i, tmp1
-
-			; Main.bas 339: End If
-if33_1:
-
-			; Main.bas 340: If Rand(2) Then hdir(i) = 1 Else hdir(i) = -1
-			dw p_rand_c, lit_2
-			dw kw_goto_ifzero, var_rand_rand, if34_1
-			dw kw_asetl, arr_hdir, var_i, 1
-			dw if34_e_go
-if34_1:
-			dw kw_asetl, arr_hdir, var_i, -1
-if34_e:
-
-			; Main.bas 341: Next i
-			dw kw_next1l, var_i, 7, for32_t
-for32_e:
-
-			; Main.bas 343: For i = 0 To MAX_ENEMIES - 1
-			dw kw_ztov, var_i
-for35_t:
-
-			; Main.bas 344: estate(i) = ST_DEAD
-			dw kw_asetl, arr_estate, var_i, 0
-
-			; Main.bas 345: old_erx(i) = 0
-			dw kw_asetl, arr_old_erx, var_i, 0
-
-			; Main.bas 346: Next i
-			dw kw_next1l, var_i, 9, for35_t
-for35_e:
-
-			; Main.bas 348: enemies_to_spawn = 10 + wave * 2
-			dw kw_2x, var_wave, tmp1
-			dw kw_addl, tmp1, 10, var_enemies_to_spawn
-
-			; Main.bas 349: If enemies_to_spawn > 24 Then enemies_to_spawn = 24
-			dw kw_scpgtvl, var_enemies_to_spawn, 24
-			dw kw_goto_iffalse, if36_1
-			dw kw_ltov, 24, var_enemies_to_spawn
-if36_1:
-
-			; Main.bas 350: enemies_alive = 0
-			dw kw_ztov, var_enemies_alive
-
-			; Main.bas 351: spawn_timer = 10
-			dw kw_ltov, 10, var_spawn_timer
-
-			; Main.bas 352: waveT = 0 : baiterT = 0
-			dw kw_ztov, var_wavet
-			dw kw_ztov, var_baitert
-
-			; Main.bas 354: For i = 0 To 4
-			dw kw_ztov, var_i
-for37_t:
-
-			; Main.bas 355: SpawnEnemy()
-			dw p_spawnenemy_c
-
-			; Main.bas 356: Next i
-			dw kw_next1l, var_i, 4, for37_t
-for37_e:
-
-			; Main.bas 357: UpdateHUD()
-			dw p_updatehud_c
-
-			; Main.bas 358: Message "WAVE" & Str$(wave), 60
-			dw kw_strstr, stmp1, var_wave
-			dw kw_strcpy, stmp0, str8
-			dw kw_strcat, stmp0, stmp1
-			dw p_message_c, stmp0, lit_60
-			dw p_initwave_r
-
-; ============================================================
-; sub spawnenemy (turbo mode)
-; ============================================================
-
-p_spawnenemy:
-
-			; Main.bas 362: If enemies_to_spawn <= 0 Then Exit Sub
-			dw kw_scplevl, var_enemies_to_spawn, 0
-			dw kw_goto_iffalse, if38_1
-			dw p_spawnenemy_r
-if38_1:
-
-			; Main.bas 363: For i = 0 To MAX_ENEMIES - 1
-			dw kw_ztov, var_i
-for39_t:
-
-			; Main.bas 364: If estate(i) = ST_DEAD Then
-			dw kw_aget, arr_estate, var_i, tmp0
-			dw kw_cpeqvl, tmp0, 0
-			dw kw_goto_iffalse, if40_1
-
-			; Main.bas 365: ex(i) = (px + 250 + Rnd(500)) And WORLD_MASK
-			dw kw_addl, var_px, 250, tmp1
-			dw kw_rndl, 500, tmp2
-			dw kw_add, tmp1, tmp2, tmp1
-			dw kw_andvl, tmp1, 1023, tmp1
-			dw kw_aset, arr_ex, var_i, tmp1
-
-			; Main.bas 366: ey(i) = 110 + Rnd(30)
-			dw kw_rndl, 30, tmp2
-			dw kw_addl, tmp2, 110, tmp1
-			dw kw_aset, arr_ey, var_i, tmp1
-
-			; Main.bas 367: If Rnd(2) = 0 Then evx(i) = 1 Else evx(i) = -1
-			dw kw_rndl, 2, tmp0
-			dw kw_cpeqvl, tmp0, 0
-			dw kw_goto_iffalse, if41_1
-			dw kw_asetl, arr_evx, var_i, 1
-			dw if41_e_go
-if41_1:
-			dw kw_asetl, arr_evx, var_i, -1
-if41_e:
-
-			; Main.bas 368: evy(i) = -1
-			dw kw_asetl, arr_evy, var_i, -1
-
-			; Main.bas 369: If planet_dead Then estate(i) = ST_MUTANT Else estate(i) = ST_WANDER
-			dw kw_goto_ifzero, var_planet_dead, if42_1
-			dw kw_asetl, arr_estate, var_i, 4
-			dw if42_e_go
-if42_1:
-			dw kw_asetl, arr_estate, var_i, 1
-if42_e:
-
-			; Main.bas 370: etarget(i) = -1
-			dw kw_asetl, arr_etarget, var_i, -1
-
-			; Main.bas 371: old_erx(i) = 0
-			dw kw_asetl, arr_old_erx, var_i, 0
-
-			; Main.bas 372: enemies_alive = enemies_alive + 1
-			dw kw_inc, var_enemies_alive
-
-			; Main.bas 373: enemies_to_spawn = enemies_to_spawn - 1
-			dw kw_dec, var_enemies_to_spawn
-
-			; Main.bas 374: Exit Sub
-			dw p_spawnenemy_r
-
-			; Main.bas 375: End If
-if40_1:
-
-			; Main.bas 376: Next i
-			dw kw_next1l, var_i, 9, for39_t
-for39_e:
-			dw p_spawnenemy_r
-
-; ============================================================
-; sub spawnbaiter (turbo mode)
-; ============================================================
-
-p_spawnbaiter:
-
-			; Main.bas 381: For i = 0 To MAX_ENEMIES - 1
-			dw kw_ztov, var_i
-for43_t:
-
-			; Main.bas 382: If estate(i) = ST_DEAD Then
-			dw kw_aget, arr_estate, var_i, tmp0
-			dw kw_cpeqvl, tmp0, 0
-			dw kw_goto_iffalse, if44_1
-
-			; Main.bas 383: ex(i) = (px + 300) And WORLD_MASK
-			dw kw_addl, var_px, 300, tmp1
-			dw kw_andvl, tmp1, 1023, tmp1
-			dw kw_aset, arr_ex, var_i, tmp1
-
-			; Main.bas 384: ey(i) = py
-			dw kw_aset, arr_ey, var_i, var_py
-
-			; Main.bas 385: estate(i) = ST_BAITER
-			dw kw_asetl, arr_estate, var_i, 5
-
-			; Main.bas 386: evx(i) = 0 : evy(i) = 0
-			dw kw_asetl, arr_evx, var_i, 0
-			dw kw_asetl, arr_evy, var_i, 0
-
-			; Main.bas 387: etarget(i) = -1 : old_erx(i) = 0
-			dw kw_asetl, arr_etarget, var_i, -1
-			dw kw_asetl, arr_old_erx, var_i, 0
-
-			; Main.bas 388: Sfx.Play 1, 40, 2, 13, 25, 0
-			dw p_sfx_play_c, lit_1, lit_40, lit_2, lit_13, lit_25, lit_0
-
-			; Main.bas 389: Exit Sub
-			dw p_spawnbaiter_r
-
-			; Main.bas 390: End If
-if44_1:
-
-			; Main.bas 391: Next i
-			dw kw_next1l, var_i, 9, for43_t
-for43_e:
-			dw p_spawnbaiter_r
-
-; ============================================================
-; sub firelaser (turbo mode)
-; ============================================================
-
-p_firelaser:
-
-			; Main.bas 395: For i = 0 To MAX_LASERS - 1
-			dw kw_ztov, var_i
-for45_t:
-
-			; Main.bas 396: If llife(i) = 0 Then
-			dw kw_aget, arr_llife, var_i, tmp0
-			dw kw_cpeqvl, tmp0, 0
-			dw kw_goto_iffalse, if46_1
-
-			; Main.bas 397: lx(i) = (px + pdir * 12) And WORLD_MASK
-			dw kw_mulvl, var_pdir, 12, tmp2
-			dw kw_add, var_px, tmp2, tmp1
-			dw kw_andvl, tmp1, 1023, tmp1
-			dw kw_aset, arr_lx, var_i, tmp1
-
-			; Main.bas 398: ly(i) = py - 1
-			dw kw_addl, var_py, -1, tmp1
-			dw kw_aset, arr_ly, var_i, tmp1
-
-			; Main.bas 399: lvx(i) = pdir * 16 + pvx
-			dw kw_mulvl, var_pdir, 16, tmp1
-			dw kw_add, tmp1, var_pvx, tmp1
-			dw kw_aset, arr_lvx, var_i, tmp1
-
-			; Main.bas 400: llife(i) = 14
-			dw kw_asetl, arr_llife, var_i, 14
-
-			; Main.bas 401: Sfx.Play 0, 24, 5, 12, 9, 0
-			dw p_sfx_play_c, lit_0, lit_24, lit_5, lit_12, lit_9, lit_0
-
-			; Main.bas 402: Exit Sub
-			dw p_firelaser_r
-
-			; Main.bas 403: End If
-if46_1:
-
-			; Main.bas 404: Next i
-			dw kw_next1l, var_i, 3, for45_t
-for45_e:
-			dw p_firelaser_r
-
-; ============================================================
-; sub boom (turbo mode)
-; ============================================================
-
-p_boom:
-
-			; Main.bas 408: For k = 0 To MAX_BOOMS - 1
-			dw kw_ztov, var_k
-for47_t:
-
-			; Main.bas 409: If bt(k) = 0 Then
-			dw kw_aget, arr_bt, var_k, tmp0
-			dw kw_cpeqvl, tmp0, 0
-			dw kw_goto_iffalse, if48_1
-
-			; Main.bas 410: bx(k) = wx : by(k) = wy : bt(k) = 16
-			dw kw_aset, arr_bx, var_k, var_boom_wx
-			dw kw_aset, arr_by, var_k, var_boom_wy
-			dw kw_asetl, arr_bt, var_k, 16
-
-			; Main.bas 411: Exit Sub
-			dw p_boom_r
-
-			; Main.bas 412: End If
-if48_1:
-
-			; Main.bas 413: Next k
-			dw kw_next1l, var_k, 3, for47_t
-for47_e:
-			dw p_boom_r
-
-; ============================================================
-; sub killenemy (turbo mode)
-; ============================================================
-
-p_killenemy:
-
-			; Main.bas 417: Dim h As Integer
-
-			; Main.bas 418: HideSprite(SLOT_ENEMY0 + idx)
-			dw kw_addl, var_killenemy_idx, 13, tmp0
-			dw p_hidesprite_c, tmp0
-
-			; Main.bas 419: If old_erx(idx) > 0 Then
-			dw kw_aget, arr_old_erx, var_killenemy_idx, tmp0
-			dw kw_scpgtvl, tmp0, 0
-			dw kw_goto_iffalse, if49_1
-
-			; Main.bas 420: Plot old_erx(idx), old_ery(idx), 0
-			dw kw_aget, arr_old_erx, var_killenemy_idx, tmp0
-			dw kw_aget, arr_old_ery, var_killenemy_idx, tmp1
-			dw p_plot_c, tmp0, tmp1, lit_0
-
-			; Main.bas 421: old_erx(idx) = 0
-			dw kw_asetl, arr_old_erx, var_killenemy_idx, 0
-
-			; Main.bas 422: End If
-if49_1:
-
-			; Main.bas 423: Boom ex(idx), ey(idx)
-			dw kw_aget, arr_ex, var_killenemy_idx, tmp0
-			dw kw_aget, arr_ey, var_killenemy_idx, tmp1
-			dw p_boom_c, tmp0, tmp1
-
-			; Main.bas 425: h = etarget(idx)
-			dw kw_aget, arr_etarget, var_killenemy_idx, var_killenemy_h
-
-			; Main.bas 426: If h >= 0 And h < MAX_HUMANS Then
-			dw kw_scpgevl, var_killenemy_h, 0
-			dw kw_ftov, tmp0
-			dw kw_scpltvl, var_killenemy_h, 8
-			dw kw_ftov, tmp1
-			dw kw_andvv, tmp0, tmp1, tmp0
-			dw kw_goto_ifzero, tmp0, if50_1
-
-			; Main.bas 427: If hstate(h) = H_GRABBED And hcarrier(h) = idx Then
-			dw kw_aget, arr_hstate, var_killenemy_h, tmp0
-			dw kw_cpeqvl, tmp0, 2
-			dw kw_ftov, tmp0
-			dw kw_aget, arr_hcarrier, var_killenemy_h, tmp1
-			dw kw_cpeqvv, tmp1, var_killenemy_idx
-			dw kw_ftov, tmp1
-			dw kw_andvv, tmp0, tmp1, tmp0
-			dw kw_goto_ifzero, tmp0, if51_1
-
-			; Main.bas 428: hstate(h) = H_FALLING
-			dw kw_asetl, arr_hstate, var_killenemy_h, 3
-
-			; Main.bas 429: hcarrier(h) = -1
-			dw kw_asetl, arr_hcarrier, var_killenemy_h, -1
-
-			; Main.bas 430: hfall(h) = hy(h) : hvy(h) = 0
-			dw kw_aget, arr_hy, var_killenemy_h, tmp1
-			dw kw_aset, arr_hfall, var_killenemy_h, tmp1
-			dw kw_asetl, arr_hvy, var_killenemy_h, 0
-
-			; Main.bas 431: End If
-if51_1:
-
-			; Main.bas 432: End If
-if50_1:
-
-			; Main.bas 434: If estate(idx) = ST_BAITER Then
-			dw kw_aget, arr_estate, var_killenemy_idx, tmp0
-			dw kw_cpeqvl, tmp0, 5
-			dw kw_goto_iffalse, if52_1
-
-			; Main.bas 435: AddScore 200
-			dw p_addscore_c, lit_200
-
-			; Main.bas 436: Else
-			dw if52_e_go
-if52_1:
-
-			; Main.bas 437: AddScore 150
-			dw p_addscore_c, lit_150
-
-			; Main.bas 438: enemies_alive = enemies_alive - 1
-			dw kw_dec, var_enemies_alive
-
-			; Main.bas 439: End If
-if52_e:
-
-			; Main.bas 440: estate(idx) = ST_DEAD
-			dw kw_asetl, arr_estate, var_killenemy_idx, 0
-
-			; Main.bas 441: Sfx.Play 1, 10, 1, 14, 20, 1
-			dw p_sfx_play_c, lit_1, lit_10, lit_1, lit_14, lit_20, lit_1
-			dw p_killenemy_r
-
-; ============================================================
-; sub addscore (turbo mode)
-; ============================================================
-
-p_addscore:
-
-			; Main.bas 445: score = score + n
-			dw kw_l_itol, var_addscore_n, ltmp1
-			dw kw_l_add, var_score, ltmp1, var_score
-
-			; Main.bas 446: If score >= nextBonus Then
-			dw kw_l_cpge, var_score, var_nextbonus
-			dw kw_goto_iffalse, if53_1
-
-			; Main.bas 447: nextBonus = nextBonus + 10000
-			dw kw_l_add, var_nextbonus, llit_10000, var_nextbonus
-
-			; Main.bas 448: lives = lives + 1
-			dw kw_inc, var_lives
-
-			; Main.bas 449: If bombs < 9 Then bombs = bombs + 1
-			dw kw_scpltvl, var_bombs, 9
-			dw kw_goto_iffalse, if54_1
-			dw kw_inc, var_bombs
-if54_1:
-
-			; Main.bas 450: Sfx.Play 2, 60, -1, 14, 40, 0
-			dw p_sfx_play_c, lit_2, lit_60, lit_m1, lit_14, lit_40, lit_0
-
-			; Main.bas 451: End If
-if53_1:
-
-			; Main.bas 452: hudDirty = 1
-			dw kw_ltov, 1, var_huddirty
-			dw p_addscore_r
-
-; ============================================================
-; sub triggersmartbomb (turbo mode)
-; ============================================================
-
-p_triggersmartbomb:
-
-			; Main.bas 456: Dim sx_pos As Integer
-
-			; Main.bas 457: If bombs <= 0 Then Exit Sub
-			dw kw_scplevl, var_bombs, 0
-			dw kw_goto_iffalse, if55_1
-			dw p_triggersmartbomb_r
-if55_1:
-
-			; Main.bas 458: bombs = bombs - 1
-			dw kw_dec, var_bombs
-
-			; Main.bas 459: bomb_cd = 25
-			dw kw_ltov, 25, var_bomb_cd
-
-			; Main.bas 460: Sfx.Play 2, 4, 1, 15, 45, 1
-			dw p_sfx_play_c, lit_2, lit_4, lit_1, lit_15, lit_45, lit_1
-
-			; Main.bas 461: Border 7
-			dw p_border_c, lit_7
-
-			; Main.bas 462: Nx.PalEntry Nx.PalLayer2, 0, &HFF
-			dw fn_nx_palentry, lit_1, lit_0, lit_255
-
-			; Main.bas 463: flash_bg = 4
-			dw kw_ltov, 4, var_flash_bg
-
-			; Main.bas 465: For i = 0 To MAX_ENEMIES - 1
-			dw kw_ztov, var_i
-for56_t:
-
-			; Main.bas 466: If estate(i) <> ST_DEAD Then
-			dw kw_aget, arr_estate, var_i, tmp0
-			dw kw_cpnevl, tmp0, 0
-			dw kw_goto_iffalse, if57_1
-
-			; Main.bas 467: sx_pos = WorldToScreenX(ex(i), cx)
-			dw kw_aget, arr_ex, var_i, tmp0
-			dw p_worldtoscreenx_c, tmp0, var_triggersmartbomb_cx
-			dw kw_vtov, var_worldtoscreenx_worldtoscreenx, var_triggersmartbomb_sx_pos
-
-			; Main.bas 468: If sx_pos >= -16 And sx_pos <= 272 Then KillEnemy(i)
-			dw kw_scpgevl, var_triggersmartbomb_sx_pos, -16
-			dw kw_ftov, tmp0
-			dw kw_scplevl, var_triggersmartbomb_sx_pos, 272
-			dw kw_ftov, tmp1
-			dw kw_andvv, tmp0, tmp1, tmp0
-			dw kw_goto_ifzero, tmp0, if58_1
-			dw p_killenemy_c, var_i
-if58_1:
-
-			; Main.bas 469: End If
-if57_1:
-
-			; Main.bas 470: Next i
-			dw kw_next1l, var_i, 9, for56_t
-for56_e:
-
-			; Main.bas 471: For i = 0 To MAX_SHOTS - 1
-			dw kw_ztov, var_i
-for59_t:
-
-			; Main.bas 472: slife(i) = 0
-			dw kw_asetl, arr_slife, var_i, 0
-
-			; Main.bas 473: Next i
-			dw kw_next1l, var_i, 5, for59_t
-for59_e:
-
-			; Main.bas 474: hudDirty = 1
-			dw kw_ltov, 1, var_huddirty
-			dw p_triggersmartbomb_r
-
-; ============================================================
-; sub loselife (turbo mode)
-; ============================================================
-
-p_loselife:
-
-			; Main.bas 479: Dim f As Integer
-
-			; Main.bas 480: Sfx.Play 2, 6, 1, 15, 70, 1
-			dw p_sfx_play_c, lit_2, lit_6, lit_1, lit_15, lit_70, lit_1
-
-			; Main.bas 481: Sfx.Play 0, 150, 6, 14, 60, 0
-			dw p_sfx_play_c, lit_0, lit_150, lit_6, lit_14, lit_60, lit_0
-
-			; Main.bas 482: For i = 0 To MAX_HUMANS - 1
-			dw kw_ztov, var_i
-for60_t:
-
-			; Main.bas 483: If hstate(i) = H_CARRIED Then
-			dw kw_aget, arr_hstate, var_i, tmp0
-			dw kw_cpeqvl, tmp0, 4
-			dw kw_goto_iffalse, if61_1
-
-			; Main.bas 484: hstate(i) = H_FALLING : hfall(i) = hy(i) : hvy(i) = 0
-			dw kw_asetl, arr_hstate, var_i, 3
-			dw kw_aget, arr_hy, var_i, tmp1
-			dw kw_aset, arr_hfall, var_i, tmp1
-			dw kw_asetl, arr_hvy, var_i, 0
-
-			; Main.bas 485: End If
-if61_1:
-
-			; Main.bas 486: Next i
-			dw kw_next1l, var_i, 7, for60_t
-for60_e:
-
-			; Main.bas 487: For f = 0 To 59
-			dw kw_ztov, var_loselife_f
-for62_t:
-
-			; Main.bas 488: SetHardwareSprite(SLOT_PLAYER, psx, py, PAT_BOOM + (f \ 4) Mod 4, False, (f < 40))
-			dw kw_divvl, var_loselife_f, 4, tmp4
-			dw kw_modvl, tmp4, 4, tmp4
-			dw kw_addl, tmp4, 10, tmp3
-			dw kw_scpltvl, var_loselife_f, 40
-			dw kw_ftov, tmp5
-			dw p_sethardwaresprite_c, lit_0, var_psx, var_py, tmp3, lit_0, tmp5
-
-			; Main.bas 489: If f Mod 8 < 4 Then Border 2 Else Border 0
-			dw kw_modvl, var_loselife_f, 8, tmp0
-			dw kw_scpltvl, tmp0, 4
-			dw kw_goto_iffalse, if63_1
-			dw p_border_c, lit_2
-			dw if63_e_go
-if63_1:
-			dw p_border_c, lit_0
-if63_e:
-
-			; Main.bas 490: Vsync
+			; Main.bas 535: Vsync
 			dw p_vsync_c
 
-			; Main.bas 491: Next f
-			dw kw_next1l, var_loselife_f, 59, for62_t
-for62_e:
+			; Main.bas 536: Loop Until Key(40) Or (Joy(0) And 16) <> 0
+			dw p_key_c, lit_40
+			dw kw_vtov, var_key_key, tmp0
+			dw p_joy_c, lit_0
+			dw kw_vtov, var_joy_joy, tmp1
+			dw kw_andvl, tmp1, 16, tmp1
+			dw kw_cpnevl, tmp1, 0
+			dw kw_ftov, tmp1
+			dw kw_orvv, tmp0, tmp1, tmp0
+			dw kw_goto_ifzero, tmp0, do2_t
+do2_e:
 
-			; Main.bas 492: Border 0
+			; Main.bas 538: score = 0
+			dw kw_l_mov, llit_0, var_score
+
+			; Main.bas 539: lives = 3
+			dw kw_ltov, 3, var_lives
+
+			; Main.bas 540: bombs = 3
+			dw kw_ltov, 3, var_bombs
+
+			; Main.bas 541: wave = 1
+			dw kw_ltov, 1, var_wave
+
+			; Main.bas 542: game_over = False
+			dw kw_ztov, var_game_over
+
+			; Main.bas 543: InitWave()
+			dw p_initwave_c
+
+			; Main.bas 545: Do While Not game_over
+do3_t:
+			dw kw_notv, var_game_over, tmp0
+			dw kw_goto_ifzero, tmp0, do3_e
+
+			; Main.bas 546: Vsync
+			dw p_vsync_c
+
+			; Main.bas 547: If flash_bg > 0 Then
+			dw kw_scpgtvl, var_flash_bg, 0
+			dw kw_goto_iffalse, if4_1
+
+			; Main.bas 548: flash_bg = flash_bg - 1
+			dw kw_dec, var_flash_bg
+
+			; Main.bas 549: If flash_bg = 0 Then Border 0
+			dw kw_cpeqvl, var_flash_bg, 0
+			dw kw_goto_iffalse, if5_1
 			dw p_border_c, lit_0
+if5_1:
 
-			; Main.bas 493: lives = lives - 1
-			dw kw_dec, var_lives
+			; Main.bas 550: End If
+if4_1:
 
-			; Main.bas 494: If lives <= 0 Then
-			dw kw_scplevl, var_lives, 0
-			dw kw_goto_iffalse, if64_1
-
-			; Main.bas 495: HideAllSprites()
-			dw p_hideallsprites_c
-
-			; Main.bas 496: game_over = True
-			dw kw_ltov, -1, var_game_over
-
-			; Main.bas 497: Exit Sub
-			dw p_loselife_r
-
-			; Main.bas 498: End If
-if64_1:
-
-			; Main.bas 500: For i = 0 To MAX_ENEMIES - 1
-			dw kw_ztov, var_i
-for65_t:
-
-			; Main.bas 501: If estate(i) <> ST_DEAD Then
-			dw kw_aget, arr_estate, var_i, tmp0
-			dw kw_cpnevl, tmp0, 0
-			dw kw_goto_iffalse, if66_1
-
-			; Main.bas 502: If Abs(WorldToScreenX(ex(i), px)) < 200 Then ex(i) = (ex(i) + 400) And WORLD_MASK
-			dw kw_aget, arr_ex, var_i, tmp0
-			dw p_worldtoscreenx_c, tmp0, var_px
-			dw kw_vtov, var_worldtoscreenx_worldtoscreenx, tmp0
-			dw kw_absv, tmp0, tmp0
-			dw kw_scpltvl, tmp0, 200
-			dw kw_goto_iffalse, if67_1
-			dw kw_aget, arr_ex, var_i, tmp1
-			dw kw_addl, tmp1, 400, tmp1
-			dw kw_andvl, tmp1, 1023, tmp1
-			dw kw_aset, arr_ex, var_i, tmp1
-if67_1:
-
-			; Main.bas 503: If estate(i) = ST_BAITER Then
-			dw kw_aget, arr_estate, var_i, tmp0
-			dw kw_cpeqvl, tmp0, 5
-			dw kw_goto_iffalse, if68_1
-
-			; Main.bas 504: estate(i) = ST_DEAD : HideSprite(SLOT_ENEMY0 + i)
-			dw kw_asetl, arr_estate, var_i, 0
-			dw kw_addl, var_i, 13, tmp0
-			dw p_hidesprite_c, tmp0
-
-			; Main.bas 505: End If
-if68_1:
-
-			; Main.bas 506: End If
-if66_1:
-
-			; Main.bas 507: Next i
-			dw kw_next1l, var_i, 9, for65_t
-for65_e:
-
-			; Main.bas 508: For i = 0 To MAX_SHOTS - 1
-			dw kw_ztov, var_i
-for69_t:
-
-			; Main.bas 509: slife(i) = 0
-			dw kw_asetl, arr_slife, var_i, 0
-
-			; Main.bas 510: Next i
-			dw kw_next1l, var_i, 5, for69_t
-for69_e:
-
-			; Main.bas 511: py = 96 : pvx = 0 : safeT = 100 : baiterT = 0
-			dw kw_ltov, 96, var_py
-			dw kw_ztov, var_pvx
-			dw kw_ltov, 100, var_safet
-			dw kw_ztov, var_baitert
-
-			; Main.bas 512: hudDirty = 1
-			dw kw_ltov, 1, var_huddirty
-			dw p_loselife_r
-
-; ============================================================
-; sub message (turbo mode)
-; ============================================================
-
-p_message:
-
-			; Main.bas 518: Pen 14
-			dw p_pen_c, lit_14
-
-			; Main.bas 519: At 17 - Len(m) \ 2, 11
-			dw kw_strlen, var_message_m, tmp1
-			dw kw_divvl, tmp1, 2, tmp1
-			dw kw_sublv, 17, tmp1, tmp0
-			dw p_at_c, tmp0, lit_11
-
-			; Main.bas 520: PrintS m
-			dw p_prints_c, var_message_m
-
-			; Main.bas 521: msgT = t
-			dw kw_vtov, var_message_t, var_msgt
-			dw p_message_r
-
-; ============================================================
-; sub controls (turbo mode)
-; ============================================================
-
-p_controls:
-
-			; Main.bas 529: j = Joy(0)
+			; Main.bas 555: j = Joy(0)
 			dw p_joy_c, lit_0
 			dw kw_vtov, var_joy_joy, var_j
 
-			; Main.bas 531: If Key(3) Or (j And 8) <> 0 Then
+			; Main.bas 558: If Key(3) Or (j And 8) <> 0 Then
 			dw p_key_c, lit_3
 			dw kw_vtov, var_key_key, tmp0
 			dw kw_andvl, var_j, 8, tmp1
 			dw kw_cpnevl, tmp1, 0
 			dw kw_ftov, tmp1
 			dw kw_orvv, tmp0, tmp1, tmp0
-			dw kw_goto_ifzero, tmp0, if70_1
+			dw kw_goto_ifzero, tmp0, if6_1
 
-			; Main.bas 532: If pvy < 3 Then pvy = pvy + 1
-			dw kw_scpltvl, var_pvy, 3
-			dw kw_goto_iffalse, if70_e
-			dw kw_inc, var_pvy
-if71_1:
+			; Main.bas 559: pvy = 3
+			dw kw_ltov, 3, var_pvy
 
-			; Main.bas 533: ElseIf Key(2) Or (j And 4) <> 0 Then
-			dw if70_e_go
-if70_1:
+			; Main.bas 560: ElseIf Key(2) Or (j And 4) <> 0 Then
+			dw if6_e_go
+if6_1:
 			dw p_key_c, lit_2
 			dw kw_vtov, var_key_key, tmp0
 			dw kw_andvl, var_j, 4, tmp1
 			dw kw_cpnevl, tmp1, 0
 			dw kw_ftov, tmp1
 			dw kw_orvv, tmp0, tmp1, tmp0
-			dw kw_goto_ifzero, tmp0, if70_2
+			dw kw_goto_ifzero, tmp0, if6_2
 
-			; Main.bas 534: If pvy > -3 Then pvy = pvy - 1
-			dw kw_scpgtvl, var_pvy, -3
-			dw kw_goto_iffalse, if70_e
-			dw kw_dec, var_pvy
-if72_1:
+			; Main.bas 561: pvy = -3
+			dw kw_ltov, -3, var_pvy
 
-			; Main.bas 535: Else
-			dw if70_e_go
-if70_2:
+			; Main.bas 562: Else
+			dw if6_e_go
+if6_2:
 
-			; Main.bas 536: pvy = 0
+			; Main.bas 563: pvy = 0
 			dw kw_ztov, var_pvy
 
-			; Main.bas 537: End If
-if70_e:
+			; Main.bas 564: End If
+if6_e:
 
-			; Main.bas 540: thrust = 0
-			dw kw_ztov, var_thrust
-
-			; Main.bas 541: If Key(33) Or (j And 2) <> 0 Then
+			; Main.bas 567: If Key(33) Or (j And 2) <> 0 Then
 			dw p_key_c, lit_33
 			dw kw_vtov, var_key_key, tmp0
 			dw kw_andvl, var_j, 2, tmp1
 			dw kw_cpnevl, tmp1, 0
 			dw kw_ftov, tmp1
 			dw kw_orvv, tmp0, tmp1, tmp0
-			dw kw_goto_ifzero, tmp0, if73_1
+			dw kw_goto_ifzero, tmp0, if7_1
 
-			; Main.bas 542: pdir = -1 : thrust = 1
+			; Main.bas 568: pdir = -1
 			dw kw_ltov, -1, var_pdir
-			dw kw_ltov, 1, var_thrust
 
-			; Main.bas 543: If pvx > -10 Then pvx = pvx - 1
-			dw kw_scpgtvl, var_pvx, -10
-			dw kw_goto_iffalse, if73_e
+			; Main.bas 569: If pvx > -12 Then pvx = pvx - 1
+			dw kw_scpgtvl, var_pvx, -12
+			dw kw_goto_iffalse, if7_e
 			dw kw_dec, var_pvx
-if74_1:
+if8_1:
 
-			; Main.bas 544: ElseIf Key(32) Or (j And 1) <> 0 Then
-			dw if73_e_go
-if73_1:
+			; Main.bas 570: ElseIf Key(32) Or (j And 1) <> 0 Then
+			dw if7_e_go
+if7_1:
 			dw p_key_c, lit_32
 			dw kw_vtov, var_key_key, tmp0
 			dw kw_andvl, var_j, 1, tmp1
 			dw kw_cpnevl, tmp1, 0
 			dw kw_ftov, tmp1
 			dw kw_orvv, tmp0, tmp1, tmp0
-			dw kw_goto_ifzero, tmp0, if73_2
+			dw kw_goto_ifzero, tmp0, if7_2
 
-			; Main.bas 545: pdir = 1 : thrust = 1
+			; Main.bas 571: pdir = 1
 			dw kw_ltov, 1, var_pdir
-			dw kw_ltov, 1, var_thrust
 
-			; Main.bas 546: If pvx < 10 Then pvx = pvx + 1
-			dw kw_scpltvl, var_pvx, 10
-			dw kw_goto_iffalse, if73_e
+			; Main.bas 572: If pvx < 12 Then pvx = pvx + 1
+			dw kw_scpltvl, var_pvx, 12
+			dw kw_goto_iffalse, if7_e
 			dw kw_inc, var_pvx
-if75_1:
+if9_1:
 
-			; Main.bas 547: ElseIf frames Mod 3 = 0 Then
-			dw if73_e_go
-if73_2:
-			dw kw_modvl, var_frames, 3, tmp0
-			dw kw_cpeqvl, tmp0, 0
-			dw kw_goto_iffalse, if73_3
+			; Main.bas 573: Else
+			dw if7_e_go
+if7_2:
 
-			; Main.bas 548: If pvx > 0 Then pvx = pvx - 1
+			; Main.bas 574: If pvx > 0 Then pvx = pvx - 1
 			dw kw_scpgtvl, var_pvx, 0
-			dw kw_goto_iffalse, if76_1
+			dw kw_goto_iffalse, if10_1
 			dw kw_dec, var_pvx
-if76_1:
+if10_1:
 
-			; Main.bas 549: If pvx < 0 Then pvx = pvx + 1
+			; Main.bas 575: If pvx < 0 Then pvx = pvx + 1
 			dw kw_scpltvl, var_pvx, 0
-			dw kw_goto_iffalse, if77_1
+			dw kw_goto_iffalse, if11_1
 			dw kw_inc, var_pvx
-if77_1:
+if11_1:
 
-			; Main.bas 550: End If
-if73_3:
-if73_e:
+			; Main.bas 576: End If
+if7_e:
 
-			; Main.bas 551: If thrust And Sfx.Busy(2) = 0 Then Sfx.Play 2, 28, 0, 5, 3, 1
-			dw p_sfx_busy_c, lit_2
-			dw kw_vtov, var_sfx_busy_busy, tmp1
-			dw kw_cpeqvl, tmp1, 0
-			dw kw_ftov, tmp1
-			dw kw_andvv, var_thrust, tmp1, tmp0
-			dw kw_goto_ifzero, tmp0, if78_1
-			dw p_sfx_play_c, lit_2, lit_28, lit_0, lit_5, lit_3, lit_1
-if78_1:
-
-			; Main.bas 553: px = (px + pvx) And WORLD_MASK
+			; Main.bas 578: px = (px + pvx) And WORLD_MASK
 			dw kw_add, var_px, var_pvx, tmp0
 			dw kw_andvl, tmp0, 1023, var_px
 
-			; Main.bas 554: py = py + pvy
+			; Main.bas 579: py = py + pvy
 			dw kw_add, var_py, var_pvy, var_py
 
-			; Main.bas 555: If py < PLAY_TOP Then py = PLAY_TOP
-			dw kw_scpltvl, var_py, 30
-			dw kw_goto_iffalse, if79_1
-			dw kw_ltov, 30, var_py
-if79_1:
+			; Main.bas 580: If py < PLAY_TOP Then py = PLAY_TOP
+			dw kw_scpltvl, var_py, 40
+			dw kw_goto_iffalse, if12_1
+			dw kw_ltov, 40, var_py
+if12_1:
 
-			; Main.bas 556: If py > PLAY_BOT Then py = PLAY_BOT
-			dw kw_scpgtvl, var_py, 146
-			dw kw_goto_iffalse, if80_1
-			dw kw_ltov, 146, var_py
-if80_1:
+			; Main.bas 581: If py > PLAY_BOT - 12 Then py = PLAY_BOT - 12
+			dw kw_scpgtvl, var_py, 160
+			dw kw_goto_iffalse, if13_1
+			dw kw_ltov, 160, var_py
+if13_1:
 
-			; Main.bas 559: If pdir > 0 And psx > 88 Then psx = psx - 4
-			dw kw_scpgtvl, var_pdir, 0
-			dw kw_ftov, tmp0
-			dw kw_scpgtvl, var_psx, 88
-			dw kw_ftov, tmp1
-			dw kw_andvv, tmp0, tmp1, tmp0
-			dw kw_goto_ifzero, tmp0, if81_1
-			dw kw_addl, var_psx, -4, var_psx
-if81_1:
+			; Main.bas 583: psx = 128 - pdir * 40
+			dw kw_mulvl, var_pdir, 40, tmp1
+			dw kw_sublv, 128, tmp1, var_psx
 
-			; Main.bas 560: If pdir < 0 And psx < 168 Then psx = psx + 4
-			dw kw_scpltvl, var_pdir, 0
-			dw kw_ftov, tmp0
-			dw kw_scpltvl, var_psx, 168
-			dw kw_ftov, tmp1
-			dw kw_andvv, tmp0, tmp1, tmp0
-			dw kw_goto_ifzero, tmp0, if82_1
-			dw kw_addl, var_psx, 4, var_psx
-if82_1:
-
-			; Main.bas 561: cam_x = (px - psx) And WORLD_MASK
+			; Main.bas 584: cam_x = (px - psx) And WORLD_MASK
 			dw kw_subvv, var_px, var_psx, tmp0
 			dw kw_andvl, tmp0, 1023, var_cam_x
 
-			; Main.bas 564: If fire_cd > 0 Then fire_cd = fire_cd - 1
+			; Main.bas 587: If fire_cd > 0 Then fire_cd = fire_cd - 1
 			dw kw_scpgtvl, var_fire_cd, 0
-			dw kw_goto_iffalse, if83_1
+			dw kw_goto_iffalse, if14_1
 			dw kw_dec, var_fire_cd
-if83_1:
+if14_1:
 
-			; Main.bas 565: If (Key(40) Or Key(9) Or (j And 16) <> 0) And fire_cd = 0 Then
+			; Main.bas 588: If (Key(40) Or Key(9) Or (j And 16) <> 0) And fire_cd = 0 Then
 			dw p_key_c, lit_40
 			dw kw_vtov, var_key_key, tmp0
 			dw p_key_c, lit_9
@@ -1724,24 +354,24 @@ if83_1:
 			dw kw_cpeqvl, var_fire_cd, 0
 			dw kw_ftov, tmp1
 			dw kw_andvv, tmp0, tmp1, tmp0
-			dw kw_goto_ifzero, tmp0, if84_1
+			dw kw_goto_ifzero, tmp0, if15_1
 
-			; Main.bas 566: FireLaser()
+			; Main.bas 589: FireLaser()
 			dw p_firelaser_c
 
-			; Main.bas 567: fire_cd = 5
-			dw kw_ltov, 5, var_fire_cd
+			; Main.bas 590: fire_cd = 4
+			dw kw_ltov, 4, var_fire_cd
 
-			; Main.bas 568: End If
-if84_1:
+			; Main.bas 591: End If
+if15_1:
 
-			; Main.bas 571: If bomb_cd > 0 Then bomb_cd = bomb_cd - 1
+			; Main.bas 594: If bomb_cd > 0 Then bomb_cd = bomb_cd - 1
 			dw kw_scpgtvl, var_bomb_cd, 0
-			dw kw_goto_iffalse, if85_1
+			dw kw_goto_iffalse, if16_1
 			dw kw_dec, var_bomb_cd
-if85_1:
+if16_1:
 
-			; Main.bas 572: If (Key(36) Or Key(34) Or (j And 32) <> 0) And bomb_cd = 0 Then TriggerSmartBomb(cam_x)
+			; Main.bas 595: If (Key(36) Or Key(34) Or (j And 32) <> 0) And bomb_cd = 0 Then
 			dw p_key_c, lit_36
 			dw kw_vtov, var_key_key, tmp0
 			dw p_key_c, lit_34
@@ -1754,333 +384,225 @@ if85_1:
 			dw kw_cpeqvl, var_bomb_cd, 0
 			dw kw_ftov, tmp1
 			dw kw_andvv, tmp0, tmp1, tmp0
-			dw kw_goto_ifzero, tmp0, if86_1
+			dw kw_goto_ifzero, tmp0, if17_1
+
+			; Main.bas 596: TriggerSmartBomb(cam_x)
 			dw p_triggersmartbomb_c, var_cam_x
-if86_1:
 
-			; Main.bas 575: If hyper_cd > 0 Then hyper_cd = hyper_cd - 1
+			; Main.bas 597: End If
+if17_1:
+
+			; Main.bas 600: If hyper_cd > 0 Then hyper_cd = hyper_cd - 1
 			dw kw_scpgtvl, var_hyper_cd, 0
-			dw kw_goto_iffalse, if87_1
+			dw kw_goto_iffalse, if18_1
 			dw kw_dec, var_hyper_cd
-if87_1:
+if18_1:
 
-			; Main.bas 576: If Key(38) And hyper_cd = 0 Then
+			; Main.bas 601: If Key(38) And hyper_cd = 0 Then
 			dw p_key_c, lit_38
 			dw kw_vtov, var_key_key, tmp0
 			dw kw_cpeqvl, var_hyper_cd, 0
 			dw kw_ftov, tmp1
 			dw kw_andvv, tmp0, tmp1, tmp0
-			dw kw_goto_ifzero, tmp0, if88_1
+			dw kw_goto_ifzero, tmp0, if19_1
 
-			; Main.bas 577: Plot old_prx, old_pry, 0
+			; Main.bas 602: Plot old_prx, old_pry, 0
 			dw p_plot_c, var_old_prx, var_old_pry, lit_0
 
-			; Main.bas 578: px = Rnd(WORLD_W)
+			; Main.bas 603: px = Rnd(WORLD_W)
 			dw kw_rndl, 1024, var_px
 
-			; Main.bas 579: py = 50 + Rnd(85)
+			; Main.bas 604: py = 50 + Rnd(85)
 			dw kw_rndl, 85, tmp1
 			dw kw_addl, tmp1, 50, var_py
 
-			; Main.bas 580: pvx = 0
+			; Main.bas 605: pvx = 0
 			dw kw_ztov, var_pvx
 
-			; Main.bas 581: hyper_cd = 50 : safeT = 25
-			dw kw_ltov, 50, var_hyper_cd
-			dw kw_ltov, 25, var_safet
+			; Main.bas 606: hyper_cd = 30
+			dw kw_ltov, 30, var_hyper_cd
 
-			; Main.bas 582: Sfx.Play 0, 500, -24, 14, 20, 0
-			dw p_sfx_play_c, lit_0, lit_500, lit_m24, lit_14, lit_20, lit_0
+			; Main.bas 607: Sound 1, 550, 8, 13
+			dw p_sound_c, lit_1, lit_550, lit_8, lit_13
 
-			; Main.bas 583: End If
-if88_1:
-			dw p_controls_r
+			; Main.bas 608: End If
+if19_1:
 
-; ============================================================
-; sub drawplayer (turbo mode)
-; ============================================================
-
-p_drawplayer:
-
-			; Main.bas 587: Dim f As Integer
-
-			; Main.bas 588: f = PAT_PLAYER
-			dw kw_ztov, var_drawplayer_f
-
-			; Main.bas 589: If thrust And (frames And 2) Then f = PAT_PLAYER + PAT_FRAME2
-			dw kw_andvl, var_frames, 2, tmp1
-			dw kw_andvv, var_thrust, tmp1, tmp0
-			dw kw_goto_ifzero, tmp0, if89_1
-			dw kw_ltov, 4, var_drawplayer_f
-if89_1:
-
-			; Main.bas 590: SetHardwareSprite(SLOT_PLAYER, psx, py, f, (pdir < 0), (safeT = 0 Or (safeT And 4) = 0))
+			; Main.bas 613: SetHardwareSprite(SLOT_PLAYER, psx, py, PAT_PLAYER, (pdir < 0), True)
 			dw kw_scpltvl, var_pdir, 0
 			dw kw_ftov, tmp4
-			dw kw_cpeqvl, var_safet, 0
-			dw kw_ftov, tmp5
-			dw kw_andvl, var_safet, 4, tmp6
-			dw kw_cpeqvl, tmp6, 0
-			dw kw_ftov, tmp6
-			dw kw_orvv, tmp5, tmp6, tmp5
-			dw p_sethardwaresprite_c, lit_0, var_psx, var_py, var_drawplayer_f, tmp4, tmp5
+			dw p_sethardwaresprite_c, lit_0, var_psx, var_py, lit_0, tmp4, lit_m1
 
-			; Main.bas 591: If safeT > 0 Then safeT = safeT - 1
-			dw kw_scpgtvl, var_safet, 0
-			dw kw_goto_iffalse, if90_1
-			dw kw_dec, var_safet
-if90_1:
-
-			; Main.bas 593: Plot old_prx, old_pry, 0
+			; Main.bas 615: Plot old_prx, old_pry, 0
 			dw p_plot_c, var_old_prx, var_old_pry, lit_0
 
-			; Main.bas 594: old_prx = 128
+			; Main.bas 616: old_prx = 128
 			dw kw_ltov, 128, var_old_prx
 
-			; Main.bas 595: old_pry = 154 + (py \ 7)
+			; Main.bas 617: old_pry = 154 + (py \ 7)
 			dw kw_divvl, var_py, 7, tmp1
 			dw kw_addl, tmp1, 154, var_old_pry
 
-			; Main.bas 596: Plot old_prx, old_pry, 15
+			; Main.bas 618: Plot old_prx, old_pry, 15
 			dw p_plot_c, var_old_prx, var_old_pry, lit_15
-			dw p_drawplayer_r
 
-; ============================================================
-; sub lasers (turbo mode)
-; ============================================================
-
-p_lasers:
-
-			; Main.bas 600: Dim lsx As Integer
-
-			; Main.bas 601: lasersOn = 0
-			dw kw_ztov, var_laserson
-
-			; Main.bas 602: For i = 0 To MAX_LASERS - 1
+			; Main.bas 623: For i = 0 To MAX_LASERS - 1
 			dw kw_ztov, var_i
-for91_t:
+for20_t:
 
-			; Main.bas 603: If llife(i) > 0 Then
+			; Main.bas 624: If llife(i) > 0 Then
 			dw kw_aget, arr_llife, var_i, tmp0
 			dw kw_scpgtvl, tmp0, 0
-			dw kw_goto_iffalse, if92_1
+			dw kw_goto_iffalse, if21_1
 
-			; Main.bas 604: lx(i) = (lx(i) + lvx(i)) And WORLD_MASK
+			; Main.bas 625: lx(i) = (lx(i) + lvx(i)) And WORLD_MASK
 			dw kw_aget, arr_lx, var_i, tmp1
 			dw kw_aget, arr_lvx, var_i, tmp2
 			dw kw_add, tmp1, tmp2, tmp1
 			dw kw_andvl, tmp1, 1023, tmp1
 			dw kw_aset, arr_lx, var_i, tmp1
 
-			; Main.bas 605: llife(i) = llife(i) - 1
+			; Main.bas 626: llife(i) = llife(i) - 1
 			dw kw_aget, arr_llife, var_i, tmp1
 			dw kw_dec, tmp1
 			dw kw_aset, arr_llife, var_i, tmp1
 
-			; Main.bas 606: lsx = WorldToScreenX(lx(i), cam_x)
+			; Main.bas 627: lsx = WorldToScreenX(lx(i), cam_x)
 			dw kw_aget, arr_lx, var_i, tmp0
 			dw p_worldtoscreenx_c, tmp0, var_cam_x
-			dw kw_vtov, var_worldtoscreenx_worldtoscreenx, var_lasers_lsx
+			dw kw_vtov, var_worldtoscreenx_worldtoscreenx, var_lsx
 
-			; Main.bas 607: If llife(i) > 0 And lsx >= 0 And lsx <= 255 Then
+			; Main.bas 628: If llife(i) > 0 And lsx >= 0 And lsx <= 255 Then
 			dw kw_aget, arr_llife, var_i, tmp0
 			dw kw_scpgtvl, tmp0, 0
 			dw kw_ftov, tmp0
-			dw kw_scpgevl, var_lasers_lsx, 0
+			dw kw_scpgevl, var_lsx, 0
 			dw kw_ftov, tmp1
 			dw kw_andvv, tmp0, tmp1, tmp0
-			dw kw_scplevl, var_lasers_lsx, 255
+			dw kw_scplevl, var_lsx, 255
 			dw kw_ftov, tmp1
 			dw kw_andvv, tmp0, tmp1, tmp0
-			dw kw_goto_ifzero, tmp0, if93_1
+			dw kw_goto_ifzero, tmp0, if22_1
 
-			; Main.bas 608: SetHardwareSprite(SLOT_LASER0 + i, lsx, ly(i), PAT_BOLT, (lvx(i) < 0), True)
+			; Main.bas 629: SetHardwareSprite(SLOT_LASER0 + i, lsx, ly(i), PAT_BOLT, (lvx(i) < 0), True)
 			dw kw_addl, var_i, 1, tmp0
 			dw kw_aget, arr_ly, var_i, tmp2
 			dw kw_aget, arr_lvx, var_i, tmp4
 			dw kw_scpltvl, tmp4, 0
 			dw kw_ftov, tmp4
-			dw p_sethardwaresprite_c, tmp0, var_lasers_lsx, tmp2, lit_4, tmp4, lit_m1
+			dw p_sethardwaresprite_c, tmp0, var_lsx, tmp2, lit_4, tmp4, lit_m1
 
-			; Main.bas 609: lscr(i) = lsx : lasersOn = 1
-			dw kw_aset, arr_lscr, var_i, var_lasers_lsx
-			dw kw_ltov, 1, var_laserson
+			; Main.bas 630: Else
+			dw if21_e_go
+if22_1:
 
-			; Main.bas 610: Else
-			dw if92_e_go
-if93_1:
-
-			; Main.bas 611: llife(i) = 0
+			; Main.bas 631: llife(i) = 0
 			dw kw_asetl, arr_llife, var_i, 0
 
-			; Main.bas 612: HideSprite(SLOT_LASER0 + i)
+			; Main.bas 632: SetHardwareSprite(SLOT_LASER0 + i, 0, 0, 0, False, False)
 			dw kw_addl, var_i, 1, tmp0
-			dw p_hidesprite_c, tmp0
+			dw p_sethardwaresprite_c, tmp0, lit_0, lit_0, lit_0, lit_0, lit_0
 
-			; Main.bas 613: End If
-if93_e:
+			; Main.bas 633: End If
+if22_e:
 
-			; Main.bas 614: Else
-			dw if92_e_go
-if92_1:
+			; Main.bas 634: Else
+			dw if21_e_go
+if21_1:
 
-			; Main.bas 615: HideSprite(SLOT_LASER0 + i)
+			; Main.bas 635: SetHardwareSprite(SLOT_LASER0 + i, 0, 0, 0, False, False)
 			dw kw_addl, var_i, 1, tmp0
-			dw p_hidesprite_c, tmp0
+			dw p_sethardwaresprite_c, tmp0, lit_0, lit_0, lit_0, lit_0, lit_0
 
-			; Main.bas 616: End If
-if92_e:
+			; Main.bas 636: End If
+if21_e:
 
-			; Main.bas 617: Next i
-			dw kw_next1l, var_i, 3, for91_t
-for91_e:
-			dw p_lasers_r
+			; Main.bas 637: Next i
+			dw kw_next1l, var_i, 3, for20_t
+for20_e:
 
-; ============================================================
-; sub humans (turbo mode)
-; ============================================================
-
-p_humans:
-
-			; Main.bas 621: Dim hsx As Integer, hrx As Integer, hry As Integer, t_ground As Integer
-
-			; Main.bas 622: For i = 0 To MAX_HUMANS - 1
+			; Main.bas 642: For i = 0 To MAX_HUMANS - 1
 			dw kw_ztov, var_i
-for94_t:
+for23_t:
 
-			; Main.bas 623: If old_hrx(i) > 0 Then
+			; Main.bas 643: If old_hrx(i) > 0 Then
 			dw kw_aget, arr_old_hrx, var_i, tmp0
 			dw kw_scpgtvl, tmp0, 0
-			dw kw_goto_iffalse, if95_1
+			dw kw_goto_iffalse, if24_1
 
-			; Main.bas 624: Plot old_hrx(i), old_hry(i), 0
+			; Main.bas 644: Plot old_hrx(i), 154, 0
 			dw kw_aget, arr_old_hrx, var_i, tmp0
-			dw kw_aget, arr_old_hry, var_i, tmp1
-			dw p_plot_c, tmp0, tmp1, lit_0
+			dw p_plot_c, tmp0, lit_154, lit_0
 
-			; Main.bas 625: old_hrx(i) = 0
+			; Main.bas 645: old_hrx(i) = 0
 			dw kw_asetl, arr_old_hrx, var_i, 0
 
-			; Main.bas 626: End If
-if95_1:
+			; Main.bas 646: End If
+if24_1:
 
-			; Main.bas 628: If hstate(i) <> H_DEAD Then
+			; Main.bas 648: If hstate(i) <> H_DEAD Then
 			dw kw_aget, arr_hstate, var_i, tmp0
 			dw kw_cpnevl, tmp0, 0
-			dw kw_goto_iffalse, if96_1
+			dw kw_goto_iffalse, if25_1
 
-			; Main.bas 629: Select Case hstate(i)
+			; Main.bas 649: If hstate(i) = H_CARRIED Then
 			dw kw_aget, arr_hstate, var_i, tmp0
-			dw kw_vtov, tmp0, var_humans___sel97
+			dw kw_cpeqvl, tmp0, 4
+			dw kw_goto_iffalse, if26_1
 
-			; Main.bas 630: Case H_GROUND
-			dw kw_cpeqvl, var_humans___sel97, 1
-			dw kw_goto_iffalse, sel97_1
-sel97_b1:
-
-			; Main.bas 632: If frames Mod 6 = 0 Then
-			dw kw_modvl, var_frames, 6, tmp0
-			dw kw_cpeqvl, tmp0, 0
-			dw kw_goto_iffalse, if98_1
-
-			; Main.bas 633: hx(i) = (hx(i) + hdir(i)) And WORLD_MASK
-			dw kw_aget, arr_hx, var_i, tmp1
-			dw kw_aget, arr_hdir, var_i, tmp2
-			dw kw_add, tmp1, tmp2, tmp1
-			dw kw_andvl, tmp1, 1023, tmp1
-			dw kw_aset, arr_hx, var_i, tmp1
-
-			; Main.bas 634: If Rnd(60) = 0 Then hdir(i) = -hdir(i)
-			dw kw_rndl, 60, tmp0
-			dw kw_cpeqvl, tmp0, 0
-			dw kw_goto_iffalse, if99_1
-			dw kw_aget, arr_hdir, var_i, tmp1
-			dw kw_negv, tmp1, tmp1
-			dw kw_aset, arr_hdir, var_i, tmp1
-if99_1:
-
-			; Main.bas 635: End If
-if98_1:
-
-			; Main.bas 636: hy(i) = GetTerrainY(hx(i)) + 6
-			dw kw_aget, arr_hx, var_i, tmp1
-			dw p_getterrainy_c, tmp1
-			dw kw_vtov, var_getterrainy_getterrainy, tmp1
-			dw kw_addl, tmp1, 6, tmp1
-			dw kw_aset, arr_hy, var_i, tmp1
-
-			; Main.bas 637: Case H_CARRIED
-			dw sel97_e_go
-sel97_1:
-			dw kw_cpeqvl, var_humans___sel97, 4
-			dw kw_goto_iffalse, sel97_2
-sel97_b2:
-
-			; Main.bas 638: hx(i) = px
+			; Main.bas 650: hx(i) = px
 			dw kw_aset, arr_hx, var_i, var_px
 
-			; Main.bas 639: hy(i) = py - 10
+			; Main.bas 651: hy(i) = py - 10
 			dw kw_addl, var_py, -10, tmp1
 			dw kw_aset, arr_hy, var_i, tmp1
 
-			; Main.bas 640: t_ground = GetTerrainY(hx(i)) + 6
+			; Main.bas 652: t_ground = GetTerrainY(hx(i)) + 6
 			dw kw_aget, arr_hx, var_i, tmp0
 			dw p_getterrainy_c, tmp0
 			dw kw_vtov, var_getterrainy_getterrainy, tmp0
-			dw kw_addl, tmp0, 6, var_humans_t_ground
+			dw kw_addl, tmp0, 6, var_t_ground
 
-			; Main.bas 641: If hy(i) <= t_ground Or py <= PLAY_TOP Then
+			; Main.bas 654: If hy(i) <= t_ground Or py <= PLAY_TOP Then
 			dw kw_aget, arr_hy, var_i, tmp0
-			dw kw_scplevv, tmp0, var_humans_t_ground
+			dw kw_scplevv, tmp0, var_t_ground
 			dw kw_ftov, tmp0
-			dw kw_scplevl, var_py, 30
+			dw kw_scplevl, var_py, 40
 			dw kw_ftov, tmp1
 			dw kw_orvv, tmp0, tmp1, tmp0
-			dw kw_goto_ifzero, tmp0, sel97_e
+			dw kw_goto_ifzero, tmp0, if26_e
 
-			; Main.bas 642: hy(i) = t_ground
-			dw kw_aset, arr_hy, var_i, var_humans_t_ground
+			; Main.bas 655: hy(i) = t_ground
+			dw kw_aset, arr_hy, var_i, var_t_ground
 
-			; Main.bas 643: hstate(i) = H_GROUND
+			; Main.bas 656: hstate(i) = H_GROUND
 			dw kw_asetl, arr_hstate, var_i, 1
 
-			; Main.bas 644: AddScore 500
-			dw p_addscore_c, lit_500
+			; Main.bas 657: score = score + 50
+			dw kw_l_add, var_score, llit_50, var_score
 
-			; Main.bas 645: Sfx.Play 0, 90, -3, 14, 20, 0
-			dw p_sfx_play_c, lit_0, lit_90, lit_m3, lit_14, lit_20, lit_0
+			; Main.bas 658: Sound 1, 90, 8, 14
+			dw p_sound_c, lit_1, lit_90, lit_8, lit_14
 
-			; Main.bas 646: End If
-if100_1:
+			; Main.bas 659: UpdateHUD()
+			dw p_updatehud_c
 
-			; Main.bas 647: Case H_FALLING
-			dw sel97_e_go
-sel97_2:
-			dw kw_cpeqvl, var_humans___sel97, 3
-			dw kw_goto_iffalse, sel97_3
-sel97_b3:
+			; Main.bas 660: End If
+if27_1:
 
-			; Main.bas 648: If frames Mod 4 = 0 And hvy(i) < 3 Then hvy(i) = hvy(i) + 1
-			dw kw_modvl, var_frames, 4, tmp0
-			dw kw_cpeqvl, tmp0, 0
-			dw kw_ftov, tmp0
-			dw kw_aget, arr_hvy, var_i, tmp1
-			dw kw_scpltvl, tmp1, 3
-			dw kw_ftov, tmp1
-			dw kw_andvv, tmp0, tmp1, tmp0
-			dw kw_goto_ifzero, tmp0, if101_1
-			dw kw_aget, arr_hvy, var_i, tmp1
-			dw kw_inc, tmp1
-			dw kw_aset, arr_hvy, var_i, tmp1
-if101_1:
+			; Main.bas 661: ElseIf hstate(i) = H_FALLING Then
+			dw if26_e_go
+if26_1:
+			dw kw_aget, arr_hstate, var_i, tmp0
+			dw kw_cpeqvl, tmp0, 3
+			dw kw_goto_iffalse, if26_2
 
-			; Main.bas 649: hy(i) = hy(i) - hvy(i)
+			; Main.bas 662: hy(i) = hy(i) - 1
 			dw kw_aget, arr_hy, var_i, tmp1
-			dw kw_aget, arr_hvy, var_i, tmp2
-			dw kw_subvv, tmp1, tmp2, tmp1
+			dw kw_dec, tmp1
 			dw kw_aset, arr_hy, var_i, tmp1
 
-			; Main.bas 650: If Abs(WorldToScreenX(hx(i), cam_x) - psx) < 12 And Abs(hy(i) - py) < 12 Then
+			; Main.bas 663: If Abs(WorldToScreenX(hx(i), cam_x) - psx) < 12 And Abs(hy(i) - py) < 12 Then
 			dw kw_aget, arr_hx, var_i, tmp0
 			dw p_worldtoscreenx_c, tmp0, var_cam_x
 			dw kw_vtov, var_worldtoscreenx_worldtoscreenx, tmp0
@@ -2094,1532 +616,2088 @@ if101_1:
 			dw kw_scpltvl, tmp1, 12
 			dw kw_ftov, tmp1
 			dw kw_andvv, tmp0, tmp1, tmp0
-			dw kw_goto_ifzero, tmp0, if102_1
+			dw kw_goto_ifzero, tmp0, if28_1
 
-			; Main.bas 651: hstate(i) = H_CARRIED
+			; Main.bas 664: hstate(i) = H_CARRIED
 			dw kw_asetl, arr_hstate, var_i, 4
 
-			; Main.bas 652: AddScore 500
-			dw p_addscore_c, lit_500
+			; Main.bas 665: score = score + 50
+			dw kw_l_add, var_score, llit_50, var_score
 
-			; Main.bas 653: Sfx.Play 0, 140, -6, 14, 14, 0
-			dw p_sfx_play_c, lit_0, lit_140, lit_m6, lit_14, lit_14, lit_0
+			; Main.bas 666: Sound 1, 110, 6, 14
+			dw p_sound_c, lit_1, lit_110, lit_6, lit_14
 
-			; Main.bas 654: Else
-			dw if102_e_go
-if102_1:
+			; Main.bas 667: UpdateHUD()
+			dw p_updatehud_c
 
-			; Main.bas 655: t_ground = GetTerrainY(hx(i)) + 6
+			; Main.bas 668: Else
+			dw if28_e_go
+if28_1:
+
+			; Main.bas 669: t_ground = GetTerrainY(hx(i)) + 6
 			dw kw_aget, arr_hx, var_i, tmp0
 			dw p_getterrainy_c, tmp0
 			dw kw_vtov, var_getterrainy_getterrainy, tmp0
-			dw kw_addl, tmp0, 6, var_humans_t_ground
+			dw kw_addl, tmp0, 6, var_t_ground
 
-			; Main.bas 656: If hy(i) <= t_ground Then
+			; Main.bas 670: If hy(i) <= t_ground Then
 			dw kw_aget, arr_hy, var_i, tmp0
-			dw kw_scplevv, tmp0, var_humans_t_ground
-			dw kw_goto_iffalse, if103_1
+			dw kw_scplevv, tmp0, var_t_ground
+			dw kw_goto_iffalse, if29_1
 
-			; Main.bas 657: hy(i) = t_ground
-			dw kw_aset, arr_hy, var_i, var_humans_t_ground
+			; Main.bas 671: hy(i) = t_ground
+			dw kw_aset, arr_hy, var_i, var_t_ground
 
-			; Main.bas 658: If hfall(i) - t_ground > 60 Then
-			dw kw_aget, arr_hfall, var_i, tmp0
-			dw kw_subvv, tmp0, var_humans_t_ground, tmp0
-			dw kw_scpgtvl, tmp0, 60
-			dw kw_goto_iffalse, if104_1
-
-			; Main.bas 660: hstate(i) = H_DEAD
-			dw kw_asetl, arr_hstate, var_i, 0
-
-			; Main.bas 661: humans_alive = humans_alive - 1
-			dw kw_dec, var_humans_alive
-
-			; Main.bas 662: Boom hx(i), hy(i)
-			dw kw_aget, arr_hx, var_i, tmp0
-			dw kw_aget, arr_hy, var_i, tmp1
-			dw p_boom_c, tmp0, tmp1
-
-			; Main.bas 663: Sfx.Play 1, 100, 12, 13, 25, 0
-			dw p_sfx_play_c, lit_1, lit_100, lit_12, lit_13, lit_25, lit_0
-
-			; Main.bas 664: HumansGone
-			dw p_humansgone_c
-
-			; Main.bas 665: Else
-			dw if104_e_go
-if104_1:
-
-			; Main.bas 666: hstate(i) = H_GROUND
+			; Main.bas 672: hstate(i) = H_GROUND
 			dw kw_asetl, arr_hstate, var_i, 1
 
-			; Main.bas 667: AddScore 250
-			dw p_addscore_c, lit_250
+			; Main.bas 673: score = score + 25
+			dw kw_l_add, var_score, llit_25, var_score
 
-			; Main.bas 668: End If
-if104_e:
+			; Main.bas 674: UpdateHUD()
+			dw p_updatehud_c
 
-			; Main.bas 669: End If
-if103_1:
+			; Main.bas 675: End If
+if29_1:
 
-			; Main.bas 670: End If
-if102_e:
+			; Main.bas 676: End If
+if28_e:
 
-			; Main.bas 671: End Select
-sel97_3:
-sel97_e:
+			; Main.bas 677: End If
+if26_2:
+if26_e:
 
-			; Main.bas 672: End If
-if96_1:
-
-			; Main.bas 674: If hstate(i) <> H_DEAD Then
-			dw kw_aget, arr_hstate, var_i, tmp0
-			dw kw_cpnevl, tmp0, 0
-			dw kw_goto_iffalse, if105_1
-
-			; Main.bas 675: hsx = WorldToScreenX(hx(i), cam_x)
+			; Main.bas 679: hsx = WorldToScreenX(hx(i), cam_x)
 			dw kw_aget, arr_hx, var_i, tmp0
 			dw p_worldtoscreenx_c, tmp0, var_cam_x
-			dw kw_vtov, var_worldtoscreenx_worldtoscreenx, var_humans_hsx
+			dw kw_vtov, var_worldtoscreenx_worldtoscreenx, var_hsx
 
-			; Main.bas 676: If hsx >= -8 And hsx <= 263 Then
-			dw kw_scpgevl, var_humans_hsx, -8
+			; Main.bas 680: If hsx >= -8 And hsx <= 263 Then
+			dw kw_scpgevl, var_hsx, -8
 			dw kw_ftov, tmp0
-			dw kw_scplevl, var_humans_hsx, 263
+			dw kw_scplevl, var_hsx, 263
 			dw kw_ftov, tmp1
 			dw kw_andvv, tmp0, tmp1, tmp0
-			dw kw_goto_ifzero, tmp0, if106_1
+			dw kw_goto_ifzero, tmp0, if30_1
 
-			; Main.bas 677: SetHardwareSprite(SLOT_HUMAN0 + i, hsx, hy(i), PAT_HUMAN + PAT_FRAME2 * ((frames \ 12) And 1) * (hstate(i) = H_GROUND) * -1, (hdir(i) < 0), True)
+			; Main.bas 681: SetHardwareSprite(SLOT_HUMAN0 + i, hsx, hy(i), PAT_HUMAN, False, True)
 			dw kw_addl, var_i, 5, tmp0
 			dw kw_aget, arr_hy, var_i, tmp2
-			dw kw_divvl, var_frames, 12, tmp5
-			dw kw_andvl, tmp5, 1, tmp5
-			dw kw_4x, tmp5, tmp4
-			dw kw_aget, arr_hstate, var_i, tmp5
-			dw kw_cpeqvl, tmp5, 1
-			dw kw_ftov, tmp5
-			dw kw_mulvv, tmp4, tmp5, tmp4
-			dw kw_mulvl, tmp4, -1, tmp4
-			dw kw_addl, tmp4, 3, tmp3
-			dw kw_aget, arr_hdir, var_i, tmp4
-			dw kw_scpltvl, tmp4, 0
-			dw kw_ftov, tmp4
-			dw p_sethardwaresprite_c, tmp0, var_humans_hsx, tmp2, tmp3, tmp4, lit_m1
+			dw p_sethardwaresprite_c, tmp0, var_hsx, tmp2, lit_3, lit_0, lit_m1
 
-			; Main.bas 678: Else
-			dw if106_e_go
-if106_1:
+			; Main.bas 682: Else
+			dw if30_e_go
+if30_1:
 
-			; Main.bas 679: HideSprite(SLOT_HUMAN0 + i)
+			; Main.bas 683: SetHardwareSprite(SLOT_HUMAN0 + i, 0, 0, 0, False, False)
 			dw kw_addl, var_i, 5, tmp0
-			dw p_hidesprite_c, tmp0
+			dw p_sethardwaresprite_c, tmp0, lit_0, lit_0, lit_0, lit_0, lit_0
 
-			; Main.bas 680: End If
-if106_e:
+			; Main.bas 684: End If
+if30_e:
 
-			; Main.bas 681: hrx = WorldToRadarX(hx(i))
+			; Main.bas 686: hrx = WorldToRadarX(hx(i))
 			dw kw_aget, arr_hx, var_i, tmp0
 			dw p_worldtoradarx_c, tmp0
-			dw kw_vtov, var_worldtoradarx_worldtoradarx, var_humans_hrx
+			dw kw_vtov, var_worldtoradarx_worldtoradarx, var_hrx
 
-			; Main.bas 682: hry = 153 + (hy(i) \ 7)
-			dw kw_aget, arr_hy, var_i, tmp1
-			dw kw_divvl, tmp1, 7, tmp1
-			dw kw_addl, tmp1, 153, var_humans_hry
+			; Main.bas 687: Plot hrx, 154, 13
+			dw p_plot_c, var_hrx, lit_154, lit_13
 
-			; Main.bas 683: Plot hrx, hry, 13
-			dw p_plot_c, var_humans_hrx, var_humans_hry, lit_13
+			; Main.bas 688: old_hrx(i) = hrx
+			dw kw_aset, arr_old_hrx, var_i, var_hrx
 
-			; Main.bas 684: old_hrx(i) = hrx : old_hry(i) = hry
-			dw kw_aset, arr_old_hrx, var_i, var_humans_hrx
-			dw kw_aset, arr_old_hry, var_i, var_humans_hry
+			; Main.bas 689: Else
+			dw if25_e_go
+if25_1:
 
-			; Main.bas 685: Else
-			dw if105_e_go
-if105_1:
-
-			; Main.bas 686: HideSprite(SLOT_HUMAN0 + i)
+			; Main.bas 690: SetHardwareSprite(SLOT_HUMAN0 + i, 0, 0, 0, False, False)
 			dw kw_addl, var_i, 5, tmp0
-			dw p_hidesprite_c, tmp0
+			dw p_sethardwaresprite_c, tmp0, lit_0, lit_0, lit_0, lit_0, lit_0
 
-			; Main.bas 687: End If
-if105_e:
+			; Main.bas 691: End If
+if25_e:
 
-			; Main.bas 688: Next i
-			dw kw_next1l, var_i, 7, for94_t
-for94_e:
-			dw p_humans_r
+			; Main.bas 692: Next i
+			dw kw_next1l, var_i, 7, for23_t
+for23_e:
 
-; ============================================================
-; sub humansgone (turbo mode)
-; ============================================================
-
-p_humansgone:
-
-			; Main.bas 693: If humans_alive <= 0 And Not planet_dead Then
-			dw kw_scplevl, var_humans_alive, 0
-			dw kw_ftov, tmp0
-			dw kw_notv, var_planet_dead, tmp1
-			dw kw_andvv, tmp0, tmp1, tmp0
-			dw kw_goto_ifzero, tmp0, if107_1
-
-			; Main.bas 694: planet_dead = True
-			dw kw_ltov, -1, var_planet_dead
-
-			; Main.bas 695: Border 2
-			dw p_border_c, lit_2
-
-			; Main.bas 696: flash_bg = 10
-			dw kw_ltov, 10, var_flash_bg
-
-			; Main.bas 697: Sfx.Play 2, 3, 1, 15, 60, 1
-			dw p_sfx_play_c, lit_2, lit_3, lit_1, lit_15, lit_60, lit_1
-
-			; Main.bas 698: For k = 0 To MAX_ENEMIES - 1
-			dw kw_ztov, var_k
-for108_t:
-
-			; Main.bas 699: If estate(k) = ST_WANDER Or estate(k) = ST_DESCEND Then estate(k) = ST_MUTANT
-			dw kw_aget, arr_estate, var_k, tmp0
-			dw kw_cpeqvl, tmp0, 1
-			dw kw_ftov, tmp0
-			dw kw_aget, arr_estate, var_k, tmp1
-			dw kw_cpeqvl, tmp1, 2
-			dw kw_ftov, tmp1
-			dw kw_orvv, tmp0, tmp1, tmp0
-			dw kw_goto_ifzero, tmp0, if109_1
-			dw kw_asetl, arr_estate, var_k, 4
-if109_1:
-
-			; Main.bas 700: Next k
-			dw kw_next1l, var_k, 9, for108_t
-for108_e:
-
-			; Main.bas 701: Message "THE PLANET IS GONE", 100
-			dw p_message_c, str10, lit_100
-
-			; Main.bas 702: End If
-if107_1:
-			dw p_humansgone_r
-
-; ============================================================
-; sub enemies (turbo mode)
-; ============================================================
-
-p_enemies:
-
-			; Main.bas 706: Dim esx As Integer, erx As Integer, ery As Integer, epat As Integer, ecol As Integer
-
-			; Main.bas 707: Dim th As Integer, dx_h As Integer, l_idx As Integer, hit As Boolean, lsx As Integer, s As Integer
-
-			; Main.bas 709: If spawn_timer > 0 Then
+			; Main.bas 697: If spawn_timer > 0 Then
 			dw kw_scpgtvl, var_spawn_timer, 0
-			dw kw_goto_iffalse, if110_1
+			dw kw_goto_iffalse, if31_1
 
-			; Main.bas 710: spawn_timer = spawn_timer - 1
+			; Main.bas 698: spawn_timer = spawn_timer - 1
 			dw kw_dec, var_spawn_timer
 
-			; Main.bas 711: ElseIf enemies_to_spawn > 0 And enemies_alive < 7 Then
-			dw if110_e_go
-if110_1:
+			; Main.bas 699: ElseIf enemies_to_spawn > 0 And enemies_alive < 7 Then
+			dw if31_e_go
+if31_1:
 			dw kw_scpgtvl, var_enemies_to_spawn, 0
 			dw kw_ftov, tmp0
 			dw kw_scpltvl, var_enemies_alive, 7
 			dw kw_ftov, tmp1
 			dw kw_andvv, tmp0, tmp1, tmp0
-			dw kw_goto_ifzero, tmp0, if110_2
+			dw kw_goto_ifzero, tmp0, if31_2
 
-			; Main.bas 712: SpawnEnemy()
+			; Main.bas 700: SpawnEnemy()
 			dw p_spawnenemy_c
 
-			; Main.bas 713: spawn_timer = 60
-			dw kw_ltov, 60, var_spawn_timer
+			; Main.bas 701: spawn_timer = 40
+			dw kw_ltov, 40, var_spawn_timer
 
-			; Main.bas 714: End If
-if110_2:
-if110_e:
+			; Main.bas 702: End If
+if31_2:
+if31_e:
 
-			; Main.bas 716: waveT = waveT + 1
-			dw kw_inc, var_wavet
-
-			; Main.bas 717: If waveT > 2000 Then
-			dw kw_scpgtvl, var_wavet, 2000
-			dw kw_goto_iffalse, if111_1
-
-			; Main.bas 718: baiterT = baiterT + 1
-			dw kw_inc, var_baitert
-
-			; Main.bas 719: If baiterT >= 600 Or waveT = 2001 Then
-			dw kw_scpgevl, var_baitert, 600
-			dw kw_ftov, tmp0
-			dw kw_cpeqvl, var_wavet, 2001
-			dw kw_ftov, tmp1
-			dw kw_orvv, tmp0, tmp1, tmp0
-			dw kw_goto_ifzero, tmp0, if112_1
-
-			; Main.bas 720: baiterT = 0
-			dw kw_ztov, var_baitert
-
-			; Main.bas 721: SpawnBaiter()
-			dw p_spawnbaiter_c
-
-			; Main.bas 722: End If
-if112_1:
-
-			; Main.bas 723: End If
-if111_1:
-
-			; Main.bas 725: For i = 0 To MAX_ENEMIES - 1
+			; Main.bas 705: For i = 0 To MAX_ENEMIES - 1
 			dw kw_ztov, var_i
-for113_t:
+for32_t:
 
-			; Main.bas 726: If old_erx(i) > 0 Then
+			; Main.bas 706: If old_erx(i) > 0 Then
 			dw kw_aget, arr_old_erx, var_i, tmp0
 			dw kw_scpgtvl, tmp0, 0
-			dw kw_goto_iffalse, if114_1
+			dw kw_goto_iffalse, if33_1
 
-			; Main.bas 727: Plot old_erx(i), old_ery(i), 0
+			; Main.bas 707: Plot old_erx(i), old_ery(i), 0
 			dw kw_aget, arr_old_erx, var_i, tmp0
 			dw kw_aget, arr_old_ery, var_i, tmp1
 			dw p_plot_c, tmp0, tmp1, lit_0
 
-			; Main.bas 728: old_erx(i) = 0
+			; Main.bas 708: old_erx(i) = 0
 			dw kw_asetl, arr_old_erx, var_i, 0
 
-			; Main.bas 729: End If
-if114_1:
+			; Main.bas 709: End If
+if33_1:
 
-			; Main.bas 731: If estate(i) <> ST_DEAD Then
+			; Main.bas 711: If estate(i) <> ST_DEAD Then
 			dw kw_aget, arr_estate, var_i, tmp0
 			dw kw_cpnevl, tmp0, 0
-			dw kw_goto_iffalse, if115_1
+			dw kw_goto_iffalse, if34_1
 
-			; Main.bas 732: Select Case estate(i)
+			; Main.bas 712: If estate(i) = ST_WANDER Then
 			dw kw_aget, arr_estate, var_i, tmp0
-			dw kw_vtov, tmp0, var_enemies___sel116
+			dw kw_cpeqvl, tmp0, 1
+			dw kw_goto_iffalse, if35_1
 
-			; Main.bas 733: Case ST_WANDER
-			dw kw_cpeqvl, var_enemies___sel116, 1
-			dw kw_goto_iffalse, sel116_1
-sel116_b1:
-
-			; Main.bas 734: If frames Mod 2 = 0 Then ex(i) = (ex(i) + evx(i)) And WORLD_MASK
-			dw kw_modvl, var_frames, 2, tmp0
-			dw kw_cpeqvl, tmp0, 0
-			dw kw_goto_iffalse, if117_1
+			; Main.bas 713: ex(i) = (ex(i) + evx(i)) And WORLD_MASK
 			dw kw_aget, arr_ex, var_i, tmp1
 			dw kw_aget, arr_evx, var_i, tmp2
 			dw kw_add, tmp1, tmp2, tmp1
 			dw kw_andvl, tmp1, 1023, tmp1
 			dw kw_aset, arr_ex, var_i, tmp1
-if117_1:
 
-			; Main.bas 735: If frames Mod 3 = 0 Then ey(i) = ey(i) + evy(i)
-			dw kw_modvl, var_frames, 3, tmp0
-			dw kw_cpeqvl, tmp0, 0
-			dw kw_goto_iffalse, if118_1
+			; Main.bas 714: ey(i) = ey(i) + evy(i)
 			dw kw_aget, arr_ey, var_i, tmp1
 			dw kw_aget, arr_evy, var_i, tmp2
 			dw kw_add, tmp1, tmp2, tmp1
 			dw kw_aset, arr_ey, var_i, tmp1
-if118_1:
 
-			; Main.bas 736: If ey(i) < 70 Then evy(i) = 1
+			; Main.bas 715: If ey(i) < 65 Then evy(i) = 1
 			dw kw_aget, arr_ey, var_i, tmp0
-			dw kw_scpltvl, tmp0, 70
-			dw kw_goto_iffalse, if119_1
+			dw kw_scpltvl, tmp0, 65
+			dw kw_goto_iffalse, if36_1
 			dw kw_asetl, arr_evy, var_i, 1
-if119_1:
+if36_1:
 
-			; Main.bas 737: If ey(i) > 140 Then evy(i) = -1
+			; Main.bas 716: If ey(i) > 138 Then evy(i) = -1
 			dw kw_aget, arr_ey, var_i, tmp0
-			dw kw_scpgtvl, tmp0, 140
-			dw kw_goto_iffalse, if120_1
+			dw kw_scpgtvl, tmp0, 138
+			dw kw_goto_iffalse, if37_1
 			dw kw_asetl, arr_evy, var_i, -1
-if120_1:
+if37_1:
 
-			; Main.bas 739: If Rnd(150) = 0 And humans_alive > 0 Then
-			dw kw_rndl, 150, tmp0
+			; Main.bas 718: If Rnd(20) = 0 And humans_alive > 0 Then
+			dw kw_rndl, 20, tmp0
 			dw kw_cpeqvl, tmp0, 0
 			dw kw_ftov, tmp0
 			dw kw_scpgtvl, var_humans_alive, 0
 			dw kw_ftov, tmp1
 			dw kw_andvv, tmp0, tmp1, tmp0
-			dw kw_goto_ifzero, tmp0, sel116_e
+			dw kw_goto_ifzero, tmp0, if35_e
 
-			; Main.bas 740: th = Rnd(MAX_HUMANS)
-			dw kw_rndl, 8, var_enemies_th
+			; Main.bas 719: th = Rnd(MAX_HUMANS)
+			dw kw_rndl, 8, var_th
 
-			; Main.bas 741: If hstate(th) = H_GROUND Then
-			dw kw_aget, arr_hstate, var_enemies_th, tmp0
+			; Main.bas 720: If hstate(th) = H_GROUND Then
+			dw kw_aget, arr_hstate, var_th, tmp0
 			dw kw_cpeqvl, tmp0, 1
-			dw kw_goto_iffalse, sel116_e
+			dw kw_goto_iffalse, if35_e
 
-			; Main.bas 742: etarget(i) = th
-			dw kw_aset, arr_etarget, var_i, var_enemies_th
+			; Main.bas 721: etarget(i) = th
+			dw kw_aset, arr_etarget, var_i, var_th
 
-			; Main.bas 743: estate(i) = ST_DESCEND
+			; Main.bas 722: estate(i) = ST_DESCEND
 			dw kw_asetl, arr_estate, var_i, 2
 
-			; Main.bas 744: End If
-if122_1:
+			; Main.bas 723: End If
+if39_1:
 
-			; Main.bas 745: End If
-if121_1:
+			; Main.bas 724: End If
+if38_1:
 
-			; Main.bas 746: Case ST_DESCEND
-			dw sel116_e_go
-sel116_1:
-			dw kw_cpeqvl, var_enemies___sel116, 2
-			dw kw_goto_iffalse, sel116_2
-sel116_b2:
+			; Main.bas 726: ElseIf estate(i) = ST_DESCEND Then
+			dw if35_e_go
+if35_1:
+			dw kw_aget, arr_estate, var_i, tmp0
+			dw kw_cpeqvl, tmp0, 2
+			dw kw_goto_iffalse, if35_2
 
-			; Main.bas 747: th = etarget(i)
-			dw kw_aget, arr_etarget, var_i, var_enemies_th
+			; Main.bas 727: th = etarget(i)
+			dw kw_aget, arr_etarget, var_i, var_th
 
-			; Main.bas 748: If th < 0 Or hstate(th) <> H_GROUND Then
-			dw kw_scpltvl, var_enemies_th, 0
+			; Main.bas 728: If th < 0 Or hstate(th) <> H_GROUND Then
+			dw kw_scpltvl, var_th, 0
 			dw kw_ftov, tmp0
-			dw kw_aget, arr_hstate, var_enemies_th, tmp1
+			dw kw_aget, arr_hstate, var_th, tmp1
 			dw kw_cpnevl, tmp1, 1
 			dw kw_ftov, tmp1
 			dw kw_orvv, tmp0, tmp1, tmp0
-			dw kw_goto_ifzero, tmp0, if123_1
+			dw kw_goto_ifzero, tmp0, if40_1
 
-			; Main.bas 749: estate(i) = ST_WANDER
+			; Main.bas 729: estate(i) = ST_WANDER
 			dw kw_asetl, arr_estate, var_i, 1
 
-			; Main.bas 750: Else
-			dw sel116_e_go
-if123_1:
+			; Main.bas 730: Else
+			dw if35_e_go
+if40_1:
 
-			; Main.bas 751: dx_h = WorldToScreenX(hx(th), ex(i))
-			dw kw_aget, arr_hx, var_enemies_th, tmp0
+			; Main.bas 731: dx_h = WorldToScreenX(hx(th), ex(i))
+			dw kw_aget, arr_hx, var_th, tmp0
 			dw kw_aget, arr_ex, var_i, tmp1
 			dw p_worldtoscreenx_c, tmp0, tmp1
-			dw kw_vtov, var_worldtoscreenx_worldtoscreenx, var_enemies_dx_h
+			dw kw_vtov, var_worldtoscreenx_worldtoscreenx, var_dx_h
 
-			; Main.bas 752: If dx_h > 1 Then
-			dw kw_scpgtvl, var_enemies_dx_h, 1
-			dw kw_goto_iffalse, if124_1
+			; Main.bas 732: If dx_h > 2 Then
+			dw kw_scpgtvl, var_dx_h, 2
+			dw kw_goto_iffalse, if41_1
 
-			; Main.bas 753: ex(i) = (ex(i) + 1) And WORLD_MASK
+			; Main.bas 733: ex(i) = (ex(i) + 2) And WORLD_MASK
 			dw kw_aget, arr_ex, var_i, tmp1
-			dw kw_inc, tmp1
+			dw kw_addl, tmp1, 2, tmp1
 			dw kw_andvl, tmp1, 1023, tmp1
 			dw kw_aset, arr_ex, var_i, tmp1
 
-			; Main.bas 754: ElseIf dx_h < -1 Then
-			dw sel116_e_go
-if124_1:
-			dw kw_scpltvl, var_enemies_dx_h, -1
-			dw kw_goto_iffalse, if124_2
+			; Main.bas 734: ElseIf dx_h < -2 Then
+			dw if35_e_go
+if41_1:
+			dw kw_scpltvl, var_dx_h, -2
+			dw kw_goto_iffalse, if41_2
 
-			; Main.bas 755: ex(i) = (ex(i) - 1) And WORLD_MASK
+			; Main.bas 735: ex(i) = (ex(i) - 2) And WORLD_MASK
 			dw kw_aget, arr_ex, var_i, tmp1
-			dw kw_dec, tmp1
+			dw kw_addl, tmp1, -2, tmp1
 			dw kw_andvl, tmp1, 1023, tmp1
 			dw kw_aset, arr_ex, var_i, tmp1
 
-			; Main.bas 756: ElseIf ey(i) > hy(th) + 10 Then
-			dw sel116_e_go
-if124_2:
+			; Main.bas 736: Else
+			dw if35_e_go
+if41_2:
+
+			; Main.bas 737: If ey(i) > hy(th) + 8 Then
 			dw kw_aget, arr_ey, var_i, tmp0
-			dw kw_aget, arr_hy, var_enemies_th, tmp1
-			dw kw_addl, tmp1, 10, tmp1
+			dw kw_aget, arr_hy, var_th, tmp1
+			dw kw_addl, tmp1, 8, tmp1
 			dw kw_scpgtvv, tmp0, tmp1
-			dw kw_goto_iffalse, if124_3
+			dw kw_goto_iffalse, if42_1
 
-			; Main.bas 757: ey(i) = ey(i) - 1
+			; Main.bas 738: ey(i) = ey(i) - 2
 			dw kw_aget, arr_ey, var_i, tmp1
-			dw kw_dec, tmp1
+			dw kw_addl, tmp1, -2, tmp1
 			dw kw_aset, arr_ey, var_i, tmp1
 
-			; Main.bas 758: Else
-			dw sel116_e_go
-if124_3:
+			; Main.bas 739: Else
+			dw if35_e_go
+if42_1:
 
-			; Main.bas 759: hstate(th) = H_GRABBED
-			dw kw_asetl, arr_hstate, var_enemies_th, 2
+			; Main.bas 740: hstate(th) = H_GRABBED
+			dw kw_asetl, arr_hstate, var_th, 2
 
-			; Main.bas 760: hcarrier(th) = i
-			dw kw_aset, arr_hcarrier, var_enemies_th, var_i
+			; Main.bas 741: hcarrier(th) = i
+			dw kw_aset, arr_hcarrier, var_th, var_i
 
-			; Main.bas 761: estate(i) = ST_ABDUCT
+			; Main.bas 742: estate(i) = ST_ABDUCT
 			dw kw_asetl, arr_estate, var_i, 3
 
-			; Main.bas 762: Sfx.Play 1, 300, -16, 13, 30, 0
-			dw p_sfx_play_c, lit_1, lit_300, lit_m16, lit_13, lit_30, lit_0
+			; Main.bas 743: Sound 2, 480, 5, 12
+			dw p_sound_c, lit_2, lit_480, lit_5, lit_12
 
-			; Main.bas 763: Message "HUMANOID TAKEN!", 50
-			dw p_message_c, str11, lit_50
+			; Main.bas 744: End If
+if42_e:
 
-			; Main.bas 764: End If
-if124_e:
+			; Main.bas 745: End If
+if41_e:
 
-			; Main.bas 765: End If
-if123_e:
+			; Main.bas 746: End If
+if40_e:
 
-			; Main.bas 766: Case ST_ABDUCT
-			dw sel116_e_go
-sel116_2:
-			dw kw_cpeqvl, var_enemies___sel116, 3
-			dw kw_goto_iffalse, sel116_3
-sel116_b3:
+			; Main.bas 748: ElseIf estate(i) = ST_ABDUCT Then
+			dw if35_e_go
+if35_2:
+			dw kw_aget, arr_estate, var_i, tmp0
+			dw kw_cpeqvl, tmp0, 3
+			dw kw_goto_iffalse, if35_3
 
-			; Main.bas 767: th = etarget(i)
-			dw kw_aget, arr_etarget, var_i, var_enemies_th
+			; Main.bas 749: th = etarget(i)
+			dw kw_aget, arr_etarget, var_i, var_th
 
-			; Main.bas 768: If th < 0 Or hstate(th) <> H_GRABBED Then
-			dw kw_scpltvl, var_enemies_th, 0
+			; Main.bas 750: If th < 0 Or hstate(th) <> H_GRABBED Then
+			dw kw_scpltvl, var_th, 0
 			dw kw_ftov, tmp0
-			dw kw_aget, arr_hstate, var_enemies_th, tmp1
+			dw kw_aget, arr_hstate, var_th, tmp1
 			dw kw_cpnevl, tmp1, 2
 			dw kw_ftov, tmp1
 			dw kw_orvv, tmp0, tmp1, tmp0
-			dw kw_goto_ifzero, tmp0, if125_1
+			dw kw_goto_ifzero, tmp0, if43_1
 
-			; Main.bas 769: estate(i) = ST_WANDER
+			; Main.bas 751: estate(i) = ST_WANDER
 			dw kw_asetl, arr_estate, var_i, 1
 
-			; Main.bas 770: Else
-			dw sel116_e_go
-if125_1:
+			; Main.bas 752: Else
+			dw if35_e_go
+if43_1:
 
-			; Main.bas 771: If frames Mod 2 = 0 Then ey(i) = ey(i) + 1
-			dw kw_modvl, var_frames, 2, tmp0
-			dw kw_cpeqvl, tmp0, 0
-			dw kw_goto_iffalse, if126_1
+			; Main.bas 753: ey(i) = ey(i) + 1
 			dw kw_aget, arr_ey, var_i, tmp1
 			dw kw_inc, tmp1
 			dw kw_aset, arr_ey, var_i, tmp1
-if126_1:
 
-			; Main.bas 772: hx(th) = ex(i)
+			; Main.bas 754: hx(th) = ex(i)
 			dw kw_aget, arr_ex, var_i, tmp1
-			dw kw_aset, arr_hx, var_enemies_th, tmp1
+			dw kw_aset, arr_hx, var_th, tmp1
 
-			; Main.bas 773: hy(th) = ey(i) - 10
+			; Main.bas 755: hy(th) = ey(i) - 10
 			dw kw_aget, arr_ey, var_i, tmp1
 			dw kw_addl, tmp1, -10, tmp1
-			dw kw_aset, arr_hy, var_enemies_th, tmp1
+			dw kw_aset, arr_hy, var_th, tmp1
 
-			; Main.bas 774: If ey(i) >= 140 Then
+			; Main.bas 756: If ey(i) >= 142 Then
 			dw kw_aget, arr_ey, var_i, tmp0
-			dw kw_scpgevl, tmp0, 140
-			dw kw_goto_iffalse, sel116_e
+			dw kw_scpgevl, tmp0, 142
+			dw kw_goto_iffalse, if35_e
 
-			; Main.bas 775: hstate(th) = H_DEAD
-			dw kw_asetl, arr_hstate, var_enemies_th, 0
+			; Main.bas 757: hstate(th) = H_DEAD
+			dw kw_asetl, arr_hstate, var_th, 0
 
-			; Main.bas 776: humans_alive = humans_alive - 1
+			; Main.bas 758: humans_alive = humans_alive - 1
 			dw kw_dec, var_humans_alive
 
-			; Main.bas 777: estate(i) = ST_MUTANT
+			; Main.bas 759: estate(i) = ST_MUTANT
 			dw kw_asetl, arr_estate, var_i, 4
 
-			; Main.bas 778: Sfx.Play 1, 60, 8, 15, 40, 0
-			dw p_sfx_play_c, lit_1, lit_60, lit_8, lit_15, lit_40, lit_0
+			; Main.bas 760: Sound 1, 70, 15, 15
+			dw p_sound_c, lit_1, lit_70, lit_15, lit_15
 
-			; Main.bas 779: HumansGone
-			dw p_humansgone_c
+			; Main.bas 761: If humans_alive <= 0 And Not planet_dead Then
+			dw kw_scplevl, var_humans_alive, 0
+			dw kw_ftov, tmp0
+			dw kw_notv, var_planet_dead, tmp1
+			dw kw_andvv, tmp0, tmp1, tmp0
+			dw kw_goto_ifzero, tmp0, if35_e
 
-			; Main.bas 780: End If
-if127_1:
+			; Main.bas 762: planet_dead = True
+			dw kw_ltov, -1, var_planet_dead
 
-			; Main.bas 781: End If
-if125_e:
+			; Main.bas 763: Border 2
+			dw p_border_c, lit_2
 
-			; Main.bas 782: Case ST_MUTANT
-			dw sel116_e_go
-sel116_3:
-			dw kw_cpeqvl, var_enemies___sel116, 4
-			dw kw_goto_iffalse, sel116_4
-sel116_b4:
+			; Main.bas 764: flash_bg = 6
+			dw kw_ltov, 6, var_flash_bg
 
-			; Main.bas 784: dx_h = WorldToScreenX(px, ex(i))
+			; Main.bas 765: End If
+if45_1:
+
+			; Main.bas 766: End If
+if44_1:
+
+			; Main.bas 767: End If
+if43_e:
+
+			; Main.bas 769: ElseIf estate(i) = ST_MUTANT Then
+			dw if35_e_go
+if35_3:
+			dw kw_aget, arr_estate, var_i, tmp0
+			dw kw_cpeqvl, tmp0, 4
+			dw kw_goto_iffalse, if35_4
+
+			; Main.bas 770: dx_h = WorldToScreenX(px, ex(i))
 			dw kw_aget, arr_ex, var_i, tmp1
 			dw p_worldtoscreenx_c, var_px, tmp1
-			dw kw_vtov, var_worldtoscreenx_worldtoscreenx, var_enemies_dx_h
+			dw kw_vtov, var_worldtoscreenx_worldtoscreenx, var_dx_h
 
-			; Main.bas 785: If dx_h > 0 Then ex(i) = (ex(i) + 2 + Rnd(2)) And WORLD_MASK Else ex(i) = (ex(i) - 2 - Rnd(2)) And WORLD_MASK
-			dw kw_scpgtvl, var_enemies_dx_h, 0
-			dw kw_goto_iffalse, if128_1
+			; Main.bas 771: If dx_h > 0 Then
+			dw kw_scpgtvl, var_dx_h, 0
+			dw kw_goto_iffalse, if46_1
+
+			; Main.bas 772: ex(i) = (ex(i) + 3) And WORLD_MASK
 			dw kw_aget, arr_ex, var_i, tmp1
-			dw kw_addl, tmp1, 2, tmp1
-			dw kw_rndl, 2, tmp2
-			dw kw_add, tmp1, tmp2, tmp1
-			dw kw_andvl, tmp1, 1023, tmp1
-			dw kw_aset, arr_ex, var_i, tmp1
-			dw if128_e_go
-if128_1:
-			dw kw_aget, arr_ex, var_i, tmp1
-			dw kw_addl, tmp1, -2, tmp1
-			dw kw_rndl, 2, tmp2
-			dw kw_subvv, tmp1, tmp2, tmp1
-			dw kw_andvl, tmp1, 1023, tmp1
-			dw kw_aset, arr_ex, var_i, tmp1
-if128_e:
-
-			; Main.bas 786: If ey(i) < py - 4 Then
-			dw kw_aget, arr_ey, var_i, tmp0
-			dw kw_addl, var_py, -4, tmp1
-			dw kw_scpltvv, tmp0, tmp1
-			dw kw_goto_iffalse, if129_1
-
-			; Main.bas 787: ey(i) = ey(i) + 1 + Rnd(2)
-			dw kw_aget, arr_ey, var_i, tmp1
-			dw kw_inc, tmp1
-			dw kw_rndl, 2, tmp2
-			dw kw_add, tmp1, tmp2, tmp1
-			dw kw_aset, arr_ey, var_i, tmp1
-
-			; Main.bas 788: ElseIf ey(i) > py + 4 Then
-			dw sel116_e_go
-if129_1:
-			dw kw_aget, arr_ey, var_i, tmp0
-			dw kw_addl, var_py, 4, tmp1
-			dw kw_scpgtvv, tmp0, tmp1
-			dw kw_goto_iffalse, if129_2
-
-			; Main.bas 789: ey(i) = ey(i) - 1 - Rnd(2)
-			dw kw_aget, arr_ey, var_i, tmp1
-			dw kw_dec, tmp1
-			dw kw_rndl, 2, tmp2
-			dw kw_subvv, tmp1, tmp2, tmp1
-			dw kw_aset, arr_ey, var_i, tmp1
-
-			; Main.bas 790: Else
-			dw sel116_e_go
-if129_2:
-
-			; Main.bas 791: ey(i) = ey(i) + Rnd(5) - 2
-			dw kw_aget, arr_ey, var_i, tmp1
-			dw kw_rndl, 5, tmp2
-			dw kw_add, tmp1, tmp2, tmp1
-			dw kw_addl, tmp1, -2, tmp1
-			dw kw_aset, arr_ey, var_i, tmp1
-
-			; Main.bas 792: End If
-if129_e:
-
-			; Main.bas 793: Case ST_BAITER
-			dw sel116_e_go
-sel116_4:
-			dw kw_cpeqvl, var_enemies___sel116, 5
-			dw kw_goto_iffalse, sel116_5
-sel116_b5:
-
-			; Main.bas 795: dx_h = WorldToScreenX(px, ex(i))
-			dw kw_aget, arr_ex, var_i, tmp1
-			dw p_worldtoscreenx_c, var_px, tmp1
-			dw kw_vtov, var_worldtoscreenx_worldtoscreenx, var_enemies_dx_h
-
-			; Main.bas 796: If dx_h > 30 And evx(i) < 9 Then evx(i) = evx(i) + 1
-			dw kw_scpgtvl, var_enemies_dx_h, 30
-			dw kw_ftov, tmp0
-			dw kw_aget, arr_evx, var_i, tmp1
-			dw kw_scpltvl, tmp1, 9
-			dw kw_ftov, tmp1
-			dw kw_andvv, tmp0, tmp1, tmp0
-			dw kw_goto_ifzero, tmp0, if130_1
-			dw kw_aget, arr_evx, var_i, tmp1
-			dw kw_inc, tmp1
-			dw kw_aset, arr_evx, var_i, tmp1
-if130_1:
-
-			; Main.bas 797: If dx_h < -30 And evx(i) > -9 Then evx(i) = evx(i) - 1
-			dw kw_scpltvl, var_enemies_dx_h, -30
-			dw kw_ftov, tmp0
-			dw kw_aget, arr_evx, var_i, tmp1
-			dw kw_scpgtvl, tmp1, -9
-			dw kw_ftov, tmp1
-			dw kw_andvv, tmp0, tmp1, tmp0
-			dw kw_goto_ifzero, tmp0, if131_1
-			dw kw_aget, arr_evx, var_i, tmp1
-			dw kw_dec, tmp1
-			dw kw_aset, arr_evx, var_i, tmp1
-if131_1:
-
-			; Main.bas 798: ex(i) = (ex(i) + evx(i)) And WORLD_MASK
-			dw kw_aget, arr_ex, var_i, tmp1
-			dw kw_aget, arr_evx, var_i, tmp2
-			dw kw_add, tmp1, tmp2, tmp1
+			dw kw_addl, tmp1, 3, tmp1
 			dw kw_andvl, tmp1, 1023, tmp1
 			dw kw_aset, arr_ex, var_i, tmp1
 
-			; Main.bas 799: If ey(i) < py Then ey(i) = ey(i) + 2 Else ey(i) = ey(i) - 2
+			; Main.bas 773: Else
+			dw if46_e_go
+if46_1:
+
+			; Main.bas 774: ex(i) = (ex(i) - 3) And WORLD_MASK
+			dw kw_aget, arr_ex, var_i, tmp1
+			dw kw_addl, tmp1, -3, tmp1
+			dw kw_andvl, tmp1, 1023, tmp1
+			dw kw_aset, arr_ex, var_i, tmp1
+
+			; Main.bas 775: End If
+if46_e:
+
+			; Main.bas 776: If ey(i) < py Then
 			dw kw_aget, arr_ey, var_i, tmp0
 			dw kw_scpltvv, tmp0, var_py
-			dw kw_goto_iffalse, if132_1
+			dw kw_goto_iffalse, if47_1
+
+			; Main.bas 777: ey(i) = ey(i) + 2
 			dw kw_aget, arr_ey, var_i, tmp1
 			dw kw_addl, tmp1, 2, tmp1
 			dw kw_aset, arr_ey, var_i, tmp1
-			dw if132_e_go
-if132_1:
+
+			; Main.bas 778: ElseIf ey(i) > py Then
+			dw if47_e_go
+if47_1:
+			dw kw_aget, arr_ey, var_i, tmp0
+			dw kw_scpgtvv, tmp0, var_py
+			dw kw_goto_iffalse, if47_2
+
+			; Main.bas 779: ey(i) = ey(i) - 2
 			dw kw_aget, arr_ey, var_i, tmp1
 			dw kw_addl, tmp1, -2, tmp1
 			dw kw_aset, arr_ey, var_i, tmp1
-if132_e:
 
-			; Main.bas 800: End Select
-sel116_5:
-sel116_e:
+			; Main.bas 780: End If
+if47_2:
+if47_e:
 
-			; Main.bas 801: If ey(i) < PLAY_TOP - 8 Then ey(i) = PLAY_TOP - 8
-			dw kw_aget, arr_ey, var_i, tmp0
-			dw kw_scpltvl, tmp0, 22
-			dw kw_goto_iffalse, if133_1
-			dw kw_asetl, arr_ey, var_i, 22
-if133_1:
+			; Main.bas 781: End If
+if35_4:
+if35_e:
 
-			; Main.bas 802: If ey(i) > PLAY_BOT Then ey(i) = PLAY_BOT
-			dw kw_aget, arr_ey, var_i, tmp0
-			dw kw_scpgtvl, tmp0, 146
-			dw kw_goto_iffalse, if134_1
-			dw kw_asetl, arr_ey, var_i, 146
-if134_1:
+			; Main.bas 784: hit = False
+			dw kw_ztov, var_hit
 
-			; Main.bas 805: hit = False
-			dw kw_ztov, var_enemies_hit
-
-			; Main.bas 806: esx = (ex(i) - cam_x) And WORLD_MASK
+			; Main.bas 785: esx = WorldToScreenX(ex(i), cam_x)
 			dw kw_aget, arr_ex, var_i, tmp0
-			dw kw_subvv, tmp0, var_cam_x, tmp0
-			dw kw_andvl, tmp0, 1023, var_enemies_esx
+			dw p_worldtoscreenx_c, tmp0, var_cam_x
+			dw kw_vtov, var_worldtoscreenx_worldtoscreenx, var_esx
 
-			; Main.bas 807: If esx >= 512 Then esx = esx - 1024
-			dw kw_scpgevl, var_enemies_esx, 512
-			dw kw_goto_iffalse, if135_1
-			dw kw_addl, var_enemies_esx, -1024, var_enemies_esx
-if135_1:
+			; Main.bas 786: For l_idx = 0 To MAX_LASERS - 1
+			dw kw_ztov, var_l_idx
+for48_t:
 
-			; Main.bas 808: If lasersOn Then
-			dw kw_goto_ifzero, var_laserson, if136_1
-
-			; Main.bas 809: For l_idx = 0 To MAX_LASERS - 1
-			dw kw_ztov, var_enemies_l_idx
-for137_t:
-
-			; Main.bas 810: If llife(l_idx) > 0 Then
-			dw kw_aget, arr_llife, var_enemies_l_idx, tmp0
+			; Main.bas 787: If llife(l_idx) > 0 Then
+			dw kw_aget, arr_llife, var_l_idx, tmp0
 			dw kw_scpgtvl, tmp0, 0
-			dw kw_goto_iffalse, if138_1
+			dw kw_goto_iffalse, if49_1
 
-			; Main.bas 811: lsx = lscr(l_idx)
-			dw kw_aget, arr_lscr, var_enemies_l_idx, var_enemies_lsx
+			; Main.bas 788: lsx = WorldToScreenX(lx(l_idx), cam_x)
+			dw kw_aget, arr_lx, var_l_idx, tmp0
+			dw p_worldtoscreenx_c, tmp0, var_cam_x
+			dw kw_vtov, var_worldtoscreenx_worldtoscreenx, var_lsx
 
-			; Main.bas 812: If Abs(esx - lsx) < 14 And Abs(ey(i) - ly(l_idx)) < 9 Then
-			dw kw_subvv, var_enemies_esx, var_enemies_lsx, tmp0
+			; Main.bas 789: If Abs(esx - lsx) < 12 And Abs(ey(i) - ly(l_idx)) < 10 Then
+			dw kw_subvv, var_esx, var_lsx, tmp0
 			dw kw_absv, tmp0, tmp0
-			dw kw_scpltvl, tmp0, 14
+			dw kw_scpltvl, tmp0, 12
 			dw kw_ftov, tmp0
 			dw kw_aget, arr_ey, var_i, tmp1
-			dw kw_aget, arr_ly, var_enemies_l_idx, tmp2
+			dw kw_aget, arr_ly, var_l_idx, tmp2
 			dw kw_subvv, tmp1, tmp2, tmp1
 			dw kw_absv, tmp1, tmp1
-			dw kw_scpltvl, tmp1, 9
+			dw kw_scpltvl, tmp1, 10
 			dw kw_ftov, tmp1
 			dw kw_andvv, tmp0, tmp1, tmp0
-			dw kw_goto_ifzero, tmp0, if139_1
+			dw kw_goto_ifzero, tmp0, if50_1
 
-			; Main.bas 813: llife(l_idx) = 0
-			dw kw_asetl, arr_llife, var_enemies_l_idx, 0
+			; Main.bas 790: llife(l_idx) = 0
+			dw kw_asetl, arr_llife, var_l_idx, 0
 
-			; Main.bas 814: HideSprite(SLOT_LASER0 + l_idx)
-			dw kw_addl, var_enemies_l_idx, 1, tmp0
-			dw p_hidesprite_c, tmp0
+			; Main.bas 791: SetHardwareSprite(SLOT_LASER0 + l_idx, 0, 0, 0, False, False)
+			dw kw_addl, var_l_idx, 1, tmp0
+			dw p_sethardwaresprite_c, tmp0, lit_0, lit_0, lit_0, lit_0, lit_0
 
-			; Main.bas 815: KillEnemy(i)
+			; Main.bas 792: KillEnemy(i)
 			dw p_killenemy_c, var_i
 
-			; Main.bas 816: hit = True
-			dw kw_ltov, -1, var_enemies_hit
+			; Main.bas 793: score = score + 15
+			dw kw_l_add, var_score, llit_15, var_score
 
-			; Main.bas 817: Exit For
-			dw for137_e_go
+			; Main.bas 794: UpdateHUD()
+			dw p_updatehud_c
 
-			; Main.bas 818: End If
-if139_1:
+			; Main.bas 795: hit = True
+			dw kw_ltov, -1, var_hit
 
-			; Main.bas 819: End If
-if138_1:
+			; Main.bas 796: Exit For
+			dw for48_e_go
 
-			; Main.bas 820: Next l_idx
-			dw kw_next1l, var_enemies_l_idx, 3, for137_t
-for137_e:
+			; Main.bas 797: End If
+if50_1:
 
-			; Main.bas 821: End If
-if136_1:
+			; Main.bas 798: End If
+if49_1:
 
-			; Main.bas 823: If Not hit Then
-			dw kw_notv, var_enemies_hit, tmp0
-			dw kw_goto_ifzero, tmp0, if115_e
+			; Main.bas 799: Next l_idx
+			dw kw_next1l, var_l_idx, 3, for48_t
+for48_e:
 
-			; Main.bas 824: If safeT = 0 And Abs(esx - psx) < 11 And Abs(ey(i) - py) < 9 Then
-			dw kw_cpeqvl, var_safet, 0
+			; Main.bas 801: If Not hit Then
+			dw kw_notv, var_hit, tmp0
+			dw kw_goto_ifzero, tmp0, if34_e
+
+			; Main.bas 802: If Abs(esx - psx) < 10 And Abs(ey(i) - py) < 10 Then
+			dw kw_subvv, var_esx, var_psx, tmp0
+			dw kw_absv, tmp0, tmp0
+			dw kw_scpltvl, tmp0, 10
 			dw kw_ftov, tmp0
-			dw kw_subvv, var_enemies_esx, var_psx, tmp1
-			dw kw_absv, tmp1, tmp1
-			dw kw_scpltvl, tmp1, 11
-			dw kw_ftov, tmp1
-			dw kw_andvv, tmp0, tmp1, tmp0
 			dw kw_aget, arr_ey, var_i, tmp1
 			dw kw_subvv, tmp1, var_py, tmp1
 			dw kw_absv, tmp1, tmp1
-			dw kw_scpltvl, tmp1, 9
+			dw kw_scpltvl, tmp1, 10
 			dw kw_ftov, tmp1
 			dw kw_andvv, tmp0, tmp1, tmp0
-			dw kw_goto_ifzero, tmp0, if141_1
+			dw kw_goto_ifzero, tmp0, if52_1
 
-			; Main.bas 825: KillEnemy(i)
+			; Main.bas 803: KillEnemy(i)
 			dw p_killenemy_c, var_i
 
-			; Main.bas 826: LoseLife()
+			; Main.bas 804: LoseLife()
 			dw p_loselife_c
 
-			; Main.bas 827: Exit Sub
-			dw p_enemies_r
+			; Main.bas 805: Exit For
+			dw for32_e_go
 
-			; Main.bas 828: End If
-if141_1:
+			; Main.bas 806: End If
+if52_1:
 
-			; Main.bas 831: s = 220
-			dw kw_ltov, 220, var_enemies_s
-
-			; Main.bas 832: If estate(i) = ST_MUTANT Then s = 140
-			dw kw_aget, arr_estate, var_i, tmp0
-			dw kw_cpeqvl, tmp0, 4
-			dw kw_goto_iffalse, if142_1
-			dw kw_ltov, 140, var_enemies_s
-if142_1:
-
-			; Main.bas 833: If estate(i) = ST_BAITER Then s = 60
-			dw kw_aget, arr_estate, var_i, tmp0
-			dw kw_cpeqvl, tmp0, 5
-			dw kw_goto_iffalse, if143_1
-			dw kw_ltov, 60, var_enemies_s
-if143_1:
-
-			; Main.bas 834: If esx >= 12 And esx <= 244 And Abs(esx - psx) > 24 And Rnd(s) = 0 Then EnemyShot i, esx
-			dw kw_scpgevl, var_enemies_esx, 12
+			; Main.bas 809: If esx >= 12 And esx <= 244 And Rnd(35) = 0 Then
+			dw kw_scpgevl, var_esx, 12
 			dw kw_ftov, tmp0
-			dw kw_scplevl, var_enemies_esx, 244
+			dw kw_scplevl, var_esx, 244
 			dw kw_ftov, tmp1
 			dw kw_andvv, tmp0, tmp1, tmp0
-			dw kw_subvv, var_enemies_esx, var_psx, tmp1
-			dw kw_absv, tmp1, tmp1
-			dw kw_scpgtvl, tmp1, 24
-			dw kw_ftov, tmp1
-			dw kw_andvv, tmp0, tmp1, tmp0
-			dw kw_rndv, var_enemies_s, tmp1
+			dw kw_rndl, 35, tmp1
 			dw kw_cpeqvl, tmp1, 0
 			dw kw_ftov, tmp1
 			dw kw_andvv, tmp0, tmp1, tmp0
-			dw kw_goto_ifzero, tmp0, if144_1
-			dw p_enemyshot_c, var_i, var_enemies_esx
-if144_1:
+			dw kw_goto_ifzero, tmp0, if53_1
 
-			; Main.bas 836: epat = PAT_LANDER : ecol = 12
-			dw kw_ltov, 1, var_enemies_epat
-			dw kw_ltov, 12, var_enemies_ecol
+			; Main.bas 810: For s_idx = 0 To MAX_SHOTS - 1
+			dw kw_ztov, var_s_idx
+for54_t:
 
-			; Main.bas 837: If estate(i) = ST_MUTANT Then epat = PAT_MUTANT : ecol = 10
+			; Main.bas 811: If slife(s_idx) = 0 Then
+			dw kw_aget, arr_slife, var_s_idx, tmp0
+			dw kw_cpeqvl, tmp0, 0
+			dw kw_goto_iffalse, if55_1
+
+			; Main.bas 812: sx(s_idx) = ex(i)
+			dw kw_aget, arr_ex, var_i, tmp1
+			dw kw_aset, arr_sx, var_s_idx, tmp1
+
+			; Main.bas 813: sy(s_idx) = ey(i)
+			dw kw_aget, arr_ey, var_i, tmp1
+			dw kw_aset, arr_sy, var_s_idx, tmp1
+
+			; Main.bas 814: If psx > esx Then svx(s_idx) = 5 Else svx(s_idx) = -5
+			dw kw_scpgtvv, var_psx, var_esx
+			dw kw_goto_iffalse, if56_1
+			dw kw_asetl, arr_svx, var_s_idx, 5
+			dw if56_e_go
+if56_1:
+			dw kw_asetl, arr_svx, var_s_idx, -5
+if56_e:
+
+			; Main.bas 815: If py > ey(i) Then svy(s_idx) = 2 Else svy(s_idx) = -2
+			dw kw_aget, arr_ey, var_i, tmp1
+			dw kw_scpgtvv, var_py, tmp1
+			dw kw_goto_iffalse, if57_1
+			dw kw_asetl, arr_svy, var_s_idx, 2
+			dw if57_e_go
+if57_1:
+			dw kw_asetl, arr_svy, var_s_idx, -2
+if57_e:
+
+			; Main.bas 816: slife(s_idx) = 24
+			dw kw_asetl, arr_slife, var_s_idx, 24
+
+			; Main.bas 817: Exit For
+			dw for54_e_go
+
+			; Main.bas 818: End If
+if55_1:
+
+			; Main.bas 819: Next s_idx
+			dw kw_next1l, var_s_idx, 5, for54_t
+for54_e:
+
+			; Main.bas 820: End If
+if53_1:
+
+			; Main.bas 822: If estate(i) = ST_MUTANT Then
 			dw kw_aget, arr_estate, var_i, tmp0
 			dw kw_cpeqvl, tmp0, 4
-			dw kw_goto_iffalse, if145_1
-			dw kw_ltov, 2, var_enemies_epat
-			dw kw_ltov, 10, var_enemies_ecol
-if145_1:
+			dw kw_goto_iffalse, if58_1
 
-			; Main.bas 838: If (frames \ 8) And 1 Then epat = epat + PAT_FRAME2
-			dw kw_divvl, var_frames, 8, tmp0
-			dw kw_andvl, tmp0, 1, tmp0
-			dw kw_goto_ifzero, tmp0, if146_1
-			dw kw_addl, var_enemies_epat, 4, var_enemies_epat
-if146_1:
+			; Main.bas 823: epat = PAT_MUTANT
+			dw kw_ltov, 2, var_epat
 
-			; Main.bas 839: If estate(i) = ST_BAITER Then epat = PAT_BAITER + ((frames \ 4) And 1) : ecol = 14
-			dw kw_aget, arr_estate, var_i, tmp0
-			dw kw_cpeqvl, tmp0, 5
-			dw kw_goto_iffalse, if147_1
-			dw kw_divvl, var_frames, 4, tmp1
-			dw kw_andvl, tmp1, 1, tmp1
-			dw kw_addl, tmp1, 14, var_enemies_epat
-			dw kw_ltov, 14, var_enemies_ecol
-if147_1:
+			; Main.bas 824: ecol = 10
+			dw kw_ltov, 10, var_ecol
 
-			; Main.bas 841: If esx >= -8 And esx <= 263 Then
-			dw kw_scpgevl, var_enemies_esx, -8
+			; Main.bas 825: Else
+			dw if58_e_go
+if58_1:
+
+			; Main.bas 826: epat = PAT_LANDER
+			dw kw_ltov, 1, var_epat
+
+			; Main.bas 827: ecol = 12
+			dw kw_ltov, 12, var_ecol
+
+			; Main.bas 828: End If
+if58_e:
+
+			; Main.bas 830: If esx >= -8 And esx <= 263 Then
+			dw kw_scpgevl, var_esx, -8
 			dw kw_ftov, tmp0
-			dw kw_scplevl, var_enemies_esx, 263
+			dw kw_scplevl, var_esx, 263
 			dw kw_ftov, tmp1
 			dw kw_andvv, tmp0, tmp1, tmp0
-			dw kw_goto_ifzero, tmp0, if148_1
+			dw kw_goto_ifzero, tmp0, if59_1
 
-			; Main.bas 842: SetHardwareSprite(SLOT_ENEMY0 + i, esx, ey(i), epat, False, True)
+			; Main.bas 831: SetHardwareSprite(SLOT_ENEMY0 + i, esx, ey(i), epat, False, True)
 			dw kw_addl, var_i, 13, tmp0
 			dw kw_aget, arr_ey, var_i, tmp2
-			dw p_sethardwaresprite_c, tmp0, var_enemies_esx, tmp2, var_enemies_epat, lit_0, lit_m1
+			dw p_sethardwaresprite_c, tmp0, var_esx, tmp2, var_epat, lit_0, lit_m1
 
-			; Main.bas 843: Else
-			dw if148_e_go
-if148_1:
+			; Main.bas 832: Else
+			dw if59_e_go
+if59_1:
 
-			; Main.bas 844: HideSprite(SLOT_ENEMY0 + i)
+			; Main.bas 833: SetHardwareSprite(SLOT_ENEMY0 + i, 0, 0, 0, False, False)
 			dw kw_addl, var_i, 13, tmp0
-			dw p_hidesprite_c, tmp0
+			dw p_sethardwaresprite_c, tmp0, lit_0, lit_0, lit_0, lit_0, lit_0
 
-			; Main.bas 845: End If
-if148_e:
+			; Main.bas 834: End If
+if59_e:
 
-			; Main.bas 847: erx = WorldToRadarX(ex(i))
+			; Main.bas 836: erx = WorldToRadarX(ex(i))
 			dw kw_aget, arr_ex, var_i, tmp0
 			dw p_worldtoradarx_c, tmp0
-			dw kw_vtov, var_worldtoradarx_worldtoradarx, var_enemies_erx
+			dw kw_vtov, var_worldtoradarx_worldtoradarx, var_erx
 
-			; Main.bas 848: ery = 153 + (ey(i) \ 7)
+			; Main.bas 837: ery = 154 + (ey(i) \ 7)
 			dw kw_aget, arr_ey, var_i, tmp1
 			dw kw_divvl, tmp1, 7, tmp1
-			dw kw_addl, tmp1, 153, var_enemies_ery
+			dw kw_addl, tmp1, 154, var_ery
 
-			; Main.bas 849: Plot erx, ery, ecol
-			dw p_plot_c, var_enemies_erx, var_enemies_ery, var_enemies_ecol
+			; Main.bas 838: Plot erx, ery, ecol
+			dw p_plot_c, var_erx, var_ery, var_ecol
 
-			; Main.bas 850: old_erx(i) = erx
-			dw kw_aset, arr_old_erx, var_i, var_enemies_erx
+			; Main.bas 839: old_erx(i) = erx
+			dw kw_aset, arr_old_erx, var_i, var_erx
 
-			; Main.bas 851: old_ery(i) = ery
-			dw kw_aset, arr_old_ery, var_i, var_enemies_ery
+			; Main.bas 840: old_ery(i) = ery
+			dw kw_aset, arr_old_ery, var_i, var_ery
 
-			; Main.bas 852: End If
-if140_1:
+			; Main.bas 841: End If
+if51_1:
 
-			; Main.bas 853: Else
-			dw if115_e_go
-if115_1:
+			; Main.bas 842: Else
+			dw if34_e_go
+if34_1:
 
-			; Main.bas 854: HideSprite(SLOT_ENEMY0 + i)
+			; Main.bas 843: SetHardwareSprite(SLOT_ENEMY0 + i, 0, 0, 0, False, False)
 			dw kw_addl, var_i, 13, tmp0
-			dw p_hidesprite_c, tmp0
+			dw p_sethardwaresprite_c, tmp0, lit_0, lit_0, lit_0, lit_0, lit_0
 
-			; Main.bas 855: End If
-if115_e:
+			; Main.bas 844: End If
+if34_e:
 
-			; Main.bas 856: Next i
-			dw kw_next1l, var_i, 9, for113_t
-for113_e:
-			dw p_enemies_r
+			; Main.bas 845: Next i
+			dw kw_next1l, var_i, 9, for32_t
+for32_e:
 
-; ============================================================
-; sub enemyshot (turbo mode)
-; ============================================================
-
-p_enemyshot:
-
-			; Main.bas 861: Dim dx As Integer, dy As Integer, m As Integer
-
-			; Main.bas 862: For k = 0 To MAX_SHOTS - 1
-			dw kw_ztov, var_k
-for149_t:
-
-			; Main.bas 863: If slife(k) = 0 Then
-			dw kw_aget, arr_slife, var_k, tmp0
-			dw kw_cpeqvl, tmp0, 0
-			dw kw_goto_iffalse, if150_1
-
-			; Main.bas 864: dx = psx - esx : dy = py - ey(n)
-			dw kw_subvv, var_psx, var_enemyshot_esx, var_enemyshot_dx
-			dw kw_aget, arr_ey, var_enemyshot_n, tmp1
-			dw kw_subvv, var_py, tmp1, var_enemyshot_dy
-
-			; Main.bas 865: m = Abs(dx)
-			dw kw_absv, var_enemyshot_dx, var_enemyshot_m
-
-			; Main.bas 866: If Abs(dy) > m Then m = Abs(dy)
-			dw kw_absv, var_enemyshot_dy, tmp0
-			dw kw_scpgtvv, tmp0, var_enemyshot_m
-			dw kw_goto_iffalse, if151_1
-			dw kw_absv, var_enemyshot_dy, var_enemyshot_m
-if151_1:
-
-			; Main.bas 867: If m < 1 Then m = 1
-			dw kw_scpltvl, var_enemyshot_m, 1
-			dw kw_goto_iffalse, if152_1
-			dw kw_ltov, 1, var_enemyshot_m
-if152_1:
-
-			; Main.bas 868: sx(k) = ex(n) * 4 : sy(k) = ey(n) * 4
-			dw kw_aget, arr_ex, var_enemyshot_n, tmp1
-			dw kw_4x, tmp1, tmp1
-			dw kw_aset, arr_sx, var_k, tmp1
-			dw kw_aget, arr_ey, var_enemyshot_n, tmp1
-			dw kw_4x, tmp1, tmp1
-			dw kw_aset, arr_sy, var_k, tmp1
-
-			; Main.bas 869: svx(k) = dx * 12 \ m : svy(k) = dy * 12 \ m
-			dw kw_mulvl, var_enemyshot_dx, 12, tmp1
-			dw kw_divvv, tmp1, var_enemyshot_m, tmp1
-			dw kw_aset, arr_svx, var_k, tmp1
-			dw kw_mulvl, var_enemyshot_dy, 12, tmp1
-			dw kw_divvv, tmp1, var_enemyshot_m, tmp1
-			dw kw_aset, arr_svy, var_k, tmp1
-
-			; Main.bas 870: slife(k) = 60
-			dw kw_asetl, arr_slife, var_k, 60
-
-			; Main.bas 871: Sfx.Play 2, 70, -3, 8, 6, 0
-			dw p_sfx_play_c, lit_2, lit_70, lit_m3, lit_8, lit_6, lit_0
-
-			; Main.bas 872: Exit Sub
-			dw p_enemyshot_r
-
-			; Main.bas 873: End If
-if150_1:
-
-			; Main.bas 874: Next k
-			dw kw_next1l, var_k, 5, for149_t
-for149_e:
-			dw p_enemyshot_r
-
-; ============================================================
-; sub shots (turbo mode)
-; ============================================================
-
-p_shots:
-
-			; Main.bas 878: Dim ssx As Integer, wy As Integer
-
-			; Main.bas 879: For i = 0 To MAX_SHOTS - 1
+			; Main.bas 850: For i = 0 To MAX_SHOTS - 1
 			dw kw_ztov, var_i
-for153_t:
+for60_t:
 
-			; Main.bas 880: If slife(i) > 0 Then
+			; Main.bas 851: If slife(i) > 0 Then
 			dw kw_aget, arr_slife, var_i, tmp0
 			dw kw_scpgtvl, tmp0, 0
-			dw kw_goto_iffalse, if154_1
+			dw kw_goto_iffalse, if61_1
 
-			; Main.bas 881: sx(i) = (sx(i) + svx(i)) And 4095
+			; Main.bas 852: sx(i) = (sx(i) + svx(i)) And WORLD_MASK
 			dw kw_aget, arr_sx, var_i, tmp1
 			dw kw_aget, arr_svx, var_i, tmp2
 			dw kw_add, tmp1, tmp2, tmp1
-			dw kw_andvl, tmp1, 4095, tmp1
+			dw kw_andvl, tmp1, 1023, tmp1
 			dw kw_aset, arr_sx, var_i, tmp1
 
-			; Main.bas 882: sy(i) = sy(i) + svy(i)
+			; Main.bas 853: sy(i) = sy(i) + svy(i)
 			dw kw_aget, arr_sy, var_i, tmp1
 			dw kw_aget, arr_svy, var_i, tmp2
 			dw kw_add, tmp1, tmp2, tmp1
 			dw kw_aset, arr_sy, var_i, tmp1
 
-			; Main.bas 883: slife(i) = slife(i) - 1
+			; Main.bas 854: slife(i) = slife(i) - 1
 			dw kw_aget, arr_slife, var_i, tmp1
 			dw kw_dec, tmp1
 			dw kw_aset, arr_slife, var_i, tmp1
 
-			; Main.bas 884: ssx = WorldToScreenX(sx(i) \ 4, cam_x)
+			; Main.bas 855: ssx = WorldToScreenX(sx(i), cam_x)
 			dw kw_aget, arr_sx, var_i, tmp0
-			dw kw_divvl, tmp0, 4, tmp0
 			dw p_worldtoscreenx_c, tmp0, var_cam_x
-			dw kw_vtov, var_worldtoscreenx_worldtoscreenx, var_shots_ssx
+			dw kw_vtov, var_worldtoscreenx_worldtoscreenx, var_ssx
 
-			; Main.bas 885: wy = sy(i) \ 4
-			dw kw_aget, arr_sy, var_i, tmp0
-			dw kw_divvl, tmp0, 4, var_shots_wy
-
-			; Main.bas 886: If slife(i) > 0 And ssx >= 0 And ssx <= 255 And wy > 20 And wy < 148 Then
+			; Main.bas 856: If slife(i) > 0 And ssx >= 0 And ssx <= 255 And sy(i) > PLAY_TOP And sy(i) < PLAY_BOT Then
 			dw kw_aget, arr_slife, var_i, tmp0
 			dw kw_scpgtvl, tmp0, 0
 			dw kw_ftov, tmp0
-			dw kw_scpgevl, var_shots_ssx, 0
+			dw kw_scpgevl, var_ssx, 0
 			dw kw_ftov, tmp1
 			dw kw_andvv, tmp0, tmp1, tmp0
-			dw kw_scplevl, var_shots_ssx, 255
+			dw kw_scplevl, var_ssx, 255
 			dw kw_ftov, tmp1
 			dw kw_andvv, tmp0, tmp1, tmp0
-			dw kw_scpgtvl, var_shots_wy, 20
+			dw kw_aget, arr_sy, var_i, tmp1
+			dw kw_scpgtvl, tmp1, 40
 			dw kw_ftov, tmp1
 			dw kw_andvv, tmp0, tmp1, tmp0
-			dw kw_scpltvl, var_shots_wy, 148
+			dw kw_aget, arr_sy, var_i, tmp1
+			dw kw_scpltvl, tmp1, 172
 			dw kw_ftov, tmp1
 			dw kw_andvv, tmp0, tmp1, tmp0
-			dw kw_goto_ifzero, tmp0, if155_1
+			dw kw_goto_ifzero, tmp0, if62_1
 
-			; Main.bas 887: If safeT = 0 And Abs(ssx - psx) < 7 And Abs(wy - py) < 6 Then
-			dw kw_cpeqvl, var_safet, 0
+			; Main.bas 857: If Abs(ssx - psx) < 8 And Abs(sy(i) - py) < 8 Then
+			dw kw_subvv, var_ssx, var_psx, tmp0
+			dw kw_absv, tmp0, tmp0
+			dw kw_scpltvl, tmp0, 8
 			dw kw_ftov, tmp0
-			dw kw_subvv, var_shots_ssx, var_psx, tmp1
+			dw kw_aget, arr_sy, var_i, tmp1
+			dw kw_subvv, tmp1, var_py, tmp1
 			dw kw_absv, tmp1, tmp1
-			dw kw_scpltvl, tmp1, 7
+			dw kw_scpltvl, tmp1, 8
 			dw kw_ftov, tmp1
 			dw kw_andvv, tmp0, tmp1, tmp0
-			dw kw_subvv, var_shots_wy, var_py, tmp1
-			dw kw_absv, tmp1, tmp1
-			dw kw_scpltvl, tmp1, 6
-			dw kw_ftov, tmp1
-			dw kw_andvv, tmp0, tmp1, tmp0
-			dw kw_goto_ifzero, tmp0, if156_1
+			dw kw_goto_ifzero, tmp0, if63_1
 
-			; Main.bas 888: slife(i) = 0
+			; Main.bas 858: slife(i) = 0
 			dw kw_asetl, arr_slife, var_i, 0
 
-			; Main.bas 889: HideSprite(SLOT_SHOT0 + i)
+			; Main.bas 859: SetHardwareSprite(SLOT_SHOT0 + i, 0, 0, 0, False, False)
 			dw kw_addl, var_i, 23, tmp0
-			dw p_hidesprite_c, tmp0
+			dw p_sethardwaresprite_c, tmp0, lit_0, lit_0, lit_0, lit_0, lit_0
 
-			; Main.bas 890: LoseLife()
+			; Main.bas 860: LoseLife()
 			dw p_loselife_c
 
-			; Main.bas 891: Exit Sub
-			dw p_shots_r
+			; Main.bas 861: Exit For
+			dw for60_e_go
 
-			; Main.bas 892: End If
-if156_1:
+			; Main.bas 862: End If
+if63_1:
 
-			; Main.bas 893: SetHardwareSprite(SLOT_SHOT0 + i, ssx, wy, PAT_SHOT, False, True)
+			; Main.bas 863: SetHardwareSprite(SLOT_SHOT0 + i, ssx, sy(i), PAT_BOLT, False, True)
 			dw kw_addl, var_i, 23, tmp0
-			dw p_sethardwaresprite_c, tmp0, var_shots_ssx, var_shots_wy, lit_9, lit_0, lit_m1
+			dw kw_aget, arr_sy, var_i, tmp2
+			dw p_sethardwaresprite_c, tmp0, var_ssx, tmp2, lit_4, lit_0, lit_m1
 
-			; Main.bas 894: Else
-			dw if154_e_go
-if155_1:
+			; Main.bas 864: Else
+			dw if61_e_go
+if62_1:
 
-			; Main.bas 895: slife(i) = 0
+			; Main.bas 865: slife(i) = 0
 			dw kw_asetl, arr_slife, var_i, 0
 
-			; Main.bas 896: HideSprite(SLOT_SHOT0 + i)
+			; Main.bas 866: SetHardwareSprite(SLOT_SHOT0 + i, 0, 0, 0, False, False)
 			dw kw_addl, var_i, 23, tmp0
-			dw p_hidesprite_c, tmp0
+			dw p_sethardwaresprite_c, tmp0, lit_0, lit_0, lit_0, lit_0, lit_0
 
-			; Main.bas 897: End If
-if155_e:
+			; Main.bas 867: End If
+if62_e:
 
-			; Main.bas 898: Else
-			dw if154_e_go
-if154_1:
+			; Main.bas 868: Else
+			dw if61_e_go
+if61_1:
 
-			; Main.bas 899: HideSprite(SLOT_SHOT0 + i)
+			; Main.bas 869: SetHardwareSprite(SLOT_SHOT0 + i, 0, 0, 0, False, False)
 			dw kw_addl, var_i, 23, tmp0
-			dw p_hidesprite_c, tmp0
+			dw p_sethardwaresprite_c, tmp0, lit_0, lit_0, lit_0, lit_0, lit_0
 
-			; Main.bas 900: End If
-if154_e:
+			; Main.bas 870: End If
+if61_e:
 
-			; Main.bas 901: Next i
-			dw kw_next1l, var_i, 5, for153_t
-for153_e:
-			dw p_shots_r
+			; Main.bas 871: Next i
+			dw kw_next1l, var_i, 5, for60_t
+for60_e:
 
-; ============================================================
-; sub booms (turbo mode)
-; ============================================================
+			; Main.bas 880: Terrain cam_x
+			dw p_terrain_c, var_cam_x
 
-p_booms:
-
-			; Main.bas 905: Dim bsx As Integer
-
-			; Main.bas 906: For k = 0 To MAX_BOOMS - 1
-			dw kw_ztov, var_k
-for157_t:
-
-			; Main.bas 907: If bt(k) > 0 Then
-			dw kw_aget, arr_bt, var_k, tmp0
-			dw kw_scpgtvl, tmp0, 0
-			dw kw_goto_iffalse, if158_1
-
-			; Main.bas 908: bt(k) = bt(k) - 1
-			dw kw_aget, arr_bt, var_k, tmp1
-			dw kw_dec, tmp1
-			dw kw_aset, arr_bt, var_k, tmp1
-
-			; Main.bas 909: bsx = WorldToScreenX(bx(k), cam_x)
-			dw kw_aget, arr_bx, var_k, tmp0
-			dw p_worldtoscreenx_c, tmp0, var_cam_x
-			dw kw_vtov, var_worldtoscreenx_worldtoscreenx, var_booms_bsx
-
-			; Main.bas 910: SetHardwareSprite(SLOT_BOOM0 + k, bsx, by(k), PAT_BOOM + (15 - bt(k)) \ 4, False, (bt(k) > 0 And bsx > -8 And bsx < 264))
-			dw kw_addl, var_k, 29, tmp0
-			dw kw_aget, arr_by, var_k, tmp2
-			dw kw_aget, arr_bt, var_k, tmp5
-			dw kw_sublv, 15, tmp5, tmp4
-			dw kw_divvl, tmp4, 4, tmp4
-			dw kw_addl, tmp4, 10, tmp3
-			dw kw_aget, arr_bt, var_k, tmp5
-			dw kw_scpgtvl, tmp5, 0
-			dw kw_ftov, tmp5
-			dw kw_scpgtvl, var_booms_bsx, -8
-			dw kw_ftov, tmp6
-			dw kw_andvv, tmp5, tmp6, tmp5
-			dw kw_scpltvl, var_booms_bsx, 264
-			dw kw_ftov, tmp6
-			dw kw_andvv, tmp5, tmp6, tmp5
-			dw p_sethardwaresprite_c, tmp0, var_booms_bsx, tmp2, tmp3, lit_0, tmp5
-
-			; Main.bas 911: Else
-			dw if158_e_go
-if158_1:
-
-			; Main.bas 912: HideSprite(SLOT_BOOM0 + k)
-			dw kw_addl, var_k, 29, tmp0
-			dw p_hidesprite_c, tmp0
-
-			; Main.bas 913: End If
-if158_e:
-
-			; Main.bas 914: Next k
-			dw kw_next1l, var_k, 3, for157_t
-for157_e:
-			dw p_booms_r
-
-; ============================================================
-; sub viewmarks (turbo mode)
-; ============================================================
-
-p_viewmarks:
-
-			; Main.bas 920: Dim m As Integer
-
-			; Main.bas 921: m = WorldToRadarX(cam_x)
-			dw p_worldtoradarx_c, var_cam_x
-			dw kw_vtov, var_worldtoradarx_worldtoradarx, var_viewmarks_m
-
-			; Main.bas 922: If m = mark0 Then Exit Sub
-			dw kw_cpeqvv, var_viewmarks_m, var_mark0
-			dw kw_goto_iffalse, if159_1
-			dw p_viewmarks_r
-if159_1:
-
-			; Main.bas 923: If mark0 >= 0 Then
-			dw kw_scpgevl, var_mark0, 0
-			dw kw_goto_iffalse, if160_1
-
-			; Main.bas 924: L2.Span mark0, 7, 3, 0 : L2.Span mark0 + 30, 7, 3, 0
-			dw fn_l2_span, var_mark0, lit_7, lit_3, lit_0
-			dw kw_addl, var_mark0, 30, tmp0
-			dw fn_l2_span, tmp0, lit_7, lit_3, lit_0
-
-			; Main.bas 925: L2.Span mark0, 41, 3, 0 : L2.Span mark0 + 30, 41, 3, 0
-			dw fn_l2_span, var_mark0, lit_41, lit_3, lit_0
-			dw kw_addl, var_mark0, 30, tmp0
-			dw fn_l2_span, tmp0, lit_41, lit_3, lit_0
-
-			; Main.bas 926: End If
-if160_1:
-
-			; Main.bas 927: If m >= 62 And m + 33 <= 194 Then
-			dw kw_scpgevl, var_viewmarks_m, 62
+			; Main.bas 885: If enemies_alive <= 0 And enemies_to_spawn <= 0 Then
+			dw kw_scplevl, var_enemies_alive, 0
 			dw kw_ftov, tmp0
-			dw kw_addl, var_viewmarks_m, 33, tmp1
-			dw kw_scplevl, tmp1, 194
+			dw kw_scplevl, var_enemies_to_spawn, 0
 			dw kw_ftov, tmp1
 			dw kw_andvv, tmp0, tmp1, tmp0
-			dw kw_goto_ifzero, tmp0, if161_1
+			dw kw_goto_ifzero, tmp0, do3_t
 
-			; Main.bas 928: L2.Span m, 7, 3, &HFF : L2.Span m + 30, 7, 3, &HFF
-			dw fn_l2_span, var_viewmarks_m, lit_7, lit_3, lit_255
-			dw kw_addl, var_viewmarks_m, 30, tmp0
-			dw fn_l2_span, tmp0, lit_7, lit_3, lit_255
-
-			; Main.bas 929: L2.Span m, 41, 3, &HFF : L2.Span m + 30, 41, 3, &HFF
-			dw fn_l2_span, var_viewmarks_m, lit_41, lit_3, lit_255
-			dw kw_addl, var_viewmarks_m, 30, tmp0
-			dw fn_l2_span, tmp0, lit_41, lit_3, lit_255
-
-			; Main.bas 930: mark0 = m
-			dw kw_vtov, var_viewmarks_m, var_mark0
-
-			; Main.bas 931: Else
-			dw if161_e_go
-if161_1:
-
-			; Main.bas 932: mark0 = -1
-			dw kw_ltov, -1, var_mark0
-
-			; Main.bas 933: End If
-if161_e:
-			dw p_viewmarks_r
-
-; ============================================================
-; sub wavedone (turbo mode)
-; ============================================================
-
-p_wavedone:
-
-			; Main.bas 1019: Dim b As Integer, f As Integer
-
-			; Main.bas 1020: For i = 0 To MAX_ENEMIES - 1
-			dw kw_ztov, var_i
-for162_t:
-
-			; Main.bas 1021: If estate(i) = ST_BAITER Then estate(i) = ST_DEAD : HideSprite(SLOT_ENEMY0 + i)
-			dw kw_aget, arr_estate, var_i, tmp0
-			dw kw_cpeqvl, tmp0, 5
-			dw kw_goto_iffalse, if163_1
-			dw kw_asetl, arr_estate, var_i, 0
-			dw kw_addl, var_i, 13, tmp0
-			dw p_hidesprite_c, tmp0
-if163_1:
-
-			; Main.bas 1022: Next i
-			dw kw_next1l, var_i, 9, for162_t
-for162_e:
-
-			; Main.bas 1023: b = humans_alive * 100 * wave
-			dw kw_mulvl, var_humans_alive, 100, tmp0
-			dw kw_mulvv, tmp0, var_wave, var_wavedone_b
-
-			; Main.bas 1024: If b > 5000 Then b = 5000
-			dw kw_scpgtvl, var_wavedone_b, 5000
-			dw kw_goto_iffalse, if164_1
-			dw kw_ltov, 5000, var_wavedone_b
-if164_1:
-
-			; Main.bas 1025: Pen 14
-			dw p_pen_c, lit_14
-
-			; Main.bas 1026: At 9, 10 : PrintS "ATTACK WAVE" & Str$(wave)
-			dw p_at_c, lit_9, lit_10
-			dw kw_strstr, stmp1, var_wave
-			dw kw_strcpy, stmp0, str12
-			dw kw_strcat, stmp0, stmp1
-			dw p_prints_c, stmp0
-
-			; Main.bas 1027: At 11, 11 : PrintS "COMPLETED"
-			dw p_at_c, lit_11, lit_11
-			dw p_prints_c, str13
-
-			; Main.bas 1028: Pen 15
-			dw p_pen_c, lit_15
-
-			; Main.bas 1029: At 9, 13 : PrintS "BONUS" & Str$(b)
-			dw p_at_c, lit_9, lit_13
-			dw kw_strstr, stmp1, var_wavedone_b
-			dw kw_strcpy, stmp0, str14
-			dw kw_strcat, stmp0, stmp1
-			dw p_prints_c, stmp0
-
-			; Main.bas 1030: For f = 0 To 5
-			dw kw_ztov, var_wavedone_f
-for165_t:
-
-			; Main.bas 1031: Sfx.Play f Mod 3, 120 - f * 12, 0, 13, 12, 0
-			dw kw_modvl, var_wavedone_f, 3, tmp0
-			dw kw_mulvl, var_wavedone_f, 12, tmp2
-			dw kw_sublv, 120, tmp2, tmp1
-			dw p_sfx_play_c, tmp0, tmp1, lit_0, lit_13, lit_12, lit_0
-
-			; Main.bas 1032: For i = 1 To 10
-			dw kw_ltov, 1, var_i
-for166_t:
-
-			; Main.bas 1033: Vsync
-			dw p_vsync_c
-
-			; Main.bas 1034: Next i
-			dw kw_next1l, var_i, 10, for166_t
-for166_e:
-
-			; Main.bas 1035: Next f
-			dw kw_next1l, var_wavedone_f, 5, for165_t
-for165_e:
-
-			; Main.bas 1036: AddScore b
-			dw p_addscore_c, var_wavedone_b
-
-			; Main.bas 1037: For i = 1 To 60
-			dw kw_ltov, 1, var_i
-for167_t:
-
-			; Main.bas 1038: Vsync
-			dw p_vsync_c
-
-			; Main.bas 1039: Next i
-			dw kw_next1l, var_i, 60, for167_t
-for167_e:
-
-			; Main.bas 1040: wave = wave + 1
+			; Main.bas 886: wave = wave + 1
 			dw kw_inc, var_wave
 
-			; Main.bas 1041: If bombs < 5 Then bombs = bombs + 1
+			; Main.bas 887: score = score + humans_alive * 50
+			dw kw_mulvl, var_humans_alive, 50, tmp1
+			dw kw_l_itol, tmp1, ltmp1
+			dw kw_l_add, var_score, ltmp1, var_score
+
+			; Main.bas 888: If bombs < 5 Then bombs = bombs + 1
 			dw kw_scpltvl, var_bombs, 5
-			dw kw_goto_iffalse, if168_1
+			dw kw_goto_iffalse, if65_1
 			dw kw_inc, var_bombs
-if168_1:
+if65_1:
 
-			; Main.bas 1042: InitWave()
+			; Main.bas 889: Sound 1, 150, 15, 15
+			dw p_sound_c, lit_1, lit_150, lit_15, lit_15
+
+			; Main.bas 890: Sound 2, 100, 15, 15
+			dw p_sound_c, lit_2, lit_100, lit_15, lit_15
+
+			; Main.bas 891: InitWave()
 			dw p_initwave_c
-			dw p_wavedone_r
 
-; ============================================================
-; sub titlescreen (turbo mode)
-; ============================================================
+			; Main.bas 892: End If
+if64_1:
 
-p_titlescreen:
+			; Main.bas 893: Loop
+			dw do3_t_go
+do3_e:
 
-			; Main.bas 1046: Dim t As Integer, a As Integer
-
-			; Main.bas 1047: HideAllSprites()
+			; Main.bas 896: HideAllSprites()
 			dw p_hideallsprites_c
 
-			; Main.bas 1048: ClsAll
+			; Main.bas 897: ClsAll
 			dw p_clsall_c
 
-			; Main.bas 1049: Scroll.Show 0, 0
-			dw p_scroll_show_c, lit_0, lit_0
-
-			; Main.bas 1050: Stars
-			dw p_stars_c
-
-			; Main.bas 1051: L2.Big 24, 6, "DEFENDER", 3, &HFC, &HE0
-			dw p_l2_big_c, lit_24, lit_6, str15, lit_3, lit_252, lit_224
-
-			; Main.bas 1052: Pen 11
-			dw p_pen_c, lit_11
-
-			; Main.bas 1053: At 5, 6
-			dw p_at_c, lit_5, lit_6
-
-			; Main.bas 1054: PrintS "ZX SPECTRUM NEXT EDITION"
-			dw p_prints_c, str16
-
-			; Main.bas 1055: Pen 15
-			dw p_pen_c, lit_15
-
-			; Main.bas 1056: At 9, 9 : PrintS "LANDER      150"
-			dw p_at_c, lit_9, lit_9
-			dw p_prints_c, str17
-
-			; Main.bas 1057: At 9, 11 : PrintS "MUTANT      150"
-			dw p_at_c, lit_9, lit_11
-			dw p_prints_c, str18
-
-			; Main.bas 1058: At 9, 13 : PrintS "BAITER      200"
-			dw p_at_c, lit_9, lit_13
-			dw p_prints_c, str19
-
-			; Main.bas 1059: At 9, 15 : PrintS "HUMANOID    500"
-			dw p_at_c, lit_9, lit_15
-			dw p_prints_c, str20
-
-			; Main.bas 1060: Pen 12
-			dw p_pen_c, lit_12
-
-			; Main.bas 1061: At 3, 17 : PrintS "Q / A or UP/DN : ALTITUDE"
-			dw p_at_c, lit_3, lit_17
-			dw p_prints_c, str21
-
-			; Main.bas 1062: At 3, 18 : PrintS "O / P or LT/RT : THRUST"
-			dw p_at_c, lit_3, lit_18
-			dw p_prints_c, str22
-
-			; Main.bas 1063: At 3, 19 : PrintS "SPACE / FIRE 1 : LASER"
-			dw p_at_c, lit_3, lit_19
-			dw p_prints_c, str23
-
-			; Main.bas 1064: At 3, 20 : PrintS "B / M / FIRE 2 : SMART BOMB"
-			dw p_at_c, lit_3, lit_20
-			dw p_prints_c, str24
-
-			; Main.bas 1065: At 3, 21 : PrintS "H              : HYPERSPACE"
-			dw p_at_c, lit_3, lit_21
-			dw p_prints_c, str25
-
-			; Main.bas 1066: t = 0
-			dw kw_ztov, var_titlescreen_t
-
-			; Main.bas 1067: Do
-do169_t:
-
-			; Main.bas 1068: Vsync
-			dw p_vsync_c
-
-			; Main.bas 1069: t = t + 1
-			dw kw_inc, var_titlescreen_t
-
-			; Main.bas 1070: a = (t \ 8) And 1
-			dw kw_divvl, var_titlescreen_t, 8, tmp0
-			dw kw_andvl, tmp0, 1, var_titlescreen_a
-
-			; Main.bas 1071: SetHardwareSprite(1, 56, 195 - 9 * 8, PAT_LANDER + a * PAT_FRAME2, False, True)
-			dw kw_4x, var_titlescreen_a, tmp4
-			dw kw_addl, tmp4, 1, tmp3
-			dw p_sethardwaresprite_c, lit_1, lit_56, lit_123, tmp3, lit_0, lit_m1
-
-			; Main.bas 1072: SetHardwareSprite(2, 56, 195 - 11 * 8, PAT_MUTANT + a * PAT_FRAME2, False, True)
-			dw kw_4x, var_titlescreen_a, tmp4
-			dw kw_addl, tmp4, 2, tmp3
-			dw p_sethardwaresprite_c, lit_2, lit_56, lit_107, tmp3, lit_0, lit_m1
-
-			; Main.bas 1073: SetHardwareSprite(3, 56, 195 - 13 * 8, PAT_BAITER + a, False, True)
-			dw kw_addl, var_titlescreen_a, 14, tmp3
-			dw p_sethardwaresprite_c, lit_3, lit_56, lit_91, tmp3, lit_0, lit_m1
-
-			; Main.bas 1074: SetHardwareSprite(4, 56, 195 - 15 * 8, PAT_HUMAN + a * PAT_FRAME2, False, True)
-			dw kw_4x, var_titlescreen_a, tmp4
-			dw kw_addl, tmp4, 3, tmp3
-			dw p_sethardwaresprite_c, lit_4, lit_56, lit_75, tmp3, lit_0, lit_m1
-
-			; Main.bas 1076: SetHardwareSprite(0, (t * 2) Mod 300 - 20, 6, PAT_PLAYER + a * PAT_FRAME2, False, True)
-			dw kw_2x, var_titlescreen_t, tmp1
-			dw kw_modvl, tmp1, 300, tmp1
-			dw kw_addl, tmp1, -20, tmp1
-			dw kw_4x, var_titlescreen_a, tmp4
-			dw kw_vtov, tmp4, tmp3
-			dw p_sethardwaresprite_c, lit_0, tmp1, lit_6, tmp3, lit_0, lit_m1
-
-			; Main.bas 1077: Pen 10
+			; Main.bas 898: Pen 10
 			dw p_pen_c, lit_10
 
-			; Main.bas 1078: At 7, 23
-			dw p_at_c, lit_7, lit_23
+			; Main.bas 899: At 8, 9
+			dw p_at_c, lit_8, lit_9
 
-			; Main.bas 1079: If (t \ 25) And 1 Then PrintS "PRESS SPACE OR FIRE" Else PrintS "                   "
-			dw kw_divvl, var_titlescreen_t, 25, tmp0
-			dw kw_andvl, tmp0, 1, tmp0
-			dw kw_goto_ifzero, tmp0, if170_1
-			dw p_prints_c, str26
-			dw if170_e_go
-if170_1:
-			dw p_prints_c, str27
-if170_e:
+			; Main.bas 900: PrintS "G A M E   O V E R"
+			dw p_prints_c, str9
 
-			; Main.bas 1080: k = Rnd(10)
-			dw kw_rndl, 10, var_k
+			; Main.bas 901: Pen 15
+			dw p_pen_c, lit_15
 
-			; Main.bas 1081: Loop Until Key(40) Or (Joy(0) And 16) <> 0
-			dw p_key_c, lit_40
-			dw kw_vtov, var_key_key, tmp0
-			dw p_joy_c, lit_0
-			dw kw_vtov, var_joy_joy, tmp1
-			dw kw_andvl, tmp1, 16, tmp1
-			dw kw_cpnevl, tmp1, 0
-			dw kw_ftov, tmp1
-			dw kw_orvv, tmp0, tmp1, tmp0
-			dw kw_goto_ifzero, tmp0, do169_t
-do169_e:
+			; Main.bas 902: At 7, 12
+			dw p_at_c, lit_7, lit_12
 
-			; Main.bas 1082: Do
-do171_t:
+			; Main.bas 903: PrintS "FINAL SCORE: " & Str$(score)
+			dw kw_l_str, stmp1, var_score
+			dw kw_strcpy, stmp0, str10
+			dw kw_strcat, stmp0, stmp1
+			dw p_prints_c, stmp0
 
-			; Main.bas 1083: Vsync
+			; Main.bas 904: Pen 14
+			dw p_pen_c, lit_14
+
+			; Main.bas 905: At 7, 15
+			dw p_at_c, lit_7, lit_15
+
+			; Main.bas 906: PrintS "REACHED WAVE: " & Str$(wave)
+			dw kw_strstr, stmp1, var_wave
+			dw kw_strcpy, stmp0, str11
+			dw kw_strcat, stmp0, stmp1
+			dw p_prints_c, stmp0
+
+			; Main.bas 907: For i = 1 To 90
+			dw kw_ltov, 1, var_i
+for66_t:
+
+			; Main.bas 908: Vsync
 			dw p_vsync_c
 
-			; Main.bas 1084: Loop While Key(40) Or (Joy(0) And 16) <> 0
-			dw p_key_c, lit_40
-			dw kw_vtov, var_key_key, tmp0
-			dw p_joy_c, lit_0
-			dw kw_vtov, var_joy_joy, tmp1
-			dw kw_andvl, tmp1, 16, tmp1
-			dw kw_cpnevl, tmp1, 0
-			dw kw_ftov, tmp1
-			dw kw_orvv, tmp0, tmp1, tmp0
-			dw kw_goto_ifnzero, tmp0, do171_t
-do171_e:
+			; Main.bas 909: Next i
+			dw kw_next1l, var_i, 90, for66_t
+for66_e:
 
-			; Main.bas 1085: HideAllSprites()
+			; Main.bas 910: Loop
+			dw do1_t_go
+do1_e:
+			dw kw_stop
+
+; ============================================================
+; sub writenextreg (turbo mode)
+; ============================================================
+
+p_writenextreg:
+
+			; Main.bas 137: Out PORT_NEXTREG_SEL, reg
+			dw kw_out, lit_9275, var_writenextreg_reg
+
+			; Main.bas 138: Out PORT_NEXTREG_DAT, val
+			dw kw_out, lit_9531, var_writenextreg_val
+			dw p_writenextreg_r
+
+; ============================================================
+; sub loadspritetilemap (turbo mode)
+; ============================================================
+
+p_loadspritetilemap:
+
+			; Main.bas 143: Dim b0 As Integer
+
+			; Main.bas 144: Dim p As Integer, x As Integer, y As Integer, dx As Integer, dy As Integer
+
+			; Main.bas 148: WriteNextReg(&H15, &H0B)
+			dw p_writenextreg_c, lit_21, lit_11
+
+			; Main.bas 150: WriteNextReg(&H4B, &H00)
+			dw p_writenextreg_c, lit_75, lit_0
+
+			; Main.bas 153: WriteNextReg(&H43, &H20)
+			dw p_writenextreg_c, lit_67, lit_32
+
+			; Main.bas 154: WriteNextReg(&H40, 0)
+			dw p_writenextreg_c, lit_64, lit_0
+
+			; Main.bas 158: If FileSystem.Load(filename, VarPtr(sprbuf), 1792) = 1792 Then
+			dw p_filesystem_load_c, var_loadspritetilemap_filename, vp_arr_sprbuf, lit_1792
+			dw kw_vtov, var_filesystem_load_load, tmp0
+			dw kw_cpeqvl, tmp0, 1792
+			dw kw_goto_iffalse, if67_1
+
+			; Main.bas 160: For i = 0 To 255
+			dw kw_ztov, var_i
+for68_t:
+
+			; Main.bas 161: WriteNextReg(&H44, sprbuf(i * 2))
+			dw kw_2x, var_i, tmp1
+			dw kw_aget8, arr_sprbuf, tmp1, tmp1
+			dw p_writenextreg_c, lit_68, tmp1
+
+			; Main.bas 162: WriteNextReg(&H44, sprbuf(i * 2 + 1))
+			dw kw_2x, var_i, tmp1
+			dw kw_inc, tmp1
+			dw kw_aget8, arr_sprbuf, tmp1, tmp1
+			dw p_writenextreg_c, lit_68, tmp1
+
+			; Main.bas 163: Next i
+			dw kw_next1l, var_i, 255, for68_t
+for68_e:
+
+			; Main.bas 166: Out PORT_SPRITE_SLOT, 0
+			dw kw_out, lit_12347, lit_0
+
+			; Main.bas 167: For i = 512 To 1791
+			dw kw_ltov, 512, var_i
+for69_t:
+
+			; Main.bas 168: Out PORT_SPRITE_PAT, sprbuf(i)
+			dw kw_aget8, arr_sprbuf, var_i, tmp1
+			dw kw_out, lit_91, tmp1
+
+			; Main.bas 169: Next i
+			dw kw_next1l, var_i, 1791, for69_t
+for69_e:
+
+			; Main.bas 170: Else
+			dw if67_e_go
+if67_1:
+
+			; Main.bas 172: WriteNextReg(&H44, 0) : WriteNextReg(&H44, 0)     ' 0: Transparent
+			dw p_writenextreg_c, lit_68, lit_0
+			dw p_writenextreg_c, lit_68, lit_0
+
+			; Main.bas 173: WriteNextReg(&H44, &HFF) : WriteNextReg(&H44, 1)  ' 1: White
+			dw p_writenextreg_c, lit_68, lit_255
+			dw p_writenextreg_c, lit_68, lit_1
+
+			; Main.bas 174: WriteNextReg(&H44, &HFC) : WriteNextReg(&H44, 0)  ' 2: Yellow
+			dw p_writenextreg_c, lit_68, lit_252
+			dw p_writenextreg_c, lit_68, lit_0
+
+			; Main.bas 175: WriteNextReg(&H44, &HF0) : WriteNextReg(&H44, 0)  ' 3: Orange
+			dw p_writenextreg_c, lit_68, lit_240
+			dw p_writenextreg_c, lit_68, lit_0
+
+			; Main.bas 176: WriteNextReg(&H44, &HE0) : WriteNextReg(&H44, 0)  ' 4: Red
+			dw p_writenextreg_c, lit_68, lit_224
+			dw p_writenextreg_c, lit_68, lit_0
+
+			; Main.bas 177: WriteNextReg(&H44, &HE2) : WriteNextReg(&H44, 1)  ' 5: Magenta
+			dw p_writenextreg_c, lit_68, lit_226
+			dw p_writenextreg_c, lit_68, lit_1
+
+			; Main.bas 178: WriteNextReg(&H44, &H1C) : WriteNextReg(&H44, 0)  ' 6: Green
+			dw p_writenextreg_c, lit_68, lit_28
+			dw p_writenextreg_c, lit_68, lit_0
+
+			; Main.bas 179: WriteNextReg(&H44, &H17) : WriteNextReg(&H44, 1)  ' 7: Cyan
+			dw p_writenextreg_c, lit_68, lit_23
+			dw p_writenextreg_c, lit_68, lit_1
+
+			; Main.bas 180: For i = 8 To 255
+			dw kw_ltov, 8, var_i
+for70_t:
+
+			; Main.bas 181: WriteNextReg(&H44, i)
+			dw p_writenextreg_c, lit_68, var_i
+
+			; Main.bas 182: WriteNextReg(&H44, 0)
+			dw p_writenextreg_c, lit_68, lit_0
+
+			; Main.bas 183: Next i
+			dw kw_next1l, var_i, 255, for70_t
+for70_e:
+
+			; Main.bas 185: Out PORT_SPRITE_SLOT, 0
+			dw kw_out, lit_12347, lit_0
+
+			; Main.bas 186: For p = 0 To 4
+			dw kw_ztov, var_loadspritetilemap_p
+for71_t:
+
+			; Main.bas 187: For y = 0 To 15
+			dw kw_ztov, var_loadspritetilemap_y
+for72_t:
+
+			; Main.bas 188: For x = 0 To 15
+			dw kw_ztov, var_loadspritetilemap_x
+for73_t:
+
+			; Main.bas 189: b0 = 0
+			dw kw_ztov, var_loadspritetilemap_b0
+
+			; Main.bas 190: dx = Abs(x - 7) : dy = Abs(y - 7)
+			dw kw_addl, var_loadspritetilemap_x, -7, tmp0
+			dw kw_absv, tmp0, var_loadspritetilemap_dx
+			dw kw_addl, var_loadspritetilemap_y, -7, tmp0
+			dw kw_absv, tmp0, var_loadspritetilemap_dy
+
+			; Main.bas 191: If p = PAT_PLAYER Then
+			dw kw_cpeqvl, var_loadspritetilemap_p, 0
+			dw kw_goto_iffalse, if74_1
+
+			; Main.bas 192: If y >= 5 And y <= 10 And x <= 14 And dy <= (15 - x) \ 2 Then b0 = 7
+			dw kw_scpgevl, var_loadspritetilemap_y, 5
+			dw kw_ftov, tmp0
+			dw kw_scplevl, var_loadspritetilemap_y, 10
+			dw kw_ftov, tmp1
+			dw kw_andvv, tmp0, tmp1, tmp0
+			dw kw_scplevl, var_loadspritetilemap_x, 14
+			dw kw_ftov, tmp1
+			dw kw_andvv, tmp0, tmp1, tmp0
+			dw kw_sublv, 15, var_loadspritetilemap_x, tmp2
+			dw kw_divvl, tmp2, 2, tmp2
+			dw kw_scplevv, var_loadspritetilemap_dy, tmp2
+			dw kw_ftov, tmp1
+			dw kw_andvv, tmp0, tmp1, tmp0
+			dw kw_goto_ifzero, tmp0, if75_1
+			dw kw_ltov, 7, var_loadspritetilemap_b0
+if75_1:
+
+			; Main.bas 193: If y = 7 And x >= 10 Then b0 = 1
+			dw kw_cpeqvl, var_loadspritetilemap_y, 7
+			dw kw_ftov, tmp0
+			dw kw_scpgevl, var_loadspritetilemap_x, 10
+			dw kw_ftov, tmp1
+			dw kw_andvv, tmp0, tmp1, tmp0
+			dw kw_goto_ifzero, tmp0, if76_1
+			dw kw_ltov, 1, var_loadspritetilemap_b0
+if76_1:
+
+			; Main.bas 194: If x < 3 And dy <= 1 Then b0 = 3
+			dw kw_scpltvl, var_loadspritetilemap_x, 3
+			dw kw_ftov, tmp0
+			dw kw_scplevl, var_loadspritetilemap_dy, 1
+			dw kw_ftov, tmp1
+			dw kw_andvv, tmp0, tmp1, tmp0
+			dw kw_goto_ifzero, tmp0, if74_e
+			dw kw_ltov, 3, var_loadspritetilemap_b0
+if77_1:
+
+			; Main.bas 195: ElseIf p = PAT_LANDER Then
+			dw if74_e_go
+if74_1:
+			dw kw_cpeqvl, var_loadspritetilemap_p, 1
+			dw kw_goto_iffalse, if74_2
+
+			; Main.bas 196: If dx + dy <= 6 Then b0 = 6
+			dw kw_add, var_loadspritetilemap_dx, var_loadspritetilemap_dy, tmp0
+			dw kw_scplevl, tmp0, 6
+			dw kw_goto_iffalse, if78_1
+			dw kw_ltov, 6, var_loadspritetilemap_b0
+if78_1:
+
+			; Main.bas 197: If dy = 1 And (x = 5 Or x = 10) Then b0 = 1
+			dw kw_cpeqvl, var_loadspritetilemap_dy, 1
+			dw kw_ftov, tmp0
+			dw kw_cpeqvl, var_loadspritetilemap_x, 5
+			dw kw_ftov, tmp1
+			dw kw_cpeqvl, var_loadspritetilemap_x, 10
+			dw kw_ftov, tmp2
+			dw kw_orvv, tmp1, tmp2, tmp1
+			dw kw_andvv, tmp0, tmp1, tmp0
+			dw kw_goto_ifzero, tmp0, if74_e
+			dw kw_ltov, 1, var_loadspritetilemap_b0
+if79_1:
+
+			; Main.bas 198: ElseIf p = PAT_MUTANT Then
+			dw if74_e_go
+if74_2:
+			dw kw_cpeqvl, var_loadspritetilemap_p, 2
+			dw kw_goto_iffalse, if74_3
+
+			; Main.bas 199: If dx = dy Or (dx <= 4 And dy <= 4) Then b0 = 4
+			dw kw_cpeqvv, var_loadspritetilemap_dx, var_loadspritetilemap_dy
+			dw kw_ftov, tmp0
+			dw kw_scplevl, var_loadspritetilemap_dx, 4
+			dw kw_ftov, tmp1
+			dw kw_scplevl, var_loadspritetilemap_dy, 4
+			dw kw_ftov, tmp2
+			dw kw_andvv, tmp1, tmp2, tmp1
+			dw kw_orvv, tmp0, tmp1, tmp0
+			dw kw_goto_ifzero, tmp0, if80_1
+			dw kw_ltov, 4, var_loadspritetilemap_b0
+if80_1:
+
+			; Main.bas 200: If dx <= 2 And dy <= 2 Then b0 = 2
+			dw kw_scplevl, var_loadspritetilemap_dx, 2
+			dw kw_ftov, tmp0
+			dw kw_scplevl, var_loadspritetilemap_dy, 2
+			dw kw_ftov, tmp1
+			dw kw_andvv, tmp0, tmp1, tmp0
+			dw kw_goto_ifzero, tmp0, if74_e
+			dw kw_ltov, 2, var_loadspritetilemap_b0
+if81_1:
+
+			; Main.bas 201: ElseIf p = PAT_HUMAN Then
+			dw if74_e_go
+if74_3:
+			dw kw_cpeqvl, var_loadspritetilemap_p, 3
+			dw kw_goto_iffalse, if74_4
+
+			; Main.bas 202: If dx <= 1 And y >= 3 And y <= 5 Then b0 = 1
+			dw kw_scplevl, var_loadspritetilemap_dx, 1
+			dw kw_ftov, tmp0
+			dw kw_scpgevl, var_loadspritetilemap_y, 3
+			dw kw_ftov, tmp1
+			dw kw_andvv, tmp0, tmp1, tmp0
+			dw kw_scplevl, var_loadspritetilemap_y, 5
+			dw kw_ftov, tmp1
+			dw kw_andvv, tmp0, tmp1, tmp0
+			dw kw_goto_ifzero, tmp0, if82_1
+			dw kw_ltov, 1, var_loadspritetilemap_b0
+if82_1:
+
+			; Main.bas 203: If dx <= 2 And y >= 6 And y <= 12 Then b0 = 5
+			dw kw_scplevl, var_loadspritetilemap_dx, 2
+			dw kw_ftov, tmp0
+			dw kw_scpgevl, var_loadspritetilemap_y, 6
+			dw kw_ftov, tmp1
+			dw kw_andvv, tmp0, tmp1, tmp0
+			dw kw_scplevl, var_loadspritetilemap_y, 12
+			dw kw_ftov, tmp1
+			dw kw_andvv, tmp0, tmp1, tmp0
+			dw kw_goto_ifzero, tmp0, if74_e
+			dw kw_ltov, 5, var_loadspritetilemap_b0
+if83_1:
+
+			; Main.bas 204: ElseIf p = PAT_BOLT Then
+			dw if74_e_go
+if74_4:
+			dw kw_cpeqvl, var_loadspritetilemap_p, 4
+			dw kw_goto_iffalse, if74_5
+
+			; Main.bas 205: If y >= 7 And y <= 8 And x >= 2 And x <= 13 Then b0 = 2
+			dw kw_scpgevl, var_loadspritetilemap_y, 7
+			dw kw_ftov, tmp0
+			dw kw_scplevl, var_loadspritetilemap_y, 8
+			dw kw_ftov, tmp1
+			dw kw_andvv, tmp0, tmp1, tmp0
+			dw kw_scpgevl, var_loadspritetilemap_x, 2
+			dw kw_ftov, tmp1
+			dw kw_andvv, tmp0, tmp1, tmp0
+			dw kw_scplevl, var_loadspritetilemap_x, 13
+			dw kw_ftov, tmp1
+			dw kw_andvv, tmp0, tmp1, tmp0
+			dw kw_goto_ifzero, tmp0, if84_1
+			dw kw_ltov, 2, var_loadspritetilemap_b0
+if84_1:
+
+			; Main.bas 206: End If
+if74_5:
+if74_e:
+
+			; Main.bas 207: Out PORT_SPRITE_PAT, b0
+			dw kw_out, lit_91, var_loadspritetilemap_b0
+
+			; Main.bas 208: Next x
+			dw kw_next1l, var_loadspritetilemap_x, 15, for73_t
+for73_e:
+
+			; Main.bas 209: Next y
+			dw kw_next1l, var_loadspritetilemap_y, 15, for72_t
+for72_e:
+
+			; Main.bas 210: Next p
+			dw kw_next1l, var_loadspritetilemap_p, 4, for71_t
+for71_e:
+
+			; Main.bas 211: End If
+if67_e:
+			dw p_loadspritetilemap_r
+
+; ============================================================
+; sub sethardwaresprite (turbo mode)
+; ============================================================
+
+p_sethardwaresprite:
+
+			; Main.bas 216: Dim sx As Integer, sy As Integer, attr2 As Integer
+
+			; Main.bas 217: Out PORT_SPRITE_SLOT, slot
+			dw kw_out, lit_12347, var_sethardwaresprite_slot
+
+			; Main.bas 218: If Not visible Then
+			dw kw_notv, var_sethardwaresprite_visible, tmp0
+			dw kw_goto_ifzero, tmp0, if85_1
+
+			; Main.bas 219: Out PORT_SPRITE_ATTR, 0
+			dw kw_out, lit_87, lit_0
+
+			; Main.bas 220: Out PORT_SPRITE_ATTR, 0
+			dw kw_out, lit_87, lit_0
+
+			; Main.bas 221: Out PORT_SPRITE_ATTR, 0
+			dw kw_out, lit_87, lit_0
+
+			; Main.bas 222: Out PORT_SPRITE_ATTR, 0
+			dw kw_out, lit_87, lit_0
+
+			; Main.bas 223: Exit Sub
+			dw p_sethardwaresprite_r
+
+			; Main.bas 224: End If
+if85_1:
+
+			; Main.bas 227: sx = px_scr + SPR_X_OFF - 8
+			dw kw_addl, var_sethardwaresprite_px_scr, 32, tmp0
+			dw kw_addl, tmp0, -8, var_sethardwaresprite_sx
+
+			; Main.bas 228: sy = (191 - py_scr) + SPR_Y_OFF - 8
+			dw kw_sublv, 191, var_sethardwaresprite_py_scr, tmp0
+			dw kw_addl, tmp0, 32, tmp0
+			dw kw_addl, tmp0, -8, var_sethardwaresprite_sy
+
+			; Main.bas 230: attr2 = (sx \ 256) And 1          ' NTC: no >>
+			dw kw_divvl, var_sethardwaresprite_sx, 256, tmp0
+			dw kw_andvl, tmp0, 1, var_sethardwaresprite_attr2
+
+			; Main.bas 231: If hflip Then attr2 = attr2 Or 8
+			dw kw_goto_ifzero, var_sethardwaresprite_hflip, if86_1
+			dw kw_orvl, var_sethardwaresprite_attr2, 8, var_sethardwaresprite_attr2
+if86_1:
+
+			; Main.bas 233: Out PORT_SPRITE_ATTR, sx And 255
+			dw kw_andvl, var_sethardwaresprite_sx, 255, tmp1
+			dw kw_out, lit_87, tmp1
+
+			; Main.bas 234: Out PORT_SPRITE_ATTR, sy And 255
+			dw kw_andvl, var_sethardwaresprite_sy, 255, tmp1
+			dw kw_out, lit_87, tmp1
+
+			; Main.bas 235: Out PORT_SPRITE_ATTR, attr2
+			dw kw_out, lit_87, var_sethardwaresprite_attr2
+
+			; Main.bas 237: Out PORT_SPRITE_ATTR, 192 Or (pat And 63)
+			dw kw_andvl, var_sethardwaresprite_pat, 63, tmp2
+			dw kw_orvl, tmp2, 192, tmp1
+			dw kw_out, lit_87, tmp1
+
+			; Main.bas 239: Out PORT_SPRITE_ATTR, 0
+			dw kw_out, lit_87, lit_0
+			dw p_sethardwaresprite_r
+
+; ============================================================
+; sub hideallsprites (turbo mode)
+; ============================================================
+
+p_hideallsprites:
+
+			; Main.bas 243: Dim s As Integer
+
+			; Main.bas 244: Out PORT_SPRITE_SLOT, 0
+			dw kw_out, lit_12347, lit_0
+
+			; Main.bas 245: For s = 0 To 63
+			dw kw_ztov, var_hideallsprites_s
+for87_t:
+
+			; Main.bas 246: Out PORT_SPRITE_ATTR, 0
+			dw kw_out, lit_87, lit_0
+
+			; Main.bas 247: Out PORT_SPRITE_ATTR, 0
+			dw kw_out, lit_87, lit_0
+
+			; Main.bas 248: Out PORT_SPRITE_ATTR, 0
+			dw kw_out, lit_87, lit_0
+
+			; Main.bas 249: Out PORT_SPRITE_ATTR, 0
+			dw kw_out, lit_87, lit_0
+
+			; Main.bas 250: Next s
+			dw kw_next1l, var_hideallsprites_s, 63, for87_t
+for87_e:
+			dw p_hideallsprites_r
+
+; ============================================================
+; function getterrainy (turbo mode)
+; ============================================================
+
+p_getterrainy:
+
+			; Main.bas 258: Dim p As Integer, h As Integer
+
+			; Main.bas 259: p = (wx \ 4) And 63
+			dw kw_divvl, var_getterrainy_wx, 4, tmp1
+			dw kw_andvl, tmp1, 63, var_getterrainy_p
+
+			; Main.bas 260: If p < 16 Then
+			dw kw_scpltvl, var_getterrainy_p, 16
+			dw kw_goto_iffalse, if88_1
+
+			; Main.bas 261: h = 10 + p
+			dw kw_addl, var_getterrainy_p, 10, var_getterrainy_h
+
+			; Main.bas 262: ElseIf p < 32 Then
+			dw if88_e_go
+if88_1:
+			dw kw_scpltvl, var_getterrainy_p, 32
+			dw kw_goto_iffalse, if88_2
+
+			; Main.bas 263: h = 26 - (p - 16)
+			dw kw_addl, var_getterrainy_p, -16, tmp2
+			dw kw_sublv, 26, tmp2, var_getterrainy_h
+
+			; Main.bas 264: ElseIf p < 40 Then
+			dw if88_e_go
+if88_2:
+			dw kw_scpltvl, var_getterrainy_p, 40
+			dw kw_goto_iffalse, if88_3
+
+			; Main.bas 265: h = 10 + (p - 32) * 2
+			dw kw_addl, var_getterrainy_p, -32, tmp2
+			dw kw_2x, tmp2, tmp2
+			dw kw_addl, tmp2, 10, var_getterrainy_h
+
+			; Main.bas 266: ElseIf p < 48 Then
+			dw if88_e_go
+if88_3:
+			dw kw_scpltvl, var_getterrainy_p, 48
+			dw kw_goto_iffalse, if88_4
+
+			; Main.bas 267: h = 26 - (p - 40) * 2
+			dw kw_addl, var_getterrainy_p, -40, tmp2
+			dw kw_2x, tmp2, tmp2
+			dw kw_sublv, 26, tmp2, var_getterrainy_h
+
+			; Main.bas 268: Else
+			dw if88_e_go
+if88_4:
+
+			; Main.bas 269: h = 10
+			dw kw_ltov, 10, var_getterrainy_h
+
+			; Main.bas 270: End If
+if88_e:
+
+			; Main.bas 271: If planet_dead Then h = 6
+			dw kw_goto_ifzero, var_planet_dead, if89_1
+			dw kw_ltov, 6, var_getterrainy_h
+if89_1:
+
+			; Main.bas 272: GetTerrainY = h          ' NTC: assign to the name (no Return value)
+			dw kw_vtov, var_getterrainy_h, var_getterrainy_getterrainy
+			dw p_getterrainy_r
+
+; ============================================================
+; function worldtoscreenx (turbo mode)
+; ============================================================
+
+p_worldtoscreenx:
+
+			; Main.bas 276: Dim d As Integer
+
+			; Main.bas 277: d = (wx - cx) And WORLD_MASK
+			dw kw_subvv, var_worldtoscreenx_wx, var_worldtoscreenx_cx, tmp0
+			dw kw_andvl, tmp0, 1023, var_worldtoscreenx_d
+
+			; Main.bas 278: If d >= 512 Then d = d - 1024
+			dw kw_scpgevl, var_worldtoscreenx_d, 512
+			dw kw_goto_iffalse, if90_1
+			dw kw_addl, var_worldtoscreenx_d, -1024, var_worldtoscreenx_d
+if90_1:
+
+			; Main.bas 279: WorldToScreenX = d
+			dw kw_vtov, var_worldtoscreenx_d, var_worldtoscreenx_worldtoscreenx
+			dw p_worldtoscreenx_r
+
+; ============================================================
+; function worldtoradarx (turbo mode)
+; ============================================================
+
+p_worldtoradarx:
+
+			; Main.bas 283: Dim rel As Integer
+
+			; Main.bas 284: rel = (wx - px + 512) And WORLD_MASK
+			dw kw_subvv, var_worldtoradarx_wx, var_px, tmp0
+			dw kw_addl, tmp0, 512, tmp0
+			dw kw_andvl, tmp0, 1023, var_worldtoradarx_rel
+
+			; Main.bas 285: WorldToRadarX = 64 + (rel \ 8)
+			dw kw_divvl, var_worldtoradarx_rel, 8, tmp1
+			dw kw_addl, tmp1, 64, var_worldtoradarx_worldtoradarx
+			dw p_worldtoradarx_r
+
+; ============================================================
+; sub updatehud (turbo mode)
+; ============================================================
+
+p_updatehud:
+
+			; Main.bas 289: Pen 15
+			dw p_pen_c, lit_15
+
+			; Main.bas 290: At 1, 1
+			dw p_at_c, lit_1, lit_1
+
+			; Main.bas 291: PrintS "SC:" & Str$(score) & " "
+			dw kw_l_str, stmp1, var_score
+			dw kw_strcpy, stmp0, str12
+			dw kw_strcat, stmp0, stmp1
+			dw kw_strcat, stmp0, str13
+			dw p_prints_c, stmp0
+
+			; Main.bas 292: Pen 14
+			dw p_pen_c, lit_14
+
+			; Main.bas 293: At 12, 1
+			dw p_at_c, lit_12, lit_1
+
+			; Main.bas 294: PrintS "L:" & Str$(lives) & " B:" & Str$(bombs) & " "
+			dw kw_strstr, stmp1, var_lives
+			dw kw_strcpy, stmp0, str14
+			dw kw_strcat, stmp0, stmp1
+			dw kw_strcat, stmp0, str15
+			dw kw_strstr, stmp1, var_bombs
+			dw kw_strcat, stmp0, stmp1
+			dw kw_strcat, stmp0, str13
+			dw p_prints_c, stmp0
+
+			; Main.bas 295: Pen 11
+			dw p_pen_c, lit_11
+
+			; Main.bas 296: At 26, 1
+			dw p_at_c, lit_26, lit_1
+
+			; Main.bas 297: PrintS "W:" & Str$(wave) & " "
+			dw kw_strstr, stmp1, var_wave
+			dw kw_strcpy, stmp0, str16
+			dw kw_strcat, stmp0, stmp1
+			dw kw_strcat, stmp0, str13
+			dw p_prints_c, stmp0
+			dw p_updatehud_r
+
+; ============================================================
+; sub drawstaticframe (turbo mode)
+; ============================================================
+
+p_drawstaticframe:
+
+			; Main.bas 301: ClsAll
+			dw p_clsall_c
+
+			; Main.bas 303: Plot 0, 150, 9
+			dw p_plot_c, lit_0, lit_150, lit_9
+
+			; Main.bas 304: Draw 255, 150, 9
+			dw p_draw_c, lit_255, lit_150, lit_9
+
+			; Main.bas 305: Plot 62, 152, 12
+			dw p_plot_c, lit_62, lit_152, lit_12
+
+			; Main.bas 306: Draw 193, 152, 12
+			dw p_draw_c, lit_193, lit_152, lit_12
+
+			; Main.bas 307: Draw 193, 182, 12
+			dw p_draw_c, lit_193, lit_182, lit_12
+
+			; Main.bas 308: Draw 62, 182, 12
+			dw p_draw_c, lit_62, lit_182, lit_12
+
+			; Main.bas 309: Draw 62, 152, 12
+			dw p_draw_c, lit_62, lit_152, lit_12
+
+			; Main.bas 310: UpdateHUD()
+			dw p_updatehud_c
+			dw p_drawstaticframe_r
+
+; ============================================================
+; sub initwave (turbo mode)
+; ============================================================
+
+p_initwave:
+
+			; Main.bas 318: Dim i As Integer
+
+			; Main.bas 319: HideAllSprites()
 			dw p_hideallsprites_c
-			dw p_titlescreen_r
+
+			; Main.bas 320: DrawStaticFrame()
+			dw p_drawstaticframe_c
+
+			; Main.bas 322: px = 512
+			dw kw_ltov, 512, var_px
+
+			; Main.bas 323: py = 96
+			dw kw_ltov, 96, var_py
+
+			; Main.bas 324: pvx = 0
+			dw kw_ztov, var_pvx
+
+			; Main.bas 325: pvy = 0
+			dw kw_ztov, var_pvy
+
+			; Main.bas 326: pdir = 1
+			dw kw_ltov, 1, var_pdir
+
+			; Main.bas 327: old_prx = 128
+			dw kw_ltov, 128, var_old_prx
+
+			; Main.bas 328: old_pry = 165
+			dw kw_ltov, 165, var_old_pry
+
+			; Main.bas 330: For i = 0 To MAX_LASERS - 1
+			dw kw_ztov, var_initwave_i
+for91_t:
+
+			; Main.bas 331: llife(i) = 0
+			dw kw_asetl, arr_llife, var_initwave_i, 0
+
+			; Main.bas 332: Next i
+			dw kw_next1l, var_initwave_i, 3, for91_t
+for91_e:
+
+			; Main.bas 334: For i = 0 To MAX_SHOTS - 1
+			dw kw_ztov, var_initwave_i
+for92_t:
+
+			; Main.bas 335: slife(i) = 0
+			dw kw_asetl, arr_slife, var_initwave_i, 0
+
+			; Main.bas 336: Next i
+			dw kw_next1l, var_initwave_i, 5, for92_t
+for92_e:
+
+			; Main.bas 338: If wave = 1 Then
+			dw kw_cpeqvl, var_wave, 1
+			dw kw_goto_iffalse, if93_1
+
+			; Main.bas 339: planet_dead = False
+			dw kw_ztov, var_planet_dead
+
+			; Main.bas 340: humans_alive = MAX_HUMANS
+			dw kw_ltov, 8, var_humans_alive
+
+			; Main.bas 341: For i = 0 To MAX_HUMANS - 1
+			dw kw_ztov, var_initwave_i
+for94_t:
+
+			; Main.bas 342: hx(i) = (i * 128 + 48) And WORLD_MASK
+			dw kw_mulvl, var_initwave_i, 128, tmp1
+			dw kw_addl, tmp1, 48, tmp1
+			dw kw_andvl, tmp1, 1023, tmp1
+			dw kw_aset, arr_hx, var_initwave_i, tmp1
+
+			; Main.bas 343: hy(i) = GetTerrainY(hx(i)) + 6
+			dw kw_aget, arr_hx, var_initwave_i, tmp1
+			dw p_getterrainy_c, tmp1
+			dw kw_vtov, var_getterrainy_getterrainy, tmp1
+			dw kw_addl, tmp1, 6, tmp1
+			dw kw_aset, arr_hy, var_initwave_i, tmp1
+
+			; Main.bas 344: hstate(i) = H_GROUND
+			dw kw_asetl, arr_hstate, var_initwave_i, 1
+
+			; Main.bas 345: hcarrier(i) = -1
+			dw kw_asetl, arr_hcarrier, var_initwave_i, -1
+
+			; Main.bas 346: old_hrx(i) = 0
+			dw kw_asetl, arr_old_hrx, var_initwave_i, 0
+
+			; Main.bas 347: Next i
+			dw kw_next1l, var_initwave_i, 7, for94_t
+for94_e:
+
+			; Main.bas 348: Else
+			dw if93_e_go
+if93_1:
+
+			; Main.bas 349: For i = 0 To MAX_HUMANS - 1
+			dw kw_ztov, var_initwave_i
+for95_t:
+
+			; Main.bas 350: old_hrx(i) = 0
+			dw kw_asetl, arr_old_hrx, var_initwave_i, 0
+
+			; Main.bas 351: If hstate(i) <> H_DEAD Then
+			dw kw_aget, arr_hstate, var_initwave_i, tmp0
+			dw kw_cpnevl, tmp0, 0
+			dw kw_goto_iffalse, if96_1
+
+			; Main.bas 352: hstate(i) = H_GROUND
+			dw kw_asetl, arr_hstate, var_initwave_i, 1
+
+			; Main.bas 353: hcarrier(i) = -1
+			dw kw_asetl, arr_hcarrier, var_initwave_i, -1
+
+			; Main.bas 354: hy(i) = GetTerrainY(hx(i)) + 6
+			dw kw_aget, arr_hx, var_initwave_i, tmp1
+			dw p_getterrainy_c, tmp1
+			dw kw_vtov, var_getterrainy_getterrainy, tmp1
+			dw kw_addl, tmp1, 6, tmp1
+			dw kw_aset, arr_hy, var_initwave_i, tmp1
+
+			; Main.bas 355: End If
+if96_1:
+
+			; Main.bas 356: Next i
+			dw kw_next1l, var_initwave_i, 7, for95_t
+for95_e:
+
+			; Main.bas 357: End If
+if93_e:
+
+			; Main.bas 359: For i = 0 To MAX_ENEMIES - 1
+			dw kw_ztov, var_initwave_i
+for97_t:
+
+			; Main.bas 360: estate(i) = ST_DEAD
+			dw kw_asetl, arr_estate, var_initwave_i, 0
+
+			; Main.bas 361: old_erx(i) = 0
+			dw kw_asetl, arr_old_erx, var_initwave_i, 0
+
+			; Main.bas 362: Next i
+			dw kw_next1l, var_initwave_i, 9, for97_t
+for97_e:
+
+			; Main.bas 364: enemies_to_spawn = 6 + wave * 2
+			dw kw_2x, var_wave, tmp1
+			dw kw_addl, tmp1, 6, var_enemies_to_spawn
+
+			; Main.bas 365: If enemies_to_spawn > MAX_ENEMIES Then enemies_to_spawn = MAX_ENEMIES
+			dw kw_scpgtvl, var_enemies_to_spawn, 10
+			dw kw_goto_iffalse, if98_1
+			dw kw_ltov, 10, var_enemies_to_spawn
+if98_1:
+
+			; Main.bas 366: enemies_alive = 0
+			dw kw_ztov, var_enemies_alive
+
+			; Main.bas 367: spawn_timer = 10
+			dw kw_ltov, 10, var_spawn_timer
+
+			; Main.bas 369: For i = 0 To 4
+			dw kw_ztov, var_initwave_i
+for99_t:
+
+			; Main.bas 370: SpawnEnemy()
+			dw p_spawnenemy_c
+
+			; Main.bas 371: Next i
+			dw kw_next1l, var_initwave_i, 4, for99_t
+for99_e:
+
+			; Main.bas 373: For i = 0 To 7
+			dw kw_ztov, var_initwave_i
+for100_t:
+
+			; Main.bas 374: old_ty0(i) = -1
+			dw kw_asetl, arr_old_ty0, var_initwave_i, -1
+
+			; Main.bas 375: Next i
+			dw kw_next1l, var_initwave_i, 7, for100_t
+for100_e:
+
+			; Main.bas 376: ter_step = 0
+			dw kw_ztov, var_ter_step
+
+			; Main.bas 377: terOn = 0          ' NTC: (nothing of the terrain on the screen after ClsAll)
+			dw kw_ztov, var_teron
+
+			; Main.bas 378: UpdateHUD()
+			dw p_updatehud_c
+			dw p_initwave_r
+
+; ============================================================
+; sub spawnenemy (turbo mode)
+; ============================================================
+
+p_spawnenemy:
+
+			; Main.bas 382: Dim i As Integer
+
+			; Main.bas 383: If enemies_to_spawn <= 0 Then Exit Sub
+			dw kw_scplevl, var_enemies_to_spawn, 0
+			dw kw_goto_iffalse, if101_1
+			dw p_spawnenemy_r
+if101_1:
+
+			; Main.bas 384: For i = 0 To MAX_ENEMIES - 1
+			dw kw_ztov, var_spawnenemy_i
+for102_t:
+
+			; Main.bas 385: If estate(i) = ST_DEAD Then
+			dw kw_aget, arr_estate, var_spawnenemy_i, tmp0
+			dw kw_cpeqvl, tmp0, 0
+			dw kw_goto_iffalse, if103_1
+
+			; Main.bas 386: ex(i) = (px + 250 + Rnd(500)) And WORLD_MASK
+			dw kw_addl, var_px, 250, tmp1
+			dw kw_rndl, 500, tmp2
+			dw kw_add, tmp1, tmp2, tmp1
+			dw kw_andvl, tmp1, 1023, tmp1
+			dw kw_aset, arr_ex, var_spawnenemy_i, tmp1
+
+			; Main.bas 387: ey(i) = 130 + Rnd(15)
+			dw kw_rndl, 15, tmp2
+			dw kw_addl, tmp2, 130, tmp1
+			dw kw_aset, arr_ey, var_spawnenemy_i, tmp1
+
+			; Main.bas 388: If Rnd(2) = 0 Then evx(i) = 2 Else evx(i) = -2
+			dw kw_rndl, 2, tmp0
+			dw kw_cpeqvl, tmp0, 0
+			dw kw_goto_iffalse, if104_1
+			dw kw_asetl, arr_evx, var_spawnenemy_i, 2
+			dw if104_e_go
+if104_1:
+			dw kw_asetl, arr_evx, var_spawnenemy_i, -2
+if104_e:
+
+			; Main.bas 389: evy(i) = -1
+			dw kw_asetl, arr_evy, var_spawnenemy_i, -1
+
+			; Main.bas 390: If planet_dead Then
+			dw kw_goto_ifzero, var_planet_dead, if105_1
+
+			; Main.bas 391: estate(i) = ST_MUTANT
+			dw kw_asetl, arr_estate, var_spawnenemy_i, 4
+
+			; Main.bas 392: Else
+			dw if105_e_go
+if105_1:
+
+			; Main.bas 393: estate(i) = ST_WANDER
+			dw kw_asetl, arr_estate, var_spawnenemy_i, 1
+
+			; Main.bas 394: End If
+if105_e:
+
+			; Main.bas 395: etarget(i) = -1
+			dw kw_asetl, arr_etarget, var_spawnenemy_i, -1
+
+			; Main.bas 396: old_erx(i) = 0
+			dw kw_asetl, arr_old_erx, var_spawnenemy_i, 0
+
+			; Main.bas 397: enemies_alive = enemies_alive + 1
+			dw kw_inc, var_enemies_alive
+
+			; Main.bas 398: enemies_to_spawn = enemies_to_spawn - 1
+			dw kw_dec, var_enemies_to_spawn
+
+			; Main.bas 399: Exit Sub
+			dw p_spawnenemy_r
+
+			; Main.bas 400: End If
+if103_1:
+
+			; Main.bas 401: Next i
+			dw kw_next1l, var_spawnenemy_i, 9, for102_t
+for102_e:
+			dw p_spawnenemy_r
+
+; ============================================================
+; sub firelaser (turbo mode)
+; ============================================================
+
+p_firelaser:
+
+			; Main.bas 405: Dim i As Integer
+
+			; Main.bas 406: For i = 0 To MAX_LASERS - 1
+			dw kw_ztov, var_firelaser_i
+for106_t:
+
+			; Main.bas 407: If llife(i) = 0 Then
+			dw kw_aget, arr_llife, var_firelaser_i, tmp0
+			dw kw_cpeqvl, tmp0, 0
+			dw kw_goto_iffalse, if107_1
+
+			; Main.bas 408: lx(i) = (px + pdir * 12) And WORLD_MASK
+			dw kw_mulvl, var_pdir, 12, tmp2
+			dw kw_add, var_px, tmp2, tmp1
+			dw kw_andvl, tmp1, 1023, tmp1
+			dw kw_aset, arr_lx, var_firelaser_i, tmp1
+
+			; Main.bas 409: ly(i) = py
+			dw kw_aset, arr_ly, var_firelaser_i, var_py
+
+			; Main.bas 410: lvx(i) = pdir * 20 + pvx
+			dw kw_mulvl, var_pdir, 20, tmp1
+			dw kw_add, tmp1, var_pvx, tmp1
+			dw kw_aset, arr_lvx, var_firelaser_i, tmp1
+
+			; Main.bas 411: llife(i) = 12
+			dw kw_asetl, arr_llife, var_firelaser_i, 12
+
+			; Main.bas 412: Sound 1, 110, 4, 12
+			dw p_sound_c, lit_1, lit_110, lit_4, lit_12
+
+			; Main.bas 413: Exit Sub
+			dw p_firelaser_r
+
+			; Main.bas 414: End If
+if107_1:
+
+			; Main.bas 415: Next i
+			dw kw_next1l, var_firelaser_i, 3, for106_t
+for106_e:
+			dw p_firelaser_r
+
+; ============================================================
+; sub killenemy (turbo mode)
+; ============================================================
+
+p_killenemy:
+
+			; Main.bas 419: Dim h As Integer
+
+			; Main.bas 420: SetHardwareSprite(SLOT_ENEMY0 + idx, 0, 0, 0, False, False)
+			dw kw_addl, var_killenemy_idx, 13, tmp0
+			dw p_sethardwaresprite_c, tmp0, lit_0, lit_0, lit_0, lit_0, lit_0
+
+			; Main.bas 421: If old_erx(idx) > 0 Then
+			dw kw_aget, arr_old_erx, var_killenemy_idx, tmp0
+			dw kw_scpgtvl, tmp0, 0
+			dw kw_goto_iffalse, if108_1
+
+			; Main.bas 422: Plot old_erx(idx), old_ery(idx), 0
+			dw kw_aget, arr_old_erx, var_killenemy_idx, tmp0
+			dw kw_aget, arr_old_ery, var_killenemy_idx, tmp1
+			dw p_plot_c, tmp0, tmp1, lit_0
+
+			; Main.bas 423: old_erx(idx) = 0
+			dw kw_asetl, arr_old_erx, var_killenemy_idx, 0
+
+			; Main.bas 424: End If
+if108_1:
+
+			; Main.bas 426: h = etarget(idx)
+			dw kw_aget, arr_etarget, var_killenemy_idx, var_killenemy_h
+
+			; Main.bas 427: If h >= 0 And h < MAX_HUMANS Then
+			dw kw_scpgevl, var_killenemy_h, 0
+			dw kw_ftov, tmp0
+			dw kw_scpltvl, var_killenemy_h, 8
+			dw kw_ftov, tmp1
+			dw kw_andvv, tmp0, tmp1, tmp0
+			dw kw_goto_ifzero, tmp0, if109_1
+
+			; Main.bas 428: If hstate(h) = H_GRABBED And hcarrier(h) = idx Then
+			dw kw_aget, arr_hstate, var_killenemy_h, tmp0
+			dw kw_cpeqvl, tmp0, 2
+			dw kw_ftov, tmp0
+			dw kw_aget, arr_hcarrier, var_killenemy_h, tmp1
+			dw kw_cpeqvv, tmp1, var_killenemy_idx
+			dw kw_ftov, tmp1
+			dw kw_andvv, tmp0, tmp1, tmp0
+			dw kw_goto_ifzero, tmp0, if110_1
+
+			; Main.bas 429: hstate(h) = H_FALLING
+			dw kw_asetl, arr_hstate, var_killenemy_h, 3
+
+			; Main.bas 430: hcarrier(h) = -1
+			dw kw_asetl, arr_hcarrier, var_killenemy_h, -1
+
+			; Main.bas 431: End If
+if110_1:
+
+			; Main.bas 432: End If
+if109_1:
+
+			; Main.bas 434: estate(idx) = ST_DEAD
+			dw kw_asetl, arr_estate, var_killenemy_idx, 0
+
+			; Main.bas 435: enemies_alive = enemies_alive - 1
+			dw kw_dec, var_enemies_alive
+
+			; Main.bas 436: Sound 2, 260, 6, 14
+			dw p_sound_c, lit_2, lit_260, lit_6, lit_14
+			dw p_killenemy_r
+
+; ============================================================
+; sub triggersmartbomb (turbo mode)
+; ============================================================
+
+p_triggersmartbomb:
+
+			; Main.bas 440: Dim i As Integer, sx_pos As Integer
+
+			; Main.bas 441: If bombs <= 0 Then Exit Sub
+			dw kw_scplevl, var_bombs, 0
+			dw kw_goto_iffalse, if111_1
+			dw p_triggersmartbomb_r
+if111_1:
+
+			; Main.bas 442: bombs = bombs - 1
+			dw kw_dec, var_bombs
+
+			; Main.bas 443: bomb_cd = 20
+			dw kw_ltov, 20, var_bomb_cd
+
+			; Main.bas 444: Sound 1, 380, 15, 15
+			dw p_sound_c, lit_1, lit_380, lit_15, lit_15
+
+			; Main.bas 445: Border 7
+			dw p_border_c, lit_7
+
+			; Main.bas 446: flash_bg = 4
+			dw kw_ltov, 4, var_flash_bg
+
+			; Main.bas 448: For i = 0 To MAX_ENEMIES - 1
+			dw kw_ztov, var_triggersmartbomb_i
+for112_t:
+
+			; Main.bas 449: If estate(i) <> ST_DEAD Then
+			dw kw_aget, arr_estate, var_triggersmartbomb_i, tmp0
+			dw kw_cpnevl, tmp0, 0
+			dw kw_goto_iffalse, if113_1
+
+			; Main.bas 450: sx_pos = WorldToScreenX(ex(i), cx)
+			dw kw_aget, arr_ex, var_triggersmartbomb_i, tmp0
+			dw p_worldtoscreenx_c, tmp0, var_triggersmartbomb_cx
+			dw kw_vtov, var_worldtoscreenx_worldtoscreenx, var_triggersmartbomb_sx_pos
+
+			; Main.bas 451: If sx_pos >= -16 And sx_pos <= 272 Then
+			dw kw_scpgevl, var_triggersmartbomb_sx_pos, -16
+			dw kw_ftov, tmp0
+			dw kw_scplevl, var_triggersmartbomb_sx_pos, 272
+			dw kw_ftov, tmp1
+			dw kw_andvv, tmp0, tmp1, tmp0
+			dw kw_goto_ifzero, tmp0, if114_1
+
+			; Main.bas 452: KillEnemy(i)
+			dw p_killenemy_c, var_triggersmartbomb_i
+
+			; Main.bas 453: score = score + 15
+			dw kw_l_add, var_score, llit_15, var_score
+
+			; Main.bas 454: End If
+if114_1:
+
+			; Main.bas 455: End If
+if113_1:
+
+			; Main.bas 456: Next i
+			dw kw_next1l, var_triggersmartbomb_i, 9, for112_t
+for112_e:
+
+			; Main.bas 457: UpdateHUD()
+			dw p_updatehud_c
+			dw p_triggersmartbomb_r
+
+; ============================================================
+; sub loselife (turbo mode)
+; ============================================================
+
+p_loselife:
+
+			; Main.bas 461: Dim i As Integer
+
+			; Main.bas 462: Sound 1, 750, 25, 15
+			dw p_sound_c, lit_1, lit_750, lit_25, lit_15
+
+			; Main.bas 463: Border 2
+			dw p_border_c, lit_2
+
+			; Main.bas 464: For i = 1 To 25
+			dw kw_ltov, 1, var_loselife_i
+for115_t:
+
+			; Main.bas 465: Vsync
+			dw p_vsync_c
+
+			; Main.bas 466: Next i
+			dw kw_next1l, var_loselife_i, 25, for115_t
+for115_e:
+
+			; Main.bas 467: Border 0
+			dw p_border_c, lit_0
+
+			; Main.bas 469: lives = lives - 1
+			dw kw_dec, var_lives
+
+			; Main.bas 470: If lives <= 0 Then
+			dw kw_scplevl, var_lives, 0
+			dw kw_goto_iffalse, if116_1
+
+			; Main.bas 471: HideAllSprites()
+			dw p_hideallsprites_c
+
+			; Main.bas 472: game_over = True
+			dw kw_ltov, -1, var_game_over
+
+			; Main.bas 473: Else
+			dw if116_e_go
+if116_1:
+
+			; Main.bas 474: For i = 0 To MAX_HUMANS - 1
+			dw kw_ztov, var_loselife_i
+for117_t:
+
+			; Main.bas 475: If hstate(i) = H_CARRIED Then
+			dw kw_aget, arr_hstate, var_loselife_i, tmp0
+			dw kw_cpeqvl, tmp0, 4
+			dw kw_goto_iffalse, if118_1
+
+			; Main.bas 476: hstate(i) = H_FALLING
+			dw kw_asetl, arr_hstate, var_loselife_i, 3
+
+			; Main.bas 477: End If
+if118_1:
+
+			; Main.bas 478: Next i
+			dw kw_next1l, var_loselife_i, 7, for117_t
+for117_e:
+
+			; Main.bas 479: InitWave()
+			dw p_initwave_c
+
+			; Main.bas 480: End If
+if116_e:
+			dw p_loselife_r
 
 ; ============================================================
 ; sub setpens (turbo mode)
@@ -3627,38 +2705,40 @@ do171_e:
 
 p_setpens:
 
-			; Main.bas 1094: For k = 0 To 15
-			dw kw_ztov, var_k
-for172_t:
+			; Main.bas 917: Dim k As Integer
 
-			; Main.bas 1095: penc(k) = Val(Mid$("000 003 224 028 031 226 252 255 146 002 224 031 028 226 252 255", k * 4 + 1, 3))
-			dw kw_4x, var_k, tmp2
+			; Main.bas 918: For k = 0 To 15
+			dw kw_ztov, var_setpens_k
+for119_t:
+
+			; Main.bas 919: penc(k) = Val(Mid$("000 003 224 028 031 226 252 255 146 002 224 031 028 226 252 255", k * 4 + 1, 3))
+			dw kw_4x, var_setpens_k, tmp2
 			dw kw_inc, tmp2
-			dw kw_strmid, stmp1, str28, tmp2, lit_3
+			dw kw_strmid, stmp1, str17, tmp2, lit_3
 			dw kw_strval, stmp1, tmp1
-			dw kw_aset, arr_penc, var_k, tmp1
+			dw kw_aset, arr_penc, var_setpens_k, tmp1
 
-			; Main.bas 1096: Next k
-			dw kw_next1l, var_k, 15, for172_t
-for172_e:
+			; Main.bas 920: Next k
+			dw kw_next1l, var_setpens_k, 15, for119_t
+for119_e:
 
-			; Main.bas 1097: Board.Pal 2, "00FF00000000000000000000000025E3"
-			dw p_board_pal_c, lit_2, str29
+			; Main.bas 921: Board.Pal 2, "00FF00000000000000000000000025E3"
+			dw p_board_pal_c, lit_2, str18
 
-			; Main.bas 1098: Board.Pal 3, "00FC00000000000000000000000025E3"
-			dw p_board_pal_c, lit_3, str30
+			; Main.bas 922: Board.Pal 3, "00FC00000000000000000000000025E3"
+			dw p_board_pal_c, lit_3, str19
 
-			; Main.bas 1099: Board.Pal 4, "001F00000000000000000000000025E3"
-			dw p_board_pal_c, lit_4, str31
+			; Main.bas 923: Board.Pal 4, "001F00000000000000000000000025E3"
+			dw p_board_pal_c, lit_4, str20
 
-			; Main.bas 1100: Board.Pal 5, "00E000000000000000000000000025E3"
-			dw p_board_pal_c, lit_5, str32
+			; Main.bas 924: Board.Pal 5, "00E000000000000000000000000025E3"
+			dw p_board_pal_c, lit_5, str21
 
-			; Main.bas 1101: Board.Pal 6, "001C00000000000000000000000025E3"
-			dw p_board_pal_c, lit_6, str33
+			; Main.bas 925: Board.Pal 6, "001C00000000000000000000000025E3"
+			dw p_board_pal_c, lit_6, str22
 
-			; Main.bas 1102: Board.Pal 7, "00E200000000000000000000000025E3"
-			dw p_board_pal_c, lit_7, str34
+			; Main.bas 926: Board.Pal 7, "00E200000000000000000000000025E3"
+			dw p_board_pal_c, lit_7, str23
 			dw p_setpens_r
 
 ; ============================================================
@@ -3667,54 +2747,54 @@ for172_e:
 
 p_pen:
 
-			; Main.bas 1107: Select Case n
-			dw kw_vtov, var_pen_n, var_pen___sel173
+			; Main.bas 931: Select Case n
+			dw kw_vtov, var_pen_n, var_pen___sel120
 
-			; Main.bas 1108: Case 14: txtPen = 3
-			dw kw_cpeqvl, var_pen___sel173, 14
-			dw kw_goto_iffalse, sel173_1
-sel173_b1:
+			; Main.bas 932: Case 14: txtPen = 3
+			dw kw_cpeqvl, var_pen___sel120, 14
+			dw kw_goto_iffalse, sel120_1
+sel120_b1:
 			dw kw_ltov, 3, var_txtpen
 
-			; Main.bas 1109: Case 11: txtPen = 4
-			dw sel173_e_go
-sel173_1:
-			dw kw_cpeqvl, var_pen___sel173, 11
-			dw kw_goto_iffalse, sel173_2
-sel173_b2:
+			; Main.bas 933: Case 11: txtPen = 4
+			dw sel120_e_go
+sel120_1:
+			dw kw_cpeqvl, var_pen___sel120, 11
+			dw kw_goto_iffalse, sel120_2
+sel120_b2:
 			dw kw_ltov, 4, var_txtpen
 
-			; Main.bas 1110: Case 10: txtPen = 5
-			dw sel173_e_go
-sel173_2:
-			dw kw_cpeqvl, var_pen___sel173, 10
-			dw kw_goto_iffalse, sel173_3
-sel173_b3:
+			; Main.bas 934: Case 10: txtPen = 5
+			dw sel120_e_go
+sel120_2:
+			dw kw_cpeqvl, var_pen___sel120, 10
+			dw kw_goto_iffalse, sel120_3
+sel120_b3:
 			dw kw_ltov, 5, var_txtpen
 
-			; Main.bas 1111: Case 12: txtPen = 6
-			dw sel173_e_go
-sel173_3:
-			dw kw_cpeqvl, var_pen___sel173, 12
-			dw kw_goto_iffalse, sel173_4
-sel173_b4:
+			; Main.bas 935: Case 12: txtPen = 6
+			dw sel120_e_go
+sel120_3:
+			dw kw_cpeqvl, var_pen___sel120, 12
+			dw kw_goto_iffalse, sel120_4
+sel120_b4:
 			dw kw_ltov, 6, var_txtpen
 
-			; Main.bas 1112: Case 13: txtPen = 7
-			dw sel173_e_go
-sel173_4:
-			dw kw_cpeqvl, var_pen___sel173, 13
-			dw kw_goto_iffalse, sel173_5
-sel173_b5:
+			; Main.bas 936: Case 13: txtPen = 7
+			dw sel120_e_go
+sel120_4:
+			dw kw_cpeqvl, var_pen___sel120, 13
+			dw kw_goto_iffalse, sel120_5
+sel120_b5:
 			dw kw_ltov, 7, var_txtpen
 
-			; Main.bas 1113: Case Else: txtPen = 2
-			dw sel173_e_go
-sel173_5:
+			; Main.bas 937: Case Else: txtPen = 2
+			dw sel120_e_go
+sel120_5:
 			dw kw_ltov, 2, var_txtpen
 
-			; Main.bas 1114: End Select
-sel173_e:
+			; Main.bas 938: End Select
+sel120_e:
 			dw p_pen_r
 
 ; ============================================================
@@ -3730,7 +2810,7 @@ p_paper:
 
 p_border:
 
-			; Main.bas 1121: Nx.Border n And 7
+			; Main.bas 945: Nx.Border n And 7
 			dw kw_andvl, var_border_n, 7, tmp0
 			dw fn_nx_border, tmp0
 			dw p_border_r
@@ -3741,7 +2821,7 @@ p_border:
 
 p_at:
 
-			; Main.bas 1126: atx = x + 3 : aty = y + 3
+			; Main.bas 950: atx = x + 3 : aty = y + 3
 			dw kw_addl, var_at_x, 3, var_atx
 			dw kw_addl, var_at_y, 3, var_aty
 			dw p_at_r
@@ -3752,10 +2832,10 @@ p_at:
 
 p_prints:
 
-			; Main.bas 1130: Board.Text atx, aty, t, txtPen
+			; Main.bas 954: Board.Text atx, aty, t, txtPen
 			dw fn_board_text, var_atx, var_aty, var_prints_t, var_txtpen
 
-			; Main.bas 1131: atx = atx + Len(t)
+			; Main.bas 955: atx = atx + Len(t)
 			dw kw_strlen, var_prints_t, tmp1
 			dw kw_add, var_atx, tmp1, var_atx
 			dw p_prints_r
@@ -3766,25 +2846,30 @@ p_prints:
 
 p_clsall:
 
-			; Main.bas 1135: Board.Clear
+			; Main.bas 959: Dim k As Integer
+
+			; Main.bas 960: Board.Clear
 			dw fn_board_clear
 
-			; Main.bas 1136: L2.Rect 0, 0, 256, 192, 0
+			; Main.bas 961: L2.Rect 0, 0, 256, 192, 0
 			dw p_l2_rect_c, lit_0, lit_0, lit_256, lit_192, lit_0
 
-			; Main.bas 1137: For k = 0 To 255
-			dw kw_ztov, var_k
-for174_t:
+			; Main.bas 962: For k = 0 To 255
+			dw kw_ztov, var_clsall_k
+for121_t:
 
-			; Main.bas 1138: ycol(k) = -1
-			dw kw_asetl, arr_ycol, var_k, -1
+			; Main.bas 963: ycol(k) = -1
+			dw kw_asetl, arr_ycol, var_clsall_k, -1
 
-			; Main.bas 1139: Next k
-			dw kw_next1l, var_k, 255, for174_t
-for174_e:
+			; Main.bas 964: Next k
+			dw kw_next1l, var_clsall_k, 255, for121_t
+for121_e:
 
-			; Main.bas 1140: terOn = 0
+			; Main.bas 965: terOn = 0
 			dw kw_ztov, var_teron
+
+			; Main.bas 966: Scroll.Show 0
+			dw p_scroll_show_c, lit_0
 			dw p_clsall_r
 
 ; ============================================================
@@ -3793,11 +2878,11 @@ for174_e:
 
 p_plot:
 
-			; Main.bas 1145: gx = x : gy = y
+			; Main.bas 971: gx = x : gy = y
 			dw kw_vtov, var_plot_x, var_gx
 			dw kw_vtov, var_plot_y, var_gy
 
-			; Main.bas 1146: If x >= 0 And x < 256 And y >= 0 And y < 192 Then L2.Plot x, 191 - y, penc(c And 15)
+			; Main.bas 972: If x >= 0 And x < 256 And y >= 0 And y < 192 Then L2.Plot x, 191 - y, penc(c And 15)
 			dw kw_scpgevl, var_plot_x, 0
 			dw kw_ftov, tmp0
 			dw kw_scpltvl, var_plot_x, 256
@@ -3809,12 +2894,12 @@ p_plot:
 			dw kw_scpltvl, var_plot_y, 192
 			dw kw_ftov, tmp1
 			dw kw_andvv, tmp0, tmp1, tmp0
-			dw kw_goto_ifzero, tmp0, if175_1
+			dw kw_goto_ifzero, tmp0, if122_1
 			dw kw_sublv, 191, var_plot_y, tmp1
 			dw kw_andvl, var_plot_c, 15, tmp2
 			dw kw_aget, arr_penc, tmp2, tmp2
 			dw p_l2_plot_c, var_plot_x, tmp1, tmp2
-if175_1:
+if122_1:
 			dw p_plot_r
 
 ; ============================================================
@@ -3823,48 +2908,48 @@ if175_1:
 
 p_draw:
 
-			; Main.bas 1151: Dim dx As Integer, dy As Integer, sx1 As Integer, sy1 As Integer, e As Integer, e2 As Integer, x0 As Integer, y0 As Integer, col As Integer
+			; Main.bas 977: Dim dx As Integer, dy As Integer, sx1 As Integer, sy1 As Integer, e As Integer, e2 As Integer, x0 As Integer, y0 As Integer, col As Integer
 
-			; Main.bas 1152: col = penc(c And 15)
+			; Main.bas 978: col = penc(c And 15)
 			dw kw_andvl, var_draw_c, 15, tmp0
 			dw kw_aget, arr_penc, tmp0, var_draw_col
 
-			; Main.bas 1153: x0 = gx : y0 = gy
+			; Main.bas 979: x0 = gx : y0 = gy
 			dw kw_vtov, var_gx, var_draw_x0
 			dw kw_vtov, var_gy, var_draw_y0
 
-			; Main.bas 1154: dx = Abs(x - x0) : dy = -Abs(y - y0)
+			; Main.bas 980: dx = Abs(x - x0) : dy = -Abs(y - y0)
 			dw kw_subvv, var_draw_x, var_draw_x0, tmp0
 			dw kw_absv, tmp0, var_draw_dx
 			dw kw_subvv, var_draw_y, var_draw_y0, tmp0
 			dw kw_absv, tmp0, tmp0
 			dw kw_negv, tmp0, var_draw_dy
 
-			; Main.bas 1155: If x0 < x Then sx1 = 1 Else sx1 = -1
+			; Main.bas 981: If x0 < x Then sx1 = 1 Else sx1 = -1
 			dw kw_scpltvv, var_draw_x0, var_draw_x
-			dw kw_goto_iffalse, if176_1
+			dw kw_goto_iffalse, if123_1
 			dw kw_ltov, 1, var_draw_sx1
-			dw if176_e_go
-if176_1:
+			dw if123_e_go
+if123_1:
 			dw kw_ltov, -1, var_draw_sx1
-if176_e:
+if123_e:
 
-			; Main.bas 1156: If y0 < y Then sy1 = 1 Else sy1 = -1
+			; Main.bas 982: If y0 < y Then sy1 = 1 Else sy1 = -1
 			dw kw_scpltvv, var_draw_y0, var_draw_y
-			dw kw_goto_iffalse, if177_1
+			dw kw_goto_iffalse, if124_1
 			dw kw_ltov, 1, var_draw_sy1
-			dw if177_e_go
-if177_1:
+			dw if124_e_go
+if124_1:
 			dw kw_ltov, -1, var_draw_sy1
-if177_e:
+if124_e:
 
-			; Main.bas 1157: e = dx + dy
+			; Main.bas 983: e = dx + dy
 			dw kw_add, var_draw_dx, var_draw_dy, var_draw_e
 
-			; Main.bas 1158: Do
-do178_t:
+			; Main.bas 984: Do
+do125_t:
 
-			; Main.bas 1159: If x0 >= 0 And x0 < 256 And y0 >= 0 And y0 < 192 Then L2.Plot x0, 191 - y0, col
+			; Main.bas 985: If x0 >= 0 And x0 < 256 And y0 >= 0 And y0 < 192 Then L2.Plot x0, 191 - y0, col
 			dw kw_scpgevl, var_draw_x0, 0
 			dw kw_ftov, tmp0
 			dw kw_scpltvl, var_draw_x0, 256
@@ -3876,46 +2961,60 @@ do178_t:
 			dw kw_scpltvl, var_draw_y0, 192
 			dw kw_ftov, tmp1
 			dw kw_andvv, tmp0, tmp1, tmp0
-			dw kw_goto_ifzero, tmp0, if179_1
+			dw kw_goto_ifzero, tmp0, if126_1
 			dw kw_sublv, 191, var_draw_y0, tmp1
 			dw p_l2_plot_c, var_draw_x0, tmp1, var_draw_col
-if179_1:
+if126_1:
 
-			; Main.bas 1160: If x0 = x And y0 = y Then Exit Do
+			; Main.bas 986: If x0 = x And y0 = y Then Exit Do
 			dw kw_cpeqvv, var_draw_x0, var_draw_x
 			dw kw_ftov, tmp0
 			dw kw_cpeqvv, var_draw_y0, var_draw_y
 			dw kw_ftov, tmp1
 			dw kw_andvv, tmp0, tmp1, tmp0
-			dw kw_goto_ifzero, tmp0, if180_1
-			dw do178_e_go
-if180_1:
+			dw kw_goto_ifzero, tmp0, if127_1
+			dw do125_e_go
+if127_1:
 
-			; Main.bas 1161: e2 = e * 2
+			; Main.bas 987: e2 = e * 2
 			dw kw_2x, var_draw_e, var_draw_e2
 
-			; Main.bas 1162: If e2 >= dy Then e = e + dy : x0 = x0 + sx1
+			; Main.bas 988: If e2 >= dy Then e = e + dy : x0 = x0 + sx1
 			dw kw_scpgevv, var_draw_e2, var_draw_dy
-			dw kw_goto_iffalse, if181_1
+			dw kw_goto_iffalse, if128_1
 			dw kw_add, var_draw_e, var_draw_dy, var_draw_e
 			dw kw_add, var_draw_x0, var_draw_sx1, var_draw_x0
-if181_1:
+if128_1:
 
-			; Main.bas 1163: If e2 <= dx Then e = e + dx : y0 = y0 + sy1
+			; Main.bas 989: If e2 <= dx Then e = e + dx : y0 = y0 + sy1
 			dw kw_scplevv, var_draw_e2, var_draw_dx
-			dw kw_goto_iffalse, do178_t
+			dw kw_goto_iffalse, do125_t
 			dw kw_add, var_draw_e, var_draw_dx, var_draw_e
 			dw kw_add, var_draw_y0, var_draw_sy1, var_draw_y0
-if182_1:
+if129_1:
 
-			; Main.bas 1164: Loop
-			dw do178_t_go
-do178_e:
+			; Main.bas 990: Loop
+			dw do125_t_go
+do125_e:
 
-			; Main.bas 1165: gx = x : gy = y
+			; Main.bas 991: gx = x : gy = y
 			dw kw_vtov, var_draw_x, var_gx
 			dw kw_vtov, var_draw_y, var_gy
 			dw p_draw_r
+
+; ============================================================
+; sub sound (turbo mode)
+; ============================================================
+
+p_sound:
+
+			; Main.bas 996: Sfx.Play (ch - 1) Mod 3, pitch, 0, vol, dur * 2 + 1, 0
+			dw kw_addl, var_sound_ch, -1, tmp0
+			dw kw_modvl, tmp0, 3, tmp0
+			dw kw_2x, var_sound_dur, tmp4
+			dw kw_inc, tmp4
+			dw p_sfx_play_c, tmp0, var_sound_pitch, lit_0, var_sound_vol, tmp4, lit_0
+			dw p_sound_r
 
 ; ============================================================
 ; sub vsync (turbo mode)
@@ -3923,13 +3022,13 @@ do178_e:
 
 p_vsync:
 
-			; Main.bas 1175: Frame
+			; Main.bas 1001: Frame
 			dw kw_frame
 
-			; Main.bas 1176: Scroll.Upload
+			; Main.bas 1002: Scroll.Upload
 			dw fn_scroll_upload
 
-			; Main.bas 1177: Sfx.Update
+			; Main.bas 1003: Sfx.Update
 			dw p_sfx_update_c
 			dw p_vsync_r
 
@@ -3939,86 +3038,86 @@ p_vsync:
 
 p_key:
 
-			; Main.bas 1182: Select Case n
-			dw kw_vtov, var_key_n, var_key___sel183
+			; Main.bas 1008: Select Case n
+			dw kw_vtov, var_key_n, var_key___sel130
 
-			; Main.bas 1183: Case 40: Key = Keys.Down(Keys.KeySpace)
-			dw kw_cpeqvl, var_key___sel183, 40
-			dw kw_goto_iffalse, sel183_1
-sel183_b1:
+			; Main.bas 1009: Case 40: Key = Keys.Down(Keys.KeySpace)
+			dw kw_cpeqvl, var_key___sel130, 40
+			dw kw_goto_iffalse, sel130_1
+sel130_b1:
 			dw fn_keys_down, lit_56, var_key_key
 
-			; Main.bas 1184: Case 3: Key = Keys.Down(Keys.KeyQ)
-			dw sel183_e_go
-sel183_1:
-			dw kw_cpeqvl, var_key___sel183, 3
-			dw kw_goto_iffalse, sel183_2
-sel183_b2:
+			; Main.bas 1010: Case 3: Key = Keys.Down(Keys.KeyQ)
+			dw sel130_e_go
+sel130_1:
+			dw kw_cpeqvl, var_key___sel130, 3
+			dw kw_goto_iffalse, sel130_2
+sel130_b2:
 			dw fn_keys_down, lit_16, var_key_key
 
-			; Main.bas 1185: Case 2: Key = Keys.Down(Keys.KeyA)
-			dw sel183_e_go
-sel183_2:
-			dw kw_cpeqvl, var_key___sel183, 2
-			dw kw_goto_iffalse, sel183_3
-sel183_b3:
+			; Main.bas 1011: Case 2: Key = Keys.Down(Keys.KeyA)
+			dw sel130_e_go
+sel130_2:
+			dw kw_cpeqvl, var_key___sel130, 2
+			dw kw_goto_iffalse, sel130_3
+sel130_b3:
 			dw fn_keys_down, lit_8, var_key_key
 
-			; Main.bas 1186: Case 33: Key = Keys.Down(Keys.KeyO)
-			dw sel183_e_go
-sel183_3:
-			dw kw_cpeqvl, var_key___sel183, 33
-			dw kw_goto_iffalse, sel183_4
-sel183_b4:
+			; Main.bas 1012: Case 33: Key = Keys.Down(Keys.KeyO)
+			dw sel130_e_go
+sel130_3:
+			dw kw_cpeqvl, var_key___sel130, 33
+			dw kw_goto_iffalse, sel130_4
+sel130_b4:
 			dw fn_keys_down, lit_41, var_key_key
 
-			; Main.bas 1187: Case 32: Key = Keys.Down(Keys.KeyP)
-			dw sel183_e_go
-sel183_4:
-			dw kw_cpeqvl, var_key___sel183, 32
-			dw kw_goto_iffalse, sel183_5
-sel183_b5:
+			; Main.bas 1013: Case 32: Key = Keys.Down(Keys.KeyP)
+			dw sel130_e_go
+sel130_4:
+			dw kw_cpeqvl, var_key___sel130, 32
+			dw kw_goto_iffalse, sel130_5
+sel130_b5:
 			dw fn_keys_down, lit_40, var_key_key
 
-			; Main.bas 1188: Case 9: Key = Keys.Down(Keys.KeyZ)
-			dw sel183_e_go
-sel183_5:
-			dw kw_cpeqvl, var_key___sel183, 9
-			dw kw_goto_iffalse, sel183_6
-sel183_b6:
+			; Main.bas 1014: Case 9: Key = Keys.Down(Keys.KeyZ)
+			dw sel130_e_go
+sel130_5:
+			dw kw_cpeqvl, var_key___sel130, 9
+			dw kw_goto_iffalse, sel130_6
+sel130_b6:
 			dw fn_keys_down, lit_1, var_key_key
 
-			; Main.bas 1189: Case 36: Key = Keys.Down(Keys.KeyB)
-			dw sel183_e_go
-sel183_6:
-			dw kw_cpeqvl, var_key___sel183, 36
-			dw kw_goto_iffalse, sel183_7
-sel183_b7:
+			; Main.bas 1015: Case 36: Key = Keys.Down(Keys.KeyB)
+			dw sel130_e_go
+sel130_6:
+			dw kw_cpeqvl, var_key___sel130, 36
+			dw kw_goto_iffalse, sel130_7
+sel130_b7:
 			dw fn_keys_down, lit_60, var_key_key
 
-			; Main.bas 1190: Case 34: Key = Keys.Down(Keys.KeyM)
-			dw sel183_e_go
-sel183_7:
-			dw kw_cpeqvl, var_key___sel183, 34
-			dw kw_goto_iffalse, sel183_8
-sel183_b8:
+			; Main.bas 1016: Case 34: Key = Keys.Down(Keys.KeyM)
+			dw sel130_e_go
+sel130_7:
+			dw kw_cpeqvl, var_key___sel130, 34
+			dw kw_goto_iffalse, sel130_8
+sel130_b8:
 			dw fn_keys_down, lit_58, var_key_key
 
-			; Main.bas 1191: Case 38: Key = Keys.Down(Keys.KeyH)
-			dw sel183_e_go
-sel183_8:
-			dw kw_cpeqvl, var_key___sel183, 38
-			dw kw_goto_iffalse, sel183_9
-sel183_b9:
+			; Main.bas 1017: Case 38: Key = Keys.Down(Keys.KeyH)
+			dw sel130_e_go
+sel130_8:
+			dw kw_cpeqvl, var_key___sel130, 38
+			dw kw_goto_iffalse, sel130_9
+sel130_b9:
 			dw fn_keys_down, lit_52, var_key_key
 
-			; Main.bas 1192: Case Else: Key = 0
-			dw sel183_e_go
-sel183_9:
+			; Main.bas 1018: Case Else: Key = 0
+			dw sel130_e_go
+sel130_9:
 			dw kw_ztov, var_key_key
 
-			; Main.bas 1193: End Select
-sel183_e:
+			; Main.bas 1019: End Select
+sel130_e:
 			dw p_key_r
 
 ; ============================================================
@@ -4027,51 +3126,51 @@ sel183_e:
 
 p_joy:
 
-			; Main.bas 1198: Dim j0 As Integer, r As Integer
+			; Main.bas 1024: Dim j0 As Integer, r As Integer
 
-			; Main.bas 1199: j0 = Keys.Joystick(n)
+			; Main.bas 1025: j0 = Keys.Joystick(n)
 			dw fn_keys_joystick, var_joy_n, var_joy_j0
 
-			; Main.bas 1200: r = 0
+			; Main.bas 1026: r = 0
 			dw kw_ztov, var_joy_r
 
-			; Main.bas 1201: If j0 And Keys.JoyRight Then r = r Or 1
+			; Main.bas 1027: If j0 And Keys.JoyRight Then r = r Or 1
 			dw kw_andvl, var_joy_j0, 8, tmp1
-			dw kw_goto_ifzero, tmp1, if184_1
+			dw kw_goto_ifzero, tmp1, if131_1
 			dw kw_orvl, var_joy_r, 1, var_joy_r
-if184_1:
+if131_1:
 
-			; Main.bas 1202: If j0 And Keys.JoyLeft Then r = r Or 2
+			; Main.bas 1028: If j0 And Keys.JoyLeft Then r = r Or 2
 			dw kw_andvl, var_joy_j0, 4, tmp1
-			dw kw_goto_ifzero, tmp1, if185_1
+			dw kw_goto_ifzero, tmp1, if132_1
 			dw kw_orvl, var_joy_r, 2, var_joy_r
-if185_1:
+if132_1:
 
-			; Main.bas 1203: If j0 And Keys.JoyDown Then r = r Or 4
+			; Main.bas 1029: If j0 And Keys.JoyDown Then r = r Or 4
 			dw kw_andvl, var_joy_j0, 2, tmp1
-			dw kw_goto_ifzero, tmp1, if186_1
+			dw kw_goto_ifzero, tmp1, if133_1
 			dw kw_orvl, var_joy_r, 4, var_joy_r
-if186_1:
+if133_1:
 
-			; Main.bas 1204: If j0 And Keys.JoyUp Then r = r Or 8
+			; Main.bas 1030: If j0 And Keys.JoyUp Then r = r Or 8
 			dw kw_andvl, var_joy_j0, 1, tmp1
-			dw kw_goto_ifzero, tmp1, if187_1
+			dw kw_goto_ifzero, tmp1, if134_1
 			dw kw_orvl, var_joy_r, 8, var_joy_r
-if187_1:
+if134_1:
 
-			; Main.bas 1205: If j0 And Keys.JoyFire1 Then r = r Or 16
+			; Main.bas 1031: If j0 And Keys.JoyFire1 Then r = r Or 16
 			dw kw_andvl, var_joy_j0, 32, tmp1
-			dw kw_goto_ifzero, tmp1, if188_1
+			dw kw_goto_ifzero, tmp1, if135_1
 			dw kw_orvl, var_joy_r, 16, var_joy_r
-if188_1:
+if135_1:
 
-			; Main.bas 1206: If j0 And Keys.JoyFire2 Then r = r Or 32
+			; Main.bas 1032: If j0 And Keys.JoyFire2 Then r = r Or 32
 			dw kw_andvl, var_joy_j0, 16, tmp1
-			dw kw_goto_ifzero, tmp1, if189_1
+			dw kw_goto_ifzero, tmp1, if136_1
 			dw kw_orvl, var_joy_r, 32, var_joy_r
-if189_1:
+if136_1:
 
-			; Main.bas 1207: Joy = r
+			; Main.bas 1033: Joy = r
 			dw kw_vtov, var_joy_r, var_joy_joy
 			dw p_joy_r
 
@@ -4081,129 +3180,121 @@ if189_1:
 
 p_terrain:
 
-			; Main.bas 1215: Dim d As Integer
+			; Main.bas 1040: Dim d As Integer, wx As Integer, k As Integer
 
-			; Main.bas 1216: If terDead <> planet_dead Then Heights
-			dw kw_cpnevv, var_terdead, var_planet_dead
-			dw kw_goto_iffalse, if190_1
-			dw p_heights_c
-if190_1:
-
-			; Main.bas 1217: If terOn = 0 Or terDead <> planet_dead Then
+			; Main.bas 1041: If terOn = 0 Or terDead <> planet_dead Then
 			dw kw_cpeqvl, var_teron, 0
 			dw kw_ftov, tmp0
 			dw kw_cpnevv, var_terdead, var_planet_dead
 			dw kw_ftov, tmp1
 			dw kw_orvv, tmp0, tmp1, tmp0
-			dw kw_goto_ifzero, tmp0, if191_1
+			dw kw_goto_ifzero, tmp0, if137_1
 
-			; Main.bas 1218: For k = 0 To 255
-			dw kw_ztov, var_k
-for192_t:
+			; Main.bas 1042: For k = 0 To 255
+			dw kw_ztov, var_terrain_k
+for138_t:
 
-			; Main.bas 1219: Col (cx + k) And WORLD_MASK
-			dw kw_add, var_terrain_cx, var_k, tmp0
+			; Main.bas 1043: Col (cx + k) And WORLD_MASK
+			dw kw_add, var_terrain_cx, var_terrain_k, tmp0
 			dw kw_andvl, tmp0, 1023, tmp0
 			dw p_col_c, tmp0
 
-			; Main.bas 1220: Next k
-			dw kw_next1l, var_k, 255, for192_t
-for192_e:
+			; Main.bas 1044: Next k
+			dw kw_next1l, var_terrain_k, 255, for138_t
+for138_e:
 
-			; Main.bas 1221: Else
-			dw if191_e_go
-if191_1:
+			; Main.bas 1045: Else
+			dw if137_e_go
+if137_1:
 
-			; Main.bas 1222: d = (cx - tcam) And WORLD_MASK
+			; Main.bas 1046: d = (cx - tcam) And WORLD_MASK
 			dw kw_subvv, var_terrain_cx, var_tcam, tmp0
 			dw kw_andvl, tmp0, 1023, var_terrain_d
 
-			; Main.bas 1223: If d >= 512 Then d = d - 1024
+			; Main.bas 1047: If d >= 512 Then d = d - 1024
 			dw kw_scpgevl, var_terrain_d, 512
-			dw kw_goto_iffalse, if193_1
+			dw kw_goto_iffalse, if139_1
 			dw kw_addl, var_terrain_d, -1024, var_terrain_d
-if193_1:
+if139_1:
 
-			; Main.bas 1224: If d >= 256 Or d <= -256 Then
+			; Main.bas 1048: If d >= 256 Or d <= -256 Then
 			dw kw_scpgevl, var_terrain_d, 256
 			dw kw_ftov, tmp0
 			dw kw_scplevl, var_terrain_d, -256
 			dw kw_ftov, tmp1
 			dw kw_orvv, tmp0, tmp1, tmp0
-			dw kw_goto_ifzero, tmp0, if194_1
+			dw kw_goto_ifzero, tmp0, if140_1
 
-			; Main.bas 1225: For k = 0 To 255
-			dw kw_ztov, var_k
-for195_t:
+			; Main.bas 1049: For k = 0 To 255
+			dw kw_ztov, var_terrain_k
+for141_t:
 
-			; Main.bas 1226: Col (cx + k) And WORLD_MASK
-			dw kw_add, var_terrain_cx, var_k, tmp0
+			; Main.bas 1050: Col (cx + k) And WORLD_MASK
+			dw kw_add, var_terrain_cx, var_terrain_k, tmp0
 			dw kw_andvl, tmp0, 1023, tmp0
 			dw p_col_c, tmp0
 
-			; Main.bas 1227: Next k
-			dw kw_next1l, var_k, 255, for195_t
-for195_e:
+			; Main.bas 1051: Next k
+			dw kw_next1l, var_terrain_k, 255, for141_t
+for141_e:
 
-			; Main.bas 1228: ElseIf d > 0 Then
-			dw if194_e_go
-if194_1:
+			; Main.bas 1052: ElseIf d > 0 Then
+			dw if140_e_go
+if140_1:
 			dw kw_scpgtvl, var_terrain_d, 0
-			dw kw_goto_iffalse, if194_2
+			dw kw_goto_iffalse, if140_2
 
-			; Main.bas 1229: For k = 256 - d To 255
-			dw kw_sublv, 256, var_terrain_d, var_k
-			dw kw_forupl, var_k, 255, if194_e
-for196_t:
+			; Main.bas 1053: For k = 256 - d To 255
+			dw kw_sublv, 256, var_terrain_d, var_terrain_k
+			dw kw_forupl, var_terrain_k, 255, if140_e
+for142_t:
 
-			; Main.bas 1230: Col (cx + k) And WORLD_MASK
-			dw kw_add, var_terrain_cx, var_k, tmp0
+			; Main.bas 1054: Col (cx + k) And WORLD_MASK
+			dw kw_add, var_terrain_cx, var_terrain_k, tmp0
 			dw kw_andvl, tmp0, 1023, tmp0
 			dw p_col_c, tmp0
 
-			; Main.bas 1231: Next k
-			dw kw_next1l, var_k, 255, for196_t
-for196_e:
+			; Main.bas 1055: Next k
+			dw kw_next1l, var_terrain_k, 255, for142_t
+for142_e:
 
-			; Main.bas 1232: ElseIf d < 0 Then
-			dw if194_e_go
-if194_2:
+			; Main.bas 1056: ElseIf d < 0 Then
+			dw if140_e_go
+if140_2:
 			dw kw_scpltvl, var_terrain_d, 0
-			dw kw_goto_iffalse, if194_3
+			dw kw_goto_iffalse, if140_3
 
-			; Main.bas 1233: For k = 0 To -d - 1
-			dw kw_ztov, var_k
+			; Main.bas 1057: For k = 0 To -d - 1
+			dw kw_ztov, var_terrain_k
 			dw kw_negv, var_terrain_d, tmp0
-			dw kw_addl, tmp0, -1, for197_l
-			dw kw_forupv, var_k, for197_l, for197_e
-for197_t:
+			dw kw_addl, tmp0, -1, for143_l
+			dw kw_forupv, var_terrain_k, for143_l, for143_e
+for143_t:
 
-			; Main.bas 1234: Col (cx + k) And WORLD_MASK
-			dw kw_add, var_terrain_cx, var_k, tmp0
+			; Main.bas 1058: Col (cx + k) And WORLD_MASK
+			dw kw_add, var_terrain_cx, var_terrain_k, tmp0
 			dw kw_andvl, tmp0, 1023, tmp0
 			dw p_col_c, tmp0
 
-			; Main.bas 1235: Next k
-			dw kw_next1v, var_k, for197_l, for197_t
-for197_e:
+			; Main.bas 1059: Next k
+			dw kw_next1v, var_terrain_k, for143_l, for143_t
+for143_e:
 
-			; Main.bas 1236: End If
-if194_3:
-if194_e:
+			; Main.bas 1060: End If
+if140_3:
+if140_e:
 
-			; Main.bas 1237: End If
-if191_e:
+			; Main.bas 1061: End If
+if137_e:
 
-			; Main.bas 1238: terOn = 1 : terDead = planet_dead : tcam = cx
+			; Main.bas 1062: terOn = 1 : terDead = planet_dead : tcam = cx
 			dw kw_ltov, 1, var_teron
 			dw kw_vtov, var_planet_dead, var_terdead
 			dw kw_vtov, var_terrain_cx, var_tcam
 
-			; Main.bas 1239: Scroll.Show (cx \ 4) And 255, cx And 255
-			dw kw_divvl, var_terrain_cx, 4, tmp0
-			dw kw_andvl, tmp0, 255, tmp0
-			dw kw_andvl, var_terrain_cx, 255, tmp1
-			dw p_scroll_show_c, tmp0, tmp1
+			; Main.bas 1063: Scroll.Show cx And 255
+			dw kw_andvl, var_terrain_cx, 255, tmp0
+			dw p_scroll_show_c, tmp0
 			dw p_terrain_r
 
 ; ============================================================
@@ -4212,61 +3303,41 @@ if191_e:
 
 p_col:
 
-			; Main.bas 1244: Dim c As Integer
+			; Main.bas 1069: Dim c As Integer, h0 As Integer, h1 As Integer, y As Integer
 
-			; Main.bas 1245: c = wx And 255
+			; Main.bas 1070: c = wx And 255
 			dw kw_andvl, var_col_wx, 255, var_col_c
 
-			; Main.bas 1246: If ycol(c) >= 0 Then L2.Plot c, ycol(c), 0
+			; Main.bas 1071: If ycol(c) >= 0 Then L2.Plot c, ycol(c), 0
 			dw kw_aget, arr_ycol, var_col_c, tmp0
 			dw kw_scpgevl, tmp0, 0
-			dw kw_goto_iffalse, if198_1
+			dw kw_goto_iffalse, if144_1
 			dw kw_aget, arr_ycol, var_col_c, tmp1
 			dw p_l2_plot_c, var_col_c, tmp1, lit_0
-if198_1:
+if144_1:
 
-			; Main.bas 1247: ycol(c) = yh(wx)
-			dw kw_aget8, arr_yh, var_col_wx, tmp1
-			dw kw_aset, arr_ycol, var_col_c, tmp1
-
-			; Main.bas 1248: L2.Plot c, ycol(c), COL_TERRAIN
-			dw kw_aget, arr_ycol, var_col_c, tmp1
-			dw p_l2_plot_c, var_col_c, tmp1, lit_200
-			dw p_col_r
-
-; ============================================================
-; sub heights (turbo mode)
-; ============================================================
-
-p_heights:
-
-			; Main.bas 1254: Dim wx As Integer, h0 As Integer, h1 As Integer
-
-			; Main.bas 1255: For wx = 0 To WORLD_MASK
-			dw kw_ztov, var_heights_wx
-for199_t:
-
-			; Main.bas 1256: h0 = GetTerrainY(wx) : h1 = GetTerrainY((wx + 4) And WORLD_MASK)
-			dw p_getterrainy_c, var_heights_wx
-			dw kw_vtov, var_getterrainy_getterrainy, var_heights_h0
-			dw kw_addl, var_heights_wx, 4, tmp0
+			; Main.bas 1072: h0 = GetTerrainY(wx) : h1 = GetTerrainY((wx + 4) And WORLD_MASK)
+			dw p_getterrainy_c, var_col_wx
+			dw kw_vtov, var_getterrainy_getterrainy, var_col_h0
+			dw kw_addl, var_col_wx, 4, tmp0
 			dw kw_andvl, tmp0, 1023, tmp0
 			dw p_getterrainy_c, tmp0
-			dw kw_vtov, var_getterrainy_getterrainy, var_heights_h1
+			dw kw_vtov, var_getterrainy_getterrainy, var_col_h1
 
-			; Main.bas 1257: yh(wx) = 191 - (h0 + (h1 - h0) * (wx And 3) \ 4)
-			dw kw_subvv, var_heights_h1, var_heights_h0, tmp3
-			dw kw_andvl, var_heights_wx, 3, tmp4
-			dw kw_mulvv, tmp3, tmp4, tmp3
-			dw kw_divvl, tmp3, 4, tmp3
-			dw kw_add, var_heights_h0, tmp3, tmp2
-			dw kw_sublv, 191, tmp2, tmp1
-			dw kw_aset8, arr_yh, var_heights_wx, tmp1
+			; Main.bas 1073: y = 191 - (h0 + (h1 - h0) * (wx And 3) \ 4)
+			dw kw_subvv, var_col_h1, var_col_h0, tmp2
+			dw kw_andvl, var_col_wx, 3, tmp3
+			dw kw_mulvv, tmp2, tmp3, tmp2
+			dw kw_divvl, tmp2, 4, tmp2
+			dw kw_add, var_col_h0, tmp2, tmp1
+			dw kw_sublv, 191, tmp1, var_col_y
 
-			; Main.bas 1258: Next wx
-			dw kw_next1l, var_heights_wx, 1023, for199_t
-for199_e:
-			dw p_heights_r
+			; Main.bas 1074: L2.Plot c, y, penc(12)
+			dw p_l2_plot_c, var_col_c, var_col_y, arr_penc+24
+
+			; Main.bas 1075: ycol(c) = y
+			dw kw_aset, arr_ycol, var_col_c, var_col_y
+			dw p_col_r
 
 ; ============================================================
 ; sub init (turbo mode)
@@ -4278,25 +3349,25 @@ p_spr_init:
 
 			; Spr.cls 30: For i = 0 To 639
 			dw kw_ztov, var_spr_init_i
-for200_t:
+for145_t:
 
 			; Spr.cls 31: tab(i) = 0
 			dw kw_aset8, arr_spr_tab, var_spr_init_i, lit_0
 
 			; Spr.cls 32: Next
-			dw kw_next1l, var_spr_init_i, 639, for200_t
-for200_e:
+			dw kw_next1l, var_spr_init_i, 639, for145_t
+for145_e:
 
 			; Spr.cls 33: For i = 3 To 639 Step 5
 			dw kw_ltov, 3, var_spr_init_i
-for201_t:
+for146_t:
 
 			; Spr.cls 34: tab(i) = &H40                ' hidden, but still 5 bytes (the upload stays in step)
 			dw kw_aset8, arr_spr_tab, var_spr_init_i, lit_64
 
 			; Spr.cls 35: Next
-			dw kw_nextupl, var_spr_init_i, 5, 639, for201_t
-for201_e:
+			dw kw_nextupl, var_spr_init_i, 5, 639, for146_t
+for146_e:
 
 			; Spr.cls 36: used = 128
 			dw kw_ltov, 128, var_spr_used
@@ -4373,28 +3444,28 @@ p_sfx_init:
 
 			; Sfx.cls 34: For i = 0 To 13
 			dw kw_ztov, var_sfx_init_i
-for204_t:
+for149_t:
 
 			; Sfx.cls 35: W i, 0
 			dw fn_sfx_w, var_sfx_init_i, lit_0
 
 			; Sfx.cls 36: Next
-			dw kw_next1l, var_sfx_init_i, 13, for204_t
-for204_e:
+			dw kw_next1l, var_sfx_init_i, 13, for149_t
+for149_e:
 
 			; Sfx.cls 37: W 7, &H3F
 			dw fn_sfx_w, lit_7, lit_63
 
 			; Sfx.cls 38: For i = 0 To 2
 			dw kw_ztov, var_sfx_init_i
-for205_t:
+for150_t:
 
 			; Sfx.cls 39: left(i) = 0
 			dw kw_asetl, arr_sfx_left, var_sfx_init_i, 0
 
 			; Sfx.cls 40: Next
-			dw kw_next1l, var_sfx_init_i, 2, for205_t
-for205_e:
+			dw kw_next1l, var_sfx_init_i, 2, for150_t
+for150_e:
 			dw p_sfx_init_r
 
 ; ============================================================
@@ -4409,9 +3480,9 @@ p_sfx_play:
 			dw kw_scpgtvl, var_sfx_play_ch, 2
 			dw kw_ftov, tmp1
 			dw kw_orvv, tmp0, tmp1, tmp0
-			dw kw_goto_ifzero, tmp0, if206_1
+			dw kw_goto_ifzero, tmp0, if151_1
 			dw p_sfx_play_r
-if206_1:
+if151_1:
 
 			; Sfx.cls 46: per(ch) = period : slide(ch) = sl : vol(ch) = volume : total(ch) = frames : left(ch) = frames : nse(ch) = noise
 			dw kw_aset, arr_sfx_per, var_sfx_play_ch, var_sfx_play_period
@@ -4421,18 +3492,6 @@ if206_1:
 			dw kw_aset, arr_sfx_left, var_sfx_play_ch, var_sfx_play_frames
 			dw kw_aset, arr_sfx_nse, var_sfx_play_ch, var_sfx_play_noise
 			dw p_sfx_play_r
-
-; ============================================================
-; function busy (turbo mode)
-; ============================================================
-
-p_sfx_busy:
-
-			; Sfx.cls 51: Busy = (left(ch) > 0)
-			dw kw_aget, arr_sfx_left, var_sfx_busy_ch, tmp1
-			dw kw_scpgtvl, tmp1, 0
-			dw kw_ftov, var_sfx_busy_busy
-			dw p_sfx_busy_r
 
 ; ============================================================
 ; sub update (turbo mode)
@@ -4447,12 +3506,12 @@ p_sfx_update:
 
 			; Sfx.cls 58: For i = 0 To 2
 			dw kw_ztov, var_sfx_update_i
-for207_t:
+for152_t:
 
 			; Sfx.cls 59: If left(i) > 0 Then
 			dw kw_aget, arr_sfx_left, var_sfx_update_i, tmp0
 			dw kw_scpgtvl, tmp0, 0
-			dw kw_goto_iffalse, if208_1
+			dw kw_goto_iffalse, if153_1
 
 			; Sfx.cls 60: v = (vol(i) * left(i) + total(i) - 1) \ total(i)
 			dw kw_aget, arr_sfx_vol, var_sfx_update_i, tmp0
@@ -4469,7 +3528,7 @@ for207_t:
 
 			; Sfx.cls 62: If nse(i) Then
 			dw kw_aget, arr_sfx_nse, var_sfx_update_i, tmp0
-			dw kw_goto_ifzero, tmp0, if209_1
+			dw kw_goto_ifzero, tmp0, if154_1
 
 			; Sfx.cls 63: W 6, p And 31
 			dw kw_andvl, var_sfx_update_p, 31, tmp1
@@ -4482,8 +3541,8 @@ for207_t:
 			dw kw_andvv, var_sfx_mix, tmp1, var_sfx_mix
 
 			; Sfx.cls 65: Else
-			dw if209_e_go
-if209_1:
+			dw if154_e_go
+if154_1:
 
 			; Sfx.cls 66: W i * 2, p And 255
 			dw kw_2x, var_sfx_update_i, tmp0
@@ -4503,7 +3562,7 @@ if209_1:
 			dw kw_andvv, var_sfx_mix, tmp1, var_sfx_mix
 
 			; Sfx.cls 69: End If
-if209_e:
+if154_e:
 
 			; Sfx.cls 70: W 8 + i, v
 			dw kw_addl, var_sfx_update_i, 8, tmp0
@@ -4518,9 +3577,9 @@ if209_e:
 			; Sfx.cls 72: If per(i) < 1 Then per(i) = 1
 			dw kw_aget, arr_sfx_per, var_sfx_update_i, tmp0
 			dw kw_scpltvl, tmp0, 1
-			dw kw_goto_iffalse, if210_1
+			dw kw_goto_iffalse, if155_1
 			dw kw_asetl, arr_sfx_per, var_sfx_update_i, 1
-if210_1:
+if155_1:
 
 			; Sfx.cls 73: left(i) = left(i) - 1
 			dw kw_aget, arr_sfx_left, var_sfx_update_i, tmp1
@@ -4528,19 +3587,19 @@ if210_1:
 			dw kw_aset, arr_sfx_left, var_sfx_update_i, tmp1
 
 			; Sfx.cls 74: Else
-			dw if208_e_go
-if208_1:
+			dw if153_e_go
+if153_1:
 
 			; Sfx.cls 75: W 8 + i, 0
 			dw kw_addl, var_sfx_update_i, 8, tmp0
 			dw fn_sfx_w, tmp0, lit_0
 
 			; Sfx.cls 76: End If
-if208_e:
+if153_e:
 
 			; Sfx.cls 77: Next
-			dw kw_next1l, var_sfx_update_i, 2, for207_t
-for207_e:
+			dw kw_next1l, var_sfx_update_i, 2, for152_t
+for152_e:
 
 			; Sfx.cls 78: W 7, mix
 			dw fn_sfx_w, lit_7, var_sfx_mix
@@ -4569,7 +3628,7 @@ p_board_pal:
 
 			; Board.cls 129: For k = 0 To 15
 			dw kw_ztov, var_board_pal_k
-for214_t:
+for159_t:
 
 			; Board.cls 130: Nx.PalEntry Nx.PalTiles, row * 16 + k, Hx(s, k)
 			dw kw_mulvl, var_board_pal_row, 16, tmp1
@@ -4579,8 +3638,8 @@ for214_t:
 			dw fn_nx_palentry, lit_3, tmp1, tmp2
 
 			; Board.cls 131: Next
-			dw kw_next1l, var_board_pal_k, 15, for214_t
-for214_e:
+			dw kw_next1l, var_board_pal_k, 15, for159_t
+for159_e:
 			dw p_board_pal_r
 
 ; ============================================================
@@ -4603,21 +3662,21 @@ p_board_hx:
 
 			; Board.cls 138: If a > 57 Then a = a - 55 Else a = a - 48
 			dw kw_scpgtvl, var_board_hx_a, 57
-			dw kw_goto_iffalse, if215_1
+			dw kw_goto_iffalse, if160_1
 			dw kw_addl, var_board_hx_a, -55, var_board_hx_a
-			dw if215_e_go
-if215_1:
+			dw if160_e_go
+if160_1:
 			dw kw_addl, var_board_hx_a, -48, var_board_hx_a
-if215_e:
+if160_e:
 
 			; Board.cls 139: If b > 57 Then b = b - 55 Else b = b - 48
 			dw kw_scpgtvl, var_board_hx_b, 57
-			dw kw_goto_iffalse, if216_1
+			dw kw_goto_iffalse, if161_1
 			dw kw_addl, var_board_hx_b, -55, var_board_hx_b
-			dw if216_e_go
-if216_1:
+			dw if161_e_go
+if161_1:
 			dw kw_addl, var_board_hx_b, -48, var_board_hx_b
-if216_e:
+if161_e:
 
 			; Board.cls 140: Hx = a * 16 + b
 			dw kw_mulvl, var_board_hx_a, 16, tmp2
@@ -4678,16 +3737,16 @@ p_l2_rect:
 			; L2.cls 97: For j = y To y + h - 1
 			dw kw_vtov, var_l2_rect_y, var_l2_rect_j
 			dw kw_add, var_l2_rect_y, var_l2_rect_h, tmp0
-			dw kw_addl, tmp0, -1, for218_l
-			dw kw_forupv, var_l2_rect_j, for218_l, for218_e
-for218_t:
+			dw kw_addl, tmp0, -1, for163_l
+			dw kw_forupv, var_l2_rect_j, for163_l, for163_e
+for163_t:
 
 			; L2.cls 98: Span x, j, w, c
 			dw fn_l2_span, var_l2_rect_x, var_l2_rect_j, var_l2_rect_w, var_l2_rect_c
 
 			; L2.cls 99: Next
-			dw kw_next1v, var_l2_rect_j, for218_l, for218_t
-for218_e:
+			dw kw_next1v, var_l2_rect_j, for163_l, for163_t
+for163_e:
 			dw p_l2_rect_r
 
 ; ============================================================
@@ -4708,169 +3767,10 @@ p_l2_plot:
 			dw kw_scpltvl, var_l2_plot_y, 192
 			dw kw_ftov, tmp1
 			dw kw_andvv, tmp0, tmp1, tmp0
-			dw kw_goto_ifzero, tmp0, if219_1
+			dw kw_goto_ifzero, tmp0, if164_1
 			dw fn_l2_span, var_l2_plot_x, var_l2_plot_y, lit_1, var_l2_plot_c
-if219_1:
+if164_1:
 			dw p_l2_plot_r
-
-; ============================================================
-; sub big (turbo mode)
-; ============================================================
-
-p_l2_big:
-
-			; L2.cls 111: Dim k As Integer, r As Integer, b As Integer, i As Integer, run As Integer, a As Integer, col As Integer, pass As Integer, sh As Integer, m As Integer, v As Integer
-
-			; L2.cls 112: For pass = 0 To 1
-			dw kw_ztov, var_l2_big_pass
-for220_t:
-
-			; L2.cls 113: sh = (1 - pass) * 2
-			dw kw_sublv, 1, var_l2_big_pass, tmp0
-			dw kw_2x, tmp0, var_l2_big_sh
-
-			; L2.cls 114: For k = 1 To Len(s)
-			dw kw_ltov, 1, var_l2_big_k
-			dw kw_strlen, var_l2_big_s, for221_l
-			dw kw_forupv, var_l2_big_k, for221_l, for221_e
-for221_t:
-
-			; L2.cls 115: a = &HC000 + Asc(Mid$(s, k, 1)) * 32
-			dw kw_strmid, stmp1, var_l2_big_s, var_l2_big_k, lit_1
-			dw kw_strasc, stmp1, tmp1
-			dw kw_mulvl, tmp1, 32, tmp1
-			dw kw_addl, tmp1, -16384, var_l2_big_a
-
-			; L2.cls 116: For r = 0 To 7
-			dw kw_ztov, var_l2_big_r
-for222_t:
-
-			; L2.cls 117: b = 0 : m = 128
-			dw kw_ztov, var_l2_big_b
-			dw kw_ltov, 128, var_l2_big_m
-
-			; L2.cls 118: For i = 0 To 3
-			dw kw_ztov, var_l2_big_i
-for223_t:
-
-			; L2.cls 119: v = Peek(a + r * 4 + i)
-			dw kw_4x, var_l2_big_r, tmp1
-			dw kw_add, var_l2_big_a, tmp1, tmp0
-			dw kw_add, tmp0, var_l2_big_i, tmp0
-			dw kw_vptrtov8, tmp0, var_l2_big_v
-
-			; L2.cls 120: If (v \ 16) = 1 Then b = b Or m
-			dw kw_divvl, var_l2_big_v, 16, tmp0
-			dw kw_cpeqvl, tmp0, 1
-			dw kw_goto_iffalse, if224_1
-			dw kw_orvv, var_l2_big_b, var_l2_big_m, var_l2_big_b
-if224_1:
-
-			; L2.cls 121: If (v And 15) = 1 Then b = b Or (m \ 2)
-			dw kw_andvl, var_l2_big_v, 15, tmp0
-			dw kw_cpeqvl, tmp0, 1
-			dw kw_goto_iffalse, if225_1
-			dw kw_divvl, var_l2_big_m, 2, tmp1
-			dw kw_orvv, var_l2_big_b, tmp1, var_l2_big_b
-if225_1:
-
-			; L2.cls 122: m = m \ 4
-			dw kw_divvl, var_l2_big_m, 4, var_l2_big_m
-
-			; L2.cls 123: Next
-			dw kw_next1l, var_l2_big_i, 3, for223_t
-for223_e:
-
-			; L2.cls 124: col = 0
-			dw kw_ztov, var_l2_big_col
-
-			; L2.cls 125: If pass Then
-			dw kw_goto_ifzero, var_l2_big_pass, if226_1
-
-			; L2.cls 126: col = c2
-			dw kw_vtov, var_l2_big_c2, var_l2_big_col
-
-			; L2.cls 127: If r < 4 Then col = c1
-			dw kw_scpltvl, var_l2_big_r, 4
-			dw kw_goto_iffalse, if227_1
-			dw kw_vtov, var_l2_big_c1, var_l2_big_col
-if227_1:
-
-			; L2.cls 128: End If
-if226_1:
-
-			; L2.cls 129: i = 0
-			dw kw_ztov, var_l2_big_i
-
-			; L2.cls 130: Do While b
-do228_t:
-			dw kw_goto_ifzero, var_l2_big_b, do228_e
-
-			; L2.cls 131: If b And 128 Then
-			dw kw_andvl, var_l2_big_b, 128, tmp0
-			dw kw_goto_ifzero, tmp0, if229_1
-
-			; L2.cls 132: run = 0
-			dw kw_ztov, var_l2_big_run
-
-			; L2.cls 133: Do While b And 128
-do230_t:
-			dw kw_andvl, var_l2_big_b, 128, tmp0
-			dw kw_goto_ifzero, tmp0, do230_e
-
-			; L2.cls 134: run = run + 1 : b = (b * 2) And 255
-			dw kw_inc, var_l2_big_run
-			dw kw_2x, var_l2_big_b, tmp0
-			dw kw_andvl, tmp0, 255, var_l2_big_b
-
-			; L2.cls 135: Loop
-			dw do230_t_go
-do230_e:
-
-			; L2.cls 136: Rect x + ((k - 1) * 8 + i) * z + sh, y + r * z + sh, run * z, z, col
-			dw kw_addl, var_l2_big_k, -1, tmp1
-			dw kw_mulvl, tmp1, 8, tmp1
-			dw kw_add, tmp1, var_l2_big_i, tmp1
-			dw kw_mulvv, tmp1, var_l2_big_z, tmp1
-			dw kw_add, var_l2_big_x, tmp1, tmp0
-			dw kw_add, tmp0, var_l2_big_sh, tmp0
-			dw kw_mulvv, var_l2_big_r, var_l2_big_z, tmp2
-			dw kw_add, var_l2_big_y, tmp2, tmp1
-			dw kw_add, tmp1, var_l2_big_sh, tmp1
-			dw kw_mulvv, var_l2_big_run, var_l2_big_z, tmp2
-			dw p_l2_rect_c, tmp0, tmp1, tmp2, var_l2_big_z, var_l2_big_col
-
-			; L2.cls 137: i = i + run
-			dw kw_add, var_l2_big_i, var_l2_big_run, var_l2_big_i
-
-			; L2.cls 138: Else
-			dw do228_t_go
-if229_1:
-
-			; L2.cls 139: i = i + 1 : b = (b * 2) And 255
-			dw kw_inc, var_l2_big_i
-			dw kw_2x, var_l2_big_b, tmp0
-			dw kw_andvl, tmp0, 255, var_l2_big_b
-
-			; L2.cls 140: End If
-if229_e:
-
-			; L2.cls 141: Loop
-			dw do228_t_go
-do228_e:
-
-			; L2.cls 142: Next
-			dw kw_next1l, var_l2_big_r, 7, for222_t
-for222_e:
-
-			; L2.cls 143: Next
-			dw kw_next1v, var_l2_big_k, for221_l, for221_t
-for221_e:
-
-			; L2.cls 144: Next
-			dw kw_next1l, var_l2_big_pass, 1, for220_t
-for220_e:
-			dw p_l2_big_r
 
 ; ============================================================
 ; sub show (turbo mode)
@@ -4886,27 +3786,18 @@ p_scroll_show:
 			dw kw_ltolptr8, 22, arr_scroll_cop+2
 			dw kw_ltolptr8, 0, arr_scroll_cop+3
 
-			; Scroll.cls 12: cop(4) = &H80 : cop(5) = 44               ' line 44: the sky
+			; Scroll.cls 12: cop(4) = &H80 : cop(5) = 160              ' line 160:
 			dw kw_ltolptr8, 128, arr_scroll_cop+4
-			dw kw_ltolptr8, 44, arr_scroll_cop+5
+			dw kw_ltolptr8, 160, arr_scroll_cop+5
 
-			; Scroll.cls 13: cop(6) = &H16 : cop(7) = stars And 255
+			; Scroll.cls 13: cop(6) = &H16 : cop(7) = sx And 255       '   the terrain's scroll
 			dw kw_ltolptr8, 22, arr_scroll_cop+6
-			dw kw_andvl, var_scroll_show_stars, 255, tmp1
+			dw kw_andvl, var_scroll_show_sx, 255, tmp1
 			dw kw_vtolptr8, tmp1, arr_scroll_cop+7
 
-			; Scroll.cls 14: cop(8) = &H80 : cop(9) = 160              ' line 160: the ground
-			dw kw_ltolptr8, 128, arr_scroll_cop+8
-			dw kw_ltolptr8, 160, arr_scroll_cop+9
-
-			; Scroll.cls 15: cop(10) = &H16 : cop(11) = ground And 255
-			dw kw_ltolptr8, 22, arr_scroll_cop+10
-			dw kw_andvl, var_scroll_show_ground, 255, tmp1
-			dw kw_vtolptr8, tmp1, arr_scroll_cop+11
-
-			; Scroll.cls 16: cop(12) = &HFF : cop(13) = &HFF           ' the end
-			dw kw_ltolptr8, 255, arr_scroll_cop+12
-			dw kw_ltolptr8, 255, arr_scroll_cop+13
+			; Scroll.cls 14: cop(8) = &HFF : cop(9) = &HFF             ' the end
+			dw kw_ltolptr8, 255, arr_scroll_cop+8
+			dw kw_ltolptr8, 255, arr_scroll_cop+9
 			dw p_scroll_show_r
 
 ; ============================================================
@@ -4928,89 +3819,89 @@ p_filesystem_load:
 ;   turbo mode ends with ret, normal mode with jp ntc_xn
 ; ============================================================
 
-do2_t_go:			ld sp, do2_t
+if6_e_go:			ld sp, if6_e
 			ret
-do1_t_go:			ld sp, do1_t
+if7_e_go:			ld sp, if7_e
 			ret
-if11_e_go:			ld sp, if11_e
+if21_e_go:			ld sp, if21_e
 			ret
-if24_e_go:			ld sp, if24_e
+if26_e_go:			ld sp, if26_e
+			ret
+if28_e_go:			ld sp, if28_e
+			ret
+if30_e_go:			ld sp, if30_e
+			ret
+if25_e_go:			ld sp, if25_e
+			ret
+if31_e_go:			ld sp, if31_e
+			ret
+if35_e_go:			ld sp, if35_e
+			ret
+if46_e_go:			ld sp, if46_e
+			ret
+if47_e_go:			ld sp, if47_e
+			ret
+for48_e_go:			ld sp, for48_e
+			ret
+for32_e_go:			ld sp, for32_e
+			ret
+if56_e_go:			ld sp, if56_e
+			ret
+if57_e_go:			ld sp, if57_e
+			ret
+for54_e_go:			ld sp, for54_e
+			ret
+if58_e_go:			ld sp, if58_e
+			ret
+if59_e_go:			ld sp, if59_e
 			ret
 if34_e_go:			ld sp, if34_e
 			ret
-if41_e_go:			ld sp, if41_e
+for60_e_go:			ld sp, for60_e
 			ret
-if42_e_go:			ld sp, if42_e
+if61_e_go:			ld sp, if61_e
 			ret
-if52_e_go:			ld sp, if52_e
+do3_t_go:			ld sp, do3_t
 			ret
-if63_e_go:			ld sp, if63_e
+do1_t_go:			ld sp, do1_t
 			ret
-if70_e_go:			ld sp, if70_e
+if67_e_go:			ld sp, if67_e
 			ret
-if73_e_go:			ld sp, if73_e
+if74_e_go:			ld sp, if74_e
 			ret
-if92_e_go:			ld sp, if92_e
+if88_e_go:			ld sp, if88_e
 			ret
-sel97_e_go:			ld sp, sel97_e
-			ret
-if102_e_go:			ld sp, if102_e
+if93_e_go:			ld sp, if93_e
 			ret
 if104_e_go:			ld sp, if104_e
 			ret
-if106_e_go:			ld sp, if106_e
-			ret
 if105_e_go:			ld sp, if105_e
 			ret
-if110_e_go:			ld sp, if110_e
+if116_e_go:			ld sp, if116_e
 			ret
-sel116_e_go:			ld sp, sel116_e
+sel120_e_go:			ld sp, sel120_e
 			ret
-if128_e_go:			ld sp, if128_e
+if123_e_go:			ld sp, if123_e
 			ret
-if132_e_go:			ld sp, if132_e
+if124_e_go:			ld sp, if124_e
 			ret
-for137_e_go:			ld sp, for137_e
+do125_e_go:			ld sp, do125_e
 			ret
-if148_e_go:			ld sp, if148_e
+do125_t_go:			ld sp, do125_t
 			ret
-if115_e_go:			ld sp, if115_e
+sel130_e_go:			ld sp, sel130_e
+			ret
+if137_e_go:			ld sp, if137_e
+			ret
+if140_e_go:			ld sp, if140_e
 			ret
 if154_e_go:			ld sp, if154_e
 			ret
-if158_e_go:			ld sp, if158_e
+if153_e_go:			ld sp, if153_e
+			ret
+if160_e_go:			ld sp, if160_e
 			ret
 if161_e_go:			ld sp, if161_e
-			ret
-if170_e_go:			ld sp, if170_e
-			ret
-sel173_e_go:			ld sp, sel173_e
-			ret
-if176_e_go:			ld sp, if176_e
-			ret
-if177_e_go:			ld sp, if177_e
-			ret
-do178_e_go:			ld sp, do178_e
-			ret
-do178_t_go:			ld sp, do178_t
-			ret
-sel183_e_go:			ld sp, sel183_e
-			ret
-if191_e_go:			ld sp, if191_e
-			ret
-if194_e_go:			ld sp, if194_e
-			ret
-if209_e_go:			ld sp, if209_e
-			ret
-if208_e_go:			ld sp, if208_e
-			ret
-if215_e_go:			ld sp, if215_e
-			ret
-if216_e_go:			ld sp, if216_e
-			ret
-do230_t_go:			ld sp, do230_t
-			ret
-do228_t_go:			ld sp, do228_t
 			ret
 
 p_writenextreg_c:		; call writenextreg (turbo)
@@ -5045,6 +3936,18 @@ p_loadspritetilemap_si0:
 			xor a
 			ld (de), a
 p_loadspritetilemap_si0_e:
+			ld hl, 0
+			ld (var_loadspritetilemap_b0), hl
+			ld hl, 0
+			ld (var_loadspritetilemap_p), hl
+			ld hl, 0
+			ld (var_loadspritetilemap_x), hl
+			ld hl, 0
+			ld (var_loadspritetilemap_y), hl
+			ld hl, 0
+			ld (var_loadspritetilemap_dx), hl
+			ld hl, 0
+			ld (var_loadspritetilemap_dy), hl
 			ld (p_loadspritetilemap_rs), sp
 			ld sp, p_loadspritetilemap
 			ret
@@ -5083,9 +3986,9 @@ p_sethardwaresprite_c:		; call sethardwaresprite (turbo)
 			ld d, (hl)
 			ld (var_sethardwaresprite_visible), de
 			ld hl, 0
-			ld (var_sethardwaresprite_sx1), hl
+			ld (var_sethardwaresprite_sx), hl
 			ld hl, 0
-			ld (var_sethardwaresprite_sy1), hl
+			ld (var_sethardwaresprite_sy), hl
 			ld hl, 0
 			ld (var_sethardwaresprite_attr2), hl
 			ld (p_sethardwaresprite_rs), sp
@@ -5093,18 +3996,6 @@ p_sethardwaresprite_c:		; call sethardwaresprite (turbo)
 			ret
 p_sethardwaresprite_r:		; end of sethardwaresprite
 			ld sp, (p_sethardwaresprite_rs)
-			ret
-p_hidesprite_c:		; call hidesprite (turbo)
-			pop hl			; slot
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			ld (var_hidesprite_slot), de
-			ld (p_hidesprite_rs), sp
-			ld sp, p_hidesprite
-			ret
-p_hidesprite_r:		; end of hidesprite
-			ld sp, (p_hidesprite_rs)
 			ret
 p_hideallsprites_c:		; call hideallsprites (turbo)
 			ld hl, 0
@@ -5115,31 +4006,6 @@ p_hideallsprites_c:		; call hideallsprites (turbo)
 p_hideallsprites_r:		; end of hideallsprites
 			ld sp, (p_hideallsprites_rs)
 			ret
-p_makeland_c:		; call makeland (turbo)
-			ld hl, 0
-			ld (var_makeland_h), hl
-			ld hl, 0
-			ld (var_makeland_t), hl
-			ld (p_makeland_rs), sp
-			ld sp, p_makeland
-			ret
-p_makeland_r:		; end of makeland
-			ld sp, (p_makeland_rs)
-			ret
-p_rand_c:		; call rand (turbo)
-			pop hl			; n
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			ld (var_rand_n), de
-			ld hl, 0
-			ld (var_rand_rand), hl
-			ld (p_rand_rs), sp
-			ld sp, p_rand
-			ret
-p_rand_r:		; end of rand
-			ld sp, (p_rand_rs)
-			ret
 p_getterrainy_c:		; call getterrainy (turbo)
 			pop hl			; wx
 			ld e, (hl)
@@ -5148,6 +4014,10 @@ p_getterrainy_c:		; call getterrainy (turbo)
 			ld (var_getterrainy_wx), de
 			ld hl, 0
 			ld (var_getterrainy_getterrainy), hl
+			ld hl, 0
+			ld (var_getterrainy_p), hl
+			ld hl, 0
+			ld (var_getterrainy_h), hl
 			ld (p_getterrainy_rs), sp
 			ld sp, p_getterrainy
 			ret
@@ -5205,18 +4075,9 @@ p_drawstaticframe_c:		; call drawstaticframe (turbo)
 p_drawstaticframe_r:		; end of drawstaticframe
 			ld sp, (p_drawstaticframe_rs)
 			ret
-p_stars_c:		; call stars (turbo)
-			ld hl, 0
-			ld (var_stars_x), hl
-			ld hl, 0
-			ld (var_stars_y), hl
-			ld (p_stars_rs), sp
-			ld sp, p_stars
-			ret
-p_stars_r:		; end of stars
-			ld sp, (p_stars_rs)
-			ret
 p_initwave_c:		; call initwave (turbo)
+			ld hl, 0
+			ld (var_initwave_i), hl
 			ld (p_initwave_rs), sp
 			ld sp, p_initwave
 			ret
@@ -5224,42 +4085,22 @@ p_initwave_r:		; end of initwave
 			ld sp, (p_initwave_rs)
 			ret
 p_spawnenemy_c:		; call spawnenemy (turbo)
+			ld hl, 0
+			ld (var_spawnenemy_i), hl
 			ld (p_spawnenemy_rs), sp
 			ld sp, p_spawnenemy
 			ret
 p_spawnenemy_r:		; end of spawnenemy
 			ld sp, (p_spawnenemy_rs)
 			ret
-p_spawnbaiter_c:		; call spawnbaiter (turbo)
-			ld (p_spawnbaiter_rs), sp
-			ld sp, p_spawnbaiter
-			ret
-p_spawnbaiter_r:		; end of spawnbaiter
-			ld sp, (p_spawnbaiter_rs)
-			ret
 p_firelaser_c:		; call firelaser (turbo)
+			ld hl, 0
+			ld (var_firelaser_i), hl
 			ld (p_firelaser_rs), sp
 			ld sp, p_firelaser
 			ret
 p_firelaser_r:		; end of firelaser
 			ld sp, (p_firelaser_rs)
-			ret
-p_boom_c:		; call boom (turbo)
-			pop hl			; wx
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			ld (var_boom_wx), de
-			pop hl			; wy
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			ld (var_boom_wy), de
-			ld (p_boom_rs), sp
-			ld sp, p_boom
-			ret
-p_boom_r:		; end of boom
-			ld sp, (p_boom_rs)
 			ret
 p_killenemy_c:		; call killenemy (turbo)
 			pop hl			; idx
@@ -5275,24 +4116,14 @@ p_killenemy_c:		; call killenemy (turbo)
 p_killenemy_r:		; end of killenemy
 			ld sp, (p_killenemy_rs)
 			ret
-p_addscore_c:		; call addscore (turbo)
-			pop hl			; n
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			ld (var_addscore_n), de
-			ld (p_addscore_rs), sp
-			ld sp, p_addscore
-			ret
-p_addscore_r:		; end of addscore
-			ld sp, (p_addscore_rs)
-			ret
 p_triggersmartbomb_c:		; call triggersmartbomb (turbo)
 			pop hl			; cx
 			ld e, (hl)
 			inc hl
 			ld d, (hl)
 			ld (var_triggersmartbomb_cx), de
+			ld hl, 0
+			ld (var_triggersmartbomb_i), hl
 			ld hl, 0
 			ld (var_triggersmartbomb_sx_pos), hl
 			ld (p_triggersmartbomb_rs), sp
@@ -5303,190 +4134,16 @@ p_triggersmartbomb_r:		; end of triggersmartbomb
 			ret
 p_loselife_c:		; call loselife (turbo)
 			ld hl, 0
-			ld (var_loselife_f), hl
+			ld (var_loselife_i), hl
 			ld (p_loselife_rs), sp
 			ld sp, p_loselife
 			ret
 p_loselife_r:		; end of loselife
 			ld sp, (p_loselife_rs)
 			ret
-p_message_c:		; call message (turbo)
-			pop hl			; m
-			ld de, var_message_m
-			ld b, 40
-p_message_si0:
-			ld a, (hl)
-			ld (de), a
-			or a
-			jr z, p_message_si0_e
-			inc hl
-			inc de
-			djnz p_message_si0
-			xor a
-			ld (de), a
-p_message_si0_e:
-			pop hl			; t
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			ld (var_message_t), de
-			ld (p_message_rs), sp
-			ld sp, p_message
-			ret
-p_message_r:		; end of message
-			ld sp, (p_message_rs)
-			ret
-p_controls_c:		; call controls (turbo)
-			ld (p_controls_rs), sp
-			ld sp, p_controls
-			ret
-p_controls_r:		; end of controls
-			ld sp, (p_controls_rs)
-			ret
-p_drawplayer_c:		; call drawplayer (turbo)
-			ld hl, 0
-			ld (var_drawplayer_f), hl
-			ld (p_drawplayer_rs), sp
-			ld sp, p_drawplayer
-			ret
-p_drawplayer_r:		; end of drawplayer
-			ld sp, (p_drawplayer_rs)
-			ret
-p_lasers_c:		; call lasers (turbo)
-			ld hl, 0
-			ld (var_lasers_lsx), hl
-			ld (p_lasers_rs), sp
-			ld sp, p_lasers
-			ret
-p_lasers_r:		; end of lasers
-			ld sp, (p_lasers_rs)
-			ret
-p_humans_c:		; call humans (turbo)
-			ld hl, 0
-			ld (var_humans_hsx), hl
-			ld hl, 0
-			ld (var_humans_hrx), hl
-			ld hl, 0
-			ld (var_humans_hry), hl
-			ld hl, 0
-			ld (var_humans_t_ground), hl
-			ld (p_humans_rs), sp
-			ld sp, p_humans
-			ret
-p_humans_r:		; end of humans
-			ld sp, (p_humans_rs)
-			ret
-p_humansgone_c:		; call humansgone (turbo)
-			ld (p_humansgone_rs), sp
-			ld sp, p_humansgone
-			ret
-p_humansgone_r:		; end of humansgone
-			ld sp, (p_humansgone_rs)
-			ret
-p_enemies_c:		; call enemies (turbo)
-			ld hl, 0
-			ld (var_enemies_esx), hl
-			ld hl, 0
-			ld (var_enemies_erx), hl
-			ld hl, 0
-			ld (var_enemies_ery), hl
-			ld hl, 0
-			ld (var_enemies_epat), hl
-			ld hl, 0
-			ld (var_enemies_ecol), hl
-			ld hl, 0
-			ld (var_enemies_th), hl
-			ld hl, 0
-			ld (var_enemies_dx_h), hl
-			ld hl, 0
-			ld (var_enemies_l_idx), hl
-			ld hl, 0
-			ld (var_enemies_hit), hl
-			ld hl, 0
-			ld (var_enemies_lsx), hl
-			ld hl, 0
-			ld (var_enemies_s), hl
-			ld (p_enemies_rs), sp
-			ld sp, p_enemies
-			ret
-p_enemies_r:		; end of enemies
-			ld sp, (p_enemies_rs)
-			ret
-p_enemyshot_c:		; call enemyshot (turbo)
-			pop hl			; n
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			ld (var_enemyshot_n), de
-			pop hl			; esx
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			ld (var_enemyshot_esx), de
-			ld hl, 0
-			ld (var_enemyshot_dx), hl
-			ld hl, 0
-			ld (var_enemyshot_dy), hl
-			ld hl, 0
-			ld (var_enemyshot_m), hl
-			ld (p_enemyshot_rs), sp
-			ld sp, p_enemyshot
-			ret
-p_enemyshot_r:		; end of enemyshot
-			ld sp, (p_enemyshot_rs)
-			ret
-p_shots_c:		; call shots (turbo)
-			ld hl, 0
-			ld (var_shots_ssx), hl
-			ld hl, 0
-			ld (var_shots_wy), hl
-			ld (p_shots_rs), sp
-			ld sp, p_shots
-			ret
-p_shots_r:		; end of shots
-			ld sp, (p_shots_rs)
-			ret
-p_booms_c:		; call booms (turbo)
-			ld hl, 0
-			ld (var_booms_bsx), hl
-			ld (p_booms_rs), sp
-			ld sp, p_booms
-			ret
-p_booms_r:		; end of booms
-			ld sp, (p_booms_rs)
-			ret
-p_viewmarks_c:		; call viewmarks (turbo)
-			ld hl, 0
-			ld (var_viewmarks_m), hl
-			ld (p_viewmarks_rs), sp
-			ld sp, p_viewmarks
-			ret
-p_viewmarks_r:		; end of viewmarks
-			ld sp, (p_viewmarks_rs)
-			ret
-p_wavedone_c:		; call wavedone (turbo)
-			ld hl, 0
-			ld (var_wavedone_b), hl
-			ld hl, 0
-			ld (var_wavedone_f), hl
-			ld (p_wavedone_rs), sp
-			ld sp, p_wavedone
-			ret
-p_wavedone_r:		; end of wavedone
-			ld sp, (p_wavedone_rs)
-			ret
-p_titlescreen_c:		; call titlescreen (turbo)
-			ld hl, 0
-			ld (var_titlescreen_t), hl
-			ld hl, 0
-			ld (var_titlescreen_a), hl
-			ld (p_titlescreen_rs), sp
-			ld sp, p_titlescreen
-			ret
-p_titlescreen_r:		; end of titlescreen
-			ld sp, (p_titlescreen_rs)
-			ret
 p_setpens_c:		; call setpens (turbo)
+			ld hl, 0
+			ld (var_setpens_k), hl
 			ld (p_setpens_rs), sp
 			ld sp, p_setpens
 			ret
@@ -5568,6 +4225,8 @@ p_prints_r:		; end of prints
 			ld sp, (p_prints_rs)
 			ret
 p_clsall_c:		; call clsall (turbo)
+			ld hl, 0
+			ld (var_clsall_k), hl
 			ld (p_clsall_rs), sp
 			ld sp, p_clsall
 			ret
@@ -5636,6 +4295,33 @@ p_draw_c:		; call draw (turbo)
 p_draw_r:		; end of draw
 			ld sp, (p_draw_rs)
 			ret
+p_sound_c:		; call sound (turbo)
+			pop hl			; ch
+			ld e, (hl)
+			inc hl
+			ld d, (hl)
+			ld (var_sound_ch), de
+			pop hl			; pitch
+			ld e, (hl)
+			inc hl
+			ld d, (hl)
+			ld (var_sound_pitch), de
+			pop hl			; dur
+			ld e, (hl)
+			inc hl
+			ld d, (hl)
+			ld (var_sound_dur), de
+			pop hl			; vol
+			ld e, (hl)
+			inc hl
+			ld d, (hl)
+			ld (var_sound_vol), de
+			ld (p_sound_rs), sp
+			ld sp, p_sound
+			ret
+p_sound_r:		; end of sound
+			ld sp, (p_sound_rs)
+			ret
 p_vsync_c:		; call vsync (turbo)
 			ld (p_vsync_rs), sp
 			ld sp, p_vsync
@@ -5683,6 +4369,10 @@ p_terrain_c:		; call terrain (turbo)
 			ld (var_terrain_cx), de
 			ld hl, 0
 			ld (var_terrain_d), hl
+			ld hl, 0
+			ld (var_terrain_wx), hl
+			ld hl, 0
+			ld (var_terrain_k), hl
 			ld (p_terrain_rs), sp
 			ld sp, p_terrain
 			ret
@@ -5697,24 +4387,17 @@ p_col_c:		; call col (turbo)
 			ld (var_col_wx), de
 			ld hl, 0
 			ld (var_col_c), hl
+			ld hl, 0
+			ld (var_col_h0), hl
+			ld hl, 0
+			ld (var_col_h1), hl
+			ld hl, 0
+			ld (var_col_y), hl
 			ld (p_col_rs), sp
 			ld sp, p_col
 			ret
 p_col_r:		; end of col
 			ld sp, (p_col_rs)
-			ret
-p_heights_c:		; call heights (turbo)
-			ld hl, 0
-			ld (var_heights_wx), hl
-			ld hl, 0
-			ld (var_heights_h0), hl
-			ld hl, 0
-			ld (var_heights_h1), hl
-			ld (p_heights_rs), sp
-			ld sp, p_heights
-			ret
-p_heights_r:		; end of heights
-			ld sp, (p_heights_rs)
 			ret
 p_spr_init_c:		; call init (turbo)
 			ld hl, 0
@@ -5777,20 +4460,6 @@ p_sfx_play_c:		; call play (turbo)
 			ret
 p_sfx_play_r:		; end of play
 			ld sp, (p_sfx_play_rs)
-			ret
-p_sfx_busy_c:		; call busy (turbo)
-			pop hl			; ch
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			ld (var_sfx_busy_ch), de
-			ld hl, 0
-			ld (var_sfx_busy_busy), hl
-			ld (p_sfx_busy_rs), sp
-			ld sp, p_sfx_busy
-			ret
-p_sfx_busy_r:		; end of busy
-			ld sp, (p_sfx_busy_rs)
 			ret
 p_sfx_update_c:		; call update (turbo)
 			ld hl, 0
@@ -5935,85 +4604,12 @@ p_l2_plot_c:		; call plot (turbo)
 p_l2_plot_r:		; end of plot
 			ld sp, (p_l2_plot_rs)
 			ret
-p_l2_big_c:		; call big (turbo)
-			pop hl			; x
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			ld (var_l2_big_x), de
-			pop hl			; y
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			ld (var_l2_big_y), de
-			pop hl			; s
-			ld de, var_l2_big_s
-			ld b, 40
-p_l2_big_si2:
-			ld a, (hl)
-			ld (de), a
-			or a
-			jr z, p_l2_big_si2_e
-			inc hl
-			inc de
-			djnz p_l2_big_si2
-			xor a
-			ld (de), a
-p_l2_big_si2_e:
-			pop hl			; z
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			ld (var_l2_big_z), de
-			pop hl			; c1
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			ld (var_l2_big_c1), de
-			pop hl			; c2
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			ld (var_l2_big_c2), de
-			ld hl, 0
-			ld (var_l2_big_k), hl
-			ld hl, 0
-			ld (var_l2_big_r), hl
-			ld hl, 0
-			ld (var_l2_big_b), hl
-			ld hl, 0
-			ld (var_l2_big_i), hl
-			ld hl, 0
-			ld (var_l2_big_run), hl
-			ld hl, 0
-			ld (var_l2_big_a), hl
-			ld hl, 0
-			ld (var_l2_big_col), hl
-			ld hl, 0
-			ld (var_l2_big_pass), hl
-			ld hl, 0
-			ld (var_l2_big_sh), hl
-			ld hl, 0
-			ld (var_l2_big_m), hl
-			ld hl, 0
-			ld (var_l2_big_v), hl
-			ld (p_l2_big_rs), sp
-			ld sp, p_l2_big
-			ret
-p_l2_big_r:		; end of big
-			ld sp, (p_l2_big_rs)
-			ret
 p_scroll_show_c:		; call show (turbo)
-			pop hl			; stars
+			pop hl			; sx
 			ld e, (hl)
 			inc hl
 			ld d, (hl)
-			ld (var_scroll_show_stars), de
-			pop hl			; ground
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			ld (var_scroll_show_ground), de
+			ld (var_scroll_show_sx), de
 			ld (p_scroll_show_rs), sp
 			ld sp, p_scroll_show
 			ret
@@ -6602,228 +5198,37 @@ fn_l2_span_l2_back:		; L2.cls 84
             out (c), a		; L2.cls 90
 			ret			; end of #asm
 
-fn_scroll_upload:		; sub upload (asm keyword), Scroll.cls line 20
-            ld bc, #243B		; Scroll.cls 21
-            ld a, #61		; Scroll.cls 22
-            out (c), a		; Scroll.cls 23
-            inc b		; Scroll.cls 24
-            xor a		; Scroll.cls 25
-            out (c), a		; Scroll.cls 26
-            dec b		; Scroll.cls 27
-            ld a, #62		; Scroll.cls 28
-            out (c), a		; Scroll.cls 29
-            inc b		; Scroll.cls 30
-            xor a		; Scroll.cls 31
-            out (c), a              ; stopped, index 0 [32]
-            dec b		; Scroll.cls 33
-            ld a, #60		; Scroll.cls 34
-            out (c), a		; Scroll.cls 35
-            inc b		; Scroll.cls 36
-            ld hl, arr_scroll_cop		; Scroll.cls 37
-            ld e, 14		; Scroll.cls 38
-fn_scroll_upload_sc_lp:		; Scroll.cls 39
-            ld a, (hl)		; Scroll.cls 40
-            out (c), a		; Scroll.cls 41
-            inc hl		; Scroll.cls 42
-            dec e		; Scroll.cls 43
-            jr nz, fn_scroll_upload_sc_lp		; Scroll.cls 44
-            dec b		; Scroll.cls 45
-            ld a, #62		; Scroll.cls 46
-            out (c), a		; Scroll.cls 47
-            inc b		; Scroll.cls 48
-            ld a, #C0		; Scroll.cls 49
-            out (c), a              ; start: from 0, again at each frame [50]
-			ret			; end of #asm
-
-fn_sprdata_upload:		; sub upload (asm keyword), SprData.cls line 10
-            ld bc, #243B		; SprData.cls 11
-            ld a, #43		; SprData.cls 12
-            out (c), a		; SprData.cls 13
-            inc b		; SprData.cls 14
-            ld a, #20               ; the sprites' first palette [15]
-            out (c), a		; SprData.cls 16
-            dec b		; SprData.cls 17
-            ld a, #40		; SprData.cls 18
-            out (c), a		; SprData.cls 19
-            inc b		; SprData.cls 20
-            xor a		; SprData.cls 21
-            out (c), a              ; from colour 0 [22]
-            dec b		; SprData.cls 23
-            ld a, #44		; SprData.cls 24
-            out (c), a		; SprData.cls 25
-            inc b		; SprData.cls 26
-            ld hl, fn_sprdata_upload_sd_pal		; SprData.cls 27
-            ld de, 512		; SprData.cls 28
-fn_sprdata_upload_sd_pl:		; SprData.cls 29
-            ld a, (hl)		; SprData.cls 30
-            out (c), a		; SprData.cls 31
-            inc hl		; SprData.cls 32
-            dec de		; SprData.cls 33
-            ld a, d		; SprData.cls 34
-            or e		; SprData.cls 35
-            jr nz, fn_sprdata_upload_sd_pl		; SprData.cls 36
-            ld bc, #303B		; SprData.cls 37
-            xor a		; SprData.cls 38
-            out (c), a              ; patterns from 0 [39]
-            ld hl, fn_sprdata_upload_sd_pat		; SprData.cls 40
-            ld de, 4096		; SprData.cls 41
-            ld bc, #5B		; SprData.cls 42
-fn_sprdata_upload_sd_pp:		; SprData.cls 43
-            ld a, (hl)		; SprData.cls 44
-            out (c), a		; SprData.cls 45
-            inc hl		; SprData.cls 46
-            dec de		; SprData.cls 47
-            ld a, d		; SprData.cls 48
-            or e		; SprData.cls 49
-            jr nz, fn_sprdata_upload_sd_pp		; SprData.cls 50
-            jp fn_sprdata_upload_sd_end		; SprData.cls 51
-fn_sprdata_upload_sd_pal:		; SprData.cls 52
-            db 0, 0, 255, 1, 182, 1, 109, 1, 37, 0, 27, 1, 47, 1, 2, 0, 252, 0, 240, 0, 224, 0, 128, 0, 28, 0, 16, 0, 156, 1, 227, 1		; SprData.cls 53
-            db 131, 0, 243, 0, 245, 1, 136, 0, 155, 1, 254, 0, 22, 0, 73, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0		; SprData.cls 54
-            db 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0		; SprData.cls 55
-            db 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0		; SprData.cls 56
-            db 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0		; SprData.cls 57
-            db 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0		; SprData.cls 58
-            db 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0		; SprData.cls 59
-            db 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0		; SprData.cls 60
-            db 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0		; SprData.cls 61
-            db 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0		; SprData.cls 62
-            db 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0		; SprData.cls 63
-            db 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0		; SprData.cls 64
-            db 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0		; SprData.cls 65
-            db 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0		; SprData.cls 66
-            db 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0		; SprData.cls 67
-            db 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0		; SprData.cls 68
-fn_sprdata_upload_sd_pat:		; SprData.cls 69
-            db 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0		; SprData.cls 70
-            db 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0		; SprData.cls 71
-            db 0, 0, 0, 0, 1, 2, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5, 5, 1, 2, 2, 1, 1, 1, 0, 0, 0, 0, 0		; SprData.cls 72
-            db 0, 0, 5, 5, 5, 2, 2, 2, 2, 2, 2, 1, 1, 1, 0, 0, 0, 9, 6, 6, 6, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1		; SprData.cls 73
-            db 0, 9, 6, 6, 6, 3, 3, 3, 3, 3, 3, 3, 3, 3, 1, 0, 0, 0, 7, 6, 6, 3, 3, 3, 0, 0, 0, 0, 0, 0, 0, 0		; SprData.cls 74
-            db 0, 0, 0, 7, 7, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0		; SprData.cls 75
-            db 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0		; SprData.cls 76
-            db 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0		; SprData.cls 77
-            db 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 13, 13, 13, 13, 13, 13, 0, 0, 0, 0, 0		; SprData.cls 78
-            db 0, 0, 0, 0, 13, 12, 12, 12, 12, 12, 12, 13, 0, 0, 0, 0, 0, 0, 0, 13, 12, 14, 12, 12, 12, 12, 14, 12, 13, 0, 0, 0		; SprData.cls 79
-            db 0, 0, 0, 13, 12, 12, 12, 8, 8, 12, 12, 12, 13, 0, 0, 0, 0, 0, 8, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 8, 0, 0		; SprData.cls 80
-            db 0, 0, 13, 12, 12, 14, 12, 12, 12, 12, 14, 12, 12, 13, 0, 0, 0, 0, 0, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 0, 0, 0		; SprData.cls 81
-            db 0, 0, 0, 0, 13, 0, 0, 13, 13, 0, 0, 13, 0, 0, 0, 0, 0, 0, 0, 13, 0, 0, 0, 13, 13, 0, 0, 0, 13, 0, 0, 0		; SprData.cls 82
-            db 0, 0, 13, 13, 0, 0, 0, 0, 0, 0, 0, 0, 13, 13, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0		; SprData.cls 83
-            db 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0		; SprData.cls 84
-            db 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0		; SprData.cls 85
-            db 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 16, 0, 0, 0, 0, 16, 0, 0, 0, 0, 16, 0, 0, 0		; SprData.cls 86
-            db 0, 0, 0, 16, 0, 0, 16, 16, 16, 0, 0, 16, 0, 0, 0, 0, 0, 0, 0, 0, 16, 16, 16, 16, 16, 16, 16, 0, 0, 0, 0, 0		; SprData.cls 87
-            db 0, 0, 16, 16, 16, 12, 12, 12, 12, 12, 16, 16, 16, 0, 0, 0, 0, 16, 0, 16, 12, 1, 11, 12, 1, 11, 12, 16, 0, 16, 0, 0		; SprData.cls 88
-            db 0, 0, 0, 16, 12, 12, 12, 12, 12, 12, 12, 16, 0, 0, 0, 0, 0, 0, 16, 16, 12, 12, 10, 10, 10, 12, 12, 16, 16, 0, 0, 0		; SprData.cls 89
-            db 0, 16, 0, 0, 16, 12, 12, 12, 12, 12, 16, 0, 0, 16, 0, 0, 0, 0, 0, 16, 0, 0, 16, 16, 16, 0, 0, 16, 0, 0, 0, 0		; SprData.cls 90
-            db 0, 0, 16, 0, 0, 0, 0, 16, 0, 0, 0, 0, 16, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0		; SprData.cls 91
-            db 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0		; SprData.cls 92
-            db 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0		; SprData.cls 93
-            db 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0		; SprData.cls 94
-            db 0, 0, 0, 0, 0, 0, 18, 18, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 18, 18, 0, 0, 0, 0, 0, 0, 0, 0		; SprData.cls 95
-            db 0, 0, 0, 0, 0, 17, 17, 17, 17, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 17, 0, 17, 17, 0, 17, 0, 0, 0, 0, 0, 0		; SprData.cls 96
-            db 0, 0, 0, 0, 0, 0, 17, 17, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 16, 16, 0, 0, 0, 0, 0, 0, 0, 0		; SprData.cls 97
-            db 0, 0, 0, 0, 0, 16, 0, 0, 16, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 16, 0, 0, 16, 0, 0, 0, 0, 0, 0, 0		; SprData.cls 98
-            db 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0		; SprData.cls 99
-            db 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0		; SprData.cls 100
-            db 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0		; SprData.cls 101
-            db 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0		; SprData.cls 102
-            db 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0		; SprData.cls 103
-            db 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0		; SprData.cls 104
-            db 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 9, 9, 9, 8, 8, 8, 21, 21, 21, 21, 1, 1, 1, 1, 1, 1		; SprData.cls 105
-            db 0, 0, 0, 0, 0, 0, 9, 9, 9, 9, 8, 8, 8, 8, 8, 8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0		; SprData.cls 106
-            db 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0		; SprData.cls 107
-            db 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0		; SprData.cls 108
-            db 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0		; SprData.cls 109
-            db 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0		; SprData.cls 110
-            db 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0		; SprData.cls 111
-            db 0, 0, 0, 0, 1, 2, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5, 5, 1, 2, 2, 1, 1, 1, 0, 0, 0, 0, 0		; SprData.cls 112
-            db 0, 0, 5, 5, 5, 2, 2, 2, 2, 2, 2, 1, 1, 1, 0, 0, 10, 9, 6, 6, 6, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1		; SprData.cls 113
-            db 10, 9, 6, 6, 6, 3, 3, 3, 3, 3, 3, 3, 3, 3, 1, 0, 0, 0, 7, 6, 6, 3, 3, 3, 0, 0, 0, 0, 0, 0, 0, 0		; SprData.cls 114
-            db 0, 0, 0, 7, 7, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0		; SprData.cls 115
-            db 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0		; SprData.cls 116
-            db 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0		; SprData.cls 117
-            db 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 13, 13, 13, 13, 13, 13, 0, 0, 0, 0, 0		; SprData.cls 118
-            db 0, 0, 0, 0, 13, 12, 12, 12, 12, 12, 12, 13, 0, 0, 0, 0, 0, 0, 0, 13, 12, 14, 12, 12, 12, 12, 14, 12, 13, 0, 0, 0		; SprData.cls 119
-            db 0, 0, 0, 13, 12, 12, 12, 10, 10, 12, 12, 12, 13, 0, 0, 0, 0, 0, 9, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 9, 0, 0		; SprData.cls 120
-            db 0, 0, 13, 12, 12, 14, 12, 12, 12, 12, 14, 12, 12, 13, 0, 0, 0, 0, 0, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 0, 0, 0		; SprData.cls 121
-            db 0, 0, 0, 0, 13, 0, 0, 13, 13, 0, 0, 13, 0, 0, 0, 0, 0, 0, 0, 13, 0, 0, 0, 13, 13, 0, 0, 0, 13, 0, 0, 0		; SprData.cls 122
-            db 0, 0, 13, 13, 0, 0, 0, 0, 0, 0, 0, 0, 13, 13, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0		; SprData.cls 123
-            db 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0		; SprData.cls 124
-            db 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0		; SprData.cls 125
-            db 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 12, 0, 0, 0, 0, 12, 0, 0, 0, 0, 12, 0, 0, 0		; SprData.cls 126
-            db 0, 0, 0, 12, 0, 0, 12, 12, 12, 0, 0, 12, 0, 0, 0, 0, 0, 0, 0, 0, 12, 12, 12, 12, 12, 12, 12, 0, 0, 0, 0, 0		; SprData.cls 127
-            db 0, 0, 12, 12, 12, 16, 16, 16, 16, 16, 12, 12, 12, 0, 0, 0, 0, 12, 0, 12, 16, 1, 11, 16, 1, 11, 16, 12, 0, 12, 0, 0		; SprData.cls 128
-            db 0, 0, 0, 12, 16, 16, 16, 16, 16, 16, 16, 12, 0, 0, 0, 0, 0, 0, 12, 12, 16, 16, 10, 10, 10, 16, 16, 12, 12, 0, 0, 0		; SprData.cls 129
-            db 0, 12, 0, 0, 12, 16, 16, 16, 16, 16, 12, 0, 0, 12, 0, 0, 0, 0, 0, 12, 0, 0, 12, 12, 12, 0, 0, 12, 0, 0, 0, 0		; SprData.cls 130
-            db 0, 0, 12, 0, 0, 0, 0, 12, 0, 0, 0, 0, 12, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0		; SprData.cls 131
-            db 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0		; SprData.cls 132
-            db 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0		; SprData.cls 133
-            db 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0		; SprData.cls 134
-            db 0, 0, 0, 0, 0, 0, 18, 18, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 18, 18, 0, 0, 0, 0, 0, 0, 0, 0		; SprData.cls 135
-            db 0, 0, 0, 0, 0, 17, 17, 17, 17, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 17, 0, 17, 17, 0, 17, 0, 0, 0, 0, 0, 0		; SprData.cls 136
-            db 0, 0, 0, 0, 0, 0, 17, 17, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 16, 16, 0, 0, 0, 0, 0, 0, 0, 0		; SprData.cls 137
-            db 0, 0, 0, 0, 0, 0, 16, 16, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 16, 0, 16, 0, 0, 0, 0, 0, 0, 0		; SprData.cls 138
-            db 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0		; SprData.cls 139
-            db 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0		; SprData.cls 140
-            db 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0		; SprData.cls 141
-            db 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0		; SprData.cls 142
-            db 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0		; SprData.cls 143
-            db 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 9, 9, 9, 0, 0, 0, 0, 0, 0, 0		; SprData.cls 144
-            db 0, 0, 0, 0, 0, 9, 8, 8, 8, 9, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 9, 8, 1, 8, 9, 0, 0, 0, 0, 0, 0		; SprData.cls 145
-            db 0, 0, 0, 0, 0, 9, 8, 8, 8, 9, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 9, 9, 9, 0, 0, 0, 0, 0, 0, 0		; SprData.cls 146
-            db 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0		; SprData.cls 147
-            db 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0		; SprData.cls 148
-            db 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0		; SprData.cls 149
-            db 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0		; SprData.cls 150
-            db 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0		; SprData.cls 151
-            db 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0		; SprData.cls 152
-            db 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0		; SprData.cls 153
-            db 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 8, 0, 0, 0, 0, 0, 0		; SprData.cls 154
-            db 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0		; SprData.cls 155
-            db 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0		; SprData.cls 156
-            db 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0		; SprData.cls 157
-            db 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0		; SprData.cls 158
-            db 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 21, 8, 0, 0, 0, 0, 0		; SprData.cls 159
-            db 0, 0, 0, 0, 0, 0, 9, 21, 0, 9, 21, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 9, 21, 9, 0, 0, 0, 0, 0, 0, 0, 0		; SprData.cls 160
-            db 0, 0, 0, 0, 8, 9, 21, 0, 0, 0, 8, 9, 0, 0, 0, 0, 0, 0, 0, 0, 9, 21, 0, 0, 0, 8, 21, 8, 9, 0, 0, 0		; SprData.cls 161
-            db 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 21, 8, 0, 0, 0, 0, 0, 0, 0, 0, 0		; SprData.cls 162
-            db 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 21, 8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 21, 8, 0, 0, 0, 0, 0, 0, 0		; SprData.cls 163
-            db 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0		; SprData.cls 164
-            db 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0		; SprData.cls 165
-            db 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0		; SprData.cls 166
-            db 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 10, 9, 0, 10, 0, 0, 0, 0, 0, 0, 0, 0, 0		; SprData.cls 167
-            db 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 10, 0, 0, 0, 0		; SprData.cls 168
-            db 0, 0, 9, 8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 8, 0, 0, 0, 0, 8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0		; SprData.cls 169
-            db 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 10, 0, 0, 0, 0, 0, 8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0		; SprData.cls 170
-            db 0, 0, 0, 0, 0, 0, 0, 0, 0, 10, 0, 8, 9, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 9, 0, 0, 0, 0, 0, 0		; SprData.cls 171
-            db 0, 0, 0, 0, 0, 0, 0, 0, 0, 9, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0		; SprData.cls 172
-            db 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0		; SprData.cls 173
-            db 0, 0, 0, 0, 23, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0		; SprData.cls 174
-            db 0, 0, 0, 0, 23, 0, 0, 0, 0, 0, 10, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0		; SprData.cls 175
-            db 10, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0		; SprData.cls 176
-            db 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 10, 0, 23, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 10, 0		; SprData.cls 177
-            db 11, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0		; SprData.cls 178
-            db 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 11, 11, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 11, 0, 0, 0		; SprData.cls 179
-            db 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 11, 0, 0, 0, 0, 0, 0, 0, 0, 23, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0		; SprData.cls 180
-            db 0, 0, 0, 0, 0, 0, 11, 0, 0, 0, 0, 23, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0		; SprData.cls 181
-            db 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0		; SprData.cls 182
-            db 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0		; SprData.cls 183
-            db 0, 0, 0, 0, 0, 14, 14, 14, 14, 14, 14, 0, 0, 0, 0, 0, 0, 0, 14, 14, 14, 12, 12, 12, 12, 12, 12, 14, 14, 14, 0, 0		; SprData.cls 184
-            db 14, 14, 12, 12, 12, 1, 12, 1, 12, 1, 12, 1, 12, 12, 14, 14, 0, 0, 14, 14, 14, 12, 12, 12, 12, 12, 12, 14, 14, 14, 0, 0		; SprData.cls 185
-            db 0, 0, 0, 0, 0, 14, 14, 14, 14, 14, 14, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0		; SprData.cls 186
-            db 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0		; SprData.cls 187
-            db 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0		; SprData.cls 188
-            db 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0		; SprData.cls 189
-            db 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0		; SprData.cls 190
-            db 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0		; SprData.cls 191
-            db 0, 0, 0, 0, 0, 14, 14, 14, 14, 14, 14, 0, 0, 0, 0, 0, 0, 0, 14, 14, 14, 12, 12, 12, 12, 12, 12, 14, 14, 14, 0, 0		; SprData.cls 192
-            db 14, 14, 12, 12, 12, 12, 1, 12, 1, 12, 1, 12, 12, 12, 14, 14, 0, 0, 14, 14, 14, 12, 12, 12, 12, 12, 12, 14, 14, 14, 0, 0		; SprData.cls 193
-            db 0, 0, 0, 0, 0, 14, 14, 14, 14, 14, 14, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0		; SprData.cls 194
-            db 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0		; SprData.cls 195
-            db 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0		; SprData.cls 196
-            db 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0		; SprData.cls 197
-fn_sprdata_upload_sd_end:		; SprData.cls 198
+fn_scroll_upload:		; sub upload (asm keyword), Scroll.cls line 18
+            ld bc, #243B		; Scroll.cls 19
+            ld a, #61		; Scroll.cls 20
+            out (c), a		; Scroll.cls 21
+            inc b		; Scroll.cls 22
+            xor a		; Scroll.cls 23
+            out (c), a		; Scroll.cls 24
+            dec b		; Scroll.cls 25
+            ld a, #62		; Scroll.cls 26
+            out (c), a		; Scroll.cls 27
+            inc b		; Scroll.cls 28
+            xor a		; Scroll.cls 29
+            out (c), a              ; stopped, index 0 [30]
+            dec b		; Scroll.cls 31
+            ld a, #60		; Scroll.cls 32
+            out (c), a		; Scroll.cls 33
+            inc b		; Scroll.cls 34
+            ld hl, arr_scroll_cop		; Scroll.cls 35
+            ld e, 10		; Scroll.cls 36
+fn_scroll_upload_sc_lp:		; Scroll.cls 37
+            ld a, (hl)		; Scroll.cls 38
+            out (c), a		; Scroll.cls 39
+            inc hl		; Scroll.cls 40
+            dec e		; Scroll.cls 41
+            jr nz, fn_scroll_upload_sc_lp		; Scroll.cls 42
+            dec b		; Scroll.cls 43
+            ld a, #62		; Scroll.cls 44
+            out (c), a		; Scroll.cls 45
+            inc b		; Scroll.cls 46
+            ld a, #C0		; Scroll.cls 47
+            out (c), a              ; start: from 0, again at each frame [48]
 			ret			; end of #asm
 
 fn_keys_down:		; function down (asm keyword), Keys.cls line 77
@@ -6920,26 +5325,63 @@ fn_keys_joystick_kjn2:		; Keys.cls 163
 ; Variables
 ; ============================================================
 
+var_key_key:			dw 0
+var_joy_joy:			dw 0
 var_score:			dw 0, 0
-var_nextbonus:			dw 0, 0
 var_lives:			dw 0
 var_bombs:			dw 0
 var_wave:			dw 0
 var_game_over:			dw 0
-var_frames:			dw 0
 var_flash_bg:			dw 0
-var_msgt:			dw 0
+var_j:			dw 0
+var_pvy:			dw 0
+var_pdir:			dw 0
+var_pvx:			dw 0
+var_px:			dw 0
+var_py:			dw 0
+var_psx:			dw 0
 var_cam_x:			dw 0
-var_huddirty:			dw 0
-var_enemies_alive:			dw 0
-var_enemies_to_spawn:			dw 0
+var_fire_cd:			dw 0
+var_bomb_cd:			dw 0
+var_hyper_cd:			dw 0
+var_old_prx:			dw 0
+var_old_pry:			dw 0
 var_i:			dw 0
+var_lsx:			dw 0
+var_worldtoscreenx_worldtoscreenx:			dw 0
+var_t_ground:			dw 0
+var_getterrainy_getterrainy:			dw 0
+var_hsx:			dw 0
+var_hrx:			dw 0
+var_worldtoradarx_worldtoradarx:			dw 0
+var_spawn_timer:			dw 0
+var_enemies_to_spawn:			dw 0
+var_enemies_alive:			dw 0
+var_humans_alive:			dw 0
+var_th:			dw 0
+var_dx_h:			dw 0
+var_planet_dead:			dw 0
+var_hit:			dw 0
+var_esx:			dw 0
+var_l_idx:			dw 0
+var_s_idx:			dw 0
+var_epat:			dw 0
+var_ecol:			dw 0
+var_erx:			dw 0
+var_ery:			dw 0
+var_ssx:			dw 0
 p_writenextreg_rs:			dw 0
 var_writenextreg_reg:			dw 0
 var_writenextreg_val:			dw 0
 p_loadspritetilemap_rs:			dw 0
 			db 40			; capacity
 var_loadspritetilemap_filename:			ds 41
+var_loadspritetilemap_b0:			dw 0
+var_loadspritetilemap_p:			dw 0
+var_loadspritetilemap_x:			dw 0
+var_loadspritetilemap_y:			dw 0
+var_loadspritetilemap_dx:			dw 0
+var_loadspritetilemap_dy:			dw 0
 var_filesystem_load_load:			dw 0
 p_sethardwaresprite_rs:			dw 0
 var_sethardwaresprite_slot:			dw 0
@@ -6948,131 +5390,46 @@ var_sethardwaresprite_py_scr:			dw 0
 var_sethardwaresprite_pat:			dw 0
 var_sethardwaresprite_hflip:			dw 0
 var_sethardwaresprite_visible:			dw 0
-var_sethardwaresprite_sx1:			dw 0
-var_sethardwaresprite_sy1:			dw 0
+var_sethardwaresprite_sx:			dw 0
+var_sethardwaresprite_sy:			dw 0
 var_sethardwaresprite_attr2:			dw 0
-p_hidesprite_rs:			dw 0
-var_hidesprite_slot:			dw 0
 p_hideallsprites_rs:			dw 0
 var_hideallsprites_s:			dw 0
-p_makeland_rs:			dw 0
-var_makeland_h:			dw 0
-var_makeland_t:			dw 0
-var_rs:			dw 0, 0
-var_k:			dw 0
-var_rand_rand:			dw 0
-p_rand_rs:			dw 0
-var_rand_n:			dw 0
 p_getterrainy_rs:			dw 0
 var_getterrainy_wx:			dw 0
-var_getterrainy_getterrainy:			dw 0
-var_planet_dead:			dw 0
+var_getterrainy_p:			dw 0
+var_getterrainy_h:			dw 0
 p_worldtoscreenx_rs:			dw 0
 var_worldtoscreenx_wx:			dw 0
 var_worldtoscreenx_cx:			dw 0
-var_worldtoscreenx_worldtoscreenx:			dw 0
 var_worldtoscreenx_d:			dw 0
 p_worldtoradarx_rs:			dw 0
 var_worldtoradarx_wx:			dw 0
-var_worldtoradarx_worldtoradarx:			dw 0
 var_worldtoradarx_rel:			dw 0
-var_px:			dw 0
 p_updatehud_rs:			dw 0
 p_drawstaticframe_rs:			dw 0
-var_mark0:			dw 0
-p_stars_rs:			dw 0
-var_stars_x:			dw 0
-var_stars_y:			dw 0
 p_initwave_rs:			dw 0
-var_py:			dw 0
-var_pvx:			dw 0
-var_pvy:			dw 0
-var_pdir:			dw 0
-var_psx:			dw 0
-var_old_prx:			dw 0
-var_old_pry:			dw 0
-var_safet:			dw 0
-var_humans_alive:			dw 0
-var_spawn_timer:			dw 0
-var_wavet:			dw 0
-var_baitert:			dw 0
+var_initwave_i:			dw 0
+var_ter_step:			dw 0
+var_teron:			dw 0
 p_spawnenemy_rs:			dw 0
-p_spawnbaiter_rs:			dw 0
+var_spawnenemy_i:			dw 0
 p_firelaser_rs:			dw 0
-p_boom_rs:			dw 0
-var_boom_wx:			dw 0
-var_boom_wy:			dw 0
+var_firelaser_i:			dw 0
 p_killenemy_rs:			dw 0
 var_killenemy_idx:			dw 0
 var_killenemy_h:			dw 0
-p_addscore_rs:			dw 0
-var_addscore_n:			dw 0
 p_triggersmartbomb_rs:			dw 0
 var_triggersmartbomb_cx:			dw 0
+var_triggersmartbomb_i:			dw 0
 var_triggersmartbomb_sx_pos:			dw 0
-var_bomb_cd:			dw 0
 p_loselife_rs:			dw 0
-var_loselife_f:			dw 0
-p_message_rs:			dw 0
-			db 40			; capacity
-var_message_m:			ds 41
-var_message_t:			dw 0
-p_controls_rs:			dw 0
-var_j:			dw 0
-var_joy_joy:			dw 0
-var_key_key:			dw 0
-var_thrust:			dw 0
-var_sfx_busy_busy:			dw 0
-var_fire_cd:			dw 0
-var_hyper_cd:			dw 0
-p_drawplayer_rs:			dw 0
-var_drawplayer_f:			dw 0
-p_lasers_rs:			dw 0
-var_lasers_lsx:			dw 0
-var_laserson:			dw 0
-p_humans_rs:			dw 0
-var_humans_hsx:			dw 0
-var_humans_hrx:			dw 0
-var_humans_hry:			dw 0
-var_humans_t_ground:			dw 0
-var_humans___sel97:			dw 0
-p_humansgone_rs:			dw 0
-p_enemies_rs:			dw 0
-var_enemies_esx:			dw 0
-var_enemies_erx:			dw 0
-var_enemies_ery:			dw 0
-var_enemies_epat:			dw 0
-var_enemies_ecol:			dw 0
-var_enemies_th:			dw 0
-var_enemies_dx_h:			dw 0
-var_enemies_l_idx:			dw 0
-var_enemies_hit:			dw 0
-var_enemies_lsx:			dw 0
-var_enemies_s:			dw 0
-var_enemies___sel116:			dw 0
-p_enemyshot_rs:			dw 0
-var_enemyshot_n:			dw 0
-var_enemyshot_esx:			dw 0
-var_enemyshot_dx:			dw 0
-var_enemyshot_dy:			dw 0
-var_enemyshot_m:			dw 0
-p_shots_rs:			dw 0
-var_shots_ssx:			dw 0
-var_shots_wy:			dw 0
-p_booms_rs:			dw 0
-var_booms_bsx:			dw 0
-p_viewmarks_rs:			dw 0
-var_viewmarks_m:			dw 0
-p_wavedone_rs:			dw 0
-var_wavedone_b:			dw 0
-var_wavedone_f:			dw 0
-p_titlescreen_rs:			dw 0
-var_titlescreen_t:			dw 0
-var_titlescreen_a:			dw 0
+var_loselife_i:			dw 0
 p_setpens_rs:			dw 0
+var_setpens_k:			dw 0
 p_pen_rs:			dw 0
 var_pen_n:			dw 0
-var_pen___sel173:			dw 0
+var_pen___sel120:			dw 0
 var_txtpen:			dw 0
 p_paper_rs:			dw 0
 var_paper_n:			dw 0
@@ -7087,7 +5444,7 @@ p_prints_rs:			dw 0
 			db 40			; capacity
 var_prints_t:			ds 41
 p_clsall_rs:			dw 0
-var_teron:			dw 0
+var_clsall_k:			dw 0
 p_plot_rs:			dw 0
 var_plot_x:			dw 0
 var_plot_y:			dw 0
@@ -7107,10 +5464,15 @@ var_draw_e2:			dw 0
 var_draw_x0:			dw 0
 var_draw_y0:			dw 0
 var_draw_col:			dw 0
+p_sound_rs:			dw 0
+var_sound_ch:			dw 0
+var_sound_pitch:			dw 0
+var_sound_dur:			dw 0
+var_sound_vol:			dw 0
 p_vsync_rs:			dw 0
 p_key_rs:			dw 0
 var_key_n:			dw 0
-var_key___sel183:			dw 0
+var_key___sel130:			dw 0
 p_joy_rs:			dw 0
 var_joy_n:			dw 0
 var_joy_j0:			dw 0
@@ -7118,16 +5480,17 @@ var_joy_r:			dw 0
 p_terrain_rs:			dw 0
 var_terrain_cx:			dw 0
 var_terrain_d:			dw 0
+var_terrain_wx:			dw 0
+var_terrain_k:			dw 0
 var_terdead:			dw 0
 var_tcam:			dw 0
-for197_l:			dw 0
+for143_l:			dw 0
 p_col_rs:			dw 0
 var_col_wx:			dw 0
 var_col_c:			dw 0
-p_heights_rs:			dw 0
-var_heights_wx:			dw 0
-var_heights_h0:			dw 0
-var_heights_h1:			dw 0
+var_col_h0:			dw 0
+var_col_h1:			dw 0
+var_col_y:			dw 0
 p_spr_init_rs:			dw 0
 var_spr_init_i:			dw 0
 var_spr_used:			dw 0
@@ -7142,8 +5505,6 @@ var_sfx_play_sl:			dw 0
 var_sfx_play_volume:			dw 0
 var_sfx_play_frames:			dw 0
 var_sfx_play_noise:			dw 0
-p_sfx_busy_rs:			dw 0
-var_sfx_busy_ch:			dw 0
 p_sfx_update_rs:			dw 0
 var_sfx_update_i:			dw 0
 var_sfx_update_v:			dw 0
@@ -7176,34 +5537,13 @@ var_l2_rect_w:			dw 0
 var_l2_rect_h:			dw 0
 var_l2_rect_c:			dw 0
 var_l2_rect_j:			dw 0
-for218_l:			dw 0
+for163_l:			dw 0
 p_l2_plot_rs:			dw 0
 var_l2_plot_x:			dw 0
 var_l2_plot_y:			dw 0
 var_l2_plot_c:			dw 0
-p_l2_big_rs:			dw 0
-var_l2_big_x:			dw 0
-var_l2_big_y:			dw 0
-			db 40			; capacity
-var_l2_big_s:			ds 41
-var_l2_big_z:			dw 0
-var_l2_big_c1:			dw 0
-var_l2_big_c2:			dw 0
-var_l2_big_k:			dw 0
-var_l2_big_r:			dw 0
-var_l2_big_b:			dw 0
-var_l2_big_i:			dw 0
-var_l2_big_run:			dw 0
-var_l2_big_a:			dw 0
-var_l2_big_col:			dw 0
-var_l2_big_pass:			dw 0
-var_l2_big_sh:			dw 0
-var_l2_big_m:			dw 0
-var_l2_big_v:			dw 0
-for221_l:			dw 0
 p_scroll_show_rs:			dw 0
-var_scroll_show_stars:			dw 0
-var_scroll_show_ground:			dw 0
+var_scroll_show_sx:			dw 0
 p_filesystem_load_rs:			dw 0
 			db 40			; capacity
 var_filesystem_load_name:			ds 41
@@ -7214,9 +5554,6 @@ tmp1:			dw 0
 tmp2:			dw 0
 tmp3:			dw 0
 tmp4:			dw 0
-tmp5:			dw 0
-tmp6:			dw 0
-tmp7:			dw 0
 			db 40			; capacity
 stmp0:			ds 41
 			db 40			; capacity
@@ -7225,94 +5562,80 @@ stmp1:			ds 41
 stmp2:			ds 41
 ltmp0:			dw 0, 0
 ltmp1:			dw 0, 0
-ltmp2:			dw 0, 0
 
 ; numbers passed by address (read only)
 lit_2:			dw 2
 lit_0:			dw 0
 lit_15:			dw 15
-llit_0:			dw 0, 0
-llit_10000:			dw 10000, 0
-lit_1:			dw 1
-lit_11:			dw 11
-lit_32:			dw 32
-lit_10:			dw 10
-lit_8:			dw 8
-lit_9:			dw 9
-lit_12:			dw 12
-lit_255:			dw 255
 lit_14:			dw 14
+lit_8:			dw 8
+lit_4:			dw 4
+lit_11:			dw 11
+lit_6:			dw 6
+lit_10:			dw 10
+lit_12:			dw 12
+lit_16:			dw 16
+lit_18:			dw 18
+lit_5:			dw 5
+lit_22:			dw 22
+lit_70:			dw 70
+lit_32:			dw 32
+lit_m1:			dw -1
+lit_1:			dw 1
+lit_110:			dw 110
+lit_150:			dw 150
+lit_3:			dw 3
+lit_190:			dw 190
+lit_40:			dw 40
+llit_0:			dw 0, 0
+lit_33:			dw 33
+lit_9:			dw 9
+lit_36:			dw 36
+lit_34:			dw 34
+lit_38:			dw 38
+lit_550:			dw 550
+lit_13:			dw 13
+lit_154:			dw 154
+llit_50:			dw 50, 0
+lit_90:			dw 90
+llit_25:			dw 25, 0
+lit_480:			dw 480
+llit_15:			dw 15, 0
+lit_100:			dw 100
+lit_7:			dw 7
 lit_9275:			dw 9275
 lit_9531:			dw 9531
 lit_21:			dw 21
 lit_75:			dw 75
-vp_arr_sprbuf:			dw arr_sprbuf
-lit_4608:			dw 4608
 lit_67:			dw 67
 lit_64:			dw 64
+vp_arr_sprbuf:			dw arr_sprbuf
+lit_1792:			dw 1792
 lit_68:			dw 68
 lit_12347:			dw 12347
 lit_91:			dw 91
-lit_87:			dw 87
-llit_12345:			dw 12345, 0
+lit_255:			dw 255
+lit_252:			dw 252
+lit_240:			dw 240
+lit_224:			dw 224
+lit_226:			dw 226
+lit_28:			dw 28
 lit_23:			dw 23
-lit_3:			dw 3
-llit_1103515245:			dw 20077, 16838
-llit_2147483647:			dw 65535, 32767
-llit_65536:			dw 0, 1
-lit_7:			dw 7
-lit_19:			dw 19
-lit_27:			dw 27
-lit_43:			dw 43
-lit_256:			dw 256
-lit_139:			dw 139
+lit_87:			dw 87
+lit_26:			dw 26
 lit_62:			dw 62
 lit_152:			dw 152
 lit_193:			dw 193
 lit_182:			dw 182
-llit_777:			dw 777, 0
-lit_110:			dw 110
-lit_60:			dw 60
-lit_40:			dw 40
-lit_13:			dw 13
+lit_260:			dw 260
+lit_380:			dw 380
+lit_750:			dw 750
 lit_25:			dw 25
-lit_24:			dw 24
-lit_5:			dw 5
-lit_200:			dw 200
-lit_150:			dw 150
-lit_20:			dw 20
-lit_m1:			dw -1
-lit_4:			dw 4
-lit_45:			dw 45
-lit_6:			dw 6
-lit_70:			dw 70
-lit_33:			dw 33
-lit_28:			dw 28
-lit_36:			dw 36
-lit_34:			dw 34
-lit_38:			dw 38
-lit_500:			dw 500
-lit_m24:			dw -24
-lit_90:			dw 90
-lit_m3:			dw -3
-lit_140:			dw 140
-lit_m6:			dw -6
-lit_100:			dw 100
-lit_250:			dw 250
-lit_300:			dw 300
-lit_m16:			dw -16
-lit_30:			dw 30
-lit_50:			dw 50
-lit_41:			dw 41
-lit_252:			dw 252
-lit_224:			dw 224
-lit_17:			dw 17
-lit_18:			dw 18
-lit_56:			dw 56
-lit_123:			dw 123
-lit_107:			dw 107
+lit_256:			dw 256
 lit_192:			dw 192
-lit_16:			dw 16
+lit_56:			dw 56
+lit_41:			dw 41
+lit_60:			dw 60
 lit_58:			dw 58
 lit_52:			dw 52
 lit_104:			dw 104
@@ -7322,13 +5645,16 @@ lit_76:			dw 76
 lit_47:			dw 47
 lit_48:			dw 48
 lit_49:			dw 49
+lit_27:			dw 27
 lit_159:			dw 159
+lit_107:			dw 107
 lit_161:			dw 161
+lit_m3:			dw -3
 lit_63:			dw 63
 lit_129:			dw 129
 lit_112:			dw 112
+lit_24:			dw 24
 lit_191:			dw 191
-lit_22:			dw 22
 lit_4667:			dw 4667
 llit_m1:			dw 65535, 65535
 
@@ -7337,41 +5663,30 @@ llit_m1:			dw 65535, 65535
 ; ============================================================
 
 str0:			db "DEFENDER.SPR", 0
-str1:			db "G A M E   O V E R", 0
-str2:			db "FINAL SCORE: ", 0
-str3:			db "REACHED WAVE: ", 0
-str4:			db "000000", 0
-str5:			db "SHIPS", 0
-str6:			db " ", 0
-str7:			db "BOMBS", 0
-str8:			db "WAVE", 0
-str9:			db "073146219255", 0
-str10:			db "THE PLANET IS GONE", 0
-str11:			db "HUMANOID TAKEN!", 0
-str12:			db "ATTACK WAVE", 0
-str13:			db "COMPLETED", 0
-str14:			db "BONUS", 0
-str15:			db "DEFENDER", 0
-str16:			db "ZX SPECTRUM NEXT EDITION", 0
-str17:			db "LANDER      150", 0
-str18:			db "MUTANT      150", 0
-str19:			db "BAITER      200", 0
-str20:			db "HUMANOID    500", 0
-str21:			db "Q / A or UP/DN : ALTITUDE", 0
-str22:			db "O / P or LT/RT : THRUST", 0
-str23:			db "SPACE / FIRE 1 : LASER", 0
-str24:			db "B / M / FIRE 2 : SMART BOMB", 0
-str25:			db "H              : HYPERSPACE", 0
-str26:			db "PRESS SPACE OR FIRE", 0
-str27:			db "                   ", 0
-str28:			db "000 003 224 028 031 226 252 255 146 002 224 031 028 226 252 255", 0
-str29:			db "00FF00000000000000000000000025E3", 0
-str30:			db "00FC00000000000000000000000025E3", 0
-str31:			db "001F00000000000000000000000025E3", 0
-str32:			db "00E000000000000000000000000025E3", 0
-str33:			db "001C00000000000000000000000025E3", 0
-str34:			db "00E200000000000000000000000025E3", 0
-str35:			db 0
+str1:			db "D E F E N D E R", 0
+str2:			db "ZX SPECTRUM NEXT EDITION", 0
+str3:			db "Q / A or UP/DN : ALTITUDE", 0
+str4:			db "O / P or LT/RT : THRUST", 0
+str5:			db "SPACE / FIRE 1 : LASER", 0
+str6:			db "B / M / FIRE 2 : SMART BOMB", 0
+str7:			db "H              : HYPERSPACE", 0
+str8:			db "PRESS SPACE OR FIRE", 0
+str9:			db "G A M E   O V E R", 0
+str10:			db "FINAL SCORE: ", 0
+str11:			db "REACHED WAVE: ", 0
+str12:			db "SC:", 0
+str13:			db " ", 0
+str14:			db "L:", 0
+str15:			db " B:", 0
+str16:			db "W:", 0
+str17:			db "000 003 224 028 031 226 252 255 146 002 224 031 028 226 252 255", 0
+str18:			db "00FF00000000000000000000000025E3", 0
+str19:			db "00FC00000000000000000000000025E3", 0
+str20:			db "001F00000000000000000000000025E3", 0
+str21:			db "00E000000000000000000000000025E3", 0
+str22:			db "001C00000000000000000000000025E3", 0
+str23:			db "00E200000000000000000000000025E3", 0
+str24:			db 0
 
 ; ============================================================
 ; Keyword library (used)
@@ -7402,9 +5717,6 @@ ntc_sgnr:		db 0			; remainder sign (bit 7)
 
 ;## ntc_d_lead @data
 ntc_lead:		db 0			; printint: digit seen
-
-;## ntc_d_sptr @data
-ntc_sptr:		dw 0			; printbuf: text pointer
 
 ;## ntc_d_ivar @data
 ntc_ivar:		dw 0			; inputint / inkey: dest var
@@ -7442,18 +5754,6 @@ kw_goto_ifzero:
 			or (hl)
 			pop hl
 			ret nz
-			ld sp, hl
-			ret
-
-;## kw_goto_ifnzero
-;kw_goto_ifnzero, <var>, <label>  - branch if var <> 0
-kw_goto_ifnzero:
-			pop hl
-			ld a, (hl)
-			inc hl
-			or (hl)
-			pop hl
-			ret z
 			ld sp, hl
 			ret
 
@@ -8319,20 +6619,6 @@ kw_cpnevl:
 ; Memory (PEEK / POKE / DEEK / DOKE)
 ; ============================================================
 
-;## kw_vptrtov8
-;kw_vptrtov8, <addrvar>, <destvar>  - PEEK(var)
-kw_vptrtov8:
-			pop hl
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			ld a, (de)
-			pop hl
-			ld (hl), a
-			inc hl
-			ld (hl), 0
-			ret
-
 ;## kw_ltolptr8
 ;kw_ltolptr8, <literal>, <literaladdr>  - POKE literal, literal
 kw_ltolptr8:
@@ -8448,15 +6734,6 @@ kw_asetl:
 
 ;## ntc_rnd_seed
 ntc_rnd_seed:	dw 1
-
-;## kw_rndv ntc_rnd_seed ntc_div
-;kw_rndv, <nvar>, <destvar>  - 0 .. n-1 (0 if n <= 0)
-kw_rndv:
-			pop hl
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			jp ntc_rnd
 
 ;## kw_rndl ntc_rnd_seed ntc_div
 ;kw_rndl, <literal>, <destvar>
@@ -8775,38 +7052,6 @@ ntc_sn_end:
 			ld (de), a
 			ret
 
-;## kw_strright ntc_getn kw_strleft
-;kw_strright, <dest>, <src>, <nvar>  - Right$(src, n)
-kw_strright:
-			pop de
-			pop hl
-			pop bc
-			ld ix, ntc_sr_n
-			jp ntc_getn
-ntc_sr_n:
-			ld c, a
-			ld (ntc_sptr), hl
-			ld b, 0
-ntc_sr_len:
-			ld a, (hl)
-			or a
-			jr z, ntc_sr_got
-			inc hl
-			inc b
-			jr ntc_sr_len
-ntc_sr_got:
-			ld a, b
-			sub c
-			jr nc, ntc_sr_skip
-			xor a
-ntc_sr_skip:
-			ld hl, (ntc_sptr)
-			ld c, a
-			ld b, 0
-			add hl, bc
-			ld b, 255
-			jp ntc_strncpy
-
 ;## kw_pow
 ;kw_pow, <basevar>, <expvar>, <destvar>  - base ^ exp (Integer, low 16 bits; exp < 0 gives 0)
 kw_pow:
@@ -8901,37 +7146,6 @@ ntc_st_go:
 			ld ix, ntc_next
 			jp ntc_itoa
 
-;## kw_strspace ntc_getn
-;kw_strspace, <dest>, <nvar>  - Space$(n)
-kw_strspace:
-			pop de
-			pop bc
-			ld ix, ntc_sp_n
-			jp ntc_getn
-ntc_sp_n:
-			ld c, ' '
-; A = count (NTC_STRMAX at most), C = char, DE = dest
-ntc_strfill:
-	IF NTC_STRMAX < 255
-			cp NTC_STRMAX + 1
-			jr c, ntc_sf_ok
-			ld a, NTC_STRMAX
-ntc_sf_ok:
-	ENDIF
-			ld b, a
-			inc b
-ntc_sf_loop:
-			dec b
-			jr z, ntc_sf_end
-			ld a, c
-			ld (de), a
-			inc de
-			jr ntc_sf_loop
-ntc_sf_end:
-			xor a
-			ld (de), a
-			ret
-
 ;## kw_strasc
 ;kw_strasc, <src>, <destvar>  - Asc(src), 0 if empty
 kw_strasc:
@@ -8991,15 +7205,6 @@ kw_l_itol:
 			ld (de), a
 			ret
 
-;## kw_l_ltoi
-;kw_l_ltoi, <long>, <intdest>  - Long to Integer (low 16 bits)
-kw_l_ltoi:
-			pop hl
-			pop de
-			ldi
-			ldi
-			ret
-
 ;## kw_l_add
 ;kw_l_add, <a>, <b>, <dest>  - a + b
 kw_l_add:
@@ -9025,325 +7230,6 @@ kw_l_add:
 			adc a, (hl)
 			ld (ix+3), a
 			ret
-
-;## kw_l_and
-;kw_l_and, <a>, <b>, <dest>
-kw_l_and:
-			pop hl
-			pop de
-			pop ix
-			ld a, (de)
-			and (hl)
-			ld (ix+0), a
-			inc hl
-			inc de
-			ld a, (de)
-			and (hl)
-			ld (ix+1), a
-			inc hl
-			inc de
-			ld a, (de)
-			and (hl)
-			ld (ix+2), a
-			inc hl
-			inc de
-			ld a, (de)
-			and (hl)
-			ld (ix+3), a
-			ret
-
-;## ntc_lcmp ntc_ldata
-; DE = a, HL = b: work out a - b. ntc_lsgn = #80 if a < b (signed),
-; ntc_lcnt = 0 if a = b. jp (ix) back.
-ntc_lcmp:
-			ld a, (de)
-			sub (hl)
-			ld (ntc_lr), a
-			inc hl
-			inc de
-			ld a, (de)
-			sbc a, (hl)
-			ld (ntc_lr+1), a
-			inc hl
-			inc de
-			ld a, (de)
-			sbc a, (hl)
-			ld (ntc_lr+2), a
-			inc hl
-			inc de
-			ld a, (de)
-			sbc a, (hl)
-			ld (ntc_lr+3), a
-			ld b, 0
-			jp po, ntc_lcm_nov
-			ld b, #80
-ntc_lcm_nov:
-			xor b
-			and #80
-			ld (ntc_lsgn), a
-			ld hl, ntc_lr
-			ld a, (hl)
-			inc hl
-			or (hl)
-			inc hl
-			or (hl)
-			inc hl
-			or (hl)
-			ld (ntc_lcnt), a
-			jp (ix)
-
-;## kw_l_cpge ntc_lcmp
-;kw_l_cpge, <a>, <b>  - Z if a >= b
-kw_l_cpge:
-			pop de
-			pop hl
-			ld ix, ntc_lcge
-			jp ntc_lcmp
-ntc_lcge:
-			ld a, (ntc_lsgn)
-			or a
-			ret
-
-;## ntc_lmul ntc_ldata
-; ntc_la * ntc_lb -> ntc_lr (low 32 bits, same signed / unsigned). jp (ix)
-ntc_lmul:
-			ld hl, 0
-			ld (ntc_lr), hl
-			ld (ntc_lr+2), hl
-			ld b, 32
-ntc_lm_loop:
-			ld hl, ntc_lb+3
-			srl (hl)
-			dec hl
-			rr (hl)
-			dec hl
-			rr (hl)
-			dec hl
-			rr (hl)
-			jr nc, ntc_lm_skip
-			ld de, ntc_la
-			ld hl, ntc_lr
-			ld a, (de)
-			add a, (hl)
-			ld (hl), a
-			inc de
-			inc hl
-			ld a, (de)
-			adc a, (hl)
-			ld (hl), a
-			inc de
-			inc hl
-			ld a, (de)
-			adc a, (hl)
-			ld (hl), a
-			inc de
-			inc hl
-			ld a, (de)
-			adc a, (hl)
-			ld (hl), a
-ntc_lm_skip:
-			ld hl, ntc_la
-			sla (hl)
-			inc hl
-			rl (hl)
-			inc hl
-			rl (hl)
-			inc hl
-			rl (hl)
-			djnz ntc_lm_loop
-			jp (ix)
-
-;## ntc_lnegm
-; HL = address of a Long: negate it in place. jp (ix)
-ntc_lnegm:
-			xor a
-			sub (hl)
-			ld (hl), a
-			inc hl
-			ld a, 0
-			sbc a, (hl)
-			ld (hl), a
-			inc hl
-			ld a, 0
-			sbc a, (hl)
-			ld (hl), a
-			inc hl
-			ld a, 0
-			sbc a, (hl)
-			ld (hl), a
-			jp (ix)
-
-;## ntc_ldiv ntc_ldata ntc_lnegm
-; ntc_la / ntc_lb signed, truncating: quotient in ntc_la, remainder (with
-; the dividend's sign) in ntc_lr. Divide by 0: quotient 0, remainder =
-; dividend. jp (ix) back.
-ntc_ldiv:
-			ld (ntc_lix), ix
-			ld hl, (ntc_lb)
-			ld a, h
-			or l
-			ld hl, (ntc_lb+2)
-			or h
-			or l
-			jr nz, ntc_ld_nz
-			ld hl, (ntc_la)
-			ld (ntc_lr), hl
-			ld hl, (ntc_la+2)
-			ld (ntc_lr+2), hl
-			ld hl, 0
-			ld (ntc_la), hl
-			ld (ntc_la+2), hl
-			jp ntc_ld_out
-ntc_ld_nz:
-			ld a, (ntc_la+3)
-			ld (ntc_lsgn), a
-			ld b, a
-			ld a, (ntc_lb+3)
-			xor b
-			ld (ntc_lcnt), a
-			ld a, (ntc_la+3)
-			or a
-			jp p, ntc_ld_apos
-			ld hl, ntc_la
-			ld ix, ntc_ld_apos
-			jp ntc_lnegm
-ntc_ld_apos:
-			ld a, (ntc_lb+3)
-			or a
-			jp p, ntc_ld_bpos
-			ld hl, ntc_lb
-			ld ix, ntc_ld_bpos
-			jp ntc_lnegm
-ntc_ld_bpos:
-			ld hl, 0
-			ld (ntc_lr), hl
-			ld (ntc_lr+2), hl
-			ld b, 32
-ntc_ld_loop:
-			ld hl, ntc_la
-			sla (hl)
-			inc hl
-			rl (hl)
-			inc hl
-			rl (hl)
-			inc hl
-			rl (hl)
-			ld hl, ntc_lr
-			rl (hl)
-			inc hl
-			rl (hl)
-			inc hl
-			rl (hl)
-			inc hl
-			rl (hl)
-			ld de, ntc_lr
-			ld hl, ntc_lb
-			ld a, (de)
-			sub (hl)
-			ld (ntc_lt), a
-			inc hl
-			inc de
-			ld a, (de)
-			sbc a, (hl)
-			ld (ntc_lt+1), a
-			inc hl
-			inc de
-			ld a, (de)
-			sbc a, (hl)
-			ld (ntc_lt+2), a
-			inc hl
-			inc de
-			ld a, (de)
-			sbc a, (hl)
-			ld (ntc_lt+3), a
-			jr c, ntc_ld_no
-			ld hl, (ntc_lt)
-			ld (ntc_lr), hl
-			ld hl, (ntc_lt+2)
-			ld (ntc_lr+2), hl
-			ld hl, ntc_la
-			set 0, (hl)
-ntc_ld_no:
-			djnz ntc_ld_loop
-			ld a, (ntc_lcnt)
-			or a
-			jp p, ntc_ld_qpos
-			ld hl, ntc_la
-			ld ix, ntc_ld_qpos
-			jp ntc_lnegm
-ntc_ld_qpos:
-			ld a, (ntc_lsgn)
-			or a
-			jp p, ntc_ld_out
-			ld hl, ntc_lr
-			ld ix, ntc_ld_out
-			jp ntc_lnegm
-ntc_ld_out:
-			ld ix, (ntc_lix)
-			jp (ix)
-
-;## kw_l_mul ntc_lmul ntc_ldata
-;kw_l_mul, <a>, <b>, <dest>  - a * b
-kw_l_mul:
-			pop hl
-			ld de, ntc_la
-			ldi
-			ldi
-			ldi
-			ldi
-			pop hl
-			ld de, ntc_lb
-			ldi
-			ldi
-			ldi
-			ldi
-			pop hl
-			ld (ntc_ldst), hl
-			ld ix, ntc_lmu_back
-			jp ntc_lmul
-ntc_lmu_back:
-			ld hl, ntc_lr
-; copy the 4 bytes at HL to (ntc_ldst), then next keyword
-ntc_lstore:
-			ld de, (ntc_ldst)
-			ldi
-			ldi
-			ldi
-			ldi
-			ret
-
-;## kw_l_div ntc_ldiv kw_l_mul
-;kw_l_div, <a>, <b>, <dest>  - a \ b
-kw_l_div:
-			ld ix, ntc_ldv_back
-ntc_ldv_go:
-			pop hl
-			ld de, ntc_la
-			ldi
-			ldi
-			ldi
-			ldi
-			pop hl
-			ld de, ntc_lb
-			ldi
-			ldi
-			ldi
-			ldi
-			pop hl
-			ld (ntc_ldst), hl
-			jp ntc_ldiv
-ntc_ldv_back:
-			ld hl, ntc_la
-			jp ntc_lstore
-
-;## kw_l_mod kw_l_div
-;kw_l_mod, <a>, <b>, <dest>  - a Mod b
-kw_l_mod:
-			ld ix, ntc_lmd_back
-			jp ntc_ldv_go
-ntc_lmd_back:
-			ld hl, ntc_lr
-			jp ntc_lstore
 
 ;## ntc_ltoa ntc_ldata ntc_data
 ; Long at (HL) to text at DE, 0 at the end. jp (ix) back. Uses IY.
@@ -9801,47 +7687,39 @@ ntc_bss		equ ntc_bssfrom
 arr_lx		equ ntc_bss + 0		; 10 bytes
 arr_ly		equ ntc_bss + 10		; 10 bytes
 arr_lvx		equ ntc_bss + 20		; 10 bytes
-arr_lscr		equ ntc_bss + 30		; 10 bytes
-arr_llife		equ ntc_bss + 40		; 10 bytes
-arr_hx		equ ntc_bss + 50		; 18 bytes
-arr_hy		equ ntc_bss + 68		; 18 bytes
-arr_hstate		equ ntc_bss + 86		; 18 bytes
-arr_hcarrier		equ ntc_bss + 104		; 18 bytes
-arr_hdir		equ ntc_bss + 122		; 18 bytes
-arr_hfall		equ ntc_bss + 140		; 18 bytes
-arr_hvy		equ ntc_bss + 158		; 18 bytes
-arr_old_hrx		equ ntc_bss + 176		; 18 bytes
-arr_old_hry		equ ntc_bss + 194		; 18 bytes
-arr_ex		equ ntc_bss + 212		; 22 bytes
-arr_ey		equ ntc_bss + 234		; 22 bytes
-arr_evx		equ ntc_bss + 256		; 22 bytes
-arr_evy		equ ntc_bss + 278		; 22 bytes
-arr_estate		equ ntc_bss + 300		; 22 bytes
-arr_etarget		equ ntc_bss + 322		; 22 bytes
-arr_old_erx		equ ntc_bss + 344		; 22 bytes
-arr_old_ery		equ ntc_bss + 366		; 22 bytes
-arr_sx		equ ntc_bss + 388		; 14 bytes
-arr_sy		equ ntc_bss + 402		; 14 bytes
-arr_svx		equ ntc_bss + 416		; 14 bytes
-arr_svy		equ ntc_bss + 430		; 14 bytes
-arr_slife		equ ntc_bss + 444		; 14 bytes
-arr_bx		equ ntc_bss + 458		; 10 bytes
-arr_by		equ ntc_bss + 468		; 10 bytes
-arr_bt		equ ntc_bss + 478		; 10 bytes
-arr_land		equ ntc_bss + 488		; 512 bytes
-arr_yh		equ ntc_bss + 1000		; 1024 bytes
-arr_ycol		equ ntc_bss + 2024		; 512 bytes
-arr_penc		equ ntc_bss + 2536		; 32 bytes
-arr_sprbuf		equ ntc_bss + 2568		; 4608 bytes
-arr_spr_tab		equ ntc_bss + 7176		; 640 bytes
-arr_sfx_per		equ ntc_bss + 7816		; 6 bytes
-arr_sfx_slide		equ ntc_bss + 7822		; 6 bytes
-arr_sfx_vol		equ ntc_bss + 7828		; 6 bytes
-arr_sfx_total		equ ntc_bss + 7834		; 6 bytes
-arr_sfx_left		equ ntc_bss + 7840		; 6 bytes
-arr_sfx_nse		equ ntc_bss + 7846		; 6 bytes
-arr_scroll_cop		equ ntc_bss + 7852		; 20 bytes
-ntc_bss_size	equ 7872
+arr_llife		equ ntc_bss + 30		; 10 bytes
+arr_hx		equ ntc_bss + 40		; 18 bytes
+arr_hy		equ ntc_bss + 58		; 18 bytes
+arr_hstate		equ ntc_bss + 76		; 18 bytes
+arr_hcarrier		equ ntc_bss + 94		; 18 bytes
+arr_old_hrx		equ ntc_bss + 112		; 18 bytes
+arr_ex		equ ntc_bss + 130		; 22 bytes
+arr_ey		equ ntc_bss + 152		; 22 bytes
+arr_evx		equ ntc_bss + 174		; 22 bytes
+arr_evy		equ ntc_bss + 196		; 22 bytes
+arr_estate		equ ntc_bss + 218		; 22 bytes
+arr_etarget		equ ntc_bss + 240		; 22 bytes
+arr_old_erx		equ ntc_bss + 262		; 22 bytes
+arr_old_ery		equ ntc_bss + 284		; 22 bytes
+arr_sx		equ ntc_bss + 306		; 14 bytes
+arr_sy		equ ntc_bss + 320		; 14 bytes
+arr_svx		equ ntc_bss + 334		; 14 bytes
+arr_svy		equ ntc_bss + 348		; 14 bytes
+arr_slife		equ ntc_bss + 362		; 14 bytes
+arr_old_ty0		equ ntc_bss + 376		; 18 bytes
+arr_old_ty1		equ ntc_bss + 394		; 18 bytes
+arr_penc		equ ntc_bss + 412		; 32 bytes
+arr_sprbuf		equ ntc_bss + 444		; 1792 bytes
+arr_ycol		equ ntc_bss + 2236		; 512 bytes
+arr_spr_tab		equ ntc_bss + 2748		; 640 bytes
+arr_sfx_per		equ ntc_bss + 3388		; 6 bytes
+arr_sfx_slide		equ ntc_bss + 3394		; 6 bytes
+arr_sfx_vol		equ ntc_bss + 3400		; 6 bytes
+arr_sfx_total		equ ntc_bss + 3406		; 6 bytes
+arr_sfx_left		equ ntc_bss + 3412		; 6 bytes
+arr_sfx_nse		equ ntc_bss + 3418		; 6 bytes
+arr_scroll_cop		equ ntc_bss + 3424		; 16 bytes
+ntc_bss_size	equ 3440
 ntc_free	equ ntc_bss + ntc_bss_size	; the first free byte (heap, Memory tables)
 ntc_memtab	equ ntc_free		; the Memory class's tables
 
