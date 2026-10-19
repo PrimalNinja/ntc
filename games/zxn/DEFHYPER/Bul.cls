@@ -90,7 +90,7 @@ Public Function Clear() As Integer
 #asm
             ld hl, {eb} + 8
             ld de, 11
-            ld bc, 52 * 252
+            ld bc, 52 * 256          ; (B: 52 bullets, C: the count)
 cl_lp:
             ld a, (hl)
             cp 255

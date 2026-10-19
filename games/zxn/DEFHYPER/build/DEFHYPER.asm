@@ -8670,7 +8670,7 @@ fn_bul_reset_rs_a:		; Bul.cls 73
 fn_bul_clear:		; function clear (asm keyword), Bul.cls line 90
             ld hl, arr_bul_eb + 8		; Bul.cls 91
             ld de, 11		; Bul.cls 92
-            ld bc, 52 * 252		; Bul.cls 93
+            ld bc, 52 * 256          ; (B: 52 bullets, C: the count) [93]
 fn_bul_clear_cl_lp:		; Bul.cls 94
             ld a, (hl)		; Bul.cls 95
             cp 255		; Bul.cls 96
