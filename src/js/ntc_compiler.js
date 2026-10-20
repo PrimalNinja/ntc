@@ -9421,8 +9421,12 @@ function ntcCompile(input_a, objOptions_a)
 	{
 		arrAsm.push('; the ZX Spectrum Next: NTC_ZXN defined (a DEFINE - sjasmplus\'s IFDEF tests those, not labels)');
 		arrAsm.push(strIndent + 'DEFINE NTC_ZXN');
-		arrAsm.push('ZXN_FIRSTBANK\tequ 22\t\t; first free 16K bank (page 44), above the program/screen/low banks');
-		arrAsm.push('ZXN_MAXBANK\tequ 106\t\t; scan range up to bank 127 (2MB)');
+		// the Memory class's banks start above the program, the screen, Layer 2 and the low banks (bank 22,
+		// page 44) - and above Option NexData's blocks when they run past the 7 low banks (1-4, 6, 7, 11)
+		// into bank 22 on: a data block is not RAM for the pool
+		var intFirstBank = 22 + Math.max(0, ((objNexData !== null) ? objNexData.blocks : 0) - 7);
+		arrAsm.push('ZXN_FIRSTBANK\tequ ' + intFirstBank + '\t\t; first free 16K bank (page ' + (2 * intFirstBank) + '), above the program/screen/low banks' + ((intFirstBank > 22) ? ' and Option NexData\'s blocks' : ''));
+		arrAsm.push('ZXN_MAXBANK\tequ ' + (112 - intFirstBank) + '\t\t; scan range: banks ' + intFirstBank + '-111 (a 2MB Next has 112 16K banks, pages 0-223; the MMU has no page past 223 - a higher page number is not RAM)');
 	}
 	arrAsm.push('NTC_CPMGFX\tequ ' + ((String(objOptions.platform).toLowerCase() === 'cpm') ? 1 : 0) + '\t\t; 1 = CP/M: Graphics draws on an Amstrad CPC\'s screen (2.2: #C000, Plus: block 1 from common memory)');
 	arrAsm.push('');

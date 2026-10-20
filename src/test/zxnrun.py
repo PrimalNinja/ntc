@@ -12,7 +12,7 @@
 #     line (#22 bit 0, #23); each held until the Z80 takes it
 #   - the keyboard, 8 half rows on port #xxFE (the high byte's 0 bits pick them): typed text as
 #     in cpcrun (\n = Enter, \x7f = DEL: Caps + 0, ~ = a scan with no key, {n} = key n held -
-#     half row * 8 + bit); a key is down for 3 scans by ntc_plat_scankey (one a scan: at half
+#     half row * 8 + bit; {a+b} = keys a and b held together, a chord: {0+25} Caps Shift + 2); a key is down for 3 scans by ntc_plat_scankey (one a scan: at half
 #     row 7), up for 3; the Keys class's reads (one half row each) count for {n} and ~ only;
 #     {n*}: key n held from then on (until more is typed: the key Option PressAnyKeyOnEnd waits for)
 #   - Kempston joysticks on #1F, #37: nothing pressed
@@ -116,8 +116,7 @@ class Next:
             hi = port >> 8; v = 0xFF
             for r in range(8):
                 if not hi & (1 << r):
-                    if s.cur:
-                        rr, b, mod = s.cur
+                    for rr, b, mod in (s.cur if isinstance(s.cur, list) else ([s.cur] if s.cur else [])):
                         if rr == r: v &= ~(1 << b)
                         if mod == 'caps' and r == 0: v &= ~1
                         if mod == 'sym' and r == 7: v &= ~2
@@ -134,7 +133,8 @@ class Next:
     def tick(s):
         s.scans += 1
         if s.phase == 2:            # {n*}: held until more is typed (the end's key: endkey_run types it)
-            if not s.typed: return
+            if s.typed and s.typed[0] == '~' and s.scans % 3 == 0: s.typed.pop(0); return   # (~ while held: the hold goes on a scan)
+            if not s.typed or s.typed[0] == '~': return
             s.cur = None; s.phase = 0
         if s.phase == 0 and s.typed and s.scans % 3 == 0:
             c = s.typed.pop(0)
@@ -142,7 +142,7 @@ class Next:
                 n = ''
                 while s.typed and s.typed[0] != '}': n += s.typed.pop(0)
                 if s.typed: s.typed.pop(0)
-                s.cur = (int(n.rstrip('*')) // 8, int(n.rstrip('*')) % 8, None); s.tkey = False
+                s.cur = [(int(k) // 8, int(k) % 8, None) for k in n.rstrip('*').split('+')]; s.tkey = False   # {a+b}: keys together (a chord)
                 if n.endswith('*'): s.phase = 2; return        # {n*}: held from now on
             else:
                 s.cur = None if c == '~' else KEYS[c]; s.tkey = (c != '~')
@@ -166,6 +166,10 @@ class Next:
             q = max(1, s.next_event() - s.tframe)
             s.stop = False; left = q
             while left > 0 and not (s.stop or s.m.halted or s.reset):   # (the module's own events may end a run early)
+                if TRACEZ is not None:          # NTC_TRACEZ: an instruction at a time, the last ones kept (tracez)
+                    s.q = 1; s.m.ticks_to_stop = 1; cpcrun.endkey_run(s); s.q = 0
+                    d = 1 - s.m.ticks_to_stop; s.T += d; s.tframe += d; left -= d; s.tracez()
+                    continue
                 s.q = left; s.m.ticks_to_stop = left; cpcrun.endkey_run(s); s.q = 0
                 d = (s.stopdone + 1) if s.stop else (left - s.m.ticks_to_stop)
                 s.T += d; s.tframe += d; left -= d
@@ -179,6 +183,7 @@ class Next:
             while not s.m.halted and not s.reset and steps < 4000:   # the interrupt held until taken
                 if s.m.iff1 and s.m.on_handle_active_int(): s.ints += 1; break
                 s.q = 1; s.m.ticks_to_stop = 1; cpcrun.endkey_run(s); steps += 1; d = 1 - s.m.ticks_to_stop; s.q = 0; s.T += d; s.tframe += d
+            if TRACEZ is not None: s.tracez()
             while s.tframe >= s.frame_t(): s.tframe -= s.frame_t()
             if n > limit: print('TIMEOUT pc=%04x sp=%04x' % (s.m.pc, s.m.sp)); break
     def layer2(s, path):
@@ -257,10 +262,33 @@ def nex_name(asm):
     return None
 
 PROFZ = [] if os.environ.get('NTC_PROFZ') else None   # NTC_PROFZ=1: the PC at each interrupt, the busiest labels at the end
+# NTC_TRACEZ=sp>c000: an instruction at a time (slow), the last 300 (PC, SP, AF, BC, DE, HL, IX, the MMU)
+# kept; when the condition holds (sp>hex, sp<hex, pc=hex) they are printed and the run ends
+TRACEZ = os.environ.get('NTC_TRACEZ')
+def tracez_init(z):
+    import collections
+    z.tzq = collections.deque(maxlen=300)
+    k, v = TRACEZ[:2], int(TRACEZ[3:], 16)
+    skip = [tuple(int(x, 16) for x in r.split('-')) for r in os.environ.get('NTC_TRACEZ_SKIP', '').split(',') if r]   # PC ranges left out (hex a-b,...)
+    def hit():
+        for a, b in skip:
+            if a <= z.m.pc <= b: return False
+        if k == 'sp': return z.m.sp > v if TRACEZ[2] == '>' else z.m.sp < v
+        if TRACEZ[2] == '>': return z.m.pc > v
+        return z.m.pc == v
+    def tracez():
+        m = z.m
+        z.tzq.append('%04X sp=%04X af=%04X bc=%04X de=%04X hl=%04X ix=%04X iff=%d mmu=%s' % (m.pc, m.sp, m.a << 8 | m.f, m.bc, m.de, m.hl, m.ix, m.iff1, ' '.join('%d' % p for p in z.mmu)))
+        if hit():
+            print('--- tracez %s:' % TRACEZ)
+            for l in z.tzq: print(l)
+            z.reset = True
+    z.tracez = tracez
 
 def run(asm, syms, typed):
     nex = nex_name(asm)
     z = Next(nex, typed, syms)
+    if TRACEZ is not None: tracez_init(z)
     z.run(int(os.environ.get('NTC_LIMIT', '30000')))
     print(z.screen())
     if os.environ.get('NTC_SHOT'):

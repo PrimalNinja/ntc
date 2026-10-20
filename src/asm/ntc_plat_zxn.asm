@@ -35,6 +35,9 @@
 ; IRQ     IM 1 at #0038 in RAM, normal mode only, as the cpc platform: the line
 ;         interrupt, moved on 52 raster lines each time - 6 a frame of 312
 ;         lines, 300 a second, as the CPC's (the ULA's frame interrupt off).
+;         The INT is a pulse: one that comes while interrupts are off is lost,
+;         so the handler reads the raster and counts the ticks missed (the
+;         clock keeps time, the chain never waits at a line already passed).
 ; End     ntc_plat_exit: a soft reset (NextReg 2) - back to NextZXOS.
 ; ============================================================
 ;@name     ZX Spectrum Next - direct hardware (native)
@@ -62,7 +65,7 @@ ntc_irqset:		db 0			; 1 = our interrupt handler is at #38
 ntc_irqold:		ds 3			; the 3 bytes it replaced
 ntc_irqhl:		dw 0			; handler scratch
 ntc_irqv:		dw 0			; interrupt classes' counting (ntc_isl_tick), 0 = none
-ntc_zxvs:		db 0			; 1: this interrupt is a frame's first (line 0: to ntc_isl_tick in C)
+ntc_zxvs:		db 0			; 1: this interrupt is a frame's first (line 0 passed: to ntc_isl_tick in C)
 ntc_zxline:		dw 0			; the raster line the line interrupt is set to
 ntc_zxsel:		db 0			; the NextReg selected (#243B) by code interrupts can get into: the
 								; handler selects it again after its own (store it, then select)
@@ -682,7 +685,7 @@ ntc_keymapy:								; Symbol Shift: the symbols on the keys (+ the 128's ~ | \ {
 			db 13, "=", "+", "-", "^", 0, 0, 0
 			db " ", 0, ".", ",", "*", 0, 0, 0
 
-;## ntc_plat_frame ntc_plat_data ntc_data @shared
+;## ntc_plat_frame ntc_plat_data ntc_data ntc_plat_irqh @shared
 ; ------------------------------------------------------------
 ; ntc_plat_frame - wait for the end of the display (raster line 192: the
 ; bottom border starts). Normal mode: interrupts in while waiting
@@ -732,6 +735,33 @@ ntc_fr_line:
 			dec b
 			cp d
 			jr nz, ntc_fr_line
+			ld d, a
+			ld a, (ntc_irqset)		; the line interrupt's chain: a pulse that came while interrupts
+			or a					; were off was lost - the wait here is where a program with long
+			jr z, ntc_fr_lok		; stretches of them lets interrupts in, so see that the raster has
+			ld a, d					; not passed the line set without its interrupt (the same line in
+			and 1					; the same stretch every frame: Frame paces a program to the
+			ld h, a					; frame, so a lost one would stay lost): then the handler is
+			ld l, e					; called, to count the ticks missed and set the line ahead
+			push de
+			ex de, hl
+			ld hl, (ntc_zxline)
+			or a
+			sbc hl, de				; the line set - now (mod 312): 0-56 = ahead, its pulse comes (the
+			jr nc, ntc_fr_l1		; chain sets the next line 52 on at most); more = passed, lost
+			ld de, 312
+			add hl, de
+ntc_fr_l1:
+			ld de, -57
+			add hl, de
+			jr nc, ntc_fr_l2
+			di
+			call ntc_irq			; (ends with ei: as its interrupt would)
+ntc_fr_l2:
+			pop de
+			ld bc, #243B
+ntc_fr_lok:
+			ld a, d
 			rra
 			jr c, ntc_fr_lnz		; 256 and on
 			ld a, e
@@ -796,33 +826,109 @@ ntc_plat_irqon:
 
 
 ;## ntc_plat_irqh ntc_plat_data ntc_data @shared
-; the handler: runs on the real stack, between keywords. The line interrupt,
-; every 52 raster lines - 6 a frame of 312 lines, 300 a second, as the CPC's:
-; counts a tick and sets the next one (52 lines on; the one at line 0 is a
-; frame's first: ntc_zxvs 1 for the interrupt classes' counting). AF goes to
-; AF', HL to RAM, the other registers are kept.
+; the handler: runs on the real stack, between keywords. The line interrupt, every 52 raster
+; lines - 6 a frame of 312 lines, 300 a second, as the CPC's: counts the ticks and sets the
+; next one. The Next's INT is a pulse (32 T at 3.5MHz), not held: a program with interrupts
+; off while the line passes (a long stretch between two Frame waits, say) misses that one.
+; So the next line is not simply this one + 52: the raster is read (#1E, #1F) and every 52
+; line step from the line this interrupt was set for up to the raster now counts as a tick
+; (the ones missed included: the clock keeps 300 a second), and the next interrupt is set at
+; the step after - never at a line the raster has passed, which would leave the chain dead
+; until it came round, or for ever if the program is always off at that line. The step at
+; line 0 is a frame's first (ntc_zxvs 1 for the interrupt classes' counting: it is counted
+; even when it was missed). AF goes to AF', HL to RAM, the other registers are kept.
 ntc_irq:
 			ex af, af'
 			ld (ntc_irqhl), hl
-			ld hl, (ntc_ticks)
-			inc hl
-			ld (ntc_ticks), hl
 			push bc
 			push de
-			ld hl, (ntc_zxline)		; the line this one came at
+			ld bc, #243B
+ntc_irq_rd:						; DE = the raster line now (#1E bit 8, #1F: read again until bit 8 holds)
+			ld a, #1E
+			out (c), a
+			inc b
+			in d, (c)
+			dec b
+			ld a, #1F
+			out (c), a
+			inc b
+			in e, (c)
+			dec b
+			ld a, #1E
+			out (c), a
+			inc b
+			in a, (c)
+			dec b
+			cp d
+			jr nz, ntc_irq_rd
+			and 1
+			ld d, a
+			ld hl, (ntc_zxline)		; the line this interrupt was set for
 			ld a, h
 			or l
 			ld a, 0
 			jr nz, ntc_irq_nf
 			inc a
 ntc_irq_nf:
-			ld (ntc_zxvs), a		; 1: line 0, a frame's first
-			ld de, 52
+			ld (ntc_zxvs), a		; 1: line 0, a frame's first (so far: a wrap below sets it too)
+			ex de, hl				; HL = now, DE = set for
+			or a
+			sbc hl, de				; HL = now - set for
+			jr nc, ntc_irq_fw
+			ld bc, 16				; a little before it (the pulse comes as the line before ends): 0
+			add hl, bc
+			jr c, ntc_irq_z
+			ld bc, 312 - 16			; else the raster wrapped: + 312
+			add hl, bc
+			jr ntc_irq_fw
+ntc_irq_z:
+			ld hl, 0
+ntc_irq_fw:
+			ld c, 1					; C = the ticks: 1 + (now - set for) / 52
+			ld b, 0					; (BC = 52 * the ticks past the first, the step to the next line)
+ntc_irq_dv:
+			ld a, l
+			sub 52
+			ld l, a
+			ld a, h
+			sbc a, 0
+			ld h, a
+			jr c, ntc_irq_dd
+			inc c
+			ld a, c
+			cp 7					; (6 at most: a frame)
+			jr c, ntc_irq_dv
+			dec c
+ntc_irq_dd:
+			ld a, c
+			ld (ntc_irqn), a
+			ld hl, (ntc_ticks)
+			ld b, 0
+			add hl, bc
+			ld (ntc_ticks), hl
+			ld hl, 0				; the next line: set for + 52 * the ticks (mod 312)
+			ld bc, 52
+			ld a, (ntc_irqn)
+ntc_irq_st:
+			add hl, bc
+			dec a
+			jr nz, ntc_irq_st
 			add hl, de
-			ld de, -312
-			add hl, de
-			jr c, ntc_irq_wr		; past the last line (312 and on): line 0 again
-			sbc hl, de				; (carry clear: back to the line)
+			ld bc, -312
+			add hl, bc
+			jr c, ntc_irq_wrp		; past the last line (312 and on): wrapped - line 0 was passed
+			sbc hl, bc				; (carry clear: back to the line)
+			jr ntc_irq_wr
+ntc_irq_wrp:
+			ld a, (ntc_irqn)		; the wrap: the step at line 0 was one of these ticks, unless it is
+			dec a					; the next one (the only tick was the one set for: HL = 0 now)
+			jr nz, ntc_irq_wv
+			ld a, h
+			or l
+			jr z, ntc_irq_wr
+ntc_irq_wv:
+			ld a, 1
+			ld (ntc_zxvs), a
 ntc_irq_wr:
 			ld (ntc_zxline), hl
 			ld bc, #243B
@@ -847,14 +953,27 @@ ntc_irq_wr:
 			jr z, ntc_irq_nohook
 			ld (ntc_hookpend), a
 ntc_irq_nohook:
-			ld hl, (ntc_irqv)		; interrupt classes (Option Class Interrupt): count them
-			ld a, h
-			or l
+			ld hl, (ntc_irqv)		; interrupt classes (Option Class Interrupt): count them - once
+			ld a, h					; a tick (the missed ones too: the frame's first among them last,
+			or l					; so the classes see it in the same order as the ticks came)
 			jr z, ntc_irq_nocl
 			push bc
+			ld a, (ntc_irqn)
+			ld b, a
+ntc_irq_cl:
+			ld c, 0					; C = 1: a frame's first (ntc_isl_tick reads it on zxn)
+			dec b
+			jr nz, ntc_irq_cl1
 			ld a, (ntc_zxvs)
-			ld c, a					; C = 1: a frame's first (ntc_isl_tick reads it on zxn)
+			ld c, a
+ntc_irq_cl1:
+			inc b
+			push bc
+			push hl
 			call ntc_irq_jp			; (the handler runs on the real stack)
+			pop hl
+			pop bc
+			djnz ntc_irq_cl
 			pop bc
 ntc_irq_nocl:
 			ld hl, (ntc_irqhl)
@@ -863,6 +982,7 @@ ntc_irq_nocl:
 			ret
 ntc_irq_jp:
 			jp (hl)
+ntc_irqn:		db 1			; the ticks this interrupt counted (1-6)
 
 ;## ntc_plat_exit ntc_plat_data
 ; ------------------------------------------------------------

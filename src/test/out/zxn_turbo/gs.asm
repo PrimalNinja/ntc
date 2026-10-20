@@ -16,9 +16,51 @@ NTC_WINHOLE	equ 0		; 1 = the program is built round an Option Reserve range over
 NTC_BUFSIZE	equ 2048		; the library's buffer (ntc_buf: FileSystem, Memory.Copy): Option Buffer
 ; the ZX Spectrum Next: NTC_ZXN defined (a DEFINE - sjasmplus's IFDEF tests those, not labels)
 			DEFINE NTC_ZXN
+ZXN_FIRSTBANK	equ 22		; first free 16K bank (page 44), above the program/screen/low banks
+ZXN_MAXBANK	equ 90		; scan range: banks 22-111 (a 2MB Next has 112 16K banks, pages 0-223; the MMU has no page past 223 - a higher page number is not RAM)
 NTC_CPMGFX	equ 0		; 1 = CP/M: Graphics draws on an Amstrad CPC's screen (2.2: #C000, Plus: block 1 from common memory)
 
 ntc_start:
+			jr ntc_start2		; #0040 (2 bytes): over the glue
+ntc_bk_sp:		dw 0			; #0042: this bank's SP while another runs
+ntc_bk_out:
+			db #08			; #0044: ex af, af - stash A + FLAGS (carry = far-call / interrupt) to the alternate set, before the port flip clobbers A
+			ld bc, #243B		; PIVOT via the MMU ports (no Z80N opcode): select MMU slot 0 (#50)
+			ld a, #50
+			out (c), a
+			inc b			; #253B
+			ld a, 16		; the hypervisor's slot-0 page; slot 0 flips HERE - next byte is the receiver
+			out (c), a
+ntc_bk_recv:			; now running in the hypervisor's slot 0 (A + FLAGS already in the alternate set)
+			ld (ntc_bk_svd), de	; DE / HL message to slot-0 scratch (slot 0 stays the hypervisor here)
+			ld (ntc_bk_svh), hl
+			ld hl, ntc_bk_hpg	; the hypervisor's resting pages, slots 1-7
+			ld bc, #243B		; NextReg select port (#253B = value)
+			ld d, #51		; slot register 1
+ntc_bk_rc1:
+			ld a, d
+			out (c), a		; select the slot register
+			inc b			; #253B
+			ld a, (hl)
+			out (c), a		; = its resting page
+			dec b			; #243B
+			inc hl
+			inc d
+			ld a, d
+			cp #58			; slots #51..#57 (1..7) done? (clobbers flags - carry safe in AF\')
+			jr nz, ntc_bk_rc1
+			ld de, (ntc_bk_svd)
+			ld hl, (ntc_bk_svh)
+			db #08			; ex af, af - A + FLAGS back (IX untouched throughout = also preserved)
+ntc_bk_land:
+			ld sp, (ntc_bk_sp)	; the hypervisor's own SP
+			ret				; to where it handed over (Run's rn_back), A/DE/IX + carry intact
+			ASSERT ntc_bk_out == #0044, "the bank switch must be at #0044"
+ntc_bk_svd:		dw 0		; DE / HL message held across the slot 1-7 remap
+ntc_bk_svh:		dw 0
+ntc_bk_hpg:		db 17, 18, 19, 20, 21, 10, 11	; hypervisor resting pages, slots 1-7 (boot MMU map)
+ntc_start2:
+ntc_bk_cold:
 			di
 			ld sp, #C000		; the platform's own real stack
 			ld (ntc_csp), sp
@@ -498,7 +540,7 @@ ntc_irqset:		db 0			; 1 = our interrupt handler is at #38
 ntc_irqold:		ds 3			; the 3 bytes it replaced
 ntc_irqhl:		dw 0			; handler scratch
 ntc_irqv:		dw 0			; interrupt classes' counting (ntc_isl_tick), 0 = none
-ntc_zxvs:		db 0			; 1: this interrupt is a frame's first (line 0: to ntc_isl_tick in C)
+ntc_zxvs:		db 0			; 1: this interrupt is a frame's first (line 0 passed: to ntc_isl_tick in C)
 ntc_zxline:		dw 0			; the raster line the line interrupt is set to
 ntc_zxsel:		db 0			; the NextReg selected (#243B) by code interrupts can get into: the
 								; handler selects it again after its own (store it, then select)
