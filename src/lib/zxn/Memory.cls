@@ -405,3 +405,46 @@ Public Function Copy(ByVal src As Long, ByVal dst As Long, ByVal length As Integ
             jp mem_go
 #endasm
 End Function
+
+' ---- whole 64K banks on the Next MMU (bank = 4 x 16K pages, like the CPC expansion
+' model; BankPage(bank,n) = 4*bank-2+n holds, so Hyp.cls ports unchanged)
+
+' Banks(): whole banks there are (0 = none / no paging)
+Public Function Banks() As Integer
+#asm
+            pop hl
+            ld (mem_res), hl
+            ld hl, mem_bankcount
+            jp mem_go
+#endasm
+End Function
+
+' AllocBank(): a bank whose 4 pages are all free, now TypeBank; 0 = none left
+Public Function AllocBank() As Integer
+#asm
+            pop hl
+            ld (mem_res), hl
+            ld hl, mem_allocbank
+            jp mem_go
+#endasm
+End Function
+
+' FreeBank(bank): its 4 pages back to free. OK, or BadPage
+Public Function FreeBank(ByVal bank As Integer) As Integer
+#asm
+            pop hl
+            ld e, (hl)
+            inc hl
+            ld d, (hl)
+            ld (mem_a1), de
+            pop hl
+            ld (mem_res), hl
+            ld hl, mem_freebank
+            jp mem_go
+#endasm
+End Function
+
+' BankPage(bank, n): page number of the bank's 16K part n (pure arithmetic, same as CPC)
+Public Function BankPage(ByVal bank As Integer, ByVal n As Integer) As Integer
+    BankPage = 4 * bank - 2 + n
+End Function

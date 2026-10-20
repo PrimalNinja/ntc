@@ -7839,7 +7839,7 @@ function ntcCompile(input_a, objOptions_a)
 	function readMemory(objRec_a)
 	{
 		var arrMatch = String(objRec_a.value).match(/^(small|cpcexpansion)\b[ \t,]*(.*)$/i);
-		var blnCpc = (objOptions.platform === 'cpc') || (objOptions.platform === 'cpcmin') || (objOptions.platform === 'cpcfw');
+		var blnCpc = (objOptions.platform === 'cpc') || (objOptions.platform === 'cpcmin') || (objOptions.platform === 'cpcfw') || (objOptions.platform === 'zxn');
 		var intMax = 0;
 
 		if (!arrMatch)
@@ -9421,6 +9421,8 @@ function ntcCompile(input_a, objOptions_a)
 	{
 		arrAsm.push('; the ZX Spectrum Next: NTC_ZXN defined (a DEFINE - sjasmplus\'s IFDEF tests those, not labels)');
 		arrAsm.push(strIndent + 'DEFINE NTC_ZXN');
+		arrAsm.push('ZXN_FIRSTBANK\tequ 22\t\t; first free 16K bank (page 44), above the program/screen/low banks');
+		arrAsm.push('ZXN_MAXBANK\tequ 106\t\t; scan range up to bank 127 (2MB)');
 	}
 	arrAsm.push('NTC_CPMGFX\tequ ' + ((String(objOptions.platform).toLowerCase() === 'cpm') ? 1 : 0) + '\t\t; 1 = CP/M: Graphics draws on an Amstrad CPC\'s screen (2.2: #C000, Plus: block 1 from common memory)');
 	arrAsm.push('');
@@ -9443,6 +9445,63 @@ function ntcCompile(input_a, objOptions_a)
 		arrAsm.push(strIndent + 'ret\t\t\t\t; to where main RAM handed over');
 		arrAsm.push(strIndent + 'ASSERT ntc_bk_out == #0044, "the bank switch must be at #0044"');
 		arrAsm.push('ntc_start2:');
+	}
+	else if ((String(objOptions.platform).toLowerCase() === 'zxn') && (parseInt(String(objOptions.org).replace(/^#|^&H|^0x/i, ''), 16) === 0x40))
+	{
+		// ZX Next: the CPM<->hypervisor switch is a PIVOT, not the CPC's atomic full-64K flip. The
+		// Next has no gate array and no shared/common memory, so the single instruction that has to
+		// fit in CP/M page zero can only re-map the one 8K slot it is executing from. It MUST be the
+		// pivot slot - with no common area, there is nowhere else to jump to.
+		// CPM -> hypervisor (this glue): the task, running in its own slot 0, hits #0044 = a single
+		// `nextreg #50, 16` that maps the hypervisor's slot-0 page (16) in. It takes no registers, so
+		// A/DE/HL pass straight through as the message. The very next byte (#0048) is now the
+		// hypervisor's own slot 0 = the receiver, which maps the hypervisor's other seven resting
+		// pages back (slots 1-5 = 17..21, slot 6 = 10, slot 7 = 11, from the boot MMU map) and lands
+		// on its SP. The slot 0 we are now in never flips here, so the message rests in its scratch
+		// across the slot 1-7 remap - no alternate-set carry needed.
+		// hypervisor -> task is the reverse-asymmetric half: it pivots on the HIGH slot (7) and lives
+		// in the task's stub (sb_hin), reached from Run - not emitted here. High, so launching a task
+		// never destroys the hypervisor's own low code mid-flip.
+		arrAsm.push(strIndent + 'jr ntc_start2\t\t; #0040 (2 bytes): over the glue');
+		arrAsm.push('ntc_bk_sp:\t\tdw 0\t\t\t; #0042: this bank\'s SP while another runs');
+		arrAsm.push('ntc_bk_out:');
+		arrAsm.push(strIndent + 'db #08\t\t\t; #0044: ex af, af - stash A + FLAGS (carry = far-call / interrupt) to the alternate set, before the port flip clobbers A');
+		arrAsm.push(strIndent + 'ld bc, #243B\t\t; PIVOT via the MMU ports (no Z80N opcode): select MMU slot 0 (#50)');
+		arrAsm.push(strIndent + 'ld a, #50');
+		arrAsm.push(strIndent + 'out (c), a');
+		arrAsm.push(strIndent + 'inc b\t\t\t; #253B');
+		arrAsm.push(strIndent + 'ld a, 16\t\t; the hypervisor\'s slot-0 page; slot 0 flips HERE - next byte is the receiver');
+		arrAsm.push(strIndent + 'out (c), a');
+		arrAsm.push('ntc_bk_recv:\t\t\t; now running in the hypervisor\'s slot 0 (A + FLAGS already in the alternate set)');
+		arrAsm.push(strIndent + 'ld (ntc_bk_svd), de\t; DE / HL message to slot-0 scratch (slot 0 stays the hypervisor here)');
+		arrAsm.push(strIndent + 'ld (ntc_bk_svh), hl');
+		arrAsm.push(strIndent + 'ld hl, ntc_bk_hpg\t; the hypervisor\'s resting pages, slots 1-7');
+		arrAsm.push(strIndent + 'ld bc, #243B\t\t; NextReg select port (#253B = value)');
+		arrAsm.push(strIndent + 'ld d, #51\t\t; slot register 1');
+		arrAsm.push('ntc_bk_rc1:');
+		arrAsm.push(strIndent + 'ld a, d');
+		arrAsm.push(strIndent + 'out (c), a\t\t; select the slot register');
+		arrAsm.push(strIndent + 'inc b\t\t\t; #253B');
+		arrAsm.push(strIndent + 'ld a, (hl)');
+		arrAsm.push(strIndent + 'out (c), a\t\t; = its resting page');
+		arrAsm.push(strIndent + 'dec b\t\t\t; #243B');
+		arrAsm.push(strIndent + 'inc hl');
+		arrAsm.push(strIndent + 'inc d');
+		arrAsm.push(strIndent + 'ld a, d');
+		arrAsm.push(strIndent + 'cp #58\t\t\t; slots #51..#57 (1..7) done? (clobbers flags - carry safe in AF\\\')');
+		arrAsm.push(strIndent + 'jr nz, ntc_bk_rc1');
+		arrAsm.push(strIndent + 'ld de, (ntc_bk_svd)');
+		arrAsm.push(strIndent + 'ld hl, (ntc_bk_svh)');
+		arrAsm.push(strIndent + 'db #08\t\t\t; ex af, af - A + FLAGS back (IX untouched throughout = also preserved)');
+		arrAsm.push('ntc_bk_land:');
+		arrAsm.push(strIndent + 'ld sp, (ntc_bk_sp)\t; the hypervisor\'s own SP');
+		arrAsm.push(strIndent + 'ret\t\t\t\t; to where it handed over (Run\'s rn_back), A/DE/IX + carry intact');
+		arrAsm.push(strIndent + 'ASSERT ntc_bk_out == #0044, "the bank switch must be at #0044"');
+		arrAsm.push('ntc_bk_svd:\t\tdw 0\t\t; DE / HL message held across the slot 1-7 remap');
+		arrAsm.push('ntc_bk_svh:\t\tdw 0');
+		arrAsm.push('ntc_bk_hpg:\t\tdb 17, 18, 19, 20, 21, 10, 11\t; hypervisor resting pages, slots 1-7 (boot MMU map)');
+		arrAsm.push('ntc_start2:');
+		arrAsm.push('ntc_bk_cold:');
 	}
 	arrAsm.push(strIndent + 'di');
 	if (objOptions.library === 'rom')

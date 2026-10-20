@@ -1349,3 +1349,10 @@ zs_done:
 			pop bc
 			ret
 zxn_selb:		db 9			; the bank in the window
+
+;## ntc_plat_rmr ntc_plat_data
+; ntc_plat_rmr - zxn has no CPC gate-array ROM/mode byte; CallBank needs no ROM
+; switching here. Return the current screen mode byte, keep BC, DE, HL.
+ntc_plat_rmr:
+			ld a, (ntc_smode)
+			ret

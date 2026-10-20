@@ -2,7 +2,7 @@
 var fs = require('fs');
 var strDir = require('path').join(__dirname, '..') + '/';
 function read(f) { return fs.readFileSync(strDir + f, 'utf8'); }
-var strLib = read('asm/ntc_lib.asm');
+var strLib = read('asm/ntc_lib_gen.asm') + '\n' + read('asm/ntc_lib_cpc.asm') + '\n' + read('asm/ntc_lib_nxt.asm');
 var arrPlat = ['cpc', 'cpcmin', 'cpcfw', 'cpm', 'test', 'zxn'];
 // the platform's own classes: lib/<platform>/*.cls
 var objClasses = {};
@@ -61,6 +61,7 @@ var arrExamples = [
 	{ name: 'Pages: classes placed in pages, copies (cpcmin, cpcfw, cpm)', files: ['pages/Main.bas', 'pages/Title.cls', 'pages/Level1.cls', 'pages/Level2.cls', 'pages/Maths.cls', 'pages/Stars.cls', 'pages/Credits.cls', 'pages/Score.cls'] },
 	{ name: 'Interrupt classes: Tick at a rate (cpc, cpcmin, cpcfw, zxn)', files: ['interrupts/Main.bas', 'interrupts/Clock.cls', 'interrupts/Star.cls'] },
 	{ name: 'JS flavour: a JS program and a JS class (2 files)', files: ['js_demo/Main.js', 'js_demo/Counter.js'] },
+	{ name: 'PHP flavour: a PHP program and a PHP class (2 files)', files: ['php_demo/Main.php', 'php_demo/Counter.php'] },
 	{ name: 'Locomotive BASIC flavour: a CPC type-in listing', files: ['loco_demo/Main.loc'] },
 	{ name: 'Your own StdIO (2 files)', files: ['own_stdio/Main.bas', 'own_stdio/StdIO.cls'] },
 	{ name: 'Shell sort - turbo at run time', files: ['shellsort.bas'] },
