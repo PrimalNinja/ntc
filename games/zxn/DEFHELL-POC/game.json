@@ -1,0 +1,1 @@
+{ "name": "DEFHELL", "bank5": true, "gfxbank": 47, "banks": [47], "files": ["Main.bas", "Nx.cls", "Spr.cls", "Tiles.cls", "Sfx.cls", "GfxData.cls", "Land.cls", "Bul.cls"] }

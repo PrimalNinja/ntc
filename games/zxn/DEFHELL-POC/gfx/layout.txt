@@ -1,0 +1,51 @@
+# DEFENDER HELLGATE - names for the cells of tiles.png (8 x 8) and sprites.png (16 x 16)
+# (the planet is Layer 2: tools/land.py)
+# tile   NAME   index [count]
+# sprite NAME   column row [frames [w h]]
+# sprite palettes (spr_pal.png rows): 0 everything, 1 a hit flash, 2 pink bullets, 3 blue bullets,
+# 4 the cloaked ship, 5 a mutant's other colours, 6 Big Red, 7 the Stargate's other colours
+tile   HUD      1
+tile   SCAN     2         # the scanner
+tile   SCANT    3         # its top edge
+tile   SCANG    4         # its bottom row, the ground along it
+tile   LIFE     5         # a ship left
+tile   SMART    6         # a smart bomb left
+tile   BLACK    7
+tile   INV      8         # the inviso bar: full
+tile   INVE     9         # and empty
+tile   SCANS    10        # the scanner's sides
+tile   DOT      96 60     # scanner dots: 96 + colour (0 enemy, 1 lander, 2 you, 3 humanoid, 4 gate) * 12 + row * 4 + across
+
+sprite SHIP     0 0 3 2 1 # you: 32 x 16 facing right (mirrored for left): no flame, two flames
+sprite LASER    6 0       # your laser: a streak, white at the front
+sprite HUMAN    7 0 3     # a humanoid: walking x2, arms up (carried, falling)
+sprite GATE     10 0 2    # the Stargate (drawn 2x: 32 x 32)
+sprite STARS    12 0      # a hyperspace twinkle
+sprite WINDOW   13 0      # the scanner: what's on screen (drawn 2x across)
+sprite MINE     14 0      # a bomber's mine
+sprite LANDER   0 1 2     # 150: takes humanoids up; at the top it turns mutant
+sprite MUTANT   2 1 2     # 150: fast, mad, shoots
+sprite BOMBER   4 1 2     # 250: drifts, lays mines
+sprite POD      6 1 2     # 1000: bursts into swarmers when shot
+sprite SWARMER  8 1 2     # 150: small and fast
+sprite BAITER   10 1 2    # 200: turns up when you take too long
+sprite FIREB    12 1 2    # 250: a firebomber: spins, throws fireballs
+sprite FIREBALL 14 1 2    # 100: a firebomber's fireball
+sprite DYNAMO   0 2 2     # 200: a diamond of space hums that break off
+sprite HUM      2 2 2     # 100: a space hum
+sprite GUPPY    4 2 2     # 200: a Yllabian space guppy: swarms, wiggles, homes in
+sprite PHRED    6 2 2     # 200: Phred (purple) and Big Red (palette 6): chase you, spit munchies
+sprite MUNCHIE  8 2 2     # 50: a munchie
+sprite BULLET   10 2 2    # small, big (pink: palette 2, blue: 3)
+sprite BOOM     0 3 4     # an explosion: bits flying out
+# from MECHRA (tools/merge_mechra.py): palette row 8 the pickups and the guard, 9-13 the giant mechs
+sprite ITEM     0 4 4     # a P: spinning
+sprite BIGP     4 4 2     # a big P: glinting
+sprite GEM      6 4 2     # a gem (score)
+sprite GUARD    8 4       # the guard (twice the size, round the ship)
+sprite SPARK    9 4       # a shot hitting
+sprite BOSS1    0 5 1 2 3 # the giant mechs: their left halves (32 x 48; the right halves mirrored)
+sprite BOSS2    2 5 1 2 3
+sprite BOSS3    4 5 1 2 3
+sprite BOSS4    6 5 1 2 3
+sprite BOSS5    8 5 1 2 3

@@ -1,0 +1,38 @@
+# MECHRA - names for the cells of tiles.png (8 x 8) and sprites.png (16 x 16)
+# (the backgrounds are Layer 2 blocks: tools/bgart.py)
+# tile   NAME   index [count]
+# sprite NAME   column row [frames [w h]]
+# sprite palettes (spr_pal.png rows): 0 the art, 1 hit flash, 2 pink, 3 blue, 4 gold bullets,
+# 5-9 the bosses, 10 the enemies' later colours
+tile   PANEL    1
+tile   PANELT   2         # a panel cell with a line along its top
+tile   BLACK    3
+tile   PANELR   4         # a line on its right
+tile   PANELL   5         # a line on its left
+tile   LIFE     6         # a mech left
+tile   BOMB     7         # a guard left
+tile   GAUGE    16 9      # the chain gauge: 0-8 filled
+tile   PGAUGE   9 5       # the power gauge: 0, 2, 4, 6, 8 filled
+
+sprite PLAYER   0 0 3 2 2 # your mech (32 x 32): level (2: the jets flicker), banked right
+sprite SHOT     6 0       # your shot
+sprite LASER    7 0 2     # the lock beam (drawn twice as tall), where it hits
+sprite BULLET   9 0 3     # their bullets: small, big, needle
+sprite POP      12 0 2    # a drone: two frames
+sprite DART     14 0      # a jet-mech, diving
+sprite TANK     15 0      # a walker (its second frame: TANK2)
+sprite TANK2    0 2
+sprite TURRET   1 2       # a gun on the ground
+sprite CARRIER  2 2       # a cargo mech: drops big P (twice the size)
+sprite GUNSHIP  3 2       # a heavy mech (twice the size)
+sprite ITEM     4 2 4     # a P: spinning
+sprite BIGP     8 2 2     # a big P: glinting
+sprite GEM      10 2 2    # a gem (score)
+sprite GUARD    12 2      # the guard (twice the size, round the mech)
+sprite SPARK    13 2      # a shot hitting
+sprite BOOM     0 3 4     # an explosion: four frames
+sprite BOSS1    4 3 1 2 3 # stage 1's boss: its left half (32 x 48)
+sprite BOSS2    6 3 1 2 3 # stage 2's boss: its left half (32 x 48)
+sprite BOSS3    8 3 1 2 3 # stage 3's boss: its left half (32 x 48)
+sprite BOSS4    10 3 1 2 3 # stage 4's boss: its left half (32 x 48)
+sprite BOSS5    12 3 1 2 3 # stage 5's boss: its left half (32 x 48)
