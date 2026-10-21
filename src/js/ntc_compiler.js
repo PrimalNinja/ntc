@@ -55,6 +55,10 @@ function ntcCompile(input_a, objOptions_a)
 	// the banks Option NexData fills, in order: not 0, 5 (the screen and the start stub), 8-10 (the
 	// program), 12-21 (Graphics: Layer 2's two buffers); past 47 a 2MB Next
 	var ZXN_NEXBANKS = [1, 2, 3, 4, 6, 7, 11].concat(Array.apply(null, Array(90)).map(function(x_a, i_a) { return 22 + i_a; }));
+	// Option Page ... Loaded n on the Next: RAM page n's 16K bank, the same one Option Memory
+	// CPCExpansion's mem_sel maps for page n - page 2 is ZXN_FIRSTBANK (bank 22, or above
+	// Option NexData's blocks when they run past the 7 low banks)
+	function zxnPageBank(intPage_a) { return 22 + Math.max(0, ((objNexData !== null) ? objNexData.blocks : 0) - 7) + intPage_a - 2; }
 	var arrRomEnable = null;	// Option RomEnable (cpcfw): null none, ['all'], or ROM numbers
 	var objStack = null;		// Option Stack: { addr, file, line } - the real stack's start
 	var strTerminal = 'none';	// Option Terminal (CP/M): none, vt52, ansi		// platform class names the project replaces with its own
@@ -6143,8 +6147,10 @@ function ntcCompile(input_a, objOptions_a)
 				}
 				return strWord_a;
 			});
-			// a label at the start of a line gets the usual indent for the rest
-			if (/^\S/.test(strCode) && !/^[A-Za-z_]\w*:/.test(strCode) && (trim(strCode).length > 0))
+			// a label at the start of a line gets the usual indent for the rest. @name: is sjasmplus's
+			// global label: not the block's own (not prefixed), so another #asm block can name it - the
+			// way to share code or a value between blocks (CyborgOS's SD card code reaches FileCall's)
+			if (/^\S/.test(strCode) && !/^@?[A-Za-z_]\w*:/.test(strCode) && (trim(strCode).length > 0))
 			{
 				strCode = '\t\t\t' + trim(strCode);
 			}
@@ -7620,13 +7626,13 @@ function ntcCompile(input_a, objOptions_a)
 	// 11) - and runs the stub with banks 5, 2, 0 in #4000-#FFFF and the ROM in #0000-#3FFF. The
 	// stub: the NMI buttons off (NextReg 6 bits 3, 4: Multiface M1, DivMMC DRIVE), DivMMC's
 	// automatic paging off (NextReg 10 bit 4 - it pages DivMMC's ROM in at #0000, #0038 ...)
-	// and its memory out (port #E3), 28MHz, IM 1; the slots: pages 16-21 at #0000-#BFFF and
+	// (its memory is already out - the port untouched: NextZXOS's state is in it), 28MHz, IM 1; the slots: pages 16-21 at #0000-#BFFF and
 	// bank 5 (pages 10, 11: the screen) at #C000-#FFFF - slot 3 (#6000-#7FFF, where the stub
 	// runs) last, from its copy at #FE00 (page 11 in slot 7 too). Then ntc_start. NextRegs
 	// through ports #243B / #253B: no Z80N opcodes
-	function zxnBoot(arrAsm_a, strIndent_a)
+	function zxnBoot(arrAsm_a, strIndent_a, arrPageBanks_a)
 	{
-		var arrBanks = [5, 8, 9, 10];
+		var arrBanks = [5, 8, 9, 10].concat(arrPageBanks_a || []);
 		var arrNexOrder = [5, 2, 0, 1, 3, 4];
 		var intB = 0;
 		var blnBig = false;
@@ -7649,15 +7655,33 @@ function ntcCompile(input_a, objOptions_a)
 			'and %11100111',
 			'out (c), a',
 			'dec b',
-			'ld a, 10\t\t\t; Peripheral 5: DivMMC automatic paging off (bit 4)',
+			'; DivMMC: its automatic paging stays as NextZXOS left it (on) - turning it off and on',
+			'; again loses esxDOS\'s state in some emulators - but its entry points are cut to RST 8',
+			'; with ROM 3 selected (#B8 = 2, #B9 = 0: the RST vectors need ROM 3; #BB = 0: no #3Dxx,',
+			'; #0066, tape traps). A program never does rst 8 with ROM 3 in, so nothing pages it in;',
+			'; CyborgOS\'s SD drive does exactly that for its esxDOS calls (ROM 3 in slots 0-1, rst 8)',
+			'ld a, #B8',
 			'out (c), a',
 			'inc b',
-			'in a, (c)',
-			'and %11101111',
+			'ld a, 2',
 			'out (c), a',
 			'dec b',
+			'ld a, #B9',
+			'out (c), a',
+			'inc b',
 			'xor a',
-			'out (#E3), a\t\t; DivMMC: its memory out',
+			'out (c), a',
+			'dec b',
+			'ld a, #BB',
+			'out (c), a',
+			'inc b',
+			'xor a',
+			'out (c), a',
+			'dec b',
+			'; (no out (#E3): DivMMC\'s memory is already out when a NEX starts - .nexload leaves it so -',
+			'; and writing the port selects its RAM bank 0 and drops MAPRAM, which loses NextZXOS\'s esxDOS',
+			'; state: its file handles are in DivMMC RAM. With it untouched, RST 8 calls work from the program',
+			'; (automap on, the ROM in slots 0-1 for the call: CyborgOS\'s SD drive does that)',
 			'ld a, 7\t\t\t; CPU speed: 28MHz',
 			'out (c), a',
 			'inc b',
@@ -7710,6 +7734,20 @@ function ntcCompile(input_a, objOptions_a)
 			}
 			arrL.splice.apply(arrL, [5, 0].concat(arrData));
 		}
+		(arrPageBanks_a || []).forEach(function(int_a)
+		{
+			blnBig = blnBig || (int_a > 47);
+			if (objNexData !== null)
+			{
+				for (intB = 0; intB < objNexData.blocks; intB++)
+				{
+					if (ZXN_NEXBANKS[intB] === int_a)
+					{
+						arrErrors.push({ file: '', line: 0, msg: 'Option Page ... Loaded: bank ' + int_a + ' is also Option NexData\'s (block ' + intB + ')' });
+					}
+				}
+			}
+		});
 		for (intB = 6; intB < 112; intB++) { arrNexOrder.push(intB); }
 		arrBanks.sort(function(a_a, b_a) { return arrNexOrder.indexOf(a_a) - arrNexOrder.indexOf(b_a); });
 		arrL = arrL.map(function(str_a)
@@ -7735,6 +7773,12 @@ function ntcCompile(input_a, objOptions_a)
 			strPlatform = NTC_PLATFORMS[objOptions.platform];
 		}
 		return strPlatform;
+	}
+
+	// cpmLike: the platform is CP/M underneath (cpm, or cyborgos - a slot is CP/M 2.2)
+	function cpmLike()
+	{
+		return (objOptions.platform === 'cpm') || (objOptions.platform === 'cyborgos');
 	}
 
 	function readPlatform()
@@ -7882,6 +7926,30 @@ function ntcCompile(input_a, objOptions_a)
 		return strResult;
 	}
 
+	// Option Terminal given at all (None counts): a platform with a default terminal keeps out
+	function findTerminalGiven(arrFiles_a)
+	{
+		return arrFiles_a.some(function(objFile_a) { return /^[ \t]*option[ \t]+terminal[ \t]+(none|vt52|ansi)\b/im.test(String(objFile_a.text)); });
+	}
+
+	// Option Org address: where the program is built to run (read before the platform's org is
+	// taken: Bare Metal, a ROM, a program for a fixed address)
+	function findOrg(arrFiles_a)
+	{
+		var strResult = null;
+
+		arrFiles_a.forEach(function(objFile_a)
+		{
+			var arrMatch = String(objFile_a.text).match(/^[ \t]*option[ \t]+org[ \t]+(\S+)/im);
+
+			if (arrMatch)
+			{
+				strResult = arrMatch[1];
+			}
+		});
+		return strResult;
+	}
+
 	// Option NoRomDisc: read before parsing - the platform's FileSystem class leaves out the
 	// ROMDISC (volume R) routing through #If NTC_NOROMDISC, and so its code (about 1.1K)
 	function findNoRomDisc(arrFiles_a)
@@ -7898,6 +7966,12 @@ function ntcCompile(input_a, objOptions_a)
 	function findMemory(arrFiles_a, blnActive_a)
 	{
 		var objResult = { scheme: ((objOptions.platform === 'cpc') || (objOptions.platform === 'cpcmin') || (objOptions.platform === 'cpcfw')) ? 'cpcexpansion' : 'small', max: 257 };
+
+		// zxn with Option Page: its pages are RAM pages (the Next's banks), so CPCExpansion
+		if ((objOptions.platform === 'zxn') && arrFiles_a.some(function(objFile_a) { return /^[ \t]*option[ \t]+page\b/im.test(String(objFile_a.text)); }))
+		{
+			objResult.scheme = 'cpcexpansion';
+		}
 
 		arrFiles_a.forEach(function(objFile_a)
 		{
@@ -8142,11 +8216,25 @@ function ntcCompile(input_a, objOptions_a)
 			activeLines(objFile_a.text).forEach(function(objLine_a)
 			{
 				var strCode = objLine_a.text.replace(/'.*$/, '');
-				var arrMatch = strCode.match(/^\s*option\s+page\s+(?:"([^"]*)"|([a-z_]\w*))\s*=\s*(.*?)\s*$/i);
+				var arrMatch = strCode.match(/^\s*option\s+page\s+(?:"([^"]*)"|([a-z_]\w*))(\s+loaded\s+(?:&h[0-9a-f]+|#[0-9a-f]+|\d+))?\s*=\s*(.*?)\s*$/i);
 				var objPage = null;
+				var intLoaded = 0;
 
 				if (arrMatch)
 				{
+					// Option Page Name Loaded n = ...: the page is built (its addresses resolved) but not
+					// loaded by the program - something else put it in RAM page n (zxn: the NEX file's
+					// bank for page n, filled when the NEX loads); its block starts out holding n
+					if (arrMatch[3] !== undefined)
+					{
+						intLoaded = parseNumber(arrMatch[3].replace(/^\s*loaded\s+/i, ''));
+						if (isNaN(intLoaded) || (intLoaded < 2) || (intLoaded > 256))
+						{
+							arrErrors.push({ file: objFile_a.name, line: objLine_a.line, msg: 'Option Page Name Loaded n = ...: n is a RAM page, 2 - 256' });
+							intLoaded = 0;
+						}
+					}
+					arrMatch = [arrMatch[0], arrMatch[1], arrMatch[2], arrMatch[4]];
 					objPage = addPage((arrMatch[1] !== undefined) ? arrMatch[1] : arrMatch[2], objFile_a.name, objLine_a.line, arrMatch[1] !== undefined);
 					if (objPage === null)
 					{
@@ -8158,6 +8246,7 @@ function ntcCompile(input_a, objOptions_a)
 						return;
 					}
 					objPage.declared = true;
+					objPage.loaded = intLoaded;
 					objPage.srcfile = objFile_a.name;
 					objPage.line = objLine_a.line;
 					arrMatch[3].split(',').forEach(function(strClass_a)
@@ -8178,7 +8267,7 @@ function ntcCompile(input_a, objOptions_a)
 				}
 				else if (/^\s*option\s+page\b/i.test(strCode))
 				{
-					arrErrors.push({ file: objFile_a.name, line: objLine_a.line, msg: 'Option Page Name = Class, Class ... (or Option Page "FILE.EXT" = ... for a file name of your own)' });
+					arrErrors.push({ file: objFile_a.name, line: objLine_a.line, msg: 'Option Page Name [Loaded n] = Class, Class ... (or Option Page "FILE.EXT" = ... for a file name of your own)' });
 				}
 				else if ((arrMatch = strCode.match(/^\s*option\s+home\s+([a-z_]\w*)\s*=\s*(?:"([^"]*)"|([a-z_]\w*))\s*$/i)))
 				{
@@ -8266,7 +8355,40 @@ function ntcCompile(input_a, objOptions_a)
 				arrErrors.push({ file: objPages[arrPageOrder[0]].srcfile, line: objPages[arrPageOrder[0]].line, msg: 'more than 999 numbered pages' });
 			}
 		})();
-		if ((arrPageOrder.length > 0) && !overlayPlatform())
+		if ((arrPageOrder.length > 0) && (objOptions.platform === 'zxn'))
+		{
+			// the Next (first cut): no files yet - every page is Loaded n, in the NEX file's
+			// bank for RAM page n (Option Memory CPCExpansion's numbering: zxnPageBank - bank 20 + n, higher with a big Option NexData)
+			arrPageOrder.forEach(function(strId_a)
+			{
+				var objPage = objPages[strId_a];
+
+				if (!objPage.loaded)
+				{
+					arrErrors.push({ file: objPage.srcfile, line: objPage.line, msg: 'Option Page "' + objPage.name + '": on zxn a page is Option Page Name Loaded n = ... (in the NEX file, RAM page n: the Next has no page files yet)' });
+				}
+				else if (zxnPageBank(objPage.loaded) > 111)
+				{
+					arrErrors.push({ file: objPage.srcfile, line: objPage.line, msg: 'Option Page "' + objPage.name + '": page ' + objPage.loaded + ' is bank ' + zxnPageBank(objPage.loaded) + ', past the Next\'s 2MB (pages 2 - 91; 2 - 27 on a 1MB Next; fewer with Option NexData past 7 blocks)' });
+				}
+				arrPageOrder.forEach(function(strOther_a)
+				{
+					if ((strOther_a < strId_a) && (objPages[strOther_a].loaded === objPage.loaded) && objPage.loaded)
+					{
+						arrErrors.push({ file: objPage.srcfile, line: objPage.line, msg: 'Option Page "' + objPage.name + '": page ' + objPage.loaded + ' is also "' + objPages[strOther_a].name + '"\'s' });
+					}
+				});
+			});
+			if (objMemory.scheme !== 'cpcexpansion')
+			{
+				arrErrors.push({ file: objPages[arrPageOrder[0]].srcfile, line: objPages[arrPageOrder[0]].line, msg: 'Option Page on zxn needs Option Memory CPCExpansion (the RAM pages the pages are switched in from)' });
+			}
+		}
+		else if ((arrPageOrder.length > 0) && arrPageOrder.some(function(strId_a) { return objPages[strId_a].loaded; }))
+		{
+			arrErrors.push({ file: objPages[arrPageOrder[0]].srcfile, line: objPages[arrPageOrder[0]].line, msg: 'Option Page ... Loaded n: only on zxn so far' });
+		}
+		if ((arrPageOrder.length > 0) && !overlayPlatform() && (objOptions.platform !== 'zxn'))
 		{
 			arrErrors.push({ file: objPages[arrPageOrder[0]].srcfile, line: objPages[arrPageOrder[0]].line, msg: 'Option Page / Option Class Overlay needs a platform that can load files: cpcfw, cpcmin or cpm (not ' + objOptions.platform + ')' });
 			objPages = {};
@@ -8328,7 +8450,7 @@ function ntcCompile(input_a, objOptions_a)
 	// CPCExpansion, else one overlay area at #4000) or CP/M (the overlay area)
 	function overlayPlatform()
 	{
-		return (objOptions.platform === 'cpcfw') || (objOptions.platform === 'cpcmin') || (objOptions.platform === 'cpm');
+		return (objOptions.platform === 'cpcfw') || (objOptions.platform === 'cpcmin') || cpmLike();
 	}
 
 	// Option Class Overlay ["FILE"] | Interrupt rate | Interrupt Frame - checked here
@@ -8956,7 +9078,7 @@ function ntcCompile(input_a, objOptions_a)
 				}
 				arrResult.push(objSection.lines.join('\n').replace(/\s+$/, ''));
 				arrResult.push('');
-				if ((objSection.name === 'ntc_gfx') && (String(objOptions.platform).toLowerCase() === 'cpm'))
+				if ((objSection.name === 'ntc_gfx') && cpmLike())
 				{
 					arrResult = arrResult.concat(gfxHighCopy(objSection.lines));
 				}
@@ -8995,13 +9117,32 @@ function ntcCompile(input_a, objOptions_a)
 	readPlatform();
 	if ((objOptions.org === null) || (objOptions.org === undefined))
 	{
-		objOptions.org = objPlat.org;
+		objOptions.org = findOrg(arrFiles) || objPlat.org;
+	}
+	if (/^&h/i.test(String(objOptions.org)))
+	{
+		objOptions.org = '#' + String(objOptions.org).substr(2);		// (&H4000 as BASIC writes it: sjasmplus's #4000)
 	}
 	arrFiles = addPlatformClasses(arrFiles);
 	objMemory = findMemory(arrFiles);
 	objDefinesIn = { ntc: -1 };
 	objDefinesIn['ntc_' + String(objOptions.platform).toLowerCase()] = -1;	// #If NTC_CPM Then ...
+	if (objOptions.platform === 'cyborgos')
+	{
+		objDefinesIn.ntc_cpm = -1;				// (a slot is CP/M 2.2: what is written for cpm holds)
+		if (String(objOptions.amsdos || '').length === 0)
+		{
+			objOptions.amsdos = programName(arrFiles);		// the output is always a .CYB (the AMSDOS header)
+		}
+	}
+	// --const NAME[=value] (cli): #Const values given when building, for #If (a program built
+	// for one platform that runs under more than one host: CyborgOS's commands)
+	Object.keys(objOptions.consts || {}).forEach(function(strKey_a) { objDefinesIn[strKey_a.toLowerCase()] = objOptions.consts[strKey_a]; });
 	strTerminal = findTerminal(arrFiles);
+	if ((strTerminal === 'none') && (String(objPlat.terminal || '').length > 0) && !findTerminalGiven(arrFiles))
+	{
+		strTerminal = String(objPlat.terminal).toLowerCase();	// the platform's default (cyborgos: VT52)
+	}
 	if (objOptions.library === 'rom')
 	{
 		objDefinesIn.ntc_library_rom = -1;		// #If NTC_LIBRARY_ROM Then ... (built for the keyword library ROM)
@@ -9073,7 +9214,7 @@ function ntcCompile(input_a, objOptions_a)
 			{
 				blnVBPrint = true;
 			}
-			else if ((objRec.what === 'terminal') && (objOptions.platform !== 'cpm'))
+			else if ((objRec.what === 'terminal') && !cpmLike())
 			{
 				arrWarnings.push({ file: objRec.file, line: objRec.line, msg: 'Option Terminal is for CP/M - no effect on ' + objOptions.platform });
 			}
@@ -9189,6 +9330,14 @@ function ntcCompile(input_a, objOptions_a)
 				{
 					arrErrors.push({ file: objRec.file, line: objRec.line, msg: 'Option PressAnyKeyOnEnd: a message in quotes, or none - ' + objRec.value });
 					strPakEnd = null;
+				}
+			}
+			else if (objRec.what === 'org')
+			{
+				intValue = parseNumber(objRec.value);
+				if (isNaN(intValue) || (intValue < 0) || (intValue > 65535))
+				{
+					arrErrors.push({ file: objRec.file, line: objRec.line, msg: 'Option Org needs an address, 0-&HFFFF: ' + objRec.value });
 				}
 			}
 			else if (objRec.what === 'stack')
@@ -9428,7 +9577,7 @@ function ntcCompile(input_a, objOptions_a)
 		arrAsm.push('ZXN_FIRSTBANK\tequ ' + intFirstBank + '\t\t; first free 16K bank (page ' + (2 * intFirstBank) + '), above the program/screen/low banks' + ((intFirstBank > 22) ? ' and Option NexData\'s blocks' : ''));
 		arrAsm.push('ZXN_MAXBANK\tequ ' + (112 - intFirstBank) + '\t\t; scan range: banks ' + intFirstBank + '-111 (a 2MB Next has 112 16K banks, pages 0-223; the MMU has no page past 223 - a higher page number is not RAM)');
 	}
-	arrAsm.push('NTC_CPMGFX\tequ ' + ((String(objOptions.platform).toLowerCase() === 'cpm') ? 1 : 0) + '\t\t; 1 = CP/M: Graphics draws on an Amstrad CPC\'s screen (2.2: #C000, Plus: block 1 from common memory)');
+	arrAsm.push('NTC_CPMGFX\tequ ' + (cpmLike() ? 1 : 0) + '\t\t; 1 = CP/M: Graphics draws on an Amstrad CPC\'s screen (2.2: #C000, Plus: block 1 from common memory)');
 	arrAsm.push('');
 	// the options in a fixed order, wherever they are in the source: the stack first (the
 	// ROM start runs on it), then the ROMs, then the program
@@ -9532,7 +9681,7 @@ function ntcCompile(input_a, objOptions_a)
 		arrAsm.push(strIndent + 'ld sp, ' + objPlat.stack + '\t\t; the platform\'s own real stack');
 	}
 	arrAsm.push(strIndent + 'ld (ntc_csp), sp');
-	if ((objOptions.platform === 'cpm') && (objProcModes['system.commandline'] !== undefined))
+	if (cpmLike() && (objProcModes['system.commandline'] !== undefined))
 	{
 		arrAsm.push(strIndent + 'call ntc_cmdsave\t\t; System.CommandLine: the command tail, before anything overwrites it');
 	}
@@ -10218,9 +10367,16 @@ function ntcCompile(input_a, objOptions_a)
 		arrAsm.push('; the end of its code and the size of its page variables, its file and its name');
 		arrPageOrder.forEach(function(strId_a)
 		{
-			arrAsm.push(objPages[strId_a].blk + ':\tdw 0, ovl_' + strId_a + '_end, ovl_' + strId_a + '_vsize');
+			arrAsm.push(objPages[strId_a].blk + ':\tdw ' + (objPages[strId_a].loaded || 0) + ', ovl_' + strId_a + '_end, ovl_' + strId_a + '_vsize' + (objPages[strId_a].loaded ? '\t; Loaded: in RAM page ' + objPages[strId_a].loaded + ' from the start' : ''));
 			arrAsm.push(strIndent + 'db "' + objPages[strId_a].file + '", 0, "' + ((objPages[strId_a].name !== objPages[strId_a].file) ? objPages[strId_a].name : '') + '", 0\t; its file, its name (for the messages)');
 		});
+		if (arrPageOrder.some(function(strId_a) { return objPages[strId_a].loaded; }))
+		{
+			// mem_start marks these pages taken (C) in the RAT, so AllocPage never hands them out
+			arrAsm.push('NTC_PGLOADED\tequ 1');
+			arrAsm.push('ntc_pgloaded:\tdb ' + arrPageOrder.filter(function(strId_a) { return objPages[strId_a].loaded; }).length + '\t\t; Option Page ... Loaded n: how many, then their pages');
+			arrAsm.push(strIndent + 'dw ' + arrPageOrder.filter(function(strId_a) { return objPages[strId_a].loaded; }).map(function(strId_a) { return objPages[strId_a].loaded; }).join(', '));
+		}
 		if (objPageOut.tables.length > 0)
 		{
 			arrAsm.push('; classes in more than one page: for each procedure, its copies (the home first): page, body');
@@ -10272,14 +10428,46 @@ function ntcCompile(input_a, objOptions_a)
 	{
 		// an AMSDOS file (128 byte header): RUN"name loads it at the org and starts it
 		// (cpm: NAME.CYB, a CyborgOS program - AMSDOS reads a file without a header as text)
-		arrAsm.push(strIndent + 'SAVEAMSDOS "' + String(objOptions.amsdos).toUpperCase().replace(/[^A-Z0-9]/g, '').substr(0, 8) + ((objOptions.platform === 'cpm') ? '.CYB' : '.BIN') + '", ntc_start, ntc_end - ntc_start, ntc_start');
+		arrAsm.push(strIndent + 'SAVEAMSDOS "' + String(objOptions.amsdos).toUpperCase().replace(/[^A-Z0-9]/g, '').substr(0, 8) + (cpmLike() ? '.CYB' : '.BIN') + '", ntc_start, ntc_end - ntc_start, ntc_start');
+	}
+	var strLen = '';
+	var arrZxnPageBanks = [];
+	if ((arrOvlOrder.length > 0) && (String(objOptions.platform).toLowerCase() === 'zxn'))
+	{
+		// the Next: each page (Loaded n) assembled at #4000 straight into the NEX file's bank for
+		// RAM page n (zxnPageBank: bank 20 + n), its page variables cleared there; NextZXOS loads it with the program
+		arrAsm.push(strIndent + 'ASSERT (ntc_free <= #4000) || (ntc_start >= #8000) || NTC_WINHOLE, "pages: the program and its arrays must stay out of #4000-#7FFF (the window they run in)"');
+		arrPageOrder.forEach(function(strId_a)
+		{
+			var objKind = objPages[strId_a];
+			var intBank = zxnPageBank(objKind.loaded);
+
+			arrAsm.push('');
+			arrAsm.push('; ============================================================');
+			arrAsm.push('; Page ' + objKind.name + ' (Loaded ' + objKind.loaded + '): ' + objKind.classes.join(', ') + ' - threads built to run at #4000,');
+			arrAsm.push('; in the NEX file\'s bank ' + intBank + ' (RAM page ' + objKind.loaded + '); their variables are in the program, but for');
+			arrAsm.push('; Private Paged ones (after the code, cleared here)');
+			arrAsm.push('; ============================================================');
+			arrAsm.push(strIndent + 'MMU 2 3, ' + (intBank * 2));
+			arrAsm.push(strIndent + 'ORG #4000');
+			arrAsm.push('ovl_' + objKind.id + '_start:');
+			arrAsm = arrAsm.concat(objPageOut.pages[strId_a]);
+			arrAsm.push('ovl_' + objKind.id + '_end:\t\t; the end of its code; page variables follow');
+			arrAsm = arrAsm.concat(objPageOut.vars[strId_a]);
+			arrAsm.push(strIndent + 'IF ovl_' + objKind.id + '_vsize > 0');
+			arrAsm.push(strIndent + 'ds ovl_' + objKind.id + '_vsize, 0');
+			arrAsm.push(strIndent + 'ENDIF');
+			arrAsm.push(strIndent + 'ASSERT ovl_' + objKind.id + '_end + ovl_' + objKind.id + '_vsize <= #8000, "page ' + objKind.name + ' (' + objKind.classes.join(', ') + ') is more than 16K (code and page variables)"');
+			arrAsm = arrAsm.concat(objPageOut.display[strId_a]);
+			arrZxnPageBanks.push(intBank);
+		});
+		arrAsm.push(strIndent + 'MMU 2 3, 18\t\t; (the program\'s own pages back for what follows)');
 	}
 	if (String(objOptions.platform).toLowerCase() === 'zxn')
 	{
-		zxnBoot(arrAsm, strIndent);
+		zxnBoot(arrAsm, strIndent, arrZxnPageBanks);
 	}
-	var strLen = '';
-	if (arrOvlOrder.length > 0)
+	if ((arrOvlOrder.length > 0) && (String(objOptions.platform).toLowerCase() !== 'zxn'))
 	{
 		arrAsm.push(strIndent + 'ASSERT (ntc_free <= #4000) || (ntc_start >= #8000), "overlay classes: the program and its arrays must stay out of #4000-#7FFF (the window they run in)"');
 		arrPageOrder.forEach(function(strId_a)
@@ -10294,7 +10482,7 @@ function ntcCompile(input_a, objOptions_a)
 			arrAsm.push('; ============================================================');
 			// an AMSDOS build: a binary file with an AMSDOS header (AMSDOS takes a file without
 			// one for ASCII text, and CAS IN DIRECT won't load it); else the plain bytes
-			if ((String(objOptions.amsdos || '').length === 0) && (objOptions.platform !== 'cpm'))
+			if ((String(objOptions.amsdos || '').length === 0) && !cpmLike())
 			{
 				// written here with its AMSDOS header: binary (type 2), loads at #4000
 				strLen = '(ovl_' + objKind.id + '_end - ovl_' + objKind.id + '_start)';
@@ -10311,7 +10499,7 @@ function ntcCompile(input_a, objOptions_a)
 				arrAsm.push(strIndent + 'dw 2 + #40 + #40 + 2 * ((' + strLen + ' & 255) + (' + strLen + ' >> 8))\t; checksum of bytes 0-66');
 				arrAsm.push(strIndent + 'ds 59');
 			}
-			if (objOptions.platform === 'cpm')
+			if (cpmLike())
 			{
 				arrAsm.push(strIndent + 'OUTPUT "' + objKind.file + '"');		// CP/M: the plain bytes
 			}
@@ -10322,7 +10510,7 @@ function ntcCompile(input_a, objOptions_a)
 			arrAsm = arrAsm.concat(objPageOut.vars[strId_a]);
 			arrAsm.push(strIndent + 'ASSERT ovl_' + objKind.id + '_end + ovl_' + objKind.id + '_vsize <= #8000, "page ' + objKind.name + ' (' + objKind.classes.join(', ') + ') is more than 16K (code and page variables)"');
 			arrAsm = arrAsm.concat(objPageOut.display[strId_a]);
-			if ((String(objOptions.amsdos || '').length === 0) || (objOptions.platform === 'cpm'))
+			if ((String(objOptions.amsdos || '').length === 0) || cpmLike())
 			{
 				arrAsm.push(strIndent + 'OUTEND');
 			}

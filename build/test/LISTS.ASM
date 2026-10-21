@@ -2465,6 +2465,29 @@ lst_rs_cend:
 			ld bc, lst_s1
 			jp lst_wr4
 
+; ============================================================
+; ntc_lib_nxt.asm - ZX Spectrum Next platform banking
+; (c) 2026 Cyborg Unicorn Pty Ltd - MIT License
+; ------------------------------------------------------------
+; The Next versions of the three banking primitives the CPC-modelled
+; Memory manager (ntc_mem, in ntc_lib_cpc.asm) switches platform on:
+;   nxt_mem_probe   - the RAM probe (mem_probe's ELSE branch)
+;   nxt_mem_jbc     - 64K bank -> its first 16K Next bank (mem_jbc's zxn branch)
+;   nxt_mem_se_out  - a RAM setting into the #4000 window (mem_se_out's zxn branch)
+; Linked as a dependency of ntc_mem; the whole section is IFDEF NTC_ZXN, so on a
+; CPC build it contributes nothing. NextReg is driven through ports #243B / #253B
+; (no Z80N opcodes). A 64K "bank" = 4 x 16K Next banks; a 16K bank = two 8K MMU
+; pages (slots 2, 3 = NextReg #52, #53) in the #4000-#7FFF window.
+;
+; The RAM setting (BC) on the Next is shaped as the CPC's gate-array one, so that
+; everything built on the CPC's setting arithmetic (a 64K bank's "C2" setting =
+; its page 0's and #F8 or 2; its page n in the window = and #F8 or 4 + n) works
+; unchanged: B = ZXN_SETB (1 - never 0: 0 in B means "main RAM, no switch" to the
+; code that tests it; never #7F: #7FC0 is main RAM's own), C = the 64K bank's
+; ordinal (0, 1, 2 ... from ZXN_FIRSTBANK, 4 x 16K each) * 8 + 4 + its 16K page
+; (0-3) - or + 2 for the whole bank. nxt_mem_bank decodes it to the 16K Next bank.
+; ============================================================
+
 ;## ntc_plat_data
 ntc_curx:		db 0			; cursor column (0 based)
 ntc_cury:		db 0			; cursor row (0 based)

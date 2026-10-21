@@ -58,40 +58,90 @@ main_thread:
 ; ============================================================
 
 p_main:
+
+			; ISOChess.bas 117: Mode 1
 			dw kw_model, 1
+
+			; ISOChess.bas 118: Cls
 			dw kw_cls
+
+			; ISOChess.bas 122: Graphics.Clip 1
 			dw fn_graphics_clip, lit_1
+
+			; ISOChess.bas 124: Randomize
 			dw kw_ticks, tmp0
 			dw kw_seedv, tmp0
+
+			; ISOChess.bas 126: InitGame
 			dw p_initgame_c
+
+			; ISOChess.bas 127: DrawStaticBoard
 			dw p_drawstaticboard_c
+
+			; ISOChess.bas 128: DrawAllPieces
 			dw p_drawallpieces_c
+
+			; ISOChess.bas 129: UpdateHUD True
 			dw p_updatehud_c, lit_m1
+
+			; ISOChess.bas 135: CurX = 4 : CurY = 6
 			dw kw_ltov, 4, var_curx
 			dw kw_ltov, 6, var_cury
+
+			; ISOChess.bas 136: CursorDrawn = False
 			dw kw_ztov, var_cursordrawn
+
+			; ISOChess.bas 137: MarkersDrawn = False
 			dw kw_ztov, var_markersdrawn
+
+			; ISOChess.bas 138: DrawCursor CurX, CurY, PEN_MARK
 			dw p_drawcursor_c, var_curx, var_cury, lit_3
+
+			; ISOChess.bas 139: CursorDrawn = True
 			dw kw_ltov, -1, var_cursordrawn
+
+			; ISOChess.bas 141: WaitKeyRelease
 			dw p_waitkeyrelease_c
+
+			; ISOChess.bas 143: Do While GameState <> STATE_OVER
 do1_t:
 			dw kw_cpnevl, var_gamestate, 3
 			dw kw_goto_iffalse_n, do1_e
+
+			; ISOChess.bas 144: CheckTurnTimer
 			dw p_checkturntimer_c
+
+			; ISOChess.bas 145: If GameState = STATE_OVER Then Exit Do
 			dw kw_cpeqvl, var_gamestate, 3
 			dw kw_goto_iffalse_n, if2_1
 			dw do1_e_go
 if2_1:
+
+			; ISOChess.bas 147: If GameState = STATE_CPU Then
 			dw kw_cpeqvl, var_gamestate, 2
 			dw kw_goto_iffalse_n, if3_1
+
+			; ISOChess.bas 148: MakeCPUMove
 			dw p_makecpumove_c
+
+			; ISOChess.bas 149: Else
 			dw if3_e_go
 if3_1:
+
+			; ISOChess.bas 150: HandlePlayerInput
 			dw p_handleplayerinput_c
+
+			; ISOChess.bas 151: End If
 if3_e:
+
+			; ISOChess.bas 153: Frame
 			dw kw_frame
+
+			; ISOChess.bas 154: Loop
 			dw do1_t_go
 do1_e:
+
+			; ISOChess.bas 156: ShowGameOver
 			dw p_showgameover_c
 			dw p_main_r
 
@@ -100,49 +150,87 @@ do1_e:
 ; ============================================================
 
 p_initgame:
+
+			; ISOChess.bas 181: Dim x As Integer, y As Integer
+
+			; ISOChess.bas 183: For y = 0 To 7
 			dw kw_ztov, var_initgame_y
 for4_t:
+
+			; ISOChess.bas 184: For x = 0 To 7
 			dw kw_ztov, var_initgame_x
 for5_t:
+
+			; ISOChess.bas 185: Board(x, y) = EMPTY_SQ
 			dw kw_mulvl, var_initgame_x, 8, tmp0
 			dw kw_add, tmp0, var_initgame_y, tmp0
 			dw kw_asetl, arr_board, tmp0, 0
+
+			; ISOChess.bas 186: ValidMap(x, y) = 0
 			dw kw_mulvl, var_initgame_x, 8, tmp0
 			dw kw_add, tmp0, var_initgame_y, tmp0
 			dw kw_aset8, arr_validmap, tmp0, lit_0
+
+			; ISOChess.bas 187: Next x
 			dw kw_next1l_n, var_initgame_x, 7, for5_t
 for5_e:
+
+			; ISOChess.bas 188: Next y
 			dw kw_next1l_n, var_initgame_y, 7, for4_t
 for4_e:
+
+			; ISOChess.bas 191: Board(0, 0) = -ROOK   : Board(1, 0) = -KNIGHT : Board(2, 0) = -BISHOP : Board(3, 0) = -QUEEN
 			dw kw_ltov, -4, arr_board
 			dw kw_ltov, -2, arr_board+16
 			dw kw_ltov, -3, arr_board+32
 			dw kw_ltov, -5, arr_board+48
+
+			; ISOChess.bas 192: Board(4, 0) = -KING   : Board(5, 0) = -BISHOP : Board(6, 0) = -KNIGHT : Board(7, 0) = -ROOK
 			dw kw_ltov, -6, arr_board+64
 			dw kw_ltov, -3, arr_board+80
 			dw kw_ltov, -2, arr_board+96
 			dw kw_ltov, -4, arr_board+112
+
+			; ISOChess.bas 193: For x = 0 To 7
 			dw kw_ztov, var_initgame_x
 for6_t:
+
+			; ISOChess.bas 194: Board(x, 1) = -PAWN
 			dw kw_mulvl, var_initgame_x, 8, tmp0
 			dw kw_inc, tmp0
 			dw kw_asetl, arr_board, tmp0, -1
+
+			; ISOChess.bas 195: Board(x, 6) = PAWN
 			dw kw_mulvl, var_initgame_x, 8, tmp0
 			dw kw_addl, tmp0, 6, tmp0
 			dw kw_asetl, arr_board, tmp0, 1
+
+			; ISOChess.bas 196: Next x
 			dw kw_next1l_n, var_initgame_x, 7, for6_t
 for6_e:
+
+			; ISOChess.bas 199: Board(0, 7) = ROOK    : Board(1, 7) = KNIGHT  : Board(2, 7) = BISHOP  : Board(3, 7) = QUEEN
 			dw kw_ltov, 4, arr_board+14
 			dw kw_ltov, 2, arr_board+30
 			dw kw_ltov, 3, arr_board+46
 			dw kw_ltov, 5, arr_board+62
+
+			; ISOChess.bas 200: Board(4, 7) = KING    : Board(5, 7) = BISHOP  : Board(6, 7) = KNIGHT  : Board(7, 7) = ROOK
 			dw kw_ltov, 6, arr_board+78
 			dw kw_ltov, 3, arr_board+94
 			dw kw_ltov, 2, arr_board+110
 			dw kw_ltov, 4, arr_board+126
+
+			; ISOChess.bas 202: GameState = STATE_SELECT
 			dw kw_ztov, var_gamestate
+
+			; ISOChess.bas 203: Winner = 0
 			dw kw_ztov, var_winner
+
+			; ISOChess.bas 204: WinReason = ""
 			dw kw_strcpy, var_winreason, str0
+
+			; ISOChess.bas 205: ResetTurnTimer
 			dw p_resetturntimer_c
 			dw p_initgame_r
 
@@ -151,8 +239,12 @@ for6_e:
 ; ============================================================
 
 p_resetturntimer:
+
+			; ISOChess.bas 209: TurnStartTicks = Ticks
 			dw kw_ticks, tmp0
 			dw kw_l_itol, tmp0, var_turnstartticks
+
+			; ISOChess.bas 210: LastSecShown = -1
 			dw kw_ltov, -1, var_lastsecshown
 			dw p_resetturntimer_r
 
@@ -161,6 +253,8 @@ p_resetturntimer:
 ; ============================================================
 
 p_isox:
+
+			; ISOChess.bas 321: IsoX = ORIGIN_X + (c - r) * TILE_W
 			dw kw_subvv, var_isox_c, var_isox_r, tmp1
 			dw kw_mulvl, tmp1, 16, tmp1
 			dw kw_addl, tmp1, 160, var_isox_isox
@@ -171,6 +265,8 @@ p_isox:
 ; ============================================================
 
 p_isoy:
+
+			; ISOChess.bas 325: IsoY = ORIGIN_Y + (c + r) * TILE_H
 			dw kw_add, var_isoy_c, var_isoy_r, tmp1
 			dw kw_mulvl, tmp1, 8, tmp1
 			dw kw_addl, tmp1, 44, var_isoy_isoy
@@ -181,53 +277,93 @@ p_isoy:
 ; ============================================================
 
 p_drawstaticboard:
+
+			; ISOChess.bas 329: Dim i As Integer
+
+			; ISOChess.bas 330: Dim x0 As Integer, y0 As Integer, x1 As Integer, y1 As Integer
+
+			; ISOChess.bas 331: Dim bx0 As Integer, by0 As Integer, bx1 As Integer, by1 As Integer, bx2 As Integer, by2 As Integer
+
+			; ISOChess.bas 333: Graphics.Pen PEN_GRID
 			dw fn_graphics_pen, lit_1
+
+			; ISOChess.bas 336: For i = 0 To 8
 			dw kw_ztov, var_drawstaticboard_i
 for7_t:
+
+			; ISOChess.bas 337: x0 = IsoX(0, i) : y0 = IsoY(0, i)
 			dw p_isox_c, lit_0, var_drawstaticboard_i
 			dw kw_vtov, var_isox_isox, var_drawstaticboard_x0
 			dw p_isoy_c, lit_0, var_drawstaticboard_i
 			dw kw_vtov, var_isoy_isoy, var_drawstaticboard_y0
+
+			; ISOChess.bas 338: x1 = IsoX(8, i) : y1 = IsoY(8, i)
 			dw p_isox_c, lit_8, var_drawstaticboard_i
 			dw kw_vtov, var_isox_isox, var_drawstaticboard_x1
 			dw p_isoy_c, lit_8, var_drawstaticboard_i
 			dw kw_vtov, var_isoy_isoy, var_drawstaticboard_y1
+
+			; ISOChess.bas 339: Graphics.Line x0, y0, x1, y1
 			dw fn_graphics_line, var_drawstaticboard_x0, var_drawstaticboard_y0, var_drawstaticboard_x1, var_drawstaticboard_y1
+
+			; ISOChess.bas 341: x0 = IsoX(i, 0) : y0 = IsoY(i, 0)
 			dw p_isox_c, var_drawstaticboard_i, lit_0
 			dw kw_vtov, var_isox_isox, var_drawstaticboard_x0
 			dw p_isoy_c, var_drawstaticboard_i, lit_0
 			dw kw_vtov, var_isoy_isoy, var_drawstaticboard_y0
+
+			; ISOChess.bas 342: x1 = IsoX(i, 8) : y1 = IsoY(i, 8)
 			dw p_isox_c, var_drawstaticboard_i, lit_8
 			dw kw_vtov, var_isox_isox, var_drawstaticboard_x1
 			dw p_isoy_c, var_drawstaticboard_i, lit_8
 			dw kw_vtov, var_isoy_isoy, var_drawstaticboard_y1
+
+			; ISOChess.bas 343: Graphics.Line x0, y0, x1, y1
 			dw fn_graphics_line, var_drawstaticboard_x0, var_drawstaticboard_y0, var_drawstaticboard_x1, var_drawstaticboard_y1
+
+			; ISOChess.bas 344: Next i
 			dw kw_next1l_n, var_drawstaticboard_i, 8, for7_t
 for7_e:
+
+			; ISOChess.bas 347: bx0 = IsoX(0, 8) : by0 = IsoY(0, 8)
 			dw p_isox_c, lit_0, lit_8
 			dw kw_vtov, var_isox_isox, var_drawstaticboard_bx0
 			dw p_isoy_c, lit_0, lit_8
 			dw kw_vtov, var_isoy_isoy, var_drawstaticboard_by0
+
+			; ISOChess.bas 348: bx1 = IsoX(8, 8) : by1 = IsoY(8, 8)
 			dw p_isox_c, lit_8, lit_8
 			dw kw_vtov, var_isox_isox, var_drawstaticboard_bx1
 			dw p_isoy_c, lit_8, lit_8
 			dw kw_vtov, var_isoy_isoy, var_drawstaticboard_by1
+
+			; ISOChess.bas 349: bx2 = IsoX(8, 0) : by2 = IsoY(8, 0)
 			dw p_isox_c, lit_8, lit_0
 			dw kw_vtov, var_isox_isox, var_drawstaticboard_bx2
 			dw p_isoy_c, lit_8, lit_0
 			dw kw_vtov, var_isoy_isoy, var_drawstaticboard_by2
+
+			; ISOChess.bas 351: Graphics.Line bx0, by0 + 1, bx0, by0 + 5
 			dw kw_addl, var_drawstaticboard_by0, 1, tmp1
 			dw kw_addl, var_drawstaticboard_by0, 5, tmp3
 			dw fn_graphics_line, var_drawstaticboard_bx0, tmp1, var_drawstaticboard_bx0, tmp3
+
+			; ISOChess.bas 352: Graphics.Line bx1, by1 + 1, bx1, by1 + 5
 			dw kw_addl, var_drawstaticboard_by1, 1, tmp1
 			dw kw_addl, var_drawstaticboard_by1, 5, tmp3
 			dw fn_graphics_line, var_drawstaticboard_bx1, tmp1, var_drawstaticboard_bx1, tmp3
+
+			; ISOChess.bas 353: Graphics.Line bx2, by2 + 1, bx2, by2 + 5
 			dw kw_addl, var_drawstaticboard_by2, 1, tmp1
 			dw kw_addl, var_drawstaticboard_by2, 5, tmp3
 			dw fn_graphics_line, var_drawstaticboard_bx2, tmp1, var_drawstaticboard_bx2, tmp3
+
+			; ISOChess.bas 354: Graphics.Line bx0, by0 + 5, bx1, by1 + 5
 			dw kw_addl, var_drawstaticboard_by0, 5, tmp1
 			dw kw_addl, var_drawstaticboard_by1, 5, tmp3
 			dw fn_graphics_line, var_drawstaticboard_bx0, tmp1, var_drawstaticboard_bx1, tmp3
+
+			; ISOChess.bas 355: Graphics.Line bx1, by1 + 5, bx2, by2 + 5
 			dw kw_addl, var_drawstaticboard_by1, 5, tmp1
 			dw kw_addl, var_drawstaticboard_by2, 5, tmp3
 			dw fn_graphics_line, var_drawstaticboard_bx1, tmp1, var_drawstaticboard_bx2, tmp3
@@ -238,22 +374,38 @@ for7_e:
 ; ============================================================
 
 p_drawallpieces:
+
+			; ISOChess.bas 359: Dim x As Integer, y As Integer
+
+			; ISOChess.bas 360: For y = 0 To 7
 			dw kw_ztov, var_drawallpieces_y
 for8_t:
+
+			; ISOChess.bas 361: For x = 0 To 7
 			dw kw_ztov, var_drawallpieces_x
 for9_t:
+
+			; ISOChess.bas 362: If Board(x, y) <> EMPTY_SQ Then
 			dw kw_mulvl, var_drawallpieces_x, 8, tmp0
 			dw kw_add, tmp0, var_drawallpieces_y, tmp0
 			dw kw_aget, arr_board, tmp0, tmp0
 			dw kw_cpnevl, tmp0, 0
 			dw kw_goto_iffalse_n, if10_1
+
+			; ISOChess.bas 363: DrawPieceAt x, y, Board(x, y)
 			dw kw_mulvl, var_drawallpieces_x, 8, tmp2
 			dw kw_add, tmp2, var_drawallpieces_y, tmp2
 			dw kw_aget, arr_board, tmp2, tmp2
 			dw p_drawpieceat_c, var_drawallpieces_x, var_drawallpieces_y, tmp2
+
+			; ISOChess.bas 364: End If
 if10_1:
+
+			; ISOChess.bas 365: Next x
 			dw kw_next1l_n, var_drawallpieces_x, 7, for9_t
 for9_e:
+
+			; ISOChess.bas 366: Next y
 			dw kw_next1l_n, var_drawallpieces_y, 7, for8_t
 for8_e:
 			dw p_drawallpieces_r
@@ -263,193 +415,299 @@ for8_e:
 ; ============================================================
 
 p_drawpieceat:
+
+			; ISOChess.bas 371: Dim cx As Integer, cy As Integer
+
+			; ISOChess.bas 372: Dim pt As Integer, penCol As Integer
+
+			; ISOChess.bas 374: If p = EMPTY_SQ Then Exit Sub
 			dw kw_cpeqvl, var_drawpieceat_p, 0
 			dw kw_goto_iffalse_n, if11_1
 			dw p_drawpieceat_r
 if11_1:
+
+			; ISOChess.bas 376: pt = Abs(p)
 			dw kw_absv, var_drawpieceat_p, var_drawpieceat_pt
+
+			; ISOChess.bas 377: If p > 0 Then
 			dw kw_scpgtvl, var_drawpieceat_p, 0
 			dw kw_goto_iffalse_n, if12_1
+
+			; ISOChess.bas 378: penCol = PEN_WHITE ' White (Player)
 			dw kw_ltov, 2, var_drawpieceat_pencol
+
+			; ISOChess.bas 379: Else
 			dw if12_e_go
 if12_1:
+
+			; ISOChess.bas 380: penCol = PEN_BLACK ' Black (CPU)
 			dw kw_ltov, 3, var_drawpieceat_pencol
+
+			; ISOChess.bas 381: End If
 if12_e:
+
+			; ISOChess.bas 383: Graphics.Pen penCol
 			dw fn_graphics_pen, var_drawpieceat_pencol
+
+			; ISOChess.bas 386: cx = IsoX(c, r)
 			dw p_isox_c, var_drawpieceat_c, var_drawpieceat_r
 			dw kw_vtov, var_isox_isox, var_drawpieceat_cx
+
+			; ISOChess.bas 387: cy = IsoY(c, r) + TILE_H
 			dw p_isoy_c, var_drawpieceat_c, var_drawpieceat_r
 			dw kw_vtov, var_isoy_isoy, tmp0
 			dw kw_addl, tmp0, 8, var_drawpieceat_cy
+
+			; ISOChess.bas 390: Graphics.Line cx - 6, cy, cx, cy - 3
 			dw kw_addl, var_drawpieceat_cx, -6, tmp0
 			dw kw_addl, var_drawpieceat_cy, -3, tmp3
 			dw fn_graphics_line, tmp0, var_drawpieceat_cy, var_drawpieceat_cx, tmp3
+
+			; ISOChess.bas 391: Graphics.Line cx, cy - 3, cx + 6, cy
 			dw kw_addl, var_drawpieceat_cy, -3, tmp1
 			dw kw_addl, var_drawpieceat_cx, 6, tmp2
 			dw fn_graphics_line, var_drawpieceat_cx, tmp1, tmp2, var_drawpieceat_cy
+
+			; ISOChess.bas 392: Graphics.Line cx + 6, cy, cx, cy + 3
 			dw kw_addl, var_drawpieceat_cx, 6, tmp0
 			dw kw_addl, var_drawpieceat_cy, 3, tmp3
 			dw fn_graphics_line, tmp0, var_drawpieceat_cy, var_drawpieceat_cx, tmp3
+
+			; ISOChess.bas 393: Graphics.Line cx, cy + 3, cx - 6, cy
 			dw kw_addl, var_drawpieceat_cy, 3, tmp1
 			dw kw_addl, var_drawpieceat_cx, -6, tmp2
 			dw fn_graphics_line, var_drawpieceat_cx, tmp1, tmp2, var_drawpieceat_cy
+
+			; ISOChess.bas 396: If p < 0 Then
 			dw kw_scpltvl, var_drawpieceat_p, 0
 			dw kw_goto_iffalse_n, if13_1
+
+			; ISOChess.bas 397: Graphics.Line cx - 3, cy, cx + 3, cy
 			dw kw_addl, var_drawpieceat_cx, -3, tmp0
 			dw kw_addl, var_drawpieceat_cx, 3, tmp2
 			dw fn_graphics_line, tmp0, var_drawpieceat_cy, tmp2, var_drawpieceat_cy
+
+			; ISOChess.bas 398: End If
 if13_1:
+
+			; ISOChess.bas 400: Select Case pt
 			dw kw_vtov, var_drawpieceat_pt, var_drawpieceat___sel14
+
+			; ISOChess.bas 401: Case PAWN
 			dw kw_cpeqvl, var_drawpieceat___sel14, 1
 			dw kw_goto_iffalse_n, sel14_1
 sel14_b1:
+
+			; ISOChess.bas 402: Graphics.Line cx - 3, cy - 1, cx, cy - 9
 			dw kw_addl, var_drawpieceat_cx, -3, tmp0
 			dw kw_addl, var_drawpieceat_cy, -1, tmp1
 			dw kw_addl, var_drawpieceat_cy, -9, tmp3
 			dw fn_graphics_line, tmp0, tmp1, var_drawpieceat_cx, tmp3
+
+			; ISOChess.bas 403: Graphics.Line cx + 3, cy - 1, cx, cy - 9
 			dw kw_addl, var_drawpieceat_cx, 3, tmp0
 			dw kw_addl, var_drawpieceat_cy, -1, tmp1
 			dw kw_addl, var_drawpieceat_cy, -9, tmp3
 			dw fn_graphics_line, tmp0, tmp1, var_drawpieceat_cx, tmp3
+
+			; ISOChess.bas 404: Graphics.Line cx - 2, cy - 9, cx + 2, cy - 9
 			dw kw_addl, var_drawpieceat_cx, -2, tmp0
 			dw kw_addl, var_drawpieceat_cy, -9, tmp1
 			dw kw_addl, var_drawpieceat_cx, 2, tmp2
 			dw kw_addl, var_drawpieceat_cy, -9, tmp3
 			dw fn_graphics_line, tmp0, tmp1, tmp2, tmp3
+
+			; ISOChess.bas 406: Case ROOK
 			dw sel14_e_go
 sel14_1:
 			dw kw_cpeqvl, var_drawpieceat___sel14, 4
 			dw kw_goto_iffalse_n, sel14_2
 sel14_b2:
+
+			; ISOChess.bas 407: Graphics.Line cx - 4, cy - 1, cx - 4, cy - 11
 			dw kw_addl, var_drawpieceat_cx, -4, tmp0
 			dw kw_addl, var_drawpieceat_cy, -1, tmp1
 			dw kw_addl, var_drawpieceat_cx, -4, tmp2
 			dw kw_addl, var_drawpieceat_cy, -11, tmp3
 			dw fn_graphics_line, tmp0, tmp1, tmp2, tmp3
+
+			; ISOChess.bas 408: Graphics.Line cx + 4, cy - 1, cx + 4, cy - 11
 			dw kw_addl, var_drawpieceat_cx, 4, tmp0
 			dw kw_addl, var_drawpieceat_cy, -1, tmp1
 			dw kw_addl, var_drawpieceat_cx, 4, tmp2
 			dw kw_addl, var_drawpieceat_cy, -11, tmp3
 			dw fn_graphics_line, tmp0, tmp1, tmp2, tmp3
+
+			; ISOChess.bas 409: Graphics.Line cx - 4, cy - 11, cx + 4, cy - 11
 			dw kw_addl, var_drawpieceat_cx, -4, tmp0
 			dw kw_addl, var_drawpieceat_cy, -11, tmp1
 			dw kw_addl, var_drawpieceat_cx, 4, tmp2
 			dw kw_addl, var_drawpieceat_cy, -11, tmp3
 			dw fn_graphics_line, tmp0, tmp1, tmp2, tmp3
+
+			; ISOChess.bas 410: Graphics.Line cx - 2, cy - 11, cx - 2, cy - 13
 			dw kw_addl, var_drawpieceat_cx, -2, tmp0
 			dw kw_addl, var_drawpieceat_cy, -11, tmp1
 			dw kw_addl, var_drawpieceat_cx, -2, tmp2
 			dw kw_addl, var_drawpieceat_cy, -13, tmp3
 			dw fn_graphics_line, tmp0, tmp1, tmp2, tmp3
+
+			; ISOChess.bas 411: Graphics.Line cx + 2, cy - 11, cx + 2, cy - 13
 			dw kw_addl, var_drawpieceat_cx, 2, tmp0
 			dw kw_addl, var_drawpieceat_cy, -11, tmp1
 			dw kw_addl, var_drawpieceat_cx, 2, tmp2
 			dw kw_addl, var_drawpieceat_cy, -13, tmp3
 			dw fn_graphics_line, tmp0, tmp1, tmp2, tmp3
+
+			; ISOChess.bas 413: Case KNIGHT
 			dw sel14_e_go
 sel14_2:
 			dw kw_cpeqvl, var_drawpieceat___sel14, 2
 			dw kw_goto_iffalse_n, sel14_3
 sel14_b3:
+
+			; ISOChess.bas 414: Graphics.Line cx - 3, cy - 1, cx - 2, cy - 11
 			dw kw_addl, var_drawpieceat_cx, -3, tmp0
 			dw kw_addl, var_drawpieceat_cy, -1, tmp1
 			dw kw_addl, var_drawpieceat_cx, -2, tmp2
 			dw kw_addl, var_drawpieceat_cy, -11, tmp3
 			dw fn_graphics_line, tmp0, tmp1, tmp2, tmp3
+
+			; ISOChess.bas 415: Graphics.Line cx - 2, cy - 11, cx + 4, cy - 9
 			dw kw_addl, var_drawpieceat_cx, -2, tmp0
 			dw kw_addl, var_drawpieceat_cy, -11, tmp1
 			dw kw_addl, var_drawpieceat_cx, 4, tmp2
 			dw kw_addl, var_drawpieceat_cy, -9, tmp3
 			dw fn_graphics_line, tmp0, tmp1, tmp2, tmp3
+
+			; ISOChess.bas 416: Graphics.Line cx + 4, cy - 9, cx + 1, cy - 6
 			dw kw_addl, var_drawpieceat_cx, 4, tmp0
 			dw kw_addl, var_drawpieceat_cy, -9, tmp1
 			dw kw_addl, var_drawpieceat_cx, 1, tmp2
 			dw kw_addl, var_drawpieceat_cy, -6, tmp3
 			dw fn_graphics_line, tmp0, tmp1, tmp2, tmp3
+
+			; ISOChess.bas 417: Graphics.Line cx + 1, cy - 6, cx + 3, cy - 1
 			dw kw_addl, var_drawpieceat_cx, 1, tmp0
 			dw kw_addl, var_drawpieceat_cy, -6, tmp1
 			dw kw_addl, var_drawpieceat_cx, 3, tmp2
 			dw kw_addl, var_drawpieceat_cy, -1, tmp3
 			dw fn_graphics_line, tmp0, tmp1, tmp2, tmp3
+
+			; ISOChess.bas 419: Case BISHOP
 			dw sel14_e_go
 sel14_3:
 			dw kw_cpeqvl, var_drawpieceat___sel14, 3
 			dw kw_goto_iffalse_n, sel14_4
 sel14_b4:
+
+			; ISOChess.bas 420: Graphics.Line cx - 4, cy - 1, cx, cy - 13
 			dw kw_addl, var_drawpieceat_cx, -4, tmp0
 			dw kw_addl, var_drawpieceat_cy, -1, tmp1
 			dw kw_addl, var_drawpieceat_cy, -13, tmp3
 			dw fn_graphics_line, tmp0, tmp1, var_drawpieceat_cx, tmp3
+
+			; ISOChess.bas 421: Graphics.Line cx + 4, cy - 1, cx, cy - 13
 			dw kw_addl, var_drawpieceat_cx, 4, tmp0
 			dw kw_addl, var_drawpieceat_cy, -1, tmp1
 			dw kw_addl, var_drawpieceat_cy, -13, tmp3
 			dw fn_graphics_line, tmp0, tmp1, var_drawpieceat_cx, tmp3
+
+			; ISOChess.bas 422: Graphics.Line cx - 2, cy - 7, cx + 2, cy - 7
 			dw kw_addl, var_drawpieceat_cx, -2, tmp0
 			dw kw_addl, var_drawpieceat_cy, -7, tmp1
 			dw kw_addl, var_drawpieceat_cx, 2, tmp2
 			dw kw_addl, var_drawpieceat_cy, -7, tmp3
 			dw fn_graphics_line, tmp0, tmp1, tmp2, tmp3
+
+			; ISOChess.bas 424: Case QUEEN
 			dw sel14_e_go
 sel14_4:
 			dw kw_cpeqvl, var_drawpieceat___sel14, 5
 			dw kw_goto_iffalse_n, sel14_5
 sel14_b5:
+
+			; ISOChess.bas 425: Graphics.Line cx - 4, cy - 1, cx - 5, cy - 12
 			dw kw_addl, var_drawpieceat_cx, -4, tmp0
 			dw kw_addl, var_drawpieceat_cy, -1, tmp1
 			dw kw_addl, var_drawpieceat_cx, -5, tmp2
 			dw kw_addl, var_drawpieceat_cy, -12, tmp3
 			dw fn_graphics_line, tmp0, tmp1, tmp2, tmp3
+
+			; ISOChess.bas 426: Graphics.Line cx + 4, cy - 1, cx + 5, cy - 12
 			dw kw_addl, var_drawpieceat_cx, 4, tmp0
 			dw kw_addl, var_drawpieceat_cy, -1, tmp1
 			dw kw_addl, var_drawpieceat_cx, 5, tmp2
 			dw kw_addl, var_drawpieceat_cy, -12, tmp3
 			dw fn_graphics_line, tmp0, tmp1, tmp2, tmp3
+
+			; ISOChess.bas 427: Graphics.Line cx - 5, cy - 12, cx - 2, cy - 7
 			dw kw_addl, var_drawpieceat_cx, -5, tmp0
 			dw kw_addl, var_drawpieceat_cy, -12, tmp1
 			dw kw_addl, var_drawpieceat_cx, -2, tmp2
 			dw kw_addl, var_drawpieceat_cy, -7, tmp3
 			dw fn_graphics_line, tmp0, tmp1, tmp2, tmp3
+
+			; ISOChess.bas 428: Graphics.Line cx - 2, cy - 7, cx, cy - 13
 			dw kw_addl, var_drawpieceat_cx, -2, tmp0
 			dw kw_addl, var_drawpieceat_cy, -7, tmp1
 			dw kw_addl, var_drawpieceat_cy, -13, tmp3
 			dw fn_graphics_line, tmp0, tmp1, var_drawpieceat_cx, tmp3
+
+			; ISOChess.bas 429: Graphics.Line cx, cy - 13, cx + 2, cy - 7
 			dw kw_addl, var_drawpieceat_cy, -13, tmp1
 			dw kw_addl, var_drawpieceat_cx, 2, tmp2
 			dw kw_addl, var_drawpieceat_cy, -7, tmp3
 			dw fn_graphics_line, var_drawpieceat_cx, tmp1, tmp2, tmp3
+
+			; ISOChess.bas 430: Graphics.Line cx + 2, cy - 7, cx + 5, cy - 12
 			dw kw_addl, var_drawpieceat_cx, 2, tmp0
 			dw kw_addl, var_drawpieceat_cy, -7, tmp1
 			dw kw_addl, var_drawpieceat_cx, 5, tmp2
 			dw kw_addl, var_drawpieceat_cy, -12, tmp3
 			dw fn_graphics_line, tmp0, tmp1, tmp2, tmp3
+
+			; ISOChess.bas 432: Case KING
 			dw sel14_e_go
 sel14_5:
 			dw kw_cpeqvl, var_drawpieceat___sel14, 6
 			dw kw_goto_iffalse_n, sel14_6
 sel14_b6:
+
+			; ISOChess.bas 433: Graphics.Line cx - 4, cy - 1, cx - 3, cy - 11
 			dw kw_addl, var_drawpieceat_cx, -4, tmp0
 			dw kw_addl, var_drawpieceat_cy, -1, tmp1
 			dw kw_addl, var_drawpieceat_cx, -3, tmp2
 			dw kw_addl, var_drawpieceat_cy, -11, tmp3
 			dw fn_graphics_line, tmp0, tmp1, tmp2, tmp3
+
+			; ISOChess.bas 434: Graphics.Line cx + 4, cy - 1, cx + 3, cy - 11
 			dw kw_addl, var_drawpieceat_cx, 4, tmp0
 			dw kw_addl, var_drawpieceat_cy, -1, tmp1
 			dw kw_addl, var_drawpieceat_cx, 3, tmp2
 			dw kw_addl, var_drawpieceat_cy, -11, tmp3
 			dw fn_graphics_line, tmp0, tmp1, tmp2, tmp3
+
+			; ISOChess.bas 435: Graphics.Line cx - 3, cy - 11, cx + 3, cy - 11
 			dw kw_addl, var_drawpieceat_cx, -3, tmp0
 			dw kw_addl, var_drawpieceat_cy, -11, tmp1
 			dw kw_addl, var_drawpieceat_cx, 3, tmp2
 			dw kw_addl, var_drawpieceat_cy, -11, tmp3
 			dw fn_graphics_line, tmp0, tmp1, tmp2, tmp3
+
+			; ISOChess.bas 436: Graphics.Line cx, cy - 11, cx, cy - 16
 			dw kw_addl, var_drawpieceat_cy, -11, tmp1
 			dw kw_addl, var_drawpieceat_cy, -16, tmp3
 			dw fn_graphics_line, var_drawpieceat_cx, tmp1, var_drawpieceat_cx, tmp3
+
+			; ISOChess.bas 437: Graphics.Line cx - 3, cy - 14, cx + 3, cy - 14
 			dw kw_addl, var_drawpieceat_cx, -3, tmp0
 			dw kw_addl, var_drawpieceat_cy, -14, tmp1
 			dw kw_addl, var_drawpieceat_cx, 3, tmp2
 			dw kw_addl, var_drawpieceat_cy, -14, tmp3
 			dw fn_graphics_line, tmp0, tmp1, tmp2, tmp3
+
+			; ISOChess.bas 438: End Select
 sel14_6:
 sel14_e:
 			dw p_drawpieceat_r
@@ -459,21 +717,37 @@ sel14_e:
 ; ============================================================
 
 p_drawcursor:
+
+			; ISOChess.bas 443: Dim cx As Integer, cy As Integer
+
+			; ISOChess.bas 444: cx = IsoX(c, r)
 			dw p_isox_c, var_drawcursor_c, var_drawcursor_r
 			dw kw_vtov, var_isox_isox, var_drawcursor_cx
+
+			; ISOChess.bas 445: cy = IsoY(c, r) + TILE_H
 			dw p_isoy_c, var_drawcursor_c, var_drawcursor_r
 			dw kw_vtov, var_isoy_isoy, tmp0
 			dw kw_addl, tmp0, 8, var_drawcursor_cy
+
+			; ISOChess.bas 447: Graphics.Pen penCol
 			dw fn_graphics_pen, var_drawcursor_pencol
+
+			; ISOChess.bas 448: Graphics.Line cx, cy - 6, cx + 12, cy
 			dw kw_addl, var_drawcursor_cy, -6, tmp1
 			dw kw_addl, var_drawcursor_cx, 12, tmp2
 			dw fn_graphics_line, var_drawcursor_cx, tmp1, tmp2, var_drawcursor_cy
+
+			; ISOChess.bas 449: Graphics.Line cx + 12, cy, cx, cy + 6
 			dw kw_addl, var_drawcursor_cx, 12, tmp0
 			dw kw_addl, var_drawcursor_cy, 6, tmp3
 			dw fn_graphics_line, tmp0, var_drawcursor_cy, var_drawcursor_cx, tmp3
+
+			; ISOChess.bas 450: Graphics.Line cx, cy + 6, cx - 12, cy
 			dw kw_addl, var_drawcursor_cy, 6, tmp1
 			dw kw_addl, var_drawcursor_cx, -12, tmp2
 			dw fn_graphics_line, var_drawcursor_cx, tmp1, tmp2, var_drawcursor_cy
+
+			; ISOChess.bas 451: Graphics.Line cx - 12, cy, cx, cy - 6
 			dw kw_addl, var_drawcursor_cx, -12, tmp0
 			dw kw_addl, var_drawcursor_cy, -6, tmp3
 			dw fn_graphics_line, tmp0, var_drawcursor_cy, var_drawcursor_cx, tmp3
@@ -484,36 +758,66 @@ p_drawcursor:
 ; ============================================================
 
 p_togglevalidmarkers:
+
+			; ISOChess.bas 456: Dim x As Integer, y As Integer
+
+			; ISOChess.bas 457: Dim cx As Integer, cy As Integer
+
+			; ISOChess.bas 459: Graphics.Pen PEN_MARK
 			dw fn_graphics_pen, lit_3
+
+			; ISOChess.bas 460: For y = 0 To 7
 			dw kw_ztov, var_togglevalidmarkers_y
 for15_t:
+
+			; ISOChess.bas 461: For x = 0 To 7
 			dw kw_ztov, var_togglevalidmarkers_x
 for16_t:
+
+			; ISOChess.bas 462: If ValidMap(x, y) = 1 Then
 			dw kw_mulvl, var_togglevalidmarkers_x, 8, tmp0
 			dw kw_add, tmp0, var_togglevalidmarkers_y, tmp0
 			dw kw_aget8, arr_validmap, tmp0, tmp0
 			dw kw_cpeqvl, tmp0, 1
 			dw kw_goto_iffalse_n, if17_1
+
+			; ISOChess.bas 463: cx = IsoX(x, y)
 			dw p_isox_c, var_togglevalidmarkers_x, var_togglevalidmarkers_y
 			dw kw_vtov, var_isox_isox, var_togglevalidmarkers_cx
+
+			; ISOChess.bas 464: cy = IsoY(x, y) + TILE_H
 			dw p_isoy_c, var_togglevalidmarkers_x, var_togglevalidmarkers_y
 			dw kw_vtov, var_isoy_isoy, tmp0
 			dw kw_addl, tmp0, 8, var_togglevalidmarkers_cy
+
+			; ISOChess.bas 465: Graphics.Line cx - 3, cy, cx, cy - 2
 			dw kw_addl, var_togglevalidmarkers_cx, -3, tmp0
 			dw kw_addl, var_togglevalidmarkers_cy, -2, tmp3
 			dw fn_graphics_line, tmp0, var_togglevalidmarkers_cy, var_togglevalidmarkers_cx, tmp3
+
+			; ISOChess.bas 466: Graphics.Line cx, cy - 2, cx + 3, cy
 			dw kw_addl, var_togglevalidmarkers_cy, -2, tmp1
 			dw kw_addl, var_togglevalidmarkers_cx, 3, tmp2
 			dw fn_graphics_line, var_togglevalidmarkers_cx, tmp1, tmp2, var_togglevalidmarkers_cy
+
+			; ISOChess.bas 467: Graphics.Line cx + 3, cy, cx, cy + 2
 			dw kw_addl, var_togglevalidmarkers_cx, 3, tmp0
 			dw kw_addl, var_togglevalidmarkers_cy, 2, tmp3
 			dw fn_graphics_line, tmp0, var_togglevalidmarkers_cy, var_togglevalidmarkers_cx, tmp3
+
+			; ISOChess.bas 468: Graphics.Line cx, cy + 2, cx - 3, cy
 			dw kw_addl, var_togglevalidmarkers_cy, 2, tmp1
 			dw kw_addl, var_togglevalidmarkers_cx, -3, tmp2
 			dw fn_graphics_line, var_togglevalidmarkers_cx, tmp1, tmp2, var_togglevalidmarkers_cy
+
+			; ISOChess.bas 469: End If
 if17_1:
+
+			; ISOChess.bas 470: Next x
 			dw kw_next1l_n, var_togglevalidmarkers_x, 7, for16_t
 for16_e:
+
+			; ISOChess.bas 471: Next y
 			dw kw_next1l_n, var_togglevalidmarkers_y, 7, for15_t
 for15_e:
 			dw p_togglevalidmarkers_r
@@ -523,23 +827,43 @@ for15_e:
 ; ============================================================
 
 p_updatehud:
+
+			; ISOChess.bas 479: Dim elapsed As Long, remTicks As Long
+
+			; ISOChess.bas 480: Dim secsLeft As Integer
+
+			; ISOChess.bas 482: elapsed = Ticks - TurnStartTicks
 			dw kw_ticks, tmp0
 			dw kw_l_itol, tmp0, ltmp0
 			dw kw_l_sub, ltmp0, var_turnstartticks, var_updatehud_elapsed
+
+			; ISOChess.bas 483: If elapsed < 0 Then elapsed = 0
 			dw kw_l_cplt, var_updatehud_elapsed, llit_0
 			dw kw_goto_iffalse_n, if18_1
 			dw kw_l_mov, llit_0, var_updatehud_elapsed
 if18_1:
+
+			; ISOChess.bas 484: remTicks = TURN_LIMIT_TICKS - elapsed
 			dw kw_l_sub, llit_18000, var_updatehud_elapsed, var_updatehud_remticks
+
+			; ISOChess.bas 485: If remTicks < 0 Then remTicks = 0
 			dw kw_l_cplt, var_updatehud_remticks, llit_0
 			dw kw_goto_iffalse_n, if19_1
 			dw kw_l_mov, llit_0, var_updatehud_remticks
 if19_1:
+
+			; ISOChess.bas 486: secsLeft = CInt(remTicks \ TICKS_PER_SEC)
 			dw kw_l_div, var_updatehud_remticks, llit_300, ltmp0
 			dw kw_l_ltoi, ltmp0, tmp0
 			dw kw_vtov, tmp0, var_updatehud_secsleft
+
+			; ISOChess.bas 488: If fullRedraw Then
 			dw kw_goto_ifzero_n, var_updatehud_fullredraw, if20_1
+
+			; ISOChess.bas 507: Locate 1, 1
 			dw kw_locatell, 1, 1
+
+			; ISOChess.bas 508: Print "ISOMETRIC CHESS   WASD:Move SPACE:Select";
 			dw kw_printzoscii
 			dw glyph_49, glyph_53, glyph_4F, glyph_4D, glyph_45, glyph_54, glyph_52, glyph_49
 			dw glyph_43, glyph_20, glyph_43, glyph_48, glyph_45, glyph_53, glyph_53, glyph_20
@@ -547,9 +871,15 @@ if19_1:
 			dw glyph_6F, glyph_76, glyph_65, glyph_20, glyph_53, glyph_50, glyph_41, glyph_43
 			dw glyph_45, glyph_3A, glyph_53, glyph_65, glyph_6C, glyph_65, glyph_63, glyph_74
 			dw 0		; "ISOMETRIC CHESS   WASD:Move SPACE:Select"
+
+			; ISOChess.bas 509: Locate 1, 2
 			dw kw_locatell, 1, 2
+
+			; ISOChess.bas 510: If GameState = STATE_SELECT Then
 			dw kw_cpeqvl, var_gamestate, 0
 			dw kw_goto_iffalse_n, if21_1
+
+			; ISOChess.bas 511: Print "TURN: PLAYER (Select Piece)             ";
 			dw kw_printzoscii
 			dw glyph_54, glyph_55, glyph_52, glyph_4E, glyph_3A, glyph_20, glyph_50, glyph_4C
 			dw glyph_41, glyph_59, glyph_45, glyph_52, glyph_20, glyph_28, glyph_53, glyph_65
@@ -557,10 +887,14 @@ if19_1:
 			dw glyph_63, glyph_65, glyph_29, glyph_20, glyph_20, glyph_20, glyph_20, glyph_20
 			dw glyph_20, glyph_20, glyph_20, glyph_20, glyph_20, glyph_20, glyph_20, glyph_20
 			dw 0		; "TURN: PLAYER (Select Piece)             "
+
+			; ISOChess.bas 512: ElseIf GameState = STATE_MOVE Then
 			dw if21_e_go
 if21_1:
 			dw kw_cpeqvl, var_gamestate, 1
 			dw kw_goto_iffalse_n, if21_2
+
+			; ISOChess.bas 513: Print "TURN: PLAYER (Select Target / Origin)   ";
 			dw kw_printzoscii
 			dw glyph_54, glyph_55, glyph_52, glyph_4E, glyph_3A, glyph_20, glyph_50, glyph_4C
 			dw glyph_41, glyph_59, glyph_45, glyph_52, glyph_20, glyph_28, glyph_53, glyph_65
@@ -568,10 +902,14 @@ if21_1:
 			dw glyph_67, glyph_65, glyph_74, glyph_20, glyph_2F, glyph_20, glyph_4F, glyph_72
 			dw glyph_69, glyph_67, glyph_69, glyph_6E, glyph_29, glyph_20, glyph_20, glyph_20
 			dw 0		; "TURN: PLAYER (Select Target / Origin)   "
+
+			; ISOChess.bas 514: ElseIf GameState = STATE_CPU Then
 			dw if21_e_go
 if21_2:
 			dw kw_cpeqvl, var_gamestate, 2
 			dw kw_goto_iffalse_n, if21_3
+
+			; ISOChess.bas 515: Print "TURN: CPU THINKING...                   ";
 			dw kw_printzoscii
 			dw glyph_54, glyph_55, glyph_52, glyph_4E, glyph_3A, glyph_20, glyph_43, glyph_50
 			dw glyph_55, glyph_20, glyph_54, glyph_48, glyph_49, glyph_4E, glyph_4B, glyph_49
@@ -579,9 +917,15 @@ if21_2:
 			dw glyph_20, glyph_20, glyph_20, glyph_20, glyph_20, glyph_20, glyph_20, glyph_20
 			dw glyph_20, glyph_20, glyph_20, glyph_20, glyph_20, glyph_20, glyph_20, glyph_20
 			dw 0		; "TURN: CPU THINKING...                   "
+
+			; ISOChess.bas 516: End If
 if21_3:
 if21_e:
+
+			; ISOChess.bas 517: Locate 1, 24
 			dw kw_locatell, 1, 24
+
+			; ISOChess.bas 518: Print "Sq: "; Chr$(65 + CurX); CStr(8 - CurY); " "; PieceName(Board(CurX, CurY)); "       ";
 			dw kw_addl, var_curx, 65, tmp0
 			dw kw_strchr, stmp0, tmp0
 			dw kw_printzoscii
@@ -599,19 +943,31 @@ if21_e:
 			dw kw_printstrvar, var_piecename_piecename
 			dw kw_printzoscii
 			dw glyph_20, glyph_20, glyph_20, glyph_20, glyph_20, glyph_20, glyph_20, 0		; "       "
+
+			; ISOChess.bas 520: End If
 if20_1:
+
+			; ISOChess.bas 522: If secsLeft <> LastSecShown Or fullRedraw Then
 			dw kw_cpnevv, var_updatehud_secsleft, var_lastsecshown
 			dw kw_ftov, tmp0
 			dw kw_orvv, tmp0, var_updatehud_fullredraw, tmp0
 			dw kw_goto_ifzero_n, tmp0, if22_1
+
+			; ISOChess.bas 523: LastSecShown = secsLeft
 			dw kw_vtov, var_updatehud_secsleft, var_lastsecshown
+
+			; ISOChess.bas 528: Locate 28, 24
 			dw kw_locatell, 28, 24
+
+			; ISOChess.bas 529: Print "TIME: "; Format$(secsLeft, "00"); "s ";
 			dw kw_strfmt, stmp0, var_updatehud_secsleft, 2, 0, str0, str0
 			dw kw_printzoscii
 			dw glyph_54, glyph_49, glyph_4D, glyph_45, glyph_3A, glyph_20, 0		; "TIME: "
 			dw kw_printstrvar, stmp0
 			dw kw_printzoscii
 			dw glyph_73, glyph_20, 0		; "s "
+
+			; ISOChess.bas 531: End If
 if22_1:
 			dw p_updatehud_r
 
@@ -620,11 +976,23 @@ if22_1:
 ; ============================================================
 
 p_piecename:
+
+			; ISOChess.bas 535: Dim s As String
+
+			; ISOChess.bas 536: If p = EMPTY_SQ Then
 			dw kw_cpeqvl, var_piecename_p, 0
 			dw kw_goto_iffalse_n, if23_1
+
+			; ISOChess.bas 537: PieceName = "Empty     "
 			dw kw_strcpy, var_piecename_piecename, str2
+
+			; ISOChess.bas 538: Exit Function
 			dw p_piecename_r
+
+			; ISOChess.bas 539: End If
 if23_1:
+
+			; ISOChess.bas 541: If p > 0 Then s = "W-" Else s = "B-"
 			dw kw_scpgtvl, var_piecename_p, 0
 			dw kw_goto_iffalse_n, if24_1
 			dw kw_strcpy, var_piecename_s, str3
@@ -632,44 +1000,62 @@ if23_1:
 if24_1:
 			dw kw_strcpy, var_piecename_s, str4
 if24_e:
+
+			; ISOChess.bas 542: Select Case Abs(p)
 			dw kw_absv, var_piecename_p, tmp0
 			dw kw_vtov, tmp0, var_piecename___sel25
+
+			; ISOChess.bas 543: Case PAWN:   s = s & "Pawn  "
 			dw kw_cpeqvl, var_piecename___sel25, 1
 			dw kw_goto_iffalse_n, sel25_1
 sel25_b1:
 			dw kw_strcat, var_piecename_s, str5
+
+			; ISOChess.bas 544: Case KNIGHT: s = s & "Knight"
 			dw sel25_e_go
 sel25_1:
 			dw kw_cpeqvl, var_piecename___sel25, 2
 			dw kw_goto_iffalse_n, sel25_2
 sel25_b2:
 			dw kw_strcat, var_piecename_s, str6
+
+			; ISOChess.bas 545: Case BISHOP: s = s & "Bishop"
 			dw sel25_e_go
 sel25_2:
 			dw kw_cpeqvl, var_piecename___sel25, 3
 			dw kw_goto_iffalse_n, sel25_3
 sel25_b3:
 			dw kw_strcat, var_piecename_s, str7
+
+			; ISOChess.bas 546: Case ROOK:   s = s & "Rook  "
 			dw sel25_e_go
 sel25_3:
 			dw kw_cpeqvl, var_piecename___sel25, 4
 			dw kw_goto_iffalse_n, sel25_4
 sel25_b4:
 			dw kw_strcat, var_piecename_s, str8
+
+			; ISOChess.bas 547: Case QUEEN:  s = s & "Queen "
 			dw sel25_e_go
 sel25_4:
 			dw kw_cpeqvl, var_piecename___sel25, 5
 			dw kw_goto_iffalse_n, sel25_5
 sel25_b5:
 			dw kw_strcat, var_piecename_s, str9
+
+			; ISOChess.bas 548: Case KING:   s = s & "King  "
 			dw sel25_e_go
 sel25_5:
 			dw kw_cpeqvl, var_piecename___sel25, 6
 			dw kw_goto_iffalse_n, sel25_6
 sel25_b6:
 			dw kw_strcat, var_piecename_s, str10
+
+			; ISOChess.bas 549: End Select
 sel25_6:
 sel25_e:
+
+			; ISOChess.bas 550: PieceName = s
 			dw kw_strcpy, var_piecename_piecename, var_piecename_s
 			dw p_piecename_r
 
@@ -678,24 +1064,52 @@ sel25_e:
 ; ============================================================
 
 p_checkturntimer:
+
+			; ISOChess.bas 554: Dim elapsed As Long
+
+			; ISOChess.bas 555: elapsed = Ticks - TurnStartTicks
 			dw kw_ticks, tmp0
 			dw kw_l_itol, tmp0, ltmp0
 			dw kw_l_sub, ltmp0, var_turnstartticks, var_checkturntimer_elapsed
+
+			; ISOChess.bas 557: If elapsed >= TURN_LIMIT_TICKS Then
 			dw kw_l_cpge, var_checkturntimer_elapsed, llit_18000
 			dw kw_goto_iffalse_n, if26_1
+
+			; ISOChess.bas 558: If GameState = STATE_CPU Then
 			dw kw_cpeqvl, var_gamestate, 2
 			dw kw_goto_iffalse_n, if27_1
+
+			; ISOChess.bas 559: Winner = 1
 			dw kw_ltov, 1, var_winner
+
+			; ISOChess.bas 560: WinReason = "CPU forfeited: 1 minute limit"
 			dw kw_strcpy, var_winreason, str11
+
+			; ISOChess.bas 561: Else
 			dw if27_e_go
 if27_1:
+
+			; ISOChess.bas 562: Winner = -1
 			dw kw_ltov, -1, var_winner
+
+			; ISOChess.bas 563: WinReason = "Player forfeited: 1 minute limit"
 			dw kw_strcpy, var_winreason, str12
+
+			; ISOChess.bas 564: End If
 if27_e:
+
+			; ISOChess.bas 565: GameState = STATE_OVER
 			dw kw_ltov, 3, var_gamestate
+
+			; ISOChess.bas 566: Else
 			dw if26_e_go
 if26_1:
+
+			; ISOChess.bas 567: UpdateHUD False
 			dw p_updatehud_c, lit_0
+
+			; ISOChess.bas 568: End If
 if26_e:
 			dw p_checkturntimer_r
 
@@ -704,6 +1118,8 @@ if26_e:
 ; ============================================================
 
 p_waitkeyrelease:
+
+			; ISOChess.bas 580: Do While Keys.Down(Keys.KeyW) Or Keys.Down(Keys.KeyA) Or Keys.Down(Keys.KeyS) Or Keys.Down(Keys.KeyD) Or Keys.Down(Keys.KeySpace)
 do28_t:
 			dw fn_keys_down, lit_59, var_keys_down_down
 			dw kw_vtov, var_keys_down_down, tmp0
@@ -720,9 +1136,15 @@ do28_t:
 			dw kw_vtov, var_keys_down_down, tmp1
 			dw kw_orvv, tmp0, tmp1, tmp0
 			dw kw_goto_ifzero_n, tmp0, do28_e
+
+			; ISOChess.bas 581: Frame
 			dw kw_frame
+
+			; ISOChess.bas 582: Loop
 			dw do28_t_go
 do28_e:
+
+			; ISOChess.bas 584: PrevW = False : PrevA = False : PrevS = False : PrevD = False : PrevSpace = False
 			dw kw_ztov, var_prevw
 			dw kw_ztov, var_preva
 			dw kw_ztov, var_prevs
@@ -735,47 +1157,85 @@ do28_e:
 ; ============================================================
 
 p_handleplayerinput:
+
+			; ISOChess.bas 588: Dim kW As Boolean, kA As Boolean, kS As Boolean, kD As Boolean, kSp As Boolean
+
+			; ISOChess.bas 589: Dim dx As Integer, dy As Integer
+
+			; ISOChess.bas 590: Dim nx As Integer, ny As Integer
+
+			; ISOChess.bas 608: kW = Keys.Down(Keys.KeyW)
 			dw fn_keys_down, lit_59, var_handleplayerinput_kw
+
+			; ISOChess.bas 609: kA = Keys.Down(Keys.KeyA)
 			dw fn_keys_down, lit_69, var_handleplayerinput_ka
+
+			; ISOChess.bas 610: kS = Keys.Down(Keys.KeyS)
 			dw fn_keys_down, lit_60, var_handleplayerinput_ks
+
+			; ISOChess.bas 611: kD = Keys.Down(Keys.KeyD)
 			dw fn_keys_down, lit_61, var_handleplayerinput_kd
+
+			; ISOChess.bas 612: kSp = Keys.Down(Keys.KeySpace)
 			dw fn_keys_down, lit_47, var_handleplayerinput_ksp
+
+			; ISOChess.bas 615: dx = 0 : dy = 0
 			dw kw_ztov, var_handleplayerinput_dx
 			dw kw_ztov, var_handleplayerinput_dy
+
+			; ISOChess.bas 616: If kW And Not PrevW Then dy = -1
 			dw kw_notv, var_prevw, tmp1
 			dw kw_andvv, var_handleplayerinput_kw, tmp1, tmp0
 			dw kw_goto_ifzero_n, tmp0, if29_1
 			dw kw_ltov, -1, var_handleplayerinput_dy
 if29_1:
+
+			; ISOChess.bas 617: If kS And Not PrevS Then dy = 1
 			dw kw_notv, var_prevs, tmp1
 			dw kw_andvv, var_handleplayerinput_ks, tmp1, tmp0
 			dw kw_goto_ifzero_n, tmp0, if30_1
 			dw kw_ltov, 1, var_handleplayerinput_dy
 if30_1:
+
+			; ISOChess.bas 618: If kA And Not PrevA Then dx = -1
 			dw kw_notv, var_preva, tmp1
 			dw kw_andvv, var_handleplayerinput_ka, tmp1, tmp0
 			dw kw_goto_ifzero_n, tmp0, if31_1
 			dw kw_ltov, -1, var_handleplayerinput_dx
 if31_1:
+
+			; ISOChess.bas 619: If kD And Not PrevD Then dx = 1
 			dw kw_notv, var_prevd, tmp1
 			dw kw_andvv, var_handleplayerinput_kd, tmp1, tmp0
 			dw kw_goto_ifzero_n, tmp0, if32_1
 			dw kw_ltov, 1, var_handleplayerinput_dx
 if32_1:
+
+			; ISOChess.bas 621: PrevW = kW : PrevA = kA : PrevS = kS : PrevD = kD
 			dw kw_vtov, var_handleplayerinput_kw, var_prevw
 			dw kw_vtov, var_handleplayerinput_ka, var_preva
 			dw kw_vtov, var_handleplayerinput_ks, var_prevs
 			dw kw_vtov, var_handleplayerinput_kd, var_prevd
+
+			; ISOChess.bas 624: If dx <> 0 Or dy <> 0 Then
 			dw kw_cpnevl, var_handleplayerinput_dx, 0
 			dw kw_ftov, tmp0
 			dw kw_cpnevl, var_handleplayerinput_dy, 0
 			dw kw_ftov, tmp1
 			dw kw_orvv, tmp0, tmp1, tmp0
 			dw kw_goto_ifzero_n, tmp0, if33_1
+
+			; ISOChess.bas 625: If GameState = STATE_SELECT Then
 			dw kw_cpeqvl, var_gamestate, 0
 			dw kw_goto_iffalse_n, if34_1
+
+			; ISOChess.bas 626: nx = CurX + dx
 			dw kw_add, var_curx, var_handleplayerinput_dx, var_handleplayerinput_nx
+
+			; ISOChess.bas 627: ny = CurY + dy
 			dw kw_add, var_cury, var_handleplayerinput_dy, var_handleplayerinput_ny
+
+			; ISOChess.bas 628: If nx >= 0 And nx <= 7 And ny >= 0 And ny <= 7 Then
 			dw kw_scpgevl, var_handleplayerinput_nx, 0
 			dw kw_ftov, tmp0
 			dw kw_scplevl, var_handleplayerinput_nx, 7
@@ -788,62 +1248,126 @@ if32_1:
 			dw kw_ftov, tmp1
 			dw kw_andvv, tmp0, tmp1, tmp0
 			dw kw_goto_ifzero_n, tmp0, if34_e
+
+			; ISOChess.bas 629: MoveCursorTo nx, ny
 			dw p_movecursorto_c, var_handleplayerinput_nx, var_handleplayerinput_ny
+
+			; ISOChess.bas 630: End If
 if35_1:
+
+			; ISOChess.bas 631: ElseIf GameState = STATE_MOVE Then
 			dw if34_e_go
 if34_1:
 			dw kw_cpeqvl, var_gamestate, 1
 			dw kw_goto_iffalse_n, if34_2
+
+			; ISOChess.bas 634: FindNextValidSquare CurX, CurY, dx, dy, nx, ny
 			dw p_findnextvalidsquare_c, var_curx, var_cury, var_handleplayerinput_dx, var_handleplayerinput_dy, var_handleplayerinput_nx, var_handleplayerinput_ny
+
+			; ISOChess.bas 635: If nx <> CurX Or ny <> CurY Then
 			dw kw_cpnevv, var_handleplayerinput_nx, var_curx
 			dw kw_ftov, tmp0
 			dw kw_cpnevv, var_handleplayerinput_ny, var_cury
 			dw kw_ftov, tmp1
 			dw kw_orvv, tmp0, tmp1, tmp0
 			dw kw_goto_ifzero_n, tmp0, if36_1
+
+			; ISOChess.bas 636: MoveCursorTo nx, ny
 			dw p_movecursorto_c, var_handleplayerinput_nx, var_handleplayerinput_ny
+
+			; ISOChess.bas 637: End If
 if36_1:
+
+			; ISOChess.bas 638: End If
 if34_2:
 if34_e:
+
+			; ISOChess.bas 639: End If
 if33_1:
+
+			; ISOChess.bas 642: If kSp And Not PrevSpace Then
 			dw kw_notv, var_prevspace, tmp1
 			dw kw_andvv, var_handleplayerinput_ksp, tmp1, tmp0
 			dw kw_goto_ifzero_n, tmp0, if37_1
+
+			; ISOChess.bas 643: PrevSpace = True
 			dw kw_ltov, -1, var_prevspace
+
+			; ISOChess.bas 644: If GameState = STATE_SELECT Then
 			dw kw_cpeqvl, var_gamestate, 0
 			dw kw_goto_iffalse_n, if38_1
+
+			; ISOChess.bas 646: If Board(CurX, CurY) > 0 Then
 			dw kw_mulvl, var_curx, 8, tmp0
 			dw kw_add, tmp0, var_cury, tmp0
 			dw kw_aget, arr_board, tmp0, tmp0
 			dw kw_scpgtvl, tmp0, 0
 			dw kw_goto_iffalse_n, if37_e
+
+			; ISOChess.bas 647: ComputeValidMoves CurX, CurY
 			dw p_computevalidmoves_c, var_curx, var_cury
+
+			; ISOChess.bas 648: If ValidCount > 0 Then
 			dw kw_scpgtvl, var_validcount, 0
 			dw kw_goto_iffalse_n, if37_e
+
+			; ISOChess.bas 649: SelX = CurX
 			dw kw_vtov, var_curx, var_selx
+
+			; ISOChess.bas 650: SelY = CurY
 			dw kw_vtov, var_cury, var_sely
+
+			; ISOChess.bas 651: ToggleValidMarkers
 			dw p_togglevalidmarkers_c
+
+			; ISOChess.bas 652: MarkersDrawn = True
 			dw kw_ltov, -1, var_markersdrawn
+
+			; ISOChess.bas 653: GameState = STATE_MOVE
 			dw kw_ltov, 1, var_gamestate
+
+			; ISOChess.bas 654: UpdateHUD True
 			dw p_updatehud_c, lit_m1
+
+			; ISOChess.bas 655: End If
 if40_1:
+
+			; ISOChess.bas 656: End If
 if39_1:
+
+			; ISOChess.bas 657: ElseIf GameState = STATE_MOVE Then
 			dw if37_e_go
 if38_1:
 			dw kw_cpeqvl, var_gamestate, 1
 			dw kw_goto_iffalse_n, if37_e
+
+			; ISOChess.bas 658: If CurX = SelX And CurY = SelY Then
 			dw kw_cpeqvv, var_curx, var_selx
 			dw kw_ftov, tmp0
 			dw kw_cpeqvv, var_cury, var_sely
 			dw kw_ftov, tmp1
 			dw kw_andvv, tmp0, tmp1, tmp0
 			dw kw_goto_ifzero_n, tmp0, if41_1
+
+			; ISOChess.bas 660: If MarkersDrawn Then
 			dw kw_goto_ifzero_n, var_markersdrawn, if42_1
+
+			; ISOChess.bas 661: ToggleValidMarkers
 			dw p_togglevalidmarkers_c
+
+			; ISOChess.bas 662: MarkersDrawn = False
 			dw kw_ztov, var_markersdrawn
+
+			; ISOChess.bas 663: End If
 if42_1:
+
+			; ISOChess.bas 664: GameState = STATE_SELECT
 			dw kw_ztov, var_gamestate
+
+			; ISOChess.bas 665: UpdateHUD True
 			dw p_updatehud_c, lit_m1
+
+			; ISOChess.bas 666: ElseIf ValidMap(CurX, CurY) = 1 Then
 			dw if37_e_go
 if41_1:
 			dw kw_mulvl, var_curx, 8, tmp0
@@ -851,30 +1375,68 @@ if41_1:
 			dw kw_aget8, arr_validmap, tmp0, tmp0
 			dw kw_cpeqvl, tmp0, 1
 			dw kw_goto_iffalse_n, if37_e
+
+			; ISOChess.bas 668: If MarkersDrawn Then
 			dw kw_goto_ifzero_n, var_markersdrawn, if43_1
+
+			; ISOChess.bas 669: ToggleValidMarkers
 			dw p_togglevalidmarkers_c
+
+			; ISOChess.bas 670: MarkersDrawn = False
 			dw kw_ztov, var_markersdrawn
+
+			; ISOChess.bas 671: End If
 if43_1:
+
+			; ISOChess.bas 672: If CursorDrawn Then
 			dw kw_goto_ifzero_n, var_cursordrawn, if44_1
+
+			; ISOChess.bas 673: DrawCursor CurX, CurY, PEN_MARK
 			dw p_drawcursor_c, var_curx, var_cury, lit_3
+
+			; ISOChess.bas 674: CursorDrawn = False
 			dw kw_ztov, var_cursordrawn
+
+			; ISOChess.bas 675: End If
 if44_1:
+
+			; ISOChess.bas 677: ExecuteMove SelX, SelY, CurX, CurY
 			dw p_executemove_c, var_selx, var_sely, var_curx, var_cury
+
+			; ISOChess.bas 679: If GameState <> STATE_OVER Then
 			dw kw_cpnevl, var_gamestate, 3
 			dw kw_goto_iffalse_n, if37_e
+
+			; ISOChess.bas 680: GameState = STATE_CPU
 			dw kw_ltov, 2, var_gamestate
+
+			; ISOChess.bas 681: ResetTurnTimer
 			dw p_resetturntimer_c
+
+			; ISOChess.bas 682: UpdateHUD True
 			dw p_updatehud_c, lit_m1
+
+			; ISOChess.bas 683: End If
 if45_1:
+
+			; ISOChess.bas 684: End If
 if41_2:
 if41_e:
+
+			; ISOChess.bas 685: End If
 if38_2:
 if38_e:
+
+			; ISOChess.bas 686: ElseIf Not kSp Then
 			dw if37_e_go
 if37_1:
 			dw kw_notv, var_handleplayerinput_ksp, tmp0
 			dw kw_goto_ifzero_n, tmp0, if37_2
+
+			; ISOChess.bas 687: PrevSpace = False
 			dw kw_ztov, var_prevspace
+
+			; ISOChess.bas 688: End If
 if37_2:
 if37_e:
 			dw p_handleplayerinput_r
@@ -884,13 +1446,29 @@ if37_e:
 ; ============================================================
 
 p_movecursorto:
+
+			; ISOChess.bas 692: If CursorDrawn Then
 			dw kw_goto_ifzero_n, var_cursordrawn, if46_1
+
+			; ISOChess.bas 693: DrawCursor CurX, CurY, PEN_MARK
 			dw p_drawcursor_c, var_curx, var_cury, lit_3
+
+			; ISOChess.bas 694: End If
 if46_1:
+
+			; ISOChess.bas 695: CurX = nx
 			dw kw_vtov, var_movecursorto_nx, var_curx
+
+			; ISOChess.bas 696: CurY = ny
 			dw kw_vtov, var_movecursorto_ny, var_cury
+
+			; ISOChess.bas 697: DrawCursor CurX, CurY, PEN_MARK
 			dw p_drawcursor_c, var_curx, var_cury, lit_3
+
+			; ISOChess.bas 698: CursorDrawn = True
 			dw kw_ltov, -1, var_cursordrawn
+
+			; ISOChess.bas 699: UpdateHUD True
 			dw p_updatehud_c, lit_m1
 			dw p_movecursorto_r
 
@@ -899,13 +1477,33 @@ if46_1:
 ; ============================================================
 
 p_findnextvalidsquare:
+
+			; ISOChess.bas 704: Dim x As Integer, y As Integer
+
+			; ISOChess.bas 705: Dim vx As Integer, vy As Integer
+
+			; ISOChess.bas 706: Dim dot As Integer, cross As Integer, dist As Integer
+
+			; ISOChess.bas 707: Dim bestScore As Integer, score As Integer
+
+			; ISOChess.bas 709: bestX = cx
 			dw kw_vtov, var_findnextvalidsquare_cx, var_findnextvalidsquare_bestx
+
+			; ISOChess.bas 710: bestY = cy
 			dw kw_vtov, var_findnextvalidsquare_cy, var_findnextvalidsquare_besty
+
+			; ISOChess.bas 711: bestScore = 30000
 			dw kw_ltov, 30000, var_findnextvalidsquare_bestscore
+
+			; ISOChess.bas 713: For y = 0 To 7
 			dw kw_ztov, var_findnextvalidsquare_y
 for47_t:
+
+			; ISOChess.bas 714: For x = 0 To 7
 			dw kw_ztov, var_findnextvalidsquare_x
 for48_t:
+
+			; ISOChess.bas 715: If ValidMap(x, y) = 1 Or (x = SelX And y = SelY) Then
 			dw kw_mulvl, var_findnextvalidsquare_x, 8, tmp0
 			dw kw_add, tmp0, var_findnextvalidsquare_y, tmp0
 			dw kw_aget8, arr_validmap, tmp0, tmp0
@@ -918,40 +1516,76 @@ for48_t:
 			dw kw_andvv, tmp1, tmp2, tmp1
 			dw kw_orvv, tmp0, tmp1, tmp0
 			dw kw_goto_ifzero_n, tmp0, if49_1
+
+			; ISOChess.bas 716: If x <> cx Or y <> cy Then
 			dw kw_cpnevv, var_findnextvalidsquare_x, var_findnextvalidsquare_cx
 			dw kw_ftov, tmp0
 			dw kw_cpnevv, var_findnextvalidsquare_y, var_findnextvalidsquare_cy
 			dw kw_ftov, tmp1
 			dw kw_orvv, tmp0, tmp1, tmp0
 			dw kw_goto_ifzero_n, tmp0, if50_1
+
+			; ISOChess.bas 717: vx = x - cx
 			dw kw_subvv, var_findnextvalidsquare_x, var_findnextvalidsquare_cx, var_findnextvalidsquare_vx
+
+			; ISOChess.bas 718: vy = y - cy
 			dw kw_subvv, var_findnextvalidsquare_y, var_findnextvalidsquare_cy, var_findnextvalidsquare_vy
+
+			; ISOChess.bas 719: dot = vx * dx + vy * dy
 			dw kw_mulvv, var_findnextvalidsquare_vx, var_findnextvalidsquare_dx, tmp0
 			dw kw_mulvv, var_findnextvalidsquare_vy, var_findnextvalidsquare_dy, tmp1
 			dw kw_add, tmp0, tmp1, var_findnextvalidsquare_dot
+
+			; ISOChess.bas 721: If dot > 0 Then
 			dw kw_scpgtvl, var_findnextvalidsquare_dot, 0
 			dw kw_goto_iffalse_n, if51_1
+
+			; ISOChess.bas 722: cross = Abs(vx * dy - vy * dx)
 			dw kw_mulvv, var_findnextvalidsquare_vx, var_findnextvalidsquare_dy, tmp0
 			dw kw_mulvv, var_findnextvalidsquare_vy, var_findnextvalidsquare_dx, tmp1
 			dw kw_subvv, tmp0, tmp1, tmp0
 			dw kw_absv, tmp0, var_findnextvalidsquare_cross
+
+			; ISOChess.bas 723: dist = Abs(vx) + Abs(vy)
 			dw kw_absv, var_findnextvalidsquare_vx, tmp0
 			dw kw_absv, var_findnextvalidsquare_vy, tmp1
 			dw kw_add, tmp0, tmp1, var_findnextvalidsquare_dist
+
+			; ISOChess.bas 724: score = dist * 4 + cross * 6
 			dw kw_4x, var_findnextvalidsquare_dist, tmp0
 			dw kw_mulvl, var_findnextvalidsquare_cross, 6, tmp1
 			dw kw_add, tmp0, tmp1, var_findnextvalidsquare_score
+
+			; ISOChess.bas 725: If score < bestScore Then
 			dw kw_scpltvv, var_findnextvalidsquare_score, var_findnextvalidsquare_bestscore
 			dw kw_goto_iffalse_n, if52_1
+
+			; ISOChess.bas 726: bestScore = score
 			dw kw_vtov, var_findnextvalidsquare_score, var_findnextvalidsquare_bestscore
+
+			; ISOChess.bas 727: bestX = x
 			dw kw_vtov, var_findnextvalidsquare_x, var_findnextvalidsquare_bestx
+
+			; ISOChess.bas 728: bestY = y
 			dw kw_vtov, var_findnextvalidsquare_y, var_findnextvalidsquare_besty
+
+			; ISOChess.bas 729: End If
 if52_1:
+
+			; ISOChess.bas 730: End If
 if51_1:
+
+			; ISOChess.bas 731: End If
 if50_1:
+
+			; ISOChess.bas 732: End If
 if49_1:
+
+			; ISOChess.bas 733: Next x
 			dw kw_next1l_n, var_findnextvalidsquare_x, 7, for48_t
 for48_e:
+
+			; ISOChess.bas 734: Next y
 			dw kw_next1l_n, var_findnextvalidsquare_y, 7, for47_t
 for47_e:
 			dw p_findnextvalidsquare_r
@@ -961,25 +1595,49 @@ for47_e:
 ; ============================================================
 
 p_computevalidmoves:
+
+			; ISOChess.bas 741: Dim tx As Integer, ty As Integer
+
+			; ISOChess.bas 742: ValidCount = 0
 			dw kw_ztov, var_validcount
+
+			; ISOChess.bas 744: For ty = 0 To 7
 			dw kw_ztov, var_computevalidmoves_ty
 for53_t:
+
+			; ISOChess.bas 745: For tx = 0 To 7
 			dw kw_ztov, var_computevalidmoves_tx
 for54_t:
+
+			; ISOChess.bas 746: If IsValidChessMove(sx, sy, tx, ty) Then
 			dw p_isvalidchessmove_c, var_computevalidmoves_sx, var_computevalidmoves_sy, var_computevalidmoves_tx, var_computevalidmoves_ty
 			dw kw_goto_ifzero_n, var_isvalidchessmove_isvalidchessmove, if55_1
+
+			; ISOChess.bas 747: ValidMap(tx, ty) = 1
 			dw kw_mulvl, var_computevalidmoves_tx, 8, tmp0
 			dw kw_add, tmp0, var_computevalidmoves_ty, tmp0
 			dw kw_aset8, arr_validmap, tmp0, lit_1
+
+			; ISOChess.bas 748: ValidCount = ValidCount + 1
 			dw kw_inc, var_validcount
+
+			; ISOChess.bas 749: Else
 			dw if55_e_go
 if55_1:
+
+			; ISOChess.bas 750: ValidMap(tx, ty) = 0
 			dw kw_mulvl, var_computevalidmoves_tx, 8, tmp0
 			dw kw_add, tmp0, var_computevalidmoves_ty, tmp0
 			dw kw_aset8, arr_validmap, tmp0, lit_0
+
+			; ISOChess.bas 751: End If
 if55_e:
+
+			; ISOChess.bas 752: Next tx
 			dw kw_next1l_n, var_computevalidmoves_tx, 7, for54_t
 for54_e:
+
+			; ISOChess.bas 753: Next ty
 			dw kw_next1l_n, var_computevalidmoves_ty, 7, for53_t
 for53_e:
 			dw p_computevalidmoves_r
@@ -989,7 +1647,17 @@ for53_e:
 ; ============================================================
 
 p_isvalidchessmove:
+
+			; ISOChess.bas 757: Dim p As Integer, target As Integer
+
+			; ISOChess.bas 758: Dim pt As Integer, side As Integer
+
+			; ISOChess.bas 759: Dim dx As Integer, dy As Integer, adx As Integer, ady As Integer
+
+			; ISOChess.bas 761: IsValidChessMove = False
 			dw kw_ztov, var_isvalidchessmove_isvalidchessmove
+
+			; ISOChess.bas 762: If sx = tx And sy = ty Then Exit Function
 			dw kw_cpeqvv, var_isvalidchessmove_sx, var_isvalidchessmove_tx
 			dw kw_ftov, tmp0
 			dw kw_cpeqvv, var_isvalidchessmove_sy, var_isvalidchessmove_ty
@@ -998,6 +1666,8 @@ p_isvalidchessmove:
 			dw kw_goto_ifzero_n, tmp0, if56_1
 			dw p_isvalidchessmove_r
 if56_1:
+
+			; ISOChess.bas 763: If tx < 0 Or tx > 7 Or ty < 0 Or ty > 7 Then Exit Function
 			dw kw_scpltvl, var_isvalidchessmove_tx, 0
 			dw kw_ftov, tmp0
 			dw kw_scpgtvl, var_isvalidchessmove_tx, 7
@@ -1012,36 +1682,68 @@ if56_1:
 			dw kw_goto_ifzero_n, tmp0, if57_1
 			dw p_isvalidchessmove_r
 if57_1:
+
+			; ISOChess.bas 765: p = Board(sx, sy)
 			dw kw_mulvl, var_isvalidchessmove_sx, 8, tmp0
 			dw kw_add, tmp0, var_isvalidchessmove_sy, tmp0
 			dw kw_aget, arr_board, tmp0, var_isvalidchessmove_p
+
+			; ISOChess.bas 766: If p = EMPTY_SQ Then Exit Function
 			dw kw_cpeqvl, var_isvalidchessmove_p, 0
 			dw kw_goto_iffalse_n, if58_1
 			dw p_isvalidchessmove_r
 if58_1:
+
+			; ISOChess.bas 768: side = Sgn(p)
 			dw kw_sgnv, var_isvalidchessmove_p, var_isvalidchessmove_side
+
+			; ISOChess.bas 769: target = Board(tx, ty)
 			dw kw_mulvl, var_isvalidchessmove_tx, 8, tmp0
 			dw kw_add, tmp0, var_isvalidchessmove_ty, tmp0
 			dw kw_aget, arr_board, tmp0, var_isvalidchessmove_target
+
+			; ISOChess.bas 772: If target <> EMPTY_SQ Then
 			dw kw_cpnevl, var_isvalidchessmove_target, 0
 			dw kw_goto_iffalse_n, if59_1
+
+			; ISOChess.bas 773: If Sgn(target) = side Then Exit Function
 			dw kw_sgnv, var_isvalidchessmove_target, tmp0
 			dw kw_cpeqvv, tmp0, var_isvalidchessmove_side
 			dw kw_goto_iffalse_n, if60_1
 			dw p_isvalidchessmove_r
 if60_1:
+
+			; ISOChess.bas 774: End If
 if59_1:
+
+			; ISOChess.bas 776: pt = Abs(p)
 			dw kw_absv, var_isvalidchessmove_p, var_isvalidchessmove_pt
+
+			; ISOChess.bas 777: dx = tx - sx
 			dw kw_subvv, var_isvalidchessmove_tx, var_isvalidchessmove_sx, var_isvalidchessmove_dx
+
+			; ISOChess.bas 778: dy = ty - sy
 			dw kw_subvv, var_isvalidchessmove_ty, var_isvalidchessmove_sy, var_isvalidchessmove_dy
+
+			; ISOChess.bas 779: adx = Abs(dx)
 			dw kw_absv, var_isvalidchessmove_dx, var_isvalidchessmove_adx
+
+			; ISOChess.bas 780: ady = Abs(dy)
 			dw kw_absv, var_isvalidchessmove_dy, var_isvalidchessmove_ady
+
+			; ISOChess.bas 782: Select Case pt
 			dw kw_vtov, var_isvalidchessmove_pt, var_isvalidchessmove___sel61
+
+			; ISOChess.bas 783: Case PAWN
 			dw kw_cpeqvl, var_isvalidchessmove___sel61, 1
 			dw kw_goto_iffalse_n, sel61_1
 sel61_b1:
+
+			; ISOChess.bas 784: If side > 0 Then
 			dw kw_scpgtvl, var_isvalidchessmove_side, 0
 			dw kw_goto_iffalse_n, if62_1
+
+			; ISOChess.bas 786: If dx = 0 And dy = -1 And target = EMPTY_SQ Then
 			dw kw_cpeqvl, var_isvalidchessmove_dx, 0
 			dw kw_ftov, tmp0
 			dw kw_cpeqvl, var_isvalidchessmove_dy, -1
@@ -1051,7 +1753,11 @@ sel61_b1:
 			dw kw_ftov, tmp1
 			dw kw_andvv, tmp0, tmp1, tmp0
 			dw kw_goto_ifzero_n, tmp0, if63_1
+
+			; ISOChess.bas 787: IsValidChessMove = True
 			dw kw_ltov, -1, var_isvalidchessmove_isvalidchessmove
+
+			; ISOChess.bas 788: ElseIf dx = 0 And dy = -2 And sy = 6 And target = EMPTY_SQ And Board(sx, 5) = EMPTY_SQ Then
 			dw sel61_e_go
 if63_1:
 			dw kw_cpeqvl, var_isvalidchessmove_dx, 0
@@ -1072,7 +1778,11 @@ if63_1:
 			dw kw_ftov, tmp1
 			dw kw_andvv, tmp0, tmp1, tmp0
 			dw kw_goto_ifzero_n, tmp0, if63_2
+
+			; ISOChess.bas 789: IsValidChessMove = True
 			dw kw_ltov, -1, var_isvalidchessmove_isvalidchessmove
+
+			; ISOChess.bas 790: ElseIf adx = 1 And dy = -1 And target < 0 Then
 			dw sel61_e_go
 if63_2:
 			dw kw_cpeqvl, var_isvalidchessmove_adx, 1
@@ -1084,11 +1794,19 @@ if63_2:
 			dw kw_ftov, tmp1
 			dw kw_andvv, tmp0, tmp1, tmp0
 			dw kw_goto_ifzero_n, tmp0, sel61_e
+
+			; ISOChess.bas 791: IsValidChessMove = True
 			dw kw_ltov, -1, var_isvalidchessmove_isvalidchessmove
+
+			; ISOChess.bas 792: End If
 if63_3:
 if63_e:
+
+			; ISOChess.bas 793: Else
 			dw sel61_e_go
 if62_1:
+
+			; ISOChess.bas 795: If dx = 0 And dy = 1 And target = EMPTY_SQ Then
 			dw kw_cpeqvl, var_isvalidchessmove_dx, 0
 			dw kw_ftov, tmp0
 			dw kw_cpeqvl, var_isvalidchessmove_dy, 1
@@ -1098,7 +1816,11 @@ if62_1:
 			dw kw_ftov, tmp1
 			dw kw_andvv, tmp0, tmp1, tmp0
 			dw kw_goto_ifzero_n, tmp0, if64_1
+
+			; ISOChess.bas 796: IsValidChessMove = True
 			dw kw_ltov, -1, var_isvalidchessmove_isvalidchessmove
+
+			; ISOChess.bas 797: ElseIf dx = 0 And dy = 2 And sy = 1 And target = EMPTY_SQ And Board(sx, 2) = EMPTY_SQ Then
 			dw sel61_e_go
 if64_1:
 			dw kw_cpeqvl, var_isvalidchessmove_dx, 0
@@ -1119,7 +1841,11 @@ if64_1:
 			dw kw_ftov, tmp1
 			dw kw_andvv, tmp0, tmp1, tmp0
 			dw kw_goto_ifzero_n, tmp0, if64_2
+
+			; ISOChess.bas 798: IsValidChessMove = True
 			dw kw_ltov, -1, var_isvalidchessmove_isvalidchessmove
+
+			; ISOChess.bas 799: ElseIf adx = 1 And dy = 1 And target > 0 Then
 			dw sel61_e_go
 if64_2:
 			dw kw_cpeqvl, var_isvalidchessmove_adx, 1
@@ -1131,15 +1857,25 @@ if64_2:
 			dw kw_ftov, tmp1
 			dw kw_andvv, tmp0, tmp1, tmp0
 			dw kw_goto_ifzero_n, tmp0, sel61_e
+
+			; ISOChess.bas 800: IsValidChessMove = True
 			dw kw_ltov, -1, var_isvalidchessmove_isvalidchessmove
+
+			; ISOChess.bas 801: End If
 if64_3:
 if64_e:
+
+			; ISOChess.bas 802: End If
 if62_e:
+
+			; ISOChess.bas 804: Case KNIGHT
 			dw sel61_e_go
 sel61_1:
 			dw kw_cpeqvl, var_isvalidchessmove___sel61, 2
 			dw kw_goto_iffalse_n, sel61_2
 sel61_b2:
+
+			; ISOChess.bas 805: If (adx = 1 And ady = 2) Or (adx = 2 And ady = 1) Then
 			dw kw_cpeqvl, var_isvalidchessmove_adx, 1
 			dw kw_ftov, tmp0
 			dw kw_cpeqvl, var_isvalidchessmove_ady, 2
@@ -1152,41 +1888,65 @@ sel61_b2:
 			dw kw_andvv, tmp1, tmp2, tmp1
 			dw kw_orvv, tmp0, tmp1, tmp0
 			dw kw_goto_ifzero_n, tmp0, sel61_e
+
+			; ISOChess.bas 806: IsValidChessMove = True
 			dw kw_ltov, -1, var_isvalidchessmove_isvalidchessmove
+
+			; ISOChess.bas 807: End If
 if65_1:
+
+			; ISOChess.bas 809: Case BISHOP
 			dw sel61_e_go
 sel61_2:
 			dw kw_cpeqvl, var_isvalidchessmove___sel61, 3
 			dw kw_goto_iffalse_n, sel61_3
 sel61_b3:
+
+			; ISOChess.bas 810: If adx = ady Then
 			dw kw_cpeqvv, var_isvalidchessmove_adx, var_isvalidchessmove_ady
 			dw kw_goto_iffalse_n, sel61_e
+
+			; ISOChess.bas 811: If IsPathClear(sx, sy, tx, ty) Then IsValidChessMove = True
 			dw p_ispathclear_c, var_isvalidchessmove_sx, var_isvalidchessmove_sy, var_isvalidchessmove_tx, var_isvalidchessmove_ty
 			dw kw_goto_ifzero_n, var_ispathclear_ispathclear, sel61_e
 			dw kw_ltov, -1, var_isvalidchessmove_isvalidchessmove
 if67_1:
+
+			; ISOChess.bas 812: End If
 if66_1:
+
+			; ISOChess.bas 814: Case ROOK
 			dw sel61_e_go
 sel61_3:
 			dw kw_cpeqvl, var_isvalidchessmove___sel61, 4
 			dw kw_goto_iffalse_n, sel61_4
 sel61_b4:
+
+			; ISOChess.bas 815: If dx = 0 Or dy = 0 Then
 			dw kw_cpeqvl, var_isvalidchessmove_dx, 0
 			dw kw_ftov, tmp0
 			dw kw_cpeqvl, var_isvalidchessmove_dy, 0
 			dw kw_ftov, tmp1
 			dw kw_orvv, tmp0, tmp1, tmp0
 			dw kw_goto_ifzero_n, tmp0, sel61_e
+
+			; ISOChess.bas 816: If IsPathClear(sx, sy, tx, ty) Then IsValidChessMove = True
 			dw p_ispathclear_c, var_isvalidchessmove_sx, var_isvalidchessmove_sy, var_isvalidchessmove_tx, var_isvalidchessmove_ty
 			dw kw_goto_ifzero_n, var_ispathclear_ispathclear, sel61_e
 			dw kw_ltov, -1, var_isvalidchessmove_isvalidchessmove
 if69_1:
+
+			; ISOChess.bas 817: End If
 if68_1:
+
+			; ISOChess.bas 819: Case QUEEN
 			dw sel61_e_go
 sel61_4:
 			dw kw_cpeqvl, var_isvalidchessmove___sel61, 5
 			dw kw_goto_iffalse_n, sel61_5
 sel61_b5:
+
+			; ISOChess.bas 820: If dx = 0 Or dy = 0 Or adx = ady Then
 			dw kw_cpeqvl, var_isvalidchessmove_dx, 0
 			dw kw_ftov, tmp0
 			dw kw_cpeqvl, var_isvalidchessmove_dy, 0
@@ -1196,24 +1956,38 @@ sel61_b5:
 			dw kw_ftov, tmp1
 			dw kw_orvv, tmp0, tmp1, tmp0
 			dw kw_goto_ifzero_n, tmp0, sel61_e
+
+			; ISOChess.bas 821: If IsPathClear(sx, sy, tx, ty) Then IsValidChessMove = True
 			dw p_ispathclear_c, var_isvalidchessmove_sx, var_isvalidchessmove_sy, var_isvalidchessmove_tx, var_isvalidchessmove_ty
 			dw kw_goto_ifzero_n, var_ispathclear_ispathclear, sel61_e
 			dw kw_ltov, -1, var_isvalidchessmove_isvalidchessmove
 if71_1:
+
+			; ISOChess.bas 822: End If
 if70_1:
+
+			; ISOChess.bas 824: Case KING
 			dw sel61_e_go
 sel61_5:
 			dw kw_cpeqvl, var_isvalidchessmove___sel61, 6
 			dw kw_goto_iffalse_n, sel61_6
 sel61_b6:
+
+			; ISOChess.bas 825: If adx <= 1 And ady <= 1 Then
 			dw kw_scplevl, var_isvalidchessmove_adx, 1
 			dw kw_ftov, tmp0
 			dw kw_scplevl, var_isvalidchessmove_ady, 1
 			dw kw_ftov, tmp1
 			dw kw_andvv, tmp0, tmp1, tmp0
 			dw kw_goto_ifzero_n, tmp0, if72_1
+
+			; ISOChess.bas 826: IsValidChessMove = True
 			dw kw_ltov, -1, var_isvalidchessmove_isvalidchessmove
+
+			; ISOChess.bas 827: End If
 if72_1:
+
+			; ISOChess.bas 828: End Select
 sel61_6:
 sel61_e:
 			dw p_isvalidchessmove_r
@@ -1223,13 +1997,29 @@ sel61_e:
 ; ============================================================
 
 p_ispathclear:
+
+			; ISOChess.bas 832: Dim stepX As Integer, stepY As Integer
+
+			; ISOChess.bas 833: Dim cx As Integer, cy As Integer
+
+			; ISOChess.bas 835: IsPathClear = False
 			dw kw_ztov, var_ispathclear_ispathclear
+
+			; ISOChess.bas 836: stepX = Sgn(tx - sx)
 			dw kw_subvv, var_ispathclear_tx, var_ispathclear_sx, tmp0
 			dw kw_sgnv, tmp0, var_ispathclear_stepx
+
+			; ISOChess.bas 837: stepY = Sgn(ty - sy)
 			dw kw_subvv, var_ispathclear_ty, var_ispathclear_sy, tmp0
 			dw kw_sgnv, tmp0, var_ispathclear_stepy
+
+			; ISOChess.bas 839: cx = sx + stepX
 			dw kw_add, var_ispathclear_sx, var_ispathclear_stepx, var_ispathclear_cx
+
+			; ISOChess.bas 840: cy = sy + stepY
 			dw kw_add, var_ispathclear_sy, var_ispathclear_stepy, var_ispathclear_cy
+
+			; ISOChess.bas 842: Do While cx <> tx Or cy <> ty
 do73_t:
 			dw kw_cpnevv, var_ispathclear_cx, var_ispathclear_tx
 			dw kw_ftov, tmp0
@@ -1237,6 +2027,8 @@ do73_t:
 			dw kw_ftov, tmp1
 			dw kw_orvv, tmp0, tmp1, tmp0
 			dw kw_goto_ifzero_n, tmp0, do73_e
+
+			; ISOChess.bas 843: If Board(cx, cy) <> EMPTY_SQ Then Exit Function
 			dw kw_mulvl, var_ispathclear_cx, 8, tmp0
 			dw kw_add, tmp0, var_ispathclear_cy, tmp0
 			dw kw_aget, arr_board, tmp0, tmp0
@@ -1244,10 +2036,18 @@ do73_t:
 			dw kw_goto_iffalse_n, if74_1
 			dw p_ispathclear_r
 if74_1:
+
+			; ISOChess.bas 844: cx = cx + stepX
 			dw kw_add, var_ispathclear_cx, var_ispathclear_stepx, var_ispathclear_cx
+
+			; ISOChess.bas 845: cy = cy + stepY
 			dw kw_add, var_ispathclear_cy, var_ispathclear_stepy, var_ispathclear_cy
+
+			; ISOChess.bas 846: Loop
 			dw do73_t_go
 do73_e:
+
+			; ISOChess.bas 848: IsPathClear = True
 			dw kw_ltov, -1, var_ispathclear_ispathclear
 			dw p_ispathclear_r
 
@@ -1256,17 +2056,33 @@ do73_e:
 ; ============================================================
 
 p_executemove:
+
+			; ISOChess.bas 855: Dim movingPiece As Integer, capturedPiece As Integer
+
+			; ISOChess.bas 857: movingPiece = Board(sx, sy)
 			dw kw_mulvl, var_executemove_sx, 8, tmp0
 			dw kw_add, tmp0, var_executemove_sy, tmp0
 			dw kw_aget, arr_board, tmp0, var_executemove_movingpiece
+
+			; ISOChess.bas 858: capturedPiece = Board(tx, ty)
 			dw kw_mulvl, var_executemove_tx, 8, tmp0
 			dw kw_add, tmp0, var_executemove_ty, tmp0
 			dw kw_aget, arr_board, tmp0, var_executemove_capturedpiece
+
+			; ISOChess.bas 861: DrawPieceAt sx, sy, movingPiece
 			dw p_drawpieceat_c, var_executemove_sx, var_executemove_sy, var_executemove_movingpiece
+
+			; ISOChess.bas 864: If capturedPiece <> EMPTY_SQ Then
 			dw kw_cpnevl, var_executemove_capturedpiece, 0
 			dw kw_goto_iffalse_n, if75_1
+
+			; ISOChess.bas 865: DrawPieceAt tx, ty, capturedPiece
 			dw p_drawpieceat_c, var_executemove_tx, var_executemove_ty, var_executemove_capturedpiece
+
+			; ISOChess.bas 866: End If
 if75_1:
+
+			; ISOChess.bas 869: If movingPiece = PAWN And ty = 0 Then movingPiece = QUEEN
 			dw kw_cpeqvl, var_executemove_movingpiece, 1
 			dw kw_ftov, tmp0
 			dw kw_cpeqvl, var_executemove_ty, 0
@@ -1275,6 +2091,8 @@ if75_1:
 			dw kw_goto_ifzero_n, tmp0, if76_1
 			dw kw_ltov, 5, var_executemove_movingpiece
 if76_1:
+
+			; ISOChess.bas 870: If movingPiece = -PAWN And ty = 7 Then movingPiece = -QUEEN
 			dw kw_cpeqvl, var_executemove_movingpiece, -1
 			dw kw_ftov, tmp0
 			dw kw_cpeqvl, var_executemove_ty, 7
@@ -1283,26 +2101,52 @@ if76_1:
 			dw kw_goto_ifzero_n, tmp0, if77_1
 			dw kw_ltov, -5, var_executemove_movingpiece
 if77_1:
+
+			; ISOChess.bas 873: Board(sx, sy) = EMPTY_SQ
 			dw kw_mulvl, var_executemove_sx, 8, tmp0
 			dw kw_add, tmp0, var_executemove_sy, tmp0
 			dw kw_asetl, arr_board, tmp0, 0
+
+			; ISOChess.bas 874: Board(tx, ty) = movingPiece
 			dw kw_mulvl, var_executemove_tx, 8, tmp0
 			dw kw_add, tmp0, var_executemove_ty, tmp0
 			dw kw_aset, arr_board, tmp0, var_executemove_movingpiece
+
+			; ISOChess.bas 877: DrawPieceAt tx, ty, movingPiece
 			dw p_drawpieceat_c, var_executemove_tx, var_executemove_ty, var_executemove_movingpiece
+
+			; ISOChess.bas 880: If Abs(capturedPiece) = KING Then
 			dw kw_absv, var_executemove_capturedpiece, tmp0
 			dw kw_cpeqvl, tmp0, 6
 			dw kw_goto_iffalse_n, if78_1
+
+			; ISOChess.bas 881: If capturedPiece < 0 Then
 			dw kw_scpltvl, var_executemove_capturedpiece, 0
 			dw kw_goto_iffalse_n, if79_1
+
+			; ISOChess.bas 882: Winner = 1
 			dw kw_ltov, 1, var_winner
+
+			; ISOChess.bas 883: WinReason = "Player captured the CPU's King"
 			dw kw_strcpy, var_winreason, str13
+
+			; ISOChess.bas 884: Else
 			dw if79_e_go
 if79_1:
+
+			; ISOChess.bas 885: Winner = -1
 			dw kw_ltov, -1, var_winner
+
+			; ISOChess.bas 886: WinReason = "CPU captured the Player's King"
 			dw kw_strcpy, var_winreason, str14
+
+			; ISOChess.bas 887: End If
 if79_e:
+
+			; ISOChess.bas 888: GameState = STATE_OVER
 			dw kw_ltov, 3, var_gamestate
+
+			; ISOChess.bas 889: End If
 if78_1:
 			dw p_executemove_r
 
@@ -1311,45 +2155,63 @@ if78_1:
 ; ============================================================
 
 p_piecevalue:
+
+			; ISOChess.bas 893: Select Case Abs(pt)
 			dw kw_absv, var_piecevalue_pt, tmp0
 			dw kw_vtov, tmp0, var_piecevalue___sel80
+
+			; ISOChess.bas 894: Case PAWN:   PieceValue = 10
 			dw kw_cpeqvl, var_piecevalue___sel80, 1
 			dw kw_goto_iffalse_n, sel80_1
 sel80_b1:
 			dw kw_ltov, 10, var_piecevalue_piecevalue
+
+			; ISOChess.bas 895: Case KNIGHT: PieceValue = 30
 			dw sel80_e_go
 sel80_1:
 			dw kw_cpeqvl, var_piecevalue___sel80, 2
 			dw kw_goto_iffalse_n, sel80_2
 sel80_b2:
 			dw kw_ltov, 30, var_piecevalue_piecevalue
+
+			; ISOChess.bas 896: Case BISHOP: PieceValue = 30
 			dw sel80_e_go
 sel80_2:
 			dw kw_cpeqvl, var_piecevalue___sel80, 3
 			dw kw_goto_iffalse_n, sel80_3
 sel80_b3:
 			dw kw_ltov, 30, var_piecevalue_piecevalue
+
+			; ISOChess.bas 897: Case ROOK:   PieceValue = 50
 			dw sel80_e_go
 sel80_3:
 			dw kw_cpeqvl, var_piecevalue___sel80, 4
 			dw kw_goto_iffalse_n, sel80_4
 sel80_b4:
 			dw kw_ltov, 50, var_piecevalue_piecevalue
+
+			; ISOChess.bas 898: Case QUEEN:  PieceValue = 90
 			dw sel80_e_go
 sel80_4:
 			dw kw_cpeqvl, var_piecevalue___sel80, 5
 			dw kw_goto_iffalse_n, sel80_5
 sel80_b5:
 			dw kw_ltov, 90, var_piecevalue_piecevalue
+
+			; ISOChess.bas 899: Case KING:   PieceValue = 1000
 			dw sel80_e_go
 sel80_5:
 			dw kw_cpeqvl, var_piecevalue___sel80, 6
 			dw kw_goto_iffalse_n, sel80_6
 sel80_b6:
 			dw kw_ltov, 1000, var_piecevalue_piecevalue
+
+			; ISOChess.bas 900: Case Else:   PieceValue = 0
 			dw sel80_e_go
 sel80_6:
 			dw kw_ztov, var_piecevalue_piecevalue
+
+			; ISOChess.bas 901: End Select
 sel80_e:
 			dw p_piecevalue_r
 
@@ -1358,28 +2220,58 @@ sel80_e:
 ; ============================================================
 
 p_makecpumove:
+
+			; ISOChess.bas 905: Dim sx As Integer, sy As Integer, tx As Integer, ty As Integer
+
+			; ISOChess.bas 906: Dim bestSX As Integer, bestSY As Integer, bestTX As Integer, bestTY As Integer
+
+			; ISOChess.bas 907: Dim bestScore As Integer, score As Integer
+
+			; ISOChess.bas 908: Dim foundMove As Boolean
+
+			; ISOChess.bas 910: foundMove = False
 			dw kw_ztov, var_makecpumove_foundmove
+
+			; ISOChess.bas 911: bestScore = -30000
 			dw kw_ltov, -30000, var_makecpumove_bestscore
+
+			; ISOChess.bas 913: For sy = 0 To 7
 			dw kw_ztov, var_makecpumove_sy
 for81_t:
+
+			; ISOChess.bas 914: For sx = 0 To 7
 			dw kw_ztov, var_makecpumove_sx
 for82_t:
+
+			; ISOChess.bas 923: If Board(sx, sy) < 0 Then
 			dw kw_mulvl, var_makecpumove_sx, 8, tmp0
 			dw kw_add, tmp0, var_makecpumove_sy, tmp0
 			dw kw_aget, arr_board, tmp0, tmp0
 			dw kw_scpltvl, tmp0, 0
 			dw kw_goto_iffalse_n, if83_1
+
+			; ISOChess.bas 924: For ty = 0 To 7
 			dw kw_ztov, var_makecpumove_ty
 for84_t:
+
+			; ISOChess.bas 928: For tx = 0 To 7
 			dw kw_ztov, var_makecpumove_tx
 for85_t:
+
+			; ISOChess.bas 929: If IsValidChessMove(sx, sy, tx, ty) Then
 			dw p_isvalidchessmove_c, var_makecpumove_sx, var_makecpumove_sy, var_makecpumove_tx, var_makecpumove_ty
 			dw kw_goto_ifzero_n, var_isvalidchessmove_isvalidchessmove, if86_1
+
+			; ISOChess.bas 930: CheckTurnTimer
 			dw p_checkturntimer_c
+
+			; ISOChess.bas 931: If GameState = STATE_OVER Then Exit Sub
 			dw kw_cpeqvl, var_gamestate, 3
 			dw kw_goto_iffalse_n, if87_1
 			dw p_makecpumove_r
 if87_1:
+
+			; ISOChess.bas 934: score = PieceValue(Board(tx, ty)) * 10 + ty * 2 + Rnd(6)
 			dw kw_mulvl, var_makecpumove_tx, 8, tmp0
 			dw kw_add, tmp0, var_makecpumove_ty, tmp0
 			dw kw_aget, arr_board, tmp0, tmp0
@@ -1390,6 +2282,8 @@ if87_1:
 			dw kw_add, tmp0, tmp1, tmp0
 			dw kw_rndl, 6, tmp1
 			dw kw_add, tmp0, tmp1, var_makecpumove_score
+
+			; ISOChess.bas 937: If Board(sx, sy) = -PAWN And ty = 7 Then
 			dw kw_mulvl, var_makecpumove_sx, 8, tmp0
 			dw kw_add, tmp0, var_makecpumove_sy, tmp0
 			dw kw_aget, arr_board, tmp0, tmp0
@@ -1399,45 +2293,101 @@ if87_1:
 			dw kw_ftov, tmp1
 			dw kw_andvv, tmp0, tmp1, tmp0
 			dw kw_goto_ifzero_n, tmp0, if88_1
+
+			; ISOChess.bas 938: score = score + 800
 			dw kw_addl, var_makecpumove_score, 800, var_makecpumove_score
+
+			; ISOChess.bas 939: End If
 if88_1:
+
+			; ISOChess.bas 941: If score > bestScore Or Not foundMove Then
 			dw kw_scpgtvv, var_makecpumove_score, var_makecpumove_bestscore
 			dw kw_ftov, tmp0
 			dw kw_notv, var_makecpumove_foundmove, tmp1
 			dw kw_orvv, tmp0, tmp1, tmp0
 			dw kw_goto_ifzero_n, tmp0, if89_1
+
+			; ISOChess.bas 942: bestScore = score
 			dw kw_vtov, var_makecpumove_score, var_makecpumove_bestscore
+
+			; ISOChess.bas 943: bestSX = sx : bestSY = sy
 			dw kw_vtov, var_makecpumove_sx, var_makecpumove_bestsx
 			dw kw_vtov, var_makecpumove_sy, var_makecpumove_bestsy
+
+			; ISOChess.bas 944: bestTX = tx : bestTY = ty
 			dw kw_vtov, var_makecpumove_tx, var_makecpumove_besttx
 			dw kw_vtov, var_makecpumove_ty, var_makecpumove_bestty
+
+			; ISOChess.bas 945: foundMove = True
 			dw kw_ltov, -1, var_makecpumove_foundmove
+
+			; ISOChess.bas 946: End If
 if89_1:
+
+			; ISOChess.bas 947: End If
 if86_1:
+
+			; ISOChess.bas 948: Next tx
 			dw kw_next1l_n, var_makecpumove_tx, 7, for85_t
 for85_e:
+
+			; ISOChess.bas 949: Next ty
 			dw kw_next1l_n, var_makecpumove_ty, 7, for84_t
 for84_e:
+
+			; ISOChess.bas 950: End If
 if83_1:
+
+			; ISOChess.bas 951: Next sx
 			dw kw_next1l_n, var_makecpumove_sx, 7, for82_t
 for82_e:
+
+			; ISOChess.bas 952: Next sy
 			dw kw_next1l_n, var_makecpumove_sy, 7, for81_t
 for81_e:
+
+			; ISOChess.bas 954: If Not foundMove Then
 			dw kw_notv, var_makecpumove_foundmove, tmp0
 			dw kw_goto_ifzero_n, tmp0, if90_1
+
+			; ISOChess.bas 955: Winner = 1
 			dw kw_ltov, 1, var_winner
+
+			; ISOChess.bas 956: WinReason = "CPU has no legal moves left"
 			dw kw_strcpy, var_winreason, str15
+
+			; ISOChess.bas 957: GameState = STATE_OVER
 			dw kw_ltov, 3, var_gamestate
+
+			; ISOChess.bas 958: Exit Sub
 			dw p_makecpumove_r
+
+			; ISOChess.bas 959: End If
 if90_1:
+
+			; ISOChess.bas 961: ExecuteMove bestSX, bestSY, bestTX, bestTY
 			dw p_executemove_c, var_makecpumove_bestsx, var_makecpumove_bestsy, var_makecpumove_besttx, var_makecpumove_bestty
+
+			; ISOChess.bas 963: If GameState <> STATE_OVER Then
 			dw kw_cpnevl, var_gamestate, 3
 			dw kw_goto_iffalse_n, if91_1
+
+			; ISOChess.bas 964: GameState = STATE_SELECT
 			dw kw_ztov, var_gamestate
+
+			; ISOChess.bas 965: ResetTurnTimer
 			dw p_resetturntimer_c
+
+			; ISOChess.bas 966: DrawCursor CurX, CurY, PEN_MARK
 			dw p_drawcursor_c, var_curx, var_cury, lit_3
+
+			; ISOChess.bas 967: CursorDrawn = True
 			dw kw_ltov, -1, var_cursordrawn
+
+			; ISOChess.bas 968: UpdateHUD True
 			dw p_updatehud_c, lit_m1
+
+			; ISOChess.bas 969: End If
 if91_1:
 			dw p_makecpumove_r
 
@@ -1446,9 +2396,15 @@ if91_1:
 ; ============================================================
 
 p_showgameover:
+
+			; ISOChess.bas 976: Locate 1, 2
 			dw kw_locatell, 1, 2
+
+			; ISOChess.bas 988: If Winner = 1 Then
 			dw kw_cpeqvl, var_winner, 1
 			dw kw_goto_iffalse_n, if92_1
+
+			; ISOChess.bas 989: Print "GAME OVER - PLAYER (WHITE) WINS!        ";
 			dw kw_printzoscii
 			dw glyph_47, glyph_41, glyph_4D, glyph_45, glyph_20, glyph_4F, glyph_56, glyph_45
 			dw glyph_52, glyph_20, glyph_2D, glyph_20, glyph_50, glyph_4C, glyph_41, glyph_59
@@ -1456,10 +2412,14 @@ p_showgameover:
 			dw glyph_45, glyph_29, glyph_20, glyph_57, glyph_49, glyph_4E, glyph_53, glyph_21
 			dw glyph_20, glyph_20, glyph_20, glyph_20, glyph_20, glyph_20, glyph_20, glyph_20
 			dw 0		; "GAME OVER - PLAYER (WHITE) WINS!        "
+
+			; ISOChess.bas 990: ElseIf Winner = -1 Then
 			dw if92_e_go
 if92_1:
 			dw kw_cpeqvl, var_winner, -1
 			dw kw_goto_iffalse_n, if92_2
+
+			; ISOChess.bas 991: Print "GAME OVER - CPU (BLACK) WINS!           ";
 			dw kw_printzoscii
 			dw glyph_47, glyph_41, glyph_4D, glyph_45, glyph_20, glyph_4F, glyph_56, glyph_45
 			dw glyph_52, glyph_20, glyph_2D, glyph_20, glyph_43, glyph_50, glyph_55, glyph_20
@@ -1467,8 +2427,12 @@ if92_1:
 			dw glyph_57, glyph_49, glyph_4E, glyph_53, glyph_21, glyph_20, glyph_20, glyph_20
 			dw glyph_20, glyph_20, glyph_20, glyph_20, glyph_20, glyph_20, glyph_20, glyph_20
 			dw 0		; "GAME OVER - CPU (BLACK) WINS!           "
+
+			; ISOChess.bas 992: Else
 			dw if92_e_go
 if92_2:
+
+			; ISOChess.bas 993: Print "GAME OVER - DRAW!                       ";
 			dw kw_printzoscii
 			dw glyph_47, glyph_41, glyph_4D, glyph_45, glyph_20, glyph_4F, glyph_56, glyph_45
 			dw glyph_52, glyph_20, glyph_2D, glyph_20, glyph_44, glyph_52, glyph_41, glyph_57
@@ -1476,8 +2440,14 @@ if92_2:
 			dw glyph_20, glyph_20, glyph_20, glyph_20, glyph_20, glyph_20, glyph_20, glyph_20
 			dw glyph_20, glyph_20, glyph_20, glyph_20, glyph_20, glyph_20, glyph_20, glyph_20
 			dw 0		; "GAME OVER - DRAW!                       "
+
+			; ISOChess.bas 994: End If
 if92_e:
+
+			; ISOChess.bas 996: Locate 1, 25
 			dw kw_locatell, 1, 25
+
+			; ISOChess.bas 997: Print WinReason;
 			dw kw_printstrvar, var_winreason
 			dw p_showgameover_r
 
@@ -2055,55 +3025,55 @@ p_showgameover_r:		; end of showgameover
 ; ============================================================
 
 fn_graphics_line:		; sub line (asm keyword), Graphics.cls line 13
-            pop hl
-            ld e, (hl)
-            inc hl
-            ld d, (hl)
-            ld (gfx_x0), de
-            pop hl
-            ld e, (hl)
-            inc hl
-            ld d, (hl)
-            ld (gfx_y0), de
-            pop hl
-            ld e, (hl)
-            inc hl
-            ld d, (hl)
-            ld (gfx_x1), de
-            pop hl
-            ld e, (hl)
-            inc hl
-            ld d, (hl)
-            ld (gfx_y1), de
-            ld (gfx_sp), sp
-            ld sp, (ntc_csp)
-            call gfx_line
-            ld sp, (gfx_sp)
+            pop hl		; Graphics.cls 14
+            ld e, (hl)		; Graphics.cls 15
+            inc hl		; Graphics.cls 16
+            ld d, (hl)		; Graphics.cls 17
+            ld (gfx_x0), de		; Graphics.cls 18
+            pop hl		; Graphics.cls 19
+            ld e, (hl)		; Graphics.cls 20
+            inc hl		; Graphics.cls 21
+            ld d, (hl)		; Graphics.cls 22
+            ld (gfx_y0), de		; Graphics.cls 23
+            pop hl		; Graphics.cls 24
+            ld e, (hl)		; Graphics.cls 25
+            inc hl		; Graphics.cls 26
+            ld d, (hl)		; Graphics.cls 27
+            ld (gfx_x1), de		; Graphics.cls 28
+            pop hl		; Graphics.cls 29
+            ld e, (hl)		; Graphics.cls 30
+            inc hl		; Graphics.cls 31
+            ld d, (hl)		; Graphics.cls 32
+            ld (gfx_y1), de		; Graphics.cls 33
+            ld (gfx_sp), sp		; Graphics.cls 34
+            ld sp, (ntc_csp)		; Graphics.cls 35
+            call gfx_line		; Graphics.cls 36
+            ld sp, (gfx_sp)		; Graphics.cls 37
 			ret			; end of #asm
 
 fn_graphics_pen:		; sub pen (asm keyword), Graphics.cls line 67
-            pop hl
-            ld a, (hl)
-            ld (gfx_pen), a
+            pop hl		; Graphics.cls 68
+            ld a, (hl)		; Graphics.cls 69
+            ld (gfx_pen), a		; Graphics.cls 70
 			ret			; end of #asm
 
 fn_graphics_clip:		; sub clip (asm keyword), Graphics.cls line 77
-            pop hl
-            ld a, (hl)
-            or a
-            jr z, fn_graphics_clip_cl0
-            ld a, 1
-fn_graphics_clip_cl0:
-            ld (gfx_clip), a
+            pop hl		; Graphics.cls 78
+            ld a, (hl)		; Graphics.cls 79
+            or a		; Graphics.cls 80
+            jr z, fn_graphics_clip_cl0		; Graphics.cls 81
+            ld a, 1		; Graphics.cls 82
+fn_graphics_clip_cl0:		; Graphics.cls 83
+            ld (gfx_clip), a		; Graphics.cls 84
 			ret			; end of #asm
 
 fn_keys_down:		; function down (asm keyword), Keys.cls line 44
-            pop hl
-            ld e, (hl)
-            inc hl
-            ld d, (hl)
-            ex de, hl
-            jp ntc_kdown
+            pop hl		; Keys.cls 45
+            ld e, (hl)		; Keys.cls 46
+            inc hl		; Keys.cls 47
+            ld d, (hl)		; Keys.cls 48
+            ex de, hl		; Keys.cls 49
+            jp ntc_kdown		; Keys.cls 50
 			ret			; end of #asm
 
 
@@ -2366,11 +3336,11 @@ str7:			db "Bishop", 0
 str8:			db "Rook  ", 0
 str9:			db "Queen ", 0
 str10:			db "King  ", 0
-str11:			db "CPU forfeited on 1-minute time limit!", 0
-str12:			db "Player forfeited on 1-min time limit!", 0
-str13:			db "Player captured the CPU's King!", 0
-str14:			db "CPU captured the Player's King!", 0
-str15:			db "CPU has no legal moves remaining!", 0
+str11:			db "CPU forfeited: 1 minute limit", 0
+str12:			db "Player forfeited: 1 minute limit", 0
+str13:			db "Player captured the CPU's King", 0
+str14:			db "CPU captured the Player's King", 0
+str15:			db "CPU has no legal moves left", 0
 
 ; ============================================================
 ; Keyword library (used)

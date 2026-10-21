@@ -33,34 +33,34 @@ ntc_rg1:
 
 main_thread:
 
-			; Main.bas 25: Title.Show
+			; Main.bas 33: Title.Show
 			dw p_title_show_c
 
-			; Main.bas 26: Level1.Play
+			; Main.bas 34: Level1.Play
 			dw p_level1_play_c
 
-			; Main.bas 27: Level2.Play
+			; Main.bas 35: Level2.Play
 			dw p_level2_play_c
 
-			; Main.bas 28: Level1.Play
+			; Main.bas 36: Level1.Play
 			dw p_level1_play_c
 
-			; Main.bas 29: Print "Maths from main: 7 squared is "; Maths.Square(7)
+			; Main.bas 37: Print "Maths from main: 7 squared is "; Maths.Square(7)
 			dw p_maths_square_c, lit_7
 			dw kw_printstrvar, str0
 			dw kw_printint, var_maths_square_square
 			dw kw_printnl
 
-			; Main.bas 30: Print "Stars from main (Stage1's copy): "; Stars.Count()
+			; Main.bas 38: Print "Stars from main (Stage1's copy): "; Stars.Count()
 			dw p_stars_count_c
 			dw kw_printstrvar, str1
 			dw kw_printint, var_stars_count_count
 			dw kw_printnl
 
-			; Main.bas 31: Credits.Show
+			; Main.bas 39: Credits.Show
 			dw p_credits_show_c
 
-			; Main.bas 32: End
+			; Main.bas 40: End
 			dw kw_printnl0
 			dw kw_printstrvar, str2
 			dw kw_waitkey
@@ -3522,7 +3522,7 @@ ntc_memtab	equ 32768		; the Memory class's tables: above the window (Option Rese
 ntc_memtab	equ ntc_free
 			ENDIF
 ; Option Reserve: the program and its arrays (ntc_start .. ntc_free) must stay out of these
-			ASSERT (ntc_free <= 16384) || (ntc_bss >= 32768), "the program (or its arrays) reaches into Option Reserve #4000-#7FFF (Main.bas line 23)"
+			ASSERT (ntc_free <= 16384) || (ntc_bss >= 32768), "the program (or its arrays) reaches into Option Reserve #4000-#7FFF (Main.bas line 31)"
 			ASSERT (ntc_free <= #4000) || (ntc_start >= #8000), "overlay classes: the program and its arrays must stay out of #4000-#7FFF (the window they run in)"
 
 ; ============================================================
@@ -3754,4 +3754,4 @@ ovl_ending_vsize	equ 0		; its page variables; its local memory is the rest, to #
 			DISPLAY "  page variables ", /D, ovl_ending_vsize, ", free ", /D, #8000 - (ovl_ending_end + ovl_ending_vsize)
 			OUTEND
 
-NTC_STAMP	equ #ADB5		; the build stamp: the first word of every page file
+NTC_STAMP	equ #AD66		; the build stamp: the first word of every page file

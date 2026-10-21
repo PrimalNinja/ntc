@@ -6,8 +6,41 @@ finished, with the date.
 ---
 
 ## done
+- 2026-10-21 Two platforms. `cyborgos`: a program in a slot of the CyborgOS hypervisor - the cpm
+  platform (asm/ntc_plat_cyborgos.asm says `;@base cpm`: gen.js composes its text and classes
+  from the base's) plus what CyborgOS adds: the output is always a .CYB (the AMSDOS header - the
+  one file for the CPC and the Next), Option Terminal VT52 the default (`;@terminal` in the
+  platform header), CybSys a platform class (the hypervisor's services, with Host() for which
+  machine), NTC_CYBORGOS and NTC_CPM defined. `baremetal`: built from its org and nothing assumed
+  - every platform routine and class method an empty one to fill in (asm/ntc_plat_baremetal.asm,
+  lib/baremetal/); `Option Org` (and `--org=`) for where a program is built to run. The GUI
+  lists both; ntcrun.py runs cyborgos as cpm. `cli.js --const=NAME[=value]`: a #Const for that
+  build.
+- 2026-10-21 `#asm`: `@name:` is a global label (sjasmplus's): other blocks can name it - the way
+  CyborgOS's SD card code (main RAM, FileShut's block) reaches FileCall's page code names
+  (`@g_fl_peek: EQU fl_peek`). zxn's NEX stub no longer writes port #E3 (DivMMC memory) nor turns
+  DivMMC's automatic paging off: both lose NextZXOS's esxDOS state (its file handles); instead
+  NextRegs #B8 = 2, #B9 = 0, #BB = 0 let only `rst 8` with ROM 3 selected page DivMMC in, which no
+  NTC program does - CyborgOS's SD drive does it on purpose (ROM 3 in slots 0-1 for the call).
+  zxnrun.py: `NTC_INTPULSE=32` - INT as the Next's 32 T pulse, not held (`missed=` at the end).
 
 CyborgOS (a separate project built with NTC BASIC) keeps its own list in its own repository.
+
+- 2026-10-21 Pages on the ZX Spectrum Next: `Option Page Name Loaded n = Class, ...` - the page is
+  built (its addresses resolved against the program) but not loaded by it: it is in RAM page n from
+  the start, its class block holding n, so a call only switches it into the window and jumps. On zxn
+  (the only platform for it so far - the Next has no page files) page n is the NEX file's bank
+  20 + n (zxnPageBank: past a big Option NexData it moves up with ZXN_FIRSTBANK, the same bank
+  mem_sel maps for page n), assembled there at #4000 and loaded by NextZXOS with the program; Option Memory
+  CPCExpansion is chosen by itself when there are pages; the Memory class marks the pages taken at
+  its start (ntc_pgloaded, mem_start), so AllocPage never hands one out. zxn's ntc_plat_fs is a
+  no-files stub (a page that was Unloaded can't come back: Load says NotSupported, a call stops with
+  "Overlay not loaded"). Refused: a zxn page without Loaded, Loaded elsewhere, two pages on one n,
+  a bank past 111. regress.sh: the pages test on zxn (both modes, ref/pages_zxn.txt:
+  Loaded() is True for every page from the start), the refusals, the banks / blocks, Unload / Load, pages past a 9-block NexData.
+  To come: Loaded on the CPC platforms; `Loaded` with no number (the program sets the page later)
+  and `Loaded Using Fn` (a function of yours brings the page in); page files on the Next once it
+  has a file system
 
 - 2026-10-17 Fixed: Rnd(variable) and Randomize variable (or none) didn't assemble on their own -
   kw_rndv and kw_seedv jump into kw_rndl's and kw_seedl's code, which wasn't pulled in with them

@@ -19,8 +19,8 @@
 ;         10 (the program) and 5 (a start stub at #7E00) and runs the stub with
 ;         banks 5, 2, 0 in #4000-#FFFF. The stub turns the NMI buttons off
 ;         (NextReg 6 bits 3, 4: Multiface M1, DivMMC DRIVE), DivMMC's automatic
-;         paging off (NextReg 10 bit 4 - it would page its ROM in at #0000,
-;         #0038, #0066 ...) and DivMMC's memory out, sets 28MHz and IM 1, maps
+;         paging left on but cut to RST 8 with ROM 3 (NextRegs #B8, #B9, #BB - it would page its ROM in at #0000,
+;         #0038, #0066 ...; its memory is left as the loader left it: out), sets 28MHz and IM 1, maps
 ;         the slots (slot 3, where it runs, last: from its copy at #FE00) and
 ;         jumps to ntc_start. NextRegs through ports #243B / #253B (no Z80N
 ;         opcodes: any assembler, any harness).
@@ -1475,4 +1475,25 @@ zxn_selb:		db 9			; the bank in the window
 ; switching here. Return the current screen mode byte, keep BC, DE, HL.
 ntc_plat_rmr:
 			ld a, (ntc_smode)
+			ret
+
+;## ntc_plat_fs ntc_plat_data
+; ------------------------------------------------------------
+; ntc_plat_fs - files: the Next has none yet. What the page code (ntc_ovl) needs to
+; build: a page that isn't Loaded (or was Unloaded) can't come from a file, so its
+; load says NotSupported (-1) and the program stops with "Overlay not loaded".
+; fs_go: HL = the routine - its result -1 into (fs_res), back into the thread.
+; ------------------------------------------------------------
+fs_a1:			dw 0
+fs_a2:			dw 0
+fs_a3:			dw 0
+fs_res:			dw 0
+fs_go:
+			ld hl, (fs_res)
+			ld (hl), #FF
+			inc hl
+			ld (hl), #FF
+			ret
+fs_load:
+			ld hl, -1
 			ret

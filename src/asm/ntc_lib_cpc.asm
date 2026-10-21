@@ -699,11 +699,34 @@ mem_tb_ok:
 			dec bc
 			ld a, b
 			or c
-			jr z, mem_tb_ports
+			jr z, mem_tb_pl0
 			ld d, h
 			ld e, l
 			inc de
 			ldir
+mem_tb_pl0:
+	IFDEF NTC_PGLOADED
+			ld hl, ntc_pgloaded		; Option Page ... Loaded n: those pages are taken (C), already
+			ld b, (hl)				; filled - AllocPage never hands them out
+			inc hl
+mem_tb_pl:
+			ld e, (hl)
+			inc hl
+			ld d, (hl)
+			inc hl
+			push hl
+			ld hl, (mem_count)		; (past the pages there are: nothing to mark)
+			or a
+			sbc hl, de
+			jr c, mem_tb_pl2
+			ld hl, (mem_ttype)
+			add hl, de
+			dec hl
+			ld (hl), 'C'
+mem_tb_pl2:
+			pop hl
+			djnz mem_tb_pl
+	ENDIF
 mem_tb_ports:						; the port table: page 1 main RAM, then 4 a bank found
 			ld hl, (mem_tport)
 			ld (hl), #C0

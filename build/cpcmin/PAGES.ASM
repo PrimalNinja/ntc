@@ -100,19 +100,19 @@ ntc_rg1:
 main_thread:
 			dw kw_scrinit		; mode 1, ROMs off, clear screen
 
-			; Main.bas 25: Title.Show
+			; Main.bas 33: Title.Show
 			dw p_title_show_c
 
-			; Main.bas 26: Level1.Play
+			; Main.bas 34: Level1.Play
 			dw p_level1_play_c
 
-			; Main.bas 27: Level2.Play
+			; Main.bas 35: Level2.Play
 			dw p_level2_play_c
 
-			; Main.bas 28: Level1.Play
+			; Main.bas 36: Level1.Play
 			dw p_level1_play_c
 
-			; Main.bas 29: Print "Maths from main: 7 squared is "; Maths.Square(7)
+			; Main.bas 37: Print "Maths from main: 7 squared is "; Maths.Square(7)
 			dw p_maths_square_c, lit_7
 			dw kw_printzoscii
 			dw glyph_4D, glyph_61, glyph_74, glyph_68, glyph_73, glyph_20, glyph_66, glyph_72
@@ -122,7 +122,7 @@ main_thread:
 			dw kw_printint, var_maths_square_square
 			dw kw_printnl
 
-			; Main.bas 30: Print "Stars from main (Stage1's copy): "; Stars.Count()
+			; Main.bas 38: Print "Stars from main (Stage1's copy): "; Stars.Count()
 			dw p_stars_count_c
 			dw kw_printzoscii
 			dw glyph_53, glyph_74, glyph_61, glyph_72, glyph_73, glyph_20, glyph_66, glyph_72
@@ -133,10 +133,10 @@ main_thread:
 			dw kw_printint, var_stars_count_count
 			dw kw_printnl
 
-			; Main.bas 31: Credits.Show
+			; Main.bas 39: Credits.Show
 			dw p_credits_show_c
 
-			; Main.bas 32: End
+			; Main.bas 40: End
 			dw kw_printnl0
 			dw kw_printzoscii
 			dw glyph_50, glyph_72, glyph_65, glyph_73, glyph_73, glyph_20, glyph_61, glyph_20
@@ -1551,7 +1551,7 @@ ntc_rg69_e:
 			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
 ntc_rg70:
-;## ntc_mem ntc_memcore ntc_membank @shared @far
+;## ntc_mem ntc_memcore ntc_membank ntc_nxt_bank @shared @far
 ; ------------------------------------------------------------
 ; ntc_mem (CPCExpansion) - 16K RAM pages in the #4000-#7FFF window (CPC gate
 ; array RAM setting: C0 = plain, C4-C7 + bank * 8 = page 0-3 of a 64K bank;
@@ -1639,6 +1639,7 @@ mem_st_prog:
 ; machine (C4-C7 do nothing) reads main RAM's.
 mem_probe:
 		IF MEM_BANKS > 0
+	IFNDEF NTC_ZXN
 			ld a, i					; P/V = interrupts were on
 			di
 			push af
@@ -1716,6 +1717,9 @@ mem_pr_back:
 			jp po, mem_pr_di
 			ei
 mem_pr_di:
+	ELSE
+			call nxt_mem_probe		; Next: the RAM probe (ntc_lib_nxt.asm), sets mem_banks
+	ENDIF
 		ENDIF
 			ld a, (mem_banks)		; pages = 1 + 4 a bank
 			ld l, a
@@ -1796,11 +1800,34 @@ mem_tb_ok:
 			dec bc
 			ld a, b
 			or c
-			jr z, mem_tb_ports
+			jr z, mem_tb_pl0
 			ld d, h
 			ld e, l
 			inc de
 			ldir
+mem_tb_pl0:
+	IFDEF NTC_PGLOADED
+			ld hl, ntc_pgloaded		; Option Page ... Loaded n: those pages are taken (C), already
+			ld b, (hl)				; filled - AllocPage never hands them out
+			inc hl
+mem_tb_pl:
+			ld e, (hl)
+			inc hl
+			ld d, (hl)
+			inc hl
+			push hl
+			ld hl, (mem_count)		; (past the pages there are: nothing to mark)
+			or a
+			sbc hl, de
+			jr c, mem_tb_pl2
+			ld hl, (mem_ttype)
+			add hl, de
+			dec hl
+			ld (hl), 'C'
+mem_tb_pl2:
+			pop hl
+			djnz mem_tb_pl
+	ENDIF
 mem_tb_ports:						; the port table: page 1 main RAM, then 4 a bank found
 			ld hl, (mem_tport)
 			ld (hl), #C0
@@ -1846,6 +1873,9 @@ mem_tb_pend:
 ; mem_jbc - E = bank 0-63: BC = the port for its page 0 (B = #7F - E / 8,
 ; C = #C4 + (E and 7) * 8). Keeps DE, HL.
 mem_jbc:
+	IFDEF NTC_ZXN
+			jp nxt_mem_jbc			; Next: 64K bank E -> its first 16K Next bank (ntc_lib_nxt.asm)
+	ENDIF
 			ld a, e
 			rrca
 			rrca
@@ -1891,8 +1921,12 @@ mem_se_do:
 			dec hl
 			ld c, (hl)
 mem_se_out:
+	IFNDEF NTC_ZXN
 			ld (ntc_rampt), bc
 			out (c), c
+	ELSE
+			jp nxt_mem_se_out			; Next: window map via the MMU ports (ntc_lib_nxt.asm) -> mem_se_end
+	ENDIF
 mem_se_end:
 			pop bc
 			pop de
@@ -3211,6 +3245,178 @@ ntc_rg73_e:
 			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
 ntc_rg74:
+;## ntc_nxt_bank ntc_mem @far
+	IFDEF NTC_ZXN
+; nxt_mem_probe - 16K banks from ZXN_FIRSTBANK up are free RAM. Map each into the
+; window, mark it, re-read; the contiguous run that still holds its marker is
+; usable. Sets mem_banks (64K banks = usable 16K banks / 4). Called from mem_probe;
+; leaves interrupts off (the boot re-enables, as the CPC path does).
+nxt_mem_probe:
+			di
+			ld c, ZXN_FIRSTBANK
+zxn_pr_w:
+			call zxn_pr_map			; 16K bank C into #4000-#7FFF
+			ld a, c
+			ld (MEM_WIN), a			; marker = the bank number
+			inc c
+			ld a, c
+			cp ZXN_FIRSTBANK + ZXN_MAXBANK
+			jr nz, zxn_pr_w
+			ld b, 0					; usable 16K banks
+			ld c, ZXN_FIRSTBANK
+zxn_pr_r:
+			call zxn_pr_map
+			ld a, (MEM_WIN)
+			cp c					; still its own marker (real, not absent / aliased)?
+			jr nz, zxn_pr_done
+			inc b
+			inc c
+			ld a, c
+			cp ZXN_FIRSTBANK + ZXN_MAXBANK
+			jr nz, zxn_pr_r
+zxn_pr_done:
+			ld c, 9					; the program's own window bank back
+			call zxn_pr_map
+			ld a, b					; 64K banks = usable 16K banks / 4
+			srl a
+			srl a
+			ld (mem_banks), a
+			or a
+			jr z, zxn_pr_nf
+			ld hl, mem_found		; the banks found, 0, 1, 2 ... (contiguous on the Next)
+			ld b, a
+			ld e, 0
+zxn_pr_fl:
+			ld (hl), e
+			inc hl
+			inc e
+			djnz zxn_pr_fl
+zxn_pr_nf:
+			ret
+; zxn_pr_map - C = a 16K bank into #4000-#7FFF (MMU slots 2, 3 = NextReg #52, #53). Keeps C.
+zxn_pr_map:
+			push bc
+			ld a, c
+			add a, a				; first 8K page = bank * 2
+			ld d, a
+			ld bc, #243B
+			ld a, #52
+			out (c), a
+			inc b
+			out (c), d
+			dec b
+			ld a, #53
+			out (c), a
+			inc b
+			inc d
+			out (c), d
+			pop bc
+			ret
+
+ZXN_SETB	equ 1					; B of a Next RAM setting (see the top)
+
+; nxt_mem_jbc - E = a 64K bank (0-63) -> BC = its page 0's RAM setting (B = ZXN_SETB,
+; C = E * 8 + 4: the four 16K parts step C, as the CPC's #C4, #C5, #C6, #C7 do). Called
+; from mem_jbc (jp, so its ret returns to mem_jbc's caller). Keeps DE, HL.
+nxt_mem_jbc:
+			ld a, e
+			add a, a
+			add a, a
+			add a, a				; E * 8
+			add a, 4				; + 4: its page 0
+			ld c, a
+			ld b, ZXN_SETB
+			ret
+
+; nxt_mem_bank - BC = a RAM setting -> A = its 16K Next bank: B = #7F (main RAM's own,
+; #7FC0) = bank 9 (the program's own pages 18, 19); else C = ordinal * 8 + 4 + page
+; -> ZXN_FIRSTBANK + ordinal * 4 + page (the whole bank's "2" and the pages 0-3
+; (#C0-#C3 on the CPC: main RAM's blocks) all give its page 0). Keeps BC, DE, HL.
+nxt_mem_bank:
+			ld a, b
+			cp #7F
+			jr nz, nxt_mb_pg
+			ld a, 9
+			ret
+nxt_mb_pg:
+			ld a, c
+			and 7
+			sub 4
+			jr nc, nxt_mb_ok
+			xor a					; 0-3: page 0
+nxt_mb_ok:
+			push de
+			ld e, a
+			ld a, c
+			and #F8
+			srl a					; ordinal * 4
+			add a, e
+			add a, ZXN_FIRSTBANK
+			pop de
+			ret
+
+; nxt_win - BC = a RAM setting -> its 16K Next bank into the window #4000-#7FFF (MMU
+; slots 2, 3): what out (c), c does with a setting on the CPC - for a program's own asm
+; (CyborgOS's hypervisor) that switches the window itself, outside the Memory class
+; (ntc_rampt is not touched, as the CPC's out doesn't). Keeps every register, as the out
+; does (AF too). ntc_zxsel is kept for the interrupt handler's re-select. On the real
+; stack only (call: never from the thread)
+nxt_win:
+			push af
+			push bc
+			push de
+			call nxt_mem_bank		; A = the 16K Next bank
+			add a, a				; its first 8K page
+			ld d, a
+			ld bc, #243B
+			ld a, #52
+			ld (ntc_zxsel), a
+			out (c), a
+			inc b
+			out (c), d				; MMU slot 2 = the page
+			dec b
+			ld a, #53
+			ld (ntc_zxsel), a
+			out (c), a
+			inc b
+			inc d
+			out (c), d				; MMU slot 3 = page + 1
+			pop de
+			pop bc
+			pop af
+			ret
+
+; nxt_mem_se_out - BC = the RAM setting (B = ZXN_SETB, C = the bank's ordinal * 8 + 4 +
+; page: nxt_mem_bank): the Next 16K bank into the window (slots 2, 3). B = #7F (page 1 /
+; plain RAM) = the program's own window bank 9. Reached by jp from mem_se_out; exits
+; through mem_se_end. Called on the real stack (mem_sel pushed there).
+; ntc_zxsel is kept so an interrupt handler can re-assert the window.
+nxt_mem_se_out:
+			ld (ntc_rampt), bc
+			call nxt_mem_bank			; A = the 16K Next bank (B = #7F: main RAM's own, bank 9)
+			add a, a					; first 8K page = Next 16K bank * 2
+			ld d, a
+			ld bc, #243B
+			ld a, #52
+			ld (ntc_zxsel), a
+			out (c), a
+			inc b
+			out (c), d
+			dec b
+			ld a, #53
+			ld (ntc_zxsel), a
+			out (c), a
+			inc b
+			inc d
+			out (c), d
+			jp mem_se_end
+	ENDIF
+
+ntc_rg74_e:
+			IF ($ < 32768) && (ntc_rg75_e - ntc_rg75 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg75:
 ;## ntc_plat_data
 ntc_curx:		db 0			; cursor column (0 based)
 ntc_cury:		db 0			; cursor row (0 based)
@@ -3243,11 +3449,11 @@ ntc_modetab:	db 4, 20, #C0, 2		; mode 0
 
 ; (ntc_plat_scroll, ntc_plat_cls: their own section - the ROM runs them from RAM)
 
-ntc_rg74_e:
-			IF ($ < 32768) && (ntc_rg75_e - ntc_rg75 + $ > 16384)	; fwdref-ok
+ntc_rg75_e:
+			IF ($ < 32768) && (ntc_rg76_e - ntc_rg76 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg75:
+ntc_rg76:
 ;## ntc_plat_screen ntc_plat_data ntc_font ntc_data ntc_plat_scroll @shared
 ; ------------------------------------------------------------
 ; ntc_plat_putc - A = character 32-126 (others print as ?), draw it
@@ -3423,11 +3629,11 @@ ntc_nl_do:
 			ld (ntc_cury), a
 			jp (ix)
 
-ntc_rg75_e:
-			IF ($ < 32768) && (ntc_rg76_e - ntc_rg76 + $ > 16384)	; fwdref-ok
+ntc_rg76_e:
+			IF ($ < 32768) && (ntc_rg77_e - ntc_rg77 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg76:
+ntc_rg77:
 ;## ntc_plat_mode @unit ntc_plat_screen ntc_plat_data ntc_font ntc_data ntc_plat_scroll @shared
 ; ------------------------------------------------------------
 ; ntc_plat_mode - A = mode (0-2, 3 = 2). Gate array mode with both
@@ -3499,11 +3705,11 @@ ntc_fontcopy:
 			jp ntc_md_set
 ntc_fontcopy_end:
 
-ntc_rg76_e:
-			IF ($ < 32768) && (ntc_rg77_e - ntc_rg77 + $ > 16384)	; fwdref-ok
+ntc_rg77_e:
+			IF ($ < 32768) && (ntc_rg78_e - ntc_rg78 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg77:
+ntc_rg78:
 ;## ntc_plat_scroll ntc_plat_data ntc_data @shared @romram
 ; ------------------------------------------------------------
 ; ntc_plat_scroll - move rows 1-24 up one, clear row 24
@@ -3609,11 +3815,11 @@ ntc_cl_close:
 			ld (ntc_cury), a
 			jp (ix)
 
-ntc_rg77_e:
-			IF ($ < 32768) && (ntc_rg78_e - ntc_rg78 + $ > 16384)	; fwdref-ok
+ntc_rg78_e:
+			IF ($ < 32768) && (ntc_rg79_e - ntc_rg79 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg78:
+ntc_rg79:
 ;## ntc_plat_key ntc_plat_data ntc_data @shared
 ; ------------------------------------------------------------
 ; ntc_plat_scankey - A = ASCII of a key pressed since the last scan,
@@ -3761,11 +3967,11 @@ ntc_keymaps:
 			db "!", 34, 27, "Q", 9, "A", 0, "Z"
 			db 0, 0, 0, 0, 0, 0, 0, 127
 
-ntc_rg78_e:
-			IF ($ < 32768) && (ntc_rg79_e - ntc_rg79 + $ > 16384)	; fwdref-ok
+ntc_rg79_e:
+			IF ($ < 32768) && (ntc_rg80_e - ntc_rg80 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg79:
+ntc_rg80:
 ;## ntc_plat_irq ntc_plat_data ntc_data ntc_plat_irqh @shared
 ; ------------------------------------------------------------
 ; ntc_plat_irqon - put the interrupt handler at #38 (IM 1)
@@ -3783,11 +3989,11 @@ ntc_plat_irqon:
 			ld (ntc_irqset), a
 			jp (ix)
 
-ntc_rg79_e:
-			IF ($ < 32768) && (ntc_rg80_e - ntc_rg80 + $ > 16384)	; fwdref-ok
+ntc_rg80_e:
+			IF ($ < 32768) && (ntc_rg81_e - ntc_rg81 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg80:
+ntc_rg81:
 ;## ntc_plat_irqh ntc_plat_data ntc_data @shared @romram
 ; the handler: runs on the real stack, between keywords. Counts ticks
 ; (300 a second). AF goes to AF', HL to RAM; interrupt classes' counting
@@ -3844,11 +4050,11 @@ ntc_irq_ron:
 			ret
 		ENDIF
 
-ntc_rg80_e:
-			IF ($ < 32768) && (ntc_rg81_e - ntc_rg81 + $ > 16384)	; fwdref-ok
+ntc_rg81_e:
+			IF ($ < 32768) && (ntc_rg82_e - ntc_rg82 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg81:
+ntc_rg82:
 ;## ntc_plat_exit ntc_plat_data
 ; ------------------------------------------------------------
 ; ntc_plat_exit - before returning to the caller: interrupt handler
@@ -3896,11 +4102,11 @@ FS_TOOBIG	equ -8
 FS_FAILED	equ -9
 FS_BADNAME	equ -4
 
-ntc_rg81_e:
-			IF ($ < 32768) && (ntc_rg82_e - ntc_rg82 + $ > 16384)	; fwdref-ok
+ntc_rg82_e:
+			IF ($ < 32768) && (ntc_rg83_e - ntc_rg83 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg82:
+ntc_rg83:
 ;## ntc_plat_fs ntc_plat_data ntc_plat_irq ntc_data ntc_buf2k @shared
 fs_a1:			dw 0
 fs_a2:			dw 0
@@ -4480,11 +4686,11 @@ fs_sv_done:
 			ld hl, 0
 			ret
 
-ntc_rg82_e:
-			IF ($ < 32768) && (ntc_rg83_e - ntc_rg83 + $ > 16384)	; fwdref-ok
+ntc_rg83_e:
+			IF ($ < 32768) && (ntc_rg84_e - ntc_rg84 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg83:
+ntc_rg84:
 ;## ntc_plat_memtop
 ; ntc_plat_memtop - HL = the first byte the Memory class's Small heap must not
 ; use: #A600 (the firmware's and AMSDOS's RAM is above). Called on the real
@@ -4497,11 +4703,11 @@ ntc_plat_memtop:
 		ENDIF
 			ret
 
-ntc_rg83_e:
-			IF ($ < 32768) && (ntc_rg84_e - ntc_rg84 + $ > 16384)	; fwdref-ok
+ntc_rg84_e:
+			IF ($ < 32768) && (ntc_rg85_e - ntc_rg85 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg84:
+ntc_rg85:
 ;## ntc_plat_rmr ntc_plat_data
 ; ntc_plat_rmr - A = the gate array's ROM / mode byte now (#8x: screen mode,
 ; lower and upper ROM on / off), so Memory's CallBank can turn both ROMs off
@@ -4535,7 +4741,7 @@ p_stars_add_ct:	db 1		; paged variables: the home copy only
 p_stars_count_ct:	db 1		; paged variables: the home copy only
 			dw ovl_blk_stage1, p_stars_count
 
-ntc_rg84_e:
+ntc_rg85_e:
 ntc_end:				; the end of the program (and of its file)
 glyph_20			equ ntc_font + 0		; " "
 glyph_27			equ ntc_font + 56		; "'"
@@ -4595,7 +4801,7 @@ ntc_memtab	equ 32768		; the Memory class's tables: above the window (Option Rese
 ntc_memtab	equ ntc_free
 			ENDIF
 ; Option Reserve: the program and its arrays (ntc_start .. ntc_free) must stay out of these
-			ASSERT (ntc_free <= 16384) || (ntc_bss >= 32768), "the program (or its arrays) reaches into Option Reserve #4000-#7FFF (Main.bas line 23)"
+			ASSERT (ntc_free <= 16384) || (ntc_bss >= 32768), "the program (or its arrays) reaches into Option Reserve #4000-#7FFF (Main.bas line 31)"
 			SAVEAMSDOS "PAGES.BIN", ntc_start, ntc_end - ntc_start, ntc_start
 			ASSERT (ntc_free <= #4000) || (ntc_start >= #8000), "overlay classes: the program and its arrays must stay out of #4000-#7FFF (the window they run in)"
 
@@ -4841,4 +5047,4 @@ ovl_ending_vsize	equ 0		; its page variables; its local memory is the rest, to #
 			DISPLAY "  page variables ", /D, ovl_ending_vsize, ", free ", /D, #8000 - (ovl_ending_end + ovl_ending_vsize)
 			SAVEAMSDOS "PAGES.004", ovl_ending_start, ovl_ending_end - ovl_ending_start, #4000
 
-NTC_STAMP	equ #E2AC		; the build stamp: the first word of every page file
+NTC_STAMP	equ #9346		; the build stamp: the first word of every page file

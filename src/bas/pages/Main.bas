@@ -10,10 +10,18 @@
 ' The compiler lists what is in each page, and how big (the GUI's messages; cli.js --layout).
 Option PressAnyKeyOnEnd "Press a key"     ' at the end: a message and a key (a RUN" program resets when it ends)
 Option Explicit
+#If NTC_ZXN Then
+' the Next: no page files - each page is Loaded, in the NEX file's bank for RAM page n (20 + n)
+Option Page Intro  Loaded 20 = Title
+Option Page Stage1 Loaded 21 = Level1, Maths, Stars
+Option Page Stage2 Loaded 22 = Level2, Maths, Stars
+Option Page Ending Loaded 23 = Credits
+#Else
 Option Page Intro  = Title
 Option Page Stage1 = Level1, Maths, Stars
 Option Page Stage2 = Level2, Maths, Stars
 Option Page Ending = Credits
+#End If
 #If NTC_CPCMIN Then
 Option RomEnable 7                ' RUN" drops AMSDOS: start it again, the pages load from disc
 #End If

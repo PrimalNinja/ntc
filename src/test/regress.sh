@@ -241,6 +241,31 @@ pe "class twice" "title is in it twice" 'Option Page "A" = Title, Title\n'
 pe "home" "Option Home: shared is not in page CREDITS" 'Option Page "L1" = Shared\nOption Page "L2" = Shared\nOption Home Shared = "CREDITS"\n'
 pe "empty" 'Option Page "E": no classes in it' 'Option Page "E" = \n'
 node cli.js t/pg/Main.bas $PF --platform=cpc 2>&1 >/dev/null | grep -q "Option Page / Option Class Overlay needs a platform" && echo "ok   pages refused: cpc" || { echo "FAIL pages refused: cpc"; fail=1; }
+# pages on the Next (zxn): Option Page Name Loaded n = ... - no page files: each page is built into
+# the NEX file's bank for RAM page n (bank 20 + n) and is in RAM from the start (so Loaded() is
+# True for all of them); the same test, both modes. Refused: a zxn page without Loaded, Loaded
+# elsewhere (so far), two pages on one RAM page
+for m in --turbo ""; do
+  rm -rf t/pz; mkdir -p t/pz; cp pages/* t/pz/
+  sed -i 's/^Option Page "TITLE"   = /Option Page "TITLE" Loaded 20 = /; s/^Option Page "LEVEL1"  = /Option Page "LEVEL1" Loaded 21 = /; s/^Option Page "LEVEL2"  = /Option Page "LEVEL2" Loaded 22 = /; s/^Option Page "CREDITS" = /Option Page "CREDITS" Loaded 23 = /' t/pz/Main.bas
+  o=$(timeout 200 python3 ntcrun.py t/pz/Main.bas '' t/pz/Title.cls t/pz/Level1.cls t/pz/Level2.cls t/pz/Shared.cls t/pz/Counter.cls t/pz/Credits.cls t/pz/Util.cls t/pz/OnlyOne.cls --platform=zxn $m 2>&1 | grep -v "^--- ")
+  if [ "$o" == "$(cat ref/pages_zxn.txt)" ]; then echo "ok   pages zxn (Loaded) ${m:-normal}"; else echo "FAIL pages zxn (Loaded) ${m:-normal}"; echo "$o" | head -5; fail=1; fi
+done
+PZ="t/pz/Title.cls t/pz/Level1.cls t/pz/Level2.cls t/pz/Shared.cls t/pz/Counter.cls t/pz/Credits.cls t/pz/Util.cls t/pz/OnlyOne.cls"
+node cli.js t/pg/Main.bas $PZ --platform=zxn 2>&1 >/dev/null | grep -q "on zxn a page is Option Page Name Loaded n" && echo "ok   pages refused: zxn without Loaded" || { echo "FAIL pages refused: zxn without Loaded"; fail=1; }
+node cli.js t/pz/Main.bas $PZ --platform=cpcmin 2>&1 >/dev/null | grep -q "Loaded n: only on zxn so far" && echo "ok   pages refused: Loaded on cpcmin" || { echo "FAIL pages refused: Loaded on cpcmin"; fail=1; }
+sed 's/^Option Page "LEVEL2" Loaded 22 = /Option Page "LEVEL2" Loaded 21 = /' t/pz/Main.bas > t/pz/Two.bas
+node cli.js t/pz/Two.bas $PZ --platform=zxn 2>&1 >/dev/null | grep -q "page 21 is also" && echo "ok   pages refused: two pages on one RAM page" || { echo "FAIL pages refused: two pages on one RAM page"; fail=1; }
+o=$(node cli.js t/pz/Main.bas $PZ --platform=zxn 2>/dev/null)
+echo "$o" | grep -q "SAVENEX BANK 5, .*41, 42, 43" && echo "$o" | grep -q "^ovl_blk_level1:.dw 21," && echo "$o" | grep -q "^ntc_pgloaded:.db 4" && echo "ok   pages zxn: in the NEX's banks, blocks set, pages taken" || { echo "FAIL pages zxn: banks / blocks"; fail=1; }
+mkdir -p t/pu; printf 'Public Function F() As Integer\n  F = 7\nEnd Function\n' > t/pu/C.cls
+printf 'Option Page P Loaded 30 = C\nOption Reserve &H4000, &H4000\nPrint "f"; C.F()\nPrint "loaded"; C.Loaded(); " page"; C.Page()\nPrint "unload"; C.Unload(); " loaded"; C.Loaded()\nPrint "load"; C.Load()\nPrint C.F()\nPrint "after"\n' > t/pu/Main.bas
+o=$(timeout 100 python3 ntcrun.py t/pu/Main.bas 'x' t/pu/C.cls --platform=zxn 2>&1)
+echo "$o" | grep -q "^f7" && echo "$o" | grep -q "^loaded-1 page30" && echo "$o" | grep -q "^unload0 loaded0" && echo "$o" | grep -q "^load-1" && echo "$o" | grep -q "^Overlay not loaded: P" && ! echo "$o" | grep -q "^after" && echo "ok   pages zxn: Unload, then Load says NotSupported and a call stops" || { echo "FAIL pages zxn: Unload / Load"; echo "$o" | tail -4; fail=1; }
+mkdir -p t/pn; cp t/pu/C.cls t/pn/C.cls; printf 'Public Function G() As Integer\n  G = 9\nEnd Function\n' > t/pn/D.cls; head -c 150000 /dev/zero > t/pn/DATA.BIN
+printf 'Option NexData "DATA.BIN", 9\nOption Page P Loaded 2 = C\nOption Page Q Loaded 30 = D\nOption Reserve &H4000, &H4000\nPrint "pg"; Memory.AllocPage(Memory.TypeUser)\nPrint "f"; C.F()\nPrint "g"; D.G()\nPrint "end"\n' > t/pn/Main.bas
+o=$(timeout 100 python3 ntcrun.py t/pn/Main.bas 'x' t/pn/C.cls t/pn/D.cls --platform=zxn 2>&1)
+echo "$o" | grep -q "^pg1" && echo "$o" | grep -q "^f7" && echo "$o" | grep -q "^g9" && echo "$o" | grep -q "^end" && grep -q "SAVENEX BANK .*, 24, 52$" t/pn/Main.asm && echo "ok   pages zxn: past a 9-block NexData, pages move up with the Memory banks" || { echo "FAIL pages zxn: with NexData"; echo "$o" | tail -4; fail=1; }
 rm -rf t/files t/dv; mkdir -p t/dv; cp drv/* t/dv/
 check "pages: a page class with a Tick" "^ticks in a second: about 50" "$(timeout 300 python3 ntcrun.py t/dv/Main.bas '' t/dv/Drv.cls --platform=cpcmin 2>&1)"
 printf 'Option Memory Small\n' | cat - t/dv/Main.bas > t/dv/S.bas

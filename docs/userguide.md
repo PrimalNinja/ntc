@@ -1608,7 +1608,7 @@ classes (as `Option Reserve &H4000, &H4000`). A file that isn't there stops the 
 
 #### Option Page
 
-`Option Page` *Name* | `"FILE.EXT"` `=` *Class* [`,` *Class*] ...
+`Option Page` *Name* | `"FILE.EXT"` [`Loaded` *n*] `=` *Class* [`,` *Class*] ...
 
 Where each class goes, in one place (by custom in the main file): the classes listed are
 built together into one file (`PROGRAM.001` ..., numbered as above; `"FILE.EXT"` instead of a
@@ -1666,6 +1666,39 @@ Main RAM, called from pages: score
 
 The example `bas/pages/` has a title, two levels sharing copied classes, credits, and a class
 in main RAM that every page calls.
+
+##### Loaded pages (the ZX Spectrum Next)
+
+`Option Page` *Name* `Loaded` *n* `=` ... builds the page as usual - its classes' code, resolved
+against the program, at `#4000` - but the program doesn't load it: it is already in RAM page *n*
+when the program starts, and its class block starts out holding *n*, so a call only switches the
+page into the window and jumps. Everything else is the same as any page: the stubs, calls inside a
+page without a switch, copied classes and their home copies, paged variables.
+
+**zxn** (so far the only platform): the Next has no page files (no file system yet), so every page
+there is `Loaded`. Page *n* is the NEX file's bank `20 + n` (Option Memory CPCExpansion's numbering
+on the Next: page 2 is bank 22; with Option NexData past 7 blocks everything moves up past the
+data's banks, as the Memory class's banks do), filled by NextZXOS when it loads the NEX - nothing to copy. Its
+page variables are cleared in the bank. The program needs the window kept free (`Option Reserve
+&H4000, &H4000`); Option Memory CPCExpansion is chosen by itself when there are pages. At the start
+the Memory class marks the pages taken (C), so `AllocPage` never hands one out.
+
+```
+Option Page Intro  Loaded 20 = Title
+Option Page Stage1 Loaded 21 = Level1, Maths, Stars
+Option Page Stage2 Loaded 22 = Level2, Maths, Stars
+Option Reserve &H4000, &H4000
+```
+
+- *n*: 2 - 91 (banks 22 - 111: a 2MB Next); 2 - 27 on a 1MB Next. Two pages on one *n* are refused,
+  and so is a bank Option NexData uses.
+- `Loaded()` is True from the start. `Unload()` frees the page - the next call stops with `Overlay
+  not loaded`, as there is no file to load it from. `Load()` on an unloaded page says NotSupported.
+- On zxn a page without `Loaded` is refused ("on zxn a page is Option Page Name Loaded n"), and
+  `Loaded` on the other platforms is refused for now.
+- The banks are the Memory class's RAM pages, so its probe (on the first call into a page, or the
+  first Memory call) writes a marker at each bank's first byte: a page's first word is the build
+  stamp, which a Loaded page doesn't use.
 
 **Interrupt** *rate* / **Interrupt Frame** / **Interrupt Share** *weight* (cpc, cpcmin: NTC's
 own interrupt handler; cpcfw: a firmware fast ticker event, as for [Interrupt](#interrupt)):
@@ -2078,7 +2111,10 @@ In the block:
 - Always use `{name}` for BASIC names, never the label the compiler makes (`var_n`); those
   can change when the BASIC changes, `{name}` can't go stale. A hand written generated label
   gives a warning.
-- Labels in a block are local to it.
+- Labels in a block are local to it. A label written `@name:` (sjasmplus's global label) is
+  not: every block can name it (`name`, without the `@`), so one block's routine or value can
+  be reached from another (`@fl_peek_g: EQU fl_peek` in one block, `call fl_peek_g` in
+  another). It must be the one definition in the program.
 - Library routines the block names are linked in.
 - The rules of the run time apply: SP is the thread, so no `call` / `push` unless SP is
   first switched to the real stack (`ld (ntc_ip), sp` / `ld sp, (ntc_csp)` / ... /
@@ -2553,6 +2589,20 @@ in the JS flavour: `//# Option PressAnyKeyOnEnd "Press a key"`. Every example in
 
 **VB:** not in VB.
 
+### Option Org
+
+`Option Org` *address*
+
+Where the program is built to run: the `org` of the assembly. Each platform has its own
+(`#0040` on the CPC, `#0100` for CP/M and CyborgOS, `#0000` for Bare Metal) and that is right
+for a program loaded the platform's way; `Option Org` is for the others - a ROM, a program a
+loader of your own puts at a fixed address, a Bare Metal board whose RAM starts elsewhere.
+`cli.js --org=#8000` does the same from the command line.
+
+```
+Option Org &H8000                  ' built to run from #8000
+```
+
 ### Option Stack
 
 `Option Stack` *address*
@@ -2640,7 +2690,9 @@ one file.
 ```
 
 NTC BASIC defines two constants itself: `NTC`, and `NTC_` plus the platform name
-(`NTC_CPC`, `NTC_CPCFW`, `NTC_CPM`, `NTC_TEST`). With `Option Terminal` it also defines
+(`NTC_CPC`, `NTC_CPCFW`, `NTC_CPM`, `NTC_CYBORGOS` - with `NTC_CPM` as well, a slot being
+CP/M -, `NTC_BAREMETAL`, `NTC_TEST`, `NTC_ZXN`). `cli.js --const=NAME` (or
+`--const=NAME=value`) defines one more for that build (`#If DEMO Then`). With `Option Terminal` it also defines
 `NTC_TERM_VT52` or `NTC_TERM_ANSI`, and `NTC_TERM_POS`. VB doesn't have them, so in VB they
 are 0 and the `#Else` part is used.
 
@@ -2662,6 +2714,8 @@ are 0 and the `#Else` part is used.
 | Amstrad CPC, minimal firmware | `cpcmin` | as `cpc` (own screen, keys, interrupts), but the firmware is kept alive (its RAM `#A700-#BFFF` left alone) and handed back for each firmware call: discs and tape (`FileSystem`), other ROMs' commands (`System.Command`) | as `cpc` | as `cpc` |
 | Amstrad CPC, full firmware | `cpcfw` | a binary at `#0040` (`RUN"name`), firmware left running (AMSDOS, RSXs, windows) | firmware `TXT OUTPUT` | full screen, firmware keys |
 | CP/M 2.2 / 3 | `cpm` | a `.COM` file at `#0100`, ends with a warm boot | BDOS direct console I/O | a stream, or 80 x 24 with [Option Terminal](#option-terminal) |
+| CyborgOS | `cyborgos` | a program in a slot of the CyborgOS hypervisor (Amstrad CPC, ZX Spectrum Next): the `cpm` platform - a slot is CP/M 2.2 - plus what CyborgOS adds. The output is a `.CYB` (the program with its AMSDOS header; the same file runs on both machines). `CybSys` is a platform class: the hypervisor's services (the slot, the clock, claims, ports, the drive paths, `Host()` - which machine it is). `#If NTC_CYBORGOS` (and `NTC_CPM`) | BDOS, as `cpm` | 80 columns, VT52 codes: `Option Terminal VT52` is the default |
+| Bare Metal | `baremetal` | a machine NTC BASIC doesn't know: built from its org (`#0000`, or [Option Org](#option-org)), nothing set up or assumed. The platform routines (`asm/ntc_plat_baremetal.asm`: a character out, a key in, the clock ...) and the platform classes (`StdIO`, `System`, `FileSystem` ...) are empty ones to fill in for your machine; a copy of a class in the project replaces the platform's. Build with `Option Turbo` unless you put an interrupt handler at `#0038` | yours to write | yours to write |
 | Test harness | `test` | for the emulator in `test/ntcrun.py` | I/O ports | 40 x 25, like CPC mode 1 |
 
 The BASIC is the same on all of them. What changes is the start-up, the console and what
@@ -2730,17 +2784,17 @@ The constants are worked out when compiling, so a test like this costs at most o
 
 What the machine is. The same members on every platform; 0 / False means "not here".
 
-| Member | cpc | cpcfw | cpm | test | zxn |
-|---|---|---|---|---|---|
-| `Platform` | "CPC" | "CPC firmware" | "CP/M" | "Test" | "ZXN" |
-| `CpuClock` (kHz, 0 = not known) | 4000 | 4000 | 0 | 4000 | 28000 |
-| `TicksPerSecond` (0 = no clock) | 300 | 300 | 0 | 300 | 300 |
-| `FrameRate` (0 = not known) | 50 | 50 | 0 | 0 | 50 |
-| `HasInterrupts` (normal mode lets interrupts in) | True | True | True | True | True |
-| `HasHook` (the `Interrupt` statement) | True | True | False | False | True |
-| `HasScreen` (rows and columns, not a stream) | True | True | False* | True | True |
-| `HasKeyboard` | True | True | True | True | True |
-| `MaxHandles` (file handles, `FileSystem.Open`) | 0 | 0 | 2 | 0 | 0 |
+| Member | cpc | cpcfw | cpm | cyborgos | baremetal | test | zxn |
+|---|---|---|---|---|---|---|---|
+| `Platform` | "CPC" | "CPC firmware" | "CP/M" | "CyborgOS" | "Bare Metal" | "Test" | "ZXN" |
+| `CpuClock` (kHz, 0 = not known) | 4000 | 4000 | 0 | 0 | 0 | 4000 | 28000 |
+| `TicksPerSecond` (0 = no clock) | 300 | 300 | 0 | 0 (`CybSys.Clock`: 300) | 0 | 300 | 300 |
+| `FrameRate` (0 = not known) | 50 | 50 | 0 | 0 | 0 | 0 | 50 |
+| `HasInterrupts` (normal mode lets interrupts in) | True | True | True | True | False | True | True |
+| `HasHook` (the `Interrupt` statement) | True | True | False | False | False | False | True |
+| `HasScreen` (rows and columns, not a stream) | True | True | False* | True | False | True | True |
+| `HasKeyboard` | True | True | True | True | False | True | True |
+| `MaxHandles` (file handles, `FileSystem.Open`) | 0 | 0 | 2 | 2 | 0 | 0 | 0 |
 | `Ticks()` | the tick count, the same as `Ticks` | | | |
 | `Command(name)` | run a ROM's command (an RSX, `|NAME`, no arguments) - cpcfw and cpcmin only: 0, or -2 when no ROM has it; -1 elsewhere | | | |
 | `HasCapability(name)` | True (-1) when the platform can do it, else False - see below | | | |

@@ -1356,6 +1356,10 @@ function ntcParse(arrFiles_a, objDefines_a)
 		{
 			record('option', { what: 'stack', value: trim(strText.substr(6)) });	// where the real stack starts
 		}
+		else if (left(strText, 'org '))
+		{
+			record('option', { what: 'org', value: trim(strText.substr(4)) });	// where the program is built to run (read before parsing: findOrg)
+		}
 		else if (left(strText, 'library '))
 		{
 			record('option', { what: 'library', value: trim(strText.substr(8)) });	// Library ROM: the keywords in the ROM

@@ -259,6 +259,8 @@ Files (ES5, no node, no Python):
 | `asm/ntc_plat_cpm.asm` | CP/M platform (BDOS console, own stack, warm boot) |
 | `asm/ntc_plat_test.asm` | test harness platform (console through I/O ports, for `test/ntcrun.py`) |
 | `asm/ntc_plat_cpcmin.asm` | CPC platform with minimal firmware: the `cpc` screen / keys / interrupts, the firmware kept for discs and ROMs (handed back per call) |
+| `asm/ntc_plat_cyborgos.asm` | the CyborgOS platform: a program in a slot of the hypervisor - `;@base cpm` (gen.js takes the cpm platform's text and classes) plus CyborgOS's own: a `.CYB` out, VT52 by default, `CybSys` (`lib/cyborgos/`) |
+| `asm/ntc_plat_baremetal.asm` | Bare Metal: built from its org, nothing assumed - every routine an empty one to fill in for a machine of your own (`lib/baremetal/` the classes, the same) |
 | `asm/ntc_plat_zxn.asm` | ZX Spectrum Next platform, straight to the hardware, laid out as the `cpc` one: the tilemap as the text screen, the 8 x 5 keyboard, the line interrupt every 52 lines; the compiler adds the NEX file's start stub (NMI off, the MMU slots) |
 | `lib/<platform>/*.cls` | the platform classes: `StdIO.cls` (console), `System.cls` (what the machine is), `FileSystem.cls` (files), `Memory.cls` (RAM pages, heap), `List.cls` (linked lists); the CPC platforms also `Graphics.cls`, the CPC platforms and zxn `Keys.cls` (keys held down, joysticks) |
 | `../docs/requirements.md` | What you need to use NTC, rebuild its generated files and run the tests; the targets it builds for |
@@ -374,9 +376,11 @@ as the `cpc` platform so programs and their maps carry over: the program from #0
 #C000-#FFFF. The compiler writes a NEX file (`DEVICE ZXSPECTRUMNEXT`, `MMU 0 5, 16` before the
 org, `SAVENEX` at the end; the name from the `name` option, else `NTC.NEX`) with a start stub in
 bank 5 at #7E00: the NMI buttons off (NextReg 6 bits 3 and 4: Multiface M1, DivMMC DRIVE),
-DivMMC's automatic paging off (NextReg 10 bit 4 - it would page DivMMC's ROM in on a fetch from
-#0038, #0066 ...) and its memory out, 28MHz, IM 1, the slots (slot 3, where the stub runs, last,
-from its copy in slot 7), then `ntc_start`. NextRegs go through ports #243B / #253B, so the
+DivMMC's entry points cut to `rst 8` with ROM 3 selected (NextRegs #B8 = 2, #B9 = 0, #BB = 0 - it
+would page DivMMC's ROM in on a fetch from #0000, #0038, #0066 ... otherwise; its automatic paging
+is left on and port #E3 untouched, since turning it off, or that port, loses NextZXOS's esxDOS
+state, which CyborgOS's SD drive calls on: ROM 3 into slots 0-1, `rst 8`), 28MHz, IM 1, the slots
+(slot 3, where the stub runs, last, from its copy in slot 7), then `ntc_start`. NextRegs go through ports #243B / #253B, so the
 program needs no Z80N opcodes. The text screen is the tilemap in text mode: a byte a character,
 40 x 32 (Mode 0, 1) or 80 x 32 (Mode 2), yellow on blue. Interrupts are the line interrupt, set 52
 lines on by each one - 6 a frame of 312 lines, 300 a second, as the CPC's 6 a frame; `Frame` waits
@@ -1083,11 +1087,14 @@ On Windows run them from a bash (Git Bash / WSL) for `regress.sh`; the others ru
 node cli.js main.bas                         one file -> .asm on stdout
 node cli.js Main.bas Module2.bas Counter.cls  a project (files in order)
 node cli.js main.bas --turbo                 start in turbo mode (like Option Turbo)
-node cli.js main.bas --platform=cpm          cpc (default), cpcfw, cpm, test
+node cli.js main.bas --platform=cpm          cpc (default), cpcmin, cpcfw, cpm, cyborgos,
+                                             baremetal, test, zxn
+node cli.js main.bas --org=#8000             built to run from there (Option Org)
 node cli.js main.bas --amsdos=PROG           also write PROG.BIN with an AMSDOS header when
                                              sjasmplus assembles it (DEVICE + SAVEAMSDOS)
 node cli.js main.bas --nocomments            no BASIC source lines as comments
 node cli.js main.bas --map=main.map           also write the cross reference
+node cli.js main.bas --const=DEMO            a #Const for #If (True; --const=NAME=3 a value)
 node cli.js main.bas > main.asm 2> errors.txt
 ```
 

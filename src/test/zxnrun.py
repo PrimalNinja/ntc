@@ -68,7 +68,7 @@ class Next:
         m.pc = pc; m.sp = sp
         s.regs = {0x07: 0, 0x06: 0x18, 0x0A: 0x10}   # (the NMI buttons and DivMMC's paging on, as NextZXOS leaves them)
         s.sel = 0; s.reset = False; s.typed = list(typed); s.syms = syms
-        s.q = 0; s.stop = False; s.cur = None; s.phase = 0; s.tkey = False; s.scans = 0; s.ints = 0; s.T = 0; s.tframe = 0; s.palette = {}
+        s.q = 0; s.stop = False; s.cur = None; s.phase = 0; s.tkey = False; s.scans = 0; s.ints = 0; s.missed = 0; s.T = 0; s.tframe = 0; s.palette = {}
         s.palidx = 0
         m.set_output_callback(s.out); m.set_input_callback(s.inp)
         import cpcrun
@@ -179,10 +179,11 @@ class Next:
             if s.stop:          # stopped early (an interrupt register written): no interrupt yet
                 while s.tframe >= s.frame_t(): s.tframe -= s.frame_t()
                 continue
-            steps = 0
-            while not s.m.halted and not s.reset and steps < 4000:   # the interrupt held until taken
+            steps = 0; held = 0
+            while not s.m.halted and not s.reset and steps < 4000:   # the interrupt held until taken (INTPULSE: for that long only)
                 if s.m.iff1 and s.m.on_handle_active_int(): s.ints += 1; break
-                s.q = 1; s.m.ticks_to_stop = 1; cpcrun.endkey_run(s); steps += 1; d = 1 - s.m.ticks_to_stop; s.q = 0; s.T += d; s.tframe += d
+                if INTPULSE and held >= INTPULSE << (s.regs.get(0x07, 0) & 3): s.missed += 1; break
+                s.q = 1; s.m.ticks_to_stop = 1; cpcrun.endkey_run(s); steps += 1; d = 1 - s.m.ticks_to_stop; s.q = 0; s.T += d; s.tframe += d; held += d
             if TRACEZ is not None: s.tracez()
             while s.tframe >= s.frame_t(): s.tframe -= s.frame_t()
             if n > limit: print('TIMEOUT pc=%04x sp=%04x' % (s.m.pc, s.m.sp)); break
@@ -261,6 +262,8 @@ def nex_name(asm):
         if m: return os.path.join(os.path.dirname(os.path.abspath(asm)), m.group(1))
     return None
 
+INTPULSE = int(os.environ.get('NTC_INTPULSE', '0'))   # NTC_INTPULSE=32: INT is a pulse of that many 3.5MHz T (the real Next: 32),
+                                                        # not held - a program with interrupts off misses it (ints / missed at the end)
 PROFZ = [] if os.environ.get('NTC_PROFZ') else None   # NTC_PROFZ=1: the PC at each interrupt, the busiest labels at the end
 # NTC_TRACEZ=sp>c000: an instruction at a time (slow), the last 300 (PC, SP, AF, BC, DE, HL, IX, the MMU)
 # kept; when the condition holds (sp>hex, sp<hex, pc=hex) they are printed and the run ends
@@ -311,5 +314,5 @@ def run(asm, syms, typed):
         for nm in os.environ['NTC_PEEK'].split(','):
             ks = [k for k in syms if k == nm or k.endswith('_' + nm)]
             for k in ks[:1]: print('--- peek %s = %d' % (nm, mem[syms[k]] | (mem[syms[k] + 1] << 8)))
-    print('--- halted (a soft reset: NextReg 2)' if z.reset else ('--- halted' if z.m.halted else '--- NOT halted'), 'pc=%04x' % z.m.pc, 'sp=%04x' % z.m.sp, 'ints=%d' % z.ints, 'T=%d' % z.T)
+    print('--- halted (a soft reset: NextReg 2)' if z.reset else ('--- halted' if z.m.halted else '--- NOT halted'), 'pc=%04x' % z.m.pc, 'sp=%04x' % z.m.sp, 'ints=%d' % z.ints, 'missed=%d' % z.missed, 'T=%d' % z.T)
     return z

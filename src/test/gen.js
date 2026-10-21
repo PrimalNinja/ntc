@@ -3,7 +3,25 @@ var fs = require('fs');
 var strDir = require('path').join(__dirname, '..') + '/';
 function read(f) { return fs.readFileSync(strDir + f, 'utf8'); }
 var strLib = read('asm/ntc_lib_gen.asm') + '\n' + read('asm/ntc_lib_cpc.asm') + '\n' + read('asm/ntc_lib_nxt.asm');
-var arrPlat = ['cpc', 'cpcmin', 'cpcfw', 'cpm', 'test', 'zxn'];
+var arrPlat = ['cpc', 'cpcmin', 'cpcfw', 'cpm', 'cyborgos', 'baremetal', 'test', 'zxn'];
+// a platform built on another: ";@base cpm" in asm/ntc_plat_<platform>.asm - its text is its own
+// file (the ;@ header, anything of its own) followed by the base's, less the base's ;@ lines; its
+// classes are its own lib/<platform>/*.cls, the base's for any it hasn't got (cyborgos on cpm)
+function platText(strPlat)
+{
+	var strOwn = read('asm/ntc_plat_' + strPlat + '.asm');
+	var arrBase = strOwn.match(/^;@base\s+(\w+)\s*$/m);
+	if (arrBase)
+	{
+		strOwn += '\n' + platText(arrBase[1]).split(/\r?\n/).filter(function(strLine) { return !/^;@\w+\s/.test(strLine); }).join('\n');
+	}
+	return strOwn;
+}
+function platBase(strPlat)
+{
+	var arrBase = read('asm/ntc_plat_' + strPlat + '.asm').match(/^;@base\s+(\w+)\s*$/m);
+	return arrBase ? arrBase[1] : null;
+}
 // the platform's own classes: lib/<platform>/*.cls
 var objClasses = {};
 arrPlat.forEach(function(strPlat)
@@ -21,12 +39,23 @@ arrPlat.forEach(function(strPlat)
 		});
 	}
 });
+arrPlat.forEach(function(strPlat)
+{
+	var strBase = platBase(strPlat);
+	if (strBase)
+	{
+		Object.keys(objClasses[strBase] || {}).forEach(function(strFile)
+		{
+			if (objClasses[strPlat][strFile] === undefined) { objClasses[strPlat][strFile] = objClasses[strBase][strFile]; }
+		});
+	}
+});
 var strOut = '// keyword library text from asm/ntc_lib.asm and asm/ntc_plat_*.asm, and the platform\n' +
 	'// classes from lib/<platform>/*.cls, used by ntc_compiler.js\n' +
 	'// (c) 2026 Cyborg Unicorn Pty Ltd - MIT License\n' +
 	'// generated: edit the .asm / .cls files, not this one\n\n' +
 	'var NTC_LIB_ASM = ' + JSON.stringify(strLib) + ';\n\n' +
-	'var NTC_PLATFORMS = {\n' + arrPlat.map(function(strPlat) { return '\t' + strPlat + ': ' + JSON.stringify(read('asm/ntc_plat_' + strPlat + '.asm')); }).join(',\n') + '\n};\n\n' +
+	'var NTC_PLATFORMS = {\n' + arrPlat.map(function(strPlat) { return '\t' + strPlat + ': ' + JSON.stringify(platText(strPlat)); }).join(',\n') + '\n};\n\n' +
 	'var NTC_PLATFORM_CLASSES = ' + JSON.stringify(objClasses, null, '\t') + ';\n\n' +
 	'// the keyword library ROM registries (asm/ntc_rom_<platform>.txt, test/genrom.js): Library: ROM\n' +
 	'var NTC_ROM_REG = {\n' + arrPlat.filter(function(strPlat) { return fs.existsSync(strDir + 'asm/ntc_rom_' + strPlat + '.txt'); }).map(function(strPlat) { return '\t' + strPlat + ': ' + JSON.stringify(read('asm/ntc_rom_' + strPlat + '.txt')); }).join(',\n') + '\n};\n';

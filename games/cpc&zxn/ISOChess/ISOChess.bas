@@ -1,9 +1,22 @@
 ' ============================================================================
-' ISOMETRIC CHESS for NTC BASIC (Amstrad CPC - cpc / cpcmin / cpcfw, ZX Spectrum Next - zxn)
-' (zxn: also add Nx.cls to the project)
+' ISOMETRIC CHESS for NTC BASIC (Amstrad CPC - cpc / cpcmin / cpcfw, ZX Spectrum Next - zxn,
+' Sinclair ZX81 - zx81)
+' (zxn: also add Nx.cls to the project; zx81: Zx.cls)
+' ZX81: no bitmap, so the board is top down: 8 x 8 tiles of 3 x 2 cells, dark squares grey,
+' the pieces 2 x 2 cell icons from the quarter block characters (the player's white on black: the
+' ZX81 prints black on white), the
+' cursor a full block and the markers (+ *) in each tile's third column. The picture is
+' drawn by each Frame (the ZX81 has no video
+' hardware), so the screen is blank while the CPU thinks - the ZX81's FAST mode. Keys Q A
+' O P (up down left right) and M (select): better placed than the CPC's on its keyboard.
+' Turbo only on the zx81 (its interrupt line is live whenever R's bit 6 is clear).
 ' ============================================================================
 Option Explicit
+#If NTC_ZX81 Then
+Option Turbo
+#Else
 Option Turbo Off
+#End If
 Option PressAnyKeyOnEnd "Game Over - Press any key"
 
 ' Piece Constants (Positive = White/Player, Negative = Black/CPU)
@@ -41,9 +54,31 @@ Const ORIGIN_Y = 44
 Const TILE_W = 16
 Const TILE_H = 8
 
-' Timer Constants (300 ticks/sec * 60 seconds = 18000 ticks)
+' Timer Constants (300 ticks/sec * 60 seconds = 18000 ticks; ZX81: Ticks are frames drawn, 50 a second)
+#If NTC_ZX81 Then
+Const TURN_LIMIT_TICKS = 3000&
+Const TICKS_PER_SEC = 50&
+#Else
 Const TURN_LIMIT_TICKS = 18000&
 Const TICKS_PER_SEC = 300&
+#End If
+
+' ZX81: the keys (the CPC's WASD + space elsewhere)
+#If NTC_ZX81 Then
+Const KEY_UP = 16              ' Q
+Const KEY_DOWN = 8             ' A
+Const KEY_LEFT = 41            ' O
+Const KEY_RIGHT = 40           ' P
+Const KEY_SELECT = 58          ' M
+Const KEY_TURBO = 20           ' T: toggles turbo - on, the CPU thinks with the screen blank (full
+                               ' speed); off, a frame is drawn every few squares searched
+Dim TurboOn As Boolean
+Dim PrevT As Boolean
+Dim ThinkFrames As Integer
+' ZX81 codes for the markers: a valid empty target, a capturable piece
+Const CELL_TARGET = 21         ' +
+Const CELL_CAPTURE = 23        ' *
+#End If
 
 ' Board & Move State Arrays
 Dim Board(7, 7) As Integer
@@ -76,12 +111,16 @@ Dim PrevSpace As Boolean
 ' MAIN ENTRY POINT
 ' ============================================================================
 Sub Main()
+#If NTC_ZX81 Then
+  Cls
+#Else
   Mode 1
   Cls
 #If NTC_ZXN Then
   SetNextPalette
 #End If
   Graphics.Clip 1
+#End If
   Randomize
 
   InitGame
@@ -89,6 +128,10 @@ Sub Main()
   DrawAllPieces
   UpdateHUD True
 
+#If NTC_ZX81 Then
+  TurboOn = True
+  PrevT = False
+#End If
   CurX = 4 : CurY = 6
   CursorDrawn = False
   MarkersDrawn = False
@@ -168,8 +211,112 @@ Sub ResetTurnTimer()
 End Sub
 
 ' ============================================================================
-' ISOMETRIC GRAPHICS & RENDERING (XOR MODE)
+' ISOMETRIC GRAPHICS & RENDERING (XOR MODE; ZX81: character cells, drawn from the state)
 ' ============================================================================
+#If NTC_ZX81 Then
+' ZX81: a top down board. Tile (c, r) is 3 cells wide and 2 high at column 4 + 3 c, row
+' 3 + 2 r: a 2 x 2 cell piece icon (4 x 4 pixels from the quarter block characters; the
+' CPU's pieces inverse) and a third column for the cursor (a full block) and the markers
+' (+ a valid empty target, * a capturable piece). Dark squares are grey.
+Function TileCol(ByVal c As Integer, ByVal r As Integer) As Integer
+  TileCol = 4 + c * 3
+End Function
+
+Function TileRow(ByVal c As Integer, ByVal r As Integer) As Integer
+  TileRow = 3 + r * 2
+End Function
+
+' the board: the squares' letters and numbers, then every tile
+Sub DrawStaticBoard()
+  Dim i As Integer, x As Integer, y As Integer
+  For i = 0 To 7
+    Zx.Put 5 + i * 3, 19, 38 + i                 ' A - H under the files
+    Zx.Put 2, 3 + i * 2, 28 + 8 - i              ' 8 - 1 beside the ranks
+  Next i
+  For y = 0 To 7
+    For x = 0 To 7
+      RenderTile x, y
+    Next x
+  Next y
+End Sub
+
+Sub DrawAllPieces()
+  ' (DrawStaticBoard renders every tile with its piece)
+End Sub
+
+' RenderTile: the tile from the state - the piece icon or the square's shade, and the third
+' column: the cursor, a marker, or the shade
+Sub RenderTile(ByVal c As Integer, ByVal r As Integer)
+  Dim col As Integer, row As Integer, p As Integer, shade As Integer
+  Dim k1 As Integer, k2 As Integer, k3 As Integer, k4 As Integer, m As Integer
+  col = TileCol(c, r)
+  row = TileRow(c, r)
+  p = Board(c, r)
+  shade = 0
+  If ((c + r) And 1) = 1 Then shade = 8                ' a dark square: grey
+  If p = EMPTY_SQ Then
+    k1 = shade : k2 = shade : k3 = shade : k4 = shade
+  Else
+    ' the icons, 4 x 4 pixels: two cells of the top half, two of the bottom
+    Select Case Abs(p)
+      Case PAWN:   k1 = 135 : k2 = 4   : k3 = 129 : k4 = 130    '  .##. / #### on a ball
+      Case ROOK:   k1 = 130 : k2 = 129 : k3 = 129 : k4 = 130    ' #..# battlements
+      Case KNIGHT: k1 = 135 : k2 = 128 : k3 = 129 : k4 = 130    ' ..## a head to the right
+      Case BISHOP: k1 = 129 : k2 = 131 : k3 = 129 : k4 = 130    ' .#.. a mitre
+      Case QUEEN:  k1 = 134 : k2 = 6   : k3 = 129 : k4 = 130    ' #..# crown points
+      Case KING:   k1 = 129 : k2 = 130 : k3 = 129 : k4 = 130    ' .##. a cross
+    End Select
+    ' the ZX81 prints black on white: the player's (white) pieces are the inverse video ones,
+    ' white shapes on black; the CPU's black shapes on white
+    If p > 0 Then
+      k1 = (k1 + 128) And 255 : k2 = (k2 + 128) And 255
+      k3 = (k3 + 128) And 255 : k4 = (k4 + 128) And 255
+    End If
+  End If
+  Zx.Put col, row, k1
+  Zx.Put col + 1, row, k2
+  Zx.Put col, row + 1, k3
+  Zx.Put col + 1, row + 1, k4
+  ' the third column
+  If CursorDrawn And c = CurX And r = CurY Then
+    Zx.Put col + 2, row, 128
+    Zx.Put col + 2, row + 1, 128
+  Else
+    m = shade
+    If MarkersDrawn And ValidMap(c, r) = 1 Then
+      If p = EMPTY_SQ Then m = CELL_TARGET Else m = CELL_CAPTURE
+    End If
+    Zx.Put col + 2, row, m
+    Zx.Put col + 2, row + 1, shade
+  End If
+End Sub
+
+' DrawPieceAt: the tile drawn from the state (the XOR erase of the other platforms is a
+' redraw here: ExecuteMove updates the board between its calls)
+Sub DrawPieceAt(ByVal c As Integer, ByVal r As Integer, ByVal p As Integer)
+  RenderTile c, r
+End Sub
+
+' DrawCursor: CursorDrawn says whether it shows; the caller sets it after - so this draws
+' the tile as it will be
+Sub DrawCursor(ByVal c As Integer, ByVal r As Integer, ByVal penCol As Integer)
+  CursorDrawn = Not CursorDrawn
+  RenderTile c, r
+  CursorDrawn = Not CursorDrawn
+End Sub
+
+' ToggleValidMarkers: MarkersDrawn is set by the caller after - the tiles drawn as they will be
+Sub ToggleValidMarkers()
+  Dim x As Integer, y As Integer
+  MarkersDrawn = Not MarkersDrawn
+  For y = 0 To 7
+    For x = 0 To 7
+      If ValidMap(x, y) = 1 Then RenderTile x, y
+    Next x
+  Next y
+  MarkersDrawn = Not MarkersDrawn
+End Sub
+#Else
 Function IsoX(ByVal c As Integer, ByVal r As Integer) As Integer
   IsoX = ORIGIN_X + (c - r) * TILE_W
 End Function
@@ -323,6 +470,7 @@ Sub ToggleValidMarkers()
     Next x
   Next y
 End Sub
+#End If
 
 ' ============================================================================
 ' HUD & TIMERS
@@ -338,6 +486,24 @@ Sub UpdateHUD(ByVal fullRedraw As Boolean)
   secsLeft = CInt(remTicks \ TICKS_PER_SEC)
 
   If fullRedraw Then
+#If NTC_ZX81 Then
+    Locate 1, 1
+    If TurboOn Then
+      Print "ISO CHESS QAOP M:SEL T:TURBO ON ";
+    Else
+      Print "ISO CHESS QAOP M:SEL T:TURBO OFF";
+    End If
+    Locate 1, 2
+    If GameState = STATE_SELECT Then
+      Print "TURN: PLAYER (SELECT PIECE)     ";
+    ElseIf GameState = STATE_MOVE Then
+      Print "TURN: PLAYER (TARGET / ORIGIN)  ";
+    ElseIf GameState = STATE_CPU Then
+      Print "TURN: CPU THINKING...           ";
+    End If
+    Locate 1, 23
+    Print "SQ: "; Chr$(65 + CurX); CStr(8 - CurY); " "; PieceName(Board(CurX, CurY)); "   ";
+#Else
     Locate 1, 1
     Print "ISOMETRIC CHESS   WASD:Move SPACE:Select";
     Locate 1, 2
@@ -350,12 +516,18 @@ Sub UpdateHUD(ByVal fullRedraw As Boolean)
     End If
     Locate 1, 24
     Print "Sq: "; Chr$(65 + CurX); CStr(8 - CurY); " "; PieceName(Board(CurX, CurY)); "       ";
+#End If
   End If
 
   If secsLeft <> LastSecShown Or fullRedraw Then
     LastSecShown = secsLeft
+#If NTC_ZX81 Then
+    Locate 22, 23
+    Print "TIME: "; Format$(secsLeft, "00"); "S";
+#Else
     Locate 28, 24
     Print "TIME: "; Format$(secsLeft, "00"); "s ";
+#End If
   End If
 End Sub
 
@@ -385,10 +557,10 @@ Sub CheckTurnTimer()
   If elapsed >= TURN_LIMIT_TICKS Then
     If GameState = STATE_CPU Then
       Winner = 1
-      WinReason = "CPU forfeited on 1-minute time limit!"
+      WinReason = "CPU forfeited: 1 minute limit"
     Else
       Winner = -1
-      WinReason = "Player forfeited on 1-min time limit!"
+      WinReason = "Player forfeited: 1 minute limit"
     End If
     GameState = STATE_OVER
   Else
@@ -400,9 +572,15 @@ End Sub
 ' PLAYER INPUT & CONSTRAINED CURSOR LOGIC
 ' ============================================================================
 Sub WaitKeyRelease()
+#If NTC_ZX81 Then
+  Do While Keys.Down(KEY_UP) Or Keys.Down(KEY_DOWN) Or Keys.Down(KEY_LEFT) Or Keys.Down(KEY_RIGHT) Or Keys.Down(KEY_SELECT)
+    Frame
+  Loop
+#Else
   Do While Keys.Down(Keys.KeyW) Or Keys.Down(Keys.KeyA) Or Keys.Down(Keys.KeyS) Or Keys.Down(Keys.KeyD) Or Keys.Down(Keys.KeySpace)
     Frame
   Loop
+#End If
   PrevW = False : PrevA = False : PrevS = False : PrevD = False : PrevSpace = False
 End Sub
 
@@ -411,11 +589,28 @@ Sub HandlePlayerInput()
   Dim dx As Integer, dy As Integer
   Dim nx As Integer, ny As Integer
 
+#If NTC_ZX81 Then
+  kW = Keys.Down(KEY_UP)
+  kA = Keys.Down(KEY_LEFT)
+  kS = Keys.Down(KEY_DOWN)
+  kD = Keys.Down(KEY_RIGHT)
+  kSp = Keys.Down(KEY_SELECT)
+  If Keys.Down(KEY_TURBO) Then
+    If Not PrevT Then
+      TurboOn = Not TurboOn
+      UpdateHUD True
+    End If
+    PrevT = True
+  Else
+    PrevT = False
+  End If
+#Else
   kW = Keys.Down(Keys.KeyW)
   kA = Keys.Down(Keys.KeyA)
   kS = Keys.Down(Keys.KeyS)
   kD = Keys.Down(Keys.KeyD)
   kSp = Keys.Down(Keys.KeySpace)
+#End If
 
   dx = 0 : dy = 0
   If kW And Not PrevW Then dy = -1
@@ -685,10 +880,10 @@ Sub ExecuteMove(ByVal sx As Integer, ByVal sy As Integer, ByVal tx As Integer, B
   If Abs(capturedPiece) = KING Then
     If capturedPiece < 0 Then
       Winner = 1
-      WinReason = "Player captured the CPU's King!"
+      WinReason = "Player captured the CPU's King"
     Else
       Winner = -1
-      WinReason = "CPU captured the Player's King!"
+      WinReason = "CPU captured the Player's King"
     End If
     GameState = STATE_OVER
   End If
@@ -717,9 +912,19 @@ Sub MakeCPUMove()
 
   For sy = 0 To 7
     For sx = 0 To 7
+#If NTC_ZX81 Then
+      ' turbo off: the picture kept up while thinking - a frame every few targets tried
+      If Not TurboOn Then
+        ThinkFrames = ThinkFrames + 1
+        If (ThinkFrames And 3) = 0 Then Frame
+      End If
+#End If
       ' Check all Black (CPU) pieces
       If Board(sx, sy) < 0 Then
         For ty = 0 To 7
+#If NTC_ZX81 Then
+          If Not TurboOn Then Frame
+#End If
           For tx = 0 To 7
             If IsValidChessMove(sx, sy, tx, ty) Then
               CheckTurnTimer
@@ -748,7 +953,7 @@ Sub MakeCPUMove()
 
   If Not foundMove Then
     Winner = 1
-    WinReason = "CPU has no legal moves remaining!"
+    WinReason = "CPU has no legal moves left"
     GameState = STATE_OVER
     Exit Sub
   End If
@@ -769,6 +974,17 @@ End Sub
 ' ============================================================================
 Sub ShowGameOver()
   Locate 1, 2
+#If NTC_ZX81 Then
+  If Winner = 1 Then
+    Print "GAME OVER - PLAYER (WHITE) WINS ";
+  ElseIf Winner = -1 Then
+    Print "GAME OVER - CPU (BLACK) WINS    ";
+  Else
+    Print "GAME OVER - DRAW                ";
+  End If
+  Locate 1, 24
+  Print WinReason;
+#Else
   If Winner = 1 Then
     Print "GAME OVER - PLAYER (WHITE) WINS!        ";
   ElseIf Winner = -1 Then
@@ -779,4 +995,5 @@ Sub ShowGameOver()
 
   Locate 1, 25
   Print WinReason;
+#End If
 End Sub
