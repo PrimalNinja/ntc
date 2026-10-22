@@ -979,10 +979,98 @@ ntc_irq_nocl:
 			ld hl, (ntc_irqhl)
 			ex af, af'
 			ei
-			ret
-ntc_irq_jp:
+			reti					; (reti, not ret: with ntc_zxn_inthold the Next's interrupt controller
+ntc_irq_jp:						; takes it as the end of the interrupt - in IM 1 the same as ret)
 			jp (hl)
 ntc_irqn:		db 1			; the ticks this interrupt counted (1-6)
+
+;## ntc_zxn_inthold ntc_plat_data
+; ------------------------------------------------------------
+; ntc_zxn_inthold - the line interrupt held until it is taken, not a 32 T pulse: a program with
+; interrupts off for stretches longer than that (NTC normal mode lets them in for one
+; instruction at a time between keywords) misses pulses; a held INT waits for the next window.
+; The Next's interrupt controller (core 3.02 and later) does it: NextReg #C0 bit 0 "hw IM2
+; mode" latches each enabled source until the Z80 acknowledges it - in IM 1 as well, the vector
+; byte it supplies is ignored -, and the handler's reti tells it the interrupt is over. #C4
+; enables the sources: the line interrupt only (bit 1; no ULA, no expansion bus). A core or
+; emulator without the controller ignores both registers and the pulse is as it was.
+; A plain subroutine (call / ret), for a program's own #asm after the interrupts are on
+; (CyborgOS: its slots run with interrupts off between keywords and must not miss a tick)
+; ------------------------------------------------------------
+ntc_zxn_inthold:
+			ld bc, #243B
+			ld a, #C4
+			out (c), a
+			inc b
+			ld a, 2
+			out (c), a
+			dec b
+			ld a, #C0
+			out (c), a
+			inc b
+			ld a, 1
+			out (c), a
+			dec b
+			ld a, (ntc_zxsel)
+			out (c), a
+			ret
+
+;## ntc_zxn_tickpoll ntc_plat_data ntc_plat_irqh
+; ------------------------------------------------------------
+; ntc_zxn_tickpoll - a lost tick made up: if the raster has passed the line the interrupt is
+; set for without its interrupt being taken (the pulse came while interrupts were off, or
+; the machine holds no interrupt: an emulator without the controller), the handler is called
+; now - it counts the ticks missed, sets the line ahead and marks the interrupt classes due,
+; as Frame's wait does. For a program that runs for long with interrupts off (CyborgOS's
+; main loop: its slots run between its keywords) to call from #asm each time round: a plain
+; subroutine on the REAL stack (normal mode: ld (ntc_ip), sp / ld sp, (ntc_csp) first and
+; ld sp, (ntc_ip) after), interrupts off on return (the handler's ei undone). Keeps IX, IY.
+; ------------------------------------------------------------
+ntc_zxn_tickpoll:
+			di
+			ld a, (ntc_irqset)
+			or a
+			ret z
+			ld bc, #243B
+ntc_tp_rd:						; DE = the raster line now (as ntc_irq_rd)
+			ld a, #1E
+			out (c), a
+			inc b
+			in d, (c)
+			dec b
+			ld a, #1F
+			out (c), a
+			inc b
+			in e, (c)
+			dec b
+			ld a, #1E
+			out (c), a
+			inc b
+			in a, (c)
+			dec b
+			cp d
+			jr nz, ntc_tp_rd
+			and 1
+			ld d, a
+			ld hl, (ntc_zxline)
+			or a
+			sbc hl, de				; the line set - now (mod 312): 0-56 ahead, its pulse comes
+			jr nc, ntc_tp_1
+			ld de, 312
+			add hl, de
+ntc_tp_1:
+			ld de, -57
+			add hl, de
+			jr c, ntc_tp_2			; more: passed, its interrupt lost
+			ld a, (ntc_zxsel)
+			out (c), a
+			ret
+ntc_tp_2:
+			ld a, (ntc_zxsel)
+			out (c), a
+			call ntc_irq			; (ends with ei, reti: as its interrupt would)
+			di
+			ret
 
 ;## ntc_plat_exit ntc_plat_data
 ; ------------------------------------------------------------

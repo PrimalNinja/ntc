@@ -32,6 +32,24 @@ Public Function Host() As Integer
   Host = Ask(20, 5)
 End Function
 
+' Shared(d): how many other slots are on drive letter d now (CD moves a letter only nobody else is on)
+Public Function Shared(ByVal d As String) As Integer
+  b(2) = Asc(d)
+  Shared = Ask(20, 7)
+End Function
+
+' BootDrive: the boot drive's letter - "A" on the CPC (or "CYB d"), "D" (C:CYBORGOS/) on the Next:
+' every slot starts on it, so CD on it takes a free letter rather than moving it (255: not CyborgOS)
+Public Function BootDrive() As String
+  BootDrive = Chr$(Ask(20, 6))
+End Function
+
+' Dos: the name of the DOS behind the drives, for messages - "UniDOS" on the CPC, "esxDOS"
+' (NextZXOS's) on the Next; its error numbers are what the device calls (BDOS 30) give back
+Public Function Dos() As String
+  If Host() = 1 Then Dos = "esxDOS" Else Dos = "UniDOS"
+End Function
+
 ' Uptime: the CPC's clock in full - 1/300 s since the CPC was reset (32 bits: wraps after 165 days)
 Public Function Uptime() As Long
   Dim u As Long

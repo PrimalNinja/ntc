@@ -28,7 +28,7 @@ FW = {0xBB06: 'km_wait', 0xBB09: 'km_read', 0xBB0C: 'km_char_return', 0xBB5A: 't
       0xBBAB: 'txt_set_m_table', 0xBC0B: 'scr_get_location', 0xBC4D: 'scr_hw_roll',
       0xB900: 'kl_u_rom_enable', 0xB903: 'kl_u_rom_disable', 0xB90F: 'kl_rom_select', 0xB918: 'kl_rom_deselect'}
 # the stand-ins' out (n), a - the PC after each (the firmware entries', RST 3's, the interrupt stub's)
-STANDPC = set(a + 2 for a in FW) | {0x1A, 0xBF86, 0xBF8B}
+STANDPC = set(a + 2 for a in FW) | {0x1A, 0xBF86, 0xBF8B, 0xBC34, 0xBC3A}
 # Library: ROM (cpcfw): the keyword ROM's image in upper ROM slot XSLOT - at #C000 while selected
 XSLOT = 6
 def load_xroms():
@@ -207,7 +207,8 @@ class M4:
     address #E800, #FF06 the sockets' table #FE00: 16 bytes a socket), a command's bytes out of
     #FE00 (its size, the command, its data), a write to #FC00 runs it. Its network commands work
     with real sockets (a test's server on this machine): name lookup, socket, connect, send,
-    recv, close. NTC_M4LOG=1: each command to stderr"""
+    recv, close; NETSTAT, NETRSSI, GETNETWORK give a test network's (TestNet, 192.168.1.42),
+    SETNETWORK's text goes to stderr. NTC_M4LOG=1: each command to stderr"""
     SLOT = 3; RSP = 0x2800; SKT = 0x3E00
     def __init__(s):
         r = bytearray(0x4000); r[0] = 1; r[1:4] = bytes([2, 0, 0]); r[4:6] = (0xC010).to_bytes(2, 'little')
@@ -260,6 +261,18 @@ class M4:
             except BlockingIOError: got = b''
             except OSError: got = b''
             s.rom[R + 4:R + 6] = len(got).to_bytes(2, 'little'); s.rom[R + 6:R + 6 + len(got)] = got
+        elif cmd == 0x4323:                                 # NETSTAT: [0] the length L, a message at +3, the
+            t = b'Connected to TestNet'                     # state at [L] (5: connected - the M4 ROM's |NETSTAT)
+            L = 3 + len(t) + 1; s.rom[R:R + L + 1] = bytes([L, 0, 0]) + t + b'\0' + bytes([5])
+        elif cmd == 0x4337:                                 # NETRSSI: the signal at +3 (31: none)
+            s.rom[R + 3] = 0x3A
+        elif cmd == 0x433B:                                 # GETNETWORK: the SSID at +3; IP, netmask, gateway,
+            s.rom[R + 3:R + 3 + 200] = bytes(200)           # DNS1, DNS2 at +115...; the MAC at +193
+            s.rom[R + 3:R + 10] = b'TestNet'
+            s.rom[R + 115:R + 135] = bytes([192, 168, 1, 42, 255, 255, 255, 0, 192, 168, 1, 1, 1, 1, 1, 1, 8, 8, 8, 8])
+            s.rom[R + 193:R + 199] = bytes([0x5C, 0xCF, 0x7F, 0x12, 0x34, 0x56])
+        elif cmd == 0x4321:                                 # SETNETWORK: the text kept (and logged)
+            s.netset = d.split(b'\0')[0].decode('latin-1'); print('M4 SETNETWORK %r' % s.netset, file=sys.stderr)
         elif cmd == 0x4333:                                 # close
             n = d[0]; k = s.socks.pop(n, None)
             if k is not None:
@@ -391,6 +404,8 @@ class Host:
                     m.set_memory_block(a, bytes([0xD3, 0xA0 + i, 0xC9]))
                 s.fwport = {0xA0 + i: FW[a] for i, a in enumerate(sorted(FW))}
                 m.set_memory_block(0x18, bytes([0xD3, 0xDF, 0xC9]))   # RST 3: a far call (AMSDOS's CAS entries)
+                # SCR SET INK / SCR SET BORDER: noted for NTC_SHOT (out (#D8) / (#D9): the table is full)
+                m.set_memory_block(0xBC32, bytes([0xD3, 0xD8, 0xC9])); m.set_memory_block(0xBC38, bytes([0xD3, 0xD9, 0xC9]))
                 m.set_memory_block(0xB90C, bytes([0xC9]))   # KL ROM RESTORE: nothing to put back here (no stand-in: 32 ports at most)
                 m.set_memory_block(0xBB54, bytes([0xC9, 0, 0, 0xC9]))   # TXT VDU ENABLE / DISABLE: nothing (this screen shows Print anyway)
                 # KM SET DELAY / KM GET DELAY (#BB3F / #BB42): the delays kept at #BFD8 (start 30, repeat 2)
@@ -449,7 +464,7 @@ class Host:
             if (port >> 8) == 0xBC: s.scr.creg = val & 31
             else: s.scr.crtc[getattr(s.scr, 'creg', 0)] = val; s.scr.crtc_used = True
             return
-        if s.p == 'cpcfw' and (port >> 8) == 0xF6 and lo != 0xDF and lo not in getattr(s, 'fwport', {}):
+        if s.p == 'cpcfw' and (port >> 8) == 0xF6 and lo not in (0xDF, 0xD8, 0xD9) and lo not in getattr(s, 'fwport', {}):
             # (out (#DF), a: the stand-in RST 3 with A = #F6 - a byte just read - is not the PPI)
             s.line = val & 15; return          # the PPI's port C: the keyboard line (Keys class)
         if s.p == 'test':
@@ -504,6 +519,11 @@ class Host:
             ok = s.cas(FW[ret - 1])
             m.f = (m.f | 1) if ok else (m.f & 0xFE)
             m.sp = sp + 2
+        elif s.p == 'cpcfw' and lo in (0xD8, 0xD9) and m.pc in (0xBC34, 0xBC3A):
+            # SCR SET INK (A = the ink, B its first colour) / SCR SET BORDER (B): inks 0, 1, the border
+            if not hasattr(s, 'inks'): s.inks = [255, 255, 255]
+            if lo == 0xD9: s.inks[2] = m.b
+            elif m.a < 2: s.inks[m.a] = m.b
         elif s.p == 'cpcfw' and lo == 0xDD and m.pc == 0xBF86:
             s.evsel = s.romsel                  # the fast ticker event: the main ROM in for its call
             if s.xroms: m.set_memory_block(0xC000, s.xroms.get(XSLOT, b'\x80'))
@@ -901,7 +921,8 @@ def main():
     if os.environ.get('NTC_DUMP'): open(os.environ['NTC_DUMP'], 'wb').write(bytes(h.m.memory[0:0x10000]))   # NTC_DUMP=file: the 64K the Z80 sees at the end
     if os.environ.get('NTC_SHOT') and getattr(h, 'ram', None) is not None:
         # NTC_SHOT=file: main RAM's #4000 and #C000 (the two screens) and the CRTC's R12 at the end
-        open(os.environ['NTC_SHOT'], 'wb').write(bytes([getattr(h.scr, 'crtc', [0] * 16)[12] & 255]) + h.ram.main_page(1) + (bytes(h.scr.vram) if getattr(h.scr, 'vram', None) is not None else h.ram.main_page(3)))
+        # (then the firmware colours SCR SET INK / BORDER last set: ink 0, ink 1, the border - 255 none)
+        open(os.environ['NTC_SHOT'], 'wb').write(bytes([getattr(h.scr, 'crtc', [0] * 16)[12] & 255]) + h.ram.main_page(1) + (bytes(h.scr.vram) if getattr(h.scr, 'vram', None) is not None else h.ram.main_page(3)) + bytes(getattr(h, 'inks', [255, 255, 255])))
     if plat in ('cpm', 'cyborgos') and os.environ.get('NTC_GFXCHK'):
         scr = h.ram.main_page(1) if CPMVER >= 0x30 else bytes(h.m.memory[0xC000:0xF000])
         print('--- screen bytes set: %d' % sum(1 for x in scr if x))

@@ -7659,7 +7659,10 @@ function ntcCompile(input_a, objOptions_a)
 			'; again loses esxDOS\'s state in some emulators - but its entry points are cut to RST 8',
 			'; with ROM 3 selected (#B8 = 2, #B9 = 0: the RST vectors need ROM 3; #BB = 0: no #3Dxx,',
 			'; #0066, tape traps). A program never does rst 8 with ROM 3 in, so nothing pages it in;',
-			'; CyborgOS\'s SD drive does exactly that for its esxDOS calls (ROM 3 in slots 0-1, rst 8)',
+			'; CyborgOS\'s SD drive does exactly that for its esxDOS calls (ROM 3 in slots 0-1, rst 8).',
+			'; Tested on NextZXOS 2.06H (JNEXT, 2026-10-21): esxDOS calls work with these - when the NEX',
+			'; is started by NextZXOS (the browser, .nexload, an autoexec), not loaded as a snapshot,',
+			'; which skips the DOS\'s own set-up and leaves every call answering "nonsense" (2)',
 			'ld a, #B8',
 			'out (c), a',
 			'inc b',
@@ -7754,6 +7757,11 @@ function ntcCompile(input_a, objOptions_a)
 		{
 			if (str_a === 'SAVENEX BANK 5, 8, 9, 10') { return 'SAVENEX BANK ' + arrBanks.join(', '); }
 			if (str_a === 'SAVENEX CFG 0') { return blnBig ? 'SAVENEX CFG 0, 0, 0, 1\t\t; banks past 47: a 2MB Next' : str_a; }
+			// the loader's stack: #BFFE is bank 2's top, and with Option NexData bank 2 holds data -
+			// the loader's and the stub's pushes overwrote its last bytes (CyborgOS: 6 bytes of a
+			// command in its boot archive, CD's - "Paths need UniDOS"). Below the stub instead: bank
+			// 5's #7Dxx (page 11's #1Dxx: #FDxx once the screen is at #C000 - unused, and only at boot)
+			if ((objNexData !== null) && (str_a.indexOf('SAVENEX OPEN ') === 0)) { return str_a.replace(', #BFFE', ', #7E00'); }
 			return str_a;
 		});
 		arrL.forEach(function(str_a)
@@ -10412,6 +10420,12 @@ function ntcCompile(input_a, objOptions_a)
 	arrAsm.push('ntc_bss_size\tequ ' + intBss);
 	arrAsm.push('ntc_free\tequ ntc_bss + ntc_bss_size\t; the first free byte (heap, Memory tables)');
 	arrAsm.push('@@MEMTAB@@');
+	if (objOptions.platform === 'cyborgos')
+	{
+		// a slot's TPA ends at #EF00: the hypervisor's stub (the BDOS entry, the BIOS table, the
+		// console state) is above it - a program whose arrays reach it tramples its own slot
+		arrAsm.push(strIndent + 'ASSERT ntc_free <= #EF00, "the program and its arrays must end below #EF00 (CyborgOS: the slot\'s stub is #EF00-#FFFF)"');
+	}
 	if (arrReserve.length > 0)
 	{
 		arrAsm.push('; Option Reserve: the program and its arrays (ntc_start .. ntc_free) must stay out of these');

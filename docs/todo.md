@@ -6,6 +6,13 @@ finished, with the date.
 ---
 
 ## done
+- 2026-10-21 zxn: `ntc_zxn_inthold` (a call from #asm): the line interrupt held by the Next's
+  interrupt controller (core 3.02+, NextReg #C0 bit 0, #C4) until the Z80 takes it, instead of
+  the 32 T pulse a program with interrupts off misses; the handler ends with reti. For CyborgOS;
+  a game whose Frame waits catch every pulse doesn't need it. Untested on hardware as yet.
+- 2026-10-21 zxn: a NEX must be started by NextZXOS (the browser, .nexload, an autoexec) for
+  esxDOS calls to work; loaded as a snapshot in an emulator the DOS answers "nonsense" (2) to
+  everything - noted in the start stub (CyborgOS's SD drive, tested on JNEXT / NextZXOS 2.06H).
 - 2026-10-21 Two platforms. `cyborgos`: a program in a slot of the CyborgOS hypervisor - the cpm
   platform (asm/ntc_plat_cyborgos.asm says `;@base cpm`: gen.js composes its text and classes
   from the base's) plus what CyborgOS adds: the output is always a .CYB (the AMSDOS header - the
