@@ -1,0 +1,11 @@
+{
+  "name": "CYSWARM",
+  "title": "CYBORG SWARM",
+  "platform": "md",
+  "files": [
+    "Main.bas",
+    "Swarm.cls",
+    "Gfx.cls",
+    "Paths.cls"
+  ]
+}

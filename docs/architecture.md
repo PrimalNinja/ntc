@@ -156,6 +156,9 @@ upward from `#9400`; when the firmware is retired they can grow up into its RAM.
 | `cpm` | `#0100` | the program's own (`ntc_cpmstack`) | the BDOS (address 6); with Graphics on CP/M Plus `#C000` (its line loop copy) | console and files through BDOS; no pages. Graphics (a CPC only) writes the screen itself: 2.2 `#C000`, Plus block 1 through C1 from common memory |
 | `test` | `#4000` | the caller's | `#C000` | console through I/O ports, for the test harness |
 | `zxn` | `#0040` | its own, from `#C000` down | `#BE00` | the ZX Spectrum Next: see 3.4 |
+| `msx`, `msxcard`, `msx9990` | `#4000` (a cartridge ROM) | the BIOS's (End returns to it) | the stack less 512 | see 3.5 |
+| `sc3000` | `#0000` (a cartridge ROM) | its own, from `#C800` down | `#C780` | see 3.5 |
+| `cpccard`, `cpc9990` | `#0040` | as `cpc` | as `cpc` | `cpc` with the console on a card's video chip (`&FF88` / `&FF60`) |
 
 ### 3.4 ZX Spectrum Next (`zxn`)
 
@@ -187,6 +190,36 @@ The NEX file holds banks 8-10 (pages 16-21: the program as assembled, `MMU 0 5, 
 the NMI buttons off (NextReg 6 bits 3, 4), DivMMC's automatic paging off (NextReg 10 bit 4) and
 its memory out (port `#E3`), sets 28MHz and IM 1 and the slots - slot 3 last, from its copy in
 slot 7 - and jumps to `ntc_start`. NextRegs through ports `#243B` / `#253B` (no Z80N opcodes).
+
+### 3.5 Cartridges (`msx`, `sc3000`)
+
+```
+MSX                                          SC-3000
+#0000 +---------------------------+         #0000 +---------------------------+
+      | the BIOS (page 0)         |               | the restart vectors: #0038|
+#4000 +---------------------------+               | the frame interrupt, #0066|
+      | "AB", INIT (ntc_plat_     |               | RESET (NMI); the code ... |
+      | romhead), the code, the   |               | the RAM image             |
+      | threads, the strings, the |         #C000 +---------------------------+
+      | RAM image (16K / 32K: the |               | #C000 the interrupt jump, |
+      | INIT puts page 2 on it)   |               | #C003 the frame count     |
+#C000 +---------------------------+               | #C010 the variables, the  |
+      | #C000 page 2's slot,      |               | arrays, the heap          |
+      | H.TIMI as they were       |               | ... the stack             |
+      | #C010 the variables, the  |         #C800 +---------------------------+
+      | arrays, the heap          |               | (the 2K again: mirrors)   |
+      | ... the BIOS's stack      |         #FFFF +---------------------------+
+#F380 | the BIOS's variables      |
+#FFFF +---------------------------+
+```
+
+The start code copies the RAM image (`ntc_rimg` in the ROM, built for `#C010`) to RAM and
+clears the variables that are only `ds` after it, before anything else writes. The MSX's INIT
+records page 2's slot, puts this cartridge there (a 32K ROM's second half; ENASLT), calls
+`ntc_start` on the BIOS's stack and, when the program ends, puts page 2 back (that code is in
+page 1) and returns to the BIOS. The SC-3000's start sets the stack, the VDP's R#1 (frame
+interrupt on, so `Frame` and the clock run before any text) and the PPI, pushes the address of
+its `halt` (End) and jumps to `ntc_start`.
 
 ---
 
@@ -260,6 +293,15 @@ ROM of the set in for step 4, then the ROM state that was there back.
 the Next's line interrupt (the ULA's frame interrupt is off): each one sets the next 52 raster
 lines on (NextReg `#22` / `#23`), 6 a frame of 312 lines, 300 a second - as the CPC's. The one at
 line 0 is a frame's first (`ntc_zxvs`: a `Frame` slot counts it).
+
+**msx (msxcard, msx9990) - the BIOS's handler**: the VDP's frame interrupt, 50 or 60 a second.
+The BIOS reads the keyboard and counts JIFFY (`Ticks`); `ntc_plat_irqon` puts `jp ntc_irq` on
+the H.TIMI hook (its 5 bytes kept for End), which does steps 3-4 with C = 1 (every interrupt is a
+frame's: `DEFINE NTC_ISLC`, ntc_isl_tick reads C instead of the CPC's vertical sync).
+
+**sc3000 - NTC's own handler** at `#0038` in the ROM: the frame count (`Ticks`), the VDP's
+status read (which takes the interrupt), then the jump at `#C000` - an `ei : reti` until
+`ntc_plat_irqon` points it at `ntc_irq` (steps 3-4, C = 1).
 
 **cpcfw - the firmware's handler**: NTC leaves `#0038` alone (the lower ROM has its own
 `#0038`, used whenever the lower ROM is on). A fast ticker event (asynchronous, not express)

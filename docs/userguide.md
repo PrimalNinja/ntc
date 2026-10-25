@@ -32,7 +32,7 @@ New to NTC BASIC? The [tutorial](tutorial/README.md) goes through it a small ste
 14. [Inline assembly](#14-inline-assembly)
 15. [Diagnostics](#15-diagnostics)
 16. [Compiler directives and options](#16-compiler-directives-and-options)
-17. [Platforms and the console classes](#17-platforms-and-the-console-classes) (StdIO, System, FileSystem, Memory, List, Graphics, Keys)
+17. [Platforms and the console classes](#17-platforms-and-the-console-classes) (StdIO, System, FileSystem, Memory, List, Graphics, Keys, VDP, V9990; cartridge ROMs)
 18. [Not in NTC BASIC](#18-not-in-ntc-basic)
 19. [Keyword index](#19-keyword-index)
 
@@ -1700,11 +1700,13 @@ Option Reserve &H4000, &H4000
   first Memory call) writes a marker at each bank's first byte: a page's first word is the build
   stamp, which a Loaded page doesn't use.
 
-**Interrupt** *rate* / **Interrupt Frame** / **Interrupt Share** *weight* (cpc, cpcmin: NTC's
-own interrupt handler; cpcfw: a firmware fast ticker event, as for [Interrupt](#interrupt)):
-the class's `Sub Tick()` (no parameters - it must have one) runs *rate* times a second
-(1 - 300), or once a frame (just after the vertical sync), or as its share of the time the
-fixed ones leave (below), while the program does its own thing.
+**Interrupt** *rate* / **Interrupt Frame** / **Interrupt Share** *weight* (cpc, cpcmin, cpccard,
+cpc9990, zxn: NTC's own interrupt handler; cpcfw: a firmware fast ticker event, as for
+[Interrupt](#interrupt); msx, msxcard, msx9990, sc3000: the frame interrupt): the class's
+`Sub Tick()` (no parameters - it must have one) runs *rate* times a second (1 - 300; 1 - 50 on
+msx and sc3000, where there is one interrupt a frame - an NTSC machine's 60 frames make them
+run a fifth faster), or once a frame (just after the vertical sync), or as its share of the
+time the fixed ones leave (below), while the program does its own thing.
 
 ```
 ' Clock.cls
@@ -1962,6 +1964,9 @@ A tick count:
 | CPC firmware | the firmware's clock, 300 a second, in both modes |
 | CP/M | always 0 (no clock to share) |
 | test harness | 300 a second of emulated time |
+| MSX (msx, msxcard, msx9990) | the BIOS's JIFFY: the frames, 50 a second (60 on an NTSC MSX), moving while interrupts get in (normal mode, and while waiting for a key or `Frame`) |
+| SC-3000 | the frames, 50 a second (60 on an NTSC machine), as on the MSX |
+| CPC with a card (cpccard, cpc9990) | as CPC hardware |
 
 `System.TicksPerSecond` says which: 0 means there is no clock.
 
@@ -2717,6 +2722,12 @@ are 0 and the `#Else` part is used.
 | CyborgOS | `cyborgos` | a program in a slot of the CyborgOS hypervisor (Amstrad CPC, ZX Spectrum Next): the `cpm` platform - a slot is CP/M 2.2 - plus what CyborgOS adds. The output is a `.CYB` (the program with its AMSDOS header; the same file runs on both machines). `CybSys` is a platform class: the hypervisor's services (the slot, the clock, claims, ports, the drive paths, `Host()` - which machine it is). `#If NTC_CYBORGOS` (and `NTC_CPM`) | BDOS, as `cpm` | 80 columns, VT52 codes: `Option Terminal VT52` is the default |
 | Bare Metal | `baremetal` | a machine NTC BASIC doesn't know: built from its org (`#0000`, or [Option Org](#option-org)), nothing set up or assumed. The platform routines (`asm/ntc_plat_baremetal.asm`: a character out, a key in, the clock ...) and the platform classes (`StdIO`, `System`, `FileSystem` ...) are empty ones to fill in for your machine; a copy of a class in the project replaces the platform's. Build with `Option Turbo` unless you put an interrupt handler at `#0038` | yours to write | yours to write |
 | Test harness | `test` | for the emulator in `test/ntcrun.py` | I/O ports | 40 x 25, like CPC mode 1 |
+| MSX | `msx` | a cartridge ROM, `NAME.ROM` (16K or 32K at `#4000`, see [Cartridge ROMs](#cartridge-roms-msx-sc3000)); the BIOS stays (its keys, its interrupt); `End` goes back to the BIOS (MSX-BASIC). `#If NTC_MSX` | the MSX's own video chip (TMS9918 on an MSX1, V9938 / V9958 from the MSX2): mode 1 = 40 x 24, mode 0 = 32 x 24, mode 2 = 80 x 24 (MSX2 and up), the BIOS's font | the BIOS's keyboard (its layout, auto repeat) |
+| MSX + V9938 card | `msxcard` | as `msx`, the console on a V9938 card at ports `#88`-`#8B` (Sharp HB-4000, Gradiente CT-80E, Neos MA-20V: an MSX1's 80 columns). `#If NTC_MSXCARD` (and `NTC_MSX`) | the card: modes as `msx`'s (80 columns on any MSX) | as `msx` |
+| MSX + V9990 | `msx9990` | as `msx`, the console on a V9990 at `#60`-`#6F` (GFX9000, Video9000, Powergraph, TRH9000). `#If NTC_MSX9990` (and `NTC_MSX`) | a bit map (B1 / B3) with the BIOS's font: modes 0 and 1 = 40 x 24, mode 2 = 80 x 24 | as `msx` |
+| Sega SC-3000 | `sc3000` | a cartridge ROM, `NAME.SC` (16K, 32K or 48K at `#0000`); 2K of RAM (`#C000`-`#C7FF`) for the variables, the arrays and the stack; the RESET key starts the program again; `End` stops it. `#If NTC_SC3000` | the TMS9918A / TMS9929A: mode 1 (and 2) = 40 x 24, mode 0 = 32 x 24, NTC's own 6 x 8 font | full screen, keys from the matrix (new presses, no auto repeat) |
+| Amstrad CPC + MSX V9938 card | `cpccard` | as `cpc` (no firmware, a binary at `#0040`), the console on an MSX V9938 card through the AMSDAP MSX cartridge adapter: MSX port nn is the CPC's `&FFnn`, so the card is at `&FF88`. `#If NTC_CPCCARD` (and `NTC_CPC`) | the card's own monitor: modes as `msxcard`'s, NTC's 6 x 8 font | as `cpc` |
+| Amstrad CPC + V9990 | `cpc9990` | as `cpc`, the console on a V9990 at `&FF60`: an MSX V9990 cartridge through the AMSDAP adapter, or the CPC Powergraph. `#If NTC_CPC9990` (and `NTC_CPC`) | the V9990's own monitor: as `msx9990`'s, NTC's 6 x 8 font | as `cpc` |
 
 The BASIC is the same on all of them. What changes is the start-up, the console and what
 the `StdIO`, `System` and `FileSystem` classes report.
@@ -2729,6 +2740,13 @@ and the other ROMs: [Option RomEnable](#option-romenable) starts them again. Whi
 `cpcmin` firmware call runs, the screen may show the firmware's mode, and firmware messages
 (disc missing, Retry / Cancel, Press PLAY) appear on the screen; afterwards NTC's mode,
 screen start and interrupt handler are back.
+
+On the MSX platforms the program is a cartridge and the BIOS stays in page 0: its interrupt
+handler reads the keyboard into its buffer and counts JIFFY, and `Inkey` / `Input` take keys
+from that buffer (with interrupts let in for the call, as on the firmware platforms). The
+consoles of msx, msxcard, msx9990, sc3000, cpccard and cpc9990 are the same library code
+(`asm/ntc_lib_vdp.asm`) on different chips: the console's chip is also there for the
+[VDP](#vdp) or [V9990](#v9990) class to draw on (`Mode` or `Cls` gives the text back).
 
 On the firmware and CP/M platforms, console calls go to the system on the real stack with
 interrupts on during the call (the system scans keys on interrupts). The thread itself still
@@ -2770,6 +2788,9 @@ Constants (what this console can do):
 
 \* With `Option Terminal VT52` or `ANSI`: True, True and 24.
 
+msx, msxcard, msx9990, sc3000, cpccard, cpc9990: `CanPosition`, `CanClear`, `CanInput`,
+`CanPoll` True, `CanColour` and `Glyphs` False, `Rows` 24.
+
 ```
 If StdIO.CanPosition Then
   Locate 1, StdIO.Rows : Print "Score: "; score;
@@ -2799,6 +2820,12 @@ What the machine is. The same members on every platform; 0 / False means "not he
 | `Command(name)` | run a ROM's command (an RSX, `|NAME`, no arguments) - cpcfw and cpcmin only: 0, or -2 when no ROM has it; -1 elsewhere | | | |
 | `HasCapability(name)` | True (-1) when the platform can do it, else False - see below | | | |
 | `CommandLine()` | what was typed after the program's name - CP/M only (`A>PROG FILE.TXT` gives `"FILE.TXT"`, in capitals as CP/M passes it); "" elsewhere | | | |
+
+The new platforms: msx, msxcard and msx9990 have `Platform` "MSX", sc3000 "SC-3000" -
+`CpuClock` 3580, `TicksPerSecond` and `FrameRate` 50 (60 on an NTSC machine: the frames),
+`HasInterrupts`, `HasHook`, `HasScreen`, `HasKeyboard` True, `MaxHandles` 0; their
+`HasCapability`: SCREEN, KEYBOARD, CLOCK, HOOK, INTERRUPTCLASSES. cpccard and cpc9990 have the
+cpc platform's `System` (`Platform` "CPC").
 
 ```
 Print "running on "; System.Platform
@@ -3264,7 +3291,7 @@ writes over memory).
 
 ### Keys
 
-Keys held down, and the joysticks (cpc, cpcmin, cpcfw, zxn). `Inkey` / `Inkey$` give the characters
+Keys held down, and the joysticks (cpc, cpcmin, cpcfw, cpccard, cpc9990, zxn, msx, msxcard, msx9990, sc3000). `Inkey` / `Inkey$` give the characters
 typed; `Keys` tells whether a key is down right now - several at once, held keys, no auto
 repeat - which is what games want. The keyboard matrix is read from the hardware at every
 call, so it works with and without the firmware, in turbo and normal mode.
@@ -3292,6 +3319,25 @@ every key. The CPC names are there too: `KeyLeft` / `KeyDown` / `KeyUp` / `KeyRi
 `Joystick(0)` and `(1)` read the Kempston ports `#1F` and `#37` (the Next's joystick ports set
 to Kempston).
 
+On the MSX (msx, msxcard, msx9990) the key numbers are the keyboard matrix's: row * 8 + bit
+(rows 0-10, as the BIOS's `SNSMAT` and `NEWKEY`), read from the PPI. Rows 6-8 are the same on
+every MSX: `KeyShift` (48), `KeyControl` (49), `KeyGraph` (50), `KeyCaps` (51), `KeyCode`
+(52), `KeyF1` (53), `KeyEsc` (58), `KeyTab` (59), `KeyStop` (60), `KeyBS` (61), `KeySelect`
+(62), `KeyReturn` (63), `KeySpace` (64), `KeyHome` (65), `KeyIns` (66), `KeyDel` (67),
+`KeyLeft` (68), `KeyUp` (69), `KeyDown` (70), `KeyRight` (71). The letters (`KeyA` 22, `KeyD`
+25, `KeyQ` 38, `KeyS` 40, `KeyW` 44, `KeyX` 45, `KeyZ` 47) are the international layout's - a
+Japanese or AZERTY keyboard has others there. `Joystick(0)` and `(1)` read joystick ports 1
+and 2 through the PSG (trigger A = `JoyFire1`, B = `JoyFire2`). `Inkey` comes from the BIOS's
+buffer, so its codes are the BIOS's: the cursor keys 28-31, BS 8, ESC 27.
+
+On the SC-3000 the key numbers are the matrix's: row * 16 + bit, port A's bits 0-7 and port
+B's 8-11 (rows 0-6): `KeyUp` (102), `KeyDown` (69), `KeyLeft` (85), `KeyRight` (101),
+`KeyReturn` (86), `KeySpace` (20), `KeyShift` (107), `KeyControl` (106), `KeyGraph` (105),
+`KeyFunc` (91), `KeyBreak` (104), `KeyDel` (52), `KeyHome` (36), `KeyEng` (4), and `KeyQ`,
+`KeyA`, `KeyW`, `KeyS`, `KeyD`, `KeyZ`, `KeyX`. `Joystick(0)` and `(1)` are the two joypads
+(row 7: button 1 = `JoyFire1`, button 2 = `JoyFire2`). `Inkey`: new presses only, the ASCII
+the key shows (Shift for the second sign), INS/DEL = 127, BREAK = 27, the cursor keys 0.
+
 ```
 Do
   If Keys.Down(Keys.KeyLeft) Then x = x - 1
@@ -3301,6 +3347,88 @@ Do
   Frame
 Loop
 ```
+
+### VDP
+
+A TMS9918 / V9938 / V9958 video chip on its ports, for graphics (msx, msxcard, msx9990,
+sc3000; cpc, cpcmin, cpcfw, cpccard, cpc9990 with an MSX V9938 card through the AMSDAP
+adapter). The chip is the platform's: the MSX's own at `#98` (msx9990 too), the card's at
+`#88` (msxcard) or `&FF88` (the CPC platforms), the SC-3000's at `#BE`. `VDP.Port` and
+`VDP.Chip` move the class to another one. Every method is a keyword (`#asm` only); the work
+is the library's (`asm/ntc_lib_vdp.asm`), on the real stack.
+
+| Member | Does |
+|---|---|
+| `Screen m` | a graphics screen, cleared: 2 = 256 x 192 (any chip), 5 = 256 x 212 16 colours, 6 = 512 x 212 4 colours, 7 = 512 x 212 16 colours, 8 = 256 x 212 256 colours (V9938 / V9958). On the console's chip `Mode` (or the next `Cls`) gives the text back |
+| `PSet x, y, c` | a dot (Screen 5-8: the chip's PSET; Screen 2: the pattern bit, ink c for its 8 dots) |
+| `Point(x, y)` | a dot's colour (Screen 5-8) |
+| `Box x, y, w, h, c` | a filled box (Screen 5-8: the chip's LMMV) |
+| `Line x1, y1, x2, y2, c` | a line (Screen 5-8: the chip's LINE) |
+| `Copy sx, sy, dx, dy, w, h` | a block copied (Screen 5-8: LMMM) |
+| `Palette n, r, g, b` | colour n (0-15) = red, green, blue 0-7 (V9938 / V9958) |
+| `VPoke addr, v`, `VPeek(addr)` | a VRAM byte (the first 64K) |
+| `Fill addr, count, v`, `Write addr, from, count`, `Read addr, to, count` | VRAM filled; RAM to VRAM; VRAM to RAM |
+| `Reg r, v`, `Status(n)` | a register; status register n (S#n on a V9938, S#0 on a TMS9918) |
+| `Port p`, `Chip t` | the data port (control: the next); the chip (0 = TMS9918, 1 = V9938 / V9958) |
+| `Wait` | until the chip has finished a command (the methods wait before each one) |
+| `DefaultPort`, `DefaultChip` | constants: the platform's chip |
+
+```
+VDP.Screen 5
+VDP.Box 10, 10, 100, 50, 4
+VDP.Line 0, 0, 255, 211, 15
+```
+
+The commands keep the frame interrupt as the platform has it: on msx and sc3000 the console's
+chip is the clock (`Ticks`, `Frame`), so a screen set by the class keeps its interrupt; a card's
+chip has none. A V9938 card with 16K of VRAM (the HB-4000) has the text modes only.
+
+### V9990
+
+The V9990 on its ports, for graphics (msx and msx9990 at `#60`: GFX9000, Video9000,
+Powergraph; cpc, cpcmin, cpcfw, cpccard and cpc9990 at `&FF60`: an MSX V9990 cartridge through
+the AMSDAP adapter, or the CPC Powergraph). The chip draws `Box`, `Line`, `Copy` and `PSet`
+itself.
+
+| Member | Does |
+|---|---|
+| `Screen m` | a bit map, cleared: 1 = 256 x 212 16 colours, 2 = 512 x 212 16 colours, 3 = 256 x 212 256 colours (the first 16 colours: the MSX2's). `Mode` gives msx9990's / cpc9990's console back |
+| `PSet x, y, c`, `Box x, y, w, h, c`, `Line x1, y1, x2, y2, c`, `Copy sx, sy, dx, dy, w, h` | the chip's PSET, LMMV, LINE, LMMM |
+| `Palette n, r, g, b` | colour n (0-63) = red, green, blue 0-31 |
+| `Page n`, `VPoke addr, v`, `VPeek(addr)` | a VRAM byte in 64K page n (0-7) of the 512K |
+| `Reg r, v`, `Status()` | a register (R#0-R#54); the status port (P#5) |
+| `Port p` | the port base (P#0) |
+| `Wait` | until the chip has finished a command |
+
+```
+V9990.Screen 1
+V9990.Box 10, 10, 100, 50, 4
+V9990.Line 0, 0, 255, 211, 15
+```
+
+### Cartridge ROMs (msx, sc3000)
+
+The MSX and SC-3000 platforms (msx, msxcard, msx9990, sc3000) build a cartridge: the
+assembler writes `NAME.ROM` / `NAME.SC` (sjasmplus `OUTPUT`), padded to the cartridge's size -
+16K or 32K at `#4000` on the MSX (an `"AB"` header; the INIT puts the cartridge in page 2 too
+for 32K), 16K, 32K or 48K at `#0000` on the SC-3000 (its restart vectors). The code, the
+threads, the strings and the numbers passed by address stay in the ROM; everything the program
+writes goes to RAM:
+
+- the Variables part and the temporaries, the library's variables (a label with data after
+  it, the @data sections) and the data in `#asm` blocks are built for RAM (`#C010` on) into an
+  image after the ROM's code, which the start code copies to RAM. A variable that is only
+  `ds` (no value) takes no ROM: it is placed after the image and cleared.
+- the sections marked @romram run from RAM (copied with the variables).
+- the arrays and the Memory class's heap come after the variables, up to the stack.
+
+A table in a `#asm` block that nothing writes can stay in the ROM: `; @const` on its label's
+line (or a section marked @const in the library). RAM is the limit on the SC-3000: 2K for the
+variables, the arrays and the stack (the assembler stops with a message when the variables
+do not fit; arrays that don't fit stop the program with "Not enough memory for the arrays").
+The MSX has from `#C010` to the BIOS's stack (about 12K). `Option Reserve`, `Option Page`,
+overlays and `Library: ROM` are not for these platforms. `Peek` / `Poke` of the ROM area read
+the ROM and do nothing.
 
 ### Your own StdIO
 

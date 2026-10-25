@@ -259,6 +259,10 @@ Files (ES5, no node, no Python):
 | `asm/ntc_plat_cpm.asm` | CP/M platform (BDOS console, own stack, warm boot) |
 | `asm/ntc_plat_test.asm` | test harness platform (console through I/O ports, for `test/ntcrun.py`) |
 | `asm/ntc_plat_cpcmin.asm` | CPC platform with minimal firmware: the `cpc` screen / keys / interrupts, the firmware kept for discs and ROMs (handed back per call) |
+| `asm/ntc_plat_msx.asm`, `ntc_plat_msxcard.asm`, `ntc_plat_msx9990.asm` | MSX cartridge ROMs: the console on the MSX's own video chip, a V9938 card at #88, a V9990 at #60 (README.md: Platforms) |
+| `asm/ntc_plat_sc3000.asm` | Sega SC-3000 cartridge ROM: TMS9918 console, keyboard matrix, 2K RAM |
+| `asm/ntc_plat_cpccard.asm`, `ntc_plat_cpc9990.asm` | `cpc` with the console on an MSX V9938 card (AMSDAP, &FF88) or a V9990 (&FF60) |
+| `asm/ntc_lib_vdp.asm` | the video chip consoles and the VDP / V9990 classes' engines |
 | `lib/<platform>/*.cls` | the platform classes: `StdIO.cls` (console), `System.cls` (what the machine is), `FileSystem.cls` (files), `Memory.cls` (RAM pages, heap), `List.cls` (linked lists); the CPC platforms also `Graphics.cls` and `Keys.cls` (keys held down, joysticks) |
 | `../docs/requirements.md` | What you need to use NTC, rebuild its generated files and run the tests; the targets it builds for |
 | `../docs/userguide.md` | Language reference: every keyword by topic, with an example and its VB5 / VB6 differences |

@@ -5,6 +5,9 @@ cd "$(dirname "$0")"
 P=../bas
 fail=0
 mkdir -p t/m2 t/cls t/ex
+# the keyword library ROMs (Library: ROM tests below) - build/rom/ is made by genrom.js; a fresh
+# tree has none yet
+for pl in cpc:NTCCPC cpcmin:NTCMIN cpcfw:NTCFW; do [ -f ../../build/rom/${pl#*:}.ROM ] || node genrom.js ${pl%%:*} > /dev/null 2>&1; done
 check() { # name expected-grep output - and the program must have ended (not waiting for a key)
   if echo "$3" | grep -q "$2" && echo "$3" | grep -q "^--- halted"; then echo "ok   $1"; else echo "FAIL $1"; echo "$3" | tail -5; fail=1; fi
 }
@@ -319,15 +322,16 @@ if [ "$o" == "$(cat ref/hook.txt)" ]; then echo "ok   hook zxn"; else echo "FAIL
 printf 'Dim t0 As Integer, n As Integer\nt0 = Ticks\nDo : Frame : n = n + 1 : Loop Until Ticks - t0 >= 300\nPrint "frames"; n > 45; n < 56\n' > t/zfr.bas
 check "Frame and Ticks zxn: 50 frames, 300 ticks a second" "^frames-1-1" "$(timeout 300 python3 ntcrun.py t/zfr.bas '' --platform=zxn 2>&1)"
 # the NEX file and the start stub: the NMI buttons off (NextReg 6 bits 3, 4), DivMMC's automatic
-# paging off (10 bit 4), 28MHz (7 = 3), the slots (pages 16-21, then bank 5: 10, 11), the
-# tilemap (#6B: on, 40 x 32, text mode), its palette, the line interrupt, a soft reset at the end
+# paging left on (10 bit 4: cut to RST 8 by #B8, #B9, #BB - esxDOS's calls), 28MHz (7 = 3), the
+# slots (pages 16-21, then bank 5: 10, 11), the tilemap (#6B: on, 40 x 32, text mode), its
+# palette, the line interrupt, a soft reset at the end
 printf 'Print "Next"\n' > t/znex.bas
 o=$(NTC_ZXNREGS=1 timeout 100 python3 ntcrun.py t/znex.bas '' --platform=zxn 2>&1)
 python3 -c "
 import sys; sys.path.insert(0, '.'); import zxnrun
 b, pc, sp, e = zxnrun.read_nex('t/NTC.NEX')
 sys.exit(0 if sorted(b) == [5, 8, 9, 10] and pc == 0x7E00 and sp == 0xBFFE else 1)" && echo "$o" | grep -q "^Next$" && echo "$o" | grep -q "^--- mmu 16 17 18 19 20 21 10 11$" \
-  && echo "$o" | grep -q "^--- nextregs 02=01 06=00 07=03 0A=00 " && echo "$o" | grep -q " 6B=A9 6C=00 6E=20 6F=2C" && echo "$o" | grep -q "^--- palette 3/0=02 3/1=FC$" \
+  && echo "$o" | grep -q "^--- nextregs 02=01 06=00 07=03 0A=10 " && echo "$o" | grep -q " 6B=A9 6C=00 6E=20 6F=2C" && echo "$o" | grep -q "^--- palette 3/0=02 3/1=FC$" \
   && echo "$o" | grep -q "^--- halted (a soft reset: NextReg 2)" && echo "ok   zxn: the NEX file, the start stub (NMI off), the tilemap" || { echo "FAIL zxn: the NEX file, the start stub"; echo "$o" | tail -6; fail=1; }
 node cli.js t/isl/Main.bas t/isl/Music.cls --platform=cpm 2>&1 >/dev/null | grep -q "Option Class Interrupt needs a CPC platform" && echo "ok   interrupt classes refused (cpm)" || { echo "FAIL interrupt classes refused"; fail=1; }
 cp hook.bas t/hook.bas; o=$(timeout 60 python3 ntcrun.py t/hook.bas '' --platform=cpcfw 2>&1 | grep -v "^--- ")

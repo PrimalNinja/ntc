@@ -1,0 +1,61 @@
+diff --git a/targets/mega65/Makefile b/targets/mega65/Makefile
+index 7fdf9d3..72f616b 100644
+--- a/targets/mega65/Makefile
++++ b/targets/mega65/Makefile
+@@ -20,7 +20,7 @@ TARGET		= mega65
+ PRG_TARGET	= xmega65
+ EMU_DESCRIPTION	= MEGA65
+ 
+-SRCS_TARGET_xmega65	= configdb.c mega65.c sdcard.c uart_monitor.c hypervisor.c memory_mapper.c io_mapper.c vic4.c vic4_palette.c ethernet65.c input_devices.c memcontent.c ui.c fat32.c sdcontent.c audio65.c inject.c dma65.c rom.c hdos.c matrix_mode.c cart.c serialtcp.c
++SRCS_TARGET_xmega65	= configdb.c mega65.c sdcard.c uart_monitor.c hypervisor.c memory_mapper.c io_mapper.c vic4.c vic4_palette.c ethernet65.c input_devices.c memcontent.c ui.c fat32.c sdcontent.c audio65.c inject.c dma65.c rom.c hdos.c matrix_mode.c cart.c serialtcp.c ntctest.c
+ SRCS_COMMON_xmega65	= emutools.c cpu65.c cia6526.c emutools_hid.c sid.c f011_core.c c64_kbd_mapping.c emutools_config.c emutools_files.c emutools_umon.c emutools_socketapi.c ethertap.c d81access.c emutools_gui.c basic_text.c opl3.c lodepng.c compressed_disk_image.c cpu65_disasm.c emutools_osk.c
+ CFLAGS_TARGET_xmega65	= $(SDL2_CFLAGS) $(MATH_CFLAGS) $(SOCKET_CFLAGS) $(XEMUGUI_CFLAGS)
+ LDFLAGS_TARGET_xmega65	= $(SDL2_LIBS) $(MATH_LIBS) $(SOCKET_LIBS) $(XEMUGUI_LIBS)
+diff --git a/targets/mega65/input_devices.c b/targets/mega65/input_devices.c
+index b30be1c..b2a0761 100644
+--- a/targets/mega65/input_devices.c
++++ b/targets/mega65/input_devices.c
+@@ -403,12 +403,13 @@ Uint8 cia1_in_b ( void )
+ }
+ 
+ 
++extern int ntc_joy2;
+ Uint8 cia1_in_a ( void )
+ {
+ 	return c64_keyboard_read_on_CIA1_A(
+ 		cia1.PRB | (~cia1.DDRB),
+ 		cia1.PRA | (~cia1.DDRA),
+-		joystick_emu == 2 ? c64_get_joy_state() : 0xFF
++		(ntc_joy2 >= 0) ? (Uint8)ntc_joy2 : (joystick_emu == 2 ? c64_get_joy_state() : 0xFF)
+ 	);
+ }
+ 
+diff --git a/targets/mega65/mega65.c b/targets/mega65/mega65.c
+index 33dfb6f..3c72b86 100644
+--- a/targets/mega65/mega65.c
++++ b/targets/mega65/mega65.c
+@@ -612,9 +612,11 @@ static void update_emulated_time_sources ( void )
+ }
+ 
+ 
++extern void ntctest_frame ( void );
+ static void update_emulator ( void )
+ {
+ 	vic4_close_frame_access();
++	ntctest_frame();
+ 	// XXX: some things has been moved here from the main loop, however update_emulator is called from other places as well, FIXME check if it causes problems or not!
+ 	inject_ready_check_do();
+ 	audio65_sid_inc_framecount();
+diff --git a/xemu/emutools.c b/xemu/emutools.c
+index 9456ee9..3662f74 100644
+--- a/xemu/emutools.c
++++ b/xemu/emutools.c
+@@ -891,7 +891,7 @@ void xemu_pre_init ( const char *app_organization, const char *app_name, const c
+ 	}
+ #endif
+ #ifdef XEMU_ARCH_UNIX
+-#ifndef XEMU_DO_NOT_DISALLOW_ROOT
++#if 0 // ntc: runs as root in the test container
+ 	// UNIX: Some check to disallow dangerous things (running Xemu as user/group root)
+ 	if (getuid() == 0 || geteuid() == 0)
+ 		FATAL("Xemu must not be run as user root");

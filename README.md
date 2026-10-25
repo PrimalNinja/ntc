@@ -262,10 +262,18 @@ Files (ES5, no node, no Python):
 | `asm/ntc_plat_cyborgos.asm` | the CyborgOS platform: a program in a slot of the hypervisor - `;@base cpm` (gen.js takes the cpm platform's text and classes) plus CyborgOS's own: a `.CYB` out, VT52 by default, `CybSys` (`lib/cyborgos/`) |
 | `asm/ntc_plat_baremetal.asm` | Bare Metal: built from its org, nothing assumed - every routine an empty one to fill in for a machine of your own (`lib/baremetal/` the classes, the same) |
 | `asm/ntc_plat_zxn.asm` | ZX Spectrum Next platform, straight to the hardware, laid out as the `cpc` one: the tilemap as the text screen, the 8 x 5 keyboard, the line interrupt every 52 lines; the compiler adds the NEX file's start stub (NMI off, the MMU slots) |
-| `lib/<platform>/*.cls` | the platform classes: `StdIO.cls` (console), `System.cls` (what the machine is), `FileSystem.cls` (files), `Memory.cls` (RAM pages, heap), `List.cls` (linked lists); the CPC platforms also `Graphics.cls`, the CPC platforms and zxn `Keys.cls` (keys held down, joysticks) |
+| `asm/ntc_plat_msx.asm` | MSX platform: a cartridge ROM (`"AB"` at #4000, 16K / 32K, the variables in RAM from #C010 - the compiler's romLayout), the BIOS kept (its keyboard buffer, its interrupt: JIFFY, H.TIMI for normal mode), the console on the MSX's own video chip (`asm/ntc_lib_vdp.asm`) |
+| `asm/ntc_plat_msxcard.asm`, `ntc_plat_msx9990.asm` | `;@base msx` with the console on a V9938 card at #88 / a V9990 at #60 (their own `ntc_plat_vdev` section in place of msx's) |
+| `asm/ntc_plat_sc3000.asm` | Sega SC-3000: a cartridge ROM at #0000 (16K / 32K / 48K, the restart vectors), 2K of RAM, the TMS9918 console, the keyboard matrix, the frame interrupt |
+| `asm/ntc_plat_cpccard.asm`, `ntc_plat_cpc9990.asm` | `;@base cpc` with the console on an MSX V9938 card (AMSDAP, &FF88) / a V9990 (AMSDAP or Powergraph, &FF60) |
+| `asm/ntc_lib_vdp.asm` | the video chips: a text console on a TMS9918 / V9938 / V9958 or a V9990 (`ntc_vcon`, `ntc_vtms`, `ntc_v9`, `ntc_font6`), and the VDP / V9990 classes' engines (`ntc_vdpc`, `ntc_v9c`) |
+| `lib/<platform>/*.cls` | the platform classes: `StdIO.cls` (console), `System.cls` (what the machine is), `FileSystem.cls` (files), `Memory.cls` (RAM pages, heap), `List.cls` (linked lists); the CPC platforms also `Graphics.cls`, the CPC platforms, zxn, msx and sc3000 `Keys.cls` (keys held down, joysticks); `VDP.cls` (a TMS9918 / V9938 / V9958: msx, msxcard, sc3000, the CPC platforms through AMSDAP) and `V9990.cls` (msx, the CPC platforms) |
+| `hwlib/` | Optional game libraries, one class per video chip (named after the chip, or the machine where there is no chip): `Zxn.cls`, `Cpc.cls`, `Asic.cls`, `Tms9918.cls`, `V9938.cls`, `V9990.cls` - the same core calls (Init, Pattern, Put, Hide, Anim, Move, Bounds, Frame, X, Y), each chip's own calls on top - `StdIO_<chip>.cls` consoles, `Vec.cls` (3D). Nothing in the compiler uses them: a program adds the classes it wants to its project (a project class replaces a platform class of the same name). `hwlib/README.md`; `hwlib/tests/` a test of each per machine, `node hwlib/tools/build.js` builds them |
 | `../docs/requirements.md` | What you need to use NTC, rebuild its generated files and run the tests; the targets it builds for |
 | `../docs/userguide.md` | Language reference: every keyword by topic, with an example and its VB5 / VB6 differences |
 | `../docs/architecture.md` | Memory maps, the ROM structure, interrupts and start up |
+| `../docs/md.md` | The Sega Mega Drive / Genesis platform (`md`): NTC on the 68000, its memory, classes, building and testing |
+| `../docs/m65.md` | The MEGA65 platform (`m65`): NTC on the 45GS02, its memory, classes, building and testing (with Xemu and NTC's test driver, `test/xemu/`) |
 | `../docs/cyborgos-readme.md` | CyborgOS: a separate project written in NTC BASIC (`bas/cyborgos320kb`, `bas/cyborgos128kb`) - its own README, user guide, design and todo list |
 | `../docs/tutorial/` | The tutorial: 77 small pages (1.1 the IDE ... 14.4 a game loop in a Tick), contents in `README.md`; every example is checked by `test/tutcheck.py` |
 | `build/` | Test builds: every program in `bas/` compiled for every platform (`.ASM`), and `build.bat` to assemble them all with sjasmplus on Windows / MS-DOS (CPC: AMSDOS `.BIN` files, CP/M: `.COM`) |
@@ -355,14 +363,21 @@ A platform is one `asm/ntc_plat_<name>.asm` file plus its classes in `lib/<name>
 file starts with `;@key value` lines the compiler reads, then the `ntc_plat_*` sections the
 library links against (listed at the top of `ntc_lib.asm`):
 
-| Key | Meaning | cpc / cpcmin | cpcfw | cpm | test | zxn |
-|---|---|---|---|---|---|---|
-| `;@org` | default org (the GUI's Org box empty) | #0040 | #0040 | #0100 | #4000 | #0040 |
-| `;@text` | `glyph`: Print text as ZOSCII glyph words; `byte`: as byte strings (string pool + `kw_printstrvar`) | glyph | byte | byte | byte | glyph |
-| `;@scrinit` | the program starts with `kw_scrinit` (mode 1, clear) when it uses the screen | 1 | 0 | 0 | 0 | 1 |
-| `;@irq` | has `ntc_plat_irqon` (own interrupt handler: normal mode ticks, `Interrupt`) | 1 | 0 | 0 | 0 | 1 |
-| `;@stack` | a label or address: the program's own real stack (set before `ntc_csp`) | - | - | ntc_cpmstack | - | #C000 |
-| `;@cols` / `;@rows` | console size | 40 / 25 | 40 / 25 | 80 / 24 | 40 / 25 | 40 / 32 |
+| Key | Meaning | cpc / cpcmin | cpcfw | cpm | test | zxn | msx | sc3000 |
+|---|---|---|---|---|---|---|---|---|
+| `;@org` | default org (the GUI's Org box empty) | #0040 | #0040 | #0100 | #4000 | #0040 | #4000 | #0000 |
+| `;@text` | `glyph`: Print text as ZOSCII glyph words; `byte`: as byte strings (string pool + `kw_printstrvar`) | glyph | byte | byte | byte | glyph | byte | byte |
+| `;@scrinit` | the program starts with `kw_scrinit` (mode 1, clear) when it uses the screen | 1 | 0 | 0 | 0 | 1 | 1 | 1 |
+| `;@irq` | has `ntc_plat_irqon` (own interrupt handler: normal mode ticks, `Interrupt`) | 1 | 0 | 0 | 0 | 1 | 1 | 1 |
+| `;@stack` | a label or address: the program's own real stack (set before `ntc_csp`) | - | - | ntc_cpmstack | - | #C000 | - | - |
+| `;@cols` / `;@rows` | console size | 40 / 25 | 40 / 25 | 80 / 24 | 40 / 25 | 40 / 32 | 40 / 24 | 40 / 24 |
+| `;@rom` | a cartridge: the ROM's start and end - the compiler's romLayout puts what the program writes in RAM, `ntc_plat_romhead` at the org | - | - | - | - | - | #4000 #C000 | #0000 #C000 |
+| `;@ram` / `;@ramtop` | the cartridge's RAM image's org / the end its variables must stay under | - | - | - | - | - | #C010 / #E000 | #C010 / #C800 |
+| `;@romfile` / `;@romsizes` | the ROM file's extension / the sizes it is padded to (K) | - | - | - | - | - | ROM / 16 32 | SC / 16 32 48 |
+| `;@irqrate` | interrupts a second (Option Class Interrupt's rates; default 300) | - | - | - | - | - | 50 | 50 |
+| `;@islc` | the handler passes C = 1 at a frame's interrupt (`DEFINE NTC_ISLC`: ntc_isl_tick) | - | - | - | - | (always) | 1 | 1 |
+| `;@vdp` | the console is a video chip on ports (`NTC_VDP`: `asm/ntc_lib_vdp.asm`'s console sections) | - | - | - | - | - | 1 | 1 |
+| `;@base` | built on another platform: its text and classes, its `;@` keys and `;##` sections less the ones it has its own of (gen.js) | - | - | - | - | - | - | - |
 
 The CPC platforms are three amounts of firmware: `cpcfw` all of it; `cpcmin`
 (`ntc_plat_cpcmin.asm`) = the `cpc` file plus the firmware calls - each one (`fs_go`) hands
@@ -391,6 +406,38 @@ the CPC's 320 x 200 shown 28 rows down; the platform's own `ntc_gfx`, in place o
 11, 22-111; `ntc_nexdata`: the count, then each block's bank) - `zxn_sel` (HL = a bank) puts one
 in #4000-#7FFF. `#If NTC_ZXN` is predefined; the assembly has `DEFINE NTC_ZXN` (only there:
 `IFDEF NTC_ZXN` in the library and in `#asm` - sjasmplus's IFDEF tests DEFINEs, not labels).
+
+`msx`, `msxcard`, `msx9990` and `sc3000` are cartridges (`;@rom`): the compiler's romLayout
+(after holeLayout) keeps the code, the threads, the strings and the numbers in the ROM and moves
+what the program writes into an image built for RAM (`DISP` `;@ram`) after the code - the
+Variables part, labelled data in the library (a label with data after it; unlabelled data after
+code is inline opcodes and stays), @data and @romram sections, `#asm` data - which the start
+code copies to RAM; a variable that is only `ds` becomes an equ after the image (cleared, not
+stored). `; @const` on a label's line, or a section marked @const, keeps a table in the ROM.
+IF / ELSE / ENDIF lines go to both parts. The platform's `ntc_plat_romhead` section is put at
+the org (the MSX header and INIT; the SC-3000's restart vectors) and the ROM is padded to
+`;@romsizes` (`OUTPUT "NAME.ROM"` / `.SC`). `cpccard` and `cpc9990` are `;@base cpc` with
+their own screen sections. The consoles of all six are `asm/ntc_lib_vdp.asm`'s: `ntc_vcon` (the
+cursor, wrap, scroll) over a device table in the platform's `ntc_plat_vdev` (`ntc_vtms`: the
+TMS9918 family's text modes; `ntc_v9`: a V9990 bit map with a 6 x 8 font), on the real stack
+through `ntc_vcall`.
+
+`md` (`ntc_plat_md.asm`, `ntc_lib_68k.asm`, `lib/md/`) is the Sega Mega Drive / Genesis: a 68000,
+so its own keyword library and 68000 output (vasm, Motorola syntax; `test/mdbuild.py` builds the
+`.md` cartridge ROM). The thread is A7 in user mode; interrupts push on the supervisor stack, so
+they are on all the time and there is one mode. Threads are longs (`dc.l`), variables live in RAM
+from $FF8000, so their addresses are 16 bits sign extended. The console is plane A (40 x 28); the
+platform classes are `Vdp` (colours, tiles, planes, scrolling, the 80 sprites), `Pad`, `Psg`,
+`StdIO`, `System`. `docs/md.md` has all of it; `bas/cyswarm/` is a game built with it.
+
+`m65` (`ntc_plat_m65.asm`, `ntc_lib_m65.asm`, `lib/m65/`) is the MEGA65: a 45GS02, so its own
+keyword library and 45GS02 output (vasm, 6502 oldstyle syntax with `-mega65`; `test/m65build.py`
+builds the `.PRG`). The thread is SP, 16 bits after `CLE`; a thread word is the keyword's address
+less 1 (`rts` adds it back). Interrupts would push onto the thread, so they are off all the time
+(the NMI blocked) and there is one mode. The console is 80 x 25 text; the platform classes are
+`Vic` (a 320 x 200, 256 colour game screen in two buffers, with 80 sprites, stars and a text layer
+drawn by the CPU and the DMA chip), `Joy`, `Sid`, `StdIO`, `System`. `docs/m65.md` has all of
+it; `bas/cyswarm_m65/` is the same game built with it.
 
 - The library prints through `ntc_plat_putc` (A = char). On the CPC hardware platform it
   turns the char into its glyph and draws it; `kw_printzoscii` (inline glyph words) is only
@@ -1174,6 +1221,27 @@ same way as `cpcrun.py` prints the CPC screen (so the same `ref/` files fit):
   `NTC_ZXNREGS=1` prints the NextRegs, the slots and the palette at the end
 
 These are much faster than the CPC emulation (no screen to read back from video RAM).
+
+### mdbuild.py, mdrun.py, mdregress.sh - the Mega Drive (md)
+
+`python3 mdbuild.py Main.bas [More.cls ...] --out=GAME.md [--log]` compiles for `md`, assembles
+with vasm (`NTC_VASM`) and fills in the cartridge header. `python3 mdrun.py GAME.md
+[--frames=N] [--pad=frame:buttons,...] [--shot=out.png] [--text] [--log] [--untilend]` runs it on
+the Genesis Plus GX libretro core (`NTC_MDCORE`), with pads, pictures, plane A as text, and (a
+`--log` build) the console's transcript. `mdregress.sh` runs the self tests that fit a machine
+with no keyboard, `md_test` first (157 checks of the statements on the 68000). `docs/md.md` says
+how to build vasm and the core.
+
+### m65build.py, m65run.py, m65regress.sh - the MEGA65 (m65)
+
+`python3 m65build.py Main.bas [More.cls ...] --out=GAME.PRG [--log] [--list=GAME.lst]` compiles
+for `m65`, assembles with vasm (`NTC_VASM65`) and puts the load address in front. `python3
+m65run.py GAME.PRG [--frames=N] [--joy=frame:buttons,...] [--keys=frame:text,...] [--shot=out.png]
+[--text] [--log] [--untilend]` runs it on Xemu's xmega65 (`NTC_XEMU`) built with NTC's test
+driver (`test/xemu/`: a patch and `ntctest.c`), with the joystick, keys, pictures, the console as
+text, and (a `--log` build) the console's transcript. `m65regress.sh` runs `m65_test` (163
+checks of the statements on the 45GS02) and the VB self tests that fit. `docs/m65.md` says how to
+build vasm and Xemu.
 
 ### tutcheck.py - check the tutorial
 

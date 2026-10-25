@@ -11,6 +11,7 @@ machines it builds programs for.
 | sjasmplus | assembles the compiler's `.asm` output | Tested with v1.24.0. On the PATH, in `src/build/`, or its path given to `build.bat`. sjasmplus writes the CPC `.BIN` (AMSDOS header) itself (`DEVICE AMSTRADCPC6128` + `SAVEAMSDOS`) |
 | Windows / MS-DOS | `src/build/build.bat` (assembles every test build) | Optional: any system that runs sjasmplus can assemble the `.ASM` files by hand |
 | A CPC or CP/M machine, or an emulator | running the programs | WinAPE has been used for the CPC builds. `src/build/dsk/` has ready made disc images |
+| An MSX or SC-3000 (a cartridge flash board), or an emulator | the cartridge ROMs | openMSX 19 (C-BIOS machines, the `gfx9000` and `Sharp_HB-4000` extensions) and MAME 0.264 (`mame sc3000 -cart NAME.SC`) have been used |
 
 ## 2. Rebuilding the generated files
 
@@ -42,6 +43,8 @@ section 6.
 | bash | | `regress.sh`, `gendsk.sh` (on Windows: Git Bash or WSL) |
 | cpmtools + libdsk | libdsk 1.5.9 | the `build/dsk` check in `regress.sh` (skipped when not installed) |
 | Playwright + Chromium (`pip install playwright`, `playwright install chromium`) | | the GUI tests `guitest*.py` only |
+| vasm (Motorola syntax: `make CPU=m68k SYNTAX=mot`), the Genesis Plus GX libretro core | vasm 2.0f | `mdbuild.py` / `mdrun.py` / `mdregress.sh`: the Mega Drive (`NTC_VASM`, `NTC_MDCORE`; `docs/md.md`) |
+| vasm (6502 oldstyle syntax: `make CPU=6502 SYNTAX=oldstyle`), Xemu's xmega65 with `test/xemu/`'s patch | vasm 2.0f, Xemu 40dfef0 | `m65build.py` / `m65run.py` / `m65regress.sh`: the MEGA65 (`NTC_VASM65`, `NTC_XEMU`; `docs/m65.md`) |
 
 ## 4. Targets
 
@@ -55,7 +58,15 @@ what the platform classes (`StdIO`, `System`, `FileSystem`, `Memory`) can do.
 | Amstrad CPC, full firmware | `cpcfw` | `NAME.BIN` at `#0040` | CPC 464 / 664 / 6128 | the firmware for text, keys and files (AMSDOS, other ROMs' commands); program below `#A600` when it uses files |
 | CP/M 2.2 / 3 | `cpm` | `NAME.COM` at `#0100`, ends with a warm boot | any Z80 CP/M machine | BDOS only. Console: a stream, or 80 x 24 with `Option Terminal VT52 / ANSI` |
 | Test harness | `test` | raw `NAME.BIN` at `#4000` | `src/test/ntcrun.py` only | - |
+| MSX | `msx` | `NAME.ROM`: a cartridge, 16K / 32K at `#4000` | MSX1, MSX2, MSX2+, turbo R with 16K RAM or more | the BIOS (its keyboard buffer and interrupt); the MSX's own video chip (80 columns from the MSX2); `End` returns to the BIOS. No files |
+| MSX + V9938 card | `msxcard` | `NAME.ROM` | any MSX with a V9938 card at `#88` (HB-4000, CT-80E, MA-20V) | as `msx`, the console on the card (80 columns) |
+| MSX + V9990 | `msx9990` | `NAME.ROM` | any MSX with a V9990 at `#60` (GFX9000, Video9000, Powergraph) | as `msx`, the console on the V9990's own monitor |
+| Sega SC-3000 | `sc3000` | `NAME.SC`: a cartridge, 16K / 32K / 48K at `#0000` | SC-3000 (and an SG-1000 with the SK-1100 keyboard) | nothing: own console (TMS9918), keys and interrupt handler; 2K of RAM for the variables, arrays and stack. No files. `End` stops (RESET starts again) |
+| Amstrad CPC + MSX V9938 card | `cpccard` | `NAME.BIN` at `#0040` | CPC with the AMSDAP adapter and an MSX V9938 card (`&FF88`) | as `cpc`, the console on the card's monitor |
+| Amstrad CPC + V9990 | `cpc9990` | `NAME.BIN` at `#0040` | CPC with a V9990 at `&FF60`: AMSDAP and an MSX V9990 cartridge, or the CPC Powergraph | as `cpc`, the console on the V9990's monitor |
 | ZX Spectrum Next, no ROM | `zxn` | `NAME.NEX` (banks 8-10: the program at `#0040`; bank 5: a start stub), run from NextZXOS's browser | ZX Spectrum Next (a core with the tilemap's text mode and the line interrupt; so far run only in `src/test/zxnrun.py`) | nothing: the stub turns the NMI buttons and DivMMC's paging off, maps RAM to `#0000-#BFFF` and the screen (bank 5) to `#C000-#FFFF`, sets 28MHz; own text screen (the tilemap), keys and interrupt handler; Graphics on Layer 2; data files built into the NEX (`Option NexData`). No files yet. `End` is a soft reset (back to NextZXOS) |
+| Sega Mega Drive / Genesis | `md` | `NAME.md`, a cartridge ROM (68000) | Mega Drive / Genesis (so far run only on the Genesis Plus GX core) | nothing: own start (TMSS, the VDP), console on plane A, pads. `docs/md.md` |
+| MEGA65 | `m65` | `NAME.PRG` at `$2001` (45GS02), `RUN"NAME` | MEGA65 (so far run only on Xemu) | nothing: ROMs out, interrupts off, 40MHz, own 80 x 25 console, keyboard queue, joysticks; the `Vic` class's 256 colour screen with sprites drawn by the CPU. `docs/m65.md` |
 
 What each target can do:
 
@@ -79,5 +90,12 @@ expansion) 5, up to 33 with a 512K expansion and up to 257 with a 4MB expansion 
 offers one). The program must stay out of
 `#4000-#7FFF` to use them (`Option Reserve &H4000, &H4000`).
 
+The MSX and SC-3000 targets, and cpccard / cpc9990, have the cpc column's language but no
+files, RAM pages, overlays or pages; their screen is the video chip's text (40 x 24, 80 x 24 on
+a V9938 / V9958 / V9990, 32 x 24) and the `VDP` / `V9990` classes draw on it (also on cpc,
+cpcmin and cpcfw through the AMSDAP adapter or the Powergraph). Interrupts are the frame's (50
+or 60 a second) on the MSX and the SC-3000.
+
 Not supported yet: CPC Plus / GX4000 extras (cartridge pages, ASIC), the original ZX Spectrum
-(looked at, put aside - the Next is `zxn`), MSX (planned). See `todo.md`.
+(looked at, put aside - the Next is `zxn`), MSX disk files (MSX-DOS) and MegaROM mappers. See
+`todo.md`.

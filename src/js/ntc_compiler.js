@@ -117,6 +117,9 @@ function ntcCompile(input_a, objOptions_a)
 	var strMode = 't';			// current mode: t = turbo, n = normal, E = the procedure's entry mode (pass 1)
 	var strStartMode = 't';
 	var blnNoTurbo = false;		// Option NoTurbo: normal mode only (one copy of each procedure and keyword)
+	var blnM68k = false;		// the platform's CPU is a 68000 (;@cpu 68000: md): 68000 threads, stubs and data (vasm)
+	var blnM65 = false;			// the platform's CPU is a 45GS02 (;@cpu 45gs02: m65): 6502 stubs, thread words - 1 (vasm)
+	var arrRamOut = [];			// 68000: the RAM block's lines (variables, temps), after the ROM
 	var blnRomDrop = false;		// Library: ROM: its start code is last, the arrays start on it (holeLayout)
 	var objNoTurboLine = null;
 	var intLastComment = -1;
@@ -316,6 +319,10 @@ function ntcCompile(input_a, objOptions_a)
 
 	function exitCode(strMode_a)
 	{
+		if (blnM68k || blnM65)
+		{
+			return 'rts';		// 68000: one mode (interrupts never touch the thread)
+		}
 		return (strMode_a === 'n') ? 'jp ntc_xn' : 'ret';
 	}
 
@@ -2756,9 +2763,583 @@ function ntcCompile(input_a, objOptions_a)
 		arrCode_a.push(strLoop_a + '_e:');
 	}
 
+	// 68000 stub code: copy the 0 terminated string at a0 into strDest_a (a label, or ''
+	// for the address in a1), at most intCap_a chars (0: the destination's capacity byte)
+	function stubStrCopy68k(arrCode_a, strDest_a, intCap_a, strLoop_a)
+	{
+		var strIndent = '\t\t\t';
+
+		if (strDest_a.length > 0)
+		{
+			arrCode_a.push(strIndent + 'lea ' + strDest_a + ', a1');
+		}
+		if (intCap_a > 0)
+		{
+			arrCode_a.push(strIndent + 'move.w #' + intCap_a + ', d1');
+		}
+		else
+		{
+			arrCode_a.push(strIndent + 'moveq #0, d1');
+			arrCode_a.push(strIndent + 'move.b -1(a1), d1\t\t; the destination\'s capacity');
+		}
+		arrCode_a.push(strIndent + 'subq.w #1, d1');
+		arrCode_a.push(strIndent + 'bmi ' + strLoop_a + '_e');
+		arrCode_a.push(strLoop_a + ':');
+		arrCode_a.push(strIndent + 'move.b (a0)+, (a1)+');
+		arrCode_a.push(strIndent + 'dbeq d1, ' + strLoop_a);
+		arrCode_a.push(strIndent + 'beq ' + strLoop_a + '_z');
+		arrCode_a.push(strLoop_a + '_e:');
+		arrCode_a.push(strIndent + 'clr.b (a1)');
+		arrCode_a.push(strLoop_a + '_z:');
+	}
+
+	// the 68000's call and return stubs: the arguments' addresses come off the thread with
+	// (sp)+, the return point (the thread position, a long) is kept in p_name_rs
+	function procStubs68k(objProc_a, strMode_a)
+	{
+		var intBytes = 0;
+		var arrCode = [];
+		var arrParams = procParams(objProc_a);
+		var intI = 0;
+		var objLocal = null;
+		var objParam = null;
+		var strBody = procLabel(objProc_a, strMode_a);
+		var strKey = '';
+		var strLabel = '';
+		var strRs = procBase(objProc_a) + '_rs';
+		var strIndent = '\t\t\t';
+
+		if (objProcStubDone[strBody] !== undefined)
+		{
+			return;
+		}
+		objProcStubDone[strBody] = true;
+		declare(strRs, 'ptr', 0);
+		if (isOverlayProc(objProc_a))
+		{
+			error('pages and overlay classes are not on the 68000 yet (' + objProc_a.id + ')');
+		}
+
+		function copyIn(strLabel_a, strType_a, strLoop_a, intCap_a)
+		{
+			if (strType_a === 'str')
+			{
+				stubStrCopy68k(arrCode, strLabel_a, intCap_a, strLoop_a);
+			}
+			else if (strType_a === 'long')
+			{
+				arrCode.push(strIndent + 'move.l (a0), ' + strLabel_a);
+			}
+			else
+			{
+				arrCode.push(strIndent + 'move.w (a0), ' + strLabel_a);
+			}
+		}
+
+		arrCode.push(strBody + '_c:\t\t; call ' + objProc_a.id);
+		for (intI = 0; intI < arrParams.length; intI++)
+		{
+			objParam = paramEl(objProc_a, intI);
+			if (arrParams[intI].isarray && objParam.udt)
+			{
+				udtLeaves(objParam.datatype, '').forEach(function(objLeaf_a)
+				{
+					arrCode.push(strIndent + 'movea.l (sp)+, a0\t\t; ' + arrParams[intI].name + '()' + objLeaf_a.path + ' descriptor');
+					arrCode.push(strIndent + 'lea ' + descLabel(objEl[objParam.full + objLeaf_a.path]) + ', a1');
+					arrCode.push(strIndent + 'move.l (a0)+, (a1)+');
+					arrCode.push(strIndent + 'move.l (a0)+, (a1)+');
+					arrCode.push(strIndent + 'move.l (a0)+, (a1)+');
+				});
+				continue;
+			}
+			if (arrParams[intI].isarray)
+			{
+				arrCode.push(strIndent + 'movea.l (sp)+, a0\t\t; ' + arrParams[intI].name + '() descriptor');
+				arrCode.push(strIndent + 'lea ' + descLabel(objParam) + ', a1');
+				arrCode.push(strIndent + 'move.l (a0)+, (a1)+');
+				arrCode.push(strIndent + 'move.l (a0)+, (a1)+');
+				arrCode.push(strIndent + 'move.l (a0)+, (a1)+');
+				continue;
+			}
+			if (objParam.udt)
+			{
+				udtLeaves(objParam.datatype, '').forEach(function(objLeaf_a, intLeaf_a)
+				{
+					var objF = objEl[objParam.full + objLeaf_a.path];
+
+					arrCode.push(strIndent + 'movea.l (sp)+, a0\t\t; ' + arrParams[intI].name + objLeaf_a.path);
+					if (copyBack(objProc_a, intI))
+					{
+						declare(addrLabel(objProc_a, intI) + '_' + intLeaf_a, 'ptr', 0);
+						arrCode.push(strIndent + 'move.l a0, ' + addrLabel(objProc_a, intI) + '_' + intLeaf_a);
+					}
+					copyIn(varLabel(objF), typeOfEl(objF), strBody + '_si' + intI + '_' + intLeaf_a, strCap(objF));
+				});
+				continue;
+			}
+			strLabel = varLabel(objParam);
+			arrCode.push(strIndent + 'movea.l (sp)+, a0\t\t; ' + arrParams[intI].name);
+			if (copyBack(objProc_a, intI))
+			{
+				declare(addrLabel(objProc_a, intI), 'ptr', 0);
+				arrCode.push(strIndent + 'move.l a0, ' + addrLabel(objProc_a, intI));
+			}
+			copyIn(strLabel, typeOfEl(objParam), strBody + '_si' + intI, strCap(objParam));
+		}
+
+		// locals start at 0 / "" on every call (not Static)
+		if (!objProc_a.isstatic)
+		{
+			for (strKey in objEl)
+			{
+				if (objEl.hasOwnProperty(strKey))
+				{
+					objLocal = objEl[strKey];
+					if ((objLocal.proc === objProc_a.full) && (objLocal.scope === 'local') && (objLocal.etype === 'array') && !objLocal.isstatic && !objLocal.udt && !isParamArray(objLocal) && !objLocal.pfield)
+					{
+						if (isDynArray(objLocal))
+						{
+							strLabel = descLabel(objLocal);
+							intBytes = 12;
+						}
+						else
+						{
+							strLabel = arrayLabel(objLocal);
+							intBytes = elementSize(objLocal);
+							dimsOf(objLocal).forEach(function(objDim_a) { intBytes *= objDim_a.n; });
+						}
+						arrCode.push(strIndent + 'lea ' + strLabel + ', a0\t\t; clear ' + objLocal.id + '()');
+						arrCode.push(strIndent + 'move.l #' + intBytes + ', d0');
+						arrCode.push(strBody + '_cl' + intI + '_' + cleanLabel(objLocal.id) + ':');
+						arrCode.push(strIndent + 'clr.b (a0)+');
+						arrCode.push(strIndent + 'subq.l #1, d0');
+						arrCode.push(strIndent + 'bne ' + strBody + '_cl' + intI + '_' + cleanLabel(objLocal.id));
+						continue;
+					}
+					if ((objLocal.proc === objProc_a.full) && (objLocal.scope === 'local') && ((objLocal.etype === 'var') || (objLocal.etype === 'result')) && !objLocal.isstatic && !objLocal.udt && !objLocal.pfield)
+					{
+						strLabel = varLabel(objLocal);
+						if (fixedLen(objLocal) > 0)
+						{
+							arrCode.push(strIndent + 'lea ' + strLabel + ', a0\t\t; String * ' + fixedLen(objLocal) + ': spaces');
+							arrCode.push(strIndent + 'move.w #' + (fixedLen(objLocal) - 1) + ', d0');
+							arrCode.push(strBody + '_fx_' + cleanLabel(objLocal.id) + ':');
+							arrCode.push(strIndent + 'move.b #32, (a0)+');
+							arrCode.push(strIndent + 'dbra d0, ' + strBody + '_fx_' + cleanLabel(objLocal.id));
+							arrCode.push(strIndent + 'clr.b (a0)');
+						}
+						else if (typeOfEl(objLocal) === 'str')
+						{
+							arrCode.push(strIndent + 'clr.b ' + strLabel);
+						}
+						else if (typeOfEl(objLocal) === 'long')
+						{
+							arrCode.push(strIndent + 'clr.l ' + strLabel);
+						}
+						else
+						{
+							arrCode.push(strIndent + 'clr.w ' + strLabel);
+						}
+					}
+				}
+			}
+		}
+		arrCode.push(strIndent + 'move.l sp, ' + strRs);
+		arrCode.push(strIndent + 'lea ' + strBody + ', sp');
+		arrCode.push(strIndent + 'rts');
+
+		arrCode.push(strBody + '_r:\t\t; end of ' + objProc_a.id);
+		for (intI = 0; intI < arrParams.length; intI++)
+		{
+			if (copyBack(objProc_a, intI) && paramEl(objProc_a, intI).udt)
+			{
+				objParam = paramEl(objProc_a, intI);
+				udtLeaves(objParam.datatype, '').forEach(function(objLeaf_a, intLeaf_a)
+				{
+					var objF = objEl[objParam.full + objLeaf_a.path];
+
+					arrCode.push(strIndent + 'movea.l ' + addrLabel(objProc_a, intI) + '_' + intLeaf_a + ', a1');
+					arrCode.push(strIndent + 'lea ' + varLabel(objF) + ', a0');
+					if (typeOfEl(objF) === 'str')
+					{
+						stubStrCopy68k(arrCode, '', 0, strBody + '_so' + intI + '_' + intLeaf_a);
+					}
+					else if (typeOfEl(objF) === 'long')
+					{
+						arrCode.push(strIndent + 'move.l (a0), (a1)');
+					}
+					else
+					{
+						arrCode.push(strIndent + 'move.w (a0), (a1)');
+					}
+				});
+				continue;
+			}
+			if (copyBack(objProc_a, intI))
+			{
+				objParam = paramEl(objProc_a, intI);
+				strLabel = varLabel(objParam);
+				arrCode.push(strIndent + 'movea.l ' + addrLabel(objProc_a, intI) + ', a1');
+				if (typeOfEl(objParam) === 'str')
+				{
+					arrCode.push(strIndent + 'lea ' + strLabel + ', a0');
+					stubStrCopy68k(arrCode, '', 0, strBody + '_so' + intI);		// cut at the caller's capacity
+				}
+				else if (typeOfEl(objParam) === 'long')
+				{
+					arrCode.push(strIndent + 'move.l ' + strLabel + ', (a1)');
+				}
+				else
+				{
+					arrCode.push(strIndent + 'move.w ' + strLabel + ', (a1)');
+				}
+			}
+		}
+		arrCode.push(strIndent + 'movea.l ' + strRs + ', sp');
+		arrCode.push(strIndent + 'rts');
+
+		arrProcStubs = arrProcStubs.concat(arrCode);
+	}
+
+	// 45GS02 stub code: copy the 0 terminated string at z_p0 into strDest_a (a label, or ''
+	// for the address in z_p1), at most intCap_a chars (0: the destination's capacity byte).
+	// Runs on the thread (no jsr)
+	function stubStrCopy65(arrCode_a, strDest_a, intCap_a, strLoop_a)
+	{
+		var strIndent = '\t\t\t';
+
+		if (strDest_a.length > 0)
+		{
+			arrCode_a.push(strIndent + 'lda #<' + strDest_a);
+			arrCode_a.push(strIndent + 'sta z_p1');
+			arrCode_a.push(strIndent + 'lda #>' + strDest_a);
+			arrCode_a.push(strIndent + 'sta z_p1+1');
+		}
+		if (intCap_a > 0)
+		{
+			arrCode_a.push(strIndent + 'ldx #' + intCap_a);
+		}
+		else
+		{
+			arrCode_a.push(strIndent + 'dew z_p1');
+			arrCode_a.push(strIndent + 'ldy #0');
+			arrCode_a.push(strIndent + 'lda (z_p1),y\t\t; the destination\'s capacity');
+			arrCode_a.push(strIndent + 'tax');
+			arrCode_a.push(strIndent + 'inw z_p1');
+		}
+		arrCode_a.push(strIndent + 'ldy #0');
+		arrCode_a.push(strIndent + 'cpx #0');
+		arrCode_a.push(strIndent + 'beq ' + strLoop_a + '_c');
+		arrCode_a.push(strLoop_a + ':');
+		arrCode_a.push(strIndent + 'lda (z_p0),y');
+		arrCode_a.push(strIndent + 'sta (z_p1),y');
+		arrCode_a.push(strIndent + 'beq ' + strLoop_a + '_e');
+		arrCode_a.push(strIndent + 'iny');
+		arrCode_a.push(strIndent + 'dex');
+		arrCode_a.push(strIndent + 'bne ' + strLoop_a);
+		arrCode_a.push(strLoop_a + '_c:');
+		arrCode_a.push(strIndent + 'lda #0');
+		arrCode_a.push(strIndent + 'sta (z_p1),y');
+		arrCode_a.push(strLoop_a + '_e:');
+	}
+
+	// the 45GS02's call and return stubs: entered by the thread's rts (the thread word is the
+	// stub - 1), the arguments' addresses come off the thread with pla, the return point (the
+	// thread position: SP) is kept in p_name_rs; the body starts with SP = body - 1
+	function procStubs65(objProc_a, strMode_a)
+	{
+		var intBytes = 0;
+		var arrCode = [];
+		var arrParams = procParams(objProc_a);
+		var intI = 0;
+		var objLocal = null;
+		var objParam = null;
+		var strBody = procLabel(objProc_a, strMode_a);
+		var strKey = '';
+		var strLabel = '';
+		var strRs = procBase(objProc_a) + '_rs';
+		var strIndent = '\t\t\t';
+
+		if (objProcStubDone[strBody] !== undefined)
+		{
+			return;
+		}
+		objProcStubDone[strBody] = true;
+		declare(strRs, 'int', 0);
+		if (isOverlayProc(objProc_a))
+		{
+			error('pages and overlay classes are not on the MEGA65 yet (' + objProc_a.id + ')');
+		}
+
+		function popP0(strWhat_a)
+		{
+			arrCode.push(strIndent + 'pla\t\t\t\t; ' + strWhat_a);
+			arrCode.push(strIndent + 'sta z_p0');
+			arrCode.push(strIndent + 'pla');
+			arrCode.push(strIndent + 'sta z_p0+1');
+		}
+
+		// n bytes from (z_p0) to a label (blnIn) or from a label to (z_p1) (out)
+		function copyBytes(strLabel_a, intN_a, blnIn_a, strLoop_a)
+		{
+			arrCode.push(strIndent + 'ldy #' + (intN_a - 1));
+			arrCode.push(strLoop_a + ':');
+			if (blnIn_a)
+			{
+				arrCode.push(strIndent + 'lda (z_p0),y');
+				arrCode.push(strIndent + 'sta ' + strLabel_a + ',y');
+			}
+			else
+			{
+				arrCode.push(strIndent + 'lda ' + strLabel_a + ',y');
+				arrCode.push(strIndent + 'sta (z_p1),y');
+			}
+			arrCode.push(strIndent + 'dey');
+			arrCode.push(strIndent + 'bpl ' + strLoop_a);
+		}
+
+		function sizeOfType(strType_a)
+		{
+			return (strType_a === 'long') ? 4 : ((strType_a === 'byte') ? 1 : 2);
+		}
+
+		function saveAddr(strLabel_a)
+		{
+			declare(strLabel_a, 'int', 0);
+			arrCode.push(strIndent + 'lda z_p0');
+			arrCode.push(strIndent + 'sta ' + strLabel_a);
+			arrCode.push(strIndent + 'lda z_p0+1');
+			arrCode.push(strIndent + 'sta ' + strLabel_a + '+1');
+		}
+
+		arrCode.push(strBody + '_c:\t\t; call ' + objProc_a.id);
+		for (intI = 0; intI < arrParams.length; intI++)
+		{
+			objParam = paramEl(objProc_a, intI);
+			if (arrParams[intI].isarray && objParam.udt)
+			{
+				udtLeaves(objParam.datatype, '').forEach(function(objLeaf_a, intLeaf_a)
+				{
+					popP0(arrParams[intI].name + '()' + objLeaf_a.path + ' descriptor');
+					copyBytes(descLabel(objEl[objParam.full + objLeaf_a.path]), 12, true, strBody + '_ad' + intI + '_' + intLeaf_a);
+				});
+				continue;
+			}
+			if (arrParams[intI].isarray)
+			{
+				popP0(arrParams[intI].name + '() descriptor');
+				copyBytes(descLabel(objParam), 12, true, strBody + '_ad' + intI);
+				continue;
+			}
+			if (objParam.udt)
+			{
+				udtLeaves(objParam.datatype, '').forEach(function(objLeaf_a, intLeaf_a)
+				{
+					var objF = objEl[objParam.full + objLeaf_a.path];
+
+					popP0(arrParams[intI].name + objLeaf_a.path);
+					if (copyBack(objProc_a, intI))
+					{
+						saveAddr(addrLabel(objProc_a, intI) + '_' + intLeaf_a);
+					}
+					if (typeOfEl(objF) === 'str')
+					{
+						stubStrCopy65(arrCode, varLabel(objF), strCap(objF), strBody + '_si' + intI + '_' + intLeaf_a);
+					}
+					else
+					{
+						copyBytes(varLabel(objF), leafSize(typeOfEl({ datatype: objLeaf_a.type, full: '' })), true, strBody + '_sb' + intI + '_' + intLeaf_a);
+					}
+				});
+				continue;
+			}
+			strLabel = varLabel(objParam);
+			popP0(arrParams[intI].name);
+			if (copyBack(objProc_a, intI))
+			{
+				saveAddr(addrLabel(objProc_a, intI));
+			}
+			if (typeOfEl(objParam) === 'str')
+			{
+				stubStrCopy65(arrCode, strLabel, strCap(objParam), strBody + '_si' + intI);
+			}
+			else if (typeOfEl(objParam) === 'long')
+			{
+				copyBytes(strLabel, 4, true, strBody + '_sb' + intI);
+			}
+			else
+			{
+				arrCode.push(strIndent + 'ldy #0');
+				arrCode.push(strIndent + 'lda (z_p0),y');
+				arrCode.push(strIndent + 'sta ' + strLabel);
+				arrCode.push(strIndent + 'iny');
+				arrCode.push(strIndent + 'lda (z_p0),y');
+				arrCode.push(strIndent + 'sta ' + strLabel + '+1');
+			}
+		}
+
+		// locals start at 0 / "" on every call (not Static)
+		if (!objProc_a.isstatic)
+		{
+			for (strKey in objEl)
+			{
+				if (objEl.hasOwnProperty(strKey))
+				{
+					objLocal = objEl[strKey];
+					if ((objLocal.proc === objProc_a.full) && (objLocal.scope === 'local') && (objLocal.etype === 'array') && !objLocal.isstatic && !objLocal.udt && !isParamArray(objLocal) && !objLocal.pfield)
+					{
+						if (isDynArray(objLocal))
+						{
+							strLabel = descLabel(objLocal);
+							intBytes = 12;
+						}
+						else
+						{
+							strLabel = arrayLabel(objLocal);
+							intBytes = elementSize(objLocal);
+							dimsOf(objLocal).forEach(function(objDim_a) { intBytes *= objDim_a.n; });
+						}
+						arrCode.push(strIndent + 'lda #<' + strLabel + '\t\t; clear ' + objLocal.id + '()');
+						arrCode.push(strIndent + 'sta z_p0');
+						arrCode.push(strIndent + 'lda #>' + strLabel);
+						arrCode.push(strIndent + 'sta z_p0+1');
+						arrCode.push(strIndent + 'lda #<' + intBytes);
+						arrCode.push(strIndent + 'sta z_a');
+						arrCode.push(strIndent + 'lda #>' + intBytes);
+						arrCode.push(strIndent + 'sta z_a+1');
+						arrCode.push(strBody + '_cl_' + cleanLabel(objLocal.id) + ':');
+						arrCode.push(strIndent + 'ldy #0');
+						arrCode.push(strIndent + 'tya');
+						arrCode.push(strIndent + 'sta (z_p0),y');
+						arrCode.push(strIndent + 'inw z_p0');
+						arrCode.push(strIndent + 'lda z_a');
+						arrCode.push(strIndent + 'bne ' + strBody + '_cm_' + cleanLabel(objLocal.id));
+						arrCode.push(strIndent + 'dec z_a+1');
+						arrCode.push(strBody + '_cm_' + cleanLabel(objLocal.id) + ':');
+						arrCode.push(strIndent + 'dec z_a');
+						arrCode.push(strIndent + 'lda z_a');
+						arrCode.push(strIndent + 'ora z_a+1');
+						arrCode.push(strIndent + 'bne ' + strBody + '_cl_' + cleanLabel(objLocal.id));
+						continue;
+					}
+					if ((objLocal.proc === objProc_a.full) && (objLocal.scope === 'local') && ((objLocal.etype === 'var') || (objLocal.etype === 'result')) && !objLocal.isstatic && !objLocal.udt && !objLocal.pfield)
+					{
+						strLabel = varLabel(objLocal);
+						if (fixedLen(objLocal) > 0)
+						{
+							arrCode.push(strIndent + 'ldy #' + (fixedLen(objLocal) - 1) + '\t\t; String * ' + fixedLen(objLocal) + ': spaces');
+							arrCode.push(strIndent + 'lda #0');
+							arrCode.push(strIndent + 'sta ' + strLabel + '+' + fixedLen(objLocal));
+							arrCode.push(strIndent + 'lda #32');
+							arrCode.push(strBody + '_fx_' + cleanLabel(objLocal.id) + ':');
+							arrCode.push(strIndent + 'sta ' + strLabel + ',y');
+							arrCode.push(strIndent + 'dey');
+							arrCode.push(strIndent + 'bpl ' + strBody + '_fx_' + cleanLabel(objLocal.id));
+						}
+						else if (typeOfEl(objLocal) === 'str')
+						{
+							arrCode.push(strIndent + 'lda #0');
+							arrCode.push(strIndent + 'sta ' + strLabel);
+						}
+						else
+						{
+							arrCode.push(strIndent + 'lda #0');
+							arrCode.push(strIndent + 'sta ' + strLabel);
+							arrCode.push(strIndent + 'sta ' + strLabel + '+1');
+							if (typeOfEl(objLocal) === 'long')
+							{
+								arrCode.push(strIndent + 'sta ' + strLabel + '+2');
+								arrCode.push(strIndent + 'sta ' + strLabel + '+3');
+							}
+						}
+					}
+				}
+			}
+		}
+		arrCode.push(strIndent + 'tsx\t\t\t\t; the return point');
+		arrCode.push(strIndent + 'stx ' + strRs);
+		arrCode.push(strIndent + 'tsy');
+		arrCode.push(strIndent + 'sty ' + strRs + '+1');
+		arrCode.push(strIndent + 'ldx #<(' + strBody + '-1)');
+		arrCode.push(strIndent + 'txs');
+		arrCode.push(strIndent + 'ldy #>(' + strBody + '-1)');
+		arrCode.push(strIndent + 'tys');
+		arrCode.push(strIndent + 'rts');
+
+		arrCode.push(strBody + '_r:\t\t; end of ' + objProc_a.id);
+		for (intI = 0; intI < arrParams.length; intI++)
+		{
+			if (copyBack(objProc_a, intI) && paramEl(objProc_a, intI).udt)
+			{
+				objParam = paramEl(objProc_a, intI);
+				udtLeaves(objParam.datatype, '').forEach(function(objLeaf_a, intLeaf_a)
+				{
+					var objF = objEl[objParam.full + objLeaf_a.path];
+					var strA = addrLabel(objProc_a, intI) + '_' + intLeaf_a;
+
+					arrCode.push(strIndent + 'lda ' + strA);
+					arrCode.push(strIndent + 'sta z_p1');
+					arrCode.push(strIndent + 'lda ' + strA + '+1');
+					arrCode.push(strIndent + 'sta z_p1+1');
+					if (typeOfEl(objF) === 'str')
+					{
+						arrCode.push(strIndent + 'lda #<' + varLabel(objF));
+						arrCode.push(strIndent + 'sta z_p0');
+						arrCode.push(strIndent + 'lda #>' + varLabel(objF));
+						arrCode.push(strIndent + 'sta z_p0+1');
+						stubStrCopy65(arrCode, '', 0, strBody + '_so' + intI + '_' + intLeaf_a);
+					}
+					else
+					{
+						copyBytes(varLabel(objF), leafSize(typeOfEl({ datatype: objLeaf_a.type, full: '' })), false, strBody + '_sc' + intI + '_' + intLeaf_a);
+					}
+				});
+				continue;
+			}
+			if (copyBack(objProc_a, intI))
+			{
+				objParam = paramEl(objProc_a, intI);
+				strLabel = varLabel(objParam);
+				arrCode.push(strIndent + 'lda ' + addrLabel(objProc_a, intI));
+				arrCode.push(strIndent + 'sta z_p1');
+				arrCode.push(strIndent + 'lda ' + addrLabel(objProc_a, intI) + '+1');
+				arrCode.push(strIndent + 'sta z_p1+1');
+				if (typeOfEl(objParam) === 'str')
+				{
+					arrCode.push(strIndent + 'lda #<' + strLabel);
+					arrCode.push(strIndent + 'sta z_p0');
+					arrCode.push(strIndent + 'lda #>' + strLabel);
+					arrCode.push(strIndent + 'sta z_p0+1');
+					stubStrCopy65(arrCode, '', 0, strBody + '_so' + intI);		// cut at the caller's capacity
+				}
+				else
+				{
+					copyBytes(strLabel, (typeOfEl(objParam) === 'long') ? 4 : 2, false, strBody + '_sc' + intI);
+				}
+			}
+		}
+		arrCode.push(strIndent + 'ldx ' + strRs + '\t\t; back to the caller\'s thread');
+		arrCode.push(strIndent + 'txs');
+		arrCode.push(strIndent + 'ldy ' + strRs + '+1');
+		arrCode.push(strIndent + 'tys');
+		arrCode.push(strIndent + 'rts');
+
+		arrProcStubs = arrProcStubs.concat(arrCode);
+	}
+
 	function procStubs(objProc_a, strMode_a)
 	{
 		var intBytes = 0;
+		if (blnM68k)
+		{
+			procStubs68k(objProc_a, strMode_a);
+			return;
+		}
+		if (blnM65)
+		{
+			procStubs65(objProc_a, strMode_a);
+			return;
+		}
 		var arrCode = [];
 		var arrParams = procParams(objProc_a);
 		var intI = 0;
@@ -6107,7 +6688,7 @@ function ntcCompile(input_a, objOptions_a)
 			// ld sp, label / ld sp, hl moves the thread: a branch. ld sp, (var) is the
 			// switch to the real stack and back (ld sp, (ntc_csp) ... ld sp, (saved)):
 			// not a branch, so the block's own call / ret on the real stack stay as written
-			if (/^\s*ld\s+sp\s*,\s*[^\s(]/i.test(strCode))
+			if (/^\s*ld\s+sp\s*,\s*[^\s(]/i.test(strCode) || (blnM68k && /^\s*(lea\s+[^,]+|movea?\.l\s+[#(][^,]*),\s*(sp|a7)\s*$/i.test(strCode)) || (blnM65 && /^\s*(txs|tys)\b/i.test(strCode)))
 			{
 				blnBranch = true;
 			}
@@ -6161,7 +6742,7 @@ function ntcCompile(input_a, objOptions_a)
 			}
 			arrCode.push(strCode + strComment);
 		}
-		arrCode.push('\t\t\t' + ((blnNormal && blnBranch) ? 'jp ntc_xn' : 'ret') + '\t\t\t; end of #asm');
+		arrCode.push('\t\t\t' + ((blnM68k || blnM65) ? 'rts' : ((blnNormal && blnBranch) ? 'jp ntc_xn' : 'ret')) + '\t\t\t; end of #asm');
 
 		if (objAsmDone[strName] === undefined)
 		{
@@ -6217,7 +6798,7 @@ function ntcCompile(input_a, objOptions_a)
 			for (intJ = 0; intJ < arrRecs[1].lines.length; intJ++)
 			{
 				strCode = arrRecs[1].lines[intJ].substr(0, codePart(arrRecs[1].lines[intJ]));
-				if (/^\s*ld\s+sp\s*,\s*[^\s(]/i.test(strCode))
+				if (/^\s*ld\s+sp\s*,\s*[^\s(]/i.test(strCode) || (blnM68k && /^\s*(lea\s+[^,]+|movea?\.l\s+[#(][^,]*),\s*(sp|a7)\s*$/i.test(strCode)) || (blnM65 && /^\s*(txs|tys)\b/i.test(strCode)))
 				{
 					blnOk = false;		// moves SP to a label / HL: a branch, stays a procedure
 				}
@@ -6580,6 +7161,10 @@ function ntcCompile(input_a, objOptions_a)
 				break;
 
 			case 'turbo':
+				if (blnM68k || blnM65)
+				{
+					break;		// the 68000: interrupts are always on and never touch the thread - one mode
+				}
 				if (blnNoTurbo)
 				{
 					if (intPass === 2)
@@ -7408,6 +7993,10 @@ function ntcCompile(input_a, objOptions_a)
 					{
 						objCurrent.auto = true;			// a small routine: linked when a linked section names it
 					}
+					else if (arrParts[intJ] === '@const')
+					{
+						objCurrent.isconst = true;		// read only (tables): a cartridge ROM keeps it in the ROM (romLayout)
+					}
 					else if (arrParts[intJ] === '@romram')
 					{
 						objCurrent.romram = true;		// in the keyword library ROM this runs from RAM (ntcRomAsm)
@@ -7783,6 +8372,12 @@ function ntcCompile(input_a, objOptions_a)
 		return strPlatform;
 	}
 
+	// platIs: the platform is this one, or built on it (;@base: cpccard and cpc9990 are cpc)
+	function platIs(strName_a)
+	{
+		return (objOptions.platform === strName_a) || (String(objPlat.base || '') === strName_a);
+	}
+
 	// cpmLike: the platform is CP/M underneath (cpm, or cyborgos - a slot is CP/M 2.2)
 	function cpmLike()
 	{
@@ -7833,7 +8428,7 @@ function ntcCompile(input_a, objOptions_a)
 				arrErrors.push({ file: objRec_a.file, line: objRec_a.line, msg: 'Option Reserve: bad range ' + arrParts[intI] + ', ' + arrParts[intI + 1] + ' (numbers: start 0-&HFFFF, size 1 or more, not past &HFFFF)' });
 				continue;
 			}
-			if (((objOptions.platform === 'cpc') || (objOptions.platform === 'cpcmin')) && (intStart < 0xC100) && (intStart + intSize > 0xC000))
+			if ((platIs('cpc') || (objOptions.platform === 'cpcmin')) && (intStart < 0xC100) && (intStart + intSize > 0xC000))
 			{
 				arrWarnings.push({ file: objRec_a.file, line: objRec_a.line, msg: 'Option Reserve covers #C000: the cpc platform puts its font copy code at #C000 for a moment when the screen is first used - load into that area only after the first Print / Cls / Mode' });
 			}
@@ -7891,7 +8486,7 @@ function ntcCompile(input_a, objOptions_a)
 	function readMemory(objRec_a)
 	{
 		var arrMatch = String(objRec_a.value).match(/^(small|cpcexpansion)\b[ \t,]*(.*)$/i);
-		var blnCpc = (objOptions.platform === 'cpc') || (objOptions.platform === 'cpcmin') || (objOptions.platform === 'cpcfw') || (objOptions.platform === 'zxn');
+		var blnCpc = platIs('cpc') || (objOptions.platform === 'cpcmin') || (objOptions.platform === 'cpcfw') || (objOptions.platform === 'zxn');
 		var intMax = 0;
 
 		if (!arrMatch)
@@ -7973,7 +8568,7 @@ function ntcCompile(input_a, objOptions_a)
 	// CPC platforms, Small (main RAM only) elsewhere
 	function findMemory(arrFiles_a, blnActive_a)
 	{
-		var objResult = { scheme: ((objOptions.platform === 'cpc') || (objOptions.platform === 'cpcmin') || (objOptions.platform === 'cpcfw')) ? 'cpcexpansion' : 'small', max: 257 };
+		var objResult = { scheme: (platIs('cpc') || (objOptions.platform === 'cpcmin') || (objOptions.platform === 'cpcfw')) ? 'cpcexpansion' : 'small', max: 257 };
 
 		// zxn with Option Page: its pages are RAM pages (the Next's banks), so CPCExpansion
 		if ((objOptions.platform === 'zxn') && arrFiles_a.some(function(objFile_a) { return /^[ \t]*option[ \t]+page\b/im.test(String(objFile_a.text)); }))
@@ -8519,9 +9114,9 @@ function ntcCompile(input_a, objOptions_a)
 			{
 				intRate = (arrMatch[1].toLowerCase() === 'frame') ? 0 : parseInt(arrMatch[1], 10);
 			}
-			if ((intShare === 0) && (arrMatch[1].toLowerCase() !== 'frame') && ((intRate < 1) || (intRate > 300)))
+			if ((intShare === 0) && (arrMatch[1].toLowerCase() !== 'frame') && ((intRate < 1) || (intRate > irqRate())))
 			{
-				arrErrors.push({ file: objRec_a.file, line: objRec_a.line, msg: 'Option Class Interrupt: a rate of 1 - 300 times a second, Frame, or Share n' });
+				arrErrors.push({ file: objRec_a.file, line: objRec_a.line, msg: 'Option Class Interrupt: a rate of 1 - ' + irqRate() + ' times a second, Frame, or Share n' });
 				return;
 			}
 			if (arrIslots.length >= 16)
@@ -8589,6 +9184,16 @@ function ntcCompile(input_a, objOptions_a)
 		if ((strLib === null) && (typeof NTC_LIB_ASM !== 'undefined'))
 		{
 			strLib = NTC_LIB_ASM;
+		}
+		if (blnM68k)
+		{
+			// the 68000's own keyword library (asm/ntc_lib_68k.asm)
+			strLib = objOptions.libtext68k || ((typeof NTC_LIB_ASM_68K !== 'undefined') ? NTC_LIB_ASM_68K : null);
+		}
+		if (blnM65)
+		{
+			// the 45GS02's own keyword library (asm/ntc_lib_m65.asm)
+			strLib = objOptions.libtextm65 || ((typeof NTC_LIB_ASM_M65 !== 'undefined') ? NTC_LIB_ASM_M65 : null);
 		}
 		strPlatform = platformText();
 		if ((strLib === null) || (strLib === undefined))
@@ -8702,6 +9307,30 @@ function ntcCompile(input_a, objOptions_a)
 		return isNaN(intV) ? 0 : intV;
 	}
 	var strIndentG = '\t\t\t';
+	// the 45GS02 (vasm): the program's own lines (up to the keyword library) get $ for the
+	// sjasmplus # in the numbers of its data and directive lines (dw, db, ds, equ, org, assert, if)
+	function m65Numbers(strAsm_a)
+	{
+		var blnLib = false;
+
+		if (!blnM65)
+		{
+			return strAsm_a;
+		}
+		return strAsm_a.split('\n').map(function(strL_a)
+		{
+			if (/^; Keyword library/.test(strL_a))
+			{
+				blnLib = true;
+			}
+			if (!blnLib && (/^\s*([A-Za-z_]\w*:?\s+)?(dw|db|ds|org|assert|if|elseif)\b/i.test(strL_a) || /^[A-Za-z_]\w*\s+equ\b/i.test(strL_a)))
+			{
+				return strL_a.replace(/#([0-9A-Fa-f]+)\b/g, '$$$1');
+			}
+			return strL_a;
+		}).join('\n');
+	}
+
 	function holeLayout(strAsm_a)
 	{
 		var arrHoles = [];
@@ -8950,6 +9579,310 @@ function ntcCompile(input_a, objOptions_a)
 		return arrOut.join('\n');
 	}
 
+	// irqRate - the platform's interrupts a second (;@irqrate: 300 on the CPC and the Next,
+	// a frame's on msx and sc3000): Option Class Interrupt's rates count in them
+	function irqRate()
+	{
+		return parseInt(objPlat.irqrate, 10) || 300;
+	}
+
+	// romHead - a cartridge ROM's start: the platform's section ntc_plat_romhead, at the org (the
+	// MSX's "AB" header, the SC-3000's restart vectors); it goes on to ntc_start
+	function romHead()
+	{
+		var arrOut = ['; ============================================================', '; Cartridge ROM header (the platform\'s ntc_plat_romhead)', '; ============================================================'];
+		var blnIn = false;
+
+		String(platformText() || '').split(/\r?\n/).forEach(function(strLine_a)
+		{
+			if (/^;## /.test(strLine_a))
+			{
+				blnIn = /^;##\s+ntc_plat_romhead\b/.test(strLine_a);
+			}
+			else if (blnIn)
+			{
+				arrOut.push(strLine_a);
+			}
+		});
+		return arrOut.join('\n');
+	}
+
+	// romTail - a cartridge ROM: checked against the ROM's room and RAM, then padded to the
+	// smallest of the platform's sizes (;@romsizes, in K) it fits in
+	function romTail()
+	{
+		var arrRom = String(objPlat.rom).split(/\s+/);
+		var arrSizes = String(objPlat.romsizes || '16 32').split(/\s+/).map(function(str_a) { return parseInt(str_a, 10) * 1024; });
+		var arrOut = ['', '; ROM: the cartridge, padded to its size'];
+
+		arrOut.push(strIndentG + 'ASSERT ntc_end <= ' + arrRom[1] + ', "the program does not fit in the cartridge ROM (' + arrRom[0] + ' - ' + arrRom[1] + ')"');
+		arrOut.push(strIndentG + 'ASSERT ntc_rbss_end <= ' + (objPlat.ramtop || objPlat.stack) + ' - 128, "the variables do not fit in RAM (' + objPlat.ram + ' up to ' + (objPlat.ramtop || objPlat.stack) + ', less 128 bytes of stack)"');
+		arrSizes.forEach(function(intSize_a, intI_a)
+		{
+			arrOut.push(strIndentG + ((intI_a === 0) ? 'IF' : 'ELSEIF') + ' ntc_end <= ' + arrRom[0] + ' + ' + intSize_a);
+			arrOut.push(strIndentG + 'ds ' + arrRom[0] + ' + ' + intSize_a + ' - $, #FF\t\t; ' + (intSize_a / 1024) + 'K');
+		});
+		arrOut.push(strIndentG + 'ENDIF');
+		return arrOut.join('\n');
+	}
+
+	// romLayout - a program in a cartridge ROM (the platform's ;@rom start end, ;@ram org:
+	// msx, sc3000). The code, the threads, the strings and the numbers stay in the ROM where
+	// they were built; what the program writes goes to RAM: the Variables part, the library's
+	// variables (a label with data after it; @data sections), the sections that run from RAM
+	// (@romram, whole) and the data of the #asm blocks. Those lines move into an image built
+	// for RAM (DISP ;@ram) at the end of the ROM, which the start code copies to RAM; a
+	// variable that is only ds (no value) takes no ROM: it is an equ after the image, and the
+	// start code clears it. Unlabelled data straight after code is code (inline opcodes) and
+	// stays. ;@const on a label's line keeps that data in the ROM (a table nothing writes).
+	// IF / ELSE / ENDIF lines go to every part, so each part's conditions stay matched
+	function romLayout(strAsm_a)
+	{
+		var arrIn = strAsm_a.split('\n');
+		var intS = arrIn.indexOf('ntc_start:');
+		var intE = -1;
+		var arrRom = [];
+		var arrRam = [];
+		var arrBss = [];
+		var arrPend = [];		// labels on their own lines: the next line decides where they go
+		var arrPrefix = [];		// unlabelled data after a ds variable: the next variable's (a capacity byte)
+		var strMode = 'rom';	// rom: all stays; ram: all moves; mixed: by the rules above; romram: the whole section moves
+		var objItem = null;		// the variable being moved: { bss, lines }
+		var blnLib = false;
+		var blnConstRun = false;	// in a ;@const table: its unlabelled lines stay in the ROM
+		var intI = 0;
+		var strL = '';
+
+		for (intI = intS + 1; intI < arrIn.length; intI++)
+		{
+			if (/^ntc_end:/.test(arrIn[intI]))
+			{
+				intE = intI;
+				break;
+			}
+		}
+		if ((intS < 0) || (intE < 0))
+		{
+			return strAsm_a;
+		}
+		function flushItem()
+		{
+			if (objItem === null)
+			{
+				return;
+			}
+			if (arrPrefix.length > 0)
+			{
+				objItem.lines = objItem.lines.concat(arrPrefix);		// no variable followed: they stay with this one
+				objItem.bss = false;
+				arrPrefix = [];
+			}
+			if (objItem.bss)
+			{
+				objItem.lines.forEach(function(strI_a)
+				{
+					var strC = strI_a.replace(/;.*$/, '');
+					var arrLab = strC.match(/^([A-Za-z_]\w*):?/);
+					var arrDs = strC.replace(/^[A-Za-z_]\w*:?/, '').match(/^\s*(?:ds|defs)\s+([^,]+?)\s*(?:,\s*0\s*)?$/i);
+
+					if (arrLab)
+					{
+						arrBss.push(arrLab[1] + '\t\tequ ntc_rbss_p');
+					}
+					if (arrDs)
+					{
+						arrBss.push('ntc_rbss_p\t= ntc_rbss_p + (' + arrDs[1] + ')');
+					}
+				});
+			}
+			else
+			{
+				arrRam.push.apply(arrRam, objItem.lines);
+			}
+			objItem = null;
+		}
+		function flushPend(arrTo_a)
+		{
+			arrTo_a.push.apply(arrTo_a, arrPend);
+			arrPend = [];
+		}
+		function toAll(strLine_a)
+		{
+			flushItem();
+			flushPend(arrRom);
+			arrRom.push(strLine_a);
+			arrRam.push(strLine_a);
+			arrBss.push(strLine_a);
+		}
+		for (intI = intS; intI < intE; intI++)
+		{
+			strL = arrIn[intI];
+			var strCode = strL.replace(/"[^"]*"|'[^']'/g, '""').replace(/;.*$/, '');
+			var arrLabel = strCode.match(/^([A-Za-z_][\w.]*):?(\s+(.*))?$/);
+			var strBody = arrLabel ? String(arrLabel[3] || '').trim() : strCode.trim();
+			var blnData = /^(db|dw|ds|defb|defw|defs|dm|byte|word)\b/i.test(strBody);
+			var blnDs = /^(ds|defs)\s+[^,]+(,\s*0\s*)?$/i.test(strBody);
+			var blnConst = /;\s*@const\b/i.test(strL);
+
+			// the parts: a ; ==== block's title before the library, a ;## section in it
+			if (!blnLib && (strL === '; ============================================================') && (arrIn[intI + 2] === '; ============================================================'))
+			{
+				flushItem();
+				flushPend(arrRom);
+				if (/^; Keyword library \(/.test(arrIn[intI + 1]))
+				{
+					blnLib = true;
+				}
+				strMode = (arrIn[intI + 1] === '; Variables') ? 'ram' : (/^; Inline assembly/.test(arrIn[intI + 1]) ? 'mixed' : 'rom');
+				arrRom.push(strL);
+				continue;
+			}
+			if (!blnLib && /^; numbers passed by address/.test(strL))
+			{
+				flushItem();
+				flushPend(arrRam);
+				strMode = 'rom';
+				arrRom.push(strL);
+				continue;
+			}
+			if (blnLib && /^;## /.test(strL))
+			{
+				blnConstRun = false;
+				flushItem();
+				flushPend(arrRom);
+				strMode = /\s@romram\b/.test(strL) ? 'romram' : (/\s@data\b/.test(strL) ? 'ram' : (/\s@const\b/.test(strL) ? 'rom' : 'mixed'));
+				(((strMode === 'romram') || (strMode === 'ram')) ? arrRam : arrRom).push(strL);
+				continue;
+			}
+			if (/^\s*(IF|IFDEF|IFNDEF|IFUSED|IFNUSED|ELSE|ELSEIF|ENDIF)\b/i.test(strCode))
+			{
+				toAll(strL);
+				continue;
+			}
+			if (strCode.trim().length === 0)
+			{
+				((objItem !== null) ? objItem.lines : (((strMode === 'ram') || (strMode === 'romram')) ? arrRam : arrRom)).push(strL);
+				continue;
+			}
+			if (strMode === 'rom')
+			{
+				arrRom.push(strL);
+				continue;
+			}
+			if (strMode === 'romram')
+			{
+				arrRam.push(strL);
+				continue;
+			}
+			if (arrLabel && /^(equ|=|defl)\b/i.test(strBody))
+			{
+				flushItem();
+				flushPend(arrRom);
+				arrRom.push(strL);
+				continue;
+			}
+			if (/^\s*(ASSERT|DISPLAY|DEFINE)\b/i.test(strCode))
+			{
+				arrRom.push(strL);
+				continue;
+			}
+			if (arrLabel && (strBody.length === 0))
+			{
+				arrPend.push(strL);
+				continue;
+			}
+			if (blnData && !arrLabel && (arrPend.length === 0) && blnConstRun)
+			{
+				arrRom.push(strL);		// the rest of a table kept in the ROM (;@const)
+				continue;
+			}
+			blnConstRun = false;
+			if (blnData && !arrLabel && (arrPend.length === 0) && /^[A-Za-z_]\w*:?\s+(db|dw|ds|defb|defw|defs)\b/i.test(arrIn[intI + 1] || ''))
+			{
+				flushItem();
+				arrPrefix.push(strL);		// just before a variable: its own (a capacity byte)
+				continue;
+			}
+			if (blnData && (arrLabel || (arrPend.length > 0)))
+			{
+				// a variable starts (labels alone just before it are its other names)
+				var arrBefore = arrPrefix;
+
+				arrPrefix = [];
+				flushItem();
+				if (blnConst || (/@const/.test(arrPend.join(' '))))
+				{
+					flushPend(arrRom);
+					arrRom.push.apply(arrRom, arrBefore);
+					arrRom.push(strL);
+					blnConstRun = true;
+					continue;
+				}
+				objItem = { bss: blnDs && (arrBefore.length === 0), lines: arrBefore.concat(arrPend) };
+				arrPend = [];
+				objItem.lines.push(strL);
+				continue;
+			}
+			if (blnData && (objItem !== null))
+			{
+				if (objItem.bss && !blnDs)
+				{
+					arrPrefix.push(strL);		// after a buffer: the next variable's, or this one's
+					continue;
+				}
+				if (arrPrefix.length > 0)
+				{
+					objItem.lines = objItem.lines.concat(arrPrefix);
+					arrPrefix = [];
+				}
+				objItem.bss = objItem.bss && blnDs;
+				objItem.lines.push(strL);
+				continue;
+			}
+			if (blnData && (strMode === 'ram'))
+			{
+				arrPrefix.push(strL);		// a first, unlabelled data line: the next variable's (a capacity byte)
+				continue;
+			}
+			// code (or unlabelled data straight after code: inline opcodes)
+			if (strMode === 'ram')
+			{
+				flushItem();
+				flushPend(arrRam);
+				arrRam.push.apply(arrRam, arrPrefix);
+				arrPrefix = [];
+				arrRam.push(strL);
+				continue;
+			}
+			flushItem();
+			arrRom.push.apply(arrRom, arrPrefix);
+			arrPrefix = [];
+			flushPend(arrRom);
+			arrRom.push(strL);
+		}
+		flushItem();
+		flushPend(arrRom);
+		arrRom.push.apply(arrRom, arrPrefix);
+		return arrIn.slice(0, intS).concat(arrRom, [
+			'',
+			'; ============================================================',
+			'; RAM image: the variables and the code that runs from RAM, built for ' + objPlat.ram + ',',
+			'; copied there by the start code. Then the variables with no value (cleared)',
+			'; ============================================================',
+			'ntc_rimg:',
+			strIndentG + 'DISP ' + objPlat.ram,
+			'ntc_rimg_ram:'
+		], arrRam, [
+			'ntc_rimg_rend:',
+			strIndentG + 'ENT',
+			'ntc_rimg_end:',
+			'ntc_rbss_p\t= ntc_rimg_rend'
+		], arrBss, [
+			'ntc_rbss_end\tequ ntc_rbss_p',
+			''
+		], arrIn.slice(intE)).join('\n').replace(/^ntc_bssfrom\tequ ntc_end\b/m, 'ntc_bssfrom\tequ ntc_rbss_end\t\t; (ROM: the arrays go after the RAM variables)');
+	}
+
 	// gfxHighCopy - CP/M: the Graphics line loop (ntc_gfx from ; >gfxhi to ; <gfxhi)
 	// again, assembled for GFH_AT (#C000, common memory on CP/M Plus) with its labels
 	// gfx_ renamed gfh_; gfx_cpmver copies it there (CP/M Plus draws from there in C1)
@@ -9123,6 +10056,8 @@ function ntcCompile(input_a, objOptions_a)
 		return { asm: '', libasm: '', layout: [], errors: objPrep.errors, warnings: objPrep.warnings, xref: [], map: '', procs: [], vbfiles: arrFiles, stats: { threadbytes: 0, keywords: 0, variables: 0, temps: 0, stemps: 0, normal: false, start: 'n' } };
 	}
 	readPlatform();
+	blnM68k = (String(objPlat.cpu || '') === '68000');
+	blnM65 = (String(objPlat.cpu || '').toLowerCase() === '45gs02');
 	if ((objOptions.org === null) || (objOptions.org === undefined))
 	{
 		objOptions.org = findOrg(arrFiles) || objPlat.org;
@@ -9135,6 +10070,14 @@ function ntcCompile(input_a, objOptions_a)
 	objMemory = findMemory(arrFiles);
 	objDefinesIn = { ntc: -1 };
 	objDefinesIn['ntc_' + String(objOptions.platform).toLowerCase()] = -1;	// #If NTC_CPM Then ...
+	if (objPlat.base)
+	{
+		objDefinesIn['ntc_' + String(objPlat.base).toLowerCase()] = -1;	// built on another: what is written for that one holds (#If NTC_MSX on msx9990)
+	}
+	if (objPlat.vdp)
+	{
+		objDefinesIn.ntc_vdp = -1;		// the screen is a video chip on ports (asm/ntc_lib_vdp.asm: msx, sc3000, cpccard, cpc9990)
+	}
 	if (objOptions.platform === 'cyborgos')
 	{
 		objDefinesIn.ntc_cpm = -1;				// (a slot is CP/M 2.2: what is written for cpm holds)
@@ -9407,6 +10350,12 @@ function ntcCompile(input_a, objOptions_a)
 		strStartMode = 'n';
 	}
 
+	// the 68000 has one mode: its interrupts use their own stack, never the thread
+	if (blnM68k || blnM65)
+	{
+		strStartMode = 't';		// (the 45GS02: interrupts are off - one mode too)
+	}
+
 	// Sub Main runs after the top level code
 	if (find('main') !== null && (find('main').etype === 'proc') && (find('main').kind === 'sub'))
 	{
@@ -9562,10 +10511,27 @@ function ntcCompile(input_a, objOptions_a)
 		arrAsm.push(strIndent + 'DEVICE ZXSPECTRUMNEXT\t\t; for SAVENEX at the end');
 		arrAsm.push(strIndent + 'MMU 0 5, 16\t\t\t; #0000-#BFFF: pages 16-21 (banks 8, 9, 10)');
 	}
+	if (objPlat.rom)
+	{
+		// a cartridge ROM (msx, sc3000): the file is the ROM, padded to a cartridge size (the end)
+		arrAsm.push(strIndent + 'OUTPUT "' + programName(arrFiles) + '.' + String(objPlat.romfile || 'ROM').toUpperCase() + '"\t\t; the cartridge ROM');
+	}
 	if (String(objOptions.org).replace(/\s/g, '').length > 0)
 	{
-		arrAsm.push(strIndent + 'org ' + objOptions.org);
+		arrAsm.push(strIndent + 'org ' + ((blnM68k || blnM65) ? String(objOptions.org).replace(/^#/, '$') : objOptions.org));
 		arrAsm.push('');
+	}
+	if (objPlat.rom)
+	{
+		arrAsm.push(romHead());
+	}
+	if (blnM68k)
+	{
+		arrAsm.push('@@MDVECTORS@@');		// the platform's vectors and header (at 0), put in after linking
+	}
+	if (blnM65)
+	{
+		arrAsm.push('@@M65STUB@@');		// the PRG's BASIC line and the jump to the start code, put in after linking
 	}
 	arrAsm.push('NTC_TERM\tequ ' + ({ none: 0, vt52: 1, ansi: 2 })[strTerminal] + '\t\t; Option Terminal: 0 none, 1 VT52, 2 ANSI (CP/M)');
 	arrAsm.push('NTC_STRMAX\tequ ' + intStrMax + '\t\t; the longest string (library buffers, temps)');
@@ -9585,12 +10551,56 @@ function ntcCompile(input_a, objOptions_a)
 		arrAsm.push('ZXN_FIRSTBANK\tequ ' + intFirstBank + '\t\t; first free 16K bank (page ' + (2 * intFirstBank) + '), above the program/screen/low banks' + ((intFirstBank > 22) ? ' and Option NexData\'s blocks' : ''));
 		arrAsm.push('ZXN_MAXBANK\tequ ' + (112 - intFirstBank) + '\t\t; scan range: banks ' + intFirstBank + '-111 (a 2MB Next has 112 16K banks, pages 0-223; the MMU has no page past 223 - a higher page number is not RAM)');
 	}
+	if ((String(objOptions.platform).toLowerCase() === 'zxn') || objPlat.islc)
+	{
+		arrAsm.push('; the interrupt handler passes 1 in C at a frame\'s interrupt (ntc_isl_tick: not the CPC\'s vertical sync)');
+		arrAsm.push(strIndent + 'DEFINE NTC_ISLC');
+	}
 	arrAsm.push('NTC_CPMGFX\tequ ' + (cpmLike() ? 1 : 0) + '\t\t; 1 = CP/M: Graphics draws on an Amstrad CPC\'s screen (2.2: #C000, Plus: block 1 from common memory)');
+	if (blnM68k)
+	{
+		// the 68000: the switch to the real stack (for jsr) and back, defined before any use
+		arrAsm.push('NTC_RS\t\tmacro\t\t\t; the real stack: the thread position kept in ntc_ip');
+		arrAsm.push(strIndent + 'move.l sp, ntc_ip');
+		arrAsm.push(strIndent + 'movea.l ntc_csp, sp');
+		arrAsm.push(strIndent + 'endm');
+		arrAsm.push('NTC_TS\t\tmacro\t\t\t; back to the thread');
+		arrAsm.push(strIndent + 'movea.l ntc_ip, sp');
+		arrAsm.push(strIndent + 'endm');
+	}
+	if (blnM65)
+	{
+		// the 45GS02: the switch to the real stack (for jsr) and back, and taking a word off the
+		// thread, defined before any use (asm/ntc_lib_m65.asm, the platform classes' #asm)
+		arrAsm.push('NTC_RS\t\tmacro\t\t\t; the real stack: the thread position kept in ntc_ip');
+		arrAsm.push(strIndent + 'tsx');
+		arrAsm.push(strIndent + 'stx ntc_ip');
+		arrAsm.push(strIndent + 'tsy');
+		arrAsm.push(strIndent + 'sty ntc_ip+1');
+		arrAsm.push(strIndent + 'ldx ntc_csp');
+		arrAsm.push(strIndent + 'txs');
+		arrAsm.push(strIndent + 'ldy ntc_csp+1');
+		arrAsm.push(strIndent + 'tys');
+		arrAsm.push(strIndent + 'endm');
+		arrAsm.push('NTC_TS\t\tmacro\t\t\t; back to the thread (A and the flags are kept)');
+		arrAsm.push(strIndent + 'ldx ntc_ip');
+		arrAsm.push(strIndent + 'txs');
+		arrAsm.push(strIndent + 'ldy ntc_ip+1');
+		arrAsm.push(strIndent + 'tys');
+		arrAsm.push(strIndent + 'endm');
+		arrAsm.push('NTC_POP\t\tmacro\t\t\t; the next thread word into the base page word \\1');
+		arrAsm.push(strIndent + 'pla');
+		arrAsm.push(strIndent + 'sta \\1');
+		arrAsm.push(strIndent + 'pla');
+		arrAsm.push(strIndent + 'sta \\1+1');
+		arrAsm.push(strIndent + 'endm');
+	}
 	arrAsm.push('');
 	// the options in a fixed order, wherever they are in the source: the stack first (the
 	// ROM start runs on it), then the ROMs, then the program
+	var intStartAt = arrAsm.length;		// (the 68000's start replaces the Z80 one below)
 	arrAsm.push('ntc_start:');
-	if ((['cpc', 'cpcmin', 'cpcfw'].indexOf(String(objOptions.platform).toLowerCase()) >= 0) && (parseInt(String(objOptions.org).replace(/^#|^&H|^0x/i, ''), 16) === 0x40))
+	if ((platIs('cpc') || (['cpcmin', 'cpcfw'].indexOf(String(objOptions.platform).toLowerCase()) >= 0)) && (parseInt(String(objOptions.org).replace(/^#|^&H|^0x/i, ''), 16) === 0x40))
 	{
 		// the bank switch every 64K bank and main RAM share (CyborgOS, docs/cyborgos.md): the
 		// side handing over pushes where it carries on, keeps SP at its own #0042, loads BC with
@@ -9687,6 +10697,18 @@ function ntcCompile(input_a, objOptions_a)
 	else if (String(objPlat.stack).length > 0)
 	{
 		arrAsm.push(strIndent + 'ld sp, ' + objPlat.stack + '\t\t; the platform\'s own real stack');
+	}
+	if (objPlat.rom)
+	{
+		arrAsm.push(strIndent + 'ld hl, ntc_rimg\t\t; ROM: the RAM image (variables, code that runs from RAM) to RAM');
+		arrAsm.push(strIndent + 'ld de, ntc_rimg_ram');
+		arrAsm.push(strIndent + 'ld bc, ntc_rimg_end - ntc_rimg + 1\t; (+ 1: never 0)');
+		arrAsm.push(strIndent + 'ldir');
+		arrAsm.push(strIndent + 'ld hl, ntc_rimg_rend\t\t; and the variables with no value cleared');
+		arrAsm.push(strIndent + 'ld de, ntc_rimg_rend + 1');
+		arrAsm.push(strIndent + 'ld bc, ntc_rbss_end - ntc_rimg_rend + 1');
+		arrAsm.push(strIndent + 'ld (hl), 0');
+		arrAsm.push(strIndent + 'ldir');
 	}
 	arrAsm.push(strIndent + 'ld (ntc_csp), sp');
 	if (cpmLike() && (objProcModes['system.commandline'] !== undefined))
@@ -9815,9 +10837,9 @@ function ntcCompile(input_a, objOptions_a)
 				arrAsm.push(strIndent + 'ld (ntc_isl + ' + (intSlot_a * 8 + 6) + '), hl');
 				return;
 			}
-			arrAsm.push(strIndent + 'ld hl, ' + ((objSlot_a.rate === 0) ? 0 : Math.max(1, Math.round(300 / objSlot_a.rate))) + '\t\t; ' + objSlot_a.module + ': ' + ((objSlot_a.rate === 0) ? 'every frame' : ('every ' + Math.max(1, Math.round(300 / objSlot_a.rate)) + ' interrupts')));
+			arrAsm.push(strIndent + 'ld hl, ' + ((objSlot_a.rate === 0) ? 0 : Math.max(1, Math.round(irqRate() / objSlot_a.rate))) + '\t\t; ' + objSlot_a.module + ': ' + ((objSlot_a.rate === 0) ? 'every frame' : ('every ' + Math.max(1, Math.round(irqRate() / objSlot_a.rate)) + ' interrupts')));
 			arrAsm.push(strIndent + 'ld (ntc_isl + ' + (intSlot_a * 8 + 2) + '), hl');
-			arrAsm.push(strIndent + 'ld hl, ' + (((objSlot_a.rate === 0) ? 0 : Math.max(1, Math.round(300 / objSlot_a.rate))) + intSlot_a + 1) + '\t\t\t; the first after one period (+ the slot, so they take turns)');
+			arrAsm.push(strIndent + 'ld hl, ' + (((objSlot_a.rate === 0) ? 0 : Math.max(1, Math.round(irqRate() / objSlot_a.rate))) + intSlot_a + 1) + '\t\t\t; the first after one period (+ the slot, so they take turns)');
 			arrAsm.push(strIndent + 'ld (ntc_isl + ' + (intSlot_a * 8) + '), hl');
 			arrAsm.push(strIndent + 'ld hl, ' + procLabel(objSlot_a.tick, 'n') + '_c');
 			arrAsm.push(strIndent + 'ld (ntc_isl + ' + (intSlot_a * 8 + 6) + '), hl');
@@ -9845,6 +10867,34 @@ function ntcCompile(input_a, objOptions_a)
 	}
 	arrAsm.push(strIndent + 'ld sp, main_thread');
 	arrAsm.push(strIndent + 'ret');
+	if (blnM68k)
+	{
+		// the 68000: the platform's start code has set up the machine and comes here in user
+		// mode on the real stack; the thread starts
+		arrAsm.splice(intStartAt);
+		arrAsm.push('ntc_start:');
+		arrAsm.push(strIndent + 'move.l sp, ntc_csp\t\t; the real stack (the library\'s jsr calls)');
+		arrAsm.push(strIndent + 'lea main_thread, sp');
+		arrAsm.push(strIndent + 'rts');
+		objStack = null;
+	}
+	if (blnM65)
+	{
+		// the 45GS02: the platform's start code has taken the machine over and comes here on the
+		// real stack (16 bits); the thread starts: SP = main_thread - 1, rts
+		arrAsm.splice(intStartAt);
+		arrAsm.push('ntc_start:');
+		arrAsm.push(strIndent + 'tsx\t\t\t\t; the real stack (the library\'s jsr calls)');
+		arrAsm.push(strIndent + 'stx ntc_csp');
+		arrAsm.push(strIndent + 'tsy');
+		arrAsm.push(strIndent + 'sty ntc_csp+1');
+		arrAsm.push(strIndent + 'ldx #<(main_thread-1)');
+		arrAsm.push(strIndent + 'txs');
+		arrAsm.push(strIndent + 'ldy #>(main_thread-1)');
+		arrAsm.push(strIndent + 'tys');
+		arrAsm.push(strIndent + 'rts');
+		objStack = null;
+	}
 	if (objStack !== null)
 	{
 		arrAsm.push('ntc_sback:\t\t\t; End with Option Stack: back to the caller\'s stack');
@@ -9857,13 +10907,15 @@ function ntcCompile(input_a, objOptions_a)
 	arrAsm.push('; Main Thread');
 	arrAsm.push('; ============================================================');
 	arrAsm.push('');
+	var strDW = blnM68k ? 'dc.l ' : 'dw ';		// a thread word: the 68000's are longs
+	var strCW = blnM65 ? '-1' : '';				// after a code word: the 45GS02's rts goes to the word + 1
 	arrAsm.push('main_thread:');
 	for (intI = 0; intI < arrOut.length; intI++)
 	{
 		if (objPlat.scrinit && (arrOut[intI].t === 'kw') && (NTC_SCREEN_KEYWORDS.indexOf(arrOut[intI].kw) > -1))
 		{
 			strName = 'kw_scrinit' + (((strStartMode === 'n') && isModeKw('kw_scrinit')) ? '_n' : '');
-			arrAsm.push(strIndent + 'dw ' + strName + '\t\t; mode 1, ROMs off, clear screen');
+			arrAsm.push(strIndent + strDW + strName + strCW + '\t\t; mode 1, ROMs off, clear screen');
 			if (strStartMode === 'n')
 			{
 				objUsedN['kw_scrinit'] = true;
@@ -9879,7 +10931,7 @@ function ntcCompile(input_a, objOptions_a)
 
 	if (arrDecl.some(function(objItem_a) { return bssSize(objItem_a) > 0; }))
 	{
-		arrAsm.push(strIndent + 'dw kw_bssinit, ntc_bss, ntc_bss_size\t\t; the arrays: do they fit, clear them');
+		arrAsm.push(strIndent + strDW + 'kw_bssinit' + strCW + ', ntc_bss, ntc_bss_size\t\t; the arrays: do they fit, clear them');
 		objUsedT['kw_bssinit'] = true;
 		intBytes += 6;
 	}
@@ -9896,7 +10948,7 @@ function ntcCompile(input_a, objOptions_a)
 				intStraight++;
 				if (intStraight >= 32)
 				{
-					arrAsm.push(strIndent + 'dw kw_irq\t\t; let interrupts in');
+					arrAsm.push(strIndent + 'dw kw_irq' + strCW + '\t\t; let interrupts in');
 					objUsedT['kw_irq'] = true;
 					intBytes += 2;
 					intStraight = 0;
@@ -9915,7 +10967,7 @@ function ntcCompile(input_a, objOptions_a)
 		if ((objItem.t === 'kw') && (objItem.kw === 'kw_goto') && (objItem.args[0] !== 'ntc_badlabel'))
 		{
 			// GOTO: 1 word, jumps to a 2 instruction stub (ld sp, label / ret)
-			arrAsm.push(strIndent + 'dw ' + objItem.args[0] + '_go');
+			arrAsm.push(strIndent + strDW + objItem.args[0] + '_go' + strCW);
 			if (objGotoStubs[objItem.args[0]] === undefined)
 			{
 				objGotoStubs[objItem.args[0]] = true;
@@ -9927,7 +10979,7 @@ function ntcCompile(input_a, objOptions_a)
 		else if (objItem.t === 'kw')
 		{
 			strName = objItem.kw + (((objItem.mode === 'n') && isModeKw(objItem.kw)) ? '_n' : '');
-			arrAsm.push(strIndent + 'dw ' + [strName].concat(objItem.args).join(', '));
+			arrAsm.push(strIndent + strDW + [strName + strCW].concat(objItem.args).join(', '));
 			if (objItem.kw.substr(0, 3) === 'fn_')
 			{
 				// asm keyword procedure: its code is with the #asm blocks
@@ -9945,7 +10997,7 @@ function ntcCompile(input_a, objOptions_a)
 		}
 		else if (objItem.t === 'stub')
 		{
-			arrAsm.push(strIndent + 'dw ' + [objItem.name].concat(objItem.args).join(', '));
+			arrAsm.push(strIndent + strDW + [objItem.name + strCW].concat(objItem.args).join(', '));
 			if ((objItem.name === 'kw_turbo_on') || (objItem.name === 'kw_turbo_off'))
 			{
 				objUsedT[objItem.name] = true;
@@ -9955,7 +11007,7 @@ function ntcCompile(input_a, objOptions_a)
 		}
 		else if (objItem.t === 'bp')
 		{
-			arrAsm.push(strIndent + 'dw ' + objItem.name);
+			arrAsm.push(strIndent + strDW + objItem.name + strCW);
 			intBytes += 2;
 		}
 		else if (objItem.t === 'zw')
@@ -9976,12 +11028,12 @@ function ntcCompile(input_a, objOptions_a)
 				}
 				if (arrGlyphLine.length === 8)
 				{
-					arrAsm.push(strIndent + 'dw ' + arrGlyphLine.join(', '));
+					arrAsm.push(strIndent + strDW + arrGlyphLine.join(', '));
 					arrGlyphLine = [];
 				}
 			}
 			arrGlyphLine.push('0');
-			arrAsm.push(strIndent + 'dw ' + arrGlyphLine.join(', ') + '\t\t; "' + strText + '"');
+			arrAsm.push(strIndent + strDW + arrGlyphLine.join(', ') + '\t\t; "' + strText + '"');
 			intBytes += (objItem.bytes.length + 1) * 2;
 		}
 		else if (objItem.t === 'label')
@@ -10039,12 +11091,56 @@ function ntcCompile(input_a, objOptions_a)
 		for (intI = 0; intI < arrGotoStubs.length; intI++)
 		{
 			strMode_ = objLabelMode[arrGotoStubs[intI]] || 't';
+			if (blnM68k)
+			{
+				arrAsm.push(arrGotoStubs[intI] + '_go:' + strIndent + 'lea ' + arrGotoStubs[intI] + ', sp');
+				arrAsm.push(strIndent + 'rts');
+				continue;
+			}
+			if (blnM65)
+			{
+				arrAsm.push(arrGotoStubs[intI] + '_go:' + strIndent + 'ldx #<(' + arrGotoStubs[intI] + '-1)');
+				arrAsm.push(strIndent + 'txs');
+				arrAsm.push(strIndent + 'ldy #>(' + arrGotoStubs[intI] + '-1)');
+				arrAsm.push(strIndent + 'tys');
+				arrAsm.push(strIndent + 'rts');
+				continue;
+			}
 			arrAsm.push(arrGotoStubs[intI] + '_go:' + strIndent + 'ld sp, ' + arrGotoStubs[intI]);
 			arrAsm.push(strIndent + exitCode(strMode_));
 		}
 		for (intI = 0; intI < arrFastUse.length; intI++)
 		{
 			strMode_ = objLabelMode[arrFastUse[intI]] || 't';
+			if (blnM68k)
+			{
+				declare(arrFastUse[intI] + '_rs', 'ptr', 0);
+				arrAsm.push(arrFastUse[intI] + '_gs:' + strIndent + 'move.l sp, ' + arrFastUse[intI] + '_rs');
+				arrAsm.push(strIndent + 'lea ' + arrFastUse[intI] + ', sp');
+				arrAsm.push(strIndent + 'rts');
+				arrAsm.push(arrFastUse[intI] + '_rt:' + strIndent + 'movea.l ' + arrFastUse[intI] + '_rs, sp');
+				arrAsm.push(strIndent + 'rts');
+				continue;
+			}
+			if (blnM65)
+			{
+				declare(arrFastUse[intI] + '_rs', 'int', 0);
+				arrAsm.push(arrFastUse[intI] + '_gs:' + strIndent + 'tsx');
+				arrAsm.push(strIndent + 'stx ' + arrFastUse[intI] + '_rs');
+				arrAsm.push(strIndent + 'tsy');
+				arrAsm.push(strIndent + 'sty ' + arrFastUse[intI] + '_rs+1');
+				arrAsm.push(strIndent + 'ldx #<(' + arrFastUse[intI] + '-1)');
+				arrAsm.push(strIndent + 'txs');
+				arrAsm.push(strIndent + 'ldy #>(' + arrFastUse[intI] + '-1)');
+				arrAsm.push(strIndent + 'tys');
+				arrAsm.push(strIndent + 'rts');
+				arrAsm.push(arrFastUse[intI] + '_rt:' + strIndent + 'ldx ' + arrFastUse[intI] + '_rs');
+				arrAsm.push(strIndent + 'txs');
+				arrAsm.push(strIndent + 'ldy ' + arrFastUse[intI] + '_rs+1');
+				arrAsm.push(strIndent + 'tys');
+				arrAsm.push(strIndent + 'rts');
+				continue;
+			}
 			declare(arrFastUse[intI] + '_rs', 'int', 0);
 			arrAsm.push(arrFastUse[intI] + '_gs:' + strIndent + 'ld (' + arrFastUse[intI] + '_rs), sp');
 			arrAsm.push(strIndent + 'ld sp, ' + arrFastUse[intI]);
@@ -10106,7 +11202,62 @@ function ntcCompile(input_a, objOptions_a)
 	arrAsm.push('; Variables');
 	arrAsm.push('; ============================================================');
 	arrAsm.push('');
-	for (intI = 0; intI < arrDecl.length; intI++)
+	if (blnM68k)
+	{
+		// the 68000: the variables are in RAM (the RAM block after the ROM, copied at start)
+		arrAsm.push('; (68000: in the RAM block at the end, from $FF8000)');
+		arrRamOut.push('; variables');
+		arrDecl.forEach(function(objItem_a)
+		{
+			if (objItem_a.kind === 'str')
+			{
+				arrRamOut.push(strIndent + 'dc.b ' + objItem_a.size + '\t\t\t; capacity');
+				arrRamOut.push(objItem_a.label + ':' + strIndent + 'ds.b ' + (objItem_a.size + 1));
+				arrRamOut.push(strIndent + 'even');
+			}
+			else if (objItem_a.kind === 'strfix')
+			{
+				arrRamOut.push(strIndent + 'dc.b ' + objItem_a.size + '\t\t\t; capacity');
+				arrRamOut.push(objItem_a.label + ':' + strIndent + 'dcb.b ' + objItem_a.size + ', 32\t\t; String * ' + objItem_a.size + ' (n spaces)');
+				arrRamOut.push(strIndent + 'dc.b 0');
+				arrRamOut.push(strIndent + 'even');
+			}
+			else if (bssSize(objItem_a) > 0)
+			{
+				arrBss.push(objItem_a);		// after the RAM block, cleared at start
+			}
+			else if (objItem_a.kind === 'adesc')
+			{
+				arrRamOut.push(objItem_a.label + ':' + strIndent + 'dc.w ' + objItem_a.words.map(function(w_a) { return '(' + w_a + ')&$FFFF'; }).join(', ') + '\t\t; array as an argument');
+			}
+			else if ((objItem_a.kind === 'long') || (objItem_a.kind === 'ptr'))
+			{
+				arrRamOut.push(objItem_a.label + ':' + strIndent + 'dc.l 0');
+			}
+			else
+			{
+				arrRamOut.push(objItem_a.label + ':' + strIndent + 'dc.w 0');
+			}
+		});
+		for (intI = 0; intI <= intMaxTemp; intI++)
+		{
+			arrRamOut.push('tmp' + intI + ':' + strIndent + 'dc.w 0');
+		}
+		for (intI = 0; intI <= intMaxSTemp; intI++)
+		{
+			arrRamOut.push(strIndent + 'dc.b ' + intStrMax + '\t\t\t; capacity');
+			arrRamOut.push('stmp' + intI + ':' + strIndent + 'ds.b ' + (intStrMax + 1));
+			arrRamOut.push(strIndent + 'even');
+		}
+		for (intI = 0; intI <= intMaxLTemp; intI++)
+		{
+			arrRamOut.push('ltmp' + intI + ':' + strIndent + 'dc.l 0');
+		}
+		intMaxTemp = -1;		// (done: the Z80 loops below write nothing)
+		intMaxSTemp = -1;
+		intMaxLTemp = -1;
+	}
+	for (intI = 0; intI < (blnM68k ? 0 : arrDecl.length); intI++)
 	{
 		objItem = arrDecl[intI];
 		if ((objPagedLabel[objItem.label] !== undefined) && (objOvlVars[objPagedLabel[objItem.label]] !== undefined))
@@ -10160,9 +11311,31 @@ function ntcCompile(input_a, objOptions_a)
 	{
 		arrAsm.push('');
 		arrAsm.push('; numbers passed by address (read only)');
+		if (blnM68k)
+		{
+			arrAsm.push(strIndent + 'even');
+			arrAsm.push('ntc_aptab:\t\tdc.l 0' + arrLits.filter(function(str_a) { return /^ap_/.test(str_a); }).map(function(str_a) { return ', ' + objLits[str_a]; }).join('') + '\t\t; AddressOf: the procedures CallAddr runs, by number');
+		}
 		for (intI = 0; intI < arrLits.length; intI++)
 		{
-			arrAsm.push(arrLits[intI] + ':' + strIndent + 'dw ' + objLits[arrLits[intI]]);
+			if (blnM68k && /^llit_/.test(arrLits[intI]))
+			{
+				arrAsm.push(arrLits[intI] + ':' + strIndent + 'dc.l ' + String(objLits[arrLits[intI]]).split(',').map(function(str_a, i_a) { return (parseInt(str_a, 10) & 0xFFFF) * (i_a ? 65536 : 1); }).reduce(function(a_a, b_a) { return (a_a + b_a) | 0; }, 0));
+			}
+			else if (blnM68k && /^ap_/.test(arrLits[intI]))
+			{
+				// AddressOf on the 68000: a ROM address is 24 bits, an Integer 16 - the value is
+				// the procedure's number in ntc_aptab (from 1), which CallAddr looks up
+				arrAsm.push(arrLits[intI] + ':' + strIndent + 'dc.w ' + (arrLits.slice(0, intI).filter(function(str_a) { return /^ap_/.test(str_a); }).length + 1) + '\t\t; AddressOf ' + objLits[arrLits[intI]]);
+			}
+			else if (blnM68k && /^vp_/.test(arrLits[intI]))
+			{
+				arrAsm.push(arrLits[intI] + ':' + strIndent + 'dc.w (' + objLits[arrLits[intI]] + ')&$FFFF\t; VarPtr: the address, 16 bits (RAM from $FF8000)');
+			}
+			else
+			{
+				arrAsm.push(arrLits[intI] + ':' + strIndent + (blnM68k ? 'dc.w ' : 'dw ') + objLits[arrLits[intI]]);
+			}
 		}
 	}
 
@@ -10200,7 +11373,11 @@ function ntcCompile(input_a, objOptions_a)
 		arrAsm.push('');
 		for (intI = 0; intI < arrStrings.length; intI++)
 		{
-			arrAsm.push(arrStrings[intI].label + ':' + strIndent + dbText(textToBytes(arrStrings[intI].text).concat([0])));
+			arrAsm.push(arrStrings[intI].label + ':' + strIndent + (blnM68k ? dbText(textToBytes(arrStrings[intI].text).concat([0])).replace(/(^|\t)db /g, '$1dc.b ') : dbText(textToBytes(arrStrings[intI].text).concat([0]))));
+		}
+		if (blnM68k)
+		{
+			arrAsm.push(strIndent + 'even');
 		}
 	}
 
@@ -10243,7 +11420,77 @@ function ntcCompile(input_a, objOptions_a)
 		{
 			objUsedT['ntc_ovl'] = true;		// the overlay call stubs use it
 		}
+		if (blnM68k)
+		{
+			objUsedT['ntc_md_vectors'] = true;		// the platform's vectors, header and start code
+		}
+		if (blnM65)
+		{
+			objUsedT['ntc_m65_stub'] = true;		// the PRG's BASIC line, the platform's start code
+		}
 		strLibAsm = linkLibrary(objUsedT, objUsedN, irqNeeded());
+		if (blnM68k)
+		{
+			// the 68000: the vectors section goes first (at 0); each section's ;@ram ... ;@rom
+			// lines go to the RAM block; every section starts on an even address
+			(function()
+			{
+				var arrVec = [];
+				var arrRom = [];
+				var blnVec = false;
+				var blnRam = false;
+
+				strLibAsm.split('\n').forEach(function(strL_a)
+				{
+					if (/^;##\s+/.test(strL_a))
+					{
+						blnVec = /^;##\s+ntc_md_vectors\b/.test(strL_a);
+						blnRam = false;
+						if (!blnVec)
+						{
+							arrRom.push(strIndent + 'even');
+						}
+					}
+					if (/^\s*;@ram\s*$/.test(strL_a))
+					{
+						blnRam = true;
+						arrRamOut.push(strIndent + 'even');
+						return;
+					}
+					if (/^\s*;@rom\s*$/.test(strL_a))
+					{
+						blnRam = false;
+						return;
+					}
+					(blnVec ? arrVec : (blnRam ? arrRamOut : arrRom)).push(strL_a);
+				});
+				arrAsm = arrAsm.map(function(strL_a) { return (strL_a === '@@MDVECTORS@@') ? arrVec.join('\n') : strL_a; });
+				strLibAsm = arrRom.join('\n');
+			})();
+		}
+		if (blnM65)
+		{
+			// the 45GS02: the stub section (the BASIC line, at $2001) and the start code go first
+			(function()
+			{
+				var arrStub = [];
+				var arrRest = [];
+				var blnStub = false;
+
+				strLibAsm.split('\n').forEach(function(strL_a)
+				{
+					if (/^;##\s+/.test(strL_a))
+					{
+						// (the start code too: it must be in low memory, below the ROMs BASIC 65 has
+						// mapped in when it starts the program, until it has mapped them out)
+						blnStub = /^;##\s+ntc_m65_(stub|boot)\b/.test(strL_a);
+					}
+					(blnStub ? arrStub : arrRest).push(strL_a);
+				});
+				arrAsm = arrAsm.map(function(strL_a) { return (strL_a === '@@M65STUB@@') ? arrStub.join('\n') : strL_a; });
+				strLibAsm = arrRest.join('\n');
+			})();
+		}
 		arrAsm.push(strLibAsm);
 	}
 
@@ -10408,6 +11655,33 @@ function ntcCompile(input_a, objOptions_a)
 		arrAsm.push('; Option NexData: the data\'s 16K blocks are in these banks (the NEX file loads them)');
 		arrAsm.push('ntc_nexdata:\tdb ' + objNexData.blocks + ', ' + ZXN_NEXBANKS.slice(0, objNexData.blocks).join(', '));
 	}
+	if (blnM68k)
+	{
+		// the 68000: the ROM ends here; the RAM block (variables, the library's) is assembled
+		// at $FF8000 and follows the ROM in the file (vasm -Fbin -coalesced): the start code
+		// copies it from ntc_romend to ntc_ram
+		// ;@ram ... ;@rom in #asm blocks: their lines go to the RAM block too (a block's own RAM)
+		(function()
+		{
+			var arrKeep = [];
+			var blnRam = false;
+
+			arrAsm.join('\n').split('\n').forEach(function(strL_a)
+			{
+				if (/^\s*;@ram\b/.test(strL_a)) { blnRam = true; arrRamOut.push(strIndent + 'even'); return; }
+				if (/^\s*;@rom\b/.test(strL_a)) { blnRam = false; return; }
+				(blnRam ? arrRamOut : arrKeep).push(strL_a);
+			});
+			arrAsm = arrKeep;
+		})();
+		arrAsm.push(strIndent + 'even');
+		arrAsm.push('ntc_romend:\t\t\t; the end of the ROM: the RAM block\'s first image follows');
+		arrAsm.push(strIndent + 'org $FF8000');
+		arrAsm.push('ntc_ram:');
+		arrAsm = arrAsm.concat(arrRamOut);
+		arrAsm.push(strIndent + 'even');
+		arrAsm.push('ntc_ramend:');
+	}
 	arrAsm.push('ntc_end:\t\t\t\t; the end of the program (and of its file)');
 	arrAsm.push('; arrays: after the program, not in its file - kw_bssinit checks they fit and clears them');
 	arrAsm.push('@@BSS@@');
@@ -10415,7 +11689,7 @@ function ntcCompile(input_a, objOptions_a)
 	arrBss.forEach(function(objItem_a)
 	{
 		arrAsm.push(objItem_a.label + '\t\tequ ntc_bss + ' + intBss + '\t\t; ' + bssSize(objItem_a) + ' bytes');
-		intBss += bssSize(objItem_a);
+		intBss += blnM68k ? ((bssSize(objItem_a) + 1) & ~1) : bssSize(objItem_a);		// (the 68000: each on an even address)
 	});
 	arrAsm.push('ntc_bss_size\tequ ' + intBss);
 	arrAsm.push('ntc_free\tequ ntc_bss + ntc_bss_size\t; the first free byte (heap, Memory tables)');
@@ -10626,13 +11900,17 @@ function ntcCompile(input_a, objOptions_a)
 		})();
 	}
 
+	if (objPlat.rom && ((objOptions.library === 'rom') || (arrReserve.length > 0) || (Object.keys(objClassPages || {}).length > 0)))
+	{
+		arrErrors.push({ file: '', line: 0, msg: 'a cartridge ROM (' + objOptions.platform + '): no Library: ROM, Option Reserve, Option Page or overlay classes' });
+	}
 	// messages name the files the user gave (a JS file, not its VB5 text)
 	[arrErrors, arrWarnings, arrXref].forEach(function(arrList_a)
 	{
 		arrList_a.forEach(function(objE_a) { if (objE_a.file && (objOrigName[objE_a.file] !== undefined)) { objE_a.file = objOrigName[objE_a.file]; } });
 	});
 	return {
-		asm: holeLayout(arrAsm.join('\n')),
+		asm: objPlat.rom ? romLayout(holeLayout(arrAsm.join('\n') + romTail())) : m65Numbers(holeLayout(arrAsm.join('\n'))),
 		libasm: strLibAsm,
 		vbfiles: arrFiles,
 		layout: arrLayout,
@@ -11024,9 +12302,14 @@ function ntcRomAsm(strPlatform_a, strReg_a, objOpt_a)
 				arrStack.push({ romlib: true, keep: true });
 				return;
 			}
-			if (/^\s*IFDEF\s+NTC_ZXN\b/i.test(strCode))
+			if (/^\s*IFDEF\s+NTC_(ZXN|ISLC|PGLOADED)\b/i.test(strCode))
 			{
 				arrStack.push({ romlib: true, keep: false });
+				return;
+			}
+			if (/^\s*IFNDEF\s+NTC_ZXN\b/i.test(strCode))
+			{
+				arrStack.push({ romlib: true, keep: true });		// (the CPC's part kept, the Next's ELSE dropped)
 				return;
 			}
 			if (/^\s*IF(N?DEF|N?USED)?\b/i.test(strCode))
