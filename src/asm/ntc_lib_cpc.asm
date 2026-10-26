@@ -450,7 +450,7 @@ mem_putback:
 			pop hl
 			ret
 
-;## ntc_mem ntc_memcore ntc_membank ntc_nxt_bank @shared @far @if:ntc_mem_cpcexpansion
+;## ntc_mem ntc_memcore ntc_membank ntc_nxt_bank ntc_msx_bank @shared @far @if:ntc_mem_cpcexpansion
 ; ------------------------------------------------------------
 ; ntc_mem (CPCExpansion) - 16K RAM pages in the #4000-#7FFF window (CPC gate
 ; array RAM setting: C0 = plain, C4-C7 + bank * 8 = page 0-3 of a 64K bank;
@@ -538,6 +538,9 @@ mem_st_prog:
 ; machine (C4-C7 do nothing) reads main RAM's.
 mem_probe:
 		IF MEM_BANKS > 0
+	IFDEF NTC_MSXDOS
+			call msx_mem_probe		; MSX: the mapper's segments from MSX-DOS 2 (ntc_lib_msx.asm), sets mem_banks
+	ELSE
 	IFNDEF NTC_ZXN
 			ld a, i					; P/V = interrupts were on
 			di
@@ -618,6 +621,7 @@ mem_pr_back:
 mem_pr_di:
 	ELSE
 			call nxt_mem_probe		; Next: the RAM probe (ntc_lib_nxt.asm), sets mem_banks
+	ENDIF
 	ENDIF
 		ENDIF
 			ld a, (mem_banks)		; pages = 1 + 4 a bank
@@ -772,6 +776,9 @@ mem_tb_pend:
 ; mem_jbc - E = bank 0-63: BC = the port for its page 0 (B = #7F - E / 8,
 ; C = #C4 + (E and 7) * 8). Keeps DE, HL.
 mem_jbc:
+	IFDEF NTC_MSXDOS
+			jp msx_mem_jbc			; MSX: 64K bank E -> its page 0's setting (ntc_lib_msx.asm)
+	ENDIF
 	IFDEF NTC_ZXN
 			jp nxt_mem_jbc			; Next: 64K bank E -> its first 16K Next bank (ntc_lib_nxt.asm)
 	ENDIF
@@ -820,6 +827,9 @@ mem_se_do:
 			dec hl
 			ld c, (hl)
 mem_se_out:
+	IFDEF NTC_MSXDOS
+			jp msx_mem_se_out			; MSX: the segment into page 1 (PUT_P1: ntc_lib_msx.asm) -> mem_se_end
+	ENDIF
 	IFNDEF NTC_ZXN
 			ld (ntc_rampt), bc
 			out (c), c

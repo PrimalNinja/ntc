@@ -6,6 +6,35 @@ finished, with the date.
 ---
 
 ## done
+- 2026-10-27 Merged another session's debug work (it was on ntc20261026-0022; its 9 files untouched
+  here since): test/zxnrun.py - the Next's sprites in pictures, the 9-bit palette (#44), NTC_PROFT
+  (exact T per label between two T), NTC_PROFTLOG, NTC_WATCH, NTC_LOGVARS, NTC_INTCHK, NTC_TRACEZ_AFTER
+  and TRACEZ chg= / irq= / spin=; Auckland's S3d.cls (all six copies) and City3D's City.cls - the
+  small helpers (CMPS, HNEG, HABS, UCAP, X6, VX12, PJDIV) as macros written in, no call / ret
+  (auckland zxn in the harness: FPS 2.8 -> 3.2 at view 2); auckland/ANALYSIS.TXT - where the frame's
+  time goes. The city3d / s3dmake / auckland regress tests pass; bill and street fly
+- 2026-10-27 colecovision: Julian's ColecoVision work merged and made a target - the platform text
+  (bare metal + the ROM keys, the cartridge header and start, the VDP's NMI off, Frame polled) is
+  `asm/ntc_plat_colecovision.asm` now (gen.js, ntc.html), `tools/coleco/build.js` compiles for it (the
+  same ROM as with the text handed over), `tools/coleco/run.mjs` the hardware model, the ball test in
+  `test/coleco/ball/`; regress.sh builds and walks it when tools/coleco has its npm install
+- 2026-10-27 msxdos (for CyborgOS's MSX C0): the mapper's probe took no segment at all with Option
+  Memory CPCExpansion over 63 banks (MEM_BANKS * 4 = 256: `cp` 0) - now at most 31 banks (MSX_MAXSEG:
+  a setting's C holds the ordinal 0-31). msxrun.py: a HALT with interrupts on waits for the frame
+  interrupt (Frame) - a HALT with them off, or at #0000 (the warm boot), is the end; R#23's vertical
+  scroll in TEXT 2's text (the name table a ring of 32 rows); MSX-DOS 2's handle calls (#43-#4E, #40 /
+  #41, #1B, #19, #5A) on the files folder; RDSLT / CALSLT (INITXT) stand-ins; the PPI's keyboard
+  matrix ({n} held keys: 49 CTRL, 58 ESC); a .COM run as it is (CYBORGOS.COM); MSX_DOSLOG=1 lists
+  the DOS calls
+- 2026-10-27 msxdos: a new platform - an MSX-DOS 2 / Nextor .COM (MSX2 and later; CyborgOS's MSX port
+  is built on it). ;@base cpm (the BDOS console and FCB files), with the MSX's frame interrupt (Ticks =
+  JIFFY, normal mode's handler on H.TIMI through a stub copied to #C000 - page 0 is the BIOS while it
+  runs), the real stack below #C000, and Option Memory CPCExpansion over the memory mapper
+  (asm/ntc_lib_msx.asm: every free user segment from MSX-DOS 2's ALL_SEG at the probe, 4 a bank, the
+  window = page 1 by PUT_P1, settings shaped as the CPC's as the Next's are; lib/msxdos/Memory.cls).
+  test/msxrun.py: the harness (the mapper, DOS 2's mapper support, the frame interrupt, the VDP's
+  ports and TEXT 2's text). regress.sh: vb_test, sieve, the Interrupt hook, and the Memory class on a
+  512K mapper - the same results as the CPC with 576K (ref/mem_576.txt)
 - 2026-10-27 NTC3D updated from Julian's new zip (IRON DUST's additions): the ground feature (MV_CIRCLE,
   MV_HUNT, MV_HOME, OF_LAND / EV_LAND, OF_GUNANY), Fly3D.Drive, E3.Skyline / Texts / UClr / UInk /
   lodb, compound models (M.Compound), build settings by tools/prep.js (nobj, features ground /

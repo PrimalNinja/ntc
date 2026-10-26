@@ -1,0 +1,10 @@
+reading the cut ...
+583 ways, 0 multipolygons, 41 nodes
+world 2.3 x 2.3 km: 6 x 6 tiles of 384 m
+landmarks: Sky Tower yes, Harbour Bridge no, Rangitoto outline no, 1 volcano cones
+576 buildings (0 left out: too small, or outside)
+5 lines (roads, railways, coast, water, piers)
+104 trees (1 woods filled)
+data before fitting: 7K (3952K room)
+done: 32K - block 0 and 1 data blocks (44.8% full), 36 tiles with something, 10 with landmarks
+  576 buildings, 31 ground lines, 46 3D lines, 104 trees

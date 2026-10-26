@@ -193,6 +193,125 @@ End Sub
 ' Render: turn, move, then the city drawn on the screen not shown (Graphics.Flip shows it)
 Public Sub Render()
 #asm
+; the small helpers written in where they are used (no call / ret, no labels: $ jumps)
+; CMPS: carry when HL < DE, signed (HL, A lost)
+  MACRO CMPS
+            ld a, h
+            xor d                   ; (clears carry)
+            jp p, $ + 7             ; same signs: HL - DE
+            ld a, h
+            rla                     ; signs differ: carry = HL negative
+            jr $ + 4
+            sbc hl, de
+  ENDM
+; HNEG: HL = -HL (A lost)
+  MACRO HNEG
+            xor a
+            sub l
+            ld l, a
+            sbc a, a
+            sub h
+            ld h, a
+  ENDM
+; HABS: HL = |HL| (A lost)
+  MACRO HABS
+            bit 7, h
+            jr z, $ + 8
+            HNEG
+  ENDM
+; UCAP: HL = the smaller of HL and DE, unsigned
+  MACRO UCAP
+            or a
+            sbc hl, de
+            add hl, de
+            jr c, $ + 4
+            ld h, d
+            ld l, e
+  ENDM
+; X6: HL = A * 6 (DE lost)
+  MACRO X6
+            ld l, a
+            ld h, 0
+            add hl, hl
+            ld e, l
+            ld d, h
+            add hl, hl
+            add hl, de
+  ENDM
+; MIDC o: HL = half the sum at offset o of IX's, IX + 6's, IY's, IY + 6's, HGTT's numbers and
+; BC's (BC moves on 2)
+  MACRO MIDC o
+            ld l, (ix + o)
+            ld h, (ix + o + 1)
+            ld e, (ix + o + 6)
+            ld d, (ix + o + 7)
+            add hl, de
+            ld e, (iy + o)
+            ld d, (iy + o + 1)
+            add hl, de
+            ld e, (iy + o + 6)
+            ld d, (iy + o + 7)
+            add hl, de
+            ld de, ({HGTT} + o)
+            add hl, de
+            ld a, (bc)
+            ld e, a
+            inc bc
+            ld a, (bc)
+            ld d, a
+            inc bc
+            add hl, de
+            sra h
+            rr l
+  ENDM
+; VSUM o: HL = IY's number at o + DE's + BC's (DE, BC move on 2)
+  MACRO VSUM o
+            ld l, (iy + o)
+            ld h, (iy + o + 1)
+            ld a, (de)
+            add a, l
+            ld l, a
+            inc de
+            ld a, (de)
+            adc a, h
+            ld h, a
+            inc de
+            ld a, (bc)
+            add a, l
+            ld l, a
+            inc bc
+            ld a, (bc)
+            adc a, h
+            ld h, a
+            inc bc
+  ENDM
+; PJDIV: L = C:HL / DE, H = 0 (the quotient is under 256: C:HL < DE * 256; DE < 32768). Eight
+; steps, unrolled; the quotient's bits go into C inverted (carry = a borrow), turned at the end
+  MACRO PJDIVSTEP
+            sla b
+            adc hl, hl              ; (no carry out: HL < DE < 32768)
+            sbc hl, de
+            jr nc, $ + 3
+            add hl, de              ; (carry: the borrow put back, carry stays set)
+            rl c
+  ENDM
+  MACRO PJDIV
+            ld b, l
+            ld l, h
+            ld h, c
+            PJDIVSTEP
+            PJDIVSTEP
+            PJDIVSTEP
+            PJDIVSTEP
+            PJDIVSTEP
+            PJDIVSTEP
+            PJDIVSTEP
+            PJDIVSTEP
+            ld a, c
+            cpl
+            ld l, a
+            ld h, 0
+  ENDM
             ld ({sps}), sp
             ld sp, (ntc_csp)
             ei                      ; interrupts in while it works (the real stack): the
@@ -422,7 +541,7 @@ r_fly:
             ld ({qz} + 3), a
             ld hl, ({qy} + 2)       ; y / 4
             ld de, 4
-            call cmps
+            CMPS
             jr nc, fl_y1
             ld hl, 0
             ld ({qy}), hl
@@ -431,7 +550,7 @@ r_fly:
 fl_y1:
             ld hl, ({qy} + 2)
             ld de, 750
-            call cmps
+            CMPS
             jr c, fl_y2
             ld hl, 0
             ld ({qy}), hl
@@ -498,7 +617,7 @@ r_terms:
             ld ix, {HGTT}
             ld iy, {bas} + 2        ; y: R.y U.y F.y
             ld hl, ({camy})
-            call hneg
+            HNEG
             ld b, 9
 tm_h:
             push bc
@@ -673,7 +792,7 @@ ce_one:
             add a, a
             ld hl, w_var
             add a, (hl)
-            call x6
+            X6
             ld de, {COLT}
             add hl, de
             ld (w_px0), hl
@@ -685,7 +804,7 @@ ce_one:
             add a, a
             ld hl, w_var
             add a, (hl)
-            call x6
+            X6
             ld de, {ROWT}
             add hl, de
             ld (w_pz0), hl
@@ -693,36 +812,36 @@ ce_one:
             add hl, de
             ld (w_pz1), hl
             ld a, (w_lvl)
-            call x6
+            X6
             ld de, {HGTT}
             add hl, de
             ld (w_phl), hl
-            ld c, 0                 ; its middle, to see if it is in view
-            call ce_mid
+            ld ix, (w_px0)          ; its middle, to see if it is in view: half the sum of the
+            ld iy, (w_pz0)          ; six tables' numbers (X1 = X0 + 6, Z1 = Z0 + 6)
+            ld bc, (w_phl)
+            MIDC 0
             ld (w_cx), hl
-            ld c, 2
-            call ce_mid
+            MIDC 2
             ld (w_cy), hl
-            ld c, 4
-            call ce_mid
+            MIDC 4
             ld (w_cz), hl
             ld de, -310             ; behind
-            call cmps
+            CMPS
             ret c
             ld hl, (w_cz)
             ld de, 2048 + 310       ; too far
-            call cmps
+            CMPS
             ret nc
             ld hl, (w_cx)           ; off to the side: |X| - Z > 310 * 1.41
-            call habs
+            HABS
             ld de, (w_cz)
             or a
             sbc hl, de
             ld de, 438
-            call cmps
+            CMPS
             ret nc
             ld hl, (w_cy)           ; above / below: 4|Y| - 3Z > 310 * 5
-            call habs
+            HABS
             add hl, hl
             add hl, hl
             push hl
@@ -736,45 +855,83 @@ ce_one:
             or a
             sbc hl, de
             ld de, 1550
-            call cmps
+            CMPS
             ret nc
             ld ix, {VTX}              ; its 8 corners
             xor a
             ld (w_vk), a
 ve_lp:
-            ld a, (w_vk)
-            ld hl, (w_px0)
-            bit 0, a
-            jr z, ve1
-            ld hl, (w_px1)
+            ld a, (w_vk)            ; the corner's three table entries: IY (x), DE (z), BC (height)
+            ld iy, (w_px0)
+            rrca
+            jr nc, ve1
+            ld iy, (w_px1)
 ve1:
-            ld (w_pa), hl
-            ld hl, (w_pz0)
-            bit 1, a
-            jr z, ve2
-            ld hl, (w_pz1)
+            ld de, (w_pz0)
+            rrca
+            jr nc, ve2
+            ld de, (w_pz1)
 ve2:
-            ld (w_pb), hl
-            ld hl, {HGTT}
-            bit 2, a
-            jr z, ve3
-            ld hl, (w_phl)
+            ld bc, {HGTT}
+            rrca
+            jr nc, ve3
+            ld bc, (w_phl)
 ve3:
-            ld (w_pc), hl
-            ld c, 0
-            call ve_sum
+            VSUM 0                  ; X, Y, Z: the three entries added
             ld (ix + 0), l
             ld (ix + 1), h
-            ld c, 2
-            call ve_sum
+            VSUM 2
             ld (ix + 2), l
             ld (ix + 3), h
-            ld c, 4
-            call ve_sum
+            VSUM 4
             ld (ix + 4), l
             ld (ix + 5), h
-            call ve_oc
-            ld (ix + 6), a
+            ; its outcode (HL = Z), into B a bit at a time from bit 4: 4 below (-4Y > 3Z),
+            ; 3 above (4Y > 3Z), 2 left (-X > Z), 1 right (X > Z), 0 nearer than 16
+            ld b, 0
+            push hl                 ; Z (for bits 0, 1, 2)
+            push hl
+            push hl
+            ld e, l
+            ld d, h
+            add hl, hl
+            add hl, de
+            push hl
+            pop iy                  ; IY = 3Z
+            ld l, (ix + 2)
+            ld h, (ix + 3)
+            add hl, hl
+            add hl, hl
+            push hl                 ; 4Y
+            HNEG
+            ex de, hl               ; DE = -4Y
+            push iy
+            pop hl
+            CMPS                    ; 3Z < -4Y
+            rl b
+            pop de                  ; DE = 4Y
+            push iy
+            pop hl
+            CMPS                    ; 3Z < 4Y
+            rl b
+            ld l, (ix + 0)
+            ld h, (ix + 1)
+            HNEG
+            ex de, hl               ; DE = -X
+            pop hl
+            CMPS                    ; Z < -X
+            rl b
+            ld e, (ix + 0)
+            ld d, (ix + 1)
+            pop hl
+            CMPS                    ; Z < X
+            rl b
+            ld de, 16
+            pop hl
+            CMPS                    ; Z < 16
+            rl b
+            ld (ix + 6), b
+            ld a, b
             or a
             call z, ve_proj
             ld de, 12
@@ -783,136 +940,31 @@ ve3:
             inc a
             ld (w_vk), a
             cp 8
-            jr nz, ve_lp
-            ld hl, ce_edges         ; its 12 edges
+            jp nz, ve_lp
+            ld hl, ce_edges         ; its 12 edges: the two corners' addresses
             ld b, 12
 ed_lp:
             push bc
-            ld a, (hl)
+            ld e, (hl)
             inc hl
-            ld c, (hl)
+            ld d, (hl)
             inc hl
+            push de
+            pop ix
+            ld e, (hl)
+            inc hl
+            ld d, (hl)
+            inc hl
+            push de
+            pop iy
             push hl
-            call vx12
-            ld (w_ea), hl
-            ld a, c
-            call vx12
-            ld (w_eb), hl
             call ed_one
             pop hl
             pop bc
             djnz ed_lp
             ret
-; ce_mid - HL = half the sum of the six tables' numbers at offset C (the middle's X, Y or Z)
-ce_mid:
-            ld b, 0
-            ld hl, 0
-            ld (w_sum), hl
-            ld hl, (w_px0)
-            call ce_acc
-            ld hl, (w_px1)
-            call ce_acc
-            ld hl, (w_pz0)
-            call ce_acc
-            ld hl, (w_pz1)
-            call ce_acc
-            ld hl, {HGTT}
-            call ce_acc
-            ld hl, (w_phl)
-            call ce_acc
-            ld hl, (w_sum)
-            sra h
-            rr l
-            ret
-ce_acc:
-            add hl, bc
-            ld e, (hl)
-            inc hl
-            ld d, (hl)
-            ld hl, (w_sum)
-            add hl, de
-            ld (w_sum), hl
-            ret
-; ve_sum - HL = (w_pa) + (w_pb) + (w_pc), the numbers at offset C
-ve_sum:
-            ld b, 0
-            ld hl, (w_pa)
-            add hl, bc
-            ld e, (hl)
-            inc hl
-            ld d, (hl)
-            ld hl, (w_pb)
-            add hl, bc
-            ld a, (hl)
-            inc hl
-            ld h, (hl)
-            ld l, a
-            add hl, de
-            ex de, hl
-            ld hl, (w_pc)
-            add hl, bc
-            ld a, (hl)
-            inc hl
-            ld h, (hl)
-            ld l, a
-            add hl, de
-            ret
-; ve_oc - A = the outcode of the corner at IX: bit 0 nearer than 16, 1 right (X > Z),
-; 2 left (-X > Z), 3 above (4Y > 3Z), 4 below (-4Y > 3Z)
-ve_oc:
-            ld c, 0
-            ld l, (ix + 4)
-            ld h, (ix + 5)
-            ld (w_vz), hl
-            ld de, 16
-            call cmps
-            jr nc, oc1
-            set 0, c
-oc1:
-            ld e, (ix + 0)
-            ld d, (ix + 1)
-            ld hl, (w_vz)
-            call cmps
-            jr nc, oc2
-            set 1, c
-oc2:
-            ld l, (ix + 0)
-            ld h, (ix + 1)
-            call hneg
-            ex de, hl
-            ld hl, (w_vz)
-            call cmps
-            jr nc, oc3
-            set 2, c
-oc3:
-            ld l, (ix + 2)
-            ld h, (ix + 3)
-            add hl, hl
-            add hl, hl
-            ld (w_v4y), hl
-            ld hl, (w_vz)
-            ld e, l
-            ld d, h
-            add hl, hl
-            add hl, de
-            ld (w_v3z), hl
-            ld de, (w_v4y)
-            call cmps
-            jr nc, oc4
-            set 3, c
-oc4:
-            ld hl, (w_v4y)
-            call hneg
-            ex de, hl
-            ld hl, (w_v3z)
-            call cmps
-            jr nc, oc5
-            set 4, c
-oc5:
-            ld a, c
-            ret
 ; ve_proj - the corner at IX onto the screen: sx = 160 + X * 160 / Z (0-319),
-; sy = 100 - Y * 133 / Z (0-199), at IX + 8, IX + 10
+; sy = 100 - Y * 133 / Z (0-199), at IX + 8, IX + 10. Z (at least 1) and the signs on the stack
 ve_proj:
             ld l, (ix + 4)
             ld h, (ix + 5)
@@ -924,19 +976,23 @@ ve_proj:
 pj_z1:
             ld hl, 1
 pj_z:
-            ld (w_pzv), hl
+            push hl                 ; Z
+            ex de, hl
             ld l, (ix + 0)
             ld h, (ix + 1)
             ld a, h
-            ld (w_psg), a
-            call habs
-            ld de, (w_pzv)
-            call ucap
+            push af                 ; X's sign
+            HABS
+            UCAP                    ; |X|, Z at most
             call pj_160
-            call pj_div
+            pop af
+            pop de                  ; Z
+            push de
+            push af
+            PJDIV
             ex de, hl
             ld hl, 160
-            ld a, (w_psg)
+            pop af
             bit 7, a
             jr nz, pj_xn
             add hl, de
@@ -946,18 +1002,19 @@ pj_xn:
             sbc hl, de
 pj_xs:
             ld de, 319
-            call ucap
+            UCAP
             ld (ix + 8), l
             ld (ix + 9), h
+            pop de                  ; Z
             ld l, (ix + 2)
             ld h, (ix + 3)
             ld a, h
-            ld (w_psg), a
-            call habs
+            push af                 ; Y's sign
+            push de                 ; Z
+            HABS
             push hl
-            ld hl, (w_pzv)
-            ld e, l
-            ld d, h
+            ld l, e
+            ld h, d
             add hl, hl
             add hl, de
             srl h
@@ -966,12 +1023,13 @@ pj_xs:
             rr l
             ex de, hl
             pop hl
-            call ucap
+            UCAP                    ; |Y|, 3Z / 4 at most
             call pj_133
-            call pj_div
+            pop de                  ; Z
+            PJDIV
             ex de, hl
             ld hl, 100
-            ld a, (w_psg)
+            pop af
             bit 7, a
             jr nz, pj_yn
             or a
@@ -981,7 +1039,7 @@ pj_yn:
             add hl, de
 pj_ys:
             ld de, 199
-            call ucap
+            UCAP
             ld (ix + 10), l
             ld (ix + 11), h
             ret
@@ -1040,48 +1098,8 @@ pj_133:
             adc a, 0
             ld c, a                 ; * 133
             ret
-; pj_div - HL = C:HL / (w_pzv): the quotient is under 256 (8 steps)
-pj_div:
-            ld b, l
-            ld l, h
-            ld h, c                 ; HL = the top 16 bits, B = the low 8
-            ld de, (w_pzv)
-            ld c, 0
-            ld a, 8
-pd_lp:
-            sla b
-            adc hl, hl
-            sla c
-            or a
-            sbc hl, de
-            jr nc, pd_y
-            add hl, de
-            jr pd_n
-pd_y:
-            inc c
-pd_n:
-            dec a
-            jr nz, pd_lp
-            ld l, c
-            ld h, 0
-            ret
-; vx12 - HL = the corner table + A * 12
-vx12:
-            ld l, a
-            ld h, 0
-            add hl, hl
-            add hl, hl
-            ld e, l
-            ld d, h
-            add hl, hl
-            add hl, de
-            ld de, {VTX}
-            add hl, de
-            ret
-; ed_one - the edge (w_ea) - (w_eb): drawn as it is, clipped, or not at all
+; ed_one - the edge IX - IY (two corners): drawn as it is, clipped, or not at all
 ed_one:
-            ld ix, (w_ea)
-            ld iy, (w_eb)
             ld a, (ix + 6)
             and (iy + 6)
             ret nz                  ; both ends outside the same side
@@ -1425,7 +1443,8 @@ x6:
             add hl, de
             ret
 
-ce_edges:   db 0, 1, 2, 3, 0, 2, 1, 3, 4, 5, 6, 7, 4, 6, 5, 7, 0, 4, 1, 5, 2, 6, 3, 7
+ce_edges:   dw {VTX} + 0, {VTX} + 12, {VTX} + 24, {VTX} + 36, {VTX} + 0, {VTX} + 24, {VTX} + 12, {VTX} + 36, {VTX} + 48, {VTX} + 60, {VTX} + 72, {VTX} + 84
+            dw {VTX} + 48, {VTX} + 72, {VTX} + 60, {VTX} + 84, {VTX} + 0, {VTX} + 48, {VTX} + 12, {VTX} + 60, {VTX} + 24, {VTX} + 72, {VTX} + 36, {VTX} + 84
 w_rs:       dw 0
 w_a:        dw 0
 w_b:        dw 0
@@ -1439,7 +1458,6 @@ w_cj:       db 0
 w_lvl:      db 0
 w_var:      db 0
 w_vk:       db 0
-w_psg:      db 0
 w_mask:     db 0
 w_pl:       db 0
 w_px0:      dw 0
@@ -1447,19 +1465,9 @@ w_px1:      dw 0
 w_pz0:      dw 0
 w_pz1:      dw 0
 w_phl:      dw 0
-w_sum:      dw 0
 w_cx:       dw 0
 w_cy:       dw 0
 w_cz:       dw 0
-w_pa:       dw 0
-w_pb:       dw 0
-w_pc:       dw 0
-w_vz:       dw 0
-w_v4y:      dw 0
-w_v3z:      dw 0
-w_pzv:      dw 0
-w_ea:       dw 0
-w_eb:       dw 0
 w_d0:       dw 0
 w_d1:       dw 0
 w_dn:       dw 0

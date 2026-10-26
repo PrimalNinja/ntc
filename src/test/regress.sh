@@ -598,6 +598,24 @@ if [ "$o" == "$(cat ref/chip8.txt)" ]; then echo "ok   CHIP-8 interpreter"; else
 # Option Reserve builds round the range: a program too big for #0040-#3FFF goes on above #8000
 cp hole.bas t/
 for pl in cpc cpcmin cpcfw; do check "Option Reserve round the hole $pl" "^a3 7 big at .* end [89]" "$(timeout 60 python3 ntcrun.py t/hole.bas '' --platform=$pl 2>&1)"; done
+# msxdos (MSX-DOS 2 / Nextor, msxrun.py: the mapper, the frame interrupt): the language tests, the
+# Interrupt hook, the Memory class on a 512K mapper (the CPC 576K's results: the same pages and banks)
+for f in vb_test sieve; do cp $P/$f.bas t/m_$f.bas; done
+check "vb_test msxdos" "64 tests, 0 failed" "$(timeout 200 python3 msxrun.py t/m_vb_test.bas 'x' 2>&1)"
+check "sieve msxdos" "168 primes" "$(timeout 200 python3 msxrun.py t/m_sieve.bas 'x' 2>&1)"
+cp hook.bas t/hook_msx.bas; o=$(timeout 100 python3 msxrun.py t/hook_msx.bas '' 2>&1 | grep -v "^--- ")
+if [ "$o" == "$(cat ref/hook.txt)" ]; then echo "ok   hook msxdos"; else echo "FAIL hook msxdos"; fail=1; fi
+{ printf 'Option Memory CPCExpansion 33\n'; cat mem_t.bas; } > t/mem_msx.bas; o=$(timeout 200 python3 msxrun.py t/mem_msx.bas '' 2>&1 | grep -v "^--- ")
+if [ "$o" == "$(cat ref/mem_576.txt)" ]; then echo "ok   memory msxdos 576K"; else echo "FAIL memory msxdos 576K"; echo "$o" | head -5; fail=1; fi
+# colecovision (a cartridge, bare metal + the ROM keys): the ball test (coleco/ball) built by
+# tools/coleco/build.js and walked round the screen by run.mjs (a model of the hardware: no NMI on,
+# VDP timing, no ROM writes) - when its z80-emulator is installed (npm install in tools/coleco)
+if [ -d ../../tools/coleco/node_modules ]; then
+  o=$(node ../../tools/coleco/build.js t/ball.col coleco/ball/Main.bas coleco/ball/Coleco.cls 2>&1 && timeout 300 node ../../tools/coleco/run.mjs t/ball.col 2>&1)
+  if [ $? == 0 ] && echo "$o" | grep -q "^PASS"; then echo "ok   ball colecovision"; else echo "FAIL ball colecovision"; echo "$o" | tail -5; fail=1; fi
+else
+  echo "skip ball colecovision (npm install in tools/coleco)"
+fi
 # Option HighCode (cpcfw): code past #4000 to #C000 (copied up from the file's #4000-#7FFF), Option Place
 # keeps a class's code low, the data from #8000
 mkdir -p t/hc; cp hcode/*.bas hcode/*.cls t/hc/

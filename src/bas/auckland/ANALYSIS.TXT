@@ -62,6 +62,22 @@ the whole list: analysis/profile.txt):
 
 About 70% is calculation and walking, 15% pixels.
 
+DONE 2026-10-26: CALLS AND MEMORY TEMPORARIES OUT OF THE HOT PATH
+-----------------------------------------------------------------
+Counted instruction by instruction (cpcfw, the made-up town): call + ret
+were 11% of Render's time and LD (nn) to / from the w_ temporaries 17%.
+Now (S3d.cls, and the same in auckland_bill, _block, _mask, _street, _tern):
+- cmps, hneg, habs, ucap, vx12 written in where they are used (sjasmplus
+  MACROs at the top of Render's #asm: CMPS, HNEG, HABS, UCAP, VX12)
+- the outcode worked out in vx_put with the values in registers, the bits
+  shifted into B (no w_vz, w_v4y, w_v3z)
+- ve_proj keeps Z and the signs on the stack (no w_pzv, w_psg); the divide
+  (PJDIV) written in, 8 steps of 6 instructions
+The picture is the same byte for byte; Render about 9% faster (call + ret
+3.5% of it now). The alternate registers are left alone: on cpcfw the
+firmware's interrupt routine uses AF' and BC', and Render runs with
+interrupts on (the clock, the keys).
+
 WHAT LOOKS CHEAPEST TO WIN (on the Z80 alone)
 ---------------------------------------------
 - the projection divide (17%): a reciprocal table (1 / z, 16-bit, by z's

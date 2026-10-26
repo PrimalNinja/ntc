@@ -70,6 +70,7 @@ class Next:
         s.sel = 0; s.reset = False; s.typed = list(typed); s.syms = syms
         s.q = 0; s.stop = False; s.cur = None; s.phase = 0; s.tkey = False; s.scans = 0; s.ints = 0; s.missed = 0; s.T = 0; s.tframe = 0; s.palette = {}
         s.palidx = 0
+        s.spat = bytearray(64 * 256); s.sattr = [[0] * 5 for _ in range(128)]; s.ssel = 0; s.sab = 0; s.spp = 0
         m.set_output_callback(s.out); m.set_input_callback(s.inp)
         import cpcrun
         cpcrun.endkey_set(m, syms)
@@ -99,15 +100,27 @@ class Next:
         elif r == 0x02 and v & 1: s.reset = True; s.m.ticks_to_stop = 1   # (1: stop after this instruction - 0 would be no limit)
         elif r in (0x22, 0x23, 0x07) and s.q > 1 and not s.stop:   # the next interrupt moves: work it out again
             s.stopdone = s.q - s.m.ticks_to_stop; s.stop = True; s.m.ticks_to_stop = 1   # (the T done so far kept: 1 left now)
-        elif r == 0x40: s.palidx = v
-        elif r == 0x41: s.palette[((s.regs.get(0x43, 0) >> 4) & 7, s.palidx)] = v; s.palidx = (s.palidx + 1) & 255
+        elif r == 0x40: s.palidx = v; s.p44 = 0
+        elif r == 0x41: s.palette[((s.regs.get(0x43, 0) >> 4) & 7, s.palidx)] = v; getattr(s, 'blo', {}).pop(((s.regs.get(0x43, 0) >> 4) & 7, s.palidx), None); s.palidx = (s.palidx + 1) & 255
+        elif r == 0x44:             # 9-bit colours: RRRGGGBB, then the blue's low bit; the index moves on after the second
+            if getattr(s, 'p44', 0) == 0: s.palette[((s.regs.get(0x43, 0) >> 4) & 7, s.palidx)] = v; s.p44 = 1
+            else:
+                if not hasattr(s, 'blo'): s.blo = {}
+                s.blo[((s.regs.get(0x43, 0) >> 4) & 7, s.palidx)] = v & 1
+                s.p44 = 0; s.palidx = (s.palidx + 1) & 255
     def nreg_read(s, r):
         if 0x50 <= r <= 0x57: return s.mmu[r - 0x50]
         if r == 0x1E: return s.line() >> 8
         if r == 0x1F: return s.line() & 255
         return s.regs.get(r, 0)
     def out(s, port, val):
-        if port == 0x243B: s.sel = val
+        if port == 0x303B: s.ssel = val & 127; s.sab = 0; s.spp = (val & 63) * 256
+        elif (port & 0xFF) == 0x57:
+            a = s.sattr[s.ssel]; a[s.sab] = val; s.sab += 1
+            if s.sab == 4 and not (a[3] & 0x40): a[4] = 0; s.sab = 5
+            if s.sab >= 5: s.sab = 0; s.ssel = (s.ssel + 1) & 127
+        elif (port & 0xFF) == 0x5B: s.spat[s.spp] = val; s.spp = (s.spp + 1) % len(s.spat)
+        elif port == 0x243B: s.sel = val
         elif port == 0x253B: s.nreg_write(s.sel, val)
         elif (port & 0xFF) == 0xE3: s.divmmc = val
     def inp(s, port):
@@ -161,12 +174,19 @@ class Next:
         return min(evs) if evs else s.tframe + ft
     def run(s, limit=30000):
         import cpcrun
-        n = 0
+        n = 0; s.w0 = None
         while not s.m.halted and not s.reset:
             q = max(1, s.next_event() - s.tframe)
             s.stop = False; left = q
             while left > 0 and not (s.stop or s.m.halted or s.reset):   # (the module's own events may end a run early)
-                if TRACEZ is not None:          # NTC_TRACEZ: an instruction at a time, the last ones kept (tracez)
+                if PROFT and PROFT[0] <= s.T + left and s.T < PROFT[1]:   # NTC_PROFT=a,b: the T spent at each PC from T a to b
+                    pc = s.m.pc
+                    if pc in PROFTLOG: print('--- at %s T %d line %d de=%04X' % (PROFTLOG[pc], s.T, s.line(), s.m.de))
+                    s.q = 1; s.m.ticks_to_stop = 1; cpcrun.endkey_run(s); s.q = 0
+                    d = 1 - s.m.ticks_to_stop; s.T += d; s.tframe += d; left -= d
+                    if s.T >= PROFT[0]: PROFTC[pc] = PROFTC.get(pc, 0) + d
+                    continue
+                if TRACEZ is not None and s.T + left >= TRACEZ_AFTER:   # (NTC_TRACEZ_AFTER=T: fast until then)          # NTC_TRACEZ: an instruction at a time, the last ones kept (tracez)
                     s.q = 1; s.m.ticks_to_stop = 1; cpcrun.endkey_run(s); s.q = 0
                     d = 1 - s.m.ticks_to_stop; s.T += d; s.tframe += d; left -= d; s.tracez()
                     continue
@@ -174,6 +194,13 @@ class Next:
                 d = (s.stopdone + 1) if s.stop else (left - s.m.ticks_to_stop)
                 s.T += d; s.tframe += d; left -= d
             n += 1
+            if LOGV and n % LOGV[0] == 0:       # NTC_LOGVARS=every,lab,lab: those words every so many chunks (6 a frame)
+                mem = s.m.memory               # (the program's variables: in the mapped memory as it is)
+                print('--- log T %d %s' % (s.T, ' '.join('%s=%d' % (nm[4:] if nm.startswith('var_') else nm, (lambda v: v - 65536 if v > 32767 else v)(mem[s.syms[nm]] | (mem[s.syms[nm] + 1] << 8))) for nm in LOGV[1:] if nm in s.syms)))
+            if WATCH is not None:
+                b = s.m.memory[WATCH]
+                if s.w0 is None: s.w0 = b
+                elif b != s.w0: print('--- watch %04X: %02X -> %02X by T %d pc=%04X' % (WATCH, s.w0, b, s.T, s.m.pc)); s.w0 = b
             if PROFZ is not None and not s.stop: PROFZ.append(s.m.pc)
             if s.m.halted or s.reset: break
             if s.stop:          # stopped early (an interrupt register written): no interrupt yet
@@ -181,12 +208,20 @@ class Next:
                 continue
             steps = 0; held = 0
             while not s.m.halted and not s.reset and steps < 4000:   # the interrupt held until taken (INTPULSE: for that long only)
+                if s.m.iff1 and INTCHK and not (0xBE00 <= s.m.sp <= 0xC000):
+                    print('--- intchk: interrupt taken with SP %04X (the thread?) at PC %04X, frame T %d' % (s.m.sp, s.m.pc, s.T)); s.reset = True; break
                 if s.m.iff1 and s.m.on_handle_active_int(): s.ints += 1; break
                 if INTPULSE and held >= INTPULSE << (s.regs.get(0x07, 0) & 3): s.missed += 1; break
                 s.q = 1; s.m.ticks_to_stop = 1; cpcrun.endkey_run(s); steps += 1; d = 1 - s.m.ticks_to_stop; s.q = 0; s.T += d; s.tframe += d; held += d
             if TRACEZ is not None: s.tracez()
             while s.tframe >= s.frame_t(): s.tframe -= s.frame_t()
             if n > limit: print('TIMEOUT pc=%04x sp=%04x' % (s.m.pc, s.m.sp)); break
+    def rgb9(s, g, i, v):
+        # a palette entry as RGB: the blue's low bit from the second #44 write, else (an 8-bit
+        # write) the OR of the two blue bits, as the Next does
+        lo = getattr(s, 'blo', {}).get((g, i))
+        if lo is None: lo = (v | (v >> 1)) & 1
+        return (((v >> 5) & 7) * 255 // 7, ((v >> 2) & 7) * 255 // 7, (((v & 3) << 1) | lo) * 255 // 7)
     def layer2(s, path):
         # NTC_SHOT=file.png: the Layer 2 buffer shown (NextReg #12: 5 banks, 320 x 256 column by
         # column) through its palette (the first Layer 2 palette's writes; else index as grey), the
@@ -201,7 +236,7 @@ class Next:
         for i in range(256):
             v = s.palette.get((1, i))
             if v is None: pal[i] = (i, i, i)
-            else: pal[i] = (((v >> 5) & 7) * 255 // 7, ((v >> 2) & 7) * 255 // 7, (v & 3) * 255 // 3)
+            else: pal[i] = s.rgb9(1, i, v)
         # the tilemap over it (the order: the ULA and the tilemap over Layer 2), as the Next shows
         # it: in text mode (NextReg #6B bit 3) a pixel is see-through when its colour is the global
         # transparent colour (NextReg #14, #E3 at reset) - NextReg #4C's index is for 4-bit tiles
@@ -221,14 +256,41 @@ class Next:
                             v = s.palette.get((3, bit))
                             see = (v == gt) if text else (bit == (s.regs.get(0x4C, 0x0F) & 15))
                             if v is not None and not see: over[(c * w + xx) * 256 + r * 8 + yy] = v
+        # the sprites (NextReg #15 bit 0), over Layer 2 and under the tilemap: 8-bit patterns,
+        # x / y with their 9th bits, mirror X / Y, the palette offset, scaled 1/2/4/8 (the 5th byte)
+        spr = {}
+        if s.regs.get(0x15, 0) & 1:
+            spal = {}
+            for i in range(256):
+                v = s.palette.get((2, i))
+                spal[i] = None if v is None else s.rgb9(2, i, v)
+            tr = s.regs.get(0x4B, 0xE3)
+            for n in range(128):
+                a = s.sattr[n]
+                if not a[3] & 0x80: continue
+                sx = a[0] | ((a[2] & 1) << 8); sy = a[1] | ((a[4] & 1) << 8 if a[3] & 0x40 else 0)
+                pat = a[3] & 63; po = a[2] & 0xF0; mx = a[2] & 8; my = a[2] & 4
+                kx = 1 << ((a[4] >> 3) & 3) if a[3] & 0x40 else 1; ky = 1 << ((a[4] >> 1) & 3) if a[3] & 0x40 else 1
+                for py in range(16):
+                    for pxx in range(16):
+                        v = s.spat[pat * 256 + (15 - py if my else py) * 16 + (15 - pxx if mx else pxx)]
+                        if v == tr: continue
+                        c = spal.get((v + po) & 255) or (255, 0, 255)
+                        for yy in range(ky):
+                            for xx in range(kx):
+                                X = sx + pxx * kx + xx; Y = sy + py * ky + yy
+                                if 0 <= X < 320 and 0 <= Y < 256: spr[X * 256 + Y] = c
+        scr = (s.regs.get(0x16, 0) | ((s.regs.get(0x71, 0) & 1) << 8)) % 320
         shown = 0
         for x in range(320):
             for y in range(256):
                 o = over[x * 256 + y]
-                if o is None:
-                    px[x, y] = pal[data[x * 256 + y]]
-                    if data[x * 256 + y]: shown += 1
-                else: px[x, y] = (((o >> 5) & 7) * 255 // 7, ((o >> 2) & 7) * 255 // 7, (o & 3) * 255 // 3)
+                if o is None and (x * 256 + y) in spr: px[x, y] = spr[x * 256 + y]
+                elif o is None:
+                    d = data[((x + scr) % 320) * 256 + y]
+                    px[x, y] = pal[d]
+                    if d: shown += 1
+                else: px[x, y] = s.rgb9(3, 1, o)
         img.save(path)
         if not s.regs.get(0x69, 0) & 0x80: return 0
         return shown
@@ -262,20 +324,47 @@ def nex_name(asm):
         if m: return os.path.join(os.path.dirname(os.path.abspath(asm)), m.group(1))
     return None
 
+INTCHK = os.environ.get('NTC_INTCHK')           # NTC_INTCHK=1: stop when an interrupt would be taken with SP off the real stack (#BE00-#C000)
 INTPULSE = int(os.environ.get('NTC_INTPULSE', '0'))   # NTC_INTPULSE=32: INT is a pulse of that many 3.5MHz T (the real Next: 32),
                                                         # not held - a program with interrupts off misses it (ints / missed at the end)
 PROFZ = [] if os.environ.get('NTC_PROFZ') else None   # NTC_PROFZ=1: the PC at each interrupt, the busiest labels at the end
 # NTC_TRACEZ=sp>c000: an instruction at a time (slow), the last 300 (PC, SP, AF, BC, DE, HL, IX, the MMU)
-# kept; when the condition holds (sp>hex, sp<hex, pc=hex) they are printed and the run ends
+# kept; when the condition holds (sp>hex, sp<hex, pc=hex; spin=a-b: SP inside a-b; irq=a: PC at a
+# with SP off the real stack; chg=a: the byte at a changed) they are printed and the run ends.
+# NTC_TRACEZ_AFTER=T: run at full speed until T, then trace (a late bug found in minutes)
 TRACEZ = os.environ.get('NTC_TRACEZ')
+TRACEZ_AFTER = int(os.environ.get('NTC_TRACEZ_AFTER', '0'))
+# NTC_PROFT=a,b: an instruction at a time from T a to b, the T spent at each label printed at the
+# end - exact (NTC_PROFZ samples at interrupts only); also the instruction-accurate timing (the
+# chunks between events are approximate around a pending line interrupt). NTC_PROFTLOG=lab,lab:
+# a line (T, raster line, DE) each time one of those labels is reached in that stretch
+PROFT = [int(x) for x in os.environ['NTC_PROFT'].split(',')] if os.environ.get('NTC_PROFT') else None
+PROFTC = {}
+PROFTLOG = {}
+# NTC_WATCH=hex: the byte at that address: each change (old -> new, T, PC at the chunk's end)
+LOGV = (lambda v: [int(v[0])] + v[1:])(os.environ['NTC_LOGVARS'].split(',')) if os.environ.get('NTC_LOGVARS') else None
+WATCH = int(os.environ['NTC_WATCH'], 16) if os.environ.get('NTC_WATCH') else None
 def tracez_init(z):
     import collections
     z.tzq = collections.deque(maxlen=300)
-    k, v = TRACEZ[:2], int(TRACEZ[3:], 16)
+    if TRACEZ.startswith('chg='):      # chg=a: the byte at a changed
+        k, v = 'cg', int(TRACEZ[4:], 16); z.tz0 = None
+    elif TRACEZ.startswith('irq='):      # irq=a: PC at a with SP off the real stack (#BE00-#C000)
+        k, v = 'ir', int(TRACEZ[4:], 16)
+    elif TRACEZ.startswith('spin='):     # spin=a-b: SP inside that range (hex)
+        lo, hi = (int(x, 16) for x in TRACEZ[5:].split('-')); k, v = 'si', 0
+    else:
+        k, v = TRACEZ[:2], int(TRACEZ[3:], 16)
     skip = [tuple(int(x, 16) for x in r.split('-')) for r in os.environ.get('NTC_TRACEZ_SKIP', '').split(',') if r]   # PC ranges left out (hex a-b,...)
     def hit():
         for a, b in skip:
             if a <= z.m.pc <= b: return False
+        if k == 'cg':
+            b = z.m.memory[v]
+            if z.tz0 is None: z.tz0 = b
+            return b != z.tz0
+        if k == 'ir': return z.m.pc == v and not (0xBE00 <= z.m.sp <= 0xC000)
+        if k == 'si': return lo <= z.m.sp <= hi
         if k == 'sp': return z.m.sp > v if TRACEZ[2] == '>' else z.m.sp < v
         if TRACEZ[2] == '>': return z.m.pc > v
         return z.m.pc == v
@@ -291,6 +380,8 @@ def tracez_init(z):
 def run(asm, syms, typed):
     nex = nex_name(asm)
     z = Next(nex, typed, syms)
+    for nm in os.environ.get('NTC_PROFTLOG', '').split(','):
+        if nm in syms: PROFTLOG[syms[nm]] = nm
     if TRACEZ is not None: tracez_init(z)
     z.run(int(os.environ.get('NTC_LIMIT', '30000')))
     print(z.screen())
@@ -300,6 +391,15 @@ def run(asm, syms, typed):
         print('--- nextregs %s' % ' '.join('%02X=%02X' % (r, v) for r, v in sorted(z.regs.items())))
         print('--- mmu %s' % ' '.join(str(p) for p in z.mmu))
         print('--- palette %s' % ' '.join('%d/%d=%02X' % (k[0], k[1], v) for k, v in sorted(z.palette.items())))
+    if PROFTC:
+        import bisect, collections
+        lab = sorted((v, k) for k, v in syms.items() if isinstance(v, int) and not k.startswith('var_') and not k.endswith('_end'))
+        ad = [v for v, k in lab]; c = collections.Counter()
+        for pc, n in PROFTC.items():
+            i = bisect.bisect_right(ad, pc) - 1
+            c[lab[i][1] if i >= 0 else '?'] += n
+        tot = sum(c.values())
+        for k, n in c.most_common(40): print('--- proft %5.1f%% %8d %s' % (100.0 * n / tot, n, k))
     if PROFZ:
         import bisect, collections
         lab = sorted((v, k) for k, v in syms.items() if isinstance(v, int) and not k.startswith('var_') and not k.endswith('_end'))

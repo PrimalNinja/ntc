@@ -8488,7 +8488,7 @@ function ntcCompile(input_a, objOptions_a)
 	function readMemory(objRec_a)
 	{
 		var arrMatch = String(objRec_a.value).match(/^(small|cpcexpansion)\b[ \t,]*(.*)$/i);
-		var blnCpc = platIs('cpc') || (objOptions.platform === 'cpcmin') || (objOptions.platform === 'cpcfw') || (objOptions.platform === 'zxn');
+		var blnCpc = platIs('cpc') || (objOptions.platform === 'cpcmin') || (objOptions.platform === 'cpcfw') || (objOptions.platform === 'zxn') || (objOptions.platform === 'msxdos');	// (the Next's MMU, the MSX's mapper: shaped as the CPC's)
 		var intMax = 0;
 
 		if (!arrMatch)
@@ -10840,6 +10840,11 @@ function ntcCompile(input_a, objOptions_a)
 	if (String(objOptions.platform).toLowerCase() === 'zxn')
 	{
 		arrAsm.push('NTC_ZXIRQ\tequ @@ZXIRQ@@\t\t; 1 = the interrupt handler (ntc_irq) is in the program: Frame catches up its lost ticks');
+	}
+	if (String(objOptions.platform).toLowerCase() === 'msxdos')
+	{
+		arrAsm.push('; MSX-DOS 2 / Nextor: NTC_MSXDOS defined (the Memory class\'s mapper: asm/ntc_lib_msx.asm)');
+		arrAsm.push(strIndent + 'DEFINE NTC_MSXDOS');
 	}
 	if (String(objOptions.platform).toLowerCase() === 'zxn')
 	{

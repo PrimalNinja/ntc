@@ -280,6 +280,91 @@ End Function
 
 Public Sub Render()
 #asm
+; the small helpers written in where they are used (no call / ret; no labels: $ jumps)
+; CMPS: carry when HL < DE, signed (HL, A lost)
+  MACRO CMPS
+            ld a, h
+            xor d                   ; (clears carry)
+            jp p, $ + 7             ; same signs: HL - DE
+            ld a, h
+            rla                     ; signs differ: carry = HL negative
+            jr $ + 4
+            sbc hl, de
+  ENDM
+; HNEG: HL = -HL (A lost)
+  MACRO HNEG
+            xor a
+            sub l
+            ld l, a
+            sbc a, a
+            sub h
+            ld h, a
+  ENDM
+; HABS: HL = |HL| (A lost)
+  MACRO HABS
+            bit 7, h
+            jr z, $ + 8
+            HNEG
+  ENDM
+; UCAP: HL = the smaller of HL and DE, unsigned
+  MACRO UCAP
+            or a
+            sbc hl, de
+            add hl, de
+            jr c, $ + 4
+            ld h, d
+            ld l, e
+  ENDM
+; X6: HL = A * 6 (DE lost)
+  MACRO X6
+            ld l, a
+            ld h, 0
+            add hl, hl
+            ld e, l
+            ld d, h
+            add hl, hl
+            add hl, de
+  ENDM
+; VX12: HL = the corner table + A * 12 (DE lost)
+  MACRO VX12
+            ld l, a
+            ld h, 0
+            add hl, hl
+            add hl, hl
+            ld e, l
+            ld d, h
+            add hl, hl
+            add hl, de
+            ld de, {VTX}
+            add hl, de
+  ENDM
+; PJDIV: L = C:HL / DE, H = 0 (the quotient is under 256: C:HL < DE * 256; DE < 32768). Eight
+; steps; the quotient's bits go into C inverted (carry = a borrow), turned over at the end
+  MACRO PJDIVSTEP
+            sla b
+            adc hl, hl              ; (no carry out: HL < DE < 32768)
+            sbc hl, de
+            jr nc, $ + 3
+            add hl, de              ; (carry: the borrow put back, carry stays set)
+            rl c
+  ENDM
+  MACRO PJDIV
+            ld b, l
+            ld l, h
+            ld h, c
+            PJDIVSTEP
+            PJDIVSTEP
+            PJDIVSTEP
+            PJDIVSTEP
+            PJDIVSTEP
+            PJDIVSTEP
+            PJDIVSTEP
+            PJDIVSTEP
+            ld a, c
+            cpl
+            ld l, a
+            ld h, 0
+  ENDM
             ld ({sps}), sp
             ld sp, (ntc_csp)
             ei                      ; interrupts in while it works (the real stack): the
@@ -739,12 +824,12 @@ fl_clamp:
             push de
             ex de, hl
             ld de, (w_lo)
-            call cmps
+            CMPS
             pop de
             jr c, fc_set0
             push de
             ld hl, (w_hi)
-            call cmps                 ; hi < it?
+            CMPS                 ; hi < it?
             pop de
             ret nc
             ld de, (w_hi)
@@ -1113,31 +1198,31 @@ tl_one:
             sbc hl, de
             ld (w_dz), hl
             ld hl, ({camy})
-            call hneg
+            HNEG
             ld (w_dy), hl
             ld iy, {bas} + 12       ; Z (forward)
             call tl_dot
             ld (w_tz), hl
             ld de, -600             ; behind
-            call cmps
+            CMPS
             ret c
             ld a, (w_mode)
             or a
             jr nz, tl_z1
             ld hl, (w_tz)
             ld de, 3800             ; too far (1.9 km)
-            call cmps
+            CMPS
             ret nc
 tl_z1:
             ld iy, {bas}            ; X (right)
             call tl_dot
             ld (w_tx), hl
-            call habs               ; off to the side: |X| - Z > 900
+            HABS               ; off to the side: |X| - Z > 900
             ld de, (w_tz)
             or a
             sbc hl, de
             ld de, 900
-            call cmps
+            CMPS
             ret nc
             ld iy, {bas} + 6        ; Y (up)
             call tl_dot
@@ -1214,7 +1299,7 @@ tl_z1:
             ld de, (w_tz)
             push hl
             ld hl, 2000
-            call cmps
+            CMPS
             pop hl
             jr c, tl_bn             ; (2000 < Z: big ones only)
             ld e, (ix + 2)
@@ -1223,7 +1308,7 @@ tl_z1:
             push hl
             ld hl, (w_tz)
             ld de, 800
-            call cmps
+            CMPS
             pop hl
             jr nc, tl_bn
             ld e, (ix + 4)
@@ -1233,12 +1318,12 @@ tl_bn:
             ld (w_cnt2), hl
             ld hl, (w_tz)           ; the buildings' edges: all nearer than 300 m; the top and the
             ld de, 400              ; uprights to 600 m; further only the top
-            call cmps
+            CMPS
             ld a, 3
             jr c, tl_lod
             ld hl, (w_tz)
             ld de, 1200
-            call cmps
+            CMPS
             ld a, 2
             jr c, tl_lod
             xor a
@@ -1274,7 +1359,7 @@ tl_bcap:
 tl_lines:
             ld hl, (w_tz)
             ld de, 3000
-            call cmps
+            CMPS
             jp nc, tl_3d
             ld ix, (w_tb)
             ld l, (ix + 0)          ; the start of the lines: past all the buildings
@@ -1323,7 +1408,7 @@ tl_l0:
             ld (w_cnt2), hl
             ld hl, (w_tz)
             ld de, 1600
-            call cmps
+            CMPS
             ld a, 0
             jr c, tl_l1
             inc a                   ; far: no minor roads
@@ -1372,7 +1457,7 @@ tl_trees:
             ret nz
             ld hl, (w_tz)
             ld de, 700
-            call cmps
+            CMPS
             ret nc
             ld ix, (w_tb)
             ld l, (ix + 14)
@@ -1401,11 +1486,11 @@ tl_t_lp:
 tl_budget:
             ld hl, (w_nl)
             ld de, ({lmax})
-            call cmps
+            CMPS
             jr nc, tb_stop
             ld hl, (w_nl)
             ld de, (w_tcap)
-            call cmps               ; carry: still room
+            CMPS               ; carry: still room
             ccf
             ret
 tb_stop:
@@ -1580,8 +1665,52 @@ vp_g:
             ld (ix + 4), l
             ld (ix + 5), h
 vp_oc:
-            call ve_oc
-            ld (ix + 6), a
+            ; the outcode (HL = Z), into B a bit at a time from bit 4: 4 below (-4Y > 3Z),
+            ; 3 above (4Y > 3Z), 2 left (-X > Z), 1 right (X > Z), 0 nearer than 16
+            ld b, 0
+            push hl                 ; Z (bits 0, 1, 2)
+            push hl
+            push hl
+            ld e, l
+            ld d, h
+            add hl, hl
+            add hl, de
+            push hl
+            pop iy                  ; IY = 3Z
+            ld l, (ix + 2)
+            ld h, (ix + 3)
+            add hl, hl
+            add hl, hl
+            push hl                 ; 4Y
+            HNEG
+            ex de, hl               ; DE = -4Y
+            push iy
+            pop hl
+            CMPS                    ; 3Z < -4Y
+            rl b
+            pop de                  ; DE = 4Y
+            push iy
+            pop hl
+            CMPS                    ; 3Z < 4Y
+            rl b
+            ld l, (ix + 0)
+            ld h, (ix + 1)
+            HNEG
+            ex de, hl               ; DE = -X
+            pop hl
+            CMPS                    ; Z < -X
+            rl b
+            ld e, (ix + 0)
+            ld d, (ix + 1)
+            pop hl
+            CMPS                    ; Z < X
+            rl b
+            ld de, 16
+            pop hl
+            CMPS                    ; Z < 16
+            rl b
+            ld (ix + 6), b
+            ld a, b
             ld hl, w_and
             and (hl)
             ld (hl), a              ; (all the vertices' outcodes ANDed: a building wholly off
@@ -1611,15 +1740,15 @@ b_one:
             call vx_xz
             ld hl, (w_gz)
             ld de, -150
-            call cmps
+            CMPS
             jr c, bo_skip
             ld hl, (w_gx)
-            call habs
+            HABS
             ld de, (w_gz)
             or a
             sbc hl, de
             ld de, 150
-            call cmps
+            CMPS
             jr nc, bo_skip
             pop af                  ; below the view: its top (the height's Y added) under the
             push af                 ; bottom edge by more than 37 m (-4Y - 3Z > 600)
@@ -1627,7 +1756,7 @@ b_one:
             ld hl, (w_gy)
             ld de, (w_hy)
             add hl, de
-            call hneg
+            HNEG
             add hl, hl
             add hl, hl
             push hl
@@ -1641,7 +1770,7 @@ b_one:
             or a
             sbc hl, de
             ld de, 600
-            call cmps
+            CMPS
             jr c, bo_go
 bo_skip:
             pop af
@@ -1732,7 +1861,7 @@ bo_edges:
             ld (w_i), a
 bo_e:
             ld a, (w_i)
-            call vx12               ; HL = ground i
+            VX12               ; HL = ground i
             ld (w_ea), hl
             ld (w_va), hl
             ld a, (w_i)
@@ -1742,7 +1871,7 @@ bo_e:
             jr c, bo_e1
             xor a
 bo_e1:
-            call vx12
+            VX12
             ld (w_eb), hl
             ld (w_vb), hl
             ld a, (w_lod)
@@ -1847,7 +1976,7 @@ bt_c:
             ld hl, (w_cnt2)
             ld a, h
             or l
-            jr z, bt_draw
+            jp z, bt_draw
             dec hl
             ld (w_cnt2), hl
             ld hl, (w_p)
@@ -1870,7 +1999,7 @@ bt_c:
             pop bc                  ; BC = the building
             ld hl, (w_gz)
             ld de, -300
-            call cmps
+            CMPS
             jr c, bt_c              ; (150 m behind: not drawn)
             ld hl, (w_gz)
             bit 7, h
@@ -1927,7 +2056,7 @@ bt_ok:
             ld (hl), e
             inc hl
             ld (hl), d
-            jr bt_c
+            jp bt_c
 bt_draw:
             ld hl, BK_HEAD
             ld b, 64
@@ -2034,7 +2163,7 @@ bl_w:
             call vx_xz              ; the middle's foot from the camera (w_gx, w_gy, w_gz)
             ld hl, (w_gz)           ; 20 m ahead or more, else not drawn
             ld de, 40
-            call cmps
+            CMPS
             ret c
             ld a, (w_bh)
             call vx_h               ; the height (w_hx, w_hy, w_hz)
@@ -2062,9 +2191,10 @@ bl_w:
             ld h, 0
             add hl, hl
             ld de, (w_gz)
-            call ucap
+            UCAP
             call pj_160
-            call pj_div
+            ld de, (w_pzv)
+            PJDIV
             inc hl
             ex de, hl               ; DE = the half width
             ld hl, (w_bcx)
@@ -2077,7 +2207,7 @@ bl_x0:
             ld hl, (w_bcx)
             add hl, de
             ld de, 319
-            call ucap
+            UCAP
             ld (w_bx1), hl
             ld hl, (w_bx0)          ; any column where its top is over the horizon?
             ld de, BK_HZ
@@ -2648,7 +2778,7 @@ ln_h0:
             call nz, vx_h
             ld a, (w_i)             ; vertex 0, 1, 0, 1 ...
             and 1
-            call vx12
+            VX12
             push hl
             pop ix
             ld a, (w_3d)
@@ -2663,12 +2793,12 @@ ln_g:
             or a
             jr z, ln_n
             and 1
-            call vx12
+            VX12
             ld (w_eb), hl
             ld a, (w_i)
             inc a
             and 1
-            call vx12
+            VX12
             ld (w_ea), hl
             call ed_cnt
 ln_n:
@@ -2713,9 +2843,9 @@ t_one:
             or a
             sbc hl, de
             ld (w_tdy), hl
-            call habs
+            HABS
             ld de, 4
-            call cmps
+            CMPS
             ret c                   ; too small to see
             ld hl, (w_tdx)          ; the crown's foot: a third of the way up
             call div3
@@ -2728,7 +2858,7 @@ t_one:
             add hl, de
             ld (w_my), hl
             ld hl, (w_tdy)          ; half its width: (-dy, dx) / 4
-            call hneg
+            HNEG
             sra h
             rr l
             sra h
@@ -2816,7 +2946,7 @@ t_in:
 div3:
             bit 7, h
             jr z, d3_p
-            call hneg
+            HNEG
             call d3_u
             jp hneg
 d3_p:
@@ -2840,23 +2970,23 @@ ve_oc:
             ld h, (ix + 5)
             ld (w_vz), hl
             ld de, 16
-            call cmps
+            CMPS
             jr nc, oc1
             set 0, c
 oc1:
             ld e, (ix + 0)
             ld d, (ix + 1)
             ld hl, (w_vz)
-            call cmps
+            CMPS
             jr nc, oc2
             set 1, c
 oc2:
             ld l, (ix + 0)
             ld h, (ix + 1)
-            call hneg
+            HNEG
             ex de, hl
             ld hl, (w_vz)
-            call cmps
+            CMPS
             jr nc, oc3
             set 2, c
 oc3:
@@ -2872,15 +3002,15 @@ oc3:
             add hl, de
             ld (w_v3z), hl
             ld de, (w_v4y)
-            call cmps
+            CMPS
             jr nc, oc4
             set 3, c
 oc4:
             ld hl, (w_v4y)
-            call hneg
+            HNEG
             ex de, hl
             ld hl, (w_v3z)
-            call cmps
+            CMPS
             jr nc, oc5
             set 4, c
 oc5:
@@ -2904,11 +3034,12 @@ pj_z:
             ld h, (ix + 1)
             ld a, h
             ld (w_psg), a
-            call habs
+            HABS
             ld de, (w_pzv)
-            call ucap
+            UCAP
             call pj_160
-            call pj_div
+            ld de, (w_pzv)
+            PJDIV
             ex de, hl
             ld hl, 160
             ld a, (w_psg)
@@ -2921,7 +3052,7 @@ pj_xn:
             sbc hl, de
 pj_xs:
             ld de, 319
-            call ucap
+            UCAP
             ld (ix + 8), l
             ld (ix + 9), h
 ve_projy:                           ; (the row only: w_pzv set - the blocks' feet)
@@ -2929,7 +3060,7 @@ ve_projy:                           ; (the row only: w_pzv set - the blocks' fee
             ld h, (ix + 3)
             ld a, h
             ld (w_psg), a
-            call habs
+            HABS
             push hl
             ld hl, (w_pzv)
             ld e, l
@@ -2942,9 +3073,10 @@ ve_projy:                           ; (the row only: w_pzv set - the blocks' fee
             rr l
             ex de, hl
             pop hl
-            call ucap
+            UCAP
             call pj_133
-            call pj_div
+            ld de, (w_pzv)
+            PJDIV
             ex de, hl
             ld hl, 100
             ld a, (w_psg)
@@ -2957,7 +3089,7 @@ pj_yn:
             add hl, de
 pj_ys:
             ld de, 199
-            call ucap
+            UCAP
             ld (ix + 10), l
             ld (ix + 11), h
             ret
@@ -3015,104 +3147,6 @@ pj_133:
             ld a, c
             adc a, 0
             ld c, a                 ; * 133
-            ret
-; pj_div - HL = C:HL / (w_pzv): the quotient is under 256 (8 steps)
-pj_div:
-            ld b, l
-            ld l, h
-            ld h, c                 ; HL = the top 16 bits, B = the low 8
-            ld de, (w_pzv)
-            ld c, 0
-            sla b
-            adc hl, hl
-            sla c
-            or a
-            sbc hl, de
-            jr nc, pd_y0
-            add hl, de
-            jr pd_n0
-pd_y0:
-            inc c
-pd_n0:
-            sla b
-            adc hl, hl
-            sla c
-            or a
-            sbc hl, de
-            jr nc, pd_y1
-            add hl, de
-            jr pd_n1
-pd_y1:
-            inc c
-pd_n1:
-            sla b
-            adc hl, hl
-            sla c
-            or a
-            sbc hl, de
-            jr nc, pd_y2
-            add hl, de
-            jr pd_n2
-pd_y2:
-            inc c
-pd_n2:
-            sla b
-            adc hl, hl
-            sla c
-            or a
-            sbc hl, de
-            jr nc, pd_y3
-            add hl, de
-            jr pd_n3
-pd_y3:
-            inc c
-pd_n3:
-            sla b
-            adc hl, hl
-            sla c
-            or a
-            sbc hl, de
-            jr nc, pd_y4
-            add hl, de
-            jr pd_n4
-pd_y4:
-            inc c
-pd_n4:
-            sla b
-            adc hl, hl
-            sla c
-            or a
-            sbc hl, de
-            jr nc, pd_y5
-            add hl, de
-            jr pd_n5
-pd_y5:
-            inc c
-pd_n5:
-            sla b
-            adc hl, hl
-            sla c
-            or a
-            sbc hl, de
-            jr nc, pd_y6
-            add hl, de
-            jr pd_n6
-pd_y6:
-            inc c
-pd_n6:
-            sla b
-            adc hl, hl
-            sla c
-            or a
-            sbc hl, de
-            jr nc, pd_y7
-            add hl, de
-            jr pd_n7
-pd_y7:
-            inc c
-pd_n7:
-            ld l, c
-            ld h, 0
             ret
 ; vx12 - HL = the corner table + A * 12
 vx12:
@@ -3495,13 +3529,9 @@ w_px1:      dw 0
 w_pz0:      dw 0
 w_pz1:      dw 0
 w_phl:      dw 0
-w_sum:      dw 0
 w_cx:       dw 0
 w_cy:       dw 0
 w_cz:       dw 0
-w_pa:       dw 0
-w_pb:       dw 0
-w_pc:       dw 0
 w_vz:       dw 0
 w_v4y:      dw 0
 w_v3z:      dw 0
