@@ -6,6 +6,50 @@ finished, with the date.
 ---
 
 ## done
+- 2026-10-27 NTC3D updated from Julian's new zip (IRON DUST's additions): the ground feature (MV_CIRCLE,
+  MV_HUNT, MV_HOME, OF_LAND / EV_LAND, OF_GUNANY), Fly3D.Drive, E3.Skyline / Texts / UClr / UInk /
+  lodb, compound models (M.Compound), build settings by tools/prep.js (nobj, features ground /
+  noquad3 / noflyers, vertex buffers sized from E3Data's MaxV / MaxFV), and its own emulator in
+  tools/emu (ROCKS's test/run.py needs nothing outside ntc3d/ now). Kept on top: MIT License on the
+  library's files, build.js finding NTC's src from where it is, tools/zesshot.js. ROCKS rebuilt with
+  this NTC ends at #757C (18564 bytes left); its 3000 frame run gives the same log as Julian's
+  (score 745, 3.24 frames a picture); a build with ground + noquad3 and 36 objects assembles clean
+- 2026-10-26 NTC3D added (`src/ntc3d/`, from Julian's NTC3D zip): the ZX Spectrum Next 3D framework
+  (E3, Obj3D, Fly3D, Hud3D, Nx; the model tool e3models.js, build.js, the ROCKS example, its
+  manual FRAMEWORK.md). build.js finds NTC's src from its own place now (it had a fixed path).
+  ROCKS rebuilt with this NTC: assembles clean, ends at #7EF2 (16142 bytes left under #BE00 - the
+  CyborgOS glue no longer in a plain Next program), runs in ZEsarUX (tools/zesshot.js). Its
+  test/run.py still needs DIREMOON STRIKE's test/emu.py (not part of NTC)
+- 2026-10-26 md: Pad.Read's 6 button read (ntc_md_pad, the frame interrupt) stopped one TH step
+  short - it read the 4th step (?0SA00DU) where the 6 button pad answers on the 6th, so the pad
+  looked like a 3 button one and X, Y, Z, Mode never registered. Now the full 8 steps (H L H L H L,
+  the extra buttons read on the 7th, back low on the 8th). Test: test/mdpad (mdregress.sh pad6:
+  X, Y, Z, Mode, A, X+Y+Z held by mdrun.py's --pad)
+- 2026-10-26 Option HighCode (cpcfw) and Option Place: code in #C000-#FFFF too - in the file at
+  #4000-#7FFF round the window data (same offsets, +#8000), copied up by the start code, which also
+  does KL U ROM DISABLE and SCR SET BASE #40 (the screen at #4000). highLayout: the start code, the
+  library's code and the Option Place classes below #4000, then the rest (procedures, each #asm
+  block on its own) below #4000 as far as it goes, then #C000 up to the window data, then after it,
+  then from #8000; the variables, strings and the library's data from #8000. CyborgOS's flat build
+  uses it. Test: test/hcode (regress.sh). Harness (ntcrun.py): SCR SET BASE (#BC08), the screen
+  read wherever it is (R12's page once the CRTC is set), main RAM's pages read where they are kept
+  while a bank is paged in; KL ROM SELECT / DESELECT keep the RAM under #C000 (it wrote #80 over
+  it for good - CyborgOS's network tests' references had a missing "C" from it)
+- 2026-10-26 zxn: a Next program no longer carries code it never runs. Frame no longer needs
+  ntc_plat_irqh: its catch-up of lost ticks is built only when the interrupt handler is in the program
+  (NTC_ZXIRQ, set after linking - normal mode), so a turbo program with Frame has no handler,
+  ntc_ticks or hook variables. And the Next's bank switch glue at #0040 (CyborgOS's pivot) stays only
+  when the program uses it (the hypervisor's #asm names ntc_bk_sp / ntc_bk_out: linkTidy in the
+  compiler). A turbo Next program with Frame: 345 bytes less; a normal one: 71 less. Every other
+  platform builds the same (tools/ntccheck/compare.js: 795 programs), CyborgOS byte for byte the same.
+  The CPC's glue (14 bytes) stays in every CPC program at #0040: taken out, the cpcfw Library: ROM test
+  irqfar (a set of 4 ROMs, interrupt classes during far calls) ran off into the stack (an RST 3 at
+  #BF88). Without the glue the program ends at #02FD and fails; padded to end at #0301 or more it
+  passes, so it looks like the program's end below about #0300 rather than the glue. Not found yet: todo.
+- 2026-10-26 zxn: Inkey gives the cursor keys (Caps Shift + 5-8, which the Next's cursor keys are)
+  the CPC firmware's codes - up 240, down 241, left 242, right 243 - where it gave nothing. CyborgOS's
+  programs (MON, MON2, YING, YANG) read those codes, so on the Next their cursors did nothing.
+  test/inkey_zxn.bas in regress.sh.
 - 2026-10-25 Regression suite back to all passing (887). Library: ROM had stopped building on all
   three CPC platforms since the Next port: the CPC Memory section got IFNDEF NTC_ZXN / IFDEF
   NTC_PGLOADED blocks, which ntcRomAsm passed through, so the section looked like it used Next
@@ -728,6 +772,9 @@ CyborgOS (a separate project built with NTC BASIC) keeps its own list in its own
 ---
 
 ## todo
+- cpcfw, Library: ROM, a set of 4 ROMs (test/irqfar with romset4): a program that ends below about
+  #0300 runs off into the stack while interrupt classes run during far calls. Hidden today by the CPC's
+  bank switch glue at #0040 (14 bytes) pushing the end past it. Find why.
 
 - [ ] Scalar strings' buffers (variables, locals, params, results, temps) after the program like
       the arrays, not in its file - their capacity bytes set at the start from a small table:

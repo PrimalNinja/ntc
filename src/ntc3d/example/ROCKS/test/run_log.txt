@@ -1,0 +1,8 @@
+frame 500: score 70 shield 85 objects 17 pictures 150
+frame 1000: score 190 shield 85 objects 12 pictures 306
+frame 1500: score 345 shield 55 objects 17 pictures 466
+frame 2000: score 465 shield 40 objects 14 pictures 620
+frame 2500: score 630 shield 25 objects 14 pictures 776
+frame 3000: score 745 shield 25 objects 15 pictures 926
+3000 frames, 926 pictures: 3.24 frames a picture
+seen (type, mover): times seen (0, 2) 554, (1, 1) 2094, (1, 3) 37, (2, 10) 300, (3, 3) 7, (3, 9) 568, (4, 3) 12, (4, 8) 189, (5, 1) 1212

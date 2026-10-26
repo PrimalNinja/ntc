@@ -27,4 +27,10 @@ run vb_test9 "34 tests, 0 failed" $P/vb_test9.bas
 run argfn "123040567080" argfn/Main.bas argfn/A2.cls
 run class "x=12" $P/class_demo/Main.bas $P/class_demo/Counter.cls
 run sieve "168 primes" $P/sieve.bas
+# Pad.Read on a 6 button pad: X, Y, Z, Mode, A, then X Y Z together held by the script (the read
+# stopped one TH step short of the 6 button pad's extra buttons: X, Y, Z, Mode were never seen)
+if python3 mdbuild.py mdpad/Main.bas --out=t/md/pad.md --log >t/md/pad.build 2>&1; then
+  o=$(timeout 300 python3 mdrun.py t/md/pad.md --frames=420 --log --pad=40:X,100:Y,160:Z,220:M,280:A,340:XYZ,400:- 2>&1 | grep -a "^pad" | tr '\n' ' ')
+  if [ "$o" == "pad 256 pad 256 pad 512 pad 512 pad 1024 pad 1024 pad 2048 pad 2048 pad 64 pad 64 pad 1792 pad 1792 " ]; then echo "ok   pad6"; else echo "FAIL pad6: $o"; fail=1; fi
+else echo "FAIL pad6 (build)"; tail -5 t/md/pad.build; fail=1; fi
 if [ $fail == 0 ]; then echo "ALL PASS (md)"; fi

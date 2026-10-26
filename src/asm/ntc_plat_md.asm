@@ -225,19 +225,25 @@ ntc_md_pad:
 			move.b #$00, (a0)
 			nop
 			nop
-			move.b (a0), d2				; ?0SA00DU
+			move.b (a0), d2				; ?0SA00DU (TH's 2nd step)
 			move.b #$40, (a0)
 			nop
 			nop
-			move.b #$00, (a0)
+			move.b #$00, (a0)			; (4th: ?0SA00DU again)
+			nop
+			nop
+			move.b #$40, (a0)
+			nop
+			nop
+			move.b #$00, (a0)			; 6th: a 6 button pad says so here
 			nop
 			nop
 			move.b (a0), d3				; ?0SA0000 on a 6 button pad
 			move.b #$40, (a0)
 			nop
 			nop
-			move.b (a0), d4				; ?1CBMXYZ on a 6 button pad
-			move.b #$00, (a0)
+			move.b (a0), d4				; ?1CBMXYZ on a 6 button pad (7th)
+			move.b #$00, (a0)			; (8th: back to the start)
 			nop
 			nop
 			move.b #$40, (a0)

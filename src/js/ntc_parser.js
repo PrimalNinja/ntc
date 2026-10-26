@@ -1392,6 +1392,14 @@ function ntcParse(arrFiles_a, objDefines_a)
 		{
 			record('option', { what: 'reserve', value: trim(strText.substr(8)) });	// memory the program must not reach into
 		}
+		else if (strText === 'highcode')
+		{
+			record('option', { what: 'highcode' });	// cpcfw: code in #C000-#FFFF too (the screen at #4000)
+		}
+		else if (left(strText, 'place '))
+		{
+			record('option', { what: 'place', value: trim(strText.substr(6)) });	// classes kept out of Option HighCode's #C000-#FFFF
+		}
 		else if (left(strText, 'nexdata '))
 		{
 			record('option', { what: 'nexdata', value: trim(strSrc.replace(/^\s*option\s+nexdata\s+/i, '').replace(/\s+'.*$/, '')) });	// zxn: a data file's 16K blocks in the NEX file's banks

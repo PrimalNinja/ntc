@@ -49,6 +49,8 @@ function ntcCompile(input_a, objOptions_a)
 	var objOvlVars = {};		// overlay class -> its paged variables (declarations)			// interrupt classes: { module, rate (0 = Frame), tick }
 	var intStrMax = 40;			// the longest string in the program (findStrMax)
 	var arrReserve = [];		// Option Reserve: { start, size, file, line }
+	var blnHighCode = false;	// Option HighCode (cpcfw): code in #C000-#FFFF too, the screen at #4000 (highLayout)
+	var objPlace = {};			// Option Place class, ...: those classes' code never in #C000-#FFFF (highLayout)
 	var intBufAt = -1;			// Option Buffer: where the 2K buffer is (-1: in the program)
 	var intBufSize = 2048;		// Option Buffer [address], size / Option Buffer Size n: its size (FileSystem on a CPC needs 2048)
 	var objNexData = null;		// Option NexData "file", blocks (zxn): the file's 16K blocks in the NEX's banks
@@ -9579,6 +9581,244 @@ function ntcCompile(input_a, objOptions_a)
 		return arrOut.join('\n');
 	}
 
+	// highLayout - Option HighCode (cpcfw, built round the window #4000-#7FFF): the program's
+	// parts in three places instead of one line from the org:
+	//   #0040-#3FFF  the start code, the keyword library's code, the Option Place classes (code
+	//                that must be in main RAM whatever is at #C000: a ROM selected there, a bank's
+	//                page put there), then as much of the rest as fits
+	//   #C000-#FFFF  the rest of the code (the BASIC procedures, other classes' #asm): in the file
+	//                at #4000-#7FFF - round the window data, at the same offsets (+#8000) - and
+	//                copied up by the start code, which moves the screen to #4000
+	//   #8000 on     the variables, strings and the library's data (the firmware and the ROMs read
+	//                them: central RAM), code that did not fit up there, then the arrays
+	// Each part (a procedure, an #asm block, a library section) goes where it fits, by guards
+	// sjasmplus works out (its sizes from the pass before: fwdref-ok)
+	function highLayout(strAsm_a)
+	{
+		var arrIn = strAsm_a.split('\n');
+		var arrWinData = [];
+		var arrKeep = [];
+		var blnWd = false;
+		var intWStart = 0x4000;
+		var blnWin = arrReserve.some(function(objR_a) { return (objR_a.start <= 0x4000) && (objR_a.start + objR_a.size >= 0x8000); });
+
+		if (!blnWin)
+		{
+			arrErrors.push({ file: '', line: 0, msg: 'Option HighCode needs the program built round the window (Option Reserve &H4000, &H4000): the code for #C000 is in the file there' });
+			return strAsm_a;
+		}
+		if (objOptions.library === 'rom')
+		{
+			arrErrors.push({ file: '', line: 0, msg: 'Option HighCode: not with Library: ROM (the keyword ROM is at #C000)' });
+			return strAsm_a;
+		}
+		arrIn.forEach(function(strL_a)
+		{
+			if (/^\s*;\s*@window\b/i.test(strL_a)) { blnWd = true; return; }
+			if (/^\s*;\s*@endwindow\b/i.test(strL_a)) { blnWd = false; return; }
+			(blnWd ? arrWinData : arrKeep).push(strL_a);
+		});
+		arrIn = arrKeep;
+		// where the window data starts in the file: its first ds #nnnn - $ (else at #4000)
+		arrWinData.some(function(strL_a)
+		{
+			var arrM = strL_a.match(/^\s+ds\s+#([0-9A-Fa-f]+)\s*-\s*\$/i);
+
+			if (arrM) { intWStart = parseInt(arrM[1], 16); return true; }
+			return /^\s+[a-z]/i.test(strL_a.replace(/;.*$/, '')) && !/^\s+(ds|org)\b/i.test(strL_a);
+		});
+		var strFrom = (arrIn.indexOf('ntc_start2:') >= 0) ? 'ntc_start2:' : 'ntc_start:';
+		var intFrom = arrIn.indexOf(strFrom);
+		var intEnd = -1;
+		var intI = 0;
+
+		for (intI = intFrom; intI < arrIn.length; intI++)
+		{
+			if (/^ntc_end:/.test(arrIn[intI])) { intEnd = intI; break; }
+		}
+		if ((intFrom < 0) || (intEnd < 0))
+		{
+			arrErrors.push({ file: '', line: 0, msg: 'Option HighCode: the program\'s start or end not found (highLayout)' });
+			return strAsm_a;
+		}
+		// the parts: { kind: S start, K library code, P Option Place, M the rest of the code, D data;
+		// lines }
+		var arrParts = [{ kind: 'S', lines: [], title: 'start' }];
+		var objCur = arrParts[0];
+		var blnLib = false;
+		var blnAsm = false;
+		var arrLate = [];
+		var objPartOf = {};
+
+		function begin(strKind_a, strTitle_a)
+		{
+			objCur = { kind: strKind_a, lines: [], title: strTitle_a };
+			arrParts.push(objCur);
+		}
+		for (intI = intFrom; intI < intEnd; intI++)
+		{
+			var strL = arrIn[intI];
+			var arrM = null;
+			var blnTriple = !blnLib && (strL === '; ============================================================') && (arrIn[intI + 2] === '; ============================================================') && /^; /.test(arrIn[intI + 1] || '');
+
+			if (/^[a-z_]\w*\s+equ\s+[a-z_]/.test(strL))
+			{
+				arrLate.push(strL);		// (names that are another label + n: after everything)
+				continue;
+			}
+			if (blnTriple)
+			{
+				var strT = arrIn[intI + 1];
+
+				blnAsm = false;
+				if (/^; Keyword library \(/.test(strT)) { blnLib = true; begin('K', strT); }
+				else if (/^; Main Thread\b/.test(strT)) { begin('M', strT); }
+				else if (/\((normal|turbo) mode\)\s*$/.test(strT))
+				{
+					begin('M', strT);
+					objCur.proc = true;		// P when its first label is a placed class's (p_class_...)
+				}
+				else if (/^; Inline assembly\b/.test(strT)) { begin('M', strT); blnAsm = true; }
+				else if (/^; (Variables|Strings)\b/.test(strT)) { begin('D', strT); }
+				else { begin('M', strT); }
+			}
+			else if (blnLib && /^;## /.test(strL))
+			{
+				var arrW = strL.substr(4).split(/\s+/);
+				begin((/@data\b/.test(strL) || /^ntc_(d_\w+|data|buf\w*|plat_data)$/.test(arrW[0])) ? 'D' : 'K', strL);
+			}
+			else if (blnAsm && (arrM = strL.match(/^([A-Za-z_]\w*):\s*;.*?\b([A-Za-z_]\w*)\.(cls|bas) line \d+/i)))
+			{
+				// each #asm block on its own: its class decides where it goes
+				begin(objPlace[arrM[2].toLowerCase()] && /\.cls$/i.test(arrM[2] + '.' + arrM[3]) ? 'P' : 'M', strL);
+			}
+			if (objCur.proc && !objCur.labelled && (arrM = strL.match(/^p_([a-z0-9]+)_\w+:/)))
+			{
+				objCur.labelled = true;
+				if (objPlace[arrM[1]]) { objCur.kind = 'P'; }
+			}
+			objCur.lines.push(strL);
+		}
+		// a jr from one part to another becomes jp (the parts move apart)
+		arrParts.forEach(function(objP_a, intP_a)
+		{
+			objP_a.lines.forEach(function(strL_a)
+			{
+				var arrM = strL_a.match(/^([A-Za-z_][\w.]*):?(\s|$)/);
+
+				if (arrM && !/^\s*(equ|=|defl)\b/i.test(strL_a.substr(arrM[1].length + 1).replace(/^:/, '')))
+				{
+					objPartOf[arrM[1]] = intP_a;
+				}
+			});
+		});
+		arrParts.forEach(function(objP_a, intP_a)
+		{
+			objP_a.lines = objP_a.lines.map(function(strL_a)
+			{
+				var arrM = strL_a.match(/^(\s*(?:[A-Za-z_]\w*:?)?\s+)jr(\s+(?:(?:nz|z|nc|c)\s*,\s*)?)([A-Za-z_]\w*)\s*(;.*)?$/i);
+
+				if (!arrM || (objPartOf[arrM[3]] === undefined) || (objPartOf[arrM[3]] === intP_a))
+				{
+					return strL_a;
+				}
+				return arrM[1] + 'jp' + arrM[2] + arrM[3] + '\t\t; (jr: another part - Option HighCode moves them)';
+			});
+		});
+		var arrOut = [];
+		var intG = 0;
+		var strI = strIndentG;
+
+		if (arrWinData.length > 0)
+		{
+			arrOut.push('; the window data (; @window ... ; @endwindow in #asm): in the file at its place in the window, by highLayout');
+			arrOut.push(strI + 'MACRO ntc_windata');
+			arrOut = arrOut.concat(arrWinData);
+			arrOut.push(strI + 'ENDM');
+		}
+		arrIn.slice(0, intFrom).forEach(function(strL_a)
+		{
+			arrOut.push((strL_a === 'NTC_WINHOLE\tequ @@WINHOLE@@\t\t; 1 = the program is built round an Option Reserve range over the window #4000-#7FFF') ? strL_a.replace('@@WINHOLE@@', '1') : strL_a);
+		});
+		function emit(objP_a) { arrOut = arrOut.concat(objP_a.lines); }
+		arrParts.filter(function(o_a) { return o_a.kind === 'S'; }).forEach(emit);
+		arrOut.push('; ---- Option HighCode: below #4000 - the library\'s code, the Option Place classes');
+		arrParts.filter(function(o_a) { return o_a.kind === 'K'; }).forEach(emit);
+		arrParts.filter(function(o_a) { return o_a.kind === 'P'; }).forEach(emit);
+		arrOut.push(strI + 'ASSERT $ <= #4000, "Option HighCode: the start code, the library\'s code and the Option Place classes must fit below #4000"');
+		arrOut.push('; ---- the rest of the code: below #4000 as far as it goes, then #C000-#FFFF (in the file round the');
+		arrOut.push(';      window data, at the same offsets), then from #8000 with the data');
+		arrOut.push('ntc_hph\t\tdefl 0\t\t\t; where the code goes now: 0 below #4000, 1 #C000 up to the window data, 2 after it, 3 from #8000');
+		arrParts.filter(function(o_a) { return o_a.kind === 'M'; }).forEach(function(objP_a)
+		{
+			var strS = '(ntc_hg' + intG + '_e - ntc_hg' + intG + ')';
+
+			arrOut.push(strI + 'IF (ntc_hph == 0) && ($ + ' + strS + ' > #4000)\t; fwdref-ok');
+			arrOut.push(strI + 'ds #4000 - $');
+			arrOut.push(strI + 'DISP #C000');
+			arrOut.push('ntc_hph\t\tdefl 1');
+			arrOut.push(strI + 'ENDIF');
+			arrOut.push(strI + 'IF (ntc_hph == 1) && ($ + ' + strS + ' > #' + (intWStart + 0x8000).toString(16).toUpperCase() + ')\t; fwdref-ok');
+			arrOut.push(strI + 'ENT');
+			if (arrWinData.length > 0) { arrOut.push(strI + 'ntc_windata'); }
+			arrOut.push(strI + 'DISP $ + #8000');
+			arrOut.push('ntc_hph\t\tdefl 2');
+			arrOut.push(strI + 'ENDIF');
+			arrOut.push(strI + 'IF (ntc_hph == 2) && ($ + ' + strS + ' > #10000)\t; fwdref-ok');
+			arrOut.push(strI + 'ENT');
+			arrOut.push(strI + 'ds #8000 - $');
+			arrOut.push('ntc_hph\t\tdefl 3');
+			arrOut.push(strI + 'ENDIF');
+			arrOut.push('ntc_hg' + intG + ':');
+			emit(objP_a);
+			arrOut.push('ntc_hg' + intG + '_e:');
+			intG++;
+		});
+		arrOut.push(strI + 'IF ntc_hph == 0');
+		arrOut.push(strI + 'IF $ < #4000');
+		arrOut.push(strI + 'ds #4000 - $');
+		arrOut.push(strI + 'ENDIF');
+		if (arrWinData.length > 0) { arrOut.push(strI + 'ntc_windata'); }
+		arrOut.push(strI + 'ELSEIF ntc_hph == 1');
+		arrOut.push(strI + 'ENT');
+		if (arrWinData.length > 0) { arrOut.push(strI + 'ntc_windata'); }
+		arrOut.push(strI + 'ELSEIF ntc_hph == 2');
+		arrOut.push(strI + 'ENT');
+		arrOut.push(strI + 'ENDIF');
+		arrOut.push(strI + 'ASSERT $ <= #8000 || ntc_hph == 3, "Option HighCode: the window data and the code for #C000 must fit in the file\'s #4000-#7FFF"');
+		arrOut.push(strI + 'IF $ < #8000');
+		arrOut.push(strI + 'ds #8000 - $');
+		arrOut.push(strI + 'ENDIF');
+		arrOut.push('ntc_hiph\tequ ntc_hph\t\t; (where the code ended: 3 = it reached the data from #8000)');
+		arrOut.push('; ---- from #8000: the variables, strings and the library\'s data');
+		arrParts.filter(function(o_a) { return o_a.kind === 'D'; }).forEach(emit);
+		arrIn.slice(intEnd).forEach(function(strL_a, intK_a)
+		{
+			if (strL_a === '@@MEMTAB@@')
+			{
+				arrOut.push('ntc_memtab\tequ ntc_free\t\t; the Memory class\'s tables');
+				return;
+			}
+			if (strL_a === '@@BSS@@')
+			{
+				arrOut.push('ntc_bssfrom\tequ ntc_end');
+				arrOut.push('ntc_bss\t\tequ ntc_bssfrom');
+				return;
+			}
+			if (/^\s+SAVEAMSDOS\s.*,\s*ntc_start,\s*ntc_end - ntc_start,/.test(strL_a))
+			{
+				strL_a = strL_a.replace('ntc_end - ntc_start', 'ntc_fileend - ntc_start');
+			}
+			arrOut.push(strL_a);
+			if (intK_a === 0)
+			{
+				arrOut = arrOut.concat(arrLate);
+				arrOut.push('ntc_fileend:\t\t\t; the file ends here');
+			}
+		});
+		return arrOut.join('\n');
+	}
+
 	// irqRate - the platform's interrupts a second (;@irqrate: 300 on the CPC and the Next,
 	// a frame's on msx and sc3000): Option Class Interrupt's rates count in them
 	function irqRate()
@@ -9588,6 +9828,36 @@ function ntcCompile(input_a, objOptions_a)
 
 	// romHead - a cartridge ROM's start: the platform's section ntc_plat_romhead, at the org (the
 	// MSX's "AB" header, the SC-3000's restart vectors); it goes on to ntc_start
+	// after linking: the Next's bank switch glue at #0040 (CyborgOS's: ;@@bkglue{ ... }) stays
+	// only when something in the program uses it (the hypervisor's #asm: ntc_bk_sp, ntc_bk_out
+	// ...), else it goes (a Next program that isn't CyborgOS). The CPC's (14 bytes) always stays:
+	// without it a cpcfw Library: ROM test (irqfar, a set of 4 ROMs) crashed - see todo.md.
+	// NTC_ZXIRQ (zxn) is 1 when the interrupt handler is in the program (normal mode) - Frame's
+	// catch-up of lost ticks is built only then
+	function linkTidy(strAsm_a)
+	{
+		var arrL = strAsm_a.split('\n');
+		var intA = arrL.indexOf(';@@bkglue{');
+		var intB = arrL.indexOf(';@@bkglue}');
+		var strRest = '';
+
+		if ((intA >= 0) && (intB > intA))
+		{
+			strRest = arrL.slice(0, intA).concat(arrL.slice(intB + 1)).map(function(strL_a) { return strL_a.replace(/;.*$/, ''); }).join('\n');
+			if (/\bntc_bk_(sp|out|land|recv|svd|svh|hpg)\b/.test(strRest))
+			{
+				arrL.splice(intB, 1);
+				arrL.splice(intA, 1);
+			}
+			else
+			{
+				arrL.splice(intA, intB - intA + 1);
+			}
+		}
+		strAsm_a = arrL.join('\n');
+		return strAsm_a.replace('@@ZXIRQ@@', /^ntc_irq:/m.test(strAsm_a) ? '1' : '0');
+	}
+
 	function romHead()
 	{
 		var arrOut = ['; ============================================================', '; Cartridge ROM header (the platform\'s ntc_plat_romhead)', '; ============================================================'];
@@ -10177,6 +10447,33 @@ function ntcCompile(input_a, objOptions_a)
 			{
 				readReserve(objRec);
 			}
+			else if (objRec.what === 'highcode')
+			{
+				if (objOptions.platform !== 'cpcfw')
+				{
+					arrErrors.push({ file: objRec.file, line: objRec.line, msg: 'Option HighCode is for cpcfw (the CPC through the firmware)' });
+				}
+				else
+				{
+					blnHighCode = true;
+				}
+			}
+			else if (objRec.what === 'place')
+			{
+				String(objRec.value).split(',').forEach(function(strC_a)
+				{
+					var strC = trim(strC_a).toLowerCase();
+
+					if (!/^[a-z_]\w*$/.test(strC))
+					{
+						arrErrors.push({ file: objRec.file, line: objRec.line, msg: 'Option Place: class names, separated by commas - ' + objRec.value });
+					}
+					else
+					{
+						objPlace[strC] = true;
+					}
+				});
+			}
 			else if (objRec.what === 'nexdata')
 			{
 				// Option NexData "FILE", blocks (zxn): FILE's first blocks x 16K go in the NEX file's
@@ -10542,6 +10839,10 @@ function ntcCompile(input_a, objOptions_a)
 	arrAsm.push('NTC_BUFSIZE\tequ ' + intBufSize + '\t\t; the library\'s buffer (ntc_buf: FileSystem, Memory.Copy): Option Buffer');
 	if (String(objOptions.platform).toLowerCase() === 'zxn')
 	{
+		arrAsm.push('NTC_ZXIRQ\tequ @@ZXIRQ@@\t\t; 1 = the interrupt handler (ntc_irq) is in the program: Frame catches up its lost ticks');
+	}
+	if (String(objOptions.platform).toLowerCase() === 'zxn')
+	{
 		arrAsm.push('; the ZX Spectrum Next: NTC_ZXN defined (a DEFINE - sjasmplus\'s IFDEF tests those, not labels)');
 		arrAsm.push(strIndent + 'DEFINE NTC_ZXN');
 		// the Memory class's banks start above the program, the screen, Layer 2 and the low banks (bank 22,
@@ -10633,6 +10934,7 @@ function ntcCompile(input_a, objOptions_a)
 		// hypervisor -> task is the reverse-asymmetric half: it pivots on the HIGH slot (7) and lives
 		// in the task's stub (sb_hin), reached from Run - not emitted here. High, so launching a task
 		// never destroys the hypervisor's own low code mid-flip.
+		arrAsm.push(';@@bkglue{');
 		arrAsm.push(strIndent + 'jr ntc_start2\t\t; #0040 (2 bytes): over the glue');
 		arrAsm.push('ntc_bk_sp:\t\tdw 0\t\t\t; #0042: this bank\'s SP while another runs');
 		arrAsm.push('ntc_bk_out:');
@@ -10671,6 +10973,7 @@ function ntcCompile(input_a, objOptions_a)
 		arrAsm.push('ntc_bk_svd:\t\tdw 0\t\t; DE / HL message held across the slot 1-7 remap');
 		arrAsm.push('ntc_bk_svh:\t\tdw 0');
 		arrAsm.push('ntc_bk_hpg:\t\tdb 17, 18, 19, 20, 21, 10, 11\t; hypervisor resting pages, slots 1-7 (boot MMU map)');
+		arrAsm.push(';@@bkglue}');
 		arrAsm.push('ntc_start2:');
 		arrAsm.push('ntc_bk_cold:');
 	}
@@ -10864,6 +11167,20 @@ function ntcCompile(input_a, objOptions_a)
 		arrAsm.push(strIndent + 'ld ix, ntc_go');
 		arrAsm.push(strIndent + 'jp ntc_plat_irqon\t\t; interrupt handler for normal mode');
 		arrAsm.push('ntc_go:');
+	}
+	if (blnHighCode)
+	{
+		// Option HighCode: the code for #C000-#FFFF is in the file at #4000-#7FFF (round the
+		// window data, at the same offsets: highLayout) - copied up before any of it runs, and the
+		// screen moved to #4000 (the firmware's text, Mode, Cls go there from now on)
+		arrAsm.push(strIndent + 'call #B903\t\t; KL U ROM DISABLE: #C000 is RAM to run (RUN" may leave a ROM on there)');
+		arrAsm.push(strIndent + 'ld hl, #4000');
+		arrAsm.push(strIndent + 'ld de, #C000');
+		arrAsm.push(strIndent + 'ld bc, #4000');
+		arrAsm.push(strIndent + 'ldir\t\t\t; Option HighCode: #C000-#FFFF\'s code up from the file');
+		arrAsm.push(strIndent + 'ld a, #40');
+		arrAsm.push(strIndent + 'call #BC08\t\t; SCR SET BASE: the screen at #4000');
+		arrAsm.push(strIndent + 'di');
 	}
 	arrAsm.push(strIndent + 'ld sp, main_thread');
 	arrAsm.push(strIndent + 'ret');
@@ -11910,7 +12227,7 @@ function ntcCompile(input_a, objOptions_a)
 		arrList_a.forEach(function(objE_a) { if (objE_a.file && (objOrigName[objE_a.file] !== undefined)) { objE_a.file = objOrigName[objE_a.file]; } });
 	});
 	return {
-		asm: objPlat.rom ? romLayout(holeLayout(arrAsm.join('\n') + romTail())) : m65Numbers(holeLayout(arrAsm.join('\n'))),
+		asm: objPlat.rom ? romLayout(holeLayout(linkTidy(arrAsm.join('\n')) + romTail())) : m65Numbers((blnHighCode ? highLayout : holeLayout)(linkTidy(arrAsm.join('\n')))),
 		libasm: strLibAsm,
 		vbfiles: arrFiles,
 		layout: arrLayout,

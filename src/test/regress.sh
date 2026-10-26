@@ -132,6 +132,12 @@ for m in --turbo ""; do
   o=$(timeout 100 python3 ntcrun.py t/keys_zxn.bas '{56}{8}{60}{28}{56}' --platform=zxn $m 2>&1 | grep -v "^--- ")
   if [ "$o" == "$(cat ref/keys_zxn.txt)" ]; then echo "ok   keys zxn ${m:-normal}"; else echo "FAIL keys zxn ${m:-normal}"; echo "$o" | head -5; fail=1; fi
 done
+# Inkey on the Next: the cursor keys (Caps Shift + 5, 7, 6, 8) the CPC firmware's codes, Caps + 0 DEL
+for m in --turbo ""; do
+  cp inkey_zxn.bas t/
+  o=$(timeout 100 python3 ntcrun.py t/inkey_zxn.bas '{0+28}~~~{0+35}~~~{0+36}~~~{0+34}~~~{0+32}' --platform=zxn $m 2>&1 | grep -v "^--- ")
+  if [ "$o" == "$(cat ref/inkey_zxn.txt)" ]; then echo "ok   inkey zxn ${m:-normal}"; else echo "FAIL inkey zxn ${m:-normal}"; echo "$o" | head -5; fail=1; fi
+done
 # the same with Library: ROM (the keyword ROMs; cpcmin's sequential file code is not in its ROM -
 # the program has its own copy, @ramonly): banks, keys, sequential files, 8 interrupt classes
 for pl in cpc cpcmin cpcfw; do
@@ -592,6 +598,10 @@ if [ "$o" == "$(cat ref/chip8.txt)" ]; then echo "ok   CHIP-8 interpreter"; else
 # Option Reserve builds round the range: a program too big for #0040-#3FFF goes on above #8000
 cp hole.bas t/
 for pl in cpc cpcmin cpcfw; do check "Option Reserve round the hole $pl" "^a3 7 big at .* end [89]" "$(timeout 60 python3 ntcrun.py t/hole.bas '' --platform=$pl 2>&1)"; done
+# Option HighCode (cpcfw): code past #4000 to #C000 (copied up from the file's #4000-#7FFF), Option Place
+# keeps a class's code low, the data from #8000
+mkdir -p t/hc; cp hcode/*.bas hcode/*.cls t/hc/
+check "Option HighCode / Option Place cpcfw" "^a3 7 b1 \([0-9A-F]\{1,3\}\|[1-3][0-9A-F]\{3\}\) b2 C000 low [0-9A-F]\{1,3\} arr 8" "$(timeout 60 python3 ntcrun.py t/hc/Main.bas '' t/hc/Low.cls --platform=cpcfw 2>&1)"
 # Rnd(variable), Randomize variable: their keywords on their own (they share Rnd(literal)'s and Randomize literal's code)
 cp rndv_t.bas t/
 for pl in cpm cpcfw; do

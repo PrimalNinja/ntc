@@ -2323,6 +2323,35 @@ range covers #C000).
 
 **VB:** not in VB.
 
+### Option HighCode, Option Place
+
+`Option HighCode` (cpcfw only, with `Option Reserve &H4000, &H4000`): the program's code may also
+go in `#C000-#FFFF`, and the screen moves to `#4000` (main RAM's page 1: the CRTC shows main RAM
+whatever the CPU has paged in there, so the window still works). The code that doesn't fit
+below `#4000` is put in the file at `#4000-#7FFF` - round any `; @window` data, at the same
+offsets - and the start code copies `#4000-#7FFF` up to `#C000` and calls SCR SET BASE before the
+program runs. The layout:
+
+| | |
+|---|---|
+| `#0040-#3FFF` | the start code, the keyword library's code, the `Option Place` classes, then as much of the rest as fits |
+| `#C000-#FFFF` | the rest of the code (procedures, other classes' `#asm`) |
+| `#8000` on | the variables, strings, the library's data, code that didn't fit up there, then the arrays and the Memory class's tables |
+
+`Option Place` *class* [`,` *class*] ...: those classes' code (their procedures and `#asm`) never
+goes to `#C000-#FFFF` - for code that runs while something else is there: a ROM selected at
+`#C000` (KL ROM SELECT), a bank's page paged in at `#C000` (RAM layout 1). Clear the screen
+(`Mode`, `Cls`) only after window data in `#4000-#7FFF` has been copied out: the screen is there
+now. Not with `Library: ROM` (the keyword ROM is at `#C000`).
+
+```
+Option Reserve &H4000, &H4000
+Option HighCode
+Option Place Hyp, Ent
+```
+
+**VB:** not in VB.
+
 ### Option NexData
 
 `Option NexData "`*FILE*`",` *blocks*
@@ -3315,7 +3344,9 @@ On the ZX Spectrum Next (zxn) the key numbers are the Spectrum keyboard's: half 
 `KeyEnter` (48) ... `KeySpace` (56), `KeySymbol` (57), `KeyM` ... `KeyB` (60); a constant for
 every key. The CPC names are there too: `KeyLeft` / `KeyDown` / `KeyUp` / `KeyRight` are 5, 6, 7,
 8 (the Next's cursor keys press Caps Shift with them), `KeyReturn` Enter, `KeyShift` Caps Shift,
-`KeyControl` and `KeyCopy` Symbol Shift, `KeyEsc` Space (Break is Caps + Space), `KeyDel` 0.
+`KeyControl` and `KeyCopy` Symbol Shift, `KeyEsc` Space (Break is Caps + Space), `KeyDel` 0. `Inkey`
+gives the CPC firmware's codes for the cursor keys (Caps Shift + 5-8, which the Next's cursor keys
+are): up 240, down 241, left 242, right 243; Caps + 0 (Delete) 127, Caps + Space (Break) 27.
 `Joystick(0)` and `(1)` read the Kempston ports `#1F` and `#37` (the Next's joystick ports set
 to Kempston).
 
@@ -3582,6 +3613,7 @@ change.
 | `Option Page`, `Option Home` | [10](#option-page) |
 | `Option Buffer` | [16](#option-buffer) |
 | `Option Reserve` | [16](#option-reserve) |
+| `Option HighCode`, `Option Place` | [16](#option-highcode-option-place) |
 | `Option Flavour` | [16](#option-flavour) |
 | `Option Library` | [16](#option-library) |
 | `Option RomEnable` | [16](#option-romenable) |

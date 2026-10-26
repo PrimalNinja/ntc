@@ -28,7 +28,7 @@ FW = {0xBB06: 'km_wait', 0xBB09: 'km_read', 0xBB0C: 'km_char_return', 0xBB5A: 't
       0xBBAB: 'txt_set_m_table', 0xBC0B: 'scr_get_location', 0xBC4D: 'scr_hw_roll',
       0xB900: 'kl_u_rom_enable', 0xB903: 'kl_u_rom_disable', 0xB90F: 'kl_rom_select', 0xB918: 'kl_rom_deselect'}
 # the stand-ins' out (n), a - the PC after each (the firmware entries', RST 3's, the interrupt stub's)
-STANDPC = set(a + 2 for a in FW) | {0x1A, 0xBF86, 0xBF8B, 0xBC34, 0xBC3A}
+STANDPC = set(a + 2 for a in FW) | {0x1A, 0xBF86, 0xBF8B, 0xBC34, 0xBC3A, 0xBC0A}
 # Library: ROM (cpcfw): the keyword ROM's image in upper ROM slot XSLOT - at #C000 while selected
 XSLOT = 6
 def load_xroms():
@@ -292,24 +292,32 @@ class Screen:
         # addresses; the matrices from TXT GET MATRIX hold the character code in their first
         # byte) are shown too; the firmware's scroll moves the screen's start (off)
         s.off = 0
-        s.crtc = [0] * 32; s.crtc[1] = 40; s.crtc[6] = 25; s.crtc[12] = 0x30
-        if getattr(s, 'mem', None) is not None: s.vset(0xC000, bytes(0x800))
+        s.crtc = [0] * 32; s.crtc[1] = 40; s.crtc[6] = 25; s.crtc[12] = ((getattr(s, 'fwbase', 0xC000) >> 14) & 3) << 4
+        if getattr(s, 'mem', None) is not None: s.vset(s.base(), bytes(0x800))
+    def base(s):
+        # the screen's 16K: the CRTC's R12 bits 4-5 once the program set the CRTC itself, else where
+        # SCR SET BASE put it (#C000 at the start; Option HighCode moves it to #4000)
+        if getattr(s, 'crtc_used', False): return ((s.crtc[12] >> 4) & 3) * 0x4000
+        return getattr(s, 'fwbase', 0xC000)
     def vset(s, a, data):
         # screen RAM: the machine's memory, or (Library: ROM - the keyword ROM is at #C000) the
-        # RAM under it that writes there go to
-        if getattr(s, 'vram', None) is not None: s.vram[a - 0xC000:a - 0xC000 + len(data)] = data
+        # RAM under it that writes there go to; main RAM's page wherever it is now
+        if getattr(s, 'vram', None) is not None and a >= 0xC000: s.vram[a - 0xC000:a - 0xC000 + len(data)] = data; return
+        r = getattr(s, 'ram', None); p = a >> 14
+        if r is not None and r.view[p] != ('m', p):
+            old = bytearray(r.main_page(p)); old[a & 0x3FFF:(a & 0x3FFF) + len(data)] = data; r.mainp[p] = bytes(old)
         else: s.mem.set_memory_block(a, data)
     def vget(s, a):
-        if getattr(s, 'vram', None) is not None: return s.vram[a - 0xC000]
-        r = getattr(s, 'ram', None)
-        if r is not None and r.view[3] != ('m', 3):
-            # a bank's page is at #C000 now (a slot running): main RAM's page 3 from where it is kept
-            return r.main_page(3)[a - 0xC000]
+        if getattr(s, 'vram', None) is not None and a >= 0xC000: return s.vram[a - 0xC000]
+        r = getattr(s, 'ram', None); p = a >> 14
+        if r is not None and r.view[p] != ('m', p):
+            # a bank's page is there now (a slot running, the window in use): main RAM's page from where it is kept
+            return r.main_page(p)[a & 0x3FFF]
         return s.mem.memory[a]
     def scrolled(s):
         if getattr(s, 'mem', None) is None: return
         s.off = (s.off + 80) & 0x7FF
-        for c in range(80): s.vset(0xC000 + ((s.off + 24 * 80 + c) & 0x7FF), b'\0')
+        for c in range(80): s.vset(s.base() + ((s.off + 24 * 80 + c) & 0x7FF), b'\0')
     def newline(s):
         s.x = 0; s.y += 1
         if s.y >= s.rows:
@@ -365,13 +373,13 @@ class Screen:
             # the CRTC was set by the program: its own width (R1 words), rows (R6) and start
             # (R12 / R13) - every row straight from screen memory
             c = s.crtc; cols = c[1] * 2; off = (((c[12] & 3) << 8) | c[13]) * 2
-            out = [''.join(chr(b) if 32 <= b < 127 else ' ' for b in (s.vget(0xC000 + ((off + r * cols + x) & 0x7FF)) for x in range(cols))).rstrip() for r in range(c[6])]
+            out = [''.join(chr(b) if 32 <= b < 127 else ' ' for b in (s.vget(s.base() + ((off + r * cols + x) & 0x7FF)) for x in range(cols))).rstrip() for r in range(c[6])]
             while out and not out[-1]: out.pop()
             return '\n'.join(out)
         if getattr(s, 'mem', None) is not None and s.cols == 80:
             for r in range(min(s.rows, 25)):
                 for c in range(80):
-                    b = s.vget(0xC000 + ((s.off + r * 80 + c) & 0x7FF))
+                    b = s.vget(s.base() + ((s.off + r * 80 + c) & 0x7FF))
                     if 32 <= b < 127: s.cells[r][c] = chr(b)
         out = [''.join(r[:s.cols]).rstrip() for r in s.cells]
         while out and not out[-1]: out.pop()
@@ -406,6 +414,7 @@ class Host:
                 m.set_memory_block(0x18, bytes([0xD3, 0xDF, 0xC9]))   # RST 3: a far call (AMSDOS's CAS entries)
                 # SCR SET INK / SCR SET BORDER: noted for NTC_SHOT (out (#D8) / (#D9): the table is full)
                 m.set_memory_block(0xBC32, bytes([0xD3, 0xD8, 0xC9])); m.set_memory_block(0xBC38, bytes([0xD3, 0xD9, 0xC9]))
+                m.set_memory_block(0xBC08, bytes([0xD3, 0xDA, 0xC9]))   # SCR SET BASE: out (#DA), a (A = the screen's high byte)
                 m.set_memory_block(0xB90C, bytes([0xC9]))   # KL ROM RESTORE: nothing to put back here (no stand-in: 32 ports at most)
                 m.set_memory_block(0xBB54, bytes([0xC9, 0, 0, 0xC9]))   # TXT VDU ENABLE / DISABLE: nothing (this screen shows Print anyway)
                 # KM SET DELAY / KM GET DELAY (#BB3F / #BB42): the delays kept at #BFD8 (start 30, repeat 2)
@@ -443,7 +452,7 @@ class Host:
             if (port >> 8) == 0xFE: M4B.buf.append(val)
             else:
                 M4B.kick()
-                if s.romsel == M4.SLOT: m.set_memory_block(0xC000, bytes(M4B.rom))
+                if s.romsel == M4.SLOT and (s.xroms or getattr(s, 'uram_save', None) is not None): m.set_memory_block(0xC000, bytes(M4B.rom))
             return
         if FDC and (port >> 8) in (0xFA, 0xFB) and lo in (0x7E, 0x7F):
             if (port >> 8) == 0xFA: FDC.motor = val & 1
@@ -464,7 +473,7 @@ class Host:
             if (port >> 8) == 0xBC: s.scr.creg = val & 31
             else: s.scr.crtc[getattr(s.scr, 'creg', 0)] = val; s.scr.crtc_used = True
             return
-        if s.p == 'cpcfw' and (port >> 8) == 0xF6 and lo not in (0xDF, 0xD8, 0xD9) and lo not in getattr(s, 'fwport', {}):
+        if s.p == 'cpcfw' and (port >> 8) == 0xF6 and lo not in (0xDF, 0xD8, 0xD9, 0xDA) and lo not in getattr(s, 'fwport', {}):
             # (out (#DF), a: the stand-in RST 3 with A = #F6 - a byte just read - is not the PPI)
             s.line = val & 15; return          # the PPI's port C: the keyboard line (Keys class)
         if s.p == 'test':
@@ -519,6 +528,8 @@ class Host:
             ok = s.cas(FW[ret - 1])
             m.f = (m.f | 1) if ok else (m.f & 0xFE)
             m.sp = sp + 2
+        elif s.p == 'cpcfw' and lo == 0xDA and m.pc == 0xBC0A:
+            s.scr.fwbase = (m.a & 0xC0) << 8; s.scr.crtc[12] = (s.scr.crtc[12] & 0xCF) | ((m.a >> 2) & 0x30)   # SCR SET BASE
         elif s.p == 'cpcfw' and lo in (0xD8, 0xD9) and m.pc in (0xBC34, 0xBC3A):
             # SCR SET INK (A = the ink, B its first colour) / SCR SET BORDER (B): inks 0, 1, the border
             if not hasattr(s, 'inks'): s.inks = [255, 255, 255]
@@ -540,9 +551,9 @@ class Host:
             elif f == 'txt_set_m_table':
                 if m.d == 0: m.set_memory_block(m.hl, bytes(sum(([c] + [0] * 7 for c in range(m.e, 256)), [])))
             elif f == 'scr_char_pos':
-                m.hl = 0xC000 + ((s.scr.off + m.l * 80 + m.h) & 0x7FF); m.b = 1
+                m.hl = s.scr.base() + ((s.scr.off + m.l * 80 + m.h) & 0x7FF); m.b = 1
             elif f == 'scr_get_location':
-                m.a = 0xC0; m.hl = s.scr.off
+                m.a = s.scr.base() >> 8; m.hl = s.scr.off
             elif f == 'scr_hw_roll':
                 if m.b: s.scr.cells.pop(0); s.scr.cells.append([' '] * 80); s.scr.scrolled()
             elif f in ('kl_l_rom_enable', 'kl_u_rom_disable', 'kl_u_rom_enable'): m.a = 0
@@ -594,13 +605,27 @@ class Host:
                 # the upper ROM selected: the keyword ROM's image at #C000 for its slot, anything
                 # else looks like BASIC (#80: a foreground ROM) to the program's search
                 old = s.romsel; s.romsel = m.c
-                if M4B and old == M4.SLOT and m.c != M4.SLOT and M4B.saved is not None:
-                    m.set_memory_block(0xC000, M4B.saved); M4B.saved = None   # (the RAM under it back)
-                if M4B and m.c == M4.SLOT:
-                    if M4B.saved is None: M4B.saved = bytes(m.memory[0xC000:0x10000])
-                    M4B.refresh(); m.set_memory_block(0xC000, bytes(M4B.rom))
-                elif m.c in s.xroms: m.set_memory_block(0xC000, s.xroms[m.c])
-                elif not (M4B and old == M4.SLOT): m.set_memory_block(0xC000, b'\x80')
+                if s.xroms:
+                    # (Library: ROM: the screen RAM under #C000 is s.scr.vram - the ROM images go over it)
+                    if M4B and old == M4.SLOT and m.c != M4.SLOT and M4B.saved is not None:
+                        m.set_memory_block(0xC000, M4B.saved); M4B.saved = None
+                    if M4B and m.c == M4.SLOT:
+                        if M4B.saved is None: M4B.saved = bytes(m.memory[0xC000:0x10000])
+                        M4B.refresh(); m.set_memory_block(0xC000, bytes(M4B.rom))
+                    elif m.c in s.xroms: m.set_memory_block(0xC000, s.xroms[m.c])
+                    elif not (M4B and old == M4.SLOT): m.set_memory_block(0xC000, b'\x80')
+                else:
+                    # the RAM under #C000 kept while a ROM is selected, and back when it is deselected
+                    # (it may be code: Option HighCode puts a program there)
+                    if M4B: M4B.saved = None
+                    if getattr(s, 'uram_save', None) is not None:
+                        m.set_memory_block(0xC000, s.uram_save)
+                    if f == 'kl_rom_select':
+                        s.uram_save = bytes(m.memory[0xC000:0x10000])
+                        if M4B and m.c == M4.SLOT: M4B.refresh(); M4B.saved = s.uram_save; m.set_memory_block(0xC000, bytes(M4B.rom))
+                        else: m.set_memory_block(0xC000, b'\x80')
+                    else:
+                        s.uram_save = None
                 m.c = old; m.b = 0
             elif f == 'kl_far_pcall':
                 n = RSX[m.hl - 0x4000]

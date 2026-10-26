@@ -31,7 +31,9 @@
 ;         by the first Mode.
 ; Keys    the 8 x 5 keyboard (ports #xxFE): Caps Shift capitals, Symbol Shift
 ;         the symbols on the keys (+ the 128's: ~ | \ { } [ ]). Caps + 0 is DEL
-;         (127), Caps + Space Break (27). New presses only, no auto repeat.
+;         (127), Caps + Space Break (27), the cursor keys (Caps + 5-8) the CPC
+;         firmware's codes: up 240, down 241, left 242, right 243. New presses
+;         only, no auto repeat.
 ; IRQ     IM 1 at #0038 in RAM, normal mode only, as the cpc platform: the line
 ;         interrupt, moved on 52 raster lines each time - 6 a frame of 312
 ;         lines, 300 a second, as the CPC's (the ULA's frame interrupt off).
@@ -666,12 +668,12 @@ ntc_keymap:
 			db "p", "o", "i", "u", "y", 0, 0, 0
 			db 13, "l", "k", "j", "h", 0, 0, 0
 			db " ", 0, "m", "n", "b", 0, 0, 0
-ntc_keymapc:								; Caps Shift: capitals; + 0 DEL, + Space Break
-			db 0, "Z", "X", "C", "V", 0, 0, 0
-			db "A", "S", "D", "F", "G", 0, 0, 0
+ntc_keymapc:								; Caps Shift: capitals; + 0 DEL, + Space Break; the cursor
+			db 0, "Z", "X", "C", "V", 0, 0, 0		; keys (Caps + 5-8) the CPC firmware's codes: up 240,
+			db "A", "S", "D", "F", "G", 0, 0, 0		; down 241, left 242, right 243
 			db "Q", "W", "E", "R", "T", 0, 0, 0
-			db 0, 0, 0, 0, 0, 0, 0, 0			; (Edit, Caps Lock, True / Inverse Video, cursor left)
-			db 127, 0, 0, 0, 0, 0, 0, 0			; (Graphics, cursor right / up / down)
+			db 0, 0, 0, 0, 242, 0, 0, 0			; (Edit, Caps Lock, True / Inverse Video: nothing), cursor left
+			db 127, 0, 243, 240, 241, 0, 0, 0		; (Graphics: nothing), cursor right / up / down
 			db "P", "O", "I", "U", "Y", 0, 0, 0
 			db 13, "L", "K", "J", "H", 0, 0, 0
 			db 27, 0, "M", "N", "B", 0, 0, 0
@@ -685,7 +687,7 @@ ntc_keymapy:								; Symbol Shift: the symbols on the keys (+ the 128's ~ | \ {
 			db 13, "=", "+", "-", "^", 0, 0, 0
 			db " ", 0, ".", ",", "*", 0, 0, 0
 
-;## ntc_plat_frame ntc_plat_data ntc_data ntc_plat_irqh @shared
+;## ntc_plat_frame ntc_plat_data ntc_data @shared
 ; ------------------------------------------------------------
 ; ntc_plat_frame - wait for the end of the display (raster line 192: the
 ; bottom border starts). Normal mode: interrupts in while waiting
@@ -736,6 +738,7 @@ ntc_fr_line:
 			cp d
 			jr nz, ntc_fr_line
 			ld d, a
+		IF NTC_ZXIRQ					; (the interrupt handler is in the program: normal mode)
 			ld a, (ntc_irqset)		; the line interrupt's chain: a pulse that came while interrupts
 			or a					; were off was lost - the wait here is where a program with long
 			jr z, ntc_fr_lok		; stretches of them lets interrupts in, so see that the raster has
@@ -761,6 +764,7 @@ ntc_fr_l2:
 			pop de
 			ld bc, #243B
 ntc_fr_lok:
+		ENDIF
 			ld a, d
 			rra
 			jr c, ntc_fr_lnz		; 256 and on

@@ -14,51 +14,16 @@ NTC_ROMENABLE	equ 0		; Option RomEnable (cpcfw, cpcmin): the start code starts t
 NTC_ROMLIB	equ 0		; 1 = the library is the keyword ROM (Library: ROM; ntcRomAsm builds it)
 NTC_WINHOLE	equ 0		; 1 = the program is built round an Option Reserve range over the window #4000-#7FFF
 NTC_BUFSIZE	equ 2048		; the library's buffer (ntc_buf: FileSystem, Memory.Copy): Option Buffer
+NTC_ZXIRQ	equ 0		; 1 = the interrupt handler (ntc_irq) is in the program: Frame catches up its lost ticks
 ; the ZX Spectrum Next: NTC_ZXN defined (a DEFINE - sjasmplus's IFDEF tests those, not labels)
 			DEFINE NTC_ZXN
 ZXN_FIRSTBANK	equ 22		; first free 16K bank (page 44), above the program/screen/low banks
 ZXN_MAXBANK	equ 90		; scan range: banks 22-111 (a 2MB Next has 112 16K banks, pages 0-223; the MMU has no page past 223 - a higher page number is not RAM)
+; the interrupt handler passes 1 in C at a frame's interrupt (ntc_isl_tick: not the CPC's vertical sync)
+			DEFINE NTC_ISLC
 NTC_CPMGFX	equ 0		; 1 = CP/M: Graphics draws on an Amstrad CPC's screen (2.2: #C000, Plus: block 1 from common memory)
 
 ntc_start:
-			jr ntc_start2		; #0040 (2 bytes): over the glue
-ntc_bk_sp:		dw 0			; #0042: this bank's SP while another runs
-ntc_bk_out:
-			db #08			; #0044: ex af, af - stash A + FLAGS (carry = far-call / interrupt) to the alternate set, before the port flip clobbers A
-			ld bc, #243B		; PIVOT via the MMU ports (no Z80N opcode): select MMU slot 0 (#50)
-			ld a, #50
-			out (c), a
-			inc b			; #253B
-			ld a, 16		; the hypervisor's slot-0 page; slot 0 flips HERE - next byte is the receiver
-			out (c), a
-ntc_bk_recv:			; now running in the hypervisor's slot 0 (A + FLAGS already in the alternate set)
-			ld (ntc_bk_svd), de	; DE / HL message to slot-0 scratch (slot 0 stays the hypervisor here)
-			ld (ntc_bk_svh), hl
-			ld hl, ntc_bk_hpg	; the hypervisor's resting pages, slots 1-7
-			ld bc, #243B		; NextReg select port (#253B = value)
-			ld d, #51		; slot register 1
-ntc_bk_rc1:
-			ld a, d
-			out (c), a		; select the slot register
-			inc b			; #253B
-			ld a, (hl)
-			out (c), a		; = its resting page
-			dec b			; #243B
-			inc hl
-			inc d
-			ld a, d
-			cp #58			; slots #51..#57 (1..7) done? (clobbers flags - carry safe in AF\')
-			jr nz, ntc_bk_rc1
-			ld de, (ntc_bk_svd)
-			ld hl, (ntc_bk_svh)
-			db #08			; ex af, af - A + FLAGS back (IX untouched throughout = also preserved)
-ntc_bk_land:
-			ld sp, (ntc_bk_sp)	; the hypervisor's own SP
-			ret				; to where it handed over (Run's rn_back), A/DE/IX + carry intact
-			ASSERT ntc_bk_out == #0044, "the bank switch must be at #0044"
-ntc_bk_svd:		dw 0		; DE / HL message held across the slot 1-7 remap
-ntc_bk_svh:		dw 0
-ntc_bk_hpg:		db 17, 18, 19, 20, 21, 10, 11	; hypervisor resting pages, slots 1-7 (boot MMU map)
 ntc_start2:
 ntc_bk_cold:
 			di
@@ -983,15 +948,36 @@ zxn_boot:
 			and %11100111
 			out (c), a
 			dec b
-			ld a, 10			; Peripheral 5: DivMMC automatic paging off (bit 4)
+; DivMMC: its automatic paging stays as NextZXOS left it (on) - turning it off and on
+; again loses esxDOS's state in some emulators - but its entry points are cut to RST 8
+; with ROM 3 selected (#B8 = 2, #B9 = 0: the RST vectors need ROM 3; #BB = 0: no #3Dxx,
+; #0066, tape traps). A program never does rst 8 with ROM 3 in, so nothing pages it in;
+; CyborgOS's SD drive does exactly that for its esxDOS calls (ROM 3 in slots 0-1, rst 8).
+; Tested on NextZXOS 2.06H (JNEXT, 2026-10-21): esxDOS calls work with these - when the NEX
+; is started by NextZXOS (the browser, .nexload, an autoexec), not loaded as a snapshot,
+; which skips the DOS's own set-up and leaves every call answering "nonsense" (2)
+			ld a, #B8
 			out (c), a
 			inc b
-			in a, (c)
-			and %11101111
+			ld a, 2
 			out (c), a
 			dec b
+			ld a, #B9
+			out (c), a
+			inc b
 			xor a
-			out (#E3), a		; DivMMC: its memory out
+			out (c), a
+			dec b
+			ld a, #BB
+			out (c), a
+			inc b
+			xor a
+			out (c), a
+			dec b
+; (no out (#E3): DivMMC's memory is already out when a NEX starts - .nexload leaves it so -
+; and writing the port selects its RAM bank 0 and drops MAPRAM, which loses NextZXOS's esxDOS
+; state: its file handles are in DivMMC RAM. With it untouched, RST 8 calls work from the program
+; (automap on, the ROM in slots 0-1 for the call: CyborgOS's SD drive does that)
 			ld a, 7			; CPU speed: 28MHz
 			out (c), a
 			inc b
