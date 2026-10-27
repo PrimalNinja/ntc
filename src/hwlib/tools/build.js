@@ -40,7 +40,9 @@ var T = {
 function run(cmd, args, opt)
 {
 	var r = cp.spawnSync(cmd, args, Object.assign({ encoding: 'utf8' }, opt || {}));
-	if (r.status !== 0) { throw new Error(cmd + ' ' + args.join(' ') + '\n' + r.stdout + r.stderr); }
+	// (NTC's compiler can print an ERR line and still end 0: that's a failed build too - Asic.cls's
+	// 17 value Choose was built into a program that sent 0s, 2026-10-28)
+	if (r.status !== 0 || /(^|\n)ERR /.test(r.stderr || '')) { throw new Error(cmd + ' ' + args.join(' ') + '\n' + r.stdout + r.stderr); }
 	return r.stdout;
 }
 

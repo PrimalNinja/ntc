@@ -2,7 +2,7 @@
 ' dropped - mode 0 (pixels twice as wide as high: the cube is drawn half as wide to stay square),
 ' each face filled a line at a time with whole bytes in the middle and the end pixels masked, on
 ' the screen not shown (#C000 / #4000), the screens swapped at the frame; 14 shades from the
-' ASIC's 4096 colours. RUN"CUBECPCP. UNTESTED on a CPC Plus (no emulator here).
+' ASIC's 4096 colours. RUN"CUBECPCP. Tested in the 1984 emulator's 6128 Plus; not on the hardware yet.
 ' (c) 2026 Cyborg Unicorn Pty Ltd
 Option Turbo
 Option Explicit

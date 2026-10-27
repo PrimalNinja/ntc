@@ -74,7 +74,7 @@ at the start. Nothing is detected automatically.
 |---|---|---|---|
 | next | zxn | NEXT.NEX | ZEsarUX (Next) - working |
 | cpc | cpc | CPC.BIN (AMSDOS header) | ZEsarUX (CPC 6128) - working |
-| cpcplus | cpc | CPCPLUS.BIN | **not run**: there's no CPC Plus emulator here (MAME needs its ROMs). On a plain CPC the ASIC writes land in RAM, and those bytes check out: sprite image, positions moving, size, palette |
+| cpcplus | cpc | CPCPLUS.BIN | 1984 (6128 Plus) - working: 12 balls, moving and spinning (2026-10-28; the ASIC's unlock had been sending 0s - a 17 value Choose, past NTC's 8 - so the ASIC stayed locked and the program crashed) |
 | cpc_v9990 | cpc | CPCV9990.BIN | **build only**. The port address in V9990.cls (`VPort`, &HFF60 with `--const=CPC`) is a placeholder: set it to your board's real address |
 | msx1 | baremetal, org #C000 | MSX1.ROM (16K cartridge) | openMSX (C-BIOS MSX1) - working |
 | msx2 | baremetal, org #C000 | MSX2.ROM | openMSX (C-BIOS MSX2) - working |
@@ -111,7 +111,7 @@ machines and the V9938 / V9990 do it like this:
 |---|---|---|
 | cube_next | Layer 2, 256x192. 32 shades set in the palette from 512 colours. Fills done by the Z80N at 28MHz with an unrolled loop. Two screens (16K banks 12 and 15). | 49 a second (ZEsarUX). The frame rate is 50. |
 | cube_cpc | Mode 0. The cube is drawn half as wide, because mode 0 pixels are twice as wide as high. Whole bytes are filled with an unrolled loop, and the end pixels are masked. 6 shades. Screens at #C000 / #4000. | 9.5 a second (ZEsarUX) |
-| cube_cpcplus | The same as cube_cpc, plus the ASIC's palette for 14 shades from 4096 colours. | **Not run.** There's no CPC Plus emulator here, and it can't run on a plain CPC, where writing to the ASIC's port turns the lower ROM on over the program. |
+| cube_cpcplus | The same as cube_cpc, plus the ASIC's palette for 14 shades from 4096 colours. | Runs in 1984 (6128 Plus), not timed. It can't run on a plain CPC, where writing to the ASIC's port turns the lower ROM on over the program. |
 | cube_msx1, cube_sc3000 | Graphic 2. The cube is drawn in RAM as 1 bit, shaded with 8 ordered-dither patterns (2 colours in each 8 pixels, so no colour clash this way), then copied to the character set that isn't shown, and the name table swapped. The picture is 120x128. | MSX1: 7.5 a second (openMSX). The SC-3000 works in MAME but wasn't timed (same chip, about the same clock). |
 | cube_msx2 | Graphic 4, 256x212, 12 shades. Each line of each face is filled by the V9938's own command (LMMV). The old box is cleared by HMMV while the CPU works out the next cube. Two pages. | 9 a second (openMSX) |
 | cube_msx_v9990 | B1, 256x212, a byte a pixel, 32 shades. Fills done by the V9990's command (LMMV), with the old box cleared the same way as on the V9938. Two screens in its RAM. | 10.5 a second (openMSX + GFX9000) |
@@ -170,7 +170,8 @@ the screen part way through a frame; it isn't on the screen itself.
   so M and W lose a column. A font drawn 6 pixels wide fixes this. The 32-column modes are fine.
 - **Starting the CPC builds.** The CPC builds carry an AMSDOS header, as NTC writes them
   (`RUN"CPC`). The test script starts them a different way: it loads the program at #40 and
-  runs it with both ROMs off. RUN" itself hasn't been tried here.
+  runs it with both ROMs off. RUN" works for the Plus ones (RUN"CPCPLUS, RUN"CUBECPCP from an M4
+  in 1984's 6128 Plus).
 - **CPC Plus speed.** On a plain CPC, a ball meant to move 1 pixel a frame moved 14 pixels in
   half a second, so 12 sprites run at about half the frame rate. This was measured only on a
   plain CPC. The CPC software sprites haven't been timed.

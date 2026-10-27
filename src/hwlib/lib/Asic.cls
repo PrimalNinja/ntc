@@ -15,8 +15,7 @@
 ' The game library's calls, the same in every chip's class (Zxn, Cpc, Asic, Tms9918, V9938,
 ' V9990): Init, Pattern, Put, Hide, Anim, Move, Bounds, Frame, X, Y. The ASIC's own: Palette.
 ' Text: the platform's own (Mode, Cls, Print).
-' UNTESTED on the hardware: no emulator here runs a CPC Plus (MAME needs its ROMs). Checked only
-' by the bytes it leaves at #4000-#7FFF on a plain CPC (where they land in RAM).
+' Tested in the 1984 emulator's 6128 Plus (2026-10-28); not on the hardware yet.
 Option Explicit
 
 Public Const Slots = 16
@@ -29,9 +28,7 @@ Private bx0 As Integer, by0 As Integer, bx1 As Integer, by1 As Integer
 ' Init: the ASIC unlocked and paged in, every sprite off
 Public Sub Init()
   Dim i As Integer
-  For i = 1 To 17
-    Out &HBC00, Choose(i, &HFF, &H00, &HFF, &H77, &HB3, &H51, &HA8, &HD4, &H62, &H39, &H9C, &H46, &H2B, &H15, &H8A, &HCD, &HEE)
-  Next
+  Unlock
   Out &H7F00, &HB8                 ' the ASIC's registers in at #4000
   For i = 0 To Slots - 1
     son(i) = 0 : vx(i) = 0 : vy(i) = 0 : ac(i) = 0 : shown(i) = -1
@@ -149,14 +146,30 @@ cp_n:       db 0
 #endasm
 End Sub
 
+' Unlock: the ASIC's 17 byte sequence to the CRTC's register port (#BC00) - from a table: NTC's
+' Choose takes 8 values at most. Without it the ASIC stays locked, and #B8 to the gate array is
+' then the ROM byte - the lower ROM on over the program (a crash)
+Private Sub Unlock()
+#asm
+            ld hl, asic_ulk
+            ld d, 17
+asic_ul_lp:
+            ld bc, #BC00
+            ld a, (hl)
+            out (c), a
+            inc hl
+            dec d
+            jr nz, asic_ul_lp
+            ret
+asic_ulk:   db #FF, #00, #FF, #77, #B3, #51, #A8, #D4, #62, #39, #9C, #46, #2B, #15, #8A, #CD, #EE
+#endasm
+End Sub
+
 ' Pens a: pens 0-15 from 32 bytes at address a in the ASIC's palette (4096 colours: red * 16 +
 ' blue, green), the border as pen 0. The ASIC is unlocked, paged in for this only and paged out
 ' again (so #4000-#7FFF is RAM again: NTC's second screen can be there)
 Public Sub Pens(ByVal a As Integer)
-  Dim i As Integer
-  For i = 1 To 17
-    Out &HBC00, Choose(i, &HFF, &H00, &HFF, &H77, &HB3, &H51, &HA8, &HD4, &H62, &H39, &H9C, &H46, &H2B, &H15, &H8A, &HCD, &HEE)
-  Next
+  Unlock
   Out &H7F00, &HB8
   Copy &H6400, a, 32
   Poke &H6420, Peek(a) : Poke &H6421, Peek(a + 1)
