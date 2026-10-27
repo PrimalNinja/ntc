@@ -5868,7 +5868,7 @@ kw_bs_pl:
 kw_bs_stop:
 			jsr ntc_plat_newline
 			jmp ntc_plat_exit_stop
-kw_bs_txt:	db "Not enough memory for the arrays", 0
+kw_bs_txt:	db "GURU 001", 0
 ; z_p0 = start, z_a = bytes: zero them, then rts (the thread)
 ntc_zerofill_b:
 			lda #0

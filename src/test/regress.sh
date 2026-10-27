@@ -676,7 +676,7 @@ node cli.js t/bss1.bas --platform=cpm > t/bss1.asm && (cd t && ${SJASMPLUS:-sjas
 if [ $(stat -c %s t/bss1.com) -lt 2000 ]; then echo "ok   arrays not in the file ($(stat -c %s t/bss1.com) bytes)"; else echo "FAIL arrays not in the file"; fail=1; fi
 check "arrays after the program run" "^a70" "$(timeout 60 python3 ntcrun.py t/bss1.bas '' --platform=cpm 2>&1)"
 printf 'Dim a(30000) As Integer\nPrint "ran"\n' > t/bss2.bas
-for pl in cpm cpc cpcfw; do check "arrays too big $pl" "^Not enough memory for the arrays" "$(timeout 60 python3 ntcrun.py t/bss2.bas '' --platform=$pl 2>&1)"; done
+for pl in cpm cpc cpcfw; do check "arrays too big $pl" "^GURU 001" "$(timeout 60 python3 ntcrun.py t/bss2.bas '' --platform=$pl 2>&1)"; done
 mkdir -p t/via; cp via/* t/via/; o=$(timeout 100 python3 ntcrun.py t/via/Main.bas 'Bo\n7\n' t/via/StdIO.cls --platform=test 2>&1 | grep -v "^--- ")
 if [ "$o" == "$(cat ref/via.txt)" ]; then echo "ok   own StdIO"; else echo "FAIL own StdIO"; fail=1; fi
 # build/: regenerate, then check every file assembles the way build.bat does it

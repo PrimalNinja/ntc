@@ -631,7 +631,7 @@ CyborgOS (a separate project built with NTC BASIC) keeps its own list in its own
   `DEVICE AMSTRADCPC6128` and `SAVEAMSDOS`), CP/M `.COM`, test `.BIN`. Every program now
   ends with `ntc_end:`. regress.sh regenerates and assembles them all
 - 2026-10-12 **arrays after the program** (not in the file; kw_bssinit checks they fit under
-  the platform's top and clears them, else "Not enough memory for the arrays"; ntc_free is
+  the platform's top and clears them, else "GURU 001"; ntc_free is
   the first free byte); **List class** (handle-based linked lists in the heap, node pools,
   merge sort; every platform); **Private Paged** variables and local memory (LocalStart /
   LocalSize / LocalAlloc / LocalFree) in overlay classes. Demo LISTS; tests `list_t`, `pvar`

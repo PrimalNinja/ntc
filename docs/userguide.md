@@ -347,7 +347,8 @@ There is no bounds check: an index out of range reads or writes other memory.
 **Where arrays go:** after the program, not in its file - a `Dim a(5000) As Integer` adds 10,000
 bytes of memory but nothing to the `.COM` / `.BIN`. When the program starts it checks they fit
 below the top of free memory (CP/M: the BDOS; CPC: `#A600`, or under the stack) and clears
-them; if they don't fit it prints `Not enough memory for the arrays` and stops. So one build
+them; if they don't fit it prints `GURU 001` and stops (GURU 001: not enough memory for the
+arrays - a code, not a sentence, so every program carries 8 bytes, not 32). So one build
 runs on CP/M 2.2 or CP/M Plus, and says so when it doesn't fit. For data bigger than the
 program's memory, use a [List](#list).
 
@@ -3458,7 +3459,7 @@ writes goes to RAM:
 A table in a `#asm` block that nothing writes can stay in the ROM: `; @const` on its label's
 line (or a section marked @const in the library). RAM is the limit on the SC-3000: 2K for the
 variables, the arrays and the stack (the assembler stops with a message when the variables
-do not fit; arrays that don't fit stop the program with "Not enough memory for the arrays").
+do not fit; arrays that don't fit stop the program with "GURU 001").
 The MSX has from `#C010` to the BIOS's stack (about 12K). `Option Reserve`, `Option Page`,
 overlays and `Library: ROM` are not for these platforms. `Peek` / `Poke` of the ROM area read
 the ROM and do nothing.

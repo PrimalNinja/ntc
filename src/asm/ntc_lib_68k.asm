@@ -3435,7 +3435,7 @@ kw_bs_pl:
 kw_bs_stop:
 			jsr ntc_plat_newline
 			jmp kw_stop
-kw_bs_txt:	dc.b "Not enough memory for the arrays", 0
+kw_bs_txt:	dc.b "GURU 001", 0
 			even
 
 ;## ntc_capfind ntc_data
