@@ -6,6 +6,13 @@ finished, with the date.
 ---
 
 ## done
+- 2026-10-27 test/v9990.py: a model of the V9990 for the harnesses (CyborgOS's console on a
+  Powergraph / GFX9000) - its ports (P#0-P#7), the register select with WII / RII, VRAM through
+  R#0-R#5 (AII), the palette (R#14's ternary pointer), LMMV, LMMM, LMMC, PSET with R#45's logical
+  operations and TP, the picture (bit map modes, SCAY with R#18's roll) and ocr() - the text read
+  off the picture with ntc_font6. NTC_V9990=1: ntcrun.py's CPC platforms get one at &FF60, msxrun.py
+  at #60 (and msxrun's ROM font, RDSLT from CGTABL, is ntc_font6 now: a program copying it gets
+  real characters)
 - 2026-10-27 Merged another session's debug work (it was on ntc20261026-0022; its 9 files untouched
   here since): test/zxnrun.py - the Next's sprites in pictures, the 9-bit palette (#44), NTC_PROFT
   (exact T per label between two T), NTC_PROFTLOG, NTC_WATCH, NTC_LOGVARS, NTC_INTCHK, NTC_TRACEZ_AFTER

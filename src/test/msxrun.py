@@ -19,7 +19,10 @@
 #     #4D delete, #4E rename, #40 / #41 the search, #1B the free space, #5A chdir) on the files
 #     folder (NTC_FILES: every drive letter is it; "\" a sub folder)
 #   - RDSLT (#000C): the main ROM's CGTABL (#0004) points at a stand-in font (zeros); EXPTBL 0;
-#     CALSLT (#001C) INITXT: the screen the BIOS's again (the text read from the BDOS console)
+#     CALSLT (#001C) INITXT: the screen the BIOS's again (the text read from the BDOS console);
+#     the main ROM's font (RDSLT from CGTABL) is NTC's ntc_font6
+#   - NTC_V9990=1: a V9990 (GFX9000) at #60-#6F (v9990.py); the screen's text read off its picture
+#     while it is on
 #   - the keyboard's PPI (#AA the row, #A9 the keys): {n} in the typed text holds key n (row * 8 +
 #     bit), {n,m} two together - {49,58} CTRL + ESC
 # python3 msxrun.py prog.bas 'typed' [more .bas / .cls] [--ram=K] - or a .COM made already (run as it is)
@@ -27,7 +30,7 @@
 import os, sys
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
-import ntcrun, cpcrun
+import ntcrun, cpcrun, v9990
 
 FRAME = 71590
 MTAB = 0xF300          # the mapper support jump table (16 entries, 3 bytes each)
@@ -76,6 +79,8 @@ class MsxDos(ntcrun.Host):
         m.set_memory_block(0xFCC1, bytes([0]))                # EXPTBL
         m.set_memory_block(0xFFE8, bytes([0x02]))             # RG9SAV: PAL (50 Hz)
         s.ppi = 0; s.hand = {}; s.srch = {}
+        s.v99 = v9990.V9990() if os.environ.get('NTC_V9990') else None   # NTC_V9990=1: a GFX9000 at #60
+        s.font = v9990.font6()
         m.set_output_callback(s.out2); m.set_input_callback(s.inp2)
     # ports
     def out2(s, port, val):
@@ -97,7 +102,13 @@ class MsxDos(ntcrun.Host):
                 m.a = s.map.n; m.b = 0; m.c = s.map.n - len(s.map.used); m.hl = MTAB
             return
         if lo == 0xE7 and m.pc == 0x0E:                     # RDSLT: the ROM's byte at HL
-            m.a = {4: 0x00, 5: 0x1C}.get(m.hl, 0); return
+            # CGTABL (#0004) = #1C00: the font there is NTC's ntc_font6 (characters 32-126)
+            a = m.hl
+            if a in (4, 5): m.a = {4: 0x00, 5: 0x1C}[a]
+            elif 0x1C00 + 32 * 8 <= a < 0x1C00 + 127 * 8: m.a = s.font[a - 0x1C00 - 32 * 8]
+            else: m.a = 0
+            return
+        if s.v99 is not None and 0x60 <= lo <= 0x6F: s.v99.out(lo - 0x60, val); return
         if lo == 0xE8 and m.pc == 0x1E:
             if m.ix == 0x006C: s.vset = False                 # INITXT: the BIOS's screen (the console's text)
             return
@@ -115,6 +126,7 @@ class MsxDos(ntcrun.Host):
             s.vlatch = None; return 0
         if 0xFC <= lo <= 0xFF: return s.map.view[lo - 0xFC] | 0xC0 if s.map.n <= 64 else s.map.view[lo - 0xFC]
         if lo == 0xAA: return s.ppi
+        if s.v99 is not None and 0x60 <= lo <= 0x6F: return s.v99.inp(lo - 0x60)
         if lo == 0xA9:
             # the keyboard matrix: {n} in the typed text holds key n (row * 8 + bit: 49 CTRL, 58 ESC,
             # 0 - 9 the digits 0 - 7 then row 1's 8, 9) for 12 scans of row 6 and 2 frames; {n,m} together
@@ -241,7 +253,9 @@ class MsxDos(ntcrun.Host):
             for i in range(64): mem[(ix + i) & 0xFFFF] = fib[i]
             m.a = 0; return
     def text(s):
-        # TEXT 2's name table (R#2) when the program set the VDP up, else the console's
+        # the V9990's picture when it is on (its text read off it: ntc_font6), else TEXT 2's name
+        # table (R#2) when the program set the VDP up, else the console's
+        if s.v99 is not None and s.v99.shown(): return s.v99.ocr()
         if not s.vset: return s.scr.text()
         base = ((s.vreg[2] & 0x7C) << 10); cols = 80 if (s.vreg[1] & 0x10) and (s.vreg[0] & 0x04) else 40
         rows = 26 if (s.vreg[9] & 0x80) else 24

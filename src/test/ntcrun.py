@@ -7,6 +7,7 @@
 # test  : the port console of asm/ntc_plat_test.asm
 # cpcfw : CPC firmware jumpblock entries trapped (TXT, KM, SCR, MC, KL)
 # cpm   : CP/M page zero, BDOS (call 5) trapped
+# NTC_V9990=1 (cpc, cpcmin, cpcfw): a V9990 at &FF60-&FF6F (v9990.py: the Powergraph's chip)
 # Prints the text screen, then a '---' status line (same form as cpcrun.py).
 import sys, os, subprocess, random
 import z80
@@ -437,6 +438,11 @@ class Host:
             m.set_write_callback(lambda a, v: s.scr.vram.__setitem__(a - 0xC000, v))
         m.set_output_callback(s.out); m.set_input_callback(s.inp)
         if s.amsdos_at_start and platform == 'cpcfw': s.amsdos_on()
+        # NTC_V9990=1 (the CPC platforms): a V9990 at &FF60-&FF6F - the Powergraph, an MSX card
+        # through AMSDAP (v9990.py; its picture's text: s.v99.ocr())
+        s.v99 = None
+        if os.environ.get('NTC_V9990') and platform in ('cpc', 'cpcmin', 'cpcfw'):
+            import v9990; s.v99 = v9990.V9990()
     def key(s):
         # '~' in the typed text: this look at the keyboard finds no key (then the rest follow)
         if s.typed and s.typed[0] == '~':
@@ -448,6 +454,8 @@ class Host:
         return (s.T // 13333) & 0xFFFF
     def out(s, port, val):
         lo = port & 0xFF; m = s.m
+        if getattr(s, 'v99', None) is not None and (port >> 8) == 0xFF and 0x60 <= lo <= 0x6F:
+            s.v99.out(lo - 0x60, val); return
         if M4B and s.p == 'cpcfw' and lo == 0 and (port >> 8) in (0xFE, 0xFC):
             if (port >> 8) == 0xFE: M4B.buf.append(val)
             else:
@@ -833,6 +841,7 @@ class Host:
         m.f &= 0xFE
     def inp(s, port):
         lo = port & 0xFF
+        if getattr(s, 'v99', None) is not None and (port >> 8) == 0xFF and 0x60 <= lo <= 0x6F: return s.v99.inp(lo - 0x60)
         if FDC and (port >> 8) == 0xFB and lo in (0x7E, 0x7F): return FDC.msr() if lo == 0x7E else FDC.rd()
         if s.p in ('cpcfw', 'cpm', 'cyborgos') and port in (0xF991, 0xF994, 0xF995) and os.environ.get('NTC_MOUSE'):
             q = getattr(s, 'mq', [])
