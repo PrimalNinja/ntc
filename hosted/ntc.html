@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<!-- NTC BASIC realtime VB style BASIC to NTC compiler. (c) 2026 Cyborg Unicorn Pty Ltd - MIT License -->
+	<meta charset="UTF-8">
+	<title>NTC BASIC - BASIC to NTC</title>
+	<link href="3p/bootstrap.min.css" rel="stylesheet">
+	<link href="css/textEditor.css" rel="stylesheet">
+	<link href="css/listRenderer.css" rel="stylesheet">
+	<link href="css/ntc_gui.css" rel="stylesheet">
+</head>
+<body>
+	<div id="ge-ntc">
+		<div id="ge-projectbar">
+			<span class="ge-title">NTC BASIC</span>
+			<button type="button" class="btn btn-sm btn-outline-light" id="ge-new">New project</button>
+			<button type="button" class="btn btn-sm btn-outline-light" id="ge-open">Open...</button>
+			<button type="button" class="btn btn-sm btn-outline-light" id="ge-saveproject">Save project</button>
+			<input type="file" id="ge-openfile" accept=".json,.bas,.cls,.js,.php,.loc,.vbp,.txt" multiple class="ge-hidden">
+			<label>Example
+				<select id="ge-example"></select>
+			</label>
+			<span id="ge-projectname"></span>
+		</div>
+		<div id="ge-panes">
+			<div class="ge-pane ge-pane-project">
+				<div class="ge-pane-title">Project - drag .bas / .cls files here</div>
+				<div id="ge-filelist"></div>
+				<div class="ge-pane-title ge-proc-title">Procedures <span id="ge-procfile"></span></div>
+				<div id="ge-proclist"></div>
+			</div>
+			<div class="ge-pane">
+				<div class="ge-pane-title">BASIC <span id="ge-filename"></span></div>
+				<div id="ge-input"></div>
+			</div>
+			<div class="ge-pane">
+				<div class="ge-pane-title">NTC (Z80) <span id="ge-stats"></span></div>
+				<div id="ge-output"></div>
+			</div>
+		</div>
+		<div id="ge-controls">
+			<label>Platform
+				<select id="ge-platform">
+					<option value="cpc">Amstrad CPC (hardware, no firmware)</option>
+					<option value="cpcmin">Amstrad CPC (minimal firmware: discs, ROMs)</option>
+					<option value="cpcfw">Amstrad CPC (firmware)</option>
+					<option value="cpccard">Amstrad CPC + MSX V9938 card (AMSDAP, &amp;FF88)</option>
+					<option value="cpc9990">Amstrad CPC + V9990 (AMSDAP or Powergraph, &amp;FF60)</option>
+					<option value="cpm">CP/M (.COM)</option>
+					<option value="cyborgos">CyborgOS (a slot: .CYB)</option>
+					<option value="msx">MSX (cartridge .ROM)</option>
+					<option value="msxcard">MSX + V9938 card at #88 (cartridge .ROM)</option>
+					<option value="msx9990">MSX + V9990 / GFX9000 (cartridge .ROM)</option>
+					<option value="msxdos">MSX-DOS 2 / Nextor (.COM: the mapper)</option>
+					<option value="sc3000">Sega SC-3000 (cartridge .SC)</option>
+					<option value="colecovision">ColecoVision (cartridge .COL: Option Turbo, no Print)</option>
+					<option value="baremetal">Bare Metal (nothing assumed: fill the platform in)</option>
+					<option value="zxn">ZX Spectrum Next (hardware: a .NEX file)</option>
+					<option value="md">Sega Mega Drive / Genesis (68000: assemble with vasm, test/mdbuild.py)</option>
+					<option value="m65">MEGA65 (45GS02: assemble with vasm, test/m65build.py)</option>
+					<option value="test">Test harness</option>
+				</select>
+			</label>
+			<label>Start mode
+				<select id="ge-mode">
+					<option value="normal">Normal (interrupts on)</option>
+					<option value="turbo">Turbo (Option Turbo)</option>
+				</select>
+			</label>
+			<label>Org <input type="text" id="ge-org" value="" size="6" placeholder="auto" title="Empty: the platform's (CPC #0040, CP/M #0100)"></label>
+			<label>Library
+				<select id="ge-library">
+					<option value="used">used keywords</option>
+					<option value="all">all</option>
+					<option value="none">none</option>
+					<option value="rom" title="CPC platforms: the keywords stay in the platform's ROM (build/rom/NTCCPC.ROM, NTCMIN.ROM, NTCFW.ROM); the program has a jump block, patched at its start">in ROM (CPC)</option>
+				</select>
+			</label>
+			<label title="CPC platforms: sjasmplus writes NAME.BIN with an AMSDOS header (RUN&quot;NAME); cpm: NAME.CYB, a CyborgOS program - the project's name"><input type="checkbox" id="ge-amsdos" checked> AMSDOS .BIN / .CYB</label>
+			<label><input type="checkbox" id="ge-comments" checked> Source as comments</label>
+			<label><input type="checkbox" id="ge-hidelib"> Hide library in view</label>
+			<button type="button" class="btn btn-sm btn-outline-light" id="ge-copy">Copy</button>
+			<button type="button" class="btn btn-sm btn-outline-light" id="ge-save">Save .asm</button>
+			<button type="button" class="btn btn-sm btn-outline-light" id="ge-savemap" title="Cross reference: every label the compiler made, what it is, the BASIC name and line">Save .map</button>
+			<a id="ge-copyright" href="https://cyborgunicorn.com.au" target="_blank" rel="noopener">(c) 2026 Cyborg Unicorn Pty Ltd</a>
+			<span id="ge-time"></span>
+		</div>
+		<div id="ge-errors"></div>
+	</div>
+
+	<script src="3p/jquery-3.7.1.min.js"></script>
+	<script src="js/textEditor.js"></script>
+	<script src="js/listRenderer.js"></script>
+	<script src="js/ntc_lib.js"></script>
+	<script src="js/ntc_parser.js"></script>
+	<script src="js/ntc_compiler.js"></script>
+	<script src="js/ntc_flavour_js.js"></script>
+	<script src="js/ntc_flavour_php.js"></script>
+	<script src="js/ntc_flavour_loco.js"></script>
+	<script src="js/ntc_examples.js"></script>
+	<script src="js/ntc_gui.js"></script>
+</body>
+</html>

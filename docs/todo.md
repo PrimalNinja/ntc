@@ -268,7 +268,7 @@ CyborgOS (a separate project built with NTC BASIC) keeps its own list in its own
   landmarks further (Rangitoto, the Sky Tower, the Harbour Bridge to 11 km). Starts 200 m up out
   in the gulf flying in, Rangitoto ahead on the right; P pauses. Made by tools/osmcut +
   tools/s3dmake (browser). About 0.3 frames a second (City3d 0.6). Test: a made-up town
-  (src/test/s3d). Its file buffer is in S3d's tables (Option Buffer &H9000): with it in the
+  (test/s3d). Its file buffer is in S3d's tables (Option Buffer &H9000): with it in the
   program the Memory class's page tables (3 bytes a page, after the program) ran into those
   tables and the frames drew garbage.
   Option RomEnable All (RUN" dropped UniDOS: no file, no block read). Its tables moved under the

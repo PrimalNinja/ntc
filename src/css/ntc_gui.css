@@ -314,3 +314,7 @@ html, body
 {
 	color: #80b0d0;
 }
+
+/* the copyright, to the right of Save .map: a link to cyborgunicorn.com.au */
+#ge-copyright { color: inherit; opacity: 0.75; font-size: 0.8em; margin-left: 0.5em; white-space: nowrap; text-decoration: none; }
+#ge-copyright:hover { opacity: 1; text-decoration: underline; }

@@ -16,6 +16,8 @@ var fs = require('fs'), path = require('path'), cp = require('child_process');
 var ROOT = path.join(__dirname, '..');
 var NTC = process.env.NTC_SRC || path.join(ROOT, '..');		// NTC's src (hwlib is src/hwlib)
 var SJ = process.env.SJASMPLUS || 'sjasmplus';
+// NTC's command line compiler: test/cli.js beside src/ (src/test/ in an older NTC)
+var NTC_CLI = [path.join(NTC, '..', 'test', 'cli.js'), path.join(NTC, 'test', 'cli.js')].filter(function(f) { return fs.existsSync(f); })[0];
 
 var T = {
 	'next':      { platform: 'zxn',       lib: ['Zxn.cls'],                         out: 'nex' },
@@ -65,7 +67,7 @@ function build(name)
 		files.push(dst);
 	});
 	var name8 = name.toUpperCase().replace(/[^A-Z0-9]/g, '').substr(0, 8);
-	var asm = run(process.execPath, [path.join(NTC, 'test', 'cli.js')].concat(files.map(function(f) { return path.basename(f); }), ['--platform=' + t.platform], (t.consts || []).map(function(c) { return '--const=' + c; }), (t.out === 'bin') ? ['--amsdos=' + name8] : []), { cwd: out });
+	var asm = run(process.execPath, [NTC_CLI].concat(files.map(function(f) { return path.basename(f); }), ['--platform=' + t.platform], (t.consts || []).map(function(c) { return '--const=' + c; }), (t.out === 'bin') ? ['--amsdos=' + name8] : []), { cwd: out });
 	fs.writeFileSync(path.join(out, name8 + '.asm'), asm);
 	if (t.out === 'nex')
 	{

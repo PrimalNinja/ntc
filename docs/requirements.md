@@ -20,24 +20,24 @@ again - the compiler and the GUI only read them, not the sources:
 
 | Generated file | Made from | Made by |
 |---|---|---|
-| `src/js/ntc_lib.js` | `asm/ntc_lib.asm`, `asm/ntc_plat_*.asm`, `lib/<platform>/*.cls` | `src/test/gen.js` |
-| `src/js/ntc_examples.js` | the examples in `bas/` | `src/test/gen.js` |
-| `src/build/<platform>/*.ASM` | every program in `bas/`, for every platform | `src/test/genbuild.js` |
-| `src/build/dsk/*.dsk` | the build files, assembled | `src/test/gendsk.sh` |
+| `src/js/ntc_lib.js` | `asm/ntc_lib.asm`, `asm/ntc_plat_*.asm`, `lib/<platform>/*.cls` | `test/gen.js` |
+| `src/js/ntc_examples.js` | the examples in `bas/` | `test/gen.js` |
+| `src/build/<platform>/*.ASM` | every program in `bas/`, for every platform | `test/genbuild.js` |
+| `src/build/dsk/*.dsk` | the build files, assembled | `test/gendsk.sh` |
 
 | Need | Version used | Notes |
 |---|---|---|
 | Node.js | v22 | for `gen.js` and `genbuild.js` (and `cli.js`). There is no Node-free way to remake `ntc_lib.js` yet - see the todo |
 | bash, sjasmplus, cpmtools, libdsk | cpmtools with libdsk 1.5.9 | only for `gendsk.sh` (the disc images, CPC data format `cpcdata`) |
 
-## 3. Test tools (`src/test/`)
+## 3. Test tools (`test/`)
 
 Scratch tools for testing the compiler - not part of NTC itself. Details in `NTC.md`
 section 6.
 
 | Need | Version used | What for |
 |---|---|---|
-| Node.js + `npm install` in `src/test/` | v22, acorn 8 | `cli.js` (compile from the command line), the ES5 check in `regress.sh` |
+| Node.js + `npm install` in `test/` | v22, acorn 8 | `cli.js` (compile from the command line), the ES5 check in `regress.sh` |
 | Python 3 with the `z80` module (`pip install z80`) | 3.13, z80 1.2.0 | `cpcrun.py` / `ntcrun.py`: the emulated CPC (RAM from 64K to 4MB, `--ram=`), CP/M and test hosts |
 | sjasmplus | v1.24.0 | assembling inside the test runs (or set `SJASMPLUS` to its path) |
 | bash | | `regress.sh`, `gendsk.sh` (on Windows: Git Bash or WSL) |
@@ -57,14 +57,14 @@ what the platform classes (`StdIO`, `System`, `FileSystem`, `Memory`) can do.
 | Amstrad CPC, minimal firmware | `cpcmin` | `NAME.BIN` at `#0040` | CPC 464 / 664 / 6128 | the firmware's RAM (`#A700-#BFFF`) left alone, handed back for discs, tape and ROM commands. Files: AMSDOS (`Option RomEnable 7` after `RUN"`); the program must end below `#A600` |
 | Amstrad CPC, full firmware | `cpcfw` | `NAME.BIN` at `#0040` | CPC 464 / 664 / 6128 | the firmware for text, keys and files (AMSDOS, other ROMs' commands); program below `#A600` when it uses files |
 | CP/M 2.2 / 3 | `cpm` | `NAME.COM` at `#0100`, ends with a warm boot | any Z80 CP/M machine | BDOS only. Console: a stream, or 80 x 24 with `Option Terminal VT52 / ANSI` |
-| Test harness | `test` | raw `NAME.BIN` at `#4000` | `src/test/ntcrun.py` only | - |
+| Test harness | `test` | raw `NAME.BIN` at `#4000` | `test/ntcrun.py` only | - |
 | MSX | `msx` | `NAME.ROM`: a cartridge, 16K / 32K at `#4000` | MSX1, MSX2, MSX2+, turbo R with 16K RAM or more | the BIOS (its keyboard buffer and interrupt); the MSX's own video chip (80 columns from the MSX2); `End` returns to the BIOS. No files |
 | MSX + V9938 card | `msxcard` | `NAME.ROM` | any MSX with a V9938 card at `#88` (HB-4000, CT-80E, MA-20V) | as `msx`, the console on the card (80 columns) |
 | MSX + V9990 | `msx9990` | `NAME.ROM` | any MSX with a V9990 at `#60` (GFX9000, Video9000, Powergraph) | as `msx`, the console on the V9990's own monitor |
 | Sega SC-3000 | `sc3000` | `NAME.SC`: a cartridge, 16K / 32K / 48K at `#0000` | SC-3000 (and an SG-1000 with the SK-1100 keyboard) | nothing: own console (TMS9918), keys and interrupt handler; 2K of RAM for the variables, arrays and stack. No files. `End` stops (RESET starts again) |
 | Amstrad CPC + MSX V9938 card | `cpccard` | `NAME.BIN` at `#0040` | CPC with the AMSDAP adapter and an MSX V9938 card (`&FF88`) | as `cpc`, the console on the card's monitor |
 | Amstrad CPC + V9990 | `cpc9990` | `NAME.BIN` at `#0040` | CPC with a V9990 at `&FF60`: AMSDAP and an MSX V9990 cartridge, or the CPC Powergraph | as `cpc`, the console on the V9990's monitor |
-| ZX Spectrum Next, no ROM | `zxn` | `NAME.NEX` (banks 8-10: the program at `#0040`; bank 5: a start stub), run from NextZXOS's browser | ZX Spectrum Next (a core with the tilemap's text mode and the line interrupt; so far run only in `src/test/zxnrun.py`) | nothing: the stub turns the NMI buttons and DivMMC's paging off, maps RAM to `#0000-#BFFF` and the screen (bank 5) to `#C000-#FFFF`, sets 28MHz; own text screen (the tilemap), keys and interrupt handler; Graphics on Layer 2; data files built into the NEX (`Option NexData`). No files yet. `End` is a soft reset (back to NextZXOS) |
+| ZX Spectrum Next, no ROM | `zxn` | `NAME.NEX` (banks 8-10: the program at `#0040`; bank 5: a start stub), run from NextZXOS's browser | ZX Spectrum Next (a core with the tilemap's text mode and the line interrupt; so far run only in `test/zxnrun.py`) | nothing: the stub turns the NMI buttons and DivMMC's paging off, maps RAM to `#0000-#BFFF` and the screen (bank 5) to `#C000-#FFFF`, sets 28MHz; own text screen (the tilemap), keys and interrupt handler; Graphics on Layer 2; data files built into the NEX (`Option NexData`). No files yet. `End` is a soft reset (back to NextZXOS) |
 | Sega Mega Drive / Genesis | `md` | `NAME.md`, a cartridge ROM (68000) | Mega Drive / Genesis (so far run only on the Genesis Plus GX core) | nothing: own start (TMSS, the VDP), console on plane A, pads. `docs/md.md` |
 | MEGA65 | `m65` | `NAME.PRG` at `$2001` (45GS02), `RUN"NAME` | MEGA65 (so far run only on Xemu) | nothing: ROMs out, interrupts off, 40MHz, own 80 x 25 console, keyboard queue, joysticks; the `Vic` class's 256 colour screen with sprites drawn by the CPU. `docs/m65.md` |
 

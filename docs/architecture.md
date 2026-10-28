@@ -492,7 +492,7 @@ registry's exported variables keep fixed addresses).
 | `src/asm/ntc_rom_*.txt` | the ROM registries |
 | `src/lib/<platform>/*.cls` | the platform classes: StdIO, System, FileSystem, Memory, List, Graphics, Keys |
 | `src/build/rom/` | the built ROMs |
-| `src/test/genrom.js` | builds a platform's ROM set and updates its registry |
+| `test/genrom.js` | builds a platform's ROM set and updates its registry |
 
 Section header words: `@shared` - one copy for both modes (its SP loads are real stack
 switches); `@far` - real stack code a ROM set may place in another ROM; `@romram` - runs from

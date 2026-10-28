@@ -375,7 +375,8 @@ def star(i):
 
 
 def font8():
-	src = os.path.join(HERE, '..', '..', '..', 'test', 'font_standin.txt')
+	# NTC's test/ (beside src/ now; src/test/ before 2026-10-28)
+	src = next(p for p in (os.path.join(HERE, '..', '..', '..', '..', 'test', 'font_standin.txt'), os.path.join(HERE, '..', '..', '..', 'test', 'font_standin.txt')) if os.path.exists(p))
 	rows = []
 	for line in open(src):
 		line = line.split(';')[0].strip()

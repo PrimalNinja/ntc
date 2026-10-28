@@ -1,0 +1,5 @@
+# Rename this file to .htaccess on an Apache server.
+# No directory listings: a folder without an index page shows "Forbidden", not its files.
+Options -Indexes
+# The folder's own address opens the page.
+DirectoryIndex index.html ntc.html

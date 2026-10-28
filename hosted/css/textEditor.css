@@ -1,0 +1,39 @@
+/* textEditor.css - Minimal text editor styles */
+
+.gs-texteditor-container {
+    width: 100%;
+}
+
+.gs-texteditor-textarea,
+.gs-texteditor-input,
+.gs-texteditor-rich {
+    font-family: monospace;
+    font-size: 14px;
+    line-height: 1.5;
+    transition: all 0.2s ease;
+}
+
+.gs-texteditor-textarea:focus,
+.gs-texteditor-input:focus,
+.gs-texteditor-rich:focus {
+    border-color: #007bff;
+    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+    outline: none;
+}
+
+.gs-texteditor-rich[contenteditable="true"] {
+    cursor: text;
+}
+
+.gs-texteditor-rich[contenteditable="true"]:empty:before {
+    content: attr(placeholder);
+    color: #6c757d;
+}
+
+.gs-texteditor-toolbar button {
+    cursor: pointer;
+}
+
+.gs-texteditor-toolbar button:active {
+    transform: translateY(1px);
+}

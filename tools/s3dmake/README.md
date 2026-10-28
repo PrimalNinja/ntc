@@ -28,7 +28,7 @@ first, the mapped trees last (Auckland fits whole: 3808K; a 1MB Next's 528K keep
   highest volcanoes
 - a start of your own: "Start at" a street's name - the first view (key 1) looks at its far end from
   250 m off, 60 m up (the data has no house numbers: a short street or a cul-de-sac is best); the
-  usual start becomes key 2. For node: `src/test/s3d/make.js s3dmake.html cut.txt.gz OUT.DAT NAME kb
+  usual start becomes key 2. For node: `test/s3d/make.js s3dmake.html cut.txt.gz OUT.DAT NAME kb
   "street"`
 - an area of its own: "Only the area round" a place's name (a suburb, a street, a building, a hill)
   and the square's side in km - only that, with all its detail: every street, house and tree (no
@@ -47,7 +47,7 @@ Rangitoto models are just left out when they are not found; any `natural=volcano
 
 The format (block 0 the header, directory and views; then 16K blocks of 384 m tiles; 0.5 m world
 units, 2 m steps in a tile) is written out at the top of the script. The converter's `make(text,
-opts, log)` is also exported for node: `src/test/s3d/make.js` runs it (the regression test makes
-a small town with `src/test/s3d/mkcut.py` and flies through it).
+opts, log)` is also exported for node: `test/s3d/make.js` runs it (the regression test makes
+a small town with `test/s3d/mkcut.py` and flies through it).
 
 Map data (c) OpenStreetMap contributors, ODbL: the demo shows it at the start.

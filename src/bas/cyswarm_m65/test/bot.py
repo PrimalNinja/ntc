@@ -15,9 +15,14 @@ import os
 import re
 import sys
 
+# NTC's test folder: beside its src/ (src/test/ in an older NTC)
+def ntctest(src):
+	t = os.path.join(src, '..', 'test')
+	return t if os.path.exists(os.path.join(t, 'm65run.py')) else os.path.join(src, 'test')
+
 HERE = os.path.dirname(os.path.abspath(__file__))
-NTC = os.environ.get('NTC_SRC') or next((p for p in (os.path.join(HERE, '..', '..', 'ntc', 'src'), os.path.join(HERE, '..', '..', '..', 'ntc', 'src'), os.path.join(HERE, '..', '..', '..')) if os.path.exists(os.path.join(p, 'test', 'm65run.py'))), '.')
-sys.path.insert(0, os.path.join(NTC, 'test'))
+NTC = os.environ.get('NTC_SRC') or next((p for p in (os.path.join(HERE, '..', '..', 'ntc', 'src'), os.path.join(HERE, '..', '..', '..', 'ntc', 'src'), os.path.join(HERE, '..', '..', '..')) if os.path.exists(os.path.join(p, '..', 'test', 'm65run.py')) or os.path.exists(os.path.join(p, 'test', 'm65run.py'))), '.')
+sys.path.insert(0, ntctest(NTC))
 from m65run import M65		# noqa: E402
 
 

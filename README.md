@@ -5,7 +5,13 @@
 What NTC is, how the NTC BASIC compiler works now (VB5/VB6 style front end, turbo and
 normal modes, project explorer), and the language it takes. Progress is tracked in
 `todo.md`. The full language reference, keyword by keyword, is `userguide.md`; a step by step
-tutorial, one small page per topic, is in `tutorial/`. These are in `docs/`; file and folder names in them (`js/`, `asm/`, `bas/`, `test/` ...) are in `src/`.
+tutorial, one small page per topic, is in `tutorial/`. These are in `docs/`; file and folder names in them (`js/`, `asm/`, `bas/` ...) are in `src/`, except `test/`: the test tools are beside `src/` (moved out of it 2026-10-28, so `src/` is what the compiler and the page are made of).
+
+**Hosting the page:** `hosted/` is `src/ntc.html` and the files it loads, ready to upload to any
+web server as it is (`hosted/README.txt`). Nothing runs on the server: the page compiles in the
+visitor's browser and their files stay on their own PC. `htaccess` in it is Apache's `.htaccess`
+without the dot (rename it on the server): it stops directory listings. After changing the
+page, make the folder again: `node tools/hosted/build.js`.
 
 ---
 

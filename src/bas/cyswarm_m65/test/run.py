@@ -10,9 +10,14 @@ import os
 import subprocess
 import sys
 
+# NTC's test folder: beside its src/ (src/test/ in an older NTC)
+def ntctest(src):
+	t = os.path.join(src, '..', 'test')
+	return t if os.path.exists(os.path.join(t, 'm65run.py')) else os.path.join(src, 'test')
+
 here = os.path.dirname(os.path.abspath(__file__))
 game = os.path.join(here, '..')
-ntc = os.environ.get('NTC_SRC') or next((p for p in (os.path.join(game, '..', 'ntc', 'src'), os.path.join(game, '..', '..', 'ntc', 'src'), os.path.join(game, '..', '..')) if os.path.exists(os.path.join(p, 'test', 'm65run.py'))), None)
+ntc = os.environ.get('NTC_SRC') or next((p for p in (os.path.join(game, '..', 'ntc', 'src'), os.path.join(game, '..', '..', 'ntc', 'src'), os.path.join(game, '..', '..')) if os.path.exists(os.path.join(p, '..', 'test', 'm65run.py')) or os.path.exists(os.path.join(p, 'test', 'm65run.py'))), None)
 if not ntc:
 	sys.exit('NTC not found: set NTC_SRC to its src folder')
-sys.exit(subprocess.call([sys.executable, os.path.join(ntc, 'test', 'm65run.py'), os.path.join(game, 'build', 'CYSWARM.PRG')] + sys.argv[1:]))
+sys.exit(subprocess.call([sys.executable, os.path.join(ntctest(ntc), 'm65run.py'), os.path.join(game, 'build', 'CYSWARM.PRG')] + sys.argv[1:]))

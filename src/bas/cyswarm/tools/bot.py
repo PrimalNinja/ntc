@@ -13,7 +13,8 @@ import re
 import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, os.path.join(HERE, '..', '..', '..', 'test'))
+sys.path.insert(0, os.path.join(HERE, '..', '..', '..', 'test'))			# (NTC's src/test/: the old place)
+sys.path.insert(0, os.path.join(HERE, '..', '..', '..', '..', 'test'))		# NTC's test/, beside src/
 from mdrun import MD		# noqa: E402
 
 
