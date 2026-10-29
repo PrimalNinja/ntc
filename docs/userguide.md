@@ -2750,6 +2750,7 @@ are 0 and the `#Else` part is used.
 | Amstrad CPC, full firmware | `cpcfw` | a binary at `#0040` (`RUN"name`), firmware left running (AMSDOS, RSXs, windows) | firmware `TXT OUTPUT` | full screen, firmware keys |
 | CP/M 2.2 / 3 | `cpm` | a `.COM` file at `#0100`, ends with a warm boot | BDOS direct console I/O | a stream, or 80 x 24 with [Option Terminal](#option-terminal) |
 | CyborgOS | `cyborgos` | a program in a slot of the CyborgOS hypervisor (Amstrad CPC, ZX Spectrum Next): the `cpm` platform - a slot is CP/M 2.2 - plus what CyborgOS adds. The output is a `.CYB` (the program with its AMSDOS header; the same file runs on both machines). `CybSys` is a platform class: the hypervisor's services (the slot, the clock, claims, ports, the drive paths, `Host()` - which machine it is). `#If NTC_CYBORGOS` (and `NTC_CPM`) | BDOS, as `cpm` | 80 columns, VT52 codes: `Option Terminal VT52` is the default |
+| CyborgOS - The Headless Horseman | `cyborgoshh` | a program in a slot of a headless CyborgOS (a vCPC: CyborgOS's kernel and slots with no screen or keyboard of their own - in a container, on a CPC-CPLink's Pi - their consoles and keys carried over a link). For now exactly the `cyborgos` platform (`;@base cyborgos`): the same `.CYB` out, the same run time, classes and console; its own name keeps a place for what the headless machine adds later. `#If NTC_CYBORGOSHH` (and `NTC_CYBORGOS`, `NTC_CPM`: what is written for those holds) | as `cyborgos` | as `cyborgos` |
 | Bare Metal | `baremetal` | a machine NTC BASIC doesn't know: built from its org (`#0000`, or [Option Org](#option-org)), nothing set up or assumed. The platform routines (`asm/ntc_plat_baremetal.asm`: a character out, a key in, the clock ...) and the platform classes (`StdIO`, `System`, `FileSystem` ...) are empty ones to fill in for your machine; a copy of a class in the project replaces the platform's. Build with `Option Turbo` unless you put an interrupt handler at `#0038` | yours to write | yours to write |
 | Test harness | `test` | for the emulator in `test/ntcrun.py` | I/O ports | 40 x 25, like CPC mode 1 |
 | MSX | `msx` | a cartridge ROM, `NAME.ROM` (16K or 32K at `#4000`, see [Cartridge ROMs](#cartridge-roms-msx-sc3000)); the BIOS stays (its keys, its interrupt); `End` goes back to the BIOS (MSX-BASIC). `#If NTC_MSX` | the MSX's own video chip (TMS9918 on an MSX1, V9938 / V9958 from the MSX2): mode 1 = 40 x 24, mode 0 = 32 x 24, mode 2 = 80 x 24 (MSX2 and up), the BIOS's font | the BIOS's keyboard (its layout, auto repeat) |
@@ -2837,7 +2838,7 @@ The constants are worked out when compiling, so a test like this costs at most o
 
 What the machine is. The same members on every platform; 0 / False means "not here".
 
-| Member | cpc | cpcfw | cpm | cyborgos | baremetal | test | zxn |
+| Member | cpc | cpcfw | cpm | cyborgos (cyborgoshh) | baremetal | test | zxn |
 |---|---|---|---|---|---|---|---|
 | `Platform` | "CPC" | "CPC firmware" | "CP/M" | "CyborgOS" | "Bare Metal" | "Test" | "ZXN" |
 | `CpuClock` (kHz, 0 = not known) | 4000 | 4000 | 0 | 0 | 0 | 4000 | 28000 |

@@ -266,6 +266,7 @@ Files (ES5, no node, no Python):
 | `asm/ntc_plat_test.asm` | test harness platform (console through I/O ports, for `test/ntcrun.py`) |
 | `asm/ntc_plat_cpcmin.asm` | CPC platform with minimal firmware: the `cpc` screen / keys / interrupts, the firmware kept for discs and ROMs (handed back per call) |
 | `asm/ntc_plat_cyborgos.asm` | the CyborgOS platform: a program in a slot of the hypervisor - `;@base cpm` (gen.js takes the cpm platform's text and classes) plus CyborgOS's own: a `.CYB` out, VT52 by default, `CybSys` (`lib/cyborgos/`) |
+| `asm/ntc_plat_cyborgoshh.asm` | CyborgOS - The Headless Horseman: a program in a slot of a headless CyborgOS (a vCPC) - `;@base cyborgos`, nothing of its own yet (the same `.CYB`, classes and console); `#If NTC_CYBORGOSHH` |
 | `asm/ntc_plat_baremetal.asm` | Bare Metal: built from its org, nothing assumed - every routine an empty one to fill in for a machine of your own (`lib/baremetal/` the classes, the same) |
 | `asm/ntc_plat_zxn.asm` | ZX Spectrum Next platform, straight to the hardware, laid out as the `cpc` one: the tilemap as the text screen, the 8 x 5 keyboard, the line interrupt every 52 lines; the compiler adds the NEX file's start stub (NMI off, the MMU slots) |
 | `asm/ntc_plat_msx.asm` | MSX platform: a cartridge ROM (`"AB"` at #4000, 16K / 32K, the variables in RAM from #C010 - the compiler's romLayout), the BIOS kept (its keyboard buffer, its interrupt: JIFFY, H.TIMI for normal mode), the console on the MSX's own video chip (`asm/ntc_lib_vdp.asm`) |

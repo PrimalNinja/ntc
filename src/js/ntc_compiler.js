@@ -8380,10 +8380,11 @@ function ntcCompile(input_a, objOptions_a)
 		return (objOptions.platform === strName_a) || (String(objPlat.base || '') === strName_a);
 	}
 
-	// cpmLike: the platform is CP/M underneath (cpm, or cyborgos - a slot is CP/M 2.2)
+	// cpmLike: the platform is CP/M underneath (cpm, or cyborgos - a slot is CP/M 2.2 - and what
+	// is built on cyborgos: cyborgoshh, the Headless Horseman)
 	function cpmLike()
 	{
-		return (objOptions.platform === 'cpm') || (objOptions.platform === 'cyborgos');
+		return (objOptions.platform === 'cpm') || platIs('cyborgos');
 	}
 
 	function readPlatform()
@@ -10348,7 +10349,7 @@ function ntcCompile(input_a, objOptions_a)
 	{
 		objDefinesIn.ntc_vdp = -1;		// the screen is a video chip on ports (asm/ntc_lib_vdp.asm: msx, sc3000, cpccard, cpc9990)
 	}
-	if (objOptions.platform === 'cyborgos')
+	if (platIs('cyborgos'))					// (cyborgos, and cyborgoshh built on it)
 	{
 		objDefinesIn.ntc_cpm = -1;				// (a slot is CP/M 2.2: what is written for cpm holds)
 		if (String(objOptions.amsdos || '').length === 0)
@@ -12016,7 +12017,7 @@ function ntcCompile(input_a, objOptions_a)
 	arrAsm.push('ntc_bss_size\tequ ' + intBss);
 	arrAsm.push('ntc_free\tequ ntc_bss + ntc_bss_size\t; the first free byte (heap, Memory tables)');
 	arrAsm.push('@@MEMTAB@@');
-	if (objOptions.platform === 'cyborgos')
+	if (platIs('cyborgos'))
 	{
 		// a slot's TPA ends at #EF00: the hypervisor's stub (the BDOS entry, the BIOS table, the
 		// console state) is above it - a program whose arrays reach it tramples its own slot

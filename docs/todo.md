@@ -6,6 +6,17 @@ finished, with the date.
 ---
 
 ## done
+- 2026-10-29 lib/cyborgos/CybSys.cls (kept the same as CyborgOS's cmds/CybSys.cls): Pause(s, p) and
+  State(s) - BDOS 131 op 5, CyborgOS's PAUSE / UNPAUSE (a slot's program stopped where it is, going on).
+- 2026-10-29 A platform: `cyborgoshh`, CyborgOS - The Headless Horseman - a program in a slot of a
+  headless CyborgOS (a vCPC: cyborg-os-vcpc, its kernel and slots with no screen or keyboard of
+  their own). For now it is `cyborgos` exactly: asm/ntc_plat_cyborgoshh.asm is `;@base cyborgos`
+  (gen.js takes cyborgos's text and classes, which are cpm's with CyborgOS's on top), the same .CYB
+  out; NTC_CYBORGOSHH defined, with NTC_CYBORGOS and NTC_CPM. The compiler's cyborgos cases (cpmLike,
+  NTC_CPM, the #EF00 check) are platIs('cyborgos') now, so what is built on it is cyborgos too. The
+  GUI lists it; gen.js, ntcrun.py (run as cpm) and hosted/ know it. Checked: CyborgOS's PS.CYB the
+  same byte for byte from both; tools/ntccheck/compare.js against the tree before: 954 programs and
+  platforms the same.
 - 2026-10-27 test/v9990.py: a model of the V9990 for the harnesses (CyborgOS's console on a
   Powergraph / GFX9000) - its ports (P#0-P#7), the register select with WII / RII, VRAM through
   R#0-R#5 (AII), the palette (R#14's ternary pointer), LMMV, LMMM, LMMC, PSET with R#45's logical

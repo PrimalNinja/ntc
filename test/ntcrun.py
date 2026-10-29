@@ -397,7 +397,7 @@ class Host:
         os.makedirs(FILES, exist_ok=True)
         m.set_memory_block(org, binary)
         m.set_memory_block(0x38, bytes([0xFB, 0xC9]))       # stand in interrupt handler: ei / ret
-        if platform in ('cpm', 'cyborgos'):
+        if platform in ('cpm', 'cyborgos', 'cyborgoshh'):
             s.scr = Screen(80, 24)
             m.set_memory_block(0, bytes([0x76]))                # warm boot = the end
             m.set_memory_block(5, bytes([0xD3, 0xE5, 0xC9]))    # BDOS: out (#e5), a / ret
@@ -466,7 +466,7 @@ class Host:
             if (port >> 8) == 0xFA: FDC.motor = val & 1
             elif lo == 0x7F: FDC.wr(val)
             return
-        if (s.p not in ('cpm', 'cyborgos') or CPMVER >= 0x30) and 0x78 <= (port >> 8) <= 0x7F and (val & 0xC0) == 0xC0:
+        if (s.p not in ('cpm', 'cyborgos', 'cyborgoshh') or CPMVER >= 0x30) and 0x78 <= (port >> 8) <= 0x7F and (val & 0xC0) == 0xC0:
             s.ram.set(val, port >> 8)
             if getattr(s.scr, 'vram', None) is not None:
                 # Library: ROM: the screen RAM under the keyword ROM only while main RAM's block 3
@@ -493,7 +493,7 @@ class Host:
             elif lo == 0xFB:
                 s.loc.append(val)
                 if len(s.loc) == 2: s.scr.locate(s.loc[0], s.loc[1]); s.loc = []
-        elif s.p in ('cpm', 'cyborgos') and lo == 0xE5:
+        elif s.p in ('cpm', 'cyborgos', 'cyborgoshh') and lo == 0xE5:
             fn = m.c
             if fn == 6:
                 if m.e == 0xFF:
@@ -843,7 +843,7 @@ class Host:
         lo = port & 0xFF
         if getattr(s, 'v99', None) is not None and (port >> 8) == 0xFF and 0x60 <= lo <= 0x6F: return s.v99.inp(lo - 0x60)
         if FDC and (port >> 8) == 0xFB and lo in (0x7E, 0x7F): return FDC.msr() if lo == 0x7E else FDC.rd()
-        if s.p in ('cpcfw', 'cpm', 'cyborgos') and port in (0xF991, 0xF994, 0xF995) and os.environ.get('NTC_MOUSE'):
+        if s.p in ('cpcfw', 'cpm', 'cyborgos', 'cyborgoshh') and port in (0xF991, 0xF994, 0xF995) and os.environ.get('NTC_MOUSE'):
             q = getattr(s, 'mq', [])
             if port == 0xF994: return (q[0][0] & 0xFF) if q else 0
             if port == 0xF995: return (q[0][1] & 0xFF) if q else 0
@@ -934,11 +934,11 @@ def main():
         print(c.screen(cpcrun.loadfont(syms, c.m.memory)))
         print('--- halted' if c.m.halted else '--- NOT halted', 'sp=%04x' % c.m.sp, 'ints=%d' % c.ints, 'T=%d' % c.T)
         return
-    org = syms.get('ntc_start', 0x100 if plat in ('cpm', 'cyborgos') else 0x4000)   # the program's org
+    org = syms.get('ntc_start', 0x100 if plat in ('cpm', 'cyborgos', 'cyborgoshh') else 0x4000)   # the program's org
     h = Host(plat, b, org, typed)
     cpcrun.endkey_set(h.m, syms)
     if called and plat == 'cpcfw': h.amsdos_on()
-    if plat in ('cpm', 'cyborgos'):   # (cyborgos: a slot is CP/M 2.2 - the same emulated CP/M, the .CYB's header skipped)
+    if plat in ('cpm', 'cyborgos', 'cyborgoshh'):   # (cyborgos, cyborgoshh: a slot is CP/M 2.2 - the same emulated CP/M, the .CYB's header skipped)
         tail = (' ' + cmdline.upper()).encode() if cmdline else b''
         h.m.set_memory_block(0x80, bytes([len(tail)]) + tail + b'\0')
         if CPMVER >= 0x30:
@@ -957,7 +957,7 @@ def main():
         # NTC_SHOT=file: main RAM's #4000 and #C000 (the two screens) and the CRTC's R12 at the end
         # (then the firmware colours SCR SET INK / BORDER last set: ink 0, ink 1, the border - 255 none)
         open(os.environ['NTC_SHOT'], 'wb').write(bytes([getattr(h.scr, 'crtc', [0] * 16)[12] & 255]) + h.ram.main_page(1) + (bytes(h.scr.vram) if getattr(h.scr, 'vram', None) is not None else h.ram.main_page(3)) + bytes(getattr(h, 'inks', [255, 255, 255])))
-    if plat in ('cpm', 'cyborgos') and os.environ.get('NTC_GFXCHK'):
+    if plat in ('cpm', 'cyborgos', 'cyborgoshh') and os.environ.get('NTC_GFXCHK'):
         scr = h.ram.main_page(1) if CPMVER >= 0x30 else bytes(h.m.memory[0xC000:0xF000])
         print('--- screen bytes set: %d' % sum(1 for x in scr if x))
     if PROF is not None:

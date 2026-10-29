@@ -3,7 +3,7 @@
 ' project replaces this one). A program asks the hypervisor through BDOS 131: DE = a block - the op, a slot or value,
 ' then what comes back. Ops: 0 a slot's line for PS (its state, in front, its program's name),
 ' 1 kill a slot's program, 2 reset a slot (0: this one), 3 a slot to the front, 4 wait until no
-' other program runs, 6 TOP's table into this slot, 7 the memory (the tables' end, the top of
+' other program runs, 5 paused / going on (Byte(2) 1 / 0; 2: the state - 3 paused), 6 TOP's table into this slot, 7 the memory (the tables' end, the top of
 ' free RAM, the pages, the totals line), 8 32 pages of the map from page Word(2), 9 MODE (0-4 set,
 ' 255 which), 15 a table (Byte(1) 4: the claims, 10 bytes each), 16-19 the claims (Claim ...),
 ' 20 3 the clock (Clock), 4 the uptime (Uptime, 32 bits), 5 the host (Host), 28-33 the ports (PortOpen ...), 34 a port's name (PortName)
@@ -17,6 +17,46 @@ Private pn As Integer, pc As Integer, ps As Integer, psl As Integer   ' its leng
 Public Function Ask(ByVal op As Integer, ByVal v As Integer) As Integer
   b(0) = op : b(1) = v
   Ask = Bdos(131, VarPtr(b))
+End Function
+
+' Pause(s, p): slot s's program paused (p True: the scheduler passes it over, everything it had
+' kept kept) or going on again (p False) - 0 done, 1 nothing to do (not running / not paused / this
+' slot itself), 255 no such slot (or not CyborgOS)
+Public Function Pause(ByVal s As Integer, ByVal p As Integer) As Integer
+  b(2) = 0
+  If p Then b(2) = 1
+  Pause = Ask(5, s)
+End Function
+
+' State(s): slot s's state - 0 closed, 1 its command line, 2 running a program, 3 paused (255 no
+' such slot, or not CyborgOS)
+Public Function State(ByVal s As Integer) As Integer
+  b(2) = 2
+  State = Ask(5, s)
+End Function
+
+' SlotState(s, a): slot s's state, as DUMP keeps it, into the 12 bytes at a - +0 its state, +1 the key
+' handed to it, +2 its BDOS answer waiting, +4 its drive, +5 1 when it has a file open, +6 its DMA,
+' +8 the build's stamp (REVIVE takes a dump only from the same): 0, 255 no such slot
+Public Function SlotState(ByVal s As Integer, ByVal a As Integer) As Integer
+  b(2) = 3
+  SetWord 4, a
+  SlotState = Ask(5, s)
+End Function
+
+' ReviveBegin(s): slot s (closed, or at its command line - not this one) made a paused slot with a
+' program, whose bank the caller then writes (BDOS 131 op 10, kind 4): 0, 1 it isn't closed
+Public Function ReviveBegin(ByVal s As Integer) As Integer
+  b(2) = 4
+  ReviveBegin = Ask(5, s)
+End Function
+
+' ReviveDone(s, a): slot s's bank made its own again and its state set from the 12 bytes at a
+' (SlotState's, from the dump) - it stays paused (Pause(s, False) to go on): 0, 1 not reviving
+Public Function ReviveDone(ByVal s As Integer, ByVal a As Integer) As Integer
+  b(2) = 5
+  SetWord 4, a
+  ReviveDone = Ask(5, s)
 End Function
 
 ' Clock: the CPC's clock, in 1/300 s (its low 16 bits: Clock - t is the time since t, wrapping)

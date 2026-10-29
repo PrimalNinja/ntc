@@ -5,7 +5,7 @@ function read(f) { return fs.readFileSync(strDir + f, 'utf8'); }
 var strLib = read('asm/ntc_lib_gen.asm') + '\n' + read('asm/ntc_lib_cpc.asm') + '\n' + read('asm/ntc_lib_nxt.asm') + '\n' + read('asm/ntc_lib_msx.asm') + '\n' + read('asm/ntc_lib_vdp.asm');
 var strLib68k = read('asm/ntc_lib_68k.asm');		// the 68000's keyword library (md)
 var strLibM65 = read('asm/ntc_lib_m65.asm');		// the 45GS02's keyword library (m65)
-var arrPlat = ['cpc', 'cpcmin', 'cpcfw', 'cpm', 'cyborgos', 'baremetal', 'test', 'zxn', 'msx', 'msxcard', 'msx9990', 'msxdos', 'sc3000', 'colecovision', 'cpc9990', 'cpccard', 'md', 'm65'];
+var arrPlat = ['cpc', 'cpcmin', 'cpcfw', 'cpm', 'cyborgos', 'cyborgoshh', 'baremetal', 'test', 'zxn', 'msx', 'msxcard', 'msx9990', 'msxdos', 'sc3000', 'colecovision', 'cpc9990', 'cpccard', 'md', 'm65'];
 // a platform built on another: ";@base cpm" in asm/ntc_plat_<platform>.asm - its text is its own
 // file (the ;@ header, anything of its own) followed by the base's, less the base's ;@ lines it
 // has its own of and less the base's sections it has its own of (the same ;## name: its own
