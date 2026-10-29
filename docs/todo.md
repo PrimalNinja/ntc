@@ -6,6 +6,11 @@ finished, with the date.
 ---
 
 ## done
+- 2026-10-29 lib/cyborgos/CybSys.cls as it was (the target's interface to CyborgOS's services is NTC's;
+  CyborgOS's own internals - DUMP / REVIVE / SLOTD's kernel calls - stay in CyborgOS's cmds/CybSys.cls).
+  Today's earlier additions to it taken back out (Julian).
+- 2026-10-29 lib/cyborgos/CybSys.cls (as CyborgOS's): RunIn (a program started in a slot), Listen / Accept
+  (BDOS 131 ops 35 / 36: SLOTD's listening - a vCPC's for now).
 - 2026-10-29 lib/cyborgos/CybSys.cls (kept the same as CyborgOS's cmds/CybSys.cls): Pause(s, p) and
   State(s) - BDOS 131 op 5, CyborgOS's PAUSE / UNPAUSE (a slot's program stopped where it is, going on).
 - 2026-10-29 A platform: `cyborgoshh`, CyborgOS - The Headless Horseman - a program in a slot of a
