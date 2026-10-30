@@ -1,0 +1,1 @@
+{"name": "HIVEBRK", "framework": "../..", "files": ["Main.bas", "E3Data.cls", "Sfx.cls"], "nobj": 44, "features": ["ground", "noflyers"], "extras": ["Radar3D.cls"]}

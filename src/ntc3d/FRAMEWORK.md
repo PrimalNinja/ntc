@@ -23,6 +23,8 @@ IRON DUST, a tank battle on a planet's surface, is the third: it brought the gro
 | `Fly3D.cls` | flying the camera from a set of control bits, with optional assist; keeping the world near the middle (Rebase) |
 | `Hud3D.cls` | the HUD: text and numbers on the ULA over the picture, bars, scanner, cross hairs |
 | `Nx.cls` | NextRegs and palettes (E3 uses it) |
+| `Galaxy3D.cls` | (optional) a wraparound galaxy: a cube of 2^bits cells a side kept in cells, the local frame's cell moved by Rebase, the wrapping sums |
+| `Radar3D.cls` | (optional) Elite style instruments: the scanner with stalks, the compass |
 | `tools/e3models.js` | the model tool: a model file to `E3Data.cls`, `build/NAME.DAT` and a picture of the models |
 | `tools/build.js` | builds a game: the IDE project, the asm, the NEX |
 | `tools/zesshot.js` | runs a NEX in ZEsarUX and saves pictures of the screen (ZESARUX=) |
@@ -265,6 +267,40 @@ colours in different cells.
 | `Bar x, y, w, h, v, vmax, c, bg` | a bar in Layer 2 (each picture, after Obj3D.Draw) |
 | `Scanner x, y, w, h, frame, bg` | the scanner in Layer 2: you in the middle, ahead up it, each marked object a dot |
 
+## Galaxy3D and Radar3D (optional classes)
+
+A game names them in game.json: `"extras": ["Galaxy3D.cls", "Radar3D.cls"]` (build.js adds them from
+the framework's folder; a game that doesn't need them pays nothing).
+
+### Galaxy3D: a galaxy bigger than the world
+
+The engine's world is 16 bit. A galaxy of 2^bits cells a side (a cell is 256 units) that wraps on all
+three axes is kept as numbers: the game holds where things are in cells, and only what's near
+(`Galaxy3D.Near 100`: all offsets within 100 cells, 25,600 units) is made into objects at
+offset x 256. `Galaxy3D.Rebase()` takes Fly3D.Rebase's place and moves the local frame's cell
+with it.
+
+| | |
+|---|---|
+| `Init bits` | the cube 2^bits cells a side (10: 262,144 units, about 21 s at Fly3D's top speed) |
+| `At x, y, z` | you're in that cell: the camera at the local middle (take the objects out first) |
+| `Rebase()` | Fly3D.Rebase, and `gx, gy, gz` follow it: 1 when it moved |
+| `Rel(x, y, z)` | a cell's offset from the local middle into `dx, dy, dz` (cells, the short way round); the sum of their sizes |
+| `Near(r)` | 1 when the cell last given to Rel is within r cells on every axis (r to 127) |
+| `Wrap(d)` | a difference of cells brought into - half .. half - 1 |
+| `gx, gy, gz`, `mask` | the local middle's cell, 2^bits - 1 |
+
+### Radar3D: Elite's instruments
+
+| | |
+|---|---|
+| `Scanner x, y, w, h, frame, bg, rx, rz, ry, tab` | the scanner: you in the middle, ahead up it, each object a dot on a stalk showing how far above or below you it is (its place across is x / rx, ahead z / rz, its stalk y / ry pixels: 440, 1000, 900 show about 16000 units). Colour: tab 0, the object's Obj3D.Mark; tab `VarPtr(arr)`, an Integer array of colours by `otype` (0: not shown) |
+| `Isqrt(v)` | the whole number square root of a Long to 900,000,000 (NTC's `Sqr` takes an Integer: over 32767 it gives 0 or rubbish) |
+| `Compass x, y, w, h, frame, bg, tx, ty, tz, ahead, behind` | a box with the target's direction as a dot, by the camera's turn: tx, ty, tz the way to it in the world (to 500: Galaxy3D.dx, dy, dz), colour ahead / behind; 0, 0, 0 draws the box only |
+
+Draw them each picture after Obj3D.Draw: Hud3D's bars, Radar3D.Scanner and Radar3D.Compass make an
+Elite style dashboard.
+
 ## The model tool
 
 ```
@@ -334,6 +370,7 @@ To add a model: put it in the model file, add a kind, run the tool, and Spawn it
 - **`framework`**: where NTC3D's classes are (E3, Nx, Obj3D, Fly3D, Hud3D are added from there).
 - **`nobj`**: how many objects (8 - 64; 32 when not given). Obj3D's arrays and E3's object tables
   are sized to it (lines tagged `@objarr`, `@objtab`, `@nobj`): about 64 bytes an object.
+- **`extras`**: the optional classes to build in from the framework's folder: `Galaxy3D.cls`, `Radar3D.cls`.
 - **`features`**: optional Z80, in `; @if NAME` / `; @else` / `; @end` blocks (`; @if !NAME`: kept
   unless the game names it):
   - `ground`: the ground movers (MV_CIRCLE, MV_HUNT, MV_HOME), OF_LAND / EV_LAND, OF_GUNANY, the

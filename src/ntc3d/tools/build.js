@@ -11,7 +11,7 @@
 // 3. build/NAME.NEX (+ NAME.sym for the tests): sjasmplus build/NAME.asm, when sjasmplus is on the
 //    PATH (or SJASMPLUS=...); how much room is left under #BE00 is printed
 // E3Data.cls and build/NAME.DAT come from the model tool (tools/e3models.js): run it first.
-// game.json may also give "nobj" (how many objects: 32 when not given) and "features" (the
+// game.json may also give "extras": ["Galaxy3D.cls", "Radar3D.cls"] (the framework's optional classes), "nobj" (how many objects: 32 when not given) and "features" (the
 // framework's optional Z80: "ground" for the ground movers and OF_LAND): tools/prep.js applies them.
 // NTC's src folder is looked for in the argument, then NTC_SRC, then the one this ntc3d/ is in. ES5.
 'use strict';
@@ -25,6 +25,7 @@ var cfg = JSON.parse(fs.readFileSync(path.join(here, 'game.json'), 'utf8'));
 var name = cfg.name;
 var list = cfg.files.map(function(f) { return path.resolve(here, f); });
 if (cfg.framework) FRAMEWORK.forEach(function(f) { list.push(path.resolve(here, cfg.framework, f)); });
+if (cfg.framework) (cfg.extras || []).forEach(function(f) { list.push(path.resolve(here, cfg.framework, f)); });   // (the optional classes: Galaxy3D.cls, Radar3D.cls)
 
 function findNtc()
 {

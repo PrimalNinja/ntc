@@ -58,6 +58,11 @@ finished, with the date.
   test/msxrun.py: the harness (the mapper, DOS 2's mapper support, the frame interrupt, the VDP's
   ports and TEXT 2's text). regress.sh: vb_test, sieve, the Interrupt hook, and the Memory class on a
   512K mapper - the same results as the CPC with 576K (ref/mem_576.txt)
+- 2026-10-31 NTC3D: Galaxy3D.cls (a wraparound cube of 2^bits cells kept in 16 bit: Init, At, Rebase,
+  Rel, Near, Wrap) and Radar3D.cls (Scanner with stalks, Compass) added as optional classes, MIT as the
+  rest of NTC3D: game.json's new `extras` (tools/build.js) builds them in; the framework's own list and
+  ROCKS are as they were; Radar3D.Isqrt is a Long square root (Sqr takes only an Integer). Written for and tested in a game (not part of NTC): its scanner with stalks
+  and its compass work, its galaxy wraps, Rebase follows
 - 2026-10-27 NTC3D updated from Julian's new zip (IRON DUST's additions): the ground feature (MV_CIRCLE,
   MV_HUNT, MV_HOME, OF_LAND / EV_LAND, OF_GUNANY), Fly3D.Drive, E3.Skyline / Texts / UClr / UInk /
   lodb, compound models (M.Compound), build settings by tools/prep.js (nobj, features ground /
