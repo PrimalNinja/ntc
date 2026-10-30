@@ -12,7 +12,7 @@ NTC_ROMLIB	equ 1			; this is the keyword ROM
 NTC_BUFSIZE	equ 2048		; its buffer (ntc_buf)
 NTC_ROM_N	equ 349			; numbers in the index
 NTC_ROM_COUNT	equ 1			; ROMs in the set (NTCMIN.ROM)
-NTC_ROM_SET	equ #667C		; the set's stamp (its ROMs find each other by it)
+NTC_ROM_SET	equ #3F81		; the set's stamp (its ROMs find each other by it)
 MEM_WIN		equ #4000
 MEM_BADPAGE	equ -2
 MEM_BANKS	equ NTC_MEMBANKS	; 0 - 64
@@ -5917,7 +5917,7 @@ mem_putback:
 			call mem_sel
 			pop hl
 			ret
-;## ntc_mem ntc_memcore ntc_membank @shared @far
+;## ntc_mem ntc_memcore ntc_membank ntc_nxt_bank ntc_msx_bank @shared @far
 mem_start:
 			ld a, (mem_init)
 			or a
@@ -6107,11 +6107,12 @@ mem_tb_ok:
 			dec bc
 			ld a, b
 			or c
-			jr z, mem_tb_ports
+			jr z, mem_tb_pl0
 			ld d, h
 			ld e, l
 			inc de
 			ldir
+mem_tb_pl0:
 mem_tb_ports:
 			ld hl, (mem_tport)
 			ld (hl), #C0
@@ -8454,6 +8455,8 @@ lst_rs_cend:
 			ld de, LST_FIRST
 			ld bc, lst_s1
 			jp lst_wr4
+;## ntc_nxt_bank ntc_mem @far
+;## ntc_msx_bank ntc_mem @far
 ;## ntc_plat_data
 ;## ntc_plat_screen ntc_plat_data ntc_font ntc_data ntc_plat_scroll @shared
 ntc_plat_putc:
@@ -9604,7 +9607,7 @@ ntc_kwhat:		db 0
 ntc_bsa:		dw 0
 ntc_bsz:		dw 0
 ntc_bsp:		dw 0
-ntc_bstxt:		db "Not enough memory for the arrays", 0
+ntc_bstxt:		db "GURU 001", 0
 lst_size:		dw 0
 lst_v:			dw 0
 lst_cnt:		dw 0

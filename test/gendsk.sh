@@ -32,6 +32,7 @@ for p in cpc cpcmin cpcfw cpcrom cpcminrom cpcfwrom cpm; do
     dskform -type dsk -format cpcdata $d > /dev/null 2>&1 || { echo "gendsk: dskform failed"; exit 1; }
     put() {   # put $1 (named $2) on the current disc; on "device full" open the next disc and retry
       cpmcp -f cpcdata -T dsk $d "$1" 0:"$2" 2> /dev/null && return 0
+      cpmrm -f cpcdata -T dsk $d 0:"$2" 2> /dev/null   # a file that didn't fit can be left half written: off this disc
       seq=$((seq + 1)); d=../build/dsk/$p$k$seq.dsk
       dskform -type dsk -format cpcdata $d > /dev/null 2>&1 || { echo "gendsk: dskform failed"; exit 1; }
       cpmcp -f cpcdata -T dsk $d "$1" 0:"$2" || { echo "gendsk: $p$k: $2 did not fit even on a fresh disc"; fail=1; }

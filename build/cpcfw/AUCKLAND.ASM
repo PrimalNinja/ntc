@@ -1718,2473 +1718,2447 @@ fn_s3d_inks:		; sub inks (asm keyword), S3d.cls line 215
 			ret			; end of #asm
 
 fn_s3d_render:		; sub render (asm keyword), S3d.cls line 266
-            ld (var_s3d_sps), sp		; S3d.cls 267
-            ld sp, (ntc_csp)		; S3d.cls 268
-            ei                      ; interrupts in while it works (the real stack): the [269]
+; the small helpers written in where they are used (no call / ret; no labels: $ jumps)
+; CMPS: carry when HL < DE, signed (HL, A lost)
+  MACRO CMPS		; S3d.cls 269
+            ld a, h		; S3d.cls 270
+            xor d                   ; (clears carry) [271]
+            jp p, $ + 7             ; same signs: HL - DE [272]
+            ld a, h		; S3d.cls 273
+            rla                     ; signs differ: carry = HL negative [274]
+            jr $ + 4		; S3d.cls 275
+            sbc hl, de		; S3d.cls 276
+  ENDM		; S3d.cls 277
+; HNEG: HL = -HL (A lost)
+  MACRO HNEG		; S3d.cls 279
+            xor a		; S3d.cls 280
+            sub l		; S3d.cls 281
+            ld l, a		; S3d.cls 282
+            sbc a, a		; S3d.cls 283
+            sub h		; S3d.cls 284
+            ld h, a		; S3d.cls 285
+  ENDM		; S3d.cls 286
+; HABS: HL = |HL| (A lost)
+  MACRO HABS		; S3d.cls 288
+            bit 7, h		; S3d.cls 289
+            jr z, $ + 8		; S3d.cls 290
+            HNEG		; S3d.cls 291
+  ENDM		; S3d.cls 292
+; UCAP: HL = the smaller of HL and DE, unsigned
+  MACRO UCAP		; S3d.cls 294
+            or a		; S3d.cls 295
+            sbc hl, de		; S3d.cls 296
+            add hl, de		; S3d.cls 297
+            jr c, $ + 4		; S3d.cls 298
+            ld h, d		; S3d.cls 299
+            ld l, e		; S3d.cls 300
+  ENDM		; S3d.cls 301
+; X6: HL = A * 6 (DE lost)
+  MACRO X6		; S3d.cls 303
+            ld l, a		; S3d.cls 304
+            ld h, 0		; S3d.cls 305
+            add hl, hl		; S3d.cls 306
+            ld e, l		; S3d.cls 307
+            ld d, h		; S3d.cls 308
+            add hl, hl		; S3d.cls 309
+            add hl, de		; S3d.cls 310
+  ENDM		; S3d.cls 311
+; VX12: HL = the corner table + A * 12 (DE lost)
+  MACRO VX12		; S3d.cls 313
+            ld l, a		; S3d.cls 314
+            ld h, 0		; S3d.cls 315
+            add hl, hl		; S3d.cls 316
+            add hl, hl		; S3d.cls 317
+            ld e, l		; S3d.cls 318
+            ld d, h		; S3d.cls 319
+            add hl, hl		; S3d.cls 320
+            add hl, de		; S3d.cls 321
+            ld de, 41424		; S3d.cls 322
+            add hl, de		; S3d.cls 323
+  ENDM		; S3d.cls 324
+; PJDIV: L = C:HL / DE, H = 0 (the quotient is under 256: C:HL < DE * 256; DE < 32768). Eight
+; steps; the quotient's bits go into C inverted (carry = a borrow), turned over at the end
+  MACRO PJDIVSTEP		; S3d.cls 327
+            sla b		; S3d.cls 328
+            adc hl, hl              ; (no carry out: HL < DE < 32768) [329]
+            sbc hl, de		; S3d.cls 330
+            jr nc, $ + 3		; S3d.cls 331
+            add hl, de              ; (carry: the borrow put back, carry stays set) [332]
+            rl c		; S3d.cls 333
+  ENDM		; S3d.cls 334
+  MACRO PJDIV		; S3d.cls 335
+            ld b, l		; S3d.cls 336
+            ld l, h		; S3d.cls 337
+            ld h, c		; S3d.cls 338
+            PJDIVSTEP		; S3d.cls 339
+            PJDIVSTEP		; S3d.cls 340
+            PJDIVSTEP		; S3d.cls 341
+            PJDIVSTEP		; S3d.cls 342
+            PJDIVSTEP		; S3d.cls 343
+            PJDIVSTEP		; S3d.cls 344
+            PJDIVSTEP		; S3d.cls 345
+            PJDIVSTEP		; S3d.cls 346
+            ld a, c		; S3d.cls 347
+            cpl		; S3d.cls 348
+            ld l, a		; S3d.cls 349
+            ld h, 0		; S3d.cls 350
+  ENDM		; S3d.cls 351
+            ld (var_s3d_sps), sp		; S3d.cls 352
+            ld sp, (ntc_csp)		; S3d.cls 353
+            ei                      ; interrupts in while it works (the real stack): the [354]
                                     ; clock keeps counting, in turbo too
-            call fn_s3d_render_r_turn		; S3d.cls 271
-            call fn_s3d_render_r_tidy		; S3d.cls 272
-            call fn_s3d_render_r_fly		; S3d.cls 273
-            ld a, (var_s3d_mvo)           ; (Move: no more) [274]
-            or a		; S3d.cls 275
-            jr nz, fn_s3d_render_rn_end		; S3d.cls 276
-            call fn_s3d_render_r_tabs		; S3d.cls 277
-            call fn_s3d_render_r_clear		; S3d.cls 278
-            call fn_s3d_render_r_world		; S3d.cls 279
-            ld hl, (fn_s3d_render_w_nl)		; S3d.cls 280
-            ld de, (fn_s3d_render_w_nlm)		; S3d.cls 281
-            add hl, de		; S3d.cls 282
-            ld (var_s3d_nlines), hl		; S3d.cls 283
-            ld hl, 0		; S3d.cls 284
-    IFDEF NTC_ZXN		; S3d.cls 285
-            call zxn_sel            ; (the Next: the program's own pages back in the window) [286]
-    ELSE		; S3d.cls 287
-            call mem_sel            ; main RAM back in the window [288]
-    ENDIF		; S3d.cls 289
-            call fn_s3d_render_r_comp		; S3d.cls 290
-fn_s3d_render_rn_end:		; S3d.cls 291
-            di		; S3d.cls 292
-            ld sp, (var_s3d_sps)		; S3d.cls 293
-            ret		; S3d.cls 294
+            call fn_s3d_render_r_turn		; S3d.cls 356
+            call fn_s3d_render_r_tidy		; S3d.cls 357
+            call fn_s3d_render_r_fly		; S3d.cls 358
+            ld a, (var_s3d_mvo)           ; (Move: no more) [359]
+            or a		; S3d.cls 360
+            jr nz, fn_s3d_render_rn_end		; S3d.cls 361
+            call fn_s3d_render_r_tabs		; S3d.cls 362
+            call fn_s3d_render_r_clear		; S3d.cls 363
+            call fn_s3d_render_r_world		; S3d.cls 364
+            ld hl, (fn_s3d_render_w_nl)		; S3d.cls 365
+            ld de, (fn_s3d_render_w_nlm)		; S3d.cls 366
+            add hl, de		; S3d.cls 367
+            ld (var_s3d_nlines), hl		; S3d.cls 368
+            ld hl, 0		; S3d.cls 369
+    IFDEF NTC_ZXN		; S3d.cls 370
+            call zxn_sel            ; (the Next: the program's own pages back in the window) [371]
+    ELSE		; S3d.cls 372
+            call mem_sel            ; main RAM back in the window [373]
+    ENDIF		; S3d.cls 374
+            call fn_s3d_render_r_comp		; S3d.cls 375
+fn_s3d_render_rn_end:		; S3d.cls 376
+            di		; S3d.cls 377
+            ld sp, (var_s3d_sps)		; S3d.cls 378
+            ret		; S3d.cls 379
 
 ; ---- the compass: an arrow at (296, 182) pointing to the city's centre (SetCentre) as seen
 ; from above (up the screen: ahead). The way there (centre - camera, scaled up to 8192-16383)
 ; across (on the right axis) and ahead (on the forward axis), scaled so the larger is 64-127,
 ; then / 8: the arrow's half length 8-15 pixels. Pen 3. None at the centre itself
-fn_s3d_render_r_comp:		; S3d.cls 300
-            ld hl, (var_s3d_cnx)		; S3d.cls 301
-            ld de, (var_s3d_camx)		; S3d.cls 302
-            or a		; S3d.cls 303
-            sbc hl, de		; S3d.cls 304
-            ld (fn_s3d_render_w_dx), hl		; S3d.cls 305
-            ld hl, (var_s3d_cnz)		; S3d.cls 306
-            ld de, (var_s3d_camz)		; S3d.cls 307
-            or a		; S3d.cls 308
-            sbc hl, de		; S3d.cls 309
-            ld (fn_s3d_render_w_dz), hl		; S3d.cls 310
-            ld b, 15		; S3d.cls 311
-fn_s3d_render_cp_vn:		; S3d.cls 312
-            ld hl, (fn_s3d_render_w_dx)           ; both under 8192: doubled [313]
-            call fn_s3d_render_cp_ab16		; S3d.cls 314
-            ld c, h		; S3d.cls 315
-            ld hl, (fn_s3d_render_w_dz)		; S3d.cls 316
-            call fn_s3d_render_cp_ab16		; S3d.cls 317
-            ld a, h		; S3d.cls 318
-            or c		; S3d.cls 319
-            and #E0		; S3d.cls 320
-            jr nz, fn_s3d_render_cp_vk		; S3d.cls 321
-            ld hl, (fn_s3d_render_w_dx)		; S3d.cls 322
-            add hl, hl		; S3d.cls 323
-            ld (fn_s3d_render_w_dx), hl		; S3d.cls 324
-            ld hl, (fn_s3d_render_w_dz)		; S3d.cls 325
-            add hl, hl		; S3d.cls 326
-            ld (fn_s3d_render_w_dz), hl		; S3d.cls 327
-            djnz fn_s3d_render_cp_vn		; S3d.cls 328
-            ret                     ; (there: no arrow) [329]
-fn_s3d_render_cp_vk:		; S3d.cls 330
-            ld de, (arr_s3d_bas)          ; across: right x * dx + right z * dz, / 65536 [331]
-            ld bc, (arr_s3d_bas + 4)		; S3d.cls 332
-            call fn_s3d_render_cp_dot		; S3d.cls 333
-            call fn_s3d_render_cp_s7		; S3d.cls 334
-            ld (fn_s3d_render_w_va), a		; S3d.cls 335
-            ld de, (arr_s3d_bas + 12)     ; ahead: forward x * dx + forward z * dz [336]
-            ld bc, (arr_s3d_bas + 16)		; S3d.cls 337
-            call fn_s3d_render_cp_dot		; S3d.cls 338
-            call fn_s3d_render_cp_s7		; S3d.cls 339
-            ld (fn_s3d_render_w_vb), a		; S3d.cls 340
-            ld b, 6		; S3d.cls 341
-fn_s3d_render_cp_nm:		; S3d.cls 342
-            ld a, (fn_s3d_render_w_va)		; S3d.cls 343
-            call fn_s3d_render_cp_abs		; S3d.cls 344
-            ld c, a		; S3d.cls 345
-            ld a, (fn_s3d_render_w_vb)		; S3d.cls 346
-            call fn_s3d_render_cp_abs		; S3d.cls 347
-            or c		; S3d.cls 348
-            and #C0		; S3d.cls 349
-            jr nz, fn_s3d_render_cp_go            ; (the larger is 64 or more) [350]
-            ld a, (fn_s3d_render_w_va)		; S3d.cls 351
-            add a, a		; S3d.cls 352
-            ld (fn_s3d_render_w_va), a		; S3d.cls 353
-            ld a, (fn_s3d_render_w_vb)		; S3d.cls 354
-            add a, a		; S3d.cls 355
-            ld (fn_s3d_render_w_vb), a		; S3d.cls 356
-            djnz fn_s3d_render_cp_nm		; S3d.cls 357
-            ret                     ; (both 0: looking straight up or down) [358]
-fn_s3d_render_cp_go:		; S3d.cls 359
-            ld a, (fn_s3d_render_w_va)		; S3d.cls 360
-            sra a		; S3d.cls 361
-            sra a		; S3d.cls 362
-            sra a		; S3d.cls 363
-            ld (fn_s3d_render_w_va), a            ; dx [364]
-            ld a, (fn_s3d_render_w_vb)		; S3d.cls 365
-            sra a		; S3d.cls 366
-            sra a		; S3d.cls 367
-            sra a		; S3d.cls 368
-            ld (fn_s3d_render_w_vb), a            ; dz [369]
-            ld a, 3		; S3d.cls 370
-            ld (gfx_pen), a		; S3d.cls 371
-            ld a, (fn_s3d_render_w_va)            ; the shaft: (296 - dx, 182 + dz) - (296 + dx, 182 - dz) [372]
-            neg		; S3d.cls 373
-            call fn_s3d_render_cp_x		; S3d.cls 374
-            ld (gfx_x0), hl		; S3d.cls 375
-            ld a, (fn_s3d_render_w_vb)		; S3d.cls 376
-            call fn_s3d_render_cp_y		; S3d.cls 377
-            ld (gfx_y0), hl		; S3d.cls 378
-            call fn_s3d_render_cp_tip		; S3d.cls 379
-            call gfx_line		; S3d.cls 380
-            ld a, (fn_s3d_render_w_vb)            ; the head: the tip to (296 + dx/2 -+ dz/2, 182 - dz/2 -+ dx/2) [381]
-            sra a		; S3d.cls 382
-            ld c, a		; S3d.cls 383
-            ld a, (fn_s3d_render_w_va)		; S3d.cls 384
-            sra a		; S3d.cls 385
-            ld b, a		; S3d.cls 386
-            push bc		; S3d.cls 387
-            sub c		; S3d.cls 388
-            call fn_s3d_render_cp_x		; S3d.cls 389
-            ld (gfx_x0), hl		; S3d.cls 390
-            pop bc		; S3d.cls 391
-            push bc		; S3d.cls 392
-            ld a, c		; S3d.cls 393
-            add a, b		; S3d.cls 394
-            neg		; S3d.cls 395
-            call fn_s3d_render_cp_y		; S3d.cls 396
-            ld (gfx_y0), hl		; S3d.cls 397
-            call fn_s3d_render_cp_tip		; S3d.cls 398
-            call gfx_line		; S3d.cls 399
-            pop bc		; S3d.cls 400
-            ld a, b		; S3d.cls 401
-            add a, c		; S3d.cls 402
-            call fn_s3d_render_cp_x		; S3d.cls 403
-            ld (gfx_x0), hl		; S3d.cls 404
-            ld a, b		; S3d.cls 405
-            sub c		; S3d.cls 406
-            call fn_s3d_render_cp_y		; S3d.cls 407
-            ld (gfx_y0), hl		; S3d.cls 408
-            call fn_s3d_render_cp_tip		; S3d.cls 409
-            jp gfx_line		; S3d.cls 410
-; cp_tip - the line's other end: the tip (296 + dx, 182 - dz)
-fn_s3d_render_cp_tip:		; S3d.cls 412
-            ld a, (fn_s3d_render_w_va)		; S3d.cls 413
-            call fn_s3d_render_cp_x		; S3d.cls 414
-            ld (gfx_x1), hl		; S3d.cls 415
-            ld a, (fn_s3d_render_w_vb)		; S3d.cls 416
-            neg		; S3d.cls 417
-            call fn_s3d_render_cp_y		; S3d.cls 418
-            ld (gfx_y1), hl		; S3d.cls 419
-            ret		; S3d.cls 420
-; cp_x / cp_y - HL = 296 / 182 + A (signed)
-fn_s3d_render_cp_x:		; S3d.cls 422
-            ld hl, 296		; S3d.cls 423
-            jr fn_s3d_render_cp_add		; S3d.cls 424
-fn_s3d_render_cp_y:		; S3d.cls 425
-            ld hl, 182		; S3d.cls 426
-fn_s3d_render_cp_add:		; S3d.cls 427
-            ld e, a		; S3d.cls 428
-            rlca		; S3d.cls 429
-            sbc a, a		; S3d.cls 430
-            ld d, a		; S3d.cls 431
-            add hl, de		; S3d.cls 432
-            ret		; S3d.cls 433
-; cp_s7 - A = HL / 128 (signed), kept to -127 .. 127
-fn_s3d_render_cp_s7:		; S3d.cls 435
-            bit 7, h                ; (Z: positive - add hl, hl keeps Z) [436]
-            add hl, hl              ; H = HL / 128 [437]
-            ld a, h		; S3d.cls 438
-            jr nz, fn_s3d_render_cs_neg		; S3d.cls 439
-            cp 128		; S3d.cls 440
-            ret nz		; S3d.cls 441
-            ld a, 127               ; (+16384: 127) [442]
-            ret		; S3d.cls 443
-fn_s3d_render_cs_neg:		; S3d.cls 444
-            cp 128		; S3d.cls 445
-            ret nz		; S3d.cls 446
-            ld a, 129               ; (-16384: -127) [447]
-            ret		; S3d.cls 448
-; cp_dot - HL = (DE * dx + BC * dz) / 65536
-fn_s3d_render_cp_dot:		; S3d.cls 450
-            push bc		; S3d.cls 451
-            ld bc, (fn_s3d_render_w_dx)		; S3d.cls 452
-            call fn_s3d_render_mul16s		; S3d.cls 453
-            pop bc		; S3d.cls 454
-            push de		; S3d.cls 455
-            push hl		; S3d.cls 456
-            ld de, (fn_s3d_render_w_dz)		; S3d.cls 457
-            call fn_s3d_render_mul16s		; S3d.cls 458
-            pop bc		; S3d.cls 459
-            add hl, bc		; S3d.cls 460
-            pop bc		; S3d.cls 461
-            ex de, hl		; S3d.cls 462
-            adc hl, bc		; S3d.cls 463
-            ret		; S3d.cls 464
-; cp_ab16 - HL = |HL|
-fn_s3d_render_cp_ab16:		; S3d.cls 466
-            bit 7, h		; S3d.cls 467
-            ret z		; S3d.cls 468
-            xor a		; S3d.cls 469
-            sub l		; S3d.cls 470
-            ld l, a		; S3d.cls 471
-            sbc a, a		; S3d.cls 472
-            sub h		; S3d.cls 473
-            ld h, a		; S3d.cls 474
-            ret		; S3d.cls 475
-; cp_abs - A = |A|
-fn_s3d_render_cp_abs:		; S3d.cls 477
-            or a		; S3d.cls 478
-            ret p		; S3d.cls 479
+fn_s3d_render_r_comp:		; S3d.cls 385
+            ld hl, (var_s3d_cnx)		; S3d.cls 386
+            ld de, (var_s3d_camx)		; S3d.cls 387
+            or a		; S3d.cls 388
+            sbc hl, de		; S3d.cls 389
+            ld (fn_s3d_render_w_dx), hl		; S3d.cls 390
+            ld hl, (var_s3d_cnz)		; S3d.cls 391
+            ld de, (var_s3d_camz)		; S3d.cls 392
+            or a		; S3d.cls 393
+            sbc hl, de		; S3d.cls 394
+            ld (fn_s3d_render_w_dz), hl		; S3d.cls 395
+            ld b, 15		; S3d.cls 396
+fn_s3d_render_cp_vn:		; S3d.cls 397
+            ld hl, (fn_s3d_render_w_dx)           ; both under 8192: doubled [398]
+            call fn_s3d_render_cp_ab16		; S3d.cls 399
+            ld c, h		; S3d.cls 400
+            ld hl, (fn_s3d_render_w_dz)		; S3d.cls 401
+            call fn_s3d_render_cp_ab16		; S3d.cls 402
+            ld a, h		; S3d.cls 403
+            or c		; S3d.cls 404
+            and #E0		; S3d.cls 405
+            jr nz, fn_s3d_render_cp_vk		; S3d.cls 406
+            ld hl, (fn_s3d_render_w_dx)		; S3d.cls 407
+            add hl, hl		; S3d.cls 408
+            ld (fn_s3d_render_w_dx), hl		; S3d.cls 409
+            ld hl, (fn_s3d_render_w_dz)		; S3d.cls 410
+            add hl, hl		; S3d.cls 411
+            ld (fn_s3d_render_w_dz), hl		; S3d.cls 412
+            djnz fn_s3d_render_cp_vn		; S3d.cls 413
+            ret                     ; (there: no arrow) [414]
+fn_s3d_render_cp_vk:		; S3d.cls 415
+            ld de, (arr_s3d_bas)          ; across: right x * dx + right z * dz, / 65536 [416]
+            ld bc, (arr_s3d_bas + 4)		; S3d.cls 417
+            call fn_s3d_render_cp_dot		; S3d.cls 418
+            call fn_s3d_render_cp_s7		; S3d.cls 419
+            ld (fn_s3d_render_w_va), a		; S3d.cls 420
+            ld de, (arr_s3d_bas + 12)     ; ahead: forward x * dx + forward z * dz [421]
+            ld bc, (arr_s3d_bas + 16)		; S3d.cls 422
+            call fn_s3d_render_cp_dot		; S3d.cls 423
+            call fn_s3d_render_cp_s7		; S3d.cls 424
+            ld (fn_s3d_render_w_vb), a		; S3d.cls 425
+            ld b, 6		; S3d.cls 426
+fn_s3d_render_cp_nm:		; S3d.cls 427
+            ld a, (fn_s3d_render_w_va)		; S3d.cls 428
+            call fn_s3d_render_cp_abs		; S3d.cls 429
+            ld c, a		; S3d.cls 430
+            ld a, (fn_s3d_render_w_vb)		; S3d.cls 431
+            call fn_s3d_render_cp_abs		; S3d.cls 432
+            or c		; S3d.cls 433
+            and #C0		; S3d.cls 434
+            jr nz, fn_s3d_render_cp_go            ; (the larger is 64 or more) [435]
+            ld a, (fn_s3d_render_w_va)		; S3d.cls 436
+            add a, a		; S3d.cls 437
+            ld (fn_s3d_render_w_va), a		; S3d.cls 438
+            ld a, (fn_s3d_render_w_vb)		; S3d.cls 439
+            add a, a		; S3d.cls 440
+            ld (fn_s3d_render_w_vb), a		; S3d.cls 441
+            djnz fn_s3d_render_cp_nm		; S3d.cls 442
+            ret                     ; (both 0: looking straight up or down) [443]
+fn_s3d_render_cp_go:		; S3d.cls 444
+            ld a, (fn_s3d_render_w_va)		; S3d.cls 445
+            sra a		; S3d.cls 446
+            sra a		; S3d.cls 447
+            sra a		; S3d.cls 448
+            ld (fn_s3d_render_w_va), a            ; dx [449]
+            ld a, (fn_s3d_render_w_vb)		; S3d.cls 450
+            sra a		; S3d.cls 451
+            sra a		; S3d.cls 452
+            sra a		; S3d.cls 453
+            ld (fn_s3d_render_w_vb), a            ; dz [454]
+            ld a, 3		; S3d.cls 455
+            ld (gfx_pen), a		; S3d.cls 456
+            ld a, (fn_s3d_render_w_va)            ; the shaft: (296 - dx, 182 + dz) - (296 + dx, 182 - dz) [457]
+            neg		; S3d.cls 458
+            call fn_s3d_render_cp_x		; S3d.cls 459
+            ld (gfx_x0), hl		; S3d.cls 460
+            ld a, (fn_s3d_render_w_vb)		; S3d.cls 461
+            call fn_s3d_render_cp_y		; S3d.cls 462
+            ld (gfx_y0), hl		; S3d.cls 463
+            call fn_s3d_render_cp_tip		; S3d.cls 464
+            call gfx_line		; S3d.cls 465
+            ld a, (fn_s3d_render_w_vb)            ; the head: the tip to (296 + dx/2 -+ dz/2, 182 - dz/2 -+ dx/2) [466]
+            sra a		; S3d.cls 467
+            ld c, a		; S3d.cls 468
+            ld a, (fn_s3d_render_w_va)		; S3d.cls 469
+            sra a		; S3d.cls 470
+            ld b, a		; S3d.cls 471
+            push bc		; S3d.cls 472
+            sub c		; S3d.cls 473
+            call fn_s3d_render_cp_x		; S3d.cls 474
+            ld (gfx_x0), hl		; S3d.cls 475
+            pop bc		; S3d.cls 476
+            push bc		; S3d.cls 477
+            ld a, c		; S3d.cls 478
+            add a, b		; S3d.cls 479
             neg		; S3d.cls 480
-            ret		; S3d.cls 481
+            call fn_s3d_render_cp_y		; S3d.cls 481
+            ld (gfx_y0), hl		; S3d.cls 482
+            call fn_s3d_render_cp_tip		; S3d.cls 483
+            call gfx_line		; S3d.cls 484
+            pop bc		; S3d.cls 485
+            ld a, b		; S3d.cls 486
+            add a, c		; S3d.cls 487
+            call fn_s3d_render_cp_x		; S3d.cls 488
+            ld (gfx_x0), hl		; S3d.cls 489
+            ld a, b		; S3d.cls 490
+            sub c		; S3d.cls 491
+            call fn_s3d_render_cp_y		; S3d.cls 492
+            ld (gfx_y0), hl		; S3d.cls 493
+            call fn_s3d_render_cp_tip		; S3d.cls 494
+            jp gfx_line		; S3d.cls 495
+; cp_tip - the line's other end: the tip (296 + dx, 182 - dz)
+fn_s3d_render_cp_tip:		; S3d.cls 497
+            ld a, (fn_s3d_render_w_va)		; S3d.cls 498
+            call fn_s3d_render_cp_x		; S3d.cls 499
+            ld (gfx_x1), hl		; S3d.cls 500
+            ld a, (fn_s3d_render_w_vb)		; S3d.cls 501
+            neg		; S3d.cls 502
+            call fn_s3d_render_cp_y		; S3d.cls 503
+            ld (gfx_y1), hl		; S3d.cls 504
+            ret		; S3d.cls 505
+; cp_x / cp_y - HL = 296 / 182 + A (signed)
+fn_s3d_render_cp_x:		; S3d.cls 507
+            ld hl, 296		; S3d.cls 508
+            jr fn_s3d_render_cp_add		; S3d.cls 509
+fn_s3d_render_cp_y:		; S3d.cls 510
+            ld hl, 182		; S3d.cls 511
+fn_s3d_render_cp_add:		; S3d.cls 512
+            ld e, a		; S3d.cls 513
+            rlca		; S3d.cls 514
+            sbc a, a		; S3d.cls 515
+            ld d, a		; S3d.cls 516
+            add hl, de		; S3d.cls 517
+            ret		; S3d.cls 518
+; cp_s7 - A = HL / 128 (signed), kept to -127 .. 127
+fn_s3d_render_cp_s7:		; S3d.cls 520
+            bit 7, h                ; (Z: positive - add hl, hl keeps Z) [521]
+            add hl, hl              ; H = HL / 128 [522]
+            ld a, h		; S3d.cls 523
+            jr nz, fn_s3d_render_cs_neg		; S3d.cls 524
+            cp 128		; S3d.cls 525
+            ret nz		; S3d.cls 526
+            ld a, 127               ; (+16384: 127) [527]
+            ret		; S3d.cls 528
+fn_s3d_render_cs_neg:		; S3d.cls 529
+            cp 128		; S3d.cls 530
+            ret nz		; S3d.cls 531
+            ld a, 129               ; (-16384: -127) [532]
+            ret		; S3d.cls 533
+; cp_dot - HL = (DE * dx + BC * dz) / 65536
+fn_s3d_render_cp_dot:		; S3d.cls 535
+            push bc		; S3d.cls 536
+            ld bc, (fn_s3d_render_w_dx)		; S3d.cls 537
+            call fn_s3d_render_mul16s		; S3d.cls 538
+            pop bc		; S3d.cls 539
+            push de		; S3d.cls 540
+            push hl		; S3d.cls 541
+            ld de, (fn_s3d_render_w_dz)		; S3d.cls 542
+            call fn_s3d_render_mul16s		; S3d.cls 543
+            pop bc		; S3d.cls 544
+            add hl, bc		; S3d.cls 545
+            pop bc		; S3d.cls 546
+            ex de, hl		; S3d.cls 547
+            adc hl, bc		; S3d.cls 548
+            ret		; S3d.cls 549
+; cp_ab16 - HL = |HL|
+fn_s3d_render_cp_ab16:		; S3d.cls 551
+            bit 7, h		; S3d.cls 552
+            ret z		; S3d.cls 553
+            xor a		; S3d.cls 554
+            sub l		; S3d.cls 555
+            ld l, a		; S3d.cls 556
+            sbc a, a		; S3d.cls 557
+            sub h		; S3d.cls 558
+            ld h, a		; S3d.cls 559
+            ret		; S3d.cls 560
+; cp_abs - A = |A|
+fn_s3d_render_cp_abs:		; S3d.cls 562
+            or a		; S3d.cls 563
+            ret p		; S3d.cls 564
+            neg		; S3d.cls 565
+            ret		; S3d.cls 566
 
 ; ---- the camera
 
 ; r_turn - the turns asked for (rp, rr, ry: -1, 0, 1), 2 degrees each
-fn_s3d_render_r_turn:		; S3d.cls 486
-            ld a, (var_s3d_rp)		; S3d.cls 487
-            or a		; S3d.cls 488
-            jr z, fn_s3d_render_rt_r		; S3d.cls 489
-            ld ix, arr_s3d_bas + 12       ; climb: forward towards up [490]
-            ld iy, arr_s3d_bas + 6		; S3d.cls 491
-            call fn_s3d_render_rt_s		; S3d.cls 492
-            call fn_s3d_render_r_pair		; S3d.cls 493
-fn_s3d_render_rt_r:		; S3d.cls 494
-            ld a, (var_s3d_rr)		; S3d.cls 495
-            or a		; S3d.cls 496
-            jr z, fn_s3d_render_rt_y		; S3d.cls 497
-            ld ix, arr_s3d_bas + 6        ; roll right: up towards right [498]
-            ld iy, arr_s3d_bas		; S3d.cls 499
-            call fn_s3d_render_rt_s		; S3d.cls 500
-            call fn_s3d_render_r_pair		; S3d.cls 501
-fn_s3d_render_rt_y:		; S3d.cls 502
-            ld a, (var_s3d_ry)		; S3d.cls 503
-            or a		; S3d.cls 504
-            ret z		; S3d.cls 505
-            ld ix, arr_s3d_bas + 12       ; yaw right: forward towards right [506]
-            ld iy, arr_s3d_bas		; S3d.cls 507
-            call fn_s3d_render_rt_s		; S3d.cls 508
-            jp fn_s3d_render_r_pair		; S3d.cls 509
-fn_s3d_render_rt_s:		; S3d.cls 510
-            ld hl, 572              ; sin 2 degrees [511]
-            bit 7, a		; S3d.cls 512
-            jr z, fn_s3d_render_rt_s1		; S3d.cls 513
-            ld hl, -572		; S3d.cls 514
-fn_s3d_render_rt_s1:		; S3d.cls 515
-            ld (fn_s3d_render_w_rs), hl		; S3d.cls 516
-            ret		; S3d.cls 517
+fn_s3d_render_r_turn:		; S3d.cls 571
+            ld a, (var_s3d_rp)		; S3d.cls 572
+            or a		; S3d.cls 573
+            jr z, fn_s3d_render_rt_r		; S3d.cls 574
+            ld ix, arr_s3d_bas + 12       ; climb: forward towards up [575]
+            ld iy, arr_s3d_bas + 6		; S3d.cls 576
+            call fn_s3d_render_rt_s		; S3d.cls 577
+            call fn_s3d_render_r_pair		; S3d.cls 578
+fn_s3d_render_rt_r:		; S3d.cls 579
+            ld a, (var_s3d_rr)		; S3d.cls 580
+            or a		; S3d.cls 581
+            jr z, fn_s3d_render_rt_y		; S3d.cls 582
+            ld ix, arr_s3d_bas + 6        ; roll right: up towards right [583]
+            ld iy, arr_s3d_bas		; S3d.cls 584
+            call fn_s3d_render_rt_s		; S3d.cls 585
+            call fn_s3d_render_r_pair		; S3d.cls 586
+fn_s3d_render_rt_y:		; S3d.cls 587
+            ld a, (var_s3d_ry)		; S3d.cls 588
+            or a		; S3d.cls 589
+            ret z		; S3d.cls 590
+            ld ix, arr_s3d_bas + 12       ; yaw right: forward towards right [591]
+            ld iy, arr_s3d_bas		; S3d.cls 592
+            call fn_s3d_render_rt_s		; S3d.cls 593
+            jp fn_s3d_render_r_pair		; S3d.cls 594
+fn_s3d_render_rt_s:		; S3d.cls 595
+            ld hl, 572              ; sin 2 degrees [596]
+            bit 7, a		; S3d.cls 597
+            jr z, fn_s3d_render_rt_s1		; S3d.cls 598
+            ld hl, -572		; S3d.cls 599
+fn_s3d_render_rt_s1:		; S3d.cls 600
+            ld (fn_s3d_render_w_rs), hl		; S3d.cls 601
+            ret		; S3d.cls 602
 ; r_pair - IX = A, IY = B (vectors): A = A cos + B sin, B = B cos - A sin
-fn_s3d_render_r_pair:		; S3d.cls 519
-            ld b, 3		; S3d.cls 520
-fn_s3d_render_rp_lp:		; S3d.cls 521
-            push bc		; S3d.cls 522
-            ld e, (ix + 0)		; S3d.cls 523
-            ld d, (ix + 1)		; S3d.cls 524
-            ld (fn_s3d_render_w_a), de		; S3d.cls 525
-            ld e, (iy + 0)		; S3d.cls 526
-            ld d, (iy + 1)		; S3d.cls 527
-            ld (fn_s3d_render_w_b), de		; S3d.cls 528
-            ld de, (fn_s3d_render_w_a)		; S3d.cls 529
-            ld bc, 16374            ; cos 2 degrees [530]
-            call fn_s3d_render_mulfix		; S3d.cls 531
-            ld (fn_s3d_render_w_t), hl		; S3d.cls 532
-            ld de, (fn_s3d_render_w_b)		; S3d.cls 533
-            ld bc, (fn_s3d_render_w_rs)		; S3d.cls 534
-            call fn_s3d_render_mulfix		; S3d.cls 535
-            ld de, (fn_s3d_render_w_t)		; S3d.cls 536
-            add hl, de		; S3d.cls 537
-            ld (ix + 0), l		; S3d.cls 538
-            ld (ix + 1), h		; S3d.cls 539
-            ld de, (fn_s3d_render_w_b)		; S3d.cls 540
-            ld bc, 16374		; S3d.cls 541
-            call fn_s3d_render_mulfix		; S3d.cls 542
-            ld (fn_s3d_render_w_t), hl		; S3d.cls 543
-            ld de, (fn_s3d_render_w_a)		; S3d.cls 544
-            ld bc, (fn_s3d_render_w_rs)		; S3d.cls 545
-            call fn_s3d_render_mulfix		; S3d.cls 546
-            ex de, hl		; S3d.cls 547
-            ld hl, (fn_s3d_render_w_t)		; S3d.cls 548
-            or a		; S3d.cls 549
-            sbc hl, de		; S3d.cls 550
-            ld (iy + 0), l		; S3d.cls 551
-            ld (iy + 1), h		; S3d.cls 552
-            inc ix		; S3d.cls 553
-            inc ix		; S3d.cls 554
-            inc iy		; S3d.cls 555
-            inc iy		; S3d.cls 556
-            pop bc		; S3d.cls 557
-            djnz fn_s3d_render_rp_lp		; S3d.cls 558
-            ret		; S3d.cls 559
+fn_s3d_render_r_pair:		; S3d.cls 604
+            ld b, 3		; S3d.cls 605
+fn_s3d_render_rp_lp:		; S3d.cls 606
+            push bc		; S3d.cls 607
+            ld e, (ix + 0)		; S3d.cls 608
+            ld d, (ix + 1)		; S3d.cls 609
+            ld (fn_s3d_render_w_a), de		; S3d.cls 610
+            ld e, (iy + 0)		; S3d.cls 611
+            ld d, (iy + 1)		; S3d.cls 612
+            ld (fn_s3d_render_w_b), de		; S3d.cls 613
+            ld de, (fn_s3d_render_w_a)		; S3d.cls 614
+            ld bc, 16374            ; cos 2 degrees [615]
+            call fn_s3d_render_mulfix		; S3d.cls 616
+            ld (fn_s3d_render_w_t), hl		; S3d.cls 617
+            ld de, (fn_s3d_render_w_b)		; S3d.cls 618
+            ld bc, (fn_s3d_render_w_rs)		; S3d.cls 619
+            call fn_s3d_render_mulfix		; S3d.cls 620
+            ld de, (fn_s3d_render_w_t)		; S3d.cls 621
+            add hl, de		; S3d.cls 622
+            ld (ix + 0), l		; S3d.cls 623
+            ld (ix + 1), h		; S3d.cls 624
+            ld de, (fn_s3d_render_w_b)		; S3d.cls 625
+            ld bc, 16374		; S3d.cls 626
+            call fn_s3d_render_mulfix		; S3d.cls 627
+            ld (fn_s3d_render_w_t), hl		; S3d.cls 628
+            ld de, (fn_s3d_render_w_a)		; S3d.cls 629
+            ld bc, (fn_s3d_render_w_rs)		; S3d.cls 630
+            call fn_s3d_render_mulfix		; S3d.cls 631
+            ex de, hl		; S3d.cls 632
+            ld hl, (fn_s3d_render_w_t)		; S3d.cls 633
+            or a		; S3d.cls 634
+            sbc hl, de		; S3d.cls 635
+            ld (iy + 0), l		; S3d.cls 636
+            ld (iy + 1), h		; S3d.cls 637
+            inc ix		; S3d.cls 638
+            inc ix		; S3d.cls 639
+            inc iy		; S3d.cls 640
+            inc iy		; S3d.cls 641
+            pop bc		; S3d.cls 642
+            djnz fn_s3d_render_rp_lp		; S3d.cls 643
+            ret		; S3d.cls 644
 
 ; r_tidy - forward of length 1, right square to it and of length 1, up = forward x right
-fn_s3d_render_r_tidy:		; S3d.cls 562
-            ld ix, arr_s3d_bas + 12		; S3d.cls 563
-            call fn_s3d_render_r_unit		; S3d.cls 564
-            ld ix, arr_s3d_bas		; S3d.cls 565
-            ld iy, arr_s3d_bas + 12		; S3d.cls 566
-            call fn_s3d_render_r_dot		; S3d.cls 567
-            ld (fn_s3d_render_w_t), hl            ; right . forward [568]
-            ld b, 3		; S3d.cls 569
-fn_s3d_render_td_lp:		; S3d.cls 570
-            push bc		; S3d.cls 571
-            ld e, (iy + 0)		; S3d.cls 572
-            ld d, (iy + 1)		; S3d.cls 573
-            ld bc, (fn_s3d_render_w_t)		; S3d.cls 574
-            call fn_s3d_render_mulfix		; S3d.cls 575
-            ex de, hl		; S3d.cls 576
-            ld l, (ix + 0)		; S3d.cls 577
-            ld h, (ix + 1)		; S3d.cls 578
-            or a		; S3d.cls 579
-            sbc hl, de		; S3d.cls 580
-            ld (ix + 0), l		; S3d.cls 581
-            ld (ix + 1), h		; S3d.cls 582
-            inc ix		; S3d.cls 583
-            inc ix		; S3d.cls 584
-            inc iy		; S3d.cls 585
-            inc iy		; S3d.cls 586
-            pop bc		; S3d.cls 587
-            djnz fn_s3d_render_td_lp		; S3d.cls 588
-            ld ix, arr_s3d_bas		; S3d.cls 589
-            call fn_s3d_render_r_unit		; S3d.cls 590
-            ld de, (arr_s3d_bas + 14)     ; up x = Fy Rz - Fz Ry [591]
-            ld bc, (arr_s3d_bas + 4)		; S3d.cls 592
-            call fn_s3d_render_mulfix		; S3d.cls 593
-            ld (fn_s3d_render_w_t), hl		; S3d.cls 594
-            ld de, (arr_s3d_bas + 16)		; S3d.cls 595
-            ld bc, (arr_s3d_bas + 2)		; S3d.cls 596
-            call fn_s3d_render_mulfix		; S3d.cls 597
-            ex de, hl		; S3d.cls 598
-            ld hl, (fn_s3d_render_w_t)		; S3d.cls 599
-            or a		; S3d.cls 600
-            sbc hl, de		; S3d.cls 601
-            ld (arr_s3d_bas + 6), hl		; S3d.cls 602
-            ld de, (arr_s3d_bas + 16)     ; up y = Fz Rx - Fx Rz [603]
-            ld bc, (arr_s3d_bas)		; S3d.cls 604
-            call fn_s3d_render_mulfix		; S3d.cls 605
-            ld (fn_s3d_render_w_t), hl		; S3d.cls 606
-            ld de, (arr_s3d_bas + 12)		; S3d.cls 607
-            ld bc, (arr_s3d_bas + 4)		; S3d.cls 608
-            call fn_s3d_render_mulfix		; S3d.cls 609
-            ex de, hl		; S3d.cls 610
-            ld hl, (fn_s3d_render_w_t)		; S3d.cls 611
-            or a		; S3d.cls 612
-            sbc hl, de		; S3d.cls 613
-            ld (arr_s3d_bas + 8), hl		; S3d.cls 614
-            ld de, (arr_s3d_bas + 12)     ; up z = Fx Ry - Fy Rx [615]
-            ld bc, (arr_s3d_bas + 2)		; S3d.cls 616
-            call fn_s3d_render_mulfix		; S3d.cls 617
-            ld (fn_s3d_render_w_t), hl		; S3d.cls 618
-            ld de, (arr_s3d_bas + 14)		; S3d.cls 619
-            ld bc, (arr_s3d_bas)		; S3d.cls 620
-            call fn_s3d_render_mulfix		; S3d.cls 621
-            ex de, hl		; S3d.cls 622
-            ld hl, (fn_s3d_render_w_t)		; S3d.cls 623
-            or a		; S3d.cls 624
-            sbc hl, de		; S3d.cls 625
-            ld (arr_s3d_bas + 10), hl		; S3d.cls 626
-            ret		; S3d.cls 627
+fn_s3d_render_r_tidy:		; S3d.cls 647
+            ld ix, arr_s3d_bas + 12		; S3d.cls 648
+            call fn_s3d_render_r_unit		; S3d.cls 649
+            ld ix, arr_s3d_bas		; S3d.cls 650
+            ld iy, arr_s3d_bas + 12		; S3d.cls 651
+            call fn_s3d_render_r_dot		; S3d.cls 652
+            ld (fn_s3d_render_w_t), hl            ; right . forward [653]
+            ld b, 3		; S3d.cls 654
+fn_s3d_render_td_lp:		; S3d.cls 655
+            push bc		; S3d.cls 656
+            ld e, (iy + 0)		; S3d.cls 657
+            ld d, (iy + 1)		; S3d.cls 658
+            ld bc, (fn_s3d_render_w_t)		; S3d.cls 659
+            call fn_s3d_render_mulfix		; S3d.cls 660
+            ex de, hl		; S3d.cls 661
+            ld l, (ix + 0)		; S3d.cls 662
+            ld h, (ix + 1)		; S3d.cls 663
+            or a		; S3d.cls 664
+            sbc hl, de		; S3d.cls 665
+            ld (ix + 0), l		; S3d.cls 666
+            ld (ix + 1), h		; S3d.cls 667
+            inc ix		; S3d.cls 668
+            inc ix		; S3d.cls 669
+            inc iy		; S3d.cls 670
+            inc iy		; S3d.cls 671
+            pop bc		; S3d.cls 672
+            djnz fn_s3d_render_td_lp		; S3d.cls 673
+            ld ix, arr_s3d_bas		; S3d.cls 674
+            call fn_s3d_render_r_unit		; S3d.cls 675
+            ld de, (arr_s3d_bas + 14)     ; up x = Fy Rz - Fz Ry [676]
+            ld bc, (arr_s3d_bas + 4)		; S3d.cls 677
+            call fn_s3d_render_mulfix		; S3d.cls 678
+            ld (fn_s3d_render_w_t), hl		; S3d.cls 679
+            ld de, (arr_s3d_bas + 16)		; S3d.cls 680
+            ld bc, (arr_s3d_bas + 2)		; S3d.cls 681
+            call fn_s3d_render_mulfix		; S3d.cls 682
+            ex de, hl		; S3d.cls 683
+            ld hl, (fn_s3d_render_w_t)		; S3d.cls 684
+            or a		; S3d.cls 685
+            sbc hl, de		; S3d.cls 686
+            ld (arr_s3d_bas + 6), hl		; S3d.cls 687
+            ld de, (arr_s3d_bas + 16)     ; up y = Fz Rx - Fx Rz [688]
+            ld bc, (arr_s3d_bas)		; S3d.cls 689
+            call fn_s3d_render_mulfix		; S3d.cls 690
+            ld (fn_s3d_render_w_t), hl		; S3d.cls 691
+            ld de, (arr_s3d_bas + 12)		; S3d.cls 692
+            ld bc, (arr_s3d_bas + 4)		; S3d.cls 693
+            call fn_s3d_render_mulfix		; S3d.cls 694
+            ex de, hl		; S3d.cls 695
+            ld hl, (fn_s3d_render_w_t)		; S3d.cls 696
+            or a		; S3d.cls 697
+            sbc hl, de		; S3d.cls 698
+            ld (arr_s3d_bas + 8), hl		; S3d.cls 699
+            ld de, (arr_s3d_bas + 12)     ; up z = Fx Ry - Fy Rx [700]
+            ld bc, (arr_s3d_bas + 2)		; S3d.cls 701
+            call fn_s3d_render_mulfix		; S3d.cls 702
+            ld (fn_s3d_render_w_t), hl		; S3d.cls 703
+            ld de, (arr_s3d_bas + 14)		; S3d.cls 704
+            ld bc, (arr_s3d_bas)		; S3d.cls 705
+            call fn_s3d_render_mulfix		; S3d.cls 706
+            ex de, hl		; S3d.cls 707
+            ld hl, (fn_s3d_render_w_t)		; S3d.cls 708
+            or a		; S3d.cls 709
+            sbc hl, de		; S3d.cls 710
+            ld (arr_s3d_bas + 10), hl		; S3d.cls 711
+            ret		; S3d.cls 712
 ; r_dot - HL = (IX) . (IY), vectors of 3
-fn_s3d_render_r_dot:		; S3d.cls 629
-            ld e, (ix + 0)		; S3d.cls 630
-            ld d, (ix + 1)		; S3d.cls 631
-            ld c, (iy + 0)		; S3d.cls 632
-            ld b, (iy + 1)		; S3d.cls 633
-            call fn_s3d_render_mulfix		; S3d.cls 634
-            ld (fn_s3d_render_w_d), hl		; S3d.cls 635
-            ld e, (ix + 2)		; S3d.cls 636
-            ld d, (ix + 3)		; S3d.cls 637
-            ld c, (iy + 2)		; S3d.cls 638
-            ld b, (iy + 3)		; S3d.cls 639
-            call fn_s3d_render_mulfix		; S3d.cls 640
-            ld de, (fn_s3d_render_w_d)		; S3d.cls 641
-            add hl, de		; S3d.cls 642
-            ld (fn_s3d_render_w_d), hl		; S3d.cls 643
-            ld e, (ix + 4)		; S3d.cls 644
-            ld d, (ix + 5)		; S3d.cls 645
-            ld c, (iy + 4)		; S3d.cls 646
-            ld b, (iy + 5)		; S3d.cls 647
-            call fn_s3d_render_mulfix		; S3d.cls 648
-            ld de, (fn_s3d_render_w_d)		; S3d.cls 649
-            add hl, de		; S3d.cls 650
-            ret		; S3d.cls 651
+fn_s3d_render_r_dot:		; S3d.cls 714
+            ld e, (ix + 0)		; S3d.cls 715
+            ld d, (ix + 1)		; S3d.cls 716
+            ld c, (iy + 0)		; S3d.cls 717
+            ld b, (iy + 1)		; S3d.cls 718
+            call fn_s3d_render_mulfix		; S3d.cls 719
+            ld (fn_s3d_render_w_d), hl		; S3d.cls 720
+            ld e, (ix + 2)		; S3d.cls 721
+            ld d, (ix + 3)		; S3d.cls 722
+            ld c, (iy + 2)		; S3d.cls 723
+            ld b, (iy + 3)		; S3d.cls 724
+            call fn_s3d_render_mulfix		; S3d.cls 725
+            ld de, (fn_s3d_render_w_d)		; S3d.cls 726
+            add hl, de		; S3d.cls 727
+            ld (fn_s3d_render_w_d), hl		; S3d.cls 728
+            ld e, (ix + 4)		; S3d.cls 729
+            ld d, (ix + 5)		; S3d.cls 730
+            ld c, (iy + 4)		; S3d.cls 731
+            ld b, (iy + 5)		; S3d.cls 732
+            call fn_s3d_render_mulfix		; S3d.cls 733
+            ld de, (fn_s3d_render_w_d)		; S3d.cls 734
+            add hl, de		; S3d.cls 735
+            ret		; S3d.cls 736
 ; r_unit - (IX) scaled to length 1: times (3 - |v|^2) / 2 (close to 1 already)
-fn_s3d_render_r_unit:		; S3d.cls 653
-            push ix		; S3d.cls 654
-            pop iy		; S3d.cls 655
-            call fn_s3d_render_r_dot		; S3d.cls 656
-            sra h		; S3d.cls 657
-            rr l		; S3d.cls 658
-            ex de, hl		; S3d.cls 659
-            ld hl, 24576		; S3d.cls 660
-            or a		; S3d.cls 661
-            sbc hl, de		; S3d.cls 662
-            ld (fn_s3d_render_w_k), hl		; S3d.cls 663
-            ld b, 3		; S3d.cls 664
-fn_s3d_render_ru_lp:		; S3d.cls 665
-            push bc		; S3d.cls 666
-            ld e, (ix + 0)		; S3d.cls 667
-            ld d, (ix + 1)		; S3d.cls 668
-            ld bc, (fn_s3d_render_w_k)		; S3d.cls 669
-            call fn_s3d_render_mulfix		; S3d.cls 670
-            ld (ix + 0), l		; S3d.cls 671
-            ld (ix + 1), h		; S3d.cls 672
-            inc ix		; S3d.cls 673
-            inc ix		; S3d.cls 674
-            pop bc		; S3d.cls 675
-            djnz fn_s3d_render_ru_lp		; S3d.cls 676
-            ret		; S3d.cls 677
+fn_s3d_render_r_unit:		; S3d.cls 738
+            push ix		; S3d.cls 739
+            pop iy		; S3d.cls 740
+            call fn_s3d_render_r_dot		; S3d.cls 741
+            sra h		; S3d.cls 742
+            rr l		; S3d.cls 743
+            ex de, hl		; S3d.cls 744
+            ld hl, 24576		; S3d.cls 745
+            or a		; S3d.cls 746
+            sbc hl, de		; S3d.cls 747
+            ld (fn_s3d_render_w_k), hl		; S3d.cls 748
+            ld b, 3		; S3d.cls 749
+fn_s3d_render_ru_lp:		; S3d.cls 750
+            push bc		; S3d.cls 751
+            ld e, (ix + 0)		; S3d.cls 752
+            ld d, (ix + 1)		; S3d.cls 753
+            ld bc, (fn_s3d_render_w_k)		; S3d.cls 754
+            call fn_s3d_render_mulfix		; S3d.cls 755
+            ld (ix + 0), l		; S3d.cls 756
+            ld (ix + 1), h		; S3d.cls 757
+            inc ix		; S3d.cls 758
+            inc ix		; S3d.cls 759
+            pop bc		; S3d.cls 760
+            djnz fn_s3d_render_ru_lp		; S3d.cls 761
+            ret		; S3d.cls 762
 
 
 ; r_fly - the camera moved forward by spd; kept inside the world, y 8 - 4000 (4 m - 2 km)
-fn_s3d_render_r_fly:		; S3d.cls 681
-            ld ix, var_s3d_qx		; S3d.cls 682
-            ld de, (arr_s3d_bas + 12)		; S3d.cls 683
-            call fn_s3d_render_fl_add		; S3d.cls 684
-            ld ix, var_s3d_qy		; S3d.cls 685
-            ld de, (arr_s3d_bas + 14)		; S3d.cls 686
-            call fn_s3d_render_fl_add		; S3d.cls 687
-            ld ix, var_s3d_qz		; S3d.cls 688
-            ld de, (arr_s3d_bas + 16)		; S3d.cls 689
-            call fn_s3d_render_fl_add		; S3d.cls 690
-            ld ix, var_s3d_qx		; S3d.cls 691
-            ld hl, (var_s3d_x0)		; S3d.cls 692
-            ld de, 64		; S3d.cls 693
-            add hl, de		; S3d.cls 694
-            ex de, hl		; S3d.cls 695
-            ld hl, (var_s3d_x1)		; S3d.cls 696
-            ld bc, -64		; S3d.cls 697
-            add hl, bc		; S3d.cls 698
-            call fn_s3d_render_fl_clamp		; S3d.cls 699
-            ld (var_s3d_camx), de		; S3d.cls 700
-            ld ix, var_s3d_qz		; S3d.cls 701
-            ld hl, (var_s3d_z0)		; S3d.cls 702
-            ld de, 64		; S3d.cls 703
-            add hl, de		; S3d.cls 704
-            ex de, hl		; S3d.cls 705
-            ld hl, (var_s3d_z1)		; S3d.cls 706
-            ld bc, -64		; S3d.cls 707
-            add hl, bc		; S3d.cls 708
-            call fn_s3d_render_fl_clamp		; S3d.cls 709
-            ld (var_s3d_camz), de		; S3d.cls 710
-            ld ix, var_s3d_qy		; S3d.cls 711
-            ld de, 8		; S3d.cls 712
-            ld hl, 4000		; S3d.cls 713
-            call fn_s3d_render_fl_clamp		; S3d.cls 714
-            ld (var_s3d_camy), de		; S3d.cls 715
-            ret		; S3d.cls 716
+fn_s3d_render_r_fly:		; S3d.cls 766
+            ld ix, var_s3d_qx		; S3d.cls 767
+            ld de, (arr_s3d_bas + 12)		; S3d.cls 768
+            call fn_s3d_render_fl_add		; S3d.cls 769
+            ld ix, var_s3d_qy		; S3d.cls 770
+            ld de, (arr_s3d_bas + 14)		; S3d.cls 771
+            call fn_s3d_render_fl_add		; S3d.cls 772
+            ld ix, var_s3d_qz		; S3d.cls 773
+            ld de, (arr_s3d_bas + 16)		; S3d.cls 774
+            call fn_s3d_render_fl_add		; S3d.cls 775
+            ld ix, var_s3d_qx		; S3d.cls 776
+            ld hl, (var_s3d_x0)		; S3d.cls 777
+            ld de, 64		; S3d.cls 778
+            add hl, de		; S3d.cls 779
+            ex de, hl		; S3d.cls 780
+            ld hl, (var_s3d_x1)		; S3d.cls 781
+            ld bc, -64		; S3d.cls 782
+            add hl, bc		; S3d.cls 783
+            call fn_s3d_render_fl_clamp		; S3d.cls 784
+            ld (var_s3d_camx), de		; S3d.cls 785
+            ld ix, var_s3d_qz		; S3d.cls 786
+            ld hl, (var_s3d_z0)		; S3d.cls 787
+            ld de, 64		; S3d.cls 788
+            add hl, de		; S3d.cls 789
+            ex de, hl		; S3d.cls 790
+            ld hl, (var_s3d_z1)		; S3d.cls 791
+            ld bc, -64		; S3d.cls 792
+            add hl, bc		; S3d.cls 793
+            call fn_s3d_render_fl_clamp		; S3d.cls 794
+            ld (var_s3d_camz), de		; S3d.cls 795
+            ld ix, var_s3d_qy		; S3d.cls 796
+            ld de, 8		; S3d.cls 797
+            ld hl, 4000		; S3d.cls 798
+            call fn_s3d_render_fl_clamp		; S3d.cls 799
+            ld (var_s3d_camy), de		; S3d.cls 800
+            ret		; S3d.cls 801
 ; fl_clamp - (IX), a Long, / 16384 kept from DE to HL (signed): DE = it, (IX) set to it * 16384
 ; when it was outside
-fn_s3d_render_fl_clamp:		; S3d.cls 719
-            ld (fn_s3d_render_w_lo), de		; S3d.cls 720
-            ld (fn_s3d_render_w_hi), hl		; S3d.cls 721
-            call fn_s3d_render_fl_w		; S3d.cls 722
-            push de		; S3d.cls 723
-            ex de, hl		; S3d.cls 724
-            ld de, (fn_s3d_render_w_lo)		; S3d.cls 725
-            call fn_s3d_render_cmps		; S3d.cls 726
-            pop de		; S3d.cls 727
-            jr c, fn_s3d_render_fc_set0		; S3d.cls 728
-            push de		; S3d.cls 729
-            ld hl, (fn_s3d_render_w_hi)		; S3d.cls 730
-            call fn_s3d_render_cmps                 ; hi < it? [731]
-            pop de		; S3d.cls 732
-            ret nc		; S3d.cls 733
-            ld de, (fn_s3d_render_w_hi)		; S3d.cls 734
-            jr fn_s3d_render_fc_set		; S3d.cls 735
-fn_s3d_render_fc_set0:		; S3d.cls 736
-            ld de, (fn_s3d_render_w_lo)		; S3d.cls 737
-fn_s3d_render_fc_set:		; S3d.cls 738
-            ld (ix + 0), 0            ; it * 16384: low word (it & 3) << 14, high word it >> 2 [739]
-            ld a, e		; S3d.cls 740
-            rrca		; S3d.cls 741
-            rrca		; S3d.cls 742
-            and #C0		; S3d.cls 743
-            ld (ix + 1), a		; S3d.cls 744
-            ld l, e		; S3d.cls 745
-            ld h, d		; S3d.cls 746
-            sra h		; S3d.cls 747
-            rr l		; S3d.cls 748
-            sra h		; S3d.cls 749
-            rr l		; S3d.cls 750
-            ld (ix + 2), l		; S3d.cls 751
-            ld (ix + 3), h		; S3d.cls 752
-            ret		; S3d.cls 753
+fn_s3d_render_fl_clamp:		; S3d.cls 804
+            ld (fn_s3d_render_w_lo), de		; S3d.cls 805
+            ld (fn_s3d_render_w_hi), hl		; S3d.cls 806
+            call fn_s3d_render_fl_w		; S3d.cls 807
+            push de		; S3d.cls 808
+            ex de, hl		; S3d.cls 809
+            ld de, (fn_s3d_render_w_lo)		; S3d.cls 810
+            CMPS		; S3d.cls 811
+            pop de		; S3d.cls 812
+            jr c, fn_s3d_render_fc_set0		; S3d.cls 813
+            push de		; S3d.cls 814
+            ld hl, (fn_s3d_render_w_hi)		; S3d.cls 815
+            CMPS                 ; hi < it? [816]
+            pop de		; S3d.cls 817
+            ret nc		; S3d.cls 818
+            ld de, (fn_s3d_render_w_hi)		; S3d.cls 819
+            jr fn_s3d_render_fc_set		; S3d.cls 820
+fn_s3d_render_fc_set0:		; S3d.cls 821
+            ld de, (fn_s3d_render_w_lo)		; S3d.cls 822
+fn_s3d_render_fc_set:		; S3d.cls 823
+            ld (ix + 0), 0            ; it * 16384: low word (it & 3) << 14, high word it >> 2 [824]
+            ld a, e		; S3d.cls 825
+            rrca		; S3d.cls 826
+            rrca		; S3d.cls 827
+            and #C0		; S3d.cls 828
+            ld (ix + 1), a		; S3d.cls 829
+            ld l, e		; S3d.cls 830
+            ld h, d		; S3d.cls 831
+            sra h		; S3d.cls 832
+            rr l		; S3d.cls 833
+            sra h		; S3d.cls 834
+            rr l		; S3d.cls 835
+            ld (ix + 2), l		; S3d.cls 836
+            ld (ix + 3), h		; S3d.cls 837
+            ret		; S3d.cls 838
 ; fl_add - (IX), a Long, + DE * spd
-fn_s3d_render_fl_add:		; S3d.cls 755
-            ld bc, (var_s3d_spd)		; S3d.cls 756
-            call fn_s3d_render_mul16s		; S3d.cls 757
-            ld a, (ix + 0)		; S3d.cls 758
-            add a, l		; S3d.cls 759
-            ld (ix + 0), a		; S3d.cls 760
-            ld a, (ix + 1)		; S3d.cls 761
-            adc a, h		; S3d.cls 762
-            ld (ix + 1), a		; S3d.cls 763
-            ld a, (ix + 2)		; S3d.cls 764
-            adc a, e		; S3d.cls 765
-            ld (ix + 2), a		; S3d.cls 766
-            ld a, (ix + 3)		; S3d.cls 767
-            adc a, d		; S3d.cls 768
-            ld (ix + 3), a		; S3d.cls 769
-            ret		; S3d.cls 770
+fn_s3d_render_fl_add:		; S3d.cls 840
+            ld bc, (var_s3d_spd)		; S3d.cls 841
+            call fn_s3d_render_mul16s		; S3d.cls 842
+            ld a, (ix + 0)		; S3d.cls 843
+            add a, l		; S3d.cls 844
+            ld (ix + 0), a		; S3d.cls 845
+            ld a, (ix + 1)		; S3d.cls 846
+            adc a, h		; S3d.cls 847
+            ld (ix + 1), a		; S3d.cls 848
+            ld a, (ix + 2)		; S3d.cls 849
+            adc a, e		; S3d.cls 850
+            ld (ix + 2), a		; S3d.cls 851
+            ld a, (ix + 3)		; S3d.cls 852
+            adc a, d		; S3d.cls 853
+            ld (ix + 3), a		; S3d.cls 854
+            ret		; S3d.cls 855
 ; fl_w - DE = (IX), a Long, / 16384
-fn_s3d_render_fl_w:		; S3d.cls 772
-            ld l, (ix + 0)		; S3d.cls 773
-            ld h, (ix + 1)		; S3d.cls 774
-            ld e, (ix + 2)		; S3d.cls 775
-            ld d, (ix + 3)		; S3d.cls 776
-            add hl, hl		; S3d.cls 777
-            rl e		; S3d.cls 778
-            rl d		; S3d.cls 779
-            add hl, hl		; S3d.cls 780
-            rl e		; S3d.cls 781
-            rl d		; S3d.cls 782
-            ret		; S3d.cls 783
+fn_s3d_render_fl_w:		; S3d.cls 857
+            ld l, (ix + 0)		; S3d.cls 858
+            ld h, (ix + 1)		; S3d.cls 859
+            ld e, (ix + 2)		; S3d.cls 860
+            ld d, (ix + 3)		; S3d.cls 861
+            add hl, hl		; S3d.cls 862
+            rl e		; S3d.cls 863
+            rl d		; S3d.cls 864
+            add hl, hl		; S3d.cls 865
+            rl e		; S3d.cls 866
+            rl d		; S3d.cls 867
+            ret		; S3d.cls 868
 
 ; ---- the frame's tables: a local x's, z's and height's camera X, Y, Z (a vertex is then
 ; six additions). Each step is 2 m (4 units): its number = basis * k / 4096, built by adding
 ; basis / 16 (in 1/256 units, 24 bits) each step
 
-fn_s3d_render_r_tabs:		; S3d.cls 789
-            ld iy, arr_s3d_bas            ; {TX}: x - R.x, U.x, F.x (bas + 0, 6, 12) [790]
-            ld ix, 36688		; S3d.cls 791
-            ld a, 1		; S3d.cls 792
-            call fn_s3d_render_tb_three		; S3d.cls 793
-            ld iy, arr_s3d_bas + 4        ; {TZ}: z [794]
-            ld ix, 38224		; S3d.cls 795
-            ld a, 1		; S3d.cls 796
-            call fn_s3d_render_tb_three		; S3d.cls 797
-            ld iy, arr_s3d_bas + 2        ; {TH}: y (heights: 0 - 191) [798]
-            ld ix, 39760		; S3d.cls 799
-            xor a		; S3d.cls 800
+fn_s3d_render_r_tabs:		; S3d.cls 874
+            ld iy, arr_s3d_bas            ; {TX}: x - R.x, U.x, F.x (bas + 0, 6, 12) [875]
+            ld ix, 36688		; S3d.cls 876
+            ld a, 1		; S3d.cls 877
+            call fn_s3d_render_tb_three		; S3d.cls 878
+            ld iy, arr_s3d_bas + 4        ; {TZ}: z [879]
+            ld ix, 38224		; S3d.cls 880
+            ld a, 1		; S3d.cls 881
+            call fn_s3d_render_tb_three		; S3d.cls 882
+            ld iy, arr_s3d_bas + 2        ; {TH}: y (heights: 0 - 191) [883]
+            ld ix, 39760		; S3d.cls 884
+            xor a		; S3d.cls 885
 ; tb_three - the three numbers of each entry from IX: the basis at IY, IY + 6, IY + 12; A = 1
 ; signed (entry 128 is -128)
-fn_s3d_render_tb_three:		; S3d.cls 803
-            ld (fn_s3d_render_w_sgn), a		; S3d.cls 804
-            ld b, 3		; S3d.cls 805
-fn_s3d_render_t3_lp:		; S3d.cls 806
-            push bc		; S3d.cls 807
-            push ix		; S3d.cls 808
-            ld e, (iy + 0)		; S3d.cls 809
-            ld d, (iy + 1)		; S3d.cls 810
-            call fn_s3d_render_tb_one		; S3d.cls 811
-            pop ix		; S3d.cls 812
-            inc ix		; S3d.cls 813
-            inc ix		; S3d.cls 814
-            ld de, 6		; S3d.cls 815
-            add iy, de		; S3d.cls 816
-            pop bc		; S3d.cls 817
-            djnz fn_s3d_render_t3_lp		; S3d.cls 818
-            ret		; S3d.cls 819
+fn_s3d_render_tb_three:		; S3d.cls 888
+            ld (fn_s3d_render_w_sgn), a		; S3d.cls 889
+            ld b, 3		; S3d.cls 890
+fn_s3d_render_t3_lp:		; S3d.cls 891
+            push bc		; S3d.cls 892
+            push ix		; S3d.cls 893
+            ld e, (iy + 0)		; S3d.cls 894
+            ld d, (iy + 1)		; S3d.cls 895
+            call fn_s3d_render_tb_one		; S3d.cls 896
+            pop ix		; S3d.cls 897
+            inc ix		; S3d.cls 898
+            inc ix		; S3d.cls 899
+            ld de, 6		; S3d.cls 900
+            add iy, de		; S3d.cls 901
+            pop bc		; S3d.cls 902
+            djnz fn_s3d_render_t3_lp		; S3d.cls 903
+            ret		; S3d.cls 904
 ; tb_one - DE = the basis number: 256 entries from IX (6 bytes apart)
-fn_s3d_render_tb_one:		; S3d.cls 821
-            ld l, e                 ; v = basis / 16 [822]
-            ld h, d		; S3d.cls 823
-            sra h		; S3d.cls 824
-            rr l		; S3d.cls 825
-            sra h		; S3d.cls 826
-            rr l		; S3d.cls 827
-            sra h		; S3d.cls 828
-            rr l		; S3d.cls 829
-            sra h		; S3d.cls 830
-            rr l		; S3d.cls 831
-            ld (fn_s3d_render_w_v), hl		; S3d.cls 832
-            ld a, (fn_s3d_render_w_sgn)		; S3d.cls 833
-            or a		; S3d.cls 834
-            jr z, fn_s3d_render_to_u		; S3d.cls 835
-            push ix                 ; signed: entries 128-255 (k = -128 .. -1) from -128 v [836]
-            ld de, 768		; S3d.cls 837
-            add ix, de		; S3d.cls 838
-            ld de, (fn_s3d_render_w_v)		; S3d.cls 839
-            ld bc, -128		; S3d.cls 840
-            call fn_s3d_render_mul16s             ; DEHL = -128 v: its low 24 bits [841]
-            ld (fn_s3d_render_w_acc), hl		; S3d.cls 842
-            ld a, e		; S3d.cls 843
-            ld (fn_s3d_render_w_acc + 2), a		; S3d.cls 844
-            ld a, 128		; S3d.cls 845
-            call fn_s3d_render_tb_run		; S3d.cls 846
-            pop ix		; S3d.cls 847
-            ld hl, 0		; S3d.cls 848
-            ld (fn_s3d_render_w_acc), hl		; S3d.cls 849
-            xor a		; S3d.cls 850
-            ld (fn_s3d_render_w_acc + 2), a		; S3d.cls 851
-            ld a, 128		; S3d.cls 852
-            jp fn_s3d_render_tb_run		; S3d.cls 853
-fn_s3d_render_to_u:		; S3d.cls 854
-            ld hl, 0		; S3d.cls 855
-            ld (fn_s3d_render_w_acc), hl		; S3d.cls 856
-            ld (fn_s3d_render_w_acc + 2), a		; S3d.cls 857
-            ld a, 128		; S3d.cls 858
-            call fn_s3d_render_tb_run		; S3d.cls 859
-            ld a, 64                ; (heights: 192 entries) [860]
+fn_s3d_render_tb_one:		; S3d.cls 906
+            ld l, e                 ; v = basis / 16 [907]
+            ld h, d		; S3d.cls 908
+            sra h		; S3d.cls 909
+            rr l		; S3d.cls 910
+            sra h		; S3d.cls 911
+            rr l		; S3d.cls 912
+            sra h		; S3d.cls 913
+            rr l		; S3d.cls 914
+            sra h		; S3d.cls 915
+            rr l		; S3d.cls 916
+            ld (fn_s3d_render_w_v), hl		; S3d.cls 917
+            ld a, (fn_s3d_render_w_sgn)		; S3d.cls 918
+            or a		; S3d.cls 919
+            jr z, fn_s3d_render_to_u		; S3d.cls 920
+            push ix                 ; signed: entries 128-255 (k = -128 .. -1) from -128 v [921]
+            ld de, 768		; S3d.cls 922
+            add ix, de		; S3d.cls 923
+            ld de, (fn_s3d_render_w_v)		; S3d.cls 924
+            ld bc, -128		; S3d.cls 925
+            call fn_s3d_render_mul16s             ; DEHL = -128 v: its low 24 bits [926]
+            ld (fn_s3d_render_w_acc), hl		; S3d.cls 927
+            ld a, e		; S3d.cls 928
+            ld (fn_s3d_render_w_acc + 2), a		; S3d.cls 929
+            ld a, 128		; S3d.cls 930
+            call fn_s3d_render_tb_run		; S3d.cls 931
+            pop ix		; S3d.cls 932
+            ld hl, 0		; S3d.cls 933
+            ld (fn_s3d_render_w_acc), hl		; S3d.cls 934
+            xor a		; S3d.cls 935
+            ld (fn_s3d_render_w_acc + 2), a		; S3d.cls 936
+            ld a, 128		; S3d.cls 937
+            jp fn_s3d_render_tb_run		; S3d.cls 938
+fn_s3d_render_to_u:		; S3d.cls 939
+            ld hl, 0		; S3d.cls 940
+            ld (fn_s3d_render_w_acc), hl		; S3d.cls 941
+            ld (fn_s3d_render_w_acc + 2), a		; S3d.cls 942
+            ld a, 128		; S3d.cls 943
+            call fn_s3d_render_tb_run		; S3d.cls 944
+            ld a, 64                ; (heights: 192 entries) [945]
 ; tb_run - A entries from IX: (acc >> 8), acc + v each
-fn_s3d_render_tb_run:		; S3d.cls 862
-            ld (fn_s3d_render_w_cnt), a		; S3d.cls 863
-            ld de, (fn_s3d_render_w_v)		; S3d.cls 864
-            ld a, d		; S3d.cls 865
-            rlca		; S3d.cls 866
-            sbc a, a		; S3d.cls 867
-            ld c, a                 ; C = v's sign (its top 8 bits) [868]
-            ld hl, (fn_s3d_render_w_acc)		; S3d.cls 869
-            ld a, (fn_s3d_render_w_acc + 2)		; S3d.cls 870
-            ld b, a		; S3d.cls 871
-fn_s3d_render_tr_lp:		; S3d.cls 872
-            ld (ix + 0), h		; S3d.cls 873
-            ld (ix + 1), b		; S3d.cls 874
-            add hl, de		; S3d.cls 875
-            ld a, b		; S3d.cls 876
-            adc a, c		; S3d.cls 877
-            ld b, a		; S3d.cls 878
-            push de		; S3d.cls 879
-            ld de, 6		; S3d.cls 880
-            add ix, de		; S3d.cls 881
-            pop de		; S3d.cls 882
-            ld a, (fn_s3d_render_w_cnt)		; S3d.cls 883
-            dec a		; S3d.cls 884
-            ld (fn_s3d_render_w_cnt), a		; S3d.cls 885
-            jr nz, fn_s3d_render_tr_lp		; S3d.cls 886
-            ld (fn_s3d_render_w_acc), hl		; S3d.cls 887
-            ld a, b		; S3d.cls 888
-            ld (fn_s3d_render_w_acc + 2), a		; S3d.cls 889
-            ret		; S3d.cls 890
+fn_s3d_render_tb_run:		; S3d.cls 947
+            ld (fn_s3d_render_w_cnt), a		; S3d.cls 948
+            ld de, (fn_s3d_render_w_v)		; S3d.cls 949
+            ld a, d		; S3d.cls 950
+            rlca		; S3d.cls 951
+            sbc a, a		; S3d.cls 952
+            ld c, a                 ; C = v's sign (its top 8 bits) [953]
+            ld hl, (fn_s3d_render_w_acc)		; S3d.cls 954
+            ld a, (fn_s3d_render_w_acc + 2)		; S3d.cls 955
+            ld b, a		; S3d.cls 956
+fn_s3d_render_tr_lp:		; S3d.cls 957
+            ld (ix + 0), h		; S3d.cls 958
+            ld (ix + 1), b		; S3d.cls 959
+            add hl, de		; S3d.cls 960
+            ld a, b		; S3d.cls 961
+            adc a, c		; S3d.cls 962
+            ld b, a		; S3d.cls 963
+            push de		; S3d.cls 964
+            ld de, 6		; S3d.cls 965
+            add ix, de		; S3d.cls 966
+            pop de		; S3d.cls 967
+            ld a, (fn_s3d_render_w_cnt)		; S3d.cls 968
+            dec a		; S3d.cls 969
+            ld (fn_s3d_render_w_cnt), a		; S3d.cls 970
+            jr nz, fn_s3d_render_tr_lp		; S3d.cls 971
+            ld (fn_s3d_render_w_acc), hl		; S3d.cls 972
+            ld a, b		; S3d.cls 973
+            ld (fn_s3d_render_w_acc + 2), a		; S3d.cls 974
+            ret		; S3d.cls 975
 
 ; r_clear - rows 1-24 of the screen being drawn on cleared (row 0 is the text line)
-fn_s3d_render_r_clear:		; S3d.cls 893
-    IFDEF NTC_ZXN		; S3d.cls 894
-            jp zxn_gclr             ; (the Next: the Layer 2 buffer drawn on - all of it: the text is on [895]
-    ENDIF                           ; the tilemap, over it) [896]
-            di                      ; SP goes through the screen: no interrupts meanwhile [897]
-            call gfx_begin		; S3d.cls 898
-            ld (fn_s3d_render_w_csp), sp		; S3d.cls 899
-            ld a, (gfx_base)		; S3d.cls 900
-            add a, #3F		; S3d.cls 901
-            ld h, a		; S3d.cls 902
-            ld l, #D0               ; the end of the last 2K block's 25 rows [903]
-            ld c, 8		; S3d.cls 904
-fn_s3d_render_cl_blk:		; S3d.cls 905
-            ld (fn_s3d_render_w_crp), hl		; S3d.cls 906
-            ld sp, (fn_s3d_render_w_crp)		; S3d.cls 907
-            ld de, 0		; S3d.cls 908
-            ld b, 60                ; 60 x 32 bytes = 1920: rows 1-24 [909]
-fn_s3d_render_cl_lp:		; S3d.cls 910
-            push de		; S3d.cls 911
-            push de		; S3d.cls 912
-            push de		; S3d.cls 913
-            push de		; S3d.cls 914
-            push de		; S3d.cls 915
-            push de		; S3d.cls 916
-            push de		; S3d.cls 917
-            push de		; S3d.cls 918
-            push de		; S3d.cls 919
-            push de		; S3d.cls 920
-            push de		; S3d.cls 921
-            push de		; S3d.cls 922
-            push de		; S3d.cls 923
-            push de		; S3d.cls 924
-            push de		; S3d.cls 925
-            push de		; S3d.cls 926
-            djnz fn_s3d_render_cl_lp		; S3d.cls 927
-            ld a, h		; S3d.cls 928
-            sub 8		; S3d.cls 929
-            ld h, a		; S3d.cls 930
-            dec c		; S3d.cls 931
-            jr nz, fn_s3d_render_cl_blk		; S3d.cls 932
-            ld sp, (fn_s3d_render_w_csp)		; S3d.cls 933
-            call gfx_end		; S3d.cls 934
-            ei		; S3d.cls 935
-            ret		; S3d.cls 936
+fn_s3d_render_r_clear:		; S3d.cls 978
+    IFDEF NTC_ZXN		; S3d.cls 979
+            jp zxn_gclr             ; (the Next: the Layer 2 buffer drawn on - all of it: the text is on [980]
+    ENDIF                           ; the tilemap, over it) [981]
+            di                      ; SP goes through the screen: no interrupts meanwhile [982]
+            call gfx_begin		; S3d.cls 983
+            ld (fn_s3d_render_w_csp), sp		; S3d.cls 984
+            ld a, (gfx_base)		; S3d.cls 985
+            add a, #3F		; S3d.cls 986
+            ld h, a		; S3d.cls 987
+            ld l, #D0               ; the end of the last 2K block's 25 rows [988]
+            ld c, 8		; S3d.cls 989
+fn_s3d_render_cl_blk:		; S3d.cls 990
+            ld (fn_s3d_render_w_crp), hl		; S3d.cls 991
+            ld sp, (fn_s3d_render_w_crp)		; S3d.cls 992
+            ld de, 0		; S3d.cls 993
+            ld b, 60                ; 60 x 32 bytes = 1920: rows 1-24 [994]
+fn_s3d_render_cl_lp:		; S3d.cls 995
+            push de		; S3d.cls 996
+            push de		; S3d.cls 997
+            push de		; S3d.cls 998
+            push de		; S3d.cls 999
+            push de		; S3d.cls 1000
+            push de		; S3d.cls 1001
+            push de		; S3d.cls 1002
+            push de		; S3d.cls 1003
+            push de		; S3d.cls 1004
+            push de		; S3d.cls 1005
+            push de		; S3d.cls 1006
+            push de		; S3d.cls 1007
+            push de		; S3d.cls 1008
+            push de		; S3d.cls 1009
+            push de		; S3d.cls 1010
+            push de		; S3d.cls 1011
+            djnz fn_s3d_render_cl_lp		; S3d.cls 1012
+            ld a, h		; S3d.cls 1013
+            sub 8		; S3d.cls 1014
+            ld h, a		; S3d.cls 1015
+            dec c		; S3d.cls 1016
+            jr nz, fn_s3d_render_cl_blk		; S3d.cls 1017
+            ld sp, (fn_s3d_render_w_csp)		; S3d.cls 1018
+            call gfx_end		; S3d.cls 1019
+            ei		; S3d.cls 1020
+            ret		; S3d.cls 1021
 
 
 ; ---- the world: the landmark tiles further away (only their 3D lines), then the tiles round
 ; the camera, nearest first
 
-fn_s3d_render_r_world:		; S3d.cls 942
-            ld hl, 0		; S3d.cls 943
-            ld (fn_s3d_render_w_nl), hl		; S3d.cls 944
-            xor a		; S3d.cls 945
-            ld (fn_s3d_render_w_stop), a		; S3d.cls 946
-            ld hl, (var_s3d_camx)         ; the camera's tile [947]
-            ld de, (var_s3d_x0)		; S3d.cls 948
-            or a		; S3d.cls 949
-            sbc hl, de		; S3d.cls 950
-            call fn_s3d_render_d768		; S3d.cls 951
-            ld (fn_s3d_render_w_ci), a		; S3d.cls 952
-            ld hl, (var_s3d_camz)		; S3d.cls 953
-            ld de, (var_s3d_z0)		; S3d.cls 954
-            or a		; S3d.cls 955
-            sbc hl, de		; S3d.cls 956
-            call fn_s3d_render_d768		; S3d.cls 957
-            ld (fn_s3d_render_w_cj), a		; S3d.cls 958
-            ld a, 1                 ; the landmarks: 4 to 9 tiles away (the far ones to 29) [959]
-            ld (fn_s3d_render_w_mode), a		; S3d.cls 960
-            ld hl, 40912		; S3d.cls 961
-            ld bc, (var_s3d_nlm)		; S3d.cls 962
-fn_s3d_render_rw_lm:		; S3d.cls 963
-            ld a, b		; S3d.cls 964
-            or c		; S3d.cls 965
-            jr z, fn_s3d_render_rw_near		; S3d.cls 966
-            push bc		; S3d.cls 967
-            ld a, (hl)		; S3d.cls 968
-            and 128		; S3d.cls 969
-            ld (var_s3d_lmf), a           ; (bit 7: a far one - to 29 tiles) [970]
-            ld a, (hl)		; S3d.cls 971
-            and 127		; S3d.cls 972
-            ld (fn_s3d_render_w_ti), a		; S3d.cls 973
-            inc hl		; S3d.cls 974
-            ld a, (hl)		; S3d.cls 975
-            ld (fn_s3d_render_w_tj), a		; S3d.cls 976
-            inc hl		; S3d.cls 977
-            push hl		; S3d.cls 978
-            ld a, (fn_s3d_render_w_ti)		; S3d.cls 979
-            ld hl, fn_s3d_render_w_ci		; S3d.cls 980
-            call fn_s3d_render_rw_far             ; A = how far (tiles), the most of the two [981]
-            ld b, a		; S3d.cls 982
-            ld a, (fn_s3d_render_w_tj)		; S3d.cls 983
-            ld hl, fn_s3d_render_w_cj		; S3d.cls 984
-            call fn_s3d_render_rw_far		; S3d.cls 985
-            cp b		; S3d.cls 986
-            jr nc, fn_s3d_render_rw_lm1		; S3d.cls 987
-            ld a, b		; S3d.cls 988
-fn_s3d_render_rw_lm1:		; S3d.cls 989
-            cp 4		; S3d.cls 990
-            jr c, fn_s3d_render_rw_lm2		; S3d.cls 991
-            ld c, a		; S3d.cls 992
-            ld a, (var_s3d_lmf)		; S3d.cls 993
-            or a		; S3d.cls 994
-            ld a, c		; S3d.cls 995
-            jr z, fn_s3d_render_rw_lm3		; S3d.cls 996
-            cp 30                   ; far: to 29 tiles (11 km: the tile's middle stays in 16 bits) [997]
-            call c, fn_s3d_render_tl_one		; S3d.cls 998
-            jr fn_s3d_render_rw_lm2		; S3d.cls 999
-fn_s3d_render_rw_lm3:		; S3d.cls 1000
-            cp 10		; S3d.cls 1001
-            call c, fn_s3d_render_tl_one		; S3d.cls 1002
-fn_s3d_render_rw_lm2:		; S3d.cls 1003
-            pop hl		; S3d.cls 1004
-            pop bc		; S3d.cls 1005
-            dec bc		; S3d.cls 1006
-            jr fn_s3d_render_rw_lm		; S3d.cls 1007
-fn_s3d_render_rw_near:		; S3d.cls 1008
-            ld hl, (fn_s3d_render_w_nl)           ; (the landmarks' lines: not in the budget) [1009]
-            ld (fn_s3d_render_w_nlm), hl		; S3d.cls 1010
-            ld hl, 0		; S3d.cls 1011
-            ld (fn_s3d_render_w_nl), hl		; S3d.cls 1012
-            xor a		; S3d.cls 1013
-            ld (fn_s3d_render_w_mode), a		; S3d.cls 1014
-            ld hl, fn_s3d_render_rw_ring		; S3d.cls 1015
-            ld b, 49		; S3d.cls 1016
-fn_s3d_render_rw_lp:		; S3d.cls 1017
-            push bc		; S3d.cls 1018
-            ld a, (fn_s3d_render_w_ci)		; S3d.cls 1019
-            add a, (hl)		; S3d.cls 1020
-            ld (fn_s3d_render_w_ti), a		; S3d.cls 1021
-            inc hl		; S3d.cls 1022
-            ld a, (fn_s3d_render_w_cj)		; S3d.cls 1023
-            add a, (hl)		; S3d.cls 1024
-            ld (fn_s3d_render_w_tj), a		; S3d.cls 1025
-            inc hl		; S3d.cls 1026
-            push hl		; S3d.cls 1027
-            call fn_s3d_render_tl_one		; S3d.cls 1028
-            pop hl		; S3d.cls 1029
-            pop bc		; S3d.cls 1030
-            ld a, (fn_s3d_render_w_stop)		; S3d.cls 1031
-            or a		; S3d.cls 1032
-            ret nz		; S3d.cls 1033
-            djnz fn_s3d_render_rw_lp		; S3d.cls 1034
-            ret		; S3d.cls 1035
+fn_s3d_render_r_world:		; S3d.cls 1027
+            ld hl, 0		; S3d.cls 1028
+            ld (fn_s3d_render_w_nl), hl		; S3d.cls 1029
+            xor a		; S3d.cls 1030
+            ld (fn_s3d_render_w_stop), a		; S3d.cls 1031
+            ld hl, (var_s3d_camx)         ; the camera's tile [1032]
+            ld de, (var_s3d_x0)		; S3d.cls 1033
+            or a		; S3d.cls 1034
+            sbc hl, de		; S3d.cls 1035
+            call fn_s3d_render_d768		; S3d.cls 1036
+            ld (fn_s3d_render_w_ci), a		; S3d.cls 1037
+            ld hl, (var_s3d_camz)		; S3d.cls 1038
+            ld de, (var_s3d_z0)		; S3d.cls 1039
+            or a		; S3d.cls 1040
+            sbc hl, de		; S3d.cls 1041
+            call fn_s3d_render_d768		; S3d.cls 1042
+            ld (fn_s3d_render_w_cj), a		; S3d.cls 1043
+            ld a, 1                 ; the landmarks: 4 to 9 tiles away (the far ones to 29) [1044]
+            ld (fn_s3d_render_w_mode), a		; S3d.cls 1045
+            ld hl, 40912		; S3d.cls 1046
+            ld bc, (var_s3d_nlm)		; S3d.cls 1047
+fn_s3d_render_rw_lm:		; S3d.cls 1048
+            ld a, b		; S3d.cls 1049
+            or c		; S3d.cls 1050
+            jr z, fn_s3d_render_rw_near		; S3d.cls 1051
+            push bc		; S3d.cls 1052
+            ld a, (hl)		; S3d.cls 1053
+            and 128		; S3d.cls 1054
+            ld (var_s3d_lmf), a           ; (bit 7: a far one - to 29 tiles) [1055]
+            ld a, (hl)		; S3d.cls 1056
+            and 127		; S3d.cls 1057
+            ld (fn_s3d_render_w_ti), a		; S3d.cls 1058
+            inc hl		; S3d.cls 1059
+            ld a, (hl)		; S3d.cls 1060
+            ld (fn_s3d_render_w_tj), a		; S3d.cls 1061
+            inc hl		; S3d.cls 1062
+            push hl		; S3d.cls 1063
+            ld a, (fn_s3d_render_w_ti)		; S3d.cls 1064
+            ld hl, fn_s3d_render_w_ci		; S3d.cls 1065
+            call fn_s3d_render_rw_far             ; A = how far (tiles), the most of the two [1066]
+            ld b, a		; S3d.cls 1067
+            ld a, (fn_s3d_render_w_tj)		; S3d.cls 1068
+            ld hl, fn_s3d_render_w_cj		; S3d.cls 1069
+            call fn_s3d_render_rw_far		; S3d.cls 1070
+            cp b		; S3d.cls 1071
+            jr nc, fn_s3d_render_rw_lm1		; S3d.cls 1072
+            ld a, b		; S3d.cls 1073
+fn_s3d_render_rw_lm1:		; S3d.cls 1074
+            cp 4		; S3d.cls 1075
+            jr c, fn_s3d_render_rw_lm2		; S3d.cls 1076
+            ld c, a		; S3d.cls 1077
+            ld a, (var_s3d_lmf)		; S3d.cls 1078
+            or a		; S3d.cls 1079
+            ld a, c		; S3d.cls 1080
+            jr z, fn_s3d_render_rw_lm3		; S3d.cls 1081
+            cp 30                   ; far: to 29 tiles (11 km: the tile's middle stays in 16 bits) [1082]
+            call c, fn_s3d_render_tl_one		; S3d.cls 1083
+            jr fn_s3d_render_rw_lm2		; S3d.cls 1084
+fn_s3d_render_rw_lm3:		; S3d.cls 1085
+            cp 10		; S3d.cls 1086
+            call c, fn_s3d_render_tl_one		; S3d.cls 1087
+fn_s3d_render_rw_lm2:		; S3d.cls 1088
+            pop hl		; S3d.cls 1089
+            pop bc		; S3d.cls 1090
+            dec bc		; S3d.cls 1091
+            jr fn_s3d_render_rw_lm		; S3d.cls 1092
+fn_s3d_render_rw_near:		; S3d.cls 1093
+            ld hl, (fn_s3d_render_w_nl)           ; (the landmarks' lines: not in the budget) [1094]
+            ld (fn_s3d_render_w_nlm), hl		; S3d.cls 1095
+            ld hl, 0		; S3d.cls 1096
+            ld (fn_s3d_render_w_nl), hl		; S3d.cls 1097
+            xor a		; S3d.cls 1098
+            ld (fn_s3d_render_w_mode), a		; S3d.cls 1099
+            ld hl, fn_s3d_render_rw_ring		; S3d.cls 1100
+            ld b, 49		; S3d.cls 1101
+fn_s3d_render_rw_lp:		; S3d.cls 1102
+            push bc		; S3d.cls 1103
+            ld a, (fn_s3d_render_w_ci)		; S3d.cls 1104
+            add a, (hl)		; S3d.cls 1105
+            ld (fn_s3d_render_w_ti), a		; S3d.cls 1106
+            inc hl		; S3d.cls 1107
+            ld a, (fn_s3d_render_w_cj)		; S3d.cls 1108
+            add a, (hl)		; S3d.cls 1109
+            ld (fn_s3d_render_w_tj), a		; S3d.cls 1110
+            inc hl		; S3d.cls 1111
+            push hl		; S3d.cls 1112
+            call fn_s3d_render_tl_one		; S3d.cls 1113
+            pop hl		; S3d.cls 1114
+            pop bc		; S3d.cls 1115
+            ld a, (fn_s3d_render_w_stop)		; S3d.cls 1116
+            or a		; S3d.cls 1117
+            ret nz		; S3d.cls 1118
+            djnz fn_s3d_render_rw_lp		; S3d.cls 1119
+            ret		; S3d.cls 1120
 ; rw_far - A = |A - (HL)|
-fn_s3d_render_rw_far:		; S3d.cls 1037
-            sub (hl)		; S3d.cls 1038
-            ret nc		; S3d.cls 1039
-            neg		; S3d.cls 1040
-            ret		; S3d.cls 1041
+fn_s3d_render_rw_far:		; S3d.cls 1122
+            sub (hl)		; S3d.cls 1123
+            ret nc		; S3d.cls 1124
+            neg		; S3d.cls 1125
+            ret		; S3d.cls 1126
 ; d768 - A = HL / 768 (HL 0 - 32767)
-fn_s3d_render_d768:		; S3d.cls 1043
-            ld a, h		; S3d.cls 1044
-            ld c, 0		; S3d.cls 1045
-fn_s3d_render_dv3_lp:		; S3d.cls 1046
-            sub 3		; S3d.cls 1047
-            jr c, fn_s3d_render_dv3_e		; S3d.cls 1048
-            inc c		; S3d.cls 1049
-            jr fn_s3d_render_dv3_lp		; S3d.cls 1050
-fn_s3d_render_dv3_e:		; S3d.cls 1051
-            ld a, c		; S3d.cls 1052
-            ret		; S3d.cls 1053
+fn_s3d_render_d768:		; S3d.cls 1128
+            ld a, h		; S3d.cls 1129
+            ld c, 0		; S3d.cls 1130
+fn_s3d_render_dv3_lp:		; S3d.cls 1131
+            sub 3		; S3d.cls 1132
+            jr c, fn_s3d_render_dv3_e		; S3d.cls 1133
+            inc c		; S3d.cls 1134
+            jr fn_s3d_render_dv3_lp		; S3d.cls 1135
+fn_s3d_render_dv3_e:		; S3d.cls 1136
+            ld a, c		; S3d.cls 1137
+            ret		; S3d.cls 1138
 ; the 7 x 7 tiles round the camera's, nearest first (di, dj)
-fn_s3d_render_rw_ring:    db 0, 0, 255, 0, 0, 255, 0, 1, 1, 0, 255, 255, 255, 1, 1, 255, 1, 1, 254, 0, 0, 254, 0, 2, 2, 0, 254, 255, 254, 1, 255, 254, 255, 2, 1, 254, 1, 2, 2, 255, 2, 1, 254, 254, 254, 2, 2, 254, 2, 2		; S3d.cls 1055
-            db 253, 0, 0, 253, 0, 3, 3, 0, 253, 255, 253, 1, 255, 253, 255, 3, 1, 253, 1, 3, 3, 255, 3, 1, 253, 254, 253, 2, 254, 253, 254, 3, 2, 253, 2, 3, 3, 254, 3, 2, 253, 253, 253, 3, 3, 253, 3, 3		; S3d.cls 1056
+fn_s3d_render_rw_ring:    db 0, 0, 255, 0, 0, 255, 0, 1, 1, 0, 255, 255, 255, 1, 1, 255, 1, 1, 254, 0, 0, 254, 0, 2, 2, 0, 254, 255, 254, 1, 255, 254, 255, 2, 1, 254, 1, 2, 2, 255, 2, 1, 254, 254, 254, 2, 2, 254, 2, 2		; S3d.cls 1140
+            db 253, 0, 0, 253, 0, 3, 3, 0, 253, 255, 253, 1, 255, 253, 255, 3, 1, 253, 1, 3, 3, 255, 3, 1, 253, 254, 253, 2, 254, 253, 254, 3, 2, 253, 2, 3, 3, 254, 3, 2, 253, 253, 253, 3, 3, 253, 3, 3		; S3d.cls 1141
 
 ; tl_one - the tile (w_ti, w_tj): w_mode 0 all of it that its distance allows, 1 its 3D lines
-fn_s3d_render_tl_one:		; S3d.cls 1059
-            ld a, (fn_s3d_render_w_ti)            ; in the world? [1060]
-            ld hl, var_s3d_nx		; S3d.cls 1061
-            cp (hl)		; S3d.cls 1062
-            ret nc		; S3d.cls 1063
-            ld a, (fn_s3d_render_w_tj)		; S3d.cls 1064
-            ld hl, var_s3d_nz		; S3d.cls 1065
-            cp (hl)		; S3d.cls 1066
-            ret nc		; S3d.cls 1067
-            ld a, (fn_s3d_render_w_ti)            ; its middle from the camera: dx, dy, dz [1068]
-            ld de, (var_s3d_x0)		; S3d.cls 1069
-            call fn_s3d_render_tl_mid		; S3d.cls 1070
-            ld de, (var_s3d_camx)		; S3d.cls 1071
-            or a		; S3d.cls 1072
-            sbc hl, de		; S3d.cls 1073
-            ld (fn_s3d_render_w_dx), hl		; S3d.cls 1074
-            ld a, (fn_s3d_render_w_tj)		; S3d.cls 1075
-            ld de, (var_s3d_z0)		; S3d.cls 1076
-            call fn_s3d_render_tl_mid		; S3d.cls 1077
-            ld de, (var_s3d_camz)		; S3d.cls 1078
-            or a		; S3d.cls 1079
-            sbc hl, de		; S3d.cls 1080
-            ld (fn_s3d_render_w_dz), hl		; S3d.cls 1081
-            ld hl, (var_s3d_camy)		; S3d.cls 1082
-            call fn_s3d_render_hneg		; S3d.cls 1083
-            ld (fn_s3d_render_w_dy), hl		; S3d.cls 1084
-            ld iy, arr_s3d_bas + 12       ; Z (forward) [1085]
-            call fn_s3d_render_tl_dot		; S3d.cls 1086
-            ld (fn_s3d_render_w_tz), hl		; S3d.cls 1087
-            ld de, -600             ; behind [1088]
-            call fn_s3d_render_cmps		; S3d.cls 1089
-            ret c		; S3d.cls 1090
-            ld a, (fn_s3d_render_w_mode)		; S3d.cls 1091
-            or a		; S3d.cls 1092
-            jr nz, fn_s3d_render_tl_z1		; S3d.cls 1093
-            ld hl, (fn_s3d_render_w_tz)		; S3d.cls 1094
-            ld de, 3800             ; too far (1.9 km) [1095]
-            call fn_s3d_render_cmps		; S3d.cls 1096
-            ret nc		; S3d.cls 1097
-fn_s3d_render_tl_z1:		; S3d.cls 1098
-            ld iy, arr_s3d_bas            ; X (right) [1099]
-            call fn_s3d_render_tl_dot		; S3d.cls 1100
-            ld (fn_s3d_render_w_tx), hl		; S3d.cls 1101
-            call fn_s3d_render_habs               ; off to the side: |X| - Z > 900 [1102]
-            ld de, (fn_s3d_render_w_tz)		; S3d.cls 1103
-            or a		; S3d.cls 1104
-            sbc hl, de		; S3d.cls 1105
-            ld de, 900		; S3d.cls 1106
-            call fn_s3d_render_cmps		; S3d.cls 1107
-            ret nc		; S3d.cls 1108
-            ld iy, arr_s3d_bas + 6        ; Y (up) [1109]
-            call fn_s3d_render_tl_dot		; S3d.cls 1110
-            ld (fn_s3d_render_w_ty), hl		; S3d.cls 1111
-            ld a, (fn_s3d_render_w_tj)            ; the directory: block, offset [1112]
-            ld l, a		; S3d.cls 1113
-            ld h, 0		; S3d.cls 1114
-            ld de, (var_s3d_nx)		; S3d.cls 1115
-            call fn_s3d_render_mul8x16            ; HL = tj * nx [1116]
-            ld a, (fn_s3d_render_w_ti)		; S3d.cls 1117
-            ld e, a		; S3d.cls 1118
-            ld d, 0		; S3d.cls 1119
-            add hl, de		; S3d.cls 1120
-            ld e, l		; S3d.cls 1121
-            ld d, h		; S3d.cls 1122
-            add hl, hl		; S3d.cls 1123
-            add hl, de              ; * 3 [1124]
-            ld de, (var_s3d_dro)		; S3d.cls 1125
-            add hl, de		; S3d.cls 1126
-            ld de, #4000		; S3d.cls 1127
-            add hl, de		; S3d.cls 1128
-            push hl		; S3d.cls 1129
-            ld hl, (arr_s3d_pg)		; S3d.cls 1130
-    IFDEF NTC_ZXN		; S3d.cls 1131
-            call zxn_sel            ; (the Next: its 16K bank in #4000-#7FFF) [1132]
-    ELSE		; S3d.cls 1133
-            call mem_sel		; S3d.cls 1134
-    ENDIF		; S3d.cls 1135
-            pop hl		; S3d.cls 1136
-            ld a, (hl)		; S3d.cls 1137
-            or a		; S3d.cls 1138
-            ret z                   ; nothing there [1139]
-            inc hl		; S3d.cls 1140
-            ld e, (hl)		; S3d.cls 1141
-            inc hl		; S3d.cls 1142
-            ld d, (hl)		; S3d.cls 1143
-            ld hl, #4000		; S3d.cls 1144
-            add hl, de		; S3d.cls 1145
-            ld (fn_s3d_render_w_tb), hl		; S3d.cls 1146
-            ld l, a                 ; (its page: pg(block) - a word each, blocks up to 255) [1147]
-            ld h, 0		; S3d.cls 1148
-            add hl, hl		; S3d.cls 1149
-            ld de, arr_s3d_pg		; S3d.cls 1150
-            add hl, de		; S3d.cls 1151
-            ld a, (hl)		; S3d.cls 1152
-            inc hl		; S3d.cls 1153
-            ld h, (hl)		; S3d.cls 1154
-            ld l, a		; S3d.cls 1155
-    IFDEF NTC_ZXN		; S3d.cls 1156
-            call zxn_sel            ; its block in the window (the Next: its 16K bank) [1157]
-    ELSE		; S3d.cls 1158
-            call mem_sel            ; its block in the window [1159]
-    ENDIF		; S3d.cls 1160
-            ld hl, (fn_s3d_render_w_nl)           ; the tile's share of the frame's lines: a quarter of the budget [1161]
-            ld de, (var_s3d_lmax)		; S3d.cls 1162
-            srl d		; S3d.cls 1163
-            rr e		; S3d.cls 1164
-            srl d		; S3d.cls 1165
-            rr e		; S3d.cls 1166
-            add hl, de		; S3d.cls 1167
-            ld (fn_s3d_render_w_tcap), hl		; S3d.cls 1168
-            ld a, (fn_s3d_render_w_mode)		; S3d.cls 1169
-            or a		; S3d.cls 1170
-            jp nz, fn_s3d_render_tl_3d		; S3d.cls 1171
-            ; the buildings: big ones always, middle ones nearer than 1.2 km, small than 650 m
-            ld ix, (fn_s3d_render_w_tb)		; S3d.cls 1173
-            ld l, (ix + 0)		; S3d.cls 1174
-            ld h, (ix + 1)		; S3d.cls 1175
-            ld de, (fn_s3d_render_w_tz)		; S3d.cls 1176
-            push hl		; S3d.cls 1177
-            ld hl, 2000		; S3d.cls 1178
-            call fn_s3d_render_cmps		; S3d.cls 1179
-            pop hl		; S3d.cls 1180
-            jr c, fn_s3d_render_tl_bn             ; (2000 < Z: big ones only) [1181]
-            ld e, (ix + 2)		; S3d.cls 1182
-            ld d, (ix + 3)		; S3d.cls 1183
-            add hl, de		; S3d.cls 1184
-            push hl		; S3d.cls 1185
-            ld hl, (fn_s3d_render_w_tz)		; S3d.cls 1186
-            ld de, 800		; S3d.cls 1187
-            call fn_s3d_render_cmps		; S3d.cls 1188
-            pop hl		; S3d.cls 1189
-            jr nc, fn_s3d_render_tl_bn		; S3d.cls 1190
-            ld e, (ix + 4)		; S3d.cls 1191
-            ld d, (ix + 5)		; S3d.cls 1192
-            add hl, de		; S3d.cls 1193
-fn_s3d_render_tl_bn:		; S3d.cls 1194
-            ld (fn_s3d_render_w_cnt2), hl		; S3d.cls 1195
-            ld hl, (fn_s3d_render_w_tz)           ; the buildings' edges: all nearer than 300 m; the top and the [1196]
-            ld de, 400              ; uprights to 600 m; further only the top [1197]
-            call fn_s3d_render_cmps		; S3d.cls 1198
-            ld a, 3		; S3d.cls 1199
-            jr c, fn_s3d_render_tl_lod		; S3d.cls 1200
-            ld hl, (fn_s3d_render_w_tz)		; S3d.cls 1201
-            ld de, 1200		; S3d.cls 1202
-            call fn_s3d_render_cmps		; S3d.cls 1203
-            ld a, 2		; S3d.cls 1204
-            jr c, fn_s3d_render_tl_lod		; S3d.cls 1205
-            xor a		; S3d.cls 1206
-fn_s3d_render_tl_lod:		; S3d.cls 1207
-            ld (fn_s3d_render_w_lod), a		; S3d.cls 1208
-            ld hl, (fn_s3d_render_w_tb)		; S3d.cls 1209
-            ld de, 16		; S3d.cls 1210
+fn_s3d_render_tl_one:		; S3d.cls 1144
+            ld a, (fn_s3d_render_w_ti)            ; in the world? [1145]
+            ld hl, var_s3d_nx		; S3d.cls 1146
+            cp (hl)		; S3d.cls 1147
+            ret nc		; S3d.cls 1148
+            ld a, (fn_s3d_render_w_tj)		; S3d.cls 1149
+            ld hl, var_s3d_nz		; S3d.cls 1150
+            cp (hl)		; S3d.cls 1151
+            ret nc		; S3d.cls 1152
+            ld a, (fn_s3d_render_w_ti)            ; its middle from the camera: dx, dy, dz [1153]
+            ld de, (var_s3d_x0)		; S3d.cls 1154
+            call fn_s3d_render_tl_mid		; S3d.cls 1155
+            ld de, (var_s3d_camx)		; S3d.cls 1156
+            or a		; S3d.cls 1157
+            sbc hl, de		; S3d.cls 1158
+            ld (fn_s3d_render_w_dx), hl		; S3d.cls 1159
+            ld a, (fn_s3d_render_w_tj)		; S3d.cls 1160
+            ld de, (var_s3d_z0)		; S3d.cls 1161
+            call fn_s3d_render_tl_mid		; S3d.cls 1162
+            ld de, (var_s3d_camz)		; S3d.cls 1163
+            or a		; S3d.cls 1164
+            sbc hl, de		; S3d.cls 1165
+            ld (fn_s3d_render_w_dz), hl		; S3d.cls 1166
+            ld hl, (var_s3d_camy)		; S3d.cls 1167
+            HNEG		; S3d.cls 1168
+            ld (fn_s3d_render_w_dy), hl		; S3d.cls 1169
+            ld iy, arr_s3d_bas + 12       ; Z (forward) [1170]
+            call fn_s3d_render_tl_dot		; S3d.cls 1171
+            ld (fn_s3d_render_w_tz), hl		; S3d.cls 1172
+            ld de, -600             ; behind [1173]
+            CMPS		; S3d.cls 1174
+            ret c		; S3d.cls 1175
+            ld a, (fn_s3d_render_w_mode)		; S3d.cls 1176
+            or a		; S3d.cls 1177
+            jr nz, fn_s3d_render_tl_z1		; S3d.cls 1178
+            ld hl, (fn_s3d_render_w_tz)		; S3d.cls 1179
+            ld de, 3800             ; too far (1.9 km) [1180]
+            CMPS		; S3d.cls 1181
+            ret nc		; S3d.cls 1182
+fn_s3d_render_tl_z1:		; S3d.cls 1183
+            ld iy, arr_s3d_bas            ; X (right) [1184]
+            call fn_s3d_render_tl_dot		; S3d.cls 1185
+            ld (fn_s3d_render_w_tx), hl		; S3d.cls 1186
+            HABS               ; off to the side: |X| - Z > 900 [1187]
+            ld de, (fn_s3d_render_w_tz)		; S3d.cls 1188
+            or a		; S3d.cls 1189
+            sbc hl, de		; S3d.cls 1190
+            ld de, 900		; S3d.cls 1191
+            CMPS		; S3d.cls 1192
+            ret nc		; S3d.cls 1193
+            ld iy, arr_s3d_bas + 6        ; Y (up) [1194]
+            call fn_s3d_render_tl_dot		; S3d.cls 1195
+            ld (fn_s3d_render_w_ty), hl		; S3d.cls 1196
+            ld a, (fn_s3d_render_w_tj)            ; the directory: block, offset [1197]
+            ld l, a		; S3d.cls 1198
+            ld h, 0		; S3d.cls 1199
+            ld de, (var_s3d_nx)		; S3d.cls 1200
+            call fn_s3d_render_mul8x16            ; HL = tj * nx [1201]
+            ld a, (fn_s3d_render_w_ti)		; S3d.cls 1202
+            ld e, a		; S3d.cls 1203
+            ld d, 0		; S3d.cls 1204
+            add hl, de		; S3d.cls 1205
+            ld e, l		; S3d.cls 1206
+            ld d, h		; S3d.cls 1207
+            add hl, hl		; S3d.cls 1208
+            add hl, de              ; * 3 [1209]
+            ld de, (var_s3d_dro)		; S3d.cls 1210
             add hl, de		; S3d.cls 1211
-            ld (fn_s3d_render_w_p), hl		; S3d.cls 1212
-            ld a, 1		; S3d.cls 1213
-            ld (gfx_pen), a		; S3d.cls 1214
-fn_s3d_render_tl_b_lp:		; S3d.cls 1215
-            ld hl, (fn_s3d_render_w_cnt2)		; S3d.cls 1216
-            ld a, h		; S3d.cls 1217
-            or l		; S3d.cls 1218
-            jr z, fn_s3d_render_tl_lines		; S3d.cls 1219
-            dec hl		; S3d.cls 1220
-            ld (fn_s3d_render_w_cnt2), hl		; S3d.cls 1221
-            call fn_s3d_render_tl_budget		; S3d.cls 1222
-            jr c, fn_s3d_render_tl_bcap		; S3d.cls 1223
-            call fn_s3d_render_b_one		; S3d.cls 1224
-            jr fn_s3d_render_tl_b_lp		; S3d.cls 1225
-fn_s3d_render_tl_bcap:		; S3d.cls 1226
-            ld a, (fn_s3d_render_w_stop)          ; the frame's lines used up: done; the tile's share: on to [1227]
-            or a                    ; its lines (and its 3D lines) [1228]
-            ret nz		; S3d.cls 1229
-            ; the ground lines: all nearer than 800 m, else not the minor roads; none past 1.5 km
-fn_s3d_render_tl_lines:		; S3d.cls 1231
-            ld hl, (fn_s3d_render_w_tz)		; S3d.cls 1232
-            ld de, 3000		; S3d.cls 1233
-            call fn_s3d_render_cmps		; S3d.cls 1234
-            jp nc, fn_s3d_render_tl_3d		; S3d.cls 1235
-            ld ix, (fn_s3d_render_w_tb)		; S3d.cls 1236
-            ld l, (ix + 0)          ; the start of the lines: past all the buildings [1237]
-            ld h, (ix + 1)		; S3d.cls 1238
-            ld e, (ix + 2)		; S3d.cls 1239
-            ld d, (ix + 3)		; S3d.cls 1240
-            add hl, de		; S3d.cls 1241
-            ld e, (ix + 4)		; S3d.cls 1242
-            ld d, (ix + 5)		; S3d.cls 1243
-            add hl, de		; S3d.cls 1244
-            ld (fn_s3d_render_w_cnt2), hl		; S3d.cls 1245
-            ld hl, (fn_s3d_render_w_tb)		; S3d.cls 1246
-            ld de, 16		; S3d.cls 1247
-            add hl, de		; S3d.cls 1248
-            ld (fn_s3d_render_w_p), hl		; S3d.cls 1249
-fn_s3d_render_tl_skb:		; S3d.cls 1250
-            ld hl, (fn_s3d_render_w_cnt2)         ; (the buildings not drawn: skipped) [1251]
-            ld a, h		; S3d.cls 1252
-            or l		; S3d.cls 1253
-            jr z, fn_s3d_render_tl_l0		; S3d.cls 1254
-            dec hl		; S3d.cls 1255
-            ld (fn_s3d_render_w_cnt2), hl		; S3d.cls 1256
-            ld hl, (fn_s3d_render_w_p)		; S3d.cls 1257
-            ld a, (hl)		; S3d.cls 1258
-            add a, a		; S3d.cls 1259
-            add a, 2		; S3d.cls 1260
-            ld e, a		; S3d.cls 1261
-            ld d, 0		; S3d.cls 1262
-            add hl, de		; S3d.cls 1263
-            ld (fn_s3d_render_w_p), hl		; S3d.cls 1264
-            jr fn_s3d_render_tl_skb		; S3d.cls 1265
-fn_s3d_render_tl_l0:		; S3d.cls 1266
-            ld hl, (fn_s3d_render_w_nl)           ; the lines' own share: an eighth of the budget [1267]
-            ld de, (var_s3d_lmax)		; S3d.cls 1268
-            srl d		; S3d.cls 1269
-            rr e		; S3d.cls 1270
-            srl d		; S3d.cls 1271
-            rr e		; S3d.cls 1272
-            srl d		; S3d.cls 1273
-            rr e		; S3d.cls 1274
-            add hl, de		; S3d.cls 1275
-            ld (fn_s3d_render_w_tcap), hl		; S3d.cls 1276
-            ld ix, (fn_s3d_render_w_tb)		; S3d.cls 1277
-            ld l, (ix + 6)		; S3d.cls 1278
-            ld h, (ix + 7)		; S3d.cls 1279
+            ld de, #4000		; S3d.cls 1212
+            add hl, de		; S3d.cls 1213
+            push hl		; S3d.cls 1214
+            ld hl, (arr_s3d_pg)		; S3d.cls 1215
+    IFDEF NTC_ZXN		; S3d.cls 1216
+            call zxn_sel            ; (the Next: its 16K bank in #4000-#7FFF) [1217]
+    ELSE		; S3d.cls 1218
+            call mem_sel		; S3d.cls 1219
+    ENDIF		; S3d.cls 1220
+            pop hl		; S3d.cls 1221
+            ld a, (hl)		; S3d.cls 1222
+            or a		; S3d.cls 1223
+            ret z                   ; nothing there [1224]
+            inc hl		; S3d.cls 1225
+            ld e, (hl)		; S3d.cls 1226
+            inc hl		; S3d.cls 1227
+            ld d, (hl)		; S3d.cls 1228
+            ld hl, #4000		; S3d.cls 1229
+            add hl, de		; S3d.cls 1230
+            ld (fn_s3d_render_w_tb), hl		; S3d.cls 1231
+            ld l, a                 ; (its page: pg(block) - a word each, blocks up to 255) [1232]
+            ld h, 0		; S3d.cls 1233
+            add hl, hl		; S3d.cls 1234
+            ld de, arr_s3d_pg		; S3d.cls 1235
+            add hl, de		; S3d.cls 1236
+            ld a, (hl)		; S3d.cls 1237
+            inc hl		; S3d.cls 1238
+            ld h, (hl)		; S3d.cls 1239
+            ld l, a		; S3d.cls 1240
+    IFDEF NTC_ZXN		; S3d.cls 1241
+            call zxn_sel            ; its block in the window (the Next: its 16K bank) [1242]
+    ELSE		; S3d.cls 1243
+            call mem_sel            ; its block in the window [1244]
+    ENDIF		; S3d.cls 1245
+            ld hl, (fn_s3d_render_w_nl)           ; the tile's share of the frame's lines: a quarter of the budget [1246]
+            ld de, (var_s3d_lmax)		; S3d.cls 1247
+            srl d		; S3d.cls 1248
+            rr e		; S3d.cls 1249
+            srl d		; S3d.cls 1250
+            rr e		; S3d.cls 1251
+            add hl, de		; S3d.cls 1252
+            ld (fn_s3d_render_w_tcap), hl		; S3d.cls 1253
+            ld a, (fn_s3d_render_w_mode)		; S3d.cls 1254
+            or a		; S3d.cls 1255
+            jp nz, fn_s3d_render_tl_3d		; S3d.cls 1256
+            ; the buildings: big ones always, middle ones nearer than 1.2 km, small than 650 m
+            ld ix, (fn_s3d_render_w_tb)		; S3d.cls 1258
+            ld l, (ix + 0)		; S3d.cls 1259
+            ld h, (ix + 1)		; S3d.cls 1260
+            ld de, (fn_s3d_render_w_tz)		; S3d.cls 1261
+            push hl		; S3d.cls 1262
+            ld hl, 2000		; S3d.cls 1263
+            CMPS		; S3d.cls 1264
+            pop hl		; S3d.cls 1265
+            jr c, fn_s3d_render_tl_bn             ; (2000 < Z: big ones only) [1266]
+            ld e, (ix + 2)		; S3d.cls 1267
+            ld d, (ix + 3)		; S3d.cls 1268
+            add hl, de		; S3d.cls 1269
+            push hl		; S3d.cls 1270
+            ld hl, (fn_s3d_render_w_tz)		; S3d.cls 1271
+            ld de, 800		; S3d.cls 1272
+            CMPS		; S3d.cls 1273
+            pop hl		; S3d.cls 1274
+            jr nc, fn_s3d_render_tl_bn		; S3d.cls 1275
+            ld e, (ix + 4)		; S3d.cls 1276
+            ld d, (ix + 5)		; S3d.cls 1277
+            add hl, de		; S3d.cls 1278
+fn_s3d_render_tl_bn:		; S3d.cls 1279
             ld (fn_s3d_render_w_cnt2), hl		; S3d.cls 1280
-            ld hl, (fn_s3d_render_w_tz)		; S3d.cls 1281
-            ld de, 1600		; S3d.cls 1282
-            call fn_s3d_render_cmps		; S3d.cls 1283
-            ld a, 0		; S3d.cls 1284
-            jr c, fn_s3d_render_tl_l1		; S3d.cls 1285
-            inc a                   ; far: no minor roads [1286]
-fn_s3d_render_tl_l1:		; S3d.cls 1287
-            ld (fn_s3d_render_w_far), a		; S3d.cls 1288
-fn_s3d_render_tl_l_lp:		; S3d.cls 1289
-            ld hl, (fn_s3d_render_w_cnt2)		; S3d.cls 1290
-            ld a, h		; S3d.cls 1291
-            or l		; S3d.cls 1292
-            jp z, fn_s3d_render_tl_3d		; S3d.cls 1293
-            dec hl		; S3d.cls 1294
-            ld (fn_s3d_render_w_cnt2), hl		; S3d.cls 1295
-            call fn_s3d_render_tl_budget		; S3d.cls 1296
-            jr c, fn_s3d_render_tl_lcap		; S3d.cls 1297
-            call fn_s3d_render_l_one		; S3d.cls 1298
-            jr fn_s3d_render_tl_l_lp		; S3d.cls 1299
-fn_s3d_render_tl_lcap:		; S3d.cls 1300
-            ld a, (fn_s3d_render_w_stop)		; S3d.cls 1301
-            or a		; S3d.cls 1302
-            ret nz		; S3d.cls 1303
-            jp fn_s3d_render_tl_3d		; S3d.cls 1304
+            ld hl, (fn_s3d_render_w_tz)           ; the buildings' edges: all nearer than 300 m; the top and the [1281]
+            ld de, 400              ; uprights to 600 m; further only the top [1282]
+            CMPS		; S3d.cls 1283
+            ld a, 3		; S3d.cls 1284
+            jr c, fn_s3d_render_tl_lod		; S3d.cls 1285
+            ld hl, (fn_s3d_render_w_tz)		; S3d.cls 1286
+            ld de, 1200		; S3d.cls 1287
+            CMPS		; S3d.cls 1288
+            ld a, 2		; S3d.cls 1289
+            jr c, fn_s3d_render_tl_lod		; S3d.cls 1290
+            xor a		; S3d.cls 1291
+fn_s3d_render_tl_lod:		; S3d.cls 1292
+            ld (fn_s3d_render_w_lod), a		; S3d.cls 1293
+            ld hl, (fn_s3d_render_w_tb)		; S3d.cls 1294
+            ld de, 16		; S3d.cls 1295
+            add hl, de		; S3d.cls 1296
+            ld (fn_s3d_render_w_p), hl		; S3d.cls 1297
+            ld a, 1		; S3d.cls 1298
+            ld (gfx_pen), a		; S3d.cls 1299
+fn_s3d_render_tl_b_lp:		; S3d.cls 1300
+            ld hl, (fn_s3d_render_w_cnt2)		; S3d.cls 1301
+            ld a, h		; S3d.cls 1302
+            or l		; S3d.cls 1303
+            jr z, fn_s3d_render_tl_lines		; S3d.cls 1304
+            dec hl		; S3d.cls 1305
+            ld (fn_s3d_render_w_cnt2), hl		; S3d.cls 1306
+            call fn_s3d_render_tl_budget		; S3d.cls 1307
+            jr c, fn_s3d_render_tl_bcap		; S3d.cls 1308
+            call fn_s3d_render_b_one		; S3d.cls 1309
+            jr fn_s3d_render_tl_b_lp		; S3d.cls 1310
+fn_s3d_render_tl_bcap:		; S3d.cls 1311
+            ld a, (fn_s3d_render_w_stop)          ; the frame's lines used up: done; the tile's share: on to [1312]
+            or a                    ; its lines (and its 3D lines) [1313]
+            ret nz		; S3d.cls 1314
+            ; the ground lines: all nearer than 800 m, else not the minor roads; none past 1.5 km
+fn_s3d_render_tl_lines:		; S3d.cls 1316
+            ld hl, (fn_s3d_render_w_tz)		; S3d.cls 1317
+            ld de, 3000		; S3d.cls 1318
+            CMPS		; S3d.cls 1319
+            jp nc, fn_s3d_render_tl_3d		; S3d.cls 1320
+            ld ix, (fn_s3d_render_w_tb)		; S3d.cls 1321
+            ld l, (ix + 0)          ; the start of the lines: past all the buildings [1322]
+            ld h, (ix + 1)		; S3d.cls 1323
+            ld e, (ix + 2)		; S3d.cls 1324
+            ld d, (ix + 3)		; S3d.cls 1325
+            add hl, de		; S3d.cls 1326
+            ld e, (ix + 4)		; S3d.cls 1327
+            ld d, (ix + 5)		; S3d.cls 1328
+            add hl, de		; S3d.cls 1329
+            ld (fn_s3d_render_w_cnt2), hl		; S3d.cls 1330
+            ld hl, (fn_s3d_render_w_tb)		; S3d.cls 1331
+            ld de, 16		; S3d.cls 1332
+            add hl, de		; S3d.cls 1333
+            ld (fn_s3d_render_w_p), hl		; S3d.cls 1334
+fn_s3d_render_tl_skb:		; S3d.cls 1335
+            ld hl, (fn_s3d_render_w_cnt2)         ; (the buildings not drawn: skipped) [1336]
+            ld a, h		; S3d.cls 1337
+            or l		; S3d.cls 1338
+            jr z, fn_s3d_render_tl_l0		; S3d.cls 1339
+            dec hl		; S3d.cls 1340
+            ld (fn_s3d_render_w_cnt2), hl		; S3d.cls 1341
+            ld hl, (fn_s3d_render_w_p)		; S3d.cls 1342
+            ld a, (hl)		; S3d.cls 1343
+            add a, a		; S3d.cls 1344
+            add a, 2		; S3d.cls 1345
+            ld e, a		; S3d.cls 1346
+            ld d, 0		; S3d.cls 1347
+            add hl, de		; S3d.cls 1348
+            ld (fn_s3d_render_w_p), hl		; S3d.cls 1349
+            jr fn_s3d_render_tl_skb		; S3d.cls 1350
+fn_s3d_render_tl_l0:		; S3d.cls 1351
+            ld hl, (fn_s3d_render_w_nl)           ; the lines' own share: an eighth of the budget [1352]
+            ld de, (var_s3d_lmax)		; S3d.cls 1353
+            srl d		; S3d.cls 1354
+            rr e		; S3d.cls 1355
+            srl d		; S3d.cls 1356
+            rr e		; S3d.cls 1357
+            srl d		; S3d.cls 1358
+            rr e		; S3d.cls 1359
+            add hl, de		; S3d.cls 1360
+            ld (fn_s3d_render_w_tcap), hl		; S3d.cls 1361
+            ld ix, (fn_s3d_render_w_tb)		; S3d.cls 1362
+            ld l, (ix + 6)		; S3d.cls 1363
+            ld h, (ix + 7)		; S3d.cls 1364
+            ld (fn_s3d_render_w_cnt2), hl		; S3d.cls 1365
+            ld hl, (fn_s3d_render_w_tz)		; S3d.cls 1366
+            ld de, 1600		; S3d.cls 1367
+            CMPS		; S3d.cls 1368
+            ld a, 0		; S3d.cls 1369
+            jr c, fn_s3d_render_tl_l1		; S3d.cls 1370
+            inc a                   ; far: no minor roads [1371]
+fn_s3d_render_tl_l1:		; S3d.cls 1372
+            ld (fn_s3d_render_w_far), a		; S3d.cls 1373
+fn_s3d_render_tl_l_lp:		; S3d.cls 1374
+            ld hl, (fn_s3d_render_w_cnt2)		; S3d.cls 1375
+            ld a, h		; S3d.cls 1376
+            or l		; S3d.cls 1377
+            jp z, fn_s3d_render_tl_3d		; S3d.cls 1378
+            dec hl		; S3d.cls 1379
+            ld (fn_s3d_render_w_cnt2), hl		; S3d.cls 1380
+            call fn_s3d_render_tl_budget		; S3d.cls 1381
+            jr c, fn_s3d_render_tl_lcap		; S3d.cls 1382
+            call fn_s3d_render_l_one		; S3d.cls 1383
+            jr fn_s3d_render_tl_l_lp		; S3d.cls 1384
+fn_s3d_render_tl_lcap:		; S3d.cls 1385
+            ld a, (fn_s3d_render_w_stop)		; S3d.cls 1386
+            or a		; S3d.cls 1387
+            ret nz		; S3d.cls 1388
+            jp fn_s3d_render_tl_3d		; S3d.cls 1389
             ; the 3D lines (landmarks, bridges)
-fn_s3d_render_tl_3d:		; S3d.cls 1306
-            ld ix, (fn_s3d_render_w_tb)		; S3d.cls 1307
-            ld l, (ix + 12)		; S3d.cls 1308
-            ld h, (ix + 13)		; S3d.cls 1309
-            ld de, (fn_s3d_render_w_tb)		; S3d.cls 1310
-            add hl, de		; S3d.cls 1311
-            ld (fn_s3d_render_w_p), hl		; S3d.cls 1312
-            ld l, (ix + 8)		; S3d.cls 1313
-            ld h, (ix + 9)		; S3d.cls 1314
-            ld (fn_s3d_render_w_cnt2), hl		; S3d.cls 1315
-fn_s3d_render_tl_3_lp:		; S3d.cls 1316
-            ld hl, (fn_s3d_render_w_cnt2)		; S3d.cls 1317
-            ld a, h		; S3d.cls 1318
-            or l		; S3d.cls 1319
-            jr z, fn_s3d_render_tl_trees		; S3d.cls 1320
-            dec hl		; S3d.cls 1321
-            ld (fn_s3d_render_w_cnt2), hl		; S3d.cls 1322
-            call fn_s3d_render_l3_one		; S3d.cls 1323
-            jr fn_s3d_render_tl_3_lp		; S3d.cls 1324
+fn_s3d_render_tl_3d:		; S3d.cls 1391
+            ld ix, (fn_s3d_render_w_tb)		; S3d.cls 1392
+            ld l, (ix + 12)		; S3d.cls 1393
+            ld h, (ix + 13)		; S3d.cls 1394
+            ld de, (fn_s3d_render_w_tb)		; S3d.cls 1395
+            add hl, de		; S3d.cls 1396
+            ld (fn_s3d_render_w_p), hl		; S3d.cls 1397
+            ld l, (ix + 8)		; S3d.cls 1398
+            ld h, (ix + 9)		; S3d.cls 1399
+            ld (fn_s3d_render_w_cnt2), hl		; S3d.cls 1400
+fn_s3d_render_tl_3_lp:		; S3d.cls 1401
+            ld hl, (fn_s3d_render_w_cnt2)		; S3d.cls 1402
+            ld a, h		; S3d.cls 1403
+            or l		; S3d.cls 1404
+            jr z, fn_s3d_render_tl_trees		; S3d.cls 1405
+            dec hl		; S3d.cls 1406
+            ld (fn_s3d_render_w_cnt2), hl		; S3d.cls 1407
+            call fn_s3d_render_l3_one		; S3d.cls 1408
+            jr fn_s3d_render_tl_3_lp		; S3d.cls 1409
             ; the trees, nearer than 350 m
-fn_s3d_render_tl_trees:		; S3d.cls 1326
-            ld a, (fn_s3d_render_w_mode)		; S3d.cls 1327
-            or a		; S3d.cls 1328
-            ret nz		; S3d.cls 1329
-            ld hl, (fn_s3d_render_w_tz)		; S3d.cls 1330
-            ld de, 700		; S3d.cls 1331
-            call fn_s3d_render_cmps		; S3d.cls 1332
-            ret nc		; S3d.cls 1333
-            ld ix, (fn_s3d_render_w_tb)		; S3d.cls 1334
-            ld l, (ix + 14)		; S3d.cls 1335
-            ld h, (ix + 15)		; S3d.cls 1336
-            ld de, (fn_s3d_render_w_tb)		; S3d.cls 1337
-            add hl, de		; S3d.cls 1338
-            ld (fn_s3d_render_w_p), hl		; S3d.cls 1339
-            ld l, (ix + 10)		; S3d.cls 1340
-            ld h, (ix + 11)		; S3d.cls 1341
-            ld (fn_s3d_render_w_cnt2), hl		; S3d.cls 1342
-            ld a, 3		; S3d.cls 1343
-            ld (gfx_pen), a		; S3d.cls 1344
-fn_s3d_render_tl_t_lp:		; S3d.cls 1345
-            ld hl, (fn_s3d_render_w_cnt2)		; S3d.cls 1346
-            ld a, h		; S3d.cls 1347
-            or l		; S3d.cls 1348
-            ret z		; S3d.cls 1349
-            dec hl		; S3d.cls 1350
-            ld (fn_s3d_render_w_cnt2), hl		; S3d.cls 1351
-            call fn_s3d_render_tl_budget		; S3d.cls 1352
-            ret c		; S3d.cls 1353
-            call fn_s3d_render_t_one		; S3d.cls 1354
-            jr fn_s3d_render_tl_t_lp		; S3d.cls 1355
+fn_s3d_render_tl_trees:		; S3d.cls 1411
+            ld a, (fn_s3d_render_w_mode)		; S3d.cls 1412
+            or a		; S3d.cls 1413
+            ret nz		; S3d.cls 1414
+            ld hl, (fn_s3d_render_w_tz)		; S3d.cls 1415
+            ld de, 700		; S3d.cls 1416
+            CMPS		; S3d.cls 1417
+            ret nc		; S3d.cls 1418
+            ld ix, (fn_s3d_render_w_tb)		; S3d.cls 1419
+            ld l, (ix + 14)		; S3d.cls 1420
+            ld h, (ix + 15)		; S3d.cls 1421
+            ld de, (fn_s3d_render_w_tb)		; S3d.cls 1422
+            add hl, de		; S3d.cls 1423
+            ld (fn_s3d_render_w_p), hl		; S3d.cls 1424
+            ld l, (ix + 10)		; S3d.cls 1425
+            ld h, (ix + 11)		; S3d.cls 1426
+            ld (fn_s3d_render_w_cnt2), hl		; S3d.cls 1427
+            ld a, 3		; S3d.cls 1428
+            ld (gfx_pen), a		; S3d.cls 1429
+fn_s3d_render_tl_t_lp:		; S3d.cls 1430
+            ld hl, (fn_s3d_render_w_cnt2)		; S3d.cls 1431
+            ld a, h		; S3d.cls 1432
+            or l		; S3d.cls 1433
+            ret z		; S3d.cls 1434
+            dec hl		; S3d.cls 1435
+            ld (fn_s3d_render_w_cnt2), hl		; S3d.cls 1436
+            call fn_s3d_render_tl_budget		; S3d.cls 1437
+            ret c		; S3d.cls 1438
+            call fn_s3d_render_t_one		; S3d.cls 1439
+            jr fn_s3d_render_tl_t_lp		; S3d.cls 1440
 ; tl_budget - carry (and w_stop) when the frame's lines are used up; carry alone when the
 ; tile's share is (w_tcap)
-fn_s3d_render_tl_budget:		; S3d.cls 1358
-            ld hl, (fn_s3d_render_w_nl)		; S3d.cls 1359
-            ld de, (var_s3d_lmax)		; S3d.cls 1360
-            call fn_s3d_render_cmps		; S3d.cls 1361
-            jr nc, fn_s3d_render_tb_stop		; S3d.cls 1362
-            ld hl, (fn_s3d_render_w_nl)		; S3d.cls 1363
-            ld de, (fn_s3d_render_w_tcap)		; S3d.cls 1364
-            call fn_s3d_render_cmps               ; carry: still room [1365]
-            ccf		; S3d.cls 1366
-            ret		; S3d.cls 1367
-fn_s3d_render_tb_stop:		; S3d.cls 1368
-            ld a, 1		; S3d.cls 1369
-            ld (fn_s3d_render_w_stop), a		; S3d.cls 1370
-            scf		; S3d.cls 1371
-            ret		; S3d.cls 1372
+fn_s3d_render_tl_budget:		; S3d.cls 1443
+            ld hl, (fn_s3d_render_w_nl)		; S3d.cls 1444
+            ld de, (var_s3d_lmax)		; S3d.cls 1445
+            CMPS		; S3d.cls 1446
+            jr nc, fn_s3d_render_tb_stop		; S3d.cls 1447
+            ld hl, (fn_s3d_render_w_nl)		; S3d.cls 1448
+            ld de, (fn_s3d_render_w_tcap)		; S3d.cls 1449
+            CMPS               ; carry: still room [1450]
+            ccf		; S3d.cls 1451
+            ret		; S3d.cls 1452
+fn_s3d_render_tb_stop:		; S3d.cls 1453
+            ld a, 1		; S3d.cls 1454
+            ld (fn_s3d_render_w_stop), a		; S3d.cls 1455
+            scf		; S3d.cls 1456
+            ret		; S3d.cls 1457
 ; tl_mid - HL = DE + A * 768 + 384 (a tile's middle in world units)
-fn_s3d_render_tl_mid:		; S3d.cls 1374
-            ld l, a		; S3d.cls 1375
-            add a, a		; S3d.cls 1376
-            add a, l                ; A * 3 (< 256) [1377]
-            ld h, a		; S3d.cls 1378
-            ld l, 0		; S3d.cls 1379
-            add hl, de		; S3d.cls 1380
-            ld de, 384		; S3d.cls 1381
-            add hl, de		; S3d.cls 1382
-            ret		; S3d.cls 1383
+fn_s3d_render_tl_mid:		; S3d.cls 1459
+            ld l, a		; S3d.cls 1460
+            add a, a		; S3d.cls 1461
+            add a, l                ; A * 3 (< 256) [1462]
+            ld h, a		; S3d.cls 1463
+            ld l, 0		; S3d.cls 1464
+            add hl, de		; S3d.cls 1465
+            ld de, 384		; S3d.cls 1466
+            add hl, de		; S3d.cls 1467
+            ret		; S3d.cls 1468
 ; tl_dot - HL = (w_dx, w_dy, w_dz) . the basis numbers at IY, IY + 2, IY + 4
-fn_s3d_render_tl_dot:		; S3d.cls 1385
-            ld de, (fn_s3d_render_w_dx)		; S3d.cls 1386
-            ld c, (iy + 0)		; S3d.cls 1387
-            ld b, (iy + 1)		; S3d.cls 1388
-            call fn_s3d_render_mulfix		; S3d.cls 1389
-            ld (fn_s3d_render_w_d), hl		; S3d.cls 1390
-            ld de, (fn_s3d_render_w_dy)		; S3d.cls 1391
-            ld c, (iy + 2)		; S3d.cls 1392
-            ld b, (iy + 3)		; S3d.cls 1393
-            call fn_s3d_render_mulfix		; S3d.cls 1394
-            ld de, (fn_s3d_render_w_d)		; S3d.cls 1395
-            add hl, de		; S3d.cls 1396
-            ld (fn_s3d_render_w_d), hl		; S3d.cls 1397
-            ld de, (fn_s3d_render_w_dz)		; S3d.cls 1398
-            ld c, (iy + 4)		; S3d.cls 1399
-            ld b, (iy + 5)		; S3d.cls 1400
-            call fn_s3d_render_mulfix		; S3d.cls 1401
-            ld de, (fn_s3d_render_w_d)		; S3d.cls 1402
-            add hl, de		; S3d.cls 1403
-            ret		; S3d.cls 1404
+fn_s3d_render_tl_dot:		; S3d.cls 1470
+            ld de, (fn_s3d_render_w_dx)		; S3d.cls 1471
+            ld c, (iy + 0)		; S3d.cls 1472
+            ld b, (iy + 1)		; S3d.cls 1473
+            call fn_s3d_render_mulfix		; S3d.cls 1474
+            ld (fn_s3d_render_w_d), hl		; S3d.cls 1475
+            ld de, (fn_s3d_render_w_dy)		; S3d.cls 1476
+            ld c, (iy + 2)		; S3d.cls 1477
+            ld b, (iy + 3)		; S3d.cls 1478
+            call fn_s3d_render_mulfix		; S3d.cls 1479
+            ld de, (fn_s3d_render_w_d)		; S3d.cls 1480
+            add hl, de		; S3d.cls 1481
+            ld (fn_s3d_render_w_d), hl		; S3d.cls 1482
+            ld de, (fn_s3d_render_w_dz)		; S3d.cls 1483
+            ld c, (iy + 4)		; S3d.cls 1484
+            ld b, (iy + 5)		; S3d.cls 1485
+            call fn_s3d_render_mulfix		; S3d.cls 1486
+            ld de, (fn_s3d_render_w_d)		; S3d.cls 1487
+            add hl, de		; S3d.cls 1488
+            ret		; S3d.cls 1489
 ; mul8x16 - HL = L * DE (L < 256)
-fn_s3d_render_mul8x16:		; S3d.cls 1406
-            ld b, 8		; S3d.cls 1407
-            ld a, l		; S3d.cls 1408
-            ld hl, 0		; S3d.cls 1409
-fn_s3d_render_m8_lp:		; S3d.cls 1410
-            add hl, hl		; S3d.cls 1411
-            rlca		; S3d.cls 1412
-            jr nc, fn_s3d_render_m8_n		; S3d.cls 1413
-            add hl, de		; S3d.cls 1414
-fn_s3d_render_m8_n:		; S3d.cls 1415
-            djnz fn_s3d_render_m8_lp		; S3d.cls 1416
-            ret		; S3d.cls 1417
+fn_s3d_render_mul8x16:		; S3d.cls 1491
+            ld b, 8		; S3d.cls 1492
+            ld a, l		; S3d.cls 1493
+            ld hl, 0		; S3d.cls 1494
+fn_s3d_render_m8_lp:		; S3d.cls 1495
+            add hl, hl		; S3d.cls 1496
+            rlca		; S3d.cls 1497
+            jr nc, fn_s3d_render_m8_n		; S3d.cls 1498
+            add hl, de		; S3d.cls 1499
+fn_s3d_render_m8_n:		; S3d.cls 1500
+            djnz fn_s3d_render_m8_lp		; S3d.cls 1501
+            ret		; S3d.cls 1502
 
 ; ---- a vertex: the tile's middle (w_tx, w_ty, w_tz) + {TX}[x] + {TZ}[z] (+ the height's, w_hx ..)
 ; vx_xz - B = local x, C = local z: (w_gx, w_gy, w_gz)
-fn_s3d_render_vx_xz:		; S3d.cls 1421
-            ld l, b		; S3d.cls 1422
-            ld h, 0		; S3d.cls 1423
-            add hl, hl		; S3d.cls 1424
-            ld e, l		; S3d.cls 1425
-            ld d, h		; S3d.cls 1426
-            add hl, hl		; S3d.cls 1427
-            add hl, de		; S3d.cls 1428
-            ld de, 36688		; S3d.cls 1429
-            add hl, de		; S3d.cls 1430
-            push hl		; S3d.cls 1431
-            ld l, c		; S3d.cls 1432
-            ld h, 0		; S3d.cls 1433
-            add hl, hl		; S3d.cls 1434
-            ld e, l		; S3d.cls 1435
-            ld d, h		; S3d.cls 1436
-            add hl, hl		; S3d.cls 1437
-            add hl, de		; S3d.cls 1438
-            ld de, 38224		; S3d.cls 1439
-            add hl, de		; S3d.cls 1440
-            ex de, hl               ; DE = {TZ} entry [1441]
-            pop hl                  ; HL = {TX} entry [1442]
-            ld a, (de)              ; x [1443]
-            add a, (hl)		; S3d.cls 1444
-            ld c, a		; S3d.cls 1445
-            inc hl		; S3d.cls 1446
-            inc de		; S3d.cls 1447
-            ld a, (de)		; S3d.cls 1448
-            adc a, (hl)		; S3d.cls 1449
-            ld b, a		; S3d.cls 1450
-            inc hl		; S3d.cls 1451
-            inc de		; S3d.cls 1452
-            push hl		; S3d.cls 1453
-            ld hl, (fn_s3d_render_w_tx)		; S3d.cls 1454
-            add hl, bc		; S3d.cls 1455
-            ld (fn_s3d_render_w_gx), hl		; S3d.cls 1456
-            pop hl		; S3d.cls 1457
-            ld a, (de)              ; y [1458]
-            add a, (hl)		; S3d.cls 1459
-            ld c, a		; S3d.cls 1460
-            inc hl		; S3d.cls 1461
-            inc de		; S3d.cls 1462
-            ld a, (de)		; S3d.cls 1463
-            adc a, (hl)		; S3d.cls 1464
-            ld b, a		; S3d.cls 1465
-            inc hl		; S3d.cls 1466
-            inc de		; S3d.cls 1467
-            push hl		; S3d.cls 1468
-            ld hl, (fn_s3d_render_w_ty)		; S3d.cls 1469
-            add hl, bc		; S3d.cls 1470
-            ld (fn_s3d_render_w_gy), hl		; S3d.cls 1471
-            pop hl		; S3d.cls 1472
-            ld a, (de)              ; z [1473]
-            add a, (hl)		; S3d.cls 1474
-            ld c, a		; S3d.cls 1475
-            inc hl		; S3d.cls 1476
-            inc de		; S3d.cls 1477
-            ld a, (de)		; S3d.cls 1478
-            adc a, (hl)		; S3d.cls 1479
-            ld b, a		; S3d.cls 1480
-            inc hl		; S3d.cls 1481
-            inc de		; S3d.cls 1482
-            push hl		; S3d.cls 1483
-            ld hl, (fn_s3d_render_w_tz)		; S3d.cls 1484
-            add hl, bc		; S3d.cls 1485
-            ld (fn_s3d_render_w_gz), hl		; S3d.cls 1486
-            pop hl		; S3d.cls 1487
-            ret		; S3d.cls 1488
+fn_s3d_render_vx_xz:		; S3d.cls 1506
+            ld l, b		; S3d.cls 1507
+            ld h, 0		; S3d.cls 1508
+            add hl, hl		; S3d.cls 1509
+            ld e, l		; S3d.cls 1510
+            ld d, h		; S3d.cls 1511
+            add hl, hl		; S3d.cls 1512
+            add hl, de		; S3d.cls 1513
+            ld de, 36688		; S3d.cls 1514
+            add hl, de		; S3d.cls 1515
+            push hl		; S3d.cls 1516
+            ld l, c		; S3d.cls 1517
+            ld h, 0		; S3d.cls 1518
+            add hl, hl		; S3d.cls 1519
+            ld e, l		; S3d.cls 1520
+            ld d, h		; S3d.cls 1521
+            add hl, hl		; S3d.cls 1522
+            add hl, de		; S3d.cls 1523
+            ld de, 38224		; S3d.cls 1524
+            add hl, de		; S3d.cls 1525
+            ex de, hl               ; DE = {TZ} entry [1526]
+            pop hl                  ; HL = {TX} entry [1527]
+            ld a, (de)              ; x [1528]
+            add a, (hl)		; S3d.cls 1529
+            ld c, a		; S3d.cls 1530
+            inc hl		; S3d.cls 1531
+            inc de		; S3d.cls 1532
+            ld a, (de)		; S3d.cls 1533
+            adc a, (hl)		; S3d.cls 1534
+            ld b, a		; S3d.cls 1535
+            inc hl		; S3d.cls 1536
+            inc de		; S3d.cls 1537
+            push hl		; S3d.cls 1538
+            ld hl, (fn_s3d_render_w_tx)		; S3d.cls 1539
+            add hl, bc		; S3d.cls 1540
+            ld (fn_s3d_render_w_gx), hl		; S3d.cls 1541
+            pop hl		; S3d.cls 1542
+            ld a, (de)              ; y [1543]
+            add a, (hl)		; S3d.cls 1544
+            ld c, a		; S3d.cls 1545
+            inc hl		; S3d.cls 1546
+            inc de		; S3d.cls 1547
+            ld a, (de)		; S3d.cls 1548
+            adc a, (hl)		; S3d.cls 1549
+            ld b, a		; S3d.cls 1550
+            inc hl		; S3d.cls 1551
+            inc de		; S3d.cls 1552
+            push hl		; S3d.cls 1553
+            ld hl, (fn_s3d_render_w_ty)		; S3d.cls 1554
+            add hl, bc		; S3d.cls 1555
+            ld (fn_s3d_render_w_gy), hl		; S3d.cls 1556
+            pop hl		; S3d.cls 1557
+            ld a, (de)              ; z [1558]
+            add a, (hl)		; S3d.cls 1559
+            ld c, a		; S3d.cls 1560
+            inc hl		; S3d.cls 1561
+            inc de		; S3d.cls 1562
+            ld a, (de)		; S3d.cls 1563
+            adc a, (hl)		; S3d.cls 1564
+            ld b, a		; S3d.cls 1565
+            inc hl		; S3d.cls 1566
+            inc de		; S3d.cls 1567
+            push hl		; S3d.cls 1568
+            ld hl, (fn_s3d_render_w_tz)		; S3d.cls 1569
+            add hl, bc		; S3d.cls 1570
+            ld (fn_s3d_render_w_gz), hl		; S3d.cls 1571
+            pop hl		; S3d.cls 1572
+            ret		; S3d.cls 1573
 ; vx_h - A = a height (2 m steps): (w_hx, w_hy, w_hz) its {TH} entry
-fn_s3d_render_vx_h:		; S3d.cls 1490
-            cp 192		; S3d.cls 1491
-            jr c, fn_s3d_render_vh_ok		; S3d.cls 1492
-            ld a, 191               ; (the table's last) [1493]
-fn_s3d_render_vh_ok:		; S3d.cls 1494
-            ld l, a		; S3d.cls 1495
-            ld h, 0		; S3d.cls 1496
-            add hl, hl		; S3d.cls 1497
-            ld e, l		; S3d.cls 1498
-            ld d, h		; S3d.cls 1499
-            add hl, hl		; S3d.cls 1500
-            add hl, de		; S3d.cls 1501
-            ld de, 39760		; S3d.cls 1502
-            add hl, de		; S3d.cls 1503
-            ld de, fn_s3d_render_w_hx		; S3d.cls 1504
-            ld bc, 6		; S3d.cls 1505
-            ldir		; S3d.cls 1506
-            ret		; S3d.cls 1507
+fn_s3d_render_vx_h:		; S3d.cls 1575
+            cp 192		; S3d.cls 1576
+            jr c, fn_s3d_render_vh_ok		; S3d.cls 1577
+            ld a, 191               ; (the table's last) [1578]
+fn_s3d_render_vh_ok:		; S3d.cls 1579
+            ld l, a		; S3d.cls 1580
+            ld h, 0		; S3d.cls 1581
+            add hl, hl		; S3d.cls 1582
+            ld e, l		; S3d.cls 1583
+            ld d, h		; S3d.cls 1584
+            add hl, hl		; S3d.cls 1585
+            add hl, de		; S3d.cls 1586
+            ld de, 39760		; S3d.cls 1587
+            add hl, de		; S3d.cls 1588
+            ld de, fn_s3d_render_w_hx		; S3d.cls 1589
+            ld bc, 6		; S3d.cls 1590
+            ldir		; S3d.cls 1591
+            ret		; S3d.cls 1592
 ; vx_put - the vertex at IX = (w_gx ..) + (w_hx ..) when A <> 0, else (w_gx ..); its outcode,
 ; its place on the screen when it is in view
-fn_s3d_render_vx_put:		; S3d.cls 1510
-            or a		; S3d.cls 1511
-            jr z, fn_s3d_render_vp_g		; S3d.cls 1512
-            ld hl, (fn_s3d_render_w_gx)		; S3d.cls 1513
-            ld de, (fn_s3d_render_w_hx)		; S3d.cls 1514
-            add hl, de		; S3d.cls 1515
-            ld (ix + 0), l		; S3d.cls 1516
-            ld (ix + 1), h		; S3d.cls 1517
-            ld hl, (fn_s3d_render_w_gy)		; S3d.cls 1518
-            ld de, (fn_s3d_render_w_hy)		; S3d.cls 1519
-            add hl, de		; S3d.cls 1520
-            ld (ix + 2), l		; S3d.cls 1521
-            ld (ix + 3), h		; S3d.cls 1522
-            ld hl, (fn_s3d_render_w_gz)		; S3d.cls 1523
-            ld de, (fn_s3d_render_w_hz)		; S3d.cls 1524
-            add hl, de		; S3d.cls 1525
-            ld (ix + 4), l		; S3d.cls 1526
-            ld (ix + 5), h		; S3d.cls 1527
-            jr fn_s3d_render_vp_oc		; S3d.cls 1528
-fn_s3d_render_vp_g:		; S3d.cls 1529
-            ld hl, (fn_s3d_render_w_gx)		; S3d.cls 1530
-            ld (ix + 0), l		; S3d.cls 1531
-            ld (ix + 1), h		; S3d.cls 1532
-            ld hl, (fn_s3d_render_w_gy)		; S3d.cls 1533
-            ld (ix + 2), l		; S3d.cls 1534
-            ld (ix + 3), h		; S3d.cls 1535
-            ld hl, (fn_s3d_render_w_gz)		; S3d.cls 1536
-            ld (ix + 4), l		; S3d.cls 1537
-            ld (ix + 5), h		; S3d.cls 1538
-fn_s3d_render_vp_oc:		; S3d.cls 1539
-            call fn_s3d_render_ve_oc		; S3d.cls 1540
-            ld (ix + 6), a		; S3d.cls 1541
-            ld hl, fn_s3d_render_w_and		; S3d.cls 1542
-            and (hl)		; S3d.cls 1543
-            ld (hl), a              ; (all the vertices' outcodes ANDed: a building wholly off [1544]
-            ld a, (fn_s3d_render_w_noproj)        ; one side is left out) [1545]
-            or a		; S3d.cls 1546
-            ret nz		; S3d.cls 1547
-            ld a, (ix + 6)		; S3d.cls 1548
-            or a		; S3d.cls 1549
-            ret nz		; S3d.cls 1550
-            jp fn_s3d_render_ve_proj		; S3d.cls 1551
+fn_s3d_render_vx_put:		; S3d.cls 1595
+            or a		; S3d.cls 1596
+            jr z, fn_s3d_render_vp_g		; S3d.cls 1597
+            ld hl, (fn_s3d_render_w_gx)		; S3d.cls 1598
+            ld de, (fn_s3d_render_w_hx)		; S3d.cls 1599
+            add hl, de		; S3d.cls 1600
+            ld (ix + 0), l		; S3d.cls 1601
+            ld (ix + 1), h		; S3d.cls 1602
+            ld hl, (fn_s3d_render_w_gy)		; S3d.cls 1603
+            ld de, (fn_s3d_render_w_hy)		; S3d.cls 1604
+            add hl, de		; S3d.cls 1605
+            ld (ix + 2), l		; S3d.cls 1606
+            ld (ix + 3), h		; S3d.cls 1607
+            ld hl, (fn_s3d_render_w_gz)		; S3d.cls 1608
+            ld de, (fn_s3d_render_w_hz)		; S3d.cls 1609
+            add hl, de		; S3d.cls 1610
+            ld (ix + 4), l		; S3d.cls 1611
+            ld (ix + 5), h		; S3d.cls 1612
+            jr fn_s3d_render_vp_oc		; S3d.cls 1613
+fn_s3d_render_vp_g:		; S3d.cls 1614
+            ld hl, (fn_s3d_render_w_gx)		; S3d.cls 1615
+            ld (ix + 0), l		; S3d.cls 1616
+            ld (ix + 1), h		; S3d.cls 1617
+            ld hl, (fn_s3d_render_w_gy)		; S3d.cls 1618
+            ld (ix + 2), l		; S3d.cls 1619
+            ld (ix + 3), h		; S3d.cls 1620
+            ld hl, (fn_s3d_render_w_gz)		; S3d.cls 1621
+            ld (ix + 4), l		; S3d.cls 1622
+            ld (ix + 5), h		; S3d.cls 1623
+fn_s3d_render_vp_oc:		; S3d.cls 1624
+            ; the outcode (HL = Z), into B a bit at a time from bit 4: 4 below (-4Y > 3Z),
+            ; 3 above (4Y > 3Z), 2 left (-X > Z), 1 right (X > Z), 0 nearer than 16
+            ld b, 0		; S3d.cls 1627
+            push hl                 ; Z (bits 0, 1, 2) [1628]
+            push hl		; S3d.cls 1629
+            push hl		; S3d.cls 1630
+            ld e, l		; S3d.cls 1631
+            ld d, h		; S3d.cls 1632
+            add hl, hl		; S3d.cls 1633
+            add hl, de		; S3d.cls 1634
+            push hl		; S3d.cls 1635
+            pop iy                  ; IY = 3Z [1636]
+            ld l, (ix + 2)		; S3d.cls 1637
+            ld h, (ix + 3)		; S3d.cls 1638
+            add hl, hl		; S3d.cls 1639
+            add hl, hl		; S3d.cls 1640
+            push hl                 ; 4Y [1641]
+            HNEG		; S3d.cls 1642
+            ex de, hl               ; DE = -4Y [1643]
+            push iy		; S3d.cls 1644
+            pop hl		; S3d.cls 1645
+            CMPS                    ; 3Z < -4Y [1646]
+            rl b		; S3d.cls 1647
+            pop de                  ; DE = 4Y [1648]
+            push iy		; S3d.cls 1649
+            pop hl		; S3d.cls 1650
+            CMPS                    ; 3Z < 4Y [1651]
+            rl b		; S3d.cls 1652
+            ld l, (ix + 0)		; S3d.cls 1653
+            ld h, (ix + 1)		; S3d.cls 1654
+            HNEG		; S3d.cls 1655
+            ex de, hl               ; DE = -X [1656]
+            pop hl		; S3d.cls 1657
+            CMPS                    ; Z < -X [1658]
+            rl b		; S3d.cls 1659
+            ld e, (ix + 0)		; S3d.cls 1660
+            ld d, (ix + 1)		; S3d.cls 1661
+            pop hl		; S3d.cls 1662
+            CMPS                    ; Z < X [1663]
+            rl b		; S3d.cls 1664
+            ld de, 16		; S3d.cls 1665
+            pop hl		; S3d.cls 1666
+            CMPS                    ; Z < 16 [1667]
+            rl b		; S3d.cls 1668
+            ld (ix + 6), b		; S3d.cls 1669
+            ld a, b		; S3d.cls 1670
+            ld hl, fn_s3d_render_w_and		; S3d.cls 1671
+            and (hl)		; S3d.cls 1672
+            ld (hl), a              ; (all the vertices' outcodes ANDed: a building wholly off [1673]
+            ld a, (fn_s3d_render_w_noproj)        ; one side is left out) [1674]
+            or a		; S3d.cls 1675
+            ret nz		; S3d.cls 1676
+            ld a, (ix + 6)		; S3d.cls 1677
+            or a		; S3d.cls 1678
+            ret nz		; S3d.cls 1679
+            jp fn_s3d_render_ve_proj		; S3d.cls 1680
 
 ; ---- a building at (w_p): n, height, n points - its ground and its top (n each), 3n edges
-fn_s3d_render_b_one:		; S3d.cls 1554
-            ld hl, (fn_s3d_render_w_p)		; S3d.cls 1555
-            ld a, (hl)		; S3d.cls 1556
-            ld (fn_s3d_render_w_n), a		; S3d.cls 1557
-            inc hl		; S3d.cls 1558
-            ld a, (hl)		; S3d.cls 1559
-            inc hl		; S3d.cls 1560
-            ld (fn_s3d_render_w_q), hl		; S3d.cls 1561
-            push af		; S3d.cls 1562
-            cp 10		; S3d.cls 1563
-            jr nc, fn_s3d_render_bo_go            ; (20 m or more: no quick look) [1564]
-            ld b, (hl)              ; a quick look at its first corner: more than 75 m behind, [1565]
-            inc hl                  ; or 75 m off the side of the view - left out [1566]
-            ld c, (hl)		; S3d.cls 1567
-            call fn_s3d_render_vx_xz		; S3d.cls 1568
-            ld hl, (fn_s3d_render_w_gz)		; S3d.cls 1569
-            ld de, -150		; S3d.cls 1570
-            call fn_s3d_render_cmps		; S3d.cls 1571
-            jr c, fn_s3d_render_bo_skip		; S3d.cls 1572
-            ld hl, (fn_s3d_render_w_gx)		; S3d.cls 1573
-            call fn_s3d_render_habs		; S3d.cls 1574
-            ld de, (fn_s3d_render_w_gz)		; S3d.cls 1575
-            or a		; S3d.cls 1576
-            sbc hl, de		; S3d.cls 1577
-            ld de, 150		; S3d.cls 1578
-            call fn_s3d_render_cmps		; S3d.cls 1579
-            jr nc, fn_s3d_render_bo_skip		; S3d.cls 1580
-            pop af                  ; below the view: its top (the height's Y added) under the [1581]
-            push af                 ; bottom edge by more than 37 m (-4Y - 3Z > 600) [1582]
-            call fn_s3d_render_vx_h		; S3d.cls 1583
-            ld hl, (fn_s3d_render_w_gy)		; S3d.cls 1584
-            ld de, (fn_s3d_render_w_hy)		; S3d.cls 1585
-            add hl, de		; S3d.cls 1586
-            call fn_s3d_render_hneg		; S3d.cls 1587
-            add hl, hl		; S3d.cls 1588
-            add hl, hl		; S3d.cls 1589
-            push hl		; S3d.cls 1590
-            ld hl, (fn_s3d_render_w_gz)		; S3d.cls 1591
-            ld e, l		; S3d.cls 1592
-            ld d, h		; S3d.cls 1593
-            add hl, hl		; S3d.cls 1594
-            add hl, de		; S3d.cls 1595
-            ex de, hl		; S3d.cls 1596
-            pop hl		; S3d.cls 1597
-            or a		; S3d.cls 1598
-            sbc hl, de		; S3d.cls 1599
-            ld de, 600		; S3d.cls 1600
-            call fn_s3d_render_cmps		; S3d.cls 1601
-            jr c, fn_s3d_render_bo_go		; S3d.cls 1602
-fn_s3d_render_bo_skip:		; S3d.cls 1603
-            pop af		; S3d.cls 1604
-            ld a, (fn_s3d_render_w_n)             ; past it [1605]
-            add a, a		; S3d.cls 1606
-            ld e, a		; S3d.cls 1607
-            ld d, 0		; S3d.cls 1608
-            ld hl, (fn_s3d_render_w_q)		; S3d.cls 1609
-            add hl, de		; S3d.cls 1610
-            ld (fn_s3d_render_w_p), hl		; S3d.cls 1611
-            ret		; S3d.cls 1612
-fn_s3d_render_bo_go:		; S3d.cls 1613
-            pop af		; S3d.cls 1614
-            call fn_s3d_render_vx_h		; S3d.cls 1615
-            ld a, #FF		; S3d.cls 1616
-            ld (fn_s3d_render_w_and), a		; S3d.cls 1617
-            ld (fn_s3d_render_w_noproj), a        ; (first the outcodes only) [1618]
-            ld ix, 41424		; S3d.cls 1619
-            ld a, (fn_s3d_render_w_n)		; S3d.cls 1620
-            ld b, a		; S3d.cls 1621
-fn_s3d_render_bo_v:		; S3d.cls 1622
-            push bc		; S3d.cls 1623
-            ld hl, (fn_s3d_render_w_q)		; S3d.cls 1624
-            ld b, (hl)		; S3d.cls 1625
-            inc hl		; S3d.cls 1626
-            ld c, (hl)		; S3d.cls 1627
-            inc hl		; S3d.cls 1628
-            ld (fn_s3d_render_w_q), hl		; S3d.cls 1629
-            push ix		; S3d.cls 1630
-            call fn_s3d_render_vx_xz		; S3d.cls 1631
-            pop ix		; S3d.cls 1632
-            ld a, (fn_s3d_render_w_lod)		; S3d.cls 1633
-            or a		; S3d.cls 1634
-            jr z, fn_s3d_render_bo_ng             ; (the top only: the ground not needed on the screen) [1635]
-            xor a		; S3d.cls 1636
-            call fn_s3d_render_vx_put             ; the ground [1637]
-fn_s3d_render_bo_ng:		; S3d.cls 1638
-            push ix		; S3d.cls 1639
-            ld de, 144		; S3d.cls 1640
-            add ix, de		; S3d.cls 1641
-            ld a, 1		; S3d.cls 1642
-            call fn_s3d_render_vx_put             ; the top (12 vertices on) [1643]
-            pop ix		; S3d.cls 1644
-            ld de, 12		; S3d.cls 1645
-            add ix, de		; S3d.cls 1646
-            pop bc		; S3d.cls 1647
-            djnz fn_s3d_render_bo_v		; S3d.cls 1648
-            ld hl, (fn_s3d_render_w_q)		; S3d.cls 1649
-            ld (fn_s3d_render_w_p), hl		; S3d.cls 1650
-            xor a		; S3d.cls 1651
-            ld (fn_s3d_render_w_noproj), a		; S3d.cls 1652
-            ld a, (fn_s3d_render_w_and)		; S3d.cls 1653
-            or a		; S3d.cls 1654
-            ret nz                  ; wholly off one side of the view: nothing to draw [1655]
-            ld ix, 41424              ; the vertices in view onto the screen [1656]
-            ld a, (fn_s3d_render_w_n)		; S3d.cls 1657
-            ld b, a		; S3d.cls 1658
-fn_s3d_render_bo_pj:		; S3d.cls 1659
-            push bc		; S3d.cls 1660
-            ld a, (fn_s3d_render_w_lod)		; S3d.cls 1661
-            or a		; S3d.cls 1662
-            jr z, fn_s3d_render_bo_pj1		; S3d.cls 1663
-            ld a, (ix + 6)		; S3d.cls 1664
-            or a		; S3d.cls 1665
-            call z, fn_s3d_render_ve_proj		; S3d.cls 1666
-fn_s3d_render_bo_pj1:		; S3d.cls 1667
-            push ix		; S3d.cls 1668
-            ld de, 144		; S3d.cls 1669
-            add ix, de		; S3d.cls 1670
-            ld a, (ix + 6)		; S3d.cls 1671
-            or a		; S3d.cls 1672
-            call z, fn_s3d_render_ve_proj		; S3d.cls 1673
-            pop ix		; S3d.cls 1674
-            ld de, 12		; S3d.cls 1675
-            add ix, de		; S3d.cls 1676
-            pop bc		; S3d.cls 1677
-            djnz fn_s3d_render_bo_pj		; S3d.cls 1678
-            xor a                   ; the edges [1679]
-            ld (fn_s3d_render_w_i), a		; S3d.cls 1680
-fn_s3d_render_bo_e:		; S3d.cls 1681
-            ld a, (fn_s3d_render_w_i)		; S3d.cls 1682
-            call fn_s3d_render_vx12               ; HL = ground i [1683]
-            ld (fn_s3d_render_w_ea), hl		; S3d.cls 1684
-            ld (fn_s3d_render_w_va), hl		; S3d.cls 1685
-            ld a, (fn_s3d_render_w_i)		; S3d.cls 1686
-            inc a		; S3d.cls 1687
-            ld hl, fn_s3d_render_w_n		; S3d.cls 1688
-            cp (hl)		; S3d.cls 1689
-            jr c, fn_s3d_render_bo_e1		; S3d.cls 1690
-            xor a		; S3d.cls 1691
-fn_s3d_render_bo_e1:		; S3d.cls 1692
-            call fn_s3d_render_vx12		; S3d.cls 1693
-            ld (fn_s3d_render_w_eb), hl		; S3d.cls 1694
-            ld (fn_s3d_render_w_vb), hl		; S3d.cls 1695
-            ld a, (fn_s3d_render_w_lod)		; S3d.cls 1696
-            bit 0, a		; S3d.cls 1697
-            call nz, fn_s3d_render_ed_cnt         ; ground i - ground i+1 [1698]
-            ld hl, (fn_s3d_render_w_va)		; S3d.cls 1699
-            ld de, 144		; S3d.cls 1700
-            add hl, de		; S3d.cls 1701
-            ld (fn_s3d_render_w_ea), hl		; S3d.cls 1702
-            ld hl, (fn_s3d_render_w_vb)		; S3d.cls 1703
-            add hl, de		; S3d.cls 1704
-            ld (fn_s3d_render_w_eb), hl		; S3d.cls 1705
-            call fn_s3d_render_ed_cnt             ; top i - top i+1 [1706]
-            ld a, (fn_s3d_render_w_lod)		; S3d.cls 1707
-            bit 1, a		; S3d.cls 1708
-            jr z, fn_s3d_render_bo_nv		; S3d.cls 1709
-            ld hl, (fn_s3d_render_w_va)		; S3d.cls 1710
-            ld (fn_s3d_render_w_ea), hl		; S3d.cls 1711
-            ld de, 144		; S3d.cls 1712
-            add hl, de		; S3d.cls 1713
-            ld (fn_s3d_render_w_eb), hl		; S3d.cls 1714
-            call fn_s3d_render_ed_cnt             ; ground i - top i [1715]
-fn_s3d_render_bo_nv:		; S3d.cls 1716
-            ld a, (fn_s3d_render_w_i)		; S3d.cls 1717
-            inc a		; S3d.cls 1718
-            ld (fn_s3d_render_w_i), a		; S3d.cls 1719
-            ld hl, fn_s3d_render_w_n		; S3d.cls 1720
-            cp (hl)		; S3d.cls 1721
-            jr c, fn_s3d_render_bo_e		; S3d.cls 1722
-            ret		; S3d.cls 1723
+fn_s3d_render_b_one:		; S3d.cls 1683
+            ld hl, (fn_s3d_render_w_p)		; S3d.cls 1684
+            ld a, (hl)		; S3d.cls 1685
+            ld (fn_s3d_render_w_n), a		; S3d.cls 1686
+            inc hl		; S3d.cls 1687
+            ld a, (hl)		; S3d.cls 1688
+            inc hl		; S3d.cls 1689
+            ld (fn_s3d_render_w_q), hl		; S3d.cls 1690
+            push af		; S3d.cls 1691
+            cp 10		; S3d.cls 1692
+            jr nc, fn_s3d_render_bo_go            ; (20 m or more: no quick look) [1693]
+            ld b, (hl)              ; a quick look at its first corner: more than 75 m behind, [1694]
+            inc hl                  ; or 75 m off the side of the view - left out [1695]
+            ld c, (hl)		; S3d.cls 1696
+            call fn_s3d_render_vx_xz		; S3d.cls 1697
+            ld hl, (fn_s3d_render_w_gz)		; S3d.cls 1698
+            ld de, -150		; S3d.cls 1699
+            CMPS		; S3d.cls 1700
+            jr c, fn_s3d_render_bo_skip		; S3d.cls 1701
+            ld hl, (fn_s3d_render_w_gx)		; S3d.cls 1702
+            HABS		; S3d.cls 1703
+            ld de, (fn_s3d_render_w_gz)		; S3d.cls 1704
+            or a		; S3d.cls 1705
+            sbc hl, de		; S3d.cls 1706
+            ld de, 150		; S3d.cls 1707
+            CMPS		; S3d.cls 1708
+            jr nc, fn_s3d_render_bo_skip		; S3d.cls 1709
+            pop af                  ; below the view: its top (the height's Y added) under the [1710]
+            push af                 ; bottom edge by more than 37 m (-4Y - 3Z > 600) [1711]
+            call fn_s3d_render_vx_h		; S3d.cls 1712
+            ld hl, (fn_s3d_render_w_gy)		; S3d.cls 1713
+            ld de, (fn_s3d_render_w_hy)		; S3d.cls 1714
+            add hl, de		; S3d.cls 1715
+            HNEG		; S3d.cls 1716
+            add hl, hl		; S3d.cls 1717
+            add hl, hl		; S3d.cls 1718
+            push hl		; S3d.cls 1719
+            ld hl, (fn_s3d_render_w_gz)		; S3d.cls 1720
+            ld e, l		; S3d.cls 1721
+            ld d, h		; S3d.cls 1722
+            add hl, hl		; S3d.cls 1723
+            add hl, de		; S3d.cls 1724
+            ex de, hl		; S3d.cls 1725
+            pop hl		; S3d.cls 1726
+            or a		; S3d.cls 1727
+            sbc hl, de		; S3d.cls 1728
+            ld de, 600		; S3d.cls 1729
+            CMPS		; S3d.cls 1730
+            jr c, fn_s3d_render_bo_go		; S3d.cls 1731
+fn_s3d_render_bo_skip:		; S3d.cls 1732
+            pop af		; S3d.cls 1733
+            ld a, (fn_s3d_render_w_n)             ; past it [1734]
+            add a, a		; S3d.cls 1735
+            ld e, a		; S3d.cls 1736
+            ld d, 0		; S3d.cls 1737
+            ld hl, (fn_s3d_render_w_q)		; S3d.cls 1738
+            add hl, de		; S3d.cls 1739
+            ld (fn_s3d_render_w_p), hl		; S3d.cls 1740
+            ret		; S3d.cls 1741
+fn_s3d_render_bo_go:		; S3d.cls 1742
+            pop af		; S3d.cls 1743
+            call fn_s3d_render_vx_h		; S3d.cls 1744
+            ld a, #FF		; S3d.cls 1745
+            ld (fn_s3d_render_w_and), a		; S3d.cls 1746
+            ld (fn_s3d_render_w_noproj), a        ; (first the outcodes only) [1747]
+            ld ix, 41424		; S3d.cls 1748
+            ld a, (fn_s3d_render_w_n)		; S3d.cls 1749
+            ld b, a		; S3d.cls 1750
+fn_s3d_render_bo_v:		; S3d.cls 1751
+            push bc		; S3d.cls 1752
+            ld hl, (fn_s3d_render_w_q)		; S3d.cls 1753
+            ld b, (hl)		; S3d.cls 1754
+            inc hl		; S3d.cls 1755
+            ld c, (hl)		; S3d.cls 1756
+            inc hl		; S3d.cls 1757
+            ld (fn_s3d_render_w_q), hl		; S3d.cls 1758
+            push ix		; S3d.cls 1759
+            call fn_s3d_render_vx_xz		; S3d.cls 1760
+            pop ix		; S3d.cls 1761
+            ld a, (fn_s3d_render_w_lod)		; S3d.cls 1762
+            or a		; S3d.cls 1763
+            jr z, fn_s3d_render_bo_ng             ; (the top only: the ground not needed on the screen) [1764]
+            xor a		; S3d.cls 1765
+            call fn_s3d_render_vx_put             ; the ground [1766]
+fn_s3d_render_bo_ng:		; S3d.cls 1767
+            push ix		; S3d.cls 1768
+            ld de, 144		; S3d.cls 1769
+            add ix, de		; S3d.cls 1770
+            ld a, 1		; S3d.cls 1771
+            call fn_s3d_render_vx_put             ; the top (12 vertices on) [1772]
+            pop ix		; S3d.cls 1773
+            ld de, 12		; S3d.cls 1774
+            add ix, de		; S3d.cls 1775
+            pop bc		; S3d.cls 1776
+            djnz fn_s3d_render_bo_v		; S3d.cls 1777
+            ld hl, (fn_s3d_render_w_q)		; S3d.cls 1778
+            ld (fn_s3d_render_w_p), hl		; S3d.cls 1779
+            xor a		; S3d.cls 1780
+            ld (fn_s3d_render_w_noproj), a		; S3d.cls 1781
+            ld a, (fn_s3d_render_w_and)		; S3d.cls 1782
+            or a		; S3d.cls 1783
+            ret nz                  ; wholly off one side of the view: nothing to draw [1784]
+            ld ix, 41424              ; the vertices in view onto the screen [1785]
+            ld a, (fn_s3d_render_w_n)		; S3d.cls 1786
+            ld b, a		; S3d.cls 1787
+fn_s3d_render_bo_pj:		; S3d.cls 1788
+            push bc		; S3d.cls 1789
+            ld a, (fn_s3d_render_w_lod)		; S3d.cls 1790
+            or a		; S3d.cls 1791
+            jr z, fn_s3d_render_bo_pj1		; S3d.cls 1792
+            ld a, (ix + 6)		; S3d.cls 1793
+            or a		; S3d.cls 1794
+            call z, fn_s3d_render_ve_proj		; S3d.cls 1795
+fn_s3d_render_bo_pj1:		; S3d.cls 1796
+            push ix		; S3d.cls 1797
+            ld de, 144		; S3d.cls 1798
+            add ix, de		; S3d.cls 1799
+            ld a, (ix + 6)		; S3d.cls 1800
+            or a		; S3d.cls 1801
+            call z, fn_s3d_render_ve_proj		; S3d.cls 1802
+            pop ix		; S3d.cls 1803
+            ld de, 12		; S3d.cls 1804
+            add ix, de		; S3d.cls 1805
+            pop bc		; S3d.cls 1806
+            djnz fn_s3d_render_bo_pj		; S3d.cls 1807
+            xor a                   ; the edges [1808]
+            ld (fn_s3d_render_w_i), a		; S3d.cls 1809
+fn_s3d_render_bo_e:		; S3d.cls 1810
+            ld a, (fn_s3d_render_w_i)		; S3d.cls 1811
+            VX12               ; HL = ground i [1812]
+            ld (fn_s3d_render_w_ea), hl		; S3d.cls 1813
+            ld (fn_s3d_render_w_va), hl		; S3d.cls 1814
+            ld a, (fn_s3d_render_w_i)		; S3d.cls 1815
+            inc a		; S3d.cls 1816
+            ld hl, fn_s3d_render_w_n		; S3d.cls 1817
+            cp (hl)		; S3d.cls 1818
+            jr c, fn_s3d_render_bo_e1		; S3d.cls 1819
+            xor a		; S3d.cls 1820
+fn_s3d_render_bo_e1:		; S3d.cls 1821
+            VX12		; S3d.cls 1822
+            ld (fn_s3d_render_w_eb), hl		; S3d.cls 1823
+            ld (fn_s3d_render_w_vb), hl		; S3d.cls 1824
+            ld a, (fn_s3d_render_w_lod)		; S3d.cls 1825
+            bit 0, a		; S3d.cls 1826
+            call nz, fn_s3d_render_ed_cnt         ; ground i - ground i+1 [1827]
+            ld hl, (fn_s3d_render_w_va)		; S3d.cls 1828
+            ld de, 144		; S3d.cls 1829
+            add hl, de		; S3d.cls 1830
+            ld (fn_s3d_render_w_ea), hl		; S3d.cls 1831
+            ld hl, (fn_s3d_render_w_vb)		; S3d.cls 1832
+            add hl, de		; S3d.cls 1833
+            ld (fn_s3d_render_w_eb), hl		; S3d.cls 1834
+            call fn_s3d_render_ed_cnt             ; top i - top i+1 [1835]
+            ld a, (fn_s3d_render_w_lod)		; S3d.cls 1836
+            bit 1, a		; S3d.cls 1837
+            jr z, fn_s3d_render_bo_nv		; S3d.cls 1838
+            ld hl, (fn_s3d_render_w_va)		; S3d.cls 1839
+            ld (fn_s3d_render_w_ea), hl		; S3d.cls 1840
+            ld de, 144		; S3d.cls 1841
+            add hl, de		; S3d.cls 1842
+            ld (fn_s3d_render_w_eb), hl		; S3d.cls 1843
+            call fn_s3d_render_ed_cnt             ; ground i - top i [1844]
+fn_s3d_render_bo_nv:		; S3d.cls 1845
+            ld a, (fn_s3d_render_w_i)		; S3d.cls 1846
+            inc a		; S3d.cls 1847
+            ld (fn_s3d_render_w_i), a		; S3d.cls 1848
+            ld hl, fn_s3d_render_w_n		; S3d.cls 1849
+            cp (hl)		; S3d.cls 1850
+            jr c, fn_s3d_render_bo_e		; S3d.cls 1851
+            ret		; S3d.cls 1852
 ; ed_cnt - ed_one, counted
-fn_s3d_render_ed_cnt:		; S3d.cls 1725
-            ld hl, (fn_s3d_render_w_nl)		; S3d.cls 1726
-            inc hl		; S3d.cls 1727
-            ld (fn_s3d_render_w_nl), hl		; S3d.cls 1728
-            jp fn_s3d_render_ed_one		; S3d.cls 1729
+fn_s3d_render_ed_cnt:		; S3d.cls 1854
+            ld hl, (fn_s3d_render_w_nl)		; S3d.cls 1855
+            inc hl		; S3d.cls 1856
+            ld (fn_s3d_render_w_nl), hl		; S3d.cls 1857
+            jp fn_s3d_render_ed_one		; S3d.cls 1858
 
 ; ---- a ground line at (w_p): n, type, n points (minor roads, type 2, left out when w_far)
-fn_s3d_render_l_one:		; S3d.cls 1732
-            ld hl, (fn_s3d_render_w_p)		; S3d.cls 1733
-            ld a, (hl)		; S3d.cls 1734
-            ld (fn_s3d_render_w_n), a		; S3d.cls 1735
-            inc hl		; S3d.cls 1736
-            ld a, (hl)		; S3d.cls 1737
-            inc hl		; S3d.cls 1738
-            ld (fn_s3d_render_w_q), hl		; S3d.cls 1739
-            ld c, a                 ; the pen: 1 roads, railways, piers; 3 coast, water [1740]
-            ld a, 1		; S3d.cls 1741
-            ld b, a		; S3d.cls 1742
-            ld a, c		; S3d.cls 1743
-            cp 4		; S3d.cls 1744
-            jr c, fn_s3d_render_lo_p		; S3d.cls 1745
-            cp 7		; S3d.cls 1746
-            jr nc, fn_s3d_render_lo_p		; S3d.cls 1747
-            ld b, 3		; S3d.cls 1748
-fn_s3d_render_lo_p:		; S3d.cls 1749
-            ld a, b		; S3d.cls 1750
-            ld (gfx_pen), a		; S3d.cls 1751
-            ld a, (fn_s3d_render_w_n)             ; past it (for the next one) [1752]
-            add a, a		; S3d.cls 1753
-            ld e, a		; S3d.cls 1754
-            ld d, 0		; S3d.cls 1755
-            ld hl, (fn_s3d_render_w_q)		; S3d.cls 1756
-            add hl, de		; S3d.cls 1757
-            ld (fn_s3d_render_w_p), hl		; S3d.cls 1758
-            ld a, c		; S3d.cls 1759
-            cp 2		; S3d.cls 1760
-            jr nz, fn_s3d_render_lo_go		; S3d.cls 1761
-            ld a, (fn_s3d_render_w_far)		; S3d.cls 1762
-            or a		; S3d.cls 1763
-            ret nz		; S3d.cls 1764
-fn_s3d_render_lo_go:		; S3d.cls 1765
-            xor a		; S3d.cls 1766
-            ld (fn_s3d_render_w_3d), a		; S3d.cls 1767
-            jr fn_s3d_render_ln_pts		; S3d.cls 1768
+fn_s3d_render_l_one:		; S3d.cls 1861
+            ld hl, (fn_s3d_render_w_p)		; S3d.cls 1862
+            ld a, (hl)		; S3d.cls 1863
+            ld (fn_s3d_render_w_n), a		; S3d.cls 1864
+            inc hl		; S3d.cls 1865
+            ld a, (hl)		; S3d.cls 1866
+            inc hl		; S3d.cls 1867
+            ld (fn_s3d_render_w_q), hl		; S3d.cls 1868
+            ld c, a                 ; the pen: 1 roads, railways, piers; 3 coast, water [1869]
+            ld a, 1		; S3d.cls 1870
+            ld b, a		; S3d.cls 1871
+            ld a, c		; S3d.cls 1872
+            cp 4		; S3d.cls 1873
+            jr c, fn_s3d_render_lo_p		; S3d.cls 1874
+            cp 7		; S3d.cls 1875
+            jr nc, fn_s3d_render_lo_p		; S3d.cls 1876
+            ld b, 3		; S3d.cls 1877
+fn_s3d_render_lo_p:		; S3d.cls 1878
+            ld a, b		; S3d.cls 1879
+            ld (gfx_pen), a		; S3d.cls 1880
+            ld a, (fn_s3d_render_w_n)             ; past it (for the next one) [1881]
+            add a, a		; S3d.cls 1882
+            ld e, a		; S3d.cls 1883
+            ld d, 0		; S3d.cls 1884
+            ld hl, (fn_s3d_render_w_q)		; S3d.cls 1885
+            add hl, de		; S3d.cls 1886
+            ld (fn_s3d_render_w_p), hl		; S3d.cls 1887
+            ld a, c		; S3d.cls 1888
+            cp 2		; S3d.cls 1889
+            jr nz, fn_s3d_render_lo_go		; S3d.cls 1890
+            ld a, (fn_s3d_render_w_far)		; S3d.cls 1891
+            or a		; S3d.cls 1892
+            ret nz		; S3d.cls 1893
+fn_s3d_render_lo_go:		; S3d.cls 1894
+            xor a		; S3d.cls 1895
+            ld (fn_s3d_render_w_3d), a		; S3d.cls 1896
+            jr fn_s3d_render_ln_pts		; S3d.cls 1897
 ; ---- a 3D line at (w_p): n, type, n points with heights
-fn_s3d_render_l3_one:		; S3d.cls 1770
-            ld hl, (fn_s3d_render_w_p)		; S3d.cls 1771
-            ld a, (hl)		; S3d.cls 1772
-            ld (fn_s3d_render_w_n), a		; S3d.cls 1773
-            inc hl		; S3d.cls 1774
-            ld a, (hl)		; S3d.cls 1775
-            inc hl		; S3d.cls 1776
-            ld (fn_s3d_render_w_q), hl		; S3d.cls 1777
-            cp 10                   ; the pen: 2 the volcanoes, 1 the rest [1778]
-            ld a, 1		; S3d.cls 1779
-            jr nz, fn_s3d_render_l3_p		; S3d.cls 1780
-            inc a		; S3d.cls 1781
-fn_s3d_render_l3_p:		; S3d.cls 1782
-            ld (gfx_pen), a		; S3d.cls 1783
-            ld a, (fn_s3d_render_w_n)             ; past it: 3 bytes a point [1784]
-            ld e, a		; S3d.cls 1785
-            add a, a		; S3d.cls 1786
-            add a, e		; S3d.cls 1787
-            ld e, a		; S3d.cls 1788
-            ld d, 0		; S3d.cls 1789
-            ld hl, (fn_s3d_render_w_q)		; S3d.cls 1790
-            add hl, de		; S3d.cls 1791
-            ld (fn_s3d_render_w_p), hl		; S3d.cls 1792
-            ld a, 1		; S3d.cls 1793
-            ld (fn_s3d_render_w_3d), a		; S3d.cls 1794
+fn_s3d_render_l3_one:		; S3d.cls 1899
+            ld hl, (fn_s3d_render_w_p)		; S3d.cls 1900
+            ld a, (hl)		; S3d.cls 1901
+            ld (fn_s3d_render_w_n), a		; S3d.cls 1902
+            inc hl		; S3d.cls 1903
+            ld a, (hl)		; S3d.cls 1904
+            inc hl		; S3d.cls 1905
+            ld (fn_s3d_render_w_q), hl		; S3d.cls 1906
+            cp 10                   ; the pen: 2 the volcanoes, 1 the rest [1907]
+            ld a, 1		; S3d.cls 1908
+            jr nz, fn_s3d_render_l3_p		; S3d.cls 1909
+            inc a		; S3d.cls 1910
+fn_s3d_render_l3_p:		; S3d.cls 1911
+            ld (gfx_pen), a		; S3d.cls 1912
+            ld a, (fn_s3d_render_w_n)             ; past it: 3 bytes a point [1913]
+            ld e, a		; S3d.cls 1914
+            add a, a		; S3d.cls 1915
+            add a, e		; S3d.cls 1916
+            ld e, a		; S3d.cls 1917
+            ld d, 0		; S3d.cls 1918
+            ld hl, (fn_s3d_render_w_q)		; S3d.cls 1919
+            add hl, de		; S3d.cls 1920
+            ld (fn_s3d_render_w_p), hl		; S3d.cls 1921
+            ld a, 1		; S3d.cls 1922
+            ld (fn_s3d_render_w_3d), a		; S3d.cls 1923
 ; ln_pts - the points from (w_q): each to the one before, two vertices taking turns
-fn_s3d_render_ln_pts:		; S3d.cls 1796
-            xor a		; S3d.cls 1797
-            ld (fn_s3d_render_w_i), a		; S3d.cls 1798
-fn_s3d_render_ln_lp:		; S3d.cls 1799
-            ld hl, (fn_s3d_render_w_q)		; S3d.cls 1800
-            ld b, (hl)		; S3d.cls 1801
-            inc hl		; S3d.cls 1802
-            ld c, (hl)		; S3d.cls 1803
-            inc hl		; S3d.cls 1804
-            ld a, (fn_s3d_render_w_3d)		; S3d.cls 1805
-            or a		; S3d.cls 1806
-            jr z, fn_s3d_render_ln_h0		; S3d.cls 1807
-            ld a, (hl)		; S3d.cls 1808
-            inc hl		; S3d.cls 1809
-fn_s3d_render_ln_h0:		; S3d.cls 1810
-            ld (fn_s3d_render_w_q), hl		; S3d.cls 1811
-            push af		; S3d.cls 1812
-            call fn_s3d_render_vx_xz		; S3d.cls 1813
-            pop af		; S3d.cls 1814
-            or a		; S3d.cls 1815
-            call nz, fn_s3d_render_vx_h		; S3d.cls 1816
-            ld a, (fn_s3d_render_w_i)             ; vertex 0, 1, 0, 1 ... [1817]
-            and 1		; S3d.cls 1818
-            call fn_s3d_render_vx12		; S3d.cls 1819
-            push hl		; S3d.cls 1820
-            pop ix		; S3d.cls 1821
-            ld a, (fn_s3d_render_w_3d)		; S3d.cls 1822
-            or a		; S3d.cls 1823
-            jr z, fn_s3d_render_ln_g		; S3d.cls 1824
-            ld hl, (fn_s3d_render_w_q)            ; (the height: again from the point just read) [1825]
-            dec hl		; S3d.cls 1826
-            ld a, (hl)		; S3d.cls 1827
-fn_s3d_render_ln_g:		; S3d.cls 1828
-            call fn_s3d_render_vx_put		; S3d.cls 1829
-            ld a, (fn_s3d_render_w_i)		; S3d.cls 1830
-            or a		; S3d.cls 1831
-            jr z, fn_s3d_render_ln_n		; S3d.cls 1832
-            and 1		; S3d.cls 1833
-            call fn_s3d_render_vx12		; S3d.cls 1834
-            ld (fn_s3d_render_w_eb), hl		; S3d.cls 1835
-            ld a, (fn_s3d_render_w_i)		; S3d.cls 1836
-            inc a		; S3d.cls 1837
-            and 1		; S3d.cls 1838
-            call fn_s3d_render_vx12		; S3d.cls 1839
-            ld (fn_s3d_render_w_ea), hl		; S3d.cls 1840
-            call fn_s3d_render_ed_cnt		; S3d.cls 1841
-fn_s3d_render_ln_n:		; S3d.cls 1842
-            ld a, (fn_s3d_render_w_i)		; S3d.cls 1843
-            inc a		; S3d.cls 1844
-            ld (fn_s3d_render_w_i), a		; S3d.cls 1845
-            ld hl, fn_s3d_render_w_n		; S3d.cls 1846
-            cp (hl)		; S3d.cls 1847
-            jr c, fn_s3d_render_ln_lp		; S3d.cls 1848
-            ret		; S3d.cls 1849
+fn_s3d_render_ln_pts:		; S3d.cls 1925
+            xor a		; S3d.cls 1926
+            ld (fn_s3d_render_w_i), a		; S3d.cls 1927
+fn_s3d_render_ln_lp:		; S3d.cls 1928
+            ld hl, (fn_s3d_render_w_q)		; S3d.cls 1929
+            ld b, (hl)		; S3d.cls 1930
+            inc hl		; S3d.cls 1931
+            ld c, (hl)		; S3d.cls 1932
+            inc hl		; S3d.cls 1933
+            ld a, (fn_s3d_render_w_3d)		; S3d.cls 1934
+            or a		; S3d.cls 1935
+            jr z, fn_s3d_render_ln_h0		; S3d.cls 1936
+            ld a, (hl)		; S3d.cls 1937
+            inc hl		; S3d.cls 1938
+fn_s3d_render_ln_h0:		; S3d.cls 1939
+            ld (fn_s3d_render_w_q), hl		; S3d.cls 1940
+            push af		; S3d.cls 1941
+            call fn_s3d_render_vx_xz		; S3d.cls 1942
+            pop af		; S3d.cls 1943
+            or a		; S3d.cls 1944
+            call nz, fn_s3d_render_vx_h		; S3d.cls 1945
+            ld a, (fn_s3d_render_w_i)             ; vertex 0, 1, 0, 1 ... [1946]
+            and 1		; S3d.cls 1947
+            VX12		; S3d.cls 1948
+            push hl		; S3d.cls 1949
+            pop ix		; S3d.cls 1950
+            ld a, (fn_s3d_render_w_3d)		; S3d.cls 1951
+            or a		; S3d.cls 1952
+            jr z, fn_s3d_render_ln_g		; S3d.cls 1953
+            ld hl, (fn_s3d_render_w_q)            ; (the height: again from the point just read) [1954]
+            dec hl		; S3d.cls 1955
+            ld a, (hl)		; S3d.cls 1956
+fn_s3d_render_ln_g:		; S3d.cls 1957
+            call fn_s3d_render_vx_put		; S3d.cls 1958
+            ld a, (fn_s3d_render_w_i)		; S3d.cls 1959
+            or a		; S3d.cls 1960
+            jr z, fn_s3d_render_ln_n		; S3d.cls 1961
+            and 1		; S3d.cls 1962
+            VX12		; S3d.cls 1963
+            ld (fn_s3d_render_w_eb), hl		; S3d.cls 1964
+            ld a, (fn_s3d_render_w_i)		; S3d.cls 1965
+            inc a		; S3d.cls 1966
+            and 1		; S3d.cls 1967
+            VX12		; S3d.cls 1968
+            ld (fn_s3d_render_w_ea), hl		; S3d.cls 1969
+            call fn_s3d_render_ed_cnt		; S3d.cls 1970
+fn_s3d_render_ln_n:		; S3d.cls 1971
+            ld a, (fn_s3d_render_w_i)		; S3d.cls 1972
+            inc a		; S3d.cls 1973
+            ld (fn_s3d_render_w_i), a		; S3d.cls 1974
+            ld hl, fn_s3d_render_w_n		; S3d.cls 1975
+            cp (hl)		; S3d.cls 1976
+            jr c, fn_s3d_render_ln_lp		; S3d.cls 1977
+            ret		; S3d.cls 1978
 
 ; ---- a tree at (w_p): its foot and 8 m up; on the screen a trunk and a crown (a triangle)
-fn_s3d_render_t_one:		; S3d.cls 1852
-            ld hl, (fn_s3d_render_w_p)		; S3d.cls 1853
-            ld b, (hl)		; S3d.cls 1854
-            inc hl		; S3d.cls 1855
-            ld c, (hl)		; S3d.cls 1856
-            inc hl		; S3d.cls 1857
-            ld (fn_s3d_render_w_p), hl		; S3d.cls 1858
-            call fn_s3d_render_vx_xz		; S3d.cls 1859
-            ld ix, 41424		; S3d.cls 1860
-            xor a		; S3d.cls 1861
-            call fn_s3d_render_vx_put		; S3d.cls 1862
-            ld a, (ix + 6)		; S3d.cls 1863
-            or a		; S3d.cls 1864
-            ret nz		; S3d.cls 1865
-            ld a, 4		; S3d.cls 1866
-            call fn_s3d_render_vx_h		; S3d.cls 1867
-            ld ix, 41424 + 12		; S3d.cls 1868
-            ld a, 1		; S3d.cls 1869
-            call fn_s3d_render_vx_put		; S3d.cls 1870
-            ld a, (ix + 6)		; S3d.cls 1871
-            or a		; S3d.cls 1872
-            ret nz		; S3d.cls 1873
-            ld hl, (41424 + 12 + 8)   ; dx, dy: the top from the foot [1874]
-            ld de, (41424 + 8)		; S3d.cls 1875
-            or a		; S3d.cls 1876
-            sbc hl, de		; S3d.cls 1877
-            ld (fn_s3d_render_w_tdx), hl		; S3d.cls 1878
-            ld hl, (41424 + 12 + 10)		; S3d.cls 1879
-            ld de, (41424 + 10)		; S3d.cls 1880
-            or a		; S3d.cls 1881
-            sbc hl, de		; S3d.cls 1882
-            ld (fn_s3d_render_w_tdy), hl		; S3d.cls 1883
-            call fn_s3d_render_habs		; S3d.cls 1884
-            ld de, 4		; S3d.cls 1885
-            call fn_s3d_render_cmps		; S3d.cls 1886
-            ret c                   ; too small to see [1887]
-            ld hl, (fn_s3d_render_w_tdx)          ; the crown's foot: a third of the way up [1888]
-            call fn_s3d_render_div3		; S3d.cls 1889
-            ld de, (41424 + 8)		; S3d.cls 1890
-            add hl, de		; S3d.cls 1891
-            ld (fn_s3d_render_w_mx), hl		; S3d.cls 1892
-            ld hl, (fn_s3d_render_w_tdy)		; S3d.cls 1893
-            call fn_s3d_render_div3		; S3d.cls 1894
-            ld de, (41424 + 10)		; S3d.cls 1895
-            add hl, de		; S3d.cls 1896
-            ld (fn_s3d_render_w_my), hl		; S3d.cls 1897
-            ld hl, (fn_s3d_render_w_tdy)          ; half its width: (-dy, dx) / 4 [1898]
-            call fn_s3d_render_hneg		; S3d.cls 1899
-            sra h		; S3d.cls 1900
-            rr l		; S3d.cls 1901
-            sra h		; S3d.cls 1902
-            rr l		; S3d.cls 1903
-            ld (fn_s3d_render_w_px), hl		; S3d.cls 1904
-            ld hl, (fn_s3d_render_w_tdx)		; S3d.cls 1905
-            sra h		; S3d.cls 1906
-            rr l		; S3d.cls 1907
-            sra h		; S3d.cls 1908
-            rr l		; S3d.cls 1909
-            ld (fn_s3d_render_w_py), hl		; S3d.cls 1910
-            ld hl, (fn_s3d_render_w_mx)           ; the crown's corners, on the screen or no tree [1911]
-            ld de, (fn_s3d_render_w_px)		; S3d.cls 1912
-            add hl, de		; S3d.cls 1913
-            ld (fn_s3d_render_w_lx), hl		; S3d.cls 1914
-            call fn_s3d_render_t_inx		; S3d.cls 1915
-            ret c		; S3d.cls 1916
-            ld hl, (fn_s3d_render_w_mx)		; S3d.cls 1917
-            ld de, (fn_s3d_render_w_px)		; S3d.cls 1918
-            or a		; S3d.cls 1919
-            sbc hl, de		; S3d.cls 1920
-            ld (fn_s3d_render_w_rx), hl		; S3d.cls 1921
-            call fn_s3d_render_t_inx		; S3d.cls 1922
-            ret c		; S3d.cls 1923
-            ld hl, (fn_s3d_render_w_my)		; S3d.cls 1924
-            ld de, (fn_s3d_render_w_py)		; S3d.cls 1925
-            add hl, de		; S3d.cls 1926
-            ld (fn_s3d_render_w_ly), hl		; S3d.cls 1927
-            call fn_s3d_render_t_iny		; S3d.cls 1928
-            ret c		; S3d.cls 1929
-            ld hl, (fn_s3d_render_w_my)		; S3d.cls 1930
-            ld de, (fn_s3d_render_w_py)		; S3d.cls 1931
-            or a		; S3d.cls 1932
-            sbc hl, de		; S3d.cls 1933
-            ld (fn_s3d_render_w_ry), hl		; S3d.cls 1934
-            call fn_s3d_render_t_iny		; S3d.cls 1935
-            ret c		; S3d.cls 1936
-            ld hl, (fn_s3d_render_w_nl)		; S3d.cls 1937
-            inc hl		; S3d.cls 1938
-            inc hl		; S3d.cls 1939
-            inc hl		; S3d.cls 1940
-            inc hl		; S3d.cls 1941
-            ld (fn_s3d_render_w_nl), hl		; S3d.cls 1942
-            ld hl, (41424 + 8)        ; the trunk [1943]
-            ld de, (41424 + 10)		; S3d.cls 1944
-            ld bc, (fn_s3d_render_w_mx)		; S3d.cls 1945
-            ld ix, (fn_s3d_render_w_my)		; S3d.cls 1946
-            call fn_s3d_render_t_line		; S3d.cls 1947
-            ld hl, (fn_s3d_render_w_lx)           ; the crown [1948]
-            ld de, (fn_s3d_render_w_ly)		; S3d.cls 1949
-            ld bc, (41424 + 12 + 8)		; S3d.cls 1950
-            ld ix, (41424 + 12 + 10)		; S3d.cls 1951
-            call fn_s3d_render_t_line		; S3d.cls 1952
-            ld hl, (fn_s3d_render_w_rx)		; S3d.cls 1953
-            ld de, (fn_s3d_render_w_ry)		; S3d.cls 1954
-            ld bc, (41424 + 12 + 8)		; S3d.cls 1955
-            ld ix, (41424 + 12 + 10)		; S3d.cls 1956
-            call fn_s3d_render_t_line		; S3d.cls 1957
-            ld hl, (fn_s3d_render_w_lx)		; S3d.cls 1958
-            ld de, (fn_s3d_render_w_ly)		; S3d.cls 1959
-            ld bc, (fn_s3d_render_w_rx)		; S3d.cls 1960
-            ld ix, (fn_s3d_render_w_ry)		; S3d.cls 1961
+fn_s3d_render_t_one:		; S3d.cls 1981
+            ld hl, (fn_s3d_render_w_p)		; S3d.cls 1982
+            ld b, (hl)		; S3d.cls 1983
+            inc hl		; S3d.cls 1984
+            ld c, (hl)		; S3d.cls 1985
+            inc hl		; S3d.cls 1986
+            ld (fn_s3d_render_w_p), hl		; S3d.cls 1987
+            call fn_s3d_render_vx_xz		; S3d.cls 1988
+            ld ix, 41424		; S3d.cls 1989
+            xor a		; S3d.cls 1990
+            call fn_s3d_render_vx_put		; S3d.cls 1991
+            ld a, (ix + 6)		; S3d.cls 1992
+            or a		; S3d.cls 1993
+            ret nz		; S3d.cls 1994
+            ld a, 4		; S3d.cls 1995
+            call fn_s3d_render_vx_h		; S3d.cls 1996
+            ld ix, 41424 + 12		; S3d.cls 1997
+            ld a, 1		; S3d.cls 1998
+            call fn_s3d_render_vx_put		; S3d.cls 1999
+            ld a, (ix + 6)		; S3d.cls 2000
+            or a		; S3d.cls 2001
+            ret nz		; S3d.cls 2002
+            ld hl, (41424 + 12 + 8)   ; dx, dy: the top from the foot [2003]
+            ld de, (41424 + 8)		; S3d.cls 2004
+            or a		; S3d.cls 2005
+            sbc hl, de		; S3d.cls 2006
+            ld (fn_s3d_render_w_tdx), hl		; S3d.cls 2007
+            ld hl, (41424 + 12 + 10)		; S3d.cls 2008
+            ld de, (41424 + 10)		; S3d.cls 2009
+            or a		; S3d.cls 2010
+            sbc hl, de		; S3d.cls 2011
+            ld (fn_s3d_render_w_tdy), hl		; S3d.cls 2012
+            HABS		; S3d.cls 2013
+            ld de, 4		; S3d.cls 2014
+            CMPS		; S3d.cls 2015
+            ret c                   ; too small to see [2016]
+            ld hl, (fn_s3d_render_w_tdx)          ; the crown's foot: a third of the way up [2017]
+            call fn_s3d_render_div3		; S3d.cls 2018
+            ld de, (41424 + 8)		; S3d.cls 2019
+            add hl, de		; S3d.cls 2020
+            ld (fn_s3d_render_w_mx), hl		; S3d.cls 2021
+            ld hl, (fn_s3d_render_w_tdy)		; S3d.cls 2022
+            call fn_s3d_render_div3		; S3d.cls 2023
+            ld de, (41424 + 10)		; S3d.cls 2024
+            add hl, de		; S3d.cls 2025
+            ld (fn_s3d_render_w_my), hl		; S3d.cls 2026
+            ld hl, (fn_s3d_render_w_tdy)          ; half its width: (-dy, dx) / 4 [2027]
+            HNEG		; S3d.cls 2028
+            sra h		; S3d.cls 2029
+            rr l		; S3d.cls 2030
+            sra h		; S3d.cls 2031
+            rr l		; S3d.cls 2032
+            ld (fn_s3d_render_w_px), hl		; S3d.cls 2033
+            ld hl, (fn_s3d_render_w_tdx)		; S3d.cls 2034
+            sra h		; S3d.cls 2035
+            rr l		; S3d.cls 2036
+            sra h		; S3d.cls 2037
+            rr l		; S3d.cls 2038
+            ld (fn_s3d_render_w_py), hl		; S3d.cls 2039
+            ld hl, (fn_s3d_render_w_mx)           ; the crown's corners, on the screen or no tree [2040]
+            ld de, (fn_s3d_render_w_px)		; S3d.cls 2041
+            add hl, de		; S3d.cls 2042
+            ld (fn_s3d_render_w_lx), hl		; S3d.cls 2043
+            call fn_s3d_render_t_inx		; S3d.cls 2044
+            ret c		; S3d.cls 2045
+            ld hl, (fn_s3d_render_w_mx)		; S3d.cls 2046
+            ld de, (fn_s3d_render_w_px)		; S3d.cls 2047
+            or a		; S3d.cls 2048
+            sbc hl, de		; S3d.cls 2049
+            ld (fn_s3d_render_w_rx), hl		; S3d.cls 2050
+            call fn_s3d_render_t_inx		; S3d.cls 2051
+            ret c		; S3d.cls 2052
+            ld hl, (fn_s3d_render_w_my)		; S3d.cls 2053
+            ld de, (fn_s3d_render_w_py)		; S3d.cls 2054
+            add hl, de		; S3d.cls 2055
+            ld (fn_s3d_render_w_ly), hl		; S3d.cls 2056
+            call fn_s3d_render_t_iny		; S3d.cls 2057
+            ret c		; S3d.cls 2058
+            ld hl, (fn_s3d_render_w_my)		; S3d.cls 2059
+            ld de, (fn_s3d_render_w_py)		; S3d.cls 2060
+            or a		; S3d.cls 2061
+            sbc hl, de		; S3d.cls 2062
+            ld (fn_s3d_render_w_ry), hl		; S3d.cls 2063
+            call fn_s3d_render_t_iny		; S3d.cls 2064
+            ret c		; S3d.cls 2065
+            ld hl, (fn_s3d_render_w_nl)		; S3d.cls 2066
+            inc hl		; S3d.cls 2067
+            inc hl		; S3d.cls 2068
+            inc hl		; S3d.cls 2069
+            inc hl		; S3d.cls 2070
+            ld (fn_s3d_render_w_nl), hl		; S3d.cls 2071
+            ld hl, (41424 + 8)        ; the trunk [2072]
+            ld de, (41424 + 10)		; S3d.cls 2073
+            ld bc, (fn_s3d_render_w_mx)		; S3d.cls 2074
+            ld ix, (fn_s3d_render_w_my)		; S3d.cls 2075
+            call fn_s3d_render_t_line		; S3d.cls 2076
+            ld hl, (fn_s3d_render_w_lx)           ; the crown [2077]
+            ld de, (fn_s3d_render_w_ly)		; S3d.cls 2078
+            ld bc, (41424 + 12 + 8)		; S3d.cls 2079
+            ld ix, (41424 + 12 + 10)		; S3d.cls 2080
+            call fn_s3d_render_t_line		; S3d.cls 2081
+            ld hl, (fn_s3d_render_w_rx)		; S3d.cls 2082
+            ld de, (fn_s3d_render_w_ry)		; S3d.cls 2083
+            ld bc, (41424 + 12 + 8)		; S3d.cls 2084
+            ld ix, (41424 + 12 + 10)		; S3d.cls 2085
+            call fn_s3d_render_t_line		; S3d.cls 2086
+            ld hl, (fn_s3d_render_w_lx)		; S3d.cls 2087
+            ld de, (fn_s3d_render_w_ly)		; S3d.cls 2088
+            ld bc, (fn_s3d_render_w_rx)		; S3d.cls 2089
+            ld ix, (fn_s3d_render_w_ry)		; S3d.cls 2090
 ; t_line - a line HL, DE - BC, IX
-fn_s3d_render_t_line:		; S3d.cls 1963
-            ld (gfx_x0), hl		; S3d.cls 1964
-            ld (gfx_y0), de		; S3d.cls 1965
-            ld (gfx_x1), bc		; S3d.cls 1966
-            ld (gfx_y1), ix		; S3d.cls 1967
-            jp gfx_line		; S3d.cls 1968
+fn_s3d_render_t_line:		; S3d.cls 2092
+            ld (gfx_x0), hl		; S3d.cls 2093
+            ld (gfx_y0), de		; S3d.cls 2094
+            ld (gfx_x1), bc		; S3d.cls 2095
+            ld (gfx_y1), ix		; S3d.cls 2096
+            jp gfx_line		; S3d.cls 2097
 ; t_inx / t_iny - carry when HL is off the screen (0-319 / 0-199)
-fn_s3d_render_t_inx:		; S3d.cls 1970
-            ld de, 320		; S3d.cls 1971
-            jr fn_s3d_render_t_in		; S3d.cls 1972
-fn_s3d_render_t_iny:		; S3d.cls 1973
-            ld de, 200		; S3d.cls 1974
-fn_s3d_render_t_in:		; S3d.cls 1975
-            bit 7, h		; S3d.cls 1976
-            scf		; S3d.cls 1977
-            ret nz		; S3d.cls 1978
-            or a		; S3d.cls 1979
-            sbc hl, de		; S3d.cls 1980
-            ccf		; S3d.cls 1981
-            ret		; S3d.cls 1982
+fn_s3d_render_t_inx:		; S3d.cls 2099
+            ld de, 320		; S3d.cls 2100
+            jr fn_s3d_render_t_in		; S3d.cls 2101
+fn_s3d_render_t_iny:		; S3d.cls 2102
+            ld de, 200		; S3d.cls 2103
+fn_s3d_render_t_in:		; S3d.cls 2104
+            bit 7, h		; S3d.cls 2105
+            scf		; S3d.cls 2106
+            ret nz		; S3d.cls 2107
+            or a		; S3d.cls 2108
+            sbc hl, de		; S3d.cls 2109
+            ccf		; S3d.cls 2110
+            ret		; S3d.cls 2111
 ; div3 - HL = HL / 3 (signed, about)
-fn_s3d_render_div3:		; S3d.cls 1984
-            bit 7, h		; S3d.cls 1985
-            jr z, fn_s3d_render_d3_p		; S3d.cls 1986
-            call fn_s3d_render_hneg		; S3d.cls 1987
-            call fn_s3d_render_d3_u		; S3d.cls 1988
-            jp fn_s3d_render_hneg		; S3d.cls 1989
-fn_s3d_render_d3_p:		; S3d.cls 1990
-fn_s3d_render_d3_u:		; S3d.cls 1991
-            ld c, l                 ; (HL * 85) / 256 [1992]
-            ld b, h		; S3d.cls 1993
-            ld de, 85		; S3d.cls 1994
-            push bc		; S3d.cls 1995
-            pop de		; S3d.cls 1996
-            ld bc, 85		; S3d.cls 1997
-            call fn_s3d_render_mulu16		; S3d.cls 1998
-            ld l, h		; S3d.cls 1999
-            ld h, e		; S3d.cls 2000
-            ret		; S3d.cls 2001
-
-; ve_oc - A = the outcode of the corner at IX: bit 0 nearer than 16, 1 right (X > Z),
-; 2 left (-X > Z), 3 above (4Y > 3Z), 4 below (-4Y > 3Z)
-fn_s3d_render_ve_oc:		; S3d.cls 2005
-            ld c, 0		; S3d.cls 2006
-            ld l, (ix + 4)		; S3d.cls 2007
-            ld h, (ix + 5)		; S3d.cls 2008
-            ld (fn_s3d_render_w_vz), hl		; S3d.cls 2009
-            ld de, 16		; S3d.cls 2010
-            call fn_s3d_render_cmps		; S3d.cls 2011
-            jr nc, fn_s3d_render_oc1		; S3d.cls 2012
-            set 0, c		; S3d.cls 2013
-fn_s3d_render_oc1:		; S3d.cls 2014
-            ld e, (ix + 0)		; S3d.cls 2015
-            ld d, (ix + 1)		; S3d.cls 2016
-            ld hl, (fn_s3d_render_w_vz)		; S3d.cls 2017
-            call fn_s3d_render_cmps		; S3d.cls 2018
-            jr nc, fn_s3d_render_oc2		; S3d.cls 2019
-            set 1, c		; S3d.cls 2020
-fn_s3d_render_oc2:		; S3d.cls 2021
-            ld l, (ix + 0)		; S3d.cls 2022
-            ld h, (ix + 1)		; S3d.cls 2023
-            call fn_s3d_render_hneg		; S3d.cls 2024
-            ex de, hl		; S3d.cls 2025
-            ld hl, (fn_s3d_render_w_vz)		; S3d.cls 2026
-            call fn_s3d_render_cmps		; S3d.cls 2027
-            jr nc, fn_s3d_render_oc3		; S3d.cls 2028
-            set 2, c		; S3d.cls 2029
-fn_s3d_render_oc3:		; S3d.cls 2030
-            ld l, (ix + 2)		; S3d.cls 2031
-            ld h, (ix + 3)		; S3d.cls 2032
-            add hl, hl		; S3d.cls 2033
-            add hl, hl		; S3d.cls 2034
-            ld (fn_s3d_render_w_v4y), hl		; S3d.cls 2035
-            ld hl, (fn_s3d_render_w_vz)		; S3d.cls 2036
-            ld e, l		; S3d.cls 2037
-            ld d, h		; S3d.cls 2038
-            add hl, hl		; S3d.cls 2039
-            add hl, de		; S3d.cls 2040
-            ld (fn_s3d_render_w_v3z), hl		; S3d.cls 2041
-            ld de, (fn_s3d_render_w_v4y)		; S3d.cls 2042
-            call fn_s3d_render_cmps		; S3d.cls 2043
-            jr nc, fn_s3d_render_oc4		; S3d.cls 2044
-            set 3, c		; S3d.cls 2045
-fn_s3d_render_oc4:		; S3d.cls 2046
-            ld hl, (fn_s3d_render_w_v4y)		; S3d.cls 2047
-            call fn_s3d_render_hneg		; S3d.cls 2048
-            ex de, hl		; S3d.cls 2049
-            ld hl, (fn_s3d_render_w_v3z)		; S3d.cls 2050
-            call fn_s3d_render_cmps		; S3d.cls 2051
-            jr nc, fn_s3d_render_oc5		; S3d.cls 2052
-            set 4, c		; S3d.cls 2053
-fn_s3d_render_oc5:		; S3d.cls 2054
-            ld a, c		; S3d.cls 2055
-            ret		; S3d.cls 2056
-; ve_proj - the corner at IX onto the screen: sx = 160 + X * 160 / Z (0-319),
-; sy = 100 - Y * 133 / Z (0-199), at IX + 8, IX + 10
-fn_s3d_render_ve_proj:		; S3d.cls 2059
-            ld l, (ix + 4)		; S3d.cls 2060
-            ld h, (ix + 5)		; S3d.cls 2061
-            bit 7, h		; S3d.cls 2062
-            jr nz, fn_s3d_render_pj_z1		; S3d.cls 2063
-            ld a, h		; S3d.cls 2064
-            or l		; S3d.cls 2065
-            jr nz, fn_s3d_render_pj_z		; S3d.cls 2066
-fn_s3d_render_pj_z1:		; S3d.cls 2067
-            ld hl, 1		; S3d.cls 2068
-fn_s3d_render_pj_z:		; S3d.cls 2069
-            ld (fn_s3d_render_w_pzv), hl		; S3d.cls 2070
-            ld l, (ix + 0)		; S3d.cls 2071
-            ld h, (ix + 1)		; S3d.cls 2072
-            ld a, h		; S3d.cls 2073
-            ld (fn_s3d_render_w_psg), a		; S3d.cls 2074
-            call fn_s3d_render_habs		; S3d.cls 2075
-            ld de, (fn_s3d_render_w_pzv)		; S3d.cls 2076
-            call fn_s3d_render_ucap		; S3d.cls 2077
-            call fn_s3d_render_pj_160		; S3d.cls 2078
-            call fn_s3d_render_pj_div		; S3d.cls 2079
-            ex de, hl		; S3d.cls 2080
-            ld hl, 160		; S3d.cls 2081
-            ld a, (fn_s3d_render_w_psg)		; S3d.cls 2082
-            bit 7, a		; S3d.cls 2083
-            jr nz, fn_s3d_render_pj_xn		; S3d.cls 2084
-            add hl, de		; S3d.cls 2085
-            jr fn_s3d_render_pj_xs		; S3d.cls 2086
-fn_s3d_render_pj_xn:		; S3d.cls 2087
-            or a		; S3d.cls 2088
-            sbc hl, de		; S3d.cls 2089
-fn_s3d_render_pj_xs:		; S3d.cls 2090
-            ld de, 319		; S3d.cls 2091
-            call fn_s3d_render_ucap		; S3d.cls 2092
-            ld (ix + 8), l		; S3d.cls 2093
-            ld (ix + 9), h		; S3d.cls 2094
-            ld l, (ix + 2)		; S3d.cls 2095
-            ld h, (ix + 3)		; S3d.cls 2096
-            ld a, h		; S3d.cls 2097
-            ld (fn_s3d_render_w_psg), a		; S3d.cls 2098
-            call fn_s3d_render_habs		; S3d.cls 2099
-            push hl		; S3d.cls 2100
-            ld hl, (fn_s3d_render_w_pzv)		; S3d.cls 2101
-            ld e, l		; S3d.cls 2102
-            ld d, h		; S3d.cls 2103
-            add hl, hl		; S3d.cls 2104
-            add hl, de		; S3d.cls 2105
-            srl h		; S3d.cls 2106
-            rr l		; S3d.cls 2107
-            srl h		; S3d.cls 2108
-            rr l		; S3d.cls 2109
-            ex de, hl		; S3d.cls 2110
-            pop hl		; S3d.cls 2111
-            call fn_s3d_render_ucap		; S3d.cls 2112
-            call fn_s3d_render_pj_133		; S3d.cls 2113
-            call fn_s3d_render_pj_div		; S3d.cls 2114
-            ex de, hl		; S3d.cls 2115
-            ld hl, 100		; S3d.cls 2116
-            ld a, (fn_s3d_render_w_psg)		; S3d.cls 2117
-            bit 7, a		; S3d.cls 2118
-            jr nz, fn_s3d_render_pj_yn		; S3d.cls 2119
-            or a		; S3d.cls 2120
-            sbc hl, de		; S3d.cls 2121
-            jr fn_s3d_render_pj_ys		; S3d.cls 2122
-fn_s3d_render_pj_yn:		; S3d.cls 2123
-            add hl, de		; S3d.cls 2124
-fn_s3d_render_pj_ys:		; S3d.cls 2125
-            ld de, 199		; S3d.cls 2126
-            call fn_s3d_render_ucap		; S3d.cls 2127
-            ld (ix + 10), l		; S3d.cls 2128
-            ld (ix + 11), h		; S3d.cls 2129
+fn_s3d_render_div3:		; S3d.cls 2113
+            bit 7, h		; S3d.cls 2114
+            jr z, fn_s3d_render_d3_p		; S3d.cls 2115
+            HNEG		; S3d.cls 2116
+            call fn_s3d_render_d3_u		; S3d.cls 2117
+            jp fn_s3d_render_hneg		; S3d.cls 2118
+fn_s3d_render_d3_p:		; S3d.cls 2119
+fn_s3d_render_d3_u:		; S3d.cls 2120
+            ld c, l                 ; (HL * 85) / 256 [2121]
+            ld b, h		; S3d.cls 2122
+            ld de, 85		; S3d.cls 2123
+            push bc		; S3d.cls 2124
+            pop de		; S3d.cls 2125
+            ld bc, 85		; S3d.cls 2126
+            call fn_s3d_render_mulu16		; S3d.cls 2127
+            ld l, h		; S3d.cls 2128
+            ld h, e		; S3d.cls 2129
             ret		; S3d.cls 2130
+
+; ve_proj - the corner at IX onto the screen: sx = 160 + X * 160 / Z (0-319),
+; sy = 100 - Y * 133 / Z (0-199), at IX + 8, IX + 10. Z (at least 1) and the signs on the stack
+fn_s3d_render_ve_proj:		; S3d.cls 2134
+            ld l, (ix + 4)		; S3d.cls 2135
+            ld h, (ix + 5)		; S3d.cls 2136
+            bit 7, h		; S3d.cls 2137
+            jr nz, fn_s3d_render_pj_z1		; S3d.cls 2138
+            ld a, h		; S3d.cls 2139
+            or l		; S3d.cls 2140
+            jr nz, fn_s3d_render_pj_z		; S3d.cls 2141
+fn_s3d_render_pj_z1:		; S3d.cls 2142
+            ld hl, 1		; S3d.cls 2143
+fn_s3d_render_pj_z:		; S3d.cls 2144
+            push hl                 ; Z [2145]
+            ex de, hl		; S3d.cls 2146
+            ld l, (ix + 0)		; S3d.cls 2147
+            ld h, (ix + 1)		; S3d.cls 2148
+            ld a, h		; S3d.cls 2149
+            push af                 ; X's sign [2150]
+            HABS		; S3d.cls 2151
+            UCAP                    ; |X|, Z at most [2152]
+            call fn_s3d_render_pj_160		; S3d.cls 2153
+            pop af		; S3d.cls 2154
+            pop de                  ; Z [2155]
+            push de		; S3d.cls 2156
+            push af		; S3d.cls 2157
+            PJDIV		; S3d.cls 2158
+            ex de, hl		; S3d.cls 2159
+            ld hl, 160		; S3d.cls 2160
+            pop af		; S3d.cls 2161
+            bit 7, a		; S3d.cls 2162
+            jr nz, fn_s3d_render_pj_xn		; S3d.cls 2163
+            add hl, de		; S3d.cls 2164
+            jr fn_s3d_render_pj_xs		; S3d.cls 2165
+fn_s3d_render_pj_xn:		; S3d.cls 2166
+            or a		; S3d.cls 2167
+            sbc hl, de		; S3d.cls 2168
+fn_s3d_render_pj_xs:		; S3d.cls 2169
+            ld de, 319		; S3d.cls 2170
+            UCAP		; S3d.cls 2171
+            ld (ix + 8), l		; S3d.cls 2172
+            ld (ix + 9), h		; S3d.cls 2173
+            pop de                  ; Z [2174]
+            ld l, (ix + 2)		; S3d.cls 2175
+            ld h, (ix + 3)		; S3d.cls 2176
+            ld a, h		; S3d.cls 2177
+            push af                 ; Y's sign [2178]
+            push de                 ; Z [2179]
+            HABS		; S3d.cls 2180
+            push hl		; S3d.cls 2181
+            ld l, e		; S3d.cls 2182
+            ld h, d		; S3d.cls 2183
+            add hl, hl		; S3d.cls 2184
+            add hl, de		; S3d.cls 2185
+            srl h		; S3d.cls 2186
+            rr l		; S3d.cls 2187
+            srl h		; S3d.cls 2188
+            rr l		; S3d.cls 2189
+            ex de, hl		; S3d.cls 2190
+            pop hl		; S3d.cls 2191
+            UCAP                    ; |Y|, 3Z / 4 at most [2192]
+            call fn_s3d_render_pj_133		; S3d.cls 2193
+            pop de                  ; Z [2194]
+            PJDIV		; S3d.cls 2195
+            ex de, hl		; S3d.cls 2196
+            ld hl, 100		; S3d.cls 2197
+            pop af		; S3d.cls 2198
+            bit 7, a		; S3d.cls 2199
+            jr nz, fn_s3d_render_pj_yn		; S3d.cls 2200
+            or a		; S3d.cls 2201
+            sbc hl, de		; S3d.cls 2202
+            jr fn_s3d_render_pj_ys		; S3d.cls 2203
+fn_s3d_render_pj_yn:		; S3d.cls 2204
+            add hl, de		; S3d.cls 2205
+fn_s3d_render_pj_ys:		; S3d.cls 2206
+            ld de, 199		; S3d.cls 2207
+            UCAP		; S3d.cls 2208
+            ld (ix + 10), l		; S3d.cls 2209
+            ld (ix + 11), h		; S3d.cls 2210
+            ret		; S3d.cls 2211
 ; pj_160 / pj_133 - C:HL = HL * 160 / * 133 (24 bits), by shifts
-fn_s3d_render_pj_160:		; S3d.cls 2132
-            ld c, 0		; S3d.cls 2133
-            add hl, hl		; S3d.cls 2134
-            rl c		; S3d.cls 2135
-            add hl, hl		; S3d.cls 2136
-            rl c		; S3d.cls 2137
-            add hl, hl		; S3d.cls 2138
-            rl c		; S3d.cls 2139
-            add hl, hl		; S3d.cls 2140
-            rl c		; S3d.cls 2141
-            add hl, hl		; S3d.cls 2142
-            rl c                    ; * 32 [2143]
-            ld d, h		; S3d.cls 2144
-            ld e, l		; S3d.cls 2145
-            ld b, c		; S3d.cls 2146
-            add hl, hl		; S3d.cls 2147
-            rl c		; S3d.cls 2148
-            add hl, hl		; S3d.cls 2149
-            rl c                    ; * 128 [2150]
-            add hl, de		; S3d.cls 2151
-            ld a, c		; S3d.cls 2152
-            adc a, b		; S3d.cls 2153
-            ld c, a                 ; * 160 [2154]
-            ret		; S3d.cls 2155
-fn_s3d_render_pj_133:		; S3d.cls 2156
-            ld c, 0		; S3d.cls 2157
-            push hl                 ; n [2158]
-            add hl, hl		; S3d.cls 2159
-            rl c		; S3d.cls 2160
-            add hl, hl		; S3d.cls 2161
-            rl c                    ; * 4 [2162]
-            ld d, h		; S3d.cls 2163
-            ld e, l		; S3d.cls 2164
-            ld b, c		; S3d.cls 2165
-            add hl, hl		; S3d.cls 2166
-            rl c		; S3d.cls 2167
-            add hl, hl		; S3d.cls 2168
-            rl c		; S3d.cls 2169
-            add hl, hl		; S3d.cls 2170
-            rl c		; S3d.cls 2171
-            add hl, hl		; S3d.cls 2172
-            rl c		; S3d.cls 2173
-            add hl, hl		; S3d.cls 2174
-            rl c                    ; * 128 [2175]
-            add hl, de		; S3d.cls 2176
-            ld a, c		; S3d.cls 2177
-            adc a, b		; S3d.cls 2178
-            ld c, a                 ; * 132 [2179]
-            pop de		; S3d.cls 2180
-            add hl, de		; S3d.cls 2181
-            ld a, c		; S3d.cls 2182
-            adc a, 0		; S3d.cls 2183
-            ld c, a                 ; * 133 [2184]
-            ret		; S3d.cls 2185
-; pj_div - HL = C:HL / (w_pzv): the quotient is under 256 (8 steps)
-fn_s3d_render_pj_div:		; S3d.cls 2187
-            ld b, l		; S3d.cls 2188
-            ld l, h		; S3d.cls 2189
-            ld h, c                 ; HL = the top 16 bits, B = the low 8 [2190]
-            ld de, (fn_s3d_render_w_pzv)		; S3d.cls 2191
-            ld c, 0		; S3d.cls 2192
-            sla b		; S3d.cls 2193
-            adc hl, hl		; S3d.cls 2194
-            sla c		; S3d.cls 2195
-            or a		; S3d.cls 2196
-            sbc hl, de		; S3d.cls 2197
-            jr nc, fn_s3d_render_pd_y0		; S3d.cls 2198
-            add hl, de		; S3d.cls 2199
-            jr fn_s3d_render_pd_n0		; S3d.cls 2200
-fn_s3d_render_pd_y0:		; S3d.cls 2201
-            inc c		; S3d.cls 2202
-fn_s3d_render_pd_n0:		; S3d.cls 2203
-            sla b		; S3d.cls 2204
-            adc hl, hl		; S3d.cls 2205
-            sla c		; S3d.cls 2206
-            or a		; S3d.cls 2207
-            sbc hl, de		; S3d.cls 2208
-            jr nc, fn_s3d_render_pd_y1		; S3d.cls 2209
-            add hl, de		; S3d.cls 2210
-            jr fn_s3d_render_pd_n1		; S3d.cls 2211
-fn_s3d_render_pd_y1:		; S3d.cls 2212
-            inc c		; S3d.cls 2213
-fn_s3d_render_pd_n1:		; S3d.cls 2214
-            sla b		; S3d.cls 2215
-            adc hl, hl		; S3d.cls 2216
-            sla c		; S3d.cls 2217
-            or a		; S3d.cls 2218
-            sbc hl, de		; S3d.cls 2219
-            jr nc, fn_s3d_render_pd_y2		; S3d.cls 2220
-            add hl, de		; S3d.cls 2221
-            jr fn_s3d_render_pd_n2		; S3d.cls 2222
-fn_s3d_render_pd_y2:		; S3d.cls 2223
-            inc c		; S3d.cls 2224
-fn_s3d_render_pd_n2:		; S3d.cls 2225
-            sla b		; S3d.cls 2226
-            adc hl, hl		; S3d.cls 2227
-            sla c		; S3d.cls 2228
-            or a		; S3d.cls 2229
-            sbc hl, de		; S3d.cls 2230
-            jr nc, fn_s3d_render_pd_y3		; S3d.cls 2231
+fn_s3d_render_pj_160:		; S3d.cls 2213
+            ld c, 0		; S3d.cls 2214
+            add hl, hl		; S3d.cls 2215
+            rl c		; S3d.cls 2216
+            add hl, hl		; S3d.cls 2217
+            rl c		; S3d.cls 2218
+            add hl, hl		; S3d.cls 2219
+            rl c		; S3d.cls 2220
+            add hl, hl		; S3d.cls 2221
+            rl c		; S3d.cls 2222
+            add hl, hl		; S3d.cls 2223
+            rl c                    ; * 32 [2224]
+            ld d, h		; S3d.cls 2225
+            ld e, l		; S3d.cls 2226
+            ld b, c		; S3d.cls 2227
+            add hl, hl		; S3d.cls 2228
+            rl c		; S3d.cls 2229
+            add hl, hl		; S3d.cls 2230
+            rl c                    ; * 128 [2231]
             add hl, de		; S3d.cls 2232
-            jr fn_s3d_render_pd_n3		; S3d.cls 2233
-fn_s3d_render_pd_y3:		; S3d.cls 2234
-            inc c		; S3d.cls 2235
-fn_s3d_render_pd_n3:		; S3d.cls 2236
-            sla b		; S3d.cls 2237
-            adc hl, hl		; S3d.cls 2238
-            sla c		; S3d.cls 2239
-            or a		; S3d.cls 2240
-            sbc hl, de		; S3d.cls 2241
-            jr nc, fn_s3d_render_pd_y4		; S3d.cls 2242
-            add hl, de		; S3d.cls 2243
-            jr fn_s3d_render_pd_n4		; S3d.cls 2244
-fn_s3d_render_pd_y4:		; S3d.cls 2245
-            inc c		; S3d.cls 2246
-fn_s3d_render_pd_n4:		; S3d.cls 2247
-            sla b		; S3d.cls 2248
-            adc hl, hl		; S3d.cls 2249
-            sla c		; S3d.cls 2250
-            or a		; S3d.cls 2251
-            sbc hl, de		; S3d.cls 2252
-            jr nc, fn_s3d_render_pd_y5		; S3d.cls 2253
-            add hl, de		; S3d.cls 2254
-            jr fn_s3d_render_pd_n5		; S3d.cls 2255
-fn_s3d_render_pd_y5:		; S3d.cls 2256
-            inc c		; S3d.cls 2257
-fn_s3d_render_pd_n5:		; S3d.cls 2258
-            sla b		; S3d.cls 2259
-            adc hl, hl		; S3d.cls 2260
-            sla c		; S3d.cls 2261
-            or a		; S3d.cls 2262
-            sbc hl, de		; S3d.cls 2263
-            jr nc, fn_s3d_render_pd_y6		; S3d.cls 2264
-            add hl, de		; S3d.cls 2265
-            jr fn_s3d_render_pd_n6		; S3d.cls 2266
-fn_s3d_render_pd_y6:		; S3d.cls 2267
-            inc c		; S3d.cls 2268
-fn_s3d_render_pd_n6:		; S3d.cls 2269
-            sla b		; S3d.cls 2270
-            adc hl, hl		; S3d.cls 2271
-            sla c		; S3d.cls 2272
-            or a		; S3d.cls 2273
-            sbc hl, de		; S3d.cls 2274
-            jr nc, fn_s3d_render_pd_y7		; S3d.cls 2275
-            add hl, de		; S3d.cls 2276
-            jr fn_s3d_render_pd_n7		; S3d.cls 2277
-fn_s3d_render_pd_y7:		; S3d.cls 2278
-            inc c		; S3d.cls 2279
-fn_s3d_render_pd_n7:		; S3d.cls 2280
-            ld l, c		; S3d.cls 2281
-            ld h, 0		; S3d.cls 2282
-            ret		; S3d.cls 2283
+            ld a, c		; S3d.cls 2233
+            adc a, b		; S3d.cls 2234
+            ld c, a                 ; * 160 [2235]
+            ret		; S3d.cls 2236
+fn_s3d_render_pj_133:		; S3d.cls 2237
+            ld c, 0		; S3d.cls 2238
+            push hl                 ; n [2239]
+            add hl, hl		; S3d.cls 2240
+            rl c		; S3d.cls 2241
+            add hl, hl		; S3d.cls 2242
+            rl c                    ; * 4 [2243]
+            ld d, h		; S3d.cls 2244
+            ld e, l		; S3d.cls 2245
+            ld b, c		; S3d.cls 2246
+            add hl, hl		; S3d.cls 2247
+            rl c		; S3d.cls 2248
+            add hl, hl		; S3d.cls 2249
+            rl c		; S3d.cls 2250
+            add hl, hl		; S3d.cls 2251
+            rl c		; S3d.cls 2252
+            add hl, hl		; S3d.cls 2253
+            rl c		; S3d.cls 2254
+            add hl, hl		; S3d.cls 2255
+            rl c                    ; * 128 [2256]
+            add hl, de		; S3d.cls 2257
+            ld a, c		; S3d.cls 2258
+            adc a, b		; S3d.cls 2259
+            ld c, a                 ; * 132 [2260]
+            pop de		; S3d.cls 2261
+            add hl, de		; S3d.cls 2262
+            ld a, c		; S3d.cls 2263
+            adc a, 0		; S3d.cls 2264
+            ld c, a                 ; * 133 [2265]
+            ret		; S3d.cls 2266
 ; vx12 - HL = the corner table + A * 12
-fn_s3d_render_vx12:		; S3d.cls 2285
-            ld l, a		; S3d.cls 2286
-            ld h, 0		; S3d.cls 2287
-            add hl, hl		; S3d.cls 2288
-            add hl, hl		; S3d.cls 2289
-            ld e, l		; S3d.cls 2290
-            ld d, h		; S3d.cls 2291
-            add hl, hl		; S3d.cls 2292
-            add hl, de		; S3d.cls 2293
-            ld de, 41424		; S3d.cls 2294
-            add hl, de		; S3d.cls 2295
-            ret		; S3d.cls 2296
+fn_s3d_render_vx12:		; S3d.cls 2268
+            ld l, a		; S3d.cls 2269
+            ld h, 0		; S3d.cls 2270
+            add hl, hl		; S3d.cls 2271
+            add hl, hl		; S3d.cls 2272
+            ld e, l		; S3d.cls 2273
+            ld d, h		; S3d.cls 2274
+            add hl, hl		; S3d.cls 2275
+            add hl, de		; S3d.cls 2276
+            ld de, 41424		; S3d.cls 2277
+            add hl, de		; S3d.cls 2278
+            ret		; S3d.cls 2279
 ; ed_one - the edge (w_ea) - (w_eb): drawn as it is, clipped, or not at all
-fn_s3d_render_ed_one:		; S3d.cls 2298
-            ld ix, (fn_s3d_render_w_ea)		; S3d.cls 2299
-            ld iy, (fn_s3d_render_w_eb)		; S3d.cls 2300
-            ld a, (ix + 6)		; S3d.cls 2301
-            and (iy + 6)		; S3d.cls 2302
-            ret nz                  ; both ends outside the same side [2303]
-            ld a, (ix + 6)		; S3d.cls 2304
-            or (iy + 6)		; S3d.cls 2305
-            jr z, fn_s3d_render_ed_set		; S3d.cls 2306
-            ld (fn_s3d_render_w_mask), a		; S3d.cls 2307
-            push ix		; S3d.cls 2308
-            pop hl		; S3d.cls 2309
-            ld de, fn_s3d_render_w_e0		; S3d.cls 2310
-            ld bc, 6		; S3d.cls 2311
-            ldir		; S3d.cls 2312
-            push iy		; S3d.cls 2313
-            pop hl		; S3d.cls 2314
-            ld de, fn_s3d_render_w_e1		; S3d.cls 2315
-            ld bc, 6		; S3d.cls 2316
-            ldir		; S3d.cls 2317
-            call fn_s3d_render_clip3d		; S3d.cls 2318
-            ret nc                  ; nothing of it in view [2319]
-            ld ix, fn_s3d_render_w_e0		; S3d.cls 2320
-            call fn_s3d_render_ve_proj		; S3d.cls 2321
-            ld ix, fn_s3d_render_w_e1		; S3d.cls 2322
-            call fn_s3d_render_ve_proj		; S3d.cls 2323
-            ld ix, fn_s3d_render_w_e0		; S3d.cls 2324
-            ld iy, fn_s3d_render_w_e1		; S3d.cls 2325
-fn_s3d_render_ed_set:		; S3d.cls 2326
-            ld l, (ix + 8)		; S3d.cls 2327
-            ld h, (ix + 9)		; S3d.cls 2328
-            ld (gfx_x0), hl		; S3d.cls 2329
-            ld l, (ix + 10)		; S3d.cls 2330
-            ld h, (ix + 11)		; S3d.cls 2331
-            ld (gfx_y0), hl		; S3d.cls 2332
-            ld l, (iy + 8)		; S3d.cls 2333
-            ld h, (iy + 9)		; S3d.cls 2334
-            ld (gfx_x1), hl		; S3d.cls 2335
-            ld l, (iy + 10)		; S3d.cls 2336
-            ld h, (iy + 11)		; S3d.cls 2337
-            ld (gfx_y1), hl		; S3d.cls 2338
-            jp gfx_line		; S3d.cls 2339
+fn_s3d_render_ed_one:		; S3d.cls 2281
+            ld ix, (fn_s3d_render_w_ea)		; S3d.cls 2282
+            ld iy, (fn_s3d_render_w_eb)		; S3d.cls 2283
+            ld a, (ix + 6)		; S3d.cls 2284
+            and (iy + 6)		; S3d.cls 2285
+            ret nz                  ; both ends outside the same side [2286]
+            ld a, (ix + 6)		; S3d.cls 2287
+            or (iy + 6)		; S3d.cls 2288
+            jr z, fn_s3d_render_ed_set		; S3d.cls 2289
+            ld (fn_s3d_render_w_mask), a		; S3d.cls 2290
+            push ix		; S3d.cls 2291
+            pop hl		; S3d.cls 2292
+            ld de, fn_s3d_render_w_e0		; S3d.cls 2293
+            ld bc, 6		; S3d.cls 2294
+            ldir		; S3d.cls 2295
+            push iy		; S3d.cls 2296
+            pop hl		; S3d.cls 2297
+            ld de, fn_s3d_render_w_e1		; S3d.cls 2298
+            ld bc, 6		; S3d.cls 2299
+            ldir		; S3d.cls 2300
+            call fn_s3d_render_clip3d		; S3d.cls 2301
+            ret nc                  ; nothing of it in view [2302]
+            ld ix, fn_s3d_render_w_e0		; S3d.cls 2303
+            call fn_s3d_render_ve_proj		; S3d.cls 2304
+            ld ix, fn_s3d_render_w_e1		; S3d.cls 2305
+            call fn_s3d_render_ve_proj		; S3d.cls 2306
+            ld ix, fn_s3d_render_w_e0		; S3d.cls 2307
+            ld iy, fn_s3d_render_w_e1		; S3d.cls 2308
+fn_s3d_render_ed_set:		; S3d.cls 2309
+            ld l, (ix + 8)		; S3d.cls 2310
+            ld h, (ix + 9)		; S3d.cls 2311
+            ld (gfx_x0), hl		; S3d.cls 2312
+            ld l, (ix + 10)		; S3d.cls 2313
+            ld h, (ix + 11)		; S3d.cls 2314
+            ld (gfx_y0), hl		; S3d.cls 2315
+            ld l, (iy + 8)		; S3d.cls 2316
+            ld h, (iy + 9)		; S3d.cls 2317
+            ld (gfx_x1), hl		; S3d.cls 2318
+            ld l, (iy + 10)		; S3d.cls 2319
+            ld h, (iy + 11)		; S3d.cls 2320
+            ld (gfx_y1), hl		; S3d.cls 2321
+            jp gfx_line		; S3d.cls 2322
 ; clip3d - w_e0 - w_e1 cut against the sides in w_mask (near, right, left, top, bottom);
 ; carry: something is left
-fn_s3d_render_clip3d:		; S3d.cls 2342
-            xor a		; S3d.cls 2343
-            ld (fn_s3d_render_w_pl), a		; S3d.cls 2344
-fn_s3d_render_cp_lp:		; S3d.cls 2345
-            ld a, (fn_s3d_render_w_mask)		; S3d.cls 2346
-            rrca		; S3d.cls 2347
-            ld (fn_s3d_render_w_mask), a		; S3d.cls 2348
-            jr nc, fn_s3d_render_cp_next		; S3d.cls 2349
-            ld ix, fn_s3d_render_w_e0		; S3d.cls 2350
-            call fn_s3d_render_cp_dist		; S3d.cls 2351
-            ld (fn_s3d_render_w_d0), hl		; S3d.cls 2352
-            ld ix, fn_s3d_render_w_e1		; S3d.cls 2353
-            call fn_s3d_render_cp_dist		; S3d.cls 2354
-            ld (fn_s3d_render_w_d1), hl		; S3d.cls 2355
-            ld a, (fn_s3d_render_w_d0 + 1)		; S3d.cls 2356
-            ld b, a		; S3d.cls 2357
-            ld a, (fn_s3d_render_w_d1 + 1)		; S3d.cls 2358
-            and b		; S3d.cls 2359
-            jp m, fn_s3d_render_cp_rej            ; both outside [2360]
-            bit 7, b		; S3d.cls 2361
-            jr z, fn_s3d_render_cp_e1		; S3d.cls 2362
-            ld ix, fn_s3d_render_w_e0             ; end 0 outside: moved to the side [2363]
-            ld iy, fn_s3d_render_w_e1		; S3d.cls 2364
-            ld hl, (fn_s3d_render_w_d0)		; S3d.cls 2365
-            ld (fn_s3d_render_w_dn), hl		; S3d.cls 2366
-            ld de, (fn_s3d_render_w_d1)		; S3d.cls 2367
-            or a		; S3d.cls 2368
-            sbc hl, de		; S3d.cls 2369
-            ld (fn_s3d_render_w_dd), hl		; S3d.cls 2370
-            call fn_s3d_render_cp_lerp		; S3d.cls 2371
-            jr fn_s3d_render_cp_next		; S3d.cls 2372
-fn_s3d_render_cp_e1:		; S3d.cls 2373
-            ld a, (fn_s3d_render_w_d1 + 1)		; S3d.cls 2374
-            bit 7, a		; S3d.cls 2375
-            jr z, fn_s3d_render_cp_next		; S3d.cls 2376
-            ld ix, fn_s3d_render_w_e1             ; end 1 outside [2377]
-            ld iy, fn_s3d_render_w_e0		; S3d.cls 2378
-            ld hl, (fn_s3d_render_w_d1)		; S3d.cls 2379
-            ld (fn_s3d_render_w_dn), hl		; S3d.cls 2380
-            ld de, (fn_s3d_render_w_d0)		; S3d.cls 2381
-            or a		; S3d.cls 2382
-            sbc hl, de		; S3d.cls 2383
-            ld (fn_s3d_render_w_dd), hl		; S3d.cls 2384
-            call fn_s3d_render_cp_lerp		; S3d.cls 2385
-fn_s3d_render_cp_next:		; S3d.cls 2386
-            ld a, (fn_s3d_render_w_pl)		; S3d.cls 2387
-            inc a		; S3d.cls 2388
-            ld (fn_s3d_render_w_pl), a		; S3d.cls 2389
-            cp 5		; S3d.cls 2390
-            jr nz, fn_s3d_render_cp_lp		; S3d.cls 2391
-            scf		; S3d.cls 2392
-            ret		; S3d.cls 2393
-fn_s3d_render_cp_rej:		; S3d.cls 2394
-            or a		; S3d.cls 2395
-            ret		; S3d.cls 2396
+fn_s3d_render_clip3d:		; S3d.cls 2325
+            xor a		; S3d.cls 2326
+            ld (fn_s3d_render_w_pl), a		; S3d.cls 2327
+fn_s3d_render_cp_lp:		; S3d.cls 2328
+            ld a, (fn_s3d_render_w_mask)		; S3d.cls 2329
+            rrca		; S3d.cls 2330
+            ld (fn_s3d_render_w_mask), a		; S3d.cls 2331
+            jr nc, fn_s3d_render_cp_next		; S3d.cls 2332
+            ld ix, fn_s3d_render_w_e0		; S3d.cls 2333
+            call fn_s3d_render_cp_dist		; S3d.cls 2334
+            ld (fn_s3d_render_w_d0), hl		; S3d.cls 2335
+            ld ix, fn_s3d_render_w_e1		; S3d.cls 2336
+            call fn_s3d_render_cp_dist		; S3d.cls 2337
+            ld (fn_s3d_render_w_d1), hl		; S3d.cls 2338
+            ld a, (fn_s3d_render_w_d0 + 1)		; S3d.cls 2339
+            ld b, a		; S3d.cls 2340
+            ld a, (fn_s3d_render_w_d1 + 1)		; S3d.cls 2341
+            and b		; S3d.cls 2342
+            jp m, fn_s3d_render_cp_rej            ; both outside [2343]
+            bit 7, b		; S3d.cls 2344
+            jr z, fn_s3d_render_cp_e1		; S3d.cls 2345
+            ld ix, fn_s3d_render_w_e0             ; end 0 outside: moved to the side [2346]
+            ld iy, fn_s3d_render_w_e1		; S3d.cls 2347
+            ld hl, (fn_s3d_render_w_d0)		; S3d.cls 2348
+            ld (fn_s3d_render_w_dn), hl		; S3d.cls 2349
+            ld de, (fn_s3d_render_w_d1)		; S3d.cls 2350
+            or a		; S3d.cls 2351
+            sbc hl, de		; S3d.cls 2352
+            ld (fn_s3d_render_w_dd), hl		; S3d.cls 2353
+            call fn_s3d_render_cp_lerp		; S3d.cls 2354
+            jr fn_s3d_render_cp_next		; S3d.cls 2355
+fn_s3d_render_cp_e1:		; S3d.cls 2356
+            ld a, (fn_s3d_render_w_d1 + 1)		; S3d.cls 2357
+            bit 7, a		; S3d.cls 2358
+            jr z, fn_s3d_render_cp_next		; S3d.cls 2359
+            ld ix, fn_s3d_render_w_e1             ; end 1 outside [2360]
+            ld iy, fn_s3d_render_w_e0		; S3d.cls 2361
+            ld hl, (fn_s3d_render_w_d1)		; S3d.cls 2362
+            ld (fn_s3d_render_w_dn), hl		; S3d.cls 2363
+            ld de, (fn_s3d_render_w_d0)		; S3d.cls 2364
+            or a		; S3d.cls 2365
+            sbc hl, de		; S3d.cls 2366
+            ld (fn_s3d_render_w_dd), hl		; S3d.cls 2367
+            call fn_s3d_render_cp_lerp		; S3d.cls 2368
+fn_s3d_render_cp_next:		; S3d.cls 2369
+            ld a, (fn_s3d_render_w_pl)		; S3d.cls 2370
+            inc a		; S3d.cls 2371
+            ld (fn_s3d_render_w_pl), a		; S3d.cls 2372
+            cp 5		; S3d.cls 2373
+            jr nz, fn_s3d_render_cp_lp		; S3d.cls 2374
+            scf		; S3d.cls 2375
+            ret		; S3d.cls 2376
+fn_s3d_render_cp_rej:		; S3d.cls 2377
+            or a		; S3d.cls 2378
+            ret		; S3d.cls 2379
 ; cp_dist - HL = how far the point at IX is inside side w_pl (negative: outside)
-fn_s3d_render_cp_dist:		; S3d.cls 2398
-            ld e, (ix + 4)		; S3d.cls 2399
-            ld d, (ix + 5)		; S3d.cls 2400
-            ld a, (fn_s3d_render_w_pl)		; S3d.cls 2401
-            or a		; S3d.cls 2402
-            jr nz, fn_s3d_render_cd1		; S3d.cls 2403
-            ld hl, -16		; S3d.cls 2404
-            add hl, de              ; Z - 16 [2405]
-            ret		; S3d.cls 2406
-fn_s3d_render_cd1:		; S3d.cls 2407
-            dec a		; S3d.cls 2408
-            jr nz, fn_s3d_render_cd2		; S3d.cls 2409
-            ld l, (ix + 0)		; S3d.cls 2410
-            ld h, (ix + 1)		; S3d.cls 2411
-            ex de, hl		; S3d.cls 2412
-            or a		; S3d.cls 2413
-            sbc hl, de              ; Z - X [2414]
-            ret		; S3d.cls 2415
-fn_s3d_render_cd2:		; S3d.cls 2416
-            dec a		; S3d.cls 2417
-            jr nz, fn_s3d_render_cd3		; S3d.cls 2418
-            ld l, (ix + 0)		; S3d.cls 2419
-            ld h, (ix + 1)		; S3d.cls 2420
-            add hl, de              ; Z + X [2421]
-            ret		; S3d.cls 2422
-fn_s3d_render_cd3:		; S3d.cls 2423
-            push af		; S3d.cls 2424
-            ld l, e		; S3d.cls 2425
-            ld h, d		; S3d.cls 2426
-            add hl, hl		; S3d.cls 2427
-            add hl, de		; S3d.cls 2428
-            ex de, hl               ; DE = 3Z [2429]
-            ld l, (ix + 2)		; S3d.cls 2430
-            ld h, (ix + 3)		; S3d.cls 2431
-            add hl, hl		; S3d.cls 2432
-            add hl, hl              ; HL = 4Y [2433]
-            pop af		; S3d.cls 2434
-            dec a		; S3d.cls 2435
-            jr nz, fn_s3d_render_cd4		; S3d.cls 2436
-            ex de, hl		; S3d.cls 2437
-            or a		; S3d.cls 2438
-            sbc hl, de              ; (3Z - 4Y) / 2 [2439]
-            sra h		; S3d.cls 2440
-            rr l		; S3d.cls 2441
-            ret		; S3d.cls 2442
-fn_s3d_render_cd4:		; S3d.cls 2443
-            add hl, de              ; (3Z + 4Y) / 2 [2444]
-            sra h		; S3d.cls 2445
-            rr l		; S3d.cls 2446
-            ret		; S3d.cls 2447
+fn_s3d_render_cp_dist:		; S3d.cls 2381
+            ld e, (ix + 4)		; S3d.cls 2382
+            ld d, (ix + 5)		; S3d.cls 2383
+            ld a, (fn_s3d_render_w_pl)		; S3d.cls 2384
+            or a		; S3d.cls 2385
+            jr nz, fn_s3d_render_cd1		; S3d.cls 2386
+            ld hl, -16		; S3d.cls 2387
+            add hl, de              ; Z - 16 [2388]
+            ret		; S3d.cls 2389
+fn_s3d_render_cd1:		; S3d.cls 2390
+            dec a		; S3d.cls 2391
+            jr nz, fn_s3d_render_cd2		; S3d.cls 2392
+            ld l, (ix + 0)		; S3d.cls 2393
+            ld h, (ix + 1)		; S3d.cls 2394
+            ex de, hl		; S3d.cls 2395
+            or a		; S3d.cls 2396
+            sbc hl, de              ; Z - X [2397]
+            ret		; S3d.cls 2398
+fn_s3d_render_cd2:		; S3d.cls 2399
+            dec a		; S3d.cls 2400
+            jr nz, fn_s3d_render_cd3		; S3d.cls 2401
+            ld l, (ix + 0)		; S3d.cls 2402
+            ld h, (ix + 1)		; S3d.cls 2403
+            add hl, de              ; Z + X [2404]
+            ret		; S3d.cls 2405
+fn_s3d_render_cd3:		; S3d.cls 2406
+            push af		; S3d.cls 2407
+            ld l, e		; S3d.cls 2408
+            ld h, d		; S3d.cls 2409
+            add hl, hl		; S3d.cls 2410
+            add hl, de		; S3d.cls 2411
+            ex de, hl               ; DE = 3Z [2412]
+            ld l, (ix + 2)		; S3d.cls 2413
+            ld h, (ix + 3)		; S3d.cls 2414
+            add hl, hl		; S3d.cls 2415
+            add hl, hl              ; HL = 4Y [2416]
+            pop af		; S3d.cls 2417
+            dec a		; S3d.cls 2418
+            jr nz, fn_s3d_render_cd4		; S3d.cls 2419
+            ex de, hl		; S3d.cls 2420
+            or a		; S3d.cls 2421
+            sbc hl, de              ; (3Z - 4Y) / 2 [2422]
+            sra h		; S3d.cls 2423
+            rr l		; S3d.cls 2424
+            ret		; S3d.cls 2425
+fn_s3d_render_cd4:		; S3d.cls 2426
+            add hl, de              ; (3Z + 4Y) / 2 [2427]
+            sra h		; S3d.cls 2428
+            rr l		; S3d.cls 2429
+            ret		; S3d.cls 2430
 ; cp_lerp - the point at IX moved towards IY's: + (IY - IX) * w_dn / w_dd
-fn_s3d_render_cp_lerp:		; S3d.cls 2449
-            ld b, 3		; S3d.cls 2450
-fn_s3d_render_cl_lp2:		; S3d.cls 2451
-            push bc		; S3d.cls 2452
-            ld l, (iy + 0)		; S3d.cls 2453
-            ld h, (iy + 1)		; S3d.cls 2454
-            ld e, (ix + 0)		; S3d.cls 2455
-            ld d, (ix + 1)		; S3d.cls 2456
-            or a		; S3d.cls 2457
-            sbc hl, de		; S3d.cls 2458
-            ex de, hl		; S3d.cls 2459
-            ld bc, (fn_s3d_render_w_dn)		; S3d.cls 2460
-            call fn_s3d_render_mul16s		; S3d.cls 2461
-            ld bc, (fn_s3d_render_w_dd)		; S3d.cls 2462
-            call fn_s3d_render_div32s16		; S3d.cls 2463
-            ld e, (ix + 0)		; S3d.cls 2464
-            ld d, (ix + 1)		; S3d.cls 2465
-            add hl, de		; S3d.cls 2466
-            ld (ix + 0), l		; S3d.cls 2467
-            ld (ix + 1), h		; S3d.cls 2468
-            inc ix		; S3d.cls 2469
-            inc ix		; S3d.cls 2470
-            inc iy		; S3d.cls 2471
-            inc iy		; S3d.cls 2472
-            pop bc		; S3d.cls 2473
-            djnz fn_s3d_render_cl_lp2		; S3d.cls 2474
-            ret		; S3d.cls 2475
+fn_s3d_render_cp_lerp:		; S3d.cls 2432
+            ld b, 3		; S3d.cls 2433
+fn_s3d_render_cl_lp2:		; S3d.cls 2434
+            push bc		; S3d.cls 2435
+            ld l, (iy + 0)		; S3d.cls 2436
+            ld h, (iy + 1)		; S3d.cls 2437
+            ld e, (ix + 0)		; S3d.cls 2438
+            ld d, (ix + 1)		; S3d.cls 2439
+            or a		; S3d.cls 2440
+            sbc hl, de		; S3d.cls 2441
+            ex de, hl		; S3d.cls 2442
+            ld bc, (fn_s3d_render_w_dn)		; S3d.cls 2443
+            call fn_s3d_render_mul16s		; S3d.cls 2444
+            ld bc, (fn_s3d_render_w_dd)		; S3d.cls 2445
+            call fn_s3d_render_div32s16		; S3d.cls 2446
+            ld e, (ix + 0)		; S3d.cls 2447
+            ld d, (ix + 1)		; S3d.cls 2448
+            add hl, de		; S3d.cls 2449
+            ld (ix + 0), l		; S3d.cls 2450
+            ld (ix + 1), h		; S3d.cls 2451
+            inc ix		; S3d.cls 2452
+            inc ix		; S3d.cls 2453
+            inc iy		; S3d.cls 2454
+            inc iy		; S3d.cls 2455
+            pop bc		; S3d.cls 2456
+            djnz fn_s3d_render_cl_lp2		; S3d.cls 2457
+            ret		; S3d.cls 2458
 
 ; ---- arithmetic
 
 ; mulfix - HL = DE * BC / 16384, signed
-fn_s3d_render_mulfix:		; S3d.cls 2480
-            call fn_s3d_render_mul16s		; S3d.cls 2481
-            add hl, hl		; S3d.cls 2482
-            rl e		; S3d.cls 2483
-            rl d		; S3d.cls 2484
-            add hl, hl		; S3d.cls 2485
-            rl e		; S3d.cls 2486
-            rl d		; S3d.cls 2487
-            ex de, hl		; S3d.cls 2488
-            ret		; S3d.cls 2489
+fn_s3d_render_mulfix:		; S3d.cls 2463
+            call fn_s3d_render_mul16s		; S3d.cls 2464
+            add hl, hl		; S3d.cls 2465
+            rl e		; S3d.cls 2466
+            rl d		; S3d.cls 2467
+            add hl, hl		; S3d.cls 2468
+            rl e		; S3d.cls 2469
+            rl d		; S3d.cls 2470
+            ex de, hl		; S3d.cls 2471
+            ret		; S3d.cls 2472
 ; mul16s - DEHL = DE * BC, signed
-fn_s3d_render_mul16s:		; S3d.cls 2491
-            ld a, d		; S3d.cls 2492
-            xor b		; S3d.cls 2493
-            push af		; S3d.cls 2494
-            bit 7, d		; S3d.cls 2495
-            jr z, fn_s3d_render_ms1		; S3d.cls 2496
-            xor a		; S3d.cls 2497
-            sub e		; S3d.cls 2498
-            ld e, a		; S3d.cls 2499
-            sbc a, a		; S3d.cls 2500
-            sub d		; S3d.cls 2501
-            ld d, a		; S3d.cls 2502
-fn_s3d_render_ms1:		; S3d.cls 2503
-            bit 7, b		; S3d.cls 2504
-            jr z, fn_s3d_render_ms2		; S3d.cls 2505
-            xor a		; S3d.cls 2506
-            sub c		; S3d.cls 2507
-            ld c, a		; S3d.cls 2508
-            sbc a, a		; S3d.cls 2509
-            sub b		; S3d.cls 2510
-            ld b, a		; S3d.cls 2511
-fn_s3d_render_ms2:		; S3d.cls 2512
-            call fn_s3d_render_mulu16		; S3d.cls 2513
-            pop af		; S3d.cls 2514
-            ret p		; S3d.cls 2515
-fn_s3d_render_neg32:		; S3d.cls 2516
-            xor a		; S3d.cls 2517
-            sub l		; S3d.cls 2518
-            ld l, a		; S3d.cls 2519
-            ld a, 0		; S3d.cls 2520
-            sbc a, h		; S3d.cls 2521
-            ld h, a		; S3d.cls 2522
-            ld a, 0		; S3d.cls 2523
-            sbc a, e		; S3d.cls 2524
-            ld e, a		; S3d.cls 2525
-            ld a, 0		; S3d.cls 2526
-            sbc a, d		; S3d.cls 2527
-            ld d, a		; S3d.cls 2528
-            ret		; S3d.cls 2529
+fn_s3d_render_mul16s:		; S3d.cls 2474
+            ld a, d		; S3d.cls 2475
+            xor b		; S3d.cls 2476
+            push af		; S3d.cls 2477
+            bit 7, d		; S3d.cls 2478
+            jr z, fn_s3d_render_ms1		; S3d.cls 2479
+            xor a		; S3d.cls 2480
+            sub e		; S3d.cls 2481
+            ld e, a		; S3d.cls 2482
+            sbc a, a		; S3d.cls 2483
+            sub d		; S3d.cls 2484
+            ld d, a		; S3d.cls 2485
+fn_s3d_render_ms1:		; S3d.cls 2486
+            bit 7, b		; S3d.cls 2487
+            jr z, fn_s3d_render_ms2		; S3d.cls 2488
+            xor a		; S3d.cls 2489
+            sub c		; S3d.cls 2490
+            ld c, a		; S3d.cls 2491
+            sbc a, a		; S3d.cls 2492
+            sub b		; S3d.cls 2493
+            ld b, a		; S3d.cls 2494
+fn_s3d_render_ms2:		; S3d.cls 2495
+            call fn_s3d_render_mulu16		; S3d.cls 2496
+            pop af		; S3d.cls 2497
+            ret p		; S3d.cls 2498
+fn_s3d_render_neg32:		; S3d.cls 2499
+            xor a		; S3d.cls 2500
+            sub l		; S3d.cls 2501
+            ld l, a		; S3d.cls 2502
+            ld a, 0		; S3d.cls 2503
+            sbc a, h		; S3d.cls 2504
+            ld h, a		; S3d.cls 2505
+            ld a, 0		; S3d.cls 2506
+            sbc a, e		; S3d.cls 2507
+            ld e, a		; S3d.cls 2508
+            ld a, 0		; S3d.cls 2509
+            sbc a, d		; S3d.cls 2510
+            ld d, a		; S3d.cls 2511
+            ret		; S3d.cls 2512
 ; mulu16 - DEHL = DE * BC, unsigned
-fn_s3d_render_mulu16:		; S3d.cls 2531
-            ld hl, 0		; S3d.cls 2532
-            ld a, 16		; S3d.cls 2533
-fn_s3d_render_mu_lp:		; S3d.cls 2534
-            add hl, hl		; S3d.cls 2535
-            rl e		; S3d.cls 2536
-            rl d		; S3d.cls 2537
-            jr nc, fn_s3d_render_mu_n		; S3d.cls 2538
-            add hl, bc		; S3d.cls 2539
-            jr nc, fn_s3d_render_mu_n		; S3d.cls 2540
-            inc de		; S3d.cls 2541
-fn_s3d_render_mu_n:		; S3d.cls 2542
-            dec a		; S3d.cls 2543
-            jr nz, fn_s3d_render_mu_lp		; S3d.cls 2544
-            ret		; S3d.cls 2545
+fn_s3d_render_mulu16:		; S3d.cls 2514
+            ld hl, 0		; S3d.cls 2515
+            ld a, 16		; S3d.cls 2516
+fn_s3d_render_mu_lp:		; S3d.cls 2517
+            add hl, hl		; S3d.cls 2518
+            rl e		; S3d.cls 2519
+            rl d		; S3d.cls 2520
+            jr nc, fn_s3d_render_mu_n		; S3d.cls 2521
+            add hl, bc		; S3d.cls 2522
+            jr nc, fn_s3d_render_mu_n		; S3d.cls 2523
+            inc de		; S3d.cls 2524
+fn_s3d_render_mu_n:		; S3d.cls 2525
+            dec a		; S3d.cls 2526
+            jr nz, fn_s3d_render_mu_lp		; S3d.cls 2527
+            ret		; S3d.cls 2528
 ; div32s16 - HL = DEHL / BC, signed (kept to 32767 if it would be more)
-fn_s3d_render_div32s16:		; S3d.cls 2547
-            ld a, d		; S3d.cls 2548
-            xor b		; S3d.cls 2549
-            push af		; S3d.cls 2550
-            bit 7, d		; S3d.cls 2551
-            call nz, fn_s3d_render_neg32		; S3d.cls 2552
-            bit 7, b		; S3d.cls 2553
-            jr z, fn_s3d_render_ds1		; S3d.cls 2554
-            xor a		; S3d.cls 2555
-            sub c		; S3d.cls 2556
-            ld c, a		; S3d.cls 2557
-            sbc a, a		; S3d.cls 2558
-            sub b		; S3d.cls 2559
-            ld b, a		; S3d.cls 2560
-fn_s3d_render_ds1:		; S3d.cls 2561
-            ex de, hl		; S3d.cls 2562
-            or a		; S3d.cls 2563
-            sbc hl, bc		; S3d.cls 2564
-            add hl, bc		; S3d.cls 2565
-            jr c, fn_s3d_render_ds2		; S3d.cls 2566
-            ld de, #7FFF		; S3d.cls 2567
-            jr fn_s3d_render_ds3		; S3d.cls 2568
-fn_s3d_render_ds2:		; S3d.cls 2569
-            call fn_s3d_render_divu		; S3d.cls 2570
-fn_s3d_render_ds3:		; S3d.cls 2571
-            ex de, hl		; S3d.cls 2572
-            pop af		; S3d.cls 2573
-            ret p		; S3d.cls 2574
-fn_s3d_render_hneg:		; S3d.cls 2575
-            xor a		; S3d.cls 2576
-            sub l		; S3d.cls 2577
-            ld l, a		; S3d.cls 2578
-            sbc a, a		; S3d.cls 2579
-            sub h		; S3d.cls 2580
-            ld h, a		; S3d.cls 2581
-            ret		; S3d.cls 2582
+fn_s3d_render_div32s16:		; S3d.cls 2530
+            ld a, d		; S3d.cls 2531
+            xor b		; S3d.cls 2532
+            push af		; S3d.cls 2533
+            bit 7, d		; S3d.cls 2534
+            call nz, fn_s3d_render_neg32		; S3d.cls 2535
+            bit 7, b		; S3d.cls 2536
+            jr z, fn_s3d_render_ds1		; S3d.cls 2537
+            xor a		; S3d.cls 2538
+            sub c		; S3d.cls 2539
+            ld c, a		; S3d.cls 2540
+            sbc a, a		; S3d.cls 2541
+            sub b		; S3d.cls 2542
+            ld b, a		; S3d.cls 2543
+fn_s3d_render_ds1:		; S3d.cls 2544
+            ex de, hl		; S3d.cls 2545
+            or a		; S3d.cls 2546
+            sbc hl, bc		; S3d.cls 2547
+            add hl, bc		; S3d.cls 2548
+            jr c, fn_s3d_render_ds2		; S3d.cls 2549
+            ld de, #7FFF		; S3d.cls 2550
+            jr fn_s3d_render_ds3		; S3d.cls 2551
+fn_s3d_render_ds2:		; S3d.cls 2552
+            call fn_s3d_render_divu		; S3d.cls 2553
+fn_s3d_render_ds3:		; S3d.cls 2554
+            ex de, hl		; S3d.cls 2555
+            pop af		; S3d.cls 2556
+            ret p		; S3d.cls 2557
+fn_s3d_render_hneg:		; S3d.cls 2558
+            xor a		; S3d.cls 2559
+            sub l		; S3d.cls 2560
+            ld l, a		; S3d.cls 2561
+            sbc a, a		; S3d.cls 2562
+            sub h		; S3d.cls 2563
+            ld h, a		; S3d.cls 2564
+            ret		; S3d.cls 2565
 ; divu - DE = HL:DE / BC, unsigned, HL < BC (HL = the remainder)
-fn_s3d_render_divu:		; S3d.cls 2584
-            ld a, 16		; S3d.cls 2585
-fn_s3d_render_dv_lp:		; S3d.cls 2586
-            sla e		; S3d.cls 2587
-            rl d		; S3d.cls 2588
-            adc hl, hl		; S3d.cls 2589
-            jr c, fn_s3d_render_dv_s		; S3d.cls 2590
-            sbc hl, bc		; S3d.cls 2591
-            jr nc, fn_s3d_render_dv_ok		; S3d.cls 2592
-            add hl, bc		; S3d.cls 2593
-            dec a		; S3d.cls 2594
-            jr nz, fn_s3d_render_dv_lp		; S3d.cls 2595
-            ret		; S3d.cls 2596
-fn_s3d_render_dv_s:		; S3d.cls 2597
-            or a		; S3d.cls 2598
-            sbc hl, bc		; S3d.cls 2599
-fn_s3d_render_dv_ok:		; S3d.cls 2600
-            inc e		; S3d.cls 2601
-            dec a		; S3d.cls 2602
-            jr nz, fn_s3d_render_dv_lp		; S3d.cls 2603
-            ret		; S3d.cls 2604
+fn_s3d_render_divu:		; S3d.cls 2567
+            ld a, 16		; S3d.cls 2568
+fn_s3d_render_dv_lp:		; S3d.cls 2569
+            sla e		; S3d.cls 2570
+            rl d		; S3d.cls 2571
+            adc hl, hl		; S3d.cls 2572
+            jr c, fn_s3d_render_dv_s		; S3d.cls 2573
+            sbc hl, bc		; S3d.cls 2574
+            jr nc, fn_s3d_render_dv_ok		; S3d.cls 2575
+            add hl, bc		; S3d.cls 2576
+            dec a		; S3d.cls 2577
+            jr nz, fn_s3d_render_dv_lp		; S3d.cls 2578
+            ret		; S3d.cls 2579
+fn_s3d_render_dv_s:		; S3d.cls 2580
+            or a		; S3d.cls 2581
+            sbc hl, bc		; S3d.cls 2582
+fn_s3d_render_dv_ok:		; S3d.cls 2583
+            inc e		; S3d.cls 2584
+            dec a		; S3d.cls 2585
+            jr nz, fn_s3d_render_dv_lp		; S3d.cls 2586
+            ret		; S3d.cls 2587
 ; habs - HL = |HL|
-fn_s3d_render_habs:		; S3d.cls 2606
-            bit 7, h		; S3d.cls 2607
-            ret z		; S3d.cls 2608
-            jr fn_s3d_render_hneg		; S3d.cls 2609
+fn_s3d_render_habs:		; S3d.cls 2589
+            bit 7, h		; S3d.cls 2590
+            ret z		; S3d.cls 2591
+            jr fn_s3d_render_hneg		; S3d.cls 2592
 ; ucap - HL = the smaller of HL and DE, unsigned
-fn_s3d_render_ucap:		; S3d.cls 2611
-            or a		; S3d.cls 2612
-            sbc hl, de		; S3d.cls 2613
-            add hl, de		; S3d.cls 2614
-            ret c		; S3d.cls 2615
-            ld h, d		; S3d.cls 2616
-            ld l, e		; S3d.cls 2617
-            ret		; S3d.cls 2618
+fn_s3d_render_ucap:		; S3d.cls 2594
+            or a		; S3d.cls 2595
+            sbc hl, de		; S3d.cls 2596
+            add hl, de		; S3d.cls 2597
+            ret c		; S3d.cls 2598
+            ld h, d		; S3d.cls 2599
+            ld l, e		; S3d.cls 2600
+            ret		; S3d.cls 2601
 ; cmps - carry when HL < DE, signed (HL lost)
-fn_s3d_render_cmps:		; S3d.cls 2620
-            ld a, h		; S3d.cls 2621
-            xor d		; S3d.cls 2622
-            jp m, fn_s3d_render_cm_d		; S3d.cls 2623
-            or a		; S3d.cls 2624
-            sbc hl, de		; S3d.cls 2625
-            ret		; S3d.cls 2626
-fn_s3d_render_cm_d:		; S3d.cls 2627
-            bit 7, h		; S3d.cls 2628
-            scf		; S3d.cls 2629
-            ret nz		; S3d.cls 2630
-            or a		; S3d.cls 2631
-            ret		; S3d.cls 2632
+fn_s3d_render_cmps:		; S3d.cls 2603
+            ld a, h		; S3d.cls 2604
+            xor d		; S3d.cls 2605
+            jp m, fn_s3d_render_cm_d		; S3d.cls 2606
+            or a		; S3d.cls 2607
+            sbc hl, de		; S3d.cls 2608
+            ret		; S3d.cls 2609
+fn_s3d_render_cm_d:		; S3d.cls 2610
+            bit 7, h		; S3d.cls 2611
+            scf		; S3d.cls 2612
+            ret nz		; S3d.cls 2613
+            or a		; S3d.cls 2614
+            ret		; S3d.cls 2615
 ; x6 - HL = A * 6
-fn_s3d_render_x6:		; S3d.cls 2634
-            ld l, a		; S3d.cls 2635
-            ld h, 0		; S3d.cls 2636
-            add hl, hl		; S3d.cls 2637
-            ld e, l		; S3d.cls 2638
-            ld d, h		; S3d.cls 2639
-            add hl, hl		; S3d.cls 2640
-            add hl, de		; S3d.cls 2641
-            ret		; S3d.cls 2642
+fn_s3d_render_x6:		; S3d.cls 2617
+            ld l, a		; S3d.cls 2618
+            ld h, 0		; S3d.cls 2619
+            add hl, hl		; S3d.cls 2620
+            ld e, l		; S3d.cls 2621
+            ld d, h		; S3d.cls 2622
+            add hl, hl		; S3d.cls 2623
+            add hl, de		; S3d.cls 2624
+            ret		; S3d.cls 2625
 
-fn_s3d_render_w_rs:       dw 0		; S3d.cls 2644
-fn_s3d_render_w_a:        dw 0		; S3d.cls 2645
-fn_s3d_render_w_b:        dw 0		; S3d.cls 2646
-fn_s3d_render_w_t:        dw 0		; S3d.cls 2647
-fn_s3d_render_w_d:        dw 0		; S3d.cls 2648
-fn_s3d_render_w_k:        dw 0		; S3d.cls 2649
-fn_s3d_render_w_cbx:      db 0		; S3d.cls 2650
-fn_s3d_render_w_cbz:      db 0		; S3d.cls 2651
-fn_s3d_render_w_ci:       db 0		; S3d.cls 2652
-fn_s3d_render_w_cj:       db 0		; S3d.cls 2653
-fn_s3d_render_w_lvl:      db 0		; S3d.cls 2654
-fn_s3d_render_w_var:      db 0		; S3d.cls 2655
-fn_s3d_render_w_vk:       db 0		; S3d.cls 2656
-fn_s3d_render_w_psg:      db 0		; S3d.cls 2657
-fn_s3d_render_w_mask:     db 0		; S3d.cls 2658
-fn_s3d_render_w_pl:       db 0		; S3d.cls 2659
-fn_s3d_render_w_px0:      dw 0		; S3d.cls 2660
-fn_s3d_render_w_px1:      dw 0		; S3d.cls 2661
-fn_s3d_render_w_pz0:      dw 0		; S3d.cls 2662
-fn_s3d_render_w_pz1:      dw 0		; S3d.cls 2663
-fn_s3d_render_w_phl:      dw 0		; S3d.cls 2664
-fn_s3d_render_w_sum:      dw 0		; S3d.cls 2665
-fn_s3d_render_w_cx:       dw 0		; S3d.cls 2666
-fn_s3d_render_w_cy:       dw 0		; S3d.cls 2667
-fn_s3d_render_w_cz:       dw 0		; S3d.cls 2668
-fn_s3d_render_w_pa:       dw 0		; S3d.cls 2669
-fn_s3d_render_w_pb:       dw 0		; S3d.cls 2670
-fn_s3d_render_w_pc:       dw 0		; S3d.cls 2671
-fn_s3d_render_w_vz:       dw 0		; S3d.cls 2672
-fn_s3d_render_w_v4y:      dw 0		; S3d.cls 2673
-fn_s3d_render_w_v3z:      dw 0		; S3d.cls 2674
-fn_s3d_render_w_pzv:      dw 0		; S3d.cls 2675
-fn_s3d_render_w_ea:       dw 0		; S3d.cls 2676
-fn_s3d_render_w_eb:       dw 0		; S3d.cls 2677
-fn_s3d_render_w_d0:       dw 0		; S3d.cls 2678
-fn_s3d_render_w_d1:       dw 0		; S3d.cls 2679
-fn_s3d_render_w_dn:       dw 0		; S3d.cls 2680
-fn_s3d_render_w_dd:       dw 0		; S3d.cls 2681
-fn_s3d_render_w_csp:      dw 0		; S3d.cls 2682
-fn_s3d_render_w_crp:      dw 0		; S3d.cls 2683
-fn_s3d_render_w_e0:       ds 12		; S3d.cls 2684
-fn_s3d_render_w_e1:       ds 12		; S3d.cls 2685
-fn_s3d_render_w_nl:       dw 0		; S3d.cls 2686
-fn_s3d_render_w_nlm:      dw 0		; S3d.cls 2687
-fn_s3d_render_w_lod:      db 0		; S3d.cls 2688
-fn_s3d_render_w_and:      db 0		; S3d.cls 2689
-fn_s3d_render_w_noproj:   db 0		; S3d.cls 2690
-fn_s3d_render_w_stop:     db 0		; S3d.cls 2691
-fn_s3d_render_w_mode:     db 0		; S3d.cls 2692
-fn_s3d_render_w_ti:       db 0		; S3d.cls 2693
-fn_s3d_render_w_tj:       db 0		; S3d.cls 2694
-fn_s3d_render_w_far:      db 0		; S3d.cls 2695
-fn_s3d_render_w_3d:       db 0		; S3d.cls 2696
-fn_s3d_render_w_n:        db 0		; S3d.cls 2697
-fn_s3d_render_w_i:        db 0		; S3d.cls 2698
-fn_s3d_render_w_sgn:      db 0		; S3d.cls 2699
-fn_s3d_render_w_cnt:      db 0		; S3d.cls 2700
-fn_s3d_render_w_acc:      ds 3		; S3d.cls 2701
-fn_s3d_render_w_tcap:     dw 0		; S3d.cls 2702
-fn_s3d_render_w_v:        dw 0		; S3d.cls 2703
-fn_s3d_render_w_lo:       dw 0		; S3d.cls 2704
-fn_s3d_render_w_hi:       dw 0		; S3d.cls 2705
-fn_s3d_render_w_dx:       dw 0		; S3d.cls 2706
-fn_s3d_render_w_dy:       dw 0		; S3d.cls 2707
-fn_s3d_render_w_dz:       dw 0		; S3d.cls 2708
-fn_s3d_render_w_tx:       dw 0		; S3d.cls 2709
-fn_s3d_render_w_ty:       dw 0		; S3d.cls 2710
-fn_s3d_render_w_tz:       dw 0		; S3d.cls 2711
-fn_s3d_render_w_gx:       dw 0		; S3d.cls 2712
-fn_s3d_render_w_gy:       dw 0		; S3d.cls 2713
-fn_s3d_render_w_gz:       dw 0		; S3d.cls 2714
-fn_s3d_render_w_hx:       dw 0		; S3d.cls 2715
-fn_s3d_render_w_hy:       dw 0		; S3d.cls 2716
-fn_s3d_render_w_hz:       dw 0		; S3d.cls 2717
-fn_s3d_render_w_tb:       dw 0		; S3d.cls 2718
-fn_s3d_render_w_cnt2:     dw 0		; S3d.cls 2719
-fn_s3d_render_w_p:        dw 0		; S3d.cls 2720
-fn_s3d_render_w_q:        dw 0		; S3d.cls 2721
-fn_s3d_render_w_va:       dw 0		; S3d.cls 2722
-fn_s3d_render_w_vb:       dw 0		; S3d.cls 2723
-fn_s3d_render_w_tdx:      dw 0		; S3d.cls 2724
-fn_s3d_render_w_tdy:      dw 0		; S3d.cls 2725
-fn_s3d_render_w_mx:       dw 0		; S3d.cls 2726
-fn_s3d_render_w_my:       dw 0		; S3d.cls 2727
-fn_s3d_render_w_px:       dw 0		; S3d.cls 2728
-fn_s3d_render_w_py:       dw 0		; S3d.cls 2729
-fn_s3d_render_w_lx:       dw 0		; S3d.cls 2730
-fn_s3d_render_w_ly:       dw 0		; S3d.cls 2731
-fn_s3d_render_w_rx:       dw 0		; S3d.cls 2732
-fn_s3d_render_w_ry:       dw 0		; S3d.cls 2733
+fn_s3d_render_w_rs:       dw 0		; S3d.cls 2627
+fn_s3d_render_w_a:        dw 0		; S3d.cls 2628
+fn_s3d_render_w_b:        dw 0		; S3d.cls 2629
+fn_s3d_render_w_t:        dw 0		; S3d.cls 2630
+fn_s3d_render_w_d:        dw 0		; S3d.cls 2631
+fn_s3d_render_w_k:        dw 0		; S3d.cls 2632
+fn_s3d_render_w_cbx:      db 0		; S3d.cls 2633
+fn_s3d_render_w_cbz:      db 0		; S3d.cls 2634
+fn_s3d_render_w_ci:       db 0		; S3d.cls 2635
+fn_s3d_render_w_cj:       db 0		; S3d.cls 2636
+fn_s3d_render_w_lvl:      db 0		; S3d.cls 2637
+fn_s3d_render_w_var:      db 0		; S3d.cls 2638
+fn_s3d_render_w_vk:       db 0		; S3d.cls 2639
+fn_s3d_render_w_mask:     db 0		; S3d.cls 2640
+fn_s3d_render_w_pl:       db 0		; S3d.cls 2641
+fn_s3d_render_w_px0:      dw 0		; S3d.cls 2642
+fn_s3d_render_w_px1:      dw 0		; S3d.cls 2643
+fn_s3d_render_w_pz0:      dw 0		; S3d.cls 2644
+fn_s3d_render_w_pz1:      dw 0		; S3d.cls 2645
+fn_s3d_render_w_phl:      dw 0		; S3d.cls 2646
+fn_s3d_render_w_cx:       dw 0		; S3d.cls 2647
+fn_s3d_render_w_cy:       dw 0		; S3d.cls 2648
+fn_s3d_render_w_cz:       dw 0		; S3d.cls 2649
+fn_s3d_render_w_ea:       dw 0		; S3d.cls 2650
+fn_s3d_render_w_eb:       dw 0		; S3d.cls 2651
+fn_s3d_render_w_d0:       dw 0		; S3d.cls 2652
+fn_s3d_render_w_d1:       dw 0		; S3d.cls 2653
+fn_s3d_render_w_dn:       dw 0		; S3d.cls 2654
+fn_s3d_render_w_dd:       dw 0		; S3d.cls 2655
+fn_s3d_render_w_csp:      dw 0		; S3d.cls 2656
+fn_s3d_render_w_crp:      dw 0		; S3d.cls 2657
+fn_s3d_render_w_e0:       ds 12		; S3d.cls 2658
+fn_s3d_render_w_e1:       ds 12		; S3d.cls 2659
+fn_s3d_render_w_nl:       dw 0		; S3d.cls 2660
+fn_s3d_render_w_nlm:      dw 0		; S3d.cls 2661
+fn_s3d_render_w_lod:      db 0		; S3d.cls 2662
+fn_s3d_render_w_and:      db 0		; S3d.cls 2663
+fn_s3d_render_w_noproj:   db 0		; S3d.cls 2664
+fn_s3d_render_w_stop:     db 0		; S3d.cls 2665
+fn_s3d_render_w_mode:     db 0		; S3d.cls 2666
+fn_s3d_render_w_ti:       db 0		; S3d.cls 2667
+fn_s3d_render_w_tj:       db 0		; S3d.cls 2668
+fn_s3d_render_w_far:      db 0		; S3d.cls 2669
+fn_s3d_render_w_3d:       db 0		; S3d.cls 2670
+fn_s3d_render_w_n:        db 0		; S3d.cls 2671
+fn_s3d_render_w_i:        db 0		; S3d.cls 2672
+fn_s3d_render_w_sgn:      db 0		; S3d.cls 2673
+fn_s3d_render_w_cnt:      db 0		; S3d.cls 2674
+fn_s3d_render_w_acc:      ds 3		; S3d.cls 2675
+fn_s3d_render_w_tcap:     dw 0		; S3d.cls 2676
+fn_s3d_render_w_v:        dw 0		; S3d.cls 2677
+fn_s3d_render_w_lo:       dw 0		; S3d.cls 2678
+fn_s3d_render_w_hi:       dw 0		; S3d.cls 2679
+fn_s3d_render_w_dx:       dw 0		; S3d.cls 2680
+fn_s3d_render_w_dy:       dw 0		; S3d.cls 2681
+fn_s3d_render_w_dz:       dw 0		; S3d.cls 2682
+fn_s3d_render_w_tx:       dw 0		; S3d.cls 2683
+fn_s3d_render_w_ty:       dw 0		; S3d.cls 2684
+fn_s3d_render_w_tz:       dw 0		; S3d.cls 2685
+fn_s3d_render_w_gx:       dw 0		; S3d.cls 2686
+fn_s3d_render_w_gy:       dw 0		; S3d.cls 2687
+fn_s3d_render_w_gz:       dw 0		; S3d.cls 2688
+fn_s3d_render_w_hx:       dw 0		; S3d.cls 2689
+fn_s3d_render_w_hy:       dw 0		; S3d.cls 2690
+fn_s3d_render_w_hz:       dw 0		; S3d.cls 2691
+fn_s3d_render_w_tb:       dw 0		; S3d.cls 2692
+fn_s3d_render_w_cnt2:     dw 0		; S3d.cls 2693
+fn_s3d_render_w_p:        dw 0		; S3d.cls 2694
+fn_s3d_render_w_q:        dw 0		; S3d.cls 2695
+fn_s3d_render_w_va:       dw 0		; S3d.cls 2696
+fn_s3d_render_w_vb:       dw 0		; S3d.cls 2697
+fn_s3d_render_w_tdx:      dw 0		; S3d.cls 2698
+fn_s3d_render_w_tdy:      dw 0		; S3d.cls 2699
+fn_s3d_render_w_mx:       dw 0		; S3d.cls 2700
+fn_s3d_render_w_my:       dw 0		; S3d.cls 2701
+fn_s3d_render_w_px:       dw 0		; S3d.cls 2702
+fn_s3d_render_w_py:       dw 0		; S3d.cls 2703
+fn_s3d_render_w_lx:       dw 0		; S3d.cls 2704
+fn_s3d_render_w_ly:       dw 0		; S3d.cls 2705
+fn_s3d_render_w_rx:       dw 0		; S3d.cls 2706
+fn_s3d_render_w_ry:       dw 0		; S3d.cls 2707
 			ret			; end of #asm
 
 fn_filesystem_open:		; function open (asm keyword), FileSystem.cls line 239
@@ -8727,7 +8701,7 @@ ntc_rg313_e:
 			ds 41712 - $		; Option Reserve #8F50-#A2EF: round it
 			ENDIF
 ntc_rg314:
-;## ntc_mem ntc_memcore ntc_membank ntc_nxt_bank @shared @far
+;## ntc_mem ntc_memcore ntc_membank ntc_nxt_bank ntc_msx_bank @shared @far
 ; ------------------------------------------------------------
 ; ntc_mem (CPCExpansion) - 16K RAM pages in the #4000-#7FFF window (CPC gate
 ; array RAM setting: C0 = plain, C4-C7 + bank * 8 = page 0-3 of a 64K bank;
@@ -8815,6 +8789,9 @@ mem_st_prog:
 ; machine (C4-C7 do nothing) reads main RAM's.
 mem_probe:
 		IF MEM_BANKS > 0
+	IFDEF NTC_MSXDOS
+			call msx_mem_probe		; MSX: the mapper's segments from MSX-DOS 2 (ntc_lib_msx.asm), sets mem_banks
+	ELSE
 	IFNDEF NTC_ZXN
 			ld a, i					; P/V = interrupts were on
 			di
@@ -8895,6 +8872,7 @@ mem_pr_back:
 mem_pr_di:
 	ELSE
 			call nxt_mem_probe		; Next: the RAM probe (ntc_lib_nxt.asm), sets mem_banks
+	ENDIF
 	ENDIF
 		ENDIF
 			ld a, (mem_banks)		; pages = 1 + 4 a bank
@@ -9049,6 +9027,9 @@ mem_tb_pend:
 ; mem_jbc - E = bank 0-63: BC = the port for its page 0 (B = #7F - E / 8,
 ; C = #C4 + (E and 7) * 8). Keeps DE, HL.
 mem_jbc:
+	IFDEF NTC_MSXDOS
+			jp msx_mem_jbc			; MSX: 64K bank E -> its page 0's setting (ntc_lib_msx.asm)
+	ENDIF
 	IFDEF NTC_ZXN
 			jp nxt_mem_jbc			; Next: 64K bank E -> its first 16K Next bank (ntc_lib_nxt.asm)
 	ENDIF
@@ -9097,6 +9078,9 @@ mem_se_do:
 			dec hl
 			ld c, (hl)
 mem_se_out:
+	IFDEF NTC_MSXDOS
+			jp msx_mem_se_out			; MSX: the segment into page 1 (PUT_P1: ntc_lib_msx.asm) -> mem_se_end
+	ENDIF
 	IFNDEF NTC_ZXN
 			ld (ntc_rampt), bc
 			out (c), c
@@ -11438,7 +11422,7 @@ ntc_bs_stop:
 ntc_bsa:		dw 0
 ntc_bsz:		dw 0
 ntc_bsp:		dw 0
-ntc_bstxt:		db "Not enough memory for the arrays", 0
+ntc_bstxt:		db "GURU 001", 0
 
 ntc_rg319_e:
 			IF ($ < 32768) && (ntc_rg320_e - ntc_rg320 + $ > 16384)	; fwdref-ok
@@ -11615,6 +11599,36 @@ nxt_mem_se_out:
 			jp mem_se_end
 	ENDIF
 
+; ============================================================
+; ntc_lib_msx.asm - MSX-DOS 2 / Nextor platform banking (msxdos)
+; (c) 2026 Cyborg Unicorn Pty Ltd - MIT License
+; ------------------------------------------------------------
+; The MSX versions of the banking primitives the CPC-modelled Memory
+; manager (ntc_mem, in ntc_lib_cpc.asm) switches platform on, as the
+; Next's are in ntc_lib_nxt.asm:
+;   msx_mem_probe   - the mapper's segments (mem_probe's MSX branch)
+;   msx_mem_jbc     - 64K bank -> its page 0's RAM setting (mem_jbc's)
+;   msx_mem_se_out  - a RAM setting into the window #4000-#7FFF (mem_se_out's)
+;   msx_win         - the same for a program's own asm (CyborgOS), as out (c), c
+;   msx_mem_bank    - a RAM setting -> its segment
+; The whole section is IFDEF NTC_MSXDOS: nothing on any other platform.
+;
+; The mapper's 16K segments come from MSX-DOS 2's mapper support (EXTBIO
+; #FFCA, D = 4, E = 2: the jump table): ALL_SEG takes every free user segment
+; of the primary mapper at the probe (MSX-DOS 2 frees them when the program
+; ends), 4 a 64K "bank" in the order given (a bank's 4 needn't be next to each
+; other: its segments are looked up, msx_segs). The window is page 1, changed
+; with PUT_P1 so that MSX-DOS 2 knows what is in it (a BDOS call reading into
+; the window reads into that segment). Main RAM's own page 1 (the setting
+; #7FC0) is the segment the program started with (GET_P1).
+;
+; The RAM setting (BC) is shaped as the CPC's gate-array one, as on the Next,
+; so that the CPC's setting arithmetic (a bank's "C2" setting = its page 0's
+; and #F8 or 2; its page n in the window = and #F8 or 4 + n) works unchanged:
+; B = MSX_SETB (1 - never 0, never #7F), C = the bank's ordinal * 8 + 4 + its
+; page (0-3), or + 2 for the whole bank.
+; ============================================================
+
 ntc_rg320_e:
 			IF ($ < 32768) && (ntc_rg321_e - ntc_rg321 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
@@ -11623,6 +11637,208 @@ ntc_rg320_e:
 			ds 41712 - $		; Option Reserve #8F50-#A2EF: round it
 			ENDIF
 ntc_rg321:
+;## ntc_msx_bank ntc_mem @far
+	IFDEF NTC_MSXDOS
+MSX_SETB	equ 1					; B of an MSX RAM setting (see the top)
+MSX_ALL		equ 0					; the jump table: ALL_SEG
+MSX_FRE		equ 3					; FRE_SEG
+MSX_PUT1	equ 30					; PUT_P1
+MSX_GET0	equ 27					; GET_P0 (then GET_P1 30 + 3 ...: every 6)
+	IF MEM_BANKS > 31
+MSX_MAXSEG	equ 31 * 4				; segments taken at most: 31 banks (a setting's C = ordinal * 8 + ...: 0-31)
+	ELSE
+MSX_MAXSEG	equ MEM_BANKS * 4
+	ENDIF
+
+msx_mtab:		dw 0					; MSX-DOS 2's mapper support jump table (0: none)
+msx_tpa:		db 0, 0, 0, 0			; the program's own segments, pages 0-3 (GET_Pn)
+msx_nseg:		db 0					; segments in msx_segs
+msx_segs:		ds MEM_BANKS * 4 + 4	; the segments, 4 a bank
+
+; msx_mc - call the mapper support routine at offset E (A, B its arguments), on
+; the real stack. Keeps DE; the routine's A, B, flags back
+msx_mc:
+			push de
+			ld hl, (msx_mtab)
+			ld d, 0
+			add hl, de
+			pop de
+			jp (hl)
+
+; msx_mem_probe - the mapper support's table (no MSX-DOS 2 / Nextor: none, no
+; pages), the program's own segments, then every free user segment of the
+; primary mapper, 4 a bank (up to MEM_BANKS); a part bank's are given back.
+; Sets mem_banks and mem_found. Called from mem_probe on the real stack
+msx_mem_probe:
+			ld a, (#FB20)			; HOKVLD: bit 0 = EXTBIO is there
+			and 1
+			ret z
+			xor a
+			ld de, #0402			; mapper support: the jump table
+			call #FFCA				; EXTBIO: HL = the table, A = segments (0: no mapper support)
+			di
+			or a
+			ret z
+			ld a, h
+			or l
+			ret z
+			ld (msx_mtab), hl
+			ld e, MSX_GET0			; GET_P0 .. GET_P3: the program's own
+			ld hl, msx_tpa
+			ld b, 4
+msx_pr_own:
+			push bc
+			push de
+			push hl
+			call msx_mc
+			di
+			pop hl
+			pop de
+			pop bc
+			ld (hl), a
+			inc hl
+			ld a, e
+			add a, 6
+			ld e, a
+			djnz msx_pr_own
+			ld hl, msx_segs
+msx_pr_all:
+			ld a, (msx_nseg)
+			cp MSX_MAXSEG
+			jr nc, msx_pr_done
+			push hl
+			xor a					; a user segment
+			ld b, a					; of the primary mapper
+			ld e, MSX_ALL
+			call msx_mc
+			di
+			pop hl
+			jr c, msx_pr_done		; (none left)
+			ld (hl), a
+			inc hl
+			ld a, (msx_nseg)
+			inc a
+			ld (msx_nseg), a
+			jr msx_pr_all
+msx_pr_done:
+			ld a, (msx_nseg)		; a part bank's segments back
+			and 3
+			jr z, msx_pr_banks
+			ld b, a
+msx_pr_fre:
+			dec hl
+			push bc
+			push hl
+			ld a, (hl)
+			ld b, 0
+			ld e, MSX_FRE
+			call msx_mc
+			di
+			pop hl
+			pop bc
+			ld a, (msx_nseg)
+			dec a
+			ld (msx_nseg), a
+			djnz msx_pr_fre
+msx_pr_banks:
+			ld a, (msx_nseg)
+			srl a
+			srl a					; 64K banks
+			ld (mem_banks), a
+			or a
+			ret z
+			ld hl, mem_found		; the banks found: 0, 1, 2 ...
+			ld b, a
+			ld e, 0
+msx_pr_fl:
+			ld (hl), e
+			inc hl
+			inc e
+			djnz msx_pr_fl
+			ret
+
+; msx_mem_jbc - E = a 64K bank (0-63) -> BC = its page 0's RAM setting (B = MSX_SETB,
+; C = E * 8 + 4: the four 16K parts step C, as the CPC's #C4 - #C7 do). Keeps DE, HL.
+msx_mem_jbc:
+			ld a, e
+			add a, a
+			add a, a
+			add a, a
+			add a, 4
+			ld c, a
+			ld b, MSX_SETB
+			ret
+
+; msx_mem_bank - BC = a RAM setting -> A = its segment: B = #7F (main RAM's own,
+; #7FC0) = the program's own page 1; else C = ordinal * 8 + 4 + page ->
+; msx_segs(ordinal * 4 + page) (the whole bank's "2" and 0-3: its page 0).
+; Keeps BC, DE, HL.
+msx_mem_bank:
+			ld a, b
+			cp #7F
+			jr nz, msx_mb_pg
+			ld a, (msx_tpa + 1)
+			ret
+msx_mb_pg:
+			push hl
+			push de
+			ld a, c
+			and 7
+			sub 4
+			jr nc, msx_mb_ok
+			xor a					; 0-3: page 0
+msx_mb_ok:
+			ld e, a
+			ld a, c
+			and #F8
+			srl a					; ordinal * 4
+			add a, e
+			ld e, a
+			ld d, 0
+			ld hl, msx_segs
+			add hl, de
+			ld a, (hl)
+			pop de
+			pop hl
+			ret
+
+; msx_win - BC = a RAM setting -> its segment into the window #4000-#7FFF (PUT_P1):
+; what out (c), c does with a setting on the CPC - for a program's own asm (CyborgOS)
+; that switches the window itself, outside the Memory class (ntc_rampt is not
+; touched, as the CPC's out doesn't). Keeps every register, as the out does (AF too;
+; interrupts as they were). On the real stack only (call: never from the thread)
+msx_win:
+			push af
+			push bc
+			push de
+			push hl
+			call msx_mem_bank
+			ld e, MSX_PUT1
+			call msx_mc
+			pop hl
+			pop de
+			pop bc
+			pop af
+			ret
+
+; msx_mem_se_out - BC = the RAM setting: its segment into the window (PUT_P1). Reached
+; by jp from mem_se_out; exits through mem_se_end. On the real stack (mem_sel pushed there)
+msx_mem_se_out:
+			ld (ntc_rampt), bc
+			call msx_mem_bank
+			ld e, MSX_PUT1
+			call msx_mc
+			jp mem_se_end
+	ENDIF
+
+ntc_rg321_e:
+			IF ($ < 32768) && (ntc_rg322_e - ntc_rg322 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+			IF ($ < 41712) && (ntc_rg322_e - ntc_rg322 + $ > 36688)	; fwdref-ok
+			ds 41712 - $		; Option Reserve #8F50-#A2EF: round it
+			ENDIF
+ntc_rg322:
 ;## ntc_plat_data
 ntc_curx:		db 0			; cursor column (0 based) - kept here for Tab
 ntc_cury:		db 0			; cursor row (0 based)
@@ -11638,14 +11854,14 @@ ntc_fwtop:		dw #A600		; the top of free RAM (#A5F0 with the fast ticker's block)
 ntc_fwblk:		dw NTC_FWBLK		; the fast ticker's event block: lower (and the top with it) when the ROMs
 								; started take more RAM than AMSDOS's #A700-#ABFF (Option RomEnable)
 
-ntc_rg321_e:
-			IF ($ < 32768) && (ntc_rg322_e - ntc_rg322 + $ > 16384)	; fwdref-ok
+ntc_rg322_e:
+			IF ($ < 32768) && (ntc_rg323_e - ntc_rg323 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-			IF ($ < 41712) && (ntc_rg322_e - ntc_rg322 + $ > 36688)	; fwdref-ok
+			IF ($ < 41712) && (ntc_rg323_e - ntc_rg323 + $ > 36688)	; fwdref-ok
 			ds 41712 - $		; Option Reserve #8F50-#A2EF: round it
 			ENDIF
-ntc_rg322:
+ntc_rg323:
 ;## ntc_plat_fw ntc_plat_data ntc_data @shared
 ; ------------------------------------------------------------
 ; ntc_fwcall - IY = firmware address; A, BC, DE, HL go in and come
@@ -11666,14 +11882,14 @@ ntc_fwcall:
 ntc_fwjp:
 			jp (iy)
 
-ntc_rg322_e:
-			IF ($ < 32768) && (ntc_rg323_e - ntc_rg323 + $ > 16384)	; fwdref-ok
+ntc_rg323_e:
+			IF ($ < 32768) && (ntc_rg324_e - ntc_rg324 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-			IF ($ < 41712) && (ntc_rg323_e - ntc_rg323 + $ > 36688)	; fwdref-ok
+			IF ($ < 41712) && (ntc_rg324_e - ntc_rg324 + $ > 36688)	; fwdref-ok
 			ds 41712 - $		; Option Reserve #8F50-#A2EF: round it
 			ENDIF
-ntc_rg323:
+ntc_rg324:
 ;## ntc_plat_screen ntc_plat_fw ntc_plat_data ntc_data
 ; ntc_plat_putc - A = character: TXT OUTPUT. The firmware wraps by itself after
 ; the last column, so only the column is counted here; a new line straight after
@@ -11735,14 +11951,14 @@ ntc_nl_row:
 
 ntc_pclink:		dw 0
 
-ntc_rg323_e:
-			IF ($ < 32768) && (ntc_rg324_e - ntc_rg324 + $ > 16384)	; fwdref-ok
+ntc_rg324_e:
+			IF ($ < 32768) && (ntc_rg325_e - ntc_rg325 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-			IF ($ < 41712) && (ntc_rg324_e - ntc_rg324 + $ > 36688)	; fwdref-ok
+			IF ($ < 41712) && (ntc_rg325_e - ntc_rg325 + $ > 36688)	; fwdref-ok
 			ds 41712 - $		; Option Reserve #8F50-#A2EF: round it
 			ENDIF
-ntc_rg324:
+ntc_rg325:
 ;## ntc_plat_cls @unit ntc_plat_screen ntc_plat_fw ntc_plat_data ntc_data
 ; ntc_plat_cls - TXT CLEAR WINDOW, cursor home
 ntc_plat_cls:
@@ -11753,14 +11969,14 @@ ntc_plat_cls:
 			ld iy, #BB6C			; TXT CLEAR WINDOW
 			jp ntc_fwcall
 
-ntc_rg324_e:
-			IF ($ < 32768) && (ntc_rg325_e - ntc_rg325 + $ > 16384)	; fwdref-ok
+ntc_rg325_e:
+			IF ($ < 32768) && (ntc_rg326_e - ntc_rg326 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-			IF ($ < 41712) && (ntc_rg325_e - ntc_rg325 + $ > 36688)	; fwdref-ok
+			IF ($ < 41712) && (ntc_rg326_e - ntc_rg326 + $ > 36688)	; fwdref-ok
 			ds 41712 - $		; Option Reserve #8F50-#A2EF: round it
 			ENDIF
-ntc_rg325:
+ntc_rg326:
 ;## ntc_plat_mode @unit ntc_plat_screen ntc_plat_fw ntc_plat_data ntc_data
 ; ntc_plat_mode - A = mode 0-2 (3 = 2): SCR SET MODE (clears)
 ntc_plat_mode:
@@ -11788,14 +12004,14 @@ ntc_md_set:
 			ld iy, #BC0E			; SCR SET MODE
 			jp ntc_fwcall
 
-ntc_rg325_e:
-			IF ($ < 32768) && (ntc_rg326_e - ntc_rg326 + $ > 16384)	; fwdref-ok
+ntc_rg326_e:
+			IF ($ < 32768) && (ntc_rg327_e - ntc_rg327 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-			IF ($ < 41712) && (ntc_rg326_e - ntc_rg326 + $ > 36688)	; fwdref-ok
+			IF ($ < 41712) && (ntc_rg327_e - ntc_rg327 + $ > 36688)	; fwdref-ok
 			ds 41712 - $		; Option Reserve #8F50-#A2EF: round it
 			ENDIF
-ntc_rg326:
+ntc_rg327:
 ;## ntc_plat_locate @unit ntc_plat_screen ntc_plat_fw ntc_plat_data ntc_data
 ; ntc_plat_locate - H = column, L = row, 1 based: TXT SET CURSOR
 ntc_plat_locate:
@@ -11820,14 +12036,14 @@ ntc_lc_y:
 			ld iy, #BB75			; TXT SET CURSOR
 			jp ntc_fwcall
 
-ntc_rg326_e:
-			IF ($ < 32768) && (ntc_rg327_e - ntc_rg327 + $ > 16384)	; fwdref-ok
+ntc_rg327_e:
+			IF ($ < 32768) && (ntc_rg328_e - ntc_rg328 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-			IF ($ < 41712) && (ntc_rg327_e - ntc_rg327 + $ > 36688)	; fwdref-ok
+			IF ($ < 41712) && (ntc_rg328_e - ntc_rg328 + $ > 36688)	; fwdref-ok
 			ds 41712 - $		; Option Reserve #8F50-#A2EF: round it
 			ENDIF
-ntc_rg327:
+ntc_rg328:
 ;## ntc_plat_key ntc_plat_fw ntc_data
 ; ntc_plat_scankey - A = key from the firmware's buffer, or 0
 ntc_plat_scankey:
@@ -11850,20 +12066,6 @@ ntc_plat_getkey:
 			jp ntc_fwcall
 ntc_kslink:		dw 0
 
-ntc_rg327_e:
-			IF ($ < 32768) && (ntc_rg328_e - ntc_rg328 + $ > 16384)	; fwdref-ok
-			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
-			ENDIF
-			IF ($ < 41712) && (ntc_rg328_e - ntc_rg328 + $ > 36688)	; fwdref-ok
-			ds 41712 - $		; Option Reserve #8F50-#A2EF: round it
-			ENDIF
-ntc_rg328:
-;## ntc_plat_ticks ntc_plat_fw
-; ntc_plat_ticks - HL = the firmware's 1/300 s clock (KL TIME PLEASE, low word)
-ntc_plat_ticks:
-			ld iy, #BD0D
-			jp ntc_fwcall
-
 ntc_rg328_e:
 			IF ($ < 32768) && (ntc_rg329_e - ntc_rg329 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
@@ -11872,6 +12074,20 @@ ntc_rg328_e:
 			ds 41712 - $		; Option Reserve #8F50-#A2EF: round it
 			ENDIF
 ntc_rg329:
+;## ntc_plat_ticks ntc_plat_fw
+; ntc_plat_ticks - HL = the firmware's 1/300 s clock (KL TIME PLEASE, low word)
+ntc_plat_ticks:
+			ld iy, #BD0D
+			jp ntc_fwcall
+
+ntc_rg329_e:
+			IF ($ < 32768) && (ntc_rg330_e - ntc_rg330 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+			IF ($ < 41712) && (ntc_rg330_e - ntc_rg330 + $ > 36688)	; fwdref-ok
+			ds 41712 - $		; Option Reserve #8F50-#A2EF: round it
+			ENDIF
+ntc_rg330:
 ;## ntc_plat_exit ntc_plat_data ntc_plat_fw
 ntc_plat_exit:
 			ld bc, #7FC0		; RAM setting back to plain (a Memory page may be in #4000)
@@ -11891,14 +12107,14 @@ ntc_ex_back:
 ntc_ex_done:
 			jp (ix)
 
-ntc_rg329_e:
-			IF ($ < 32768) && (ntc_rg330_e - ntc_rg330 + $ > 16384)	; fwdref-ok
+ntc_rg330_e:
+			IF ($ < 32768) && (ntc_rg331_e - ntc_rg331 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-			IF ($ < 41712) && (ntc_rg330_e - ntc_rg330 + $ > 36688)	; fwdref-ok
+			IF ($ < 41712) && (ntc_rg331_e - ntc_rg331 + $ > 36688)	; fwdref-ok
 			ds 41712 - $		; Option Reserve #8F50-#A2EF: round it
 			ENDIF
-ntc_rg330:
+ntc_rg331:
 ;## ntc_plat_fs ntc_data ntc_buf2k @shared
 FS_NOTFOUND	equ -2
 FS_TOOBIG	equ -8
@@ -12430,14 +12646,14 @@ fs_sv_done:
 			ld hl, 0
 			ret
 
-ntc_rg330_e:
-			IF ($ < 32768) && (ntc_rg331_e - ntc_rg331 + $ > 16384)	; fwdref-ok
+ntc_rg331_e:
+			IF ($ < 32768) && (ntc_rg332_e - ntc_rg332 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-			IF ($ < 41712) && (ntc_rg331_e - ntc_rg331 + $ > 36688)	; fwdref-ok
+			IF ($ < 41712) && (ntc_rg332_e - ntc_rg332 + $ > 36688)	; fwdref-ok
 			ds 41712 - $		; Option Reserve #8F50-#A2EF: round it
 			ENDIF
-ntc_rg331:
+ntc_rg332:
 ;## ntc_plat_fsseq ntc_plat_fs @shared
 ; ---- one open file (handle 1), through CAS IN CHAR / CAS OUT CHAR: read a
 ; file (any type) byte by byte, or write a new text file (type ASCII, as
@@ -12746,14 +12962,14 @@ fs_wl_end:
 			ld hl, 0
 			ret
 
-ntc_rg331_e:
-			IF ($ < 32768) && (ntc_rg332_e - ntc_rg332 + $ > 16384)	; fwdref-ok
+ntc_rg332_e:
+			IF ($ < 32768) && (ntc_rg333_e - ntc_rg333 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-			IF ($ < 41712) && (ntc_rg332_e - ntc_rg332 + $ > 36688)	; fwdref-ok
+			IF ($ < 41712) && (ntc_rg333_e - ntc_rg333 + $ > 36688)	; fwdref-ok
 			ds 41712 - $		; Option Reserve #8F50-#A2EF: round it
 			ENDIF
-ntc_rg332:
+ntc_rg333:
 ;## ntc_plat_memtop ntc_plat_data
 ; ntc_plat_memtop - HL = the first byte the Memory class's Small heap must not
 ; use: #A600 (the firmware's and AMSDOS's RAM is above), #A5F0 when the fast
@@ -12763,14 +12979,14 @@ ntc_plat_memtop:
 			ld hl, (ntc_fwtop)
 			ret
 
-ntc_rg332_e:
-			IF ($ < 32768) && (ntc_rg333_e - ntc_rg333 + $ > 16384)	; fwdref-ok
+ntc_rg333_e:
+			IF ($ < 32768) && (ntc_rg334_e - ntc_rg334 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-			IF ($ < 41712) && (ntc_rg333_e - ntc_rg333 + $ > 36688)	; fwdref-ok
+			IF ($ < 41712) && (ntc_rg334_e - ntc_rg334 + $ > 36688)	; fwdref-ok
 			ds 41712 - $		; Option Reserve #8F50-#A2EF: round it
 			ENDIF
-ntc_rg333:
+ntc_rg334:
 ;## ntc_plat_romsel @shared @ramonly
 ; rd_sel - A = a slot: that ROM in at #C000 (KL ROM SELECT: the upper ROM on,
 ; the firmware knows). rd_unsel - what was in before back (KL ROM DESELECT).
@@ -12797,14 +13013,14 @@ rd_unsel:
 			pop af
 			ret
 
-ntc_rg333_e:
-			IF ($ < 32768) && (ntc_rg334_e - ntc_rg334 + $ > 16384)	; fwdref-ok
+ntc_rg334_e:
+			IF ($ < 32768) && (ntc_rg335_e - ntc_rg335 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-			IF ($ < 41712) && (ntc_rg334_e - ntc_rg334 + $ > 36688)	; fwdref-ok
+			IF ($ < 41712) && (ntc_rg335_e - ntc_rg335 + $ > 36688)	; fwdref-ok
 			ds 41712 - $		; Option Reserve #8F50-#A2EF: round it
 			ENDIF
-ntc_rg334:
+ntc_rg335:
 ;## ntc_plat_rdroute ntc_plat_fs ntc_romdisc @shared @ramonly
 ; rd_route ... - a FileSystem method's way to the ROMDISC (volume R): HL =
 ; the fs_ routine, DE = the rd_ one, fs_a1 ... fs_res set. The rd_ routine
@@ -12932,14 +13148,14 @@ rd_nsl:
 			ld (hl), a
 			ret
 
-ntc_rg334_e:
-			IF ($ < 32768) && (ntc_rg335_e - ntc_rg335 + $ > 16384)	; fwdref-ok
+ntc_rg335_e:
+			IF ($ < 32768) && (ntc_rg336_e - ntc_rg336 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-			IF ($ < 41712) && (ntc_rg335_e - ntc_rg335 + $ > 36688)	; fwdref-ok
+			IF ($ < 41712) && (ntc_rg336_e - ntc_rg336 + $ > 36688)	; fwdref-ok
 			ds 41712 - $		; Option Reserve #8F50-#A2EF: round it
 			ENDIF
-ntc_rg335:
+ntc_rg336:
 ;## ntc_plat_rmr ntc_plat_data
 ; ntc_plat_rmr - A = the gate array's ROM / mode byte now: the firmware keeps
 ; it in C' (B' = #7F), so Memory's CallBank can turn both ROMs off and put
@@ -12951,7 +13167,7 @@ ntc_plat_rmr:
 			ret
 
 
-ntc_rg335_e:
+ntc_rg336_e:
 ntc_end:				; the end of the program (and of its file)
 fs_buf			equ ntc_buf		; the 2K buffer CAS IN OPEN / CAS OUT OPEN want (shared with Memory.Copy)
 ; arrays: after the program, not in its file - kw_bssinit checks they fit and clears them

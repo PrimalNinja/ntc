@@ -12625,7 +12625,7 @@ function ntcRomAsm(strPlatform_a, strReg_a, objOpt_a)
 				arrStack.push({ romlib: true, keep: true });
 				return;
 			}
-			if (/^\s*IFDEF\s+NTC_(ZXN|ISLC|PGLOADED)\b/i.test(strCode))
+			if (/^\s*IFDEF\s+NTC_(ZXN|ISLC|PGLOADED|MSXDOS)\b/i.test(strCode))
 			{
 				arrStack.push({ romlib: true, keep: false });
 				return;

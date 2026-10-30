@@ -14,51 +14,16 @@ NTC_ROMENABLE	equ 0		; Option RomEnable (cpcfw, cpcmin): the start code starts t
 NTC_ROMLIB	equ 0		; 1 = the library is the keyword ROM (Library: ROM; ntcRomAsm builds it)
 NTC_WINHOLE	equ 1		; 1 = the program is built round an Option Reserve range over the window #4000-#7FFF
 NTC_BUFSIZE	equ 2048		; the library's buffer (ntc_buf: FileSystem, Memory.Copy): Option Buffer
+NTC_ZXIRQ	equ 1		; 1 = the interrupt handler (ntc_irq) is in the program: Frame catches up its lost ticks
 ; the ZX Spectrum Next: NTC_ZXN defined (a DEFINE - sjasmplus's IFDEF tests those, not labels)
 			DEFINE NTC_ZXN
 ZXN_FIRSTBANK	equ 22		; first free 16K bank (page 44), above the program/screen/low banks
 ZXN_MAXBANK	equ 90		; scan range: banks 22-111 (a 2MB Next has 112 16K banks, pages 0-223; the MMU has no page past 223 - a higher page number is not RAM)
+; the interrupt handler passes 1 in C at a frame's interrupt (ntc_isl_tick: not the CPC's vertical sync)
+			DEFINE NTC_ISLC
 NTC_CPMGFX	equ 0		; 1 = CP/M: Graphics draws on an Amstrad CPC's screen (2.2: #C000, Plus: block 1 from common memory)
 
 ntc_start:
-			jr ntc_start2		; #0040 (2 bytes): over the glue
-ntc_bk_sp:		dw 0			; #0042: this bank's SP while another runs
-ntc_bk_out:
-			db #08			; #0044: ex af, af - stash A + FLAGS (carry = far-call / interrupt) to the alternate set, before the port flip clobbers A
-			ld bc, #243B		; PIVOT via the MMU ports (no Z80N opcode): select MMU slot 0 (#50)
-			ld a, #50
-			out (c), a
-			inc b			; #253B
-			ld a, 16		; the hypervisor's slot-0 page; slot 0 flips HERE - next byte is the receiver
-			out (c), a
-ntc_bk_recv:			; now running in the hypervisor's slot 0 (A + FLAGS already in the alternate set)
-			ld (ntc_bk_svd), de	; DE / HL message to slot-0 scratch (slot 0 stays the hypervisor here)
-			ld (ntc_bk_svh), hl
-			ld hl, ntc_bk_hpg	; the hypervisor's resting pages, slots 1-7
-			ld bc, #243B		; NextReg select port (#253B = value)
-			ld d, #51		; slot register 1
-ntc_bk_rc1:
-			ld a, d
-			out (c), a		; select the slot register
-			inc b			; #253B
-			ld a, (hl)
-			out (c), a		; = its resting page
-			dec b			; #243B
-			inc hl
-			inc d
-			ld a, d
-			cp #58			; slots #51..#57 (1..7) done? (clobbers flags - carry safe in AF\')
-			jr nz, ntc_bk_rc1
-			ld de, (ntc_bk_svd)
-			ld hl, (ntc_bk_svh)
-			db #08			; ex af, af - A + FLAGS back (IX untouched throughout = also preserved)
-ntc_bk_land:
-			ld sp, (ntc_bk_sp)	; the hypervisor's own SP
-			ret				; to where it handed over (Run's rn_back), A/DE/IX + carry intact
-			ASSERT ntc_bk_out == #0044, "the bank switch must be at #0044"
-ntc_bk_svd:		dw 0		; DE / HL message held across the slot 1-7 remap
-ntc_bk_svh:		dw 0
-ntc_bk_hpg:		db 17, 18, 19, 20, 21, 10, 11	; hypervisor resting pages, slots 1-7 (boot MMU map)
 ntc_start2:
 ntc_bk_cold:
 			di
@@ -1523,7 +1488,7 @@ ntc_rg68_e:
 			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
 ntc_rg69:
-;## ntc_mem ntc_memcore ntc_membank ntc_nxt_bank @shared @far
+;## ntc_mem ntc_memcore ntc_membank ntc_nxt_bank ntc_msx_bank @shared @far
 ; ------------------------------------------------------------
 ; ntc_mem (CPCExpansion) - 16K RAM pages in the #4000-#7FFF window (CPC gate
 ; array RAM setting: C0 = plain, C4-C7 + bank * 8 = page 0-3 of a 64K bank;
@@ -1611,6 +1576,9 @@ mem_st_prog:
 ; machine (C4-C7 do nothing) reads main RAM's.
 mem_probe:
 		IF MEM_BANKS > 0
+	IFDEF NTC_MSXDOS
+			call msx_mem_probe		; MSX: the mapper's segments from MSX-DOS 2 (ntc_lib_msx.asm), sets mem_banks
+	ELSE
 	IFNDEF NTC_ZXN
 			ld a, i					; P/V = interrupts were on
 			di
@@ -1691,6 +1659,7 @@ mem_pr_back:
 mem_pr_di:
 	ELSE
 			call nxt_mem_probe		; Next: the RAM probe (ntc_lib_nxt.asm), sets mem_banks
+	ENDIF
 	ENDIF
 		ENDIF
 			ld a, (mem_banks)		; pages = 1 + 4 a bank
@@ -1845,6 +1814,9 @@ mem_tb_pend:
 ; mem_jbc - E = bank 0-63: BC = the port for its page 0 (B = #7F - E / 8,
 ; C = #C4 + (E and 7) * 8). Keeps DE, HL.
 mem_jbc:
+	IFDEF NTC_MSXDOS
+			jp msx_mem_jbc			; MSX: 64K bank E -> its page 0's setting (ntc_lib_msx.asm)
+	ENDIF
 	IFDEF NTC_ZXN
 			jp nxt_mem_jbc			; Next: 64K bank E -> its first 16K Next bank (ntc_lib_nxt.asm)
 	ENDIF
@@ -1893,6 +1865,9 @@ mem_se_do:
 			dec hl
 			ld c, (hl)
 mem_se_out:
+	IFDEF NTC_MSXDOS
+			jp msx_mem_se_out			; MSX: the segment into page 1 (PUT_P1: ntc_lib_msx.asm) -> mem_se_end
+	ENDIF
 	IFNDEF NTC_ZXN
 			ld (ntc_rampt), bc
 			out (c), c
@@ -3384,11 +3359,240 @@ nxt_mem_se_out:
 			jp mem_se_end
 	ENDIF
 
+; ============================================================
+; ntc_lib_msx.asm - MSX-DOS 2 / Nextor platform banking (msxdos)
+; (c) 2026 Cyborg Unicorn Pty Ltd - MIT License
+; ------------------------------------------------------------
+; The MSX versions of the banking primitives the CPC-modelled Memory
+; manager (ntc_mem, in ntc_lib_cpc.asm) switches platform on, as the
+; Next's are in ntc_lib_nxt.asm:
+;   msx_mem_probe   - the mapper's segments (mem_probe's MSX branch)
+;   msx_mem_jbc     - 64K bank -> its page 0's RAM setting (mem_jbc's)
+;   msx_mem_se_out  - a RAM setting into the window #4000-#7FFF (mem_se_out's)
+;   msx_win         - the same for a program's own asm (CyborgOS), as out (c), c
+;   msx_mem_bank    - a RAM setting -> its segment
+; The whole section is IFDEF NTC_MSXDOS: nothing on any other platform.
+;
+; The mapper's 16K segments come from MSX-DOS 2's mapper support (EXTBIO
+; #FFCA, D = 4, E = 2: the jump table): ALL_SEG takes every free user segment
+; of the primary mapper at the probe (MSX-DOS 2 frees them when the program
+; ends), 4 a 64K "bank" in the order given (a bank's 4 needn't be next to each
+; other: its segments are looked up, msx_segs). The window is page 1, changed
+; with PUT_P1 so that MSX-DOS 2 knows what is in it (a BDOS call reading into
+; the window reads into that segment). Main RAM's own page 1 (the setting
+; #7FC0) is the segment the program started with (GET_P1).
+;
+; The RAM setting (BC) is shaped as the CPC's gate-array one, as on the Next,
+; so that the CPC's setting arithmetic (a bank's "C2" setting = its page 0's
+; and #F8 or 2; its page n in the window = and #F8 or 4 + n) works unchanged:
+; B = MSX_SETB (1 - never 0, never #7F), C = the bank's ordinal * 8 + 4 + its
+; page (0-3), or + 2 for the whole bank.
+; ============================================================
+
 ntc_rg73_e:
 			IF ($ < 32768) && (ntc_rg74_e - ntc_rg74 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
 ntc_rg74:
+;## ntc_msx_bank ntc_mem @far
+	IFDEF NTC_MSXDOS
+MSX_SETB	equ 1					; B of an MSX RAM setting (see the top)
+MSX_ALL		equ 0					; the jump table: ALL_SEG
+MSX_FRE		equ 3					; FRE_SEG
+MSX_PUT1	equ 30					; PUT_P1
+MSX_GET0	equ 27					; GET_P0 (then GET_P1 30 + 3 ...: every 6)
+	IF MEM_BANKS > 31
+MSX_MAXSEG	equ 31 * 4				; segments taken at most: 31 banks (a setting's C = ordinal * 8 + ...: 0-31)
+	ELSE
+MSX_MAXSEG	equ MEM_BANKS * 4
+	ENDIF
+
+msx_mtab:		dw 0					; MSX-DOS 2's mapper support jump table (0: none)
+msx_tpa:		db 0, 0, 0, 0			; the program's own segments, pages 0-3 (GET_Pn)
+msx_nseg:		db 0					; segments in msx_segs
+msx_segs:		ds MEM_BANKS * 4 + 4	; the segments, 4 a bank
+
+; msx_mc - call the mapper support routine at offset E (A, B its arguments), on
+; the real stack. Keeps DE; the routine's A, B, flags back
+msx_mc:
+			push de
+			ld hl, (msx_mtab)
+			ld d, 0
+			add hl, de
+			pop de
+			jp (hl)
+
+; msx_mem_probe - the mapper support's table (no MSX-DOS 2 / Nextor: none, no
+; pages), the program's own segments, then every free user segment of the
+; primary mapper, 4 a bank (up to MEM_BANKS); a part bank's are given back.
+; Sets mem_banks and mem_found. Called from mem_probe on the real stack
+msx_mem_probe:
+			ld a, (#FB20)			; HOKVLD: bit 0 = EXTBIO is there
+			and 1
+			ret z
+			xor a
+			ld de, #0402			; mapper support: the jump table
+			call #FFCA				; EXTBIO: HL = the table, A = segments (0: no mapper support)
+			di
+			or a
+			ret z
+			ld a, h
+			or l
+			ret z
+			ld (msx_mtab), hl
+			ld e, MSX_GET0			; GET_P0 .. GET_P3: the program's own
+			ld hl, msx_tpa
+			ld b, 4
+msx_pr_own:
+			push bc
+			push de
+			push hl
+			call msx_mc
+			di
+			pop hl
+			pop de
+			pop bc
+			ld (hl), a
+			inc hl
+			ld a, e
+			add a, 6
+			ld e, a
+			djnz msx_pr_own
+			ld hl, msx_segs
+msx_pr_all:
+			ld a, (msx_nseg)
+			cp MSX_MAXSEG
+			jr nc, msx_pr_done
+			push hl
+			xor a					; a user segment
+			ld b, a					; of the primary mapper
+			ld e, MSX_ALL
+			call msx_mc
+			di
+			pop hl
+			jr c, msx_pr_done		; (none left)
+			ld (hl), a
+			inc hl
+			ld a, (msx_nseg)
+			inc a
+			ld (msx_nseg), a
+			jr msx_pr_all
+msx_pr_done:
+			ld a, (msx_nseg)		; a part bank's segments back
+			and 3
+			jr z, msx_pr_banks
+			ld b, a
+msx_pr_fre:
+			dec hl
+			push bc
+			push hl
+			ld a, (hl)
+			ld b, 0
+			ld e, MSX_FRE
+			call msx_mc
+			di
+			pop hl
+			pop bc
+			ld a, (msx_nseg)
+			dec a
+			ld (msx_nseg), a
+			djnz msx_pr_fre
+msx_pr_banks:
+			ld a, (msx_nseg)
+			srl a
+			srl a					; 64K banks
+			ld (mem_banks), a
+			or a
+			ret z
+			ld hl, mem_found		; the banks found: 0, 1, 2 ...
+			ld b, a
+			ld e, 0
+msx_pr_fl:
+			ld (hl), e
+			inc hl
+			inc e
+			djnz msx_pr_fl
+			ret
+
+; msx_mem_jbc - E = a 64K bank (0-63) -> BC = its page 0's RAM setting (B = MSX_SETB,
+; C = E * 8 + 4: the four 16K parts step C, as the CPC's #C4 - #C7 do). Keeps DE, HL.
+msx_mem_jbc:
+			ld a, e
+			add a, a
+			add a, a
+			add a, a
+			add a, 4
+			ld c, a
+			ld b, MSX_SETB
+			ret
+
+; msx_mem_bank - BC = a RAM setting -> A = its segment: B = #7F (main RAM's own,
+; #7FC0) = the program's own page 1; else C = ordinal * 8 + 4 + page ->
+; msx_segs(ordinal * 4 + page) (the whole bank's "2" and 0-3: its page 0).
+; Keeps BC, DE, HL.
+msx_mem_bank:
+			ld a, b
+			cp #7F
+			jr nz, msx_mb_pg
+			ld a, (msx_tpa + 1)
+			ret
+msx_mb_pg:
+			push hl
+			push de
+			ld a, c
+			and 7
+			sub 4
+			jr nc, msx_mb_ok
+			xor a					; 0-3: page 0
+msx_mb_ok:
+			ld e, a
+			ld a, c
+			and #F8
+			srl a					; ordinal * 4
+			add a, e
+			ld e, a
+			ld d, 0
+			ld hl, msx_segs
+			add hl, de
+			ld a, (hl)
+			pop de
+			pop hl
+			ret
+
+; msx_win - BC = a RAM setting -> its segment into the window #4000-#7FFF (PUT_P1):
+; what out (c), c does with a setting on the CPC - for a program's own asm (CyborgOS)
+; that switches the window itself, outside the Memory class (ntc_rampt is not
+; touched, as the CPC's out doesn't). Keeps every register, as the out does (AF too;
+; interrupts as they were). On the real stack only (call: never from the thread)
+msx_win:
+			push af
+			push bc
+			push de
+			push hl
+			call msx_mem_bank
+			ld e, MSX_PUT1
+			call msx_mc
+			pop hl
+			pop de
+			pop bc
+			pop af
+			ret
+
+; msx_mem_se_out - BC = the RAM setting: its segment into the window (PUT_P1). Reached
+; by jp from mem_se_out; exits through mem_se_end. On the real stack (mem_sel pushed there)
+msx_mem_se_out:
+			ld (ntc_rampt), bc
+			call msx_mem_bank
+			ld e, MSX_PUT1
+			call msx_mc
+			jp mem_se_end
+	ENDIF
+
+ntc_rg74_e:
+			IF ($ < 32768) && (ntc_rg75_e - ntc_rg75 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ENDIF
+ntc_rg75:
 ;## ntc_plat_data
 ntc_curx:		db 0			; cursor column (0 based)
 ntc_cury:		db 0			; cursor row (0 based)
@@ -3415,11 +3619,11 @@ ZXN_ROWS		equ 32
 ZXN_PAPER		equ #02			; RRRGGGBB: blue
 ZXN_INK			equ #FC			; yellow
 
-ntc_rg74_e:
-			IF ($ < 32768) && (ntc_rg75_e - ntc_rg75 + $ > 16384)	; fwdref-ok
+ntc_rg75_e:
+			IF ($ < 32768) && (ntc_rg76_e - ntc_rg76 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg75:
+ntc_rg76:
 ;## ntc_plat_screen ntc_plat_data ntc_font ntc_data ntc_plat_scroll @shared
 ; ------------------------------------------------------------
 ; ntc_plat_putc - A = character 32-126 (others print as ?), draw it
@@ -3517,11 +3721,11 @@ ntc_nl_do:
 			ld (ntc_cury), a
 			jp (ix)
 
-ntc_rg75_e:
-			IF ($ < 32768) && (ntc_rg76_e - ntc_rg76 + $ > 16384)	; fwdref-ok
+ntc_rg76_e:
+			IF ($ < 32768) && (ntc_rg77_e - ntc_rg77 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg76:
+ntc_rg77:
 ;## ntc_plat_mode @unit ntc_plat_screen ntc_plat_data ntc_font ntc_data ntc_plat_scroll @shared
 ; ------------------------------------------------------------
 ; ntc_plat_mode - A = mode: 0, 1 = 40 x 32, 2 (3) = 80 x 32. The first time the
@@ -3772,11 +3976,11 @@ ntc_zxfont:
 			db #E0, #30, #30, #1C, #30, #30, #E0, #00	; 125 }
 			db #76, #DC, #00, #00, #00, #00, #00, #00	; 126 ~
 
-ntc_rg76_e:
-			IF ($ < 32768) && (ntc_rg77_e - ntc_rg77 + $ > 16384)	; fwdref-ok
+ntc_rg77_e:
+			IF ($ < 32768) && (ntc_rg78_e - ntc_rg78 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg77:
+ntc_rg78:
 ;## ntc_plat_scroll ntc_plat_data ntc_data @shared
 ; ------------------------------------------------------------
 ; ntc_plat_scroll - move rows 1-31 up one, clear row 31
@@ -3821,11 +4025,11 @@ ntc_plat_cls:
 			ld (ntc_cury), a
 			jp (ix)
 
-ntc_rg77_e:
-			IF ($ < 32768) && (ntc_rg78_e - ntc_rg78 + $ > 16384)	; fwdref-ok
+ntc_rg78_e:
+			IF ($ < 32768) && (ntc_rg79_e - ntc_rg79 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg78:
+ntc_rg79:
 ;## ntc_plat_key ntc_plat_data ntc_data @shared
 ; ------------------------------------------------------------
 ; ntc_plat_scankey - A = ASCII of a key pressed since the last scan,
@@ -3951,12 +4155,12 @@ ntc_keymap:
 			db "p", "o", "i", "u", "y", 0, 0, 0
 			db 13, "l", "k", "j", "h", 0, 0, 0
 			db " ", 0, "m", "n", "b", 0, 0, 0
-ntc_keymapc:								; Caps Shift: capitals; + 0 DEL, + Space Break
-			db 0, "Z", "X", "C", "V", 0, 0, 0
-			db "A", "S", "D", "F", "G", 0, 0, 0
+ntc_keymapc:								; Caps Shift: capitals; + 0 DEL, + Space Break; the cursor
+			db 0, "Z", "X", "C", "V", 0, 0, 0		; keys (Caps + 5-8) the CPC firmware's codes: up 240,
+			db "A", "S", "D", "F", "G", 0, 0, 0		; down 241, left 242, right 243
 			db "Q", "W", "E", "R", "T", 0, 0, 0
-			db 0, 0, 0, 0, 0, 0, 0, 0			; (Edit, Caps Lock, True / Inverse Video, cursor left)
-			db 127, 0, 0, 0, 0, 0, 0, 0			; (Graphics, cursor right / up / down)
+			db 0, 0, 0, 0, 242, 0, 0, 0			; (Edit, Caps Lock, True / Inverse Video: nothing), cursor left
+			db 127, 0, 243, 240, 241, 0, 0, 0		; (Graphics: nothing), cursor right / up / down
 			db "P", "O", "I", "U", "Y", 0, 0, 0
 			db 13, "L", "K", "J", "H", 0, 0, 0
 			db 27, 0, "M", "N", "B", 0, 0, 0
@@ -3970,11 +4174,11 @@ ntc_keymapy:								; Symbol Shift: the symbols on the keys (+ the 128's ~ | \ {
 			db 13, "=", "+", "-", "^", 0, 0, 0
 			db " ", 0, ".", ",", "*", 0, 0, 0
 
-ntc_rg78_e:
-			IF ($ < 32768) && (ntc_rg79_e - ntc_rg79 + $ > 16384)	; fwdref-ok
+ntc_rg79_e:
+			IF ($ < 32768) && (ntc_rg80_e - ntc_rg80 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg79:
+ntc_rg80:
 ;## ntc_plat_irq ntc_plat_data ntc_data ntc_plat_irqh @shared
 ; ------------------------------------------------------------
 ; ntc_plat_irqon - put the interrupt handler at #38 (IM 1: the stub set it) and
@@ -4009,11 +4213,11 @@ ntc_plat_irqon:
 			ld (ntc_irqset), a
 			jp (ix)
 
-ntc_rg79_e:
-			IF ($ < 32768) && (ntc_rg80_e - ntc_rg80 + $ > 16384)	; fwdref-ok
+ntc_rg80_e:
+			IF ($ < 32768) && (ntc_rg81_e - ntc_rg81 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg80:
+ntc_rg81:
 ;## ntc_plat_irqh ntc_plat_data ntc_data @shared
 ; the handler: runs on the real stack, between keywords. The line interrupt, every 52 raster
 ; lines - 6 a frame of 312 lines, 300 a second, as the CPC's: counts the ticks and sets the
@@ -4168,16 +4372,16 @@ ntc_irq_nocl:
 			ld hl, (ntc_irqhl)
 			ex af, af'
 			ei
-			ret
-ntc_irq_jp:
+			reti					; (reti, not ret: with ntc_zxn_inthold the Next's interrupt controller
+ntc_irq_jp:						; takes it as the end of the interrupt - in IM 1 the same as ret)
 			jp (hl)
 ntc_irqn:		db 1			; the ticks this interrupt counted (1-6)
 
-ntc_rg80_e:
-			IF ($ < 32768) && (ntc_rg81_e - ntc_rg81 + $ > 16384)	; fwdref-ok
+ntc_rg81_e:
+			IF ($ < 32768) && (ntc_rg82_e - ntc_rg82 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg81:
+ntc_rg82:
 ;## ntc_plat_exit ntc_plat_data
 ; ------------------------------------------------------------
 ; ntc_plat_exit - the end: interrupts off, a soft reset (NextReg 2 bit 0) -
@@ -4194,11 +4398,11 @@ ntc_plat_exit:
 ntc_ex_wait:
 			jr ntc_ex_wait
 
-ntc_rg81_e:
-			IF ($ < 32768) && (ntc_rg82_e - ntc_rg82 + $ > 16384)	; fwdref-ok
+ntc_rg82_e:
+			IF ($ < 32768) && (ntc_rg83_e - ntc_rg83 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg82:
+ntc_rg83:
 ;## ntc_plat_memtop
 ; ntc_plat_memtop - HL = the first byte the Memory class's Small heap must not
 ; use: #BE00 (the stack is above, to #C000). Called on the real stack
@@ -4207,11 +4411,11 @@ ntc_plat_memtop:
 			ld hl, #BE00
 			ret
 
-ntc_rg82_e:
-			IF ($ < 32768) && (ntc_rg83_e - ntc_rg83 + $ > 16384)	; fwdref-ok
+ntc_rg83_e:
+			IF ($ < 32768) && (ntc_rg84_e - ntc_rg84 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg83:
+ntc_rg84:
 ;## ntc_plat_rmr ntc_plat_data
 ; ntc_plat_rmr - zxn has no CPC gate-array ROM/mode byte; CallBank needs no ROM
 ; switching here. Return the current screen mode byte, keep BC, DE, HL.
@@ -4219,11 +4423,11 @@ ntc_plat_rmr:
 			ld a, (ntc_smode)
 			ret
 
-ntc_rg83_e:
-			IF ($ < 32768) && (ntc_rg84_e - ntc_rg84 + $ > 16384)	; fwdref-ok
+ntc_rg84_e:
+			IF ($ < 32768) && (ntc_rg85_e - ntc_rg85 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
 			ENDIF
-ntc_rg84:
+ntc_rg85:
 ;## ntc_plat_fs ntc_plat_data
 ; ------------------------------------------------------------
 ; ntc_plat_fs - files: the Next has none yet. What the page code (ntc_ovl) needs to
@@ -4268,7 +4472,7 @@ p_stars_add_ct:	db 1		; paged variables: the home copy only
 p_stars_count_ct:	db 1		; paged variables: the home copy only
 			dw ovl_blk_stage1, p_stars_count
 
-ntc_rg84_e:
+ntc_rg85_e:
 ntc_end:				; the end of the program (and of its file)
 glyph_20			equ ntc_font + 0		; " "
 glyph_27			equ ntc_font + 56		; "'"
@@ -4601,15 +4805,36 @@ zxn_boot:
 			and %11100111
 			out (c), a
 			dec b
-			ld a, 10			; Peripheral 5: DivMMC automatic paging off (bit 4)
+; DivMMC: its automatic paging stays as NextZXOS left it (on) - turning it off and on
+; again loses esxDOS's state in some emulators - but its entry points are cut to RST 8
+; with ROM 3 selected (#B8 = 2, #B9 = 0: the RST vectors need ROM 3; #BB = 0: no #3Dxx,
+; #0066, tape traps). A program never does rst 8 with ROM 3 in, so nothing pages it in;
+; CyborgOS's SD drive does exactly that for its esxDOS calls (ROM 3 in slots 0-1, rst 8).
+; Tested on NextZXOS 2.06H (JNEXT, 2026-10-21): esxDOS calls work with these - when the NEX
+; is started by NextZXOS (the browser, .nexload, an autoexec), not loaded as a snapshot,
+; which skips the DOS's own set-up and leaves every call answering "nonsense" (2)
+			ld a, #B8
 			out (c), a
 			inc b
-			in a, (c)
-			and %11101111
+			ld a, 2
 			out (c), a
 			dec b
+			ld a, #B9
+			out (c), a
+			inc b
 			xor a
-			out (#E3), a		; DivMMC: its memory out
+			out (c), a
+			dec b
+			ld a, #BB
+			out (c), a
+			inc b
+			xor a
+			out (c), a
+			dec b
+; (no out (#E3): DivMMC's memory is already out when a NEX starts - .nexload leaves it so -
+; and writing the port selects its RAM bank 0 and drops MAPRAM, which loses NextZXOS's esxDOS
+; state: its file handles are in DivMMC RAM. With it untouched, RST 8 calls work from the program
+; (automap on, the ROM in slots 0-1 for the call: CyborgOS's SD drive does that)
 			ld a, 7			; CPU speed: 28MHz
 			out (c), a
 			inc b
@@ -4647,4 +4872,4 @@ zxn_mmu:	db #50, 16, #51, 17, #52, 18, #54, 20, #55, 21, #56, 10, #57, 11
 			SAVENEX BANK 5, 8, 9, 10, 40, 41, 42, 43
 			SAVENEX CLOSE
 
-NTC_STAMP	equ #F79C		; the build stamp: the first word of every page file
+NTC_STAMP	equ #B9B9		; the build stamp: the first word of every page file

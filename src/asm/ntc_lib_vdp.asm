@@ -366,7 +366,15 @@ ntc_vt_cell:
 			ret
 
 ; ntc_vt_mode - A = mode 0-2
+; First a status read: it puts the control port's two-byte latch on its first byte. On a
+; CPC card (cpccard) nothing has set the chip up (no MSX BIOS), and a card that doesn't see
+; the CPC's reset can start halfway through a pair; every register write would be a byte out
 ntc_vt_mode:
+			ld bc, (ntc_vport)
+			inc c
+			ld e, a
+			in a, (c)
+			ld a, e
 			ld c, a
 			cp 2
 			jr nz, ntc_vt_m1
@@ -466,7 +474,9 @@ ntc_vt_mg1:
 			ld a, 32
 			ld hl, #0000
 			jr ntc_vt_mf2
-ntc_vt_r99:		db 8, #0A, 10, 0, 11, 0, 12, 0, 13, 0, 14, 0, 23, 0	; @const
+; (R#45 0: the CPU's VRAM port on the VRAM, not the expansion RAM - nothing else sets it on a
+; card with no BIOS; R#23 must stay last: the loop ends on it)
+ntc_vt_r99:		db 8, #0A, 10, 0, 11, 0, 12, 0, 13, 0, 14, 0, 45, 0, 23, 0	; @const
 
 ; ntc_vt_put - A = character at (ntc_curx, ntc_cury)
 ntc_vt_put:

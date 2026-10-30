@@ -901,18 +901,21 @@ ntc_isl:		ds 128			; 16 slots
 ntc_isl_tick:
 			push bc
 			push de
-	IFDEF NTC_ZXN
-			ld a, c					; zxn: the handler's frame flag in C (1: the line 0 interrupt)
+	IFDEF NTC_ISLC
+			ld a, c					; zxn, msx, sc3000: the handler's frame flag in C (1: a frame's interrupt)
+			and 1
+			ld e, a
+			ld d, a					; 1 = this interrupt is the frame's
 	ELSE
 			ld b, #F5				; PPI port B bit 0: vertical sync
 			in a, (c)
-	ENDIF
 			and 1
 			ld e, a
 			ld a, (ntc_islvs)
 			cpl
 			and e
 			ld d, a					; 1 = the sync started since the last interrupt
+	ENDIF
 			ld a, e
 			ld (ntc_islvs), a
 			ld a, (ntc_islph)		; a frame is 6 interrupts: count them, so a frame is
