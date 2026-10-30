@@ -41,6 +41,24 @@ Public Sub Reg(ByVal r As Integer, ByVal v As Integer)
 End Sub
 
 ' the status port (P#5)
+' Detect: True when a V9990 answers - it resets the chip, sets R#8 to 512K of VRAM (a reset leaves
+' 128K, which a real chip with 512K doesn't keep the top of), writes and reads back VRAM's last bytes.
+' Then V9990.Screen (or your own set-up): the chip is left reset
+Public Function Detect() As Integer
+#asm
+            ld iy, ntc_v9x_detect
+            ld hl, #FF60
+            ld ix, got
+            jp ntc_vcall
+got:
+            ex de, hl
+            pop hl
+            ld (hl), e
+            inc hl
+            ld (hl), d
+#endasm
+End Function
+
 Public Function Status() As Integer
 #asm
             ld iy, ntc_v9x_stat

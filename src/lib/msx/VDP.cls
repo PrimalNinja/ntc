@@ -59,6 +59,25 @@ Public Sub Reg(ByVal r As Integer, ByVal v As Integer)
 End Sub
 
 ' status register n (S#0-S#9 on a V9938; S#0 on a TMS9918)
+' Detect: True when a V9938 / V9958 with 128K answers - a status read, R#45 = 0 and R#8 = 8 first
+' (what no BIOS has done for a card), then VRAM's last bytes written and read back. False for a
+' TMS9918. The picture and the interrupts (R#0, R#1) are left as they are
+Public Function Detect() As Integer
+#asm
+            ld iy, ntc_vcx_detect
+            ld hl, #0098
+            ld de, #FF20        ; D = the chip, E = its frame interrupt bit (R#1)
+            ld ix, got
+            jp ntc_vcall
+got:
+            ex de, hl
+            pop hl
+            ld (hl), e
+            inc hl
+            ld (hl), d
+#endasm
+End Function
+
 Public Function Status(ByVal n As Integer) As Integer
 #asm
             ld de, ntc_vca

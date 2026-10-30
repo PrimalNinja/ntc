@@ -3404,6 +3404,7 @@ is the library's (`asm/ntc_lib_vdp.asm`), on the real stack.
 | `VPoke addr, v`, `VPeek(addr)` | a VRAM byte (the first 64K) |
 | `Fill addr, count, v`, `Write addr, from, count`, `Read addr, to, count` | VRAM filled; RAM to VRAM; VRAM to RAM |
 | `Reg r, v`, `Status(n)` | a register; status register n (S#n on a V9938, S#0 on a TMS9918) |
+| `Detect()` | True when a V9938 / V9958 with 128K answers at the port: a status read, R#45 = 0 and R#8 = 8 first (what no BIOS has done for a card), then VRAM's last bytes written and read back. False for a TMS9918. The picture and the interrupts are left as they are |
 | `Port p`, `Chip t` | the data port (control: the next); the chip (0 = TMS9918, 1 = V9938 / V9958) |
 | `Wait` | until the chip has finished a command (the methods wait before each one) |
 | `DefaultPort`, `DefaultChip` | constants: the platform's chip |
@@ -3432,6 +3433,7 @@ itself.
 | `Palette n, r, g, b` | colour n (0-63) = red, green, blue 0-31 |
 | `Page n`, `VPoke addr, v`, `VPeek(addr)` | a VRAM byte in 64K page n (0-7) of the 512K |
 | `Reg r, v`, `Status()` | a register (R#0-R#54); the status port (P#5) |
+| `Detect()` | True when a V9990 answers at the port: it resets the chip, sets R#8 to 512K of VRAM (a reset leaves 128K, and a real chip with 512K doesn't keep the top of its VRAM then), writes VRAM's last bytes and reads them back. The chip is left reset: `Screen` (or a program's own set-up) next |
 | `Port p` | the port base (P#0) |
 | `Wait` | until the chip has finished a command |
 
@@ -3440,6 +3442,12 @@ V9990.Screen 1
 V9990.Box 10, 10, 100, 50, 4
 V9990.Line 0, 0, 255, 211, 15
 ```
+
+A program with its own V9990 or V9938 driver (in `#asm`) uses the same detection: `ld bc, port`
+then `call ntc_v9_detect` (BC = P#0: `#60`, `&FF60`) or `call ntc_vdp_detect` (BC = the data
+port: `#98`, `#88`, `&FF88`), on the real stack. Z (HL = -1): it answers; NZ (HL = 0): it
+doesn't. `ntc_vdp_detect` is for a V9938 / V9958 only (an MSX1's TMS9918 would answer too: ask
+the BIOS, `#002D`, first).
 
 ### Cartridge ROMs (msx, sc3000)
 

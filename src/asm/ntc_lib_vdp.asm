@@ -875,7 +875,7 @@ ntc_v9pb:
 			jr nz, ntc_v9plp
 			ret
 
-;## ntc_vdpc ntc_vcall ntc_vmul @shared @unit @ramonly
+;## ntc_vdpc ntc_vcall ntc_vmul ntc_vdpdet @shared @unit @ramonly
 ; ------------------------------------------------------------
 ; The VDP class (lib/<platform>/VDP.cls): a TMS9918 / V9938 / V9958 on
 ; any port - the MSX's own, a card at #88 (MSX), &FF88 (the CPC's AMSDAP
@@ -1033,6 +1033,14 @@ ntc_vcx_reg:
 			ld e, a
 			ld a, (ntc_vca + 2)
 			jp ntc_vc_reg
+; Detect() -> HL: -1 when a V9938 / V9958 with 128K answers at the class's port (ntc_vdp_detect)
+ntc_vcx_detect:
+			call ntc_vc_port
+			ld hl, 0				; a TMS9918: no (its registers aren't touched)
+			ld a, (ntc_vct)
+			or a
+			ret z
+			jp ntc_vdp_detect
 ; Status(n) -> HL: S#n (V9938; S#0 on a TMS9918)
 ntc_vcx_stat:
 			call ntc_vc_port
@@ -1479,7 +1487,7 @@ ntc_vcx_wait:
 			call ntc_vc_port
 			jp ntc_vc_wait
 
-;## ntc_v9c ntc_vcall @shared @unit @ramonly
+;## ntc_v9c ntc_vcall ntc_v9det @shared @unit @ramonly
 ; ------------------------------------------------------------
 ; The V9990 class (lib/<platform>/V9990.cls): a V9990 on any port base -
 ; #60 on the MSX (GFX9000, Video9000, Powergraph), &FF60 on the CPC
@@ -1619,6 +1627,12 @@ ntc_v9x_reg:
 			ld e, a
 			ld a, (ntc_v9a + 2)
 			jp ntc_v9c_reg
+; Detect() -> HL: -1 when a V9990 answers at the class's port (ntc_v9_detect: it resets the chip)
+ntc_v9x_detect:
+			call ntc_v9c_port
+			ld c, 0
+			call ntc_v9c_p
+			jp ntc_v9_detect
 ; Status() -> HL: P#5
 ntc_v9x_stat:
 			call ntc_v9c_port
@@ -1931,3 +1945,155 @@ ntc_font6:
 			db #00, #10, #10, #10, #10, #10, #10, #00	; 124 |
 			db #60, #10, #20, #18, #20, #10, #60, #00	; 125 }
 			db #00, #28, #50, #00, #00, #00, #00, #00	; 126 ~
+
+;## ntc_v9det @shared @ramonly
+; ------------------------------------------------------------
+; ntc_v9_detect - BC = a V9990's P#0 (#0060 on the MSX, &FF60 on the CPC): is a V9990 there?
+; It resets the chip (P#7), sets R#8 to 512K of VRAM with the picture off (VSL = 10: a reset
+; leaves R#8 at 0, the 128K setting, and a real chip with 512K on it doesn't keep what is
+; written at the top of its VRAM then - emulators don't care), writes #5A, #A5 at #7FFF0 and
+; reads them back. Z and HL = -1: it answers; NZ and HL = 0: no V9990. The chip is left reset,
+; its registers 0 but R#8, R#0-R#5. On the real stack (call); A, BC, DE, HL used.
+; For the V9990 class (Detect) and for a program's own V9990 driver (call it from its asm).
+; ------------------------------------------------------------
+ntc_v9_detect:
+			ld a, c
+			add a, 7
+			ld c, a					; P#7
+			ld a, 2
+			out (c), a				; SRS: the reset held
+			ld de, 64
+ntc_v9d_hold:
+			dec de
+			ld a, d
+			or e
+			jr nz, ntc_v9d_hold
+			out (c), a				; (A = 0) the reset off, MCS 0 (XTAL1)
+			ld a, c
+			add a, 8
+			ld c, a					; P#15 (output control)
+			xor a
+			out (c), a
+			ld a, c
+			sub 11
+			ld c, a					; P#4
+			ld a, 8
+			out (c), a				; R#8
+			dec c
+			ld a, #02				; VSL = 10: 512K; the picture off
+			out (c), a
+			ld de, 256				; a moment for the chip to settle
+ntc_v9d_settle:
+			dec de
+			ld a, d
+			or e
+			jr nz, ntc_v9d_settle
+			inc c					; P#4: R#0-R#2, the write address, counting on
+			out (c), a				; (A = 0)
+			dec c
+			ld a, #F0
+			out (c), a
+			ld a, #FF
+			out (c), a
+			ld a, 7
+			out (c), a
+			ld a, c
+			sub 3
+			ld c, a					; P#0
+			ld a, #5A
+			out (c), a
+			ld a, #A5
+			out (c), a
+			ld a, c
+			add a, 4
+			ld c, a					; P#4: R#3-R#5, the read address
+			ld a, 3
+			out (c), a
+			dec c
+			ld a, #F0
+			out (c), a
+			ld a, #FF
+			out (c), a
+			ld a, 7
+			out (c), a
+			ld a, c
+			sub 3
+			ld c, a					; P#0
+			in a, (c)
+			cp #5A
+			jr nz, ntc_v9d_none
+			in a, (c)
+			cp #A5
+			jr nz, ntc_v9d_none
+			ld hl, -1
+			xor a					; (Z)
+			ret
+ntc_v9d_none:
+			ld hl, 0
+			or 1					; (NZ)
+			ret
+
+;## ntc_vdpdet @shared @ramonly
+; ------------------------------------------------------------
+; ntc_vdp_detect - BC = a V9938 / V9958's data port (#98 the MSX's own, #88 a card, &FF88 a
+; card on the CPC's AMSDAP): is one there, with 128K of VRAM? First what no BIOS has done for a
+; card (one that doesn't see the machine's reset starts with any values): a status read (the
+; control port's two-byte latch on its first byte), R#45 = 0 (the CPU on the VRAM, not the
+; expansion RAM), R#8 = 8 (64K x 4 VRAM chips: 128K - a reset leaves 16K chips; the MSX's BIOS
+; sets the same). Then #5A, #A5 written at #1FFF0 and read back. Z and HL = -1: it answers; NZ
+; and HL = 0: none. R#0, R#1 (the picture, the interrupts) are left as they are; R#14 ends 0.
+; A V9938 / V9958 only: a TMS9918 (an MSX1's) takes the register numbers modulo 8 (R#45 is its
+; R#5, R#8 its R#0) and mirrors its 16K, so it would answer too - ask the MSX's BIOS (#002D) or
+; use the VDP class's Detect, which knows the chip. On the real stack (call); A, C, E, HL used
+; (B kept).
+; For the VDP class (Detect) and for a program's own V9938 driver (call it from its asm).
+; ------------------------------------------------------------
+ntc_vdp_detect:
+			inc c					; the control port
+			in a, (c)				; a status read
+			xor a
+			ld e, #80 + 45
+			call ntc_vdd_reg
+			ld a, 8
+			ld e, #80 + 8
+			call ntc_vdd_reg
+			ld a, 7					; R#14 = 7: #1C000
+			ld e, #80 + 14
+			call ntc_vdd_reg
+			ld a, #F0				; #3FF0, writing
+			out (c), a
+			ld a, #7F
+			out (c), a
+			dec c
+			ld a, #5A
+			out (c), a
+			ld a, #A5
+			out (c), a
+			inc c
+			ld a, #F0				; #3FF0, reading
+			out (c), a
+			ld a, #3F
+			out (c), a
+			dec c
+			in a, (c)
+			ld hl, 0
+			cp #5A
+			jr nz, ntc_vdd_end
+			in a, (c)
+			cp #A5
+			jr nz, ntc_vdd_end
+			dec hl					; (-1: it answers)
+ntc_vdd_end:
+			inc c					; R#14 = 0 again: code that writes below 16K without
+			xor a					; setting R#14 (the console, the MSX's BIOS) finds it
+			ld e, #80 + 14			; as it was
+			call ntc_vdd_reg
+			dec c
+			ld a, h					; Z: it answers
+			inc a
+			ret
+; A = a value for the register in E (#80 + n), C = the control port
+ntc_vdd_reg:
+			out (c), a
+			out (c), e
+			ret
