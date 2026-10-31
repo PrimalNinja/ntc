@@ -105,6 +105,8 @@ cleared, the ULA's screen wiped see-through. Call it first.
 | `CamPos x, y, z` | put it there |
 | `CamGet(k)` | its x, y or z (k 0, 1, 2) |
 | `CamTurn p, y, r` | turn about its own right (pitch), up (yaw) and forward (roll) by p, y, r / 16384 radians |
+| `CamSet` | the camera's matrix, written into `E3.cm(0-8)` by the program (s1.14, rows: right, up, forward), made the camera's: squared up and its copies worked out (as `CamReset` does). For a camera worked out elsewhere - in NTC's Float class: `Float.MToBinScaled mm, m, 14` (m a 3 x 3 array of singles), `cm(k) = mm(k \\ 3, k Mod 3)`, `E3.CamSet` |
+| `CamPosL x, y, z` | the camera to x, y, z as 24.8 Longs (whole units x 256 + the fraction): `Float.ToBinScaled(f, 8)` / `Float.MToBinScaledL` give them |
 | `CamMove s` | move it s / 16 units ahead |
 | `cm(0..8)` | its right, up and forward in the world (s1.14: 16384 = 1) |
 

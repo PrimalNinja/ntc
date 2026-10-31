@@ -408,6 +408,27 @@ Public Sub CamAt(ByVal k As Integer, ByVal a As Integer, ByVal b As Integer)
 #endasm
 End Sub
 
+' CamPosL x, y, z: the camera to x, y, z as 24.8 Longs (whole units * 256 + the fraction) - what
+' Float.ToBinScaled(f, 8) / Float.MToBinScaledL p, f, 8 give: a position worked out in Float
+Public Sub CamPosL(ByVal x As Long, ByVal y As Long, ByVal z As Long)
+#asm
+            ld de, {cp}
+            ld a, 3
+cpl_lp:
+            pop hl                  ; a Long: its 4 bytes as cp keeps them (24.8, low byte first)
+            ld bc, 4
+            ldir
+            dec a
+            jr nz, cpl_lp
+#endasm
+End Sub
+' CamSet: the camera's matrix, written into cm() by the program, made the camera's - squared up and
+' its copies (cms, one for each object size) worked out, as CamReset does. A matrix worked out in
+' Float: Float.MToBinScaled E3.cm... - cm is a 3 x 3 Integer array in s1.14: rows right, up, forward
+' (Dim m(2, 2) As Long of singles, Float.MToBinScaled mm, m, 14, then cm(k) = mm(k \ 3, k Mod 3))
+Public Sub CamSet()
+  CamTurn 0, 0, 0
+End Sub
 ' CamGet(k): the camera's position k (0 x, 1 y, 2 z): the low 16 bits of its whole units
 Public Function CamGet(ByVal k As Integer) As Integer
 #asm

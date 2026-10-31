@@ -6,6 +6,19 @@ finished, with the date.
 ---
 
 ## done
+- 2026-10-31 A constant string's bytes 128-255 (Chr$ of a constant, folded into a literal, on byte
+  text platforms - CP/M, CyborgOS ...) came out as ? - kept now (a code page's letters: KOI8-R,
+  Latin-1; dbText writes them as numbers). Control codes and 127 are still ?. compare.js: 1007 the
+  same (no program had one). Found by CyborgOS's LANG (Russian, Spanish).
+- 2026-10-31 E3: CamSet (a camera matrix written into cm made the camera's: squared up, its copies
+  worked out) and CamPosL (the position as 24.8 Longs) - a camera worked out outside E3 (NTC's
+  Float class: ToBinScaled / MToBinScaled to s1.14 and 24.8). ROCKS builds byte for byte the same
+  (unused, they aren't linked); checked in a ROCKS copy whose camera went through Float and back
+  each frame: 268 trips, the conversions exact, CamSet's squaring up 2 / 16384 at most.
+  Next: an object's own matrix (o-rotation from the program, roll included): the angles oa / ob
+  feed five places - C = camera x O (near and far, od / od_c8), the sun into the model (od_osn),
+  the camera into the model (od_pa, od_cmp); O worked out once (angles or given) and those five
+  made to take it. Its 8 bit values s.7 with 1.0 as 127 (the sine table's): clamped.
 - 2026-10-29 lib/cyborgos/CybSys.cls as it was (the target's interface to CyborgOS's services is NTC's;
   CyborgOS's own internals - DUMP / REVIVE / SLOTD's kernel calls - stay in CyborgOS's cmds/CybSys.cls).
   Today's earlier additions to it taken back out (Julian).

@@ -1136,7 +1136,7 @@ function ntcCompile(input_a, objOptions_a)
 				}
 				else
 				{
-					strText += String.fromCharCode(((intCode < 32) || (intCode > 126)) ? 63 : intCode);
+					strText += String.fromCharCode(((intCode < 32) || (intCode === 127)) ? 63 : intCode);	// (128-255 kept: a code page's letters - KOI8-R, Latin-1; dbText writes them as numbers)
 				}
 			}
 			return;
