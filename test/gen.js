@@ -45,8 +45,10 @@ function platBase(strPlat)
 	var arrBase = read('asm/ntc_plat_' + strPlat + '.asm').match(/^;@base\s+(\w+)\s*$/m);
 	return arrBase ? arrBase[1] : null;
 }
-// the platform's own classes: lib/<platform>/*.cls
+// the platform's own classes: lib/<platform>/*.cls - then lib/z80/*.cls (the Float and Fixed
+// maths, Z80 code) for every Z80 platform that hasn't a class of that name of its own
 var objClasses = {};
+var arrNotZ80 = ['md', 'm65'];			// (the 68000's, the 45GS02's: not Z80)
 arrPlat.forEach(function(strPlat)
 {
 	var strDirCls = strDir + 'lib/' + strPlat + '/';
@@ -62,6 +64,26 @@ arrPlat.forEach(function(strPlat)
 		});
 	}
 });
+(function()
+{
+	var strDirZ = strDir + 'lib/z80/';
+	if (fs.existsSync(strDirZ))
+	{
+		fs.readdirSync(strDirZ).sort().forEach(function(strFile)
+		{
+			if (/\.cls$/i.test(strFile))
+			{
+				arrPlat.forEach(function(strPlat)
+				{
+					if ((arrNotZ80.indexOf(strPlat) < 0) && (objClasses[strPlat][strFile] === undefined))
+					{
+						objClasses[strPlat][strFile] = fs.readFileSync(strDirZ + strFile, 'utf8');
+					}
+				});
+			}
+		});
+	}
+})();
 arrPlat.forEach(function(strPlat)
 {
 	var strBase = platBase(strPlat);

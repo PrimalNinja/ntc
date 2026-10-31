@@ -6,6 +6,13 @@ finished, with the date.
 ---
 
 ## done
+- 2026-10-31 Float and Fixed built in (src/lib/z80/, docs/float.md, test/float/): gen.js gives every Z80
+  platform lib/z80's classes (not md, m65) unless it has its own of that name. The compiler now
+  follows a library class's own names when it picks them (Fixed names Float: a program using only
+  Fixed got "unknown float.fromint"), and a library class joins only when it's used as one
+  (Name.x or As Name), not when its name is a word in the program - vb_test6's variable "fixed"
+  had pulled Fixed and Float in. compare.js: 1007 the same. Float / Fixed tests (test/float) the
+  same with the classes from the library (no files added).
 - 2026-10-31 A constant string's bytes 128-255 (Chr$ of a constant, folded into a literal, on byte
   text platforms - CP/M, CyborgOS ...) came out as ? - kept now (a code page's letters: KOI8-R,
   Latin-1; dbText writes them as numbers). Control codes and 127 are still ?. compare.js: 1007 the

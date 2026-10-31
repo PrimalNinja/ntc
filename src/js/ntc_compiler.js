@@ -9161,18 +9161,29 @@ function ntcCompile(input_a, objOptions_a)
 			objOwn[strName] = true;
 			strAll += '\n' + String(objFile_a.text).replace(/"[^"\n]*"/g, '""').replace(/'.*$/gm, '');
 		});
-		for (strKey in objClasses)
+		var objIn = {};
+		var blnMore = true;
+
+		while (blnMore)						// (again with each class that joined: Fixed names Float)
 		{
-			if (objClasses.hasOwnProperty(strKey))
+			blnMore = false;
+			for (strKey in objClasses)
 			{
-				strName = strKey.replace(/\.\w+$/, '').toLowerCase();
-				if ((objOwn[strName] === undefined) && new RegExp('\\b' + strName + '\\b', 'i').test(strAll))
+				if (objClasses.hasOwnProperty(strKey) && (objIn[strKey] === undefined))
 				{
-					arrResult.push({ name: strKey, text: objClasses[strKey], platform: true });
-				}
-				else if (objOwn[strName] !== undefined)
-				{
-					objOwnClass[strName] = true;		// the project's own: it replaces the platform's
+					strName = strKey.replace(/\.\w+$/, '').toLowerCase();
+					if ((objOwn[strName] === undefined) && new RegExp('(\\b' + strName + '\\s*\\.)|(\\bAs\\s+(New\\s+)?' + strName + '\\b)', 'i').test(strAll))	// (used as a class - Name.x or As Name - not a word: a variable called fixed)
+					{
+						arrResult.push({ name: strKey, text: objClasses[strKey], platform: true });
+						objIn[strKey] = true;
+						strAll += '\n' + String(objClasses[strKey]).replace(/"[^"\n]*"/g, '""').replace(/'.*$/gm, '');
+						blnMore = true;
+					}
+					else if (objOwn[strName] !== undefined)
+					{
+						objOwnClass[strName] = true;		// the project's own: it replaces the platform's
+						objIn[strKey] = true;
+					}
 				}
 			}
 		}
