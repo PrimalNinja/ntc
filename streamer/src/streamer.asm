@@ -499,13 +499,13 @@ lp_skip		call SkipFrame
 lp_got		ld a, (w_hdr + 1)
 		and #80
 		ld (w_more), a
-lp_line		call LinkIn		; the first line ("OK n") to its end
+lp_line		call LinkIn		; the answer's text ("OK n") to its 0: the entries (lines) follow
 		push af
 		ld hl, (w_left)
 		dec hl
 		ld (w_left), hl
 		pop af
-		cp 10
+		or a
 		jr nz, lp_line
 		pop bc
 		pop de
@@ -523,61 +523,65 @@ ex_file		pop af
 		or a
 		scf
 		ret
-; ExamineNext: the next entry - from the root tables, or a line of the Pi's LIST
+; ExamineNext: the next entry - from the root tables (w_lst 0: the files, 12 bytes each; 2: the
+; folders, 11 bytes each; w_hdr the cursor), or a line of the Pi's LIST (w_lst 1)
 Node_ExamineNext
 		call IsOurs
 		ret nc
 		ld a, (w_lst)
-		or a
-		jp nz, exn_pi
+		cp 1
+		jp z, exn_pi
+		push de
+		push bc
 		cp 2
-		jr z, exn_fold
+		jr z, exn_folders
 		ld de, (w_hdr)
 		ld a, (de)
 		or a
-		jr z, exn_fold
-		push bc
+		jr nz, exn_file
+		ld a, (w_dev)		; the files done: on to the folders
+		call DevFolders
+		ld (w_hdr), hl
+		ld a, 2
+		ld (w_lst), a
+		jr exn_folders
+exn_file	ex de, hl		; HL the entry, DE UniDOS's buffer
 		ld bc, 11
-		push hl
-		ex de, hl
+		push de
 		ldir
 		inc hl			; past the kind byte
 		ld (w_hdr), hl
-		pop hl
+		pop hl			; the buffer back in HL
 		pop bc
-		xor a
+		pop de
+		xor a			; a file; size 0 (the streams have none)
+		ld b, a
+		ld c, a
+		ld d, a
+		ld e, a
 		scf
 		ret
-exn_fold	; the files done: on to the folders, each 11 characters, a folder entry (A bit 4)
-		ld a, (w_lst)
-		cp 2
-		jr z, exn_f2
-		ld a, 2
-		ld (w_lst), a
-		ld a, (w_dev)
-		call DevFolders
-		ld (w_hdr), hl
-exn_f2		ld de, (w_hdr)
+exn_folders	ld de, (w_hdr)
 		ld a, (de)
 		or a
 		jr z, exn_end
-		push bc
-		ld bc, 11
-		push hl
 		ex de, hl
+		ld bc, 11
+		push de
 		ldir
 		ld (w_hdr), hl
 		pop hl
 		pop bc
+		pop de
 		ld a, #10		; a folder
-		cp a			; Z
 		scf
 		ret
-exn_end		ld a, 1
+exn_end		pop bc
+		pop de
+		ld a, 1
 		or a
 		scf
 		ret
-
 ; a line of the Pi's LIST: "tag size yyyy-mm-dd hh:mm" - the tag's last name as the entry, its size
 exn_pi		push de
 		push bc
@@ -594,6 +598,16 @@ exp_more	ld bc, (w_left)
 		ld a, (w_hdr + 1)
 		and #80
 		ld (w_more), a
+exp_txt		call LinkIn		; the part's text ("OK n") and its 0 again
+		push af
+		push hl
+		ld hl, (w_left)
+		dec hl
+		ld (w_left), hl
+		pop hl
+		pop af
+		or a
+		jr nz, exp_txt
 		jr exp_more
 exp_line	; the tag to its last '/': the name after it into UniDOS's 11-character buffer at HL
 		push hl
@@ -974,7 +988,8 @@ oc_num		ld a, h
 		ld e, a
 		dec hl
 		jr oc_num
-oc_done		call SkipFrame
+oc_done		ld (w_left), hl		; (what the digits left: SkipFrame reads exactly that, then the check)
+		call SkipFrame
 		ld a, e
 		call SetChan
 		ld a, 2
@@ -1056,8 +1071,29 @@ ListServices	call SayHello
 		pop bc
 		pop hl
 		ret
+; CreditBack: the frame just read (its hLen0 payload) credited back on w_chan - the Pi sends on a
+; channel only what it was told there is room for; a GET's later parts wait on this
+CreditBack	push hl
+		push de
+		push bc
+		push af
+		ld a, (w_chan)
+		ld b, 7
+		ld c, 0
+		ld de, 2
+		call FrameStart
+		ld a, (w_hdr + 3)	; hLen0 lo
+		call FrameByte
+		ld a, (w_hdr + 4)	; hLen0 hi
+		call FrameByte
+		call FrameEnd
+		pop af
+		pop bc
+		pop de
+		pop hl
+		ret
 ; EnsureStore: the store's channel open (OPEN store on channel 0, "OK n" into w_store), once
-StoreTxt	db "store", 0
+StoreTxt	db "store credit=60000", 0
 EnsureStore	ld a, (w_store)
 		or a
 		ret nz
@@ -1594,6 +1630,11 @@ ig_got		ld a, (w_hdr + 1)
 		and #80
 		ld (w_more), a
 		call LinkIn		; O or E
+		push af
+		ld hl, (w_left)
+		dec hl
+		ld (w_left), hl		; count the O/E too (it is part of the text)
+		pop af
 		cp 'O'
 		jr nz, ig_err
 ig_txt		call LinkIn		; the text to its 0 (the data follows)
@@ -1710,47 +1751,62 @@ ir_out		pop de
 		scf
 		ret
 ; a store file's data: what is left of the part, then the next part (MORE), into the buffer
-ir_store	push hl
-		push bc
-		push de
-		ld bc, 0		; given
-irs_1		ld a, d
-		or e
-		jr z, irs_out
-		push hl
+ir_store	; HL buffer, DE room -> bytes into (HL), DE = count given
+		ld (irs_buf), hl
+		ld (irs_room), de
+		ld bc, 0
+irs_loop	ld hl, (irs_room)
+		or a
+		sbc hl, bc
+		jp z, irs_out		; room filled
 		ld hl, (w_left)
 		ld a, h
 		or l
-		pop hl
-		jr nz, irs_byte
-		call LinkIn		; the part's check
+		jr nz, irs_data
+		ld a, (w_more)
+		cp 2
+		jr z, irs_out
+		call LinkIn		; the finished part's check
+		call CreditBack
 		ld a, (w_more)
 		or a
-		jr z, irs_out		; the last part read: the end
-		call ReadHeader
+		jr nz, irs_part
+		ld a, 2
+		ld (w_more), a
+		jr irs_out
+irs_part	call ReadHeader
 		ld a, (w_hdr + 1)
 		and #80
 		ld (w_more), a
-		jr irs_1
-irs_byte	call LinkIn
-		ld (hl), a
-		inc hl
-		inc bc
-		dec de
-		push hl
+irs_ptx	ld hl, (w_left)
+		ld a, h
+		or l
+		jr z, irs_loop
+		call LinkIn
 		ld hl, (w_left)
 		dec hl
 		ld (w_left), hl
-		pop hl
-		jr irs_1
-irs_out		pop de
-		ld d, b
-		ld e, c
+		or a
+		jr nz, irs_ptx		; the text up to and including its 0
+		jr irs_loop
+irs_data	call LinkIn
+		push bc
+		ld hl, (irs_buf)
+		add hl, bc
+		ld (hl), a
 		pop bc
-		pop hl
+		inc bc
+		ld hl, (w_left)
+		dec hl
+		ld (w_left), hl
+		jr irs_loop
+irs_out		ld d, b
+		ld e, c
 		xor a
 		scf
 		ret
+irs_buf		dw 0
+irs_room	dw 0
 Node_InClose	call IsOurs
 		ret nc
 		xor a
