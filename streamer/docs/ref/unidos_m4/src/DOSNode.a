@@ -1,0 +1,2375 @@
+;
+; Noeud DOS de l'UniDOS qui prend en charge la gestion des lecteurs de la M4 Board
+;
+
+;
+; Noms des lecteurs de notre noeud DOS (8 caractères maximum)
+;
+
+DrivesName  ; Max 8 octets par nom
+        str "M4" :db Drive_M4
+        str "DSK":db Drive_DSK
+If use_ftp
+        str "FTP":db Drive_FTP
+EndIf
+        db 0
+
+;
+; Descriptions des lecteurs de notre noeud DOS (32 caractères maximum)
+;
+
+DrivesDesc  ; Max 32 octets par description
+        str "M4Board microSD card"  :db Drive_M4
+        str "M4Board DSK image file":db Drive_DSK
+If use_ftp
+        str "M4Board FTP drive"     :db Drive_FTP
+EndIf
+        db 0
+
+;
+; Initialise le noeud DOS
+;
+;
+; Initialise le noeud DOS
+;
+; Entrée - A = options d'initialisation (voir les flags d'entrée de Init_*)
+; Sortie - Si Carry = 1 alors le noeud a été initialisé
+;               A = indication des fonctionnalités présentes (voir les flags de sortie de Init_*)
+;           Si Carry = 0 alors le noeud n'a pas pu être initialisé
+; Altéré - AF
+
+DOSNode_Init
+        call M4_Check
+        ret nc
+
+        jr nz,InitWrongCfg
+
+        ; On a pas de mémoire à nous dans cette ROM,
+        ; mais la M4 ROM a besoin de 128 octets pour
+        ; que ses routines fonctionnent...
+        ;
+        ; En pratique, on n'utilise pas les routines
+        ; de la M4 ROM à l'exception de celle qui gère
+        ; les instantanés, donc à moins d'un programme
+        ; externe qui les invoquent, ce tampon ne sera
+        ; pas utilisé.
+
+        push de
+        ld a,8 ; ROM WorkSpace
+        ld de,_DOS_ROM_ALT_BUFFER
+        call M4_SetConfig
+        pop de
+
+        ; Le M4 ne remet pas à zéro les sockets lors
+        ; d'un redémarrage... alors on crée 4 sockets
+        ; (le max géré par la M4) et on les détruit
+        ; dans la foulée (qu'elles aient été créées ici
+        ; ou auparavant) afin d'être sûr qu'aucune
+        ; socket ne reste affectée entre deux
+        ; initialisations
+
+        push bc
+
+        ld b,4
+InitSocketLoop1
+        call M4_CreateSocket
+        djnz InitSocketLoop1
+
+        ld c,4
+InitSocketLoop2
+        call M4_DestroySocket
+        dec c
+        jr nz,InitSocketLoop2
+
+        pop bc
+
+        ; Crée le répertoire de la bibliothèque si besoin
+
+        call M4_CreateLibDir
+
+        ld a,Init_HaveNVRAM_F+Init_HaveRTC_F
+        scf     ; C
+        ret
+
+InitWrongCfg
+        push hl
+        call Beep
+        ld hl,InitWrongCfgMsg
+        call PrintString
+        call _KM_WAIT_CHAR
+        pop hl
+        cp a    ; NC
+        ret
+InitWrongCfgMsg
+        str "M4 Board wrong config!"
+
+;
+; Vérifie si un nom de lecteur correspond à un lecteur géré par notre noeud DOS
+;
+; Entrée - HL = pointeur vers le nom de lecteur
+;               (si positionné sur certains caractères, le bit 7 doit être ignoré)
+;          C = longueur du nom de lecteur
+; Sortie - Si Carry = 1 une correspondance a été trouvée
+;               A = numéro du lecteur physique
+;          Si Carry = 0 aucune correspondance n'a été trouvée
+; Altéré - AF
+
+DOSNode_CheckDrive
+        push de
+        ld de,DrivesName
+CheckDriveLoop
+        push hl
+        push bc
+CheckDriveNextChar
+        ld a,(de)
+        or a
+        jr z,CheckDriveNotFound
+        bit 7,a
+        jr z,CheckDriveNoNameEnd
+        dec c
+        jr nz,CheckDriveNextOne
+        jr CheckDriveCompareChar
+CheckDriveNoNameEnd
+        dec c
+        jr z,CheckDriveNextOne
+CheckDriveCompareChar
+        and &7f
+        ld b,a
+        RAM_LAM
+        and &7f
+        call ToUpper
+        cp b
+        jr nz,CheckDriveNextOne
+        inc hl
+        inc de
+        ld a,c
+        or a
+        jr z,CheckDriveFound
+        jr CheckDriveNextChar
+CheckDriveNextOne
+        ld a,(de)
+        inc de
+        bit 7,a
+        jr z,CheckDriveNextOne
+        inc de
+        pop bc
+        pop hl
+        jr CheckDriveLoop
+CheckDriveNotFound
+        or a        ; NC
+        jr CheckDriveExit
+CheckDriveFound
+        ld a,(de)   ; A = numéro de lecteur physique
+        scf         ; C
+CheckDriveExit
+        pop bc
+        pop hl
+        pop de
+        ret
+
+;
+; Retourne le statut d'un lecteur
+;
+; Entrée - A = Numéro de lecteur
+; Sortie - Si Carry = 1 un statut a pu être récupéré
+;               A = Statut du lecteur (voir les flags Media_*)
+;                   Bit0 = 1 si un média est disponible sur ce lecteur
+;                   Bit1 = 1 si le média gère les répertoires
+;                   Bit2 = 1 si le média est protégé en écriture
+;                   Bit3 = 1 si le média est amovible
+;                   Bit4 = 1 si le média est un flux (lecture/écriture linéaire uniquement)
+;                       La gestion des fichiers $$$ et BAK est alors désactivée
+;                   Bit5 = 1 si le média est accessible via les nouvelles API UniDOS
+;                   Les autres bits ne sont pas utilisés
+;          Si Carry = 0 alors le lecteur est inconnu et aucun statut n'a pu être récupéré
+; Altéré - AF
+
+DOSNode_GetStatus
+        cp Drive_M4
+        jr z,GetStatusSD
+
+        cp Drive_DSK
+        jr z,GetStatusDSK
+
+        cp Drive_FTP
+        jr z,GetStatusFTP
+
+        cp a        ; NC
+        ret
+
+GetStatusSD
+        ld a,Media_Available_F+Media_HandleDir_F+Media_NewAPI_F
+        scf
+        ret
+
+GetStatusDSK
+        call M4_CurrentDSK
+        ld a,Media_ReadOnly_F+Media_Removable_F+Media_NewAPI_F
+        jr nc,GetStatusDSKExit
+        or Media_Available_F
+GetStatusDSKExit
+        scf
+        ret
+
+GetStatusFTP
+        push iy
+        push ix
+        push hl
+        push de
+        push bc
+
+        call M4_FTPConnect
+        ld a,Media_HandleDir_F+Media_Removable_F+Media_NewAPI_F
+        jr nc,GetStatusFTPExit
+        or Media_Available_F
+        push af
+        call M4_FTPDisconnect
+        pop af
+
+GetStatusFTPExit
+        pop bc
+        pop de
+        pop hl
+        pop ix
+        pop iy
+        scf
+        ret
+
+;
+; Renvoie le nom correspondant à un lecteur physique
+;
+; Entrée - A = numéro du lecteur
+;          DE = adresse d'un tampon de 8 octets où copier le nom
+; Sortie - Si Carry = 1 le nom a été trouvé
+;               DE pointe sur le premier caractère après la fin de la copie de la chaîne
+;               (la chaîne stockée est terminée par le bit 7 à 1)
+;          Si Carry = 0 le nom n'a pas été trouvé et le tampon n'a pas été modifié
+; Altéré - AF,DE
+
+DOSNode_GetName
+        call IsInitialized
+        ret nc
+
+        push bc
+        push hl
+
+        ld b,a
+        ld c,8
+        ld hl,DrivesName
+        call GetNameCopy
+        ld a,b
+
+        pop hl
+        pop bc
+        ret
+
+;
+; Renvoie la description correspondant à un lecteur physique
+;
+; Entrée - A = numéro du lecteur physique
+;          DE = adresse d'un tampon de 32 octets où copier la description
+; Sortie - Si Carry = 1 une description a été trouvée
+;               DE pointe sur le premier caractère après la fin de la copie de la chaîne
+;               (la chaîne stockée est terminée par le bit 7 à 1)
+;          Si Carry = 0 aucune description n'a pas été trouvée et le tampon n'a pas été modifié
+; Altéré - AF,DE
+
+DOSNode_GetDesc
+        call IsInitialized
+        ret nc
+
+        push bc
+        push hl
+
+        ld b,a
+        ld c,32
+        ld hl,DrivesDesc
+        call GetNameCopy
+        ld a,b
+
+        pop hl
+        pop bc
+        ret
+
+GetNameCopy
+        push bc
+        push de
+        call GetNameOrDesc
+        ex de,hl
+        pop de
+        pop bc
+
+        push af
+        call c,CopyString
+        pop af
+        ret
+GetNameOrDesc
+        ld c,a
+GetNameLoopList
+        ld e,l
+        ld d,h
+GetNameLoopChar
+        ld a,(hl)
+        inc hl
+        or a
+        jr z,GetNameNotFound
+        bit 7,a
+        jr z,GetNameLoopChar
+        ld a,(hl)
+        cp c
+        jr z,GetNameFound
+        inc hl
+        jr GetNameLoopList
+GetNameFound
+        scf     ; C
+        ret
+GetNameNotFound
+        or a    ; NC
+        ret
+
+;
+; Renvoie l'espace libre sur un lecteur physique
+;
+; Entrée - A = numéro du lecteur
+; Sortie - Si Carry = 1 la routine est supportée par ce lecteur
+;               Si Z alors l'espace disponible a pu être obtenu
+;                   BCDE = espace libre en kilo-octets
+;               Si NZ alors une erreur est survenue
+;                   A = code d'erreur
+;          Si Carry = 0 alors la routine est invalide pour ce lecteur
+; Altéré - AF,BC,DE
+
+DOSNode_GetFreeSpace
+        call IsInitialized
+        ret nc
+
+        cp Drive_M4
+        jr z,GetFreeSpace
+
+        cp Drive_DSK
+        jr z,GetFreeSpace
+
+        cp a    ; NC
+        ret
+
+GetFreeSpace
+        call M4_GetFreeSpace
+        ret nc
+        jp nz,Device_BadCommand
+        ret
+
+;
+; Ouvre le flux en entrée
+;
+; Les 80 octets à l'offset DOS +&330 peuvent être utilisés pour la gestion de ce fichier
+;
+; Entrée - A = numéro du lecteur physique
+;          HL = pointeur vers le nom normalisé
+;               note : si le lecteur est de type flux alors ce nom peut
+;               contenir 11x&ff dans le cas où aucun nom de fichier n'a
+;               été fourni par l'utilisateur (utilisation de la référence
+;               de flux anonyme ".") ; la routine est alors censée ouvrir
+;               le premier fichier rencontré sur le flux et peut en option
+;               mettre à jour le nom si celui-ci a été obtenu depuis le flux
+;          DE = pointeur vers le chemin normalisé
+;          La mémoire pointée est dans l'espace ROM/RAM courant
+; Sortie - Si Carry = 1 la routine est supportée par ce lecteur
+;               Si Z alors un fichier a été ouvert
+;               Si NZ alors aucun fichier n'a été ouvert
+;                   A = code d'erreur
+;               Dans tous les cas le chemin normalisé a éventuellement été tronqué au plus proche parent
+;          Si Carry = 0 alors la routine est invalide pour ce lecteur
+; Altéré - AF
+
+DOSNode_InOpenStream
+        call IsInitialized
+        ret nc
+
+        cp Drive_M4
+        jr z,InOpenStreamSD
+
+        cp Drive_DSK
+        jr z,InOpenStreamDSK
+
+        cp Drive_FTP
+        jr z,InOpenStreamFTP
+
+        cp a    ; NC
+        ret
+
+InOpenStreamFTP
+        push bc
+        call InOpenStreamFTPInternal
+        pop bc
+        ret
+
+InOpenStreamFTPInternal
+        call M4_FTPConnect
+        jp nc,Device_NoMedia
+
+        call M4_FTPCurrentDir
+        jp nc,StreamFTPFileNotFound
+
+        push bc
+        push de
+        call M4_FTPExamine
+
+        push af
+        push ix
+        call GetFileInHandlerIX
+        ld (ix+FileIn.len+0),e
+        ld (ix+FileIn.len+1),d
+        ld (ix+FileIn.len+2),c
+        ld (ix+FileIn.len+3),b
+        pop ix
+        pop af
+
+        pop de
+        pop bc
+        jp nc,StreamFTPFileNotFound
+
+        bit 4,a
+        jp nz,Device_BadCommand
+
+        call M4_FTPDisconnect
+
+        push af
+        call InOpenStreamInitHandle
+        pop af
+
+        cp a ; Z
+        scf
+        ret
+
+StreamFTPFileNotFound
+        call M4_FTPDisconnect
+        jp Device_FileNotFound
+StreamFTPMediaChanged
+        call M4_FTPDisconnect
+        jp Device_MediaChanged
+
+InOpenStreamDSK
+        call M4_CurrentDSK
+        jp nc,Device_NoMedia
+        ld a,FA_READ+FA_OPEN_EXISTING
+        call InOpenStream
+        ret
+InOpenStreamSD
+        call M4_CurrentDir
+        jp nc,Device_BadCommand
+        ld a,FA_REALMODE+FA_READ+FA_OPEN_EXISTING
+InOpenStream
+        call M4_OpenFile
+        jr nc,InOpenStreamSDFailed
+
+        call M4_CloseFile
+
+        call InOpenStreamInitHandle
+
+        cp a    ; Z
+        scf
+        ret
+InOpenStreamSDFailed
+        or a    ; NZ
+        scf
+        ret
+
+InOpenStreamInitHandle
+        push ix
+
+        call GetFileInHandlerIX
+
+        ld (ix+FileIn.oft+0),0
+        ld (ix+FileIn.oft+1),0
+        ld (ix+FileIn.oft+2),0
+        ld (ix+FileIn.oft+3),0
+
+        push hl
+        push de
+        push bc
+
+        push ix:pop hl
+        ld bc,FileIn.path
+        add hl,bc
+        ex de,hl
+        ld bc,DirBufferSize
+        ldir
+
+        pop bc
+        pop de
+        pop hl
+
+        pop ix
+        ret
+
+;
+; Lit depuis le flux en entrée
+;
+; Entrée - A = numéro du lecteur
+;          HL = adresse où stocker les données lues
+;          DE = nombre d'octets à lire
+; Sortie - Si Carry = 1 la routine est supportée par ce lecteur
+;               Si Z alors des données ont pu être lues
+;                   DE = nombre d'octets effectivement lus
+;               Si NZ alors une erreur est survenue
+;                   A = code d'erreur
+;          Si Carry = 0 alors la routine est invalide pour ce lecteur
+; Altéré - AF,DE
+
+DOSNode_InReadStream
+        call IsInitialized
+        ret nc
+
+        cp Drive_M4
+        jp z,InReadStreamSD
+
+        cp Drive_DSK
+        jr z,InReadStreamDSK
+
+        cp Drive_FTP
+        jr z,InReadStreamFTP
+
+        cp a    ; NC
+        ret
+
+InReadStreamSD
+        push ix
+
+        call GetFileInHandlerIX
+
+        push hl
+        push bc
+
+        push ix:pop hl
+        ld bc,FileIn.path
+        add hl,bc
+        ex de,hl
+        call M4_CurrentDir
+        ex de,hl
+
+        pop bc
+        pop hl
+
+        pop ix
+        jp nc,Device_MediaChanged
+
+        push ix
+        push iy
+        push bc
+
+        call GetFileInHandlerIX
+
+        ld iy,M4_SeekFile
+        ld a,FA_REALMODE+FA_READ+FA_OPEN_EXISTING
+        call InReadStream
+
+        pop bc
+        pop iy
+        pop ix
+        ret
+
+InReadStreamDSK
+        push ix
+        call GetFileInHandlerIX
+        call M4_CurrentDSK
+        pop ix
+
+        jp nc,Device_MediaChanged
+
+        push ix
+        push iy
+
+        call GetFileInHandlerIX
+
+        push bc
+        ld iy,M4_SkipFile
+        ld a,FA_READ+FA_OPEN_EXISTING
+        call InReadStream
+        pop bc
+
+        pop iy
+        pop ix
+        ret
+
+InReadStreamFTP
+        push bc
+        call InReadStreamFTPInternal
+        pop bc
+        ret
+
+InReadStreamFTPInternal
+        call M4_FTPConnect
+        jp nc,Device_NoMedia
+
+        push ix
+        push bc
+        push de
+        push hl
+
+        call GetFileInHandlerIX
+
+        push hl ; Adresse où stocker les données
+
+        ld a,(ix+FileIn.len+2)
+        or (ix+FileIn.len+3)
+        jr nz,M4ReadStreamFTPPartialFile
+
+        ld l,(ix+FileIn.len+0)
+        ld h,(ix+FileIn.len+1)
+
+        ld a,h
+        cp d
+        jr c,M4ReadStreamFTPEntireFile
+        jr nz,M4ReadStreamFTPPartialFile
+
+        ld a,l
+        cp e
+        jr nc,M4ReadStreamFTPPartialFile
+
+M4ReadStreamFTPEntireFile
+        ld d,h
+        ld e,l
+
+M4ReadStreamFTPPartialFile
+        push de ; Nombre d'octets à lire
+
+        ld a,c ; Socket
+
+        push ix:pop hl
+        ld bc,FileIn.path
+        add hl,bc
+        ex de,hl ; DE = chemin
+
+        ld hl,(_dos_rom_base_address)
+        ld bc,DOSMap.FileInName
+        add hl,bc ; HL = fichier
+
+        ld c,(ix+FileIn.oft+2)
+        ld b,(ix+FileIn.oft+3)
+        push bc
+        ld c,(ix+FileIn.oft+0)
+        ld b,(ix+FileIn.oft+1)
+        push bc ; Position
+
+        ld ix,0
+        add ix,sp
+
+        ld c,a ; Socket
+        call M4_FTPReadFile
+
+        pop hl
+        pop hl
+        pop de ; Nombre d'octets lus
+        pop hl
+
+        pop hl
+        pop bc ; On conserve DE
+        pop bc
+        pop ix
+
+        push af
+        call M4_FTPDisconnect
+        pop af
+
+        jr nc,InReadStreamFTPFailed
+
+        push hl
+        push ix
+
+        push de
+
+        call GetFileInHandlerIX
+
+        ld l,(ix+FileIn.oft+0)
+        ld h,(ix+FileIn.oft+1)
+        or a
+        adc hl,de
+        jr nc,InReadStreamFTPUpdateOft
+        ld e,(ix+FileIn.oft+2)
+        ld d,(ix+FileIn.oft+3)
+        inc de
+        ld (ix+FileIn.oft+2),e
+        ld (ix+FileIn.oft+3),d
+InReadStreamFTPUpdateOft
+        ld (ix+FileIn.oft+0),l
+        ld (ix+FileIn.oft+1),h
+
+        pop de
+
+        push de
+
+        ld l,(ix+FileIn.len+0)
+        ld h,(ix+FileIn.len+1)
+        or a
+        sbc hl,de
+        jr nc,InReadStreamFTPUpdateLen
+        ld e,(ix+FileIn.len+2)
+        ld d,(ix+FileIn.len+3)
+        dec de
+        ld (ix+FileIn.len+2),e
+        ld (ix+FileIn.len+3),d
+InReadStreamFTPUpdateLen
+        ld (ix+FileIn.len+0),l
+        ld (ix+FileIn.len+1),h
+
+        pop de
+
+        pop ix
+        pop hl
+
+InReadStreamFTPEndOfFile
+        cp a ; Z
+        scf
+        ret
+
+InReadStreamFTPFailed
+        push bc
+        ld c,a
+        ld a,d
+        or e
+        ld a,c
+        pop bc
+        jr z,InReadStreamFTPEndOfFile
+        or a ; NZ
+        scf
+        ret
+
+InReadStream
+        push hl
+
+        ld hl,(_dos_rom_base_address)
+        ld bc,DOSMap.FileInName
+        add hl,bc
+        call M4_OpenFile
+
+        pop hl
+
+        jp nc,Device_MediaChanged
+
+        ld c,a  ; fd
+
+        push de
+        push hl
+        ld l,(ix+FileIn.oft+0)
+        ld h,(ix+FileIn.oft+1)
+        ld e,(ix+FileIn.oft+2)
+        ld d,(ix+FileIn.oft+3)
+        ld a,c
+        call JumpIY ; SeekFile or SkipFile
+        pop hl
+        pop de
+
+        call nc,InReadStreamCancel
+        jp nc,Device_MediaChanged
+
+        ld a,c  ; fd
+        call M4_ReadFile
+        call nc,InReadStreamCancel
+        jr nc,InReadStreamFailed
+
+        push de
+        push hl
+
+        ld l,(ix+FileIn.oft+0)
+        ld h,(ix+FileIn.oft+1)
+        or a
+        adc hl,de
+        jr nc,InReadStreamUpdateoft
+        ld e,(ix+FileIn.oft+2)
+        ld d,(ix+FileIn.oft+3)
+        inc de
+        ld (ix+FileIn.oft+2),e
+        ld (ix+FileIn.oft+3),d
+InReadStreamUpdateoft
+        ld (ix+FileIn.oft+0),l
+        ld (ix+FileIn.oft+1),h
+
+        pop hl
+        pop de
+
+        call InReadStreamCancel
+
+        cp a    ; Z
+        scf
+        ret
+
+InReadStreamCancel
+        push af
+        ld a,c  ; fd
+        call M4_CloseFile
+        pop af
+        ret
+
+InReadStreamFailed
+        or a    ; NZ
+        scf
+        ret
+
+;
+; Ferme le flux en entrée
+;
+; Entrée - A = numéro du lecteur
+; Sortie - Si Carry = 1 le flux a été fermé
+;               Si Z alors le flux a été fermé correctement
+;               Si NZ alors le flix a été fermé avec une erreur
+;                   A = code d'erreur
+;          Si Carry = 0 alors la routine est invalide pour ce lecteur
+; Altéré - AF
+
+DOSNode_InCloseStream
+        call IsInitialized
+        ret nc
+
+        cp Drive_M4
+        jr z,InCloseStream
+
+        cp Drive_DSK
+        jr z,InCloseStream
+
+        cp Drive_FTP
+        jr z,InCloseStream
+
+        cp a    ; NC
+        ret
+
+InCloseStream
+        cp a    ; Z
+        scf
+        ret
+
+;
+; Change la position dans le flux en entrée
+;
+; Entrée - A = numéro du lecteur
+;          DEHL = nouvelle position dans le flux de entrée
+; Sortie - Si Carry = 1 la routine est supportée par ce lecteur
+;               Si Z alors la nouvelle position a pu être atteinte
+;               Si NZ alors une erreur est survenue
+;                   A = code d'erreur
+;          Si Carry = 0 alors la routine est invalide pour ce lecteur
+; Altéré - AF
+
+DOSNode_InSeekStream
+        call IsInitialized
+        ret nc
+
+        cp Drive_M4
+        jr z,InSeekStream
+
+        cp Drive_DSK
+        jr z,InSeekStream
+
+        cp Drive_FTP
+        jr z,InSeekStream
+
+        cp a    ; NC
+        ret
+
+InSeekStream
+        push ix
+
+        call GetFileInHandlerIX
+
+        ld (ix+FileIn.oft+0),l
+        ld (ix+FileIn.oft+1),h
+        ld (ix+FileIn.oft+2),e
+        ld (ix+FileIn.oft+3),d
+
+        pop ix
+
+        cp a    ; Z
+        scf
+        ret
+
+;
+; Ouvre le flux en sortie
+;
+; Les 80 octets à l'offset DOS +&380 peuvent être utilisés pour la gestion de ce fichier
+;
+; Entrée - A = numéro du lecteur physique
+;          HL = pointeur vers le nom normalisé
+;          DE = pointeur vers le chemin normalisé
+;          La mémoire pointée est dans l'espace ROM/RAM courant
+; Sortie - Si Carry = 1 la routine est supportée par ce lecteur
+;               Si Z alors un fichier a été créé
+;               Si NZ alors aucun fichier n'a été créé
+;                   A = code d'erreur
+;               Dans tous les cas le chemin normalisé a éventuellement été tronqué au plus proche parent
+;          Si Carry = 0 alors la routine est invalide pour ce lecteur
+; Altéré - AF
+
+DOSNode_OutOpenStream
+        call IsInitialized
+        ret nc
+
+        cp Drive_M4
+        jr z,OutOpenStreamSD
+
+        cp Drive_DSK
+        jp z,Device_NoData
+
+        cp Drive_FTP
+        jr z,OutOpenStreamFTP
+
+        cp a    ; NC
+        ret
+
+OutOpenStreamSD
+        call M4_CurrentDir
+        jp nc,Device_BadCommand
+
+        ld a,FA_REALMODE+FA_WRITE+FA_CREATE_ALWAYS
+        call M4_OpenFile
+        jr nc,OutOpenStreamSDFailed
+
+        call M4_CloseFile
+
+        call OutOpenStreamInitHandle
+
+        cp a    ; Z
+        scf
+        ret
+
+OutOpenStreamSDFailed
+        or a    ; NZ
+        scf
+        ret
+
+OutOpenStreamFTP
+        push bc
+        call OutOpenStreamFTPInternal
+        pop bc
+        ret
+
+OutOpenStreamFTPInternal
+        call M4_FTPConnect
+        jp nc,Device_NoMedia
+
+        call M4_FTPCurrentDir
+        jp nc,StreamFTPFileNotFound
+
+        call M4_FTPDisconnect
+
+        call OutOpenStreamInitHandle
+
+        cp a ; Z
+        scf
+        ret
+
+OutOpenStreamInitHandle
+        push ix
+
+        call GetFileOutHandlerIX
+
+        ld (ix+FileOut.oft+0),0
+        ld (ix+FileOut.oft+1),0
+        ld (ix+FileOut.oft+2),0
+        ld (ix+FileOut.oft+3),0
+
+        push hl
+        push de
+        push bc
+
+        push ix:pop hl
+        ld bc,FileOut.path
+        add hl,bc
+        ex de,hl
+        ld bc,DirBufferSize
+        ldir
+
+        pop bc
+        pop de
+        pop hl
+
+        pop ix
+        ret
+
+;
+; Écrit sur le flux en sortie
+;
+; Entrée - A = numéro du lecteur
+;          HL = adresse où stocker les données lues
+;          DE = nombre d'octets à lire
+; Sortie - Si Carry = 1 la routine est supportée par ce lecteur
+;               Si Z alors des données ont pu être écrites
+;                   DE = nombre d'octets effectivement écrits
+;               Si NZ alors une erreur est survenue
+;                   A = code d'erreur
+;          Si Carry = 0 alors la routine est invalide pour ce lecteur
+; Altéré - AF,DE
+
+DOSNode_OutWriteStream
+        call IsInitialized
+        ret nc
+
+        cp Drive_M4
+        jr z,OutWriteStreamSD
+
+        cp Drive_DSK
+        jp z,Device_NoData
+
+        cp Drive_FTP
+        jp z,OutWriteStreamFTP
+
+        cp a    ; NC
+        ret
+
+OutWriteStreamSD
+        push ix
+
+        call GetFileOutHandlerIX
+
+        push hl
+        push bc
+
+        push ix:pop hl
+        ld bc,FileOut.path
+        add hl,bc
+        ex de,hl
+        call M4_CurrentDir
+        ex de,hl
+
+        pop bc
+        pop hl
+
+        pop ix
+        jp nc,Device_MediaChanged
+
+        push ix
+        push iy
+        push bc
+
+        call GetFileOutHandlerIX
+
+        ld iy,M4_SeekFile
+        ld a,FA_REALMODE+FA_READ+FA_WRITE+FA_OPEN_EXISTING
+        call OutWriteStream
+
+        pop bc
+        pop iy
+        pop ix
+        ret
+
+OutWriteStream
+        push hl
+
+        ld hl,(_dos_rom_base_address)
+        ld bc,DOSMap.FileOutName
+        add hl,bc
+        call M4_OpenFile
+
+        pop hl
+
+        jp nc,Device_MediaChanged
+
+        ld c,a  ; fd
+
+        push de
+        push hl
+        ld l,(ix+FileOut.oft+0)
+        ld h,(ix+FileOut.oft+1)
+        ld e,(ix+FileOut.oft+2)
+        ld d,(ix+FileOut.oft+3)
+        ld a,c
+        call JumpIY ; SeekFile or SkipFile
+        pop hl
+        pop de
+
+        call nc,OutWriteStreamCancel
+        jp nc,Device_MediaChanged
+
+        ld a,c  ; fd
+        call M4_WriteFile
+        call nc,OutWriteStreamCancel
+        jr nc,OutWriteStreamFailed
+
+        push de
+        push hl
+
+        ld l,(ix+FileOut.oft+0)
+        ld h,(ix+FileOut.oft+1)
+        or a
+        adc hl,de
+        jr nc,OutWriteStreamUpdateoft
+        ld e,(ix+FileOut.oft+2)
+        ld d,(ix+FileOut.oft+3)
+        inc de
+        ld (ix+FileOut.oft+2),e
+        ld (ix+FileOut.oft+3),d
+OutWriteStreamUpdateoft
+        ld (ix+FileOut.oft+0),l
+        ld (ix+FileOut.oft+1),h
+
+        pop hl
+        pop de
+
+        call OutWriteStreamCancel
+
+        cp a    ; Z
+        scf
+        ret
+
+OutWriteStreamCancel
+        push af
+        ld a,c  ; fd
+        call M4_CloseFile
+        pop af
+        ret
+
+OutWriteStreamFailed
+        or a    ; NZ
+        scf
+        ret
+
+OutWriteStreamFTP
+        push bc
+        call OutWriteStreamFTPInternal
+        pop bc
+        ret
+
+OutWriteStreamFTPInternal
+        call M4_FTPConnect
+        jp nc,Device_NoMedia
+
+        push ix
+        push bc
+        push de
+        push hl
+
+        call GetFileOutHandlerIX
+
+        push hl ; Adresse où stocker les données
+        push de ; Nombre d'octets à lire
+
+        ld a,c ; Socket
+
+        push ix:pop hl
+        ld bc,FileOut.path
+        add hl,bc
+        ex de,hl ; DE = chemin
+
+        ld hl,(_dos_rom_base_address)
+        ld bc,DOSMap.FileOutName
+        add hl,bc ; HL = fichier
+
+        ld c,(ix+FileOut.oft+2)
+        ld b,(ix+FileOut.oft+3)
+        push bc
+        ld c,(ix+FileOut.oft+0)
+        ld b,(ix+FileOut.oft+1)
+        push bc ; Position
+
+        ld ix,0
+        add ix,sp
+
+        ld c,a ; Socket
+        call M4_FTPWriteFile
+
+        pop hl
+        pop hl
+        pop de ; Nombre d'octets écrit
+        pop hl
+
+        pop hl
+        pop bc ; On conserve DE
+        pop bc
+        pop ix
+
+        push af
+        call M4_FTPDisconnect
+        pop af
+
+        jr nc,OutWriteStreamFTPFailed
+
+        push hl
+        push ix
+
+        push de
+
+        call GetFileOutHandlerIX
+
+        ld l,(ix+FileOut.oft+0)
+        ld h,(ix+FileOut.oft+1)
+        or a
+        adc hl,de
+        jr nc,OutWriteStreamFTPUpdateOft
+        ld e,(ix+FileOut.oft+2)
+        ld d,(ix+FileOut.oft+3)
+        inc de
+        ld (ix+FileOut.oft+2),e
+        ld (ix+FileOut.oft+3),d
+OutWriteStreamFTPUpdateOft
+        ld (ix+FileOut.oft+0),l
+        ld (ix+FileOut.oft+1),h
+
+        pop de
+
+        pop ix
+        pop hl
+
+        cp a ; Z
+        scf
+        ret
+
+OutWriteStreamFTPFailed
+        or a ; NZ
+        scf
+        ret
+
+;
+; Ferme le flux en sortie
+;
+; Entrée - A = numéro du lecteur
+; Sortie - Si Carry = 1 la routine est supportée par ce lecteur
+;               Si Z alors le flux a été fermé correctement
+;               Si NZ alors le flix a été fermé avec une erreur
+;                   A = code d'erreur
+;          Si Carry = 0 alors la routine est invalide pour ce lecteur
+; Altéré - AF
+
+DOSNode_OutCloseStream
+        call IsInitialized
+        ret nc
+
+        cp Drive_M4
+        jr z,OutCloseStream
+
+        cp Drive_DSK
+        jp z,Device_NoData
+
+        cp Drive_FTP
+        jr z,OutCloseStream
+
+        cp a    ; NC
+        ret
+
+OutCloseStream
+        cp a    ; Z
+        scf
+        ret
+
+;
+; Change la position dans le flux en sortie
+;
+; Entrée - A = numéro du lecteur
+;          DEHL = nouvelle position dans le flux en sortie
+; Sortie - Si Carry = 1 la routine est supportée par ce lecteur
+;               Si Z alors la nouvelle position a pu être atteinte
+;               Si NZ alors une erreur est survenue
+;                   A = code d'erreur
+;          Si Carry = 0 alors la routine est invalide pour ce lecteur
+; Altéré - AF
+
+DOSNode_OutSeekStream
+        call IsInitialized
+        ret nc
+
+        cp Drive_M4
+        jr z,OutSeekStream
+
+        cp Drive_DSK
+        jp z,Device_NoData
+
+        ; SeekOut not possible for Drive_FTP!
+        ; File contents cannot be partially updated...
+
+        cp a    ; NC
+        ret
+
+OutSeekStream
+        push ix
+
+        call GetFileOutHandlerIX
+
+        ld (ix+FileOut.oft+0),l
+        ld (ix+FileOut.oft+1),h
+        ld (ix+FileOut.oft+2),e
+        ld (ix+FileOut.oft+3),d
+
+        pop ix
+
+        cp a    ; Z
+        scf
+        ret
+
+;
+; Vérifie qu'un fichier ou un répertoire existe et retourne les informations associées
+;
+; Entrée - A = numéro du lecteur physique
+;          HL = pointeur vers le nom normalisé de l'entrée
+;              Si HL = 0 alors l'entrée est un répertoire et on veut analyser sont contenu,
+;              ExamineNext devra ensuite être appelé pour récupérer les entrées
+;          DE = pointeur vers le chemin normalisé où se trouve l'entrée
+;          IX = tampon où copier l'heure et la date de dernière modification de l'entrée (7 octets)
+;               (inutilisé si HL = 0 ou si l'horodatage n'est pas supporté)
+;          La mémoire pointée est dans l'espace ROM/RAM courant
+; Sortie - Si Carry = 1 la routine est supportée par ce lecteur
+;
+;               Si HL ne valait pas 0 en entrée
+;                   Si Z alors le fichier ou le répertoire existe
+;                       A = bits de protection du fichier
+;                           Bit 0 - Lecture seule
+;                           Bit 1 - Caché
+;                           Bit 2 - Système
+;                           Bit 4 = Répertoire
+;                           Bit 5 = Archivé
+;                       BCDE = Taille du fichier
+;                       IX = tampon où ont été copiées l'heure et la date de dernière modification de l'entrée
+;                           (le contenu du tampon reste inchangé si l'horodatage n'est pas supporté)
+;                           Un mot de 16 bits avec l'année (1978..9999)
+;                           Un octet avec le numéro du mois (1..12)
+;                           Un octet avec le numéro du jour dans le mois (1..28,29,30 ou 31)
+;                           Un octet avec les heures (0..23)
+;                           Un octet avec les minutes (0..59)
+;                           Un octet avec les secondes (0..59)
+;                   Si NZ alors le fichier ou le répertoire est introuvable
+;                       A = code d'erreur
+;
+;               Si HL valait 0 en entrée
+;                   Si Z alors le répertoire est prêt à être examiné via ExamineNext
+;                   Si NZ alors une erreur est survenue
+;                       A = code d'erreur
+;
+;          Si Carry = 0 alors la routine est invalide pour ce lecteur
+; Altéré - AF
+
+DOSNode_Examine
+        call IsInitialized
+        ret nc
+
+        cp Drive_M4
+        jp z,ExamineSD
+
+        cp Drive_DSK
+        jp z,ExamineDSK
+
+        cp Drive_FTP
+        jr z,ExamineFTP
+
+ExamineNoSupport
+        cp a    ; NC
+        ret
+
+ExamineFTP
+        ld a,l
+        or h
+        jr nz,ExamineFTPEntry
+
+        push bc
+        call ExamineFTPInternal
+        pop bc
+
+        ret
+
+ExamineFTPEntry
+        push ix
+        call ExamineFTPEntryInternal
+        pop ix
+        ret
+ExamineFTPEntryInternal
+        call M4_FTPConnect
+        jp nc,Device_NoMedia
+
+        ld ixl,c
+
+        call M4_FTPCurrentDir
+        jp nc,ExamineFTPEntryNotFound
+
+        call M4_FTPExamine
+        jp nc,ExamineFTPEntryNotFound
+
+        push af
+        push bc
+        ld c,ixl
+        call M4_FTPDisconnect
+        pop bc
+        pop af
+
+        cp a ; Z
+        scf
+        ret
+
+ExamineFTPEntryNotFound
+        ld c,ixl
+        call M4_FTPDisconnect
+        jp Device_FileNotFound
+
+ExamineFTPInternal
+        push ix
+        call GetExamineDirHandlerIX
+        ld a,(ix+ExamineDir.cmdSock)
+        add a,(ix+ExamineDir.datSock)
+        xor KeySock
+        cp (ix+ExamineDir.keySock)
+        pop ix
+        jr nz,ExamineFTPGo
+
+        call ExamineDestroySockets
+
+ExamineFTPGo
+        call M4_FTPConnect
+        jp nc,Device_NoMedia
+
+        call M4_FTPCurrentDir
+        jp nc,ExamineFTPNotFound
+
+        call M4_FTPList
+        jp nc,ExamineFTPFailed
+
+        push ix
+        call GetExamineDirHandlerIX
+        ld (ix+ExamineDir.cmdSock),c
+        ld (ix+ExamineDir.datSock),b
+        ld a,c
+        add a,b
+        xor KeySock
+        ld (ix+ExamineDir.keySock),a
+        pop ix
+
+        cp a    ; Z
+        scf
+        ret
+
+ExamineFTPFailed
+        call M4_FTPDisconnect
+        jp Device_BadCommand
+ExamineFTPNotFound
+        call M4_FTPDisconnect
+        jp Device_FileNotFound
+
+ExamineDSK
+        ld a,l
+        or h
+        jp nz,ExamineNoSupport
+ExamineDSKContents
+        push ix
+        call GetExamineDirHandlerIX
+        ld (ix+ExamineDir.index+0),1
+        ld (ix+ExamineDir.index+1),0
+        ld (ix+ExamineDir.path),0
+        pop ix
+
+        cp a    ; Z
+        scf
+        ret
+
+;ExamineDSKFile
+;        call M4_CurrentDSK
+;        jp nc,Device_NoMedia
+
+;        call M4_IsFile
+;        jp c,ExamineDSKFileOk
+
+;        jp Device_FileNotFound
+
+;ExamineDSKFileOk
+;        call M4_CurrentDSK
+;        jp nc,Device_NoMedia
+
+;        call M4_ExamineEntry
+;        jp nc,Device_FileNotFound
+
+;        cp a    ; Z
+;        scf
+;        ret
+
+ExamineSD
+        ld a,l
+        or h
+        jr nz,ExamineSDFile
+ExamineSDDirectory
+        call M4_CurrentDir
+        jp nc,Device_BadCommand
+
+        call M4_IsFile
+        jp c,Device_NotADirectory
+
+        push bc
+        push de
+        push hl
+        push ix
+
+        call GetExamineDirHandlerIX
+
+        ld (ix+ExamineDir.index+0),1
+        ld (ix+ExamineDir.index+1),0
+
+        ld b,ixh
+        ld c,ixl
+        ld hl,ExamineDir.path
+        add hl,bc
+        ld bc,DirBufferSize
+        ex de,hl
+        ldir
+
+        pop ix
+        pop hl
+        pop de
+        pop bc
+
+        cp a    ; Z
+        scf
+        ret
+
+ExamineSDFile
+        call M4_CurrentDir
+        jp nc,Device_BadCommand
+
+        call M4_IsFile
+        jp c,ExamineSDFileOk
+
+        call M4_CurrentDir
+        jp nc,Device_BadCommand
+
+        call M4_IsDirectory
+        jp c,ExamineSDFileOk
+
+        jp Device_FileNotFound
+
+ExamineSDFileOk
+        call M4_CurrentDir
+        jp nc,Device_BadCommand
+
+        call M4_ExamineEntry
+        jp nc,Device_FileNotFound
+
+        cp a    ; Z
+        scf
+        ret
+
+;
+; Récupère une entrée dans le répertoire en cours d'examen
+;
+; Entrée - HL = pointeur vers la mémoire où stocker nom normalisé de l'entrée (11 octets)
+;          IX = tampon où copier l'heure et la date de dernière modification de l'entrée (7 octets)
+; Sortie - Si Carry = 1 la routine est supportée par ce lecteur
+;               Si Z alors une entrée a été récupérée
+;                   HL = pointeur vers la mémoire mise à jour avec le nom de l'entrée
+;                   A = bits de protection de l'entrée
+;                       Bit 0 - Lecture seule
+;                       Bit 1 - Caché
+;                       Bit 2 - Système
+;                       Bit 4 = Répertoire
+;                       Bit 5 = Archivé
+;                   BCDE = Taille de l'entrée (indéterminé si l'entrée est un répertoire)
+;                   IX = tampon où ont été copiées l'heure et la date de dernière modification de l'entrée
+;                       (le contenu du tampon reste inchangé si l'horodatage n'est pas supporté)
+;                       Un mot de 16 bits avec l'année (1978..9999)
+;                       Un octet avec le numéro du mois (1..12)
+;                       Un octet avec le numéro du jour dans le mois (1..28,29,30 ou 31)
+;                       Un octet avec les heures (0..23)
+;                       Un octet avec les minutes (0..59)
+;                       Un octet avec les secondes (0..59)
+;               Si NZ alors une erreur est survenue
+;                   A = code d'erreur (dsk_err_file_not_found indique que toutes les entrées ont été lues)
+;          Si Carry = 0 alors la routine est invalide pour ce lecteur
+; Altéré - AF
+
+DOSNode_ExamineNext
+        call IsInitialized
+        ret nc
+
+        cp Drive_M4
+        jr z,ExamineNextSD
+
+        cp Drive_DSK
+        jp z,ExamineNextDSK
+
+        cp Drive_FTP
+        jr z,ExamineNextFTP
+
+        cp a    ; NC
+        ret
+
+ExamineNextFTP
+        push ix
+        call GetExamineDirHandlerIX
+        ld b,(ix+ExamineDir.datSock)
+        pop ix
+        call M4_FTPGetEntry
+        jr nc,ExamineNextFTPEnd
+
+        cp a    ; Z
+        scf     ; C
+        ret
+
+ExamineNextFTPEnd
+        call ExamineDestroySockets
+        jp Device_FileNotFound
+
+ExamineDestroySockets
+        push ix
+
+        call GetExamineDirHandlerIX
+
+        ld c,(ix+ExamineDir.cmdSock)
+        ld b,(ix+ExamineDir.datSock)
+        call M4_FTPListEnd
+        call M4_FTPDisconnect
+
+        ld (ix+ExamineDir.keySock),0
+
+        pop ix
+        ret
+
+ExamineNextSD
+        push ix
+        call GetExamineDirHandlerIX
+        ld d,ixh
+        ld e,ixl
+        ld bc,ExamineDir.path
+        ex de,hl
+        add hl,bc
+        ex de,hl
+        ld c,(ix+ExamineDir.index+0)
+        ld b,(ix+ExamineDir.index+1)
+        pop ix
+
+        call M4_CurrentDir
+        jp nc,Device_BadCommand
+
+        call M4_ExamineDir
+
+ExamineNextSDEntryLoop
+        push de
+        push bc
+        call M4_ExamineNext
+        pop bc
+        pop de
+        jp nc,Device_FileNotFound
+        dec bc
+        ld a,b
+        or c
+        jr nz,ExamineNextSDEntryLoop
+
+; Plus nécessaire pour éviter le plantage de la M4 Board
+; car on réinitialise l'Examine à chaque fois
+;        call M4_ExamineFlush
+
+        call M4_CurrentDir
+        jp nc,Device_BadCommand
+
+        call M4_ExamineEntry
+        jp nc,Device_BadCommand
+
+ExamineNextExit
+        push bc
+        push ix
+        call GetExamineDirHandlerIX
+        ld c,(ix+ExamineDir.index+0)
+        ld b,(ix+ExamineDir.index+1)
+        inc bc
+        ld (ix+ExamineDir.index+0),c
+        ld (ix+ExamineDir.index+1),b
+        pop ix
+        pop bc
+
+        cp a    ; Z
+        scf
+        ret
+
+ExamineNextDSK
+        push ix
+        call GetExamineDirHandlerIX
+        ld c,(ix+ExamineDir.index+0)
+        ld b,(ix+ExamineDir.index+1)
+        pop ix
+
+        call M4_CurrentDSK
+        jp nc,Device_NoMedia
+
+        call M4_ExamineDir
+
+ExamineNextDSKEntryLoop
+        push bc
+        call M4_ExamineNext
+        pop bc
+        jp nc,Device_FileNotFound
+        dec bc
+        ld a,b
+        or c
+        jr nz,ExamineNextDSKEntryLoop
+
+; Plus nécessaire pour éviter le plantage de la M4 Board
+; car on réinitialise l'Examine à chaque fois
+;        call M4_ExamineFlush
+
+        ld bc,0
+
+        jp ExamineNextExit
+
+
+;
+; Renome un fichier ou un répertoire
+;
+; Entrée - A = numéro du lecteur physique
+;          HL = pointeur vers le nom normalisé
+;          DE = pointeur vers le chemin normalisé
+;          IX = pointeur vers le nouveau nom normalisé
+;          BC = pointeur vers le nouveau chemin normalisé
+;          La mémoire pointée est dans l'espace ROM/RAM courant
+; Sortie - Si Carry = 1 la routine est supportée par ce lecteur
+;               Si Z alors le stream a été examiné
+;               Si NZ alors le stream n'a pas pu être examiné
+;                   A = code d'erreur
+;               Dans tous les cas les chemins normalisés ont éventuellement été tronqué au plus proche parent
+;          Si Carry = 0 alors la routine est invalide pour ce lecteur
+; Altéré - AF
+
+DOSNode_Rename
+        call IsInitialized
+        ret nc
+
+        cp Drive_M4
+        jr z,RenameSD
+
+        cp Drive_DSK
+        jp z,Device_NoData
+
+        cp Drive_FTP
+        jr z,RenameFTP
+
+        cp a    ; NC
+        ret
+
+RenameSD
+        call M4_CurrentDir
+        jp nc,Device_BadCommand
+
+        call M4_Rename
+        jr nc,RenameSDFailed
+        cp a    ; Z
+        scf
+        ret
+
+RenameSDFailed
+        or a    ; NZ
+        scf
+        ret
+
+RenameFTP
+        push bc
+        call RenameFTPInternal
+        pop bc
+        ret
+
+RenameFTPInternal
+        push bc
+
+        call M4_FTPConnect
+        jp nc,Device_NoMedia
+
+        call M4_FTPRootDir
+        jr nc,FTPRenameFailed
+
+        call M4_FTPRenameFrom
+        jr nc,FTPRenameFailed
+
+        ld a,c
+        pop bc
+
+        push de
+        push hl
+
+        push ix:pop hl
+        ld d,b
+        ld e,c
+
+        ld c,a
+
+        call M4_FTPRenameTo
+
+        pop hl
+        pop de
+
+        jr nc,FTPRenameFailed
+
+        call M4_FTPDisconnect
+
+        cp a    ; Z
+        scf
+        ret
+
+FTPRenameFailed
+        push af
+        call M4_FTPDisconnect
+        pop af
+        or a    ; NZ
+        scf
+        ret
+
+;
+; Efface un fichier ou un répertoire
+;
+; Entrée - A = numéro du lecteur physique
+;          HL = pointeur vers le nom normalisé
+;          DE = pointeur vers le chemin normalisé
+;          La mémoire pointée est dans l'espace ROM/RAM courant
+; Sortie - Si Carry = 1 la routine est supportée par ce lecteur
+;               Si Z alors le fichier ou le répertoire a été supprimé
+;               Si NZ alors aucune suppression n'a eu lieu
+;                   A = code d'erreur
+;               Dans tous les cas le chemin normalisé a éventuellement été tronqué au plus proche parent
+;          Si Carry = 0 alors la routine est invalide pour ce lecteur
+; Altéré - AF
+
+DOSNode_Delete
+        call IsInitialized
+        ret nc
+
+        cp Drive_M4
+        jr z,DeleteSD
+
+        cp Drive_DSK
+        jp z,Device_NoData
+
+        cp Drive_FTP
+        jr z,DeleteFTP
+
+        cp a    ; NC
+        ret
+
+DeleteSD
+        call M4_CurrentDir
+        jp nc,Device_BadCommand
+
+        call M4_Delete
+        jr nc,DeleteSDFailed
+        cp a    ; Z
+        scf
+        ret
+
+DeleteSDFailed
+        or a    ; NZ
+        scf
+        ret
+
+DeleteFTP
+        push bc
+        call DeleteFTPInternal
+        pop bc
+        ret
+
+DeleteFTPInternal
+        call M4_FTPConnect
+        jp nc,Device_NoMedia
+
+        call M4_FTPCurrentDir
+        jp nc,FTPDeleteNotFound
+
+        push bc
+        push de
+        call M4_FTPExamine
+        pop de
+        pop bc
+        jp nc,FTPDeleteNotFound
+
+        and &10 ; Fichier ou répertoire ?
+        jr z,DeleteFTPFile
+DeleteFTPDir
+        call M4_FTPRootDir
+        jr nc,FTPDeleteFailed
+
+        call M4_FTPDeleteDir
+        jr nc,FTPDeleteFailed
+
+        jr DeleteFTPDone
+DeleteFTPFile
+        call M4_FTPRootDir
+        jr nc,FTPDeleteFailed
+
+        call M4_FTPDeleteFile
+        jr nc,FTPDeleteFailed
+
+DeleteFTPDone
+        call M4_FTPDisconnect
+
+        cp a    ; Z
+        scf
+        ret
+
+FTPDeleteFailed
+        push af
+        call M4_FTPDisconnect
+        pop af
+        or a    ; NZ
+        scf
+        ret
+FTPDeleteNotFound
+        call M4_FTPDisconnect
+        jp Device_FileNotFound
+
+;
+; Crée un répertoire
+;
+; Entrée - A = numéro du lecteur physique
+;          HL = pointeur vers le nom normalisé
+;          DE = pointeur vers le chemin normalisé
+;          La mémoire pointée est dans l'espace ROM/RAM courant
+; Sortie - Si Carry = 1 la routine est supportée par ce lecteur
+;               Si Z alors un répertoire a été créé
+;               Si NZ alors aucun répertoire n'a été créé
+;                   A = code d'erreur
+;               Dans tous les cas le chemin normalisé a éventuellement été tronqué au plus proche parent
+;          Si Carry = 0 alors la routine est invalide pour ce lecteur
+; Altéré - AF
+
+DOSNode_CreateDir
+        call IsInitialized
+        ret nc
+
+        cp Drive_M4
+        jr z,CreateDirSD
+
+        cp Drive_FTP
+        jr z,CreateDirFTP
+
+        cp a    ; NC
+        ret
+
+CreateDirFTP
+        push bc
+        call CreateDirFTPInternal
+        pop bc
+        ret
+
+CreateDirFTPInternal
+        call M4_FTPConnect
+        jp nc,Device_NoMedia
+
+        call M4_FTPRootDir
+        jr nc,FTPCreateDirFailed
+
+        call M4_FTPCreateDir
+        jr nc,FTPCreateDirFailed
+
+        call M4_FTPDisconnect
+
+        cp a    ; Z
+        scf
+        ret
+
+FTPCreateDirFailed
+        push af
+        call M4_FTPDisconnect
+        pop af
+        or a    ; NZ
+        scf
+        ret
+
+CreateDirSD
+        call M4_CurrentDir
+        jp nc,Device_BadCommand
+
+        call M4_CreateDir
+        jr nc,CreateSDDirFailed
+        cp a    ; Z
+        scf
+        ret
+
+CreateSDDirFailed
+        or a    ; NZ
+        scf
+        ret
+
+;
+; Change les bits de protection d'un fichier
+;
+; Entrée - A = numéro du lecteur physique
+;          HL = pointeur vers le nom normalisé
+;          DE = pointeur vers le chemin normalisé
+;          B = Protections à modifier
+;          C = Nouvelles protections
+;               Bit 0 - Lecture seule
+;               Bit 1 - Caché
+;               Bit 5 = Archivé
+;          Les autres bits sont ignorés
+;          La mémoire pointée est dans l'espace ROM/RAM courant
+; Sortie - Si Carry = 1 la routine est supportée par ce lecteur
+;               Si Z alors les protections ont été modifiées
+;               Si NZ alors les protections n'ont pas pu être modifiées
+;                   A = code d'erreur
+;               Dans tous les cas le chemin normalisé a éventuellement été tronqué au plus proche parent
+;          Si Carry = 0 alors la routine est invalide pour ce lecteur
+; Altéré - AF
+
+DOSNode_SetProtection
+        call IsInitialized
+        ret nc
+
+        cp a    ; NC
+        ret
+
+;
+; Formate un lecteur
+;
+; Entrée - A = numéro du lecteur physique
+; Sortie - Si Carry = 1 la routine est supportée par ce lecteur
+;               Si Z alors le lecteur a été formaté
+;               Si NZ alors le formatage a échoue
+;                   A = code d'erreur
+;          Si Carry = 0 alors la routine est invalide pour ce lecteur
+; Altéré - AF
+
+DOSNode_Format
+        jp DOSNode_Void
+
+;
+; Change la date et l'heure de dernière modification d'un fichier ou d'un répertoire
+;
+; Entrée - A = numéro du lecteur physique
+;          HL = pointeur vers le nom normalisé
+;          DE = pointeur vers le chemin normalisé
+;          IX = tampon qui contient les informations d'heure et de date à utiliser
+;               Un mot de 16 bits avec l'année (1978..9999)
+;               Un octet avec le numéro du mois (1..12)
+;               Un octet avec le numéro du jour dans le mois (1..28,29,30 ou 31)
+;               Un octet avec les heures (0..23)
+;               Un octet avec les minutes (0..59)
+;               Un octet avec les secondes (0..59)
+;          La mémoire pointée est dans l'espace ROM/RAM courant
+; Sortie - Si Carry = 1 la routine est supportée par ce lecteur
+;               Si Z alors l'heure et la date ont été modifiées
+;               Si NZ alors l'heure et la date n'ont pas pu être modifiées
+;                   A = code d'erreur
+;          Si Carry = 0 alors la routine est invalide pour ce lecteur
+; Altéré - AF
+
+DOSNode_SetFileDate
+        jp DOSNode_Void
+
+;
+; Lit le contenu de l'horloge temps réel
+;
+; Entrée - IX = tampon où copier l'heure et la date courantes (7 octets)
+; Sortie - Si Carry = 1 alors le noeud DOS offre un service d'horloge temps réel
+;               IX = le tampon d'entrée où l'heure et la date ont été copiées
+;                   Un mot de 16 bits avec l'année (1978..9999)
+;                   Un octet avec le numéro du mois (1..12)
+;                   Un octet avec le numéro du jour dans le mois (1..28,29,30 ou 31)
+;                   Un octet avec les heures (0..23)
+;                   Un octet avec les minutes (0..59)
+;                   Un octet avec les secondes (0..59)
+;                A = numéro du jour dans la semaine (1..7, du lundi au dimanche)
+;          Si Carry = 0 alors le noeud DOS n'offre pas d'horloge temps réel
+; Altéré - AF
+
+DOSNode_ReadRTC
+        call M4_Time
+        call ComputeWDay
+        scf
+        ret
+
+;
+; Écrit le contenu de l'horloge temps réel
+;
+; Entrée - IX = tampon qui contient les informations d'heure et de date à utiliser (7 octets)
+;               Un mot de 16 bits avec l'année (1978..9999)
+;               Un octet avec le numéro du mois (1..12)
+;               Un octet avec le numéro du jour dans le mois (1..28,29,30 ou 31)
+;               Un octet avec les heures (0..23)
+;               Un octet avec les minutes (0..59)
+;               Un octet avec les secondes (0..59)
+; Sortie - Si Carry = 1 alors le noeud DOS offre un service d'horloge temps réel
+;               Si Z alors le contenu de l'horloge temps réel a pu être mis à jour
+;               Si NZ alors une erreur est survenue
+;                   A = code d'erreur
+;          Si Carry = 0 alors le noeud DOS n'offre pas d'horloge temps réel
+; Altéré - AF
+
+DOSNode_WriteRTC
+        jp DOSNode_Void
+
+;
+; Ouvre la mémoire non volative
+;
+; Les 6 octets à l'offset DOS +&4F0 peuvent être utilisés pour la gestion de la mémoire non volatile
+;
+; Entrée - C = mode d'ouverture
+;               Si 0 alors la mémoire non volatile avec son contenu courant doit être ouverte
+;                    (va retourner NZ si la mémoire non volatile est vide, avec A=dsk_err_file_not_found)
+;               Si 1 alors la mémoire non volatile doit être remise à zéro avant ouverture
+; Sortie - Si Carry = 1 alors le noeud DOS offre un service de mémoire non volatile
+;               Si Z alors la mémoire non volatile a été ouverte est est prête à être manipulée
+;               Si NZ alors une erreur est survenue
+;                   A = code d'erreur
+;          Si Carry = 0 alors le noeud DOS n'offre pas de mémoire non volatile
+; Altéré - AF
+
+DOSNode_OpenNVRAM
+        call IsInitialized
+        ret nc
+
+        push de
+        push hl
+
+        call OpenNVRAM
+
+        pop hl
+        pop de
+
+        ret
+
+OpenNVRAM
+        call GetNVRAMFileName
+
+        call M4_CurrentDir
+        ret nc
+
+        ld b,FA_REALMODE+FA_READ+FA_WRITE
+        ld a,c
+        cp 1
+        ld a,FA_OPEN_EXISTING
+        jr nz,OpenNVRAMOld
+        ld a,FA_CREATE_ALWAYS
+OpenNVRAMOld
+        add a,b
+
+        call M4_OpenFile
+        jr nc,OpenNVRAMFailed
+
+        push ix
+        call GetNVRAMHandlerIX
+        ld (ix+NVRAMData.fd),a
+        pop ix
+
+        cp a    ; Z
+        scf
+        ret
+
+OpenNVRAMFailed
+        or a    ; NZ
+        scf
+        ret
+
+;
+; Ferme et met à jour le contenu de la mémoire non volatile
+;
+; Entrée - Aucune
+; Sortie - Si Carry = 1 alors le noeud DOS offre un service de mémoire non volatile
+;               Si Z alors la mémoire non volatile a été mise à jour
+;               Si NZ alors une erreur est survenue
+;          Si Carry = 0 alors le noeud DOS n'offre pas de mémoire non volatile
+; Altéré - AF
+
+DOSNode_CloseNVRAM
+        call IsInitialized
+        ret nc
+
+        push ix
+        call GetNVRAMHandlerIX
+        ld a,(ix+NVRAMData.fd)
+        pop ix
+
+        call M4_CloseFile
+        jr nc,CloseNVRAMFailed
+
+        cp a    ; Z
+        scf
+        ret
+
+CloseNVRAMFailed
+        or a    ; NZ
+        scf
+        ret
+
+;
+; Lit des données depuis la mémoire non volatile
+;
+; Entrée - HL = adresse où écrire les données lues
+;          DE = nombre d'octets à lire
+; Sortie - Si Carry = 1 alors le noeud DOS offre un service de mémoire non volatile
+;               Si Z alors les données ont été lues
+;                   DE = nombre d'octets effectivement lus
+;               Si NZ alors une erreur est survenue
+;                   A = code d'erreur
+;          Si Carry = 0 alors le noeud DOS n'offre pas de mémoire non volatile
+; Altéré - AF,DE
+
+DOSNode_ReadNVRAM
+        call IsInitialized
+        ret nc
+
+        push ix
+        call GetNVRAMHandlerIX
+        ld a,(ix+NVRAMData.fd)
+        pop ix
+
+        call M4_ReadFile
+        jr nc,ReadNVRAMFailed
+
+        cp a    ; Z
+        scf
+        ret
+
+ReadNVRAMFailed
+        or a    ; NZ
+        scf
+        ret
+
+;
+; Écrit des données dans la mémoire non volatile
+;
+; Entrée - HL = adresse où se trouvent les données à écrire
+;          DE = nombre d'octets à écrire
+; Sortie - Si Carry = 1 alors le noeud DOS offre un service de mémoire non volatile
+;               Si Z alors les données ont été écrites
+;                   DE = nombre d'octets effectivement écrits
+;               Si NZ alors une erreur est survenue
+;                   A = code d'erreur
+;          Si Carry = 0 alors le noeud DOS n'offre pas de mémoire non volatile
+; Altéré - AF,DE
+
+DOSNode_WriteNVRAM
+        call IsInitialized
+        ret nc
+
+        push ix
+        call GetNVRAMHandlerIX
+        ld a,(ix+NVRAMData.fd)
+        pop ix
+
+        call M4_WriteFile
+        jr nc,WriteNVRAMFailed
+
+        cp a    ; Z
+        scf
+        ret
+
+WriteNVRAMFailed
+        or a    ; NZ
+        scf
+        ret
+
+;
+; Change la position dans la mémoire non volatile
+;
+; Entrée - DEHL = nouvelle position
+; Sortie - Si Carry = 1 alors le noeud DOS offre un service de mémoire non volatile
+;               Si Z alors la nouvelle position a pu être atteinte
+;               Si NZ alors une erreur est survenue
+;                   A = code d'erreur
+;          Si Carry = 0 alors le noeud DOS n'offre pas de mémoire non volatile
+; Altéré - AF
+
+DOSNode_SeekNVRAM
+        call IsInitialized
+        ret nc
+
+        push ix
+        call GetNVRAMHandlerIX
+        ld a,(ix+NVRAMData.fd)
+        pop ix
+
+        call M4_SeekFile
+        jr nc,SeekNVRAMFailed
+
+        cp a    ; Z
+        scf
+        ret
+
+SeekNVRAMFailed
+        or a    ; NZ
+        scf
+        ret
+
+;
+; Routine inexistante
+;
+
+DOSNode_Void
+        cp a    ; NC
+        ret
+
+;
+; Routines annexes
+;
+
+;
+; Test d'initialisation du noeud
+;
+; Entrée - N/A
+; Sortie - Carry=1 si le noeud a été initialisé
+;          Carry=0 sinon
+; Altéré - Flags
+
+IsInitialized
+        push ix
+        call IsInit
+        pop ix
+        ret
+IsInit  call GetPrivateDataIX
+        cp a    ; NC
+        bit 1,(ix+0)
+        ret nz
+        scf
+        ret
+
+;
+; Récupère le nom et le chemin du fichier de configuration
+;
+; Entrée - N/A
+; Sortie - HL = nom du fichier normalisé
+;          DE = chemin normalisé
+; Altéré - BC,DE,HL,Flags
+
+GetNVRAMFileName
+        ld de,NVRAMFileNameStorage
+        ld l,e
+        ld h,d
+        inc hl
+        ret
+
+NVRAMFileNameStorage
+        db 0                ; Arboresence racine
+        db "!UNIDOS!NVM"    ; Nom du fichier de configuration/persistance
+
+;
+; Retours d'erreur génériques
+;
+
+Device_NoMedia
+        ld a,DSK_ERR_NO_MEDIA
+        or a    ; NZ
+        scf
+        ret
+Device_MediaChanged
+        ld a,DSK_ERR_DISC_CHANGED
+        or a    ; NZ
+        scf
+        ret
+Device_AlreadyExists
+        ld a,DSK_ERR_FILE_ALREADY_EXISTS
+        or a    ; NZ
+        scf
+        ret
+Device_FileNotFound
+        ld a,DSK_ERR_FILE_NOT_FOUND
+        or a    ; NZ
+        scf
+        ret
+Device_DirectoryFound
+        ld a,DSK_ERR_DIRECTORY_FOUND
+        or a    ; NZ
+        scf
+        ret
+Device_NotADirectory
+        ld a,DSK_ERR_NOT_A_DIRECTORY
+        or a    ; NZ
+        scf
+        ret
+Device_DiscFull
+        ld a,DSK_ERR_DISC_FULL
+        or a    ; NZ
+        scf
+        ret
+Device_NoData
+        ld a,DSK_ERR_NO_DATA
+        or a    ; NZ
+        scf
+        ret
+Device_BadCommand
+        ld a,DSK_ERR_BAD_COMMAND
+        or a    ; NZ
+        ret
+

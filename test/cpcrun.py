@@ -83,6 +83,14 @@ def assemble(path):
 def endkey_set(m, syms):
     # Option PressAnyKeyOnEnd: a breakpoint on kw_waitkey (its key at the end); NTC_NOENDKEY=1: none
     if syms and 'kw_waitkey' in syms and not os.environ.get('NTC_NOENDKEY'): m.set_breakpoint(syms['kw_waitkey'])
+def step1(obj):
+    # one instruction: the T-states it took (the z80 module's frame_tick - a one-tick limit leaves
+    # ticks_to_stop at 0 whatever the instruction cost, so 1 - ticks_to_stop counted every one as 1 T).
+    # frame_tick runs modulo the module's frame, 100000 T (_z80module.cpp: ticks_per_frame): taken
+    # modulo it, or an instruction across a frame's end counted as ~4 billion T (2026-11-01)
+    m = obj.m; b = m.frame_tick; m.ticks_to_stop = 1; endkey_run(obj)
+    return ((m.frame_tick - b) % 100000) or 1
+
 def endkey_run(obj):
     # run on; at kw_waitkey, when the typed text is used up, a Return is typed (the test needn't)
     m = obj.m; ev = m.run()
@@ -233,7 +241,7 @@ class CPC:
             steps=0
             while not s.m.halted and steps<2000:
                 if s.m.iff1 and s.m.on_handle_active_int(): s.ints+=1; break
-                s.m.ticks_to_stop=1; endkey_run(s); steps+=1; s.T+=1-s.m.ticks_to_stop
+                steps+=1; s.T+=step1(s)
             if n>limit: print('TIMEOUT pc=%04x sp=%04x'%(s.m.pc,s.m.sp)); break
         s.chunks=n
     def screen(s,font):

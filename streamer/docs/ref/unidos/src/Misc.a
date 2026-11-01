@@ -1,0 +1,1573 @@
+;
+; Fonctions annexes qui ne dépendent pas de IY
+;
+
+;
+; Vérifie si un lecteur physique est disponible
+; en demandant à l'utilisateur si ce n'est pas le cas
+;
+; Entrée - A = numéro de lecteur physique
+; Sortie - Si Carry = 1 alors le lecteur physique est disponible
+;          Si Carry = 0 le lecture n'est pas disponible
+; Altéré - Flags
+
+ProbeDrive
+        push bc
+        ld b,a
+        call resetautoretry
+        call probedriveinternal
+        ld a,b
+        pop bc
+        ret
+ProbeDriveInternal
+ProbeDriveretry
+        call device_getstatus
+        ret nc  ; Echec d'API
+        rra
+        ret c   ; Média présent rien à demander
+        ld a,dsk_err_no_media
+        ld c,b
+        call askuserchoice
+        ld a,b
+        jr c,probedriveretry ; Retry
+        ret z                ; Cancel
+        scf                  ; Ignore
+        ret
+
+;
+; Récupère la partie lecteur logique/physique d'un chemin
+; [user][drive]:chemin1/chemin2/fichier
+;
+; Entrée - HL = pointeur vers le chemin
+;          B = longueur du chemin
+; Sortie - DE = pointeur vers le début du chemin sans le lecteur logique/physique
+;          B = longueur du chemin sans le lecteur logique/physique en début
+;          C = longueur du lecteur logique/physique en début de chemin (0 si aucun lecteur logique/physique)
+; Altéré - AF,C,DE
+
+GetDrivePart
+        ld e,l
+        ld d,h
+        ld c,0
+GetPathPartNextChar
+        ex de,hl
+        RAM_LAM
+        ex de,hl
+        cp ':'
+        jr z,getpathpartfound
+        inc de
+        inc c
+        ld a,b
+        sub c
+        jr nz,getpathpartnextchar
+        ld e,l
+        ld d,h
+        ld c,0
+GetPathPartFound
+        ld a,b
+        sub c
+        ld b,a
+        ret
+
+;
+; Découpe un nom de fichier complet (sans lecteur logique/physique) en chemin + nom du type
+; [:][chemin1/][chemin2/]fichier
+;
+; Entrée - HL = pointeur vers le nom de fichier complet
+;          B = longueur du nom de fichier
+; Sortie - DE = pointeur vers le chemin filtré (= HL donné en entrée)
+;          C = longueur du chemin filtré (0 si le fichier ne contient pas de chemin)
+;          HL = pointeur vers le nom de fichier filtré
+;          B = longueur du nom de fichier filtré
+; Altéré - AF,BC,DE,HL
+
+CheckFilePath
+        ld a,b
+
+        ld e,l
+        ld d,h
+        ld bc,0
+
+        or a
+        ret z
+
+        push de
+CheckFileLocalPathLoop
+        push af
+        ex de,hl
+        RAM_LAM
+        ex de,hl
+        inc de
+        inc b
+        cp ':'
+        call z,checkfilefoundpathmark
+        cp '/'
+        call z,checkfilefoundpathmark
+        pop af
+        cp b
+        jr nz,checkfilelocalpathloop
+        ld a,b
+        sub c
+        ld b,a
+        pop de
+        ret
+
+CheckFileFoundPathMark
+        ld l,e
+        ld h,d
+        ld c,b
+        ret
+
+;
+; Vérifie si un chemin se terminé par un '/'
+; sans être précédé d'un ':'
+;
+; Entrée - HL = pointeur vers le chemin
+;          B = longueur du chemin
+; Sortie - Z si le chemin se termine par un '/'
+;          NZ sinon
+; Altéré - AF
+
+IsDirectoryPath
+        push hl
+        push bc
+        dec b
+        ld c,b
+        ld b,0
+        add hl,bc
+        RAM_LAM
+        cp '/'
+        jr nz,isnotdirpath
+        dec hl
+        RAM_LAM
+        cp ':'
+        jr z,isnotdirpath
+        xor a
+IsNotDirPath
+        pop bc
+        pop hl
+        or a
+        ret
+
+;
+; Vérifie si le système vient de rebooter
+; Typiquement la présence de l'invite "©1985 Amstrad..."
+; et l'absence de caractères dans la première colonne
+;
+; Entrée - N/A
+; Sortie - Carry=1 si le système vient de rebooter
+; Altéré - AF,BC,DE,HL
+
+CheckReboot
+        ld hl,&c0f1
+        ld de,BootScreenData
+        ld b,8
+CheckRebootLoop
+        RAM_LAM
+        or a
+        jr nz,checkrebootnocold
+        inc l
+        RAM_LAM
+        ld c,a
+        ld a,(de)
+        cp c
+        jr nz,checkrebootnocold
+        inc de
+        dec l
+        ld a,h
+        add a,8
+        ld h,a
+        djnz checkrebootloop
+        scf
+        ret
+CheckRebootNoCold
+        or a
+        ret
+
+BootScreenData
+        db &30,&40,&b0,&a0,&b0,&40,&30,&00
+
+;
+; Alloue un espace dans la mémoire utilisateur (abaisse le MEMORY)
+;
+; Attention : si appelé depuis une RSX, les descripteurs des paramètres
+;             et ce vers quoi ils pointent pourraient être perdus ;
+;             ils devront donc être recopié dans un autre espace mémoire
+;             au préalable
+;
+;             les tampons d'entrée/sortie du Basic sont également détruits
+;             lors de l'allocation mémoire, attention à ce qu'aucun fichier
+;             du Basic ne soit encore ouvert (faire des cas abandon avant)
+;
+; Entrée - DE = nombre d'octets à réserver
+; Sortie - HL = ancienne valeur du memory
+;          DE = adresse de début de la mémoire utilisateur disponible (HIMEM+1)
+; Altété - DE,HL
+
+AllocMem
+        push af
+        call freeinbuffer
+        call freeoutbuffer
+        push bc
+        call getmemory
+        push hl
+        or a
+        sbc hl,de
+        call setmemory
+        pop hl
+        pop bc
+        pop af
+        inc de
+        ret
+
+;
+; Positionne la limite de la mémoire utilisateur (règle le MEMORY)
+;
+; Attention : si appelé depuis une RSX, les descripteurs des paramètres
+;             et ce vers quoi ils pointent pourraient être perdus ;
+;             ils devront donc être recopié dans un autre espace mémoire
+;             au préalable
+;
+; Entrée - HL = nouvelle valeur pour la limite de la mémoire
+; Sortie - N/A
+; Altété - AF,BC,DE,HL
+
+SetMemory
+        ex de,hl
+        call checkbasic
+        ld c,a
+        ld hl,_bas_setmemory
+        FAR_PCHL
+        ret
+
+;
+; Récupère la limite de la mémoire utilisateur (lit le MEMORY)
+;
+; Entrée - N/A
+; Sortie - HL = valeur courante de la limite de la mémoire utilisateur
+; Altété - HL
+
+GetMemory
+        ld hl,(_bas_memory)
+        ret
+
+;
+; Libère les tampons d'entrée et de sortie alloués par le Basic
+; (sans effet s'ils sont déjà désalloués)
+;
+; Entrée - N/A
+; Sortie - N/A
+; Altéré - AF
+
+FreeInBuffer
+;        push af
+        ld a,&fe    ; Tampon du fichier en entrée
+        call freeiobuffer
+;        xor a
+;        ld (_kl_cas_file_in),a
+;        pop af
+        ret
+FreeOutBuffer
+;        push af
+        ld a,&fd    ; Tampon du fichier en sortie
+        call freeiobuffer
+;        xor a
+;        ld (_kl_cas_file_out),a
+;        pop af
+        ret
+FreeIOBuffer
+        push hl
+        push de
+        push bc
+        push af
+        call checkbasic
+        ld c,a
+        pop af
+        ld hl,_bas_freebuffer
+        FAR_PCHL
+        pop bc
+        pop de
+        pop hl
+        ret
+;BasicCancelAllInOutFarCallBlock  ; Basic 1.1+ seulement
+;        dw &d300
+;        db 0
+
+;
+; Vérifie si l'extension est présente dans un nom de fichier
+;
+; Entrée - HL = pointeur vers le nom de fichier
+;          B = longueur du nom de fichier
+; Sortie - Si Z alors une extension est présente
+; Altéré - AF
+;
+
+CheckExtension
+        push hl
+        push bc
+LoopCheckExt
+        RAM_LAM
+        cp '.'
+        jr z,checkextret                ; Z
+        inc hl
+        djnz loopcheckext
+        or a                            ; NZ
+CheckExtRet
+        pop bc
+        pop hl
+        ret
+
+;
+; Vérifie si un nom de fichier normalisé (8+3) est valide
+;
+; Entrée - HL = pointeur vers le nom de fichier normalisé
+; Sortie - Si Carry= 1 alors le nom normalisé est valide
+; Altéré - Flags
+
+CheckStringValidity
+        push af
+        push bc
+        push de
+        push hl
+        ld b,11
+CheckStringLoop
+        RAM_LAM
+        and &7f
+        cp 32
+        jr c,checkstringfailure
+        ld c,a
+        ld de,invalidchars
+CheckStringNextValidity
+        ld a,(de)
+        or a
+        jr z,checkstringnextchar
+        cp c
+        jr z,checkstringfailure
+        inc de
+        jr checkstringnextvalidity
+CheckStringNextChar
+        inc hl
+        djnz checkstringloop
+        jr checkstringsuccess
+CheckStringFailure
+        pop hl
+        pop de
+        pop bc
+        pop af
+        cp a    ; NC
+        ret
+CheckStringSuccess
+        pop hl
+        pop de
+        pop bc
+        pop af
+        scf     ; C
+        ret
+
+InvalidChars
+        db 37,40,41,42,44,46,47,58,59,60,61,62,63
+        db 91,92,93,95,124,127
+        db 0
+
+;
+; Teste l'appui sur ESC
+;
+; Entrée - Aucune
+; Sortie - C alors ESC a été pressée deux fois de suite
+; Altéré - AF
+
+TestEsc call _km_read_key
+        ret nc
+        cp &fc                          ; ESC ?
+        scf:ccf
+        ret nz
+        call _txt_cur_on                ; Curseur système actif
+TestEscAgain
+        call _km_wait_key               ; Pause...
+        cp &ef                          ; On ignore &ef qui est renvoyé
+        jr z,testescagain               ; juste après ESC la première fois !
+        call _txt_cur_off               ; Curseur système inactif
+        cp &fc                          ; ESC encore ?
+        scf
+        ret z
+        ccf
+        ret
+
+;
+; Teste si les touches CONTROL/SHIFT sont appuyées
+;
+; Entrée - N/A
+; Sortie - Si le bit 7 de A vaut 0 alors CONTROL est appuyé
+;        - Si le bit 5 de A vaut 0 alors SHIFT est appuyé
+; Altéré - AF,BC
+
+CheckQualifiers
+        di
+        ld bc,&f40e
+        out (c),c
+        ld bc,&f6c0
+        out (c),c
+        xor a
+        out (c),a
+        ld bc,&f792
+        out (c),c
+        ld bc,&f642
+        out (c),c
+        ld b,&f4
+        in a,(c)
+        ld bc,&f782
+        out (c),c
+        ld bc,&f600
+        out (c),c
+        ei
+        and &a0
+        ret
+
+;
+; Compare deux chaînes de caractères
+;
+; Entrée - HL = première chaîne à comparer
+;          DE = deuxième chaîne à comparer
+; Sortie - Si Z alors les deux chaînes sont identiques
+; Altéré - AF,DE,HL
+
+CompareString
+        push de
+        push hl
+CompareStringLoop
+        ld a,(de)
+        cp (hl)
+        jr nz,comparestringdifferent
+        rla
+        jr c,comparestringsame
+        inc hl
+        inc de
+        jr comparestringloop
+CompareStringSame
+        cp a ; Z
+CompareStringDifferent
+        pop hl
+        pop de
+        ret
+
+;
+; Normalise un nom de fichier
+;
+; Entrée - HL = adresse du nom de fichier non normalisé
+;          B = longueur du nom de fichier non normalisé
+;          DE = adresse où stocker le nom de fichier normalisé
+; Sortie - Si Z alors le nom n'a pas pu etre normalisé (invalide)
+;          Si NZ le nom a été normalisé en 8+3 en DE (y compris les jokers)
+; Altéré - AF,BC,DE,HL
+
+NormalizeName
+        ld a,b
+        or a
+        ret z
+        ld c,b
+        call normnameremovespaces
+        jr z,normfileinvalid
+NormNameGo
+        ld b,8
+NormNameLoop
+        RAM_LAM
+        inc hl
+        dec c
+        cp '*'
+        jr z,normfilewildcard
+        cp '.'
+        jr z,normextfound
+        call toupper
+        ld (de),a
+        inc de
+        dec b
+        xor a
+        cp c
+        jr z,normextfound
+        cp b
+        jr nz,normnameloop
+        RAM_LAM
+        cp '.'
+        jr nz,normfileinvalid
+        inc hl
+        dec c
+NormExtFound
+        ld a,b
+        or a
+        jr z,normnonamepad
+        cp 8
+        ret z                           ; Nom de fichier vide
+        call normaddspaces
+NormNoNamePad
+        ld b,3
+        xor a
+        cp c
+        jr z,normnotextfound
+        call normnameremovespaces
+        jr z,normnotextfound
+NormExtLoop
+        RAM_LAM
+        inc hl
+        dec c
+        cp '.'
+        jr z,normfileinvalid
+        cp '*'
+        jr z,normextwildcard
+        call toupper
+        ld (de),a
+        inc de
+        xor a
+        dec b
+        cp c
+        jr z,normendfound
+        cp b
+        jr nz,normextloop
+NormEndFound
+        ld a,b
+        or a
+        jr z,normnoextpad
+NormNotExtFound
+        call normaddspaces
+NormNoExtPad
+        xor a
+        cp c
+        jr z,normsuccess
+NormCheckEmptyPad                       ; Nom plus long que 8+3 mais avec des espaces à la fin?
+        RAM_LAM                         ; (OCP Art Studio forme les noms ainsi)
+        cp ' '
+        jr nz,normfileinvalid
+        inc hl
+        dec c
+        jr nz,normcheckemptypad
+        jr normsuccess
+NormFileInvalid
+        cp a                            ; Z
+        ret                             ; Nom trop long ou invalide
+NormSuccess
+        inc a                           ; NZ
+        ret
+
+NormAddSpaces
+        ld a,' '
+NormAddSpacesLoop
+        ld (de),a
+        inc de
+        djnz normaddspacesloop
+        ret
+
+NormNameRemoveSpaces
+        RAM_LAM
+        cp ' '
+        ret nz
+        inc hl
+        dec c
+        jr nz,normnameremovespaces
+        ret
+
+NormFileWildcard
+        call normwildcardfound
+        jr nz,normfileinvalid
+        xor a
+        cp c
+        jr z,normnonamepad
+        RAM_LAM
+        cp '.'
+        jr nz,normnonamepad
+        inc hl
+        dec c
+        jr normnonamepad
+NormExtWildcard
+        call normwildcardfound
+        jr nz,normfileinvalid
+        RAM_LAM
+        cp '.'
+        jr z,normfileinvalid
+        jr normnoextpad
+
+NormWildcardFound
+        ld a,'?'
+        ld (de),a
+        inc de
+        dec b
+        xor a
+        cp b
+        ret z
+        cp c
+        jr z,normwildcardfound
+        RAM_LAM
+        cp ' '
+        jr z,normwildcardok
+        cp '.'
+        ret nz
+        jr normwildcardfound
+NormwildcardOk
+        dec c
+        inc hl
+        jr normwildcardfound
+
+;
+; Compact un nom de fichier normalise
+;
+; Entrée - HL = adresse du nom de fichier normalisé
+;          DE = adresse où stocker le nom de fichier compacté
+; Sortie - DE = adresse de l'octet suivant le nom de fichier compacté
+; Altéré - AF,BC,DE,HL
+
+CompactName
+        ld b,8
+        call compactnamepart
+
+        ld a,(hl)
+        cp ' '
+        ret z
+
+        ld a,'.'
+        ld (de),a
+        inc de
+
+        ld b,3
+CompactNamePart
+        ld a,(hl)
+        inc hl
+        cp ' '
+        jr z,compactnamepartskip
+        ld (de),a
+        inc de
+CompactNamePartSkip
+        djnz compactnamepart
+        ret
+
+;
+; Convertit un caractère en majuscule
+;
+; Entrée - A = caractère à convertir
+; Sortie - A = caractère mis en majuscule (inchangé si l'opération est impossible)
+; Altéré - AF
+
+ToUpper cp 'a'
+        ret c
+        cp 'z'+1
+        ret nc
+        add a,'A'-'a'
+        ret
+
+;
+; Vérifie qu'un nom de fichier normalisé correspond à un autre
+; (avec gestion des jokers sur le second nom de fichier)
+;
+; Entrée - HL = adresse du premier nom de fichier
+;          DE = adresse du second nom de fichier
+; Sortie - Si Z alors les fichiers correspondent
+; Altéré - AF,BC,DE,HL
+
+MatchFileName
+        ld c,8
+        call matchstring
+        ret nz
+        ld c,3
+MatchString
+        ld a,(de)
+        cp (hl)
+        jr z,matchfilenamechar
+        ld b,'?'
+        cp b
+        ret nz                          ; NZ -> ça ne correspond pas
+MatchFileNameChar
+        inc hl
+        inc de
+        dec c
+        jr nz,matchstring
+        ret                             ; Z  -> ça correspond
+
+;
+; Retourne l'adresse du répertoire de la profondeur demandée
+; En pratique, fait le calcul HL = HL + (8+3) * A
+;
+; Entrée - HL = adresse du chemin où chercher le répertoire
+;          A = profondeur désirée
+; Sortie - HL = adresse du répertoire (8+3)
+; Altéré - BC,HL
+
+GetDirAdr
+        push hl
+        ld l,a:ld h,0
+        add hl,hl
+        ld c,l:ld b,h
+        add hl,hl
+        add hl,hl
+        add hl,bc
+        ld c,a:ld b,0
+        add hl,bc
+        ld c,l:ld b,h
+        pop hl
+        add hl,bc
+        ret
+
+;
+; Décode un entête Amsdos
+;
+; Entrée - HL = adresse de l'entête
+; Sortie - Si Z alors c'est un entête valide
+;            HL = adresse d'exécution
+;            DE = adresse de chargement
+;            BC = longeur de fichier
+;            A = type de fichier
+; Altéré - AF,BC,DE,HL,IX
+
+DecodeHeader
+        ld d,h
+        ld e,l
+        ld b,&43
+        xor a
+LoopEmptyHeader
+        or (hl)
+        jr nz,decodeheadernotempty
+        inc hl
+        djnz loopemptyheader
+        inc a                           ; NZ
+        ret
+DecodeHeaderNotEmpty
+        ld b,fileheadsize-2
+        ld hl,0
+        push de
+LoopDecodeHeader
+        ld a,(de)
+        inc de
+        ld c,a
+        ld a,b
+        ld b,0
+        add hl,bc
+        ld b,a
+        djnz loopdecodeheader
+        pop ix
+        ld c,(ix+filehead.csh+0)
+        ld b,(ix+filehead.csh+1)
+        xor a
+        sbc hl,bc
+        ret nz
+        ld l,(ix+filehead.entry+0)
+        ld h,(ix+filehead.entry+1)
+        ld c,(ix+filehead.length+0)
+        ld b,(ix+filehead.length+1)
+        ld e,(ix+filehead.loadadr+0)
+        ld d,(ix+filehead.loadadr+1)
+        ld a,(ix+filehead.type)
+        ret
+
+;
+; Remet à zéro une zone de header
+;
+; Entrée - HL = adresse de la zone de header
+; Sortie - N/A
+; Altéré - AF,B,HL
+
+ResetHeader
+        ld b,fileheadsize
+        ex de,hl
+        call clearmemory
+        ex de,hl
+        ret
+
+;
+; Efface le contenu d'une zone mémoire
+;
+; Entrée - DE = adresse de la zone mémoire à effacer
+;          B = taille
+; Sortie - DE = adresse suivant la dernière zone effacée
+; Altéré - AF,B,DE
+
+ClearMemory
+        xor a
+ClearMemoryLoop
+        ld (de),a
+        inc de
+        djnz clearmemoryloop
+        ret
+
+;
+; Calcule le CSH d'un header
+;
+; Entrée - HL = adresse du header
+; Sortie - DE=CSH
+; Altéré - AF,BC,DE,HL
+
+ComputeCSH
+        ld de,0
+        ld b,0
+        ld a,fileheadsize-2
+ComputeCSHLoop
+        ld c,(hl)
+        inc hl
+        ex de,hl
+        add hl,bc
+        ex de,hl
+        dec a
+        jr nz,computecshloop
+        ret
+
+;
+; Retourne l'adresse de base d'une ROM de second plan
+;
+; Entrée - C = numéro de la ROM
+; Sortie - HL = adresse de base de la ROM
+; Altéré - AF,BC,HL
+
+GetROMBaseAddress
+        ld hl,0                     ; Par défaut, HL = 0
+
+        ld a,c
+    if firmware > 1
+        cp 16
+    else
+        dec a
+        cp 7
+    endif
+        ret nc                      ; Numéro de ROM active ?
+
+GetROMBaseAddressExists
+        add a,a
+        ld l,a
+        ld bc,_kl_rom_base_address_table
+        add hl,bc                   ; HL = adresse de travail de la ROM C
+        ld a,(hl)
+        inc hl
+        ld h,(hl)
+        ld l,a
+        ret
+
+;
+; Recherche la ROM AMSDOS (ou compatible) dans la liste des ROMs déjà initialisées
+;
+; Entrée - N/A
+; Sortie - C si la ROM AMSDOS a été trouvée
+;              C = numéro de la ROM trouvée
+;          NC si la ROM n'a pas été trouvée
+; Altéré - AF,BC,DE,HL,IX
+
+FindAmsdos
+        ld ix,_kl_rom_block_chain
+NextROMBlock
+        ld a,(ix+0)
+        or (ix+1)
+        ret z                       ; Z/NC, Non trouvée ! (dernière ROM installée rencontrée)
+        ld e,(ix+0)
+        ld d,(ix+1)
+        ld ixl,e
+        ld ixh,d
+        ld c,(ix+2)                 ; C = Numéro de la ROM chaînée
+        call _kl_curr_selection
+        cp c
+        jr z,nextromblock           ; On se saute soi-même
+        ld e,c
+        call getrombaseaddress
+        ld c,e
+        ld de,(_dos_rom_base_address)
+        xor a
+        sbc hl,de                   ; Comparaison avec l'adresse de base de la ROM en charge du DOS
+        jr nz,nextromblock
+GoodROMBlock
+        scf
+        ret
+
+;
+; Recherche la ROM AMSDOS (ou ParaDOS) dans les ROMs 0-15 (même non initialisées)
+;
+; Entrée - N/A
+; Sortie - C si la ROM AMSDOS a été trouvée
+;              C = numéro de la ROM trouvée
+;          NC si la ROM n'a pas été trouvée
+; Altéré - AF,BC,DE,HL
+
+HuntAmsdos
+        ld c,0
+        jr huntamsdosnext
+
+HuntAmsdosLoop
+        ld hl,_kl_temp_rsx
+        call getrominfo
+        cp &01  ; Class
+        jr nz,huntamsdosnext
+        ld a,b  ; Mark
+        or a
+        jr nz,huntamsdosnext
+        ld a,d  ; Version
+        cp &05
+        jr z,huntamsdosmaybefound
+        cp &07
+        jr nz,huntamsdosnext
+HuntAmsdosMaybeFound
+        ld de,amsdosnamelist
+HuntAmsdosNameLoop
+        call comparestring
+        jr z,huntamsdosfound
+HuntAmsdosNameSeekNextName
+        ld a,(de)
+        inc de
+        rla
+        jr nc,huntamsdosnameseeknextname
+        ld a,(de)
+        or a
+        jr nz,huntamsdosnameloop
+HuntAmsdosNext
+        inc c
+        ld a,16
+        cp c
+        jr nc,huntamsdosloop
+HuntAmsdosExit
+        cp a    ; NC, Non trouvé !
+        ret
+HuntAmsdosFound
+        scf
+        ret
+
+AmsdosNameList
+        str "CPM ROM"   ; AMSDOS
+        str "PDos"      ; Old ParaDOS
+        str "PDOS"      ; New ParaDOS
+        str "ParaDOS"   ; Plus version
+        db 0
+
+;
+; Teste si la ROM 0 est le BASIC d'un CPC6128 (1.2) ou CPC+ (1.4)
+;
+; Entrée - N/A
+; Sortie - Z si la ROM BASIC est celle d'un CPC6128 ou CPC+
+;               A = numéro de la ROM où se trouve le Basic
+;          NZ si la ROM n'est pas celle d'un CPC6128 ou CPC+
+; Altéré - AF
+
+CheckBasic
+        push bc
+        push hl
+        ld c,0
+        jr checkbasicgo
+CheckBasicLoop
+        inc c
+        jr z,checkbasicfailed
+CheckBasicGo
+        call _kl_probe_rom
+        cp &80  ; Class
+        jr nz,checkbasicloop
+        ld a,l
+        cp 1    ; Mark = 1
+        jr nz,checkbasicloop
+        ld a,h
+        cp 2    ; Version = 2
+        jr z,checkbasicsucceeded
+        cp 4    ; Version = 4
+        jr z,checkbasicsucceeded
+        jr checkbasicloop
+CheckBasicFailed
+        or -1   ; NZ
+CheckBasicSucceeded
+        ld a,c
+        pop hl
+        pop bc
+        ret
+
+;
+; Formalise un chemin sous la forme : <drive name>:rep1/rep2
+;
+; La chaîne est terminé par le bit 7 mis à 1
+;
+; Entrée - A = numéro de lecteur physique
+;          DE = arborescence à formaliser
+;          HL = destination pour le chemin formalisé (DirBufferSize minimum)
+; Sortie - N/A
+; Altéré - AF,BC,DE
+
+FormatPath
+        push hl
+
+        ex de,hl
+        call device_getname
+        push af
+        call nc,storeunknownstring
+        ex de,hl
+        dec hl
+        res 7,(hl)
+        inc hl
+        ld (hl),':'
+        inc hl
+        pop af
+        jr nc,formatpathfinalize
+
+        ld a,(de)
+        or a
+        jr z,formatpathfinalize
+        inc de
+
+FormatPathLoop
+        push af
+
+        ex de,hl
+        push hl
+        call compactname
+        pop hl
+        ld bc,11
+        add hl,bc
+        ex de,hl
+
+        ld (hl),'/'
+        inc hl
+
+        pop af
+        dec a
+        jr nz,formatpathloop
+
+FormatPathFinalize
+        dec hl
+        set 7,(hl)
+        pop hl
+        ret
+
+;
+; Stocke la chaîne "???" dans un tampon (terminée par un bit 7 à 1)
+;
+; Entrée - DE = adresse du tampon où stocker la chaîne
+; Sortie - DE = adresse du premier caractère après la chaîne ajoutée
+; Altéré - AF,DE
+
+StoreUnknownString
+        push bc
+        push hl
+        ld hl,msg_unknownstring
+        ld c,8
+        call copystring
+        pop hl
+        pop bc
+        ret
+
+;
+; Recherche si une ROM déclare un noeud DOS
+;
+; Entrée - C = numéro de ROM
+; Sortie - Si C alors la ROM déclare un noeud DOS
+;          Si NC la ROM ne déclare pas de noeud DOS
+; Altéré - Flags,_dos_rom_temp_routine
+
+IsDOSNode
+        push hl
+        push de
+        push bc
+        call isdosnodeinternal
+        pop bc
+        pop de
+        pop hl
+        ret
+IsDOSNodeInternal
+        ld hl,dosnodersx
+        call copyrsxnametoram
+        call searchrsxinsinglerom
+        ret nc
+        ld bc,_dosnode_init
+        or a
+        sbc hl,bc
+        scf
+        ret z ; C, noeud DOS trouvé !
+        ccf
+        ret
+DOSNodeRSX
+        str "DOS Node"
+
+;
+; Récupère le type, la version et le nom d'une ROM
+;
+; Entrée - HL = adresse où stocker le nom de la ROM (jusqu'à 16 caractères)
+;           C = numéro de la ROM
+; Sortie - HL = adresse où a été stocké le nom de la RSX (contient 0 si le numéro demandé n'existait pas)
+;          A = type
+;          B = mark
+;          D = version
+;          E = revision
+; Altéré - AF,B,DE,_dos_rom_temp_routine
+
+GetROMInfo
+        push bc
+        push hl
+        ld de,_dos_rom_temp_routine
+        ld hl,getrominforoutine
+        ld bc,getrominforoutineend-getrominforoutine
+        ldir
+        pop hl
+        pop bc
+
+        push hl
+        ex de,hl
+        push bc
+        call _dos_rom_temp_routine
+        pop bc
+        ld a,e
+        ld b,d
+        ld d,l
+        ld e,h
+        pop hl
+        ret
+GetROMInfoRoutine
+        push af
+        call _kl_rom_select
+        pop af
+        push bc
+
+        ld hl,(_rsxtable)
+        ld bc,16
+        ldir
+
+        ld de,(_romtag+0)
+        ld hl,(_romtag+2)
+
+        pop bc
+        jp _kl_rom_select
+GetROMInfoRoutineEnd
+
+;
+; Recherche d'une RSX dans une ROM donnée
+;
+; Entrée - HL = nom de la RSX à rechercher
+;           C = numéro de ROM où chercher
+; Sortie - Si C alors la RSX a été trouvée
+;              Le "far call" temporaire été configuré pour l'invoquer (via InvokeRSX)
+;          Si NC la RSX n'a pas été trouvée
+; Altéré - HL,Flags,_dos_rom_temp_routine
+
+FindRSX push bc
+        push de
+        call copyrsxnametoram
+        call searchrsxinsinglerom
+        jr nc,rsxnotfound
+RSXFound
+        call configuretempfarcall
+RSXNotFound
+        pop de
+        pop bc
+        ret
+
+;
+; Configure le "far call" temporaire
+;
+; Entrée - HL = adresse
+;           C = numéro de ROM
+; Sortie - Un "far call" temporaire été configuré pour l'invoquer
+;          (via InvokeRSX ou InvokeDOSNodeFarCall)
+; Altéré - _dos_rom_temp_routine
+
+ConfigureTempFarCall
+        ld (_dos_rom_temp_routine+0),hl
+        ld (_dos_rom_temp_routine+2),bc
+        ret
+
+;
+; Appelle la RSX trouvée via SeekRSX ou FindRSX
+;
+; Entrée - Selon la RSX
+; Sortie - Selon la RSX
+; Altéré - Selon la RSX
+
+InvokeRSX
+        FAR_CALL _dos_rom_temp_routine
+        ret
+
+;
+; Recopie le nom d'une RSX dans le _dos_rom_temp_routine
+; (nécessaire car les noms de RSX doivent être en mémoire vive)
+;
+; Entrée - HL = pointeur vers le nom de la RSX
+; Sortie - HL = pointeur vers _dos_rom_temp_routine (qui contient une copie du nom de la RSX)
+; Altéré - HL
+
+CopyRSXNameToRAM
+        push bc
+        push de
+        ld de,_dos_rom_temp_routine
+        push de
+        ld bc,&10       ; Largement assez pour un nom de RSX
+        ldir            ; Recopie en RAM
+        pop hl
+        pop de
+        pop bc
+        ret
+
+;
+; Recherche d'une RSX dans une ROM donnée
+;
+; Entrée - HL = nom de la RSX à rechercher
+;           C = numéro de ROM où chercher
+; Sortie - Si C alors la RSX a été trouvée
+;              HL = adresse de la routine associée à la RSX
+;               C = numéro de la ROM
+;          Si NC la RSX n'a pas été trouvée
+;               C = 0
+; Altéré - Flags,HL,DE,BC
+
+SearchRSXInSingleROM
+        push af
+
+        call checkromclass
+        jr nc,searchrsxwrongromclass
+
+        ld de,(_kl_rom_block_chain) ; Récupération du premier chaînon
+
+        push de
+
+        ld e,c                      ; On crée sur la pile un chaînon final sur la ROM où rechercher
+        ld d,0
+        push de
+        ld e,d
+        push de
+
+        ex de,hl
+        ld hl,0
+        add hl,sp
+        ex de,hl
+        ld (_kl_rom_block_chain),de ; On remplace le premier chaînon par le nôtre
+
+        call _kl_old_find_command   ; HL=adresse, C=ROM config
+
+        pop de
+        pop de                      ; On dépile le chaînon qu'on avait créé sur la pile
+
+        pop de
+        ld (_kl_rom_block_chain),de ; On restaure le chaînon originel
+
+        jr nc,searchrsxnomatch
+SearchRSXMatched
+        pop af
+        scf                         ; C
+        ret
+SearchRSXNoMatch
+SearchRSXWrongROMClass
+        ld c,0                      ; On met C=0 en cas d'échec
+        pop af
+        cp a                        ; NC
+        ret
+CheckROMClass
+        push hl
+        push bc
+        push af
+        call _kl_probe_rom
+        cp 3
+        pop bc
+        ld a,b
+        pop bc
+        pop hl
+        ret
+
+;
+; Vérifie si on est la première ROM à être initialisée
+;
+; Entrée - HL = adresse de la mémoire haute
+; Sortie - Si NZ alors on est la première ROM à être initialisée
+;          Si Z d'autres ROM ont déjà été initialisées
+;          Dans tous les cas Carry = 0
+; Altéré - AF,HL
+
+IsFirstROMInit
+        ld bc,-_kl_rom_initial_himem and &ffff
+        add hl,bc
+        ld a,l
+        or h
+        ret
+
+;
+; Vérifie si l'interface cassette est présente
+;
+; Entrée - Aucune
+; Sortie - Si C alors l'interface cassette est présente
+;          Si NC alors l'interface cassette est absente
+; Altéré - Flags
+
+IsTapeInterface
+        push bc
+        ld b,&f5    ; Test un peu primitif mais difficile de faire mieux simplement
+        in c,(c)
+        rl c
+        pop bc
+        ccf
+        ret
+
+;
+; Ajoute ou retire des flags dans le tag de désactivation des ROMs
+;
+; Entrée - B = flags à positionner
+;          C = flags à retirer
+; Sortie - A = nouvelle valeur des flags de désactivation
+; Altéré - AF,DE,HL
+
+WriteDisableROMTag
+        call readdisableromtag
+        ld e,a
+        ld a,c
+        xor &ff
+        and e
+        or b
+        ld de,magicnumber
+        ld (disableromtagadr+disableromtag.magicnumber),de
+        ld (disableromtagadr+disableromtag.flags),a
+        ret
+
+;
+; Lit la valeur du tag de désactivation des ROMs
+;
+; Entrée - N/A
+; Sortie - A = valeur des flags de désactivation
+; Altéré - AF,DE,HL
+
+ReadDisableROMTag
+        ld de,-(magicnumber) and &ffff
+        ld hl,(disableromtagadr+disableromtag.magicnumber)
+        add hl,de
+        ld a,h
+        or l
+        ld a,(disableromtagadr+disableromtag.flags)
+        ret z
+        xor a
+        ret
+
+;
+; Met à jour l'extension de fichier
+;
+; Entrée - DE = extension à modifier
+;          HL = nouvelle extension
+; Sortie - DE = DE+3
+;          HL = HL+3
+;          BC = BC-3
+; Altéré - BC,DE,HL
+
+FixFileExtension
+        ldi
+        ldi
+        ldi
+        ret
+
+;
+; Retourne l'extension correspondant à un type
+;
+; Entrée - A = type de fichier
+; Sortie - HL = extension
+; Altéré - AF,HL
+
+GetExtFromType
+        and &0e             ; On ignore les bits indiquant la version et la protection
+        cp dsk_file_type_basic
+        ld hl,fileextbas
+        ret z
+        cp dsk_file_type_binary
+        ld hl,fileextbin
+        ret z
+        cp dsk_file_type_symbolic_link  
+        ld hl,fileextlnk    ; Type de fichier spécifique à l'UniDOS pour les liens symboliques
+        ret z
+        ld hl,fileextempty
+        ret
+
+FileExtTemp
+        db "$$$"
+FileExtNone
+        db &ff,&ff,&ff
+FileExtBAK
+        db "BAK"
+FileExtEmpty
+        db "   "
+FileExtBAS
+        db "BAS"
+FileExtBIN
+        db "BIN"
+FileExtLNK
+        db "LNK"
+
+DefaultLoadExt  ; Tableau des extensions par défaut lors du InOpen
+        dw fileextbas
+        dw fileextbin
+        dw fileextlnk
+        dw 0
+
+;
+; Routine de (dé)chiffrement des données
+; (sans effet pour les formats non protégés)
+;
+; Entrée - A = type de fichier
+;          HL = adresse où se trouvent les données
+;          DE = longueur des données
+; Sortie - Aucune
+; Altéré - AF,BC,IX
+
+DoCypher
+        and dsk_file_type_protected_flag
+        ret z
+
+        push hl
+        push de
+        ld a,e
+        and &7f     
+        ld c,a          ; Longueur du dernier enregistrement incomplet
+        ld a,e
+        ld e,d
+        ld d,0
+        sla a:rl e:rl d ; DE = nombre d'enregistrements complets
+DoCypherLoop
+        ld a,&80
+        call docypherrecord
+        dec de
+        ld a,e
+        or d
+        jr nz,docypherloop
+
+        ld a,c
+        or a
+        call nz,docypherrecord
+
+        pop de
+        pop hl
+        ret
+
+DoCypherRecord
+        push de
+        push hl
+        ld de,&0101
+        ld b,a
+        inc b
+        jr docypherrecordentry
+
+DoCypherRecordLoop
+        ex (sp),hl
+        RAM_LAM
+        ex (sp),hl
+        xor (hl)
+        xor (ix+&00)
+        ex (sp),hl
+        ld (hl),a
+        inc hl
+        ex (sp),hl
+        inc ix
+        inc hl
+DoCypherRecordEntry
+        dec d
+        jr nz,docypherrecordskip1
+        ld d,&0b
+        ld ix,cypherkey1
+DoCypherRecordSkip1
+        dec e
+        jr nz,docypherrecordskip2
+        ld e,&0d
+        ld hl,cypherkey2
+DoCypherRecordSkip2
+        djnz docypherrecordloop
+        pop hl
+        pop de
+        ret
+
+CypherKey1
+        db &49,&b1,&36,&f0,&2e,&1e,&06,&2a,&28,&19,&ea
+CypherKey2
+        db &e2,&9d,&db,&1a,&42,&29,&39,&c6,&b3,&c6,&90,&45,&8a
+
+;
+; Retourne le nom court du moins à partir de son numéro
+;
+; Entrée - A = numéro du mois (1..12)
+; Sortie - HL = pointeur vers le nom court du mois
+; Altéré - HL
+
+GetMonthShortName
+        ld hl,monthshortnames
+GetShortName
+        push bc
+        push af
+        dec a
+        ld c,a
+        add a,a
+        add a,c
+        ld c,a
+        ld b,0
+        add hl,bc
+        pop af
+        pop bc
+        ret
+
+MonthShortNames
+        str "Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"
+
+;
+; Retourne le nom court du jour à partir de son numéro
+;
+; Entrée - A = numéro du jour (1..7)
+; Sortie - HL = pointeur vers le nom court du jour
+; Altéré - HL
+
+GetDayShortName
+        ld hl,dayshortnames
+        jr getshortname
+
+DayShortNames
+        str "Mon","Tue","Wed","Thu","Fri","Sat","Sun"
+
+;
+; Récupère l'heure et la date par défaut
+; (le Jeudi 15 Août 1985 à 00:00:00, jour de sortie du CPC6128 en Europe)
+;
+; Entrée - IX = tampon où stocker l'heure et la date par défaut (7 octets)
+; Sortie - IX = tampon rempli avec les informations d'heure et de date par défaut
+;               Un mot de 16 bits avec l'année (1978..9999)
+;               Un octet avec le numéro du mois (1..12)
+;               Un octet avec le numéro du jour dans le mois (1..28,29,30 ou 31)
+;               Un octet avec les heures (0..23)
+;               Un octet avec les minutes (0..59)
+;               Un octet avec les secondes (0..59)
+;           A = numéro du jour dans la semaine (1..7, du lundi au dimanche)
+; Altéré - Aucun
+
+GetDefaultDateTime
+        push hl
+        push de
+        push bc
+        ld hl,defaultdatetime
+        ld d,ixh
+        ld e,ixl
+        ld bc,7
+        ldir
+        pop bc
+        pop de
+        pop hl
+        ld a,4 ; Jeudi
+        ret
+DefaultDateTime
+        dw 1985
+        db 8,15
+        db 0,0,0
+
+;
+; Vérifie (sommairement) qu'une heure et date sont valides
+;
+; Entrée - IX = tampon vers l'heure et la date à valider
+; Sortie - Si Carry alors l'heure et la date son valides
+; Altéré - Aucun
+
+IsValidDateTime
+        push bc
+        ld c,a
+        call isvaliddatetimeinternal
+        ld a,c
+        pop bc
+        ret
+
+IsValidDateTimeInternal
+        ld a,(ix+2) ; Mois
+        cp 13
+        ret nc
+        or a
+        ret z
+        ld a,(ix+3) ; Jour
+        cp 32
+        ret nc
+        or a
+        ret z
+        ld a,(ix+4) ; Heures
+        cp 24
+        ret nc
+        ld a,(ix+5) ; Minutes
+        cp 60
+        ret nc
+        ld a,(ix+6) ; Secondes
+        cp 60
+        ret
+

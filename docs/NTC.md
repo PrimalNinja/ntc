@@ -944,7 +944,8 @@ with `mem_hlo` / `mem_hhi` set to it).
 
 **Warnings.** Not errors - the program still builds. Now: a Function called as a statement
 ("the result of F is not used") - with no error handling, an unchecked status is worth
-seeing. The GUI shows warnings in yellow under the errors.
+seeing. An inline `#asm` block that pushes (or calls) while SP is the thread (see Inline
+assembly). The GUI shows warnings in yellow under the errors.
 
 ### Inline assembly
 
@@ -1011,6 +1012,14 @@ About 90 T against about 205 T through the stubs.
   (`ld sp, {skip}` / `ret` jumps there). `{result}` is the
   function's result. Parameters are values at their labels (the call stub copied them in),
   so `ld a, ({b})` reads b; writing a ByRef parameter is copied back on return.
+- **SP is the thread inside the block.** A `push`, `call`, `rst` or `ex (sp), hl` writes below
+  SP - over the thread words already run - so the block works once and breaks the next time
+  that thread runs (a loop of calls prints garbage and hangs). To use the stack, switch to a
+  real one first and back after: `ld ({save}), sp` / `ld sp, (ntc_csp)` ... `ld sp, ({save})`.
+  A `pop` is safe (it is how a block takes a word put in the thread on purpose), and an asm
+  keyword procedure pops its own arguments by design. The compiler warns about a push, call,
+  rst or ex (sp) before the block's first label or `ld sp` (code after a label is taken to be
+  reached some other way, on a stack of its own).
 - Labels in a block are local to it (renamed `asm_<file>_<line>_<label>`).
 - Library routines a block names (e.g. `ntc_printbuf`) are linked.
 - Always reach BASIC names with `{name}`, never with the generated label (`var_x`,

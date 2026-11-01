@@ -1,0 +1,1153 @@
+;
+; Fonctions d'accès bas niveau à l'Albireo
+;
+
+;
+; Initialise l'espace de travail des routines bas niveau
+;
+; Entrée - Aucune
+; Sortie - Aucune
+; Altéré - Aucun
+
+InitLowLevel
+        push af
+        call setboardb
+        ld a,llf_kindnone
+        call setlowlevelfile
+        ld a,llm_none
+        call setlowlevelmount
+
+        call setboarda
+        ld a,llf_kindnone
+        call setlowlevelfile
+        ld a,llm_none
+        call setlowlevelmount
+        pop af
+        ret
+
+;
+; Sélectionne la carte Albireo à utiliser en fonction du
+; lecteur et positionne les variables temporaires de
+; _DOS_ROM_TEMP_STORE
+;
+; Entrée - A = numéro de lecteur physique
+; Sortie - Aucune
+; Altéré - Flags
+
+SetBoard
+        bit drivebit_2ndboard,a
+        jr nz,setboardb
+SetBoardA
+        push bc
+        push hl
+        ld hl,(_dos_rom_base_address)
+        ld bc,dosmap.dosnodeprivatedata+0
+        add hl,bc
+        ld (currentlowlevel),hl
+        ld hl,albireocmdporta
+        ld (currentcmdPort),hl
+        ld hl,albireodataporta
+        ld (currentdataport),hl
+        pop hl
+        pop bc
+        ret
+SetBoardB
+        push bc
+        push hl
+        ld hl,(_dos_rom_base_address)
+        ld bc,dosmap.dosnodeprivatedata+1
+        add hl,bc
+        ld (currentlowlevel),hl
+        ld hl,albireocmdportb
+        ld (currentcmdport),hl
+        ld hl,albireodataportb
+        ld (currentdataport),hl
+        pop hl
+        pop bc
+        ret
+
+;
+; Monte le media du périphérique sélectionné s'il n'est pas déjà mounté
+; et sélectionne la carte Albireo associée
+;
+; Entrée - A = Drive_SDx pour la carte micro-SD
+;          A = Drive_UMSx pour l'USB Mass Storage
+; Sortie - Z si le périphérique a pu être sélectionné (ou était déjà sélectionné)
+; Altéré - AF,BC,E
+
+MountDevice
+        ld e,llm_microsd                        ; Carte micro-SD
+        cp drive_sd1
+        jr z,selectdevice
+        cp drive_sd2
+        jr z,selectdevice
+        ld e,llm_usbhost                        ; Port USB
+        cp drive_ums1
+        jr z,selectdevice
+        cp drive_ums2
+        ret nz
+SelectDevice
+        call setboard
+        call getlowlevelmount
+        cp e
+        ret z
+
+        call fileclose                          ; On ferme tout fichier potentiellement ouvert
+
+        ld a,cmd_set_usb_mode
+        call sendcmd
+        out (c),e
+        ex (sp),hl:ex (sp),hl
+        ex (sp),hl:ex (sp),hl                   ; Attente > 20us
+        in a,(c)
+        cp cmd_ret_success
+        ret nz
+        ld a,cmd_disk_mount
+        call sendcmdnodata
+;        inc c
+;        out (c),a
+;        jr waitinterrupt
+        ret nz
+        push af
+        ld a,e
+        call setlowlevelmount
+        pop af
+        cp a    ; Z
+        ret
+
+;
+; Monte le media du périphérique sélectionné et le remonte s'il est déjà monté
+
+; Entrée - Comme MountDevice
+; Sortie - Comme MountDevice
+; Altéré - Comme MountDevice
+
+ForceMountDevice
+        call forcenextmount
+        jr mountdevice
+
+;
+; Attente de l'interruption de l'Albireo
+;
+; Entrée - Aucune
+; Sortie - Z si OK (USB_INT_SUCESS)
+;          NZ dans tous les autres cas
+;          A = code de statut d'interruption
+; Altéré - AF,BC
+
+WaitInterrupt
+        push de
+        ld de,0                         ; 65536 tentatives (environ 5s)
+LoopWaitInterrupt
+        ld bc,(currentcmdport)
+        in a,(c)                        ; Lecture du registre de statut
+        rla                             ; Test du bit d'interruption (0 = int)
+        jr nc,endwaitinterrupt
+        ex (sp),hl:ex (sp),hl
+        ex (sp),hl:ex (sp),hl
+        ex (sp),hl:ex (sp),hl
+        ex (sp),hl:ex (sp),hl
+        dec de
+        ld a,d
+        or e
+        jr nz,loopwaitinterrupt
+EndWaitInterrupt
+        pop de
+
+        ld a,cmd_get_status
+;        call sendcmd
+        out (c),a
+        dec c
+        in a,(c)
+
+        cp usb_int_success
+        ret z
+
+        cp usb_int_disk_read
+        jr z,dontforcenextmount
+
+        cp usb_int_disk_write
+        jr z,dontforcenextmount
+
+        cp err_miss_file
+        jr z,dontforcenextmount
+
+        cp err_open_dir
+        jr z,dontforcenextmount
+ForceNextMount
+        push af
+        ld a,llm_none
+        call setlowlevelmount
+        pop af
+DontForceNextMount
+        or a    ; NZ
+        ret
+
+;
+; Demande la lecture des informations pour le fichier courant
+;
+; Entrée - Aucune
+; Sortie - Comme WaitInterrupt
+; Altéré - AF,BC
+
+FileReadInfo
+        ld a,cmd_dir_info_read
+        call sendcmd
+        ld a,&ff ; Fichier courant
+        out (c),a
+        jr waitinterrupt
+
+;
+; Sélection du fichier courant
+;
+; Entrée - HL = pointeur vers le nom de fichier normalisé (si &0000 alors * est utilisé)
+;          DE = pointeur vers le répertoire (profondeur + répertoire)
+;          La mémoire pointée est dans l'espace ROM/RAM courant
+; Sortie - Aucune
+; Altéré - Aucun
+
+SetFileName
+        push af
+        push bc
+        push de
+        push hl
+
+SetFileRetry
+        call fileclose
+
+        ld a,cmd_set_file_name
+        call sendcmd
+        ld a,'/':out (c),a
+        xor a   :out (c),a
+        call fileopen
+
+        ld a,(de)
+        or a
+        jr z,nofilepath
+
+SetFilePath
+        push hl
+
+        ld h,d
+        ld l,e
+        inc hl
+
+        ld b,0
+SetFilePathPartLoop
+
+        push bc
+
+        ld a,cmd_set_file_name
+        call sendcmd
+
+        ld a,8
+        call outira
+
+        ld a,'.':out (c),a
+
+        ld a,3
+        call outira
+
+        xor a:out (c),a
+
+        call fileopen
+
+        pop bc
+
+        cp err_open_dir
+        jr z,setfilepathpartok
+        ld a,b                  ; Chemin non trouvé ! (répertoire effacé entre temps)
+        ld (de),a               ; On le tronque et on s'arrête là
+        pop hl
+        jr setfileretry
+SetFilePathPartOk
+        inc b                   ; Sinon on passe à la partie de chemin suivante
+        ld a,(de)
+        cp b
+        jr nz,setfilepathpartloop
+
+        pop hl
+NoFilePath
+        ld a,cmd_set_file_name
+        call sendcmd
+
+        ld a,h
+        or l
+        jr nz,setgivenfilename
+
+        ld a,'*':out (c),a
+        jr setfilenameend
+
+SetGivenFileName
+        ld a,8
+        call outira
+
+        ld a,'.':out (c),a
+
+        ld a,3
+        call outira
+
+SetFileNameEnd
+        xor a:out (c),a
+
+        pop hl
+        pop de
+        pop bc
+        pop af
+
+        ret
+
+;
+; Ouverture en lecture/écriture du fichier ou du répertoire courant (SetFileName)
+;
+; Entrée - Aucune
+; Sortie - Comme WaitInterrupt
+; Altéré - AF,BC
+
+FileOpen
+        ld a,llf_kindunknown
+        call setlowlevelfile
+
+        ld a,cmd_file_open
+        jp sendcmdnodata
+
+;
+; Fermeture d'un fichier (ou d'un répertoire) avec mise à jour de la taille autorisée
+;
+; Entrée - Aucune
+; Sortie - Comme WaitInterrupt
+; Altéré - AF,BC
+
+FileClose
+        call getlowlevelfile
+        cp llf_kindnone
+        ld a,usb_int_success
+        ret z
+
+        ld a,llf_kindnone
+        call setlowlevelfile
+
+        ld a,cmd_file_close
+        call sendcmd
+        ld a,1 ; Mise à jour de la taille si besoin
+        out (c),a
+        jp waitinterrupt
+
+;
+; Création d'un fichier portant le nom courant (SetFileName)
+;
+; Entrée - Aucune
+; Sortie - Comme WaitInterrupt
+; Altéré - AF,BC
+
+FileCreate
+        ld a,cmd_file_create
+        jp sendcmdnodata
+
+;
+; Création d'un répertoire portant le nom courant (SetFileName)
+;
+; Entrée - Aucune
+; Sortie - Comme WaitInterrupt
+; Altéré - AF,BC
+
+DirectoryCreate
+        ld a,cmd_dir_create
+        jp sendcmdnodata
+
+;
+; Suppression du fichier ou du répertoire ouvert (FileOpen)
+;
+; Entrée - Aucune
+; Sortie - Comme WaitInterrupt
+; Altéré - AF,BC
+
+FileDelete
+        ld a,cmd_file_erase
+        jp sendcmdnodata
+
+;
+; Renome le fichier courant
+;
+; Entrée - HL = pointeur vers le nouveau nom de fichier normalisé
+;          La mémoire pointée est dans l'espace ROM/RAM courant
+; Sortie - Comme WaitInterrupt
+; Altéré - AF,BC,HL
+
+FileRename
+        call filereadinfo
+        ret nz
+
+        ld a,cmd_wr_ofs_data
+        call sendcmd
+        ld a,0  ; Offset
+        out (c),a
+        ld a,11 ; Longueur
+        out (c),a
+
+        call outira
+
+        ld a,cmd_dir_info_save
+        jp sendcmdnodata
+
+;
+; Change l'heure et la date du fichier courant
+;
+; Entrée - IX = tampon où ont été copiées l'heure et la date à utiliser
+;            Un mot de 16 bits avec l'année (1978..9999)
+;            Un octet avec le numéro du mois (1..12)
+;            Un octet avec le numéro du jour dans le mois (1..28,29,30 ou 31)
+;            Un octet avec les heures (0..23)
+;            Un octet avec les minutes (0..59)
+;            Un octet avec les secondes (0..59)
+;          La mémoire pointée est dans l'espace ROM/RAM courant
+; Sortie - Comme WaitInterrupt
+; Altéré - AF,BC,DE,HL
+
+FileSetDate
+        call filereadinfo
+        ret nz
+
+        ld a,cmd_wr_ofs_data
+        call sendcmd
+        ld a,22 ; Offset
+        out (c),a
+        ld a,4  ; Longueur
+        out (c),a
+
+        ld d,(ix+4) ; Heures
+        ld e,(ix+5) ; Minutes
+        sla e
+        sla e
+        sla e:rl d
+        sla e:rl d
+        sla e:rl d
+        ld a,(ix+6) ; Secondes
+        srl a
+        or e
+
+        out (c),a
+        out (c),d
+
+        ld l,(ix+0) ; Année
+        ld h,(ix+1)
+        ld de,-1980
+        add hl,de
+        ld h,l
+        ld l,(ix+2) ; Mois
+        sla l
+        sla l
+        sla l
+        sla l
+        sla l:rl h
+        ld a,(ix+3) ; Jour
+        or l
+
+        out (c),a
+        out (c),h
+
+        ld a,cmd_dir_info_save
+        jp sendcmdnodata
+
+;
+; Change les protections du fichier courant
+;
+; Entrée - D = Protections à modifier
+;          E = Nouvelles protections
+;               Bit 0 - Lecture seule
+;               Bit 1 - Caché
+;               Bit 5 = Archivé
+;          Les autres bits sont ignorés
+; Sortie - Comme WaitInterrupt
+; Altéré - AF,BC,DE
+
+FileSetProtection
+        ld a,e  ; On ne garde que les bits 0/1/5
+        and &23
+        ld e,a
+        ld a,d  ; On ne garde que les bits 0/1/5
+        and &23
+        xor &ff
+        ld d,a
+
+        call filereadinfo
+        ret nz
+
+        ld a,cmd_rd_usb_data0
+        call sendcmd
+        in a,(c)
+        cp 32
+        ret nz
+
+        ld a,11
+        call invoid
+
+        in a,(c)  ; On ne modifie avec E que les bits de D
+        and d
+        or e
+        ld e,a
+
+        ld a,20   ; Il est obligatoire de lire la totalité des données ici
+        call invoid
+
+        call filereadinfo
+        ret nz
+
+        ld a,cmd_wr_ofs_data
+        call sendcmd
+        ld a,11 ; Offset
+        out (c),a
+        ld a,1  ; Longueur
+        out (c),a
+        out (c),e
+        ld a,cmd_dir_info_save
+        jp sendcmdnodata
+
+If 0
+;
+; Récupère les informations cluster du fichier courant (tout sauf le nom)
+;
+; Entrée - HL = adresse où stocker les 21 octets des informations cluster
+; Sortie - Comme WaitInterrupt
+; Altéré - AF,BC
+
+GetClusterInfo
+        call filereadinfo
+        ret nz
+
+        ld a,cmd_rd_usb_data0
+        call sendcmd
+
+        in a,(c)
+        cp 32
+        ret nz
+
+        ld a,11
+        call invoid
+
+        push hl
+
+        ld a,21
+        call inira
+
+        pop hl
+
+        ret
+
+;
+; Met à jour les informations cluster du fichier courant (tout sauf le nom)
+;
+; Entrée - HL = adresse où sont stockés les 21 octets des informations cluster
+; Sortie - Comme WaitInterrupt
+; Altéré - AF,BC
+
+SetClusterInfo
+        call filereadinfo
+        ret nz
+
+        ld a,cmd_wr_ofs_data
+        call sendcmd
+
+        ld a,11 ; Offset
+        out (c),a
+        ld a,21 ; Longueur
+        out (c),a
+
+        push hl
+
+        call outira
+
+        pop hl
+
+        ld a,cmd_dir_info_save
+        jp sendcmdnodata
+EndIf
+
+;
+; Retourne l'espace libre sur le volume monté
+;
+; Entrée - Aucune
+; Sortie - Si Z alors BCDE contient l'espace libre en kilo-octets
+;                  et A le type de système de fichier
+;          Si NZ alors une erreur est survenue
+; Altéré - AF,BC,DE,HL
+
+GetDiskFreeSpace
+        ld a,cmd_disk_query
+        call sendcmdnodata
+        ret nz
+        ld a,cmd_rd_usb_data0
+        call sendcmd
+        in a,(c)
+        cp 9
+        ret nz
+;        jp nz,flushdata
+        in e,(c) ; Nombre de secteurs total
+        in d,(c)
+        in l,(c)
+        in h,(c)
+
+;        srl h:rr l:rr d:rr e
+;        push de
+;        push hl
+
+        in e,(c) ; Nombre de secteurs disponibles
+        in d,(c)
+        in l,(c)
+        in h,(c)
+
+        in a,(c) ; Type de système de fichier
+
+        srl h:rr l:rr d:rr e
+        ld b,h
+        ld c,l
+
+;        pop ix
+;        pop hl
+
+        cp a
+        ret
+
+;
+; Purge des données disponibles en provenance de l'Albireo
+;
+; Entrée - A = nombre de données à purger
+; Sortie - Aucune
+; Altéré - AF,BC,D
+;
+
+;FlushData
+;        ld bc,(currentdataport)
+;        ld d,a
+;LoopFlushData
+;        in a,(c)
+;        dec d
+;        jr nz,loopflushdata
+;        ret
+
+;
+; Lecture des données d'un fichier ouvert
+;
+; Entrée - HL = adresse où stocker les données
+;          DE = nombre d'octets à lire
+; Sortie - Z si succés
+;            DE = longueur effectivement lue
+;          NZ si une erreur est survenue
+;            A = code d'erreur
+; Altéré - AF,BC,DE,HL
+
+ReadDataFromFile
+        push hl
+        ld a,cmd_byte_read
+        call sendcmd
+        out (c),e
+        out (c),d
+ReadDataNextBlock
+        call waitinterrupt
+        cp usb_int_success
+        jr z,readdatablock
+        cp usb_int_disk_read
+        jr z,readdatablock
+ReadDataError
+        pop hl
+        ret
+ReadDataBlock
+        ld e,a
+        call readdata
+        jr nz,readdatachecknextblock
+        ld a,e
+        cp usb_int_disk_read
+        jr z,readdatachecknextblock
+ReadDataEnd
+        xor a
+        pop de
+        sbc hl,de
+        ex de,hl
+        xor a ; Z
+        ret
+ReadDataCheckNextBlock
+        ld bc,(currentcmdport)
+        ld a,cmd_byte_rd_go
+        out (c),a
+        jr readdatanextblock
+
+;
+; Lit toutes les données disponibles en provenance de l'Albireo
+;
+; Entrée - HL = adresse où stocker les informations
+; Sortie - Si NZ alors des données ont été lues
+;            HL = fin de la zone modifiée
+;          Si Z il n'y avait pas de données à lire
+; Altéré - AF,BC,HL
+
+ReadData
+        ld a,cmd_rd_usb_data0
+        ld bc,(currentcmdport)
+        out (c),a
+        dec c
+        in a,(c)
+        or a
+        ret z
+
+        push hl
+        ld b,0
+        ld c,a
+        ld h,b
+        ld l,c
+        add hl,hl
+        add hl,bc
+        ld c,l      ; BC=A*3 (3 = taille de "ini:inc b")
+        ld b,h
+        ld hl,readdataroutineend
+        or a        ; NC
+        sbc hl,bc
+        ld b,h
+        ld c,l
+        pop hl
+        push bc
+        ld bc,(currentdataport)
+        ret         ; jp readdataroutine+offset
+
+Repeat 255
+        ini
+        inc b ; NZ
+REnd
+ReadDataRoutineEnd
+        ret
+
+;
+; Écriture de données vers fichier ouvert
+;
+; Entrée - HL = adresse où sont stockées les données
+;          DE = nombre d'octets à écrire
+; Sortie - Z si succés
+;            DE = longueur effectivement écrite
+;          NZ si une erreur est survenue
+;            A = code d'erreur
+; Altéré - AF,BC,DE,HL
+
+WriteDataToFile
+        di
+        exx
+        push bc
+        set 2,c
+        out (c),c   ; On retire la ROM basse
+        exx
+        ei
+
+        ld a,h      ; Installation de la routine pour la copie de la RAM masquée par la ROM
+        add d       ; uniquement si nos données sont dans la zone concernée
+        jr c,writedatatofileinstallslowwriteroutine
+        cp &bf
+        jr nc,writedatatofileinstallslowwriteroutine
+
+WriteDataToFileInstallDone
+        call writedatatofileinternal
+
+        di
+        exx
+        pop bc
+        out (c),c   ; On se remet dans l'état précédent
+        exx
+        ei
+
+        ret
+
+WriteDataToFileInstallSlowWriteRoutine
+        di
+        exx
+        push bc
+        ld hl,slowwritedataroutine
+        ld de,_dos_rom_temp_routine
+        ld bc,slowwritedataroutineend-slowwritedataroutine
+        ldir
+        pop bc
+        exx
+        ei
+        jr writedatatofileinstalldone
+
+WriteDataToFileInternal
+        push hl
+        ld a,cmd_byte_write
+        call sendcmd
+        out (c),e
+        out (c),d
+WriteDataNextBlock
+        call waitinterrupt
+        cp usb_int_success
+        jr z,writedatablock
+        cp usb_int_disk_write
+        jr z,writedatablock
+WriteDataError
+        pop hl
+        ret
+WriteDataBlock
+        ld e,a
+        call writedata
+        jr nz,writedatachecknextblock
+        ld a,e ; Au cas où on aurait eu un DISK_WRITE avec une taille de 0
+        cp usb_int_disk_write
+        jr z,writedatachecknextblock
+WriteDataEnd
+        xor a ; NC
+        pop de
+        sbc hl,de
+        ex de,hl
+        xor a ; Z
+        ret
+WriteDataCheckNextBlock
+        ld bc,(currentcmdport)
+        ld a,cmd_byte_wr_go
+        out (c),a
+        jr writedatanextblock
+
+;
+; Écrit toutes les données demandées par l'Albireo
+;
+; Entrée - HL = adresse d'où prendre les données
+; Sortie - Si NZ alors des données ont été écrites
+;            HL = fin de la zone lue
+;          Si Z il n'y avait pas de données à écrire
+; Altéré - AF,BC,HL
+
+WriteData
+        ld a,cmd_wr_req_data
+        ld bc,(currentcmdport)
+        out (c),a
+        dec c
+        in a,(c)
+        or a
+        ret z
+
+        ld c,a      ; C = nombre d'octets
+        ld a,&be
+        cp h
+        jr c,slowwritedata
+FastWriteData
+        push hl
+        ld b,0      ; BC = nombre d'octets
+        ld h,b
+        ld l,c
+        add hl,hl
+        add hl,bc
+        ld c,l      ; BC=A*3 (3 = taille de "ini:inc b")
+        ld b,h
+        ld hl,fastwritedataroutineend
+        or a        ; NC
+        sbc hl,bc
+        ld b,h
+        ld c,l
+        pop hl
+        push bc
+        ld bc,(currentdataport)
+        ret     ; jp fastwritedataroutine+offset
+SlowWriteData
+        ld a,c      ; A = nombre d'octets
+        ld bc,(currentdataport)
+        di
+        exx
+        set 3,c
+        call _dos_rom_temp_routine
+        exx
+        ei
+        cp b    ; NZ
+        ret
+; Recopiée en RAM avant exécution
+SlowWriteDataRoutine
+        out (c),c   ; On retire la ROM haute
+        exx
+        ei
+SlowWriteDataLoop
+        inc b:outi
+        dec a
+        jr nz,slowwritedataloop
+        di
+        exx
+        res 3,c
+        out (c),c   ; On remet le ROM haute
+        ret
+SlowWriteDataRoutineEnd
+; Exécutée directement depuis la ROM
+FastWriteDataRoutine
+Repeat 255
+        inc b
+        outi
+REnd
+FastWriteDataRoutineEnd
+        or b ; NZ
+        ret
+
+;
+; Test de présence de la carte Albireo
+;
+; Entrée - N/A
+; Sortie - Z si carte trouvé et A contient la révision
+; Altéré - Flags
+
+CheckByte Equ &55
+
+CheckAlbireo
+        push bc
+        ld c,a
+        push bc
+        call checkalbireointernal
+        pop bc
+        ld a,c
+        pop bc
+        ret
+CheckAlbireoInternal
+        ld a,cmd_check_exist
+        call sendcmd
+        ld a,checkbyte
+        out (c),a
+        in a,(c)
+        cp checkbyte^255
+        ret nz
+        inc c
+        ld a,cmd_get_ic_ver
+        call sendcmd
+;        out (c),a
+;        dec c
+        in a,(c)
+        and &3f
+        cp a
+        ret
+
+;
+; Redémarrage de la carte Albireo
+;
+; Entrée - N/A
+; Sortie - N/A
+; Altéré - AF,BC
+
+;ResetAlbireo
+;        ld a,cmd_reset_all
+;        ld bc,(currentcmdport)
+;        out (c),a
+;        ld b,3  ; Attente d'environ 40ms (35ms requis)
+;WaitReset
+;        call _mc_wait_flyback
+;        djnz waitreset
+;        ret
+
+;
+; Déplace le pointeur de position dans le fichier actuellement ouvert
+;
+; Entrée - DEHL = nouvelle position dans le fichier
+; Sortie - Comme WaitInterrupt
+; Altéré - AF,BC
+
+SeekFile
+;        push de
+;        push hl
+;        ld de,0
+;        ld h,d
+;        ld l,e
+;        call seekfilecmd
+;        pop hl
+;        pop de
+;        ret nz
+;SeekFileCmd
+        ld a,cmd_byte_locate
+        call sendcmd
+        out (c),l
+        out (c),h
+        out (c),e
+        out (c),d
+        jp waitinterrupt
+
+;
+; Examine l'entrée suivante d'un répertoire
+;
+; Entrée - N/A
+; Sortie - Comme WaitInterrupt
+; Altéré - AF,BC
+
+ExamineNext
+        ld a,cmd_file_enum_go
+        jp sendcmdnodata
+
+;
+; Examine le fichier courant et récupère ses informations
+;
+; Entrée - IX = tampon où copier l'heure et la date de dernière modification de l'entrée (7 octets)
+; Sortie - Si Z alors les informations sur le fichier courant ont été obtenues
+;            A = attributs du fichier (--AD-SHR)
+;            BCDE = Longueur du fichier
+;            IX = tampon où ont été copiées l'heure et la date de dernière modification de l'entrée
+;                (le contenu du tampon reste inchangé si l'horodatage n'est pas supporté)
+;                Un mot de 16 bits avec l'année (1978..9999)
+;                Un octet avec le numéro du mois (1..12)
+;                Un octet avec le numéro du jour dans le mois (1..28,29,30 ou 31)
+;                Un octet avec les heures (0..23)
+;                Un octet avec les minutes (0..59)
+;                Un octet avec les secondes (0..59)
+;          Si NZ alors une erreur est survenue
+; Altéré - AF,BC,DE,HL
+
+FileExamine
+        call filereadinfo
+        ret nz
+CatSkipEntry
+        ld a,cmd_rd_usb_data0
+        call sendcmd
+        in a,(c)
+        cp 32
+        ret nz
+
+        ld a,11
+        call invoid ; Nom
+        in e,(c)    ; Attributs
+FileExamineEnd
+        ld a,10
+        call invoid ; Heure et date de création, de dernier accès et données cluster
+        in l,(c)
+        in h,(c)    ; Heure de modification
+        ld a,l
+        and &1f
+        sla a
+        ld (ix+6),a ; Secondes
+        srl h:rr l
+        srl h:rr l
+        srl h:rr l
+        srl l
+        srl l
+        ld (ix+5),l ; Minutes
+        ld (ix+4),h ; Heures
+        in l,(c)
+        in h,(c)    ; Date de modification
+        ld a,l
+        and &1f
+        ld (ix+3),a ; Jour
+        srl h:rr l
+        srl l
+        srl l
+        srl l
+        srl l
+        ld (ix+2),l ; Mois
+        ld l,h
+        ld h,0
+        ld a,e
+        ld de,1980
+        add hl,de
+        ld e,a
+        ld (ix+0),l ; Année
+        ld (ix+1),h
+        ld a,2      ; Données cluster
+        call invoid
+        ld a,e
+        in e,(c)    ; Taille en octets
+        in d,(c)
+        in l,(c)
+        in h,(c)
+        ld c,l
+        ld b,h
+        cp a        ; Z
+        ret
+
+;
+; Décode une entrée de répertoire récupérée depuis l'Albireo via ExamineNext
+;
+; Entrée - HL = Adresse où stocker le nom de fichier normalisé
+; Sortie - Si Z alors l'entrée a pu etre décodée
+;            A = bits de protection (--AD-SHR)
+;            BCDE = Longueur du fichier
+; Altéré - AF,BC,DE
+
+CatDecodeEntry
+        ld a,cmd_rd_usb_data0
+        call sendcmd
+        in a,(c)
+        cp 32
+        ret nz
+
+        push hl
+        ld a,11
+        call inira                      ; Récupération du nom+ext (11)
+        in e,(c)                        ; Récupération des attributs de fichier (1)
+                                        ; sous la forme XXADVSHR
+                                        ; (A)rchive
+                                        ; (D)irectory
+                                        ; (V)olume (jamais remonté ici)
+                                        ; (S)ystem
+                                        ; (H)idden
+                                        ; (R)ead-only
+        call fileexamineend
+        pop hl
+        ret
+
+;
+; Sous-routines
+;
+
+;
+; Envoie un flux de données sur un port
+; La mémoire pointée est dans l'espace ROM/RAM courant
+;
+; Entrée - A = nombre d'itérations
+;          BC = port de sortie
+;          HL = adresse où est stocké du flux de données à envoyer
+; Sortie - HL = HL + A
+;           A = 0
+; Altéré - AF,HL
+
+OUTIRA  inc b:outi
+        dec a
+        jr nz,outira
+        ret
+
+;
+; Reçoie un flux de données depuis un port
+;
+; Entrée - A = nombre d'itérations
+;          BC = port de d'entrée
+;          HL = adresse où stocker le flux de données reçu
+; Sortie - HL = HL + A
+;           A = 0
+; Altéré - AF,HL
+
+INIRA   ini:inc b
+        dec a
+        jr nz,inira
+        ret
+
+;
+; Lit plusieurs fois un port
+;
+; Entrée - A = nombre d'itérations
+;          BC = port de d'entrée
+; Sortie - A = 0
+; Altéré - AF
+
+INVoid  push af
+        in a,(c)
+        pop af
+        dec a
+        jr nz,invoid
+        ret
+
+;
+; Envoie une commande au ch376
+; (commande qui attend ou retourne des paramètres)
+;
+; Entrée - A = commande
+; Sortie - BC = port de données (&fe80/&fe40)
+; Altéré - BC
+
+SendCmd ld bc,(currentcmdport)
+        out (c),a
+        dec c
+        ret
+
+;
+; Envoie une commande directe au ch376
+; (commande sans paramètre ni valeur retour)
+;
+; Entrée - A = commande
+; Sortie - Comme WaitInterrupt
+; Altéré - AF,BC
+
+SendCmdNoData
+        call sendcmd
+        jp waitinterrupt
+

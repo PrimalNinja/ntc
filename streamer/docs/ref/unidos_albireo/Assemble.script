@@ -1,0 +1,28 @@
+; Put ACE into pause
+RxCmd ACE.1 PAUSE
+
+; Compile ROM using rasm
+rasm src/Albireo.asm -o bin/Albireo -s -sl -sq -eb -amper
+
+; Copy all generated files to T:
+Copy QUIET FROM bin/Albireo.#? TO T:
+
+; Flash the new ROM into ACE
+RxCmd ACE.1 "FLASHROM FILE T:Albireo.rom ROM 27"
+
+; Update all symbols
+RxCmd ACE.1 "REMOVESYMBOL ALL"
+RX ImportSymbols.rexx T:Albireo.sym rasm
+
+; Update all breakpoints
+RxCmd ACE.1 "REMOVEBREAKPOINT TYPE Execute ALL"
+RX ImportBreakpoints.rexx T:Albireo.brk rasm
+
+; Ensure albireo.acepansion is active
+RxCmd ACE.1 "ACTIVATEPLUGIN albireo.acepansion"
+
+; Restart emulated CPC
+RxCmd ACE.1 "RESET HARD"
+
+; Activate ACE window
+RxCmd ACE.1 SHOW

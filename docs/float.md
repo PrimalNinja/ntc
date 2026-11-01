@@ -46,11 +46,16 @@ The same `.CYB` runs on all of them, unchanged. If a coprocessor stops answering
 switches itself back to the Z80 engine.
 
 ```
-Float.UseEngine 0     ' auto (the default): a coprocessor if one answers, else the Z80 engine
-Float.UseEngine 1     ' the Z80 engine only
-Float.UseEngine 2     ' the coprocessor if there is one
+Float.UseEngine 0     ' the Z80 engine (the default)
+Float.UseEngine 1     ' the Z80 engine (the same)
+Float.UseEngine 2     ' a coprocessor if there is one, else the Z80 engine
 Print Float.Backend() ' 1 the Z80 engine, 2 a coprocessor
+Print Float.HasCoprocessor()   ' True when one answers, whichever is in use
 ```
+
+The Z80 engine is the default (2026-11-01; before, 0 was "auto": a coprocessor whenever one
+answered), so a program gives the same bits on every machine unless it asks for a coprocessor -
+the program's choice, not the machine's.
 
 All the backends give the same answers: IEEE single with no denormals and no NaNs, and Fixed's
 rounding. The one difference: on an exact tie the last bit can differ, because the Z80 engine

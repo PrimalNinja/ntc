@@ -900,7 +900,7 @@ class Host:
             steps = 0
             while not s.m.halted and steps < 2000:
                 if s.m.iff1 and s.m.on_handle_active_int(): s.ints += 1; break
-                s.m.ticks_to_stop = 1; cpcrun.endkey_run(s); steps += 1; s.T += 1 - s.m.ticks_to_stop
+                steps += 1; s.T += cpcrun.step1(s)
             if n > limit: print('TIMEOUT pc=%04x sp=%04x' % (s.m.pc, s.m.sp)); break
 
 def main():

@@ -1,0 +1,6 @@
+test/node_modules/
+test/package-lock.json
+build/
+test/out/
+test/t/
+test/__pycache__/

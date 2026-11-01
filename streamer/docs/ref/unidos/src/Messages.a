@@ -1,0 +1,78 @@
+;
+; Chaînes internes
+;
+
+Msg_Init_UniDOS             str " UniDOS "
+Msg_Init_Integrated         str "(integrated) "
+Msg_Init_Standalone         str "(standalone) "
+Msg_Init_Copyright          str "2024 Futurs'\r\n\r\n"
+Msg_Init_Error              db 7:str "*Error: "
+Msg_Init_Bad_ROM_Order      str "AMSDOS lower than UniDOS*\r\n\r\n"
+Msg_Init_Incompatible_Basic str "Incompatible BASIC*\r\n\r\n"
+Msg_Init_CheckSum_Error     str "UniDOS wrong checksum*\r\n\r\n"
+
+Msg_Init_Missing_NVRAM      db  " Warning: UniDOS found no NVRAM!\r\n"
+                            db  " Using degraded mode\r\n"
+                            str " Please, finalize install\r\n\r\n"
+
+Msg_DOS_Devices             str "\r\nAvailable devices:\r\n"
+Msg_DOS_Device_None         str "  No media found\r\n"
+
+Msg_Logical_Drives          str "\r\nLogical drives:\r\n"
+
+Msg_CatDir                  str "[DIR]"
+Msg_CatFree                 str " free\r\n\r\n"
+Msg_CatTooManyFiles         str "\r\nOther files exist\r\n"
+Msg_CatNoFiles              str "\r\nNo files\r\n\r\n"
+
+Msg_InfoHeader              str "SIZE      LOAD LOGL ENTRY\r\n"
+Msg_InfoDir                 str "Directory"
+Msg_InfoNoHeader            str " ----"
+Msg_InfoError               db 7:str "*Error*"
+
+Msg_NoDevice                str "no media found"
+Msg_IOError                 str "read/write error"
+Msg_WriteProtected          str "media is write protected"
+Msg_Unsupported             str "operation not supported"
+Msg_MediaChanged            str "media changed, closing "
+
+Msg_NotFound                str " not found\r\n"
+Msg_AlreadyExist            str " already exists\r\n"
+Msg_IsReadOnly              str " is read only\r\n"
+Msg_IsHidden                str " is hidden\r\n"
+Msg_IsADirectory            str " is a directory\r\n"
+Msg_NotADirectory           str " is not a directory\r\n"
+
+Msg_BadCommand              str "\r\nBad command\r\n"
+Msg_FilePathTooLong         str "\r\nFile path too long\r\n"
+Msg_RootReached             str "\r\nRoot dir reached\r\n"
+Msg_NotALink                str "\r\nNot a link\r\n"
+Msg_RenameAcrossMedias      str "\r\nRename across medias\r\n"
+Msg_NotADOSNode             str "\r\nNot a DOS node\r\n"
+
+Msg_Clock                   str "\r\nClock"
+
+Msg_ASCIIFile               str "ASCII file - no load address\r\n"
+
+Msg_Break                   str "\r\nBreak\r\n"
+
+Msg_Device                  str "\r\nDevice "
+
+Msg_RetryIgnoreOrCancel     str "\r\nRetry, Ignore or Cancel? "
+
+Msg_ConfirmYesNoOrAll       str "Confirm: Yes, No or All? "
+Msg_ConfirmYesOrNo          str "Confirm: Yes or No? "
+
+Msg_NoticeFormat            db  "is about to be formatted\r\n"
+                            str "Warning: All data will be lost!"
+
+Msg_ROM                     str "ROM"
+Msg_NodeActive              str "active"
+Msg_NodeInactive            str "inactive"
+Msg_NodeClock               str "clock"
+Msg_NodeNVRAM               str "nvm"
+
+Msg_NewLine                 str "\r\n"
+
+Msg_UnknownString           str "???"
+

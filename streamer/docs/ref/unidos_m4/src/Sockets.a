@@ -1,0 +1,780 @@
+;
+; Fonctions de gestion des sockets de la M4 Board
+;
+
+SocketTimeout   Equ 15000
+
+Macro MAKE_ID_DEHL a,b,c,d
+        ld de,{a}*256+{b}
+        ld hl,{c}*256+{d}
+MEnd
+
+;
+; Création d'une socket
+;
+; Entrée - Aucune
+; Sortie - Si Carry=1 alors la socket a été créé
+;               C = numéro de la socket
+;          Si Carry=0 alors une erreur est survenue
+; Altéré - AF,_DOS_ROM_TEMP_ROUTINE,_DOS_ROM_TEMP_STORE
+
+M4_CreateSocket
+        push hl
+        push de
+        push bc
+
+        ld bc,DataPort
+        out (c),c
+        ld de,C_NETSOCKET
+        out (c),e
+        out (c),d
+        ld a,2              ; Domaine AF_INET
+        out (c),a
+        ld a,1              ; Type SOCK_STREAM
+        out (c),a
+        ld a,6              ; Protocole ?
+        out (c),a
+
+        ld bc,AckPort
+        out (c),c
+
+        ld hl,_DOS_ROM_TEMP_STORE
+        ld de,3
+        ld bc,1
+        call M4_GetBytes
+
+        pop bc
+        pop de
+        pop hl
+
+        ld a,(_DOS_ROM_TEMP_STORE)  ; Socket
+        cp &ff
+        ret z   ; NC
+
+        ld c,a
+
+        scf
+        ret
+
+;
+; Connexion d'une socket
+;
+; Entrée - C = numéro de socket
+;          DEHL = adresse IP
+;          IX = port
+; Sortie - Si Carry=1 alors la connexion a été établie
+;          Si Carry=0 alors une erreur est survenue
+; Altéré - AF,_DOS_ROM_TEMP_ROUTINE,_DOS_ROM_TEMP_STORE
+
+M4_ConnectSocket
+        push bc
+        push de
+
+        ld a,c
+        ld bc,DataPort
+        ld e,9
+        out (c),e
+        ld de,C_NETCONNECT
+        out (c),e
+        out (c),d
+
+        pop de
+
+        out (c),a   ; Socket
+        out (c),l   ; IP
+        out (c),h
+        out (c),e
+        out (c),d
+        ld a,ixl    ; Port
+        out (c),a
+        ld a,ixh
+        out (c),a
+
+        ld bc,AckPort
+        out (c),c
+
+        push de
+
+        ld hl,_DOS_ROM_TEMP_STORE
+        ld de,3
+        ld bc,1
+        call M4_GetBytes
+
+        pop de
+
+        pop bc
+
+        ld a,(_DOS_ROM_TEMP_STORE)
+        cp &ff
+        ret z   ; NC, échec de connexion
+
+        push hl
+        push de
+
+        ld hl,SocketTimeout
+M4ConnectSocketLoop
+        ld a,h
+        or l
+        jr z,M4ConnectSocketTimeout
+        dec hl
+
+        call M4_SocketInfo
+
+        cp SOCK_STS_CONNECT
+        jr z,M4ConnectSocketLoop
+
+        cp SOCK_STS_IDLE
+        jr nz,M4ConnectSocketError
+
+M4ConnectSocketExit
+        pop de
+        pop hl
+
+        scf
+        ret
+
+M4ConnectSocketTimeout
+M4ConnectSocketError
+        pop de
+        pop hl
+        cp a    ; NC
+        ret
+
+;
+; Lecture des données depuis une socket
+;
+; Entrée - C = numéro de socket
+;          HL = adresse où stocker les données lues
+;          DE = nombre d'octets à lire au maximum (&400 max)
+; Sortie - Si Carry=1 alors des données ont été lues
+;               DE = nombre d'octets lus
+;          Si Carry=0 alors une erreur est survenue
+; Altéré - AF,DE,_DOS_ROM_TEMP_ROUTINE
+
+M4_ReadSocket
+        ld a,e
+        or d
+        scf
+        ret z
+
+        push ix
+        ld ixh,d
+        ld ixl,e
+
+        push hl
+        ld hl,SocketTimeout
+M4ReadSocketLoop
+        ld a,h
+        or l
+        jp z,M4ReadSocketTimeout
+        dec hl
+
+        call M4_SocketInfo
+
+        cp SOCK_STS_SEND
+        jr z,M4ReadSocketLoop
+
+        cp SOCK_STS_CLOSED
+        jp z,M4ReadSocketClosed
+
+        cp SOCK_STS_IDLE
+        jp nz,M4ReadSocketFailed
+
+        ld a,d
+        or e
+        jr z,M4ReadSocketLoop
+
+M4ReadSocketReady
+        pop hl
+
+        ld a,d      ; Lecture partielle ou complète du tampon ?
+        cp ixh
+        jr c,M4ReadSocketEntireBuffer
+        jr nz,M4ReadSocketReqBuffer
+
+        ld a,e
+        cp ixl
+        jr c,M4ReadSocketEntireBuffer
+
+M4ReadSocketReqBuffer
+        ld d,ixh
+        ld e,ixl
+
+M4ReadSocketEntireBuffer
+        push hl
+
+        ld ixh,d
+        ld ixl,e
+
+M4ReadSocketAgain
+        push bc
+        push de
+
+        ld a,c      ; Socket
+        ld bc,DataPort
+        out (c),c
+        ld de,C_NETRECV
+        out (c),e
+        out (c),d
+        out (c),a   ; Socket
+        pop de
+        out (c),e
+        out (c),d
+
+        ld bc,AckPort
+        out (c),c
+
+        pop bc
+
+        push bc
+        push de
+        push hl
+
+        ld hl,_DOS_ROM_TEMP_STORE
+        ld de,3
+        ld bc,3
+        call M4_GetBytes
+
+        pop hl
+        pop de
+        pop bc
+
+        ld a,(_DOS_ROM_TEMP_STORE)
+        or a
+        jr nz,M4ReadSocketError
+
+        ld a,(_DOS_ROM_TEMP_STORE+1)
+        ld e,a
+        ld a,(_DOS_ROM_TEMP_STORE+2)
+        ld d,a
+
+        or e
+        jr z,M4ReadSocketRetry
+
+        push bc
+        push de
+
+        ld b,d
+        ld c,e
+        ld de,6
+        call M4_GetBytes
+
+        pop de
+        pop bc
+
+        push hl
+        push ix:pop hl
+        cp a ; NC
+        sbc hl,de
+        ld a,l
+        or h
+        push hl:pop ix
+        pop hl
+        jr z,M4ReadSocketDone
+
+        add hl,de
+
+M4ReadSocketRetry
+        ld d,ixh
+        ld e,ixl
+
+        jr M4ReadSocketAgain
+
+M4ReadSocketDone
+        pop hl
+        pop ix
+        scf
+        ret
+
+M4ReadSocketClosed
+        ld a,d
+        or e
+        jp nz,M4ReadSocketReady
+M4ReadSocketTimeOut
+M4ReadSocketFailed
+M4ReadSocketError
+        pop hl
+        pop ix
+        cp a    ; NC
+        ret
+
+;
+; Lecture d'un octet depuis une socket
+;
+; Entrée - C = numéro de socket
+; Sortie - Si Carry=1 alors des données ont été lues
+;               A = octet lu
+;          Si Carry=0 alors une erreur est survenue
+; Altéré - AF,_DOS_ROM_TEMP_ROUTINE
+
+M4_ReadSocketByte
+        push de
+        push hl
+
+        ld hl,SocketTimeout
+M4ReadSocketByteLoop
+        ld a,h
+        or l
+        jp z,M4ReadSocketByteTimeout
+        dec hl
+
+        call M4_SocketInfo
+
+        cp SOCK_STS_SEND
+        jr z,M4ReadSocketByteLoop
+
+        cp SOCK_STS_CLOSED
+        jr z,M4ReadSocketByteClosed
+
+        cp SOCK_STS_IDLE
+        jr nz,M4ReadSocketByteFailed
+
+        ld a,d
+        or e
+        jr z,M4ReadSocketByteLoop
+
+M4ReadSocketByteReady
+M4ReadSocketByteAgain
+        push bc
+
+        ld a,c      ; Socket
+        ld bc,DataPort
+        out (c),c
+        ld de,C_NETRECV
+        out (c),e
+        out (c),d
+        out (c),a   ; Socket
+        ld de,1     ; Taille
+        out (c),e
+        out (c),d
+
+        ld bc,AckPort
+        out (c),c
+
+        ld hl,_DOS_ROM_TEMP_STORE
+        ld de,3
+        ld bc,4
+        call M4_GetBytes
+
+        pop bc
+
+        ld a,(hl)
+        or a
+        jr nz,M4ReadSocketByteError
+
+        inc hl
+        ld a,(hl)
+        inc hl
+        or (hl)
+        jr z,M4ReadSocketByteAgain
+
+        inc hl
+        ld a,(hl)
+
+M4ReadSocketByteDone
+        pop hl
+        pop de
+        scf
+        ret
+
+M4ReadSocketByteClosed
+        ld a,d
+        or e
+        jr nz,M4ReadSocketByteReady
+M4ReadSocketByteTimeOut
+M4ReadSocketByteFailed
+M4ReadSocketByteError
+        pop hl
+        pop de
+        cp a    ; NC
+        ret
+
+;
+; Écriture des données sur une socket
+;
+; Entrée - C = numéro de socket
+;          HL = adresse où sont les données à écrire
+;          DE = nombre d'octets à écrire au maximum (&400 max)
+; Sortie - Si Carry=1 alors des données ont été écrites
+;          Si Carry=0 alors une erreur est survenue
+; Altéré - AF,DE,_DOS_ROM_TEMP_ROUTINE,_DOS_ROM_TEMP_STORE
+
+M4_WriteSocket
+        ld a,e
+        or d
+        scf
+        ret z
+
+        push de
+        push hl
+
+        ld hl,SocketTimeout
+M4WriteSocketLoop
+        ld a,h
+        or l
+        jr z,M4WriteSocketTimeout
+        dec hl
+
+        call M4_SocketInfo
+
+        cp SOCK_STS_SEND
+        jr z,M4WriteSocketLoop
+
+        cp SOCK_STS_CLOSED
+        jr z,M4WriteSocketClosed
+
+        cp SOCK_STS_IDLE
+        jr nz,M4WriteSocketFailed
+
+        pop hl
+        pop de
+
+        push bc
+        push de
+
+        ld a,c      ; Socket
+        ld bc,DataPort
+        out (c),c
+
+        push de
+
+        ld de,C_NETSEND
+        out (c),e
+        out (c),d
+        out (c),a   ; Socket
+
+        pop de
+
+        out (c),e
+        out (c),d
+
+        push hl
+        call M4_PutBytes
+        pop hl
+
+        ld bc,AckPort
+        out (c),c
+
+        push hl
+        ld hl,_DOS_ROM_TEMP_STORE
+        ld de,3
+        ld bc,1
+        call M4_GetBytes
+        pop hl
+
+        pop de
+        pop bc
+
+        ld a,(_DOS_ROM_TEMP_STORE)
+        or a
+        ret nz
+
+        push de
+
+M4WriteSocketLoopEnd
+        call M4_SocketInfo
+
+        cp SOCK_STS_SEND
+        jr z,M4WriteSocketLoopEnd
+
+        pop de
+
+        scf
+        ret
+
+M4WriteSocketTimeOut
+M4WriteSocketClosed
+M4WriteSocketFailed
+        pop hl
+        pop de
+        cp a    ; NC
+        ret
+
+;
+; Destruction d'une socket
+;
+; Entrée - C = numéro de socket
+; Sortie - Aucune
+; Altéré - AF
+
+M4_DestroySocket
+        push bc
+        push de
+
+;M4DestroySocketLoop
+;        call M4_SocketInfo
+;
+;        cp SOCK_STS_SEND
+;        jr z,M4DestroySocketLoop
+;
+;        cp SOCK_STS_IDLE
+;        jr z,M4DestroySocket
+;
+;        cp SOCK_STS_CLOSED
+;        jr z,M4DestroySocket
+;
+;        jr M4DestroySocketSkip
+;
+;M4DestroySocket
+;        ld a,e
+;        or d
+;        jr nz,M4DestroySocketFlush
+
+        ld a,c
+        ld bc,DataPort
+        out (c),c
+        ld de,C_NETCLOSE
+        out (c),e
+        out (c),d
+        out (c),a   ; Socket
+
+        ld bc,AckPort
+        out (c),c
+
+;M4DestroySocketSkip
+        pop de
+        pop bc
+
+        ret
+
+;M4DestroySocketFlush
+;        push bc
+;        push de
+;        ld a,c      ; Socket
+;        ld bc,DataPort
+;        out (c),c
+;        ld de,C_NETRECV
+;        out (c),e
+;        out (c),d
+;        out (c),a   ; Socket
+;        pop de
+;        out (c),e
+;        out (c),d
+;
+;        ld bc,AckPort
+;        out (c),c
+;        pop bc
+;
+;        jr M4DestroySocketLoop
+
+;
+; Récupère les informations sur une socket de la M4
+;
+; Entrée - C = numéro de socket
+; Sortie - A = status (SOCK_STS_*)
+;          DE = nombre d'octets en attente de lecture (via C_NETRECV)
+; Altéré - AF,DE,_DOS_ROM_TEMP_ROUTINE
+
+M4_SocketInfo
+        push hl
+
+        push bc
+
+        ld hl,M4SocketInfo_RAMRoutine
+        ld de,_DOS_ROM_TEMP_ROUTINE
+        ld bc,M4SocketInfo_RAMRoutineEnd-M4SocketInfo_RAMRoutine
+        ldir
+
+        pop bc
+
+        ld d,0  ; Index de la socket
+        ld e,c
+        sla e
+        sla e
+        sla e
+        sla e
+
+        push bc
+        push ix
+
+        call GetPrivateDataIX
+        ld c,(ix+1)
+
+        call _DOS_ROM_TEMP_ROUTINE
+        ld a,l
+
+        pop ix
+        pop bc
+
+        pop hl
+        ret
+
+M4SocketInfo_RAMRoutine
+        call _KL_ROM_SELECT
+
+        ld ix,(&ff06)
+        add ix,de
+
+        ld l,(ix+0)
+        ld e,(ix+2)
+        ld d,(ix+3)
+
+        jp _KL_ROM_SELECT
+M4SocketInfo_RAMRoutineEnd
+
+;
+; Récupération d'une adresse IP à partir d'un nom d'hôte
+; (le nom d'hôte peut-être fourni sous la forme d'IP)
+;
+; Entrée - HL=nom d'hôte
+;           B=longueur du nom d'hôte
+; Sortie - Si Carry=1 alors une IP a pu être obtenue
+;              DEHL = adresse IP
+;          Si Carry=0 alors une erreur est survenue
+; Altéré - AF,DE,HL,_DOS_ROM_TEMP_ROUTINE,_DOS_ROM_TEMP_STORE
+
+M4_GetIPFromHost
+        call M4IsAlreadyIP
+        ret c
+
+        push hl
+        push bc
+
+        ld a,b
+
+        ld bc,DataPort
+        out (c),c
+        ld de,C_NETHOSTIP
+        out (c),e
+        out (c),d
+
+M4GetIPFromHostLoop
+        inc b
+        outi
+        dec a
+        jr nz,M4GetIPFromHostLoop
+        out (c),0
+
+        ld bc,AckPort
+        out (c),c
+
+        ld hl,_DOS_ROM_TEMP_STORE
+        ld de,3
+        ld bc,1
+        call M4_GetBytes
+
+        pop bc
+        pop hl
+
+        ld a,(_DOS_ROM_TEMP_STORE)  ; Socket
+        xor 1
+        ret nz  ; NC
+
+        push bc
+
+        ld c,0  ; Socket dédiée à la résolution DNS
+        ld hl,SocketTimeout
+M4GetIPFromHostWaitLoop
+        ld a,h
+        or l
+        jr z,M4GetIPFromHostWaitTimeout
+        dec hl
+
+        call M4_SocketInfo
+
+        cp SOCK_STS_LOOKUP
+        jr z,M4GetIPFromHostWaitLoop
+
+        cp SOCK_STS_IDLE
+        jr nz,M4GetIPFromHostWaitError
+
+M4GetIPFromHostWaitExit
+        ld hl,M4GetIPFromHost_RAMRoutine
+        ld de,_DOS_ROM_TEMP_ROUTINE
+        ld bc,M4GetIPFromHost_RAMRoutineEnd-M4GetIPFromHost_RAMRoutine
+        ldir
+
+        push ix
+
+        call GetPrivateDataIX
+        ld c,(ix+1)
+
+        call _DOS_ROM_TEMP_ROUTINE
+
+        pop ix
+
+        pop bc
+
+        scf
+        ret
+
+M4GetIPFromHostWaitTimeout
+M4GetIPFromHostWaitError
+        pop bc
+        cp a    ; NC
+        ret
+
+M4GetIPFromHost_RAMRoutine
+        call _KL_ROM_SELECT
+
+        ld ix,(&ff06)   ; Copie l'IP de la socket 0 (dédiée à la résolution DNS)
+
+        ld l,(ix+4)
+        ld h,(ix+5)
+        ld e,(ix+6)
+        ld d,(ix+7)
+
+        jp _KL_ROM_SELECT
+M4GetIPFromHost_RAMRoutineEnd
+
+M4IsAlreadyIP
+        ld a,(hl)
+        call IsDigit
+        ret nc
+
+        push bc
+        push hl
+
+        ld c,3
+M4IsAlreadyIPLoopNext
+        ld de,0
+M4IsAlreadyIPLoop
+        ld a,c
+        cp -1
+        jr z,M4IsAlreadyIPFailed
+        ld a,(hl)
+        call IsDigit
+        jr c,M4IsAlreadyIPGo
+        ld a,'.'
+        cp (hl)
+        jr nz,M4IsAlreadyIPFailed
+        push bc
+        push hl
+        ld b,0
+        ld hl,_DOS_ROM_TEMP_STORE+&60
+        add hl,bc
+        ld (hl),e
+        pop hl
+        pop bc
+        dec c
+        inc hl
+        djnz M4IsAlreadyIPLoopNext
+        jr M4IsAlreadyIPFailed
+M4IsAlreadyIPGo
+        push bc
+        ld bc,0
+        call MultiplySize
+        pop bc
+        call GetSizeDigit
+        ld a,d
+        or a
+        jr nz,M4IsAlreadyIPFailed
+        inc hl
+        djnz M4IsAlreadyIPLoop
+
+        pop hl
+        pop bc
+
+                                        :ld l,e
+        ld a,(_DOS_ROM_TEMP_STORE+&60+1):ld h,a
+        ld a,(_DOS_ROM_TEMP_STORE+&60+2):ld e,a
+        ld a,(_DOS_ROM_TEMP_STORE+&60+3):ld d,a
+        scf
+        ret
+
+M4IsAlreadyIPFailed
+        pop hl
+        pop bc
+        cp a    ; NC
+        ret
+

@@ -719,6 +719,27 @@ node cli.js t/stk2.bas --platform=cpm > t/stk2.asm && (cd t && $SJ --nologo --ms
 # the Small C sieve (compare/smallc) runs on the CP/M host and finds 1007 primes
 o=$(timeout 200 python3 -c "import ntcrun; h = ntcrun.Host('cpm', open('t/bc/cpm/SIEVEC.COM', 'rb').read(), 0x100, 'xx'); h.run(); print(h.scr.text()); print('--- halted' if h.m.halted else '--- NOT halted')" 2>&1)
 check "Small C sieve cpm" "^01007" "$o"
+# the platforms nothing above runs (2026-11-01): the language test built and assembled for each (the
+# ColecoVision has no System class: a small program there); a change to a shared runtime file is at
+# least built for them
+cp $P/vb_test.bas t/pb_vb.bas; printf 'Dim i As Integer\nFor i = 1 To 3\n  Print "hello"; i\nNext\n' > t/pb_hello.bas
+for pl in sc3000 msx msxcard msx9990 baremetal cyborgos cyborgoshh colecovision cpc9990 cpccard; do
+  src=t/pb_vb.bas; [ $pl == colecovision ] && src=t/pb_hello.bas
+  e=$(node cli.js $src --platform=$pl 2>&1 >t/pb_$pl.asm | grep -c '^ERR')
+  a=$( (cd t && $SJ --nologo --msg=err pb_$pl.asm 2>&1) | grep -ci error)
+  if [ "$e" == 0 ] && [ "$a" == 0 ]; then echo "ok   builds on $pl"; else echo "FAIL builds on $pl (compile $e, assembly $a)"; fail=1; fi
+done
+# Float: 200 results within 1 ulp of IEEE single, and exact ties rounded as the engine's rule says
+o=$(timeout 1200 python3 float/chk.py 2>&1)
+if echo "$o" | grep -q "off by more than 1 ulp: 0 ;" && echo "$o" | grep -q "ties checked 20 of 20 ; wrong: 0" && ! echo "$o" | grep -q FAIL; then echo "ok   Float chk"; else echo "FAIL Float chk"; echo "$o" | tail -5; fail=1; fi
+# a library class the platform hasn't is named as such (Keys on cpm); msxdos has the MSX's Keys
+printf 'Print "shift"; Keys.Down(Keys.KeyShift)\n' > t/keysdos.bas
+node cli.js t/keysdos.bas --platform=cpm 2>&1 >/dev/null | grep -q "Keys (keys.down) is a library class this platform (cpm) hasn't" && echo "ok   library class not on this platform" || { echo "FAIL library class not on this platform"; fail=1; }
+check "Keys msxdos" "shift0" "$(timeout 200 python3 msxrun.py t/keysdos.bas 'x' 2>&1)"
+# a push in an inline #asm block while SP is the thread is warned (it writes over the thread)
+node cli.js asmsp.bas --platform=test 2>&1 >/dev/null | grep -q "while SP is the thread" && echo "ok   #asm push on the thread warned" || { echo "FAIL #asm push on the thread warned"; fail=1; }
+# compiler bugs fixed: each test/compare program runs (compare.js compiles them too)
+cp compare/bytearr.bas t/; check "byte array parameter in a Long" "^1234 ABCD" "$(timeout 200 python3 ntcrun.py t/bytearr.bas 2>&1)"
 for f in ../src/js/ntc_parser.js ../src/js/ntc_compiler.js ../src/js/ntc_flavour_js.js ../src/js/ntc_flavour_loco.js ../src/js/ntc_gui.js ../src/js/ntc_lib.js ../src/js/ntc_examples.js; do
   node -e "require('acorn').parse(require('fs').readFileSync('$f','utf8'),{ecmaVersion:5})" || { echo "FAIL ES5 $f"; fail=1; }
 done

@@ -1,0 +1,26 @@
+; Put ACE into pause (after a reset)
+RxCmd ACE.1 "RESET HARD"
+RxCmd ACE.1 PAUSE
+
+; Compile ROM using rasm
+rasm src/UniDOS.asm -o bin/UniDOS -s -sl -sa -eb -amper
+
+; Copy all generated files to T:
+Copy QUIET FROM bin/UniDOS.#? TO T:
+
+; Flash the new ROM into ACE
+RxCmd ACE.1 "FLASHROM FILE T:UniDOS.rom ROM 7"
+
+; Update all symbols
+;RxCmd ACE.1 "REMOVESYMBOL ALL"
+RX ImportSymbols.rexx T:UniDOS.sym rasm rom-extension 7
+
+; Update all breakpoints
+;RxCmd ACE.1 "REMOVEBREAKPOINT TYPE Execute ALL"
+RX ImportBreakpoints.rexx T:UniDOS.brk rasm rom-extension 7
+
+; Restart emulated CPC
+RxCmd ACE.1 "RESET HARD"
+
+; Activate ACE window
+RxCmd ACE.1 SHOW

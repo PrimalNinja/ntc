@@ -1,5 +1,6 @@
 // compare.js - two NTC trees' compilers on the same programs: every program in A's src/bas
-// (a .bas, or a folder with Main.bas - its .bas and .cls), for each platform named, compiled
+// (a .bas, or a folder with Main.bas - its .bas and .cls) and in its test/compare (one a fixed
+// compiler bug), for each platform named, compiled
 // by A's compiler and by B's (each from its own src/js); the output (the asm, errors and
 // warnings) compared. For checking a merge or a change that should not change what is built.
 //
@@ -48,6 +49,19 @@ function programs(strTree_a)
 			arrOut.push({ name: strN_a + '/', files: fs.readdirSync(strP).filter(function(f) { return /\.(bas|cls)$/i.test(f); }).sort(function(a, b) { return (a === 'Main.bas') ? -1 : (b === 'Main.bas') ? 1 : a.localeCompare(b); }).map(function(f) { return strN_a + '/' + f; }) });
 		}
 	});
+	// test/compare/*.bas: a program for each bug fixed in the compiler, so that a later change that
+	// brings one back shows here (2026-11-01)
+	var strCmp = path.join(strTree_a, 'test', 'compare');
+	if (fs.existsSync(strCmp))
+	{
+		fs.readdirSync(strCmp).sort().forEach(function(strN_a)
+		{
+			if (/\.bas$/i.test(strN_a))
+			{
+				arrOut.push({ name: 'test/compare/' + strN_a, files: ['../../test/compare/' + strN_a] });
+			}
+		});
+	}
 	return arrOut;
 }
 
@@ -97,9 +111,24 @@ arrPlat.forEach(function(strPlat_a)
 			intSkip++;
 			return;
 		}
-		var blnSame = compile(objA, strA, objP_a, strPlat_a) === compile(objB, strB, objP_a, strPlat_a);
+		var strOa = compile(objA, strA, objP_a, strPlat_a), strOb = compile(objB, strB, objP_a, strPlat_a);
+		var blnSame = strOa === strOb;
+		var strWhat = '';
 
-		if (blnSame) { intSame++; } else { intDiff++; console.log('DIFF ' + strPlat_a + ' ' + objP_a.name); }
+		if (!blnSame)
+		{
+			// what differs: the asm, the errors, the warnings (a message reworded shows as errors only)
+			try
+			{
+				var arrOa = JSON.parse(strOa), arrOb = JSON.parse(strOb);
+				strWhat = ' (' + ['asm', 'errors', 'warnings'].filter(function(s_a, i_a) { return JSON.stringify(arrOa[i_a]) !== JSON.stringify(arrOb[i_a]); }).join(', ') + ')';
+			}
+			catch (e)
+			{
+				strWhat = ' (a compiler stopped)';
+			}
+		}
+		if (blnSame) { intSame++; } else { intDiff++; console.log('DIFF ' + strPlat_a + ' ' + objP_a.name + strWhat); }
 		if (blnList && blnSame) { console.log('same ' + strPlat_a + ' ' + objP_a.name); }
 	});
 });

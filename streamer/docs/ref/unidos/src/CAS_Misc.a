@@ -1,0 +1,828 @@
+;
+; Fonctions annexes qui dépendent de IY
+;
+
+;
+; Vérifie à quel nom de lecteur physique et chemin un fichier est relié
+; [user][drive]:chemin1/chemin2/fichier
+;
+; Entrée - HL = pointeur vers le nom de fichier
+;          B = longueur du nom de fichier
+; Sortie - DE = pointeur vers le chemin filtré
+;          C = longueur du chemin filtré (0 si le fichier ne contient pas de chemin)
+;          HL = pointeur vers le nom de fichier filtré
+;          B = longueur du nom de fichier filtré (0 si le fichier contient un lecteur logique/physique illégal)
+;          A = numéro de lecteur extrait du nom de fichier (-1 si le fichier contient un lecteur logique/physique illégal)
+; Altéré - AF,BC,DE,HL
+
+CheckFileDrive
+        call getdrive
+        cp -1
+        ret z
+        push af
+        ex de,hl
+        call checkfilepath
+        pop af
+        ret
+
+;
+; Récupère le numéro du lecteur physique à partir d'un chemin
+; [user][drive]:chemin1/chemin2/fichier
+;
+; Entrée - HL = pointeur vers le chemin
+;          B = longueur du chemin
+; Sortie - A = numéro de lecteur physique extrait du nom de fichier (-1 si le fichier contient un lecteur logique/physique illégal)
+;          DE = pointeur vers le chemin sans le lecteur logique/physique
+;          B = longueur du chemin sans le lecteur logique/physique en début
+; Altéré - AF,BC,HL,DE
+
+GetDrive
+        xor a
+        call setworklogicaldrive
+
+        call getdrivepart
+        ld a,c
+        or a
+        jp z,getcurrentphysicaldrive
+
+        call device_checkdrive
+        ret c
+
+        RAM_LAM
+        cp '0'
+        jr z,getdriveskiptoend
+        cp '1'
+        jr nz,getdrivechecktomid
+        dec c
+        jr z,getdriveinvalid
+        inc hl
+        RAM_LAM
+        cp '0'
+        jr c,getdrivechecktoend
+        cp '5'+1
+        jr nc,getdrivechecktoend
+        jr getdriveskiptoend
+GetDriveCheckToMid
+        cp '0'
+        jr c,getdrivechecktoend
+        cp '9'+1
+        jr nc,getdrivechecktoend
+GetDriveSkipToEnd
+        dec c
+        jp z,getcurrentphysicaldrive
+        inc hl
+        RAM_LAM
+GetDriveCheckToEnd
+        call toupper
+        cp 'A'
+        jr z,getdrivenum
+        cp 'B'
+        jr z,getdrivenum
+GetDriveInvalid
+        ld a,-1
+        ret
+GetDriveNum
+        dec c
+        jr nz,getdriveinvalid
+        call setworklogicaldrive
+        sub a,'A'
+        call getphysicaldrive
+        inc de  ; On garde le chemin pour les lecteurs logiques
+        dec b   ; donc on supprime le : du début qui ramène à la racine
+        ret
+SetWorkLogicalDrive
+        PUT_A worklogicaldrive
+        ret
+
+;
+; Recalcule une arborescence rationalisée (profondeur+noms)
+; en y ajoutant un chemin relatif
+;
+; Entrée - HL = pointeur vers l'arborescence à mettre à jour
+;          DE = pointeur vers le chemin relatif à considérer
+;          C = longueur du chemin
+; Sortie - Z si l'opération était possible
+;             HL = pointeur vers l'arborescence mise à jour
+;          NZ si le chemin était trop long ou invalide
+;             A = error code
+; Altéré - AF,BC,DE,HL
+
+MergePath
+        push ix
+        call mergepathinternal
+        pop ix
+        ret
+
+MergePathInternal
+        xor a
+        cp c
+        ret z
+        ld b,0
+        call trimslash
+        ret z
+        push de:pop ix          ; IX=reference de départ pour le bout de chemin en cours
+MergePathLoop
+        ld a,(de)
+        inc de
+        inc b
+        cp ':'
+        jr nz,mergepathnoroot
+MergePathRoot
+        ld (hl),0
+        push de:pop ix
+        jr mergepathcontinue
+MergePathNoRoot
+        cp '/'
+        jr nz,mergepathnodir
+        push bc                 ; Ajoute le chemin à l'arborescence
+        push de
+        push hl
+        ex de,hl
+        push ix:pop bc
+        scf
+        sbc hl,bc
+        ld b,l                  ; B=Longueur du chemin à normaliser
+        pop hl
+        pop de
+        push hl
+        push de
+        push ix:pop hl          ; HL=Chemin à normaliser
+        call getworkareade
+        call normalizename
+        pop de
+        pop hl
+        pop bc
+        jr z,mergepatherror
+        ld a,(hl)
+        cp dirmaxdepth
+        jr z,mergepatherror
+        push bc
+        push de
+        push hl
+        inc (hl)
+        inc hl
+        call getdiradr
+        ex de,hl
+        call getworkareahl
+        ld bc,11
+        ldir
+        pop hl
+        pop de
+        pop bc
+        call trimslash
+        ret z
+        push de:pop ix
+MergePathNoDir
+MergePathContinue
+        ld a,b
+        cp c
+        jr nz,mergepathloop
+        ret
+MergePathError
+        ld a,dsk_err_bad_command
+        or a        ; NZ
+        ret
+
+; Les slashes remontent dans l'arborescence
+; Retourne avec Z si la fin du chemin est atteinte
+TrimSlash
+        ld a,(de)
+        cp '/'
+        ret nz
+        inc de
+        inc b
+        ld a,(hl)
+        or a
+        jr z,trimslashroot
+        dec (hl)
+        jr trimslashnoroot
+TrimSlashRoot
+        PUT_8 rootreached,&ff
+TrimSlashNoRoot
+        ld a,b
+        cp c
+        jr nz,trimslash
+        ret
+
+;
+; Récupère le chemin courant du lecteur logique courant HL
+;
+; Entrée - N/A
+; Sortie - HL = pointeur vers l'arborescence courante du lecteur logique
+; Altéré - HL
+
+GetCurrentPathHL
+        ex de,hl
+        call getcurrentpathde
+        ex de,hl
+        ret
+
+;
+; Récupère le chemin courant du lecteur logique courant dans DE
+;
+; Entrée - A = numéro de lecteur logique (GetLogicalDrivePathDE uniquement)
+; Sortie - DE = pointeur vers l'arborescence courant du lecteur logique
+; Altéré - DE
+
+GetCurrentPathDE
+        push af
+        call checkphysicaldrivecache
+        GETPTR_DE currentpath
+        pop af
+        ret
+GetLogicalDrivePathDE
+        push bc
+        push hl
+        GETPTR_HL currentlogicaldrive
+        ld b,(hl)
+        ld (hl),a
+        call getcurrentpathde
+        ld (hl),b
+        pop hl
+        pop bc
+        ret
+
+;
+; Vérifie qu'un chemin est entièrement valide (lecteur logique/physique, chemin et nom de fichier)
+;
+; Entrée - HL = pointeur vers le chemin à valider
+;           B = longueur du chemin
+; Sortie - NZ si le chemin a pu être qualité
+;               WorkDrive = lecteur physique
+;               WorkPath  = aborescence
+;               WorkArea  = nom de fichier
+;          Z si le chemin n'a pas pu être qualité
+;               rootreached non nul si le chemin sortait de la racine
+; Altéré - AF,BC,DE,HL
+
+QualifyFile
+        call qualifypath
+        ret z
+NormalizeFile
+        call getworkareade
+        jp normalizename
+
+;
+; Vérifie que le chemin est valide (lecteur logique/physique et chemin)
+;
+; Entrée - HL = pointeur vers le chemin à valider
+;           B = longueur du chemin
+; Sortie - NZ si le chemin a pu être qualité
+;               DE = pointeur vers le chemin filtré
+;                C = longueur du chemin filtré (0 si le fichier ne contient pas de chemin)
+;               HL = pointeur vers le nom de fichier filtré
+;                B = longueur du nom de fichier filtré (0 si le fichier est absent)
+;               WorkDrive = lecteur physique
+;               WorkPath  = aborescence
+;               WorkLogicalDrive = 'A' ou 'B' si la référence était un lecteur logique, 0 sinon
+;          Z si le chemin n'a pas pu être qualité
+;               rootreached non nul si le chemin sortait de la racine
+; Altéré - AF,BC,DE,HL
+
+QualifyPath
+        PUT_8 rootreached,0
+
+        call checkfiledrive
+        cp -1
+        ret z
+        call setworkdrive
+
+        push hl
+        push de
+        push bc
+        call qualifygetbasepath
+        call getworkpathde
+        ld bc,dirbuffersize
+        ldir
+        pop bc
+        pop de
+        push de
+        push bc
+        call getworkpathhl
+        call mergepath
+        pop bc
+        pop de
+        pop hl
+
+        jr nz,qualifypathfailure
+        GET_A rootreached
+        or a
+        jr nz,qualifypathfailure
+        dec a   ; NZ
+        ret
+QualifyPathFailure
+        cp a    ; Z
+        ret
+QualifyGetBasePath
+        GET_A worklogicaldrive
+        or a
+        jr z,getcurrentpathhl
+        sub a,'A'
+        ex de,hl
+        call getlogicaldrivepathde
+        ex de,hl
+        ret
+
+;
+; Renvoie le status d'un lecteur logique (via CTRL-H BIOS vector)
+;
+; Entrée - C = numéro de la ROM
+;          A = numéro de lecteur
+; Sortie - A = status
+; Altéré - AF,HL
+
+GetDriveStatus
+        ld l,a
+        ld a,&ff    ; Désactivation des messages BIOS
+        push hl
+        call bios_setmessage
+        pop hl
+        push af
+        ld a,l
+        call getdrivestatusinternal
+        ld l,a
+        pop af
+        push hl
+        call bios_setmessage
+        pop hl
+        ld a,l
+        ret
+GetDriveStatusInternal
+        ld hl,_rsx_ctrl_h
+        call findrsx
+        jr nc,getdrivestatusfailure
+        call invokersx
+        ret c       ; Résultat directement dans A
+        inc hl
+        ld a,(hl)
+        ret
+GetDriveStatusFailure
+        ld a,&80    ; Failure
+        ret
+
+;
+; Renvoie le numéro du lecteur physique correspondant au lecteur logique courant ou fourni
+;
+; Entrée - A = numéro du lecteur logique (pour GetPhysicalDrive seulement)
+; Sortie - A = numéro de lecteur physique courant (-1 si le lecteur logique courant est invalide)
+; Altéré - AF
+
+GetCurrentPhysicalDrive
+        call checkphysicaldrivecache
+        GET_A currentphysicaldrive
+        ret
+GetPhysicalDrive
+        push bc
+        push hl
+        GETPTR_HL currentlogicaldrive
+        ld b,(hl)
+        ld (hl),a
+        call getcurrentphysicaldrive
+        ld (hl),b
+        pop hl
+        pop bc
+        ret
+
+;
+; Met à jour le numéro du lecteur physique correspondant pour le lecteur logique courant ou fourni
+;
+; Entrée - C = numéro de lecteur physique
+; Sortie - Si C le lecteur a pu être mis à jour
+;          Si NC alors le lecteur n'était pas disponible
+; Altéré - AF
+
+SetCurrentPhysicalDrive
+        ld a,c
+        call probedrive
+        ret nc
+
+        call checkphysicaldrivecache
+
+        PUT_C currentphysicaldrive
+        scf     ; C
+        ret
+
+;
+; Recynchronise au besoin le cache du lecteur physique et du chemin courant avec le lecteur logique courant
+;
+; Entrée - Aucune
+; Sortie - Aucune
+; Altéré - AF
+
+CheckPhysicalDriveCache
+        push hl
+        call chkphydrvcache
+        pop hl
+        ret
+
+ChkPhyDrvCache
+        GET_A currentlogicaldrive
+        GETPTR_HL cachedlogicaldrive
+        cp (hl)
+        ret z
+
+        ld (hl),a   ; Mise à jour du cache pour le lecteur logique courant
+
+        push bc
+        push de
+
+        ld c,sc_currentpath_f
+        call nz,loadconfig
+
+        pop de
+        pop bc
+        ret
+
+;
+; Vérifie si un lecteur est de type flux, si aucun nom n'a été fourni alors un nom vide est créé dans workarea
+;
+; Entrée - HL = nom de fichier
+;           B = longueur du nom de fichier
+; Sortie - Si Z alors une référence de flux vierge a été créé
+;          Si NZ alors le lecteur n'est pas un flux ou le nom de fichier est non vide
+; Altéré - AF
+
+CheckStreamEmptyReference
+        call getworkdrive_rega
+        call device_getstatus
+
+        xor media_streamonly_f
+        and media_streamonly_f
+        ret nz
+
+        ld a,b
+        or a
+        jr z,checkstreamempty
+
+        cp 1
+        ret nz
+
+        RAM_LAM
+        cp '.'
+        ret nz
+
+CheckStreamEmpty
+        push hl
+        call getworkareahl
+        ld a,&ff
+        ld b,11
+CheckStreamLoop
+        ld (hl),a
+        inc hl
+        djnz checkstreamloop
+        pop hl
+        ret
+
+;
+; Alias vers Device_Examine et Device_ExamineNext qui mettent
+; à jour l'horodatage du fichier/répertoire concerné
+;
+; Entrée - Comme Device_Examine/Device_ExamineNext (sauf IX qui pointe toujours sur DataMap.FileDate)
+; Sortie - Comme Device_Examine/Device_ExamineNext 
+; Altéré - Comme Device_Examine/Device_ExamineNext
+
+CASExamine
+        push ix
+        call getfiledateix
+        ld (ix+2),0
+        call device_examine
+        pop ix
+        ret
+
+CASExamineNext
+        push ix
+        call getfiledateix
+        ld (ix+2),0
+        call device_examinenext
+        pop ix
+        ret
+
+;
+; Récupère l'adresse et le bit correspondant à l'initialisation d'un noeud DOS
+;
+; Entrée - C = numéro de ROM du noeuds DOS
+; Sortie - HL = adresse où se trouve le bit d'initialisation du noeud DOS
+;          A = masque du bit
+; Altéré - A,HL
+
+
+GetDOSNodeInitStatus
+        push de
+        push af
+        call getdosnodesinitstatushl
+        ld e,c
+        srl e
+        srl e
+        srl e ; ROM/8
+        ld d,0
+        add hl,de
+        ld e,1
+        ld a,c
+        and 7
+GetDOSNodeInitStatusLoop
+        jr z,getdosnodeinitstatusloopexit
+        sla e
+        dec a
+        jr nz,getdosnodeinitstatusloop
+GetDOSNodeInitStatusLoopExit
+        pop af
+        ld a,e
+        pop de
+        ret
+
+;
+; Détermine si un noeud DOS est actif
+;
+; Entrée - A = numéro de ROM (1-31)
+; Sortie - Si Carry = 1 alors la ROM comporte un noeud DOS actif
+;          Si Carry = 0 alors la ROM n'a pas de noeud DOS actif
+; Altéré - Flags
+
+IsActiveDOSNode
+        cp 32
+        ret nc
+
+        push hl
+        push bc
+        push af
+IsActiveDOSNodeFC
+        ld c,a
+        call getdosnodeinitstatus
+        and (hl)
+        pop bc
+        ld a,b
+        pop bc
+        pop hl
+        ret z ; NC
+        scf
+        ret
+
+;
+; Détermine si le "far call" temporaire pointe vers un noeud DOS actif
+;
+; Entrée - Aucune
+; Sortie - Si Carry = 1 alors le "far call" pointe vers un noeud DOS actif
+;          Si Carry = 0 alors le "far call" ne pointe pas vers un noeud DOS actif
+; Altéré - Flags
+
+IsValidTempFarCall
+        push hl
+        push bc
+        push af
+        ld a,(_dos_rom_temp_routine+2)
+        jr isactivedosnodefc
+
+;
+; Vérifie si un lecteur physique interne existe dans la configuration courante
+;
+; Entrée - A = numéro de lecteur physique
+; Sortie - Si Carry = 1 alors le lecteur existe (le matériel nécessaire à sa gestion est présent)
+;          Si Carry = 0 alors le lecteur n'existe pas
+; Altéré - Flags
+
+IsInternalDriveExist
+        cp physicaldrive_dfa
+        jr z,iidecheckamsdos
+        cp physicaldrive_dfb
+        jr z,iidecheckamsdos
+
+        cp physicaldrive_tape
+        jp z,istapeinterface
+
+        or a    ; NC
+        ret
+IIDECheckAMSDOS
+        push bc
+        ld b,a
+        call GetAmsdosROM_RegA
+        or a
+        ld a,b
+        pop bc
+        ret z   ; NC
+        scf
+        ret
+
+;
+; Vecteur de remplacement pour KL FIND COMMAND qui recherche à la fois
+; dans les ROMs de premier et second plan installées et dans les noeuds DOS
+;
+; L'ordre de recherche est :
+;   RSX en RAM
+;   RSX dans un noeud DOS
+;   RSX dans une ROM de premier ou second plan
+;
+; Entrée - HL = nom de la RSX à rechercher
+; Sortie - Si C alors la RSX a été trouvée
+;              HL = adresse de la routine associée à la RSX
+;               C = numéro de la ROM
+;          Si NC la RSX n'a pas été trouvée
+;               C = 0
+; Altéré - Flags,HL,DE,BC
+
+FindCommand
+        push hl
+        call _kl_old_find_command ; On recherche d'abord dans les ROMs de premier et de second plan
+        pop de
+        jr c,findcommandininstalledromssuccess
+FindCommandInInstalledROMsFailed
+        ld h,0
+FindCommandInInstalledROMsSuccess
+        push hl
+        ld b,c
+
+        ex de,hl
+        ld c,0                  ; On cherche ensuite dans les noeuds DOS
+FindCommandInNodeLoop
+        push bc
+
+        push hl                 ; Noeud DOS actif ?
+        call getdosnodeinitstatus
+        and (hl)
+        pop hl
+        ex de,hl
+        jr z,findcommandinnodenext ; NC
+
+        ex de,hl
+        push hl
+        call copyrsxnametoram
+        call searchrsxinsinglerom
+        pop de
+FindCommandInNodeNext
+        pop bc
+        jr c,findcommandinnodesuccess
+
+        ex de,hl
+        inc c
+        ld a,31
+        and c
+        jr nz,findcommandinnodeloop
+FindCommandInNodeFailed
+        ld h,0
+FindCommandInNodeSuccess
+        pop de ; Résultat ROM dans DE/B
+               ; Résultat noeud dans HL/C
+
+        ld a,h ; Résultat noeud = 0 ?
+        or a
+        jr z,findcommandininstalledromstest
+
+        ld a,d ; Résultat ROM = 0 ?
+        or a
+        jr z,findcommandinnodeuse
+
+        ld a,b ; RSX dans la RAM ?
+        cp &fc
+        jr nc,findcommandininstalledromsuse
+FindCommandInNodeUse
+        scf
+        ret
+
+FindCommandInInstalledROMsTest
+        ld a,d
+        or a
+        ret z ; NC
+FindCommandInInstalledROMsUse
+        scf
+        ex de,hl
+        ld c,b
+        ret ; C
+
+;
+; Tente de lire l'heure et la date courantes
+;
+; Entrée - Aucune
+; Sortie - IX = tampon rempli avec les informations d'heure et de date par défaut (DataMap.FileDate)
+;               Un mot de 16 bits avec l'année (1978..9999)
+;               Un octet avec le numéro du mois (1..12)
+;               Un octet avec le numéro du jour dans le mois (1..28,29,30 ou 31)
+;               Un octet avec les heures (0..23)
+;               Un octet avec les minutes (0..59)
+;               Un octet avec les secondes (0..59)
+;           A = numéro du jour dans la semaine (1..7, du lundi au dimanche)
+;          Si l'horloge n'est pas présente alors Carry = 0
+;          Si l'horloge est présente mais que son contenu est invalide alors Carry = 1
+;          Dans ces deux cas, le tampon sera positionné à l'heure et à la date par défaut
+; Altéré - AF,IX
+
+SmartReadClock
+        call getfiledateix
+SmartReadClockCustomIX
+        call device_readrtc
+        jr nc,smartreadclockdefault
+
+        call isvaliddatetime
+        ret c
+
+        scf
+SmartReadClockDefault
+        call getdefaultdatetime
+
+        push af
+        call device_writertc
+        pop af
+        ret
+
+;
+; Retours d'erreur génériques
+;
+
+CASReturn_QualifyFailed
+        GET_A rootreached
+        or a
+        jr nz,casreturn_rootreached
+CASReturn_BadCommand
+        ld a,dsk_err_quiet_bad_command
+        ld hl,msg_badcommand
+        jr casreturn_commonprint
+CASReturn_RootReached
+        ld a,dsk_err_quiet_file_not_found
+        ld hl,msg_rootreached
+        jr casreturn_commonprint
+CASReturn_UnsupportedDrive
+        ld hl,msg_unsupported
+        call displaydrivemsg
+        ld a,dsk_err_quiet_unsupported_drive
+        jr casreturn_commonnoprint
+CASReturn_PathTooLong
+        ld a,dsk_err_quiet_file_not_found
+        ld hl,msg_filepathtoolong
+        jr casreturn_commonprint
+CASReturn_FileIsNotALink
+        ld a,dsk_err_quiet_file_is_not_a_link
+        ld hl,msg_notalink
+        jr casreturn_commonprint
+CASReturn_FileNotFound_HL
+        call printnormalizedfilename
+        ld a,dsk_err_quiet_file_not_found
+CASReturn_NotFound
+        ld hl,msg_notfound
+        jr casreturn_commonprint
+CASReturn_FileIsReadOnly_HL
+        call printnormalizedfilename
+        ld a,dsk_err_quiet_file_is_read_only
+CASReturn_IsReadOnly
+        ld hl,msg_isreadonly
+        jr casreturn_commonprint
+CASReturn_FileAlreadyExists_HL
+        call printnormalizedfilename
+        ld a,dsk_err_quiet_file_already_exists
+        ld hl,msg_alreadyexist
+        jr casreturn_commonprint
+CASReturn_NotADirectory_HL
+        call printnormalizedfilename
+        ld a,dsk_err_quiet_not_a_directory
+        ld hl,msg_notadirectory
+        jr casreturn_commonprint
+CASReturn_MediaChanged_HL_A
+        push hl
+        ld hl,msg_mediachanged
+        call displaydrivemsg
+        pop hl
+        call printnormalizedfilename
+        ld a,dsk_err_quiet_disc_changed
+        jr casreturn_commonnoprint
+CASReturn_HandleFailure
+        bit 7,a
+        jr z,casreturn_badcommand
+        jr casreturn_commonnoPrint
+CASReturn_CommonPrint
+        call printstring
+CASReturn_CommonNoPrint
+        cp a ; NC/Z
+        ret
+CASReturn_RenameAcrossMedias
+        ld a,dsk_err_quiet_rename_across_medias
+        ld hl,msg_renameacrossmedias
+        jr casreturn_commonprint
+CASReturn_Interrupted
+        ld a,dsk_err_quiet_user_has_hit_escape
+        ld hl,msg_break
+        ld bc,0
+        ld d,b
+        ld e,c
+        jr casreturn_commonprint
+CASReturn_ClockNotFound
+        ld a,dsk_err_quiet_clock_not_found
+        ld hl,msg_clock
+        call printstring
+        jr casreturn_notfound
+CASReturn_ClockIsReadOnly
+        ld a,dsk_err_quiet_clock_is_read_only
+        ld hl,msg_clock
+        call printstring
+        jr casreturn_isreadonly
+CASReturn_NotADOSNode
+        ld a,dsk_err_quiet_bad_command
+        ld hl,msg_notadosnode
+        jr casreturn_commonprint
+
+; Erreurs spéciales
+
+CASReturn_BadFileMode
+CASReturn_NotOpened
+CASReturn_AlreadyClosed
+CASReturn_AlreadyOpened
+        ld a,dsk_err_bad_channel_state
+        or a    ; NC/NZ, NZ important ! Sinon le Basic fait un "Broken in" à la fin de l'exécution des programmes !
+        ret
+

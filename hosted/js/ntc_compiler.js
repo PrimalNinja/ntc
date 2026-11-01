@@ -2386,6 +2386,13 @@ function ntcCompile(input_a, objOptions_a)
 		strDest = numTarget(strTarget_a) ? strTarget_a : tmp(intSlot_a);
 		if (isByteArray(objArray_a))
 		{
+			// the destination zeroed before kw_pget copies its 1 byte: not the index's own temp (an
+			// index expression on an array parameter - CLng(a(i + 1)) - was zeroed with it, and the
+			// element read was a(0)'s: 2026-11-01)
+			if ((strDest === strIndex) || (strDest === strIndex2))
+			{
+				strDest = tmp(intSlot_a + 2);
+			}
 			emit('kw_ztov', [strDest]);		// kw_pget copies 1 byte: high byte 0
 		}
 		emit((strIndex2.length > 0) ? 'kw_pget2' : 'kw_pget', [descLabel(objArray_a), strIndex].concat((strIndex2.length > 0) ? [strIndex2] : []).concat([strDest]));
@@ -3865,7 +3872,7 @@ function ntcCompile(input_a, objOptions_a)
 		}
 		if (objBuiltin === undefined)
 		{
-			error('unknown function or array: ' + strName);
+			error(libClassMissing(strName) || ('unknown function or array: ' + strName));
 			return lit(0);
 		}
 		if ((arrArgs_a.length < objBuiltin[0]) || (arrArgs_a.length > objBuiltin[1]))
@@ -6284,7 +6291,39 @@ function ntcCompile(input_a, objOptions_a)
 			default:
 				break;
 		}
-		error('unknown statement or procedure: ' + objRec_a.raw);
+		error(libClassMissing(String(objRec_a.raw || '').split(/[\s(]/)[0]) || ('unknown statement or procedure: ' + objRec_a.raw));
+	}
+
+	// a name Class.member whose Class is a library class on other platforms but not this one: the
+	// message for that ("Keys isn't on msxdos - it is on cpc, cpcfw ..."), else ''
+	function libClassMissing(strName_a)
+	{
+		var intDot = String(strName_a).indexOf('.');
+		var strClass = '';
+		var arrOn = [];
+
+		if ((intDot <= 0) || (typeof NTC_PLATFORM_CLASSES === 'undefined'))
+		{
+			return '';
+		}
+		strClass = String(strName_a).substr(0, intDot).toLowerCase();
+		if (Object.keys(NTC_PLATFORM_CLASSES[objOptions.platform] || {}).some(function(strF_a) { return strF_a.toLowerCase() === strClass + '.cls'; }))
+		{
+			return '';
+		}
+		Object.keys(NTC_PLATFORM_CLASSES).forEach(function(strPl_a)
+		{
+			if (Object.keys(NTC_PLATFORM_CLASSES[strPl_a]).some(function(strF_a) { return strF_a.toLowerCase() === strClass + '.cls'; }))
+			{
+				arrOn.push(strPl_a);
+			}
+		});
+		if (arrOn.length === 0)
+		{
+			return '';
+		}
+		strClass = Object.keys(NTC_PLATFORM_CLASSES[arrOn[0]]).filter(function(strF_a) { return strF_a.toLowerCase() === strClass + '.cls'; })[0].replace(/\.cls$/i, '');
+		return strClass + ' (' + strName_a + ') is a library class this platform (' + objOptions.platform + ') hasn\'t - it is on ' + arrOn.join(', ');
 	}
 
 	// On x GoTo a, b, c / On x GoSub a, b, c (x = 1 picks a; out of range goes on)
@@ -6693,6 +6732,34 @@ function ntcCompile(input_a, objOptions_a)
 			if (/^\s*ld\s+sp\s*,\s*[^\s(]/i.test(strCode) || (blnM68k && /^\s*(lea\s+[^,]+|movea?\.l\s+[#(][^,]*),\s*(sp|a7)\s*$/i.test(strCode)) || (blnM65 && /^\s*(txs|tys)\b/i.test(strCode)))
 			{
 				blnBranch = true;
+			}
+		}
+
+		// an inline #asm block runs with SP as the thread: a push (or a call, rst, ex (sp)) before it
+		// switches SP writes over the thread words already run - the block works once and breaks
+		// when that thread runs again. Warned, from the top to the first label (code after a label
+		// is reached some other way) or the first ld sp. A pop is not warned: popping a word put in
+		// the thread on purpose is how a block takes a parameter. Keyword procedures (their own
+		// stack discipline) and the 68000 / 45GS02 aren't looked at
+		if ((strTitle_a === '#asm') && !blnM68k && !blnM65 && (intPass === 2))
+		{
+			for (intI = 0; intI < arrLines.length; intI++)
+			{
+				strCode = arrLines[intI].substr(0, codePart(arrLines[intI]));
+				if (/^\s*@?[A-Za-z_]\w*:/.test(strCode) || /^\s*ld\s+sp\s*,/i.test(strCode))
+				{
+					break;
+				}
+				if ((arrMatch = strCode.match(/^\s*(push|call|rst|ex\s*\(\s*sp\s*\))\b/i)))
+				{
+					strLine = 'W' + objRec_a.file + ':' + (objRec_a.line + 1 + intI) + ':asmsp';
+					if (objErrorSeen[strLine] === undefined)
+					{
+						objErrorSeen[strLine] = true;
+						arrWarnings.push({ file: objRec_a.file, line: objRec_a.line + 1 + intI, msg: '#asm: ' + arrMatch[1].replace(/\s+/g, ' ').toLowerCase() + ' while SP is the thread - it writes over the thread (the block works once, then breaks): switch to a stack first (ld sp, (ntc_csp) ... and back), or make it an asm keyword procedure' });
+					}
+					break;
+				}
 			}
 		}
 

@@ -1,0 +1,1401 @@
+;
+; Gestion des lecteurs physiques pris en charge par l'UniDOS
+; soit en interne soit via des noeuds DOS (ROM externes dédiées)
+;
+
+;
+; Définition des périphériques gérés par le noeud DOS interne
+;
+
+PhysicalDrivesId
+        db physicaldrive_dfa
+        db physicaldrive_dfb
+        db physicaldrive_tape
+        db -1
+PhysicalDrivesName  ; Max 8 octets par nom
+        str "DFA" :db physicaldrive_dfa
+        str "DFB" :db physicaldrive_dfb
+        str "TAPE":db physicaldrive_tape
+        db 0
+PhysicalDrivesDesc  ; Max 32 octets par description
+        str "Floppy disc A":db physicaldrive_dfa
+        str "Floppy disc B":db physicaldrive_dfb
+        str "Tape"         :db physicaldrive_tape
+        db 0
+
+;
+; Macro de gestion des requêtes DOS autour de la routine Device_<name>Dispatcher
+;
+; Réeesayer rappelle la routine avec les paramètres initiaux
+; Abandonner sort en erreur (C/NZ) avec le code d'erreur initial
+; Ignorer sort en succès (C/Z) comme si la routine avait fonctionné
+;
+; Dans ce dernier cas, une routine nommée "Device_<name>Ignore" doit
+; être créée et contenir le code à exécuter avant le retour afin de
+; positionner la valeur des regitres
+;
+; Attention, cette macro est prévue pour fonctionner uniquement avec
+; les routines utilisant le schéma de sortie suivant :
+;
+; Si Carry = 1 alors la routine a été exécutée normalement
+;       Si Z alors la routine a fonctionné
+;       Si NZ alors une erreur est survenue
+;           A = code d'erreur
+;       Si Carry = 0 alors la routine est invalide pour ce lecteur
+
+Macro DOSRetryReq name,driveprovider
+    If device_{driveprovider}>0
+        call device_{driveprovider}
+    EndIf
+        call resetautoretry
+        call installdosrequest
+        jp device_{name}dispatcher
+        jp device_{name}ignore
+EndM
+
+InstallDOSRequest
+        di
+        exx
+        pop hl      ; Adresse de la routine Device_<name>Dispatcher
+        push hl
+        exx
+        push hl     ; Sauvegarde du d'appel contexte initial
+        push de     ; (inutile de sauver IX et IY ils ne sont jamais modifiés par les routine Device_<name>Dispatcher)
+        push bc
+        push af
+        exx
+        ld de,dosrequest
+        push de
+        push hl
+        exx
+        ei
+        ret
+
+DOSRequest
+        jp nc,dosreq_exit
+        jp z,dosreq_exit
+
+        di
+        ex af,af'
+        pop af
+        push af
+        cp a        ; NC : important pour les interruptions !
+        ld c,a      ; C = numéro du lecteur physique
+        ex af,af'   ; A = code d'erreur
+        ei
+        call askuserchoice
+        jp c,dosreq_retry   ; Réessayer
+        jp z,dosreq_cancel  ; Abandonner
+DOSReq_Ignore               ; Ignorer
+        pop hl      ; HL n'est jamais un paramètre de retour
+        pop hl      ; et peut être perdu sans soucis ici
+        pop hl
+        pop hl
+        pop hl      ; Adresse de la routine pour le ignore
+        inc hl:inc hl:inc hl
+        call jump_hl
+        cp a    ; Z
+        scf     ; C
+        ret
+
+DOSReq_Retry        ; Restaure tous les registres avant de réessayer
+        pop af
+        pop bc
+        pop de
+        pop hl
+        di
+        exx
+        pop hl
+        dec hl:dec hl:dec hl
+        push hl     ; Adresse de la routine pour le retry
+        exx
+        ei
+        ret
+
+DOSReq_Cancel       ; Retourne l'erreur lors d'un abandon
+        or a    ; NZ
+        scf     ; C
+DOSReq_Exit         ; Réaligne la pile avant le retour
+        di
+        exx
+        pop hl
+        pop hl
+        pop hl
+        pop hl
+        pop hl
+        exx
+        ei
+        ret
+
+;
+; Routines de récupération du lecteur en cours de traitement
+; (pour l'argument <driveprovider> de la macro DOSRetryReq)
+;
+
+Device_IOPhysicalDriveFromA Equ 0
+
+Device_IOPhysicalDriveFromInStream
+        GET_A fileindrive
+        ret
+Device_IOPhysicalDriveFromOutStream
+        GET_A fileoutdrive
+        ret
+Device_IOPhysicalDriveFromExamineDir
+        GET_A examinedirdrive
+        ret
+Device_IOPhysicalDriveFromNVRAMId
+        GET_A nvramid
+        ret
+Device_IOPhysicalDriveFromRTCId
+        GET_A rtcid
+        ret
+
+;
+; Macro de préparation de l'appel d'un neud DOS
+;
+
+Macro HandleDOSNode nodeentry
+        di
+        exx
+        ld hl,_dosnode_{nodeentry}
+        call configureandinvokedosnodefarcall
+EndM
+
+ConfigureAndInvokeDOSNodeFarCall
+        ld b,a
+        ex af,af'
+        ld a,c
+        ex af,af'
+        ld c,a
+        srl c
+        srl c
+        srl c   ; C = numéro de ROM
+        call configuretempfarcall
+        ld a,b
+        and 7   ; A = numéro de lecteur (dans la ROM)
+        ex af,af'
+        ld b,&7f
+        ld c,a
+        ex af,af'
+        exx
+        ei
+
+        call isvalidtempfarcall
+        ret nc
+
+InvokeDOSNodeFarCall
+        push af
+        push bc
+        push de
+        push hl
+
+        call isprivatedatavalid
+        jr nz,idnfcnosync1
+        ld a,(_dos_rom_temp_routine+2)
+        ld (hl),a
+
+        call getprivatedataptrs
+        ex de,hl
+        ldi
+        ldi
+
+IDNFCNoSync1
+        pop hl
+        pop de
+        pop bc
+        pop af
+
+        FAR_CALL _dos_rom_temp_routine
+
+        push af
+        push bc
+        push de
+        push hl
+
+        call isprivatedatavalid
+        jr nz,idnfcnosync2
+        ld a,(hl)
+        call getprivatedataptrs
+        ldi
+        ldi
+
+IDNFCNoSync2
+        pop hl
+        pop de
+        pop bc
+        pop af
+
+        ret
+
+IsPrivateDataValid
+        ld bc,(_dos_rom_base_address)
+        ld hl,datamap.dosnoderom
+        add hl,bc
+        bit 7,(hl)
+        ret
+
+GetPrivateDataPtrs
+        ld hl,_kl_rom_upper_select_number
+        cp (hl)     ; On saute l'id d'UniDOS qui n'existe pas dans la table
+        jr c,idnfarcall
+        dec a
+IDNFarCall
+        add a,a
+        ld l,a
+        ld h,0
+        add hl,bc
+        ld bc,datamap.dosnodesprivatetable
+        add hl,bc
+        ex de,hl    ; DE = Adresse dans la table
+
+        ld hl,(_dos_rom_base_address)
+        ld bc,datamap.dosnodeprivatedata
+        add hl,bc   ; HL = Adresse courante
+        ret
+
+;
+; Initialise tous les noeuds DOS
+;
+; Entrée - Aucune
+; Sortie - Si C alors un gestionnaire de mémoire non volatile (2K mini) a été trouvé
+;          Si NC alors aucun gestionnaire de mémoire non volatile n'a été trouvé
+; Altéré - AF,BC,DE,HL
+
+Device_InitAllDOSNodes
+        call checkreboot
+        ld b,0
+        jr nc,initallwarmreboot
+InitAllColdReboot
+        ld hl,msg_init_unidos
+        call printstring        ; Affichage de l'invite uniquement au premier démarrage
+        set init_coldboot_b,b
+InitAllWarmReboot
+
+        ld a,1
+InitAllNodesLoop
+        push af
+
+        ld c,a
+        call isdosnode
+
+        jr nc,initallnodesnext
+
+        bit init_coldboot_b,b
+        call nz,printdot        ; Affichage de l'invite uniquement au premier démarrage
+
+        ld hl,_dosnode_init
+        call configuretempfarcall
+        ld a,b
+        and init_coldboot_f     ; Seuls les bits d'entrée sont transmis
+        call invokedosnodefarcall
+        jr nc,initallnodesnext
+
+        and (init_coldboot_f xor 255)
+        or b                    ; Ajout des flags en retour aux flags déjà positionnés
+        ld b,a
+
+        call initallnodessetinitstatus
+
+        call initallnodeschecknvram
+        call initallnodescheckrtc
+InitAllNodesNext
+        pop af
+
+        inc a
+        cp 32
+        jr nz,initallnodesloop
+
+        bit init_coldboot_b,b
+        ld a,'\r'
+        call nz,_txt_output     ; Affichage de l'invite uniquement au premier démarrage
+
+        GET_A nvramid
+        or a
+        jr z,initallnodesnonvram
+InitAllNodesSuccess
+        scf
+        ret     ; C
+InitAllNodesNoNVRAM
+        call emulate_initnvram
+        or a
+        ret     ; NC
+
+InitAllNodesCheckNVRAM
+        bit init_havenvram_b,b
+        ret z
+        GETPTR_HL nvramid
+        jr initallnodescheckflag
+InitAllNodesCheckRTC
+        bit init_havertc_b,b
+        ret z
+        GETPTR_HL rtcid
+InitAllNodesCheckFlag
+        ld a,(hl)               ; Déjà trouvés ?
+        or a
+        ret nz
+        ld a,c
+        sla a:sla a:sla a       ; Numéro de ROM dans les bits de poids fort
+        ld (hl),a               ; pour l'appel via le noeud DOS
+        ret
+InitAllNodesSetInitStatus
+        call getdosnodeinitstatus
+        or (hl)
+        ld (hl),a
+        ret
+
+;
+; Vérifie si un nom de lecteur correspond à un lecteur physique
+;
+; Entrée - HL = pointeur vers le nom de lecteur
+;               (si positionné sur certains caractères, le bit 7 doit être ignoré)
+;          C = longueur du nom de lecteur
+; Sortie - Si Carry = 1 une correspondance a été trouvée
+;               A = numéro du lecteur physique
+;          Si Carry = 0 aucune correspondance n'a été trouvée
+;               A = -1
+; Altéré - AF
+
+Device_CheckDrive
+        ld a,1
+CheckDriveLoopROM
+        call dosnodecheckdrive
+        ret c
+
+        inc a
+        cp 32
+        jr c,checkdrivelooprom
+
+        call internalnode_checkdrive
+        ret c
+
+        ld a,-1
+        ret
+
+InternalNode_CheckDrive
+        push de
+        ld de,physicaldrivesname
+CheckDriveLoop
+        push hl
+        push bc
+CheckDriveNextChar
+        ld a,(de)
+        or a
+        jr z,checkdrivenotfound
+        bit 7,a
+        jr z,checkdrivenonameend
+        dec c
+        jr nz,checkdrivenextone
+        jr checkdrivecomparechar
+CheckDriveNoNameEnd
+        dec c
+        jr z,checkdrivenextone
+CheckDriveCompareChar
+        and &7f
+        ld b,a
+        RAM_LAM
+        and &7f
+        call toupper
+        cp b
+        jr nz,checkdrivenextone
+        inc hl
+        inc de
+        ld a,c
+        or a
+        jr z,checkdrivefound
+        jr checkdrivenextchar
+CheckDriveNextOne
+        ld a,(de)
+        inc de
+        bit 7,a
+        jr z,checkdrivenextone
+        inc de
+        pop bc
+        pop hl
+        jr checkdriveloop
+CheckDriveNotFound
+        or a        ; NC
+        jr checkdriveexit
+CheckDriveFound
+        ld a,(de)   ; A = numéro de lecteur physique
+        scf         ; C
+CheckDriveExit
+        pop bc
+        pop hl
+        pop de
+        ret
+
+;
+; Retourne le statut d'un lecteur physique
+;
+; Entrée - A = Numéro de lecteur physique
+; Sortie - Si Carry = 1 un statut a pu être récupéré
+;               A = Statut du lecteur (voir les flags Media_*)
+;                   Bit0 = 1 si un média est disponible sur ce lecteur
+;                   Bit1 = 1 si le média gère les répertoires
+;                   Bit2 = 1 si le média est protégé en écriture
+;                   Bit3 = 1 si le média est amovible
+;                   Bit4 = 1 si le média est un flux (lecture/écriture linéaire uniquement)
+;                       La gestion des fichiers $$$ et BAK est alors désactivée
+;                   Bit5 = 1 si le média est accessible via les nouvelles API UniDOS
+;                   Les autres bits ne sont pas utilisés
+;          Si Carry = 0 alors le lecteur est inconnu et aucun statut n'a pu être récupéré
+;               A = 0
+; Altéré - AF
+
+Device_GetStatus
+        cp 8
+        jr c,internalnode_getstatus
+
+        HandleDOSNode get_status
+        jr nc,GetStatusFailed
+        or media_newapi_f
+        scf
+        ret
+
+InternalNode_GetStatus
+        cp physicaldrive_dfa
+        jr z,amsdosgetstatus
+        cp physicaldrive_dfb
+        jr z,amsdosgetstatus
+
+        cp physicaldrive_tape
+        jr z,tapegetstatus
+
+GetStatusFailed
+        xor a       ; NC
+        ret
+
+AmsdosGetStatus
+        push bc
+        push de
+        push hl
+        call amsgetstatus
+        pop hl
+        pop de
+        pop bc
+        ret
+AmsGetStatus
+        and &3      ; On ne garde que les bits 0-1 pour le numéro de lecteur
+        ld e,a      ; E = Numéro de lecteur
+        ld d,0      ; D = status
+        call GetAmsdosROM_RegA
+        or a
+        ret z       ; NC
+        ld c,a      ; C = numéro de ROM
+        ld a,e      ; A = numéro de lecteur
+        call getdrivestatus
+        ld d,media_removable_f
+        rla
+        jr c,amsgetstatusret    ; Pas de lecteur/pas de media
+        rla:rla
+        call c,statusmediaavailable
+        rla
+        call c,statusmediareadonly
+AmsGetStatusRet
+        ld a,d
+        scf
+        ret
+TapeGetStatus
+        ld a,media_removable_f+media_streamonly_f+media_available_f
+        jp istapeinterface
+StatusMediaAvailable
+        set media_available_b,d
+        ret
+StatusMediaReadOnly
+        set media_readonly_b,d
+        ret
+
+;
+; Renvoie le nom correspondant à un lecteur physique
+;
+; Entrée - A = numéro du lecteur physique
+;          DE = adresse d'un tampon de 8 octets où copier le nom
+; Sortie - Si Carry = 1 le nom a été trouvé
+;               DE pointe sur le premier caractère après la fin de la copie de la chaîne
+;               (la chaîne stockée est terminée par le bit 7 à 1)
+;          Si Carry = 0 le nom n'a pas été trouvé et le tampon n'a pas été modifié
+; Altéré - AF,DE
+
+Device_GetName
+        cp 8
+        jr c,internalnode_getname
+
+        HandleDOSNode get_name
+        ret
+
+InternalNode_GetName
+        call isinternaldriveexist
+        ret nc
+
+        push bc
+        push hl
+
+        ld b,a
+        ld c,8
+        ld hl,physicaldrivesname
+        call getnamecopy
+        ld a,b
+
+        pop hl
+        pop bc
+        ret
+
+;
+; Renvoie la description correspondant à un lecteur physique
+;
+; Entrée - A = numéro du lecteur physique
+;          DE = adresse d'un tampon de 32 octets où copier la description
+; Sortie - Si Carry = 1 une description a été trouvée
+;               DE pointe sur le premier caractère après la fin de la copie de la chaîne
+;               (la chaîne stockée est terminée par le bit 7 à 1)
+;          Si Carry = 0 aucune description n'a pas été trouvée et le tampon n'a pas été modifié
+; Altéré - AF,DE
+
+Device_GetDesc
+        cp 8
+        jr c,internalnode_getdesc
+
+        HandleDOSNode get_desc
+        ret
+
+InternalNode_GetDesc
+        call isinternaldriveexist
+        ret nc
+
+        push bc
+        push hl
+
+        ld b,a
+        ld c,32
+        ld hl,physicaldrivesdesc
+        call getnamecopy
+        ld a,b
+
+        pop hl
+        pop bc
+        ret
+
+GetNameCopy
+        push bc
+        push de
+        call getnameordesc
+        ex de,hl
+        pop de
+        pop bc
+
+        push af
+        call c,copystring
+        pop af
+        ret
+GetNameOrDesc
+        ld c,a
+GetNameLoopList
+        ld e,l
+        ld d,h
+GetNameLoopChar
+        ld a,(hl)
+        inc hl
+        or a
+        jr z,getnamenotfound
+        bit 7,a
+        jr z,getnameloopchar
+        ld a,(hl)
+        cp c
+        jr z,getnamefound
+        inc hl
+        jr getnamelooplist
+GetNameFound
+        scf     ; C
+        ret
+GetNameNotFound
+        or a    ; NC
+        ret
+
+;
+; Renvoie l'espace libre sur un lecteur physique
+;
+; Entrée - A = numéro du lecteur physique
+; Sortie - Si Carry = 1 la routine est supportée par ce lecteur
+;               Si Z alors l'espace disponible a pu être obtenu
+;                   BCDE = espace libre en kilo-octets
+;               Si NZ alors une erreur est survenue
+;                   A = code d'erreur
+;          Si Carry = 0 alors la routine est invalide pour ce lecteur
+; Altéré - AF,BC,DE
+
+Device_GetFreeSpace
+        DOSRetryReq getfreespace,iophysicaldrivefroma
+Device_GetFreeSpaceDispatcher
+        cp 8
+        jp c,internalnode_void
+
+        HandleDOSNode get_free_space
+        ret
+Device_GetFreeSpaceIgnore
+        ld bc,0
+        ld de,0
+        ret
+
+;
+; Ouvre le flux en entrée
+;
+; Entrée - A = numéro du lecteur physique
+;          HL = pointeur vers le nom normalisé
+;               note : si le lecteur est de type flux alors ce nom peut 
+;               contenir 11x&ff dans le cas où aucun nom de fichier n'a
+;               été fourni par l'utilisateur (utilisation de la référence
+;               de flux anonyme ".") ; la routine est alors censée ouvrir
+;               le premier fichier rencontré sur le flux et peut en option
+;               mettre à jour le nom si celui-ci a été obtenu depuis le flux
+;          DE = pointeur vers le chemin normalisé
+;          La mémoire pointée est dans l'espace ROM/RAM courant
+; Sortie - Si Carry = 1 la routine est supportée par ce lecteur
+;               Si Z alors un fichier a été ouvert
+;               Si NZ alors aucun fichier n'a été ouvert
+;                   A = code d'erreur
+; Altéré - AF
+
+Device_InOpenStream
+        DOSRetryReq inopenstream,iophysicaldrivefroma
+Device_InOpenStreamDispatcher
+        cp 8
+        jp c,internalnode_void
+
+        HandleDOSNode in_open_stream
+;        ret
+Device_InOpenStreamIgnore
+        ret
+
+;
+; Lit depuis le flux en entrée
+;
+; Entrée - HL = adresse où stocker les données lues
+;          DE = nombre d'octets à lire
+; Sortie - Si Carry = 1 la routine est supportée par ce lecteur
+;               Si Z alors des données ont pu être lues
+;                   DE = nombre d'octets effectivement lus
+;               Si NZ alors une erreur est survenue
+;                   A = code d'erreur
+;          Si Carry = 0 alors la routine est invalide pour ce lecteur
+; Altéré - AF,DE
+
+Device_InReadStream
+        DOSRetryReq inreadstream,iophysicaldrivefrominstream
+Device_InReadStreamDispatcher
+        cp 8
+        jp c,internalnode_void
+
+        HandleDOSNode in_read_stream
+        ret
+Device_InReadStreamIgnore
+        ld de,0
+        ret
+
+;
+; Ferme le flux en entrée
+;
+; Entrée - N/A
+; Sortie - Si Carry = 1 le flux a été fermé
+;               Si Z alors la nouvelle position a pu être atteinte
+;               Si NZ alors une erreur est survenue
+;                   A = code d'erreur
+;          Si Carry = 0 alors la routine est invalide pour ce lecteur
+; Altéré - AF
+
+Device_InCloseStream
+        DOSRetryReq inclosestream,iophysicaldrivefrominstream
+Device_InCloseStreamDispatcher
+        cp 8
+        jp c,internalnode_void
+
+        HandleDOSNode in_close_stream
+;        ret
+Device_InCloseStreamIgnore
+        ret
+
+;
+; Change la position dans le flux en entrée
+;
+; Entrée - DEHL = nouvelle position dans le flux de entrée
+; Sortie - Si Carry = 1 la routine est supportée par ce lecteur
+;               Si Z alors la nouvelle position a pu être atteinte
+;               Si NZ alors une erreur est survenue
+;                   A = code d'erreur
+;          Si Carry = 0 alors la routine est invalide pour ce lecteur
+; Altéré - AF
+
+Device_InSeekStream
+        DOSRetryReq inseekstream,iophysicaldrivefrominstream
+Device_InSeekStreamDispatcher
+        cp 8
+        jp c,internalnode_void
+
+        HandleDOSNode in_seek_stream
+;        ret
+Device_InSeekStreamIgnore
+        ret
+
+;
+; Ouvre le flux en sortie
+;
+; Note : le fichier ne sera effectivement crée que
+;        lors du premier accès en écriture
+;
+; Entrée - A = numéro du lecteur physique
+;          HL = pointeur vers le nom normalisé
+;          DE = pointeur vers le chemin normalisé
+;          La mémoire pointée est dans l'espace ROM/RAM courant
+; Sortie - Si Carry = 1 la routine est supportée par ce lecteur
+;               Si Z alors un fichier a été créé
+;               Si NZ alors aucun fichier n'a été créé
+;                   A = code d'erreur
+;          Si Carry = 0 alors la routine est invalide pour ce lecteur
+; Altéré - AF
+
+Device_OutOpenStream
+        DOSRetryReq outopenstream,iophysicaldrivefroma
+Device_OutOpenStreamDispatcher
+        cp 8
+        jp c,internalnode_void
+
+        HandleDOSNode out_open_stream
+;        ret
+Device_OutOpenStreamIgnore
+        ret
+
+;
+; Écrit sur le flux en sortie
+;
+; Entrée - HL = adresse où stocker les données lues
+;          DE = nombre d'octets à lire
+; Sortie - Si Carry = 1 la routine est supportée par ce lecteur
+;               Si Z alors des données ont pu être écrites
+;                   DE = nombre d'octets effectivement écrits
+;               Si NZ alors une erreur est survenue
+;                   A = code d'erreur
+;          Si Carry = 0 alors la routine est invalide pour ce lecteur
+; Altéré - AF,DE
+
+Device_OutWriteStream
+        DOSRetryReq outwritestream,iophysicaldrivefromoutstream
+Device_OutWriteStreamDispatcher
+        cp 8
+        jp c,internalnode_void
+
+        HandleDOSNode out_write_stream
+        ret
+Device_OutWriteStreamIgnore
+        ld de,0
+        ret
+
+;
+; Ferme le flux en sortie
+;
+; Entrée - Aucune
+; Sortie - Si Carry = 1 la routine est supportée par ce lecteur
+;               Si Z alors la nouvelle position a pu être atteinte
+;               Si NZ alors une erreur est survenue
+;                   A = code d'erreur
+;          Si Carry = 0 alors la routine est invalide pour ce lecteur
+; Altéré - AF
+
+Device_OutCloseStream
+        DOSRetryReq outclosestream,iophysicaldrivefromoutstream
+Device_OutCloseStreamDispatcher
+        cp 8
+        jp c,internalnode_void
+
+        HandleDOSNode out_close_stream
+;        ret
+Device_OutCloseStreamIgnore
+        ret
+
+;
+; Change la position dans le flux en sortie
+;
+; Entrée - DEHL = nouvelle position dans le flux en sortie
+; Sortie - Si Carry = 1 la routine est supportée par ce lecteur
+;               Si Z alors la nouvelle position a pu être atteinte
+;               Si NZ alors une erreur est survenue
+;                   A = code d'erreur
+;          Si Carry = 0 alors la routine est invalide pour ce lecteur
+; Altéré - AF
+
+Device_OutSeekStream
+        DOSRetryReq outseekstream,iophysicaldrivefromoutstream
+Device_OutSeekStreamDispatcher
+        cp 8
+        jp c,internalnode_void
+
+        HandleDOSNode out_seek_stream
+;        ret
+Device_OutSeekStreamIgnore
+        ret
+
+;
+; Vérifie qu'un fichier ou un répertoire existe et retourne les informations associées
+;
+; Entrée - A = numéro du lecteur physique
+;          HL = pointeur vers le nom normalisé de l'entrée
+;              Si HL = 0 alors l'entrée est un répertoire et on veut analyser sont contenu,
+;              ExamineNext devra ensuite être appelé pour récupérer les entrées
+;          DE = pointeur vers le chemin normalisé où se trouve l'entrée
+;          IX = tampon où copier l'heure et la date de dernière modification de l'entrée (7 octets)
+;               (inutilisé si HL = 0 ou si l'horodatage n'est pas supporté)
+;          La mémoire pointée est dans l'espace ROM/RAM courant
+; Sortie - Si Carry = 1 la routine est supportée par ce lecteur
+;
+;               Si HL ne valait pas 0 en entrée
+;                   Si Z alors le fichier ou le répertoire existe
+;                       A = bits de protection du fichier
+;                           Bit 0 - Lecture seule
+;                           Bit 1 - Caché
+;                           Bit 2 - Système
+;                           Bit 4 = Répertoire
+;                           Bit 5 = Archivé
+;                       BCDE = Taille du fichier
+;                       IX = tampon où ont été copiées l'heure et la date de dernière modification de l'entrée
+;                           (le contenu du tampon reste inchangé si l'horodatage n'est pas supporté)
+;                           Un mot de 16 bits avec l'année (1978..9999)
+;                           Un octet avec le numéro du mois (1..12)
+;                           Un octet avec le numéro du jour dans le mois (1..28,29,30 ou 31)
+;                           Un octet avec les heures (0..23)
+;                           Un octet avec les minutes (0..59)
+;                           Un octet avec les secondes (0..59)
+;                   Si NZ alors le fichier ou le répertoire est introuvable
+;                       A = code d'erreur
+;
+;               Si HL valait 0 en entrée
+;                   Si Z alors le répertoire est prêt à être examiné via ExamineNext
+;                   Si NZ alors une erreur est survenue
+;                       A = code d'erreur
+;
+;          Si Carry = 0 alors la routine est invalide pour ce lecteur
+; Altéré - AF
+
+Device_Examine      ; Attention : On a ici en plus la gestion de la mise à jour automatique de la variable ExamineDirDrive
+        push af     ; afin qu'elle soit gérée au niveau DOS et non pas au niveau Device (comme FileInDrive et FileOutDrive)
+        call device_examineinternal
+        jr nc,examinenodriveupdate2
+        jr nz,examinenodriveupdate1
+
+        di
+        exx
+        pop de
+        ld e,a
+        exx
+        ld a,l
+        or h
+        exx
+        jr nz,examinenodriveupdate3
+
+        PUT_D examinedirdrive
+        jr examinenodriveupdate3
+
+ExamineNoDriveUpdate1
+        push af
+        PUT_8 examinedirdrive,&ff
+        pop af
+ExamineNoDriveUpdate2
+        inc sp:inc sp
+        ret
+ExamineNoDriveUpdate3
+        ld a,e
+        exx
+        ei
+        cp a    ; Z
+        scf     ; C
+        ret
+
+Device_ExamineInternal
+        DOSRetryReq examine,iophysicaldrivefroma
+Device_ExamineDispatcher
+        cp 8
+        jp c,internalnode_void
+
+        HandleDOSNode examine
+        ret
+Device_ExamineIgnore
+        xor a
+        ld b,a:ld c,a
+        ld d,a:ld e,a
+        ret
+
+;
+; Récupère une entrée dans le répertoire en cours d'examen
+;
+; Entrée - HL = pointeur vers la mémoire où stocker nom normalisé de l'entrée (11 octets)
+;          IX = tampon où copier l'heure et la date de dernière modification de l'entrée (7 octets)
+; Sortie - Si Carry = 1 la routine est supportée par ce lecteur
+;               Si Z alors une entrée a été récupérée
+;                   HL = pointeur vers la mémoire mise à jour avec le nom de l'entrée
+;                   A = bits de protection de l'entrée
+;                       Bit 0 - Lecture seule
+;                       Bit 1 - Caché
+;                       Bit 2 - Système
+;                       Bit 4 = Répertoire
+;                       Bit 5 = Archivé
+;                   BCDE = Taille de l'entrée (indéterminé si l'entrée est un répertoire)
+;                   IX = tampon où ont été copiées l'heure et la date de dernière modification de l'entrée
+;                       (le contenu du tampon reste inchangé si l'horodatage n'est pas supporté)
+;                       Un mot de 16 bits avec l'année (1978..9999)
+;                       Un octet avec le numéro du mois (1..12)
+;                       Un octet avec le numéro du jour dans le mois (1..28,29,30 ou 31)
+;                       Un octet avec les heures (0..23)
+;                       Un octet avec les minutes (0..59)
+;                       Un octet avec les secondes (0..59)
+;               Si NZ alors une erreur est survenue
+;                   A = code d'erreur (dsk_err_file_not_found indique que toutes les entrées ont été lues)
+;          Si Carry = 0 alors la routine est invalide pour ce lecteur
+; Altéré - AF
+
+Device_ExamineNext
+        DOSRetryReq examinenext,iophysicaldrivefromexaminedir
+Device_ExamineNextDispatcher
+        cp 8
+        jp c,internalnode_void
+
+        HandleDOSNode examine_next
+        ret
+Device_ExamineNextIgnore
+        jp device_examineignore
+
+;
+; Renome un fichier ou un répertoire
+;
+; Entrée - A = numéro du lecteur physique
+;          HL = pointeur vers le nom normalisé
+;          DE = pointeur vers le chemin normalisé
+;          IX = pointeur vers le nouveau nom normalisé
+;          BC = pointeur vers le nouveau chemin normalisé
+;          La mémoire pointée est dans l'espace ROM/RAM courant
+; Sortie - Si Carry = 1 la routine est supportée par ce lecteur
+;               Si Z alors le fichier ou le répertoire a été renommé
+;               Si NZ alors le renommage n'a pas eu lieu
+;                   A = code d'erreur
+;          Si Carry = 0 alors la routine est invalide pour ce lecteur
+; Altéré - AF
+
+Device_Rename
+        DOSRetryReq rename,iophysicaldrivefroma
+Device_RenameDispatcher
+        cp 8
+        jp c,internalnode_void
+
+        HandleDOSNode rename
+;        ret
+Device_RenameIgnore
+        ret
+
+;
+; Efface un fichier ou un répertoire
+;
+; Entrée - A = numéro du lecteur physique
+;          HL = pointeur vers le nom normalisé
+;          DE = pointeur vers le chemin normalisé
+;          La mémoire pointée est dans l'espace ROM/RAM courant
+; Sortie - Si Carry = 1 la routine est supportée par ce lecteur
+;               Si Z alors le fichier ou le répertoire a été supprimé
+;               Si NZ alors aucune suppression n'a eu lieu
+;                   A = code d'erreur
+;          Si Carry = 0 alors la routine est invalide pour ce lecteur
+; Altéré - AF
+
+Device_Delete
+        DOSRetryReq delete,iophysicaldrivefroma
+Device_DeleteDispatcher
+        cp 8
+        jp c,internalnode_void
+
+        HandleDOSNode delete
+;        ret
+Device_DeleteIgnore
+        ret
+
+;
+; Crée un répertoire
+;
+; Entrée - A = numéro du lecteur physique
+;          HL = pointeur vers le nom normalisé
+;          DE = pointeur vers le chemin normalisé
+;          La mémoire pointée est dans l'espace ROM/RAM courant
+; Sortie - Si Carry = 1 la routine est supportée par ce lecteur
+;               Si Z alors un répertoire a été créé
+;               Si NZ alors aucun répertoire n'a été créé
+;                   A = code d'erreur
+;          Si Carry = 0 alors la routine est invalide pour ce lecteur
+; Altéré - AF
+
+Device_CreateDir
+        DOSRetryReq createdir,iophysicaldrivefroma
+Device_CreateDirDispatcher
+        cp 8
+        jp c,internalnode_void
+
+        HandleDOSNode create_dir
+;        ret
+Device_CreateDirIgnore
+        ret
+
+;
+; Change les bits de protection d'un fichier ou d'un répertoire
+;
+; Entrée - A = numéro du lecteur physique
+;          HL = pointeur vers le nom normalisé
+;          DE = pointeur vers le chemin normalisé
+;          B = Protections à modifier
+;          C = Nouvelles protections
+;               Bit 0 - Lecture seule
+;               Bit 1 - Caché
+;               Bit 5 = Archivé
+;          Les autres bits sont ignorés
+;          La mémoire pointée est dans l'espace ROM/RAM courant
+; Sortie - Si Carry = 1 la routine est supportée par ce lecteur
+;               Si Z alors les protections ont été modifiées
+;               Si NZ alors les protections n'ont pas pu être modifiées
+;                   A = code d'erreur
+;          Si Carry = 0 alors la routine est invalide pour ce lecteur
+; Altéré - AF
+
+Device_SetProtection
+        DOSRetryReq setprotection,iophysicaldrivefroma
+Device_SetProtectionDispatcher
+        cp 8
+        jp c,internalnode_void
+
+        HandleDOSNode set_protection
+;        ret
+Device_SetProtectionIgnore
+        ret
+
+;
+; Formate un lecteur
+;
+; Entrée - A = numéro du lecteur physique
+; Sortie - Si Carry = 1 la routine est supportée par ce lecteur
+;               Si Z alors le lecteur a été formaté
+;               Si NZ alors le formatage a échoue
+;                   A = code d'erreur
+;          Si Carry = 0 alors la routine est invalide pour ce lecteur
+; Altéré - AF
+
+Device_Format
+        DOSRetryReq format,iophysicaldrivefroma
+Device_FormatDispatcher
+        cp 8
+        jp c,internalnode_void
+
+        HandleDOSNode format
+;        ret
+Device_FormatIgnore
+        ret
+
+;
+; Change la date et l'heure de dernière modification d'un fichier ou d'un répertoire
+;
+; Entrée - A = numéro du lecteur physique
+;          HL = pointeur vers le nom normalisé
+;          DE = pointeur vers le chemin normalisé
+;          IX = tampon qui contient les informations d'heure et de date à utiliser
+;               Un mot de 16 bits avec l'année (1978..9999)
+;               Un octet avec le numéro du mois (1..12)
+;               Un octet avec le numéro du jour dans le mois (1..28,29,30 ou 31)
+;               Un octet avec les heures (0..23)
+;               Un octet avec les minutes (0..59)
+;               Un octet avec les secondes (0..59)
+;          La mémoire pointée est dans l'espace ROM/RAM courant
+; Sortie - Si Carry = 1 la routine est supportée par ce lecteur
+;               Si Z alors l'heure et la date ont été modifiées
+;               Si NZ alors l'heure et la date n'ont pas pu être modifiées
+;                   A = code d'erreur
+;          Si Carry = 0 alors la routine est invalide pour ce lecteur
+; Altéré - AF
+
+Device_SetFileDate
+        DOSRetryReq setfiledate,iophysicaldrivefroma
+Device_SetFileDateDispatcher
+        cp 8
+        jp c,internalnode_void
+
+        HandleDOSNode set_file_date
+;        ret
+Device_SetFileDateIgnore
+        ret
+
+; Retour en cas de routine non supportée
+
+InternalNode_Void
+        or a    ; NC
+        ret
+
+;
+; Lit le contenu de l'horloge temps réel
+;
+; Entrée - IX = tampon où copier l'heure et la date courantes (7 octets)
+; Sortie - Si Carry = 1 alors le noeud DOS offre un service d'horloge temps réel
+;               IX = pointeur vers le tampon d'entrée où l'heure et la date ont été copiées
+;                   Un mot de 16 bits avec l'année (1978..9999)
+;                   Un octet avec le numéro du mois (1..12)
+;                   Un octet avec le numéro du jour dans le mois (1..28,29,30 ou 31)
+;                   Un octet avec les heures (0..23)
+;                   Un octet avec les minutes (0..59)
+;                   Un octet avec les secondes (0..59)
+;                A = numéro du jour dans la semaine (1..7, du lundi au dimanche)
+;          Si Carry = 0 alors le noeud DOS n'offre pas d'horloge temps réel
+; Altéré - AF
+
+Device_ReadRTC
+        call device_iophysicaldrivefromrtcid
+        or a
+        ret z   ; NC
+        HandleDOSNode read_rtc
+        ret
+
+;
+; Écrit le contenu de l'horloge temps réel
+;
+; Entrée - IX = tampon qui contient les informations d'heure et de date à utiliser
+;               Un mot de 16 bits avec l'année (1978..9999)
+;               Un octet avec le numéro du mois (1..12)
+;               Un octet avec le numéro du jour dans le mois (1..28,29,30 ou 31)
+;               Un octet avec les heures (0..23)
+;               Un octet avec les minutes (0..59)
+;               Un octet avec les secondes (0..59)
+; Sortie - Si Carry = 1 alors le noeud DOS offre un service d'horloge temps réel
+;               Si Z alors le contenu de l'horloge temps réel a pu être mis à jour
+;               Si NZ alors une erreur est survenue
+;                   A = code d'erreur
+;          Si Carry = 0 alors le noeud DOS n'offre pas d'horloge temps réel
+; Altéré - AF
+
+Device_WriteRTC
+        call device_iophysicaldrivefromrtcid
+        or a
+        ret z   ; NC
+        HandleDOSNode write_rtc
+        ret
+
+;
+; Ouvre la mémoire non volative
+;
+; Entrée - C = mode d'ouverture
+;               Si 0 alors la mémoire non volatile avec son contenu courant doit être ouverte
+;               Si 1 alors la mémoire non volatile doit être remise à zéro avant ouverture
+; Sortie - Si Carry = 1 alors le noeud DOS offre un service de mémoire non volatile
+;               Si Z alors la mémoire non volatile a été ouverte est est prête à être manipulée
+;               Si NZ alors une erreur est survenue
+;                   A = code d'erreur
+;          Si Carry = 0 alors le noeud DOS n'offre pas de mémoire non volatile
+; Altéré - AF
+
+Device_OpenNVRAM
+        call device_iophysicaldrivefromnvramid
+        or a
+        jp z,emulate_opennvram
+        HandleDOSNode open_nvram
+        ret
+
+;
+; Ferme et met à jour le contenu de la mémoire non volatile
+;
+; Entrée - Aucune
+; Sortie - Si Carry = 1 alors le noeud DOS offre un service de mémoire non volatile
+;               Si Z alors la mémoire non volatile a été mise à jour
+;               Si NZ alors une erreur est survenue
+;          Si Carry = 0 alors le noeud DOS n'offre pas de mémoire non volatile
+; Altéré - AF
+
+Device_CloseNVRAM
+        call device_iophysicaldrivefromnvramid
+        or a
+        jp z,emulate_closenvram
+        HandleDOSNode close_nvram
+        ret
+
+;
+; Lit des données depuis la mémoire non volatile
+;
+; Entrée - HL = adresse où écrire les données lues
+;          DE = nombre d'octets à lire
+; Sortie - Si Carry = 1 alors le noeud DOS offre un service de mémoire non volatile
+;               Si Z alors les données ont été lues
+;                   DE = nombre d'octets effectivement lus
+;               Si NZ alors une erreur est survenue
+;                   A = code d'erreur
+;          Si Carry = 0 alors le noeud DOS n'offre pas de mémoire non volatile
+; Altéré - AF,DE
+
+Device_ReadNVRAM
+        call device_iophysicaldrivefromnvramid
+        or a
+        jp z,emulate_readnvram
+        HandleDOSNode read_nvram
+        ret
+
+;
+; Écrit des données dans la mémoire non volatile
+;
+; Entrée - HL = adresse où se trouvent les données à écrire
+;          DE = nombre d'octets à écrire
+; Sortie - Si Carry = 1 alors le noeud DOS offre un service de mémoire non volatile
+;               Si Z alors les données ont été écrites
+;                   DE = nombre d'octets effectivement écrits
+;               Si NZ alors une erreur est survenue
+;                   A = code d'erreur
+;          Si Carry = 0 alors le noeud DOS n'offre pas de mémoire non volatile
+; Altéré - AF,DE
+
+Device_WriteNVRAM
+        call device_iophysicaldrivefromnvramid
+        or a
+        jp z,emulate_writenvram
+        HandleDOSNode write_nvram
+        ret
+
+;
+; Change la position dans la mémoire non volatile
+;
+; Entrée - DEHL = nouvelle position
+; Sortie - Si Carry = 1 alors le noeud DOS offre un service de mémoire non volatile
+;               Si Z alors la nouvelle position a pu être atteinte
+;               Si NZ alors une erreur est survenue
+;                   A = code d'erreur
+;          Si Carry = 0 alors le noeud DOS n'offre pas de mémoire non volatile
+; Altéré - AF
+
+Device_SeekNVRAM
+        call device_iophysicaldrivefromnvramid
+        or a
+        jp z,emulate_seeknvram
+        HandleDOSNode seek_nvram
+        ret
+
+;
+; Demande quoi faire à l'utilisateur
+; (uniquement si le code d'erreur est un code I/O, bit6=1)
+;
+; Note : cette routine doit être amorcée par un ResetAutoRetry
+;
+; Entrée - A = code d'erreur
+;          C = numéro de lecteur physique
+; Sortie - Si Carry alors l'utilisateur a demandé à rééssayer
+;          Sinon, si Z alors l'utilisateur a abandonné
+;                 si NZ alors l'utilisateur a ignoré
+; Altéré - Flags
+
+AskUserChoice
+        or a
+        bit 6,a
+        ret z   ; NC/Z
+        push de
+        push hl
+        ld e,a
+
+        call decretrycount
+        scf
+        jr nz,askuserchoiceexit
+        call resetautoretry
+
+AskUserChoiceAgain
+        ld a,(dsk_message_status)
+        or a
+        jr z,askuserchoiceexecute
+        cp a    ; NC/Z
+        jr askuserchoiceexit
+AskUserChoiceExecute
+        ld a,e
+        call geterrormessage
+        ld a,c
+        call askretry
+
+        cp 'C'
+        scf:ccf ; NC/Z
+        jr z,askuserchoiceexit
+        cp 'R'
+        scf     ; C/Z
+        jr z,askuserchoiceexit
+        or a    ; NC/NZ
+AskUserChoiceExit
+        ld a,e
+        pop hl
+        pop de
+        ret
+
+ResetAutoRetry
+        push af
+        ld a,(dsk_retry_count)
+        PUT_A retrycount
+        pop af
+        ret
+DecRetryCount
+        push hl
+        GETPTR_HL retrycount
+        dec (hl)
+        pop hl
+        ret
+
+;
+; Cherche si un lecteur existe dans un noeud DOS
+;
+; Entrée - HL = pointeur vers le nom de lecteur
+;               (si positionné sur certains caractères, le bit 7 est ignoré)
+;          C = longueur du nom de lecteur
+;          A = numéro de ROM (1-31)
+; Sortie - Si Carry = 1 alors la ROM est un noeud DOS actif
+;               Si Z alors le lecteur existe dans le noeud DOS de la ROM
+;                   A = numéro de lecteur physique
+;               Si NZ alors le lecteur n'existe pas dans le noeud DOS de la ROM
+;          Si Carry = 0 alors la ROM n'est pas un noeud DOS actif
+; Altéré - AF,_dos_rom_temp_routine
+
+DOSNodeCheckDrive
+        call isactivedosnode
+        ret nc
+
+        push bc
+        push hl
+        ld c,a
+        ld hl,_dosnode_check_drive
+        call configuretempfarcall
+        pop hl
+        pop bc
+
+        push bc
+        push af
+        call invokedosnodefarcall
+        pop bc
+        jr c,dosnodecheckdrivesuccess
+        ld a,b
+        pop bc
+        ret
+DOSNodeCheckDriveSuccess
+        sla b   ; Ajout du numéro de ROM au numéro de lecteur
+        sla b
+        sla b
+        or b
+        pop bc
+        scf
+        ret
+
+;
+; Récupère le message correspondant à une erreur
+;
+; Entrée - A = code d'erreur
+; Sortie - HL = pointeur sur le message d'erreur
+; Altéré - HL
+
+GetErrorMessage
+        push af
+        call geterrormessageinternal
+        pop af
+        ret
+GetErrorMessageInternal
+        ld hl,msg_nodevice
+        cp dsk_err_no_media
+        ret z
+        ld hl,msg_writeprotected
+        cp dsk_err_write_protected_media
+        ret z
+        ld hl,msg_ioerror
+        ret
+

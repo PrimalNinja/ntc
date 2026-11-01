@@ -1,0 +1,499 @@
+;
+; Routines de gestion du fichier de configuration
+;
+
+CfgVersion Equ 5
+
+ChunkID_UniDOSIndirections  Equ &4955 ; UniDOS: indirections courantes
+ChunkID_UniDOSLogicalDrive  Equ &4455 ; UniDOS: lecteur logique courant
+ChunkID_UniDOSPathA         Equ &4155 ; UniDOS: chemins et lecteurs physique courant du lecteur logique A
+ChunkID_UniDOSPathB         Equ &4255 ; UniDOS: chemins et lecteurs physique courant de lecteur logique B
+ChunkID_UniDOSWorkData      Equ &5755 ; UniDOS: donnée de travail de l'UniDOS
+
+ChunkID_AMSDOSReadBuffer    Equ &5244 ; AMSDOS: buffer de lecture de l'AMSODS (y compris la zone dédiée à ParaDOS)
+
+;
+; Efface le fichier de configuration
+;
+; Entrée - N/A
+; Sortie - N/A
+; Altéré - AF,BC,DE,HL
+
+DeleteConfig
+        ld c,1
+        call device_opennvram
+        jp nc,configfatalerror
+        call device_closenvram
+        jp nc,configfatalerror
+        ret
+
+;
+; Met à jour la configuration/persistance sur la MicroSD
+;
+; Entrée - C contrôle la sauvegarde (voir SC_* flags)
+; Sortie - N/A
+; Altéré - AF,BC,DE,HL
+
+SaveConfig
+        push ix
+        call saveconfiginternal
+        pop ix
+        ret
+
+SaveConfigInternal
+        push bc
+        call openconfig
+        pop bc
+        ret nz
+
+        bit sc_currentindirections_b,c
+        call nz,scindirections
+
+        bit sc_currentlogicaldrive_b,c
+        call nz,sclogicaldrive
+
+        bit sc_currentpath_b,c
+        call nz,scpath
+
+        bit sc_workdata_b,c
+        call nz,scworkdata
+
+        bit sc_readbuffer_b,c
+        call nz,screadbuffer
+
+        jp closeconfig
+
+SCIndirections
+        push bc
+
+        ld hl,chunkid_unidosindirections
+        ld de,_cas_in_open ; Première indirection
+        ld bc,3*13
+        call pushchunk
+        jr screturn
+
+SCLogicalDrive
+        push bc
+
+        ld hl,chunkid_unidoslogicaldrive
+        GETPTR_DE currentlogicaldrive
+        ld bc,1
+        call pushchunk
+SCReturn
+        pop bc
+        ret
+
+SCPath  push bc
+
+        GET_A cachedlogicaldrive
+        cp 2    ; No cache
+        jr nc,screturn
+
+        ld hl,chunkid_unidospatha
+        add a,h
+        ld h,a  ; chunkid_unidospatha ou chunkid_unidospathb selon le lecteur logique
+
+        GETPTR_DE _start_currentpath
+        ld bc,datamap._end_currentpath-datamap._start_currentpath
+        call pushchunk
+        jr screturn
+
+SCWorkData
+        push bc
+
+        ld hl,chunkid_unidosworkdata
+        GETPTR_DE _start_workdata
+        ld bc,datamap._end_workdata-datamap._start_workdata
+        call pushchunk
+        jr screturn
+
+SCReadBuffer
+        push bc
+
+        ld hl,chunkid_amsdosreadbuffer
+        GETPTR_DE _start_readbuffer
+        ld bc,datamap._end_readbuffer-datamap._start_readbuffer
+        call pushchunk
+        jr screturn
+
+;
+; Charge la configuration/persistance de la MicroSD
+;
+; Entrée - C contrôle le chargement (voir SC_* flags)
+; Sortie - Aucune
+; Altéré - AF,BC,DE,HL
+
+LoadConfig
+        push bc
+        call openconfig
+        pop bc
+        ret nz
+
+        bit sc_currentindirections_b,c
+        call nz,lcindirections
+
+        bit sc_currentlogicaldrive_b,c
+        call nz,lclogicaldrive
+
+        bit sc_currentpath_b,c
+        call nz,lcpath
+
+        bit sc_workdata_b,c
+        call nz,lcworkdata
+
+        bit sc_readbuffer_b,c
+        call nz,lcreadbuffer
+
+        jp closeconfig
+
+LCIndirections
+        push bc
+
+        ld hl,chunkid_unidosindirections
+        call locatechunk
+        call z,lcupdateindirections
+LCReturn
+        pop bc
+        ret
+
+LCLogicalDrive
+        push bc
+
+        ld hl,chunkid_unidoslogicaldrive
+        call locatechunk
+        call z,lcupdatelogicaldrive
+        jr lcreturn
+
+LCPath  push bc
+
+        GET_A cachedlogicaldrive
+        cp 2
+        jr nc,lcreturn
+
+        ld hl,chunkid_unidospatha
+        add a,h
+        ld h,a  ; chunkid_unidospatha ou chunkid_unidospathb selon le lecteur logique
+        call locatechunk
+        jr nz,lcpathsetdefault
+        call lcupdatepath
+        jr lcreturn
+LCPathSetDefault
+        GET_A currentlogicaldrive
+        PUT_A cachedlogicaldrive
+        or a
+        jr nz,lcpathsetdefaultb
+LCPathSetDefaultA
+        PUT_8 currentphysicaldrive,defaultphysicaldrive_a
+        jr lcpathsetdefaultdone
+LCPathSetDefaultB
+        PUT_8 currentphysicaldrive,defaultphysicaldrive_b
+LCPathSetDefaultDone
+        PUT_8 currentpath,0
+        jr lcreturn
+
+LCWorkData
+        push bc
+
+        ld hl,chunkid_unidosworkdata
+        call locatechunk
+        call z,lcupdateworkdata
+        call markvaliddosnodesprivatedata
+        jp lcreturn
+
+LCReadBuffer
+        push bc
+
+        call markinvaliddosnodesprivatedata
+        ld hl,chunkid_amsdosreadbuffer
+        call locatechunk
+        call z,lcupdatereadbuffer
+        jp lcreturn
+
+LCUpdateIndirections
+        ld hl,_cas_in_open ; Première indirection
+        ld de,3*13
+        jr lcloadchunk
+LCUpdateLogicalDrive
+        GETPTR_HL currentlogicaldrive
+        ld de,1
+        jr lcloadchunk
+LCUpdatePath
+        GETPTR_HL _start_currentpath
+        ld de,datamap._end_currentpath-datamap._start_currentpath
+        call lcloadchunk
+        GET_A currentphysicaldrive
+        jr lccheckdrive
+LCUpdateWorkData
+        GETPTR_HL _start_workdata
+        ld de,datamap._end_workdata-datamap._start_workdata
+        jr lcloadchunk
+LCUpdateReadBuffer
+        GETPTR_HL _start_readbuffer
+        ld de,datamap._end_readbuffer-datamap._start_readbuffer
+        jr lcloadchunk
+
+; HL=adresse, DE=taille requise, BC=taille requise (échoue si DE<>BC)
+LCLoadChunk
+        call lcloadchunksub
+        call nz,ocfilereset ; Chunk trouvé mais invalide... fichier corrompu ! -> on l'efface !
+        ret
+LCLoadChunkSub
+        ld a,b
+        cp d
+        ret nz
+        ld a,c
+        cp e
+        ret nz
+        call device_readnvram
+        jp nc,configfatalerror
+
+        ret
+
+; HL=pointeur vers lecteur/chemin
+; B=valeur par défaut
+; Vérifie si le lecteur est toujours valide
+; (il peut ne plus l'être s'il appartient à un noeuf DOS et que la ROM a été supprimée ou déplacée)
+LCCheckDrive
+        and &f8
+        ret z
+        rra
+        rra
+        rra
+        ld c,a
+        call isdosnode
+        ret c
+        call ocfilereset ; Lecteur invalide... fichier périmé ! -> on l'efface !
+        jp initdata
+
+;
+; Ouverture du fichier de configuration (création s'il n'existe pas déjà)
+;
+; Entrée - N/A
+; Sortie - Si Z alors le fichier de configuration a été ouvert
+;          Si NZ alors le fichier n'a pas pu être ouvert
+; Altéré - AF,BC,DE,HL,Flags
+
+OpenConfig
+        ld c,0
+        call device_opennvram
+        jp nc,configfatalerror
+        jr nz,ocfiledoesnotexist
+
+        ld hl,_dos_rom_temp_nvram+chunkhandler.head
+        ld de,chunkheadsize             ; Chargement de l'entête
+        push hl
+        call device_readnvram
+        pop hl
+        jp nc,configfatalerror
+        ret nz
+
+        ld de,configheaderstorage
+        ld b,chunkheadsize
+OCCheckHeader
+        ld a,(de):cp (hl)
+        jr nz,ocfilereset
+        inc de:inc hl
+        djnz occheckheader
+
+        ret
+
+OCFileReset
+        call device_closenvram
+        jp nc,configfatalerror
+        ld a,7 ; Bip
+        call _txt_output
+OCFileDoesNotExist
+        ld c,1
+        call device_opennvram
+        jp nc,configfatalerror
+        ret nz
+
+        ld de,_dos_rom_temp_nvram+chunkhandler.head
+        ld hl,configheaderstorage
+        ld bc,chunkheadsize
+
+        push bc
+        push de
+
+        ldir
+
+        pop hl
+        pop de                          ; On écrit notre header minimaliste
+        call device_writenvram
+        jp nc,configfatalerror
+        ret ; Z or NZ
+
+;
+; Fermeture du fichier de configuration
+;
+; Entrée - N/A
+; Sortie - N/A
+; Altéré - AF,BC,DE,HL,IX,Flags
+
+CloseConfig
+        call device_closenvram
+        jp nc,configfatalerror
+        ret
+
+;
+; Ajout ou remplacement d'un chunk
+;
+; Entrée - HL = ID du chunk à ajouter
+;          BC = taille du chunk
+;          DE = pointeur sur les données du chunk
+; Sortie - Si Z alors le chunk a été ajouté/remplacé
+;          Si NZ alors le chunk n'a pas pu être ajouté/remplacé
+; Altéré - AF,BC,DE,HL,IX,Flags
+
+PushChunk
+        push bc
+        push de
+        push hl
+
+        call locatechunk
+
+        ld ixl,c
+        ld ixh,b
+
+        pop hl
+        pop de
+        pop bc
+
+        jr z,pushchunkupdateold
+
+PushChunkWriteNew           ; Creation d'un nouveau chunk
+        ld (_dos_rom_temp_nvram+chunkhandler.head.id),hl
+        ld (_dos_rom_temp_nvram+chunkhandler.head.size),bc
+
+        ld ixl,c
+        ld ixh,b
+
+        push bc
+        push de
+        push hl
+
+        ld hl,_dos_rom_temp_nvram+chunkhandler.head
+        ld de,chunkheadsize
+        call device_writenvram
+        ld a,e
+
+        pop hl
+        pop de
+        pop bc
+
+        jp nc,configfatalerror
+        ret nz
+
+        cp 4
+        ret nz
+
+PushChunkUpdateOld          ; Mise à jour d'un chunk
+        ld a,ixl
+        cp c
+        ret nz
+        ld a,ixh
+        cp b
+        ret nz
+
+        ld l,e
+        ld h,d
+        ld e,c
+        ld d,b
+        push de
+        call device_writenvram
+        pop bc
+
+        jp nc,configfatalerror
+        ret nz
+
+        ld a,c
+        cp e
+        ret nz
+        ld a,b
+        cp d
+        ret
+
+;
+; Recherche d'un chunk
+;
+; Entrée - HL = ID du chunk à rechercher
+; Sortie - Si Z alors le chunk a été trouvé
+;              BC = taille du chunk
+;          Si NZ alors le chunk n'a pas été trouvé
+; Altéré - AF,BC,DE,Flags
+
+LocateChunk
+        ld de,chunkheadsize   ; Position de recherche initiale
+        ld (_dos_rom_temp_nvram+chunkhandler.pos),de
+LCNextChunk
+        push hl
+
+        ld hl,(_dos_rom_temp_nvram+chunkhandler.pos)
+        ld de,0
+        call device_seeknvram
+
+        ld hl,_dos_rom_temp_nvram+chunkhandler.head
+        ld de,chunkheadsize
+        call device_readnvram
+
+        pop hl
+
+        jp nc,configfatalerror
+        ret nz
+
+        ld a,e
+        cp chunkheadsize
+        ret nz
+
+        ld de,(_dos_rom_temp_nvram+chunkhandler.head.id)
+        ld bc,(_dos_rom_temp_nvram+chunkhandler.head.size)
+
+        ld a,l
+        cp e
+        jr nz,lcbadchunk
+        ld a,h
+        cp d
+        jr nz,lcbadchunk
+        ret
+LCBadChunk
+        push hl
+Repeat 4
+        inc bc      ; On tient compte de la taille de l'entête du chunk
+REnd
+        ld hl,(_dos_rom_temp_nvram+chunkhandler.pos)
+        add hl,bc
+        ld (_dos_rom_temp_nvram+chunkhandler.pos),hl
+        pop hl
+        jp lcnextchunk
+
+;
+; Marque le zone des données privées de noeuds DOS comme étant valides ou invalides
+;
+; Entrée - Aucune
+; Sortie - Aucune
+; Altéré - Aucun
+
+MarkInvalidDOSNodesPrivateData
+        push hl
+        GETPTR_HL dosnoderom
+        set 7,(hl)
+        pop hl
+        ret
+
+MarkValidDOSNodesPrivateData
+        push hl
+        GETPTR_HL dosnoderom
+        res 7,(hl)
+        pop hl
+        ret
+
+ConfigHeaderStorage
+        db "CFG"            ; 4 octets au total (ChunkHeadSize)
+        db CfgVersion
+
+ConfigFatalError
+        or -1
+        ret nz
+        or 0
+        ret
+

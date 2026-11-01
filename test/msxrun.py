@@ -280,7 +280,7 @@ class MsxDos(ntcrun.Host):
             while steps < 4000:
                 if m.iff1 and m.on_handle_active_int(): s.ints += 1; break
                 if m.halted and m.pc == 1: break
-                m.ticks_to_stop = 1; cpcrun.endkey_run(s); steps += 1; s.T += 1 - m.ticks_to_stop
+                steps += 1; s.T += cpcrun.step1(s)
             if m.halted and (not m.iff1 or m.pc == 1): break
             if n > limit: print('TIMEOUT pc=%04x sp=%04x' % (m.pc, m.sp)); break
 

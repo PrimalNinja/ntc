@@ -1,0 +1,81 @@
+;
+; Fonctions d'accès aux données DOS
+;
+
+GetFileInHandlerIX
+        ld ix,(_dos_rom_base_address)
+        push bc
+        ld bc,dosmap.fileinhandler
+        add ix,bc
+        pop bc
+        ret
+
+GetFileOutHandlerIX
+        ld ix,(_dos_rom_base_address)
+        push bc
+        ld bc,dosmap.fileouthandler
+        add ix,bc
+        pop bc
+        ret
+
+GetExamineDirHandlerIX
+        ld ix,(_dos_rom_base_address)
+        push bc
+        ld bc,dosmap.examinedirhandler
+        add ix,bc
+        pop bc
+        ret
+
+GetLowLevelFile
+        push hl
+        ld hl,(currentlowlevel)
+        ld a,(hl)
+        and &f
+        pop hl
+        ret
+
+SetLowLevelFile
+        push hl
+        push bc
+        push af
+        ld hl,(currentlowlevel)
+        ld c,a
+        ld a,(hl)
+        and &f0
+        or c
+        ld (hl),a
+        pop af
+        pop bc
+        pop hl
+        ret
+
+GetLowLevelMount
+        push hl
+        ld hl,(currentlowlevel)
+        ld a,(hl)
+        srl a
+        srl a
+        srl a
+        srl a
+        pop hl
+        ret
+
+SetLowLevelMount
+        push hl
+        push bc
+        push af
+        ld hl,(currentlowlevel)
+        sla a
+        sla a
+        sla a
+        sla a
+        ld c,a
+        ld a,(hl)
+        and &0f
+        or c
+        ld (hl),a
+        pop af
+        pop bc
+        pop hl
+        ret
+

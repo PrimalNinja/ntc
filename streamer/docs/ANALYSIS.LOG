@@ -1,0 +1,34 @@
+# ANALYSIS.LOG - each turn's work on Streamer: the model's name and a UTC time, then what was done
+# (the model's name is what the session reports of itself; it can't be verified from inside a session)
+
+## 2026-11-01T14:09Z - Claude Fable 5.1 (as this session reports itself)
+- streamer/ started as NTC BASIC's sibling: src/, build/, docs/, test/, and _old/ (the 2023 node as uploaded). README.md says what it is. Decisions so far are in NTC's docs/ANALYSIS.LOG of today.
+- files: streamer/README.md, streamer/docs/ANALYSIS.LOG
+
+## 2026-11-01T15:48Z - Claude Fable 5.1 (as this session reports itself)
+- The new node written (src/streamer.asm, sjasmplus, 16K ROM): five VDP devices (V9990, V9938, ZXN, MD, PI) each with CMD (DATA frames), PATTERNS (a PATTERNS 0 request in parts, the last at close) and EVENTS (the input stream: an EVT a line, waiting); the link layer streams bytes between UniDOS's buffer and the CPLink FIFO (no RAM buffer); HELLO and OPEN at the first open; Node_Fail is 'and a' (the old ccf bug). test/streamer_test.py: the ROM on NTC's Z80 core with the ports bridged to a live cosd - 16 checks, all pass; it found four bugs on the way (IsOurs's carry inverted, A not kept on a CheckDrive miss, ExamineNext's cursor, LinkOut's port, FrameStart/End clobbering HL). examples/VDPDEMO.BAS: a bouncing sprite from Locomotive BASIC, one PRINT #9 an edge. docs/streamer.md; docs/ref/: the UniDOS archives extracted. build/build.bat.
+- files: src/streamer.asm, build/build.bat, build/streamer.rom, test/streamer_test.py, examples/VDPDEMO.BAS, docs/streamer.md, docs/ref/*, docs/ANALYSIS.LOG
+
+## 2026-11-01T16:22Z - Claude Fable 5.1 (as this session reports itself)
+- The node on the opcode model (Julian: BASIC's open / close only choose the stream; what opens on the Pi is an opcode): 80 OPEN len text (the node sends the stream's version byte, since 1 is the SPR opcode), 81 CLOSE, 82 RESET, 83 LIST, 84 END (PATTERNS); HELLO once; OutWrite parses the stream a command at a time (CmdLen, SendPart: a VDP command one DATA frame, a cut command's rest with the next write); the OPEN answer matched by id; CREDIT returned per event read; an RSP's text / data 0 read as CR LF. Found on the way, fixed on the Pi: two COMMITs within one frame lost the first batch (vdp.js commit now appends; a check added to pi/test/vdp.js). streamer_test.py: 24 checks, all pass. VDPDEMO.BAS and docs/streamer.md on the opcode model.
+- files: src/streamer.asm, build/streamer.rom, test/streamer_test.py, examples/VDPDEMO.BAS, docs/streamer.md, docs/ANALYSIS.LOG
+
+## 2026-11-01T17:07Z - Claude Fable 5.1 (as this session reports itself)
+- SPEECH: (SSA1, DKTRONIC: the SP0256 cards, ports and /LRQ bits from cpcwiki and MAME's cpc_ssa1.h - &FBEE bit 6, &FBFE bit 7 - a Cards table row each, one writer) and MUSIC: (CMD a line a request to the Pi's audio service, EVENTS the answers) added to the node; device rows carry their own file lists; a channel a device (w_chans, GetChan / SetChan); the node's opcodes taken in any stream; Node_Examine kept the device number. streamer_test.py 33 checks, all pass (the speech ports simulated: busy twice, then ready; MUSIC's STATUS answered by the live audio service). examples/SPEAK.BAS, MUSIC.BAS. Not yet: the Pi's own speech (SP0256 and SC-01 emulation from MAME's BSD-3 device files, Piper as a GPL process) - the licences to be stated as Julian decides.
+- files: src/streamer.asm, build/streamer.rom, test/streamer_test.py, examples/SPEAK.BAS, examples/MUSIC.BAS, docs/streamer.md, docs/ANALYSIS.LOG
+
+## 2026-11-01T17:39Z - Claude Fable 5.1 (as this session reports itself)
+- docs/streamer-rom.md: the ROM as it is - the devices and what each is tested by, the UniDOS entries implemented, the link, and that there is no vCPC support yet (what VCPC: would be and what it needs first), with the rest of what is not there.
+- files: docs/streamer-rom.md, docs/ANALYSIS.LOG
+
+## 2026-11-01T17:45Z - Claude Fable 5.1 (as this session reports itself)
+- VOTRAX: device (CMD raw phoneme bytes as DATA frames - a new stream kind 7, nothing parsed, since a phoneme with inflection is #80 up; EVENTS) for the Pi's votrax service; streamer_test.py 35 checks, all pass (the foreign-device check moved to 9: 7 is VOTRAX now). streamer-rom.md updated.
+- files: src/streamer.asm, build/streamer.rom, test/streamer_test.py, docs/streamer-rom.md, docs/ANALYSIS.LOG
+
+## 2026-11-01T19:43Z - Claude Fable 5.1 (as this session reports itself)
+- VOTRAX moved under SPEECH: (Julian: the file names the synthesiser, as SSA1 and DKTRONIC already do): SPEECH:VOTRAX and SPEECH:EVENTS; the VOTRAX: device gone; the docs follow. The rule: one device a kind of thing, a file a target - for speech the targets differ in their byte sets, which is fine, since each file has its own.
+- files: src/streamer.asm, build/streamer.rom, test/streamer_test.py, docs/*.md, ../docs/potentjs-gaps.md, docs/ANALYSIS.LOG
+
+## 2026-11-01T20:28Z - Claude Fable 5.1 (as this session reports itself)
+- The node restructured to categories (Julian): GRAPHICS, SPEECH, MUSIC, STORE are the devices; CMD and EVENTS the one conversation (80 OPEN names the service / profile; SPEECH 85 TARGET picks SSA1 / DKTRONIC / VOTRAX); a category's folders (GRAPHICS/V9990, V9938, ZXNEXT, MD, PINATIVE; MUSIC/MP3, 8BIT, 4BIT, SID, AY38912, VGM, FM, MOD, MIDI, GME) are store paths - a SAVE is PUT GRAPHICS/V9990/PATTERNS, a LOAD is GET, read from the normalized path UniDOS gives (DE: a count then 11-char names; MakeTag). An installer preloads assets; a game then only sends commands and reads events - and a new type is a folder here and a player on the Pi, no ROM change. The Pi: vdp.js loads a profile's installed assets (GRAPHICS/<profile>/PATTERNS, TILES, LAYER2, PALETTE) at OPEN; audio.js plays MUSIC/<type>/ by its folder (mpg123, aplay raw, sidplayfp, vgmplay, adplay, xmp, fluidsynth, mpv's gme; ERR noplayer when the player isn't installed; .MID GM / GS / XG, XG rendered as GM). Pi tests: vdp.js 29, audio.js 19, all pass. The node's test (streamer_test.py) is rewritten for the categories; the structure passes (CheckDrive, the root files, GRAPHICS:CMD, the vdp commands, EVENTS, the asset PUT and GET, SPEECH's three targets, MUSIC) but the Pi-side folder CAT (ExamineNext over a LIST) still has bugs and the root listing repeats one entry - to finish. The ROM assembles.
+- files: streamer/src/streamer.asm (categories, MakeTag, store PUT/GET, TARGET), streamer/build/streamer.rom, streamer/test/streamer_test.py (rewritten); cyborg-os/pi/svc/vdp.js (installed assets), audio.js (music players by folder), cosd.js, test/vdp.js, test/audio.js; streamer/docs/ANALYSIS.LOG

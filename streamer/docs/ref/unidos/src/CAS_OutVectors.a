@@ -1,0 +1,601 @@
+;
+; CAS Out Open
+;
+; Entrée - B = longueur du nom de fichier
+;          HL = adresse où est stocké le nom de fichier
+;          DE = adresse du tampon à utiliser pour le fichier (2K)
+; Sortie - Si C,NZ alors succés fichier
+;            HL = adresse du tampon contenant l'entête du fichier
+;          Si NC,NZ alors une erreur est survenue
+;            A = code d'erreur
+;          Si NC,Z alors ESC a été pressé
+;            A = code d'erreur
+; Altéré - AF,BC,DE,HL,IX
+; Note   - IX n'est pas modifié dans le CAS OUT OPEN de l'AMSDOS
+
+CAS_OutOpen
+        ld a,b                  ; Chemin vide ?
+        or a
+        jp z,casreturn_badcommand
+
+OutOpenNotEmpty
+        call isdirectorypath    ; Chemin se terminant par '/' ?
+        ld a,0
+        jr nz,outopennormalfile
+
+        dec b                   ; '/' final retiré en vérifiant que le chemin restant n'est pas vide
+        jp z,casreturn_badcommand
+
+        ld a,&ff                ; '/' à la fin provoquera une création de répertoire au lieu d'un fichier
+OutOpenNormalFile
+        PUT_A fileisdir
+
+        push de
+        call qualifypath
+        pop de
+        jp z,casreturn_qualifyfailed
+
+        call getworkdrive_regc
+        call installdos
+        jr nc,outopenours
+
+OutOpenAlien
+        call fixalienpath
+        call _cas_out_open
+        call uninstalldos
+        jp c,fixalienoutopen    ; Succès
+        ret nz                  ; Échec
+        jp fixalienoutopen      ; ESC
+
+OutOpenOurs
+        PUT_DE tempbufferbase
+
+        call checkextension
+        ld a,0
+        jr nz,outopenextgiven
+        ld a,&ff
+OutOpenExtGiven
+        PUT_A fileoutextfound
+
+        call getworkareade
+        call normalizename
+        jp z,casreturn_badcommand
+
+        call getworkareahl
+        call checkstringvalidity
+        jp nc,casreturn_badcommand
+
+OutOpenCheckFile
+        GET_A fileisdir
+        cp &ff
+        jp z,outopencreatedir
+
+        call outfilegetdrive
+        jp nz,casreturn_alreadyopened
+
+        PUT_8  fileoutmode,dsk_file_mode_pending
+        GET_DE tempbufferbase
+        PUT_DE fileoutbufferbase
+        PUT_DE fileoutbuffercur
+
+        call getworkdrive_rega 
+        call getworkareahl
+        call getworkpathde
+        call casexamine
+        jp nc,outopennewfile            ; Si Examine a échoué, on va quand même tenter directement l'ouverture
+        jr nz,outopennewfile            ; Si le fichier n'exite pas déjà, on passe directement à l'ouverture
+
+        bit 0,a                         ; Fichier protégé en écriture ?
+        jp nz,casreturn_fileisreadonly_hl
+
+OutOpenNewFile
+        GETPTR_HL fileouthead           ; Initialisation de l'entête binaire
+        call resetheader
+
+        call getworkdrive_rega
+        call device_getstatus
+
+        call getworkareahl
+        GETPTR_DE fileoutname
+        ld bc,8
+        ldir
+        bit media_streamonly_b,a        ; L'extension des fichiers en création est toujours "$$$"
+        jr nz,outopenregularfile        ; ... sauf si c'est un lecteur de type "flux"
+        ld hl,fileexttemp               
+OutOpenRegularFile
+        call fixfileextension
+
+        call getworkareahl              ; Copie du nom
+        GETPTR_DE fileouthead.name
+        ld bc,8
+        ldir
+
+        bit media_streamonly_b,a        ; Copie de l'extension &FF,&FF,&FF si non fournie
+        jr nz,outopenextprovided        ; ... sauf si c'est un lecteur de type "flux"
+        GET_A fileoutextfound           
+        or a
+        jr nz,outopenextprovided
+        ld hl,fileextnone
+OutOpenExtProvided
+        ld bc,3
+        ldir
+
+        ld a,dsk_file_type_ascii        ; A=type ASCII
+        GET_DE fileoutbufferbase        ; DE=adresse du tampon
+
+        PUT_8  fileouthead.user,0
+        PUT_16 fileouthead.entry,0
+        PUT_16 fileouthead.length,0
+        PUT_24 fileouthead.length24b,0  ; En ASCII ce compteur part de 0 et est incrémenté à chaque écriture
+        PUT_DE fileouthead.loadadr
+        PUT_16 fileouthead.bufferleft,0
+        PUT_A  fileouthead.type
+
+        call getworkpathhl              ; Copie du chemin du fichier de sortie
+        call getfileoutpathde           ; (utilisé pour l'ouverture effective et le renommage final)
+        ld bc,dirbuffersize
+        ldir
+
+        call getworkdrive_rega          ; On marque le fichier comme effectivement ouvert
+        PUT_A fileoutdrive
+
+; Prêt à écrire le premier octet du fichier
+        GETPTR_HL fileouthead           ; HL=entête binaire
+        ld a,&ff
+        or a    ; NZ
+        scf     ; C
+        ret
+
+OutOpenCreateDir
+        call getworkdrive_rega 
+        call getworkareahl
+        call getworkpathde
+        call device_createdir
+        jp nc,casreturn_badcommand
+        jp nz,casreturn_badcommand
+
+        push ix                         ; On positionne la date courante pour le répertoire nouvellement crée
+        call smartreadclock
+        call getworkdrive_rega
+        push af
+        call device_setfiledate
+        pop af
+        call outsetparentdirdate        ; On change également la date du répertoire parent
+        pop ix
+
+        call outfilegetdrive
+        call z,freeoutbuffer            ; Libération du tampon alloué par le système si aucun fichier n'est ouvert
+
+        ld a,dsk_err_quiet_directory_found
+        cp a    ; NC/Z
+        ret
+
+;
+; CAS Out Close
+;
+; Entrée - Aucune
+; Sortie - Si C alors le fichier a été correctement fermé
+;          Si NC alors une erreur est survenue
+;            A = code d'erreur
+; Altéré - AF,BC,DE,HL
+
+CAS_OutClose
+        call outfilegetdrive
+        jp z,casreturn_alreadyclosed
+
+        ld c,a
+        call installdos
+        jr nc,outcloseours
+OutCloseAlien
+        call _cas_out_close
+OutCloseAlienRet
+        call uninstalldos
+        PUT_8 fileoutdrive,&ff              ; On acte la fermeture du fichier dans le cas où la ROM alien ne l'aurait pas fait !
+        ret
+
+OutCloseOurs
+        ld a,c                              ; Le traitement sera différent selon le statut
+        call device_getstatus
+        PUT_A mediastatus
+
+        GET_A fileoutmode
+        cp dsk_file_mode_direct
+        jr z,outclosehandleheader           ; Le fichier a été écrit en une seule fois
+        cp dsk_file_mode_stream
+        jr z,outcloseactualclose
+
+OutCloseFlush
+        GET_HL fileoutbufferbase            ; Purge du tampon en cours
+        GET_DE fileouthead.bufferleft       ; HL=données, DE=longueur
+
+        GET_A fileoutmode
+        cp dsk_file_mode_pending            ; Le fichier a déjà été accédé, on lance le simplement flush
+        jr nz,outclosedoflush
+
+        ld a,e                              ; Si le fichier n'a jamais été accédé et que
+        or d                                ; le tampon est vide alors on a rien à faire
+        jp z,outcloseexit
+
+        push hl
+        push de
+        call outopenstream                  ; Sinon, on doit effectivement ouvrir le fichier avant le flush
+        pop de
+        pop hl
+        ret nc
+
+OutCloseDoFlush
+        call device_outwritestream
+        jp nc,casreturn_badcommand
+        jp nz,outdispatchwriteerror
+
+        PUT_16 fileouthead.bufferleft,0
+        PUT_HL fileoutbuffercur
+
+OutCloseHandleHeader
+        GET_A fileouthead.type              ; Pas de header si fichier ASCII
+        cp dsk_file_type_ascii
+        jr z,outcloseactualclose
+
+        GET_A mediastatus                   ; Pas de mise à jour du header final en cas de flux
+        bit media_streamonly_b,a
+        jr nz,outcloseactualclose
+
+OutCloseUpdateHeader
+        ld de,0
+        ld hl,0
+        call device_outseekstream
+        jp nc,outcloseactualclose           ; On abandonne la mise à jour si le Seek n'est pas supporté
+        jp nz,outdispatchwriteerror
+
+        call outwriteheader
+        jp nc,casreturn_badcommand
+        jp nz,outdispatchwriteerror
+
+OutCloseActualClose
+        call device_outclosestream
+        jp nc,casreturn_badcommand
+        jp nz,outdispatchwriteerror
+
+OutCloseHandleName
+        GET_A mediastatus                   ; Si flux alors rien à renommer
+        bit media_streamonly_b,a
+        jp nz,outcloseexit
+
+        call outfixfinalextension
+
+        GET_A fileoutdrive
+        GETPTR_HL fileouthead.name          ; Le nom définitif existe déjà ?
+        call getfileoutpathde
+
+        call casexamine
+        jp nc,casreturn_badcommand
+        jp nz,outclosefinalfiledonotexist
+
+        call getfileoutnamehl               ; On efface le fichier .BAK (s'il existe)
+        call getworkareade
+        ld bc,8
+        ldir
+        ld hl,fileextbak
+        call fixfileextension
+
+        GET_A fileoutdrive
+        call getworkareahl
+        call getfileoutpathde
+
+        call casexamine
+        jp nc,casreturn_badcommand
+        jr nz,outcloseskipdeletebak
+
+        bit 0,a                             ; On vérifie que le .BAK n'est pas protégé
+        jp nz,casreturn_fileisreadonly_hl
+
+        GET_A fileoutdrive
+        call getfileoutpathde
+        call device_delete
+OutCloseSkipDeleteBak
+        GET_A fileoutdrive
+        GETPTR_HL fileouthead.name          ; On renomme le fichier existant en .BAK
+        call getfileoutpathde
+        call getworkareaix
+        ld b,d:ld c,e
+
+        call device_rename
+        jp nc,casreturn_badcommand
+        jp nz,casreturn_badcommand
+
+OutCloseFinalFileDoNotExist
+        GET_A fileoutdrive
+        call getfileoutnamehl               ; On renomme le fichier .$$$ avec son nom définitif
+        call getfileoutpathde
+        GETPTR_IX fileouthead.name
+        ld b,d:ld c,e
+
+        call device_rename
+        jp nc,casreturn_badcommand
+        jp nz,casreturn_badcommand
+
+OutCloseExit
+        push ix                             ; On positionne la date courante pour le fichier (si possible)
+        call smartreadclock
+        GET_A fileoutdrive
+        GETPTR_HL fileouthead.name
+        call getfileoutpathde
+        push af
+        call device_setfiledate
+        pop af
+        call outsetparentdirdate            ; On change également la date du répertoire parent
+        pop ix
+
+        ld a,&ff
+        PUT_A fileoutdrive
+        or a    ; NZ
+        scf     ; C
+        ret
+
+;
+; CAS Out Abandon
+;
+; Entrée - Aucune
+; Sortie - Aucune
+; Altéré - AF,BC,DE,HL
+
+CAS_OutAbandon
+        call outfilegetdrive
+        ret z
+
+        ld c,a
+        call installdos
+        jr nc,outabandonours
+OutAbandonAlien
+        call _cas_out_abandon
+        jp outclosealienret
+
+OutAbandonOurs
+        call device_outclosestream
+        jr outcloseexit
+
+;
+; CAS Out Char
+;
+; Entrée - A = Octet à écrire
+; Sortie - Si C,NZ alors un octet a été écrit
+;          Si NC,NZ alors aucun fichier n'est ouvert
+;            A = code d'erreur
+;          Si NC,Z alors ESC a été appuyé
+;            A = code d'erreur
+; Altéré - AF,IX
+
+CAS_OutChar
+        push bc
+        push de
+        push hl
+        call outchar
+        pop hl
+        pop de
+        pop bc
+        ret
+OutChar ld b,a
+        GET_A fileoutmode
+        cp dsk_file_mode_char
+        jr z,outcharongoingaccess
+        cp dsk_file_mode_pending
+        jp nz,casreturn_badfilemode
+OutCharFirstAccess
+        PUT_8 fileoutmode,dsk_file_mode_char    ; Premier accès, on crée le fichier .$$$ et on commute en mode octet par octet
+        call outfilegetdrive
+        jp z,casreturn_notopened
+
+        call isaliendrive
+        jr c,outcharongoingaccess
+
+        call outopenstream
+        ret nc
+OutCharOnGoingAccess
+        GET_DE fileouthead.bufferleft
+        ld a,e
+        or a
+        jr nz,outcharwritebyte
+        ld a,d
+        cp 8
+        jr z,outcharwritebuffer
+OutCharWriteByte
+        inc de
+        PUT_DE fileouthead.bufferleft
+
+        GET_HL fileoutbuffercur
+        ld (hl),b
+        inc hl
+        PUT_HL fileoutbuffercur
+
+        GET_CDE fileouthead.length24b   ; Mise à jour du compteur 24 bits
+        call inc_cde
+        PUT_CDE fileouthead.length24b
+OutCharSuccess
+        xor a
+        inc a   ; NZ
+        scf     ; C
+        ret
+OutCharWriteBuffer
+        call outfilegetdrive
+        jp z,casreturn_notopened
+
+        ld c,a
+        call installdos
+        jr nc,outcharours
+OutCharAlien
+        ld a,b
+        call fixalienoutunidos2cas
+        call _cas_out_char
+        call fixalienoutcas2unidos
+        jp uninstalldos
+
+OutCharOurs
+        GET_HL fileoutbufferbase        ; Écriture du tampon (DE=2048)
+        PUT_HL fileoutbuffercur
+
+        call device_outwritestream      ; DE=Nombre d'octets écrits
+        jp nc,casreturn_badcommand
+        jp nz,outdispatchwriteerror
+        ld de,0
+        jr outcharwritebyte
+
+;
+; CAS Out Direct
+;
+; Entrée - HL = adresse où se trouvent les données à écrire dans le fichier
+;          DE = longueur des données à écrire
+;          BC = adresse d'exécution
+;          A = type de fichier
+; Sortie - Si C,NZ alors le fichier a été écrit
+;          Si NC,NZ alors aucun fichier n'est ouvert
+;            A = code d'erreur
+;          Si NC,Z alors ESC a été appuyé
+;            A = code d'erreur
+; Altéré - AF,BC,DE,HL,IX
+
+CAS_OutDirect
+        push bc
+        ld c,a
+
+        call outfilegetdrive
+
+        ld a,c
+        pop bc
+        jp z,casreturn_notopened
+
+        PUT_8  fileouthead.user,0
+        PUT_A  fileouthead.type
+        PUT_HL fileouthead.loadadr
+        PUT_DE fileouthead.length
+        PUT_BC fileouthead.entry
+        PUT_DE fileouthead.length24b
+        PUT_8  fileouthead.length24b+2,0
+        PUT_16 fileouthead.bufferleft,0
+
+        GET_C fileoutdrive
+        call installdos
+        jr nc,outdirectours
+OutDirectAlien
+        GET_A  fileouthead.type
+        GET_HL fileouthead.loadadr
+        GET_DE fileouthead.length
+        GET_BC fileouthead.entry
+        call _cas_out_direct
+        jp uninstalldos
+
+OutDirectOurs
+        GET_A fileoutmode
+        cp dsk_file_mode_pending
+        jp nz,casreturn_badfilemode
+
+        PUT_8 fileoutmode,dsk_file_mode_direct
+
+        call outopenstream
+        ret nc
+
+        GET_A fileouthead.type          ; Mode spécial pour écrire les fichiers ASCII en direct
+        cp dsk_file_type_ascii
+        jp z,outdirectnoheader
+
+        call outfixfinalextension
+
+        call outwriteheader
+        jp nc,casreturn_badcommand
+        jp nz,outdispatchwriteerror
+
+OutDirectNoHeader
+        GET_HL fileouthead.loadadr
+        GET_DE fileouthead.length
+
+        call outdirectdocypher          ; Chiffre les données pour les types protégés
+
+        call device_outwritestream
+        jp nc,casreturn_badcommand
+        jp nz,outdispatchwriteerror
+
+        call outdirectdocypher          ; Déchiffre à nouveau les données pour les types protégés
+
+        xor a
+        inc a   ; NZ
+        scf     ; C
+        ret
+
+OutDirectDoCypher
+        GET_A fileouthead.type
+        jp docypher
+
+;
+; Routines accessoires
+;
+
+OutWriteHeader
+        GETPTR_HL fileouthead
+        call getworkareade
+        ld bc,fileheadsize
+        ldir
+
+        ld b,128-fileheadsize
+        call clearmemory
+
+        call getworkareahl              ; Calcul sur le workarea car les nom de fichier est modifié
+        call computecsh
+        PUT_DE fileouthead.csh
+        PUT_DE workarea+filehead.csh
+
+        call getworkareahl
+        ld de,128
+        jp device_outwritestream
+
+OutFileGetDrive
+        GET_A fileoutdrive
+        cp &ff
+        ret
+
+OutDispatchWriteError
+        cp dsk_err_disc_changed
+        jp nz,casreturn_badcommand
+        call cas_outabandon
+        call getfileoutnamehl
+        GET_A fileoutdrive
+        jp casreturn_mediachanged_hl_a
+
+OutFixFinalExtension
+        GETPTR_DE fileouthead.name+8    ; Détermination de l'extension finale
+        ld a,(de)                       ; (on y a mis &ff,&ff,&ff si elle n'était pas fournie)
+        cp &ff
+        ret nz
+        GET_A fileouthead.type
+        call getextfromtype             ; On cherche l'extension correspondant au type
+        jp fixfileextension
+
+OutOpenStream
+        call outopenfile
+        jp nc,casreturn_badcommand
+        jp nz,casreturn_badcommand
+        ret
+
+OutOpenFile
+        GET_A fileoutdrive
+        call getfileoutnamehl
+        call getfileoutpathde
+        jp device_outopenstream
+
+OutSetParentDirDate
+        ld b,a
+
+        ld a,(de)                       ; Y-a-t-il un répertoire parent ?
+        or a
+        ret z
+
+        push de                         ; Si oui, on extrait son nom du chemin
+        ex de,hl                        ; et on réduit le chemin d'un niveau
+        dec (hl)
+        inc hl
+        dec a
+        ld d,b
+        call getdiradr
+        ld a,d
+        pop de
+
+        jp device_setfiledate
+

@@ -14,7 +14,10 @@
 ' in CyborgOS, BDOS 131 op 40 (the vCPC answers it on its host; on a CPC with a Pi, C0 passes it to
 ' the Pi's float service). No coprocessor: the Z80 engine, unchanged. Programs never change: the
 ' same .CYB runs either way. UseEngine picks (auto, Z80 only, coprocessor if present); Backend
-' says which is in use. IEEE single is what coprocessors and hosts speak: nothing converts.
+' says which is in use - the Z80 engine unless the program asks for a coprocessor (UseEngine 2):
+' a program gets the same bits on every machine unless it chooses otherwise (a coprocessor rounds
+' ties to even, the engine halves up). IEEE single is what coprocessors and hosts speak: nothing
+' converts.
 ' Also: Float.MulDiv - a * b / c on Longs with a 64 bit middle (the Fixed class's multiply and
 ' divide).
 ' (c) 2026 Cyborg Unicorn Pty Ltd - MIT License
@@ -327,12 +330,26 @@ Public Sub MToBinScaledL(lngD_a() As Long, lngA_a() As Long, ByVal intBits_a As 
   CvtRun 4, intBits_a
 End Sub
 
-' ---- the backend: 0 auto (the coprocessor if one answers, else the Z80 engine), 1 the Z80 engine
-' only, 2 the coprocessor if there is one. Takes effect at the next operation
+' ---- the backend: 0 the Z80 engine (the default), 1 the Z80 engine too, 2 a coprocessor if there
+' is one (else the Z80 engine). Takes effect at the next operation. The engine is the default so
+' a program's results are the same bits on every machine; a coprocessor is the program's choice
+' (2026-11-01: was "0 auto" - a coprocessor whenever one answered)
 Public Sub UseEngine(ByVal intWhich_a As Integer)
   m_intWant = intWhich_a
   m_intJtOk = 0
 End Sub
+
+' HasCoprocessor(): True when a coprocessor answers (CyborgOS's BDOS 131 op 40: a vCPC, a CPC with a
+' Pi), whichever backend is in use
+Public Function HasCoprocessor() As Integer
+  Dim intW As Integer
+  intW = m_intWant
+  m_intWant = 2
+  m_intJtOk = 0
+  HasCoprocessor = (Backend() = 2)
+  m_intWant = intW
+  m_intJtOk = 0
+End Function
 
 ' 1 the Z80 engine, 2 a coprocessor (as the jump block is now)
 Public Function Backend() As Integer
@@ -722,8 +739,8 @@ jt_init:    ld hl, {m_arrJt}
             or a
             ret z
             ld a, ({m_intWant})
-            cp 1
-            ret z                   ; the Z80 engine asked for
+            cp 2
+            ret nz                  ; the Z80 engine (0, 1: the default) - a coprocessor only when asked
             xor a                   ; asked: op 40, sub 0 - there?
             ld ({m_byQ}+1), a
             call cp_bdos

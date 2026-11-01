@@ -1,0 +1,519 @@
+;
+; CAS Catalog
+;
+; Entrée - DE = Adresse où stocker le catalogue (2K)
+; Sortie - Si NZ alors succès
+;             A = 3 ?
+;            IX = pointeur sur le tampon de 2K où le catalogue est stocké
+;            Si NC BCDE = taille disponible en kilo-octets
+;            Si C la taille disponible est inconnue (cas de la cassette ou lorsque ESC a été pressé)
+;          Si Z alors erreur (A = code d'erreur)
+;          À noter que la sortie telle que documentée ne correspond pas à la réalité car elle stipule :
+;            Si C,NZ alors succés
+;              BCDE = taille disponible en kilo-octets
+;              IX = pointeur sur le tampon de 2K où le catalogue est stocké
+;            Si NC,NZ alors erreur (A = code d'erreur)
+; Altéré - AF,BC,DE,HL,IX
+
+CAS_Catalog
+        call getcurrentphysicaldrive
+        ld c,a
+        call installdos
+        jr nc,catalogours
+CatalogAlien
+        call _cas_catalog
+        ld bc,0                     ; Les disquettes ne peuvent pas contenir plus que "DE"
+        jp uninstalldos
+
+CatalogOurs
+        push de
+
+        ld c,8                      ; On met le tampon du catalog entièrement à zéro
+CatalogClearLoop                    ; (l'AMSDOS fait de même)
+        ld b,0
+        call clearmemory
+        dec c
+        jr nz,catalogclearloop
+
+        PUT_8 dircount,0
+
+        call getcurrentpathhl       ; Le chemin doit être copié dans WorkPath
+        call getworkpathde          ; pour les routines d'affichage partagées
+        ld bc,dirbuffersize         ; avec DirScan et la troncature automatique
+        ldir                        ; du chemin
+
+        call getcurrentphysicaldrive
+        call getworkpathde
+        ld hl,0                     ; 0 = Examiner le contenu du répertoire
+        call casexamine
+
+        push af
+        call getcurrentphysicaldrive
+        call getworkareahl
+        call catdisplayheader       ; Après le examine pour bénéficier du chemin tronqué le cas échéant
+        pop af
+
+        pop de
+
+        push af
+
+        ld ixh,d
+        ld ixl,e
+        ld bc,(floor(&800/14))*14
+        add ix,bc                   ; IX est la limite haute du tampon
+
+        GET_A optionflags
+        and opt_catfakedparent_f    ; Option de l'entrée parent factice activée ?
+        ld hl,0                     ; Si oui on met l'entrée au début du tampon et on le décale d'une entrée
+        jr z,catalognoparent        
+
+        call getworkpathhl          ; On teste WorkPath plutôt que CurrentPath car WorkPath a potentiellement
+        ld a,(hl)                   ; été tronqué lors du CASExamine si le chemin complet n'était plus disponible
+        or a
+        jr z,catalognoparent
+
+        ld hl,fakedparententry      ; On ajoute l'entrée parent au début et le tampon
+        ld bc,14                    ; pour la catalog commencera en fait juste après
+        ldir
+CatalogNoParent
+        PUT_DE tempbufferbase
+
+        pop af
+
+        jp nc,casreturn_badcommand
+        jr nz,cataloghandleerrors
+
+NextCatalogFile
+        push ix
+        call getfiledateix
+        call getworkareahl
+        inc hl                      ; On décale d'un pour le token des entrées du catalogue
+        call casexaminenext         ; A = bits de protection, BCDE = taille, (HL) = nom normalisé, FileDate = horodatage
+        pop ix
+        jp nc,casreturn_badcommand
+        jr z,cataloghandlefile
+CatalogHandleErrors
+        cp dsk_err_file_not_found
+        jr z,endofcatalog
+        jp casreturn_badcommand
+CatalogHandleFile
+        call cataddfiletobuffer
+        jp nz,casreturn_badcommand
+
+        push ix:pop hl              ; Vérifie la place dans le tampon
+        inc de
+        xor a
+        sbc hl,de
+        jr nc,nextcatalogfile
+
+EndOfCatalog
+        GET_HL tempbufferbase
+        push hl:pop ix              ; IX pointe au début du tampon
+EndOfCatalogDisplay
+        call catdisplay
+        jr nc,endofcatalognofreesize    ; ESC a été pressé ou la taille disponible est inconnue
+EndOfCatalogDisplaySuccess
+        ld a,3                          ; L'AMSDOS retourne A=3 avec NZ/NC
+        or a                            ; NZ/NC
+        ret
+EndOfCatalogNoFreeSize
+        ld a,&ff                        ; La cassette retourne A=&FF avec NZ/C
+        or a
+        scf                             ; NZ/C
+        ret
+
+CatAddFileToBuffer
+        bit 1,a                         ; Caché ?
+        jr nz,catskipinsert
+        bit 2,a                         ; Système ?
+        jr nz,catskipinsert
+
+        push ix
+
+        call getworkareaix
+
+        bit 0,a                         ; Lecture seule ?
+        call nz,catmarkasreadonlyfile
+;        bit 1,a                         ; Caché ?
+;        call nz,catmarkashiddenfile
+;        bit 2,a                         ; Système ?
+;        call nz,catmarkashiddenfile
+        bit 4,a                         ; Répertoire ?
+        jr z,catisfile
+CarIsDir
+        call catmarkasreadonlyfile      ; Les répertoires sont marqués en lecture seule (compatibilité)
+        ld de,0                         ; On s'assure aussi que la taille est nulle
+        ld c,e                          ; (dans le cas où un noeud ne renvoie pas une taille nulle pour les répertoires)
+        jr catputsize
+CatIsFile
+        GET_A optionflags
+        and opt_enabledsortdirfirst_f   ; Option de tri séparé des répertoires activée ?
+        jr z,catisfilenoseparatedsort
+        set 7,(ix+1)                    ; On marque les fichiers pour qu'ils soient triés après les répertoires
+CatIsFileNoSeparatedSort
+        call divbcde_1024               ; CDE = taille en ko (B est toujours nul et les bit 6 et 7 de C aussi)
+CatPutSize
+        ld a,c
+        xor &ff                         ; A ne peut pas être nul, et donc ne peut pas être interprêté comme un marqueur de fin
+        ld (ix+12),e
+        ld (ix+13),d
+        ld (ix+0),a                     ; On utilise le marqueur de présence de fichier pour stocker l'octet
+                                        ; de poids fort de la taille dont tous les bits ont été inversés
+        push ix:pop de
+        GET_HL tempbufferbase
+
+        pop ix
+
+        call catentryinsert
+CatSkipInsert
+        cp a                            ; Z
+        ret
+
+CatMarkAsReadOnlyFile                   ; Le bit 7 du premier caractère
+        set 7,(ix+9)                    ; d'extension est mis pour les
+        ret                             ; fichiers protégés en écriture
+
+;CatMarkAsHiddenFile                     ; Le bit 7 du deuxième caractère
+;        set 7,(ix+10)                   ; d'extension est mis pour les
+;        ret                             ; fichiers système (cachés)
+
+;
+; Insère une entrée dans le catalogue
+;
+; Entrée - HL pointe sur le tampon du catalog
+;          DE pointe sur l'entrée à insérer
+;          IX pointe sur la fin du tampon
+; Sortie - N/A
+; Altéré - AF
+
+CatEntryInsert
+CatEntryLoop
+        RAM_LAM             ; Dernière entrée du tampon trouvée ?
+        or a                ; Alors insertion immédiate
+        jr z,catentryactualinsert
+
+        push de
+        push hl
+
+        ld b,11             ; Comparaison du nom
+CatEntryLoopChar
+        inc de
+        inc hl
+        ld a,(de)
+        ld c,a              ; Sinon, on insère trié
+        RAM_LAM
+        cp c
+        jr z,catentryloopnextchar
+        jr c,catentrynextentry
+CatEntryParentFirst
+        pop hl              ; Si inférieur, alors il faut insérer !
+        pop de
+        jr catentryactualinsert
+CatEntryLoopNextChar
+        djnz catentryloopchar
+CatEntryNextEntry
+        pop hl              
+        pop de
+
+        ld bc,14            ; Passage à l'entrée suivante
+        add hl,bc
+
+        jr catentryloop
+
+CatEntryActualInsert
+        push de
+        push hl
+
+        ex de,hl
+        push ix:pop hl
+        xor a
+        sbc hl,de
+        jr z,catentrynomove
+        ld c,l
+        ld b,h              ; BC=(fin buffer-position tampon)
+        push bc
+        push ix:pop hl
+        ld bc,-15
+        add hl,bc           ; HL=fin buffer-14
+        push ix:pop de      ; DE=fin buffer
+        dec de
+        pop bc
+
+        call _kl_lddr       ; Déplacement des entrées pour l'insertion
+
+CatEntryNoMove
+        pop de
+        pop hl
+
+        ld bc,14            ; Insertion de l'entrée
+        call _kl_ldir
+
+        INC_8 dircount
+
+        ret
+
+;
+; Affiche le catalogue à partir d'un tampon
+;
+; Entrée - IX pointe sur le tampon
+; Sortie - Si C alors BCDE = taille disponible en kilo-octets
+;          Si NC alors la taille est inconnue (ESC a été pressé ou erreur)
+; Altéré - AF,BC,DE,HL
+
+CatDisplay
+        call catdisplayentries
+        ret nc
+
+CatFreeSpace
+        call getcurrentphysicaldrive
+DirFreeSpace
+        call device_getfreespace
+
+        jr nc,catunknownfreespace
+        jp nz,casreturn_badcommand
+
+        push bc
+        push de
+        push hl
+
+        call printsmartsize
+
+        ld hl,msg_catfree
+        call printstring
+
+        pop hl
+        pop de
+        pop bc
+        scf
+        ret
+
+CatUnknownFreeSpace
+        push hl
+        ld a,'?'
+        call _txt_output
+        ld hl,msg_catfree
+        call printstring
+        pop hl
+        or a ; NC
+        ret
+
+;
+; Entrée - IX pointe sur le tampon
+; Sortie - Si C alors le catalog a été affiché en entier
+;          Si NC alors ESC a été appuyée
+; Altéré - AF,BC,DE,HL,IX
+
+CatDisplayEntries
+        push ix
+        pop hl
+
+        ld a,(hl)
+        or a
+        jr z,catentryempty
+
+        ld a,20
+        call arraygetcolumns
+        GET_A dircount
+        call arraygetlines
+
+        ld c,e
+CatDisplayEntryLoop1
+        ld b,d
+        push hl
+CatDisplayEntryLoop2
+        call catentrydisplay
+
+        call testesc
+        jr c,cataborted
+
+        push de
+        ex de,hl
+        ld h,0
+        call mulhl14
+        add hl,de
+        pop de
+
+        djnz catdisplayentryloop2
+
+        pop hl
+
+        push de
+        ld de,14
+        add hl,de
+        pop de
+
+        dec c
+        jr z,catdisplayentryterminate
+        ld a,(hl)
+        or a
+        jr nz,catdisplayentryloop1
+CatDisplayEntryTerminate
+        push hl
+        call printnewline
+
+        ld b,0
+        GET_A optionflags
+        and opt_catfakedparent_f
+        jr z,catnofixdircount
+        inc b
+CatNoFixDirCount
+        GET_A dircount
+        add a,b
+        ld hl,msg_cattoomanyfiles
+        cp floor(&800/14)+1
+        call nc,printstring
+        ld hl,msg_newline
+        jr CatEntryDone
+CatEntryEmpty
+        push hl
+        ld hl,msg_catnofiles
+CatEntryDone
+        call printstring
+        pop hl
+        scf
+        ret
+CatAborted
+        pop hl
+        jp casreturn_interrupted
+
+;
+; Entrée - IX pointe sur le tampon
+;          HL pointe sur l'entrée à afficher
+;          B = colonne courante
+;          D = nombre de colonne
+; Sortie - Aucune
+; Altéré - AF
+
+CatEntryDisplay
+        push bc
+        push de
+        push ix
+
+        ld a,b
+        cp d
+        call nz,printdoublespace
+        call z,printnewline
+
+        push hl
+        call catentrypreparedisplay
+        call c,catentryactualdisplay
+        pop hl
+
+        pop ix
+        pop de
+        pop bc
+
+        ret
+
+CatEntryPrepareDisplay
+        push hl
+        push ix:pop de
+        cp a
+        sbc hl,de
+        ld de,&800-14
+        sbc hl,de
+        pop hl
+
+        ret nc                          ; On est au-delà de la fin du tampon
+
+        call getworkareade              ; On recopie l'entrée dans notre tampon de travail
+        push de                         ; dont on est sûr qu'il n'est pas caché sous notre ROM
+        ld bc,14
+        call _kl_ldir
+        pop hl
+        scf
+        ret
+
+CatEntryActualDisplay
+        ld a,(hl)
+        or a
+        ret z
+
+        push hl
+        pop ix
+
+        inc hl
+
+        call catentrysetpen
+        push af
+        call catentryputtoscreen
+        pop af
+        jp _txt_set_pen
+CatEntryPutToScreen
+        res 7,(hl)                      ; Retrait du marqueur de fichier (utilisée pour l'option de tri séparé des répertoires)
+        call printrawnormalizedfilename
+        ld a,' '
+        bit 7,(ix+9)                    ; Si l'entrée est RO et de taille 0, c'est un répertoire
+        jr z,catentryrw
+        ld a,(ix+12)
+        or (ix+13)
+        jr nz,catentryro
+CatEntryDir
+        call printspace
+        ld hl,msg_catdir
+        jp printstring
+CatEntryRO
+        ld a,'*'
+CatEntryRW
+        call _txt_output
+        ld e,(ix+12)
+        ld d,(ix+13)
+        ld a,(ix+0)                     ; Le marqueur de présence de fichier contient l'octet de
+        xor &ff                         ; poids fort de la taille avec tous les bits inversés
+        ld c,a
+        ld b,0
+        jp printsmartsize
+CatEntrySetPen
+        bit 7,(hl)                      ; Test du marqueur de fichier (utilisée pour l'option de tri séparé des répertoires)
+        jp nz,_txt_get_pen
+        GET_A optionflags
+        and opt_enabledsortdirfirst_f   ; Option de tri séparé des répertoires activée ?
+        jp z,_txt_get_pen
+        jp setalternatepen
+
+;
+; Affiche le cartouche de début de catalogue (et du |DIR)
+;
+; Entrée - A = lecteur physique concerné
+;          HL = adresse du tampon à utiliser (12 octets mini)
+; Sortie - Aucune
+; Altéré - AF,BC,DE,HL
+
+CatDisplayHeader
+        push af
+        push hl
+        ex de,hl
+
+        ld a,"[":ld (de),a:inc de
+
+        call getworkpathhl
+        ld a,(hl)
+        or a
+        jr z,catdisplayrootdir
+        inc hl
+        dec a
+        call getdiradr
+
+        call compactname
+        jr catdisplaycurdirend
+
+CatDisplayRootDir
+        ld hl,catroottxt
+        ld bc,4
+        ldir
+CatDisplayCurDirend
+        ld a,"]"+&80
+        ld (de),a
+        pop hl
+        pop af
+        jp displaydrivemsg
+
+CatRootTxt
+        db "ROOT"
+
+FakedParentEntry
+        db &ff          ; Token d'entrée valide
+        db '/       '   ; Nom
+        db ' '+&80,'  ' ; Extension (protégé)
+        dw 0            ; Taille
+

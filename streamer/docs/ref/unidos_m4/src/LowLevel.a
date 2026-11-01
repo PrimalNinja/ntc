@@ -1,0 +1,3672 @@
+;
+; Fonctions d'accès bas niveau à la M4 Board
+;
+
+DSK_ID  Equ &cafe
+FTP_ID  Equ &deca
+
+;
+; Test de présence de la carte M4 Board
+; La zone « private data » est alors également positionnée en fonction
+;
+; Entrée - N/A
+; Sortie - Carry=1 si la M4 Board est présente
+;               Z si elle est correctement configurée pour UniDOS
+;               NZ si elle n'est pas correctement configurée pour UniDOS
+;          Carry=0 si la M4 Board n'est pas présente ou mal configurée pour UniDOS
+; Altéré - Flags,_DOS_ROM_TEMP_STORE
+
+M4_Check
+        push ix
+
+        call GetPrivateDataIX
+        ld (ix+0),&ff   ; Par défaut, M4 non détectée
+
+        push hl         ; Vérification de la présence de la M4 ROM
+        push de         ; depuis une routine en RAM
+        push bc
+        push af
+
+        ld hl,M4Check_RAMRoutine
+        ld de,_DOS_ROM_TEMP_STORE
+        ld bc,M4Check_RAMRoutineEnd-M4Check_RAMRoutine
+        ldir
+
+        call _DOS_ROM_TEMP_STORE
+
+        pop af
+        pop bc
+        pop de
+        pop hl
+
+        cp a    ; NC
+        bit 0,(ix+0)
+        jr nz,M4CheckExit
+        scf
+        bit 1,(ix+0)
+        scf
+M4CheckExit
+        pop ix
+        ret
+
+M4Check_RAMRoutine
+        call _KL_CURR_SELECTION
+        ld c,a
+        push bc
+
+        ld a,1
+M4Check_RAMRoutineLoop
+        push af
+
+        ld c,a
+        push bc
+        call _KL_ROM_SELECT
+        pop bc
+        call _KL_PROBE_ROM
+        cp 1
+        jr nz,M4Check_RAMRoutineWrongClass
+
+        push hl
+        push de
+
+        ld hl,(&c004)
+        ld de,_DOS_ROM_TEMP_STORE+M4Check_RAMRoutineMatchString-M4Check_RAMRoutine
+        ld b,8
+M4Check_RAMRoutineMatchLoop
+        ld a,(de)
+        cp (hl)
+        jr nz,M4Check_RAMRoutineWrongName
+        inc de
+        inc hl
+        djnz M4Check_RAMRoutineMatchLoop
+
+        res 0,(ix+0)    ; Bit=1 pour M4 Board trouvée
+        ld (ix+1),c
+        ld a,c
+        cp 15
+        jr c,M4Check_RAMRoutineWrongSlot
+        res 1,(ix+0)    ; Bit=1 pour M4 Board à un emplacement compatible UniDOS
+M4Check_RAMRoutineWrongSlot
+M4Check_RAMRoutineWrongName
+        pop de
+        pop hl
+
+M4Check_RAMRoutineWrongClass
+        pop af
+
+        inc a
+        jr nz,M4Check_RAMRoutineLoop
+
+        pop bc
+        jp _KL_ROM_SELECT
+M4Check_RAMRoutineMatchString
+        str "M4 BOARD"
+M4Check_RAMRoutineEnd
+
+;
+; Sélectionne le répertoire courant
+; ... plus complexe qu'elle ne pourrait car on doit forcer le retour
+; à la racine dans tous les cas afin de revenir proprement à la navigation
+; sur la SD suite à l'ouverture d'un DSK (ou d'un répertoire invalide)...
+;
+; Entrée - DE = chemin normalisé
+; Sortie - Si Carry=1 alors le répertoire a été sélectionné
+;          Si Carry=0 alors une erreur est survenue
+;               A = code d'erreur
+; Altéré - AF,_DOS_ROM_TEMP_STORE
+
+M4_CurrentDir
+        call M4_RootDir ; Retour à la racine dans tous les cas
+
+        push bc
+        push de
+        push hl
+
+        ex de,hl
+
+        ld bc,DataPort  ; On empêche le C_CD sur un fichier (on ne veut pas de support DSK ici)
+        out (c),c
+        ld de,C_OPEN
+        out (c),e
+        out (c),d
+        ld a,FA_REALMODE+FA_READ+FA_OPEN_EXISTING
+        out (c),a
+
+        call SendNormalizedPath
+        out (c),0       ; NUL
+
+        ld bc,AckPort
+        out (c),c
+
+        ld hl,_DOS_ROM_TEMP_STORE
+        ld de,3
+        ld bc,2
+        call M4_GetBytes
+
+        pop hl
+        pop de
+        pop bc
+
+        ld a,(_DOS_ROM_TEMP_STORE+1)
+        or a
+        jr nz,M4CurrentDirIsNotAFile
+
+        ld a,(_DOS_ROM_TEMP_STORE+0)    ; fd
+        call M4_CloseFile
+        ld a,DSK_ERR_NOT_A_DIRECTORY
+        or a    ; NC
+        ret
+
+M4CurrentDirIsNotAFile
+        push bc
+        push de
+        push hl
+
+        ex de,hl
+
+        ld bc,DataPort  ; Chemin effectif
+        out (c),c
+        ld de,C_CD
+        out (c),e
+        out (c),d
+
+        call SendNormalizedPath
+        out (c),0       ; NUL
+
+        ld bc,AckPort
+        out (c),c
+
+        ld hl,_DOS_ROM_TEMP_STORE
+        ld de,3
+        ld bc,1
+        call M4_GetBytes
+
+        pop hl
+        pop de
+        pop bc
+
+        ld a,(_DOS_ROM_TEMP_STORE)
+        or a
+        ret nz  ; NC
+
+        scf
+        ret
+
+;
+; Ouverture d'un fichier dans le répertoire courant
+;
+; Entrée - HL = pointeur vers le nom normalisé
+;           A = mode d'ouverture (selon FA_*)
+; Sortie - Si Carry=1 alors le fichier a pu être ouvert
+;               A = descripteur de fichier
+;          Si Carry=0 alors l'entrée n'a pas pu être ouvert
+;               A = code d'erreur
+; Altéré - AF,_DOS_ROM_TEMP_ROUTINE,_DOS_ROM_TEMP_STORE
+
+M4_OpenFile
+        push hl
+        push de
+        push bc
+
+        ld bc,DataPort
+        ld e,16
+        out (c),e
+        ld de,C_OPEN
+        out (c),e
+        out (c),d
+        out (c),a
+
+        call SendNormalizedName
+        out (c),0   ; NUL
+
+        ld bc,AckPort
+        out (c),c
+
+        ld hl,_DOS_ROM_TEMP_STORE
+        ld de,3
+        ld bc,2
+        call M4_GetBytes
+
+        pop bc
+        pop de
+        pop hl
+
+        ld a,(_DOS_ROM_TEMP_STORE+1)
+        or a
+        jr nz,M4OpenFileFailed
+
+        ld a,(_DOS_ROM_TEMP_STORE+0)
+        scf
+        ret
+M4OpenFileFailed
+        call ErrFA2DOS
+        cp a    ; NC
+        ret
+
+;
+; Ouverture d'un fichier avec nom long dans le répertoire courant
+;
+; Entrée - HL = pointeur vers le nom long terminé par un NUL
+;           A = mode d'ouverture (selon FA_*)
+; Sortie - Si Carry=1 alors le fichier a pu être ouvert
+;               A = descripteur de fichier
+;          Si Carry=0 alors l'entrée n'a pas pu être ouvert
+;               A = code d'erreur
+; Altéré - AF,_DOS_ROM_TEMP_ROUTINE,_DOS_ROM_TEMP_STORE
+
+M4_OpenFileLongName
+            push bc
+            push de
+            push hl
+
+            ld bc,DataPort
+            out (c),c
+            ld de,C_OPEN
+            out (c),e
+            out (c),d
+            out (c),a
+M4OpenFileLongNameLoop
+            ld a,(hl)
+            inc hl
+            out (c),a
+            or a
+            jr nz,M4OpenFileLongNameLoop
+
+            ld bc,AckPort
+            out (c),c
+
+            ld hl,_DOS_ROM_TEMP_STORE
+            ld de,3
+            ld bc,2
+            call M4_GetBytes
+
+            pop hl
+            pop de
+            pop bc
+
+            ld a,(_DOS_ROM_TEMP_STORE+1)
+            or a
+            jr nz,M4OpenFileFailed
+
+            ld a,(_DOS_ROM_TEMP_STORE+0)
+            scf
+            ret
+
+;
+; Ferme un fichier
+;
+; Entrée - A = descripteur de fichier
+; Sortie - Si Carry=1 alors le fichier a été fermé correctement
+;          Si Carry=0 alors le fichier a été fermé mais une erreur est survenue
+; Altéré - AF,_DOS_ROM_TEMP_ROUTINE,_DOS_ROM_TEMP_STORE
+
+M4_CloseFile
+        push hl
+        push de
+        push bc
+
+        ld bc,DataPort
+        ld e,3
+        out (c),e
+        ld de,C_CLOSE
+        out (c),e
+        out (c),d
+        out (c),a
+
+        ld bc,AckPort
+        out (c),c
+
+        ld hl,_DOS_ROM_TEMP_STORE
+        ld de,3
+        ld bc,1
+        call M4_GetBytes
+
+        pop bc
+        pop de
+        pop hl
+
+        ld a,(_DOS_ROM_TEMP_STORE+0)
+        or a
+        ret nz  ; NC
+
+        scf
+        ret
+
+;
+; Déplacement du pointeur dans un fichier
+;
+; Entrée - A = descripteur de fichier
+;          DEHL = nouvelle position dans le flux de entrée
+; Sortie - Si Carry=1 alors le fichier a été fermé correctement
+;          Si Carry=0 alors le fichier a été fermé mais une erreur est survenue
+; Altéré - AF,_DOS_ROM_TEMP_ROUTINE,_DOS_ROM_TEMP_STORE
+
+M4_SeekFile
+        push hl
+        push de
+        push bc
+
+        push de
+
+        ld bc,DataPort
+        ld e,7
+        out (c),e
+        ld de,C_SEEK
+        out (c),e
+        out (c),d
+        out (c),a
+
+        pop de
+
+        out (c),l
+        out (c),h
+        out (c),e
+        out (c),d
+
+        ld bc,AckPort
+        out (c),c
+
+        ld hl,_DOS_ROM_TEMP_STORE
+        ld de,3
+        ld bc,1
+        call M4_GetBytes
+
+        pop bc
+        pop de
+        pop hl
+
+        ld a,(_DOS_ROM_TEMP_STORE+0)
+        or a
+        ret nz  ; NC
+
+        scf
+        ret
+
+;
+; Saute une partie du contenu d'un fichier
+;
+; Permet de simuler un M4_SeekFile lorsque l'opération n'est pas possible,
+; comme c'est le cas dans les fichiers lus depuis les DSK.
+;
+; Entrée - A = descripteur de fichier
+;          DEHL = nombre d'octets à sauter dans le fichier
+; Sortie - Si Carry=1 alors des données ont été lues
+;               DE = nombre d'octets lue
+;          Si Carry=0 alors une erreur est survenue
+; Altéré - AF,DE,_DOS_ROM_TEMP_ROUTINE,_DOS_ROM_TEMP_STORE
+
+M4_SkipFile
+        push bc
+        push de
+        push hl
+
+        ld b,a  ; fd
+        ld c,h
+Repeat 3
+        srl d
+        rr e
+        rr c
+REnd
+        ld a,c
+        or d
+        or e
+        jr z,M4SkipFileMasterNoLoop
+
+M4SkipFileMasterLoop
+        push de
+        push bc
+        ld de,&800
+        call M4SkipFileChunk
+        pop bc
+        pop de
+        jr nc,M4_SkipFileMasterExit
+        call DecDEC
+        jr nz,M4SkipFileMasterLoop
+
+M4SkipFileMasterNoLoop
+        ld a,h
+        and &07
+        ld d,a
+        ld e,l
+        call M4SkipFileChunk
+
+M4_SkipFileMasterExit
+        pop hl
+        pop de
+        pop bc
+        ret
+
+M4SkipFileChunk
+        push bc
+        push hl
+        push ix
+
+        ld ix,0
+
+        ld a,d
+        or e
+        scf
+        jr z,M4SkipFileTerminate
+
+        call M4SkipFileBlock
+        add ix,de
+
+M4SkipFileTerminate
+        ld d,ixh
+        ld e,ixl
+
+        pop ix
+        pop hl
+        pop bc
+
+        or a
+        scf
+        ret z
+
+        cp FR_END_OF_FILE_REACHED
+        scf
+        ret z
+
+        call ErrFA2DOS
+        or a    ; NC
+        ret
+
+M4SkipFileBlock
+        ld a,b  ; fd
+
+        push bc
+        push hl
+
+        push de
+
+        ld bc,DataPort
+;        ld e,5
+;        out (c),e
+        out (c),c
+        ld de,C_READ2
+        out (c),e
+        out (c),d
+        out (c),a
+        pop de
+        out (c),e
+        out (c),d
+
+        ld bc,AckPort
+        out (c),c
+
+        ld hl,_DOS_ROM_TEMP_STORE
+        ld de,3
+        ld bc,5
+        call M4_GetBytes
+
+        pop hl
+        pop bc
+
+        ld a,(_DOS_ROM_TEMP_STORE+0)
+        ld a,(_DOS_ROM_TEMP_STORE+1)
+        ld e,a
+        ld a,(_DOS_ROM_TEMP_STORE+2)
+        ld d,a
+
+        ld a,d  ; Hack way, because we cannot rely on FR_END_OF_FILE_REACHED
+        or e    ; which does not work as expected...
+        jr z,M4SkipFileBlockEndReached
+
+        xor a
+        ret
+
+M4SkipFileBlockEndReached
+        ld a,FR_END_OF_FILE_REACHED
+        or a
+        ret
+
+;
+; Lit le contenu d'un fichier
+;
+; Entrée - A = descripteur de fichier
+;          HL = adresse où stocker les données lues
+;          DE = nombre d'octets à lire
+; Sortie - Si Carry=1 alors des données ont été lues
+;               DE = nombre d'octets lue
+;          Si Carry=0 alors une erreur est survenue
+; Altéré - AF,DE,_DOS_ROM_TEMP_ROUTINE,_DOS_ROM_TEMP_STORE
+
+M4_ReadFile
+        push bc
+        push hl
+        push ix
+
+        ld ix,0
+
+        ld c,a      ; C=fd
+        ld b,d
+        srl b
+        srl b
+        srl b       ; B=nombre de blocks de &800
+
+        ld a,b
+        or a
+        jr z,M4ReadFileNoLoop
+
+M4ReadFileLoop
+        push de
+        push bc
+        ld de,&800
+        ld a,c
+        call M4ReadFileBlock
+        add ix,de
+        pop bc
+        pop de
+        or a
+        jr nz,M4ReadFileTerminate
+        djnz M4ReadFileLoop
+
+M4ReadFileNoLoop
+        ld a,d
+        and 7
+        ld d,a
+
+        ld a,d
+        or e
+        scf
+        jr z,M4ReadFileTerminate
+
+        ld a,c
+        call M4ReadFileBlock
+        add ix,de
+
+M4ReadFileTerminate
+        ld d,ixh
+        ld e,ixl
+
+        pop ix
+        pop hl
+        pop bc
+
+        or a
+        scf
+        ret z
+
+        cp FR_END_OF_FILE_REACHED
+        scf
+        ret z
+
+        call ErrFA2DOS
+        or a    ; NC
+        ret
+
+M4ReadFileBlock
+        push bc
+        push hl
+
+        push de
+
+        ld bc,DataPort
+;        ld e,5
+;        out (c),e
+        out (c),c
+        ld de,C_READ2
+        out (c),e
+        out (c),d
+        out (c),a
+        pop de
+        out (c),e
+        out (c),d
+
+        ld bc,AckPort
+        out (c),c
+
+        ld hl,_DOS_ROM_TEMP_STORE
+        ld de,3
+        ld bc,5
+        call M4_GetBytes
+
+        pop hl
+        pop bc
+
+        ld de,0
+
+        ld a,(_DOS_ROM_TEMP_STORE)
+
+        or a
+        call z,M4ReadFileCopyBlock
+
+        cp FR_END_OF_FILE_REACHED
+        call z,M4ReadFileCopyBlock
+
+        ld a,d  ; Hack way, because we cannot rely on FR_END_OF_FILE_REACHED
+        or e    ; which does not work as expected...
+        jr z,M4ReadFileBlockEndReached
+
+        xor a
+        ret
+
+M4ReadFileBlockEndReached
+        ld a,FR_END_OF_FILE_REACHED
+        or a
+        ret
+
+M4ReadFileCopyBlock
+        push af
+
+        ld a,(_DOS_ROM_TEMP_STORE+1)
+        ld e,a
+        ld a,(_DOS_ROM_TEMP_STORE+2)
+        ld d,a
+        or e
+        jr z,M4ReadFileCopyBlockSkip
+
+        push bc
+        push de
+
+        ld b,d
+        ld c,e
+        ld de,8
+        call M4_GetBytes
+
+        add hl,bc
+
+        pop de
+        pop bc
+
+M4ReadFileCopyBlockSkip
+        pop af
+        ret
+
+;
+; Écrit dans un un fichier
+;
+; Entrée - A = descripteur de fichier
+;          HL = adresse où se trouvent les données à écrire
+;          DE = nombre d'octets à écrire
+; Sortie - Si Carry=1 alors des données ont été écrites
+;          Si Carry=0 alors une erreur est survenue
+; Altéré - AF,_DOS_ROM_TEMP_ROUTINE,_DOS_ROM_TEMP_STORE
+
+M4_WriteFile
+;        push bc
+;        push de
+;        push hl
+
+;        ld hl,M4PutBytes_RAMRoutine
+;        ld de,_DOS_ROM_TEMP_ROUTINE
+;        ld bc,M4PutBytes_RAMRoutineEnd-M4PutBytes_RAMRoutine
+;        ldir
+
+;        pop hl
+;        pop de
+;        pop bc
+
+        push bc
+        ld c,a      ; C=fd
+
+        call _KL_L_ROM_DISABLE
+
+        push af
+        push de
+        push hl
+
+        ld b,d
+        srl b
+        srl b       ; B=nombre de blocks de &400
+
+        ld a,b
+        or a
+        jr z,M4WriteFileNoLoop
+
+M4WriteFileLoop
+        push de
+        push bc
+        ld de,&400
+        ld a,c
+        call M4WriteFileBlock
+        pop bc
+        pop de
+        or a
+        jr nz,M4WriteFileTerminate
+        djnz M4WriteFileLoop
+
+M4WriteFileNoLoop
+        ld a,d
+        and 3
+        ld d,a
+
+        ld a,d
+        or e
+        scf
+        jr z,M4WriteFileTerminate
+
+        ld a,c
+        call M4WriteFileBlock
+
+M4WriteFileTerminate
+        pop hl
+        pop de
+        pop bc
+
+        ld c,a
+        ld a,b
+        call _KL_ROM_RESTORE
+        ld a,c
+        pop bc
+
+        or a
+        scf
+        ret z
+
+        call ErrFA2DOS
+        or a    ; NC
+        ret
+
+M4WriteFileBlock
+        push bc
+
+        push de
+
+        ld bc,DataPort
+        ld e,5
+        out (c),e
+        ld de,C_WRITE2
+        out (c),e
+        out (c),d
+
+        out (c),a   ; fd
+
+        pop de
+
+        out (c),e   ; size
+        out (c),d
+
+        call M4_PutBytes
+
+        ld bc,AckPort
+        out (c),c
+
+        push hl
+        ld hl,_DOS_ROM_TEMP_STORE
+        ld de,3
+        ld bc,1
+        call M4_GetBytes
+        pop hl
+
+        pop bc
+
+        ld a,(_DOS_ROM_TEMP_STORE)
+
+        or a
+        ret
+
+M4_PutBytes
+        push bc
+        push de
+        push hl
+
+        ld hl,M4PutBytes_RAMRoutine
+        ld de,_DOS_ROM_TEMP_ROUTINE
+        ld bc,M4PutBytes_RAMRoutineEnd-M4PutBytes_RAMRoutine
+        ldir
+
+        pop hl
+        pop de
+        pop bc
+
+        jp _DOS_ROM_TEMP_ROUTINE
+
+M4PutBytes_RAMRoutine
+        call _KL_U_ROM_DISABLE
+        xor a
+M4PutBytes_RAMRoutineLoop
+        inc b
+        outi
+        dec de
+        cp e
+        jr nz,M4PutBytes_RAMRoutineLoop
+        cp d
+        jr nz,M4PutBytes_RAMRoutineLoop
+        jp _KL_U_ROM_ENABLE
+M4PutBytes_RAMRoutineEnd
+
+;
+; Vérifie si un nom correspond à un répertoire dans le répertoire courant
+; ... pas terrible comme façon de faire, mais vu la pauvreté des commandes
+; de la M4 Board je n'ai pas trouvé de meilleur moyen...
+;
+; Entrée - HL = pointeur vers le nom normalisé
+; Sortie - Si Carry=1 alors le répertoire existe
+;          Si Carry=0 alors le nom ne correspond pas à un répertoire
+;               A = code d'erreur
+; Altéré - AF,_DOS_ROM_TEMP_STORE
+
+M4_IsDirectory
+        push bc
+        push de
+        push hl
+
+        ld bc,DataPort
+        out (c),c
+        ld de,C_CD
+        out (c),e
+        out (c),d
+        call SendNormalizedName
+        out (c),0   ; NUL
+
+        ld bc,AckPort
+        out (c),c
+
+        ld hl,_DOS_ROM_TEMP_STORE
+        ld de,0
+        ld bc,3+1
+        call M4_GetBytes
+
+        pop hl
+        pop de
+        pop bc
+
+        ld a,(_DOS_ROM_TEMP_STORE+3)
+        or a
+        ret nz  ; NC
+
+        push bc
+        push de
+
+        ld bc,DataPort
+        ld e,5
+        out (c),e
+        ld de,C_CD
+        out (c),e
+        out (c),d
+        ld d,'.'
+        out (c),d
+        out (c),d
+        out (c),0   ; NUL
+
+        ld bc,AckPort
+        out (c),c
+
+        pop de
+        pop bc
+
+        scf
+        ret
+
+;
+; Vérifie si une entrée existe dans le répertoire courant
+; ... pas terrible comme façon de faire, mais vu la pauvreté des commandes
+; de la M4 Board je n'ai pas trouvé de meilleur moyen...
+;
+; Entrée - HL = pointeur vers le nom normalisé
+; Sortie - Si Carry=1 alors l'entrée existe
+;          Si Carry=0 alors l'entrée n'a pas été trouvée
+; Altéré - AF,_DOS_ROM_TEMP_ROUTINE,_DOS_ROM_TEMP_STORE
+
+M4_IsFile
+        ld a,FA_REALMODE+FA_READ+FA_OPEN_EXISTING
+        call M4_OpenFile
+        ret nc
+
+        call M4_CloseFile
+        scf
+        ret
+
+;
+; Examine une entrée dans le répertoire courant
+; ... on doit vérifier que l'entrée existe avant d'en récupérer les infos
+; car sinon C_FSTAT remonte n'importe quoi ! ...
+; ... M4_ExamineEntry ne doit pas être utilisé après M4_ExamineDir tant que
+; M4_ExamineNext, sinon la M4 Board gèle complètement le CPC, M4ExamineCancel
+; permet d'abandonner le M4_ExamineDir en cours ...
+; (C_FSTAT ne peut pas être utilisé pendant C_READDIR)
+;
+; Entrée - HL = pointeur vers le nom normalisé
+;          IX = tampon où copier l'heure et la date de dernière modification de l'entrée (7 octets)
+; Sortie - Si Carry=1 alors l'entrée existe
+;               A = bits de protection du fichier
+;                   Bit 0 - Lecture seule
+;                   Bit 1 - Caché
+;                   Bit 2 - Système
+;                   Bit 4 = Répertoire
+;                   Bit 5 = Archivé
+;               BCDE = Longueur du fichier (0 pour les répertoires)
+;               IX = tampon où ont été copiées l'heure et la date de dernière modification de l'entrée
+;                   (le contenu du tampon reste inchangé si l'horodatage n'est pas supporté)
+;                   Un mot de 16 bits avec l'année (1978..9999)
+;                   Un octet avec le numéro du mois (1..12)
+;                   Un octet avec le numéro du jour dans le mois (1..28,29,30 ou 31)
+;                   Un octet avec les heures (0..23)
+;                   Un octet avec les minutes (0..59)
+;                   Un octet avec les secondes (0..59)
+;          Si Carry=0 alors l'entrée n'a pas été trouvée
+; Altéré - AF,BC,DE,_DOS_ROM_TEMP_ROUTINE,_DOS_ROM_TEMP_STORE
+
+M4_ExamineEntry
+        push hl
+
+        ld bc,DataPort
+        out (c),c
+        ld de,C_FSTAT
+        out (c),e
+        out (c),d
+        call SendNormalizedName
+        out (c),0   ; NUL
+
+        ld bc,AckPort
+        out (c),c
+
+        ld hl,_DOS_ROM_TEMP_STORE
+        ld de,3
+        ld bc,16 ; 10
+        call M4_GetBytes
+
+        ld bc,0
+        ld de,0
+
+        ld a,(hl)
+
+        pop hl
+
+        or a
+        ret nz  ; NC
+
+        push hl
+
+        ld a,(_DOS_ROM_TEMP_STORE+6)
+        ld h,a
+        ld a,(_DOS_ROM_TEMP_STORE+5)
+        ld l,a      ; Date de modification
+        and &1f
+        ld (ix+3),a ; Jour
+        srl h:rr l
+        srl l
+        srl l
+        srl l
+        srl l
+        ld (ix+2),l ; Mois
+        ld l,h
+        ld h,0
+        ld a,e
+        ld de,1980
+        add hl,de
+        ld e,a
+        ld (ix+0),l ; Année
+        ld (ix+1),h
+
+        ld a,(_DOS_ROM_TEMP_STORE+8)
+        ld h,a
+        ld a,(_DOS_ROM_TEMP_STORE+7)
+        ld l,a      ; Heure de modification
+        and &1f
+        sla a
+        ld (ix+6),a ; Secondes
+        srl h:rr l
+        srl h:rr l
+        srl h:rr l
+        srl l
+        srl l
+        ld (ix+5),l ; Minutes
+        ld (ix+4),h ; Heures
+
+        pop hl
+
+        ld a,(_DOS_ROM_TEMP_STORE+9)
+        bit 4,a
+        jr nz,M4ExamineEntryIsDir
+        ld bc,(_DOS_ROM_TEMP_STORE+3)
+        ld de,(_DOS_ROM_TEMP_STORE+1)
+M4ExamineEntryIsDir
+        scf
+        ret
+
+;
+; Démarre d'examin du répertoire courant
+;
+; Entrée - Aucune
+; Sortie - Aucune
+; Altéré - Aucun
+
+M4_ExamineDir
+        push bc
+        push de
+
+        ld bc,DataPort
+        ld e,3
+        out (c),e
+        ld de,C_DIRSETARGS
+        out (c),e
+        out (c),d
+        out (c),0
+
+        ld bc,AckPort
+        out (c),c
+
+        pop de
+        pop bc
+        ret
+
+;
+; Examine la prochaine entrée du répertoire courant
+;
+; Entrée - HL = pointeur vers la mémoire où stocker le nom normalisé de l'entrée
+; Sortie - Si Carry=1 alors une entrée a été rencontrée
+;               HL = pointeur vers la mémoire mise à jour avec le nom normalisé de l'entrée
+;               A = bits de protection du fichier
+;                   Bit 0 - Lecture seule
+;                   Bit 1 - Caché
+;                   Bit 2 - Système
+;                   Bit 4 = Répertoire
+;                   (Bit 5 = Archivé)
+;               BCDE = Longueur du fichier (0 pour les répertoires, fausse sur SD, utiliser M4_Examine)
+;          Si Carry=0 alors il ne reste plus d'entrées à examiner dans le répertoire
+; Altéré - AF,BC,DE,_DOS_ROM_TEMP_ROUTINE,_DOS_ROM_TEMP_STORE
+
+M4_ExamineNext
+M4_ExamineNextAgain
+        push hl
+
+        ld bc,DataPort
+        ld e,2
+        out (c),e
+        ld de,C_READDIR
+        out (c),e
+        out (c),d
+
+        ld bc,AckPort
+        out (c),c
+
+        ld hl,_DOS_ROM_TEMP_STORE
+        ld de,0
+        ld bc,32    ; Assez long pour la chaîne attendue
+        call M4_GetBytes
+
+        ld a,(hl)
+        pop hl
+
+        cp 2
+        ret z   ; NC
+
+        push hl
+
+        ex de,hl
+        ld hl,_DOS_ROM_TEMP_STORE+3
+        ld a,(hl)
+        cp '>'      ; Marqueur de répertoire (!?)
+        jr nz,M4ExamineNextFile
+M4ExamineNextDirectory
+        inc hl      ; On saute le marqueur incongru
+
+        ld b,&10    ; Attributs de base pour un répertoire
+
+        ld c,9
+M4ExamineNextDirectoryLoopName
+        ld a,(hl)
+        or a
+        jp z,M4ExamineNextFinalize
+        ld a,(hl)
+        cp '.'      ; Extension trouvée ?
+        jr z,M4ExamineNextExtension
+        and &7f
+        call ToUpper
+        ld (de),a
+        inc hl
+        inc de
+        dec c
+        jr nz,M4ExamineNextDirectoryLoopName
+
+        ld a,' '
+        ld (de),a
+        inc de
+        ld (de),a
+        inc de
+        ld (de),a
+
+        ld c,7
+M4ExamineNextDirectoryLoopTrim
+        ld a,(hl)
+        cp ' '
+        jp nz,M4ExamineNextLoop
+        inc hl
+        dec c
+        jr nz,M4ExamineNextDirectoryLoopTrim
+
+        ld a,(hl)
+        or a        ; Trop long ?
+        jp nz,M4ExamineNextLoop
+        jr M4ExamineNextFinalize
+
+M4ExamineNextFile
+
+Repeat 8
+        ld a,(hl)
+        call ToUpper
+        ld (de),a
+        inc hl
+        inc de
+REnd
+        ld b,0      ; Attributs de base pour un fichier
+
+M4ExamineNextExtension
+        inc hl      ; On saute le '.' indésirable
+        ld a,(hl)
+        bit 7,a
+        call nz,SetReadOnlyB
+        and &7f
+        call ToUpper
+        ld (de),a
+        inc hl
+        inc de
+
+        ld a,(hl)
+        bit 7,a
+        call nz,SetSystemB
+        and &7f
+        call ToUpper
+        ld (de),a
+        inc hl
+        inc de
+
+        ld a,(hl)
+        and &7f
+        call ToUpper
+        ld (de),a
+        inc hl
+
+        xor a
+        bit 4,b     ; Si répertoire on doit avoir '\0', sinon ' '
+        jr nz,M4ExamineNextDirLastChar
+M4ExamineNextFileLastDirChar
+        ld a,' '
+M4ExamineNextDirLastChar
+        cp (hl)     ; Trop long?
+        jr nz,M4ExamineNextLoop
+
+M4ExamineNextFinalize
+        ld a,b      ; Attributs
+        ld bc,0     ; Taille
+        ld de,0
+
+        push af
+
+        bit 4,a
+        jr nz,M4ExamineNextDirFinalizeDone
+
+        inc hl
+        ld a,(hl)
+        call GetSizeDigit  ; x100
+        call MultiplySize
+
+        inc hl
+        ld a,(hl)
+        call GetSizeDigit  ; x10
+        call MultiplySize
+
+        inc hl
+        ld a,(hl)
+        call GetSizeDigit  ; x1
+
+        inc hl
+        ld a,(hl)                       ; Unité : K/M/G/.
+
+        call Mul1024
+        cp 'K'
+        jr z,M4ExamineNextDirFinalizeDone
+        call Mul1024
+        cp 'M'
+        jr z,M4ExamineNextDirFinalizeDone
+        call Mul1024
+        cp 'G'
+        jr z,M4ExamineNextDirFinalizeDone
+        call Mul1024
+
+M4ExamineNextDirFinalizeDone
+        pop af
+        pop hl
+
+        cp a
+        scf
+        ret
+M4ExamineNextLoop
+        pop hl
+        jp M4_ExamineNextAgain
+
+;
+; Nettoie la session d'examin du répertoire courant
+;
+; Entrée - Aucune
+; Sortie - Aucune
+; Altéré - _DOS_ROM_TEMP_ROUTINE,_DOS_ROM_TEMP_STORE
+
+M4_ExamineFlush
+        push af
+        push bc
+        push de
+        push hl
+        ld hl,_DOS_ROM_TEMP_STORE+&24
+ExamineNextSDFlushLoop
+        call M4_ExamineNext
+        jr c,ExamineNextSDFlushLoop
+        pop hl
+        pop de
+        pop bc
+        pop af
+        ret
+
+;
+; Retourne l'espace libre sur la carte SD
+;
+; Entrée - Aucune
+; Sortie - Si Carry=1 alors BCDE contient l'espace libre en kilo-octets
+;               BCDE = espace libre en kilo-octets
+;          Si Carry=0 alors une erreur est survenue
+; Altéré - AF,BC,DE,_DOS_ROM_TEMP_ROUTINE,_DOS_ROM_TEMP_STORE
+
+M4_GetFreeSpace
+        push hl
+
+        ld bc,DataPort
+        ld a,2
+        out (c),a
+        ld de,C_FREE
+        out (c),e
+        out (c),d
+        ld bc,AckPort
+        out (c),c
+
+        ld hl,_DOS_ROM_TEMP_STORE
+        ld de,3
+        ld bc,32    ; Assez long pour la chaîne attendue
+        call M4_GetBytes
+
+        inc hl      ; On saute le "\r\n"...
+        inc hl
+
+        ld bc,0     ; Taille
+        ld de,0
+
+M4GetFreeSpaceLoopSize
+        ld a,(hl)
+        cp 'K'
+        jr z,M4GetFreeSpaceExit
+
+        call MultiplySize
+        call GetSizeDigit
+        inc hl
+        jr M4GetFreeSpaceLoopSize
+
+M4GetFreeSpaceExit
+
+        pop hl
+
+        scf
+        ret
+
+;
+; Renome un fichier ou un répertoire
+;
+; Entrée - HL = pointeur vers le nom normalisé
+;          DE = pointeur vers le chemin normalisé
+;          IX = pointeur vers le nouveau nom normalisé
+;          BC = pointeur vers le nouveau chemin normalisé
+; Sortie - Si Carry = 1 le fichier a été renommé
+;          Si Carry = 0 une erreur est survenue
+;               A = code d'erreur
+; Altéré - AF
+
+M4_Rename
+        push bc
+        push de
+        push hl
+
+        push ix
+        push bc
+        push hl
+        push de
+
+        ld bc,DataPort
+        out (c),c
+        ld de,C_RENAME
+        out (c),e
+        out (c),d
+        pop hl      ; Chemin
+        call SendNormalizedPathSlashed
+        pop hl      ; Nom
+        call SendNormalizedName
+        out (c),0   ; NUL
+
+        pop hl      ; Nouveau chemin
+        call SendNormalizedPathSlashed
+        pop hl      ; Nouveau nom
+        call SendNormalizedName
+        out (c),0   ; NUL
+
+        ld bc,AckPort
+        out (c),c
+
+        ld hl,_DOS_ROM_TEMP_STORE
+        ld de,3
+        ld bc,1
+        call M4_GetBytes
+
+        ld a,(hl)
+
+        pop hl
+        pop de
+        pop bc
+
+        or a
+        scf
+        ret z
+
+        call ErrFA2DOS
+        cp a    ; NC
+        ret
+
+;
+; Efface un fichier ou un répertoire
+;
+; Entrée - HL = pointeur vers le nom normalisé
+;          DE = pointeur vers le chemin normalisé
+; Sortie - Si Carry = 1 le fichier a été renommé
+;          Si Carry = 0 une erreur est survenue
+;               A = code d'erreur
+; Altéré - AF
+
+M4_Delete
+        push bc
+        push de
+        push hl
+
+        push hl
+        push de
+
+        ld bc,DataPort
+        out (c),c
+        ld de,C_ERASEFILE
+        out (c),e
+        out (c),d
+        pop hl      ; Chemin
+        call SendNormalizedPathSlashed
+        pop hl      ; Nom
+        call SendNormalizedName
+        out (c),0   ; NUL
+
+        ld bc,AckPort
+        out (c),c
+
+        ld hl,_DOS_ROM_TEMP_STORE
+        ld de,3
+        ld bc,1
+        call M4_GetBytes
+
+        ld a,(hl)
+
+        pop hl
+        pop de
+        pop bc
+
+        or a
+        scf
+        ret z
+
+        call ErrFA2DOS
+        cp a    ; NC
+        ret
+
+;
+; Crée un répertoire
+;
+; Entrée - HL = pointeur vers le nom normalisé
+;          DE = pointeur vers le chemin normalisé
+; Sortie - Si Carry = 1 le répertoire a été créé
+;          Si Carry = 0 une erreur est survenue
+;               A = code d'erreur
+; Altéré - AF
+
+M4_CreateDir
+        push bc
+        push de
+        push hl
+
+        push hl
+        push de
+
+        ld bc,DataPort
+        out (c),c
+        ld de,C_MAKEDIR
+        out (c),e
+        out (c),d
+        pop hl      ; Chemin
+        call SendNormalizedPathSlashed
+        pop hl      ; Nom
+        call SendNormalizedName
+        out (c),0   ; NUL
+
+        ld bc,AckPort
+        out (c),c
+
+        ld hl,_DOS_ROM_TEMP_STORE
+        ld de,3
+        ld bc,1
+        call M4_GetBytes
+
+        ld a,(hl)
+
+        pop hl
+        pop de
+        pop bc
+
+        or a
+        scf
+        ret z
+
+        call ErrFA2DOS
+        cp a    ; NC
+        ret
+
+;
+; Initialise la récupération du nom long des entrées de la bibliothèque (répertoire "Library")
+;
+; Entrée - HL = pointeur vers le tiroir de la bibliothèque où se trouvent les éléments à lister
+;           B = longueur du chemin (0 si la racine de la bibliothèque doit être listée)
+; Sortie - Si Carry=1 alors l'analyse peut commencer (via M4_LibraryListNext)
+;          Si Carry=0 alors une erreur est survenue
+;               A = code d'erreur
+; Altéré - AF,_DOS_ROM_TEMP_ROUTINE,_DOS_ROM_TEMP_STORE
+
+M4_LibraryListInit
+        push bc
+
+        call M4_PathPart
+
+        ld b,a
+
+        push bc
+        call M4LibListInit
+        pop bc
+
+        ld a,b
+
+        pop bc
+
+        jr nc,M4LibListInitFailed    ; Échec aussi avec le chemin composé
+
+        push bc ; Mise en place de la pattern
+        push de
+        push hl
+
+        ld c,a
+        ld a,b
+        sub a,c
+        ld b,0
+        add hl,bc
+        ld d,a
+
+        push de
+
+        ld bc,DataPort
+        out (c),c
+        ld de,C_DIRSETARGS
+        out (c),e
+        out (c),d
+
+        pop de
+
+        call M4_PutSizedName
+
+        ld bc,AckPort
+        out (c),c
+
+        pop hl
+        pop de
+        pop bc
+
+        scf
+        ret
+
+M4LibListInitFailed
+        ld a,DSK_ERR_NOT_A_DIRECTORY
+        or a    ; NC
+        ret
+
+M4LibListInit
+        call M4_CheckPath
+        ret nc
+
+        call M4_RootDir ; Retour à la racine
+
+        push bc
+        push de
+        push hl
+
+        ld d,b
+        push de
+
+        ld bc,DataPort  ; On s'assure que la cible n'est pas un fichier
+        out (c),c
+        ld de,C_OPEN
+        out (c),e
+        out (c),d
+        ld a,FA_REALMODE+FA_READ+FA_OPEN_EXISTING
+        out (c),a
+
+        pop de
+        call M4_LibraryPutItemName
+
+        ld bc,AckPort
+        out (c),c
+
+        ld hl,_DOS_ROM_TEMP_STORE
+        ld de,3
+        ld bc,2
+        call M4_GetBytes
+
+        pop hl
+        pop de
+        pop bc
+
+        ld a,(_DOS_ROM_TEMP_STORE+1)
+        or a
+        ld a,DSK_ERR_NOT_A_DIRECTORY
+        ret z   ; NC, C'était un fichier !
+
+        push bc
+        push de
+        push hl
+
+        ld d,b
+        push de
+
+        ld bc,DataPort  ; On s'assure que la cible est bien un répertoire
+        out (c),c
+        ld de,C_CD
+        out (c),e
+        out (c),d
+
+        pop de
+        call M4_LibraryPutItemName
+
+        ld bc,AckPort
+        out (c),c
+
+        ld hl,_DOS_ROM_TEMP_STORE
+        ld de,3
+        ld bc,1
+        call M4_GetBytes
+
+        pop hl
+        pop de
+        pop bc
+
+        ld a,(_DOS_ROM_TEMP_STORE)
+        or a
+        ld a,DSK_ERR_BAD_COMMAND
+
+        ret nz  ; NC, ni fichier, ni répertoire !
+
+        scf
+        ret
+
+;
+; Récupère le nom long des entrées dans la bibliothèque
+;
+; Entrée - HL = pointeur vers la mémoire où stocker le nom long de l'entrée trouvée
+;           B = longueur maximale de l'entrée
+; Sortie - Si Carry=1 alors une entrée a été rencontrée
+;               HL = pointeur vers la mémoire mise à jour avec le nom long de l'entrée
+;                    (la chaîne est terminée par le bit 7 mis à 1)
+;               A = type d'entrée (détection *réelle* non basée sur l'extension)
+;                   0 = répertoire
+;                   1 = image disque DSK
+;                   2 = image disque Extended DSK
+;                   3 = image cartouche CPR
+;                   4 = instantané SNA
+;                   255 = inconnu
+;          Si Carry=0 alors il ne reste plus d'entrées à examiner dans le répertoire
+;               A = code d'erreur (si DSK_ERR_FILE_NOT_FOUND alors il n'y a plus d'entrées)
+; Altéré - AF,_DOS_ROM_TEMP_ROUTINE,_DOS_ROM_TEMP_STORE
+
+M4_LibraryListNext
+        push bc
+        push de
+        push hl
+
+        ld a,b
+
+        ld bc,DataPort
+        ld e,3
+        out (c),e
+        ld de,C_READDIR
+        out (c),e
+        out (c),d
+        out (c),a
+
+        ld bc,AckPort
+        out (c),c
+
+        ld hl,_DOS_ROM_TEMP_STORE
+        ld de,0
+        ld bc,LibItemMaxLen+3
+        call M4_GetBytes
+
+        ld a,(hl)
+
+        pop hl
+        pop de
+        pop bc
+
+        cp 2
+        ld a,DSK_ERR_FILE_NOT_FOUND
+        ret z   ; NC
+
+        ld a,(_DOS_ROM_TEMP_STORE+3)
+        cp '>'      ; Marqueur de répertoire (!?)
+        jr nz,M4LibListFileFound
+M4LibListDirFound
+        push de
+        push hl
+        ld de,_DOS_ROM_TEMP_STORE+4 ; On saute le marqueur incongru
+        call M4LibListStoreName
+        ld a,0                      ; Type répertoire
+        pop hl
+        pop de
+        scf
+        ret
+
+M4LibListFileFound
+        push de
+        push hl
+        ld de,_DOS_ROM_TEMP_STORE+3
+        call M4LibListStoreName
+        ex de,hl
+        or a
+        ld de,_DOS_ROM_TEMP_STORE+3
+        sbc hl,de
+        ld a,l      ; Longueur de la chaîne
+        pop hl
+        pop de
+
+        push hl     ; Ouverture du fichier
+        push de
+        push bc
+
+        ld bc,DataPort
+        out (c),c
+        ld de,C_OPEN
+        out (c),e
+        out (c),d
+        ld d,FA_REALMODE+FA_READ+FA_OPEN_EXISTING
+        out (c),d
+
+        ld hl,_DOS_ROM_TEMP_STORE+3
+        ld d,a
+        call M4_PutSizedName
+
+        ld bc,AckPort
+        out (c),c
+
+        ld hl,_DOS_ROM_TEMP_STORE
+        ld de,3
+        ld bc,2
+        call M4_GetBytes
+
+        pop bc
+        pop de
+        pop hl
+
+        ld a,(_DOS_ROM_TEMP_STORE+1)
+        or a
+        jr nz,M4LibListUnkownType
+
+        push hl     ; Lecture des 8 premiers octets du fichier
+        push de
+        push bc
+
+        ld a,(_DOS_ROM_TEMP_STORE+0)
+        ld c,a      ; C=fd
+
+        ld hl,_DOS_ROM_TEMP_STORE+&24
+        ld de,&40
+        call M4_ReadFile
+
+        ld a,c      ; A=fd
+        push af     ; Fermeture du fichier
+        call M4_CloseFile
+        pop af
+
+        pop bc
+        pop de
+        pop hl
+
+        jr nc,M4LibListUnkownType
+
+        push bc     ; Identification du fichier
+        push de
+        push hl
+
+        call M4DSKGetType
+
+M4LibListFoundOpenMatchEnd
+        pop hl
+        pop de
+        pop bc
+
+        scf
+        ret
+
+M4LibListUnkownType
+        ld a,255
+        scf
+        ret
+
+M4LibListStoreName
+M4LibListStoreNameLoop
+        ld a,(de)
+        and &7f
+        ld (hl),a
+        jr z,M4LibListStoreNameFinalize
+        inc hl
+        inc de
+        jr M4LibListStoreNameLoop
+M4LibListStoreNameFinalize
+        dec hl
+        set 7,(hl)
+        ret
+
+M4DSKGetType
+        ld hl,DSKMatch1
+        ld de,_DOS_ROM_TEMP_STORE+&24
+        call IsMatch8
+        ld a,1      ; Type DSK
+        ret z
+
+        ld hl,DSKMatch2
+        ld de,_DOS_ROM_TEMP_STORE+&24
+        call IsMatch8
+        ld a,2      ; Type EDSK
+        ret z
+
+        ld hl,CPRMatch
+        ld de,_DOS_ROM_TEMP_STORE+&24
+        call IsMatch4_4
+        ld a,3      ; Type CPR
+        ret z
+
+        ld hl,SNAMatch
+        ld de,_DOS_ROM_TEMP_STORE+&24
+        call IsMatch8
+        ld a,4      ; Type SNA
+        ret z
+
+        ld a,255    ; Type Unknown
+        ret
+
+IsMatch4_4
+        ld b,4
+        call IsMatchLoop
+        ret nz
+        ld bc,4
+        ex de,hl
+        add hl,bc
+        ex de,hl
+        ld b,4
+        jr IsMatchLoop
+
+IsMatch8
+        ld b,8
+IsMatchLoop
+        ld a,(de)
+        cp (hl)
+        ret nz
+        inc hl
+        inc de
+        djnz IsMatchLoop
+        ret
+
+DSKMatch1
+        db "MV - CPC"
+DSKMatch2
+        db "EXTENDED"
+CPRMatch
+        db "RIFF","AMS!"
+SNAMatch
+        db "MV - SNA"
+
+;
+; Crée la bibliothèque si elle n'existe pas
+;
+; Entrée - Aucune
+; Sortie - Aucune
+; Altéré - Aucun
+
+M4_CreateLibDir
+        push af
+        push bc
+        push de
+        push hl
+
+        ld bc,DataPort
+        out (c),c
+        ld de,C_MAKEDIR
+        out (c),e
+        out (c),d
+        ld hl,M4LibName
+M4CreateLibDirLoop
+        ld a,(hl)
+        and &7f
+        out (c),a
+        bit 7,(hl)
+        inc hl
+        jr z,M4CreateLibDirLoop
+        out (c),0   ; NUL
+
+        ld bc,AckPort
+        out (c),c
+
+        pop hl
+        pop de
+        pop bc
+        pop af
+
+        ret
+
+;
+; Vérifie qu'un chemin ne commence ni par '/' ou ':'
+; et en corrige la longueur s'il se termine par '/'
+;
+; Entrée - HL = pointeur vers le chemin
+;           B = longueur du chemin
+; Sortie - Si Carry=1 alors le chemin est valide
+;           B a éventuellement été courrigé
+;          Si Carry=0 alors le chemin est invalide
+; Altéré - AF
+
+M4_CheckPath
+        ld a,b
+        or a
+        jr z,M4CheckPathSuccess
+        push bc
+        push hl
+        ld a,(hl)
+        cp '/':jr z,M4CheckPathFail
+        cp ':':jr z,M4CheckPathFail
+        ld c,b
+        ld b,0
+        add hl,bc
+        dec hl
+        ld a,'/'
+        cp (hl)
+        pop hl
+        pop bc
+        jr nz,M4CheckPathSuccess
+        dec b
+M4CheckPathSuccess
+        scf
+        ret
+M4CheckPathFail
+        pop hl
+        pop bc
+        cp a
+        ret ; NC
+
+;
+; Vérifie qu'un chemin est valide pour un nom de fichier
+;
+; ... cette routine est surtout là pour éviter un plantage complet
+; de la M4Board si on lui envoie des jokers lors d'un C_CD...
+; ... et son échec si on lui envoie un chemin terminé par un / ...
+;
+; Entrée - HL = pointeur vers le chemin
+;           B = longueur du chemin
+; Sortie - Si Carry=1 alors le chemin peut correspondre à un fichier
+;          Si Carry=0 alors le chemin ne peut pas correspondre à un fichier
+; Altéré - AF
+
+M4_CheckFile
+        ld a,b
+        or a
+        jr z,M4CheckPathSuccess
+        push bc
+        push hl
+        ld a,(hl)
+        cp '/':jr z,M4CheckPathFail
+        cp ':':jr z,M4CheckPathFail
+M4CheckFileLoop
+        ld a,(hl)
+        cp '*':jr z,M4CheckPathFail
+        cp '?':jr z,M4CheckPathFail
+        inc hl
+        djnz M4CheckFileLoop
+        dec hl
+        ld a,'/'
+        cp (hl)
+        jr z,M4CheckPathFail
+        pop hl
+        pop bc
+        scf
+        ret
+
+;
+; Découpe la dernière partie d'un chemin
+;
+; Entrée - HL = pointeur vers le chemin
+;           B = longueur du chemin
+; Sortie -  A = longueur de la première partie du chemin
+; Altéré - AF
+
+M4_PathPart
+        ld a,b
+        or a
+        ret z
+        ld a,(hl)
+        cp '/'
+        jr nz,M4PathPartContinue
+        ld a,b
+        ret
+M4PathPartContinue
+        push bc
+M4PathPartLoop
+        call M4PathPartGetByte
+        cp '/'
+        jr z,M4PathPartFound
+        djnz M4PathPartLoop
+M4PathPartFound
+        ld a,b
+        pop bc
+        ret
+
+M4PathPartGetByte
+        push hl
+        push bc
+        dec b
+        ld c,b
+        ld b,0
+        add hl,bc
+        ld a,(hl)
+        pop bc
+        pop hl
+        ret
+
+;
+; Monte un nouveau DSK depuis la bibliothèque
+;
+; Entrée - HL = pointeur vers le nom du DSK (nom avec chemin relatif à la bibliothèque)
+;           B = longueur du nom
+;          Si HL=0 alors le nom de DSK par défaut (en M4 ROM) est utilisé (s'il existe)
+; Sortie - Si Carry=1 alors le DSK a été monté
+;          Si Carry=0 alors une erreur est survenue
+;               A = code d'erreur
+; Altéré - AF,_DOS_ROM_TEMP_ROUTINE,_DOS_ROM_TEMP_STORE
+
+M4_MountDSK
+        ld a,l
+        or h
+        jr nz,M4_MountDSKNameGiven
+M4_MountDSKDefault
+        push hl
+        ld hl,_DOS_ROM_TEMP_STORE
+        call M4_GetDSK
+        pop hl
+
+        ret nz  ; NC
+
+        push hl
+        push bc
+        ld a,(_DOS_ROM_TEMP_STORE+2)
+        ld b,a
+        ld hl,_DOS_ROM_TEMP_STORE+3
+        call M4_MountDSKNameGiven
+        pop bc
+        pop hl
+        ret
+
+M4_MountDSKNameGiven
+        call M4_CheckFile
+        ret nc
+
+        ld a,b
+        cp LibItemMaxLen
+        ret nc
+
+        call M4_RootDir ; Retour à la racine dans tous les cas
+
+        push bc
+        push de
+        push hl
+
+        ld d,b
+        push de
+
+        ld bc,DataPort  ; On s'assure que la cible est bien un fichier
+        out (c),c
+        ld de,C_OPEN
+        out (c),e
+        out (c),d
+        ld a,FA_REALMODE+FA_READ+FA_OPEN_EXISTING
+        out (c),a
+
+        pop de
+        call M4_LibraryPutItemName
+
+        ld bc,AckPort
+        out (c),c
+
+        ld hl,_DOS_ROM_TEMP_STORE
+        ld de,3
+        ld bc,2
+        call M4_GetBytes
+
+        pop hl
+        pop de
+        pop bc
+
+        ld a,(_DOS_ROM_TEMP_STORE+1)
+        or a
+        jr z,M4MountDSKIsAFile
+
+        ld a,DSK_ERR_BAD_COMMAND
+        or a    ; NC
+        ret
+
+M4MountDSKIsAFile
+        ld a,(_DOS_ROM_TEMP_STORE+0)    ; fd
+        call M4_CloseFile
+
+        push bc
+        push de
+        push hl
+
+        ld d,b
+        push de
+
+        ld bc,DataPort  ; Montage du effectif du DSK
+        out (c),c
+        ld de,C_CD
+        out (c),e
+        out (c),d
+
+        pop de
+        call M4_LibraryPutItemName
+
+        ld bc,AckPort
+        out (c),c
+
+        ld hl,_DOS_ROM_TEMP_STORE
+        ld de,3
+        ld bc,1
+        call M4_GetBytes
+
+        pop hl
+        pop de
+        pop bc
+
+        ld a,(_DOS_ROM_TEMP_STORE)
+        or a
+        ret nz  ; NC
+
+        scf
+        ret
+
+;
+; Monte le DSK courant
+;
+; Entrée - Aucune
+; Sortie - Si Carry=1 alors le DSK courant a été monté
+;          Si Carry=0 alors une erreur est survenue
+;               A = code d'erreur
+; Altéré - AF,_DOS_ROM_TEMP_ROUTINE,_DOS_ROM_TEMP_STORE
+
+M4_CurrentDSK
+        push hl
+        ld hl,0
+        call M4_MountDSK
+        pop hl
+        ret
+
+;
+; Met à jour le nom du DSK courant dans la M4 ROM
+;
+; Entrée - HL = pointeur vers le nom du DSK (nom avec chemin relatif au répertoire DSK)
+;           B = longueur du nom
+; Sortie - Aucune
+; Altéré - _DOS_ROM_TEMP_ROUTINE
+
+M4_SetDSK
+        push af
+        push bc
+        push de
+        push hl
+
+        ld d,b
+        ld a,b
+        push de
+
+        ld bc,DataPort
+        out (c),c
+        ld de,C_ROMWRITE
+        out (c),e
+        out (c),d
+
+        call M4_GetDSKNameAdr
+        out (c),e   ; Adr
+        out (c),d
+        add a,2+1
+        out (c),a   ; MsgLen
+        out (c),0
+        out (c),0   ; M4 ROM
+        ld de,DSK_ID
+        out (c),e   ; Id
+        out (c),d
+        pop de
+        out (c),d   ; StrLen
+        call M4_PutSizedName
+
+        ld bc,AckPort
+        out (c),c
+
+        pop hl
+        pop de
+        pop bc
+        pop af
+
+        ret
+
+;
+; Récupère les données du DSK par défaut dans la M4 ROM
+;
+; Entrée - HL=adresse où stocker les données du DSK par défaut (LibItemMaxLen+3)
+;           2 octets d'ID
+;           1 octet de taille de chaîne de caractères (x)
+;           x octets avec la chaîne de caractères
+; Sortie - Si Carry=1 alors le nom du DSK par défaut a été récupéré
+;          Si Carry=0 alors aucun nom de DSK par défaut n'a été trouvé
+; Altéré - AF,_DOS_ROM_TEMP_STORE
+
+M4_GetDSK
+        push de
+        push bc
+
+        ld de,DSKNameOft
+        ld bc,LibItemMaxLen+3
+        call M4_GetBytes
+
+        push hl
+        ld hl,(_DOS_ROM_TEMP_STORE)
+        ld bc,-DSK_ID
+        add hl,bc
+        ld a,l  ; DSK ID trouvé ?
+        or h
+        pop hl
+
+        pop bc
+        pop de
+
+        ret nz  ; NC
+
+        scf
+        ret
+
+;
+; Met à jour les données du FTP courant dans la M4 ROM
+;
+; Entrée - HL = pointeur vers les données FTP
+;           B = longueur des données FTP
+; Sortie - Aucune
+; Altéré - _DOS_ROM_TEMP_ROUTINE
+
+M4_SetFTP
+        push af
+        push bc
+        push de
+        push hl
+
+        ld d,b
+        ld a,b
+        push de
+
+        ld bc,DataPort
+        out (c),c
+        ld de,C_ROMWRITE
+        out (c),e
+        out (c),d
+
+        call M4_GetFTPInfoAdr
+        out (c),e   ; Adr
+        out (c),d
+        add a,2+1
+        out (c),a   ; MsgLen
+        out (c),0
+        out (c),0   ; M4 ROM
+        ld de,FTP_ID
+        out (c),e   ; Id
+        out (c),d
+        pop de
+        out (c),d   ; StrLen
+        call M4_PutSizedName
+
+        ld bc,AckPort
+        out (c),c
+
+        pop hl
+        pop de
+        pop bc
+        pop af
+
+        ret
+
+;
+; Récupère les données du FTP courant dans la M4 ROM
+;
+; Entrée - HL=adresse où stocker les données du FTP courant (FTPInfoMaxLen)
+; Sortie - Si Carry=1 alors les données du FTP courant ont été récupérées
+;          Si Carry=0 alors aucunes données FTP n'ont été trouvées
+; Altéré - AF,_DOS_ROM_TEMP_STORE
+
+M4_GetFTP
+        push de
+        push bc
+
+        ld de,FTPInfoOft
+        ld bc,3
+        call M4_GetBytes
+
+        push hl
+        ld hl,(_DOS_ROM_TEMP_STORE)
+        ld bc,-FTP_ID
+        add hl,bc
+        ld a,l  ; FTP ID trouvé ?
+        or h
+        pop hl
+
+        pop bc
+        pop de
+
+        ret nz  ; NC
+
+        push de
+        push bc
+
+        ld de,FTPInfoOft+3
+        ld a,(_DOS_ROM_TEMP_STORE+2)
+        ld c,a
+        ld b,0
+        call M4_GetBytes
+
+        pop bc
+        pop de
+
+        scf
+        ret
+
+;
+; Charge une cartouche en flash depuis la bibliothèque
+;
+; Entrée - HL = pointeur vers le nom du CPR (nom avec chemin relatif à la bibliothèque)
+;           B = longueur du nom
+; Sortie - Si Carry=1 alors l'opération a réussi
+;          Si Carry=0 alors une erreur est survenue
+; Altéré - AF,_DOS_ROM_TEMP_ROUTINE
+
+M4_FlashCPR
+        call M4_CheckFile
+        ret nc
+
+        call M4_RootDir ; Retour à la racine dans tous les cas
+
+        push bc
+        push de
+        push hl
+
+        ld d,b
+        push de
+
+        ld bc,DataPort  ; On s'assure que la cible est bien un fichier
+        out (c),c
+        ld de,C_OPEN
+        out (c),e
+        out (c),d
+        ld a,FA_REALMODE+FA_READ+FA_OPEN_EXISTING
+        out (c),a
+
+        pop de
+        call M4_LibraryPutItemName
+
+        ld bc,AckPort
+        out (c),c
+
+        ld hl,_DOS_ROM_TEMP_STORE
+        ld de,3
+        ld bc,2
+        call M4_GetBytes
+
+        pop hl
+        pop de
+        pop bc
+
+        ld a,(_DOS_ROM_TEMP_STORE+1)
+        or a
+        jr z,M4FlashCPRIsAFile
+
+        ld a,DSK_ERR_FILE_NOT_FOUND
+        or a    ; NC
+        ret
+
+M4FlashCPRIsAFile
+        ld a,(_DOS_ROM_TEMP_STORE+0)    ; fd
+        call M4_CloseFile
+
+        push af     ; C_CTRUPLOAD ne renvoie pas d'erreur !
+        push bc
+        push de
+
+        ld d,b
+        push de
+        ld bc,DataPort
+        out (c),c
+        ld de,C_CTRUPLOAD
+        out (c),e
+        out (c),d
+        pop de
+        call M4_LibraryPutItemName
+
+        ld bc,AckPort
+        out (c),c
+
+        pop de
+        pop bc
+        pop af
+
+        scf
+        ret
+
+;
+; Exécute la cartouche présente en flash
+;
+; Entrée - Aucune
+; Sortie - Aucune
+; Altéré - Aucun
+
+M4_StartCPR
+        push bc
+        push de
+
+        ld bc,DataPort
+        out (c),c
+        ld de,C_CTRBOOT
+        out (c),e
+        out (c),d
+
+        ld bc,AckPort
+        out (c),c
+
+        pop de
+        pop bc
+        ret
+
+;
+; Charge un snapshot depuis la bibliothèque
+;
+; Entrée - HL = pointeur vers le nom du SNA (nom avec chemin relatif à la bibliothèque)
+;           B = longueur du nom
+; Sortie - Si retour, alors l'opération a échoué
+; Altéré - AF,_DOS_ROM_TEMP_ROUTINE
+
+M4_LoadSNA
+        call M4_CheckFile
+        ret nc
+
+        push bc
+        push de
+        push hl
+        push ix
+
+        push bc
+        push hl
+
+        ld hl,M4ROM_SNARSXName
+        call CopyRSXNameToRAM
+
+        call GetPrivateDataIX
+
+        ld c,(ix+1)
+        ld de,_DOS_ROM_TEMP_ROUTINE+&20
+        call SearchRSXInSingleROM
+
+        ex de,hl
+        pop hl
+        pop bc
+
+        jr nc,M4LoadSNAFailed
+
+        push hl
+        push bc
+        push de
+
+        ld hl,M4LoadSNA_RAMRoutine
+        ld de,_DOS_ROM_TEMP_ROUTINE
+        ld bc,M4LoadSNA_RAMRoutineEnd-M4LoadSNA_RAMRoutine
+        ldir
+
+        pop de
+
+        ld a,(ix+1)
+        ld hl,_DOS_ROM_TEMP_ROUTINE+1+M4LoadSNA_Poke_RAMRoutine-M4LoadSNA_RAMRoutine
+        ld (hl),e
+        inc hl
+        ld (hl),d
+
+        pop bc
+        pop hl
+
+        call M4_RootDir ; Retour à la racine dans tous les cas
+
+        push hl
+
+        ld hl,M4LibName
+        ld de,_DOS_ROM_TEMP_STORE+3+2
+        ld c,1
+M4LoadSNANameLoop
+        inc c
+        ld a,(hl)
+        and &7f
+        ld (de),a
+        bit 7,(hl)
+        inc hl
+        inc de
+        jr z,M4LoadSNANameLoop
+
+        ld a,'/':ld (de),a:inc de
+
+        pop hl
+
+        ld a,c
+        add a,b
+
+        ld c,b
+        ld b,0
+        ldir
+
+        ex de,hl
+        ld (hl),0
+
+        ld hl,_DOS_ROM_TEMP_STORE+3+2
+        ld (_DOS_ROM_TEMP_STORE+0+2),a
+        ld (_DOS_ROM_TEMP_STORE+1+2),hl
+
+        ld hl,_DOS_ROM_TEMP_STORE+2
+        ld (_DOS_ROM_TEMP_STORE),hl
+
+        ld c,(ix+1)
+        ld ix,_DOS_ROM_TEMP_STORE
+
+        call _DOS_ROM_TEMP_ROUTINE
+
+M4LoadSNAFailed
+        pop ix
+        pop hl
+        pop de
+        pop bc
+        ret
+
+M4LoadSNA_RAMRoutine
+        call _KL_ROM_SELECT
+        push bc
+
+        ld a,1
+M4LoadSNA_Poke_RAMRoutine
+        call 0
+
+        pop bc
+        jp _KL_ROM_SELECT
+M4LoadSNA_RAMRoutineEnd
+
+M4ROM_SNARSXName
+        str "SNA"
+
+;
+; Télécharge un fichier depuis une URL vers la bibliothèque
+;
+; Entrée - HL = pointeur vers l'URL
+;           B = longueur de l'URL
+;          DE = pointeur vers le répertoire de destination (relatif à la bibliothèque)
+;           C = longueur du répertoire
+; Sortie - Si Carry=1 alors le fichier a été téléchargé
+;          Si Carry=0 alors une erreur est survenue
+;               A = code d'erreur
+; Altéré - AF,_DOS_ROM_TEMP_ROUTINE
+
+M4_HTTPGet
+        ex de,hl
+        push de
+        ld d,b
+        ld b,c
+        call M4_CheckPath
+        ld c,b
+        ld b,d
+        pop de
+        ex de,hl
+
+        ld a,DSK_ERR_BAD_COMMAND
+        ret nc
+
+        call M4_RootDir
+
+        push bc
+        push de
+        push hl
+
+        ex de,hl
+        ld d,c
+        push de
+
+        ld bc,DataPort  ; On s'assure que la cible n'est pas un fichier
+        out (c),c
+        ld de,C_OPEN
+        out (c),e
+        out (c),d
+        ld a,FA_REALMODE+FA_READ+FA_OPEN_EXISTING
+        out (c),a
+
+        pop de
+        call M4_LibraryPutItemName
+
+        ld bc,AckPort
+        out (c),c
+
+        ld hl,_DOS_ROM_TEMP_STORE
+        ld de,3
+        ld bc,2
+        call M4_GetBytes
+
+        pop hl
+        pop de
+        pop bc
+
+        ld a,(_DOS_ROM_TEMP_STORE+1)
+        or a
+        ld a,DSK_ERR_NOT_A_DIRECTORY
+        ret z   ; NC, C'était un fichier !
+
+        push bc
+        push de
+        push hl
+
+        ex de,hl
+        ld d,c
+        push de
+
+        ld bc,DataPort
+        out (c),c
+        ld de,C_CD
+        out (c),e
+        out (c),d
+
+        pop de
+        call M4_LibraryPutItemName
+
+        ld bc,AckPort
+        out (c),c
+
+        ld hl,_DOS_ROM_TEMP_STORE
+        ld de,3
+        ld bc,1
+        call M4_GetBytes
+
+        pop hl
+        pop de
+        pop bc
+
+        ld a,(_DOS_ROM_TEMP_STORE)
+        or a
+        ld a,DSK_ERR_NOT_A_DIRECTORY
+        ret nz  ; NC
+
+        push bc
+        push de
+        push hl
+
+        ld d,b
+        push de
+
+        ld bc,DataPort
+        out (c),c
+        ld de,C_HTTPGET
+        out (c),e
+        out (c),d
+
+        pop de
+        call M4_PutSizedName
+
+        ld bc,AckPort
+        out (c),c
+
+        ld hl,_DOS_ROM_TEMP_STORE
+        ld de,3
+        ld bc,1
+        call M4_GetBytes
+
+        pop hl
+        pop de
+        pop bc
+
+        ; C_HTTPGET do not return an error status...
+        ; Instead it just returns a string which does not
+        ; really matches what happened, it only returns
+        ; "Error occurred." when host could not be reached
+        ; "Downloaded in x s." when something was reached (even if it is an HTML 404 error page)
+        ;
+        ; As a workaround we just check for "E" from "Error occurred." string...
+
+        ld a,(_DOS_ROM_TEMP_STORE)
+        cp 'E'
+        ld a,DSK_ERR_FILE_NOT_FOUND
+        ret z   ; NC
+
+        scf
+        ret
+
+;
+; Met à jour le tampon de travail interne de la M4 ROM
+;
+; Entrée - HL = pointeur vers la chaîne à ajouter au tampon
+;           B = longueur de la chaîne
+;           C = offset d'ajout
+; Sortie - Aucune
+; Altéré - _DOS_ROM_TEMP_ROUTINE
+
+M4_SetM4Store
+        push af
+        push bc
+        push de
+        push hl
+
+        push hl
+
+        ld a,b
+        ld l,c
+        ld h,0
+        call M4_GetM4StoreAdr
+        add hl,de
+
+        ld bc,DataPort
+        out (c),c
+        ld de,C_ROMWRITE
+        out (c),e
+        out (c),d
+
+        out (c),l   ; Adr
+        out (c),h
+        out (c),a   ; MsgLen
+        out (c),0
+        out (c),0   ; M4 ROM
+
+        pop hl
+M4SetStoreLoop
+        inc b
+        outi
+        dec a
+        jr nz,M4SetStoreLoop
+
+        ld bc,AckPort
+        out (c),c
+
+        pop hl
+        pop de
+        pop bc
+        pop af
+
+        ret
+
+;
+; Retourne à la racine de la SD
+;
+; Entrée - Aucune
+; Sortie - Aucune
+; Altéré - Aucun
+
+M4_RootDir
+        push bc
+        push de
+
+        ld bc,DataPort
+        out (c),c
+        ld de,C_CD
+        out (c),e
+        out (c),d
+
+        ld e,'/'
+        out (c),e
+        out (c),0       ; NUL
+
+        ld bc,AckPort
+        out (c),c
+
+        pop de
+        pop bc
+        ret
+
+;
+; Met à jour une variable 16 bits dans la configuration de la M4 ROM
+;
+; Entrée - A=Offset dans la config
+;        - DE=valeur à positionner
+; Sortie - Aucune
+; Altéré - Aucun
+
+M4_SetConfig
+        push bc
+
+        push de
+        push af
+
+        ld bc,DataPort
+        ld a,5
+        out (c),a
+        ld de,C_CONFIG
+        out (c),e
+        out (c),d
+        pop af
+        out (c),a
+        pop de
+        out (c),e
+        out (c),d
+
+        ld bc,AckPort
+        out (c),c
+
+        pop bc
+        ret
+
+;
+; Désactive complètement la M4
+;
+; Entrée - Aucune
+; Sortie - Cette routine ne rend jamais la main, le CPC est rédemarré avec la M4 Board désactivée
+; Altéré - Aucun
+
+M4_Disable
+        push bc
+        push de
+
+        ld bc,DataPort  ; Désactivation de toutes les ROMs
+        out (c),c
+        ld de,C_ROMSOFF
+        out (c),e
+        out (c),d
+        ld de,&ff00 ; &ff=pas d'exception, &00=pas de redémarrage du CPC
+        out (c),d
+        out (c),e
+
+        ld bc,AckPort
+        out (c),c
+
+        ld bc,DataPort  ; Désactivation de la M4 ROM
+        out (c),c
+        ld de,C_M4OFF
+        out (c),e
+        out (c),d
+
+        ld bc,AckPort
+        out (c),c       ; Ici, tout est redémarré automatiquement
+
+        pop de
+        pop bc
+        ret
+
+;
+; Active ou désactive une ROM (rechargement en flash)
+;
+; Entrée - C=numéro de la ROM
+;          D=0 statut de la ROM (0=désactivée, 1=activée, 2=nouvelle, 3=effacée)
+; Sortie - Si Carry=1 alors l'opération a réussi
+;          Si Carry=0 alors une erreur est survenue
+; Altéré - AF
+
+M4_ROMOnOff
+        push bc
+        ld b,0  ; Pas de nom
+        call M4_ROMSetStatus
+        pop bc
+        ret nc
+
+        call M4_ResyncROMs
+
+        scf
+        ret
+
+;
+; Met à jour une ROM (pas de rechargement en flash)
+;
+; Entrée - C = numéro de la ROM
+;          HL = adresse où se trouvent les données à écrire
+; Sortie - Si Carry=1 alors des données ont été écrites
+;          Si Carry=0 alors une erreur est survenue
+; Altéré - AF,_DOS_ROM_TEMP_ROUTINE,_DOS_ROM_TEMP_STORE
+
+M4_FlashROM
+        push bc
+        call M4FlashROM
+        pop bc
+        ret
+M4FlashROM
+        call M4_RootDir
+
+        push hl
+
+        ld a,FA_REALMODE+FA_READ+FA_WRITE
+        ld hl,ROMSlotsFileName
+        call M4_OpenFileLongName
+
+        pop hl
+
+        ret nc
+
+        push de
+        push hl
+
+        ld b,a  ; fd
+        ld de,0
+        ld h,c
+        ld l,e
+Repeat 6
+        sla h:rl e:rl d
+REnd
+        call M4_SeekFile
+
+        pop hl
+        pop de
+
+        jr nc,M4FlashROMExit
+
+        push de
+
+        ld de,&4000
+        ld a,b  ; fd
+        call M4_WriteFile
+
+        pop de
+
+M4FlashROMExit
+        push af
+        ld a,b  ; fd
+        call M4_CloseFile
+        pop af
+
+        or a
+        ret nz
+
+        scf
+        ret
+
+ROMSlotsFileName
+        db "/m4/romslots.bin",0
+
+;
+; Change le statut d'une ROM (pas de rechargement en flash)
+;
+; Entrée - C=numéro de la ROM
+;          D=0 statut de la ROM (0=désactivée, 1=activée, 2=nouvelle, 3=effacée)
+;          HL=nom de la ROM
+;          B=longueur du nom de la ROM (31 caractères maximum), si 0 le nom n'est pas mis à jour
+; Sortie - Si Carry=1 alors l'opération a réussi
+;          Si Carry=0 alors une erreur est survenue
+; Altéré - AF
+
+M4_ROMSetStatus
+        call M4_RootDir
+
+        push hl
+
+        ld a,FA_REALMODE+FA_READ+FA_WRITE
+        ld hl,ROMConfigFileName
+        call M4_OpenFileLongName
+
+        pop hl
+
+        ret nc
+
+        push bc
+        push de
+        push hl
+
+        push af
+        push bc
+
+        ld de,33        ; ROM name (32) + updateflag (1)
+        ld b,0
+        call MulBCDE    ; Performs DEHL = BC*DE
+        ld de,32        ; Skip header (8*4)
+        add hl,de       ; Size is less than 16 bit, no worries
+        ld de,0
+
+        pop bc
+        pop af
+
+        ld c,a          ; fd
+        call M4_SeekFile ; We are now pointing at the updateflag for current rom slot
+        ld a,c
+
+        pop hl
+        pop de
+        pop bc
+
+        ret nc
+
+        push bc
+        push de
+        push hl
+
+        push af
+
+        ld e,b
+
+        ld bc,DataPort
+        out (c),c
+        push de
+        ld de,C_WRITE2
+        out (c),e
+        out (c),d
+        out (c),a       ; fd
+        pop de
+        ld a,e
+        inc a           ; +status
+        cp 1
+        jr z,M4ROMSetStatusNoName
+        inc a           ; +NUL
+M4ROMSetStatusNoName
+        out (c),a       ; taille
+        out (c),0
+        out (c),d       ; statut
+        ld d,e
+        cp 1
+        call nz,M4_PutSizedName
+
+        ld bc,AckPort
+        out (c),c
+
+        pop af
+
+        ld c,a          ; fd
+        push bc
+
+        ld hl,_DOS_ROM_TEMP_STORE
+        ld de,3
+        ld bc,1
+        call M4_GetBytes
+
+        ld a,(_DOS_ROM_TEMP_STORE)
+
+        pop bc
+        push af
+        ld a,c          ; fd
+        call M4_CloseFile
+        pop af
+
+        pop hl
+        pop de
+        pop bc
+
+        or a
+        ret nz
+
+        scf
+        ret
+
+ROMConfigFileName
+        db "/m4/romconfig.bin",0
+
+;
+; Resynchronize les ROMs en flash depuis la carte SD
+;
+; Entrée - Aucune
+; Sortie - Aucune
+; Altéré - Aucun
+
+M4_ResyncROMs
+        push bc
+        push de
+
+        ld bc,DataPort
+        out (c),c
+        ld de,C_ROMSUPDATE
+        out (c),e
+        out (c),d
+
+        ld bc,AckPort
+        out (c),c
+
+        pop de
+        pop bc
+        ret
+
+;
+; Récupère l'heure et la date courantes
+;
+; Entrée - IX = tampon où copier l'heure et la date de dernière modification de l'entrée (7 octets)
+; Sortie - IX = tampon où ont été copiées l'heure et la date de dernière modification de l'entrée
+;               (le contenu du tampon reste inchangé si l'horodatage n'est pas supporté)
+;               Un mot de 16 bits avec l'année (1978..9999)
+;               Un octet avec le numéro du mois (1..12)
+;               Un octet avec le numéro du jour dans le mois (1..28,29,30 ou 31)
+;               Un octet avec les heures (0..23)
+;               Un octet avec les minutes (0..59)
+;               Un octet avec les secondes (0..59)
+; Altéré - Aucun
+
+M4_Time push bc
+        push de
+        push hl
+
+        ld bc,DataPort
+        out (c),c
+        ld de,C_TIME
+        out (c),e
+        out (c),d
+
+        ld bc,AckPort
+        out (c),c
+
+        ld hl,_DOS_ROM_TEMP_STORE
+        ld de,3
+        ld bc,19
+        call M4_GetBytes
+
+        ld hl,_DOS_ROM_TEMP_STORE
+        call GetDateTimeHMS
+
+        pop hl
+        pop de
+        pop bc
+        ret
+
+GetDateTimeHMS
+        call tonumber8
+        ret nc
+        ld (ix+4),a ; Heures
+        ld a,':'
+        call checkseparator
+        ret nc
+        call tonumber8
+        ret nc
+        ld (ix+5),a ; Minutes
+        ld a,':'
+        call checkseparator
+        ret nc
+        call tonumber8
+        ret nc
+        ld (ix+6),a ; Secondes
+
+        ld a,' '
+        call checkseparator
+        ret nc
+
+        call tonumber16
+        ret nc
+        ld (ix+1),d
+        ld (ix+0),e ; Année
+        ld a,'-'
+        call checkseparator
+        ret nc
+        call tonumber8
+        ret nc
+        ld (ix+2),a ; Mois
+        ld a,'-'
+        call checkseparator
+        ret nc
+        call tonumber8
+        ret nc
+        ld (ix+3),a ; Jour
+        scf
+        ret
+ToNumber8
+        call chr2val
+        ret nc
+        call mul10_a
+        ld c,a
+        call chr2val
+        ret nc
+        add a,c
+        scf
+        ret
+ToNumber16
+        call chr2val
+        ret nc
+        call mul10_a
+        ld d,0
+        ld e,a
+        call chr2val
+        ret nc
+        ld b,d
+        ld c,a
+        ex de,hl
+        add hl,bc
+        ex de,hl
+        call chr2val
+        ret nc
+        call mul10_de
+        ld b,0
+        ld c,a
+        ex de,hl
+        add hl,bc
+        ex de,hl
+        call chr2val
+        ret nc
+        call mul10_de
+        ld b,0
+        ld c,a
+        ex de,hl
+        add hl,bc
+        ex de,hl
+        scf
+        ret
+Chr2Val ld a,(hl)
+        inc hl
+        cp '0'
+        ccf
+        ret nc
+        cp '9'+1
+        ret nc
+        sub a,'0'
+        scf
+        ret
+Mul10_A add a,a
+        ld c,a
+        add a,a
+        add a,a
+        add a,c
+        ret
+Mul10_DE
+        ex de,hl
+        add hl,hl
+        push hl
+        add hl,hl
+        add hl,hl
+        pop bc
+        add hl,bc
+        ex de,hl
+        ret
+CheckSeparator
+        cp (hl)
+        inc hl
+        scf
+        ret z
+        ccf
+        ret
+
+;
+; Récupère la chaînes de version de la M4Board
+;
+; Entrée - HL=zone d'au moins 128 octets où stocker la chaîne
+; Sortie - La zone pointée par HL est mise à jour avec une chaîne terminée par le bit 7 mis à 1
+; Altéré - Aucun
+
+M4_Version
+        push bc
+        push de
+
+        ld bc,DataPort
+        out (c),c
+        ld de,C_VERSION
+        out (c),e
+        out (c),d
+
+        ld bc,AckPort
+        out (c),c
+
+        call M4_GetString
+
+        pop de
+        pop bc
+        ret
+
+;
+; Met à jour le firmware avec la dernière version (si disponible)
+;
+; Entrée - HL=zone d'au moins 128 octets où stocker le message de retour
+; Sortie - La zone pointée par HL est mise à jour avec une chaîne terminée par le bit 7 mis à 1
+; Altéré - Aucun
+
+M4_Upgrade
+        push bc
+        push de
+
+        ld bc,DataPort
+        out (c),c
+        ld de,C_UPGRADE
+        out (c),e
+        out (c),d
+
+        ld bc,AckPort
+        out (c),c
+
+        call M4_GetString
+
+        pop de
+        pop bc
+        ret
+
+;
+; Allume ou éteint le WIFI
+;
+; Entrée - A=Statut souhaité (Bit0=0 pour éteint, Bit0=1 pour allumé)
+; Sortie - Aucune
+; Altéré - Aucun
+
+M4_SetWifi
+        push bc
+        push de
+
+        and 1
+
+        ld bc,DataPort  ; Il faut toujours couper le WIFI
+        out (c),c       ; avant de tenter de le rallumer
+        ld de,C_WIFIPOW ; sinon la M4 Board... plante...
+        out (c),e
+        out (c),d
+        out (c),0
+
+        ld bc,AckPort
+        out (c),c
+
+        ld bc,DataPort
+        out (c),c
+        ld de,C_WIFIPOW
+        out (c),e
+        out (c),d
+        out (c),a
+
+        ld bc,AckPort
+        out (c),c
+
+        pop de
+        pop bc
+        ret
+
+;
+; Récupère l'adresse où se trouve la zone de réponse de la M4 ROM
+;
+; Entrée - Aucune
+; Sortie - DE=adresse du M4_Workspace
+; Altéré - _DOS_ROM_TEMP_ROUTINE
+
+M4_GetROMResponseAdr
+        push af
+        push ix
+
+        push bc
+        push hl
+
+        ld hl,M4GetROMResponseAdr_RAMRoutine
+        ld de,_DOS_ROM_TEMP_ROUTINE
+        ld bc,M4GetROMResponseAdr_RAMRoutineEnd-M4GetROMResponseAdr_RAMRoutine
+        ldir
+
+        pop hl
+        pop bc
+
+        call GetPrivateDataIX
+        ld a,(ix+1)
+
+        push bc
+        push hl
+
+        call _DOS_ROM_TEMP_ROUTINE
+
+        pop hl
+        pop bc
+
+        pop ix
+        pop af
+        ret
+
+M4GetROMResponseAdr_RAMRoutine
+        push bc
+        ld c,a
+        call _KL_ROM_SELECT
+        ld a,c
+        pop bc
+
+        ld de,(&ff02)
+
+        ld c,a
+        jp _KL_ROM_SELECT
+M4GetROMResponseAdr_RAMRoutineEnd
+
+;
+; Récupère l'adresse de stockage du nom du DSK courant dans la M4 ROM
+;
+; Entrée - Aucune
+; Sortie - DE=adresse de stockage dans la M4 ROM
+; Altéré - _DOS_ROM_TEMP_ROUTINE
+
+M4_GetDSKNameAdr
+        push hl
+        call M4_GetROMResponseAdr
+        ld hl,DSKNameOft
+        add hl,de
+        ex de,hl
+        pop hl
+        ret
+
+;
+; Récupère l'adresse de stockage des informations du FTP courant dans la M4 ROM
+;
+; Entrée - Aucune
+; Sortie - DE=adresse de stockage dans la M4 ROM
+; Altéré - _DOS_ROM_TEMP_ROUTINE
+
+M4_GetFTPInfoAdr
+        push hl
+        call M4_GetROMResponseAdr
+        ld hl,FTPInfoOft
+        add hl,de
+        ex de,hl
+        pop hl
+        ret
+
+;
+; Récupère l'adresse de stockage temporaire dans la M4 ROM
+;
+; Entrée - Aucune
+; Sortie - DE=adresse de stockage dans la M4 ROM
+; Altéré - _DOS_ROM_TEMP_ROUTINE
+
+M4_GetM4StoreAdr
+        push hl
+        call M4_GetROMResponseAdr
+        ld hl,M4StoreOft
+        add hl,de
+        ex de,hl
+        pop hl
+        ret
+
+;
+; Récupère des données en provenance de la M4
+;
+; Entrée - HL = adresse où stocker les données venant de la M4
+;          DE = offset dans le tampon de la M4
+;          BC = nombre d'octets à transférer
+; Sortie - Les données sont recopiées vers HL
+; Altéré - _DOS_ROM_TEMP_ROUTINE
+
+M4_GetBytes
+        push af
+        push ix
+
+        push bc
+        push de
+        push hl
+
+        ld hl,M4GetBytes_RAMRoutine
+        ld de,_DOS_ROM_TEMP_ROUTINE
+        ld bc,M4GetBytes_RAMRoutineEnd-M4GetBytes_RAMRoutine
+        ldir
+
+        pop hl
+        pop de
+        pop bc
+
+        call GetPrivateDataIX
+        ld a,(ix+1)
+
+        push bc
+        push de
+        push hl
+
+        call _DOS_ROM_TEMP_ROUTINE
+
+        pop hl
+        pop de
+        pop bc
+
+        pop ix
+        pop af
+        ret
+
+M4GetBytes_RAMRoutine
+        push bc
+        ld c,a
+        call _KL_ROM_SELECT
+        ld a,c
+        pop bc
+
+        push hl
+        ld hl,(&ff02)
+        add hl,de
+        pop de
+        ldir
+
+        ld c,a
+        jp _KL_ROM_SELECT
+M4GetBytes_RAMRoutineEnd
+
+;
+; Récupère une chaîne de caractères (max 128 octets)
+;
+; Entrée - HL=zone d'au moins 128 octets où stocker la chaîne
+; Sortie - La zone pointée par HL est mise à jour avec une chaîne terminée par le bit 7 mis à 1
+; Altéré - _DOS_ROM_TEMP_ROUTINE
+
+M4_GetString
+        push af
+        push bc
+        push de
+        push hl
+
+        ld de,3
+        ld bc,128
+        call M4_GetBytes
+
+        ld b,128
+        xor a
+M4GetStringLoop
+        cp (hl)
+        jr z,M4GetStringLoopEnd
+        inc hl
+        djnz M4GetStringLoop
+M4GetStringLoopEnd
+        dec hl
+        set 7,(hl)
+
+        pop hl
+        pop de
+        pop bc
+        pop af
+        ret
+
+;
+; Envoie une chaîne de taille déterminée
+;
+; Entrée - HL=chaîne
+;           D=taille
+; Sortie - La chaîne est envoyée et terminée par un NUL
+; Altéré - AF
+
+M4_PutSizedName
+        ld a,d
+        or a
+        jr z,M4PutSizedNameEnd
+
+        push hl
+        push de
+M4PutSizedNameLoop
+        inc b
+        outi
+        dec d
+        jr nz,M4PutSizedNameLoop
+        pop de
+        pop hl
+
+M4PutSizedNameEnd
+        out (c),0   ; NUL
+        ret
+
+;
+; Envoie le nom d'un élément de la bibliothèque
+;
+; Entrée - HL=chaîne
+;           D=taille
+; Sortie - La chaîne est envoyée et terminée par un NUL
+; Altéré - AF
+
+M4_LibraryPutItemName
+        push hl
+        ld hl,M4LibName
+M4_LibraryPutItemNameLoop
+        ld a,(hl)
+        and &7f
+        out (c),a
+        bit 7,(hl)
+        inc hl
+        jr z,M4_LibraryPutItemNameLoop
+        pop hl
+
+        ld a,d
+        or a
+        jr z,M4LibPutItemNameEnd
+
+        ld a,'/':out (c),a
+
+        jp M4_PutSizedName
+
+M4LibPutItemNameEnd
+        out (c),0   ; NUL
+        ret
+
+M4LibName
+        str "/Library"
+
+;
+; Routines annexes
+;
+
+; <- HL = chemin normalisé
+; -> D = '.'
+; -> E = '/'
+; -> AF,HL modifié
+SendNormalizedPath
+        ld e,'/'
+        out (c),e
+
+        ld a,(hl)
+        or a
+        ret z
+
+        inc hl
+SendNormalizedPathLoop
+        push af
+        call SendNormalizedName
+        pop af
+        dec a
+        ret z
+        out (c),e
+        jr SendNormalizedPathLoop
+
+; <- HL = chemin normalisé
+; -> D = '.'
+; -> E = '/'
+; -> AF,HL modifié
+SendNormalizedPathSlashed
+        ld e,'/'
+        out (c),e
+
+        ld a,(hl)
+        or a
+        ret z
+
+        inc hl
+SendNormalizedPathSlashedLoop
+        push af
+        call SendNormalizedName
+        pop af
+        out (c),e
+        dec a
+        jr nz,SendNormalizedPathSlashedLoop
+        ret
+
+; -> HL = nom normalisé
+; <- D = modifié
+; <- HL = nom normalisé suivant
+;
+; ... ici on « dénormalise » les noms car la M4 Board
+; n'a pas de vraie gestion des fichiers courts...
+SendNormalizedName
+        ld d,8
+SendNormalizedNameLoopN
+        ld a,(hl)
+        cp ' '
+        jr z,SendNormalizedNameLoopNSkip
+        out (c),a
+SendNormalizedNameLoopNSkip
+        inc hl
+        dec d
+        jr nz,SendNormalizedNameLoopN
+
+        ld a,(hl)
+        inc hl
+        or (hl)
+        inc hl
+        or (hl)
+        inc hl
+        cp ' '
+        ret z
+
+        dec hl
+        dec hl
+        dec hl
+
+        ld a,'.'
+        out (c),a
+
+        ld d,3
+SendNormalizedNameLoopE
+        ld a,(hl)
+        cp ' '
+        jr z,SendNormalizedNameLoopESkip
+        out (c),a
+SendNormalizedNameLoopESkip
+        inc hl
+        dec d
+        jr nz,SendNormalizedNameLoopE
+
+        ret
+
+; Conversion d'erreurs
+ErrFA2DOS
+        cp FA2DOSErrorMapEnd-FA2DOSErrorMap
+        jr nc,ErrFA2DOSSpecial
+        push de
+        push hl
+        ld e,a
+        ld d,0
+        ld hl,FA2DOSErrorMap
+        add hl,de
+        ld a,(hl)
+        pop hl
+        pop de
+        ret
+ErrFA2DOSSpecial
+        ld a,DSK_ERR_FILE_NOT_FOUND
+        ret
+
+FA2DOSErrorMap
+        db DSK_ERR_USER_HAS_HIT_ESCAPE ;FR_OK
+        db DSK_ERR_NO_DATA             ;FR_DISK_ERR
+        db DSK_ERR_NO_DATA             ;FR_INT_ERR
+        db DSK_ERR_NO_MEDIA            ;FR_NOT_READY
+        db DSK_ERR_FILE_NOT_FOUND      ;FR_NO_FILE
+        db DSK_ERR_FILE_NOT_FOUND      ;FR_NO_PATH
+        db DSK_ERR_BAD_COMMAND         ;FR_INVALID_NAME
+        db DSK_ERR_FILE_IS_READ_ONLY   ;FR_DENIED
+        db DSK_ERR_FILE_ALREADY_EXISTS ;FR_EXIST
+        db DSK_ERR_BAD_COMMAND         ;FR_INVALID_OBJECT
+        db DSK_ERR_FILE_IS_READ_ONLY   ;FR_WRITE_PROTECTED
+        db DSK_ERR_UNSUPPORTED_DRIVE   ;FR_INVALID_DRIVE
+        db DSK_ERR_UNSUPPORTED_DRIVE   ;FR_NOT_ENABLED
+        db DSK_ERR_UNSUPPORTED_DRIVE   ;FR_NO_FILESYSTEM
+        db DSK_ERR_BAD_COMMAND         ;FR_MKFS_ABORTED
+        db DSK_ERR_BAD_COMMAND         ;FR_TIMEOUT
+        db DSK_ERR_FILE_IS_READ_ONLY   ;FR_LOCKED
+        db DSK_ERR_BAD_COMMAND         ;FR_NOT_ENOUGH_CORE
+        db DSK_ERR_BAD_COMMAND         ;FR_TOO_MANY_OPEN_FILES
+        db DSK_ERR_BAD_COMMAND         ;FR_INVALID_PARAMETER
+        db DSK_ERR_HARD_END_OF_FILE    ;FR_END_OF_FILE_REACHED
+FA2DOSErrorMapEnd
+

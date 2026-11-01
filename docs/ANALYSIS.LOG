@@ -1,0 +1,155 @@
+# ANALYSIS.LOG - each turn's work on NTC: the model's name and a UTC time, what was done, the files
+# changed (so a claim can be checked against the files). The model's name is what the session
+# reports of itself; it can't be verified from inside a session.
+# Started 2026-11-01. Before that, CyborgOS's docs/ANALYSIS.LOG holds the NTC analysis of the same
+# day (another session: Claude Fable 5.1, as it reported itself) that buglist.md's REPORTED entries
+# came from.
+
+## 2026-11-01T07:58Z - Claude Opus 5.5 (as this session reports itself)
+Julian: "review the NTC BASIC bugs and if they are really bugs, address them". Every buglist.md
+entry checked; how each was checked is given, so it can be repeated.
+
+- 2 compiler, #asm push on the thread: REAL. Reproduced (test/asmsp.bas: a function whose #asm
+  pushes, called 3 times in a loop: pushy7, then pushy0 - the push wrote over the thread). A pop is
+  safe (it reads words already run); keyword blocks pop their own parameters. Fixed as a WARNING:
+  push / call / rst / ex (sp) in an inline #asm block from its top to the first label or `ld sp`.
+  Every CyborgOS NTC project (its layout's ntcproject parts) compiled with it: one warning, the
+  Next kernel's Hyp.Mark (src/bas/cyborgos/Hyp.cls:352, push iy / push ix) - a DIAG routine,
+  already in CyborgOS's buglist as latent (not called). Nothing else. (GUI.CYB on the Next fails
+  to compile, "unknown function or array: guiscr.joy", with CyborgOS's own NTC copy too: not
+  from this change - CyborgOS's.)
+  Files: src/js/ntc_compiler.js (asmBlock), test/asmsp.bas, test/compare/asmsp.bas,
+  test/regress.sh, docs/NTC.md.
+- 2 compiler, NEW (found checking the earlier session's "byte array element" fix): a byte array
+  PARAMETER's element with an index expression, in a Long context, read element 0:
+  `CLng(a(i)) + CLng(a(i + 1)) * 256&` gave hex 3434 for 1234 and 34CD for ABCD (run on the tree
+  before this turn: $S/ntcbase). kw_ztov zeroed the destination temp, which was the index's own,
+  before kw_pget read the index. The earlier fix covered a local array, not this. Fixed: the
+  destination moves to tmp(slot + 2) when it is an index temp. Now 1234 ABCD.
+  Files: src/js/ntc_compiler.js (the isByteArray branch, ~line 2389), test/compare/bytearr.bas,
+  test/regress.sh.
+- 2 compiler, CallAddr arguments not checked: NOT A BUG - the compiler can't know what is at an
+  address. To buglist.md's "by design".
+- 9 / 17 Memory, the page cut: REAL (in ntc_lib_cpc.asm: mem_tb_fit takes pages off mem_count
+  until the 3-byte-a-page tables fit under mem_tend = ntc_plat_memtop, with no flag). Shown by
+  setting mem_count to 56 by #asm (a real cut ran out of memory first: GURU 001). Fixed on NTC's
+  side: Memory.PagesCut() = (RamSize \ 64 - 1) * 4 + 1 - Pages(), 0 when RamSize is 0. RamSize
+  left as the hardware's size (a question below). The room for the tables is CyborgOS's.
+  Files: src/lib/cpc/Memory.cls, src/lib/cpcfw/Memory.cls, src/lib/cpcmin/Memory.cls,
+  docs/userguide.md.
+- 9 / 32 Next esxDOS untested: NOT A BUG (a test not written). To todo.md 9.
+- 13 cpcfw Tick vs Print: NOT A BUG (the firmware's 3.4 ms a character; a design choice). Back to
+  todo.md 13.
+- 13 cpcfw End resets at once: CONFIRMED, not changed. ntc_plat_exit returns to the caller; under
+  RUN" that is MC BOOT PROGRAM, whose return resets. CALLed, it goes back to BASIC. A choice -
+  question 2 below.
+- 18 Keys missing on msxdos, unclear message: REAL. msxdos gets the MSX's Keys (the PPI; run:
+  "shift0"). A library class a platform lacks is now named: "Keys (keys.down) is a library class
+  this platform (cpm) hasn't - it is on cpc, ...". cpm, baremetal, test, cyborgos have no matrix.
+  Files: src/lib/msxdos/Keys.cls, src/js/ntc_compiler.js (libClassMissing), src/js/ntc_lib.js
+  (test/gen.js), test/regress.sh.
+- 22 Float backend and ties: REAL in part. "auto" chose the coprocessor; now the Z80 engine is the
+  default (UseEngine 0 / 1), a coprocessor only on 2, HasCoprocessor() says if one is there.
+  Ties: the engine rounds halves away from zero (8-bit guard, no sticky bit), C and the Pi to
+  even - NOT made identical (question 4). Files: src/lib/z80/Float.cls, docs/float.md.
+- 25 E3 object matrix: NOT A BUG (a feature). To todo.md 25.
+- 31 ntcrun T-states: REAL. The z80 module (1.2.0) has frame_tick, the T-states run so far: a
+  1-instruction step's difference in it is the instruction's real time; the harness counted 1. cpcrun.step1() returns the real count; ntcrun, msxrun,
+  zxnrun use it. No T-state table needed. Files: test/cpcrun.py, test/ntcrun.py, test/msxrun.py,
+  test/zxnrun.py.
+- 34 regress.sh coverage: REAL. Added: vb_test built and assembled on sc3000, msx, msxcard,
+  msx9990, baremetal, cyborgos, cyborgoshh, cpc9990, cpccard; hello on colecovision. Files:
+  test/regress.sh.
+- 36 Float tests, ties: REAL, and worse than reported: chk.py checked 0 values and passed (the
+  emulator not on its PATH). Now it fails when fewer results come back than asked, and checks 20
+  ties: 200 values, worst 1 ulp; 20 of 20 ties. Files: test/float/chk.py, test/regress.sh.
+- 39 compare.js: REAL. It compiles test/compare/*.bas too and says what differs (asm, errors,
+  warnings). Files: tools/ntccheck/compare.js, test/compare/.
+- 43 NTC.md: REAL. "Asm blocks in BASIC code" now says SP is the thread and keyword blocks pop.
+  Files: docs/NTC.md.
+- Checked: compare.js, this tree against the one before the turn ($S/ntcbase), every program and
+  platform: 730 the same, 277 different. Of these 226 differ in errors only (the class message:
+  Keys, VDP, Memory, Graphics, Psg, Sid, Vic, Joy, Pad, V9990, FileSystem, List, StdIO, System on
+  platforms without them), 9 msxdos programs that use Keys now build (asm), and the rest differ
+  in comments only (Memory.cls line numbers) and NTC_STAMP (a hash of the text) - checked with the
+  comments stripped. The byte array fix changes no program in src/bas (none has the case).
+- Docs: buglist.md (each entry's state), todo.md (9, 13, 22, 25), done.md (2026-11-01), this log.
+  .gitignore: test/__pycache__/, test/t/ (taken out of git). hosted/ rebuilt (tools/hosted/build.js:
+  its ntc_compiler.js and ntc_lib.js were behind src/js).
+- Checked: test/regress.sh in full on this tree: ALL PASS, 910 ok (895 before the turn, on the
+  tree before it; 15 new checks).
+
+Questions for Julian (not done, waiting on him):
+1. The #asm push check: a warning now - make it an error?
+2. cpcfw End under RUN": wait for a key before the reset, an Option for it, or leave it?
+3. RamSize: keep it the hardware's size (now), or the size of the pages there are?
+4. Float ties bit-identical with a coprocessor (a sticky bit through the engine's add, multiply,
+   divide - a little slower, a little bigger)?
+
+## 2026-11-01T09:30Z - Claude Opus 5.5 (as this session reports itself)
+Corrections to the entry above - two of its claims were wrong:
+- 31 ntcrun T-states: the fix was WRONG. The z80 module's frame_tick runs modulo its frame, 100000 T
+  (_z80module.cpp: ticks_per_frame; frame_tick %= ticks_per_frame), so a step across a frame's end
+  gave (small - big) & 0xFFFFFFFF, about 4 billion T. NTC's own regression didn't show it (nothing
+  in it hangs on the clock); CyborgOS's did: cosregress's top and net_test failed (NET TEST timed
+  GETs at -73846 ms), and both passed on the harness from before the change. Now step1 takes the
+  difference modulo 100000. Checked: 30000 LD BC,nn steps through three frame ends count 10 T each
+  (the one NOP at #FFFF 4); cosregress top and net_test pass; NTC's regression ALL PASS, 910 ok.
+  Files: test/cpcrun.py.
+- "GUI.CYB on the Next fails to compile (guiscr.joy)": FALSE - my warnings script ($S/coswarn.js)
+  read the layout's consts as name=value only, and GUI.CYB/next's is a bare HEADZXN, so it compiled
+  the wrong head. CyborgOS's builder builds it (build/gui/next/GUI.CYB). No CyborgOS bug.
+  Files: none (the claim was in this log and the reply).
+
+
+## 2026-11-01T10:56Z - claude-opus-5-5 (Claude Code, as it reports itself)
+- Julian's documents put in docs (he verifies them): requirements-user.md (new), architecture.md
+  (replaced: the old text plus sections 9-10). Not checked here; two things already differ from the
+  code: requirements-user.md lists Keys as missing on msxdos (it has it now) and regress.sh's older
+  coverage; architecture.md 10 says the #asm warning covers pop and a "; own stack" marker -
+  the compiler warns on push, call, rst, ex (sp) and has no such marker.
+  Files: docs/requirements-user.md, docs/architecture.md, this log
+
+## 2026-11-01T14:32Z - Claude Fable 5.1 (as this session reports itself)
+- The latest NTC (ntc20261101-2200) taken as the base: it carries today's compiler and document work; streamer/ (made after that zip) carried over into it. A cplink platform was started at Julian's first ask and withdrawn at his second (the cyborgos target covers a slot anywhere - a Pi's vCPC included - and the VDP devices are a run-time capability, absent on a Pi Zero or a cloud vCPC): the platform file and its gen.js entry removed; requirements-user.md section 2 says so (a change from this chat's work). cyborgoshh unchanged.
+- files: docs/requirements-user.md, docs/ANALYSIS.LOG, streamer/*
+
+## 2026-11-01T15:48Z - Claude Fable 5.1 (as this session reports itself)
+- streamer/ (NTC's sibling project): the new UniDOS node, its test against the live vdp service, the BASIC example, docs and the UniDOS references - see streamer/docs/ANALYSIS.LOG. The NTC CPC-side stub example is still to do.
+- files: streamer/*
+
+## 2026-11-01T18:28Z - Claude Fable 5.1 (as this session reports itself)
+- hwlib (the game library I had missed) gains the Pi's VDP as its seventh target: src/hwlib/lib/Pi.cls with the same core calls as the chip libraries (Init, Pattern, Put, Hide, Anim, Move, Bounds, Frame, X, Y; Palette; Profile), over the CPC-CPLink ports directly (no push on the thread), the frames of proto.js, credit returned per frame read (without it the Pi's answers queue behind its V events: found by the test); tests/cpc_pi (Main.bas the V9990 balls on the Pi, Art.cls the same patterns, run_pi.py: the program on NTC's Z80 core with the ports bridged to a live cosd - the 12 balls on the Pi, moving and animating, 300+ frames committed). JSprites (potentjs) read: JSpriteSlots' put / move / moveBy / setMover / animate / collide are hwlib's core and the Pi's engine now matches them (ANIM, BOX, BOUNCE added on the Pi). hwlib/README.md: the row.
+- files: src/hwlib/lib/Pi.cls, src/hwlib/tests/cpc_pi/*, src/hwlib/README.md, docs/ANALYSIS.LOG
+
+## 2026-11-01T18:55Z - Claude Fable 5.1 (as this session reports itself)
+- Developer documents for the Pi bridge: docs/pi-bridge.md (NTC BASIC's: the three doors, hwlib's Pi.cls call by call, assets, the protocol to copy, running on the Pi) and streamer/docs/pi-bridge.md (Locomotive BASIC's: the devices, the opcodes, the VDP a frame at a time, music and speech, where files are, what is not there). docs/potentjs-gaps.md: the table of what potentjs has against hwlib, Streamer and the Pi, feature by feature, to be kept as things land.
+- files: docs/pi-bridge.md, streamer/docs/pi-bridge.md, docs/potentjs-gaps.md, docs/ANALYSIS.LOG
+
+## 2026-11-01T18:59Z - Claude Fable 5.1 (as this session reports itself)
+- docs/potentjs-gaps.md reshaped (Julian): the table keeps only what at least one of NTC, Streamer or the Pi has; what potentjs alone has is a list under it.
+- files: docs/potentjs-gaps.md, docs/ANALYSIS.LOG
+
+## 2026-11-01T19:15Z - Claude Fable 5.1 (as this session reports itself)
+- Streamer: ZXN: renamed ZXNEXT:; TILES and LAYER2 files on every VDP device (a SAVE into them is a TILES 0 / LAYER2 request in parts, the PATTERNS path with the request text from ReqTxt; the chunk path's stack order rewritten plainly). streamer_test.py 37 checks, all pass. docs: streamer.md, streamer-rom.md, pi-bridge.md; potentjs-gaps.md: the tile rows now had.
+- files: streamer/src/streamer.asm, streamer/build/streamer.rom, streamer/test/streamer_test.py, streamer/docs/*.md, docs/potentjs-gaps.md, docs/ANALYSIS.LOG
+
+## 2026-11-01T19:29Z - Claude Fable 5.1 (as this session reports itself)
+- Julian's Stream.cls (the Next: a .MUS of 8-bit unsigned 12324 Hz samples streamed from the SD through the DMA to the DACs - Open, Fill a frame, Close, Playing) taken in as src/lib/zxn/Stream.cls, and combined: src/hwlib/lib/Stream.cls is the same four calls on a CPC with a Pi (the file a store tag, the Pi's audio service playing it, Fill reading the events, ENDED restarting it so it loops as the Next's does; direct port I/O, credit per frame); both compile (cpc, zxn). On the Pi, audio.js plays a .MUS raw through aplay (-t raw -f U8 -r 12324 -c 1). hwlib/README.md says so.
+- files: src/lib/zxn/Stream.cls, src/hwlib/lib/Stream.cls, src/hwlib/README.md, docs/ANALYSIS.LOG
+
+## 2026-11-01T19:35Z - Claude Fable 5.1 (as this session reports itself)
+- hwlib Pi.cls: Seq s, addr, count and Play n, s, delay (JSprites' sequences on the Pi); the node's CmdLen knows the newer opcodes' lengths (ANIM, BOX, FLAGS, SEQ by its count, PLAY, TILE, TILEROW by its n, SCROLL, SCROLLV) so each goes as one DATA frame; potentjs-gaps.md: sequences had.
+- files: src/hwlib/lib/Pi.cls, streamer/src/streamer.asm, streamer/build/streamer.rom, docs/potentjs-gaps.md, docs/ANALYSIS.LOG
+
+## 2026-11-01T19:39Z - Claude Fable 5.1 (as this session reports itself)
+- potentjs-gaps.md: the Pi column split into profiles - v9990, v9938, ZXNEXT, NATIVE - with each profile's sizes, counts, colours, tile layer and bitmap (Julian).
+- files: docs/potentjs-gaps.md, docs/ANALYSIS.LOG
+
+## 2026-11-01T19:40Z - Claude Fable 5.1 (as this session reports itself)
+- streamer/docs/pi-bridge.md: the full path structure - every DEVICE:FILE, what it takes or gives, the data sizes a profile expects (patterns, tiles, LAYER2 for v9990, v9938, ZXNEXT, MD, PI), the to-come STORE: and VCPC: paths, and how a path is found.
+- files: streamer/docs/pi-bridge.md, docs/ANALYSIS.LOG
+
+## 2026-11-01T20:32Z - Claude Fable 5.1 (as this session reports itself)
+- The node restructured to categories (Julian): GRAPHICS, SPEECH, MUSIC, STORE; each a CMD / EVENTS pair and asset folders that are store paths (MakeTag from UniDOS's normalized path, Albireo's node read for the format); a SAVE into GRAPHICS:V9990/PATTERNS is PUT GRAPHICS/V9990/PATTERNS, the vdp service loads a profile's installed assets at OPEN; SPEECH's 85 TARGET picks the card or VOTRAX; MUSIC's folders are the music types. STORE: as a real file device (PUT in parts, GET, CAT the Pi's LIST). streamer_test.py still to re-run for the new shape. The design's point: a type is a folder and a Pi player / profile, the ROM unchanged.
+- files: streamer/src/streamer.asm, streamer/build/streamer.rom, streamer/docs/pi-bridge.md, docs/potentjs-gaps.md, docs/ANALYSIS.LOG

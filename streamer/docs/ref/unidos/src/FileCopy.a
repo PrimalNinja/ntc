@@ -1,0 +1,476 @@
+;
+; Routines de copie de fichiers
+;
+
+;
+; Copie le contenu d'un fichier dans un autre
+;
+; Attention : les fichiers ouverts en entrée et en sortie seront abandonnés
+;
+; Entrée - HL = nom du fichier source
+;           B = taille du nom du fichier source
+;          DE = nom du fichier destination
+;           C = taille du nom du fichier destination
+; Sortie - Si C alors la copie s'est bien déroulée
+;          Si NC un problème est survenu (A = code d'erreur)
+; Altété - AF,BC,DE,HL,IX
+
+CopyFile
+        ld a,128-1-8-1-3-1   ; Longueur max de la destination
+        cp c
+        ccf
+        ld a,dsk_err_bad_command
+        ret nc
+
+        push hl
+        push de
+        push bc
+        call copyfileabandon
+        pop bc
+        pop de
+        pop hl
+
+CopyFileOpenDestination
+        call copyfilechecksource
+        jp c,copyfilefailure
+
+        call copyfilecheckdestination
+        jp c,copyfilefailure
+
+        push bc
+        push hl
+
+        ex de,hl
+        ld b,c
+        ld de,&c000             ; Valeur temporaire pour le tampon d'écriture
+        call _cas_out_open
+
+        pop hl
+        pop bc
+        jp nc,copyfilefailure
+
+CopyFileOpenSource
+        ld de,&c000             ; Valeur temporaire pour le tampon de lecture
+        call _cas_in_open       ; A = type
+        jp nc,copyfilefailure
+
+        ld bc,0                 ; Force 0 because it might not be zero in some headers
+        call setfileinheadbufferleft_bc
+
+        ld de,2048              ; Tampon pour CAS OUT/IN CHAR
+        call allocmem           ; DE=mémoire, HL=ancien HIMEM
+
+        push hl
+        call actualcopyfile
+        pop hl
+
+        push af
+        call setmemory
+        pop af
+
+        ret
+
+ActualCopyFile                  ; A = type
+        ex de,hl
+        PUT_HL fileinbufferbase
+        call setfileinbuffercur_hl
+
+        cp dsk_file_type_ascii
+        jr z,copyfileascii
+
+        ld de,128               ; On a besoin de 128 octets supplémentaires l'entête binaire
+        call allocmem
+
+        push de
+        call getworkareahl      ; Recopie de l'entête au début du tampon de sortie
+        ld bc,128
+        ldir
+        pop hl                  ; On décale le tampon de sortie pour intégrer l'entête binaire
+
+CopyFileASCII
+        PUT_HL fileoutbufferbase
+        call setfileoutbuffercur_hl
+
+        ld a,(hl)                       ; Amorce du fichier de sortie
+        call _cas_out_char              ; (indispensable pour l'AMSDOS)
+        jp nc,copyfilefailure
+
+CopyFileDo
+        call _cas_in_char
+        jr c,copyfilereaddone           ; On vérifie que la lecture s'est bien passée
+        cp dsk_err_soft_end_of_file
+        jr z,copyfilereaddone
+        cp dsk_err_hard_end_of_file
+        jr nz,copyfilefailure
+CopyFileReadDone
+        call getfileinheadbufferleft_de ; Si aucun nouveau tampon n'a été lu
+        ld a,e:or d                     ; c'est qu'on est à la fin du fichier
+        jr z,copyfileend
+
+        ld c,e
+        ld b,d
+
+        call getfileinbufferbase_hl     ; On remet les adresses et compteurs
+        call setfileinbuffercur_hl      ; interne à zéro pour forcer la lecture
+        push bc                         ; d'un nouveau tampon au prochain CAS IN CHAR
+        ld bc,0
+        call setfileinheadbufferleft_bc 
+        pop bc
+
+        call copyfilepushblock          ; On pousse le tampon en écriture
+        jr nc,copyfilefailure
+        call copyfileblockcheck         ; On vérifie si c'était un tampon complet
+        jr z,copyfiledo                 ; On ne continue que si c'était le cas
+CopyFileEnd
+        call copyfilefixclose
+        call _cas_in_close
+        call _cas_out_close             ; Ici on va sauver le dernier tampon incomplet
+        jr nc,copyfilefailure
+CopyFileSuccess
+        scf     ; C
+        ret
+CopyFileFailure
+        push af
+        call copyfileabandon
+        pop af
+        or a    ; NC
+        ret
+CopyFileAbandon
+        call _cas_in_abandon
+        jp _cas_out_abandon
+CopyFilePushBlock
+        call copyfileblockcheck         ; Est-ce un tampon complet ?
+        jr z,copyfilepushblockgo
+
+        call getdos_fileintype          ; Si le tampon était incomplet
+        cp dsk_file_type_ascii          ; on a du travail supplémentaire
+        jr z,copyfilepushblockset       ; dans le cas de fichiers binaires
+
+        ld de,128                       ; On ajoute la taille du header
+        ld l,c
+        ld h,b
+        add hl,de
+        ld c,l
+        ld b,h
+
+        call copyfileblockcheck         ; Est-ce que le header a rempli le tampon ?
+        jr nz,copyfilepushblockbinary   ; Non... il faut regarder plus en détail
+        call copyfilepushblockgo        ; Le tampon est rempli pile-poil, on le sauve normalement
+CopyFileResetOutBlock
+        call getfileoutbufferbase_hl    ; mais on remet les adresses et compteur de sortie
+        ld bc,0                         ; à zéro car il n'y a plus rien à faire sur le close !
+        jp copyfilesetoutcontext        ; C
+CopyFilePushBlockBinary
+        jr c,copyfilepushblockset       ; Le tampon était plus petit que 2K ? On finit sur le close !
+
+        ld c,l                          ; Sinon, on pousse d'abord le tampon de 2K
+        ld b,h
+        push bc
+        ld bc,&7ff
+        call copyfilepushblockgo
+        pop bc
+        inc bc
+        jr copyfilepushblockset         ; Puis le close sauvera le reste !
+
+CopyFilePushBlockGo
+        call copyfilepushblockset       ; On met à jour les compteurs pour l'écriture d'un nouveau bloc
+        call _cas_out_char              ; On pousse le dernier caractère qui déclenche l'écriture du bloc
+        jr c,copyfilepushblockgosuccess
+        ret     ; NC
+CopyFilePushBlockGoSuccess
+        call getdos_fileintype          ; Si on copie un fichier ASCII alors le travail est terminé
+        cp dsk_file_type_ascii
+        scf
+        ret z   ; C
+
+        push bc                         ; Sinon, on doit mettre à jour le début du tampon
+        ex de,hl                        ; d'écriture avec la fin de celui de lecture
+        inc hl                          ; et on prépare le close pour sauver ce dernier
+        ld bc,128                       ; bloc de 128 octets supplémentaires
+        call _kl_ldir
+        ex de,hl
+        ld bc,128
+        call copyfilesetoutcontext
+        pop bc
+        ret     ; C
+
+CopyFileFixClose
+        call getdos_fileintype          ; On ne touche à rien pour les fichiers non-ASCII
+        cp dsk_file_type_ascii
+        ret nz
+
+        call copyfileblockcheck         ; Si le dernier tampon était complet, alors tout est déjà
+        call z,copyfileresetoutblock    ; écrit et on doit annuler la purge sur le close
+        ret
+
+CopyFilePushBlockSet
+        call getfileoutbufferbase_hl    ; Calcul et mise à jour de la valeur de l'adresse et du compteur
+        push hl                         ; du tampon de sortie en fonction de la taille du bloc à sauver
+        add hl,bc
+        push hl
+        inc bc
+        call copyfilesetoutcontext
+        dec bc
+        ld a,&1a
+        pop de
+        pop hl
+        scf
+        ret
+CopyFileBlockCheck
+        ld l,c
+        ld h,b
+        ld de,&7ff
+        or a
+        sbc hl,de
+        ret
+CopyFileSetOutContext
+        call setfileoutbuffercur_hl
+        call setfileoutheadbufferleft_bc
+        scf
+        ret
+
+;
+; Entrée - HL = nom du fichier source
+;           B = taille du nom du fichier source
+; Sortie - Si Carry = 1 alors la destination est invalide
+; Altété - AF
+
+CopyFileCheckSource
+        push bc
+        push de
+        push hl
+
+        call qualifypath
+
+        pop hl
+        pop de
+        pop bc
+
+        jr nz,copyfilechecksourceok
+
+        ld a,dsk_err_bad_command
+        scf
+        ret
+
+CopyFileCheckSourceOk
+        call getworkdrive_rega
+        cp physicaldrive_tape
+
+        scf:ccf
+        ret nz
+
+        call casreturn_unsupporteddrive
+        scf
+        ret
+
+;
+; Entrée - DE = nom du fichier destination
+;           C = taille du nom du fichier destination
+; Sortie - Si Carry = 1 alors la destination est invalide
+; Altété - AF
+
+CopyFileCheckDestination
+        push bc
+        push de
+        push hl
+
+        ex de,hl
+        ld b,c
+        call qualifypath
+
+        pop hl
+        pop de
+        pop bc
+
+        jr nz,copyfilecheckdestinationok1
+
+        ld a,dsk_err_bad_command
+        scf
+        ret
+
+CopyFileCheckDestinationOk1
+        call getworkdrive_rega
+        cp physicaldrive_tape
+        jr nz,copyfilecheckdestinationok3
+
+        call casreturn_unsupporteddrive
+        scf
+        ret
+
+CopyFileCheckDestinationOk3
+        call device_getstatus
+
+        and media_streamonly_f  ; Pas d'autres vérifications à faire si c'est un média de type flux
+        jr z,copyfilecheckdestinationok2
+
+        cp a                    ; NC, on sort immédiatement en succès
+        ret
+
+CopyFileCheckDestinationOk2
+        push bc
+        push de
+        push hl
+
+        call _txt_ask_state     ; Désactivation des messages
+        push af
+        call _txt_vdu_disable
+        ld a,&ff
+        push hl
+        call bios_setmessage
+        pop hl
+        push af
+
+        ex de,hl
+        ld b,c                  ; HL=nom source, B=taille
+        ld de,&c000             ; Valeur temporaire pour le tampon d'écriture
+        call _cas_in_open
+        push af
+        call _cas_in_abandon
+        pop af
+
+        pop bc                  ; Réactivation des messages
+        push af
+        ld a,b
+        push hl
+        call bios_setmessage
+        pop hl
+        pop af
+
+        pop bc
+        push af
+        bit 7,b
+        call z,_txt_vdu_enable
+        pop af
+
+        pop hl
+        pop de
+        pop bc
+
+;
+; Vérifie si la destination doit être adaptée en fonction du code d'erreur
+; Si Carry=1 alors la destination est invalide
+;
+
+CopyFileCheckDestName
+        ccf
+        ret nc                      ; NC, fichier existant, un BAK sera créé
+
+        push bc
+        ld b,a
+        ld a,c
+        or a                        
+        ld a,b
+        pop bc
+        jr z,copyfilefixdestname    ; NC, nom de fichier vide, sera créé avec le nom de la source
+        and &7f
+        cp dsk_err_file_not_found
+        jr z,copyfiledestnotfound
+        cp dsk_err_directory_found
+        jr z,copyfilefixdestname    ; NC, un répertoire a été trouvé, on va copier dedans !
+        scf
+        ret                         ; C, on échoue dans tous les autres cas
+CopyFileDestNotFound
+        push bc
+        ld b,c
+        ex de,hl
+        call isdirectorypath
+        ex de,hl
+        pop bc
+        ld a,dsk_err_file_not_found
+        scf
+        ret z                       ; C, on échoue cas la destination est un répertoire non existant
+        ccf
+        ret                         ; NC, fichier non existant, un nouveau sera créé
+
+;
+; Modifie DE/C pour y ajouter le nom de fichier source depuis HL/B
+;
+
+CopyFileFixDestName
+        push hl
+        push bc
+        ex de,hl
+        ld de,_dos_rom_alt_buffer
+        ld a,c
+        inc c               ; On copie un de trop pour gérer le cas C=0
+        ld b,0
+        call _kl_ldir
+        dec de
+        pop bc
+        pop hl
+
+        or a                ; Concaténation directe en cas de chemin vide
+        jr z,copyfileaddpart
+
+        dec de
+        ld a,(de)
+        inc de
+        cp '/'              ; Concaténation directe en cas de ':' ou '/' final
+        jr z,copyfileaddpart
+        cp ':'
+        jr z,copyfileaddpart
+        ld a,'/'
+        ld (de),a
+        inc de
+        inc c
+CopyFileAddPart
+        push bc
+        push hl
+        push de
+        push bc
+        call qualifypath    ; Ne peut pas échouer dans notre cas
+        ld a,b
+        pop bc
+        ld b,a
+        add c
+        ld c,b
+        ld b,0
+        pop de
+        call _kl_ldir
+        ld de,_dos_rom_alt_buffer
+        pop hl
+        pop bc
+        ld c,a
+        or a    ; NC
+        ret     
+
+;
+; Routines d'accès aux données DOS
+;
+
+GetFileInBufferBase_HL
+        GET_HL fileinbufferbase
+        ret
+
+GetFileInHeadBufferLeft_DE
+        GET_DE fileinhead.bufferleft
+        ret
+
+SetFileInBufferCur_HL
+        PUT_HL fileinbuffercur
+        ret
+
+SetFileInHeadBufferLeft_BC
+        PUT_BC fileinhead.bufferleft
+        ret
+
+GetFileOutBufferBase_HL
+        GET_HL fileoutbufferbase
+        ret
+
+GetFileOutHeadBufferLeft_HL
+        GET_HL fileouthead.bufferleft
+        ret
+
+SetFileOutBufferCur_HL
+        PUT_HL fileoutbuffercur
+        ret
+
+SetFileOutHeadBufferLeft_BC
+        PUT_BC fileouthead.bufferleft
+        ret
+
+GetDOS_FileInType
+        GET_A fileinhead.type
+        ret
+

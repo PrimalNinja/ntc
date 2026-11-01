@@ -217,6 +217,9 @@ kept for reference are at the end.
 ## 9 A machine's own runtime parts (cpc, msx, nxt)
 - [ ] check in WinAPE that the firmware / AMSDOS leave the RAM setting alone during a file
       call on cpcfw / cpcmin (a load into a selected page); if not, re-select from `mem_cur`
+- [ ] zxn: the harness (zxnrun.py) runs a .NEX only, no esxDOS, so nothing here exercises
+      ntc_lib_nxt's file calls; CyborgOS's ZEsarUX harness is the only test (moved from the
+      buglist 2026-11-01: a test not written, not a fault found)
 
 ## 12 The Mega Drive and MEGA65 runtimes
 - [ ] m65: pages - `Option Page Name Loaded n` with MAP's 8K blocks of the 384K chip RAM (main
@@ -236,6 +239,12 @@ kept for reference are at the end.
       message instead of a crash on a small TPA / SymbOS window); find out which BDOS calls
       SymbOS has (random records 33-36 for Seek)
 - [ ] `asm/ntc_plat_test.asm` is left over from the removed Python harness - delete?
+- [ ] cpcfw: a Tick waits for the end of a statement, and the firmware's text takes about
+      3.4 ms a character, so a Frame class that prints, beside a main loop that prints, runs
+      20-25 times a second (two dues in one Print run as one). Options: a due count instead
+      of a flag (catch up - right for game logic at a fixed rate, wrong for "once a frame"),
+      or NTC's own glyph drawing on cpcfw (about 0.4 ms a character on cpc). (Moved back
+      from the buglist 2026-11-01: the firmware's speed, a design choice)
 
 ## 14 The ROM builds
 - cpcfw, Library: ROM, a set of 4 ROMs (test/irqfar with romset4): a program that ends below about
@@ -381,6 +390,17 @@ kept for reference are at the end.
       in between, so no wait at all. CUBE3D: about 7.7 -> 8.4 frames a second. Check the CRTC
       types (1 is said to differ on R12 / R13 mid-frame). One screen: `Frame` before the draw
       costs the same 10 ms and can't stop the flicker (the draw takes about 4 frames)
+
+## 22 Float.cls, Fixed.cls
+- [ ] bit-identical ties with a coprocessor: the Z80 engine rounds halves away from zero (an
+      8-bit guard byte, no sticky bit), C and the Pi round to even, so a tie can differ by an
+      ulp between backends. Needs a sticky bit through the engine's add, multiply and divide
+      (asked 2026-11-01; the tie tests in test/float/chk.py check the engine's rule now)
+
+## 25 src/ntc3d (E3 and the rest)
+- [ ] E3 objects get a matrix (roll, any orientation): an object is placed by position and
+      yaw / pitch only; the camera has CamSet / CamPosL. Analysed, not built (moved from the
+      buglist 2026-11-01: a feature)
 
 ## 29 The games and demos
 - [ ] zxn: the Melbourne demo, CyborgOS

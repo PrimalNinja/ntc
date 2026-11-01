@@ -1,0 +1,362 @@
+;
+; Routines de gestion des pointeurs relatifs
+; pour l'accès au données de la ROM
+;
+
+;
+; Récupère l'espace de travail dans HL
+;
+; Entrée - N/A
+; Sortie - HL = pointeur vers l'espace de travail
+; Altéré - HL
+
+GetWorkAreaHL
+        GETPTR_HL workarea
+        ret
+
+;
+; Récupère l'espace de travail dans DE
+;
+; Entrée - N/A
+; Sortie - DE = pointeur vers l'espace de travail
+; Altéré - DE
+
+GetWorkAreaDE
+        GETPTR_DE workarea
+        ret
+
+;
+; Récupère l'espace de travail dans IX
+;
+; Entrée - N/A
+; Sortie - IX = pointeur vers l'espace de travail
+; Altéré - IX
+
+GetWorkAreaIX
+        GETPTR_IX workarea
+        ret
+
+;
+; Récupère le chemin de travail dans HL
+;
+; Entrée - N/A
+; Sortie - HL = pointeur vers l'arborescence de travail
+; Altéré - HL
+
+GetWorkPathHL
+        GETPTR_HL workpath
+        ret
+
+;
+; Récupère le chemin de travail dans DE
+;
+; Entrée - N/A
+; Sortie - DE = pointeur vers l'arborescence de travail
+; Altéré - DE
+
+GetWorkPathDE
+        GETPTR_DE workpath
+        ret
+
+;
+; Met à jour le numéro du lecteur physique de travail
+;
+; Entrée - A = numéro du lecteur physique de travail
+; Sortie - Aucune
+; Altéré -
+
+SetWorkDrive
+        PUT_A workdrive
+        ret
+
+;
+; Renvoie le numéro du lecteur physique de travail dans A
+;
+; Entrée - Aucune
+; Sortie - A = numéro du lecteur physique de travail
+; Altéré - A
+
+GetWorkDrive_RegA
+        GET_A workdrive
+        ret
+
+;
+; Renvoie le numéro du lecteur physique de travail dans C
+;
+; Entrée - Aucune
+; Sortie - C = numéro du lecteur physique de travail
+; Altéré - C
+
+GetWorkDrive_RegC
+        GET_C workdrive
+        ret
+
+;
+; Récupère le tampon d'horodatage de fichier dans IX
+;
+; Entrée - N/A
+; Sortie - IX = pointeur vers le tampon d'horodatage de fichier
+; Altéré - IX
+
+GetFileDateIX
+        GETPTR_IX filedate
+        ret
+
+;
+; Récupère le tampon de lecture dans HL
+;
+; Entrée - N/A
+; Sortie - HL = pointeur vers le tampon de lecture
+; Altéré - HL
+
+GetReadBufferHL
+        GETPTR_HL readbuffer
+        ret
+
+;
+; Récupère le chemin du fichier de sortie dans DE
+;
+; Entrée - N/A
+; Sortie - DE = pointeur vers l'arborescence du fichier de sortie
+; Altéré - DE
+
+GetFileOutPathDE
+        GETPTR_DE fileoutpath
+        ret
+
+;
+; Récupère le nom du fichier de sortie dans HL
+;
+; Entrée - N/A
+; Sortie - HL = pointeur vers le nom du fichier de sortie
+; Altéré - HL
+
+GetFileOutNameHL
+        GETPTR_HL fileoutname
+        ret
+
+;
+; Récupère le tampon de statut d'init des noeuds DOS dans HL
+;
+; Entrée - N/A
+; Sortie - HL = pointeur vers le tampon d'init des noeuds DOS
+; Altéré - HL
+
+GetDOSNodesInitStatusHL
+        GETPTR_HL dosnodesinitstatus
+        ret
+
+;
+; Renvoie le numéro de ROM de l'AMSDOS dans A
+;
+; Entrée - Aucune
+; Sortie - A = numéro de ROM de l'AMSDOS
+; Altéré - A
+
+GetAmsdosROM_RegA
+        GET_A amsdosrom
+        ret
+
+;
+; Routines génériques
+;
+; Entrée - IY = adresse de base de la ROM
+;          BC, DE ou HL = offset
+
+GetPointerHL
+        ld hl,(_dos_rom_base_address)
+        add hl,bc
+        ret
+GetPointerDE
+        ex de,hl
+        ld hl,(_dos_rom_base_address)
+        add hl,bc
+        ex de,hl
+        ret
+GetPointerIX
+        ld ix,(_dos_rom_base_address)
+        add ix,bc
+        ret
+
+GetR8_A push iy
+        add iy,bc
+        ld a,(iy)
+        pop iy
+        ret
+
+GetR8_B push iy
+        add iy,de
+        ld b,(iy)
+        pop iy
+        ret
+
+GetR8_C push iy
+        add iy,de
+        ld c,(iy)
+        pop iy
+        ret
+
+;GetR8_D push iy
+;        add iy,bc
+;        ld d,(iy)
+;        pop iy
+;        ret
+
+;GetR8_E push iy
+;        add iy,bc
+;        ld e,(iy)
+;        pop iy
+;        ret
+
+;GetR8_H push iy
+;        add iy,bc
+;        ld h,(iy)
+;        pop iy
+;        ret
+
+;GetR8_L push iy
+;        add iy,bc
+;        ld l,(iy)
+;        pop iy
+;        ret
+
+PutR8_A push iy
+        add iy,bc
+        ld (iy),a
+        pop iy
+        ret
+
+PutR8_B push iy
+        add iy,de
+        ld (iy),b
+        pop iy
+        ret
+
+PutR8_C push iy
+        add iy,de
+        ld (iy),c
+        pop iy
+        ret
+
+PutR8_D push iy
+        add iy,bc
+        ld (iy),d
+        pop iy
+        ret
+
+;PutR8_E push iy
+;        add iy,bc
+;        ld (iy),e
+;        pop iy
+;        ret
+
+;PutR8_H push iy
+;        add iy,bc
+;        ld (iy),h
+;        pop iy
+;        ret
+
+;PutR8_L push iy
+;        add iy,bc
+;        ld (iy),l
+;        pop iy
+;        ret
+
+GetR16_BC
+        push iy
+        add iy,bc
+        ld c,(iy+0)
+        ld b,(iy+1)
+        pop iy
+        ret
+
+GetR16_DE
+        push iy
+        add iy,de
+        ld e,(iy+0)
+        ld d,(iy+1)
+        pop iy
+        ret
+
+GetR16_HL
+        ex de,hl
+        call getr16_de
+        ex de,hl
+        ret
+
+PutR16_BC
+        push iy
+        add iy,de
+        ld (iy+0),c
+        ld (iy+1),b
+        pop iy
+        ret
+
+PutR16_DE
+        push iy
+        add iy,bc
+        ld (iy+0),e
+        ld (iy+1),d
+        pop iy
+        ret
+
+PutR16_HL
+        ex de,hl
+        call putr16_de
+        ex de,hl
+        ret
+
+GetR24_CDE
+        push iy
+        add iy,de
+        ld e,(iy+0)
+        ld d,(iy+1)
+        ld c,(iy+2)
+        pop iy
+        ret
+
+PutR24_CDE
+        push iy
+        ex de,hl
+        add iy,de
+        ex de,hl
+        ld (iy+0),e
+        ld (iy+1),d
+        ld (iy+2),c
+        pop iy
+        ret
+
+Inc8    push iy
+        add iy,bc
+        inc (iy)
+        pop iy
+        ret
+
+;Dec8    push iy
+;        add iy,bc
+;        dec (iy)
+;        pop iy
+;        ret
+
+Inc16   push iy
+        add iy,bc
+        ld c,(iy+0)
+        ld b,(iy+1)
+        inc bc
+        ld (iy+0),c
+        ld (iy+1),b
+        pop iy
+        ret
+
+;Dec16   push iy
+;        add iy,bc
+;        ld c,(iy+0)
+;        ld b,(iy+1)
+;        dec bc
+;        ld (iy+0),c
+;        ld (iy+1),b
+;        pop iy
+;        ret
+
+Jump_HL jp (hl)
+

@@ -1,0 +1,540 @@
+;
+; Gestion des lecteurs physiques pris en charge par d'autres ROM DOS
+;
+; Pour le moment seuls sont gérés :
+;   - Les lecteurs de disquettes via la CPM ROM ou ParaDOS.
+;   - La cassette via le firmware
+;
+
+;
+; Vérifie si un lecteur est géré par une ROM DOS externe
+;
+; Entrée - A = numéro de lecteur physique
+; Sortie - Carry = 1 alors le lecteur est géré par une ROM DOS externe
+;          Carry = 0 alors le lecteur est géré par un noeud DOS de l'UniDOS
+; Altéré - Flags
+
+IsAlienDrive
+        cp 8
+        ret
+
+;
+; Vérifie quel DOS alternatif doit être mis en oeuvre à partir d'un numéro de lecteur physique
+;
+; Entrée - C = numéro de lecteur physique
+; Sortie - Carry = 1 alors un autre DOS doit être utilisé
+;              Ses indirections ont été installées
+;          Carry = 0 alors l'UniDOS doit être utilisé
+;              Les indirections n'ont pas été modifiées
+; Altéré - AF
+
+InstallDOS
+        ld a,c
+        call isaliendrive
+        ret nc
+
+        cp physicaldrive_tape
+        jr z,installdostape
+
+        cp physicaldrive_dfa
+        jr z,installdosamsdos
+        cp physicaldrive_dfb
+        jr z,installdosamsdos
+        cp a
+        ret     ; NC
+
+InstallDOSAmsdos
+        call GetAmsdosROM_RegA
+        or a
+        ret z   ; NC
+
+        push ix
+        push hl
+        push de
+        push bc
+        push af
+
+        GETPTR_HL currentlogicaldrive
+        ld a,(hl)
+        ld (hl),c
+        PUT_A savedlogicaldrive
+
+        ld c,sc_currentindirections_f+sc_workdata_f
+        call saveconfig
+
+        pop af
+
+        ld c,a
+        call activateamsdos
+
+        ld c,sc_readbuffer_f
+        call loadconfig
+
+        call txtoutputhookinstall
+
+        pop bc
+        pop de
+        pop hl
+        pop ix
+
+        scf     ; C
+        ret
+
+InstallDOSTape
+        push hl
+        push de
+        push bc
+
+        GETPTR_HL tapejumpblocksaved
+        ld de,_cas_in_open
+        ld bc,13*3
+        ldir
+
+        pop bc
+        pop de
+        pop hl
+
+        scf     ; C
+        ret
+
+;
+; Remet l'UniDOS en place après un InstallDOS
+; (les modifications apportées au fichiers ouverts entre temps sont conservées)
+;
+; Entrée - N/A
+; Sortie - N/A
+; Altéré - Aucun
+
+UninstallDOS
+        push af
+        push bc
+        push de
+        push hl
+        push ix
+
+        call txtoutputhookuninstall
+
+        ld c,sc_readbuffer_f
+        call saveconfig
+
+        call resetindirections ; Indirections par défaut
+
+        ld c,sc_currentindirections_f+sc_workdata_f
+        call loadconfig
+
+        GET_A savedlogicaldrive
+        PUT_A currentlogicaldrive
+
+        pop ix
+        pop hl
+        pop de
+        pop bc
+        pop af
+        ret
+
+;
+; Vérifie qu'une ROM est un compatible AMSDOS et l'active via la RSX |DISC
+;
+; Entrée - C = numéro de ROM AMSDOS compatible qui doit être activée
+; Sortie - Si C alors le DOS a été acivé
+;          Si NC la ROM n'est pas un DOS
+; Altéré - AF,BC,DE,HL
+
+ActivateAMSDOS
+        ld hl,_kl_rom_base_address_table
+    if firmware == 1
+        dec c
+    endif
+        ld b,0              ; On remet en place l'adresse de travail de l'AMSDOS
+        add hl,bc           ; car elle est remise à zéro par le firmware lors
+        add hl,bc           ; de l'exécution de fichiers binaires
+        ld de,(_dos_rom_base_address)
+        ld (hl),e
+        inc hl
+        ld (hl),d
+
+        ld hl,_disc
+        xor a
+        FAR_PCHL            ; On réinstalle les indirections de l'AMSDOS
+
+        GETPTR_HL amsdosfaraddress
+        GETPTR_DE faraddress
+        ldi:ldi:ldi         ; On remet en place le FAR CALL de l'AMSDOS
+
+        scf
+        ret
+
+;
+; Routines de resynchronisation des entêtes CAS et UniDOS et de correction
+; du lecteur courant du fichier d'entrée ou de sortie dans la mémoire DOS
+; dans le cas de la cassette où il est positionné dans la mémoire CAS
+;
+; Entrée - Aucune
+; Sortie - Aucune
+; Altéré - Aucun
+
+FixAlienInOpen
+        push af
+        call infilegetdrive
+        jr nz,fixalieninopendone
+        PUT_8 fileindrive,physicaldrive_tape
+        call fixalienincas2unidos
+
+        push bc
+        push de
+        push hl
+
+        ld hl,_kl_cas_file_in_header    ; Obtient le nom de fichier depuis la cassette
+        ld b,&10
+        push hl
+        call getnulstringlen
+        pop hl
+        ld b,c
+        GETPTR_DE fileinhead.user
+        xor a
+        ld (de),a
+        inc de                          ; DE = nom de fichier
+        push de
+        call normalizename
+        pop de
+        jr z,fixalieninopenunnamed
+
+        ex de,hl
+        call checkstringvalidity
+        ex de,hl
+        jr c,fixalieninopennameisvalid
+
+FixAlienInOpenUnnamed
+        ld hl,unnamed
+        ld bc,11
+        ldir
+FixAlienInOpenNameIsValid
+        pop bc
+        pop de
+        pop hl
+FixAlienInOpenDone
+        pop af
+        ret
+
+Unnamed db "UNNAMED    "
+
+FixAlienInCAS2UniDOS
+        push af
+        GET_A fileindrive
+        cp physicaldrive_tape
+        jr nz,fixalienincas2unidosdone
+        push bc
+        push de
+        push hl
+        ld hl,_kl_cas_file_in_header+&10
+        GETPTR_DE fileinhead+&10
+        ld bc,&30
+        ldir
+        pop hl
+        pop de
+        pop bc
+FixAlienInCAS2UniDOSDone
+        pop af
+        ret
+
+FixAlienInUniDOS2CAS
+        push af
+        GET_A fileindrive
+        cp physicaldrive_tape
+        jr nz,fixalieninunidos2casdone
+        push bc
+        push de
+        push hl
+        GETPTR_HL fileinhead+&10
+        ld de,_kl_cas_file_in_header+&10
+        ld bc,&30
+        ldir
+        pop hl
+        pop de
+        pop bc
+FixAlienInUniDOS2CASDone
+        pop af
+        ret
+
+FixAlienOutOpen
+        push af
+        call outfilegetdrive
+        jr nz,fixalienoutopendone
+        PUT_8 fileoutdrive,physicaldrive_tape
+        call fixalienoutcas2unidos
+FixAlienOutOpenDone
+        pop af
+        ret
+
+FixAlienOutCAS2UniDOS
+        push af
+        GET_A fileoutdrive
+        cp physicaldrive_tape
+        jr nz,fixalienoutcas2unidosdone
+        push bc
+        push de
+        push hl
+        ld hl,_kl_cas_file_out_header+&10
+        GETPTR_DE fileouthead+&10
+        ld bc,&30
+        ldir
+        pop hl
+        pop de
+        pop bc
+FixAlienOutCAS2UniDOSDone
+        pop af
+        ret
+
+FixAlienOutUniDOS2CAS
+        push af
+        GET_A fileoutdrive
+        cp physicaldrive_tape
+        jr nz,fixalienoutunidos2casdone
+        push bc
+        push de
+        push hl
+        GETPTR_HL fileouthead+&10
+        ld de,_kl_cas_file_out_header+&10
+        ld bc,&30
+        ldir
+        pop hl
+        pop de
+        pop bc
+FixAlienOutUniDOS2CASDone
+        pop af
+        ret
+
+;
+; Corrige le chemin pour les autres DOS
+;
+; Si présente, saute la partie "DF" de l'UniDOS pour retrouver le A/B de l'AMSDOS
+; Si présente, supprime la partie "TAPE:" et la référence "." (prochain fichier)
+;
+; Entrée - HL = pointeur vers le chemin à tester et modifier
+;           B = longueur du chemin
+; Sortie - HL et B sont éventuellement modifiés pour sauter la partie "DF"/"TAPE"/"." et retrouver un chemin compatible AMSDOS/Cassette
+; Altéré - B,HL
+
+FixAlienPath
+        push af
+        push de
+        call fixalienpathinternal
+        pop de
+        pop af
+        ret
+FixAlienPathInternal
+        ld e,l
+        ld d,h
+
+        ld a,b
+        cp 4
+        jr c,fixalienpathnomatchtape
+
+        RAM_LAM     ; DFx: ?
+        call toupper
+        cp 'D'
+        ret nz
+        inc hl
+        RAM_LAM
+        call toupper
+        cp 'F'
+        jr nz,fixalienpathnomatchdf
+        inc hl:inc hl
+        RAM_LAM
+        cp ':'
+        jr nz,fixalienpathnomatchdf
+        dec hl
+        dec b
+        dec b
+        ret
+
+FixAlienPathNoMatchDF
+        ld l,e
+        ld h,d
+
+        ld a,b      ; TAPE: ?
+        cp 5
+        ret c
+
+        RAM_LAM     
+        call toupper
+        cp 'T'
+        ret nz
+        inc hl
+        RAM_LAM
+        call toupper
+        cp 'A'
+        jr nz,fixalienpathnomatchtape
+        inc hl
+        RAM_LAM
+        call toupper
+        cp 'P'
+        jr nz,fixalienpathnomatchtape
+        inc hl
+        RAM_LAM
+        call toupper
+        cp 'E'
+        jr nz,fixalienpathnomatchtape
+        inc hl
+        RAM_LAM
+        cp ':'
+        jr nz,fixalienpathnomatchtape
+        dec b
+        dec b
+        dec b
+        dec b
+        dec b
+        ld e,l
+        ld d,h
+FixAlienPathNoMatchTape
+        ld l,e
+        ld h,d
+
+        ld a,b      ; . reference ?
+        cp 1
+        ret nz
+
+        RAM_LAM     
+        cp '.'
+        ret nz
+        inc hl
+        dec b
+        ret
+
+TxtOutputFarAddress Equ _dos_rom_temp_store+0 ; * TXT OUPUT hook: données du "far address" (3 octets)
+TxtOutputJump       Equ _dos_rom_temp_store+3 ; * TXT OUPUT hook: saut originel (3 octets)
+TxtOutputPos        Equ _dos_rom_temp_store+6 ; * TXT OUPUT hook: position courante dans la chaîne à modifier (1 octet)
+
+;
+; Installe l'indirection de modification de la sortie Amsdos
+;
+; Attention : _dos_rom_temp_routine doit être préservé tant que l'indirection est installée
+;
+; Entrée - N/A
+; Sortie - N/A
+; Altéré - AF,HL,_dos_rom_temp_routine
+
+TxtOutputHookInstall
+        ld a,(_txt_output)
+        ld hl,(_txt_output+1)
+        ld (txtoutputjump),a
+        ld (txtoutputjump+1),hl
+
+        ld hl,txtoutputhook
+        ld (txtoutputfaraddress),hl
+        call _kl_curr_selection
+        ld (txtoutputfaraddress+2),a
+
+        ld hl,txtoutputfaraddress
+        ld a,&df
+        ld (_txt_output),a
+        ld (_txt_output+1),hl
+TxtOutputHookClearPos
+        xor a
+        ld (txtoutputpos),a
+        ret
+
+;
+; Désinstalle l'indirection de modification de la sortie Amsdos
+; (sans effet si l'indirection n'avait pas été installée)
+;
+; Entrée - N/A
+; Sortie - N/A
+; Altéré - AF,HL
+
+TxtOutputHookUninstall
+        ld a,(txtoutputjump)
+        or a
+        ret z   ; Pas installé !
+        ld hl,(txtoutputjump+1)
+        ld (_txt_output),a
+        ld (_txt_output+1),hl
+        ret
+
+;
+; Indirection installée à la place de _txt_output et qui modifie la sortie Amsdos
+;
+; Entrée - A = Caractère à afficher
+; Sortie - N/A
+; Altéré - Aucun
+
+TxtOutputHook
+        ld iy,(_dos_rom_base_address)
+
+        di
+        ex af,af'
+        exx
+        ld a,c
+        pop de
+        pop bc
+        pop hl
+        ex (sp),hl
+        push bc
+        push de
+        ld c,a
+        ld b,&7f
+        ld de,txtoutputroutine-_txt_output-3
+        add hl,de
+        push hl
+        exx
+        ex af,af'
+        ei
+        ret
+TxtOutputRoutine
+        push af
+        push bc
+        push hl
+        call txtoutputroutineinternal
+        pop hl
+        pop bc
+        pop af
+        ret
+
+TxtOutputHookReplace
+        ld c,b
+        ld hl,txtoutputreplacestring
+        ld b,9  ; "Device DF"
+        call txtoutputhookprint
+        jr txtoutputhookclearpos
+TxtOutputHookNoMatch
+        push af
+        ld a,c
+        call txtoutputhookflushbuffer
+        pop af
+        jp txtoutputjump
+TxtOutputHookFlushBuffer
+        or a
+        ret z
+        ld hl,txtoutputmatchstring
+        ld b,a
+        call txtoutputhookprint
+        jr txtoutputhookclearpos
+
+TxtOutputHookPrint
+        ld a,(hl)
+        call txtoutputjump
+        inc hl
+        djnz txtoutputhookprint
+        ret
+
+TxtOutputRoutineInternal
+        ld hl,txtoutputpos
+        ld c,(hl)
+        ld hl,txtoutputmatchstring
+        ld b,0
+        add hl,bc
+        cp (hl)
+        jr nz,txtoutputhooknomatch
+        ld a,c
+        cp 5 ; "Drive "
+        jr z,txtoutputhookreplace
+        inc a
+        ld hl,txtoutputpos
+        ld (hl),a
+        ret
+
+TxtOutputMatchString
+        db "Drive "
+TxtOutputReplaceString
+        db "Device DF"
+

@@ -3124,6 +3124,7 @@ plain memory, nothing switched). `Alloc` gives them; `CLng(page) * 65536 + addre
 | `Pages()` | pages this machine has: 0, 1, 5, 9, 17, 33 ... 257 (`Small`: 0) |
 | `FreePages()` | pages not allocated |
 | `RamSize()` | K of RAM found (64 ... 4160), 0 = no paging so not probed |
+| `PagesCut()` | (CPC) pages the RAM has that the page tables had no room for: the tables (3 bytes a page) go between the program and the platform's top, and when they don't fit the last pages are left out - `Pages()` is then fewer than `RamSize()` has. 0 = none. A program built round the window that ends near the top (the firmware's, lowered by ROMs' workspace) is the case to watch: show it, so a short map is explained |
 | `Model()` | `ModelNone` (0: `Small`, or no paging), `ModelSmall` (1), `ModelMedium` (2), `ModelLarge` (3), `ModelHuge` (4) |
 | `HeapStart()`, `HeapEnd()` | `Small`: the heap's RAM (`HeapEnd` is the first byte past it); `CPCExpansion`: the window |
 | `TableEnd()` | the first byte after the class's tables (`Small`: the program's end) |

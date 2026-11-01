@@ -1,0 +1,754 @@
+;
+; Routines BIOS
+;
+
+;
+; Routine pour les entrées BIOS non supportées
+;
+
+BIOS_Void
+BIOS_BadCommand
+        ld a,dsk_err_bad_command
+        cp a    ; NC
+        ret
+
+;
+; CTRL_A (générique)
+;
+; Entrée - Si A = 0 alors les messages sont activés
+;          Si A = &FF alors les messages sont désactivés
+; Sortie - A = État d'activation précédent
+; Altéré - AF,HL
+
+BIOS_SetMessage
+        ld hl,dsk_message_status
+        ld l,(hl)
+        ld (dsk_message_status),a
+        ld a,l
+        ret
+
+;
+; CTRL_B (disquette seulement)
+;
+; Entrée - HL = Pointeur vers la configuration disque
+; Sortie - Aucune
+; Altéré - AF,BC,DE,HL
+
+BIOS_SetupDisc
+        call GetAmsdosROM_RegA
+        or a
+        ret z
+
+        push hl
+        ld c,a
+        ld hl,_rsx_ctrl_b
+        call findrsx
+        pop hl
+        ret nc
+        jp invokersx
+
+;
+; CTRL_C (disquette seulement)
+;
+; Entrée - A = Format sélectionné
+; Sortie - Aucune
+; Altéré - AF,BC,DE,HL
+
+BIOS_SelectFormat
+        ld c,a
+
+        call GetAmsdosROM_RegA
+        or a
+        ret z
+
+        ld l,a
+        ld a,c
+        ld c,l
+        ld hl,_rsx_ctrl_c
+        call findrsx
+        ret nc
+        jp invokersx
+
+;
+; CTRL_D (disquette seulement)
+;
+; Entrée - HL = Adresse des données pour le secteur
+;          E = Numéro de lecteur physique
+;          D = Numéro de piste
+;          C = Numéro de secteur
+; Sortie - Si Carry = 1 alors le secteur a été lu correctement
+;             A = 0
+;             HL est préservé
+;          Si Carry = 0 alors
+;             A = code d'erreur
+;             HL est indéterminé
+; Altéré - AF
+
+BIOS_ReadSector
+        call GetAmsdosROM_RegA
+        or a
+        jr z,bios_badcommand
+
+        push bc
+        push hl
+        ld c,a
+        ld hl,_rsx_ctrl_d
+        call findrsx
+        pop hl
+        pop bc
+        ret nc
+
+        jp invokersx
+
+;
+; CTRL_E (disquette seulement)
+;
+; Entrée - HL = Adresse des données pour le secteur
+;          E = Numéro de lecteur physique
+;          D = Numéro de piste
+;          C = Numéro de secteur
+; Sortie - Si Carry = 1 alors le secteur a été écrit correctement
+;             A = 0
+;             HL est préservé
+;          Si Carry = 0 alors
+;             A = code d'erreur
+;             HL est indéterminé
+; Altéré - AF
+
+BIOS_WriteSector
+        call GetAmsdosROM_RegA
+        or a
+        jr z,bios_badcommand
+
+        push bc
+        push hl
+        ld c,a
+        ld hl,_rsx_ctrl_e
+        call findrsx
+        pop hl
+        pop bc
+        ret nc
+
+        jp invokersx
+
+;
+; CTRL_F (disquette seulement)
+;
+; Entrée - HL = Adresse des informations de l'entête pour le formatage
+;          E = Numéro de lecteur physique
+;          D = Numéro de piste
+; Sortie - Si Carry = 1 alors la piste a été formatée correctement
+;             A = 0
+;             HL est préservé
+;          Si Carry = 0 alors
+;             A = code d'erreur
+;             HL est indéterminé
+; Altéré - AF
+
+BIOS_FormatTrack
+        call GetAmsdosROM_RegA
+        or a
+        jr z,bios_badcommand
+
+        push bc
+        push hl
+        ld c,a
+        ld hl,_rsx_ctrl_f
+        call findrsx
+        pop hl
+        pop bc
+        ret nc
+
+        jp invokersx
+
+;
+; CTRL_G (disquette seulement)
+;
+; Entrée - E = Numéro de lecteur physique
+;          D = Numéro de piste
+; Sortie - Si Carry = 1 alors la tête a été déplacée sur la piste correctement
+;             A = 0
+;             HL est préservé
+;          Si Carry = 0 alors
+;             A = code d'erreur
+;             HL est indéterminé
+; Altéré - AF
+
+BIOS_MoveTrack
+        call GetAmsdosROM_RegA
+        or a
+        jp z,bios_badcommand
+
+        push bc
+        push hl
+        ld c,a
+        ld hl,_rsx_ctrl_g
+        call findrsx
+        pop hl
+        pop bc
+        ret nc
+
+        jp invokersx
+
+;
+; CTRL_H (pour la compatibilité seulement, ne gère pas tous les états)
+;
+; Entrée - A = Numéro de lecteur logique
+; Sortie - Si Carry = 1 alors le statut est disponible dans A
+;             A = Statut
+;             HL est préservé
+;          Si Carry = 0 alors le statut est disponible via HL
+;             HL+1 pointe vers la valeur du statut
+; Altéré - AF
+
+BIOS_GetStatus
+        push bc
+        push hl
+        call getphysicaldrive
+        call probedrive
+        pop hl
+        pop bc
+        jr nc,failed_getstatus
+        ld a,&20                        ; Média monté et non protégé en écriture
+        scf
+        ret
+Failed_GetStatus
+        ld a,&40                        ; Média non monté (+ protégé en écriture)
+        scf
+        ret
+
+;
+; CTRL_I
+;
+; Entrée - A = Nombre d'essais à effectuer lors des accès
+; Sortie - A = Nombre d'essais précédemment configuré
+; Altéré - AF,HL
+
+BIOS_SetRetryCount
+        ld hl,dsk_retry_count
+        ld l,(hl)
+        ld (dsk_retry_count),a
+        ld a,l
+        ret
+
+;
+; CTRL_J
+;
+; Entrée - C = Identifiant de la commande
+;          La valeur des autres registres en entrée dépend de la commande
+; Sortie - Si Carry = 1 alors la commande a pu être exécutée
+;             La valeur des autres registres en sortie dépend de la commande
+;          Si Carry = 0 alors la commande est inconnue ou les valeurs en entrée sont invalides
+; Altéré - Uniquement les registres de sortie de la commande
+;
+; Liste des commandes disponibles :
+;
+;   cmd_cat_faked_parent (0)
+;       Activation de l'entrée "parent" (/) dans le tampon du catalogue
+;           Entrée - A = statut, &FF=Non (par défaut), &00=Oui
+;           Sortie - A = statut précédent
+;
+;   cmd_device_list (1)
+;       Renvoie la liste des lecteurs physiques
+;           Entrée - DE = adresse du buffer de 64 octets où stocker la liste
+;           Sortie - DE = adresse du buffer qui contient une liste des nom de lecteurs physiques
+;                           Chaque nom est une chaîne de caractères terminée par la mise à 1 du bit 7
+;                           Un 255 marque la fin de la liste
+;
+;   cmd_device_info (2)
+;       Renvoie les informations détaillées sur un lecteur physique donné
+;           Entrée - HL = pointeur sur le nom du lecteur physique (chaîne terminée bit 7 à 1, stockée en RAM)
+;                    DE = adresse du buffer de 64 octets où stocker les informations
+;           Sortie - DE = adresse du buffer qui contient les informations
+;                           Un octet avec les attributs du lecteur physique
+;                               Bit0 = 1 si un média est disponible sur ce lecteur
+;                               Bit1 = 1 si le média gère les répertoires
+;                               Bit2 = 1 si le média est protégé en écriture
+;                               Bit3 = 1 si la média est amovible
+;                               Bit4 = 1 si le média est un flux (lecture/écriture linéaire uniquement)
+;                               Bit5 = 1 si le média est accessible via les nouvelles API UniDOS
+;                           Un octet avec l'identifiant du système de fichiers (toujours à 255, non géré pour le moment)
+;                           Un mot 32 bits avec le nombre de kilo-octets libres
+;                               &ffffffff si l'information est non disponible pour ce lecteur
+;                           Un mot 32 bits avec la capacité totale en kilo-octets
+;                               &ffffffff si l'information est non disponible pour ce lecteur
+;                           La description sous la forme d'une chaîne de caractères terminée par la mise à 1 du bit 7
+;
+;   cmd_disabled_link (3)
+;       Désactivation de la gestion des liens symboliques lors du CAS IN OPEN
+;           Entrée - A = statut, &FF=Non (par défaut), &00=Oui
+;           Sortie - A = statut précédent
+;
+;   cmd_cas_in_read (5)
+;       Lit sur le flux en entrée
+;       Possible uniquement avec les lecteurs compatibles avec la nouvelle API UniDOS
+;       Ne peut pas être utilisé en même temps que CAS IN DIRECT ou CAS IN CHAR
+;       Le tampon de 2K fourni lors du CAS_IN_OPEN ne sera pas utilisé
+;           Entrée - HL = adresse où stocker les données lues
+;                    DE = nombre d'octets à lire
+;           Sortie - Si Z alors des données ont pu être lues
+;                       DE = nombre d'octets effectivement lus
+;                       A est indéterminé
+;                    Si NZ alors une erreur est survenue
+;                       A = code d'erreur
+;
+;   cmd_cas_in_seek (6)
+;       Change la position courante dans le flux en entrée
+;       Possible uniquement avec les lecteurs compatibles avec la nouvelle API UniDOS
+;       Ne peut pas être utilisé en même temps que CAS IN DIRECT ou CAS IN CHAR
+;           Entrée - DEHL = nouvelle position dans le flux en entrée
+;           Sortie - Si Z alors la nouvelle position a pu être atteinte
+;                       A est indéterminé
+;                    Si NZ alors une erreur est survenue
+;                       A = code d'erreur
+;
+;   cmd_cas_out_write (7)
+;       Écrit sur le flux en sortie
+;       Possible uniquement avec les lecteurs compatibles avec la nouvelle API UniDOS
+;       Ne peut pas être utilisé en même temps que CAS_OUT_DIRECT ou CAS OUT CHAR
+;       Le tampon de 2K fourni lors du CAS OUT OPEN ne sera pas utilisé
+;           Entrée - HL = adresse où se trouvent les données à écrire
+;                    DE = nombre d'octets à écrire
+;           Sortie - Si Z alors des données ont pu être écrites
+;                       DE = nombre d'octets effectivement écrits
+;                       A est indéterminé
+;                    Si NZ alors une erreur est survenue
+;                       A = code d'erreur
+;
+;   cmd_cas_out_seek (8)
+;       Change la position courante dans le flux en sortie
+;       Possible uniquement avec les lecteurs compatibles avec la nouvelle API UniDOS
+;       Ne peut pas être utilisé en même temps que CAS OUT DIRECT ou CAS OUT CHAR
+;           Entrée - DEHL = nouvelle position dans le flux en sortie
+;           Sortie - Si Z alors la nouvelle position a pu être atteinte
+;                       A est indéterminé
+;                    Si NZ alors une erreur est survenue
+;                       A = code d'erreur
+;
+;   cmd_disabled_directory (9)
+;       Désactivation de la gestion des répertoires lors du CAS IN OPEN
+;           Entrée - A = statut, &FF=Non (par défaut), &00=Oui
+;           Sortie - A = statut précédent
+;
+;   cmd_enabled_sort_dir_first (10)
+;       Activation du tri des répertoires avant celui des fichiers lors du CAS IN CATALOG
+;           Entrée - A = statut, &FF=Non (par défaut), &00=Oui
+;           Sortie - A = statut précédent
+;
+;   cmd_is_active_dosnode (11)
+;       Retourne l'état d'activation d'une ROM contenant un noeuds DOS
+;           Entrée - A = numéro de la ROM
+;           Sortie - Si Z alors la ROM correspond à un noeud DOS actif
+;                    Si NZ la ROM correspond à un noeuds DOS inactif ou n'est pas un noeud DOS
+;
+;   cmd_examine (12)
+;       Vérifie qu'un fichier ou un répertoire existe et retourne les informations associées
+;           Entrée - HL = nom du fichier ou du répertoire à examiner
+;                    B = longueur du nom du fichier ou du répertoire à examiner
+;                    IX = tampon où copier l'heure et la date de dernière modification de l'entrée (7 octets)
+;           Sortie - Si HL pointait vers un nom de fichier ou un nom de répertoire non explicite (nom non vide et ne se terminant pas par un '/')
+;
+;                        Si Z alors le fichier ou le répertoire existe
+;                           A = bits de protection du fichier
+;                               Bit 0 - Lecture seule
+;                               Bit 1 - Caché
+;                               Bit 2 - Système
+;                               Bit 4 = Répertoire
+;                               Bit 5 = Archivé
+;                           BCDE = Taille du fichier
+;                           IX = tampon où ont été copiées l'heure et la date de dernière modification de l'entrée
+;                               Un mot de 16 bits avec l'année (1978..9999)
+;                               Un octet avec le numéro du mois (1..12)
+;                               Un octet avec le numéro du jour dans le mois (1..28,29,30 ou 31)
+;                               Un octet avec les heures (0..23)
+;                               Un octet avec les minutes (0..59)
+;                               Un octet avec les secondes (0..59)
+;                        Si NZ alors le fichier ou le répertoire est introuvable
+;                           A = code d'erreur
+;
+;                   Si HL pointait vers un nom de répertoire explicité (nom vide ou se terminant par un '/')
+;                        Si Z alors le répertoire est prêt à être examiné via ExamineNext
+;                        Si NZ alors une erreur est survenue
+;                           A = code d'erreur
+;
+;   cmd_examine_next (13)
+;       Récupère une entrée dans le répertoire en cours d'examen
+;           Entrée - HL = pointeur vers la mémoire où stocker le nom normalisé de l'entrée (11 octets)
+;                    IX = tampon où copier l'heure et la date de dernière modification de l'entrée (7 octets)
+;           Sortie - Si Z alors une entrée a été récupérée
+;                        HL = pointeur vers la mémoire mise à jour avec le nom de l'entrée
+;                        A = bits de protection de l'entrée
+;                            Bit 0 - Lecture seule
+;                            Bit 1 - Caché
+;                            Bit 2 - Système
+;                            Bit 4 = Répertoire
+;                            Bit 5 = Archivé
+;                        BCDE = Taille de l'entrée (indéterminé si l'entrée est un répertoire)
+;                        IX = tampon où ont été copiées l'heure et la date de dernière modification de l'entrée
+;                            Un mot de 16 bits avec l'année (1978..9999)
+;                            Un octet avec le numéro du mois (1..12)
+;                            Un octet avec le numéro du jour dans le mois (1..28,29,30 ou 31)
+;                            Un octet avec les heures (0..23)
+;                            Un octet avec les minutes (0..59)
+;                            Un octet avec les secondes (0..59)
+;                    Si NZ alors une erreur est survenue
+;                        A = code d'erreur (dsk_err_file_not_found indique que toutes les entrées ont été lues)
+
+BIOS_Command
+        push af
+        ld a,c
+        cp cmd_cat_faked_parent
+        jr z,command_catfakedparent
+
+        cp cmd_is_active_dosnode
+        jp z,command_isactivedosnode
+
+        cp cmd_device_list
+        jp z,command_devicelist
+        cp cmd_device_info
+        jp z,command_deviceinfo
+
+        cp cmd_examine
+        jp z,command_examine
+        cp cmd_examine_next
+        jp z,command_examinenext
+
+        cp cmd_disabled_link
+        jr z,command_disabledlink
+        cp cmd_disabled_directory
+        jr z,command_disableddirectory
+
+        cp cmd_enabled_sort_dir_first
+        jr z,command_enabledsortdirfirst
+
+        cp cmd_cas_in_read
+        jp z,command_casinread
+        cp cmd_cas_in_seek
+        jp z,command_casinseek
+
+        cp cmd_cas_out_write
+        jp z,command_casoutwrite
+        cp cmd_cas_out_seek
+        jp z,command_casoutseek
+CommandFailure
+        pop af
+        or a    ; NC
+        ret
+
+; cmd_cat_faked_parent
+Command_CatFakedParent
+        pop af
+        push de
+        ld e,opt_catfakedparent_f
+Command_Option
+        call setoption
+        pop de
+        scf     ; C
+        ret
+
+; cmd_disabled_link
+Command_DisabledLink
+        pop af
+        push de
+        ld e,opt_disabledlink_f
+        jr command_option
+
+; cmd_disabled_directory
+Command_DisabledDirectory
+        pop af
+        push de
+        ld e,opt_disableddirectory_f
+        jr command_option
+
+; cmd_enabled_sort_dire_first
+Command_EnabledSortDirFirst
+        pop af
+        push de
+        ld e,opt_enabledsortdirfirst_f
+        jr command_option
+
+SetOption
+        push bc
+        ld b,a
+        GET_A optionflags
+        and e
+        call bit2val
+        ld c,a      ; Ancienne valeur
+
+        ld a,b
+        cp &ff
+        GET_B optionflags
+        ld a,e
+        call z,resbitb
+        call nz,setbitb
+
+        PUT_B optionflags
+        ld a,c
+        pop bc
+        ret
+Bit2Val ld a,0
+        ret nz
+        ld a,&ff
+        ret
+ResBitB push af
+        xor &ff
+        and b
+        ld b,a
+        pop af
+        ret
+SetBitB push af
+        or b
+        ld b,a
+        pop af
+        ret
+
+; cmd_is_active_dosnode
+Command_IsActiveDOSNode
+        pop af
+        call isactivedosnode
+        jr nc,isactivedosnodefailed
+        cp a ; Z
+        scf
+        ret
+IsActiveDOSNodeFailed
+        push bc
+        ld b,a
+        or 1 ; NZ
+        ld a,b
+        pop bc
+        scf
+        ret
+
+; cmd_device_list
+Command_DeviceList
+        push bc
+        push de
+        push hl
+        call cmddevlist
+        pop hl
+        pop de
+        pop bc
+        pop af
+        scf
+        ret
+
+CmdDevList
+CmdDevListGetExt
+        ld c,1
+DevListGetExtROMLoop
+        call isdosnode
+        jr nc,devlistgetextdriveskiprom
+        ld b,0
+DevListGetExtDriveLoop
+        ld a,c
+        sla a
+        sla a
+        sla a
+        or b
+        call device_getname
+        inc b
+        ld a,7
+        and b
+        jr nz,devlistgetextdriveloop
+DevListGetExtDriveSkipROM
+        inc c
+        ld a,31
+        and c
+        jr nz,devlistgetextromloop
+        call cmddevlistgetint
+        ld a,-1
+        ld (de),a
+        ret
+
+CmdDevListGetInt
+        ld hl,physicaldrivesid
+CmdDevListLoopInt
+        ld a,(hl)
+        inc hl
+        cp -1
+        ret z
+        call device_getname
+        jr cmddevlistloopint
+
+; cmd_device_info
+Command_DeviceInfo
+        push bc
+        push de
+        push hl
+
+        ld a,&ff    ; Désactivation des messages BIOS
+        push hl
+        call bios_setmessage
+        pop hl
+        push af
+
+        call cmddevinfo
+
+        pop bc
+        push af
+        ld a,b
+        call bios_setmessage
+        pop af
+
+        pop hl
+        pop de
+        pop bc
+        jp nc,commandfailure
+        pop af
+        scf
+        ret
+CmdDevInfo
+        call getstringlen
+        call device_checkdrive  ; A = lecteur physique
+        ret nc
+        ld c,a                  ; C = lecteur physique
+        call device_getstatus
+        ret nc
+        ld (de),a:inc de
+DevInfoPokeFS                   ; Stockage du système de fichiers
+        ex de,hl
+        ld (hl),&ff:inc hl
+        ex de,hl
+DevInfoPokeFreeSpace
+        ld a,c                  ; A = lecteur physique
+        push af
+        ex de,hl
+        call device_getfreespace
+        ex de,hl
+        call c,devinfofillbchl
+        call nc,devinfofillffff
+        call devinfofillffff    ; Capacité totale: non géré pour le moment
+        pop af
+        call device_getdesc
+        call nc,storeunknownstring
+        scf ; C
+        ret
+DevInfoFillBCHL
+        ex de,hl
+        ld (hl),e:inc hl
+        ld (hl),d:inc hl
+        ld (hl),c:inc hl
+        ld (hl),b:inc hl
+        ex de,hl
+        ret
+DevInfoFillFFFF
+        ex de,hl
+        push bc
+        ld c,&ff
+Repeat 4
+        ld (hl),c:inc hl
+REnd
+        pop bc
+        ex de,hl
+        ret
+
+; cmd_examine
+Command_Examine
+        pop af
+        ld a,b
+        or a
+        jr nz,examineentry
+        call getworkpathde
+        ld (de),a
+        ld h,a:ld l,a
+        call getcurrentphysicaldrive
+ExamineDevice
+        jp device_examine
+ExamineEntry
+        call qualifypath
+        jp z,casreturn_badcommand
+        ld a,b
+        or a
+        jr nz,examinefile
+        ld h,a:ld l,a
+ExamineCommon
+        call getworkdrive_rega
+        call getworkpathde
+        jr examinedevice
+ExamineFile
+        call normalizefile
+        call getworkareahl
+        jr examinecommon
+
+; cmd_examine_next
+Command_ExamineNext
+        pop af
+        jp device_examinenext
+
+; cmd_cas_in_read
+Command_CasInRead
+        pop af
+        call casincheckmode
+        jp nz,casreturn_badfilemode
+        cp dsk_file_mode_pending
+        jp nz,device_inreadstream
+        push de ; Reset file position to 0 at first access
+        push hl ; because of CAS IN OPEN having head the reading
+        ld de,0
+        ld hl,0
+        call device_inseekstream
+        pop hl
+        pop de
+        jp device_inreadstream
+
+; cmd_cas_in_seek
+Command_CasInSeek
+        pop af
+        call casincheckmode
+        jp nz,casreturn_badfilemode
+        jp device_inseekstream
+
+; cmd_cas_out_write
+Command_CasOutWrite
+        pop af
+        call casoutcheckmode
+        jp nz,casreturn_badfilemode
+        jr c,casoutwritealreadyopened
+        call casoutopenfile
+        ret nc
+        ret nz
+CasOutWriteAlreadyOpened
+        jp device_outwritestream
+
+; cmd_cas_out_seek
+Command_CasOutSeek
+        pop af
+        call casoutcheckmode
+        jp nz,casreturn_badfilemode
+        jr c,casoutseekalreadyopened
+        call casoutopenfile
+        ret nc
+        ret nz
+CasOutSeekAlreadyOpened
+        jp device_outseekstream
+
+; Sous routines de cmd_cas_in_* et cmd_cas_out_*
+CasInCheckMode
+        GET_A fileinmode
+        cp dsk_file_mode_stream
+        ret z
+        cp dsk_file_mode_pending
+        ret nz
+        PUT_8 fileinmode,dsk_file_mode_stream
+        cp a    ; Z
+        ret
+
+CasOutCheckMode
+        GET_A fileoutmode
+        cp dsk_file_mode_stream
+        scf
+        ret z   ; Z/C
+        cp dsk_file_mode_pending
+        ret nz
+        PUT_8 fileoutmode,dsk_file_mode_stream
+        cp a    ; Z/NC
+        ret
+
+CasOutOpenFile
+        push de
+        push hl
+        call outopenfile
+        pop hl
+        pop de
+        ret
+

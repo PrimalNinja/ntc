@@ -1,0 +1,712 @@
+;
+; CAS In Open
+;
+; Entrée - B = longueur du nom de fichier
+;          HL = adresse où est stocké le nom de fichier
+;          DE = adresse du tampon à utiliser pour le fichier (2K)
+; Sortie - Si C,NZ alors succés
+;            HL = adresse du tampon contenant l'entête du fichier
+;            DE = adresse de chargement du fichier
+;            BC = longueur du fichier
+;            A = type du fichier
+;          Si NC,NZ alors une erreur est survenue
+;            A = code d'erreur
+;          Si NC,Z alors ESC a été pressé
+;            A = code d'erreur
+; Altéré - AF,BC,DE,HL,IX
+; Note   - IX n'est pas modifié dans le CAS IN OPEN de l'AMSDOS
+
+CAS_InOpen
+        ld a,b                  ; Fichier vide
+        or a
+        jp z,casreturn_badcommand
+
+InOpenNotEmpty
+        cp 1                    ; Si on a un seul caractère c'est peut-être une action de navigation
+        jr nz,inopenactualfile
+        RAM_LAM
+        cp ':'                  ; ':' ramène à la racine
+        jp z,inopenroot
+        cp '/'                  ; '/' remonte d'un niveau
+        jp z,inopenparent
+
+InOpenActualFile
+        call isdirectorypath    ; Chemin se terminant par '/' ?
+        ld a,0
+        jr nz,inopennormalfile
+
+        dec b                   ; '/' final retiré en vérifiant que le chemin restant n'est pas vide
+        jp z,casreturn_badcommand
+
+        ld a,&ff                ; '/' à la fin impose d'ouvrir un répertoire
+InOpenNormalFile
+        PUT_A fileisdir
+
+        push de
+        call qualifypath
+        pop de
+        jp z,casreturn_qualifyfailed
+
+        ld a,b                  ; Si seulement le lecteur est spécifié alors on change de lecteur courant
+        or a
+        jp z,inopenchangedriveonly
+
+        call getworkdrive_regc  ; Gestion du passage de relais à une autre ROM DOS si nécessaire
+        call installdos
+        jr nc,inopenours        ; C'est pour nous !
+
+InOpenAlien
+        call fixalienpath
+        call _cas_in_open
+        call uninstalldos
+        call c,fixalieninopen   ; Succès
+        jp c,inopenchecklink    ; Si c'en est un, on suit le lien
+        ret
+;        ret nz                  ; Échec
+;        jp fixalieninopen       ; ESC
+
+inOpenOurs
+        PUT_DE tempbufferbase
+        PUT_16 fileindefaultextcheck,0
+
+        call checkstreamemptyreference
+        jr z,inopenagain
+
+        call checkextension
+        jr z,inopenextgiven
+        PUT_16 fileindefaultextcheck,defaultloadext
+InOpenExtGiven
+        call getworkareade
+        push de
+        call normalizename
+        pop hl
+        jp z,casreturn_badcommand
+
+        call checkstringvalidity
+        jp nc,casreturn_badcommand
+
+InOpenAgain
+        call getworkdrive_rega          ; D'abord on examine l'entrée...
+        call getworkareahl
+        call getworkpathde
+        push de
+        call casexamine
+        pop de
+        jp nc,inopenfile                ; Examine non supporté ? On essaie d'ouvrir en tant que fichier !
+        jp nz,inopendispatcherror
+
+        bit 4,a                         ; Répertoire ?
+        jp nz,inopenenterdir
+
+        GET_A fileisdir                 ; On pointe sur un fichier mais un répertoire était attendu ?
+        or a
+        jp nz,casreturn_notadirectory_hl
+
+InOpenFile
+        call infilegetdrive
+        jp nz,casreturn_alreadyopened
+
+        call getworkdrive_rega 
+        call device_inopenstream
+        jp nc,casreturn_badcommand
+        jp nz,inopendispatcherror
+
+        call getworkdrive_rega 
+        PUT_A fileindrive
+
+        PUT_8 fileinmode,dsk_file_mode_pending
+        GET_DE tempbufferbase
+        PUT_DE fileinbufferbase
+        PUT_DE fileinbuffercur
+
+        call getworkareahl
+        GETPTR_DE fileinname
+        ld bc,11
+        ldir
+
+        call getworkareahl              ; On alimente le buffer de travail avec le premier enregistrement
+        call inreadheader               ; de 128 octets du fichier pour s'approcher au mieux du fonctionnement
+        jp nc,casreturn_badcommand      ; de l'Amsdos (ce buffer est utilisé en direct par certains logiciels)
+        jr nz,inopenascii               
+
+        push de                         ; A=type, BC=longueur, DE=chargement, HL=execution
+        push bc
+
+        call getworkareahl
+        GETPTR_DE fileinhead
+        push de
+        ld bc,fileheadsize
+        ldir
+        PUT_16 fileinhead.bufferleft,0
+        pop hl                          ; HL=adresse entête
+
+        pop bc
+        pop de
+InOpenCheckLink
+        cp dsk_file_type_symbolic_link  ; Fichier de type lien UniDOS ?
+        jr nz,inopennotalink
+        GET_A optionflags               ; La gestion des liens peut être désactivée (utile pour |READLINK)
+        and opt_disabledlink_f
+        jp z,inopenlink
+        ld a,dsk_file_type_symbolic_link
+InOpenNotALink
+        cp &ff                          
+        scf                             ; NZ (A contient le type de fichier)
+        ret
+InOpenASCII
+        GET_A filein1strecordsize
+        or a
+        jr z,filein1strecordisempty
+
+        ld b,0
+        ld c,a
+        call getreadbufferhl            ; On recopie la partie déjà lue lors de la tentative
+        ex de,hl                        ; de détection de l'entete dans le tampon de lecture
+        call getworkareahl
+        ldir
+
+FileIn1stRecordIsEmpty
+        GETPTR_HL fileinname            ; Création d'un entête virtuel
+        GETPTR_DE fileinhead.name
+        ld bc,11
+        ldir                            ; Copie du nom de fichier normalisé
+
+        ld a,dsk_file_type_ascii        ; A=type ASCII
+        GETPTR_HL fileinhead            ; HL=entête binaire
+        ld bc,0                         ; BC=longueur
+        GET_DE fileinbufferbase         ; DE=adresse du tampon
+
+        PUT_8  fileinhead.user,0
+        PUT_16 fileinhead.entry,0
+        PUT_BC fileinhead.length
+        PUT_24 fileinhead.length24b,&800000 ; En ASCII ce compteur part de &800000 et est décrémenté à chaque lecture
+        PUT_DE fileinhead.loadadr
+        PUT_16 fileinhead.bufferleft,0
+        PUT_A  fileinhead.type
+
+        ei:halt                         ; On relit la taille et le type à renvoyer après avoir
+        GET_A  fileinhead.type          ; attendu une interruption afin que certains loaders des
+        GET_BC fileinhead.length24b     ; Crackers Velus qui les forcent à la volée fonctionnent
+
+; Pret à lire le premier octet du fichier
+        or a    ; NZ
+        scf     ; C
+        ret
+
+InOpenNotFound
+        call getworkareahl              ; HL pointe sur le nom de fichier normalisé
+        GET_BC fileindefaultextcheck    ; Est-ce que l'on doit gérer les extensions par défaut ?
+        ld a,c
+        or b
+        jp z,casreturn_filenotfound_hl
+
+        call inopenchecknextext
+        jp c,inopenagain
+
+        push hl                         ; On remet une extension vide afin d'afficher
+        ld bc,8                         ; le nom de fichier non trouvé originel
+        add hl,bc
+        ex de,hl
+        ld hl,fileextempty
+        call fixfileextension
+        pop hl
+        jp casreturn_filenotfound_hl
+
+InOpenEnterDir                          
+        call inopenisdirectorydisabled
+        jr nz,inopendirectoryfound
+
+        call getworkpathhl              ; C'est un changement de répertoire, le lecteur physique et le chemin courant sont changés
+        ld a,(hl)
+        cp dirmaxdepth
+        jp z,casreturn_pathtoolong
+
+        inc (hl)
+        inc hl
+        call getdiradr
+
+        ex de,hl
+        call getworkareahl
+        ld bc,11
+        ldir
+
+InOpenDirChanged
+        call getworkpathhl
+        call getcurrentpathde
+        ld bc,dirbuffersize
+        ldir
+
+InOpenDriveChanged
+        call getworkdrive_regc
+        call setcurrentphysicaldrive
+        jp nc,casreturn_badcommand
+InOpenDirectoryChanged
+        call infilegetdrive
+        call z,freeinbuffer             ; Libération du tampon alloué par le système si aucun fichier n'est ouvert
+
+        ld c,sc_currentpath_f
+        call saveconfig
+InOpenDirectoryFound
+        ld a,dsk_err_quiet_directory_found
+        cp a                            ; NC/Z
+        ret
+InOpenParent
+        call inopenisdirectorydisabled
+        jr nz,inopendirectoryfound
+
+        call getcurrentpathhl
+        ld a,(hl)
+        or a
+        jp z,casreturn_rootreached
+        dec (hl)
+        jr inopendirectorychanged
+
+InOpenRoot
+        call inopenisdirectorydisabled
+        jr nz,inopendirectoryfound
+
+        call getcurrentpathhl
+        ld (hl),0
+        jr inopendirectorychanged
+
+InOpenChangeDriveOnly
+        call inopenisdirectorydisabled
+        jr nz,inopendirectoryfound
+
+        GET_A worklogicaldrive
+        or a
+        jr nz,inopendirchanged
+
+        call getcurrentpathhl
+        ld (hl),0
+        jr inopendrivechanged
+
+InOpenLink
+        ld a,b                          ; Test de la longueur max
+        or a
+        jp nz,casreturn_badcommand      ; Trop long ?
+        ld a,c
+        or a                            ; Vide ?
+        jp z,casreturn_badcommand
+        cp maxlinksize+1                ; Trop long ?
+        jp nc,casreturn_badcommand
+
+        ld hl,_dos_rom_alt_buffer
+        push hl
+        push bc
+        call _cas_in_direct
+        pop bc
+        pop hl
+
+        jp nc,casreturn_badcommand
+
+        push hl
+        push bc
+        call _cas_in_close
+        pop bc
+        pop hl
+
+        ld b,c
+        GET_DE fileinbufferbase
+        jp _cas_in_open
+
+InOpenCheckNextExt
+        push hl
+        push de
+        ex de,hl
+        ld l,c
+        ld h,b
+        ld c,(hl)
+        inc hl
+        ld b,(hl)
+        inc hl
+        ld a,c
+        or b    ; NC
+        jr z,inopencheckextend
+        PUT_HL fileindefaultextcheck
+        ld l,c
+        ld h,b
+        ex de,hl
+        ld bc,8
+        add hl,bc
+        ex de,hl
+        call fixfileextension
+        scf     ; C
+InOpenCheckExtEnd
+        pop de
+        pop hl
+        ret
+InOpenIsDirectoryDisabled
+        GET_A optionflags               ; La gestion des répertoires peut être désactivée (utile pour |READLINK)
+        and opt_disableddirectory_f
+        ret
+
+InOpenDispatchError
+        cp dsk_err_file_not_found
+        jp z,inopennotfound
+        cp dsk_err_no_media
+        jp z,casreturn_filenotfound_hl
+        jp casreturn_badcommand
+
+;
+; CAS In Close
+;
+; Entrée - Aucune
+; Sortie - Si C alors le fichier a été correctement fermé
+;          Si NC alors une erreur est survenue
+;            A = code d'erreur
+; Altéré - AF,BC,DE,HL
+
+CAS_InClose
+        call infilegetdrive
+        jp z,casreturn_alreadyclosed
+
+        ld c,a
+        call installdos
+        jr nc,incloseours
+InCloseAlien
+        call _cas_in_close
+InCloseAlienRet
+        call uninstalldos
+        PUT_8 fileindrive,&ff   ; On acte la fermeture du fichier dans le cas où la ROM alien ne l'aurait pas fait !
+        ret
+
+InCloseOurs
+        call device_inclosestream
+
+        ld a,&ff
+        PUT_A fileindrive
+
+        or a:scf    ; C/NZ
+        ret         ; NZ important ! OCP ne se charge plus !
+
+;
+; CAS In Abandon
+;
+; Entrée - Aucune
+; Sortie - Aucune
+; Altéré - AF,BC,DE,HL
+
+CAS_InAbandon
+        call infilegetdrive
+        ret z
+
+        ld c,a
+        call installdos
+        jr nc,inabandonours
+InAbandonAlien
+        call _cas_in_abandon
+        jp inclosealienret
+
+InAbandonOurs
+        jr incloseours
+
+;
+; CAS In Char
+;
+; Entrée - Aucune
+; Sortie - Si C,NZ alors un octet a été lu
+;            A = valeur de l'octet lu
+;          Si NC,NZ alors la fin du fichier a été atteinte
+;            A = code d'erreur
+;          Si NC,Z alors ESC a été appuyé
+;            A = code d'erreur
+; Altéré - AF,IX
+
+CAS_InChar
+        push bc
+        push de
+        push hl
+        call inchar
+        pop hl
+        pop de
+        pop bc
+        ret
+InChar  GET_A fileinmode
+        cp dsk_file_mode_char
+        jr z,incharongoingaccess
+        cp dsk_file_mode_pending
+        jp nz,casreturn_badfilemode
+InCharFirstAccess
+        PUT_8 fileinmode,dsk_file_mode_char ; Au premier accès, on passe en mode octet par octet
+InCharOnGoingAccess
+        GET_DE fileinhead.bufferleft
+        ld a,e
+        or d
+        jr z,incharreadnextbuffer
+        dec de
+        PUT_DE fileinhead.bufferleft
+        GET_HL fileinbuffercur
+InCharReturnReadOneByte
+        GET_CDE fileinhead.length24b    ; Mise à jour du compteur 24 bits
+        call dec_cde
+        PUT_CDE fileinhead.length24b
+
+        RAM_LAM
+        inc hl
+        PUT_HL fileinbuffercur
+
+        cp dsk_err_soft_end_of_file
+        jr z,incharsofteof
+InCharNormal
+        scf     ; C/NZ
+        ret
+InCharSoftEOF
+        or a    ; NC/NZ
+        ret
+InCharHardEOF
+        ld a,dsk_err_hard_end_of_file
+        or a    ; NC/NZ
+        ret
+InCharReadNextBuffer
+        call infilegetdrive
+        jp z,casreturn_notopened
+
+        ld c,a
+        call installdos
+        jr nc,incharours
+InCharAlien
+        call fixalieninunidos2cas
+        call _cas_in_char
+        call fixalienincas2unidos
+        jp uninstalldos
+
+InCharOurs
+        GET_HL fileinbufferbase
+        PUT_HL fileinbuffercur
+
+        push hl
+
+        ld de,2048
+        call inreadstream
+
+        pop hl
+
+        jp nc,casreturn_badcommand
+        jp nz,indispatchreaderror
+
+        ld a,e                          ; Plus rien à lire ?
+        or d
+        jr z,incharhardeof
+
+        push hl
+
+        call inaddsofteof               ; On ajoute un marqueur soft end compatible AMSDOS
+        dec de
+        PUT_DE fileinhead.bufferleft
+
+        pop hl
+        jp incharreturnreadonebyte
+
+;
+; CAS In Direct
+;
+; Entrée - HL = adresse où charger le fichier
+; Sortie - Si C,NZ alors le fichier a été lu
+;            HL = adresse d'exécution
+;          Si NC,NZ alors aucun fichier n'est ouvert
+;            A = code d'erreur
+;          Si NC,Z alors ESC a été appuyé
+;            A = code d'erreur
+; Altéré - AF,BC,DE,HL,IX
+
+CAS_InDirect
+        call infilegetdrive
+        jp z,casreturn_notopened
+
+        ld c,a
+        call installdos
+        jr nc,indirectours
+InDirectAlien
+        call _cas_in_direct
+        jp uninstalldos
+
+InDirectOurs
+        GET_A fileinmode
+        cp dsk_file_mode_pending
+        jp nz,casreturn_badfilemode
+
+        PUT_8 fileinmode,dsk_file_mode_direct
+
+        GET_DE fileinhead.length
+        ld a,e
+        or d
+        jr nz,indirectknownsize         ; Pour un fichier de taille inconnue on charge le maximum possible
+        ld de,&ffff                     ; (ASCII ou binaire avec taille = 0)
+InDirectKnownSize
+        call inreadstream
+
+        jp nc,casreturn_badcommand
+        jp nz,indispatchreaderror
+
+        GET_A fileinhead.type           ; On ajoute éventuellement un marqueur
+        cp dsk_file_type_ascii          ; soft end pour les fichiers ASCII
+        jr z,indirecthandleeof          ; (compatibilité AMSDOS)
+
+        call docypher                   ; On déchiffre les fichiers protégés
+InDirectDone
+        GET_HL fileinhead.entry
+        or &ff:scf  ; NZ/C
+        ret
+
+InDirectHandleEOF
+        call inaddsofteof
+        jr indirectdone
+
+;
+; CAS Return
+;
+; On ne vérifie rien, comme l'AMSDOS !
+;
+; Entrée - Aucune
+; Sortie - Aucune
+; Altéré - Aucun
+
+CAS_Return
+        push af
+        push de
+        push hl
+
+        GET_HL fileinbuffercur
+        dec hl
+        PUT_HL fileinbuffercur
+
+        GET_HL fileinhead.bufferleft
+        inc hl
+        PUT_HL fileinhead.bufferleft
+
+        GET_CDE fileinhead.length24b
+        call inc_cde
+        PUT_CDE fileinhead.length24b
+
+        pop hl
+        pop de
+        pop af
+        ret
+
+;
+; CAS Test EOF
+;
+; Entrée - Aucune
+; Sortie - Si NC,NZ alors la fin du fichier a été atteinte
+;          Si C,NZ alors le fin du fichier n'a pas été atteinte
+;          Si NC,Z alors ESC a été appuyé
+;            A = code d'erreur
+; Altéré - AF,IX
+
+CAS_TestEOF
+        call cas_inchar
+        ret nc
+        jr cas_return
+
+;
+; Routines accessoires
+;
+
+;
+; Essaie de lire un header depuis la position courante dans le fichier ouvert en entrée
+;
+; Entrée - HL = adresse où stocker enregistrement de 128 octets du header potentiel
+; Sortie - Si Carry = 1
+;               Si Z alors un header a pu être décodé
+;                   A = type de fichier
+;                   BC = longueur du fichier
+;                   DE = adresse de chagement
+;                   HL = adresse d'exécution
+;               Si NZ alors le header n'a pas été trouvé
+;          Si Carry = 0 alors une erreur fatale est survenue
+; Altéré - AF,BC,DE,HL
+
+InReadHeader
+        ld de,128
+        call device_inreadstream
+        ret nc  ; NC
+        ccf
+        ret nz  ; NC/NZ
+
+        ld a,e
+        PUT_A filein1strecordsize
+
+        cp fileheadsize                 ; Fichier trop petit pour être binaire ?
+        ret c   ; C/NZ
+
+        push ix
+        call decodeheader               ; Tentative de décodage de l'entête binaire
+        pop ix
+        scf
+        ret nz  ; C/NZ
+
+        PUT_8 filein1strecordsize,0     ; Le premier enregistrement était l'entête, il ne fait pas partie des données
+        cp a
+        scf
+        ret     ; C/Z
+
+InReadStream
+        push hl
+        call inreadcopy1strecord
+        call device_inreadstream
+        pop hl
+
+        ex de,hl
+        push af
+        add hl,bc
+        pop af
+        ex de,hl
+        ret
+
+InReadCopy1stRecord
+        ld bc,0
+
+        GET_A filein1strecordsize
+        or a
+        ret z
+
+        ld c,a
+        PUT_8 filein1strecordsize,0
+
+        push de
+        push bc
+
+        ex de,hl
+        call getreadbufferhl
+        ldir
+        ex de,hl
+
+        pop bc
+        pop de
+
+        or a
+        ex de,hl
+        sbc hl,bc
+        ex de,hl
+
+        ret
+
+InFileGetDrive
+        GET_A fileindrive
+        cp &ff
+        ret
+
+InAddSoftEOF
+        ld a,e                              ; Seul le poids faible nous intéresse
+        and &7f
+        or a
+        ret z                               ; Fin d'enregistrement : pas de marqueur logiciel
+        add hl,de                           ; Ajout du marqueur dans l'enregistrement
+        ld (hl),dsk_err_soft_end_of_file
+        ld a,e
+        ld h,&80
+        and h                               ; On aligne DE sur un enregistrement
+        add h                               ; (compatibilité AMSDOS)
+        ld e,a
+        ret nc
+        inc d
+        ret
+
+InDispatchReadError
+        cp dsk_err_disc_changed
+        jp nz,casreturn_badcommand
+        call cas_inabandon
+        GETPTR_HL fileinname
+        GET_A fileindrive
+        jp casreturn_mediachanged_hl_a

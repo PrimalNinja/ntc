@@ -1,0 +1,2262 @@
+;
+; Fonctions de gestion FTP
+;
+
+;
+; Routines FTP haut niveau
+;
+
+;
+; Démarre une connexion FTP en binaire en mode passif
+;
+; Entrée - Aucune
+; Sortie - Si Carry = 1 alors la connexion a pu se faire
+;               C = Socket de commande créée
+;          Si Carry = 0 alors la connexion a échoué
+;               Si Z alors la socket a échoué
+;               Si NZ alors l'identification FTP a échoué
+; Altéré - AF,BC,_DOS_ROM_TEMP_ROUTINE,_DOS_ROM_TEMP_STORE
+
+M4_FTPConnect
+        push de
+        push hl
+        push ix
+        push iy
+
+        call M4_FTPConnectInternal
+
+        pop iy
+        pop ix
+        pop hl
+        pop de
+        ret
+
+M4_FTPConnectInternal
+        call M4_CreateSocket
+        jp nc,M4FTPSocketFailure
+
+        ld hl,_DOS_ROM_TEMP_STORE
+        call M4_GetFTP
+        jp nc,M4FTPSocketError
+
+        ; Connexion
+
+        ld a,(_DOS_ROM_TEMP_STORE+5):ld ixh,a ; Port
+        ld a,(_DOS_ROM_TEMP_STORE+4):ld ixl,a
+
+        ld a,(_DOS_ROM_TEMP_STORE+3):ld d,a ; IP
+        ld a,(_DOS_ROM_TEMP_STORE+2):ld e,a
+        ld a,(_DOS_ROM_TEMP_STORE+1):ld h,a
+        ld a,(_DOS_ROM_TEMP_STORE+0):ld l,a
+
+        call M4_ConnectSocket
+        jp nc,M4FTPSocketError
+
+        call M4_FTPGetResponse
+        jp nc,M4FTPTransferError
+
+        ld hl,220
+        call cp_iy_hl
+        jp nz,M4FTPTransferError
+
+        ; User
+
+        push bc
+        MAKE_ID_DEHL 'U','S','E','R'
+        call M4_FTPStartCommand
+
+        ld hl,_DOS_ROM_TEMP_STORE
+        call M4_GetFTP
+        ld hl,_DOS_ROM_TEMP_STORE+6 ; Serveur...
+        ld e,(hl)
+        ld d,0
+        inc hl
+        add hl,de                   ; Identifiant !
+        ld b,(hl)
+        inc hl
+
+        call M4_FTPPushArgCommand
+        call M4_FTPFinalizeCommand
+        pop bc
+
+        call M4_FTPSendCommand
+        jp nc,M4FTPSocketError
+        call M4_FTPGetResponse
+        jp nc,M4FTPSocketError
+
+        ld hl,331
+        call cp_iy_hl
+        jp nz,M4FTPTransferError
+
+        ; Pass
+
+        push bc
+        MAKE_ID_DEHL 'P','A','S','S'
+        call M4_FTPStartCommand
+
+        ld hl,_DOS_ROM_TEMP_STORE
+        call M4_GetFTP
+        ld hl,_DOS_ROM_TEMP_STORE+6 ; Serveur...
+        ld e,(hl)
+        ld d,0
+        inc hl
+        add hl,de                   ; Identifiant...
+        ld e,(hl)
+        inc hl
+        add hl,de                   ; Mot de passe !
+        ld b,(hl)
+        inc hl
+
+        call M4_FTPPushArgCommand
+        call M4_FTPFinalizeCommand
+        pop bc
+
+        call M4_FTPSendCommand
+        jr nc,M4FTPSocketError
+        call M4_FTPGetResponse
+        jr nc,M4FTPSocketError
+
+        ld hl,230
+        call cp_iy_hl
+        jr nz,M4FTPTransferError
+
+        ; Binary
+
+        push bc
+        MAKE_ID_DEHL 'T','Y','P','E'
+        call M4_FTPStartCommand
+
+        ld hl,_DOS_ROM_TEMP_STORE
+        ld (hl),'I'
+        ld b,1
+        call M4_FTPPushArgCommand
+        call M4_FTPFinalizeCommand
+        pop bc
+
+        call M4_FTPSendCommand
+        jr nc,M4FTPSocketError
+        call M4_FTPGetResponse
+        jr nc,M4FTPSocketError
+
+        ld hl,200
+        call cp_iy_hl
+        jr nz,M4FTPTransferError
+
+        scf
+        ret
+
+M4FTPSocketError
+        call M4_FTPDisconnect
+M4FTPSocketFailure
+        cp a
+        ret ; NC,Z
+M4FTPTransferError
+        call M4_FTPDisconnect
+        ld a,-1
+        or a
+        ret ; NC,NZ
+
+;
+; Clôture une connexion FTP
+;
+; Entrée - C = numéro de socket
+; Sortie - Aucune
+; Altéré - AF,_DOS_ROM_TEMP_ROUTINE,_DOS_ROM_TEMP_STORE
+
+M4_FTPDisconnect
+        push bc
+        push de
+        push hl
+        MAKE_ID_DEHL 'Q','U','I','T'
+        call M4_FTPStartCommand
+        call M4_FTPFinalizeCommand
+        pop hl
+        pop de
+        pop bc
+
+        call M4_FTPSendCommand
+;        jr nc,M4FTPDisconnectExit
+
+;        push bc
+;        push de
+;        push hl
+;        push ix
+;        push iy
+;        call M4_FTPGetResponse
+;        pop iy
+;        pop ix
+;        pop hl
+;        pop de
+;        pop bc
+M4FTPDisconnectExit
+        jp M4_DestroySocket
+
+;
+; Change le répertoire en cours
+;
+; Entrée - C = numéro de socket
+;          DE = pointeur vers le chemin normalisé
+; Sortie - Si Carry = 1 alors le chemin a pu être sélectionné
+;          Si Carry = 0 alors le chemin n'a pas pu être sélectionné
+; Altéré - AF,_DOS_ROM_TEMP_ROUTINE,_DOS_ROM_TEMP_STORE
+
+M4_FTPCurrentDir
+        push bc
+        push de
+        push hl
+        push ix
+        push iy
+
+        call M4_FTPCurrentDirInternal
+
+        pop iy
+        pop ix
+        pop hl
+        pop de
+        pop bc
+        ret
+
+M4_FTPCurrentDirInternal
+        push de
+        call M4FTPRootDir
+        pop de
+        ret nc
+
+        ld a,(de)
+        or a
+        scf
+        ret z
+
+        inc de
+        ex de,hl
+M4FTPCurrentDirLoop
+        ld (_DOS_ROM_TEMP_STORE+&10),a
+
+        push hl
+        call M4FTPUnnormalize
+        call M4FTPCurrentDirSub
+        pop hl
+
+        ret nc
+
+        ld a,(_DOS_ROM_TEMP_STORE+&10)
+        dec a
+        scf
+        ret z
+
+        ld de,11
+        add hl,de
+
+        jr M4FTPCurrentDirLoop
+
+; C = numéro de socket, B = longueur (_DOS_ROM_TEMP_STORE)
+M4FTPCurrentDirSub
+        push bc
+
+        MAKE_ID_DEHL 'C','W','D',' '
+        call M4_FTPStartCommand
+
+        ld hl,_DOS_ROM_TEMP_STORE
+        call M4_FTPPushArgCommand
+        call M4_FTPFinalizeCommand
+
+        pop bc
+
+        call M4_FTPSendCommand
+        jr nc,M4FTPCurrentDirSubFailed
+
+        call M4_FTPGetResponse
+
+        ld hl,250
+        call cp_iy_hl
+        jr nz,M4FTPCurrentDirSubFailed
+
+        scf
+        ret
+
+M4FTPCurrentDirSubFailed
+        cp a ; NC
+        ret
+
+M4FTPUnnormalize
+        push bc
+
+        ld de,_DOS_ROM_TEMP_STORE
+        call CompactName
+
+        cp a ; NC
+        ld hl,_DOS_ROM_TEMP_STORE
+        ex de,hl
+        sbc hl,de
+        ld a,l
+
+        pop bc
+        ld b,a
+
+        ret
+
+M4FTPRootDir
+        ld a,'/'
+        ld (_DOS_ROM_TEMP_STORE),a
+        ld b,1
+        jr M4FTPCurrentDirSub
+
+;
+; Sélectionne le répertoire racine
+;
+; Entrée - C = numéro de socket
+; Sortie - Si Carry = 1 alors le chemin a pu être sélectionné
+;          Si Carry = 0 alors le chemin n'a pas pu être sélectionné
+;               A = code d'erreur
+; Altéré - AF,_DOS_ROM_TEMP_ROUTINE,_DOS_ROM_TEMP_STORE
+
+M4_FTPRootDir
+        push bc
+        push de
+        push hl
+        push ix
+        push iy
+        call M4FTPRootDir
+        pop iy
+        pop ix
+        pop hl
+        pop de
+        pop bc
+
+        ret c
+
+        ld a,DSK_ERR_BAD_COMMAND
+        ret
+
+;
+; Renomme "depuis"
+;
+; Entrée - C = numéro de socket
+;          HL = pointeur vers le nom normalisé
+;          DE = pointeur vers le chemin normalisé
+; Sortie - Si Carry = 1 alors le chemin a pu être sélectionné
+;          Si Carry = 0 alors le chemin n'a pas pu être sélectionné
+;               A = code d'erreur
+; Altéré - AF,_DOS_ROM_TEMP_ROUTINE,_DOS_ROM_TEMP_STORE
+
+M4_FTPRenameFrom
+        push bc
+        push de
+        push hl
+        push ix
+        push iy
+
+        call M4_FTPRenameFromInternal
+
+        pop iy
+        pop ix
+        pop hl
+        pop de
+        pop bc
+        ret
+
+M4_FTPRenameFromInternal
+        push bc
+        push de
+        push hl
+
+        MAKE_ID_DEHL 'R','N','F','R'
+        call M4_FTPStartCommand
+        ld ixl,c
+
+        pop hl
+        pop de
+        pop bc
+
+        push bc
+        push de
+        push hl
+
+        call M4FTPAddPath
+
+        pop hl
+        pop de
+        pop bc
+
+        call M4_FTPSendCommand
+        ld a,DSK_ERR_BAD_COMMAND
+        ret nc
+
+        call M4_FTPGetResponse
+        ld a,DSK_ERR_BAD_COMMAND
+        ret nc
+
+        ld hl,350
+        call cp_iy_hl
+
+        scf
+        ret z
+
+        ld hl,550
+        call cp_iy_hl
+        scf:ccf
+        ld a,DSK_ERR_FILE_NOT_FOUND
+        ret z
+
+        ld a,DSK_ERR_BAD_COMMAND
+        cp a ; NC
+        ret
+
+;
+; Renomme "vers"
+;
+; Entrée - C = numéro de socket
+;          HL = pointeur vers le nom normalisé
+;          DE = pointeur vers le chemin normalisé
+; Sortie - Si Carry = 1 alors le chemin a pu être sélectionné
+;          Si Carry = 0 alors le chemin n'a pas pu être sélectionné
+;               A = code d'erreur
+; Altéré - AF,_DOS_ROM_TEMP_ROUTINE,_DOS_ROM_TEMP_STORE
+
+M4_FTPRenameTo
+        push bc
+        push de
+        push hl
+        push ix
+        push iy
+
+        call M4_FTPRenameToInternal
+
+        pop iy
+        pop ix
+        pop hl
+        pop de
+        pop bc
+        ret
+
+M4_FTPRenameToInternal
+        push bc
+        push de
+        push hl
+
+        MAKE_ID_DEHL 'R','N','T','O'
+        call M4_FTPStartCommand
+        ld ixl,c
+
+        pop hl
+        pop de
+        pop bc
+
+        push bc
+        push de
+        push hl
+
+        call M4FTPAddPath
+
+        pop hl
+        pop de
+        pop bc
+
+        call M4_FTPSendCommand
+        ld a,DSK_ERR_BAD_COMMAND
+        ret nc
+
+        call M4_FTPGetResponse
+        ld a,DSK_ERR_BAD_COMMAND
+        ret nc
+
+        ld hl,250
+        call cp_iy_hl
+
+        scf
+        ret z
+
+        ld hl,553
+        call cp_iy_hl
+        scf:ccf
+        ld a,DSK_ERR_FILE_ALREADY_EXISTS
+        ret z
+
+        ld a,DSK_ERR_BAD_COMMAND
+        cp a ; NC
+        ret
+
+;
+; Efface un fichier
+;
+; Entrée - C = numéro de socket
+;          HL = pointeur vers le nom normalisé
+;          DE = pointeur vers le chemin normalisé
+; Sortie - Si Carry = 1 alors le chemin a pu être sélectionné
+;          Si Carry = 0 alors le chemin n'a pas pu être sélectionné
+;               A = code d'erreur
+; Altéré - AF,_DOS_ROM_TEMP_ROUTINE,_DOS_ROM_TEMP_STORE
+
+M4_FTPDeleteFile
+        push bc
+        push de
+        push hl
+        push ix
+        push iy
+
+        call M4_FTPDeleteFileInternal
+
+        pop iy
+        pop ix
+        pop hl
+        pop de
+        pop bc
+        ret
+
+M4_FTPDeleteFileInternal
+        push bc
+        push de
+        push hl
+
+        MAKE_ID_DEHL 'D','E','L','E'
+        call M4_FTPStartCommand
+        ld ixl,c
+
+        pop hl
+        pop de
+        pop bc
+
+        push bc
+        push de
+        push hl
+
+        call M4FTPAddPath
+
+        pop hl
+        pop de
+        pop bc
+
+        call M4_FTPSendCommand
+        ld a,DSK_ERR_BAD_COMMAND
+        ret nc
+
+        call M4_FTPGetResponse
+        ld a,DSK_ERR_BAD_COMMAND
+        ret nc
+
+        ld hl,250
+        call cp_iy_hl
+
+        scf
+        ret z
+
+        ld hl,550
+        call cp_iy_hl
+        scf:ccf
+        ld a,DSK_ERR_FILE_NOT_FOUND
+        ret z
+
+        ld a,DSK_ERR_BAD_COMMAND
+        cp a ; NC
+        ret
+
+;
+; Efface un répertoire
+;
+; Entrée - C = numéro de socket
+;          HL = pointeur vers le nom normalisé
+;          DE = pointeur vers le chemin normalisé
+; Sortie - Si Carry = 1 alors le chemin a pu être sélectionné
+;          Si Carry = 0 alors le chemin n'a pas pu être sélectionné
+;               A = code d'erreur
+; Altéré - AF,_DOS_ROM_TEMP_ROUTINE,_DOS_ROM_TEMP_STORE
+
+M4_FTPDeleteDir
+        push bc
+        push de
+        push hl
+        push ix
+        push iy
+
+        call M4_FTPDeleteDirInternal
+
+        pop iy
+        pop ix
+        pop hl
+        pop de
+        pop bc
+        ret
+
+M4_FTPDeleteDirInternal
+        push bc
+        push de
+        push hl
+
+        MAKE_ID_DEHL 'R','M','D',' '
+        call M4_FTPStartCommand
+        ld ixl,c
+
+        pop hl
+        pop de
+        pop bc
+
+        push bc
+        push de
+        push hl
+
+        call M4FTPAddPath
+
+        pop hl
+        pop de
+        pop bc
+
+        call M4_FTPSendCommand
+        ld a,DSK_ERR_BAD_COMMAND
+        ret nc
+
+        call M4_FTPGetResponse
+        ld a,DSK_ERR_BAD_COMMAND
+        ret nc
+
+        ld hl,250
+        call cp_iy_hl
+
+        scf
+        ret z
+
+        ld hl,550
+        call cp_iy_hl
+        scf:ccf
+        ld a,DSK_ERR_FILE_NOT_FOUND
+        ret z
+
+        ld a,DSK_ERR_BAD_COMMAND
+        cp a ; NC
+        ret
+
+;
+; Crée un répertoire
+;
+; Entrée - C = numéro de socket
+;          HL = pointeur vers le nom normalisé
+;          DE = pointeur vers le chemin normalisé
+; Sortie - Si Carry = 1 alors le chemin a pu être sélectionné
+;          Si Carry = 0 alors le chemin n'a pas pu être sélectionné
+;               A = code d'erreur
+; Altéré - AF,_DOS_ROM_TEMP_ROUTINE,_DOS_ROM_TEMP_STORE
+
+M4_FTPCreateDir
+        push bc
+        push de
+        push hl
+        push ix
+        push iy
+
+        call M4_FTPCreateDirInternal
+
+        pop iy
+        pop ix
+        pop hl
+        pop de
+        pop bc
+        ret
+
+M4_FTPCreateDirInternal
+        push bc
+        push de
+        push hl
+
+        MAKE_ID_DEHL 'M','K','D',' '
+        call M4_FTPStartCommand
+        ld ixl,c
+
+        pop hl
+        pop de
+        pop bc
+
+        push bc
+        push de
+        push hl
+
+        call M4FTPAddPath
+
+        pop hl
+        pop de
+        pop bc
+
+        call M4_FTPSendCommand
+        ld a,DSK_ERR_BAD_COMMAND
+        ret nc
+
+        call M4_FTPGetResponse
+        ld a,DSK_ERR_BAD_COMMAND
+        ret nc
+
+        ld hl,257
+        call cp_iy_hl
+        scf
+        ret z
+
+        ld hl,200
+        call cp_iy_hl
+        scf
+        ret z
+
+        ld hl,553
+        call cp_iy_hl
+        scf:ccf
+        ld a,DSK_ERR_FILE_ALREADY_EXISTS
+        ret z
+
+        ld a,DSK_ERR_BAD_COMMAND
+        cp a ; NC
+        ret
+
+;
+; Récupère des données en provenance d'un fichier
+;
+; Entrée - C = numéro de socket
+;          HL = pointeur vers le nom normalisé
+;          DE = pointeur vers le chemin normalisé
+;          IX = pointeur vers une zone de 8 octets
+;               4 octets avec la position de lecture dans le fichier
+;               2 octets avec le nombre d'octets à lire
+;               2 octets avec l'adresse où stocker les octets à lire
+; Sortie - Si Carry = 1 alors le fichier a pu être ouvert
+;          Si Carry = 0 alors le fichier n'a pas pu être ouvert
+;               A = code d'erreur
+; Altéré - AF,_DOS_ROM_TEMP_ROUTINE,_DOS_ROM_TEMP_STORE
+
+M4_FTPReadFile
+        call M4_FTPRootDir
+        ret nc
+
+        push bc
+        push iy
+        call M4_FTPReadFileInternal
+        pop iy
+        pop bc
+        ret
+
+M4_FTPReadFileInternal
+        push de
+        push hl
+        push ix
+
+        call M4FTPStartPassive
+
+        pop ix
+        pop hl
+        pop de
+
+        ld a,DSK_ERR_BAD_COMMAND
+        ret nc
+
+        push de
+        push hl
+        push ix
+
+        ld l,(ix+0) ; Position
+        ld h,(ix+1)
+        ld e,(ix+2)
+        ld d,(ix+3)
+        call M4FTPSetFilePosition
+
+        pop ix
+        pop hl
+        pop de
+
+        jr nc,M4FTPReadFileError
+
+        push de
+        push hl
+        push ix
+
+        call M4FTPOpenInputFile
+
+        pop ix
+        pop hl
+        pop de
+
+        jr nc,M4FTPReadFileError
+
+        push bc
+        push de
+        push hl
+
+        call M4FTPReadData
+
+        pop hl
+        pop de
+        pop bc
+
+        jr nc,M4FTPReadFileError
+
+        push de
+        push hl
+        push ix
+        push iy
+
+        call M4FTPEndPassive
+
+        pop iy
+        pop ix
+        pop hl
+        pop de
+
+        ret
+
+M4FTPReadFileError
+        push de
+        push hl
+        push ix
+        push iy
+
+        call M4FTPEndPassive
+
+        pop iy
+        pop ix
+        pop hl
+        pop de
+
+        ld a,DSK_ERR_BAD_COMMAND
+        cp a ; NC
+        ret
+
+M4FTPReadData
+        ld c,b  ; Socket données
+
+        ld l,(ix+6) ; Destination
+        ld h,(ix+7)
+
+        ld b,(ix+5)
+        srl b
+        srl b   ; Nombre de block de &400
+;        srl b   ; Nombre de block de &800
+
+        ld a,b
+        or a
+        jr z,M4FTPReadDataNoBlock
+
+M4FTPReadDataBlock
+;        ld de,&800
+        ld de,&400
+        call M4_ReadSocket
+        ret nc
+
+        add hl,de
+        djnz M4FTPReadDataBlock
+
+M4FTPReadDataNoBlock
+        ld e,(ix+4)
+;        ld a,7
+        ld a,3
+        and (ix+5)
+        ld d,a
+
+        call M4_ReadSocket
+        ret
+
+;
+; Écrit des données dans un fichier
+;
+; Entrée - C = numéro de socket
+;          HL = pointeur vers le nom normalisé
+;          DE = pointeur vers le chemin normalisé
+;          IX = pointeur vers une zone de 8 octets
+;               4 octets avec la position d'écriture dans le fichier
+;               2 octets avec le nombre d'octets à écrire
+;               2 octets avec l'adresse où se trouvent les données à écrire
+; Sortie - Si Carry = 1 alors le fichier a pu être ouvert
+;          Si Carry = 0 alors le fichier n'a pas pu être ouvert
+;               A = code d'erreur
+; Altéré - AF,_DOS_ROM_TEMP_ROUTINE,_DOS_ROM_TEMP_STORE
+
+M4_FTPWriteFile
+        call M4_FTPRootDir
+        ret nc
+
+        push bc
+        push iy
+        call M4_FTPWriteFileInternal
+        pop iy
+        pop bc
+        ret
+
+M4_FTPWriteFileInternal
+        push de
+        push hl
+        push ix
+
+        call M4FTPStartPassive
+
+        pop ix
+        pop hl
+        pop de
+
+        ld a,DSK_ERR_BAD_COMMAND
+        ret nc
+
+        push de
+        push hl
+        push ix
+
+        ld l,(ix+0) ; Position
+        ld h,(ix+1)
+        ld e,(ix+2)
+        ld d,(ix+3)
+        call M4FTPSetFilePosition
+
+        pop ix
+        pop hl
+        pop de
+
+        jr nc,M4FTPWriteFileError
+
+        push de
+        push hl
+        push ix
+
+        call M4FTPOpenOutputFile
+
+        pop ix
+        pop hl
+        pop de
+
+        jr nc,M4FTPWriteFileError
+
+        push bc
+        push de
+        push hl
+
+        call M4FTPWriteData
+
+        pop hl
+        pop de
+        pop bc
+
+        jr nc,M4FTPWriteFileError
+
+        push de
+        push hl
+        push ix
+        push iy
+
+        call M4FTPEndPassive
+
+        pop iy
+        pop ix
+        pop hl
+        pop de
+
+        ret
+
+M4FTPWriteFileError
+        push de
+        push hl
+        push ix
+        push iy
+
+        call M4FTPEndPassive
+
+        pop iy
+        pop ix
+        pop hl
+        pop de
+
+        ld a,DSK_ERR_BAD_COMMAND
+        cp a ; NC
+        ret
+
+M4FTPWriteData
+        ld c,b  ; Socket données
+
+        ld l,(ix+6) ; Source
+        ld h,(ix+7)
+
+        ld b,(ix+5)
+        srl b
+        srl b   ; Nombre de blocks de &400
+;        srl b   ; Nombre de blocks de &800
+
+        ld a,b
+        or a
+        jr z,M4FTPWriteDataNoBlock
+
+M4FTPWriteDataBlock
+;        ld de,&800
+        ld de,&400
+        call M4_WriteSocket
+        ret nc
+
+        add hl,de
+        djnz M4FTPWriteDataBlock
+
+M4FTPWriteDataNoBlock
+        ld e,(ix+4)
+;        ld a,7
+        ld a,3
+        and (ix+5)
+        ld d,a
+
+        call M4_WriteSocket
+        ret
+
+M4FTPSetFilePosition
+        push bc
+
+        push de
+        push hl
+        MAKE_ID_DEHL 'R','E','S','T'
+        call M4_FTPStartCommand
+        pop hl
+        pop de
+
+        push bc
+        call B2D32
+        ld a,c
+        pop bc
+        ld b,a
+        call M4_FTPPushArgCommand
+        call M4_FTPFinalizeCommand
+
+        pop bc
+
+        call M4_FTPSendCommand
+        ld a,DSK_ERR_BAD_COMMAND
+        ret nc
+
+        call M4_FTPGetResponse
+        ld a,DSK_ERR_BAD_COMMAND
+        ret nc
+
+        ld hl,350
+        call cp_iy_hl
+        scf
+        ret z
+
+        ld a,DSK_ERR_BAD_COMMAND
+        cp a ; NC
+        ret
+
+M4FTPOpenInputFile
+        push bc
+        push de
+        push hl
+
+        MAKE_ID_DEHL 'R','E','T','R'
+        call M4_FTPStartCommand
+        ld ixl,c
+
+        pop hl
+        pop de
+        pop bc
+
+        push bc
+        push de
+        push hl
+
+        call M4FTPAddPath
+
+        pop hl
+        pop de
+        pop bc
+
+        call M4_FTPSendCommand
+        ld a,DSK_ERR_BAD_COMMAND
+        ret nc
+
+        call M4_FTPGetResponse
+        ld a,DSK_ERR_BAD_COMMAND
+        ret nc
+
+        ld hl,150
+        call cp_iy_hl
+        scf
+        ret z
+
+        ld hl,450
+        call cp_iy_hl
+        scf:ccf
+        ld a,DSK_ERR_FILE_NOT_FOUND
+        ret z
+
+        ld a,DSK_ERR_BAD_COMMAND
+        cp a ; NC
+        ret
+
+M4FTPOpenOutputFile
+        push bc
+        push de
+        push hl
+
+        MAKE_ID_DEHL 'S','T','O','R'
+        call M4_FTPStartCommand
+        ld ixl,c
+
+        pop hl
+        pop de
+        pop bc
+
+        push bc
+        push de
+        push hl
+
+        call M4FTPAddPath
+
+        pop hl
+        pop de
+        pop bc
+
+        call M4_FTPSendCommand
+        ld a,DSK_ERR_BAD_COMMAND
+        ret nc
+
+        call M4_FTPGetResponse
+        ld a,DSK_ERR_BAD_COMMAND
+        ret nc
+
+        ld hl,150
+        call cp_iy_hl
+        scf
+        ret z
+
+        ld hl,125
+        call cp_iy_hl
+        scf
+        ret z
+
+        ld a,DSK_ERR_BAD_COMMAND
+        cp a ; NC
+        ret
+
+M4FTPAddPath
+        push hl
+
+        ld a,(de)
+        or a
+        jr z,M4FTPAddPathFilePart
+
+        inc de
+        ex de,hl
+        ld b,a
+M4FTPFTPAddPathLoop
+        push bc
+        push hl
+
+        call M4FTPUnnormalize
+
+        ld c,ixl
+        ld hl,_DOS_ROM_TEMP_STORE
+        call M4_FTPPushArgCommand
+
+        ld hl,_DOS_ROM_TEMP_STORE
+        ld (hl),'/'
+        ld b,1
+        call M4_FTPPushArgCommand
+
+        ld ixl,c
+
+        pop hl
+
+        ld de,11
+        add hl,de
+
+        pop bc
+        djnz M4FTPFTPAddPathLoop
+
+M4FTPAddPathFilePart
+        pop hl
+
+        call M4FTPUnnormalize
+
+        ld c,ixl
+        ld hl,_DOS_ROM_TEMP_STORE
+        call M4_FTPPushArgCommand
+        call M4_FTPFinalizeCommand
+        ret
+
+;
+; Récupère le type d'une entrée du répertoire courant
+;
+; Entrée - C = numéro de socket
+;          HL = nom de l'entrée normalisée
+; Sortie - Si Carry = 1 alors l'entrée existe
+;               A = bits de protection du fichier
+;                   Bit 0 - Lecture seule (non supporté...)
+;                   Bit 1 - Caché (N/A ici)
+;                   Bit 2 - Système (N/A ici)
+;                   Bit 4 = Répertoire
+;                   Bit 5 = Archivé (N/A ici)
+;               BCDE = Longueur du fichier
+;          Si Carry = 0 alors l'entrée n'existe pas
+; Altéré - AF,BC,DE,_DOS_ROM_TEMP_ROUTINE,_DOS_ROM_TEMP_STORE
+
+M4_FTPExamine
+        push ix
+        push iy
+        push hl
+
+        call M4_FTPExamineInternal
+
+        pop hl
+        pop iy
+        pop ix
+        ret
+
+M4_FTPExamineInternal
+        push hl
+        call M4FTPUnnormalize
+        call M4FTPCurrentDirSub
+        pop hl
+
+        jr c,M4FTPExamineIsDir
+
+        push hl
+        call M4FTPUnnormalize
+
+        push bc
+
+        MAKE_ID_DEHL 'S','I','Z','E'
+        call M4_FTPStartCommand
+
+        ld hl,_DOS_ROM_TEMP_STORE
+        call M4_FTPPushArgCommand
+        call M4_FTPFinalizeCommand
+
+        pop bc
+        pop hl
+
+        call M4_FTPSendCommand
+        jr nc,M4FTPExamineFailed
+
+        call M4_FTPGetResponseSIZE
+        ld b,d
+        ld c,e
+        ld d,h
+        ld e,l
+
+        ld hl,213
+        call cp_iy_hl
+        jr nz,M4FTPExamineFailed
+
+        xor a ; Fichier
+
+        scf
+        ret
+
+M4FTPExamineFailed
+        cp a ; NC
+        ret
+
+M4FTPExamineIsDir
+        push bc
+        push hl
+        MAKE_ID_DEHL 'C','D','U','P'
+        call M4_FTPStartCommand
+        call M4_FTPFinalizeCommand
+        pop hl
+        pop bc
+
+        call M4_FTPSendCommand
+        ret nc
+
+        push hl
+        call M4_FTPGetResponse
+        ld hl,250
+        call cp_iy_hl
+        pop hl
+        jr nz,M4FTPExamineFailed
+
+        ld bc,0
+        ld de,0
+        ld a,&10 ; Répertoire
+
+        scf
+        ret
+
+
+;
+; Démarre la récupération de la liste des fichiers d'un répertoire
+;
+; Entrée - C = Socket de commande à utiliser
+; Sortie - Si Carry = 1 alors la liste est disponible sur la connexion dédiée aux données
+;               B = Socket dédiée aux données créée
+;          Si Carry = 0 alors une erreur est survenue
+; Altéré - AF,DE,HL,IX,IY,_DOS_ROM_TEMP_ROUTINE,_DOS_ROM_TEMP_STORE
+
+M4_FTPList
+        push de
+        push hl
+        push ix
+        push iy
+
+        call M4_FTPListInternal
+
+        pop iy
+        pop ix
+        pop hl
+        pop de
+        ret
+
+M4_FTPListInternal
+        call M4FTPStartPassive
+        ret nc
+
+        ; List
+
+        push bc
+        MAKE_ID_DEHL 'L','I','S','T'
+        call M4_FTPStartCommand
+        call M4_FTPFinalizeCommand
+        pop bc
+
+        call M4_FTPSendCommand
+        jr nc,M4FTPListError
+
+        call M4_FTPGetResponse
+
+        push hl
+        ld hl,150
+        call cp_iy_hl
+        pop hl
+        scf:ccf
+        ret nz
+
+        scf
+        ret
+
+M4FTPListError
+        push de
+        push hl
+        push ix
+        push iy
+
+        call M4FTPEndPassive
+
+        pop iy
+        pop ix
+        pop hl
+        pop de
+
+        cp a ; NC
+        ret
+
+;
+; Arrête la récupération de la liste des fichiers d'un répertoire
+;
+; Entrée - C = Socket de commande utilisée
+;          B = Socket de données utilisée
+; Sortie - Si Carry = 1 alors la récupération a stoppé sans erreur
+;          Si Carry = 0 alors une erreur est survenue
+; Altéré - AF,_DOS_ROM_TEMP_ROUTINE,_DOS_ROM_TEMP_STORE
+
+M4_FTPListEnd
+        push de
+        push hl
+        push ix
+        push iy
+
+        call M4FTPEndPassive
+
+        pop iy
+        pop ix
+        pop hl
+        pop de
+        ret
+
+; ->C=Socket commande, B->Socket données
+M4FTPStartPassive
+        push bc
+        MAKE_ID_DEHL 'P','A','S','V'
+        call M4_FTPStartCommand
+        call M4_FTPFinalizeCommand
+        pop bc
+
+        call M4_FTPSendCommand
+        ret nc
+        call M4_FTPGetResponsePASV
+        ret nc
+
+        push hl
+        ld hl,227
+        call cp_iy_hl
+        pop hl
+        scf:ccf
+        ret nz
+
+        ; Création de la socket des données
+
+        push bc
+        call M4_CreateSocket
+        ld a,c
+        pop bc
+        ld b,a
+        ret nc
+
+        ; Connexion de la socket des données
+
+        push bc
+        ld c,b
+        call M4_ConnectSocket
+        pop bc
+
+        ret c
+
+M4FTPStartPassiveError
+        push bc
+        ld c,b
+        call M4_DestroySocket
+        pop bc
+        cp a ; NC
+        ret
+
+; ->C=Socket commande, B->Socket données
+M4FTPEndPassive
+        push bc
+        ld c,b
+        call M4_DestroySocket
+        pop bc
+
+        push bc
+
+        call M4_FTPGetResponse
+        jr nc,M4FTPEndPassiveFailed
+
+        ld hl,226
+        call cp_iy_hl
+        jr z,M4FTPEndPassiveSuccess
+
+        ld hl,426
+        call cp_iy_hl
+        jr z,M4FTPEndPassiveCancelled
+
+        or a ; NC
+        jr M4FTPEndPassiveFailed
+
+M4FTPEndPassiveCancelled
+M4FTPEndPassiveSuccess
+        scf
+M4FTPEndPassiveFailed
+        pop bc
+        ret
+
+;
+; Récupère une entrée de répertoire
+;
+; Entrée - B = numéro de socket des données
+;          HL = adresse où stocker le nom normalisée de l'entrée
+;          IX = tampon où copier l'heure et la date de dernière modification de l'entrée (7 octets)
+; Sortie - Si Carry=1 alors une entrée a été récupérée
+;               A = bits de protection du fichier
+;                   Bit 0 - Lecture seule
+;                   Bit 1 - Caché (N/A ici)
+;                   Bit 2 - Système (N/A ici)
+;                   Bit 4 = Répertoire
+;                   Bit 5 = Archivé (N/A ici)
+;               BCDE = Longueur du fichier
+;               IX = tampon où ont été copiées l'heure et la date de dernière modification de l'entrée (N/A pour le moment)
+;                   (le contenu du tampon reste inchangé si l'horodatage n'est pas supporté)
+;                   Un mot de 16 bits avec l'année (1978..9999)
+;                   Un octet avec le numéro du mois (1..12)
+;                   Un octet avec le numéro du jour dans le mois (1..28,29,30 ou 31)
+;                   Un octet avec les heures (0..23)
+;                   Un octet avec les minutes (0..59)
+;                   Un octet avec les secondes (0..59)
+;          Si Carry=0 alors l'entrée n'a pas été trouvée
+;          Si Carry=0 alors il n'y a plus d'entrées à lire
+; Altéré - AF,BC,DE,_DOS_ROM_TEMP_ROUTINE,_DOS_ROM_TEMP_STORE
+
+M4_FTPGetEntry
+        push ix
+        push iy
+        call M4_FTPGetEntryInternal
+        pop iy
+        pop ix
+        ret
+
+M4_FTPGetEntryInternal
+        ld iyh,b    ; IYh = socket
+
+M4_FTPGetEntryNext
+        ; drwxrwxrwx   links(n)     user     group     size(n) MMM DD  YYYY name\r\n
+        ld b,0
+        call M4FTPGetEntryByte  ; A=d ou -
+        ret nc
+        cp 'd'
+        jr nz,M4FTPGetEntryNotADirectory
+        set 4,b ; L'entrée est un répertoire
+M4FTPGetEntryNotADirectory
+        call M4FTPGetEntryByte  ; r (ignoré)
+        ret nc
+        call M4FTPGetEntryByte  ; A=w ou -
+        ret nc
+        cp 'w'
+        jr z,M4FTPGetEntryWritable
+        set 0,b ; L'entrée est en lecture seule
+M4FTPGetEntryWritable
+        ld iyl,b ; IYl = attributs
+
+        call M4FTPGetEntrySeekSpace
+        ret nc
+        call M4FTPGetEntrySkipSpace ; Début de links(n)
+        ret nc
+
+        call M4FTPGetEntrySeekSpace
+        ret nc
+        call M4FTPGetEntrySkipSpace ; Début de user
+        ret nc
+
+        call M4FTPGetEntrySeekSpace
+        ret nc
+        call M4FTPGetEntrySkipSpace ; A=début de group
+        ret nc
+
+        call M4FTPGetEntrySeekSpace
+        ret nc
+        call M4FTPGetEntrySkipSpace ; A=début de size
+        ret nc
+
+        call M4FTPGetEntrySize ; BCDE=size
+        ret nc
+
+        call M4FTPGetEntrySkipSpace ; Début de MMM
+        ret nc
+
+        call M4FTPGetEntrySeekSpace
+        ret nc
+        call M4FTPGetEntrySkipSpace ; Début de DD
+        ret nc
+
+        call M4FTPGetEntrySeekSpace
+        ret nc
+        call M4FTPGetEntrySkipSpace ; Début de YYYY
+        ret nc
+
+        call M4FTPGetEntrySeekSpace
+        ret nc
+        call M4FTPGetEntrySkipSpace ; A=début de name
+        ret nc
+
+        push hl
+        call M4FTPGetEntryName
+        pop hl
+        jp nc,M4FTPGetEntryFlush
+
+        ld a,iyl ; A = attributs
+
+        bit 4,a
+        jr z,M4FTPGetEntryIsAFile
+M4FTPGetEntryIsADirectory
+        ld bc,0     ; Force size to 0 in case of a directory
+        ld de,0     ; (some servers are returning a size for directories)
+M4FTPGetEntryIsAFile
+        scf
+        ret
+
+M4FTPGetEntrySize   ; Limité à 4Go...
+        ld bc,0
+        ld de,0
+M4FTPGetEntrySizeLoop
+        cp ' '
+        scf
+        ret z
+        call MultiplySize
+        call GetSizeDigit
+        call M4FTPGetEntryByte
+        ret nc
+        jr M4FTPGetEntrySizeLoop
+
+M4FTPGetEntryName
+        push bc
+        ld b,8
+M4FTPGetEntryNameLoop
+        call IsValidChar
+        jr nc,M4FTPGetEntryNameExit
+        ld (hl),a
+        inc hl
+        call M4FTPGetEntryByte
+        cp '.'
+        jr z,M4FTPGetEntryNameEnd
+        cp '\r'
+        jr z,M4FTPGetEntryNameEndNoExt
+        djnz M4FTPGetEntryNameLoop
+
+        cp '.'
+        scf:ccf
+        jr nz,M4FTPGetEntryNameExit
+
+M4FTPGetEntryExt
+        ld b,3
+        call M4FTPGetEntryByte
+        cp '\r' ; "FILENAME." est invalide, "FILENAME" doit être utilisé en cas d'extension vide
+        jr nz,M4FTPGetEntryExtLoopEnter
+        cp a ; NC
+        jr M4FTPGetEntryNameExit
+M4FTPGetEntryExtLoop
+        call M4FTPGetEntryByte
+        cp '\r'
+        jr z,M4FTPGetEntryExtEnd
+M4FTPGetEntryExtLoopEnter
+        call IsValidChar
+        jr nc,M4FTPGetEntryNameExit
+        ld (hl),a
+        inc hl
+        djnz M4FTPGetEntryExtLoop
+
+        call M4FTPGetEntryByte
+        cp '\r'
+        scf:ccf
+        jr nz,M4FTPGetEntryNameExit
+
+M4FTPGetEntryNameDone
+        call M4FTPGetEntryByte
+        cp '\n'
+        scf:ccf
+        jr nz,M4FTPGetEntryNameExit
+
+        scf
+M4FTPGetEntryNameExit
+        pop bc
+        ret
+
+M4FTPGetEntryNameEnd
+        ld a,b
+M4FTPGetEntryNameFillLoop
+        dec a
+        jr z,M4FTPGetEntryExt
+        ld (hl),' '
+        inc hl
+        jr M4FTPGetEntryNameFillLoop
+
+M4FTPGetEntryNameEndNoExt
+        inc b
+        inc b
+M4FTPGetEntryNameNoExtFillLoop
+        ld (hl),' '
+        inc hl
+        djnz M4FTPGetEntryNameNoExtFillLoop
+        jr M4FTPGetEntryNameDone
+
+M4FTPGetEntryExtEnd
+        ld a,b
+M4FTPGetEntryExtFillLoop
+        or a
+        jr z,M4FTPGetEntryNameDone
+        ld (hl),' '
+        inc hl
+        dec a
+        jr M4FTPGetEntryExtFillLoop
+
+M4FTPGetEntrySeekSpace
+        push bc
+        ld c,iyh
+        call M4_ReadSocketByte
+        pop bc
+;        push hl
+;        push de
+;        ld hl,_DOS_ROM_TEMP_STORE+&24
+;        ld de,1
+;        call M4FTPGetEntryReadSocket
+;        ld a,(hl)
+;        pop de
+;        pop hl
+        ret nc
+        cp ' '
+        jr nz,M4FTPGetEntrySeekSpace
+        scf
+        ret
+
+M4FTPGetEntrySkipSpace
+        push bc
+        ld c,iyh
+        call M4_ReadSocketByte
+        pop bc
+;        push hl
+;        push de
+;        ld hl,_DOS_ROM_TEMP_STORE+&24
+;        ld de,1
+;        call M4FTPGetEntryReadSocket
+;        ld a,(hl)
+;        pop de
+;        pop hl
+        ret nc
+        cp ' '
+        jr z,M4FTPGetEntrySkipSpace
+        scf
+        ret
+
+M4FTPGetEntryByte
+        push bc
+        ld c,iyh
+        call M4_ReadSocketByte
+        pop bc
+;        push hl
+;        push de
+;        ld hl,_DOS_ROM_TEMP_STORE+&24
+;        ld de,1
+;        call M4FTPGetEntryReadSocket
+;        ld a,(hl)
+;        pop de
+;        pop hl
+        ret
+
+;M4FTPGetEntryReadSocket
+;        push bc
+;        ld c,iyh
+;        call M4_ReadSocket
+;        pop bc
+;        ret
+
+M4FTPGetEntryFlush
+M4FTPGetEntryFlushLoop
+        push bc
+        ld c,iyh
+        call M4_SocketInfo
+        pop bc
+
+        cp SOCK_STS_SEND
+        jr z,M4FTPGetEntryFlushLoop
+
+        ld a,d
+        or e
+        ret z ; NC
+
+        push bc
+        ld bc,DataPort
+        out (c),c
+        ld de,C_NETRECV
+        out (c),e
+        out (c),d
+        ld a,iyh    ; Socket
+        out (c),a
+        ld a,1      ; Taille
+        out (c),a
+        out (c),0
+
+        ld bc,AckPort
+        out (c),c
+
+        pop bc
+
+        push hl
+
+        ld hl,_DOS_ROM_TEMP_STORE
+        ld de,3
+        ld bc,4
+        call M4_GetBytes
+
+        pop hl
+
+        ld a,(_DOS_ROM_TEMP_STORE)
+        or a
+        ret nz ; NC
+
+        ld a,(_DOS_ROM_TEMP_STORE+3)
+        cp '\n'
+        jr nz,M4FTPGetEntryFlushLoop
+
+        jp M4_FTPGetEntryNext
+
+;
+; Routines FTP bas niveau
+;
+
+;
+; Démarre une commande FTP
+;
+; Entrée - DEHL = commande (4 octets max)
+; Sortie - C = taille de la commande en cours
+; Altéré - AF,C,_DOS_ROM_TEMP_ROUTINE
+
+M4_FTPStartCommand
+        push af
+
+        push bc
+        push hl
+        push ix
+
+        ld ix,_DOS_ROM_TEMP_ROUTINE+&20
+        ld b,3
+
+        ld (ix+0),d
+        ld (ix+1),e
+        ld (ix+2),h
+        ld a,' '
+        cp l
+        jr z,M4FTPStartCommandContinue
+        inc b
+        ld (ix+3),l
+M4FTPStartCommandContinue
+        ld c,0
+        push ix:pop hl
+        call M4_SetM4Store
+
+        ld a,b
+
+        pop ix
+        pop hl
+        pop bc
+
+        ld c,a
+        pop af
+        ret
+
+;
+; Ajoute un argument à la commande FTP en cours
+;
+; Entrée - HL = argument
+;          B = longueur de l'argument
+;          C = taille de la commande en cours
+; Sortie - C = taille de la commande en cours
+; Altéré - C,_DOS_ROM_TEMP_ROUTINE
+
+M4_FTPPushArgCommand
+        push af
+        push bc
+
+        ld a,c  ; Ajout de l'espace uniquement après la commande
+        cp 5
+        jr nc,M4FTPPushArgCommandNoSpace
+
+        push bc
+        push hl
+
+        ld hl,_DOS_ROM_TEMP_ROUTINE+&23
+        ld (hl),' '
+        ld b,1
+        call M4_SetM4Store
+
+        pop hl
+        pop bc
+
+        inc c
+
+M4FTPPushArgCommandNoSpace
+        push bc
+        call M4_SetM4Store
+        ld a,c
+        add a,b
+        pop bc
+
+        pop bc
+        ld c,a
+        pop af
+        ret
+
+;
+; Finalise une commande FTP
+;
+; Entrée - C = taille de la commande en cours
+; Sortie - Aucune
+; Altéré - AF,_DOS_ROM_TEMP_ROUTINE
+
+M4_FTPFinalizeCommand
+        push af
+        push bc
+        push hl
+
+        ld hl,_DOS_ROM_TEMP_ROUTINE+&22
+        ld (hl),'\r':inc hl
+        ld (hl),'\n':dec hl
+        ld b,2
+        call M4_SetM4Store
+
+        ld a,c
+        add a,b
+
+        ld (hl),a
+        ld b,1
+        ld c,255
+        call M4_SetM4Store
+
+        pop hl
+        pop bc
+        pop af
+        ret
+
+;
+; Envoi une commande FTP
+;
+; Entrée - C = numéro de socket
+; Sortie - Si Carry=1 alors la commande a été envoyée
+;          Si Carry=0 alors une erreur est survenue
+; Altéré - AF,_DOS_ROM_TEMP_ROUTINE,_DOS_ROM_TEMP_STORE
+
+M4_FTPSendCommand
+        push bc
+        push de
+        push hl
+
+        call M4_FTPSendCommandInternal
+
+        pop hl
+        pop de
+        pop bc
+        ret
+
+M4_FTPSendCommandInternal
+        ld hl,SocketTimeout
+M4FTPSendCommandLoop
+        ld a,h
+        or l
+        jp z,M4FTPSendCommandTimeout
+        dec hl
+
+        call M4_SocketInfo
+
+        cp SOCK_STS_SEND
+        jr z,M4FTPSendCommandLoop
+
+        cp SOCK_STS_CLOSED
+        jr z,M4FTPSendCommandClosed
+
+        cp SOCK_STS_IDLE
+        jr nz,M4FTPSendCommandFailed
+
+        ld a,c      ; Socket
+        ld bc,DataPort
+        out (c),c
+
+        ld de,C_NETSEND
+        out (c),e
+        out (c),d
+        out (c),a   ; Socket
+
+        call M4FTPSendCommandContents
+
+        ld bc,AckPort
+        out (c),c
+
+        ld hl,_DOS_ROM_TEMP_STORE
+        ld de,3
+        ld bc,1
+        call M4_GetBytes
+
+        ld a,(_DOS_ROM_TEMP_STORE)
+        or a
+        ret nz
+
+        scf
+        ret
+
+M4FTPSendCommandTimeOut
+M4FTPSendCommandClosed
+M4FTPSendCommandFailed
+        cp a    ; NC
+        ret
+
+M4FTPSendCommandContents
+        push ix
+
+        call M4_GetM4StoreAdr
+
+        push de
+
+        ld hl,M4FTPSendCommand_RAMRoutine
+        ld de,_DOS_ROM_TEMP_ROUTINE
+        ld bc,M4FTPSendCommand_RAMRoutineEnd-M4FTPSendCommand_RAMRoutine
+        ldir
+
+        pop de
+
+        call GetPrivateDataIX
+        ld c,(ix+1)
+
+        call _DOS_ROM_TEMP_ROUTINE
+
+        pop ix
+        ret
+
+M4FTPSendCommand_RAMRoutine
+        call _KL_ROM_SELECT
+        push bc
+
+        ld bc,DataPort
+        ld hl,&ff
+        add hl,de
+        ld a,(hl)
+        out (c),a
+        out (c),0
+
+        ex de,hl
+M4FTPSendCommand_RAMRoutineLoop
+        inc b
+        outi
+;    push af
+;    ld a,(hl)
+;    call _TXT_OUTPUT
+;    out (c),a
+;    inc hl
+;    pop af
+        dec a
+        jr nz,M4FTPSendCommand_RAMRoutineLoop
+
+        pop bc
+        jp _KL_ROM_SELECT
+M4FTPSendCommand_RAMRoutineEnd
+
+;
+; Attente d'une réponse à une commande FTP quelconque
+;
+; Entrée - C = numéro de socket
+; Sortie - Si Carry=1 alors une réponse a été reçue
+;               IY = code de la réponse
+;          Si Carry=0 alors une erreur est survenue
+; Altéré - AF,DE,HL,IX,IY,_DOS_ROM_TEMP_ROUTINE,_DOS_ROM_TEMP_STORE
+
+M4_FTPGetResponse
+        push bc
+        call M4FTPGetResponseHeader
+        call c,M4FTPGetResponse
+        pop bc
+        ret
+
+;
+; Attente d'une réponse à une commande FTP PASV
+;
+; Entrée - C = numéro de socket
+; Sortie - Si Carry=1 alors une réponse a été reçue
+;               IY = code de la réponse
+;               DEHL = IP de la connexion des données
+;               IX = port de la connexion des données
+;          Si Carry=0 alors une erreur est survenue
+; Altéré - AF,DE,HL,IX,IY,_DOS_ROM_TEMP_ROUTINE,_DOS_ROM_TEMP_STORE
+
+M4_FTPGetResponsePASV
+        push bc
+        call M4FTPGetResponseHeader
+        call c,M4FTPGetResponsePASV
+        pop bc
+        ret
+
+;
+; Attente d'une réponse à une commande FTP SIZE
+;
+; Entrée - C = numéro de socket
+; Sortie - Si Carry=1 alors une réponse a été reçue
+;               IY = code de la réponse
+;               DEHL = taille
+;          Si Carry=0 alors une erreur est survenue
+; Altéré - AF,DE,HL,IX,IY,_DOS_ROM_TEMP_ROUTINE,_DOS_ROM_TEMP_STORE
+
+M4_FTPGetResponseSIZE
+        push bc
+        call M4FTPGetResponseHeader
+        call c,M4FTPGetResponseSIZE
+        pop bc
+        ret
+
+M4FTPGetResponseHeader
+        xor a
+        ld ix,_DOS_ROM_TEMP_STORE+&24
+        ld (ix+0),a:ld (ix+1),a ; Code réponse
+        ld (ix+2),a:ld (ix+3),a ; Adresse IP ou taille
+        ld (ix+4),a:ld (ix+5),a
+        ld (ix+6),a:ld (ix+7),a ; Port
+
+        ld iyl,c                ; Socket
+
+        ; D'abord on récupère le code de la réponse : "NNN "
+
+M4FTPGetResponseAgain
+        ld bc,0     ; Taille
+        ld de,0
+
+        call M4FTPGetResponseReadByte
+        ret nc
+        call IsDigit
+        ret nc
+
+        call GetSizeDigit
+
+        call M4FTPGetResponseReadByte
+        ret nc
+        call IsDigit
+        ret nc
+
+        call MultiplySize
+        call GetSizeDigit
+
+        call M4FTPGetResponseReadByte
+        ret nc
+        call IsDigit
+        ret nc
+
+        call MultiplySize
+        call GetSizeDigit
+
+        call M4FTPGetResponseReadByte
+        ret nc
+        cp ' '
+        jr z,M4FTPGetResponseDone
+
+M4FTPGetResponseSkipLoop
+        call M4FTPGetResponseReadByte
+        ret nc
+
+        cp '\n'
+        jr nz,M4FTPGetResponseSkipLoop
+
+        jr M4FTPGetResponseAgain
+
+M4FTPGetResponseDone
+        ld (ix+0),d
+        ld (ix+1),e
+        inc ix
+        inc ix
+        scf
+        ret
+
+M4FTPGetResponse
+        ; Ensuite, on lit tout jusqu'au '\n' final
+
+M4FTPGetResponseFlushLoop
+        call M4FTPGetResponseReadByte
+        ret nc
+
+M4FTPGetResponseFlushContinue
+        cp '\n'
+        jr nz,M4FTPGetResponseFlushLoop
+
+M4FTPGetResponseTerminate
+        ld ix,_DOS_ROM_TEMP_STORE+&24
+
+        ld b,(ix+0) ; Code réponse
+        ld c,(ix+1)
+        push bc:pop iy
+
+        ld d,(ix+2) ; Adresse IP (PASV) ou taille (SIZE)
+        ld e,(ix+3)
+        ld h,(ix+4)
+        ld l,(ix+5)
+
+        ld b,(ix+6) ; Port
+        ld c,(ix+7)
+        push bc:pop ix
+
+        scf
+        ret
+
+M4FTPGetResponsePASV
+        ; Ensuite, on lit tout jusqu'au '\n' final en récupérant
+        ; éventuellement l'IP et le port de la connexion des données
+        ; "msg (ip,ip,ip,ip,port,port)\r\n"
+
+M4FTPGetResponsePASVFlushLoop
+        call M4FTPGetResponseReadByte
+        ret nc
+
+M4FTPGetResponsePASVFlushContinue
+        cp '('
+        jr z,M4FTPGetResponsePASVStoreNumber
+
+        cp ','
+        jr z,M4FTPGetResponsePASVStoreNumber
+
+        cp '\n'
+        jr nz,M4FTPGetResponsePASVFlushLoop
+
+        jr M4FTPGetResponseTerminate
+
+M4FTPGetResponseSIZE
+        ; Ensuite, on lit tout jusqu'au '\n' final en récupérant
+        ; éventuellement l'IP et le port de la connexion des données
+        ; "taille\r\n"
+
+        ld bc,0     ; Taille
+        ld de,0
+
+M4FTPGetResponseSIZELoop
+        call M4FTPGetResponseReadByte
+        ret nc
+
+        call IsDigit
+        jr nc,M4FTPGetResponseSIZEStoreNumberDone
+
+        call MultiplySize
+        call GetSizeDigit
+
+        jr M4FTPGetResponseSIZELoop
+
+M4FTPGetResponseSIZEStoreNumberDone
+        ld (ix+0),b
+        ld (ix+1),c
+        ld (ix+2),d
+        ld (ix+3),e
+
+        jp M4FTPGetResponseSIZEFlushContinue
+
+
+M4FTPGetResponseSIZEFlushLoop
+        call M4FTPGetResponseReadByte
+        ret nc
+
+M4FTPGetResponseSIZEFlushContinue
+        cp '\n'
+        jr nz,M4FTPGetResponseSIZEFlushLoop
+
+        jr M4FTPGetResponseTerminate
+
+M4FTPGetResponsePASVStoreNumber
+        ld bc,0     ; Taille
+        ld de,0
+
+        call M4FTPGetResponseReadByte
+        ret nc
+
+        call IsDigit
+        jr nc,M4FTPGetResponsePASVFlushContinue
+
+        call GetSizeDigit
+
+        call M4FTPGetResponseReadByte
+        ret nc
+
+        call IsDigit
+        jr nc,M4FTPGetResponsePASVStoreNumberDone
+
+        call MultiplySize
+        call GetSizeDigit
+
+        call M4FTPGetResponseReadByte
+        ret nc
+
+        call IsDigit
+        jr nc,M4FTPGetResponsePASVStoreNumberDone
+
+        call MultiplySize
+        call GetSizeDigit
+
+        call M4FTPGetResponseReadByte
+        ret nc
+
+M4FTPGetResponsePASVStoreNumberDone
+        ld b,a  ; Nombre 8 bits ?
+        ld a,d
+        or a
+        ld a,b
+        jp nz,M4FTPGetResponsePASVFlushContinue
+
+        push ix:pop hl  ; Nombre de paramètres dépassé ?
+        push de
+        ld de,-(_DOS_ROM_TEMP_STORE+&24+8)
+        add hl,de
+        pop de
+        ld b,a
+        ld a,l
+        or h
+        ld a,b
+        jp z,M4FTPGetResponsePASVFlushContinue
+
+        ld (ix),e
+        inc ix
+
+        jp M4FTPGetResponsePASVFlushContinue
+
+M4FTPGetResponseReadByte
+        push bc
+;        push de
+;        ld hl,_DOS_ROM_TEMP_STORE+&24
+        ld c,iyl
+        call M4_ReadSocketByte
+;        ld de,1
+;        call M4_ReadSocket
+;        ld a,(hl)
+;    push af
+;    call _TXT_OUTPUT
+;    pop af
+;        pop de
+        pop bc
+        ret
+

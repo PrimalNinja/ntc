@@ -1,0 +1,1927 @@
+;
+; Noeud DOS de l'UniDOS qui prend en charge la gestion des lecteurs de l'Albireo
+;
+
+;
+; Noms des lecteurs de notre noeud DOS (8 caractères maximum)
+;
+
+DrivesName  ; Max 8 octets par nom
+        str "SD"  :db drive_sd1
+        str "UMS" :db drive_ums1
+        str "SD2" :db drive_sd2
+        str "UMS2":db drive_ums2
+        db 0
+
+;
+; Descriptions des lecteurs de notre noeud DOS (32 caractères maximum)
+;
+
+DrivesDesc  ; Max 32 octets par description
+        str "Albireo microSD card"        :db drive_sd1
+        str "Albireo USB mass storage"    :db drive_ums1
+
+        str "2nd Albireo microSD card"    :db drive_sd2
+        str "2nd Albireo USB mass storage":db drive_ums2
+        db 0
+
+;
+; Initialise le noeud DOS
+;
+; Entrée - A = options d'initialisation (voir les flags d'entrée de Init_*)
+; Sortie - Si Carry = 1 alors le noeud a été initialisé
+;               A = indication des fonctionnalités présentes (voir les flags de sortie de Init_*)
+;           Si Carry = 0 alors le noeud n'a pas pu être initialisé
+; Altéré - AF
+
+DOSNode_Init
+        call initlowlevel
+
+        call setboarda
+        call checkalbireo
+        jr nz,dninitcheckboardb
+
+        push bc
+        push de
+        ld a,drive_sd1
+        call mountdevice
+        pop de
+        pop bc
+        jr z,dninitdone
+
+        call setboardb
+        call checkalbireo
+        jr nz,dninitnonvm
+        jr dninitfoundboardb
+
+DNInitCheckBoardB
+        call setboardb
+        call checkalbireo
+        jr nz,dninitfailed
+DNInitFoundBoardB
+        push bc
+        push de
+        ld a,drive_sd2
+        call mountdevice
+        pop de
+        pop bc
+        jr nz,dninitnonvm
+DNInitDone
+        ld a,Init_HaveNVRAM_F
+        scf     ; C
+        ret
+DNInitNoNVM
+        xor a
+        scf     ; C
+        ret
+DNInitFailed
+        or a    ; NC
+        ret
+
+;
+; Vérifie si un nom de lecteur correspond à un lecteur géré par notre noeud DOS
+;
+; Entrée - HL = pointeur vers le nom de lecteur
+;               (si positionné sur certains caractères, le bit 7 doit être ignoré)
+;          C = longueur du nom de lecteur
+; Sortie - Si Carry = 1 une correspondance a été trouvée
+;               A = numéro du lecteur physique
+;          Si Carry = 0 aucune correspondance n'a été trouvée
+; Altéré - AF
+
+DOSNode_CheckDrive
+        push de
+        ld de,DrivesName
+CheckDriveLoop
+        push hl
+        push bc
+CheckDriveNextChar
+        ld a,(de)
+        or a
+        jr z,CheckDriveNotFound
+        bit 7,a
+        jr z,CheckDriveNoNameEnd
+        dec c
+        jr nz,CheckDriveNextOne
+        jr CheckDriveCompareChar
+CheckDriveNoNameEnd
+        dec c
+        jr z,CheckDriveNextOne
+CheckDriveCompareChar
+        and &7f
+        ld b,a
+        RAM_LAM
+        and &7f
+        call ToUpper
+        cp b
+        jr nz,CheckDriveNextOne
+        inc hl
+        inc de
+        ld a,c
+        or a
+        jr z,CheckDriveFound
+        jr CheckDriveNextChar
+CheckDriveNextOne
+        ld a,(de)
+        inc de
+        bit 7,a
+        jr z,CheckDriveNextOne
+        inc de
+        pop bc
+        pop hl
+        jr CheckDriveLoop
+CheckDriveNotFound
+        or a        ; NC
+        jr CheckDriveExit
+CheckDriveFound
+        ld a,(de)   ; A = numéro de lecteur physique
+        scf         ; C
+CheckDriveExit
+        pop bc
+        pop hl
+        pop de
+        ret
+;CheckDriveFailed
+;        or a        ; NC
+;        ret
+
+;
+; Retourne le statut d'un lecteur
+;
+; Entrée - A = numéro de lecteur
+; Sortie - Si Carry = 1 un statut a pu être récupéré
+;               A = Statut du lecteur (voir les flags Media_*)
+;                   Bit0 = 1 si un média est disponible sur ce lecteur
+;                   Bit1 = 1 si le média gère les répertoires
+;                   Bit2 = 1 si le média est protégé en écriture
+;                   Bit3 = 1 si le média est amovible
+;                   Bit4 = 1 si le média est un flux (lecture/écriture linéaire uniquement)
+;                       La gestion des fichiers $$$ et BAK est alors désactivée
+;                   Bit5 = 1 si le média est accessible via les nouvelles API UniDOS
+;                   Les autres bits ne sont pas utilisés
+;          Si Carry = 0 alors le lecteur est inconnu et aucun statut n'a pu être récupéré
+; Altéré - AF
+
+DOSNode_GetStatus
+        call albireoisvaliddrive
+        jp nz,dosnode_void
+
+        call checkalbireo
+        jp nz,dosnode_void
+AlbireoGetStatus
+        push bc
+        push de
+        call albireogetdefaultstatus
+        call forcemountdevice
+        call z,statusmediaavailable
+        ld a,d
+        pop de
+        pop bc
+        scf         ; C
+        ret
+AlbireoGetDefaultStatus
+        ld d,media_newapi_f+media_handledir_f
+        cp drive_sd1
+        ret z
+        cp drive_sd2
+        ret z
+        ld d,media_newapi_f+media_handledir_f+media_removable_f
+        ret
+StatusMediaAvailable
+        set media_available_b,d
+        ret
+
+;
+; Renvoie le nom correspondant à un lecteur physique
+;
+; Entrée - A = numéro du lecteur
+;          DE = adresse d'un tampon de 8 octets où copier le nom
+; Sortie - Si Carry = 1 le nom a été trouvé
+;               DE pointe sur le premier caractère après la fin de la copie de la chaîne
+;               (la chaîne stockée est terminée par le bit 7 à 1)
+;          Si Carry = 0 le nom n'a pas été trouvé et le tampon n'a pas été modifié
+; Altéré - AF,DE
+
+DOSNode_GetName
+        call albireoisvaliddrive
+        jp nz,dosnode_void
+
+        call checkalbireo
+        jp nz,dosnode_void
+
+        push bc
+        push hl
+
+        ld b,a
+        ld c,8
+        ld hl,drivesname
+        call getnamecopy
+        ld a,b
+
+        pop hl
+        pop bc
+        ret
+
+;
+; Renvoie la description correspondant à un lecteur physique
+;
+; Entrée - A = numéro du lecteur physique
+;          DE = adresse d'un tampon de 32 octets où copier la description
+; Sortie - Si Carry = 1 une description a été trouvée
+;               DE pointe sur le premier caractère après la fin de la copie de la chaîne
+;               (la chaîne stockée est terminée par le bit 7 à 1)
+;          Si Carry = 0 aucune description n'a pas été trouvée et le tampon n'a pas été modifié
+; Altéré - AF,DE
+
+DOSNode_GetDesc
+        call albireoisvaliddrive
+        jp nz,dosnode_void
+
+        call checkalbireo
+        jp nz,dosnode_void
+
+        push bc
+        push hl
+
+        ld b,a
+        ld c,32
+        ld hl,drivesdesc
+        call getnamecopy
+        ld a,b
+
+        pop hl
+        pop bc
+        ret
+
+GetNameCopy
+        push bc
+        push de
+        call getnameordesc
+        ex de,hl
+        pop de
+        pop bc
+
+        push af
+        call c,copystring
+        pop af
+        ret
+GetNameOrDesc
+        ld c,a
+GetNameLoopList
+        ld e,l
+        ld d,h
+GetNameLoopChar
+        ld a,(hl)
+        inc hl
+        or a
+        jr z,getnamenotfound
+        bit 7,a
+        jr z,getnameloopchar
+        ld a,(hl)
+        cp c
+        jr z,getnamefound
+        inc hl
+        jr getnamelooplist
+GetNameFound
+        scf     ; C
+        ret
+GetNameNotFound
+        or a    ; NC
+        ret
+
+;
+; Renvoie l'espace libre sur un lecteur physique
+;
+; Entrée - A = numéro du lecteur
+; Sortie - Si Carry = 1 la routine est supportée par ce lecteur
+;               Si Z alors l'espace disponible a pu être obtenu
+;                   BCDE = espace libre en kilo-octets
+;               Si NZ alors une erreur est survenue
+;                   A = code d'erreur
+;          Si Carry = 0 alors la routine est invalide pour ce lecteur
+; Altéré - AF,BC,DE
+
+DOSNode_GetFreeSpace
+        call albireoisvaliddrive
+        jp nz,dosnode_void
+
+        call checkalbireo
+        jp nz,dosnode_void
+
+AlbireoGetFreeSpace
+        push hl
+        call albireogetfreespaceinternal
+        pop hl
+        scf
+        ret
+AlbireoGetFreeSpaceInternal
+        call mountdevice
+        jp nz,device_nomedia
+        call getdiskfreespace
+        jp nz,device_nodata
+        ret     ; Z
+
+;
+; Ouvre le flux en entrée
+;
+; Les 80 octets à l'offset DOS +&330 peuvent être utilisés pour la gestion de ce fichier
+;
+; Entrée - A = numéro du lecteur physique
+;          HL = pointeur vers le nom normalisé
+;               note : si le lecteur est de type flux alors ce nom peut
+;               contenir 11x&ff dans le cas où aucun nom de fichier n'a
+;               été fourni par l'utilisateur (utilisation de la référence
+;               de flux anonyme ".") ; la routine est alors censée ouvrir
+;               le premier fichier rencontré sur le flux et peut en option
+;               mettre à jour le nom si celui-ci a été obtenu depuis le flux
+;          DE = pointeur vers le chemin normalisé
+;          La mémoire pointée est dans l'espace ROM/RAM courant
+; Sortie - Si Carry = 1 la routine est supportée par ce lecteur
+;               Si Z alors un fichier a été ouvert
+;               Si NZ alors aucun fichier n'a été ouvert
+;                   A = code d'erreur
+;               Dans tous les cas le chemin normalisé a éventuellement été tronqué au plus proche parent
+;          Si Carry = 0 alors la routine est invalide pour ce lecteur
+; Altéré - AF
+
+DOSNode_InOpenStream
+        call albireoisvaliddrive
+        jp nz,dosnode_void
+
+        call checkalbireo
+        jp nz,dosnode_void
+
+AlbireoInOpenStream
+        push bc
+        push de
+        push hl
+        push ix
+        call albireoinopenstreaminternal
+        pop ix
+        pop hl
+        pop de
+        pop bc
+        scf     ; C
+        ret
+AlbireoInOpenStreamInternal
+        call albireosetstreamname
+        ret nz
+
+        call fileopen
+        jr nz,albireoinopenstreamerror
+
+        ld hl,(_dos_rom_base_address)
+        ld bc,dosmap.fileinhandler.path
+        add hl,bc
+        ex de,hl
+        ld bc,dirbuffersize
+        ldir
+
+        call getfileinhandlerix
+        xor a
+        ld (ix+filein.offset+0),a
+        ld (ix+filein.offset+1),a
+        ld (ix+filein.offset+2),a
+        ld (ix+filein.offset+3),a
+
+        ld a,llf_kindinstream
+        call setlowlevelfile
+
+        cp a    ; Z
+        ret
+
+AlbireoInOpenStreamError
+        cp err_miss_file
+        jp z,device_filenotfound
+        cp err_open_dir
+        jr z,albireoinopenstreamdirfound
+        jp device_badcommand
+AlbireoInOpenStreamDirFound
+        call fileclose
+        jp device_directoryfound
+
+;
+; Lit depuis le flux en entrée
+;
+; Entrée - A = numéro du lecteur
+;          HL = adresse où stocker les données lues
+;          DE = nombre d'octets à lire
+; Sortie - Si Carry = 1 la routine est supportée par ce lecteur
+;               Si Z alors des données ont pu être lues
+;                   DE = nombre d'octets effectivement lus
+;               Si NZ alors une erreur est survenue
+;                   A = code d'erreur
+;          Si Carry = 0 alors la routine est invalide pour ce lecteur
+; Altéré - AF,DE
+
+DOSNode_InReadStream
+        call albireoisvaliddrive
+        jp nz,dosnode_void
+
+        call checkalbireo
+        jp nz,dosnode_void
+
+AlbireoInReadStream
+        push bc
+        push hl
+        push ix
+        call albireoinreadstreaminternal
+        pop ix
+        pop hl
+        pop bc
+        scf
+        ret
+
+AlbireoInReadStreamInternal
+        call albireoreopeninstream
+        ret nz
+
+        call readdatafromfile
+        jp nz,albireostreamnodata
+
+        call getfileinhandlerix
+        ld l,(ix+filein.offset+0)
+        ld h,(ix+filein.offset+1)
+        ld c,(ix+filein.offset+2)
+        ld b,(ix+filein.offset+3)
+
+        call addbchl_de
+
+        ld (ix+filein.offset+0),l
+        ld (ix+filein.offset+1),h
+        ld (ix+filein.offset+2),c
+        ld (ix+filein.offset+3),b
+
+        cp a    ; Z
+        ret
+
+;
+; Ferme le flux en entrée
+;
+; Entrée - A = numéro du lecteur
+; Sortie - Si Carry = 1 le flux a été fermé
+;               Si Z alors le flux a été fermé correctement
+;               Si NZ alors le flix a été fermé avec une erreur
+;                   A = code d'erreur
+;          Si Carry = 0 alors la routine est invalide pour ce lecteur
+; Altéré - AF
+
+DOSNode_InCloseStream
+        call albireoisvaliddrive
+        jp nz,dosnode_void
+
+        call checkalbireo
+        jp nz,dosnode_void
+
+AlbireoInCloseStream
+        push bc
+        call fileclose
+        pop bc
+        scf     ; C
+        ret
+
+;
+; Change la position dans le flux en entrée
+;
+; Entrée - A = numéro du lecteur
+;          DEHL = nouvelle position dans le flux de entrée
+; Sortie - Si Carry = 1 la routine est supportée par ce lecteur
+;               Si Z alors la nouvelle position a pu être atteinte
+;               Si NZ alors une erreur est survenue
+;                   A = code d'erreur
+;          Si Carry = 0 alors la routine est invalide pour ce lecteur
+; Altéré - AF
+
+DOSNode_InSeekStream
+        call albireoisvaliddrive
+        jp nz,dosnode_void
+
+        call checkalbireo
+        jp nz,dosnode_void
+
+AlbireoInSeekStream
+        push bc
+        push de
+        push ix
+        call albireoinseekstreaminternal
+        pop ix
+        pop de
+        pop bc
+        scf
+        ret
+
+AlbireoInSeekStreamInternal
+        call albireoreopeninstream
+        ret nz
+
+        call seekfile
+        jp nz,albireostreamnodata
+
+        call getfileinhandlerix
+        ld (ix+filein.offset+0),l
+        ld (ix+filein.offset+1),h
+        ld (ix+filein.offset+2),e
+        ld (ix+filein.offset+3),d
+
+        cp a    ; Z
+        ret
+
+;
+; Ouvre le flux en sortie
+;
+; Les 80 octets à l'offset DOS +&380 peuvent être utilisés pour la gestion de ce fichier
+;
+; Entrée - A = numéro du lecteur physique
+;          HL = pointeur vers le nom normalisé
+;          DE = pointeur vers le chemin normalisé
+;          La mémoire pointée est dans l'espace ROM/RAM courant
+; Sortie - Si Carry = 1 la routine est supportée par ce lecteur
+;               Si Z alors un fichier a été créé
+;               Si NZ alors aucun fichier n'a été créé
+;                   A = code d'erreur
+;               Dans tous les cas le chemin normalisé a éventuellement été tronqué au plus proche parent
+;          Si Carry = 0 alors la routine est invalide pour ce lecteur
+; Altéré - AF
+
+DOSNode_OutOpenStream
+        call albireoisvaliddrive
+        jp nz,dosnode_void
+
+        call checkalbireo
+        jp nz,dosnode_void
+
+AlbireoOutOpenStream
+        push bc
+        push de
+        push hl
+        push ix
+        call albireooutopenstreaminternal
+        pop ix
+        pop hl
+        pop de
+        pop bc
+        scf     ; C
+        ret
+
+AlbireoOutOpenStreamInternal
+        call albireosetstreamname
+        ret nz
+
+        call filecreate
+        jr nz,albireooutwritestreamerror
+
+        ld hl,(_dos_rom_base_address)
+        ld bc,dosmap.fileouthandler.path
+        add hl,bc
+        ex de,hl
+        ld bc,dirbuffersize
+        ldir
+
+        call getfileouthandlerix
+        xor a
+        ld (ix+fileout.offset+0),a
+        ld (ix+fileout.offset+1),a
+        ld (ix+fileout.offset+2),a
+        ld (ix+fileout.offset+3),a
+
+        ld a,llf_kindunknown
+        call setlowlevelfile
+
+        cp a    ; Z
+        ret
+
+;
+; Écrit sur le flux en sortie
+;
+; Entrée - A = numéro du lecteur
+;          HL = adresse où stocker les données lues
+;          DE = nombre d'octets à lire
+; Sortie - Si Carry = 1 la routine est supportée par ce lecteur
+;               Si Z alors des données ont pu être écrites
+;                   DE = nombre d'octets effectivement écrits
+;               Si NZ alors une erreur est survenue
+;                   A = code d'erreur
+;          Si Carry = 0 alors la routine est invalide pour ce lecteur
+; Altéré - AF,DE
+
+DOSNode_OutWriteStream
+        call albireoisvaliddrive
+        jp nz,dosnode_void
+
+        call checkalbireo
+        jp nz,dosnode_void
+
+AlbireoOutWriteStream
+        push bc
+        push hl
+        push ix
+        call albireooutwritestreaminternal
+        pop ix
+        pop hl
+        pop bc
+        scf
+        ret
+
+AlbireoOutWriteStreamInternal
+        call albireoreopenoutstream
+        ret nz
+
+        call writedatatofile
+        jr nz,albireooutwritestreamerror
+
+        call getfileouthandlerix
+        ld l,(ix+fileout.offset+0)
+        ld h,(ix+fileout.offset+1)
+        ld c,(ix+fileout.offset+2)
+        ld b,(ix+fileout.offset+3)
+
+        call addbchl_de
+
+        ld (ix+fileout.offset+0),l
+        ld (ix+fileout.offset+1),h
+        ld (ix+fileout.offset+2),c
+        ld (ix+fileout.offset+3),b
+
+        cp a    ; Z
+        ret
+
+AlbireoOutWriteStreamError
+        cp err_disk_full
+        jp z,device_discfull
+        jp albireostreamnodata
+
+;
+; Ferme le flux en sortie
+;
+; Entrée - A = numéro du lecteur
+; Sortie - Si Carry = 1 la routine est supportée par ce lecteur
+;               Si Z alors le flux a été fermé correctement
+;               Si NZ alors le flix a été fermé avec une erreur
+;                   A = code d'erreur
+;          Si Carry = 0 alors la routine est invalide pour ce lecteur
+; Altéré - AF
+
+DOSNode_OutCloseStream
+        call albireoisvaliddrive
+        jp nz,dosnode_void
+
+        call checkalbireo
+        jp nz,dosnode_void
+
+AlbireoOutCloseStream
+        push bc
+        call fileclose
+        pop bc
+        scf     ; C
+        ret
+
+;
+; Change la position dans le flux en sortie
+;
+; Entrée - A = numéro du lecteur
+;          DEHL = nouvelle position dans le flux en sortie
+; Sortie - Si Carry = 1 la routine est supportée par ce lecteur
+;               Si Z alors la nouvelle position a pu être atteinte
+;               Si NZ alors une erreur est survenue
+;                   A = code d'erreur
+;          Si Carry = 0 alors la routine est invalide pour ce lecteur
+; Altéré - AF
+
+DOSNode_OutSeekStream
+        call albireoisvaliddrive
+        jp nz,dosnode_void
+
+        call checkalbireo
+        jp nz,dosnode_void
+
+AlbireoOutSeekStream
+        push bc
+        push de
+        push ix
+        call albireooutseekstreaminternal
+        pop ix
+        pop de
+        pop bc
+        scf
+        ret
+
+AlbireoOutSeekStreamInternal
+        call albireoreopenoutstream
+        ret nz
+
+        call seekfile
+        jp nz,albireostreamnodata
+
+        call getfileouthandlerix
+        ld (ix+fileout.offset+0),l
+        ld (ix+fileout.offset+1),h
+        ld (ix+fileout.offset+2),e
+        ld (ix+fileout.offset+3),d
+
+        cp a    ; Z
+        ret
+
+;
+; Vérifie qu'un fichier ou un répertoire existe et retourne les informations associées
+;
+; Entrée - A = numéro du lecteur physique
+;          HL = pointeur vers le nom normalisé de l'entrée
+;              Si HL = 0 alors l'entrée est un répertoire et on veut analyser sont contenu,
+;              ExamineNext devra ensuite être appelé pour récupérer les entrées
+;          DE = pointeur vers le chemin normalisé où se trouve l'entrée
+;          IX = tampon où copier l'heure et la date de dernière modification de l'entrée (7 octets)
+;               (inutilisé si HL = 0 ou si l'horodatage n'est pas supporté)
+;          La mémoire pointée est dans l'espace ROM/RAM courant
+; Sortie - Si Carry = 1 la routine est supportée par ce lecteur
+;
+;               Si HL ne valait pas 0 en entrée
+;                   Si Z alors le fichier ou le répertoire existe
+;                       A = bits de protection du fichier
+;                           Bit 0 - Lecture seule
+;                           Bit 1 - Caché
+;                           Bit 2 - Système
+;                           Bit 4 = Répertoire
+;                           Bit 5 = Archivé
+;                       BCDE = Taille du fichier
+;                       IX = tampon où ont été copiées l'heure et la date de dernière modification de l'entrée
+;                           (le contenu du tampon reste inchangé si l'horodatage n'est pas supporté)
+;                           Un mot de 16 bits avec l'année (1978..9999)
+;                           Un octet avec le numéro du mois (1..12)
+;                           Un octet avec le numéro du jour dans le mois (1..28,29,30 ou 31)
+;                           Un octet avec les heures (0..23)
+;                           Un octet avec les minutes (0..59)
+;                           Un octet avec les secondes (0..59)
+;                   Si NZ alors le fichier ou le répertoire est introuvable
+;                       A = code d'erreur
+;
+;               Si HL valait 0 en entrée
+;                   Si Z alors le répertoire est prêt à être examiné via ExamineNext
+;                   Si NZ alors une erreur est survenue
+;                       A = code d'erreur
+;
+;          Si Carry = 0 alors la routine est invalide pour ce lecteur
+; Altéré - AF
+
+DOSNode_Examine
+        call albireoisvaliddrive
+        jp nz,dosnode_void
+
+        call checkalbireo
+        jp nz,dosnode_void
+
+AlbireoExamine
+        push hl
+        push ix
+        call albireoexamineinternal
+        pop ix
+        pop hl
+        scf     ; C
+        ret
+AlbireoExamineInternal
+        call albireosetstreamname
+        ret nz
+
+        call albireoopen
+        ret nz
+
+        ld a,l
+        or h
+        jr z,albireoexaminedircontents
+AlbireoExamineSingleEntry
+        call fileexamine
+        jp nz,device_nodata
+AlbireoExamineSuccess
+        cp a    ; Z
+        ret
+
+AlbireoExamineDirContents
+        ld hl,(_dos_rom_base_address)
+        ld bc,dosmap.examinedirhandler.path
+        add hl,bc
+        ex de,hl
+        ld bc,dirbuffersize
+        ldir
+
+        call getexaminedirhandlerix
+        xor a
+        ld (ix+examinedir.pos+0),a
+        ld (ix+examinedir.pos+1),a
+
+        ld a,llf_kindexaminedir
+        call setlowlevelfile
+
+        jr albireoexaminesuccess
+
+;
+; Récupère une entrée dans le répertoire en cours d'examen
+;
+; Entrée - HL = pointeur vers la mémoire où stocker nom normalisé de l'entrée (11 octets)
+;          IX = tampon où copier l'heure et la date de dernière modification de l'entrée (7 octets)
+; Sortie - Si Carry = 1 la routine est supportée par ce lecteur
+;               Si Z alors une entrée a été récupérée
+;                   HL = pointeur vers la mémoire mise à jour avec le nom de l'entrée
+;                   A = bits de protection de l'entrée
+;                       Bit 0 - Lecture seule
+;                       Bit 1 - Caché
+;                       Bit 2 - Système
+;                       Bit 4 = Répertoire
+;                       Bit 5 = Archivé
+;                   BCDE = Taille de l'entrée (indéterminé si l'entrée est un répertoire)
+;                   IX = tampon où ont été copiées l'heure et la date de dernière modification de l'entrée
+;                       (le contenu du tampon reste inchangé si l'horodatage n'est pas supporté)
+;                       Un mot de 16 bits avec l'année (1978..9999)
+;                       Un octet avec le numéro du mois (1..12)
+;                       Un octet avec le numéro du jour dans le mois (1..28,29,30 ou 31)
+;                       Un octet avec les heures (0..23)
+;                       Un octet avec les minutes (0..59)
+;                       Un octet avec les secondes (0..59)
+;               Si NZ alors une erreur est survenue
+;                   A = code d'erreur (dsk_err_file_not_found indique que toutes les entrées ont été lues)
+;          Si Carry = 0 alors la routine est invalide pour ce lecteur
+; Altéré - AF
+
+DOSNode_ExamineNext
+        call albireoisvaliddrive
+        jp nz,dosnode_void
+
+        call checkalbireo
+        jp nz,dosnode_void
+
+AlbireoExamineNext
+        push hl
+        push ix
+        call albireoexaminenextinternal
+        pop ix
+        pop hl
+        scf     ; C
+        ret
+AlbireoExamineNextInternal
+        ld c,a
+
+        call getlowlevelfile
+        cp llf_kindexaminedir
+
+        ld a,c
+
+        jr nz,albireoreexaminedirneeded
+
+        push ix
+        call getexaminedirhandlerix
+        ld e,(ix+examinedir.pos+0)
+        ld d,(ix+examinedir.pos+1)  ; La première entrée est déjà prête à ête lue sitôt après le examine
+        pop ix
+        ld a,e
+        or d
+        jr z,albireoexaminenextfirstentry
+
+AlbireoExamineNextActualEntry
+        call examinenext
+        cp err_miss_file
+        jp z,device_filenotfound
+        cp usb_int_disk_read
+        jp nz,device_nodata
+
+AlbireoExamineNextFirstEntry
+        push ix
+        call getexaminedirhandlerix
+        ld c,(ix+examinedir.pos+0)
+        ld b,(ix+examinedir.pos+1)
+        inc bc
+        ld (ix+examinedir.pos+0),c
+        ld (ix+examinedir.pos+1),b
+        pop ix
+
+        call catdecodeentry
+        jp nz,device_nodata
+
+        push hl
+        ld l,(hl)
+        ld h,a
+        ld a,l
+        cp '.'  ; On ne veut pas des horreurs "." et ".." renvoyées dans les sous-répertoires
+        ld a,h
+        pop hl
+        jr z,albireoexaminenextactualentry
+AlbireoExamineNextSuccess
+        push af
+        ld a,llf_kindexaminedir
+        call setlowlevelfile
+        pop af
+
+        cp a    ; Z
+        ret
+
+; Entrée - A = lecteur physique
+AlbireoReExamineDirNeeded
+        push de
+        call mountdevice
+        pop de
+        jp nz,device_nomedia
+
+        push hl
+
+        ld bc,dosmap.examinedirhandler.path
+        ld hl,(_dos_rom_base_address)
+        add hl,bc
+        ex de,hl
+        ld hl,0
+        call setfilename
+        call fileopen
+
+        pop hl
+
+        cp err_miss_file
+        jp z,device_filenotfound
+        cp usb_int_disk_read
+        jp nz,device_nodata
+
+        ld bc,0
+        push ix
+        call getexaminedirhandlerix
+        call getexaminedirhandlerix
+        ld e,(ix+examinedir.pos+0)
+        ld d,(ix+examinedir.pos+1)
+        pop ix
+AlbireoReExamineDirSkipLoop
+        call eq_bc_de
+        jr z,albireoexaminenextfirstentry
+AlbireoReExamineDirSkipGo
+        push bc
+        push de
+        push hl
+        call catskipentry
+        jp nz,device_nodata
+        pop hl
+        pop de
+        pop bc
+
+        push bc
+        call examinenext
+        pop bc
+
+        inc bc
+
+        cp usb_int_disk_read    ; On continue normalement
+        jr z,albireoreexaminedirskiploop
+
+        cp err_miss_file        ; Dernier fichier ou erreur ?
+        jp nz,device_nodata
+
+        call eq_bc_de           ; Si on est pas à la fin, c'est une erreur !
+        jp z,device_filenotfound
+        jp device_mediachanged
+
+;
+; Renome un fichier ou un répertoire
+;
+; Entrée - A = numéro du lecteur physique
+;          HL = pointeur vers le nom normalisé
+;          DE = pointeur vers le chemin normalisé
+;          IX = pointeur vers le nouveau nom normalisé
+;          BC = pointeur vers le nouveau chemin normalisé
+;          La mémoire pointée est dans l'espace ROM/RAM courant
+; Sortie - Si Carry = 1 la routine est supportée par ce lecteur
+;               Si Z alors le stream a été examiné
+;               Si NZ alors le stream n'a pas pu être examiné
+;                   A = code d'erreur
+;               Dans tous les cas les chemins normalisés ont éventuellement été tronqué au plus proche parent
+;          Si Carry = 0 alors la routine est invalide pour ce lecteur
+; Altéré - AF
+
+DOSNode_Rename
+        call albireoisvaliddrive
+        jp nz,dosnode_void
+
+        call checkalbireo
+        jp nz,dosnode_void
+
+AlbireoRename
+        push bc
+        push de
+        push hl
+        call albireorenameinternal
+        pop hl
+        pop de
+        pop bc
+        scf     ; C
+        ret
+AlbireoRenameInternal
+        ld (currentdrive),a
+
+        call albireorenamesetnew    ; Nouveau nom déjà existant ?
+        ret nz                      
+
+        push bc
+        push hl
+        push ix:pop hl
+        call albireoopen
+        pop hl
+        pop bc
+        jp z,albireoalreadyexists
+
+        ld a,(currentdrive)
+        call albireorenamesetold
+        ret nz
+
+        push bc
+        call albireoopen
+        pop bc
+        ret nz
+
+        call albireorenameissamepath
+        jr nz,albireorenameasmove
+
+        push ix:pop hl
+        call filerename
+        jp nz,device_nodata
+
+        cp a    ; Z
+        ret
+AlbireoRenameAsMove
+        ld a,dsk_err_rename_across_directories
+        or a    ; NZ
+        ret
+; Code désactivé car il ne marche pas en toutes circonstances (seul le premier cluster semble impacté)
+; À étudier plus en avant...
+If 0
+        push bc                     ; Récupération des infos cluster du fichier à déplacer
+        push hl
+        ld hl,clusterinfo1
+        call getclusterinfo
+        pop hl
+        pop bc
+        jp nz,device_badcommand
+
+        ld a,(currentdrive)
+        call albireorenamesetnew
+        ret nz
+
+        push bc                     ; Création d'un nouveau fichier à l'emplacement cible
+        call filecreate
+        pop bc
+        jp nz,albireooutwritestreamerror
+        push bc
+        call fileclose
+        pop bc
+        jp nz,device_nodata
+
+        ld a,(currentdrive)
+        call albireorenamesetnew
+        ret nz
+
+        push bc
+        call albireoopen
+        pop bc
+        ret nz
+
+        push bc                     ; Récupération des infos cluster du nouveau fichier
+        push hl
+        ld hl,clusterinfo2
+        call getclusterinfo
+        pop hl
+        pop bc
+        jp nz,device_badcommand
+
+        push bc                     ; Mise à jour avec les infos cluster du nouveau fichier
+        push hl
+        ld hl,clusterinfo1
+        call setclusterinfo
+        pop hl
+        pop bc
+        jp nz,device_badcommand
+
+        ld a,(currentdrive)
+        call albireorenamesetold
+        ret nz
+
+        call albireoopen
+        ret nz
+
+        ld hl,clusterinfo2          ; Mise à jour de l'ancien fichier avec les infos cluster du nouveau
+        call setclusterinfo
+        jp nz,device_badcommand
+
+        call filedelete             ; Effacement de l'ancien fichier (déplacé)
+        jr nz,albireodeleteerror
+
+        cp a    ; Z
+        ret
+EndIf
+
+AlbireoRenameIsSamePath
+        ld a,(bc)
+        ex de,hl
+        cp (hl)
+        ex de,hl
+        ret nz
+
+        or a
+        ret z
+
+        push bc
+        ld b,a
+        add a,a
+        ld c,a
+        add a,a
+        add a,a
+        add a,c
+        add a,b
+        pop bc
+
+        push bc
+        push de
+        push hl
+
+        ld h,b
+        ld l,c
+
+        ld b,a
+AlbireoRISP
+        ld a,(de)
+        cp (hl)
+        jr nz,albireorispexit
+        inc hl
+        inc de
+        djnz albireorisp
+AlbireoRISPExit
+        pop hl
+        pop de
+        pop bc
+        ret
+
+AlbireoRenameSetNew
+        push bc
+        push de
+        push hl
+        push ix:pop hl
+        ld d,b
+        ld e,c
+        call albireosetstreamname
+        pop hl
+        pop de
+        pop bc
+        ret
+
+AlbireoRenameSetOld
+        push bc
+        call albireosetstreamname
+        pop bc
+        ret
+
+;
+; Efface un fichier ou un répertoire
+;
+; Entrée - A = numéro du lecteur physique
+;          HL = pointeur vers le nom normalisé
+;          DE = pointeur vers le chemin normalisé
+;          La mémoire pointée est dans l'espace ROM/RAM courant
+; Sortie - Si Carry = 1 la routine est supportée par ce lecteur
+;               Si Z alors le fichier ou le répertoire a été supprimé
+;               Si NZ alors aucune suppression n'a eu lieu
+;                   A = code d'erreur
+;               Dans tous les cas le chemin normalisé a éventuellement été tronqué au plus proche parent
+;          Si Carry = 0 alors la routine est invalide pour ce lecteur
+; Altéré - AF
+
+DOSNode_Delete
+        call albireoisvaliddrive
+        jp nz,dosnode_void
+
+        call checkalbireo
+        jp nz,dosnode_void
+
+AlbireoDelete
+        push bc
+        push de
+        push hl
+        call albireodeleteinternal
+        pop hl
+        pop de
+        pop bc
+        scf     ; C
+        ret
+
+AlbireoDeleteInternal
+        call albireosetstreamname
+        ret nz
+
+        call albireoopen
+        ret nz
+
+        call filedelete
+        jr nz,albireodeleteerror
+
+        cp a    ; Z
+        ret
+
+AlbireoDeleteError
+        cp err_miss_file
+        jp z,device_filenotfound
+        jp device_badcommand
+
+;
+; Crée un répertoire
+;
+; Entrée - A = numéro du lecteur physique
+;          HL = pointeur vers le nom normalisé
+;          DE = pointeur vers le chemin normalisé
+;          La mémoire pointée est dans l'espace ROM/RAM courant
+; Sortie - Si Carry = 1 la routine est supportée par ce lecteur
+;               Si Z alors un répertoire a été créé
+;               Si NZ alors aucun répertoire n'a été créé
+;                   A = code d'erreur
+;               Dans tous les cas le chemin normalisé a éventuellement été tronqué au plus proche parent
+;          Si Carry = 0 alors la routine est invalide pour ce lecteur
+; Altéré - AF
+
+DOSNode_CreateDir
+        call albireoisvaliddrive
+        jp nz,dosnode_void
+
+        call checkalbireo
+        jp nz,dosnode_void
+
+AlbireoCreateDir
+        push bc
+        push de
+        push hl
+        call albireocreatedirinternal
+        pop hl
+        pop de
+        pop bc
+        scf     ; C
+        ret
+
+AlbireoCreateDirInternal
+        call albireosetstreamname
+        ret nz
+
+        call directorycreate
+        jp nz,device_nodata
+
+        cp a    ; Z
+        ret
+
+;
+; Change les bits de protection d'un fichier ou d'un répertoire
+;
+; Entrée - A = numéro du lecteur physique
+;          HL = pointeur vers le nom normalisé
+;          DE = pointeur vers le chemin normalisé
+;          B = Protections à modifier
+;          C = Nouvelles protections
+;               Bit 0 - Lecture seule
+;               Bit 1 - Caché
+;               Bit 5 = Archivé
+;          Les autres bits sont ignorés
+;          La mémoire pointée est dans l'espace ROM/RAM courant
+; Sortie - Si Carry = 1 la routine est supportée par ce lecteur
+;               Si Z alors les protections ont été modifiées
+;               Si NZ alors les protections n'ont pas pu être modifiées
+;                   A = code d'erreur
+;               Dans tous les cas le chemin normalisé a éventuellement été tronqué au plus proche parent
+;          Si Carry = 0 alors la routine est invalide pour ce lecteur
+; Altéré - AF
+
+DOSNode_SetProtection
+        call albireoisvaliddrive
+        jp nz,dosnode_void
+
+        call checkalbireo
+        jp nz,dosnode_void
+
+AlbireoSetProtection
+        push bc
+        push de
+        push hl
+        call albireosetprotectioninternal
+        pop hl
+        pop de
+        pop bc
+        scf     ; C
+        ret
+
+AlbireoSetProtectionInternal
+        push bc
+        call albireosetstreamname
+        pop bc
+        ret nz
+
+        push bc
+        call albireoopen
+        pop de
+        ret nz
+
+        call filesetprotection
+        jp nz,device_nodata
+
+        cp a    ; Z
+        ret
+
+;
+; Formate un lecteur
+;
+; Entrée - A = numéro du lecteur physique
+; Sortie - Si Carry = 1 la routine est supportée par ce lecteur
+;               Si Z alors le lecteur a été formaté
+;               Si NZ alors le formatage a échoue
+;                   A = code d'erreur
+;          Si Carry = 0 alors la routine est invalide pour ce lecteur
+; Altéré - AF
+
+DOSNode_Format
+        jp dosnode_void
+
+;
+; Change la date et l'heure de dernière modification d'un fichier ou d'un répertoire
+;
+; Entrée - A = numéro du lecteur physique
+;          HL = pointeur vers le nom normalisé
+;          DE = pointeur vers le chemin normalisé
+;          IX = tampon qui contient les informations d'heure et de date à utiliser
+;               Un mot de 16 bits avec l'année (1978..9999)
+;               Un octet avec le numéro du mois (1..12)
+;               Un octet avec le numéro du jour dans le mois (1..28,29,30 ou 31)
+;               Un octet avec les heures (0..23)
+;               Un octet avec les minutes (0..59)
+;               Un octet avec les secondes (0..59)
+;          La mémoire pointée est dans l'espace ROM/RAM courant
+; Sortie - Si Carry = 1 la routine est supportée par ce lecteur
+;               Si Z alors l'heure et la date ont été modifiées
+;               Si NZ alors l'heure et la date n'ont pas pu être modifiées
+;                   A = code d'erreur
+;          Si Carry = 0 alors la routine est invalide pour ce lecteur
+; Altéré - AF
+
+DOSNode_SetFileDate
+        call albireoisvaliddrive
+        jp nz,dosnode_void
+
+        call checkalbireo
+        jp nz,dosnode_void
+
+AlbireoSetDate
+        push bc
+        push de
+        push hl
+        call albireosetdateinternal
+        pop hl
+        pop de
+        pop bc
+        scf     ; C
+        ret
+
+AlbireoSetDateInternal
+        push bc
+        call albireosetstreamname
+        pop bc
+        ret nz
+
+        push bc
+        call albireoopen
+        pop de
+        ret nz
+
+        call filesetdate
+        jp nz,device_nodata
+
+        cp a    ; Z
+        ret
+
+;
+; Lit le contenu de l'horloge temps réel
+;
+; Entrée - IX = tampon où copier l'heure et la date courantes (7 octets)
+; Sortie - Si Carry = 1 alors le noeud DOS offre un service d'horloge temps réel
+;               IX = le tampon d'entrée où l'heure et la date ont été copiées
+;                   Un mot de 16 bits avec l'année (1978..9999)
+;                   Un octet avec le numéro du mois (1..12)
+;                   Un octet avec le numéro du jour dans le mois (1..28,29,30 ou 31)
+;                   Un octet avec les heures (0..23)
+;                   Un octet avec les minutes (0..59)
+;                   Un octet avec les secondes (0..59)
+;                A = numéro du jour dans la semaine (1..7, du lundi au dimanche)
+;          Si Carry = 0 alors le noeud DOS n'offre pas d'horloge temps réel
+; Altéré - AF
+
+DOSNode_ReadRTC
+        jp dosnode_void
+
+;
+; Écrit le contenu de l'horloge temps réel
+;
+; Entrée - IX = tampon qui contient les informations d'heure et de date à utiliser (7 octets)
+;               Un mot de 16 bits avec l'année (1978..9999)
+;               Un octet avec le numéro du mois (1..12)
+;               Un octet avec le numéro du jour dans le mois (1..28,29,30 ou 31)
+;               Un octet avec les heures (0..23)
+;               Un octet avec les minutes (0..59)
+;               Un octet avec les secondes (0..59)
+; Sortie - Si Carry = 1 alors le noeud DOS offre un service d'horloge temps réel
+;               Si Z alors le contenu de l'horloge temps réel a pu être mis à jour
+;               Si NZ alors une erreur est survenue
+;                   A = code d'erreur
+;          Si Carry = 0 alors le noeud DOS n'offre pas d'horloge temps réel
+; Altéré - AF
+
+DOSNode_WriteRTC
+        jp dosnode_void
+
+;
+; Ouvre la mémoire non volative
+;
+; Les 6 octets à l'offset DOS +&4F0 peuvent être utilisés pour la gestion de la mémoire non volatile
+;
+; Entrée - C = mode d'ouverture
+;               Si 0 alors la mémoire non volatile avec son contenu courant doit être ouverte
+;                    (va retourner NZ si la mémoire non volatile est vide, avec A=dsk_err_file_not_found)
+;               Si 1 alors la mémoire non volatile doit être remise à zéro avant ouverture
+; Sortie - Si Carry = 1 alors le noeud DOS offre un service de mémoire non volatile
+;               Si Z alors la mémoire non volatile a été ouverte est est prête à être manipulée
+;               Si NZ alors une erreur est survenue
+;                   A = code d'erreur
+;          Si Carry = 0 alors le noeud DOS n'offre pas de mémoire non volatile
+; Altéré - AF
+
+DOSNode_OpenNVRAM
+        push bc
+        push de
+        push hl
+        call albireoopennvram
+        pop hl
+        pop de
+        pop bc
+        scf     ; C
+        ret
+
+AlbireoOpenNVRAM
+        push bc
+        ld a,drive_sd1
+        call mountdevice
+        pop bc
+        jr z,opennvramdone
+
+        push bc
+        ld a,drive_sd2
+        call mountdevice
+        pop bc
+        jp nz,device_nomedia
+
+OpenNVRAMDone
+        push bc
+        call albireogetconfigfilename
+        call setfilename
+        pop bc
+
+        ld a,c
+        or a
+        jr z,openexistingnvram
+        cp 1
+        jp nz,device_badcommand
+OpenNewNVRAM
+        call filecreate
+        ret z
+        jp device_badcommand
+
+OpenExistingNVRAM
+        call fileopen
+        ret z
+        cp err_miss_file
+        jp z,device_filenotfound
+        jp device_badcommand
+
+;
+; Ferme et met à jour le contenu de la mémoire non volatile
+;
+; Entrée - Aucune
+; Sortie - Si Carry = 1 alors le noeud DOS offre un service de mémoire non volatile
+;               Si Z alors la mémoire non volatile a été mise à jour
+;               Si NZ alors une erreur est survenue
+;          Si Carry = 0 alors le noeud DOS n'offre pas de mémoire non volatile
+; Altéré - AF
+
+DOSNode_CloseNVRAM
+        push bc
+        call fileclose
+        pop bc
+        call nz,device_badcommand
+        scf
+        ret
+
+;
+; Lit des données depuis la mémoire non volatile
+;
+; Entrée - HL = adresse où écrire les données lues
+;          DE = nombre d'octets à lire
+; Sortie - Si Carry = 1 alors le noeud DOS offre un service de mémoire non volatile
+;               Si Z alors les données ont été lues
+;                   DE = nombre d'octets effectivement lus
+;               Si NZ alors une erreur est survenue
+;                   A = code d'erreur
+;          Si Carry = 0 alors le noeud DOS n'offre pas de mémoire non volatile
+; Altéré - AF,DE
+
+DOSNode_ReadNVRAM
+        push bc
+        push hl
+        call readdatafromfile
+        pop hl
+        pop bc
+        call nz,device_badcommand
+        scf
+        ret
+
+;
+; Écrit des données dans la mémoire non volatile
+;
+; Entrée - HL = adresse où se trouvent les données à écrire
+;          DE = nombre d'octets à écrire
+; Sortie - Si Carry = 1 alors le noeud DOS offre un service de mémoire non volatile
+;               Si Z alors les données ont été écrites
+;                   DE = nombre d'octets effectivement écrits
+;               Si NZ alors une erreur est survenue
+;                   A = code d'erreur
+;          Si Carry = 0 alors le noeud DOS n'offre pas de mémoire non volatile
+; Altéré - AF,DE
+
+DOSNode_WriteNVRAM
+        push bc
+        push hl
+        call writedatatofile
+        pop hl
+        pop bc
+        call nz,device_badcommand
+        scf
+        ret
+
+;
+; Change la position dans la mémoire non volatile
+;
+; Entrée - DEHL = nouvelle position
+; Sortie - Si Carry = 1 alors le noeud DOS offre un service de mémoire non volatile
+;               Si Z alors la nouvelle position a pu être atteinte
+;               Si NZ alors une erreur est survenue
+;                   A = code d'erreur
+;          Si Carry = 0 alors le noeud DOS n'offre pas de mémoire non volatile
+; Altéré - AF
+
+DOSNode_SeekNVRAM
+        push bc
+        call seekfile
+        pop bc
+        call nz,device_badcommand
+        scf
+        ret
+
+;
+; Routine inexistante
+;
+
+DOSNode_Void
+        cp a    ; NC
+        ret
+
+;
+; Configure le nom du stream courant
+;
+; Entrée - A = numéro du lecteur physique
+;          HL = pointeur vers le nom normalisé
+;          DE = pointeur vers le chemin normalisé
+; Sortie - Si Z alors le nom du stream courant a été configuré
+;               A, HL et DE sont préservés
+;          Si NZ alors le nom n'a pas pu être configuré
+;               A = code d'erreur
+; Altéré - Flags,BC
+
+AlbireoSetStreamName
+        push de
+        ld d,a
+        call mountdevice
+        ld a,d
+        pop de
+        jp nz,device_nomedia
+
+        call setfilename
+        cp a    ; Z
+        ret
+
+;
+; Ouvre un fichier ou un répertoire en vue d'un post-traitement
+;
+; Entrée - HL = pointeur vers le nom normalisé
+; Sortie - Si Z alors le fichier ou le répertoire a pu être ouvert
+;          Si NZ alors le fichier ou le répertoire n'a pas pu être ouvert
+;               A = code d'erreur
+; Altéré - AF,BC
+
+AlbireoOpen
+        call fileopen
+        ret z                       ; Fichier ouvert (ou parcours de répertoire si HL = 0)
+        cp err_open_dir
+        ret z                       ; Répertoire ouvert
+        cp err_miss_file
+        jp z,device_filenotfound    ; Fichier ou répertoire non trouvé
+        cp usb_int_disk_read
+        jp nz,device_nodata         ; Erreur
+        ld a,l
+        or h                        ; Parcours de répertoire (cas où HL = 0)
+        jp nz,device_nodata
+        ret
+
+;
+; Réouvre le stream en entrée courant
+;
+; Entrée - A = numéro de lecteur physique
+; Sortie - Si Z alors le stream est déjà ouvert ou a pu être réouvert
+;          Si NZ alors le stream n'a pas pu être réouvert
+;               A = code d'erreur
+; Altéré - AF,BC
+
+AlbireoReopenInStream
+        ld c,a
+
+        call getlowlevelfile
+        cp llf_kindinstream
+
+        ld a,c
+
+        ret z
+
+        push de
+        call mountdevice
+        pop de
+        jp nz,device_nomedia
+
+        push hl
+        push de
+
+        ld hl,(_dos_rom_base_address)
+        ld bc,dosmap.fileinhandler.path
+        add hl,bc
+        ex de,hl
+
+        ld hl,(_dos_rom_base_address)
+        ld bc,dosmap.fileinname
+        add hl,bc
+
+        call setfilename
+        call fileopen
+
+        pop de
+        pop hl
+
+        jr nz,albireostreamerror
+
+        push de
+        push hl
+
+        call getfileinhandlerix
+        ld l,(ix+filein.offset+0)
+        ld h,(ix+filein.offset+1)
+        ld e,(ix+filein.offset+2)
+        ld d,(ix+filein.offset+3)
+        call seekfile
+
+        pop hl
+        pop de
+
+        jp nz,albireostreamnodata
+
+        ld a,llf_kindinstream
+        call setlowlevelfile
+
+        cp a    ; Z
+        ret
+
+AlbireoStreamError
+        cp err_miss_file
+        jp z,device_mediachanged
+        cp err_open_dir
+        jr z,albireostreammediachanged
+        jp device_badcommand
+AlbireoStreamMediaChanged
+        call fileclose
+        jp device_mediachanged
+AlbireoAlreadyExists
+        call fileclose
+        jp device_alreadyexists
+AlbireoStreamNoData
+        call fileclose
+        jp device_nodata
+
+;
+; Réouvre (ou crée) le stream en sortie courant
+;
+; Entrée - A = numéro de lecteur physique
+; Sortie - Si Z alors le stream est déjà ouvert ou a pu être réouvert ou créé
+;          Si NZ alors le stream n'a pas pu être réouvert
+;               A = code d'erreur
+; Altéré - AF,BC
+
+AlbireoReopenOutStream
+        ld c,a
+
+        call getlowlevelfile
+        cp llf_kindoutstream
+
+        ld a,c
+
+        ret z
+
+        push de
+        call mountdevice
+        pop de
+        jp nz,device_nomedia
+
+        push hl
+        push de
+
+        ld hl,(_dos_rom_base_address)
+        ld bc,dosmap.fileouthandler.path
+        add hl,bc
+        ex de,hl
+
+        ld hl,(_dos_rom_base_address)
+        ld bc,dosmap.fileoutname
+        add hl,bc
+
+        call getfileouthandlerix
+
+        call setfilename
+        call fileopen
+
+        pop de
+        pop hl
+
+        jr nz,albireostreamerror
+
+        push de
+        push hl
+
+        ld l,(ix+fileout.offset+0)
+        ld h,(ix+fileout.offset+1)
+        ld e,(ix+fileout.offset+2)
+        ld d,(ix+fileout.offset+3)
+        call seekfile
+
+        pop hl
+        pop de
+
+        jp nz,albireostreamnodata
+
+        ld a,llf_kindoutstream
+        call setlowlevelfile
+
+        cp a    ; Z
+        ret
+
+;
+; Vérifie si un lecteur physique est valide pour l'Albireo et
+; positionne les variables temporaires de _DOS_ROM_TEMP_STORE
+; en fonction de la carte Albireo avec laquelle communiquer
+;
+; Entrée - A = numéro de lecteur physique
+; Sortie - Si Z alors le lecteur est valide
+;          Si NZ alors le lecteur est inconnu de l'Albireo
+;          (ou aucune Albireo n'a été détectée)
+; Altéré - Flags
+
+AlbireoIsValidDrive
+        cp drive_sd1
+        jr z,albireoisvaliddriveok
+        cp drive_sd2
+        jr z,albireoisvaliddriveok
+        cp drive_ums1
+        jr z,albireoisvaliddriveok
+        cp drive_ums2
+        ret nz
+AlbireoIsValidDriveOk
+        call setboard
+        cp a
+        ret
+
+;
+; Récupère le nom et le chemin du fichier de configuration
+;
+; Entrée - N/A
+; Sortie - HL = nom du fichier normalisé
+;          DE = chemin normalisé
+; Altéré - BC,DE,HL,Flags
+
+AlbireoGetConfigFileName
+        ld de,configfilenamestorage
+        ld l,e
+        ld h,d
+        inc hl
+        ret
+
+ConfigFileNameStorage
+        db 0                ; Arboresence racine
+        db "!UNIDOS!NVM"    ; Nom du fichier de configuration/persistance
+
+;
+; Convertit un caractère en majuscule
+;
+; Entrée - A = caractère à convertir
+; Sortie - A = caractère mis en majuscule (inchangé si l'opération est impossible)
+; Altéré - AF
+
+ToUpper cp 'a'
+        ret c
+        cp 'z'+1
+        ret nc
+        add a,'A'-'a'
+        ret
+
+;
+; Recopie une chaîne de caractères
+;
+; Entrée - HL = chaîne de caractère à copier (terminée par un bit 7 à 1)
+;          DE = destination de la copie
+;           C = nombre maximum de caractères à copier
+; Sortie - Si C alors la copie s'est bien terminée
+;            HL pointe sur le premier caractère après la fin de la chaîne
+;            DE pointe sur le premier caractère après la fin de la copie de la chaîne
+;             C a été décrémenté du nombre de caractères copiés
+;          Si NC alors la copie n'a pas pu se faire (nombre maximum de caractères atteint)
+;             C vaut 0, HL et DE sont indéterminés
+; Altéré - AF,C,DE,HL
+;
+
+CopyString
+        ld a,c
+        or a
+        ret z   ; NC
+        ld a,(hl)
+        ldi
+        rla
+        jr nc,copystring
+        ret     ; C
+
+;
+; Ajout DE à BCHL
+;
+; Entrée - BCHL = valeur 32 bits à laquelle ajouter la valeur 16 bits
+;            DE = valeur 16 bits à ajouter à la valeur 32 bits
+; Sortie - BCHL = BCHL + DE
+; Altéré - BC,HL,Flags
+;
+
+AddBCHL_DE
+        add hl,de
+        ret nc
+        inc bc
+        ret
+
+;
+; Vérifie si BC est égal à DE
+;
+; Entrée - BC et DE = les valeurs à comparer
+; Sortie - Si Z alors BC est égal à DE
+; Altéré - AF
+
+Eq_BC_DE
+        ld a,c
+        cp e
+        ret nz
+        ld a,b
+        cp d
+        ret
+
+;
+; Retours d'erreur génériques
+;
+
+Device_NoMedia
+        ld a,dsk_err_no_media
+        or a    ; NZ
+        ret
+Device_MediaChanged
+        ld a,dsk_err_disc_changed
+        or a    ; NZ
+        ret
+Device_AlreadyExists
+        ld a,dsk_err_file_already_exists
+        or a    ; NZ
+        ret
+Device_FileNotFound
+        ld a,dsk_err_file_not_found
+        or a    ; NZ
+        ret
+Device_DirectoryFound
+        ld a,dsk_err_directory_found
+        or a    ; NZ
+        ret
+Device_DiscFull
+        ld a,dsk_err_disc_full
+        or a    ; NZ
+        ret
+Device_NoData
+        ld a,dsk_err_no_data
+        or a    ; NZ
+        ret
+Device_BadCommand
+        ld a,dsk_err_bad_command
+        or a    ; NZ
+        ret
+

@@ -1,0 +1,29 @@
+; Put ACE into pause
+RxCmd ACE.1 PAUSE
+
+; Compile ROM using rasm
+rasm src/M4Board.asm -o bin/M4 -s -sl -sq -eb -amper
+
+; Copy all generated files to T:
+Copy QUIET FROM bin/M4.#? TO T:
+
+; Flash the new ROM into ACE
+RxCmd ACE.1 "FLASHROM FILE T:M4.rom ROM 12"
+
+; Update all symbols
+;RxCmd ACE.1 "REMOVESYMBOL ALL"
+RX ImportSymbols.rexx T:M4.sym rasm rom-extension 12
+
+; Update all breakpoints
+;RxCmd ACE.1 "REMOVEBREAKPOINT TYPE Execute ALL"
+RX ImportBreakpoints.rexx T:M4.brk rasm rom-extension 12
+
+; Ensure M4Board.acepansion is active
+RxCmd ACE.1 "ACTIVATEPLUGIN M4Board.acepansion"
+
+; Restart emulated CPC
+RxCmd ACE.1 "RESET HARD"
+
+; Activate ACE window
+RxCmd ACE.1 SHOW
+

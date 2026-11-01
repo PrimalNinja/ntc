@@ -509,3 +509,27 @@ it, and a `jr` can't cross from one section to another. The ROM builder keeps `@
 sections that follow each other as one run, so their variables keep the addresses the
 registry has (a section's first, unlabelled byte - a capacity - goes with the variable after
 it).
+
+## 9. Library classes (2026-11-01: src/lib, test/gen.js, ntc_compiler.js's join)
+
+A library class is a .cls under src/lib/<platform>/ (or lib/z80/ for every Z80 platform: Float,
+Fixed). gen.js writes them all into ntc_lib.js as text; the compiler joins one into a program when
+the program uses it as a class - Name.x or As Name - not when the word merely appears. A platform
+built on a base (";@base" in its ntc_plat file) has the base's classes for any it lacks. A library
+class may itself name another (Fixed names Float): the compiler follows its names. The platform
+defines (#If) in a library class are the program's.
+
+## 10. The thread and #asm (2026-11-01)
+
+SP is the thread: the next thread word is at (SP), and the keyword engine pops it. An #asm block's
+code runs with SP there, so a push writes over the words before the block (consumed on this pass,
+re-executed on the next: a loop, a Sub called again). The rule a block follows: di, ld sp to a
+stack of its own, push and pop freely, everything back before ei. A keyword block (a Sub or
+Function whose whole body is one #asm block with no {param} / {result}) is entered with its
+arguments on the thread and pops them itself; a push in it is as wrong as anywhere. The compiler
+warns on a push (or, in an ordinary block, a pop) before any ld sp, once a block; "; own stack" on
+a line (an interrupt routine's) covers the rest of the block. An interrupt arriving while SP is the
+thread is handled by the runtime's own entry (the platform's ntc_plat file), not by a block.
+
+Where to read: ntc_lib.asm's header (the modes: SP is the thread in both), asmBlock in
+ntc_compiler.js, findAsmKeywords, NTC.md "#asm and the stack".

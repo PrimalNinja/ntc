@@ -1,0 +1,760 @@
+;
+; Gestion récursive des fichiers d'un répertoire
+;
+; Fonctions annexes qui dépendent de IY
+;
+
+;
+; Hooks pour l'affiche du directory (|DIR)
+;
+DirDisplayRoutines
+        dw dirdisplayentry
+        dw dirdisplayheader
+        dw dirdisplayfooter
+
+;
+; Hooks pour l'effacement des fichiers (|ERA)
+;
+
+EraRoutines
+        dw eraentry
+        dw eraheader
+        dw erafooter
+
+;
+; Hooks pour l'affiche du directory (|INFO)
+;
+
+InfoDisplayRoutines
+        dw infodisplayentry
+        dw infodisplayheader
+        dw genericfooter
+
+;
+; Hooks pour l'affiche du directory (|LIST)
+;
+
+ListDisplayRoutines
+        dw listdisplayentry
+        dw dirdisplayheader
+        dw dirdisplayfooter
+
+;
+; Hooks pour le réglage des bits de protections des fichiers (|PROTECT,|UNPROTECT,|SHOW,|HIDE)
+;
+
+SetProtectionRoutines
+        dw setprotectionentry
+        dw genericheader
+        dw genericfooter
+
+;
+; Hooks pour le réglage de la date (|SETDATE)
+;
+
+SetFileDateRoutines
+        dw setfiledateentry
+        dw genericheader
+        dw genericfooter
+
+;
+; Scanne un répertoire et exécute les actions des hooks
+;
+; Attention : la zone mémoire en dessous de WorkArea+&30 ne doit pas être
+;             utilisée ni pour les paramètres d'entrée ni dans les routines de
+;             traitement
+;
+; Entrée - IX = pointeur vers les hooks de traitement
+;          HL = pointeur vers le motif de scan (format AMSDOS)
+;          B = longueur du motif
+; Sortie - NZ si tout s'est bien passé
+;           Z si une erreur est survenue (A contient le code d'erreur)
+;          DirCount est mis à zéro en début de scan et incrémenté à chaque appel du hook entry
+;          DirCount est remis à zéro à chaque rescan déclenché depuis le hook entry
+; Altéré - AF,BC,DE,HL
+
+DirScan call qualifypath
+        jp z,casreturn_qualifyfailed
+
+        ld a,b
+        or a
+        jr nz,dirscanpattern
+
+        ld hl,dirallpattern
+        GETPTR_DE workarea+&30-3
+        push de
+        ld bc,3
+        ldir
+        pop hl
+        ld b,3
+
+DirScanPattern
+        GETPTR_DE workarea+&10
+        call normalizename
+        jr nz,dirrun
+        jp casreturn_badcommand
+
+DirRun  PUT_8 entryfound,0
+
+        call getworkdrive_rega
+        call probedrive
+        jp nc,casreturn_badcommand
+
+DirReDo PUT_16 dircount,0
+
+        call getworkdrive_rega
+        call getworkpathde
+        ld hl,0                     ; 0 = Examiner le contenu du répertoire
+        call casexamine
+        jp nc,casreturn_badcommand
+        jr nz,dirhandleerrors
+
+        call getworkdrive_rega      ; Après le examine de sorte que WorkPath soit tronqué au besoin
+        call getworkareahl
+        call dirheaderhook
+
+NextDirFile
+        call getworkareahl
+        call casexaminenext         ; A = bits de protection, BCDE = taille, (HL) = nom normalisé, DataMap.FileDate = horodatage
+        jp nc,casreturn_badcommand
+        jr z,dirhandleentry
+DirHandleErrors
+        cp dsk_err_file_not_found
+        jr z,dirfinalize
+        jp casreturn_badcommand
+
+DirHandleEntry
+        push bc
+        ld c,a
+        push bc
+        push de
+        push hl
+        call getworkareahl
+        GETPTR_DE workarea+&10
+        call matchfilename
+        pop hl
+        pop de
+        pop bc
+        ld a,c
+        pop bc
+        jr nz,dirskipentry
+
+        call getworkareahl          ; Fichier courant en retour pour le nom de fichier en erreur
+        push hl
+        call direntryhook
+        pop hl
+        jr nz,direrror
+        jr c,dirredo
+
+        INC_16 dircount             ; On compte l'entrée traitée
+
+DirSkipEntry
+        call testesc
+        jr nc,nextdirfile
+        jp casreturn_interrupted
+
+DirFinalize
+        call dirfooterhook
+        GETPTR_HL workarea+&10      ; Motif de recherche en retour pour le nom de fichier en erreur
+        jr nz,direrror
+        xor a:inc a ; NZ
+        ret
+DirError
+        and 127                     ; On compare sans le flags des erreurs silencieuses
+        cp dsk_err_file_not_found
+        jp z,casreturn_filenotfound_hl
+        cp dsk_err_file_already_exists
+        jp z,casreturn_filealreadyexists_hl
+        cp dsk_err_file_is_read_only
+        jp z,casreturn_fileisreadonly_hl
+        cp dsk_err_unsupported_drive
+        jr z,direrrorunsupporteddrive
+        jp casreturn_badcommand
+DirErrorUnsupportedDrive
+        call getworkdrive_rega
+        jp casreturn_unsupporteddrive
+
+DirEntryHook
+        PUT_8 entryfound,1
+        push ix
+        push de
+        ld e,(ix+0)
+        ld d,(ix+1)
+DirCallHook
+        ld ixh,d
+        ld ixl,e
+        pop de
+        call dirhook
+        pop ix
+        ret
+DirHeaderHook
+        push ix
+        push de
+        ld e,(ix+2)
+        ld d,(ix+3)
+        jr dircallhook
+DirFooterHook
+        push ix
+        push de
+        ld e,(ix+4)
+        ld d,(ix+5)
+        jr dircallhook
+DirHook jp (ix)
+
+DirAllPattern
+        db "*.*"
+
+;
+; Efface une entrée (hook pour DirScan)
+;
+; Entrée - HL = pointeur vers le nom de fichier normalisé (= WorkArea)
+;          BCDE = taille du fichier
+;          A = bits de protection
+;          FileDate = date de dernière modification
+;          WorkPath = chemin courant
+;          WorkDrive = lecteur physique courant
+;          DirCount = numéro de l'entrée courante
+; Sortie - Z/NC = Continuer l'énumération (hookskip)
+;          Z/C  = Reprendre l'énumération à zéro (hookreset, obligatoire si le contenu du répertoire a été modifié)
+;          NZ   = Interrompre l'énumération et renvoyer une erreur (A = erreur)
+; Altéré - AF,BC,DE,HL
+
+EraEntry
+        push hl
+        push de
+        push bc
+        GET_BC eraskipcount
+        GET_HL dircount
+        or a    ; NC
+        sbc hl,bc
+        pop bc
+        pop de
+        pop hl
+        jp c,hookskip       ; On saute les fichiers à ne pas effacer
+
+        ld b,a              ; B = protections
+
+EraEntryCheckDir
+        bit 4,b
+        jr z,eraentrycheckreadonly
+EraEntryConfirmDir
+        ld c,&80
+        ld de,msg_isadirectory
+        call eraentryaskconfirm
+        jr nc,eraentryskip
+
+EraEntryCheckReadOnly
+        bit 0,b
+        jr z,eraentrycheckhidden
+EraEntryConfirmReadOnly
+        ld c,&40
+        ld de,msg_isreadonly
+        call eraentryaskconfirm
+        jr nc,eraentryskip
+;EraEntryUnprotect
+;        ld de,&0100
+;        call filesetprotection
+;        jr nz,hookbadcommand
+EraEntryCheckHidden
+        bit 1,b
+        jr nz,eraentryconfirmhidden
+        bit 2,b
+        jr z,eraentrydelete
+EraEntryConfirmHidden
+        ld c,&20
+        ld de,msg_ishidden
+        call eraentryaskconfirm
+        jr nc,eraentryskip
+EraEntryDelete
+        call getworkdrive_rega
+        call getworkareahl
+        call getworkpathde
+        call device_delete
+
+        jr nc,hookunsupporteddrive
+        jr z,hookreset      ; On a modifié le contenu du répertoire, donc on doit relancer le scan
+        cp dsk_err_file_not_found
+        jp z,hookfilenotfound
+        jr hookbadcommand
+EraEntrySkip
+        INC_16 eraskipcount ; Mise à jour du nombre de fichiers à ne pas effacer
+        jr hookskip
+
+; Entrée - C = masque de confirmation, DE = message
+; Sortie - C si oui, NC sinon
+; Altéré - AF,DE,HL
+EraEntryAskConfirm
+        ld a,(dsk_message_status)
+        or a
+        jr nz,eraentryskipped ; Auto No if no messages
+        GET_A eraaskmask
+        and c
+        jp nz,eraentryconfirmed ; All requested
+        push bc
+        push hl
+        call printnormalizedfilename
+        pop hl
+        pop bc
+        ex de,hl
+        call printstring
+        call confirm
+        ex de,hl
+        cp 'Y'
+        jr z,eraentryconfirmed
+        cp 'N'
+        jr z,eraentryskipped
+        GET_A eraaskmask
+        or c
+        PUT_A eraaskmask
+EraEntryConfirmed
+        scf     ; C
+        ret
+EraEntrySkipped
+        cp a    ; NC
+        ret
+
+;
+; Routines de retours génériques
+;
+
+HookUnsupportedDrive
+        ld a,dsk_err_unsupported_drive
+        or a    ; NZ/NC
+        ret
+HookBadCommand
+        ld a,dsk_err_bad_command
+        or a    ; NZ/NC
+        ret
+HookFileNotFound
+        ld a,dsk_err_file_not_found
+        or a
+        ret     ; NZ/NC
+HookFileIsReadOnly
+        ld a,dsk_err_file_is_read_only
+        or a
+        ret     ; NZ/NC
+HookReset
+        cp a
+        scf     ; Z/C 
+        ret
+HookSkip
+        cp a    ; Z/NC
+        ret
+
+;
+; Change les bits de protections d'une entrée (hook pour DirScan)
+;
+; Entrée - HL = pointeur vers le nom de fichier normalisé (= WorkArea)
+;          BCDE = taille du fichier
+;          FileDate = date de dernière modification
+;          A = bits de protection
+;          WorkPath = chemin courant
+;          WorkDrive = lecteur physique courant
+;          DirCount = numéro de l'entrée courante
+; Sortie - Z/NC = Continuer l'énumération (hookskip)
+;          Z/C  = Reprendre l'énumération à zéro (hookreset, obligatoire si le contenu du répertoire a été modifié)
+;          NZ   = Interrompre l'énumération et renvoyer une erreur (A = erreur)
+; Altéré - AF,BC,DE,HL
+
+SetProtectionEntry
+        call getworkdrive_rega
+        call getworkpathde
+        GET_BC setprotection
+        call device_setprotection
+        jr nc,hookunsupporteddrive
+        jr z,hookskip
+        jr hookbadcommand
+
+;
+; Change la date d'une entrée (hook pour DirScan)
+;
+; Entrée - HL = pointeur vers le nom de fichier normalisé (= WorkArea)
+;          BCDE = taille du fichier
+;          FileDate = date de dernière modification
+;          A = bits de protection
+;          WorkPath = chemin courant
+;          WorkDrive = lecteur physique courant
+;          DirCount = numéro de l'entrée courante
+; Sortie - Z/NC = Continuer l'énumération (hookskip)
+;          Z/C  = Reprendre l'énumération à zéro (hookreset, obligatoire si le contenu du répertoire a été modifié)
+;          NZ   = Interrompre l'énumération et renvoyer une erreur (A = erreur)
+; Altéré - AF,BC,DE,HL
+
+SetFileDateEntry
+        push ix
+        GETPTR_IX setfiledate
+        call getworkdrive_rega
+        call getworkpathde
+        call device_setfiledate
+        pop ix
+        jr nc,hookunsupporteddrive
+        jr z,hookskip
+        jr hookbadcommand
+
+;
+; Affiche une entrée de catalogue (hook pour DirScan)
+;
+; Entrée - HL = pointeur vers le nom de fichier normalisé (= WorkArea)
+;          BCDE = taille du fichier
+;          A = bits de protection
+;          FileDate = date de dernière modification
+;          WorkPath = chemin courant
+;          WorkDrive = lecteur physique courant
+;          DirCount = numéro de l'entrée courante
+; Sortie - Z/NC = Continuer l'énumération (hookskip)
+;          Z/C  = Reprendre l'énumération à zéro (hookreset, obligatoire si le contenu du répertoire a été modifié)
+;          NZ   = Interrompre l'énumération et renvoyer une erreur (A = erreur)
+; Altéré - AF,BC,DE,HL
+
+DirDisplayEntry
+        bit 1,a                     ; Caché ?
+        jp nz,hookskip
+        bit 2,a                     ; Système ?
+        jp nz,hookskip
+
+        push hl
+        pop ix
+
+        push af
+
+        GET_A dirnbrcol
+        GET_B dircurcol
+        cp b
+        call nz,dirinline
+        call z,direndofline
+        PUT_B dircurcol
+
+        call printrawnormalizedfilename
+
+        pop af
+
+DirDisplayFile
+        bit 0,a                         ; Lecture seule ?
+        ld a,' '
+        jr z,dirdisplayrw
+        ld a,'*'
+DirDisplayRW
+        call _txt_output
+        jr hookskip
+
+DirEndOfLine
+        call printnewline
+        ld b,1
+        ret
+DirInLine
+        call printdoublespace
+        inc b   ; NZ
+        ret
+
+;
+; Affiche une entrée de catalogue (hook pour InfoScan)
+;
+; Entrée - HL = pointeur vers le nom de fichier normalisé (= WorkArea)
+;          BCDE = taille du fichier
+;          A = bits de protection (0=lecture seule, 1=caché, 2=système, 4=répertoire)
+;          FileDate = date de dernière modification
+;          WorkPath = chemin courant
+;          WorkDrive = lecteur physique courant
+;          DirCount = numéro de l'entrée courante
+; Sortie - Z/NC = Continuer l'énumération (hookskip)
+;          Z/C  = Reprendre l'énumération à zéro (hookreset, obligatoire si le contenu du répertoire a été modifié)
+;          NZ   = Interrompre l'énumération et renvoyer une erreur (A = erreur)
+; Altéré - AF,BC,DE,HL
+
+InfoDisplayEntry
+        push bc
+
+        push af
+
+        call setalternatepen
+        push af
+        call printrawnormalizedfilename
+        pop af
+        call _txt_set_pen
+
+        pop af
+
+        push af
+        call infobits
+        pop af
+
+        pop bc
+
+        bit 4,a                         ; Répertoire ?
+        jr z,infodisplayfiledetails
+InfoDisplayDirectory
+        ld hl,msg_infodir
+        call printstring
+InfoDisplayEnd
+        call printnewline
+        jp hookskip
+
+InfoDisplayFileDetails
+        call printhexanumber
+        ld b,d
+        ld c,e
+        call printhexanumber
+        call printspace
+
+        call getworkdrive_rega
+        call getworkareahl
+        call getworkpathde
+        call device_inopenstream
+        jr nc,infodisplayerror
+        jr nz,infodisplayerror
+
+        call getworkdrive_rega          ; On identifie le fichier comme ouvert
+        PUT_A fileindrive
+
+        GETPTR_DE fileinname            ; On synchronize le nom du fichier ouvert
+        ld bc,11                        ; (il peut être utilisé par les noeuds)
+        ldir
+
+        call getreadbufferhl
+        call inreadheader               ; A=type, BC=longueur, DE=chargement, HL=execution
+        push af
+        call device_inclosestream
+        ld a,&ff
+        PUT_A fileindrive               ; On marque à nouveau le fichier comme fermé
+        pop af
+        jr nc,infodisplayerror
+        jr nz,infodisplaynoheader
+
+InfoDisplayHead
+        and &f                          ; Calcul du caractère représentant le type (selon les spécifications Soft968)
+        add &24
+        push bc
+        ld b,d
+        ld c,e
+        call _txt_output
+        call printhexanumber
+        call printspace
+        pop bc
+        call printhexanumber
+        call printspace
+        ld b,h
+        ld c,l
+        call printhexanumber
+        jp infodisplayend
+InfoDisplayNoHeader
+        ld b,3
+InfoDisplayNoHeaderLoop
+        ld hl,msg_infonoheader
+        call printstring
+        djnz InfoDisplayNoHeaderLoop
+        jp infodisplayend
+InfoDisplayError
+        ld hl,msg_infoerror
+        call printstring
+        jp infodisplayend
+InfoBits
+        ld b,a
+        ld c,' '
+        bit 0,b                         ; Lecture seule ?
+        call nz,infogetrochar
+        ld a,c
+        call _txt_output
+        ld c,' '
+        bit 1,b                         ; Caché ?
+        call nz,infogethiddenchar
+        bit 2,b
+        call nz,infogethiddenchar
+        ld a,c
+        jp _txt_output
+InfoGetROChar
+        ld c,'*'
+        ret
+InfoGetHiddenChar
+        ld c,'!'
+        ret
+
+;
+; Affiche une entrée de catalogue (hook pour ListScan)
+;
+; Entrée - HL = pointeur vers le nom de fichier normalisé (= WorkArea)
+;          BCDE = taille du fichier
+;          A = bits de protection (0=lecture seule, 1=caché, 2=système, 4=répertoire)
+;          FileDate = date de dernière modification
+;          WorkPath = chemin courant
+;          WorkDrive = lecteur physique courant
+;          DirCount = numéro de l'entrée courante
+; Sortie - Z/NC = Continuer l'énumération (hookskip)
+;          Z/C  = Reprendre l'énumération à zéro (hookreset, obligatoire si le contenu du répertoire a été modifié)
+;          NZ   = Interrompre l'énumération et renvoyer une erreur (A = erreur)
+; Altéré - AF,BC,DE,HL
+
+ListDisplayEntry
+        push af
+        call divbcde_1024
+        pop af
+
+        ld b,a
+        call listsetpen
+        push af
+
+        push bc
+        call printnewline
+        call printrawnormalizedfilename
+        pop bc
+
+        push bc
+        ld a,b
+        call infobits
+        pop bc
+
+        bit 4,b ; Répertoire ?
+        jr z,listdisplayfilesize
+ListDisplayDirectory
+        ld hl,msg_catdir
+        call printstring
+        jr listdisplaydatetime
+
+ListDisplayFileSize
+        ld b,0
+        call printsmartsize
+
+ListDisplayDateTime
+        call printspace
+
+        push ix
+        call getfiledateix
+        call displaysmartdatetime
+        pop ix
+
+        pop af
+        call _txt_set_pen
+
+        jp hookskip
+
+ListSetPen
+        bit 4,a ; Répertoire ?
+        jp nz,setalternatepen
+        jp _txt_get_pen
+
+DisplaySmartDateTime
+        call isvaliddatetime
+        call nc,getdefaultdatetime
+        ld a,1
+        call printdate
+        call printspace
+        jp printtime
+
+;
+; Entête qui ne fait rien
+;
+; Entrée - A = lecteur physique concerné
+;          HL = adresse du tampon à utiliser (12 octets mini)
+; Sortie - Aucune
+; Altéré - AF,BC,DE,HL
+;
+
+GenericHeader
+        ret
+
+;
+; Initialise le compteur d'entrées et sauve le pen courant
+;
+; Entrée - A = lecteur physique concerné
+;          HL = adresse du tampon à utiliser (12 octets mini)
+; Sortie - Aucune
+; Altéré - AF,BC,DE,HL
+;
+
+EraHeader
+        PUT_8 eraaskmask,0
+        PUT_16 eraskipcount,0
+        ret
+
+;
+; Affiche le cartouche de début de catalogue (hook pour DirScan)
+;
+; Entrée - A = lecteur physique concerné
+;          HL = adresse du tampon à utiliser (12 octets mini)
+; Sortie - Aucune
+; Altéré - AF,BC,DE,HL
+
+DirDisplayHeader
+        call catdisplayheader
+        ld a,15
+        call arraygetcolumns
+        PUT_D dirnbrcol
+        PUT_D dircurcol
+        ret
+
+;
+; Affiche le cartouche des informations sur les fichiers
+;
+; Entrée - A = lecteur physique concerné
+;          HL = adresse du tampon à utiliser (12 octets mini)
+; Sortie - Aucune
+; Altéré - AF,BC,DE,HL
+;
+
+InfoDisplayHeader
+        call _cas_in_abandon
+        ld b,14
+        call printspaces
+        ld hl,msg_infoheader
+        jp printaltpenstring
+
+;
+; Pied de page qui provoque une erreur si le compteur d'entrées est nul
+;
+; Entrée - N/A
+; Sortie - Z si le processus s'est terminé normalement
+;          NZ en cas d'erreur (A = code d'erreur)
+; Altéré - AF,BC,DE,HL
+
+GenericFooter
+        GET_A entryfound
+        or a
+        jp z,hookfilenotfound
+        cp a    ; Z
+        ret
+
+;
+; Pied de page qui met  àjour la date du répertoire parent si le
+; compteur d'entrées traitées et non nul et provoque une erreur sinon
+;
+; Entrée - N/A
+; Sortie - Z si le processus s'est terminé normalement
+;          NZ en cas d'erreur (A = code d'erreur)
+; Altéré - AF,BC,DE,HL
+
+EraFooter
+        call genericfooter
+        ret nz
+
+        push ix
+        call smartreadclock
+        call getworkpathde
+        call getworkdrive_rega
+        call outsetparentdirdate
+        pop ix
+        cp a    ; Z
+        ret
+
+;
+; Affiche le cartouche de fin de catalogue (hook pour DirScan)
+;
+; Entrée - N/A
+; Sortie - Z si le processus s'est terminé normalement
+;          NZ en cas d'erreur (A = code d'erreur)
+; Altéré - AF,BC,DE,HL
+
+DirDisplayFooter
+        GET_BC dircount
+        ld a,c
+        or b
+        jr nz,dirdisplaynormalfooter
+        ld hl,msg_catnofiles
+        call printstring
+        jr dirdisplayfooterfinalize
+DirDisplayNormalFooter
+        call printnewline
+        call printnewline
+DirDisplayFooterFinalize
+        call getworkdrive_rega
+        call dirfreespace
+        cp a    ; Z
+        ret

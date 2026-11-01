@@ -212,7 +212,7 @@ class Next:
                     print('--- intchk: interrupt taken with SP %04X (the thread?) at PC %04X, frame T %d' % (s.m.sp, s.m.pc, s.T)); s.reset = True; break
                 if s.m.iff1 and s.m.on_handle_active_int(): s.ints += 1; break
                 if INTPULSE and held >= INTPULSE << (s.regs.get(0x07, 0) & 3): s.missed += 1; break
-                s.q = 1; s.m.ticks_to_stop = 1; cpcrun.endkey_run(s); steps += 1; d = 1 - s.m.ticks_to_stop; s.q = 0; s.T += d; s.tframe += d; held += d
+                s.q = 1; d = cpcrun.step1(s); steps += 1; s.q = 0; s.T += d; s.tframe += d; held += d
             if TRACEZ is not None: s.tracez()
             while s.tframe >= s.frame_t(): s.tframe -= s.frame_t()
             if n > limit: print('TIMEOUT pc=%04x sp=%04x' % (s.m.pc, s.m.sp)); break

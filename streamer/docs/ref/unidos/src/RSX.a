@@ -1,0 +1,1545 @@
+;
+; Routines des RSX
+;
+
+;
+; |CAT
+;
+
+RSX_Cat or a
+        jp nz,casreturn_badcommand
+
+        ld e,opt_enabledsortdirfirst_f
+        call setoption
+
+        push af
+        call checkbasic
+        ld c,a
+        ld hl,_bas_cat
+        xor a
+        FAR_PCHL
+        pop af
+
+        ld e,opt_enabledsortdirfirst_f
+        jp setoption
+
+;
+; |PATH[,@string variable]
+;
+
+RSX_Path
+        call rsx_fixix
+        cp 2
+        jp nc,casreturn_badcommand
+        push af
+        call getcurrentphysicaldrive
+        call getcurrentpathde
+        call getworkareahl
+        call formatpath
+        pop af
+        or a
+        jp z,printstring
+StorePathInVar
+        ex de,hl
+
+        call rsx_getarg1_string
+        ld a,(bc)
+
+        push bc
+        ld b,a
+        ld c,0
+StorePathInVarLoop
+        ld a,(de)
+        push af
+        inc de
+        and &7f
+        ld (hl),a
+        inc hl
+        inc c
+        pop af
+        bit 7,a
+        jr nz,storepathinvarend
+        djnz storepathinvarloop
+StorePathInVarEnd
+        pop hl
+        ld (hl),c
+        ret
+
+;
+; |DISC,
+; |DISC.IN,
+; |DISC.OUT,
+; |TAPE,
+; |TAPE.IN,
+; |TAPE.OUT
+; Réinstallation des indirection de l'UniDOS
+;
+
+RSX_Disc
+RSX_Disc.In
+RSX_Disc.Out
+RSX_Tape
+RSX_Tape.In
+RSX_Tape.Out
+        or a
+        jp nz,casreturn_badcommand
+        call initdata
+        call installindirections
+        ld c,sc_currentlogicaldrive_f+sc_currentpath_f
+        jp loadconfig
+
+;
+; |A (pas de vérification de l'absence de paramètres, comme l'AMSDOS)
+;
+
+RSX_A   ld d,1  ; Un paramètre
+        xor a   ; Lecteur logique A
+        jr rsx_drivedirect
+
+;
+; |B (pas de vérification de l'absence de paramètres, comme l'AMSDOS)
+;
+
+RSX_B   ld d,1  ; Un paramètre
+        ld a,1  ; Lecteur logique B
+        jr rsx_drivedirect
+
+;
+; |DRIVE,"x" avec x = A ou B sélectionne le lecteur logique courant
+; |DRIVE,"x",y" avec x = A ou B et un chemin vers un répertoire dans y, assigne le chemin au lecteur logique
+; |DRIVE affiche les informations sur les lecteurs présents
+;
+
+RSX_Drive
+        call rsx_fixix
+        or a
+        jp z,rsx_displaydosdevices
+        cp 1
+        jr z,rsx_driveselect
+        cp 2
+        jp nz,casreturn_badcommand
+
+RSX_DriveSelect
+        ld d,a                          ; Nombre de paramètres
+        call rsx_getarg1_string
+        ld a,(bc)
+        cp 1
+        jp nz,casreturn_badcommand
+        ld a,(hl)
+        call toupper
+        sub a,'A'
+
+RSX_DriveDirect
+        ld c,a                          ; C = lecteur logique
+        call getphysicaldrive
+        ld e,a                          ; E = Lecteur physique
+        cp -1
+        jp z,casreturn_badcommand
+
+        ld a,d                          ; 1 ou 2 paramètres ?
+        cp 2
+        jr z,rsx_driveconfigure
+
+        PUT_C currentlogicaldrive
+
+        ld c,sc_currentlogicaldrive_f
+        call saveconfig
+
+        xor a
+        dec a   ; NZ
+        ret
+
+RSX_DriveConfigure
+        GETPTR_HL currentlogicaldrive
+        ld d,(hl)                       ; D = lecteur logique courant d'origine
+        ld (hl),c                       ; On active le lecteur logique à réassigner
+
+        call rsx_getarg2_string
+        ld a,(bc)
+        ld b,a
+
+        push de
+        ld de,&c000                     ; Ne sera pas utilisé
+        call cas_inopen
+        pop de
+
+        PUT_D currentlogicaldrive       ; On remet le lecteur logique courant
+
+        jr c,driveconfigurewasfile      ; Le chemin pointait vers un fichier !
+        cp dsk_err_quiet_directory_found
+        ret z                           ; Tout a bien fonctionné
+        bit 7,a
+        jp z,casreturn_badcommand       ; Une erreur est survenue...
+        ret                             ; ... mais elle a déjà été affichée
+
+DriveConfigureWasFile
+        call cas_inabandon
+        jp casreturn_badcommand
+
+RSX_DisplayDOSDevices
+        ld hl,msg_dos_devices
+        call printaltpenstring
+
+        ld c,cmd_device_list
+        call getworkareade
+        call bios_command
+        ex de,hl
+        GETPTR_DE workarea+&40
+        ld c,0  ; C = Nombre de lecteurs listés
+DisplayDOSDevicesLoop
+        ld a,(hl)
+        cp 255
+        jr z,displaydosdevicesend
+
+        push bc
+        ld c,cmd_device_info
+        call bios_command
+        pop bc
+
+        jr nc,displaydosdeviceskip  ; Échec de la commande ?
+
+        ld a,(de)   ; On n'affiche que les lecteurs présents
+        bit Media_Available_B,a
+        call nz,displaydosdevice
+
+DisplayDOSDeviceSkip
+        push bc
+        call getstringlen
+        ld b,0
+        add hl,bc
+        pop bc
+
+        jr displaydosdevicesloop
+
+DisplayDOSDevicesEnd
+        ld a,c
+        or a
+        call z,displaynodosdevice
+
+        ld hl,msg_logical_drives
+        call printaltpenstring
+
+        xor a
+        call displaylogicaldrive
+        ld a,1
+        call displaylogicaldrive
+
+        call printnewline
+
+        xor a
+        dec a   ; NZ
+        ret
+DisplayDOSDevice
+        inc c
+
+        push hl
+        push de
+        push bc
+
+        ld a,6
+        call printjustifiedstring
+
+        call printcolon
+        call printspace
+
+        ex de,hl
+        ld bc,10    ; Offset où se trouve la description
+        add hl,bc
+        call printstring
+        call printnewline
+
+        pop bc
+        pop de
+        pop hl
+        ret
+DisplayNoDOSDevice
+        ld hl,msg_dos_device_none
+        jp printstring
+DisplayLogicalDrive
+        push af
+        ld c,a
+        GET_B currentlogicaldrive
+        call printspace
+        ld a,c
+        cp b
+        ld a,'>'
+        jr z,dldcurrent
+        ld a,' '
+DLDCurrent
+        call _txt_output
+        pop af
+        add a,'A'
+        call _txt_output
+        push af
+        call printcolon
+        call printspace
+        pop af
+        cp 'A'
+        jr z,displaylogicaldriveinfo
+        cp 'B'
+        jr z,displaylogicaldriveinfo
+        ld hl,msg_unknownstring
+        jr displaylogicaldrivestring
+DisplayLogicalDriveInfo
+        sub 'A'
+        call getlogicaldrivepathde
+        call getphysicaldrive
+        call getworkareahl
+        call formatpath
+DisplayLogicalDriveString
+        call printstring
+        jp printnewline
+
+;
+; |DIR[,"pattern"]
+;
+
+RSX_Dir ld hl,_rsx_dir
+        call rsx_handlealiendrive
+        ret c
+
+        call rsx_genericdirscan
+        jp nz,casreturn_badcommand
+        ld ix,dirdisplayroutines
+        jp dirscan
+
+RSX_GenericDirScan
+        call rsx_fixix
+        or a
+;        ld b,a
+        ret z
+        cp 1
+        ret nz
+RSX_GenericDirScanArg
+        call rsx_getarg1_string
+        ld a,(bc)
+        ld b,a
+        cp a    ; Z
+        ret
+
+;
+; |INFO[,"pattern"]
+;
+
+RSX_Info
+        ld hl,_rsx_info
+        call rsx_handlealiendrive
+        ret c
+
+        call rsx_genericdirscan
+        jp nz,casreturn_badcommand
+        ld ix,infodisplayroutines
+        jp dirscan
+
+;
+; |ERA,"pattern"
+;
+
+RSX_Era ld hl,_rsx_era
+        call rsx_handlealiendrive
+        ret c
+
+        cp 1
+        jp nz,casreturn_badcommand
+        call rsx_genericdirscan
+        jp nz,casreturn_badcommand
+        ld ix,eraroutines
+        jp dirscan
+
+;
+; |PROTECT,"pattern"
+;
+
+RSX_Protect
+        ld hl,_rsx_protect
+        call rsx_handlealiendrive
+        ret c
+
+        cp 1
+        jp nz,casreturn_badcommand
+        call rsx_genericdirscan
+        jp nz,casreturn_badcommand
+        PUT_16 setprotection,&0101      ; Lecture seule positionnée
+        ld ix,setprotectionroutines
+        jp dirscan
+
+;
+; |UNPROTECT,"pattern"
+;
+
+RSX_Unprotect
+        ld hl,_rsx_unprotect
+        call rsx_handlealiendrive
+        ret c
+
+        cp 1
+        jp nz,casreturn_badcommand
+        call rsx_genericdirscan
+        jp nz,casreturn_badcommand
+        PUT_16 setprotection,&0100      ; Lecture seule non positionnée
+        ld ix,setprotectionroutines
+        jp dirscan
+
+;
+; |HIDE,"pattern"
+;
+
+RSX_Hide
+        ld hl,_rsx_hide
+        call rsx_handlealiendrive
+        ret c
+
+        cp 1
+        jp nz,casreturn_badcommand
+        call rsx_genericdirscan
+        jp nz,casreturn_badcommand
+        PUT_16 setprotection,&0202      ; Caché positionné
+        ld ix,setprotectionroutines
+        jp dirscan
+
+;
+; |SHOW,"pattern"
+;
+
+RSX_Show
+        ld hl,_rsx_show
+        call rsx_handlealiendrive
+        ret c
+
+        cp 1
+        jp nz,casreturn_badcommand
+        call rsx_genericdirscan
+        jp nz,casreturn_badcommand
+        PUT_16 setprotection,&0200      ; Caché non positionné
+        ld ix,setprotectionroutines
+        jp dirscan
+
+;
+; |REN,"new file name","old file name"
+;
+
+RSX_Ren ld hl,_rsx_ren
+        call rsx_handlealiendrive
+        ret c
+
+        call rsx_fixix
+        cp 2
+        jp nz,casreturn_badcommand
+
+        call rsx_getarg1_string
+        ld a,(bc)
+        ld b,a
+
+        call qualifyfile
+        jp z,casreturn_qualifyfailed
+
+        call getworkareade
+        ld hl,&10
+        add hl,de
+        ex de,hl
+        ld bc,&10
+        ldir                            ; WorkArea+&10 = nouveau nom de fichier normalisé
+        call getworkpathhl
+        ld bc,dirbuffersize
+        ldir                            ; WorkArea+&20 = nouveau chemin normalisé
+        call getworkdrive_rega
+        push af
+
+        call rsx_getarg2_string
+        ld a,(bc)
+        ld b,a
+
+        call qualifyfile
+        pop bc
+        jp z,casreturn_qualifyfailed
+
+        call getworkdrive_rega
+        cp b
+        jp nz,casreturn_renameacrossmedias
+
+        push af
+
+        call getworkareahl
+        push hl
+        ld bc,&10
+        add hl,bc
+        push hl
+        add hl,bc
+        ld b,h
+        ld c,l                          ; BC = nouveau chemin normalisé
+        pop ix                          ; IX = nouveau nom de fichier normalisé
+        pop hl                          ; HL = ancien nom de fichier normalisé
+        call getworkpathde              ; DE = ancien chemin normalisé
+        call device_rename
+
+        pop bc                          ; B = lecteur
+
+        jp nc,casreturn_badcommand
+        jr z,rensuccess
+        cp dsk_err_file_not_found
+        jp z,casreturn_filenotfound_hl
+        push ix:pop hl
+        cp dsk_err_file_already_exists
+        jp z,casreturn_filealreadyexists_hl
+        cp dsk_err_rename_across_directories
+        ld a,b                          ; A = lecteur
+        jp z,casreturn_unsupporteddrive
+        jp casreturn_badcommand
+RenSuccess
+        ld a,&ff
+        or a    ; NZ
+        ret
+
+;
+; |MAKELINK,"link file name","file name"
+;
+
+RSX_MakeLink
+        call rsx_fixix
+        cp 2
+        jp nz,casreturn_badcommand
+
+        call rsx_getarg2_string
+        ld a,(bc)
+        or a                            ; Vide ?
+        jp z,casreturn_badcommand
+        cp maxlinksize+1                ; Trop long ?
+        jp nc,casreturn_badcommand
+
+        ld c,a
+        ld b,0
+        ld de,_dos_rom_alt_buffer
+        push bc
+        push de
+        ldir
+
+        call rsx_getarg1_string
+        ld a,(bc)
+        ld b,a
+        call _cas_out_open
+
+        pop hl                          ; Adresse
+        pop de                          ; Longueur
+        jr c,makelinkdo
+
+        cp dsk_err_bad_channel_state
+        jp z,casreturn_alreadyopened
+        jr makelinkfailure
+MakeLinkDo
+        ld bc,0                         ; Exécution
+        ld a,dsk_file_type_symbolic_link
+        call _cas_out_direct
+        jr nc,makelinkfailure
+
+        GETPTR_HL fileouthead.loadadr
+        ld (hl),0
+        inc hl
+        ld (hl),0
+
+        call _cas_out_close
+        jr nc,makelinkfailure
+MakeLinkSuccess
+        xor a:inc a ; NZ
+        ret
+MakeLinkFailure
+        push af
+        call _cas_out_abandon
+        pop af
+        jp casreturn_handlefailure
+
+;
+; |READLINK,"link file name"[,@string variable]
+;
+
+RSX_ReadLink
+        call rsx_fixix
+        or a
+        jp z,casreturn_badcommand
+        cp 3
+        jp nc,casreturn_badcommand
+
+        ld c,a                      ; C = Nombre de paramètres
+
+        push bc
+        call rsx_getarg1_string
+        ld a,(bc)
+        pop bc
+        ld b,a
+        xor a
+        call setlinkstatus
+        push af
+        xor a
+        call setdirectorystatus
+        push af
+
+        push ix
+        push bc
+        ld de,_dos_rom_alt_buffer
+        call _cas_in_open
+        pop de                      ; E = Nombre de paramètres
+        pop ix
+
+        di
+        ex af,af'
+        pop af
+        call setdirectorystatus
+        pop af
+        call setlinkstatus
+        cp a    ; NC pour les interruptions !
+        ex af,af'
+        ei
+
+        jr c,readlinkdo
+
+        cp dsk_err_bad_channel_state
+        jp z,casreturn_alreadyopened
+        cp dsk_err_quiet_directory_found
+        jr z,readlinkinvalid
+        jr readlinkfailure
+
+ReadLinkDo
+        cp dsk_file_type_symbolic_link
+        jr nz,readlinkinvalid
+        ld a,b                      ; Taille acceptable ?
+        or a
+        jr nz,readlinkinvalid
+        ld a,c
+        or a
+        jr z,readlinkinvalid
+        cp maxlinksize+1            ; A=C=longueur du lien
+        jr nc,readlinkinvalid
+
+        push bc
+        push ix
+        push de
+        ld hl,_dos_rom_alt_buffer
+        call _cas_in_direct
+        pop de
+        pop ix
+        pop bc
+        jr nc,readlinkfailure
+
+        push bc
+        push de
+        call _cas_in_close
+        pop de
+        pop bc
+        jr nc,readlinkfailure
+
+        ld hl,_dos_rom_alt_buffer
+
+        ld a,e                  ; 1 ou 2 paramètres fournis ?
+        cp 1
+        jr z,readlinkdisplay
+
+ReadLinkStoreInVar
+        ld a,c
+
+        ex de,hl
+
+        call rsx_getarg2_string
+
+        push bc
+
+        push af
+        ld a,(bc)
+        ld b,a
+        ld c,0
+        pop af
+
+        ex de,hl
+ReadLinkStoreInVarLoop
+        inc c:ldi
+        inc c
+        dec a
+        jr z,readlinkstoreinvarend
+        djnz readlinkstoreinvarloop
+ReadLinkStoreInVarEnd
+        pop hl
+        ld (hl),c
+        jr readlinksuccess
+ReadLinkDisplay
+        ld b,c
+        call printsizedstring
+        call printnewline
+ReadLinkSuccess
+        xor a:inc a ; NZ
+        ret
+ReadLinkCancel
+        push af
+        call _cas_in_abandon
+        pop af
+        ret
+ReadLinkFailure
+        call readlinkcancel
+        jp casreturn_handlefailure
+ReadLinkInvalid
+        call readlinkcancel
+        jp casreturn_fileisnotalink
+
+;
+; |COPY,"source","destination"
+;
+
+RSX_Copy
+        call rsx_fixix
+        cp 2
+        jp nz,casreturn_badcommand
+
+        call rsx_getarg1_string
+        ld a,(bc)
+        ld b,a                      ; HL=nom source, B=taille
+
+        ex de,hl
+        push bc
+        call rsx_getarg2_string
+        ld a,(bc)
+        pop bc
+        ex de,hl
+        ld c,a                      ; DE=nom destination, C=taille
+
+        xor a
+        call setlinkstatus
+        push af
+        xor a
+        call setdirectorystatus
+        push af
+
+        call copyfile
+
+        di
+        ex af,af'
+        pop af
+        call setdirectorystatus
+        pop af
+        call setlinkstatus
+        cp a    ; NC pour les interruptions !
+        ex af,af'
+        ei
+
+        jp nc,casreturn_handlefailure
+
+CopySuccess
+        xor a:inc a ; NZ
+        ret
+
+;
+; |FORMAT,"drive"
+;
+
+RSX_Format
+        call rsx_fixix
+        cp 1
+        jp nz,casreturn_badcommand
+
+        call rsx_getarg1_string
+        ld a,(bc)
+        ld b,a  ; HL=nom, B=taille
+
+        or a    ; Nom vide ?
+        jp z,casreturn_badcommand
+
+        call qualifypath
+        jp z,casreturn_qualifyfailed
+
+        ld a,b  ; Lecteur seul spécifié ?
+        or a
+        jp nz,casreturn_badcommand
+
+        call getworkdrive_rega
+        push af
+        call device_getstatus
+        pop bc
+        jr nc,formatstatusunknown
+        and media_formatable_f
+        jp z,formatunsupported
+
+FormatStatusUnknown
+        ld a,b
+        call confirmformat
+        cp 'N'
+        jr z,formatsuccess
+
+        ld a,b
+        call device_format
+        jp nc,formatunsupported
+        jp nz,casreturn_handlefailure
+
+FormatSuccess
+        or a ; NZ
+        ret
+FormatUnsupported
+        ld a,b  ; A = lecteur physique
+        jp casreturn_unsupporteddrive
+
+ConfirmFormat
+        ld hl,msg_noticeformat
+        call displaydrivemsg
+
+        ld hl,msg_confirmyesorno
+        call printstring
+        call _txt_cur_on                 ; Curseur système actif
+ConfirmFormatWait
+        call _km_wait_char
+        call toupper
+        cp 'Y':jr z,confirmformatok
+        cp 'N':jr z,confirmformatok
+        jp confirmformatwait
+ConfirmFormatOk
+        call _txt_output
+        call _txt_cur_off                ; Curseur système inactif
+        jp printnewline
+
+;
+; |NODE[,rom]
+;
+
+RSX_Node
+        call rsx_fixix
+        cp 2
+        jp nc,casreturn_badcommand
+
+        or a
+        jr z,nodelist
+
+NodeInfo
+        ld a,(ix-1)
+        or a
+        jp nz,casreturn_badcommand
+
+        ld a,(ix-2)
+        cp 32
+        jp nc,casreturn_badcommand
+
+        ld ixl,a ; Numéro de ROM
+
+        call nodedisplayinfo
+        jr c,nodedisplaydevices
+
+        jp casreturn_notadosnode
+
+NodeList
+        ld ixl,0 ; ROM de départ
+NodeListLoop
+        call nodedisplayinfo
+        jr nc,nodelistloopskip
+        call testesc
+        jp c,casreturn_interrupted
+        call printnewline
+NodeListLoopSkip
+        inc ixl
+        ld a,31
+        and ixl
+        jr nz,nodelistloop
+        scf
+        ret
+
+NodeDisplayDevices
+        call printnewline
+
+        call _kl_curr_selection
+        cp ixl
+        jr nz,nodeinfoexternal
+NodeInfoInternal
+        xor a
+        jr nodeinfoprintdetail
+NodeInfoExternal
+        ld a,ixl
+        sla a
+        sla a
+        sla a
+NodeInfoPrintDetail
+        ld ixl,a
+        ld b,0
+NodeInfoLoop
+        ld a,ixl
+        or b
+        call getworkareade
+        push de
+        call device_getname
+        pop hl
+        jr c,nodeinfoprintname
+        jr nodeinfoskip
+
+NodeInfoPrintName
+        ld a,6
+        call printjustifiedstring
+
+        call printcolon
+        call printspace
+
+        ld a,ixl
+        or b
+        call getworkareade
+        push de
+        call device_getdesc
+        pop hl
+        jr c,nodeinfoprintdesc
+        ld hl,msg_unknownstring
+NodeInfoPrintDesc
+        call printstring
+        call printnewline
+NodeInfoSkip
+        inc b
+        ld a,7
+        and b
+        jr nz,nodeinfoloop
+        scf
+        ret
+
+NodeDisplayIsValid
+        call _kl_curr_selection
+        cp ixl
+        scf
+        ret z
+        ld c,ixl
+        jp isdosnode
+
+NodeDisplayInfo
+        call nodedisplayisvalid
+        ret nc
+
+        ld c,ixl
+        call getworkareahl
+        call getrominfo
+        cp 3
+        ret nc
+
+        push de
+        push bc
+
+        ld hl,msg_rom
+        call printstring
+        ld d,0
+        ld e,ixl
+        call printshortnumber
+        call printcolon
+
+        call getworkareahl
+        push hl
+        call printaltpenstring
+        pop hl
+        call getstringlen
+        ld a,17
+        sub c
+        ld b,a
+        call nz,printspaces
+
+        pop bc
+        ld a,b ; Mark
+        call printdigit
+        call printdot
+        pop de
+        ld a,d ; Version
+        call printdigit
+        ld a,e ; Revision
+        call printdigit
+
+        call printspace
+
+        call nodeisnvram
+        jr z,nodedisplaynvram
+
+        call nodeisclock
+        jr z,nodedisplayclock
+
+        call _kl_curr_selection
+        cp ixl ; UniDOS est toujours considéré comme actif
+        jr z,nodedisplayactive
+        ld a,ixl
+        call isactivedosnode
+        jr c,nodedisplayactive
+
+        ld hl,msg_nodeinactive
+NodeDisplayInfoPrintStatus
+        call printstring
+        scf
+        ret
+NodeDisplayActive
+        ld hl,msg_nodeactive
+        jr nodedisplayinfoprintstatus
+NodeDisplayNVRAM
+        ld hl,msg_nodenvram
+        call nodeisclock
+        jr nz,nodedisplayinfoprintstatus
+        call printstring
+        call printcomma
+        jr nodedisplayclock
+NodeDisplayClock
+        ld hl,msg_nodeclock
+        jr nodedisplayinfoprintstatus
+
+NodeIsNVRAM
+        GET_A nvramid
+        srl a:srl a:srl a
+        or a ; Si zero c'est l'UniDOS lui-même qui gère la NV-RAM en mode dégradé
+        call z,_kl_curr_selection
+        cp ixl
+        ret
+NodeIsClock
+        GET_A rtcid
+        srl a:srl a:srl a
+        cp ixl
+        ret
+
+;
+; |LOAD,"path"[,address]
+;
+
+RSX_Load
+        call rsx_fixix
+        cp 3
+        jp nc,casreturn_badcommand
+
+        push af
+
+        call _cas_in_abandon
+
+        call rsx_getarg1_string
+        ld a,(bc)
+        ld b,a
+        ld de,&c000     ; Ne sera pas utilisé
+        call _cas_in_open
+
+        pop bc
+
+        ret nc          ; On sort aussi ici en cas d'ouverture de répertoire
+
+        ld c,a          ; C = type de fichier
+        ld a,b          ; A = nombre de paramètres
+        cp 2
+        jr nc,loadgivenadr
+
+        ld a,c
+        cp dsk_file_type_ascii
+        jr nz,loaddefadr
+
+LoadASCIIError
+        ld hl,msg_asciifile
+        call printstring
+        jp _cas_in_abandon
+
+LoadGivenAdr
+        ld d,(ix-3)
+        ld e,(ix-4)
+
+LoadDefAdr
+        ex de,hl        ; HL = adresse de chargement
+        call _cas_in_direct
+        jp _cas_in_close
+
+;
+; |SAVE,"path",address,length[,execution]
+;
+
+RSX_Save
+        call rsx_fixix
+        cp 5
+        jp nc,casreturn_badcommand
+
+        push af
+
+        call _cas_out_abandon
+
+        call rsx_getarg1_string
+        ld a,(bc)
+        ld b,a
+        ld de,&c000     ; Ne sera pas utilisé
+        call _cas_out_open
+
+        pop bc
+
+        ret nc          ; On sort aussi ici en cas de création de répertoire
+
+        ld a,b          ; A = nombre de paramètres
+        ld bc,0         ; BC = adresse d'exécution par défaut
+
+        cp 3
+        jr z,savedefexe
+        jp c,casreturn_badcommand
+
+        ld b,(ix-7)     ; BC = adresse d'exécution fournie
+        ld c,(ix-8)
+SaveDefExe
+        ld a,dsk_file_type_binary
+SaveFinalize
+        ld h,(ix-3)     ; HL = adresse des données
+        ld l,(ix-4)
+
+        ld d,(ix-5)     ; DE = longueur des données
+        ld e,(ix-6)
+
+        call _cas_out_direct
+        jp _cas_out_close
+
+;
+; |SAVEA,"path",address,length
+;
+
+RSX_SaveA
+        call rsx_fixix
+        cp 3
+        jp nz,casreturn_badcommand
+
+        push af
+
+        call _cas_out_abandon
+
+        call rsx_getarg1_string
+        ld a,(bc)
+        ld b,a
+        ld de,&c000     ; Ne sera pas utilisé
+        call _cas_out_open
+
+        pop bc
+
+        ret nc          ; On sort aussi ici en cas de création de répertoire
+
+        ld a,dsk_file_type_ascii
+        jr savefinalize
+
+;
+; |AMSDOS
+;
+
+RSX_AMSDOS
+        or a
+        jp nz,casreturn_badcommand
+
+        ld bc,disablerom_unidos_f << 8
+        call writedisableromtag
+        rst 0
+
+;
+; |CLOCK[,"[JJ-MMM-AAAA] [HH:MM[:SS]]"]
+;
+
+RSX_CLOCK
+        call rsx_fixix
+        or a
+        jp z,DisplayClock
+
+        cp 1
+        jp nz,casreturn_badcommand
+
+SetClock
+        call rsx_getarg1_string
+
+        call smartreadclock         ; Valeurs par défaut
+        jp nc,casreturn_clocknotfound
+
+        call setclockhandlearg
+        jp nc,casreturn_badcommand  ; Bad argument
+
+        call isvaliddatetime
+        jp nc,casreturn_badcommand  ; Bad argument
+
+        call device_writertc
+        jp nc,casreturn_clockisreadonly
+        ret
+
+DisplayClock
+        call smartreadclock
+        jp nc,casreturn_clocknotfound
+
+        call getdayshortname
+        call printstring
+        call printspace
+        xor a
+        call printdate
+        call printspace
+        call printtime
+        jp printnewline
+
+SetClockHandleArg
+        ld a,(bc)
+        cp 5
+        jr z,SetTimeHM
+        cp 8
+        jr z,SetTimeHMS
+        cp 11
+        jr z,SetDate
+        cp 17
+        jr z,SetDateTimeHM
+        cp 20
+        scf:ccf
+        ret nz
+SetDateTimeHMS
+        call setdate
+        ret nc
+        ld a,' '
+        call checkseparator
+        ret nc
+        jr settimehms
+SetDateTimeHM
+        call setdate
+        ret nc
+        ld a,' '
+        call checkseparator
+        ret nc
+        jr settimehm
+SetDate call tonumber8
+        ret nc
+        ld (ix+3),a ; Jour
+        ld a,'-'
+        call checkseparator
+        ret nc
+        call tonumberfrommonth
+        ret nc
+        ld (ix+2),a ; Mois
+        ld a,'-'
+        call checkseparator
+        ret nc
+        call tonumber16
+        ret nc
+        ld (ix+1),d
+        ld (ix+0),e ; Année
+        scf
+        ret
+SetTimeHM
+        call tonumber8
+        ret nc
+        ld (ix+4),a ; Heures
+        ld a,':'
+        call checkseparator
+        ret nc
+        call tonumber8
+        ret nc
+        ld (ix+5),a ; Minutes
+        ld (ix+6),0 ; Secondes
+        ret
+SetTimeHMS
+        call settimehm
+        ret nc
+        ld a,':'
+        call checkseparator
+        ret nc
+        call tonumber8
+        ret nc
+        ld (ix+6),a ; Secondes
+        ret
+ToNumberFromMonth
+        ld de,monthshortnames
+        ld b,12
+TNFMLoop1
+        push bc
+        push hl
+        ld c,1
+        ld b,3
+TNFMLoop2
+        ld a,(de)
+        and &7f
+        call toupper
+        push bc
+        ld c,a
+        ld a,(hl)
+        call toupper
+        cp c
+        pop bc
+        jr z,tnfmmatch
+        ld c,0
+TNFMMatch
+        inc de
+        inc hl
+        djnz tnfmloop2
+        xor a
+        cp c
+        pop hl
+        pop bc
+        jr nz,tnfmfound
+        djnz tnfmloop1
+        or a
+        ret
+TNFMFound
+        inc hl
+        inc hl
+        inc hl
+        ld a,13
+        sub a,b
+        scf
+        ret
+ToNumber8
+        call chr2val
+        ret nc
+        call mul10_a
+        ld c,a
+        call chr2val
+        ret nc
+        add a,c
+        scf
+        ret
+ToNumber16
+        call chr2val
+        ret nc
+        call mul10_a
+        ld d,0
+        ld e,a
+        call chr2val
+        ret nc
+        ld b,d
+        ld c,a
+        ex de,hl
+        add hl,bc
+        ex de,hl
+        call chr2val
+        ret nc
+        call mul10_de
+        ld b,0
+        ld c,a
+        ex de,hl
+        add hl,bc
+        ex de,hl
+        call chr2val
+        ret nc
+        call mul10_de
+        ld b,0
+        ld c,a
+        ex de,hl
+        add hl,bc
+        ex de,hl
+        scf
+        ret
+Chr2Val ld a,(hl)
+        inc hl
+        cp '0'
+        ccf
+        ret nc
+        cp '9'+1
+        ret nc
+        sub a,'0'
+        scf
+        ret
+Mul10_A add a,a
+        ld c,a
+        add a,a
+        add a,a
+        add a,c
+        ret
+Mul10_DE
+        ex de,hl
+        add hl,hl
+        push hl
+        add hl,hl
+        add hl,hl
+        pop bc
+        add hl,bc
+        ex de,hl
+        ret
+CheckSeparator
+        cp (hl)
+        inc hl
+        scf
+        ret z
+        ccf
+        ret
+
+;
+; |LIST[,"pattern"]
+;
+
+RSX_List
+        ld hl,_rsx_list
+        call rsx_handlealiendrive
+        ret c
+
+        call rsx_genericdirscan
+        jp nz,casreturn_badcommand
+        ld ix,listdisplayroutines
+        jp dirscan
+
+;
+; |SETFILEDATE,"pattern"[,"[JJ-MMM-AAAA] [HH:MM[:SS]]"]
+;
+
+RSX_SetFileDate
+        ld hl,_rsx_setfiledate
+        call rsx_handlealiendrive
+        ret c
+
+        call rsx_fixix
+        or a
+        jp z,casreturn_badcommand
+        cp 3
+        jp nc,casreturn_badcommand
+
+        call rsx_getarg2_string
+
+        push ix
+        ld e,a
+        GETPTR_IX setfiledate
+        call smartreadclockcustomix
+        ld a,e
+        cp 2
+        scf
+        call z,setclockhandlearg
+        pop ix
+        jp nc,casreturn_badcommand
+
+        call rsx_genericdirscanarg
+        ld ix,setfiledateroutines
+        jp dirscan
+
+;
+; Subroutines
+;
+
+; Vérifie si la RSX doit être prise en charge par une autre ROM
+; en fonction du chemin contenu dans l'argument IX+0/1 (s'il existe)
+;
+; En entrée HL = pointeur vers le nom de RSX concernée
+; En retour NC si l'UniDOS doit gérer, C si la gestion a été déléguée
+
+RSX_HandleAlienDrive
+        ld c,a          ; C = nombre de paramètres
+        push bc
+        push de
+        call handlealiendrive
+        pop de
+        pop bc
+        ld a,c
+        ret
+HandleAlienDrive
+        ex de,hl
+        call handlealiendrivegetpath
+        push de
+        push bc
+        call getdrive
+        pop bc
+        pop de
+        ld b,c          ; B = nombre de paramètres
+        ld c,a          ; C = lecteur physique
+        call installdos
+        ret nc          ; NC, c'est un lecteur de l'UniDOS
+        ld a,b
+        or a            ; On gère les cas pour aucun, 1 et 2 paramètres
+        jr z,handlealiendriveparameterdone
+        call handlealiendrivefixpath
+        cp 1            
+        jr z,handlealiendriveparameterdone
+        inc ix:inc ix
+        call handlealiendrivefixpath
+        dec ix:dec ix
+HandleAlienDriveParameterDone
+        ld b,a
+        push bc
+        ex de,hl
+        call GetAmsdosROM_RegA
+        ld c,a
+        call findrsx
+        pop bc
+        ld a,c          ; A = lecteur physique
+        push bc
+        call nc,casreturn_unsupporteddrive
+        pop bc
+        ld a,b
+        jr nc,handlealiendrivedone
+
+        call invokersx  ; On appelle la RSX trouvée
+
+HandleAlienDriveDone
+        call uninstalldos
+        scf             ; C, terminé
+        ret
+
+HandleAlienDriveGetPath
+        xor a
+        ld b,a
+        cp c
+        ret z
+HandleAlienDriveGetParam
+        ld l,(ix+0)
+        ld h,(ix+1)
+        ld b,(hl)       ; B = longueur
+        inc hl
+        ld a,(hl)
+        inc hl
+        ld h,(hl)
+        ld l,a          ; HL = chemin
+        ret
+
+HandleAlienDriveFixPath
+        push af
+
+        call handlealiendrivegetparam
+        call fixalienpath
+
+        push bc
+        ld a,b          ; Modification de l'argument
+        ld b,h
+        ld c,l
+        ld l,(ix+0)
+        ld h,(ix+1)
+        ld (hl),a
+        inc hl
+        ld (hl),c
+        inc hl
+        ld (hl),b
+        pop bc
+
+        pop af
+        ret
+
+;
+; Routines d'activation et restoration du support des liens symboliques
+;
+; Entrée - N/A
+; Sortie - A = ancienne valeur
+; Altéré - AF
+
+SetLinkStatus
+        push bc
+        ld c,cmd_disabled_link
+        call bios_command
+        pop bc
+        ret
+
+;
+; Routines d'activation et restoration du support des répertoires
+;
+; Entrée - N/A
+; Sortie - A = ancienne valeur
+; Altéré - AF
+
+SetDirectoryStatus
+        push bc
+        ld c,cmd_disabled_directory
+        call bios_command
+        pop bc
+        ret
+
+;
+; Routines d'accès aux paramètres
+;
+
+; Modifie l'index d'accès aux paramètres pour qu'il soit identique selon le nom d'arguments
+; IX-2/1 = premier, IX-3/4 = deuxième, IX-5/6 = troisième, etc..
+RSX_FixIX
+        ld c,a
+        ld b,0
+        add ix,bc
+        add ix,bc
+        ret
+
+; HL=pointeur vers la chaîne, BC=pointeur vers la taille
+RSX_GetArg1_String
+        push af
+        ld h,(ix-1)
+        ld l,(ix-2)
+GetArgcommon
+        push hl
+        inc hl
+        ld a,(hl)
+        inc hl
+        ld h,(hl)
+        ld l,a
+        pop bc
+        pop af
+        ret
+
+; HL=pointeur vers la chaîne, BC=pointeur vers la taille
+RSX_GetArg2_String
+        push af
+        ld h,(ix-3)
+        ld l,(ix-4)
+        jr getargcommon
+

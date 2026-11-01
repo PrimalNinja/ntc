@@ -1,0 +1,175 @@
+;
+; Fonctions de calcul
+;
+
+;
+; Division 16/16=16 bits
+;
+; Entrée - AC = nombre à diviser
+;          DE = diviseur
+; Sortie - AC = résultat
+;          HL = reste
+; Altéré - AF,BC,HL
+
+DivAC_DE
+        ld hl,0
+        ld b,16
+DivACDELoop
+        sll c
+        rla
+        adc hl,hl
+        sbc hl,de
+        jp nc,divacdeskip
+        add hl,de
+        dec c
+DivACDESkip
+        djnz divacdeloop
+        ret
+
+;
+; Divise BCDE par 1024 en arrondissant à l'entier supérieur
+;
+; Entrée - BCDE = valeur 32 bits à diviser
+; Sortie - BCDE = résultat de la division par 1024 (B est toujours nul)
+; Altéré - AF,BC,DE
+
+DivBCDE_1024
+        ld a,d
+        and 3
+        or e
+        ld e,a
+        ld a,b
+        srl a:rr c:rr d ; Division par 1024 pour avoir des Kio
+        srl a:rr c:rr d
+        ld b,e
+        ld e,d
+        ld d,c
+        ld c,a
+        xor a
+        cp b
+        ld b,0
+        ret z
+        xor a
+        ld a,c
+        ld c,1
+        ex de,hl
+        add hl,bc
+        ex de,hl
+        ld c,a
+        ret nc
+        inc c
+        ret
+
+;
+; Ajout DE à BCHL
+;
+; Entrée - BCHL = valeur 32 bits à laquelle ajouter la valeur 16 bits
+;            DE = valeur 16 bits à ajouter à la valeur 32 bits
+; Sortie - BCHL = BCHL + DE
+; Altéré - BC,HL,Flags
+;
+
+AddBCHL_DE
+        add hl,de
+        ret nc
+        inc bc
+        ret
+;
+; Incrémente ou décrémente une valeur 24 bits
+;
+; Entrée - CDE = valeur à incrémenter/décrémenter
+; Sortie - CDE = valeur incrémentée/décrémentée
+; Altéré - AF
+
+Inc_CDE inc de
+        ld a,d
+        or e
+        ret nz
+        inc c
+        ret
+
+Dec_CDE dec de
+        ld a,e
+        and d
+        cp &ff
+        ret nz
+        dec c
+        ret
+
+;
+; Vérifie si BC est égal à DE
+;
+; Entrée - BC et DE = les valeurs à comparer
+; Sortie - Si Z alors BC est égal à DE
+; Altéré - AF
+
+Eq_BC_DE
+        ld a,c
+        cp e
+        ret nz
+        ld a,b
+        cp d
+        ret
+
+;
+; HL = HL*14
+;
+; Entrée - HL
+; Sortie - HL=HL*14
+; Altéré - HL
+
+MulHL14 push de
+        ld d,h
+        ld e,l
+        add hl,hl
+        add hl,de
+        add hl,hl
+        add hl,de
+        add hl,hl
+        pop de
+        ret
+
+;
+; Calcule le nombre de colonnes affichables d'un tableau
+;
+; Entrée - A = largeur des champs du tableau
+; Sortie - D = nombre de colonnes
+; Altéré - AF,DE
+
+ArrayGetColumns
+        ld e,a
+        push de
+        push hl
+        call _txt_get_window
+        ld a,d
+        pop hl
+        pop de
+        inc a
+        ld d,0
+ArrayGetColumnsLoop
+        inc d
+        sub e
+        jr nc,arraygetcolumnsloop
+        dec d
+        ret nz
+        ld d,1
+        ret
+
+;
+; Calcule le nombre de lignes d'un tableau
+;
+; Entrée - A = nombre d'entrées
+;          D = nombre de colonnes
+; Sortie - E = nombre de lignes
+; Altéré - AF,E
+
+ArrayGetLines
+        ld e,0
+ArrayGetLinesLoop
+        inc e
+        sub d
+        jr nc,arraygetlinesloop
+        add a,d
+        ret nz
+        dec e
+        ret

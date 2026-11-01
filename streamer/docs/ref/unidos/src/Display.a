@@ -1,0 +1,523 @@
+;
+; Fonctions d'affichage
+;
+
+;
+; Affichage d'une chaine de caractères
+; La version "AltPen" affiche en utilisant la couleur alternative
+;
+; Entrée - HL = pointeur vers la chaîne de caractères (terminée par un bit 7 à 1)
+; Sortie - HL = pointeur sur le dernier caractère affiché
+; Altéré - HL
+
+PrintString
+        push af
+PrintStringLoop
+        ld a,(hl)
+        rla
+        jr c,printstringend
+        rra
+        inc hl
+        call _txt_output
+        jr printstringloop
+PrintStringEnd
+        srl a
+        call _txt_output
+PrintStringExit
+        pop af
+        ret
+PrintAltPenString
+        push af
+        call setalternatepen
+        call printstring
+        call _txt_set_pen
+        pop af
+        ret
+
+;
+; Recopie une chaîne de caractères
+;
+; Entrée - HL = chaîne de caractère à copier (terminée par un bit 7 à 1)
+;          DE = destination de la copie
+;           C = nombre maximum de caractères à copier
+; Sortie - Si C alors la copie s'est bien terminée
+;            HL pointe sur le premier caractère après la fin de la chaîne
+;            DE pointe sur le premier caractère après la fin de la copie de la chaîne
+;             C a été décrémenté du nombre de caractères copiés
+;          Si NC alors la copie n'a pas pu se faire (nombre maximum de caractères atteint)
+;             C vaut 0, HL et DE sont indéterminés
+; Altéré - AF,C,DE,HL
+;
+
+CopyString
+        ld a,c
+        or a
+        ret z   ; NC
+        ld a,(hl)
+        ldi
+        rla
+        jr nc,copystring
+        ret     ; C
+
+;
+; Affichage avec justification à droite d'une chaine de caractères
+;
+; Entrée - HL = pointeur vers la chaîne de caractères (terminée par un bit 7 à 1)
+;           A = position de la marge de droite
+; Sortie - HL = pointeur vers le caractère suivant après la fin de la chaîne
+; Altéré - AF,HL
+
+PrintJustifiedString
+        push bc
+        call getstringlen
+        sub a,c
+        ld b,a
+        call nz,printspaces
+        call printstring
+        pop bc
+        ret
+
+;
+; Calcul de la taille d'une chaîne de caractères
+;
+; Entrée - HL = pointeur vers la chaîne de caractères (terminée par un bit 7 à 1)
+; Sortie - C =  taille de la chaîne
+; Altéré - C
+
+GetStringLen
+        push hl
+        call getstringleninternal
+        pop hl
+        ret
+GetStringLenInternal
+        ld c,0
+GSLLoop inc c
+        bit 7,(hl)
+        ret nz
+        inc hl
+        jr gslloop
+
+;
+; Calcul de la taille d'un chaîne de caractères
+;
+; Entrée - HL = pointeur vers la chaîne de caractères (terminée par caractère nul)
+;          B = longueur maximum de la chaîne
+; Sortie - C =  taille de la chaîne
+; Altéré - AF,BC,HL
+
+GetNulStringLen
+        ld c,0
+GetNulStringLenLoop
+        ld a,(hl)
+        inc hl
+        or a
+        ret z
+        inc c
+        djnz getnulstringlenloop
+        ret
+
+;
+; Affichage d'une chaîne de caractères de taille donnée
+;
+; Entrée - HL = pointeur vers la chaîne de caractères
+;           B = longueur de la chaîne à afficher
+; Sortie - HL = pointeur sur le prochain caractère à afficher
+;           B = 0
+; Altéré - AF,BC,HL
+
+PrintSizedString
+        ld a,(hl)
+        inc hl
+        call _txt_output
+        djnz printsizedstring
+        ret
+
+;
+; Affiche un nom de fichier normalisé
+; Note: le nom affiché est précédé d'un retour à la ligne comme l'AMSDOS
+;
+; Entrée - HL = adresse du nom de fichier normalisé
+; Sortie - Aucune
+; Altéré - AF,BC,HL
+
+PrintNormalizedFileName
+        call printnewline
+PrintRawNormalizedFileName
+        ld b,8
+        call printsizedstring
+        call printdot
+        ld b,3
+InOpenNotFoundExtLoop
+        ld a,(hl)
+        and &7f
+        inc hl
+        call _txt_output
+        djnz inopennotfoundextloop
+        ret
+
+;
+; Affichage d'une taille en Ko/Mo/Go/To
+;
+; Entrée - BCDE = taille en kilo-octets
+; Sortie - Rien
+; Altéré - AF,BC,DE,HL
+
+PrintSmartSize
+        ld a,%11000000
+        and b
+        jp nz,printsmartsizeto
+        ld a,%00111111
+        and b
+        jp nz,printsmartsizego
+        ld a,%11110000
+        and c
+        jp nz,printsmartsizego
+        ld a,%00001111
+        and c
+        jp nz,printsmartsizemo
+        ld a,%11111100
+        and d
+        jp nz,printsmartsizemo
+PrintSmartSizeKo
+        call printnumber
+        ld a,'K':jp _txt_output
+PrintSmartSizeMo
+        srl c:rr d:rr e
+        srl c:rr d:rr e
+        ld e,d
+        ld d,c
+        call printnumber
+        ld a,'M':jp _txt_output
+PrintSmartSizeGo
+        srl b:rr c
+        srl b:rr c
+        srl b:rr c
+        srl b:rr c
+        ld e,c
+        ld d,b
+        call printnumber
+        ld a,'G':jp _txt_output
+PrintSmartSizeTo
+        srl b
+        srl b
+        srl b
+        srl b
+        srl b
+        srl b
+        ld e,b
+        ld d,0
+        call printnumber
+        ld a,'T':jp _txt_output
+
+;
+; Affichage d'un nombre sur 4 digits
+;
+; Entrée - DE = nombre
+; Sortie - Rien
+; Altéré - AF,BC,DE,HL
+
+PrintNumber
+        ld b,0 ; Flag pour savoir si on doit mettre un zéro ou un espace
+        ld a,d
+        ld c,e
+        ld de,1000
+        push bc
+        call divac_de
+        ld a,c
+        pop bc
+        call printsmartdigit
+        ld a,h
+        ld c,l
+PrintSmartShort
+        ld de,100
+        push bc
+        call divac_de
+        ld a,c
+        pop bc
+        call printsmartdigit
+        ld a,h
+        ld c,l
+PrintSmartSimple
+        ld de,10
+        push bc
+        call divac_de
+        ld a,c
+        pop bc
+        call printsmartdigit
+        ld b,-1 ; On affiche toujours le 0 des unités
+        ld a,l
+PrintSmartDigit
+        cp b    ; Tant qu'on a encore rien affiché, on met des espaces à la place des zéros
+        jp z,printspace
+        ld b,-1 ; À partir de maintenant on mettra toujours les zéros
+PrintDigit
+        add a,'0'
+        jp _txt_output
+
+;
+; Affichage d'un nombre sur 3 digits
+;
+; Entrée - DE = nombre
+; Sortie - Rien
+; Altéré - AF,BC,DE,HL
+
+PrintShortNumber
+        ld b,0 ; Flag pour savoir si on doit mettre un zéro ou un espace
+        ld a,d
+        ld c,e
+        jr printsmartshort
+
+;
+; Affichage d'un nombre sur 2 digits
+;
+; Entrée - A = nombre
+; Sortie - Rien
+; Altéré - AF,BC,DE,HL
+
+PrintSimpleNumber
+        ld b,-1 ; Flag pour savoir si on doit mettre un zéro ou un espace
+        ld c,a
+        xor a
+        jr printsmartsimple
+
+;
+; Affiche un nombre hexadécimal 16 bits
+;
+; Entrée - BC = nombre à afficher
+; Sortie - N/A
+; Altéré - AF
+
+PrintHexaNumber
+        push af
+        ld a,b
+        call printhexanumber8
+        ld a,c
+        call printhexanumber8
+        pop af
+        ret
+;
+; Affiche un nombre hexadécimal 8 bits
+;
+; Entrée - A = nombre à afficher
+; Sortie - N/A
+; Altéré - AF
+
+PrintHexaNumber8
+        push af
+        push hl
+        push bc
+        push af
+        srl a
+        srl a
+        srl a
+        srl a
+        ld c,a
+        ld b,0
+        ld hl,hexachar
+        add hl,bc
+        ld a,(hl)
+        call _txt_output
+        pop af
+        and &f
+        ld c,a
+        ld hl,hexachar
+        add hl,bc
+        ld a,(hl)
+        call _txt_output
+        pop bc
+        pop hl
+        pop af
+        ret
+HexaChar
+        db "0123456789ABCDEF"
+
+;
+; Affiche une date au format "JJ-MMM-AAAA"
+;
+; Entrée - A = mode d'affichage de l'année (A=0 pour AAAA, AA sinon)
+;          IX = tampon qui contient des informations de date et d'heure
+;           Un mot de 16 bits avec l'année (1978..9999)
+;           Un octet avec le numéro du mois (1..12)
+;           Un octet avec le numéro du jour dans le mois (1..28,29,30 ou 31)
+;           Un octet avec les heures (0..23)
+;           Un octet avec les minutes (0..59)
+;           Un octet avec les secondes (0..59)
+; Sortie - Aucune
+; Altéré - AF,BC,DE,HL
+
+PrintDate
+        push af
+        ld a,(ix+3)
+        call printsimplenumber
+        call printminus
+        ld a,(ix+2)
+        call getmonthshortname
+        call printstring
+        call printminus
+        ld d,(ix+1)
+        ld e,(ix+0)
+        pop af
+        or a
+        jp z,printnumber
+        ld a,d
+        ld c,e
+        ld de,100
+        call divac_de
+        ld a,l
+        jp printsimplenumber
+
+;
+; Affiche l'heure au format "HH:MM:SS"
+;
+; Entrée - IX = tampon qui contient des informations de date et d'heure
+;           Un mot de 16 bits avec l'année (1978..9999)
+;           Un octet avec le numéro du mois (1..12)
+;           Un octet avec le numéro du jour dans le mois (1..28,29,30 ou 31)
+;           Un octet avec les heures (0..23)
+;           Un octet avec les minutes (0..59)
+;           Un octet avec les secondes (0..59)
+; Sortie - Aucune
+; Altéré - AF,BC,DE,HL
+
+PrintTime
+        ld a,(ix+4)
+        call printsimplenumber
+        call printcolon
+        ld a,(ix+5)
+        call printsimplenumber
+        call printcolon
+        ld a,(ix+6)
+        jp printsimplenumber
+
+;
+; Affiche un message associé à un lecteur physique sous la forme
+; <drive name>: message
+;
+; Entrée - A = lecteur physique
+;          HL = message
+; Sortie - Aucune
+; Altéré - AF,HL
+
+DisplayDriveMsg
+        push de
+        push hl
+        ld hl,msg_device
+        call printstring
+        GETPTR_DE drivename
+        push de
+        call device_getname
+        call nc,storeunknownstring
+        pop hl
+        call printstring
+        call printcolon
+        call printspace
+        pop hl
+        call printstring
+        call printnewline
+        pop de
+        ret
+
+;
+; Affiche l'invite Retry, Ignore or Cancel?
+;
+; Entrée - A = lecteur logique
+;          HL = message
+; Sortie - A = 'R', 'I' ou 'C'
+; Altéré - AF,HL
+
+AskRetry
+        call displaydrivemsg
+        ld hl,msg_retryignoreorcancel
+        call printstring
+        call _txt_cur_on                 ; Curseur système actif
+AskWait call _km_wait_char
+        call toupper
+        cp 'R':jp z,askok
+        cp 'I':jp z,askok
+        cp 'C':jp z,askok
+        jr askwait
+AskOk   call _txt_output
+        call _txt_cur_off                ; Curseur système inactif
+        jp printnewline
+
+;
+; Affiche l'invite Confirm? Yes, No, All?
+;
+; Entrée - N/A
+; Sortie - A = 'Y', 'N' ou 'A'
+; Altéré - AF,HL
+
+Confirm ld hl,msg_confirmyesnoorall
+        call printstring
+        call _txt_cur_on                 ; Curseur système actif
+ConfirmWait
+        call _km_wait_char
+        call toupper
+        cp 'Y':jp z,confirmok
+        cp 'N':jp z,confirmok
+        cp 'A':jp z,confirmok
+        jr confirmwait
+ConfirmOk
+        call _txt_output
+        call _txt_cur_off                ; Curseur système inactif
+        jp printnewline
+
+;
+; Positionne le pen alternatif
+;
+; Entrée - N/A
+; Sortie - A = pen précédemment actif
+; Altéré - AF
+
+SetAlternatePen
+        push hl
+        call _txt_get_pen
+        push af
+
+        ld a,2
+        call _txt_set_pen    ; pen 2 si mode 0 ou 1
+        call _scr_get_mode
+        cp 2
+        ld a,1
+        call z,_txt_set_pen  ; pen 1 si mode 2
+
+        pop af
+        pop hl
+        ret
+
+;
+; Routines d'affichages diverses
+;
+
+PrintSpaces
+        call printspace
+        djnz printspaces
+        ret
+PrintDoubleSpace
+        call printspace
+PrintSpace
+        ld a,' '
+PrintChar
+        jp _txt_output
+PrintDot
+        ld a,'.'
+        jr printchar
+PrintComma
+        ld a,','
+        jr printchar
+PrintMinus
+        ld a,'-'
+        jr printchar
+PrintColon
+        ld a,':'
+        jr printchar
+PrintPoint
+        ld a,144 ; = '·'
+        jr PrintChar
+PrintNewLine
+        push hl
+        ld hl,msg_newline
+        call printstring
+        pop hl
+        ret
+

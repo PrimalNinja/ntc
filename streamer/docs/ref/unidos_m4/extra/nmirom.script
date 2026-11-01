@@ -1,0 +1,8 @@
+; Compile ROM using rasm
+rasm nmirom.s -o nmirom -s -sl -sq -eb
+
+; Copy all generated files to T:
+Copy QUIET FROM nmirom.#? TO T:
+
+RX ImportSymbols.rexx T:nmirom.sym rasm
+

@@ -8,7 +8,7 @@ takes over from the platform's own on the platforms that have one (msx, msx9990,
 Two sets of small test programs, one of each for every machine and video chip, each built for
 its hardware rather than scaled from another:
 
-- **Balls** (tests/<target>): picks a screen mode, clears the screen, prints some text, then
+- **Balls** (tests/<target>; tests/cpc_pi/run_pi.py runs the Pi one against a live cosd with no CPC): picks a screen mode, clears the screen, prints some text, then
   bounces balls that spin (4 animation frames) using that chip's own sprites.
 - **Cube** (tests/cube_<target>): a solid cube turning, lit, the faces turned away dropped,
   drawn the best way each machine can (see below).
@@ -26,6 +26,13 @@ the machine.
 | Tms9918.cls | MSX1, SC-3000 / SG-1000 | 32 sprites, 16x16, 1 colour each, 4 on a line |
 | V9938.cls | MSX2 (and MSX2+) | 32 sprites, 16x16, a colour on each line, 8 on a line |
 | V9990.cls | MSX GFX9000, CPC V9990 boards | 125 sprites, 16x16, 16 colours, 16 on a line |
+| Pi.cls | the Pi's VDP over a CPC-CPLink (CyborgOS for the Pi: the vdp service) | the profile's: v9990 125 sprites 16x16 16 colours (the default), v9938, zxn, md, pi720 / 1080 / 2160; the table on the Pi, which moves, bounces and animates it; Frame one COMMIT; X / Y a round trip |
+
+Music: `Stream.cls` - the same four calls on two targets: the Next's own (src/lib/zxn/Stream.cls:
+a .MUS file - 8-bit unsigned samples at 12324 Hz - streamed from the SD card through the DMA to
+the DACs; Fill once a frame) and the Pi's (lib/Stream.cls: the same file put in the Pi's store,
+played by the Pi's audio service; Fill reads the Pi's events). `Stream.Open(name)`, `Fill`,
+`Close`, `Playing`.
 
 Every library has the same core calls:
 

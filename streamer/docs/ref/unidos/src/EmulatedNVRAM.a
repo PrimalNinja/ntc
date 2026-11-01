@@ -1,0 +1,321 @@
+;
+; Routines d'émulation (primitive) d'une NVRAM pour le mode dégradé
+;
+
+NVRAM_Address   Equ &7800
+NVRAM_Bank      Equ &c7
+
+;
+; Initialise l'émulation de la NVRAM
+;
+; Entrée - Aucune
+; Sortie - Aucune
+; Altéré - AF
+;
+
+Emulate_InitNVRAM
+        jp clearnvram
+
+;
+; Ouvre la mémoire non volative (NewAPI seulement)
+;
+; Les 6 octets à l'offset DOS +&420 peuvent être utilisés pour la gestion de la mémoire non volatile
+;
+; Entrée - C = mode d'ouverture
+;               Si 0 alors la mémoire non volatile avec son contenu courant doit être ouverte
+;               Si 1 alors la mémoire non volatile doit être remise à zéro avant ouverture
+; Sortie - Si Carry = 1 alors le noeud DOS offre un service de mémoire non volatile
+;               Si Z alors la mémoire non volatile a été ouverte est est prête à être manipulée
+;               Si NZ alors une erreur est survenue
+;                   A = code d'erreur
+;          Si Carry = 0 alors le noeud DOS n'offre pas de mémoire non volatile
+; Altéré - AF
+
+Emulate_OpenNVRAM
+        PUT_16 nvramdata,0
+        ld a,c
+        or a
+        jr z,opennvramnormal
+        cp 1
+        jr z,opennvramclear
+        ld a,dsk_err_bad_command
+        or a
+        scf
+        ret ; C/NZ
+OpenNVRAMClear
+        call clearnvram
+OpenNVRAMNormal
+        cp a    ; Z
+        scf     ; C
+        ret
+
+;
+; Ferme et met à jour le contenu de la mémoire non volatile (NewAPI seulement)
+;
+; Entrée - Aucune
+; Sortie - Si Carry = 1 alors le noeud DOS offre un service de mémoire non volatile
+;               Si Z alors la mémoire non volatile a été mise à jour
+;               Si NZ alors une erreur est survenue
+;          Si Carry = 0 alors le noeud DOS n'offre pas de mémoire non volatile
+; Altéré - AF
+
+Emulate_CloseNVRAM
+        cp a    ; Z
+        scf     ; C
+        ret
+
+;
+; Lit des données depuis la mémoire non volatile (NewAPI seulement)
+;
+; Entrée - HL = adresse où écrire les données lues
+;          DE = nombre d'octets à lire
+; Sortie - Si Carry = 1 alors le noeud DOS offre un service de mémoire non volatile
+;               Si Z alors les données ont été lues
+;                   DE = nombre d'octets effectivement lus
+;               Si NZ alors une erreur est survenue
+;                   A = code d'erreur
+;          Si Carry = 0 alors le noeud DOS n'offre pas de mémoire non volatile
+; Altéré - AF,DE
+
+Emulate_ReadNVRAM
+        push hl
+        push de
+        push bc
+
+        push hl
+        push de
+
+        call getnvramcurrentaddress
+                    ; HL = source
+        pop bc      ; BC = longueur
+        pop de      ; DE = destination
+
+        call nvramsetbank
+
+        jr readnvramtestend0
+
+ReadNVRamEnd
+        call nvramresbank
+
+        pop bc
+        pop de
+        pop hl
+
+        ld de,0
+        cp a
+        scf
+        ret
+
+ReadNVRAMNoEnd
+        call _kl_ldir
+
+        call nvramresbank
+
+        pop bc
+        pop de
+        pop hl
+
+        call setnvramcurrentaddress
+
+        cp a    ; Z
+        scf     ; C
+        ret
+
+; Détection de la fin de la NV-RAM (simpliste mais suffisant)
+ReadNVRAMTestEnd0
+        ld a,(hl)
+        cp &be
+        jr nz,readnvramtestend1
+        inc hl
+        ld a,(hl)
+        dec hl
+        cp &ef
+        jr nz,readnvramtestend1
+        inc hl:inc hl
+        ld a,(hl)
+        dec hl:dec hl
+        cp &be
+        jr nz,readnvramtestend1
+        jr readnvramend
+ReadNVRAMTestEnd1
+        ld a,(hl)
+        cp &ef
+        jr nz,readnvramnoend
+        inc hl
+        ld a,(hl)
+        dec hl
+        cp &be
+        jr nz,readnvramnoend
+        inc hl:inc hl
+        ld a,(hl)
+        dec hl:dec hl
+        cp &ef
+        jr nz,readnvramnoend
+        jr readnvramend
+
+;
+; Écrit des données dans la mémoire non volatile (NewAPI seulement)
+;
+; Entrée - HL = adresse où se trouvent les données à écrire
+;          DE = nombre d'octets à écrire
+; Sortie - Si Carry = 1 alors le noeud DOS offre un service de mémoire non volatile
+;               Si Z alors les données ont été écrites
+;                   DE = nombre d'octets effectivement écrits
+;               Si NZ alors une erreur est survenue
+;                   A = code d'erreur
+;          Si Carry = 0 alors le noeud DOS n'offre pas de mémoire non volatile
+; Altéré - AF,DE
+
+Emulate_WriteNVRAM
+        push hl
+        push de
+        push bc
+
+        push hl
+        push de
+
+        call getnvramcurrentaddress
+        ex de,hl    ; DE = destination
+        pop bc      ; BC = longueur
+        pop hl      ; HL = source
+
+        call nvramsetbank
+        call _kl_ldir
+        call nvramresbank
+
+        pop bc
+        pop de
+        pop hl
+
+        call setnvramcurrentaddress
+
+        cp a    ; Z
+        scf     ; C
+        ret
+
+;
+; Change la position dans la mémoire non volatile (NewAPI seulement)
+;
+; Entrée - DEHL = nouvelle position
+; Sortie - Si Carry = 1 alors le noeud DOS offre un service de mémoire non volatile
+;               Si Z alors la nouvelle position a pu être atteinte
+;               Si NZ alors une erreur est survenue
+;                   A = code d'erreur
+;          Si Carry = 0 alors le noeud DOS n'offre pas de mémoire non volatile
+; Altéré - AF
+
+Emulate_SeekNVRAM
+        PUT_HL nvramdata
+        cp a    ; Z
+        scf     ; C
+        ret
+
+;
+; Routine annexes
+;
+
+;
+; Active la bank contenant la NV-RAM
+;
+; Entrée - Aucune
+; Sortie - Aucune
+; Altéré - Aucun
+
+NVRAMSetBank
+        push bc
+        ld bc,&7f00+nvram_bank
+        out (c),c
+        pop bc
+        ret
+
+;
+; Restaure la mémoire centrale
+;
+; Entrée - Aucune
+; Sortie - Aucune
+; Altéré - Aucun
+
+
+NVRAMResBank
+        push bc
+        ld bc,&7fc0
+        out (c),c
+        pop bc
+        ret
+
+;
+; Efface la NV-RAM
+;
+; Entrée - Aucune
+; Sortie - Aucune
+; Altéré - AF
+
+ClearNVRAM
+        call nvramsetbank
+
+        push hl
+        push de
+        push bc
+
+        PUT_16 nvramdata,0
+        ld hl,nvram_address
+        ld d,h
+        ld e,l
+        ld (hl),&be
+        inc hl
+        ld (hl),&ef
+        inc hl
+        ex de,hl
+        ld bc,&800-2
+        call _kl_ldir
+
+        pop bc
+        pop de
+        pop hl
+
+        jr nvramresbank
+
+;
+; Récupère l'adresse courante de la NV-RAM
+;
+; Entrée - Aucune
+; Sortie - HL = adresse courante
+; Altéré - Aucun
+
+GetNVRAMCurrentAddress
+        call nvramsetbank
+
+        push af
+        push bc
+        push de
+        GET_BC nvramdata
+        ld hl,nvram_address
+        add hl,bc
+        pop de
+        pop bc
+        pop af
+
+        jr nvramresbank
+
+;
+; Met à jour l'adresse courante de la NV-RAM
+;
+; Entrée - DE = nombre d'octet à ajouter
+; Sortie - Aucune
+; Altéré - Aucun
+
+SetNVRAMCurrentAddress
+        call nvramsetbank
+
+        push af
+        push hl
+        push de
+        GET_HL nvramdata
+        add hl,de
+        PUT_HL nvramdata
+        pop de
+        pop hl
+        pop af
+
+        jr nvramresbank
+

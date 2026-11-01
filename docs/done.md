@@ -25,6 +25,28 @@ by component).
       expansion RAM, not by drive letter - M: may be an M4 / XMAS drive; the probe must save and
       put back what it writes. CP/M Plus runs in C2: every page setting swaps all four blocks.)
 
+- 2026-11-01 The bug pass (buglist.md's entries checked one by one; ANALYSIS.LOG has the evidence):
+  - compiler: a byte array parameter's element with an index expression in a Long context read the
+    wrong byte (`CLng(a(i)) + CLng(a(i + 1)) * 256&` gave hex 3434 for 1234): kw_ztov zeroed the
+    index's own temp before kw_pget read it. The destination moves to the next temp.
+    test/compare/bytearr.bas.
+  - compiler: warns on push / call / rst / ex (sp) in an inline #asm block before any label or
+    `ld sp` (SP is the thread). test/asmsp.bas. NTC.md says so.
+  - compiler: a library class a platform hasn't is named ("Keys (keys.down) is a library class this
+    platform (cpm) hasn't - it is on cpc, ...") instead of "unknown function or array".
+  - msxdos: Keys (the MSX's class).
+  - cpc, cpcfw, cpcmin: Memory.PagesCut() - the pages mem_tb_fit cut so the page tables fit.
+  - Float: the Z80 engine is the default backend (UseEngine 0 / 1), a coprocessor only on
+    UseEngine 2; HasCoprocessor(). docs/float.md.
+  - test: chk.py fails when nothing ran (it had checked 0 values: the emulator wasn't on its PATH)
+    and checks 20 rounding ties; ntcrun / msxrun / zxnrun count the real T-states while stepping
+    to an interrupt (cpcrun.step1, from the z80 module's frame_tick, modulo its 100000 T frame -
+    the first version wasn't, and counted a frame's end as ~4 billion T) - they counted 1 T an
+    instruction; regress.sh builds vb_test on sc3000, msx, msxcard, msx9990, baremetal, cyborgos,
+    cyborgoshh, cpc9990, cpccard and hello on colecovision, and runs chk.py, asmsp, keysdos and
+    bytearr; compare.js compiles test/compare/*.bas and says what differs (asm, errors, warnings).
+    compare.js against the tree before: 730 the same, 277 different - 226 the new class message
+    only, 9 msxdos programs that use Keys now built, the rest comment line numbers and NTC_STAMP.
 - 2026-10-31 Float and Fixed built in (src/lib/z80/, docs/float.md, test/float/): gen.js gives every Z80
   platform lib/z80's classes (not md, m65) unless it has its own of that name. The compiler now
   follows a library class's own names when it picks them (Fixed names Float: a program using only

@@ -1,0 +1,44 @@
+;
+; Fonctions d'accès aux données DOS
+;
+
+GetFileInHandlerIX
+        ld ix,(_dos_rom_base_address)
+        push bc
+        ld bc,dosmap.fileinhandler
+        add ix,bc
+        pop bc
+        ret
+
+GetFileOutHandlerIX
+        ld ix,(_dos_rom_base_address)
+        push bc
+        ld bc,dosmap.fileouthandler
+        add ix,bc
+        pop bc
+        ret
+
+GetExamineDirHandlerIX
+        ld ix,(_dos_rom_base_address)
+        push bc
+        ld bc,dosmap.examinedirhandler
+        add ix,bc
+        pop bc
+        ret
+
+GetNVRAMHandlerIX
+        ld ix,(_dos_rom_base_address)
+        push bc
+        ld bc,dosmap.nvramhandler
+        add ix,bc
+        pop bc
+        ret
+
+GetPrivateDataIX
+        push bc
+        ld ix,(_dos_rom_base_address)
+        ld bc,dosmap.dosnodeprivatedata
+        add ix,bc
+        pop bc
+        ret
+

@@ -95,6 +95,20 @@ Public Function RamSize() As Integer
 #endasm
 End Function
 
+' PagesCut(): pages the RAM has that the page tables had no room for (0 none). The tables (3 bytes a
+' page) go between the program and the platform's top (the firmware's HIMEM on cpcfw: ROMs' workspace
+' lowers it); without room the last pages are left out - Pages() is then fewer than RamSize() has.
+' MEM-like reports show it so the shortfall is seen
+Public Function PagesCut() As Integer
+  Dim k As Integer
+  k = RamSize()
+  If k = 0 Then
+    PagesCut = 0
+  Else
+    PagesCut = (k \ 64 - 1) * 4 + 1 - Pages()
+  End If
+End Function
+
 ' Model(): ModelNone, ModelSmall, ModelMedium, ModelLarge, ModelHuge
 Public Function Model() As Integer
 #asm

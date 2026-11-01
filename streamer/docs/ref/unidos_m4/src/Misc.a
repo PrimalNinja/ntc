@@ -1,0 +1,858 @@
+;
+; Routines diverses
+;
+
+;
+; Teste l'appui sur ESC
+;
+; Entrée - Aucune
+; Sortie - C alors ESC a été pressée deux fois de suite
+; Altéré - AF
+
+TestEsc call _km_read_key
+        ret nc
+        cp &fc                          ; ESC ?
+        scf:ccf
+        ret nz
+        call _txt_cur_on                ; Curseur système actif
+TestEscAgain
+        call _km_wait_key               ; Pause...
+        cp &ef                          ; On ignore &ef qui est renvoyé
+        jr z,testescagain               ; juste après ESC la première fois !
+        call _txt_cur_off               ; Curseur système inactif
+        cp &fc                          ; ESC encore ?
+        scf
+        ret z
+        ccf
+        ret
+
+;
+; Affichage d'une chaine de caractères
+; La version "Err" affiche uniquement si les messages sont activés
+; La version "AltPen" affiche en utilisant la couleur alternative
+;
+; Entrée - HL = pointeur vers la chaîne de caractères (terminée par un bit 7 à 1)
+; Sortie - HL = pointeur vers le caractère suivant après la fin de la chaîne
+; Altéré - AF,HL
+
+PrintErrString
+        ld a,(dsk_message_status)
+        or a
+        ret nz
+PrintString
+        ld a,(hl)
+        rla
+        jr c,PrintStringEnd
+        rra
+        call _TXT_OUTPUT
+        inc hl
+        jr PrintString
+PrintStringEnd
+        srl a
+        call _TXT_OUTPUT
+        inc hl
+        ret
+PrintAltPenString
+        call SetAlternatePen
+        push af
+        call PrintString
+        pop af
+        call _TXT_SET_PEN
+        ret
+
+;
+; Positionne le pen alternatif
+;
+; Entrée - N/A
+; Sortie - A = pen précédemment actif
+; Altéré - AF
+
+SetAlternatePen
+        push hl
+        call _TXT_GET_PEN
+        push af
+
+        ld a,2
+        call _TXT_SET_PEN    ; pen 2 si mode 0 ou 1
+        call _SCR_GET_MODE
+        cp 2
+        ld a,1
+        call z,_TXT_SET_PEN  ; pen 1 si mode 2
+
+        pop af
+        pop hl
+        ret
+
+;
+; Recopie une chaîne de caractères
+;
+; Entrée - HL = chaîne de caractère à copier (terminée par un bit 7 à 1)
+;          DE = destination de la copie
+;           C = nombre maximum de caractères à copier
+; Sortie - Si C alors la copie s'est bien terminée
+;            HL pointe sur le premier caractère après la fin de la chaîne
+;            DE pointe sur le premier caractère après la fin de la copie de la chaîne
+;             C a été décrémenté du nombre de caractères copiés
+;          Si NC alors la copie n'a pas pu se faire (nombre maximum de caractères atteint)
+;             C vaut 0, HL et DE sont indéterminés
+; Altéré - AF,C,DE,HL
+;
+
+CopyString
+        ld a,c
+        or a
+        ret z   ; NC
+        ld a,(hl)
+        ldi
+        rla
+        jr nc,CopyString
+        ret     ; C
+
+;
+; Convertit un caractère en majuscule
+;
+; Entrée - A = caractère à convertir
+; Sortie - A = caractère mis en majuscule (inchangé si l'opération est impossible)
+; Altéré - AF
+
+ToUpper cp 'a'
+        ret c
+        cp 'z'+1
+        ret nc
+        add a,'A'-'a'
+        ret
+
+;
+; Joue un bip d'avertissement
+;
+; Entrée - N/A
+; Sortie - N/A
+; Altéré - Aucun
+
+Beep    push af
+        ld a,7
+        call _TXT_OUTPUT
+        pop af
+        ret
+
+;
+
+JumpIY  jp (iy)
+
+; isdigit
+IsDigit cp '0'
+        ccf
+        ret nc
+        cp '9'+1
+        ret
+
+; atoi
+GetSizeDigit
+        cp ' '
+        call nz,SubZero
+        sub a,' '
+        add a,e
+        ld e,a
+        call c,IncBCDE
+        ret
+SubZero
+        sub a,'0'-' '
+        ret
+IncBCDE
+        inc d
+        ret nz
+        inc bc
+        ret
+
+MultiplySize
+        push hl
+
+        sla e
+        rl d
+        rl c
+        rl b
+
+        push bc
+        push de
+
+Repeat 2
+        sla e
+        rl d
+        rl c
+        rl b
+REnd
+        cp a    ; NC
+        pop hl
+        adc hl,de
+        ex de,hl
+        pop hl
+        adc hl,bc
+        ld b,h
+        ld c,l
+
+        pop hl
+        ret
+
+Mul1024
+Repeat 10
+        sla e
+        rl d
+        rl c
+        rl b
+REnd
+        ret
+
+DecDEC  dec c
+        ld a,c
+        cp &ff
+        jr nz,DecDECExit
+        dec de
+DecDECExit
+        or d
+        or e
+        ret
+
+MulBCDE ld hl,0
+        ld a,16
+MulBCDELoop
+        add hl,hl
+        rl e
+        rl d
+        jr nc,NoMulBCDE
+        add hl,bc
+        jr nc,NoMulBCDE
+        inc de
+NoMulBCDE
+        dec a
+        jr nz,MulBCDELoop
+        ret
+
+; Attributs des fichiers dans B
+SetReadOnlyB
+        set 0,b
+        ret
+SetSystemB
+        set 1,b
+        set 2,b
+        ret
+
+;
+; Recopie le nom d'une RSX dans le _dos_rom_temp_routine
+; (nécessaire car les noms de RSX doivent être en mémoire vive)
+;
+; Entrée - HL = pointeur vers le nom de la RSX
+; Sortie - HL = pointeur vers _dos_rom_temp_routine (qui contient une copie du nom de la RSX)
+; Altéré - HL
+
+CopyRSXNameToRAM
+        push bc
+        push de
+        ld de,_DOS_ROM_TEMP_ROUTINE
+        push de
+        ld bc,&20       ; Largement assez pour un nom de RSX
+        ldir            ; Recopie en RAM
+        pop hl
+        pop de
+        pop bc
+        ret
+
+;
+; Recherche d'une RSX dans une ROM donnée
+;
+; Entrée - HL = nom de la RSX à rechercher
+;           C = numéro de ROM où chercher
+; Sortie - Si C alors la RSX a été trouvée
+;              HL = adresse de la routine associée à la RSX
+;               C = numéro de la ROM
+;          Si NC la RSX n'a pas été trouvée
+;               C = 0
+; Altéré - Flags,HL,DE,BC
+
+SearchRSXInSingleROM
+        push af
+
+        call checkromclass
+        jr nc,searchrsxwrongromclass
+
+        ld de,(_kl_rom_block_chain) ; Récupération du premier chaînon
+
+        push de
+
+        ld e,c                      ; On crée sur la pile un chaînon final sur la ROM où rechercher
+        ld d,0
+        push de
+        ld e,d
+        push de
+
+        ex de,hl
+        ld hl,0
+        add hl,sp
+        ex de,hl
+        ld (_kl_rom_block_chain),de ; On remplace le premier chaînon par le nôtre
+
+        call _kl_old_find_command   ; HL=adresse, C=ROM config
+
+        pop de
+        pop de                      ; On dépile le chaînon qu'on avait créé sur la pile
+
+        pop de
+        ld (_kl_rom_block_chain),de ; On restaure le chaînon originel
+
+        jr nc,searchrsxnomatch
+SearchRSXMatched
+        pop af
+        scf                         ; C
+        ret
+SearchRSXNoMatch
+SearchRSXWrongROMClass
+        ld c,0                      ; On met C=0 en cas d'échec
+        pop af
+        cp a                        ; NC
+        ret
+CheckROMClass
+        push hl
+        push bc
+        push af
+        call _kl_probe_rom
+        cp 3
+        pop bc
+        ld a,b
+        pop bc
+        pop hl
+        ret
+
+;
+; Affiche un nombre hexadécimal 8 bits
+;
+; Entrée - A = nombre à afficher
+; Sortie - N/A
+; Altéré - AF
+
+PrintHexaNumber8
+        push af
+        push hl
+        push bc
+        push af
+        srl a
+        srl a
+        srl a
+        srl a
+        ld c,a
+        ld b,0
+        ld hl,hexachar
+        add hl,bc
+        ld a,(hl)
+        call _txt_output
+        pop af
+        and &f
+        ld c,a
+        ld hl,hexachar
+        add hl,bc
+        ld a,(hl)
+        call _txt_output
+        pop bc
+        pop hl
+        pop af
+        ret
+HexaChar
+        db "0123456789ABCDEF"
+
+;
+; Découpe une chaîne de caractères en deux autour d'un caractère donné
+;
+; Entrée - HL = pointeur vers la chaîne de caractère
+;           B = longueur de la chaîne de caractères
+;           A = caractère de découpe
+; Sortie -  B = longueur de la chaîne avant le caractère de découpe
+;          DE = pointeur vers la chaîne après le caractère de découpe
+;           C = longueur de la chaîne après le caractère de découpe
+; Altéré - AF,BC,DE
+
+SplitString
+        push hl
+        ld c,b
+SplitStringLoop
+        cp (hl)
+        inc hl
+        jr z,SplitStringFound
+        djnz SplitStringLoop
+        ld b,c
+        ld c,0
+        ld e,l
+        ld d,h
+        pop hl
+        ret
+SplitStringFound
+        ld e,l
+        ld d,h
+        ld a,c
+        sub a,b
+        ld b,a
+        ld a,c
+        sub a,b
+        ld c,a
+        dec c
+        pop hl
+        ret
+
+;
+; Affichage d'un nombre sur 5 digits max
+;
+; Entrée - DE = nombre
+; Sortie - Rien
+; Altéré - AF,BC,DE,HL
+
+PrintNumber
+        ld b,0 ; Flag pour savoir si on doit mettre un zéro ou un espace
+        ld a,d
+        ld c,e
+        ld de,10000
+        push bc
+        call div
+        ld a,c
+        pop bc
+        call PrintSmartDigit
+        ld a,h
+        ld c,l
+        ld de,1000
+        push bc
+        call div
+        ld a,c
+        pop bc
+        call PrintSmartDigit
+        ld a,h
+        ld c,l
+        ld de,100
+        push bc
+        call div
+        ld a,c
+        pop bc
+        call PrintSmartDigit
+        ld a,h
+        ld c,l
+        ld de,10
+        push bc
+        call div
+        ld a,c
+        pop bc
+        call PrintSmartDigit
+        ld b,-1 ; On affiche toujours le 0 des unités
+        ld a,l
+        call PrintSmartDigit
+        ret
+PrintSmartDigit
+        cp b    ; Tant qu'on a encore rien affiché, on ignore les 0
+        ret z
+        ld b,-1 ; À partir de maintenant on mettra toujours les zéros
+PrintDigit
+        add a,'0'
+        jp _TXT_OUTPUT
+
+;
+; Division 16 bits
+;
+; Entrée - AC = nombre à diviser
+;          DE = diviseur
+; Sortie - AC = résultat
+;          HL = reste
+; Altéré - AF,BC,HL
+
+Div     ld hl,0
+        ld b,16
+LoopDiv sll c
+        rla
+        adc hl,hl
+        sbc hl,de
+        jp nc,labeldiv
+        add hl,de
+        dec c
+LabelDiv
+        djnz loopdiv
+        ret
+
+;
+; Compare IY à HL
+; Entrée - HL et IY contiennent les valeurs à comparer
+; Sortie - Si Z alors HL = IY
+;          Si NZ alors HL <> IY
+; Altéré - AF
+
+CP_IY_HL
+        cp a    ; NC
+        push de
+        push hl
+        ld e,iyl
+        ld d,iyh
+        sbc hl,de
+        ld a,l
+        or h
+        pop hl
+        pop de
+        ret
+;
+; Vérifie si un caractère est valide pour l'AMSDOS
+; Entrée - A=caratère à vérifier
+; Sortie - Si Carry=1 alors le caractère est valide
+;          Si Carry=0 alors le caractère est invalide
+; Altéré - Flags
+
+IsValidChar
+        push hl
+        push de
+        ld e,a
+        ld hl,InvalidChars
+IsValidCharLoop
+        ld a,(hl)
+        or a
+        jr z,IsValidCharSuccessed
+        cp e
+        jr z,IsValidCharFailed
+        ld a,e
+        call ToUpper
+        cp e
+        jr nz,IsValidCharFailed
+        inc hl
+        jr IsValidCharLoop
+IsValidCharSuccessed
+        ld a,e
+        pop de
+        pop hl
+        scf
+        ret
+IsValidCharFailed
+        ld a,e
+        pop de
+        pop hl
+        cp a ; NC
+        ret
+InvalidChars
+        db 37,40,41,42,44,46,47,58,59,60,61,62,63
+        db 91,92,93,95,124,127
+        db 0
+
+;
+; Compact un nom de fichier normalise
+;
+; Entrée - HL = adresse du nom de fichier normalisé
+;          DE = adresse où stocker le nom de fichier compacté
+; Sortie - DE = adresse de l'octet suivant le nom de fichier compacté
+; Altéré - AF,BC,DE,HL
+
+CompactName
+        ld b,8
+        call compactnamepart
+
+        ld a,(hl)
+        cp ' '
+        ret z
+
+        ld a,'.'
+        ld (de),a
+        inc de
+
+        ld b,3
+CompactNamePart
+        ld a,(hl)
+        inc hl
+        cp ' '
+        jr z,compactnamepartskip
+        ld (de),a
+        inc de
+CompactNamePartSkip
+        djnz compactnamepart
+        ret
+
+; Combined routine for conversion of different sized binary numbers into
+; directly printable ASCII(Z)-string
+; Input value in registers, number size and -related to that- registers to fill
+; is selected by calling the correct entry:
+;
+;  entry  inputregister(s)  decimal value 0 to:
+;   B2D8             A                    255  (3 digits)
+;   B2D16           HL                  65535   5   "
+;   B2D24         E:HL               16777215   8   "
+;   B2D32        DE:HL             4294967295  10   "
+;   B2D48     BC:DE:HL        281474976710655  15   "
+;   B2D64  IX:BC:DE:HL   18446744073709551615  20   "
+;
+; The resulting string is placed into a small buffer attached to this routine,
+; this buffer needs no initialization and can be modified as desired.
+; The number is aligned to the right, and leading 0's are replaced with spaces.
+; On exit HL points to the first digit, (B)C = number of decimals
+; This way any re-alignment / postprocessing is made easy.
+; Changes: AF,BC,DE,HL,IX
+; P.S. some examples below
+
+; by Alwin Henseler
+
+
+B2D8:    LD H,0
+         LD L,A
+B2D16:   LD E,0
+B2D24:   LD D,0
+B2D32:   LD BC,0
+B2D48:   LD IX,0          ; zero all non-used bits
+B2D64:   LD (B2DINV),HL
+         LD (B2DINV+2),DE
+         LD (B2DINV+4),BC
+         LD (B2DINV+6),IX ; place full 64-bit input value in buffer
+         LD HL,B2DBUF
+         LD DE,B2DBUF+1
+         LD (HL)," "
+B2DFILC: EQU $-1         ; address of fill-character
+         LD BC,18
+         LDIR            ; fill 1st 19 bytes of buffer with spaces
+         LD (B2DEND-1),BC ;set BCD value to "0" & place terminating 0
+         LD E,1          ; no. of bytes in BCD value
+         LD HL,B2DINV+8  ; (address MSB input)+1
+         LD BC,#0909
+         XOR A
+B2DSKP0: DEC B
+         JR Z,B2DSIZ     ; all 0: continue with postprocessing
+         DEC HL
+         OR (HL)         ; find first byte <>0
+         JR Z,B2DSKP0
+B2DFND1: DEC C
+         RLA
+         JR NC,B2DFND1   ; determine no. of most significant 1-bit
+         RRA
+         LD D,A          ; byte from binary input value
+B2DLUS2: PUSH HL
+         PUSH BC
+B2DLUS1: LD HL,B2DEND-1  ; address LSB of BCD value
+         LD B,E          ; current length of BCD value in bytes
+         RL D            ; highest bit from input value -> carry
+B2DLUS0: LD A,(HL)
+         ADC A,A
+         DAA
+         LD (HL),A       ; double 1 BCD byte from intermediate result
+         DEC HL
+         DJNZ B2DLUS0    ; and go on to double entire BCD value (+carry!)
+         JR NC,B2DNXT
+         INC E           ; carry at MSB -> BCD value grew 1 byte larger
+         LD (HL),1       ; initialize new MSB of BCD value
+B2DNXT:  DEC C
+         JR NZ,B2DLUS1   ; repeat for remaining bits from 1 input byte
+         POP BC          ; no. of remaining bytes in input value
+         LD C,8          ; reset bit-counter
+         POP HL          ; pointer to byte from input value
+         DEC HL
+         LD D,(HL)       ; get next group of 8 bits
+         DJNZ B2DLUS2    ; and repeat until last byte from input value
+B2DSIZ:  LD HL,B2DEND    ; address of terminating 0
+         LD C,E          ; size of BCD value in bytes
+         OR A
+         SBC HL,BC       ; calculate address of MSB BCD
+         LD D,H
+         LD E,L
+         SBC HL,BC
+         EX DE,HL        ; HL=address BCD value, DE=start of decimal value
+         LD B,C          ; no. of bytes BCD
+         SLA C           ; no. of bytes decimal (possibly 1 too high)
+         LD A,"0"
+         RLD             ; shift bits 4-7 of (HL) into bit 0-3 of A
+         CP "0"          ; (HL) was > 9h?
+         JR NZ,B2DEXPH   ; if yes, start with recording high digit
+         DEC C           ; correct number of decimals
+         INC DE          ; correct start address
+         JR B2DEXPL      ; continue with converting low digit
+B2DEXP:  RLD             ; shift high digit (HL) into low digit of A
+B2DEXPH: LD (DE),A       ; record resulting ASCII-code
+         INC DE
+B2DEXPL: RLD
+         LD (DE),A
+         INC DE
+         INC HL          ; next BCD-byte
+         DJNZ B2DEXP     ; and go on to convert each BCD-byte into 2 ASCII
+         SBC HL,BC       ; return with HL pointing to 1st decimal
+         RET
+
+;B2DINV:  DS 8            ; space for 64-bit input value (LSB first)
+;B2DBUF:  DS 20           ; space for 20 decimal digits
+;B2DEND:  DS 1            ; space for terminating 0
+
+B2DINV   EQU _DOS_ROM_TEMP_STORE ; space for 64-bit input value (LSB first)
+B2DBUF   EQU B2DINV+8            ; space for 20 decimal digits
+B2DEND   EQU B2DBUF+20           ; space for terminating 0
+
+;
+; Calcule le jour de la semaine
+;
+; Entrée - IX = le tampon où se trouvent l'heure et la date
+;               Un mot de 16 bits avec l'année (1978..9999)
+;               Un octet avec le numéro du mois (1..12)
+;               Un octet avec le numéro du jour dans le mois (1..28,29,30 ou 31)
+;               Un octet avec les heures (0..23)
+;               Un octet avec les minutes (0..59)
+;               Un octet avec les secondes (0..59)
+; Sortie - A = jour de la semaine (1..7)
+; Altéré - AF
+
+ComputeWDay
+        push bc
+        push de
+        push hl
+
+        call ComputeDays
+
+        ld bc,6
+        add hl,bc
+        ld b,h
+        ld c,l
+        ld a,7
+        call DivBC_A ; Jour de la semaine = ((nombre de jours + 6) modulo 7) + 1
+        inc a
+
+        pop hl
+        pop de
+        pop bc
+    	ret
+
+;
+; Calcul le nombre de jours depuis le 01.01.1978 01:00:00
+;
+; Entrée - Aucune
+; Sortie - DEHL = nombre de jours écoulés
+; Altéré - AF,BC,DE,HL
+
+TimeStampShift  Equ 719561+2922 ; Notre référence est le 01-Jan-1978 à 01:00:00, comme le CP/M (et pas comme Unix !)
+
+ComputeDays
+        ld l,(ix+0)
+        ld h,(ix+1) ; HL=Year
+
+        ld a,(ix+2)
+        cp 3        ; Les mois de janvier et février sont comptés comme étant les mois 13 et 14 de l'année précédente
+        jr nc,CDMonthDone
+        dec hl      ; HL=Year-1
+        add a,12    ; A=Month+12
+CDMonthDone
+    push af
+    push hl
+        ld de,0
+        PUSH_DEHL   ; 1
+        DEHL_x2     ; 2
+        DEHL_x2     ; 4
+        PUSH_DEHL
+        DEHL_x2     ; 8
+        PUSH_DEHL
+        DEHL_x2     ; 16
+        DEHL_x2     ; 32
+        PUSH_DEHL
+        DEHL_x2     ; 64
+        PUSH_DEHL
+        DEHL_x2     ; 128
+        DEHL_x2     ; 256
+        POPADD_DEHL
+        POPADD_DEHL
+        POPADD_DEHL
+        POPADD_DEHL
+        POPADD_DEHL ; DEHL = Year*365
+    pop bc
+
+    push bc
+        srl b:rr c
+        srl b:rr c  ; BC = Year/4
+
+    push bc
+        ld a,100
+        call DivBC_A
+        ADD_DEHL_BC ; DEHL = Year*365 + Year/400
+    pop bc
+
+        ADD_DEHL_BC ; DEHL =  Year*365 + Year/400 + Year/4
+    pop bc
+
+        ld a,100
+        call DivBC_A ; BC = Year/100
+        SUB_DEHL_BC  ; DEHL = Year*365 + Year/400 + Year/4 - Year/100
+    pop af
+
+    push hl
+        ld h,0
+        ld l,a
+        add hl,hl
+    push hl     ; 2
+        add hl,hl
+    push hl     ; 4
+        add hl,hl
+    push hl     ; 8
+        add hl,hl   ; Month*(16)
+    pop bc
+        add hl,bc   ; Month*(16+8)
+    pop bc
+        add hl,bc   ; Month*(16+8+4)
+    pop bc
+        add hl,bc   ; HL = 30*Month
+
+    push hl
+        inc a
+        ld h,0
+        ld l,a
+        ld b,h
+        ld c,l
+        add hl,hl
+        add hl,bc   ; HL = 3*(Month+1)
+        ld b,h
+        ld c,l
+        ld a,5
+        call DivBC_A ; BC = 3*(Month+1)
+    pop hl
+
+        add hl,bc   ; HL = 30*Month + (3*(Month+1)/5)
+
+        ld b,0
+        ld c,(ix+3) ; MDay
+        add hl,bc
+        ld b,h
+        ld c,l      ; BC = 30*Month + (3*(Month+1)/5) + Day
+    pop hl
+
+        ADD_DEHL_BC ; DEHL = Year*365 + Year/4 - Year/100 + Year/400 + 30*Month + (3*(Month+1)/5) + Day
+
+        ld bc,TimeStampShift and &ffff
+        SUB_DEHL_BC
+
+        ld bc,TimeStampShift >> 16
+        ex de,hl
+        or a
+        sbc hl,bc
+        ex de,hl    ; DEHL = Year*365 + Year/4 - Year/100 + Year/400 + 30*Month + (3*(Month+1)/5) + Day - TimeStampShift
+
+        ret
+
+;
+; Divise BC par A
+;
+; Entrée - BC = nombre à diviser
+;           A = diviseur
+; Sortie - BC = résultat
+;           A = reste
+; Altéré - AF,BC
+
+DivBC_A push de
+        push hl
+        ld h,b
+        ld l,c
+
+        ld e,a
+        xor a
+        ld d,16
+DBCALoop
+        add hl,hl
+        rla
+        jr c,DBCASkip
+        cp e
+        jr c,DBCASkip
+        sub a,e
+        inc l
+DBCASkip
+        dec d
+        jr nz,DBCALoop
+
+        ld b,h
+        ld c,l
+        pop hl
+        pop de
+        ret
+
