@@ -51,8 +51,10 @@ w_chans		equ WORK + 20		; a device's channel on the link (0: not open), NDEV byt
 w_store		equ WORK + 28		; the store's channel (0: not open) - assets and STORE: go there
 w_tgt		equ WORK + 29		; SPEECH's target: 0 SSA1, 1 DKTRONIC, 2 VOTRAX (the Pi)
 w_more		equ WORK + 30		; a GET being read: 1 another part follows
-w_lst		equ WORK + 31		; a listing: 1 from the Pi's LIST (lines), 0 the root table
-TAG		equ #BEA0		; the tag being built: DEVICE/FOLDER/NAME.EXT, 0-ended (up to 48 bytes; verify on UniDOS)
+w_lst		equ WORK + 31		; a listing: 1 from the Pi's LIST (records), 0 the root files, 2 its folders
+w_size		equ WORK + 32		; a LIST record's size (4)
+w_flag		equ WORK + 36		; its flag (#10 a folder)
+TAG		equ #BEB0		; the tag being built: DEVICE/FOLDER/NAME.EXT, 0-ended (#BEB0-#BEDF, 48 bytes; verify on UniDOS)
 w_file		equ WORK + 1		; the stream open: 1 CMD, 2 PATTERNS, 3 EVENTS, 0 none
 w_id		equ WORK + 2		; the next request id
 w_hdr		equ WORK + 3		; a frame's header read: chan type id lenlo lenhi (5 bytes)
@@ -141,16 +143,16 @@ FoldersGfx	db "V9990      "
 		db "PINATIVE   "
 		db 0
 FoldersNone	db 0
-FoldersMusic	db "MP3        "	; MP3 files (mpg123)
-		db "8BIT       "	; 8-bit unsigned samples at 12324 Hz (NTC's Stream.cls .MUS; aplay raw)
-		db "4BIT       "	; 4-bit samples (to come)
-		db "SID        "	; C64 .sid (sidplayfp)
-		db "VGM        "	; .vgm / .vgz: Mega Drive, Master System, arcade chips (vgmplay)
-		db "FM         "	; Adlib OPL2 / OPL3: .imf .dro .rad .d00 (adplay)
-		db "AY38912    "	; Spectrum / CPC .ay (mpv's gme), .ym (vgmplay)
-		db "MOD        "	; trackers .mod .xm .s3m .it (xmp)
-		db "MIDI       "	; .mid: GM, GS, XG files (fluidsynth with a GM soundfont)
-		db "GME        "	; console chip music: .nsf .gbs .spc .hes .kss .sap (mpv's gme)
+FoldersMusic	db "MP3        "	; MP3 files
+		db "8BIT       "	; 8-bit unsigned samples at 12324 Hz (NTC's Stream.cls .MUS)
+		db "4BIT       "	; 4-bit samples (to come on the Pi)
+		db "SID        "	; SID tunes (sidplayfp)
+		db "AY38912    "	; AY .ym / .vgm (vgmplay), .ay (gme)
+		db "VGM        "	; Mega Drive, Master System, arcade .vgm / .vgz (vgmplay)
+		db "FM         "	; Adlib OPL2 / OPL3 .imf .dro .rad .d00 (adplay)
+		db "MOD        "	; .mod .xm .s3m .it (xmp)
+		db "MIDI       "	; .mid with a soundfont (fluidsynth)
+		db "GME        "	; .nsf .gbs .spc .hes .kss .sap (mpv with libgme)
 		db 0
 ; the speech cards: an SP0256-AL2 each - port (data and status, the same), the status bit that is
 ; /LRQ (0 = ready). From the cards' documentation (cpcwiki): SSA-1 &FBEE bit 6; dk'tronics &FBFE bit 7
@@ -312,12 +314,12 @@ de_test		djnz de_next
 		pop bc
 		ret
 ; DevPrefix: A the device -> HL its store prefix text (0-ended; "" for STORE)
-DevPrefix	call DevEntry
+DevPrefix	call DevEntry		; HL at the entry's name
 dp_1		ld a, (hl)
 		inc hl
 		or a
 		jr nz, dp_1		; past the name and its 0
-		inc hl			; past the number: the prefix
+		inc hl			; past the number: the prefix text
 		ret
 ; DevFiles: A the device -> HL its root file list; DevFolders -> HL its root folder list
 DevFiles	call DevPrefix
@@ -359,8 +361,7 @@ Node_GetFreeSpace
 MakeTag		push hl
 		push de
 		push bc
-		push hl			; the name
-		push de			; the path
+		push hl			; [hl de bc][name]
 		ld a, (w_dev)
 		call DevPrefix		; HL the prefix
 		ld de, TAG
@@ -371,9 +372,16 @@ mt_p		ld a, (hl)
 		inc hl
 		inc de
 		jr mt_p
-mt_pe		pop hl			; the path: its count, then the names
-		ld a, (hl)
-		inc hl
+mt_pe		pop hl			; the file name   [hl de bc]
+		pop bc
+		pop bc			; BC = the path pointer (DE at entry)  [hl]
+		push bc
+		push bc			; [hl][path][path]
+		ld a, (bc)		; the count
+		push hl			; [hl][path][path][name]
+		ld h, b
+		ld l, c
+		inc hl			; the first name
 mt_c		or a
 		jr z, mt_ce
 		push af
@@ -382,7 +390,7 @@ mt_c		or a
 		pop af
 		dec a
 		jr mt_c
-mt_ce		pop hl			; the name (0: none)
+mt_ce		pop hl			; the file name   [hl][path][path]
 		ld a, h
 		or l
 		jr z, mt_end
@@ -391,8 +399,10 @@ mt_ce		pop hl			; the name (0: none)
 mt_end		xor a
 		ld (de), a
 		pop bc
-		pop de
-		pop hl
+		pop bc			; [hl]
+		pop de			; (the pushed HL: an original of DE is not needed back)
+		ld h, d
+		ld l, e
 		ret
 TagSlash	push af
 		ld a, e
@@ -439,7 +449,7 @@ tn_noext	inc hl
 		ret
 
 ; ---- Examine: HL = 0 - a listing of the folder at DE (the root: the category's files and
-; folders; deeper: the Pi's LIST of the tag prefix); HL a name - does it exist
+; folders; deeper, and STORE's root: the Pi's LIST of the tag prefix); HL a name - does it exist
 Node_Examine	call IsOurs
 		ret nc
 		ld (w_dev), a
@@ -452,7 +462,7 @@ Node_Examine	call IsOurs
 		jr nz, ex_pi
 		ld a, (w_dev)
 		cp 3
-		jr z, ex_pi		; STORE's root: the Pi's
+		jr z, ex_pi		; STORE's root is the Pi's store
 		pop af
 		call DevFiles
 		ld (w_hdr), hl		; the root listing's cursor: the files, then the folders
@@ -466,15 +476,14 @@ ex_pi		pop af
 		call EnsureStore
 		ld a, 1
 		ld (w_lst), a
-		; LIST tag/ : the answer's lines come as the entries
 		push hl
 		push de
 		push bc
 		ld hl, TAG
 		call TextLen		; DE the tag's length
-		ld hl, 6
+		ld hl, 14
 		add hl, de
-		ex de, hl		; "LIST " + tag + "/"
+		ex de, hl		; "LIST " + tag + "/ fmt=cpc"
 		ld a, (w_store)
 		ld b, 2
 		ld c, 4
@@ -483,8 +492,8 @@ ex_pi		pop af
 		call FrameText
 		ld hl, TAG
 		call FrameText
-		ld a, '/'
-		call FrameByte
+		ld hl, CpcFmt
+		call FrameText
 		call FrameEnd
 lp_ans		call ReadHeader		; the answer: RSP id 4 - its "OK n" line skipped, the entries follow
 		ld a, (w_hdr + 1)
@@ -499,7 +508,7 @@ lp_skip		call SkipFrame
 lp_got		ld a, (w_hdr + 1)
 		and #80
 		ld (w_more), a
-lp_line		call LinkIn		; the answer's text ("OK n") to its 0: the entries (lines) follow
+lp_line		call LinkIn		; the answer's text ("OK n") to its 0: the records follow
 		push af
 		ld hl, (w_left)
 		dec hl
@@ -514,8 +523,9 @@ lp_line		call LinkIn		; the answer's text ("OK n") to its 0: the entries (lines)
 		scf
 		ret
 ListPfx		db "LIST ", 0
+CpcFmt		db "/ fmt=cpc", 0
 ex_file		pop af
-		call FindFile		; a named file: carry when known
+		call FindFile		; a named file: Z when known
 		ld a, 0
 		scf
 		ret z
@@ -523,8 +533,9 @@ ex_file		pop af
 		or a
 		scf
 		ret
-; ExamineNext: the next entry - from the root tables (w_lst 0: the files, 12 bytes each; 2: the
-; folders, 11 bytes each; w_hdr the cursor), or a line of the Pi's LIST (w_lst 1)
+
+; ExamineNext: the next entry - from the root tables (w_lst 0: the files, 12 bytes an entry; then
+; w_lst 2: the folders, 11 bytes an entry, bit 4 of A set), or a line of the Pi's LIST (w_lst 1)
 Node_ExamineNext
 		call IsOurs
 		ret nc
@@ -533,47 +544,45 @@ Node_ExamineNext
 		jp z, exn_pi
 		push de
 		push bc
-		cp 2
-		jr z, exn_folders
-		ld de, (w_hdr)
+		or a
+		jr nz, exn_fold
+		ld de, (w_hdr)		; the files' cursor
 		ld a, (de)
 		or a
-		jr nz, exn_file
-		ld a, (w_dev)		; the files done: on to the folders
-		call DevFolders
-		ld (w_hdr), hl
-		ld a, 2
-		ld (w_lst), a
-		jr exn_folders
-exn_file	ex de, hl		; HL the entry, DE UniDOS's buffer
+		jr z, exn_tofold
 		ld bc, 11
-		push de
-		ldir
+		push hl
+		ex de, hl
+		ldir			; the 11 characters into UniDOS's buffer
 		inc hl			; past the kind byte
 		ld (w_hdr), hl
-		pop hl			; the buffer back in HL
+		pop hl
 		pop bc
 		pop de
-		xor a			; a file; size 0 (the streams have none)
-		ld b, a
-		ld c, a
-		ld d, a
-		ld e, a
+		xor a			; a file, size 0
 		scf
 		ret
-exn_folders	ld de, (w_hdr)
+exn_tofold	ld a, 2
+		ld (w_lst), a
+		push hl			; UniDOS's buffer kept (DevFolders returns in HL)
+		ld a, (w_dev)
+		call DevFolders
+		ld (w_hdr), hl
+		pop hl
+exn_fold	ld de, (w_hdr)
 		ld a, (de)
 		or a
 		jr z, exn_end
-		ex de, hl
 		ld bc, 11
-		push de
-		ldir
+		push hl
+		ex de, hl
+		ldir			; the 11 characters; HL on to the next entry (no kind byte on a folder)
 		ld (w_hdr), hl
 		pop hl
 		pop bc
 		pop de
 		ld a, #10		; a folder
+		cp a			; Z: an entry
 		scf
 		ret
 exn_end		pop bc
@@ -582,150 +591,69 @@ exn_end		pop bc
 		or a
 		scf
 		ret
-; a line of the Pi's LIST: "tag size yyyy-mm-dd hh:mm" - the tag's last name as the entry, its size
-exn_pi		push de
-		push bc
-		; a frame's bytes left? else its next part (MORE), else the end
-exp_more	ld bc, (w_left)
-		ld a, b
-		or c
-		jr nz, exp_line
-		call LinkIn		; the check of the part just read
+; an entry of the Pi's LIST (fmt=cpc): a 16-byte record - 11 characters the name (into UniDOS's
+; buffer at HL), 4 bytes the size (BCDE), a flag byte (A: #10 a folder); the records in the
+; answer's parts (MORE: the next part read when one is used up); none left: the end
+exn_pi		push hl
+		call RecordLeft		; Z: a record is there
+		pop hl
+		jr nz, exp_end
+		push hl
+		ld b, 11
+exp_n		call LinkIn
+		ld (hl), a
+		inc hl
+		djnz exp_n
+		call LinkIn
+		ld (w_size), a
+		call LinkIn
+		ld (w_size + 1), a
+		call LinkIn
+		ld (w_size + 2), a
+		call LinkIn
+		ld (w_size + 3), a
+		call LinkIn
+		ld (w_flag), a
+		ld hl, (w_left)
+		ld de, 16
+		or a
+		sbc hl, de
+		ld (w_left), hl
+		pop hl
+		ld de, (w_size)
+		ld bc, (w_size + 2)
+		ld a, (w_flag)
+		scf
+		ret
+exp_end		ld a, 1
+		or a
+		scf
+		ret
+; RecordLeft: is a record in this part, else in the next (MORE)? Z: yes; NZ: no more - the end
+RecordLeft	ld hl, (w_left)
+		ld a, h
+		or l
+		jr nz, rl_have
+		call LinkIn		; the check of the part just finished
 		ld a, (w_more)
 		or a
-		jp z, exp_end
+		jr z, rl_none
 		call ReadHeader
 		ld a, (w_hdr + 1)
 		and #80
 		ld (w_more), a
-exp_txt		call LinkIn		; the part's text ("OK n") and its 0 again
+rl_txt		call LinkIn		; each part begins with the answer's text and a 0 again
 		push af
-		push hl
 		ld hl, (w_left)
 		dec hl
 		ld (w_left), hl
-		pop hl
 		pop af
 		or a
-		jr nz, exp_txt
-		jr exp_more
-exp_line	; the tag to its last '/': the name after it into UniDOS's 11-character buffer at HL
-		push hl
-		ld d, h
-		ld e, l
-		ld b, 11
-		ld a, ' '
-exp_sp		ld (de), a
-		inc de
-		djnz exp_sp
-		pop hl
-		push hl
-		ld b, 0			; characters placed
-		ld c, 0			; 0: the name part, 1: the extension
-exp_ch		call LinkIn
-		push af
-		push hl
-		ld hl, (w_left)
-		dec hl
-		ld (w_left), hl
-		pop hl
-		pop af
-		cp '/'
-		jr z, exp_slash
-		cp ' '
-		jr z, exp_size
-		cp '.'
-		jr z, exp_dot
-		ld (hl), a
-		inc hl
-		inc b
-		jr exp_ch
-exp_slash	pop hl			; a folder in the path: start the name again
-		push hl
-		ld b, 0
-		ld c, 0
-		push de
-		ld d, h
-		ld e, l
-		push bc
-		ld b, 11
-		ld a, ' '
-exp_sp2		ld (de), a
-		inc de
-		djnz exp_sp2
-		pop bc
-		pop de
-		jr exp_ch
-exp_dot		pop hl
-		push hl
-		ld a, l
-		add a, 8
-		ld l, a
-		jr nc, exp_d2
-		inc h
-exp_d2		ld c, 1
-		jr exp_ch
-exp_size	; the size: digits to the next space, into BCDE (16 bits enough here)
-		pop hl
-		push hl
-		ld de, 0
-exp_dg		call LinkIn
-		push af
-		push hl
-		ld hl, (w_left)
-		dec hl
-		ld (w_left), hl
-		pop hl
-		pop af
-		cp ' '
-		jr z, exp_rest
-		sub '0'
-		cp 10
-		jr nc, exp_rest
-		push hl
-		ld h, d
-		ld l, e
-		add hl, hl
-		push hl
-		add hl, hl
-		add hl, hl
-		pop bc
-		add hl, bc
-		ld c, a
-		ld b, 0
-		add hl, bc
-		ex de, hl
-		pop hl
-		jr exp_dg
-exp_rest	call LinkIn		; the date to the line's end
-		push af
-		push hl
-		ld hl, (w_left)
-		dec hl
-		ld (w_left), hl
-		pop hl
-		pop af
-		cp 10
-		jr z, exp_done
-		push hl
-		ld hl, (w_left)
-		ld a, h
-		or l
-		pop hl
-		jr nz, exp_rest
-exp_done	pop hl
-		pop bc
-		ld b, 0
-		ld c, 0			; (the size's high word 0)
-		pop af			; (the pushed DE: dropped; DE holds the size)
-		xor a
-		scf
+		jr nz, rl_txt
+		jr RecordLeft
+rl_have		xor a			; Z (a record never straddles parts: the Pi keeps parts whole)
 		ret
-exp_end		pop bc
-		pop de
-		ld a, 1
-		or a
-		scf
+rl_none		or 1			; NZ
 		ret
 
 ; FindFile: HL the normalized name (11 characters), DE the path -> Z and A = the kind: a root file
@@ -996,7 +924,11 @@ oc_done		ld (w_left), hl		; (what the digits left: SkipFrame reads exactly that,
 		ld (w_id), a
 		ld hl, 0
 		ld (w_pass), hl
-		; the stream's version byte: the node's to send (it is the VDP's opcode 1 otherwise)
+		; the stream's version byte, for GRAPHICS's channel only (the VDP's stream wants it; a store
+		; or audio channel would take it as stray data)
+		ld a, (w_dev)
+		or a
+		jr nz, oc_nover
 		ld a, (w_chan)
 		ld b, 4			; DATA
 		ld c, 0
@@ -1005,7 +937,7 @@ oc_done		ld (w_left), hl		; (what the digits left: SkipFrame reads exactly that,
 		ld a, 1
 		call FrameByte
 		call FrameEnd
-		pop bc
+oc_nover	pop bc
 		pop de
 		pop hl
 		ret
@@ -1590,7 +1522,7 @@ Node_InOpen	call IsOurs
 		pop hl
 		jp nz, io_no
 		cp 3
-		jr z, io_ev
+		jp z, io_ev
 		cp 10
 		jp nz, io_no
 		; a store file: GET tag sent; the answer's parts read by InRead (text "OK size", 0, data)

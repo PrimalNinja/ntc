@@ -1,7 +1,7 @@
 # Streamer - the ROM as it is (2026-11-02)
 
 What build/streamer.rom holds, device by device, and what it does not. src/streamer.asm is 2,117
-bytes of a 16K ROM; test/streamer_test.py (35 checks against a live cosd) is the proof of each
+bytes of a 16K ROM; test/streamer_test.py (31 checks against a live cosd: the categories end to end) is the proof of each
 line marked "tested". Nothing here has run on real UniDOS yet: the harness calls the node's
 entries the way UniDOS does, from the contracts in docs/ref/unidos/src/DOSNodes.a.
 

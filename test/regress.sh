@@ -96,7 +96,7 @@ done
 # FileSystem: CP/M (BDOS files), CPC firmware (Load / Save), no files (test, cpc); both modes
 for m in --turbo ""; do
   # test platform ref [harness option]: fs_fw2 without Option RomEnable - RUN" (tape) and CALLed (disc)
-  for c in "fs_cpm cpm fs_cpm" "fs_fw cpcfw fs_fw" "fs_fw2 cpcfw fs_fw2" "fs_fw2 cpcfw fs_fw2c --called" "fs_none test fs_none" "fs_none zxn fs_none" "fs_none cpc fs_none_cpc" "fs_fw cpcmin fs_fw" "fs_fw2 cpcmin fs_fw2"; do
+  for c in "fs_cpm cpm fs_cpm" "fs_fw cpcfw fs_fw" "fs_fw2 cpcfw fs_fw2" "fs_fw2 cpcfw fs_fw2c --called" "fs_none test fs_none" "fs_none cpc fs_none_cpc" "fs_fw cpcmin fs_fw" "fs_fw2 cpcmin fs_fw2"; do
     set -- $c; rm -rf t/files; cp $1.bas t/
     o=$(timeout 100 python3 ntcrun.py t/$1.bas '' --platform=$2 $4 $m 2>&1 | grep -v "^--- ")
     if [ "$o" == "$(cat ref/$3.txt)" ]; then echo "ok   $3 $2 ${m:-normal}"; else echo "FAIL $3 $2 ${m:-normal}"; echo "$o" | head -5; fail=1; fi
@@ -295,6 +295,19 @@ echo "$o" | grep -q "^Overlay not loaded: Stage1 (MAIN.002)" && echo "ok   pages
 mkdir -p t/sj; printf 'Option Class Overlay "LEVEL1"\nPublic Function F() As Integer\n  F = 5\nEnd Function\n' > t/sj/Extra.cls; printf 'Public Function G() As Integer\n  G = Extra.F() + 1\nEnd Function\n' > t/sj/Lv.cls; printf 'Option Page "LEVEL1" = Lv\nOption Reserve &H4000, &H4000\nPrint Lv.G(); Extra.F()\n' > t/sj/Main.bas
 rm -rf t/files; o=$(node cli.js t/sj/Main.bas t/sj/Extra.cls t/sj/Lv.cls --platform=cpm --layout 2>&1 >/dev/null; timeout 100 python3 ntcrun.py t/sj/Main.bas '' t/sj/Extra.cls t/sj/Lv.cls --platform=cpm 2>&1)
 echo "$o" | grep -q "^LAYOUT Page LEVEL1 (MAIN.001): lv [0-9]*, extra [0-9]*;" && echo "$o" | grep -q "^65" && echo "ok   pages: Option Class Overlay joins an Option Page" || { echo "FAIL pages: Option Class Overlay joins an Option Page"; fail=1; }
+# a page class is self-contained: its own asm keyword and inline #asm go in its bank (not
+# main memory), reached by its own code with a bare dw. Compile-time: the keyword body sits
+# between ovl_pk_start and ovl_pk_end and there is no main "Inline assembly" section. Runtime:
+# the bare-dw same-bank keyword call and the inline block run right (cpcmin, both modes)
+rm -rf t/files t/pk; mkdir -p t/pk; cp pagekw/* t/pk/
+o=$(node cli.js t/pk/Main.bas t/pk/Doubler.cls --platform=cpcmin 2>/dev/null)
+echo "$o" | awk '/^ovl_pk_start:/{a=1} /^fn_doubler_dblkw:/{if(a)k=1} /^asm_[0-9].*:/{if(a)b=1} /^ovl_pk_end:/{a=0} END{exit (k&&b)?0:1}' \
+  && ! echo "$o" | grep -q "; Inline assembly" \
+  && echo "ok   pages: a class keeps its own #asm in its bank" || { echo "FAIL pages: a class keeps its own #asm in its bank"; fail=1; }
+for m in --turbo ""; do
+  rm -rf t/files; o=$(timeout 200 python3 ntcrun.py t/pk/Main.bas '' t/pk/Doubler.cls --platform=cpcmin $m 2>&1)
+  echo "$o" | grep -q "^ANS42" && echo "$o" | grep -q "^DRV7" && echo "ok   pages: class #asm keyword runs in its bank ${m:-normal}" || { echo "FAIL pages: class #asm keyword runs in its bank ${m:-normal}"; echo "$o" | tail -4; fail=1; }
+done
 rm -rf t/files t/od; mkdir -p t/od; cp $P/overlays/* t/od/
 check "overlays demo cpcmin" "^Unload level 1: 0 - pages -C" "$(timeout 200 python3 ntcrun.py t/od/Main.bas '~x' t/od/Level1.cls t/od/Level2.cls --platform=cpcmin 2>&1)"
 rm -rf t/files; check "overlays demo cpm" "^Unload level 2: 0 - level 2 0" "$(timeout 200 python3 ntcrun.py t/od/Main.bas '~x' t/od/Level1.cls t/od/Level2.cls --platform=cpm 2>&1)"
@@ -738,6 +751,22 @@ node cli.js t/keysdos.bas --platform=cpm 2>&1 >/dev/null | grep -q "Keys (keys.d
 check "Keys msxdos" "shift0" "$(timeout 200 python3 msxrun.py t/keysdos.bas 'x' 2>&1)"
 # a push in an inline #asm block while SP is the thread is warned (it writes over the thread)
 node cli.js asmsp.bas --platform=test 2>&1 >/dev/null | grep -q "while SP is the thread" && echo "ok   #asm push on the thread warned" || { echo "FAIL #asm push on the thread warned"; fail=1; }
+# Trit, Tiny, Tree (lib/z80): ternary values packed 4 a byte, 8-bit scaled numbers with tables,
+# the gated behaviour tree - each class's self test prints "NAME bad 0" when every check matched
+for tt in trit tiny tree; do
+  cp ${tt}_t.bas t/; check "$(echo $tt | tr a-z A-Z) class" "^$(echo $tt | tr a-z A-Z) bad0" "$(NTC_LIMIT=100000 timeout 300 python3 ntcrun.py t/${tt}_t.bas '' --platform=test --turbo 2>&1)"
+done
+# Net (lib/z80): the ternary GRU - the small model net_t.mdl generates the 48 characters the PC's
+# integer reference gave (net_t.txt, both from tools/gen/mktest.py), byte for byte
+rm -rf t/files; mkdir -p t/files/A; cp net_t.mdl t/files/A/NETT.MDL; cp net_t.bas t/
+o=$(NTC_LIMIT=300000 timeout 600 python3 ntcrun.py t/net_t.bas '' --platform=cpm --turbo 2>&1)
+if echo "$o" | grep -q "^NET ok" && [ "$(echo "$o" | grep '^NET ' | sed -n 2p | cut -c5-)" == "$(tr '\n' '|' < net_t.txt)" ]; then echo "ok   Net GRU bit-exact"; else echo "FAIL Net GRU bit-exact"; echo "$o" | grep "^NET" | head -3; fail=1; fi
+# Pluto's engine (CyborgOS apps/pluto/Zc.cls, beside this tree): every layer round-trips - "PLUTO bad 0".
+# Slow (the Z80 does real work: about 13 minutes); NTC_FAST=1 skips it
+if [ -z "$NTC_FAST" ] && [ -f ../../cyborgos/src/bas/cyborgosc2/apps/pluto/Zc.cls ]; then
+  cp pluto_t.bas t/; cp ../../cyborgos/src/bas/cyborgosc2/apps/pluto/Zc.cls t/
+  check "Pluto engine" "^PLUTO bad 0" "$(NTC_LIMIT=400000 timeout 1500 python3 ntcrun.py t/pluto_t.bas '' t/Zc.cls --platform=cpm --turbo 2>&1)"
+fi
 # compiler bugs fixed: each test/compare program runs (compare.js compiles them too)
 cp compare/bytearr.bas t/; check "byte array parameter in a Long" "^1234 ABCD" "$(timeout 200 python3 ntcrun.py t/bytearr.bas 2>&1)"
 for f in ../src/js/ntc_parser.js ../src/js/ntc_compiler.js ../src/js/ntc_flavour_js.js ../src/js/ntc_flavour_loco.js ../src/js/ntc_gui.js ../src/js/ntc_lib.js ../src/js/ntc_examples.js; do

@@ -540,3 +540,28 @@ sp_lmask:   db #FF, #7F, #3F, #1F, #0F, #07, #03, #01
 sp_rmask:   db #80, #C0, #E0, #F0, #F8, #FC, #FE, #FF
 #endasm
 End Sub
+
+' ---- hit boxes and collisions (JSprites' hb / collide), in software: HitBox n, x, y, w, h - the box
+' collisions use for sprite n, offset from its top left (w 0: the whole 16 x 16 again); Hit(n, m):
+' do the two shown sprites' boxes touch
+Private hx(15) As Byte, hy(15) As Byte, hw(15) As Byte, hh(15) As Byte
+Public Sub HitBox(ByVal n As Integer, ByVal x As Integer, ByVal y As Integer, ByVal w As Integer, ByVal h As Integer)
+  hx(n) = x : hy(n) = y : hw(n) = w : hh(n) = h
+End Sub
+Public Function Hit(ByVal n As Integer, ByVal m As Integer) As Integer
+  Dim ax0 As Integer, ay0 As Integer, ax1 As Integer, ay1 As Integer
+  Dim bx0 As Integer, by0 As Integer, bx1 As Integer, by1 As Integer
+  Hit = 0
+  If son(n) = 0 Or son(m) = 0 Or n = m Then Exit Function
+  If hw(n) Then
+    ax0 = sx(n) + hx(n) : ay0 = sy(n) + hy(n) : ax1 = ax0 + hw(n) : ay1 = ay0 + hh(n)
+  Else
+    ax0 = sx(n) : ay0 = sy(n) : ax1 = ax0 + 16 : ay1 = ay0 + 16
+  End If
+  If hw(m) Then
+    bx0 = sx(m) + hx(m) : by0 = sy(m) + hy(m) : bx1 = bx0 + hw(m) : by1 = by0 + hh(m)
+  Else
+    bx0 = sx(m) : by0 = sy(m) : bx1 = bx0 + 16 : by1 = by0 + 16
+  End If
+  If ax0 < bx1 And bx0 < ax1 And ay0 < by1 And by0 < ay1 Then Hit = 1
+End Function

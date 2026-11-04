@@ -1,0 +1,67 @@
+NTC BASIC - build info
+=======================
+
+Build number: YYYYMMDD-N
+  YYYYMMDD is the UTC date the archive was built. N starts at 1 each day and is
+  incremented by 1 on EVERY build, whether or not that build was taken (applied).
+  The number counts builds, not releases.
+
+Maintaining this file
+  - On every build, add a NEW entry at the TOP of the history below (newest first).
+  - The entry heading is the build number: today's date, with N one higher than
+    the highest N already used for today (1 if today has no entry yet).
+  - Under the heading, list that build's changes as dot points.
+  - Do not edit or delete older entries - they are the history.
+
+Packaging rule (what goes in the archive) - READ THIS BEFORE ZIPPING
+  - INCLUDE all source AND all tooling. Tooling means everything under tools/ and
+    its dependencies, INCLUDING node_modules (e.g. tools/coleco/node_modules),
+    src/3p, hosted/3p, _old, build.bat, and the generated build/ (ASMs, ROMs, the
+    .dsk disc images). Do NOT strip node_modules or any tools/ content - the
+    coleco build needs its node_modules and it has been dropped by mistake before.
+  - EXCLUDE only scratch: test/out/, test/t/, any __pycache__/, a top-level t/,
+    and the VCS .git/. build/ is regenerated each build, not hand-carried.
+  - When in doubt, keep it. Dropping a tracked file is the error to avoid.
+
+History (newest first)
+======================
+
+20261105-2
+----------
+- Packaging fix: restored tools/coleco/node_modules (82 files), which earlier
+  builds had wrongly stripped. No source or behaviour change from 20261105-1.
+- Added the "Packaging rule" note above so tooling (node_modules included) is not
+  dropped again.
+
+20261105-1
+----------
+New in this build
+- Paging/overlay fix: a page or overlay class is now self-contained. Its own #asm
+  - asm keyword bodies AND inline #asm blocks - is placed in the class's bank, not
+  in main memory. The class's own code reaches them with a bare dw (same bank, no
+  page switch); only the compiler-added lifecycle members (Load / Unload / Loaded /
+  Page / Local*) stay in main, because they run while the class is not loaded.
+  (src/js/ntc_compiler.js: new asmInBank; isOverlayProc and the inline-asm emit.)
+- Added test/pagekw (a page class with an asm keyword and an inline #asm block) and
+  regress.sh checks: the keyword body sits in the class's bank (not a main "Inline
+  assembly" section) and runs correctly on cpcmin in both modes.
+- docs/NTC.md updated to document the new self-contained behaviour (was the old
+  "#asm blocks and asm keyword procedures stay in the program").
+
+Also carried in this archive (delivered 2026-11-03 0504 onward, not yet applied to
+the pre-0504 base this was built from; listed so the history is complete)
+- Ternary GRU / trit libraries: src/lib/z80/Net.cls, Trit.cls, Tiny.cls, Tree.cls;
+  tools/gen (PC training, eval, sample, mktest, corpus); tests net_t, trit_t,
+  tiny_t, tree_t.
+- NTC stack change: ntc_cpmstack +256 and ntc_bssfrom +256 on CP/M-like platforms.
+- ZX Spectrum Next FileSystem on esxDOS (zxn FileSystem.cls) and test/zxnfs; the
+  WriteLine StrPtr -> VarPtr fix; the stale fs_none zxn harness test removed.
+- PISHELL and EDIT apps (src/apps); hwlib updates (Asic, Cpc, Pi, Tms9918, V9938,
+  V9990, Zxn) and the cpc_pi_tiles test; streamer updates.
+- Restored files that earlier deliveries had wrongly dropped: src/3p, hosted/3p,
+  _old.
+
+Verification
+- Full regression suite (test/regress.sh): ALL PASS - 915 ok, 0 fail.
+- build/ regenerated with this compiler: genbuild.js (9 platforms x 41 programs),
+  genrom.js (NTCCPC / NTCMIN / NTCFW), gendsk.sh (the .dsk disc images).

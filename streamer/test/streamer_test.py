@@ -32,14 +32,17 @@ time.sleep(0.8)
 sock = socket.create_connection(('127.0.0.1', PORT)); sock.setblocking(False)
 inq = bytearray(); sent = bytearray()
 speech = {0xFBEE: [], 0xFBFE: []}; polls = {0xFBEE: 0, 0xFBFE: 0}
+dead = [False]
 def pump():
     try:
         while True:
             b = sock.recv(65536)
-            if not b: break
+            if not b: dead[0] = True; break
             inq.extend(b)
     except BlockingIOError:
         pass
+    except OSError as e:
+        dead[0] = True
 
 # ---- the machine: the ROM at #C000, a stub at #4000 that calls entry n and halts
 m = z80.Z80Machine()
@@ -64,8 +67,9 @@ def call(entry, a=0, hl=0, de=0, bc=0):
     m.a, m.hl, m.de, m.bc, m.sp, m.pc = a, hl, de, bc, 0xBE00, 0x4000
     m.halted = False
     deadline = time.time() + 20
-    while not m.halted and time.time() < deadline:
+    while not m.halted and time.time() < deadline and not dead[0]:
         m.ticks_to_stop = 20000; m.run(); pump()
+    if dead[0]: print('   (the link to cosd died; cosd log: ' + open('/tmp/streamer-cosd.log').read()[-300:].replace(chr(10), ' | ') + ')')
     f = m.f
     return {'a': m.a, 'de': m.de, 'hl': m.hl, 'bc': m.bc, 'c': bool(f & 1), 'z': bool(f & 64), 'timeout': not m.halted}
 def mem(ad, n): return bytes(m.memory[ad:ad + n])
@@ -107,7 +111,7 @@ V9990 = path_at(0x5250, ['V9990'])
 m.set_memory_block(NAME, nm('PATTERNS'))
 r = call('OutOpen', a=0, hl=NAME, de=V9990)
 check('OutOpen GRAPHICS:V9990/PATTERNS', r['c'] and r['z'], r)
-check('the tag built from the path', mem(0xBEA0, 24).split(b'\x00')[0] == b'GRAPHICS/V9990/PATTERNS', mem(0xBEA0, 24))
+check('the tag built from the path', mem(0xBEB0, 24).split(b'\x00')[0] == b'GRAPHICS/V9990/PATTERNS', mem(0xBEB0, 24))
 check('HELLO once, the store channel opened', b'COS1 machine=cpc name=STREAMER' in bytes(sent) and b'OPEN store' in bytes(sent), bytes(sent)[:80])
 sent[:] = b''
 m.set_memory_block(DATA, bytes([0x11] * 256))
@@ -188,14 +192,14 @@ r = call('InClose', a=2)
 
 # ---- STORE: a file at the root and in a folder; CAT of the folder
 m.set_memory_block(NAME, nm('HELLO   TXT')); r = call('OutOpen', a=3, hl=NAME, de=ROOT)
-check('OutOpen STORE:HELLO.TXT: the tag HELLO.TXT', r['c'] and r['z'] and mem(0xBEA0, 12).split(b'\x00')[0] == b'HELLO.TXT', mem(0xBEA0, 12))
+check('OutOpen STORE:HELLO.TXT: the tag HELLO.TXT', r['c'] and r['z'] and mem(0xBEB0, 12).split(b'\x00')[0] == b'HELLO.TXT', mem(0xBEB0, 12))
 m.set_memory_block(DATA, b'hello from the CPC'); r = call('OutWrite', a=3, hl=DATA, de=18); r = call('OutClose', a=3)
 time.sleep(0.3)
 fh = os.path.join(store, 'STREAMER', 'HELLO.TXT')
 check('STORE:HELLO.TXT is on the Pi', os.path.exists(fh) and open(fh, 'rb').read() == b'hello from the CPC', fh)
 GAMES = path_at(0x5280, ['GAMES', 'TERRASTR'])
 m.set_memory_block(NAME, nm('LEVEL1  BIN')); r = call('OutOpen', a=3, hl=NAME, de=GAMES)
-check('STORE:GAMES/TERRASTR/LEVEL1.BIN: the tag', mem(0xBEA0, 30).split(b'\x00')[0] == b'GAMES/TERRASTR/LEVEL1.BIN', mem(0xBEA0, 30))
+check('STORE:GAMES/TERRASTR/LEVEL1.BIN: the tag', mem(0xBEB0, 30).split(b'\x00')[0] == b'GAMES/TERRASTR/LEVEL1.BIN', mem(0xBEB0, 30))
 r = call('OutWrite', a=3, hl=DATA, de=18); r = call('OutClose', a=3)
 r = call('Examine', a=3, hl=0, de=GAMES); entries = []
 for i in range(6):

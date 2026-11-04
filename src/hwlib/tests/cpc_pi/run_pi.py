@@ -5,12 +5,14 @@
 # (c) 2026 Cyborg Unicorn Pty Ltd - MIT License
 import os, sys, socket, subprocess, time, select
 HERE = os.path.dirname(os.path.abspath(__file__))
+TILES = os.environ.get('PI_TEST') == 'tiles'
 NTC = os.path.abspath(os.path.join(HERE, '..', '..', '..', '..'))
 sys.path.insert(0, os.path.join(NTC, 'test'))
 import cpcrun
 COS_PI = os.environ.get('COS_PI', os.path.join(NTC, '..', 'cos', 'pi'))
 PORT = 7415
-store = '/tmp/hwlib-pi-store'; os.makedirs(store, exist_ok=True)
+store = '/tmp/hwlib-pi-store'; subprocess.run(['rm', '-rf', store]); os.makedirs(os.path.join(store, 'HWLIB', 'GRAPHICS', 'V9990'), exist_ok=True)
+open(os.path.join(store, 'HWLIB', 'GRAPHICS', 'V9990', 'TILES'), 'wb').write(bytes([0x11, 0x22, 0x33, 0x44] * 8 * 4))   # 4 tiles, 8 x 8 4-bit
 cosd = subprocess.Popen(['node', os.path.join(COS_PI, 'cosd.js'), '--link=tcp:%d' % PORT, '--store=' + store, '--vdu=8405'], stderr=open('/tmp/hwlib-pi-cosd.log', 'w'), stdout=subprocess.DEVNULL)
 time.sleep(0.8)
 sock = socket.create_connection(('127.0.0.1', PORT)); sock.setblocking(False)

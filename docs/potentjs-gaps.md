@@ -15,7 +15,8 @@ list under it. Updated 2026-11-02.
    wrap / kill / stop / edge     no                yes             yes           yes           yes           yes
    animate: a range at a delay   yes (Anim)        yes (ANIM)      yes           yes           yes           yes
    animate: a sequence (0, -n)   Pi.cls only       yes (SEQ,PLAY)  yes + DONE    yes + DONE    yes + DONE    yes + DONE
-   collide (bounding box)        no                yes (CLASS)     yes (HIT)     yes (HIT)     yes (HIT)     yes (HIT)
+   collide (bounding box)        yes (Hit, sw)     yes (CLASS)     yes (HIT)     yes (HIT)     yes (HIT)     yes (HIT)
+   hit boxes (hb: an inner box)  yes (HitBox, sw)  yes (HITBOX)    yes           yes           yes           yes
    mirror X/Y, rotate, scale     Next only (hw)    yes (FLAGS)     yes (beyond   yes (beyond   yes (the      yes
                                                                    the chip)     the chip)     Next's)
    sprite size                   chip's            profile's       16x16 4-bit   16x16 1-bit   16x16 8-bit   32x32 RGBA
@@ -23,8 +24,8 @@ list under it. Updated 2026-11-02.
    colours                       chip's            profile's       16 x 16       16 of 512     256 of 512    24-bit + alpha
    sprite priority               table order       table order     table order   table order   table order   table order
    -- tiles --
-   a tile screen (JTileGrid)     no (chips' own)   yes (TILE/ROW,  32x26 cells   32x26         40x32 (the    160x90 .. 480x270
-                                                   TILES file)     8x8 4-bit     8x8 1-bit     Next's) 4-bit 8x8 RGBA
+   a tile screen (JTileGrid)     Pi.cls (Tile,     yes (TILE/ROW,  32x26 cells   32x26         40x32 (the    160x90 .. 480x270
+                                 TileRow); chips no TILES file)     8x8 4-bit     8x8 1-bit     Next's) 4-bit 8x8 RGBA
    per-cell mirror / rotate      Next only         yes             yes           yes           yes           yes
    text from a font              chip text         TEXT op         TEXT op       TEXT op       TEXT op       TEXT op
    transparent tile              no                yes (FFFF)      yes           yes           yes           yes
@@ -54,7 +55,6 @@ carries to the card); NATIVE (pi720 / pi1080 / pi2160) is the Pi's own screen.
 ## What potentjs has that none of the three has yet
 
 - A mover as a callback that can retire the sprite (ours: a velocity; the data form to design)
-- Hit boxes (an inner box, offset and size, instead of the whole sprite)
 - collideRange: the sprites one touches, nearest first, with a callback
 - Sprites by name and by class (ours: ids, by design on 8-bit)
 - A clip rectangle for a set of sprites
@@ -64,4 +64,4 @@ carries to the card); NATIVE (pi720 / pi1080 / pi2160) is the Pi's own screen.
 - JMusic: music sprites - note sequences a channel, stepped by the loop, conducting each other
   and signalling the game (to come with AUDIO:PI's AY / SID)
 
-What stops a game today, from that list: hit boxes; and on the chip libraries, sequences and tiles (the Pi has both).
+What stops a game today, from that list: nothing on the Pi; on the chip libraries, sequences and tiles.

@@ -409,28 +409,28 @@ fn_memory_ramsize:		; function ramsize (asm keyword), Memory.cls line 90
             jp mem_go		; Memory.cls 94
 			ret			; end of #asm
 
-fn_memory_map:		; function map (asm keyword), Memory.cls line 196
-            pop hl		; Memory.cls 197
-            ld e, (hl)		; Memory.cls 198
-            inc hl		; Memory.cls 199
-            ld d, (hl)		; Memory.cls 200
-            ld (mem_a1), de		; Memory.cls 201
-            pop hl		; Memory.cls 202
-            ld e, (hl)		; Memory.cls 203
-            inc hl		; Memory.cls 204
-            ld d, (hl)		; Memory.cls 205
-            ld (mem_a2), de		; Memory.cls 206
-            pop hl		; Memory.cls 207
-            ld (mem_res), hl		; Memory.cls 208
-            ld hl, mem_map		; Memory.cls 209
-            jp mem_go0		; Memory.cls 210
+fn_memory_map:		; function map (asm keyword), Memory.cls line 210
+            pop hl		; Memory.cls 211
+            ld e, (hl)		; Memory.cls 212
+            inc hl		; Memory.cls 213
+            ld d, (hl)		; Memory.cls 214
+            ld (mem_a1), de		; Memory.cls 215
+            pop hl		; Memory.cls 216
+            ld e, (hl)		; Memory.cls 217
+            inc hl		; Memory.cls 218
+            ld d, (hl)		; Memory.cls 219
+            ld (mem_a2), de		; Memory.cls 220
+            pop hl		; Memory.cls 221
+            ld (mem_res), hl		; Memory.cls 222
+            ld hl, mem_map		; Memory.cls 223
+            jp mem_go0		; Memory.cls 224
 			ret			; end of #asm
 
-fn_memory_largest:		; function largest (asm keyword), Memory.cls line 305
-            pop hl		; Memory.cls 306
-            ld (mem_res), hl		; Memory.cls 307
-            ld hl, mem_largest		; Memory.cls 308
-            jp mem_go		; Memory.cls 309
+fn_memory_largest:		; function largest (asm keyword), Memory.cls line 319
+            pop hl		; Memory.cls 320
+            ld (mem_res), hl		; Memory.cls 321
+            ld hl, mem_largest		; Memory.cls 322
+            jp mem_go		; Memory.cls 323
 			ret			; end of #asm
 
 
@@ -1150,4 +1150,4 @@ ovl_level2_vsize	equ 0		; its page variables; its local memory is the rest, to #
 			DISPLAY "  page variables ", /D, ovl_level2_vsize, ", free ", /D, #8000 - (ovl_level2_end + ovl_level2_vsize)
 			SAVEAMSDOS "OVERLAYS.002", ovl_level2_start, ovl_level2_end - ovl_level2_start, #4000
 
-NTC_STAMP	equ #D29D		; the build stamp: the first word of every page file
+NTC_STAMP	equ #11F4		; the build stamp: the first word of every page file

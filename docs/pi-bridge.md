@@ -42,9 +42,24 @@ The table lives on the Pi: between Frames the CPC does nothing for the sprites. 
 src/hwlib/tests/cpc_pi (the V9990 balls on the Pi); src/hwlib/tests/cpc_pi/run_pi.py runs it with
 no hardware against a cosd (the ports bridged), the way to test a game's Pi side on a PC.
 
-What Pi.cls does not do yet: tiles and scroll (the Pi has no tile layer yet), animation
-sequences (a range at one delay only), hit boxes, mirror / scale, the Pi-only sizes. docs/
-potentjs-gaps.md keeps the list.
+Pi.cls's own, beyond the hwlib core (the Pi has the Next's layers):
+
+```
+   Pi.TilesTag "GRAPHICS/V9990/TILES"   tile definitions from the store (an installer's file);
+   Pi.Tiles addr, count                 or from memory, 32 bytes a tile (8 x 8 4-bit)
+   Pi.Tile col, row, t, flags           a cell (t -1: nothing); flags: mirror X 2, Y 4, rotate 8
+   Pi.TileRow row, col, addr, count     a level's row from words in memory
+   Pi.Scroll x, y / Pi.ScrollBy vx, vy  the layer's offset; moving by itself (16 = a pixel a frame)
+   Pi.Layer2Tag "tag"                   the bitmap under the tiles, from the store
+   Pi.PatternTag "tag"                  patterns from the store
+   Pi.Seq s, addr, count / Pi.Play n, s, delay   animation sequences (0 stop, -k go to step k)
+   Pi.HitBox n, x, y, w, h / Pi.Hit(n, m)        hit boxes; the Pi's HIT events use them
+```
+
+A profile's GRAPHICS/<PROFILE>/PATTERNS, TILES, LAYER2 and PALETTE in the store load by themselves
+when the display opens, so a game whose installer put them there calls none of the Tag routines.
+What Pi.cls does not do yet: mirror / scale (the Pi has FLAGS), the Pi-only sizes, paths and
+emitters. docs/potentjs-gaps.md keeps the list.
 
 ## 3. Assets on the Pi
 

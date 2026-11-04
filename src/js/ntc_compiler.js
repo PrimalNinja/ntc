@@ -7550,7 +7550,7 @@ function ntcCompile(input_a, objOptions_a)
 					{
 						var objFound = null;
 
-						if (objBlock_a.module !== strModule_a)
+						if ((objBlock_a.module !== strModule_a) || asmInBank(objBlock_a))
 						{
 							return;
 						}
@@ -7755,10 +7755,36 @@ function ntcCompile(input_a, objOptions_a)
 		return objOut;
 	}
 
-	// a procedure of an overlay class (not an asm keyword: those stay in main memory)
+	// a (threaded) procedure of an overlay class. Asm keyword bodies are not threaded
+	// procedures and get no call stub, so they are excluded here and placed in the
+	// class's bank separately (asmInBank); the compiler-added lifecycle members stay in main
 	function isOverlayProc(objProc_a)
 	{
 		return !objProc_a.asmkw && (objClassKind[objProc_a.module] !== undefined) && (objClassKind[objProc_a.module].kind === 'overlay');
+	}
+
+	// the compiler-added overlay lifecycle keywords (Load / Unload / Loaded / Page /
+	// Local*): these must stay in main memory - they run while the class is NOT loaded
+	var objOvlLifecycle = { load: 1, unload: 1, loaded: 1, page: 1, localstart: 1, localsize: 1, localalloc: 1, localfree: 1 };
+
+	// an #asm block (an inline block or an asm keyword body) that belongs inside its
+	// overlay class's bank rather than in main memory. A class is self-contained: its
+	// own #asm stays within its bounds, called by its own code with a bare dw (same
+	// bank). Only the compiler-added lifecycle members stay in main
+	function asmInBank(objBlock_a)
+	{
+		var objProc_a = null;
+
+		if (!objBlock_a.module || (objClassKind[objBlock_a.module] === undefined) || (objClassKind[objBlock_a.module].kind !== 'overlay'))
+		{
+			return false;
+		}
+		objProc_a = objEl[objBlock_a.proc];
+		if (objProc_a && objProc_a.asmkw && objOvlLifecycle[String(objProc_a.id).toLowerCase()])
+		{
+			return false;		// a lifecycle member: runs while the class is out, stays in main
+		}
+		return true;
 	}
 
 	// a procedure nobody calls: compiled for its errors, the code is dropped
@@ -8300,7 +8326,7 @@ function ntcCompile(input_a, objOptions_a)
 			'; ============================================================',
 			'; ZX Spectrum Next: the start stub (bank 5, page 11 at #7E00) and the NEX file',
 			'; ============================================================',
-			'ASSERT ntc_free <= #BE00, "the program and its arrays must end below #BE00 (the stack is #BE00-#BFFF, the screen #C000-#FFFF)"',
+			'ASSERT ntc_free <= #BA00, "the program and its arrays must end below #BA00 (the FileSystem class\'s DOS area is #BA00-#BDFF, the stack #BE00-#BFFF, the screen #C000-#FFFF)"',
 			'MMU 3, 11\t\t\t; page 11 (bank 5\'s second half) at #6000 to assemble the stub',
 			'org #7E00',
 			'zxn_boot:',
@@ -9566,12 +9592,12 @@ function ntcCompile(input_a, objOptions_a)
 					arrOut.push(strIndentG + 'IF ntc_rj_dropend == ntc_end\t; fwdref-ok');
 					arrOut.push('ntc_bssfrom\tequ ntc_rj_drop\t\t; the arrays over the start code (it has run)');
 					arrOut.push(strIndentG + 'ELSE');
-					arrOut.push('ntc_bssfrom\tequ ntc_end');
+					arrOut.push('ntc_bssfrom\tequ ntc_end' + (cpmLike() ? ' + 256\t\t; (after the real stack: ntc_cpmstack)' : ''));
 					arrOut.push(strIndentG + 'ENDIF');
 				}
 				else
 				{
-					arrOut.push('ntc_bssfrom\tequ ntc_end');
+					arrOut.push('ntc_bssfrom\tequ ntc_end' + (cpmLike() ? ' + 256\t\t; (after the real stack: ntc_cpmstack)' : ''));
 				}
 				var arrB = [];
 				arrHoles.forEach(function(objH_a, intH_a)
@@ -9880,7 +9906,7 @@ function ntcCompile(input_a, objOptions_a)
 			}
 			if (strL_a === '@@BSS@@')
 			{
-				arrOut.push('ntc_bssfrom\tequ ntc_end');
+				arrOut.push('ntc_bssfrom\tequ ntc_end' + (cpmLike() ? ' + 256\t\t; (after the real stack: ntc_cpmstack)' : ''));
 				arrOut.push('ntc_bss\t\tequ ntc_bssfrom');
 				return;
 			}
@@ -11556,18 +11582,26 @@ function ntcCompile(input_a, objOptions_a)
 		}
 	}
 
+	// a class in a page keeps its own #asm within its bounds: move its inline blocks and
+	// asm keyword bodies out of main memory into the class's overlay thread, where
+	// composePages copies and renames them per page like the class's own code. Its own
+	// code reaches them with a bare dw (same bank); the lifecycle members stay in main
+	for (intI = 0; intI < arrAsmBlocks.length; intI++)
+	{
+		if (asmInBank(arrAsmBlocks[intI]))
+		{
+			arrAsmBlocks[intI].inbank = true;
+			objOvlAsm[arrAsmBlocks[intI].module] = (objOvlAsm[arrAsmBlocks[intI].module] || []).concat(arrAsmBlocks[intI].lines);
+		}
+	}
+
 	if (arrAsmBlocks.length > 0)
 	{
-		arrAsm.push('');
-		arrAsm.push('; ============================================================');
-		arrAsm.push('; Inline assembly (#asm ... #endasm)');
-		arrAsm.push('; ============================================================');
-		arrAsm.push('');
+		var arrMainAsm = [];		// the blocks that stay in main memory (not in-bank)
+
 		for (intI = 0; intI < arrAsmBlocks.length; intI++)
 		{
-			arrAsm.push(arrAsmBlocks[intI].lines.join('\n'));
-			arrAsm.push('');
-			// library routines a block uses by name are linked
+			// library routines a block uses by name are linked wherever the block lands
 			for (intJ = 0; intJ < arrAsmBlocks[intI].lines.length; intJ++)
 			{
 				(arrAsmBlocks[intI].lines[intJ].substr(0, codePart(arrAsmBlocks[intI].lines[intJ])).match(/[A-Za-z_]\w*/g) || []).forEach(function(strWord_a)
@@ -11581,6 +11615,23 @@ function ntcCompile(input_a, objOptions_a)
 						objUsedT[objLibLabelSection[strWord_a]] = true;
 					}
 				});
+			}
+			if (!arrAsmBlocks[intI].inbank)
+			{
+				arrMainAsm.push(arrAsmBlocks[intI].lines.join('\n'));
+			}
+		}
+		if (arrMainAsm.length > 0)
+		{
+			arrAsm.push('');
+			arrAsm.push('; ============================================================');
+			arrAsm.push('; Inline assembly (#asm ... #endasm)');
+			arrAsm.push('; ============================================================');
+			arrAsm.push('');
+			for (intI = 0; intI < arrMainAsm.length; intI++)
+			{
+				arrAsm.push(arrMainAsm[intI]);
+				arrAsm.push('');
 			}
 		}
 	}

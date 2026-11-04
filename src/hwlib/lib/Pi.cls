@@ -195,6 +195,78 @@ End Sub
 Public Sub Play(ByVal n As Integer, ByVal s As Integer, ByVal delay As Integer)
   Cmd 15, 5 : W16 n : FrameByte s : FrameByte delay : FrameEnd
 End Sub
+' HitBox n, x, y, w, h: the box the Pi's collisions use for sprite n, offset from its top left (w 0:
+' the whole sprite again); the Pi reports HIT events by it. Hit(n, m): asks the Pi (a round trip)
+Public Sub HitBox(ByVal n As Integer, ByVal x As Integer, ByVal y As Integer, ByVal w As Integer, ByVal h As Integer)
+  Cmd 16, 7 : W16 n : FrameByte x : FrameByte y : FrameByte w : FrameByte h : FrameEnd
+End Sub
+Public Function Hit(ByVal n As Integer, ByVal m As Integer) As Integer
+  Hit = 0
+  If Ask(chan, "HIT " + Str$(n) + " " + Str$(m)) Then
+    If buf(3) = Asc("1") Then Hit = 1
+  End If
+End Function
+' ---- the layers (the Next's: a tile layer over a bitmap, under the sprites)
+' Tiles a, count: tile definitions 0 on from count tiles at a (the profile's format: v9990 / zxn / md
+' 8 x 8 4-bit, 32 bytes a tile); TilesTag "tag": from a file in the Pi's store instead (an installer
+' put it there: GRAPHICS:V9990/TILES through Streamer, or from a PC) - the Pi also loads a profile's
+' GRAPHICS/<PROFILE>/TILES by itself when the display opens, so a game that installed its tiles
+' needs neither
+Public Sub Tiles(ByVal a As Integer, ByVal count As Integer)
+  Dim i As Integer, n As Integer, s As String Max 16
+  s = "TILES 0"
+  n = count * 32
+  nid = nid + 1
+  FrameStart chan, 2, nid, Len(s) + 1 + n : FrameText s : FrameByte 0
+  For i = 0 To n - 1
+    FrameByte Peek(a + i)
+  Next
+  FrameEnd
+  Do
+    ReadHeader
+    If hType = 3 And hId = nid Then Exit Do
+    SkipFrame
+  Loop
+  SkipFrame
+End Sub
+Public Sub TilesTag(ByVal tag As String Max 40)
+  Dim r As Integer
+  r = Ask(chan, "TILES 0 " + tag)
+End Sub
+' Tile col, row, t, flags: a cell of the tile layer (t -1: nothing there, the bitmap shows); flags bit 1
+' mirror X, 2 mirror Y, 3 rotate a quarter turn (the Next's)
+Public Sub Tile(ByVal col As Integer, ByVal row As Integer, ByVal t As Integer, ByVal flags As Integer)
+  Cmd 32, 6 : FrameByte col : FrameByte row : W16 t : FrameByte flags : FrameEnd
+End Sub
+' TileRow row, col, a, count: count cells along a row from the words at a (a tile number a word,
+' -1 nothing), the flags 0 - a level's row from a map in memory
+Public Sub TileRow(ByVal row As Integer, ByVal col As Integer, ByVal a As Integer, ByVal count As Integer)
+  Dim i As Integer
+  Cmd 33, 4 + count * 3 : FrameByte row : FrameByte col : FrameByte count
+  For i = 0 To count - 1
+    FrameByte Peek(a + i * 2) : FrameByte Peek(a + i * 2 + 1) : FrameByte 0
+  Next
+  FrameEnd
+End Sub
+' Scroll x, y: the tile layer's offset (it wraps); ScrollBy vx, vy: moving by itself, 1/16 pixel a
+' frame each unit (16 = a pixel a frame) - a scrolling level costs the CPC nothing per frame
+Public Sub Scroll(ByVal x As Integer, ByVal y As Integer)
+  Cmd 64, 6 : FrameByte 0 : W16 x : W16 y : FrameEnd
+End Sub
+Public Sub ScrollBy(ByVal vx As Integer, ByVal vy As Integer)
+  Cmd 65, 6 : FrameByte 0 : W16 vx : W16 vy : FrameEnd
+End Sub
+' Layer2Tag "tag": the bitmap under the tiles, whole, from a file in the store (zxn: 320 x 256 8-bit
+' through the palette; pi: RGBA; none on v9938 / md) - too big to send from the CPC each time
+Public Sub Layer2Tag(ByVal tag As String Max 40)
+  Dim r As Integer
+  r = Ask(chan, "LAYER2 " + tag)
+End Sub
+' PatternTag "tag": patterns 0 on from a store file (PATTERNS 0 tag) - the installer's way
+Public Sub PatternTag(ByVal tag As String Max 40)
+  Dim r As Integer
+  r = Ask(chan, "PATTERNS 0 " + tag)
+End Sub
 Public Sub Move(ByVal n As Integer, ByVal dx As Integer, ByVal dy As Integer)
   Cmd 5, 7 : W16 n : W16 dx * 16 : W16 dy * 16 : FrameEnd   ' 12.4
 End Sub

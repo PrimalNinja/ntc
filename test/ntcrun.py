@@ -714,7 +714,7 @@ class Host:
         m = s.m; mem = m.memory
         if os.environ.get('NTC_CASLOG'): print('--- cas', f, hex(m.hl), m.b, bytes(mem[m.hl:m.hl + m.b]).decode('latin-1') if f.endswith('open') else '', file=sys.stderr)
         def name():
-            n = bytes(mem[m.hl:m.hl + m.b]).decode().upper(); d = s.cas_dev
+            n = bytes(mem[m.hl:m.hl + m.b]).decode('latin1').upper(); d = s.cas_dev
             if ':' in n and s.cas_dev != 'TAPE': d, n = n.split(':', 1)     # "C:NAME": volume C
             os.makedirs(os.path.join(FILES, d), exist_ok=True)   # one folder per device / volume: TAPE, A, B, C ...
             return os.path.join(FILES, d, *[x for x in n.split('/') if x]) if UNIDOS else os.path.join(FILES, d, n)

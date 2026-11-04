@@ -183,3 +183,83 @@ Corrections to the entry above - two of its claims were wrong:
 14. Categories (Julian): devices become GRAPHICS / SPEECH / MUSIC / STORE; folders are store paths (GRAPHICS:V9990/PATTERNS -> PUT GRAPHICS/V9990/PATTERNS), the Pi keeps per-profile sets and loads them at OPEN (vdp.js, 29 checks), CMD/EVENTS at a category's root, 85 TARGET for SPEECH. UniDOS's normalized path format decoded from Albireo's node (a count byte, 11-char names; ExamineNext dir = bit 4). The node rewritten to it (assembles). MUSIC folders MP3/8BIT/4BIT/SID/AY38912 then VGM/FM/MOD/MIDI/GME; the Pi's player table (sidplayfp, vgmplay, adplay, xmp, fluidsynth, mpv/gme), ERR noplayer when absent; 19 audio checks.
 15. A stray lhafile wheel removed from the NTC repo and zip. 3p/ moved beside pi/ (run.sh, votrax.js, docs follow).
 16. OPEN: the node's new test (streamer_test.py, categories) is NOT passing: the root listing's folder phase returns wrong entries, and the asset OutOpen hangs in OpenChannel's answer loop (the OPEN store answer is not matched - under investigation when this entry was written). The old node and test are in streamer/_old/. Nothing of this is shipped as working.
+
+## 2026-11-01T21:58Z - Claude Fable 5.1 (what the harness reports for this turn; this session was reported as claude-opus-5-5 until 21:38Z and as Fable 5.1 since) [the merging session]
+- Julian's upload of 2026-11-02 08:55 (ntc.zip) taken in: streamer/src/streamer.asm and test/streamer_test.py (the categories restructure, not passing yet - the root listing's folders, OutOpen's hang), streamer/_old, both logs. The zip had no tools/ folder (ntccheck, hosted, coleco, osmcut, s3d*): kept from here. Its ntc_lib.js is the regenerated one (the same as test/gen.js makes here).
+- files: streamer/src/streamer.asm, streamer/test/streamer_test.py, streamer/_old/*, streamer/docs/ANALYSIS.LOG, docs/ANALYSIS.LOG
+
+## 2026-11-01T23:43Z - Claude Fable 5.1 (as this session reports itself)
+- The node's OPEN hang traced: a probe of the asset OutOpen alone completes (HELLO, OPEN store, OK 1) - the answer loop is sound; the difference is the stream-version DATA byte the node sent after every OPEN, stray data on a store / audio channel that can kill cosd, after which the node waits for ever. Fixed: the version byte goes on GRAPHICS's channel only. The harness now stops and prints cosd's log when the link dies instead of waiting. Next: the root listing's folder phase, then the full category test.
+- files: streamer/src/streamer.asm, streamer/build/streamer.rom, streamer/test/streamer_test.py, docs/ANALYSIS.LOG
+
+## 2026-11-02T00:47Z - Claude Fable 5.1 (as this session reports itself)
+- Streamer: the category node done and passing (31 checks); see streamer/docs/ANALYSIS.LOG for the detail. The ROM: 16K, the categories as Julian set them (GRAPHICS / SPEECH / MUSIC / STORE, folders as the Pi's store paths).
+- files: streamer/*, docs/ANALYSIS.LOG
+
+## 2026-11-02T00:56Z - Claude Fable 5.1 (as this session reports itself)
+- Hit boxes (Julian: like a dummy sprite; hardware where it allows, software where not - no chip here has a box test, so software on all six, the TMS/V9938 collision flag noted as a possible shortcut): hwlib HitBox n, x, y, w, h and Hit(n, m) in V9990, V9938, Tms9918, Zxn, Asic, Cpc (software overlap of the boxes or the whole 16 x 16) and in Pi.cls (HITBOX command; Hit asks the Pi). All compile. README and potentjs-gaps.md updated: nothing stops a game on the Pi now; on the chips, sequences and tiles.
+- files: src/hwlib/lib/*.cls, src/hwlib/README.md, docs/potentjs-gaps.md, docs/ANALYSIS.LOG
+
+## 2026-11-02T01:15Z - Claude Fable 5.1 (as this session reports itself)
+- Pi.cls gains the layers: Tiles / TilesTag, Tile, TileRow (a level row from words in memory), Scroll, ScrollBy, Layer2Tag, PatternTag; tests/cpc_pi_tiles (the program on the Z80 core against a live cosd: tiles from the store tag, a row of 32 cells, a mirrored cell, an unset cell, the scroll, a sprite with a hit box animating and moving) passes. README, docs/pi-bridge.md (Pi.cls's own calls listed), potentjs-gaps.md updated. With this, item 2 of the first-release list is in; items left: a worked game, the Next-platform path.
+- files: src/hwlib/lib/Pi.cls, src/hwlib/tests/cpc_pi_tiles/*, src/hwlib/tests/cpc_pi/run_pi.py, src/hwlib/README.md, docs/pi-bridge.md, docs/potentjs-gaps.md, docs/ANALYSIS.LOG
+
+## 2026-11-02T01:28Z - Claude Fable 5.1 (as this session reports itself)
+- EDIT (src/apps/edit/Main.bas): a plain-text editor for the CPC in NTC BASIC - mode 2, 100 lines of 78, an 8K file, arrows / insert / delete / Return, Control + S save, L load, N new, Q quit, the name asked on the status line; files by any path the disc system knows, so STORE:NAME.BAS is the Pi through Streamer (Julian: an editor that loads and saves to the Pi). Compiles for cpcfw and for cyborgos. NOT run: the harness's cpcfw firmware stand-in mis-dispatches the far calls (its 'cas_in_open' log entries are Print calls), so no runtime proof here - a CPC, or the harness extended. The harness's name decoder now takes latin-1, and cpcrun prints a note instead of crashing when a cpcfw program has no font of its own. Next: the cyborgos build run on the vCPC; UniDOS's drive assignment (|B,"STORE:") as the way a slot reaches the Pi by a drive letter.
+- files: src/apps/edit/Main.bas, test/ntcrun.py, test/cpcrun.py, docs/ANALYSIS.LOG
+
+## 2026-11-02T01:33Z - Claude Fable 5.1 (as this session reports itself)
+- PISHELL (src/apps/pishell): the Pi's store as a shell on the CPC (Julian: a shell, to see the files on the Pi) - a plain CPC program over the CPLink's ports, no UniDOS needed: the folder's entries with sizes, folders entered with Return and left with Left, a text file viewed, D delete, C copy to the CPC's disc, U upload a disc file, the categories at the top. Its link routines are Pi.cls's; the listing uses the store's LIST fmt=cpc records. Proven on the Z80 core against a live cosd (test/run_pi.py): HELLO, OPEN store, LIST / fmt=cpc, three entries held (GAMES/, GRAPHICS/, README.TXT) - the keys beyond that a harness can't type for cpcfw. A length bug in its HELLO found by the run. EDIT (the editor) stays as the companion: PISHELL to find a file, EDIT to change it.
+- files: src/apps/pishell/Main.bas, src/apps/pishell/test/run_pi.py, docs/ANALYSIS.LOG
+
+## 2026-11-02T10:23Z - Claude Fable 5.1 (as this session reports itself)
+- The Next's FileSystem class implemented on NextZXOS's esxDOS API (Julian) and PROVEN ON NEXTZXOS: src/lib/zxn/FileSystem.cls (every common name; Chdir, CurrentDrive, LastError its own; the old stub kept as FileSystem.cls.stub-2026-11-02). test/zxnfs: a program leaving its results in memory, run_zes.js booting a card made by nexarc/sdimage.py (the NEX its autoexec) in ZEsarUX, reading the results through the remote protocol - the first runtime test of a native NTC Next program on NextZXOS itself. 15 checks, all pass: Save, Size, Load, the bytes back, Open, Seek, ReadByte, Eof, ReadLine, Close, Exists, Rename, Delete, DirEntry.
+- The bugs the rig found, in order: (1) the class was not in ntc_lib.js - test/gen.js must run after a lib change (the first runs were the stub); (2) the open mode in C, esxDOS wants B; (3) VarPtr not StrPtr for a name; (4) a name must not be in the program's first 16K: ROM 3 pages it out during the call; (5) nor in #C000-#FFFF: +3DOS pages its bank 7 over it during a file operation - so a fixed DOS area #BA00-#BDFF, the platform's memtop lowered from #BE00 to #BA00 (ntc_plat_zxn.asm, the compiler's assert); (6) a blanket replace had turned the name copy into a copy onto itself; (7) the sysvars copy overlapped the data buffer, then the 164-byte trampoline; (8) F_OPENDIR does not take "." - F_GETCWD then the path. NextZXOS's error 7 is "bad filename" (ZEsarUX's esxdos_handler.h has the table), not access denied. Interrupts stay on for the call (the SD driver), the ROM's system variables at #5C00-#5C7B kept across it.
+- files: src/lib/zxn/FileSystem.cls, src/asm/ntc_plat_zxn.asm, src/js/ntc_compiler.js (the assert), src/js/ntc_lib.js (regenerated), test/zxnfs/*, docs/NTC.md, docs/ANALYSIS.LOG
+
+## 2026-11-02T17:50Z - Claude Fable 5.1 (what the harness reports for this turn) - the merge after the other session's sandbox died
+- Base: Julian's ntc.zip of 04:12 local (the other session's 10:23Z state: the Next FileSystem on
+  esxDOS, PISHELL, EDIT, hwlib's hit boxes and tiles, the streamer categories passing). On it from
+  this session: only the log entry of 21:58Z (its step1 fix and compare.js were already in it).
+  src/lib/zxn/FileSystem.cls.stub-2026-11-02 (the old stub kept beside the real one) deleted.
+- The stack change Julian asked for (the lost session's step 4: every compiled CP/M-like program
+  carried its 256-byte stack as `ds 256` in its file): ntc_plat_cpm.asm `ntc_cpmstack equ ntc_end +
+  256` (the cyborgos platform is ";@base cpm", so both); ntc_compiler.js: `ntc_bssfrom equ ntc_end
+  + 256` when cpmLike() (the arrays after the stack; the HighCode path's line got the same test,
+  inert there); kw_bssinit in ntc_lib.asm and ntc_lib_cpc.asm: `jr z, ntc_bs_ok` after `jr c,
+  ntc_bs_ok` (the real stack's top equal to the arrays' start is fine - it was "too big" before).
+  Every CyborgOS program is 256 bytes shorter on disc; CYBORGOS.ARC on the Next gained 4.5K.
+- FileSystem.cls (zxn) 409: `StrPtr(text)` in WriteLine - no such function, the class did not
+  compile (the Next test never called WriteLine). Now the class's own pattern: the text into a
+  module string, VarPtr of it (as NameZ does with nm).
+- regress.sh: "fs_none zxn" taken out - it checked the old stub (no files on the Next); the real
+  class calls esxDOS, which the Python harness has no ROM for (it hangs to the timeout). The Next's
+  file test is test/zxnfs (ZEsarUX, NextZXOS). zxnfs/Main.bas compiles and assembles with the fix.
+- gen.js run; hosted/js/ntc_lib.js the same. regress.sh: the first run 907 ok, the ES5 check
+  failing only for want of acorn on this host's NODE_PATH (/opt/node-tools) - run again with it.
+- files: src/asm/ntc_plat_cpm.asm, src/asm/ntc_lib.asm, src/asm/ntc_lib_cpc.asm,
+  src/js/ntc_compiler.js, src/js/ntc_lib.js, hosted/js/ntc_lib.js, src/lib/zxn/FileSystem.cls,
+  test/regress.sh, docs/ANALYSIS.LOG
+
+## 2026-11-04T06:10Z - Claude Opus 4.8 (what the harness reports for this turn) - ternary classes and GEN
+- Three ternary classes in src/lib/z80 (every Z80 platform), with self tests in regress.sh:
+  Trit.cls (a trit -1/0/1; 4 a byte packed with AND/OR masks; the logic, Gate, Pack/Unpack, Scan,
+  Dot the add/sub-only multiply-accumulate), Tiny.cls (int8 scaled 1.0 = 64, saturating; Mul a
+  shift-add, Div, Tanh/Sigm 256-byte tables from tools/tiny/mktables.js, Dot), Tree.cls (a gated
+  behaviour tree, a 0-gated subtree skipped whole - the Z80's "or a / jr z"). trit_t / tiny_t /
+  tree_t, "NAME bad0".
+- Net.cls (src/lib/z80): a ternary GRU run on the Z80, the same integer arithmetic as the PC
+  reference (tools/gen/qgru.py), so a model gives the same bytes on both. net_t loads a small model
+  (tools/gen/mktest.py writes net_t.mdl and the 48 characters the PC produced in net_t.txt) and the
+  Z80 matches byte for byte - the regress test.
+- tools/gen: corpus.py (the NTC + CyborgOS sources as training text), qgru.py (the QAT model whose
+  forward pass is the Z80's), train.py (trains, exports GEN.MDL). The model GEN.CYB runs lives in
+  CyborgOS; this is the training and the inference class.
+- Fixed in the class work: a local named neg clashes with NTC's unary negate; single-line
+  If ... ElseIf isn't accepted (block form). No compiler change - these are the rules.
+- COSList.cls added under src/lib/cyborgos (the slot-lists stub; the engine is in CyborgOS's kernel).
+- regress.sh: Trit/Tiny/Tree/Net checks; the Pluto engine test restored (NTC_FAST=1 skips its 13
+  minutes). The stack change (step 4) and the Next FileSystem WriteLine fix from the merge stand.
+- files: src/lib/z80/{Trit,Tiny,Tree,Net}.cls, src/lib/cyborgos/COSList.cls, tools/tiny/mktables.js,
+  tools/gen/{corpus,qgru,train,mktest}.py, test/{trit_t,tiny_t,tree_t,net_t}.bas, test/net_t.mdl,
+  test/net_t.txt, test/regress.sh, src/js/ntc_lib.js + hosted/js/ntc_lib.js (regenerated), docs/ANALYSIS.LOG

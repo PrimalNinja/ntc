@@ -1,0 +1,8 @@
+{
+  "name": "ntc-coleco-tools",
+  "private": true,
+  "description": "ColecoVision build and test tools for NTC (build.js is plain node; run.mjs needs z80-emulator)",
+  "dependencies": {
+    "z80-emulator": "^2.3.0"
+  }
+}

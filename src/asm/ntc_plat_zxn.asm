@@ -11,7 +11,10 @@
 ;         11, what the ULA and the tilemap show - at #C000-#FFFF.
 ;           #0000-#003F  RST / IM 1 (#0038: the interrupt handler's jump)
 ;           #0040-       the program, its arrays, the Memory class's heap
-;           #BE00-#BFFF  the stack (ntc_plat_memtop: #BE00)
+;           #BA00-#BDFF  the FileSystem class's DOS area (its call trampoline, stack,
+;                        name and data buffers: +3DOS pages bank 7 over #C000-#FFFF
+;                        during a file call, so none of that can live there)
+;           #BE00-#BFFF  the stack (ntc_plat_memtop: #BA00 - the DOS area is above the heap)
 ;           #C000-#DAFF  the ULA screen (Graphics, later)
 ;           #E000-#E9FF  the text: the tilemap, 80 x 32 (40 x 32: the first 1280)
 ;           #EC00-#F3FF  its characters: 256 x 8 bytes (1 bit a pixel)
@@ -1094,10 +1097,10 @@ ntc_ex_wait:
 
 ;## ntc_plat_memtop
 ; ntc_plat_memtop - HL = the first byte the Memory class's Small heap must not
-; use: #BE00 (the stack is above, to #C000). Called on the real stack
-; (call / ret), only by the Memory class.
+; use: #BA00 (the FileSystem class's DOS area #BA00-#BDFF, then the stack to
+; #C000). Called on the real stack (call / ret), only by the Memory class.
 ntc_plat_memtop:
-			ld hl, #BE00
+			ld hl, #BA00
 			ret
 
 ;## ntc_gfx ntc_data ntc_plat_data @shared

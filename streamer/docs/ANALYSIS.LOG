@@ -35,3 +35,7 @@
 
 ## 2026-11-01T21:43Z - Claude Fable 5.1 (as this session reports itself)
 - See the session record in NTC's docs/ANALYSIS.LOG (entries 2, 11, 13, 14, 16 concern the node). Current state: streamer.asm restructured to categories, assembles; streamer_test.py (new) failing on the root listing's folders and the asset OutOpen's hang; the device-era node and test kept in _old/.
+
+## 2026-11-02T00:47Z - Claude Fable 5.1 (as this session reports itself)
+- The category node passes end to end (streamer_test.py, 31 checks against a live cosd): CheckDrive by category, the root listing (files then folders as directories), an asset SAVEd into GRAPHICS:V9990/PATTERNS as PUT in parts and the file on the Pi, LOADed back as GET in chunks, CAT of a folder through the Pi's LIST fmt=cpc records, GRAPHICS:CMD opening the profile with its installed patterns and EVENTS reading V and EDGE, SPEECH's three targets (two cards, VOTRAX as DATA), MUSIC's line requests and answers, STORE at its root and in folders with CAT. On the way, my own damage repaired: a bad edit had cut the ROM header and device routines out; reassembled from the _old copy and the session's pieces. Faults fixed: DevPrefix read from the wrong byte; the version byte after every OPEN (now GRAPHICS only); the LIST parser replaced by fixed records; parts' repeated text skipped; the folder phase's Z flag and the buffer pointer across DevFolders. streamer-rom.md section 2 rewritten.
+- files: src/streamer.asm, build/streamer.rom, test/streamer_test.py, docs/streamer-rom.md, docs/ANALYSIS.LOG

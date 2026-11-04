@@ -4405,10 +4405,10 @@ ntc_rg82_e:
 ntc_rg83:
 ;## ntc_plat_memtop
 ; ntc_plat_memtop - HL = the first byte the Memory class's Small heap must not
-; use: #BE00 (the stack is above, to #C000). Called on the real stack
-; (call / ret), only by the Memory class.
+; use: #BA00 (the FileSystem class's DOS area #BA00-#BDFF, then the stack to
+; #C000). Called on the real stack (call / ret), only by the Memory class.
 ntc_plat_memtop:
-			ld hl, #BE00
+			ld hl, #BA00
 			ret
 
 ntc_rg83_e:
@@ -4792,7 +4792,7 @@ ovl_ending_vsize	equ 0		; its page variables; its local memory is the rest, to #
 ; ============================================================
 ; ZX Spectrum Next: the start stub (bank 5, page 11 at #7E00) and the NEX file
 ; ============================================================
-			ASSERT ntc_free <= #BE00, "the program and its arrays must end below #BE00 (the stack is #BE00-#BFFF, the screen #C000-#FFFF)"
+			ASSERT ntc_free <= #BA00, "the program and its arrays must end below #BA00 (the FileSystem class's DOS area is #BA00-#BDFF, the stack #BE00-#BFFF, the screen #C000-#FFFF)"
 			MMU 3, 11			; page 11 (bank 5's second half) at #6000 to assemble the stub
 			org #7E00
 zxn_boot:
@@ -4872,4 +4872,4 @@ zxn_mmu:	db #50, 16, #51, 17, #52, 18, #54, 20, #55, 21, #56, 10, #57, 11
 			SAVENEX BANK 5, 8, 9, 10, 40, 41, 42, 43
 			SAVENEX CLOSE
 
-NTC_STAMP	equ #B9B9		; the build stamp: the first word of every page file
+NTC_STAMP	equ #ECBF		; the build stamp: the first word of every page file

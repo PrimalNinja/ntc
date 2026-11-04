@@ -2123,16 +2123,16 @@ fn_keys_down:		; function down (asm keyword), Keys.cls line 44
             jp ntc_kdown		; Keys.cls 50
 			ret			; end of #asm
 
-fn_memory_allocpage:		; function allocpage (asm keyword), Memory.cls line 219
-            pop hl		; Memory.cls 220
-            ld e, (hl)		; Memory.cls 221
-            inc hl		; Memory.cls 222
-            ld d, (hl)		; Memory.cls 223
-            ld (mem_a1), de		; Memory.cls 224
-            pop hl		; Memory.cls 225
-            ld (mem_res), hl		; Memory.cls 226
-            ld hl, mem_allocpage		; Memory.cls 227
-            jp mem_go		; Memory.cls 228
+fn_memory_allocpage:		; function allocpage (asm keyword), Memory.cls line 233
+            pop hl		; Memory.cls 234
+            ld e, (hl)		; Memory.cls 235
+            inc hl		; Memory.cls 236
+            ld d, (hl)		; Memory.cls 237
+            ld (mem_a1), de		; Memory.cls 238
+            pop hl		; Memory.cls 239
+            ld (mem_res), hl		; Memory.cls 240
+            ld hl, mem_allocpage		; Memory.cls 241
+            jp mem_go		; Memory.cls 242
 			ret			; end of #asm
 
 
@@ -7475,6 +7475,7 @@ kw_bssinit:
 			or a
 			sbc hl, bc
 			jr c, ntc_bs_ok
+			jr z, ntc_bs_ok		; (the stack just under them: CP/M's ntc_cpmstack = their start)
 			ld hl, (ntc_csp)
 			ld bc, -256
 			add hl, bc
@@ -10031,4 +10032,4 @@ ovl_spin_vsize	equ 0		; its page variables; its local memory is the rest, to #80
 			DISPLAY "  page variables ", /D, ovl_spin_vsize, ", free ", /D, #8000 - (ovl_spin_end + ovl_spin_vsize)
 			SAVEAMSDOS "CUBE3D.001", ovl_spin_start, ovl_spin_end - ovl_spin_start, #4000
 
-NTC_STAMP	equ #C9E3		; the build stamp: the first word of every page file
+NTC_STAMP	equ #6B8A		; the build stamp: the first word of every page file

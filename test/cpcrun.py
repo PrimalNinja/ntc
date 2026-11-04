@@ -269,7 +269,8 @@ class CPC:
         return '\n'.join(out)
 def loadfont(syms,mem):
     f={}
-    base=syms['ntc_font']
+    base=syms.get('ntc_font')
+    if base is None: return None
     for c in range(32,127):
         f[tuple(mem[base+(c-32)*8+i] for i in range(8))]=chr(c)
     return f
@@ -284,5 +285,6 @@ if __name__=='__main__':
     open(asm,'w').write(r.stdout)
     b,syms=assemble(asm)
     c=CPC(b,syms.get('ntc_start',0x4000),typed,syms); c.run()   # loaded at the program's org (CPC: #0040)
-    print(c.screen(loadfont(syms,c.m.memory)))
+    fnt=loadfont(syms,c.m.memory)
+    print(c.screen(fnt) if fnt else '(a cpcfw program: the firmware draws its text - no font of its own to read the screen with)')
     print('--- halted' if c.m.halted else '--- NOT halted', 'sp=%04x'%c.m.sp, 'ints=%d'%c.ints, 'T=%d'%c.T, 'gate array writes', ['%02X'%v for v in c.ga])

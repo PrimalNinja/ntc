@@ -12,7 +12,7 @@ NTC_ROMLIB	equ 1			; this is the keyword ROM
 NTC_BUFSIZE	equ 2048		; its buffer (ntc_buf)
 NTC_ROM_N	equ 349			; numbers in the index
 NTC_ROM_COUNT	equ 1			; ROMs in the set (NTCMIN.ROM)
-NTC_ROM_SET	equ #3F81		; the set's stamp (its ROMs find each other by it)
+NTC_ROM_SET	equ #BA04		; the set's stamp (its ROMs find each other by it)
 MEM_WIN		equ #4000
 MEM_BADPAGE	equ -2
 MEM_BANKS	equ NTC_MEMBANKS	; 0 - 64
@@ -7625,6 +7625,7 @@ kw_bssinit:
 			or a
 			sbc hl, bc
 			jr c, ntc_bs_ok
+			jr z, ntc_bs_ok		; (the stack just under them: CP/M's ntc_cpmstack = their start)
 			ld hl, (ntc_csp)
 			ld bc, -256
 			add hl, bc

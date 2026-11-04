@@ -4240,34 +4240,34 @@ fn_memory_freepages:		; function freepages (asm keyword), Memory.cls line 80
             jp mem_go		; Memory.cls 84
 			ret			; end of #asm
 
-fn_memory_allocpage:		; function allocpage (asm keyword), Memory.cls line 219
-            pop hl		; Memory.cls 220
-            ld e, (hl)		; Memory.cls 221
-            inc hl		; Memory.cls 222
-            ld d, (hl)		; Memory.cls 223
-            ld (mem_a1), de		; Memory.cls 224
-            pop hl		; Memory.cls 225
-            ld (mem_res), hl		; Memory.cls 226
-            ld hl, mem_allocpage		; Memory.cls 227
-            jp mem_go		; Memory.cls 228
+fn_memory_allocpage:		; function allocpage (asm keyword), Memory.cls line 233
+            pop hl		; Memory.cls 234
+            ld e, (hl)		; Memory.cls 235
+            inc hl		; Memory.cls 236
+            ld d, (hl)		; Memory.cls 237
+            ld (mem_a1), de		; Memory.cls 238
+            pop hl		; Memory.cls 239
+            ld (mem_res), hl		; Memory.cls 240
+            ld hl, mem_allocpage		; Memory.cls 241
+            jp mem_go		; Memory.cls 242
 			ret			; end of #asm
 
-fn_memory_readbyte:		; function readbyte (asm keyword), Memory.cls line 340
-            pop hl		; Memory.cls 341
-            ld (mem_a1), hl		; Memory.cls 342
-            pop hl		; Memory.cls 343
-            ld (mem_res), hl		; Memory.cls 344
-            ld hl, mem_readbyte		; Memory.cls 345
-            jp mem_go		; Memory.cls 346
+fn_memory_readbyte:		; function readbyte (asm keyword), Memory.cls line 354
+            pop hl		; Memory.cls 355
+            ld (mem_a1), hl		; Memory.cls 356
+            pop hl		; Memory.cls 357
+            ld (mem_res), hl		; Memory.cls 358
+            ld hl, mem_readbyte		; Memory.cls 359
+            jp mem_go		; Memory.cls 360
 			ret			; end of #asm
 
-fn_memory_readword:		; function readword (asm keyword), Memory.cls line 351
-            pop hl		; Memory.cls 352
-            ld (mem_a1), hl		; Memory.cls 353
-            pop hl		; Memory.cls 354
-            ld (mem_res), hl		; Memory.cls 355
-            ld hl, mem_readword		; Memory.cls 356
-            jp mem_go		; Memory.cls 357
+fn_memory_readword:		; function readword (asm keyword), Memory.cls line 365
+            pop hl		; Memory.cls 366
+            ld (mem_a1), hl		; Memory.cls 367
+            pop hl		; Memory.cls 368
+            ld (mem_res), hl		; Memory.cls 369
+            ld hl, mem_readword		; Memory.cls 370
+            jp mem_go		; Memory.cls 371
 			ret			; end of #asm
 
 

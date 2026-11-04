@@ -806,8 +806,11 @@ compiler marks the thread of each of the class's procedures (`{t: 'ovl'}` ... `{
 in the keyword list); the emitter sends those lines to the class's own list, written after
 the program as `OUTPUT "PROGRAM.001"` / `ORG #4000` ... `OUTEND` - one assembly, so every label
 is shared and nothing is linked at load time; only the page is decided at run time. The
-class's variables, the call stubs, `#asm` blocks and asm keyword procedures stay in the
-program. The call stub, after the usual argument copies and `ld (p_x_rs), sp`, jumps to
+class is self-contained: its `#asm` blocks and asm keyword procedures go into the class's
+own list (its bank), alongside its threads - the class's own code reaches them with a bare
+`dw` (same bank, no switch). Only the class's variables and the call stubs stay in the
+program, with the compiler-added lifecycle members (`Load` / `Unload` / `Loaded` / `Page` /
+`Local*`), which must run while the class is not loaded. The call stub, after the usual argument copies and `ld (p_x_rs), sp`, jumps to
 `ntc_ovl_enter` (`ntc_lib.asm` section `ntc_ovl`): it keeps `mem_cur` in the procedure's
 `_pg` word and switches in the class's page from its block (`ovl_blk_<class>: dw page,
 db "PROGRAM.001", 0`), loading the file first (`mem_take` a C page, then FileSystem's `fs_load`
@@ -1271,3 +1274,16 @@ python3 guitest5.py
   from outside the class.
 - Open: keep `Dim c As Counter` (it only names the one set of members) or make it an error.
 - `Option ClassSize <kilobytes>` for banking (planned, not enforced).
+
+## FileSystem on the ZX Spectrum Next
+
+The zxn platform's FileSystem class is NextZXOS's esxDOS API behind the common names (Load,
+Save, Delete, Exists, Rename, Size, Open, Close, Read, Write, ReadByte, WriteByte, Seek, Eof,
+ReadLine, WriteLine, DirEntry; its own: Chdir, CurrentDrive, LastError - esxDOS's error code of
+the last failed call, as NextZXOS numbers them: 5 no such file, 7 bad filename, 8 access
+denied, 12 too many open). Names are paths on the SD card ("GAMES/NAME.EXT"; a drive letter
+"C:..." passes through). The platform keeps #BA00-#BDFF for the class (its memtop is #BA00):
+the call trampoline, a stack, the name and 384 bytes of data a chunk - because the program's
+first 16K is paged out under ROM 3 during a call and #C000-#FFFF is paged out under +3DOS's
+bank 7 during a file operation, so nothing the DOS reads or writes can live in either.
+test/zxnfs runs it on NextZXOS itself in ZEsarUX (15 checks).
