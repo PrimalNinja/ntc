@@ -308,6 +308,19 @@ for m in --turbo ""; do
   rm -rf t/files; o=$(timeout 200 python3 ntcrun.py t/pk/Main.bas '' t/pk/Doubler.cls --platform=cpcmin $m 2>&1)
   echo "$o" | grep -q "^ANS42" && echo "$o" | grep -q "^DRV7" && echo "ok   pages: class #asm keyword runs in its bank ${m:-normal}" || { echo "FAIL pages: class #asm keyword runs in its bank ${m:-normal}"; echo "$o" | tail -4; fail=1; }
 done
+# Option Page <startbank>, <addr>, <size>: the window as a page, in place of the auto-reserve.
+# 0 = the window is page 0 (usable, no hole); >=1 keeps it reserved / built round (the hole).
+mkdir -p t/pgw
+printf 'Option Page 0, #4000, #4000\nPrint "hi"\nEnd\n' > t/pgw/win0.bas
+printf 'Option Page 1, #4000, #4000\nPrint "hi"\nEnd\n' > t/pgw/win1.bas
+printf 'Option Page 0, #4000, #4000\nOption Page 1, #4000, #4000\nEnd\n' > t/pgw/win2.bas
+printf 'Option Page 0, #4000\nEnd\n' > t/pgw/winbad.bas
+node cli.js t/pgw/win0.bas --platform=cpc 2>/dev/null | grep -q "^NTC_WINHOLE[[:space:]]*equ 0" && echo "ok   Option Page 0: the window is page 0 (no hole)" || { echo "FAIL Option Page 0: the window is page 0 (no hole)"; fail=1; }
+node cli.js t/pgw/win1.bas --platform=cpc 2>/dev/null | grep -q "^NTC_WINHOLE[[:space:]]*equ 1" && echo "ok   Option Page 1: the window reserved (built round)" || { echo "FAIL Option Page 1: the window reserved (built round)"; fail=1; }
+node cli.js t/pgw/win0.bas --platform=zxn 2>/dev/null | grep -q "^NTC_WINHOLE[[:space:]]*equ 0" && echo "ok   Option Page 0: no hole on zxn too" || { echo "FAIL Option Page 0: no hole on zxn too"; fail=1; }
+node cli.js t/pgw/win2.bas --platform=cpc 2>&1 >/dev/null | grep -q "given twice" && echo "ok   Option Page <n> refused: twice" || { echo "FAIL Option Page <n> refused: twice"; fail=1; }
+node cli.js t/pgw/winbad.bas --platform=cpc 2>&1 >/dev/null | grep -q "three numbers" && echo "ok   Option Page <n> refused: not three numbers" || { echo "FAIL Option Page <n> refused: not three numbers"; fail=1; }
+
 rm -rf t/files t/od; mkdir -p t/od; cp $P/overlays/* t/od/
 check "overlays demo cpcmin" "^Unload level 1: 0 - pages -C" "$(timeout 200 python3 ntcrun.py t/od/Main.bas '~x' t/od/Level1.cls t/od/Level2.cls --platform=cpcmin 2>&1)"
 rm -rf t/files; check "overlays demo cpm" "^Unload level 2: 0 - level 2 0" "$(timeout 200 python3 ntcrun.py t/od/Main.bas '~x' t/od/Level1.cls t/od/Level2.cls --platform=cpm 2>&1)"

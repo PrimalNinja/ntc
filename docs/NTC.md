@@ -614,6 +614,17 @@ variables, `Declare`.
   (a load area, a screen, firmware RAM). The compiler writes one sjasmplus `ASSERT` per range
   after `ntc_end`, so the assembly stops (naming the range and the source line) if
   `ntc_start .. ntc_end` overlaps it. The program is not laid out around a range (yet).
+- `Option Page <startbank>, <addr>, <size>`: the paging window (`addr .. addr+size`, normally
+  `#4000, #4000`) as a page, in place of the old auto-reserve. A numeric first token tells this
+  form apart from `Option Page Name = classes`. `startbank` is 0-based: it is the first 16K
+  bank paging runs from, counting the window's own 16K (setting `#7FC0`, the CPC gate code
+  `#C0`) as bank 0. `0` makes that bank page 0 - the window is a usable swap page, the 16K
+  reclaimed, no hole (`NTC_WINHOLE 0`). `1` keeps the window fixed and built round (the hole,
+  `NTC_WINHOLE 1`), paging from the next bank up (`#C4`) - the CPC double-buffer case, which is
+  the former default. The window is page 1 on the CPC, the Next and MSX alike (`mem_sel`'s
+  shared `#7FC0`-based model); only the physical map differs (CPC gate array, Next MMU slots
+  2/3, MSX mapper via `PUT_P1`), so the directive means the same on all three. (Values >= 2,
+  to keep lower banks free, currently behave like 1.)
 - `Option PressAnyKeyOnEnd ["message"]`: every end of the program (`End`, `Error`, a failed
   `Debug.Assert`, the last line: `emitStop`) prints the message on a line of its own
   (`kw_printnl0`, default `Press any key`) and runs `kw_waitkey` (`ntc_plat_getkey`) before
@@ -829,10 +840,12 @@ jumps): in `#4000-#7FFF` it is code of the class in the area, so `ovl_cur` goes 
 else 0. The return stub jumps to `ntc_ovl_ret` with `_pg`: not 0 and not `ovl_cur` means the
 caller's class was swapped out, so it is loaded again before going back to its thread. `Load`
 / `Unload` called with a thread in the area give -13 (`OVL_BUSY`). `Private Paged` is ignored
-(ordinary variables), since the class doesn't stay. The compiler adds `Option Reserve
-&H4000, &H4000` when the program has none covering the area, and `ntc_rsvtab` is always
-emitted (the Small heap stops at the area). CP/M page files are the plain bytes (`fs_load`
-reads whole records into `#4000`, at most 16K).
+(ordinary variables), since the class doesn't stay. The window is not auto-reserved: a page
+is not a reservation, so declaring page/overlay classes carves no hole on its own. A program
+that needs the area built round says so with `Option Page <startbank>, <addr>, <size>`
+(startbank >= 1) or an `Option Reserve`; `ntc_rsvtab` is always emitted (the Small heap stops
+at the area). CP/M page files are the plain bytes (`fs_load` reads whole records into `#4000`,
+at most 16K).
 
 **Pages** (`Option Page Name = A, B` or `Option Page "FILE.EXT" = ...`, `Option Home`;
 `Option Class Overlay X` is the same as `Option Page X = ThisClass`). The block is `dw page,

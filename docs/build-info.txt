@@ -25,10 +25,43 @@ Packaging rule (what goes in the archive) - READ THIS BEFORE ZIPPING
     flavours change: node test/gen.js (rebundles src/js/ntc_lib.js), node
     test/genbuild.js + test/genrom.js + test/gendsk.sh (rebuild build/), and node
     tools/hosted/build.js (rebuilds hosted/ - the web IDE that bundles the compiler).
+  - Do NOT ship a .gitignore that excludes build/ (or any tooling). build/ is a kept
+    deliverable; a .gitignore with a build/ line silently drops the whole build folder
+    from a git-based release. This archive ships no .gitignore.
   - When in doubt, keep it. Dropping a tracked file is the error to avoid.
 
 History (newest first)
 ======================
+
+20261105-5
+----------
+New in this build
+- New directive: Option Page <startbank>, <addr>, <size> (e.g. Option Page 0, #4000, #4000).
+  Declares the paging window as a page instead of the compiler auto-reserving it. A numeric
+  first token tells it apart from Option Page Name = classes. startbank is 0-based - the first
+  16K bank paging runs from, counting the window's own 16K (setting #7FC0 / CPC gate #C0) as
+  bank 0:
+    0 -> that bank is page 0: the window is a usable swap page, the 16K reclaimed, no hole
+         (NTC_WINHOLE 0).
+    1 -> the window kept fixed and built round (NTC_WINHOLE 1), paging from the next bank up
+         (#C4) - the CPC double-buffer case, the former default behaviour.
+  Same meaning on CPC, ZX Spectrum Next and MSX (the window is page 1 in the shared #7FC0-based
+  model; only the physical map differs - CPC gate array, Next MMU slots 2/3, MSX mapper).
+  Values >= 2 (to keep lower banks free, e.g. for a RAMdisc) currently behave like 1.
+- Removed the compiler's auto-added Option Reserve &H4000, &H4000 for page/overlay classes. A
+  page is not a reservation: declaring page/overlay classes no longer carves a hole on its own.
+  A program that needs the window built round says so with Option Page <n>,... (n >= 1) or an
+  explicit Option Reserve. Verified: compiling all 41 programs x 9 platforms with the pre-change
+  vs post-change compiler gives byte-identical output, so nothing in the suite relied on it.
+  (src/js/ntc_compiler.js: scanPages numeric-form parse; the auto-reserve block removed.)
+- test/regress.sh: added the Option Page <n> checks (0 -> no hole, 1 -> reserved, zxn too, and
+  the two refusals). docs/NTC.md documents the directive and the no-auto-reserve behaviour.
+
+20261105-4
+----------
+- Removed the .gitignore. Its "build/" line was excluding the whole build folder from
+  every git-based release since the file was added. build/ is a kept deliverable, so
+  no .gitignore is shipped now. No source change from 20261105-3.
 
 20261105-3
 ----------

@@ -49,6 +49,10 @@ function ntcCompile(input_a, objOptions_a)
 	var objOvlVars = {};		// overlay class -> its paged variables (declarations)			// interrupt classes: { module, rate (0 = Frame), tick }
 	var intStrMax = 40;			// the longest string in the program (findStrMax)
 	var arrReserve = [];		// Option Reserve: { start, size, file, line }
+	var objPageWindow = null;	// Option Page <startbank>, <addr>, <size>: the paging window as a page.
+								// { startbank, start, size, file, line }. startbank 0 = the window
+								// (addr..addr+size) is page 0, usable (no hole reserved); >=1 keeps
+								// it reserved (built round), as the old auto-reserve did.
 	var blnHighCode = false;	// Option HighCode (cpcfw): code in #C000-#FFFF too, the screen at #4000 (highLayout)
 	var objPlace = {};			// Option Place class, ...: those classes' code never in #C000-#FFFF (highLayout)
 	var intBufAt = -1;			// Option Buffer: where the 2K buffer is (-1: in the program)
@@ -8915,6 +8919,46 @@ function ntcCompile(input_a, objOptions_a)
 			activeLines(objFile_a.text).forEach(function(objLine_a)
 			{
 				var strCode = objLine_a.text.replace(/'.*$/, '');
+				var arrWin = strCode.match(/^\s*option\s+page\s+(&h[0-9a-f]+|#[0-9a-f]+|\d+)\s*,\s*(&h[0-9a-f]+|#[0-9a-f]+|\d+)\s*,\s*(&h[0-9a-f]+|#[0-9a-f]+|\d+)\s*$/i);
+
+				if (!arrWin && /^\s*option\s+page\s+(?:&h[0-9a-f]+|#[0-9a-f]+|\d)/i.test(strCode))
+				{
+					// a numeric first token (not a class name): it is the Option Page <startbank>,
+					// <addr>, <size> form but malformed - report that, not the name-form message
+					arrErrors.push({ file: objFile_a.name, line: objLine_a.line, msg: 'Option Page <startbank>, <addr>, <size>: three numbers (e.g. Option Page 0, &H4000, &H4000)' });
+					return;
+				}
+
+				if (arrWin)
+				{
+					// Option Page <startbank>, <addr>, <size>: declare the paging window as a page
+					// rather than letting the compiler auto-reserve it. startbank is the 16K bank
+					// paging starts at: 0 makes the window page 0 (usable, the 16K reclaimed - no
+					// hole), >=1 keeps the window reserved and built round (CPC double-buffer at 1).
+					var intWinBank = parseNumber(arrWin[1]);
+					var intWinStart = parseNumber(arrWin[2]);
+					var intWinSize = parseNumber(arrWin[3]);
+
+					if (isNaN(intWinBank) || isNaN(intWinStart) || isNaN(intWinSize) || (intWinSize <= 0))
+					{
+						arrErrors.push({ file: objFile_a.name, line: objLine_a.line, msg: 'Option Page <startbank>, <addr>, <size>: three numbers (e.g. Option Page 0, &H4000, &H4000)' });
+						return;
+					}
+					if (objPageWindow !== null)
+					{
+						arrErrors.push({ file: objFile_a.name, line: objLine_a.line, msg: 'Option Page <startbank>, <addr>, <size> is given twice (the first: ' + objPageWindow.file + ' line ' + objPageWindow.line + ')' });
+						return;
+					}
+					objPageWindow = { startbank: intWinBank, start: intWinStart, size: intWinSize, file: objFile_a.name, line: objLine_a.line };
+					if (intWinBank >= 1)
+					{
+						// keep the window reserved and built round, exactly as the removed auto-reserve did
+						arrReserve.push({ start: intWinStart, size: intWinSize, file: 'Option Page ' + intWinBank, line: objLine_a.line });
+					}
+					// startbank 0: the window is page 0, usable - no reserve, no hole.
+					return;
+				}
+
 				var arrMatch = strCode.match(/^\s*option\s+page\s+(?:"([^"]*)"|([a-z_]\w*))(\s+loaded\s+(?:&h[0-9a-f]+|#[0-9a-f]+|\d+))?\s*=\s*(.*?)\s*$/i);
 				var objPage = null;
 				var intLoaded = 0;
@@ -12091,10 +12135,12 @@ function ntcCompile(input_a, objOptions_a)
 			objUsedT['ntc_ovl'] = true;
 		}
 	}
-	if ((arrOvlOrder.length > 0) && !arrReserve.some(function(objRes_a) { return (objRes_a.start <= 0x4000) && (objRes_a.start + objRes_a.size >= 0x8000); }))
-	{
-		arrReserve.push({ start: 0x4000, size: 0x4000, file: 'overlay classes', line: 0 });		// the window / overlay area
-	}
+	// The paging window is no longer auto-reserved. A page is not a reservation: declaring
+	// page/overlay classes does not by itself carve a hole in main memory. If a program needs
+	// the window built round (CPC double-buffer, a cpm/cpcmin overlay area executed in place),
+	// it says so explicitly with Option Page <startbank>, <addr>, <size> (startbank >= 1, which
+	// pushes the reserve above) or an Option Reserve. Option Page 0, <addr>, <size> declares the
+	// window as page 0 - usable, no hole.
 	if ((blnMemoryUsed || (arrOvlOrder.length > 0)) && (objMemory.scheme === 'small'))
 	{
 		arrAsm.push('');
