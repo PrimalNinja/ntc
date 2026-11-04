@@ -614,17 +614,21 @@ variables, `Declare`.
   (a load area, a screen, firmware RAM). The compiler writes one sjasmplus `ASSERT` per range
   after `ntc_end`, so the assembly stops (naming the range and the source line) if
   `ntc_start .. ntc_end` overlaps it. The program is not laid out around a range (yet).
-- `Option Page <startbank>, <addr>, <size>`: the paging window (`addr .. addr+size`, normally
-  `#4000, #4000`) as a page, in place of the old auto-reserve. A numeric first token tells this
-  form apart from `Option Page Name = classes`. `startbank` is 0-based: it is the first 16K
-  bank paging runs from, counting the window's own 16K (setting `#7FC0`, the CPC gate code
-  `#C0`) as bank 0. `0` makes that bank page 0 - the window is a usable swap page, the 16K
-  reclaimed, no hole (`NTC_WINHOLE 0`). `1` keeps the window fixed and built round (the hole,
-  `NTC_WINHOLE 1`), paging from the next bank up (`#C4`) - the CPC double-buffer case, which is
-  the former default. The window is page 1 on the CPC, the Next and MSX alike (`mem_sel`'s
-  shared `#7FC0`-based model); only the physical map differs (CPC gate array, Next MMU slots
-  2/3, MSX mapper via `PUT_P1`), so the directive means the same on all three. (Values >= 2,
-  to keep lower banks free, currently behave like 1.)
+- `Option Page <startbank>, <addr>, <size>`: does everything `Option Reserve addr, size` does -
+  it reserves the window (`addr .. addr+size`, normally `#4000, #4000`) and builds the program
+  round it, so the program, its arrays, the page call/return stubs (`p_*_c` / `_in` / `_r`), the
+  library and the variables all stay out of the window (`NTC_WINHOLE 1`) - PLUS it marks the
+  region as a page and sets the banking offset. A numeric first token tells this form apart from
+  `Option Page Name = classes`. `startbank` is 0-based: the first 16K bank paging runs from,
+  counting the window's own 16K (setting `#7FC0`, the CPC gate code `#C0`) as bank 0. `0`
+  includes that bank as page 0 - the reserved 16K is a usable swap page, not a dead hole. `1`
+  keeps the window's own bank fixed (the CPC double-buffer), paging from the next bank up
+  (`#C4`). Either way the window is reserved and built round - a page is not a substitute for the
+  reservation, it is the reservation plus the banking choice. The window is page 1 on the CPC,
+  the Next and MSX alike (`mem_sel`'s shared `#7FC0`-based model); only the physical map differs
+  (CPC gate array, Next MMU slots 2/3, MSX mapper via `PUT_P1`), so the directive means the same
+  on all three. (The banking offset for `startbank >= 1` - keeping lower banks fixed or free -
+  reserves as `0` does for now; the offset itself is not yet distinct in the output.)
 - `Option PressAnyKeyOnEnd ["message"]`: every end of the program (`End`, `Error`, a failed
   `Debug.Assert`, the last line: `emitStop`) prints the message on a line of its own
   (`kw_printnl0`, default `Press any key`) and runs `kw_waitkey` (`ntc_plat_getkey`) before

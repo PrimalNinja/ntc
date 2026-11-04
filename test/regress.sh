@@ -308,16 +308,28 @@ for m in --turbo ""; do
   rm -rf t/files; o=$(timeout 200 python3 ntcrun.py t/pk/Main.bas '' t/pk/Doubler.cls --platform=cpcmin $m 2>&1)
   echo "$o" | grep -q "^ANS42" && echo "$o" | grep -q "^DRV7" && echo "ok   pages: class #asm keyword runs in its bank ${m:-normal}" || { echo "FAIL pages: class #asm keyword runs in its bank ${m:-normal}"; echo "$o" | tail -4; fail=1; }
 done
-# Option Page <startbank>, <addr>, <size>: the window as a page, in place of the auto-reserve.
-# 0 = the window is page 0 (usable, no hole); >=1 keeps it reserved / built round (the hole).
+# Option Page <startbank>, <addr>, <size>: like Option Reserve it reserves the window and
+# builds the program round it (the program, stubs, library and variables stay out of the
+# window), PLUS it sets the banking offset (startbank 0 = the window is page 0). Every startbank
+# reserves - NTC_WINHOLE is 1 for 0 and for >=1 alike.
 mkdir -p t/pgw
 printf 'Option Page 0, #4000, #4000\nPrint "hi"\nEnd\n' > t/pgw/win0.bas
 printf 'Option Page 1, #4000, #4000\nPrint "hi"\nEnd\n' > t/pgw/win1.bas
 printf 'Option Page 0, #4000, #4000\nOption Page 1, #4000, #4000\nEnd\n' > t/pgw/win2.bas
 printf 'Option Page 0, #4000\nEnd\n' > t/pgw/winbad.bas
-node cli.js t/pgw/win0.bas --platform=cpc 2>/dev/null | grep -q "^NTC_WINHOLE[[:space:]]*equ 0" && echo "ok   Option Page 0: the window is page 0 (no hole)" || { echo "FAIL Option Page 0: the window is page 0 (no hole)"; fail=1; }
-node cli.js t/pgw/win1.bas --platform=cpc 2>/dev/null | grep -q "^NTC_WINHOLE[[:space:]]*equ 1" && echo "ok   Option Page 1: the window reserved (built round)" || { echo "FAIL Option Page 1: the window reserved (built round)"; fail=1; }
-node cli.js t/pgw/win0.bas --platform=zxn 2>/dev/null | grep -q "^NTC_WINHOLE[[:space:]]*equ 0" && echo "ok   Option Page 0: no hole on zxn too" || { echo "FAIL Option Page 0: no hole on zxn too"; fail=1; }
+node cli.js t/pgw/win0.bas --platform=cpc 2>/dev/null | grep -q "^NTC_WINHOLE[[:space:]]*equ 1" && echo "ok   Option Page 0: reserves and builds round (NTC_WINHOLE 1)" || { echo "FAIL Option Page 0: reserves and builds round"; fail=1; }
+node cli.js t/pgw/win1.bas --platform=cpc 2>/dev/null | grep -q "^NTC_WINHOLE[[:space:]]*equ 1" && echo "ok   Option Page 1: reserves and builds round (NTC_WINHOLE 1)" || { echo "FAIL Option Page 1: reserves and builds round"; fail=1; }
+node cli.js t/pgw/win0.bas --platform=zxn 2>/dev/null | grep -q "^NTC_WINHOLE[[:space:]]*equ 1" && echo "ok   Option Page 0: reserves on zxn too" || { echo "FAIL Option Page 0: reserves on zxn too"; fail=1; }
+# with a paged class + Option Page 0, the page call/return stubs must stay out of the window
+rm -rf t/pgw2; mkdir -p t/pgw2; cp $P/pages/*.cls t/pgw2/ 2>/dev/null
+grep -v "Option Reserve" $P/pages/Main.bas | sed "s/^Option Explicit/Option Explicit\nOption Page 0, \&H4000, \&H4000/" > t/pgw2/Main.bas
+node cli.js t/pgw2/Main.bas t/pgw2/*.cls --platform=cpcmin 2>/dev/null > t/pgw2/out.asm
+(cd t/pgw2 && ${SJASMPLUS:-sjasmplus} --nologo --msg=err --sym=syms out.asm >/dev/null 2>&1)
+python3 -c "
+import re,sys
+bad=[(m.group(1),m.group(2)) for l in open('t/pgw2/syms') for m in [re.match(r'^(p_\w+_(?:c|in|r)):\s*EQU\s*(0x[0-9a-fA-F]+)',l)] if m and 0x4000<=int(m.group(2),16)<0x8000]
+sys.exit(1 if bad else 0)" \
+  && echo "ok   Option Page 0: page stubs stay out of the window" || { echo "FAIL Option Page 0: a page stub landed in the window"; fail=1; }
 node cli.js t/pgw/win2.bas --platform=cpc 2>&1 >/dev/null | grep -q "given twice" && echo "ok   Option Page <n> refused: twice" || { echo "FAIL Option Page <n> refused: twice"; fail=1; }
 node cli.js t/pgw/winbad.bas --platform=cpc 2>&1 >/dev/null | grep -q "three numbers" && echo "ok   Option Page <n> refused: not three numbers" || { echo "FAIL Option Page <n> refused: not three numbers"; fail=1; }
 

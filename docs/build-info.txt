@@ -33,6 +33,25 @@ Packaging rule (what goes in the archive) - READ THIS BEFORE ZIPPING
 History (newest first)
 ======================
 
+20261105-6
+----------
+Fix to the 20261105-5 directive (that build had Option Page 0 wrong)
+- Option Page <startbank>, <addr>, <size> now ALWAYS reserves the window and builds the program
+  round it - exactly what Option Reserve does - for every startbank, 0 included. It is "reserve
+  PLUS more": the reservation, plus marking the region a page and choosing the banking offset.
+  20261105-5 wrongly made startbank 0 skip the reserve (NTC_WINHOLE 0), which left the program
+  running straight through the window - the "program must stay out of #4000-#7FFF" ASSERT fired,
+  and the page call/return stubs (p_*_c / _in / _r), library and variables could land in the
+  window. Now startbank 0 reserves like the rest; a paged build with Option Page 0 compiles and
+  the stubs/library/variables all sit below #4000 (verified on the pages fixture: every p_*_c/
+  _in/_r symbol is out of #4000-#7FFF).
+- startbank is still 0-based (0 = the window's own 16K / #7FC0 / gate #C0 as page 0; >=1 keeps
+  lower banks fixed, 1 = CPC double-buffer). The banking offset for >=1 reserves as 0 does for
+  now; the offset itself is not yet distinct in the output.
+- test/regress.sh: the Option Page checks now assert NTC_WINHOLE 1 for 0 and 1 alike, plus a new
+  check that with Option Page 0 and a paged class every page stub stays out of the window.
+  docs/NTC.md rewritten to say the directive reserves (reserve plus more), not "no hole".
+
 20261105-5
 ----------
 New in this build

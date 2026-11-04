@@ -8931,10 +8931,14 @@ function ntcCompile(input_a, objOptions_a)
 
 				if (arrWin)
 				{
-					// Option Page <startbank>, <addr>, <size>: declare the paging window as a page
-					// rather than letting the compiler auto-reserve it. startbank is the 16K bank
-					// paging starts at: 0 makes the window page 0 (usable, the 16K reclaimed - no
-					// hole), >=1 keeps the window reserved and built round (CPC double-buffer at 1).
+					// Option Page <startbank>, <addr>, <size>: like Option Reserve, it reserves the
+					// window (addr..addr+size) and builds the program round it - the program, its
+					// arrays, the page call/return stubs, the library and the variables all stay out
+					// of the window - PLUS it marks the region as a page and sets the banking offset.
+					// startbank is the 0-based 16K bank paging runs from, counting the window's own
+					// 16K (setting #7FC0 / CPC gate #C0) as bank 0: 0 includes that bank as page 0
+					// (the 16K usable as a swap page, not a dead hole); >=1 keeps lower banks fixed
+					// (1 = the CPC double-buffer). The reserve/build-round happens for every startbank.
 					var intWinBank = parseNumber(arrWin[1]);
 					var intWinStart = parseNumber(arrWin[2]);
 					var intWinSize = parseNumber(arrWin[3]);
@@ -8950,12 +8954,10 @@ function ntcCompile(input_a, objOptions_a)
 						return;
 					}
 					objPageWindow = { startbank: intWinBank, start: intWinStart, size: intWinSize, file: objFile_a.name, line: objLine_a.line };
-					if (intWinBank >= 1)
-					{
-						// keep the window reserved and built round, exactly as the removed auto-reserve did
-						arrReserve.push({ start: intWinStart, size: intWinSize, file: 'Option Page ' + intWinBank, line: objLine_a.line });
-					}
-					// startbank 0: the window is page 0, usable - no reserve, no hole.
+					// always reserve the window and build the program round it (same as Option
+					// Reserve): the stubs, library and variables are kept out of #4000-#7FFF. The
+					// startbank chooses the banking offset on top of that (0 makes the window page 0).
+					arrReserve.push({ start: intWinStart, size: intWinSize, file: 'Option Page ' + intWinBank, line: objLine_a.line });
 					return;
 				}
 
