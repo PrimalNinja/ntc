@@ -21,10 +21,21 @@ Packaging rule (what goes in the archive) - READ THIS BEFORE ZIPPING
     coleco build needs its node_modules and it has been dropped by mistake before.
   - EXCLUDE only scratch: test/out/, test/t/, any __pycache__/, a top-level t/,
     and the VCS .git/. build/ is regenerated each build, not hand-carried.
+  - REGENERATE the derived folders whenever the compiler, library (.cls) or
+    flavours change: node test/gen.js (rebundles src/js/ntc_lib.js), node
+    test/genbuild.js + test/genrom.js + test/gendsk.sh (rebuild build/), and node
+    tools/hosted/build.js (rebuilds hosted/ - the web IDE that bundles the compiler).
   - When in doubt, keep it. Dropping a tracked file is the error to avoid.
 
 History (newest first)
 ======================
+
+20261105-3
+----------
+- Rebuilt hosted/ (node tools/hosted/build.js) so the hosted web IDE bundles the
+  fixed compiler and the rebundled library - hosted/js/ntc_compiler.js now has the
+  paging fix and hosted/js/ntc_lib.js the trit classes. (Added to the packaging
+  note: rebuild hosted/ whenever the compiler, library or flavours change.)
 
 20261105-2
 ----------
