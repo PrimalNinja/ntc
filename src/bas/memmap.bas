@@ -9,13 +9,13 @@ Option Explicit
 ' The program must stay out of #4000-#7FFF (the window pages are switched into): checked
 ' when assembling. (The test platform's programs start at #4000, so it has no paging.)
 #If NTC_CPC Then
-Option Reserve &H4000, &H4000
+Option Memory Reserved &H4000, &H4000
 #End If
 #If NTC_CPCMIN Then
-Option Reserve &H4000, &H4000
+Option Memory Reserved &H4000, &H4000
 #End If
 #If NTC_CPCFW Then
-Option Reserve &H4000, &H4000
+Option Memory Reserved &H4000, &H4000
 #End If
 Dim music As Integer, sprites As Integer, level As Integer
 Dim p1 As Long, p2 As Long, p3 As Long
@@ -124,7 +124,7 @@ Sub MainMap()
     hs = Memory.HeapStart() : he = Memory.HeapEnd()
     If U(he) > U(hs) Then Area hs, he, "heap (Alloc, List)" : fr = fr + U(he) - U(hs)
     If (he = &H4000) And (U(top) > U(&H8000)) Then
-      Area &H4000, &H8000, "Option Reserve"
+      Area &H4000, &H8000, "Option Memory Reserved"
       Area &H8000, top, "free" : fr = fr + U(top) - U(&H8000)
     ElseIf U(top) > U(he) + 16 Then
       Area he, top, "stack and spare"

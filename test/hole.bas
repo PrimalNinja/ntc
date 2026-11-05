@@ -1,6 +1,6 @@
-' Option Reserve builds round the range: a big #asm block (15600 bytes) can't fit below #4000,
+' Option Memory Reserved builds round the range: a big #asm block (15600 bytes) can't fit below #4000,
 ' so it and what follows go above #8000; the arrays too. ProgramEnd() above #8000.
-Option Reserve &H4000, &H4000
+Option Memory Reserved &H4000, &H4000
 Dim a(10) As Integer
 Print "start"
 Big

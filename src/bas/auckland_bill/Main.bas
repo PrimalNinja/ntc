@@ -22,9 +22,9 @@ Option NexData "AUCKLAND.DAT", 94  ' the Next: the data's 94 blocks (s3dmake: At
 #Else
 Option RomEnable All              ' RUN" drops the background ROMs: AMSDOS, UniDOS and its nodes started again
 #End If
-Option Reserve &H4000, &H4000     ' main RAM's #4000-#7FFF: the second screen (and the window)
-Option Reserve &H8000, &HF50     ' the blocks' horizon and buckets (S3d bk_*: the Next)
-Option Reserve &H8F50, &H13A0     ' S3d's tables (#8F50-#A2EF: under the ROMs' RAM - UniDOS with an IDE node: #A309 up)
+Option Memory Reserved &H4000, &H4000     ' main RAM's #4000-#7FFF: the second screen (and the window)
+Option Memory Reserved &H8000, &HF50     ' the blocks' horizon and buckets (S3d bk_*: the Next)
+Option Memory Reserved &H8F50, &H13A0     ' S3d's tables (#8F50-#A2EF: under the ROMs' RAM - UniDOS with an IDE node: #A309 up)
 Option Buffer &H8F50             ' the file buffer (2K) in S3d's tables: used only while AUCKLAND.DAT is read
 Dim k As Integer, tk As Integer, fast As Integer, spd As Integer, n As Integer
 Dim p As Integer, r As Integer, y As Integer, frames As Integer, t As Integer, fps As Integer

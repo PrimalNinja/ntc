@@ -4,13 +4,13 @@
 Option PressAnyKeyOnEnd "Press a key"     ' at the end: a message and a key (a RUN" program resets when it ends)
 Option Explicit
 #If NTC_CPC Then
-Option Reserve &H4000, &H4000
+Option Memory Reserved &H4000, &H4000
 #End If
 #If NTC_CPCMIN Then
-Option Reserve &H4000, &H4000
+Option Memory Reserved &H4000, &H4000
 #End If
 #If NTC_CPCFW Then
-Option Reserve &H4000, &H4000
+Option Memory Reserved &H4000, &H4000
 #End If
 Const ID = 0, SCORE = 2           ' the fields: 2 words a node
 Dim h As Long, n As Long, nxt As Long, i As Integer, r As Integer, seed As Integer

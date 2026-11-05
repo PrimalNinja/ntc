@@ -12,7 +12,7 @@ Option RomEnable 7                ' RUN" drops AMSDOS: start it again, the overl
 #If NTC_CPCFW Then
 Option RomEnable 7
 #End If
-Option Reserve &H4000, &H4000     ' the program stays out of the window the overlays run in
+Option Memory Reserved &H4000, &H4000     ' the program stays out of the window the overlays run in
 Dim lvl As Integer, score As Integer
 
 #If NTC_MEM_SMALL Then

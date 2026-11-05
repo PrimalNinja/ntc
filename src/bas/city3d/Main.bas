@@ -6,8 +6,8 @@
 ' cpcfw: an AMSDOS file (RUN"CITY3D) with the firmware running; the drawing is the class's own.
 Option PressAnyKeyOnEnd "Press a key"     ' at the end: a message and a key (a RUN" program resets when it ends)
 Option Explicit
-Option Reserve &H4000, &H4000     ' main RAM's #4000-#7FFF: the second screen
-Option Reserve &H8000, &H1400     ' the city's map and tables (City.cls)
+Option Memory Reserved &H4000, &H4000     ' main RAM's #4000-#7FFF: the second screen
+Option Memory Reserved &H8000, &H1400     ' the city's map and tables (City.cls)
 Dim k As Integer, tk As Integer, fast As Integer, spd As Integer, n As Integer
 Dim p As Integer, r As Integer, y As Integer, frames As Integer, t As Integer, fps As Integer
 

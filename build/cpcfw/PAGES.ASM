@@ -4418,7 +4418,7 @@ ntc_memtab	equ ntc_free
 ; Option Reserve: the program and its arrays (ntc_start .. ntc_free) must stay out of these
 			ASSERT (ntc_free <= 16384) || (ntc_bss >= 32768), "the program (or its arrays) reaches into Option Reserve #4000-#7FFF (Main.bas line 31)"
 			SAVEAMSDOS "PAGES.BIN", ntc_start, ntc_end - ntc_start, ntc_start
-			ASSERT (ntc_free <= #4000) || (ntc_start >= #8000), "overlay classes: the program and its arrays must stay out of #4000-#7FFF (the window they run in)"
+			ASSERT (ntc_free <= #4000) || (ntc_start >= #8000) || NTC_WINHOLE, "overlay classes: the program and its arrays must stay out of #4000-#7FFF (the window they run in), or build round it with Option Reserve / Option Page <n>"
 
 ; ============================================================
 ; Page Intro -> PAGES.001: title - threads built to run at #4000
@@ -4647,4 +4647,4 @@ ovl_ending_vsize	equ 0		; its page variables; its local memory is the rest, to #
 			DISPLAY "  page variables ", /D, ovl_ending_vsize, ", free ", /D, #8000 - (ovl_ending_end + ovl_ending_vsize)
 			SAVEAMSDOS "PAGES.004", ovl_ending_start, ovl_ending_end - ovl_ending_start, #4000
 
-NTC_STAMP	equ #C56B		; the build stamp: the first word of every page file
+NTC_STAMP	equ #9D6A		; the build stamp: the first word of every page file

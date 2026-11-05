@@ -1,10 +1,10 @@
 ' List class checks (regress.sh): cpc (pages), cpcmin, cpm / test (Small)
 Option Explicit
 #If NTC_CPC Then
-Option Reserve &H4000, &H4000
+Option Memory Reserved &H4000, &H4000
 #End If
 #If NTC_CPCMIN Then
-Option Reserve &H4000, &H4000
+Option Memory Reserved &H4000, &H4000
 #End If
 Dim h As Long, n As Long, m As Long, i As Integer, s As Long, k As Integer, prev As Integer, ok As Integer
 Dim free0 As Integer

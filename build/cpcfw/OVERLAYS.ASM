@@ -4556,7 +4556,7 @@ ntc_memtab	equ ntc_free
 ; Option Reserve: the program and its arrays (ntc_start .. ntc_free) must stay out of these
 			ASSERT (ntc_free <= 16384) || (ntc_bss >= 32768), "the program (or its arrays) reaches into Option Reserve #4000-#7FFF (Main.bas line 15)"
 			SAVEAMSDOS "OVERLAYS.BIN", ntc_start, ntc_end - ntc_start, ntc_start
-			ASSERT (ntc_free <= #4000) || (ntc_start >= #8000), "overlay classes: the program and its arrays must stay out of #4000-#7FFF (the window they run in)"
+			ASSERT (ntc_free <= #4000) || (ntc_start >= #8000) || NTC_WINHOLE, "overlay classes: the program and its arrays must stay out of #4000-#7FFF (the window they run in), or build round it with Option Reserve / Option Page <n>"
 
 ; ============================================================
 ; Page Level1 -> OVERLAYS.001: level1 - threads built to run at #4000
@@ -4646,4 +4646,4 @@ ovl_level2_vsize	equ 0		; its page variables; its local memory is the rest, to #
 			DISPLAY "  page variables ", /D, ovl_level2_vsize, ", free ", /D, #8000 - (ovl_level2_end + ovl_level2_vsize)
 			SAVEAMSDOS "OVERLAYS.002", ovl_level2_start, ovl_level2_end - ovl_level2_start, #4000
 
-NTC_STAMP	equ #7FF3		; the build stamp: the first word of every page file
+NTC_STAMP	equ #4A78		; the build stamp: the first word of every page file

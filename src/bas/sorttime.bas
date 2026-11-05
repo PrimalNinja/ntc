@@ -14,13 +14,13 @@ Option PressAnyKeyOnEnd "Press a key"     ' at the end: a message and a key (a R
 Option Explicit
 Option Turbo Off                  ' starts in normal mode whatever the turbo setting says: T switches
 #If NTC_CPC Then
-Option Reserve &H4000, &H4000
+Option Memory Reserved &H4000, &H4000
 #End If
 #If NTC_CPCMIN Then
-Option Reserve &H4000, &H4000
+Option Memory Reserved &H4000, &H4000
 #End If
 #If NTC_CPCFW Then
-Option Reserve &H4000, &H4000
+Option Memory Reserved &H4000, &H4000
 #End If
 Dim h As Long, n As Long, want As Long, nodes As Integer, i As Integer, r As Integer, seed As Integer
 Dim k As String, t0 As Integer, t1 As Integer, t2 As Integer, t3 As Integer, ok As Integer

@@ -180,7 +180,7 @@ check "memmap cpc 576K" "^Bank 8 " "$(timeout 200 python3 ntcrun.py t/ex/memmap.
 check "memmap cpc 4MB" "^&7E DD---" "$(timeout 300 python3 ntcrun.py t/ex/memmap.bas '~x~x' --platform=cpc --ram=4160 2>&1)"
 check "memmap cpcfw 128K" "^Pages UCU--" "$(timeout 200 python3 ntcrun.py t/ex/memmap.bas '~x~x' --platform=cpcfw 2>&1)"
 # a program ending near #4000 with Option Reserve over the window: the page tables go above it (all 4MB)
-printf 'Option Reserve &H4000, &H4000\nDim big(5800) As Integer\nIf Memory.Pages() = 257 And Memory.TableEnd() > &H8000 Then Print "tables fit"\n' > t/lim.bas
+printf 'Option Memory Reserved &H4000, &H4000\nDim big(5800) As Integer\nIf Memory.Pages() = 257 And Memory.TableEnd() > &H8000 Then Print "tables fit"\n' > t/lim.bas
 check "memory tables after Option Reserve" "^tables fit" "$(timeout 200 python3 ntcrun.py t/lim.bas '' --platform=cpc --ram=4160 2>&1)"
 # Option Memory Small: a heap in main RAM, on every platform; both modes
 for m in --turbo ""; do
@@ -190,9 +190,9 @@ for m in --turbo ""; do
   done
 done
 # Option Memory CPCExpansion n caps the pages (1: no probe at all); CPCExpansion is refused off the CPC
-printf 'Option Reserve &H4000, &H4000\nOption Memory CPCExpansion 5\nPrint "pages"; Memory.Pages()\n' > t/cap5.bas
+printf 'Option Memory Reserved &H4000, &H4000\nOption Memory CPCExpansion 5\nPrint "pages"; Memory.Pages()\n' > t/cap5.bas
 check "Option Memory CPCExpansion 5 on 576K" "^pages5" "$(timeout 200 python3 ntcrun.py t/cap5.bas '' --platform=cpc --ram=576 2>&1)"
-printf 'Option Reserve &H4000, &H4000\nOption Memory CPCExpansion 1\nPrint "pages"; Memory.Pages()\n' > t/cap1.bas
+printf 'Option Memory Reserved &H4000, &H4000\nOption Memory CPCExpansion 1\nPrint "pages"; Memory.Pages()\n' > t/cap1.bas
 check "Option Memory CPCExpansion 1 on 576K" "^pages1" "$(timeout 200 python3 ntcrun.py t/cap1.bas '' --platform=cpc --ram=576 2>&1)"
 printf 'Option Memory CPCExpansion\nPrint Memory.Pages()\n' > t/capx.bas
 node cli.js t/capx.bas --platform=cpm > /dev/null 2> t/capx.err; grep -q "Option Memory CPCExpansion is for the CPC platforms" t/capx.err && echo "ok   Option Memory CPCExpansion refused on cpm" || { echo "FAIL Option Memory CPCExpansion refused on cpm"; fail=1; }
@@ -233,13 +233,26 @@ for m in --turbo ""; do
   for c in "Main cpcmin pages" "Main cpcfw pages" "Main cpm pages_small" "MainS cpcmin pages_small"; do
     set -- $c
     rm -rf t/files t/pg; mkdir -p t/pg; cp pages/* t/pg/
-    sed 's/^Option Reserve/Option Memory Small\nOption Reserve/' t/pg/Main.bas > t/pg/MainS.bas
+    sed 's/^Option Memory Reserved/Option Memory Small\nOption Memory Reserved/' t/pg/Main.bas > t/pg/MainS.bas
     o=$(timeout 200 python3 ntcrun.py t/pg/$1.bas '' $PF --platform=$2 $m 2>&1 | grep -v "^--- ")
     if [ "$o" == "$(cat ref/$3.txt)" ]; then echo "ok   pages $1 $2 ${m:-normal}"; else echo "FAIL pages $1 $2 ${m:-normal}"; echo "$o" | head -5; fail=1; fi
   done
 done
 o=$(node cli.js t/pg/Main.bas $PF --platform=cpcmin --layout 2>&1)
 echo "$o" | grep -q "dw p_shared_sum_cl__level2" && echo "$o" | grep -q "dw p_shared_sum_c, lit_10" && echo "$o" | grep -q "^p_counter_bump_ct:.db 1" && echo "$o" | grep -q "^LAYOUT Page LEVEL2 (MAIN.003): level2 [0-9]*, shared [0-9]* (copy), counter [0-9]* (copy)" && echo "$o" | grep -q "^LAYOUT Main RAM, called from pages: util" && echo "ok   pages: local calls, layout" || { echo "FAIL pages: local calls, layout"; fail=1; }
+# a sub called only from inside its own page keeps its whole call/return stub IN the bank (no main
+# cost); a sub reached far from any caller copy keeps its stub in main. Twice is private to Level1
+# (local only -> bank); OnlyOne.Ten is called by Shared, which is copied into LEVEL2 where OnlyOne
+# is absent (so far -> main). Addresses: bank is >= #4000, main < #4000.
+rm -rf t/files t/pg; mkdir -p t/pg; cp pages/* t/pg/
+node cli.js t/pg/Main.bas $PF --platform=cpcmin 2>/dev/null > t/pg/lc.asm
+( cd t/pg && ${SJASMPLUS:-sjasmplus} --nologo --msg=err --sym=lc.sym lc.asm >/dev/null 2>&1 )
+python3 -c "
+import re,sys
+s={m.group(1):int(m.group(2),16) for l in open('t/pg/lc.sym') for m in [re.match(r'^(\S+):\s*EQU\s*0x([0-9A-Fa-f]+)',l)] if m}
+ok = s.get('p_level1_twice_c',0)>=0x4000 and s.get('p_level2_twice_c',0)>=0x4000 and 0<s.get('p_onlyone_ten_c',0)<0x4000
+sys.exit(0 if ok else 1)" \
+  && echo "ok   pages: local-only sub stub in the bank, dual-called sub stays in main" || { echo "FAIL pages: local-only sub stub placement"; fail=1; }
 pe() { # name, expected message, main source
   printf "$3" > t/pg/E.bas
   node cli.js t/pg/E.bas $PF --platform=cpcmin 2>&1 >/dev/null | grep -q "$2" && echo "ok   pages refused: $1" || { echo "FAIL pages refused: $1"; fail=1; }
@@ -249,6 +262,46 @@ pe "twice" 'Option Page "A" is declared twice' 'Option Page "A" = Title\nOption 
 pe "class twice" "title is in it twice" 'Option Page "A" = Title, Title\n'
 pe "home" "Option Home: shared is not in page CREDITS" 'Option Page "L1" = Shared\nOption Page "L2" = Shared\nOption Home Shared = "CREDITS"\n'
 pe "empty" 'Option Page "E": no classes in it' 'Option Page "E" = \n'
+# Option Safe: Areas = the safe memory (addr,size pairs, like Reserve but built-through), and
+# "NAME" = classes that must go there. Refusals: no Areas, odd pair count, "Areas" as a group
+# name, a safe class also paged, a safe class that isn't in the project.
+pe "safe no areas" 'safe classes need safe memory - give it with Option Memory Safe' 'Option Safe "B" = Util\n'
+pe "safe odd areas" 'Option Memory Safe start, size' 'Option Memory Safe &H1000, &H3000, &H8000\n'
+pe "safe areas as name" 'Areas is the reserved word' 'Option Safe "Areas" = Util\n'
+pe "safe paged" 'a safe class must stay in safe memory, so it cannot also be in an Option Page' 'Option Page "L1" = Shared\nOption Memory Safe &H1000, &H3000\nOption Safe "B" = Shared\n'
+pe "safe no class" 'Option Safe "B": no class Nope in the project' 'Option Memory Safe &H1000, &H3000\nOption Safe "B" = Nope\n'
+# Option Safe (Option Memory Safe area + a resident class in a safe group) compiles clean
+printf 'Option Page "TITLE" = Title\nOption Memory Safe &H1000,&H3000,&H8000,&H1000\nOption Safe "BANK" = Util\nOption Memory Reserved &H4000, &H4000\nDim r As Integer\nr = Util.Hello()\nTitle.Show\nPrint r\nEnd\n' > t/pg/SafeOk.bas
+o=$(node cli.js t/pg/SafeOk.bas t/pg/Title.cls t/pg/Util.cls --platform=cpcmin 2>&1 >/dev/null)
+echo "$o" | grep -q "^ERR " && { echo "FAIL Option Safe: areas + group"; echo "$o" | grep "^ERR " | head -3; fail=1; } || echo "ok   Option Safe: areas + safe group compiles clean"
+# Option Safe placement: Bank's code is placed into the safe area #3000-#37FF, the program built
+# round it; and it RUNS from there (Bank.Add(10,20) = 37). Symbol must be in the area; run must halt.
+rm -rf t/safe; mkdir -p t/safe; cp safe/* t/safe/
+node cli.js t/safe/Main.bas t/safe/Bank.cls --platform=cpcmin 2>/dev/null > t/safe/m.asm
+( cd t/safe && ${SJASMPLUS:-sjasmplus} --nologo --msg=err --sym=m.sym m.asm >/dev/null 2>&1 )
+python3 -c "
+import re,sys
+s={m.group(1):int(m.group(2),16) for l in open('t/safe/m.sym') for m in [re.match(r'^(\S+):\s*EQU\s*0x([0-9A-Fa-f]+)',l)] if m}
+sys.exit(0 if 0x3000<=s.get('p_bank_add',0)<0x3800 else 1)" \
+  && echo "ok   Option Safe: safe class code placed in the safe area" || { echo "FAIL Option Safe: placement"; fail=1; }
+check "Option Safe: safe class runs from the safe area" "bank add 37" "$(timeout 200 python3 ntcrun.py t/safe/Main.bas '' t/safe/Bank.cls --platform=cpcmin --turbo 2>&1)"
+# Option Memory <kind> start,size,...: the unified memory map. The same safe placement, declared
+# with Option Memory Safe, places Bank in the area and runs (37). Plus refusals and coexistence
+# with the existing scheme form (Option Memory Small | CPCExpansion n).
+node cli.js t/safe/MMain.bas t/safe/Bank.cls --platform=cpcmin 2>/dev/null > t/safe/mm.asm
+( cd t/safe && ${SJASMPLUS:-sjasmplus} --nologo --msg=err --sym=mm.sym mm.asm >/dev/null 2>&1 )
+python3 -c "
+import re,sys
+s={m.group(1):int(m.group(2),16) for l in open('t/safe/mm.sym') for m in [re.match(r'^(\S+):\s*EQU\s*0x([0-9A-Fa-f]+)',l)] if m}
+sys.exit(0 if 0x3000<=s.get('p_bank_add',0)<0x3800 else 1)" \
+  && echo "ok   Option Memory Safe: places the safe class in the area" || { echo "FAIL Option Memory Safe: placement"; fail=1; }
+check "Option Memory Safe: safe class runs" "bank add 37" "$(timeout 200 python3 ntcrun.py t/safe/MMain.bas '' t/safe/Bank.cls --platform=cpcmin --turbo 2>&1)"
+printf 'Option Memory Safe &H3000\nEnd\n' > t/safe/E.bas
+node cli.js t/safe/E.bas --platform=cpcmin 2>&1 >/dev/null | grep -q "Option Memory Safe start, size" && echo "ok   Option Memory refused: odd pair count" || { echo "FAIL Option Memory refused: odd pairs"; fail=1; }
+printf 'Option Memory Bogus &H3000, &H0800\nEnd\n' > t/safe/E2.bas
+node cli.js t/safe/E2.bas --platform=cpcmin 2>&1 >/dev/null | grep -q "Option Memory Available | Reserved | Paged | Safe" && echo "ok   Option Memory refused: unknown kind" || { echo "FAIL Option Memory refused: unknown kind"; fail=1; }
+printf 'Option Memory CPCExpansion 33\nDim r As Integer\nr=1\nPrint r\nEnd\n' > t/safe/S.bas
+node cli.js t/safe/S.bas --platform=cpcmin 2>&1 >/dev/null | grep -q "^ERR" && { echo "FAIL Option Memory scheme form still works"; fail=1; } || echo "ok   Option Memory scheme form (CPCExpansion) still works"
 node cli.js t/pg/Main.bas $PF --platform=cpc 2>&1 >/dev/null | grep -q "Option Page / Option Class Overlay needs a platform" && echo "ok   pages refused: cpc" || { echo "FAIL pages refused: cpc"; fail=1; }
 # pages on the Next (zxn): Option Page Name Loaded n = ... - no page files: each page is built into
 # the NEX file's bank for RAM page n (bank 20 + n) and is in RAM from the start (so Loaded() is
@@ -268,31 +321,31 @@ node cli.js t/pz/Two.bas $PZ --platform=zxn 2>&1 >/dev/null | grep -q "page 21 i
 o=$(node cli.js t/pz/Main.bas $PZ --platform=zxn 2>/dev/null)
 echo "$o" | grep -q "SAVENEX BANK 5, .*41, 42, 43" && echo "$o" | grep -q "^ovl_blk_level1:.dw 21," && echo "$o" | grep -q "^ntc_pgloaded:.db 4" && echo "ok   pages zxn: in the NEX's banks, blocks set, pages taken" || { echo "FAIL pages zxn: banks / blocks"; fail=1; }
 mkdir -p t/pu; printf 'Public Function F() As Integer\n  F = 7\nEnd Function\n' > t/pu/C.cls
-printf 'Option Page P Loaded 30 = C\nOption Reserve &H4000, &H4000\nPrint "f"; C.F()\nPrint "loaded"; C.Loaded(); " page"; C.Page()\nPrint "unload"; C.Unload(); " loaded"; C.Loaded()\nPrint "load"; C.Load()\nPrint C.F()\nPrint "after"\n' > t/pu/Main.bas
+printf 'Option Page P Loaded 30 = C\nOption Memory Reserved &H4000, &H4000\nPrint "f"; C.F()\nPrint "loaded"; C.Loaded(); " page"; C.Page()\nPrint "unload"; C.Unload(); " loaded"; C.Loaded()\nPrint "load"; C.Load()\nPrint C.F()\nPrint "after"\n' > t/pu/Main.bas
 o=$(timeout 100 python3 ntcrun.py t/pu/Main.bas 'x' t/pu/C.cls --platform=zxn 2>&1)
 echo "$o" | grep -q "^f7" && echo "$o" | grep -q "^loaded-1 page30" && echo "$o" | grep -q "^unload0 loaded0" && echo "$o" | grep -q "^load-1" && echo "$o" | grep -q "^Overlay not loaded: P" && ! echo "$o" | grep -q "^after" && echo "ok   pages zxn: Unload, then Load says NotSupported and a call stops" || { echo "FAIL pages zxn: Unload / Load"; echo "$o" | tail -4; fail=1; }
 mkdir -p t/pn; cp t/pu/C.cls t/pn/C.cls; printf 'Public Function G() As Integer\n  G = 9\nEnd Function\n' > t/pn/D.cls; head -c 150000 /dev/zero > t/pn/DATA.BIN
-printf 'Option NexData "DATA.BIN", 9\nOption Page P Loaded 2 = C\nOption Page Q Loaded 30 = D\nOption Reserve &H4000, &H4000\nPrint "pg"; Memory.AllocPage(Memory.TypeUser)\nPrint "f"; C.F()\nPrint "g"; D.G()\nPrint "end"\n' > t/pn/Main.bas
+printf 'Option NexData "DATA.BIN", 9\nOption Page P Loaded 2 = C\nOption Page Q Loaded 30 = D\nOption Memory Reserved &H4000, &H4000\nPrint "pg"; Memory.AllocPage(Memory.TypeUser)\nPrint "f"; C.F()\nPrint "g"; D.G()\nPrint "end"\n' > t/pn/Main.bas
 o=$(timeout 100 python3 ntcrun.py t/pn/Main.bas 'x' t/pn/C.cls t/pn/D.cls --platform=zxn 2>&1)
 echo "$o" | grep -q "^pg1" && echo "$o" | grep -q "^f7" && echo "$o" | grep -q "^g9" && echo "$o" | grep -q "^end" && grep -q "SAVENEX BANK .*, 24, 52$" t/pn/Main.asm && echo "ok   pages zxn: past a 9-block NexData, pages move up with the Memory banks" || { echo "FAIL pages zxn: with NexData"; echo "$o" | tail -4; fail=1; }
 rm -rf t/files t/dv; mkdir -p t/dv; cp drv/* t/dv/
 check "pages: a page class with a Tick" "^ticks in a second: about 50" "$(timeout 300 python3 ntcrun.py t/dv/Main.bas '' t/dv/Drv.cls --platform=cpcmin 2>&1)"
 printf 'Option Memory Small\n' | cat - t/dv/Main.bas > t/dv/S.bas
 node cli.js t/dv/S.bas t/dv/Drv.cls --platform=cpcmin 2>&1 >/dev/null | grep -q "its Tick would load it from disc" && echo "ok   pages: Tick refused with one overlay area" || { echo "FAIL pages: Tick refused with one overlay area"; fail=1; }
-mkdir -p t/st; printf 'Public Function F() As Integer\n  F = 7\nEnd Function\n' > t/st/C.cls; printf 'Option Page "STALE.PAG" = C\nOption Reserve &H4000, &H4000\nPrint C.F()\nPrint "after"\n' > t/st/Main.bas
-rm -rf t/files; o1=$(timeout 100 python3 ntcrun.py t/st/Main.bas '' t/st/C.cls --platform=cpm 2>&1); printf 'Option Page "STALE.PAG" = C\nOption Reserve &H4000, &H4000\nPrint "new build"\nPrint C.F()\nPrint "after"\n' > t/st/Main.bas
+mkdir -p t/st; printf 'Public Function F() As Integer\n  F = 7\nEnd Function\n' > t/st/C.cls; printf 'Option Page "STALE.PAG" = C\nOption Memory Reserved &H4000, &H4000\nPrint C.F()\nPrint "after"\n' > t/st/Main.bas
+rm -rf t/files; o1=$(timeout 100 python3 ntcrun.py t/st/Main.bas '' t/st/C.cls --platform=cpm 2>&1); printf 'Option Page "STALE.PAG" = C\nOption Memory Reserved &H4000, &H4000\nPrint "new build"\nPrint C.F()\nPrint "after"\n' > t/st/Main.bas
 o=$(NTC_KEEPPAGES=1 timeout 100 python3 ntcrun.py t/st/Main.bas 'x' t/st/C.cls --platform=cpm 2>&1)
 echo "$o1" | grep -q "^7" && echo "$o" | grep -q "^The file is from another build" && echo "$o" | grep -q "^Overlay not loaded: STALE.PAG" && ! echo "$o" | grep -q "^after" && echo "ok   pages: a page file from another build refused" || { echo "FAIL pages: a page file from another build refused"; echo "$o" | tail -4; fail=1; }
-printf 'Option Page "STALE.PAG" = C\nOption RomEnable 7\nOption Reserve &H4000, &H4000\nPrint C.F()\nPrint "after"\n' > t/st/Main.bas
+printf 'Option Page "STALE.PAG" = C\nOption RomEnable 7\nOption Memory Reserved &H4000, &H4000\nPrint C.F()\nPrint "after"\n' > t/st/Main.bas
 rm -rf t/files; o1=$(timeout 100 python3 ntcrun.py t/st/Main.bas '' t/st/C.cls --platform=cpcmin 2>&1)
-printf 'Option Page "STALE.PAG" = C\nOption RomEnable 7\nOption Reserve &H4000, &H4000\nPrint "load"; C.Load()\nPrint C.F()\nPrint "after"\n' > t/st/Main.bas
+printf 'Option Page "STALE.PAG" = C\nOption RomEnable 7\nOption Memory Reserved &H4000, &H4000\nPrint "load"; C.Load()\nPrint C.F()\nPrint "after"\n' > t/st/Main.bas
 o=$(NTC_KEEPPAGES=1 timeout 100 python3 ntcrun.py t/st/Main.bas 'x' t/st/C.cls --platform=cpcmin 2>&1)
 echo "$o1" | grep -q "^7" && echo "$o" | grep -q "^load-14" && echo "$o" | grep -q "^The file is from another build" && ! echo "$o" | grep -q "^after" && echo "ok   pages: a page file from another build refused (RAM pages, Load -14)" || { echo "FAIL pages: stale page RAM pages"; echo "$o" | tail -4; fail=1; }
 rm -rf t/files t/pd; mkdir -p t/pd; cp ../src/bas/pages/* t/pd/
 check "pages demo cpcmin (bare page names)" "^Final score 128 - thanks for playing" "$(timeout 200 python3 ntcrun.py t/pd/Main.bas '~x' t/pd/Title.cls t/pd/Level1.cls t/pd/Level2.cls t/pd/Maths.cls t/pd/Stars.cls t/pd/Credits.cls t/pd/Score.cls --platform=cpcmin 2>&1)"
 rm -rf t/files; o=$(timeout 100 python3 ntcrun.py t/pd/Main.bas 'x' t/pd/Title.cls t/pd/Level1.cls t/pd/Level2.cls t/pd/Maths.cls t/pd/Stars.cls t/pd/Credits.cls t/pd/Score.cls --platform=cpm 2>&1 | head -0; rm -f t/files/A/MAIN.002; NTC_KEEPPAGES=1 timeout 100 python3 ntcrun.py t/pd/Main.bas 'x' t/pd/Title.cls t/pd/Level1.cls t/pd/Level2.cls t/pd/Maths.cls t/pd/Stars.cls t/pd/Credits.cls t/pd/Score.cls --platform=cpm 2>&1)
 echo "$o" | grep -q "^Overlay not loaded: Stage1 (MAIN.002)" && echo "ok   pages: the message names the page and its file" || { echo "FAIL pages: the message names the page and its file"; echo "$o" | tail -4; fail=1; }
-mkdir -p t/sj; printf 'Option Class Overlay "LEVEL1"\nPublic Function F() As Integer\n  F = 5\nEnd Function\n' > t/sj/Extra.cls; printf 'Public Function G() As Integer\n  G = Extra.F() + 1\nEnd Function\n' > t/sj/Lv.cls; printf 'Option Page "LEVEL1" = Lv\nOption Reserve &H4000, &H4000\nPrint Lv.G(); Extra.F()\n' > t/sj/Main.bas
+mkdir -p t/sj; printf 'Option Class Overlay "LEVEL1"\nPublic Function F() As Integer\n  F = 5\nEnd Function\n' > t/sj/Extra.cls; printf 'Public Function G() As Integer\n  G = Extra.F() + 1\nEnd Function\n' > t/sj/Lv.cls; printf 'Option Page "LEVEL1" = Lv\nOption Memory Reserved &H4000, &H4000\nPrint Lv.G(); Extra.F()\n' > t/sj/Main.bas
 rm -rf t/files; o=$(node cli.js t/sj/Main.bas t/sj/Extra.cls t/sj/Lv.cls --platform=cpm --layout 2>&1 >/dev/null; timeout 100 python3 ntcrun.py t/sj/Main.bas '' t/sj/Extra.cls t/sj/Lv.cls --platform=cpm 2>&1)
 echo "$o" | grep -q "^LAYOUT Page LEVEL1 (MAIN.001): lv [0-9]*, extra [0-9]*;" && echo "$o" | grep -q "^65" && echo "ok   pages: Option Class Overlay joins an Option Page" || { echo "FAIL pages: Option Class Overlay joins an Option Page"; fail=1; }
 # a page class is self-contained: its own asm keyword and inline #asm go in its bank (not
@@ -313,16 +366,16 @@ done
 # window), PLUS it sets the banking offset (startbank 0 = the window is page 0). Every startbank
 # reserves - NTC_WINHOLE is 1 for 0 and for >=1 alike.
 mkdir -p t/pgw
-printf 'Option Page 0, #4000, #4000\nPrint "hi"\nEnd\n' > t/pgw/win0.bas
-printf 'Option Page 1, #4000, #4000\nPrint "hi"\nEnd\n' > t/pgw/win1.bas
-printf 'Option Page 0, #4000, #4000\nOption Page 1, #4000, #4000\nEnd\n' > t/pgw/win2.bas
-printf 'Option Page 0, #4000\nEnd\n' > t/pgw/winbad.bas
+printf 'Option Deprecated\nOption Page 0, #4000, #4000\nPrint "hi"\nEnd\n' > t/pgw/win0.bas
+printf 'Option Deprecated\nOption Page 1, #4000, #4000\nPrint "hi"\nEnd\n' > t/pgw/win1.bas
+printf 'Option Deprecated\nOption Page 0, #4000, #4000\nOption Page 1, #4000, #4000\nEnd\n' > t/pgw/win2.bas
+printf 'Option Deprecated\nOption Page 0, #4000\nEnd\n' > t/pgw/winbad.bas
 node cli.js t/pgw/win0.bas --platform=cpc 2>/dev/null | grep -q "^NTC_WINHOLE[[:space:]]*equ 1" && echo "ok   Option Page 0: reserves and builds round (NTC_WINHOLE 1)" || { echo "FAIL Option Page 0: reserves and builds round"; fail=1; }
 node cli.js t/pgw/win1.bas --platform=cpc 2>/dev/null | grep -q "^NTC_WINHOLE[[:space:]]*equ 1" && echo "ok   Option Page 1: reserves and builds round (NTC_WINHOLE 1)" || { echo "FAIL Option Page 1: reserves and builds round"; fail=1; }
 node cli.js t/pgw/win0.bas --platform=zxn 2>/dev/null | grep -q "^NTC_WINHOLE[[:space:]]*equ 1" && echo "ok   Option Page 0: reserves on zxn too" || { echo "FAIL Option Page 0: reserves on zxn too"; fail=1; }
 # with a paged class + Option Page 0, the page call/return stubs must stay out of the window
 rm -rf t/pgw2; mkdir -p t/pgw2; cp $P/pages/*.cls t/pgw2/ 2>/dev/null
-grep -v "Option Reserve" $P/pages/Main.bas | sed "s/^Option Explicit/Option Explicit\nOption Page 0, \&H4000, \&H4000/" > t/pgw2/Main.bas
+grep -v "Option Memory Reserved" $P/pages/Main.bas | sed "s/^Option Explicit/Option Explicit\nOption Deprecated\nOption Page 0, \&H4000, \&H4000/" > t/pgw2/Main.bas
 node cli.js t/pgw2/Main.bas t/pgw2/*.cls --platform=cpcmin 2>/dev/null > t/pgw2/out.asm
 (cd t/pgw2 && ${SJASMPLUS:-sjasmplus} --nologo --msg=err --sym=syms out.asm >/dev/null 2>&1)
 python3 -c "
@@ -332,6 +385,18 @@ sys.exit(1 if bad else 0)" \
   && echo "ok   Option Page 0: page stubs stay out of the window" || { echo "FAIL Option Page 0: a page stub landed in the window"; fail=1; }
 node cli.js t/pgw/win2.bas --platform=cpc 2>&1 >/dev/null | grep -q "given twice" && echo "ok   Option Page <n> refused: twice" || { echo "FAIL Option Page <n> refused: twice"; fail=1; }
 node cli.js t/pgw/winbad.bas --platform=cpc 2>&1 >/dev/null | grep -q "three numbers" && echo "ok   Option Page <n> refused: not three numbers" || { echo "FAIL Option Page <n> refused: not three numbers"; fail=1; }
+# Option Deprecated: the deprecated directives (Reserve, HighCode, Place, the Option Page window
+# form, Option Safe Areas) FAIL without it and are allowed with it.
+mkdir -p t/dep
+printf 'Option Reserve &H8000, &H4000\nDim r As Integer\nr=1\nPrint r\nEnd\n' > t/dep/r.bas
+node cli.js t/dep/r.bas --platform=cpcmin 2>&1 >/dev/null | grep -q "Option Reserve is deprecated" && echo "ok   deprecated: Option Reserve fails without Option Deprecated" || { echo "FAIL deprecated: Option Reserve fails"; fail=1; }
+printf 'Option Deprecated\nOption Reserve &H8000, &H4000\nDim r As Integer\nr=1\nPrint r\nEnd\n' > t/dep/rok.bas
+node cli.js t/dep/rok.bas --platform=cpcmin 2>&1 >/dev/null | grep -q "^ERR" && { echo "FAIL deprecated: Option Reserve with Option Deprecated"; fail=1; } || echo "ok   deprecated: Option Reserve allowed with Option Deprecated"
+printf 'Option Deprecated\nOption HighCode\nDim r As Integer\nr=1\nPrint r\nEnd\n' > t/dep/hc.bas
+printf 'Option HighCode\nDim r As Integer\nr=1\nPrint r\nEnd\n' > t/dep/hcno.bas
+node cli.js t/dep/hcno.bas --platform=cpcfw 2>&1 >/dev/null | grep -q "Option HighCode is deprecated" && echo "ok   deprecated: Option HighCode fails without Option Deprecated" || { echo "FAIL deprecated: Option HighCode fails"; fail=1; }
+printf 'Option Page 1, &H4000, &H4000\nPrint "hi"\nEnd\n' > t/dep/pg.bas
+node cli.js t/dep/pg.bas --platform=cpc 2>&1 >/dev/null | grep -q "Option Page <startbank>, <addr>, <size> is deprecated" && echo "ok   deprecated: Option Page window form fails without Option Deprecated" || { echo "FAIL deprecated: Option Page window form fails"; fail=1; }
 
 rm -rf t/files t/od; mkdir -p t/od; cp $P/overlays/* t/od/
 check "overlays demo cpcmin" "^Unload level 1: 0 - pages -C" "$(timeout 200 python3 ntcrun.py t/od/Main.bas '~x' t/od/Level1.cls t/od/Level2.cls --platform=cpcmin 2>&1)"
@@ -743,8 +808,8 @@ else
 fi
 # Option Reserve: a range above the program assembles, one at its start stops the assembly, one
 # inside it is built round (res4: the program goes on after #02FF and runs)
-printf 'Option Reserve &HC000, &H4000\nPrint 1\n' > t/res1.bas; printf 'Option Reserve &H0100, &H100\nPrint 1\n' > t/res2.bas
-printf 'Option Reserve &H0200, &H100\nPrint 1\n' > t/res4.bas
+printf 'Option Memory Reserved &HC000, &H4000\nPrint 1\n' > t/res1.bas; printf 'Option Memory Reserved &H0100, &H100\nPrint 1\n' > t/res2.bas
+printf 'Option Memory Reserved &H0200, &H100\nPrint 1\n' > t/res4.bas
 check "Option Reserve built round" "^1$" "$(timeout 100 python3 ntcrun.py t/res4.bas '' --platform=cpm 2>&1)"
 node cli.js t/res1.bas --platform=cpm > t/res1.asm && (cd t && $SJ --nologo --msg=err --raw=res1.com res1.asm > /dev/null) && r1=ok || r1=bad
 node cli.js t/res2.bas --platform=cpm > t/res2.asm && (cd t && $SJ --nologo --msg=err --raw=res2.com res2.asm 2>&1 | grep -q "Option Reserve #0100-#01FF") && r2=ok || r2=bad

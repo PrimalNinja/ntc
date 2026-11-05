@@ -1,6 +1,6 @@
 ' Overlay classes checks (regress.sh): cpcmin / cpcfw, 128K and 64K
 Option RomEnable 7
-Option Reserve &H4000, &H4000
+Option Memory Reserved &H4000, &H4000
 Dim d As Integer, a As Integer, total As Integer
 Print "loaded"; Level1.Loaded(); Level2.Loaded()
 ' a data page in the window: overlay calls must put it back

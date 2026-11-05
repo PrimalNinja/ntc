@@ -44,6 +44,7 @@ function ntcCompile(input_a, objOptions_a)
 	var arrPageOrder = [];		// page ids, in source order
 	var objClassPages = {};		// overlay class (module) -> the page ids it is in (the home page first)
 	var objLocalCalled = {};	// procedure -> true: called from code in one of its own pages (its stub checks ntc_ovl_lc)
+	var objFarCalled = {};		// procedure -> true: called from main, another page, a Tick/hook/AddressOf (root) - needs its stub in main
 	var objStubClass = {};		// call stub body label (p_x / p_x_n) -> { module, proc } (overlay procedures)
 	var objPageAsmUsed = {};	// keywords the page composition needs
 	var objOvlVars = {};		// overlay class -> its paged variables (declarations)			// interrupt classes: { module, rate (0 = Frame), tick }
@@ -54,7 +55,11 @@ function ntcCompile(input_a, objOptions_a)
 								// (addr..addr+size) is page 0, usable (no hole reserved); >=1 keeps
 								// it reserved (built round), as the old auto-reserve did.
 	var blnHighCode = false;	// Option HighCode (cpcfw): code in #C000-#FFFF too, the screen at #4000 (highLayout)
+	var blnDeprecated = false;	// Option Deprecated: allow the deprecated directives (Reserve, HighCode, Place, the Option Page window form, Option Safe Areas); without it they are refused
 	var objPlace = {};			// Option Place class, ...: those classes' code never in #C000-#FFFF (highLayout)
+	var objSafe = {};			// Option Safe "NAME" = classes: module -> true, a class whose code MUST go in a safe area (banking / slot-access code that stays mapped while a bank is switched in)
+	var arrSafeAreas = [];		// Option Safe Areas = start,size,...: [{ start, size }] the always-mapped memory where safe classes go (and other code may fill the rest); like Option Reserve but the program DOES build there
+	var arrSafeOrder = [];		// safe classes, in source order (placed into arrSafeAreas first)
 	var intBufAt = -1;			// Option Buffer: where the 2K buffer is (-1: in the program)
 	var intBufSize = 2048;		// Option Buffer [address], size / Option Buffer Size n: its size (FileSystem on a CPC needs 2048)
 	var objNexData = null;		// Option NexData "file", blocks (zxn): the file's 16K blocks in the NEX's banks
@@ -178,6 +183,7 @@ function ntcCompile(input_a, objOptions_a)
 	var objLabelMode = {};		// emitted label -> mode at that label
 	var arrGotoRefs = [];		// { label, mode, line, file }
 	var arrProcStubs = [];		// code lines for procedure call / return stubs
+	var objBankStubs = {};		// module -> stub lines kept IN the bank (a local-only, single-page pageable sub: no main copy)
 	var objProcStubDone = {};
 	var arrAsmBlocks = [];		// #asm blocks { name, lines }
 	var objAsmDone = {};
@@ -826,15 +832,36 @@ function ntcCompile(input_a, objOptions_a)
 			var arrFrom = null;
 			var arrTo = null;
 
-			if (objCall_a.root || !objFrom || !objTo)
+			if (!objTo)
 			{
 				return;
 			}
-			arrFrom = objClassPages[objFrom.module];
 			arrTo = objClassPages[objTo.module];
-			if (arrFrom && arrTo && arrFrom.some(function(str_a) { return arrTo.indexOf(str_a) > -1; }))
+			if (!arrTo || (arrTo.length === 0))
+			{
+				return;			// callee not in a page: nothing to decide
+			}
+			if (objCall_a.root || !objFrom)
+			{
+				objFarCalled[objCall_a.to] = true;		// main / Tick / hook / AddressOf (root): far
+				return;
+			}
+			arrFrom = objClassPages[objFrom.module];
+			if (!arrFrom || (arrFrom.length === 0))
+			{
+				objFarCalled[objCall_a.to] = true;		// caller not in a page (main-RAM class): far
+				return;
+			}
+			// the caller may be copied into several pages: the call is local from a copy whose page
+			// also holds the callee, and far from a copy whose page does not. Mark both as they apply,
+			// so a callee reached locally from one copy but far from another keeps its main stub.
+			if (arrFrom.some(function(str_a) { return arrTo.indexOf(str_a) > -1; }))
 			{
 				objLocalCalled[objCall_a.to] = true;
+			}
+			if (arrFrom.some(function(str_a) { return arrTo.indexOf(str_a) === -1; }))
+			{
+				objFarCalled[objCall_a.to] = true;
 			}
 		});
 	}
@@ -3638,7 +3665,15 @@ function ntcCompile(input_a, objOptions_a)
 		arrCode.push(strIndent + 'ld sp, (' + strRs + ')');
 		arrCode.push(strIndent + exitCode(strMode_a));
 
-		arrProcStubs = arrProcStubs.concat(arrCode);
+		if (isOverlayProc(objProc_a) && objClassKind[objProc_a.module] && (objClassKind[objProc_a.module].pages.length === 1)
+			&& objLocalCalled[objProc_a.full] && !objFarCalled[objProc_a.full])
+		{
+			objBankStubs[objProc_a.module] = (objBankStubs[objProc_a.module] || []).concat(arrCode);
+		}
+		else
+		{
+			arrProcStubs = arrProcStubs.concat(arrCode);
+		}
 	}
 
 	// ------------------------------------------------------------
@@ -7440,6 +7475,9 @@ function ntcCompile(input_a, objOptions_a)
 		strProc = strFull_a;
 		strMode = strMode_a;
 		strProcEntry = strMode_a;
+		var blnSafeProc = (intPass === 2) && objSafe[objProc.module];		// its code goes in a safe area (holeLayout places the ; @safe ... ; @endsafe block there)
+
+		if (blnSafeProc) { emitComment('@safe'); }
 		if (objProc.asmkw)
 		{
 			// a keyword: the same code serves both modes
@@ -7449,6 +7487,7 @@ function ntcCompile(input_a, objOptions_a)
 			{
 				asmBlock(arrRecs[1], asmKwLabel(objProc), false, objProc.kind + ' ' + objProc.id + ' (asm keyword)');
 			}
+			if (blnSafeProc) { emitComment('@endsafe'); }
 			strProc = '';
 			return;
 		}
@@ -7479,6 +7518,7 @@ function ntcCompile(input_a, objOptions_a)
 		{
 			arrOut.push({ t: 'ovlend' });
 		}
+		if (blnSafeProc) { emitComment('@endsafe'); }
 		strProc = '';
 		strCopy = '';
 	}
@@ -7650,7 +7690,16 @@ function ntcCompile(input_a, objOptions_a)
 				arrSizes.push({ module: strModule_a, tag: strTag, copy: strSfx.length > 0, bytes: intBytes });
 				intEst += intBytes;
 			});
-			if ((arrEntries.length > 0) || (arrStubs.length > 0))
+			var arrPageBankStubs = [];
+			objPage.classes.forEach(function(strModule_b)
+			{
+				if (objBankStubs[strModule_b])
+				{
+					arrPageBankStubs.push('; ' + strModule_b + ': stubs for subs called only from this page');
+					arrPageBankStubs = arrPageBankStubs.concat(objBankStubs[strModule_b]);
+				}
+			});
+			if ((arrEntries.length > 0) || (arrStubs.length > 0) || (arrPageBankStubs.length > 0))
 			{
 				arrLines.push('; calls from this page into it (no page switch), GOTO / GOSUB of copies');
 				arrLines.push('ovl_' + strId_a + '__x_s:');
@@ -7673,7 +7722,8 @@ function ntcCompile(input_a, objOptions_a)
 				intEst += 8;
 			});
 			arrLines = arrLines.concat(arrStubs);
-			if ((arrEntries.length > 0) || (arrStubs.length > 0))
+			arrLines = arrLines.concat(arrPageBankStubs);
+			if ((arrEntries.length > 0) || (arrStubs.length > 0) || (arrPageBankStubs.length > 0))
 			{
 				arrLines.push('ovl_' + strId_a + '__x_e:');
 			}
@@ -8931,6 +8981,11 @@ function ntcCompile(input_a, objOptions_a)
 
 				if (arrWin)
 				{
+					if (!blnDeprecated)
+					{
+						arrErrors.push({ file: objFile_a.name, line: objLine_a.line, msg: 'Option Page <startbank>, <addr>, <size> is deprecated - use Option Memory Paged <addr>, <size> (or add Option Deprecated to allow it)' });
+						return;
+					}
 					// Option Page <startbank>, <addr>, <size>: like Option Reserve, it reserves the
 					// window (addr..addr+size) and builds the program round it - the program, its
 					// arrays, the page call/return stubs, the library and the variables all stay out
@@ -9021,6 +9076,120 @@ function ntcCompile(input_a, objOptions_a)
 				else if (/^\s*option\s+home\b/i.test(strCode))
 				{
 					arrErrors.push({ file: objFile_a.name, line: objLine_a.line, msg: 'Option Home Class = Page' });
+				}
+				else if ((arrMatch = strCode.match(/^\s*option\s+safe\s+areas\s*=\s*(.*?)\s*$/i)))
+				{
+					// Option Safe Areas = start,size,start,size,...: the always-mapped memory where
+					// safe classes go. Deprecated - use Option Memory Safe start, size, ... instead.
+					if (!blnDeprecated)
+					{
+						arrErrors.push({ file: objFile_a.name, line: objLine_a.line, msg: 'Option Safe Areas = ... is deprecated - use Option Memory Safe start, size, ... (or add Option Deprecated to allow it)' });
+						return;
+					}
+					var arrNums = arrMatch[1].split(',').map(function(str_a) { return trim(str_a); }).filter(function(str_a) { return str_a.length > 0; });
+					var intP = 0;
+
+					if ((arrNums.length === 0) || (arrNums.length % 2 !== 0))
+					{
+						arrErrors.push({ file: objFile_a.name, line: objLine_a.line, msg: 'Option Safe Areas = start, size, start, size, ... (address and size pairs, e.g. Option Safe Areas = &H1000, &H3000)' });
+						return;
+					}
+					for (intP = 0; intP < arrNums.length; intP += 2)
+					{
+						var intSStart = parseNumber(arrNums[intP]);
+						var intSSize = parseNumber(arrNums[intP + 1]);
+
+						if (isNaN(intSStart) || isNaN(intSSize) || (intSSize <= 0) || (intSStart < 0) || (intSStart + intSSize > 0x10000))
+						{
+							arrErrors.push({ file: objFile_a.name, line: objLine_a.line, msg: 'Option Safe Areas: each pair is an address 0-&HFFFF and a size, within memory - ' + arrNums[intP] + ', ' + arrNums[intP + 1] });
+							return;
+						}
+						arrSafeAreas.push({ start: intSStart, size: intSSize, file: objFile_a.name, line: objLine_a.line });
+					}
+				}
+				else if ((arrMatch = strCode.match(/^\s*option\s+safe\s+(?:"([^"]*)"|([a-z_]\w*))\s*=\s*(.*?)\s*$/i)))
+				{
+					// Option Safe "NAME" = Class, Class ...: those classes' code MUST go in a safe
+					// area (the banking / slot-access code). Same shape as Option Page "NAME" = ...
+					// (NAME is just a label for messages; the classes are what matters).
+					var strSafeName = (arrMatch[1] !== undefined) ? arrMatch[1] : arrMatch[2];
+
+					if (/^areas$/i.test(strSafeName))
+					{
+						arrErrors.push({ file: objFile_a.name, line: objLine_a.line, msg: 'Option Safe "Areas" = ...: Areas is the reserved word for Option Safe Areas = start, size, ... - use another group name' });
+						return;
+					}
+					arrMatch[3].split(',').forEach(function(strClass_a)
+					{
+						var strModule = strClass_a.replace(/^\s+|\s+$/g, '').toLowerCase();
+
+						if (strModule.length === 0)
+						{
+							return;
+						}
+						if ((objModules[strModule] === undefined) || !/\.cls$/i.test(String(objModules[strModule].name)))
+						{
+							arrErrors.push({ file: objFile_a.name, line: objLine_a.line, msg: 'Option Safe "' + strSafeName + '": no class ' + strClass_a.replace(/^\s+|\s+$/g, '') + ' in the project' });
+							return;
+						}
+						if (!objSafe[strModule])
+						{
+							objSafe[strModule] = true;
+							arrSafeOrder.push(strModule);
+						}
+					});
+				}
+				else if (/^\s*option\s+safe\b/i.test(strCode))
+				{
+					arrErrors.push({ file: objFile_a.name, line: objLine_a.line, msg: 'Option Safe Areas = start, size, ... (the safe memory), or Option Safe "NAME" = Class, Class ... (classes that must go there)' });
+				}
+				else if ((arrMatch = strCode.match(/^\s*option\s+memory\s+(available|reserved|paged|safe)\s+(.*?)\s*$/i)))
+				{
+					// Option Memory <kind> start, size, start, size, ...: the memory map. One kind per
+					// line, as many lines as you like. The address/size part of what used to be Option
+					// Reserve (-> Reserved), the paging window (-> Paged) and Option Safe Areas (->
+					// Safe); Available is usable RAM (the default, stated for completeness). (The scheme
+					// form - Option Memory Small | CPCExpansion n - is a different word, read by
+					// findMemory, so it does not reach here.)
+					var strKind = arrMatch[1].toLowerCase();
+					var arrNums = arrMatch[2].split(',').map(function(str_a) { return trim(str_a); }).filter(function(str_a) { return str_a.length > 0; });
+					var intP = 0;
+
+					if ((arrNums.length === 0) || (arrNums.length % 2 !== 0))
+					{
+						arrErrors.push({ file: objFile_a.name, line: objLine_a.line, msg: 'Option Memory ' + arrMatch[1] + ' start, size, start, size, ... (address and size pairs, e.g. Option Memory ' + arrMatch[1] + ' &H1000, &H3000)' });
+						return;
+					}
+					for (intP = 0; intP < arrNums.length; intP += 2)
+					{
+						var intMS = parseNumber(arrNums[intP]);
+						var intMZ = parseNumber(arrNums[intP + 1]);
+
+						if (isNaN(intMS) || isNaN(intMZ) || (intMZ <= 0) || (intMS < 0) || (intMS + intMZ > 0x10000))
+						{
+							arrErrors.push({ file: objFile_a.name, line: objLine_a.line, msg: 'Option Memory ' + arrMatch[1] + ': each pair is an address 0-&HFFFF and a size, within memory - ' + arrNums[intP] + ', ' + arrNums[intP + 1] });
+							return;
+						}
+						if (strKind === 'safe')
+						{
+							arrSafeAreas.push({ start: intMS, size: intMZ, file: objFile_a.name, line: objLine_a.line });
+						}
+						else if ((strKind === 'reserved') || (strKind === 'paged'))
+						{
+							// both keep the program out of the range (built round it); paged is where the
+							// RAM pages / overlays swap in at run time (the window)
+							arrReserve.push({ start: intMS, size: intMZ, file: objFile_a.name, line: objLine_a.line });
+							if ((strKind === 'paged') && (objPageWindow === null))
+							{
+								objPageWindow = { startbank: 1, start: intMS, size: intMZ, file: objFile_a.name, line: objLine_a.line };
+							}
+						}
+						// 'available' is the default usable RAM: nothing to reserve, stated for clarity
+					}
+				}
+				else if (/^\s*option\s+memory\s+(?!small\b|cpcexpansion\b)/i.test(strCode))
+				{
+					arrErrors.push({ file: objFile_a.name, line: objLine_a.line, msg: 'Option Memory Available | Reserved | Paged | Safe  start, size, start, size, ...  (or Option Memory Small | CPCExpansion n for the heap scheme)' });
 				}
 			});
 		});
@@ -9159,6 +9328,19 @@ function ntcCompile(input_a, objOptions_a)
 				objOvlVars[strModule_a] = [];
 			});
 		});
+		// Option Safe: a safe class must stay resident in a safe area, so it cannot also be a page
+		// (an overlay). And safe classes need somewhere to go - Option Safe Areas must be given.
+		arrSafeOrder.forEach(function(strModule_a)
+		{
+			if (objClassKind[strModule_a] && (objClassKind[strModule_a].kind === 'overlay'))
+			{
+				arrErrors.push({ file: objClassKind[strModule_a].file, line: objClassKind[strModule_a].line || 0, msg: 'Option Safe "' + strModule_a + '": a safe class must stay in safe memory, so it cannot also be in an Option Page / Option Class Overlay.' });
+			}
+		});
+		if ((arrSafeOrder.length > 0) && (arrSafeAreas.length === 0))
+		{
+			arrErrors.push({ file: objModules[arrSafeOrder[0]] ? objModules[arrSafeOrder[0]].name : '', line: 0, msg: 'Option Safe "' + arrSafeOrder[0] + '": safe classes need safe memory - give it with Option Memory Safe start, size, ...' });
+		}
 	}
 
 	// Option Class Overlay: the class gets Load / Unload / Loaded / Page members (asm
@@ -9504,6 +9686,11 @@ function ntcCompile(input_a, objOptions_a)
 
 				if (objLast && (objH_a.s <= objLast.e)) { objLast.e = Math.max(objLast.e, objH_a.e); } else { arrHoles.push({ s: objH_a.s, e: objH_a.e }); }
 			});
+		// Option Safe Areas: each is a hole too (the program builds round it), but it HOLDS the safe
+		// classes' code (the ; @safe ... ; @endsafe block), placed from the area's start - like the
+		// window data in the window hole. Marked safe so guard() fills it instead of just skipping.
+		arrSafeAreas.forEach(function(objA_a, intA_a) { arrHoles.push({ s: objA_a.start, e: objA_a.start + objA_a.size, safe: (intA_a === 0) }); });
+		arrHoles.sort(function(a_a, b_a) { return a_a.s - b_a.s; });
 		blnWin = arrHoles.some(function(objH_a) { return (objH_a.s <= 0x4000) && (objH_a.e >= 0x8000); });
 		// window data: the lines of #asm blocks between "; @window" and "; @endwindow" go into the
 		// window hole itself (from #4000: in the file, not in the program's RAM) - code and data
@@ -9511,16 +9698,20 @@ function ntcCompile(input_a, objOptions_a)
 		// window), before anything uses the window. A macro, defined first: the guard that
 		// skips the hole puts it there (only one guard does)
 		var arrWinData = [];
+		var arrSafeData = [];
 		(function()
 		{
 			var arrKeep = [];
 			var blnWd = false;
+			var blnSf = false;
 
 			arrIn.forEach(function(strL_a)
 			{
 				if (/^\s*;\s*@window\b/i.test(strL_a)) { blnWd = true; return; }
 				if (/^\s*;\s*@endwindow\b/i.test(strL_a)) { blnWd = false; return; }
-				(blnWd ? arrWinData : arrKeep).push(strL_a);
+				if (/^\s*;\s*@safe\b/i.test(strL_a)) { blnSf = true; return; }
+				if (/^\s*;\s*@endsafe\b/i.test(strL_a)) { blnSf = false; return; }
+				(blnWd ? arrWinData : (blnSf ? arrSafeData : arrKeep)).push(strL_a);
 			});
 			arrIn = arrKeep;
 		})();
@@ -9589,7 +9780,13 @@ function ntcCompile(input_a, objOptions_a)
 					arrOut.push(strIndentG + 'ntc_windata');
 					arrOut.push(strIndentG + 'ASSERT $ <= ' + objH_a.e + ', "the window data (; @window) must fit in the window"');
 				}
-				arrOut.push(strIndentG + 'ds ' + objH_a.e + ' - $\t\t; Option Reserve ' + hex4(objH_a.s) + '-' + hex4(objH_a.e - 1) + ': round it');
+				if (objH_a.safe && (arrSafeData.length > 0))
+				{
+					arrOut.push(strIndentG + 'ds ' + objH_a.s + ' - $\t\t; Option Safe: the safe classes\' code, from ' + hex4(objH_a.s));
+					arrOut.push(strIndentG + 'ntc_safedata');
+					arrOut.push(strIndentG + 'ASSERT $ <= ' + objH_a.e + ', "Option Safe: the safe classes\' code must fit the first safe area (' + hex4(objH_a.s) + '-' + hex4(objH_a.e - 1) + ') - enlarge Option Safe Areas"');
+				}
+				arrOut.push(strIndentG + 'ds ' + objH_a.e + ' - $\t\t; ' + (objH_a.safe ? 'Option Safe area' : 'Option Reserve') + ' ' + hex4(objH_a.s) + '-' + hex4(objH_a.e - 1) + ': round it');
 				arrOut.push(strIndentG + 'ENDIF');
 			});
 			arrOut.push('ntc_rg' + intK + ':');
@@ -9599,6 +9796,13 @@ function ntcCompile(input_a, objOptions_a)
 			arrOut.push('; the window data (; @window ... ; @endwindow in #asm): put in the window hole by its guard');
 			arrOut.push(strIndentG + 'MACRO ntc_windata');
 			arrOut = arrOut.concat(arrWinData);
+			arrOut.push(strIndentG + 'ENDM');
+		}
+		if (arrSafeData.length > 0)
+		{
+			arrOut.push('; the safe classes\' code (Option Safe): put in the first safe area by its guard');
+			arrOut.push(strIndentG + 'MACRO ntc_safedata');
+			arrOut = arrOut.concat(arrSafeData);
 			arrOut.push(strIndentG + 'ENDM');
 		}
 		for (intI = 0; intI < arrIn.length; intI++)
@@ -9673,6 +9877,21 @@ function ntcCompile(input_a, objOptions_a)
 				if (/^ntc_end:/.test(strL) && blnIn)
 				{
 					arrOut.push('ntc_rg' + intK + '_e:');
+					if (arrSafeData.length > 0)
+					{
+						// the program ended below the first safe area (no guard crossed it): place the
+						// safe classes' code now, BEFORE ntc_end, so it is inside the program image (the
+						// saved file and BSS start both run off ntc_end). Pad from here up to the area
+						// start, drop the safe block; ntc_end then sits after it.
+						var intSafeS = arrSafeAreas[0].start;
+						var intSafeE = arrSafeAreas[0].start + arrSafeAreas[0].size;
+
+						arrOut.push(strIndentG + 'IF $ <= ' + intSafeS + '\t; fwdref-ok');
+						arrOut.push(strIndentG + 'ds ' + intSafeS + ' - $\t\t; Option Safe: the safe classes\' code, from ' + hex4(intSafeS));
+						arrOut.push(strIndentG + 'ntc_safedata');
+						arrOut.push(strIndentG + 'ASSERT $ <= ' + intSafeE + ', "Option Safe: the safe classes\' code must fit the first safe area (' + hex4(intSafeS) + '-' + hex4(intSafeE - 1) + ') - enlarge Option Safe Areas"');
+						arrOut.push(strIndentG + 'ENDIF');
+					}
 					arrOut.push(strL);
 					// names that are another label + n (a glyph in the font, fs_buf): after
 					// everything, so sjasmplus has their final values by its last pass
@@ -10529,6 +10748,7 @@ function ntcCompile(input_a, objOptions_a)
 		objDefinesIn['ntc_term_' + strTerminal] = -1;
 		objDefinesIn.ntc_term_pos = -1;
 	}
+	blnDeprecated = arrFiles.some(function(objFile_a) { return activeLines(objFile_a.text).some(function(objLine_a) { return /^\s*option\s+deprecated\s*$/i.test(String(objLine_a.text).replace(/'.*$/, '')); }); });
 	scanPages(arrFiles);
 	arrFiles = addOverlayMembers(arrFiles);
 	objMemory = findMemory(arrFiles, true);
@@ -10596,11 +10816,22 @@ function ntcCompile(input_a, objOptions_a)
 			}
 			else if (objRec.what === 'reserve')
 			{
-				readReserve(objRec);
+				if (!blnDeprecated)
+				{
+					arrErrors.push({ file: objRec.file, line: objRec.line, msg: 'Option Reserve is deprecated - use Option Memory Reserved start, size, ... (or add Option Deprecated to allow it)' });
+				}
+				else
+				{
+					readReserve(objRec);
+				}
 			}
 			else if (objRec.what === 'highcode')
 			{
-				if (objOptions.platform !== 'cpcfw')
+				if (!blnDeprecated)
+				{
+					arrErrors.push({ file: objRec.file, line: objRec.line, msg: 'Option HighCode is deprecated - page the code instead (Option Memory Paged + Option Page), or add Option Deprecated to allow it' });
+				}
+				else if (objOptions.platform !== 'cpcfw')
 				{
 					arrErrors.push({ file: objRec.file, line: objRec.line, msg: 'Option HighCode is for cpcfw (the CPC through the firmware)' });
 				}
@@ -10611,6 +10842,12 @@ function ntcCompile(input_a, objOptions_a)
 			}
 			else if (objRec.what === 'place')
 			{
+				if (!blnDeprecated)
+				{
+					arrErrors.push({ file: objRec.file, line: objRec.line, msg: 'Option Place is deprecated (it only served Option HighCode) - add Option Deprecated to allow it' });
+				}
+				else
+				{
 				String(objRec.value).split(',').forEach(function(strC_a)
 				{
 					var strC = trim(strC_a).toLowerCase();
@@ -10624,6 +10861,12 @@ function ntcCompile(input_a, objOptions_a)
 						objPlace[strC] = true;
 					}
 				});
+				}
+			}
+			else if (objRec.what === 'safe')
+			{
+				// Option Safe (areas and named class groups) is parsed in scanPages, next to Option
+				// Page, where the class machinery is - nothing to do with the option record here.
 			}
 			else if (objRec.what === 'nexdata')
 			{
@@ -10692,7 +10935,13 @@ function ntcCompile(input_a, objOptions_a)
 			}
 			else if (objRec.what === 'memory')
 			{
-				readMemory(objRec);
+				// the region form (Option Memory Available | Reserved | Paged | Safe start, size ...)
+				// is the memory map, read in scanPages; only the scheme form (Small | CPCExpansion n)
+				// is readMemory's
+				if (!/^\s*(available|reserved|paged|safe)\b/i.test(String(objRec.value)))
+				{
+					readMemory(objRec);
+				}
 			}
 			else if (objRec.what === 'class')
 			{
@@ -10839,6 +11088,8 @@ function ntcCompile(input_a, objOptions_a)
 		arrScanCalls = [];
 		arrScanReturns = [];
 		arrScanProcCalls = [];
+		objFarCalled = {};
+		objBankStubs = {};
 		objTmpSize = {};
 		objTmpBase = {};
 		objScanFallIn = {};
@@ -12257,7 +12508,7 @@ function ntcCompile(input_a, objOptions_a)
 	}
 	if ((arrOvlOrder.length > 0) && (String(objOptions.platform).toLowerCase() !== 'zxn'))
 	{
-		arrAsm.push(strIndent + 'ASSERT (ntc_free <= #4000) || (ntc_start >= #8000), "overlay classes: the program and its arrays must stay out of #4000-#7FFF (the window they run in)"');
+		arrAsm.push(strIndent + 'ASSERT (ntc_free <= #4000) || (ntc_start >= #8000) || NTC_WINHOLE, "overlay classes: the program and its arrays must stay out of #4000-#7FFF (the window they run in), or build round it with Option Reserve / Option Page <n>"');
 		arrPageOrder.forEach(function(strId_a)
 		{
 			var objKind = objPages[strId_a];

@@ -7,7 +7,7 @@
 Option PressAnyKeyOnEnd "Press a key"
 Option Explicit
 Option RomEnable All
-Option Reserve &H4000, &H4000     ' main RAM's #4000-#7FFF: the second screen
+Option Memory Reserved &H4000, &H4000     ' main RAM's #4000-#7FFF: the second screen
 Const CROM = 32                   ' CPLINK2 PI ROM 1 (ROM select 32)
 Dim k As Integer, p As Integer, r As Integer, y As Integer, spd As Integer, skip As Integer
 Dim bud As Integer, sq As Integer, frames As Integer, t As Integer, n As Integer, nv As Integer

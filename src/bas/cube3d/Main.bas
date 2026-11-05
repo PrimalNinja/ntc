@@ -9,7 +9,7 @@ Option PressAnyKeyOnEnd "Press a key"     ' at the end: a message and a key (a R
 Option Explicit
 #If NTC_CPCMIN Then
 Option RomEnable 7                ' AMSDOS, for the page file CUBE3D.001
-Option Reserve &H4000, &H4000     ' out of the window the overlay runs in
+Option Memory Reserved &H4000, &H4000     ' out of the window the overlay runs in
 Dim scr As Integer
 ' main RAM's #4000 (page 1) is the second screen: take it before the overlay loads, so
 ' the page file goes into another page
@@ -18,7 +18,7 @@ If scr <> 1 Then Print "Page 1 is taken - no double buffering" : End
 #End If
 #If NTC_CPCFW Then
 Option RomEnable 7                ' AMSDOS, for the page file CUBE3D.001
-Option Reserve &H4000, &H4000     ' out of the window the overlay runs in
+Option Memory Reserved &H4000, &H4000     ' out of the window the overlay runs in
 Dim scr As Integer
 ' main RAM's #4000 (page 1) is the second screen: take it before the overlay loads, so
 ' the page file goes into another page

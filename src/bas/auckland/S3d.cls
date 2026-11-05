@@ -9,7 +9,7 @@
 ' m, then the top), minor roads to 800 m, trees to 350 m - and no more than the line budget
 ' (SetBudget) in a frame; the landmark tiles to 3.5 km (Rangitoto, the Sky Tower, the Harbour Bridge to 11 km). Each tile's block is put in the window (#4000) while
 ' it is read; the Graphics class puts main RAM back there while it draws (the second screen).
-' World units: 0.5 m (x east, z north, y up). Main RAM #8F50-#A2EF: its tables (Option Reserve
+' World units: 0.5 m (x east, z north, y up). Main RAM #8F50-#A2EF: its tables (Option Memory Reserved
 ' &H8F50, &H13A0 - under the ROMs' RAM: UniDOS with an IDE node takes #A309 up, its event block
 ' 16 below); the program goes on at #8000 when it is past #4000, the Memory class's tables
 ' after it).

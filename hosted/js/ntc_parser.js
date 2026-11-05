@@ -1396,9 +1396,17 @@ function ntcParse(arrFiles_a, objDefines_a)
 		{
 			record('option', { what: 'highcode' });	// cpcfw: code in #C000-#FFFF too (the screen at #4000)
 		}
+		else if (strText === 'deprecated')
+		{
+			record('option', { what: 'deprecated' });	// allow the deprecated directives (Reserve, HighCode, Place, the Option Page window form, Option Safe Areas); without it they fail
+		}
 		else if (left(strText, 'place '))
 		{
 			record('option', { what: 'place', value: trim(strText.substr(6)) });	// classes kept out of Option HighCode's #C000-#FFFF
+		}
+		else if (left(strText, 'safe '))
+		{
+			record('option', { what: 'safe', value: trim(strText.substr(5)) });	// classes kept resident (out of the pageable window #4000-#7FFF): the banking / slot-access code
 		}
 		else if (left(strText, 'nexdata '))
 		{

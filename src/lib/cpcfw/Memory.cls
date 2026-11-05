@@ -20,12 +20,12 @@
 '   The class keeps its page tables from the program's end up (3 bytes a page: 6128 15
 '   bytes, 4MB 771), made by the first call - TableEnd() is the first byte after them.
 '   With no room below #4000 it keeps fewer pages. The program, and its stack, must be out
-'   of the window (Option Reserve &H4000, &H4000), else Pages() = 0. Anything the program
+'   of the window (Option Memory Reserved &H4000, &H4000), else Pages() = 0. Anything the program
 '   reads or writes in the window (Poke, FileSystem.Load ...) goes to the page in it then.
 '
 ' Option Memory Small   (the default on cpm and test; any platform)
 '   No paging: Alloc / Free over the free main RAM, from the program's end up to the
-'   platform's top (CPC #A600, CP/M the BDOS), the stack, or an Option Reserve range -
+'   platform's top (CPC #A600, CP/M the BDOS), the stack, or an Option Memory Reserved range -
 '   HeapStart() / HeapEnd(). Far pointers are plain addresses (page 0). Pages() = 0; the
 '   page methods give 0 or BadPage. The least code.
 '

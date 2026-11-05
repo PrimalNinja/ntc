@@ -2,7 +2,7 @@
 ' balls - the ASIC's hardware sprites in 15 colours of their own, each moving and animating on
 ' its own. RUN"CPCPLUS. Tested in the 1984 emulator's 6128 Plus; not on the hardware yet.
 ' (c) 2026 Cyborg Unicorn Pty Ltd
-Option Reserve &H4000, &H4000             ' the ASIC's registers are paged in there
+Option Memory Reserved &H4000, &H4000             ' the ASIC's registers are paged in there
 Option Turbo
 Option Explicit
 Dim i As Integer

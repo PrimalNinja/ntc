@@ -33,6 +33,153 @@ Packaging rule (what goes in the archive) - READ THIS BEFORE ZIPPING
 History (newest first)
 ======================
 
+20261105-12
+-----------
+Old memory directives deprecated behind Option Deprecated; everything migrated to Option Memory
+- New: Option Deprecated. The old memory directives are now DEPRECATED - a program that uses one is
+  refused (with a message naming the Option Memory replacement) unless it also has Option
+  Deprecated, which allows them all. Deprecated: Option Reserve (-> Option Memory Reserved), the
+  Option Page <startbank>, <addr>, <size> window form (-> Option Memory Paged), Option Safe Areas
+  (-> Option Memory Safe), and Option HighCode / Option Place (no replacement - page the code
+  instead; HighCode stole the screen's #4000, which is the paging window). NOT deprecated: Option
+  Memory, and the class-naming forms Option Page "NAME" = classes and Option Safe "NAME" = classes.
+- Migrated every first-party program, test fixture and tutorial example to Option Memory Reserved /
+  Safe (byte-identical compiler output, except demos that print or name the directive - e.g. memmap
+  now prints "Option Memory Reserved"). The hcode test (HighCode / Place) and the safe/Main.bas
+  test (Option Safe Areas) keep an Option Deprecated line so they still exercise those paths.
+- src/js/ntc_parser.js: Option Deprecated rule. src/js/ntc_compiler.js: blnDeprecated pre-pass; the
+  five deprecated forms refused unless it is set. test/regress.sh: four Option Deprecated checks
+  (each deprecated form fails without it, Reserve allowed with it); the safe tests moved to Option
+  Memory Safe. docs/NTC.md, docs/userguide.md and docs/tutorial/* updated - Option Memory is the
+  documented way, the old directives marked deprecated, Option Deprecated documented.
+- Derived folders regenerated against the migrated source: ntc_lib.js bundle (node test/gen.js),
+  build/ (genbuild / genrom / gendsk), hosted/ (the web IDE). test/out carries the fresh output
+  from a clean migrated-source run. Full regression: 940 ok, 0 fail.
+
+20261105-11
+-----------
+New: one directive for the memory map - Option Memory <kind> start, size, ...
+- Option Memory Available | Reserved | Paged | Safe  start, size [, start, size] ... declares the
+  memory map, one kind per line, as many lines as you like. It is the address side of what used to
+  be spread across three directives:
+    * Reserved  - program stays out of the range, built round it (= old Option Reserve).
+    * Paged     - the window where RAM pages / overlays swap in at run time (= the old window form).
+    * Safe      - always-mapped RAM where the safe classes go (= old Option Safe Areas); which
+                  classes is still said with Option Safe "NAME" = Class, ...
+    * Available - usable RAM (the default; for documenting a map).
+  Proven on cpcmin (emulator): Option Memory Safe &H3000,&H0800 + Option Safe "BANK" = Bank places
+  Bank at #3000 and Bank.Add(10,20) returns 37 - identical to the Option Safe Areas form.
+- It reuses the window / safe-area / reserve machinery already in the compiler, so it is a new
+  front end, not a new layout engine. It is a DIFFERENT word from the heap-scheme form (Option
+  Memory Small | CPCExpansion n), which still works unchanged - the two do not clash.
+- This is ADDITIVE: the old Option Reserve / Option Safe Areas / Option Page window forms still
+  work; nothing is removed yet. Removing them (and Option HighCode / Option Place, and migrating
+  the programs and CyborgOS C0 that use them) is the follow-on, to be done as a deliberate
+  migration so the whole codebase does not break at once.
+- src/js/ntc_compiler.js: the region form parsed in scanPages (maps to arrReserve / arrSafeAreas /
+  the window); the scheme-form reader skips the region kinds. test/safe/MMain.bas added;
+  test/regress.sh: five Option Memory checks (safe placement + run, odd-pair and unknown-kind
+  refusals, scheme-form still works). docs/NTC.md documents it.
+- Additive otherwise: programs not using the new form compile byte-for-byte as before; build/ and
+  test/out carried from 20261105-7; hosted/ regenerated. Full regression: 936 ok, 0 fail.
+
+20261105-10
+-----------
+Option Safe now PLACES the safe code (was validate-only in 20261105-9)
+- The safe classes' code is laid into the first Option Safe area and the program is built round it,
+  the same way it is already built round Option Reserve ranges and the paging window (holeLayout):
+  each safe class's code is bracketed (; @safe ... ; @endsafe) and pulled into the safe area from
+  its start, a ds pads up to it, and the rest of the program flows around. An ASSERT at assembly
+  refuses it if the safe code does not fit the first area (enlarge Option Safe Areas). The code
+  runs in place from the safe area.
+- Proven end to end on cpcmin (emulator): a safe class Bank placed at #3000-#37FF, called from
+  main, Bank.Add(10,20) returns 37; its body symbol is in the area and nothing else intrudes.
+- Scope: this is the general layout (holeLayout: cpcmin, cpm, ...). Option HighCode's own layout
+  (highLayout), which CyborgOS C0 uses, does NOT place safe code yet - that is the next step and
+  needs on-hardware / emulator validation for C0. Multi-area packing (spilling into the 2nd and
+  later areas) is also not done - all safe code goes in the first area for now (the ASSERT catches
+  an overflow).
+- src/js/ntc_compiler.js: compileProc brackets a safe class's code with ; @safe / ; @endsafe;
+  holeLayout extracts it (arrSafeData), adds each Option Safe area as a hole (the first holds the
+  code), and places the block from the area start with a fit ASSERT, including the case where the
+  program ends below the area (placed just before ntc_end so it is inside the loaded image).
+- test/safe/ (Bank.cls, Main.bas) added; test/regress.sh: two placement checks (symbol in the
+  area, and it runs returning 37) on top of the five Option Safe refusals and the clean compile.
+  docs/NTC.md updated.
+- Additive: programs without Option Safe compile byte-for-byte as before; build/ and test/out
+  carried from 20261105-7 unchanged; hosted/ regenerated. Full regression: 931 ok, 0 fail.
+
+20261105-9
+----------
+Reworked Option Safe (the 20261105-8 form was wrong - it took class names and only guarded)
+- Option Safe now matches the design: it names the SAFE MEMORY (the base RAM that stays mapped
+  whatever bank is in the window) and the classes whose code must live there. Two forms, told
+  apart like Option Page's two forms (a number vs a name):
+    * Option Safe Areas = start, size [, start, size] ...  - declares the safe memory, as address
+      and size pairs. Like Option Reserve but opposite: Reserve is memory the program stays OUT of;
+      Safe is memory the program DOES build in, that stays mapped. Areas is a reserved word (no
+      class may be named Areas). E.g. Option Safe Areas = &H1000, &H3000, &H8000, &H1000.
+    * Option Safe "NAME" = Class [, Class] ...  - the classes whose code must go in safe memory
+      (the banking / slot-access code). Same shape as Option Page "NAME" = classes.
+- Refused: a safe class also in an Option Page / Option Class Overlay (code is a page OR safe,
+  never both); safe classes with no Option Safe Areas to go in; a malformed Areas list (not
+  address,size pairs); a "NAME" group naming a class not in the project; "Areas" used as a group
+  name.
+- Placement note: putting the safe classes in the safe areas takes effect once non-safe code is
+  allowed to run in the window (the build-through-window reclaim). Until that exists the window is
+  a reserved hole and ALL code is already in safe RAM, so this build validates the directive but
+  moves nothing yet. The build-through-window layout change is the next step (needs on-hardware /
+  emulator validation for CyborgOS C0).
+- src/js/ntc_parser.js: the Option Safe value is captured. src/js/ntc_compiler.js: arrSafeAreas /
+  arrSafeOrder / objSafe, parsed in scanPages next to Option Page, with the conflict and
+  not-in-project checks. test/regress.sh: six Option Safe checks (the five refusals above and a
+  clean areas+group compile). docs/NTC.md documents both forms.
+- The 20261105-8 class-name guard form is removed. Additive otherwise: programs without Option
+  Safe compile byte-for-byte as before; build/ and test/out carried from 20261105-7 unchanged;
+  hosted/ regenerated. Full regression (test/regress.sh): 929 ok, 0 fail.
+
+20261105-8
+----------
+New in this build
+- New directive: Option Safe <class> [, <class>] ... - pins a class resident, keeping its code out
+  of the pageable window #4000-#7FFF so it stays visible while a page is switched in. This is for
+  the banking / slot-access code: the routines that select a bank into the window must not live in
+  the window (they would vanish mid-switch). Safe is the black-and-white opposite of a page - code
+  is either a page (flows into the window on demand) or Safe (resident), never both:
+    * a Safe class that is also in an Option Page / Option Class Overlay is refused, naming the page;
+    * a Safe name that is not a class in the project is refused;
+    * Option Safe on an already-resident class (in no page) is accepted and changes nothing by
+      itself - its job is the guard that stops that class ever being paged.
+  (src/js/ntc_parser.js: the Option Safe rule; src/js/ntc_compiler.js: objSafe, and the check after
+  the option records are read and scanPages has classified the classes.)
+- test/regress.sh: added three Option Safe checks (paged Safe refused, unknown Safe class refused,
+  a resident Safe class compiles clean). docs/NTC.md documents the directive.
+- Additive change: Option Safe is inert unless used, so every existing program compiles byte-for-
+  byte as before; build/ and test/out are carried from 20261105-7 unchanged (identical output).
+  hosted/ regenerated (node tools/hosted/build.js) so the web IDE's bundled compiler/parser carry
+  Option Safe. Full regression (test/regress.sh): 926 ok, 0 fail.
+
+20261105-7
+----------
+New in this build
+- Paging: a sub called only from inside its own page no longer routes its call through main. Its
+  whole setup/return stub (the arg-pop, local-zero, body-enter and return) is now emitted IN the
+  bank, next to the sub's body, so a call between methods of a page (same class, or classes
+  grouped into one Option Page) stays in the bank - no main-memory stub for it. Only subs reached
+  from main, another page, or a Tick / interrupt hook / AddressOf keep their stub in main (a far
+  caller must reach it before the window is switched). The effect: main is spent only on the few
+  entry points main actually calls, not on every paged method - so a page of dozens of internal
+  methods (a game level, a CP/M-style numbered driver) costs main only its public entry.
+  (src/js/ntc_compiler.js: objFarCalled from the call graph; procStubs routes a local-only,
+  single-page sub's stub to the bank; composePages emits it in the page's local-entry region.)
+- Correctness for copied classes: a class copied into several pages is treated as a far caller
+  from each copy whose page lacks the callee (even when another copy is local), so a callee
+  reached far from any copy keeps its main stub. (Verified on the pages fixture: Shared is copied
+  into LEVEL1+LEVEL2 and calls OnlyOne, which is only in LEVEL1 - OnlyOne.Ten correctly stays in
+  main while Level1/Level2's own private helpers move to their banks.)
+- test/regress.sh: added a check that a local-only sub's stub lands in the bank and a dual-called
+  sub's stays in main. docs/NTC.md documents the placement rule.
+
 20261105-6
 ----------
 Fix to the 20261105-5 directive (that build had Option Page 0 wrong)

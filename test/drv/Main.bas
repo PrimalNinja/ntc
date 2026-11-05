@@ -1,7 +1,7 @@
 ' A class in a page with a Tick (a "driver": Option Page + Option Class Interrupt) - regress.sh
 Option Page "DRV" = Drv
 Option RomEnable 7
-Option Reserve &H4000, &H4000
+Option Memory Reserved &H4000, &H4000
 Option Turbo Off
 Dim t As Integer, c As Integer, d As Integer
 c = Drv.Count()

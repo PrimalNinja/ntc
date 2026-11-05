@@ -610,11 +610,27 @@ variables, `Declare`.
   stored and passed around; `CallAddr x [, args]` calls it (driver / device tables). The
   arguments go by address and must match the procedure's parameters - the compiler can't
   check that. `AddressOf` gives the call stub for the turbo mode at that line.
-- `Option Reserve start, size [, start, size] ...`: memory the program must stay out of
-  (a load area, a screen, firmware RAM). The compiler writes one sjasmplus `ASSERT` per range
-  after `ntc_end`, so the assembly stops (naming the range and the source line) if
-  `ntc_start .. ntc_end` overlaps it. The program is not laid out around a range (yet).
-- `Option Page <startbank>, <addr>, <size>`: does everything `Option Reserve addr, size` does -
+- `Option Memory Available | Reserved | Paged | Safe  start, size [, start, size] ...`: the memory
+  map - one kind per line, as many lines as you like, each a list of address/size pairs. This is
+  the one directive for describing memory; it is the address side of what used to be spread across
+  `Option Reserve`, the paging window, and `Option Safe Areas`:
+  - `Reserved` - the program stays out of this range (a load area, a screen, firmware RAM); the
+    program is built round it.
+  - `Paged` - the window where RAM pages / overlays swap in at run time; built round, like Reserved.
+  - `Safe` - always-mapped RAM where the safe classes go (see `Option Safe "NAME" = ...` for which
+    classes); the program is built round the part the safe code uses.
+  - `Available` - usable RAM (the default; stated for completeness / to document a map).
+  This is a different word from the heap-scheme form (`Option Memory Small | CPCExpansion n`), so
+  the two do not clash. (`Option Memory Paged` / `Safe` reuse the window and safe-area machinery.)
+- `Option Deprecated`: allows the deprecated directives in this program. Without it, each of the
+  directives marked **deprecated** below is refused with a message naming the `Option Memory`
+  replacement. With it, they work as before. Use it to keep an old program building unchanged;
+  new programs use `Option Memory`.
+- `Option Reserve start, size [, start, size] ...`: **deprecated** - use `Option Memory Reserved`.
+  (Memory the program stays out of, built round. Refused unless `Option Deprecated` is set.)
+- `Option Page <startbank>, <addr>, <size>`: **deprecated** - use `Option Memory Paged addr, size`
+  (which has no startbank; the banking offset was never distinct in the output). Refused unless
+  `Option Deprecated` is set. Below is what it did -
   it reserves the window (`addr .. addr+size`, normally `#4000, #4000`) and builds the program
   round it, so the program, its arrays, the page call/return stubs (`p_*_c` / `_in` / `_r`), the
   library and the variables all stay out of the window (`NTC_WINHOLE 1`) - PLUS it marks the
@@ -629,6 +645,28 @@ variables, `Declare`.
   (CPC gate array, Next MMU slots 2/3, MSX mapper via `PUT_P1`), so the directive means the same
   on all three. (The banking offset for `startbank >= 1` - keeping lower banks fixed or free -
   reserves as `0` does for now; the offset itself is not yet distinct in the output.)
+- `Option Safe`: names the memory that stays mapped while a bank is switched into the window
+  (`safe` memory, the base RAM where the program loads - it does not matter which bank is paged in,
+  the safe RAM is always there), and the classes whose code must live there. It is for the
+  banking / slot-access code: the routines that select a bank into the window must themselves be in
+  safe memory, or they would vanish mid-switch. The memory is declared with `Option Memory Safe`
+  (above); the classes are named with `Option Safe "NAME" = ...`:
+  - `Option Memory Safe start, size [, start, size] ...` - the safe memory (see `Option Memory`).
+  - `Option Safe "NAME" = Class [, Class] ...` - the classes whose code must go in safe memory.
+    Same shape as `Option Page "NAME" = classes`; `NAME` is just a label for messages. The safe
+    classes are placed in the safe memory first; other code may use what is left.
+  - `Option Safe Areas = start, size ...` - **deprecated** (the old way of declaring the memory);
+    use `Option Memory Safe`. Refused unless `Option Deprecated` is set.
+  A safe class is the opposite of a page: it is refused if it also appears in an `Option Page` /
+  `Option Class Overlay` (code is either a page, or safe, never both). Safe classes with no safe
+  memory to go in (`Option Memory Safe`), or a `NAME` group naming a class not in the project, are
+  refused. Placement: the safe classes' code is laid into the first safe area
+  (the program is built round it, the same way it is built round `Option Reserve` and the window);
+  it is refused (an `ASSERT` at assembly) if it does not fit that area - enlarge `Option Safe
+  Areas`. The code runs in place from the safe area. (This works on the general layout - cpcmin,
+  cpm and the like. Option HighCode's own layout, which CyborgOS C0 uses, does not place safe code
+  there yet; that is the next step. Multi-area packing - spilling into the second and later areas -
+  is also not done yet: all safe code goes in the first area for now.)
 - `Option PressAnyKeyOnEnd ["message"]`: every end of the program (`End`, `Error`, a failed
   `Debug.Assert`, the last line: `emitStop`) prints the message on a line of its own
   (`kw_printnl0`, default `Press any key`) and runs `kw_waitkey` (`ntc_plat_getkey`) before
@@ -867,7 +905,16 @@ call graph says the callee is called from one of its own pages (`objLocalCalled`
 `dw p_x_cl[__page]`: a **local entry** in the page (`ld a, 1 / ld (ntc_ovl_lc), a / jp p_x_c`,
 for a copied class also `ld hl, <this copy's body> / ld (ntc_ovl_body), hl`). The call stub (in
 the program) checks `ntc_ovl_lc` after its argument copies: set means no page switch, `_pg` =
-#FFFF so the return stub switches nothing back. A copied class's far calls jump to
+#FFFF so the return stub switches nothing back. **Where the call/return stub lives** follows the
+caller: a sub called only from inside its own page - `objLocalCalled` and not `objFarCalled`, in
+a class that lives in a single page (not copied) - has its whole stub (`_c` / `_in` / `_far` /
+`_r` / ...) emitted **in the bank**, in the page's local-entry region, next to its body, so a
+call from that page stays in the bank and spends no main memory. A sub reached from main, from
+another page, or from a Tick / interrupt hook / AddressOf (any `objFarCalled`) keeps its stub in
+main, where a far caller reaches it before the window is switched. `objFarCalled` is set when
+any caller's page does not hold the callee - including a **copied** caller: a class copied into
+several pages is a far caller from each copy whose page lacks the callee, even if another copy
+is local, so such a callee keeps its main stub. A copied class's far calls jump to
 `ntc_ovl_enterc` with the procedure's copy table (`p_x_ct: db n`, then `dw block, body` per
 copy, the home first; only the home when the class has paged variables): the copy whose page
 is in the window (RAM pages: its block's page word = `mem_cur`; one area: block = `ovl_cur`),

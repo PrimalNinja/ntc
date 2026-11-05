@@ -2,7 +2,8 @@
 ' #4000-#7FFF, copied up at the start; the screen moves to #4000); Option Place keeps a class's code
 ' below #4000. Big1 (12000 bytes) fills most of the low part, so Big2 (6000) goes to #C000; Low's
 ' #asm is placed first, low. The variables and arrays from #8000.
-Option Reserve &H4000, &H4000
+Option Deprecated                 ' Option HighCode / Option Place are deprecated - allow them here
+Option Memory Reserved &H4000, &H4000
 Option HighCode
 Option Place Low
 Dim a(10) As Integer

@@ -28,7 +28,7 @@ Option RomEnable 7                ' RUN" drops AMSDOS: start it again, the pages
 #If NTC_CPCFW Then
 Option RomEnable 7
 #End If
-Option Reserve &H4000, &H4000     ' the program stays out of the window the pages run in
+Option Memory Reserved &H4000, &H4000     ' the program stays out of the window the pages run in
 
 Title.Show
 Level1.Play

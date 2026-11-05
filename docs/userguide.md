@@ -2293,7 +2293,56 @@ firmware's cassette buffer) and `List.Sort` need the whole 2K, and the assembly 
 message if the buffer is smaller. `Option Buffer Size 128` keeps it in the program;
 `Option Buffer &H8000, 128` puts it there.
 
+### Option Memory (the memory map)
+
+`Option Memory` `Available` | `Reserved` | `Paged` | `Safe`  *start*`,` *size* [`,` *start*`,` *size*] ...
+
+One directive for the whole memory map. Each line gives a kind and a list of address/size pairs
+(`&H3000`, `#3000`, `12288`); use as many lines as you like. It is the single, consistent way to
+say what each stretch of memory is for:
+
+| kind | meaning |
+| --- | --- |
+| `Reserved` | the program keeps out of this range and is built round it (a screen, a load area, firmware RAM) - the same as `Option Reserve` |
+| `Paged` | the window where RAM pages / overlays swap in at run time; built round, like `Reserved` |
+| `Safe` | always-mapped RAM where the *safe classes* live (say which with `Option Safe "NAME" = Class, ...`); the banking / slot-access code that must stay put while a bank is paged in |
+| `Available` | usable RAM - the default; stated only to write the whole map out |
+
+```
+Option Memory Reserved &H8000, &H4000       ' #8000-#BFFF: a level loaded from disc
+Option Memory Paged    &H4000, &H4000        ' #4000-#7FFF: the paging window
+Option Memory Safe     &H1000, &H0800        ' #1000-#17FF: where the banking code goes
+Option Safe "BANK" = Bank                    ' Bank's code must live in Safe memory
+```
+
+A `Safe` class's code is laid into the first `Safe` range and the program is built round it (it is
+refused at assembly if it does not fit - enlarge the range). The safe code runs in place from
+there.
+
+This is a different word from the heap-scheme form (`Option Memory Small | CPCExpansion` *n*,
+below), so the two never clash.
+
+`Option Memory` replaces the older `Option Reserve` (→ `Reserved`), the `Option Page` *startbank*
+window form (→ `Paged`) and `Option Safe Areas` (→ `Safe`), and makes `Option HighCode` /
+`Option Place` unnecessary. Those older directives are now **deprecated**: a program that uses one
+is refused unless it also has
+
+```
+Option Deprecated
+```
+
+which allows all of them. Use `Option Deprecated` to keep an old program building unchanged; write
+new programs with `Option Memory`. (`Option Page` *Name* `=` *classes* and `Option Safe "NAME" =`
+*classes*, which say *which* classes are paged or safe, are **not** deprecated - only the
+address/window forms are.)
+
+**VB:** not in VB.
+
 ### Option Reserve
+
+**Deprecated - use `Option Memory Reserved` (above).** `Option Reserve` is refused unless the
+program also has `Option Deprecated`. It does exactly what `Option Memory Reserved` does; the rest
+of this section describes that behaviour.
 
 `Option Reserve` *start*`,` *size* [`,` *start*`,` *size*] ...
 
@@ -2325,6 +2374,13 @@ range covers #C000).
 **VB:** not in VB.
 
 ### Option HighCode, Option Place
+
+**Deprecated, both refused unless the program has `Option Deprecated`.** `Option HighCode` moves
+the screen to `#4000` - the same place the paging window lives - so it fights with paging; the way
+to get more code space is to page it (`Option Memory Paged` + `Option Page`), not to steal the
+screen. `Option Place` existed only to keep a class out of HighCode's `#C000`, so it goes with it.
+There is no `Option Memory` replacement; they stay only for old programs that opt in with
+`Option Deprecated`. The rest of this section describes what they did.
 
 `Option HighCode` (cpcfw only, with `Option Reserve &H4000, &H4000`): the program's code may also
 go in `#C000-#FFFF`, and the screen moves to `#4000` (main RAM's page 1: the CRTC shows main RAM

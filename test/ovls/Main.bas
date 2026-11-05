@@ -2,7 +2,7 @@
 ' A and B take turns in #4000-#7FFF: a call loads its class there, a return
 ' loads the caller's class again when another took its place.
 Option Memory Small
-Option Reserve &H4000, &H4000
+Option Memory Reserved &H4000, &H4000
 #If NTC_CPCMIN Then
 Option RomEnable 7                ' AMSDOS for the overlay files
 #End If

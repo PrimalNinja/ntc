@@ -3,7 +3,7 @@
 ' (c) 2026 Cyborg Unicorn Pty Ltd - MIT License
 '
 ' Init unlocks the ASIC (17 bytes to the CRTC's port) and pages its registers in at #4000-#7FFF
-' (they stay in: the program must keep out of #4000-#7FFF - Option Reserve &H4000, &H4000):
+' (they stay in: the program must keep out of #4000-#7FFF - Option Memory Reserved &H4000, &H4000):
 '   #4000 + n * 256   sprite n's pixels: 16 x 16, a byte each (its low 4 bits: 0 see-through)
 '   #6000 + n * 8     sprite n's X (word, in mode 2 pixels), Y (word, lines), size (byte:
 '                     bits 3-2 across, 1-0 down: 0 off, 1, 2, 4 times)

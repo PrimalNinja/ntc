@@ -11,7 +11,7 @@ Option RomEnable 7
 #If NTC_CPCFW Then
 Option RomEnable 7
 #End If
-Option Reserve &H4000, &H4000
+Option Memory Reserved &H4000, &H4000
 Dim r As Integer
 Title.Show
 Print "L1 "; Level1.Play(3)

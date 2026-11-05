@@ -695,337 +695,6 @@ p_spin_run_r:		; end of run
 			call mem_sel
 			ld sp, (p_spin_run_rs)
 			jp ntc_xn
-p_spin_frame1_c:		; call frame1 (turbo)
-			ld (p_spin_frame1_rs), sp
-			ld a, (ntc_ovl_lc)	; called from its own page?
-			or a
-			jr z, p_spin_frame1_far
-			xor a
-			ld (ntc_ovl_lc), a
-			dec a
-			ld (p_spin_frame1_pg), a	; #FF..: no page back on return
-			ld (p_spin_frame1_pg+1), a
-			jr p_spin_frame1_in
-p_spin_frame1_far:
-			ld hl, ovl_blk_spin	; page CUBE3D.001
-			ld de, p_spin_frame1_pg
-			ld ix, p_spin_frame1_in
-			jp ntc_ovl_enter
-p_spin_frame1_in:
-			ld sp, p_spin_frame1
-			ret
-p_spin_frame1_r:		; end of frame1
-			ld hl, (p_spin_frame1_pg)
-			ld a, h
-			and l
-			inc a
-			jr z, p_spin_frame1_rb	; a call from its own page: nothing to switch back
-			ld sp, (ntc_csp)		; the caller's page back
-			ld hl, (p_spin_frame1_pg)
-			call mem_sel
-p_spin_frame1_rb:
-			ld sp, (p_spin_frame1_rs)
-			ret
-p_spin_frame1_n_c:		; call frame1 (normal)
-			ld (p_spin_frame1_rs), sp
-			ld a, (ntc_ovl_lc)	; called from its own page?
-			or a
-			jr z, p_spin_frame1_n_far
-			xor a
-			ld (ntc_ovl_lc), a
-			dec a
-			ld (p_spin_frame1_pg), a	; #FF..: no page back on return
-			ld (p_spin_frame1_pg+1), a
-			jr p_spin_frame1_n_in
-p_spin_frame1_n_far:
-			ld hl, ovl_blk_spin	; page CUBE3D.001
-			ld de, p_spin_frame1_pg
-			ld ix, p_spin_frame1_n_in
-			jp ntc_ovl_enter
-p_spin_frame1_n_in:
-			ld sp, p_spin_frame1_n
-			jp ntc_xn
-p_spin_frame1_n_r:		; end of frame1
-			ld hl, (p_spin_frame1_pg)
-			ld a, h
-			and l
-			inc a
-			jr z, p_spin_frame1_n_rb	; a call from its own page: nothing to switch back
-			ld sp, (ntc_csp)		; the caller's page back
-			ld hl, (p_spin_frame1_pg)
-			call mem_sel
-p_spin_frame1_n_rb:
-			ld sp, (p_spin_frame1_rs)
-			jp ntc_xn
-p_spin_screen_c:		; call screen (normal)
-			ld (p_spin_screen_rs), sp
-			ld a, (ntc_ovl_lc)	; called from its own page?
-			or a
-			jr z, p_spin_screen_far
-			xor a
-			ld (ntc_ovl_lc), a
-			dec a
-			ld (p_spin_screen_pg), a	; #FF..: no page back on return
-			ld (p_spin_screen_pg+1), a
-			jr p_spin_screen_in
-p_spin_screen_far:
-			ld hl, ovl_blk_spin	; page CUBE3D.001
-			ld de, p_spin_screen_pg
-			ld ix, p_spin_screen_in
-			jp ntc_ovl_enter
-p_spin_screen_in:
-			ld sp, p_spin_screen
-			jp ntc_xn
-p_spin_screen_r:		; end of screen
-			ld hl, (p_spin_screen_pg)
-			ld a, h
-			and l
-			inc a
-			jr z, p_spin_screen_rb	; a call from its own page: nothing to switch back
-			ld sp, (ntc_csp)		; the caller's page back
-			ld hl, (p_spin_screen_pg)
-			call mem_sel
-p_spin_screen_rb:
-			ld sp, (p_spin_screen_rs)
-			jp ntc_xn
-p_spin_status_c:		; call status (normal)
-			ld (p_spin_status_rs), sp
-			ld a, (ntc_ovl_lc)	; called from its own page?
-			or a
-			jr z, p_spin_status_far
-			xor a
-			ld (ntc_ovl_lc), a
-			dec a
-			ld (p_spin_status_pg), a	; #FF..: no page back on return
-			ld (p_spin_status_pg+1), a
-			jr p_spin_status_in
-p_spin_status_far:
-			ld hl, ovl_blk_spin	; page CUBE3D.001
-			ld de, p_spin_status_pg
-			ld ix, p_spin_status_in
-			jp ntc_ovl_enter
-p_spin_status_in:
-			ld sp, p_spin_status
-			jp ntc_xn
-p_spin_status_r:		; end of status
-			ld hl, (p_spin_status_pg)
-			ld a, h
-			and l
-			inc a
-			jr z, p_spin_status_rb	; a call from its own page: nothing to switch back
-			ld sp, (ntc_csp)		; the caller's page back
-			ld hl, (p_spin_status_pg)
-			call mem_sel
-p_spin_status_rb:
-			ld sp, (p_spin_status_rs)
-			jp ntc_xn
-p_spin_makeshape_c:		; call makeshape (normal)
-			ld (p_spin_makeshape_rs), sp
-			ld a, (ntc_ovl_lc)	; called from its own page?
-			or a
-			jr z, p_spin_makeshape_far
-			xor a
-			ld (ntc_ovl_lc), a
-			dec a
-			ld (p_spin_makeshape_pg), a	; #FF..: no page back on return
-			ld (p_spin_makeshape_pg+1), a
-			jr p_spin_makeshape_in
-p_spin_makeshape_far:
-			ld hl, ovl_blk_spin	; page CUBE3D.001
-			ld de, p_spin_makeshape_pg
-			ld ix, p_spin_makeshape_in
-			jp ntc_ovl_enter
-p_spin_makeshape_in:
-			ld sp, p_spin_makeshape
-			jp ntc_xn
-p_spin_makeshape_r:		; end of makeshape
-			ld hl, (p_spin_makeshape_pg)
-			ld a, h
-			and l
-			inc a
-			jr z, p_spin_makeshape_rb	; a call from its own page: nothing to switch back
-			ld sp, (ntc_csp)		; the caller's page back
-			ld hl, (p_spin_makeshape_pg)
-			call mem_sel
-p_spin_makeshape_rb:
-			ld sp, (p_spin_makeshape_rs)
-			jp ntc_xn
-p_spin_cube_c:		; call cube (normal)
-			pop hl			; x
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			ld (var_spin_cube_x), de
-			pop hl			; y
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			ld (var_spin_cube_y), de
-			pop hl			; h
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			ld (var_spin_cube_h), de
-			ld hl, 0
-			ld (var_spin_cube_p), hl
-			ld hl, 0
-			ld (var_spin_cube_i), hl
-			ld (p_spin_cube_rs), sp
-			ld a, (ntc_ovl_lc)	; called from its own page?
-			or a
-			jr z, p_spin_cube_far
-			xor a
-			ld (ntc_ovl_lc), a
-			dec a
-			ld (p_spin_cube_pg), a	; #FF..: no page back on return
-			ld (p_spin_cube_pg+1), a
-			jr p_spin_cube_in
-p_spin_cube_far:
-			ld hl, ovl_blk_spin	; page CUBE3D.001
-			ld de, p_spin_cube_pg
-			ld ix, p_spin_cube_in
-			jp ntc_ovl_enter
-p_spin_cube_in:
-			ld sp, p_spin_cube
-			jp ntc_xn
-p_spin_cube_r:		; end of cube
-			ld hl, (p_spin_cube_pg)
-			ld a, h
-			and l
-			inc a
-			jr z, p_spin_cube_rb	; a call from its own page: nothing to switch back
-			ld sp, (ntc_csp)		; the caller's page back
-			ld hl, (p_spin_cube_pg)
-			call mem_sel
-p_spin_cube_rb:
-			ld sp, (p_spin_cube_rs)
-			jp ntc_xn
-p_spin_pyramid_c:		; call pyramid (normal)
-			pop hl			; x
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			ld (var_spin_pyramid_x), de
-			pop hl			; y
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			ld (var_spin_pyramid_y), de
-			pop hl			; h
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			ld (var_spin_pyramid_h), de
-			ld hl, 0
-			ld (var_spin_pyramid_p), hl
-			ld hl, 0
-			ld (var_spin_pyramid_r), hl
-			ld hl, 0
-			ld (var_spin_pyramid_i), hl
-			ld (p_spin_pyramid_rs), sp
-			ld a, (ntc_ovl_lc)	; called from its own page?
-			or a
-			jr z, p_spin_pyramid_far
-			xor a
-			ld (ntc_ovl_lc), a
-			dec a
-			ld (p_spin_pyramid_pg), a	; #FF..: no page back on return
-			ld (p_spin_pyramid_pg+1), a
-			jr p_spin_pyramid_in
-p_spin_pyramid_far:
-			ld hl, ovl_blk_spin	; page CUBE3D.001
-			ld de, p_spin_pyramid_pg
-			ld ix, p_spin_pyramid_in
-			jp ntc_ovl_enter
-p_spin_pyramid_in:
-			ld sp, p_spin_pyramid
-			jp ntc_xn
-p_spin_pyramid_r:		; end of pyramid
-			ld hl, (p_spin_pyramid_pg)
-			ld a, h
-			and l
-			inc a
-			jr z, p_spin_pyramid_rb	; a call from its own page: nothing to switch back
-			ld sp, (ntc_csp)		; the caller's page back
-			ld hl, (p_spin_pyramid_pg)
-			call mem_sel
-p_spin_pyramid_rb:
-			ld sp, (p_spin_pyramid_rs)
-			jp ntc_xn
-p_spin_cobra_c:		; call cobra (normal)
-			ld hl, 0
-			ld (var_spin_cobra_r), hl
-			ld (p_spin_cobra_rs), sp
-			ld a, (ntc_ovl_lc)	; called from its own page?
-			or a
-			jr z, p_spin_cobra_far
-			xor a
-			ld (ntc_ovl_lc), a
-			dec a
-			ld (p_spin_cobra_pg), a	; #FF..: no page back on return
-			ld (p_spin_cobra_pg+1), a
-			jr p_spin_cobra_in
-p_spin_cobra_far:
-			ld hl, ovl_blk_spin	; page CUBE3D.001
-			ld de, p_spin_cobra_pg
-			ld ix, p_spin_cobra_in
-			jp ntc_ovl_enter
-p_spin_cobra_in:
-			ld sp, p_spin_cobra
-			jp ntc_xn
-p_spin_cobra_r:		; end of cobra
-			ld hl, (p_spin_cobra_pg)
-			ld a, h
-			and l
-			inc a
-			jr z, p_spin_cobra_rb	; a call from its own page: nothing to switch back
-			ld sp, (ntc_csp)		; the caller's page back
-			ld hl, (p_spin_cobra_pg)
-			call mem_sel
-p_spin_cobra_rb:
-			ld sp, (p_spin_cobra_rs)
-			jp ntc_xn
-p_spin_edge_c:		; call edge (normal)
-			pop hl			; a
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			ld (var_spin_edge_a), de
-			pop hl			; b
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			ld (var_spin_edge_b), de
-			ld (p_spin_edge_rs), sp
-			ld a, (ntc_ovl_lc)	; called from its own page?
-			or a
-			jr z, p_spin_edge_far
-			xor a
-			ld (ntc_ovl_lc), a
-			dec a
-			ld (p_spin_edge_pg), a	; #FF..: no page back on return
-			ld (p_spin_edge_pg+1), a
-			jr p_spin_edge_in
-p_spin_edge_far:
-			ld hl, ovl_blk_spin	; page CUBE3D.001
-			ld de, p_spin_edge_pg
-			ld ix, p_spin_edge_in
-			jp ntc_ovl_enter
-p_spin_edge_in:
-			ld sp, p_spin_edge
-			jp ntc_xn
-p_spin_edge_r:		; end of edge
-			ld hl, (p_spin_edge_pg)
-			ld a, h
-			and l
-			inc a
-			jr z, p_spin_edge_rb	; a call from its own page: nothing to switch back
-			ld sp, (ntc_csp)		; the caller's page back
-			ld hl, (p_spin_edge_pg)
-			call mem_sel
-p_spin_edge_rb:
-			ld sp, (p_spin_edge_rs)
-			jp ntc_xn
 
 ntc_rg24_e:
 			IF ($ < 32768) && (ntc_rg25_e - ntc_rg25 + $ > 16384)	; fwdref-ok
@@ -8743,7 +8412,7 @@ ntc_memtab	equ ntc_free
 ; Option Reserve: the program and its arrays (ntc_start .. ntc_free) must stay out of these
 			ASSERT (ntc_free <= 16384) || (ntc_bss >= 32768), "the program (or its arrays) reaches into Option Reserve #4000-#7FFF (Main.bas line 21)"
 			SAVEAMSDOS "CUBE3D.BIN", ntc_start, ntc_end - ntc_start, ntc_start
-			ASSERT (ntc_free <= #4000) || (ntc_start >= #8000), "overlay classes: the program and its arrays must stay out of #4000-#7FFF (the window they run in)"
+			ASSERT (ntc_free <= #4000) || (ntc_start >= #8000) || NTC_WINHOLE, "overlay classes: the program and its arrays must stay out of #4000-#7FFF (the window they run in), or build round it with Option Reserve / Option Page <n>"
 
 ; ============================================================
 ; Page Spin -> CUBE3D.001: spin - threads built to run at #4000
@@ -9373,6 +9042,338 @@ p_spin_cobra_cl:			ld a, 1
 p_spin_edge_cl:			ld a, 1
 			ld (ntc_ovl_lc), a
 			jp p_spin_edge_c
+; spin: stubs for subs called only from this page
+p_spin_frame1_c:		; call frame1 (turbo)
+			ld (p_spin_frame1_rs), sp
+			ld a, (ntc_ovl_lc)	; called from its own page?
+			or a
+			jr z, p_spin_frame1_far
+			xor a
+			ld (ntc_ovl_lc), a
+			dec a
+			ld (p_spin_frame1_pg), a	; #FF..: no page back on return
+			ld (p_spin_frame1_pg+1), a
+			jr p_spin_frame1_in
+p_spin_frame1_far:
+			ld hl, ovl_blk_spin	; page CUBE3D.001
+			ld de, p_spin_frame1_pg
+			ld ix, p_spin_frame1_in
+			jp ntc_ovl_enter
+p_spin_frame1_in:
+			ld sp, p_spin_frame1
+			ret
+p_spin_frame1_r:		; end of frame1
+			ld hl, (p_spin_frame1_pg)
+			ld a, h
+			and l
+			inc a
+			jr z, p_spin_frame1_rb	; a call from its own page: nothing to switch back
+			ld sp, (ntc_csp)		; the caller's page back
+			ld hl, (p_spin_frame1_pg)
+			call mem_sel
+p_spin_frame1_rb:
+			ld sp, (p_spin_frame1_rs)
+			ret
+p_spin_frame1_n_c:		; call frame1 (normal)
+			ld (p_spin_frame1_rs), sp
+			ld a, (ntc_ovl_lc)	; called from its own page?
+			or a
+			jr z, p_spin_frame1_n_far
+			xor a
+			ld (ntc_ovl_lc), a
+			dec a
+			ld (p_spin_frame1_pg), a	; #FF..: no page back on return
+			ld (p_spin_frame1_pg+1), a
+			jr p_spin_frame1_n_in
+p_spin_frame1_n_far:
+			ld hl, ovl_blk_spin	; page CUBE3D.001
+			ld de, p_spin_frame1_pg
+			ld ix, p_spin_frame1_n_in
+			jp ntc_ovl_enter
+p_spin_frame1_n_in:
+			ld sp, p_spin_frame1_n
+			jp ntc_xn
+p_spin_frame1_n_r:		; end of frame1
+			ld hl, (p_spin_frame1_pg)
+			ld a, h
+			and l
+			inc a
+			jr z, p_spin_frame1_n_rb	; a call from its own page: nothing to switch back
+			ld sp, (ntc_csp)		; the caller's page back
+			ld hl, (p_spin_frame1_pg)
+			call mem_sel
+p_spin_frame1_n_rb:
+			ld sp, (p_spin_frame1_rs)
+			jp ntc_xn
+p_spin_screen_c:		; call screen (normal)
+			ld (p_spin_screen_rs), sp
+			ld a, (ntc_ovl_lc)	; called from its own page?
+			or a
+			jr z, p_spin_screen_far
+			xor a
+			ld (ntc_ovl_lc), a
+			dec a
+			ld (p_spin_screen_pg), a	; #FF..: no page back on return
+			ld (p_spin_screen_pg+1), a
+			jr p_spin_screen_in
+p_spin_screen_far:
+			ld hl, ovl_blk_spin	; page CUBE3D.001
+			ld de, p_spin_screen_pg
+			ld ix, p_spin_screen_in
+			jp ntc_ovl_enter
+p_spin_screen_in:
+			ld sp, p_spin_screen
+			jp ntc_xn
+p_spin_screen_r:		; end of screen
+			ld hl, (p_spin_screen_pg)
+			ld a, h
+			and l
+			inc a
+			jr z, p_spin_screen_rb	; a call from its own page: nothing to switch back
+			ld sp, (ntc_csp)		; the caller's page back
+			ld hl, (p_spin_screen_pg)
+			call mem_sel
+p_spin_screen_rb:
+			ld sp, (p_spin_screen_rs)
+			jp ntc_xn
+p_spin_status_c:		; call status (normal)
+			ld (p_spin_status_rs), sp
+			ld a, (ntc_ovl_lc)	; called from its own page?
+			or a
+			jr z, p_spin_status_far
+			xor a
+			ld (ntc_ovl_lc), a
+			dec a
+			ld (p_spin_status_pg), a	; #FF..: no page back on return
+			ld (p_spin_status_pg+1), a
+			jr p_spin_status_in
+p_spin_status_far:
+			ld hl, ovl_blk_spin	; page CUBE3D.001
+			ld de, p_spin_status_pg
+			ld ix, p_spin_status_in
+			jp ntc_ovl_enter
+p_spin_status_in:
+			ld sp, p_spin_status
+			jp ntc_xn
+p_spin_status_r:		; end of status
+			ld hl, (p_spin_status_pg)
+			ld a, h
+			and l
+			inc a
+			jr z, p_spin_status_rb	; a call from its own page: nothing to switch back
+			ld sp, (ntc_csp)		; the caller's page back
+			ld hl, (p_spin_status_pg)
+			call mem_sel
+p_spin_status_rb:
+			ld sp, (p_spin_status_rs)
+			jp ntc_xn
+p_spin_makeshape_c:		; call makeshape (normal)
+			ld (p_spin_makeshape_rs), sp
+			ld a, (ntc_ovl_lc)	; called from its own page?
+			or a
+			jr z, p_spin_makeshape_far
+			xor a
+			ld (ntc_ovl_lc), a
+			dec a
+			ld (p_spin_makeshape_pg), a	; #FF..: no page back on return
+			ld (p_spin_makeshape_pg+1), a
+			jr p_spin_makeshape_in
+p_spin_makeshape_far:
+			ld hl, ovl_blk_spin	; page CUBE3D.001
+			ld de, p_spin_makeshape_pg
+			ld ix, p_spin_makeshape_in
+			jp ntc_ovl_enter
+p_spin_makeshape_in:
+			ld sp, p_spin_makeshape
+			jp ntc_xn
+p_spin_makeshape_r:		; end of makeshape
+			ld hl, (p_spin_makeshape_pg)
+			ld a, h
+			and l
+			inc a
+			jr z, p_spin_makeshape_rb	; a call from its own page: nothing to switch back
+			ld sp, (ntc_csp)		; the caller's page back
+			ld hl, (p_spin_makeshape_pg)
+			call mem_sel
+p_spin_makeshape_rb:
+			ld sp, (p_spin_makeshape_rs)
+			jp ntc_xn
+p_spin_cube_c:		; call cube (normal)
+			pop hl			; x
+			ld e, (hl)
+			inc hl
+			ld d, (hl)
+			ld (var_spin_cube_x), de
+			pop hl			; y
+			ld e, (hl)
+			inc hl
+			ld d, (hl)
+			ld (var_spin_cube_y), de
+			pop hl			; h
+			ld e, (hl)
+			inc hl
+			ld d, (hl)
+			ld (var_spin_cube_h), de
+			ld hl, 0
+			ld (var_spin_cube_p), hl
+			ld hl, 0
+			ld (var_spin_cube_i), hl
+			ld (p_spin_cube_rs), sp
+			ld a, (ntc_ovl_lc)	; called from its own page?
+			or a
+			jr z, p_spin_cube_far
+			xor a
+			ld (ntc_ovl_lc), a
+			dec a
+			ld (p_spin_cube_pg), a	; #FF..: no page back on return
+			ld (p_spin_cube_pg+1), a
+			jr p_spin_cube_in
+p_spin_cube_far:
+			ld hl, ovl_blk_spin	; page CUBE3D.001
+			ld de, p_spin_cube_pg
+			ld ix, p_spin_cube_in
+			jp ntc_ovl_enter
+p_spin_cube_in:
+			ld sp, p_spin_cube
+			jp ntc_xn
+p_spin_cube_r:		; end of cube
+			ld hl, (p_spin_cube_pg)
+			ld a, h
+			and l
+			inc a
+			jr z, p_spin_cube_rb	; a call from its own page: nothing to switch back
+			ld sp, (ntc_csp)		; the caller's page back
+			ld hl, (p_spin_cube_pg)
+			call mem_sel
+p_spin_cube_rb:
+			ld sp, (p_spin_cube_rs)
+			jp ntc_xn
+p_spin_pyramid_c:		; call pyramid (normal)
+			pop hl			; x
+			ld e, (hl)
+			inc hl
+			ld d, (hl)
+			ld (var_spin_pyramid_x), de
+			pop hl			; y
+			ld e, (hl)
+			inc hl
+			ld d, (hl)
+			ld (var_spin_pyramid_y), de
+			pop hl			; h
+			ld e, (hl)
+			inc hl
+			ld d, (hl)
+			ld (var_spin_pyramid_h), de
+			ld hl, 0
+			ld (var_spin_pyramid_p), hl
+			ld hl, 0
+			ld (var_spin_pyramid_r), hl
+			ld hl, 0
+			ld (var_spin_pyramid_i), hl
+			ld (p_spin_pyramid_rs), sp
+			ld a, (ntc_ovl_lc)	; called from its own page?
+			or a
+			jr z, p_spin_pyramid_far
+			xor a
+			ld (ntc_ovl_lc), a
+			dec a
+			ld (p_spin_pyramid_pg), a	; #FF..: no page back on return
+			ld (p_spin_pyramid_pg+1), a
+			jr p_spin_pyramid_in
+p_spin_pyramid_far:
+			ld hl, ovl_blk_spin	; page CUBE3D.001
+			ld de, p_spin_pyramid_pg
+			ld ix, p_spin_pyramid_in
+			jp ntc_ovl_enter
+p_spin_pyramid_in:
+			ld sp, p_spin_pyramid
+			jp ntc_xn
+p_spin_pyramid_r:		; end of pyramid
+			ld hl, (p_spin_pyramid_pg)
+			ld a, h
+			and l
+			inc a
+			jr z, p_spin_pyramid_rb	; a call from its own page: nothing to switch back
+			ld sp, (ntc_csp)		; the caller's page back
+			ld hl, (p_spin_pyramid_pg)
+			call mem_sel
+p_spin_pyramid_rb:
+			ld sp, (p_spin_pyramid_rs)
+			jp ntc_xn
+p_spin_cobra_c:		; call cobra (normal)
+			ld hl, 0
+			ld (var_spin_cobra_r), hl
+			ld (p_spin_cobra_rs), sp
+			ld a, (ntc_ovl_lc)	; called from its own page?
+			or a
+			jr z, p_spin_cobra_far
+			xor a
+			ld (ntc_ovl_lc), a
+			dec a
+			ld (p_spin_cobra_pg), a	; #FF..: no page back on return
+			ld (p_spin_cobra_pg+1), a
+			jr p_spin_cobra_in
+p_spin_cobra_far:
+			ld hl, ovl_blk_spin	; page CUBE3D.001
+			ld de, p_spin_cobra_pg
+			ld ix, p_spin_cobra_in
+			jp ntc_ovl_enter
+p_spin_cobra_in:
+			ld sp, p_spin_cobra
+			jp ntc_xn
+p_spin_cobra_r:		; end of cobra
+			ld hl, (p_spin_cobra_pg)
+			ld a, h
+			and l
+			inc a
+			jr z, p_spin_cobra_rb	; a call from its own page: nothing to switch back
+			ld sp, (ntc_csp)		; the caller's page back
+			ld hl, (p_spin_cobra_pg)
+			call mem_sel
+p_spin_cobra_rb:
+			ld sp, (p_spin_cobra_rs)
+			jp ntc_xn
+p_spin_edge_c:		; call edge (normal)
+			pop hl			; a
+			ld e, (hl)
+			inc hl
+			ld d, (hl)
+			ld (var_spin_edge_a), de
+			pop hl			; b
+			ld e, (hl)
+			inc hl
+			ld d, (hl)
+			ld (var_spin_edge_b), de
+			ld (p_spin_edge_rs), sp
+			ld a, (ntc_ovl_lc)	; called from its own page?
+			or a
+			jr z, p_spin_edge_far
+			xor a
+			ld (ntc_ovl_lc), a
+			dec a
+			ld (p_spin_edge_pg), a	; #FF..: no page back on return
+			ld (p_spin_edge_pg+1), a
+			jr p_spin_edge_in
+p_spin_edge_far:
+			ld hl, ovl_blk_spin	; page CUBE3D.001
+			ld de, p_spin_edge_pg
+			ld ix, p_spin_edge_in
+			jp ntc_ovl_enter
+p_spin_edge_in:
+			ld sp, p_spin_edge
+			jp ntc_xn
+p_spin_edge_r:		; end of edge
+			ld hl, (p_spin_edge_pg)
+			ld a, h
+			and l
+			inc a
+			jr z, p_spin_edge_rb	; a call from its own page: nothing to switch back
+			ld sp, (ntc_csp)		; the caller's page back
+			ld hl, (p_spin_edge_pg)
+			call mem_sel
+p_spin_edge_rb:
+			ld sp, (p_spin_edge_rs)
+			jp ntc_xn
 ovl_spin__x_e:
 			dw 0			; (never empty)
 ovl_spin_end:		; the end of its file; page variables (cleared on loading) follow
@@ -9384,4 +9385,4 @@ ovl_spin_vsize	equ 0		; its page variables; its local memory is the rest, to #80
 			DISPLAY "  page variables ", /D, ovl_spin_vsize, ", free ", /D, #8000 - (ovl_spin_end + ovl_spin_vsize)
 			SAVEAMSDOS "CUBE3D.001", ovl_spin_start, ovl_spin_end - ovl_spin_start, #4000
 
-NTC_STAMP	equ #08E6		; the build stamp: the first word of every page file
+NTC_STAMP	equ #CD96		; the build stamp: the first word of every page file

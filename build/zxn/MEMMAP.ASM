@@ -570,7 +570,7 @@ if15_1:
 			dw kw_andvv, tmp0, tmp1, tmp0
 			dw kw_goto_ifzero_n, tmp0, if16_1
 
-			; main.bas 127: Area &H4000, &H8000, "Option Reserve"
+			; main.bas 127: Area &H4000, &H8000, "Option Memory Reserved"
 			dw p_area_c, lit_16384, lit_m32768, str14
 
 			; main.bas 128: Area &H8000, top, "free" : fr = fr + U(top) - U(&H8000)
@@ -1212,7 +1212,7 @@ str10:			db "page tables", 0
 str11:			db "free", 0
 str12:			db "window (pages)", 0
 str13:			db "heap (Alloc, List)", 0
-str14:			db "Option Reserve", 0
+str14:			db "Option Memory Reserved", 0
 str15:			db "stack and spare", 0
 str16:			db "000", 0
 

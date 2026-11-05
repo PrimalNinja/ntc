@@ -7,7 +7,7 @@
 ' move asked for with Steer, then every building in view as 12 lines (clipped against the
 ' near plane and the four sides of the view, so lines into the screen edge and past the
 ' camera are cut, not dropped), drawn with the Graphics class on the screen not shown.
-' All the work is Z80 (#asm). The map and the tables are at #8000-#93FF (Option Reserve).
+' All the work is Z80 (#asm). The map and the tables are at #8000-#93FF (Option Memory Reserved).
 ' Platforms: cpc, cpcmin, cpcfw (the Graphics class).
 Option Explicit
 Private bas(8) As Integer                     ' right (0-2), up (3-5), forward (6-8): 16384 = 1.0

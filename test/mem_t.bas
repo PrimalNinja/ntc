@@ -1,6 +1,6 @@
 ' Memory class checks (regress.sh): run on cpc with --ram=64 / 128 / 576 / 4160
 Option Explicit
-Option Reserve &H4000, &H4000
+Option Memory Reserved &H4000, &H4000
 Dim n As Integer, i As Integer, r As Integer, pg As Integer, a As Integer
 Dim p As Long, q As Long, big(9) As Long
 
