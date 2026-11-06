@@ -2721,6 +2721,21 @@ function ntcCompile(input_a, objOptions_a)
 		}
 		if (objProc_a.asmkw)
 		{
+			// An asm keyword in a page, called from OUTSIDE its page (far: main or another page),
+			// has to switch the page into the window first - the bare dw fn_x would run whatever is
+			// in the window. The body stays pure asm; the call is bracketed in the thread with
+			// ntc_ovl_kwin (page in) ... ntc_ovl_kwback (page back), so the keyword still reads its
+			// own inline args and returns to the thread as normal. A call from inside the page is
+			// local (the page is already in) and keeps the bare dw. (Single-page classes for now;
+			// a copied class far-calling its keyword keeps the bare dw - documented limitation.)
+			// the compiler-added lifecycle members (Load / Unload / Loaded / Page / Local*) are
+			// asm keywords too, but their bodies stay in main (asmInBank: they run while the class
+			// is NOT loaded) - they must NOT be page-switched. Only a user keyword, whose body lives
+			// in the page, is wrapped.
+			var objKwKind = objClassKind[objProc_a.module];
+			var objKwLifecycle = { load: 1, unload: 1, loaded: 1, page: 1, localstart: 1, localsize: 1, localalloc: 1, localfree: 1 };
+			var blnKwFar = objKwKind && (objKwKind.kind === 'overlay') && (objKwKind.pages.length === 1) && objFarCalled[objProc_a.full] && !objKwLifecycle[String(objProc_a.id).toLowerCase()];
+
 			// asm keyword: the result address goes last, the block stores into it
 			if (objProc_a.kind === 'function')
 			{
@@ -2730,12 +2745,16 @@ function ntcCompile(input_a, objOptions_a)
 				if (strDest && (arrAddr.indexOf(strDest) < 0))
 				{
 					arrAddr.push(strDest);
+					if (blnKwFar) { emitRaw('ntc_ovl_kwin', [objKwKind.blk], false); }
 					emit(asmKwLabel(objProc_a), arrAddr);
+					if (blnKwFar) { emitRaw('ntc_ovl_kwback', [], false); }
 					return (typeOfEl(objRes) === 'long') ? { k: 'd', n: strDest, done: true } : { k: 'v', n: strDest, done: true };
 				}
 				arrAddr.push(varLabel(objRes));
 			}
+			if (blnKwFar) { emitRaw('ntc_ovl_kwin', [objKwKind.blk], false); }
 			emit(asmKwLabel(objProc_a), arrAddr);
+			if (blnKwFar) { emitRaw('ntc_ovl_kwback', [], false); }
 		}
 		else
 		{
@@ -7853,6 +7872,7 @@ function ntcCompile(input_a, objOptions_a)
 		var blnSaveGosub = blnGosub;
 		var intI = 0;
 		var objSaveDone = {};
+		var objSaveStubClass = {};
 		var strKey = '';
 
 		for (strKey in objProcStubDone)
@@ -7862,10 +7882,26 @@ function ntcCompile(input_a, objOptions_a)
 				objSaveDone[strKey] = true;
 			}
 		}
+		for (strKey in objStubClass)
+		{
+			if (objStubClass.hasOwnProperty(strKey))
+			{
+				objSaveStubClass[strKey] = true;
+			}
+		}
 		objProcModes[strFull_a] = { t: true };
 		compileProc(strFull_a, 't');
 		delete objProcModes[strFull_a];
 		arrOut.length = intOut;
+		// the throwaway compile may have registered stub-class entries (objStubClass); drop the ones
+		// it added, or the copy tables would name a body that was never emitted (Label not found)
+		for (strKey in objStubClass)
+		{
+			if (objStubClass.hasOwnProperty(strKey) && !objSaveStubClass[strKey])
+			{
+				delete objStubClass[strKey];
+			}
+		}
 		arrProcStubs.length = intStubs;
 		for (intI = intDecl; intI < arrDecl.length; intI++)
 		{
@@ -12700,7 +12736,7 @@ function ntcCompile(input_a, objOptions_a)
 // platform classes' #asm blocks name): what a ROM must export
 var NTC_ROM_RUNTIME = ['kw_absv', 'kw_aget', 'kw_aget8', 'kw_bssinit', 'kw_callp', 'kw_callv', 'kw_stop', 'kw_irq', 'kw_turbo_off', 'kw_turbo_on',
 	'mem_a1', 'mem_go', 'mem_res', 'mem_sel', 'ntc_csp', 'ntc_font', 'ntc_irqv', 'ntc_isl', 'ntc_isl_tick', 'ntc_isln', 'ntc_islshn', 'ntc_next', 'ntc_ovl_body',
-	'ntc_ovl_enter', 'ntc_ovl_enterc', 'ntc_ovl_ret', 'ntc_ovl_kload', 'ntc_ovl_kloaded', 'ntc_ovl_kpage', 'ntc_ovl_kunload', 'ntc_ovl_lalloc', 'ntc_ovl_lc',
+	'ntc_ovl_enter', 'ntc_ovl_enterc', 'ntc_ovl_ret', 'ntc_ovl_kload', 'ntc_ovl_kloaded', 'ntc_ovl_kpage', 'ntc_ovl_kunload', 'ntc_ovl_kwin', 'ntc_ovl_kwback', 'ntc_ovl_lalloc', 'ntc_ovl_lc',
 	'ntc_ovl_lfree', 'ntc_plat_irqon', 'ntc_xn', 'ovl_kres', 'ovl_lblk', 'ntc_nmode', 'ntc_isldue', 'ntc_hookpend', 'ntc_hookon', 'ntc_hookset', 'ntc_hook',
 	'ntc_ip', 'ntc_ticks', 'ntc_mode', 'ntc_ivar', 'ntc_v_free', 'ntc_v_start', 'ntc_v_stamp', 'ntc_v_romen', 'ntc_v_rom', 'ntc_v_romold', 'ntc_rampt',
 	'ntc_plat_exit', 'ntc_plat_memtop', 'ntc_fwcall', 'ntc_smode', 'ntc_gsp', 'ntc_gstack_top', 'gfx_begin', 'gfx_end'];

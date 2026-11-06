@@ -2301,6 +2301,66 @@ ntc_ovl_lreg:
 			or a
 			ret
 
+; ntc_ovl_kwin / ntc_ovl_kwback (thread keywords, Small) - an asm keyword in an
+; overlay class, called from outside the class, is bracketed in the thread:
+;   dw ntc_ovl_kwin, <class block>, fn_x, args..., ntc_ovl_kwback
+; kwin reads the class block, notes the class the caller runs in (0 when the
+; caller's thread is not in the area), loads the target class into the area if
+; another one is there, and returns to the thread so fn_x runs with its class in
+; the area; kwback loads the noted class back. A call from the class's own code
+; is local (it is already in the area) and keeps the bare dw fn_x.
+ovl_kwpg:		dw 0			; the class to put back after a far keyword call
+ntc_ovl_kwin:
+			pop hl					; HL = class block; thread now past the inline word
+			ld (ovl_blk), hl
+			ld (ovl_ksp), sp		; the rest of the thread
+			ld sp, (ntc_csp)
+			ld a, (ovl_ksp + 1)		; caller's thread in the area: its class to put back
+			and #C0
+			cp #40
+			ld hl, 0
+			jr nz, ntc_ovl_kw1
+			ld hl, (ovl_cur)
+ntc_ovl_kw1:
+			ld (ovl_kwpg), hl
+			ld hl, (ovl_blk)		; already in the area?
+			ld de, (ovl_cur)
+			or a
+			sbc hl, de
+			jr z, ntc_ovl_kw_in
+			add hl, de
+			ld ix, ntc_ovl_kw_bk
+			jp ntc_ovl_core
+ntc_ovl_kw_bk:
+			ld a, h
+			or l
+			jp nz, ntc_ovl_die
+ntc_ovl_kw_in:
+			ld sp, (ovl_ksp)		; back on the thread; fn_x runs next
+			ret
+ntc_ovl_kwback:
+			ld (ovl_ksp), sp
+			ld sp, (ntc_csp)
+			ld hl, (ovl_kwpg)		; the class to put back (0 = none)
+			ld a, h
+			or l
+			jr z, ntc_ovl_kwb_no
+			ld (ovl_blk), hl
+			ld de, (ovl_cur)		; still there?
+			or a
+			sbc hl, de
+			jr z, ntc_ovl_kwb_no
+			ld hl, (ovl_blk)
+			ld ix, ntc_ovl_kwb_bk
+			jp ntc_ovl_core
+ntc_ovl_kwb_bk:
+			ld a, h
+			or l
+			jp nz, ntc_ovl_die
+ntc_ovl_kwb_no:
+			ld sp, (ovl_ksp)
+			ret
+
 ntc_rg83_e:
 			IF ($ < 32768) && (ntc_rg84_e - ntc_rg84 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
@@ -3642,4 +3702,4 @@ ovl_level2_vsize	equ 0		; its page variables; its local memory is the rest, to #
 			DISPLAY "  page variables ", /D, ovl_level2_vsize, ", free ", /D, #8000 - (ovl_level2_end + ovl_level2_vsize)
 			OUTEND
 
-NTC_STAMP	equ #EEE5		; the build stamp: the first word of every page file
+NTC_STAMP	equ #25E2		; the build stamp: the first word of every page file

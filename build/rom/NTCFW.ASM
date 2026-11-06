@@ -10,9 +10,9 @@ NTC_MEMBANKS	equ 64			; the Memory class: up to 4MB
 NTC_WINHOLE	equ 0			; (a program built round the window: seen at run time, its free RAM above #8000)
 NTC_ROMLIB	equ 1			; this is the keyword ROM
 NTC_BUFSIZE	equ 2048		; its buffer (ntc_buf)
-NTC_ROM_N	equ 354			; numbers in the index
+NTC_ROM_N	equ 356			; numbers in the index
 NTC_ROM_COUNT	equ 1			; ROMs in the set (NTCFW.ROM)
-NTC_ROM_SET	equ #F088		; the set's stamp (its ROMs find each other by it)
+NTC_ROM_SET	equ #B6BE		; the set's stamp (its ROMs find each other by it)
 MEM_WIN		equ #4000
 MEM_BADPAGE	equ -2
 MEM_BANKS	equ NTC_MEMBANKS	; 0 - 64
@@ -508,6 +508,8 @@ ntc_rom_index:
 			dw ntc_plat_cls		; 351
 			dw ntc_plat_mode		; 352
 			dw ntc_plat_locate		; 353
+			dw ntc_ovl_kwin		; 354
+			dw ntc_ovl_kwback		; 355
 ; ---- the library (code)
 ;## ntc_data @shared ntc_d_nmode
 ntc_next:		ret				; IX target that continues the thread
@@ -7462,6 +7464,54 @@ ntc_ovl_lreg:
 ntc_ovl_lno:
 			xor a
 			ret
+ntc_ovl_kwin:
+			pop hl					; HL = class block; thread now past the inline word
+			ld (ovl_blk), hl
+			ld (ovl_ksp), sp		; the rest of the thread
+			ld sp, (ntc_csp)
+			call mem_start
+			ld hl, (ovl_wsp)		; push the page now in the window
+			ld de, (mem_cur)
+			ld (hl), e
+			inc hl
+			ld (hl), d
+			inc hl
+			ld (ovl_wsp), hl
+			ld hl, (ovl_blk)		; the class loaded already?
+			ld e, (hl)
+			inc hl
+			ld d, (hl)
+			ld a, d
+			or e
+			jr z, ntc_ovl_kwin_ld
+			ex de, hl
+			call mem_sel			; its page into the window
+			jp ntc_ovl_kwin_bk
+ntc_ovl_kwin_ld:
+			ld hl, (ovl_blk)		; not loaded: its file into a free page (core
+			ld ix, ntc_ovl_kwin_cl	; leaves that page in the window)
+			jp ntc_ovl_core
+ntc_ovl_kwin_cl:
+			ld a, h
+			or l
+			jp nz, ntc_ovl_die
+ntc_ovl_kwin_bk:
+			ld sp, (ovl_ksp)		; back on the thread; fn_x runs next
+			ret
+ntc_ovl_kwback:
+			ld (ovl_ksp), sp
+			ld sp, (ntc_csp)
+			call mem_start
+			ld hl, (ovl_wsp)		; pop the saved page
+			dec hl
+			ld d, (hl)
+			dec hl
+			ld e, (hl)
+			ld (ovl_wsp), hl
+			ex de, hl
+			call mem_sel			; put it back in the window
+			ld sp, (ovl_ksp)
+			ret
 ;## ntc_islots ntc_data @shared
 ntc_isl_tick:
 			push bc
@@ -9607,6 +9657,7 @@ mem_bksp:		dw 0			; CallBank: the real stack while bank code runs
 mem_bkrmr:		db 0			; and the ROM / mode byte to put back
 ntc_karg:		db 0
 ntc_kwhat:		db 0
+ovl_wsp:		dw ovl_wstk
 ntc_bsa:		dw 0
 ntc_bsz:		dw 0
 ntc_bsp:		dw 0
@@ -9728,6 +9779,7 @@ ntc_buf:		ds NTC_BUFSIZE
 mem_found:		ds MEM_BANKS + 1	; probe: the banks found (0-63), in order
 mem_save:		ds MEM_BANKS + 1	; probe: the bytes the markers replace
 ntc_kmat:		ds 10			; the matrix (0 = pressed)
+ovl_wstk:		ds 16			; saved window pages (8 far calls deep)
 lst_h:			ds 4			; the list's header
 lst_n:			ds 4			; nodes, far pointers (address, page)
 lst_m:			ds 4

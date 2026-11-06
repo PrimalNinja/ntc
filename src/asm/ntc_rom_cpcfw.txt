@@ -404,3 +404,5 @@
 351	code	ntc_plat_cls
 352	code	ntc_plat_mode
 353	code	ntc_plat_locate
+354	code	ntc_ovl_kwin
+355	code	ntc_ovl_kwback

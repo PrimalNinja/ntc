@@ -3390,6 +3390,67 @@ ntc_ovl_lno:
 			xor a
 			ret
 
+; ntc_ovl_kwin / ntc_ovl_kwback (thread keywords) - an asm keyword that lives
+; in an overlay class, called from OUTSIDE its page (main or another page), is
+; bracketed in the thread:
+;   dw ntc_ovl_kwin, <class block>, fn_x, args..., ntc_ovl_kwback
+; kwin reads the class block (the inline word after it), saves the page now in
+; the window on a small nesting stack, and switches the class's page in (loading
+; its file into a free page first if needed); the keyword fn_x then runs with
+; its own page in the window, reads its inline args and rets into the thread as
+; normal; kwback pops the saved page and switches it back. A call from inside
+; the page is local - the page is already in - and keeps the bare dw fn_x.
+ovl_wstk:		ds 16			; saved window pages (8 far calls deep)
+ovl_wsp:		dw ovl_wstk
+ntc_ovl_kwin:
+			pop hl					; HL = class block; thread now past the inline word
+			ld (ovl_blk), hl
+			ld (ovl_ksp), sp		; the rest of the thread
+			ld sp, (ntc_csp)
+			call mem_start
+			ld hl, (ovl_wsp)		; push the page now in the window
+			ld de, (mem_cur)
+			ld (hl), e
+			inc hl
+			ld (hl), d
+			inc hl
+			ld (ovl_wsp), hl
+			ld hl, (ovl_blk)		; the class loaded already?
+			ld e, (hl)
+			inc hl
+			ld d, (hl)
+			ld a, d
+			or e
+			jr z, ntc_ovl_kwin_ld
+			ex de, hl
+			call mem_sel			; its page into the window
+			jp ntc_ovl_kwin_bk
+ntc_ovl_kwin_ld:
+			ld hl, (ovl_blk)		; not loaded: its file into a free page (core
+			ld ix, ntc_ovl_kwin_cl	; leaves that page in the window)
+			jp ntc_ovl_core
+ntc_ovl_kwin_cl:
+			ld a, h
+			or l
+			jp nz, ntc_ovl_die
+ntc_ovl_kwin_bk:
+			ld sp, (ovl_ksp)		; back on the thread; fn_x runs next
+			ret
+ntc_ovl_kwback:
+			ld (ovl_ksp), sp
+			ld sp, (ntc_csp)
+			call mem_start
+			ld hl, (ovl_wsp)		; pop the saved page
+			dec hl
+			ld d, (hl)
+			dec hl
+			ld e, (hl)
+			ld (ovl_wsp), hl
+			ex de, hl
+			call mem_sel			; put it back in the window
+			ld sp, (ovl_ksp)
+			ret
+
 ntc_rg79_e:
 			IF ($ < 32768) && (ntc_rg80_e - ntc_rg80 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
@@ -5264,4 +5325,4 @@ ovl_level2_vsize	equ 0		; its page variables; its local memory is the rest, to #
 			DISPLAY "  page variables ", /D, ovl_level2_vsize, ", free ", /D, #8000 - (ovl_level2_end + ovl_level2_vsize)
 			SAVEAMSDOS "OVERLAYS.002", ovl_level2_start, ovl_level2_end - ovl_level2_start, #4000
 
-NTC_STAMP	equ #D7E1		; the build stamp: the first word of every page file
+NTC_STAMP	equ #01DA		; the build stamp: the first word of every page file

@@ -19,8 +19,11 @@ Packaging rule (what goes in the archive) - READ THIS BEFORE ZIPPING
     src/3p, hosted/3p, _old, build.bat, and the generated build/ (ASMs, ROMs, the
     .dsk disc images). Do NOT strip node_modules or any tools/ content - the
     coleco build needs its node_modules and it has been dropped by mistake before.
-  - EXCLUDE only scratch: test/out/, test/t/, any __pycache__/, a top-level t/,
-    and the VCS .git/. build/ is regenerated each build, not hand-carried.
+  - test/out and test/t are KEPT, not scratch - never drop either folder. test/out
+    ships POPULATED (the suite's per-program .asm/.bin/.sym for each platform/mode,
+    regenerated from a clean run). test/t ships with its dirs (test/t, test/t/files)
+    PRESENT but the run files cleared. EXCLUDE only genuine scratch: any __pycache__/,
+    a top-level t/, and the VCS .git/. build/ is regenerated each build, not hand-carried.
   - REGENERATE the derived folders whenever the compiler, library (.cls) or
     flavours change: node test/gen.js (rebundles src/js/ntc_lib.js), node
     test/genbuild.js + test/genrom.js + test/gendsk.sh (rebuild build/), and node
@@ -32,6 +35,63 @@ Packaging rule (what goes in the archive) - READ THIS BEFORE ZIPPING
 
 History (newest first)
 ======================
+
+20261106-1
+----------
+Bug fix (the second bug from the 20261105-12 report, left open in -13)
+- A public pure-#asm method in a page / overlay class (it becomes an asm keyword), called from
+  OUTSIDE its page (from main or from another page), is now switched in correctly. Before, the far
+  call emitted a bare dw fn_x with no page switch, so the keyword ran against whatever happened to
+  be in the #4000 window.
+- The far call is now bracketed in the thread:
+      dw ntc_ovl_kwin, <class block>, fn_x, args..., ntc_ovl_kwback
+  ntc_ovl_kwin saves the page currently in the window and switches the class's page in (loading its
+  file into a free page first if needed, via ntc_ovl_core); the keyword body then runs with its own
+  page mapped, reads its inline args and rets into the thread as usual; ntc_ovl_kwback switches the
+  saved page back. A call from the keyword's own page stays a bare dw fn_x (local, no switch), so
+  nothing changes for same-page calls.
+- Only USER keywords are wrapped. The compiler-added lifecycle members (Load / Unload / Loaded /
+  Page / LocalStart / LocalSize / LocalAlloc / LocalFree) are asm keywords too, but their bodies
+  stay in main memory and run while the class is NOT loaded, so they must NOT be switched - they are
+  excluded, the same rule asmInBank already uses. (Missing this exclusion wrongly force-loaded an
+  overlay on a Loaded() / Page() call and broke the overlay/pages suite; with it, all pass.)
+- Scope: single-page classes. A class copied into several pages, far-calling its keyword, still
+  keeps the bare dw (documented limitation, tutorial 13.6).
+- Both overlay models: CPCExpansion (RAM pages) and Small (one overlay area at #4000). The two
+  primitives ntc_ovl_kwin / ntc_ovl_kwback are added to both in src/asm/ntc_lib_cpc.asm, and to
+  NTC_ROM_RUNTIME so a Library: ROM build exports them (registry gained 2 names on each CPC ROM).
+- Files: src/js/ntc_compiler.js (the asm-keyword call site wraps a far, single-page, non-lifecycle
+  user keyword), src/asm/ntc_lib_cpc.asm (the two primitives in each model), src/js/ntc_lib.js
+  regenerated. test/pkf added (Sub + Function far keywords, one with an arg); test/regress.sh runs
+  it on cpcmin (RAM pages) and cpm (one overlay area), both modes. Tutorial 13.6 notes the
+  behaviour and the single-page limitation.
+- build/ (ASMs, ROMs, .dsk) and hosted/ regenerated with this compiler. Full regression: 945 ok,
+  0 fail.
+
+20261105-13
+-----------
+Bug fix (from the 20261105-12 bug report)
+- A class copied into two or more pages, with a procedure nothing calls, no longer fails to
+  assemble. The copy table (p_<class>_<proc>_ct) was built for every entry in objStubClass,
+  including a procedure whose body was never emitted (unused), so the table named a label that
+  did not exist ("Label not found"). compileUnused compiles the unused procedure into a throwaway
+  buffer to resolve its declarations, then truncates the body and stub back out - but it did not
+  drop the objStubClass entries that throwaway compile had registered. It now does, so no table is
+  written for a body that is not emitted. (src/js/ntc_compiler.js: compileUnused saves and restores
+  objStubClass, like it already does for objProcStubDone / objDecl / objFastUse.) test/copypage
+  added; test/regress.sh checks it assembles clean.
+- NOT fixed, needs a careful follow-up: the other reported bug - a pure-#asm Sub in a page (it
+  becomes an asm keyword) called from OUTSIDE its page with a bare dw fn_x and no page switch. The
+  root cause is that an asm keyword's body runs with SP = the thread and returns straight back into
+  the thread (ret), so there is no clean point to switch the page back after it. The simple
+  approach (make such a Sub a normal overlay procedure so it gets the switch stub) breaks asm
+  keyword FUNCTIONS (the result convention) and local calls - it crashed the pagekw test. The real
+  fix wraps a far call with switch-in / switch-back thread steps (new overlay keywords), which is a
+  cross-platform threading change to do with on-hardware validation. Workaround until then: put one
+  BASIC line in the Sub (it then gets a stub and the page is switched in), as the report notes.
+- Additive: programs not hitting the copied-class case compile byte-for-byte as before; build/ and
+  test/out carried from 20261105-7/-12 (no program in the suite triggers the fixed case, so output
+  is unchanged); hosted/ regenerated. Full regression: 941 ok, 0 fail.
 
 20261105-12
 -----------

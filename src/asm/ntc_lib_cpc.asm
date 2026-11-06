@@ -3248,6 +3248,67 @@ ntc_ovl_lno:
 			xor a
 			ret
 
+; ntc_ovl_kwin / ntc_ovl_kwback (thread keywords) - an asm keyword that lives
+; in an overlay class, called from OUTSIDE its page (main or another page), is
+; bracketed in the thread:
+;   dw ntc_ovl_kwin, <class block>, fn_x, args..., ntc_ovl_kwback
+; kwin reads the class block (the inline word after it), saves the page now in
+; the window on a small nesting stack, and switches the class's page in (loading
+; its file into a free page first if needed); the keyword fn_x then runs with
+; its own page in the window, reads its inline args and rets into the thread as
+; normal; kwback pops the saved page and switches it back. A call from inside
+; the page is local - the page is already in - and keeps the bare dw fn_x.
+ovl_wstk:		ds 16			; saved window pages (8 far calls deep)
+ovl_wsp:		dw ovl_wstk
+ntc_ovl_kwin:
+			pop hl					; HL = class block; thread now past the inline word
+			ld (ovl_blk), hl
+			ld (ovl_ksp), sp		; the rest of the thread
+			ld sp, (ntc_csp)
+			call mem_start
+			ld hl, (ovl_wsp)		; push the page now in the window
+			ld de, (mem_cur)
+			ld (hl), e
+			inc hl
+			ld (hl), d
+			inc hl
+			ld (ovl_wsp), hl
+			ld hl, (ovl_blk)		; the class loaded already?
+			ld e, (hl)
+			inc hl
+			ld d, (hl)
+			ld a, d
+			or e
+			jr z, ntc_ovl_kwin_ld
+			ex de, hl
+			call mem_sel			; its page into the window
+			jp ntc_ovl_kwin_bk
+ntc_ovl_kwin_ld:
+			ld hl, (ovl_blk)		; not loaded: its file into a free page (core
+			ld ix, ntc_ovl_kwin_cl	; leaves that page in the window)
+			jp ntc_ovl_core
+ntc_ovl_kwin_cl:
+			ld a, h
+			or l
+			jp nz, ntc_ovl_die
+ntc_ovl_kwin_bk:
+			ld sp, (ovl_ksp)		; back on the thread; fn_x runs next
+			ret
+ntc_ovl_kwback:
+			ld (ovl_ksp), sp
+			ld sp, (ntc_csp)
+			call mem_start
+			ld hl, (ovl_wsp)		; pop the saved page
+			dec hl
+			ld d, (hl)
+			dec hl
+			ld e, (hl)
+			ld (ovl_wsp), hl
+			ex de, hl
+			call mem_sel			; put it back in the window
+			ld sp, (ovl_ksp)
+			ret
+
 ;## ntc_ovl ntc_ovlcom ntc_mem ntc_plat_fs @shared @if:ntc_mem_small
 ; ------------------------------------------------------------
 ; ntc_ovl (Small) - overlay classes with no RAM pages: one overlay area,
@@ -3500,6 +3561,66 @@ ntc_ovl_lreg:
 			pop hl
 			ld a, 1
 			or a
+			ret
+
+; ntc_ovl_kwin / ntc_ovl_kwback (thread keywords, Small) - an asm keyword in an
+; overlay class, called from outside the class, is bracketed in the thread:
+;   dw ntc_ovl_kwin, <class block>, fn_x, args..., ntc_ovl_kwback
+; kwin reads the class block, notes the class the caller runs in (0 when the
+; caller's thread is not in the area), loads the target class into the area if
+; another one is there, and returns to the thread so fn_x runs with its class in
+; the area; kwback loads the noted class back. A call from the class's own code
+; is local (it is already in the area) and keeps the bare dw fn_x.
+ovl_kwpg:		dw 0			; the class to put back after a far keyword call
+ntc_ovl_kwin:
+			pop hl					; HL = class block; thread now past the inline word
+			ld (ovl_blk), hl
+			ld (ovl_ksp), sp		; the rest of the thread
+			ld sp, (ntc_csp)
+			ld a, (ovl_ksp + 1)		; caller's thread in the area: its class to put back
+			and #C0
+			cp #40
+			ld hl, 0
+			jr nz, ntc_ovl_kw1
+			ld hl, (ovl_cur)
+ntc_ovl_kw1:
+			ld (ovl_kwpg), hl
+			ld hl, (ovl_blk)		; already in the area?
+			ld de, (ovl_cur)
+			or a
+			sbc hl, de
+			jr z, ntc_ovl_kw_in
+			add hl, de
+			ld ix, ntc_ovl_kw_bk
+			jp ntc_ovl_core
+ntc_ovl_kw_bk:
+			ld a, h
+			or l
+			jp nz, ntc_ovl_die
+ntc_ovl_kw_in:
+			ld sp, (ovl_ksp)		; back on the thread; fn_x runs next
+			ret
+ntc_ovl_kwback:
+			ld (ovl_ksp), sp
+			ld sp, (ntc_csp)
+			ld hl, (ovl_kwpg)		; the class to put back (0 = none)
+			ld a, h
+			or l
+			jr z, ntc_ovl_kwb_no
+			ld (ovl_blk), hl
+			ld de, (ovl_cur)		; still there?
+			or a
+			sbc hl, de
+			jr z, ntc_ovl_kwb_no
+			ld hl, (ovl_blk)
+			ld ix, ntc_ovl_kwb_bk
+			jp ntc_ovl_core
+ntc_ovl_kwb_bk:
+			ld a, h
+			or l
+			jp nz, ntc_ovl_die
+ntc_ovl_kwb_no:
+			ld sp, (ovl_ksp)
 			ret
 
 ;## ntc_gfx ntc_data ntc_plat_data @shared @ramonly

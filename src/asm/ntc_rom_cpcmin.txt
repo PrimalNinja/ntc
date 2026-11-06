@@ -403,3 +403,5 @@
 346	code	ntc_plat_backspace
 347	code	ntc_plat_mode
 348	code	ntc_plat_locate
+349	code	ntc_ovl_kwin
+350	code	ntc_ovl_kwback

@@ -361,6 +361,26 @@ for m in --turbo ""; do
   rm -rf t/files; o=$(timeout 200 python3 ntcrun.py t/pk/Main.bas '' t/pk/Doubler.cls --platform=cpcmin $m 2>&1)
   echo "$o" | grep -q "^ANS42" && echo "$o" | grep -q "^DRV7" && echo "ok   pages: class #asm keyword runs in its bank ${m:-normal}" || { echo "FAIL pages: class #asm keyword runs in its bank ${m:-normal}"; echo "$o" | tail -4; fail=1; }
 done
+# a PUBLIC asm keyword in a page, called straight from main (far): the thread must switch the
+# page in first (dw ntc_ovl_kwin, block ... ntc_ovl_kwback) - a bare dw would run whatever is in
+# the window. Sub (Fill pokes 42 into #A000) and Function (Val returns 42) forms, both modes.
+rm -rf t/files t/pkf; mkdir -p t/pkf; cp pkf/* t/pkf/
+o=$(node cli.js t/pkf/Main.bas t/pkf/Art.cls --platform=cpcmin 2>/dev/null)
+echo "$o" | grep -q "dw ntc_ovl_kwin, ovl_blk_pk" && echo "$o" | grep -q "dw ntc_ovl_kwback" \
+  && echo "ok   pages: far asm keyword is wrapped with a page switch" || { echo "FAIL pages: far asm keyword wrapper"; fail=1; }
+for m in --turbo ""; do
+  rm -rf t/files; o=$(timeout 200 python3 ntcrun.py t/pkf/Main.bas '' t/pkf/Art.cls --platform=cpcmin $m 2>&1)
+  echo "$o" | grep -q "^MEM42" && echo "$o" | grep -q "^VAL42" && echo "ok   pages: far asm keyword runs its page ${m:-normal}" || { echo "FAIL pages: far asm keyword runs its page ${m:-normal}"; echo "$o" | tail -4; fail=1; }
+done
+# the same on cpm (the Small one-overlay-area model): far keyword switches the class into the area
+rm -rf t/files t/pkfs; mkdir -p t/pkfs; cp pkf/* t/pkfs/
+o=$(timeout 200 python3 ntcrun.py t/pkfs/Main.bas '' t/pkfs/Art.cls --platform=cpm 2>&1)
+echo "$o" | grep -q "^MEM42" && echo "$o" | grep -q "^VAL42" && echo "ok   pages: far asm keyword runs its page (cpm, Small)" || { echo "FAIL pages: far asm keyword (cpm, Small)"; echo "$o" | tail -4; fail=1; }
+# a class copied into two pages, with a procedure nothing calls: the copy table must not name a
+# body that was never emitted (was "Label not found" at assembly). It compiles and assembles clean.
+rm -rf t/cp; mkdir -p t/cp; cp copypage/* t/cp/
+node cli.js t/cp/Main.bas t/cp/Level1.cls t/cp/Level2.cls t/cp/Stars.cls --platform=cpcmin 2>/dev/null > t/cp/out.asm
+( cd t/cp && ${SJASMPLUS:-sjasmplus} --nologo --msg=err out.asm >/dev/null 2>&1 ) && echo "ok   pages: copied class with an uncalled procedure assembles" || { echo "FAIL pages: copied class with an uncalled procedure"; fail=1; }
 # Option Page <startbank>, <addr>, <size>: like Option Reserve it reserves the window and
 # builds the program round it (the program, stubs, library and variables stay out of the
 # window), PLUS it sets the banking offset (startbank 0 = the window is page 0). Every startbank
