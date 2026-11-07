@@ -57,7 +57,7 @@ var arrPrograms = [
 	{ name: 'CHIP8', files: ['chip8/Main.bas'] },
 	{ name: 'LOCODEMO', files: ['loco_demo/Main.loc'] }
 ];
-var arrPlatforms = ['cpc', 'cpcmin', 'cpcfw', 'cpm', 'test', 'zxn', 'cpcrom', 'cpcminrom', 'cpcfwrom'];	// ...rom: Library: ROM (needs NTCCPC / NTCMIN / NTCFW.ROM); zxn: NAME.NEX
+var arrPlatforms = ['cpc', 'cpcmin', 'cpcfw', 'cpm', 'test', 'zxn', 'cpcrom', 'cpcminrom', 'cpcfwrom', 'pcw16', 'neogeo', 'ti83', 'ti89', 'trs80', 'system80'];	// ...rom: Library: ROM (needs NTCCPC / NTCMIN / NTCFW.ROM); zxn: NAME.NEX; pcw16: Rosanne app (DRAFT, assemble-only - no XAnne here); ti83: TI-83+/84+ raw image (DRAFT, assembles; .8xp packaging is a post-step)
 var intErrors = 0;
 
 arrPlatforms.forEach(function(strPlat)

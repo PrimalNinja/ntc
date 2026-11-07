@@ -10266,7 +10266,7 @@ function ntcCompile(input_a, objOptions_a)
 
 	function romHead()
 	{
-		var arrOut = ['; ============================================================', '; Cartridge ROM header (the platform\'s ntc_plat_romhead)', '; ============================================================'];
+		var arrOut = ['; ============================================================', '; Platform start code (the platform\'s ntc_plat_romhead) - at the org, on to ntc_start', '; ============================================================'];
 		var blnIn = false;
 
 		String(platformText() || '').split(/\r?\n/).forEach(function(strLine_a)
@@ -11256,8 +11256,12 @@ function ntcCompile(input_a, objOptions_a)
 		arrAsm.push(strIndent + 'org ' + ((blnM68k || blnM65) ? String(objOptions.org).replace(/^#/, '$') : objOptions.org));
 		arrAsm.push('');
 	}
-	if (objPlat.rom)
+	if (objPlat.rom || /^;##\s+ntc_plat_romhead\b/m.test(String(platformText() || '')))
 	{
+		// a cartridge ROM (msx, sc3000, colecovision) OR a RAM platform that still needs
+		// start code before the thread (trs80 / system80: di + mask NMI/INT). romHead goes
+		// at the org and ends  jp ntc_start ; the ROM-only padding (romTail/romLayout) below
+		// stays gated on objPlat.rom, so a RAM platform gets the start code and no padding.
 		arrAsm.push(romHead());
 	}
 	if (blnM68k)

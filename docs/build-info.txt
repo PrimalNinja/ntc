@@ -36,6 +36,117 @@ Packaging rule (what goes in the archive) - READ THIS BEFORE ZIPPING
 History (newest first)
 ======================
 
+20261107-4
+----------
+New doc: docs/targets.md - the consolidated target reference (no code change).
+- Per platform: CPU, memory model, console, maturity status (stable / draft / skeleton).
+- Graphics family: the bitmap vs tile/sprite split, every platform placed (incl. the "both" cases
+  msx and zxn).
+- Graphics-library coverage + the gaps spelled out: colecovision has the same TMS9918A video as
+  sc3000 and could take its VDP class as-is; zxn's HW sprites / Layer 2 aren't classed; cyborgos
+  draws via the Pi/RVDU streamer (not a per-platform class); the recent targets are console-only.
+- The normalised display model (plan): fixed top-left / y-down coords, the Bitmap / Sprite / Tiles
+  method groups, one uniform sprite shape (hardware vs software save-under), Caps() query, dither
+  for mono. Additive - a new Display class per target, legacy Graphics/VDP and CyborgOS untouched.
+- Candidate targets (PCW 8256/8512, NC100, Sharp G850V) and the dropped ones (Z88, NEC 8201A,
+  non-Z80 Sharps) with reasons.
+- Status key fixed: maturity is now separate from the build box's assembler. md and m65 are
+  STABLE (the 68000 / 45GS02 assemblers - vasm / vasm6502 - just run on your machine, not in the
+  cloud sandbox); they were wrongly tagged "compile-only" before.
+
+20261107-3
+----------
+New targets: trs80 (TRS-80 Model III, Z80) and system80 (Dick Smith System 80 /
+EACA Video Genie, a TRS-80 Model I clone). Both COMPILE AND ASSEMBLE here (sjasmplus).
+Grounded from Julian's "TRS-80 hardware, for NTC BASIC" notes; (check) points -> ;!!TRS/;!!S80.
+- Console is DIRECT VIDEO: writes straight to #3C00 (64x16) with its own scroll + cursor, no
+  ROM calls, so putc/newline/cls/locate/backspace need no real stack (no call/push on the thread).
+- Keys read the matrix directly at #3800+2^row (A-Z, 0-9, ENTER, SPACE; SHIFT/symbols/CPC-key-
+  numbers are ;!!TRS). The scan is one call/ret body shared by scankey/getkey via the SP swap.
+- trs80 startup (ntc_plat_romhead, at the #5200 org = the /CMD entry): di; E4=0 (no disk NMI);
+  E0=0 (no maskable interrupts) - turbo-only, like the ColecoVision - so nothing can push onto the
+  thread (SP). Frame paces off the 30Hz clock (poll E0 bit2, clear by reading EC). End -> #402D.
+  Disk (future FileSystem): Julian's pattern - swap SP to the real stack, pulse E4 bit7 on for the
+  DOS disk call, off again, swap back; or poll the WD1793 at #F0 and never enable the NMI. (Kept as
+  a reference comment in the asm, not code, until FileSystem is built.)
+- system80: ;@base trs80 (Model I clone - EACA copied the Model I ROM). Same console/keyboard/exit;
+  overrides only the clock (~1.77MHz), the startup (di only - Model I has no E4/E0; disk IRQ is
+  maskable via #37E0, ;!!S80) and Frame (no-op - the Model I 40Hz heartbeat isn't wired, ;!!S80).
+- COMPILER CHANGE (ntc_compiler.js, additive, flag for review): ntc_plat_romhead was emitted only
+  for ROM platforms (;@rom). trs80/system80 are RAM /CMD programs that still need start code before
+  the thread (mask NMI/INT), so the gate is now "objPlat.rom OR the platform defines a romhead".
+  romTail/romLayout (cartridge padding) stay gated on ;@rom, so a RAM platform gets the start code
+  and no padding. Verified byte-inert for every existing platform (only coleco/msx/sc3000 have a
+  romhead and all are ;@rom, so the || short-circuits; full matrix: existing platforms 0 errors,
+  unchanged). If you'd rather wire a RAM start-hook differently, this is the one spot to change.
+- tools/trscmd.js (node): wraps the raw image into a loadable TRS-80 /CMD (name / load blocks <=256 /
+  entry records), per your doc + electrickery Trscmdff.txt. So: NTC BASIC -> raw bin (sjasmplus) ->
+  /CMD. Verified: entry block at #5200 begins di / out(E4),0 / out(E0),0 / jp ntc_start.
+- Both registered in test/gen.js (arrPlat) and test/genbuild.js (arrPlatforms).
+
+20261107-2
+----------
+New targets: ti83 (TI-83 Plus / 84 Plus, Z80) and ti89 (TI-89 / 92+ / Voyage 200, 68000).
+- ti83  *** DRAFT, but COMPILES AND ASSEMBLES here (sjasmplus) ***
+  asm/ntc_plat_ti83.asm + lib/ti83/System.cls. Rides the Z80 backend. Text via TI-OS large-font
+  homescreen (_PutC / _PutS, 16x8 grid), keys via _GetCSC / _GetKey, through the same SP->real-stack
+  swap CP/M uses for "call 5" (here for bcall = rst 28h \ dw addr). The program header (.org #9D95,
+  the $BB,$6D AsmPrgm token at #9D93) is grounded from the Cemetech / 83pa28d tutorials. The bcall
+  ADDRESSES are the standard ti83plus.inc values but that include can't be fetched in this box, so
+  every equate is marked ;!!TI - confirm against your ti83plus.inc. Output is a RAW image; a .8xp
+  packager (TI var header + token + checksum) is a post-step (belongs in tools/, not written).
+- ti89  *** SKELETON, COMPILE-ONLY (no 68k assembler / TI-68k emulator here) ***
+  asm/ntc_plat_ti89.asm + lib/ti89/System.cls. Rides the 68000 backend (as md / neogeo; vectors
+  section named ntc_md_vectors as the backend requires). HONESTY: unlike ti83 and neogeo, the AMS
+  hardware values (LCD_MEM, LCD geometry, key port) are NOT grounded - AMS refs weren't reachable -
+  so they are GUESSES marked ;!!TI89?. What's real is the NTC structure: SP-as-thread fit, the hook
+  set, the 8x8-font character-cell text blit, newline/scroll. scankey is a stub (key port not wired),
+  a full 8x8 font must be linked at ntc_ti89_font, and the .89z/.9xz/.v2z packaging is a post-step.
+  To assemble/run: vasm + TiEmu/TILEM on your machine, plus grounded AMS docs.
+- Both registered in test/gen.js (arrPlat) and test/genbuild.js (arrPlatforms).
+
+20261107-1
+----------
+New target: neogeo - SNK Neo Geo (68000 game CPU + Z80 sound CPU).  *** DRAFT / UNVERIFIED ***
+- Rides the existing 68000 backend (as md): asm/ntc_plat_neogeo.asm - fix-layer text output,
+  joypad read, PlaySound (write REG_SOUND $320000), watchdog, boot/vectors. lib/neogeo/System.cls.
+  Registered in test/gen.js and test/genbuild.js. The 68k backend requires the vectors section be
+  named ntc_md_vectors, so neogeo's is (it's the generic "68k vectors+header+start" slot).
+- Sound is a SEPARATE Z80 driver (asm/neogeo_sound_z80.asm), NOT NTC-threaded: the Neo Geo delivers
+  each 68k sound command as a Z80 NMI, which would push into NTC's SP-as-thread - so the sound CPU
+  runs a conventional NMI-safe driver (real stack). 68k <-> Z80 handshake: 68k writes a command byte
+  to $320000 -> Z80 NMI (vector $0066) reads it on port $00, acks on port $0C.
+- Verification ceiling in this build box: the 68k side COMPILES only (NTC emits 68k asm; 35 example
+  programs emit for neogeo) - there is NO 68000 assembler (vasm) here and NO Neo Geo emulator, so the
+  game code is NOT assembled or run. The Z80 sound driver DOES assemble clean (sjasmplus), NMI handler
+  correctly at $0066. Confirmed register addresses are from the neogeodev wiki; everything marked ;!!NG
+  (fix-layer VRAM base, palette RAM, cart header/BIOS, the Z80 YM2610/NMI-enable ports) needs MAME.
+- Remaining to make it a real port: a sprite library over the SCB sprite hardware (the shmup use case),
+  the C-ROM asset pipeline (convert sprites to Neo Geo planar tiles), the P/C/S/V/M-ROM cart packaging,
+  and FileSystem/Memory/StdIO libs (same gaps as pcw16). Then assemble with vasm and test in MAME.
+- No change to any existing platform. Regenerated js/ntc_lib.js, js/ntc_examples.js and build/.
+
+20261106-2
+----------
+New target: pcw16 - Amstrad PcW16 (Rosanne GUI app), a Z80 Rosanne application.  *** DRAFT ***
+- Added the platform: asm/ntc_plat_pcw16.asm (org #4100, SP-as-thread, the OS-call switch to
+  Rosanne's single entry call #003B - the CP/M ntc_bdos pattern retargeted), lib/pcw16/System.cls
+  (Platform, clock, capabilities). Registered in test/gen.js (arrPlat) and test/genbuild.js
+  (arrPlatforms), so it builds through the normal chain with the same assembler (sjasmplus).
+- Flavours intended: pcw16 (16K pages: resident 32K #4000-#BFFF, bank window #C000) and a later
+  pcw16b (32K pages). This build has the 16K-page flavour.
+- Build chain result: 26 of 35 example programs compile AND assemble clean (sjasmplus, 0 errors);
+  every emitted build/pcw16/*.ASM assembles. The 9 that fail are named class gaps, not platform
+  breakage: FileSystem (no ntc_plat_fs / pcw16 FileSystem.cls yet - the cpm FS is the template,
+  retargeted to os_open_file/os_close_file), and a few Memory (typecode/typeuser) and StdIO
+  (canposition) hooks.
+- NOT yet verified on hardware. Every Rosanne call is from the documented interface (ROSAN283.DOC
+  facts, as cited by PcW16-BASIC's runtime), NOT run in XAnne. Lines marked ;!!XANNE in the
+  platform asm are register/number conventions to confirm (the call #003B arg register,
+  os_scr_direct, the bios_keystate scan + keycode map, setmem3, app exit) and TicksPerSecond.
+  Treat pcw16 as a scaffold that builds, not a working target, until those are confirmed.
+- No change to any existing platform. Regenerated js/ntc_lib.js, js/ntc_examples.js and build/.
+
 20261106-1
 ----------
 Bug fix (the second bug from the 20261105-12 report, left open in -13)
