@@ -263,3 +263,20 @@ Corrections to the entry above - two of its claims were wrong:
 - files: src/lib/z80/{Trit,Tiny,Tree,Net}.cls, src/lib/cyborgos/COSList.cls, tools/tiny/mktables.js,
   tools/gen/{corpus,qgru,train,mktest}.py, test/{trit_t,tiny_t,tree_t,net_t}.bas, test/net_t.mdl,
   test/net_t.txt, test/regress.sh, src/js/ntc_lib.js + hosted/js/ntc_lib.js (regenerated), docs/ANALYSIS.LOG
+
+## 2026-11-07T10:42Z - Claude Fable 5.1 (what the harness reports for this turn) - Net.cls: the net coprocessor (BDOS 131 op 41)
+- Net.cls gets the coprocessor shim Float.cls has: at Load it probes BDOS 131 op 41 (sub 0) and, when
+  answered, hands the model over (sub 1: the bytes copied out of the slot); Reset is sub 2; Feed /
+  FeedNoise call sub 3, which writes the V logits (16 bit, before noise) into m_lg and the class
+  does the noise and argmax itself, so the same seed gives the same text on either path. Sub 4 frees.
+  UseEngine 0 auto (the default), 1 Z80 only, 2 coprocessor only; Backend() 1 / 2. NET_COP is 1 only
+  under #If NTC_CYBORGOS, as FP_COP. The vCPC answers it natively (vcpc/src/genmdl.c = IntModel in C);
+  a CPC with a Pi can route it to the Pi's MIND (cosd svc/mind.js) - the C0 forwarding is still to do.
+- Two things it took: the 16 bit address split for the request block has to be exact above #7FFF
+  (((a - (a And 255)) \ 256) And 255, not (a \ 256) And 255 - \ truncates toward zero), and
+  call 5 has to run on the real stack (ld (ntc_ip), sp / ld sp, (ntc_csp) around it, as Float's Op):
+  NTC's thread keeps SP as its instruction pointer, so a call on it pushes into the code stream.
+- Verified on the vCPC with test/net_t.bas (K=8): UseEngine 1 prints net_t.txt's string in 60 s,
+  UseEngine 2 / default prints the same string inside the 4 s boot wait, Backend reports 1 / 2.
+  Compiles for cpm unchanged (NET_COP 0). gen.js run: src/js/ntc_lib.js + hosted/js/ntc_lib.js.
+- files: src/lib/z80/Net.cls, src/js/ntc_lib.js, hosted/js/ntc_lib.js, docs/ANALYSIS.LOG

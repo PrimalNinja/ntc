@@ -32,6 +32,8 @@ vasm / vasm6502 **on your machine** — the cloud box only lacks those assembler
 | `msx9990` | Z80 | `;@base msx` | V9990 (GFX9000) at `#60` | stable |
 | `msxdos` | Z80 | `;@base cpm`, MSX-DOS 2 / Nextor (.COM) | BDOS | stable |
 | `zxn` | Z80 | ZX Spectrum Next MMU banking | native | stable |
+| `zxndot` | Z80 | ZX Spectrum Next dot command, Small Model: 8K at `#2000` | BASIC's screen (ROM `rst #10`) | stable |
+| `zxndotl` | Z80 | `;@base zxndot`, Large Model: 32K at `#8000` + the Memory class's banks from NextZXOS's allocator, slots swapped round OS calls | BASIC's screen | stable |
 | `sc3000` | Z80 | cartridge, small RAM | TMS9918A (`#BE`/`#BF`) | stable |
 | `colecovision` | Z80 | cartridge, bare metal, VDP frame = NMI | TMS9918A (`#BE`/`#BF`) | stable |
 | `md` | 68000 | ROM + 64K work RAM | VDP | stable (games shipped; assembles with vasm on your machine) |

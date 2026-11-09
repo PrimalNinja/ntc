@@ -14,13 +14,14 @@
 
 ## The runtime (src/asm, Z80 and the others)
 8. ntc_lib.asm - the Z80 runtime: the keywords, strings, numbers, Long, the thread engine
-9. ntc_lib_cpc.asm, ntc_lib_msx.asm, ntc_lib_nxt.asm - a machine's own parts (the CPC's banks and
-   firmware, the MSX's mapper, the Next's MMU and esxDOS)
+9. ntc_lib_cpc.asm, ntc_lib_msx.asm, ntc_lib_nxt.asm, ntc_lib_dot.asm - a machine's own parts (the
+   CPC's banks and firmware, the MSX's mapper, the Next's MMU and esxDOS, a Next dot command's
+   pages from NextZXOS's allocator)
 10. ntc_lib_vdp.asm - the V9938 / V9958 / V9990 and tilemap console pieces
 11. ntc_lib_gen.asm - generated tables (from the compiler)
 12. ntc_lib_68k.asm - the Mega Drive (68000) runtime; ntc_lib_m65.asm - the MEGA65 (45GS02)
 13. The platform files ntc_plat_*.asm: cpc, cpcfw, cpcmin, cpccard, cpc9990, cpm, cyborgos,
-    cyborgoshh, msx, msxdos, msxcard, msx9990, zxn, sc3000, colecovision, baremetal, test, md, m65
+    cyborgoshh, msx, msxdos, msxcard, msx9990, zxn, zxndot, zxndotl, sc3000, colecovision, baremetal, test, md, m65
 14. ntc_rom_cpc.txt, ntc_rom_cpcfw.txt, ntc_rom_cpcmin.txt - the ROM builds' layouts
 
 ## The library classes (src/lib, one folder a platform; a class is joined when a program uses it)
@@ -51,7 +52,7 @@
 ## The tests (test/)
 30. cli.js - the command-line compiler (compile a .bas with its classes for a platform)
 31. ntcrun.py, cpcrun.py, cpcvdp.py, cpctime.py, v9990.py - the CPC harness on the Z80 core
-32. msxrun.py - the MSX harness; zxnrun.py - the Next (a .NEX, no esxDOS)
+32. msxrun.py - the MSX harness; zxnrun.py - the Next (a .NEX, no esxDOS); dotrun.py - the Next's dot commands (zxndot, zxndotl: a NextZXOS stand-in on zxnrun's Next)
 33. m65run.py, m65build.py, m65regress.sh - the MEGA65; mdrun.py, mdbuild.py, mdregress.sh - the
     Mega Drive; coleco/ - the ColecoVision
 34. regress.sh - the Z80 regression (the .bas tests with their .txt expected screens)

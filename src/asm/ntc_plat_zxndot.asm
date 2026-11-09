@@ -1,0 +1,717 @@
+; ============================================================
+; NTC Platform - ZX Spectrum Next, a dot command: the Small Model
+; (c) 2026 Cyborg Unicorn Pty Ltd - MIT License
+; ============================================================
+; No call, no push: SP stays in the thread. Every routine is
+; entered with jp, return address in IX, and ends with jp (ix).
+;
+; A NextZXOS / esxDOS dot command: NAME.DOT in C:/DOT, typed as .name args
+; at the BASIC prompt. NextZXOS loads the file at #2000 into DivMMC's 8K
+; page and calls it with HL = the arguments (0: none), BC = the whole line,
+; SP = BASIC's stack; it returns with ret, carry clear (0 OK), or carry set
+; and A = an esxDOS error, or A = 0 and HL = its own message (bit 7 on the
+; last character). The BASIC program, its variables and its screen are kept
+; as found: this is a utility that runs and comes back, not a program that
+; owns the machine (that is the zxn platform: a NEX file).
+;
+; Memory  the 8K at #2000-#3FFF, and nothing else: the code, its data, the
+;         arrays (ntc_free must end by #4000: the assembly says so when not),
+;         the real stack (dot_stack, 128 bytes in the data). Option Memory
+;         Small: the heap is what is left up to #4000 (ntc_plat_memtop). The
+;         Large Model (zxndotl, built on this one) has 32K and banks.
+;           #0000-#1FFF  DivMMC's ROM (esxDOS: rst 8 the file calls, rst #10 /
+;                        rst #18 the 48K ROM's print and routines)
+;           #2000-#3FFF  this dot command
+;           #4000-#FFFF  BASIC's: the screen, the system variables, its
+;                        program and stack - not touched
+; Console text goes to BASIC's screen through the 48K ROM's rst #10 (the
+;         current channel: the upper screen, opened at the start), so it
+;         prints as every dot command does - in the mode BASIC is in, scrolling,
+;         "scroll?" and all. Cls is the ROM's CLS, Locate the AT control code
+;         (22, row, column), Mode does nothing. 32 columns, 24 rows are
+;         counted (the ROM wraps and scrolls itself). Keys come from the ROM's
+;         keyboard scan (LAST_K, set by its interrupt): Enter 13, Delete 127,
+;         the cursor keys the CPC firmware's codes (up 240, down 241, left 242,
+;         right 243), as the zxn platform gives them.
+; The ROM  (the sections that switch to the real stack for dot_os are @shared: one
+;         copy, no normal mode rewrite of their SP loads - as cpm's ntc_bdos)
+;         a ROM routine (rst #10, rst #18, M_P3DOS) pages DivMMC out while
+;         it runs, so this 8K is not there then: such a call runs on BASIC's
+;         stack (SP as the command was entered) through dot_os, with IY the
+;         ROM's (ERR_NR, #5C3A), IM 1 and interrupts on for the ROM's keyboard
+;         and "scroll?".
+; Interrupts  while the program runs the Z80 is in IM 2 with a vector and a
+;         handler of its own in this 8K (dot_irq: it counts dot_frames), so the
+;         ROM's handler at #0038 - which would page DivMMC out under a stack in
+;         this 8K, or run over nothing of BASIC's with the Large Model's pages in
+;         the slots - never runs then. Normal mode's safe points let interrupts in
+;         as on every platform (the handler only touches this 8K). The vector
+;         table is 257 bytes of which only the last two are read (the data bus
+;         gives #FF): the rest holds the entry's two small stacks.
+; Frame   waits for the next interrupt (dot_frames moving on); Ticks is
+;         dot_frames: the frames counted here, plus FRAMES' advance during the
+;         ROM calls (dot_os adds it), 50 a second.
+; Command line  System.CommandLine: the arguments, copied at entry into
+;         ntc_cmdbuf (up to 127 characters), ended at #0D, ':' (outside
+;         quotes) or 0 - before anything can move BASIC's line.
+; End     ntc_plat_exit: SP back, carry clear, ei, ret - the BASIC prompt
+;         prints 0 OK and the program is as it was.
+; Files   none yet (the FileSystem class is not on this platform; esxDOS's
+;         F_OPEN / F_READ ... through rst 8 are the way, later).
+; ============================================================
+;@name     ZX Spectrum Next - a dot command, Small Model (8K at #2000, BASIC's screen)
+;@org      #2000
+;@text     byte
+;@scrinit  0
+;@irq      0
+;@stack    dot_stack
+;@cols     32
+;@rows     24
+;@dotfile  1
+;@ramtop   #4000
+; ============================================================
+
+;## ntc_plat_romhead @shared
+; ------------------------------------------------------------
+; The entry (the compiler puts this section first, at #2000) and the
+; BASIC-side machinery: everything the ROM calls need, in one place, so
+; that the Large Model (zxndotl) - which runs the program from #8000 in its
+; own pages and keeps only this 8K in common with BASIC's memory - has it
+; here too. Self-contained: no label from another section is named.
+; ------------------------------------------------------------
+dot_entry:
+			di
+			ld (dot_bsp), sp		; BASIC's stack: the ROM calls run on it, End returns on it
+			ld (dot_hl), hl			; the arguments (0: none)
+			ld (dot_bc), bc
+			ld a, i
+			ld (dot_iold), a		; BASIC's I (put back at the end)
+			ld sp, dot_tstack		; a stack of our own for the rest of the entry
+			call dot_cmdsave		; the arguments into ntc_cmdbuf before anything moves them
+	IFDEF NTC_ZXNDOTL
+			call dotl_setup			; the Large Model: its pages, the program read from this file
+	ENDIF
+			ld hl, dot_chan			; the upper screen is the channel printed to
+			call dot_os
+			ld a, dot_ivec >> 8		; IM 2, our handler (dot_irq) from here on, except inside dot_os
+			ld i, a
+			im 2
+			jp ntc_start
+
+; dot_cmdsave - (dot_hl) = the arguments: into ntc_cmdbuf, 0 ended, up to 127
+; characters, up to #0D, ':' outside double quotes, or 0; leading spaces left out
+dot_cmdsave:
+			ld hl, (dot_hl)
+			ld de, ntc_cmdbuf
+			ld a, h
+			or l
+			jr z, dot_cs_end
+			ld b, 127
+			ld c, 0					; C = 1 inside quotes
+dot_cs_sp:
+			ld a, (hl)
+			cp ' '
+			jr nz, dot_cs_lp
+			inc hl
+			jr dot_cs_sp
+dot_cs_lp:
+			ld a, (hl)
+			or a
+			jr z, dot_cs_end
+			cp #0D
+			jr z, dot_cs_end
+			cp '"'
+			jr nz, dot_cs_nq
+			ld a, c
+			xor 1
+			ld c, a
+			ld a, '"'
+dot_cs_nq:
+			cp ':'
+			jr nz, dot_cs_st
+			bit 0, c
+			jr z, dot_cs_end		; a ':' outside quotes ends the line
+dot_cs_st:
+			ld (de), a
+			inc hl
+			inc de
+			djnz dot_cs_lp
+dot_cs_end:
+			xor a
+			ld (de), a
+			ret
+
+; dot_os - HL = a routine (in this 8K) to run on BASIC's side: BASIC's stack,
+; IY = ERR_NR (the ROM's), interrupts on (the ROM's keyboard scan, "scroll?"),
+; and - the Large Model - BASIC's memory in slots 2-7. Back with interrupts
+; off, our stack (SP as it was) and our memory; A, BC, DE, HL as the routine
+; left them, IX kept. Call it on the real stack, never with SP in the thread
+dot_os:
+			ld (dot_osp), sp
+			ld (dot_oix), ix
+	IFDEF NTC_ZXNDOTL
+			ld sp, dot_xstack		; (the swap's calls: never on the program's stack, which is in a slot being swapped)
+			push hl
+			call dotl_bside			; slots 2-7 = BASIC's (ours noted)
+			pop hl
+	ENDIF
+			ld sp, (dot_bsp)
+			ld iy, #5C3A
+			im 1					; the ROM's handler while the ROM runs
+			ex de, hl
+			ld hl, (#5C78)			; FRAMES now: its advance during the call is added to dot_frames
+			ld (dot_fr0), hl
+			ex de, hl
+			ld de, dot_os_back
+			push de
+			ei
+			jp (hl)
+dot_os_back:
+			di
+			push af					; (the routine's result: A and the flags - dotl_alloc's carry)
+			push hl
+			push de
+			ld hl, (#5C78)
+			ld de, (dot_fr0)
+			or a
+			sbc hl, de
+			ld de, (dot_frames)
+			add hl, de
+			ld (dot_frames), hl
+			pop de
+			pop hl
+			pop af
+	IFDEF NTC_ZXNDOTL
+			ld sp, dot_xstack
+			push af
+			push hl
+			call dotl_oside			; slots 2-7 = ours again
+			pop hl
+			pop af
+	ENDIF
+			im 2
+			ld sp, (dot_osp)
+			ld ix, (dot_oix)
+			ret
+
+; ---- the BASIC-side routines (reached through dot_os only)
+; dot_chan - the upper screen, channel 2, is the channel rst #10 prints to
+dot_chan:
+			ld a, 2
+			rst #18
+			dw #1601				; CHAN-OPEN
+			ret
+; dot_putc - (dot_ch) printed
+dot_putc:
+			ld a, (dot_ch)
+			rst #10
+			ret
+; dot_cls - the ROM's CLS, then the channel again (CLS leaves the lower screen's)
+dot_cls:
+			rst #18
+			dw #0D6B				; CLS
+			jr dot_chan
+; dot_at - AT (dot_row), (dot_col): the ROM's control code 22
+dot_at:
+			ld a, 22
+			rst #10
+			ld a, (dot_row)
+			rst #10
+			ld a, (dot_col)
+			rst #10
+			ret
+; dot_wait - a frame: until the ROM's interrupt moves FRAMES on (not halt: a program
+; that stops on halt can't be stepped by every harness - and the ROM's handler runs
+; the same either way)
+dot_wait:
+			ld hl, #5C78			; FRAMES
+			ld a, (hl)
+dot_wt_lp:
+			cp (hl)
+			jr z, dot_wt_lp
+			ret
+; dot_kread - a frame's wait for the ROM's keyboard scan, then A = the new key
+; (LAST_K, the FLAGS bit cleared) or 0
+dot_kread:
+			call dot_wait
+			ld a, (#5C3B)			; FLAGS: bit 5 = a new key in LAST_K
+			bit 5, a
+			jr z, dot_kr_none
+			res 5, a
+			ld (#5C3B), a
+			ld a, (#5C08)			; LAST_K
+			ret
+dot_kr_none:
+			xor a
+			ret
+
+; ---- the entry's data
+dot_bsp:		dw 0			; BASIC's SP at entry
+dot_hl:			dw 0			; HL at entry: the arguments
+dot_bc:			dw 0			; BC at entry: the whole command line
+dot_osp:		dw 0			; dot_os: our SP
+dot_oix:		dw 0			; dot_os: IX
+dot_ch:			db 0			; the character for dot_putc
+dot_row:		db 0			; dot_at: row, column (0 based)
+dot_col:		db 0
+dot_frames:		dw 0			; frames counted (dot_irq, plus FRAMES' advance in the ROM calls): Ticks
+dot_fr0:		dw 0			; dot_os: FRAMES at the call's start
+dot_iold:		db 0			; BASIC's I register
+ntc_cmdbuf:		ds 128			; the arguments, 0 ended (System.CommandLine)
+; dot_irq - the IM 2 handler: a frame counted. Only this 8K is touched (it runs with the
+; program's memory in the slots and SP on the program's real stack)
+dot_irq:
+			push hl
+			ld hl, (dot_frames)
+			inc hl
+			ld (dot_frames), hl
+			pop hl
+			ei
+			reti
+; the IM 2 vector table, 256-aligned: the Z80 reads its bytes #FF and #100 (the data bus
+; gives #FF) - the handler's address; the rest is the entry's two stacks
+			ALIGN 256
+dot_ivec:
+			ds 255 - 48
+			ds 32
+dot_tstack:						; the entry's own stack (32 bytes: the entry's calls only)
+			ds 16
+dot_xstack:						; dot_os's own (16 bytes: the slot swap's calls - the Large Model) = dot_ivec + #FF
+			dw dot_irq				; the vector
+
+	IFDEF NTC_ZXNDOTL
+; ------------------------------------------------------------
+; The Large Model (zxndotl): the program runs from #8000 in four 8K pages of
+; its own, the Memory class's window #4000-#7FFF is two more, all allocated
+; from NextZXOS (IDE_BANK through M_P3DOS) at entry and given back at the end;
+; its banks (64K: 8 pages each) come from the same allocator at the Memory
+; class's first call (ntc_lib_dot.asm). Slots 2-7 hold ours while the program
+; runs, BASIC's while a ROM / esxDOS call runs (dot_os: dotl_bside / dotl_oside).
+; The program itself is read from this file, after its first 8K (M_GETHANDLE:
+; NextZXOS leaves the file open there), into #8000 on.
+; ------------------------------------------------------------
+DOTL_MAXPG	equ 6 + 8 * 16			; pages at most: the 6 base ones and 16 banks (1MB)
+dotl_bslots:	ds 6			; BASIC's pages in slots 2-7 (NextRegs #52-#57 at entry)
+dotl_oslots:	ds 6			; ours (slots 2-3 the window, 4-7 the program #8000-#FFFF), as last seen
+dotl_scr:		ds 6			; (dotl_oside's reads)
+dotl_npages:	db 0			; pages allocated (in dotl_pages)
+dotl_pages:		ds DOTL_MAXPG	; their numbers: the 6 base ones, then the Memory class's 8 a bank
+dotl_e:			db 0			; dotl_alloc: the page it got / dotl_free: the page to give back
+dotl_hdl:		db 0			; this file's handle
+dotl_err:		dw 0			; the message for the error return
+
+; dotl_setup - (the entry, on dot_tstack, BASIC's memory) BASIC's slots noted, the 6
+; base pages allocated and mapped, the program read into #8000 on. Doesn't return when
+; it fails: the error return to BASIC with a message
+dotl_setup:
+			ld hl, dotl_bslots		; BASIC's pages in slots 2-7
+			ld d, #52
+dotl_su_rd:
+			ld bc, #243B
+			out (c), d
+			inc b
+			in a, (c)
+			ld (hl), a
+			inc hl
+			inc d
+			ld a, d
+			cp #58
+			jr nz, dotl_su_rd
+			ld b, 6					; the 6 base pages
+dotl_su_al:
+			push bc
+			call dotl_page			; one more into dotl_pages
+			pop bc
+			jr nc, dotl_su_nomem
+			djnz dotl_su_al
+			ld hl, dotl_pages		; ours: slots 2-3 pages 0, 1 (the window), 4-7 pages 2-5
+			ld de, dotl_oslots
+			ld bc, 6
+			ldir
+			call dotl_oside			; mapped (this 8K and the ROM stay: slots 0, 1)
+			rst #08
+			db #8D					; M_GETHANDLE: A = this file's handle, open after its first 8K
+			ld (dotl_hdl), a
+			ld hl, #8000
+			ld bc, ntc_end - #8000	; the program (the file's end: no window data, no Skip on this platform)
+			push bc
+			rst #08
+			db #9D					; F_READ: A = handle, HL = where, BC = how many
+			pop hl
+			jr c, dotl_su_short
+			or a
+			sbc hl, bc				; all of it?
+			ret z
+dotl_su_short:
+			ld hl, dotl_m_short
+			jr dotl_fail
+dotl_su_nomem:
+			ld hl, dotl_m_nomem
+; dotl_fail - HL = the message (bit 7 on its last character): the pages back, BASIC's
+; memory and stack, the esxDOS custom error return (carry set, A = 0, HL = the message)
+dotl_fail:
+			ld (dotl_err), hl
+			call dotl_freeall
+			call dotl_bside
+			ld sp, (dot_bsp)
+			ld hl, (dotl_err)
+			ld iy, #5C3A
+			xor a
+			scf
+			ei
+			ret
+; dotl_exit - (End: ntc_plat_exit jumps here - this 8K stays mapped when slots 2-7 go
+; back to BASIC's; the program's code doesn't) the pages given back, BASIC's memory and
+; stack, carry clear (0 OK), interrupts on
+dotl_exit:
+			ld sp, dot_tstack
+			call dotl_freeall
+			call dotl_bside
+			ld sp, (dot_bsp)
+			ld iy, #5C3A
+			ld a, (dot_iold)
+			ld i, a
+			im 1
+			or a
+			ei
+			ret
+dotl_m_nomem:	db "Out of memory: no free 8K pages (IDE_BANK", ')' + #80
+dotl_m_short:	db "The .DOT file is short: the program did not read in ful", 'l' + #80
+
+; dotl_page - one page allocated (IDE_BANK, on BASIC's side) into dotl_pages: C = its
+; number, carry set; carry clear when there is none (or no room in dotl_pages)
+dotl_page:
+			ld a, (dotl_npages)
+			cp DOTL_MAXPG
+			ret nc					; (carry clear: full)
+			ld hl, dotl_alloc
+			call dot_os				; carry set = got one, (dotl_e) = it
+			ret nc
+			ld hl, dotl_pages
+			ld a, (dotl_npages)
+			ld e, a
+			ld d, 0
+			add hl, de
+			ld a, (dotl_e)
+			ld (hl), a
+			ld c, a
+			ld a, (dotl_npages)
+			inc a
+			ld (dotl_npages), a
+			scf
+			ret
+; dotl_freeall - every page in dotl_pages given back (IDE_BANK free, on BASIC's side)
+dotl_freeall:
+			ld a, (dotl_npages)
+			or a
+			ret z
+			ld b, a
+			ld hl, dotl_pages
+dotl_fa_lp:
+			ld a, (hl)
+			ld (dotl_e), a
+			push bc
+			push hl
+			ld hl, dotl_free
+			call dot_os
+			pop hl
+			pop bc
+			inc hl
+			djnz dotl_fa_lp
+			xor a
+			ld (dotl_npages), a
+			ret
+
+; dotl_bside - slots 2-7 = BASIC's pages, ours noted first (dotl_oslots)
+; dotl_oside - slots 2-7 = ours again
+; (from code in this 8K, on a stack in it: slots 2-7 change under anything else)
+dotl_bside:
+			ld hl, dotl_oslots
+			ld ix, dotl_bslots
+			jr dotl_swap
+dotl_oside:
+			ld hl, dotl_scr
+			ld ix, dotl_oslots
+dotl_swap:
+			ld d, #52
+dotl_sw_lp:
+			ld bc, #243B
+			out (c), d
+			inc b
+			in a, (c)				; the page there now
+			ld (hl), a
+			ld a, (ix + 0)
+			out (c), a				; the page to be
+			inc hl
+			inc ix
+			inc d
+			ld a, d
+			cp #58
+			jr nz, dotl_sw_lp
+			ret
+
+; ---- BASIC-side (dot_os): the allocator, M_P3DOS's IDE_BANK (#01BD): H = 0 a ZX 8K
+; page, L = 1 allocate / 3 free (E = the page), the call's registers in the alternate
+; set; carry SET = done, E = the page
+dotl_alloc:
+			ld hl, #0001
+			exx
+			ld de, #01BD
+			ld c, 7
+			rst #08
+			db #94					; M_P3DOS
+			ld a, e
+			ld (dotl_e), a
+			ret
+dotl_free:
+			ld a, (dotl_e)
+			ld e, a
+			ld hl, #0003
+			exx
+			ld de, #01BD
+			ld c, 7
+			rst #08
+			db #94
+			ret
+	ENDIF
+
+;## ntc_plat_data
+ntc_curx:		db 0			; column (0 based) - counted for Tab
+ntc_cury:		db 0			; row (0 based)
+ntc_scols:		db 32			; columns
+ntc_smode:		db 1			; screen mode (nothing here: 32 columns)
+			ds 128
+dot_stack:						; the program's real stack (;@stack): 128 bytes, in the 8K
+
+;## ntc_plat_screen ntc_plat_data ntc_data @shared
+; ntc_plat_putc - A = character: rst #10 on BASIC's side, the column counted (the
+; ROM wraps at the edge: so does the count)
+ntc_plat_putc:
+			ld (dot_ch), a
+			ld (ntc_ip), sp
+			ld sp, (ntc_csp)
+			ld hl, dot_putc
+			call dot_os
+			ld sp, (ntc_ip)
+			ld a, (ntc_scols)
+			ld b, a
+			ld a, (ntc_curx)
+			inc a
+			cp b
+			jr c, ntc_pc_col
+			xor a					; wrapped: the ROM moved to the next row
+			ld hl, ntc_cury
+			inc (hl)
+ntc_pc_col:
+			ld (ntc_curx), a
+			jp (ix)
+
+; ntc_plat_newline - 13 (the ROM's new line)
+ntc_plat_newline:
+			ld a, 13
+			ld (dot_ch), a
+			ld (ntc_ip), sp
+			ld sp, (ntc_csp)
+			ld hl, dot_putc
+			call dot_os
+			ld sp, (ntc_ip)
+			xor a
+			ld (ntc_curx), a
+			ld a, (ntc_cury)
+			inc a
+			cp 24
+			jr c, ntc_nl_row
+			ld a, 23				; (the ROM scrolls)
+ntc_nl_row:
+			ld (ntc_cury), a
+			jp (ix)
+
+;## ntc_plat_backspace @unit ntc_plat_screen ntc_plat_data ntc_data @shared
+; ntc_plat_backspace - 8 (back one), space, 8 (only on the current line)
+ntc_plat_backspace:
+			ld a, (ntc_curx)
+			or a
+			jr z, ntc_bs_none
+			dec a
+			ld (ntc_curx), a
+			ld (ntc_ip), sp
+			ld sp, (ntc_csp)
+			ld a, 8
+			ld (dot_ch), a
+			ld hl, dot_putc
+			call dot_os
+			ld a, ' '
+			ld (dot_ch), a
+			ld hl, dot_putc
+			call dot_os
+			ld a, 8
+			ld (dot_ch), a
+			ld hl, dot_putc
+			call dot_os
+			ld sp, (ntc_ip)
+ntc_bs_none:
+			jp (ix)
+
+;## ntc_plat_cls @unit ntc_plat_screen ntc_plat_data ntc_data @shared
+; ntc_plat_cls - the ROM's CLS
+ntc_plat_cls:
+			ld (ntc_ip), sp
+			ld sp, (ntc_csp)
+			ld hl, dot_cls
+			call dot_os
+			ld sp, (ntc_ip)
+			xor a
+			ld (ntc_curx), a
+			ld (ntc_cury), a
+			jp (ix)
+
+;## ntc_plat_locate @unit ntc_plat_screen ntc_plat_data ntc_data @shared
+; ntc_plat_locate - H = column, L = row (1 based): AT row - 1, column - 1 (the ROM's
+; AT takes rows 0-21: 23 and 24 are the lower screen's, left to the ROM)
+ntc_plat_locate:
+			ld a, h
+			dec a
+			ld (ntc_curx), a
+			ld (dot_col), a
+			ld a, l
+			dec a
+			ld (ntc_cury), a
+			ld (dot_row), a
+			ld (ntc_ip), sp
+			ld sp, (ntc_csp)
+			ld hl, dot_at
+			call dot_os
+			ld sp, (ntc_ip)
+			jp (ix)
+
+;## ntc_plat_mode @unit ntc_plat_screen ntc_plat_data ntc_data
+; ntc_plat_mode - nothing: BASIC's screen as it is
+ntc_plat_mode:
+			jp (ix)
+
+;## ntc_plat_key ntc_data @shared
+; ntc_plat_scankey - A = key or 0: the ROM's LAST_K after a frame (its interrupt
+; scans the keyboard), the ROM's codes made the platform's: Enter 13, Delete (12)
+; 127, the cursor keys (8-11) 242, 243, 241, 240; other control codes 0
+ntc_plat_scankey:
+			ld (ntc_ip), sp
+			ld sp, (ntc_csp)
+			ld hl, dot_kread
+			call dot_os
+			ld sp, (ntc_ip)
+			cp 32
+			jr nc, ntc_sk_done		; a character
+			cp 13
+			jr z, ntc_sk_done
+			cp 12
+			jr nz, ntc_sk_cur
+			ld a, 127				; Delete
+			jr ntc_sk_done
+ntc_sk_cur:
+			cp 8
+			jr c, ntc_sk_none
+			cp 12
+			jr nc, ntc_sk_none
+			ld hl, ntc_sk_tab - 8
+			add a, l
+			ld l, a
+			jr nc, ntc_sk_rd
+			inc h
+ntc_sk_rd:
+			ld a, (hl)
+			jr ntc_sk_done
+ntc_sk_none:
+			xor a
+ntc_sk_done:
+			jp (ix)
+ntc_sk_tab:		db 242, 243, 241, 240	; left, right, down, up
+
+; ntc_plat_getkey - wait for a key
+ntc_plat_getkey:
+			ld (ntc_gklink), ix
+ntc_gk_poll:
+			ld ix, ntc_gk_back
+			jp ntc_plat_scankey
+ntc_gk_back:
+			or a
+			jr z, ntc_gk_poll
+			ld ix, (ntc_gklink)
+			jp (ix)
+ntc_gklink:		dw 0
+
+;## ntc_plat_frame ntc_data @shared
+; ntc_plat_frame - a frame: the next interrupt (dot_irq counts it), interrupts let in
+; for it on the real stack
+ntc_plat_frame:
+			ld (ntc_ip), sp
+			ld sp, (ntc_csp)
+			ld hl, dot_frames
+			ld a, (hl)
+			ei
+ntc_fr_lp:
+			cp (hl)
+			jr z, ntc_fr_lp
+			di
+			ld sp, (ntc_ip)
+			jp (ix)
+
+;## ntc_plat_ticks ntc_data
+; ntc_plat_ticks - HL = dot_frames, 50 a second
+ntc_plat_ticks:
+			ld hl, (dot_frames)
+			jp (ix)
+
+;## ntc_plat_exit
+; ntc_plat_exit - back to BASIC: its stack, its I and IM 1, carry clear (0 OK), interrupts on
+ntc_plat_exit:
+			ld sp, (dot_bsp)
+			ld iy, #5C3A
+			ld a, (dot_iold)
+			ld i, a
+			im 1
+			or a
+			ei
+			ret
+
+;## ntc_plat_cmdline ntc_data
+; the command line (System.CommandLine): the entry copied the arguments into
+; ntc_cmdbuf (in the entry's section: always there)
+; ntc_cmdget - (on the thread) HL = the result String: the command line, cut at
+; its capacity
+ntc_cmdget:
+			dec hl
+			ld c, (hl)
+			inc hl
+			ex de, hl
+			ld hl, ntc_cmdbuf
+ntc_cg_lp:
+			ld a, (hl)
+			or a
+			jr z, ntc_cg_end
+			inc c
+			dec c
+			jr z, ntc_cg_end
+			ld (de), a
+			inc hl
+			inc de
+			dec c
+			jr ntc_cg_lp
+ntc_cg_end:
+			xor a
+			ld (de), a
+			ret
+
+;## ntc_plat_rmr ntc_plat_data
+; ntc_plat_rmr - no CPC gate-array ROM/mode byte here: the screen mode byte, BC, DE,
+; HL kept (the Memory class's CallBank)
+ntc_plat_rmr:
+			ld a, (ntc_smode)
+			ret
+
+;## ntc_plat_memtop
+; ntc_plat_memtop - HL = the first byte the Memory class's Small heap must not
+; use: #4000, the 8K's end. Called on the real stack (call / ret), only by the
+; Memory class
+ntc_plat_memtop:
+			ld hl, #4000
+			ret

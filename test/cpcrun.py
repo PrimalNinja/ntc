@@ -82,7 +82,9 @@ def assemble(path):
     return data,syms
 def endkey_set(m, syms):
     # Option PressAnyKeyOnEnd: a breakpoint on kw_waitkey (its key at the end); NTC_NOENDKEY=1: none
-    if syms and 'kw_waitkey' in syms and not os.environ.get('NTC_NOENDKEY'): m.set_breakpoint(syms['kw_waitkey'])
+    if syms and not os.environ.get('NTC_NOENDKEY'):
+        for k in ('kw_waitkey', 'kw_waitkey_n', 'kw_waitkey_t'):     # (a mode copy when the section has one)
+            if k in syms: m.set_breakpoint(syms[k])
 def step1(obj):
     # one instruction: the T-states it took (the z80 module's frame_tick - a one-tick limit leaves
     # ticks_to_stop at 0 whatever the instruction cost, so 1 - ticks_to_stop counted every one as 1 T).

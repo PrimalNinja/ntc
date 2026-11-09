@@ -12,7 +12,11 @@ NTC_MEMBANKS	equ 64		; Option Memory: the most 64K banks the Memory class looks 
 NTC_ROMENABLE	equ 0		; Option RomEnable (cpcfw, cpcmin): the start code starts the ROMs
 NTC_ROMLIB	equ 0		; 1 = the library is the keyword ROM (Library: ROM; ntcRomAsm builds it)
 NTC_WINHOLE	equ 1		; 1 = the program is built round an Option Reserve range over the window #4000-#7FFF
+NTC_WINPAGED	equ 0		; 1 = page 0 code may sit under the window (Option Memory Paged, not Reserved): the Memory class never hands out page 1 (main RAM's own #4000-#7FFF) when the code reaches past #4000
 NTC_BUFSIZE	equ 2048		; the library's buffer (ntc_buf: FileSystem, Memory.Copy): Option Buffer
+NTC_ISLN	equ 1		; interrupt classes (Option Class Interrupt): the slots ntc_isl has (8 bytes each)
+NTC_INTS	equ 1		; 0 = the platform never lets interrupts in (;@ints 0: ntc_xn's safe point has no ei)
+NTC_PLATRSV	equ 0		; 1 = the platform's fixed areas (;@reserved) are Reserved in the memory map: the build goes round them (the old top-of-RAM asserts are off)
 NTC_CPMGFX	equ 0		; 1 = CP/M: Graphics draws on an Amstrad CPC's screen (2.2: #C000, Plus: block 1 from common memory)
 
 ntc_start:
@@ -34,7 +38,7 @@ ntc_start2:
 			ret
 
 			IF ($ < 32768) && (ntc_rg1_e - ntc_rg1 + $ > 16384)	; fwdref-ok
-			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
 ntc_rg1:
 ; ============================================================
@@ -180,6 +184,11 @@ if6_e:
 			dw kw_waitkey
 			dw kw_stop
 
+ntc_rg1_e:
+			IF ($ < 32768) && (ntc_rg2_e - ntc_rg2 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
+			ENDIF
+ntc_rg2:
 ; ============================================================
 ; Jump stubs (code, ROMable)
 ;   label_go: GOTO label
@@ -196,11 +205,11 @@ do4_t_go:			ld sp, do4_t
 if6_e_go:			ld sp, if6_e
 			jp ntc_xn
 
-ntc_rg1_e:
-			IF ($ < 32768) && (ntc_rg2_e - ntc_rg2 + $ > 16384)	; fwdref-ok
-			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+ntc_rg2_e:
+			IF ($ < 32768) && (ntc_rg3_e - ntc_rg3 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
-ntc_rg2:
+ntc_rg3:
 ; ============================================================
 ; Inline assembly (#asm ... #endasm)
 ; ============================================================
@@ -356,216 +365,216 @@ fn_list_destroy:		; function destroy (asm keyword), List.cls line 252
 			ret			; end of #asm
 
 
-ntc_rg2_e:
-			IF ($ < 32768) && (ntc_rg3_e - ntc_rg3 + $ > 16384)	; fwdref-ok
-			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+ntc_rg3_e:
+			IF ($ < 32768) && (ntc_rg4_e - ntc_rg4 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
-ntc_rg3:
+ntc_rg4:
 ; ============================================================
 ; Variables
 ; ============================================================
 
-ntc_rg3_e:
-			IF ($ < 32768) && (ntc_rg4_e - ntc_rg4 + $ > 16384)	; fwdref-ok
-			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
-			ENDIF
-ntc_rg4:
-var_h:			dw 0, 0
 ntc_rg4_e:
 			IF ($ < 32768) && (ntc_rg5_e - ntc_rg5 + $ > 16384)	; fwdref-ok
-			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
 ntc_rg5:
-var_seed:			dw 0
+var_h:			dw 0, 0
 ntc_rg5_e:
 			IF ($ < 32768) && (ntc_rg6_e - ntc_rg6 + $ > 16384)	; fwdref-ok
-			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
 ntc_rg6:
-var_i:			dw 0
+var_seed:			dw 0
 ntc_rg6_e:
 			IF ($ < 32768) && (ntc_rg7_e - ntc_rg7 + $ > 16384)	; fwdref-ok
-			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
 ntc_rg7:
-var_n:			dw 0, 0
+var_i:			dw 0
 ntc_rg7_e:
 			IF ($ < 32768) && (ntc_rg8_e - ntc_rg8 + $ > 16384)	; fwdref-ok
-			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
 ntc_rg8:
-var_list_count_count:			dw 0
+var_n:			dw 0, 0
 ntc_rg8_e:
 			IF ($ < 32768) && (ntc_rg9_e - ntc_rg9 + $ > 16384)	; fwdref-ok
-			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
 ntc_rg9:
-var_r:			dw 0
+var_list_count_count:			dw 0
 ntc_rg9_e:
 			IF ($ < 32768) && (ntc_rg10_e - ntc_rg10 + $ > 16384)	; fwdref-ok
-			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
 ntc_rg10:
-var_list_getword_getword:			dw 0
+var_r:			dw 0
 ntc_rg10_e:
 			IF ($ < 32768) && (ntc_rg11_e - ntc_rg11 + $ > 16384)	; fwdref-ok
-			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
 ntc_rg11:
-var_list_prevof_prevof:			dw 0, 0
+var_list_getword_getword:			dw 0
 ntc_rg11_e:
 			IF ($ < 32768) && (ntc_rg12_e - ntc_rg12 + $ > 16384)	; fwdref-ok
-			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
 ntc_rg12:
-var_nxt:			dw 0, 0
+var_list_prevof_prevof:			dw 0, 0
 ntc_rg12_e:
 			IF ($ < 32768) && (ntc_rg13_e - ntc_rg13 + $ > 16384)	; fwdref-ok
-			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
 ntc_rg13:
-tmp0:			dw 0
+var_nxt:			dw 0, 0
 ntc_rg13_e:
 			IF ($ < 32768) && (ntc_rg14_e - ntc_rg14 + $ > 16384)	; fwdref-ok
-			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
 ntc_rg14:
-tmp1:			dw 0
+tmp0:			dw 0
 ntc_rg14_e:
 			IF ($ < 32768) && (ntc_rg15_e - ntc_rg15 + $ > 16384)	; fwdref-ok
-			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
 ntc_rg15:
+tmp1:			dw 0
+ntc_rg15_e:
+			IF ($ < 32768) && (ntc_rg16_e - ntc_rg16 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
+			ENDIF
+ntc_rg16:
 tmp2:			dw 0
 
 ; numbers passed by address (read only)
-ntc_rg15_e:
-			IF ($ < 32768) && (ntc_rg16_e - ntc_rg16 + $ > 16384)	; fwdref-ok
-			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
-			ENDIF
-ntc_rg16:
-lit_4:			dw 4
 ntc_rg16_e:
 			IF ($ < 32768) && (ntc_rg17_e - ntc_rg17 + $ > 16384)	; fwdref-ok
-			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
 ntc_rg17:
-llit_0:			dw 0, 0
+lit_4:			dw 4
 ntc_rg17_e:
 			IF ($ < 32768) && (ntc_rg18_e - ntc_rg18 + $ > 16384)	; fwdref-ok
-			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
 ntc_rg18:
-lit_0:			dw 0
+llit_0:			dw 0, 0
 ntc_rg18_e:
 			IF ($ < 32768) && (ntc_rg19_e - ntc_rg19 + $ > 16384)	; fwdref-ok
-			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
 ntc_rg19:
-lit_2:			dw 2
+lit_0:			dw 0
 ntc_rg19_e:
 			IF ($ < 32768) && (ntc_rg20_e - ntc_rg20 + $ > 16384)	; fwdref-ok
-			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
 ntc_rg20:
-lit_250:			dw 250
-
+lit_2:			dw 2
 ntc_rg20_e:
 			IF ($ < 32768) && (ntc_rg21_e - ntc_rg21 + $ > 16384)	; fwdref-ok
-			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
 ntc_rg21:
+lit_250:			dw 250
+
+ntc_rg21_e:
+			IF ($ < 32768) && (ntc_rg22_e - ntc_rg22 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
+			ENDIF
+ntc_rg22:
 ; ============================================================
 ; Strings
 ; ============================================================
 
-ntc_rg21_e:
-			IF ($ < 32768) && (ntc_rg22_e - ntc_rg22 + $ > 16384)	; fwdref-ok
-			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
-			ENDIF
-ntc_rg22:
-str0:			db "CPC firmware", 0
 ntc_rg22_e:
 			IF ($ < 32768) && (ntc_rg23_e - ntc_rg23 + $ > 16384)	; fwdref-ok
-			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
 ntc_rg23:
-str1:			db "Lists on CPC firmware", 0
+str0:			db "CPC firmware", 0
 ntc_rg23_e:
 			IF ($ < 32768) && (ntc_rg24_e - ntc_rg24 + $ > 16384)	; fwdref-ok
-			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
 ntc_rg24:
-str2:			db "No room after", 0
+str1:			db "Lists on CPC firmware", 0
 ntc_rg24_e:
 			IF ($ < 32768) && (ntc_rg25_e - ntc_rg25 + $ > 16384)	; fwdref-ok
-			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
 ntc_rg25:
-str3:			db " players", 0
+str2:			db "No room after", 0
 ntc_rg25_e:
 			IF ($ < 32768) && (ntc_rg26_e - ntc_rg26 + $ > 16384)	; fwdref-ok
-			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
 ntc_rg26:
-str4:			db "Top 5:", 0
+str3:			db " players", 0
 ntc_rg26_e:
 			IF ($ < 32768) && (ntc_rg27_e - ntc_rg27 + $ > 16384)	; fwdref-ok
-			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
 ntc_rg27:
-str5:			db "  player ", 0
+str4:			db "Top 5:", 0
 ntc_rg27_e:
 			IF ($ < 32768) && (ntc_rg28_e - ntc_rg28 + $ > 16384)	; fwdref-ok
-			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
 ntc_rg28:
-str6:			db ": ", 0
+str5:			db "  player ", 0
 ntc_rg28_e:
 			IF ($ < 32768) && (ntc_rg29_e - ntc_rg29 + $ > 16384)	; fwdref-ok
-			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
 ntc_rg29:
-str7:			db " players with 5000 or more", 0
+str6:			db ": ", 0
 ntc_rg29_e:
 			IF ($ < 32768) && (ntc_rg30_e - ntc_rg30 + $ > 16384)	; fwdref-ok
-			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
 ntc_rg30:
-str8:			db "Player 250 scored ", 0
+str7:			db " players with 5000 or more", 0
 ntc_rg30_e:
 			IF ($ < 32768) && (ntc_rg31_e - ntc_rg31 + $ > 16384)	; fwdref-ok
-			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
 ntc_rg31:
-str9:			db "Player 250 is gone", 0
+str8:			db "Player 250 scored ", 0
 ntc_rg31_e:
 			IF ($ < 32768) && (ntc_rg32_e - ntc_rg32 + $ > 16384)	; fwdref-ok
-			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
 ntc_rg32:
-str10:			db "Press a key", 0
+str9:			db "Player 250 is gone", 0
 ntc_rg32_e:
 			IF ($ < 32768) && (ntc_rg33_e - ntc_rg33 + $ > 16384)	; fwdref-ok
-			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
 ntc_rg33:
-str11:			db 0
-
+str10:			db "Press a key", 0
 ntc_rg33_e:
 			IF ($ < 32768) && (ntc_rg34_e - ntc_rg34 + $ > 16384)	; fwdref-ok
-			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
 ntc_rg34:
+str11:			db 0
+
+ntc_rg34_e:
+			IF ($ < 32768) && (ntc_rg35_e - ntc_rg35 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
+			ENDIF
+ntc_rg35:
 ; ============================================================
 ; Keyword library (used)
 ; ============================================================
 
-ntc_rg34_e:
-			IF ($ < 32768) && (ntc_rg35_e - ntc_rg35 + $ > 16384)	; fwdref-ok
-			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+ntc_rg35_e:
+			IF ($ < 32768) && (ntc_rg36_e - ntc_rg36 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
-ntc_rg35:
+ntc_rg36:
 ;## ntc_data @shared ntc_d_nmode
 ; ------------------------------------------------------------
 ; Scratch space: the core every program has (with ntc_d_nmode). The rest of
@@ -578,70 +587,70 @@ ntc_next:		ret				; IX target that continues the thread
 ntc_csp:		dw 0			; caller SP, for kw_stop (and the normal mode stack)
 ntc_ip:			dw 0			; normal mode: thread position while out of the thread
 
-ntc_rg35_e:
-			IF ($ < 32768) && (ntc_rg36_e - ntc_rg36 + $ > 16384)	; fwdref-ok
-			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+ntc_rg36_e:
+			IF ($ < 32768) && (ntc_rg37_e - ntc_rg37 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
-ntc_rg36:
+ntc_rg37:
 ;## ntc_d_nmode @data
 ntc_nmode:		db 0			; 1 = running in normal mode (waits let interrupts in)
 
-ntc_rg36_e:
-			IF ($ < 32768) && (ntc_rg37_e - ntc_rg37 + $ > 16384)	; fwdref-ok
-			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+ntc_rg37_e:
+			IF ($ < 32768) && (ntc_rg38_e - ntc_rg38 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
-ntc_rg37:
+ntc_rg38:
 ;## ntc_d_div @data
 ntc_mode:		db 0			; div mode 0=quotient 1=remainder
 ntc_sgnq:		db 0			; quotient sign (bit 7)
 ntc_sgnr:		db 0			; remainder sign (bit 7)
 
-ntc_rg37_e:
-			IF ($ < 32768) && (ntc_rg38_e - ntc_rg38 + $ > 16384)	; fwdref-ok
-			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+ntc_rg38_e:
+			IF ($ < 32768) && (ntc_rg39_e - ntc_rg39 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
-ntc_rg38:
+ntc_rg39:
 ;## ntc_d_lead @data
 ntc_lead:		db 0			; printint: digit seen
 
-ntc_rg38_e:
-			IF ($ < 32768) && (ntc_rg39_e - ntc_rg39 + $ > 16384)	; fwdref-ok
-			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+ntc_rg39_e:
+			IF ($ < 32768) && (ntc_rg40_e - ntc_rg40 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
-ntc_rg39:
+ntc_rg40:
 ;## ntc_d_sptr @data
 ntc_sptr:		dw 0			; printbuf: text pointer
 
-ntc_rg39_e:
-			IF ($ < 32768) && (ntc_rg40_e - ntc_rg40 + $ > 16384)	; fwdref-ok
-			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+ntc_rg40_e:
+			IF ($ < 32768) && (ntc_rg41_e - ntc_rg41 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
-ntc_rg40:
+ntc_rg41:
 ;## ntc_d_hostix @data
 ntc_hostix:		dw 0			; host platforms: IX kept over a firmware / BDOS call
 
-ntc_rg40_e:
-			IF ($ < 32768) && (ntc_rg41_e - ntc_rg41 + $ > 16384)	; fwdref-ok
-			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+ntc_rg41_e:
+			IF ($ < 32768) && (ntc_rg42_e - ntc_rg42 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
-ntc_rg41:
+ntc_rg42:
 ;## ntc_d_rampt @data
 ntc_rampt:		dw #7FC0		; the gate array's RAM setting now (B = port, C = value): the
 								; Memory class keeps it, Graphics puts it back after drawing
 
-ntc_rg41_e:
-			IF ($ < 32768) && (ntc_rg42_e - ntc_rg42 + $ > 16384)	; fwdref-ok
-			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+ntc_rg42_e:
+			IF ($ < 32768) && (ntc_rg43_e - ntc_rg43 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
-ntc_rg42:
+ntc_rg43:
 ;## ntc_d_numbuf @data
 ntc_numbuf:		ds 14			; printint / long print: digits (+ spaces for Option VBPrint)
 
-ntc_rg42_e:
-			IF ($ < 32768) && (ntc_rg43_e - ntc_rg43 + $ > 16384)	; fwdref-ok
-			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+ntc_rg43_e:
+			IF ($ < 32768) && (ntc_rg44_e - ntc_rg44 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
-ntc_rg43:
+ntc_rg44:
 ;## kw_stop ntc_data ntc_plat_exit @shared
 kw_stop:
 			ld ix, ntc_stop_back
@@ -651,22 +660,22 @@ ntc_stop_back:
 			ei
 			ret
 
-ntc_rg43_e:
-			IF ($ < 32768) && (ntc_rg44_e - ntc_rg44 + $ > 16384)	; fwdref-ok
-			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+ntc_rg44_e:
+			IF ($ < 32768) && (ntc_rg45_e - ntc_rg45 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
-ntc_rg44:
+ntc_rg45:
 ;## kw_waitkey ntc_data ntc_plat_key
 ; kw_waitkey - wait for a key (Option PressAnyKeyOnEnd, before kw_stop)
 kw_waitkey:
 			ld ix, ntc_next
 			jp ntc_plat_getkey
 
-ntc_rg44_e:
-			IF ($ < 32768) && (ntc_rg45_e - ntc_rg45 + $ > 16384)	; fwdref-ok
-			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+ntc_rg45_e:
+			IF ($ < 32768) && (ntc_rg46_e - ntc_rg46 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
-ntc_rg45:
+ntc_rg46:
 ;## ntc_xn ntc_data @shared
 ; normal mode "next": every normal mode keyword ends here (its ret
 ; became jp ntc_xn). Thread position to ntc_ip, real stack, one
@@ -674,17 +683,19 @@ ntc_rg45:
 ntc_xn:
 			ld (ntc_ip), sp
 			ld sp, (ntc_csp)
+	IF NTC_INTS					; (;@ints 0: a platform that never lets interrupts in - the Next's dot commands)
 			ei
 			nop					; an interrupt can be taken here
 			di
+	ENDIF
 			ld sp, (ntc_ip)
 			ret
 
-ntc_rg45_e:
-			IF ($ < 32768) && (ntc_rg46_e - ntc_rg46 + $ > 16384)	; fwdref-ok
-			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+ntc_rg46_e:
+			IF ($ < 32768) && (ntc_rg47_e - ntc_rg47 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
-ntc_rg46:
+ntc_rg47:
 ;## kw_goto_iffalse (normal mode copy)
 ;kw_goto_iffalse, <label>  - branch if NZ (false)
 kw_goto_iffalse_n:
@@ -693,11 +704,11 @@ kw_goto_iffalse_n:
 			ld sp, hl
 			jp ntc_xn
 
-ntc_rg46_e:
-			IF ($ < 32768) && (ntc_rg47_e - ntc_rg47 + $ > 16384)	; fwdref-ok
-			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+ntc_rg47_e:
+			IF ($ < 32768) && (ntc_rg48_e - ntc_rg48 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
-ntc_rg47:
+ntc_rg48:
 ;## ntc_for_jump (normal mode copy)
 ; tails for the FOR / NEXT keywords. DE = var value, HL = limit,
 ; SP = thread at the label word. Signed compare by flipping bit 15.
@@ -768,11 +779,11 @@ ntc_for_end_n:
 			pop hl
 			jp ntc_xn
 
-ntc_rg47_e:
-			IF ($ < 32768) && (ntc_rg48_e - ntc_rg48 + $ > 16384)	; fwdref-ok
-			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+ntc_rg48_e:
+			IF ($ < 32768) && (ntc_rg49_e - ntc_rg49 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
-ntc_rg48:
+ntc_rg49:
 ;## kw_next1l (normal mode copy) ntc_for_jump
 ;kw_next1l, <var>, <literal limit>, <toplabel>
 ;  NEXT for STEP 1: inc var, back to the top while var <= limit
@@ -793,11 +804,11 @@ ntc_n1l_nc_n:
 			sbc a, a
 			jp ntc_for_le_n
 
-ntc_rg48_e:
-			IF ($ < 32768) && (ntc_rg49_e - ntc_rg49 + $ > 16384)	; fwdref-ok
-			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+ntc_rg49_e:
+			IF ($ < 32768) && (ntc_rg50_e - ntc_rg50 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
-ntc_rg49:
+ntc_rg50:
 ;## kw_ltov
 ;kw_ltov, <literal>, <destvar>
 kw_ltov:
@@ -808,11 +819,11 @@ kw_ltov:
 			ld (hl), d
 			ret
 
-ntc_rg49_e:
-			IF ($ < 32768) && (ntc_rg50_e - ntc_rg50 + $ > 16384)	; fwdref-ok
-			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+ntc_rg50_e:
+			IF ($ < 32768) && (ntc_rg51_e - ntc_rg51 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
-ntc_rg50:
+ntc_rg51:
 ;## kw_vtov
 ;kw_vtov, <sourcevar>, <destvar>
 kw_vtov:
@@ -826,11 +837,11 @@ kw_vtov:
 			ld (hl), d
 			ret
 
-ntc_rg50_e:
-			IF ($ < 32768) && (ntc_rg51_e - ntc_rg51 + $ > 16384)	; fwdref-ok
-			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+ntc_rg51_e:
+			IF ($ < 32768) && (ntc_rg52_e - ntc_rg52 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
-ntc_rg51:
+ntc_rg52:
 ;## kw_addl
 ;kw_addl, <var>, <literal>, <destvar>
 kw_addl:
@@ -847,11 +858,11 @@ kw_addl:
 			ld (hl), d
 			ret
 
-ntc_rg51_e:
-			IF ($ < 32768) && (ntc_rg52_e - ntc_rg52 + $ > 16384)	; fwdref-ok
-			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+ntc_rg52_e:
+			IF ($ < 32768) && (ntc_rg53_e - ntc_rg53 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
-ntc_rg52:
+ntc_rg53:
 ;## ntc_mul
 ; BC * DE -> pop destvar, store. Low 16 bits (same signed/unsigned)
 ntc_mul:
@@ -873,11 +884,11 @@ ntc_mul_skip:
 			ld (hl), d
 			ret
 
-ntc_rg52_e:
-			IF ($ < 32768) && (ntc_rg53_e - ntc_rg53 + $ > 16384)	; fwdref-ok
-			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+ntc_rg53_e:
+			IF ($ < 32768) && (ntc_rg54_e - ntc_rg54 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
-ntc_rg53:
+ntc_rg54:
 ;## kw_mulvl ntc_mul
 ;kw_mulvl, <var>, <literal>, <destvar>
 kw_mulvl:
@@ -888,11 +899,11 @@ kw_mulvl:
 			pop de
 			jp ntc_mul
 
-ntc_rg53_e:
-			IF ($ < 32768) && (ntc_rg54_e - ntc_rg54 + $ > 16384)	; fwdref-ok
-			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+ntc_rg54_e:
+			IF ($ < 32768) && (ntc_rg55_e - ntc_rg55 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
-ntc_rg54:
+ntc_rg55:
 ;## ntc_div ntc_data
 ; HL / DE signed, truncating. (ntc_mode) 0 = quotient, 1 = remainder.
 ; Remainder takes the dividend's sign. Divide by zero gives
@@ -973,11 +984,11 @@ ntc_div_store:
 			ld (hl), d
 			ret
 
-ntc_rg54_e:
-			IF ($ < 32768) && (ntc_rg55_e - ntc_rg55 + $ > 16384)	; fwdref-ok
-			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+ntc_rg55_e:
+			IF ($ < 32768) && (ntc_rg56_e - ntc_rg56 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
-ntc_rg55:
+ntc_rg56:
 ;## kw_divvl ntc_div
 ;kw_divvl, <var>, <literal>, <destvar>
 kw_divvl:
@@ -992,11 +1003,11 @@ ntc_divvl:
 			pop de
 			jp ntc_div
 
-ntc_rg55_e:
-			IF ($ < 32768) && (ntc_rg56_e - ntc_rg56 + $ > 16384)	; fwdref-ok
-			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+ntc_rg56_e:
+			IF ($ < 32768) && (ntc_rg57_e - ntc_rg57 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
-ntc_rg56:
+ntc_rg57:
 ;## kw_modvl kw_divvl
 ;kw_modvl, <var>, <literal>, <destvar>
 kw_modvl:
@@ -1004,11 +1015,11 @@ kw_modvl:
 			ld (ntc_mode), a
 			jp ntc_divvl
 
-ntc_rg56_e:
-			IF ($ < 32768) && (ntc_rg57_e - ntc_rg57 + $ > 16384)	; fwdref-ok
-			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+ntc_rg57_e:
+			IF ($ < 32768) && (ntc_rg58_e - ntc_rg58 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
-ntc_rg57:
+ntc_rg58:
 ;## kw_andvl
 ;kw_andvl, <var>, <literal>, <destvar>
 kw_andvl:
@@ -1027,11 +1038,11 @@ kw_andvl:
 			ld (hl), d
 			ret
 
-ntc_rg57_e:
-			IF ($ < 32768) && (ntc_rg58_e - ntc_rg58 + $ > 16384)	; fwdref-ok
-			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+ntc_rg58_e:
+			IF ($ < 32768) && (ntc_rg59_e - ntc_rg59 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
-ntc_rg58:
+ntc_rg59:
 ;## ntc_cmp
 ntc_cmp_slt:
 			ld a, d
@@ -1099,11 +1110,11 @@ ntc_cmp_ne_f:
 			or 1
 			ret
 
-ntc_rg58_e:
-			IF ($ < 32768) && (ntc_rg59_e - ntc_rg59 + $ > 16384)	; fwdref-ok
-			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+ntc_rg59_e:
+			IF ($ < 32768) && (ntc_rg60_e - ntc_rg60 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
-ntc_rg59:
+ntc_rg60:
 ;## kw_scpltvl ntc_cmp
 ;kw_scpltvl, <var>, <literal>
 kw_scpltvl:
@@ -1114,11 +1125,11 @@ kw_scpltvl:
 			pop hl
 			jp ntc_cmp_slt
 
-ntc_rg59_e:
-			IF ($ < 32768) && (ntc_rg60_e - ntc_rg60 + $ > 16384)	; fwdref-ok
-			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+ntc_rg60_e:
+			IF ($ < 32768) && (ntc_rg61_e - ntc_rg61 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
-ntc_rg60:
+ntc_rg61:
 ;## ntc_printbuf ntc_data ntc_plat_screen
 ; print the 0 terminated ASCII text at (ntc_sptr), then ret (thread)
 ntc_printbuf:
@@ -1131,11 +1142,11 @@ ntc_printbuf:
 			ld ix, ntc_printbuf
 			jp ntc_plat_putc
 
-ntc_rg60_e:
-			IF ($ < 32768) && (ntc_rg61_e - ntc_rg61 + $ > 16384)	; fwdref-ok
-			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+ntc_rg61_e:
+			IF ($ < 32768) && (ntc_rg62_e - ntc_rg62 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
-ntc_rg61:
+ntc_rg62:
 ;## kw_printstrvar ntc_printbuf
 ;kw_printstrvar, <straddr>
 kw_printstrvar:
@@ -1143,11 +1154,11 @@ kw_printstrvar:
 			ld (ntc_sptr), hl
 			jp ntc_printbuf
 
-ntc_rg61_e:
-			IF ($ < 32768) && (ntc_rg62_e - ntc_rg62 + $ > 16384)	; fwdref-ok
-			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+ntc_rg62_e:
+			IF ($ < 32768) && (ntc_rg63_e - ntc_rg63 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
-ntc_rg62:
+ntc_rg63:
 ;## ntc_itoa ntc_data
 ; HL = signed value, DE = buffer: writes the digits and a 0 (DE ends on
 ; the 0). jp (ix) back. Uses A, BC, IY.
@@ -1206,11 +1217,11 @@ ntc_ia_last:
 			jp (ix)
 ntc_pow10:		dw 10000, 1000, 100, 10, 0
 
-ntc_rg62_e:
-			IF ($ < 32768) && (ntc_rg63_e - ntc_rg63 + $ > 16384)	; fwdref-ok
-			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+ntc_rg63_e:
+			IF ($ < 32768) && (ntc_rg64_e - ntc_rg64 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
-ntc_rg63:
+ntc_rg64:
 ;## kw_printint ntc_printbuf ntc_itoa
 ;kw_printint, <var>  - signed decimal
 kw_printint:
@@ -1227,11 +1238,11 @@ ntc_pi_done:
 			ld (ntc_sptr), hl
 			jp ntc_printbuf
 
-ntc_rg63_e:
-			IF ($ < 32768) && (ntc_rg64_e - ntc_rg64 + $ > 16384)	; fwdref-ok
-			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+ntc_rg64_e:
+			IF ($ < 32768) && (ntc_rg65_e - ntc_rg65 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
-ntc_rg64:
+ntc_rg65:
 ;## kw_printnl0 ntc_data ntc_plat_screen
 ;kw_printnl0  - new line unless the cursor is at the start of a line
 kw_printnl0:
@@ -1241,22 +1252,22 @@ kw_printnl0:
 			ld ix, ntc_next
 			jp ntc_plat_newline
 
-ntc_rg64_e:
-			IF ($ < 32768) && (ntc_rg65_e - ntc_rg65 + $ > 16384)	; fwdref-ok
-			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+ntc_rg65_e:
+			IF ($ < 32768) && (ntc_rg66_e - ntc_rg66 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
-ntc_rg65:
+ntc_rg66:
 ;## kw_printnl ntc_data ntc_plat_screen
 ;kw_printnl
 kw_printnl:
 			ld ix, ntc_next
 			jp ntc_plat_newline
 
-ntc_rg65_e:
-			IF ($ < 32768) && (ntc_rg66_e - ntc_rg66 + $ > 16384)	; fwdref-ok
-			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+ntc_rg66_e:
+			IF ($ < 32768) && (ntc_rg67_e - ntc_rg67 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
-ntc_rg66:
+ntc_rg67:
 ;## ntc_ldata
 ntc_la:			ds 4
 ntc_lb:			ds 4
@@ -1267,11 +1278,11 @@ ntc_lcnt:		db 0
 ntc_ldst:		dw 0
 ntc_lix:		dw 0
 
-ntc_rg66_e:
-			IF ($ < 32768) && (ntc_rg67_e - ntc_rg67 + $ > 16384)	; fwdref-ok
-			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+ntc_rg67_e:
+			IF ($ < 32768) && (ntc_rg68_e - ntc_rg68 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
-ntc_rg67:
+ntc_rg68:
 ;## kw_l_mov
 ;kw_l_mov, <src>, <dest>  - dest = src (4 bytes)
 kw_l_mov:
@@ -1283,11 +1294,11 @@ kw_l_mov:
 			ldi
 			ret
 
-ntc_rg67_e:
-			IF ($ < 32768) && (ntc_rg68_e - ntc_rg68 + $ > 16384)	; fwdref-ok
-			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+ntc_rg68_e:
+			IF ($ < 32768) && (ntc_rg69_e - ntc_rg69 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
-ntc_rg68:
+ntc_rg69:
 ;## ntc_lcmp ntc_ldata
 ; DE = a, HL = b: work out a - b. ntc_lsgn = #80 if a < b (signed),
 ; ntc_lcnt = 0 if a = b. jp (ix) back.
@@ -1328,11 +1339,11 @@ ntc_lcm_nov:
 			ld (ntc_lcnt), a
 			jp (ix)
 
-ntc_rg68_e:
-			IF ($ < 32768) && (ntc_rg69_e - ntc_rg69 + $ > 16384)	; fwdref-ok
-			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+ntc_rg69_e:
+			IF ($ < 32768) && (ntc_rg70_e - ntc_rg70 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
-ntc_rg69:
+ntc_rg70:
 ;## kw_l_cpeq ntc_lcmp
 ;kw_l_cpeq, <a>, <b>  - Z if a = b
 kw_l_cpeq:
@@ -1345,11 +1356,11 @@ ntc_lceq:
 			or a
 			ret
 
-ntc_rg69_e:
-			IF ($ < 32768) && (ntc_rg70_e - ntc_rg70 + $ > 16384)	; fwdref-ok
-			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+ntc_rg70_e:
+			IF ($ < 32768) && (ntc_rg71_e - ntc_rg71 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
-ntc_rg70:
+ntc_rg71:
 ;## kw_l_cpne ntc_lcmp
 ;kw_l_cpne, <a>, <b>  - Z if a <> b
 kw_l_cpne:
@@ -1367,22 +1378,22 @@ ntc_lcne_f:
 			or 1
 			ret
 
-ntc_rg70_e:
-			IF ($ < 32768) && (ntc_rg71_e - ntc_rg71 + $ > 16384)	; fwdref-ok
-			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+ntc_rg71_e:
+			IF ($ < 32768) && (ntc_rg72_e - ntc_rg72 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
-ntc_rg71:
+ntc_rg72:
 ;## ntc_buf2k
 ; ntc_buf - a buffer shared by the classes that need one: FileSystem's
 ; CAS IN / OUT OPEN buffer (CPC firmware: 2K) and Memory.Copy's page to page
 ; copy (that much at a time). NTC_BUFSIZE (Option Buffer): 2048 unless set
 ntc_buf:		ds NTC_BUFSIZE
 
-ntc_rg71_e:
-			IF ($ < 32768) && (ntc_rg72_e - ntc_rg72 + $ > 16384)	; fwdref-ok
-			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+ntc_rg72_e:
+			IF ($ < 32768) && (ntc_rg73_e - ntc_rg73 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
-ntc_rg72:
+ntc_rg73:
 ;## ntc_memcore ntc_data ntc_mem ntc_memcore2 ntc_plat_memtop @shared
 ; ------------------------------------------------------------
 ; ntc_memcore - the Memory class, the part every scheme shares. The scheme
@@ -1497,11 +1508,11 @@ mem_chk_bad:
 			ld hl, MEM_BADPAGE
 			jp mem_err
 
-ntc_rg72_e:
-			IF ($ < 32768) && (ntc_rg73_e - ntc_rg73 + $ > 16384)	; fwdref-ok
-			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+ntc_rg73_e:
+			IF ($ < 32768) && (ntc_rg74_e - ntc_rg74 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
-ntc_rg73:
+ntc_rg74:
 ;## ntc_memcore2 ntc_memcore @shared @far
 ; ntc_memcore2 - the rest of the shared part: far pointers, the heap, bytes
 ; and words. Runs on the real stack (through mem_go), so a keyword ROM set
@@ -1525,7 +1536,7 @@ mem_far:
 			ld a, d
 			and #C0
 			cp #40
-			jp nz, mem_chk_bad		; (jr: another part, maybe across Option Reserve)
+			jp nz, mem_chk_bad		; (jr: another part, maybe across Option Memory Reserved)
 			ret
 
 ; PageOf(ptr): a far pointer's page
@@ -1768,12 +1779,12 @@ mem_putback:
 			pop hl
 			ret
 
-ntc_rg73_e:
-			IF ($ < 32768) && (ntc_rg74_e - ntc_rg74 + $ > 16384)	; fwdref-ok
-			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+ntc_rg74_e:
+			IF ($ < 32768) && (ntc_rg75_e - ntc_rg75 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
-ntc_rg74:
-;## ntc_mem ntc_memcore ntc_membank ntc_nxt_bank ntc_msx_bank @shared @far
+ntc_rg75:
+;## ntc_mem ntc_memcore ntc_membank ntc_nxt_bank ntc_msx_bank ntc_dot_bank @shared @far
 ; ------------------------------------------------------------
 ; ntc_mem (CPCExpansion) - 16K RAM pages in the #4000-#7FFF window (CPC gate
 ; array RAM setting: C0 = plain, C4-C7 + bank * 8 = page 0-3 of a 64K bank;
@@ -1864,6 +1875,9 @@ mem_probe:
 	IFDEF NTC_MSXDOS
 			call msx_mem_probe		; MSX: the mapper's segments from MSX-DOS 2 (ntc_lib_msx.asm), sets mem_banks
 	ELSE
+	IFDEF NTC_ZXNDOTL
+			call dot_mem_probe		; a Next dot command: pages from NextZXOS's allocator (ntc_lib_dot.asm), sets mem_banks
+	ELSE
 	IFNDEF NTC_ZXN
 			ld a, i					; P/V = interrupts were on
 			di
@@ -1944,6 +1958,7 @@ mem_pr_back:
 mem_pr_di:
 	ELSE
 			call nxt_mem_probe		; Next: the RAM probe (ntc_lib_nxt.asm), sets mem_banks
+	ENDIF
 	ENDIF
 	ENDIF
 		ENDIF
@@ -2055,6 +2070,16 @@ mem_tb_pl2:
 			djnz mem_tb_pl
 	ENDIF
 mem_tb_ports:						; the port table: page 1 main RAM, then 4 a bank found
+	IF NTC_WINPAGED					; page 0 code under the window (Option Memory Paged): page 1, main
+			ld hl, ntc_end			; RAM's own #4000-#7FFF, holds it - never handed out ('P')
+			ld de, #4001
+			or a
+			sbc hl, de
+			jr c, mem_tb_pt
+			ld hl, (mem_ttype)
+			ld (hl), 'P'
+mem_tb_pt:
+	ENDIF
 			ld hl, (mem_tport)
 			ld (hl), #C0
 			inc hl
@@ -2105,6 +2130,9 @@ mem_jbc:
 	IFDEF NTC_ZXN
 			jp nxt_mem_jbc			; Next: 64K bank E -> its first 16K Next bank (ntc_lib_nxt.asm)
 	ENDIF
+	IFDEF NTC_ZXNDOTL
+			jp dot_mem_jbc			; a Next dot command: 64K bank E -> its page 0's setting (ntc_lib_dot.asm)
+	ENDIF
 			ld a, e
 			rrca
 			rrca
@@ -2152,6 +2180,9 @@ mem_se_do:
 mem_se_out:
 	IFDEF NTC_MSXDOS
 			jp msx_mem_se_out			; MSX: the segment into page 1 (PUT_P1: ntc_lib_msx.asm) -> mem_se_end
+	ENDIF
+	IFDEF NTC_ZXNDOTL
+			jp dot_mem_se_out			; a Next dot command: the setting's two pages into slots 2, 3 (ntc_lib_dot.asm) -> mem_se_end
 	ENDIF
 	IFNDEF NTC_ZXN
 			ld (ntc_rampt), bc
@@ -2880,11 +2911,11 @@ mem_lg_end:
 			dec hl
 			ret
 
-ntc_rg74_e:
-			IF ($ < 32768) && (ntc_rg75_e - ntc_rg75 + $ > 16384)	; fwdref-ok
-			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+ntc_rg75_e:
+			IF ($ < 32768) && (ntc_rg76_e - ntc_rg76 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
-ntc_rg75:
+ntc_rg76:
 ;## ntc_membank ntc_plat_rmr @shared @romram
 ; ------------------------------------------------------------
 ; ntc_membank - Memory's CallBank switch (CPCExpansion). Runs from RAM
@@ -2928,11 +2959,11 @@ ntc_bk_end:
 ntc_bk_di:
 			ret
 
-ntc_rg75_e:
-			IF ($ < 32768) && (ntc_rg76_e - ntc_rg76 + $ > 16384)	; fwdref-ok
-			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+ntc_rg76_e:
+			IF ($ < 32768) && (ntc_rg77_e - ntc_rg77 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
-ntc_rg76:
+ntc_rg77:
 ;## ntc_list ntc_memcore @shared @far
 ; ------------------------------------------------------------
 ; ntc_list - the List class: linked lists in the Memory class's heap (D
@@ -3559,11 +3590,11 @@ lst_ds_hdr:
 			ld hl, 0
 			ret
 
-ntc_rg76_e:
-			IF ($ < 32768) && (ntc_rg77_e - ntc_rg77 + $ > 16384)	; fwdref-ok
-			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+ntc_rg77_e:
+			IF ($ < 32768) && (ntc_rg78_e - ntc_rg78 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
-ntc_rg77:
+ntc_rg78:
 ;## ntc_listsort ntc_list ntc_buf2k @shared @far
 ; Sort(h, offset): in order of the (signed) word at offset in each node's
 ; data, equal ones keeping their order. A radix sort: two passes over the
@@ -3847,11 +3878,11 @@ lst_rs_cend:
 ; (0-3) - or + 2 for the whole bank. nxt_mem_bank decodes it to the 16K Next bank.
 ; ============================================================
 
-ntc_rg77_e:
-			IF ($ < 32768) && (ntc_rg78_e - ntc_rg78 + $ > 16384)	; fwdref-ok
-			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+ntc_rg78_e:
+			IF ($ < 32768) && (ntc_rg79_e - ntc_rg79 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
-ntc_rg78:
+ntc_rg79:
 ;## ntc_nxt_bank ntc_mem @far
 	IFDEF NTC_ZXN
 ; nxt_mem_probe - 16K banks from ZXN_FIRSTBANK up are free RAM. Map each into the
@@ -4049,11 +4080,11 @@ nxt_mem_se_out:
 ; page (0-3), or + 2 for the whole bank.
 ; ============================================================
 
-ntc_rg78_e:
-			IF ($ < 32768) && (ntc_rg79_e - ntc_rg79 + $ > 16384)	; fwdref-ok
-			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+ntc_rg79_e:
+			IF ($ < 32768) && (ntc_rg80_e - ntc_rg80 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
-ntc_rg79:
+ntc_rg80:
 ;## ntc_msx_bank ntc_mem @far
 	IFDEF NTC_MSXDOS
 MSX_SETB	equ 1					; B of an MSX RAM setting (see the top)
@@ -4248,11 +4279,169 @@ msx_mem_se_out:
 			jp mem_se_end
 	ENDIF
 
-ntc_rg79_e:
-			IF ($ < 32768) && (ntc_rg80_e - ntc_rg80 + $ > 16384)	; fwdref-ok
-			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+; ============================================================
+; ntc_lib_dot.asm - ZX Spectrum Next dot command (zxndotl) banking
+; (c) 2026 Cyborg Unicorn Pty Ltd - MIT License
+; ------------------------------------------------------------
+; The Large Model dot command's versions of the banking primitives the
+; CPC-modelled Memory manager (ntc_mem, in ntc_lib_cpc.asm) switches
+; platform on, as the Next's NEX ones are in ntc_lib_nxt.asm and the MSX's
+; in ntc_lib_msx.asm:
+;   dot_mem_probe   - 8K pages from NextZXOS's allocator, 8 a 64K bank
+;   dot_mem_jbc     - 64K bank -> its page 0's RAM setting
+;   dot_mem_se_out  - a RAM setting into the window #4000-#7FFF (slots 2, 3)
+;   dot_mem_bank    - a RAM setting -> its first 8K page's index in dotl_pages
+;   dot_win         - the window switch for a program's own asm, as out (c), c
+; The whole section is IFDEF NTC_ZXNDOTL: nothing on any other platform.
+;
+; The pages come from IDE_BANK (through M_P3DOS, on BASIC's side: dotl_page in
+; the platform's entry code, which keeps them in dotl_pages and gives every one
+; back at the end). The first 6 are the platform's (the window's two, the
+; program's four); the Memory class's follow, 8 a 64K bank (4 x 16K, a 16K bank
+; = two 8K pages, one after the other in dotl_pages - any page numbers, the
+; allocator's choice). The window is slots 2 and 3 (NextRegs #52, #53). Main
+; RAM's own page 1 (the setting #7FC0) is the window's own two pages.
+;
+; The RAM setting (BC) is shaped as the CPC's gate-array one, so that the CPC's
+; setting arithmetic (a bank's "C2" setting = its page 0's and #F8 or 2; its
+; page n in the window = and #F8 or 4 + n) works unchanged: B = DOT_SETB (1 -
+; never 0, never #7F), C = the bank's ordinal * 8 + 4 + its page (0-3), or + 2
+; for the whole bank.
+; ============================================================
+
+ntc_rg80_e:
+			IF ($ < 32768) && (ntc_rg81_e - ntc_rg81 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
-ntc_rg80:
+ntc_rg81:
+;## ntc_dot_bank ntc_mem @far
+	IFDEF NTC_ZXNDOTL
+DOT_SETB	equ 1					; B of a dot command's RAM setting (see the top)
+	IF MEM_BANKS > 16
+DOT_MAXBK	equ 16					; banks at most: dotl_pages holds 16 (1MB)
+	ELSE
+DOT_MAXBK	equ MEM_BANKS
+	ENDIF
+; dot_mem_probe - up to DOT_MAXBK banks of 8 pages from the allocator; a part bank's
+; pages stay allocated (given back at the end with the rest: the allocator has no
+; order to free them in). Sets mem_banks and mem_found. Called from mem_probe on the
+; real stack
+dot_mem_probe:
+			xor a
+			ld (dot_nbk), a
+dot_pr_bank:
+			ld a, (dot_nbk)
+			cp DOT_MAXBK
+			jr nc, dot_pr_done
+			ld b, 8
+dot_pr_pg:
+			push bc
+			call dotl_page			; one more into dotl_pages
+			pop bc
+			jr nc, dot_pr_done		; none left: this bank is not whole
+			djnz dot_pr_pg
+			ld a, (dot_nbk)
+			inc a
+			ld (dot_nbk), a
+			jr dot_pr_bank
+dot_pr_done:
+			ld a, (dot_nbk)
+			ld (mem_banks), a
+			or a
+			ret z
+			ld hl, mem_found		; the banks found: 0, 1, 2 ...
+			ld b, a
+			ld e, 0
+dot_pr_fl:
+			ld (hl), e
+			inc hl
+			inc e
+			djnz dot_pr_fl
+			ret
+dot_nbk:		db 0					; banks got
+
+; dot_mem_jbc - E = a 64K bank (0-63) -> BC = its page 0's RAM setting (B = DOT_SETB,
+; C = E * 8 + 4: the four 16K parts step C, as the CPC's #C4 - #C7 do). Keeps DE, HL.
+dot_mem_jbc:
+			ld a, e
+			add a, a
+			add a, a
+			add a, a
+			add a, 4
+			ld c, a
+			ld b, DOT_SETB
+			ret
+
+; dot_mem_bank - BC = a RAM setting -> HL = its two pages' place in dotl_pages: B = #7F
+; (main RAM's own, #7FC0) = the window's own (dotl_pages + 0); else C = ordinal * 8 +
+; 4 + page -> dotl_pages + 6 + (ordinal * 4 + page) * 2 (the whole bank's "2" and 0-3:
+; its page 0). Keeps BC, DE.
+dot_mem_bank:
+			ld hl, dotl_pages
+			ld a, b
+			cp #7F
+			ret z
+			push de
+			ld a, c
+			and 7
+			sub 4
+			jr nc, dot_mb_ok
+			xor a					; 0-3: page 0
+dot_mb_ok:
+			ld e, a
+			ld a, c
+			and #F8
+			srl a					; ordinal * 4
+			add a, e
+			add a, a				; two pages a 16K bank
+			add a, 6				; after the platform's 6
+			ld e, a
+			ld d, 0
+			add hl, de
+			pop de
+			ret
+
+; dot_mem_se_out - (mem_se_out's branch) BC = a RAM setting: its two pages into slots
+; 2, 3 -> mem_se_end (which pops BC, DE, HL)
+dot_mem_se_out:
+			call dot_win
+			jp mem_se_end
+
+; dot_win - BC = a RAM setting -> its two pages into the window #4000-#7FFF (NextRegs
+; #52, #53): what out (c), c does with a setting on the CPC - for a program's own asm
+; that switches the window itself, outside the Memory class. Keeps every register, as
+; the out does (AF too). On the real stack only (call: never from the thread)
+dot_win:
+			push af
+			push bc
+			push de
+			push hl
+			call dot_mem_bank		; HL -> the two pages
+			ld d, (hl)
+			inc hl
+			ld e, (hl)
+			ld bc, #243B
+			ld a, #52
+			out (c), a
+			inc b
+			out (c), d				; slot 2
+			dec b
+			ld a, #53
+			out (c), a
+			inc b
+			out (c), e				; slot 3
+			pop hl
+			pop de
+			pop bc
+			pop af
+			ret
+	ENDIF
+
+ntc_rg81_e:
+			IF ($ < 32768) && (ntc_rg82_e - ntc_rg82 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
+			ENDIF
+ntc_rg82:
 ;## ntc_plat_data
 ntc_curx:		db 0			; cursor column (0 based) - kept here for Tab
 ntc_cury:		db 0			; cursor row (0 based)
@@ -4268,11 +4457,11 @@ ntc_fwtop:		dw #A600		; the top of free RAM (#A5F0 with the fast ticker's block)
 ntc_fwblk:		dw NTC_FWBLK		; the fast ticker's event block: lower (and the top with it) when the ROMs
 								; started take more RAM than AMSDOS's #A700-#ABFF (Option RomEnable)
 
-ntc_rg80_e:
-			IF ($ < 32768) && (ntc_rg81_e - ntc_rg81 + $ > 16384)	; fwdref-ok
-			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+ntc_rg82_e:
+			IF ($ < 32768) && (ntc_rg83_e - ntc_rg83 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
-ntc_rg81:
+ntc_rg83:
 ;## ntc_plat_fw ntc_plat_data ntc_data @shared
 ; ------------------------------------------------------------
 ; ntc_fwcall - IY = firmware address; A, BC, DE, HL go in and come
@@ -4293,11 +4482,11 @@ ntc_fwcall:
 ntc_fwjp:
 			jp (iy)
 
-ntc_rg81_e:
-			IF ($ < 32768) && (ntc_rg82_e - ntc_rg82 + $ > 16384)	; fwdref-ok
-			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+ntc_rg83_e:
+			IF ($ < 32768) && (ntc_rg84_e - ntc_rg84 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
-ntc_rg82:
+ntc_rg84:
 ;## ntc_plat_screen ntc_plat_fw ntc_plat_data ntc_data
 ; ntc_plat_putc - A = character: TXT OUTPUT. The firmware wraps by itself after
 ; the last column, so only the column is counted here; a new line straight after
@@ -4359,11 +4548,11 @@ ntc_nl_row:
 
 ntc_pclink:		dw 0
 
-ntc_rg82_e:
-			IF ($ < 32768) && (ntc_rg83_e - ntc_rg83 + $ > 16384)	; fwdref-ok
-			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+ntc_rg84_e:
+			IF ($ < 32768) && (ntc_rg85_e - ntc_rg85 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
-ntc_rg83:
+ntc_rg85:
 ;## ntc_plat_key ntc_plat_fw ntc_data
 ; ntc_plat_scankey - A = key from the firmware's buffer, or 0
 ntc_plat_scankey:
@@ -4386,11 +4575,11 @@ ntc_plat_getkey:
 			jp ntc_fwcall
 ntc_kslink:		dw 0
 
-ntc_rg83_e:
-			IF ($ < 32768) && (ntc_rg84_e - ntc_rg84 + $ > 16384)	; fwdref-ok
-			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+ntc_rg85_e:
+			IF ($ < 32768) && (ntc_rg86_e - ntc_rg86 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
-ntc_rg84:
+ntc_rg86:
 ;## ntc_plat_exit ntc_plat_data ntc_plat_fw
 ntc_plat_exit:
 			ld bc, #7FC0		; RAM setting back to plain (a Memory page may be in #4000)
@@ -4410,11 +4599,11 @@ ntc_ex_back:
 ntc_ex_done:
 			jp (ix)
 
-ntc_rg84_e:
-			IF ($ < 32768) && (ntc_rg85_e - ntc_rg85 + $ > 16384)	; fwdref-ok
-			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+ntc_rg86_e:
+			IF ($ < 32768) && (ntc_rg87_e - ntc_rg87 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
-ntc_rg85:
+ntc_rg87:
 ;## ntc_plat_memtop ntc_plat_data
 ; ntc_plat_memtop - HL = the first byte the Memory class's Small heap must not
 ; use: #A600 (the firmware's and AMSDOS's RAM is above), #A5F0 when the fast
@@ -4424,11 +4613,11 @@ ntc_plat_memtop:
 			ld hl, (ntc_fwtop)
 			ret
 
-ntc_rg85_e:
-			IF ($ < 32768) && (ntc_rg86_e - ntc_rg86 + $ > 16384)	; fwdref-ok
-			ds 32768 - $		; Option Reserve #4000-#7FFF: round it
+ntc_rg87_e:
+			IF ($ < 32768) && (ntc_rg88_e - ntc_rg88 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
-ntc_rg86:
+ntc_rg88:
 ;## ntc_plat_rmr ntc_plat_data
 ; ntc_plat_rmr - A = the gate array's ROM / mode byte now: the firmware keeps
 ; it in C' (B' = #7F), so Memory's CallBank can turn both ROMs off and put
@@ -4440,22 +4629,25 @@ ntc_plat_rmr:
 			ret
 
 
-ntc_rg86_e:
+ntc_rg88_e:
 ntc_end:				; the end of the program (and of its file)
+			DISPLAY "NTC memory: program ", /H, ntc_start, "-", /H, ntc_end - 1, " arrays ", /H, ntc_bss, "-", /H, ntc_free - 1, " stack the caller's"
+			DISPLAY "NTC memory: Reserved #4000-#7FFF"
 ; arrays: after the program, not in its file - kw_bssinit checks they fit and clears them
 ntc_bssfrom	equ ntc_end
 			IF (ntc_bssfrom < 32768) && (ntc_bssfrom + ntc_bss_size > 16384)	; fwdref-ok
-ntc_bss		equ 32768		; after Option Reserve #4000-#7FFF
+ntc_bss		equ 32768		; after Option Memory Reserved #4000-#7FFF
 			ELSE
 ntc_bss		equ ntc_bssfrom
 			ENDIF
+			ASSERT ntc_bss + ntc_bss_size <= #10000, "out of memory: the arrays (after the last Option Memory Reserved / Paged range) do not fit below #10000"	; fwdref-ok
 ntc_bss_size	equ 0
 ntc_free	equ ntc_bss + ntc_bss_size	; the first free byte (heap, Memory tables)
 			IF ntc_free <= 32768	; fwdref-ok
-ntc_memtab	equ 32768		; the Memory class's tables: above the window (Option Reserve)
+ntc_memtab	equ 32768		; the Memory class's tables: above the window
 			ELSE
 ntc_memtab	equ ntc_free
 			ENDIF
 ; Option Reserve: the program and its arrays (ntc_start .. ntc_free) must stay out of these
-			ASSERT (ntc_free <= 16384) || (ntc_bss >= 32768), "the program (or its arrays) reaches into Option Reserve #4000-#7FFF (main.bas line 13)"
+			ASSERT (ntc_free <= 16384) || (ntc_bss >= 32768), "the program (or its arrays) reaches into Option Memory Reserved #4000-#7FFF (main.bas line 13)"
 			SAVEAMSDOS "LISTS.BIN", ntc_start, ntc_end - ntc_start, ntc_start

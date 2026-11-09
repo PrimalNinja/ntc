@@ -34,6 +34,7 @@
 ;@irq      1
 ;@cols     40
 ;@rows     25
+;@reserved #A600,#1A00 #C000,#4000	; the firmware's RAM #A600-#BFFF, the screen #C000-#FFFF (Option Memory Available frees either)
 ; ============================================================
 
 ;## ntc_plat_data
@@ -808,7 +809,9 @@ fs_tmpn:		ds 9			; a volume name, capitals
 fs_rsxn:		ds 17			; a command name (last letter + #80), up to 16 letters
 fs_buf			equ ntc_buf		; the 2K buffer CAS IN OPEN / CAS OUT OPEN want (shared with Memory.Copy)
 			ASSERT NTC_BUFSIZE >= 2048, "FileSystem needs the whole 2K buffer (Option Buffer's size)"
+			IF NTC_PLATRSV == 0		; (with the platform's #A600-#BFFF Reserved in the map, the build goes round it)
 			ASSERT ntc_free <= #A600, "FileSystem on cpcmin: the program and its arrays must end below #A600 (AMSDOS's RAM)"
+			ENDIF
 
 fs_go0:
 			ld a, 1

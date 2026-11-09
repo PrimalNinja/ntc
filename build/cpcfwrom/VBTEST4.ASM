@@ -12,7 +12,11 @@ NTC_MEMBANKS	equ 64		; Option Memory: the most 64K banks the Memory class looks 
 NTC_ROMENABLE	equ 0		; Option RomEnable (cpcfw, cpcmin): the start code starts the ROMs
 NTC_ROMLIB	equ 1		; 1 = the library is the keyword ROM (Library: ROM; ntcRomAsm builds it)
 NTC_WINHOLE	equ 0		; 1 = the program is built round an Option Reserve range over the window #4000-#7FFF
+NTC_WINPAGED	equ 0		; 1 = page 0 code may sit under the window (Option Memory Paged, not Reserved): the Memory class never hands out page 1 (main RAM's own #4000-#7FFF) when the code reaches past #4000
 NTC_BUFSIZE	equ 2048		; the library's buffer (ntc_buf: FileSystem, Memory.Copy): Option Buffer
+NTC_ISLN	equ 1		; interrupt classes (Option Class Interrupt): the slots ntc_isl has (8 bytes each)
+NTC_INTS	equ 1		; 0 = the platform never lets interrupts in (;@ints 0: ntc_xn's safe point has no ei)
+NTC_PLATRSV	equ 0		; 1 = the platform's fixed areas (;@reserved) are Reserved in the memory map: the build goes round them (the old top-of-RAM asserts are off)
 NTC_CPMGFX	equ 0		; 1 = CP/M: Graphics draws on an Amstrad CPC's screen (2.2: #C000, Plus: block 1 from common memory)
 
 ntc_start:
@@ -513,15 +517,12 @@ do8_t_go:			ld sp, do8_t
 
 p_chk_c:		; call chk (normal)
 			pop hl			; got
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			ld (var_chk_got), de
+			ld de, var_chk_got		; (the block of 2 parameters)
+			ldi
+			ldi
 			pop hl			; want
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			ld (var_chk_want), de
+			ldi
+			ldi
 			ld (p_chk_rs), sp
 			ld sp, p_chk
 			jp ntc_xn
@@ -585,7 +586,6 @@ p_total_c:		; call total (normal)
 			ldir
 			ld hl, 0
 			ld (var_total_total), hl
-			ld hl, 0
 			ld (var_total_k), hl
 			ld (p_total_rs), sp
 			ld sp, p_total
@@ -600,9 +600,7 @@ p_sortup_c:		; call sortup (normal)
 			ldir
 			ld hl, 0
 			ld (var_sortup_k), hl
-			ld hl, 0
 			ld (var_sortup_j), hl
-			ld hl, 0
 			ld (var_sortup_v), hl
 			ld (p_sortup_rs), sp
 			ld sp, p_sortup
@@ -685,7 +683,6 @@ p_bigsum_c:		; call bigsum (normal)
 			ld hl, 0
 			ld (var_bigsum_bigsum), hl
 			ld (var_bigsum_bigsum+2), hl
-			ld hl, 0
 			ld (var_bigsum_k), hl
 			ld (p_bigsum_rs), sp
 			ld sp, p_bigsum
@@ -713,8 +710,8 @@ var_bigsum_bigsum:			dw 0, 0
 var_t:			dw 0
 var_bad:			dw 0
 p_chk_rs:			dw 0
-var_chk_got:			dw 0
-var_chk_want:			dw 0
+var_chk_got:			dw 0, 0		; parameters, one block
+var_chk_want		equ var_chk_got + 2
 p_chks_rs:			dw 0
 			db 255			; capacity
 var_chks_got:			ds 256
@@ -1062,6 +1059,7 @@ ntc_rj_tpt:		db "ROM NTCFW<n>.ROM not found: n = #", 0
 ntc_rj_tnl:		db 13, 10, "Press a key", 13, 10, 0
 ntc_rj_dropend:
 ntc_end:				; the end of the program (and of its file)
+			DISPLAY "NTC memory: program ", /H, ntc_start, "-", /H, ntc_end - 1, " arrays ", /H, ntc_bss, "-", /H, ntc_free - 1, " stack the caller's"
 ; arrays: after the program, not in its file - kw_bssinit checks they fit and clears them
 			IF ntc_rj_dropend == ntc_end	; fwdref-ok
 ntc_bssfrom	equ ntc_rj_drop		; the arrays over the start code (it has run)

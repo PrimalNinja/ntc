@@ -11,7 +11,11 @@ NTC_MEMBANKS	equ 64		; Option Memory: the most 64K banks the Memory class looks 
 NTC_ROMENABLE	equ 0		; Option RomEnable (cpcfw, cpcmin): the start code starts the ROMs
 NTC_ROMLIB	equ 0		; 1 = the library is the keyword ROM (Library: ROM; ntcRomAsm builds it)
 NTC_WINHOLE	equ 0		; 1 = the program is built round an Option Reserve range over the window #4000-#7FFF
+NTC_WINPAGED	equ 0		; 1 = page 0 code may sit under the window (Option Memory Paged, not Reserved): the Memory class never hands out page 1 (main RAM's own #4000-#7FFF) when the code reaches past #4000
 NTC_BUFSIZE	equ 2048		; the library's buffer (ntc_buf: FileSystem, Memory.Copy): Option Buffer
+NTC_ISLN	equ 1		; interrupt classes (Option Class Interrupt): the slots ntc_isl has (8 bytes each)
+NTC_INTS	equ 1		; 0 = the platform never lets interrupts in (;@ints 0: ntc_xn's safe point has no ei)
+NTC_PLATRSV	equ 0		; 1 = the platform's fixed areas (;@reserved) are Reserved in the memory map: the build goes round them (the old top-of-RAM asserts are off)
 NTC_CPMGFX	equ 1		; 1 = CP/M: Graphics draws on an Amstrad CPC's screen (2.2: #C000, Plus: block 1 from common memory)
 
 ntc_start:
@@ -377,7 +381,6 @@ p_runpasses_n_r:		; end of runpasses
 p_sieve_c:		; call sieve (turbo)
 			ld hl, 0
 			ld (var_sieve_i), hl
-			ld hl, 0
 			ld (var_sieve_j), hl
 			ld (p_sieve_rs), sp
 			ld sp, p_sieve
@@ -388,7 +391,6 @@ p_sieve_r:		; end of sieve
 p_sieve_n_c:		; call sieve (normal)
 			ld hl, 0
 			ld (var_sieve_i), hl
-			ld hl, 0
 			ld (var_sieve_j), hl
 			ld (p_sieve_rs), sp
 			ld sp, p_sieve_n
@@ -518,9 +520,11 @@ kw_waitkey:
 ntc_xn:
 			ld (ntc_ip), sp
 			ld sp, (ntc_csp)
+	IF NTC_INTS					; (;@ints 0: a platform that never lets interrupts in - the Next's dot commands)
 			ei
 			nop					; an interrupt can be taken here
 			di
+	ENDIF
 			ld sp, (ntc_ip)
 			ret
 
@@ -1685,6 +1689,7 @@ ntc_mt1:
 
 
 ntc_end:				; the end of the program (and of its file)
+			DISPLAY "NTC memory: program ", /H, ntc_start, "-", /H, ntc_end - 1, " arrays ", /H, ntc_bss, "-", /H, ntc_free - 1, " stack ntc_cpmstack down (the platform's)"
 ; arrays: after the program, not in its file - kw_bssinit checks they fit and clears them
 ntc_bssfrom	equ ntc_end + 256		; (after the real stack: ntc_cpmstack)
 ntc_bss		equ ntc_bssfrom

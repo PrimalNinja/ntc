@@ -1,0 +1,7 @@
+cols 32
+AB
+can position
+ZXNDOT ticks/s 50
+name? Bo
+hi Bo
+key 90 col 7

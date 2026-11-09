@@ -169,9 +169,11 @@ kw_waitkey:
 ntc_xn:
 			ld (ntc_ip), sp
 			ld sp, (ntc_csp)
+	IF NTC_INTS					; (;@ints 0: a platform that never lets interrupts in - the Next's dot commands)
 			ei
 			nop					; an interrupt can be taken here
 			di
+	ENDIF
 			ld sp, (ntc_ip)
 			ret
 
@@ -184,9 +186,11 @@ ntc_xn:
 ntc_xn:
 			ld (ntc_ip), sp
 			ld sp, (ntc_csp)
+	IF NTC_INTS
 			ei
 			nop					; an interrupt can be taken here
 			di
+	ENDIF
 			push af
 			ld a, (ntc_hookpend)
 			or a
@@ -290,6 +294,93 @@ kw_turbo_off:
 ;kw_goto, <label>
 kw_goto:
 			pop hl
+			ld sp, hl
+			ret
+
+;## ntc_pcall @ramonly
+; Option CompactCalls: a procedure's call stub ends ld hl, p_x_rs / jp ntc_pcall.
+; HL = the position word in front of the body (p_x_rs): the caller's thread
+; position - SP, past the arguments - goes there, and the body (rs + 2) runs.
+; Not in the keyword ROM (@ramonly): the stubs are the program's, in RAM
+ntc_pcall:
+			ex de, hl
+			ld hl, 0
+			add hl, sp
+			ex de, hl			; HL = rs, DE = the caller's position
+			ld (hl), e
+			inc hl
+			ld (hl), d
+			inc hl
+			ld sp, hl			; the body
+			ret
+
+;## ntc_pcallb ntc_data @ramonly
+; ntc_pcall for a procedure with Integer parameters and locals: after rs come
+; the block's address (dw: the parameters' variables, then the locals', one
+; block), the arguments' count and the locals' word count (db, db), then the
+; body (rs + 6). The arguments (their addresses on the thread) are copied in
+; and the locals cleared here: the stub has no code for them. ntc_ip is the
+; scratch word (ntc_xn is not running; interrupts are off)
+ntc_pcallb:
+			ld (ntc_ip), hl			; rs
+			inc hl
+			inc hl
+			ld e, (hl)
+			inc hl
+			ld d, (hl)				; DE = the block
+			inc hl
+			ld b, (hl)				; B = the arguments
+			inc hl
+			ld c, (hl)				; C = the locals' words
+			ld a, b
+			or a
+			jr z, ntc_pcallb_z
+ntc_pcallb_c:
+			pop hl					; an argument's address
+			ld a, (hl)
+			ld (de), a
+			inc hl
+			inc de
+			ld a, (hl)
+			ld (de), a
+			inc de
+			djnz ntc_pcallb_c
+ntc_pcallb_z:
+			ld hl, 0
+			add hl, sp				; HL = the caller's position (past the arguments)
+			ex de, hl				; DE = it, HL = the locals
+			ld a, c
+			or a
+			jr z, ntc_pcallb_r
+ntc_pcallb_l:
+			ld (hl), 0
+			inc hl
+			ld (hl), 0
+			inc hl
+			dec c
+			jr nz, ntc_pcallb_l
+ntc_pcallb_r:
+			ld hl, (ntc_ip)			; rs
+			ld (hl), e
+			inc hl
+			ld (hl), d
+			inc hl
+			inc hl
+			inc hl
+			inc hl
+			inc hl					; the body
+			ld sp, hl
+			ret
+
+;## ntc_pret @ramonly
+; Option CompactCalls: the return - dw ntc_pret, p_x_rs ends the body (and is
+; Exit Sub): back to the position saved in rs
+ntc_pret:
+			pop hl				; rs
+			ld e, (hl)
+			inc hl
+			ld d, (hl)
+			ex de, hl
 			ld sp, hl
 			ret
 

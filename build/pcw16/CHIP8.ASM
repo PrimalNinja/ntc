@@ -11,7 +11,11 @@ NTC_MEMBANKS	equ 64		; Option Memory: the most 64K banks the Memory class looks 
 NTC_ROMENABLE	equ 0		; Option RomEnable (cpcfw, cpcmin): the start code starts the ROMs
 NTC_ROMLIB	equ 0		; 1 = the library is the keyword ROM (Library: ROM; ntcRomAsm builds it)
 NTC_WINHOLE	equ 0		; 1 = the program is built round an Option Reserve range over the window #4000-#7FFF
+NTC_WINPAGED	equ 0		; 1 = page 0 code may sit under the window (Option Memory Paged, not Reserved): the Memory class never hands out page 1 (main RAM's own #4000-#7FFF) when the code reaches past #4000
 NTC_BUFSIZE	equ 2048		; the library's buffer (ntc_buf: FileSystem, Memory.Copy): Option Buffer
+NTC_ISLN	equ 1		; interrupt classes (Option Class Interrupt): the slots ntc_isl has (8 bytes each)
+NTC_INTS	equ 1		; 0 = the platform never lets interrupts in (;@ints 0: ntc_xn's safe point has no ei)
+NTC_PLATRSV	equ 0		; 1 = the platform's fixed areas (;@reserved) are Reserved in the memory map: the build goes round them (the old top-of-RAM asserts are off)
 NTC_CPMGFX	equ 0		; 1 = CP/M: Graphics draws on an Amstrad CPC's screen (2.2: #C000, Plus: block 1 from common memory)
 
 ntc_start:
@@ -1238,25 +1242,15 @@ if38_e_go:			ld sp, if38_e
 p_step_c:		; call step (normal)
 			ld hl, 0
 			ld (var_step_hi), hl
-			ld hl, 0
 			ld (var_step_lo), hl
-			ld hl, 0
 			ld (var_step_op), hl
-			ld hl, 0
 			ld (var_step_x), hl
-			ld hl, 0
 			ld (var_step_y), hl
-			ld hl, 0
 			ld (var_step_n), hl
-			ld hl, 0
 			ld (var_step_kk), hl
-			ld hl, 0
 			ld (var_step_nnn), hl
-			ld hl, 0
 			ld (var_step_here), hl
-			ld hl, 0
 			ld (var_step_t), hl
-			ld hl, 0
 			ld (var_step_j), hl
 			ld (p_step_rs), sp
 			ld sp, p_step
@@ -1266,20 +1260,15 @@ p_step_r:		; end of step
 			jp ntc_xn
 p_alu_c:		; call alu (normal)
 			pop hl			; x
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			ld (var_alu_x), de
+			ld de, var_alu_x		; (the block of 3 parameters)
+			ldi
+			ldi
 			pop hl			; y
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			ld (var_alu_y), de
+			ldi
+			ldi
 			pop hl			; n
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			ld (var_alu_n), de
+			ldi
+			ldi
 			ld hl, 0
 			ld (var_alu_t), hl
 			ld (p_alu_rs), sp
@@ -1290,15 +1279,12 @@ p_alu_r:		; end of alu
 			jp ntc_xn
 p_misc_c:		; call misc (normal)
 			pop hl			; x
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			ld (var_misc_x), de
+			ld de, var_misc_x		; (the block of 2 parameters)
+			ldi
+			ldi
 			pop hl			; lo
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			ld (var_misc_lo), de
+			ldi
+			ldi
 			ld hl, 0
 			ld (var_misc_j), hl
 			ld (p_misc_rs), sp
@@ -1309,35 +1295,23 @@ p_misc_r:		; end of misc
 			jp ntc_xn
 p_draw_c:		; call draw (normal)
 			pop hl			; xr
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			ld (var_draw_xr), de
+			ld de, var_draw_xr		; (the block of 3 parameters)
+			ldi
+			ldi
 			pop hl			; yr
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			ld (var_draw_yr), de
+			ldi
+			ldi
 			pop hl			; nn
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			ld (var_draw_nn), de
+			ldi
+			ldi
 			ld hl, 0
 			ld (var_draw_px), hl
-			ld hl, 0
 			ld (var_draw_py), hl
-			ld hl, 0
 			ld (var_draw_row), hl
-			ld hl, 0
 			ld (var_draw_b), hl
-			ld hl, 0
 			ld (var_draw_bit), hl
-			ld hl, 0
 			ld (var_draw_xx), hl
-			ld hl, 0
 			ld (var_draw_yy), hl
-			ld hl, 0
 			ld (var_draw_idx), hl
 			ld (p_draw_rs), sp
 			ld sp, p_draw
@@ -1347,15 +1321,12 @@ p_draw_r:		; end of draw
 			jp ntc_xn
 p_blockxor_c:		; call blockxor (normal)
 			pop hl			; px
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			ld (var_blockxor_px), de
+			ld de, var_blockxor_px		; (the block of 2 parameters)
+			ldi
+			ldi
 			pop hl			; py
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			ld (var_blockxor_py), de
+			ldi
+			ldi
 			ld (p_blockxor_rs), sp
 			ld sp, p_blockxor
 			jp ntc_xn
@@ -1395,13 +1366,10 @@ p_reset_r:		; end of reset
 p_dumpscreen_c:		; call dumpscreen (normal)
 			ld hl, 0
 			ld (var_dumpscreen_px), hl
-			ld hl, 0
 			ld (var_dumpscreen_py), hl
-			ld hl, 0
 			ld (var_dumpscreen_lastrow), hl
 			xor a
 			ld (var_dumpscreen_s), a
-			ld hl, 0
 			ld (var_dumpscreen_idx), hl
 			ld (p_dumpscreen_rs), sp
 			ld sp, p_dumpscreen
@@ -1426,9 +1394,7 @@ p_hexb_si0:
 p_hexb_si0_e:
 			ld hl, 0
 			ld (var_hexb_hexb), hl
-			ld hl, 0
 			ld (var_hexb_a), hl
-			ld hl, 0
 			ld (var_hexb_b), hl
 			ld (p_hexb_rs), sp
 			ld sp, p_hexb
@@ -1474,9 +1440,7 @@ p_loadrom_c:		; call loadrom (normal)
 			ld (var_loadrom_nm), a
 			ld hl, 0
 			ld (var_loadrom_h), hl
-			ld hl, 0
 			ld (var_loadrom_n), hl
-			ld hl, 0
 			ld (var_loadrom_named), hl
 			ld (p_loadrom_rs), sp
 			ld sp, p_loadrom
@@ -1517,14 +1481,14 @@ var_step___sel2:			dw 0
 var_sp:			dw 0
 var_ireg:			dw 0
 p_alu_rs:			dw 0
-var_alu_x:			dw 0
-var_alu_y:			dw 0
-var_alu_n:			dw 0
+var_alu_x:			dw 0, 0, 0		; parameters, one block
+var_alu_y		equ var_alu_x + 2
+var_alu_n		equ var_alu_x + 4
 var_alu_t:			dw 0
 var_alu___sel13:			dw 0
 p_misc_rs:			dw 0
-var_misc_x:			dw 0
-var_misc_lo:			dw 0
+var_misc_x:			dw 0, 0		; parameters, one block
+var_misc_lo		equ var_misc_x + 2
 var_misc_j:			dw 0
 var_misc___sel17:			dw 0
 var_dt:			dw 0
@@ -1532,9 +1496,9 @@ var_st:			dw 0
 for18_l:			dw 0
 for19_l:			dw 0
 p_draw_rs:			dw 0
-var_draw_xr:			dw 0
-var_draw_yr:			dw 0
-var_draw_nn:			dw 0
+var_draw_xr:			dw 0, 0, 0		; parameters, one block
+var_draw_yr		equ var_draw_xr + 2
+var_draw_nn		equ var_draw_xr + 4
 var_draw_px:			dw 0
 var_draw_py:			dw 0
 var_draw_row:			dw 0
@@ -1545,8 +1509,8 @@ var_draw_yy:			dw 0
 var_draw_idx:			dw 0
 for20_l:			dw 0
 p_blockxor_rs:			dw 0
-var_blockxor_px:			dw 0
-var_blockxor_py:			dw 0
+var_blockxor_px:			dw 0, 0		; parameters, one block
+var_blockxor_py		equ var_blockxor_px + 2
 p_cleardisp_rs:			dw 0
 var_cleardisp_k:			dw 0
 p_waitkey_rs:			dw 0
@@ -1684,9 +1648,11 @@ ntc_stop_back:
 ntc_xn:
 			ld (ntc_ip), sp
 			ld sp, (ntc_csp)
+	IF NTC_INTS					; (;@ints 0: a platform that never lets interrupts in - the Next's dot commands)
 			ei
 			nop					; an interrupt can be taken here
 			di
+	ENDIF
 			ld sp, (ntc_ip)
 			ret
 
@@ -3220,6 +3186,7 @@ ntc_plat_memtop:
 
 
 ntc_end:				; the end of the program (and of its file)
+			DISPLAY "NTC memory: program ", /H, ntc_start, "-", /H, ntc_end - 1, " arrays ", /H, ntc_bss, "-", /H, ntc_free - 1, " stack ntc_pcwstack down (the platform's)"
 ; arrays: after the program, not in its file - kw_bssinit checks they fit and clears them
 ntc_bssfrom	equ ntc_end
 ntc_bss		equ ntc_bssfrom

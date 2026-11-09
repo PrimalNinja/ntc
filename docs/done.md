@@ -25,6 +25,11 @@ by component).
       expansion RAM, not by drive letter - M: may be an M4 / XMAS drive; the probe must save and
       put back what it writes. CP/M Plus runs in C2: every page setting swaps all four blocks.)
 
+- 2026-11-09 Option CompactCalls (20261109-1): the procedure stubs through shared routines
+  (ntc_pcall / ntc_pcallb / ntc_pret), the return point word in front of the body, a procedure's
+  Integer parameters and locals one block copied in / cleared by ntc_pcallb; parameter blocks
+  (ld de / ldi) in every Z80 build. For CyborgOS's C2 hypervisor (752 bytes: its Memory tables
+  fit under UniDOS's RAM at #A309 - "needs 320K" on the real machine). NTC.md section 2.
 - 2026-11-01 The bug pass (buglist.md's entries checked one by one; ANALYSIS.LOG has the evidence):
   - compiler: a byte array parameter's element with an index expression in a Long context read the
     wrong byte (`CLng(a(i)) + CLng(a(i + 1)) * 256&` gave hex 3434 for 1234): kw_ztov zeroed the

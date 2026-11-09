@@ -2059,6 +2059,22 @@ shell sort example (`bas/shellsort.bas`, which switches mode at run time) comes 
 smaller. Interrupts keep getting in at safe points everywhere, so it suits programs with
 interrupt classes too.
 
+### Option CompactCalls
+
+`Option CompactCalls`
+
+Smaller procedure call and return stubs, to save memory. Each procedure normally has its own
+stub code: copy the arguments in, clear the locals, save the return point, enter the body,
+and a return stub. With `Option CompactCalls` the stub is six bytes - `ld hl, p_name_rs / jp
+ntc_pcall` - and shared library routines do the work: the return point word sits in front of
+the body, the body ends with `dw ntc_pret, p_name_rs`, and a procedure whose parameters are all
+Integers has them and its Integer locals as one block that `ntc_pcallb` fills from the
+arguments and clears, from a six-byte header in front of the body. The results are the same;
+a call costs some 60 T-states more. CyborgOS's C2 hypervisor saves 752 bytes with it. A class
+in a page keeps its own stubs (its entry switches pages); a procedure that writes a ByRef
+argument back keeps its return stub. Not for a ROM platform (the return point word is in the
+code) nor the 68000 / 45GS02 builds.
+
 ### Turbo On, Turbo Off
 
 `Turbo On` / `Turbo Off`
@@ -3690,6 +3706,7 @@ change.
 | `Option Stack` | [16](#option-stack) |
 | `Option Terminal` | [16](#option-terminal) |
 | `Option NoTurbo` | [13](#option-noturbo) |
+| `Option CompactCalls` | [13](#option-compactcalls) |
 | `Option Turbo` | [13](#option-turbo) |
 | `Option VBPrint` | [11](#option-vbprint) |
 | `Or` | [6](#and-or-xor-not) |

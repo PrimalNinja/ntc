@@ -132,6 +132,9 @@ A program is built only for the mode(s) it runs in: one mode, one copy of everyt
 code reached in both modes (a program with `Turbo On` / `Turbo Off`, or a procedure an
 interrupt Tick calls as well as turbo code) is built twice.
 
+`Option CompactCalls`: smaller call / return stubs through shared routines (docs/NTC.md, section
+2) for a program short of memory.
+
 `Option NoTurbo`: normal mode only - `Turbo On` / `Turbo Off` become no-ops with a warning, the
 start mode is normal whatever `Option Turbo` or the build setting say, so what would have been
 built twice is built once (the normal copy). A program that never switches mode comes out the
@@ -416,6 +419,22 @@ the CPC's 320 x 200 shown 28 rows down; the platform's own `ntc_gfx`, in place o
 11, 22-111; `ntc_nexdata`: the count, then each block's bank) - `zxn_sel` (HL = a bank) puts one
 in #4000-#7FFF. `#If NTC_ZXN` is predefined; the assembly has `DEFINE NTC_ZXN` (only there:
 `IFDEF NTC_ZXN` in the library and in `#asm` - sjasmplus's IFDEF tests DEFINEs, not labels).
+
+`zxndot` and `zxndotl` (`ntc_plat_zxndot.asm`, `ntc_plat_zxndotl.asm`, `lib/zxndot/`,
+`lib/zxndotl/`) are the Next's dot commands: `NAME.DOT` in C:/DOT, `.name args` at the BASIC
+prompt, printing on BASIC's screen through the 48K ROM's `rst #10` and returning to the prompt
+with BASIC's program as it was. The Small Model is the 8K at #2000 NextZXOS loads a dot command
+into, and nothing else; the Large Model's entry (the first 8K of the file) takes six 8K pages
+from NextZXOS's allocator (IDE_BANK through M_P3DOS), reads the program (org #8000: 32K, the
+stack from #FFFF down) from its own file into four of them, keeps the other two as the Memory
+class's window #4000-#7FFF, and swaps slots 2-7 between BASIC's pages and the program's round
+every ROM / esxDOS call (`dot_os`, from the 8K, which is in both maps); `Option Memory
+CPCExpansion` (its default) takes 64K banks of 8 pages from the same allocator (`ntc_lib_dot.asm`),
+and `End` gives every page back. While the program runs the Z80 is in IM 2 with a handler in
+the 8K (it counts frames: Ticks, Frame), IM 1 and BASIC's handler only inside a ROM call; keys
+come from the ROM's scan (LAST_K) after a frame's wait, `System.CommandLine` from HL at entry. The assembly writes the file (`OUTPUT "NAME.DOT"`; `--name=` names it) and
+refuses a Small Model command over 8K. `#If NTC_ZXNDOT` (both) and `NTC_ZXNDOTL` are predefined.
+No FileSystem class yet. docs/NTC.md "Dot commands on the ZX Spectrum Next" has the detail.
 
 `msx`, `msxcard`, `msx9990` and `sc3000` are cartridges (`;@rom`): the compiler's romLayout
 (after holeLayout) keeps the code, the threads, the strings and the numbers in the ROM and moves
@@ -1145,7 +1164,7 @@ node cli.js main.bas                         one file -> .asm on stdout
 node cli.js Main.bas Module2.bas Counter.cls  a project (files in order)
 node cli.js main.bas --turbo                 start in turbo mode (like Option Turbo)
 node cli.js main.bas --platform=cpm          cpc (default), cpcmin, cpcfw, cpm, cyborgos,
-                                             baremetal, test, zxn
+                                             baremetal, test, zxn, zxndot, zxndotl, msx ...
 node cli.js main.bas --org=#8000             built to run from there (Option Org)
 node cli.js main.bas --amsdos=PROG           also write PROG.BIN with an AMSDOS header when
                                              sjasmplus assembles it (DEVICE + SAVEAMSDOS)
@@ -1229,6 +1248,12 @@ same way as `cpcrun.py` prints the CPC screen (so the same `ref/` files fit):
   `{n}` = key n held, half row * 8 + bit), and the tilemap read back as text through the
   program's font. A soft reset (NextReg 2) ends the run (`--- halted (a soft reset ...)`);
   `NTC_ZXNREGS=1` prints the NextRegs, the slots and the palette at the end
+- `zxndot`, `zxndotl` (`dotrun.py`): the Next's dot commands under a NextZXOS stand-in on
+  zxnrun's Next - the NAME.DOT the assembly wrote, entered as NextZXOS enters a dot command
+  (`--cmdline=` the arguments in HL), the esxDOS hooks the platforms use (M_GETHANDLE, F_READ,
+  M_P3DOS's IDE_BANK), the ROM's print on a 32 x 24 screen (`NTC_DOTCOLS=80` for the shared
+  reference outputs), FRAMES and LAST_K from the frame interrupt; "--- exit" at the end says
+  whether slots 2-7, SP and the allocated pages were left as found
 
 These are much faster than the CPC emulation (no screen to read back from video RAM).
 

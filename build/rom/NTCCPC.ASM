@@ -8,11 +8,15 @@ NTC_ROMBSS	equ #9400		; its other variables, cleared
 NTC_STRMAX	equ 255			; strings up to 255 characters (programs built for the ROM use 255)
 NTC_MEMBANKS	equ 64			; the Memory class: up to 4MB
 NTC_WINHOLE	equ 0			; (a program built round the window: seen at run time, its free RAM above #8000)
+NTC_WINPAGED	equ 0			; (the ROM: no code under the window)
+NTC_INTS	equ 1			; (the ROM: the safe points let interrupts in)
 NTC_ROMLIB	equ 1			; this is the keyword ROM
 NTC_BUFSIZE	equ 2048		; its buffer (ntc_buf)
+NTC_PLATRSV	equ 0
+NTC_ISLN	equ 16		; (the ROM serves up to 16 interrupt classes)
 NTC_ROM_N	equ 325			; numbers in the index
 NTC_ROM_COUNT	equ 1			; ROMs in the set (NTCCPC.ROM)
-NTC_ROM_SET	equ #454E		; the set's stamp (its ROMs find each other by it)
+NTC_ROM_SET	equ #D165		; the set's stamp (its ROMs find each other by it)
 MEM_WIN		equ #4000
 MEM_BADPAGE	equ -2
 MEM_BANKS	equ NTC_MEMBANKS	; 0 - 64
@@ -501,9 +505,11 @@ kw_waitkey:
 ntc_xn:
 			ld (ntc_ip), sp
 			ld sp, (ntc_csp)
+	IF NTC_INTS
 			ei
 			nop					; an interrupt can be taken here
 			di
+	ENDIF
 			push af
 			ld a, (ntc_hookpend)
 			or a
@@ -5886,7 +5892,7 @@ mem_putback:
 			call mem_sel
 			pop hl
 			ret
-;## ntc_mem ntc_memcore ntc_membank ntc_nxt_bank ntc_msx_bank @shared @far
+;## ntc_mem ntc_memcore ntc_membank ntc_nxt_bank ntc_msx_bank ntc_dot_bank @shared @far
 mem_start:
 			ld a, (mem_init)
 			or a
@@ -6083,6 +6089,16 @@ mem_tb_ok:
 			ldir
 mem_tb_pl0:
 mem_tb_ports:
+	IF NTC_WINPAGED					; page 0 code under the window (Option Memory Paged): page 1, main
+			ld hl, ntc_end			; RAM's own #4000-#7FFF, holds it - never handed out ('P')
+			ld de, #4001
+			or a
+			sbc hl, de
+			jr c, mem_tb_pt
+			ld hl, (mem_ttype)
+			ld (hl), 'P'
+mem_tb_pt:
+	ENDIF
 			ld hl, (mem_tport)
 			ld (hl), #C0
 			inc hl
@@ -7985,6 +8001,7 @@ lst_rs_cend:
 			jp lst_wr4
 ;## ntc_nxt_bank ntc_mem @far
 ;## ntc_msx_bank ntc_mem @far
+;## ntc_dot_bank ntc_mem @far
 ;## ntc_plat_data
 ;## ntc_plat_screen ntc_plat_data ntc_font ntc_data ntc_plat_scroll @shared
 ntc_plat_putc:
@@ -8835,7 +8852,7 @@ ntc_numbuf:		ds 14			; printint / long print: digits (+ spaces for Option VBPrin
 ntc_gstack:		ds 128
 ntc_gstack_top:
 ntc_font:		ds 95 * 8
-ntc_isl:		ds 128			; 16 slots
+ntc_isl:		ds 8 * NTC_ISLN	; a slot a class (NTC_ISLN: the program's interrupt classes, 16 at most)
 ntc_pgstk:		ds 32			; putglyph: the stack an interrupt uses between characters
 ntc_pgstk_top:
 ntc_kcur:		ds 10			; matrix this scan (0 = pressed)

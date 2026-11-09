@@ -2,7 +2,8 @@ NTC BASIC - build info
 =======================
 
 Build number: YYYYMMDD-N
-  YYYYMMDD is the UTC date the archive was built. N starts at 1 each day and is
+  YYYYMMDD is the date the archive was built, Australia/Sydney local time (the
+  maintainer's day; entries before 20261109-1 used the UTC date). N starts at 1 each day and is
   incremented by 1 on EVERY build, whether or not that build was taken (applied).
   The number counts builds, not releases.
 
@@ -35,6 +36,239 @@ Packaging rule (what goes in the archive) - READ THIS BEFORE ZIPPING
 
 History (newest first)
 ======================
+
+20261109-1
+----------
+- Option CompactCalls: a procedure's call and return stubs through shared library routines
+  (ntc_lib_gen.asm: ntc_pcall, ntc_pcallb, ntc_pret, all @ramonly). The stub becomes ld hl,
+  p_x_rs / jp ntc_pcall (6 bytes); the thread-position word (p_x_rs) sits in front of the body
+  (the body is rs + 2); the return is dw ntc_pret, p_x_rs in the thread (no p_x_r stub) unless
+  the procedure copies a ByRef argument back or is an interrupt class's Tick - those keep the
+  return stub. A procedure whose parameters are all Integers (none copied back) gets them, and
+  its Integer locals, as ONE block of variables: the header after rs is dw block, db arguments,
+  db locals, and ntc_pcallb copies the arguments in off the thread and clears the locals (the
+  stub has no code for them; the body is rs + 6). A class in a page (Option Class Overlay /
+  Page) keeps the long stubs (its entry switches pages). Behaviour-identical; a call costs a
+  few dozen T-states more, so it is an option. Refused on a ROM platform (the position word is
+  in the code) and on the 68000 / 45GS02. CyborgOS's C2 hypervisor uses it: 752 bytes less main
+  RAM (ntc_free #A2DD -> #9FED) - its Memory class page tables (3 bytes a page, after ntc_free,
+  cut to what fits below the ROMs' RAM) had 28 bytes under UniDOS with an IDE node (#A309),
+  i.e. 2 banks: "CyborgOS needs 320K" on the real machine; now 780 bytes, the whole 4MB table.
+- Parameter blocks without the option: a run of two or more Integer parameters is one block
+  of variables (the first: dw 0, 0 ..., the others equ into it) and the stub copies them with
+  ld de, first then pop hl / ldi / ldi each (5 bytes a parameter instead of 8). Every Z80 build.
+- test/regress.sh: the VB self tests, vb_test10 (a class), the overlays, with Option
+  CompactCalls on cpc / cpcfw, both modes; the stubs checked; the ROM refusal.
+- Docs: NTC.md (the option, the stub shapes), build-info dates are now the maintainer's local
+  (Australia/Sydney) date.
+
+20261108-2
+----------
+ZX Spectrum Next dot commands: two new platforms, zxndot (the Small Model) and zxndotl (the
+Large Model), for command-line tools run from the BASIC prompt.
+- zxndot - the Small Model: a NextZXOS / esxDOS dot command (NAME.DOT in C:/DOT, ".name args"
+  at the BASIC prompt) in the 8K at #2000 NextZXOS loads it into: code, data, arrays, the real
+  stack (128 bytes) and the Small heap all in it; the assembly refuses a bigger one and names
+  the Large Model. Console through the 48K ROM's rst #10 (channel 2; Cls = the ROM's CLS by
+  rst #18, Locate = the AT control code, Mode nothing; 32 columns counted), keys from the ROM's
+  own scan (LAST_K / FLAGS bit 5 after a frame's wait, the codes made the platform's), Frame and
+  Ticks from FRAMES, System.CommandLine = the arguments HL points at on entry (copied at once,
+  up to 127 characters, ended at #0D, a ':' outside quotes, or 0). End = ret with carry clear:
+  the prompt prints 0 OK, BASIC's program is as it was. asm/ntc_plat_zxndot.asm, lib/zxndot/
+  (StdIO, System, Memory, Keys, List).
+- zxndotl - the Large Model (;@base zxndot): one NAME.DOT of the entry's 8K plus the program.
+  The entry takes six 8K pages from NextZXOS's allocator (IDE_BANK through M_P3DOS), reads the
+  program (org #8000: 32K, the stack from #FFFF down) from its own file into four of them
+  (M_GETHANDLE: the file is left open after the first 8K; F_READ), keeps two as the Memory
+  class's window #4000-#7FFF (its page 1), and swaps slots 2-7 between BASIC's pages and the
+  program's round every ROM / esxDOS call (dot_os: dotl_bside / dotl_oside, run from the 8K,
+  which is in both maps - slots 0-1, the esxDOS ROM and the 8K, are where every call crosses
+  over, so they stay). Option Memory CPCExpansion (the default there) takes 64K banks of 8 pages
+  from the same allocator at the class's first call, up to 16 (1MB): asm/ntc_lib_dot.asm (the
+  probe, dot_mem_jbc, dot_mem_se_out, dot_win: a table of pages a 16K bank, any numbers). End
+  gives every page back, slots and SP back, ret; no pages / a short file = the esxDOS custom
+  error return with a message. 32K + banks, not 64K: taking slots 0-1 too would leave no way to
+  print or read keys until exit (that is the zxn NEX, or a third model later).
+- Both: while the program runs the Z80 is in IM 2 with a vector and a handler in the 8K
+  (dot_irq: it counts dot_frames; the 257-byte table's unread 255 bytes hold the entry's two
+  stacks), so normal mode's safe points let interrupts in as on every platform and the ROM's
+  handler never runs then - it would page DivMMC out under a stack in the 8K, or run over
+  nothing of BASIC's with the Large Model's pages in the slots. A ROM call (dot_os) runs on
+  BASIC's stack with IY the ROM's, IM 1 and interrupts on, and adds FRAMES' advance to
+  dot_frames; Frame waits for the next interrupt, Ticks is dot_frames (50 a second); End puts I
+  and IM 1 back. The sections that switch to the real stack are @shared (one copy, no normal
+  mode rewrite), as cpm's ntc_bdos. (A first cut kept interrupts off throughout and failed the
+  VB self test's "Ticks moves on" check; ;@ints 0 / NTC_INTS stay in the compiler for a platform
+  that needs that, unused now.) No FileSystem class yet (the esxDOS F_* calls through dot_os are
+  the way); not for games (no Layer 2, no interrupt classes yet).
+- The compiler: ;@dotfile (OUTPUT "NAME.DOT", DEFINE NTC_ZXNDOT / NTC_ZXNDOTL), ;@dotorg (the
+  entry's 8K padded, OPT -Wno-fileorg, org #8000 for the program), ;@ints 0 (ntc_nmode stays 0,
+  NTC_INTS 0: ntc_xn's safe point has no ei - the ROM library has NTC_INTS 1), ;@ramtop (the dot
+  commands' end-of-program assert), the ROM builder drops IFDEF NTC_ZXNDOT / NTC_ZXNDOTL blocks
+  as it drops the Next's and the MSX's, CPCExpansion allowed and the default on zxndotl, #If
+  NTC_ZXNDOT / NTC_ZXNDOTL predefined (the platform and its base, as always); ntc_lib_cpc.asm's
+  mem_probe / mem_jbc / mem_se_out have the dot branch beside the Next's and the MSX's; ntc_mem
+  depends on ntc_dot_bank. gen.js bundles ntc_lib_dot.asm and the two platforms' classes.
+  src/ntc.html lists both platforms.
+- The harness: test/dotrun.py - a NextZXOS stand-in on zxnrun's Next (the esxDOS hooks the
+  platforms use, rst #10 / rst #18, the frame interrupt's FRAMES and LAST_K, the allocator's
+  pool from page 223 down); ntcrun.py --platform=zxndot / zxndotl, --cmdline= the arguments;
+  "--- exit" at the end says whether slots 2-7, SP and the pages were left as found.
+  NTC_DOTCOLS=80 shows BASIC's screen 80 columns wide (the shared reference outputs); the
+  default is 32. cpcrun.py's end-key breakpoint takes kw_waitkey's mode copies too.
+- Tests: regress.sh runs the whole host suite on zxndotl (both modes; the shared reference
+  outputs at 80 columns), the VB self test (64 tests, 5.8K) on zxndot, stdio on both, memory
+  small and memmap (16 banks from the allocator) on zxndotl, the command line and the ':' rule on
+  both, the Large Model's banks (a page written through the window, 134 pages allocated and
+  freed), 32-column wrapping, the over-8K refusal and the CPCExpansion refusal on zxndot.
+- Docs: NTC.md "Dot commands on the ZX Spectrum Next" and the ntcrun.py list, README.md (the
+  platform, cli.js's platforms, the harness), targets.md, components.md.
+
+20261108-1
+----------
+Main RAM back for CyborgOS C2 (it had been 166 bytes over the UniDOS-with-IDE ROM line #A309
+since its Nov 5 additions; no build had booted on that card since), plus what the window work
+turned up. The compiler changes are behaviour-identical for every program:
+- ntc_isl, the interrupt classes' slot table, was a fixed 128 bytes (16 slots): now 8 * NTC_ISLN,
+  NTC_ISLN = the program's interrupt classes (1 at least; the ROM library keeps 16). -120 bytes for
+  a program with one interrupt class. ntc_lib.asm and ntc_lib_cpc.asm (its own copy).
+- The call stubs loaded HL = 0 once per numeric local: now once per procedure (kept across the
+  numeric locals; reloaded after an array's or a String * n's clear, which use HL). -3 bytes a
+  local after the first: -69 on CyborgOS C2.
+- decidePinned: a procedure that calls Memory.SelectPage or Memory.Address (the two that leave a
+  page in the window) is pinned out of the Paged ranges, and so is what it calls; the main thread's
+  calls count too (what it calls with a page in must be mapped).
+- holeLayout, when a Paged window may take code (banked, from bank 1, not Reserved): the pinned
+  parts (stubs, #asm, data, library, pinned threads) are laid out FIRST, the threads after, so the
+  threads are what reaches the window; with the threads first (source order) the library hit it
+  and rounded it, and nothing went under. A Safe range is opened (padded to) only while a safe
+  block is still unplaced.
+- Option WindowFile "NAME.EXT", address: the ; @window data written as a file of its own
+  (assembled at #4000 in another of the assembler's pages, so its own DISP / ENT stay its own;
+  SAVEAMSDOS), for a program to load at the address and copy where it runs; the window is then
+  free for code. Not with HighCode. (CyborgOS C2 can't use it: once it runs some page is always in
+  its window - its own, the services', a slot's - and base block 1 never comes back, so no
+  hypervisor code can sit there whatever the map says. Found by trying it: the boot halted in the
+  hypervisor's page. C2 keeps the window Reserved.)
+- Page 1 under Paged code (the run-time half of the pinned-first layout): the Memory class's
+  page 1 is main RAM's own #4000-#7FFF. With page 0 code under the window that block is code, yet
+  AllocPage / the page loader handed it out first, so the first page loaded landed on the code
+  under the window (test/pagesw ran corrupted on cpcmin, repeating from the top). The compiler
+  now emits NTC_WINPAGED 1 when the window is Paged and may take code; the table build
+  (mem_tb_ports) marks page 1 taken ('P' in the RAT) when ntc_end reaches past #4000. Programs
+  with the window Reserved (CyborgOS) are unchanged. ntc_lib_cpc.asm (and ntc_lib.asm's copy).
+- The pinned parts are cut at the "; Jump stubs" two-line heading too (isCut): the stubs had
+  stayed glued to the last thread and gone under the window with it.
+- The ROM library picker (ntcRomAsm) knows ntc_end as a program symbol (the new IF NTC_WINPAGED
+  block names it; the ROM defines NTC_WINPAGED 0), so the Memory section stays in the ROMs.
+- Tests: regress.sh "arrays too big cpc" expects the assembly refusal; the pagesw tests expect the
+  pinned-first geometry (stubs, library, pinned procedures below #4000, the threads through the
+  window) and RUN the program on cpcmin (--ram=128, the pages reference output); the platform
+  out-of-memory refusal uses the Reserved form of it; the Safe first-fit test finds the first part
+  above #0100 by name. 960 ok, ALL PASS (ES5 included). CyborgOS's cosregress romram test now
+  takes the ROMs' RAM from #A308 (UniDOS with an IDE node - the real figure; it was #A3FF, which
+  is why the C2 overrun was never caught).
+
+20261107-6
+----------
+The memory map done as docs/memory-map.md says (the spec of 2026-11-08): the compiler no longer
+builds round Paged, places safe code over ALL the Safe ranges, knows the platforms' fixed areas,
+and has Reserved ZeroFill | Skip. holeLayout rewritten (ntc_compiler.js); the assembler does the
+sums (IF guards with the sizes from its earlier pass), the compiler emits the choices.
+- Rule 4 - fill from the org, round Reserved ONLY. Option Memory Paged no longer reserves: a
+  procedure's thread (page 0 code) fills straight through the window. What paged code reads or
+  calls bare goes round it: variables, strings, arrays, the Memory class's tables, the stubs, the
+  #asm blocks, the keyword library, and any main-RAM procedure a page calls (a bare dw, no stub
+  puts page 0 back) or that runs at any time (Tick, hooks, AddressOf), plus what those call
+  (decidePinned; the --layout output names them). With Option Memory Small (a page is LOADED into
+  the window, in place) or startbank 0 (the window is a swap page itself) nothing goes under it.
+  To keep everything out of the window on a banked build, Reserve the same range - CyborgOS's
+  hypervisor builds need that line (see below).
+- Rules 1 and 2 - Safe: each safe procedure (one ; @safe block each, both modes) is a macro placed
+  in the FIRST Option Memory Safe range it fits, in address order, the moment the fill reaches the
+  range (or would cross its start: it pads to the start, places, and goes on). The fill continues
+  after the safe code: a Safe range is not a hole any more, what the safe code leaves is used.
+  A procedure that fits in no range: ASSERT naming it. Ranges the fill never reaches are placed
+  before ntc_end (in the image). Converges in sjasmplus's 3 passes (sizes are position-free).
+- Rule 3 - the report: DISPLAY "NTC memory: ..." lines at ntc_end (sjasmplus prints them): the
+  program, arrays, stack; each Reserved / Paged hole (and why nothing / code goes under Paged);
+  each Safe range with its safe-code span; each safe block's address and size; each Skip block's
+  place in the file. --layout adds "Memory map: ..." and the pinned procedures.
+- Option Memory Paged addr, size [, startbank]: the start bank is back (default 1; 0 = the window
+  is page 0). Option Memory Available start, size: documentation, and it opens a platform default
+  Reserved range it covers.
+- Platform default Reserved (;@reserved in the platform asm, read into objPlat.reserved, applied
+  less the program's Available ranges, and less #C000-#FFFF under Option HighCode): cpc the screen
+  #C000-#FFFF; cpcmin #A600-#BFFF (firmware) + the screen; zxn #BA00-#FFFF. The build goes round
+  them like any Reserved; a program past the top gets "out of memory: the program does not fit
+  below #xxxx". NTC_PLATRSV equ 1 then turns the old top-of-RAM asserts off (zxn's #BA00, cpcmin's
+  RomEnable / FileSystem #A600). The Memory class's rsvtab holds the program's Reserved AND Paged
+  starts (the Small heap stops at the window), not the platform's (ntc_plat_memtop is that).
+- Option Memory Reserved ZeroFill | Skip start, size: ZeroFill (default, today's behaviour) keeps
+  the gap in the file as zeros. Skip packs the file: at the gap the assembler goes DISP (the code
+  assembled for its real address, put in the file straight on), ntc_fileend is the packed end
+  (SAVEAMSDOS uses it), and the start code's mover (constant size, right after ntc_start2, before
+  anything above a gap is touched) copies each block up, highest gap first, lddr (destination
+  above source, overlapping). Refused on zxn (a NEX loads each part to its own address), ROM
+  cartridges, md, m65.
+- NTC_WINHOLE is 1 when the window is Reserved OR Paged (the library takes the free RAM as above
+  the window; the Memory class's tables go above it); ; @window data still needs it Reserved.
+- Byte-identical for every program that does not use the new map: test/out before/after the same
+  bar NTC_STAMP (a hash of the asm text: pages). CyborgOS rebuilt with this compiler + one line in
+  each hypervisor Main.bas (cyborgos, cyborgosc2, cyborgosmsx: "Option Memory Reserved &H4000,
+  &H4000" beside the Paged line): 361 of 363 build outputs byte-identical, the other two (GEN.CYB,
+  MIND.CYB) differ only because this NTC tree's Net.cls (the coprocessor path) is newer than the
+  copy bundled in CyborgOS's cosbuild. NOT applied to CyborgOS here - it is its source, the line
+  is for its owner to add (without it the hypervisor's code fills #4000-#7FFF and is paged out
+  while a slot runs).
+- The page-to-page keyword crash (the open bug in memory-map.md) fixed: a far call to a page's asm
+  keyword from code that is itself in the window (another page's procedure, or page-0 code under
+  Paged) blanked the screen - kwin switched the page in and the keyword popped its args from the
+  thread, now paged out (on cpm's Small scheme: loaded over). The call is now
+  dw ntc_ovl_kwin, block, n, fn_x, args..., ntc_ovl_kwback (n = the words from fn_x to kwback):
+  kwin copies those n words to a main-RAM buffer (one a nesting level, 8 deep, 8 words each),
+  saves the page (Small: the class) and the resume point on its frame stack, switches the page in
+  and runs the copy; kwback restores the page and goes on after the n words. Both ntc_ovl variants
+  (CPCExpansion banks, Small). 6 arguments at most on such a call (a compile error past that: an 8
+  word buffer a level - 16 words grew the ROM library's RAM past what cpcfw's firmware leaves, the
+  irqfar ROM-set test crashed).
+  Test: test/pkp (Caller in page PA calling Art's Fill / Val in page PK), cpcmin + cpm, both modes.
+- The other Claude's audit of -6, fixed here: an empty Safe range (no safe class) referenced
+  ntc_sa1_o, undefined (Label not found) - the report now says "no safe classes - ordinary memory";
+  the report is printed for every program (it was only with holes or safe code: a baremetal build
+  printed nothing); a Paged / Reserved range at or below the org is listed as such (it was left
+  out); a Safe range inside a Reserved range (the cpc screen at #C000, say) or a Paged range is
+  refused at compile time (the safe code went into the screen, the arrays past #FFFF, no error);
+  the Skip report line prints the file position in hex (/H, was /A); a hole at the top of memory
+  asserts "out of memory" once instead of padding past #FFFF (zxn: a second "write outside of
+  device memory" error, cpcmin: one assert per part after it); the arrays past #FFFF assert.
+- regress.sh: "arrays too big cpc" now expects the assembly-time refusal (the arrays past the
+  platform's reserved screen go past #FFFF: out of memory) where it ran to GURU 001 before; cpm and
+  cpcfw (no platform range) still GURU at run time.
+- Tests (regress.sh): page-to-page far keyword (4 runs); Safe first fit over three ranges + runs (test/safe/Multi.bas, Big.cls); a
+  safe procedure that fits nowhere refused by name; Reserved Skip packed + moved + runs
+  (test/safe/Skip.bas), refused on zxn; Paged fill-through with a page-called procedure pinned
+  above the window (test/pagesw/Main.bas + pages/*.cls), the layout's pinned list, the same on cpm
+  (Small: a hole); the platform top as out of memory. Full regression ALL PASS.
+- docs/portable-ntc-basic.md restored (it had been dropped from the deliveries after Nov 5; taken from the
+  Nov 5 upload, unchanged).
+- Docs: docs/memory-map.md (the spec + how the compiler does it), NTC.md (Option Memory, Option
+  Safe), tutorial 5.4.
+- Fixed on the way: the zxn NexData banks were spliced after the new IF/ENDIF around the #BA00
+  assert in one intermediate state (caught by the CyborgOS NEX comparison and the auckland zxn
+  tests) - the splice now finds the stub line, not a fixed index.
+
+20261107-5
+----------
+New tool: tools/gen/fgru.py - GEN's model in REAL FLOATS, the float counterpart to qgru.py's
+IntModel / Net.cls / genmdl.c. Reads the SAME GEN.MDL file, dequantises it (W = q * 2^-k, embed/64,
+bias/64, S=64), and runs the textbook GRU the integer path approximates - true np.tanh / sigmoid and
+float arithmetic instead of the Z80's int8 tables, shifts and saturation. Same CLI as genmdl:
+  python tools/gen/fgru.py MODEL.MDL "prompt" n     (n greedy chars, newline shown as |)
+Lets you see how far the int8/ternary machine drifts from the ideal float model on the same prompt.
+Validated against genmdl (built -DGENMDL_MAIN) on test/net_t.mdl (V=97 E=8 H=16 L=2 K=8): byte-for-
+byte identical greedy output - the ternary machine matches the real-float model on that model.
+Needs numpy (as qgru.py does). No compiler/library change.
 
 20261107-4
 ----------

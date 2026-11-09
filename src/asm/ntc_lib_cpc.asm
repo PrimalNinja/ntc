@@ -450,7 +450,7 @@ mem_putback:
 			pop hl
 			ret
 
-;## ntc_mem ntc_memcore ntc_membank ntc_nxt_bank ntc_msx_bank @shared @far @if:ntc_mem_cpcexpansion
+;## ntc_mem ntc_memcore ntc_membank ntc_nxt_bank ntc_msx_bank ntc_dot_bank @shared @far @if:ntc_mem_cpcexpansion
 ; ------------------------------------------------------------
 ; ntc_mem (CPCExpansion) - 16K RAM pages in the #4000-#7FFF window (CPC gate
 ; array RAM setting: C0 = plain, C4-C7 + bank * 8 = page 0-3 of a 64K bank;
@@ -541,6 +541,9 @@ mem_probe:
 	IFDEF NTC_MSXDOS
 			call msx_mem_probe		; MSX: the mapper's segments from MSX-DOS 2 (ntc_lib_msx.asm), sets mem_banks
 	ELSE
+	IFDEF NTC_ZXNDOTL
+			call dot_mem_probe		; a Next dot command: pages from NextZXOS's allocator (ntc_lib_dot.asm), sets mem_banks
+	ELSE
 	IFNDEF NTC_ZXN
 			ld a, i					; P/V = interrupts were on
 			di
@@ -621,6 +624,7 @@ mem_pr_back:
 mem_pr_di:
 	ELSE
 			call nxt_mem_probe		; Next: the RAM probe (ntc_lib_nxt.asm), sets mem_banks
+	ENDIF
 	ENDIF
 	ENDIF
 		ENDIF
@@ -732,6 +736,16 @@ mem_tb_pl2:
 			djnz mem_tb_pl
 	ENDIF
 mem_tb_ports:						; the port table: page 1 main RAM, then 4 a bank found
+	IF NTC_WINPAGED					; page 0 code under the window (Option Memory Paged): page 1, main
+			ld hl, ntc_end			; RAM's own #4000-#7FFF, holds it - never handed out ('P')
+			ld de, #4001
+			or a
+			sbc hl, de
+			jr c, mem_tb_pt
+			ld hl, (mem_ttype)
+			ld (hl), 'P'
+mem_tb_pt:
+	ENDIF
 			ld hl, (mem_tport)
 			ld (hl), #C0
 			inc hl
@@ -782,6 +796,9 @@ mem_jbc:
 	IFDEF NTC_ZXN
 			jp nxt_mem_jbc			; Next: 64K bank E -> its first 16K Next bank (ntc_lib_nxt.asm)
 	ENDIF
+	IFDEF NTC_ZXNDOTL
+			jp dot_mem_jbc			; a Next dot command: 64K bank E -> its page 0's setting (ntc_lib_dot.asm)
+	ENDIF
 			ld a, e
 			rrca
 			rrca
@@ -829,6 +846,9 @@ mem_se_do:
 mem_se_out:
 	IFDEF NTC_MSXDOS
 			jp msx_mem_se_out			; MSX: the segment into page 1 (PUT_P1: ntc_lib_msx.asm) -> mem_se_end
+	ENDIF
+	IFDEF NTC_ZXNDOTL
+			jp dot_mem_se_out			; a Next dot command: the setting's two pages into slots 2, 3 (ntc_lib_dot.asm) -> mem_se_end
 	ENDIF
 	IFNDEF NTC_ZXN
 			ld (ntc_rampt), bc
@@ -3251,28 +3271,68 @@ ntc_ovl_lno:
 ; ntc_ovl_kwin / ntc_ovl_kwback (thread keywords) - an asm keyword that lives
 ; in an overlay class, called from OUTSIDE its page (main or another page), is
 ; bracketed in the thread:
-;   dw ntc_ovl_kwin, <class block>, fn_x, args..., ntc_ovl_kwback
-; kwin reads the class block (the inline word after it), saves the page now in
-; the window on a small nesting stack, and switches the class's page in (loading
-; its file into a free page first if needed); the keyword fn_x then runs with
-; its own page in the window, reads its inline args and rets into the thread as
-; normal; kwback pops the saved page and switches it back. A call from inside
-; the page is local - the page is already in - and keeps the bare dw fn_x.
-ovl_wstk:		ds 16			; saved window pages (8 far calls deep)
+;   dw ntc_ovl_kwin, <class block>, n, fn_x, args..., ntc_ovl_kwback
+; n = the words from fn_x to ntc_ovl_kwback inclusive. The caller's thread may
+; itself be in the window (a page calling another page's keyword, or page-0
+; code under the window): switching the class in would page it out, and fn_x
+; pops its args from it. So kwin copies those n words to a buffer in main RAM
+; (one for each level of nesting), saves the page now in the window and where
+; the thread goes on (after the n words) on a small stack, switches the class's
+; page in (loading its file into a free page first if needed), and runs the
+; copy: fn_x pops its args from the buffer and rets into kwback there; kwback
+; pops the saved page back into the window and goes on with the thread after
+; the n words. A call from inside the page is local - the page is already in -
+; and keeps the bare dw fn_x.
+OVL_KWMAX	equ 8			; words a far keyword call may be (fn_x, 6 args at most, kwback)
+ovl_wstk:		ds 4 * 8		; saved window page and resume point, 8 far calls deep
 ovl_wsp:		dw ovl_wstk
+ovl_kbuf:		ds 2 * OVL_KWMAX * 8	; the copied thread words, one buffer a level
+ovl_kbp:		dw 0			; the buffer this call runs from
 ntc_ovl_kwin:
-			pop hl					; HL = class block; thread now past the inline word
+			pop hl					; HL = class block
 			ld (ovl_blk), hl
-			ld (ovl_ksp), sp		; the rest of the thread
+			pop bc					; BC = n words; thread now at fn_x
+			ld (ovl_ksp), sp
 			ld sp, (ntc_csp)
+			push bc
 			call mem_start
-			ld hl, (ovl_wsp)		; push the page now in the window
-			ld de, (mem_cur)
+			pop bc
+			ld hl, (ovl_ksp)		; resume = thread + 2n
+			ld d, b
+			ld e, c
+			add hl, de
+			add hl, de
+			ex de, hl				; DE = resume
+			ld hl, (ovl_wsp)		; push the frame: the page now in the window, resume
+			push bc
+			ld bc, (mem_cur)
+			ld (hl), c
+			inc hl
+			ld (hl), b
+			inc hl
 			ld (hl), e
 			inc hl
 			ld (hl), d
 			inc hl
 			ld (ovl_wsp), hl
+			ld de, ovl_wstk + 4		; this level's buffer: ovl_kbuf + level * 2 * OVL_KWMAX
+			or a
+			sbc hl, de				; level * 4
+			add hl, hl
+			add hl, hl
+			add hl, hl				; level * 32
+			ld de, ovl_kbuf
+			add hl, de
+			ld (ovl_kbp), hl
+			ex de, hl				; DE = the buffer
+			pop bc					; the n words copied there
+			ld h, b
+			ld l, c
+			add hl, hl
+			ld b, h
+			ld c, l
+			ld hl, (ovl_ksp)
+			ldir
 			ld hl, (ovl_blk)		; the class loaded already?
 			ld e, (hl)
 			inc hl
@@ -3292,21 +3352,26 @@ ntc_ovl_kwin_cl:
 			or l
 			jp nz, ntc_ovl_die
 ntc_ovl_kwin_bk:
-			ld sp, (ovl_ksp)		; back on the thread; fn_x runs next
+			ld sp, (ovl_kbp)		; on the copy; fn_x runs next
 			ret
 ntc_ovl_kwback:
-			ld (ovl_ksp), sp
 			ld sp, (ntc_csp)
 			call mem_start
-			ld hl, (ovl_wsp)		; pop the saved page
+			ld hl, (ovl_wsp)		; pop the frame
 			dec hl
 			ld d, (hl)
 			dec hl
-			ld e, (hl)
+			ld e, (hl)				; DE = resume
+			dec hl
+			ld b, (hl)
+			dec hl
+			ld c, (hl)				; BC = the saved page
 			ld (ovl_wsp), hl
-			ex de, hl
+			ld (ovl_ksp), de
+			ld h, b
+			ld l, c
 			call mem_sel			; put it back in the window
-			ld sp, (ovl_ksp)
+			ld sp, (ovl_ksp)		; the thread, after the n words
 			ret
 
 ;## ntc_ovl ntc_ovlcom ntc_mem ntc_plat_fs @shared @if:ntc_mem_small
@@ -3565,18 +3630,33 @@ ntc_ovl_lreg:
 
 ; ntc_ovl_kwin / ntc_ovl_kwback (thread keywords, Small) - an asm keyword in an
 ; overlay class, called from outside the class, is bracketed in the thread:
-;   dw ntc_ovl_kwin, <class block>, fn_x, args..., ntc_ovl_kwback
-; kwin reads the class block, notes the class the caller runs in (0 when the
-; caller's thread is not in the area), loads the target class into the area if
-; another one is there, and returns to the thread so fn_x runs with its class in
-; the area; kwback loads the noted class back. A call from the class's own code
-; is local (it is already in the area) and keeps the bare dw fn_x.
-ovl_kwpg:		dw 0			; the class to put back after a far keyword call
+;   dw ntc_ovl_kwin, <class block>, n, fn_x, args..., ntc_ovl_kwback
+; n = the words from fn_x to ntc_ovl_kwback inclusive. The caller's thread may
+; be in the area itself (another class's code): loading the target class there
+; would write over it, and fn_x pops its args from it. So kwin copies those n
+; words to a buffer in main RAM (one a level of nesting), notes the class the
+; caller runs in (0 when its thread is not in the area) and where the thread
+; goes on, loads the target class into the area if another one is there, and
+; runs the copy; kwback loads the noted class back and goes on with the thread
+; after the n words. A call from the class's own code is local (it is already
+; in the area) and keeps the bare dw fn_x.
+OVL_KWMAX	equ 8			; words a far keyword call may be (fn_x, 6 args at most, kwback)
+ovl_kwstk:		ds 4 * 8		; the class to put back and the resume point, 8 far calls deep
+ovl_kwsp:		dw ovl_kwstk
+ovl_kbuf:		ds 2 * OVL_KWMAX * 8	; the copied thread words, one buffer a level
+ovl_kbp:		dw 0			; the buffer this call runs from
 ntc_ovl_kwin:
-			pop hl					; HL = class block; thread now past the inline word
+			pop hl					; HL = class block
 			ld (ovl_blk), hl
-			ld (ovl_ksp), sp		; the rest of the thread
+			pop bc					; BC = n words; thread now at fn_x
+			ld (ovl_ksp), sp
 			ld sp, (ntc_csp)
+			ld hl, (ovl_ksp)		; resume = thread + 2n
+			ld d, b
+			ld e, c
+			add hl, de
+			add hl, de
+			ex de, hl				; DE = resume
 			ld a, (ovl_ksp + 1)		; caller's thread in the area: its class to put back
 			and #C0
 			cp #40
@@ -3584,7 +3664,37 @@ ntc_ovl_kwin:
 			jr nz, ntc_ovl_kw1
 			ld hl, (ovl_cur)
 ntc_ovl_kw1:
-			ld (ovl_kwpg), hl
+			push bc
+			ld b, h
+			ld c, l
+			ld hl, (ovl_kwsp)		; push the frame: the class to put back, resume
+			ld (hl), c
+			inc hl
+			ld (hl), b
+			inc hl
+			ld (hl), e
+			inc hl
+			ld (hl), d
+			inc hl
+			ld (ovl_kwsp), hl
+			ld de, ovl_kwstk + 4	; this level's buffer: ovl_kbuf + level * 2 * OVL_KWMAX
+			or a
+			sbc hl, de
+			add hl, hl
+			add hl, hl
+			add hl, hl
+			ld de, ovl_kbuf
+			add hl, de
+			ld (ovl_kbp), hl
+			ex de, hl				; DE = the buffer
+			pop bc					; the n words copied there
+			ld h, b
+			ld l, c
+			add hl, hl
+			ld b, h
+			ld c, l
+			ld hl, (ovl_ksp)
+			ldir
 			ld hl, (ovl_blk)		; already in the area?
 			ld de, (ovl_cur)
 			or a
@@ -3598,15 +3708,26 @@ ntc_ovl_kw_bk:
 			or l
 			jp nz, ntc_ovl_die
 ntc_ovl_kw_in:
-			ld sp, (ovl_ksp)		; back on the thread; fn_x runs next
+			ld sp, (ovl_kbp)		; on the copy; fn_x runs next
 			ret
 ntc_ovl_kwback:
-			ld (ovl_ksp), sp
 			ld sp, (ntc_csp)
-			ld hl, (ovl_kwpg)		; the class to put back (0 = none)
-			ld a, h
-			or l
+			ld hl, (ovl_kwsp)		; pop the frame
+			dec hl
+			ld d, (hl)
+			dec hl
+			ld e, (hl)				; DE = resume
+			dec hl
+			ld b, (hl)
+			dec hl
+			ld c, (hl)				; BC = the class to put back (0 = none)
+			ld (ovl_kwsp), hl
+			ld (ovl_ksp), de
+			ld a, b
+			or c
 			jr z, ntc_ovl_kwb_no
+			ld h, b
+			ld l, c
 			ld (ovl_blk), hl
 			ld de, (ovl_cur)		; still there?
 			or a
@@ -3620,7 +3741,7 @@ ntc_ovl_kwb_bk:
 			or l
 			jp nz, ntc_ovl_die
 ntc_ovl_kwb_no:
-			ld sp, (ovl_ksp)
+			ld sp, (ovl_ksp)		; the thread, after the n words
 			ret
 
 ;## ntc_gfx ntc_data ntc_plat_data @shared @ramonly
@@ -4302,7 +4423,7 @@ ntc_islfx:		db 0			; 1 = a fixed class fell due in this interrupt
 ntc_islsc:		db 0			; the shared class having its turns (slot number)
 ntc_islsw:		db 0			; turns it has left
 ntc_islshn:		db 0			; shared classes (0 = none)
-ntc_isl:		ds 128			; 16 slots
+ntc_isl:		ds 8 * NTC_ISLN	; a slot a class (NTC_ISLN: the program's interrupt classes, 16 at most)
 
 ; ntc_isl_tick - from the interrupt handler (call, real stack): count each
 ; slot, mark the ones due. Keeps BC, DE, IX, IY.

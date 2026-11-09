@@ -6224,6 +6224,16 @@ mem_tb_ok:
 			inc de
 			ldir
 mem_tb_ports:						; the port table: page 1 main RAM, then 4 a bank found
+	IF NTC_WINPAGED					; page 0 code under the window (Option Memory Paged): page 1, main
+			ld hl, ntc_end			; RAM's own #4000-#7FFF, holds it - never handed out ('P')
+			ld de, #4001
+			or a
+			sbc hl, de
+			jr c, mem_tb_pt
+			ld hl, (mem_ttype)
+			ld (hl), 'P'
+mem_tb_pt:
+	ENDIF
 			ld hl, (mem_tport)
 			ld (hl), #C0
 			inc hl
@@ -9660,7 +9670,7 @@ ntc_islfx:		db 0			; 1 = a fixed class fell due in this interrupt
 ntc_islsc:		db 0			; the shared class having its turns (slot number)
 ntc_islsw:		db 0			; turns it has left
 ntc_islshn:		db 0			; shared classes (0 = none)
-ntc_isl:		ds 128			; 16 slots
+ntc_isl:		ds 8 * NTC_ISLN	; a slot a class (NTC_ISLN: the program's interrupt classes, 16 at most)
 
 ; ntc_isl_tick - from the interrupt handler (call, real stack): count each
 ; slot, mark the ones due. Keeps BC, DE, IX, IY.

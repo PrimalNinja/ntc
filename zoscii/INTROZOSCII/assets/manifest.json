@@ -1,0 +1,75 @@
+{
+ "_about": "what the program knows about each file. layers are listed outermost first: [protocol, rom]; protocol 0 ZOSCII, 1 UNSIGNAL; rom 0-2 = rom1-3 (128KB), 3 = rom_s (2KB). win = the outer ROM window in bytes.",
+ "files": [
+  {
+   "name": "A  ZOSCII, SMALL 2KB ROM",
+   "file": "file_a.bin",
+   "layers": [
+    [
+     0,
+     3
+    ]
+   ],
+   "win": 2048
+  },
+  {
+   "name": "B  UNSIGNAL, ONE LAYER",
+   "file": "file_b.bin",
+   "layers": [
+    [
+     1,
+     0
+    ]
+   ],
+   "win": 65536
+  },
+  {
+   "name": "C  UNSIGNAL, TWO LAYERS",
+   "file": "file_c.bin",
+   "layers": [
+    [
+     1,
+     1
+    ],
+    [
+     1,
+     0
+    ]
+   ],
+   "win": 65536
+  },
+  {
+   "name": "D  UNSIGNAL, THREE LAYERS",
+   "file": "file_d.bin",
+   "layers": [
+    [
+     1,
+     2
+    ],
+    [
+     1,
+     1
+    ],
+    [
+     1,
+     0
+    ]
+   ],
+   "win": 65536
+  }
+ ],
+ "cribs": [
+  "the pier",
+  "meet me",
+  "safe",
+  "the sender",
+  "xyzzy plugh",
+  "aaaaaaaa"
+ ],
+ "altFile": 1,
+ "_dev": {
+  "msgA": "the sender said meet me at the pier at three the pier is safe and the buyer will come alone with the case",
+  "msgB": "meet me at the pier at three the pier is safe",
+  "altText": "buy some milk and bread then go straight home"
+ }
+}

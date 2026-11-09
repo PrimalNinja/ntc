@@ -929,6 +929,9 @@ def main():
     if plat == 'zxn':     # the ZX Spectrum Next (zxnrun.py): the NEX file the assembly wrote
         import zxnrun; zxnrun.run(asm, syms, typed)
         return
+    if plat in ('zxndot', 'zxndotl'):     # a Next dot command (dotrun.py): the NAME.DOT the assembly wrote, under a NextZXOS stand-in
+        import dotrun; dotrun.run(asm, syms, typed, cmdline)
+        return
     if plat in ('cpc', 'cpcmin'):     # the CPC hardware emulation (cpcmin: plus the firmware stand-ins)
         c = cpcrun.CPC(b, syms.get('ntc_start', 0x4000), typed, syms); c.run()
         print(c.screen(cpcrun.loadfont(syms, c.m.memory)))

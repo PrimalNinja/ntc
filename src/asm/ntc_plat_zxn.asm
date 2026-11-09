@@ -53,6 +53,7 @@
 ;@stack    #C000
 ;@cols     40
 ;@rows     32
+;@reserved #BA00,#4600			; the FileSystem class's DOS area #BA00-#BDFF, the stack #BE00-#BFFF, the screen #C000-#FFFF
 ; ============================================================
 
 ;## ntc_plat_data

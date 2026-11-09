@@ -11,7 +11,11 @@ NTC_MEMBANKS	equ 64		; Option Memory: the most 64K banks the Memory class looks 
 NTC_ROMENABLE	equ 0		; Option RomEnable (cpcfw, cpcmin): the start code starts the ROMs
 NTC_ROMLIB	equ 0		; 1 = the library is the keyword ROM (Library: ROM; ntcRomAsm builds it)
 NTC_WINHOLE	equ 0		; 1 = the program is built round an Option Reserve range over the window #4000-#7FFF
+NTC_WINPAGED	equ 0		; 1 = page 0 code may sit under the window (Option Memory Paged, not Reserved): the Memory class never hands out page 1 (main RAM's own #4000-#7FFF) when the code reaches past #4000
 NTC_BUFSIZE	equ 2048		; the library's buffer (ntc_buf: FileSystem, Memory.Copy): Option Buffer
+NTC_ISLN	equ 1		; interrupt classes (Option Class Interrupt): the slots ntc_isl has (8 bytes each)
+NTC_INTS	equ 1		; 0 = the platform never lets interrupts in (;@ints 0: ntc_xn's safe point has no ei)
+NTC_PLATRSV	equ 0		; 1 = the platform's fixed areas (;@reserved) are Reserved in the memory map: the build goes round them (the old top-of-RAM asserts are off)
 NTC_CPMGFX	equ 0		; 1 = CP/M: Graphics draws on an Amstrad CPC's screen (2.2: #C000, Plus: block 1 from common memory)
 
 ntc_start:
@@ -397,15 +401,12 @@ if2_e_go:			ld sp, if2_e
 
 p_chk_c:		; call chk (normal)
 			pop hl			; got
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			ld (var_chk_got), de
+			ld de, var_chk_got		; (the block of 2 parameters)
+			ldi
+			ldi
 			pop hl			; want
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			ld (var_chk_want), de
+			ldi
+			ldi
 			ld (p_chk_rs), sp
 			ld sp, p_chk
 			jp ntc_xn
@@ -414,15 +415,12 @@ p_chk_r:		; end of chk
 			jp ntc_xn
 p_addasm_c:		; call addasm (normal)
 			pop hl			; a
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			ld (var_addasm_a), de
+			ld de, var_addasm_a		; (the block of 2 parameters)
+			ldi
+			ldi
 			pop hl			; b
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			ld (var_addasm_b), de
+			ldi
+			ldi
 			ld hl, 0
 			ld (var_addasm_addasm), hl
 			ld (p_addasm_rs), sp
@@ -498,7 +496,6 @@ p_pool_open_c:		; call open (normal)
 			ld (var_pool_open_start), de
 			ld hl, 0
 			ld (var_pool_open_open), hl
-			ld hl, 0
 			ld (var_pool_open_h), hl
 			ld (p_pool_open_rs), sp
 			ld sp, p_pool_open
@@ -508,15 +505,12 @@ p_pool_open_r:		; end of open
 			jp ntc_xn
 p_pool_add_c:		; call add (normal)
 			pop hl			; h
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			ld (var_pool_add_h), de
+			ld de, var_pool_add_h		; (the block of 2 parameters)
+			ldi
+			ldi
 			pop hl			; n
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			ld (var_pool_add_n), de
+			ldi
+			ldi
 			ld (p_pool_add_rs), sp
 			ld sp, p_pool_add
 			jp ntc_xn
@@ -656,11 +650,11 @@ var_pool_uses_uses:			dw 0
 var_t:			dw 0
 var_bad:			dw 0
 p_chk_rs:			dw 0
-var_chk_got:			dw 0
-var_chk_want:			dw 0
+var_chk_got:			dw 0, 0		; parameters, one block
+var_chk_want		equ var_chk_got + 2
 p_addasm_rs:			dw 0
-var_addasm_a:			dw 0
-var_addasm_b:			dw 0
+var_addasm_a:			dw 0, 0		; parameters, one block
+var_addasm_b		equ var_addasm_a + 2
 p_times3_rs:			dw 0
 var_times3_x:			dw 0
 p_countbits_rs:			dw 0
@@ -674,8 +668,8 @@ var_pool_open_start:			dw 0
 var_pool_open_h:			dw 0
 var_pool_mopen:			dw 0
 p_pool_add_rs:			dw 0
-var_pool_add_h:			dw 0
-var_pool_add_n:			dw 0
+var_pool_add_h:			dw 0, 0		; parameters, one block
+var_pool_add_n		equ var_pool_add_h + 2
 p_pool_value_rs:			dw 0
 var_pool_value_h:			dw 0
 p_pool_uses_rs:			dw 0
@@ -777,9 +771,11 @@ kw_waitkey:
 ntc_xn:
 			ld (ntc_ip), sp
 			ld sp, (ntc_csp)
+	IF NTC_INTS					; (;@ints 0: a platform that never lets interrupts in - the Next's dot commands)
 			ei
 			nop					; an interrupt can be taken here
 			di
+	ENDIF
 			ld sp, (ntc_ip)
 			ret
 
@@ -1466,6 +1462,7 @@ ntc_plat_memtop:
 
 
 ntc_end:				; the end of the program (and of its file)
+			DISPLAY "NTC memory: program ", /H, ntc_start, "-", /H, ntc_end - 1, " arrays ", /H, ntc_bss, "-", /H, ntc_free - 1, " stack the caller's"
 ; arrays: after the program, not in its file - kw_bssinit checks they fit and clears them
 ntc_bssfrom	equ ntc_end
 ntc_bss		equ ntc_bssfrom

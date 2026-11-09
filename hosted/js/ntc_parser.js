@@ -1336,6 +1336,10 @@ function ntcParse(arrFiles_a, objDefines_a)
 		{
 			record('option', { what: 'noturbo' });	// normal mode only: one copy of everything, Turbo On / Off do nothing
 		}
+		else if (strText === 'compactcalls')
+		{
+			record('option', { what: 'compactcalls' });	// smaller call / return stubs through shared library routines (a few T-states more a call)
+		}
 		else if (strText === 'vbprint')
 		{
 			record('option', { what: 'vbprint' });	// Print spacing like VB
@@ -1407,6 +1411,10 @@ function ntcParse(arrFiles_a, objDefines_a)
 		else if (left(strText, 'safe '))
 		{
 			record('option', { what: 'safe', value: trim(strText.substr(5)) });	// classes kept resident (out of the pageable window #4000-#7FFF): the banking / slot-access code
+		}
+		else if (left(strText, 'windowfile '))
+		{
+			record('option', { what: 'windowfile', value: trim(strSrc.replace(/^\s*option\s+windowfile\s+/i, '').replace(/\s+'.*$/, '')) });	// the ; @window data as a file of its own, staged at an address the program copies it from (the window is then free for code)
 		}
 		else if (left(strText, 'nexdata '))
 		{

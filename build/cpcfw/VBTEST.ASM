@@ -12,7 +12,11 @@ NTC_MEMBANKS	equ 64		; Option Memory: the most 64K banks the Memory class looks 
 NTC_ROMENABLE	equ 0		; Option RomEnable (cpcfw, cpcmin): the start code starts the ROMs
 NTC_ROMLIB	equ 0		; 1 = the library is the keyword ROM (Library: ROM; ntcRomAsm builds it)
 NTC_WINHOLE	equ 0		; 1 = the program is built round an Option Reserve range over the window #4000-#7FFF
+NTC_WINPAGED	equ 0		; 1 = page 0 code may sit under the window (Option Memory Paged, not Reserved): the Memory class never hands out page 1 (main RAM's own #4000-#7FFF) when the code reaches past #4000
 NTC_BUFSIZE	equ 2048		; the library's buffer (ntc_buf: FileSystem, Memory.Copy): Option Buffer
+NTC_ISLN	equ 1		; interrupt classes (Option Class Interrupt): the slots ntc_isl has (8 bytes each)
+NTC_INTS	equ 1		; 0 = the platform never lets interrupts in (;@ints 0: ntc_xn's safe point has no ei)
+NTC_PLATRSV	equ 0		; 1 = the platform's fixed areas (;@reserved) are Reserved in the memory map: the build goes round them (the old top-of-RAM asserts are off)
 NTC_CPMGFX	equ 0		; 1 = CP/M: Graphics draws on an Amstrad CPC's screen (2.2: #C000, Plus: block 1 from common memory)
 
 ntc_start:
@@ -887,15 +891,12 @@ sel14_e_go:			ld sp, sel14_e
 
 p_chk_n_c:		; call chk (normal)
 			pop hl			; got
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			ld (var_chk_got), de
+			ld de, var_chk_got		; (the block of 2 parameters)
+			ldi
+			ldi
 			pop hl			; want
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			ld (var_chk_want), de
+			ldi
+			ldi
 			ld (p_chk_rs), sp
 			ld sp, p_chk_n
 			jp ntc_xn
@@ -904,15 +905,12 @@ p_chk_n_r:		; end of chk
 			jp ntc_xn
 p_chk_c:		; call chk (turbo)
 			pop hl			; got
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			ld (var_chk_got), de
+			ld de, var_chk_got		; (the block of 2 parameters)
+			ldi
+			ldi
 			pop hl			; want
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			ld (var_chk_want), de
+			ldi
+			ldi
 			ld (p_chk_rs), sp
 			ld sp, p_chk
 			ret
@@ -956,15 +954,12 @@ p_chks_r:		; end of chks
 			jp ntc_xn
 p_add_c:		; call add (normal)
 			pop hl			; x
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			ld (var_add_x), de
+			ld de, var_add_x		; (the block of 2 parameters)
+			ldi
+			ldi
 			pop hl			; y
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			ld (var_add_y), de
+			ldi
+			ldi
 			ld hl, 0
 			ld (var_add_add), hl
 			ld (p_add_rs), sp
@@ -1025,7 +1020,6 @@ p_fact_c:		; call fact (normal)
 			ld (var_fact_k), de
 			ld hl, 0
 			ld (var_fact_fact), hl
-			ld hl, 0
 			ld (var_fact_r), hl
 			ld (p_fact_rs), sp
 			ld sp, p_fact
@@ -1045,7 +1039,6 @@ p_counter_r:		; end of counter
 p_fresh_c:		; call fresh (normal)
 			ld hl, 0
 			ld (var_fresh_fresh), hl
-			ld hl, 0
 			ld (var_fresh_calls), hl
 			ld (p_fresh_rs), sp
 			ld sp, p_fresh
@@ -1106,20 +1099,15 @@ p_kind_r:		; end of kind
 			jp ntc_xn
 p_sum3_n_c:		; call sum3 (normal)
 			pop hl			; x
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			ld (var_sum3_x), de
+			ld de, var_sum3_x		; (the block of 3 parameters)
+			ldi
+			ldi
 			pop hl			; y
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			ld (var_sum3_y), de
+			ldi
+			ldi
 			pop hl			; z
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			ld (var_sum3_z), de
+			ldi
+			ldi
 			ld hl, 0
 			ld (var_sum3_sum3), hl
 			ld (p_sum3_rs), sp
@@ -1130,20 +1118,15 @@ p_sum3_n_r:		; end of sum3
 			jp ntc_xn
 p_sum3_c:		; call sum3 (turbo)
 			pop hl			; x
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			ld (var_sum3_x), de
+			ld de, var_sum3_x		; (the block of 3 parameters)
+			ldi
+			ldi
 			pop hl			; y
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			ld (var_sum3_y), de
+			ldi
+			ldi
 			pop hl			; z
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			ld (var_sum3_z), de
+			ldi
+			ldi
 			ld hl, 0
 			ld (var_sum3_sum3), hl
 			ld (p_sum3_rs), sp
@@ -1184,16 +1167,16 @@ var_sum3_sum3:			dw 0
 var_t:			dw 0
 var_bad:			dw 0
 p_chk_rs:			dw 0
-var_chk_got:			dw 0
-var_chk_want:			dw 0
+var_chk_got:			dw 0, 0		; parameters, one block
+var_chk_want		equ var_chk_got + 2
 p_chks_rs:			dw 0
 			db 40			; capacity
 var_chks_got:			ds 41
 			db 40			; capacity
 var_chks_want:			ds 41
 p_add_rs:			dw 0
-var_add_x:			dw 0
-var_add_y:			dw 0
+var_add_x:			dw 0, 0		; parameters, one block
+var_add_y		equ var_add_x + 2
 p_twice_rs:			dw 0
 var_twice_v:			dw 0
 p_bump_rs:			dw 0
@@ -1219,9 +1202,9 @@ var_kind_f:			ds 41
 			db 40			; capacity
 var_kind___sel14:			ds 41
 p_sum3_rs:			dw 0
-var_sum3_x:			dw 0
-var_sum3_y:			dw 0
-var_sum3_z:			dw 0
+var_sum3_x:			dw 0, 0, 0		; parameters, one block
+var_sum3_y		equ var_sum3_x + 2
+var_sum3_z		equ var_sum3_x + 4
 tmp0:			dw 0
 tmp1:			dw 0
 			db 40			; capacity
@@ -1397,9 +1380,11 @@ kw_waitkey:
 ntc_xn:
 			ld (ntc_ip), sp
 			ld sp, (ntc_csp)
+	IF NTC_INTS					; (;@ints 0: a platform that never lets interrupts in - the Next's dot commands)
 			ei
 			nop					; an interrupt can be taken here
 			di
+	ENDIF
 			ld sp, (ntc_ip)
 			ret
 
@@ -3035,6 +3020,7 @@ ntc_plat_memtop:
 
 
 ntc_end:				; the end of the program (and of its file)
+			DISPLAY "NTC memory: program ", /H, ntc_start, "-", /H, ntc_end - 1, " arrays ", /H, ntc_bss, "-", /H, ntc_free - 1, " stack the caller's"
 ; arrays: after the program, not in its file - kw_bssinit checks they fit and clears them
 ntc_bssfrom	equ ntc_end
 ntc_bss		equ ntc_bssfrom

@@ -29,6 +29,7 @@
 ;@irq      1
 ;@cols     40
 ;@rows     25
+;@reserved #C000,#4000			; the screen (Option Memory Available &HC000, &H4000 frees it)
 ; ============================================================
 
 ;## ntc_plat_data

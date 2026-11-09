@@ -11,7 +11,11 @@ NTC_MEMBANKS	equ 64		; Option Memory: the most 64K banks the Memory class looks 
 NTC_ROMENABLE	equ 0		; Option RomEnable (cpcfw, cpcmin): the start code starts the ROMs
 NTC_ROMLIB	equ 0		; 1 = the library is the keyword ROM (Library: ROM; ntcRomAsm builds it)
 NTC_WINHOLE	equ 0		; 1 = the program is built round an Option Reserve range over the window #4000-#7FFF
+NTC_WINPAGED	equ 0		; 1 = page 0 code may sit under the window (Option Memory Paged, not Reserved): the Memory class never hands out page 1 (main RAM's own #4000-#7FFF) when the code reaches past #4000
 NTC_BUFSIZE	equ 2048		; the library's buffer (ntc_buf: FileSystem, Memory.Copy): Option Buffer
+NTC_ISLN	equ 1		; interrupt classes (Option Class Interrupt): the slots ntc_isl has (8 bytes each)
+NTC_INTS	equ 1		; 0 = the platform never lets interrupts in (;@ints 0: ntc_xn's safe point has no ei)
+NTC_PLATRSV	equ 0		; 1 = the platform's fixed areas (;@reserved) are Reserved in the memory map: the build goes round them (the old top-of-RAM asserts are off)
 NTC_CPMGFX	equ 1		; 1 = CP/M: Graphics draws on an Amstrad CPC's screen (2.2: #C000, Plus: block 1 from common memory)
 
 ntc_start:
@@ -912,20 +916,15 @@ p_vector3d_clear_r:		; end of clear
 			jp ntc_xn
 p_vector3d_addpoint_c:		; call addpoint (normal)
 			pop hl			; x
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			ld (var_vector3d_addpoint_x), de
+			ld de, var_vector3d_addpoint_x		; (the block of 3 parameters)
+			ldi
+			ldi
 			pop hl			; y
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			ld (var_vector3d_addpoint_y), de
+			ldi
+			ldi
 			pop hl			; z
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			ld (var_vector3d_addpoint_z), de
+			ldi
+			ldi
 			ld hl, 0
 			ld (var_vector3d_addpoint_addpoint), hl
 			ld (p_vector3d_addpoint_rs), sp
@@ -936,15 +935,12 @@ p_vector3d_addpoint_r:		; end of addpoint
 			jp ntc_xn
 p_vector3d_addedge_c:		; call addedge (normal)
 			pop hl			; a
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			ld (var_vector3d_addedge_a), de
+			ld de, var_vector3d_addedge_a		; (the block of 2 parameters)
+			ldi
+			ldi
 			pop hl			; b
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			ld (var_vector3d_addedge_b), de
+			ldi
+			ldi
 			ld (p_vector3d_addedge_rs), sp
 			ld sp, p_vector3d_addedge
 			jp ntc_xn
@@ -953,25 +949,18 @@ p_vector3d_addedge_r:		; end of addedge
 			jp ntc_xn
 p_vector3d_view_c:		; call view (normal)
 			pop hl			; x
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			ld (var_vector3d_view_x), de
+			ld de, var_vector3d_view_x		; (the block of 4 parameters)
+			ldi
+			ldi
 			pop hl			; y
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			ld (var_vector3d_view_y), de
+			ldi
+			ldi
 			pop hl			; scale
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			ld (var_vector3d_view_scale), de
+			ldi
+			ldi
 			pop hl			; distance
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			ld (var_vector3d_view_distance), de
+			ldi
+			ldi
 			ld (p_vector3d_view_rs), sp
 			ld sp, p_vector3d_view
 			jp ntc_xn
@@ -1017,20 +1006,15 @@ p_vector3d_forget_r:		; end of forget
 			jp ntc_xn
 p_vector3d_turn_c:		; call turn (turbo)
 			pop hl			; ax
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			ld (var_vector3d_turn_ax), de
+			ld de, var_vector3d_turn_ax		; (the block of 3 parameters)
+			ldi
+			ldi
 			pop hl			; ay
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			ld (var_vector3d_turn_ay), de
+			ldi
+			ldi
 			pop hl			; az
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			ld (var_vector3d_turn_az), de
+			ldi
+			ldi
 			ld (p_vector3d_turn_rs), sp
 			ld sp, p_vector3d_turn
 			ret
@@ -1039,20 +1023,15 @@ p_vector3d_turn_r:		; end of turn
 			ret
 p_vector3d_turn_n_c:		; call turn (normal)
 			pop hl			; ax
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			ld (var_vector3d_turn_ax), de
+			ld de, var_vector3d_turn_ax		; (the block of 3 parameters)
+			ldi
+			ldi
 			pop hl			; ay
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			ld (var_vector3d_turn_ay), de
+			ldi
+			ldi
 			pop hl			; az
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			ld (var_vector3d_turn_az), de
+			ldi
+			ldi
 			ld (p_vector3d_turn_rs), sp
 			ld sp, p_vector3d_turn_n
 			jp ntc_xn
@@ -1131,23 +1110,17 @@ p_spin_makeshape_r:		; end of makeshape
 			jp ntc_xn
 p_spin_cube_c:		; call cube (normal)
 			pop hl			; x
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			ld (var_spin_cube_x), de
+			ld de, var_spin_cube_x		; (the block of 3 parameters)
+			ldi
+			ldi
 			pop hl			; y
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			ld (var_spin_cube_y), de
+			ldi
+			ldi
 			pop hl			; h
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			ld (var_spin_cube_h), de
+			ldi
+			ldi
 			ld hl, 0
 			ld (var_spin_cube_p), hl
-			ld hl, 0
 			ld (var_spin_cube_i), hl
 			ld (p_spin_cube_rs), sp
 			ld sp, p_spin_cube
@@ -1157,25 +1130,18 @@ p_spin_cube_r:		; end of cube
 			jp ntc_xn
 p_spin_pyramid_c:		; call pyramid (normal)
 			pop hl			; x
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			ld (var_spin_pyramid_x), de
+			ld de, var_spin_pyramid_x		; (the block of 3 parameters)
+			ldi
+			ldi
 			pop hl			; y
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			ld (var_spin_pyramid_y), de
+			ldi
+			ldi
 			pop hl			; h
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			ld (var_spin_pyramid_h), de
+			ldi
+			ldi
 			ld hl, 0
 			ld (var_spin_pyramid_p), hl
-			ld hl, 0
 			ld (var_spin_pyramid_r), hl
-			ld hl, 0
 			ld (var_spin_pyramid_i), hl
 			ld (p_spin_pyramid_rs), sp
 			ld sp, p_spin_pyramid
@@ -1194,15 +1160,12 @@ p_spin_cobra_r:		; end of cobra
 			jp ntc_xn
 p_spin_edge_c:		; call edge (normal)
 			pop hl			; a
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			ld (var_spin_edge_a), de
+			ld de, var_spin_edge_a		; (the block of 2 parameters)
+			ldi
+			ldi
 			pop hl			; b
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			ld (var_spin_edge_b), de
+			ldi
+			ldi
 			ld (p_spin_edge_rs), sp
 			ld sp, p_spin_edge
 			jp ntc_xn
@@ -2298,18 +2261,18 @@ p_vector3d_clear_rs:			dw 0
 var_vector3d_np:			dw 0
 var_vector3d_ne:			dw 0
 p_vector3d_addpoint_rs:			dw 0
-var_vector3d_addpoint_x:			dw 0
-var_vector3d_addpoint_y:			dw 0
-var_vector3d_addpoint_z:			dw 0
+var_vector3d_addpoint_x:			dw 0, 0, 0		; parameters, one block
+var_vector3d_addpoint_y		equ var_vector3d_addpoint_x + 2
+var_vector3d_addpoint_z		equ var_vector3d_addpoint_x + 4
 var_vector3d_addpoint_addpoint:			dw 0
 p_vector3d_addedge_rs:			dw 0
-var_vector3d_addedge_a:			dw 0
-var_vector3d_addedge_b:			dw 0
+var_vector3d_addedge_a:			dw 0, 0		; parameters, one block
+var_vector3d_addedge_b		equ var_vector3d_addedge_a + 2
 p_vector3d_view_rs:			dw 0
-var_vector3d_view_x:			dw 0
-var_vector3d_view_y:			dw 0
-var_vector3d_view_scale:			dw 0
-var_vector3d_view_distance:			dw 0
+var_vector3d_view_x:			dw 0, 0, 0, 0		; parameters, one block
+var_vector3d_view_y		equ var_vector3d_view_x + 2
+var_vector3d_view_scale		equ var_vector3d_view_x + 4
+var_vector3d_view_distance		equ var_vector3d_view_x + 6
 var_vector3d_cx:			dw 0
 var_vector3d_cy:			dw 0
 var_vector3d_scl:			dw 0
@@ -2323,9 +2286,9 @@ p_vector3d_forget_rs:			dw 0
 var_vector3d_shown:			dw 0
 var_vector3d_shown2:			dw 0
 p_vector3d_turn_rs:			dw 0
-var_vector3d_turn_ax:			dw 0
-var_vector3d_turn_ay:			dw 0
-var_vector3d_turn_az:			dw 0
+var_vector3d_turn_ax:			dw 0, 0, 0		; parameters, one block
+var_vector3d_turn_ay		equ var_vector3d_turn_ax + 2
+var_vector3d_turn_az		equ var_vector3d_turn_ax + 4
 var_vector3d_spsave:			dw 0
 var_vector3d_sinx:			dw 0
 var_vector3d_cosx:			dw 0
@@ -2375,23 +2338,23 @@ p_spin_status_rs:			dw 0
 p_spin_makeshape_rs:			dw 0
 var_spin_makeshape___sel23:			dw 0
 p_spin_cube_rs:			dw 0
-var_spin_cube_x:			dw 0
-var_spin_cube_y:			dw 0
-var_spin_cube_h:			dw 0
+var_spin_cube_x:			dw 0, 0, 0		; parameters, one block
+var_spin_cube_y		equ var_spin_cube_x + 2
+var_spin_cube_h		equ var_spin_cube_x + 4
 var_spin_cube_p:			dw 0
 var_spin_cube_i:			dw 0
 p_spin_pyramid_rs:			dw 0
-var_spin_pyramid_x:			dw 0
-var_spin_pyramid_y:			dw 0
-var_spin_pyramid_h:			dw 0
+var_spin_pyramid_x:			dw 0, 0, 0		; parameters, one block
+var_spin_pyramid_y		equ var_spin_pyramid_x + 2
+var_spin_pyramid_h		equ var_spin_pyramid_x + 4
 var_spin_pyramid_p:			dw 0
 var_spin_pyramid_r:			dw 0
 var_spin_pyramid_i:			dw 0
 p_spin_cobra_rs:			dw 0
 var_spin_cobra_r:			dw 0
 p_spin_edge_rs:			dw 0
-var_spin_edge_a:			dw 0
-var_spin_edge_b:			dw 0
+var_spin_edge_a:			dw 0, 0		; parameters, one block
+var_spin_edge_b		equ var_spin_edge_a + 2
 tmp0:			dw 0
 tmp1:			dw 0
 tmp2:			dw 0
@@ -2541,9 +2504,11 @@ kw_waitkey:
 ntc_xn:
 			ld (ntc_ip), sp
 			ld sp, (ntc_csp)
+	IF NTC_INTS					; (;@ints 0: a platform that never lets interrupts in - the Next's dot commands)
 			ei
 			nop					; an interrupt can be taken here
 			di
+	ENDIF
 			ld sp, (ntc_ip)
 			ret
 
@@ -4742,10 +4707,11 @@ ntc_mt1:
 			ret
 
 
-ntc_rsvtab:				; Option Reserve starts (the Memory class's heap stops at them), 0 ends
+ntc_rsvtab:				; Option Memory Reserved / Paged starts (the Memory class's heap stops at them), 0 ends
 			dw 0
 
 ntc_end:				; the end of the program (and of its file)
+			DISPLAY "NTC memory: program ", /H, ntc_start, "-", /H, ntc_end - 1, " arrays ", /H, ntc_bss, "-", /H, ntc_free - 1, " stack ntc_cpmstack down (the platform's)"
 ; arrays: after the program, not in its file - kw_bssinit checks they fit and clears them
 ntc_bssfrom	equ ntc_end + 256		; (after the real stack: ntc_cpmstack)
 ntc_bss		equ ntc_bssfrom

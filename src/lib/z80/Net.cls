@@ -12,6 +12,12 @@
 ' Needs Trit.cls and Tiny.cls. Up to 128 hidden, 128 classes, 2 layers. Weights are K balanced
 ' trits each (GEN.MDL v2: K planes, Horner-combined in DotK - still add / sub only, no multiply);
 ' K=1 is plain ternary and reads a v1 file too.
+' The coprocessor: in CyborgOS, BDOS 131 op 41 - a vCPC answers it on its host (Windows, Linux,
+' the Pi), a CPC with a Pi through C0 and the Pi's MIND - the same integer arithmetic in C
+' (vcpc/src/genmdl.c, pi/ntck), so the same bytes come back, ~1000x sooner. Found at Load, used
+' for Feed / Reset; the Z80 engine when none answers. UseEngine 0 auto (the default), 1 the Z80
+' engine only, 2 a coprocessor only (Load fails without one); Backend() says which is in use.
+' Noise (FeedNoise) is added here on the logits either way, so the same seed gives the same text.
 ' (c) 2026 Cyborg Unicorn Pty Ltd - MIT License
 Option Explicit
 
@@ -28,6 +34,13 @@ Dim m_h0(MAXH - 1) As Byte, m_h1(MAXH - 1) As Byte      ' the hidden states
 Dim m_gi(3 * MAXH - 1) As Integer, m_gh(3 * MAXH - 1) As Integer
 Dim m_lg(MAXV - 1) As Integer
 Dim m_seed As Integer
+Dim m_byQ(7) As Byte                                    ' the coprocessor request (BDOS 131 op 41)
+Dim m_intCop As Integer, m_intWant As Integer, m_intIx As Integer
+#If NTC_CYBORGOS
+Const NET_COP = 1                                       ' (only CyborgOS has BDOS 131: elsewhere never asked)
+#Else
+Const NET_COP = 0
+#End If
 
 Public Function Load(ByVal addr As Integer, ByVal n As Integer) As Integer
   Dim p As Integer, l As Integer, i As Integer, wi As Integer
@@ -60,8 +73,48 @@ Public Function Load(ByVal addr As Integer, ByVal n As Integer) As Integer
   m_wout = p : p = p + m_K * m_V * (m_H \ 4)
   m_bout = p : p = p + 2 * m_V
   If p - addr > n Then Exit Function
+  m_intCop = 0
+  If m_intWant <> 1 And NET_COP <> 0 Then
+    If CopCall(0, 0, 0) = 0 Then
+      If CopCall(1, addr, n) = 0 Then m_intCop = 1
+    End If
+  End If
+  If m_intWant = 2 And m_intCop = 0 Then Exit Function  ' a coprocessor only, and none answers
   Reset
   Load = True
+End Function
+
+' 0 auto (a coprocessor when one answers), 1 the Z80 engine only, 2 a coprocessor only. Before Load.
+Public Sub UseEngine(ByVal n As Integer)
+  m_intWant = n
+End Sub
+
+' 1 the Z80 engine, 2 a coprocessor (as the model was loaded)
+Public Function Backend() As Integer
+  If m_intCop Then Backend = 2 Else Backend = 1
+End Function
+
+' BDOS 131 op 41: A back (0 done, 255 not there / no model). sub 1: addr the model, n its length;
+' sub 3: addr where the V logits go, n the class in
+Private Function CopCall(ByVal sub As Integer, ByVal addr As Integer, ByVal n As Integer) As Integer
+  m_byQ(0) = 41 : m_byQ(1) = sub
+  m_byQ(2) = addr And 255 : m_byQ(3) = ((addr - (addr And 255)) \ 256) And 255   ' (exact for addresses past #7FFF)
+  m_byQ(4) = n And 255 : m_byQ(5) = ((n - (n And 255)) \ 256) And 255
+#asm
+            ld ({m_intIx}), ix
+            ld (ntc_ip), sp         ; (the thread kept; the call on the real stack - as Float's Op)
+            ld sp, (ntc_csp)
+            ld c, 131
+            ld de, {m_byQ}
+            ei
+            call 5
+            di
+            ld sp, (ntc_ip)
+            ld ix, ({m_intIx})
+            ld l, a
+            ld h, 0
+            ld ({result}), hl
+#endasm
 End Function
 
 Public Function Vocab() As Integer
@@ -95,6 +148,7 @@ Public Sub Reset()
   For i = 0 To MAXH - 1
     m_h0(i) = 0 : m_h1(i) = 0
   Next
+  If m_intCop Then i = CopCall(2, 0, 0)
 End Sub
 
 Public Function Logit(ByVal i As Integer) As Integer
@@ -181,6 +235,21 @@ End Function
 Public Function FeedNoise(ByVal c As Integer, ByVal amp As Integer) As Integer
   Dim i As Integer, best As Integer, bi As Integer, p As Integer, v As Integer
   If c < 0 Or c >= m_V Then c = 0
+  If m_intCop Then
+    i = CopCall(3, VarPtr(m_lg(0)), c)                   ' the logits, before noise, into m_lg
+    bi = 0 : best = -32768
+    For i = 0 To m_V - 1
+      v = m_lg(i)
+      If amp > 0 Then
+        m_seed = m_seed * 75 + 74
+        v = v + ((m_seed \ 64) Mod (2 * amp + 1)) - amp
+      End If
+      m_lg(i) = v
+      If v > best Then best = v : bi = i
+    Next
+    FeedNoise = bi
+    Exit Function
+  End If
   p = m_emb + c * m_E
   For i = 0 To m_E - 1
     m_x(i) = Peek(p + i)

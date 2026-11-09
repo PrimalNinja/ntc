@@ -8,17 +8,22 @@ NTC_ROMBSS	equ #9400		; its other variables, cleared
 NTC_STRMAX	equ 255			; strings up to 255 characters (programs built for the ROM use 255)
 NTC_MEMBANKS	equ 64			; the Memory class: up to 4MB
 NTC_WINHOLE	equ 0			; (a program built round the window: seen at run time, its free RAM above #8000)
+NTC_WINPAGED	equ 0			; (the ROM: no code under the window)
+NTC_INTS	equ 1			; (the ROM: the safe points let interrupts in)
 NTC_ROMLIB	equ 1			; this is the keyword ROM
 NTC_BUFSIZE	equ 2048		; its buffer (ntc_buf)
+NTC_PLATRSV	equ 0
+NTC_ISLN	equ 16		; (the ROM serves up to 16 interrupt classes)
 NTC_ROM_N	equ 356			; numbers in the index
 NTC_ROM_COUNT	equ 1			; ROMs in the set (NTCFW.ROM)
-NTC_ROM_SET	equ #B6BE		; the set's stamp (its ROMs find each other by it)
+NTC_ROM_SET	equ #B8D7		; the set's stamp (its ROMs find each other by it)
 MEM_WIN		equ #4000
 MEM_BADPAGE	equ -2
 MEM_BANKS	equ NTC_MEMBANKS	; 0 - 64
 MEM_LB		equ 6			; the whole-bank kind (mem_kinds)
 OVL_NOPAGE	equ -12
 OVL_STALE	equ -14			; a page file from another build of the program (its stamp differs)
+OVL_KWMAX	equ 8			; words a far keyword call may be (fn_x, 6 args at most, kwback)
 LST_FIRST	equ 0
 LST_LAST	equ 4
 LST_COUNT	equ 8
@@ -545,9 +550,11 @@ kw_waitkey:
 ntc_xn:
 			ld (ntc_ip), sp
 			ld sp, (ntc_csp)
+	IF NTC_INTS
 			ei
 			nop					; an interrupt can be taken here
 			di
+	ENDIF
 			push af
 			ld a, (ntc_hookpend)
 			or a
@@ -5913,7 +5920,7 @@ mem_putback:
 			call mem_sel
 			pop hl
 			ret
-;## ntc_mem ntc_memcore ntc_membank ntc_nxt_bank ntc_msx_bank @shared @far
+;## ntc_mem ntc_memcore ntc_membank ntc_nxt_bank ntc_msx_bank ntc_dot_bank @shared @far
 mem_start:
 			ld a, (mem_init)
 			or a
@@ -6110,6 +6117,16 @@ mem_tb_ok:
 			ldir
 mem_tb_pl0:
 mem_tb_ports:
+	IF NTC_WINPAGED					; page 0 code under the window (Option Memory Paged): page 1, main
+			ld hl, ntc_end			; RAM's own #4000-#7FFF, holds it - never handed out ('P')
+			ld de, #4001
+			or a
+			sbc hl, de
+			jr c, mem_tb_pt
+			ld hl, (mem_ttype)
+			ld (hl), 'P'
+mem_tb_pt:
+	ENDIF
 			ld hl, (mem_tport)
 			ld (hl), #C0
 			inc hl
@@ -7465,18 +7482,50 @@ ntc_ovl_lno:
 			xor a
 			ret
 ntc_ovl_kwin:
-			pop hl					; HL = class block; thread now past the inline word
+			pop hl					; HL = class block
 			ld (ovl_blk), hl
-			ld (ovl_ksp), sp		; the rest of the thread
+			pop bc					; BC = n words; thread now at fn_x
+			ld (ovl_ksp), sp
 			ld sp, (ntc_csp)
+			push bc
 			call mem_start
-			ld hl, (ovl_wsp)		; push the page now in the window
-			ld de, (mem_cur)
+			pop bc
+			ld hl, (ovl_ksp)		; resume = thread + 2n
+			ld d, b
+			ld e, c
+			add hl, de
+			add hl, de
+			ex de, hl				; DE = resume
+			ld hl, (ovl_wsp)		; push the frame: the page now in the window, resume
+			push bc
+			ld bc, (mem_cur)
+			ld (hl), c
+			inc hl
+			ld (hl), b
+			inc hl
 			ld (hl), e
 			inc hl
 			ld (hl), d
 			inc hl
 			ld (ovl_wsp), hl
+			ld de, ovl_wstk + 4		; this level's buffer: ovl_kbuf + level * 2 * OVL_KWMAX
+			or a
+			sbc hl, de				; level * 4
+			add hl, hl
+			add hl, hl
+			add hl, hl				; level * 32
+			ld de, ovl_kbuf
+			add hl, de
+			ld (ovl_kbp), hl
+			ex de, hl				; DE = the buffer
+			pop bc					; the n words copied there
+			ld h, b
+			ld l, c
+			add hl, hl
+			ld b, h
+			ld c, l
+			ld hl, (ovl_ksp)
+			ldir
 			ld hl, (ovl_blk)		; the class loaded already?
 			ld e, (hl)
 			inc hl
@@ -7496,21 +7545,26 @@ ntc_ovl_kwin_cl:
 			or l
 			jp nz, ntc_ovl_die
 ntc_ovl_kwin_bk:
-			ld sp, (ovl_ksp)		; back on the thread; fn_x runs next
+			ld sp, (ovl_kbp)		; on the copy; fn_x runs next
 			ret
 ntc_ovl_kwback:
-			ld (ovl_ksp), sp
 			ld sp, (ntc_csp)
 			call mem_start
-			ld hl, (ovl_wsp)		; pop the saved page
+			ld hl, (ovl_wsp)		; pop the frame
 			dec hl
 			ld d, (hl)
 			dec hl
-			ld e, (hl)
+			ld e, (hl)				; DE = resume
+			dec hl
+			ld b, (hl)
+			dec hl
+			ld c, (hl)				; BC = the saved page
 			ld (ovl_wsp), hl
-			ex de, hl
+			ld (ovl_ksp), de
+			ld h, b
+			ld l, c
 			call mem_sel			; put it back in the window
-			ld sp, (ovl_ksp)
+			ld sp, (ovl_ksp)		; the thread, after the n words
 			ret
 ;## ntc_islots ntc_data @shared
 ntc_isl_tick:
@@ -8502,6 +8556,7 @@ lst_rs_cend:
 			jp lst_wr4
 ;## ntc_nxt_bank ntc_mem @far
 ;## ntc_msx_bank ntc_mem @far
+;## ntc_dot_bank ntc_mem @far
 ;## ntc_plat_data
 ;## ntc_plat_fw ntc_plat_data ntc_data @shared
 ntc_fwcall:
@@ -9658,6 +9713,7 @@ mem_bkrmr:		db 0			; and the ROM / mode byte to put back
 ntc_karg:		db 0
 ntc_kwhat:		db 0
 ovl_wsp:		dw ovl_wstk
+ovl_kbp:		dw 0			; the buffer this call runs from
 ntc_bsa:		dw 0
 ntc_bsz:		dw 0
 ntc_bsp:		dw 0
@@ -9763,7 +9819,7 @@ ntc_numbuf:		ds 14			; printint / long print: digits (+ spaces for Option VBPrin
 ntc_gstack:		ds 128
 ntc_gstack_top:
 ntc_font:		ds 95 * 8
-ntc_isl:		ds 128			; 16 slots
+ntc_isl:		ds 8 * NTC_ISLN	; a slot a class (NTC_ISLN: the program's interrupt classes, 16 at most)
 fs_vol:			ds 9			; the volume in use ("" = not known)
 fs_vols:		ds 145			; the volumes that worked, "A,C,M" (up to 16 of up to 8 letters)
 fs_tmpn:		ds 9			; a volume name, capitals
@@ -9779,7 +9835,8 @@ ntc_buf:		ds NTC_BUFSIZE
 mem_found:		ds MEM_BANKS + 1	; probe: the banks found (0-63), in order
 mem_save:		ds MEM_BANKS + 1	; probe: the bytes the markers replace
 ntc_kmat:		ds 10			; the matrix (0 = pressed)
-ovl_wstk:		ds 16			; saved window pages (8 far calls deep)
+ovl_wstk:		ds 4 * 8		; saved window page and resume point, 8 far calls deep
+ovl_kbuf:		ds 2 * OVL_KWMAX * 8	; the copied thread words, one buffer a level
 lst_h:			ds 4			; the list's header
 lst_n:			ds 4			; nodes, far pointers (address, page)
 lst_m:			ds 4
