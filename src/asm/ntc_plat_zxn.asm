@@ -21,9 +21,10 @@
 ; Start   NAME.NEX (SAVENEX at the end of the program): NextZXOS loads banks 8, 9,
 ;         10 (the program) and 5 (a start stub at #7E00) and runs the stub with
 ;         banks 5, 2, 0 in #4000-#FFFF. The stub turns the NMI buttons off
-;         (NextReg 6 bits 3, 4: Multiface M1, DivMMC DRIVE), DivMMC's automatic
-;         paging left on but cut to RST 8 with ROM 3 (NextRegs #B8, #B9, #BB - it would page its ROM in at #0000,
-;         #0038, #0066 ...; its memory is left as the loader left it: out), sets 28MHz and IM 1, maps
+;         (NextReg 6 bits 3, 4: Multiface M1, DivMMC DRIVE), leaves DivMMC's automatic
+;         paging and entry points as NextZXOS set them (NextRegs #B8-#BB untouched since
+;         20261110-2: rst 8 and the ROM entries trap only with ROM 3 paged, which only an
+;         esxDOS call does; its memory is left as the loader left it: out), sets 28MHz and IM 1, maps
 ;         the slots (slot 3, where it runs, last: from its copy at #FE00) and
 ;         jumps to ntc_start. NextRegs through ports #243B / #253B (no Z80N
 ;         opcodes: any assembler, any harness).

@@ -2,6 +2,7 @@
 ' going round, drones swaying through and the odd hunter that turns after you and shoots back.
 ' (c) 2026 Cyborg Unicorn Pty Ltd
 ' Keys: S / X dive and climb, N / M roll, Space / V faster and slower, A or Enter fire.
+' 1 wireframe, 2 solid (E3W).                                                  ' <--- NEW
 ' All the moving, the hits and the drawing are the framework's (Obj3D, Fly3D, Hud3D, E3): this is
 ' only what's what and what a hit does - the whole game is BASIC.
 Option Explicit
@@ -16,6 +17,7 @@ Const T_ROCK = 1, T_BEACON = 2, T_DRONE = 3, T_HUNTER = 4, T_BOLT = 5
 Dim keys As Integer, dt As Integer, vflip As Integer, frames As Integer
 Dim score As Integer, shown As Integer, shield As Integer, cool As Integer, stm As Integer
 Dim e As Integer, i As Integer, s As Integer, k As Integer, txerr As Integer
+Dim r As Integer                         ' <--- NEW  the 1-5 row
 
 E3.Init
 E3.nstar = 32                            ' (half the stars: they cost)
@@ -30,6 +32,9 @@ Do
   NewGame
   Do
     keys = ReadKeys()
+    r = Inp(&HF7FE)                      ' <--- NEW  1 2 3 4 5: 1 wireframe, 2 solid
+    If (r And 1) = 0 Then E3W.On         ' <--- NEW
+    If (r And 2) = 0 Then E3W.Off        ' <--- NEW
     Fly3D.Steer keys, dt
     k = Fly3D.Rebase()
     Spawner

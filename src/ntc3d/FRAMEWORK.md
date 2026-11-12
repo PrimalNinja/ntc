@@ -25,13 +25,14 @@ IRON DUST, a tank battle on a planet's surface, is the third: it brought the gro
 | `Nx.cls` | NextRegs and palettes (E3 uses it) |
 | `Galaxy3D.cls` | (optional) a wraparound galaxy: a cube of 2^bits cells a side kept in cells, the local frame's cell moved by Rebase, the wrapping sums |
 | `Radar3D.cls` | (optional) Elite style instruments: the scanner with stalks, the compass |
+| `E3W.cls` | (optional) wireframe: E3's polygons drawn as outlines, swapped in and out at any time (`E3W.On`, `E3W.Off`) |
 | `tools/e3models.js` | the model tool: a model file to `E3Data.cls`, `build/NAME.DAT` and a picture of the models |
 | `tools/build.js` | builds a game: the IDE project, the asm, the NEX |
 | `tools/zesshot.js` | runs a NEX in ZEsarUX and saves pictures of the screen (ZESARUX=) |
 | `tools/prep.js` | the build's settings, applied to the framework's sources as they're read: how many objects, which optional parts (Build settings, below) |
 | `tools/emu/` | the emulator the tests run on (Python 3): a ZX Spectrum Next with Layer 2, the ULA, the AY's ports, NEXTREG and the zxnDMA, screenshots (the ULA's paper colours from palette entries 16-31, as on the Next). Needs `pip install z80 pillow`. |
 | `example/ROCKS/` | the example game: `Main.bas`, `models.js`, `test/run.py`, its `build/` |
-| `screenshots/` | ROCKS, DIREMOON STRIKE, IRON DUST and the model tool's pictures |
+| `screenshots/` | ROCKS (rocks_wire_*: with E3W on), DIREMOON STRIKE, IRON DUST and the model tool's pictures |
 
 Everything is ES5 JavaScript for node (the tools) and NTC BASIC with Z80 in `#asm` blocks (the
 classes). No sprites, tilemap or copper are used.
@@ -303,6 +304,36 @@ with it.
 Draw them each picture after Obj3D.Draw: Hud3D's bars, Radar3D.Scanner and Radar3D.Compass make an
 Elite style dashboard.
 
+## E3W: wireframe (optional class)
+
+`"extras": ["E3W.cls"]` in game.json. The same models, the same calls, the same camera and objects:
+only the last step differs. Every polygon E3 draws goes through one of three entries (`fill`: 16
+bit screen points; `ffi`: a face wholly on the screen; `poly3`: a face crossing the view's edges,
+before its 3D clipper). `E3W.On` writes a jump to E3W's outline routines over the first three bytes
+of each (kept first); `E3W.Off` puts them back. With it off, E3 runs its own code untouched: no
+test, no extra jump, no slower.
+
+| | |
+|---|---|
+| `E3W.On` | wireframe from now on |
+| `E3W.Off` | solid again (E3 as it was) |
+| `E3W.won` | 1 while on |
+
+With it on:
+- an object's faces turned away are still left out (E3 does that before the filler), so a convex
+  model shows its front edges only, as Elite's ships do; an edge between two front faces is drawn
+  twice (once a face);
+- each outline is the face's shaded colour (the low byte of E3's `pc`): the lit side is brighter;
+- a face crossing the view's edges has each of its edges cut to the view on its own, so the edges
+  E3's polygon clipper adds along the view's edges aren't drawn;
+- Moon's discs, Quad3, HQuad, VQuad, HPlane, Skyline and Poly come out as outlines too;
+- Box stays filled (the HUD's bars): its call is told apart by the code after it and goes to E3's
+  own filler.
+
+Lines are cut to the screen (Cohen-Sutherland) and drawn by Bresenham a 64 row third at a time in
+slots 6 and 7, as E3 fills; E3's `vpoll` is called every eighth line. About 1.5K. `example/ROCKS`
+takes it: 1 wireframe, 2 solid.
+
 ## The model tool
 
 ```
@@ -372,7 +403,7 @@ To add a model: put it in the model file, add a kind, run the tool, and Spawn it
 - **`framework`**: where NTC3D's classes are (E3, Nx, Obj3D, Fly3D, Hud3D are added from there).
 - **`nobj`**: how many objects (8 - 64; 32 when not given). Obj3D's arrays and E3's object tables
   are sized to it (lines tagged `@objarr`, `@objtab`, `@nobj`): about 64 bytes an object.
-- **`extras`**: the optional classes to build in from the framework's folder: `Galaxy3D.cls`, `Radar3D.cls`.
+- **`extras`**: the optional classes to build in from the framework's folder: `Galaxy3D.cls`, `Radar3D.cls`, `E3W.cls`.
 - **`features`**: optional Z80, in `; @if NAME` / `; @else` / `; @end` blocks (`; @if !NAME`: kept
   unless the game names it):
   - `ground`: the ground movers (MV_CIRCLE, MV_HUNT, MV_HOME), OF_LAND / EV_LAND, OF_GUNANY, the

@@ -28,6 +28,17 @@ dot_cs_st: EQU 0x00002059
 dot_entry: EQU 0x00002000
 dot_fr0: EQU 0x000020FF
 dot_frames: EQU 0x000020FD
+dot_fs_a: EQU 0x00002538
+dot_fs_bc: EQU 0x0000253A
+dot_fs_call: EQU 0x0000250C
+dot_fs_cy: EQU 0x00002539
+dot_fs_data: EQU 0x00002590
+dot_fs_de: EQU 0x0000253C
+dot_fs_hk: EQU 0x00002524
+dot_fs_hl: EQU 0x0000253E
+dot_fs_hook: EQU 0x00002537
+dot_fs_name: EQU 0x00002540
+dot_fs_stat: EQU 0x00002580
 dot_hl: EQU 0x000020F2
 dot_iold: EQU 0x00002101
 dot_irq: EQU 0x00002182

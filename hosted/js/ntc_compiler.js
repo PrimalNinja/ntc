@@ -72,17 +72,24 @@ function ntcCompile(input_a, objOptions_a)
 	var intBufSize = 2048;		// Option Buffer [address], size / Option Buffer Size n: its size (FileSystem on a CPC needs 2048)
 	var objWindowFile = null;	// Option WindowFile "NAME.EXT", address: the ; @window data written as its own file (SAVEAMSDOS), staged at that address - the program loads it there and copies it where it runs; the window itself is then free for code
 	var objNexData = null;		// Option NexData "file", blocks (zxn): the file's 16K blocks in the NEX's banks
-	// the banks Option NexData fills, in order: not 0, 5 (the screen and the start stub), 8-10 (the
-	// program), 12-21 (Graphics: Layer 2's two buffers); past 47 a 2MB Next
-	var ZXN_NEXBANKS = [1, 2, 3, 4, 6, 7, 11].concat(Array.apply(null, Array(90)).map(function(x_a, i_a) { return 22 + i_a; }));
+	// the banks Option NexData fills, in order: not 0, 5 (the screen and the start stub), 7 (+3DOS's
+	// workspace: NextZXOS pages it over #C000-#FFFF for every file call, esxDOS's included - a data
+	// block there crashed the real machine at the first F_OPEN, 20261110-1), 8-10 (the program),
+	// 12-21 (Graphics: Layer 2's two buffers); past 47 a 2MB Next. Bank 1 is NextZXOS's RAM disc
+	// (M:): a block there loses the RAM disc, not the DOS
+	var ZXN_NEXBANKS = [1, 2, 3, 4, 6, 11].concat(Array.apply(null, Array(90)).map(function(x_a, i_a) { return 22 + i_a; }));
+	var ZXN_NEXLOW = 6;			// the low banks of that list (below 22)
 	// Option Page ... Loaded n on the Next: RAM page n's 16K bank, the same one Option Memory
 	// CPCExpansion's mem_sel maps for page n - page 2 is ZXN_FIRSTBANK (bank 22, or above
-	// Option NexData's blocks when they run past the 7 low banks)
-	function zxnPageBank(intPage_a) { return 22 + Math.max(0, ((objNexData !== null) ? objNexData.blocks : 0) - 7) + intPage_a - 2; }
+	// Option NexData's blocks when they run past the 6 low banks)
+	function zxnFirstBank() { return (objOptions.firstbank !== null) ? objOptions.firstbank : (22 + Math.max(0, ((objNexData !== null) ? objNexData.blocks : 0) - ZXN_NEXLOW)); }
+	function zxnPageBank(intPage_a) { return zxnFirstBank() + intPage_a - 2; }
 	var arrRomEnable = null;	// Option RomEnable (cpcfw): null none, ['all'], or ROM numbers
 	var objStack = null;		// Option Stack: { addr, file, line } - the real stack's start
 	var strTerminal = 'none';	// Option Terminal (CP/M): none, vt52, ansi		// platform class names the project replaces with its own
 	var objOptions = {
+		firstbank: null,		// Option FirstBank (zxn): the first 16K bank of the Memory class's pages and pool (null: 22, above Option NexData's blocks)
+		next2mb: false,		// Option Next2MB: a 2MB-only program (Loaded pages may go past bank 47)
 		org: null,				// null = the platform's (;@org)
 		library: 'used',		// used, all, none
 		platform: 'cpc',		// key into NTC_PLATFORMS: cpc, cpcmin, cpcfw, cpm, test, zxn
@@ -8656,36 +8663,26 @@ function ntcCompile(input_a, objOptions_a)
 			'and %11100111',
 			'out (c), a',
 			'dec b',
-			'; DivMMC: its automatic paging stays as NextZXOS left it (on) - turning it off and on',
-			'; again loses esxDOS\'s state in some emulators - but its entry points are cut to RST 8',
-			'; with ROM 3 selected (#B8 = 2, #B9 = 0: the RST vectors need ROM 3; #BB = 0: no #3Dxx,',
-			'; #0066, tape traps). A program never does rst 8 with ROM 3 in, so nothing pages it in;',
-			'; CyborgOS\'s SD drive does exactly that for its esxDOS calls (ROM 3 in slots 0-1, rst 8).',
-			'; Tested on NextZXOS 2.06H (JNEXT, 2026-10-21): esxDOS calls work with these - when the NEX',
-			'; is started by NextZXOS (the browser, .nexload, an autoexec), not loaded as a snapshot,',
-			'; which skips the DOS\'s own set-up and leaves every call answering "nonsense" (2)',
-			'ld a, #B8',
-			'out (c), a',
-			'inc b',
-			'ld a, 2',
-			'out (c), a',
-			'dec b',
-			'ld a, #B9',
-			'out (c), a',
-			'inc b',
-			'xor a',
-			'out (c), a',
-			'dec b',
-			'ld a, #BB',
-			'out (c), a',
-			'inc b',
-			'xor a',
-			'out (c), a',
-			'dec b',
+			'; DivMMC: its automatic paging and its entry points stay exactly as NextZXOS left them',
+			'; (NextRegs #B8-#BB untouched). Until 20261110-2 the stub cut them to "rst 8 with ROM 3"',
+			'; (#B8 = 2, #B9 = 0, #BB = 0): every emulator ran that; four games crashed on a real Next',
+			'; at their first esxDOS call, and #BB = 0 also cleared bit 6, the 0x1FF8-0x1FFF exit the DOS',
+			'; leaves its memory by - the emulators do not model those registers (ZEsarUX ignores them),',
+			'; so nothing here can prove it; the DOS\'s own setting is the one every working NEX runs',
+			'; with. NextZXOS\'s setting traps rst 8',
+			'; (and #0038, #3Dxx, the tape entries) only with ROM 3 paged, which a program never has',
+			'; except round an esxDOS call (the FileSystem class, CyborgOS\'s SD drive: ROM 3 in',
+			'; slots 0-1, rst 8, ROM 3 off), so nothing pages DivMMC in by accident',
 			'; (no out (#E3): DivMMC\'s memory is already out when a NEX starts - .nexload leaves it so -',
 			'; and writing the port selects its RAM bank 0 and drops MAPRAM, which loses NextZXOS\'s esxDOS',
 			'; state: its file handles are in DivMMC RAM. With it untouched, RST 8 calls work from the program',
 			'; (automap on, the ROM in slots 0-1 for the call: CyborgOS\'s SD drive does that)',
+			'ld a, #8E\t\t; the 128K paging: normal mode, ROM 0 (no change to slots 6-7: bit 3 = 0). NextZXOS\'s',
+			'out (c), a\t\t; DivMMC entry points (rst 8, #0038, #3Dxx, the tape addresses) trap only with ROM 3',
+			'inc b\t\t\t; selected: with ROM 0 none can, whatever a slot holds; an esxDOS call selects ROM 3',
+			'xor a\t\t\t; round its rst 8 and puts ROM 0 back (the FileSystem class, CyborgOS\'s SD drive)',
+			'out (c), a',
+			'dec b',
 			'ld a, 7\t\t\t; CPU speed: 28MHz',
 			'out (c), a',
 			'inc b',
@@ -9693,7 +9690,7 @@ function ntcCompile(input_a, objOptions_a)
 				}
 				else if (zxnPageBank(objPage.loaded) > 111)
 				{
-					arrErrors.push({ file: objPage.srcfile, line: objPage.line, msg: 'Option Page "' + objPage.name + '": page ' + objPage.loaded + ' is bank ' + zxnPageBank(objPage.loaded) + ', past the Next\'s 2MB (pages 2 - 91; 2 - 27 on a 1MB Next; fewer with Option NexData past 7 blocks)' });
+					arrErrors.push({ file: objPage.srcfile, line: objPage.line, msg: 'Option Page "' + objPage.name + '": page ' + objPage.loaded + ' is bank ' + zxnPageBank(objPage.loaded) + ', past the Next\'s 2MB (pages 2 - 91; 2 - 27 on a 1MB Next; fewer with Option NexData past 6 blocks)' });
 				}
 				arrPageOrder.forEach(function(strOther_a)
 				{
@@ -9959,6 +9956,10 @@ function ntcCompile(input_a, objOptions_a)
 		objLibLabelSection = {};
 		arrLibOrder.forEach(function(strName_a)
 		{
+			if (strName_a === 'ntc_plat_romhead')
+			{
+				return;		// the start code is always there (romHead): #asm naming its labels (a dot command's dot_os) links nothing
+			}
 			objLibSections[strName_a].labels.forEach(function(strLabel_a)
 			{
 				if (objLibLabelSection[strLabel_a] === undefined)
@@ -10100,6 +10101,17 @@ function ntcCompile(input_a, objOptions_a)
 		var blnLib = false;
 		var intI = 0;
 		var blnWin = false;
+		// the threads filled back under the window: when the pinned parts (the stubs, the #asm
+		// blocks, the data, the library) reach the Paged window and go on past it, the room they
+		// left below it (ntc_pwlo up to #4000) and the window itself are wasted - so the threads,
+		// which may sit under the window, start again at ntc_pwlo, fill up through the window, and
+		// step over the pinned parts above it (#8000 - ntc_pwhi) when they get there. ntc_pwlo is
+		// where the pinned fill jumped (0: it never did - the plain one-pass layout), ntc_pwhi
+		// where the pinned parts ended above the window. The threads' end, or ntc_pwhi if that is
+		// higher, is ntc_end. (Only with a device: org goes back down, the memory image is what
+		// gets saved.)
+		var blnFillBack = false;
+		var intWinHoleE = 0;
 		var blnStrs = false;
 		var blnVars = false;
 		var arrSkip = [];
@@ -10265,20 +10277,31 @@ function ntcCompile(input_a, objOptions_a)
 				var arrHead = arrIn.slice(intFrom + 1, arrParts.length ? arrParts[0].s : intEnd);
 				var arrPinned = [];
 				var arrThreads = [];
+				var arrTParts = [];
 
 				arrParts.forEach(function(objP_a)
 				{
 					var arrLines = arrIn.slice(objP_a.s, objP_a.e);
 
-					if (partUnderPagedIn(arrIn, objP_a.s)) { arrThreads = arrThreads.concat(arrLines); } else { arrPinned = arrPinned.concat(arrLines); }
+					if (partUnderPagedIn(arrIn, objP_a.s)) { arrTParts.push({ lines: arrLines, main: (String(arrIn[objP_a.s + 1] || '') === '; Main Thread'), est: arrLines.filter(function(strL_a) { return /^\s+(dw|db|ds)\b/i.test(strL_a); }).length }); } else { arrPinned = arrPinned.concat(arrLines); }
 				});
+				// the threads biggest first (the main thread stays first): filling back under the
+				// window, a part that does not fit what is left of the window steps over the pinned
+				// parts above it and the rest follow - so the big ones go in while the window is
+				// empty and the small ones fill what they leave. The size is estimated from the
+				// part's data lines (one word each, near enough); the order of the parts changes
+				// nothing else (every call is by label; a jr across parts is made a jp below)
+				arrTParts.sort(function(a_a, b_a) { if (a_a.main !== b_a.main) { return a_a.main ? -1 : 1; } return b_a.est - a_a.est; });
+				arrTParts.forEach(function(objT_a) { arrThreads = arrThreads.concat(objT_a.lines); });
 				// the "; Keyword library (" line turns the ; ==== cuts off from where it stands (the
 				// library's own ; ==== headings are not parts): with the library now first, it goes
 				// last, so every part still gets its guard
 				var arrLibHdr = arrPinned.concat(arrThreads).filter(function(strL_a) { return /^; Keyword library \(/.test(strL_a); });
 				var notHdr = function(strL_a) { return !/^; Keyword library \(/.test(strL_a); };
 
-				arrIn = arrIn.slice(0, intFrom + 1).concat(arrHead.filter(notHdr), arrPinned.filter(notHdr), arrThreads.filter(notHdr), arrLibHdr, arrIn.slice(intEnd));
+				arrIn = arrIn.slice(0, intFrom + 1).concat(arrHead.filter(notHdr), arrPinned.filter(notHdr), ['; @@threads@@'], arrThreads.filter(notHdr), arrLibHdr, arrIn.slice(intEnd));
+				blnFillBack = !blnM68k && !blnM65 && (arrThreads.length > 0);
+				intWinHoleE = arrHoles.filter(function(objH_a) { return objH_a.kind === 'p'; })[0].e;
 			})();
 		}
 		// a jr from one part to another may end up across a hole: those become jp
@@ -10465,10 +10488,25 @@ function ntcCompile(input_a, objOptions_a)
 				{
 					return;			// page 0 code: through the Paged range
 				}
+				if (blnFillBack && (objH_a.kind === 'p') && (objH_a.e === intWinHoleE))
+				{
+					// a pinned part stepping over the window: where it was is where the threads start again
+					arrOut.push(strIndentG + 'IF (ntc_pwlo == 0) && ($ < ' + objH_a.e + ') && (ntc_rg' + intK + '_e - ntc_rg' + intK + ' + $ > ' + objH_a.s + ')\t; fwdref-ok');
+					arrOut.push('ntc_pwlo = $\t\t; the pinned fill leaves the room below the window here: the threads fill it (; @@threads@@)');
+					arrOut.push(strIndentG + 'ENDIF');
+				}
 				holeRound(objH_a, '($ < ' + objH_a.e + ') && (ntc_rg' + intK + '_e - ntc_rg' + intK + ' + $ > ' + objH_a.s + ')');
 			});
+			if (blnFillBack && blnUnderPaged_a && blnThreads)
+			{
+				// a thread filling back: over the pinned parts above the window (#8000 - ntc_pwhi)
+				arrOut.push(strIndentG + 'IF (ntc_pwlo != 0) && ($ < ntc_pwhi) && (ntc_rg' + intK + '_e - ntc_rg' + intK + ' + $ > ' + intWinHoleE + ')\t; fwdref-ok');
+				arrOut.push(strIndentG + 'org ntc_pwhi\t\t; over the pinned parts above the window');
+				arrOut.push(strIndentG + 'ENDIF');
+			}
 			arrOut.push('ntc_rg' + intK + ':');
 		}
+		var blnThreads = false;
 		// the report: what went where (rule 3 of the map) - DISPLAY lines sjasmplus prints when it
 		// assembles (not for vasm: the 68000 and the 45GS02), from the ranges as declared
 		function report()
@@ -10658,6 +10696,11 @@ function ntcCompile(input_a, objOptions_a)
 				{
 					blnIn = true;		// after the start code's first bytes (the bank switch at #0044)
 					arrOut.push(strL);
+					if (blnFillBack)
+					{
+						arrOut.push('ntc_pwlo = 0\t\t; where the pinned parts stepped over the Paged window (0: they never reached it)');
+						arrOut.push('ntc_pwhi = 0\t\t; where they ended above it');
+					}
 					if (arrSkip.length > 0)
 					{
 						// the mover: first thing, before anything above a Skip gap is touched. The
@@ -10679,9 +10722,28 @@ function ntcCompile(input_a, objOptions_a)
 					}
 					continue;
 				}
+				if (blnIn && (strL === '; @@threads@@'))
+				{
+					// the threads: back down to the room the pinned fill left below the window
+					arrOut.push('ntc_rg' + intK + '_e:');
+					intK++;
+					arrOut.push(strIndentG + 'IF ntc_pwlo != 0\t; fwdref-ok');
+					arrOut.push('ntc_pwhi = $\t\t; the pinned parts end here, above the window');
+					arrOut.push(strIndentG + 'org ntc_pwlo\t\t; the threads fill from the room below the window (Option Memory Paged: code may sit under it)');
+					arrOut.push(strIndentG + 'ENDIF');
+					arrOut.push('ntc_rg' + intK + ':');
+					blnThreads = true;
+					continue;
+				}
 				if (/^ntc_end:/.test(strL) && blnIn)
 				{
 					arrOut.push('ntc_rg' + intK + '_e:');
+					if (blnFillBack)
+					{
+						arrOut.push(strIndentG + 'IF (ntc_pwlo != 0) && ($ < ntc_pwhi)\t; fwdref-ok');
+						arrOut.push(strIndentG + 'org ntc_pwhi\t\t; the threads ended below the pinned parts above the window: the program ends after those');
+						arrOut.push(strIndentG + 'ENDIF');
+					}
 					if (arrSafeBlocks.length > 0)
 					{
 						// Safe ranges the fill never reached (the program ended below them): their
@@ -11639,6 +11701,10 @@ function ntcCompile(input_a, objOptions_a)
 				blnNoTurbo = true;
 				objNoTurboLine = objRec;
 			}
+			else if (objRec.what === 'next2mb')
+			{
+				objOptions.next2mb = true;
+			}
 			else if (objRec.what === 'compactcalls')
 			{
 				if (objPlat.rom || blnM68k || blnM65)
@@ -11848,6 +11914,18 @@ function ntcCompile(input_a, objOptions_a)
 				{
 					arrErrors.push({ file: objRec.file, line: objRec.line, msg: 'Option PressAnyKeyOnEnd: a message in quotes, or none - ' + objRec.value });
 					strPakEnd = null;
+				}
+			}
+			else if (objRec.what === 'firstbank')
+			{
+				intValue = parseNumber(objRec.value);
+				if (isNaN(intValue) || (intValue < 11) || (intValue > 47))
+				{
+					arrErrors.push({ file: objRec.file, line: objRec.line, msg: 'Option FirstBank needs a 16K bank, 11-47 (banks 12-21 are Layer 2\'s buffers when the Graphics class uses them): ' + objRec.value });
+				}
+				else
+				{
+					objOptions.firstbank = intValue;
 				}
 			}
 			else if (objRec.what === 'org')
@@ -12154,10 +12232,10 @@ function ntcCompile(input_a, objOptions_a)
 		arrAsm.push('; the ZX Spectrum Next: NTC_ZXN defined (a DEFINE - sjasmplus\'s IFDEF tests those, not labels)');
 		arrAsm.push(strIndent + 'DEFINE NTC_ZXN');
 		// the Memory class's banks start above the program, the screen, Layer 2 and the low banks (bank 22,
-		// page 44) - and above Option NexData's blocks when they run past the 7 low banks (1-4, 6, 7, 11)
+		// page 44) - and above Option NexData's blocks when they run past the 6 low banks (1-4, 6, 11)
 		// into bank 22 on: a data block is not RAM for the pool
-		var intFirstBank = 22 + Math.max(0, ((objNexData !== null) ? objNexData.blocks : 0) - 7);
-		arrAsm.push('ZXN_FIRSTBANK\tequ ' + intFirstBank + '\t\t; first free 16K bank (page ' + (2 * intFirstBank) + '), above the program/screen/low banks' + ((intFirstBank > 22) ? ' and Option NexData\'s blocks' : ''));
+		var intFirstBank = zxnFirstBank();
+		arrAsm.push('ZXN_FIRSTBANK\tequ ' + intFirstBank + '\t\t; first free 16K bank (page ' + (2 * intFirstBank) + '), ' + ((objOptions.firstbank !== null) ? 'Option FirstBank' : ('above the program/screen/low banks' + ((intFirstBank > 22) ? ' and Option NexData\'s blocks' : ''))));
 		arrAsm.push('ZXN_MAXBANK\tequ ' + (112 - intFirstBank) + '\t\t; scan range: banks ' + intFirstBank + '-111 (a 2MB Next has 112 16K banks, pages 0-223; the MMU has no page past 223 - a higher page number is not RAM)');
 	}
 	if ((String(objOptions.platform).toLowerCase() === 'zxn') || objPlat.islc)
@@ -13444,6 +13522,13 @@ function ntcCompile(input_a, objOptions_a)
 			var objKind = objPages[strId_a];
 			var intBank = zxnPageBank(objKind.loaded);
 
+			if ((intBank > 47) && !objOptions.next2mb)
+			{
+				// a 1MB Next has banks 0-47: a page past that aliases a real bank there (the music
+				// ring, a data block) - every game that used one broke on a 1MB machine (20261111).
+				// Checked here, with Option NexData known (its blocks push the pages' banks up)
+				arrErrors.push({ file: objKind.srcfile, line: objKind.line, msg: 'Option Page "' + objKind.name + '": Loaded ' + objKind.loaded + ' is bank ' + intBank + ', past a 1MB Next\'s banks 0-47 (Loaded n is bank ' + zxnPageBank(2) + ' + n - 2 in this program' + ((objNexData !== null) ? ', after Option NexData\'s blocks' : '') + ': n up to ' + (47 - zxnPageBank(2) + 2) + ') - a lower n, or Option Next2MB for a 2MB-only program' });
+			}
 			arrAsm.push('');
 			arrAsm.push('; ============================================================');
 			arrAsm.push('; Page ' + objKind.name + ' (Loaded ' + objKind.loaded + '): ' + objKind.classes.join(', ') + ' - threads built to run at #4000,');

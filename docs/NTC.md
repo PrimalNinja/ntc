@@ -1427,7 +1427,7 @@ the 8K, or run over nothing of BASIC's with the program's pages in the slots - n
 Frame waits for the next one, Ticks is `dot_frames` plus FRAMES' advance during the ROM calls.
 `End` puts I and IM 1 back and returns with carry clear; the Large Model's entry returns the esxDOS custom error (carry
 set, A = 0, HL = the message) when the allocator has no pages or the file is short. No
-FileSystem class yet (esxDOS's `F_*` through `dot_os` is the way). Not for games: no
+FileSystem class yet: esxDOS's `F_*` through `dot_os` is the way, and the Large Model's entry has the call for it, `dot_fs_call` (`ld hl, dot_fs_call : call dot_os`, on the real stack; in `dot_fs_hook`, `dot_fs_a`, `dot_fs_bc`, `dot_fs_de`, `dot_fs_hl`; out `dot_fs_a`, `dot_fs_bc`, `dot_fs_de`, `dot_fs_cy`), with `dot_fs_name` (64 bytes), `dot_fs_stat` (16) and `dot_fs_data` (256) in the 8K - NextZXOS pages its own RAM over `#C000-#FFFF` during a call, so the call's stack, the name and the data must not be in the program's pages (a real NextZXOS resets). Locate keeps to BASIC's rows, 22 the last (the ROM's AT stops the command past it). Not for games: no
 interrupt handler, no Layer 2 - that is the `zxn` platform (a NEX), or a third, 64K-takeover
 model later. test/dotrun.py runs both under a NextZXOS stand-in (the hooks, `rst #10`, the
 frame interrupt's FRAMES and LAST_K; at the end it reports whether slots, SP and the pages

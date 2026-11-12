@@ -248,7 +248,7 @@ ntc_zxvs: EQU 0x0000066B
 tmp0: EQU 0x000000D8
 var_n: EQU 0x000000D2
 var_w: EQU 0x000000D4
-zxn_bmmu: EQU 0x00007E3B
+zxn_bmmu: EQU 0x00007E28
 zxn_boot: EQU 0x00007E00
-zxn_boot2: EQU 0x00007E4B
-zxn_mmu: EQU 0x00007E5F
+zxn_boot2: EQU 0x00007E38
+zxn_mmu: EQU 0x00007E4C

@@ -11,8 +11,8 @@
 ' platform's memtop keeps the heap below #BA00), interrupts left as they are (the SD driver wants them: an interrupt during the call runs
 ' ROM 3's handler, which writes its system variables at #5C00-#5C7B - program here - so those 124
 ' bytes are kept across the call), MMU 0 and 1 = 255 (ROM) and NextReg #8E = 3 (ROM 3, slots 6-7 kept)
-' round the rst 8, then the two MMU slots as they were. DivMMC stays out: the NEX stub cut its
-' automatic paging to rst 8 with ROM 3 (NextRegs #B8, #B9, #BB). Names: "NAME.EXT" or a path
+' round the rst 8, then ROM 0 and the two MMU slots as they were. DivMMC stays out: NextZXOS's own
+' entry points (the NEX stub leaves NextRegs #B8-#BB alone) trap rst 8 only with ROM 3 selected. Names: "NAME.EXT" or a path
 ' "GAMES/NAME.EXT" on the current drive ("*"); a drive letter "C:NAME" is passed to esxDOS as is.
 ' Every pointer the DOS gets must be above #4000 too (the program's first 16K is paged out under
 ' ROM 3 during the call): the name goes to #DB80, a stat / directory buffer to #BB80, and file
@@ -108,7 +108,7 @@ dc_ok:      ld a, (#BA00 + (dc_a - dc_tramp))
             ld h, 0
             ld ({result}), hl
             jp dc_end
-; ---- the trampoline (copied to #BA00, 164 bytes; the sysvars copy at #BAB0; its stack to #BC00)
+; ---- the trampoline (copied to #BA00, 173 bytes - to #BAAC; the sysvars copy at #BAB0; its stack to #BC00)
 dc_tramp:   ld sp, #BC00            ; own stack: #BB30-#BBFF
             ld hl, #5C00            ; the ROM's system variables' area kept (an interrupt during the call
             ld de, #BAB0            ; runs ROM 3's handler, which writes there): 124 bytes to #BAB0-#BB2B (the trampoline is 164 bytes: to #BAA3)
@@ -159,6 +159,12 @@ dc_hk:      db 0
             ld a, 1
 dc_nocy:    ld (#BA00 + (dc_cy - dc_tramp)), a
             ld bc, #243B
+            ld a, #8E               ; ROM 0 again (20261110-2: the NEX stub leaves NextZXOS's DivMMC entry points, which
+            out (c), a              ; trap rst 8 and #0038 whenever ROM 3 is selected - so ROM 3 is on only round the call)
+            inc b
+            xor a
+            out (c), a
+            dec b
             ld a, #50               ; MMU 0, 1 back
             out (c), a
             inc b

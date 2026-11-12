@@ -473,6 +473,42 @@ dotl_free:
 			rst #08
 			db #94
 			ret
+
+; ---- esxDOS file calls for a FileSystem class (the Large Model): dot_fs_call runs on BASIC's
+; side (HL = dot_fs_call : call dot_os) - NextZXOS pages its own RAM over #C000-#FFFF and reads
+; BASIC's system variables during a call, so the call's stack, the name and the data must not be
+; in the program's pages: the name goes in dot_fs_name, a stat buffer is dot_fs_stat, file data
+; goes through dot_fs_data (256 bytes a call), all in this 8K, which is in both maps.
+; In: dot_fs_hook (F_OPEN ...), dot_fs_a, dot_fs_bc, dot_fs_de, dot_fs_hl (HL and IX: NextZXOS
+; reads a name's pointer from HL, esxDOS from IX). Out: dot_fs_a, dot_fs_bc, dot_fs_de,
+; dot_fs_cy (1 = carry: an error, A its code)
+dot_fs_call:
+			ld a, (dot_fs_hook)
+			ld (dot_fs_hk), a
+			ld bc, (dot_fs_bc)
+			ld de, (dot_fs_de)
+			ld hl, (dot_fs_hl)
+			push hl
+			pop ix
+			ld a, (dot_fs_a)
+			rst #08
+dot_fs_hk:	db 0
+			ld (dot_fs_bc), bc
+			ld (dot_fs_de), de
+			ld (dot_fs_a), a
+			ld a, 0
+			rla
+			ld (dot_fs_cy), a
+			ret
+dot_fs_hook:	db 0
+dot_fs_a:		db 0
+dot_fs_cy:		db 0
+dot_fs_bc:		dw 0
+dot_fs_de:		dw 0
+dot_fs_hl:		dw 0
+dot_fs_name:	ds 64
+dot_fs_stat:	ds 16
+dot_fs_data:	ds 256
 	ENDIF
 
 ;## ntc_plat_data
@@ -575,6 +611,10 @@ ntc_plat_locate:
 			ld (dot_col), a
 			ld a, l
 			dec a
+			cp 22					; (past BASIC's screen the ROM's AT stops the command with an error: row 22 is
+			jr c, ntc_lc_row		; the last. Columns are left to the ROM - BASIC may be in a wider mode)
+			ld a, 21
+ntc_lc_row:
 			ld (ntc_cury), a
 			ld (dot_row), a
 			ld (ntc_ip), sp

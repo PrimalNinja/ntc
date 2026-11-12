@@ -1678,7 +1678,7 @@ page without a switch, copied classes and their home copies, paged variables.
 
 **zxn** (so far the only platform): the Next has no page files (no file system yet), so every page
 there is `Loaded`. Page *n* is the NEX file's bank `20 + n` (Option Memory CPCExpansion's numbering
-on the Next: page 2 is bank 22; with Option NexData past 7 blocks everything moves up past the
+on the Next: page 2 is bank 22; with Option NexData past 6 blocks everything moves up past the
 data's banks, as the Memory class's banks do), filled by NextZXOS when it loads the NEX - nothing to copy. Its
 page variables are cleared in the bank. The program needs the window kept free (`Option Reserve
 &H4000, &H4000`); Option Memory CPCExpansion is chosen by itself when there are pages. At the start
@@ -2380,7 +2380,19 @@ r = FileSystem.Load("LEVEL1.DAT", &H8000, &H4000)
 The program is built round a reserved range above its org: it starts at the org and goes up,
 and when the next part of it (a procedure's thread, a library section, the variables, the
 strings) would reach into the range, that part and the rest go on after it. The arrays and the
-Memory class's tables go after it too. So a program with `Option Reserve &H4000, &H4000` (a
+Memory class's tables go after it too. A `Paged` window is different for the threads: a procedure's thread
+(page 0 code that no page calls) may sit under the window, so the parts that may not (the
+stubs, the `#asm` blocks, the data, the library) are laid first, and the threads after - and when
+those first parts have stepped over the window, the threads go back to fill the room they left
+below it, run on through the window, and step over them again above it. So a paged class costs
+only its stubs and the paging library, not the window's 16K (NTC 20261111; before, the threads
+simply followed the other parts above the window, and the window and the room below it were lost
+once anything stepped over it). The threads go in biggest first, so the small ones fill what the big
+ones leave. On the Next, `Loaded n` is 16K bank 22 + n - 2, above Option NexData's blocks when there
+are more than six; a 1MB Next has banks 0-47, so a page past that is refused unless the program says
+`Option Next2MB` (a 2MB-only program). `Option FirstBank n` (11-47) moves the first bank: `Loaded n`
+is then bank FirstBank + n - 2, and the Memory class's pool starts there too (for a program whose own
+build fills 22-47 with data; 12-21 are Layer 2's buffers when the Graphics class uses them). So a program with `Option Reserve &H4000, &H4000` (a
 second screen, the RAM page window) can be bigger than 16K: it fills `#0040-#3FFF`, then
 carries on at `#8000`. The file holds the hole as zeros (16K more to load). A range below the
 org, or one the program never reaches, changes nothing. On the `cpc` platform the font copy
@@ -2430,8 +2442,11 @@ Option Place Hyp, Ent
 `Option NexData "`*FILE*`",` *blocks*
 
 The ZX Spectrum Next (`zxn`) only: *FILE*'s first *blocks* x 16K go into the NEX file, in the
-Next's 16K banks 1-4, 6, 7, 11, then 22-111 (97 at most; a bank past 47 makes the NEX ask for a
-2MB Next). NextZXOS loads them with the program, so there is nothing to read at run time. The
+Next's 16K banks 1-4, 6, 11, then 22-111 (96 at most; a bank past 47 makes the NEX ask for a
+2MB Next). Never bank 7: it is +3DOS's workspace, paged over #C000-#FFFF by NextZXOS for every
+file call (esxDOS's too) - a data block there crashes a real Next at the first F_OPEN, while
+the emulators that fake esxDOS run on. (Bank 1 is NextZXOS's RAM disc, M: - a block there loses
+the RAM disc, nothing else.) NextZXOS loads them with the program, so there is nothing to read at run time. The
 assembler reads *FILE* (next to the `.asm`): it must hold all the blocks. The program finds them at
 `ntc_nexdata` (`#asm`): the count, then each block's bank; `zxn_sel` (HL = a bank, 0 = the
 program's own pages) puts one in `#4000-#7FFF`, as a CPC program puts a RAM page in its window -

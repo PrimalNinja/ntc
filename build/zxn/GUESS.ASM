@@ -2125,36 +2125,26 @@ zxn_boot:
 			and %11100111
 			out (c), a
 			dec b
-; DivMMC: its automatic paging stays as NextZXOS left it (on) - turning it off and on
-; again loses esxDOS's state in some emulators - but its entry points are cut to RST 8
-; with ROM 3 selected (#B8 = 2, #B9 = 0: the RST vectors need ROM 3; #BB = 0: no #3Dxx,
-; #0066, tape traps). A program never does rst 8 with ROM 3 in, so nothing pages it in;
-; CyborgOS's SD drive does exactly that for its esxDOS calls (ROM 3 in slots 0-1, rst 8).
-; Tested on NextZXOS 2.06H (JNEXT, 2026-10-21): esxDOS calls work with these - when the NEX
-; is started by NextZXOS (the browser, .nexload, an autoexec), not loaded as a snapshot,
-; which skips the DOS's own set-up and leaves every call answering "nonsense" (2)
-			ld a, #B8
-			out (c), a
-			inc b
-			ld a, 2
-			out (c), a
-			dec b
-			ld a, #B9
-			out (c), a
-			inc b
-			xor a
-			out (c), a
-			dec b
-			ld a, #BB
-			out (c), a
-			inc b
-			xor a
-			out (c), a
-			dec b
+; DivMMC: its automatic paging and its entry points stay exactly as NextZXOS left them
+; (NextRegs #B8-#BB untouched). Until 20261110-2 the stub cut them to "rst 8 with ROM 3"
+; (#B8 = 2, #B9 = 0, #BB = 0): every emulator ran that; four games crashed on a real Next
+; at their first esxDOS call, and #BB = 0 also cleared bit 6, the 0x1FF8-0x1FFF exit the DOS
+; leaves its memory by - the emulators do not model those registers (ZEsarUX ignores them),
+; so nothing here can prove it; the DOS's own setting is the one every working NEX runs
+; with. NextZXOS's setting traps rst 8
+; (and #0038, #3Dxx, the tape entries) only with ROM 3 paged, which a program never has
+; except round an esxDOS call (the FileSystem class, CyborgOS's SD drive: ROM 3 in
+; slots 0-1, rst 8, ROM 3 off), so nothing pages DivMMC in by accident
 ; (no out (#E3): DivMMC's memory is already out when a NEX starts - .nexload leaves it so -
 ; and writing the port selects its RAM bank 0 and drops MAPRAM, which loses NextZXOS's esxDOS
 ; state: its file handles are in DivMMC RAM. With it untouched, RST 8 calls work from the program
 ; (automap on, the ROM in slots 0-1 for the call: CyborgOS's SD drive does that)
+			ld a, #8E		; the 128K paging: normal mode, ROM 0 (no change to slots 6-7: bit 3 = 0). NextZXOS's
+			out (c), a		; DivMMC entry points (rst 8, #0038, #3Dxx, the tape addresses) trap only with ROM 3
+			inc b			; selected: with ROM 0 none can, whatever a slot holds; an esxDOS call selects ROM 3
+			xor a			; round its rst 8 and puts ROM 0 back (the FileSystem class, CyborgOS's SD drive)
+			out (c), a
+			dec b
 			ld a, 7			; CPU speed: 28MHz
 			out (c), a
 			inc b

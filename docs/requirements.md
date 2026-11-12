@@ -76,7 +76,7 @@ What each target can do:
 | Interrupts (normal mode, `Interrupt`) | own handler, 300 Hz | own handler | firmware, plus a fast ticker event for `Interrupt` | - | - | own handler, the line interrupt: 300 Hz |
 | Files (`FileSystem`) | - | Load / Save, tape / disc, volumes | Load / Save, tape / disc, volumes | everything (sequential, random access, delete, rename ...) | - | - (later: NextZXOS / esxDOS) |
 | RAM pages (`Memory`, `Option Memory CPCExpansion`) | up to a 4MB expansion | up to a 4MB expansion | up to a 4MB expansion | - | - | - (later: the Next's 8K pages) |
-| Data in the program's file (`Option NexData`: 16K blocks loaded into banks) | - | - | - | - | - | up to 97 blocks (1.5 MB; past bank 47 a 2MB Next) |
+| Data in the program's file (`Option NexData`: 16K blocks loaded into banks) | - | - | - | - | - | up to 96 blocks (1.5 MB; past bank 47 a 2MB Next; never bank 7, +3DOS's) |
 | Heap in main RAM (`Option Memory Small`) | yes | yes | yes | yes (up to the BDOS) | yes | yes (up to `#BE00`) |
 | ROM commands (`System.Command`) | - | yes | yes | - | - | - |
 | Overlay classes (`Option Class Overlay`) | - | yes (RAM pages, or one overlay area with `Small`) | yes (the same) | yes (one overlay area) | - | - |

@@ -289,21 +289,21 @@ ntc_rg3:
 
 p_filesystem_firstuse:
 
-			; FileSystem.cls 210: Dim a As Integer
+			; FileSystem.cls 216: Dim a As Integer
 
-			; FileSystem.cls 211: If inited Then Exit Sub
+			; FileSystem.cls 217: If inited Then Exit Sub
 			dw kw_goto_ifzero_n, var_filesystem_inited, if9_1
 			dw p_filesystem_firstuse_r
 if9_1:
 
-			; FileSystem.cls 212: inited = 1
+			; FileSystem.cls 218: inited = 1
 			dw kw_ltov, 1, var_filesystem_inited
 
-			; FileSystem.cls 213: a = DosCall(&H89, 0, 0, 0, 0)
+			; FileSystem.cls 219: a = DosCall(&H89, 0, 0, 0, 0)
 			dw p_filesystem_doscall_c, lit_137, lit_0, lit_0, lit_0, lit_0
 			dw kw_vtov, var_filesystem_doscall_doscall, var_filesystem_firstuse_a
 
-			; FileSystem.cls 214: If a >= 0 Then drv = (a \ 8) + Asc("A") Else drv = Asc("C")
+			; FileSystem.cls 220: If a >= 0 Then drv = (a \ 8) + Asc("A") Else drv = Asc("C")
 			dw kw_scpgevl, var_filesystem_firstuse_a, 0
 			dw kw_goto_iffalse_n, if10_1
 			dw kw_divvl, var_filesystem_firstuse_a, 8, tmp0
@@ -314,17 +314,17 @@ if10_1:
 			dw kw_strasc, str13, var_filesystem_drv
 if10_e:
 
-			; FileSystem.cls 215: drvcode = Asc("*")                 ' the calls take "*" (the default drive) in A, as the hypervisor does
+			; FileSystem.cls 221: drvcode = Asc("*")                 ' the calls take "*" (the default drive) in A, as the hypervisor does
 			dw kw_strasc, str14, var_filesystem_drvcode
 
-			; FileSystem.cls 216: nm = "/" + Chr$(0)
+			; FileSystem.cls 222: nm = "/" + Chr$(0)
 			dw kw_strcpy, var_filesystem_nm, str15
 			dw kw_strcat, var_filesystem_nm, str16
 
-			; FileSystem.cls 217: Copy VarPtr(nm), BNAME, 2
+			; FileSystem.cls 223: Copy VarPtr(nm), BNAME, 2
 			dw p_filesystem_copy_c, vp_var_filesystem_nm, lit_m17408, lit_2
 
-			; FileSystem.cls 218: a = DosCall(&HA9, drvcode, 0, 0, BNAME)
+			; FileSystem.cls 224: a = DosCall(&HA9, drvcode, 0, 0, BNAME)
 			dw p_filesystem_doscall_c, lit_169, var_filesystem_drvcode, lit_0, lit_0, lit_m17408
 			dw kw_vtov, var_filesystem_doscall_doscall, var_filesystem_firstuse_a
 			dw p_filesystem_firstuse_r
@@ -341,8 +341,8 @@ ntc_rg4:
 
 p_filesystem_copy:
 
-			; FileSystem.cls 230: #asm
-			dw asm_1_230_n
+			; FileSystem.cls 236: #asm
+			dw asm_1_236_n
 			dw p_filesystem_copy_r
 
 ntc_rg4_e:
@@ -357,10 +357,10 @@ ntc_rg5:
 
 p_filesystem_namez:
 
-			; FileSystem.cls 244: FirstUse
+			; FileSystem.cls 250: FirstUse
 			dw p_filesystem_firstuse_c
 
-			; FileSystem.cls 245: If Len(name) = 0 Or Len(name) > 62 Then NameZ = BadName : Exit Function
+			; FileSystem.cls 251: If Len(name) = 0 Or Len(name) > 62 Then NameZ = BadName : Exit Function
 			dw kw_strlen, var_filesystem_namez_name, tmp0
 			dw kw_cpeqvl, tmp0, 0
 			dw kw_ftov, tmp0
@@ -373,16 +373,16 @@ p_filesystem_namez:
 			dw p_filesystem_namez_r
 if13_1:
 
-			; FileSystem.cls 246: nm = name + Chr$(0)
+			; FileSystem.cls 252: nm = name + Chr$(0)
 			dw kw_strcpy, var_filesystem_nm, var_filesystem_namez_name
 			dw kw_strcat, var_filesystem_nm, str16
 
-			; FileSystem.cls 247: Copy VarPtr(nm), BNAME, Len(name) + 1
+			; FileSystem.cls 253: Copy VarPtr(nm), BNAME, Len(name) + 1
 			dw kw_strlen, var_filesystem_namez_name, tmp2
 			dw kw_inc, tmp2
 			dw p_filesystem_copy_c, vp_var_filesystem_nm, lit_m17408, tmp2
 
-			; FileSystem.cls 248: NameZ = OK
+			; FileSystem.cls 254: NameZ = OK
 			dw kw_ztov, var_filesystem_namez_namez
 			dw p_filesystem_namez_r
 
@@ -398,16 +398,16 @@ ntc_rg6:
 
 p_filesystem_capability:
 
-			; FileSystem.cls 253: Dim s As String Max 16
+			; FileSystem.cls 259: Dim s As String Max 16
 
-			; FileSystem.cls 254: s = UCase$(name)
+			; FileSystem.cls 260: s = UCase$(name)
 			dw kw_strucase, stmp0, var_filesystem_capability_name
 			dw kw_strcpy, var_filesystem_capability_s, stmp0
 
-			; FileSystem.cls 255: Capability = 0
+			; FileSystem.cls 261: Capability = 0
 			dw kw_ztov, var_filesystem_capability_capability
 
-			; FileSystem.cls 256: If s = "LOAD" Or s = "SAVE" Or s = "SEQUENTIAL" Or s = "RANDOMACCESS" Or s = "DELETE" Or s = "RENAME" Or s = "EXISTS" Or s = "SIZE" Or s = "MULTIPLE" Or s = "DIRECTORY" Or s = "PATHS" Then Capability = -1
+			; FileSystem.cls 262: If s = "LOAD" Or s = "SAVE" Or s = "SEQUENTIAL" Or s = "RANDOMACCESS" Or s = "DELETE" Or s = "RENAME" Or s = "EXISTS" Or s = "SIZE" Or s = "MULTIPLE" Or s = "DIRECTORY" Or s = "PATHS" Then Capability = -1
 			dw kw_strcmpeq, var_filesystem_capability_s, str1
 			dw kw_ftov, tmp0
 			dw kw_strcmpeq, var_filesystem_capability_s, str2
@@ -445,13 +445,13 @@ p_filesystem_capability:
 			dw kw_ltov, -1, var_filesystem_capability_capability
 if14_1:
 
-			; FileSystem.cls 257: If s = "MAXOPEN" Then Capability = 8
+			; FileSystem.cls 263: If s = "MAXOPEN" Then Capability = 8
 			dw kw_strcmpeq, var_filesystem_capability_s, str5
 			dw kw_goto_iffalse_n, if15_1
 			dw kw_ltov, 8, var_filesystem_capability_capability
 if15_1:
 
-			; FileSystem.cls 258: If s = "RECORDSIZE" Then Capability = 1
+			; FileSystem.cls 264: If s = "RECORDSIZE" Then Capability = 1
 			dw kw_strcmpeq, var_filesystem_capability_s, str24
 			dw kw_goto_iffalse_n, if16_1
 			dw kw_ltov, 1, var_filesystem_capability_capability
@@ -470,24 +470,24 @@ ntc_rg7:
 
 p_filesystem_load:
 
-			; FileSystem.cls 262: Dim h As Integer, n As Integer, sz As Long
+			; FileSystem.cls 268: Dim h As Integer, n As Integer, sz As Long
 
-			; FileSystem.cls 263: h = Open(name, ForReadRaw)
+			; FileSystem.cls 269: h = Open(name, ForReadRaw)
 			dw p_filesystem_open_c, var_filesystem_load_name, lit_4
 			dw kw_vtov, var_filesystem_open_open, var_filesystem_load_h
 
-			; FileSystem.cls 264: If h < 0 Then Load = h : Exit Function
+			; FileSystem.cls 270: If h < 0 Then Load = h : Exit Function
 			dw kw_scpltvl, var_filesystem_load_h, 0
 			dw kw_goto_iffalse_n, if17_1
 			dw kw_vtov, var_filesystem_load_h, var_filesystem_load_load
 			dw p_filesystem_load_r
 if17_1:
 
-			; FileSystem.cls 265: sz = Size(name)
+			; FileSystem.cls 271: sz = Size(name)
 			dw p_filesystem_size_c, var_filesystem_load_name
 			dw kw_l_mov, var_filesystem_size_size, var_filesystem_load_sz
 
-			; FileSystem.cls 266: If sz > maxlen Then r0 = Close(h) : Load = TooBig : Exit Function
+			; FileSystem.cls 272: If sz > maxlen Then r0 = Close(h) : Load = TooBig : Exit Function
 			dw kw_l_itol, var_filesystem_load_maxlen, ltmp1
 			dw kw_l_cpgt, var_filesystem_load_sz, ltmp1
 			dw kw_goto_iffalse_n, if18_1
@@ -497,15 +497,15 @@ if17_1:
 			dw p_filesystem_load_r
 if18_1:
 
-			; FileSystem.cls 267: n = Read(h, addr, maxlen)
+			; FileSystem.cls 273: n = Read(h, addr, maxlen)
 			dw p_filesystem_read_c, var_filesystem_load_h, var_filesystem_load_addr, var_filesystem_load_maxlen
 			dw kw_vtov, var_filesystem_read_read, var_filesystem_load_n
 
-			; FileSystem.cls 268: r0 = Close(h)
+			; FileSystem.cls 274: r0 = Close(h)
 			dw p_filesystem_close_c, var_filesystem_load_h
 			dw kw_vtov, var_filesystem_close_close, var_filesystem_r0
 
-			; FileSystem.cls 269: Load = n
+			; FileSystem.cls 275: Load = n
 			dw kw_vtov, var_filesystem_load_n, var_filesystem_load_load
 			dw p_filesystem_load_r
 
@@ -521,28 +521,28 @@ ntc_rg8:
 
 p_filesystem_save:
 
-			; FileSystem.cls 274: Dim h As Integer, n As Integer
+			; FileSystem.cls 280: Dim h As Integer, n As Integer
 
-			; FileSystem.cls 275: h = Open(name, ForWrite)
+			; FileSystem.cls 281: h = Open(name, ForWrite)
 			dw p_filesystem_open_c, var_filesystem_save_name, lit_2
 			dw kw_vtov, var_filesystem_open_open, var_filesystem_save_h
 
-			; FileSystem.cls 276: If h < 0 Then Save = h : Exit Function
+			; FileSystem.cls 282: If h < 0 Then Save = h : Exit Function
 			dw kw_scpltvl, var_filesystem_save_h, 0
 			dw kw_goto_iffalse_n, if19_1
 			dw kw_vtov, var_filesystem_save_h, var_filesystem_save_save
 			dw p_filesystem_save_r
 if19_1:
 
-			; FileSystem.cls 277: n = Write(h, addr, length)
+			; FileSystem.cls 283: n = Write(h, addr, length)
 			dw p_filesystem_write_c, var_filesystem_save_h, var_filesystem_save_addr, var_filesystem_save_length
 			dw kw_vtov, var_filesystem_write_write, var_filesystem_save_n
 
-			; FileSystem.cls 278: r0 = Close(h)
+			; FileSystem.cls 284: r0 = Close(h)
 			dw p_filesystem_close_c, var_filesystem_save_h
 			dw kw_vtov, var_filesystem_close_close, var_filesystem_r0
 
-			; FileSystem.cls 279: If n < 0 Then Save = n Else If n < length Then Save = Full Else Save = OK
+			; FileSystem.cls 285: If n < 0 Then Save = n Else If n < length Then Save = Full Else Save = OK
 			dw kw_scpltvl, var_filesystem_save_n, 0
 			dw kw_goto_iffalse_n, if20_1
 			dw kw_vtov, var_filesystem_save_n, var_filesystem_save_save
@@ -570,7 +570,7 @@ ntc_rg9:
 
 p_filesystem_size:
 
-			; FileSystem.cls 303: If NameZ(name) <> OK Then Size = BadName : Exit Function
+			; FileSystem.cls 309: If NameZ(name) <> OK Then Size = BadName : Exit Function
 			dw p_filesystem_namez_c, var_filesystem_size_name
 			dw kw_vtov, var_filesystem_namez_namez, tmp0
 			dw kw_cpnevl, tmp0, 0
@@ -579,7 +579,7 @@ p_filesystem_size:
 			dw p_filesystem_size_r
 if29_1:
 
-			; FileSystem.cls 304: If DosCall(F_STAT, drvcode, 0, BNAME2, BNAME) < 0 Then Size = NotFound : Exit Function
+			; FileSystem.cls 310: If DosCall(F_STAT, drvcode, 0, BNAME2, BNAME) < 0 Then Size = NotFound : Exit Function
 			dw p_filesystem_doscall_c, lit_172, var_filesystem_drvcode, lit_0, lit_m17344, lit_m17408
 			dw kw_vtov, var_filesystem_doscall_doscall, tmp0
 			dw kw_scpltvl, tmp0, 0
@@ -588,10 +588,10 @@ if29_1:
 			dw p_filesystem_size_r
 if30_1:
 
-			; FileSystem.cls 305: Copy BNAME2, VarPtr(st(0)), 11
+			; FileSystem.cls 311: Copy BNAME2, VarPtr(st(0)), 11
 			dw p_filesystem_copy_c, lit_m17344, vp_arr_filesystem_st, lit_11
 
-			; FileSystem.cls 306: Size = CLng(st(7)) + CLng(st(8)) * 256 + CLng(st(9)) * 65536 + CLng(st(10)) * 16777216
+			; FileSystem.cls 312: Size = CLng(st(7)) + CLng(st(8)) * 256 + CLng(st(9)) * 65536 + CLng(st(10)) * 16777216
 			dw kw_lptrtov8, arr_filesystem_st+7, tmp0
 			dw kw_l_itol, tmp0, ltmp0
 			dw kw_lptrtov8, arr_filesystem_st+8, tmp1
@@ -620,9 +620,9 @@ ntc_rg10:
 
 p_filesystem_open:
 
-			; FileSystem.cls 312: Dim m As Integer, a As Integer
+			; FileSystem.cls 318: Dim m As Integer, a As Integer
 
-			; FileSystem.cls 313: If mode < 1 Or mode > 4 Then Open = BadMode : Exit Function
+			; FileSystem.cls 319: If mode < 1 Or mode > 4 Then Open = BadMode : Exit Function
 			dw kw_scpltvl, var_filesystem_open_mode, 1
 			dw kw_ftov, tmp0
 			dw kw_scpgtvl, var_filesystem_open_mode, 4
@@ -633,7 +633,7 @@ p_filesystem_open:
 			dw p_filesystem_open_r
 if31_1:
 
-			; FileSystem.cls 314: If NameZ(name) <> OK Then Open = BadName : Exit Function
+			; FileSystem.cls 320: If NameZ(name) <> OK Then Open = BadName : Exit Function
 			dw p_filesystem_namez_c, var_filesystem_open_name
 			dw kw_vtov, var_filesystem_namez_namez, tmp0
 			dw kw_cpnevl, tmp0, 0
@@ -642,7 +642,7 @@ if31_1:
 			dw p_filesystem_open_r
 if32_1:
 
-			; FileSystem.cls 315: If mode = ForWrite Then m = &H0E Else If mode = ForUpdate Then m = &H0B Else m = &H01
+			; FileSystem.cls 321: If mode = ForWrite Then m = &H0E Else If mode = ForUpdate Then m = &H0B Else m = &H01
 			dw kw_cpeqvl, var_filesystem_open_mode, 2
 			dw kw_goto_iffalse_n, if33_1
 			dw kw_ltov, 14, var_filesystem_open_m
@@ -657,16 +657,16 @@ if34_1:
 if34_e:
 if33_e:
 
-			; FileSystem.cls 317: a = DosCall(F_OPEN, drvcode, m * 256, 0, BNAME)      ' the mode in B
+			; FileSystem.cls 323: a = DosCall(F_OPEN, drvcode, m * 256, 0, BNAME)      ' the mode in B
 			dw kw_mulvl, var_filesystem_open_m, 256, tmp2
 			dw p_filesystem_doscall_c, lit_154, var_filesystem_drvcode, tmp2, lit_0, lit_m17408
 			dw kw_vtov, var_filesystem_doscall_doscall, var_filesystem_open_a
 
-			; FileSystem.cls 318: If a < 0 Then
+			; FileSystem.cls 324: If a < 0 Then
 			dw kw_scpltvl, var_filesystem_open_a, 0
 			dw kw_goto_iffalse_n, if35_1
 
-			; FileSystem.cls 319: If mode = ForWrite Or mode = ForUpdate Then Open = Full Else Open = NotFound
+			; FileSystem.cls 325: If mode = ForWrite Or mode = ForUpdate Then Open = Full Else Open = NotFound
 			dw kw_cpeqvl, var_filesystem_open_mode, 2
 			dw kw_ftov, tmp0
 			dw kw_cpeqvl, var_filesystem_open_mode, 3
@@ -679,14 +679,14 @@ if36_1:
 			dw kw_ltov, -2, var_filesystem_open_open
 if36_e:
 
-			; FileSystem.cls 320: Else
+			; FileSystem.cls 326: Else
 			dw if35_e_go
 if35_1:
 
-			; FileSystem.cls 321: Open = a + 1
+			; FileSystem.cls 327: Open = a + 1
 			dw kw_addl, var_filesystem_open_a, 1, var_filesystem_open_open
 
-			; FileSystem.cls 322: End If
+			; FileSystem.cls 328: End If
 if35_e:
 			dw p_filesystem_open_r
 
@@ -702,7 +702,7 @@ ntc_rg11:
 
 p_filesystem_close:
 
-			; FileSystem.cls 326: If h < 1 Or h > 256 Then Close = BadHandle : Exit Function
+			; FileSystem.cls 332: If h < 1 Or h > 256 Then Close = BadHandle : Exit Function
 			dw kw_scpltvl, var_filesystem_close_h, 1
 			dw kw_ftov, tmp0
 			dw kw_scpgtvl, var_filesystem_close_h, 256
@@ -713,7 +713,7 @@ p_filesystem_close:
 			dw p_filesystem_close_r
 if37_1:
 
-			; FileSystem.cls 327: If DosCall(F_CLOSE, h - 1, 0, 0, 0) < 0 Then Close = Failed Else Close = OK
+			; FileSystem.cls 333: If DosCall(F_CLOSE, h - 1, 0, 0, 0) < 0 Then Close = Failed Else Close = OK
 			dw kw_addl, var_filesystem_close_h, -1, tmp1
 			dw p_filesystem_doscall_c, lit_155, tmp1, lit_0, lit_0, lit_0
 			dw kw_vtov, var_filesystem_doscall_doscall, tmp0
@@ -738,9 +738,9 @@ ntc_rg12:
 
 p_filesystem_read:
 
-			; FileSystem.cls 331: Dim got As Integer, n As Integer, want As Integer
+			; FileSystem.cls 337: Dim got As Integer, n As Integer, want As Integer
 
-			; FileSystem.cls 332: If h < 1 Or h > 256 Then Read = BadHandle : Exit Function
+			; FileSystem.cls 338: If h < 1 Or h > 256 Then Read = BadHandle : Exit Function
 			dw kw_scpltvl, var_filesystem_read_h, 1
 			dw kw_ftov, tmp0
 			dw kw_scpgtvl, var_filesystem_read_h, 256
@@ -751,24 +751,24 @@ p_filesystem_read:
 			dw p_filesystem_read_r
 if39_1:
 
-			; FileSystem.cls 333: got = 0
+			; FileSystem.cls 339: got = 0
 			dw kw_ztov, var_filesystem_read_got
 
-			; FileSystem.cls 334: Do While got < count
+			; FileSystem.cls 340: Do While got < count
 do40_t:
 			dw kw_scpltvv, var_filesystem_read_got, var_filesystem_read_count
 			dw kw_goto_iffalse_n, do40_e
 
-			; FileSystem.cls 335: want = count - got
+			; FileSystem.cls 341: want = count - got
 			dw kw_subvv, var_filesystem_read_count, var_filesystem_read_got, var_filesystem_read_want
 
-			; FileSystem.cls 336: If want > BCHUNK Then want = BCHUNK
+			; FileSystem.cls 342: If want > BCHUNK Then want = BCHUNK
 			dw kw_scpgtvl, var_filesystem_read_want, 384
 			dw kw_goto_iffalse_n, if41_1
 			dw kw_ltov, 384, var_filesystem_read_want
 if41_1:
 
-			; FileSystem.cls 337: If DosCall(F_READ, h - 1, want, 0, BDATA) < 0 Then Read = Failed : Exit Function
+			; FileSystem.cls 343: If DosCall(F_READ, h - 1, want, 0, BDATA) < 0 Then Read = Failed : Exit Function
 			dw kw_addl, var_filesystem_read_h, -1, tmp1
 			dw p_filesystem_doscall_c, lit_157, tmp1, var_filesystem_read_want, lit_0, lit_m17280
 			dw kw_vtov, var_filesystem_doscall_doscall, tmp0
@@ -778,10 +778,10 @@ if41_1:
 			dw p_filesystem_read_r
 if42_1:
 
-			; FileSystem.cls 338: n = bcr
+			; FileSystem.cls 344: n = bcr
 			dw kw_vtov, var_filesystem_bcr, var_filesystem_read_n
 
-			; FileSystem.cls 339: If n > 0 Then Copy BDATA, addr + got, n : got = got + n
+			; FileSystem.cls 345: If n > 0 Then Copy BDATA, addr + got, n : got = got + n
 			dw kw_scpgtvl, var_filesystem_read_n, 0
 			dw kw_goto_iffalse_n, if43_1
 			dw kw_add, var_filesystem_read_addr, var_filesystem_read_got, tmp1
@@ -789,17 +789,17 @@ if42_1:
 			dw kw_add, var_filesystem_read_got, var_filesystem_read_n, var_filesystem_read_got
 if43_1:
 
-			; FileSystem.cls 340: If n < want Then Exit Do
+			; FileSystem.cls 346: If n < want Then Exit Do
 			dw kw_scpltvv, var_filesystem_read_n, var_filesystem_read_want
 			dw kw_goto_iffalse_n, do40_t
 			dw do40_e_go
 if44_1:
 
-			; FileSystem.cls 341: Loop
+			; FileSystem.cls 347: Loop
 			dw do40_t_go
 do40_e:
 
-			; FileSystem.cls 342: If got = 0 And count > 0 Then Read = EndOfFile Else Read = got
+			; FileSystem.cls 348: If got = 0 And count > 0 Then Read = EndOfFile Else Read = got
 			dw kw_cpeqvl, var_filesystem_read_got, 0
 			dw kw_ftov, tmp0
 			dw kw_scpgtvl, var_filesystem_read_count, 0
@@ -825,9 +825,9 @@ ntc_rg13:
 
 p_filesystem_write:
 
-			; FileSystem.cls 346: Dim done As Integer, n As Integer, want As Integer
+			; FileSystem.cls 352: Dim done As Integer, n As Integer, want As Integer
 
-			; FileSystem.cls 347: If h < 1 Or h > 256 Then Write = BadHandle : Exit Function
+			; FileSystem.cls 353: If h < 1 Or h > 256 Then Write = BadHandle : Exit Function
 			dw kw_scpltvl, var_filesystem_write_h, 1
 			dw kw_ftov, tmp0
 			dw kw_scpgtvl, var_filesystem_write_h, 256
@@ -838,28 +838,28 @@ p_filesystem_write:
 			dw p_filesystem_write_r
 if46_1:
 
-			; FileSystem.cls 348: done = 0
+			; FileSystem.cls 354: done = 0
 			dw kw_ztov, var_filesystem_write_done
 
-			; FileSystem.cls 349: Do While done < count
+			; FileSystem.cls 355: Do While done < count
 do47_t:
 			dw kw_scpltvv, var_filesystem_write_done, var_filesystem_write_count
 			dw kw_goto_iffalse_n, do47_e
 
-			; FileSystem.cls 350: want = count - done
+			; FileSystem.cls 356: want = count - done
 			dw kw_subvv, var_filesystem_write_count, var_filesystem_write_done, var_filesystem_write_want
 
-			; FileSystem.cls 351: If want > BCHUNK Then want = BCHUNK
+			; FileSystem.cls 357: If want > BCHUNK Then want = BCHUNK
 			dw kw_scpgtvl, var_filesystem_write_want, 384
 			dw kw_goto_iffalse_n, if48_1
 			dw kw_ltov, 384, var_filesystem_write_want
 if48_1:
 
-			; FileSystem.cls 352: Copy addr + done, BDATA, want
+			; FileSystem.cls 358: Copy addr + done, BDATA, want
 			dw kw_add, var_filesystem_write_addr, var_filesystem_write_done, tmp0
 			dw p_filesystem_copy_c, tmp0, lit_m17280, var_filesystem_write_want
 
-			; FileSystem.cls 353: If DosCall(F_WRITE, h - 1, want, 0, BDATA) < 0 Then Write = Full : Exit Function
+			; FileSystem.cls 359: If DosCall(F_WRITE, h - 1, want, 0, BDATA) < 0 Then Write = Full : Exit Function
 			dw kw_addl, var_filesystem_write_h, -1, tmp1
 			dw p_filesystem_doscall_c, lit_158, tmp1, var_filesystem_write_want, lit_0, lit_m17280
 			dw kw_vtov, var_filesystem_doscall_doscall, tmp0
@@ -869,23 +869,23 @@ if48_1:
 			dw p_filesystem_write_r
 if49_1:
 
-			; FileSystem.cls 354: n = bcr
+			; FileSystem.cls 360: n = bcr
 			dw kw_vtov, var_filesystem_bcr, var_filesystem_write_n
 
-			; FileSystem.cls 355: done = done + n
+			; FileSystem.cls 361: done = done + n
 			dw kw_add, var_filesystem_write_done, var_filesystem_write_n, var_filesystem_write_done
 
-			; FileSystem.cls 356: If n < want Then Exit Do
+			; FileSystem.cls 362: If n < want Then Exit Do
 			dw kw_scpltvv, var_filesystem_write_n, var_filesystem_write_want
 			dw kw_goto_iffalse_n, do47_t
 			dw do47_e_go
 if50_1:
 
-			; FileSystem.cls 357: Loop
+			; FileSystem.cls 363: Loop
 			dw do47_t_go
 do47_e:
 
-			; FileSystem.cls 358: Write = done
+			; FileSystem.cls 364: Write = done
 			dw kw_vtov, var_filesystem_write_done, var_filesystem_write_write
 			dw p_filesystem_write_r
 
@@ -901,13 +901,13 @@ ntc_rg14:
 
 p_filesystem_readbyte:
 
-			; FileSystem.cls 362: Dim b(0) As Byte, n As Integer
+			; FileSystem.cls 368: Dim b(0) As Byte, n As Integer
 
-			; FileSystem.cls 363: n = Read(h, VarPtr(b(0)), 1)
+			; FileSystem.cls 369: n = Read(h, VarPtr(b(0)), 1)
 			dw p_filesystem_read_c, var_filesystem_readbyte_h, vp_arr_filesystem_readbyte_b, lit_1
 			dw kw_vtov, var_filesystem_read_read, var_filesystem_readbyte_n
 
-			; FileSystem.cls 364: If n < 0 Then ReadByte = n Else If n = 0 Then ReadByte = EndOfFile Else ReadByte = b(0)
+			; FileSystem.cls 370: If n < 0 Then ReadByte = n Else If n = 0 Then ReadByte = EndOfFile Else ReadByte = b(0)
 			dw kw_scpltvl, var_filesystem_readbyte_n, 0
 			dw kw_goto_iffalse_n, if51_1
 			dw kw_vtov, var_filesystem_readbyte_n, var_filesystem_readbyte_readbyte
@@ -935,16 +935,16 @@ ntc_rg15:
 
 p_filesystem_writebyte:
 
-			; FileSystem.cls 368: Dim v(0) As Byte, n As Integer
+			; FileSystem.cls 374: Dim v(0) As Byte, n As Integer
 
-			; FileSystem.cls 369: v(0) = b
+			; FileSystem.cls 375: v(0) = b
 			dw kw_vtolptr8, var_filesystem_writebyte_b, arr_filesystem_writebyte_v
 
-			; FileSystem.cls 370: n = Write(h, VarPtr(v(0)), 1)
+			; FileSystem.cls 376: n = Write(h, VarPtr(v(0)), 1)
 			dw p_filesystem_write_c, var_filesystem_writebyte_h, vp_arr_filesystem_writebyte_v, lit_1
 			dw kw_vtov, var_filesystem_write_write, var_filesystem_writebyte_n
 
-			; FileSystem.cls 371: If n < 0 Then WriteByte = n Else If n = 0 Then WriteByte = Full Else WriteByte = OK
+			; FileSystem.cls 377: If n < 0 Then WriteByte = n Else If n = 0 Then WriteByte = Full Else WriteByte = OK
 			dw kw_scpltvl, var_filesystem_writebyte_n, 0
 			dw kw_goto_iffalse_n, if53_1
 			dw kw_vtov, var_filesystem_writebyte_n, var_filesystem_writebyte_writebyte
@@ -972,9 +972,9 @@ ntc_rg16:
 
 p_filesystem_eof:
 
-			; FileSystem.cls 384: Dim pos As Long, sz As Long
+			; FileSystem.cls 390: Dim pos As Long, sz As Long
 
-			; FileSystem.cls 385: If h < 1 Or h > 256 Then Eof = BadHandle : Exit Function
+			; FileSystem.cls 391: If h < 1 Or h > 256 Then Eof = BadHandle : Exit Function
 			dw kw_scpltvl, var_filesystem_eof_h, 1
 			dw kw_ftov, tmp0
 			dw kw_scpgtvl, var_filesystem_eof_h, 256
@@ -985,7 +985,7 @@ p_filesystem_eof:
 			dw p_filesystem_eof_r
 if57_1:
 
-			; FileSystem.cls 386: If DosCall(F_FSTAT, h - 1, 0, 0, BNAME2) < 0 Then Eof = BadHandle : Exit Function
+			; FileSystem.cls 392: If DosCall(F_FSTAT, h - 1, 0, 0, BNAME2) < 0 Then Eof = BadHandle : Exit Function
 			dw kw_addl, var_filesystem_eof_h, -1, tmp1
 			dw p_filesystem_doscall_c, lit_161, tmp1, lit_0, lit_0, lit_m17344
 			dw kw_vtov, var_filesystem_doscall_doscall, tmp0
@@ -995,10 +995,10 @@ if57_1:
 			dw p_filesystem_eof_r
 if58_1:
 
-			; FileSystem.cls 387: Copy BNAME2, VarPtr(st(0)), 11
+			; FileSystem.cls 393: Copy BNAME2, VarPtr(st(0)), 11
 			dw p_filesystem_copy_c, lit_m17344, vp_arr_filesystem_st, lit_11
 
-			; FileSystem.cls 388: sz = CLng(st(7)) + CLng(st(8)) * 256 + CLng(st(9)) * 65536 + CLng(st(10)) * 16777216
+			; FileSystem.cls 394: sz = CLng(st(7)) + CLng(st(8)) * 256 + CLng(st(9)) * 65536 + CLng(st(10)) * 16777216
 			dw kw_lptrtov8, arr_filesystem_st+7, tmp0
 			dw kw_l_itol, tmp0, ltmp0
 			dw kw_lptrtov8, arr_filesystem_st+8, tmp1
@@ -1014,10 +1014,10 @@ if58_1:
 			dw kw_l_mul, ltmp1, llit_16777216, ltmp1
 			dw kw_l_add, ltmp0, ltmp1, var_filesystem_eof_sz
 
-			; FileSystem.cls 389: lreg = 1
+			; FileSystem.cls 395: lreg = 1
 			dw kw_ltov, 1, var_filesystem_lreg
 
-			; FileSystem.cls 390: If DosCall(F_SEEK, h - 1, 0, 0, 0) < 0 Then lreg = 0 : Eof = Failed : Exit Function
+			; FileSystem.cls 396: If DosCall(F_SEEK, h - 1, 0, 0, 0) < 0 Then lreg = 0 : Eof = Failed : Exit Function
 			dw kw_addl, var_filesystem_eof_h, -1, tmp1
 			dw p_filesystem_doscall_c, lit_159, tmp1, lit_0, lit_0, lit_0
 			dw kw_vtov, var_filesystem_doscall_doscall, tmp0
@@ -1028,16 +1028,16 @@ if58_1:
 			dw p_filesystem_eof_r
 if59_1:
 
-			; FileSystem.cls 391: lreg = 0
+			; FileSystem.cls 397: lreg = 0
 			dw kw_ztov, var_filesystem_lreg
 
-			; FileSystem.cls 392: pos = CLng(der) + CLng(bcr) * 65536
+			; FileSystem.cls 398: pos = CLng(der) + CLng(bcr) * 65536
 			dw kw_l_itol, var_filesystem_der, ltmp0
 			dw kw_l_itol, var_filesystem_bcr, ltmp1
 			dw kw_l_mul, ltmp1, llit_65536, ltmp1
 			dw kw_l_add, ltmp0, ltmp1, var_filesystem_eof_pos
 
-			; FileSystem.cls 393: If pos >= sz Then Eof = -1 Else Eof = 0
+			; FileSystem.cls 399: If pos >= sz Then Eof = -1 Else Eof = 0
 			dw kw_l_cpge, var_filesystem_eof_pos, var_filesystem_eof_sz
 			dw kw_goto_iffalse_n, if60_1
 			dw kw_ltov, -1, var_filesystem_eof_eof
@@ -1059,19 +1059,19 @@ ntc_rg17:
 
 p_filesystem_readline:
 
-			; FileSystem.cls 397: Dim s As String Max 255, c As Integer
+			; FileSystem.cls 403: Dim s As String Max 255, c As Integer
 
-			; FileSystem.cls 398: s = ""
+			; FileSystem.cls 404: s = ""
 			dw kw_strcpy, var_filesystem_readline_s, str25
 
-			; FileSystem.cls 399: Do
+			; FileSystem.cls 405: Do
 do61_t:
 
-			; FileSystem.cls 400: c = ReadByte(h)
+			; FileSystem.cls 406: c = ReadByte(h)
 			dw p_filesystem_readbyte_c, var_filesystem_readline_h
 			dw kw_vtov, var_filesystem_readbyte_readbyte, var_filesystem_readline_c
 
-			; FileSystem.cls 401: If c < 0 Or c = 26 Then Exit Do
+			; FileSystem.cls 407: If c < 0 Or c = 26 Then Exit Do
 			dw kw_scpltvl, var_filesystem_readline_c, 0
 			dw kw_ftov, tmp0
 			dw kw_cpeqvl, var_filesystem_readline_c, 26
@@ -1081,13 +1081,13 @@ do61_t:
 			dw do61_e_go
 if62_1:
 
-			; FileSystem.cls 402: If c = 10 Then Exit Do
+			; FileSystem.cls 408: If c = 10 Then Exit Do
 			dw kw_cpeqvl, var_filesystem_readline_c, 10
 			dw kw_goto_iffalse_n, if63_1
 			dw do61_e_go
 if63_1:
 
-			; FileSystem.cls 403: If c <> 13 And Len(s) < 255 Then s = s + Chr$(c)
+			; FileSystem.cls 409: If c <> 13 And Len(s) < 255 Then s = s + Chr$(c)
 			dw kw_cpnevl, var_filesystem_readline_c, 13
 			dw kw_ftov, tmp0
 			dw kw_strlen, var_filesystem_readline_s, tmp1
@@ -1099,11 +1099,11 @@ if63_1:
 			dw kw_strcat, var_filesystem_readline_s, stmp1
 if64_1:
 
-			; FileSystem.cls 404: Loop
+			; FileSystem.cls 410: Loop
 			dw do61_t_go
 do61_e:
 
-			; FileSystem.cls 405: ReadLine = s
+			; FileSystem.cls 411: ReadLine = s
 			dw kw_strcpy, var_filesystem_readline_readline, var_filesystem_readline_s
 			dw p_filesystem_readline_r
 
@@ -1119,43 +1119,43 @@ ntc_rg18:
 
 p_filesystem_writeline:
 
-			; FileSystem.cls 409: Dim n As Integer
+			; FileSystem.cls 415: Dim n As Integer
 
-			; FileSystem.cls 410: If Len(text) > 0 Then
+			; FileSystem.cls 416: If Len(text) > 0 Then
 			dw kw_strlen, var_filesystem_writeline_text, tmp0
 			dw kw_scpgtvl, tmp0, 0
 			dw kw_goto_iffalse_n, if65_1
 
-			; FileSystem.cls 411: ln = text                                 ' (its bytes where VarPtr reaches them: a module string, as nm)
+			; FileSystem.cls 417: ln = text                                 ' (its bytes where VarPtr reaches them: a module string, as nm)
 			dw kw_strcpy, var_filesystem_ln, var_filesystem_writeline_text
 
-			; FileSystem.cls 412: n = Write(h, VarPtr(ln), Len(text))
+			; FileSystem.cls 418: n = Write(h, VarPtr(ln), Len(text))
 			dw kw_strlen, var_filesystem_writeline_text, tmp2
 			dw p_filesystem_write_c, var_filesystem_writeline_h, vp_var_filesystem_ln, tmp2
 			dw kw_vtov, var_filesystem_write_write, var_filesystem_writeline_n
 
-			; FileSystem.cls 413: If n < 0 Then WriteLine = n : Exit Function
+			; FileSystem.cls 419: If n < 0 Then WriteLine = n : Exit Function
 			dw kw_scpltvl, var_filesystem_writeline_n, 0
 			dw kw_goto_iffalse_n, if66_1
 			dw kw_vtov, var_filesystem_writeline_n, var_filesystem_writeline_writeline
 			dw p_filesystem_writeline_r
 if66_1:
 
-			; FileSystem.cls 414: End If
+			; FileSystem.cls 420: End If
 if65_1:
 
-			; FileSystem.cls 415: n = WriteByte(h, 13)
+			; FileSystem.cls 421: n = WriteByte(h, 13)
 			dw p_filesystem_writebyte_c, var_filesystem_writeline_h, lit_13
 			dw kw_vtov, var_filesystem_writebyte_writebyte, var_filesystem_writeline_n
 
-			; FileSystem.cls 416: If n < 0 Then WriteLine = n : Exit Function
+			; FileSystem.cls 422: If n < 0 Then WriteLine = n : Exit Function
 			dw kw_scpltvl, var_filesystem_writeline_n, 0
 			dw kw_goto_iffalse_n, if67_1
 			dw kw_vtov, var_filesystem_writeline_n, var_filesystem_writeline_writeline
 			dw p_filesystem_writeline_r
 if67_1:
 
-			; FileSystem.cls 417: WriteLine = WriteByte(h, 10)
+			; FileSystem.cls 423: WriteLine = WriteByte(h, 10)
 			dw p_filesystem_writebyte_c, var_filesystem_writeline_h, lit_10
 			dw kw_vtov, var_filesystem_writebyte_writebyte, var_filesystem_writeline_writeline
 			dw p_filesystem_writeline_r
@@ -1172,7 +1172,7 @@ ntc_rg19:
 
 p_filesystem_devices:
 
-			; FileSystem.cls 428: Devices = "SD"
+			; FileSystem.cls 434: Devices = "SD"
 			dw kw_strcpy, var_filesystem_devices_devices, str26
 			dw p_filesystem_devices_r
 
@@ -1188,7 +1188,7 @@ ntc_rg20:
 
 p_filesystem_currentdevice:
 
-			; FileSystem.cls 431: CurrentDevice = "SD"
+			; FileSystem.cls 437: CurrentDevice = "SD"
 			dw kw_strcpy, var_filesystem_currentdevice_currentdevice, str26
 			dw p_filesystem_currentdevice_r
 
@@ -1204,7 +1204,7 @@ ntc_rg21:
 
 p_filesystem_volumes:
 
-			; FileSystem.cls 437: Volumes = ""
+			; FileSystem.cls 443: Volumes = ""
 			dw kw_strcpy, var_filesystem_volumes_volumes, str25
 			dw p_filesystem_volumes_r
 
@@ -1220,7 +1220,7 @@ ntc_rg22:
 
 p_filesystem_currentvolume:
 
-			; FileSystem.cls 440: CurrentVolume = ""
+			; FileSystem.cls 446: CurrentVolume = ""
 			dw kw_strcpy, var_filesystem_currentvolume_currentvolume, str25
 			dw p_filesystem_currentvolume_r
 
@@ -1754,7 +1754,7 @@ asm_1_68_n_dc_ok:      ld a, (#BA00 + (asm_1_68_n_dc_a - asm_1_68_n_dc_tramp))		
             ld h, 0		; FileSystem.cls 108
             ld (var_filesystem_doscall_doscall), hl		; FileSystem.cls 109
             jp asm_1_68_n_dc_end		; FileSystem.cls 110
-; ---- the trampoline (copied to #BA00, 164 bytes; the sysvars copy at #BAB0; its stack to #BC00)
+; ---- the trampoline (copied to #BA00, 173 bytes - to #BAAC; the sysvars copy at #BAB0; its stack to #BC00)
 asm_1_68_n_dc_tramp:   ld sp, #BC00            ; own stack: #BB30-#BBFF [112]
             ld hl, #5C00            ; the ROM's system variables' area kept (an interrupt during the call [113]
             ld de, #BAB0            ; runs ROM 3's handler, which writes there): 124 bytes to #BAB0-#BB2B (the trampoline is 164 bytes: to #BAA3) [114]
@@ -1805,45 +1805,51 @@ asm_1_68_n_dc_hk:      db 0		; FileSystem.cls 153
             ld a, 1		; FileSystem.cls 159
 asm_1_68_n_dc_nocy:    ld (#BA00 + (asm_1_68_n_dc_cy - asm_1_68_n_dc_tramp)), a		; FileSystem.cls 160
             ld bc, #243B		; FileSystem.cls 161
-            ld a, #50               ; MMU 0, 1 back [162]
-            out (c), a		; FileSystem.cls 163
+            ld a, #8E               ; ROM 0 again (20261110-2: the NEX stub leaves NextZXOS's DivMMC entry points, which [162]
+            out (c), a              ; trap rst 8 and #0038 whenever ROM 3 is selected - so ROM 3 is on only round the call) [163]
             inc b		; FileSystem.cls 164
-            ld a, (#BA00 + (asm_1_68_n_dc_m0 - asm_1_68_n_dc_tramp))		; FileSystem.cls 165
+            xor a		; FileSystem.cls 165
             out (c), a		; FileSystem.cls 166
             dec b		; FileSystem.cls 167
-            ld a, #51		; FileSystem.cls 168
+            ld a, #50               ; MMU 0, 1 back [168]
             out (c), a		; FileSystem.cls 169
             inc b		; FileSystem.cls 170
-            ld a, (#BA00 + (asm_1_68_n_dc_m1 - asm_1_68_n_dc_tramp))		; FileSystem.cls 171
+            ld a, (#BA00 + (asm_1_68_n_dc_m0 - asm_1_68_n_dc_tramp))		; FileSystem.cls 171
             out (c), a		; FileSystem.cls 172
-            ld hl, #BAB0            ; the system variables' area back [173]
-            ld de, #5C00		; FileSystem.cls 174
-            ld bc, 124		; FileSystem.cls 175
-            ldir		; FileSystem.cls 176
-            ld sp, (#BA00 + (asm_1_68_n_dc_sp - asm_1_68_n_dc_tramp))		; FileSystem.cls 177
-            jp asm_1_68_n_dc_back		; FileSystem.cls 178
-asm_1_68_n_dc_bc:      dw 0		; FileSystem.cls 179
-asm_1_68_n_dc_de:      dw 0		; FileSystem.cls 180
-asm_1_68_n_dc_ix:      dw 0		; FileSystem.cls 181
-asm_1_68_n_dc_a:       db 0		; FileSystem.cls 182
-asm_1_68_n_dc_l:       dw 0		; FileSystem.cls 183
-asm_1_68_n_dc_cy:      db 0		; FileSystem.cls 184
-asm_1_68_n_dc_m0:      db 0		; FileSystem.cls 185
-asm_1_68_n_dc_m1:      db 0		; FileSystem.cls 186
-asm_1_68_n_dc_sp:      dw 0		; FileSystem.cls 187
-asm_1_68_n_dc_trampe:		; FileSystem.cls 188
-asm_1_68_n_dc_end:		; FileSystem.cls 189
+            dec b		; FileSystem.cls 173
+            ld a, #51		; FileSystem.cls 174
+            out (c), a		; FileSystem.cls 175
+            inc b		; FileSystem.cls 176
+            ld a, (#BA00 + (asm_1_68_n_dc_m1 - asm_1_68_n_dc_tramp))		; FileSystem.cls 177
+            out (c), a		; FileSystem.cls 178
+            ld hl, #BAB0            ; the system variables' area back [179]
+            ld de, #5C00		; FileSystem.cls 180
+            ld bc, 124		; FileSystem.cls 181
+            ldir		; FileSystem.cls 182
+            ld sp, (#BA00 + (asm_1_68_n_dc_sp - asm_1_68_n_dc_tramp))		; FileSystem.cls 183
+            jp asm_1_68_n_dc_back		; FileSystem.cls 184
+asm_1_68_n_dc_bc:      dw 0		; FileSystem.cls 185
+asm_1_68_n_dc_de:      dw 0		; FileSystem.cls 186
+asm_1_68_n_dc_ix:      dw 0		; FileSystem.cls 187
+asm_1_68_n_dc_a:       db 0		; FileSystem.cls 188
+asm_1_68_n_dc_l:       dw 0		; FileSystem.cls 189
+asm_1_68_n_dc_cy:      db 0		; FileSystem.cls 190
+asm_1_68_n_dc_m0:      db 0		; FileSystem.cls 191
+asm_1_68_n_dc_m1:      db 0		; FileSystem.cls 192
+asm_1_68_n_dc_sp:      dw 0		; FileSystem.cls 193
+asm_1_68_n_dc_trampe:		; FileSystem.cls 194
+asm_1_68_n_dc_end:		; FileSystem.cls 195
 			ret			; end of #asm
 
-asm_1_230_n:		; #asm, FileSystem.cls line 230 (normal)
-            ld hl, (var_filesystem_copy_src)		; FileSystem.cls 231
-            ld de, (var_filesystem_copy_dst)		; FileSystem.cls 232
-            ld bc, (var_filesystem_copy_n)		; FileSystem.cls 233
-            ld a, b		; FileSystem.cls 234
-            or c		; FileSystem.cls 235
-            jr z, asm_1_230_n_cp_none		; FileSystem.cls 236
-            ldir		; FileSystem.cls 237
-asm_1_230_n_cp_none:		; FileSystem.cls 238
+asm_1_236_n:		; #asm, FileSystem.cls line 236 (normal)
+            ld hl, (var_filesystem_copy_src)		; FileSystem.cls 237
+            ld de, (var_filesystem_copy_dst)		; FileSystem.cls 238
+            ld bc, (var_filesystem_copy_n)		; FileSystem.cls 239
+            ld a, b		; FileSystem.cls 240
+            or c		; FileSystem.cls 241
+            jr z, asm_1_236_n_cp_none		; FileSystem.cls 242
+            ldir		; FileSystem.cls 243
+asm_1_236_n_cp_none:		; FileSystem.cls 244
 			ret			; end of #asm
 
 
@@ -5718,36 +5724,26 @@ zxn_boot:
 			and %11100111
 			out (c), a
 			dec b
-; DivMMC: its automatic paging stays as NextZXOS left it (on) - turning it off and on
-; again loses esxDOS's state in some emulators - but its entry points are cut to RST 8
-; with ROM 3 selected (#B8 = 2, #B9 = 0: the RST vectors need ROM 3; #BB = 0: no #3Dxx,
-; #0066, tape traps). A program never does rst 8 with ROM 3 in, so nothing pages it in;
-; CyborgOS's SD drive does exactly that for its esxDOS calls (ROM 3 in slots 0-1, rst 8).
-; Tested on NextZXOS 2.06H (JNEXT, 2026-10-21): esxDOS calls work with these - when the NEX
-; is started by NextZXOS (the browser, .nexload, an autoexec), not loaded as a snapshot,
-; which skips the DOS's own set-up and leaves every call answering "nonsense" (2)
-			ld a, #B8
-			out (c), a
-			inc b
-			ld a, 2
-			out (c), a
-			dec b
-			ld a, #B9
-			out (c), a
-			inc b
-			xor a
-			out (c), a
-			dec b
-			ld a, #BB
-			out (c), a
-			inc b
-			xor a
-			out (c), a
-			dec b
+; DivMMC: its automatic paging and its entry points stay exactly as NextZXOS left them
+; (NextRegs #B8-#BB untouched). Until 20261110-2 the stub cut them to "rst 8 with ROM 3"
+; (#B8 = 2, #B9 = 0, #BB = 0): every emulator ran that; four games crashed on a real Next
+; at their first esxDOS call, and #BB = 0 also cleared bit 6, the 0x1FF8-0x1FFF exit the DOS
+; leaves its memory by - the emulators do not model those registers (ZEsarUX ignores them),
+; so nothing here can prove it; the DOS's own setting is the one every working NEX runs
+; with. NextZXOS's setting traps rst 8
+; (and #0038, #3Dxx, the tape entries) only with ROM 3 paged, which a program never has
+; except round an esxDOS call (the FileSystem class, CyborgOS's SD drive: ROM 3 in
+; slots 0-1, rst 8, ROM 3 off), so nothing pages DivMMC in by accident
 ; (no out (#E3): DivMMC's memory is already out when a NEX starts - .nexload leaves it so -
 ; and writing the port selects its RAM bank 0 and drops MAPRAM, which loses NextZXOS's esxDOS
 ; state: its file handles are in DivMMC RAM. With it untouched, RST 8 calls work from the program
 ; (automap on, the ROM in slots 0-1 for the call: CyborgOS's SD drive does that)
+			ld a, #8E		; the 128K paging: normal mode, ROM 0 (no change to slots 6-7: bit 3 = 0). NextZXOS's
+			out (c), a		; DivMMC entry points (rst 8, #0038, #3Dxx, the tape addresses) trap only with ROM 3
+			inc b			; selected: with ROM 0 none can, whatever a slot holds; an esxDOS call selects ROM 3
+			xor a			; round its rst 8 and puts ROM 0 back (the FileSystem class, CyborgOS's SD drive)
+			out (c), a
+			dec b
 			ld a, 7			; CPU speed: 28MHz
 			out (c), a
 			inc b

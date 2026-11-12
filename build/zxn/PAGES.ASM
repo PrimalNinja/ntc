@@ -3632,11 +3632,21 @@ ntc_rg74:
 ; window, mark it, re-read; the contiguous run that still holds its marker is
 ; usable. Sets mem_banks (64K banks = usable 16K banks / 4). Called from mem_probe;
 ; leaves interrupts off (the boot re-enables, as the CPC path does).
+; 20261111: the byte each marker goes over is kept (zxn_pr_sv) and put back afterwards,
+; highest bank first - the banks hold things: Option Page ... Loaded pages (their code
+; starts at #4000), a game's data put in banks by its own build, and on a 1MB Next the
+; banks past 47 are aliases of real ones, so a marker there landed on a real bank's
+; first byte (the program's own: RANAMAGE's main thread lost a word at #4000). Highest
+; first, so an alias's real bank is put back last, with its own byte.
 nxt_mem_probe:
 			di
 			ld c, ZXN_FIRSTBANK
+			ld hl, zxn_pr_sv
 zxn_pr_w:
 			call zxn_pr_map			; 16K bank C into #4000-#7FFF
+			ld a, (MEM_WIN)
+			ld (hl), a				; the byte there, kept
+			inc hl
 			ld a, c
 			ld (MEM_WIN), a			; marker = the bank number
 			inc c
@@ -3656,6 +3666,21 @@ zxn_pr_r:
 			cp ZXN_FIRSTBANK + ZXN_MAXBANK
 			jr nz, zxn_pr_r
 zxn_pr_done:
+			push bc					; B = usable banks
+			ld c, ZXN_FIRSTBANK + ZXN_MAXBANK - 1
+			ld hl, zxn_pr_sv + ZXN_MAXBANK - 1
+zxn_pr_rs:
+			call zxn_pr_map			; every bank's byte back, highest first
+			ld a, (hl)
+			ld (MEM_WIN), a
+			dec hl
+			ld a, c
+			cp ZXN_FIRSTBANK
+			jr z, zxn_pr_rsd
+			dec c
+			jr zxn_pr_rs
+zxn_pr_rsd:
+			pop bc
 			ld c, 9					; the program's own window bank back
 			call zxn_pr_map
 			ld a, b					; 64K banks = usable 16K banks / 4
@@ -3674,6 +3699,7 @@ zxn_pr_fl:
 			djnz zxn_pr_fl
 zxn_pr_nf:
 			ret
+zxn_pr_sv:	ds ZXN_MAXBANK			; the probe's kept bytes (one a bank)
 ; zxn_pr_map - C = a 16K bank into #4000-#7FFF (MMU slots 2, 3 = NextReg #52, #53). Keeps C.
 zxn_pr_map:
 			push bc
@@ -5458,36 +5484,26 @@ zxn_boot:
 			and %11100111
 			out (c), a
 			dec b
-; DivMMC: its automatic paging stays as NextZXOS left it (on) - turning it off and on
-; again loses esxDOS's state in some emulators - but its entry points are cut to RST 8
-; with ROM 3 selected (#B8 = 2, #B9 = 0: the RST vectors need ROM 3; #BB = 0: no #3Dxx,
-; #0066, tape traps). A program never does rst 8 with ROM 3 in, so nothing pages it in;
-; CyborgOS's SD drive does exactly that for its esxDOS calls (ROM 3 in slots 0-1, rst 8).
-; Tested on NextZXOS 2.06H (JNEXT, 2026-10-21): esxDOS calls work with these - when the NEX
-; is started by NextZXOS (the browser, .nexload, an autoexec), not loaded as a snapshot,
-; which skips the DOS's own set-up and leaves every call answering "nonsense" (2)
-			ld a, #B8
-			out (c), a
-			inc b
-			ld a, 2
-			out (c), a
-			dec b
-			ld a, #B9
-			out (c), a
-			inc b
-			xor a
-			out (c), a
-			dec b
-			ld a, #BB
-			out (c), a
-			inc b
-			xor a
-			out (c), a
-			dec b
+; DivMMC: its automatic paging and its entry points stay exactly as NextZXOS left them
+; (NextRegs #B8-#BB untouched). Until 20261110-2 the stub cut them to "rst 8 with ROM 3"
+; (#B8 = 2, #B9 = 0, #BB = 0): every emulator ran that; four games crashed on a real Next
+; at their first esxDOS call, and #BB = 0 also cleared bit 6, the 0x1FF8-0x1FFF exit the DOS
+; leaves its memory by - the emulators do not model those registers (ZEsarUX ignores them),
+; so nothing here can prove it; the DOS's own setting is the one every working NEX runs
+; with. NextZXOS's setting traps rst 8
+; (and #0038, #3Dxx, the tape entries) only with ROM 3 paged, which a program never has
+; except round an esxDOS call (the FileSystem class, CyborgOS's SD drive: ROM 3 in
+; slots 0-1, rst 8, ROM 3 off), so nothing pages DivMMC in by accident
 ; (no out (#E3): DivMMC's memory is already out when a NEX starts - .nexload leaves it so -
 ; and writing the port selects its RAM bank 0 and drops MAPRAM, which loses NextZXOS's esxDOS
 ; state: its file handles are in DivMMC RAM. With it untouched, RST 8 calls work from the program
 ; (automap on, the ROM in slots 0-1 for the call: CyborgOS's SD drive does that)
+			ld a, #8E		; the 128K paging: normal mode, ROM 0 (no change to slots 6-7: bit 3 = 0). NextZXOS's
+			out (c), a		; DivMMC entry points (rst 8, #0038, #3Dxx, the tape addresses) trap only with ROM 3
+			inc b			; selected: with ROM 0 none can, whatever a slot holds; an esxDOS call selects ROM 3
+			xor a			; round its rst 8 and puts ROM 0 back (the FileSystem class, CyborgOS's SD drive)
+			out (c), a
+			dec b
 			ld a, 7			; CPU speed: 28MHz
 			out (c), a
 			inc b
@@ -5525,4 +5541,4 @@ zxn_mmu:	db #50, 16, #51, 17, #52, 18, #54, 20, #55, 21, #56, 10, #57, 11
 			SAVENEX BANK 5, 8, 9, 10, 40, 41, 42, 43
 			SAVENEX CLOSE
 
-NTC_STAMP	equ #0C65		; the build stamp: the first word of every page file
+NTC_STAMP	equ #D551		; the build stamp: the first word of every page file

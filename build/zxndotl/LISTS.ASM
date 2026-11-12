@@ -413,6 +413,42 @@ dotl_free:
 			rst #08
 			db #94
 			ret
+
+; ---- esxDOS file calls for a FileSystem class (the Large Model): dot_fs_call runs on BASIC's
+; side (HL = dot_fs_call : call dot_os) - NextZXOS pages its own RAM over #C000-#FFFF and reads
+; BASIC's system variables during a call, so the call's stack, the name and the data must not be
+; in the program's pages: the name goes in dot_fs_name, a stat buffer is dot_fs_stat, file data
+; goes through dot_fs_data (256 bytes a call), all in this 8K, which is in both maps.
+; In: dot_fs_hook (F_OPEN ...), dot_fs_a, dot_fs_bc, dot_fs_de, dot_fs_hl (HL and IX: NextZXOS
+; reads a name's pointer from HL, esxDOS from IX). Out: dot_fs_a, dot_fs_bc, dot_fs_de,
+; dot_fs_cy (1 = carry: an error, A its code)
+dot_fs_call:
+			ld a, (dot_fs_hook)
+			ld (dot_fs_hk), a
+			ld bc, (dot_fs_bc)
+			ld de, (dot_fs_de)
+			ld hl, (dot_fs_hl)
+			push hl
+			pop ix
+			ld a, (dot_fs_a)
+			rst #08
+dot_fs_hk:	db 0
+			ld (dot_fs_bc), bc
+			ld (dot_fs_de), de
+			ld (dot_fs_a), a
+			ld a, 0
+			rla
+			ld (dot_fs_cy), a
+			ret
+dot_fs_hook:	db 0
+dot_fs_a:		db 0
+dot_fs_cy:		db 0
+dot_fs_bc:		dw 0
+dot_fs_de:		dw 0
+dot_fs_hl:		dw 0
+dot_fs_name:	ds 64
+dot_fs_stat:	ds 16
+dot_fs_data:	ds 256
 	ENDIF
 
 			ASSERT $ <= #4000, "the dot command's entry code and data must fit in #2000-#3FFF"
@@ -3896,11 +3932,21 @@ lst_rs_cend:
 ; window, mark it, re-read; the contiguous run that still holds its marker is
 ; usable. Sets mem_banks (64K banks = usable 16K banks / 4). Called from mem_probe;
 ; leaves interrupts off (the boot re-enables, as the CPC path does).
+; 20261111: the byte each marker goes over is kept (zxn_pr_sv) and put back afterwards,
+; highest bank first - the banks hold things: Option Page ... Loaded pages (their code
+; starts at #4000), a game's data put in banks by its own build, and on a 1MB Next the
+; banks past 47 are aliases of real ones, so a marker there landed on a real bank's
+; first byte (the program's own: RANAMAGE's main thread lost a word at #4000). Highest
+; first, so an alias's real bank is put back last, with its own byte.
 nxt_mem_probe:
 			di
 			ld c, ZXN_FIRSTBANK
+			ld hl, zxn_pr_sv
 zxn_pr_w:
 			call zxn_pr_map			; 16K bank C into #4000-#7FFF
+			ld a, (MEM_WIN)
+			ld (hl), a				; the byte there, kept
+			inc hl
 			ld a, c
 			ld (MEM_WIN), a			; marker = the bank number
 			inc c
@@ -3920,6 +3966,21 @@ zxn_pr_r:
 			cp ZXN_FIRSTBANK + ZXN_MAXBANK
 			jr nz, zxn_pr_r
 zxn_pr_done:
+			push bc					; B = usable banks
+			ld c, ZXN_FIRSTBANK + ZXN_MAXBANK - 1
+			ld hl, zxn_pr_sv + ZXN_MAXBANK - 1
+zxn_pr_rs:
+			call zxn_pr_map			; every bank's byte back, highest first
+			ld a, (hl)
+			ld (MEM_WIN), a
+			dec hl
+			ld a, c
+			cp ZXN_FIRSTBANK
+			jr z, zxn_pr_rsd
+			dec c
+			jr zxn_pr_rs
+zxn_pr_rsd:
+			pop bc
 			ld c, 9					; the program's own window bank back
 			call zxn_pr_map
 			ld a, b					; 64K banks = usable 16K banks / 4
@@ -3938,6 +3999,7 @@ zxn_pr_fl:
 			djnz zxn_pr_fl
 zxn_pr_nf:
 			ret
+zxn_pr_sv:	ds ZXN_MAXBANK			; the probe's kept bytes (one a bank)
 ; zxn_pr_map - C = a 16K bank into #4000-#7FFF (MMU slots 2, 3 = NextReg #52, #53). Keeps C.
 zxn_pr_map:
 			push bc

@@ -125,7 +125,7 @@ ntc_zxl2: EQU 0x000003E2
 ntc_zxline: EQU 0x000003DF
 ntc_zxsel: EQU 0x000003E1
 ntc_zxvs: EQU 0x000003DE
-zxn_bmmu: EQU 0x00007E3B
+zxn_bmmu: EQU 0x00007E28
 zxn_boot: EQU 0x00007E00
-zxn_boot2: EQU 0x00007E4B
-zxn_mmu: EQU 0x00007E5F
+zxn_boot2: EQU 0x00007E38
+zxn_mmu: EQU 0x00007E4C

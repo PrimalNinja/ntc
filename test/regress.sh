@@ -435,7 +435,7 @@ echo "$o" | grep -q "^f7" && echo "$o" | grep -q "^loaded-1 page30" && echo "$o"
 mkdir -p t/pn; cp t/pu/C.cls t/pn/C.cls; printf 'Public Function G() As Integer\n  G = 9\nEnd Function\n' > t/pn/D.cls; head -c 150000 /dev/zero > t/pn/DATA.BIN
 printf 'Option NexData "DATA.BIN", 9\nOption Page P Loaded 2 = C\nOption Page Q Loaded 30 = D\nOption Memory Reserved &H4000, &H4000\nPrint "pg"; Memory.AllocPage(Memory.TypeUser)\nPrint "f"; C.F()\nPrint "g"; D.G()\nPrint "end"\n' > t/pn/Main.bas
 o=$(timeout 100 python3 ntcrun.py t/pn/Main.bas 'x' t/pn/C.cls t/pn/D.cls --platform=zxn 2>&1)
-echo "$o" | grep -q "^pg1" && echo "$o" | grep -q "^f7" && echo "$o" | grep -q "^g9" && echo "$o" | grep -q "^end" && grep -q "SAVENEX BANK .*, 24, 52$" t/pn/Main.asm && echo "ok   pages zxn: past a 9-block NexData, pages move up with the Memory banks" || { echo "FAIL pages zxn: with NexData"; echo "$o" | tail -4; fail=1; }
+echo "$o" | grep -q "^pg1" && echo "$o" | grep -q "^f7" && echo "$o" | grep -q "^g9" && echo "$o" | grep -q "^end" && grep -q "SAVENEX BANK .*, 25, 53$" t/pn/Main.asm && grep -q "^ntc_nexdata:.db 9, 1, 2, 3, 4, 6, 11, 22, 23, 24$" t/pn/Main.asm && ! grep -q "^MMU 0 1, 14$" t/pn/Main.asm && echo "ok   pages zxn: past a 9-block NexData, pages move up with the Memory banks (no block in bank 7: +3DOS's)" || { echo "FAIL pages zxn: with NexData"; echo "$o" | tail -4; fail=1; }
 rm -rf t/files t/dv; mkdir -p t/dv; cp drv/* t/dv/
 check "pages: a page class with a Tick" "^ticks in a second: about 50" "$(timeout 300 python3 ntcrun.py t/dv/Main.bas '' t/dv/Drv.cls --platform=cpcmin 2>&1)"
 printf 'Option Memory Small\n' | cat - t/dv/Main.bas > t/dv/S.bas

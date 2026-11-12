@@ -37,6 +37,132 @@ Packaging rule (what goes in the archive) - READ THIS BEFORE ZIPPING
 History (newest first)
 ======================
 
+20261113-1
+----------
+- The 20261112-1 archive (ntc20261112-2004.zip: NTC3D's E3W wireframe, ROCKS with it, FRAMEWORK.md,
+  the two screenshots, test/wire.py) merged with 20261111-3. That archive was 20261111-3's source,
+  docs, test/out and tools with the NTC3D changes on top, but without build/ and hosted/ and
+  without the top NTC folder; nothing else differed. This one has all of it.
+- Checked: ROCKS rebuilt with this compiler is byte for byte the ROCKS.NEX of that archive;
+  test/wire.py: solid 15.8, wire 16.1, solid 15.9, wire 15.8 pictures a second, the wireframe on
+  screen. The compiler and the library are 20261111-3's (no change), so build/, hosted/ and test/out
+  are that build's.
+
+20261112-1
+----------
+- NTC3D: E3W.cls (new, optional: "extras": ["E3W.cls"]) - wireframe. The same models, calls,
+  camera and objects as E3; only the last step differs. E3W.On writes a jump over the first three
+  bytes of E3's three polygon entries (fill, ffi, poly3), kept first; E3W.Off puts them back. With
+  it off E3 runs its own code untouched (no test, no extra jump). With it on:
+  - each face is outlined in its shaded colour; the faces turned away are still left out, so a
+    convex model shows its front edges only;
+  - a face crossing the view's edges has each edge cut to the view on its own (the polygon
+    clipper's edges along the view's edges aren't drawn);
+  - Moon, Quad3, HQuad, VQuad, HPlane, Skyline and Poly come out as outlines; Box (the HUD's bars)
+    stays filled - its call is told apart by the code after it and goes to E3's own filler;
+  - lines cut to the screen (Cohen-Sutherland) and drawn by Bresenham a 64 row third at a time,
+    E3's vpoll every eighth line. About 1.5K.
+  - ffi's point list is copied before drawing: it's in the model's data (slots 6 and 7), where the
+    screen is mapped while drawing - read in place it gave lines to the screen's corner.
+- NTC3D example/ROCKS: E3W built in; 1 wireframe, 2 solid. test/wire.py flies it swapping both
+  ways: 15-16 pictures a second either way (ROCKS holds to 3 frames a picture).
+- NTC3D: FRAMEWORK.md - E3W's section; screenshots rocks_wire_1.jpg, rocks_wire_2.jpg.
+- E3 itself is unchanged.
+
+20261111-3
+----------
+- zxndot / zxndotl: first runs under a real NextZXOS (2.06H, in ZEsarUX): both models start, print,
+  take their command line and return to BASIC; the Large Model's loader reads a program that
+  reaches past #C000; the Memory class's pages come from IDE_BANK and go back.
+- zxndotl: dot_fs_call, in the entry's 8K - an esxDOS file call made on BASIC's side (HL =
+  dot_fs_call : call dot_os), for a FileSystem class. In: dot_fs_hook, dot_fs_a, dot_fs_bc,
+  dot_fs_de, dot_fs_hl (HL and IX). Out: dot_fs_a, dot_fs_bc, dot_fs_de, dot_fs_cy. With it
+  dot_fs_name (64 bytes), dot_fs_stat (16) and dot_fs_data (256): the name, a stat buffer and the
+  data must be in the 8K. A call made with the program's pages in slots 2-7 and its stack or name
+  in #C000-#FFFF resets a real NextZXOS (it pages its own RAM there during a call) - the ZOSCII
+  tool's DOT commands did exactly that, and the stand-in harness (test/dotrun.py) never showed it.
+- zxndot / zxndotl: Locate keeps to BASIC's rows (22 the last; columns are the ROM's, BASIC may be in a wider mode). Past it the ROM's
+  AT stopped the command with an error, which left the dot command's pages and BASIC in a mess.
+- #asm that names a label of the platform's start code (ntc_plat_romhead: a dot command's dot_os,
+  dot_fs_call) no longer links that section a second time (every label in it came out twice).
+
+20261111-2
+----------
+- zxn: Option Page ... Loaded n is refused when its bank is past 47 (a 1MB Next's last bank) unless the
+  program says Option Next2MB. Loaded n is bank 22 + n - 2, pushed up past Option NexData's blocks:
+  with 14 blocks, Loaded 20 was bank 48 - which a 1MB Next does not have: the page aliased a real bank
+  and scribbled over it (RANAMAGE's music ring, the Tians' backdrop data). The message gives the bank
+  and the highest n the program can use.
+- The threads filling back under a Paged window (20261111-1) now go biggest first (the main thread
+  stays first): a part that does not fit what is left of the window steps over the pinned parts
+  above it and the rest follow, so the big ones go in while the window is empty and the small ones
+  fill what they leave. HIVEWOOD: the window was left 4.5K empty when its 5K boss thread did not fit;
+  now the program ends at #A237 instead of #B2EB. The size is estimated from the part's data lines.
+- Option Next2MB (zxn): the program is for a 2MB Next; Loaded pages may go past bank 47.
+
+- zxn: the Memory class's RAM probe (nxt_mem_probe, run by the first page call) wrote a marker byte
+  at #4000 of every 16K bank from ZXN_FIRSTBANK to 111 and never put the bytes back. The banks hold
+  things: Loaded pages (their code starts at #4000), a game's data put in banks by its own build
+  (HIVEWOOD's graphics, banks 22-38: corrupt), and on a 1MB Next the banks past 47 alias real
+  ones, so markers landed on real banks' first bytes - RANAMAGE's main thread lost a word at
+  #4000 (the NTC BASIC splash shown twice). Now the byte under each marker is kept (zxn_pr_sv, one
+  a bank) and put back afterwards, highest bank first, so an alias's real bank gets its own byte
+  back last.
+- Option FirstBank n (zxn, 11-47): the first 16K bank the Memory class's pages and pool use -
+  Option Page ... Loaded n is bank FirstBank + n - 2. Default 22 (above Option NexData's blocks).
+  For a program whose own build fills 22-47 with data (the Tians): FirstBank 11 puts a page in
+  bank 11 (12-21 are Layer 2's buffers when the Graphics class uses them; a program that does not
+  may use them too).
+
+20261111-1
+----------
+- The layout round an Option Memory Paged window: the threads now fill back under it. Before,
+  the parts that may not sit under the window (the stubs, the #asm blocks, the data, the
+  library) went first, the threads after - one pass upward - so once the pinned parts reached
+  #4000 and stepped over the window, the threads carried on above them and the room left below
+  #4000 AND the whole window went unused: a single paged class cost a program 16K and more of
+  main RAM (HIVEMIND, with one small page for a splash screen, ended at #E7D1 instead of #AD61).
+  Now, when the pinned fill steps over the window, it records where (ntc_pwlo) and where it ends
+  above (ntc_pwhi); the threads start again at ntc_pwlo, run on through the window (page 0 code
+  may sit under it: the program's own pages come back before any of it runs), and step over the
+  pinned parts above it when they get there; ntc_end is after both. HIVEMIND with the splash in a
+  page: #AE97. Only when the pinned fill crosses the window (ntc_pwlo != 0); any other layout is as
+  it was. Not on the 68000 / 45GS02 (no device memory to org back into). The regression suite
+  passes (ALL PASS; the pages tests cover cpc, cpcmin, cpcfw, cpm, both modes).
+- Known, not fixed: a paged class (Option Page X = Class) none of whose procedures the program
+  calls leaves the page's stubs pointing at labels the unused-procedure pass dropped (Label not
+  found: p_x_pg ...). Call one of them, or leave the class out of the Option Page line for that
+  build (TIANREV's 2MB build does the latter in its build.js).
+
+20261110-2
+----------
+- zxn: the NEX start stub no longer touches DivMMC's entry-point registers (NextRegs #B8, #B9,
+  #BB); NextZXOS's own setting stays. It used to write #B8 = 2, #B9 = 0, #BB = 0 ("rst 8 with
+  ROM 3 only"). Four games built with that (TIME PIRATES's 1MB builds, HIVEMIND, HIVEWOOD,
+  RANAMAGE) crashed on a real Next at their first esxDOS call - even an F_OPEN that fails - while
+  the builds making no call ran, and every emulator ran all of them: none models those
+  registers (ZEsarUX ignores them outright). #BB = 0 also cleared bit 6, the 0x1FF8-0x1FFF exit
+  the DOS leaves its memory by. Nothing here can prove which bit did it; the DOS's own setting
+  is the one every working NEX runs under, and it traps rst 8 (and #0038, #3Dxx, the tape
+  entries) only with ROM 3 paged - which an NTC program has only round an esxDOS call. The
+  Peripheral 2 write (NMI buttons off), 28MHz and the slot map are as before. The FileSystem
+  class and CyborgOS's SD drive (ROM 3 in for the call) are unchanged.
+- 20261110-1's NexData change (no block in bank 7) stands.
+
+20261110-1
+----------
+- zxn: Option NexData no longer puts a data block in 16K bank 7. Bank 7 is +3DOS's workspace -
+  NextZXOS pages it over #C000-#FFFF for every file call, the esxDOS API's included (NTC.md said
+  so for the FileSystem class; the NexData bank list contradicted it). A game whose .DAT's seventh
+  block sat there (RANAMAGE, HIVEMIND) crashed a real Next at its first RST 8 - the F_OPEN that
+  fails when no music file is on the card was enough - while CSpect and the harness, which fake
+  esxDOS and never touch bank 7, ran it. The blocks now go to banks 1, 2, 3, 4, 6, 11, 22-111 (96
+  at most); ZXN_FIRSTBANK and Option Page ... Loaded's banks move up past 6 low blocks, not 7
+  (ntc_nexdata, zxn_sel and the pages follow the compiler's table: programs just rebuild).
+  Bank 1 stays in the list: it is NextZXOS's RAM disc (M:), a block there loses the RAM disc,
+  nothing else. regress.sh's NexData test checks the table and that no block maps to pages 14-15.
+- Docs: userguide (Option NexData, pages on the Next), architecture, requirements.
+
 20261109-1
 ----------
 - Option CompactCalls: a procedure's call and return stubs through shared library routines

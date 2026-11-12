@@ -1,1 +1,1 @@
-{"name":"ROCKS","framework":"../..","files":["Main.bas","E3Data.cls"]}
+{"name":"ROCKS","framework":"../..","files":["Main.bas","E3Data.cls"],"extras":["E3W.cls"]}

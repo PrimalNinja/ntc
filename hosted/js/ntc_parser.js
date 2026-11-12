@@ -1340,6 +1340,10 @@ function ntcParse(arrFiles_a, objDefines_a)
 		{
 			record('option', { what: 'compactcalls' });	// smaller call / return stubs through shared library routines (a few T-states more a call)
 		}
+		else if (strText === 'next2mb')
+		{
+			record('option', { what: 'next2mb' });		// zxn: a 2MB-only program - Option Page ... Loaded pages may go past bank 47
+		}
 		else if (strText === 'vbprint')
 		{
 			record('option', { what: 'vbprint' });	// Print spacing like VB
@@ -1363,6 +1367,10 @@ function ntcParse(arrFiles_a, objDefines_a)
 		else if (left(strText, 'org '))
 		{
 			record('option', { what: 'org', value: trim(strText.substr(4)) });	// where the program is built to run (read before parsing: findOrg)
+		}
+		else if (left(strText, 'firstbank '))
+		{
+			record('option', { what: 'firstbank', value: trim(strText.substr(10)) });	// zxn: the first 16K bank the Memory class's pages (Option Page ... Loaded n: bank FirstBank + n - 2) and its pool take (default 22, above Option NexData's blocks)
 		}
 		else if (left(strText, 'library '))
 		{

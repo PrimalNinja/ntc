@@ -182,7 +182,7 @@ slot  page
 ```
 
 Graphics draws on Layer 2: two buffers of 5 banks (12-16, 17-21), the page being drawn on
-in slot 6 (`#C000-#DFFF`) meanwhile. `Option NexData` blocks fill banks 1-4, 6, 7, 11, 22-111
+in slot 6 (`#C000-#DFFF`) meanwhile. `Option NexData` blocks fill banks 1-4, 6, 11, 22-111 (not 7: +3DOS's workspace during file calls)
 (`zxn_sel` puts one in `#4000-#7FFF`: slots 2, 3).
 
 The NEX file holds banks 8-10 (pages 16-21: the program as assembled, `MMU 0 5, 16`), bank

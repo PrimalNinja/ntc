@@ -259,7 +259,7 @@ var_m: EQU 0x000001EC
 var_n: EQU 0x000001EA
 var_s: EQU 0x000001F2
 var_st: EQU 0x000001F8
-zxn_bmmu: EQU 0x00007E3B
+zxn_bmmu: EQU 0x00007E28
 zxn_boot: EQU 0x00007E00
-zxn_boot2: EQU 0x00007E4B
-zxn_mmu: EQU 0x00007E5F
+zxn_boot2: EQU 0x00007E38
+zxn_mmu: EQU 0x00007E4C

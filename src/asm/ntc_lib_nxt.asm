@@ -27,11 +27,21 @@
 ; window, mark it, re-read; the contiguous run that still holds its marker is
 ; usable. Sets mem_banks (64K banks = usable 16K banks / 4). Called from mem_probe;
 ; leaves interrupts off (the boot re-enables, as the CPC path does).
+; 20261111: the byte each marker goes over is kept (zxn_pr_sv) and put back afterwards,
+; highest bank first - the banks hold things: Option Page ... Loaded pages (their code
+; starts at #4000), a game's data put in banks by its own build, and on a 1MB Next the
+; banks past 47 are aliases of real ones, so a marker there landed on a real bank's
+; first byte (the program's own: RANAMAGE's main thread lost a word at #4000). Highest
+; first, so an alias's real bank is put back last, with its own byte.
 nxt_mem_probe:
 			di
 			ld c, ZXN_FIRSTBANK
+			ld hl, zxn_pr_sv
 zxn_pr_w:
 			call zxn_pr_map			; 16K bank C into #4000-#7FFF
+			ld a, (MEM_WIN)
+			ld (hl), a				; the byte there, kept
+			inc hl
 			ld a, c
 			ld (MEM_WIN), a			; marker = the bank number
 			inc c
@@ -51,6 +61,21 @@ zxn_pr_r:
 			cp ZXN_FIRSTBANK + ZXN_MAXBANK
 			jr nz, zxn_pr_r
 zxn_pr_done:
+			push bc					; B = usable banks
+			ld c, ZXN_FIRSTBANK + ZXN_MAXBANK - 1
+			ld hl, zxn_pr_sv + ZXN_MAXBANK - 1
+zxn_pr_rs:
+			call zxn_pr_map			; every bank's byte back, highest first
+			ld a, (hl)
+			ld (MEM_WIN), a
+			dec hl
+			ld a, c
+			cp ZXN_FIRSTBANK
+			jr z, zxn_pr_rsd
+			dec c
+			jr zxn_pr_rs
+zxn_pr_rsd:
+			pop bc
 			ld c, 9					; the program's own window bank back
 			call zxn_pr_map
 			ld a, b					; 64K banks = usable 16K banks / 4
@@ -69,6 +94,7 @@ zxn_pr_fl:
 			djnz zxn_pr_fl
 zxn_pr_nf:
 			ret
+zxn_pr_sv:	ds ZXN_MAXBANK			; the probe's kept bytes (one a bank)
 ; zxn_pr_map - C = a 16K bank into #4000-#7FFF (MMU slots 2, 3 = NextReg #52, #53). Keeps C.
 zxn_pr_map:
 			push bc
