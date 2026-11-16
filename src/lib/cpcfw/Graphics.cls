@@ -5,7 +5,7 @@
 ' on the screen memory itself (the firmware draws the text). The firmware's text goes to
 ' #C000 with no scroll offset: start with Mode (it also tells this class the mode), and don't
 ' let the text scroll while drawing (a scroll moves the screen's start, and the lines would be drawn in the wrong place).
-' Double buffering takes main RAM's #4000 (RAM page 1): with Option Memory CPCExpansion
+' Double buffering takes main RAM's #4000 (RAM page 1): with Option Memory Heap Pages
 ' take page 1 first (Memory.AllocPage until it gives 1) so nothing else is put there. RAM
 ' pages still work: the CRTC always shows main RAM, and drawing puts main RAM in the window
 ' only while it writes. Text (Print) goes to #C000: CopyText puts it on the other screen.

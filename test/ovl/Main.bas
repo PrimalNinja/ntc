@@ -1,5 +1,5 @@
 ' Overlay classes checks (regress.sh): cpcmin / cpcfw, 128K and 64K
-Option RomEnable 7
+Option ROM Enable 7
 Option Memory Reserved &H4000, &H4000
 Dim d As Integer, a As Integer, total As Integer
 Print "loaded"; Level1.Loaded(); Level2.Loaded()

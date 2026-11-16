@@ -4,6 +4,7 @@
 Option Explicit
 Option Turbo
 Option NexData "INTRO.DAT", 42
+Option Next2MB                                  ' <--- NEW (the program already needs a 2MB Next: its data runs past bank 47)
 Option Memory CPCExpansion
 Option Page SCR Loaded 20 = Splash
 Option Page DEMO Loaded 21 = Demo, Proto, Esx

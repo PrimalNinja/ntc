@@ -7,7 +7,8 @@ ntc_oom = 0		; 1 = out of memory (the fill reached the top range): said once
 			DEVICE AMSTRADCPC6128		; for SAVEAMSDOS at the end
 			org #0040
 
-NTC_TERM	equ 0		; Option Terminal: 0 none, 1 VT52, 2 ANSI (CP/M)
+NTC_TERM	equ 0		; Option Terminal: 0 none, 1 VT52, 2 ANSI, 3 ADM-3A, 4 Televideo (CP/M)
+NTC_TERM_RT	equ 0		; 1: the program calls StdIO.SetTerminal (the terminal is chosen while it runs)
 NTC_STRMAX	equ 255		; the longest string (library buffers, temps)
 NTC_MEMBANKS	equ 64		; Option Memory: the most 64K banks the Memory class looks for
 NTC_ROMENABLE	equ 0		; Option RomEnable (cpcfw, cpcmin): the start code starts the ROMs
@@ -442,13 +443,13 @@ p_summary:
 			dw kw_cpeqvl, var_n, 0
 			dw kw_goto_iffalse_n, if11_1
 
-			; main.bas 103: Print "No RAM pages (Option Memory Small)"
+			; main.bas 103: Print "No RAM pages (Option Memory Heap Main)"
 			dw kw_printzoscii
 			dw glyph_4E, glyph_6F, glyph_20, glyph_52, glyph_41, glyph_4D, glyph_20, glyph_70
 			dw glyph_61, glyph_67, glyph_65, glyph_73, glyph_20, glyph_28, glyph_4F, glyph_70
 			dw glyph_74, glyph_69, glyph_6F, glyph_6E, glyph_20, glyph_4D, glyph_65, glyph_6D
-			dw glyph_6F, glyph_72, glyph_79, glyph_20, glyph_53, glyph_6D, glyph_61, glyph_6C
-			dw glyph_6C, glyph_29, 1, 0		; "No RAM pages (Option Memory Small)\n"
+			dw glyph_6F, glyph_72, glyph_79, glyph_20, glyph_48, glyph_65, glyph_61, glyph_70
+			dw glyph_20, glyph_4D, glyph_61, glyph_69, glyph_6E, glyph_29, 1, 0		; "No RAM pages (Option Memory Heap Main)\n"
 
 			; main.bas 104: Exit Sub
 			dw p_summary_r
@@ -2359,6 +2360,7 @@ glyph_42			equ ntc_font + 272		; "B"
 glyph_43			equ ntc_font + 280		; "C"
 glyph_44			equ ntc_font + 288		; "D"
 glyph_46			equ ntc_font + 304		; "F"
+glyph_48			equ ntc_font + 320		; "H"
 glyph_4B			equ ntc_font + 344		; "K"
 glyph_4C			equ ntc_font + 352		; "L"
 glyph_4D			equ ntc_font + 360		; "M"

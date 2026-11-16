@@ -447,6 +447,7 @@ function ntcParse(arrFiles_a, objDefines_a)
 	var arrWith = [];			// With stack (object names)
 	var arrSkip = [];			// #if stack: { skip, done }
 	var strFile = '';
+	var blnDefByVal = false;	// Option ByVal | ByRef (20261116-8): what a parameter is when its declaration says neither - this file's (ByRef unless the file says Option ByVal)
 	var strModule = '';			// current module / class name (lower case)
 	var strProc = '';			// current procedure full identifier, '' at module level
 	var objProc = null;
@@ -935,7 +936,7 @@ function ntcParse(arrFiles_a, objDefines_a)
 				name: objSuffix.name,
 				type: arrMatch[7] ? dataType(arrMatch[7]) : objSuffix.type,
 				typed: !!(arrMatch[7] || objSuffix.type),
-				byval: (arrMatch[2] !== undefined) && left(arrMatch[2], 'byval'),
+				byval: (arrMatch[2] !== undefined) ? left(arrMatch[2], 'byval') : blnDefByVal,
 				optional: !!arrMatch[1],
 				def: arrMatch[11] ? trim(arrMatch[11]) : '',
 				isarray: !!arrMatch[5],
@@ -1320,6 +1321,11 @@ function ntcParse(arrFiles_a, objDefines_a)
 		{
 			record('option', { what: 'explicit' });
 		}
+		else if ((strText === 'byval') || (strText === 'byref'))
+		{
+			// Option ByVal | ByRef: read when the file starts (blnDefByVal) - a parameter declared
+			// with neither word is that; one that says ByVal or ByRef is what it says
+		}
 		else if ((strText === 'turbo') || (strText === 'turbo on'))
 		{
 			record('option', { what: 'turbo' });
@@ -1340,10 +1346,6 @@ function ntcParse(arrFiles_a, objDefines_a)
 		{
 			record('option', { what: 'compactcalls' });	// smaller call / return stubs through shared library routines (a few T-states more a call)
 		}
-		else if (strText === 'next2mb')
-		{
-			record('option', { what: 'next2mb' });		// zxn: a 2MB-only program - Option Page ... Loaded pages may go past bank 47
-		}
 		else if (strText === 'vbprint')
 		{
 			record('option', { what: 'vbprint' });	// Print spacing like VB
@@ -1352,13 +1354,9 @@ function ntcParse(arrFiles_a, objDefines_a)
 		{
 			record('option', { what: 'base', value: parseInt(strText.substr(5), 10) });
 		}
-		else if (/^classsize \d+$/.test(strText))
+		else if (/^terminal (none|vt52|ansi|adm-?3a|televideo)$/.test(strText))
 		{
-			record('option', { what: 'classsize', value: parseInt(strText.substr(10), 10) });	// planned, not enforced
-		}
-		else if (/^terminal (none|vt52|ansi)$/.test(strText))
-		{
-			record('option', { what: 'terminal', value: strText.substr(9) });	// CP/M: the terminal's codes for Cls / Locate
+			record('option', { what: 'terminal', value: strText.substr(9).replace('-', '') });	// CP/M: the terminal's codes for Cls / Locate
 		}
 		else if (left(strText, 'stack '))
 		{
@@ -1368,10 +1366,6 @@ function ntcParse(arrFiles_a, objDefines_a)
 		{
 			record('option', { what: 'org', value: trim(strText.substr(4)) });	// where the program is built to run (read before parsing: findOrg)
 		}
-		else if (left(strText, 'firstbank '))
-		{
-			record('option', { what: 'firstbank', value: trim(strText.substr(10)) });	// zxn: the first 16K bank the Memory class's pages (Option Page ... Loaded n: bank FirstBank + n - 2) and its pool take (default 22, above Option NexData's blocks)
-		}
 		else if (left(strText, 'library '))
 		{
 			record('option', { what: 'library', value: trim(strText.substr(8)) });	// Library ROM: the keywords in the ROM
@@ -1380,9 +1374,13 @@ function ntcParse(arrFiles_a, objDefines_a)
 		{
 			record('option', { what: 'pressanykeyonend', value: trim(strSrc.replace(/^\s*option\s+pressanykeyonend\b/i, '').replace(/\s+'.*$/, '')) });	// a message and a key at the end
 		}
+		else if (/^rom\s+enable\s/.test(strText))
+		{
+			record('option', { what: 'romenable', value: trim(strText.replace(/^rom\s+enable\s+/, '')) });	// CPC firmware: the ROMs to start (Option ROM Enable All | rom, rom ...)
+		}
 		else if (left(strText, 'romenable '))
 		{
-			record('option', { what: 'romenable', value: trim(strText.substr(10)) });	// CPC firmware: the ROMs to start
+			record('option', { what: 'romenable', value: trim(strText.substr(10)), old: true });	// the one-word spelling: only with Option Deprecated
 		}
 		else if (left(strText, 'class '))
 		{
@@ -1423,6 +1421,10 @@ function ntcParse(arrFiles_a, objDefines_a)
 		else if (left(strText, 'windowfile '))
 		{
 			record('option', { what: 'windowfile', value: trim(strSrc.replace(/^\s*option\s+windowfile\s+/i, '').replace(/\s+'.*$/, '')) });	// the ; @window data as a file of its own, staged at an address the program copies it from (the window is then free for code)
+		}
+		else if (left(strText, 'savenex '))
+		{
+			record('option', { what: 'savenex', value: trim(strSrc.replace(/^\s*option\s+savenex\s+/i, '').replace(/\s+'.*$/, '')) });	// zxn: a data file's 16K pieces in the pages named, in the NEX file
 		}
 		else if (left(strText, 'nexdata '))
 		{
@@ -2212,6 +2214,12 @@ function ntcParse(arrFiles_a, objDefines_a)
 	{
 		objFile = arrFiles_a[intI];
 		strFile = objFile.name || ('file' + intI);
+		blnDefByVal = (function()
+		{
+			var arrO = String(objFile.text || '').match(/^[ \t]*option[ \t]+(byval|byref)[ \t]*('.*)?$/im);
+
+			return (arrO !== null) && (arrO[1].toLowerCase() === 'byval');
+		})();
 		intFile = intI;
 		strExt = (strFile.lastIndexOf('.') > -1) ? strFile.substr(strFile.lastIndexOf('.') + 1).toLowerCase() : 'bas';
 		strName = strFile.replace(/^.*[\/\\]/, '').replace(/\.[^.]*$/, '').toLowerCase().replace(/[^\w]/g, '_');

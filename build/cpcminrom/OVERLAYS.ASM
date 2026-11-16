@@ -7,7 +7,8 @@ ntc_oom = 0		; 1 = out of memory (the fill reached the top range): said once
 			DEVICE AMSTRADCPC6128		; for SAVEAMSDOS at the end
 			org #0040
 
-NTC_TERM	equ 0		; Option Terminal: 0 none, 1 VT52, 2 ANSI (CP/M)
+NTC_TERM	equ 0		; Option Terminal: 0 none, 1 VT52, 2 ANSI, 3 ADM-3A, 4 Televideo (CP/M)
+NTC_TERM_RT	equ 0		; 1: the program calls StdIO.SetTerminal (the terminal is chosen while it runs)
 NTC_STRMAX	equ 255		; the longest string (library buffers, temps)
 NTC_MEMBANKS	equ 64		; Option Memory: the most 64K banks the Memory class looks for
 NTC_ROMENABLE	equ 1		; Option RomEnable (cpcfw, cpcmin): the start code starts the ROMs
@@ -353,10 +354,9 @@ p_banner_r:		; end of banner
 			jp ntc_xn
 p_level1_play_c:		; call play (normal)
 			pop hl			; score
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			ld (var_level1_play_score), de
+			ld de, ntc_pkbuf	; (the page's 1 parameter(s), 2 bytes)
+			ldi
+			ldi
 			ld hl, 0
 			ld (var_level1_play_play), hl
 			ld (var_level1_play_i), hl
@@ -367,7 +367,7 @@ p_level1_play_c:		; call play (normal)
 			jp ntc_ovl_enter
 p_level1_play_in:
 			ld sp, p_level1_play
-			jp ntc_xn
+			jp ntc_pkin_n		; the page is in: its parameters from ntc_pkbuf to var_level1_play_score (dw block, length start the body), then the body
 p_level1_play_r:		; end of play
 			ld sp, (ntc_csp)		; the caller's page back
 			ld hl, (p_level1_play_pg)
@@ -393,10 +393,9 @@ p_level1_bonus_r:		; end of bonus
 			jp ntc_xn
 p_level2_play_c:		; call play (normal)
 			pop hl			; score
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			ld (var_level2_play_score), de
+			ld de, ntc_pkbuf	; (the page's 1 parameter(s), 2 bytes)
+			ldi
+			ldi
 			ld hl, 0
 			ld (var_level2_play_play), hl
 			ld (p_level2_play_rs), sp
@@ -406,13 +405,20 @@ p_level2_play_c:		; call play (normal)
 			jp ntc_ovl_enter
 p_level2_play_in:
 			ld sp, p_level2_play
-			jp ntc_xn
+			jp ntc_pkin_n		; the page is in: its parameters from ntc_pkbuf to var_level2_play_score (dw block, length start the body), then the body
 p_level2_play_r:		; end of play
 			ld sp, (ntc_csp)		; the caller's page back
 			ld hl, (p_level2_play_pg)
 			call mem_sel
 			ld sp, (p_level2_play_rs)
 			jp ntc_xn
+ntc_pkin_n:		; parameters into a page: one LDIR
+			pop de
+			pop bc
+			ld hl, ntc_pkbuf
+			ldir
+			jp ntc_xn
+ntc_pkbuf:		ds 2		; the biggest set of them
 
 ntc_rg6_e:
 			IF ($ < 32768) && (ntc_rg7_e - ntc_rg7 + $ > 16384)	; fwdref-ok
@@ -704,7 +710,7 @@ ntc_rg25_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg26:
-var_level1_play_score:			dw 0
+var_level1_play_i:			dw 0
 ntc_rg26_e:
 			IF ($ < 32768) && (ntc_rg27_e - ntc_rg27 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -714,7 +720,7 @@ ntc_rg26_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg27:
-var_level1_play_i:			dw 0
+p_level1_play_pg:			dw 0
 ntc_rg27_e:
 			IF ($ < 32768) && (ntc_rg28_e - ntc_rg28 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -724,7 +730,7 @@ ntc_rg27_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg28:
-p_level1_play_pg:			dw 0
+p_level1_bonus_rs:			dw 0
 ntc_rg28_e:
 			IF ($ < 32768) && (ntc_rg29_e - ntc_rg29 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -734,7 +740,7 @@ ntc_rg28_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg29:
-p_level1_bonus_rs:			dw 0
+var_level1_bonus_bonus:			dw 0
 ntc_rg29_e:
 			IF ($ < 32768) && (ntc_rg30_e - ntc_rg30 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -744,7 +750,7 @@ ntc_rg29_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg30:
-var_level1_bonus_bonus:			dw 0
+p_level1_bonus_pg:			dw 0
 ntc_rg30_e:
 			IF ($ < 32768) && (ntc_rg31_e - ntc_rg31 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -754,7 +760,7 @@ ntc_rg30_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg31:
-p_level1_bonus_pg:			dw 0
+p_level2_play_rs:			dw 0
 ntc_rg31_e:
 			IF ($ < 32768) && (ntc_rg32_e - ntc_rg32 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -764,7 +770,7 @@ ntc_rg31_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg32:
-p_level2_play_rs:			dw 0
+p_level2_play_pg:			dw 0
 ntc_rg32_e:
 			IF ($ < 32768) && (ntc_rg33_e - ntc_rg33 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -774,7 +780,7 @@ ntc_rg32_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg33:
-var_level2_play_score:			dw 0
+tmp0:			dw 0
 ntc_rg33_e:
 			IF ($ < 32768) && (ntc_rg34_e - ntc_rg34 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -784,7 +790,9 @@ ntc_rg33_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg34:
-p_level2_play_pg:			dw 0
+tmp1:			dw 0
+
+; numbers passed by address (read only)
 ntc_rg34_e:
 			IF ($ < 32768) && (ntc_rg35_e - ntc_rg35 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -794,7 +802,8 @@ ntc_rg34_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg35:
-tmp0:			dw 0
+lit_1:			dw 1
+
 ntc_rg35_e:
 			IF ($ < 32768) && (ntc_rg36_e - ntc_rg36 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -804,9 +813,11 @@ ntc_rg35_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg36:
-tmp1:			dw 0
+; ============================================================
+; ZOSCII glyphs - each points at its 8 byte bitmap in ntc_font
+; ============================================================
 
-; numbers passed by address (read only)
+
 ntc_rg36_e:
 			IF ($ < 32768) && (ntc_rg37_e - ntc_rg37 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -816,7 +827,9 @@ ntc_rg36_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg37:
-lit_1:			dw 1
+; ============================================================
+; Strings
+; ============================================================
 
 ntc_rg37_e:
 			IF ($ < 32768) && (ntc_rg38_e - ntc_rg38 + $ > 16384)	; fwdref-ok
@@ -827,11 +840,7 @@ ntc_rg37_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg38:
-; ============================================================
-; ZOSCII glyphs - each points at its 8 byte bitmap in ntc_font
-; ============================================================
-
-
+str0:			db "CPC minimal firmware", 0
 ntc_rg38_e:
 			IF ($ < 32768) && (ntc_rg39_e - ntc_rg39 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -841,10 +850,7 @@ ntc_rg38_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg39:
-; ============================================================
-; Strings
-; ============================================================
-
+str1:			db "Level 1", 0
 ntc_rg39_e:
 			IF ($ < 32768) && (ntc_rg40_e - ntc_rg40 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -854,7 +860,7 @@ ntc_rg39_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg40:
-str0:			db "CPC minimal firmware", 0
+str2:			db "Level 2", 0
 ntc_rg40_e:
 			IF ($ < 32768) && (ntc_rg41_e - ntc_rg41 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -864,7 +870,8 @@ ntc_rg40_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg41:
-str1:			db "Level 1", 0
+str3:			db 0
+
 ntc_rg41_e:
 			IF ($ < 32768) && (ntc_rg42_e - ntc_rg42 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -874,27 +881,6 @@ ntc_rg41_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg42:
-str2:			db "Level 2", 0
-ntc_rg42_e:
-			IF ($ < 32768) && (ntc_rg43_e - ntc_rg43 + $ > 16384)	; fwdref-ok
-			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
-			ENDIF
-			IF ($ < 65536) && (ntc_rg43_e - ntc_rg43 + $ > 42496)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
-ntc_oom = 1		; (said once: the parts after this one reach it too)
-			ENDIF
-ntc_rg43:
-str3:			db 0
-
-ntc_rg43_e:
-			IF ($ < 32768) && (ntc_rg44_e - ntc_rg44 + $ > 16384)	; fwdref-ok
-			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
-			ENDIF
-			IF ($ < 65536) && (ntc_rg44_e - ntc_rg44 + $ > 42496)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
-ntc_oom = 1		; (said once: the parts after this one reach it too)
-			ENDIF
-ntc_rg44:
 ; ============================================================
 ; Keyword library (rom)
 ; ============================================================
@@ -1161,7 +1147,7 @@ ntc_rj_tlk:		db "ROM NTC CPCMIN too old: no routine #", 0
 ntc_rj_tpt:		db "ROM NTCMIN<n>.ROM not found: n = #", 0
 ntc_rj_tnl:		db 13, 10, "Press a key", 13, 10, 0
 ntc_rj_dropend:
-ntc_rg44_e:
+ntc_rg42_e:
 ntc_end:				; the end of the program (and of its file)
 glyph_20			equ ntc_font + 0		; " "
 glyph_2C			equ ntc_font + 96		; ","
@@ -1242,6 +1228,7 @@ ovl_level1_start:
 			dw NTC_STAMP		; the build stamp: the loader checks it against the program's
 ovl_level1__0_s:		; level1
 p_level1_play:
+			dw var_level1_play_score, 2
 
 			; Level1.cls 4: Dim i As Integer
 
@@ -1273,7 +1260,8 @@ p_level1_bonus:
 ovl_level1__0_e:
 			dw 0			; (never empty)
 ovl_level1_end:		; the end of its file; page variables (cleared on loading) follow
-ovl_level1_vsize	equ 0		; its page variables; its local memory is the rest, to #8000
+var_level1_play_score		equ ovl_level1_end + 0		; 2 bytes (level1)
+ovl_level1_vsize	equ 2		; its page variables; its local memory is the rest, to #8000
 			ASSERT ovl_level1_end + ovl_level1_vsize <= #8000, "page Level1 (level1) is more than 16K (code and page variables)"
 			DISPLAY "page Level1 (OVERLAYS.001):"
 			DISPLAY "  level1 ", /D, ovl_level1__0_e - ovl_level1__0_s
@@ -1290,6 +1278,7 @@ ovl_level2_start:
 			dw NTC_STAMP		; the build stamp: the loader checks it against the program's
 ovl_level2__0_s:		; level2
 p_level2_play:
+			dw var_level2_play_score, 2
 
 			; Level2.cls 5: Banner "Level 2"
 			dw p_banner_c, str2
@@ -1322,11 +1311,12 @@ p_level2_play:
 ovl_level2__0_e:
 			dw 0			; (never empty)
 ovl_level2_end:		; the end of its file; page variables (cleared on loading) follow
-ovl_level2_vsize	equ 0		; its page variables; its local memory is the rest, to #8000
+var_level2_play_score		equ ovl_level2_end + 0		; 2 bytes (level2)
+ovl_level2_vsize	equ 2		; its page variables; its local memory is the rest, to #8000
 			ASSERT ovl_level2_end + ovl_level2_vsize <= #8000, "page Level2 (level2) is more than 16K (code and page variables)"
 			DISPLAY "page Level2 (OVERLAYS.002):"
 			DISPLAY "  level2 ", /D, ovl_level2__0_e - ovl_level2__0_s
 			DISPLAY "  page variables ", /D, ovl_level2_vsize, ", free ", /D, #8000 - (ovl_level2_end + ovl_level2_vsize)
 			SAVEAMSDOS "OVERLAYS.002", ovl_level2_start, ovl_level2_end - ovl_level2_start, #4000
 
-NTC_STAMP	equ #FAE4		; the build stamp: the first word of every page file
+NTC_STAMP	equ #E019		; the build stamp: the first word of every page file

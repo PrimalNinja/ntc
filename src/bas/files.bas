@@ -8,12 +8,12 @@ Option Explicit
 #If NTC_CPCFW Then
 ' RUN"FILES resets the firmware and drops AMSDOS: start it again (ROM 7) so files go to disc.
 ' Without this, files go to disc only when the program is loaded from BASIC and CALLed.
-Option RomEnable 7
+Option ROM Enable 7
 #End If
 #If NTC_CPCMIN Then
 ' RUN"FILES resets the firmware and drops AMSDOS: start it again (ROM 7) so files go to disc.
 ' Without this, files go to disc only when the program is loaded from BASIC and CALLed.
-Option RomEnable 7
+Option ROM Enable 7
 #End If
 Dim hs(9) As Integer, back(9) As Integer
 Dim i As Integer, r As Integer, h As Integer

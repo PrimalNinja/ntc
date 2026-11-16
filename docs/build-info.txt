@@ -37,6 +37,402 @@ Packaging rule (what goes in the archive) - READ THIS BEFORE ZIPPING
 History (newest first)
 ======================
 
+20261116-9
+  - NEW: a class in a page keeps its number parameters IN THE PAGE. The parameters that are only
+    copied in (ByVal, or ByRef the procedure never writes; Byte, Integer, Long) are packed side by
+    side in the page in the order they are declared. The call stub puts the values side by side
+    in ntc_pkbuf (main memory, as big as the biggest set), the page comes in once (as before), and
+    ntc_pkin moves them all with one LDIR; the body starts with dw block, length for it. Main
+    memory: 2 bytes less for every Integer parameter (4 a Long), against the buffer and 6 bytes
+    of routine once. Page: the variables and 4 bytes a procedure. Speed: the same within 1%.
+  - NOT packed (ordinary variables in the program, as before): String, array and Type
+    parameters, a parameter copied back, a class listed in more than one page, one overlay
+    area (Option Memory Heap Main), the ROM platforms.
+  - FIX: an argument is copied back AFTER the caller's page is back (it was before). A caller in
+    another page that gave one of its Private Paged variables to a ByRef parameter the procedure
+    writes got nothing back (the copy went into the called class's page).
+  - regress.sh: test/pkpar (4 runs and the layout). User guide: "Parameters in the page".
+  - A program with no class in a page: byte for byte 20261116-8's output.
+
+20261116-8
+  - NEW: Option ByVal | Option ByRef. On a line of its own in a file (module or class) it sets
+    what a parameter is when its declaration says neither ByVal nor ByRef, for every procedure
+    in that file. A parameter that says ByVal or ByRef itself is not changed. Without the
+    option nothing changes: ByRef, as before. (ntc_parser.js: blnDefByVal.)
+  - regress.sh: a test for it (default, Option ByVal, Option ByRef, Option ByVal with an
+    explicit ByRef). User guide: "Parameters" and "Option ByVal, Option ByRef".
+  - No library or platform change. Every other output is byte for byte 20261116-7's.
+
+20261116-7
+----------
+The two things 20261116-6 left out, done, so they can be tried on a real Next.
+- THE NEXT PROGRAM IS LOADED AT THE BOTTOM OF MEMORY: the Next's banks 0, 1, 2 at #0000-#BFFF (it
+  was 8, 9, 10). With that, page n is the Next's bank n for EVERY page: page 0 and page 1 are the
+  Next's banks 0 and 1 (page 1 being the program's own window, as on the CPC). Taken from the
+  start now: 0, 1, 2 and 5 (the program); 7 only with the FileSystem class; 12 to 21 only with the
+  Graphics class. Free on a 2MB Next with no files and no graphics: 108 pages.
+  For #asm: ZXN_PROGPAGE is the Next's 8K page the program starts in (0; it was 16). zxn_sel with
+  HL = 0 still means "the program's own window back".
+  NOT TRIED ON A REAL NEXT. NextZXOS is running in banks 5, 2 and 0 while it loads the file, and
+  the program now loads into 2 and 0 as most other people's NEX programs do - but I have only the
+  harness to say it works. If a program built with this will not start on the machine, that is the
+  first thing to suspect, and 20261116-6 (the same but for this) is the build to fall back to.
+- The Memory class's table holds every page the machine has (it stopped at page 109 on a 2MB Next:
+  the table is built in fours and the two pages left over were dropped). Pages 110 and 111 are in
+  it now; the two table entries past the end of memory are marked taken.
+- Option Memory Reserved Pages (with a d) is no longer accepted: Option Memory Reserve Pages only.
+  I had added the second spelling unasked.
+- Page 1 is never handed out by AllocPage on the Next now (it is the program's).
+- Examples: the six auckland programs name pages 3, 4, 6 To 11, 22 To 107 (94 pages); ROCKS's data
+  is in page 3 (page 2 is the program's now).
+- Docs: userguide "The Next's pages".
+- Regression: ALL PASS, 1089 checks (one check that named the old banks 8-10 was corrected and
+  re-run by itself after the full run).
+- CyborgOS 20261116-4 goes with this build: rebuilt clean; cosregress 56 of 57 (keyman's
+  printed length, as before).
+
+20261116-6
+----------
+The Next's memory, as settled on the morning of 16 November. Nothing here is a blanket rule any
+more: a page is taken only when the program really has something in it.
+- ON THE NEXT AN NTC PAGE IS THE NEXT'S 16K BANK OF THE SAME NUMBER. Page 0 to 111 on a 2MB Next
+  (0 to 47 on a 1MB one). Before, page 2 was the Next's bank 22 and nothing below 22 had a page
+  number at all. EVERY PAGE NUMBER FROM BEFORE IS NOW 20 HIGHER (Loaded 2 -> Loaded 22; Option
+  SaveNex "F", 2 To 11 -> 22 To 31). Taken from the start, and only then:
+      5         always: the program's memory at #C000-#FFFF (the text screen is in it)
+      7         only with the FileSystem class (the DOS's workspace during a file call)
+      8, 9, 10  always: the program, #0000-#BFFF
+      12 to 21  only with the Graphics class (Layer 2's two buffers)
+  and the pages of Option Memory Reserve Pages. Everything else is free: AllocPage / AllocBank hand
+  it out, Option SaveNex and Option Page ... Loaded n can name it. The 10 November rule "never the
+  Next's bank 7" is gone: a program with no file calls uses it.
+  NOT YET: the Next's banks 0 and 1. Page 1 is still the program's own window (as on the CPC), so
+  those two have no page number while the program sits in banks 8-10. They get theirs when the
+  program is moved to the bottom of memory - not done in this build, because that changes where
+  NextZXOS loads the program and I cannot try that on a real Next here. Also the Memory class counts
+  pages in fours, so on a 2MB Next its table stops at page 109 (110 and 111 are not in it).
+- NEW: Option Memory Reserve Pages n[, n | n To m] ... - pages the program keeps for a reason of its
+  own: never handed out, and refused by name for Option SaveNex / Loaded n. Every platform with
+  pages (the Next, the CPC, MSX-DOS). (Reserved Pages is accepted as well.)
+- Option Memory Paged startbank on the Next: 0 or 1 only. There is no start bank to move now; 11 or
+  more is refused and says why.
+- #C000-#FFFF ON THE NEXT IS MAIN MEMORY (the text screen in main memory like the CPC's video RAM,
+  the rest of it the program's). A program too big for #0040-#B9FF steps over the stack and runs on
+  at #C000. Kept out of it, only when the program has them: the text and its font #E000-#F3FF (a
+  program with text), Layer 2's drawing window #C000-#DFFF (the Graphics class), all of it with the
+  FileSystem class (the DOS switches its bank in there during a file call), and #FD00-#FFFF always
+  (the start-up stub). A program with no text has no text screen set up (that was already so: the
+  screen is set up by the first text keyword); its #E000-#F3FF is then the program's too.
+- BUG FIXED: the Next's font was font8x8_basic. It is the Amstrad CPC's now (characters 32-126, from
+  the 6128's lower ROM), as on the CPC platforms. The MEGA65 and TI-89 platforms still carry
+  font8x8_basic - not touched, say if they are the same bug.
+- The RAM probe on the Next no longer writes a marker into the program's own banks (5, 8, 9, 10).
+- The NEX loader's stack moves below the start-up stub when the Next's bank 2 holds a page (it
+  would write over the page's last bytes).
+- Examples: the six auckland programs name pages 2, 3, 4, 6, 7, 11, 22 To 109 - 94 pages, so
+  AUCKLAND.DAT fits as it is again (20261116-5 had cut it to 90). ROCKS's page 2 is the Next's bank
+  2 now.
+- Docs: userguide - "The Next's pages" and "Option Memory Reserve Pages" (new), Option SaveNex,
+  Loaded n, Option Memory Paged; architecture.md, README.md.
+- NOTED FOR LATER (not built): the 4MB Next's upper 2MB cannot be switched in as pages; it is
+  reached by copying (zxnDDMA). A RAM disc for bigger games is the use for it.
+- VCPC: looked at for the font - it has none (it draws on the host's terminal). Left as it is.
+- Regression: ALL PASS, 1088 checks.
+- CyborgOS 20261116-3 goes with this build: rebuilt clean; cosregress 56 of 57 (keyman's
+  printed length, as before).
+- NOT RUN ON A REAL NEXT: none of this. The harness loads the NEX's banks and runs them; a real
+  Next has NextZXOS under it. What to try first on the machine: a game with data in pages 2, 3, 4
+  (the Next's banks 2-4) and one with data in page 7 that never opens a file.
+
+20261116-5
+----------
+The rest of the list of 16 November: what 20261116-4 left NOT DONE, done - but for the three items
+at the end, which are still not done. Nothing here is behind Option Deprecated: the examples, the
+library and CyborgOS use only current options again.
+- THE LAYOUT IS RESERVE AND SAFE (holeLayout rewritten for it):
+    1. safe memory (Option Memory Safe) gets what must be there - the safe classes' procedures
+       (Option Class Safe) and, in a program with pages, what must stay in sight while a page is in
+       the window: the stubs, the #asm blocks, the variables, the strings, the library, the
+       procedures a page calls. Each part into the first Safe range with room. What they leave of
+       a Safe range is ordinary memory again.
+    2. everything else fills from the org upward, in the order written, through all memory that is
+       not Reserved and not used safe memory (a Paged window included).
+  Gone: my fill-back under the window, the threads sorted biggest first, and the compiler deciding
+  by itself what goes round the window. A paging program now says where the always-seen parts go:
+      Option Memory Paged 1, &H4000, &H4000
+      Option Memory Safe &H0040, &H3FC0
+  With no safe memory it still builds while those parts end up outside the window; one that lands
+  in the window stops the assembly by name ("... must stay in sight while a page is in, and it is
+  in the Paged range #4000-#7FFF: give the program safe memory for it"). A part that fits in no Safe
+  range is named the same way.
+  THIS BREAKS: a big paging program with Option Memory Paged and no Option Memory Safe (HIVEMIND,
+  HIVEWOOD) stops with that message until it has a Safe line. The test program (test/pagesw) is the
+  same size as before with "Option Memory Safe &H0040, &H3FC0".
+  How: the safe parts are assembled first, then org goes back down for the fill, so the memory
+  image is what is saved. An AMSDOS build and the Next have the assembler's device for that; a CPC
+  build with no AMSDOS name (the test harness) gets it too and saves the image as NTCIMAGE.BIN
+  (cpcrun.py reads it). cpm and the other one-pass builds keep the old placement for Option Class
+  Safe (no pages there to need more).
+  The dead Skip packing code (Option Memory Reserved Skip) is out of holeLayout.
+- ROMDiscFS: the ROM disc is a class of its own (cpc, cpcmin, cpcfw), with FileSystem's method
+  names. FileSystem on cpcmin / cpcfw is the disc and tape through the firmware and nothing else
+  (no volume R, no routing: about 1.1K less in every program that uses files); Option NoRomDisc is
+  gone (the compiler says so). cpcmin selects the disc's ROM on the hardware now, as cpc does, so
+  ROMDiscFS does not need the firmware's file code.
+  THIS BREAKS: the cpc platform (no firmware) has no FileSystem class any more - it only ever was
+  the ROM disc. The examples FILES, AMSDOS, FILESTEP, FILESTPN and CHIP8 no longer build for cpc
+  (they do for cpcmin / cpcfw); a cpc program that read "R:" files through FileSystem uses
+  ROMDiscFS instead (same calls).
+- Option NexData is gone (the compiler names Option SaveNex). The six auckland examples and ntc3d's
+  ROCKS are on Option SaveNex; their Option Deprecated lines are out. A block's Next bank in #asm is
+  ZXN_FIRSTBANK + block.
+  THIS BREAKS: SaveNex pages are Next banks 22-111, so 90 pages (1440K) at most; NexData also used
+  six low banks (96 blocks). AUCKLAND.DAT on the Next has to be made at 1440K or less (s3dmake: At
+  most 1440K) - the examples name pages 2 To 91 and say so if the data has more blocks.
+- Option Page "FILE.EXT" Loaded n where pages are files (cpcmin, cpcfw and the other platforms
+  with banked pages): the page file gets RAM page n as its own. Loaded at the first call (or
+  Load()), always into page n; the page is taken from the start; Unload() leaves it taken.
+  Refused with Option Memory Heap Main, and with the keyword library ROM (the ROM's loader takes a
+  free page - NOT DONE for the ROM library).
+  FOUND AND FIXED on the way: on the Next the Loaded / SaveNex pages were never marked taken in
+  the Memory class (the library tested NTC_PGLOADED before the program defined it), so AllocPage
+  could have handed one out. It is defined first now.
+- The heap in main memory (Option Memory Heap Main): Alloc takes any size that fits (it was
+  16382 bytes at most, the heap chopped into 16K pieces). The heap is the memory the program
+  declares: the first Option Memory Available range that ends above the program, to that range's
+  end and no further. With no Available range: from the program's end to the platform's top, as
+  before. It still stops 256 bytes under the real stack and at the first Reserved / Paged range
+  (the platform's own Reserved ranges now count too). Largest() is an Integer: 32767 means "that
+  or more". For this the heap's block header changed (even lengths, bit 0 = in use) in the paged
+  heap and the pages' local memory too; a block in a page is still 16382 bytes at most.
+- Option Memory Heap Pages [most]: the most pages the Memory class keeps tables for, 1 - 257.
+  MY ADDITION to your "Option Memory Heap Main | Pages": it is the non-deprecated spelling of
+  Option Memory CPCExpansion 33, which CyborgOS needs (its tables must fit). Say if you want
+  another form.
+- zxndotl: dot_fs_call's name, stat and data buffers are the Option Buffer buffer (336 bytes or
+  more, placed in the DOT's 8K after its code; ntc_dot8k_end marks where that is). Refused without
+  Option Buffer, and at assembly when the buffer is over the 8K's code. The ZOSCII tool's own
+  FileSystem class needs "Option Buffer address, 336" when it is next built.
+- Option CompactCalls: its three library routines (ntc_pcall, ntc_pcallb, ntc_pret) are out.
+- Messages for the Next say "Next bank" where they mean one.
+- Docs: userguide (the two layout rules, Option Page ... Loaded n on the CPC, ROMDiscFS, the heap,
+  Option Memory Heap Pages most, Option NexData and Option NoRomDisc sections out), memory-map.md,
+  library-size.md, architecture.md, requirements.md, portable-ntc-basic.md, NTC.md, README.md,
+  tutorial 9.3.
+- Regression: ALL PASS, 1084 checks (20261116-4: 1075).
+- CyborgOS 20261116-2 goes with this build (its own build-info): rebuilt clean; cosregress 56 of 57 (keyman's
+  printed length, as before).
+
+STILL NOT DONE:
+- By-reference parameters in place for a class in a page: still copied in and back. The page
+  bodies are written by a different part of the compiler (composePages) from the one the
+  in-place operands were built into, and the stores have to run after the page is switched in.
+  ROM platforms cannot have it at all the way it is done (the body's operands are in ROM).
+- Option Class Default = Page still gives each class a page of its own; it does not pack several
+  classes into one page (the compiler would need the classes' sizes before it lays out pages).
+- "Reserve &H4000 for paging" is still what the tutorial pages (9.x, 12.x, 13.x) and parts of
+  the user guide show for programs that switch pages by hand (Memory.SelectPage). Those programs
+  run their own main code while a page is in, so today only a Reserved window keeps them right;
+  the documents were not rewritten to Paged + Safe.
+- Dead compiler branches for Option CompactCalls are still in procStubs (never reached).
+- Not run: ROCKS on the Next (no test for it), and the Next build of CyborgOS (see its build-info).
+
+20261116-4
+----------
+PHASE 4 (part), PHASE 5 and what is NOT DONE.
+- CyborgOS with 20261116-3: 56 of 57 (keyman's printed length again; see 20261116-2).
+- Option Terminal VT52 | ANSI | ADM3A (or ADM-3A) | Televideo | None (cpm). ADM-3A: Ctrl-Z clears,
+  ESC = row+31 column+31 (Kaypro, Osborne). Televideo: ESC * clears, ESC = as the ADM-3A (912 / 920 /
+  950, Wyse, SOROC).
+- StdIO.SetTerminal n (cpm): the terminal chosen while the program runs - 0 none, 1 VT52, 2 ANSI,
+  3 ADM-3A, 4 Televideo (StdIO.TerminalVT52 ...; 5 and up taken as none). Option Terminal is then
+  only what the program starts as. The terminal is a byte in RAM (ntc_termno) and Cls / Locate
+  read it; a program that calls SetTerminal carries all four terminals' codes (a stream program:
+  230 bytes; the same with SetTerminal: 485) and CanPosition / CanClear are True, Rows 24. It is a
+  method of StdIO, not a bare statement (no parser change was needed for a method).
+  A program with an Option Terminal line and no SetTerminal is now about 100 bytes bigger than
+  before: the one routine serves all four terminals.
+- Option SaveNex "FILE", page [, page | page To page] ... (zxn): a data file's 16K pieces, in order, in
+  the pages named (the page numbers of Loaded n and the Memory class). Several lines; a page named
+  twice, or one that is also a Loaded page, is refused. The pages are marked taken (AllocPage never
+  gives one) and are reached from BASIC with Memory.SelectPage - no #asm needed. Option NexData is
+  now only with Option Deprecated: the auckland examples and ntc3d's ROCKS have that line added,
+  because they use NexData's six low Next banks and its ntc_nexdata table from #asm, which SaveNex
+  (page numbers from the start bank up) does not give them.
+- zxndotl: dot_fs_call and its buffers (about 430 bytes of the 8K) are assembled only when the
+  program's own code names them (NTC_DOT_FS). They were in every Large Model DOT since 20261111-3.
+  NOT done as asked: they are not yet the Option Buffer buffer. Their only user is the ZOSCII tool's
+  own FileSystem class, which has to change with it - a job for when that tool is next built.
+- Docs: docs/library-size.md (new) - the calls between classes that should not be there and what
+  each drags in, and the big assembly blocks that need a conditional round each function, with
+  the measured sizes. userguide: Option SaveNex, Option Terminal and StdIO.SetTerminal, Option
+  WindowFile written up, the Next's pages section says "Next bank" where it means the hardware.
+- Tests: term_rt (SetTerminal: stream, VT52, ANSI, none again), term_adm (ADM-3A, Televideo), Option
+  SaveNex (two files, read back, the NEX's banks, the refusals).
+  Full regression: ALL PASS (1075). The first run had one failure, a fault of mine found by it: the
+  compiler took the words StdIO.SetTerminal in a comment of the library's own StdIO class for a call,
+  so every cpm program using that class was built as if it chose its terminal while running
+  ("can position" where the test wants "stream"). It now ignores that class and comments.
+- CyborgOS with this compiler: 56 of 57 (keyman's printed length). CyborgOS build 20261116-1.
+
+NOT DONE of the list of 16 November - in the order I would take them:
+- The layout by RESERVE and SAFE only (and with it: my fill-back and biggest-first taken out, the
+  compiler's own "not under the window" list gone, "Reserve &H4000 for paging" out of the
+  documents). holeLayout is about 760 lines with the fill-back worked into the assembler's sums, and
+  every program that pages then has to declare Safe memory big enough for its data, library and
+  stubs. Taking fill-back out without that stops HIVEMIND and HIVEWOOD fitting. Left exactly as it
+  was, working, rather than rewritten unattended.
+- Option Page ... Loaded n on every banked platform (the CPC first).
+- ROMDiscFS (the ROM disc out of the FileSystem classes; Option NoRomDisc is still there until then).
+- By-reference parameters for a class in a page, and on ROM platforms (both still copy).
+- Option Memory Heap Main | Pages is a rename only: Alloc's faults are untouched (20261116-3).
+- Option Class Default = Page gives a page a class; it does not pack classes into pages.
+- Dead code still in the source: Skip's packing in holeLayout, Option CompactCalls in procStubs and
+  ntc_pcall / ntc_pret / ntc_pcallb in the library.
+- "bank" in the compiler's own messages and comments for the Next (the user guide's Next section
+  is done; the rest of the documents are not swept).
+- The games and the ZOSCII tool against this compiler (one at a time, as agreed).
+
+20261116-3
+----------
+PHASE 3, first part: the memory and class options. (The layout itself - Safe and Reserved only, my
+fill-back and biggest-first taken out - is the next build, on its own.)
+- Option Memory Paged startbank, addr, size: the start bank first and always there - the old Option
+  Page startbank, addr, size moved here unchanged. The two-number form and the trailing optional start
+  bank are refused. More than one Paged line is allowed; the first is the window.
+  On the Next: a start bank of 11 or more is the Next 16K bank the pages start at (Loaded n is that
+  bank + n - 2, the Memory class's pool starts there too); 0 or 1 leaves them at Next bank 22, above
+  Option NexData's blocks; 2-10 is refused.
+- Option FirstBank and Option Next2MB are gone ("unknown option"); the compile check that refused a
+  Loaded page past a 1MB Next's banks went with Next2MB.
+- Option Memory Heap Main | Pages: where Alloc / Free get their memory. They are the old Option Memory
+  Small / CPCExpansion, which are now accepted only with Option Deprecated. CPCExpansion's maxpages
+  form has no new spelling (deprecated with it). NOT changed underneath: Heap Main still means no RAM
+  pages at all (overlay classes share one area), and Alloc's faults found on 16 November are still
+  there - it takes everything after the program as free, ignores Option Memory Available, has a
+  built-in top for each platform, and no block is over 16382 bytes even in main memory.
+- Option Class Default = Main | Page (in the program): where a class goes when no Option Page names
+  it. Page: each such class of the project gets a page of its own, named after it (the Next: Loaded in
+  the lowest page not taken); not a class in Option Class Safe, not an interrupt class. One class a
+  page for now - they are not packed together.
+- Option Home is gone (an error that says so): a copied class's home is the first page that lists it.
+- Tests: the Paged start bank on the Next (pages run from Next bank 30), the refusals, Heap Main /
+  Pages, Class Default on zxn / cpcmin / cpm. Examples, tests and the library's comments moved to the
+  new words. Docs: userguide (Option Memory, Option Class, the Next's banks), NTC.md, memory-map.md,
+  portable-ntc-basic.md, the tutorial.
+
+20261116-2
+----------
+PHASE 2: ByRef in place. Option CompactCalls is gone.
+- A ByRef parameter is the caller's variable itself. The call stub puts the argument's address
+  straight into every operand of the procedure's body that names the parameter (ld (site), hl for
+  each; the operand holds 0 in the file, the keyword line has a label ntc_rfN). Nothing is copied in,
+  nothing is copied back, and the parameter has no variable. A parameter passed on is an operand like
+  any other, so the next procedure gets the same address. A Type: one address a field, the same way.
+  VarPtr(parameter) is the caller's variable. A change to the caller's variable is seen at once.
+- What a call passes: a variable of the parameter's own type, or a constant the procedure does not
+  write, as it is. Anything else (an expression, a function's result, a variable of another type, a
+  constant the procedure writes) is a value: it is moved into the parameter's own variable just
+  before the call, and that variable is passed. The variable is declared only if some call does that.
+- STILL COPIED in (and back when written), as before - my decisions, each with its reason:
+    * ByVal (that is what it means);
+    * a String parameter the procedure writes: its code may count on the parameter's own capacity,
+      and the copy back cuts at the caller's;
+    * a parameter named by {name} in the procedure's #asm: the block reads and writes a variable
+      (CyborgOS's and the library's #asm procedures are unchanged because of this);
+    * every ByRef parameter of a class in a page (the stub would have to fill operands inside the
+      page after switching it in, and a copied class has a body in each page) - not done yet;
+    * a platform whose program is in ROM (objPlat.rom: msx, sc3000, colecovision ...): the thread
+      cannot be written to; and the 68000 / 45GS02 builds.
+    * an array parameter is as before: its 12 byte descriptor is copied, the data is the caller's.
+- The cost to know: 3 bytes and 16 T-states at the call for each place the body names the
+  parameter. Measured (tools/byref-bench, cpc): 1000 calls each of a 3-Integer ByRef Sub, a ByRef
+  String function and a 1-Integer ByRef Sub: 6,286,831 -> 4,534,581 T (normal), 5,373,137 ->
+  3,648,325 T (turbo), the program 2414 -> 2314 bytes. The 3-Integer Sub alone, all three written
+  and named four times each: 1,619,512 -> 1,527,232 T. The same Sub ByVal: 1,386,778 T, unchanged.
+- The thread of a procedure with ByRef parameters is written to at every call (that is what "in
+  place" is), so it must be in RAM. v3's rule that the thread is read only now holds only on the ROM
+  platforms, where the copies are kept.
+- Option CompactCalls is refused ("is gone"). Its code in procStubs (blnCompactCalls, ntc_pcall /
+  ntc_pret / ntc_pcallb in the library) can no longer be reached and is still in the source; it is
+  to be stripped.
+- Compiler: refParam / refArg / stubBack / refSiteCode / refSites (ntc_compiler.js); objAsmParam
+  (pass 1), objRefLabel, objRefSlotUsed, objRefSites, objBodyProc.
+- Tests: test/byref/Main.bas (16 cases: aliasing, pass-on, Types, values, a written String, ByVal,
+  #asm, Long from Integer) on cpc, cpcmin, cpcfw, cpm, zxn, both modes; the stub's form; a ROM
+  platform keeps the copies; Option CompactCalls refused. Full regression: ALL PASS (1054).
+- CyborgOS (rebuilt with this compiler): its hypervisor and kernel come out byte for byte the same
+  (their parameters are ByVal or used by #asm); three of its programs (KEYMAN among them) have
+  by-reference parameters now.
+  CyborgOS's regression with this compiler: 56 of 57. The one that differs is keyman, and only in
+  the length of the encoded message it prints: 113 bytes in the reference (the 8 November build),
+  108 with NTC 20261115-1 and with 20261116-1, 114 with this build; the round trip decodes right
+  every time. The length moves with every build, this one included, so it depends on something
+  outside the program's logic (timing or memory contents when KEYMAN picks its encoding) and not
+  on a compiler fault that I can find. The reference is left as it was. mem and v9_novdp (the line
+  that says where the hypervisor ends) were re-taken for 20261116-1.
+- Docs: userguide (Parameters: ByVal, ByRef, Optional - which to use; Option CompactCalls removed),
+  NTC.md (ByRef in place), tutorial 4.7, README.
+
+20261116-1
+----------
+- Docs: the memory terms table (8K / 16K / 64K pieces of RAM, address-space position, where the
+  memory comes from - as NTC / COS, the CPC, the Next and MSX name them) in docs/userguide.md
+  ("Memory terms", before the Memory class) and docs/memory-map.md ("Terms"). A memory word that is
+  not fully explicit (for example "Next bank") is the NTC / COS / CPC term: 16K is a page, 64K a slot.
+- PHASE 1 of the option clean-up (spelling and removals only; no change to generated code):
+  * Option ROM Enable All | rom [, rom] ... - two words. Option RomEnable (one word) only with
+    Option Deprecated.
+  * Option Class Safe "NAME" = Class [, Class] ... - was Option Safe "NAME" = ...; the old spelling
+    only with Option Deprecated. The messages say Option Class Safe.
+  * Option Memory Reserved start, size [, start, size] ... - the one form. ZeroFill and Skip are
+    refused ("there is no Skip"). A Reserved range is a gap of zeros in the file, as before when
+    neither word was given. The Skip test (test/safe/Skip.bas) is gone. Skip's packing code in
+    holeLayout can no longer be reached; it is still in the source and comes out with the layout
+    rework (phase 3), which rewrites that function.
+  * Option Buffer address, size - the one form, both needed. Option Buffer Size n and Option
+    Buffer address alone are refused. Without the option the buffer is 2K inside the program, as
+    before.
+  * Option ClassSize is gone (it was accepted and did nothing): "unknown option".
+  * Option Class Resident only with Option Deprecated (a class is resident without it).
+  * zxndot / zxndotl: Locate no longer clamps the row to 22 (my addition of 20261111-3). A row past
+    BASIC's screen is the ROM's to refuse.
+  * Tests, examples (src/bas) and the library's comments moved to the new forms; regress.sh checks
+    each refusal. docs: userguide (Option Buffer, Option ROM Enable, Option Class, Option Memory),
+    NTC.md, memory-map.md, portable-ntc-basic.md, todo.md.
+
+20261115-1
+----------
+- Trit.cls: the single trit operations are Z80 (asm keyword functions: no call stub, no parameter
+  copies): Tand, Tor, Tnot, Tmul, Tmaj, Gate, FromByte, ToByte, Get4, Set4. The same answers for
+  every Integer, not only -1 / 0 / 1 (Tmul: 0, b or -b at once when a is a trit, else the 16 bit
+  product as BASIC's * gave). Pack, Unpack, Scan and Dot were Z80 already and are as they were.
+  T-states a call on the Next (turbo, the loop taken off), before -> now:
+    Tand 446 -> 109   Tor 432 -> 105   Tnot 235 -> 32    Tmul 1202 -> 120   Tmaj 694 -> 143
+    Gate 537 -> 97    FromByte 416 -> 51   ToByte 454 -> 58   Get4 2355 -> 206   Set4 2315 -> 252
+- test/tritchk.py (new, in regress.sh: "Trit chk"): 1672 results against the BASIC's rules worked
+  out in python. Before that the new class was run beside the old in one program: 34830 results,
+  none different.
+
+20261114-1
+----------
+- Fixed.cls: Add16, Sub16, Mul16 and Div16 are Z80 (asm keyword functions, called straight from the
+  thread). The same answers, clamping and Ok() as the BASIC they replace. On the Next, T-states an
+  operation (in a 2000 turn loop, turbo): Mul16 38000 -> 3300, Div16 37600 -> 3270.
+- Float.cls: MulDiv's multiply and divide (Fixed.Mul32 / Div32, the fixed matrix and dot products)
+  work in the registers: four 16 x 16 products; the divide over the product's bytes in use only,
+  32 bits by 16 a word at a time when that is all there is. Same answers and Overflow().
+  Fixed.Mul32 76700 -> 7360, Div32 74500 -> 7310. The route through Op and the jump block (the
+  coprocessor's) is as it was.
+- test/float/fixchk.py (new, in regress.sh: "Fixed chk"): 4032 16 bit results (places 0-5, the
+  edges, random) and 800 MulDiv results against exact integer arithmetic - the answer and the
+  Ok() / Overflow() of each. Before that the new code was run beside the old (both classes in one
+  program): 36024 16 bit results and 4000 MulDiv results, none different.
+- Not changed: Add32 / Sub32 (BASIC: a Long add and its checks), the text conversions, BASIC's own
+  Long multiply and divide (about 20000 T-states for one of each: the slowest part of Long maths).
+- For comparison (ZNC 0.7b's built in 12.4 fixed, no rounding, no overflow check): multiply 1630,
+  divide 2520 T-states.
+
 20261113-1
 ----------
 - The 20261112-1 archive (ntc20261112-2004.zip: NTC3D's E3W wireframe, ROCKS with it, FRAMEWORK.md,

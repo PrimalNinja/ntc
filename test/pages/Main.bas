@@ -6,10 +6,10 @@ Option Page "LEVEL1"  = Level1, Shared, Counter, OnlyOne
 Option Page "LEVEL2"  = Level2, Shared, Counter
 Option Page "CREDITS" = Credits
 #If NTC_CPCMIN Then
-Option RomEnable 7
+Option ROM Enable 7
 #End If
 #If NTC_CPCFW Then
-Option RomEnable 7
+Option ROM Enable 7
 #End If
 Option Memory Reserved &H4000, &H4000
 Dim r As Integer

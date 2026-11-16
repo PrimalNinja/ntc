@@ -81,7 +81,7 @@ NTC's own `Rnd` is a 16 bit xorshift that starts at the same seed every run, so 
 - Seed: every change on the keyboard (checked once a frame, from `Vid.Sync`) mixes the tick it happened on, the ticks since the last change (hold and bounce time), the keys down and the count of changes into a 64 bit pool. `Play` also mixes in the typed message.
 - Source: INTRO.DAT's data blocks 0-24 in 1KB chunks, put in an order from the seed (the order table is in the scratch block at byte 2560, 2 bytes a chunk).
 - Five readers each start at a random place in a random chunk, each goes forward or backward with two steps of 2-100 bytes (chosen from the seed) that alternate: 5, 75, 5, 75...; the output byte is the XOR of the five.
-- `Pick(n)` is 0 to n-1 by rejection, so every value is as likely as any other (no modulo skew).
+- `Pick(n)` is 0 to n-1: the bytes the readers give, wrapped into the range with Mod. No retry, nothing evened out.
 - The program only calls `Rng.Rb`, `Rng.Pick`, `Rng.Mix`, `Rng.Reseed` and `Rng.Start`; a file based class (real MP3s, as CyborgOS does) can replace Rng.cls with the same calls.
 - `tools/rng.js` is the same algorithm in JS, with entropy, mean, chi-square and serial correlation tests (`node tools/rng.js stats`). Its output matches the Next's byte for byte for a fixed pool.
 - Limits: an all-zero pool stays all-zero (the program starts from the digits of pi, so it never is); the source memory is public, so the only secret in the stream is the seed; speed is about 1 ms a byte.

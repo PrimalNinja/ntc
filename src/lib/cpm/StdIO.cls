@@ -10,7 +10,7 @@
 
 ' ---- what this console can do (constants, worked out when compiling)
 #If NTC_TERM_POS Then
-' Option Terminal VT52 / ANSI: Cls and Locate send the terminal's codes
+' Option Terminal VT52 / ANSI / ADM3A / Televideo (or SetTerminal used): Cls and Locate send the terminal's codes
 Public Const CanPosition = True       ' Locate and the cursor position work
 Public Const CanClear = True          ' Cls clears (else it starts a new line)
 Public Const Rows = 24                ' text rows, 0 = a stream with no bottom edge
@@ -24,6 +24,34 @@ Public Const CanInput = True         ' there is a keyboard
 Public Const CanPoll = True         ' GetKey / Inkey look without waiting
 Public Const CanColour = False        ' pen / paper colours (not yet)
 Public Const Glyphs = False         ' the program draws the text itself (the CPC font, copied from the ROM)
+
+' ---- the terminal, chosen while the program runs (20261116-4)
+' SetTerminal n: the codes Cls and Locate send from now on - 0 none (a stream: Cls starts a new line,
+' Locate does nothing), 1 VT52, 2 ANSI, 3 ADM-3A, 4 Televideo (5 and up: kept for more; taken as 0).
+' Option Terminal is only what it starts as. A program that calls this carries every terminal's
+' codes, and CanPosition / CanClear are True and Rows 24 whatever Option Terminal says.
+Public Const TerminalNone = 0
+Public Const TerminalVT52 = 1
+Public Const TerminalANSI = 2
+Public Const TerminalADM3A = 3
+Public Const TerminalTelevideo = 4
+Public Sub SetTerminal(ByVal n As Integer)
+#asm
+            pop hl
+            ld a, (hl)
+            inc hl
+            ld h, (hl)
+            inc h
+            dec h
+            jr nz, st_none
+            cp 5
+            jr c, st_set
+st_none:
+            xor a
+st_set:
+            ld (ntc_termno), a
+#endasm
+End Sub
 
 ' ---- output
 Public Sub PutChar(ByVal c As Integer)

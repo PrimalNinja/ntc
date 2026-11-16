@@ -2,7 +2,7 @@
 ' pens; 2: 640 x 200, 2 pens), with XOR lines (drawing a line again takes it off and leaves
 ' what was under it), and double buffering: two screens, #C000 and main RAM's #4000-#7FFF,
 ' one shown while the other is drawn on. NTC platform class: Amstrad CPC (direct hardware).
-' Double buffering takes main RAM's #4000 (RAM page 1): with Option Memory CPCExpansion
+' Double buffering takes main RAM's #4000 (RAM page 1): with Option Memory Heap Pages
 ' take page 1 first (Memory.AllocPage until it gives 1) so nothing else is put there. RAM
 ' pages still work: the CRTC always shows main RAM, and drawing puts main RAM in the window
 ' only while it writes. Text (Print) goes to #C000: CopyText puts it on the other screen.

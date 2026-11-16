@@ -23,111 +23,369 @@ Dim m_intAcc As Integer, m_intN As Integer, m_intX As Integer, m_intW As Integer
 
 ' ---- the logic (a trit in an Integer: -1, 0, 1)
 
+' <--- CHANGED (20261115): the single trit operations are Z80 (asm keyword functions: called straight from the thread, no
+' call stub, no parameter copies). The same answers for every Integer, not only -1 / 0 / 1 (the BASIC each replaces is
+' the comment above it).
+
+' If a < b Then Tand = a Else Tand = b
 Public Function Tand(ByVal a As Integer, ByVal b As Integer) As Integer
-  If a < b Then Tand = a Else Tand = b
+#asm
+            pop hl                  ; a
+            ld e, (hl)
+            inc hl
+            ld d, (hl)
+            pop hl                  ; b
+            ld a, (hl)
+            inc hl
+            ld h, (hl)
+            ld l, a
+            ex de, hl               ; HL = a, DE = b
+            or a
+            sbc hl, de              ; a - b: a < b (signed)?
+            ld a, h
+            jp po, ta_1
+            xor #80
+ta_1:       rla
+            jr nc, ta_b
+            add hl, de              ; a (a - b + b)
+            jr ta_s
+ta_b:       ex de, hl               ; b
+ta_s:
+            ex de, hl
+            pop hl                  ; the answer's address
+            ld (hl), e
+            inc hl
+            ld (hl), d
+#endasm
 End Function
 
+' If a > b Then Tor = a Else Tor = b
 Public Function Tor(ByVal a As Integer, ByVal b As Integer) As Integer
-  If a > b Then Tor = a Else Tor = b
+#asm
+            pop hl                  ; a
+            ld e, (hl)
+            inc hl
+            ld d, (hl)
+            pop hl                  ; b
+            ld a, (hl)
+            inc hl
+            ld h, (hl)
+            ld l, a
+            or a                    ; HL = b, DE = a
+            sbc hl, de              ; b - a: b < a (signed)?
+            ld a, h
+            jp po, to_1
+            xor #80
+to_1:       rla
+            jr c, to_a
+            add hl, de              ; b (b - a + a)
+            jr to_s
+to_a:       ex de, hl               ; a
+to_s:
+            ex de, hl
+            pop hl                  ; the answer's address
+            ld (hl), e
+            inc hl
+            ld (hl), d
+#endasm
 End Function
 
+' Tnot = -a
 Public Function Tnot(ByVal a As Integer) As Integer
-  Tnot = -a
+#asm
+            pop hl                  ; a
+            ld a, (hl)
+            inc hl
+            ld h, (hl)
+            ld l, a
+            xor a
+            sub l
+            ld l, a
+            sbc a, a
+            sub h
+            ld h, a
+            ex de, hl
+            pop hl                  ; the answer's address
+            ld (hl), e
+            inc hl
+            ld (hl), d
+#endasm
 End Function
 
 ' the sign product: 0 if either is 0
+' Tmul = a * b
 Public Function Tmul(ByVal a As Integer, ByVal b As Integer) As Integer
-  Tmul = a * b
+#asm
+            pop hl                  ; a
+            ld e, (hl)
+            inc hl
+            ld d, (hl)
+            pop hl                  ; b
+            ld a, (hl)
+            inc hl
+            ld h, (hl)
+            ld l, a
+            ld a, d                 ; a is 0, 1 or -1 (a trit): 0, b or -b
+            or a
+            jr nz, tm_an
+            ld a, e
+            or a
+            jr z, tm_z
+            dec a
+            jr z, tm_s              ; 1: b
+            jr tm_g
+tm_an:      inc a
+            jr nz, tm_g
+            ld a, e
+            inc a
+            jr nz, tm_g
+            xor a                   ; -1: -b
+            sub l
+            ld l, a
+            sbc a, a
+            sub h
+            ld h, a
+            jr tm_s
+tm_z:       ld hl, 0
+            jr tm_s
+tm_g:       ld b, h                 ; any Integers: the product's low 16 bits, as BASIC's *
+            ld c, l
+            ld hl, 0
+            ld a, 16
+tm_l:       add hl, hl
+            rl c
+            rl b
+            jr nc, tm_n
+            add hl, de
+tm_n:       dec a
+            jr nz, tm_l
+tm_s:
+            ex de, hl
+            pop hl                  ; the answer's address
+            ld (hl), e
+            inc hl
+            ld (hl), d
+#endasm
 End Function
 
 ' the majority: the sign of a + b + c (two agreeing win; 0 when they cancel)
+' s = a + b + c : 1 if s > 0, -1 if s < 0, else 0
 Public Function Tmaj(ByVal a As Integer, ByVal b As Integer, ByVal c As Integer) As Integer
-  Dim s As Integer
-  s = a + b + c
-  If s > 0 Then
-    Tmaj = 1
-  ElseIf s < 0 Then
-    Tmaj = -1
-  Else
-    Tmaj = 0
-  End If
+#asm
+            pop hl                  ; a
+            ld e, (hl)
+            inc hl
+            ld d, (hl)
+            pop hl                  ; b
+            ld a, (hl)
+            inc hl
+            ld h, (hl)
+            ld l, a
+            add hl, de
+            ex de, hl
+            pop hl                  ; c
+            ld a, (hl)
+            inc hl
+            ld h, (hl)
+            ld l, a
+            add hl, de
+            ld a, h
+            or l
+            jr z, tj_s
+            bit 7, h
+            ld hl, 1
+            jr z, tj_s
+            ld hl, -1
+tj_s:
+            ex de, hl
+            pop hl                  ; the answer's address
+            ld (hl), e
+            inc hl
+            ld (hl), d
+#endasm
 End Function
 
 ' x gated by t: x, -x or 0
+' 0 if t = 0, x if t > 0, else -x
 Public Function Gate(ByVal t As Integer, ByVal x As Integer) As Integer
-  If t = 0 Then
-    Gate = 0
-  ElseIf t > 0 Then
-    Gate = x
-  Else
-    Gate = -x
-  End If
+#asm
+            pop hl                  ; t
+            ld e, (hl)
+            inc hl
+            ld d, (hl)
+            pop hl                  ; x
+            ld a, (hl)
+            inc hl
+            ld h, (hl)
+            ld l, a
+            ld a, d
+            or e
+            jr nz, tg_1
+            ld hl, 0
+            jr tg_s
+tg_1:       bit 7, d
+            jr z, tg_s
+            xor a
+            sub l
+            ld l, a
+            sbc a, a
+            sub h
+            ld h, a
+tg_s:
+            ex de, hl
+            pop hl                  ; the answer's address
+            ld (hl), e
+            inc hl
+            ld (hl), d
+#endasm
 End Function
 
 ' a byte (0, 1, 255) as a trit (-1, 0, 1), and back
+' 0 if b = 0, 1 if b = 1, else -1
 Public Function FromByte(ByVal b As Integer) As Integer
-  If b = 0 Then
-    FromByte = 0
-  ElseIf b = 1 Then
-    FromByte = 1
-  Else
-    FromByte = -1
-  End If
+#asm
+            pop hl                  ; b
+            ld a, (hl)
+            inc hl
+            ld h, (hl)
+            ld l, a
+            ld a, h
+            or a
+            jr nz, tf_m
+            ld a, l
+            cp 2
+            jr c, tf_s
+tf_m:       ld hl, -1
+tf_s:
+            ex de, hl
+            pop hl                  ; the answer's address
+            ld (hl), e
+            inc hl
+            ld (hl), d
+#endasm
 End Function
 
+' 0 if t = 0, 1 if t > 0, else 255
 Public Function ToByte(ByVal t As Integer) As Integer
-  If t = 0 Then
-    ToByte = 0
-  ElseIf t > 0 Then
-    ToByte = 1
-  Else
-    ToByte = 255
-  End If
+#asm
+            pop hl                  ; t
+            ld a, (hl)
+            inc hl
+            ld h, (hl)
+            ld l, a
+            ld a, h
+            or l
+            jr z, tb_s
+            bit 7, h
+            ld hl, 1
+            jr z, tb_s
+            ld hl, 255
+tb_s:
+            ex de, hl
+            pop hl                  ; the answer's address
+            ld (hl), e
+            inc hl
+            ld (hl), d
+#endasm
 End Function
 
 ' ---- packed: 4 a byte
 
 ' trit i (0-3) of the packed byte at paddr
+' b = Peek(paddr), \ 4, 16 or 64 for i = 1, 2, 3, And 3: 1 is 1, 3 is -1, else 0
 Public Function Get4(ByVal paddr As Integer, ByVal i As Integer) As Integer
-  Dim b As Integer
-  b = Peek(paddr)
-  If i = 1 Then
-    b = b \ 4
-  ElseIf i = 2 Then
-    b = b \ 16
-  ElseIf i = 3 Then
-    b = b \ 64
-  End If
-  b = b And 3
-  If b = 1 Then
-    Get4 = 1
-  ElseIf b = 3 Then
-    Get4 = -1
-  Else
-    Get4 = 0
-  End If
+#asm
+            pop hl                  ; paddr
+            ld e, (hl)
+            inc hl
+            ld d, (hl)
+            pop hl                  ; i
+            ld a, (hl)
+            inc hl
+            ld h, (hl)
+            ld l, a
+            ld a, (de)
+            ld c, a
+            ld a, h
+            or a
+            jr nz, t4_n             ; (i not 1-3: the byte as it is)
+            ld a, l
+            or a
+            jr z, t4_n
+            cp 4
+            jr nc, t4_n
+            ld b, a
+            ld a, c
+t4_r:       rrca
+            rrca
+            djnz t4_r
+            jr t4_m
+t4_n:       ld a, c
+t4_m:       and 3
+            ld hl, 0
+            cp 1
+            jr nz, t4_3
+            inc hl
+            jr t4_s
+t4_3:       cp 3
+            jr nz, t4_s
+            dec hl
+t4_s:
+            ex de, hl
+            pop hl                  ; the answer's address
+            ld (hl), e
+            inc hl
+            ld (hl), d
+#endasm
 End Function
 
 ' trit i (0-3) of the packed byte at paddr set to t (the other three kept)
+' v = 0, 1 (t > 0) or 3, times 4, 16 or 64 for i = 1, 2, 3 (m = 3, 12, 48, 192): Poke paddr, (Peek(paddr) And (255 - m)) Or v
 Public Sub Set4(ByVal paddr As Integer, ByVal i As Integer, ByVal t As Integer)
-  Dim b As Integer, m As Integer, v As Integer
-  If t = 0 Then
-    v = 0
-  ElseIf t > 0 Then
-    v = 1
-  Else
-    v = 3
-  End If
-  m = 3
-  If i = 1 Then
-    v = v * 4 : m = 12
-  ElseIf i = 2 Then
-    v = v * 16 : m = 48
-  ElseIf i = 3 Then
-    v = v * 64 : m = 192
-  End If
-  b = Peek(paddr)
-  Poke paddr, (b And (255 - m)) Or v
+#asm
+            pop hl                  ; paddr
+            ld e, (hl)
+            inc hl
+            ld d, (hl)
+            pop hl                  ; i
+            ld c, (hl)
+            inc hl
+            ld b, (hl)
+            pop hl                  ; t
+            ld a, (hl)
+            inc hl
+            ld h, (hl)
+            ld l, a
+            ld a, h
+            or l
+            jr z, t5_v
+            bit 7, h
+            ld a, 1
+            jr z, t5_v
+            ld a, 3
+t5_v:       ld l, a                 ; L = v, H = m
+            ld h, 3
+            ld a, b
+            or a
+            jr nz, t5_g             ; (i not 1-3: trit 0's place)
+            ld a, c
+            or a
+            jr z, t5_g
+            cp 4
+            jr nc, t5_g
+            ld b, a
+t5_l:       sla l
+            sla l
+            sla h
+            sla h
+            djnz t5_l
+t5_g:       ex de, hl               ; HL = paddr, D = m, E = v
+            ld a, d
+            cpl
+            and (hl)
+            or e
+            ld (hl), a
+#endasm
 End Sub
 
 ' n trits (bytes 0 / 1 / 255 at addr) packed at paddr, 4 a byte - n a multiple of 4

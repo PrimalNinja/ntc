@@ -5,7 +5,8 @@
 
 			org #0100
 
-NTC_TERM	equ 0		; Option Terminal: 0 none, 1 VT52, 2 ANSI (CP/M)
+NTC_TERM	equ 0		; Option Terminal: 0 none, 1 VT52, 2 ANSI, 3 ADM-3A, 4 Televideo (CP/M)
+NTC_TERM_RT	equ 0		; 1: the program calls StdIO.SetTerminal (the terminal is chosen while it runs)
 NTC_STRMAX	equ 40		; the longest string (library buffers, temps)
 NTC_MEMBANKS	equ 64		; Option Memory: the most 64K banks the Memory class looks for
 NTC_ROMENABLE	equ 0		; Option RomEnable (cpcfw, cpcmin): the start code starts the ROMs
@@ -109,61 +110,61 @@ if1_1_go:			ld sp, if1_1
 ; Inline assembly (#asm ... #endasm)
 ; ============================================================
 
-fn_stdio_putchar:		; sub putchar (asm keyword), StdIO.cls line 30
-            pop hl		; StdIO.cls 31
-            ld a, (hl)		; StdIO.cls 32
-            ld ix, ntc_next		; StdIO.cls 33
-            cp 13		; StdIO.cls 34
-            jp z, ntc_plat_newline		; StdIO.cls 35
-            jp ntc_plat_putc		; StdIO.cls 36
+fn_stdio_putchar:		; sub putchar (asm keyword), StdIO.cls line 58
+            pop hl		; StdIO.cls 59
+            ld a, (hl)		; StdIO.cls 60
+            ld ix, ntc_next		; StdIO.cls 61
+            cp 13		; StdIO.cls 62
+            jp z, ntc_plat_newline		; StdIO.cls 63
+            jp ntc_plat_putc		; StdIO.cls 64
 			ret			; end of #asm
 
-fn_stdio_putstr:		; sub putstr (asm keyword), StdIO.cls line 41
-            pop hl		; StdIO.cls 42
-            ld (ntc_sptr), hl		; StdIO.cls 43
-            jp ntc_printbuf		; StdIO.cls 44
+fn_stdio_putstr:		; sub putstr (asm keyword), StdIO.cls line 69
+            pop hl		; StdIO.cls 70
+            ld (ntc_sptr), hl		; StdIO.cls 71
+            jp ntc_printbuf		; StdIO.cls 72
 			ret			; end of #asm
 
-fn_stdio_putint:		; sub putint (asm keyword), StdIO.cls line 49
-            jp kw_printint		; StdIO.cls 50
+fn_stdio_putint:		; sub putint (asm keyword), StdIO.cls line 77
+            jp kw_printint		; StdIO.cls 78
 			ret			; end of #asm
 
-fn_stdio_newline:		; sub newline (asm keyword), StdIO.cls line 55
-            ld ix, ntc_next		; StdIO.cls 56
-            jp ntc_plat_newline		; StdIO.cls 57
+fn_stdio_newline:		; sub newline (asm keyword), StdIO.cls line 83
+            ld ix, ntc_next		; StdIO.cls 84
+            jp ntc_plat_newline		; StdIO.cls 85
 			ret			; end of #asm
 
-fn_stdio_getchar:		; function getchar (asm keyword), StdIO.cls line 69
-            pop hl              ; the result [70]
-            ld (ntc_ivar), hl		; StdIO.cls 71
-            ld ix, fn_stdio_getchar_got		; StdIO.cls 72
-            jp ntc_plat_getkey		; StdIO.cls 73
-fn_stdio_getchar_got:		; StdIO.cls 74
-            ld hl, (ntc_ivar)		; StdIO.cls 75
-            ld (hl), a		; StdIO.cls 76
-            inc hl		; StdIO.cls 77
-            ld (hl), 0		; StdIO.cls 78
+fn_stdio_getchar:		; function getchar (asm keyword), StdIO.cls line 97
+            pop hl              ; the result [98]
+            ld (ntc_ivar), hl		; StdIO.cls 99
+            ld ix, fn_stdio_getchar_got		; StdIO.cls 100
+            jp ntc_plat_getkey		; StdIO.cls 101
+fn_stdio_getchar_got:		; StdIO.cls 102
+            ld hl, (ntc_ivar)		; StdIO.cls 103
+            ld (hl), a		; StdIO.cls 104
+            inc hl		; StdIO.cls 105
+            ld (hl), 0		; StdIO.cls 106
 			ret			; end of #asm
 
-fn_stdio_getline:		; sub getline (asm keyword), StdIO.cls line 89
-            jp kw_inputstr		; StdIO.cls 90
+fn_stdio_getline:		; sub getline (asm keyword), StdIO.cls line 117
+            jp kw_inputstr		; StdIO.cls 118
 			ret			; end of #asm
 
-fn_stdio_cols:		; function cols (asm keyword), StdIO.cls line 114
-            pop hl		; StdIO.cls 115
-            ld a, (ntc_scols)		; StdIO.cls 116
-            ld (hl), a		; StdIO.cls 117
-            inc hl		; StdIO.cls 118
-            ld (hl), 0		; StdIO.cls 119
+fn_stdio_cols:		; function cols (asm keyword), StdIO.cls line 142
+            pop hl		; StdIO.cls 143
+            ld a, (ntc_scols)		; StdIO.cls 144
+            ld (hl), a		; StdIO.cls 145
+            inc hl		; StdIO.cls 146
+            ld (hl), 0		; StdIO.cls 147
 			ret			; end of #asm
 
-fn_stdio_column:		; function column (asm keyword), StdIO.cls line 124
-            pop hl              ; 1 based, like Locate [125]
-            ld a, (ntc_curx)		; StdIO.cls 126
-            inc a		; StdIO.cls 127
-            ld (hl), a		; StdIO.cls 128
-            inc hl		; StdIO.cls 129
-            ld (hl), 0		; StdIO.cls 130
+fn_stdio_column:		; function column (asm keyword), StdIO.cls line 152
+            pop hl              ; 1 based, like Locate [153]
+            ld a, (ntc_curx)		; StdIO.cls 154
+            inc a		; StdIO.cls 155
+            ld (hl), a		; StdIO.cls 156
+            inc hl		; StdIO.cls 157
+            ld (hl), 0		; StdIO.cls 158
 			ret			; end of #asm
 
 

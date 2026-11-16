@@ -1,0 +1,65 @@
+make raw "bg";
+org 0x8000;
+
+byte[8191] flags;
+int[100] arr;
+int count; int s; int r3; int acc; int cnt7;
+int it; int i; int j; int k; int prime; int t; int p; byte* q;
+
+int add3(int a, int b, int c) {
+  return a + b + c;
+}
+
+out(254, 1);
+// B1 sieve, 3 passes
+for (it = 0; it < 3; it++) {
+  count = 0;
+  for (i = 0; i <= 8190; i++) flags[i] = 1;
+  for (i = 0; i <= 8190; i++) {
+    if (flags[i]) {
+      prime = i + i + 3;
+      k = i + prime;
+      while (k <= 8190) { flags[k] = 0; k = k + prime; }
+      count++;
+    }
+  }
+}
+out(254, 2);
+// B2 loop + add
+s = 0;
+for (i = 1; i <= 30000; i++) s = s + i;
+out(254, 3);
+// B3 function calls
+r3 = 0;
+for (i = 1; i <= 10000; i++) r3 = add3(r3, i, 1);
+out(254, 4);
+// B4 mul / div / mod
+acc = 0;
+for (i = 1; i <= 5000; i++) acc = acc + (i * 7) / 3 + i % 5;
+out(254, 5);
+// B5 bubble sort, 100 ints
+for (i = 0; i < 100; i++) arr[i] = 100 - i;
+for (i = 0; i < 99; i++) {
+  for (j = 0; j < 99 - i; j++) {
+    if (arr[j] > arr[j + 1]) { t = arr[j]; arr[j] = arr[j + 1]; arr[j + 1] = t; }
+  }
+}
+out(254, 6);
+// B6 poke fill, 6144 bytes x 4
+for (p = 0; p < 4; p++) {
+  q = 0xC000;
+  for (i = 0; i < 6144; i++) { *q = p; q++; }
+}
+out(254, 7);
+// B7 nested loops + test
+cnt7 = 0;
+for (i = 0; i < 100; i++) {
+  for (j = 0; j < 100; j++) {
+    if ((i + j) & 1) cnt7++;
+  }
+}
+out(254, 8);
+__asm__ {
+  di
+  halt
+}

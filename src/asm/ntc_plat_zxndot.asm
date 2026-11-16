@@ -474,11 +474,14 @@ dotl_free:
 			db #94
 			ret
 
+; (only when the program's own code names dot_fs_...: NTC_DOT_FS, set by the compiler - 20261116-4)
+	IFDEF NTC_DOT_FS
 ; ---- esxDOS file calls for a FileSystem class (the Large Model): dot_fs_call runs on BASIC's
 ; side (HL = dot_fs_call : call dot_os) - NextZXOS pages its own RAM over #C000-#FFFF and reads
 ; BASIC's system variables during a call, so the call's stack, the name and the data must not be
 ; in the program's pages: the name goes in dot_fs_name, a stat buffer is dot_fs_stat, file data
-; goes through dot_fs_data (256 bytes a call), all in this 8K, which is in both maps.
+; goes through dot_fs_data (256 bytes a call), all in this 8K, which is in both maps - in the
+; buffer Option Buffer address, size puts there (20261116-5: they were 336 bytes of their own).
 ; In: dot_fs_hook (F_OPEN ...), dot_fs_a, dot_fs_bc, dot_fs_de, dot_fs_hl (HL and IX: NextZXOS
 ; reads a name's pointer from HL, esxDOS from IX). Out: dot_fs_a, dot_fs_bc, dot_fs_de,
 ; dot_fs_cy (1 = carry: an error, A its code)
@@ -506,9 +509,13 @@ dot_fs_cy:		db 0
 dot_fs_bc:		dw 0
 dot_fs_de:		dw 0
 dot_fs_hl:		dw 0
-dot_fs_name:	ds 64
-dot_fs_stat:	ds 16
-dot_fs_data:	ds 256
+; the name, the stat buffer and the data go in the library's buffer, which the program places
+; in this 8K with Option Buffer address, size (336 bytes or more, after the DOT's own code)
+dot_fs_name		equ ntc_dotfs_buf		; 64 bytes
+dot_fs_stat		equ ntc_dotfs_buf + 64	; 16 bytes
+dot_fs_data		equ ntc_dotfs_buf + 80	; 256 bytes
+			ASSERT (NTC_BUFSIZE >= 336) && (ntc_dotfs_buf >= ntc_dot8k_end) && (ntc_dotfs_buf + 336 <= #4000), "dot_fs_call: its buffers are the Option Buffer buffer, which must be in the DOT's 8K, after its code - Option Buffer address, 336 (or more) with the address between the end of the 8K's code (ntc_dot8k_end: see the listing) and &H4000 - 336"
+	ENDIF
 	ENDIF
 
 ;## ntc_plat_data
@@ -610,12 +617,8 @@ ntc_plat_locate:
 			ld (ntc_curx), a
 			ld (dot_col), a
 			ld a, l
-			dec a
-			cp 22					; (past BASIC's screen the ROM's AT stops the command with an error: row 22 is
-			jr c, ntc_lc_row		; the last. Columns are left to the ROM - BASIC may be in a wider mode)
-			ld a, 21
-ntc_lc_row:
-			ld (ntc_cury), a
+			dec a					; (a row past BASIC's screen is the ROM's to refuse: its AT stops the
+			ld (ntc_cury), a		; command with an error - nothing is clamped here, 20261116-1)
 			ld (dot_row), a
 			ld (ntc_ip), sp
 			ld sp, (ntc_csp)

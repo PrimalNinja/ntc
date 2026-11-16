@@ -18,7 +18,8 @@ ntc_trs_start:
 			out (INTMASK), a        ; E0 = 0: no maskable interrupts (turbo)
 			jp ntc_start
 
-NTC_TERM	equ 0		; Option Terminal: 0 none, 1 VT52, 2 ANSI (CP/M)
+NTC_TERM	equ 0		; Option Terminal: 0 none, 1 VT52, 2 ANSI, 3 ADM-3A, 4 Televideo (CP/M)
+NTC_TERM_RT	equ 0		; 1: the program calls StdIO.SetTerminal (the terminal is chosen while it runs)
 NTC_STRMAX	equ 40		; the longest string (library buffers, temps)
 NTC_MEMBANKS	equ 64		; Option Memory: the most 64K banks the Memory class looks for
 NTC_ROMENABLE	equ 0		; Option RomEnable (cpcfw, cpcmin): the start code starts the ROMs
@@ -324,7 +325,7 @@ p_summary:
 			dw kw_cpeqvl, var_n, 0
 			dw kw_goto_iffalse_n, if11_1
 
-			; main.bas 103: Print "No RAM pages (Option Memory Small)"
+			; main.bas 103: Print "No RAM pages (Option Memory Heap Main)"
 			dw kw_printstrvar, str29
 			dw kw_printnl
 
@@ -800,7 +801,7 @@ str25:			db "C code D data U user - free", 0
 str26:			db "After Free: largest block 0", 0
 str27:			db "After Free: 0 pages free", 0
 str28:			db "Pages 0", 0
-str29:			db "No RAM pages (Option Memory Small)", 0
+str29:			db "No RAM pages (Option Memory Heap Main)", 0
 str30:			db "0K, ", 0
 str31:			db " pages: main + ", 0
 str32:			db " banks", 0

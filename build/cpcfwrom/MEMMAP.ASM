@@ -6,7 +6,8 @@
 			DEVICE AMSTRADCPC6128		; for SAVEAMSDOS at the end
 			org #0040
 
-NTC_TERM	equ 0		; Option Terminal: 0 none, 1 VT52, 2 ANSI (CP/M)
+NTC_TERM	equ 0		; Option Terminal: 0 none, 1 VT52, 2 ANSI, 3 ADM-3A, 4 Televideo (CP/M)
+NTC_TERM_RT	equ 0		; 1: the program calls StdIO.SetTerminal (the terminal is chosen while it runs)
 NTC_STRMAX	equ 255		; the longest string (library buffers, temps)
 NTC_MEMBANKS	equ 64		; Option Memory: the most 64K banks the Memory class looks for
 NTC_ROMENABLE	equ 0		; Option RomEnable (cpcfw, cpcmin): the start code starts the ROMs
@@ -375,7 +376,7 @@ p_summary:
 			dw kw_cpeqvl, var_n, 0
 			dw kw_goto_iffalse_n, if11_1
 
-			; main.bas 103: Print "No RAM pages (Option Memory Small)"
+			; main.bas 103: Print "No RAM pages (Option Memory Heap Main)"
 			dw kw_printstrvar, str33
 			dw kw_printnl
 
@@ -1652,7 +1653,7 @@ ntc_rg110_e:
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
 ntc_rg111:
-str33:			db "No RAM pages (Option Memory Small)", 0
+str33:			db "No RAM pages (Option Memory Heap Main)", 0
 ntc_rg111_e:
 			IF ($ < 32768) && (ntc_rg112_e - ntc_rg112 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it

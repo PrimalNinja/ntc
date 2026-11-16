@@ -16,7 +16,7 @@ NTC_PLATRSV	equ 0
 NTC_ISLN	equ 16		; (the ROM serves up to 16 interrupt classes)
 NTC_ROM_N	equ 356			; numbers in the index
 NTC_ROM_COUNT	equ 1			; ROMs in the set (NTCFW.ROM)
-NTC_ROM_SET	equ #B8D7		; the set's stamp (its ROMs find each other by it)
+NTC_ROM_SET	equ #3450		; the set's stamp (its ROMs find each other by it)
 MEM_WIN		equ #4000
 MEM_BADPAGE	equ -2
 MEM_BANKS	equ NTC_MEMBANKS	; 0 - 64
@@ -5744,16 +5744,6 @@ mem_atend:
 			ld a, (mem_hhi + 1)
 			cp h
 			ret
-mem_cap:
-			ld a, h
-			cp #40
-			ret c
-			scf
-			ccf
-			ret nz
-			ld a, l
-			cp 1					; #4000 exactly: C
-			ret
 mem_fit:
 			ld hl, (mem_hlo)
 mem_f_lp:
@@ -5763,9 +5753,9 @@ mem_f_lp:
 			inc hl
 			ld d, (hl)
 			dec hl
-			bit 7, d
+			bit 0, e
 			jr z, mem_f_free
-			res 7, d
+			res 0, e
 mem_f_next:
 			add hl, de
 			jr mem_f_lp
@@ -5777,13 +5767,11 @@ mem_f_free:
 			ld c, (hl)
 			inc hl
 			ld b, (hl)
-			bit 7, b
+			bit 0, c
 			jr nz, mem_f_last
-			ld h, d					; free too: join them, up to #4000
+			ld h, d					; free too: join them
 			ld l, e
 			add hl, bc
-			call mem_cap
-			jr nc, mem_f_last
 			ex de, hl
 			pop hl
 			ld (hl), e
@@ -5820,11 +5808,11 @@ mem_f_cut:
 			ld (hl), d
 			pop hl
 mem_f_take:
-			ld (hl), c
-			inc hl
-			ld a, b
-			or #80
+			ld a, c
+			or 1					; in use
 			ld (hl), a
+			inc hl
+			ld (hl), b
 			inc hl
 			xor a
 			ret
@@ -5845,9 +5833,9 @@ mem_b_lp:
 			inc hl
 			ld d, (hl)
 			dec hl
-			bit 7, d
+			bit 0, e
 			jr z, mem_b_free
-			res 7, d
+			res 0, e
 mem_b_next:
 			add hl, de
 			jr mem_b_lp
@@ -5859,13 +5847,11 @@ mem_b_free:
 			ld c, (hl)
 			inc hl
 			ld b, (hl)
-			bit 7, b
+			bit 0, c
 			jr nz, mem_b_end
 			ld h, d
 			ld l, e
 			add hl, bc
-			call mem_cap
-			jr nc, mem_b_end
 			ex de, hl
 			pop hl
 			ld (hl), e
@@ -6731,6 +6717,8 @@ mem_al_size:
 			jr nc, mem_al_fail
 			inc hl
 			inc hl
+			inc hl
+			res 0, l				; (with its header, made even)
 			ld (mem_need), hl
 			ld bc, (mem_keep)
 			call mem_tpb
@@ -6799,9 +6787,10 @@ mem_free:
 			call mem_sel
 			ex de, hl
 			dec hl
-			bit 7, (hl)
+			dec hl
+			bit 0, (hl)
 			jr z, mem_err_page
-			res 7, (hl)
+			res 0, (hl)
 			ld hl, #4000			; is the whole page free now?
 			ld (mem_need), hl
 			push bc
@@ -7211,6 +7200,8 @@ ntc_ovl_la1:
 			jr nc, ntc_ovl_la0
 			inc hl
 			inc hl
+			inc hl
+			res 0, l				; (with its header, made even)
 			ld (mem_need), hl
 			call ntc_ovl_lreg
 			jr z, ntc_ovl_la0
@@ -7251,9 +7242,10 @@ ntc_ovl_lfree:
 			jp nc, mem_chk_bad
 			add hl, de
 			dec hl
-			bit 7, (hl)
+			dec hl
+			bit 0, (hl)
 			jp z, mem_chk_bad
-			res 7, (hl)
+			res 0, (hl)
 			ld hl, 0
 			ret
 ;## ntc_ovl ntc_ovlcom ntc_mem ntc_plat_fs @shared
@@ -7342,10 +7334,23 @@ ntc_ovl_core:
 			ld (ovl_cix), ix
 			ld sp, (ntc_csp)
 			call mem_start
+	IFDEF NTC_PGFIX
+			ld hl, (ovl_blk)
+			call ntc_ovl_fixed		; Option Page "FILE" Loaded n: its own page, not a free one
+			jr z, ntc_ovl_anyp
+			ld hl, (mem_count)		; (is there such a page in this machine?)
+			or a
+			sbc hl, bc
+			ld hl, OVL_NOPAGE
+			jp c, ntc_ovl_cback
+			jr ntc_ovl_got
+ntc_ovl_anyp:
+	ENDIF
 			ld a, 2					; a free page onto the C list
 			call mem_take
 			ld hl, OVL_NOPAGE
-			jr z, ntc_ovl_cback
+			jp z, ntc_ovl_cback
+ntc_ovl_got:
 			ld (ovl_new), bc
 			ld h, b
 			ld l, c
@@ -7386,12 +7391,46 @@ ntc_ovl_cback:
 			jp (ix)
 ntc_ovl_cfail:
 			push hl
+	IFDEF NTC_PGFIX
+			ld hl, (ovl_blk)
+			call ntc_ovl_fixed
+			jr nz, ntc_ovl_cf1		; (its own page, Loaded n: it stays taken)
+	ENDIF
 			ld bc, (ovl_new)		; the page goes back to free
 			ld a, 2
 			call mem_remove
 			call mem_tofree
+ntc_ovl_cf1:
 			pop hl
 			jr ntc_ovl_cback
+	IFDEF NTC_PGFIX
+ntc_ovl_fixed:
+			ex de, hl
+			ld hl, ntc_pgfix
+ntc_ovl_fx1:
+			ld c, (hl)
+			inc hl
+			ld b, (hl)
+			inc hl
+			ld a, b
+			or c
+			ret z
+			ld a, c
+			cp e
+			jr nz, ntc_ovl_fx2
+			ld a, b
+			cp d
+			jr nz, ntc_ovl_fx2
+			ld c, (hl)
+			inc hl
+			ld b, (hl)
+			or 1
+			ret
+ntc_ovl_fx2:
+			inc hl
+			inc hl
+			jr ntc_ovl_fx1
+	ENDIF
 ntc_ovl_kload:
 			ld (ovl_ksp), sp
 			ld (ovl_blk), hl
@@ -7427,6 +7466,12 @@ ntc_ovl_kunload:
 			ld (hl), a
 			dec hl
 			ld (hl), a
+	IFDEF NTC_PGFIX
+			push bc
+			call ntc_ovl_fixed		; Option Page ... Loaded n: the page stays its own (the next call loads the file into it again)
+			pop bc
+			jr nz, ntc_ovl_kzero
+	ENDIF
 			ld a, 2
 			call mem_remove
 			call mem_tofree

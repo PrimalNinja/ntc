@@ -50,16 +50,11 @@ function Rng(p0, p1, p2, p3)
 	function pick(n)
 	{
 		if (n <= 1) { return 0; }
-		var m = 1, v;
-		while (m < n - 1) { m = m * 2 + 1; }
-		do
-		{
-			if (fromPool) { v = pw(); }
-			else if (m > 255) { v = rb(); v = ((v * 256) + rb()) & 0xFFFF; }
-			else { v = rb(); }
-			v &= m;
-		} while (v >= n);
-		return v;
+		var v;
+		if (fromPool) { v = pw() & 32767; }                                     // the bytes as they come, wrapped into the range: no retry (as src/Rng.cls)
+		else if (n > 256) { v = rb(); v = ((v * 256) + rb()) & 32767; }
+		else { v = rb(); }
+		return v % n;
 	}
 	function reseed()
 	{

@@ -7,7 +7,7 @@
 ' only what's what and what a hit does - the whole game is BASIC.
 Option Explicit
 Option Turbo
-Option NexData "ROCKS.DAT", 1
+Option SaveNex "ROCKS.DAT", 3      ' <--- CHANGED (20261116-7; was Option NexData "ROCKS.DAT", 1)   the data file in page 3 of the NEX file (the Next's bank 3)
 
 Const K_FIRE = 64
 Const C_HUD = 13 * 16 + 13, C_DIM = 13 * 16 + 7, C_RED = 2 * 16 + 11, C_GOLD = 6 * 16 + 14

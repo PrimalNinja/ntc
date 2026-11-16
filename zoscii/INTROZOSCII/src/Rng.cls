@@ -155,7 +155,7 @@ Public Sub Frame()
   End If
 End Sub
 
-' Pw: a 16 bit value from the pool; Pick(n): 0 to n-1 from the pool, every value as likely as any other
+' Pw: a 16 bit value from the pool
 Private Function Pw() As Integer
   Round
   Pw = p0 Xor p1 Xor p2 Xor p3
@@ -376,28 +376,21 @@ Private Sub Place(ByVal r As Integer, ByVal blk As Integer, ByVal sb As Integer,
 #endasm
 End Sub
 
-' Pick n: a random number 0 to n-1 (0 if n < 2), every value as likely as any other. (Reseed uses it with the pool, as the readers
-' aren't placed yet.)
+' Pick n: a number 0 to n-1 (0 if n < 2): the bytes as the material gives them, wrapped into the range (Mod). Nothing is thrown away or
+' evened out. (Reseed uses it with the pool, as the readers aren't placed yet.)
 Public Function Pick(ByVal n As Integer) As Integer
-  Dim m As Integer, v As Integer
+  Dim v As Integer
   Pick = 0
   If n <= 1 Then Exit Function
-  m = 1
-  Do While m < n - 1
-    m = m * 2 + 1
-  Loop
-  Do
-    If fromPool <> 0 Then
-      v = Pw()
-    ElseIf m > 255 Then
-      v = Rb()
-      v = v * 256 + Rb()
-    Else
-      v = Rb()
-    End If
-    v = v And m
-  Loop Until v < n
-  Pick = v
+  If fromPool <> 0 Then
+    v = Pw() And 32767
+  ElseIf n > 256 Then
+    v = Rb()
+    v = (v * 256 + Rb()) And 32767
+  Else
+    v = Rb()
+  End If
+  Pick = v Mod n
 End Function
 
 ' Start a, b, c, d: the pool begins as these 64 bits (the program passes the digits of pi: the first events have something to mix

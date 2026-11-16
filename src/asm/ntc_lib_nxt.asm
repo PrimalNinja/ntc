@@ -23,7 +23,8 @@
 
 ;## ntc_nxt_bank ntc_mem @far @if:ntc_mem_cpcexpansion
 	IFDEF NTC_ZXN
-; nxt_mem_probe - 16K banks from ZXN_FIRSTBANK up are free RAM. Map each into the
+; nxt_mem_probe - the 16K banks from ZXN_FIRSTBANK (2: page n is the Next's bank n, 20261116-6) up:
+; which are there. Map each into the
 ; window, mark it, re-read; the contiguous run that still holds its marker is
 ; usable. Sets mem_banks (64K banks = usable 16K banks / 4). Called from mem_probe;
 ; leaves interrupts off (the boot re-enables, as the CPC path does).
@@ -38,12 +39,15 @@ nxt_mem_probe:
 			ld c, ZXN_FIRSTBANK
 			ld hl, zxn_pr_sv
 zxn_pr_w:
+			call zxn_pr_own			; (the program's own banks: there, and never marked - the
+			jr z, zxn_pr_w2			; program's code is in them, this routine's included)
 			call zxn_pr_map			; 16K bank C into #4000-#7FFF
 			ld a, (MEM_WIN)
 			ld (hl), a				; the byte there, kept
-			inc hl
 			ld a, c
 			ld (MEM_WIN), a			; marker = the bank number
+zxn_pr_w2:
+			inc hl
 			inc c
 			ld a, c
 			cp ZXN_FIRSTBANK + ZXN_MAXBANK
@@ -51,10 +55,13 @@ zxn_pr_w:
 			ld b, 0					; usable 16K banks
 			ld c, ZXN_FIRSTBANK
 zxn_pr_r:
+			call zxn_pr_own
+			jr z, zxn_pr_r2
 			call zxn_pr_map
 			ld a, (MEM_WIN)
 			cp c					; still its own marker (real, not absent / aliased)?
 			jr nz, zxn_pr_done
+zxn_pr_r2:
 			inc b
 			inc c
 			ld a, c
@@ -65,9 +72,12 @@ zxn_pr_done:
 			ld c, ZXN_FIRSTBANK + ZXN_MAXBANK - 1
 			ld hl, zxn_pr_sv + ZXN_MAXBANK - 1
 zxn_pr_rs:
+			call zxn_pr_own
+			jr z, zxn_pr_rs2
 			call zxn_pr_map			; every bank's byte back, highest first
 			ld a, (hl)
 			ld (MEM_WIN), a
+zxn_pr_rs2:
 			dec hl
 			ld a, c
 			cp ZXN_FIRSTBANK
@@ -76,10 +86,12 @@ zxn_pr_rs:
 			jr zxn_pr_rs
 zxn_pr_rsd:
 			pop bc
-			ld c, 9					; the program's own window bank back
+			ld c, 1					; the program's own window bank back
 			call zxn_pr_map
-			ld a, b					; 64K banks = usable 16K banks / 4
-			srl a
+			ld a, b
+			ld (zxn_usable), a		; pages 2 .. usable + 1 are there
+			add a, 3				; 64K banks = usable 16K banks / 4, rounded up: the pages of the last
+			srl a					; one that are not there are marked taken (mem_tb_zx)
 			srl a
 			ld (mem_banks), a
 			or a
@@ -95,6 +107,20 @@ zxn_pr_fl:
 zxn_pr_nf:
 			ret
 zxn_pr_sv:	ds ZXN_MAXBANK			; the probe's kept bytes (one a bank)
+zxn_usable:	db 0					; the 16K banks found from ZXN_FIRSTBANK up
+; zxn_pr_own - C = a 16K bank: Z when it is one of the program's own (0, 1, 2: #0000-#BFFF; 5:
+; #C000-#FFFF). Keeps BC, DE, HL
+zxn_pr_own:
+			ld a, c
+			cp 5
+			ret z
+			cp 3
+			jr nc, zxn_pr_no		; 0, 1, 2: its own
+			xor a
+			ret
+zxn_pr_no:
+			or 1					; NZ
+			ret
 ; zxn_pr_map - C = a 16K bank into #4000-#7FFF (MMU slots 2, 3 = NextReg #52, #53). Keeps C.
 zxn_pr_map:
 			push bc
@@ -131,14 +157,14 @@ nxt_mem_jbc:
 			ret
 
 ; nxt_mem_bank - BC = a RAM setting -> A = its 16K Next bank: B = #7F (main RAM's own,
-; #7FC0) = bank 9 (the program's own pages 18, 19); else C = ordinal * 8 + 4 + page
+; #7FC0) = bank 1 (the program's own window); else C = ordinal * 8 + 4 + page
 ; -> ZXN_FIRSTBANK + ordinal * 4 + page (the whole bank's "2" and the pages 0-3
 ; (#C0-#C3 on the CPC: main RAM's blocks) all give its page 0). Keeps BC, DE, HL.
 nxt_mem_bank:
 			ld a, b
 			cp #7F
 			jr nz, nxt_mb_pg
-			ld a, 9
+			ld a, 1
 			ret
 nxt_mb_pg:
 			ld a, c
@@ -190,12 +216,12 @@ nxt_win:
 
 ; nxt_mem_se_out - BC = the RAM setting (B = ZXN_SETB, C = the bank's ordinal * 8 + 4 +
 ; page: nxt_mem_bank): the Next 16K bank into the window (slots 2, 3). B = #7F (page 1 /
-; plain RAM) = the program's own window bank 9. Reached by jp from mem_se_out; exits
+; plain RAM) = the program's own window bank 1. Reached by jp from mem_se_out; exits
 ; through mem_se_end. Called on the real stack (mem_sel pushed there).
 ; ntc_zxsel is kept so an interrupt handler can re-assert the window.
 nxt_mem_se_out:
 			ld (ntc_rampt), bc
-			call nxt_mem_bank			; A = the 16K Next bank (B = #7F: main RAM's own, bank 9)
+			call nxt_mem_bank			; A = the 16K Next bank (B = #7F: main RAM's own, bank 1)
 			add a, a					; first 8K page = Next 16K bank * 2
 			ld d, a
 			ld bc, #243B

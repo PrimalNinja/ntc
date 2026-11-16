@@ -1,16 +1,16 @@
 ' Overlays: two classes built into their own files (OVERLAYS.001, OVERLAYS.002: the program's
 ' name, numbered) in the same compile. Each runs at #4000. Keep them on the disc with the program.
-' cpcmin / cpcfw (Option Memory CPCExpansion, needs a 6128 or more RAM): each class gets its
+' cpcmin / cpcfw (Option Memory Heap Pages, needs a 6128 or more RAM): each class gets its
 ' own RAM page, loaded by its first call, and stays there.
-' cpm (and Option Memory Small): one overlay area at #4000-#7FFF - a call loads its class
+' cpm (and Option Memory Heap Main): one overlay area at #4000-#7FFF - a call loads its class
 ' there over the one that was, a return loads the caller's class again if it was swapped out.
 Option PressAnyKeyOnEnd "Press a key"     ' at the end: a message and a key (a RUN" program resets when it ends)
 Option Explicit
 #If NTC_CPCMIN Then
-Option RomEnable 7                ' RUN" drops AMSDOS: start it again, the overlays load from disc
+Option ROM Enable 7                ' RUN" drops AMSDOS: start it again, the overlays load from disc
 #End If
 #If NTC_CPCFW Then
-Option RomEnable 7
+Option ROM Enable 7
 #End If
 Option Memory Reserved &H4000, &H4000     ' the program stays out of the window the overlays run in
 Dim lvl As Integer, score As Integer

@@ -132,8 +132,7 @@ A program is built only for the mode(s) it runs in: one mode, one copy of everyt
 code reached in both modes (a program with `Turbo On` / `Turbo Off`, or a procedure an
 interrupt Tick calls as well as turbo code) is built twice.
 
-`Option CompactCalls`: smaller call / return stubs through shared routines (docs/NTC.md, section
-2) for a program short of memory.
+ByRef parameters are passed in place (the call fills the address into the procedure's code; docs/NTC.md, section 2). `Option CompactCalls` is gone.
 
 `Option NoTurbo`: normal mode only - `Turbo On` / `Turbo Off` become no-ops with a warning, the
 start mode is normal whatever `Option Turbo` or the build setting say, so what would have been
@@ -274,7 +273,7 @@ Files (ES5, no node, no Python):
 | `asm/ntc_plat_zxn.asm` | ZX Spectrum Next platform, straight to the hardware, laid out as the `cpc` one: the tilemap as the text screen, the 8 x 5 keyboard, the line interrupt every 52 lines; the compiler adds the NEX file's start stub (NMI off, the MMU slots) |
 | `asm/ntc_plat_msx.asm` | MSX platform: a cartridge ROM (`"AB"` at #4000, 16K / 32K, the variables in RAM from #C010 - the compiler's romLayout), the BIOS kept (its keyboard buffer, its interrupt: JIFFY, H.TIMI for normal mode), the console on the MSX's own video chip (`asm/ntc_lib_vdp.asm`) |
 | `asm/ntc_plat_msxcard.asm`, `ntc_plat_msx9990.asm` | `;@base msx` with the console on a V9938 card at #88 / a V9990 at #60 (their own `ntc_plat_vdev` section in place of msx's) |
-| `asm/ntc_plat_msxdos.asm`, `asm/ntc_lib_msx.asm` | `;@base cpm`: an MSX-DOS 2 / Nextor `.COM` - the frame interrupt (H.TIMI, JIFFY) and the memory mapper as Option Memory CPCExpansion's pages (MSX-DOS 2's mapper support: ALL_SEG, PUT_P1); `test/msxrun.py` its harness (the mapper, the VDP, the interrupt, the DOS's mapper support) |
+| `asm/ntc_plat_msxdos.asm`, `asm/ntc_lib_msx.asm` | `;@base cpm`: an MSX-DOS 2 / Nextor `.COM` - the frame interrupt (H.TIMI, JIFFY) and the memory mapper as Option Memory Heap Pages's pages (MSX-DOS 2's mapper support: ALL_SEG, PUT_P1); `test/msxrun.py` its harness (the mapper, the VDP, the interrupt, the DOS's mapper support) |
 | `asm/ntc_plat_colecovision.asm` | ColecoVision: a cartridge ROM at #8000 (8K-32K, the #55 #AA header and start), 1K of RAM at #6000, Option Turbo (the VDP's frame NMI kept off: the frame polled); no console - the program draws (`test/coleco/ball/Coleco.cls`). Built and checked by `tools/coleco/` (build.js, run.mjs) |
 | `asm/ntc_plat_sc3000.asm` | Sega SC-3000: a cartridge ROM at #0000 (16K / 32K / 48K, the restart vectors), 2K of RAM, the TMS9918 console, the keyboard matrix, the frame interrupt |
 | `asm/ntc_plat_cpccard.asm`, `ntc_plat_cpc9990.asm` | `;@base cpc` with the console on an MSX V9938 card (AMSDAP, &FF88) / a V9990 (AMSDAP or Powergraph, &FF60) |
@@ -367,7 +366,7 @@ p_add:                                  ; body (thread)
   `c.Total` / `c.Limit = 3` / `Counter.Total` all resolve at compile time.
 - There is no run time object: every variable of a class uses the class's one set of
   members.
-- Planned: `Option ClassSize <kilobytes>` to keep a class's code within a size so classes
+- (`Option ClassSize` is gone, 20261116-1: it was accepted and did nothing.) It was to keep a class's code within a size so classes
   can be banking units. Accepted, not enforced yet.
 
 ### Platforms
@@ -415,8 +414,8 @@ lines on by each one - 6 a frame of 312 lines, 300 a second, as the CPC's 6 a fr
 for raster line 192. `End` is a soft reset (NextReg 2) back to NextZXOS. No files yet (FileSystem
 says NotSupported), Memory is Small only. Graphics draws on Layer 2 (320 x 256, double buffered,
 the CPC's 320 x 200 shown 28 rows down; the platform's own `ntc_gfx`, in place of the library's);
-`Option NexData "FILE", blocks` puts a data file's 16K blocks in the NEX file's banks (1-4, 6, 7,
-11, 22-111; `ntc_nexdata`: the count, then each block's bank) - `zxn_sel` (HL = a bank) puts one
+`Option SaveNex "FILE", pages` (it replaced `Option NexData` in 20261116-5) puts a data file's 16K pieces in the NEX file, in the pages
+named (page n is the Next's 16K bank n, 20261116-6) - `zxn_sel` (HL = a bank) puts one
 in #4000-#7FFF. `#If NTC_ZXN` is predefined; the assembly has `DEFINE NTC_ZXN` (only there:
 `IFDEF NTC_ZXN` in the library and in `#asm` - sjasmplus's IFDEF tests DEFINEs, not labels).
 
@@ -718,8 +717,8 @@ variables, `Declare`.
 - `Option Stack address`: the start code saves the caller's SP (`ntc_ssp`), sets SP, and pushes
   `ntc_sback` (switch back to the caller's SP, ret) so `End` (`kw_stop`: `ld sp,(ntc_csp) / ret`)
   still returns to the caller. ASSERT: below `ntc_start` or 64+ bytes above `ntc_end`. Options
-  are all read first; the start code applies Stack, then RomEnable, then runs the program.
-- `Option RomEnable All | rom [, rom] ...` (cpcfw): the start code starts the background ROMs
+  are all read first; the start code applies Stack, then ROM Enable, then runs the program.
+- `Option ROM Enable All | rom [, rom] ...` (cpcfw): the start code starts the background ROMs
   again (KL ROM WALK / KL INIT BACK per ROM, DE = `ntc_end`, HL = `#ABFF`) unless CAS IN OPEN
   is already AMSDOS's far call (`#DF` at `#BC77`: the program was CALLed and they run).
   `RUN"` of a binary resets the firmware and drops them. Writes `NTC_ROMENABLE equ 0 / 1`.
@@ -834,7 +833,7 @@ give Failed while it is open; `fs_hmode` is in `ntc_plat_fs`). cpcmin: the same;
 other host calls; `ntc_capfind` (in `ntc_lib.asm`) searches a class's capability table and
 leaves Z set when found. Details in `userguide.md` section 17.
 
-**ROMDISC** (volume R; `ntc_lib.asm` section `ntc_romdisc`, `@ramonly`; per platform
+**ROM disc** (the `ROMDiscFS` class since 20261116-5 - no longer volume R of FileSystem; `ntc_lib_cpc.asm` section `ntc_romdisc`, `@ramonly`; per platform
 `ntc_plat_romsel` - `rd_sel` / `rd_unsel`: cpc straight to the gate array and `#DFxx`, keeping
 `ntc_rx_cur` right in a Library: ROM program; cpcmin / cpcfw KL ROM SELECT / DESELECT, inside
 `fs_go` where the firmware is alive - and on cpcmin / cpcfw `ntc_plat_rdroute`). Read-only files
@@ -853,7 +852,7 @@ these run on the thread (no call, no push), copy `fs_a1 .. fs_res` into `rd_a1 .
 is picked, and jump to `fs_go` / `fs_go0`. No disc driver: FileSystem's methods just reach the
 disc's routines when the volume is R.
 
-**Memory.** `Option Memory Small | CPCExpansion [maxpages]` picks the scheme when
+**Memory.** `Option Memory Heap Main | Pages` picks the scheme when
 compiling (`NTC_MEM_SMALL` / `NTC_MEM_CPCEXPANSION` for `#If`; library sections marked
 `@if:ntc_mem_small` / `@if:ntc_mem_cpcexpansion` - a section whose `#Const` isn't set isn't in
 the library, so both schemes can use the same labels and the class file stays one).
@@ -1015,7 +1014,7 @@ Checked with the real 6128 ROMs: `test/realcpc.c` (scratch tool, see `test/READM
 **Arrays after the program.** Arrays (and array descriptors) are no longer `ds` blocks in
 the program: the compiler gives them addresses after `ntc_end` (`ntc_bss`, `equ`s), so they
 are not in the file. `ntc_free` (= `ntc_bss` + their size) is the first free byte: the
-Memory class's tables, the Small heap, `Option RomEnable`'s lowest address and the
+Memory class's tables, the Small heap, `Option ROM Enable`'s lowest address and the
 `Option Reserve` / Stack / FileSystem / overlay checks all use it. The main thread starts with
 `kw_bssinit, ntc_bss, ntc_bss_size` (after the screen set-up): it checks the arrays fit under
 `ntc_plat_memtop` (and 256 bytes under the real stack when that is above them), clears them,
@@ -1395,4 +1394,3 @@ python3 guitest5.py
   it, the class keeps per instance state in its own arrays. Private members can't be used
   from outside the class.
 - Open: keep `Dim c As Counter` (it only names the one set of members) or make it an error.
-- `Option ClassSize <kilobytes>` for banking (planned, not enforced).

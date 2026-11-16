@@ -1,4 +1,4 @@
-' FileSystem on the CPC firmware without Option RomEnable: AMSDOS only if it kept running
+' FileSystem on the CPC firmware without Option ROM Enable: AMSDOS only if it kept running
 ' (CALLed from BASIC: disc; RUN": tape)
 Option Explicit
 Dim a(3) As Integer

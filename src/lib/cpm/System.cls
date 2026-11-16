@@ -39,7 +39,7 @@ End Function
 ' HasCapability(name): True (-1) when this platform can do it, else False (0). The names:
 ' COMMANDLINE (System.CommandLine has the command tail), SCREEN (rows and columns, not a
 ' stream), KEYBOARD, CLOCK (Ticks counts), HOOK (the Interrupt statement), INTERRUPTCLASSES
-' (Option Class Interrupt), PAGES (RAM pages with Option Memory CPCExpansion), FILES
+' (Option Class Interrupt), PAGES (RAM pages with Option Memory Heap Pages), FILES
 ' (FileSystem Load / Save ...), ROMCOMMANDS (System.Command), OVERLAYS (Option Class Overlay)
 Public Function HasCapability(ByVal name As String) As Integer
 #asm

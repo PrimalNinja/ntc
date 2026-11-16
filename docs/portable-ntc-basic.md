@@ -41,8 +41,7 @@ So, to stay portable:
 - **The main program has to fit below the lowest top of the machines it's for.** With the CPC
   on the list, that's `#A600`, even though the Next allows up to `#BA00`.
 - **The window is for pages only.** Keep the main program out of it: `Option Memory Paged
-  &H4000, &H4000` does
-  that.
+  1, &H4000, &H4000` says where it is and that paging starts from page 1.
 - **Nothing of yours below the org or from the top up.** That's the system's, and the screen's
   on most of them.
 - **Reach the screen through classes, never a fixed address.** The CPC's screen and the Next's
@@ -130,7 +129,7 @@ Either way:
 - **Pages**, when the machine has banked memory: each page stays in RAM and is switched into the
   window when called.
 - **Overlays**, when you want the page to be REPLACED: one at a time in the window, loaded over
-  the one before (`Option Class Overlay`, or `Option Memory Small`). That's what CP/M has.
+  the one before (`Option Class Overlay`, or `Option Memory Heap Main`). That's what CP/M has.
 - **Mix them.** Start the pages from 1 or higher, and use page 0 (the window's own 16K) for
   overlays.
 - **Interrupt classes** (`Option Class Interrupt`) can be in a page: each `Tick` switches the
@@ -140,9 +139,9 @@ Either way:
 Put the page lines in the main file:
 
 ```
-Option Memory Paged    &H4000, &H4000        ' the window: pages swap in here
+Option Memory Paged    1, &H4000, &H4000     ' the window: pages swap in here, from page 1
 Option Memory Safe     &H1000, &H0800        ' always mapped: the banking code goes here
-Option Safe "BANK" = Bank                    ' the classes that must be in Safe memory
+Option Class Safe "BANK" = Bank                    ' the classes that must be in Safe memory
 Option Page Title  = Title                   ' a page: these classes, built together
 Option Page Level1 = Level1, Maths, Stars
 Option Page Level2 = Level2, Maths, Stars
@@ -164,7 +163,7 @@ you need, so the map can say exactly what every stretch is for. For example:
 ```
 Option Memory Safe      &H0100, &H0F00        ' the banking code, low and always mapped
 Option Memory Available &H1000, &H3000        ' the program
-Option Memory Paged     &H4000, &H4000        ' the window
+Option Memory Paged     1, &H4000, &H4000     ' the window
 Option Memory Available &H8000, &H2000        ' more program
 Option Memory Reserved  &HA000, &H0800        ' a music player loaded here
 Option Memory Reserved  &HA800, &H0800        ' a level's data loaded from disc
@@ -178,7 +177,7 @@ The program flows round everything that isn't `Available`.
   - the code that switches banks (it would vanish mid-switch);
   - interrupt handlers;
   - anything a page calls back into.
-- That code, and only that code, goes in `Safe` with `Option Safe "NAME" = Class, ...`.
+- That code, and only that code, goes in `Safe` with `Option Class Safe "NAME" = Class, ...`.
 - Everything else is free to go anywhere, so no 16K is thrown away just to be careful.
 - Don't put whole programs in `Safe`, and don't reserve big ranges to be safe. Reserve what is
   really owned by something else, and mark safe only what must be.
@@ -190,7 +189,7 @@ under the window as well is the next step, and it's what gets the 16K back.
   `Option Page <startbank>, <addr>, <size>`, `Option HighCode` and `Option Place`. They will be
   errors by default, unless the program says `Option Deprecated`. Write new code with
   `Option Memory` only.
-- `Option Memory Small` / `CPCExpansion` *n* (the heap scheme) is a different form of the same
+- `Option Memory Heap Main` / `CPCExpansion` *n* (the heap scheme) is a different form of the same
   word, and stays.
 - **The page start.** Paging can start at page 0, where the window's own 16K is page 0 and still
   used: take that when the program needs that 16K. Or it can start at 1 and up, where that 16K
@@ -202,12 +201,12 @@ under the window as well is the next step, and it's what gets the 16K back.
   For example, the CPC Plus's ASIC registers page in at `#4000-#7FFF`: keep that range for them,
   and choose the page start to suit.
 - **Safe classes:**
-  - `Option Safe "NAME" = Class, ...` names the classes whose code must live in `Safe` memory:
+  - `Option Class Safe "NAME" = Class, ...` names the classes whose code must live in `Safe` memory:
     the banking or slot-access code, which would vanish if it sat in the window mid-switch.
   - Their code is laid into the first `Safe` range, and the build stops if it doesn't fit.
   - A class is a page or safe, never both; the compiler refuses one in both.
 - **Put things where you need them:**
-  - buffers: `Option Buffer address [, size]` moves the library's buffer;
+  - buffers: `Option Buffer address, size` places the library's buffer;
   - screens, level data, a loaded file: an `Option Memory Reserved` range;
   - third-party code (a player, a driver, a ROM's workspace): load it straight into a
     reserved range and call it there.
@@ -254,7 +253,7 @@ made driver code impossible to write.
 
 - Write `Memory.WindowStart` and `Memory.WindowSize`, not `&H4000`.
 - `Memory.Copy` goes through the library's 2K buffer. A program with no files can make it
-  small with `Option Buffer Size 128`, which saves 2K of main RAM.
+  small with `Option Buffer address, 128` (an address in free main RAM), which saves 2K of main RAM.
 
 ### Rule 4: data goes in pages too
 
@@ -264,7 +263,7 @@ made driver code impossible to write.
   BANK`, or `MMU` / `ORG` in `#asm` to place data in a NEX bank. They only work on one machine,
   and the Memory class doesn't know the bank is taken. On the Next, its probe writes a marker
   into the first byte of every bank it doesn't know.
-- `Option NexData` is Next-only. Use it only for data too big for pages, and only inside
+- `Option SaveNex` (it replaced `Option NexData`) is Next-only. Use it only for data too big for pages, and only inside
   `#If NTC_ZXN`.
 
 ### Rule 5: the hardware lives in hardware classes
@@ -557,7 +556,7 @@ A game can have several services open at once: the display, the music, the maths
 
 ## 5. Where NTC is now (20261105-11)
 
-- **`Option Memory` and `Option Safe` are new** (20261105-11):
+- **`Option Memory` and `Option Class Safe` are new** (20261105-11):
   - Safe code goes in the first `Safe` range only; spilling into the second and later ranges
     isn't done yet.
   - `Option HighCode`'s layout, which CyborgOS C0 uses, doesn't place safe code yet.

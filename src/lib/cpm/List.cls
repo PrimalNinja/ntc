@@ -1,7 +1,7 @@
-' List - linked lists. NTC platform class: CP/M (Option Memory Small: the free TPA)
+' List - linked lists. NTC platform class: CP/M (Option Memory Heap Main: the free TPA)
 '
-' Linked lists in the Memory class's heap: D pages with Option Memory CPCExpansion, the free
-' main RAM with Option Memory Small - so a list can be far bigger than the program's own
+' Linked lists in the Memory class's heap: D pages with Option Memory Heap Pages, the free
+' main RAM with Option Memory Heap Main - so a list can be far bigger than the program's own
 ' memory. A list is a handle (a Long), so a program can have as many as it likes; each costs
 ' 4 bytes of main memory. Nodes are far pointers (Longs) too; each has a next and a previous
 ' node and size bytes of data, read and written with GetWord / SetWord / GetByte / SetByte

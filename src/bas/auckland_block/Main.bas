@@ -12,20 +12,23 @@
 ' B the line budget (600, 1200, 2400 a frame: more detail, slower); T turbo on / off; P pause;
 ' Q quits.
 ' cpcfw: an AMSDOS file (RUN"AUCKLAND), AUCKLAND.DAT on the same drive.
-' zxn (the ZX Spectrum Next, 2MB): AUCKLAND.NEX - the data's blocks are in it (Option NexData:
+' zxn (the ZX Spectrum Next, 2MB): AUCKLAND.NEX - the data's blocks are in it (Option SaveNex:
 ' AUCKLAND.DAT made by tools/s3dmake with "At most" 1552K, next to the .asm when assembling),
 ' loaded into the Next's banks with the program: nothing to read. Keys: N M roll, Z slower.
 Option PressAnyKeyOnEnd "Press a key"     ' at the end: a message and a key (a RUN" program resets when it ends)
 Option Explicit
 #If NTC_ZXN Then
-Option NexData "AUCKLAND.DAT", 94  ' the Next: the data's 94 blocks (s3dmake: At most 1552K) in the NEX's banks
+Option SaveNex "AUCKLAND.DAT", 3, 4, 6 To 11, 22 To 107  ' <--- CHANGED (20261116-7; was Option NexData "AUCKLAND.DAT", 94)   the Next: the data's 94 blocks
+                                  ' (s3dmake: At most 1552K) in the NEX file, in the pages named - a page is the Next's 16K bank of the
+                                  ' same number; 0, 1, 2 and 5 (the program) and 12-21 (Layer 2) are not free
+Const NEX_BLOCKS = 94             ' <--- NEW  the pages named above
 #Else
-Option RomEnable All              ' RUN" drops the background ROMs: AMSDOS, UniDOS and its nodes started again
+Option ROM Enable All              ' RUN" drops the background ROMs: AMSDOS, UniDOS and its nodes started again
 #End If
 Option Memory Reserved &H4000, &H4000     ' main RAM's #4000-#7FFF: the second screen (and the window)
 Option Memory Reserved &H8000, &HF50     ' the blocks' horizon and buckets (S3d bk_*: the Next)
 Option Memory Reserved &H8F50, &H13A0     ' S3d's tables (#8F50-#A2EF: under the ROMs' RAM - UniDOS with an IDE node: #A309 up)
-Option Buffer &H8F50             ' the file buffer (2K) in S3d's tables: used only while AUCKLAND.DAT is read
+Option Buffer &H8F50, 2048       ' the file buffer (2K) in S3d's tables: used only while AUCKLAND.DAT is read
 Dim k As Integer, tk As Integer, fast As Integer, spd As Integer, n As Integer
 Dim p As Integer, r As Integer, y As Integer, frames As Integer, t As Integer, fps As Integer
 Dim h As Integer, b As Integer, nb As Integer, p0 As Integer, i As Integer
@@ -44,7 +47,7 @@ Mode 1
 S3d.Inks
 #If NTC_ZXN Then
 Print "AUCKLAND"
-If NexBlocks() < 2 Then Print "No data in the NEX file (Option NexData)" : End
+If NexBlocks() < 2 Then Print "No data in the NEX file (Option SaveNex)" : End
 p0 = NexBank(0)                   ' block 0 (the header) in the window, as the CPC reads it
 S3d.Window p0
 If Hb(0) <> 83 Or Hb(3) <> 49 Then Print "AUCKLAND.DAT: not S3D data" : End
@@ -224,25 +227,15 @@ Function NewPage() As Integer
 End Function
 
 #If NTC_ZXN Then
-' NexBlocks(): the data's blocks in the NEX file (Option NexData); NexBank(b): block b's 16K bank
+' NexBlocks(): the data's blocks in the NEX file (Option SaveNex); NexBank(b): block b's 16K bank
 Function NexBlocks() As Integer
-#asm
-            ld a, (ntc_nexdata)
-            ld l, a
-            ld h, 0
-            ld ({result}), hl
-#endasm
+  NexBlocks = NEX_BLOCKS          ' <--- CHANGED (was Option NexData's count)
 End Function
 
-Function NexBank(ByVal b As Integer) As Integer
-#asm
-            ld hl, ({b})
-            ld de, ntc_nexdata + 1
-            add hl, de
-            ld l, (hl)
-            ld h, 0
-            ld ({result}), hl
-#endasm
+Function NexBank(ByVal b As Integer) As Integer   ' <--- CHANGED (20261116-7)   block b's page, as Option SaveNex names them above
+  NexBank = b + 14                ' blocks 8 up: pages 22 up
+  If b < 8 Then NexBank = b + 4   ' blocks 2 to 7: pages 6 to 11
+  If b < 2 Then NexBank = b + 3   ' blocks 0, 1: pages 3, 4
 End Function
 #End If
 
@@ -254,7 +247,7 @@ Function MemTab() As Integer
 #endasm
 End Function
 
-' where the ROMs' RAM starts (Option RomEnable's start code found it)
+' where the ROMs' RAM starts (Option ROM Enable's start code found it)
 Function RomsAt() As Integer
 #asm
             ld hl, (ntc_roms_at)

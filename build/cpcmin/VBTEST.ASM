@@ -7,7 +7,8 @@ ntc_oom = 0		; 1 = out of memory (the fill reached the top range): said once
 			DEVICE AMSTRADCPC6128		; for SAVEAMSDOS at the end
 			org #0040
 
-NTC_TERM	equ 0		; Option Terminal: 0 none, 1 VT52, 2 ANSI (CP/M)
+NTC_TERM	equ 0		; Option Terminal: 0 none, 1 VT52, 2 ANSI, 3 ADM-3A, 4 Televideo (CP/M)
+NTC_TERM_RT	equ 0		; 1: the program calls StdIO.SetTerminal (the terminal is chosen while it runs)
 NTC_STRMAX	equ 40		; the longest string (library buffers, temps)
 NTC_MEMBANKS	equ 64		; Option Memory: the most 64K banks the Memory class looks for
 NTC_ROMENABLE	equ 0		; Option RomEnable (cpcfw, cpcmin): the start code starts the ROMs
@@ -702,7 +703,8 @@ ntc_rg6:
 p_twice:
 
 			; main.bas 179: Twice = Add(v, v)
-			dw p_add_c, var_twice_v, var_twice_v
+ntc_rf1:
+			dw p_add_c, 0, 0
 			dw kw_vtov, var_add_add, var_twice_twice
 			dw p_twice_r
 
@@ -719,7 +721,8 @@ ntc_rg7:
 p_bump:
 
 			; main.bas 183: v = v + 1
-			dw kw_inc, var_bump_v
+ntc_rf2:
+			dw kw_inc, 0
 			dw p_bump_r
 
 ntc_rg7_e:
@@ -1094,10 +1097,8 @@ p_add_r:		; end of add
 			jp ntc_xn
 p_twice_c:		; call twice (normal)
 			pop hl			; v
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			ld (var_twice_v), de
+			ld (ntc_rf1 + 2), hl		; (by reference: var_twice_v)
+			ld (ntc_rf1 + 4), hl		; (by reference: var_twice_v)
 			ld hl, 0
 			ld (var_twice_twice), hl
 			ld (p_twice_rs), sp
@@ -1108,20 +1109,11 @@ p_twice_r:		; end of twice
 			jp ntc_xn
 p_bump_c:		; call bump (normal)
 			pop hl			; v
-			ld (p_bump_a0), hl
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			ld (var_bump_v), de
+			ld (ntc_rf2 + 2), hl		; (by reference: var_bump_v)
 			ld (p_bump_rs), sp
 			ld sp, p_bump
 			jp ntc_xn
 p_bump_r:		; end of bump
-			ld hl, (p_bump_a0)
-			ld de, (var_bump_v)
-			ld (hl), e
-			inc hl
-			ld (hl), d
 			ld sp, (p_bump_rs)
 			jp ntc_xn
 p_nobump_c:		; call nobump (normal)
@@ -1498,801 +1490,780 @@ ntc_rg49_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg50:
-var_twice_v:			dw 0
+p_bump_rs:			dw 0
 ntc_rg50_e:
 			IF ($ < 65536) && (ntc_rg51_e - ntc_rg51 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg51:
-p_bump_rs:			dw 0
+p_nobump_rs:			dw 0
 ntc_rg51_e:
 			IF ($ < 65536) && (ntc_rg52_e - ntc_rg52 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg52:
-var_bump_v:			dw 0
+var_nobump_v:			dw 0
 ntc_rg52_e:
 			IF ($ < 65536) && (ntc_rg53_e - ntc_rg53 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg53:
-p_bump_a0:			dw 0
+p_fact_rs:			dw 0
 ntc_rg53_e:
 			IF ($ < 65536) && (ntc_rg54_e - ntc_rg54 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg54:
-p_nobump_rs:			dw 0
+var_fact_k:			dw 0
 ntc_rg54_e:
 			IF ($ < 65536) && (ntc_rg55_e - ntc_rg55 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg55:
-var_nobump_v:			dw 0
+var_fact_r:			dw 0
 ntc_rg55_e:
 			IF ($ < 65536) && (ntc_rg56_e - ntc_rg56 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg56:
-p_fact_rs:			dw 0
+p_counter_rs:			dw 0
 ntc_rg56_e:
 			IF ($ < 65536) && (ntc_rg57_e - ntc_rg57 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg57:
-var_fact_k:			dw 0
+var_counter_calls:			dw 0
 ntc_rg57_e:
 			IF ($ < 65536) && (ntc_rg58_e - ntc_rg58 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg58:
-var_fact_r:			dw 0
+p_fresh_rs:			dw 0
 ntc_rg58_e:
 			IF ($ < 65536) && (ntc_rg59_e - ntc_rg59 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg59:
-p_counter_rs:			dw 0
+var_fresh_calls:			dw 0
 ntc_rg59_e:
 			IF ($ < 65536) && (ntc_rg60_e - ntc_rg60 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg60:
-var_counter_calls:			dw 0
+p_clamp_rs:			dw 0
 ntc_rg60_e:
 			IF ($ < 65536) && (ntc_rg61_e - ntc_rg61 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg61:
-p_fresh_rs:			dw 0
+var_clamp_v:			dw 0
 ntc_rg61_e:
 			IF ($ < 65536) && (ntc_rg62_e - ntc_rg62 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg62:
-var_fresh_calls:			dw 0
+p_grade_rs:			dw 0
 ntc_rg62_e:
 			IF ($ < 65536) && (ntc_rg63_e - ntc_rg63 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg63:
-p_clamp_rs:			dw 0
+var_grade_score:			dw 0
 ntc_rg63_e:
 			IF ($ < 65536) && (ntc_rg64_e - ntc_rg64 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg64:
-var_clamp_v:			dw 0
+var_grade___sel13:			dw 0
 ntc_rg64_e:
 			IF ($ < 65536) && (ntc_rg65_e - ntc_rg65 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg65:
-p_grade_rs:			dw 0
+p_kind_rs:			dw 0
 ntc_rg65_e:
 			IF ($ < 65536) && (ntc_rg66_e - ntc_rg66 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg66:
-var_grade_score:			dw 0
+			db 40			; capacity
+var_kind_f:			ds 41
 ntc_rg66_e:
 			IF ($ < 65536) && (ntc_rg67_e - ntc_rg67 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg67:
-var_grade___sel13:			dw 0
+			db 40			; capacity
+var_kind___sel14:			ds 41
 ntc_rg67_e:
 			IF ($ < 65536) && (ntc_rg68_e - ntc_rg68 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg68:
-p_kind_rs:			dw 0
+p_sum3_rs:			dw 0
 ntc_rg68_e:
 			IF ($ < 65536) && (ntc_rg69_e - ntc_rg69 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg69:
-			db 40			; capacity
-var_kind_f:			ds 41
+var_sum3_x:			dw 0, 0, 0		; parameters, one block
 ntc_rg69_e:
 			IF ($ < 65536) && (ntc_rg70_e - ntc_rg70 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg70:
-			db 40			; capacity
-var_kind___sel14:			ds 41
+tmp0:			dw 0
 ntc_rg70_e:
 			IF ($ < 65536) && (ntc_rg71_e - ntc_rg71 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg71:
-p_sum3_rs:			dw 0
+tmp1:			dw 0
 ntc_rg71_e:
 			IF ($ < 65536) && (ntc_rg72_e - ntc_rg72 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg72:
-var_sum3_x:			dw 0, 0, 0		; parameters, one block
+			db 40			; capacity
+stmp0:			ds 41
 ntc_rg72_e:
 			IF ($ < 65536) && (ntc_rg73_e - ntc_rg73 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg73:
-tmp0:			dw 0
+			db 40			; capacity
+stmp1:			ds 41
+
+; numbers passed by address (read only)
 ntc_rg73_e:
 			IF ($ < 65536) && (ntc_rg74_e - ntc_rg74 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg74:
-tmp1:			dw 0
+lit_1001:			dw 1001
 ntc_rg74_e:
 			IF ($ < 65536) && (ntc_rg75_e - ntc_rg75 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg75:
-			db 40			; capacity
-stmp0:			ds 41
+lit_2:			dw 2
 ntc_rg75_e:
 			IF ($ < 65536) && (ntc_rg76_e - ntc_rg76 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg76:
-			db 40			; capacity
-stmp1:			ds 41
-
-; numbers passed by address (read only)
+lit_3:			dw 3
 ntc_rg76_e:
 			IF ($ < 65536) && (ntc_rg77_e - ntc_rg77 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg77:
-lit_1001:			dw 1001
+lit_5:			dw 5
 ntc_rg77_e:
 			IF ($ < 65536) && (ntc_rg78_e - ntc_rg78 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg78:
-lit_2:			dw 2
+lit_1:			dw 1
 ntc_rg78_e:
 			IF ($ < 65536) && (ntc_rg79_e - ntc_rg79 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg79:
-lit_3:			dw 3
+lit_4:			dw 4
 ntc_rg79_e:
 			IF ($ < 65536) && (ntc_rg80_e - ntc_rg80 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg80:
-lit_5:			dw 5
+lit_10:			dw 10
 ntc_rg80_e:
 			IF ($ < 65536) && (ntc_rg81_e - ntc_rg81 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg81:
-lit_1:			dw 1
+lit_21:			dw 21
 ntc_rg81_e:
 			IF ($ < 65536) && (ntc_rg82_e - ntc_rg82 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg82:
-lit_4:			dw 4
+lit_42:			dw 42
 ntc_rg82_e:
 			IF ($ < 65536) && (ntc_rg83_e - ntc_rg83 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg83:
-lit_10:			dw 10
+lit_6:			dw 6
 ntc_rg83_e:
 			IF ($ < 65536) && (ntc_rg84_e - ntc_rg84 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg84:
-lit_21:			dw 21
+lit_7:			dw 7
 ntc_rg84_e:
 			IF ($ < 65536) && (ntc_rg85_e - ntc_rg85 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg85:
-lit_42:			dw 42
+lit_5040:			dw 5040
 ntc_rg85_e:
 			IF ($ < 65536) && (ntc_rg86_e - ntc_rg86 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg86:
-lit_6:			dw 6
+lit_50:			dw 50
 ntc_rg86_e:
 			IF ($ < 65536) && (ntc_rg87_e - ntc_rg87 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg87:
-lit_7:			dw 7
+lit_m4:			dw -4
 ntc_rg87_e:
 			IF ($ < 65536) && (ntc_rg88_e - ntc_rg88 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg88:
-lit_5040:			dw 5040
+lit_0:			dw 0
 ntc_rg88_e:
 			IF ($ < 65536) && (ntc_rg89_e - ntc_rg89 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg89:
-lit_50:			dw 50
+lit_95:			dw 95
 ntc_rg89_e:
 			IF ($ < 65536) && (ntc_rg90_e - ntc_rg90 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg90:
-lit_m4:			dw -4
+lit_85:			dw 85
 ntc_rg90_e:
 			IF ($ < 65536) && (ntc_rg91_e - ntc_rg91 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg91:
-lit_0:			dw 0
+lit_70:			dw 70
 ntc_rg91_e:
 			IF ($ < 65536) && (ntc_rg92_e - ntc_rg92 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg92:
-lit_95:			dw 95
+lit_13:			dw 13
 ntc_rg92_e:
 			IF ($ < 65536) && (ntc_rg93_e - ntc_rg93 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg93:
-lit_85:			dw 85
+lit_8:			dw 8
 ntc_rg93_e:
 			IF ($ < 65536) && (ntc_rg94_e - ntc_rg94 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg94:
-lit_70:			dw 70
+lit_255:			dw 255
 ntc_rg94_e:
 			IF ($ < 65536) && (ntc_rg95_e - ntc_rg95 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg95:
-lit_13:			dw 13
+lit_65:			dw 65
 ntc_rg95_e:
 			IF ($ < 65536) && (ntc_rg96_e - ntc_rg96 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg96:
-lit_8:			dw 8
+lit_123:			dw 123
 ntc_rg96_e:
 			IF ($ < 65536) && (ntc_rg97_e - ntc_rg97 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg97:
-lit_255:			dw 255
+lit_m45:			dw -45
 ntc_rg97_e:
 			IF ($ < 65536) && (ntc_rg98_e - ntc_rg98 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg98:
-lit_65:			dw 65
+lit_9:			dw 9
 ntc_rg98_e:
 			IF ($ < 65536) && (ntc_rg99_e - ntc_rg99 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg99:
-lit_123:			dw 123
+lit_m1:			dw -1
 ntc_rg99_e:
 			IF ($ < 65536) && (ntc_rg100_e - ntc_rg100 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg100:
-lit_m45:			dw -45
+lit_66:			dw 66
 ntc_rg100_e:
 			IF ($ < 65536) && (ntc_rg101_e - ntc_rg101 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg101:
-lit_9:			dw 9
+lit_23:			dw 23
 ntc_rg101_e:
 			IF ($ < 65536) && (ntc_rg102_e - ntc_rg102 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg102:
-lit_m1:			dw -1
+lit_12:			dw 12
 ntc_rg102_e:
 			IF ($ < 65536) && (ntc_rg103_e - ntc_rg103 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg103:
-lit_66:			dw 66
+lit_5050:			dw 5050
 ntc_rg103_e:
 			IF ($ < 65536) && (ntc_rg104_e - ntc_rg104 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg104:
-lit_23:			dw 23
+lit_15:			dw 15
+
 ntc_rg104_e:
 			IF ($ < 65536) && (ntc_rg105_e - ntc_rg105 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg105:
-lit_12:			dw 12
+; ============================================================
+; ZOSCII glyphs - each points at its 8 byte bitmap in ntc_font
+; ============================================================
+
+
 ntc_rg105_e:
 			IF ($ < 65536) && (ntc_rg106_e - ntc_rg106 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg106:
-lit_5050:			dw 5050
+; ============================================================
+; Strings
+; ============================================================
+
 ntc_rg106_e:
 			IF ($ < 65536) && (ntc_rg107_e - ntc_rg107 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg107:
-lit_15:			dw 15
-
+str0:			db "Hi", 0
 ntc_rg107_e:
 			IF ($ < 65536) && (ntc_rg108_e - ntc_rg108 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg108:
-; ============================================================
-; ZOSCII glyphs - each points at its 8 byte bitmap in ntc_font
-; ============================================================
-
-
+str1:			db "!", 0
 ntc_rg108_e:
 			IF ($ < 65536) && (ntc_rg109_e - ntc_rg109 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg109:
-; ============================================================
-; Strings
-; ============================================================
-
+str2:			db "Hi!", 0
 ntc_rg109_e:
 			IF ($ < 65536) && (ntc_rg110_e - ntc_rg110 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg110:
-str0:			db "Hi", 0
+str3:			db "apple", 0
 ntc_rg110_e:
 			IF ($ < 65536) && (ntc_rg111_e - ntc_rg111 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg111:
-str1:			db "!", 0
+str4:			db "pear", 0
 ntc_rg111_e:
 			IF ($ < 65536) && (ntc_rg112_e - ntc_rg112 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg112:
-str2:			db "Hi!", 0
+str5:			db "zzz", 0
 ntc_rg112_e:
 			IF ($ < 65536) && (ntc_rg113_e - ntc_rg113 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg113:
-str3:			db "apple", 0
+str6:			db "Hello", 0
 ntc_rg113_e:
 			IF ($ < 65536) && (ntc_rg114_e - ntc_rg114 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg114:
-str4:			db "pear", 0
+str7:			db "World", 0
 ntc_rg114_e:
 			IF ($ < 65536) && (ntc_rg115_e - ntc_rg115 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg115:
-str5:			db "zzz", 0
+str8:			db ", ", 0
 ntc_rg115_e:
 			IF ($ < 65536) && (ntc_rg116_e - ntc_rg116 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg116:
-str6:			db "Hello", 0
+str9:			db "Hello, World!", 0
 ntc_rg116_e:
 			IF ($ < 65536) && (ntc_rg117_e - ntc_rg117 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg117:
-str7:			db "World", 0
+str10:			db "World!", 0
 ntc_rg117_e:
 			IF ($ < 65536) && (ntc_rg118_e - ntc_rg118 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg118:
-str8:			db ", ", 0
+str11:			db "HELLO", 0
 ntc_rg118_e:
 			IF ($ < 65536) && (ntc_rg119_e - ntc_rg119 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg119:
-str9:			db "Hello, World!", 0
+str12:			db "world", 0
 ntc_rg119_e:
 			IF ($ < 65536) && (ntc_rg120_e - ntc_rg120 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg120:
-str10:			db "World!", 0
+str13:			db "A", 0
 ntc_rg120_e:
 			IF ($ < 65536) && (ntc_rg121_e - ntc_rg121 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg121:
-str11:			db "HELLO", 0
+str14:			db "B", 0
 ntc_rg121_e:
 			IF ($ < 65536) && (ntc_rg122_e - ntc_rg122 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg122:
-str12:			db "world", 0
+str15:			db "AB", 0
 ntc_rg122_e:
 			IF ($ < 65536) && (ntc_rg123_e - ntc_rg123 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg123:
-str13:			db "A", 0
+str16:			db " 42", 0
 ntc_rg123_e:
 			IF ($ < 65536) && (ntc_rg124_e - ntc_rg124 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg124:
-str14:			db "B", 0
+str17:			db "-7", 0
 ntc_rg124_e:
 			IF ($ < 65536) && (ntc_rg125_e - ntc_rg125 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg125:
-str15:			db "AB", 0
+str18:			db "n=", 0
 ntc_rg125_e:
 			IF ($ < 65536) && (ntc_rg126_e - ntc_rg126 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg126:
-str16:			db " 42", 0
+str19:			db "12", 0
 ntc_rg126_e:
 			IF ($ < 65536) && (ntc_rg127_e - ntc_rg127 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg127:
-str17:			db "-7", 0
+str20:			db "n=12", 0
 ntc_rg127_e:
 			IF ($ < 65536) && (ntc_rg128_e - ntc_rg128 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg128:
-str18:			db "n=", 0
+str21:			db "123", 0
 ntc_rg128_e:
 			IF ($ < 65536) && (ntc_rg129_e - ntc_rg129 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg129:
-str19:			db "12", 0
+str22:			db " -45", 0
 ntc_rg129_e:
 			IF ($ < 65536) && (ntc_rg130_e - ntc_rg130 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg130:
-str20:			db "n=12", 0
+str23:			db "&HFF", 0
 ntc_rg130_e:
 			IF ($ < 65536) && (ntc_rg131_e - ntc_rg131 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg131:
-str21:			db "123", 0
+str24:			db "xyz", 0
 ntc_rg131_e:
 			IF ($ < 65536) && (ntc_rg132_e - ntc_rg132 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg132:
-str22:			db " -45", 0
+str25:			db "o", 0
 ntc_rg132_e:
 			IF ($ < 65536) && (ntc_rg133_e - ntc_rg133 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg133:
-str23:			db "&HFF", 0
+str26:			db "  ab  ", 0
 ntc_rg133_e:
 			IF ($ < 65536) && (ntc_rg134_e - ntc_rg134 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg134:
-str24:			db "xyz", 0
+str27:			db "ab", 0
 ntc_rg134_e:
 			IF ($ < 65536) && (ntc_rg135_e - ntc_rg135 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg135:
-str25:			db "o", 0
+str28:			db "  ab", 0
 ntc_rg135_e:
 			IF ($ < 65536) && (ntc_rg136_e - ntc_rg136 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg136:
-str26:			db "  ab  ", 0
+str29:			db "ab  ", 0
 ntc_rg136_e:
 			IF ($ < 65536) && (ntc_rg137_e - ntc_rg137 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg137:
-str27:			db "ab", 0
+str30:			db "|", 0
 ntc_rg137_e:
 			IF ($ < 65536) && (ntc_rg138_e - ntc_rg138 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg138:
-str28:			db "  ab", 0
+str31:			db "ab|", 0
 ntc_rg138_e:
 			IF ($ < 65536) && (ntc_rg139_e - ntc_rg139 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg139:
-str29:			db "ab  ", 0
+str32:			db "x", 0
 ntc_rg139_e:
 			IF ($ < 65536) && (ntc_rg140_e - ntc_rg140 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg140:
-str30:			db "|", 0
+str33:			db "   x", 0
 ntc_rg140_e:
 			IF ($ < 65536) && (ntc_rg141_e - ntc_rg141 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg141:
-str31:			db "ab|", 0
+str34:			db "*", 0
 ntc_rg141_e:
 			IF ($ < 65536) && (ntc_rg142_e - ntc_rg142 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg142:
-str32:			db "x", 0
+str35:			db "****", 0
 ntc_rg142_e:
 			IF ($ < 65536) && (ntc_rg143_e - ntc_rg143 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg143:
-str33:			db "   x", 0
+str36:			db "FF", 0
 ntc_rg143_e:
 			IF ($ < 65536) && (ntc_rg144_e - ntc_rg144 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg144:
-str34:			db "*", 0
+str37:			db "1000", 0
 ntc_rg144_e:
 			IF ($ < 65536) && (ntc_rg145_e - ntc_rg145 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg145:
-str35:			db "****", 0
+str38:			db "abc", 0
 ntc_rg145_e:
 			IF ($ < 65536) && (ntc_rg146_e - ntc_rg146 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg146:
-str36:			db "FF", 0
+str39:			db "abcabc", 0
 ntc_rg146_e:
 			IF ($ < 65536) && (ntc_rg147_e - ntc_rg147 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg147:
-str37:			db "1000", 0
+str40:			db "abd", 0
 ntc_rg147_e:
 			IF ($ < 65536) && (ntc_rg148_e - ntc_rg148 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg148:
-str38:			db "abc", 0
+str41:			db "b", 0
 ntc_rg148_e:
 			IF ($ < 65536) && (ntc_rg149_e - ntc_rg149 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg149:
-str39:			db "abcabc", 0
+str42:			db "y", 0
 ntc_rg149_e:
 			IF ($ < 65536) && (ntc_rg150_e - ntc_rg150 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg150:
-str40:			db "abd", 0
+str43:			db "x9y", 0
 ntc_rg150_e:
 			IF ($ < 65536) && (ntc_rg151_e - ntc_rg151 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg151:
-str41:			db "b", 0
+str44:			db "zero", 0
 ntc_rg151_e:
 			IF ($ < 65536) && (ntc_rg152_e - ntc_rg152 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg152:
-str42:			db "y", 0
+str45:			db "two", 0
 ntc_rg152_e:
 			IF ($ < 65536) && (ntc_rg153_e - ntc_rg153 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg153:
-str43:			db "x9y", 0
+str46:			db "twozero", 0
 ntc_rg153_e:
 			IF ($ < 65536) && (ntc_rg154_e - ntc_rg154 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg154:
-str44:			db "zero", 0
+str47:			db "two!", 0
 ntc_rg154_e:
 			IF ($ < 65536) && (ntc_rg155_e - ntc_rg155 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg155:
-str45:			db "two", 0
+str48:			db "banana", 0
 ntc_rg155_e:
 			IF ($ < 65536) && (ntc_rg156_e - ntc_rg156 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg156:
-str46:			db "twozero", 0
+str49:			db 0
+
 ntc_rg156_e:
 			IF ($ < 65536) && (ntc_rg157_e - ntc_rg157 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg157:
-str47:			db "two!", 0
+; ============================================================
+; Keyword library (used)
+; ============================================================
+
 ntc_rg157_e:
 			IF ($ < 65536) && (ntc_rg158_e - ntc_rg158 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg158:
-str48:			db "banana", 0
-ntc_rg158_e:
-			IF ($ < 65536) && (ntc_rg159_e - ntc_rg159 + $ > 42496)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
-ntc_oom = 1		; (said once: the parts after this one reach it too)
-			ENDIF
-ntc_rg159:
-str49:			db 0
-
-ntc_rg159_e:
-			IF ($ < 65536) && (ntc_rg160_e - ntc_rg160 + $ > 42496)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
-ntc_oom = 1		; (said once: the parts after this one reach it too)
-			ENDIF
-ntc_rg160:
-; ============================================================
-; Keyword library (used)
-; ============================================================
-
-ntc_rg160_e:
-			IF ($ < 65536) && (ntc_rg161_e - ntc_rg161 + $ > 42496)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
-ntc_oom = 1		; (said once: the parts after this one reach it too)
-			ENDIF
-ntc_rg161:
 ;## ntc_data @shared ntc_d_nmode
 ; ------------------------------------------------------------
 ; Scratch space: the core every program has (with ntc_d_nmode). The rest of
@@ -2305,14 +2276,41 @@ ntc_next:		ret				; IX target that continues the thread
 ntc_csp:		dw 0			; caller SP, for kw_stop (and the normal mode stack)
 ntc_ip:			dw 0			; normal mode: thread position while out of the thread
 
+ntc_rg158_e:
+			IF ($ < 65536) && (ntc_rg159_e - ntc_rg159 + $ > 42496)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
+ntc_oom = 1		; (said once: the parts after this one reach it too)
+			ENDIF
+ntc_rg159:
+;## ntc_d_ticks @data
+ntc_ticks:		dw 0			; interrupt count (normal mode, platform handler)
+
+ntc_rg159_e:
+			IF ($ < 65536) && (ntc_rg160_e - ntc_rg160 + $ > 42496)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
+ntc_oom = 1		; (said once: the parts after this one reach it too)
+			ENDIF
+ntc_rg160:
+;## ntc_d_gnlo @data
+ntc_gnlo:		db 0			; ntc_getn: low byte
+
+ntc_rg160_e:
+			IF ($ < 65536) && (ntc_rg161_e - ntc_rg161 + $ > 42496)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
+ntc_oom = 1		; (said once: the parts after this one reach it too)
+			ENDIF
+ntc_rg161:
+;## ntc_d_nmode @data
+ntc_nmode:		db 0			; 1 = running in normal mode (waits let interrupts in)
+
 ntc_rg161_e:
 			IF ($ < 65536) && (ntc_rg162_e - ntc_rg162 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg162:
-;## ntc_d_ticks @data
-ntc_ticks:		dw 0			; interrupt count (normal mode, platform handler)
+;## ntc_d_lead @data
+ntc_lead:		db 0			; printint: digit seen
 
 ntc_rg162_e:
 			IF ($ < 65536) && (ntc_rg163_e - ntc_rg163 + $ > 42496)	; fwdref-ok
@@ -2320,8 +2318,8 @@ ntc_rg162_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg163:
-;## ntc_d_gnlo @data
-ntc_gnlo:		db 0			; ntc_getn: low byte
+;## ntc_d_sptr @data
+ntc_sptr:		dw 0			; printbuf: text pointer
 
 ntc_rg163_e:
 			IF ($ < 65536) && (ntc_rg164_e - ntc_rg164 + $ > 42496)	; fwdref-ok
@@ -2329,8 +2327,9 @@ ntc_rg163_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg164:
-;## ntc_d_nmode @data
-ntc_nmode:		db 0			; 1 = running in normal mode (waits let interrupts in)
+;## ntc_d_iptr @data
+ntc_iptr:		dw 0			; gets: buffer pointer
+ntc_ilink:		dw 0			; gets: where to go when done
 
 ntc_rg164_e:
 			IF ($ < 65536) && (ntc_rg165_e - ntc_rg165 + $ > 42496)	; fwdref-ok
@@ -2338,8 +2337,8 @@ ntc_rg164_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg165:
-;## ntc_d_lead @data
-ntc_lead:		db 0			; printint: digit seen
+;## ntc_d_ivar @data
+ntc_ivar:		dw 0			; inputint / inkey: dest var
 
 ntc_rg165_e:
 			IF ($ < 65536) && (ntc_rg166_e - ntc_rg166 + $ > 42496)	; fwdref-ok
@@ -2347,8 +2346,8 @@ ntc_rg165_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg166:
-;## ntc_d_sptr @data
-ntc_sptr:		dw 0			; printbuf: text pointer
+;## ntc_d_aptr @data
+ntc_aptr:		dw 0			; atoi: text pointer
 
 ntc_rg166_e:
 			IF ($ < 65536) && (ntc_rg167_e - ntc_rg167 + $ > 42496)	; fwdref-ok
@@ -2356,9 +2355,11 @@ ntc_rg166_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg167:
-;## ntc_d_iptr @data
-ntc_iptr:		dw 0			; gets: buffer pointer
-ntc_ilink:		dw 0			; gets: where to go when done
+;## ntc_d_hook @data
+ntc_hookon:		db 0			; 1 = the Interrupt hook may run (set, and not running now)
+ntc_hookset:	db 0			; 1 = an Interrupt hook is set
+ntc_hookpend:	db 0			; 1 = an interrupt came, the hook runs at the next safe point
+ntc_hook:		dw 0			; the hook Sub's call stub
 
 ntc_rg167_e:
 			IF ($ < 65536) && (ntc_rg168_e - ntc_rg168 + $ > 42496)	; fwdref-ok
@@ -2366,8 +2367,8 @@ ntc_rg167_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg168:
-;## ntc_d_ivar @data
-ntc_ivar:		dw 0			; inputint / inkey: dest var
+;## ntc_d_numbuf @data
+ntc_numbuf:		ds 14			; printint / long print: digits (+ spaces for Option VBPrint)
 
 ntc_rg168_e:
 			IF ($ < 65536) && (ntc_rg169_e - ntc_rg169 + $ > 42496)	; fwdref-ok
@@ -2375,8 +2376,9 @@ ntc_rg168_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg169:
-;## ntc_d_aptr @data
-ntc_aptr:		dw 0			; atoi: text pointer
+;## ntc_d_inbuf @data
+				db 40			; ntc_inbuf's capacity (as every string variable has)
+ntc_inbuf:		ds 41			; inputint: typed text
 
 ntc_rg169_e:
 			IF ($ < 65536) && (ntc_rg170_e - ntc_rg170 + $ > 42496)	; fwdref-ok
@@ -2384,37 +2386,6 @@ ntc_rg169_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg170:
-;## ntc_d_hook @data
-ntc_hookon:		db 0			; 1 = the Interrupt hook may run (set, and not running now)
-ntc_hookset:	db 0			; 1 = an Interrupt hook is set
-ntc_hookpend:	db 0			; 1 = an interrupt came, the hook runs at the next safe point
-ntc_hook:		dw 0			; the hook Sub's call stub
-
-ntc_rg170_e:
-			IF ($ < 65536) && (ntc_rg171_e - ntc_rg171 + $ > 42496)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
-ntc_oom = 1		; (said once: the parts after this one reach it too)
-			ENDIF
-ntc_rg171:
-;## ntc_d_numbuf @data
-ntc_numbuf:		ds 14			; printint / long print: digits (+ spaces for Option VBPrint)
-
-ntc_rg171_e:
-			IF ($ < 65536) && (ntc_rg172_e - ntc_rg172 + $ > 42496)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
-ntc_oom = 1		; (said once: the parts after this one reach it too)
-			ENDIF
-ntc_rg172:
-;## ntc_d_inbuf @data
-				db 40			; ntc_inbuf's capacity (as every string variable has)
-ntc_inbuf:		ds 41			; inputint: typed text
-
-ntc_rg172_e:
-			IF ($ < 65536) && (ntc_rg173_e - ntc_rg173 + $ > 42496)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
-ntc_oom = 1		; (said once: the parts after this one reach it too)
-			ENDIF
-ntc_rg173:
 ;## kw_stop ntc_data ntc_plat_exit @shared
 kw_stop:
 			ld ix, ntc_stop_back
@@ -2424,24 +2395,24 @@ ntc_stop_back:
 			ei
 			ret
 
-ntc_rg173_e:
-			IF ($ < 65536) && (ntc_rg174_e - ntc_rg174 + $ > 42496)	; fwdref-ok
+ntc_rg170_e:
+			IF ($ < 65536) && (ntc_rg171_e - ntc_rg171 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg174:
+ntc_rg171:
 ;## kw_waitkey ntc_data ntc_plat_key
 ; kw_waitkey - wait for a key (Option PressAnyKeyOnEnd, before kw_stop)
 kw_waitkey:
 			ld ix, ntc_next
 			jp ntc_plat_getkey
 
-ntc_rg174_e:
-			IF ($ < 65536) && (ntc_rg175_e - ntc_rg175 + $ > 42496)	; fwdref-ok
+ntc_rg171_e:
+			IF ($ < 65536) && (ntc_rg172_e - ntc_rg172 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg175:
+ntc_rg172:
 ;## ntc_xn ntc_data @shared
 ; normal mode "next": every normal mode keyword ends here (its ret
 ; became jp ntc_xn). Thread position to ntc_ip, real stack, one
@@ -2457,12 +2428,12 @@ ntc_xn:
 			ld sp, (ntc_ip)
 			ret
 
-ntc_rg175_e:
-			IF ($ < 65536) && (ntc_rg176_e - ntc_rg176 + $ > 42496)	; fwdref-ok
+ntc_rg172_e:
+			IF ($ < 65536) && (ntc_rg173_e - ntc_rg173 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg176:
+ntc_rg173:
 ;## kw_turbo_on ntc_data @shared
 ;kw_turbo_on  - Turbo On, used in normal mode: SP is already the thread
 ;  and interrupts are off inside a keyword, so just carry on.
@@ -2471,12 +2442,12 @@ kw_turbo_on:
 			ld (ntc_nmode), a
 			ret
 
-ntc_rg176_e:
-			IF ($ < 65536) && (ntc_rg177_e - ntc_rg177 + $ > 42496)	; fwdref-ok
+ntc_rg173_e:
+			IF ($ < 65536) && (ntc_rg174_e - ntc_rg174 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg177:
+ntc_rg174:
 ;## kw_turbo_off ntc_xn ntc_data @shared
 ;kw_turbo_off  - Turbo Off, used in turbo mode: continue in normal mode
 kw_turbo_off:
@@ -2484,12 +2455,12 @@ kw_turbo_off:
 			ld (ntc_nmode), a
 			jp ntc_xn
 
-ntc_rg177_e:
-			IF ($ < 65536) && (ntc_rg178_e - ntc_rg178 + $ > 42496)	; fwdref-ok
+ntc_rg174_e:
+			IF ($ < 65536) && (ntc_rg175_e - ntc_rg175 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg178:
+ntc_rg175:
 ;## kw_goto_iffalse
 ;kw_goto_iffalse, <label>  - branch if NZ (false)
 kw_goto_iffalse:
@@ -2498,12 +2469,12 @@ kw_goto_iffalse:
 			ld sp, hl
 			ret
 
-ntc_rg178_e:
-			IF ($ < 65536) && (ntc_rg179_e - ntc_rg179 + $ > 42496)	; fwdref-ok
+ntc_rg175_e:
+			IF ($ < 65536) && (ntc_rg176_e - ntc_rg176 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg179:
+ntc_rg176:
 ;## kw_goto_iffalse (normal mode copy)
 ;kw_goto_iffalse, <label>  - branch if NZ (false)
 kw_goto_iffalse_n:
@@ -2512,12 +2483,12 @@ kw_goto_iffalse_n:
 			ld sp, hl
 			jp ntc_xn
 
-ntc_rg179_e:
-			IF ($ < 65536) && (ntc_rg180_e - ntc_rg180 + $ > 42496)	; fwdref-ok
+ntc_rg176_e:
+			IF ($ < 65536) && (ntc_rg177_e - ntc_rg177 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg180:
+ntc_rg177:
 ;## kw_goto_iftrue (normal mode copy)
 ;kw_goto_iftrue, <label>  - branch if Z (true)
 kw_goto_iftrue_n:
@@ -2526,12 +2497,12 @@ kw_goto_iftrue_n:
 			ld sp, hl
 			jp ntc_xn
 
-ntc_rg180_e:
-			IF ($ < 65536) && (ntc_rg181_e - ntc_rg181 + $ > 42496)	; fwdref-ok
+ntc_rg177_e:
+			IF ($ < 65536) && (ntc_rg178_e - ntc_rg178 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg181:
+ntc_rg178:
 ;## ntc_for_jump
 ; tails for the FOR / NEXT keywords. DE = var value, HL = limit,
 ; SP = thread at the label word. Signed compare by flipping bit 15.
@@ -2602,12 +2573,12 @@ ntc_for_end:
 			pop hl
 			ret
 
-ntc_rg181_e:
-			IF ($ < 65536) && (ntc_rg182_e - ntc_rg182 + $ > 42496)	; fwdref-ok
+ntc_rg178_e:
+			IF ($ < 65536) && (ntc_rg179_e - ntc_rg179 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg182:
+ntc_rg179:
 ;## ntc_for_jump (normal mode copy)
 ; tails for the FOR / NEXT keywords. DE = var value, HL = limit,
 ; SP = thread at the label word. Signed compare by flipping bit 15.
@@ -2678,12 +2649,12 @@ ntc_for_end_n:
 			pop hl
 			jp ntc_xn
 
-ntc_rg182_e:
-			IF ($ < 65536) && (ntc_rg183_e - ntc_rg183 + $ > 42496)	; fwdref-ok
+ntc_rg179_e:
+			IF ($ < 65536) && (ntc_rg180_e - ntc_rg180 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg183:
+ntc_rg180:
 ;## kw_next1l ntc_for_jump
 ;kw_next1l, <var>, <literal limit>, <toplabel>
 ;  NEXT for STEP 1: inc var, back to the top while var <= limit
@@ -2704,12 +2675,12 @@ ntc_n1l_nc:
 			sbc a, a
 			jp ntc_for_le
 
-ntc_rg183_e:
-			IF ($ < 65536) && (ntc_rg184_e - ntc_rg184 + $ > 42496)	; fwdref-ok
+ntc_rg180_e:
+			IF ($ < 65536) && (ntc_rg181_e - ntc_rg181 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg184:
+ntc_rg181:
 ;## kw_next1l (normal mode copy) ntc_for_jump
 ;kw_next1l, <var>, <literal limit>, <toplabel>
 ;  NEXT for STEP 1: inc var, back to the top while var <= limit
@@ -2730,12 +2701,12 @@ ntc_n1l_nc_n:
 			sbc a, a
 			jp ntc_for_le_n
 
-ntc_rg184_e:
-			IF ($ < 65536) && (ntc_rg185_e - ntc_rg185 + $ > 42496)	; fwdref-ok
+ntc_rg181_e:
+			IF ($ < 65536) && (ntc_rg182_e - ntc_rg182 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg185:
+ntc_rg182:
 ;## kw_ltov
 ;kw_ltov, <literal>, <destvar>
 kw_ltov:
@@ -2746,12 +2717,12 @@ kw_ltov:
 			ld (hl), d
 			ret
 
-ntc_rg185_e:
-			IF ($ < 65536) && (ntc_rg186_e - ntc_rg186 + $ > 42496)	; fwdref-ok
+ntc_rg182_e:
+			IF ($ < 65536) && (ntc_rg183_e - ntc_rg183 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg186:
+ntc_rg183:
 ;## kw_vtov
 ;kw_vtov, <sourcevar>, <destvar>
 kw_vtov:
@@ -2765,12 +2736,12 @@ kw_vtov:
 			ld (hl), d
 			ret
 
-ntc_rg186_e:
-			IF ($ < 65536) && (ntc_rg187_e - ntc_rg187 + $ > 42496)	; fwdref-ok
+ntc_rg183_e:
+			IF ($ < 65536) && (ntc_rg184_e - ntc_rg184 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg187:
+ntc_rg184:
 ;## kw_ztov
 ;kw_ztov, <destvar>
 kw_ztov:
@@ -2781,12 +2752,12 @@ kw_ztov:
 			ld (hl), a
 			ret
 
-ntc_rg187_e:
-			IF ($ < 65536) && (ntc_rg188_e - ntc_rg188 + $ > 42496)	; fwdref-ok
+ntc_rg184_e:
+			IF ($ < 65536) && (ntc_rg185_e - ntc_rg185 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg188:
+ntc_rg185:
 ;## kw_ftov
 ;kw_ftov, <destvar>  - Z flag to var: true = -1, false = 0
 kw_ftov:
@@ -2806,12 +2777,12 @@ ntc_ftov_t:
 ; Arithmetic
 ; ============================================================
 
-ntc_rg188_e:
-			IF ($ < 65536) && (ntc_rg189_e - ntc_rg189 + $ > 42496)	; fwdref-ok
+ntc_rg185_e:
+			IF ($ < 65536) && (ntc_rg186_e - ntc_rg186 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg189:
+ntc_rg186:
 ;## kw_inc
 ;kw_inc, <var>
 kw_inc:
@@ -2822,12 +2793,12 @@ kw_inc:
 			inc (hl)
 			ret
 
-ntc_rg189_e:
-			IF ($ < 65536) && (ntc_rg190_e - ntc_rg190 + $ > 42496)	; fwdref-ok
+ntc_rg186_e:
+			IF ($ < 65536) && (ntc_rg187_e - ntc_rg187 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg190:
+ntc_rg187:
 ;## kw_dec
 ;kw_dec, <var>
 kw_dec:
@@ -2840,12 +2811,12 @@ kw_dec:
 			dec (hl)
 			ret
 
-ntc_rg190_e:
-			IF ($ < 65536) && (ntc_rg191_e - ntc_rg191 + $ > 42496)	; fwdref-ok
+ntc_rg187_e:
+			IF ($ < 65536) && (ntc_rg188_e - ntc_rg188 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg191:
+ntc_rg188:
 ;## kw_add
 ;kw_add, <var1>, <var2>, <destvar>
 kw_add:
@@ -2866,12 +2837,12 @@ kw_add:
 			ld (hl), d
 			ret
 
-ntc_rg191_e:
-			IF ($ < 65536) && (ntc_rg192_e - ntc_rg192 + $ > 42496)	; fwdref-ok
+ntc_rg188_e:
+			IF ($ < 65536) && (ntc_rg189_e - ntc_rg189 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg192:
+ntc_rg189:
 ;## kw_4x
 ;kw_4x, <var>, <destvar>
 kw_4x:
@@ -2889,12 +2860,12 @@ kw_4x:
 			ld (hl), d
 			ret
 
-ntc_rg192_e:
-			IF ($ < 65536) && (ntc_rg193_e - ntc_rg193 + $ > 42496)	; fwdref-ok
+ntc_rg189_e:
+			IF ($ < 65536) && (ntc_rg190_e - ntc_rg190 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg193:
+ntc_rg190:
 ;## ntc_mul
 ; BC * DE -> pop destvar, store. Low 16 bits (same signed/unsigned)
 ntc_mul:
@@ -2916,12 +2887,12 @@ ntc_mul_skip:
 			ld (hl), d
 			ret
 
-ntc_rg193_e:
-			IF ($ < 65536) && (ntc_rg194_e - ntc_rg194 + $ > 42496)	; fwdref-ok
+ntc_rg190_e:
+			IF ($ < 65536) && (ntc_rg191_e - ntc_rg191 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg194:
+ntc_rg191:
 ;## kw_mulvv ntc_mul
 ;kw_mulvv, <var1>, <var2>, <destvar>
 kw_mulvv:
@@ -2935,12 +2906,12 @@ kw_mulvv:
 			ld d, (hl)
 			jp ntc_mul
 
-ntc_rg194_e:
-			IF ($ < 65536) && (ntc_rg195_e - ntc_rg195 + $ > 42496)	; fwdref-ok
+ntc_rg191_e:
+			IF ($ < 65536) && (ntc_rg192_e - ntc_rg192 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg195:
+ntc_rg192:
 ;## kw_mulvl ntc_mul
 ;kw_mulvl, <var>, <literal>, <destvar>
 kw_mulvl:
@@ -2951,12 +2922,12 @@ kw_mulvl:
 			pop de
 			jp ntc_mul
 
-ntc_rg195_e:
-			IF ($ < 65536) && (ntc_rg196_e - ntc_rg196 + $ > 42496)	; fwdref-ok
+ntc_rg192_e:
+			IF ($ < 65536) && (ntc_rg193_e - ntc_rg193 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg196:
+ntc_rg193:
 ;## ntc_cmp
 ntc_cmp_slt:
 			ld a, d
@@ -3024,12 +2995,12 @@ ntc_cmp_ne_f:
 			or 1
 			ret
 
-ntc_rg196_e:
-			IF ($ < 65536) && (ntc_rg197_e - ntc_rg197 + $ > 42496)	; fwdref-ok
+ntc_rg193_e:
+			IF ($ < 65536) && (ntc_rg194_e - ntc_rg194 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg197:
+ntc_rg194:
 ;## kw_scpltvl ntc_cmp
 ;kw_scpltvl, <var>, <literal>
 kw_scpltvl:
@@ -3040,12 +3011,12 @@ kw_scpltvl:
 			pop hl
 			jp ntc_cmp_slt
 
-ntc_rg197_e:
-			IF ($ < 65536) && (ntc_rg198_e - ntc_rg198 + $ > 42496)	; fwdref-ok
+ntc_rg194_e:
+			IF ($ < 65536) && (ntc_rg195_e - ntc_rg195 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg198:
+ntc_rg195:
 ;## kw_scplevl ntc_cmp
 kw_scplevl:
 			pop hl
@@ -3055,12 +3026,12 @@ kw_scplevl:
 			pop hl
 			jp ntc_cmp_sle
 
-ntc_rg198_e:
-			IF ($ < 65536) && (ntc_rg199_e - ntc_rg199 + $ > 42496)	; fwdref-ok
+ntc_rg195_e:
+			IF ($ < 65536) && (ntc_rg196_e - ntc_rg196 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg199:
+ntc_rg196:
 ;## kw_scpgtvv ntc_cmp
 kw_scpgtvv:
 			pop hl
@@ -3074,12 +3045,12 @@ kw_scpgtvv:
 			ld l, a
 			jp ntc_cmp_sgt
 
-ntc_rg199_e:
-			IF ($ < 65536) && (ntc_rg200_e - ntc_rg200 + $ > 42496)	; fwdref-ok
+ntc_rg196_e:
+			IF ($ < 65536) && (ntc_rg197_e - ntc_rg197 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg200:
+ntc_rg197:
 ;## kw_scpgtvl ntc_cmp
 kw_scpgtvl:
 			pop hl
@@ -3089,12 +3060,12 @@ kw_scpgtvl:
 			pop hl
 			jp ntc_cmp_sgt
 
-ntc_rg200_e:
-			IF ($ < 65536) && (ntc_rg201_e - ntc_rg201 + $ > 42496)	; fwdref-ok
+ntc_rg197_e:
+			IF ($ < 65536) && (ntc_rg198_e - ntc_rg198 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg201:
+ntc_rg198:
 ;## kw_scpgevl ntc_cmp
 kw_scpgevl:
 			pop hl
@@ -3104,12 +3075,12 @@ kw_scpgevl:
 			pop hl
 			jp ntc_cmp_sge
 
-ntc_rg201_e:
-			IF ($ < 65536) && (ntc_rg202_e - ntc_rg202 + $ > 42496)	; fwdref-ok
+ntc_rg198_e:
+			IF ($ < 65536) && (ntc_rg199_e - ntc_rg199 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg202:
+ntc_rg199:
 ;## kw_cpeqvv ntc_cmp
 ;kw_cpeqvv, <var1>, <var2>
 kw_cpeqvv:
@@ -3124,12 +3095,12 @@ kw_cpeqvv:
 			ld l, a
 			jp ntc_cmp_eq
 
-ntc_rg202_e:
-			IF ($ < 65536) && (ntc_rg203_e - ntc_rg203 + $ > 42496)	; fwdref-ok
+ntc_rg199_e:
+			IF ($ < 65536) && (ntc_rg200_e - ntc_rg200 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg203:
+ntc_rg200:
 ;## kw_cpeqvl ntc_cmp
 kw_cpeqvl:
 			pop hl
@@ -3139,12 +3110,12 @@ kw_cpeqvl:
 			pop hl
 			jp ntc_cmp_eq
 
-ntc_rg203_e:
-			IF ($ < 65536) && (ntc_rg204_e - ntc_rg204 + $ > 42496)	; fwdref-ok
+ntc_rg200_e:
+			IF ($ < 65536) && (ntc_rg201_e - ntc_rg201 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg204:
+ntc_rg201:
 ;## kw_aget
 ;kw_aget, <arraybase>, <indexvar>, <destvar>
 kw_aget:
@@ -3165,12 +3136,12 @@ kw_aget:
 			ld (hl), d
 			ret
 
-ntc_rg204_e:
-			IF ($ < 65536) && (ntc_rg205_e - ntc_rg205 + $ > 42496)	; fwdref-ok
+ntc_rg201_e:
+			IF ($ < 65536) && (ntc_rg202_e - ntc_rg202 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg205:
+ntc_rg202:
 ;## kw_aset
 ;kw_aset, <arraybase>, <indexvar>, <sourcevar>
 kw_aset:
@@ -3193,12 +3164,12 @@ kw_aset:
 			ld (hl), b
 			ret
 
-ntc_rg205_e:
-			IF ($ < 65536) && (ntc_rg206_e - ntc_rg206 + $ > 42496)	; fwdref-ok
+ntc_rg202_e:
+			IF ($ < 65536) && (ntc_rg203_e - ntc_rg203 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg206:
+ntc_rg203:
 ;## kw_strcpy
 ;kw_strcpy, <destaddr>, <srcaddr>  - cut at the destination's capacity byte
 kw_strcpy:
@@ -3220,12 +3191,12 @@ ntc_strcpy_loop:
 			ld (de), a
 			ret
 
-ntc_rg206_e:
-			IF ($ < 65536) && (ntc_rg207_e - ntc_rg207 + $ > 42496)	; fwdref-ok
+ntc_rg203_e:
+			IF ($ < 65536) && (ntc_rg204_e - ntc_rg204 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg207:
+ntc_rg204:
 ;## kw_strcpyn kw_strcpy
 ;kw_strcpyn, <destaddr>, <srcaddr>, <capacity>  - into an array element (no capacity byte)
 kw_strcpyn:
@@ -3235,12 +3206,12 @@ kw_strcpyn:
 			ld b, c
 			jp ntc_strcpy_loop		; (jr: another part, maybe across Option Memory Reserved)
 
-ntc_rg207_e:
-			IF ($ < 65536) && (ntc_rg208_e - ntc_rg208 + $ > 42496)	; fwdref-ok
+ntc_rg204_e:
+			IF ($ < 65536) && (ntc_rg205_e - ntc_rg205 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg208:
+ntc_rg205:
 ;## kw_strcat
 ;kw_strcat, <destaddr>, <srcaddr>  - cut at the destination's capacity byte
 kw_strcat:
@@ -3271,12 +3242,12 @@ ntc_strcat_loop:
 			ld (de), a
 			ret
 
-ntc_rg208_e:
-			IF ($ < 65536) && (ntc_rg209_e - ntc_rg209 + $ > 42496)	; fwdref-ok
+ntc_rg205_e:
+			IF ($ < 65536) && (ntc_rg206_e - ntc_rg206 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg209:
+ntc_rg206:
 ;## kw_strlen
 ;kw_strlen, <straddr>, <destvar>
 kw_strlen:
@@ -3296,12 +3267,12 @@ ntc_strlen_done:
 			ld (hl), b
 			ret
 
-ntc_rg209_e:
-			IF ($ < 65536) && (ntc_rg210_e - ntc_rg210 + $ > 42496)	; fwdref-ok
+ntc_rg206_e:
+			IF ($ < 65536) && (ntc_rg207_e - ntc_rg207 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg210:
+ntc_rg207:
 ;## kw_strcmpeq
 ;kw_strcmpeq, <addr1>, <addr2>  - Z if equal
 kw_strcmpeq:
@@ -3317,12 +3288,12 @@ ntc_streq_loop:
 			inc de
 			jr ntc_streq_loop
 
-ntc_rg210_e:
-			IF ($ < 65536) && (ntc_rg211_e - ntc_rg211 + $ > 42496)	; fwdref-ok
+ntc_rg207_e:
+			IF ($ < 65536) && (ntc_rg208_e - ntc_rg208 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg211:
+ntc_rg208:
 ;## ntc_printbuf ntc_data ntc_plat_screen
 ; print the 0 terminated ASCII text at (ntc_sptr), then ret (thread)
 ntc_printbuf:
@@ -3335,12 +3306,12 @@ ntc_printbuf:
 			ld ix, ntc_printbuf
 			jp ntc_plat_putc
 
-ntc_rg211_e:
-			IF ($ < 65536) && (ntc_rg212_e - ntc_rg212 + $ > 42496)	; fwdref-ok
+ntc_rg208_e:
+			IF ($ < 65536) && (ntc_rg209_e - ntc_rg209 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg212:
+ntc_rg209:
 ;## kw_printzoscii ntc_data ntc_font ntc_plat_screen
 ;kw_printzoscii / dw glyph, glyph, ..., 0  - ZOSCII text inline in the thread
 ;  each word points at an 8 byte glyph bitmap. 1 = newline, 0 = end (only those two:
@@ -3362,12 +3333,12 @@ ntc_pz_ctl:
 			ld ix, kw_printzoscii
 			jp ntc_plat_newline
 
-ntc_rg212_e:
-			IF ($ < 65536) && (ntc_rg213_e - ntc_rg213 + $ > 42496)	; fwdref-ok
+ntc_rg209_e:
+			IF ($ < 65536) && (ntc_rg210_e - ntc_rg210 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg213:
+ntc_rg210:
 ;## kw_printstrvar ntc_printbuf
 ;kw_printstrvar, <straddr>
 kw_printstrvar:
@@ -3375,12 +3346,12 @@ kw_printstrvar:
 			ld (ntc_sptr), hl
 			jp ntc_printbuf
 
-ntc_rg213_e:
-			IF ($ < 65536) && (ntc_rg214_e - ntc_rg214 + $ > 42496)	; fwdref-ok
+ntc_rg210_e:
+			IF ($ < 65536) && (ntc_rg211_e - ntc_rg211 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg214:
+ntc_rg211:
 ;## ntc_itoa ntc_data
 ; HL = signed value, DE = buffer: writes the digits and a 0 (DE ends on
 ; the 0). jp (ix) back. Uses A, BC, IY.
@@ -3439,12 +3410,12 @@ ntc_ia_last:
 			jp (ix)
 ntc_pow10:		dw 10000, 1000, 100, 10, 0
 
-ntc_rg214_e:
-			IF ($ < 65536) && (ntc_rg215_e - ntc_rg215 + $ > 42496)	; fwdref-ok
+ntc_rg211_e:
+			IF ($ < 65536) && (ntc_rg212_e - ntc_rg212 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg215:
+ntc_rg212:
 ;## kw_printint ntc_printbuf ntc_itoa
 ;kw_printint, <var>  - signed decimal
 kw_printint:
@@ -3461,12 +3432,12 @@ ntc_pi_done:
 			ld (ntc_sptr), hl
 			jp ntc_printbuf
 
-ntc_rg215_e:
-			IF ($ < 65536) && (ntc_rg216_e - ntc_rg216 + $ > 42496)	; fwdref-ok
+ntc_rg212_e:
+			IF ($ < 65536) && (ntc_rg213_e - ntc_rg213 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg216:
+ntc_rg213:
 ;## kw_printnl0 ntc_data ntc_plat_screen
 ;kw_printnl0  - new line unless the cursor is at the start of a line
 kw_printnl0:
@@ -3476,24 +3447,24 @@ kw_printnl0:
 			ld ix, ntc_next
 			jp ntc_plat_newline
 
-ntc_rg216_e:
-			IF ($ < 65536) && (ntc_rg217_e - ntc_rg217 + $ > 42496)	; fwdref-ok
+ntc_rg213_e:
+			IF ($ < 65536) && (ntc_rg214_e - ntc_rg214 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg217:
+ntc_rg214:
 ;## kw_printnl ntc_data ntc_plat_screen
 ;kw_printnl
 kw_printnl:
 			ld ix, ntc_next
 			jp ntc_plat_newline
 
-ntc_rg217_e:
-			IF ($ < 65536) && (ntc_rg218_e - ntc_rg218 + $ > 42496)	; fwdref-ok
+ntc_rg214_e:
+			IF ($ < 65536) && (ntc_rg215_e - ntc_rg215 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg218:
+ntc_rg215:
 ;## ntc_atoi ntc_data
 ; text to number into the var at (ntc_ivar). ntc_atoi reads ntc_inbuf,
 ; ntc_atoi_hl reads HL. Spaces first, then - , then digits (or &H hex).
@@ -3583,12 +3554,12 @@ ntc_atoi_store:
 			ld (hl), d
 			ret
 
-ntc_rg218_e:
-			IF ($ < 65536) && (ntc_rg219_e - ntc_rg219 + $ > 42496)	; fwdref-ok
+ntc_rg215_e:
+			IF ($ < 65536) && (ntc_rg216_e - ntc_rg216 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg219:
+ntc_rg216:
 ;## kw_scrinit ntc_data ntc_plat_screen
 ;kw_scrinit  - first word of any program that prints or reads keys:
 ;  mode 1, ROMs off, clear screen
@@ -3597,24 +3568,24 @@ kw_scrinit:
 			ld ix, ntc_next
 			jp ntc_plat_mode
 
-ntc_rg219_e:
-			IF ($ < 65536) && (ntc_rg220_e - ntc_rg220 + $ > 42496)	; fwdref-ok
+ntc_rg216_e:
+			IF ($ < 65536) && (ntc_rg217_e - ntc_rg217 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg220:
+ntc_rg217:
 ;## kw_cls ntc_data ntc_plat_screen
 ;kw_cls
 kw_cls:
 			ld ix, ntc_next
 			jp ntc_plat_cls
 
-ntc_rg220_e:
-			IF ($ < 65536) && (ntc_rg221_e - ntc_rg221 + $ > 42496)	; fwdref-ok
+ntc_rg217_e:
+			IF ($ < 65536) && (ntc_rg218_e - ntc_rg218 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg221:
+ntc_rg218:
 ;## kw_ticks ntc_data ntc_plat_ticks
 ;kw_ticks, <destvar>  - tick count from the platform (CPC: interrupts, 300 a second,
 ;  only moving in normal mode)
@@ -3637,12 +3608,12 @@ ntc_tk_got:
 ; string buffer (41 bytes). Dest may be the same as the source.
 ; ============================================================
 
-ntc_rg221_e:
-			IF ($ < 65536) && (ntc_rg222_e - ntc_rg222 + $ > 42496)	; fwdref-ok
+ntc_rg218_e:
+			IF ($ < 65536) && (ntc_rg219_e - ntc_rg219 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg222:
+ntc_rg219:
 ;## ntc_getn ntc_data
 ; BC = address of a word: A = its value limited to 0..255
 ; (below 0 = 0, above 255 = 255). jp (ix) back. Keeps DE, HL.
@@ -3663,12 +3634,12 @@ ntc_gn_max:
 			ld a, 255
 			jp (ix)
 
-ntc_rg222_e:
-			IF ($ < 65536) && (ntc_rg223_e - ntc_rg223 + $ > 42496)	; fwdref-ok
+ntc_rg219_e:
+			IF ($ < 65536) && (ntc_rg220_e - ntc_rg220 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg223:
+ntc_rg220:
 ;## kw_strleft ntc_getn
 ;kw_strleft, <dest>, <src>, <nvar>  - Left$(src, n)
 kw_strleft:
@@ -3697,12 +3668,12 @@ ntc_sn_end:
 			ld (de), a
 			ret
 
-ntc_rg223_e:
-			IF ($ < 65536) && (ntc_rg224_e - ntc_rg224 + $ > 42496)	; fwdref-ok
+ntc_rg220_e:
+			IF ($ < 65536) && (ntc_rg221_e - ntc_rg221 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg224:
+ntc_rg221:
 ;## kw_strright ntc_getn kw_strleft
 ;kw_strright, <dest>, <src>, <nvar>  - Right$(src, n)
 kw_strright:
@@ -3735,12 +3706,12 @@ ntc_sr_skip:
 			ld b, 255
 			jp ntc_strncpy
 
-ntc_rg224_e:
-			IF ($ < 65536) && (ntc_rg225_e - ntc_rg225 + $ > 42496)	; fwdref-ok
+ntc_rg221_e:
+			IF ($ < 65536) && (ntc_rg222_e - ntc_rg222 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg225:
+ntc_rg222:
 ;## kw_strmid ntc_getn kw_strleft
 ;kw_strmid, <dest>, <src>, <startvar>, <lenvar>  - Mid$(src, start, len)
 kw_strmid:
@@ -3772,12 +3743,12 @@ ntc_sm_n:
 			ld b, a
 			jp ntc_strncpy
 
-ntc_rg225_e:
-			IF ($ < 65536) && (ntc_rg226_e - ntc_rg226 + $ > 42496)	; fwdref-ok
+ntc_rg222_e:
+			IF ($ < 65536) && (ntc_rg223_e - ntc_rg223 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg226:
+ntc_rg223:
 ;## kw_strcstr ntc_itoa
 ;kw_strcstr, <dest>, <nvar>  - number to text (CStr, "x" & n)
 kw_strcstr:
@@ -3790,12 +3761,12 @@ kw_strcstr:
 			ld ix, ntc_next
 			jp ntc_itoa
 
-ntc_rg226_e:
-			IF ($ < 65536) && (ntc_rg227_e - ntc_rg227 + $ > 42496)	; fwdref-ok
+ntc_rg223_e:
+			IF ($ < 65536) && (ntc_rg224_e - ntc_rg224 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg227:
+ntc_rg224:
 ;## kw_strhex
 ;kw_strhex, <dest>, <nvar>  - Hex$(n), no leading zeros
 kw_strhex:
@@ -3841,12 +3812,12 @@ ntc_hx_next:
 			ld (de), a
 			ret
 
-ntc_rg227_e:
-			IF ($ < 65536) && (ntc_rg228_e - ntc_rg228 + $ > 42496)	; fwdref-ok
+ntc_rg224_e:
+			IF ($ < 65536) && (ntc_rg225_e - ntc_rg225 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg228:
+ntc_rg225:
 ;## kw_strspace ntc_getn
 ;kw_strspace, <dest>, <nvar>  - Space$(n)
 kw_strspace:
@@ -3878,12 +3849,12 @@ ntc_sf_end:
 			ld (de), a
 			ret
 
-ntc_rg228_e:
-			IF ($ < 65536) && (ntc_rg229_e - ntc_rg229 + $ > 42496)	; fwdref-ok
+ntc_rg225_e:
+			IF ($ < 65536) && (ntc_rg226_e - ntc_rg226 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg229:
+ntc_rg226:
 ;## kw_strstring kw_strspace
 ;kw_strstring, <dest>, <nvar>, <charvar>  - String$(n, char code)
 kw_strstring:
@@ -3896,12 +3867,12 @@ ntc_ss_n:
 			ld c, (hl)
 			jp ntc_strfill
 
-ntc_rg229_e:
-			IF ($ < 65536) && (ntc_rg230_e - ntc_rg230 + $ > 42496)	; fwdref-ok
+ntc_rg226_e:
+			IF ($ < 65536) && (ntc_rg227_e - ntc_rg227 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg230:
+ntc_rg227:
 ;## kw_strucase
 ;kw_strucase, <dest>, <src>  - UCase$
 kw_strucase:
@@ -3922,12 +3893,12 @@ ntc_uc_put:
 			inc de
 			jr ntc_uc_loop
 
-ntc_rg230_e:
-			IF ($ < 65536) && (ntc_rg231_e - ntc_rg231 + $ > 42496)	; fwdref-ok
+ntc_rg227_e:
+			IF ($ < 65536) && (ntc_rg228_e - ntc_rg228 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg231:
+ntc_rg228:
 ;## kw_strlcase
 ;kw_strlcase, <dest>, <src>  - LCase$
 kw_strlcase:
@@ -3948,12 +3919,12 @@ ntc_lc_put:
 			inc de
 			jr ntc_lc_loop
 
-ntc_rg231_e:
-			IF ($ < 65536) && (ntc_rg232_e - ntc_rg232 + $ > 42496)	; fwdref-ok
+ntc_rg228_e:
+			IF ($ < 65536) && (ntc_rg229_e - ntc_rg229 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg232:
+ntc_rg229:
 ;## kw_strltrim kw_strleft
 ;kw_strltrim, <dest>, <src>  - LTrim$
 kw_strltrim:
@@ -3969,12 +3940,12 @@ ntc_lt_copy:
 			ld b, 255
 			jp ntc_strncpy
 
-ntc_rg232_e:
-			IF ($ < 65536) && (ntc_rg233_e - ntc_rg233 + $ > 42496)	; fwdref-ok
+ntc_rg229_e:
+			IF ($ < 65536) && (ntc_rg230_e - ntc_rg230 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg233:
+ntc_rg230:
 ;## kw_strrtrim ntc_data
 ;kw_strrtrim, <dest>, <src>  - RTrim$
 kw_strrtrim:
@@ -4004,12 +3975,12 @@ ntc_rt_loop:
 			ld (hl), 0
 			jr ntc_rt_loop
 
-ntc_rg233_e:
-			IF ($ < 65536) && (ntc_rg234_e - ntc_rg234 + $ > 42496)	; fwdref-ok
+ntc_rg230_e:
+			IF ($ < 65536) && (ntc_rg231_e - ntc_rg231 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg234:
+ntc_rg231:
 ;## kw_strtrim kw_strrtrim
 ;kw_strtrim, <dest>, <src>  - Trim$
 kw_strtrim:
@@ -4025,12 +3996,12 @@ ntc_tr_go:
 			ld (ntc_sptr), de
 			jp ntc_rt_copy
 
-ntc_rg234_e:
-			IF ($ < 65536) && (ntc_rg235_e - ntc_rg235 + $ > 42496)	; fwdref-ok
+ntc_rg231_e:
+			IF ($ < 65536) && (ntc_rg232_e - ntc_rg232 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg235:
+ntc_rg232:
 ;## kw_strasc
 ;kw_strasc, <src>, <destvar>  - Asc(src), 0 if empty
 kw_strasc:
@@ -4042,12 +4013,12 @@ kw_strasc:
 			ld (hl), 0
 			ret
 
-ntc_rg235_e:
-			IF ($ < 65536) && (ntc_rg236_e - ntc_rg236 + $ > 42496)	; fwdref-ok
+ntc_rg232_e:
+			IF ($ < 65536) && (ntc_rg233_e - ntc_rg233 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg236:
+ntc_rg233:
 ;## kw_strval ntc_atoi
 ;kw_strval, <src>, <destvar>  - Val(src): decimal or &H hex
 kw_strval:
@@ -4056,12 +4027,12 @@ kw_strval:
 			ld (ntc_ivar), de
 			jp ntc_atoi_hl
 
-ntc_rg236_e:
-			IF ($ < 65536) && (ntc_rg237_e - ntc_rg237 + $ > 42496)	; fwdref-ok
+ntc_rg233_e:
+			IF ($ < 65536) && (ntc_rg234_e - ntc_rg234 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg237:
+ntc_rg234:
 ;## kw_strinstr ntc_getn ntc_data
 ;kw_strinstr, <startvar>, <s1>, <s2>, <destvar>  - InStr(start, s1, s2)
 kw_strinstr:
@@ -4118,12 +4089,12 @@ ntc_in_found:
 			ld (hl), 0
 			ret
 
-ntc_rg237_e:
-			IF ($ < 65536) && (ntc_rg238_e - ntc_rg238 + $ > 42496)	; fwdref-ok
+ntc_rg234_e:
+			IF ($ < 65536) && (ntc_rg235_e - ntc_rg235 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg238:
+ntc_rg235:
 ;## ntc_strcmp
 ; DE = a, HL = b. jp (ix) back with Z = equal, C = a < b
 ntc_strcmp:
@@ -4138,12 +4109,12 @@ ntc_strcmp:
 ntc_scm_done:
 			jp (ix)
 
-ntc_rg238_e:
-			IF ($ < 65536) && (ntc_rg239_e - ntc_rg239 + $ > 42496)	; fwdref-ok
+ntc_rg235_e:
+			IF ($ < 65536) && (ntc_rg236_e - ntc_rg236 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg239:
+ntc_rg236:
 ;## kw_strcmplt ntc_strcmp
 ;kw_strcmplt, <a>, <b>  - Z if a < b
 kw_strcmplt:
@@ -4159,12 +4130,12 @@ ntc_sclt_y:
 			xor a
 			ret
 
-ntc_rg239_e:
-			IF ($ < 65536) && (ntc_rg240_e - ntc_rg240 + $ > 42496)	; fwdref-ok
+ntc_rg236_e:
+			IF ($ < 65536) && (ntc_rg237_e - ntc_rg237 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg240:
+ntc_rg237:
 ;## kw_strcmple ntc_strcmp
 ;kw_strcmple, <a>, <b>  - Z if a <= b
 kw_strcmple:
@@ -4181,12 +4152,12 @@ ntc_scle_y:
 			xor a
 			ret
 
-ntc_rg240_e:
-			IF ($ < 65536) && (ntc_rg241_e - ntc_rg241 + $ > 42496)	; fwdref-ok
+ntc_rg237_e:
+			IF ($ < 65536) && (ntc_rg238_e - ntc_rg238 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg241:
+ntc_rg238:
 ;## kw_strcmpgt ntc_strcmp
 ;kw_strcmpgt, <a>, <b>  - Z if a > b
 kw_strcmpgt:
@@ -4203,12 +4174,12 @@ ntc_scgt_n:
 			or 1
 			ret
 
-ntc_rg241_e:
-			IF ($ < 65536) && (ntc_rg242_e - ntc_rg242 + $ > 42496)	; fwdref-ok
+ntc_rg238_e:
+			IF ($ < 65536) && (ntc_rg239_e - ntc_rg239 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg242:
+ntc_rg239:
 ;## ntc_saddr ntc_data
 ; DE = base, HL = index var address, (ntc_sasz) = element size:
 ; HL = base + index * size. jp (ix)
@@ -4242,12 +4213,12 @@ ntc_sa_no:
 			jp (ix)
 ntc_sasz:		dw 0
 
-ntc_rg242_e:
-			IF ($ < 65536) && (ntc_rg243_e - ntc_rg243 + $ > 42496)	; fwdref-ok
+ntc_rg239_e:
+			IF ($ < 65536) && (ntc_rg240_e - ntc_rg240 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg243:
+ntc_rg240:
 ;## kw_sget ntc_saddr
 ;kw_sget, <arraybase>, <indexvar>, <dest>, <element size>  - dest = array(index)
 kw_sget:
@@ -4266,12 +4237,12 @@ ntc_sg_a:
 			ret
 ntc_sgd:		dw 0
 
-ntc_rg243_e:
-			IF ($ < 65536) && (ntc_rg244_e - ntc_rg244 + $ > 42496)	; fwdref-ok
+ntc_rg240_e:
+			IF ($ < 65536) && (ntc_rg241_e - ntc_rg241 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg244:
+ntc_rg241:
 ;## kw_sset ntc_saddr kw_strcpy
 ;kw_sset, <arraybase>, <indexvar>, <src>, <element size>  - array(index) = src, cut at the element
 kw_sset:
@@ -4299,12 +4270,12 @@ ntc_sgs:		dw 0
 ; descriptor; ReDim fills a dynamic array's descriptor.
 ; ============================================================
 
-ntc_rg244_e:
-			IF ($ < 65536) && (ntc_rg245_e - ntc_rg245 + $ > 42496)	; fwdref-ok
+ntc_rg241_e:
+			IF ($ < 65536) && (ntc_rg242_e - ntc_rg242 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg245:
+ntc_rg242:
 ;## ntc_font
 ; 8x8 font buffer, chars 32-126, 8 bytes each, bit 7 = leftmost pixel.
 ; The platform fills it at start: the CPC copies its own font from the
@@ -4316,12 +4287,12 @@ ntc_font:		ds 95 * 8
 ; Platform class capabilities
 ; ============================================================
 
-ntc_rg245_e:
-			IF ($ < 65536) && (ntc_rg246_e - ntc_rg246 + $ > 42496)	; fwdref-ok
+ntc_rg242_e:
+			IF ($ < 65536) && (ntc_rg243_e - ntc_rg243 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg246:
+ntc_rg243:
 ;## kw_bssinit ntc_data ntc_plat_memtop ntc_plat_screen kw_stop @shared
 ;kw_bssinit, <start>, <size>  - the start of the main thread: the program's arrays live after
 ;  it (from ntc_end, not in its file). Check they fit under the platform's top (and 256 bytes
@@ -4391,12 +4362,12 @@ ntc_bsz:		dw 0
 ntc_bsp:		dw 0
 ntc_bstxt:		db "GURU 001", 0
 
-ntc_rg246_e:
-			IF ($ < 65536) && (ntc_rg247_e - ntc_rg247 + $ > 42496)	; fwdref-ok
+ntc_rg243_e:
+			IF ($ < 65536) && (ntc_rg244_e - ntc_rg244 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg247:
+ntc_rg244:
 ;## ntc_plat_data
 ntc_curx:		db 0			; cursor column (0 based)
 ntc_cury:		db 0			; cursor row (0 based)
@@ -4429,12 +4400,12 @@ ntc_modetab:	db 4, 20, #C0, 2		; mode 0
 
 ; (ntc_plat_scroll, ntc_plat_cls: their own section - the ROM runs them from RAM)
 
-ntc_rg247_e:
-			IF ($ < 65536) && (ntc_rg248_e - ntc_rg248 + $ > 42496)	; fwdref-ok
+ntc_rg244_e:
+			IF ($ < 65536) && (ntc_rg245_e - ntc_rg245 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg248:
+ntc_rg245:
 ;## ntc_plat_screen ntc_plat_data ntc_font ntc_data ntc_plat_scroll @shared
 ; ------------------------------------------------------------
 ; ntc_plat_putc - A = character 32-126 (others print as ?), draw it
@@ -4610,12 +4581,12 @@ ntc_nl_do:
 			ld (ntc_cury), a
 			jp (ix)
 
-ntc_rg248_e:
-			IF ($ < 65536) && (ntc_rg249_e - ntc_rg249 + $ > 42496)	; fwdref-ok
+ntc_rg245_e:
+			IF ($ < 65536) && (ntc_rg246_e - ntc_rg246 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg249:
+ntc_rg246:
 ;## ntc_plat_mode @unit ntc_plat_screen ntc_plat_data ntc_font ntc_data ntc_plat_scroll @shared
 ; ------------------------------------------------------------
 ; ntc_plat_mode - A = mode (0-2, 3 = 2). Gate array mode with both
@@ -4687,12 +4658,12 @@ ntc_fontcopy:
 			jp ntc_md_set
 ntc_fontcopy_end:
 
-ntc_rg249_e:
-			IF ($ < 65536) && (ntc_rg250_e - ntc_rg250 + $ > 42496)	; fwdref-ok
+ntc_rg246_e:
+			IF ($ < 65536) && (ntc_rg247_e - ntc_rg247 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg250:
+ntc_rg247:
 ;## ntc_plat_scroll ntc_plat_data ntc_data @shared @romram
 ; ------------------------------------------------------------
 ; ntc_plat_scroll - move rows 1-24 up one, clear row 24
@@ -4798,12 +4769,12 @@ ntc_cl_close:
 			ld (ntc_cury), a
 			jp (ix)
 
-ntc_rg250_e:
-			IF ($ < 65536) && (ntc_rg251_e - ntc_rg251 + $ > 42496)	; fwdref-ok
+ntc_rg247_e:
+			IF ($ < 65536) && (ntc_rg248_e - ntc_rg248 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg251:
+ntc_rg248:
 ;## ntc_plat_key ntc_plat_data ntc_data @shared
 ; ------------------------------------------------------------
 ; ntc_plat_scankey - A = ASCII of a key pressed since the last scan,
@@ -4951,12 +4922,12 @@ ntc_keymaps:
 			db "!", 34, 27, "Q", 9, "A", 0, "Z"
 			db 0, 0, 0, 0, 0, 0, 0, 127
 
-ntc_rg251_e:
-			IF ($ < 65536) && (ntc_rg252_e - ntc_rg252 + $ > 42496)	; fwdref-ok
+ntc_rg248_e:
+			IF ($ < 65536) && (ntc_rg249_e - ntc_rg249 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg252:
+ntc_rg249:
 ;## ntc_plat_ticks ntc_data
 ; ------------------------------------------------------------
 ; ntc_plat_ticks - HL = interrupt count (300 a second, normal mode)
@@ -4965,12 +4936,12 @@ ntc_plat_ticks:
 			ld hl, (ntc_ticks)
 			jp (ix)
 
-ntc_rg252_e:
-			IF ($ < 65536) && (ntc_rg253_e - ntc_rg253 + $ > 42496)	; fwdref-ok
+ntc_rg249_e:
+			IF ($ < 65536) && (ntc_rg250_e - ntc_rg250 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg253:
+ntc_rg250:
 ;## ntc_plat_irq ntc_plat_data ntc_data ntc_plat_irqh @shared
 ; ------------------------------------------------------------
 ; ntc_plat_irqon - put the interrupt handler at #38 (IM 1)
@@ -4988,12 +4959,12 @@ ntc_plat_irqon:
 			ld (ntc_irqset), a
 			jp (ix)
 
-ntc_rg253_e:
-			IF ($ < 65536) && (ntc_rg254_e - ntc_rg254 + $ > 42496)	; fwdref-ok
+ntc_rg250_e:
+			IF ($ < 65536) && (ntc_rg251_e - ntc_rg251 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg254:
+ntc_rg251:
 ;## ntc_plat_irqh ntc_plat_data ntc_data @shared @romram
 ; the handler: runs on the real stack, between keywords. Counts ticks
 ; (300 a second). AF goes to AF', HL to RAM; interrupt classes' counting
@@ -5050,12 +5021,12 @@ ntc_irq_ron:
 			ret
 		ENDIF
 
-ntc_rg254_e:
-			IF ($ < 65536) && (ntc_rg255_e - ntc_rg255 + $ > 42496)	; fwdref-ok
+ntc_rg251_e:
+			IF ($ < 65536) && (ntc_rg252_e - ntc_rg252 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg255:
+ntc_rg252:
 ;## ntc_plat_exit ntc_plat_data
 ; ------------------------------------------------------------
 ; ntc_plat_exit - before returning to the caller: interrupt handler
@@ -5103,12 +5074,12 @@ FS_TOOBIG	equ -8
 FS_FAILED	equ -9
 FS_BADNAME	equ -4
 
-ntc_rg255_e:
-			IF ($ < 65536) && (ntc_rg256_e - ntc_rg256 + $ > 42496)	; fwdref-ok
+ntc_rg252_e:
+			IF ($ < 65536) && (ntc_rg253_e - ntc_rg253 + $ > 42496)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #A600 (Option Memory Reserved #A600-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg256:
+ntc_rg253:
 ;## ntc_plat_memtop
 ; ntc_plat_memtop - HL = the first byte the Memory class's Small heap must not
 ; use: #A600 (the firmware's and AMSDOS's RAM is above). Called on the real
@@ -5122,7 +5093,7 @@ ntc_plat_memtop:
 			ret
 
 
-ntc_rg256_e:
+ntc_rg253_e:
 ntc_end:				; the end of the program (and of its file)
 var_chk_want		equ var_chk_got + 2
 var_add_y		equ var_add_x + 2

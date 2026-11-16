@@ -1,0 +1,39 @@
+# KOALLEY - names for the cells of tiles.png (8 x 8) and sprites.png (16 x 16)
+# tile   NAME   index [count]
+# sprite NAME   column row [frames [w h]]
+# A fighter's picture is 2 x 3 cells (32 x 48 pixels, shown twice the size: 64 x 96), facing
+# right; the game mirrors it to face left. Palette rows: 0 the first fighter, 1 the second,
+# 2 the flash when hit, 3 the second fighter's orb.
+tile   SKY      1
+tile   STARS    2
+tile   BUILD    3         # a building
+tile   WIN1     4         # windows, lit
+tile   WIN2     5         # windows, half lit
+tile   ROOFL    6         # a roof step, building on the left
+tile   ROOFR    7         # building on the right
+tile   BRICK    8 2       # the alley's brick wall, 2 kinds
+tile   WALLB    10        # the wall's foot
+tile   PAVE     11 2      # the pavement, 2 kinds
+tile   DOOR     13        # a dark doorway
+tile   DARK     14
+tile   GREY     15
+tile   BAR      16 9      # a health bar cell: 0-8 pixels filled from the left
+tile   BARR     131 9     # the same filled from the right
+tile   ROUND    25 2      # a round marker: not won, won
+tile   SIGN     27 5      # the neon sign: top edge, bottom edge, left edge, right edge, inside
+tile   LOGO     128 3
+
+sprite IDLE     0 0 2 2 3
+sprite WALK     4 0 2 2 3
+sprite CROUCH   8 0 1 2 3
+sprite JUMP     10 0 1 2 3
+sprite PUNCH    12 0 1 2 3
+sprite KICK     14 0 1 2 3
+sprite LOWKICK  0 3 1 2 3
+sprite BLOCK    2 3 1 2 3
+sprite HIT      4 3 1 2 3
+sprite DOWN     6 3 1 2 3
+sprite SPECIAL  8 3 1 2 3
+sprite WIN      10 3 1 2 3
+sprite ORB      0 6 2
+sprite SPARK    2 6 2

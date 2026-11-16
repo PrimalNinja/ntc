@@ -126,8 +126,6 @@ A program is built only for the mode(s) it runs in: one mode, one copy of everyt
 code reached in both modes (a program with `Turbo On` / `Turbo Off`, or a procedure an
 interrupt Tick calls as well as turbo code) is built twice.
 
-`Option CompactCalls`: smaller procedure call / return stubs through shared routines (section
-2's procedure calls), for a program short of memory.
 
 `Option NoTurbo`: normal mode only - `Turbo On` / `Turbo Off` become no-ops with a warning, the
 start mode is normal whatever `Option Turbo` or the build setting say, so what would have been
@@ -327,29 +325,28 @@ p_add:                                  ; body (thread)
         dw p_add_r                      ; end
 ```
 
-- `p_name_c` (code stub) copies the arguments into the parameters, sets the locals to 0 / ""
+- `p_name_c` (code stub) takes the arguments (ByVal: copied into the parameters; ByRef: see below), sets the locals to 0 / ""
   (VB: locals start empty on every call, except `Static`), saves SP (the return point) in
   `p_name_rs` and jumps into the body.
-- `p_name_r` copies ByRef parameters that the procedure writes back to the caller's
-  variable, then loads SP from `p_name_rs`.
+- `p_name_r` loads SP from `p_name_rs` (first copying back the few ByRef parameters that are
+  still copies - below).
 - A function's result is its own variable (VB: assign to the function name).
 - A run of two or more Integer parameters is one block of variables (`var_add_x: dw 0, 0`,
   `var_add_y equ var_add_x + 2`): the stub copies them with `ld de, var_add_x` once, then
   `pop hl / ldi / ldi` each (5 bytes a parameter instead of 8).
-- `Option CompactCalls`: the stubs through shared library routines, for a program short of
-  memory (CyborgOS's C2 hypervisor: 752 bytes less). The call stub is `ld hl, p_name_rs / jp
-  ntc_pcall` (6 bytes); the return point word `p_name_rs` sits in front of the body (the body
-  is rs + 2) and `ntc_pcall` saves SP there and runs the body; the body ends `dw ntc_pret,
-  p_name_rs` (no `p_name_r` stub - `Exit Sub` is the same two words) unless the procedure
-  copies a ByRef argument back or is an interrupt class's Tick, which keep the return stub.
-  A procedure whose parameters are all Integers (none copied back) gets them and its Integer
-  locals as ONE block of variables, and the header after rs says where: `dw block / db
-  arguments / db locals` - `ntc_pcallb` pops the arguments' addresses off the thread and copies
-  the words in, clears the locals, and runs the body (rs + 6); the stub has no code for any
-  of it. Strings, Longs, arrays, Types and ByRef-written parameters are copied by the stub as
-  before. A class in a page (Option Class Page / Overlay) keeps the long stubs - its entry
-  switches pages. Behaviour-identical; a call costs some 60 T-states more, so it is an option.
-  Not on a ROM platform (the return point word is in the code) nor the 68000 / 45GS02.
+- **ByRef in place** (20261116-2; `Option CompactCalls` is gone with it). A ByRef parameter has
+  no value of its own: every operand in the body that names it is a word the call stub fills
+  (`ntc_rfN:` labels the keyword, the operand holds 0 in the file), so the stub is `pop hl` and
+  one `ld (ntc_rfN + k), hl` for each place (an operand with an offset - a Long's high word -
+  gets the address plus it), and there is no copy back in `p_name_r`. The body then works on the
+  caller's variable at full speed; a parameter passed on is an operand like any other, so the
+  next procedure gets the same address. A Type is one address a field, each filled the same way.
+  What a call passes: a variable of the parameter's type, or a constant the procedure doesn't
+  write, as it is; anything else is moved into the parameter's own variable (`var_p_x`, declared
+  only then) just before the call. Kept as copies: ByVal, a String the procedure writes, a
+  parameter named in the procedure's `#asm`, a class in a page, a ROM platform (`objPlat.rom`),
+  the 68000 and the 45GS02. `VarPtr(parameter)` is the caller's variable's address. The thread
+  of such a procedure is written to at every call, so it must be in RAM.
 - **No recursion**: each procedure has one set of parameters, locals and one return point.
   A procedure that can call itself (directly or through others) is an error.
 
@@ -367,7 +364,7 @@ p_add:                                  ; body (thread)
   `c.Total` / `c.Limit = 3` / `Counter.Total` all resolve at compile time.
 - There is no run time object: every variable of a class uses the class's one set of
   members.
-- Planned: `Option ClassSize <kilobytes>` to keep a class's code within a size so classes
+- (`Option ClassSize` is gone, 20261116-1: it was accepted and did nothing. Classes go in pages with `Option Page`.) It was to keep a class's code within a size so classes
   can be banking units. Accepted, not enforced yet.
 
 ### Platforms
@@ -631,26 +628,23 @@ variables, `Declare`.
   stored and passed around; `CallAddr x [, args]` calls it (driver / device tables). The
   arguments go by address and must match the procedure's parameters - the compiler can't
   check that. `AddressOf` gives the call stub for the turbo mode at that line.
-- `Option Memory Available | Reserved [ZeroFill | Skip] | Paged | Safe  start, size [, start, size] ...`:
+- `Option Memory Available | Reserved | Paged | Safe  start, size [, start, size] ...`:
   the memory map (`docs/memory-map.md` has the rules and a typical CPC map) - one kind per line, as
   many lines as you like, each a list of address/size pairs. The build **fills from the org upward
   and goes round Reserved only**; everything else is where code goes:
-  - `Reserved` - a gap the build goes round (a load area, a screen, firmware RAM). `ZeroFill` (the
-    default) keeps the gap in the file, as zeros, so the file loads and runs as it is. `Skip` leaves
-    the gap out: the file is packed, the code above the gap is assembled for its real address and
-    the start code moves it up (highest gap first, `lddr`) before anything above a gap runs. Not on
-    `zxn` (a NEX file loads each part to its own address), a cartridge ROM, `md` or `m65`.
-  - `Paged addr, size [, startbank]` - the window where RAM pages / overlays swap in. **Code may
+  - `Reserved` - a gap the build goes round (a load area, a screen, firmware RAM): in the file, as
+    zeros, so the file loads and runs as it is. One form (ZeroFill | Skip are gone, 20261116-1).
+  - `Paged startbank, addr, size` (the start bank first, always there: 20261116-3) - the window where RAM pages / overlays swap in. **Code may
     sit under it** (it is page 0: paged out while a page is in, back when it leaves), but never the
     program's data (variables, strings, arrays, the library's buffer), the stubs, the `#asm`
     blocks, the keyword library, or a procedure a page calls (a bare call, no stub puts page 0
-    back: the compiler pins those, and what they call, out of the window). `startbank` (default 1)
+    back: the compiler pins those, and what they call, out of the window). `startbank`
     is the bank paging runs from, counting the window's own 16K as bank 0: `1` keeps it fixed (the
     CPC double buffer: video RAM in base block 1), `0` makes it page 0, a swap page - then nothing
-    goes under the window, as with `Option Memory Small` (a page is loaded into the window in
+    goes under the window, as with `Option Memory Heap Main` (a page is loaded into the window in
     place): on those two the window is a hole for every part, like Reserved. To keep everything
     out of the window on a banked build too, Reserve the same range.
-  - `Safe` - always-mapped RAM: the safe classes' procedures (`Option Safe "NAME" = ...`) go
+  - `Safe` - always-mapped RAM: the safe classes' procedures (`Option Class Safe "NAME" = ...`) go
     there **first**, each whole, first fit over all the Safe ranges in address order (the assembler
     does the sums); the fill then goes on after them, so what they leave is ordinary memory again.
     A procedure that fits in no range is an error naming it.
@@ -661,9 +655,8 @@ variables, `Declare`.
   `zxn` `#BA00-#FFFF` (the DOS area, the stack, the screen). A program that uses the screen's
   memory itself (the screen moved to base block 1, say) frees it with
   `Option Memory Available &HC000, &H4000`. The assembler prints the map it built (`NTC memory:`
-  lines: the program, its arrays and stack, each hole, each Safe range and what went in it, each
-  Skip block and where it is in the file).
-  This is a different word from the heap-scheme form (`Option Memory Small | CPCExpansion n`), so
+  lines: the program, its arrays and stack, each hole, each Safe range and what went in it).
+  This is a different word from the heap-scheme form (`Option Memory Heap Main | Pages`), so
   the two do not clash.
 - `Option Deprecated`: allows the deprecated directives in this program. Without it, each of the
   directives marked **deprecated** below is refused with a message naming the `Option Memory`
@@ -671,8 +664,8 @@ variables, `Declare`.
   new programs use `Option Memory`.
 - `Option Reserve start, size [, start, size] ...`: **deprecated** - use `Option Memory Reserved`.
   (Memory the program stays out of, built round. Refused unless `Option Deprecated` is set.)
-- `Option Page <startbank>, <addr>, <size>`: **deprecated** - use `Option Memory Paged addr, size
-  [, startbank]` (which reserves nothing: code may sit under the window). Refused unless
+- `Option Page <startbank>, <addr>, <size>`: **deprecated** - use `Option Memory Paged startbank, addr,
+  size` (which reserves nothing: code may sit under the window). Refused unless
   `Option Deprecated` is set. Below is what it did -
   it reserves the window (`addr .. addr+size`, normally `#4000, #4000`) and builds the program
   round it, so the program, its arrays, the page call/return stubs (`p_*_c` / `_in` / `_r`), the
@@ -688,14 +681,14 @@ variables, `Declare`.
   (CPC gate array, Next MMU slots 2/3, MSX mapper via `PUT_P1`), so the directive means the same
   on all three. (The banking offset for `startbank >= 1` - keeping lower banks fixed or free -
   reserves as `0` does for now; the offset itself is not yet distinct in the output.)
-- `Option Safe`: names the memory that stays mapped while a bank is switched into the window
+- `Option Class Safe`: names the classes for the memory that stays mapped while a bank is switched into the window
   (`safe` memory, the base RAM where the program loads - it does not matter which bank is paged in,
   the safe RAM is always there), and the classes whose code must live there. It is for the
   banking / slot-access code: the routines that select a bank into the window must themselves be in
   safe memory, or they would vanish mid-switch. The memory is declared with `Option Memory Safe`
-  (above); the classes are named with `Option Safe "NAME" = ...`:
+  (above); the classes are named with `Option Class Safe "NAME" = ...`:
   - `Option Memory Safe start, size [, start, size] ...` - the safe memory (see `Option Memory`).
-  - `Option Safe "NAME" = Class [, Class] ...` - the classes whose code must go in safe memory.
+  - `Option Class Safe "NAME" = Class [, Class] ...` - the classes whose code must go in safe memory.
     Same shape as `Option Page "NAME" = classes`; `NAME` is just a label for messages. The safe
     classes are placed in the safe memory first; other code may use what is left.
   - `Option Safe Areas = start, size ...` - **deprecated** (the old way of declaring the memory);
@@ -717,8 +710,8 @@ variables, `Declare`.
 - `Option Stack address`: the start code saves the caller's SP (`ntc_ssp`), sets SP, and pushes
   `ntc_sback` (switch back to the caller's SP, ret) so `End` (`kw_stop`: `ld sp,(ntc_csp) / ret`)
   still returns to the caller. ASSERT: below `ntc_start` or 64+ bytes above `ntc_end`. Options
-  are all read first; the start code applies Stack, then RomEnable, then runs the program.
-- `Option RomEnable All | rom [, rom] ...` (cpcfw): the start code starts the background ROMs
+  are all read first; the start code applies Stack, then ROM Enable, then runs the program.
+- `Option ROM Enable All | rom [, rom] ...` (cpcfw): the start code starts the background ROMs
   again (KL ROM WALK / KL INIT BACK per ROM, DE = `ntc_end`, HL = `#ABFF`) unless CAS IN OPEN
   is already AMSDOS's far call (`#DF` at `#BC77`: the program was CALLed and they run).
   `RUN"` of a binary resets the firmware and drops them. Writes `NTC_ROMENABLE equ 0 / 1`.
@@ -833,7 +826,7 @@ give Failed while it is open; `fs_hmode` is in `ntc_plat_fs`). cpcmin: the same;
 other host calls; `ntc_capfind` (in `ntc_lib.asm`) searches a class's capability table and
 leaves Z set when found. Details in `userguide.md` section 17.
 
-**ROMDISC** (volume R; `ntc_lib.asm` section `ntc_romdisc`, `@ramonly`; per platform
+**ROM disc** (the `ROMDiscFS` class since 20261116-5 - no longer volume R of FileSystem; `ntc_lib_cpc.asm` section `ntc_romdisc`, `@ramonly`; per platform
 `ntc_plat_romsel` - `rd_sel` / `rd_unsel`: cpc straight to the gate array and `#DFxx`, keeping
 `ntc_rx_cur` right in a Library: ROM program; cpcmin / cpcfw KL ROM SELECT / DESELECT, inside
 `fs_go` where the firmware is alive - and on cpcmin / cpcfw `ntc_plat_rdroute`). Read-only files
@@ -852,7 +845,7 @@ these run on the thread (no call, no push), copy `fs_a1 .. fs_res` into `rd_a1 .
 is picked, and jump to `fs_go` / `fs_go0`. No disc driver: FileSystem's methods just reach the
 disc's routines when the volume is R.
 
-**Memory.** `Option Memory Small | CPCExpansion [maxpages]` picks the scheme when
+**Memory.** `Option Memory Heap Main | Pages` picks the scheme when
 compiling (`NTC_MEM_SMALL` / `NTC_MEM_CPCEXPANSION` for `#If`; library sections marked
 `@if:ntc_mem_small` / `@if:ntc_mem_cpcexpansion` - a section whose `#Const` isn't set isn't in
 the library, so both schemes can use the same labels and the class file stays one).
@@ -932,7 +925,7 @@ that needs the area built round says so with `Option Page <startbank>, <addr>, <
 at the area). CP/M page files are the plain bytes (`fs_load` reads whole records into `#4000`,
 at most 16K).
 
-**Pages** (`Option Page Name = A, B` or `Option Page "FILE.EXT" = ...`, `Option Home`;
+**Pages** (`Option Page Name = A, B` or `Option Page "FILE.EXT" = ...`;
 `Option Class Overlay X` is the same as `Option Page X = ThisClass`). The block is `dw page,
 end, vsize`, then the file name and the page's name (0-ended each; the name empty for a page
 named by its file), so the message says `Overlay not loaded: Level1 (PROGRAM.001)`. A pre-pass (`scanPages`, before parsing, following `#If` /
@@ -1028,7 +1021,7 @@ Checked with the real 6128 ROMs: `test/realcpc.c` (scratch tool, see `test/READM
 **Arrays after the program.** Arrays (and array descriptors) are no longer `ds` blocks in
 the program: the compiler gives them addresses after `ntc_end` (`ntc_bss`, `equ`s), so they
 are not in the file. `ntc_free` (= `ntc_bss` + their size) is the first free byte: the
-Memory class's tables, the Small heap, `Option RomEnable`'s lowest address and the
+Memory class's tables, the Small heap, `Option ROM Enable`'s lowest address and the
 `Option Reserve` / Stack / FileSystem / overlay checks all use it. The main thread starts with
 `kw_bssinit, ntc_bss, ntc_bss_size` (after the screen set-up): it checks the arrays fit under
 `ntc_plat_memtop` (and 256 bytes under the real stack when that is above them), clears them,
@@ -1385,7 +1378,6 @@ python3 guitest5.py
   it, the class keeps per instance state in its own arrays. Private members can't be used
   from outside the class.
 - Open: keep `Dim c As Counter` (it only names the one set of members) or make it an error.
-- `Option ClassSize <kilobytes>` for banking (planned, not enforced).
 
 ## FileSystem on the ZX Spectrum Next
 
@@ -1410,7 +1402,7 @@ Two platforms, one file each (the assembly writes `NAME.DOT` through `OUTPUT`; `
 |---|---|---|
 | the program | the 8K at `#2000-#3FFF`: code, data, arrays, the real stack (128 bytes), the Small heap; `ntc_free <= #4000` or the assembly refuses it and names the Large Model | `#8000-#FFFF` (org `#8000`): 32K for code, data, arrays and the heap, the real stack from `#FFFF` down; `ntc_free <= #FF80` |
 | the file | the 8K (NextZXOS loads it into DivMMC's page) | the first 8K (the entry: `ntc_plat_romhead`, padded with `ds`) + the program, read by the entry from its own file (`M_GETHANDLE`, `F_READ`: NextZXOS leaves the file open after the first 8K) |
-| memory | nothing else is touched | six 8K pages from NextZXOS's allocator (`IDE_BANK` through `M_P3DOS`) at entry: two the Memory class's window `#4000-#7FFF` (its page 1, "main RAM's own"), four the program; `Option Memory CPCExpansion` (the default) takes 64K banks of 8 more pages at the class's first call, up to 16 (1MB) - `asm/ntc_lib_dot.asm` (the probe, `dot_mem_jbc`, `dot_mem_se_out`, `dot_win`), a table of pages a 16K bank in `dotl_pages`; everything is given back at `End` |
+| memory | nothing else is touched | six 8K pages from NextZXOS's allocator (`IDE_BANK` through `M_P3DOS`) at entry: two the Memory class's window `#4000-#7FFF` (its page 1, "main RAM's own"), four the program; `Option Memory Heap Pages` (the default) takes 64K banks of 8 more pages at the class's first call, up to 16 (1MB) - `asm/ntc_lib_dot.asm` (the probe, `dot_mem_jbc`, `dot_mem_se_out`, `dot_win`), a table of pages a 16K bank in `dotl_pages`; everything is given back at `End` |
 | slots | as entered | 2-7 hold the program's pages while it runs, BASIC's while a ROM or esxDOS call runs (`dot_os`: `dotl_bside` / `dotl_oside`, from the 8K, which is in both maps); 0-1 (the esxDOS ROM, the 8K) stay: they are where every call crosses over |
 
 Both: console text through the 48K ROM's `rst #10` (channel 2 opened at the start; Cls the ROM's
@@ -1427,7 +1419,7 @@ the 8K, or run over nothing of BASIC's with the program's pages in the slots - n
 Frame waits for the next one, Ticks is `dot_frames` plus FRAMES' advance during the ROM calls.
 `End` puts I and IM 1 back and returns with carry clear; the Large Model's entry returns the esxDOS custom error (carry
 set, A = 0, HL = the message) when the allocator has no pages or the file is short. No
-FileSystem class yet: esxDOS's `F_*` through `dot_os` is the way, and the Large Model's entry has the call for it, `dot_fs_call` (`ld hl, dot_fs_call : call dot_os`, on the real stack; in `dot_fs_hook`, `dot_fs_a`, `dot_fs_bc`, `dot_fs_de`, `dot_fs_hl`; out `dot_fs_a`, `dot_fs_bc`, `dot_fs_de`, `dot_fs_cy`), with `dot_fs_name` (64 bytes), `dot_fs_stat` (16) and `dot_fs_data` (256) in the 8K - NextZXOS pages its own RAM over `#C000-#FFFF` during a call, so the call's stack, the name and the data must not be in the program's pages (a real NextZXOS resets). Locate keeps to BASIC's rows, 22 the last (the ROM's AT stops the command past it). Not for games: no
+FileSystem class yet: esxDOS's `F_*` through `dot_os` is the way, and the Large Model's entry has the call for it (its name, stat and data buffers are the `Option Buffer address, size` buffer since 20261116-5: 336 bytes or more, placed in the DOT's 8K after its code - `ntc_dot8k_end` in the listing is where that ends), `dot_fs_call` (`ld hl, dot_fs_call : call dot_os`, on the real stack; in `dot_fs_hook`, `dot_fs_a`, `dot_fs_bc`, `dot_fs_de`, `dot_fs_hl`; out `dot_fs_a`, `dot_fs_bc`, `dot_fs_de`, `dot_fs_cy`), with `dot_fs_name` (64 bytes), `dot_fs_stat` (16) and `dot_fs_data` (256) in the 8K - NextZXOS pages its own RAM over `#C000-#FFFF` during a call, so the call's stack, the name and the data must not be in the program's pages (a real NextZXOS resets). Locate keeps to BASIC's rows, 22 the last (the ROM's AT stops the command past it). Not for games: no
 interrupt handler, no Layer 2 - that is the `zxn` platform (a NEX), or a third, 64K-takeover
 model later. test/dotrun.py runs both under a NextZXOS stand-in (the hooks, `rst #10`, the
 frame interrupt's FRAMES and LAST_K; at the end it reports whether slots, SP and the pages

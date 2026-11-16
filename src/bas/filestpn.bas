@@ -1,5 +1,5 @@
 ' File test in steps: each step says what it is about to do, then waits for a key, so a
-' crash shows where it happened. Without Option RomEnable: after RUN" the firmware has no AMSDOS (tape).
+' crash shows where it happened. Without Option ROM Enable: after RUN" the firmware has no AMSDOS (tape).
 Option PressAnyKeyOnEnd "Press a key to end"     ' at the end: a message and a key (a RUN" program resets when it ends)
 Option Explicit
 Dim a(9) As Integer, b(9) As Integer

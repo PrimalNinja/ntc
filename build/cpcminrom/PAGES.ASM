@@ -7,7 +7,8 @@ ntc_oom = 0		; 1 = out of memory (the fill reached the top range): said once
 			DEVICE AMSTRADCPC6128		; for SAVEAMSDOS at the end
 			org #0040
 
-NTC_TERM	equ 0		; Option Terminal: 0 none, 1 VT52, 2 ANSI (CP/M)
+NTC_TERM	equ 0		; Option Terminal: 0 none, 1 VT52, 2 ANSI, 3 ADM-3A, 4 Televideo (CP/M)
+NTC_TERM_RT	equ 0		; 1: the program calls StdIO.SetTerminal (the terminal is chosen while it runs)
 NTC_STRMAX	equ 255		; the longest string (library buffers, temps)
 NTC_MEMBANKS	equ 64		; Option Memory: the most 64K banks the Memory class looks for
 NTC_ROMENABLE	equ 1		; Option RomEnable (cpcfw, cpcmin): the start code starts the ROMs
@@ -1387,4 +1388,4 @@ ovl_ending_vsize	equ 0		; its page variables; its local memory is the rest, to #
 			DISPLAY "  page variables ", /D, ovl_ending_vsize, ", free ", /D, #8000 - (ovl_ending_end + ovl_ending_vsize)
 			SAVEAMSDOS "PAGES.004", ovl_ending_start, ovl_ending_end - ovl_ending_start, #4000
 
-NTC_STAMP	equ #B4DE		; the build stamp: the first word of every page file
+NTC_STAMP	equ #3207		; the build stamp: the first word of every page file

@@ -71,25 +71,52 @@ function ntcCompile(input_a, objOptions_a)
 	var intBufAt = -1;			// Option Buffer: where the 2K buffer is (-1: in the program)
 	var intBufSize = 2048;		// Option Buffer [address], size / Option Buffer Size n: its size (FileSystem on a CPC needs 2048)
 	var objWindowFile = null;	// Option WindowFile "NAME.EXT", address: the ; @window data written as its own file (SAVEAMSDOS), staged at that address - the program loads it there and copies it where it runs; the window itself is then free for code
-	var objNexData = null;		// Option NexData "file", blocks (zxn): the file's 16K blocks in the NEX's banks
-	// the banks Option NexData fills, in order: not 0, 5 (the screen and the start stub), 7 (+3DOS's
-	// workspace: NextZXOS pages it over #C000-#FFFF for every file call, esxDOS's included - a data
-	// block there crashed the real machine at the first F_OPEN, 20261110-1), 8-10 (the program),
-	// 12-21 (Graphics: Layer 2's two buffers); past 47 a 2MB Next. Bank 1 is NextZXOS's RAM disc
-	// (M:): a block there loses the RAM disc, not the DOS
-	var ZXN_NEXBANKS = [1, 2, 3, 4, 6, 11].concat(Array.apply(null, Array(90)).map(function(x_a, i_a) { return 22 + i_a; }));
-	var ZXN_NEXLOW = 6;			// the low banks of that list (below 22)
-	// Option Page ... Loaded n on the Next: RAM page n's 16K bank, the same one Option Memory
-	// CPCExpansion's mem_sel maps for page n - page 2 is ZXN_FIRSTBANK (bank 22, or above
-	// Option NexData's blocks when they run past the 6 low banks)
-	function zxnFirstBank() { return (objOptions.firstbank !== null) ? objOptions.firstbank : (22 + Math.max(0, ((objNexData !== null) ? objNexData.blocks : 0) - ZXN_NEXLOW)); }
+	// Option SaveNex "FILE", page [, page | page To page] ... (zxn, 20261116-4; in place of NexData): the
+	// file's 16K pieces, in order, in the pages named (the same page numbers as Loaded n and the Memory
+	// class's SelectPage). Several lines; two may not name the same page.
+	var arrSaveNex = [];		// [{ file, pages: [n ...], src, line }]
+	// The Next's 16K banks: 0, 5 (the screen and the start stub), 7 (+3DOS's workspace: NextZXOS
+	// pages it over #C000-#FFFF for every file call), 8-10 (the program), 12-21 (Graphics: Layer
+	// 2's two buffers) are taken; past 47 is a 2MB Next.
+	// Page n (Option Page ... Loaded n, Option SaveNex, the Memory class) is Next bank
+	// ZXN_FIRSTBANK + n - 2: 22, or Option Memory Paged's start bank when that is 11 or more.
+	// (20261116-5: Option NexData is gone - Option SaveNex names its pages.)
+	// 20261116-6: on the Next NTC page n IS the Next's 16K bank n (linear, 0-111): every page of the
+	// machine has its number and is usable unless it is taken - by the program itself, by what the
+	// program uses (zxnAutoPages), or by Option Memory Reserve Pages. (Before: page 2 was Next bank 22.)
+	// The Memory class's arithmetic is page p -> Next bank ZXN_FIRSTBANK + p - 2, so this is 2.
+	// 20261116-7: the program is in the Next's banks 0, 1, 2 (it was 8, 9, 10), so pages 0 and 1 are
+	// the Next's banks 0 and 1 too: page 1, the program's own window, is bank 1.
+	function zxnFirstBank() { return 2; }
+	var arrReservePages = [];	// Option Memory Reserve Pages n[, n | n To m] ...: pages never handed out or filled
+	var blnZxnFs = false;		// zxn: the program has the FileSystem class (the DOS uses Next bank 7 during a file call)
+	var blnZxnGfx = false;		// zxn: the program has the Graphics class (Layer 2's two buffers: Next banks 12-21)
+	// the pages a Next program has taken from the start, and why (page = Next bank)
+	function zxnAutoPages()
+	{
+		var arrA = [{ p: 0, why: 'the program (#0000-#3FFF)' }, { p: 1, why: 'the program (#4000-#7FFF: its own window)' }, { p: 2, why: 'the program (#8000-#BFFF)' }, { p: 5, why: 'the program\'s memory at #C000-#FFFF (the text screen is in it)' }];
+		var intG = 0;
+
+		if (blnZxnFs) { arrA.push({ p: 7, why: 'the DOS\'s workspace (the program has the FileSystem class)' }); }
+		if (blnZxnGfx) { for (intG = 12; intG <= 21; intG++) { arrA.push({ p: intG, why: 'Layer 2 (the program has the Graphics class)' }); } }
+		return arrA;
+	}
+	// every page taken from the start: Loaded n pages, Option SaveNex's, Option Memory Reserve
+	// Pages', and on the Next the program's own
+	function takenPages()
+	{
+		var arrT = arrPageOrder.filter(function(strId_a) { return objPages[strId_a].loaded; }).map(function(strId_a) { return objPages[strId_a].loaded; }).concat(snPages(), arrReservePages);
+
+		if (objOptions.platform === 'zxn') { arrT = arrT.concat(zxnAutoPages().map(function(objA_a) { return objA_a.p; })); }
+		return arrT.filter(function(int_a, intAt_a) { return arrT.indexOf(int_a) === intAt_a; }).sort(function(a_a, b_a) { return a_a - b_a; });
+	}
 	function zxnPageBank(intPage_a) { return zxnFirstBank() + intPage_a - 2; }
+	function snPages() { var arrP = []; arrSaveNex.forEach(function(objS_a) { arrP = arrP.concat(objS_a.pages); }); return arrP; }
 	var arrRomEnable = null;	// Option RomEnable (cpcfw): null none, ['all'], or ROM numbers
 	var objStack = null;		// Option Stack: { addr, file, line } - the real stack's start
-	var strTerminal = 'none';	// Option Terminal (CP/M): none, vt52, ansi		// platform class names the project replaces with its own
+	var blnTermRt = false;		// the program calls StdIO.SetTerminal: the terminal's code is there whatever Option Terminal says
+	var strTerminal = 'none';	// Option Terminal (CP/M): none, vt52, ansi, adm3a, televideo		// platform class names the project replaces with its own
 	var objOptions = {
-		firstbank: null,		// Option FirstBank (zxn): the first 16K bank of the Memory class's pages and pool (null: 22, above Option NexData's blocks)
-		next2mb: false,		// Option Next2MB: a 2MB-only program (Loaded pages may go past bank 47)
 		org: null,				// null = the platform's (;@org)
 		library: 'used',		// used, all, none
 		platform: 'cpc',		// key into NTC_PLATFORMS: cpc, cpcmin, cpcfw, cpm, test, zxn
@@ -150,6 +177,16 @@ function ntcCompile(input_a, objOptions_a)
 	var objRsPlaced = {};		// Option CompactCalls: p_x_rs -> the body label it sits in front of (ntc_pcall: the body is at rs + 2)
 	var objParamBlocks = {};	// a procedure's run of Integer parameters as one block: first label -> [labels]
 	var objParamBlockOf = {};	// label -> first label of its block
+	// a class in a page (20261116-9): its procedures' copy-in number parameters (ByVal, or ByRef the
+	// procedure never writes) are variables IN THE PAGE, side by side in the order they are declared
+	// (objPkBlocks: first label -> { labels, sizes, total, body }). The stub (main memory) puts the
+	// values side by side in ntc_pkbuf (main memory), the page comes in, and one LDIR (ntc_pkin)
+	// moves them all to the block: the body starts with dw block, length for it
+	var objPkBlocks = {};
+	var objPkOf = {};			// label -> first label of its block
+	var objPkBody = {};			// body label -> first label of its block
+	var objPkModes = {};		// 'n' / 't' -> true: ntc_pkin_n / ntc_pkin_t is used
+	var intPkMax = 0;			// the biggest block: ntc_pkbuf's size
 	var blnM68k = false;		// the platform's CPU is a 68000 (;@cpu 68000: md): 68000 threads, stubs and data (vasm)
 	var blnM65 = false;			// the platform's CPU is a 45GS02 (;@cpu 45gs02: m65): 6502 stubs, thread words - 1 (vasm)
 	var arrRamOut = [];			// 68000: the RAM block's lines (variables, temps), after the ROM
@@ -171,6 +208,14 @@ function ntcCompile(input_a, objOptions_a)
 	var objTypes = {};
 	var objLabels = {};			// label -> line
 	var objWritten = {};		// param full -> written in its procedure
+	// ByRef in place (20261116-2): a ByRef parameter has no value of its own - the call puts the
+	// argument's address straight into every operand of the body that names the parameter (the
+	// thread is in RAM), so the body works on the caller's variable. refParam says which.
+	var objAsmParam = {};		// param full -> named by {name} in #asm (pass 1): its #asm reads a variable, so it keeps one
+	var objRefLabel = {};		// a by-reference parameter's label -> its procedure (full)
+	var objRefSlotUsed = {};	// its label -> true: a call passes a value (not a variable), kept in the parameter's own variable
+	var objRefSites = {};		// body label -> { parameter label -> [{ at, off }] }: the operands the call stub fills
+	var objBodyProc = {};		// body label -> its procedure (full)
 	var objDynMax = {};			// dynamic array full -> most bytes any ReDim asks for
 	var blnVBPrint = false;		// Option VBPrint: numbers with spaces, comma = 14 column zones
 	var objHookProcs = {};		// Subs set with Interrupt Name (their return lets the hook run again)
@@ -2563,9 +2608,112 @@ function ntcCompile(input_a, objOptions_a)
 		return objProc_a.asmkw ? !objProc_a.params[intIndex_a].byval : copyBack(objProc_a, intIndex_a);
 	}
 
+	// the call stub's ";@REF body label" line (HL = the argument's address) becomes the stores into
+	// the body's operands: ld (site), hl each; an operand with an offset (a Long's high word ...)
+	// gets the address plus it
+	function refSiteCode(arrLines_a)
+	{
+		var arrOutLines = [];
+
+		arrLines_a.forEach(function(strLine_a)
+		{
+			var arrM = String(strLine_a).match(/^;@REF (\S+) (\S+)$/);
+			var arrSites = [];
+			var arrOff = [];
+
+			if (!arrM)
+			{
+				arrOutLines.push(strLine_a);
+				return;
+			}
+			arrSites = (objRefSites[arrM[1]] || {})[arrM[2]] || [];
+			arrSites.filter(function(objS_a) { return objS_a.off === ''; }).forEach(function(objS_a)
+			{
+				arrOutLines.push('\t\t\tld (' + objS_a.at + '), hl\t\t; (by reference: ' + arrM[2] + ')');
+			});
+			arrOff = arrSites.filter(function(objS_a) { return objS_a.off !== ''; });
+			if (arrOff.length > 0)
+			{
+				arrOutLines.push('\t\t\tex de, hl');
+				arrOff.forEach(function(objS_a)
+				{
+					arrOutLines.push('\t\t\tld hl, 0 ' + objS_a.off);
+					arrOutLines.push('\t\t\tadd hl, de');
+					arrOutLines.push('\t\t\tld (' + objS_a.at + '), hl\t\t; (by reference: ' + arrM[2] + ' ' + objS_a.off + ')');
+				});
+			}
+		});
+		return arrOutLines;
+	}
+
 	function addrLabel(objProc_a, intIndex_a)
 	{
 		return procBase(objProc_a) + '_a' + intIndex_a;
+	}
+
+	// ByRef in place: is this parameter the caller's variable itself (no copy in, no copy back)?
+	// Not ByVal, not an array (its descriptor is copied, the data is the caller's already), not an
+	// asm keyword's (it gets the addresses as they are), not a class in a page (for now), not when
+	// the procedure's #asm names it (the block reads a variable), not a String the procedure writes
+	// (its code may count on the parameter's own capacity), and only where the thread is in RAM.
+	function refParam(objProc_a, intIndex_a)
+	{
+		var objParam = objProc_a.params[intIndex_a];
+		var objP = paramEl(objProc_a, intIndex_a);
+
+		if (objPlat.rom || blnM68k || blnM65 || !objP)
+		{
+			return false;
+		}
+		if (objParam.byval || objParam.isarray || objProc_a.asmkw || isOverlayProc(objProc_a) || (objAsmParam[objP.full] === true))
+		{
+			return false;
+		}
+		if (objP.udt)
+		{
+			return true;
+		}
+		if ((typeOfEl(objP) === 'str') && (objWritten[objP.full] === true))
+		{
+			return false;
+		}
+		return (objPagedLabel[varLabel(objP)] === undefined);
+	}
+
+	// the stub copies a written parameter back only when it has a value of its own
+	function stubBack(objProc_a, intIndex_a)
+	{
+		return copyBack(objProc_a, intIndex_a) && !refParam(objProc_a, intIndex_a);
+	}
+
+	// an argument for a by-reference parameter: a variable of the parameter's own type (or a
+	// constant the procedure doesn't write) is passed as it is - its address is what the body
+	// uses. Anything else (an expression's temporary, another type, a function's result) is a
+	// value: it goes into the parameter's own variable just before the call (arrMoves_a), and
+	// that variable is what is passed.
+	function refArg(objProc_a, intIndex_a, strAddr_a, objArg_a, strType_a, blnConst_a, arrMoves_a)
+	{
+		var objP = paramEl(objProc_a, intIndex_a);
+		var strSlot = '';
+
+		if (!refParam(objProc_a, intIndex_a))
+		{
+			return strAddr_a;
+		}
+		if (objArg_a && objArg_a.el && !objArg_a.fres && !objArg_a.el.udt
+			&& ((objArg_a.el.etype === 'var') || (objArg_a.el.etype === 'param') || (objArg_a.el.etype === 'result'))
+			&& (typeOfEl(objArg_a.el) === typeOfEl(objP)) && (fixedLen(objArg_a.el) === 0) && (strAddr_a === varLabel(objArg_a.el)))
+		{
+			return strAddr_a;
+		}
+		if (blnConst_a && !copyBack(objProc_a, intIndex_a))
+		{
+			return strAddr_a;
+		}
+		strSlot = varLabel(objP);
+		objRefSlotUsed[strSlot] = true;
+		arrMoves_a.push((strType_a === 'str') ? { kw: 'kw_strcpy', args: [strSlot, strAddr_a] } : ((strType_a === 'long') ? { kw: 'kw_l_mov', args: [strAddr_a, strSlot] } : { kw: 'kw_vtov', args: [strAddr_a, strSlot] }));
+		return strSlot;
 	}
 
 	// call a procedure. arrArgs_a: argument expression strings, or operands
@@ -2573,6 +2721,7 @@ function ntcCompile(input_a, objOptions_a)
 	function procCall(objProc_a, arrArgs_a, blnOps_a, intSlot_a, strTarget_a)
 	{
 		var arrRefix = [];
+		var arrRefMoves = [];		// by-reference parameters given a value: moved into their own variables just before the call
 		var arrParams = procParams(objProc_a);
 		var arrAddr = [];
 		var intI = 0;
@@ -2722,7 +2871,7 @@ function ntcCompile(input_a, objOptions_a)
 					emit('kw_strcpy', [stmp(intSlot_a + intI), objArg.n]);	// a literal must not be written to
 					objArg = sv(stmp(intSlot_a + intI));
 				}
-				arrAddr.push(objArg.n);
+				arrAddr.push(refArg(objProc_a, intI, objArg.n, objArg, 'str', !objArg.el && !/^stmp\d+$/.test(objArg.n), arrRefMoves));
 			}
 			else if (strType === 'long')
 			{
@@ -2736,7 +2885,7 @@ function ntcCompile(input_a, objOptions_a)
 					emit('kw_l_mov', [strArg, ltmp(intSlot_a + intI)]);		// a literal must not be written to
 					strArg = ltmp(intSlot_a + intI);
 				}
-				arrAddr.push(strArg);
+				arrAddr.push(refArg(objProc_a, intI, strArg, objArg, 'long', /^llit_/.test(strArg), arrRefMoves));
 			}
 			else
 			{
@@ -2753,9 +2902,10 @@ function ntcCompile(input_a, objOptions_a)
 				{
 					objArg = numVar(objArg, intSlot_a + intI);
 				}
-				arrAddr.push(numAddr(objArg, intSlot_a + intI));
+				arrAddr.push(refArg(objProc_a, intI, numAddr(objArg, intSlot_a + intI), objArg, 'int', (objArg.k === 'l'), arrRefMoves));
 			}
 		}
+		arrRefMoves.forEach(function(objMove_a) { emit(objMove_a.kw, objMove_a.args); });
 
 		if (intPass === 1)
 		{
@@ -3469,6 +3619,7 @@ function ntcCompile(input_a, objOptions_a)
 			return;
 		}
 		objProcStubDone[strBody] = true;
+		objBodyProc[strBody] = objProc_a.full;
 		// Option CompactCalls: the call through ntc_pcall (the thread position saved in the word in
 		// front of the body: rs, and the body is rs + 2) and the return through ntc_pret, a word in
 		// the thread (dw ntc_pret, rs). Not a class in a page (its entry switches pages), and one rs
@@ -3490,6 +3641,10 @@ function ntcCompile(input_a, objOptions_a)
 		function isWordParam(intP_a)
 		{
 			var objP = paramEl(objProc_a, intP_a);
+			if (refParam(objProc_a, intP_a))
+			{
+				return false;		// by reference in place: no variable to copy into
+			}
 			return !arrParams[intP_a].isarray && !objP.udt && (typeOfEl(objP) !== 'str') && (typeOfEl(objP) !== 'long');
 		}
 		// Option CompactCalls: the Integer parameters (when every parameter is one, none copied back)
@@ -3518,7 +3673,7 @@ function ntcCompile(input_a, objOptions_a)
 			blnBlockParams = (arrParams.length > 0) && (arrParams.length <= 255);
 			for (intI = 0; intI < arrParams.length; intI++)
 			{
-				if (!isWordParam(intI) || copyBack(objProc_a, intI) || (objPagedLabel[varLabel(paramEl(objProc_a, intI))] !== undefined) || (objParamBlockOf[varLabel(paramEl(objProc_a, intI))] !== undefined))
+				if (!isWordParam(intI) || stubBack(objProc_a, intI) || (objPagedLabel[varLabel(paramEl(objProc_a, intI))] !== undefined) || (objParamBlockOf[varLabel(paramEl(objProc_a, intI))] !== undefined))
 				{
 					blnBlockParams = false;
 				}
@@ -3542,13 +3697,48 @@ function ntcCompile(input_a, objOptions_a)
 				objRsPlaced[strRs] = { body: strBody, blk: arrBlk[0], np: blnBlockParams ? arrParams.length : 0, nz: arrZero.length };
 			}
 		}
+		// a class in a page (one page, its paged variables in it): the number parameters that are only
+		// copied in go in the page, side by side in the order declared - the stub fills ntc_pkbuf with
+		// them, ntc_pkin moves them in one LDIR when the page is in (20261116-9). A String, an array,
+		// a Type and a parameter that is copied back stay ordinary variables
+		var arrPk = [];			// the parameters' indexes
+		var objPkAt = {};		// index -> offset in the block
+		var intPkSize = 0;
+		var blnPkDe = false;	// DE is at the next free byte of ntc_pkbuf
+		var strPkFirst = '';
+		if (isOverlayProc(objProc_a) && !blnCompact && !objPlat.rom && (objMemory.scheme === 'cpcexpansion') && (objClassKind[objProc_a.module].pages.length === 1) && (objOvlVars[objProc_a.module] !== undefined))
+		{
+			for (intI = 0; intI < arrParams.length; intI++)
+			{
+				objParam = paramEl(objProc_a, intI);
+				if (objParam && !arrParams[intI].isarray && !objParam.udt && !objParam.paged && (typeOfEl(objParam) !== 'str') && (fixedLen(objParam) === 0) && !refParam(objProc_a, intI) && !stubBack(objProc_a, intI))
+				{
+					objPkAt[intI] = intPkSize;
+					intPkSize += (typeOfEl(objParam) === 'long') ? 4 : 2;
+					arrPk.push(intI);
+				}
+			}
+			if (arrPk.length > 0)
+			{
+				strPkFirst = varLabel(paramEl(objProc_a, arrPk[0]));
+				if (objPkBlocks[strPkFirst] === undefined)		// (the other mode's stub made it already)
+				{
+					objPkBlocks[strPkFirst] = { labels: arrPk.map(function(int_a) { return varLabel(paramEl(objProc_a, int_a)); }), sizes: arrPk.map(function(int_a) { return (typeOfEl(paramEl(objProc_a, int_a)) === 'long') ? 4 : 2; }), total: intPkSize, module: objProc_a.module };
+					objPkBlocks[strPkFirst].labels.forEach(function(str_a) { objPkOf[str_a] = strPkFirst; objPagedLabel[str_a] = objProc_a.module; });
+				}
+				objPkBody[strBody] = strPkFirst;
+				objPkModes[(strMode_a === 'n') ? 'n' : 't'] = true;
+				if (intPkSize > intPkMax) { intPkMax = intPkSize; }
+			}
+			objParam = null;
+		}
 		for (intI = 0; intI < (blnBlockParams ? 0 : arrParams.length); intI++)
 		{
-			if (isWordParam(intI))
+			if (isWordParam(intI) && (objPkAt[intI] === undefined))
 			{
 				arrRun.push(varLabel(paramEl(objProc_a, intI)));
 			}
-			if (!isWordParam(intI) || (intI === arrParams.length - 1))
+			if (!isWordParam(intI) || (objPkAt[intI] !== undefined) || (intI === arrParams.length - 1))
 			{
 				if ((arrRun.length > 1) && (objParamBlockOf[arrRun[0]] === undefined) && !arrRun.some(function(str_a) { return objPagedLabel[str_a] !== undefined; }))
 				{
@@ -3563,6 +3753,10 @@ function ntcCompile(input_a, objOptions_a)
 		for (intI = 0; intI < (blnBlockParams ? 0 : arrParams.length); intI++)
 		{
 			objParam = paramEl(objProc_a, intI);
+			if (arrParams[intI].isarray || objParam.udt)
+			{
+				blnPkDe = false;		// (their copies use DE)
+			}
 			if (arrParams[intI].isarray && objParam.udt)
 			{
 				udtLeaves(objParam.datatype, '').forEach(function(objLeaf_a)
@@ -3588,7 +3782,13 @@ function ntcCompile(input_a, objOptions_a)
 				udtLeaves(objParam.datatype, '').forEach(function(objLeaf_a, intLeaf_a)
 				{
 					arrCode.push(strIndent + 'pop hl\t\t\t; ' + arrParams[intI].name + objLeaf_a.path);
-					if (copyBack(objProc_a, intI))
+					if (refParam(objProc_a, intI))
+					{
+						objRefLabel[varLabel(objEl[objParam.full + objLeaf_a.path])] = objProc_a.full;
+						arrCode.push(';@REF ' + strBody + ' ' + varLabel(objEl[objParam.full + objLeaf_a.path]));
+						return;
+					}
+					if (stubBack(objProc_a, intI))
 					{
 						declare(addrLabel(objProc_a, intI) + '_' + intLeaf_a, 'int', 0);
 						arrCode.push(strIndent + 'ld (' + addrLabel(objProc_a, intI) + '_' + intLeaf_a + '), hl');
@@ -3606,7 +3806,37 @@ function ntcCompile(input_a, objOptions_a)
 			}
 			strLabel = varLabel(objParam);
 			arrCode.push(strIndent + 'pop hl\t\t\t; ' + arrParams[intI].name);
-			if (copyBack(objProc_a, intI))
+			if (objPkAt[intI] !== undefined)
+			{
+				// into ntc_pkbuf, side by side: its variable is in the page (ntc_pkin moves them all)
+				if (!blnPkDe)
+				{
+					arrCode.push(strIndent + 'ld de, ntc_pkbuf' + ((objPkAt[intI] > 0) ? ' + ' + objPkAt[intI] : '') + '\t; (the page\'s ' + arrPk.length + ' parameter(s), ' + intPkSize + ' bytes)');
+					blnPkDe = true;
+				}
+				if (typeOfEl(objParam) === 'long')
+				{
+					arrCode.push(strIndent + 'ld bc, 4');
+					arrCode.push(strIndent + 'ldir');
+				}
+				else
+				{
+					arrCode.push(strIndent + 'ldi');
+					arrCode.push(strIndent + 'ldi');
+				}
+				strRunDe = '';
+				continue;
+			}
+			blnPkDe = false;		// (the code below uses DE)
+			if (refParam(objProc_a, intI))
+			{
+				// by reference in place: the argument's address into the body's operands (filled in
+				// when the body has been laid out: refSiteCode)
+				objRefLabel[strLabel] = objProc_a.full;
+				arrCode.push(';@REF ' + strBody + ' ' + strLabel);
+				continue;
+			}
+			if (stubBack(objProc_a, intI))
 			{
 				declare(addrLabel(objProc_a, intI), 'int', 0);
 				arrCode.push(strIndent + 'ld (' + addrLabel(objProc_a, intI) + '), hl');
@@ -3741,7 +3971,7 @@ function ntcCompile(input_a, objOptions_a)
 			var blnRetWork = (objClassKind[objProc_a.module] && objClassKind[objProc_a.module].isl && (objProc_a.id.toLowerCase() === 'tick'));
 			for (intI = 0; intI < arrParams.length; intI++)
 			{
-				if (copyBack(objProc_a, intI)) { blnRetWork = true; }
+				if (stubBack(objProc_a, intI)) { blnRetWork = true; }
 			}
 			if (!blnRetWork)
 			{
@@ -3796,13 +4026,25 @@ function ntcCompile(input_a, objOptions_a)
 		{
 			arrCode.push(strIndent + 'ld sp, ' + strBody);
 		}
+		if (arrPk.length > 0)
+		{
+			arrCode.push(strIndent + 'jp ntc_pkin_' + ((strMode_a === 'n') ? 'n' : 't') + '\t\t; the page is in: its parameters from ntc_pkbuf to ' + strPkFirst + ' (dw block, length start the body), then the body');
+		}
+		else
+		{
 		arrCode.push(strIndent + exitCode(strMode_a));
+		}
 		}
 
 		arrCode.push(strBody + '_r:\t\t; end of ' + objProc_a.id);
+		// a class in a RAM page: the caller's page comes back FIRST, the arguments are copied back
+		// after it (20261116-9) - a caller in another page may have given a variable of its own page
+		// (a Paged variable, a parameter in its page). The copies' sources are in main memory
+		var intBackAt = arrCode.length;
+		var arrBack = [];
 		for (intI = 0; intI < arrParams.length; intI++)
 		{
-			if (copyBack(objProc_a, intI) && paramEl(objProc_a, intI).udt)
+			if (stubBack(objProc_a, intI) && paramEl(objProc_a, intI).udt)
 			{
 				objParam = paramEl(objProc_a, intI);
 				udtLeaves(objParam.datatype, '').forEach(function(objLeaf_a, intLeaf_a)
@@ -3819,7 +4061,7 @@ function ntcCompile(input_a, objOptions_a)
 				});
 				continue;
 			}
-			if (copyBack(objProc_a, intI))
+			if (stubBack(objProc_a, intI))
 			{
 				objParam = paramEl(objProc_a, intI);
 				strLabel = varLabel(objParam);
@@ -3846,6 +4088,10 @@ function ntcCompile(input_a, objOptions_a)
 					arrCode.push(strIndent + 'ld (hl), d');
 				}
 			}
+		}
+		if (isOverlayProc(objProc_a) && (objMemory.scheme !== 'small'))
+		{
+			arrBack = arrCode.splice(intBackAt);
 		}
 		if ((objHookProcs[objProc_a.full] === true) && (strMode_a === 'n'))
 		{
@@ -3877,6 +4123,7 @@ function ntcCompile(input_a, objOptions_a)
 			{
 				arrCode.push(strBody + '_rb:');
 			}
+			arrCode = arrCode.concat(arrBack);		// (the arguments back: the caller's page is in)
 		}
 		if (objClassKind[objProc_a.module] && objClassKind[objProc_a.module].isl && (objProc_a.id.toLowerCase() === 'tick'))
 		{
@@ -6943,6 +7190,8 @@ function ntcCompile(input_a, objOptions_a)
 					return '0';
 				}
 				noteWrite(objElement);		// the block may write it (ByRef copy back)
+				if (objElement.etype === 'param') { objAsmParam[objElement.full] = true; }		// (it keeps a variable: not by reference in place)
+				if (objElement.pfield) { objAsmParam[objElement.pfield] = true; }
 				return varLabel(objElement);
 			default:
 				error('#asm: {' + strName_a + '} is not a variable, array or Const');
@@ -7726,6 +7975,11 @@ function ntcCompile(input_a, objOptions_a)
 			}
 		}
 		emitLabel(procLabel(objProc, (strMode_a === 'E') ? 't' : strMode_a));
+		if ((intPass === 2) && (objPkBody[procLabel(objProc, (strMode_a === 'E') ? 't' : strMode_a)] !== undefined))
+		{
+			// a class in a page: ntc_pkin's two words (the parameters' block in the page, its length)
+			arrOut.push({ t: 'stub', name: objPkBody[procLabel(objProc, (strMode_a === 'E') ? 't' : strMode_a)], args: [String(objPkBlocks[objPkBody[procLabel(objProc, (strMode_a === 'E') ? 't' : strMode_a)]].total)], term: false, mode: kwMode() });
+		}
 		if (rsBody(objRsPlaced[procBase(objProc) + '_rs']) === procLabel(objProc, (strMode_a === 'E') ? 't' : strMode_a))
 		{
 			arrOut[arrOut.length - 1].rs = procBase(objProc) + '_rs';		// Option CompactCalls: the position word in front of the body
@@ -8075,6 +8329,10 @@ function ntcCompile(input_a, objOptions_a)
 	{
 		var intOut = arrOut.length;
 		var intStubs = arrProcStubs.length;
+		var objSavePk = {};
+		var objSavePkBody = {};
+		var objSavePkModes = { n: objPkModes.n, t: objPkModes.t };
+		var intSavePkMax = intPkMax;
 		var intDecl = arrDecl.length;
 		var intFast = arrFastUse.length;
 		var intBreak = arrBreakpoints.length;
@@ -8089,6 +8347,8 @@ function ntcCompile(input_a, objOptions_a)
 
 		for (strKey in objRsPlaced) { if (objRsPlaced.hasOwnProperty(strKey)) { objSaveRs[strKey] = true; } }
 		for (strKey in objParamBlocks) { if (objParamBlocks.hasOwnProperty(strKey)) { objSaveBlocks[strKey] = true; } }
+		for (strKey in objPkBlocks) { if (objPkBlocks.hasOwnProperty(strKey)) { objSavePk[strKey] = true; } }
+		for (strKey in objPkBody) { if (objPkBody.hasOwnProperty(strKey)) { objSavePkBody[strKey] = true; } }
 		for (strKey in objProcStubDone)
 		{
 			if (objProcStubDone.hasOwnProperty(strKey))
@@ -8117,6 +8377,20 @@ function ntcCompile(input_a, objOptions_a)
 			}
 		}
 		arrProcStubs.length = intStubs;
+		for (strKey in objPkBlocks)
+		{
+			if (objPkBlocks.hasOwnProperty(strKey) && !objSavePk[strKey])
+			{
+				objPkBlocks[strKey].labels.forEach(function(str_a) { delete objPkOf[str_a]; delete objPagedLabel[str_a]; });
+				delete objPkBlocks[strKey];
+			}
+		}
+		for (strKey in objPkBody)
+		{
+			if (objPkBody.hasOwnProperty(strKey) && !objSavePkBody[strKey]) { delete objPkBody[strKey]; }
+		}
+		objPkModes = objSavePkModes;
+		intPkMax = intSavePkMax;
 		// (and the compact stubs' notes: the rs in front of a body never emitted, a parameter block)
 		for (strKey in objRsPlaced)
 		{
@@ -8181,11 +8455,20 @@ function ntcCompile(input_a, objOptions_a)
 		arrGotoRefs = [];
 		arrProcStubs = [];
 		objProcStubDone = {};
+		objRefLabel = {};
+		objRefSlotUsed = {};
+		objRefSites = {};
+		objBodyProc = {};
 		objCompactModes = {};
 		objRetCompact = {};
 		objRsPlaced = {};
 		objParamBlocks = {};
 		objParamBlockOf = {};
+		objPkBlocks = {};
+		objPkOf = {};
+		objPkBody = {};
+		objPkModes = {};
+		intPkMax = 0;
 		arrAsmBlocks = [];
 		objAsmDone = {};
 		objFastUse = {};
@@ -8638,7 +8921,7 @@ function ntcCompile(input_a, objOptions_a)
 	// through ports #243B / #253B: no Z80N opcodes
 	function zxnBoot(arrAsm_a, strIndent_a, arrPageBanks_a)
 	{
-		var arrBanks = [5, 8, 9, 10].concat(arrPageBanks_a || []);
+		var arrBanks = [5, 0, 1, 2].concat(arrPageBanks_a || []);		// (20261116-7: the program in the Next's banks 0, 1, 2 - it was 8, 9, 10)
 		var arrNexOrder = [5, 2, 0, 1, 3, 4];
 		var intB = 0;
 		var blnBig = false;
@@ -8704,16 +8987,16 @@ function ntcCompile(input_a, objOptions_a)
 			'jr nz, zxn_bmmu',
 			'jp zxn_boot2 + #8000\t; on in the copy at #E000-#FFFF (page 11 in slot 7)',
 			'zxn_boot2:',
-			'ld a, #53\t\t\t; slot 3: page 19',
+			'ld a, #53\t\t\t; slot 3: page 3',
 			'out (c), a',
 			'inc b',
-			'ld a, 19',
+			'ld a, 3',
 			'out (c), a',
 			'ld hl, #C9FB\t\t; #0038: ei, ret until ntc_plat_irqon puts its jump there',
 			'ld (#0038), hl',
 			'im 1',
 			'jp ntc_start',
-			'zxn_mmu:\tdb #50, 16, #51, 17, #52, 18, #54, 20, #55, 21, #56, 10, #57, 11',
+			'zxn_mmu:\tdb #50, 0, #51, 1, #52, 2, #54, 4, #55, 5, #56, 10, #57, 11',
 			'SAVENEX OPEN "' + strName + '.NEX", zxn_boot, #BFFE',
 			'SAVENEX CORE 3, 0, 0',
 			'SAVENEX CFG 0',
@@ -8721,45 +9004,50 @@ function ntcCompile(input_a, objOptions_a)
 			'SAVENEX CLOSE'
 		];
 
-		if (objNexData !== null)
+		// Option SaveNex: each page named gets the next 16K of its file (assembled at #0000-#3FFF)
+		if (arrSaveNex.length > 0)
 		{
-			// the data's blocks: each into its bank (assembled at #0000-#3FFF: slots 0, 1)
-			var arrData = ['', '; Option NexData: "' + objNexData.file + '", ' + objNexData.blocks + ' blocks of 16K, in their banks'];
-			for (intB = 0; intB < objNexData.blocks; intB++)
+			var arrSn = [''];
+			arrSaveNex.forEach(function(objS_a)
 			{
-				arrData.push('MMU 0 1, ' + (ZXN_NEXBANKS[intB] * 2));
-				arrData.push('org #0000');
-				arrData.push('INCBIN "' + objNexData.file + '", ' + (intB * 16384) + ', 16384');
-				arrBanks.push(ZXN_NEXBANKS[intB]);
-				blnBig = blnBig || (ZXN_NEXBANKS[intB] > 47);
-			}
-			arrL.splice.apply(arrL, [arrL.indexOf('MMU 3, 11\t\t\t; page 11 (bank 5\'s second half) at #6000 to assemble the stub'), 0].concat(arrData));		// (before the stub: after the top-of-RAM check)
+				arrSn.push('; Option SaveNex: "' + objS_a.file + '" in page' + ((objS_a.pages.length > 1) ? 's ' : ' ') + objS_a.pages.join(', '));
+				objS_a.pages.forEach(function(intPg_a, intAt_a)
+				{
+					var intBk = zxnPageBank(intPg_a);
+
+					if (intBk > 111)
+					{
+						arrErrors.push({ file: objS_a.src, line: objS_a.line, msg: 'Option SaveNex "' + objS_a.file + '": page ' + intPg_a + ' is Next bank ' + intBk + ', past the Next\'s 2MB (Next banks up to 111)' });
+						return;
+					}
+					if ((arrPageBanks_a || []).indexOf(intBk) >= 0)
+					{
+						arrErrors.push({ file: objS_a.src, line: objS_a.line, msg: 'Option SaveNex "' + objS_a.file + '": page ' + intPg_a + ' is also an Option Page ... Loaded page' });
+						return;
+					}
+					arrSn.push('MMU 0 1, ' + (intBk * 2));
+					arrSn.push('org #0000');
+					arrSn.push('INCBIN "' + objS_a.file + '", ' + (intAt_a * 16384) + ', 16384');
+					arrBanks.push(intBk);
+					blnBig = blnBig || (intBk > 47);
+				});
+			});
+			arrL.splice.apply(arrL, [arrL.indexOf('MMU 3, 11\t\t\t; page 11 (bank 5\'s second half) at #6000 to assemble the stub'), 0].concat(arrSn));
 		}
 		(arrPageBanks_a || []).forEach(function(int_a)
 		{
 			blnBig = blnBig || (int_a > 47);
-			if (objNexData !== null)
-			{
-				for (intB = 0; intB < objNexData.blocks; intB++)
-				{
-					if (ZXN_NEXBANKS[intB] === int_a)
-					{
-						arrErrors.push({ file: '', line: 0, msg: 'Option Page ... Loaded: bank ' + int_a + ' is also Option NexData\'s (block ' + intB + ')' });
-					}
-				}
-			}
 		});
 		for (intB = 6; intB < 112; intB++) { arrNexOrder.push(intB); }
 		arrBanks.sort(function(a_a, b_a) { return arrNexOrder.indexOf(a_a) - arrNexOrder.indexOf(b_a); });
 		arrL = arrL.map(function(str_a)
 		{
 			if (str_a === 'SAVENEX BANK 5, 8, 9, 10') { return 'SAVENEX BANK ' + arrBanks.join(', '); }
+			// the loader's stack: #BFFE is the Next's bank 2's top - with a page of the program's in
+			// bank 2 (page 2) its pushes would write over the page's last bytes: below the stub then
+			// (bank 5's #7Dxx: #FDxx as the program runs - kept clear, the platform's ;@reserved)
+			// (20261116-7: bank 2 is the program's own #8000-#BFFF now and #BFFE is in its stack area: the loader's stack stays there)
 			if (str_a === 'SAVENEX CFG 0') { return blnBig ? 'SAVENEX CFG 0, 0, 0, 1\t\t; banks past 47: a 2MB Next' : str_a; }
-			// the loader's stack: #BFFE is bank 2's top, and with Option NexData bank 2 holds data -
-			// the loader's and the stub's pushes overwrote its last bytes (CyborgOS: 6 bytes of a
-			// command in its boot archive, CD's - "Paths need UniDOS"). Below the stub instead: bank
-			// 5's #7Dxx (page 11's #1Dxx: #FDxx once the screen is at #C000 - unused, and only at boot)
-			if ((objNexData !== null) && (str_a.indexOf('SAVENEX OPEN ') === 0)) { return str_a.replace(', #BFFE', ', #7E00'); }
 			return str_a;
 		});
 		arrL.forEach(function(str_a)
@@ -8854,6 +9142,18 @@ function ntcCompile(input_a, objOptions_a)
 	function applyPlatformReserved()
 	{
 		var arrPairs = String(objPlat.reserved || '').replace(/;.*$/, '').split(/\s+/).filter(function(str_a) { return str_a.length > 0; });
+
+		// the Next (20261116-6): #C000-#FFFF is main memory like the rest (the Next's bank 5, in view
+		// all the time) - the program fills it but for what is really there:
+		//   the FileSystem class: all of it (the DOS switches its own bank in there during a file call)
+		//   the Graphics class:   #C000-#DFFF (the Layer 2 page being drawn on is switched in there)
+		//   text:                 #E000-#F3FF (the text and its font) - added when the program has text
+		//   always:               #FD00-#FFFF (the start-up stub and the loader's stack: the platform's ;@reserved)
+		if (objOptions.platform === 'zxn')
+		{
+			if (blnZxnFs) { arrPairs.push('#C000,#3D00'); }
+			else if (blnZxnGfx) { arrPairs.push('#C000,#2000'); }
+		}
 
 		arrPairs.forEach(function(strPair_a)
 		{
@@ -9003,27 +9303,37 @@ function ntcCompile(input_a, objOptions_a)
 	}
 
 	// Option Memory Small | CPCExpansion [maxpages] - findMemory took the values; this checks them
+	// Option Memory Heap Main | Pages (20261116-3): where Alloc / Free get their memory - main memory, or
+	// RAM pages. They are the old Option Memory Small / CPCExpansion, which are now only allowed with
+	// Option Deprecated (CPCExpansion maxpages has no new spelling: it is deprecated with them).
 	function readMemory(objRec_a)
 	{
-		var arrMatch = String(objRec_a.value).match(/^(small|cpcexpansion)\b[ \t,]*(.*)$/i);
-		var blnCpc = platIs('cpc') || (objOptions.platform === 'cpcmin') || (objOptions.platform === 'cpcfw') || (objOptions.platform === 'zxn') || (objOptions.platform === 'zxndotl') || (objOptions.platform === 'msxdos');	// (the Next's MMU - a NEX, a Large Model dot command -, the MSX's mapper: shaped as the CPC's)
+		var arrMatch = String(objRec_a.value).match(/^(small|cpcexpansion|heap\s+main|heap\s+pages)\b[ \t,]*(.*)$/i);
+		var blnCpc = platIs('cpc') || (objOptions.platform === 'cpcmin') || (objOptions.platform === 'cpcfw') || (objOptions.platform === 'zxn') || (objOptions.platform === 'zxndotl') || (objOptions.platform === 'msxdos') || (objOptions.platform === 'cyborgos');
 		var intMax = 0;
+		var strWord = '';
 
 		if (!arrMatch)
 		{
-			arrErrors.push({ file: objRec_a.file, line: objRec_a.line, msg: 'Option Memory Small | CPCExpansion [maxpages]: ' + objRec_a.value });
+			arrErrors.push({ file: objRec_a.file, line: objRec_a.line, msg: 'Option Memory Heap Main | Pages: ' + objRec_a.value });
 			return;
 		}
-		if ((arrMatch[1].toLowerCase() === 'cpcexpansion') && !blnCpc)
+		strWord = arrMatch[1].toLowerCase().replace(/\s+/g, ' ');
+		if (((strWord === 'small') || (strWord === 'cpcexpansion')) && !blnDeprecated)
 		{
-			arrErrors.push({ file: objRec_a.file, line: objRec_a.line, msg: 'Option Memory CPCExpansion is for the CPC platforms (cpc, cpcmin, cpcfw), not ' + objOptions.platform });
+			arrErrors.push({ file: objRec_a.file, line: objRec_a.line, msg: (strWord === 'small') ? 'Option Memory Small is now Option Memory Heap Main (or add Option Deprecated to allow the old word)' : 'Option Memory CPCExpansion is deprecated: Option Memory Heap Pages (the maxpages form only with Option Deprecated)' });
+			return;
+		}
+		if (((strWord === 'cpcexpansion') || (strWord === 'heap pages')) && !blnCpc)
+		{
+			arrErrors.push({ file: objRec_a.file, line: objRec_a.line, msg: ((strWord === 'heap pages') ? 'Option Memory Heap Pages' : 'Option Memory CPCExpansion') + ' is for the CPC platforms (cpc, cpcmin, cpcfw), not ' + objOptions.platform });
 		}
 		if (trim(arrMatch[2]).length > 0)
 		{
 			intMax = parseNumber(trim(arrMatch[2]));
-			if ((arrMatch[1].toLowerCase() !== 'cpcexpansion') || isNaN(intMax) || (intMax < 1) || (intMax > 257))
+			if (((strWord !== 'cpcexpansion') && (strWord !== 'heap pages')) || isNaN(intMax) || (intMax < 1) || (intMax > 257))
 			{
-				arrErrors.push({ file: objRec_a.file, line: objRec_a.line, msg: 'Option Memory: the most pages is for CPCExpansion, 1 - 257: ' + objRec_a.value });
+				arrErrors.push({ file: objRec_a.file, line: objRec_a.line, msg: 'Option Memory Heap Pages [most]: the most pages the Memory class keeps tables for, 1 - 257: ' + objRec_a.value });
 			}
 		}
 	}
@@ -9039,11 +9349,11 @@ function ntcCompile(input_a, objOptions_a)
 
 		arrFiles_a.forEach(function(objFile_a)
 		{
-			var arrMatch = String(objFile_a.text).match(/^[ \t]*option[ \t]+terminal[ \t]+(none|vt52|ansi)\b/im);
+			var arrMatch = String(objFile_a.text).match(/^[ \t]*option[ \t]+terminal[ \t]+(none|vt52|ansi|adm-?3a|televideo)\b/im);
 
 			if (arrMatch)
 			{
-				strResult = arrMatch[1].toLowerCase();
+				strResult = arrMatch[1].toLowerCase().replace('-', '');
 			}
 		});
 		return strResult;
@@ -9052,7 +9362,7 @@ function ntcCompile(input_a, objOptions_a)
 	// Option Terminal given at all (None counts): a platform with a default terminal keeps out
 	function findTerminalGiven(arrFiles_a)
 	{
-		return arrFiles_a.some(function(objFile_a) { return /^[ \t]*option[ \t]+terminal[ \t]+(none|vt52|ansi)\b/im.test(String(objFile_a.text)); });
+		return arrFiles_a.some(function(objFile_a) { return /^[ \t]*option[ \t]+terminal[ \t]+(none|vt52|ansi|adm-?3a|televideo)\b/im.test(String(objFile_a.text)); });
 	}
 
 	// Option Org address: where the program is built to run (read before the platform's org is
@@ -9073,16 +9383,6 @@ function ntcCompile(input_a, objOptions_a)
 		return strResult;
 	}
 
-	// Option NoRomDisc: read before parsing - the platform's FileSystem class leaves out the
-	// ROMDISC (volume R) routing through #If NTC_NOROMDISC, and so its code (about 1.1K)
-	function findNoRomDisc(arrFiles_a)
-	{
-		return arrFiles_a.some(function(objFile_a)
-		{
-			return /^[ \t]*option[ \t]+noromdisc\b/im.test(String(objFile_a.text));
-		});
-	}
-
 	// Option Memory: the Memory class's scheme (decided before parsing: it sets
 	// NTC_MEM_SMALL / NTC_MEM_CPCEXPANSION). Default: the CPC expansion RAM on the
 	// CPC platforms, Small (main RAM only) elsewhere
@@ -9091,7 +9391,7 @@ function ntcCompile(input_a, objOptions_a)
 		var objResult = { scheme: (platIs('cpc') || (objOptions.platform === 'cpcmin') || (objOptions.platform === 'cpcfw') || (objOptions.platform === 'zxndotl')) ? 'cpcexpansion' : 'small', max: 257 };		// (zxndotl: 64K banks of 8 pages from NextZXOS's allocator)
 
 		// zxn with Option Page: its pages are RAM pages (the Next's banks), so CPCExpansion
-		if ((objOptions.platform === 'zxn') && arrFiles_a.some(function(objFile_a) { return /^[ \t]*option[ \t]+page\b/im.test(String(objFile_a.text)); }))
+		if ((objOptions.platform === 'zxn') && arrFiles_a.some(function(objFile_a) { return /^[ \t]*option[ \t]+(page\b|savenex\b|class[ \t]+default[ \t]*=[ \t]*page\b|memory[ \t]+reserve[ \t]+pages\b)/im.test(String(objFile_a.text)); }))
 		{
 			objResult.scheme = 'cpcexpansion';
 		}
@@ -9105,17 +9405,18 @@ function ntcCompile(input_a, objOptions_a)
 				// (the defines are known: an Option Memory in a #If that is off doesn't count)
 				activeLines(objFile_a.text).some(function(objLine_a)
 				{
-					arrMatch = String(objLine_a.text).match(/^[ \t]*option[ \t]+memory[ \t]+(small|cpcexpansion)\b[ \t,]*(&h[0-9a-f]+|#[0-9a-f]+|\d+)?/i);
+					arrMatch = String(objLine_a.text).match(/^[ \t]*option[ \t]+memory[ \t]+(small|cpcexpansion|heap[ \t]+main|heap[ \t]+pages)\b[ \t,]*(&h[0-9a-f]+|#[0-9a-f]+|\d+)?/i);
 					return arrMatch !== null;
 				});
 			}
 			else
 			{
-				arrMatch = String(objFile_a.text).match(/^[ \t]*option[ \t]+memory[ \t]+(small|cpcexpansion)\b[ \t,]*(&h[0-9a-f]+|#[0-9a-f]+|\d+)?/im);
+				arrMatch = String(objFile_a.text).match(/^[ \t]*option[ \t]+memory[ \t]+(small|cpcexpansion|heap[ \t]+main|heap[ \t]+pages)\b[ \t,]*(&h[0-9a-f]+|#[0-9a-f]+|\d+)?/im);
 			}
 			if (arrMatch)
 			{
-				objResult.scheme = arrMatch[1].toLowerCase();
+				objResult.scheme = arrMatch[1].toLowerCase().replace(/\s+/g, ' ');
+				objResult.scheme = (objResult.scheme === 'heap main') ? 'small' : ((objResult.scheme === 'heap pages') ? 'cpcexpansion' : objResult.scheme);		// (Option Memory Heap Main | Pages, 20261116-3)
 				if (arrMatch[2])
 				{
 					objResult.max = parseNumber(arrMatch[2]);
@@ -9278,6 +9579,7 @@ function ntcCompile(input_a, objOptions_a)
 		var objModules = {};
 		var objHome = {};
 		var arrHomes = [];
+		var strClassDefault = 'main';		// Option Class Default = Main | Page
 
 		// a page: Name (a name for the source and the lists; its file is numbered, PROGRAM.001
 		// ...) or "FILE.EXT" (that file; "NAME" in quotes with no extension is a name, as before)
@@ -9439,13 +9741,18 @@ function ntcCompile(input_a, objOptions_a)
 				{
 					arrErrors.push({ file: objFile_a.name, line: objLine_a.line, msg: 'Option Page Name [Loaded n] = Class, Class ... (or Option Page "FILE.EXT" = ... for a file name of your own)' });
 				}
-				else if ((arrMatch = strCode.match(/^\s*option\s+home\s+([a-z_]\w*)\s*=\s*(?:"([^"]*)"|([a-z_]\w*))\s*$/i)))
-				{
-					arrHomes.push({ module: arrMatch[1].toLowerCase(), page: pageId((arrMatch[2] !== undefined) ? arrMatch[2] : arrMatch[3]), file: objFile_a.name, line: objLine_a.line });
-				}
 				else if (/^\s*option\s+home\b/i.test(strCode))
 				{
-					arrErrors.push({ file: objFile_a.name, line: objLine_a.line, msg: 'Option Home Class = Page' });
+					// gone (20261116-3): a copied class's home is the first page that lists it
+					arrErrors.push({ file: objFile_a.name, line: objLine_a.line, msg: 'Option Home is gone: a copied class\'s home is the first page that lists it (list that page first). Option Class Default = Main | Page says where a class goes when no Option Page names it' });
+				}
+				else if ((arrMatch = strCode.match(/^\s*option\s+class\s+default\s*=\s*(main|page)\s*$/i)))
+				{
+					strClassDefault = arrMatch[1].toLowerCase();		// where a class goes when no Option Page names it
+				}
+				else if (/^\s*option\s+class\s+default\b/i.test(strCode))
+				{
+					arrErrors.push({ file: objFile_a.name, line: objLine_a.line, msg: 'Option Class Default = Main | Page (where a class goes when no Option Page names it)' });
 				}
 				else if ((arrMatch = strCode.match(/^\s*option\s+safe\s+areas\s*=\s*(.*?)\s*$/i)))
 				{
@@ -9477,8 +9784,15 @@ function ntcCompile(input_a, objOptions_a)
 						arrSafeAreas.push({ start: intSStart, size: intSSize, file: objFile_a.name, line: objLine_a.line });
 					}
 				}
-				else if ((arrMatch = strCode.match(/^\s*option\s+safe\s+(?:"([^"]*)"|([a-z_]\w*))\s*=\s*(.*?)\s*$/i)))
+				else if ((arrMatch = strCode.match(/^\s*option\s+(?:class\s+)?safe\s+(?:"([^"]*)"|([a-z_]\w*))\s*=\s*(.*?)\s*$/i)))
 				{
+					// Option Class Safe "NAME" = Class, Class ... (20261116-1; Option Safe "NAME" = ... is the
+					// old spelling, only with Option Deprecated)
+					if (!/^\s*option\s+class\s/i.test(strCode) && !blnDeprecated)
+					{
+						arrErrors.push({ file: objFile_a.name, line: objLine_a.line, msg: 'Option Safe "NAME" = ... is now Option Class Safe "NAME" = Class, Class ... (or add Option Deprecated to allow the old spelling)' });
+						return;
+					}
 					// Option Safe "NAME" = Class, Class ...: those classes' code MUST go in a safe
 					// area (the banking / slot-access code). Same shape as Option Page "NAME" = ...
 					// (NAME is just a label for messages; the classes are what matters).
@@ -9486,7 +9800,7 @@ function ntcCompile(input_a, objOptions_a)
 
 					if (/^areas$/i.test(strSafeName))
 					{
-						arrErrors.push({ file: objFile_a.name, line: objLine_a.line, msg: 'Option Safe "Areas" = ...: Areas is the reserved word for Option Safe Areas = start, size, ... - use another group name' });
+						arrErrors.push({ file: objFile_a.name, line: objLine_a.line, msg: 'Option Class Safe "Areas" = ...: Areas is the reserved word for Option Safe Areas = start, size, ... - use another group name' });
 						return;
 					}
 					arrMatch[3].split(',').forEach(function(strClass_a)
@@ -9499,7 +9813,7 @@ function ntcCompile(input_a, objOptions_a)
 						}
 						if ((objModules[strModule] === undefined) || !/\.cls$/i.test(String(objModules[strModule].name)))
 						{
-							arrErrors.push({ file: objFile_a.name, line: objLine_a.line, msg: 'Option Safe "' + strSafeName + '": no class ' + strClass_a.replace(/^\s+|\s+$/g, '') + ' in the project' });
+							arrErrors.push({ file: objFile_a.name, line: objLine_a.line, msg: 'Option Class Safe "' + strSafeName + '": no class ' + strClass_a.replace(/^\s+|\s+$/g, '') + ' in the project' });
 							return;
 						}
 						if (!objSafe[strModule])
@@ -9509,18 +9823,43 @@ function ntcCompile(input_a, objOptions_a)
 						}
 					});
 				}
-				else if (/^\s*option\s+safe\b/i.test(strCode))
+				else if (/^\s*option\s+(?:class\s+)?safe\b/i.test(strCode))
 				{
-					arrErrors.push({ file: objFile_a.name, line: objLine_a.line, msg: 'Option Safe Areas = start, size, ... (the safe memory), or Option Safe "NAME" = Class, Class ... (classes that must go there)' });
+					arrErrors.push({ file: objFile_a.name, line: objLine_a.line, msg: 'Option Class Safe "NAME" = Class, Class ... (classes that must go in the safe memory: Option Memory Safe start, size, ...)' });
+				}
+				else if ((arrMatch = strCode.match(/^\s*option\s+memory\s+reserve\s+pages\b\s*(.*?)\s*$/i)))
+				{
+					// Option Memory Reserve Pages n[, n | n To m] ... (20261116-6): pages the program keeps for a
+					// reason of its own - never handed out by the Memory class, never filled by Option
+					// SaveNex or Option Page ... Loaded n. Any platform with pages.
+					if (trim(arrMatch[1]).length === 0)
+					{
+						arrErrors.push({ file: objFile_a.name, line: objLine_a.line, msg: 'Option Memory Reserve Pages n[, n | n To m] ...: name the pages' });
+					}
+					arrMatch[1].split(',').forEach(function(strItem_a)
+					{
+						var arrR = trim(strItem_a).match(/^(\S+)(?:\s+to\s+(\S+))?$/i);
+						var intA = arrR ? parseNumber(arrR[1]) : NaN;
+						var intB = (arrR && arrR[2]) ? parseNumber(arrR[2]) : intA;
+						var intP2 = 0;
+
+						if (trim(strItem_a).length === 0) { return; }
+						if (isNaN(intA) || isNaN(intB) || (intA < 0) || (intB > 256) || (intB < intA))
+						{
+							arrErrors.push({ file: objFile_a.name, line: objLine_a.line, msg: 'Option Memory Reserve Pages n[, n | n To m] ...: a page is 0 - 256: ' + trim(strItem_a) });
+							return;
+						}
+						for (intP2 = intA; intP2 <= intB; intP2++) { if (arrReservePages.indexOf(intP2) < 0) { arrReservePages.push(intP2); } }
+					});
 				}
 				else if ((arrMatch = strCode.match(/^\s*option\s+memory\s+(available|reserved|paged|safe)(?:\s+(zerofill|skip))?\s+(.*?)\s*$/i)))
 				{
 					// Option Memory <kind> start, size, start, size, ...: the memory map (docs/memory-map.md).
 					// One kind per line, as many lines as you like. The build fills from the org upward
 					// and goes round Reserved only:
-					//   Reserved [ZeroFill | Skip] - a gap the build goes round. ZeroFill (the default):
-					//     the gap is in the file, zeros. Skip: the file is packed, the start code moves
-					//     the code above the gap up to its address (holeLayout).
+					//   Reserved - a gap the build goes round: in the file, zeros. (ZeroFill | Skip are gone,
+					//     20261116-1: skip is never set now; its packing code in holeLayout is dead and goes
+					//     with the layout rework.)
 					//   Paged addr, size [, startbank] - where pages swap in. Code may sit under it (it is
 					//     page 0); data, the stack, the stubs and the library never do. startbank (default
 					//     1) is the bank paging runs from, counting the window's own 16K as bank 0.
@@ -9534,8 +9873,27 @@ function ntcCompile(input_a, objOptions_a)
 					var strFill = String(arrMatch[2] || '').toLowerCase();
 					var arrNums = arrMatch[3].split(',').map(function(str_a) { return trim(str_a); }).filter(function(str_a) { return str_a.length > 0; });
 					var intP = 0;
-					var blnPagedBank = (strKind === 'paged') && (arrNums.length === 3);
+					var blnPagedBank = (strKind === 'paged');
+					var strPagedBank = '';
 
+					// Option Memory Paged startbank, addr, size (20261116-3): the start bank first and
+					// always there - the old Option Page startbank, addr, size, moved here unchanged
+					if (strKind === 'paged')
+					{
+						if (arrNums.length !== 3)
+						{
+							arrErrors.push({ file: objFile_a.name, line: objLine_a.line, msg: 'Option Memory Paged startbank, addr, size (the page paging starts from, then the window - e.g. Option Memory Paged 1, &H4000, &H4000)' });
+							return;
+						}
+						strPagedBank = arrNums[0];
+						arrNums = [arrNums[1], arrNums[2]];
+					}
+
+					if (strFill !== '')
+					{
+						arrErrors.push({ file: objFile_a.name, line: objLine_a.line, msg: 'Option Memory ' + arrMatch[1] + ' start, size, ...: there is no ' + arrMatch[2] + ' (a Reserved range is a gap of zeros in the file; ZeroFill and Skip are gone)' });
+						return;
+					}
 					if ((strFill !== '') && (strKind !== 'reserved'))
 					{
 						arrErrors.push({ file: objFile_a.name, line: objLine_a.line, msg: 'Option Memory ' + arrMatch[1] + ': ZeroFill / Skip is for Reserved only (Option Memory Reserved ' + arrMatch[2] + ' start, size)' });
@@ -9570,22 +9928,22 @@ function ntcCompile(input_a, objOptions_a)
 
 							if (blnPagedBank)
 							{
-								intBank = parseNumber(arrNums[2]);
+								intBank = parseNumber(strPagedBank);
 								if (isNaN(intBank) || (intBank < 0) || (intBank > 255))
 								{
-									arrErrors.push({ file: objFile_a.name, line: objLine_a.line, msg: 'Option Memory Paged addr, size, startbank: startbank is the bank paging runs from, 0-255 (0 = the window\'s own 16K is page 0; 1 = it stays fixed, the CPC double buffer) - ' + arrNums[2] });
+									arrErrors.push({ file: objFile_a.name, line: objLine_a.line, msg: 'Option Memory Paged startbank, addr, size: startbank is the page paging runs from, 0-255 (0 = the window\'s own 16K is page 0; 1 = it stays fixed, the CPC double buffer; on the Next 11 or more = the Next bank the pages start at) - ' + arrNums[2] });
 									return;
 								}
+							}
+							if ((String(objOptions.platform).toLowerCase() === 'zxn') && (intBank >= 2))
+							{
+								arrErrors.push({ file: objFile_a.name, line: objLine_a.line, msg: 'Option Memory Paged startbank, addr, size: on the Next the start bank is 0 or 1 - there is nothing to move: NTC page n is the Next\'s 16K bank n (20261116-6) - ' + strPagedBank });
+								return;
 							}
 							arrPaged.push({ start: intMS, size: intMZ, file: objFile_a.name, line: objLine_a.line });
 							if (objPageWindow === null)
 							{
 								objPageWindow = { startbank: intBank, start: intMS, size: intMZ, file: objFile_a.name, line: objLine_a.line };
-							}
-							else if (blnPagedBank)
-							{
-								arrErrors.push({ file: objFile_a.name, line: objLine_a.line, msg: 'Option Memory Paged: the start bank goes with the first Paged range (the window, ' + objPageWindow.file + ' line ' + objPageWindow.line + ')' });
-								return;
 							}
 						}
 						else
@@ -9594,9 +9952,9 @@ function ntcCompile(input_a, objOptions_a)
 						}
 					}
 				}
-				else if (/^\s*option\s+memory\s+(?!small\b|cpcexpansion\b)/i.test(strCode))
+				else if (/^\s*option\s+memory\s+(?!small\b|cpcexpansion\b|heap\b)/i.test(strCode))
 				{
-					arrErrors.push({ file: objFile_a.name, line: objLine_a.line, msg: 'Option Memory Available | Reserved [ZeroFill | Skip] | Paged | Safe  start, size, start, size, ...  (Paged addr, size [, startbank]; or Option Memory Small | CPCExpansion n for the heap scheme)' });
+					arrErrors.push({ file: objFile_a.name, line: objLine_a.line, msg: 'Option Memory Available | Reserved | Paged | Safe  start, size, start, size, ...  (Paged addr, size [, startbank]; or Option Memory Heap Main | Pages for the heap scheme)' });
 				}
 			});
 		});
@@ -9623,6 +9981,39 @@ function ntcCompile(input_a, objOptions_a)
 				}
 			});
 		});
+		// Option Class Default = Page (20261116-3): a class of the project that no Option Page names,
+		// that is not safe and not an interrupt class, gets a page of its own, named after it (on
+		// the Next: Loaded in the lowest page not taken). Main (or no line): it stays in main memory.
+		if (strClassDefault === 'page')
+		{
+			arrFiles_a.forEach(function(objFile_a)
+			{
+				var strModule = fileModule(objFile_a);
+				var objAuto = null;
+				var intN = 2;
+
+				if (!/\.cls$/i.test(String(objFile_a.name)) || objFile_a.platform || (objClassPages[strModule] !== undefined) || objSafe[strModule]
+					|| /^[ \t]*option[ \t]+class[ \t]+interrupt\b/im.test(String(objFile_a.text)))
+				{
+					return;
+				}
+				objAuto = addPage(strModule, objFile_a.name, 0, false);
+				if (objAuto === null)
+				{
+					return;
+				}
+				objAuto.declared = true;
+				if (String(objOptions.platform).toLowerCase() === 'zxn')
+				{
+					while (arrPageOrder.some(function(strId_a) { return objPages[strId_a].loaded === intN; }) || (arrReservePages.indexOf(intN) >= 0) || (intN <= 2) || (intN === 5) || (intN === 7) || ((intN >= 12) && (intN <= 21)))
+					{
+						intN++;		// (a free page: not the program's own, the DOS's or Layer 2's - whether or not this program uses those)
+					}
+					objAuto.loaded = intN;
+				}
+				addClass(objAuto, strModule, objFile_a.name, 0, true);
+			});
+		}
 		arrPageOrder.forEach(function(strId_a)
 		{
 			if (objPages[strId_a].classes.length === 0)
@@ -9679,7 +10070,7 @@ function ntcCompile(input_a, objOptions_a)
 		if ((arrPageOrder.length > 0) && (objOptions.platform === 'zxn'))
 		{
 			// the Next (first cut): no files yet - every page is Loaded n, in the NEX file's
-			// bank for RAM page n (Option Memory CPCExpansion's numbering: zxnPageBank - bank 20 + n, higher with a big Option NexData)
+			// bank for RAM page n (Option Memory CPCExpansion's numbering: zxnPageBank - Next bank 20 + n)
 			arrPageOrder.forEach(function(strId_a)
 			{
 				var objPage = objPages[strId_a];
@@ -9690,7 +10081,7 @@ function ntcCompile(input_a, objOptions_a)
 				}
 				else if (zxnPageBank(objPage.loaded) > 111)
 				{
-					arrErrors.push({ file: objPage.srcfile, line: objPage.line, msg: 'Option Page "' + objPage.name + '": page ' + objPage.loaded + ' is bank ' + zxnPageBank(objPage.loaded) + ', past the Next\'s 2MB (pages 2 - 91; 2 - 27 on a 1MB Next; fewer with Option NexData past 6 blocks)' });
+					arrErrors.push({ file: objPage.srcfile, line: objPage.line, msg: 'Option Page "' + objPage.name + '": page ' + objPage.loaded + ' is Next bank ' + zxnPageBank(objPage.loaded) + ', past the Next\'s 2MB (a page is the Next\'s 16K bank of the same number: up to 111; up to 47 on a 1MB Next)' });
 				}
 				arrPageOrder.forEach(function(strOther_a)
 				{
@@ -9707,7 +10098,23 @@ function ntcCompile(input_a, objOptions_a)
 		}
 		else if ((arrPageOrder.length > 0) && arrPageOrder.some(function(strId_a) { return objPages[strId_a].loaded; }))
 		{
-			arrErrors.push({ file: objPages[arrPageOrder[0]].srcfile, line: objPages[arrPageOrder[0]].line, msg: 'Option Page ... Loaded n: only on zxn so far' });
+			// Option Page "FILE.EXT" Loaded n where pages are files (the CPC with banked RAM, and the
+			// other platforms with the same scheme): the file goes into RAM page n, its own - never a
+			// free page, and never handed out (ntc_pgfix, ntc_pgloaded)
+			if (objMemory.scheme !== 'cpcexpansion')
+			{
+				arrErrors.push({ file: objPages[arrPageOrder[0]].srcfile, line: objPages[arrPageOrder[0]].line, msg: 'Option Page ... Loaded n needs banked pages (Option Memory Heap Pages): with Option Memory Heap Main a page is loaded into the window in place' });
+			}
+			arrPageOrder.forEach(function(strId_a)
+			{
+				arrPageOrder.forEach(function(strOther_a)
+				{
+					if ((strOther_a < strId_a) && objPages[strId_a].loaded && (objPages[strOther_a].loaded === objPages[strId_a].loaded))
+					{
+						arrErrors.push({ file: objPages[strId_a].srcfile, line: objPages[strId_a].line, msg: 'Option Page "' + objPages[strId_a].name + '": page ' + objPages[strId_a].loaded + ' is also "' + objPages[strOther_a].name + '"\'s' });
+					}
+				});
+			});
 		}
 		if ((arrPageOrder.length > 0) && !overlayPlatform() && (objOptions.platform !== 'zxn'))
 		{
@@ -9741,12 +10148,12 @@ function ntcCompile(input_a, objOptions_a)
 		{
 			if (objClassKind[strModule_a] && (objClassKind[strModule_a].kind === 'overlay'))
 			{
-				arrErrors.push({ file: objClassKind[strModule_a].file, line: objClassKind[strModule_a].line || 0, msg: 'Option Safe "' + strModule_a + '": a safe class must stay in safe memory, so it cannot also be in an Option Page / Option Class Overlay.' });
+				arrErrors.push({ file: objClassKind[strModule_a].file, line: objClassKind[strModule_a].line || 0, msg: 'Option Class Safe "' + strModule_a + '": a safe class must stay in safe memory, so it cannot also be in an Option Page / Option Class Overlay.' });
 			}
 		});
 		if ((arrSafeOrder.length > 0) && (arrSafeAreas.length === 0))
 		{
-			arrErrors.push({ file: objModules[arrSafeOrder[0]] ? objModules[arrSafeOrder[0]].name : '', line: 0, msg: 'Option Safe "' + arrSafeOrder[0] + '": safe classes need safe memory - give it with Option Memory Safe start, size, ...' });
+			arrErrors.push({ file: objModules[arrSafeOrder[0]] ? objModules[arrSafeOrder[0]].name : '', line: 0, msg: 'Option Class Safe "' + arrSafeOrder[0] + '": safe classes need safe memory - give it with Option Memory Safe start, size, ...' });
 		}
 	}
 
@@ -9795,6 +10202,10 @@ function ntcCompile(input_a, objOptions_a)
 		var strFile = '';
 		var intRate = 0;
 
+		if (/^\s*(safe|default)\b/i.test(strValue))
+		{
+			return;		// Option Class Safe "NAME" = Class, ... / Option Class Default = Main | Page: read by the pre-pass (scanPages), any file
+		}
 		if (!objRec_a.inclass)
 		{
 			arrErrors.push({ file: objRec_a.file, line: objRec_a.line, msg: 'Option Class goes in a class (.cls) file' });
@@ -9802,6 +10213,10 @@ function ntcCompile(input_a, objOptions_a)
 		}
 		if ((arrMatch = strValue.match(/^\s*resident\s*$/i)))
 		{
+			if (!blnDeprecated)
+			{
+				arrErrors.push({ file: objRec_a.file, line: objRec_a.line, msg: 'Option Class Resident is deprecated (a class is resident without it: leave the line out), or add Option Deprecated to allow it' });
+			}
 			return;
 		}
 		if ((arrMatch = strValue.match(/^\s*overlay\s*(?:"([^"]*)"|[a-z_]\w*)?\s*$/i)))
@@ -9867,7 +10282,7 @@ function ntcCompile(input_a, objOptions_a)
 			arrIslots.push({ module: objRec_a.module, rate: intRate, share: intShare, file: objRec_a.file, line: objRec_a.line });
 			return;
 		}
-		arrErrors.push({ file: objRec_a.file, line: objRec_a.line, msg: 'Option Class Resident | Overlay ["FILE"] | Interrupt rate | Interrupt Frame | Interrupt Share n: ' + strValue });
+		arrErrors.push({ file: objRec_a.file, line: objRec_a.line, msg: 'Option Class Overlay ["FILE"] | Interrupt rate | Interrupt Frame | Interrupt Share n (in a class), Option Class Safe "NAME" = Class, ... or Option Class Default = Main | Page: ' + strValue });
 	}
 
 	// the platform's own classes (StdIO, System ...) join the project when the
@@ -10078,21 +10493,18 @@ function ntcCompile(input_a, objOptions_a)
 
 	function holeLayout(strAsm_a)
 	{
-		// The memory map (docs/memory-map.md). The program fills from the org upward in parts (the
-		// main thread, each procedure, the stubs, the #asm blocks, the variables, the strings, each
-		// library section), and at each cut between parts a guard decides, in the assembler (the
-		// sizes come from its earlier pass: fwdref-ok), what the next part does about each hole:
-		//   Reserved   - every part goes round it: ZeroFill pads (ds) up to its end, in the file;
-		//                Skip leaves the file packed (DISP) and the start code moves the code up
-		//                (ntc_skmove, lddr, highest gap first) before anything above a gap runs
-		//   Paged      - page 0 under the window: a procedure's code may sit there, so it goes
-		//                through; what paged code reads or calls bare goes round (the data, the
-		//                stubs, the #asm blocks, the library, the arrays, and the procedures a page
-		//                calls - decidePinned)
-		//   Safe       - not a hole: when the fill reaches a Safe range (or would cross its start)
-		//                the safe classes' procedures are placed in it first, each whole, first fit
-		//                over all the ranges (ntc_sfN macros, placed by IF), and the fill goes on
-		//                after them: what they leave is ordinary memory again
+		// The memory map (docs/memory-map.md). Two rules:
+		//   1. safe memory (Option Memory Safe) gets what must be there - the safe classes'
+		//      procedures (Option Class Safe) and, in a program with pages, what must stay in sight
+		//      while a page is in the window (the stubs, the #asm blocks, the data, the library,
+		//      the procedures a page calls). What they leave of a Safe range is ordinary memory.
+		//   2. everything else fills from the org upward, in the order written, through all the
+		//      memory that is not Reserved (Option Memory Reserved: every part goes round it, ds)
+		//      and not used safe memory.
+		// At each cut between parts a guard decides, in the assembler (the sizes come from its
+		// earlier pass: fwdref-ok), where the next part goes. A Paged range is not a hole: code
+		// fills through it (page 0 under the window) - unless a page is loaded over it in place
+		// (Option Memory Heap Main, or start bank 0), when nothing may be there, like Reserved.
 		var arrHoles = [];
 		var arrIn = strAsm_a.split('\n');
 		var arrOut = [];
@@ -10101,20 +10513,33 @@ function ntcCompile(input_a, objOptions_a)
 		var blnLib = false;
 		var intI = 0;
 		var blnWin = false;
-		// the threads filled back under the window: when the pinned parts (the stubs, the #asm
-		// blocks, the data, the library) reach the Paged window and go on past it, the room they
-		// left below it (ntc_pwlo up to #4000) and the window itself are wasted - so the threads,
-		// which may sit under the window, start again at ntc_pwlo, fill up through the window, and
-		// step over the pinned parts above it (#8000 - ntc_pwhi) when they get there. ntc_pwlo is
-		// where the pinned fill jumped (0: it never did - the plain one-pass layout), ntc_pwhi
-		// where the pinned parts ended above the window. The threads' end, or ntc_pwhi if that is
-		// higher, is ntc_end. (Only with a device: org goes back down, the memory image is what
-		// gets saved.)
-		var blnFillBack = false;
-		var intWinHoleE = 0;
+		// two passes over the memory, when there is safe memory and something that must be in it
+		// (blnTwo): first the parts that must be there go into the Option Memory Safe ranges
+		// (first fit, in the order written: ntc_saN_ed is how far range N is used), then the rest
+		// fills from the bottom through everything that is not Reserved and not used safe memory
+		// - what the safe parts left of a Safe range is ordinary memory again. (org goes back
+		// down between the two: only with a device, where the memory image is what gets saved.)
+		var blnTwo = false;
+		// blnNeedVis: the program has a Paged range that code may sit under, so some parts must
+		// stay in sight while a page is in (the stubs, the #asm blocks, the data, the library, the
+		// procedures a page calls - decidePinned). With safe memory they go into it; with none
+		// they fill with the rest, and one that ends up in the Paged range is an error that says
+		// so (blnAssertVis)
+		var blnNeedVis = false;
+		var blnAssertVis = false;
+		var blnLazySafe = false;		// the safe classes' procedures placed as the fill reaches a Safe range (no device: one pass upward)
+		var blnGuards = false;
+		var strPhase = '';				// 'n' the safe memory's parts, 'f' the fill after them, '' one pass
+		var blnOpen = false;
+		var blnPrevVis = false;
+		var strPrevTitle = '';
+		var blnDevice = (String(objOptions.amsdos || '').length > 0) || (String(objOptions.platform).toLowerCase() === 'zxn');
+		// a CPC build with no AMSDOS name (plain bytes: the assembler writes them in the order
+		// assembled) cannot go back down - so when the two passes are wanted it gets the device
+		// too, and the memory image is saved as NTCIMAGE.BIN (ntc_image says so)
+		var blnMakeDevice = !blnDevice && /^(cpc|cpcmin|cpcfw)$/.test(String(objOptions.platform).toLowerCase());
 		var blnStrs = false;
 		var blnVars = false;
-		var arrSkip = [];
 		var intOrg = orgNum();
 		// code may sit under a Paged range only where a page swapped in leaves it intact and
 		// brings it back: hardware banking (CPCExpansion: the expansion's banks, the Next's
@@ -10124,12 +10549,12 @@ function ntcCompile(input_a, objOptions_a)
 		var blnPagedCode = (objMemory.scheme !== 'small') && ((objPageWindow === null) || (objPageWindow.startbank >= 1));
 		var strPagedWhy = blnPagedCode ? 'code may sit under it (page 0), its data never' : ((objMemory.scheme === 'small') ? 'nothing under it: Option Memory Small loads a page into the window in place' : 'nothing under it: paging from bank 0, the window is a swap page itself');
 
-		arrReserve.filter(function(objR_a) { return objR_a.start > intOrg; }).map(function(objR_a) { return { s: objR_a.start, e: objR_a.start + objR_a.size, kind: 'r', skip: !!objR_a.skip }; })
+		arrReserve.filter(function(objR_a) { return objR_a.start > intOrg; }).map(function(objR_a) { return { s: objR_a.start, e: objR_a.start + objR_a.size, kind: 'r' }; })
 			.sort(function(a_a, b_a) { return a_a.s - b_a.s; }).forEach(function(objH_a)
 			{
 				var objLast = arrHoles[arrHoles.length - 1];
 
-				if (objLast && (objH_a.s <= objLast.e)) { objLast.e = Math.max(objLast.e, objH_a.e); objLast.skip = objLast.skip && objH_a.skip; } else { arrHoles.push({ s: objH_a.s, e: objH_a.e, kind: 'r', skip: objH_a.skip }); }
+				if (objLast && (objH_a.s <= objLast.e)) { objLast.e = Math.max(objLast.e, objH_a.e); } else { arrHoles.push({ s: objH_a.s, e: objH_a.e, kind: 'r' }); }
 			});
 		// the Paged ranges: holes for the parts that must not be under a page, cut down to what is
 		// not Reserved already (a Reserved range over the window keeps everything out anyway)
@@ -10149,10 +10574,10 @@ function ntcCompile(input_a, objOptions_a)
 				});
 				arrCut = arrNext;
 			});
-			arrCut.forEach(function(objC_a) { if (objC_a.s > intOrg) { arrHoles.push({ s: objC_a.s, e: objC_a.e, kind: 'p', skip: false }); } });
+			arrCut.forEach(function(objC_a) { if (objC_a.s > intOrg) { arrHoles.push({ s: objC_a.s, e: objC_a.e, kind: 'p' }); } });
 		});
 		arrHoles.sort(function(a_a, b_a) { return a_a.s - b_a.s; });
-		arrHoles.forEach(function(objH_a, intH_a) { objH_a.n = intH_a + 1; if (objH_a.skip) { arrSkip.push(objH_a); } });
+		arrHoles.forEach(function(objH_a, intH_a) { objH_a.n = intH_a + 1; });
 		// the window (#4000-#7FFF) is built round when a Reserved range covers it: the window data
 		// (; @window) can go there, and NTC_WINHOLE says so. A Paged range alone is not that.
 		blnWin = arrHoles.some(function(objH_a) { return (objH_a.kind === 'r') && (objH_a.s <= 0x4000) && (objH_a.e >= 0x8000); });
@@ -10208,17 +10633,8 @@ function ntcCompile(input_a, objOptions_a)
 		}
 		if ((arrSafeBlocks.length > 0) && (arrSafeAreas.length === 0))
 		{
-			arrErrors.push({ file: '', line: 0, msg: 'Option Safe: safe classes need safe memory - give it with Option Memory Safe start, size, ...' });
+			arrErrors.push({ file: '', line: 0, msg: 'Option Class Safe: safe classes need safe memory - give it with Option Memory Safe start, size, ...' });
 			arrSafeBlocks = [];
-		}
-		if (arrSkip.length > 0)
-		{
-			if (objPlat.rom || blnM65 || blnM68k || (String(objOptions.platform).toLowerCase() === 'zxn'))
-			{
-				arrErrors.push({ file: '', line: 0, msg: 'Option Memory Reserved Skip: not on ' + objOptions.platform + ' (its file loads each part to its own address, or runs in place) - use ZeroFill' });
-				arrSkip = [];
-				arrHoles.forEach(function(objH_a) { objH_a.skip = false; });
-			}
 		}
 		var strFrom = (arrIn.indexOf('ntc_start2:') >= 0) ? 'ntc_start2:' : 'ntc_start:';
 		var arrLate = [];
@@ -10235,13 +10651,24 @@ function ntcCompile(input_a, objOptions_a)
 				}
 			});
 		});
-		// a Paged window that code may fill: the parts that may not be under it (the stubs, the
-		// #asm blocks, the data, the library, the pinned threads) go FIRST, the threads after -
-		// so the threads are what reaches the window, and the pinned parts sit below it. (The
-		// fill is one pass upward: with the threads first, as written, they would fill #0040 up
-		// and the library would be what hit the window, and round it.)
-		if (blnPagedCode && arrHoles.some(function(objH_a) { return objH_a.kind === 'p'; }) && !objPlat.rom)
+		// what must stay in sight while a page is in the window - the stubs, the #asm blocks, the
+		// data, the library, the procedures a page calls - belongs in safe memory (Option Memory
+		// Safe), with the safe classes' procedures (Option Class Safe). Those parts go first, into
+		// the Safe ranges; everything else then fills from the bottom, in the order written
+		blnNeedVis = blnPagedCode && arrHoles.some(function(objH_a) { return objH_a.kind === 'p'; }) && !objPlat.rom;
+		blnTwo = (blnDevice || blnMakeDevice) && !objPlat.rom && !blnM68k && !blnM65 && (arrSafeAreasS.length > 0) && (blnNeedVis || (arrSafeBlocks.length > 0));
+		blnAssertVis = blnNeedVis && !blnTwo;
+		blnLazySafe = !blnTwo && (arrSafeBlocks.length > 0);
+		blnGuards = (arrHoles.length > 0) || (arrSafeBlocks.length > 0) || blnTwo;
+		if (blnTwo)
 		{
+			arrSafeAreasS.forEach(function(objA_a)
+			{
+				if (objA_a.s < intOrg)
+				{
+					arrErrors.push({ file: objA_a.file, line: objA_a.line, msg: 'Option Memory Safe ' + hex4(objA_a.s) + '-' + hex4(objA_a.e - 1) + ' starts below the program (its org is ' + hex4(intOrg) + '): what goes there would not be in the file' });
+				}
+			});
 			(function()
 			{
 				var intFrom = arrIn.indexOf(strFrom);
@@ -10250,6 +10677,11 @@ function ntcCompile(input_a, objOptions_a)
 				var intI2 = 0;
 				var blnLib2 = false;
 				var intCut = -1;
+				var arrHead = [];
+				var arrVis = [];
+				var arrRest = [];
+				var arrLibHdr = [];
+				var notHdr = function(strL_a) { return !blnNeedVis || !/^; Keyword library \(/.test(strL_a); };
 
 				for (intI2 = intFrom + 1; intI2 < arrIn.length; intI2++)
 				{
@@ -10257,6 +10689,9 @@ function ntcCompile(input_a, objOptions_a)
 				}
 				if ((intFrom < 0) || (intEnd < 0))
 				{
+					blnTwo = false;
+					blnLazySafe = (arrSafeBlocks.length > 0);
+					blnAssertVis = blnNeedVis;
 					return;
 				}
 				// the cuts, as guard() sees them: a part is from one cut to the next
@@ -10270,38 +10705,28 @@ function ntcCompile(input_a, objOptions_a)
 					}
 				}
 				if (intCut >= 0) { arrParts.push({ s: intCut, e: intEnd }); }
-				if (arrParts.length === 0 || arrParts[0].s !== intFrom + 1)
+				arrHead = arrIn.slice(intFrom + 1, arrParts.length ? arrParts[0].s : intEnd);
+				arrSafeBlocks.forEach(function(objB_a)
 				{
-					// lines between the start code and the first cut (none expected): keep them in place
-				}
-				var arrHead = arrIn.slice(intFrom + 1, arrParts.length ? arrParts[0].s : intEnd);
-				var arrPinned = [];
-				var arrThreads = [];
-				var arrTParts = [];
-
+					arrVis.push('; @@npart Option Class Safe: ' + objB_a.name + '@@');
+					// (its own heading is not a cut here: the block is one part, under its name)
+					arrVis = arrVis.concat(objB_a.lines.filter(function(strL_a) { return strL_a !== '; ============================================================'; }));
+				});
 				arrParts.forEach(function(objP_a)
 				{
 					var arrLines = arrIn.slice(objP_a.s, objP_a.e);
 
-					if (partUnderPagedIn(arrIn, objP_a.s)) { arrTParts.push({ lines: arrLines, main: (String(arrIn[objP_a.s + 1] || '') === '; Main Thread'), est: arrLines.filter(function(strL_a) { return /^\s+(dw|db|ds)\b/i.test(strL_a); }).length }); } else { arrPinned = arrPinned.concat(arrLines); }
+					if (blnNeedVis && !partUnderPagedIn(arrIn, objP_a.s)) { arrVis = arrVis.concat(arrLines); } else { arrRest = arrRest.concat(arrLines); }
 				});
-				// the threads biggest first (the main thread stays first): filling back under the
-				// window, a part that does not fit what is left of the window steps over the pinned
-				// parts above it and the rest follow - so the big ones go in while the window is
-				// empty and the small ones fill what they leave. The size is estimated from the
-				// part's data lines (one word each, near enough); the order of the parts changes
-				// nothing else (every call is by label; a jr across parts is made a jp below)
-				arrTParts.sort(function(a_a, b_a) { if (a_a.main !== b_a.main) { return a_a.main ? -1 : 1; } return b_a.est - a_a.est; });
-				arrTParts.forEach(function(objT_a) { arrThreads = arrThreads.concat(objT_a.lines); });
 				// the "; Keyword library (" line turns the ; ==== cuts off from where it stands (the
-				// library's own ; ==== headings are not parts): with the library now first, it goes
+				// library's own ; ==== headings are not parts): when the library has moved, it goes
 				// last, so every part still gets its guard
-				var arrLibHdr = arrPinned.concat(arrThreads).filter(function(strL_a) { return /^; Keyword library \(/.test(strL_a); });
-				var notHdr = function(strL_a) { return !/^; Keyword library \(/.test(strL_a); };
-
-				arrIn = arrIn.slice(0, intFrom + 1).concat(arrHead.filter(notHdr), arrPinned.filter(notHdr), ['; @@threads@@'], arrThreads.filter(notHdr), arrLibHdr, arrIn.slice(intEnd));
-				blnFillBack = !blnM68k && !blnM65 && (arrThreads.length > 0);
-				intWinHoleE = arrHoles.filter(function(objH_a) { return objH_a.kind === 'p'; })[0].e;
+				if (blnNeedVis)
+				{
+					arrLibHdr = arrVis.concat(arrRest).filter(function(strL_a) { return /^; Keyword library \(/.test(strL_a); });
+				}
+				arrIn = arrIn.slice(0, intFrom + 1).concat(arrHead.filter(notHdr), ['; @@safe@@'], arrVis.filter(notHdr), ['; @@fill@@'], arrRest.filter(notHdr), arrLibHdr, arrIn.slice(intEnd));
+				arrSafeBlocks = [];
 			})();
 		}
 		// a jr from one part to another may end up across a hole: those become jp
@@ -10313,7 +10738,7 @@ function ntcCompile(input_a, objOptions_a)
 			var blnIn2 = false;
 			var blnLib2 = false;
 
-			if ((arrHoles.length === 0) && (arrSafeBlocks.length === 0))
+			if (!blnGuards)
 			{
 				return;
 			}
@@ -10326,7 +10751,7 @@ function ntcCompile(input_a, objOptions_a)
 				if (blnIn2)
 				{
 					if (/^; Keyword library \(/.test(strL_a)) { blnLib2 = true; }
-					if (/^;## /.test(strL_a) || (!blnLib2 && isCut(arrIn, intI_a)))
+					if (/^; @@npart /.test(strL_a) || /^;## /.test(strL_a) || (!blnLib2 && isCut(arrIn, intI_a)))
 					{
 						intP++;
 					}
@@ -10412,28 +10837,16 @@ function ntcCompile(input_a, objOptions_a)
 				arrOut.push(strIndentG + 'ntc_windata');
 				arrOut.push(strIndentG + 'ASSERT $ <= ' + objH_a.e + ', "the window data (; @window) must fit in the window"');
 			}
-			if (objH_a.skip)
+			if (objH_a.e >= 0x10000)
 			{
-				arrOut.push(strIndentG + 'IF ntc_disp');
-				arrOut.push(strIndentG + 'ENT');
-				arrOut.push(strIndentG + 'ENDIF');
-				arrOut.push('ntc_sk' + objH_a.n + '_psd = $\t\t; Option Memory Reserved Skip ' + hex4(objH_a.s) + '-' + hex4(objH_a.e - 1) + ': the code above it is here in the file');
-				arrOut.push('ntc_disp = 1');
-				arrOut.push(strIndentG + 'DISP ' + objH_a.e);
+				// the top of memory: nothing fits past it - no padding (it would write past
+				// #FFFF: a second error on zxn), the assert says what happened
+				arrOut.push(strIndentG + 'ASSERT ntc_oom, "out of memory: the program does not fit below ' + hex4(objH_a.s) + ' (' + ((objH_a.kind === 'p') ? 'Option Memory Paged' : 'Option Memory Reserved') + ' ' + hex4(objH_a.s) + '-' + hex4(objH_a.e - 1) + ' is the top of memory)"');
+				arrOut.push('ntc_oom = 1\t\t; (said once: the parts after this one reach it too)');
 			}
 			else
 			{
-				if (objH_a.e >= 0x10000)
-				{
-					// the top of memory: nothing fits past it - no padding (it would write past
-					// #FFFF: a second error on zxn), the assert says what happened
-					arrOut.push(strIndentG + 'ASSERT ntc_oom, "out of memory: the program does not fit below ' + hex4(objH_a.s) + ' (' + ((objH_a.kind === 'p') ? 'Option Memory Paged' : 'Option Memory Reserved') + ' ' + hex4(objH_a.s) + '-' + hex4(objH_a.e - 1) + ' is the top of memory)"');
-					arrOut.push('ntc_oom = 1\t\t; (said once: the parts after this one reach it too)');
-				}
-				else
-				{
-					arrOut.push(strIndentG + 'ds ' + objH_a.e + ' - $\t\t; ' + ((objH_a.kind === 'p') ? 'Option Memory Paged' : 'Option Memory Reserved') + ' ' + hex4(objH_a.s) + '-' + hex4(objH_a.e - 1) + ': round it');
-				}
+				arrOut.push(strIndentG + 'ds ' + objH_a.e + ' - $\t\t; ' + ((objH_a.kind === 'p') ? 'Option Memory Paged' : 'Option Memory Reserved') + ' ' + hex4(objH_a.s) + '-' + hex4(objH_a.e - 1) + ': round it');
 			}
 			arrOut.push(strIndentG + 'ENDIF');
 		}
@@ -10469,44 +10882,120 @@ function ntcCompile(input_a, objOptions_a)
 		// reach into it (its size from the assembler's earlier pass); open each Safe range the
 		// next part reaches or would cross into (major cuts only: not between single strings or
 		// variables, which are never safe code and have the holes' guards of their own)
-		function guard(blnMajor_a, blnUnderPaged_a)
+		function closePart()
 		{
-			if (intK > 0) { arrOut.push('ntc_rg' + intK + '_e:'); }
-			intK++;
-			if (blnMajor_a && (arrSafeBlocks.length > 0))
+			var strLab = 'ntc_rg' + intK;
+
+			if (!blnOpen)
+			{
+				return;
+			}
+			blnOpen = false;
+			arrOut.push(strLab + '_e:');
+			if (strPhase === 'n')
 			{
 				arrSafeAreasS.forEach(function(objA_a)
 				{
-					arrOut.push(strIndentG + 'IF (ntc_sa' + objA_a.n + '_o == 0) && (' + arrSafeBlocks.map(function(objB_a) { return '(ntc_sf' + objB_a.n + '_p == 0)'; }).join(' || ') + ') && ($ < ' + objA_a.e + ') && (ntc_rg' + intK + '_e - ntc_rg' + intK + ' + $ > ' + objA_a.s + ')\t; fwdref-ok');
-					safePlace(objA_a);
+					arrOut.push(strIndentG + 'IF ntc_pl == ' + objA_a.n);
+					arrOut.push('ntc_sa' + objA_a.n + '_ed = $');
 					arrOut.push(strIndentG + 'ENDIF');
 				});
 			}
-			arrHoles.forEach(function(objH_a)
+			if (blnAssertVis && blnPrevVis)
 			{
-				if ((objH_a.kind === 'p') && blnUnderPaged_a && blnPagedCode)
+				arrHoles.forEach(function(objH_a)
 				{
-					return;			// page 0 code: through the Paged range
-				}
-				if (blnFillBack && (objH_a.kind === 'p') && (objH_a.e === intWinHoleE))
-				{
-					// a pinned part stepping over the window: where it was is where the threads start again
-					arrOut.push(strIndentG + 'IF (ntc_pwlo == 0) && ($ < ' + objH_a.e + ') && (ntc_rg' + intK + '_e - ntc_rg' + intK + ' + $ > ' + objH_a.s + ')\t; fwdref-ok');
-					arrOut.push('ntc_pwlo = $\t\t; the pinned fill leaves the room below the window here: the threads fill it (; @@threads@@)');
+					if (objH_a.kind !== 'p')
+					{
+						return;
+					}
+					arrOut.push(strIndentG + 'IF (ntc_vis == 0) && (' + strLab + '_e > ' + strLab + ') && (' + strLab + ' < ' + objH_a.e + ') && (' + strLab + '_e > ' + objH_a.s + ')');
+					arrOut.push('ntc_vis = 1');
+					arrOut.push(strIndentG + 'ASSERT 0, "' + strPrevTitle + ' must stay in sight while a page is in, and it is in the Paged range ' + hex4(objH_a.s) + '-' + hex4(objH_a.e - 1) + ': give the program safe memory for it (Option Memory Safe start, size) - docs/memory-map.md"');
 					arrOut.push(strIndentG + 'ENDIF');
-				}
-				holeRound(objH_a, '($ < ' + objH_a.e + ') && (ntc_rg' + intK + '_e - ntc_rg' + intK + ' + $ > ' + objH_a.s + ')');
-			});
-			if (blnFillBack && blnUnderPaged_a && blnThreads)
+				});
+			}
+		}
+		function partTitle(intAt_a)
+		{
+			var strL = String(arrIn[intAt_a] || '');
+			var arrM = strL.match(/^; @@npart (.*)@@$/);
+
+			if (arrM)
 			{
-				// a thread filling back: over the pinned parts above the window (#8000 - ntc_pwhi)
-				arrOut.push(strIndentG + 'IF (ntc_pwlo != 0) && ($ < ntc_pwhi) && (ntc_rg' + intK + '_e - ntc_rg' + intK + ' + $ > ' + intWinHoleE + ')\t; fwdref-ok');
-				arrOut.push(strIndentG + 'org ntc_pwhi\t\t; over the pinned parts above the window');
+				return arrM[1];
+			}
+			if (/^;## /.test(strL))
+			{
+				return 'the library\'s ' + strL.replace(/^;##\s*/, '').split(/\s+/)[0].replace(/"/g, '\'');
+			}
+			return String(arrIn[intAt_a + 1] || '').replace(/^;\s*/, '').replace(/"/g, '\'');
+		}
+		function guard(blnMajor_a, blnUnderPaged_a, strTitle_a)
+		{
+			var strSize = '';
+			var arrObs = [];
+
+			closePart();
+			intK++;
+			strSize = 'ntc_rg' + intK + '_e - ntc_rg' + intK;
+			blnPrevVis = !blnUnderPaged_a;
+			strPrevTitle = String(strTitle_a || 'a part');
+			if (strPhase === 'n')
+			{
+				// safe memory: the first Safe range with the room (ntc_saN_ed: how far it is used)
+				arrOut.push('ntc_pl = 0');
+				arrSafeAreasS.forEach(function(objA_a)
+				{
+					arrOut.push(strIndentG + 'IF (ntc_pl == 0) && (ntc_sa' + objA_a.n + '_ed + ' + strSize + ' <= ' + objA_a.e + ')\t; fwdref-ok');
+					arrOut.push('ntc_pl = ' + objA_a.n);
+					arrOut.push(strIndentG + 'org ntc_sa' + objA_a.n + '_ed');
+					arrOut.push(strIndentG + 'ENDIF');
+				});
+				arrOut.push(strIndentG + 'IF (ntc_pl == 0) && (ntc_oos == 0)');
+				arrOut.push('ntc_oos = 1');
+				arrOut.push(strIndentG + 'ASSERT 0, "' + strPrevTitle + ' fits in no Option Memory Safe range (' + arrSafeAreasS.map(function(objA_a) { return hex4(objA_a.s) + '-' + hex4(objA_a.e - 1); }).join(', ') + ') - make one bigger, or add one"');
 				arrOut.push(strIndentG + 'ENDIF');
 			}
+			else
+			{
+				if (blnMajor_a && blnLazySafe)
+				{
+					arrSafeAreasS.forEach(function(objA_a)
+					{
+						arrOut.push(strIndentG + 'IF (ntc_sa' + objA_a.n + '_o == 0) && (' + arrSafeBlocks.map(function(objB_a) { return '(ntc_sf' + objB_a.n + '_p == 0)'; }).join(' || ') + ') && ($ < ' + objA_a.e + ') && (' + strSize + ' + $ > ' + objA_a.s + ')\t; fwdref-ok');
+						safePlace(objA_a);
+						arrOut.push(strIndentG + 'ENDIF');
+					});
+				}
+				// the fill: round each Reserved range, and over the used part of each Safe range,
+				// lowest first. A Paged range that code may sit under is not in the way: what must
+				// stay in sight is in safe memory, or (none given) is checked when its part ends
+				arrObs = arrHoles.map(function(objH_a) { return { s: objH_a.s, hole: objH_a }; });
+				if (blnTwo)
+				{
+					arrObs = arrObs.concat(arrSafeAreasS.map(function(objA_a) { return { s: objA_a.s, area: objA_a }; }));
+				}
+				arrObs.sort(function(a_a, b_a) { return a_a.s - b_a.s; });
+				arrObs.forEach(function(objO_a)
+				{
+					if (objO_a.hole)
+					{
+						if ((objO_a.hole.kind === 'p') && blnPagedCode && (blnUnderPaged_a || !objPlat.rom))
+						{
+							return;
+						}
+						holeRound(objO_a.hole, '($ < ' + objO_a.hole.e + ') && (' + strSize + ' + $ > ' + objO_a.hole.s + ')');
+						return;
+					}
+					arrOut.push(strIndentG + 'IF (ntc_sa' + objO_a.area.n + '_ed > ' + objO_a.area.s + ') && ($ < ntc_sa' + objO_a.area.n + '_ed) && (' + strSize + ' + $ > ' + objO_a.area.s + ')\t; fwdref-ok');
+					arrOut.push(strIndentG + 'org ntc_sa' + objO_a.area.n + '_ed\t\t; over what is in Option Memory Safe ' + hex4(objO_a.area.s) + '-' + hex4(objO_a.area.e - 1));
+					arrOut.push(strIndentG + 'ENDIF');
+				});
+			}
 			arrOut.push('ntc_rg' + intK + ':');
+			blnOpen = true;
 		}
-		var blnThreads = false;
 		// the report: what went where (rule 3 of the map) - DISPLAY lines sjasmplus prints when it
 		// assembles (not for vasm: the 68000 and the 45GS02), from the ranges as declared
 		function report()
@@ -10515,19 +11004,15 @@ function ntcCompile(input_a, objOptions_a)
 			{
 				return;
 			}
-			arrOut.push(strIndentG + 'DISPLAY "NTC memory: program ", /H, ntc_start, "-", /H, ntc_end - 1, ' + (((arrWinData.length > 0) || (arrSkip.length > 0)) ? '" (the file: to ", /H, ntc_fileend - 1, ")", ' : '') + '" arrays ", /H, ntc_bss, "-", /H, ntc_free - 1, " stack ' + (objStack ? hex4(objStack.addr) + ' down (Option Stack)' : ((String(objPlat.stack).length > 0) ? String(objPlat.stack) + ' down (the platform\'s)' : 'the caller\'s')) + '"');
+			arrOut.push(strIndentG + 'DISPLAY "NTC memory: program ", /H, ntc_start, "-", /H, ntc_end - 1, ' + ((arrWinData.length > 0) ? '" (the file: to ", /H, ntc_fileend - 1, ")", ' : '') + '" arrays ", /H, ntc_bss, "-", /H, ntc_free - 1, " stack ' + (objStack ? hex4(objStack.addr) + ' down (Option Stack)' : ((String(objPlat.stack).length > 0) ? String(objPlat.stack) + ' down (the platform\'s)' : 'the caller\'s')) + '"');
 			arrReserve.forEach(function(objR_a)
 			{
 				var objH = arrHoles.filter(function(objH_a) { return (objH_a.kind === 'r') && (objH_a.s <= objR_a.start) && (objH_a.e >= objR_a.start + objR_a.size); })[0] || null;
-				var strWhat = 'Reserved' + (objR_a.skip ? ' (Skip)' : '') + ' ' + hex4(objR_a.start) + '-' + hex4(objR_a.start + objR_a.size - 1) + (objR_a.plat ? ' (' + objR_a.file + ')' : (objR_a.buffer ? ' (Option Buffer)' : ''));
+				var strWhat = 'Reserved' + ' ' + hex4(objR_a.start) + '-' + hex4(objR_a.start + objR_a.size - 1) + (objR_a.plat ? ' (' + objR_a.file + ')' : (objR_a.buffer ? ' (Option Buffer)' : ''));
 
 				if (objH === null)
 				{
 					arrOut.push(strIndentG + 'DISPLAY "NTC memory: ' + strWhat + ' - at or below the org: the program starts past it"');
-				}
-				else if (objH.skip)
-				{
-					arrOut.push(strIndentG + 'DISPLAY "NTC memory: ' + strWhat + ' - the code above it is in the file at ", /H, ntc_sk' + objH.n + '_ps, ", ", /D, ntc_sk' + objH.n + '_pe - ntc_sk' + objH.n + '_ps, " bytes, moved up by the start code"');
 				}
 				else
 				{
@@ -10539,13 +11024,22 @@ function ntcCompile(input_a, objOptions_a)
 				var blnHole = arrHoles.some(function(objH_a) { return (objH_a.kind === 'p') && (objH_a.s >= objP_a.start) && (objH_a.e <= objP_a.start + objP_a.size); });
 				var blnRsv = arrReserve.some(function(objR_a) { return (objR_a.start <= objP_a.start) && (objR_a.start + objR_a.size >= objP_a.start + objP_a.size); });
 
-				arrOut.push(strIndentG + 'DISPLAY "NTC memory: Paged ' + hex4(objP_a.start) + '-' + hex4(objP_a.start + objP_a.size - 1) + ((objPageWindow && (objPageWindow.start === objP_a.start)) ? ' from bank ' + objPageWindow.startbank : '') + ' - ' + (blnRsv ? 'Reserved too: nothing under it' : (blnHole ? strPagedWhy : 'at or below the org: the program starts in it')) + '"');
+				arrOut.push(strIndentG + 'DISPLAY "NTC memory: Paged ' + hex4(objP_a.start) + '-' + hex4(objP_a.start + objP_a.size - 1) + ((objPageWindow && (objPageWindow.start === objP_a.start)) ? (((objOptions.platform === 'zxn') && (objPageWindow.startbank >= 2)) ? ' from Next bank ' : ' from bank ') + objPageWindow.startbank : '') + ' - ' + (blnRsv ? 'Reserved too: nothing under it' : (blnHole ? strPagedWhy : 'at or below the org: the program starts in it')) + '"');
 			});
 			arrSafeAreasS.forEach(function(objA_a)
 			{
+				if (blnTwo)
+				{
+					arrOut.push(strIndentG + 'IF ntc_sa' + objA_a.n + '_ed > ' + objA_a.s);
+					arrOut.push(strIndentG + 'DISPLAY "NTC memory: Safe ' + hex4(objA_a.s) + '-' + hex4(objA_a.e - 1) + ': used to ", /H, ntc_sa' + objA_a.n + '_ed - 1, ", the rest of it ordinary memory"');
+					arrOut.push(strIndentG + 'ELSE');
+					arrOut.push(strIndentG + 'DISPLAY "NTC memory: Safe ' + hex4(objA_a.s) + '-' + hex4(objA_a.e - 1) + ': nothing needed it - ordinary memory"');
+					arrOut.push(strIndentG + 'ENDIF');
+					return;
+				}
 				if (arrSafeBlocks.length === 0)
 				{
-					arrOut.push(strIndentG + 'DISPLAY "NTC memory: Safe ' + hex4(objA_a.s) + '-' + hex4(objA_a.e - 1) + ': no safe classes (Option Safe) - ordinary memory"');
+					arrOut.push(strIndentG + 'DISPLAY "NTC memory: Safe ' + hex4(objA_a.s) + '-' + hex4(objA_a.e - 1) + ': no safe classes (Option Class Safe) - ordinary memory"');
 					return;
 				}
 				arrOut.push(strIndentG + 'IF ntc_sa' + objA_a.n + '_o');
@@ -10594,7 +11088,7 @@ function ntcCompile(input_a, objOptions_a)
 			arrOut = arrOut.concat(arrWinData);
 			arrOut.push(strIndentG + 'ENDM');
 		}
-		if (arrSafeBlocks.length > 0)
+		if (blnLazySafe)
 		{
 			arrOut.push('; the safe classes\' procedures (Option Safe): each a block, placed in the first Option Memory Safe range it fits');
 			arrSafeAreasS.forEach(function(objA_a)
@@ -10617,10 +11111,19 @@ function ntcCompile(input_a, objOptions_a)
 		{
 			arrOut.push('ntc_oom = 0\t\t; 1 = out of memory (the fill reached the top range): said once');
 		}
-		if (arrSkip.length > 0)
+		if (blnTwo && blnMakeDevice)
 		{
-			arrOut.push('ntc_disp = 0\t\t; 1 = assembling above an Option Memory Reserved Skip gap (DISP)');
-			arrSkip.forEach(function(objH_a) { arrOut.push('ntc_sk' + objH_a.n + '_psd = -1\t\t; where the code above Skip ' + hex4(objH_a.s) + '-' + hex4(objH_a.e - 1) + ' is in the file (-1: the fill did not reach it)'); });
+			arrOut.push(strIndentG + 'DEVICE AMSTRADCPC6128\t\t; (the memory image: saved as NTCIMAGE.BIN at the end)');
+		}
+		if (blnTwo)
+		{
+			arrSafeAreasS.forEach(function(objA_a) { arrOut.push('ntc_sa' + objA_a.n + '_ed = ' + objA_a.s + '\t\t; Option Memory Safe ' + hex4(objA_a.s) + '-' + hex4(objA_a.e - 1) + ': used up to here (the rest of it is ordinary memory)'); });
+			arrOut.push('ntc_pl = 0\t\t; the Safe range the part in hand went into (0: none had the room)');
+			arrOut.push('ntc_oos = 0\t\t; 1 = out of safe memory: said once');
+		}
+		if (blnAssertVis)
+		{
+			arrOut.push('ntc_vis = 0\t\t; 1 = a part that must stay in sight is in the Paged range: said once');
 		}
 		for (intI = 0; intI < arrIn.length; intI++)
 		{
@@ -10690,61 +11193,51 @@ function ntcCompile(input_a, objOptions_a)
 				}
 				continue;
 			}
-			if ((arrHoles.length > 0) || (arrSafeBlocks.length > 0))
+			if (blnGuards)
 			{
 				if (strL === strFrom)
 				{
 					blnIn = true;		// after the start code's first bytes (the bank switch at #0044)
 					arrOut.push(strL);
-					if (blnFillBack)
-					{
-						arrOut.push('ntc_pwlo = 0\t\t; where the pinned parts stepped over the Paged window (0: they never reached it)');
-						arrOut.push('ntc_pwhi = 0\t\t; where they ended above it');
-					}
-					if (arrSkip.length > 0)
-					{
-						// the mover: first thing, before anything above a Skip gap is touched. The
-						// blocks highest first, each copied from its top down (lddr: the destination
-						// is above the source, they overlap). Constant size whatever fired (a block
-						// that is not there is 0 bytes: skipped at run time), so the assembler's
-						// passes settle
-						arrOut.push('; Option Memory Reserved Skip: move the code above each gap up to its address (highest first)');
-						arrSkip.slice().reverse().forEach(function(objH_a)
-						{
-							arrOut.push(strIndentG + 'ld bc, ntc_sk' + objH_a.n + '_pe - ntc_sk' + objH_a.n + '_ps\t\t; the block above ' + hex4(objH_a.s) + '-' + hex4(objH_a.e - 1) + ' (0: it is not there)');
-							arrOut.push(strIndentG + 'ld a, b');
-							arrOut.push(strIndentG + 'or c');
-							arrOut.push(strIndentG + 'jr z, $ + 10');
-							arrOut.push(strIndentG + 'ld hl, ntc_sk' + objH_a.n + '_pe - 1');
-							arrOut.push(strIndentG + 'ld de, ' + objH_a.e + ' + ntc_sk' + objH_a.n + '_pe - ntc_sk' + objH_a.n + '_ps - 1');
-							arrOut.push(strIndentG + 'lddr');
-						});
-					}
 					continue;
 				}
-				if (blnIn && (strL === '; @@threads@@'))
+				if (blnIn && (strL === '; @@safe@@'))
 				{
-					// the threads: back down to the room the pinned fill left below the window
-					arrOut.push('ntc_rg' + intK + '_e:');
-					intK++;
-					arrOut.push(strIndentG + 'IF ntc_pwlo != 0\t; fwdref-ok');
-					arrOut.push('ntc_pwhi = $\t\t; the pinned parts end here, above the window');
-					arrOut.push(strIndentG + 'org ntc_pwlo\t\t; the threads fill from the room below the window (Option Memory Paged: code may sit under it)');
-					arrOut.push(strIndentG + 'ENDIF');
-					arrOut.push('ntc_rg' + intK + ':');
-					blnThreads = true;
+					// the safe memory first: each part that must be there, in the first range it fits
+					closePart();
+					arrOut.push('ntc_fb = $\t\t; the fill starts here, once the safe memory has its parts');
+					arrSafeAreasS.forEach(function(objA_a)
+					{
+						arrOut.push(strIndentG + 'IF ($ > ' + objA_a.s + ') && ($ < ' + objA_a.e + ')');
+						arrOut.push('ntc_sa' + objA_a.n + '_ed = $\t\t; (the start code is in this Safe range)');
+						arrOut.push(strIndentG + 'ENDIF');
+					});
+					strPhase = 'n';
+					continue;
+				}
+				if (blnIn && (strL === '; @@fill@@'))
+				{
+					// the rest: from the bottom, through everything not Reserved and not used safe memory
+					closePart();
+					arrOut.push(strIndentG + 'org ntc_fb\t\t; the fill: from the bottom');
+					strPhase = 'f';
 					continue;
 				}
 				if (/^ntc_end:/.test(strL) && blnIn)
 				{
-					arrOut.push('ntc_rg' + intK + '_e:');
-					if (blnFillBack)
+					closePart();
+					if (blnTwo)
 					{
-						arrOut.push(strIndentG + 'IF (ntc_pwlo != 0) && ($ < ntc_pwhi)\t; fwdref-ok');
-						arrOut.push(strIndentG + 'org ntc_pwhi\t\t; the threads ended below the pinned parts above the window: the program ends after those');
-						arrOut.push(strIndentG + 'ENDIF');
+						// the fill ended below safe memory that is used: the program ends after it
+						arrSafeAreasS.forEach(function(objA_a)
+						{
+							arrOut.push(strIndentG + 'IF (ntc_sa' + objA_a.n + '_ed > ' + objA_a.s + ') && ($ < ntc_sa' + objA_a.n + '_ed)');
+							arrOut.push(strIndentG + 'org ntc_sa' + objA_a.n + '_ed\t\t; Option Memory Safe ' + hex4(objA_a.s) + '-' + hex4(objA_a.e - 1) + ': the program ends after what is in it');
+							arrOut.push(strIndentG + 'ENDIF');
+						});
 					}
-					if (arrSafeBlocks.length > 0)
+					strPhase = '';
+					if (blnLazySafe)
 					{
 						// Safe ranges the fill never reached (the program ended below them): their
 						// safe code now, BEFORE ntc_end, so it is inside the program image (the saved
@@ -10757,7 +11250,7 @@ function ntcCompile(input_a, objOptions_a)
 						});
 						arrSafeBlocks.forEach(function(objB_a)
 						{
-							arrOut.push(strIndentG + 'ASSERT ntc_sf' + objB_a.n + '_p != 0, "Option Safe: ' + objB_a.name + ' fits in no Option Memory Safe range (' + arrSafeAreasS.map(function(objA_a) { return hex4(objA_a.s) + '-' + hex4(objA_a.e - 1); }).join(', ') + ') - enlarge one, or add one"');
+							arrOut.push(strIndentG + 'ASSERT ntc_sf' + objB_a.n + '_p != 0, "Option Class Safe: ' + objB_a.name + ' fits in no Option Memory Safe range (' + arrSafeAreasS.map(function(objA_a) { return hex4(objA_a.s) + '-' + hex4(objA_a.e - 1); }).join(', ') + ') - enlarge one, or add one"');
 						});
 					}
 					arrOut.push(strL);
@@ -10774,33 +11267,14 @@ function ntcCompile(input_a, objOptions_a)
 						arrOut.push(strIndentG + 'ASSERT $ <= #8000, "the window data (; @window) must fit in the window"');
 						arrOut.push(strIndentG + 'ENDIF');
 					}
-					if (arrSkip.length > 0)
+					if (arrWinData.length > 0)
 					{
-						arrOut.push(strIndentG + 'IF ntc_disp');
-						arrOut.push(strIndentG + 'ENT');
-						arrOut.push(strIndentG + 'ENDIF');
+						arrOut.push('ntc_fileend:\t\t\t; the file ends here (the window data in it)');
 					}
-					if ((arrWinData.length > 0) || (arrSkip.length > 0))
+					if (blnTwo && blnMakeDevice)
 					{
-						arrOut.push('ntc_fileend:\t\t\t; the file ends here' + ((arrWinData.length > 0) ? ' (the window data in it)' : '') + ((arrSkip.length > 0) ? ' (packed: the Skip gaps left out)' : ''));
-					}
-					if (arrSkip.length > 0)
-					{
-						// each Skip block's start in the file (where its hole fired; the file's end when
-						// the fill never reached it: 0 bytes) and its end: the next block's start, the
-						// last's the file's end. Defined once, here, for the mover's forward references
-						arrSkip.forEach(function(objH_a, intS_a)
-						{
-							arrOut.push(strIndentG + 'IF ntc_sk' + objH_a.n + '_psd >= 0');
-							arrOut.push('ntc_sk' + objH_a.n + '_ps\tequ ntc_sk' + objH_a.n + '_psd');
-							arrOut.push(strIndentG + 'ELSE');
-							arrOut.push('ntc_sk' + objH_a.n + '_ps\tequ ntc_fileend');
-							arrOut.push(strIndentG + 'ENDIF');
-						});
-						arrSkip.forEach(function(objH_a, intS_a)
-						{
-							arrOut.push('ntc_sk' + objH_a.n + '_pe\tequ ' + ((intS_a + 1 < arrSkip.length) ? 'ntc_sk' + arrSkip[intS_a + 1].n + '_ps' : 'ntc_fileend'));
-						});
+						arrOut.push('ntc_image\tequ 1\t\t; the program is NTCIMAGE.BIN (the memory image), not the bytes in the order assembled');
+						arrOut.push(strIndentG + 'SAVEBIN "NTCIMAGE.BIN", ntc_start, ' + ((arrWinData.length > 0) ? 'ntc_fileend' : 'ntc_end') + ' - ntc_start');
 					}
 					report();
 					winFile();
@@ -10815,15 +11289,15 @@ function ntcCompile(input_a, objOptions_a)
 				else if (blnIn)
 				{
 					if (/^; Keyword library \(/.test(strL)) { blnLib = true; }
-					if (/^;## /.test(strL) || (!blnLib && isCut(arrIn, intI)))
+					if (/^; @@npart /.test(strL) || /^;## /.test(strL) || (!blnLib && isCut(arrIn, intI)))
 					{
 						blnStrs = !blnLib && (arrIn[intI + 1] === '; Strings');
 						blnVars = !blnLib && (arrIn[intI + 1] === '; Variables');
-						guard(true, partUnderPaged(intI));
+						guard(true, partUnderPaged(intI), partTitle(intI));
 					}
 					else if (blnStrs && /^str\w*:/.test(strL))
 					{
-						guard(false, false);	// each string on its own: the strings fill what is left below the hole
+						guard(false, false, blnStrs ? 'a string' : 'a variable');	// each string on its own: the strings fill what is left below the hole
 					}
 					else if (blnVars)
 					{
@@ -10834,12 +11308,12 @@ function ntcCompile(input_a, objOptions_a)
 						var blnAfterPrefix = blnLabel && /^\s+(db|dw)\b/i.test(arrIn[intI - 1] || '') && !/^[A-Za-z_]\w*:/.test(arrIn[intI - 1] || '');
 						if (blnPrefix || (blnLabel && !blnAfterPrefix))
 						{
-							guard(false, false);
+							guard(false, false, blnStrs ? 'a string' : 'a variable');
 						}
 					}
 				}
 			}
-			if (((arrWinData.length > 0) || (arrSkip.length > 0)) && /^\s+SAVEAMSDOS\s.*,\s*ntc_start,\s*ntc_end - ntc_start,/.test(strL))
+			if ((arrWinData.length > 0) && /^\s+SAVEAMSDOS\s.*,\s*ntc_start,\s*ntc_end - ntc_start,/.test(strL))
 			{
 				strL = strL.replace('ntc_end - ntc_start', 'ntc_fileend - ntc_start');		// (the window data / the packed file)
 			}
@@ -11637,13 +12111,12 @@ function ntcCompile(input_a, objOptions_a)
 	{
 		strTerminal = String(objPlat.terminal).toLowerCase();	// the platform's default (cyborgos: VT52)
 	}
+	// StdIO.SetTerminal n (20261116-4, cpm): the terminal chosen while the program runs - Cls and
+	// Locate then carry every terminal's codes, and the console can position and clear
+	blnTermRt = (String(objOptions.platform).toLowerCase() === 'cpm') && arrFiles.some(function(objFile_a) { return !/(^|[\/\\])stdio\.cls$/i.test(String(objFile_a.name)) && String(objFile_a.text).split('\n').some(function(strL_a) { return /\bStdIO\s*\.\s*SetTerminal\b/i.test(strL_a.replace(/'.*$/, '')); }); });
 	if (objOptions.library === 'rom')
 	{
 		objDefinesIn.ntc_library_rom = -1;		// #If NTC_LIBRARY_ROM Then ... (built for the keyword library ROM)
-	}
-	if (findNoRomDisc(arrFiles))
-	{
-		objDefinesIn.ntc_noromdisc = -1;		// Option NoRomDisc: FileSystem goes straight to the disc (no volume R code)
 	}
 	objDefinesIn['ntc_mem_' + objMemory.scheme] = -1;		// #If NTC_MEM_SMALL Then ... (and @if: library sections)
 	if (strTerminal !== 'none')
@@ -11651,15 +12124,25 @@ function ntcCompile(input_a, objOptions_a)
 		objDefinesIn['ntc_term_' + strTerminal] = -1;
 		objDefinesIn.ntc_term_pos = -1;
 	}
+	if (blnTermRt)
+	{
+		objDefinesIn.ntc_term_pos = -1;
+	}
 	blnDeprecated = arrFiles.some(function(objFile_a) { return activeLines(objFile_a.text).some(function(objLine_a) { return /^\s*option\s+deprecated\s*$/i.test(String(objLine_a.text).replace(/'.*$/, '')); }); });
 	scanPages(arrFiles);
 	arrFiles = addOverlayMembers(arrFiles);
 	objMemory = findMemory(arrFiles, true);
 	blnMemoryUsed = arrFiles.some(function(objFile_a) { return /(^|[\/\\])(memory|list)\.cls$/i.test(String(objFile_a.name)); });
+	blnZxnFs = (objOptions.platform === 'zxn') && arrFiles.some(function(objFile_a) { return /(^|[\/\\])filesystem\.cls$/i.test(String(objFile_a.name)); });
+	blnZxnGfx = (objOptions.platform === 'zxn') && arrFiles.some(function(objFile_a) { return /(^|[\/\\])graphics\.cls$/i.test(String(objFile_a.name)); });
 	if (strTerminal !== 'none')
 	{
 		objDefinesIn['ntc_term_' + strTerminal] = -1;		// #If NTC_TERM_VT52 Then ...
 		objDefinesIn.ntc_term_pos = -1;						// a terminal that can position and clear
+	}
+	if (blnTermRt)
+	{
+		objDefinesIn.ntc_term_pos = -1;
 	}
 	objParse = ntcParse(arrFiles, objDefinesIn);
 	objEl = objParse.elements;
@@ -11694,27 +12177,18 @@ function ntcCompile(input_a, objOptions_a)
 			}
 			else if (objRec.what === 'noromdisc')
 			{
-				// read before parsing (findNoRomDisc)
+				arrErrors.push({ file: objRec.file, line: objRec.line, msg: 'Option NoRomDisc is gone: the ROM disc is no longer in FileSystem (it is the ROMDiscFS class) - take the line out' });
 			}
 			else if (objRec.what === 'noturbo')
 			{
 				blnNoTurbo = true;
 				objNoTurboLine = objRec;
 			}
-			else if (objRec.what === 'next2mb')
-			{
-				objOptions.next2mb = true;
-			}
 			else if (objRec.what === 'compactcalls')
 			{
-				if (objPlat.rom || blnM68k || blnM65)
-				{
-					arrErrors.push({ file: objRec.file, line: objRec.line, msg: 'Option CompactCalls is for Z80 programs in RAM (the stubs keep a word in the code)' });
-				}
-				else
-				{
-					blnCompactCalls = true;
-				}
+				// gone (20261116-2): ByRef parameters are passed in place, so a procedure's stub has little
+				// left to shrink. blnCompactCalls is never set now; its code in procStubs is dead.
+				arrErrors.push({ file: objRec.file, line: objRec.line, msg: 'Option CompactCalls is gone: leave the line out (ByRef parameters are passed in place now, so the call stubs are small without it)' });
 			}
 			else if (objRec.what === 'comparetext')
 			{
@@ -11786,25 +12260,62 @@ function ntcCompile(input_a, objOptions_a)
 				// Option Safe (areas and named class groups) is parsed in scanPages, next to Option
 				// Page, where the class machinery is - nothing to do with the option record here.
 			}
-			else if (objRec.what === 'nexdata')
+			else if (objRec.what === 'savenex')
 			{
-				// Option NexData "FILE", blocks (zxn): FILE's first blocks x 16K go in the NEX file's
-				// banks (ZXN_NEXBANKS), loaded with the program; ntc_nexdata: the count, then each
-				// block's bank. The assembler reads FILE (next to the .asm) - it must hold them all
-				var arrNexM = String(objRec.value).match(/^\s*"([^"]+)"\s*,\s*(\S+)\s*$/);
-				intValue = arrNexM ? parseNumber(arrNexM[2]) : NaN;
-				if (!arrNexM || isNaN(intValue) || (intValue < 1) || (intValue > ZXN_NEXBANKS.length))
+				var arrSnM = String(objRec.value).match(/^\s*"([^"]+)"\s*,\s*(.+?)\s*$/);
+				var arrSnPages = [];
+				var blnSnBad = !arrSnM;
+
+				if (arrSnM)
 				{
-					arrErrors.push({ file: objRec.file, line: objRec.line, msg: 'Option NexData "FILE", blocks: blocks 1-' + ZXN_NEXBANKS.length + ' (16K each)' });
+					arrSnM[2].split(',').forEach(function(strP_a)
+					{
+						var arrR = trim(strP_a).match(/^(\S+)\s+to\s+(\S+)$/i);
+						var intFrom = parseNumber(arrR ? arrR[1] : trim(strP_a));
+						var intTo = arrR ? parseNumber(arrR[2]) : intFrom;
+						var intN = 0;
+
+						if (isNaN(intFrom) || isNaN(intTo) || (intFrom < 2) || (intTo < intFrom) || (intTo > 256))
+						{
+							blnSnBad = true;
+							return;
+						}
+						for (intN = intFrom; intN <= intTo; intN++)
+						{
+							arrSnPages.push(intN);
+						}
+					});
+				}
+				if (blnSnBad || (arrSnPages.length === 0))
+				{
+					arrErrors.push({ file: objRec.file, line: objRec.line, msg: 'Option SaveNex "FILE", page [, page | page To page] ...: the pages (2 and up, as Loaded n) the file\'s 16K pieces go in, in order - ' + objRec.value });
 				}
 				else if (objOptions.platform !== 'zxn')
 				{
-					arrWarnings.push({ file: objRec.file, line: objRec.line, msg: 'Option NexData is for the ZX Spectrum Next (zxn) - no effect on ' + objOptions.platform });
+					arrWarnings.push({ file: objRec.file, line: objRec.line, msg: 'Option SaveNex is for the ZX Spectrum Next (zxn) - no effect on ' + objOptions.platform });
 				}
 				else
 				{
-					objNexData = { file: arrNexM[1], blocks: intValue };
+					arrSnPages.forEach(function(intP_a)
+					{
+						arrSaveNex.forEach(function(objS_a)
+						{
+							if (objS_a.pages.indexOf(intP_a) >= 0)
+							{
+								arrErrors.push({ file: objRec.file, line: objRec.line, msg: 'Option SaveNex "' + arrSnM[1] + '": page ' + intP_a + ' is also "' + objS_a.file + '"\'s (line ' + objS_a.line + ')' });
+							}
+						});
+						if (arrSnPages.indexOf(intP_a) !== arrSnPages.lastIndexOf(intP_a))
+						{
+							arrErrors.push({ file: objRec.file, line: objRec.line, msg: 'Option SaveNex "' + arrSnM[1] + '": page ' + intP_a + ' is named twice' });
+						}
+					});
+					arrSaveNex.push({ file: arrSnM[1], pages: arrSnPages, src: objRec.file, line: objRec.line });
 				}
+			}
+			else if (objRec.what === 'nexdata')
+			{
+				arrErrors.push({ file: objRec.file, line: objRec.line, msg: 'Option NexData is gone - use Option SaveNex "FILE", page [, page | page To page] ... (the pages are yours to name: page n is Next bank 22 + n - 2)' });
 			}
 			else if (objRec.what === 'windowfile')
 			{
@@ -11826,22 +12337,21 @@ function ntcCompile(input_a, objOptions_a)
 			}
 			else if (objRec.what === 'buffer')
 			{
-				// Option Buffer address: the library's 2K buffer (FileSystem, Memory.Copy) there,
-				// not in the program - kept out of like an Option Reserve range
-				// Option Buffer Size n / Option Buffer address [, size]: its size (32 - 2048; Memory.Copy
+				// Option Buffer address, size: the library's buffer (FileSystem, Memory.Copy) there,
+				// not in the program - kept out of like a Reserved range. size 32 - 2048 (Memory.Copy
 				// copies that much at a time; FileSystem on a CPC needs the whole 2048)
-				var arrBufM = String(objRec.value).match(/^\s*size\s+(\S+)\s*$/i);
+				// Option Buffer address, size - the one form (20261116-1): both are needed
+				var arrBufM = String(objRec.value).match(/^\s*([^,\s]+)\s*,\s*(\S+)\s*$/);
 				var strBufAt = '';
 				var strBufSize = '';
-				if (arrBufM)
+				if (!arrBufM || /^size$/i.test(arrBufM[1]))
 				{
-					strBufSize = arrBufM[1];
+					arrErrors.push({ file: objRec.file, line: objRec.line, msg: 'Option Buffer address, size (both: where the library\'s buffer is, and its size 32-2048) - ' + objRec.value });
 				}
 				else
 				{
-					arrBufM = String(objRec.value).match(/^\s*([^,\s]+)\s*(?:,\s*(\S+))?\s*$/);
-					strBufAt = arrBufM ? arrBufM[1] : 'x';
-					strBufSize = (arrBufM && arrBufM[2]) ? arrBufM[2] : '';
+					strBufAt = arrBufM[1];
+					strBufSize = arrBufM[2];
 				}
 				if (strBufSize !== '')
 				{
@@ -11860,7 +12370,7 @@ function ntcCompile(input_a, objOptions_a)
 					intValue = parseNumber(strBufAt);
 					if (isNaN(intValue) || (intValue < 0) || (intValue > 65536 - intBufSize))
 					{
-						arrErrors.push({ file: objRec.file, line: objRec.line, msg: 'Option Buffer: an address 0-&HF800 (2K from there), or Option Buffer Size n' });
+						arrErrors.push({ file: objRec.file, line: objRec.line, msg: 'Option Buffer address, size: an address with the size from there inside memory' });
 					}
 					else
 					{
@@ -11874,7 +12384,7 @@ function ntcCompile(input_a, objOptions_a)
 				// the region form (Option Memory Available | Reserved | Paged | Safe start, size ...)
 				// is the memory map, read in scanPages; only the scheme form (Small | CPCExpansion n)
 				// is readMemory's
-				if (!/^\s*(available|reserved|paged|safe)\b/i.test(String(objRec.value)))
+				if (!/^\s*(available|reserved|paged|safe|reserve\s+pages)\b/i.test(String(objRec.value)))
 				{
 					readMemory(objRec);
 				}
@@ -11903,7 +12413,14 @@ function ntcCompile(input_a, objOptions_a)
 			}
 			else if (objRec.what === 'romenable')
 			{
-				readRomEnable(objRec);
+				if (objRec.old && !blnDeprecated)
+				{
+					arrErrors.push({ file: objRec.file, line: objRec.line, msg: 'Option RomEnable is now two words: Option ROM Enable All | rom, rom ... (or add Option Deprecated to allow the old spelling)' });
+				}
+				else
+				{
+					readRomEnable(objRec);
+				}
 			}
 			else if (objRec.what === 'pressanykeyonend')
 			{
@@ -11914,18 +12431,6 @@ function ntcCompile(input_a, objOptions_a)
 				{
 					arrErrors.push({ file: objRec.file, line: objRec.line, msg: 'Option PressAnyKeyOnEnd: a message in quotes, or none - ' + objRec.value });
 					strPakEnd = null;
-				}
-			}
-			else if (objRec.what === 'firstbank')
-			{
-				intValue = parseNumber(objRec.value);
-				if (isNaN(intValue) || (intValue < 11) || (intValue > 47))
-				{
-					arrErrors.push({ file: objRec.file, line: objRec.line, msg: 'Option FirstBank needs a 16K bank, 11-47 (banks 12-21 are Layer 2\'s buffers when the Graphics class uses them): ' + objRec.value });
-				}
-				else
-				{
-					objOptions.firstbank = intValue;
 				}
 			}
 			else if (objRec.what === 'org')
@@ -12043,6 +12548,7 @@ function ntcCompile(input_a, objOptions_a)
 		objTmpBase = {};
 		objScanFallIn = {};
 		objWritten = {};
+		objAsmParam = {};
 		objProcModes = {};
 		compilePass(1);
 		objTypes = {};
@@ -12096,6 +12602,16 @@ function ntcCompile(input_a, objOptions_a)
 
 	// pass 2 - code
 	compilePass(2);
+	// ByRef in place: a by-reference parameter that no call gives a value to has no variable at all
+	arrDecl = arrDecl.filter(function(objD_a)
+	{
+		if ((objRefLabel[objD_a.label] !== undefined) && (objRefSlotUsed[objD_a.label] !== true))
+		{
+			delete objDecl[objD_a.label];
+			return false;
+		}
+		return true;
+	});
 
 	var arrGlyphCodes = [];
 	var arrGlyphLine = [];
@@ -12158,7 +12674,8 @@ function ntcCompile(input_a, objOptions_a)
 		// ZX Spectrum Next: a NEX file (SAVENEX at the end). The program in RAM pages 16-21
 		// (banks 8-10), mapped at #0000-#BFFF as it runs (asm/ntc_plat_zxn.asm)
 		arrAsm.push(strIndent + 'DEVICE ZXSPECTRUMNEXT\t\t; for SAVENEX at the end');
-		arrAsm.push(strIndent + 'MMU 0 5, 16\t\t\t; #0000-#BFFF: pages 16-21 (banks 8, 9, 10)');
+		arrAsm.push(strIndent + 'MMU 0 5, 0\t\t\t; #0000-#BFFF: the Next\'s 8K pages 0-5 (its 16K banks 0, 1, 2: NTC pages 0, 1, 2 - 20261116-7, it was banks 8, 9, 10)');
+		arrAsm.push(strIndent + 'MMU 6 7, 10\t\t\t; #C000-#FFFF: pages 10, 11 (bank 5) - main memory too (20261116-6)');
 	}
 	if (objPlat.rom)
 	{
@@ -12175,6 +12692,34 @@ function ntcCompile(input_a, objOptions_a)
 		if (objPlat.dotorg)
 		{
 			arrAsm.push(strIndent + 'DEFINE NTC_ZXNDOTL');
+			// dot_fs_call and its buffers (about 430 bytes of the 8K) only when the program's own code
+			// names them (20261116-4: they were in every Large Model DOT)
+			if (arrFiles.some(function(objFile_a) { return /\bdot_fs_(call|name|stat|data|hook|a|bc|de|hl|cy)\b/.test(String(objFile_a.text)); }))
+			{
+				arrAsm.push(strIndent + 'DEFINE NTC_DOT_FS');
+				// its name, stat and data buffers are the Option Buffer buffer (20261116-5: not 336 bytes of their own)
+				if (intBufAt >= 0)
+				{
+					arrAsm.push('ntc_dotfs_buf\tequ ' + intBufAt + '\t\t; Option Buffer: dot_fs_call\'s name, stat and data');
+				}
+				else
+				{
+					arrErrors.push({ file: '', line: 0, msg: 'dot_fs_call needs its buffers placed: Option Buffer address, size - 336 bytes or more, in the DOT\'s own 8K after its code (an address up to &H3EB0)' });
+				}
+			}
+		}
+	}
+	// (defined here, before the library: its IFDEF sees only what is defined above it)
+	if (takenPages().length > 0)
+	{
+		arrAsm.push(strIndent + 'DEFINE NTC_PGLOADED\t\t; Option Page ... Loaded n / Option SaveNex pages: taken from the start (ntc_pgloaded)');
+	}
+	if ((objOptions.platform !== 'zxn') && arrPageOrder.some(function(strId_a) { return objPages[strId_a].loaded; }))
+	{
+		arrAsm.push(strIndent + 'DEFINE NTC_PGFIX\t\t; Option Page "FILE" Loaded n: a page file with a RAM page of its own (ntc_pgfix)');
+		if (objOptions.library === 'rom')
+		{
+			arrErrors.push({ file: objPages[arrPageOrder[0]].srcfile, line: objPages[arrPageOrder[0]].line, msg: 'Option Page "FILE" Loaded n: not with the keyword library ROM yet (the ROM\'s page loader always takes a free page) - build with the library in RAM' });
 		}
 	}
 	if (String(objOptions.org).replace(/\s/g, '').length > 0)
@@ -12194,6 +12739,7 @@ function ntcCompile(input_a, objOptions_a)
 			// the Large Model dot command: the entry's 8K is the file's first 8K (padded), the program
 			// follows in the file and runs from ;@dotorg (#8000), in pages the entry allocates
 			arrAsm.push(strIndent + 'ASSERT $ <= #4000, "the dot command\'s entry code and data must fit in #2000-#3FFF"');
+			arrAsm.push('ntc_dot8k_end:\t\t\t; the 8K\'s code and data end here: the rest of it (to #3FFF) is free - Option Buffer may be there');
 			arrAsm.push(strIndent + 'ds #4000 - $\t\t\t; the first 8K of the file, padded');
 			arrAsm.push(strIndent + 'OPT -Wno-fileorg\t\t; (the file goes on where the 8K ends: the org below is where the program runs, not a gap)');
 			arrAsm.push(strIndent + 'org ' + objPlat.dotorg + '\t\t\t; the program: read into its own pages by the entry');
@@ -12208,7 +12754,8 @@ function ntcCompile(input_a, objOptions_a)
 	{
 		arrAsm.push('@@M65STUB@@');		// the PRG's BASIC line and the jump to the start code, put in after linking
 	}
-	arrAsm.push('NTC_TERM\tequ ' + ({ none: 0, vt52: 1, ansi: 2 })[strTerminal] + '\t\t; Option Terminal: 0 none, 1 VT52, 2 ANSI (CP/M)');
+	arrAsm.push('NTC_TERM\tequ ' + ({ none: 0, vt52: 1, ansi: 2, adm3a: 3, televideo: 4 })[strTerminal] + '\t\t; Option Terminal: 0 none, 1 VT52, 2 ANSI, 3 ADM-3A, 4 Televideo (CP/M)');
+	arrAsm.push('NTC_TERM_RT\tequ ' + (blnTermRt ? 1 : 0) + '\t\t; 1: the program calls StdIO.SetTerminal (the terminal is chosen while it runs)');
 	arrAsm.push('NTC_STRMAX\tequ ' + intStrMax + '\t\t; the longest string (library buffers, temps)');
 	arrAsm.push('NTC_MEMBANKS\tequ ' + Math.max(0, Math.min(64, Math.floor((Math.min(257, Math.max(1, objMemory.max || 257)) - 1) / 4))) + '\t\t; Option Memory: the most 64K banks the Memory class looks for');
 	arrAsm.push('NTC_ROMENABLE\tequ ' + ((arrRomEnable !== null) ? 1 : 0) + '\t\t; Option RomEnable (cpcfw, cpcmin): the start code starts the ROMs');
@@ -12232,10 +12779,10 @@ function ntcCompile(input_a, objOptions_a)
 		arrAsm.push('; the ZX Spectrum Next: NTC_ZXN defined (a DEFINE - sjasmplus\'s IFDEF tests those, not labels)');
 		arrAsm.push(strIndent + 'DEFINE NTC_ZXN');
 		// the Memory class's banks start above the program, the screen, Layer 2 and the low banks (bank 22,
-		// page 44) - and above Option NexData's blocks when they run past the 6 low banks (1-4, 6, 11)
-		// into bank 22 on: a data block is not RAM for the pool
+		// page 44), or at Option Memory Paged's start bank
 		var intFirstBank = zxnFirstBank();
-		arrAsm.push('ZXN_FIRSTBANK\tequ ' + intFirstBank + '\t\t; first free 16K bank (page ' + (2 * intFirstBank) + '), ' + ((objOptions.firstbank !== null) ? 'Option FirstBank' : ('above the program/screen/low banks' + ((intFirstBank > 22) ? ' and Option NexData\'s blocks' : ''))));
+		arrAsm.push('ZXN_PROGPAGE\tequ 0\t\t; the Next\'s 8K page the program starts in (#0000): its six are ZXN_PROGPAGE .. + 5 (20261116-7: it was 16)');
+		arrAsm.push('ZXN_FIRSTBANK\tequ ' + intFirstBank + '\t\t; first free 16K bank (page ' + (2 * intFirstBank) + '), ' + (((objPageWindow !== null) && (objPageWindow.startbank >= 2)) ? 'Option Memory Paged\'s start bank' : 'above the program/screen/low banks'));
 		arrAsm.push('ZXN_MAXBANK\tequ ' + (112 - intFirstBank) + '\t\t; scan range: banks ' + intFirstBank + '-111 (a 2MB Next has 112 16K banks, pages 0-223; the MMU has no page past 223 - a higher page number is not RAM)');
 	}
 	if ((String(objOptions.platform).toLowerCase() === 'zxn') || objPlat.islc)
@@ -12329,7 +12876,7 @@ function ntcCompile(input_a, objOptions_a)
 		arrAsm.push(strIndent + 'ld a, #50');
 		arrAsm.push(strIndent + 'out (c), a');
 		arrAsm.push(strIndent + 'inc b\t\t\t; #253B');
-		arrAsm.push(strIndent + 'ld a, 16\t\t; the hypervisor\'s slot-0 page; slot 0 flips HERE - next byte is the receiver');
+		arrAsm.push(strIndent + 'ld a, ZXN_PROGPAGE\t\t; the hypervisor\'s slot-0 page; slot 0 flips HERE - next byte is the receiver');
 		arrAsm.push(strIndent + 'out (c), a');
 		arrAsm.push('ntc_bk_recv:\t\t\t; now running in the hypervisor\'s slot 0 (A + FLAGS already in the alternate set)');
 		arrAsm.push(strIndent + 'ld (ntc_bk_svd), de\t; DE / HL message to slot-0 scratch (slot 0 stays the hypervisor here)');
@@ -12358,7 +12905,7 @@ function ntcCompile(input_a, objOptions_a)
 		arrAsm.push(strIndent + 'ASSERT ntc_bk_out == #0044, "the bank switch must be at #0044"');
 		arrAsm.push('ntc_bk_svd:\t\tdw 0\t\t; DE / HL message held across the slot 1-7 remap');
 		arrAsm.push('ntc_bk_svh:\t\tdw 0');
-		arrAsm.push('ntc_bk_hpg:\t\tdb 17, 18, 19, 20, 21, 10, 11\t; hypervisor resting pages, slots 1-7 (boot MMU map)');
+		arrAsm.push('ntc_bk_hpg:\t\tdb ZXN_PROGPAGE + 1, ZXN_PROGPAGE + 2, ZXN_PROGPAGE + 3, ZXN_PROGPAGE + 4, ZXN_PROGPAGE + 5, 10, 11\t; hypervisor resting pages, slots 1-7 (boot MMU map)');
 		arrAsm.push(';@@bkglue}');
 		arrAsm.push('ntc_start2:');
 		arrAsm.push('ntc_bk_cold:');
@@ -12634,6 +13181,11 @@ function ntcCompile(input_a, objOptions_a)
 				objUsedT['kw_scrinit'] = true;
 			}
 			intBytes += 2;
+			if ((objOptions.platform === 'zxn') && !blnZxnFs)
+			{
+				// the Next's text screen is used: its text and font (#E000-#F3FF) are not the program's
+				arrReserve.push({ start: 0xE000, size: 0x1400, file: 'platform zxn (the text screen)', line: 0, skip: false, plat: true });
+			}
 			break;
 		}
 	}
@@ -12643,6 +13195,35 @@ function ntcCompile(input_a, objOptions_a)
 		arrAsm.push(strIndent + strDW + 'kw_bssinit' + strCW + ', ntc_bss, ntc_bss_size\t\t; the arrays: do they fit, clear them');
 		objUsedT['kw_bssinit'] = true;
 		intBytes += 6;
+	}
+
+	// ByRef in place: an operand that names a by-reference parameter of the procedure being laid
+	// out is one the call stub fills (ld (site), hl): the word gets a label, 0 stands there
+	var strRefBody = '';
+	var intRefSite = 0;
+	function refSites(objItem_a)
+	{
+		var strLabel = '';
+
+		objItem_a.args.forEach(function(strArg_a, intArg_a)
+		{
+			var arrM = String(strArg_a).match(/^\s*([A-Za-z_]\w*)\s*(?:([+-])\s*(.+?))?\s*$/);
+
+			if (!arrM || (objRefLabel[arrM[1]] === undefined) || (objRefLabel[arrM[1]] !== objBodyProc[strRefBody]))
+			{
+				return;
+			}
+			if (strLabel === '')
+			{
+				intRefSite++;
+				strLabel = 'ntc_rf' + intRefSite;
+				arrAsm.push(strLabel + ':');
+			}
+			objRefSites[strRefBody] = objRefSites[strRefBody] || {};
+			objRefSites[strRefBody][arrM[1]] = objRefSites[strRefBody][arrM[1]] || [];
+			objRefSites[strRefBody][arrM[1]].push({ at: strLabel + ' + ' + (2 * (1 + intArg_a)), off: arrM[2] ? (arrM[2] + ' ' + arrM[3]) : '' });
+			objItem_a.args[intArg_a] = '0';
+		});
 	}
 
 	for (intI = 0; intI < arrOut.length; intI++)
@@ -12671,6 +13252,14 @@ function ntcCompile(input_a, objOptions_a)
 		else if (objItem.t === 'label')
 		{
 			intStraight = 0;
+			if (objBodyProc[objItem.name] !== undefined)
+			{
+				strRefBody = objItem.name;		// a procedure's body starts: its by-reference parameters' operands are filled by its stub
+			}
+		}
+		if (((objItem.t === 'kw') || (objItem.t === 'stub')) && (strRefBody !== ''))
+		{
+			refSites(objItem);
 		}
 
 		if ((objItem.t === 'kw') && (objItem.kw === 'kw_goto') && (objItem.args[0] !== 'ntc_badlabel'))
@@ -12796,6 +13385,24 @@ function ntcCompile(input_a, objOptions_a)
 		objUsedT['ntc_gstack'] = true;
 	}
 
+	if (intPkMax > 0)
+	{
+		// ntc_pkin (a stub's way into a class in a page, the page in, SP = the body: dw block, length
+		// first): ntc_pkbuf's parameters to the block in one LDIR, then the body. Main memory
+		['t', 'n'].forEach(function(str_a)
+		{
+			if (objPkModes[str_a])
+			{
+				arrProcStubs.push('ntc_pkin_' + str_a + ':\t\t; parameters into a page: one LDIR');
+				arrProcStubs.push('\t\t\tpop de');
+				arrProcStubs.push('\t\t\tpop bc');
+				arrProcStubs.push('\t\t\tld hl, ntc_pkbuf');
+				arrProcStubs.push('\t\t\tldir');
+				arrProcStubs.push('\t\t\t' + exitCode(str_a));
+			}
+		});
+		arrProcStubs.push('ntc_pkbuf:\t\tds ' + intPkMax + '\t\t; the biggest set of them');
+	}
 	if ((arrGotoStubs.length > 0) || (arrFastUse.length > 0) || (arrProcStubs.length > 0))
 	{
 		arrAsm.push('');
@@ -12871,12 +13478,8 @@ function ntcCompile(input_a, objOptions_a)
 		if (arrProcStubs.length > 0)
 		{
 			arrAsm.push('');
-			arrAsm.push(arrProcStubs.join('\n'));
+			arrAsm.push(refSiteCode(arrProcStubs).join('\n'));
 		}
-		if (objCompactModes.n) { objUsedN['ntc_pcall'] = true; objUsedN['ntc_pret'] = true; }		// Option CompactCalls
-		if (objCompactModes.t) { objUsedT['ntc_pcall'] = true; objUsedT['ntc_pret'] = true; }
-		if (objCompactModes.zn) { objUsedN['ntc_pcallb'] = true; }
-		if (objCompactModes.zt) { objUsedT['ntc_pcallb'] = true; }
 	}
 
 	// a class in a page keeps its own #asm within its bounds: move its inline blocks and
@@ -13011,6 +13614,19 @@ function ntcCompile(input_a, objOptions_a)
 		objItem = arrDecl[intI];
 		if ((objPagedLabel[objItem.label] !== undefined) && (objOvlVars[objPagedLabel[objItem.label]] !== undefined))
 		{
+			if (objPkOf[objItem.label] !== undefined)
+			{
+				// a procedure's packed parameters: the whole block, in order, at the first one reached
+				if (objPkBlocks[objPkOf[objItem.label]].done !== true)
+				{
+					objPkBlocks[objPkOf[objItem.label]].done = true;
+					objPkBlocks[objPkOf[objItem.label]].labels.forEach(function(str_a, int_a)
+					{
+						objOvlVars[objPagedLabel[objItem.label]].push({ label: str_a, kind: (objPkBlocks[objPkOf[objItem.label]].sizes[int_a] === 4) ? 'long' : 'int', size: 0 });
+					});
+				}
+				continue;
+			}
 			objOvlVars[objPagedLabel[objItem.label]].push(objItem);		// in the overlay's page
 			continue;
 		}
@@ -13386,15 +14002,13 @@ function ntcCompile(input_a, objOptions_a)
 		arrAsm.push('; the end of its code and the size of its page variables, its file and its name');
 		arrPageOrder.forEach(function(strId_a)
 		{
-			arrAsm.push(objPages[strId_a].blk + ':\tdw ' + (objPages[strId_a].loaded || 0) + ', ovl_' + strId_a + '_end, ovl_' + strId_a + '_vsize' + (objPages[strId_a].loaded ? '\t; Loaded: in RAM page ' + objPages[strId_a].loaded + ' from the start' : ''));
+			arrAsm.push(objPages[strId_a].blk + ':\tdw ' + ((objOptions.platform === 'zxn') ? (objPages[strId_a].loaded || 0) : 0) + ', ovl_' + strId_a + '_end, ovl_' + strId_a + '_vsize' + (objPages[strId_a].loaded ? ((objOptions.platform === 'zxn') ? '\t; Loaded: in RAM page ' + objPages[strId_a].loaded + ' from the start' : '\t; Loaded ' + objPages[strId_a].loaded + ': its file goes into RAM page ' + objPages[strId_a].loaded + ' (ntc_pgfix)') : ''));
 			arrAsm.push(strIndent + 'db "' + objPages[strId_a].file + '", 0, "' + ((objPages[strId_a].name !== objPages[strId_a].file) ? objPages[strId_a].name : '') + '", 0\t; its file, its name (for the messages)');
 		});
-		if (arrPageOrder.some(function(strId_a) { return objPages[strId_a].loaded; }))
+		if ((objOptions.platform !== 'zxn') && arrPageOrder.some(function(strId_a) { return objPages[strId_a].loaded; }))
 		{
-			// mem_start marks these pages taken (C) in the RAT, so AllocPage never hands them out
-			arrAsm.push('NTC_PGLOADED\tequ 1');
-			arrAsm.push('ntc_pgloaded:\tdb ' + arrPageOrder.filter(function(strId_a) { return objPages[strId_a].loaded; }).length + '\t\t; Option Page ... Loaded n: how many, then their pages');
-			arrAsm.push(strIndent + 'dw ' + arrPageOrder.filter(function(strId_a) { return objPages[strId_a].loaded; }).map(function(strId_a) { return objPages[strId_a].loaded; }).join(', '));
+			arrAsm.push('ntc_pgfix:\t\t\t\t; Option Page "FILE" Loaded n: each such page\'s block and its own RAM page, 0 ends');
+			arrAsm.push(strIndent + 'dw ' + arrPageOrder.filter(function(strId_a) { return objPages[strId_a].loaded; }).map(function(strId_a) { return objPages[strId_a].blk + ', ' + objPages[strId_a].loaded; }).concat(['0']).join(', '));
 		}
 		if (objPageOut.tables.length > 0)
 		{
@@ -13413,13 +14027,30 @@ function ntcCompile(input_a, objOptions_a)
 	{
 		arrAsm.push('');
 		arrAsm.push('ntc_rsvtab:\t\t\t\t; Option Memory Reserved / Paged starts (the Memory class\'s heap stops at them), 0 ends');
-		arrAsm.push(strIndent + 'dw ' + arrReserve.filter(function(objRes_a) { return !objRes_a.plat; }).concat(arrPaged).map(function(objRes_a) { return String(objRes_a.start); }).concat(['0']).join(', '));		// (the program's Reserved and Paged ranges; a platform's own top is ntc_plat_memtop)
+		arrAsm.push(strIndent + 'dw ' + arrReserve.concat(arrPaged).map(function(objRes_a) { return String(objRes_a.start); }).concat(['0']).join(', '));		// (the platform's own Reserved ranges too)
+		arrAsm.push('ntc_avtab:\t\t\t\t; Option Memory Available: start, end pairs (lowest first), 0 ends - the heap is the first that ends above the program');
+		arrAsm.push(strIndent + 'dw ' + arrAvailable.slice().sort(function(a_a, b_a) { return a_a.start - b_a.start; }).map(function(objA_a) { return objA_a.start + ', ' + ((objA_a.start + objA_a.size) & 0xFFFF); }).concat(['0']).join(', '));
 	}
 	arrAsm.push('');
-	if (objNexData !== null)
+	if (takenPages().length > 0)
 	{
-		arrAsm.push('; Option NexData: the data\'s 16K blocks are in these banks (the NEX file loads them)');
-		arrAsm.push('ntc_nexdata:\tdb ' + objNexData.blocks + ', ' + ZXN_NEXBANKS.slice(0, objNexData.blocks).join(', '));
+		// mem_start marks these pages taken (C) in its table, so AllocPage and AllocBank never hand them out
+		arrAsm.push('ntc_pgloaded:\tdb ' + takenPages().length + '\t\t; the pages taken from the start (Loaded n, Option SaveNex, Option Memory Reserve Pages' + ((objOptions.platform === 'zxn') ? ', the program\'s own: ' + zxnAutoPages().map(function(objA_a) { return objA_a.p; }).join(' ') : '') + '): how many, then the pages');
+		arrAsm.push(strIndent + 'dw ' + takenPages().join(', '));
+		if (objOptions.platform === 'zxn')
+		{
+			// a page named by the program that is one of the program's own
+			arrPageOrder.filter(function(strId_a) { return objPages[strId_a].loaded; }).map(function(strId_a) { return { p: objPages[strId_a].loaded, what: 'Option Page "' + objPages[strId_a].name + '" Loaded ' + objPages[strId_a].loaded, file: objPages[strId_a].srcfile, line: objPages[strId_a].line }; })
+				.concat(arrSaveNex.map(function(objS_a) { return objS_a.pages.map(function(intP_a) { return { p: intP_a, what: 'Option SaveNex "' + objS_a.file + '": page ' + intP_a, file: objS_a.src, line: objS_a.line }; }); }).reduce(function(a_a, b_a) { return a_a.concat(b_a); }, []))
+				.forEach(function(objN_a)
+			{
+				zxnAutoPages().forEach(function(objA_a)
+				{
+					if (objA_a.p === objN_a.p) { arrErrors.push({ file: objN_a.file, line: objN_a.line, msg: objN_a.what + ' is taken: ' + objA_a.why }); }
+				});
+				if (arrReservePages.indexOf(objN_a.p) >= 0) { arrErrors.push({ file: objN_a.file, line: objN_a.line, msg: objN_a.what + ' is one of Option Memory Reserve Pages\'' }); }
+			});
+		}
 	}
 	if (blnM68k)
 	{
@@ -13522,17 +14153,10 @@ function ntcCompile(input_a, objOptions_a)
 			var objKind = objPages[strId_a];
 			var intBank = zxnPageBank(objKind.loaded);
 
-			if ((intBank > 47) && !objOptions.next2mb)
-			{
-				// a 1MB Next has banks 0-47: a page past that aliases a real bank there (the music
-				// ring, a data block) - every game that used one broke on a 1MB machine (20261111).
-				// Checked here, with Option NexData known (its blocks push the pages' banks up)
-				arrErrors.push({ file: objKind.srcfile, line: objKind.line, msg: 'Option Page "' + objKind.name + '": Loaded ' + objKind.loaded + ' is bank ' + intBank + ', past a 1MB Next\'s banks 0-47 (Loaded n is bank ' + zxnPageBank(2) + ' + n - 2 in this program' + ((objNexData !== null) ? ', after Option NexData\'s blocks' : '') + ': n up to ' + (47 - zxnPageBank(2) + 2) + ') - a lower n, or Option Next2MB for a 2MB-only program' });
-			}
 			arrAsm.push('');
 			arrAsm.push('; ============================================================');
 			arrAsm.push('; Page ' + objKind.name + ' (Loaded ' + objKind.loaded + '): ' + objKind.classes.join(', ') + ' - threads built to run at #4000,');
-			arrAsm.push('; in the NEX file\'s bank ' + intBank + ' (RAM page ' + objKind.loaded + '); their variables are in the program, but for');
+			arrAsm.push('; in the NEX file\'s Next bank ' + intBank + ' (RAM page ' + objKind.loaded + '); their variables are in the program, but for');
 			arrAsm.push('; Private Paged ones (after the code, cleared here)');
 			arrAsm.push('; ============================================================');
 			arrAsm.push(strIndent + 'MMU 2 3, ' + (intBank * 2));
@@ -13702,11 +14326,11 @@ function ntcCompile(input_a, objOptions_a)
 	if ((arrReserve.length > 0) || (arrPaged.length > 0) || (arrSafeAreas.length > 0))
 	{
 		arrLayout.push('Memory map: ' + arrReserve.map(function(objR_a) { return 'Reserved' + (objR_a.skip ? ' (Skip)' : '') + ' ' + hex4(objR_a.start) + '-' + hex4(objR_a.start + objR_a.size - 1) + (objR_a.plat ? ' (' + objR_a.file + ')' : (objR_a.buffer ? ' (Option Buffer)' : '')); })
-			.concat(arrPaged.map(function(objP_a) { return 'Paged ' + hex4(objP_a.start) + '-' + hex4(objP_a.start + objP_a.size - 1) + ((objPageWindow && (objPageWindow.start === objP_a.start)) ? ' from bank ' + objPageWindow.startbank : ''); }))
+			.concat(arrPaged.map(function(objP_a) { return 'Paged ' + hex4(objP_a.start) + '-' + hex4(objP_a.start + objP_a.size - 1) + ((objPageWindow && (objPageWindow.start === objP_a.start)) ? (((objOptions.platform === 'zxn') && (objPageWindow.startbank >= 2)) ? ' from Next bank ' : ' from bank ') + objPageWindow.startbank : ''); }))
 			.concat(arrSafeAreas.map(function(objA_a) { return 'Safe ' + hex4(objA_a.start) + '-' + hex4(objA_a.start + objA_a.size - 1); })).join(', '));
 		if (Object.keys(objPinned).length > 0)
 		{
-			arrLayout.push('Out of the Paged ranges (called from a page, or at any time): ' + Object.keys(objPinned).filter(function(str_a) { return !/_n$/.test(str_a); }).join(', '));
+			arrLayout.push('Must stay in sight of the pages - safe memory (called from a page, or at any time): ' + Object.keys(objPinned).filter(function(str_a) { return !/_n$/.test(str_a); }).join(', '));
 		}
 	}
 
@@ -14281,7 +14905,7 @@ function ntcRomAsm(strPlatform_a, strReg_a, objOpt_a)
 	while (blnChanged)
 	{
 		blnChanged = false;
-		objDefined = { NTC_ROMDATA: 1, NTC_ROMBSS: 1, NTC_STRMAX: 1, NTC_MEMBANKS: 1, NTC_WINHOLE: 1, NTC_WINPAGED: 1, NTC_INTS: 1, ntc_end: 1, NTC_BUFSIZE: 1, NTC_PLATRSV: 1, NTC_ISLN: 1, ntc_memtab: 1, ntc_v_free: 1, ntc_v_start: 1, ntc_v_stamp: 1, ntc_v_romen: 1, ntc_v_rom: 1, ntc_v_romold: 1, ntc_rx_cur: 1, ntc_rx_bc: 1 };
+		objDefined = { NTC_PGFIX: 1, ntc_pgfix: 1, NTC_ROMDATA: 1, NTC_ROMBSS: 1, NTC_STRMAX: 1, NTC_MEMBANKS: 1, NTC_WINHOLE: 1, NTC_WINPAGED: 1, NTC_INTS: 1, ntc_end: 1, NTC_BUFSIZE: 1, NTC_PLATRSV: 1, NTC_ISLN: 1, ntc_memtab: 1, ntc_v_free: 1, ntc_v_start: 1, ntc_v_stamp: 1, ntc_v_romen: 1, ntc_v_rom: 1, ntc_v_romold: 1, ntc_rx_cur: 1, ntc_rx_bc: 1 };
 		for (var intD = 0; intD < NTC_ROM_MAXSET; intD++) { objDefined['ntc_rx_s' + intD] = 1; }
 		arrSections.forEach(function(objSec_a)
 		{

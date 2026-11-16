@@ -1,5 +1,5 @@
 ' FileSystem on the CPC firmware: Load / Save (CAS IN / OUT DIRECT), the rest NotSupported
-Option RomEnable 7
+Option ROM Enable 7
 Option Explicit
 Dim a(9) As Integer, b(9) As Integer
 Dim i As Integer, r As Integer, n As Integer

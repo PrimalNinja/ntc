@@ -1303,10 +1303,14 @@ error handling, a status that is never looked at is worth seeing.
 
 `[Optional] [ByVal | ByRef]` *name*[`()`] [`As` *type*] [`=` *default*]
 
-- `ByRef` (the default): the procedure works on the caller's variable. If the procedure
-  changes the parameter, the caller's variable changes when the procedure ends.
-- `ByVal`: the procedure gets a copy.
+- `ByRef` (the default): the parameter is the caller's variable. Nothing is copied in or
+  back: the call puts the variable's address into the procedure's code, and the procedure
+  reads and writes the variable itself. A change is there at once, and a ByRef parameter passed
+  on to another procedure is still the same variable.
+- `ByVal`: the procedure gets a copy, in a variable of its own.
 - `Optional`: may be left out; it then gets *default* (or 0 / "").
+- `Option ByVal` or `Option ByRef`, on a line of its own in a file, sets what a parameter
+  that says neither is, for every procedure in that file. Without it: ByRef.
 
 ```
 Sub Bump(n As Integer, Optional ByVal by As Integer = 1)
@@ -1320,10 +1324,27 @@ Print x
 ' prints: 16
 ```
 
-**VB:** a ByRef parameter is copied back when the procedure ends, not changed straight
-away, so the caller's variable changes at the end of the call rather than during it. The
-result is the same unless the procedure also changes that variable another way (as a
-global) before it ends. No `ParamArray`.
+Which to use:
+
+- **ByVal for code that must be quick.** The value is copied once at the call (about 40
+  T-states for an Integer) and every use in the procedure is a plain variable.
+- **ByRef to change the caller's variable, and for Strings and Types**, which are then not
+  copied at all. The call costs about 16 T-states and 3 bytes for each place the procedure
+  names the parameter (that many addresses are filled in), so a parameter named many times
+  makes the call slower and its stub bigger than a ByVal one.
+- A value given to a ByRef parameter (an expression, a constant the procedure writes, a
+  variable of another type) is put in a variable of the parameter's own first, and that is
+  what the procedure works on - as in VB, the caller's are untouched.
+
+Still copied in (and back, when written), as before 20261116-2:
+
+- a String parameter the procedure writes to (its own capacity is the limit, the caller's
+  is kept on the way back);
+- a parameter named by `{name}` in the procedure's `#asm` (the block reads a variable);
+- every ByRef parameter of a class in a page, and on a platform whose program is in ROM (msx,
+  sc3000, colecovision ...: the code can't be written to), the 68000 and the 45GS02.
+
+No `ParamArray`.
 
 ### Exit Sub, Exit Function, Exit Property
 
@@ -1494,14 +1515,21 @@ copies of its data keeps them itself (in arrays).
 
 ### Option Class
 
-`Option Class Resident` | `Option Class Overlay` [*Name* | `"FILE.EXT"`] | `Option Class Interrupt` *rate* | `Option Class Interrupt Frame` | `Option Class Interrupt Share` *weight*
+`Option Class Overlay` [*Name* | `"FILE.EXT"`] | `Option Class Interrupt` *rate* | `Option Class Interrupt Frame` | `Option Class Interrupt Share` *weight*
 
-In a `.cls` file: what kind of class it is. Without it (or `Resident`) the class is part of
+`Option Class Default = Main` | `Page` (in the program, not a class file): where a class goes when
+no `Option Page` names it. `Main` (and no line at all): in main memory. `Page`: each such class of
+the project gets a page of its own, named after it (on the Next, `Loaded` in the lowest page not
+taken) - not a class named by `Option Class Safe`, and not an interrupt class.
+
+`Option Class Safe "NAME" = Class, ...` (in the program): see [Option Memory](#option-memory-the-memory-map).
+
+In a `.cls` file: what kind of class it is. Without it the class is part of
 the program as above.
 
 **Overlay** (cpcmin, cpcfw, cpm): two ways, depending on `Option Memory` - RAM pages
-(cpcmin, cpcfw with `Option Memory CPCExpansion`, the default there), described first, or
-[one overlay area](#one-overlay-area) (cpm, and cpcmin / cpcfw with `Option Memory Small`).
+(cpcmin, cpcfw with `Option Memory Heap Pages`, the default there), described first, or
+[one overlay area](#one-overlay-area) (cpm, and cpcmin / cpcfw with `Option Memory Heap Main`).
 
 With RAM pages, the class's
 code is built, in the same compile, into its own file - its page (named *Name*, or the class
@@ -1521,7 +1549,7 @@ Public Function Play(ByVal score As Integer) As Integer
 End Function
 
 ' Main.bas
-Option RomEnable 7              ' RUN" drops AMSDOS: start it, the overlays load from disc
+Option ROM Enable 7              ' RUN" drops AMSDOS: start it, the overlays load from disc
 Option Reserve &H4000, &H4000   ' the program stays out of the window overlays run in
 score = Level1.Play(0)          ' loads its page file into a RAM page, then runs Play
 ```
@@ -1555,7 +1583,7 @@ The compiler adds these members to an overlay class (so these names are taken):
 - Keep the page files on the disc with the program's `.BIN`. They are binary files with an
   AMSDOS header (load address `#4000`) - AMSDOS takes a file without a header for text and
   won't load it into memory. The program must end below
-  `#4000` (checked when assembling) and needs AMSDOS (`Option RomEnable 7` after `RUN"`).
+  `#4000` (checked when assembling) and needs AMSDOS (`Option ROM Enable 7` after `RUN"`).
 - An overlay class can call the main program, resident classes and other overlay classes;
   each call puts back the page it found. On a 64K machine there is only one page, so two
   overlay classes calling each other means loading again.
@@ -1568,6 +1596,18 @@ The compiler adds these members to an overlay class (so these names are taken):
   window, so only the class's own code can use them. Paged Strings are in the page file
   (their capacity byte goes with them); other paged variables are not in the file - they are
   cleared when it loads.
+- **Parameters in the page:** the number parameters (Byte, Integer, Long) of a procedure in a
+  page class that are only copied in - `ByVal`, or `ByRef` the procedure never writes - are
+  variables in the page too, side by side in the order they are declared, so they cost no main
+  memory. A call puts their values side by side in one buffer in main memory (`ntc_pkbuf`, as
+  big as the biggest set), brings the page in once, and moves them all to their place with one
+  LDIR. A String, an array, a Type and a parameter that is copied back (a `ByRef` the procedure
+  writes) stay ordinary variables in the program. This is for a class in ONE page with RAM
+  pages (where `Private Paged` variables are in the page); a class listed in more than one
+  page, one overlay area and the ROM platforms keep every parameter in the program.
+- **An argument copied back** (a `ByRef` parameter the procedure writes) is copied back after
+  the caller's page is back in the window, so a caller in another page can give one of its own
+  page's variables.
 - **Local memory:** the rest of the page, after the code and page variables, is the class's
   own: `LocalStart()` and `LocalSize()` say where, and `LocalAlloc(size)` / `LocalFree(address)`
   hand out blocks of it (plain addresses, 0 = no room). Only from the class's own code (from
@@ -1581,7 +1621,7 @@ The compiler adds these members to an overlay class (so these names are taken):
 
 #### One overlay area
 
-On CP/M, and on cpcmin / cpcfw with `Option Memory Small` (a 64K CPC, or a program that wants
+On CP/M, and on cpcmin / cpcfw with `Option Memory Heap Main` (a 64K CPC, or a program that wants
 no RAM pages), there is one overlay area, `#4000-#7FFF`, and one overlay class in it at a
 time. A call to a class that isn't there loads its file over the one that was. When the call
 returns into another overlay class's code that was swapped out meanwhile, that class is
@@ -1635,7 +1675,7 @@ Option Page Credits = Credits
   about 320 with a page switch (RAM pages, page already loaded). Calls between procedures of
   one overlay class used to pay the switch too; now they are inside its page.
 - **Calls from main RAM (or another page) to a copied class** go to its **home copy** - the
-  first page that lists it, or the one `Option Home` *Class* `=` *Page* names. A class with no
+  first page that lists it (`Option Home` is gone, 20261116-3: list that page first). A class with no
   paged variables (every copy alike) may instead use a copy whose page is in the window at
   the time.
 - **Variables:** a copied class's ordinary variables are in the program, so every copy sees the
@@ -1676,13 +1716,25 @@ when the program starts, and its class block starts out holding *n*, so a call o
 page into the window and jumps. Everything else is the same as any page: the stubs, calls inside a
 page without a switch, copied classes and their home copies, paged variables.
 
-**zxn** (so far the only platform): the Next has no page files (no file system yet), so every page
-there is `Loaded`. Page *n* is the NEX file's bank `20 + n` (Option Memory CPCExpansion's numbering
-on the Next: page 2 is bank 22; with Option NexData past 6 blocks everything moves up past the
-data's banks, as the Memory class's banks do), filled by NextZXOS when it loads the NEX - nothing to copy. Its
-page variables are cleared in the bank. The program needs the window kept free (`Option Reserve
-&H4000, &H4000`); Option Memory CPCExpansion is chosen by itself when there are pages. At the start
-the Memory class marks the pages taken (C), so `AllocPage` never hands one out.
+**zxn**: the Next has no page files (no file system yet), so every page there is `Loaded`. Page
+*n* is the Next's 16K bank *n* ([the Next's pages](#the-nexts-pages)), filled by NextZXOS when it loads the NEX - nothing to copy. Its page
+variables are cleared in the Next bank. Option Memory Heap Pages is chosen by itself when there
+are pages. At the start the Memory class marks the pages taken (C), so `AllocPage` never hands
+one out.
+
+**Where pages are files** (cpcmin, cpcfw, and the other platforms with banked pages - `Option
+Memory Heap Pages`): `Option Page "FILE.EXT" Loaded` *n* `= Class ...` gives the page file a RAM
+page of its own. The file is still loaded the first time the page is called (or by `Load()`), but
+always into page *n*, never a free one - so on a 6128 the code of `TITLE.PAG` can be put in one
+named page and `LEVEL.PAG` in another. Page *n* is taken from the start (`AllocPage` never hands
+it out); `Unload()` leaves it taken, and the next call or `Load()` reads the file into it again.
+A machine without page *n* stops with the usual "no page" message at the first call. With
+`Option Memory Heap Main` (one overlay area, no pages) `Loaded` is refused.
+
+```
+Option Page "TITLE.PAG" Loaded 9 = Title       ' cpcfw: TITLE.PAG's code always in RAM page 9
+Option Page "LEVEL.PAG" Loaded 12 = Level1, Maths
+```
 
 ```
 Option Page Intro  Loaded 20 = Title
@@ -1691,14 +1743,14 @@ Option Page Stage2 Loaded 22 = Level2, Maths, Stars
 Option Reserve &H4000, &H4000
 ```
 
-- *n*: 2 - 91 (banks 22 - 111: a 2MB Next); 2 - 27 on a 1MB Next. Two pages on one *n* are refused,
-  and so is a bank Option NexData uses.
+- *n* on the Next: a free page up to 111 (47 on a 1MB Next). Two pages on one *n*
+  are refused, and so is a page `Option SaveNex` names.
 - `Loaded()` is True from the start. `Unload()` frees the page - the next call stops with `Overlay
   not loaded`, as there is no file to load it from. `Load()` on an unloaded page says NotSupported.
 - On zxn a page without `Loaded` is refused ("on zxn a page is Option Page Name Loaded n"), and
   `Loaded` on the other platforms is refused for now.
-- The banks are the Memory class's RAM pages, so its probe (on the first call into a page, or the
-  first Memory call) writes a marker at each bank's first byte: a page's first word is the build
+- The Next banks are the Memory class's RAM pages, so its probe (on the first call into a page, or the
+  first Memory call) writes a marker at each Next bank's first byte: a page's first word is the build
   stamp, which a Loaded page doesn't use.
 
 **Interrupt** *rate* / **Interrupt Frame** / **Interrupt Share** *weight* (cpc, cpcmin, cpccard,
@@ -2059,22 +2111,6 @@ shell sort example (`bas/shellsort.bas`, which switches mode at run time) comes 
 smaller. Interrupts keep getting in at safe points everywhere, so it suits programs with
 interrupt classes too.
 
-### Option CompactCalls
-
-`Option CompactCalls`
-
-Smaller procedure call and return stubs, to save memory. Each procedure normally has its own
-stub code: copy the arguments in, clear the locals, save the return point, enter the body,
-and a return stub. With `Option CompactCalls` the stub is six bytes - `ld hl, p_name_rs / jp
-ntc_pcall` - and shared library routines do the work: the return point word sits in front of
-the body, the body ends with `dw ntc_pret, p_name_rs`, and a procedure whose parameters are all
-Integers has them and its Integer locals as one block that `ntc_pcallb` fills from the
-arguments and clears, from a six-byte header in front of the body. The results are the same;
-a call costs some 60 T-states more. CyborgOS's C2 hypervisor saves 752 bytes with it. A class
-in a page keeps its own stubs (its entry switches pages); a procedure that writes a ByRef
-argument back keeps its return stub. Not for a ROM platform (the return point word is in the
-code) nor the 68000 / 45GS02 builds.
-
 ### Turbo On, Turbo Off
 
 `Turbo On` / `Turbo Off`
@@ -2262,6 +2298,15 @@ not used"), and a generated label written by hand in `#asm`.
 
 Every variable in this module must be declared before use.
 
+### Option ByVal, Option ByRef
+
+`Option ByVal` | `Option ByRef`
+
+Sets what a parameter is when its declaration says neither `ByVal` nor `ByRef`. It counts for
+the file it is in (a module or a class), wherever in the file it stands. A parameter that says
+`ByVal` or `ByRef` itself is not changed. Without the option a parameter is ByRef. An array
+parameter is always ByRef.
+
 ### Option Base, Option Compare, Option VBPrint, Option Turbo
 
 See [Option Base](#option-base), [Option Compare Text](#option-compare-text),
@@ -2270,13 +2315,16 @@ below.
 
 ### Option Terminal
 
-`Option Terminal` { `VT52` | `ANSI` | `None` }
+`Option Terminal` { `VT52` | `ANSI` | `ADM3A` | `Televideo` | `None` }
 
 CP/M only. Tells the program which codes the terminal understands, so `Cls` clears and
 `Locate` moves the cursor:
 
 - `VT52`: Amstrad CP/M on the CPC and PCW, and many other machines (`ESC E`, `ESC Y`);
 - `ANSI`: most CP/M emulators and modern terminals (`ESC [2J`, `ESC [row;colH`);
+- `ADM3A` (or `ADM-3A`): the Lear Siegler ADM-3A and the machines that copy it - Kaypro, Osborne
+  (`Ctrl-Z` clears, `ESC =` row+31 column+31);
+- `Televideo`: Televideo 912 / 920 / 950, Wyse, SOROC (`ESC *` clears, `ESC =` as the ADM-3A);
 - `None` (the default): a stream - `Cls` starts a new line, `Locate` does nothing.
 
 With a terminal set, `StdIO.CanPosition` and `StdIO.CanClear` are True and `StdIO.Rows` is
@@ -2289,29 +2337,46 @@ Locate 10, 3
 Print "here"
 ```
 
+**While the program runs:** `StdIO.SetTerminal` *n* changes the terminal - 0 none, 1 VT52,
+2 ANSI, 3 ADM-3A, 4 Televideo (`StdIO.TerminalVT52` ...; 5 and up are kept for more and taken as
+none). `Option Terminal` is then only what the program starts with, so one `.COM` serves any
+terminal: ask the user, or read the choice from a file, and call it. A program that calls
+`StdIO.SetTerminal` carries every terminal's codes (about 250 bytes) and `StdIO.CanPosition` /
+`CanClear` are True whatever `Option Terminal` says.
+
+```
+Dim t As Integer
+Input "Terminal (1 VT52, 2 ANSI, 3 ADM-3A, 4 Televideo)"; t
+StdIO.SetTerminal t
+Cls
+```
+
 **VB:** not in VB.
 
 ### Option Buffer
 
-`Option Buffer` *address* [`,` *size*]  /  `Option Buffer Size` *size*
+`Option Buffer` *address*`,` *size*
 
-The library's 2K buffer - the one FileSystem's files (the CPC firmware's cassette buffer) and
-`Memory.Copy` (page to page) use - at that address instead of inside the program. The program
-gets 2K smaller, and the range is kept out of like an `Option Reserve` range. Use free main RAM
-outside the program and outside the `#4000` window (a copy between pages goes through it),
-e.g. `Option Buffer &H8000` on cpcfw. With `Option Library ROM` it does nothing (the 2K buffer
-is the ROM's own, in its RAM) and its range is free for the program.
+Where the library's work buffer is, and how big. Both are needed. The buffer is the one
+FileSystem's files (the CPC firmware's cassette buffer), `Memory.Copy` (page to page) and
+`List.Sort` use. Without the option it is 2K, inside the program, and only there when one of
+those is used.
 
-A size (32 - 2048) makes the buffer smaller: `Memory.Copy` then copies that much at a time
-(PRIMAL's copy buffer is 128 bytes: a page-to-page copy is still `ldir`s, a little more
-switching). Only for a program that copies but has no files: FileSystem on a CPC (the
-firmware's cassette buffer) and `List.Sort` need the whole 2K, and the assembly stops with a
-message if the buffer is smaller. `Option Buffer Size 128` keeps it in the program;
-`Option Buffer &H8000, 128` puts it there.
+- *address*: free main RAM outside the program and outside the `#4000` window (a copy between
+  pages goes through it). The program is kept out of the range, as for a Reserved range.
+- *size*: 32 - 2048 bytes. `Memory.Copy` copies that much at a time (PRIMAL's copy buffer is
+  128 bytes). FileSystem on a CPC and `List.Sort` need the whole 2048, and the assembly stops
+  with a message if the buffer is smaller.
+
+`Option Buffer &H8000, 2048` on cpcfw takes the 2K out of the program; `Option Buffer &H8000,
+128` is a small buffer for a program that copies but has no files. With `Option Library ROM` it
+does nothing (the buffer is the ROM's own, in its RAM) and its range is free for the program.
 
 ### Option Memory (the memory map)
 
-`Option Memory` `Available` | `Reserved` | `Paged` | `Safe`  *start*`,` *size* [`,` *start*`,` *size*] ...
+`Option Memory` `Available` | `Reserved` | `Safe`  *start*`,` *size* [`,` *start*`,` *size*] ...
+
+`Option Memory Paged` *startbank*`,` *addr*`,` *size*
 
 One directive for the whole memory map. Each line gives a kind and a list of address/size pairs
 (`&H3000`, `#3000`, `12288`); use as many lines as you like. It is the single, consistent way to
@@ -2320,22 +2385,22 @@ say what each stretch of memory is for:
 | kind | meaning |
 | --- | --- |
 | `Reserved` | the program keeps out of this range and is built round it (a screen, a load area, firmware RAM) - the same as `Option Reserve` |
-| `Paged` | the window where RAM pages / overlays swap in at run time; built round, like `Reserved` |
-| `Safe` | always-mapped RAM where the *safe classes* live (say which with `Option Safe "NAME" = Class, ...`); the banking / slot-access code that must stay put while a bank is paged in |
+| `Paged` | *startbank*, *addr*, *size*: the window where RAM pages / overlays swap in at run time, and the page paging starts from - 0: the window's own 16K is page 0; 1: it stays fixed (the CPC double buffer); on the Next it is 0 or 1 (a page is the Next's bank of the same number: nothing to move). All three are needed. |
+| `Safe` | always-mapped RAM where the *safe classes* live (say which with `Option Class Safe "NAME" = Class, ...`); the banking / slot-access code that must stay put while a bank is paged in |
 | `Available` | usable RAM - the default; stated only to write the whole map out |
 
 ```
 Option Memory Reserved &H8000, &H4000       ' #8000-#BFFF: a level loaded from disc
-Option Memory Paged    &H4000, &H4000        ' #4000-#7FFF: the paging window
+Option Memory Paged    1, &H4000, &H4000     ' #4000-#7FFF: the paging window, paging from page 1
 Option Memory Safe     &H1000, &H0800        ' #1000-#17FF: where the banking code goes
-Option Safe "BANK" = Bank                    ' Bank's code must live in Safe memory
+Option Class Safe "BANK" = Bank                    ' Bank's code must live in Safe memory
 ```
 
 A `Safe` class's code is laid into the first `Safe` range and the program is built round it (it is
 refused at assembly if it does not fit - enlarge the range). The safe code runs in place from
 there.
 
-This is a different word from the heap-scheme form (`Option Memory Small | CPCExpansion` *n*,
+This is a different word from the heap-scheme form (`Option Memory Heap Main | Pages` *n*,
 below), so the two never clash.
 
 `Option Memory` replaces the older `Option Reserve` (→ `Reserved`), the `Option Page` *startbank*
@@ -2348,7 +2413,7 @@ Option Deprecated
 ```
 
 which allows all of them. Use `Option Deprecated` to keep an old program building unchanged; write
-new programs with `Option Memory`. (`Option Page` *Name* `=` *classes* and `Option Safe "NAME" =`
+new programs with `Option Memory`. (`Option Page` *Name* `=` *classes* and `Option Class Safe "NAME" =`
 *classes*, which say *which* classes are paged or safe, are **not** deprecated - only the
 address/window forms are.)
 
@@ -2377,22 +2442,42 @@ Option Reserve &H8000, &H4000      ' #8000-#BFFF: the level loaded from disc
 r = FileSystem.Load("LEVEL1.DAT", &H8000, &H4000)
 ```
 
-The program is built round a reserved range above its org: it starts at the org and goes up,
-and when the next part of it (a procedure's thread, a library section, the variables, the
-strings) would reach into the range, that part and the rest go on after it. The arrays and the
-Memory class's tables go after it too. A `Paged` window is different for the threads: a procedure's thread
-(page 0 code that no page calls) may sit under the window, so the parts that may not (the
-stubs, the `#asm` blocks, the data, the library) are laid first, and the threads after - and when
-those first parts have stepped over the window, the threads go back to fill the room they left
-below it, run on through the window, and step over them again above it. So a paged class costs
-only its stubs and the paging library, not the window's 16K (NTC 20261111; before, the threads
-simply followed the other parts above the window, and the window and the room below it were lost
-once anything stepped over it). The threads go in biggest first, so the small ones fill what the big
-ones leave. On the Next, `Loaded n` is 16K bank 22 + n - 2, above Option NexData's blocks when there
-are more than six; a 1MB Next has banks 0-47, so a page past that is refused unless the program says
-`Option Next2MB` (a 2MB-only program). `Option FirstBank n` (11-47) moves the first bank: `Loaded n`
-is then bank FirstBank + n - 2, and the Memory class's pool starts there too (for a program whose own
-build fills 22-47 with data; 12-21 are Layer 2's buffers when the Graphics class uses them). So a program with `Option Reserve &H4000, &H4000` (a
+Two rules lay the program out (20261116-5):
+
+1. **Safe memory gets what must be there.** The ranges of `Option Memory Safe` take the safe
+   classes' procedures (`Option Class Safe`) and, in a program with pages, everything that must
+   stay in sight while a page is in the window: the call stubs, the `#asm` blocks, the variables,
+   the strings, the keyword library, and the procedures a page calls. Each part goes into the
+   first Safe range with room for it. What they leave of a Safe range is ordinary memory again.
+2. **Everything else fills from the bottom.** From the org upward, in the order written, through
+   all the memory that is not `Reserved` and not used safe memory - including a `Paged` window
+   (a procedure's thread there is page 0 code under the window).
+
+A `Reserved` range is for memory that must be left alone for a reason of its own (a second screen
+for double buffering, a level loaded at a fixed address): every part goes round it. It is not how
+a paging program is laid out - that is `Option Memory Paged` for the window and `Option Memory
+Safe` for what the pages must always see:
+
+```
+Option Memory Paged 1, &H4000, &H4000     ' the window the pages come in through
+Option Memory Safe &H0040, &H3FC0         ' what the pages must see goes here (below the window)
+```
+
+A paging program with no safe memory still builds while everything that must stay in sight ends
+up outside the window (a small program below `#4000`). When one such part lands in the window the
+assembler stops and names it:
+
+`function hello (normal mode) must stay in sight while a page is in, and it is in the Paged range
+#4000-#7FFF: give the program safe memory for it (Option Memory Safe start, size)`
+
+A part that fits in no Safe range is named the same way (`... fits in no Option Memory Safe range
+(#0040-#3FFF) - make one bigger, or add one`). The compiler no longer decides by itself what goes
+round the window, and no longer sorts the threads by size (before 20261116-5 it laid the stubs,
+library and data first and filled the threads back under the window, biggest first).
+
+On the Next a page is the Next's 16K bank of the same number ([the Next's pages](#the-nexts-pages)).
+A 1MB Next has pages 0-47: a page past that is not there on such a machine, and the compiler does
+not check it. So a program with `Option Reserve &H4000, &H4000` (a
 second screen, the RAM page window) can be bigger than 16K: it fills `#0040-#3FFF`, then
 carries on at `#8000`. The file holds the hole as zeros (16K more to load). A range below the
 org, or one the program never reaches, changes nothing. On the `cpc` platform the font copy
@@ -2437,28 +2522,97 @@ Option Place Hyp, Ent
 
 **VB:** not in VB.
 
-### Option NexData
+### Option SaveNex
 
-`Option NexData "`*FILE*`",` *blocks*
+`Option SaveNex "`*FILE*`",` *page* [`,` *page* | *page* `To` *page*] ...
 
-The ZX Spectrum Next (`zxn`) only: *FILE*'s first *blocks* x 16K go into the NEX file, in the
-Next's 16K banks 1-4, 6, 11, then 22-111 (96 at most; a bank past 47 makes the NEX ask for a
-2MB Next). Never bank 7: it is +3DOS's workspace, paged over #C000-#FFFF by NextZXOS for every
-file call (esxDOS's too) - a data block there crashes a real Next at the first F_OPEN, while
-the emulators that fake esxDOS run on. (Bank 1 is NextZXOS's RAM disc, M: - a block there loses
-the RAM disc, nothing else.) NextZXOS loads them with the program, so there is nothing to read at run time. The
-assembler reads *FILE* (next to the `.asm`): it must hold all the blocks. The program finds them at
-`ntc_nexdata` (`#asm`): the count, then each block's bank; `zxn_sel` (HL = a bank, 0 = the
-program's own pages) puts one in `#4000-#7FFF`, as a CPC program puts a RAM page in its window -
-keep the program out of that range (`Option Reserve &H4000, &H4000`).
+The ZX Spectrum Next (`zxn`) only. Puts a data file inside the NEX file, so it is in memory when
+the program starts and nothing is read from the card. The file's 16K pieces go, in order, into the
+pages named - the same page numbers as `Option Page ... Loaded` *n* and the Memory class use (a
+page is the Next's 16K bank of the same number: [the Next's pages](#the-nexts-pages)).
 
 ```
-Option NexData "AUCKLAND.DAT", 94     ' bas/auckland on the Next
+Option SaveNex "LEVELS.DAT", 22, 23      ' its first 16K in page 22, the next in page 23
+Option SaveNex "MUSIC.BIN", 30 To 33     ' another file, four pages
+
+a = Memory.SelectPage(22)                ' page 22 in the window
+b = Peek(Memory.WindowStart)             ' the file's first byte
 ```
 
-### Option RomEnable
+- As many `Option SaveNex` lines as you like. Two may not name the same page, and a page may not
+  also be an `Option Page ... Loaded` page, one of the program's own or a reserved one: the
+  compiler refuses each by name.
+- The assembler reads *FILE* (next to the `.asm`); it must hold 16K for every page named.
+- The pages are marked taken, so `Memory.AllocPage` never hands one out. Reach them with
+  `Memory.SelectPage`; keep the program out of the window (`Option Memory Reserved &H4000, &H4000`).
+- A page past Next bank 47 makes the NEX ask for a 2MB Next.
 
-`Option RomEnable All` / `Option RomEnable` *rom* [`,` *rom*] ...
+It replaces `Option NexData`, which is gone (20261116-5: the compiler says so and names this
+option). In `#asm`, page *n* is the Next's bank *n* (`zxn_sel` with HL = *n* puts it in the window).
+
+### The Next's pages
+
+On the ZX Spectrum Next an NTC page is the Next's 16K bank of the same number (20261116-6): page 0
+to page 111 on a 2MB Next, 0 to 47 on a 1MB one. Every page is there for the program to use unless
+it is taken, and nothing is taken that the program does not really have:
+
+```
+page        taken when                what is in it
+- 0, 1, 2   always                    the program, #0000-#BFFF (page 1 is its own window, as on the CPC)
+- 5         always                    the program's memory at #C000-#FFFF (the text screen is in it)
+- 7         with the FileSystem class the DOS's workspace during a file call
+- 12 to 21  with the Graphics class   Layer 2's two buffers
+```
+
+and any page named by `Option Memory Reserve Pages`. All the others are free: `Memory.AllocPage`
+hands them out, and `Option SaveNex` and `Option Page ... Loaded` *n* can name them. A program with
+no files and no graphics has 108 free pages on a 2MB Next.
+
+The program is loaded at the bottom of the Next's memory (its banks 0, 1, 2; 20261116-7 - before
+that it was in banks 8, 9, 10, and before 20261116-6 page 2 was the Next's bank 22: a page number
+from then is now 20 higher, `Loaded 2` -> `Loaded 22`). In `#asm`, `ZXN_PROGPAGE` is the Next's 8K
+page the program starts in.
+
+`#C000-#FFFF` is main memory too: a program too big for `#0040-#B9FF` steps over the stack
+(`#BA00-#BFFF`) and runs on there. What is kept out of it is only what is really there: the text
+and its font (`#E000-#F3FF`, when the program has text), Layer 2's drawing window (`#C000-#DFFF`,
+with the Graphics class), all of it with the FileSystem class (the DOS switches its own bank in
+there during a file call), and `#FD00-#FFFF` (the start-up stub).
+
+### Option Memory Reserve Pages
+
+`Option Memory Reserve Pages` *n* [`,` *n* | *n* `To` *n*] ...
+
+Pages the program keeps for a reason of its own. The Memory class never hands them out
+(`AllocPage`, `AllocBank`), and `Option SaveNex` and `Option Page ... Loaded` *n* may not name them.
+Any platform with pages (the Next, the CPC, MSX-DOS).
+
+```
+Option Memory Reserve Pages 1            ' the Next: keep NextZXOS's RAM disc (M:)
+Option Memory Reserve Pages 40 To 47     ' eight pages the program fills by hand
+```
+
+### Option WindowFile
+
+`Option WindowFile "`*NAME.EXT*`",` *address*
+
+A compiler directive only: it changes how the output is laid out and generates no code. The lines
+of `#asm` blocks between `; @window` and `; @endwindow` are code or data built to run at `#4000` in
+a RAM page. Normally they are in the program file at `#4000-#7FFF` (the program copies them to
+their page at its start), so the program's own code cannot be there. With `Option WindowFile` the
+compiler leaves them out of the program and the assembler writes them as a file of their own,
+*NAME.EXT* (with an AMSDOS header), next to the program; `#4000-#7FFF` is then free for code.
+
+The program has to do the rest itself: load *NAME.EXT* at *address*, switch the page into the
+window and copy the data there. *address* is only checked (the data must fit from there to
+`#FFFF`); it is not put in the file's header. Not with `Option HighCode`.
+
+It does by hand, for raw assembly, what `Option Page` does for classes. Nothing in the library, the
+examples or CyborgOS uses it.
+
+### Option ROM Enable
+
+`Option ROM Enable All` / `Option ROM Enable` *rom* [`,` *rom*] ...
 
 CPC firmware platforms (`cpcfw`, `cpcmin`) only. `RUN"NAME` of a binary resets the firmware, and the
 background ROMs - AMSDOS (ROM 7) and any others - are dropped. With this option the program
@@ -2477,22 +2631,10 @@ Without the option nothing is started: a program started with `RUN"` has no AMSD
 go to tape); one CALLed from BASIC keeps whatever was running.
 
 ```
-Option RomEnable 7          ' AMSDOS: FileSystem.Load / Save go to disc after RUN"
+Option ROM Enable 7          ' AMSDOS: FileSystem.Load / Save go to disc after RUN"
 ```
 
 On other platforms it gives a warning and does nothing.
-
-**VB:** not in VB.
-
-### Option NoRomDisc
-
-`Option NoRomDisc`
-
-CPC firmware platforms (`cpcfw`, `cpcmin`): `FileSystem` without the ROMDISC (volume R) - its
-methods go straight to the disc or tape, and the ROMDISC's code (about 1.1K) is left out.
-`Capability("ROMDISC")` gives 0; `Exists` and `Size` give `NotSupported`, `DirEntry` `""`.
-For a program short of room that doesn't read files from ROMs (CyborgOS). Elsewhere it does
-nothing.
 
 **VB:** not in VB.
 
@@ -2643,7 +2785,7 @@ Print "Hello"          ' a few hundred bytes: the jump block, the start code, th
   and the ROM's variables overwrite each other. `End` puts the caller's ROM selection back.
   A program built round `Option Reserve &H4000, &H4000` (its code from #0040 and on from
   #8000) works with the ROM too: the Memory class sees its free RAM starts above the window
-  and puts its tables there, up to #8800 - so give it `Option Memory CPCExpansion` few enough
+  and puts its tables there, up to #8800 - so give it `Option Memory Heap Pages` few enough
   pages (3 bytes each) to fit. `#If NTC_LIBRARY_ROM Then` round two `Option Memory` lines
   picks a smaller number for the ROM build only.
 - **The screen.** The upper ROM covers the screen's RAM at `#C000` for reading. On cpc and
@@ -2747,14 +2889,14 @@ firmware's and AMSDOS's RAM) gives a warning.
 
 **The order of options.** All `Option` lines are read first, wherever they are, and the
 program then starts in a fixed order: `Option Stack` (the stack is set), `Option
-RomEnable` (the ROMs are started, using that stack), then the program. `Option Reserve` is
+ROM Enable` (the ROMs are started, using that stack), then the program. `Option Reserve` is
 a check made when assembling.
 
 **VB:** not in VB.
 
 ### Option Memory
 
-`Option Memory Small` | `Option Memory CPCExpansion` [*maxpages*]
+`Option Memory Heap Main` | `Option Memory Heap Pages` [*most*]
 
 How the [Memory](#memory) class reaches RAM. Decided when compiling: only that scheme's code
 is in the program, and the class's methods are the same either way, so a program builds with
@@ -2762,25 +2904,23 @@ either.
 
 | Scheme | What | Where |
 |---|---|---|
-| `CPCExpansion` | 16K pages through the `#4000-#7FFF` window, up to a 4MB expansion (257 pages); a heap in D pages | cpc, cpcmin, cpcfw (the default there) |
-| `Small` | no paging: one heap over the free main RAM | every platform (the default on cpm and test) |
+| `Heap Pages` | 16K pages through the `#4000-#7FFF` window, up to a 4MB expansion (257 pages); a heap in D pages | cpc, cpcmin, cpcfw (the default there) |
+| `Heap Main` | no paging: one heap over the free main RAM | every platform (the default on cpm and test) |
 
-*maxpages* (1 - 257, `CPCExpansion` only) is the most pages the class looks for: `5` for a
-6128, `33` for a 512K expansion, `1` for main RAM only. It also shrinks the class's fixed data
-(about 190 bytes at 257). `CPCExpansion` on cpm or test is an error.
+`Option Memory Heap Main` and `Option Memory Heap Pages` are the old `Option Memory Small` and
+`Option Memory CPCExpansion`, which are now accepted only with `Option Deprecated`. *most*
+(`Option Memory Heap Pages 33`) is the most pages the class looks for, 1 - 257: it also shrinks
+the class's tables (3 bytes a page), for a program with little room for them (20261116-5: this
+is the new spelling of `Option Memory CPCExpansion 33`). `Heap Pages` on cpm or test is an error.
 
-`Small` is the least code (about 900 bytes against 2,100 for `CPCExpansion`): for a program
+`Heap Main` still means no RAM pages at all, as `Small` did: overlay classes then share
+[one overlay area](#one-overlay-area).
+
+`Heap Main` is the least code (about 900 bytes against 2,100 for `Heap Pages`): for a program
 that only wants `Alloc` / `Free`, or for a 64K machine.
 
 Overlay classes ([Option Class](#option-class)) follow the scheme: a RAM page each with
 `CPCExpansion`, [one overlay area](#one-overlay-area) at `#4000` with `Small`.
-
-### Option ClassSize
-
-`Option ClassSize` *kilobytes*
-
-Accepted, not checked yet. It is for keeping a class's code within a size, so classes can be
-used as banking units.
 
 ### #Const
 
@@ -2843,7 +2983,7 @@ are 0 and the `#Else` part is used.
 | MSX | `msx` | a cartridge ROM, `NAME.ROM` (16K or 32K at `#4000`, see [Cartridge ROMs](#cartridge-roms-msx-sc3000)); the BIOS stays (its keys, its interrupt); `End` goes back to the BIOS (MSX-BASIC). `#If NTC_MSX` | the MSX's own video chip (TMS9918 on an MSX1, V9938 / V9958 from the MSX2): mode 1 = 40 x 24, mode 0 = 32 x 24, mode 2 = 80 x 24 (MSX2 and up), the BIOS's font | the BIOS's keyboard (its layout, auto repeat) |
 | MSX + V9938 card | `msxcard` | as `msx`, the console on a V9938 card at ports `#88`-`#8B` (Sharp HB-4000, Gradiente CT-80E, Neos MA-20V: an MSX1's 80 columns). `#If NTC_MSXCARD` (and `NTC_MSX`) | the card: modes as `msx`'s (80 columns on any MSX) | as `msx` |
 | MSX + V9990 | `msx9990` | as `msx`, the console on a V9990 at `#60`-`#6F` (GFX9000, Video9000, Powergraph, TRH9000). `#If NTC_MSX9990` (and `NTC_MSX`) | a bit map (B1 / B3) with the BIOS's font: modes 0 and 1 = 40 x 24, mode 2 = 80 x 24 | as `msx` |
-| MSX-DOS 2 / Nextor | `msxdos` | a `.COM` on an MSX2 or later: the cpm platform (the BDOS console and files, MSX-DOS being CP/M underneath) with the MSX's frame interrupt (JIFFY is Ticks, normal mode's handler on H.TIMI) and the memory mapper: `Option Memory CPCExpansion` gives the mapper's 16K segments (from MSX-DOS 2's mapper support) as the CPC's pages and banks, the window `#4000`-`#7FFF` changed with PUT_P1 - a program built for a CPC's 512K runs the same (MSX-DOS 1: no pages). The real stack below `#C000`, the interrupt stub at `#C000`. Test harness `test/msxrun.py`. `#If NTC_MSXDOS` (and `NTC_CPM`) | MSX-DOS's console (BDOS): 80 x 24 | the mapper: 16K pages (`Option Memory CPCExpansion`) |
+| MSX-DOS 2 / Nextor | `msxdos` | a `.COM` on an MSX2 or later: the cpm platform (the BDOS console and files, MSX-DOS being CP/M underneath) with the MSX's frame interrupt (JIFFY is Ticks, normal mode's handler on H.TIMI) and the memory mapper: `Option Memory Heap Pages` gives the mapper's 16K segments (from MSX-DOS 2's mapper support) as the CPC's pages and banks, the window `#4000`-`#7FFF` changed with PUT_P1 - a program built for a CPC's 512K runs the same (MSX-DOS 1: no pages). The real stack below `#C000`, the interrupt stub at `#C000`. Test harness `test/msxrun.py`. `#If NTC_MSXDOS` (and `NTC_CPM`) | MSX-DOS's console (BDOS): 80 x 24 | the mapper: 16K pages (`Option Memory Heap Pages`) |
 | Sega SC-3000 | `sc3000` | a cartridge ROM, `NAME.SC` (16K, 32K or 48K at `#0000`); 2K of RAM (`#C000`-`#C7FF`) for the variables, the arrays and the stack; the RESET key starts the program again; `End` stops it. `#If NTC_SC3000` | the TMS9918A / TMS9929A: mode 1 (and 2) = 40 x 24, mode 0 = 32 x 24, NTC's own 6 x 8 font | full screen, keys from the matrix (new presses, no auto repeat) |
 | ColecoVision | `colecovision` | a cartridge ROM, `NAME.COL` (8K-32K at `#8000`, the `#55 #AA` header: no title screen); 1K of RAM (`#6000`-`#63FF`) for the variables, the arrays and the stack; Option Turbo only (the Z80's INT isn't connected, and the VDP's frame NMI would push on the thread: it is kept off, `Frame` polls the VDP's status); `End` stops it. Build and check: `tools/coleco/build.js`, `run.mjs` (a model of the hardware) | none: `Print` counts the column only - the program draws on the TMS9918A (data `#BE`, control `#BF`; `test/coleco/ball/Coleco.cls`) | none: the joystick through the program's own reads (port `#FC` after `OUT #C0`) |
 | Amstrad CPC + MSX V9938 card | `cpccard` | as `cpc` (no firmware, a binary at `#0040`), the console on an MSX V9938 card through the AMSDAP MSX cartridge adapter: MSX port nn is the CPC's `&FFnn`, so the card is at `&FF88`. `#If NTC_CPCCARD` (and `NTC_CPC`) | the card's own monitor: modes as `msxcard`'s, NTC's 6 x 8 font | as `cpc` |
@@ -2856,7 +2996,7 @@ The three CPC platforms are three amounts of firmware: `cpcfw` uses it for every
 easiest, and all ROMs work); `cpcmin` draws and reads the keyboard itself (faster text, NTC's
 own interrupt handler) and keeps the firmware only for discs, tape and ROM commands; `cpc`
 uses none (all the RAM; files from a ROMDISC only). On `cpcfw` and `cpcmin`, `RUN"` of a binary drops AMSDOS
-and the other ROMs: [Option RomEnable](#option-romenable) starts them again. While a
+and the other ROMs: [Option ROM Enable](#option-rom-enable) starts them again. While a
 `cpcmin` firmware call runs, the screen may show the firmware's mode, and firmware messages
 (disc missing, Retry / Cancel, Press PLAY) appear on the screen; afterwards NTC's mode,
 screen start and interrupt handler are back.
@@ -2962,8 +3102,8 @@ If System.TicksPerSecond = 0 Then Print "(no clock here)"
 | `CLOCK` | `Ticks` counts | True | True | True | - | True |
 | `HOOK` | the `Interrupt` statement | True | True | True | - | - |
 | `INTERRUPTCLASSES` | `Option Class Interrupt` | True | True | True | - | - |
-| `PAGES` | RAM pages (`Option Memory CPCExpansion`) | True | True | True | - | - |
-| `FILES` | `FileSystem` Load / Save (more: `FileSystem.Capability`) | - (a ROMDISC: `FileSystem.Capability("ROMDISC")`) | True | True | True | - |
+| `PAGES` | RAM pages (`Option Memory Heap Pages`) | True | True | True | - | - |
+| `FILES` | `FileSystem` Load / Save (more: `FileSystem.Capability`) | - (files from ROMs: the `ROMDiscFS` class) | True | True | True | - |
 | `ROMCOMMANDS` | `System.Command` | - | True | True | - | - |
 | `OVERLAYS` | `Option Class Overlay` | - | True | True | True | - |
 
@@ -2990,16 +3130,16 @@ hasn't got it. Yes / no capabilities are True (-1); some are numbers.
 
 | Name | Means | cpc | cpcfw | cpm | test |
 |---|---|---|---|---|---|
-| `LOAD`, `SAVE` | whole file to / from memory | `LOAD` (ROMDISC) | True (cpcmin too) | True | - |
-| `SEQUENTIAL` | `Open`, read and write in order | True (reading: ROMDISC) | True (cpcmin too) | True | - |
+| `LOAD`, `SAVE` | whole file to / from memory | - (`ROMDiscFS`: `LOAD`) | True (cpcmin too) | True | - |
+| `SEQUENTIAL` | `Open`, read and write in order | - (`ROMDiscFS`: reading) | True (cpcmin too) | True | - |
 | `RANDOMACCESS` | `Seek` anywhere, read and write | - | - | True | - |
-| `DELETE`, `RENAME`, `EXISTS`, `SIZE` | those methods | `EXISTS`, `SIZE` | - (`Exists`, `Size` on volume R) | True | - |
+| `DELETE`, `RENAME`, `EXISTS`, `SIZE` | those methods | - (`ROMDiscFS`: `EXISTS`, `SIZE`) | - | True | - |
 | `MULTIPLE` | more than one file open at once | - | - | True | - |
 | `DEVICES` | `Devices`, `SelectDevice`, `CurrentDevice` | True (`ROM`) | True | True | - |
 | `VOLUMES` | `Volumes`, `SelectVolume`, `CurrentVolume` | True (`R`) | True | True | - |
-| `ROMDISC` | volume R: files kept in ROMs (below) | True | True (cpcmin too) | - | - |
+| `ROMDISC` | always 0 in `FileSystem`: the ROM disc is the `ROMDiscFS` class (below), where it is True | - | - | - | - |
 | `CPMVERSION` | BDOS's version: `&H22` CP/M 2.2, `&H31` CP/M 3 | - | - | yes | - |
-| `MAXOPEN` | how many files can be open | 1 | 1 (and a ROMDISC file beside it) | 2 | 0 |
+| `MAXOPEN` | how many files can be open | - | 1 (`ROMDiscFS` has one of its own beside it) | 2 | 0 |
 | `RECORDSIZE` | the disc's record size | - | - | 128 | - |
 
 A name the platform doesn't know is 0, so a program can ask for anything.
@@ -3022,7 +3162,7 @@ The methods all return a number: 0 or more is a result (a count, a handle, a byt
 | `Seek(h, position)` | the next read or write is at that byte (a Long, 0 = the start) |
 | `Eof(h)` | True when there is nothing more to read |
 | `ReadLine(h)`, `WriteLine(h, text)` | a line of text (CR LF or LF ends it, not kept) |
-| `DirEntry(n)` | the ROMDISC's n-th file, `"NAME.EXT"` (1 = the first), `""` past the last (other platforms: `""`) |
+| `DirEntry(n)` | the n-th file, `"NAME.EXT"`, `""` past the last (zxn; `ROMDiscFS`: 1 = the first; cpcfw / cpcmin `FileSystem`: `""`) |
 | `Devices()` | how files travel, as text: `"TAPE,DISC"` (CPC with a DOS), `"TAPE"`, `"DISC"` (CP/M) |
 | `SelectDevice(name)` | `"TAPE"` or `"DISC"`; `NotFound` if this platform hasn't got it |
 | `CurrentDevice()` | `"TAPE"` or `"DISC"` |
@@ -3087,7 +3227,7 @@ r = FileSystem.Close(h)
 
   **Disc or tape?** `RUN"NAME` of a binary resets the firmware, and that drops AMSDOS: files
   then go to tape. Two ways to keep the disc:
-  - `Option RomEnable 7` (or `All`): the program starts AMSDOS again when it starts (drive A).
+  - `Option ROM Enable 7` (or `All`): the program starts AMSDOS again when it starts (drive A).
   - Build at a higher org and start it from BASIC with `CALL`, which keeps AMSDOS running:
     `MEMORY &1FFF : LOAD "NAME" : CALL &2000` for a program built at `#2000`
     (`CurrentVolume` is then `""`: AMSDOS's drive, whichever it is).
@@ -3102,32 +3242,35 @@ r = FileSystem.Close(h)
   volumes), each call handed to the firmware for its length. Its keyword ROM has no room for
   the open-file code: with `Option Library ROM` the program carries that part itself (about
   450 bytes).
-- **CPC, no firmware** (`cpc`): the ROMDISC is its only volume (below). **test**: no files -
-  every method returns `NotSupported`.
+- **CPC, no firmware** (`cpc`): no `FileSystem` class at all (no firmware, so no disc or tape);
+  files come from ROMs, through the `ROMDiscFS` class (below). **test**: no files - every method
+  returns `NotSupported`.
 
-**The ROMDISC (volume R)** - files kept in ROMs, read only, on cpc, cpcmin and cpcfw. A
-ROMDISC is one or more ROMs (`NTCDISC.ROM`, `NTCDISC2.ROM` ..., up to 8, in any ROM slots)
+**The ROM disc: the `ROMDiscFS` class** (20261116-5; cpc, cpcmin, cpcfw) - files kept in ROMs,
+read only. Until then it was volume R inside `FileSystem`; now `FileSystem` is the disc and tape
+through the firmware and nothing else, and a program that reads files from ROMs uses `ROMDiscFS`
+(and only then carries its code, about 1.2K). `Option NoRomDisc` is gone with it.
+
+A ROM disc is one or more ROMs (`NTCDISC.ROM`, `NTCDISC2.ROM` ..., up to 8, in any ROM slots)
 made from a list of files by `ntcRomDisc` (in `ntc_compiler.js`; `test/genromdisc.js
 outdir FILE ...` writes them). Names are 8.3. ROM 0 holds the directory, read until an entry
 flagged as the end; each entry has the name, a flags byte (bit 0 = compressed - none are yet),
 the ROM and address where the file starts, and its length; a file may run on from one ROM into
 the next.
 
-It isn't a disc system: no drive, no catalogue screen, no Retry / Cancel - FileSystem's
-methods simply go to the ROMDISC's routines when the volume is R:
+The methods have FileSystem's names and results, so the same code reads a file from either:
 
-- a name `"R:NAME.EXT"`, or a name with no volume while the volume in use is R
-  (`SelectVolume "R"`): `Load`, `Open` (`ForRead` only: it gives handle 2), `Exists`, `Size`;
+- `Load`, `Open` (`ForRead` only: it gives handle 2), `Exists`, `Size` - the name `"NAME.EXT"`
+  (or `"R:NAME.EXT"`);
 - handle 2: `ReadByte`, `Read`, `ReadLine`, `Eof`, `Close`;
-- `DirEntry(n)` lists the files.
+- `DirEntry(n)` lists the files; `SelectVolume("R")` says whether a ROM disc is fitted (OK, or
+  `NotFound`), `Volumes()` gives `"R"` or `""`.
 
 Writing (`Save`, `Open ForWrite`, `WriteByte` ...), `Delete`, `Rename` and `Seek` return
-`NotSupported` on R. On cpcmin and cpcfw a ROMDISC file (handle 2) can be open beside a disc file
-(handle 1), and `"A:NAME"` still reaches the disc while R is in use. On cpc, R is the only volume.
-No ROMDISC fitted (or a part of it missing): `NotFound`, `Volumes` `""` on cpc. Reading selects
-the ROMDISC's ROM for a moment (cpc and cpcmin: on the hardware; cpcfw and cpcmin's file calls:
-KL ROM SELECT), so this code is never in the keyword ROM: a `Library: ROM` program carries it
-(about 1.2K) when it uses volume R.
+`NotSupported`. On cpcmin and cpcfw a ROM disc file (handle 2) can be open beside a `FileSystem`
+file (handle 1). No ROM disc fitted (or a part of it missing): `NotFound`. Reading selects the
+disc's ROM for a moment (cpc and cpcmin: on the hardware; cpcfw: KL ROM SELECT), so this code is
+never in the keyword ROM: a `Library: ROM` program carries it.
 
 ```
 r = FileSystem.SelectVolume("R")
@@ -3144,6 +3287,20 @@ See `bas/files.bas`.
 **VB:** VB has `Open ... For ... As #n`, `Print #`, `Input #`, `Get` / `Put` and `EOF()`, and
 raises errors. Here files are methods of a class that return a status, and what works
 depends on the platform.
+
+### Memory terms
+
+The machines use the same words for different things. In NTC's documents, messages and class
+names, a memory word that is not fully explicit (for example "Next bank") is the NTC / COS / CPC
+term.
+
+| What it is | NTC / COS | CPC | Next | MSX |
+|---|---|---|---|---|
+| 8K piece of RAM | - | - | page | - |
+| 16K piece of RAM | page | block | bank | segment (memory mapper) |
+| 64K of RAM switched as one | slot | bank | - | (a slot's whole 64K) |
+| position in the address space | - | - | slot (8K) | page (16K, 0 to 3) |
+| where the memory comes from | - | - | - | slot (primary / sub-slot) |
 
 ### Memory
 
@@ -3224,7 +3381,7 @@ plain memory, nothing switched). `Alloc` gives them; `CLng(page) * 65536 + addre
 | `FreePage(page)` | back to free (`BadPage` if it is free already) |
 | `SelectPage(page)` | into the window; gives `WindowStart` |
 | `CurrentPage()` | the page in the window |
-| `Alloc(size)` | a far pointer to `size` bytes (up to 16382), 0 = no room |
+| `Alloc(size)` | a far pointer to `size` bytes, 0 = no room. With pages (`Heap Pages`): up to 16382, a page less its header. In main memory (`Heap Main`): any size that fits |
 | `Free(ptr)` | a block back; a heap page with nothing left in it goes back to free |
 | `Largest()` | the biggest block `Alloc` could give now |
 | `PageOf(ptr)`, `Address(ptr)` | the page; `Address` switches it in and gives the address |
@@ -3279,8 +3436,15 @@ Memory.WriteWord p, 1234
 r = Memory.Free(p)
 ```
 
-Free blocks are at most 16K (joined neighbours stop there), so with `Small` a big heap is
-several 16K stretches: the biggest single `Alloc` is 16382 bytes. `Copy` uses the same 2K
+With `Option Memory Heap Main` the heap is the memory the program declares: the first `Option
+Memory Available` range that ends above the program - from the program's end (or the range's
+start, if that is higher) to the range's end, with no other top. With no `Available` range it runs
+from the program's end to the platform's top. Either way it stops 256 bytes under the real stack
+(when that is above the program) and at the first `Reserved` or `Paged` range above it. Free
+neighbours are joined, so one `Alloc` can take any size that fits (20261116-5: it was 16382 bytes
+at most, and the heap was chopped into 16K stretches). `Largest()` is an Integer: 32767 means
+"that or more". With `Heap Pages` a block is still at most 16382 bytes (it lives in one page).
+`Copy` uses the same 2K
 buffer as FileSystem. The 4MB blocks use ports `&78xx-&7Exx`, which also have address line
 A10 low, as expansion hardware does: the low byte (`&C4-&FF`) keeps the disc controller out of
 it, but an unusual interface could react. Interrupts are left as they are (off in turbo mode
@@ -3288,8 +3452,8 @@ and inside keywords), so a long `Copy` can hold the 300 Hz ticks back. See `bas/
 
 ### List
 
-Linked lists in the Memory class's heap - D pages with `Option Memory CPCExpansion`, the free
-main RAM with `Option Memory Small` - so a list can be far bigger than the program's own
+Linked lists in the Memory class's heap - D pages with `Option Memory Heap Pages`, the free
+main RAM with `Option Memory Heap Main` - so a list can be far bigger than the program's own
 memory. Prefer lists to big arrays where you can: an array takes its whole size in the
 program's memory, a list takes 4 bytes there however long it is.
 
@@ -3705,23 +3869,20 @@ change.
 | `On ... GoTo`, `On ... GoSub` | [8](#on--goto-on--gosub) |
 | `Optional` | [9](#parameters-byval-byref-optional) |
 | `Option Base` | [4](#option-base) |
-| `Option ClassSize` | [16](#option-classsize) |
 | `Option Compare Text` | [6](#option-compare-text) |
 | `Option Explicit` | [16](#option-explicit) |
 | `Option Class` | [10](#option-class) |
 | `Option Memory` | [16](#option-memory) |
-| `Option Page`, `Option Home` | [10](#option-page) |
+| `Option Page` | [10](#option-page) |
 | `Option Buffer` | [16](#option-buffer) |
 | `Option Reserve` | [16](#option-reserve) |
 | `Option HighCode`, `Option Place` | [16](#option-highcode-option-place) |
 | `Option Flavour` | [16](#option-flavour) |
 | `Option Library` | [16](#option-library) |
-| `Option RomEnable` | [16](#option-romenable) |
-| `Option NoRomDisc` | [16](#option-noromdisc) |
+| `Option ROM Enable` | [16](#option-rom-enable) |
 | `Option Stack` | [16](#option-stack) |
 | `Option Terminal` | [16](#option-terminal) |
 | `Option NoTurbo` | [13](#option-noturbo) |
-| `Option CompactCalls` | [13](#option-compactcalls) |
 | `Option Turbo` | [13](#option-turbo) |
 | `Option VBPrint` | [11](#option-vbprint) |
 | `Or` | [6](#and-or-xor-not) |

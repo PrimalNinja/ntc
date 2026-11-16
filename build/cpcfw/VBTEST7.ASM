@@ -6,7 +6,8 @@
 			DEVICE AMSTRADCPC6128		; for SAVEAMSDOS at the end
 			org #0040
 
-NTC_TERM	equ 0		; Option Terminal: 0 none, 1 VT52, 2 ANSI (CP/M)
+NTC_TERM	equ 0		; Option Terminal: 0 none, 1 VT52, 2 ANSI, 3 ADM-3A, 4 Televideo (CP/M)
+NTC_TERM_RT	equ 0		; 1: the program calls StdIO.SetTerminal (the terminal is chosen while it runs)
 NTC_STRMAX	equ 40		; the longest string (library buffers, temps)
 NTC_MEMBANKS	equ 64		; Option Memory: the most 64K banks the Memory class looks for
 NTC_ROMENABLE	equ 0		; Option RomEnable (cpcfw, cpcmin): the start code starts the ROMs
@@ -348,10 +349,12 @@ p_dist2:
 p_grow:
 
 			; 107: a.x = a.x + n
-			dw kw_add, var_grow_a_x, var_grow_n, var_grow_a_x
+ntc_rf1:
+			dw kw_add, 0, var_grow_n, 0
 
 			; 108: a.y = a.y + n
-			dw kw_add, var_grow_a_y, var_grow_n, var_grow_a_y
+ntc_rf2:
+			dw kw_add, 0, var_grow_n, 0
 			dw p_grow_r
 
 ; ============================================================
@@ -371,15 +374,20 @@ p_nogrow:
 p_setarea:
 
 			; 117: bx.area = CLng(bx.size.x) * bx.size.y
-			dw kw_l_itol, var_setarea_bx_size_x, ltmp0
-			dw kw_l_itol, var_setarea_bx_size_y, ltmp1
-			dw kw_l_mul, ltmp0, ltmp1, var_setarea_bx_area
+ntc_rf3:
+			dw kw_l_itol, 0, ltmp0
+ntc_rf4:
+			dw kw_l_itol, 0, ltmp1
+ntc_rf5:
+			dw kw_l_mul, ltmp0, ltmp1, 0
 
 			; 118: bx.name = bx.name & "!"
-			dw kw_strcat, var_setarea_bx_name, str14
+ntc_rf6:
+			dw kw_strcat, 0, str14
 
 			; 119: Grow bx.topleft, 1
-			dw p_grow_c, var_setarea_bx_topleft_x, var_setarea_bx_topleft_y, lit_1
+ntc_rf7:
+			dw p_grow_c, 0, 0, lit_1
 			dw p_setarea_r
 
 ; ============================================================
@@ -389,10 +397,12 @@ p_setarea:
 p_twice2:
 
 			; 124: Twice2 = Dist2(a) \ 10 + a.x
-			dw p_dist2_c, var_twice2_a_x, var_twice2_a_y
+ntc_rf8:
+			dw p_dist2_c, 0, 0
 			dw kw_vtov, var_dist2_dist2, tmp0
 			dw kw_divvl, tmp0, 10, tmp0
-			dw kw_add, tmp0, var_twice2_a_x, var_twice2_twice2
+ntc_rf9:
+			dw kw_add, tmp0, 0, var_twice2_twice2
 			dw p_twice2_r
 
 ; ============================================================
@@ -573,15 +583,11 @@ p_dist2_r:		; end of dist2
 			jp ntc_xn
 p_grow_c:		; call grow (normal)
 			pop hl			; a.x
-			ld (p_grow_a0_0), hl
-			ld de, var_grow_a_x
-			ld bc, 2
-			ldir
+			ld (ntc_rf1 + 2), hl		; (by reference: var_grow_a_x)
+			ld (ntc_rf1 + 6), hl		; (by reference: var_grow_a_x)
 			pop hl			; a.y
-			ld (p_grow_a0_1), hl
-			ld de, var_grow_a_y
-			ld bc, 2
-			ldir
+			ld (ntc_rf2 + 2), hl		; (by reference: var_grow_a_y)
+			ld (ntc_rf2 + 6), hl		; (by reference: var_grow_a_y)
 			pop hl			; n
 			ld e, (hl)
 			inc hl
@@ -591,14 +597,6 @@ p_grow_c:		; call grow (normal)
 			ld sp, p_grow
 			jp ntc_xn
 p_grow_r:		; end of grow
-			ld de, (p_grow_a0_0)
-			ld hl, var_grow_a_x
-			ld bc, 2
-			ldir
-			ld de, (p_grow_a0_1)
-			ld hl, var_grow_a_y
-			ld bc, 2
-			ldir
 			ld sp, (p_grow_rs)
 			jp ntc_xn
 p_nogrow_c:		; call nogrow (normal)
@@ -618,97 +616,29 @@ p_nogrow_r:		; end of nogrow
 			jp ntc_xn
 p_setarea_c:		; call setarea (normal)
 			pop hl			; bx.name
-			ld (p_setarea_a0_0), hl
-			ld de, var_setarea_bx_name
-			ld b, 40
-p_setarea_si0_0:
-			ld a, (hl)
-			ld (de), a
-			or a
-			jr z, p_setarea_si0_0_e
-			inc hl
-			inc de
-			djnz p_setarea_si0_0
-			xor a
-			ld (de), a
-p_setarea_si0_0_e:
+			ld (ntc_rf6 + 2), hl		; (by reference: var_setarea_bx_name)
 			pop hl			; bx.topleft.x
-			ld (p_setarea_a0_1), hl
-			ld de, var_setarea_bx_topleft_x
-			ld bc, 2
-			ldir
+			ld (ntc_rf7 + 2), hl		; (by reference: var_setarea_bx_topleft_x)
 			pop hl			; bx.topleft.y
-			ld (p_setarea_a0_2), hl
-			ld de, var_setarea_bx_topleft_y
-			ld bc, 2
-			ldir
+			ld (ntc_rf7 + 4), hl		; (by reference: var_setarea_bx_topleft_y)
 			pop hl			; bx.size.x
-			ld (p_setarea_a0_3), hl
-			ld de, var_setarea_bx_size_x
-			ld bc, 2
-			ldir
+			ld (ntc_rf3 + 2), hl		; (by reference: var_setarea_bx_size_x)
 			pop hl			; bx.size.y
-			ld (p_setarea_a0_4), hl
-			ld de, var_setarea_bx_size_y
-			ld bc, 2
-			ldir
+			ld (ntc_rf4 + 2), hl		; (by reference: var_setarea_bx_size_y)
 			pop hl			; bx.area
-			ld (p_setarea_a0_5), hl
-			ld de, var_setarea_bx_area
-			ld bc, 4
-			ldir
+			ld (ntc_rf5 + 6), hl		; (by reference: var_setarea_bx_area)
 			ld (p_setarea_rs), sp
 			ld sp, p_setarea
 			jp ntc_xn
 p_setarea_r:		; end of setarea
-			ld de, (p_setarea_a0_0)
-			ld hl, var_setarea_bx_name
-			dec de
-			ld a, (de)		; the destination's capacity
-			ld b, a
-			inc de
-p_setarea_so0_0:
-			ld a, (hl)
-			ld (de), a
-			or a
-			jr z, p_setarea_so0_0_e
-			inc hl
-			inc de
-			djnz p_setarea_so0_0
-			xor a
-			ld (de), a
-p_setarea_so0_0_e:
-			ld de, (p_setarea_a0_1)
-			ld hl, var_setarea_bx_topleft_x
-			ld bc, 2
-			ldir
-			ld de, (p_setarea_a0_2)
-			ld hl, var_setarea_bx_topleft_y
-			ld bc, 2
-			ldir
-			ld de, (p_setarea_a0_3)
-			ld hl, var_setarea_bx_size_x
-			ld bc, 2
-			ldir
-			ld de, (p_setarea_a0_4)
-			ld hl, var_setarea_bx_size_y
-			ld bc, 2
-			ldir
-			ld de, (p_setarea_a0_5)
-			ld hl, var_setarea_bx_area
-			ld bc, 4
-			ldir
 			ld sp, (p_setarea_rs)
 			jp ntc_xn
 p_twice2_c:		; call twice2 (normal)
 			pop hl			; a.x
-			ld de, var_twice2_a_x
-			ld bc, 2
-			ldir
+			ld (ntc_rf8 + 2), hl		; (by reference: var_twice2_a_x)
+			ld (ntc_rf9 + 4), hl		; (by reference: var_twice2_a_x)
 			pop hl			; a.y
-			ld de, var_twice2_a_y
-			ld bc, 2
-			ldir
+			ld (ntc_rf8 + 4), hl		; (by reference: var_twice2_a_y)
 			ld hl, 0
 			ld (var_twice2_twice2), hl
 			ld (p_twice2_rs), sp
@@ -815,30 +745,11 @@ var_dist2_a_x:			dw 0
 var_dist2_a_y:			dw 0
 p_grow_rs:			dw 0
 var_grow_n:			dw 0
-p_grow_a0_0:			dw 0
-var_grow_a_x:			dw 0
-p_grow_a0_1:			dw 0
-var_grow_a_y:			dw 0
 p_nogrow_rs:			dw 0
 var_nogrow_a_x:			dw 0
 var_nogrow_a_y:			dw 0
 p_setarea_rs:			dw 0
-p_setarea_a0_0:			dw 0
-			db 40			; capacity
-var_setarea_bx_name:			ds 41
-p_setarea_a0_1:			dw 0
-var_setarea_bx_topleft_x:			dw 0
-p_setarea_a0_2:			dw 0
-var_setarea_bx_topleft_y:			dw 0
-p_setarea_a0_3:			dw 0
-var_setarea_bx_size_x:			dw 0
-p_setarea_a0_4:			dw 0
-var_setarea_bx_size_y:			dw 0
-p_setarea_a0_5:			dw 0
-var_setarea_bx_area:			dw 0, 0
 p_twice2_rs:			dw 0
-var_twice2_a_x:			dw 0
-var_twice2_a_y:			dw 0
 p_corner_rs:			dw 0
 p_sum2_rs:			dw 0
 var_sum2_r:			dw 0

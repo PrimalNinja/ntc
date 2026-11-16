@@ -1,13 +1,13 @@
-' Overlay classes with one overlay area (Option Memory Small / CP/M) - regress.sh
+' Overlay classes with one overlay area (Option Memory Heap Main / CP/M) - regress.sh
 ' A and B take turns in #4000-#7FFF: a call loads its class there, a return
 ' loads the caller's class again when another took its place.
-Option Memory Small
+Option Memory Heap Main
 Option Memory Reserved &H4000, &H4000
 #If NTC_CPCMIN Then
-Option RomEnable 7                ' AMSDOS for the overlay files
+Option ROM Enable 7                ' AMSDOS for the overlay files
 #End If
 #If NTC_CPCFW Then
-Option RomEnable 7
+Option ROM Enable 7
 #End If
 Print "in"; A.Loaded(); B.Loaded(); " page"; A.Page()
 Print "a"; A.Twice(4); A.Loaded(); B.Loaded()

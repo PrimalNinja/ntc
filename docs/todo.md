@@ -85,7 +85,7 @@ kept for reference are at the end.
         keywords
       - then remove the `Interrupt` statement (or keep it as sugar for
         `Interrupts.Every 1, AddressOf Sub`); update hook.bas / ref, userguide 12, NTC.md
-- [ ] FUTURE: `Option ClassSize <kilobytes>` - keep a class's code within a size so classes
+- [x] dropped 20261116-1 (the option is gone): `Option ClassSize <kilobytes>` - keep a class's code within a size so classes
       can be used as banking units. Accepted, not enforced.
 - [ ] decide: keep `Dim c As Counter` (it only aliases the one set of members) or make it an
       error now that classes are namespaces
@@ -335,7 +335,7 @@ kept for reference are at the end.
       - check on a real CPC / WinAPE: CAS calls with IY as NTC leaves it (AMSDOS is believed to
         load its own IY), tape messages, disc errors (Retry / Cancel) mid-load; that AMSDOS's
         CAS IN OPEN entry really starts with #DF (the "AMSDOS is running" test); the
-        |TAPE / |DISC / |A / |B calls through KL FAR PCALL; Option RomEnable 7 after RUN"
+        |TAPE / |DISC / |A / |B calls through KL FAR PCALL; Option ROM Enable 7 after RUN"
       - CPC: CurrentDevice when CALLed is "DISC" - AMSDOS's current drive could be read from
         its workspace (needs the layout)
       - third party mass storage (IDE, SD card interfaces: random access) - needs research,

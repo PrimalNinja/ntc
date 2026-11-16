@@ -6,7 +6,7 @@
 ; entered with jp, return address in IX, and ends with jp (ix).
 ;
 ; Memory  laid out as the CPC's (the cpc platform's): the Next's 8K MMU slots hold
-;         RAM pages 16-21 at #0000-#BFFF (the program from #0040, its arrays,
+;         RAM pages 0-5 (its banks 0, 1, 2; 20261116-7: it was 16-21) at #0000-#BFFF (the program from #0040, its arrays,
 ;         the stack from #C000 down) and the screen - 16K bank 5, pages 10 and
 ;         11, what the ULA and the tilemap show - at #C000-#FFFF.
 ;           #0000-#003F  RST / IM 1 (#0038: the interrupt handler's jump)
@@ -18,8 +18,8 @@
 ;           #C000-#DAFF  the ULA screen (Graphics, later)
 ;           #E000-#E9FF  the text: the tilemap, 80 x 32 (40 x 32: the first 1280)
 ;           #EC00-#F3FF  its characters: 256 x 8 bytes (1 bit a pixel)
-; Start   NAME.NEX (SAVENEX at the end of the program): NextZXOS loads banks 8, 9,
-;         10 (the program) and 5 (a start stub at #7E00) and runs the stub with
+; Start   NAME.NEX (SAVENEX at the end of the program): NextZXOS loads banks 0, 1,
+;         2 (the program) and 5 (a start stub at #7E00) and runs the stub with
 ;         banks 5, 2, 0 in #4000-#FFFF. The stub turns the NMI buttons off
 ;         (NextReg 6 bits 3, 4: Multiface M1, DivMMC DRIVE), leaves DivMMC's automatic
 ;         paging and entry points as NextZXOS set them (NextRegs #B8-#BB untouched since
@@ -31,7 +31,7 @@
 ; Screen  the tilemap in text mode: one byte a character (the character's code is
 ;         its tile), 40 x 32 (Mode 0, 1) or 80 x 32 (Mode 2), on top of the ULA
 ;         (Layer 2 and the sprites off). Yellow on blue, as the CPC starts. The
-;         font: font8x8_basic (public domain), copied to ntc_font and the tiles
+;         font: the Amstrad CPC's (characters 32-126), copied to ntc_font and the tiles
 ;         by the first Mode.
 ; Keys    the 8 x 5 keyboard (ports #xxFE): Caps Shift capitals, Symbol Shift
 ;         the symbols on the keys (+ the 128's: ~ | \ { } [ ]). Caps + 0 is DEL
@@ -54,7 +54,7 @@
 ;@stack    #C000
 ;@cols     40
 ;@rows     32
-;@reserved #BA00,#4600			; the FileSystem class's DOS area #BA00-#BDFF, the stack #BE00-#BFFF, the screen #C000-#FFFF
+;@reserved #BA00,#0600 #FD00,#0300		; the FileSystem class's DOS area #BA00-#BDFF and the stack #BE00-#BFFF; the start-up stub and the loader's stack #FD00-#FFFF (the rest of #C000-#FFFF is the program's: the compiler adds what the program really has there - the text, Layer 2's window, the DOS's)
 ; ============================================================
 
 ;## ntc_plat_data
@@ -374,51 +374,52 @@ ntc_md_40:
 ; tilemap's paper its colour again (Graphics makes it see-through)
 ntc_md_regs:	db #69, 0, #15, 0, #68, 0, #4C, #0F, #56, 10, #57, 11, #43, #30, #40, 0, #41, ZXN_PAPER
 
-; the font: font8x8_basic by Daniel Hepper (public domain) - chars 32-126, 8 bytes each,
-; bit 7 the leftmost pixel
+; the font: the Amstrad CPC's own (its lower ROM's characters 32-126, as the CPC platforms
+; read from the ROM; 20261116-6: this table held font8x8_basic until then - a bug) - 8 bytes
+; each, bit 7 the leftmost pixel
 ntc_zxfont:
-			db #00, #00, #00, #00, #00, #00, #00, #00	; 32
-			db #18, #3C, #3C, #18, #18, #00, #18, #00	; 33 !
-			db #6C, #6C, #00, #00, #00, #00, #00, #00	; 34 "
+			db #00, #00, #00, #00, #00, #00, #00, #00	; 32 
+			db #18, #18, #18, #18, #18, #00, #18, #00	; 33 !
+			db #6C, #6C, #6C, #00, #00, #00, #00, #00	; 34 "
 			db #6C, #6C, #FE, #6C, #FE, #6C, #6C, #00	; 35 #
-			db #30, #7C, #C0, #78, #0C, #F8, #30, #00	; 36 $
+			db #18, #3E, #58, #3C, #1A, #7C, #18, #00	; 36 $
 			db #00, #C6, #CC, #18, #30, #66, #C6, #00	; 37 %
 			db #38, #6C, #38, #76, #DC, #CC, #76, #00	; 38 &
-			db #60, #60, #C0, #00, #00, #00, #00, #00	; 39 '
-			db #18, #30, #60, #60, #60, #30, #18, #00	; 40 (
-			db #60, #30, #18, #18, #18, #30, #60, #00	; 41 )
+			db #18, #18, #30, #00, #00, #00, #00, #00	; 39 '
+			db #0C, #18, #30, #30, #30, #18, #0C, #00	; 40 (
+			db #30, #18, #0C, #0C, #0C, #18, #30, #00	; 41 )
 			db #00, #66, #3C, #FF, #3C, #66, #00, #00	; 42 *
-			db #00, #30, #30, #FC, #30, #30, #00, #00	; 43 +
-			db #00, #00, #00, #00, #00, #30, #30, #60	; 44 ,
-			db #00, #00, #00, #FC, #00, #00, #00, #00	; 45 -
-			db #00, #00, #00, #00, #00, #30, #30, #00	; 46 .
+			db #00, #18, #18, #7E, #18, #18, #00, #00	; 43 +
+			db #00, #00, #00, #00, #00, #18, #18, #30	; 44 ,
+			db #00, #00, #00, #7E, #00, #00, #00, #00	; 45 -
+			db #00, #00, #00, #00, #00, #18, #18, #00	; 46 .
 			db #06, #0C, #18, #30, #60, #C0, #80, #00	; 47 /
-			db #7C, #C6, #CE, #DE, #F6, #E6, #7C, #00	; 48 0
-			db #30, #70, #30, #30, #30, #30, #FC, #00	; 49 1
-			db #78, #CC, #0C, #38, #60, #CC, #FC, #00	; 50 2
-			db #78, #CC, #0C, #38, #0C, #CC, #78, #00	; 51 3
+			db #7C, #C6, #CE, #D6, #E6, #C6, #7C, #00	; 48 0
+			db #18, #38, #18, #18, #18, #18, #7E, #00	; 49 1
+			db #3C, #66, #06, #3C, #60, #66, #7E, #00	; 50 2
+			db #3C, #66, #06, #1C, #06, #66, #3C, #00	; 51 3
 			db #1C, #3C, #6C, #CC, #FE, #0C, #1E, #00	; 52 4
-			db #FC, #C0, #F8, #0C, #0C, #CC, #78, #00	; 53 5
-			db #38, #60, #C0, #F8, #CC, #CC, #78, #00	; 54 6
-			db #FC, #CC, #0C, #18, #30, #30, #30, #00	; 55 7
-			db #78, #CC, #CC, #78, #CC, #CC, #78, #00	; 56 8
-			db #78, #CC, #CC, #7C, #0C, #18, #70, #00	; 57 9
-			db #00, #30, #30, #00, #00, #30, #30, #00	; 58 :
-			db #00, #30, #30, #00, #00, #30, #30, #60	; 59 ;
-			db #18, #30, #60, #C0, #60, #30, #18, #00	; 60 <
-			db #00, #00, #FC, #00, #00, #FC, #00, #00	; 61 =
+			db #7E, #62, #60, #7C, #06, #66, #3C, #00	; 53 5
+			db #3C, #66, #60, #7C, #66, #66, #3C, #00	; 54 6
+			db #7E, #66, #06, #0C, #18, #18, #18, #00	; 55 7
+			db #3C, #66, #66, #3C, #66, #66, #3C, #00	; 56 8
+			db #3C, #66, #66, #3E, #06, #66, #3C, #00	; 57 9
+			db #00, #00, #18, #18, #00, #18, #18, #00	; 58 :
+			db #00, #00, #18, #18, #00, #18, #18, #30	; 59 ;
+			db #0C, #18, #30, #60, #30, #18, #0C, #00	; 60 <
+			db #00, #00, #7E, #00, #00, #7E, #00, #00	; 61 =
 			db #60, #30, #18, #0C, #18, #30, #60, #00	; 62 >
-			db #78, #CC, #0C, #18, #30, #00, #30, #00	; 63 ?
-			db #7C, #C6, #DE, #DE, #DE, #C0, #78, #00	; 64 @
-			db #30, #78, #CC, #CC, #FC, #CC, #CC, #00	; 65 A
+			db #3C, #66, #66, #0C, #18, #00, #18, #00	; 63 ?
+			db #7C, #C6, #DE, #DE, #DE, #C0, #7C, #00	; 64 @
+			db #18, #3C, #66, #66, #7E, #66, #66, #00	; 65 A
 			db #FC, #66, #66, #7C, #66, #66, #FC, #00	; 66 B
 			db #3C, #66, #C0, #C0, #C0, #66, #3C, #00	; 67 C
 			db #F8, #6C, #66, #66, #66, #6C, #F8, #00	; 68 D
 			db #FE, #62, #68, #78, #68, #62, #FE, #00	; 69 E
 			db #FE, #62, #68, #78, #68, #60, #F0, #00	; 70 F
 			db #3C, #66, #C0, #C0, #CE, #66, #3E, #00	; 71 G
-			db #CC, #CC, #CC, #FC, #CC, #CC, #CC, #00	; 72 H
-			db #78, #30, #30, #30, #30, #30, #78, #00	; 73 I
+			db #66, #66, #66, #7E, #66, #66, #66, #00	; 72 H
+			db #7E, #18, #18, #18, #18, #18, #7E, #00	; 73 I
 			db #1E, #0C, #0C, #0C, #CC, #CC, #78, #00	; 74 J
 			db #E6, #66, #6C, #78, #6C, #66, #E6, #00	; 75 K
 			db #F0, #60, #60, #60, #62, #66, #FE, #00	; 76 L
@@ -426,51 +427,51 @@ ntc_zxfont:
 			db #C6, #E6, #F6, #DE, #CE, #C6, #C6, #00	; 78 N
 			db #38, #6C, #C6, #C6, #C6, #6C, #38, #00	; 79 O
 			db #FC, #66, #66, #7C, #60, #60, #F0, #00	; 80 P
-			db #78, #CC, #CC, #CC, #DC, #78, #1C, #00	; 81 Q
+			db #38, #6C, #C6, #C6, #DA, #CC, #76, #00	; 81 Q
 			db #FC, #66, #66, #7C, #6C, #66, #E6, #00	; 82 R
-			db #78, #CC, #E0, #70, #1C, #CC, #78, #00	; 83 S
-			db #FC, #B4, #30, #30, #30, #30, #78, #00	; 84 T
-			db #CC, #CC, #CC, #CC, #CC, #CC, #FC, #00	; 85 U
-			db #CC, #CC, #CC, #CC, #CC, #78, #30, #00	; 86 V
+			db #3C, #66, #60, #3C, #06, #66, #3C, #00	; 83 S
+			db #7E, #5A, #18, #18, #18, #18, #3C, #00	; 84 T
+			db #66, #66, #66, #66, #66, #66, #3C, #00	; 85 U
+			db #66, #66, #66, #66, #66, #3C, #18, #00	; 86 V
 			db #C6, #C6, #C6, #D6, #FE, #EE, #C6, #00	; 87 W
-			db #C6, #C6, #6C, #38, #38, #6C, #C6, #00	; 88 X
-			db #CC, #CC, #CC, #78, #30, #30, #78, #00	; 89 Y
+			db #C6, #6C, #38, #38, #6C, #C6, #C6, #00	; 88 X
+			db #66, #66, #66, #3C, #18, #18, #3C, #00	; 89 Y
 			db #FE, #C6, #8C, #18, #32, #66, #FE, #00	; 90 Z
-			db #78, #60, #60, #60, #60, #60, #78, #00	; 91 [
+			db #3C, #30, #30, #30, #30, #30, #3C, #00	; 91 [
 			db #C0, #60, #30, #18, #0C, #06, #02, #00	; 92 \
-			db #78, #18, #18, #18, #18, #18, #78, #00	; 93 ]
-			db #10, #38, #6C, #C6, #00, #00, #00, #00	; 94 ^
+			db #3C, #0C, #0C, #0C, #0C, #0C, #3C, #00	; 93 ]
+			db #18, #3C, #7E, #18, #18, #18, #18, #00	; 94 ^
 			db #00, #00, #00, #00, #00, #00, #00, #FF	; 95 _
-			db #30, #30, #18, #00, #00, #00, #00, #00	; 96 `
+			db #30, #18, #0C, #00, #00, #00, #00, #00	; 96 `
 			db #00, #00, #78, #0C, #7C, #CC, #76, #00	; 97 a
-			db #E0, #60, #60, #7C, #66, #66, #DC, #00	; 98 b
-			db #00, #00, #78, #CC, #C0, #CC, #78, #00	; 99 c
-			db #1C, #0C, #0C, #7C, #CC, #CC, #76, #00	; 100 d
-			db #00, #00, #78, #CC, #FC, #C0, #78, #00	; 101 e
-			db #38, #6C, #60, #F0, #60, #60, #F0, #00	; 102 f
-			db #00, #00, #76, #CC, #CC, #7C, #0C, #F8	; 103 g
+			db #E0, #60, #7C, #66, #66, #66, #DC, #00	; 98 b
+			db #00, #00, #3C, #66, #60, #66, #3C, #00	; 99 c
+			db #1C, #0C, #7C, #CC, #CC, #CC, #76, #00	; 100 d
+			db #00, #00, #3C, #66, #7E, #60, #3C, #00	; 101 e
+			db #1C, #36, #30, #78, #30, #30, #78, #00	; 102 f
+			db #00, #00, #3E, #66, #66, #3E, #06, #7C	; 103 g
 			db #E0, #60, #6C, #76, #66, #66, #E6, #00	; 104 h
-			db #30, #00, #70, #30, #30, #30, #78, #00	; 105 i
-			db #0C, #00, #0C, #0C, #0C, #CC, #CC, #78	; 106 j
+			db #18, #00, #38, #18, #18, #18, #3C, #00	; 105 i
+			db #06, #00, #0E, #06, #06, #66, #66, #3C	; 106 j
 			db #E0, #60, #66, #6C, #78, #6C, #E6, #00	; 107 k
-			db #70, #30, #30, #30, #30, #30, #78, #00	; 108 l
-			db #00, #00, #CC, #FE, #FE, #D6, #C6, #00	; 109 m
-			db #00, #00, #F8, #CC, #CC, #CC, #CC, #00	; 110 n
-			db #00, #00, #78, #CC, #CC, #CC, #78, #00	; 111 o
+			db #38, #18, #18, #18, #18, #18, #3C, #00	; 108 l
+			db #00, #00, #6C, #FE, #D6, #D6, #C6, #00	; 109 m
+			db #00, #00, #DC, #66, #66, #66, #66, #00	; 110 n
+			db #00, #00, #3C, #66, #66, #66, #3C, #00	; 111 o
 			db #00, #00, #DC, #66, #66, #7C, #60, #F0	; 112 p
 			db #00, #00, #76, #CC, #CC, #7C, #0C, #1E	; 113 q
-			db #00, #00, #DC, #76, #66, #60, #F0, #00	; 114 r
-			db #00, #00, #7C, #C0, #78, #0C, #F8, #00	; 115 s
-			db #10, #30, #7C, #30, #30, #34, #18, #00	; 116 t
-			db #00, #00, #CC, #CC, #CC, #CC, #76, #00	; 117 u
-			db #00, #00, #CC, #CC, #CC, #78, #30, #00	; 118 v
-			db #00, #00, #C6, #D6, #FE, #FE, #6C, #00	; 119 w
+			db #00, #00, #DC, #76, #60, #60, #F0, #00	; 114 r
+			db #00, #00, #3C, #60, #3C, #06, #7C, #00	; 115 s
+			db #30, #30, #7C, #30, #30, #36, #1C, #00	; 116 t
+			db #00, #00, #66, #66, #66, #66, #3E, #00	; 117 u
+			db #00, #00, #66, #66, #66, #3C, #18, #00	; 118 v
+			db #00, #00, #C6, #D6, #D6, #FE, #6C, #00	; 119 w
 			db #00, #00, #C6, #6C, #38, #6C, #C6, #00	; 120 x
-			db #00, #00, #CC, #CC, #CC, #7C, #0C, #F8	; 121 y
-			db #00, #00, #FC, #98, #30, #64, #FC, #00	; 122 z
-			db #1C, #30, #30, #E0, #30, #30, #1C, #00	; 123 {
-			db #18, #18, #18, #00, #18, #18, #18, #00	; 124 |
-			db #E0, #30, #30, #1C, #30, #30, #E0, #00	; 125 }
+			db #00, #00, #66, #66, #66, #3E, #06, #7C	; 121 y
+			db #00, #00, #7E, #4C, #18, #32, #7E, #00	; 122 z
+			db #0E, #18, #18, #70, #18, #18, #0E, #00	; 123 {
+			db #18, #18, #18, #18, #18, #18, #18, #00	; 124 |
+			db #70, #18, #18, #0E, #18, #18, #70, #00	; 125 }
 			db #76, #DC, #00, #00, #00, #00, #00, #00	; 126 ~
 
 ;## ntc_plat_locate @unit ntc_plat_screen ntc_plat_data ntc_font ntc_data ntc_plat_scroll @shared
@@ -1529,7 +1530,7 @@ gfx_copyrows:
 ; ------------------------------------------------------------
 ; zxn_sel - HL = a 16K bank (a data block: Option NexData's ntc_nexdata) into
 ; #4000-#7FFF (slots 2, 3), as the CPC's RAM pages go into its window; 0: the
-; program's own pages back (bank 9: pages 18, 19). Nothing done when it is in
+; program's own window back (the Next's bank 1). Nothing done when it is in
 ; already. Called on the real stack (call / ret); keeps BC, DE, HL
 ; ------------------------------------------------------------
 zxn_sel:
@@ -1538,7 +1539,7 @@ zxn_sel:
 			ld a, l
 			or a
 			jr nz, zs_bank
-			ld a, 9
+			ld a, 1
 zs_bank:
 			ld e, a
 			ld a, (zxn_selb)
@@ -1565,7 +1566,7 @@ zs_done:
 			pop de
 			pop bc
 			ret
-zxn_selb:		db 9			; the bank in the window
+zxn_selb:		db 1			; the bank in the window
 
 ;## ntc_plat_rmr ntc_plat_data
 ; ntc_plat_rmr - zxn has no CPC gate-array ROM/mode byte; CallBank needs no ROM

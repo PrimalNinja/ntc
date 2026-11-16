@@ -14,7 +14,8 @@ ntc_s80_start:
 			di
 			jp ntc_start
 
-NTC_TERM	equ 0		; Option Terminal: 0 none, 1 VT52, 2 ANSI (CP/M)
+NTC_TERM	equ 0		; Option Terminal: 0 none, 1 VT52, 2 ANSI, 3 ADM-3A, 4 Televideo (CP/M)
+NTC_TERM_RT	equ 0		; 1: the program calls StdIO.SetTerminal (the terminal is chosen while it runs)
 NTC_STRMAX	equ 40		; the longest string (library buffers, temps)
 NTC_MEMBANKS	equ 64		; Option Memory: the most 64K banks the Memory class looks for
 NTC_ROMENABLE	equ 0		; Option RomEnable (cpcfw, cpcmin): the start code starts the ROMs
@@ -644,7 +645,8 @@ p_add:
 p_twice:
 
 			; main.bas 179: Twice = Add(v, v)
-			dw p_add_c, var_twice_v, var_twice_v
+ntc_rf1:
+			dw p_add_c, 0, 0
 			dw kw_vtov, var_add_add, var_twice_twice
 			dw p_twice_r
 
@@ -655,7 +657,8 @@ p_twice:
 p_bump:
 
 			; main.bas 183: v = v + 1
-			dw kw_inc, var_bump_v
+ntc_rf2:
+			dw kw_inc, 0
 			dw p_bump_r
 
 ; ============================================================
@@ -970,10 +973,8 @@ p_add_r:		; end of add
 			jp ntc_xn
 p_twice_c:		; call twice (normal)
 			pop hl			; v
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			ld (var_twice_v), de
+			ld (ntc_rf1 + 2), hl		; (by reference: var_twice_v)
+			ld (ntc_rf1 + 4), hl		; (by reference: var_twice_v)
 			ld hl, 0
 			ld (var_twice_twice), hl
 			ld (p_twice_rs), sp
@@ -984,20 +985,11 @@ p_twice_r:		; end of twice
 			jp ntc_xn
 p_bump_c:		; call bump (normal)
 			pop hl			; v
-			ld (p_bump_a0), hl
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			ld (var_bump_v), de
+			ld (ntc_rf2 + 2), hl		; (by reference: var_bump_v)
 			ld (p_bump_rs), sp
 			ld sp, p_bump
 			jp ntc_xn
 p_bump_r:		; end of bump
-			ld hl, (p_bump_a0)
-			ld de, (var_bump_v)
-			ld (hl), e
-			inc hl
-			ld (hl), d
 			ld sp, (p_bump_rs)
 			jp ntc_xn
 p_nobump_c:		; call nobump (normal)
@@ -1178,10 +1170,7 @@ p_add_rs:			dw 0
 var_add_x:			dw 0, 0		; parameters, one block
 var_add_y		equ var_add_x + 2
 p_twice_rs:			dw 0
-var_twice_v:			dw 0
 p_bump_rs:			dw 0
-var_bump_v:			dw 0
-p_bump_a0:			dw 0
 p_nobump_rs:			dw 0
 var_nobump_v:			dw 0
 p_fact_rs:			dw 0

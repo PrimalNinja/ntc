@@ -85,7 +85,7 @@ var nt = 0;
 {
 	if (lang !== 'en' && !fs.existsSync(path.join(__dirname, 'lang', lang + '.js'))) { return; }
 	var TX = makeTX(lang);
-	fs.writeFileSync(path.join(out, 'js', 'text-' + lang + '.js'), '// text-' + lang + '.js - INTRODUCTION TO ZOSCII, the text of this edition as font codes (made by tools/mkjs.js: do not edit)\n// (c) 2026 Cyborg Unicorn Pty Ltd\nZD.TX = ' + JSON.stringify(TX) + ';\n');
+	fs.writeFileSync(path.join(out, 'js', 'text-' + lang + '.js'), '// text-' + lang + '.js - INTRODUCTION TO ZOSCII, the text of this edition as font codes (made by tools/mkjs.js: do not edit)\n// (c) 2026 Cyborg Unicorn Pty Ltd\nZD.TX = ' + JSON.stringify(TX).replace(/[\u007f-\uffff]/g, function(c) { return '\\u' + ('0000' + c.charCodeAt(0).toString(16)).slice(-4); }) + ';\n');
 	nt++;
 });
 console.log('data-zoscii.js: ' + (o.join('\n').length >> 10) + ' KB, ' + words.length + ' words, ' + nt + ' editions');

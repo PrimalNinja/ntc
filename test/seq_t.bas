@@ -1,5 +1,5 @@
 ' sequential files on the CPC (cpcfw, cpcmin): one open file, CAS IN / OUT CHAR
-Option RomEnable 7
+Option ROM Enable 7
 Dim h As Integer, h2 As Integer, r As Integer, i As Integer, n As Integer, s As String
 Dim buf(9) As Integer, back(9) As Integer
 h = FileSystem.Open("DATA.TXT", FileSystem.ForWrite)

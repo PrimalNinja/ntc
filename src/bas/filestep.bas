@@ -1,12 +1,12 @@
 ' File test in steps: each step says what it is about to do, then waits for a key, so a
-' crash shows where it happened. With Option RomEnable 7 (cpcfw): AMSDOS is started again after RUN".
+' crash shows where it happened. With Option ROM Enable 7 (cpcfw): AMSDOS is started again after RUN".
 Option PressAnyKeyOnEnd "Press a key to end"     ' at the end: a message and a key (a RUN" program resets when it ends)
 Option Explicit
 #If NTC_CPCFW Then
-Option RomEnable 7
+Option ROM Enable 7
 #End If
 #If NTC_CPCMIN Then
-Option RomEnable 7
+Option ROM Enable 7
 #End If
 Dim a(9) As Integer, b(9) As Integer
 Dim i As Integer, r As Integer

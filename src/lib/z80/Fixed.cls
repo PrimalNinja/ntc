@@ -21,6 +21,7 @@
 Option Explicit
 
 Dim m_intPlaces As Integer, m_lngScale As Long, m_intBad As Integer, m_intSet As Integer
+Dim m_intSg As Integer, m_intLo As Integer      ' <--- NEW (Mul16 / Div16's Z80: the answer's sign, the product's low word)
 
 ' ---- the places
 
@@ -55,33 +56,395 @@ End Function
 
 ' ---- 16 bit (Integer)
 
+' <--- CHANGED (20261114): Add16, Sub16, Mul16 and Div16 are Z80 now (asm keyword functions: called straight from the
+' thread, no call stub). The answers, the clamping and Ok() are as the BASIC they replace gave (kept below each as a
+' comment); Mul16 / Div16 took about 38000 T-states in BASIC (Long multiply, Long divide, Clamp16), about 3000 now.
+' Mul16 and Div16 each carry their own copy of the multiply / divide (a program that uses one doesn't link the other).
+
+' Add16 = Clamp16(CLng(intA_a) + CLng(intB_a))
 Public Function Add16(ByVal intA_a As Integer, ByVal intB_a As Integer) As Integer
-  Add16 = Clamp16(CLng(intA_a) + CLng(intB_a))
+#asm
+            pop hl                  ; a
+            ld e, (hl)
+            inc hl
+            ld d, (hl)
+            pop hl                  ; b
+            ld a, (hl)
+            inc hl
+            ld h, (hl)
+            ld l, a
+            or a
+            adc hl, de
+            jp pe, fa_ov            ; past 16 bits: the sign is the wrong way round
+            ld a, h
+            cp #80
+            jr nz, fa_ok
+            ld a, l
+            or a
+            jr nz, fa_ok
+            ld hl, -32767           ; -32768: clamped
+            jr fa_bad
+fa_ov:      bit 7, h
+            ld hl, 32767
+            jr nz, fa_bad
+            ld hl, -32767
+fa_bad:     ld a, 1
+            ld ({m_intBad}), a
+fa_ok:      ex de, hl
+            pop hl                  ; the answer's address
+            ld (hl), e
+            inc hl
+            ld (hl), d
+#endasm
 End Function
 
+' Sub16 = Clamp16(CLng(intA_a) - CLng(intB_a))
 Public Function Sub16(ByVal intA_a As Integer, ByVal intB_a As Integer) As Integer
-  Sub16 = Clamp16(CLng(intA_a) - CLng(intB_a))
+#asm
+            pop hl                  ; a
+            ld e, (hl)
+            inc hl
+            ld d, (hl)
+            pop hl                  ; b
+            ld a, (hl)
+            inc hl
+            ld h, (hl)
+            ld l, a
+            ex de, hl
+            or a
+            sbc hl, de
+            jp pe, fs_ov
+            ld a, h
+            cp #80
+            jr nz, fs_ok
+            ld a, l
+            or a
+            jr nz, fs_ok
+            ld hl, -32767
+            jr fs_bad
+fs_ov:      bit 7, h
+            ld hl, 32767
+            jr nz, fs_bad
+            ld hl, -32767
+fs_bad:     ld a, 1
+            ld ({m_intBad}), a
+fs_ok:      ex de, hl
+            pop hl
+            ld (hl), e
+            inc hl
+            ld (hl), d
+#endasm
 End Function
 
+' If Fits16() Then lngR = Rescale(CLng(intA_a) * CLng(intB_a), m_lngScale) : Mul16 = Clamp16(lngR)
 Public Function Mul16(ByVal intA_a As Integer, ByVal intB_a As Integer) As Integer
-  Dim lngR As Long
-  lngR = 0
-  If Fits16() Then lngR = Rescale(CLng(intA_a) * CLng(intB_a), m_lngScale)
-  Mul16 = Clamp16(lngR)
+#asm
+            pop hl                  ; a
+            ld e, (hl)
+            inc hl
+            ld d, (hl)
+            pop hl                  ; b
+            ld c, (hl)
+            inc hl
+            ld b, (hl)
+            pop hl                  ; the answer's address
+            ld (ntc_ip), sp         ; (the thread kept; calls on the real stack)
+            ld sp, (ntc_csp)
+            push hl
+            push de
+            push bc
+            call fm_nd
+            pop de                  ; b
+            pop hl                  ; a
+            ld bc, 0
+            jr nc, fm_st            ; 5 places or more: 0
+            ld bc, ({m_lngScale})
+            call fm_mdr
+            ld b, h
+            ld c, l
+fm_st:      pop hl
+            ld (hl), c
+            inc hl
+            ld (hl), b
+            ld sp, (ntc_ip)
+            ret
+; ---- HL = a, DE = b, BC = c (signed): HL = a * b / c rounded (halves away from 0), clamped to
+; -32767 .. 32767 (m_intBad set). c isn't 0. 16 x 16 -> 32 unsigned, + |c| / 2, 32 / 16.
+fm_mdr:  ld a, h
+            xor d
+            xor b
+            ld ({m_intSg}), a           ; bit 7: the answer's sign
+            bit 7, h
+            jr z, fm_a1
+            xor a
+            sub l
+            ld l, a
+            sbc a, a
+            sub h
+            ld h, a
+fm_a1:   bit 7, d
+            jr z, fm_a2
+            xor a
+            sub e
+            ld e, a
+            sbc a, a
+            sub d
+            ld d, a
+fm_a2:   bit 7, b
+            jr z, fm_a3
+            xor a
+            sub c
+            ld c, a
+            sbc a, a
+            sub b
+            ld b, a
+fm_a3:   push bc                 ; |c|
+            ld b, h                 ; DE:HL = |a| * |b| (DE the multiplier, its top bit each turn)
+            ld c, l
+            ld hl, 0
+            ld a, 16
+fm_ml:   add hl, hl
+            rl e
+            rl d
+            jr nc, fm_mn
+            add hl, bc
+            jr nc, fm_mn
+            inc de
+fm_mn:   dec a
+            jr nz, fm_ml
+            pop bc
+            push bc
+            srl b                   ; + |c| / 2
+            rr c
+            add hl, bc
+            jr nc, fm_r1
+            inc de
+fm_r1:   pop bc
+            ld ({m_intLo}), hl          ; DE:HL / BC, a word at a time: the top word first (skipped when 0)
+            ld hl, 0
+            ld a, d
+            or e
+            call nz, fm_dv
+            push de                 ; the quotient's top word
+            ld de, ({m_intLo})
+            call fm_dv
+            pop hl
+            ld a, h
+            or l
+            jr nz, fm_cl            ; over 16 bits
+            ex de, hl
+            bit 7, h
+            jr nz, fm_cl            ; over 32767
+            jr fm_sn
+fm_cl:   ld hl, 32767
+            ld a, 1
+            ld ({m_intBad}), a
+fm_sn:   ld a, ({m_intSg})
+            rla
+            ret nc
+            xor a                   ; negative
+            sub l
+            ld l, a
+            sbc a, a
+            sub h
+            ld h, a
+            ret
+; HL (the remainder so far, under BC) and the 16 bits in DE, by BC: DE = the quotient's 16 bits,
+; HL = the remainder (BC is 32768 at most, so the remainder shifted fits 16 bits)
+fm_dv:   ld a, 16
+fm_dl:   sla e
+            rl d
+            adc hl, hl
+            sbc hl, bc
+            jr nc, fm_d1
+            add hl, bc
+            dec a
+            jr nz, fm_dl
+            ret
+fm_d1:   inc e
+            dec a
+            jr nz, fm_dl
+            ret
+; the places set (2 when never set)? 16 bit offered with them (0-4)? Carry: yes
+fm_nd:   ld a, ({m_intSet})
+            or a
+            jr nz, fm_n1
+            ld hl, 2
+            ld ({m_intPlaces}), hl
+            ld hl, 100
+            ld ({m_lngScale}), hl
+            ld hl, 0
+            ld ({m_lngScale}+2), hl
+            ld hl, 1
+            ld ({m_intSet}), hl
+fm_n1:   ld a, ({m_intPlaces})
+            cp 5
+            ret c
+            ld a, 1
+            ld ({m_intBad}), a
+            or a
+            ret
+#endasm
 End Function
 
+' If Fits16(): intB_a = 0: m_intBad = 1, -32767 (intA_a < 0) or 32767; else Rescale(CLng(intA_a) * m_lngScale, CLng(intB_a)) : Div16 = Clamp16(lngR)
 Public Function Div16(ByVal intA_a As Integer, ByVal intB_a As Integer) As Integer
-  Dim lngR As Long
-  lngR = 0
-  If Fits16() Then
-    If intB_a = 0 Then
-      m_intBad = 1
-      If intA_a < 0 Then lngR = -32767 Else lngR = 32767
-    Else
-      lngR = Rescale(CLng(intA_a) * m_lngScale, CLng(intB_a))
-    End If
-  End If
-  Div16 = Clamp16(lngR)
+#asm
+            pop hl                  ; a
+            ld e, (hl)
+            inc hl
+            ld d, (hl)
+            pop hl                  ; b
+            ld c, (hl)
+            inc hl
+            ld b, (hl)
+            pop hl                  ; the answer's address
+            ld (ntc_ip), sp
+            ld sp, (ntc_csp)
+            push hl
+            push de
+            push bc
+            call fd_nd
+            pop bc                  ; b
+            pop hl                  ; a
+            ld de, 0
+            jr nc, fd_st            ; 5 places or more: 0
+            ld a, b
+            or c
+            jr nz, fd_go
+            ld a, 1                 ; by 0: the biggest value, a's sign
+            ld ({m_intBad}), a
+            ld de, 32767
+            bit 7, h
+            jr z, fd_st
+            ld de, -32767
+            jr fd_st
+fd_go:      ld de, ({m_lngScale})
+            call fd_mdr
+            ex de, hl
+fd_st:      pop hl
+            ld (hl), e
+            inc hl
+            ld (hl), d
+            ld sp, (ntc_ip)
+            ret
+; ---- HL = a, DE = b, BC = c (signed): HL = a * b / c rounded (halves away from 0), clamped to
+; -32767 .. 32767 (m_intBad set). c isn't 0. 16 x 16 -> 32 unsigned, + |c| / 2, 32 / 16.
+fd_mdr:  ld a, h
+            xor d
+            xor b
+            ld ({m_intSg}), a           ; bit 7: the answer's sign
+            bit 7, h
+            jr z, fd_a1
+            xor a
+            sub l
+            ld l, a
+            sbc a, a
+            sub h
+            ld h, a
+fd_a1:   bit 7, d
+            jr z, fd_a2
+            xor a
+            sub e
+            ld e, a
+            sbc a, a
+            sub d
+            ld d, a
+fd_a2:   bit 7, b
+            jr z, fd_a3
+            xor a
+            sub c
+            ld c, a
+            sbc a, a
+            sub b
+            ld b, a
+fd_a3:   push bc                 ; |c|
+            ld b, h                 ; DE:HL = |a| * |b| (DE the multiplier, its top bit each turn)
+            ld c, l
+            ld hl, 0
+            ld a, 16
+fd_ml:   add hl, hl
+            rl e
+            rl d
+            jr nc, fd_mn
+            add hl, bc
+            jr nc, fd_mn
+            inc de
+fd_mn:   dec a
+            jr nz, fd_ml
+            pop bc
+            push bc
+            srl b                   ; + |c| / 2
+            rr c
+            add hl, bc
+            jr nc, fd_r1
+            inc de
+fd_r1:   pop bc
+            ld ({m_intLo}), hl          ; DE:HL / BC, a word at a time: the top word first (skipped when 0)
+            ld hl, 0
+            ld a, d
+            or e
+            call nz, fd_dv
+            push de                 ; the quotient's top word
+            ld de, ({m_intLo})
+            call fd_dv
+            pop hl
+            ld a, h
+            or l
+            jr nz, fd_cl            ; over 16 bits
+            ex de, hl
+            bit 7, h
+            jr nz, fd_cl            ; over 32767
+            jr fd_sn
+fd_cl:   ld hl, 32767
+            ld a, 1
+            ld ({m_intBad}), a
+fd_sn:   ld a, ({m_intSg})
+            rla
+            ret nc
+            xor a                   ; negative
+            sub l
+            ld l, a
+            sbc a, a
+            sub h
+            ld h, a
+            ret
+; HL (the remainder so far, under BC) and the 16 bits in DE, by BC: DE = the quotient's 16 bits,
+; HL = the remainder (BC is 32768 at most, so the remainder shifted fits 16 bits)
+fd_dv:   ld a, 16
+fd_dl:   sla e
+            rl d
+            adc hl, hl
+            sbc hl, bc
+            jr nc, fd_d1
+            add hl, bc
+            dec a
+            jr nz, fd_dl
+            ret
+fd_d1:   inc e
+            dec a
+            jr nz, fd_dl
+            ret
+; the places set (2 when never set)? 16 bit offered with them (0-4)? Carry: yes
+fd_nd:   ld a, ({m_intSet})
+            or a
+            jr nz, fd_n1
+            ld hl, 2
+            ld ({m_intPlaces}), hl
+            ld hl, 100
+            ld ({m_lngScale}), hl
+            ld hl, 0
+            ld ({m_lngScale}+2), hl
+            ld hl, 1
+            ld ({m_intSet}), hl
+fd_n1:   ld a, ({m_intPlaces})
+            cp 5
+            ret c
+            ld a, 1
+            ld ({m_intBad}), a
+            or a
+            ret
+#endasm
 End Function
 
 ' a whole number as a 16 bit fixed value (5 -> 500 with 2 places)

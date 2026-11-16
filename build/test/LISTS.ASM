@@ -5,7 +5,8 @@
 
 			org #4000
 
-NTC_TERM	equ 0		; Option Terminal: 0 none, 1 VT52, 2 ANSI (CP/M)
+NTC_TERM	equ 0		; Option Terminal: 0 none, 1 VT52, 2 ANSI, 3 ADM-3A, 4 Televideo (CP/M)
+NTC_TERM_RT	equ 0		; 1: the program calls StdIO.SetTerminal (the terminal is chosen while it runs)
 NTC_STRMAX	equ 40		; the longest string (library buffers, temps)
 NTC_MEMBANKS	equ 64		; Option Memory: the most 64K banks the Memory class looks for
 NTC_ROMENABLE	equ 0		; Option RomEnable (cpcfw, cpcmin): the start code starts the ROMs
@@ -1027,8 +1028,8 @@ ntc_buf:		ds NTC_BUFSIZE
 ; and unwinds to mem_go.
 ; Far pointer = a Long: address, page (page 0 = plain memory).
 ; Heap: blocks from mem_hlo to mem_hhi (a D page, or Small's main RAM),
-; each with a 2 byte header: length including the header (bits 0-14),
-; bit 15 = in use. Free blocks are at most #4000 (joins stop there).
+; each with a 2 byte header: length including the header (always even: any
+; size up to the region's), bit 0 = in use. Free neighbours are joined.
 ; The scheme supplies: mem_start (the first call), mem_sel (HL = page
 ; into the window), mem_chk (HL = a page number, else BadPage).
 ; ------------------------------------------------------------
@@ -1202,18 +1203,6 @@ mem_atend:
 			ld a, (mem_hhi + 1)
 			cp h
 			ret
-; mem_cap - HL = two joined blocks' length: NC = too long (over #4000), C = fine
-mem_cap:
-			ld a, h
-			cp #40
-			ret c
-			scf
-			ccf
-			ret nz
-			ld a, l
-			cp 1					; #4000 exactly: C
-			ret
-
 ; mem_fit - in the heap region (mem_hlo .. mem_hhi: a D page, or Small's main RAM): the first free block of mem_need
 ; bytes or more (free neighbours joined on the way), split when 4 or more
 ; bytes are left over, marked in use. Z: HL = its data. NZ: none.
@@ -1226,9 +1215,9 @@ mem_f_lp:
 			inc hl
 			ld d, (hl)
 			dec hl
-			bit 7, d
+			bit 0, e
 			jr z, mem_f_free
-			res 7, d
+			res 0, e
 mem_f_next:
 			add hl, de
 			jr mem_f_lp
@@ -1240,13 +1229,11 @@ mem_f_free:
 			ld c, (hl)
 			inc hl
 			ld b, (hl)
-			bit 7, b
+			bit 0, c
 			jr nz, mem_f_last
-			ld h, d					; free too: join them, up to #4000
+			ld h, d					; free too: join them
 			ld l, e
 			add hl, bc
-			call mem_cap
-			jr nc, mem_f_last
 			ex de, hl
 			pop hl
 			ld (hl), e
@@ -1283,11 +1270,11 @@ mem_f_cut:
 			ld (hl), d
 			pop hl
 mem_f_take:
-			ld (hl), c
-			inc hl
-			ld a, b
-			or #80
+			ld a, c
+			or 1					; in use
 			ld (hl), a
+			inc hl
+			ld (hl), b
 			inc hl
 			xor a
 			ret
@@ -1311,9 +1298,9 @@ mem_b_lp:
 			inc hl
 			ld d, (hl)
 			dec hl
-			bit 7, d
+			bit 0, e
 			jr z, mem_b_free
-			res 7, d
+			res 0, e
 mem_b_next:
 			add hl, de
 			jr mem_b_lp
@@ -1325,13 +1312,11 @@ mem_b_free:
 			ld c, (hl)
 			inc hl
 			ld b, (hl)
-			bit 7, b
+			bit 0, c
 			jr nz, mem_b_end
 			ld h, d
 			ld l, e
 			add hl, bc
-			call mem_cap
-			jr nc, mem_b_end
 			ex de, hl
 			pop hl
 			ld (hl), e
@@ -1394,11 +1379,15 @@ mem_putback:
 
 ;## ntc_mem ntc_memcore ntc_plat_memtop @shared @far
 ; ------------------------------------------------------------
-; ntc_mem (Small) - no paging: Alloc / Free over the free main RAM, from the
-; program's end up to the first of: the platform's top (ntc_plat_memtop),
-; 256 bytes under the real stack (when that is above the program), an
-; Option Reserve range (ntc_rsvtab). Far pointers are plain addresses
-; (page 0). Pages() = 0; the page methods give 0 or BadPage.
+; ntc_mem (Option Memory Heap Main) - no paging: Alloc / Free over main RAM.
+; The heap is the memory the program declared: the first Option Memory
+; Available range that ends above the program (ntc_avtab), from the program's
+; end (or the range's start) to the range's end. With none declared: from the
+; program's end to the platform's top (ntc_plat_memtop). Either way it stops
+; 256 bytes under the real stack (when that is above the program) and at the
+; first Option Memory Reserved / Paged range above it (ntc_rsvtab). A block is
+; any size that fits. Far pointers are plain addresses (page 0). Pages() = 0;
+; the page methods give 0 or BadPage.
 ; ------------------------------------------------------------
 mem_start:
 			ld a, (mem_init)
@@ -1406,8 +1395,54 @@ mem_start:
 			ret nz
 			inc a
 			ld (mem_init), a
-			call ntc_plat_memtop	; HL = the platform's top
+			ld hl, ntc_free
+			ld (mem_hlo), hl
+			ld hl, (ntc_avtab)		; Option Memory Available given? (start, end pairs, 0 ends)
+			ld a, h
+			or l
+			jr z, mem_ss_plat
+			ld hl, ntc_avtab		; the first Available range that ends above the program
+mem_ss_av:
+			ld e, (hl)
+			inc hl
+			ld d, (hl)
+			inc hl
+			ld a, d
+			or e
+			jp z, mem_ss_none		; none: no heap
+			ld c, (hl)
+			inc hl
+			ld b, (hl)
+			inc hl					; BC = its end (0: #10000)
+			ld a, b
+			or c
+			jr z, mem_ss_avin
+			push hl
+			ld hl, (mem_hlo)
+			or a
+			sbc hl, bc
+			pop hl
+			jr nc, mem_ss_av		; it ends at or below the program's end: the next
+mem_ss_avin:
+			ld hl, (mem_hlo)
+			or a
+			sbc hl, de
+			jr nc, mem_ss_avlo
+			ld (mem_hlo), de		; the heap starts where the range does
+mem_ss_avlo:
+			ld h, b
+			ld l, c
+			ld a, h
+			or l
+			jr nz, mem_ss_avhi
+			ld hl, #FFFE
+mem_ss_avhi:
+			ld (mem_hhi), hl		; and ends where it does: the memory as declared, no other top
+			jr mem_ss_stack
+mem_ss_plat:
+			call ntc_plat_memtop	; (nothing declared) HL = the platform's top
 			ld (mem_hhi), hl
+mem_ss_stack:
 			ld hl, (ntc_csp)		; the real stack, when it is above the program
 			ld de, ntc_free + 256
 			or a
@@ -1431,7 +1466,7 @@ mem_ss_rl:
 			ld h, d
 			ld l, e
 			push hl
-			ld de, ntc_free
+			ld de, (mem_hlo)
 			or a
 			sbc hl, de
 			pop hl
@@ -1439,9 +1474,7 @@ mem_ss_rl:
 			pop hl
 			jr mem_ss_rl
 mem_ss_go:
-			ld hl, ntc_free
-			ld (mem_hlo), hl
-			ex de, hl
+			ld de, (mem_hlo)
 			ld hl, (mem_hhi)		; room for at least one small block, an even size
 			or a
 			sbc hl, de
@@ -1454,30 +1487,18 @@ mem_ss_go:
 			res 0, l
 			add hl, de
 			ld (mem_hhi), hl
-mem_ss_init:						; DE = a block: free blocks of up to #4000
+mem_ss_init:						; DE = the heap's start: one free block, all of it
 			ld hl, (mem_hhi)
 			or a
 			sbc hl, de
 			ret z
-			ld bc, #4000
-			push hl
-			or a
-			sbc hl, bc
-			pop hl
-			jr c, mem_ss_len
-			ld h, b
-			ld l, c
-mem_ss_len:
 			ex de, hl
 			ld (hl), e
 			inc hl
 			ld (hl), d
-			dec hl
-			add hl, de
-			ex de, hl
-			jr mem_ss_init
+			ret
 mem_ss_none:
-			ld hl, ntc_free
+			ld hl, (mem_hlo)
 			ld (mem_hhi), hl
 			ret
 ; HL = a limit: mem_hhi = it when lower
@@ -1533,7 +1554,7 @@ mem_alloc:
 			jr nz, mem_sa_size
 			inc hl
 mem_sa_size:
-			ld de, #3FFF
+			ld de, #FFFB			; any size that can be there (up to #FFFA)
 			or a
 			push hl
 			sbc hl, de
@@ -1541,6 +1562,8 @@ mem_sa_size:
 			jr nc, mem_sa_fail
 			inc hl
 			inc hl
+			inc hl
+			res 0, l				; (with its header, made even)
 			ld (mem_need), hl
 			call mem_fit
 			ret z
@@ -1566,9 +1589,10 @@ mem_free:
 			jp nc, mem_chk_bad
 			add hl, de
 			dec hl
-			bit 7, (hl)
+			dec hl
+			bit 0, (hl)
 			jp z, mem_chk_bad
-			res 7, (hl)
+			res 0, (hl)
 			ld hl, 0
 			ret
 
@@ -1583,6 +1607,9 @@ mem_largest:
 			ret z
 			dec hl
 			dec hl
+			bit 7, h				; an Integer result: 32767 says "that or more"
+			ret z
+			ld hl, #7FFF
 			ret
 
 ;## ntc_list ntc_memcore @shared @far
@@ -2566,6 +2593,8 @@ ntc_plat_memtop:
 
 
 ntc_rsvtab:				; Option Memory Reserved / Paged starts (the Memory class's heap stops at them), 0 ends
+			dw 0
+ntc_avtab:				; Option Memory Available: start, end pairs (lowest first), 0 ends - the heap is the first that ends above the program
 			dw 0
 
 ntc_end:				; the end of the program (and of its file)

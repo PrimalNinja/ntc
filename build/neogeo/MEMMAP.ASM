@@ -16,7 +16,8 @@
 			ds.l 62, 0              ; the rest of the 68000 vectors (IRQ, traps) ;!!NG wire VBlank
 ; ---- the cart header would follow here (ds to $100, the NEO-GEO marker ...) ;!!NG
 
-NTC_TERM	equ 0		; Option Terminal: 0 none, 1 VT52, 2 ANSI (CP/M)
+NTC_TERM	equ 0		; Option Terminal: 0 none, 1 VT52, 2 ANSI, 3 ADM-3A, 4 Televideo (CP/M)
+NTC_TERM_RT	equ 0		; 1: the program calls StdIO.SetTerminal (the terminal is chosen while it runs)
 NTC_STRMAX	equ 40		; the longest string (library buffers, temps)
 NTC_MEMBANKS	equ 64		; Option Memory: the most 64K banks the Memory class looks for
 NTC_ROMENABLE	equ 0		; Option RomEnable (cpcfw, cpcmin): the start code starts the ROMs
@@ -325,7 +326,7 @@ p_summary:
 			dc.l kw_cpeqvl, var_n, 0
 			dc.l kw_goto_iffalse, if11_1
 
-			; main.bas 103: Print "No RAM pages (Option Memory Small)"
+			; main.bas 103: Print "No RAM pages (Option Memory Heap Main)"
 			dc.l kw_printstrvar, str29
 			dc.l kw_printnl
 
@@ -744,7 +745,7 @@ str25:			dc.b "C code D data U user - free", 0
 str26:			dc.b "After Free: largest block 0", 0
 str27:			dc.b "After Free: 0 pages free", 0
 str28:			dc.b "Pages 0", 0
-str29:			dc.b "No RAM pages (Option Memory Small)", 0
+str29:			dc.b "No RAM pages (Option Memory Heap Main)", 0
 str30:			dc.b "0K, ", 0
 str31:			dc.b " pages: main + ", 0
 str32:			dc.b " banks", 0

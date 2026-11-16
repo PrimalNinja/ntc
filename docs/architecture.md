@@ -182,11 +182,11 @@ slot  page
 ```
 
 Graphics draws on Layer 2: two buffers of 5 banks (12-16, 17-21), the page being drawn on
-in slot 6 (`#C000-#DFFF`) meanwhile. `Option NexData` blocks fill banks 1-4, 6, 11, 22-111 (not 7: +3DOS's workspace during file calls)
+in slot 6 (`#C000-#DFFF`) meanwhile. `Option SaveNex` pages (it replaced `Option NexData`) are the Next's banks of the same numbers (page n = the Next's 16K bank n, 20261116-6)
 (`zxn_sel` puts one in `#4000-#7FFF`: slots 2, 3).
 
 The NEX file holds banks 8-10 (pages 16-21: the program as assembled, `MMU 0 5, 16`), bank
-5 (a start stub at `#7E00`) and the `Option NexData` banks. NextZXOS runs the stub with banks 5, 2, 0 in `#4000-#FFFF`; it turns
+5 (a start stub at `#7E00`) and the `Option SaveNex` pages' Next banks. NextZXOS runs the stub with banks 5, 2, 0 in `#4000-#FFFF`; it turns
 the NMI buttons off (NextReg 6 bits 3, 4), DivMMC's automatic paging off (NextReg 10 bit 4) and
 its memory out (port `#E3`), sets 28MHz and IM 1 and the slots - slot 3 last, from its copy in
 slot 7 - and jumps to `ntc_start`. NextRegs through ports `#243B` / `#253B` (no Z80N opcodes).
@@ -237,7 +237,7 @@ What `ntc_start` does, in order (each step only when the program needs it):
 3. **`Option Stack`:** the caller's SP is saved and SP set to the given address.
 4. **`ld (ntc_csp), sp`:** the real stack the program will use for host calls and real stack
    code.
-5. **`Option RomEnable`** (cpcfw, cpcmin): the background ROMs (AMSDOS ...) are started again,
+5. **`Option ROM Enable`** (cpcfw, cpcmin): the background ROMs (AMSDOS ...) are started again,
    because `RUN"` of a binary dropped them.
 6. **Normal mode:** `ntc_nmode` = 1 (key and frame waits let interrupts in).
 7. **Interrupt classes:** each slot of `ntc_isl` gets its rate, its first count and its
@@ -324,7 +324,7 @@ procedure's, so it can't overwrite the code it interrupted.
 
 ### 5.3 Memory: the window, pages and banks
 
-`Option Memory CPCExpansion` (the default on the CPC):
+`Option Memory Heap Pages` (the default on the CPC):
 
 - **Page 1** is main RAM `#4000-#7FFF`; **pages 2 on** are the expansion's 64K banks, 4 pages
   each, probed by the first call (up to 4MB: 257 pages).
@@ -338,7 +338,7 @@ procedure's, so it can't overwrite the code it interrupted.
   after the `out` the next byte comes from the bank's copy. Interrupts and both ROMs are off
   meanwhile; everything is put back after.
 
-`Option Memory Small` (the default on cpm and test): no paging, one heap over free main RAM.
+`Option Memory Heap Main` (the default on cpm and test): no paging, one heap over free main RAM.
 
 ### 5.4 Overlay classes and pages
 
@@ -351,7 +351,7 @@ checked after loading.
 ### 5.5 Files and the ROMDISC
 
 FileSystem's methods run on the real stack. cpcfw and cpcmin reach AMSDOS through the firmware
-(cpcmin hands the machine back to the firmware for each call). Volume R is the ROMDISC: read-only
+(cpcmin hands the machine back to the firmware for each call). The ROM disc is a class of its own, `ROMDiscFS` (20261116-5; before, volume R of FileSystem): read-only
 files in ROMs (`NTCDISC.ROM` ...). It isn't a disc driver: when the volume is R, a method goes
 to the ROMDISC's routines (`rd_*`, section `ntc_romdisc`) instead of AMSDOS's. Those routines
 select the ROMDISC's ROM for a moment and copy from it, so they run from RAM - in a `Library:
@@ -474,7 +474,7 @@ registry's exported variables keep fixed addresses).
 | Keys (`Inkey`) | NTC's matrix scan | as cpc | KM READ CHAR |
 | `Keys` class | the matrix, straight from the hardware | as cpc | as cpc |
 | Interrupts | NTC's handler at `#0038` | as cpc (the firmware's during file calls) | a firmware fast ticker event |
-| Files | the ROMDISC (volume R) | AMSDOS through the firmware, and the ROMDISC | AMSDOS through the firmware, and the ROMDISC |
+| Files | `ROMDiscFS` (the ROM disc); no `FileSystem` | `FileSystem`: AMSDOS through the firmware; `ROMDiscFS` | `FileSystem`: AMSDOS through the firmware; `ROMDiscFS` |
 | Top of free RAM | `#A600` | `#A600` | `#A600` (`#A5F0` with the event) |
 | Keyword ROM | NTCCPC.ROM | NTCMIN.ROM | NTCFW.ROM |
 

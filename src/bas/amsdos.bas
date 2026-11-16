@@ -1,15 +1,15 @@
 ' AMSDOS on the CPC with minimal firmware (platform cpcmin): NTC draws its own text and reads
 ' the keyboard itself; each FileSystem call hands the machine back to the firmware (AMSDOS)
-' for its length, then NTC takes it again. Also runs on cpcfw (all through the firmware). RUN"AMSDOS: Option RomEnable 7 starts
+' for its length, then NTC takes it again. Also runs on cpcfw (all through the firmware). RUN"AMSDOS: Option ROM Enable 7 starts
 ' AMSDOS again (RUN" drops it). Checks: Load / Save, an AMSDOS message on NTC's screen, the
 ' mode kept across a file call, NTC's ticks still counting, drive B (if you choose).
 Option PressAnyKeyOnEnd "Press a key"     ' at the end: a message and a key (a RUN" program resets when it ends)
 Option Explicit
 #If NTC_CPCMIN Then
-Option RomEnable 7
+Option ROM Enable 7
 #End If
 #If NTC_CPCFW Then
-Option RomEnable 7
+Option ROM Enable 7
 #End If
 Dim a(9) As Integer, b(9) As Integer
 Dim i As Integer, r As Integer, k As Integer, t As Integer

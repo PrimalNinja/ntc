@@ -295,6 +295,7 @@ plain Z80 with a text screen):
 - `test/float/chk.py [seed]`: random add, subtract, multiply and divide, compared with IEEE single
   computed in Python. Run it from anywhere with the NTC test folder at
   `/home/claude/ntc/test`; change the path at the top for yours.
+- `test/float/fixchk.py`: Fixed's 16-bit `Add16` / `Sub16` / `Mul16` / `Div16` (Z80) and `Float.MulDiv` against exact integer arithmetic, each answer and its `Ok()` / `Overflow()` (in `regress.sh`).
 - `test/float/t3.bas` (Float: conversions, text, half, MulDiv, overflow), `test/float/t5.bas` (Fixed),
   `test/float/t7.bas` (Float arrays and matrix product) and `test/float/t8.bas` (Fixed arrays: integers,
   16 and 32 bit), `test/float/t9.bas` (binary scales), with their expected output in `test/float/*.txt`.

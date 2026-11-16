@@ -8,7 +8,7 @@
 ' check are BASIC loops around List calls; the calls (about 600 microseconds each) and the
 ' multiply in the random numbers take most of the time, so turbo saves only about 5%.
 ' Needs room for the nodes: 5000 take 60K, so a 6128 (pages) - on 64K or CP/M
-' (Option Memory Small) it says how many fit and uses those.
+' (Option Memory Heap Main) it says how many fit and uses those.
 ' Turbo runs with interrupts off, so Ticks stands still: time turbo with a stopwatch.
 Option PressAnyKeyOnEnd "Press a key"     ' at the end: a message and a key (a RUN" program resets when it ends)
 Option Explicit

@@ -1,0 +1,37 @@
+# DUNGEON - names for the cells of tiles.png (8 x 8) and sprites.png (16 x 16)
+# (the view is drawn on Layer 2 by the game)
+# tile   NAME   index [count]
+# sprite NAME   column row [frames [w h]]
+# sprite palettes (spr_pal.png rows): 0 the heroes and things, 1-9 the monsters' colour schemes
+# (green, red, bone, brown, grey, purple, ghostly, gold, teal), 10 a hit flash
+tile   PANEL    1
+tile   FTL      2
+tile   FT       3
+tile   FTR      4
+tile   FL       5
+tile   FR       6
+tile   FBL      7
+tile   FB       8
+tile   FBR      9
+tile   BLACK    10
+tile   KEY      11
+tile   GOLD     12
+tile   POTION   13
+tile   BARH     112 9      # a red (HP) bar cell: 0-8 filled
+tile   BARM     121 9      # a blue (MP) one
+tile   MWALL    96        # the map: a wall
+tile   MFLOOR   97        # a floor
+tile   MYOU     98 4      # you, facing north, east, south, west
+tile   MSTAIRS  102
+tile   MDOOR    103
+tile   MMON     104       # monsters
+tile   MCHEST   105
+tile   MDARK    106       # not seen yet
+
+sprite MON      0 0 8 2 2 # the monsters (32 x 32): rat, bat, goblin, skeleton, spider, ogre, ghost, slime
+sprite MON2     0 2 4 2 2 # demon, mummy, lich, dragon (shape n is MON + n * 4)
+sprite HERO     8 2 4 2 2 # the heroes: Bran, Kira, Oswin, Maeve
+sprite THING    0 4 4     # a chest, a potion, a key, gold
+sprite FX       4 4 4     # a slash, fire, a healing sparkle, lightning
+sprite STAIRS   8 4       # stairs down
+sprite POINT    9 4       # the pointer

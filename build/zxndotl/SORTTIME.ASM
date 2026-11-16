@@ -414,11 +414,14 @@ dotl_free:
 			db #94
 			ret
 
+; (only when the program's own code names dot_fs_...: NTC_DOT_FS, set by the compiler - 20261116-4)
+	IFDEF NTC_DOT_FS
 ; ---- esxDOS file calls for a FileSystem class (the Large Model): dot_fs_call runs on BASIC's
 ; side (HL = dot_fs_call : call dot_os) - NextZXOS pages its own RAM over #C000-#FFFF and reads
 ; BASIC's system variables during a call, so the call's stack, the name and the data must not be
 ; in the program's pages: the name goes in dot_fs_name, a stat buffer is dot_fs_stat, file data
-; goes through dot_fs_data (256 bytes a call), all in this 8K, which is in both maps.
+; goes through dot_fs_data (256 bytes a call), all in this 8K, which is in both maps - in the
+; buffer Option Buffer address, size puts there (20261116-5: they were 336 bytes of their own).
 ; In: dot_fs_hook (F_OPEN ...), dot_fs_a, dot_fs_bc, dot_fs_de, dot_fs_hl (HL and IX: NextZXOS
 ; reads a name's pointer from HL, esxDOS from IX). Out: dot_fs_a, dot_fs_bc, dot_fs_de,
 ; dot_fs_cy (1 = carry: an error, A its code)
@@ -446,17 +449,23 @@ dot_fs_cy:		db 0
 dot_fs_bc:		dw 0
 dot_fs_de:		dw 0
 dot_fs_hl:		dw 0
-dot_fs_name:	ds 64
-dot_fs_stat:	ds 16
-dot_fs_data:	ds 256
+; the name, the stat buffer and the data go in the library's buffer, which the program places
+; in this 8K with Option Buffer address, size (336 bytes or more, after the DOT's own code)
+dot_fs_name		equ ntc_dotfs_buf		; 64 bytes
+dot_fs_stat		equ ntc_dotfs_buf + 64	; 16 bytes
+dot_fs_data		equ ntc_dotfs_buf + 80	; 256 bytes
+			ASSERT (NTC_BUFSIZE >= 336) && (ntc_dotfs_buf >= ntc_dot8k_end) && (ntc_dotfs_buf + 336 <= #4000), "dot_fs_call: its buffers are the Option Buffer buffer, which must be in the DOT's 8K, after its code - Option Buffer address, 336 (or more) with the address between the end of the 8K's code (ntc_dot8k_end: see the listing) and &H4000 - 336"
+	ENDIF
 	ENDIF
 
 			ASSERT $ <= #4000, "the dot command's entry code and data must fit in #2000-#3FFF"
+ntc_dot8k_end:			; the 8K's code and data end here: the rest of it (to #3FFF) is free - Option Buffer may be there
 			ds #4000 - $			; the first 8K of the file, padded
 			OPT -Wno-fileorg		; (the file goes on where the 8K ends: the org below is where the program runs, not a gap)
 			org #8000			; the program: read into its own pages by the entry
 
-NTC_TERM	equ 0		; Option Terminal: 0 none, 1 VT52, 2 ANSI (CP/M)
+NTC_TERM	equ 0		; Option Terminal: 0 none, 1 VT52, 2 ANSI, 3 ADM-3A, 4 Televideo (CP/M)
+NTC_TERM_RT	equ 0		; 1: the program calls StdIO.SetTerminal (the terminal is chosen while it runs)
 NTC_STRMAX	equ 40		; the longest string (library buffers, temps)
 NTC_MEMBANKS	equ 64		; Option Memory: the most 64K banks the Memory class looks for
 NTC_ROMENABLE	equ 0		; Option RomEnable (cpcfw, cpcmin): the start code starts the ROMs
@@ -2393,8 +2402,8 @@ ntc_buf:		ds NTC_BUFSIZE
 ; and unwinds to mem_go.
 ; Far pointer = a Long: address, page (page 0 = plain memory).
 ; Heap: blocks from mem_hlo to mem_hhi (a D page, or Small's main RAM),
-; each with a 2 byte header: length including the header (bits 0-14),
-; bit 15 = in use. Free blocks are at most #4000 (joins stop there).
+; each with a 2 byte header: length including the header (always even: any
+; size up to the region's), bit 0 = in use. Free neighbours are joined.
 ; The scheme supplies: mem_start (the first call), mem_sel (HL = page
 ; into the window), mem_chk (HL = a page number, else BadPage).
 ; ------------------------------------------------------------
@@ -2568,18 +2577,6 @@ mem_atend:
 			ld a, (mem_hhi + 1)
 			cp h
 			ret
-; mem_cap - HL = two joined blocks' length: NC = too long (over #4000), C = fine
-mem_cap:
-			ld a, h
-			cp #40
-			ret c
-			scf
-			ccf
-			ret nz
-			ld a, l
-			cp 1					; #4000 exactly: C
-			ret
-
 ; mem_fit - in the heap region (mem_hlo .. mem_hhi: a D page, or Small's main RAM): the first free block of mem_need
 ; bytes or more (free neighbours joined on the way), split when 4 or more
 ; bytes are left over, marked in use. Z: HL = its data. NZ: none.
@@ -2592,9 +2589,9 @@ mem_f_lp:
 			inc hl
 			ld d, (hl)
 			dec hl
-			bit 7, d
+			bit 0, e
 			jr z, mem_f_free
-			res 7, d
+			res 0, e
 mem_f_next:
 			add hl, de
 			jr mem_f_lp
@@ -2606,13 +2603,11 @@ mem_f_free:
 			ld c, (hl)
 			inc hl
 			ld b, (hl)
-			bit 7, b
+			bit 0, c
 			jr nz, mem_f_last
-			ld h, d					; free too: join them, up to #4000
+			ld h, d					; free too: join them
 			ld l, e
 			add hl, bc
-			call mem_cap
-			jr nc, mem_f_last
 			ex de, hl
 			pop hl
 			ld (hl), e
@@ -2649,11 +2644,11 @@ mem_f_cut:
 			ld (hl), d
 			pop hl
 mem_f_take:
-			ld (hl), c
-			inc hl
-			ld a, b
-			or #80
+			ld a, c
+			or 1					; in use
 			ld (hl), a
+			inc hl
+			ld (hl), b
 			inc hl
 			xor a
 			ret
@@ -2677,9 +2672,9 @@ mem_b_lp:
 			inc hl
 			ld d, (hl)
 			dec hl
-			bit 7, d
+			bit 0, e
 			jr z, mem_b_free
-			res 7, d
+			res 0, e
 mem_b_next:
 			add hl, de
 			jr mem_b_lp
@@ -2691,13 +2686,11 @@ mem_b_free:
 			ld c, (hl)
 			inc hl
 			ld b, (hl)
-			bit 7, b
+			bit 0, c
 			jr nz, mem_b_end
 			ld h, d
 			ld l, e
 			add hl, bc
-			call mem_cap
-			jr nc, mem_b_end
 			ex de, hl
 			pop hl
 			ld (hl), e
@@ -3042,6 +3035,25 @@ mem_tb_pl:
 mem_tb_pl2:
 			pop hl
 			djnz mem_tb_pl
+	ENDIF
+	IFDEF NTC_ZXN
+			ld a, (zxn_usable)		; the Next: pages 2 .. usable + 1 are there; the table is in fours,
+			ld e, a					; so the ones past that (the last four's leftovers) are marked taken
+			ld d, 0
+			inc de
+mem_tb_zx:
+			ld hl, (mem_count)
+			or a
+			sbc hl, de
+			jr z, mem_tb_zxe
+			jr c, mem_tb_zxe
+			inc de
+			ld hl, (mem_ttype)
+			add hl, de
+			dec hl
+			ld (hl), 'C'
+			jr mem_tb_zx
+mem_tb_zxe:
 	ENDIF
 mem_tb_ports:						; the port table: page 1 main RAM, then 4 a bank found
 	IF NTC_WINPAGED					; page 0 code under the window (Option Memory Paged): page 1, main
@@ -3759,6 +3771,8 @@ mem_al_size:
 			jr nc, mem_al_fail
 			inc hl
 			inc hl
+			inc hl
+			res 0, l				; (with its header, made even)
 			ld (mem_need), hl
 			ld bc, (mem_keep)
 			call mem_tpb
@@ -3832,9 +3846,10 @@ mem_free:
 			call mem_sel
 			ex de, hl
 			dec hl
-			bit 7, (hl)
+			dec hl
+			bit 0, (hl)
 			jr z, mem_err_page
-			res 7, (hl)
+			res 0, (hl)
 			ld hl, #4000			; is the whole page free now?
 			ld (mem_need), hl
 			push bc
@@ -4839,7 +4854,8 @@ lst_rs_cend:
 
 ;## ntc_nxt_bank ntc_mem @far
 	IFDEF NTC_ZXN
-; nxt_mem_probe - 16K banks from ZXN_FIRSTBANK up are free RAM. Map each into the
+; nxt_mem_probe - the 16K banks from ZXN_FIRSTBANK (2: page n is the Next's bank n, 20261116-6) up:
+; which are there. Map each into the
 ; window, mark it, re-read; the contiguous run that still holds its marker is
 ; usable. Sets mem_banks (64K banks = usable 16K banks / 4). Called from mem_probe;
 ; leaves interrupts off (the boot re-enables, as the CPC path does).
@@ -4854,12 +4870,15 @@ nxt_mem_probe:
 			ld c, ZXN_FIRSTBANK
 			ld hl, zxn_pr_sv
 zxn_pr_w:
+			call zxn_pr_own			; (the program's own banks: there, and never marked - the
+			jr z, zxn_pr_w2			; program's code is in them, this routine's included)
 			call zxn_pr_map			; 16K bank C into #4000-#7FFF
 			ld a, (MEM_WIN)
 			ld (hl), a				; the byte there, kept
-			inc hl
 			ld a, c
 			ld (MEM_WIN), a			; marker = the bank number
+zxn_pr_w2:
+			inc hl
 			inc c
 			ld a, c
 			cp ZXN_FIRSTBANK + ZXN_MAXBANK
@@ -4867,10 +4886,13 @@ zxn_pr_w:
 			ld b, 0					; usable 16K banks
 			ld c, ZXN_FIRSTBANK
 zxn_pr_r:
+			call zxn_pr_own
+			jr z, zxn_pr_r2
 			call zxn_pr_map
 			ld a, (MEM_WIN)
 			cp c					; still its own marker (real, not absent / aliased)?
 			jr nz, zxn_pr_done
+zxn_pr_r2:
 			inc b
 			inc c
 			ld a, c
@@ -4881,9 +4903,12 @@ zxn_pr_done:
 			ld c, ZXN_FIRSTBANK + ZXN_MAXBANK - 1
 			ld hl, zxn_pr_sv + ZXN_MAXBANK - 1
 zxn_pr_rs:
+			call zxn_pr_own
+			jr z, zxn_pr_rs2
 			call zxn_pr_map			; every bank's byte back, highest first
 			ld a, (hl)
 			ld (MEM_WIN), a
+zxn_pr_rs2:
 			dec hl
 			ld a, c
 			cp ZXN_FIRSTBANK
@@ -4892,10 +4917,12 @@ zxn_pr_rs:
 			jr zxn_pr_rs
 zxn_pr_rsd:
 			pop bc
-			ld c, 9					; the program's own window bank back
+			ld c, 1					; the program's own window bank back
 			call zxn_pr_map
-			ld a, b					; 64K banks = usable 16K banks / 4
-			srl a
+			ld a, b
+			ld (zxn_usable), a		; pages 2 .. usable + 1 are there
+			add a, 3				; 64K banks = usable 16K banks / 4, rounded up: the pages of the last
+			srl a					; one that are not there are marked taken (mem_tb_zx)
 			srl a
 			ld (mem_banks), a
 			or a
@@ -4911,6 +4938,20 @@ zxn_pr_fl:
 zxn_pr_nf:
 			ret
 zxn_pr_sv:	ds ZXN_MAXBANK			; the probe's kept bytes (one a bank)
+zxn_usable:	db 0					; the 16K banks found from ZXN_FIRSTBANK up
+; zxn_pr_own - C = a 16K bank: Z when it is one of the program's own (0, 1, 2: #0000-#BFFF; 5:
+; #C000-#FFFF). Keeps BC, DE, HL
+zxn_pr_own:
+			ld a, c
+			cp 5
+			ret z
+			cp 3
+			jr nc, zxn_pr_no		; 0, 1, 2: its own
+			xor a
+			ret
+zxn_pr_no:
+			or 1					; NZ
+			ret
 ; zxn_pr_map - C = a 16K bank into #4000-#7FFF (MMU slots 2, 3 = NextReg #52, #53). Keeps C.
 zxn_pr_map:
 			push bc
@@ -4947,14 +4988,14 @@ nxt_mem_jbc:
 			ret
 
 ; nxt_mem_bank - BC = a RAM setting -> A = its 16K Next bank: B = #7F (main RAM's own,
-; #7FC0) = bank 9 (the program's own pages 18, 19); else C = ordinal * 8 + 4 + page
+; #7FC0) = bank 1 (the program's own window); else C = ordinal * 8 + 4 + page
 ; -> ZXN_FIRSTBANK + ordinal * 4 + page (the whole bank's "2" and the pages 0-3
 ; (#C0-#C3 on the CPC: main RAM's blocks) all give its page 0). Keeps BC, DE, HL.
 nxt_mem_bank:
 			ld a, b
 			cp #7F
 			jr nz, nxt_mb_pg
-			ld a, 9
+			ld a, 1
 			ret
 nxt_mb_pg:
 			ld a, c
@@ -5006,12 +5047,12 @@ nxt_win:
 
 ; nxt_mem_se_out - BC = the RAM setting (B = ZXN_SETB, C = the bank's ordinal * 8 + 4 +
 ; page: nxt_mem_bank): the Next 16K bank into the window (slots 2, 3). B = #7F (page 1 /
-; plain RAM) = the program's own window bank 9. Reached by jp from mem_se_out; exits
+; plain RAM) = the program's own window bank 1. Reached by jp from mem_se_out; exits
 ; through mem_se_end. Called on the real stack (mem_sel pushed there).
 ; ntc_zxsel is kept so an interrupt handler can re-assert the window.
 nxt_mem_se_out:
 			ld (ntc_rampt), bc
-			call nxt_mem_bank			; A = the 16K Next bank (B = #7F: main RAM's own, bank 9)
+			call nxt_mem_bank			; A = the 16K Next bank (B = #7F: main RAM's own, bank 1)
 			add a, a					; first 8K page = Next 16K bank * 2
 			ld d, a
 			ld bc, #243B

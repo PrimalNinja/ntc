@@ -1,17 +1,19 @@
 ' regress.sh: Option Memory Paged - the window is not reserved: the procedures (page 0 code) fill
-' through #4000-#7FFF, while a procedure a page calls (Helper, Util.Hello) is pinned above it; on cpm
-' (Option Memory Small: a page is loaded in place) nothing goes under it. pages/*.cls + this main.
+' through #4000-#7FFF, while what must stay in sight of the pages (the stubs, the library, the data, and
+' Helper and Util.Hello, which a page calls) is in the safe memory (Option Memory Safe); on cpm
+' (Option Memory Heap Main: a page is loaded in place) nothing goes under it. pages/*.cls + this main.
 Option Page "TITLE"   = Title
 Option Page "LEVEL1"  = Level1, Shared, Counter, OnlyOne
 Option Page "LEVEL2"  = Level2, Shared, Counter
 Option Page "CREDITS" = Credits
 #If NTC_CPCMIN Then
-Option RomEnable 7
+Option ROM Enable 7
 #End If
 #If NTC_CPCFW Then
-Option RomEnable 7
+Option ROM Enable 7
 #End If
-Option Memory Paged &H4000, &H4000, 1     ' the window: code may sit under it, data never
+Option Memory Paged 1, &H4000, &H4000     ' the window: code may sit under it, data never
+Option Memory Safe &H0040, &H3FC0   ' what the pages must always see goes here (all the memory below the window); what it leaves is ordinary memory
 Dim r As Integer
 Title.Show
 Print "L1 "; Level1.Play(3)

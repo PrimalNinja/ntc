@@ -115,12 +115,12 @@ Public Sub CamReset()
   CamTurn 0, 0, 0                        ' (squared up: the camera's copies worked out)
 End Sub
 
-' DataOn: the data file's bank (Option NexData's first: the projection's table, the palette, the
+' DataOn: the data file's bank (page 3 - Option SaveNex "FILE", 3: the projection's table, the palette, the
 ' stars and the models) into slots 6 and 7 (#C000-#FFFF), where it stays but while drawing - the
 ' drawing puts it back (dpage) each time it's done with the screen
 Private Sub DataOn()
 #asm
-            ld a, (ntc_nexdata + 1)
+            ld a, 3                 ; <--- CHANGED (20261116-7; was Option NexData's first bank)   the data's page: Option SaveNex "FILE", 3 - the Next's bank 3
             add a, a
             ld (fn_e3_lib_dpage), a
             db #ED, #92, #56

@@ -2,6 +2,18 @@
 
 (c) 2026 Cyborg Unicorn Pty Ltd
 
+## Terms
+
+A memory word that is not fully explicit (for example "Next bank") is the NTC / COS / CPC term.
+
+| What it is | NTC / COS | CPC | Next | MSX |
+|---|---|---|---|---|
+| 8K piece of RAM | - | - | page | - |
+| 16K piece of RAM | page | block | bank | segment (memory mapper) |
+| 64K of RAM switched as one | slot | bank | - | (a slot's whole 64K) |
+| position in the address space | - | - | slot (8K) | page (16K, 0 to 3) |
+| where the memory comes from | - | - | - | slot (primary / sub-slot) |
+
 ## The rules
 
 1. **Safe code goes in the Safe areas,** all of them, not just the first. Place it procedure by
@@ -19,23 +31,14 @@
    - **Paged** is where pages swap in. Only code may sit under it, never data, the stack or the
      switching code. See the notes.
 
-## Reserved: ZeroFill or Skip
+## Reserved
 
-`Option Memory Reserved ZeroFill | Skip` *start*`,` *size* ...
+`Option Memory Reserved` *start*`,` *size* [`,` *start*`,` *size*] ...
 
-- **ZeroFill:** the gap is in the built file, filled with 0 at build time. The file loads and runs
-  as it is.
-- **Skip:** the file is packed, with no gap in it. Addresses are still built as if the gap were
-  there, so the code after the gap is in the file straight after the code before it. A loader has
-  to move it up to its real address before it runs, which puts the gap back.
-  - The loader runs first, from code below the first Skip gap, before anything above a gap is used.
-  - With more than one gap, it moves the blocks highest first, copying each from its top end down
-    (`lddr`). Each destination is above its source, so the blocks overlap.
-  - It has nothing to do for a gap at the very end of the program, or for formats that already load
-    each part to its own address (a NEX file's banks).
-  - It doesn't work for code run in place from a cartridge ROM. There it's ZeroFill, or copying to
-    RAM.
-- Suggested default: ZeroFill, today's behaviour, so existing programs don't change.
+One form. The gap is in the built file, filled with 0 at build time, and the file loads and runs
+as it is. (ZeroFill | Skip are gone, 20261116-1: there is no packed file and no loader that moves
+code up.) Reserve a range for a reason - a second screen, firmware RAM, a ROM's workspace, a load
+area. Memory that is not Reserved is used.
 
 ## A typical CPC map (cpcmin)
 
@@ -56,8 +59,8 @@ shows the other, and flip with R12 (&10 shows #4000, &30 shows #C000).
 - **Video RAM in base block 1** works because the CRTC always reads the base 64K, whatever the gate
   array has in the window. The screen stays on while a page is in. Drawing to it needs base block 1
   in the window, so paging has to start at 1, and the map needs a way to say so.
-  `Option Memory Paged` lost its start bank, so add one back, for example
-  `Option Memory Paged &H4000, &H4000, 1`.
+  `Option Memory Paged startbank, addr, size` says so: `Option Memory Paged 1, &H4000, &H4000`
+  (the start bank first and always there, as the old `Option Page` had it: 20261116-3).
 - **Firmware RAM:** on `cpcmin` it's #A600-#BFFF, not #A000. On `cpc` (no firmware) there's nothing
   to reserve there.
 - **Never under Paged:**
@@ -87,39 +90,39 @@ the main thread, each procedure, the stubs, the `#asm` blocks, each variable, ea
 keyword-library section - and at every cut emits a guard the assembler evaluates with the sizes
 from its earlier pass (`fwdref-ok`):
 
-- **Reserved** (`ntc_rgN` guards): `IF ($ < end) && (next part reaches start)`: ZeroFill pads
-  (`ds end - $`); Skip packs on (`DISP end`, the code assembled for above the gap but put in
-  the file straight on). The start code's mover (`ntc_sk*`, constant size, `ld bc, 0` means
-  "not there") copies each Skip block up, highest first, `lddr`. `ntc_fileend` is the packed
-  file's end (`SAVEAMSDOS` uses it); `ntc_end` stays the run-time end.
-- **Paged**: the same guard, but only for the parts that may not be under a page: data, the
-  stubs, `#asm`, the library, the arrays (`@@BSS@@`), the Memory class's tables, and the
-  procedures a page calls bare or that run at any time (Tick, hooks, `AddressOf`) plus what
-  those call (`decidePinned`). A procedure thread nobody pins goes straight through. With
-  `Option Memory Small` (a page is loaded into the window in place) or `startbank 0` (the
-  window is a swap page) nothing goes under it. When code may go under the window the pinned
-  parts are laid out **first** (stubs, library, data, the pinned procedures, then the threads,
-  the keyword library's data last), so they land below `#4000` and only page 0 threads fill
-  through the window; the parts are cut at the `; ====` headings (`isCut`).
+- **Two passes (20261116-5)**, when there is safe memory and something that must be in it: the
+  parts that must be there (the safe classes' procedures; in a paging program the stubs, `#asm`,
+  the data, the library and the procedures a page calls - `decidePinned` finds those) are moved in
+  front, each placed in the first Safe range with room (`ntc_saN_ed` is how far range N is used:
+  `IF (ntc_pl == 0) && (ntc_saN_ed + size <= end)` / `org ntc_saN_ed`). Then `org ntc_fb` goes
+  back to the end of the start code and the rest fills upward. A part that fits in no range is an
+  `ASSERT` with its name. The memory image is what gets saved, so this needs the assembler's
+  device: an AMSDOS build and the Next have it, and a CPC build without an AMSDOS name gets it
+  too and saves the image as `NTCIMAGE.BIN` (`ntc_image equ 1` says so; the test harness reads
+  that file).
+- **Reserved** (`ntc_rgN` guards): `IF ($ < end) && (next part reaches start)`: the gap is padded
+  (`ds end - $`). There is no Skip (the packing code went in 20261116-5).
+- **Used safe memory**: the same guard, `org ntc_saN_ed` over `start .. ntc_saN_ed`. The rest of
+  the Safe range is filled like any memory.
+- **Paged**: not a hole for code. With no safe memory given, each part that must stay in sight is
+  checked when it ends: inside the Paged range it is an `ASSERT` that names it and asks for
+  `Option Memory Safe`. With `Option Memory Heap Main` (a page is loaded into the window in
+  place) or `startbank 0` (the window is a swap page) nothing may be under it: it is a hole for
+  every part, like Reserved. The arrays (`@@BSS@@`) and the Memory class's tables never go in it.
 - **Page 1 under Paged code**: the Memory class's page 1 is main RAM's own `#4000-#7FFF`. With
   page 0 code under the window that block holds code, so the compiler emits `NTC_WINPAGED 1`
   and the table build (`mem_tb_ports`) marks page 1 taken (`'P'` in the RAT) when `ntc_end`
   reaches past `#4000`: `Memory.AllocPage` and the page loader never hand it out. (Without
   this the first page loaded landed on the code under the window.)
-- **Safe**: each safe procedure (`; @safe` ... `; @endsafe`, one pair per procedure) becomes a
-  macro `ntc_sfN`. The first major guard whose part reaches a Safe range (or would cross its
-  start) pads to the start and runs the placement: for each block not yet placed,
-  `IF (ntc_sfN_p == 0) && ($ + size <= end)` expands it and marks the range. The fill goes on
-  after. Ranges the fill never reaches are placed before `ntc_end`. `ASSERT ntc_sfN_p != 0`
-  names a procedure that fits nowhere. Converges in sjasmplus's three passes (sizes are
-  position-independent).
+- **Safe without the device** (cpm and the other one-pass builds): each safe procedure (`; @safe`
+  ... `; @endsafe`) is a macro `ntc_sfN`, placed when the fill reaches a Safe range (first fit),
+  the fill going on after it.
 - **Platform Reserved**: `;@reserved start,size ...` in the platform file (`cpc`, `cpcmin`,
   `zxn`), applied as Reserved ranges less the program's `Available` ranges (and `#C000-#FFFF`
   under `Option HighCode`). `NTC_PLATRSV 1` turns the old top-of-RAM asserts off; the map's
   own asserts take over.
 - **The report**: `DISPLAY "NTC memory: ..."` lines at `ntc_end` (sjasmplus prints them):
-  program / arrays / stack, each hole, each Safe range with its safe code span, each safe
-  block's address and size, each Skip block's file position and size.
+  program / arrays / stack, each hole, each Safe range with its safe code span, how far each is used.
 - `NTC_WINHOLE` is 1 when the window `#4000-#7FFF` is Reserved **or** Paged (the library takes
   the program's free RAM as above the window; the Memory class's tables go above it).
   `; @window` data still needs it Reserved.

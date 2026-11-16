@@ -22,8 +22,8 @@ NTC_PLATRSV	equ 1		; 1 = the platform's fixed areas (;@reserved) are Reserved in
 NTC_ZXIRQ	equ 0		; 1 = the interrupt handler (ntc_irq) is in the program: Frame catches up its lost ticks
 ; the ZX Spectrum Next: NTC_ZXN defined (a DEFINE - sjasmplus's IFDEF tests those, not labels)
 			DEFINE NTC_ZXN
-ZXN_FIRSTBANK	equ 57		; first free 16K bank (page 114), above the program/screen/low banks and Option NexData's blocks
-ZXN_MAXBANK	equ 55		; scan range: banks 57-111 (a 2MB Next has 112 16K banks, pages 0-223; the MMU has no page past 223 - a higher page number is not RAM)
+ZXN_FIRSTBANK	equ 58		; first free 16K bank (page 116), above the program/screen/low banks and Option NexData's blocks
+ZXN_MAXBANK	equ 54		; scan range: banks 58-111 (a 2MB Next has 112 16K banks, pages 0-223; the MMU has no page past 223 - a higher page number is not RAM)
 ; the interrupt handler passes 1 in C at a frame's interrupt (ntc_isl_tick: not the CPC's vertical sync)
 			DEFINE NTC_ISLC
 NTC_CPMGFX	equ 0		; 1 = CP/M: Graphics draws on an Amstrad CPC's screen (2.2: #C000, Plus: block 1 from common memory)
@@ -52,30 +52,30 @@ ntc_rg1:
 main_thread:
 			dw kw_bssinit, ntc_bss, ntc_bss_size		; the arrays: do they fit, clear them
 
-			; Main.bas 12: Rng.Start &H243F, &H6A88, &H85A3, &H08D3
+			; Main.bas 13: Rng.Start &H243F, &H6A88, &H85A3, &H08D3
 			dw p_rng_start_c, lit_9279, lit_27272, lit_m31325, lit_2259
 
-			; Main.bas 13: Vid.Init
+			; Main.bas 14: Vid.Init
 			dw p_vid_init_c
 
-			; Main.bas 14: Rng.Reseed
+			; Main.bas 15: Rng.Reseed
 			dw p_rng_reseed_c
 
-			; Main.bas 15: Snd.Init
+			; Main.bas 16: Snd.Init
 			dw p_snd_init_c
 
-			; Main.bas 16: Vid.Sync : Vid.Sync : Vid.Sync
+			; Main.bas 17: Vid.Sync : Vid.Sync : Vid.Sync
 			dw p_vid_sync_c
 			dw p_vid_sync_c
 			dw p_vid_sync_c
 
-			; Main.bas 17: Splash.Show 1
+			; Main.bas 18: Splash.Show 1
 			dw p_splash_show_c, lit_1
 
-			; Main.bas 18: Splash.Show 2
+			; Main.bas 19: Splash.Show 2
 			dw p_splash_show_c, lit_2
 
-			; Main.bas 19: Intro.Run
+			; Main.bas 20: Intro.Run
 			dw p_intro_run_c
 			dw kw_stop
 
@@ -1061,7 +1061,7 @@ if29_1:
 			; Vid.cls 429: Txt 246 - d * 12, 7, Data.TX_F_PAGE, 3
 			dw kw_mulvl, var_vid_pageno_d, 12, tmp1
 			dw kw_sublv, 246, tmp1, tmp0
-			dw p_vid_txt_c, tmp0, lit_7, lit_7096, lit_3
+			dw p_vid_txt_c, tmp0, lit_7, lit_7559, lit_3
 
 			; Vid.cls 430: Num 276 - d * 12, 7, p, 1 + d, 3
 			dw kw_mulvl, var_vid_pageno_d, 12, tmp1
@@ -1072,7 +1072,7 @@ if29_1:
 			; Vid.cls 431: Txt 288 - d * 6, 7, Data.TX_OF, 3
 			dw kw_mulvl, var_vid_pageno_d, 6, tmp1
 			dw kw_sublv, 288, tmp1, tmp0
-			dw p_vid_txt_c, tmp0, lit_7, lit_15556, lit_3
+			dw p_vid_txt_c, tmp0, lit_7, lit_16540, lit_3
 
 			; Vid.cls 432: Num 306 - d * 6, 7, n, 1 + d, 3
 			dw kw_mulvl, var_vid_pageno_d, 6, tmp1
@@ -1469,7 +1469,7 @@ ntc_rg33:
 
 p_rng_pick:
 
-			; Rng.cls 382: Dim m As Integer, v As Integer
+			; Rng.cls 382: Dim v As Integer
 
 			; Rng.cls 383: Pick = 0
 			dw kw_ztov, var_rng_pick_pick
@@ -1480,69 +1480,43 @@ p_rng_pick:
 			dw p_rng_pick_r
 if38_1:
 
-			; Rng.cls 385: m = 1
-			dw kw_ltov, 1, var_rng_pick_m
-
-			; Rng.cls 386: Do While m < n - 1
-do39_t:
-			dw kw_addl, var_rng_pick_n, -1, tmp4
-			dw kw_scpltvv, var_rng_pick_m, tmp4
-			dw kw_goto_iffalse, do39_e
-
-			; Rng.cls 387: m = m * 2 + 1
-			dw kw_2x, var_rng_pick_m, tmp3
-			dw kw_addl, tmp3, 1, var_rng_pick_m
-
-			; Rng.cls 388: Loop
-			dw do39_t_go
-do39_e:
-
-			; Rng.cls 389: Do
-do40_t:
-
-			; Rng.cls 390: If fromPool <> 0 Then
+			; Rng.cls 385: If fromPool <> 0 Then
 			dw kw_cpnevl, var_rng_frompool, 0
-			dw kw_goto_iffalse, if41_1
+			dw kw_goto_iffalse, if39_1
 
-			; Rng.cls 391: v = Pw()
+			; Rng.cls 386: v = Pw() And 32767
 			dw p_rng_pw_c
-			dw kw_vtov, var_rng_pw_pw, var_rng_pick_v
+			dw kw_vtov, var_rng_pw_pw, tmp3
+			dw kw_andvl, tmp3, 32767, var_rng_pick_v
 
-			; Rng.cls 392: ElseIf m > 255 Then
-			dw if41_e_go
-if41_1:
-			dw kw_scpgtvl, var_rng_pick_m, 255
-			dw kw_goto_iffalse, if41_2
+			; Rng.cls 387: ElseIf n > 256 Then
+			dw if39_e_go
+if39_1:
+			dw kw_scpgtvl, var_rng_pick_n, 256
+			dw kw_goto_iffalse, if39_2
 
-			; Rng.cls 393: v = Rb()
+			; Rng.cls 388: v = Rb()
 			dw fn_rng_rb, var_rng_pick_v
 
-			; Rng.cls 394: v = v * 256 + Rb()
+			; Rng.cls 389: v = (v * 256 + Rb()) And 32767
 			dw kw_mulvl, var_rng_pick_v, 256, tmp3
 			dw fn_rng_rb, var_rng_rb_rb
 			dw kw_vtov, var_rng_rb_rb, tmp4
-			dw kw_add, tmp3, tmp4, var_rng_pick_v
+			dw kw_add, tmp3, tmp4, tmp3
+			dw kw_andvl, tmp3, 32767, var_rng_pick_v
 
-			; Rng.cls 395: Else
-			dw if41_e_go
-if41_2:
+			; Rng.cls 390: Else
+			dw if39_e_go
+if39_2:
 
-			; Rng.cls 396: v = Rb()
+			; Rng.cls 391: v = Rb()
 			dw fn_rng_rb, var_rng_pick_v
 
-			; Rng.cls 397: End If
-if41_e:
+			; Rng.cls 392: End If
+if39_e:
 
-			; Rng.cls 398: v = v And m
-			dw kw_andvv, var_rng_pick_v, var_rng_pick_m, var_rng_pick_v
-
-			; Rng.cls 399: Loop Until v < n
-			dw kw_scpltvv, var_rng_pick_v, var_rng_pick_n
-			dw kw_goto_iffalse, do40_t
-do40_e:
-
-			; Rng.cls 400: Pick = v
-			dw kw_vtov, var_rng_pick_v, var_rng_pick_pick
+			; Rng.cls 393: Pick = v Mod n
+			dw kw_modvv, var_rng_pick_v, var_rng_pick_n, var_rng_pick_pick
 			dw p_rng_pick_r
 
 ntc_rg33_e:
@@ -1560,13 +1534,13 @@ ntc_rg34:
 
 p_rng_start:
 
-			; Rng.cls 406: p0 = a : p1 = b : p2 = c : p3 = d
+			; Rng.cls 399: p0 = a : p1 = b : p2 = c : p3 = d
 			dw kw_vtov, var_rng_start_a, var_rng_p0
 			dw kw_vtov, var_rng_start_b, var_rng_p1
 			dw kw_vtov, var_rng_start_c, var_rng_p2
 			dw kw_vtov, var_rng_start_d, var_rng_p3
 
-			; Rng.cls 407: built = 0
+			; Rng.cls 400: built = 0
 			dw kw_ztov, var_rng_built
 			dw p_rng_start_r
 
@@ -1737,7 +1711,7 @@ p_rom_man:
 
 			; Rom.cls 116: If f = 4 Then
 			dw kw_cpeqvl, var_rom_man_f, 4
-			dw kw_goto_iffalse, if42_1
+			dw kw_goto_iffalse, if40_1
 
 			; Rom.cls 117: Man = MY(k)
 			dw kw_aget8, arr_rom_my, var_rom_man_k, var_rom_man_man
@@ -1746,11 +1720,11 @@ p_rom_man:
 			dw p_rom_man_r
 
 			; Rom.cls 119: End If
-if42_1:
+if40_1:
 
 			; Rom.cls 120: Man = Vid.TabB(Data.T_MAN + f * 16 + k)
 			dw kw_mulvl, var_rom_man_f, 16, tmp4
-			dw kw_addl, tmp4, 24592, tmp3
+			dw kw_addl, tmp4, 25780, tmp3
 			dw kw_add, tmp3, var_rom_man_k, tmp3
 			dw p_vid_tabb_c, tmp3
 			dw kw_vtov, var_vid_tabb_tabb, var_rom_man_man
@@ -1772,45 +1746,45 @@ ntc_rg41:
 p_rom_romblock:
 
 			; Rom.cls 125: Select Case id
-			dw kw_vtov, var_rom_romblock_id, var_rom_romblock___sel43
+			dw kw_vtov, var_rom_romblock_id, var_rom_romblock___sel41
 
 			; Rom.cls 126: Case 0
-			dw kw_cpeqvl, var_rom_romblock___sel43, 0
-			dw kw_goto_iffalse, sel43_1
-sel43_b1:
+			dw kw_cpeqvl, var_rom_romblock___sel41, 0
+			dw kw_goto_iffalse, sel41_1
+sel41_b1:
 
 			; Rom.cls 127: RomBlock = Data.ROMB0
 			dw kw_ltov, 1, var_rom_romblock_romblock
 
 			; Rom.cls 128: Case 1
-			dw sel43_e_go
-sel43_1:
-			dw kw_cpeqvl, var_rom_romblock___sel43, 1
-			dw kw_goto_iffalse, sel43_2
-sel43_b2:
+			dw sel41_e_go
+sel41_1:
+			dw kw_cpeqvl, var_rom_romblock___sel41, 1
+			dw kw_goto_iffalse, sel41_2
+sel41_b2:
 
 			; Rom.cls 129: RomBlock = Data.ROMB1
 			dw kw_ltov, 9, var_rom_romblock_romblock
 
 			; Rom.cls 130: Case 2
-			dw sel43_e_go
-sel43_2:
-			dw kw_cpeqvl, var_rom_romblock___sel43, 2
-			dw kw_goto_iffalse, sel43_3
-sel43_b3:
+			dw sel41_e_go
+sel41_2:
+			dw kw_cpeqvl, var_rom_romblock___sel41, 2
+			dw kw_goto_iffalse, sel41_3
+sel41_b3:
 
 			; Rom.cls 131: RomBlock = Data.ROMB2
 			dw kw_ltov, 17, var_rom_romblock_romblock
 
 			; Rom.cls 132: Case Else
-			dw sel43_e_go
-sel43_3:
+			dw sel41_e_go
+sel41_3:
 
 			; Rom.cls 133: RomBlock = Data.ROMBS
 			dw kw_ltov, 25, var_rom_romblock_romblock
 
 			; Rom.cls 134: End Select
-sel43_e:
+sel41_e:
 			dw p_rom_romblock_r
 
 ntc_rg41_e:
@@ -1832,7 +1806,7 @@ p_rom_load:
 
 			; Rom.cls 140: If f = 4 Then
 			dw kw_cpeqvl, var_rom_load_f, 4
-			dw kw_goto_iffalse, if44_1
+			dw kw_goto_iffalse, if42_1
 
 			; Rom.cls 141: Wn = Sn
 			dw kw_vtov, var_rom_sn, var_rom_wn
@@ -1842,9 +1816,9 @@ p_rom_load:
 
 			; Rom.cls 143: For i = 0 To Sn - 1
 			dw kw_ztov, var_rom_load_i
-			dw kw_addl, var_rom_sn, -1, for45_l
-			dw kw_forupv, var_rom_load_i, for45_l, for45_e
-for45_t:
+			dw kw_addl, var_rom_sn, -1, for43_l
+			dw kw_forupv, var_rom_load_i, for43_l, for43_e
+for43_t:
 
 			; Rom.cls 144: Wp i, Peek(&H4000 + i)
 			dw kw_addl, var_rom_load_i, 16384, tmp1
@@ -1852,8 +1826,8 @@ for45_t:
 			dw p_rom_wp_c, var_rom_load_i, tmp1
 
 			; Rom.cls 145: Next
-			dw kw_next1v, var_rom_load_i, for45_l, for45_t
-for45_e:
+			dw kw_next1v, var_rom_load_i, for43_l, for43_t
+for43_e:
 
 			; Rom.cls 146: Vid.SelBlock -1
 			dw p_vid_selblock_c, lit_m1
@@ -1862,7 +1836,7 @@ for45_e:
 			dw p_rom_load_r
 
 			; Rom.cls 148: End If
-if44_1:
+if42_1:
 
 			; Rom.cls 149: Wn = Man(f, 12) + Man(f, 13) * 256
 			dw p_rom_man_c, var_rom_load_f, lit_12
@@ -1885,9 +1859,9 @@ if44_1:
 
 			; Rom.cls 152: For i = 0 To Wn - 1
 			dw kw_ztov, var_rom_load_i
-			dw kw_addl, var_rom_wn, -1, for46_l
-			dw kw_forupv, var_rom_load_i, for46_l, for46_e
-for46_t:
+			dw kw_addl, var_rom_wn, -1, for44_l
+			dw kw_forupv, var_rom_load_i, for44_l, for44_e
+for44_t:
 
 			; Rom.cls 153: Wp i, Peek(&H4000 + off + i)
 			dw kw_addl, var_rom_load_off, 16384, tmp1
@@ -1896,8 +1870,8 @@ for46_t:
 			dw p_rom_wp_c, var_rom_load_i, tmp1
 
 			; Rom.cls 154: Next
-			dw kw_next1v, var_rom_load_i, for46_l, for46_t
-for46_e:
+			dw kw_next1v, var_rom_load_i, for44_l, for44_t
+for44_e:
 
 			; Rom.cls 155: Vid.SelBlock -1
 			dw p_vid_selblock_c, lit_m1
@@ -1922,9 +1896,9 @@ p_rom_take:
 
 			; Rom.cls 161: For i = 0 To n - 1
 			dw kw_ztov, var_rom_take_i
-			dw kw_addl, var_rom_take_n, -1, for47_l
-			dw kw_forupv, var_rom_take_i, for47_l, for47_e
-for47_t:
+			dw kw_addl, var_rom_take_n, -1, for45_l
+			dw kw_forupv, var_rom_take_i, for45_l, for45_e
+for45_t:
 
 			; Rom.cls 162: Wp i, Og(i)
 			dw p_rom_og_c, var_rom_take_i
@@ -1932,8 +1906,8 @@ for47_t:
 			dw p_rom_wp_c, var_rom_take_i, tmp1
 
 			; Rom.cls 163: Next
-			dw kw_next1v, var_rom_take_i, for47_l, for47_t
-for47_e:
+			dw kw_next1v, var_rom_take_i, for45_l, for45_t
+for45_e:
 
 			; Rom.cls 164: Wn = n
 			dw kw_vtov, var_rom_take_n, var_rom_wn
@@ -1958,7 +1932,7 @@ p_rom_layer:
 
 			; Rom.cls 172: If proto >= 2 Then
 			dw kw_scpgevl, var_rom_layer_proto, 2
-			dw kw_goto_iffalse, if48_1
+			dw kw_goto_iffalse, if46_1
 
 			; Rom.cls 173: Layer = LayerX(rb, proto)
 			dw p_rom_layerx_c, var_rom_layer_rb, var_rom_layer_proto
@@ -1968,7 +1942,7 @@ p_rom_layer:
 			dw p_rom_layer_r
 
 			; Rom.cls 175: End If
-if48_1:
+if46_1:
 
 			; Rom.cls 176: olo = 0 : ohi = 0
 			dw kw_ztov, var_rom_layer_olo
@@ -1980,7 +1954,7 @@ if48_1:
 
 			; Rom.cls 178: If proto = 1 Then
 			dw kw_cpeqvl, var_rom_layer_proto, 1
-			dw kw_goto_iffalse, if49_1
+			dw kw_goto_iffalse, if47_1
 
 			; Rom.cls 179: olo = B(rb, 0, 0, Wg(0), Wg(1))
 			dw p_rom_wg_c, lit_0
@@ -2021,16 +1995,16 @@ if48_1:
 			dw kw_subvv, var_rom_wn, var_rom_layer_sf, var_rom_layer_e
 
 			; Rom.cls 185: End If
-if49_1:
+if47_1:
 
 			; Rom.cls 186: n = 0
 			dw kw_ztov, var_rom_layer_n
 
 			; Rom.cls 187: Do While p + 1 < e
-do50_t:
+do48_t:
 			dw kw_addl, var_rom_layer_p, 1, tmp0
 			dw kw_scpltvv, tmp0, var_rom_layer_e
-			dw kw_goto_iffalse, do50_e
+			dw kw_goto_iffalse, do48_e
 
 			; Rom.cls 188: Op n, B(rb, olo, ohi, Wg(p), Wg(p + 1))
 			dw p_rom_wg_c, var_rom_layer_p
@@ -2049,8 +2023,8 @@ do50_t:
 			dw kw_addl, var_rom_layer_p, 2, var_rom_layer_p
 
 			; Rom.cls 191: Loop
-			dw do50_t_go
-do50_e:
+			dw do48_t_go
+do48_e:
 
 			; Rom.cls 192: Layer = n
 			dw kw_vtov, var_rom_layer_n, var_rom_layer_layer
@@ -2086,7 +2060,7 @@ p_rom_pick:
 
 			; Rom.cls 203: For pass = 0 To 4
 			dw kw_ztov, var_rom_pick_pass
-for51_t:
+for49_t:
 
 			; Rom.cls 204: blk = (b0 + pass) And 3
 			dw kw_add, var_rom_pick_b0, var_rom_pick_pass, tmp0
@@ -2098,19 +2072,19 @@ for51_t:
 
 			; Rom.cls 206: If pass = 0 Then lo = o0
 			dw kw_cpeqvl, var_rom_pick_pass, 0
-			dw kw_goto_iffalse, if52_1
+			dw kw_goto_iffalse, if50_1
 			dw kw_vtov, var_rom_pick_o0, var_rom_pick_lo
-if52_1:
+if50_1:
 
 			; Rom.cls 207: If pass = 4 Then hi = o0 - 1
 			dw kw_cpeqvl, var_rom_pick_pass, 4
-			dw kw_goto_iffalse, if53_1
+			dw kw_goto_iffalse, if51_1
 			dw kw_addl, var_rom_pick_o0, -1, var_rom_pick_hi
-if53_1:
+if51_1:
 
 			; Rom.cls 208: If lo <= hi Then
 			dw kw_scplevv, var_rom_pick_lo, var_rom_pick_hi
-			dw kw_goto_iffalse, if54_1
+			dw kw_goto_iffalse, if52_1
 
 			; Rom.cls 209: Vid.SelBlock rb + blk
 			dw kw_add, var_rom_pick_rb, var_rom_pick_blk, tmp0
@@ -2118,15 +2092,15 @@ if53_1:
 
 			; Rom.cls 210: For i = lo To hi
 			dw kw_vtov, var_rom_pick_lo, var_rom_pick_i
-			dw kw_vtov, var_rom_pick_hi, for55_l
-			dw kw_forupv, var_rom_pick_i, for55_l, for55_e
-for55_t:
+			dw kw_vtov, var_rom_pick_hi, for53_l
+			dw kw_forupv, var_rom_pick_i, for53_l, for53_e
+for53_t:
 
 			; Rom.cls 211: If Peek(&H4000 + i) = v Then
 			dw kw_addl, var_rom_pick_i, 16384, tmp0
 			dw kw_vptrtov8, tmp0, tmp0
 			dw kw_cpeqvv, tmp0, var_rom_pick_v
-			dw kw_goto_iffalse, if56_1
+			dw kw_goto_iffalse, if54_1
 
 			; Rom.cls 212: PickLo = i And 255
 			dw kw_andvl, var_rom_pick_i, 255, var_rom_picklo
@@ -2140,30 +2114,30 @@ for55_t:
 			dw kw_ltov, 1, var_rom_pick_pick
 
 			; Rom.cls 215: Exit For
-			dw for55_e_go
+			dw for53_e_go
 
 			; Rom.cls 216: End If
-if56_1:
+if54_1:
 
 			; Rom.cls 217: Next
-			dw kw_next1v, var_rom_pick_i, for55_l, for55_t
-for55_e:
+			dw kw_next1v, var_rom_pick_i, for53_l, for53_t
+for53_e:
 
 			; Rom.cls 218: Vid.SelBlock -1
 			dw p_vid_selblock_c, lit_m1
 
 			; Rom.cls 219: If Pick = 1 Then Exit For
 			dw kw_cpeqvl, var_rom_pick_pick, 1
-			dw kw_goto_iffalse, if57_1
-			dw for51_e_go
-if57_1:
+			dw kw_goto_iffalse, if55_1
+			dw for49_e_go
+if55_1:
 
 			; Rom.cls 220: End If
-if54_1:
+if52_1:
 
 			; Rom.cls 221: Next
-			dw kw_next1l, var_rom_pick_pass, 4, for51_t
-for51_e:
+			dw kw_next1l, var_rom_pick_pass, 4, for49_t
+for49_e:
 			dw p_rom_pick_r
 
 ntc_rg45_e:
@@ -2188,7 +2162,7 @@ p_rom_count:
 
 			; Rom.cls 229: For blk = 0 To 3
 			dw kw_ztov, var_rom_count_blk
-for58_t:
+for56_t:
 
 			; Rom.cls 230: Vid.SelBlock rb + blk
 			dw kw_add, var_rom_count_rb, var_rom_count_blk, tmp0
@@ -2196,23 +2170,23 @@ for58_t:
 
 			; Rom.cls 231: For i = 0 To 16383
 			dw kw_ztov, var_rom_count_i
-for59_t:
+for57_t:
 
 			; Rom.cls 232: If Peek(&H4000 + i) = v Then n = n + 1
 			dw kw_addl, var_rom_count_i, 16384, tmp0
 			dw kw_vptrtov8, tmp0, tmp0
 			dw kw_cpeqvv, tmp0, var_rom_count_v
-			dw kw_goto_iffalse, if60_1
+			dw kw_goto_iffalse, if58_1
 			dw kw_inc, var_rom_count_n
-if60_1:
+if58_1:
 
 			; Rom.cls 233: Next
-			dw kw_next1l, var_rom_count_i, 16383, for59_t
-for59_e:
+			dw kw_next1l, var_rom_count_i, 16383, for57_t
+for57_e:
 
 			; Rom.cls 234: Next
-			dw kw_next1l, var_rom_count_blk, 3, for58_t
-for58_e:
+			dw kw_next1l, var_rom_count_blk, 3, for56_t
+for56_e:
 
 			; Rom.cls 235: Vid.SelBlock -1
 			dw p_vid_selblock_c, lit_m1
@@ -2246,7 +2220,7 @@ p_rom_loadpatch:
 
 			; Rom.cls 244: For i = 0 To Data.PATCHN - 1
 			dw kw_ztov, var_rom_loadpatch_i
-for61_t:
+for59_t:
 
 			; Rom.cls 245: pl(i) = Peek(&H4000 + off + i * 4)
 			dw kw_addl, var_rom_loadpatch_off, 16384, tmp1
@@ -2280,8 +2254,8 @@ for61_t:
 			dw kw_aset8, arr_rom_pv, var_rom_loadpatch_i, tmp1
 
 			; Rom.cls 249: Next
-			dw kw_next1l, var_rom_loadpatch_i, 44, for61_t
-for61_e:
+			dw kw_next1l, var_rom_loadpatch_i, 44, for59_t
+for59_e:
 
 			; Rom.cls 250: Vid.SelBlock -1
 			dw p_vid_selblock_c, lit_m1
@@ -2309,13 +2283,13 @@ p_rom_patch:
 
 			; Rom.cls 256: If sw = patched Then Exit Sub
 			dw kw_cpeqvv, var_rom_patch_sw, var_rom_patched
-			dw kw_goto_iffalse, if62_1
+			dw kw_goto_iffalse, if60_1
 			dw p_rom_patch_r
-if62_1:
+if60_1:
 
 			; Rom.cls 257: For i = 0 To Data.PATCHN - 1
 			dw kw_ztov, var_rom_patch_i
-for63_t:
+for61_t:
 
 			; Rom.cls 258: blk = Data.ROMB0 + ph(i) * 4 + pm(i) \ 64
 			dw kw_aget8, arr_rom_ph, var_rom_patch_i, tmp1
@@ -2338,7 +2312,7 @@ for63_t:
 
 			; Rom.cls 261: If sw <> 0 Then
 			dw kw_cpnevl, var_rom_patch_sw, 0
-			dw kw_goto_iffalse, if64_1
+			dw kw_goto_iffalse, if62_1
 
 			; Rom.cls 262: ov(i) = Peek(a)
 			dw kw_vptrtov8, var_rom_patch_a, tmp1
@@ -2349,19 +2323,19 @@ for63_t:
 			dw kw_vtovptr8, tmp1, var_rom_patch_a
 
 			; Rom.cls 264: Else
-			dw if64_e_go
-if64_1:
+			dw if62_e_go
+if62_1:
 
 			; Rom.cls 265: Poke a, ov(i)
 			dw kw_aget8, arr_rom_ov, var_rom_patch_i, tmp1
 			dw kw_vtovptr8, tmp1, var_rom_patch_a
 
 			; Rom.cls 266: End If
-if64_e:
+if62_e:
 
 			; Rom.cls 267: Next
-			dw kw_next1l, var_rom_patch_i, 44, for63_t
-for63_e:
+			dw kw_next1l, var_rom_patch_i, 44, for61_t
+for61_e:
 
 			; Rom.cls 268: Vid.SelBlock -1
 			dw p_vid_selblock_c, lit_m1
@@ -2394,9 +2368,9 @@ p_rom_scan:
 			dw kw_l_mov, var_rom_scan_lo, var_rom_scan_cur
 
 			; Rom.cls 277: Do While cur <= hi
-do65_t:
+do63_t:
 			dw kw_l_cple, var_rom_scan_cur, var_rom_scan_hi
-			dw kw_goto_iffalse, do65_e
+			dw kw_goto_iffalse, do63_e
 
 			; Rom.cls 278: blk = CInt(cur \ 16384)
 			dw kw_l_div, var_rom_scan_cur, llit_16384, ltmp0
@@ -2419,9 +2393,9 @@ do65_t:
 
 			; Rom.cls 283: If lim > hi Then lim = hi
 			dw kw_l_cpgt, var_rom_scan_lim, var_rom_scan_hi
-			dw kw_goto_iffalse, if66_1
+			dw kw_goto_iffalse, if64_1
 			dw kw_l_mov, var_rom_scan_hi, var_rom_scan_lim
-if66_1:
+if64_1:
 
 			; Rom.cls 284: e = CInt(lim - base)
 			dw kw_l_sub, var_rom_scan_lim, var_rom_scan_base, ltmp0
@@ -2434,45 +2408,45 @@ if66_1:
 
 			; Rom.cls 286: For i = w To e
 			dw kw_vtov, var_rom_scan_w, var_rom_scan_i
-			dw kw_vtov, var_rom_scan_e, for67_l
-			dw kw_forupv, var_rom_scan_i, for67_l, for67_e
-for67_t:
+			dw kw_vtov, var_rom_scan_e, for65_l
+			dw kw_forupv, var_rom_scan_i, for65_l, for65_e
+for65_t:
 
 			; Rom.cls 287: If Peek(&H4000 + i) = v Then
 			dw kw_addl, var_rom_scan_i, 16384, tmp0
 			dw kw_vptrtov8, tmp0, tmp0
 			dw kw_cpeqvv, tmp0, var_rom_scan_v
-			dw kw_goto_iffalse, if68_1
+			dw kw_goto_iffalse, if66_1
 
 			; Rom.cls 288: Scan = base + i
 			dw kw_l_itol, var_rom_scan_i, ltmp1
 			dw kw_l_add, var_rom_scan_base, ltmp1, var_rom_scan_scan
 
 			; Rom.cls 289: Exit For
-			dw for67_e_go
+			dw for65_e_go
 
 			; Rom.cls 290: End If
-if68_1:
+if66_1:
 
 			; Rom.cls 291: Next
-			dw kw_next1v, var_rom_scan_i, for67_l, for67_t
-for67_e:
+			dw kw_next1v, var_rom_scan_i, for65_l, for65_t
+for65_e:
 
 			; Rom.cls 292: Vid.SelBlock -1
 			dw p_vid_selblock_c, lit_m1
 
 			; Rom.cls 293: If Scan >= 0 Then Exit Function
 			dw kw_l_cpge, var_rom_scan_scan, llit_0
-			dw kw_goto_iffalse, if69_1
+			dw kw_goto_iffalse, if67_1
 			dw p_rom_scan_r
-if69_1:
+if67_1:
 
 			; Rom.cls 294: cur = base + 16384
 			dw kw_l_add, var_rom_scan_base, llit_16384, var_rom_scan_cur
 
 			; Rom.cls 295: Loop
-			dw do65_t_go
-do65_e:
+			dw do63_t_go
+do63_e:
 			dw p_rom_scan_r
 
 ntc_rg49_e:
@@ -2502,20 +2476,20 @@ p_rom_pickidx:
 
 			; Rom.cls 305: If win = 0 Then
 			dw kw_cpeqvl, var_rom_pickidx_win, 0
-			dw kw_goto_iffalse, if70_1
+			dw kw_goto_iffalse, if68_1
 
 			; Rom.cls 306: wn = 65536
 			dw kw_l_mov, llit_65536, var_rom_pickidx_wn
 
 			; Rom.cls 307: Else
-			dw if70_e_go
-if70_1:
+			dw if68_e_go
+if68_1:
 
 			; Rom.cls 308: wn = win
 			dw kw_l_itol, var_rom_pickidx_win, var_rom_pickidx_wn
 
 			; Rom.cls 309: End If
-if70_e:
+if68_e:
 
 			; Rom.cls 310: a0 = Rng.Pick(256)
 			dw p_rng_pick_c, lit_256
@@ -2530,11 +2504,11 @@ if70_e:
 
 			; Rom.cls 312: If a0 >= wn Then a0 = a0 - (a0 \ wn) * wn
 			dw kw_l_cpge, var_rom_pickidx_a0, var_rom_pickidx_wn
-			dw kw_goto_iffalse, if71_1
+			dw kw_goto_iffalse, if69_1
 			dw kw_l_div, var_rom_pickidx_a0, var_rom_pickidx_wn, ltmp1
 			dw kw_l_mul, ltmp1, var_rom_pickidx_wn, ltmp1
 			dw kw_l_sub, var_rom_pickidx_a0, ltmp1, var_rom_pickidx_a0
-if71_1:
+if69_1:
 
 			; Rom.cls 313: PickIdx = 0
 			dw kw_ztov, var_rom_pickidx_pickidx
@@ -2552,18 +2526,18 @@ if71_1:
 			dw kw_l_cpgt, var_rom_pickidx_a0, llit_0
 			dw kw_ftov, tmp1
 			dw kw_andvv, tmp0, tmp1, tmp0
-			dw kw_goto_ifzero, tmp0, if72_1
+			dw kw_goto_ifzero, tmp0, if70_1
 			dw kw_l_add, var_rom_pickidx_off, var_rom_pickidx_a0, ltmp3
 			dw kw_l_sub, ltmp3, llit_1, ltmp3
 			dw p_rom_scan_c, var_rom_pickidx_rb, var_rom_pickidx_v, var_rom_pickidx_off, ltmp3
 			dw kw_l_mov, var_rom_scan_scan, var_rom_pickidx_r
-if72_1:
+if70_1:
 
 			; Rom.cls 316: If r < 0 Then Exit Function
 			dw kw_l_cplt, var_rom_pickidx_r, llit_0
-			dw kw_goto_iffalse, if73_1
+			dw kw_goto_iffalse, if71_1
 			dw p_rom_pickidx_r
-if73_1:
+if71_1:
 
 			; Rom.cls 317: ad = r - off
 			dw kw_l_sub, var_rom_pickidx_r, var_rom_pickidx_off, var_rom_pickidx_ad
@@ -2604,7 +2578,7 @@ p_rom_enc:
 
 			; Rom.cls 328: If proto >= 2 Then
 			dw kw_scpgevl, var_rom_enc_proto, 2
-			dw kw_goto_iffalse, if74_1
+			dw kw_goto_iffalse, if72_1
 
 			; Rom.cls 329: Enc = EncX(rb, proto, win, pmax)
 			dw p_rom_encx_c, var_rom_enc_rb, var_rom_enc_proto, var_rom_enc_win, var_rom_enc_pmax
@@ -2614,19 +2588,19 @@ p_rom_enc:
 			dw p_rom_enc_r
 
 			; Rom.cls 331: End If
-if74_1:
+if72_1:
 
 			; Rom.cls 332: n = 0
 			dw kw_ztov, var_rom_enc_n
 
 			; Rom.cls 333: If proto = 0 Then
 			dw kw_cpeqvl, var_rom_enc_proto, 0
-			dw kw_goto_iffalse, if75_1
+			dw kw_goto_iffalse, if73_1
 
 			; Rom.cls 334: If Wn * 2 > 2304 Then
 			dw kw_2x, var_rom_wn, tmp0
 			dw kw_scpgtvl, tmp0, 2304
-			dw kw_goto_iffalse, if76_1
+			dw kw_goto_iffalse, if74_1
 
 			; Rom.cls 335: Enc = -2
 			dw kw_ltov, -2, var_rom_enc_enc
@@ -2635,13 +2609,13 @@ if74_1:
 			dw p_rom_enc_r
 
 			; Rom.cls 337: End If
-if76_1:
+if74_1:
 
 			; Rom.cls 338: For i = 0 To Wn - 1
 			dw kw_ztov, var_rom_enc_i
-			dw kw_addl, var_rom_wn, -1, for77_l
-			dw kw_forupv, var_rom_enc_i, for77_l, for77_e
-for77_t:
+			dw kw_addl, var_rom_wn, -1, for75_l
+			dw kw_forupv, var_rom_enc_i, for75_l, for75_e
+for75_t:
 
 			; Rom.cls 339: If PickIdx(rb, Wg(i), 0, 0, win) = 0 Then
 			dw p_rom_wg_c, var_rom_enc_i
@@ -2649,7 +2623,7 @@ for77_t:
 			dw p_rom_pickidx_c, var_rom_enc_rb, tmp1, lit_0, lit_0, var_rom_enc_win
 			dw kw_vtov, var_rom_pickidx_pickidx, tmp0
 			dw kw_cpeqvl, tmp0, 0
-			dw kw_goto_iffalse, if78_1
+			dw kw_goto_iffalse, if76_1
 
 			; Rom.cls 340: Enc = -1
 			dw kw_ltov, -1, var_rom_enc_enc
@@ -2658,7 +2632,7 @@ for77_t:
 			dw p_rom_enc_r
 
 			; Rom.cls 342: End If
-if78_1:
+if76_1:
 
 			; Rom.cls 343: Op n, PickLo
 			dw p_rom_op_c, var_rom_enc_n, var_rom_picklo
@@ -2671,8 +2645,8 @@ if78_1:
 			dw kw_addl, var_rom_enc_n, 2, var_rom_enc_n
 
 			; Rom.cls 346: Next
-			dw kw_next1v, var_rom_enc_i, for77_l, for77_t
-for77_e:
+			dw kw_next1v, var_rom_enc_i, for75_l, for75_t
+for75_e:
 
 			; Rom.cls 347: Enc = n
 			dw kw_vtov, var_rom_enc_n, var_rom_enc_enc
@@ -2681,7 +2655,7 @@ for77_e:
 			dw p_rom_enc_r
 
 			; Rom.cls 349: End If
-if75_1:
+if73_1:
 
 			; Rom.cls 350: olo = Rng.Pick(256)
 			dw p_rng_pick_c, lit_256
@@ -2709,7 +2683,7 @@ if75_1:
 			dw kw_add, tmp0, tmp1, tmp0
 			dw kw_add, tmp0, var_rom_enc_sf, tmp0
 			dw kw_scpgtvl, tmp0, 2304
-			dw kw_goto_iffalse, if79_1
+			dw kw_goto_iffalse, if77_1
 
 			; Rom.cls 355: Enc = -2
 			dw kw_ltov, -2, var_rom_enc_enc
@@ -2718,58 +2692,58 @@ if75_1:
 			dw p_rom_enc_r
 
 			; Rom.cls 357: End If
-if79_1:
+if77_1:
 
 			; Rom.cls 358: For k = 0 To 3
 			dw kw_ztov, var_rom_enc_k
-for80_t:
+for78_t:
 
 			; Rom.cls 359: Select Case k
-			dw kw_vtov, var_rom_enc_k, var_rom_enc___sel81
+			dw kw_vtov, var_rom_enc_k, var_rom_enc___sel79
 
 			; Rom.cls 360: Case 0
-			dw kw_cpeqvl, var_rom_enc___sel81, 0
-			dw kw_goto_iffalse, sel81_1
-sel81_b1:
+			dw kw_cpeqvl, var_rom_enc___sel79, 0
+			dw kw_goto_iffalse, sel79_1
+sel79_b1:
 
 			; Rom.cls 361: hv = olo
 			dw kw_vtov, var_rom_enc_olo, var_rom_enc_hv
 
 			; Rom.cls 362: Case 1
-			dw sel81_e_go
-sel81_1:
-			dw kw_cpeqvl, var_rom_enc___sel81, 1
-			dw kw_goto_iffalse, sel81_2
-sel81_b2:
+			dw sel79_e_go
+sel79_1:
+			dw kw_cpeqvl, var_rom_enc___sel79, 1
+			dw kw_goto_iffalse, sel79_2
+sel79_b2:
 
 			; Rom.cls 363: hv = ohi
 			dw kw_vtov, var_rom_enc_ohi, var_rom_enc_hv
 
 			; Rom.cls 364: Case 2
-			dw sel81_e_go
-sel81_2:
-			dw kw_cpeqvl, var_rom_enc___sel81, 2
-			dw kw_goto_iffalse, sel81_3
-sel81_b3:
+			dw sel79_e_go
+sel79_2:
+			dw kw_cpeqvl, var_rom_enc___sel79, 2
+			dw kw_goto_iffalse, sel79_3
+sel79_b3:
 
 			; Rom.cls 365: hv = pf
 			dw kw_vtov, var_rom_enc_pf, var_rom_enc_hv
 
 			; Rom.cls 366: Case Else
-			dw sel81_e_go
-sel81_3:
+			dw sel79_e_go
+sel79_3:
 
 			; Rom.cls 367: hv = sf
 			dw kw_vtov, var_rom_enc_sf, var_rom_enc_hv
 
 			; Rom.cls 368: End Select
-sel81_e:
+sel79_e:
 
 			; Rom.cls 369: If PickIdx(rb, hv, 0, 0, 0) = 0 Then
 			dw p_rom_pickidx_c, var_rom_enc_rb, var_rom_enc_hv, lit_0, lit_0, lit_0
 			dw kw_vtov, var_rom_pickidx_pickidx, tmp0
 			dw kw_cpeqvl, tmp0, 0
-			dw kw_goto_iffalse, if82_1
+			dw kw_goto_iffalse, if80_1
 
 			; Rom.cls 370: Enc = -1
 			dw kw_ltov, -1, var_rom_enc_enc
@@ -2778,7 +2752,7 @@ sel81_e:
 			dw p_rom_enc_r
 
 			; Rom.cls 372: End If
-if82_1:
+if80_1:
 
 			; Rom.cls 373: Op k * 2, PickLo
 			dw kw_2x, var_rom_enc_k, tmp0
@@ -2790,17 +2764,17 @@ if82_1:
 			dw p_rom_op_c, tmp0, var_rom_pickhi
 
 			; Rom.cls 375: Next
-			dw kw_next1l, var_rom_enc_k, 3, for80_t
-for80_e:
+			dw kw_next1l, var_rom_enc_k, 3, for78_t
+for78_e:
 
 			; Rom.cls 376: n = 8
 			dw kw_ltov, 8, var_rom_enc_n
 
 			; Rom.cls 377: For i = 1 To pf
 			dw kw_ltov, 1, var_rom_enc_i
-			dw kw_vtov, var_rom_enc_pf, for83_l
-			dw kw_forupv, var_rom_enc_i, for83_l, for83_e
-for83_t:
+			dw kw_vtov, var_rom_enc_pf, for81_l
+			dw kw_forupv, var_rom_enc_i, for81_l, for81_e
+for81_t:
 
 			; Rom.cls 378: Op n, Rng.Pick(256)
 			dw p_rng_pick_c, lit_256
@@ -2811,14 +2785,14 @@ for83_t:
 			dw kw_inc, var_rom_enc_n
 
 			; Rom.cls 380: Next
-			dw kw_next1v, var_rom_enc_i, for83_l, for83_t
-for83_e:
+			dw kw_next1v, var_rom_enc_i, for81_l, for81_t
+for81_e:
 
 			; Rom.cls 381: For i = 0 To Wn - 1
 			dw kw_ztov, var_rom_enc_i
-			dw kw_addl, var_rom_wn, -1, for84_l
-			dw kw_forupv, var_rom_enc_i, for84_l, for84_e
-for84_t:
+			dw kw_addl, var_rom_wn, -1, for82_l
+			dw kw_forupv, var_rom_enc_i, for82_l, for82_e
+for82_t:
 
 			; Rom.cls 382: If PickIdx(rb, Wg(i), olo, ohi, 0) = 0 Then
 			dw p_rom_wg_c, var_rom_enc_i
@@ -2826,7 +2800,7 @@ for84_t:
 			dw p_rom_pickidx_c, var_rom_enc_rb, tmp1, var_rom_enc_olo, var_rom_enc_ohi, lit_0
 			dw kw_vtov, var_rom_pickidx_pickidx, tmp0
 			dw kw_cpeqvl, tmp0, 0
-			dw kw_goto_iffalse, if85_1
+			dw kw_goto_iffalse, if83_1
 
 			; Rom.cls 383: Enc = -1
 			dw kw_ltov, -1, var_rom_enc_enc
@@ -2835,7 +2809,7 @@ for84_t:
 			dw p_rom_enc_r
 
 			; Rom.cls 385: End If
-if85_1:
+if83_1:
 
 			; Rom.cls 386: Op n, PickLo
 			dw p_rom_op_c, var_rom_enc_n, var_rom_picklo
@@ -2848,14 +2822,14 @@ if85_1:
 			dw kw_addl, var_rom_enc_n, 2, var_rom_enc_n
 
 			; Rom.cls 389: Next
-			dw kw_next1v, var_rom_enc_i, for84_l, for84_t
-for84_e:
+			dw kw_next1v, var_rom_enc_i, for82_l, for82_t
+for82_e:
 
 			; Rom.cls 390: For i = 1 To sf
 			dw kw_ltov, 1, var_rom_enc_i
-			dw kw_vtov, var_rom_enc_sf, for86_l
-			dw kw_forupv, var_rom_enc_i, for86_l, for86_e
-for86_t:
+			dw kw_vtov, var_rom_enc_sf, for84_l
+			dw kw_forupv, var_rom_enc_i, for84_l, for84_e
+for84_t:
 
 			; Rom.cls 391: Op n, Rng.Pick(256)
 			dw p_rng_pick_c, lit_256
@@ -2866,8 +2840,8 @@ for86_t:
 			dw kw_inc, var_rom_enc_n
 
 			; Rom.cls 393: Next
-			dw kw_next1v, var_rom_enc_i, for86_l, for86_t
-for86_e:
+			dw kw_next1v, var_rom_enc_i, for84_l, for84_t
+for84_e:
 
 			; Rom.cls 394: Enc = n
 			dw kw_vtov, var_rom_enc_n, var_rom_enc_enc
@@ -2892,14 +2866,14 @@ p_rom_makemic:
 
 			; Rom.cls 404: For r = 0 To 3
 			dw kw_ztov, var_rom_makemic_r
-for87_t:
+for85_t:
 
 			; Rom.cls 405: b = r * 256
 			dw kw_mulvl, var_rom_makemic_r, 256, var_rom_makemic_b
 
 			; Rom.cls 406: For i = 0 To 255
 			dw kw_ztov, var_rom_makemic_i
-for88_t:
+for86_t:
 
 			; Rom.cls 407: Mm(b + i) = i \ 16
 			dw kw_add, var_rom_makemic_b, var_rom_makemic_i, tmp0
@@ -2907,12 +2881,12 @@ for88_t:
 			dw kw_aset8, arr_rom_mm, tmp0, tmp1
 
 			; Rom.cls 408: Next
-			dw kw_next1l, var_rom_makemic_i, 255, for88_t
-for88_e:
+			dw kw_next1l, var_rom_makemic_i, 255, for86_t
+for86_e:
 
 			; Rom.cls 409: For i = 255 To 1 Step -1
 			dw kw_ltov, 255, var_rom_makemic_i
-for89_t:
+for87_t:
 
 			; Rom.cls 410: j = Rng.Pick(i + 1)
 			dw kw_addl, var_rom_makemic_i, 1, tmp0
@@ -2934,12 +2908,12 @@ for89_t:
 			dw kw_aset8, arr_rom_mm, tmp0, var_rom_makemic_t
 
 			; Rom.cls 414: Next
-			dw kw_nextdnl, var_rom_makemic_i, -1, 1, for89_t
-for89_e:
+			dw kw_nextdnl, var_rom_makemic_i, -1, 1, for87_t
+for87_e:
 
 			; Rom.cls 415: Next
-			dw kw_next1l, var_rom_makemic_r, 3, for87_t
-for87_e:
+			dw kw_next1l, var_rom_makemic_r, 3, for85_t
+for85_e:
 			dw p_rom_makemic_r
 
 ntc_rg52_e:
@@ -2959,38 +2933,38 @@ p_rom_micidx:
 
 			; Rom.cls 420: If rb = Data.ROMB0 Then
 			dw kw_cpeqvl, var_rom_micidx_rb, 1
-			dw kw_goto_iffalse, if90_1
+			dw kw_goto_iffalse, if88_1
 
 			; Rom.cls 421: MicIdx = 0
 			dw kw_ztov, var_rom_micidx_micidx
 
 			; Rom.cls 422: ElseIf rb = Data.ROMB1 Then
-			dw if90_e_go
-if90_1:
+			dw if88_e_go
+if88_1:
 			dw kw_cpeqvl, var_rom_micidx_rb, 9
-			dw kw_goto_iffalse, if90_2
+			dw kw_goto_iffalse, if88_2
 
 			; Rom.cls 423: MicIdx = 1
 			dw kw_ltov, 1, var_rom_micidx_micidx
 
 			; Rom.cls 424: ElseIf rb = Data.ROMB2 Then
-			dw if90_e_go
-if90_2:
+			dw if88_e_go
+if88_2:
 			dw kw_cpeqvl, var_rom_micidx_rb, 17
-			dw kw_goto_iffalse, if90_3
+			dw kw_goto_iffalse, if88_3
 
 			; Rom.cls 425: MicIdx = 2
 			dw kw_ltov, 2, var_rom_micidx_micidx
 
 			; Rom.cls 426: Else
-			dw if90_e_go
-if90_3:
+			dw if88_e_go
+if88_3:
 
 			; Rom.cls 427: MicIdx = 3
 			dw kw_ltov, 3, var_rom_micidx_micidx
 
 			; Rom.cls 428: End If
-if90_e:
+if88_e:
 			dw p_rom_micidx_r
 
 ntc_rg53_e:
@@ -3010,13 +2984,13 @@ p_rom_eput:
 
 			; Rom.cls 432: If ebad <> 0 Then Exit Sub
 			dw kw_cpnevl, var_rom_ebad, 0
-			dw kw_goto_iffalse, if91_1
+			dw kw_goto_iffalse, if89_1
 			dw p_rom_eput_r
-if91_1:
+if89_1:
 
 			; Rom.cls 433: If ep >= 2304 Then
 			dw kw_scpgevl, var_rom_ep, 2304
-			dw kw_goto_iffalse, if92_1
+			dw kw_goto_iffalse, if90_1
 
 			; Rom.cls 434: ebad = -2
 			dw kw_ltov, -2, var_rom_ebad
@@ -3025,7 +2999,7 @@ if91_1:
 			dw p_rom_eput_r
 
 			; Rom.cls 436: End If
-if92_1:
+if90_1:
 
 			; Rom.cls 437: Op ep, v
 			dw p_rom_op_c, var_rom_ep, var_rom_eput_v
@@ -3053,13 +3027,13 @@ p_rom_eadr:
 
 			; Rom.cls 444: If ebad <> 0 Then Exit Sub
 			dw kw_cpnevl, var_rom_ebad, 0
-			dw kw_goto_iffalse, if93_1
+			dw kw_goto_iffalse, if91_1
 			dw p_rom_eadr_r
-if93_1:
+if91_1:
 
 			; Rom.cls 445: If emic = 1 Then
 			dw kw_cpeqvl, var_rom_emic, 1
-			dw kw_goto_iffalse, if94_1
+			dw kw_goto_iffalse, if92_1
 
 			; Rom.cls 446: a = Rng.Pick(256)
 			dw p_rng_pick_c, lit_256
@@ -3069,7 +3043,7 @@ if93_1:
 			dw kw_ztov, var_rom_eadr_k
 
 			; Rom.cls 448: Do While Mm(emi * 256 + ((a + olo + ohi * 16) And 255)) <> v And k < 256
-do95_t:
+do93_t:
 			dw kw_mulvl, var_rom_emi, 256, tmp0
 			dw kw_add, var_rom_eadr_a, var_rom_eadr_olo, tmp1
 			dw kw_mulvl, var_rom_eadr_ohi, 16, tmp2
@@ -3082,7 +3056,7 @@ do95_t:
 			dw kw_scpltvl, var_rom_eadr_k, 256
 			dw kw_ftov, tmp1
 			dw kw_andvv, tmp0, tmp1, tmp0
-			dw kw_goto_ifzero, tmp0, do95_e
+			dw kw_goto_ifzero, tmp0, do93_e
 
 			; Rom.cls 449: a = (a + 1) And 255
 			dw kw_addl, var_rom_eadr_a, 1, tmp0
@@ -3092,12 +3066,12 @@ do95_t:
 			dw kw_inc, var_rom_eadr_k
 
 			; Rom.cls 451: Loop
-			dw do95_t_go
-do95_e:
+			dw do93_t_go
+do93_e:
 
 			; Rom.cls 452: If k >= 256 Then
 			dw kw_scpgevl, var_rom_eadr_k, 256
-			dw kw_goto_iffalse, if96_1
+			dw kw_goto_iffalse, if94_1
 
 			; Rom.cls 453: ebad = -1
 			dw kw_ltov, -1, var_rom_ebad
@@ -3106,20 +3080,20 @@ do95_e:
 			dw p_rom_eadr_r
 
 			; Rom.cls 455: End If
-if96_1:
+if94_1:
 
 			; Rom.cls 456: EPut a
 			dw p_rom_eput_c, var_rom_eadr_a
 
 			; Rom.cls 457: Else
-			dw if94_e_go
-if94_1:
+			dw if92_e_go
+if92_1:
 
 			; Rom.cls 458: If PickIdx(erb, v, olo, ohi, ewin) = 0 Then
 			dw p_rom_pickidx_c, var_rom_erb, var_rom_eadr_v, var_rom_eadr_olo, var_rom_eadr_ohi, var_rom_ewin
 			dw kw_vtov, var_rom_pickidx_pickidx, tmp0
 			dw kw_cpeqvl, tmp0, 0
-			dw kw_goto_iffalse, if97_1
+			dw kw_goto_iffalse, if95_1
 
 			; Rom.cls 459: ebad = -1
 			dw kw_ltov, -1, var_rom_ebad
@@ -3128,7 +3102,7 @@ if94_1:
 			dw p_rom_eadr_r
 
 			; Rom.cls 461: End If
-if97_1:
+if95_1:
 
 			; Rom.cls 462: EPut PickLo
 			dw p_rom_eput_c, var_rom_picklo
@@ -3137,7 +3111,7 @@ if97_1:
 			dw p_rom_eput_c, var_rom_pickhi
 
 			; Rom.cls 464: End If
-if94_e:
+if92_e:
 			dw p_rom_eadr_r
 
 ntc_rg55_e:
@@ -3157,7 +3131,7 @@ p_rom_esym:
 
 			; Rom.cls 468: If emic = 1 Then
 			dw kw_cpeqvl, var_rom_emic, 1
-			dw kw_goto_iffalse, if98_1
+			dw kw_goto_iffalse, if96_1
 
 			; Rom.cls 469: EAdr c \ 16, olo, ohi
 			dw kw_divvl, var_rom_esym_c, 16, tmp0
@@ -3168,14 +3142,14 @@ p_rom_esym:
 			dw p_rom_eadr_c, tmp0, var_rom_esym_olo, var_rom_esym_ohi
 
 			; Rom.cls 471: Else
-			dw if98_e_go
-if98_1:
+			dw if96_e_go
+if96_1:
 
 			; Rom.cls 472: EAdr c, olo, ohi
 			dw p_rom_eadr_c, var_rom_esym_c, var_rom_esym_olo, var_rom_esym_ohi
 
 			; Rom.cls 473: End If
-if98_e:
+if96_e:
 			dw p_rom_esym_r
 
 ntc_rg56_e:
@@ -3214,7 +3188,7 @@ p_rom_ehvw:
 
 			; Rom.cls 481: If emic = 1 Then
 			dw kw_cpeqvl, var_rom_emic, 1
-			dw kw_goto_iffalse, if99_1
+			dw kw_goto_iffalse, if97_1
 
 			; Rom.cls 482: EHv v And 15
 			dw kw_andvl, var_rom_ehvw_v, 15, tmp0
@@ -3225,8 +3199,8 @@ p_rom_ehvw:
 			dw p_rom_ehv_c, tmp0
 
 			; Rom.cls 484: Else
-			dw if99_e_go
-if99_1:
+			dw if97_e_go
+if97_1:
 
 			; Rom.cls 485: EHv v And 255
 			dw kw_andvl, var_rom_ehvw_v, 255, tmp0
@@ -3237,7 +3211,7 @@ if99_1:
 			dw p_rom_ehv_c, tmp0
 
 			; Rom.cls 487: End If
-if99_e:
+if97_e:
 			dw p_rom_ehvw_r
 
 ntc_rg58_e:
@@ -3257,7 +3231,7 @@ p_rom_ehvo:
 
 			; Rom.cls 491: If emic = 1 Then
 			dw kw_cpeqvl, var_rom_emic, 1
-			dw kw_goto_iffalse, if100_1
+			dw kw_goto_iffalse, if98_1
 
 			; Rom.cls 492: EHv l And 15
 			dw kw_andvl, var_rom_ehvo_l, 15, tmp0
@@ -3268,8 +3242,8 @@ p_rom_ehvo:
 			dw p_rom_ehv_c, tmp0
 
 			; Rom.cls 494: Else
-			dw if100_e_go
-if100_1:
+			dw if98_e_go
+if98_1:
 
 			; Rom.cls 495: EHv l
 			dw p_rom_ehv_c, var_rom_ehvo_l
@@ -3278,7 +3252,7 @@ if100_1:
 			dw p_rom_ehv_c, var_rom_ehvo_h
 
 			; Rom.cls 497: End If
-if100_e:
+if98_e:
 			dw p_rom_ehvo_r
 
 ntc_rg59_e:
@@ -3298,7 +3272,7 @@ p_rom_epad:
 
 			; Rom.cls 501: If emic = 1 Then
 			dw kw_cpeqvl, var_rom_emic, 1
-			dw kw_goto_iffalse, if101_1
+			dw kw_goto_iffalse, if99_1
 
 			; Rom.cls 502: EPad = 10 + Rng.Pick(6)
 			dw p_rng_pick_c, lit_6
@@ -3306,8 +3280,8 @@ p_rom_epad:
 			dw kw_addl, tmp1, 10, var_rom_epad_epad
 
 			; Rom.cls 503: Else
-			dw if101_e_go
-if101_1:
+			dw if99_e_go
+if99_1:
 
 			; Rom.cls 504: EPad = 10 + Rng.Pick(epm - 9)
 			dw kw_addl, var_rom_epm, -9, tmp1
@@ -3316,7 +3290,7 @@ if101_1:
 			dw kw_addl, tmp1, 10, var_rom_epad_epad
 
 			; Rom.cls 505: End If
-if101_e:
+if99_e:
 			dw p_rom_epad_r
 
 ntc_rg60_e:
@@ -3343,9 +3317,9 @@ p_rom_encx:
 
 			; Rom.cls 513: If proto >= 3 Then emic = 1
 			dw kw_scpgevl, var_rom_encx_proto, 3
-			dw kw_goto_iffalse, if102_1
+			dw kw_goto_iffalse, if100_1
 			dw kw_ltov, 1, var_rom_emic
-if102_1:
+if100_1:
 
 			; Rom.cls 514: kind = proto - emic * 3
 			dw kw_mulvl, var_rom_emic, 3, tmp1
@@ -3375,13 +3349,13 @@ if102_1:
 
 			; Rom.cls 522: If kind = 0 Then
 			dw kw_cpeqvl, var_rom_encx_kind, 0
-			dw kw_goto_iffalse, if103_1
+			dw kw_goto_iffalse, if101_1
 
 			; Rom.cls 523: For i = 0 To Wn - 1
 			dw kw_ztov, var_rom_encx_i
-			dw kw_addl, var_rom_wn, -1, for104_l
-			dw kw_forupv, var_rom_encx_i, for104_l, for104_e
-for104_t:
+			dw kw_addl, var_rom_wn, -1, for102_l
+			dw kw_forupv, var_rom_encx_i, for102_l, for102_e
+for102_t:
 
 			; Rom.cls 524: ESym Wg(i), 0, 0
 			dw p_rom_wg_c, var_rom_encx_i
@@ -3389,23 +3363,23 @@ for104_t:
 			dw p_rom_esym_c, tmp0, lit_0, lit_0
 
 			; Rom.cls 525: Next
-			dw kw_next1v, var_rom_encx_i, for104_l, for104_t
-for104_e:
+			dw kw_next1v, var_rom_encx_i, for102_l, for102_t
+for102_e:
 
 			; Rom.cls 526: EncX = ep
 			dw kw_vtov, var_rom_ep, var_rom_encx_encx
 
 			; Rom.cls 527: If ebad <> 0 Then EncX = ebad
 			dw kw_cpnevl, var_rom_ebad, 0
-			dw kw_goto_iffalse, if105_1
+			dw kw_goto_iffalse, if103_1
 			dw kw_vtov, var_rom_ebad, var_rom_encx_encx
-if105_1:
+if103_1:
 
 			; Rom.cls 528: Exit Function
 			dw p_rom_encx_r
 
 			; Rom.cls 529: End If
-if103_1:
+if101_1:
 
 			; Rom.cls 530: pf = EPad()
 			dw p_rom_epad_c
@@ -3417,11 +3391,11 @@ if103_1:
 
 			; Rom.cls 532: If kind = 1 Then
 			dw kw_cpeqvl, var_rom_encx_kind, 1
-			dw kw_goto_iffalse, if106_1
+			dw kw_goto_iffalse, if104_1
 
 			; Rom.cls 533: If emic = 1 Then
 			dw kw_cpeqvl, var_rom_emic, 1
-			dw kw_goto_iffalse, if107_1
+			dw kw_goto_iffalse, if105_1
 
 			; Rom.cls 534: ol = Rng.Pick(256)
 			dw p_rng_pick_c, lit_256
@@ -3434,8 +3408,8 @@ if103_1:
 			dw kw_andvl, var_rom_encx_ol, 15, var_rom_encx_ol
 
 			; Rom.cls 537: Else
-			dw if107_e_go
-if107_1:
+			dw if105_e_go
+if105_1:
 
 			; Rom.cls 538: ol = Rng.Pick(256)
 			dw p_rng_pick_c, lit_256
@@ -3446,7 +3420,7 @@ if107_1:
 			dw kw_vtov, var_rng_pick_pick, var_rom_encx_oh
 
 			; Rom.cls 540: End If
-if107_e:
+if105_e:
 
 			; Rom.cls 541: EHv ol
 			dw p_rom_ehv_c, var_rom_encx_ol
@@ -3462,9 +3436,9 @@ if107_e:
 
 			; Rom.cls 545: For i = 1 To pf
 			dw kw_ltov, 1, var_rom_encx_i
-			dw kw_vtov, var_rom_encx_pf, for108_l
-			dw kw_forupv, var_rom_encx_i, for108_l, for108_e
-for108_t:
+			dw kw_vtov, var_rom_encx_pf, for106_l
+			dw kw_forupv, var_rom_encx_i, for106_l, for106_e
+for106_t:
 
 			; Rom.cls 546: EPut Rng.Pick(256)
 			dw p_rng_pick_c, lit_256
@@ -3472,14 +3446,14 @@ for108_t:
 			dw p_rom_eput_c, tmp0
 
 			; Rom.cls 547: Next
-			dw kw_next1v, var_rom_encx_i, for108_l, for108_t
-for108_e:
+			dw kw_next1v, var_rom_encx_i, for106_l, for106_t
+for106_e:
 
 			; Rom.cls 548: For i = 0 To Wn - 1
 			dw kw_ztov, var_rom_encx_i
-			dw kw_addl, var_rom_wn, -1, for109_l
-			dw kw_forupv, var_rom_encx_i, for109_l, for109_e
-for109_t:
+			dw kw_addl, var_rom_wn, -1, for107_l
+			dw kw_forupv, var_rom_encx_i, for107_l, for107_e
+for107_t:
 
 			; Rom.cls 549: ESym Wg(i), ol, oh
 			dw p_rom_wg_c, var_rom_encx_i
@@ -3487,14 +3461,14 @@ for109_t:
 			dw p_rom_esym_c, tmp0, var_rom_encx_ol, var_rom_encx_oh
 
 			; Rom.cls 550: Next
-			dw kw_next1v, var_rom_encx_i, for109_l, for109_t
-for109_e:
+			dw kw_next1v, var_rom_encx_i, for107_l, for107_t
+for107_e:
 
 			; Rom.cls 551: For i = 1 To sf
 			dw kw_ltov, 1, var_rom_encx_i
-			dw kw_vtov, var_rom_encx_sf, for110_l
-			dw kw_forupv, var_rom_encx_i, for110_l, for110_e
-for110_t:
+			dw kw_vtov, var_rom_encx_sf, for108_l
+			dw kw_forupv, var_rom_encx_i, for108_l, for108_e
+for108_t:
 
 			; Rom.cls 552: EPut Rng.Pick(256)
 			dw p_rng_pick_c, lit_256
@@ -3502,23 +3476,23 @@ for110_t:
 			dw p_rom_eput_c, tmp0
 
 			; Rom.cls 553: Next
-			dw kw_next1v, var_rom_encx_i, for110_l, for110_t
-for110_e:
+			dw kw_next1v, var_rom_encx_i, for108_l, for108_t
+for108_e:
 
 			; Rom.cls 554: EncX = ep
 			dw kw_vtov, var_rom_ep, var_rom_encx_encx
 
 			; Rom.cls 555: If ebad <> 0 Then EncX = ebad
 			dw kw_cpnevl, var_rom_ebad, 0
-			dw kw_goto_iffalse, if111_1
+			dw kw_goto_iffalse, if109_1
 			dw kw_vtov, var_rom_ebad, var_rom_encx_encx
-if111_1:
+if109_1:
 
 			; Rom.cls 556: Exit Function
 			dw p_rom_encx_r
 
 			; Rom.cls 557: End If
-if106_1:
+if104_1:
 
 			; Rom.cls 559: rm = Wn
 			dw kw_vtov, var_rom_wn, var_rom_encx_rm
@@ -3530,9 +3504,9 @@ if106_1:
 
 			; Rom.cls 561: If cb > rm Then cb = rm
 			dw kw_scpgtvv, var_rom_encx_cb, var_rom_encx_rm
-			dw kw_goto_iffalse, if112_1
+			dw kw_goto_iffalse, if110_1
 			dw kw_vtov, var_rom_encx_rm, var_rom_encx_cb
-if112_1:
+if110_1:
 
 			; Rom.cls 562: bo = Rng.Pick(256)
 			dw p_rng_pick_c, lit_256
@@ -3540,7 +3514,7 @@ if112_1:
 
 			; Rom.cls 563: If emic = 1 Then
 			dw kw_cpeqvl, var_rom_emic, 1
-			dw kw_goto_iffalse, if113_1
+			dw kw_goto_iffalse, if111_1
 
 			; Rom.cls 564: ol = bo And 15
 			dw kw_andvl, var_rom_encx_bo, 15, var_rom_encx_ol
@@ -3549,8 +3523,8 @@ if112_1:
 			dw kw_divvl, var_rom_encx_bo, 16, var_rom_encx_oh
 
 			; Rom.cls 566: Else
-			dw if113_e_go
-if113_1:
+			dw if111_e_go
+if111_1:
 
 			; Rom.cls 567: ol = bo
 			dw kw_vtov, var_rom_encx_bo, var_rom_encx_ol
@@ -3560,7 +3534,7 @@ if113_1:
 			dw kw_vtov, var_rng_pick_pick, var_rom_encx_oh
 
 			; Rom.cls 569: End If
-if113_e:
+if111_e:
 
 			; Rom.cls 570: EHvO ol + oh * 16 * emic, oh
 			dw kw_mulvl, var_rom_encx_oh, 16, tmp1
@@ -3580,9 +3554,9 @@ if113_e:
 
 			; Rom.cls 574: For i = 1 To pf
 			dw kw_ltov, 1, var_rom_encx_i
-			dw kw_vtov, var_rom_encx_pf, for114_l
-			dw kw_forupv, var_rom_encx_i, for114_l, for114_e
-for114_t:
+			dw kw_vtov, var_rom_encx_pf, for112_l
+			dw kw_forupv, var_rom_encx_i, for112_l, for112_e
+for112_t:
 
 			; Rom.cls 575: EPut Rng.Pick(256)
 			dw p_rng_pick_c, lit_256
@@ -3590,27 +3564,27 @@ for114_t:
 			dw p_rom_eput_c, tmp0
 
 			; Rom.cls 576: Next
-			dw kw_next1v, var_rom_encx_i, for114_l, for114_t
-for114_e:
+			dw kw_next1v, var_rom_encx_i, for112_l, for112_t
+for112_e:
 
 			; Rom.cls 577: pos = 0
 			dw kw_ztov, var_rom_encx_pos
 
 			; Rom.cls 578: Do While rm > 0 And ebad = 0
-do115_t:
+do113_t:
 			dw kw_scpgtvl, var_rom_encx_rm, 0
 			dw kw_ftov, tmp0
 			dw kw_cpeqvl, var_rom_ebad, 0
 			dw kw_ftov, tmp1
 			dw kw_andvv, tmp0, tmp1, tmp0
-			dw kw_goto_ifzero, tmp0, do115_e
+			dw kw_goto_ifzero, tmp0, do113_e
 
 			; Rom.cls 579: rm = rm - cb
 			dw kw_subvv, var_rom_encx_rm, var_rom_encx_cb, var_rom_encx_rm
 
 			; Rom.cls 580: If rm > 0 Then
 			dw kw_scpgtvl, var_rom_encx_rm, 0
-			dw kw_goto_iffalse, if116_1
+			dw kw_goto_iffalse, if114_1
 
 			; Rom.cls 581: nb = 8 + Rng.Pick(17)
 			dw p_rng_pick_c, lit_17
@@ -3619,9 +3593,9 @@ do115_t:
 
 			; Rom.cls 582: If nb > rm Then nb = rm
 			dw kw_scpgtvv, var_rom_encx_nb, var_rom_encx_rm
-			dw kw_goto_iffalse, if117_1
+			dw kw_goto_iffalse, if115_1
 			dw kw_vtov, var_rom_encx_rm, var_rom_encx_nb
-if117_1:
+if115_1:
 
 			; Rom.cls 583: nl = Rng.Pick(256)
 			dw p_rng_pick_c, lit_256
@@ -3629,7 +3603,7 @@ if117_1:
 
 			; Rom.cls 584: If emic = 1 Then
 			dw kw_cpeqvl, var_rom_emic, 1
-			dw kw_goto_iffalse, if118_1
+			dw kw_goto_iffalse, if116_1
 
 			; Rom.cls 585: nh = nl \ 16
 			dw kw_divvl, var_rom_encx_nl, 16, var_rom_encx_nh
@@ -3638,15 +3612,15 @@ if117_1:
 			dw kw_andvl, var_rom_encx_nl, 15, var_rom_encx_nl
 
 			; Rom.cls 587: Else
-			dw if118_e_go
-if118_1:
+			dw if116_e_go
+if116_1:
 
 			; Rom.cls 588: nh = Rng.Pick(256)
 			dw p_rng_pick_c, lit_256
 			dw kw_vtov, var_rng_pick_pick, var_rom_encx_nh
 
 			; Rom.cls 589: End If
-if118_e:
+if116_e:
 
 			; Rom.cls 590: EHvO nl + nh * 16 * emic, nh
 			dw kw_mulvl, var_rom_encx_nh, 16, tmp1
@@ -3659,8 +3633,8 @@ if118_e:
 			dw p_rom_ehvw_c, tmp0
 
 			; Rom.cls 592: Else
-			dw if116_e_go
-if116_1:
+			dw if114_e_go
+if114_1:
 
 			; Rom.cls 593: nb = 0
 			dw kw_ztov, var_rom_encx_nb
@@ -3684,13 +3658,13 @@ if116_1:
 			dw p_rom_ehvw_c, tmp0
 
 			; Rom.cls 598: End If
-if116_e:
+if114_e:
 
 			; Rom.cls 599: For i = 1 To cb
 			dw kw_ltov, 1, var_rom_encx_i
-			dw kw_vtov, var_rom_encx_cb, for119_l
-			dw kw_forupv, var_rom_encx_i, for119_l, for119_e
-for119_t:
+			dw kw_vtov, var_rom_encx_cb, for117_l
+			dw kw_forupv, var_rom_encx_i, for117_l, for117_e
+for117_t:
 
 			; Rom.cls 600: ESym Wg(pos), ol, oh
 			dw p_rom_wg_c, var_rom_encx_pos
@@ -3701,8 +3675,8 @@ for119_t:
 			dw kw_inc, var_rom_encx_pos
 
 			; Rom.cls 602: Next
-			dw kw_next1v, var_rom_encx_i, for119_l, for119_t
-for119_e:
+			dw kw_next1v, var_rom_encx_i, for117_l, for117_t
+for117_e:
 
 			; Rom.cls 603: ol = nl
 			dw kw_vtov, var_rom_encx_nl, var_rom_encx_ol
@@ -3714,14 +3688,14 @@ for119_e:
 			dw kw_vtov, var_rom_encx_nb, var_rom_encx_cb
 
 			; Rom.cls 606: Loop
-			dw do115_t_go
-do115_e:
+			dw do113_t_go
+do113_e:
 
 			; Rom.cls 607: For i = 1 To sf
 			dw kw_ltov, 1, var_rom_encx_i
-			dw kw_vtov, var_rom_encx_sf, for120_l
-			dw kw_forupv, var_rom_encx_i, for120_l, for120_e
-for120_t:
+			dw kw_vtov, var_rom_encx_sf, for118_l
+			dw kw_forupv, var_rom_encx_i, for118_l, for118_e
+for118_t:
 
 			; Rom.cls 608: EPut Rng.Pick(256)
 			dw p_rng_pick_c, lit_256
@@ -3729,17 +3703,17 @@ for120_t:
 			dw p_rom_eput_c, tmp0
 
 			; Rom.cls 609: Next
-			dw kw_next1v, var_rom_encx_i, for120_l, for120_t
-for120_e:
+			dw kw_next1v, var_rom_encx_i, for118_l, for118_t
+for118_e:
 
 			; Rom.cls 610: EncX = ep
 			dw kw_vtov, var_rom_ep, var_rom_encx_encx
 
 			; Rom.cls 611: If ebad <> 0 Then EncX = ebad
 			dw kw_cpnevl, var_rom_ebad, 0
-			dw kw_goto_iffalse, if121_1
+			dw kw_goto_iffalse, if119_1
 			dw kw_vtov, var_rom_ebad, var_rom_encx_encx
-if121_1:
+if119_1:
 			dw p_rom_encx_r
 
 ntc_rg61_e:
@@ -3759,7 +3733,7 @@ p_rom_rdv:
 
 			; Rom.cls 616: If dmic = 1 Then
 			dw kw_cpeqvl, var_rom_dmic, 1
-			dw kw_goto_iffalse, if122_1
+			dw kw_goto_iffalse, if120_1
 
 			; Rom.cls 617: RdV = Mm(dmi * 256 + ((Wg(p) + olo + ohi * 16) And 255))
 			dw kw_mulvl, var_rom_dmi, 256, tmp2
@@ -3773,8 +3747,8 @@ p_rom_rdv:
 			dw kw_aget8, arr_rom_mm, tmp2, var_rom_rdv_rdv
 
 			; Rom.cls 618: Else
-			dw if122_e_go
-if122_1:
+			dw if120_e_go
+if120_1:
 
 			; Rom.cls 619: RdV = B(drb, olo, ohi, Wg(p), Wg(p + 1))
 			dw p_rom_wg_c, var_rom_rdv_p
@@ -3786,7 +3760,7 @@ if122_1:
 			dw kw_vtov, var_rom_b_b, var_rom_rdv_rdv
 
 			; Rom.cls 620: End If
-if122_e:
+if120_e:
 			dw p_rom_rdv_r
 
 ntc_rg62_e:
@@ -3813,9 +3787,9 @@ p_rom_layerx:
 
 			; Rom.cls 628: If proto >= 3 Then dmic = 1
 			dw kw_scpgevl, var_rom_layerx_proto, 3
-			dw kw_goto_iffalse, if123_1
+			dw kw_goto_iffalse, if121_1
 			dw kw_ltov, 1, var_rom_dmic
-if123_1:
+if121_1:
 
 			; Rom.cls 629: kind = proto - dmic * 3
 			dw kw_mulvl, var_rom_dmic, 3, tmp1
@@ -3848,12 +3822,12 @@ if123_1:
 
 			; Rom.cls 638: If kind = 1 Then
 			dw kw_cpeqvl, var_rom_layerx_kind, 1
-			dw kw_goto_iffalse, if124_1
+			dw kw_goto_iffalse, if122_1
 
 			; Rom.cls 639: If Wn < 4 * aw Then
 			dw kw_4x, var_rom_layerx_aw, tmp1
 			dw kw_scpltvv, var_rom_wn, tmp1
-			dw kw_goto_iffalse, if125_1
+			dw kw_goto_iffalse, if123_1
 
 			; Rom.cls 640: LayerX = 0
 			dw kw_ztov, var_rom_layerx_layerx
@@ -3862,7 +3836,7 @@ if123_1:
 			dw p_rom_layerx_r
 
 			; Rom.cls 642: End If
-if125_1:
+if123_1:
 
 			; Rom.cls 643: olo = RdV(0, 0, 0)
 			dw p_rom_rdv_c, lit_0, lit_0, lit_0
@@ -3890,16 +3864,16 @@ if125_1:
 			dw kw_subvv, var_rom_wn, var_rom_layerx_sf, var_rom_layerx_e
 
 			; Rom.cls 649: End If
-if124_1:
+if122_1:
 
 			; Rom.cls 650: If kind = 2 Then
 			dw kw_cpeqvl, var_rom_layerx_kind, 2
-			dw kw_goto_iffalse, if126_1
+			dw kw_goto_iffalse, if124_1
 
 			; Rom.cls 651: If Wn < 6 * aw Then
 			dw kw_mulvl, var_rom_layerx_aw, 6, tmp1
 			dw kw_scpltvv, var_rom_wn, tmp1
-			dw kw_goto_iffalse, if127_1
+			dw kw_goto_iffalse, if125_1
 
 			; Rom.cls 652: LayerX = 0
 			dw kw_ztov, var_rom_layerx_layerx
@@ -3908,7 +3882,7 @@ if124_1:
 			dw p_rom_layerx_r
 
 			; Rom.cls 654: End If
-if127_1:
+if125_1:
 
 			; Rom.cls 655: olo = RdV(0, 0, 0)
 			dw p_rom_rdv_c, lit_0, lit_0, lit_0
@@ -3920,7 +3894,7 @@ if127_1:
 
 			; Rom.cls 657: If dmic = 1 Then
 			dw kw_cpeqvl, var_rom_dmic, 1
-			dw kw_goto_iffalse, if128_1
+			dw kw_goto_iffalse, if126_1
 
 			; Rom.cls 658: cb = RdV(2 * aw, 0, 0) + 16 * RdV(3 * aw, 0, 0)
 			dw kw_2x, var_rom_layerx_aw, tmp0
@@ -3933,8 +3907,8 @@ if127_1:
 			dw kw_add, tmp0, tmp1, var_rom_layerx_cb
 
 			; Rom.cls 659: Else
-			dw if128_e_go
-if128_1:
+			dw if126_e_go
+if126_1:
 
 			; Rom.cls 660: cb = RdV(2 * aw, 0, 0) + 256 * RdV(3 * aw, 0, 0)
 			dw kw_2x, var_rom_layerx_aw, tmp0
@@ -3947,7 +3921,7 @@ if128_1:
 			dw kw_add, tmp0, tmp1, var_rom_layerx_cb
 
 			; Rom.cls 661: End If
-if128_e:
+if126_e:
 
 			; Rom.cls 662: pf = RdV(4 * aw, 0, 0)
 			dw kw_4x, var_rom_layerx_aw, tmp0
@@ -3967,7 +3941,7 @@ if128_e:
 			dw kw_subvv, var_rom_wn, var_rom_layerx_sf, var_rom_layerx_e
 
 			; Rom.cls 666: End If
-if126_1:
+if124_1:
 
 			; Rom.cls 667: If 0 > p Or p > Wn Or e < p Then
 			dw kw_scpltvl, var_rom_layerx_p, 0
@@ -3978,7 +3952,7 @@ if126_1:
 			dw kw_scpltvv, var_rom_layerx_e, var_rom_layerx_p
 			dw kw_ftov, tmp1
 			dw kw_orvv, tmp0, tmp1, tmp0
-			dw kw_goto_ifzero, tmp0, if129_1
+			dw kw_goto_ifzero, tmp0, if127_1
 
 			; Rom.cls 668: LayerX = 0
 			dw kw_ztov, var_rom_layerx_layerx
@@ -3987,25 +3961,25 @@ if126_1:
 			dw p_rom_layerx_r
 
 			; Rom.cls 670: End If
-if129_1:
+if127_1:
 
 			; Rom.cls 671: If kind < 2 Then
 			dw kw_scpltvl, var_rom_layerx_kind, 2
-			dw kw_goto_iffalse, if130_1
+			dw kw_goto_iffalse, if128_1
 
 			; Rom.cls 672: Do While p + 1 < e And n < 2300
-do131_t:
+do129_t:
 			dw kw_addl, var_rom_layerx_p, 1, tmp0
 			dw kw_scpltvv, tmp0, var_rom_layerx_e
 			dw kw_ftov, tmp0
 			dw kw_scpltvl, var_rom_layerx_n, 2300
 			dw kw_ftov, tmp1
 			dw kw_andvv, tmp0, tmp1, tmp0
-			dw kw_goto_ifzero, tmp0, if130_e
+			dw kw_goto_ifzero, tmp0, if128_e
 
 			; Rom.cls 673: If dmic = 1 Then
 			dw kw_cpeqvl, var_rom_dmic, 1
-			dw kw_goto_iffalse, if132_1
+			dw kw_goto_iffalse, if130_1
 
 			; Rom.cls 674: Op n, RdV(p, olo, ohi) * 16 + RdV(p + 1, olo, ohi)
 			dw p_rom_rdv_c, var_rom_layerx_p, var_rom_layerx_olo, var_rom_layerx_ohi
@@ -4021,8 +3995,8 @@ do131_t:
 			dw kw_addl, var_rom_layerx_p, 2, var_rom_layerx_p
 
 			; Rom.cls 676: Else
-			dw if132_e_go
-if132_1:
+			dw if130_e_go
+if130_1:
 
 			; Rom.cls 677: Op n, RdV(p, olo, ohi)
 			dw p_rom_rdv_c, var_rom_layerx_p, var_rom_layerx_olo, var_rom_layerx_ohi
@@ -4033,31 +4007,31 @@ if132_1:
 			dw kw_addl, var_rom_layerx_p, 2, var_rom_layerx_p
 
 			; Rom.cls 679: End If
-if132_e:
+if130_e:
 
 			; Rom.cls 680: n = n + 1
 			dw kw_inc, var_rom_layerx_n
 
 			; Rom.cls 681: Loop
-			dw do131_t_go
-do131_e:
+			dw do129_t_go
+do129_e:
 
 			; Rom.cls 682: Else
-			dw if130_e_go
-if130_1:
+			dw if128_e_go
+if128_1:
 
 			; Rom.cls 683: Do While p < e
-do133_t:
+do131_t:
 			dw kw_scpltvv, var_rom_layerx_p, var_rom_layerx_e
-			dw kw_goto_iffalse, do133_e
+			dw kw_goto_iffalse, do131_e
 
 			; Rom.cls 684: If p + 4 * aw > e Then Exit Do
 			dw kw_4x, var_rom_layerx_aw, tmp1
 			dw kw_add, var_rom_layerx_p, tmp1, tmp0
 			dw kw_scpgtvv, tmp0, var_rom_layerx_e
-			dw kw_goto_iffalse, if134_1
-			dw do133_e_go
-if134_1:
+			dw kw_goto_iffalse, if132_1
+			dw do131_e_go
+if132_1:
 
 			; Rom.cls 685: nlo = RdV(p, 0, 0)
 			dw p_rom_rdv_c, var_rom_layerx_p, lit_0, lit_0
@@ -4070,7 +4044,7 @@ if134_1:
 
 			; Rom.cls 687: If dmic = 1 Then
 			dw kw_cpeqvl, var_rom_dmic, 1
-			dw kw_goto_iffalse, if135_1
+			dw kw_goto_iffalse, if133_1
 
 			; Rom.cls 688: ncb = RdV(p + 2 * aw, 0, 0) + 16 * RdV(p + 3 * aw, 0, 0)
 			dw kw_2x, var_rom_layerx_aw, tmp1
@@ -4085,8 +4059,8 @@ if134_1:
 			dw kw_add, tmp0, tmp1, var_rom_layerx_ncb
 
 			; Rom.cls 689: Else
-			dw if135_e_go
-if135_1:
+			dw if133_e_go
+if133_1:
 
 			; Rom.cls 690: ncb = RdV(p + 2 * aw, 0, 0) + 256 * RdV(p + 3 * aw, 0, 0)
 			dw kw_2x, var_rom_layerx_aw, tmp1
@@ -4101,7 +4075,7 @@ if135_1:
 			dw kw_add, tmp0, tmp1, var_rom_layerx_ncb
 
 			; Rom.cls 691: End If
-if135_e:
+if133_e:
 
 			; Rom.cls 692: p = p + 4 * aw
 			dw kw_4x, var_rom_layerx_aw, tmp1
@@ -4112,15 +4086,15 @@ if135_e:
 
 			; Rom.cls 694: If dmic = 1 Then hp = cb \ 2
 			dw kw_cpeqvl, var_rom_dmic, 1
-			dw kw_goto_iffalse, if136_1
+			dw kw_goto_iffalse, if134_1
 			dw kw_divvl, var_rom_layerx_cb, 2, var_rom_layerx_hp
-if136_1:
+if134_1:
 
 			; Rom.cls 695: For i = 1 To hp
 			dw kw_ltov, 1, var_rom_layerx_i
-			dw kw_vtov, var_rom_layerx_hp, for137_l
-			dw kw_forupv, var_rom_layerx_i, for137_l, for137_e
-for137_t:
+			dw kw_vtov, var_rom_layerx_hp, for135_l
+			dw kw_forupv, var_rom_layerx_i, for135_l, for135_e
+for135_t:
 
 			; Rom.cls 696: If p + 1 < e And n < 2300 Then
 			dw kw_addl, var_rom_layerx_p, 1, tmp0
@@ -4129,11 +4103,11 @@ for137_t:
 			dw kw_scpltvl, var_rom_layerx_n, 2300
 			dw kw_ftov, tmp1
 			dw kw_andvv, tmp0, tmp1, tmp0
-			dw kw_goto_ifzero, tmp0, if138_1
+			dw kw_goto_ifzero, tmp0, if136_1
 
 			; Rom.cls 697: If dmic = 1 Then
 			dw kw_cpeqvl, var_rom_dmic, 1
-			dw kw_goto_iffalse, if139_1
+			dw kw_goto_iffalse, if137_1
 
 			; Rom.cls 698: Op n, RdV(p, olo, ohi) * 16 + RdV(p + 1, olo, ohi)
 			dw p_rom_rdv_c, var_rom_layerx_p, var_rom_layerx_olo, var_rom_layerx_ohi
@@ -4146,8 +4120,8 @@ for137_t:
 			dw p_rom_op_c, var_rom_layerx_n, tmp1
 
 			; Rom.cls 699: Else
-			dw if139_e_go
-if139_1:
+			dw if137_e_go
+if137_1:
 
 			; Rom.cls 700: Op n, RdV(p, olo, ohi)
 			dw p_rom_rdv_c, var_rom_layerx_p, var_rom_layerx_olo, var_rom_layerx_ohi
@@ -4155,7 +4129,7 @@ if139_1:
 			dw p_rom_op_c, var_rom_layerx_n, tmp1
 
 			; Rom.cls 701: End If
-if139_e:
+if137_e:
 
 			; Rom.cls 702: n = n + 1
 			dw kw_inc, var_rom_layerx_n
@@ -4164,11 +4138,11 @@ if139_e:
 			dw kw_addl, var_rom_layerx_p, 2, var_rom_layerx_p
 
 			; Rom.cls 704: End If
-if138_1:
+if136_1:
 
 			; Rom.cls 705: Next
-			dw kw_next1v, var_rom_layerx_i, for137_l, for137_t
-for137_e:
+			dw kw_next1v, var_rom_layerx_i, for135_l, for135_t
+for135_e:
 
 			; Rom.cls 706: olo = nlo
 			dw kw_vtov, var_rom_layerx_nlo, var_rom_layerx_olo
@@ -4180,11 +4154,11 @@ for137_e:
 			dw kw_vtov, var_rom_layerx_ncb, var_rom_layerx_cb
 
 			; Rom.cls 709: Loop
-			dw do133_t_go
-do133_e:
+			dw do131_t_go
+do131_e:
 
 			; Rom.cls 710: End If
-if130_e:
+if128_e:
 
 			; Rom.cls 711: LayerX = n
 			dw kw_vtov, var_rom_layerx_n, var_rom_layerx_layerx
@@ -4209,7 +4183,7 @@ p_rom_rollhash:
 
 			; Rom.cls 717: For ps = 0 To 3
 			dw kw_ztov, var_rom_rollhash_ps
-for140_t:
+for138_t:
 
 			; Rom.cls 718: HB(ps) = 0
 			dw kw_aset8, arr_rom_hb, var_rom_rollhash_ps, lit_0
@@ -4218,25 +4192,25 @@ for140_t:
 			dw kw_addl, var_rom_rollhash_n, -1, var_rom_rollhash_last
 
 			; Rom.cls 720: Do While last >= 0 And (last Mod 4) <> ps
-do141_t:
+do139_t:
 			dw kw_scpgevl, var_rom_rollhash_last, 0
 			dw kw_ftov, tmp0
 			dw kw_modvl, var_rom_rollhash_last, 4, tmp1
 			dw kw_cpnevv, tmp1, var_rom_rollhash_ps
 			dw kw_ftov, tmp1
 			dw kw_andvv, tmp0, tmp1, tmp0
-			dw kw_goto_ifzero, tmp0, do141_e
+			dw kw_goto_ifzero, tmp0, do139_e
 
 			; Rom.cls 721: last = last - 1
 			dw kw_dec, var_rom_rollhash_last
 
 			; Rom.cls 722: Loop
-			dw do141_t_go
-do141_e:
+			dw do139_t_go
+do139_e:
 
 			; Rom.cls 723: If last >= 0 Then
 			dw kw_scpgevl, var_rom_rollhash_last, 0
-			dw kw_goto_iffalse, if142_1
+			dw kw_goto_iffalse, if140_1
 
 			; Rom.cls 724: s = Wg(st + last)
 			dw kw_add, var_rom_rollhash_st, var_rom_rollhash_last, tmp0
@@ -4247,9 +4221,9 @@ do141_e:
 			dw kw_addl, var_rom_rollhash_last, -4, var_rom_rollhash_i
 
 			; Rom.cls 726: Do While i >= 0
-do143_t:
+do141_t:
 			dw kw_scpgevl, var_rom_rollhash_i, 0
-			dw kw_goto_iffalse, do143_e
+			dw kw_goto_iffalse, do141_e
 
 			; Rom.cls 727: s = s Xor Wg(st + i)
 			dw kw_add, var_rom_rollhash_st, var_rom_rollhash_i, tmp1
@@ -4261,8 +4235,8 @@ do143_t:
 			dw kw_addl, var_rom_rollhash_i, -4, var_rom_rollhash_i
 
 			; Rom.cls 729: Loop
-			dw do143_t_go
-do143_e:
+			dw do141_t_go
+do141_e:
 
 			; Rom.cls 730: s = s Xor Wg(st + last)
 			dw kw_add, var_rom_rollhash_st, var_rom_rollhash_last, tmp1
@@ -4274,11 +4248,11 @@ do143_e:
 			dw kw_aset8, arr_rom_hb, var_rom_rollhash_ps, var_rom_rollhash_s
 
 			; Rom.cls 732: End If
-if142_1:
+if140_1:
 
 			; Rom.cls 733: Next
-			dw kw_next1l, var_rom_rollhash_ps, 3, for140_t
-for140_e:
+			dw kw_next1l, var_rom_rollhash_ps, 3, for138_t
+for138_e:
 			dw p_rom_rollhash_r
 
 ntc_rg64_e:
@@ -4303,9 +4277,9 @@ p_rom_sxsave:
 
 			; Rom.cls 740: For i = 0 To Wn - 1
 			dw kw_ztov, var_rom_sxsave_i
-			dw kw_addl, var_rom_wn, -1, for144_l
-			dw kw_forupv, var_rom_sxsave_i, for144_l, for144_e
-for144_t:
+			dw kw_addl, var_rom_wn, -1, for142_l
+			dw kw_forupv, var_rom_sxsave_i, for142_l, for142_e
+for142_t:
 
 			; Rom.cls 741: Poke &H4000 + i, Wg(i)
 			dw kw_addl, var_rom_sxsave_i, 16384, tmp0
@@ -4313,8 +4287,8 @@ for144_t:
 			dw kw_vtovptr8, var_rom_wg_wg, tmp0
 
 			; Rom.cls 742: Next
-			dw kw_next1v, var_rom_sxsave_i, for144_l, for144_t
-for144_e:
+			dw kw_next1v, var_rom_sxsave_i, for142_l, for142_t
+for142_e:
 
 			; Rom.cls 743: Vid.SelBlock -1
 			dw p_vid_selblock_c, lit_m1
@@ -4394,9 +4368,9 @@ p_rom_strip4:
 
 			; Rom.cls 762: For i = 0 To Wn - 5
 			dw kw_ztov, var_rom_strip4_i
-			dw kw_addl, var_rom_wn, -5, for145_l
-			dw kw_forupv, var_rom_strip4_i, for145_l, for145_e
-for145_t:
+			dw kw_addl, var_rom_wn, -5, for143_l
+			dw kw_forupv, var_rom_strip4_i, for143_l, for143_e
+for143_t:
 
 			; Rom.cls 763: Wp i, Wg(i + 4)
 			dw kw_addl, var_rom_strip4_i, 4, tmp1
@@ -4405,8 +4379,8 @@ for145_t:
 			dw p_rom_wp_c, var_rom_strip4_i, tmp1
 
 			; Rom.cls 764: Next
-			dw kw_next1v, var_rom_strip4_i, for145_l, for145_t
-for145_e:
+			dw kw_next1v, var_rom_strip4_i, for143_l, for143_t
+for143_e:
 
 			; Rom.cls 765: Wn = Wn - 4
 			dw kw_addl, var_rom_wn, -4, var_rom_wn
@@ -4431,23 +4405,23 @@ p_rom_gen:
 
 			; Rom.cls 772: For b = 0 To 7
 			dw kw_ztov, var_rom_gen_b
-for146_t:
+for144_t:
 
 			; Rom.cls 773: For p = 0 To 1023
 			dw kw_ztov, var_rom_gen_p
-for147_t:
+for145_t:
 
 			; Rom.cls 774: For i = 0 To 15
 			dw kw_ztov, var_rom_gen_i
-for148_t:
+for146_t:
 
 			; Rom.cls 775: gb(i) = Rng.Rb()
 			dw fn_rng_rb, var_rng_rb_rb
 			dw kw_aset8, arr_rom_gb, var_rom_gen_i, var_rng_rb_rb
 
 			; Rom.cls 776: Next
-			dw kw_next1l, var_rom_gen_i, 15, for148_t
-for148_e:
+			dw kw_next1l, var_rom_gen_i, 15, for146_t
+for146_e:
 
 			; Rom.cls 777: Vid.SelBlock Data.GENB + b
 			dw kw_addl, var_rom_gen_b, 27, tmp0
@@ -4455,7 +4429,7 @@ for148_e:
 
 			; Rom.cls 778: For i = 0 To 15
 			dw kw_ztov, var_rom_gen_i
-for149_t:
+for147_t:
 
 			; Rom.cls 779: Poke &H4000 + p * 16 + i, gb(i)
 			dw kw_mulvl, var_rom_gen_p, 16, tmp1
@@ -4465,15 +4439,15 @@ for149_t:
 			dw kw_vtovptr8, tmp1, tmp0
 
 			; Rom.cls 780: Next
-			dw kw_next1l, var_rom_gen_i, 15, for149_t
-for149_e:
+			dw kw_next1l, var_rom_gen_i, 15, for147_t
+for147_e:
 
 			; Rom.cls 781: Vid.SelBlock -1
 			dw p_vid_selblock_c, lit_m1
 
 			; Rom.cls 782: Next
-			dw kw_next1l, var_rom_gen_p, 1023, for147_t
-for147_e:
+			dw kw_next1l, var_rom_gen_p, 1023, for145_t
+for145_e:
 
 			; Rom.cls 783: Vid.Fill 20, 120, b * 35 + 35, 8, 10
 			dw kw_mulvl, var_rom_gen_b, 35, tmp2
@@ -4481,8 +4455,8 @@ for147_e:
 			dw p_vid_fill_c, lit_20, lit_120, tmp2, lit_8, lit_10
 
 			; Rom.cls 784: Next
-			dw kw_next1l, var_rom_gen_b, 7, for146_t
-for146_e:
+			dw kw_next1l, var_rom_gen_b, 7, for144_t
+for144_e:
 			dw p_rom_gen_r
 
 ntc_rg69_e:
@@ -4549,18 +4523,18 @@ p_atkw_build:
 
 			; AtkW.cls 13: If n > 1280 Then n = 1280
 			dw kw_scpgtvl, var_atkw_build_n, 1280
-			dw kw_goto_iffalse, if150_1
+			dw kw_goto_iffalse, if148_1
 			dw kw_ltov, 1280, var_atkw_build_n
-if150_1:
+if148_1:
 
 			; AtkW.cls 14: Vid.SelBlock Data.SCRB
 			dw p_vid_selblock_c, lit_26
 
 			; AtkW.cls 15: For i = 0 To n - 1
 			dw kw_ztov, var_atkw_build_i
-			dw kw_addl, var_atkw_build_n, -1, for151_l
-			dw kw_forupv, var_atkw_build_i, for151_l, for151_e
-for151_t:
+			dw kw_addl, var_atkw_build_n, -1, for149_l
+			dw kw_forupv, var_atkw_build_i, for149_l, for149_e
+for149_t:
 
 			; AtkW.cls 16: Poke &H4000 + ALO + i, Rom.Wg(s + i * 2)
 			dw kw_addl, var_atkw_build_i, 24576, tmp0
@@ -4578,8 +4552,8 @@ for151_t:
 			dw kw_vtovptr8, var_rom_wg_wg, tmp0
 
 			; AtkW.cls 18: Next
-			dw kw_next1v, var_atkw_build_i, for151_l, for151_t
-for151_e:
+			dw kw_next1v, var_atkw_build_i, for149_l, for149_t
+for149_e:
 
 			; AtkW.cls 19: Vid.SelBlock -1
 			dw p_vid_selblock_c, lit_m1
@@ -4610,24 +4584,24 @@ p_atkw_pairs:
 
 			; AtkW.cls 27: For i = 0 To 511
 			dw kw_ztov, var_atkw_pairs_i
-for152_t:
+for150_t:
 
 			; AtkW.cls 28: Poke &H4000 + HDO + i, 0
 			dw kw_addl, var_atkw_pairs_i, 28672, tmp0
 			dw kw_ltovptr8, 0, tmp0
 
 			; AtkW.cls 29: Next
-			dw kw_next1l, var_atkw_pairs_i, 511, for152_t
-for152_e:
+			dw kw_next1l, var_atkw_pairs_i, 511, for150_t
+for150_e:
 
 			; AtkW.cls 30: c = 0
 			dw kw_ztov, var_atkw_pairs_c
 
 			; AtkW.cls 31: For i = 0 To n - 1
 			dw kw_ztov, var_atkw_pairs_i
-			dw kw_addl, var_atkw_pairs_n, -1, for153_l
-			dw kw_forupv, var_atkw_pairs_i, for153_l, for153_e
-for153_t:
+			dw kw_addl, var_atkw_pairs_n, -1, for151_l
+			dw kw_forupv, var_atkw_pairs_i, for151_l, for151_e
+for151_t:
 
 			; AtkW.cls 32: lo = Peek(&H4000 + ALO + i)
 			dw kw_addl, var_atkw_pairs_i, 24576, tmp0
@@ -4652,18 +4626,18 @@ for153_t:
 			dw kw_vtov, var_atkw_pairs_h, var_atkw_pairs_j
 
 			; AtkW.cls 36: Do While j > 0
-do154_t:
+do152_t:
 			dw kw_scpgtvl, var_atkw_pairs_j, 0
-			dw kw_goto_iffalse, do154_e
+			dw kw_goto_iffalse, do152_e
 
 			; AtkW.cls 37: If Peek(&H4000 + AHO + j - 1) = hi Then c = c + 1
 			dw kw_addl, var_atkw_pairs_j, 26624, tmp0
 			dw kw_dec, tmp0
 			dw kw_vptrtov8, tmp0, tmp0
 			dw kw_cpeqvv, tmp0, var_atkw_pairs_hi
-			dw kw_goto_iffalse, if155_1
+			dw kw_goto_iffalse, if153_1
 			dw kw_inc, var_atkw_pairs_c
-if155_1:
+if153_1:
 
 			; AtkW.cls 38: j = Peek(&H4000 + NXO + (j - 1) * 2) + Peek(&H4000 + NXO + (j - 1) * 2 + 1) * 256
 			dw kw_addl, var_atkw_pairs_j, -1, tmp1
@@ -4679,8 +4653,8 @@ if155_1:
 			dw kw_add, tmp0, tmp1, var_atkw_pairs_j
 
 			; AtkW.cls 39: Loop
-			dw do154_t_go
-do154_e:
+			dw do152_t_go
+do152_e:
 
 			; AtkW.cls 40: Poke &H4000 + NXO + i * 2, h And 255
 			dw kw_2x, var_atkw_pairs_i, tmp1
@@ -4711,8 +4685,8 @@ do154_e:
 			dw kw_vtovptr8, tmp1, tmp0
 
 			; AtkW.cls 44: Next
-			dw kw_next1v, var_atkw_pairs_i, for153_l, for153_t
-for153_e:
+			dw kw_next1v, var_atkw_pairs_i, for151_l, for151_t
+for151_e:
 
 			; AtkW.cls 45: Vid.SelBlock -1
 			dw p_vid_selblock_c, lit_m1
@@ -4748,9 +4722,9 @@ p_atkw_crib:
 
 			; AtkW.cls 55: For p = 0 To n - m
 			dw kw_ztov, var_atkw_crib_p
-			dw kw_subvv, var_atkw_crib_n, var_atkw_crib_m, for156_l
-			dw kw_forupv, var_atkw_crib_p, for156_l, for156_e
-for156_t:
+			dw kw_subvv, var_atkw_crib_n, var_atkw_crib_m, for154_l
+			dw kw_forupv, var_atkw_crib_p, for154_l, for154_e
+for154_t:
 
 			; AtkW.cls 56: Tried = Tried + 1
 			dw kw_inc, var_atkw_tried
@@ -4763,15 +4737,15 @@ for156_t:
 
 			; AtkW.cls 59: For i = 0 To m - 2
 			dw kw_ztov, var_atkw_crib_i
-			dw kw_addl, var_atkw_crib_m, -2, for157_l
-			dw kw_forupv, var_atkw_crib_i, for157_l, for157_e
-for157_t:
+			dw kw_addl, var_atkw_crib_m, -2, for155_l
+			dw kw_forupv, var_atkw_crib_i, for155_l, for155_e
+for155_t:
 
 			; AtkW.cls 60: For j = i + 1 To m - 1
 			dw kw_addl, var_atkw_crib_i, 1, var_atkw_crib_j
-			dw kw_addl, var_atkw_crib_m, -1, for158_l
-			dw kw_forupv, var_atkw_crib_j, for158_l, for158_e
-for158_t:
+			dw kw_addl, var_atkw_crib_m, -1, for156_l
+			dw kw_forupv, var_atkw_crib_j, for156_l, for156_e
+for156_t:
 
 			; AtkW.cls 61: If Peek(&H4000 + ALO + p + i) = Peek(&H4000 + ALO + p + j) And Peek(&H4000 + AHO + p + i) = Peek(&H4000 + AHO + p + j) Then
 			dw kw_addl, var_atkw_crib_p, 24576, tmp0
@@ -4791,61 +4765,61 @@ for158_t:
 			dw kw_cpeqvv, tmp1, tmp2
 			dw kw_ftov, tmp1
 			dw kw_andvv, tmp0, tmp1, tmp0
-			dw kw_goto_ifzero, tmp0, if159_1
+			dw kw_goto_ifzero, tmp0, if157_1
 
 			; AtkW.cls 62: If Attack.cb(i) <> Attack.cb(j) Then
 			dw kw_aget8, arr_attack_cb, var_atkw_crib_i, tmp0
 			dw kw_aget8, arr_attack_cb, var_atkw_crib_j, tmp1
 			dw kw_cpnevv, tmp0, tmp1
-			dw kw_goto_iffalse, if160_1
+			dw kw_goto_iffalse, if158_1
 
 			; AtkW.cls 63: ok = 0
 			dw kw_ztov, var_atkw_crib_ok
 
 			; AtkW.cls 64: Else
-			dw if160_e_go
-if160_1:
+			dw if158_e_go
+if158_1:
 
 			; AtkW.cls 65: k = k + 1
 			dw kw_inc, var_atkw_crib_k
 
 			; AtkW.cls 66: End If
-if160_e:
+if158_e:
 
 			; AtkW.cls 67: End If
-if159_1:
+if157_1:
 
 			; AtkW.cls 68: Next
-			dw kw_next1v, var_atkw_crib_j, for158_l, for158_t
-for158_e:
+			dw kw_next1v, var_atkw_crib_j, for156_l, for156_t
+for156_e:
 
 			; AtkW.cls 69: Next
-			dw kw_next1v, var_atkw_crib_i, for157_l, for157_t
-for157_e:
+			dw kw_next1v, var_atkw_crib_i, for155_l, for155_t
+for155_e:
 
 			; AtkW.cls 70: If ok = 0 Then
 			dw kw_cpeqvl, var_atkw_crib_ok, 0
-			dw kw_goto_iffalse, if161_1
+			dw kw_goto_iffalse, if159_1
 
 			; AtkW.cls 71: Outc = Outc + 1
 			dw kw_inc, var_atkw_outc
 
 			; AtkW.cls 72: Else
-			dw if161_e_go
-if161_1:
+			dw if159_e_go
+if159_1:
 
 			; AtkW.cls 73: If k > Best Then Best = k
 			dw kw_scpgtvv, var_atkw_crib_k, var_atkw_best
-			dw kw_goto_iffalse, if162_1
+			dw kw_goto_iffalse, if160_1
 			dw kw_vtov, var_atkw_crib_k, var_atkw_best
-if162_1:
+if160_1:
 
 			; AtkW.cls 74: End If
-if161_e:
+if159_e:
 
 			; AtkW.cls 75: Next
-			dw kw_next1v, var_atkw_crib_p, for156_l, for156_t
-for156_e:
+			dw kw_next1v, var_atkw_crib_p, for154_l, for154_t
+for154_e:
 
 			; AtkW.cls 76: Vid.SelBlock -1
 			dw p_vid_selblock_c, lit_m1
@@ -5455,165 +5429,165 @@ ntc_rg117:
 p_intro_menutx:
 
 			; Intro.cls 7: Select Case i
-			dw kw_vtov, var_intro_menutx_i, var_intro_menutx___sel358
+			dw kw_vtov, var_intro_menutx_i, var_intro_menutx___sel356
 
 			; Intro.cls 8: Case 0
-			dw kw_cpeqvl, var_intro_menutx___sel358, 0
-			dw kw_goto_iffalse, sel358_1
-sel358_b1:
+			dw kw_cpeqvl, var_intro_menutx___sel356, 0
+			dw kw_goto_iffalse, sel356_1
+sel356_b1:
 
 			; Intro.cls 9: MenuTx = Data.TX_M1
-			dw kw_ltov, 884, var_intro_menutx_menutx
+			dw kw_ltov, 889, var_intro_menutx_menutx
 
 			; Intro.cls 10: Case 1
-			dw sel358_e_go
-sel358_1:
-			dw kw_cpeqvl, var_intro_menutx___sel358, 1
-			dw kw_goto_iffalse, sel358_2
-sel358_b2:
+			dw sel356_e_go
+sel356_1:
+			dw kw_cpeqvl, var_intro_menutx___sel356, 1
+			dw kw_goto_iffalse, sel356_2
+sel356_b2:
 
 			; Intro.cls 11: MenuTx = Data.TX_M2
-			dw kw_ltov, 904, var_intro_menutx_menutx
+			dw kw_ltov, 910, var_intro_menutx_menutx
 
 			; Intro.cls 12: Case 2
-			dw sel358_e_go
-sel358_2:
-			dw kw_cpeqvl, var_intro_menutx___sel358, 2
-			dw kw_goto_iffalse, sel358_3
-sel358_b3:
+			dw sel356_e_go
+sel356_2:
+			dw kw_cpeqvl, var_intro_menutx___sel356, 2
+			dw kw_goto_iffalse, sel356_3
+sel356_b3:
 
 			; Intro.cls 13: MenuTx = Data.TX_MA
-			dw kw_ltov, 15622, var_intro_menutx_menutx
+			dw kw_ltov, 16610, var_intro_menutx_menutx
 
 			; Intro.cls 14: Case 3
-			dw sel358_e_go
-sel358_3:
-			dw kw_cpeqvl, var_intro_menutx___sel358, 3
-			dw kw_goto_iffalse, sel358_4
-sel358_b4:
+			dw sel356_e_go
+sel356_3:
+			dw kw_cpeqvl, var_intro_menutx___sel356, 3
+			dw kw_goto_iffalse, sel356_4
+sel356_b4:
 
 			; Intro.cls 15: MenuTx = Data.TX_M3
-			dw kw_ltov, 929, var_intro_menutx_menutx
+			dw kw_ltov, 937, var_intro_menutx_menutx
 
 			; Intro.cls 16: Case 4
-			dw sel358_e_go
-sel358_4:
-			dw kw_cpeqvl, var_intro_menutx___sel358, 4
-			dw kw_goto_iffalse, sel358_5
-sel358_b5:
+			dw sel356_e_go
+sel356_4:
+			dw kw_cpeqvl, var_intro_menutx___sel356, 4
+			dw kw_goto_iffalse, sel356_5
+sel356_b5:
 
 			; Intro.cls 17: MenuTx = Data.TX_M4
-			dw kw_ltov, 952, var_intro_menutx_menutx
+			dw kw_ltov, 966, var_intro_menutx_menutx
 
 			; Intro.cls 18: Case 5
-			dw sel358_e_go
-sel358_5:
-			dw kw_cpeqvl, var_intro_menutx___sel358, 5
-			dw kw_goto_iffalse, sel358_6
-sel358_b6:
+			dw sel356_e_go
+sel356_5:
+			dw kw_cpeqvl, var_intro_menutx___sel356, 5
+			dw kw_goto_iffalse, sel356_6
+sel356_b6:
 
 			; Intro.cls 19: MenuTx = Data.TX_M5
-			dw kw_ltov, 982, var_intro_menutx_menutx
+			dw kw_ltov, 996, var_intro_menutx_menutx
 
 			; Intro.cls 20: Case 6
-			dw sel358_e_go
-sel358_6:
-			dw kw_cpeqvl, var_intro_menutx___sel358, 6
-			dw kw_goto_iffalse, sel358_7
-sel358_b7:
+			dw sel356_e_go
+sel356_6:
+			dw kw_cpeqvl, var_intro_menutx___sel356, 6
+			dw kw_goto_iffalse, sel356_7
+sel356_b7:
 
 			; Intro.cls 21: MenuTx = Data.TX_M6
-			dw kw_ltov, 1008, var_intro_menutx_menutx
+			dw kw_ltov, 1024, var_intro_menutx_menutx
 
 			; Intro.cls 22: Case 7
-			dw sel358_e_go
-sel358_7:
-			dw kw_cpeqvl, var_intro_menutx___sel358, 7
-			dw kw_goto_iffalse, sel358_8
-sel358_b8:
+			dw sel356_e_go
+sel356_7:
+			dw kw_cpeqvl, var_intro_menutx___sel356, 7
+			dw kw_goto_iffalse, sel356_8
+sel356_b8:
 
 			; Intro.cls 23: MenuTx = Data.TX_M7
-			dw kw_ltov, 1028, var_intro_menutx_menutx
+			dw kw_ltov, 1051, var_intro_menutx_menutx
 
 			; Intro.cls 24: Case 8
-			dw sel358_e_go
-sel358_8:
-			dw kw_cpeqvl, var_intro_menutx___sel358, 8
-			dw kw_goto_iffalse, sel358_9
-sel358_b9:
+			dw sel356_e_go
+sel356_8:
+			dw kw_cpeqvl, var_intro_menutx___sel356, 8
+			dw kw_goto_iffalse, sel356_9
+sel356_b9:
 
 			; Intro.cls 25: MenuTx = Data.TX_MB
-			dw kw_ltov, 15641, var_intro_menutx_menutx
+			dw kw_ltov, 16629, var_intro_menutx_menutx
 
 			; Intro.cls 26: Case 9
-			dw sel358_e_go
-sel358_9:
-			dw kw_cpeqvl, var_intro_menutx___sel358, 9
-			dw kw_goto_iffalse, sel358_10
-sel358_b10:
+			dw sel356_e_go
+sel356_9:
+			dw kw_cpeqvl, var_intro_menutx___sel356, 9
+			dw kw_goto_iffalse, sel356_10
+sel356_b10:
 
 			; Intro.cls 27: MenuTx = Data.TX_M8
-			dw kw_ltov, 7100, var_intro_menutx_menutx
+			dw kw_ltov, 7564, var_intro_menutx_menutx
 
 			; Intro.cls 28: Case 10
-			dw sel358_e_go
-sel358_10:
-			dw kw_cpeqvl, var_intro_menutx___sel358, 10
-			dw kw_goto_iffalse, sel358_11
-sel358_b11:
+			dw sel356_e_go
+sel356_10:
+			dw kw_cpeqvl, var_intro_menutx___sel356, 10
+			dw kw_goto_iffalse, sel356_11
+sel356_b11:
 
 			; Intro.cls 29: MenuTx = Data.TX_M9
-			dw kw_ltov, 10001, var_intro_menutx_menutx
+			dw kw_ltov, 10709, var_intro_menutx_menutx
 
 			; Intro.cls 30: Case 11
-			dw sel358_e_go
-sel358_11:
-			dw kw_cpeqvl, var_intro_menutx___sel358, 11
-			dw kw_goto_iffalse, sel358_12
-sel358_b12:
+			dw sel356_e_go
+sel356_11:
+			dw kw_cpeqvl, var_intro_menutx___sel356, 11
+			dw kw_goto_iffalse, sel356_12
+sel356_b12:
 
 			; Intro.cls 31: MenuTx = Data.TX_M11
-			dw kw_ltov, 10039, var_intro_menutx_menutx
+			dw kw_ltov, 10756, var_intro_menutx_menutx
 
 			; Intro.cls 32: Case 12
-			dw sel358_e_go
-sel358_12:
-			dw kw_cpeqvl, var_intro_menutx___sel358, 12
-			dw kw_goto_iffalse, sel358_13
-sel358_b13:
+			dw sel356_e_go
+sel356_12:
+			dw kw_cpeqvl, var_intro_menutx___sel356, 12
+			dw kw_goto_iffalse, sel356_13
+sel356_b13:
 
 			; Intro.cls 33: MenuTx = Data.TX_M12
-			dw kw_ltov, 10075, var_intro_menutx_menutx
+			dw kw_ltov, 10791, var_intro_menutx_menutx
 
 			; Intro.cls 34: Case 13
-			dw sel358_e_go
-sel358_13:
-			dw kw_cpeqvl, var_intro_menutx___sel358, 13
-			dw kw_goto_iffalse, sel358_14
-sel358_b14:
+			dw sel356_e_go
+sel356_13:
+			dw kw_cpeqvl, var_intro_menutx___sel356, 13
+			dw kw_goto_iffalse, sel356_14
+sel356_b14:
 
 			; Intro.cls 35: MenuTx = Data.TX_MD
-			dw kw_ltov, 15707, var_intro_menutx_menutx
+			dw kw_ltov, 16699, var_intro_menutx_menutx
 
 			; Intro.cls 36: Case 14
-			dw sel358_e_go
-sel358_14:
-			dw kw_cpeqvl, var_intro_menutx___sel358, 14
-			dw kw_goto_iffalse, sel358_15
-sel358_b15:
+			dw sel356_e_go
+sel356_14:
+			dw kw_cpeqvl, var_intro_menutx___sel356, 14
+			dw kw_goto_iffalse, sel356_15
+sel356_b15:
 
 			; Intro.cls 37: MenuTx = Data.TX_MC
-			dw kw_ltov, 15669, var_intro_menutx_menutx
+			dw kw_ltov, 16655, var_intro_menutx_menutx
 
 			; Intro.cls 38: Case Else
-			dw sel358_e_go
-sel358_15:
+			dw sel356_e_go
+sel356_15:
 
 			; Intro.cls 39: MenuTx = Data.TX_M10
-			dw kw_ltov, 10022, var_intro_menutx_menutx
+			dw kw_ltov, 10737, var_intro_menutx_menutx
 
 			; Intro.cls 40: End Select
-sel358_e:
+sel356_e:
 			dw p_intro_menutx_r
 
 ntc_rg117_e:
@@ -5640,16 +5614,16 @@ p_intro_title:
 			dw p_vid_bigc_c, lit_36, lit_415, lit_8, lit_2
 
 			; Intro.cls 47: Vid.BigC 70, Data.TX_ZOSCII, 10, 8
-			dw p_vid_bigc_c, lit_70, lit_426, lit_10, lit_8
+			dw p_vid_bigc_c, lit_70, lit_431, lit_10, lit_8
 
 			; Intro.cls 48: Vid.TxtC 140, Data.TX_SUBTITLE, 2
-			dw p_vid_txtc_c, lit_140, lit_433, lit_2
+			dw p_vid_txtc_c, lit_140, lit_438, lit_2
 
 			; Intro.cls 49: Vid.TxtC 228, Data.TX_BY, 2
-			dw p_vid_txtc_c, lit_228, lit_7122, lit_2
+			dw p_vid_txtc_c, lit_228, lit_7591, lit_2
 
 			; Intro.cls 50: Vid.TxtC 242, Data.TX_COPY, 3
-			dw p_vid_txtc_c, lit_242, lit_483, lit_3
+			dw p_vid_txtc_c, lit_242, lit_488, lit_3
 
 			; Intro.cls 51: t = 0
 			dw kw_ztov, var_intro_title_t
@@ -5658,10 +5632,10 @@ p_intro_title:
 			dw kw_ztov, var_intro_title_k
 
 			; Intro.cls 53: Do While (k And 16) = 0
-do359_t:
+do357_t:
 			dw kw_andvl, var_intro_title_k, 16, tmp0
 			dw kw_cpeqvl, tmp0, 0
-			dw kw_goto_iffalse, do359_e
+			dw kw_goto_iffalse, do357_e
 
 			; Intro.cls 54: Vid.Sync
 			dw p_vid_sync_c
@@ -5676,15 +5650,15 @@ do359_t:
 			; Intro.cls 57: If (t And 7) = 0 Then
 			dw kw_andvl, var_intro_title_t, 7, tmp0
 			dw kw_cpeqvl, tmp0, 0
-			dw kw_goto_iffalse, if360_1
+			dw kw_goto_iffalse, if358_1
 
 			; Intro.cls 58: For j = 0 To 3
 			dw kw_ztov, var_intro_title_j
-for361_t:
+for359_t:
 
 			; Intro.cls 59: For i = 0 To 6
 			dw kw_ztov, var_intro_title_i
-for362_t:
+for360_t:
 
 			; Intro.cls 60: Vid.Hex4(20 + i * 42, 170 + j * 10, Rng.Pick(256), Rng.Pick(256), 4)
 			dw kw_mulvl, var_intro_title_i, 42, tmp1
@@ -5698,37 +5672,37 @@ for362_t:
 			dw p_vid_hex4_c, tmp0, tmp1, tmp2, tmp3, lit_4
 
 			; Intro.cls 61: Next
-			dw kw_next1l, var_intro_title_i, 6, for362_t
-for362_e:
+			dw kw_next1l, var_intro_title_i, 6, for360_t
+for360_e:
 
 			; Intro.cls 62: Next
-			dw kw_next1l, var_intro_title_j, 3, for361_t
-for361_e:
+			dw kw_next1l, var_intro_title_j, 3, for359_t
+for359_e:
 
 			; Intro.cls 63: End If
-if360_1:
+if358_1:
 
 			; Intro.cls 64: If (t And 32) <> 0 Then
 			dw kw_andvl, var_intro_title_t, 32, tmp0
 			dw kw_cpnevl, tmp0, 0
-			dw kw_goto_iffalse, if363_1
+			dw kw_goto_iffalse, if361_1
 
 			; Intro.cls 65: Vid.TxtC 214, Data.TX_PRESS, 1
-			dw p_vid_txtc_c, lit_214, lit_515, lit_1
+			dw p_vid_txtc_c, lit_214, lit_520, lit_1
 
 			; Intro.cls 66: Else
-			dw do359_t_go
-if363_1:
+			dw do357_t_go
+if361_1:
 
 			; Intro.cls 67: Vid.Fill 100, 214, 120, 8, 5
 			dw p_vid_fill_c, lit_100, lit_214, lit_120, lit_8, lit_5
 
 			; Intro.cls 68: End If
-if363_e:
+if361_e:
 
 			; Intro.cls 69: Loop
-			dw do359_t_go
-do359_e:
+			dw do357_t_go
+do357_e:
 
 			; Intro.cls 70: Snd.Beep 1
 			dw p_snd_beep_c, lit_1
@@ -5752,18 +5726,18 @@ p_intro_menu:
 			; Intro.cls 74: Dim i As Integer, c As Integer
 
 			; Intro.cls 75: Vid.Page Data.TX_MENU, Data.TX_K_MENU
-			dw p_vid_page_c, lit_873, lit_580
+			dw p_vid_page_c, lit_880, lit_580
 
 			; Intro.cls 76: For i = 0 To 15
 			dw kw_ztov, var_intro_menu_i
-for364_t:
+for362_t:
 
 			; Intro.cls 77: c = 2
 			dw kw_ltov, 2, var_intro_menu_c
 
 			; Intro.cls 78: If i = sel Then
 			dw kw_cpeqvv, var_intro_menu_i, var_intro_sel
-			dw kw_goto_iffalse, if365_1
+			dw kw_goto_iffalse, if363_1
 
 			; Intro.cls 79: c = 10
 			dw kw_ltov, 10, var_intro_menu_c
@@ -5775,7 +5749,7 @@ for364_t:
 			dw p_vid_fill_c, lit_20, tmp1, lit_280, lit_11, lit_6
 
 			; Intro.cls 81: End If
-if365_1:
+if363_1:
 
 			; Intro.cls 82: Vid.Txt 30, 34 + i * 12, MenuTx(i), c
 			dw kw_mulvl, var_intro_menu_i, 12, tmp2
@@ -5785,8 +5759,8 @@ if365_1:
 			dw p_vid_txt_c, lit_30, tmp1, tmp2, var_intro_menu_c
 
 			; Intro.cls 83: Next
-			dw kw_next1l, var_intro_menu_i, 15, for364_t
-for364_e:
+			dw kw_next1l, var_intro_menu_i, 15, for362_t
+for362_e:
 			dw p_intro_menu_r
 
 ntc_rg119_e:
@@ -5816,7 +5790,7 @@ p_intro_run:
 			dw kw_ztov, var_intro_sel
 
 			; Intro.cls 91: Do
-do366_t:
+do364_t:
 
 			; Intro.cls 92: Menu
 			dw p_intro_menu_c
@@ -5825,9 +5799,9 @@ do366_t:
 			dw kw_ztov, var_intro_run_go
 
 			; Intro.cls 94: Do While go = 0
-do367_t:
+do365_t:
 			dw kw_cpeqvl, var_intro_run_go, 0
-			dw kw_goto_iffalse, do367_e
+			dw kw_goto_iffalse, do365_e
 
 			; Intro.cls 95: Vid.Sync
 			dw p_vid_sync_c
@@ -5843,10 +5817,10 @@ do367_t:
 			dw kw_scpgtvl, var_intro_sel, 0
 			dw kw_ftov, tmp1
 			dw kw_andvv, tmp0, tmp1, tmp0
-			dw kw_goto_ifzero, tmp0, if368_1
+			dw kw_goto_ifzero, tmp0, if366_1
 			dw kw_dec, var_intro_sel
 			dw p_intro_menu_c
-if368_1:
+if366_1:
 
 			; Intro.cls 98: If (k And 2) <> 0 And sel < 15 Then sel = sel + 1 : Menu
 			dw kw_andvl, var_intro_run_k, 2, tmp0
@@ -5855,186 +5829,186 @@ if368_1:
 			dw kw_scpltvl, var_intro_sel, 15
 			dw kw_ftov, tmp1
 			dw kw_andvv, tmp0, tmp1, tmp0
-			dw kw_goto_ifzero, tmp0, if369_1
+			dw kw_goto_ifzero, tmp0, if367_1
 			dw kw_inc, var_intro_sel
 			dw p_intro_menu_c
-if369_1:
+if367_1:
 
 			; Intro.cls 99: If (k And 16) <> 0 Then go = 1
 			dw kw_andvl, var_intro_run_k, 16, tmp0
 			dw kw_cpnevl, tmp0, 0
-			dw kw_goto_iffalse, do367_t
+			dw kw_goto_iffalse, do365_t
 			dw kw_ltov, 1, var_intro_run_go
-if370_1:
+if368_1:
 
 			; Intro.cls 100: Loop
-			dw do367_t_go
-do367_e:
+			dw do365_t_go
+do365_e:
 
 			; Intro.cls 101: Select Case sel
-			dw kw_vtov, var_intro_sel, var_intro_run___sel371
+			dw kw_vtov, var_intro_sel, var_intro_run___sel369
 
 			; Intro.cls 102: Case 0
-			dw kw_cpeqvl, var_intro_run___sel371, 0
-			dw kw_goto_iffalse, sel371_1
-sel371_b1:
+			dw kw_cpeqvl, var_intro_run___sel369, 0
+			dw kw_goto_iffalse, sel369_1
+sel369_b1:
 
 			; Intro.cls 103: Screens.Story
 			dw p_screens_story_c
 
 			; Intro.cls 104: Case 1
-			dw do366_t_go
-sel371_1:
-			dw kw_cpeqvl, var_intro_run___sel371, 1
-			dw kw_goto_iffalse, sel371_2
-sel371_b2:
+			dw do364_t_go
+sel369_1:
+			dw kw_cpeqvl, var_intro_run___sel369, 1
+			dw kw_goto_iffalse, sel369_2
+sel369_b2:
 
 			; Intro.cls 105: Screens.Ntc
 			dw p_screens_ntc_c
 
 			; Intro.cls 106: Case 2
-			dw do366_t_go
-sel371_2:
-			dw kw_cpeqvl, var_intro_run___sel371, 2
-			dw kw_goto_iffalse, sel371_3
-sel371_b3:
+			dw do364_t_go
+sel369_2:
+			dw kw_cpeqvl, var_intro_run___sel369, 2
+			dw kw_goto_iffalse, sel369_3
+sel369_b3:
 
 			; Intro.cls 107: Screens.Pages 3, 2
 			dw p_screens_pages_c, lit_3, lit_2
 
 			; Intro.cls 108: Case 3
-			dw do366_t_go
-sel371_3:
-			dw kw_cpeqvl, var_intro_run___sel371, 3
-			dw kw_goto_iffalse, sel371_4
-sel371_b4:
+			dw do364_t_go
+sel369_3:
+			dw kw_cpeqvl, var_intro_run___sel369, 3
+			dw kw_goto_iffalse, sel369_4
+sel369_b4:
 
 			; Intro.cls 109: Screens.Letter
 			dw p_screens_letter_c
 
 			; Intro.cls 110: Case 4
-			dw do366_t_go
-sel371_4:
-			dw kw_cpeqvl, var_intro_run___sel371, 4
-			dw kw_goto_iffalse, sel371_5
-sel371_b5:
+			dw do364_t_go
+sel369_4:
+			dw kw_cpeqvl, var_intro_run___sel369, 4
+			dw kw_goto_iffalse, sel369_5
+sel369_b5:
 
 			; Intro.cls 111: Screens.Plaus
 			dw p_screens_plaus_c
 
 			; Intro.cls 112: Case 5
-			dw do366_t_go
-sel371_5:
-			dw kw_cpeqvl, var_intro_run___sel371, 5
-			dw kw_goto_iffalse, sel371_6
-sel371_b6:
+			dw do364_t_go
+sel369_5:
+			dw kw_cpeqvl, var_intro_run___sel369, 5
+			dw kw_goto_iffalse, sel369_6
+sel369_b6:
 
 			; Intro.cls 113: Screens.Anatomy
 			dw p_screens_anatomy_c
 
 			; Intro.cls 114: Case 6
-			dw do366_t_go
-sel371_6:
-			dw kw_cpeqvl, var_intro_run___sel371, 6
-			dw kw_goto_iffalse, sel371_7
-sel371_b7:
+			dw do364_t_go
+sel369_6:
+			dw kw_cpeqvl, var_intro_run___sel369, 6
+			dw kw_goto_iffalse, sel369_7
+sel369_b7:
 
 			; Intro.cls 115: Screens.Pages 0, 5
 			dw p_screens_pages_c, lit_0, lit_5
 
 			; Intro.cls 116: Case 7
-			dw do366_t_go
-sel371_7:
-			dw kw_cpeqvl, var_intro_run___sel371, 7
-			dw kw_goto_iffalse, sel371_8
-sel371_b8:
+			dw do364_t_go
+sel369_7:
+			dw kw_cpeqvl, var_intro_run___sel369, 7
+			dw kw_goto_iffalse, sel369_8
+sel369_b8:
 
 			; Intro.cls 117: Screens.Pages 1, 4
 			dw p_screens_pages_c, lit_1, lit_4
 
 			; Intro.cls 118: Case 8
-			dw do366_t_go
-sel371_8:
-			dw kw_cpeqvl, var_intro_run___sel371, 8
-			dw kw_goto_iffalse, sel371_9
-sel371_b9:
+			dw do364_t_go
+sel369_8:
+			dw kw_cpeqvl, var_intro_run___sel369, 8
+			dw kw_goto_iffalse, sel369_9
+sel369_b9:
 
 			; Intro.cls 119: Screens.Pages 4, 5
 			dw p_screens_pages_c, lit_4, lit_5
 
 			; Intro.cls 120: Case 9
-			dw do366_t_go
-sel371_9:
-			dw kw_cpeqvl, var_intro_run___sel371, 9
-			dw kw_goto_iffalse, sel371_10
-sel371_b10:
+			dw do364_t_go
+sel369_9:
+			dw kw_cpeqvl, var_intro_run___sel369, 9
+			dw kw_goto_iffalse, sel369_10
+sel369_b10:
 
 			; Intro.cls 121: Screens.Pages 2, 2
 			dw p_screens_pages_c, lit_2, lit_2
 
 			; Intro.cls 122: Case 10
-			dw do366_t_go
-sel371_10:
-			dw kw_cpeqvl, var_intro_run___sel371, 10
-			dw kw_goto_iffalse, sel371_11
-sel371_b11:
+			dw do364_t_go
+sel369_10:
+			dw kw_cpeqvl, var_intro_run___sel369, 10
+			dw kw_goto_iffalse, sel369_11
+sel369_b11:
 
 			; Intro.cls 123: Play.Screen
 			dw p_play_screen_c
 
 			; Intro.cls 124: Case 11
-			dw do366_t_go
-sel371_11:
-			dw kw_cpeqvl, var_intro_run___sel371, 11
-			dw kw_goto_iffalse, sel371_12
-sel371_b12:
+			dw do364_t_go
+sel369_11:
+			dw kw_cpeqvl, var_intro_run___sel369, 11
+			dw kw_goto_iffalse, sel369_12
+sel369_b12:
 
 			; Intro.cls 125: Demo.Run 0
 			dw p_demo_run_c, lit_0
 
 			; Intro.cls 126: Case 12
-			dw do366_t_go
-sel371_12:
-			dw kw_cpeqvl, var_intro_run___sel371, 12
-			dw kw_goto_iffalse, sel371_13
-sel371_b13:
+			dw do364_t_go
+sel369_12:
+			dw kw_cpeqvl, var_intro_run___sel369, 12
+			dw kw_goto_iffalse, sel369_13
+sel369_b13:
 
 			; Intro.cls 127: Demo.Run 1
 			dw p_demo_run_c, lit_1
 
 			; Intro.cls 128: Case 13
-			dw do366_t_go
-sel371_13:
-			dw kw_cpeqvl, var_intro_run___sel371, 13
-			dw kw_goto_iffalse, sel371_14
-sel371_b14:
+			dw do364_t_go
+sel369_13:
+			dw kw_cpeqvl, var_intro_run___sel369, 13
+			dw kw_goto_iffalse, sel369_14
+sel369_b14:
 
 			; Intro.cls 129: Screens.Pages 6, 4
 			dw p_screens_pages_c, lit_6, lit_4
 
 			; Intro.cls 130: Case 14
-			dw do366_t_go
-sel371_14:
-			dw kw_cpeqvl, var_intro_run___sel371, 14
-			dw kw_goto_iffalse, sel371_15
-sel371_b15:
+			dw do364_t_go
+sel369_14:
+			dw kw_cpeqvl, var_intro_run___sel369, 14
+			dw kw_goto_iffalse, sel369_15
+sel369_b15:
 
 			; Intro.cls 131: Screens.Pages 5, 4
 			dw p_screens_pages_c, lit_5, lit_4
 
 			; Intro.cls 132: Case Else
-			dw do366_t_go
-sel371_15:
+			dw do364_t_go
+sel369_15:
 
 			; Intro.cls 133: Screens.Fine
 			dw p_screens_fine_c
 
 			; Intro.cls 134: End Select
-sel371_e:
+sel369_e:
 
 			; Intro.cls 135: Loop
-			dw do366_t_go
-do366_e:
+			dw do364_t_go
+do364_e:
 			dw p_intro_run_r
 
 ntc_rg120_e:
@@ -6559,267 +6533,265 @@ do19_t_go:			ld sp, do19_t
 			ret
 do20_t_go:			ld sp, do20_t
 			ret
-do39_t_go:			ld sp, do39_t
+if39_e_go:			ld sp, if39_e
 			ret
-if41_e_go:			ld sp, if41_e
+sel41_e_go:			ld sp, sel41_e
 			ret
-sel43_e_go:			ld sp, sel43_e
+do48_t_go:			ld sp, do48_t
 			ret
-do50_t_go:			ld sp, do50_t
+for53_e_go:			ld sp, for53_e
 			ret
-for55_e_go:			ld sp, for55_e
+for49_e_go:			ld sp, for49_e
 			ret
-for51_e_go:			ld sp, for51_e
+if62_e_go:			ld sp, if62_e
 			ret
-if64_e_go:			ld sp, if64_e
+for65_e_go:			ld sp, for65_e
 			ret
-for67_e_go:			ld sp, for67_e
+do63_t_go:			ld sp, do63_t
 			ret
-do65_t_go:			ld sp, do65_t
+if68_e_go:			ld sp, if68_e
 			ret
-if70_e_go:			ld sp, if70_e
+sel79_e_go:			ld sp, sel79_e
 			ret
-sel81_e_go:			ld sp, sel81_e
+if88_e_go:			ld sp, if88_e
 			ret
-if90_e_go:			ld sp, if90_e
+do93_t_go:			ld sp, do93_t
 			ret
-do95_t_go:			ld sp, do95_t
+if92_e_go:			ld sp, if92_e
 			ret
-if94_e_go:			ld sp, if94_e
+if96_e_go:			ld sp, if96_e
+			ret
+if97_e_go:			ld sp, if97_e
 			ret
 if98_e_go:			ld sp, if98_e
 			ret
 if99_e_go:			ld sp, if99_e
 			ret
-if100_e_go:			ld sp, if100_e
+if105_e_go:			ld sp, if105_e
 			ret
-if101_e_go:			ld sp, if101_e
-			ret
-if107_e_go:			ld sp, if107_e
-			ret
-if113_e_go:			ld sp, if113_e
-			ret
-if118_e_go:			ld sp, if118_e
+if111_e_go:			ld sp, if111_e
 			ret
 if116_e_go:			ld sp, if116_e
 			ret
-do115_t_go:			ld sp, do115_t
+if114_e_go:			ld sp, if114_e
 			ret
-if122_e_go:			ld sp, if122_e
+do113_t_go:			ld sp, do113_t
 			ret
-if128_e_go:			ld sp, if128_e
+if120_e_go:			ld sp, if120_e
 			ret
-if132_e_go:			ld sp, if132_e
-			ret
-do131_t_go:			ld sp, do131_t
+if126_e_go:			ld sp, if126_e
 			ret
 if130_e_go:			ld sp, if130_e
 			ret
-do133_e_go:			ld sp, do133_e
+do129_t_go:			ld sp, do129_t
 			ret
-if135_e_go:			ld sp, if135_e
+if128_e_go:			ld sp, if128_e
 			ret
-if139_e_go:			ld sp, if139_e
+do131_e_go:			ld sp, do131_e
 			ret
-do133_t_go:			ld sp, do133_t
+if133_e_go:			ld sp, if133_e
+			ret
+if137_e_go:			ld sp, if137_e
+			ret
+do131_t_go:			ld sp, do131_t
+			ret
+do139_t_go:			ld sp, do139_t
 			ret
 do141_t_go:			ld sp, do141_t
 			ret
-do143_t_go:			ld sp, do143_t
+do152_t_go:			ld sp, do152_t
 			ret
-do154_t_go:			ld sp, do154_t
+if158_e_go:			ld sp, if158_e
 			ret
-if160_e_go:			ld sp, if160_e
+if159_e_go:			ld sp, if159_e
 			ret
-if161_e_go:			ld sp, if161_e
+sel161_e_go:			ld sp, sel161_e
 			ret
-sel163_e_go:			ld sp, sel163_e
+if164_e_go:			ld sp, if164_e
 			ret
-if166_e_go:			ld sp, if166_e
+if165_e_go:			ld sp, if165_e
 			ret
 if167_e_go:			ld sp, if167_e
 			ret
-if169_e_go:			ld sp, if169_e
+if168_e_go:			ld sp, if168_e
 			ret
-if170_e_go:			ld sp, if170_e
+do170_t_go:			ld sp, do170_t
 			ret
-do172_t_go:			ld sp, do172_t
+if176_e_go:			ld sp, if176_e
 			ret
-if178_e_go:			ld sp, if178_e
+sel181_e_go:			ld sp, sel181_e
 			ret
-sel183_e_go:			ld sp, sel183_e
+do183_t_go:			ld sp, do183_t
 			ret
-do185_t_go:			ld sp, do185_t
+do199_e_go:			ld sp, do199_e
 			ret
-do201_e_go:			ld sp, do201_e
+do199_t_go:			ld sp, do199_t
 			ret
-do201_t_go:			ld sp, do201_t
+if205_e_go:			ld sp, if205_e
 			ret
-if207_e_go:			ld sp, if207_e
+sel206_e_go:			ld sp, sel206_e
 			ret
-sel208_e_go:			ld sp, sel208_e
+sel209_e_go:			ld sp, sel209_e
 			ret
-sel211_e_go:			ld sp, sel211_e
+if220_e_go:			ld sp, if220_e
 			ret
-if222_e_go:			ld sp, if222_e
+for221_e_go:			ld sp, for221_e
 			ret
-for223_e_go:			ld sp, for223_e
+if229_e_go:			ld sp, if229_e
 			ret
-if231_e_go:			ld sp, if231_e
+for233_e_go:			ld sp, for233_e
 			ret
-for235_e_go:			ld sp, for235_e
+if244_e_go:			ld sp, if244_e
 			ret
-if246_e_go:			ld sp, if246_e
+if250_e_go:			ld sp, if250_e
 			ret
-if252_e_go:			ld sp, if252_e
+sel263_e_go:			ld sp, sel263_e
 			ret
-sel265_e_go:			ld sp, sel265_e
+do256_t_go:			ld sp, do256_t
 			ret
-do258_t_go:			ld sp, do258_t
+sel281_e_go:			ld sp, sel281_e
+			ret
+if282_e_go:			ld sp, if282_e
 			ret
 sel283_e_go:			ld sp, sel283_e
 			ret
-if284_e_go:			ld sp, if284_e
+do284_t_go:			ld sp, do284_t
 			ret
-sel285_e_go:			ld sp, sel285_e
-			ret
-do286_t_go:			ld sp, do286_t
+sel290_e_go:			ld sp, sel290_e
 			ret
 sel292_e_go:			ld sp, sel292_e
 			ret
-sel294_e_go:			ld sp, sel294_e
+if294_e_go:			ld sp, if294_e
 			ret
-if296_e_go:			ld sp, if296_e
+do295_t_go:			ld sp, do295_t
 			ret
-do297_t_go:			ld sp, do297_t
+do304_t_go:			ld sp, do304_t
 			ret
-do306_t_go:			ld sp, do306_t
+do316_t_go:			ld sp, do316_t
 			ret
-do318_t_go:			ld sp, do318_t
+if326_e_go:			ld sp, if326_e
 			ret
-if328_e_go:			ld sp, if328_e
+do333_t_go:			ld sp, do333_t
 			ret
-do335_t_go:			ld sp, do335_t
+sel334_e_go:			ld sp, sel334_e
 			ret
-sel336_e_go:			ld sp, sel336_e
+sel335_e_go:			ld sp, sel335_e
 			ret
 sel337_e_go:			ld sp, sel337_e
 			ret
 sel339_e_go:			ld sp, sel339_e
 			ret
-sel341_e_go:			ld sp, sel341_e
+if342_e_go:			ld sp, if342_e
 			ret
-if344_e_go:			ld sp, if344_e
+do343_t_go:			ld sp, do343_t
 			ret
-do345_t_go:			ld sp, do345_t
+sel350_e_go:			ld sp, sel350_e
 			ret
-sel352_e_go:			ld sp, sel352_e
+do349_t_go:			ld sp, do349_t
 			ret
-do351_t_go:			ld sp, do351_t
+sel356_e_go:			ld sp, sel356_e
 			ret
-sel358_e_go:			ld sp, sel358_e
+do357_t_go:			ld sp, do357_t
 			ret
-do359_t_go:			ld sp, do359_t
+do365_t_go:			ld sp, do365_t
 			ret
-do367_t_go:			ld sp, do367_t
+do364_t_go:			ld sp, do364_t
 			ret
-do366_t_go:			ld sp, do366_t
+if372_e_go:			ld sp, if372_e
 			ret
-if374_e_go:			ld sp, if374_e
+do374_t_go:			ld sp, do374_t
 			ret
-do376_t_go:			ld sp, do376_t
+if373_e_go:			ld sp, if373_e
 			ret
 if375_e_go:			ld sp, if375_e
+			ret
+if376_e_go:			ld sp, if376_e
 			ret
 if377_e_go:			ld sp, if377_e
 			ret
 if378_e_go:			ld sp, if378_e
 			ret
-if379_e_go:			ld sp, if379_e
+if383_e_go:			ld sp, if383_e
 			ret
-if380_e_go:			ld sp, if380_e
+do387_t_go:			ld sp, do387_t
 			ret
-if385_e_go:			ld sp, if385_e
+if391_e_go:			ld sp, if391_e
 			ret
-do389_t_go:			ld sp, do389_t
+if392_e_go:			ld sp, if392_e
 			ret
-if393_e_go:			ld sp, if393_e
+do397_t_go:			ld sp, do397_t
 			ret
-if394_e_go:			ld sp, if394_e
+do404_t_go:			ld sp, do404_t
 			ret
-do399_t_go:			ld sp, do399_t
-			ret
-do406_t_go:			ld sp, do406_t
+do403_t_go:			ld sp, do403_t
 			ret
 do405_t_go:			ld sp, do405_t
 			ret
-do407_t_go:			ld sp, do407_t
+if408_e_go:			ld sp, if408_e
 			ret
-if410_e_go:			ld sp, if410_e
+if407_e_go:			ld sp, if407_e
 			ret
-if409_e_go:			ld sp, if409_e
+if411_e_go:			ld sp, if411_e
 			ret
-if413_e_go:			ld sp, if413_e
+if418_e_go:			ld sp, if418_e
 			ret
-if420_e_go:			ld sp, if420_e
+do420_t_go:			ld sp, do420_t
 			ret
-do422_t_go:			ld sp, do422_t
+if423_e_go:			ld sp, if423_e
 			ret
 if425_e_go:			ld sp, if425_e
 			ret
-if427_e_go:			ld sp, if427_e
+if431_e_go:			ld sp, if431_e
 			ret
-if433_e_go:			ld sp, if433_e
+do434_t_go:			ld sp, do434_t
 			ret
-do436_t_go:			ld sp, do436_t
+if442_e_go:			ld sp, if442_e
 			ret
-if444_e_go:			ld sp, if444_e
+if446_e_go:			ld sp, if446_e
 			ret
-if448_e_go:			ld sp, if448_e
+if454_e_go:			ld sp, if454_e
 			ret
-if456_e_go:			ld sp, if456_e
+do441_t_go:			ld sp, do441_t
 			ret
-do443_t_go:			ld sp, do443_t
+if466_e_go:			ld sp, if466_e
 			ret
 if468_e_go:			ld sp, if468_e
 			ret
-if470_e_go:			ld sp, if470_e
+if472_e_go:			ld sp, if472_e
 			ret
-if474_e_go:			ld sp, if474_e
+do482_t_go:			ld sp, do482_t
 			ret
-do484_t_go:			ld sp, do484_t
+do478_t_go:			ld sp, do478_t
 			ret
-do480_t_go:			ld sp, do480_t
+if490_e_go:			ld sp, if490_e
 			ret
 if492_e_go:			ld sp, if492_e
 			ret
-if494_e_go:			ld sp, if494_e
+if495_e_go:			ld sp, if495_e
 			ret
-if497_e_go:			ld sp, if497_e
+sel496_e_go:			ld sp, sel496_e
 			ret
-sel498_e_go:			ld sp, sel498_e
+do493_t_go:			ld sp, do493_t
 			ret
-do495_t_go:			ld sp, do495_t
+if498_e_go:			ld sp, if498_e
 			ret
-if500_e_go:			ld sp, if500_e
+if502_e_go:			ld sp, if502_e
 			ret
-if504_e_go:			ld sp, if504_e
+if506_e_go:			ld sp, if506_e
 			ret
-if508_e_go:			ld sp, if508_e
+if510_e_go:			ld sp, if510_e
 			ret
-if512_e_go:			ld sp, if512_e
+if511_e_go:			ld sp, if511_e
 			ret
-if513_e_go:			ld sp, if513_e
+do513_e_go:			ld sp, do513_e
 			ret
-do515_e_go:			ld sp, do515_e
+do513_t_go:			ld sp, do513_t
 			ret
-do515_t_go:			ld sp, do515_t
+do519_t_go:			ld sp, do519_t
 			ret
-do521_t_go:			ld sp, do521_t
+do522_t_go:			ld sp, do522_t
 			ret
 do524_t_go:			ld sp, do524_t
-			ret
-do526_t_go:			ld sp, do526_t
 			ret
 
 p_vid_nreg_c:		; call nreg (turbo)
@@ -7341,7 +7313,6 @@ p_rng_pick_c:		; call pick (turbo)
 			ld (var_rng_pick_n), de
 			ld hl, 0
 			ld (var_rng_pick_pick), hl
-			ld (var_rng_pick_m), hl
 			ld (var_rng_pick_v), hl
 			ld (p_rng_pick_rs), sp
 			ld sp, p_rng_pick
@@ -10207,7 +10178,7 @@ ntc_rg274_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg275:
-var_rng_pick_m:			dw 0
+var_rng_pick_v:			dw 0
 ntc_rg275_e:
 			IF ($ < 32768) && (ntc_rg276_e - ntc_rg276 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -10217,7 +10188,7 @@ ntc_rg275_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg276:
-var_rng_pick_v:			dw 0
+var_rng_rb_rb:			dw 0
 ntc_rg276_e:
 			IF ($ < 32768) && (ntc_rg277_e - ntc_rg277 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -10227,7 +10198,7 @@ ntc_rg276_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg277:
-var_rng_rb_rb:			dw 0
+p_rng_start_rs:			dw 0
 ntc_rg277_e:
 			IF ($ < 32768) && (ntc_rg278_e - ntc_rg278 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -10237,7 +10208,7 @@ ntc_rg277_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg278:
-p_rng_start_rs:			dw 0
+var_rng_start_a:			dw 0, 0, 0, 0		; parameters, one block
 ntc_rg278_e:
 			IF ($ < 32768) && (ntc_rg279_e - ntc_rg279 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -10247,7 +10218,7 @@ ntc_rg278_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg279:
-var_rng_start_a:			dw 0, 0, 0, 0		; parameters, one block
+p_rom_wg_rs:			dw 0
 ntc_rg279_e:
 			IF ($ < 32768) && (ntc_rg280_e - ntc_rg280 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -10257,7 +10228,7 @@ ntc_rg279_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg280:
-p_rom_wg_rs:			dw 0
+var_rom_wg_i:			dw 0
 ntc_rg280_e:
 			IF ($ < 32768) && (ntc_rg281_e - ntc_rg281 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -10267,7 +10238,7 @@ ntc_rg280_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg281:
-var_rom_wg_i:			dw 0
+var_rom_wg_wg:			dw 0
 ntc_rg281_e:
 			IF ($ < 32768) && (ntc_rg282_e - ntc_rg282 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -10277,7 +10248,7 @@ ntc_rg281_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg282:
-var_rom_wg_wg:			dw 0
+var_rom_wg_c:			dw 0
 ntc_rg282_e:
 			IF ($ < 32768) && (ntc_rg283_e - ntc_rg283 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -10287,7 +10258,7 @@ ntc_rg282_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg283:
-var_rom_wg_c:			dw 0
+p_rom_wp_rs:			dw 0
 ntc_rg283_e:
 			IF ($ < 32768) && (ntc_rg284_e - ntc_rg284 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -10297,7 +10268,7 @@ ntc_rg283_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg284:
-p_rom_wp_rs:			dw 0
+var_rom_wp_i:			dw 0, 0		; parameters, one block
 ntc_rg284_e:
 			IF ($ < 32768) && (ntc_rg285_e - ntc_rg285 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -10307,7 +10278,7 @@ ntc_rg284_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg285:
-var_rom_wp_i:			dw 0, 0		; parameters, one block
+var_rom_wp_c:			dw 0
 ntc_rg285_e:
 			IF ($ < 32768) && (ntc_rg286_e - ntc_rg286 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -10317,7 +10288,7 @@ ntc_rg285_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg286:
-var_rom_wp_c:			dw 0
+p_rom_og_rs:			dw 0
 ntc_rg286_e:
 			IF ($ < 32768) && (ntc_rg287_e - ntc_rg287 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -10327,7 +10298,7 @@ ntc_rg286_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg287:
-p_rom_og_rs:			dw 0
+var_rom_og_i:			dw 0
 ntc_rg287_e:
 			IF ($ < 32768) && (ntc_rg288_e - ntc_rg288 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -10337,7 +10308,7 @@ ntc_rg287_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg288:
-var_rom_og_i:			dw 0
+var_rom_og_og:			dw 0
 ntc_rg288_e:
 			IF ($ < 32768) && (ntc_rg289_e - ntc_rg289 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -10347,7 +10318,7 @@ ntc_rg288_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg289:
-var_rom_og_og:			dw 0
+var_rom_og_c:			dw 0
 ntc_rg289_e:
 			IF ($ < 32768) && (ntc_rg290_e - ntc_rg290 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -10357,7 +10328,7 @@ ntc_rg289_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg290:
-var_rom_og_c:			dw 0
+p_rom_op_rs:			dw 0
 ntc_rg290_e:
 			IF ($ < 32768) && (ntc_rg291_e - ntc_rg291 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -10367,7 +10338,7 @@ ntc_rg290_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg291:
-p_rom_op_rs:			dw 0
+var_rom_op_i:			dw 0, 0		; parameters, one block
 ntc_rg291_e:
 			IF ($ < 32768) && (ntc_rg292_e - ntc_rg292 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -10377,7 +10348,7 @@ ntc_rg291_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg292:
-var_rom_op_i:			dw 0, 0		; parameters, one block
+var_rom_op_c:			dw 0
 ntc_rg292_e:
 			IF ($ < 32768) && (ntc_rg293_e - ntc_rg293 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -10387,7 +10358,7 @@ ntc_rg292_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg293:
-var_rom_op_c:			dw 0
+p_rom_b_rs:			dw 0
 ntc_rg293_e:
 			IF ($ < 32768) && (ntc_rg294_e - ntc_rg294 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -10397,7 +10368,7 @@ ntc_rg293_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg294:
-p_rom_b_rs:			dw 0
+var_rom_b_rb:			dw 0, 0, 0, 0, 0		; parameters, one block
 ntc_rg294_e:
 			IF ($ < 32768) && (ntc_rg295_e - ntc_rg295 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -10407,7 +10378,7 @@ ntc_rg294_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg295:
-var_rom_b_rb:			dw 0, 0, 0, 0, 0		; parameters, one block
+var_rom_b_b:			dw 0
 ntc_rg295_e:
 			IF ($ < 32768) && (ntc_rg296_e - ntc_rg296 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -10417,7 +10388,7 @@ ntc_rg295_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg296:
-var_rom_b_b:			dw 0
+var_rom_b_r:			dw 0
 ntc_rg296_e:
 			IF ($ < 32768) && (ntc_rg297_e - ntc_rg297 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -10427,7 +10398,7 @@ ntc_rg296_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg297:
-var_rom_b_r:			dw 0
+var_rom_sps:			dw 0
 ntc_rg297_e:
 			IF ($ < 32768) && (ntc_rg298_e - ntc_rg298 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -10437,7 +10408,7 @@ ntc_rg297_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg298:
-var_rom_sps:			dw 0
+p_rom_man_rs:			dw 0
 ntc_rg298_e:
 			IF ($ < 32768) && (ntc_rg299_e - ntc_rg299 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -10447,7 +10418,7 @@ ntc_rg298_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg299:
-p_rom_man_rs:			dw 0
+var_rom_man_f:			dw 0, 0		; parameters, one block
 ntc_rg299_e:
 			IF ($ < 32768) && (ntc_rg300_e - ntc_rg300 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -10457,7 +10428,7 @@ ntc_rg299_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg300:
-var_rom_man_f:			dw 0, 0		; parameters, one block
+var_rom_man_man:			dw 0
 ntc_rg300_e:
 			IF ($ < 32768) && (ntc_rg301_e - ntc_rg301 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -10467,7 +10438,7 @@ ntc_rg300_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg301:
-var_rom_man_man:			dw 0
+p_rom_romblock_rs:			dw 0
 ntc_rg301_e:
 			IF ($ < 32768) && (ntc_rg302_e - ntc_rg302 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -10477,7 +10448,7 @@ ntc_rg301_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg302:
-p_rom_romblock_rs:			dw 0
+var_rom_romblock_id:			dw 0
 ntc_rg302_e:
 			IF ($ < 32768) && (ntc_rg303_e - ntc_rg303 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -10487,7 +10458,7 @@ ntc_rg302_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg303:
-var_rom_romblock_id:			dw 0
+var_rom_romblock_romblock:			dw 0
 ntc_rg303_e:
 			IF ($ < 32768) && (ntc_rg304_e - ntc_rg304 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -10497,7 +10468,7 @@ ntc_rg303_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg304:
-var_rom_romblock_romblock:			dw 0
+var_rom_romblock___sel41:			dw 0
 ntc_rg304_e:
 			IF ($ < 32768) && (ntc_rg305_e - ntc_rg305 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -10507,7 +10478,7 @@ ntc_rg304_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg305:
-var_rom_romblock___sel43:			dw 0
+p_rom_load_rs:			dw 0
 ntc_rg305_e:
 			IF ($ < 32768) && (ntc_rg306_e - ntc_rg306 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -10517,7 +10488,7 @@ ntc_rg305_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg306:
-p_rom_load_rs:			dw 0
+var_rom_load_f:			dw 0
 ntc_rg306_e:
 			IF ($ < 32768) && (ntc_rg307_e - ntc_rg307 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -10527,7 +10498,7 @@ ntc_rg306_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg307:
-var_rom_load_f:			dw 0
+var_rom_load_i:			dw 0
 ntc_rg307_e:
 			IF ($ < 32768) && (ntc_rg308_e - ntc_rg308 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -10537,7 +10508,7 @@ ntc_rg307_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg308:
-var_rom_load_i:			dw 0
+var_rom_load_off:			dw 0
 ntc_rg308_e:
 			IF ($ < 32768) && (ntc_rg309_e - ntc_rg309 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -10547,7 +10518,7 @@ ntc_rg308_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg309:
-var_rom_load_off:			dw 0
+var_rom_wn:			dw 0
 ntc_rg309_e:
 			IF ($ < 32768) && (ntc_rg310_e - ntc_rg310 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -10557,7 +10528,7 @@ ntc_rg309_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg310:
-var_rom_wn:			dw 0
+var_rom_sn:			dw 0
 ntc_rg310_e:
 			IF ($ < 32768) && (ntc_rg311_e - ntc_rg311 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -10567,7 +10538,7 @@ ntc_rg310_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg311:
-var_rom_sn:			dw 0
+for43_l:			dw 0
 ntc_rg311_e:
 			IF ($ < 32768) && (ntc_rg312_e - ntc_rg312 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -10577,7 +10548,7 @@ ntc_rg311_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg312:
-for45_l:			dw 0
+for44_l:			dw 0
 ntc_rg312_e:
 			IF ($ < 32768) && (ntc_rg313_e - ntc_rg313 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -10587,7 +10558,7 @@ ntc_rg312_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg313:
-for46_l:			dw 0
+p_rom_take_rs:			dw 0
 ntc_rg313_e:
 			IF ($ < 32768) && (ntc_rg314_e - ntc_rg314 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -10597,7 +10568,7 @@ ntc_rg313_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg314:
-p_rom_take_rs:			dw 0
+var_rom_take_n:			dw 0
 ntc_rg314_e:
 			IF ($ < 32768) && (ntc_rg315_e - ntc_rg315 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -10607,7 +10578,7 @@ ntc_rg314_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg315:
-var_rom_take_n:			dw 0
+var_rom_take_i:			dw 0
 ntc_rg315_e:
 			IF ($ < 32768) && (ntc_rg316_e - ntc_rg316 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -10617,7 +10588,7 @@ ntc_rg315_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg316:
-var_rom_take_i:			dw 0
+for45_l:			dw 0
 ntc_rg316_e:
 			IF ($ < 32768) && (ntc_rg317_e - ntc_rg317 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -10627,7 +10598,7 @@ ntc_rg316_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg317:
-for47_l:			dw 0
+p_rom_layer_rs:			dw 0
 ntc_rg317_e:
 			IF ($ < 32768) && (ntc_rg318_e - ntc_rg318 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -10637,7 +10608,7 @@ ntc_rg317_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg318:
-p_rom_layer_rs:			dw 0
+var_rom_layer_rb:			dw 0, 0		; parameters, one block
 ntc_rg318_e:
 			IF ($ < 32768) && (ntc_rg319_e - ntc_rg319 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -10647,7 +10618,7 @@ ntc_rg318_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg319:
-var_rom_layer_rb:			dw 0, 0		; parameters, one block
+var_rom_layer_layer:			dw 0
 ntc_rg319_e:
 			IF ($ < 32768) && (ntc_rg320_e - ntc_rg320 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -10657,7 +10628,7 @@ ntc_rg319_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg320:
-var_rom_layer_layer:			dw 0
+var_rom_layer_p:			dw 0
 ntc_rg320_e:
 			IF ($ < 32768) && (ntc_rg321_e - ntc_rg321 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -10667,7 +10638,7 @@ ntc_rg320_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg321:
-var_rom_layer_p:			dw 0
+var_rom_layer_e:			dw 0
 ntc_rg321_e:
 			IF ($ < 32768) && (ntc_rg322_e - ntc_rg322 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -10677,7 +10648,7 @@ ntc_rg321_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg322:
-var_rom_layer_e:			dw 0
+var_rom_layer_n:			dw 0
 ntc_rg322_e:
 			IF ($ < 32768) && (ntc_rg323_e - ntc_rg323 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -10687,7 +10658,7 @@ ntc_rg322_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg323:
-var_rom_layer_n:			dw 0
+var_rom_layer_olo:			dw 0
 ntc_rg323_e:
 			IF ($ < 32768) && (ntc_rg324_e - ntc_rg324 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -10697,7 +10668,7 @@ ntc_rg323_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg324:
-var_rom_layer_olo:			dw 0
+var_rom_layer_ohi:			dw 0
 ntc_rg324_e:
 			IF ($ < 32768) && (ntc_rg325_e - ntc_rg325 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -10707,7 +10678,7 @@ ntc_rg324_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg325:
-var_rom_layer_ohi:			dw 0
+var_rom_layer_pf:			dw 0
 ntc_rg325_e:
 			IF ($ < 32768) && (ntc_rg326_e - ntc_rg326 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -10717,7 +10688,7 @@ ntc_rg325_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg326:
-var_rom_layer_pf:			dw 0
+var_rom_layer_sf:			dw 0
 ntc_rg326_e:
 			IF ($ < 32768) && (ntc_rg327_e - ntc_rg327 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -10727,7 +10698,7 @@ ntc_rg326_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg327:
-var_rom_layer_sf:			dw 0
+var_rom_layerx_layerx:			dw 0
 ntc_rg327_e:
 			IF ($ < 32768) && (ntc_rg328_e - ntc_rg328 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -10737,7 +10708,7 @@ ntc_rg327_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg328:
-var_rom_layerx_layerx:			dw 0
+p_rom_pick_rs:			dw 0
 ntc_rg328_e:
 			IF ($ < 32768) && (ntc_rg329_e - ntc_rg329 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -10747,7 +10718,7 @@ ntc_rg328_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg329:
-p_rom_pick_rs:			dw 0
+var_rom_pick_rb:			dw 0, 0		; parameters, one block
 ntc_rg329_e:
 			IF ($ < 32768) && (ntc_rg330_e - ntc_rg330 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -10757,7 +10728,7 @@ ntc_rg329_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg330:
-var_rom_pick_rb:			dw 0, 0		; parameters, one block
+var_rom_pick_pick:			dw 0
 ntc_rg330_e:
 			IF ($ < 32768) && (ntc_rg331_e - ntc_rg331 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -10767,7 +10738,7 @@ ntc_rg330_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg331:
-var_rom_pick_pick:			dw 0
+var_rom_pick_b0:			dw 0
 ntc_rg331_e:
 			IF ($ < 32768) && (ntc_rg332_e - ntc_rg332 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -10777,7 +10748,7 @@ ntc_rg331_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg332:
-var_rom_pick_b0:			dw 0
+var_rom_pick_o0:			dw 0
 ntc_rg332_e:
 			IF ($ < 32768) && (ntc_rg333_e - ntc_rg333 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -10787,7 +10758,7 @@ ntc_rg332_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg333:
-var_rom_pick_o0:			dw 0
+var_rom_pick_pass:			dw 0
 ntc_rg333_e:
 			IF ($ < 32768) && (ntc_rg334_e - ntc_rg334 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -10797,7 +10768,7 @@ ntc_rg333_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg334:
-var_rom_pick_pass:			dw 0
+var_rom_pick_blk:			dw 0
 ntc_rg334_e:
 			IF ($ < 32768) && (ntc_rg335_e - ntc_rg335 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -10807,7 +10778,7 @@ ntc_rg334_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg335:
-var_rom_pick_blk:			dw 0
+var_rom_pick_lo:			dw 0
 ntc_rg335_e:
 			IF ($ < 32768) && (ntc_rg336_e - ntc_rg336 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -10817,7 +10788,7 @@ ntc_rg335_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg336:
-var_rom_pick_lo:			dw 0
+var_rom_pick_hi:			dw 0
 ntc_rg336_e:
 			IF ($ < 32768) && (ntc_rg337_e - ntc_rg337 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -10827,7 +10798,7 @@ ntc_rg336_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg337:
-var_rom_pick_hi:			dw 0
+var_rom_pick_i:			dw 0
 ntc_rg337_e:
 			IF ($ < 32768) && (ntc_rg338_e - ntc_rg338 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -10837,7 +10808,7 @@ ntc_rg337_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg338:
-var_rom_pick_i:			dw 0
+for53_l:			dw 0
 ntc_rg338_e:
 			IF ($ < 32768) && (ntc_rg339_e - ntc_rg339 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -10847,7 +10818,7 @@ ntc_rg338_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg339:
-for55_l:			dw 0
+var_rom_picklo:			dw 0
 ntc_rg339_e:
 			IF ($ < 32768) && (ntc_rg340_e - ntc_rg340 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -10857,7 +10828,7 @@ ntc_rg339_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg340:
-var_rom_picklo:			dw 0
+var_rom_pickhi:			dw 0
 ntc_rg340_e:
 			IF ($ < 32768) && (ntc_rg341_e - ntc_rg341 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -10867,7 +10838,7 @@ ntc_rg340_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg341:
-var_rom_pickhi:			dw 0
+p_rom_count_rs:			dw 0
 ntc_rg341_e:
 			IF ($ < 32768) && (ntc_rg342_e - ntc_rg342 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -10877,7 +10848,7 @@ ntc_rg341_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg342:
-p_rom_count_rs:			dw 0
+var_rom_count_rb:			dw 0, 0		; parameters, one block
 ntc_rg342_e:
 			IF ($ < 32768) && (ntc_rg343_e - ntc_rg343 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -10887,7 +10858,7 @@ ntc_rg342_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg343:
-var_rom_count_rb:			dw 0, 0		; parameters, one block
+var_rom_count_count:			dw 0
 ntc_rg343_e:
 			IF ($ < 32768) && (ntc_rg344_e - ntc_rg344 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -10897,7 +10868,7 @@ ntc_rg343_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg344:
-var_rom_count_count:			dw 0
+var_rom_count_blk:			dw 0
 ntc_rg344_e:
 			IF ($ < 32768) && (ntc_rg345_e - ntc_rg345 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -10907,7 +10878,7 @@ ntc_rg344_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg345:
-var_rom_count_blk:			dw 0
+var_rom_count_i:			dw 0
 ntc_rg345_e:
 			IF ($ < 32768) && (ntc_rg346_e - ntc_rg346 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -10917,7 +10888,7 @@ ntc_rg345_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg346:
-var_rom_count_i:			dw 0
+var_rom_count_n:			dw 0
 ntc_rg346_e:
 			IF ($ < 32768) && (ntc_rg347_e - ntc_rg347 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -10927,7 +10898,7 @@ ntc_rg346_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg347:
-var_rom_count_n:			dw 0
+p_rom_loadpatch_rs:			dw 0
 ntc_rg347_e:
 			IF ($ < 32768) && (ntc_rg348_e - ntc_rg348 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -10937,7 +10908,7 @@ ntc_rg347_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg348:
-p_rom_loadpatch_rs:			dw 0
+var_rom_loadpatch_i:			dw 0
 ntc_rg348_e:
 			IF ($ < 32768) && (ntc_rg349_e - ntc_rg349 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -10947,7 +10918,7 @@ ntc_rg348_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg349:
-var_rom_loadpatch_i:			dw 0
+var_rom_loadpatch_off:			dw 0
 ntc_rg349_e:
 			IF ($ < 32768) && (ntc_rg350_e - ntc_rg350 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -10957,7 +10928,7 @@ ntc_rg349_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg350:
-var_rom_loadpatch_off:			dw 0
+var_rom_patched:			dw 0
 ntc_rg350_e:
 			IF ($ < 32768) && (ntc_rg351_e - ntc_rg351 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -10967,7 +10938,7 @@ ntc_rg350_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg351:
-var_rom_patched:			dw 0
+p_rom_patch_rs:			dw 0
 ntc_rg351_e:
 			IF ($ < 32768) && (ntc_rg352_e - ntc_rg352 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -10977,7 +10948,7 @@ ntc_rg351_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg352:
-p_rom_patch_rs:			dw 0
+var_rom_patch_sw:			dw 0
 ntc_rg352_e:
 			IF ($ < 32768) && (ntc_rg353_e - ntc_rg353 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -10987,7 +10958,7 @@ ntc_rg352_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg353:
-var_rom_patch_sw:			dw 0
+var_rom_patch_i:			dw 0
 ntc_rg353_e:
 			IF ($ < 32768) && (ntc_rg354_e - ntc_rg354 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -10997,7 +10968,7 @@ ntc_rg353_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg354:
-var_rom_patch_i:			dw 0
+var_rom_patch_blk:			dw 0
 ntc_rg354_e:
 			IF ($ < 32768) && (ntc_rg355_e - ntc_rg355 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -11007,7 +10978,7 @@ ntc_rg354_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg355:
-var_rom_patch_blk:			dw 0
+var_rom_patch_a:			dw 0
 ntc_rg355_e:
 			IF ($ < 32768) && (ntc_rg356_e - ntc_rg356 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -11017,7 +10988,7 @@ ntc_rg355_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg356:
-var_rom_patch_a:			dw 0
+p_rom_scan_rs:			dw 0
 ntc_rg356_e:
 			IF ($ < 32768) && (ntc_rg357_e - ntc_rg357 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -11027,7 +10998,7 @@ ntc_rg356_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg357:
-p_rom_scan_rs:			dw 0
+var_rom_scan_rb:			dw 0, 0		; parameters, one block
 ntc_rg357_e:
 			IF ($ < 32768) && (ntc_rg358_e - ntc_rg358 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -11037,7 +11008,7 @@ ntc_rg357_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg358:
-var_rom_scan_rb:			dw 0, 0		; parameters, one block
+var_rom_scan_lo:			dw 0, 0
 ntc_rg358_e:
 			IF ($ < 32768) && (ntc_rg359_e - ntc_rg359 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -11047,7 +11018,7 @@ ntc_rg358_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg359:
-var_rom_scan_lo:			dw 0, 0
+var_rom_scan_hi:			dw 0, 0
 ntc_rg359_e:
 			IF ($ < 32768) && (ntc_rg360_e - ntc_rg360 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -11057,7 +11028,7 @@ ntc_rg359_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg360:
-var_rom_scan_hi:			dw 0, 0
+var_rom_scan_scan:			dw 0, 0
 ntc_rg360_e:
 			IF ($ < 32768) && (ntc_rg361_e - ntc_rg361 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -11067,7 +11038,7 @@ ntc_rg360_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg361:
-var_rom_scan_scan:			dw 0, 0
+var_rom_scan_cur:			dw 0, 0
 ntc_rg361_e:
 			IF ($ < 32768) && (ntc_rg362_e - ntc_rg362 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -11077,7 +11048,7 @@ ntc_rg361_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg362:
-var_rom_scan_cur:			dw 0, 0
+var_rom_scan_base:			dw 0, 0
 ntc_rg362_e:
 			IF ($ < 32768) && (ntc_rg363_e - ntc_rg363 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -11087,7 +11058,7 @@ ntc_rg362_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg363:
-var_rom_scan_base:			dw 0, 0
+var_rom_scan_lim:			dw 0, 0
 ntc_rg363_e:
 			IF ($ < 32768) && (ntc_rg364_e - ntc_rg364 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -11097,7 +11068,7 @@ ntc_rg363_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg364:
-var_rom_scan_lim:			dw 0, 0
+var_rom_scan_blk:			dw 0
 ntc_rg364_e:
 			IF ($ < 32768) && (ntc_rg365_e - ntc_rg365 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -11107,7 +11078,7 @@ ntc_rg364_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg365:
-var_rom_scan_blk:			dw 0
+var_rom_scan_w:			dw 0
 ntc_rg365_e:
 			IF ($ < 32768) && (ntc_rg366_e - ntc_rg366 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -11117,7 +11088,7 @@ ntc_rg365_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg366:
-var_rom_scan_w:			dw 0
+var_rom_scan_e:			dw 0
 ntc_rg366_e:
 			IF ($ < 32768) && (ntc_rg367_e - ntc_rg367 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -11127,7 +11098,7 @@ ntc_rg366_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg367:
-var_rom_scan_e:			dw 0
+var_rom_scan_i:			dw 0
 ntc_rg367_e:
 			IF ($ < 32768) && (ntc_rg368_e - ntc_rg368 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -11137,7 +11108,7 @@ ntc_rg367_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg368:
-var_rom_scan_i:			dw 0
+for65_l:			dw 0
 ntc_rg368_e:
 			IF ($ < 32768) && (ntc_rg369_e - ntc_rg369 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -11147,7 +11118,7 @@ ntc_rg368_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg369:
-for67_l:			dw 0
+p_rom_pickidx_rs:			dw 0
 ntc_rg369_e:
 			IF ($ < 32768) && (ntc_rg370_e - ntc_rg370 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -11157,7 +11128,7 @@ ntc_rg369_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg370:
-p_rom_pickidx_rs:			dw 0
+var_rom_pickidx_rb:			dw 0, 0, 0, 0, 0		; parameters, one block
 ntc_rg370_e:
 			IF ($ < 32768) && (ntc_rg371_e - ntc_rg371 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -11167,7 +11138,7 @@ ntc_rg370_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg371:
-var_rom_pickidx_rb:			dw 0, 0, 0, 0, 0		; parameters, one block
+var_rom_pickidx_pickidx:			dw 0
 ntc_rg371_e:
 			IF ($ < 32768) && (ntc_rg372_e - ntc_rg372 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -11177,7 +11148,7 @@ ntc_rg371_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg372:
-var_rom_pickidx_pickidx:			dw 0
+var_rom_pickidx_off:			dw 0, 0
 ntc_rg372_e:
 			IF ($ < 32768) && (ntc_rg373_e - ntc_rg373 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -11187,7 +11158,7 @@ ntc_rg372_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg373:
-var_rom_pickidx_off:			dw 0, 0
+var_rom_pickidx_a0:			dw 0, 0
 ntc_rg373_e:
 			IF ($ < 32768) && (ntc_rg374_e - ntc_rg374 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -11197,7 +11168,7 @@ ntc_rg373_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg374:
-var_rom_pickidx_a0:			dw 0, 0
+var_rom_pickidx_wn:			dw 0, 0
 ntc_rg374_e:
 			IF ($ < 32768) && (ntc_rg375_e - ntc_rg375 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -11207,7 +11178,7 @@ ntc_rg374_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg375:
-var_rom_pickidx_wn:			dw 0, 0
+var_rom_pickidx_r:			dw 0, 0
 ntc_rg375_e:
 			IF ($ < 32768) && (ntc_rg376_e - ntc_rg376 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -11217,7 +11188,7 @@ ntc_rg375_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg376:
-var_rom_pickidx_r:			dw 0, 0
+var_rom_pickidx_ad:			dw 0, 0
 ntc_rg376_e:
 			IF ($ < 32768) && (ntc_rg377_e - ntc_rg377 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -11227,7 +11198,7 @@ ntc_rg376_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg377:
-var_rom_pickidx_ad:			dw 0, 0
+var_rom_pickidx_t:			dw 0, 0
 ntc_rg377_e:
 			IF ($ < 32768) && (ntc_rg378_e - ntc_rg378 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -11237,7 +11208,7 @@ ntc_rg377_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg378:
-var_rom_pickidx_t:			dw 0, 0
+p_rom_enc_rs:			dw 0
 ntc_rg378_e:
 			IF ($ < 32768) && (ntc_rg379_e - ntc_rg379 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -11247,7 +11218,7 @@ ntc_rg378_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg379:
-p_rom_enc_rs:			dw 0
+var_rom_enc_rb:			dw 0, 0, 0, 0		; parameters, one block
 ntc_rg379_e:
 			IF ($ < 32768) && (ntc_rg380_e - ntc_rg380 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -11257,7 +11228,7 @@ ntc_rg379_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg380:
-var_rom_enc_rb:			dw 0, 0, 0, 0		; parameters, one block
+var_rom_enc_enc:			dw 0
 ntc_rg380_e:
 			IF ($ < 32768) && (ntc_rg381_e - ntc_rg381 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -11267,7 +11238,7 @@ ntc_rg380_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg381:
-var_rom_enc_enc:			dw 0
+var_rom_enc_i:			dw 0
 ntc_rg381_e:
 			IF ($ < 32768) && (ntc_rg382_e - ntc_rg382 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -11277,7 +11248,7 @@ ntc_rg381_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg382:
-var_rom_enc_i:			dw 0
+var_rom_enc_n:			dw 0
 ntc_rg382_e:
 			IF ($ < 32768) && (ntc_rg383_e - ntc_rg383 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -11287,7 +11258,7 @@ ntc_rg382_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg383:
-var_rom_enc_n:			dw 0
+var_rom_enc_olo:			dw 0
 ntc_rg383_e:
 			IF ($ < 32768) && (ntc_rg384_e - ntc_rg384 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -11297,7 +11268,7 @@ ntc_rg383_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg384:
-var_rom_enc_olo:			dw 0
+var_rom_enc_ohi:			dw 0
 ntc_rg384_e:
 			IF ($ < 32768) && (ntc_rg385_e - ntc_rg385 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -11307,7 +11278,7 @@ ntc_rg384_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg385:
-var_rom_enc_ohi:			dw 0
+var_rom_enc_pf:			dw 0
 ntc_rg385_e:
 			IF ($ < 32768) && (ntc_rg386_e - ntc_rg386 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -11317,7 +11288,7 @@ ntc_rg385_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg386:
-var_rom_enc_pf:			dw 0
+var_rom_enc_sf:			dw 0
 ntc_rg386_e:
 			IF ($ < 32768) && (ntc_rg387_e - ntc_rg387 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -11327,7 +11298,7 @@ ntc_rg386_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg387:
-var_rom_enc_sf:			dw 0
+var_rom_enc_k:			dw 0
 ntc_rg387_e:
 			IF ($ < 32768) && (ntc_rg388_e - ntc_rg388 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -11337,7 +11308,7 @@ ntc_rg387_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg388:
-var_rom_enc_k:			dw 0
+var_rom_enc_hv:			dw 0
 ntc_rg388_e:
 			IF ($ < 32768) && (ntc_rg389_e - ntc_rg389 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -11347,7 +11318,7 @@ ntc_rg388_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg389:
-var_rom_enc_hv:			dw 0
+var_rom_encx_encx:			dw 0
 ntc_rg389_e:
 			IF ($ < 32768) && (ntc_rg390_e - ntc_rg390 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -11357,7 +11328,7 @@ ntc_rg389_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg390:
-var_rom_encx_encx:			dw 0
+for75_l:			dw 0
 ntc_rg390_e:
 			IF ($ < 32768) && (ntc_rg391_e - ntc_rg391 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -11367,7 +11338,7 @@ ntc_rg390_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg391:
-for77_l:			dw 0
+var_rom_enc___sel79:			dw 0
 ntc_rg391_e:
 			IF ($ < 32768) && (ntc_rg392_e - ntc_rg392 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -11377,7 +11348,7 @@ ntc_rg391_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg392:
-var_rom_enc___sel81:			dw 0
+for81_l:			dw 0
 ntc_rg392_e:
 			IF ($ < 32768) && (ntc_rg393_e - ntc_rg393 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -11387,7 +11358,7 @@ ntc_rg392_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg393:
-for83_l:			dw 0
+for82_l:			dw 0
 ntc_rg393_e:
 			IF ($ < 32768) && (ntc_rg394_e - ntc_rg394 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -11407,7 +11378,7 @@ ntc_rg394_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg395:
-for86_l:			dw 0
+p_rom_makemic_rs:			dw 0
 ntc_rg395_e:
 			IF ($ < 32768) && (ntc_rg396_e - ntc_rg396 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -11417,7 +11388,7 @@ ntc_rg395_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg396:
-p_rom_makemic_rs:			dw 0
+var_rom_makemic_r:			dw 0
 ntc_rg396_e:
 			IF ($ < 32768) && (ntc_rg397_e - ntc_rg397 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -11427,7 +11398,7 @@ ntc_rg396_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg397:
-var_rom_makemic_r:			dw 0
+var_rom_makemic_i:			dw 0
 ntc_rg397_e:
 			IF ($ < 32768) && (ntc_rg398_e - ntc_rg398 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -11437,7 +11408,7 @@ ntc_rg397_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg398:
-var_rom_makemic_i:			dw 0
+var_rom_makemic_j:			dw 0
 ntc_rg398_e:
 			IF ($ < 32768) && (ntc_rg399_e - ntc_rg399 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -11447,7 +11418,7 @@ ntc_rg398_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg399:
-var_rom_makemic_j:			dw 0
+var_rom_makemic_t:			dw 0
 ntc_rg399_e:
 			IF ($ < 32768) && (ntc_rg400_e - ntc_rg400 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -11457,7 +11428,7 @@ ntc_rg399_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg400:
-var_rom_makemic_t:			dw 0
+var_rom_makemic_b:			dw 0
 ntc_rg400_e:
 			IF ($ < 32768) && (ntc_rg401_e - ntc_rg401 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -11467,7 +11438,7 @@ ntc_rg400_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg401:
-var_rom_makemic_b:			dw 0
+p_rom_micidx_rs:			dw 0
 ntc_rg401_e:
 			IF ($ < 32768) && (ntc_rg402_e - ntc_rg402 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -11477,7 +11448,7 @@ ntc_rg401_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg402:
-p_rom_micidx_rs:			dw 0
+var_rom_micidx_rb:			dw 0
 ntc_rg402_e:
 			IF ($ < 32768) && (ntc_rg403_e - ntc_rg403 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -11487,7 +11458,7 @@ ntc_rg402_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg403:
-var_rom_micidx_rb:			dw 0
+var_rom_micidx_micidx:			dw 0
 ntc_rg403_e:
 			IF ($ < 32768) && (ntc_rg404_e - ntc_rg404 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -11497,7 +11468,7 @@ ntc_rg403_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg404:
-var_rom_micidx_micidx:			dw 0
+p_rom_eput_rs:			dw 0
 ntc_rg404_e:
 			IF ($ < 32768) && (ntc_rg405_e - ntc_rg405 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -11507,7 +11478,7 @@ ntc_rg404_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg405:
-p_rom_eput_rs:			dw 0
+var_rom_eput_v:			dw 0
 ntc_rg405_e:
 			IF ($ < 32768) && (ntc_rg406_e - ntc_rg406 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -11517,7 +11488,7 @@ ntc_rg405_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg406:
-var_rom_eput_v:			dw 0
+var_rom_ebad:			dw 0
 ntc_rg406_e:
 			IF ($ < 32768) && (ntc_rg407_e - ntc_rg407 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -11527,7 +11498,7 @@ ntc_rg406_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg407:
-var_rom_ebad:			dw 0
+var_rom_ep:			dw 0
 ntc_rg407_e:
 			IF ($ < 32768) && (ntc_rg408_e - ntc_rg408 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -11537,7 +11508,7 @@ ntc_rg407_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg408:
-var_rom_ep:			dw 0
+p_rom_eadr_rs:			dw 0
 ntc_rg408_e:
 			IF ($ < 32768) && (ntc_rg409_e - ntc_rg409 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -11547,7 +11518,7 @@ ntc_rg408_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg409:
-p_rom_eadr_rs:			dw 0
+var_rom_eadr_v:			dw 0, 0, 0		; parameters, one block
 ntc_rg409_e:
 			IF ($ < 32768) && (ntc_rg410_e - ntc_rg410 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -11557,7 +11528,7 @@ ntc_rg409_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg410:
-var_rom_eadr_v:			dw 0, 0, 0		; parameters, one block
+var_rom_eadr_a:			dw 0
 ntc_rg410_e:
 			IF ($ < 32768) && (ntc_rg411_e - ntc_rg411 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -11567,7 +11538,7 @@ ntc_rg410_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg411:
-var_rom_eadr_a:			dw 0
+var_rom_eadr_k:			dw 0
 ntc_rg411_e:
 			IF ($ < 32768) && (ntc_rg412_e - ntc_rg412 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -11577,7 +11548,7 @@ ntc_rg411_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg412:
-var_rom_eadr_k:			dw 0
+var_rom_emic:			dw 0
 ntc_rg412_e:
 			IF ($ < 32768) && (ntc_rg413_e - ntc_rg413 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -11587,7 +11558,7 @@ ntc_rg412_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg413:
-var_rom_emic:			dw 0
+var_rom_emi:			dw 0
 ntc_rg413_e:
 			IF ($ < 32768) && (ntc_rg414_e - ntc_rg414 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -11597,7 +11568,7 @@ ntc_rg413_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg414:
-var_rom_emi:			dw 0
+var_rom_erb:			dw 0
 ntc_rg414_e:
 			IF ($ < 32768) && (ntc_rg415_e - ntc_rg415 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -11607,7 +11578,7 @@ ntc_rg414_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg415:
-var_rom_erb:			dw 0
+var_rom_ewin:			dw 0
 ntc_rg415_e:
 			IF ($ < 32768) && (ntc_rg416_e - ntc_rg416 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -11617,7 +11588,7 @@ ntc_rg415_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg416:
-var_rom_ewin:			dw 0
+p_rom_esym_rs:			dw 0
 ntc_rg416_e:
 			IF ($ < 32768) && (ntc_rg417_e - ntc_rg417 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -11627,7 +11598,7 @@ ntc_rg416_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg417:
-p_rom_esym_rs:			dw 0
+var_rom_esym_c:			dw 0, 0, 0		; parameters, one block
 ntc_rg417_e:
 			IF ($ < 32768) && (ntc_rg418_e - ntc_rg418 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -11637,7 +11608,7 @@ ntc_rg417_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg418:
-var_rom_esym_c:			dw 0, 0, 0		; parameters, one block
+p_rom_ehv_rs:			dw 0
 ntc_rg418_e:
 			IF ($ < 32768) && (ntc_rg419_e - ntc_rg419 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -11647,7 +11618,7 @@ ntc_rg418_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg419:
-p_rom_ehv_rs:			dw 0
+var_rom_ehv_v:			dw 0
 ntc_rg419_e:
 			IF ($ < 32768) && (ntc_rg420_e - ntc_rg420 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -11657,7 +11628,7 @@ ntc_rg419_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg420:
-var_rom_ehv_v:			dw 0
+p_rom_ehvw_rs:			dw 0
 ntc_rg420_e:
 			IF ($ < 32768) && (ntc_rg421_e - ntc_rg421 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -11667,7 +11638,7 @@ ntc_rg420_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg421:
-p_rom_ehvw_rs:			dw 0
+var_rom_ehvw_v:			dw 0
 ntc_rg421_e:
 			IF ($ < 32768) && (ntc_rg422_e - ntc_rg422 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -11677,7 +11648,7 @@ ntc_rg421_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg422:
-var_rom_ehvw_v:			dw 0
+p_rom_ehvo_rs:			dw 0
 ntc_rg422_e:
 			IF ($ < 32768) && (ntc_rg423_e - ntc_rg423 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -11687,7 +11658,7 @@ ntc_rg422_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg423:
-p_rom_ehvo_rs:			dw 0
+var_rom_ehvo_l:			dw 0, 0		; parameters, one block
 ntc_rg423_e:
 			IF ($ < 32768) && (ntc_rg424_e - ntc_rg424 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -11697,7 +11668,7 @@ ntc_rg423_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg424:
-var_rom_ehvo_l:			dw 0, 0		; parameters, one block
+p_rom_epad_rs:			dw 0
 ntc_rg424_e:
 			IF ($ < 32768) && (ntc_rg425_e - ntc_rg425 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -11707,7 +11678,7 @@ ntc_rg424_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg425:
-p_rom_epad_rs:			dw 0
+var_rom_epad_epad:			dw 0
 ntc_rg425_e:
 			IF ($ < 32768) && (ntc_rg426_e - ntc_rg426 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -11717,7 +11688,7 @@ ntc_rg425_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg426:
-var_rom_epad_epad:			dw 0
+var_rom_epm:			dw 0
 ntc_rg426_e:
 			IF ($ < 32768) && (ntc_rg427_e - ntc_rg427 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -11727,7 +11698,7 @@ ntc_rg426_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg427:
-var_rom_epm:			dw 0
+p_rom_encx_rs:			dw 0
 ntc_rg427_e:
 			IF ($ < 32768) && (ntc_rg428_e - ntc_rg428 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -11737,7 +11708,7 @@ ntc_rg427_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg428:
-p_rom_encx_rs:			dw 0
+var_rom_encx_rb:			dw 0, 0, 0, 0		; parameters, one block
 ntc_rg428_e:
 			IF ($ < 32768) && (ntc_rg429_e - ntc_rg429 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -11747,7 +11718,7 @@ ntc_rg428_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg429:
-var_rom_encx_rb:			dw 0, 0, 0, 0		; parameters, one block
+var_rom_encx_kind:			dw 0
 ntc_rg429_e:
 			IF ($ < 32768) && (ntc_rg430_e - ntc_rg430 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -11757,7 +11728,7 @@ ntc_rg429_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg430:
-var_rom_encx_kind:			dw 0
+var_rom_encx_i:			dw 0
 ntc_rg430_e:
 			IF ($ < 32768) && (ntc_rg431_e - ntc_rg431 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -11767,7 +11738,7 @@ ntc_rg430_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg431:
-var_rom_encx_i:			dw 0
+var_rom_encx_b:			dw 0
 ntc_rg431_e:
 			IF ($ < 32768) && (ntc_rg432_e - ntc_rg432 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -11777,7 +11748,7 @@ ntc_rg431_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg432:
-var_rom_encx_b:			dw 0
+var_rom_encx_rm:			dw 0
 ntc_rg432_e:
 			IF ($ < 32768) && (ntc_rg433_e - ntc_rg433 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -11787,7 +11758,7 @@ ntc_rg432_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg433:
-var_rom_encx_rm:			dw 0
+var_rom_encx_cb:			dw 0
 ntc_rg433_e:
 			IF ($ < 32768) && (ntc_rg434_e - ntc_rg434 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -11797,7 +11768,7 @@ ntc_rg433_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg434:
-var_rom_encx_cb:			dw 0
+var_rom_encx_nb:			dw 0
 ntc_rg434_e:
 			IF ($ < 32768) && (ntc_rg435_e - ntc_rg435 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -11807,7 +11778,7 @@ ntc_rg434_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg435:
-var_rom_encx_nb:			dw 0
+var_rom_encx_pf:			dw 0
 ntc_rg435_e:
 			IF ($ < 32768) && (ntc_rg436_e - ntc_rg436 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -11817,7 +11788,7 @@ ntc_rg435_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg436:
-var_rom_encx_pf:			dw 0
+var_rom_encx_sf:			dw 0
 ntc_rg436_e:
 			IF ($ < 32768) && (ntc_rg437_e - ntc_rg437 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -11827,7 +11798,7 @@ ntc_rg436_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg437:
-var_rom_encx_sf:			dw 0
+var_rom_encx_ol:			dw 0
 ntc_rg437_e:
 			IF ($ < 32768) && (ntc_rg438_e - ntc_rg438 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -11837,7 +11808,7 @@ ntc_rg437_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg438:
-var_rom_encx_ol:			dw 0
+var_rom_encx_oh:			dw 0
 ntc_rg438_e:
 			IF ($ < 32768) && (ntc_rg439_e - ntc_rg439 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -11847,7 +11818,7 @@ ntc_rg438_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg439:
-var_rom_encx_oh:			dw 0
+var_rom_encx_bo:			dw 0
 ntc_rg439_e:
 			IF ($ < 32768) && (ntc_rg440_e - ntc_rg440 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -11857,7 +11828,7 @@ ntc_rg439_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg440:
-var_rom_encx_bo:			dw 0
+var_rom_encx_bh:			dw 0
 ntc_rg440_e:
 			IF ($ < 32768) && (ntc_rg441_e - ntc_rg441 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -11867,7 +11838,7 @@ ntc_rg440_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg441:
-var_rom_encx_bh:			dw 0
+var_rom_encx_nl:			dw 0
 ntc_rg441_e:
 			IF ($ < 32768) && (ntc_rg442_e - ntc_rg442 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -11877,7 +11848,7 @@ ntc_rg441_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg442:
-var_rom_encx_nl:			dw 0
+var_rom_encx_nh:			dw 0
 ntc_rg442_e:
 			IF ($ < 32768) && (ntc_rg443_e - ntc_rg443 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -11887,7 +11858,7 @@ ntc_rg442_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg443:
-var_rom_encx_nh:			dw 0
+var_rom_encx_w:			dw 0
 ntc_rg443_e:
 			IF ($ < 32768) && (ntc_rg444_e - ntc_rg444 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -11897,7 +11868,7 @@ ntc_rg443_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg444:
-var_rom_encx_w:			dw 0
+var_rom_encx_pos:			dw 0
 ntc_rg444_e:
 			IF ($ < 32768) && (ntc_rg445_e - ntc_rg445 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -11907,7 +11878,7 @@ ntc_rg444_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg445:
-var_rom_encx_pos:			dw 0
+for102_l:			dw 0
 ntc_rg445_e:
 			IF ($ < 32768) && (ntc_rg446_e - ntc_rg446 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -11917,7 +11888,7 @@ ntc_rg445_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg446:
-for104_l:			dw 0
+for106_l:			dw 0
 ntc_rg446_e:
 			IF ($ < 32768) && (ntc_rg447_e - ntc_rg447 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -11927,7 +11898,7 @@ ntc_rg446_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg447:
-for108_l:			dw 0
+for107_l:			dw 0
 ntc_rg447_e:
 			IF ($ < 32768) && (ntc_rg448_e - ntc_rg448 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -11937,7 +11908,7 @@ ntc_rg447_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg448:
-for109_l:			dw 0
+for108_l:			dw 0
 ntc_rg448_e:
 			IF ($ < 32768) && (ntc_rg449_e - ntc_rg449 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -11947,7 +11918,7 @@ ntc_rg448_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg449:
-for110_l:			dw 0
+for112_l:			dw 0
 ntc_rg449_e:
 			IF ($ < 32768) && (ntc_rg450_e - ntc_rg450 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -11957,7 +11928,7 @@ ntc_rg449_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg450:
-for114_l:			dw 0
+for117_l:			dw 0
 ntc_rg450_e:
 			IF ($ < 32768) && (ntc_rg451_e - ntc_rg451 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -11967,7 +11938,7 @@ ntc_rg450_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg451:
-for119_l:			dw 0
+for118_l:			dw 0
 ntc_rg451_e:
 			IF ($ < 32768) && (ntc_rg452_e - ntc_rg452 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -11977,7 +11948,7 @@ ntc_rg451_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg452:
-for120_l:			dw 0
+p_rom_rdv_rs:			dw 0
 ntc_rg452_e:
 			IF ($ < 32768) && (ntc_rg453_e - ntc_rg453 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -11987,7 +11958,7 @@ ntc_rg452_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg453:
-p_rom_rdv_rs:			dw 0
+var_rom_rdv_p:			dw 0, 0, 0		; parameters, one block
 ntc_rg453_e:
 			IF ($ < 32768) && (ntc_rg454_e - ntc_rg454 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -11997,7 +11968,7 @@ ntc_rg453_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg454:
-var_rom_rdv_p:			dw 0, 0, 0		; parameters, one block
+var_rom_rdv_rdv:			dw 0
 ntc_rg454_e:
 			IF ($ < 32768) && (ntc_rg455_e - ntc_rg455 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -12007,7 +11978,7 @@ ntc_rg454_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg455:
-var_rom_rdv_rdv:			dw 0
+var_rom_dmic:			dw 0
 ntc_rg455_e:
 			IF ($ < 32768) && (ntc_rg456_e - ntc_rg456 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -12017,7 +11988,7 @@ ntc_rg455_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg456:
-var_rom_dmic:			dw 0
+var_rom_dmi:			dw 0
 ntc_rg456_e:
 			IF ($ < 32768) && (ntc_rg457_e - ntc_rg457 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -12027,7 +11998,7 @@ ntc_rg456_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg457:
-var_rom_dmi:			dw 0
+var_rom_drb:			dw 0
 ntc_rg457_e:
 			IF ($ < 32768) && (ntc_rg458_e - ntc_rg458 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -12037,7 +12008,7 @@ ntc_rg457_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg458:
-var_rom_drb:			dw 0
+p_rom_layerx_rs:			dw 0
 ntc_rg458_e:
 			IF ($ < 32768) && (ntc_rg459_e - ntc_rg459 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -12047,7 +12018,7 @@ ntc_rg458_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg459:
-p_rom_layerx_rs:			dw 0
+var_rom_layerx_rb:			dw 0, 0		; parameters, one block
 ntc_rg459_e:
 			IF ($ < 32768) && (ntc_rg460_e - ntc_rg460 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -12057,7 +12028,7 @@ ntc_rg459_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg460:
-var_rom_layerx_rb:			dw 0, 0		; parameters, one block
+var_rom_layerx_kind:			dw 0
 ntc_rg460_e:
 			IF ($ < 32768) && (ntc_rg461_e - ntc_rg461 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -12067,7 +12038,7 @@ ntc_rg460_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg461:
-var_rom_layerx_kind:			dw 0
+var_rom_layerx_aw:			dw 0
 ntc_rg461_e:
 			IF ($ < 32768) && (ntc_rg462_e - ntc_rg462 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -12077,7 +12048,7 @@ ntc_rg461_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg462:
-var_rom_layerx_aw:			dw 0
+var_rom_layerx_p:			dw 0
 ntc_rg462_e:
 			IF ($ < 32768) && (ntc_rg463_e - ntc_rg463 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -12087,7 +12058,7 @@ ntc_rg462_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg463:
-var_rom_layerx_p:			dw 0
+var_rom_layerx_e:			dw 0
 ntc_rg463_e:
 			IF ($ < 32768) && (ntc_rg464_e - ntc_rg464 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -12097,7 +12068,7 @@ ntc_rg463_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg464:
-var_rom_layerx_e:			dw 0
+var_rom_layerx_n:			dw 0
 ntc_rg464_e:
 			IF ($ < 32768) && (ntc_rg465_e - ntc_rg465 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -12107,7 +12078,7 @@ ntc_rg464_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg465:
-var_rom_layerx_n:			dw 0
+var_rom_layerx_pf:			dw 0
 ntc_rg465_e:
 			IF ($ < 32768) && (ntc_rg466_e - ntc_rg466 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -12117,7 +12088,7 @@ ntc_rg465_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg466:
-var_rom_layerx_pf:			dw 0
+var_rom_layerx_sf:			dw 0
 ntc_rg466_e:
 			IF ($ < 32768) && (ntc_rg467_e - ntc_rg467 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -12127,7 +12098,7 @@ ntc_rg466_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg467:
-var_rom_layerx_sf:			dw 0
+var_rom_layerx_olo:			dw 0
 ntc_rg467_e:
 			IF ($ < 32768) && (ntc_rg468_e - ntc_rg468 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -12137,7 +12108,7 @@ ntc_rg467_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg468:
-var_rom_layerx_olo:			dw 0
+var_rom_layerx_ohi:			dw 0
 ntc_rg468_e:
 			IF ($ < 32768) && (ntc_rg469_e - ntc_rg469 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -12147,7 +12118,7 @@ ntc_rg468_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg469:
-var_rom_layerx_ohi:			dw 0
+var_rom_layerx_cb:			dw 0
 ntc_rg469_e:
 			IF ($ < 32768) && (ntc_rg470_e - ntc_rg470 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -12157,7 +12128,7 @@ ntc_rg469_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg470:
-var_rom_layerx_cb:			dw 0
+var_rom_layerx_nlo:			dw 0
 ntc_rg470_e:
 			IF ($ < 32768) && (ntc_rg471_e - ntc_rg471 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -12167,7 +12138,7 @@ ntc_rg470_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg471:
-var_rom_layerx_nlo:			dw 0
+var_rom_layerx_nhi:			dw 0
 ntc_rg471_e:
 			IF ($ < 32768) && (ntc_rg472_e - ntc_rg472 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -12177,7 +12148,7 @@ ntc_rg471_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg472:
-var_rom_layerx_nhi:			dw 0
+var_rom_layerx_ncb:			dw 0
 ntc_rg472_e:
 			IF ($ < 32768) && (ntc_rg473_e - ntc_rg473 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -12187,7 +12158,7 @@ ntc_rg472_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg473:
-var_rom_layerx_ncb:			dw 0
+var_rom_layerx_i:			dw 0
 ntc_rg473_e:
 			IF ($ < 32768) && (ntc_rg474_e - ntc_rg474 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -12197,7 +12168,7 @@ ntc_rg473_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg474:
-var_rom_layerx_i:			dw 0
+var_rom_layerx_v:			dw 0
 ntc_rg474_e:
 			IF ($ < 32768) && (ntc_rg475_e - ntc_rg475 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -12207,7 +12178,7 @@ ntc_rg474_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg475:
-var_rom_layerx_v:			dw 0
+var_rom_layerx_hp:			dw 0
 ntc_rg475_e:
 			IF ($ < 32768) && (ntc_rg476_e - ntc_rg476 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -12217,7 +12188,7 @@ ntc_rg475_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg476:
-var_rom_layerx_hp:			dw 0
+for135_l:			dw 0
 ntc_rg476_e:
 			IF ($ < 32768) && (ntc_rg477_e - ntc_rg477 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -12227,7 +12198,7 @@ ntc_rg476_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg477:
-for137_l:			dw 0
+p_rom_rollhash_rs:			dw 0
 ntc_rg477_e:
 			IF ($ < 32768) && (ntc_rg478_e - ntc_rg478 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -12237,7 +12208,7 @@ ntc_rg477_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg478:
-p_rom_rollhash_rs:			dw 0
+var_rom_rollhash_st:			dw 0, 0		; parameters, one block
 ntc_rg478_e:
 			IF ($ < 32768) && (ntc_rg479_e - ntc_rg479 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -12247,7 +12218,7 @@ ntc_rg478_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg479:
-var_rom_rollhash_st:			dw 0, 0		; parameters, one block
+var_rom_rollhash_ps:			dw 0
 ntc_rg479_e:
 			IF ($ < 32768) && (ntc_rg480_e - ntc_rg480 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -12257,7 +12228,7 @@ ntc_rg479_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg480:
-var_rom_rollhash_ps:			dw 0
+var_rom_rollhash_last:			dw 0
 ntc_rg480_e:
 			IF ($ < 32768) && (ntc_rg481_e - ntc_rg481 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -12267,7 +12238,7 @@ ntc_rg480_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg481:
-var_rom_rollhash_last:			dw 0
+var_rom_rollhash_i:			dw 0
 ntc_rg481_e:
 			IF ($ < 32768) && (ntc_rg482_e - ntc_rg482 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -12277,7 +12248,7 @@ ntc_rg481_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg482:
-var_rom_rollhash_i:			dw 0
+var_rom_rollhash_s:			dw 0
 ntc_rg482_e:
 			IF ($ < 32768) && (ntc_rg483_e - ntc_rg483 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -12287,7 +12258,7 @@ ntc_rg482_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg483:
-var_rom_rollhash_s:			dw 0
+p_rom_sxsave_rs:			dw 0
 ntc_rg483_e:
 			IF ($ < 32768) && (ntc_rg484_e - ntc_rg484 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -12297,7 +12268,7 @@ ntc_rg483_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg484:
-p_rom_sxsave_rs:			dw 0
+var_rom_sxsave_i:			dw 0
 ntc_rg484_e:
 			IF ($ < 32768) && (ntc_rg485_e - ntc_rg485 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -12307,7 +12278,7 @@ ntc_rg484_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg485:
-var_rom_sxsave_i:			dw 0
+for142_l:			dw 0
 ntc_rg485_e:
 			IF ($ < 32768) && (ntc_rg486_e - ntc_rg486 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -12317,7 +12288,7 @@ ntc_rg485_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg486:
-for144_l:			dw 0
+p_rom_sxget_rs:			dw 0
 ntc_rg486_e:
 			IF ($ < 32768) && (ntc_rg487_e - ntc_rg487 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -12327,7 +12298,7 @@ ntc_rg486_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg487:
-p_rom_sxget_rs:			dw 0
+var_rom_sxget_i:			dw 0
 ntc_rg487_e:
 			IF ($ < 32768) && (ntc_rg488_e - ntc_rg488 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -12337,7 +12308,7 @@ ntc_rg487_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg488:
-var_rom_sxget_i:			dw 0
+var_rom_sxget_sxget:			dw 0
 ntc_rg488_e:
 			IF ($ < 32768) && (ntc_rg489_e - ntc_rg489 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -12347,7 +12318,7 @@ ntc_rg488_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg489:
-var_rom_sxget_sxget:			dw 0
+p_rom_sxput_rs:			dw 0
 ntc_rg489_e:
 			IF ($ < 32768) && (ntc_rg490_e - ntc_rg490 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -12357,7 +12328,7 @@ ntc_rg489_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg490:
-p_rom_sxput_rs:			dw 0
+var_rom_sxput_i:			dw 0, 0		; parameters, one block
 ntc_rg490_e:
 			IF ($ < 32768) && (ntc_rg491_e - ntc_rg491 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -12367,7 +12338,7 @@ ntc_rg490_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg491:
-var_rom_sxput_i:			dw 0, 0		; parameters, one block
+p_rom_strip4_rs:			dw 0
 ntc_rg491_e:
 			IF ($ < 32768) && (ntc_rg492_e - ntc_rg492 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -12377,7 +12348,7 @@ ntc_rg491_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg492:
-p_rom_strip4_rs:			dw 0
+var_rom_strip4_i:			dw 0
 ntc_rg492_e:
 			IF ($ < 32768) && (ntc_rg493_e - ntc_rg493 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -12387,7 +12358,7 @@ ntc_rg492_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg493:
-var_rom_strip4_i:			dw 0
+for143_l:			dw 0
 ntc_rg493_e:
 			IF ($ < 32768) && (ntc_rg494_e - ntc_rg494 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -12397,7 +12368,7 @@ ntc_rg493_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg494:
-for145_l:			dw 0
+p_rom_gen_rs:			dw 0
 ntc_rg494_e:
 			IF ($ < 32768) && (ntc_rg495_e - ntc_rg495 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -12407,7 +12378,7 @@ ntc_rg494_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg495:
-p_rom_gen_rs:			dw 0
+var_rom_gen_b:			dw 0
 ntc_rg495_e:
 			IF ($ < 32768) && (ntc_rg496_e - ntc_rg496 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -12417,7 +12388,7 @@ ntc_rg495_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg496:
-var_rom_gen_b:			dw 0
+var_rom_gen_p:			dw 0
 ntc_rg496_e:
 			IF ($ < 32768) && (ntc_rg497_e - ntc_rg497 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -12427,7 +12398,7 @@ ntc_rg496_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg497:
-var_rom_gen_p:			dw 0
+var_rom_gen_i:			dw 0
 ntc_rg497_e:
 			IF ($ < 32768) && (ntc_rg498_e - ntc_rg498 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -12437,7 +12408,7 @@ ntc_rg497_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg498:
-var_rom_gen_i:			dw 0
+p_blk_get_rs:			dw 0
 ntc_rg498_e:
 			IF ($ < 32768) && (ntc_rg499_e - ntc_rg499 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -12447,7 +12418,7 @@ ntc_rg498_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg499:
-p_blk_get_rs:			dw 0
+var_blk_get_bk:			dw 0, 0, 0, 0		; parameters, one block
 ntc_rg499_e:
 			IF ($ < 32768) && (ntc_rg500_e - ntc_rg500 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -12457,7 +12428,7 @@ ntc_rg499_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg500:
-var_blk_get_bk:			dw 0, 0, 0, 0		; parameters, one block
+var_blk_sps:			dw 0
 ntc_rg500_e:
 			IF ($ < 32768) && (ntc_rg501_e - ntc_rg501 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -12467,7 +12438,7 @@ ntc_rg500_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg501:
-var_blk_sps:			dw 0
+p_blk_put_rs:			dw 0
 ntc_rg501_e:
 			IF ($ < 32768) && (ntc_rg502_e - ntc_rg502 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -12477,7 +12448,7 @@ ntc_rg501_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg502:
-p_blk_put_rs:			dw 0
+var_blk_put_bk:			dw 0, 0, 0, 0		; parameters, one block
 ntc_rg502_e:
 			IF ($ < 32768) && (ntc_rg503_e - ntc_rg503 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -12487,7 +12458,7 @@ ntc_rg502_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg503:
-var_blk_put_bk:			dw 0, 0, 0, 0		; parameters, one block
+p_atkw_build_rs:			dw 0
 ntc_rg503_e:
 			IF ($ < 32768) && (ntc_rg504_e - ntc_rg504 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -12497,7 +12468,7 @@ ntc_rg503_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg504:
-p_atkw_build_rs:			dw 0
+var_atkw_build_rd:			dw 0
 ntc_rg504_e:
 			IF ($ < 32768) && (ntc_rg505_e - ntc_rg505 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -12507,7 +12478,7 @@ ntc_rg504_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg505:
-var_atkw_build_rd:			dw 0
+var_atkw_build_build:			dw 0
 ntc_rg505_e:
 			IF ($ < 32768) && (ntc_rg506_e - ntc_rg506 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -12517,7 +12488,7 @@ ntc_rg505_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg506:
-var_atkw_build_build:			dw 0
+var_atkw_build_i:			dw 0
 ntc_rg506_e:
 			IF ($ < 32768) && (ntc_rg507_e - ntc_rg507 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -12527,7 +12498,7 @@ ntc_rg506_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg507:
-var_atkw_build_i:			dw 0
+var_atkw_build_n:			dw 0
 ntc_rg507_e:
 			IF ($ < 32768) && (ntc_rg508_e - ntc_rg508 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -12537,7 +12508,7 @@ ntc_rg507_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg508:
-var_atkw_build_n:			dw 0
+var_atkw_build_s:			dw 0
 ntc_rg508_e:
 			IF ($ < 32768) && (ntc_rg509_e - ntc_rg509 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -12547,7 +12518,7 @@ ntc_rg508_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg509:
-var_atkw_build_s:			dw 0
+for149_l:			dw 0
 ntc_rg509_e:
 			IF ($ < 32768) && (ntc_rg510_e - ntc_rg510 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -12557,7 +12528,7 @@ ntc_rg509_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg510:
-for151_l:			dw 0
+p_atkw_pairs_rs:			dw 0
 ntc_rg510_e:
 			IF ($ < 32768) && (ntc_rg511_e - ntc_rg511 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -12567,7 +12538,7 @@ ntc_rg510_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg511:
-p_atkw_pairs_rs:			dw 0
+var_atkw_pairs_n:			dw 0
 ntc_rg511_e:
 			IF ($ < 32768) && (ntc_rg512_e - ntc_rg512 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -12577,7 +12548,7 @@ ntc_rg511_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg512:
-var_atkw_pairs_n:			dw 0
+var_atkw_pairs_pairs:			dw 0
 ntc_rg512_e:
 			IF ($ < 32768) && (ntc_rg513_e - ntc_rg513 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -12587,7 +12558,7 @@ ntc_rg512_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg513:
-var_atkw_pairs_pairs:			dw 0
+var_atkw_pairs_i:			dw 0
 ntc_rg513_e:
 			IF ($ < 32768) && (ntc_rg514_e - ntc_rg514 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -12597,7 +12568,7 @@ ntc_rg513_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg514:
-var_atkw_pairs_i:			dw 0
+var_atkw_pairs_j:			dw 0
 ntc_rg514_e:
 			IF ($ < 32768) && (ntc_rg515_e - ntc_rg515 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -12607,7 +12578,7 @@ ntc_rg514_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg515:
-var_atkw_pairs_j:			dw 0
+var_atkw_pairs_c:			dw 0
 ntc_rg515_e:
 			IF ($ < 32768) && (ntc_rg516_e - ntc_rg516 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -12617,7 +12588,7 @@ ntc_rg515_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg516:
-var_atkw_pairs_c:			dw 0
+var_atkw_pairs_lo:			dw 0
 ntc_rg516_e:
 			IF ($ < 32768) && (ntc_rg517_e - ntc_rg517 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -12627,7 +12598,7 @@ ntc_rg516_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg517:
-var_atkw_pairs_lo:			dw 0
+var_atkw_pairs_hi:			dw 0
 ntc_rg517_e:
 			IF ($ < 32768) && (ntc_rg518_e - ntc_rg518 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -12637,7 +12608,7 @@ ntc_rg517_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg518:
-var_atkw_pairs_hi:			dw 0
+var_atkw_pairs_h:			dw 0
 ntc_rg518_e:
 			IF ($ < 32768) && (ntc_rg519_e - ntc_rg519 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -12647,7 +12618,7 @@ ntc_rg518_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg519:
-var_atkw_pairs_h:			dw 0
+for151_l:			dw 0
 ntc_rg519_e:
 			IF ($ < 32768) && (ntc_rg520_e - ntc_rg520 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -12657,7 +12628,7 @@ ntc_rg519_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg520:
-for153_l:			dw 0
+p_atkw_crib_rs:			dw 0
 ntc_rg520_e:
 			IF ($ < 32768) && (ntc_rg521_e - ntc_rg521 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -12667,7 +12638,7 @@ ntc_rg520_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg521:
-p_atkw_crib_rs:			dw 0
+var_atkw_crib_m:			dw 0, 0		; parameters, one block
 ntc_rg521_e:
 			IF ($ < 32768) && (ntc_rg522_e - ntc_rg522 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -12677,7 +12648,7 @@ ntc_rg521_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg522:
-var_atkw_crib_m:			dw 0, 0		; parameters, one block
+var_atkw_crib_p:			dw 0
 ntc_rg522_e:
 			IF ($ < 32768) && (ntc_rg523_e - ntc_rg523 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -12687,7 +12658,7 @@ ntc_rg522_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg523:
-var_atkw_crib_p:			dw 0
+var_atkw_crib_i:			dw 0
 ntc_rg523_e:
 			IF ($ < 32768) && (ntc_rg524_e - ntc_rg524 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -12697,7 +12668,7 @@ ntc_rg523_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg524:
-var_atkw_crib_i:			dw 0
+var_atkw_crib_j:			dw 0
 ntc_rg524_e:
 			IF ($ < 32768) && (ntc_rg525_e - ntc_rg525 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -12707,7 +12678,7 @@ ntc_rg524_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg525:
-var_atkw_crib_j:			dw 0
+var_atkw_crib_k:			dw 0
 ntc_rg525_e:
 			IF ($ < 32768) && (ntc_rg526_e - ntc_rg526 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -12717,7 +12688,7 @@ ntc_rg525_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg526:
-var_atkw_crib_k:			dw 0
+var_atkw_crib_ok:			dw 0
 ntc_rg526_e:
 			IF ($ < 32768) && (ntc_rg527_e - ntc_rg527 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -12727,7 +12698,7 @@ ntc_rg526_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg527:
-var_atkw_crib_ok:			dw 0
+var_atkw_tried:			dw 0
 ntc_rg527_e:
 			IF ($ < 32768) && (ntc_rg528_e - ntc_rg528 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -12737,7 +12708,7 @@ ntc_rg527_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg528:
-var_atkw_tried:			dw 0
+var_atkw_outc:			dw 0
 ntc_rg528_e:
 			IF ($ < 32768) && (ntc_rg529_e - ntc_rg529 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -12747,7 +12718,7 @@ ntc_rg528_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg529:
-var_atkw_outc:			dw 0
+var_atkw_best:			dw 0
 ntc_rg529_e:
 			IF ($ < 32768) && (ntc_rg530_e - ntc_rg530 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -12757,7 +12728,7 @@ ntc_rg529_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg530:
-var_atkw_best:			dw 0
+for154_l:			dw 0
 ntc_rg530_e:
 			IF ($ < 32768) && (ntc_rg531_e - ntc_rg531 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -12767,7 +12738,7 @@ ntc_rg530_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg531:
-for156_l:			dw 0
+for155_l:			dw 0
 ntc_rg531_e:
 			IF ($ < 32768) && (ntc_rg532_e - ntc_rg532 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -12777,7 +12748,7 @@ ntc_rg531_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg532:
-for157_l:			dw 0
+for156_l:			dw 0
 ntc_rg532_e:
 			IF ($ < 32768) && (ntc_rg533_e - ntc_rg533 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -12787,7 +12758,7 @@ ntc_rg532_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg533:
-for158_l:			dw 0
+p_attack_head_rs:			dw 0
 ntc_rg533_e:
 			IF ($ < 32768) && (ntc_rg534_e - ntc_rg534 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -12797,7 +12768,7 @@ ntc_rg533_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg534:
-p_attack_head_rs:			dw 0
+var_attack_head_y:			dw 0
 ntc_rg534_e:
 			IF ($ < 32768) && (ntc_rg535_e - ntc_rg535 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -12807,7 +12778,7 @@ ntc_rg534_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg535:
-var_attack_head_y:			dw 0
+p_attack_head_pg:			dw 0
 ntc_rg535_e:
 			IF ($ < 32768) && (ntc_rg536_e - ntc_rg536 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -12817,7 +12788,7 @@ ntc_rg535_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg536:
-p_attack_head_pg:			dw 0
+var_attack_f:			dw 0
 ntc_rg536_e:
 			IF ($ < 32768) && (ntc_rg537_e - ntc_rg537 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -12827,7 +12798,7 @@ ntc_rg536_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg537:
-var_attack_f:			dw 0
+var_attack_atk:			dw 0
 ntc_rg537_e:
 			IF ($ < 32768) && (ntc_rg538_e - ntc_rg538 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -12837,7 +12808,7 @@ ntc_rg537_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg538:
-var_attack_atk:			dw 0
+var_attack_head___sel161:			dw 0
 ntc_rg538_e:
 			IF ($ < 32768) && (ntc_rg539_e - ntc_rg539 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -12847,7 +12818,7 @@ ntc_rg538_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg539:
-var_attack_head___sel163:			dw 0
+p_attack_readings_rs:			dw 0
 ntc_rg539_e:
 			IF ($ < 32768) && (ntc_rg540_e - ntc_rg540 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -12857,7 +12828,7 @@ ntc_rg539_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg540:
-p_attack_readings_rs:			dw 0
+var_attack_readings_rd:			dw 0
 ntc_rg540_e:
 			IF ($ < 32768) && (ntc_rg541_e - ntc_rg541 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -12867,7 +12838,7 @@ ntc_rg540_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg541:
-var_attack_readings_rd:			dw 0
+var_attack_readings_n:			dw 0
 ntc_rg541_e:
 			IF ($ < 32768) && (ntc_rg542_e - ntc_rg542 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -12877,7 +12848,7 @@ ntc_rg541_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg542:
-var_attack_readings_n:			dw 0
+var_attack_readings_p:			dw 0
 ntc_rg542_e:
 			IF ($ < 32768) && (ntc_rg543_e - ntc_rg543 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -12887,7 +12858,7 @@ ntc_rg542_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg543:
-var_attack_readings_p:			dw 0
+var_attack_readings_y:			dw 0
 ntc_rg543_e:
 			IF ($ < 32768) && (ntc_rg544_e - ntc_rg544 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -12897,7 +12868,7 @@ ntc_rg543_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg544:
-var_attack_readings_y:			dw 0
+var_attack_readings_e10:			dw 0
 ntc_rg544_e:
 			IF ($ < 32768) && (ntc_rg545_e - ntc_rg545 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -12907,7 +12878,7 @@ ntc_rg544_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg545:
-var_attack_readings_e10:			dw 0
+var_attack_readings_win:			dw 0
 ntc_rg545_e:
 			IF ($ < 32768) && (ntc_rg546_e - ntc_rg546 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -12917,7 +12888,7 @@ ntc_rg545_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg546:
-var_attack_readings_win:			dw 0
+var_attack_readings_any:			dw 0
 ntc_rg546_e:
 			IF ($ < 32768) && (ntc_rg547_e - ntc_rg547 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -12927,7 +12898,7 @@ ntc_rg546_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg547:
-var_attack_readings_any:			dw 0
+var_attack_readings_x:			dw 0, 0
 ntc_rg547_e:
 			IF ($ < 32768) && (ntc_rg548_e - ntc_rg548 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -12937,7 +12908,7 @@ ntc_rg547_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg548:
-var_attack_readings_x:			dw 0, 0
+var_attack_readings_w:			dw 0, 0
 ntc_rg548_e:
 			IF ($ < 32768) && (ntc_rg549_e - ntc_rg549 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -12947,7 +12918,7 @@ ntc_rg548_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg549:
-var_attack_readings_w:			dw 0, 0
+var_attack_readings_yy:			dw 0, 0
 ntc_rg549_e:
 			IF ($ < 32768) && (ntc_rg550_e - ntc_rg550 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -12957,7 +12928,7 @@ ntc_rg549_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg550:
-var_attack_readings_yy:			dw 0, 0
+p_attack_readings_pg:			dw 0
 ntc_rg550_e:
 			IF ($ < 32768) && (ntc_rg551_e - ntc_rg551 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -12967,7 +12938,7 @@ ntc_rg550_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg551:
-p_attack_readings_pg:			dw 0
+p_attack_fill8_rs:			dw 0
 ntc_rg551_e:
 			IF ($ < 32768) && (ntc_rg552_e - ntc_rg552 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -12977,7 +12948,7 @@ ntc_rg551_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg552:
-p_attack_fill8_rs:			dw 0
+p_attack_fill8_pg:			dw 0
 ntc_rg552_e:
 			IF ($ < 32768) && (ntc_rg553_e - ntc_rg553 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -12987,7 +12958,7 @@ ntc_rg552_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg553:
-p_attack_fill8_pg:			dw 0
+p_attack_cribdrag_rs:			dw 0
 ntc_rg553_e:
 			IF ($ < 32768) && (ntc_rg554_e - ntc_rg554 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -12997,7 +12968,7 @@ ntc_rg553_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg554:
-p_attack_cribdrag_rs:			dw 0
+var_attack_cribdrag_co:			dw 0
 ntc_rg554_e:
 			IF ($ < 32768) && (ntc_rg555_e - ntc_rg555 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -13007,7 +12978,7 @@ ntc_rg554_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg555:
-var_attack_cribdrag_co:			dw 0
+var_attack_cribdrag_m:			dw 0
 ntc_rg555_e:
 			IF ($ < 32768) && (ntc_rg556_e - ntc_rg556 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -13017,7 +12988,7 @@ ntc_rg555_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg556:
-var_attack_cribdrag_m:			dw 0
+var_attack_cribdrag_i:			dw 0
 ntc_rg556_e:
 			IF ($ < 32768) && (ntc_rg557_e - ntc_rg557 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -13027,7 +12998,7 @@ ntc_rg556_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg557:
-var_attack_cribdrag_i:			dw 0
+var_attack_cribdrag_j:			dw 0
 ntc_rg557_e:
 			IF ($ < 32768) && (ntc_rg558_e - ntc_rg558 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -13037,7 +13008,7 @@ ntc_rg557_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg558:
-var_attack_cribdrag_j:			dw 0
+var_attack_cribdrag_rd:			dw 0
 ntc_rg558_e:
 			IF ($ < 32768) && (ntc_rg559_e - ntc_rg559 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -13047,7 +13018,7 @@ ntc_rg558_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg559:
-var_attack_cribdrag_rd:			dw 0
+var_attack_cribdrag_n:			dw 0
 ntc_rg559_e:
 			IF ($ < 32768) && (ntc_rg560_e - ntc_rg560 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -13057,7 +13028,7 @@ ntc_rg559_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg560:
-var_attack_cribdrag_n:			dw 0
+var_attack_cribdrag_p:			dw 0
 ntc_rg560_e:
 			IF ($ < 32768) && (ntc_rg561_e - ntc_rg561 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -13067,7 +13038,7 @@ ntc_rg560_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg561:
-var_attack_cribdrag_p:			dw 0
+var_attack_cribdrag_ok:			dw 0
 ntc_rg561_e:
 			IF ($ < 32768) && (ntc_rg562_e - ntc_rg562 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -13077,7 +13048,7 @@ ntc_rg561_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg562:
-var_attack_cribdrag_ok:			dw 0
+var_attack_cribdrag_k:			dw 0
 ntc_rg562_e:
 			IF ($ < 32768) && (ntc_rg563_e - ntc_rg563 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -13087,7 +13058,7 @@ ntc_rg562_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg563:
-var_attack_cribdrag_k:			dw 0
+var_attack_cribdrag_tried:			dw 0
 ntc_rg563_e:
 			IF ($ < 32768) && (ntc_rg564_e - ntc_rg564 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -13097,7 +13068,7 @@ ntc_rg563_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg564:
-var_attack_cribdrag_tried:			dw 0
+var_attack_cribdrag_outc:			dw 0
 ntc_rg564_e:
 			IF ($ < 32768) && (ntc_rg565_e - ntc_rg565 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -13107,7 +13078,7 @@ ntc_rg564_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg565:
-var_attack_cribdrag_outc:			dw 0
+var_attack_cribdrag_best:			dw 0
 ntc_rg565_e:
 			IF ($ < 32768) && (ntc_rg566_e - ntc_rg566 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -13117,7 +13088,7 @@ ntc_rg565_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg566:
-var_attack_cribdrag_best:			dw 0
+var_attack_cribdrag_d:			dw 0
 ntc_rg566_e:
 			IF ($ < 32768) && (ntc_rg567_e - ntc_rg567 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -13127,7 +13098,7 @@ ntc_rg566_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg567:
-var_attack_cribdrag_d:			dw 0
+p_attack_cribdrag_pg:			dw 0
 ntc_rg567_e:
 			IF ($ < 32768) && (ntc_rg568_e - ntc_rg568 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -13137,7 +13108,7 @@ ntc_rg567_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg568:
-p_attack_cribdrag_pg:			dw 0
+var_attack_crib:			dw 0
 ntc_rg568_e:
 			IF ($ < 32768) && (ntc_rg569_e - ntc_rg569 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -13147,7 +13118,7 @@ ntc_rg568_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg569:
-var_attack_crib:			dw 0
+var_attack_mwn:			dw 0
 ntc_rg569_e:
 			IF ($ < 32768) && (ntc_rg570_e - ntc_rg570 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -13157,7 +13128,7 @@ ntc_rg569_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg570:
-var_attack_mwn:			dw 0
+for169_l:			dw 0
 ntc_rg570_e:
 			IF ($ < 32768) && (ntc_rg571_e - ntc_rg571 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -13177,7 +13148,7 @@ ntc_rg571_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg572:
-for173_l:			dw 0
+p_attack_baseline_rs:			dw 0
 ntc_rg572_e:
 			IF ($ < 32768) && (ntc_rg573_e - ntc_rg573 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -13187,7 +13158,7 @@ ntc_rg572_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg573:
-p_attack_baseline_rs:			dw 0
+var_attack_baseline_n:			dw 0
 ntc_rg573_e:
 			IF ($ < 32768) && (ntc_rg574_e - ntc_rg574 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -13197,7 +13168,7 @@ ntc_rg573_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg574:
-var_attack_baseline_n:			dw 0
+var_attack_baseline_l:			dw 0
 ntc_rg574_e:
 			IF ($ < 32768) && (ntc_rg575_e - ntc_rg575 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -13207,7 +13178,7 @@ ntc_rg574_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg575:
-var_attack_baseline_l:			dw 0
+var_attack_baseline_y:			dw 0
 ntc_rg575_e:
 			IF ($ < 32768) && (ntc_rg576_e - ntc_rg576 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -13217,7 +13188,7 @@ ntc_rg575_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg576:
-var_attack_baseline_y:			dw 0
+var_attack_baseline_i:			dw 0
 ntc_rg576_e:
 			IF ($ < 32768) && (ntc_rg577_e - ntc_rg577 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -13227,7 +13198,7 @@ ntc_rg576_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg577:
-var_attack_baseline_i:			dw 0
+var_attack_baseline_c:			dw 0
 ntc_rg577_e:
 			IF ($ < 32768) && (ntc_rg578_e - ntc_rg578 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -13237,7 +13208,7 @@ ntc_rg577_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg578:
-var_attack_baseline_c:			dw 0
+p_attack_baseline_pg:			dw 0
 ntc_rg578_e:
 			IF ($ < 32768) && (ntc_rg579_e - ntc_rg579 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -13247,7 +13218,7 @@ ntc_rg578_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg579:
-p_attack_baseline_pg:			dw 0
+for178_l:			dw 0
 ntc_rg579_e:
 			IF ($ < 32768) && (ntc_rg580_e - ntc_rg580 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -13267,7 +13238,7 @@ ntc_rg580_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg581:
-for182_l:			dw 0
+p_attack_draw_rs:			dw 0
 ntc_rg581_e:
 			IF ($ < 32768) && (ntc_rg582_e - ntc_rg582 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -13277,7 +13248,7 @@ ntc_rg581_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg582:
-p_attack_draw_rs:			dw 0
+p_attack_draw_pg:			dw 0
 ntc_rg582_e:
 			IF ($ < 32768) && (ntc_rg583_e - ntc_rg583 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -13287,7 +13258,7 @@ ntc_rg582_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg583:
-p_attack_draw_pg:			dw 0
+var_attack_draw___sel181:			dw 0
 ntc_rg583_e:
 			IF ($ < 32768) && (ntc_rg584_e - ntc_rg584 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -13297,7 +13268,7 @@ ntc_rg583_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg584:
-var_attack_draw___sel183:			dw 0
+p_attack_screen_rs:			dw 0
 ntc_rg584_e:
 			IF ($ < 32768) && (ntc_rg585_e - ntc_rg585 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -13307,7 +13278,7 @@ ntc_rg584_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg585:
-p_attack_screen_rs:			dw 0
+var_attack_screen_start:			dw 0
 ntc_rg585_e:
 			IF ($ < 32768) && (ntc_rg586_e - ntc_rg586 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -13317,7 +13288,7 @@ ntc_rg585_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg586:
-var_attack_screen_start:			dw 0
+var_attack_screen_k:			dw 0
 ntc_rg586_e:
 			IF ($ < 32768) && (ntc_rg587_e - ntc_rg587 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -13327,7 +13298,7 @@ ntc_rg586_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg587:
-var_attack_screen_k:			dw 0
+var_attack_screen_run:			dw 0
 ntc_rg587_e:
 			IF ($ < 32768) && (ntc_rg588_e - ntc_rg588 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -13337,7 +13308,7 @@ ntc_rg587_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg588:
-var_attack_screen_run:			dw 0
+var_attack_screen_nf:			dw 0
 ntc_rg588_e:
 			IF ($ < 32768) && (ntc_rg589_e - ntc_rg589 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -13347,7 +13318,7 @@ ntc_rg588_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg589:
-var_attack_screen_nf:			dw 0
+var_attack_screen_nc:			dw 0
 ntc_rg589_e:
 			IF ($ < 32768) && (ntc_rg590_e - ntc_rg590 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -13357,7 +13328,7 @@ ntc_rg589_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg590:
-var_attack_screen_nc:			dw 0
+p_attack_screen_pg:			dw 0
 ntc_rg590_e:
 			IF ($ < 32768) && (ntc_rg591_e - ntc_rg591 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -13367,7 +13338,7 @@ ntc_rg590_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg591:
-p_attack_screen_pg:			dw 0
+var_rom_have:			dw 0
 ntc_rg591_e:
 			IF ($ < 32768) && (ntc_rg592_e - ntc_rg592 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -13377,7 +13348,7 @@ ntc_rg591_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg592:
-var_rom_have:			dw 0
+p_play_initkeys_rs:			dw 0
 ntc_rg592_e:
 			IF ($ < 32768) && (ntc_rg593_e - ntc_rg593 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -13387,7 +13358,7 @@ ntc_rg592_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg593:
-p_play_initkeys_rs:			dw 0
+p_play_initkeys_pg:			dw 0
 ntc_rg593_e:
 			IF ($ < 32768) && (ntc_rg594_e - ntc_rg594 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -13397,7 +13368,7 @@ ntc_rg593_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg594:
-p_play_initkeys_pg:			dw 0
+p_play_seed_rs:			dw 0
 ntc_rg594_e:
 			IF ($ < 32768) && (ntc_rg595_e - ntc_rg595 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -13407,7 +13378,7 @@ ntc_rg594_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg595:
-p_play_seed_rs:			dw 0
+var_play_seed_i:			dw 0
 ntc_rg595_e:
 			IF ($ < 32768) && (ntc_rg596_e - ntc_rg596 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -13417,7 +13388,7 @@ ntc_rg595_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg596:
-var_play_seed_i:			dw 0
+p_play_seed_pg:			dw 0
 ntc_rg596_e:
 			IF ($ < 32768) && (ntc_rg597_e - ntc_rg597 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -13427,7 +13398,7 @@ ntc_rg596_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg597:
-p_play_seed_pg:			dw 0
+var_play_k0:			dw 0
 ntc_rg597_e:
 			IF ($ < 32768) && (ntc_rg598_e - ntc_rg598 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -13437,7 +13408,7 @@ ntc_rg597_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg598:
-var_play_k0:			dw 0
+var_play_ke:			dw 0
 ntc_rg598_e:
 			IF ($ < 32768) && (ntc_rg599_e - ntc_rg599 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -13447,7 +13418,7 @@ ntc_rg598_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg599:
-var_play_ke:			dw 0
+p_play_typekey_rs:			dw 0
 ntc_rg599_e:
 			IF ($ < 32768) && (ntc_rg600_e - ntc_rg600 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -13457,7 +13428,7 @@ ntc_rg599_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg600:
-p_play_typekey_rs:			dw 0
+var_play_typekey_typekey:			dw 0
 ntc_rg600_e:
 			IF ($ < 32768) && (ntc_rg601_e - ntc_rg601 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -13467,7 +13438,7 @@ ntc_rg600_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg601:
-var_play_typekey_typekey:			dw 0
+var_play_typekey_i:			dw 0
 ntc_rg601_e:
 			IF ($ < 32768) && (ntc_rg602_e - ntc_rg602 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -13477,7 +13448,7 @@ ntc_rg601_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg602:
-var_play_typekey_i:			dw 0
+var_play_typekey_d:			dw 0
 ntc_rg602_e:
 			IF ($ < 32768) && (ntc_rg603_e - ntc_rg603 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -13487,7 +13458,7 @@ ntc_rg602_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg603:
-var_play_typekey_d:			dw 0
+var_play_typekey_r:			dw 0
 ntc_rg603_e:
 			IF ($ < 32768) && (ntc_rg604_e - ntc_rg604 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -13497,7 +13468,7 @@ ntc_rg603_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg604:
-var_play_typekey_r:			dw 0
+p_play_typekey_pg:			dw 0
 ntc_rg604_e:
 			IF ($ < 32768) && (ntc_rg605_e - ntc_rg605 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -13507,7 +13478,7 @@ ntc_rg604_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg605:
-p_play_typekey_pg:			dw 0
+p_play_showmsg_rs:			dw 0
 ntc_rg605_e:
 			IF ($ < 32768) && (ntc_rg606_e - ntc_rg606 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -13517,7 +13488,7 @@ ntc_rg605_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg606:
-p_play_showmsg_rs:			dw 0
+var_play_showmsg_y:			dw 0, 0		; parameters, one block
 ntc_rg606_e:
 			IF ($ < 32768) && (ntc_rg607_e - ntc_rg607 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -13527,7 +13498,7 @@ ntc_rg606_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg607:
-var_play_showmsg_y:			dw 0, 0		; parameters, one block
+var_play_showmsg_i:			dw 0
 ntc_rg607_e:
 			IF ($ < 32768) && (ntc_rg608_e - ntc_rg608 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -13537,7 +13508,7 @@ ntc_rg607_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg608:
-var_play_showmsg_i:			dw 0
+p_play_showmsg_pg:			dw 0
 ntc_rg608_e:
 			IF ($ < 32768) && (ntc_rg609_e - ntc_rg609 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -13547,7 +13518,7 @@ ntc_rg608_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg609:
-p_play_showmsg_pg:			dw 0
+var_play_mn:			dw 0
 ntc_rg609_e:
 			IF ($ < 32768) && (ntc_rg610_e - ntc_rg610 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -13557,7 +13528,7 @@ ntc_rg609_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg610:
-var_play_mn:			dw 0
+for197_l:			dw 0
 ntc_rg610_e:
 			IF ($ < 32768) && (ntc_rg611_e - ntc_rg611 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -13567,7 +13538,7 @@ ntc_rg610_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg611:
-for199_l:			dw 0
+p_play_line_rs:			dw 0
 ntc_rg611_e:
 			IF ($ < 32768) && (ntc_rg612_e - ntc_rg612 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -13577,7 +13548,7 @@ ntc_rg611_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg612:
-p_play_line_rs:			dw 0
+var_play_line_y:			dw 0, 0		; parameters, one block
 ntc_rg612_e:
 			IF ($ < 32768) && (ntc_rg613_e - ntc_rg613 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -13587,7 +13558,7 @@ ntc_rg612_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg613:
-var_play_line_y:			dw 0, 0		; parameters, one block
+var_play_line_c:			dw 0
 ntc_rg613_e:
 			IF ($ < 32768) && (ntc_rg614_e - ntc_rg614 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -13597,7 +13568,7 @@ ntc_rg613_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg614:
-var_play_line_c:			dw 0
+var_play_line_t:			dw 0
 ntc_rg614_e:
 			IF ($ < 32768) && (ntc_rg615_e - ntc_rg615 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -13607,7 +13578,7 @@ ntc_rg614_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg615:
-var_play_line_t:			dw 0
+p_play_line_pg:			dw 0
 ntc_rg615_e:
 			IF ($ < 32768) && (ntc_rg616_e - ntc_rg616 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -13617,7 +13588,7 @@ ntc_rg615_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg616:
-p_play_line_pg:			dw 0
+p_play_typemsg_rs:			dw 0
 ntc_rg616_e:
 			IF ($ < 32768) && (ntc_rg617_e - ntc_rg617 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -13627,7 +13598,7 @@ ntc_rg616_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg617:
-p_play_typemsg_rs:			dw 0
+p_play_typemsg_pg:			dw 0
 ntc_rg617_e:
 			IF ($ < 32768) && (ntc_rg618_e - ntc_rg618 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -13637,7 +13608,7 @@ ntc_rg617_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg618:
-p_play_typemsg_pg:			dw 0
+p_play_rowid_rs:			dw 0
 ntc_rg618_e:
 			IF ($ < 32768) && (ntc_rg619_e - ntc_rg619 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -13647,7 +13618,7 @@ ntc_rg618_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg619:
-p_play_rowid_rs:			dw 0
+var_play_rowid_i:			dw 0
 ntc_rg619_e:
 			IF ($ < 32768) && (ntc_rg620_e - ntc_rg620 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -13657,7 +13628,7 @@ ntc_rg619_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg620:
-var_play_rowid_i:			dw 0
+var_play_rowid_rowid:			dw 0
 ntc_rg620_e:
 			IF ($ < 32768) && (ntc_rg621_e - ntc_rg621 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -13667,7 +13638,7 @@ ntc_rg620_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg621:
-var_play_rowid_rowid:			dw 0
+p_play_rowid_pg:			dw 0
 ntc_rg621_e:
 			IF ($ < 32768) && (ntc_rg622_e - ntc_rg622 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -13677,7 +13648,7 @@ ntc_rg621_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg622:
-p_play_rowid_pg:			dw 0
+var_play_nl:			dw 0
 ntc_rg622_e:
 			IF ($ < 32768) && (ntc_rg623_e - ntc_rg623 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -13687,7 +13658,7 @@ ntc_rg622_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg623:
-var_play_nl:			dw 0
+p_play_pname_rs:			dw 0
 ntc_rg623_e:
 			IF ($ < 32768) && (ntc_rg624_e - ntc_rg624 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -13697,7 +13668,7 @@ ntc_rg623_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg624:
-p_play_pname_rs:			dw 0
+var_play_pname_p:			dw 0
 ntc_rg624_e:
 			IF ($ < 32768) && (ntc_rg625_e - ntc_rg625 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -13707,7 +13678,7 @@ ntc_rg624_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg625:
-var_play_pname_p:			dw 0
+var_play_pname_pname:			dw 0
 ntc_rg625_e:
 			IF ($ < 32768) && (ntc_rg626_e - ntc_rg626 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -13717,7 +13688,7 @@ ntc_rg625_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg626:
-var_play_pname_pname:			dw 0
+p_play_pname_pg:			dw 0
 ntc_rg626_e:
 			IF ($ < 32768) && (ntc_rg627_e - ntc_rg627 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -13727,7 +13698,7 @@ ntc_rg626_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg627:
-p_play_pname_pg:			dw 0
+var_play_pname___sel206:			dw 0
 ntc_rg627_e:
 			IF ($ < 32768) && (ntc_rg628_e - ntc_rg628 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -13737,7 +13708,7 @@ ntc_rg627_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg628:
-var_play_pname___sel208:			dw 0
+p_play_setup_rs:			dw 0
 ntc_rg628_e:
 			IF ($ < 32768) && (ntc_rg629_e - ntc_rg629 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -13747,7 +13718,7 @@ ntc_rg628_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg629:
-p_play_setup_rs:			dw 0
+var_play_setup_i:			dw 0
 ntc_rg629_e:
 			IF ($ < 32768) && (ntc_rg630_e - ntc_rg630 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -13757,7 +13728,7 @@ ntc_rg629_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg630:
-var_play_setup_i:			dw 0
+var_play_setup_c:			dw 0
 ntc_rg630_e:
 			IF ($ < 32768) && (ntc_rg631_e - ntc_rg631 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -13767,7 +13738,7 @@ ntc_rg630_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg631:
-var_play_setup_c:			dw 0
+var_play_setup_y:			dw 0
 ntc_rg631_e:
 			IF ($ < 32768) && (ntc_rg632_e - ntc_rg632 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -13777,7 +13748,7 @@ ntc_rg631_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg632:
-var_play_setup_y:			dw 0
+var_play_setup_a:			dw 0
 ntc_rg632_e:
 			IF ($ < 32768) && (ntc_rg633_e - ntc_rg633 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -13787,7 +13758,7 @@ ntc_rg632_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg633:
-var_play_setup_a:			dw 0
+var_play_setup_id:			dw 0
 ntc_rg633_e:
 			IF ($ < 32768) && (ntc_rg634_e - ntc_rg634 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -13797,7 +13768,7 @@ ntc_rg633_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg634:
-var_play_setup_id:			dw 0
+p_play_setup_pg:			dw 0
 ntc_rg634_e:
 			IF ($ < 32768) && (ntc_rg635_e - ntc_rg635 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -13807,7 +13778,7 @@ ntc_rg634_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg635:
-p_play_setup_pg:			dw 0
+for207_l:			dw 0
 ntc_rg635_e:
 			IF ($ < 32768) && (ntc_rg636_e - ntc_rg636 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -13817,7 +13788,7 @@ ntc_rg635_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg636:
-for209_l:			dw 0
+var_play_row:			dw 0
 ntc_rg636_e:
 			IF ($ < 32768) && (ntc_rg637_e - ntc_rg637 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -13827,7 +13798,7 @@ ntc_rg636_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg637:
-var_play_row:			dw 0
+var_play_setup___sel209:			dw 0
 ntc_rg637_e:
 			IF ($ < 32768) && (ntc_rg638_e - ntc_rg638 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -13837,7 +13808,7 @@ ntc_rg637_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg638:
-var_play_setup___sel211:			dw 0
+for210_l:			dw 0
 ntc_rg638_e:
 			IF ($ < 32768) && (ntc_rg639_e - ntc_rg639 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -13847,7 +13818,7 @@ ntc_rg638_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg639:
-for212_l:			dw 0
+var_play_hs:			dw 0
 ntc_rg639_e:
 			IF ($ < 32768) && (ntc_rg640_e - ntc_rg640 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -13857,7 +13828,7 @@ ntc_rg639_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg640:
-var_play_hs:			dw 0
+var_play_pool:			dw 0
 ntc_rg640_e:
 			IF ($ < 32768) && (ntc_rg641_e - ntc_rg641 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -13867,7 +13838,7 @@ ntc_rg640_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg641:
-var_play_pool:			dw 0
+var_play_setup___sel212:			dw 0
 ntc_rg641_e:
 			IF ($ < 32768) && (ntc_rg642_e - ntc_rg642 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -13877,7 +13848,7 @@ ntc_rg641_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg642:
-var_play_setup___sel214:			dw 0
+p_play_encode_rs:			dw 0
 ntc_rg642_e:
 			IF ($ < 32768) && (ntc_rg643_e - ntc_rg643 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -13887,7 +13858,7 @@ ntc_rg642_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg643:
-p_play_encode_rs:			dw 0
+var_play_encode_encode:			dw 0
 ntc_rg643_e:
 			IF ($ < 32768) && (ntc_rg644_e - ntc_rg644 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -13897,7 +13868,7 @@ ntc_rg643_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg644:
-var_play_encode_encode:			dw 0
+var_play_encode_i:			dw 0
 ntc_rg644_e:
 			IF ($ < 32768) && (ntc_rg645_e - ntc_rg645 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -13907,7 +13878,7 @@ ntc_rg644_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg645:
-var_play_encode_i:			dw 0
+var_play_encode_l:			dw 0
 ntc_rg645_e:
 			IF ($ < 32768) && (ntc_rg646_e - ntc_rg646 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -13917,7 +13888,7 @@ ntc_rg645_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg646:
-var_play_encode_l:			dw 0
+var_play_encode_c:			dw 0
 ntc_rg646_e:
 			IF ($ < 32768) && (ntc_rg647_e - ntc_rg647 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -13927,7 +13898,7 @@ ntc_rg646_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg647:
-var_play_encode_c:			dw 0
+var_play_encode_win:			dw 0
 ntc_rg647_e:
 			IF ($ < 32768) && (ntc_rg648_e - ntc_rg648 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -13937,7 +13908,7 @@ ntc_rg647_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg648:
-var_play_encode_win:			dw 0
+var_play_encode_rb:			dw 0
 ntc_rg648_e:
 			IF ($ < 32768) && (ntc_rg649_e - ntc_rg649 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -13947,7 +13918,7 @@ ntc_rg648_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg649:
-var_play_encode_rb:			dw 0
+var_play_encode_bad:			dw 0
 ntc_rg649_e:
 			IF ($ < 32768) && (ntc_rg650_e - ntc_rg650 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -13957,7 +13928,7 @@ ntc_rg649_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg650:
-var_play_encode_bad:			dw 0
+var_play_encode_pm:			dw 0
 ntc_rg650_e:
 			IF ($ < 32768) && (ntc_rg651_e - ntc_rg651 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -13967,7 +13938,7 @@ ntc_rg650_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg651:
-var_play_encode_pm:			dw 0
+var_play_encode_n:			dw 0
 ntc_rg651_e:
 			IF ($ < 32768) && (ntc_rg652_e - ntc_rg652 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -13977,7 +13948,7 @@ ntc_rg651_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg652:
-var_play_encode_n:			dw 0
+p_play_encode_pg:			dw 0
 ntc_rg652_e:
 			IF ($ < 32768) && (ntc_rg653_e - ntc_rg653 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -13987,7 +13958,7 @@ ntc_rg652_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg653:
-p_play_encode_pg:			dw 0
+for214_l:			dw 0
 ntc_rg653_e:
 			IF ($ < 32768) && (ntc_rg654_e - ntc_rg654 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -13997,7 +13968,7 @@ ntc_rg653_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg654:
-for216_l:			dw 0
+for215_l:			dw 0
 ntc_rg654_e:
 			IF ($ < 32768) && (ntc_rg655_e - ntc_rg655 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -14007,7 +13978,7 @@ ntc_rg654_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg655:
-for217_l:			dw 0
+for216_l:			dw 0
 ntc_rg655_e:
 			IF ($ < 32768) && (ntc_rg656_e - ntc_rg656 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -14017,7 +13988,7 @@ ntc_rg655_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg656:
-for218_l:			dw 0
+for221_l:			dw 0
 ntc_rg656_e:
 			IF ($ < 32768) && (ntc_rg657_e - ntc_rg657 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -14027,7 +13998,7 @@ ntc_rg656_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg657:
-for223_l:			dw 0
+var_play_tampered:			dw 0
 ntc_rg657_e:
 			IF ($ < 32768) && (ntc_rg658_e - ntc_rg658 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -14037,7 +14008,7 @@ ntc_rg657_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg658:
-var_play_tampered:			dw 0
+for231_l:			dw 0
 ntc_rg658_e:
 			IF ($ < 32768) && (ntc_rg659_e - ntc_rg659 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -14057,7 +14028,7 @@ ntc_rg659_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg660:
-for235_l:			dw 0
+p_play_result_rs:			dw 0
 ntc_rg660_e:
 			IF ($ < 32768) && (ntc_rg661_e - ntc_rg661 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -14067,7 +14038,7 @@ ntc_rg660_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg661:
-p_play_result_rs:			dw 0
+var_play_result_i:			dw 0
 ntc_rg661_e:
 			IF ($ < 32768) && (ntc_rg662_e - ntc_rg662 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -14077,7 +14048,7 @@ ntc_rg661_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg662:
-var_play_result_i:			dw 0
+var_play_result_y:			dw 0
 ntc_rg662_e:
 			IF ($ < 32768) && (ntc_rg663_e - ntc_rg663 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -14087,7 +14058,7 @@ ntc_rg662_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg663:
-var_play_result_y:			dw 0
+p_play_result_pg:			dw 0
 ntc_rg663_e:
 			IF ($ < 32768) && (ntc_rg664_e - ntc_rg664 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -14097,7 +14068,7 @@ ntc_rg663_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg664:
-p_play_result_pg:			dw 0
+for236_l:			dw 0
 ntc_rg664_e:
 			IF ($ < 32768) && (ntc_rg665_e - ntc_rg665 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -14107,7 +14078,7 @@ ntc_rg664_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg665:
-for238_l:			dw 0
+p_play_decode_rs:			dw 0
 ntc_rg665_e:
 			IF ($ < 32768) && (ntc_rg666_e - ntc_rg666 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -14117,7 +14088,7 @@ ntc_rg665_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg666:
-p_play_decode_rs:			dw 0
+var_play_decode_l:			dw 0
 ntc_rg666_e:
 			IF ($ < 32768) && (ntc_rg667_e - ntc_rg667 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -14127,7 +14098,7 @@ ntc_rg666_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg667:
-var_play_decode_l:			dw 0
+var_play_decode_c:			dw 0
 ntc_rg667_e:
 			IF ($ < 32768) && (ntc_rg668_e - ntc_rg668 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -14137,7 +14108,7 @@ ntc_rg667_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg668:
-var_play_decode_c:			dw 0
+var_play_decode_i:			dw 0
 ntc_rg668_e:
 			IF ($ < 32768) && (ntc_rg669_e - ntc_rg669 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -14147,7 +14118,7 @@ ntc_rg668_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg669:
-var_play_decode_i:			dw 0
+var_play_decode_n:			dw 0
 ntc_rg669_e:
 			IF ($ < 32768) && (ntc_rg670_e - ntc_rg670 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -14157,7 +14128,7 @@ ntc_rg669_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg670:
-var_play_decode_n:			dw 0
+var_play_decode_ok:			dw 0
 ntc_rg670_e:
 			IF ($ < 32768) && (ntc_rg671_e - ntc_rg671 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -14167,7 +14138,7 @@ ntc_rg670_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg671:
-var_play_decode_ok:			dw 0
+p_play_decode_pg:			dw 0
 ntc_rg671_e:
 			IF ($ < 32768) && (ntc_rg672_e - ntc_rg672 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -14177,7 +14148,7 @@ ntc_rg671_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg672:
-p_play_decode_pg:			dw 0
+for242_l:			dw 0
 ntc_rg672_e:
 			IF ($ < 32768) && (ntc_rg673_e - ntc_rg673 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -14187,7 +14158,7 @@ ntc_rg672_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg673:
-for244_l:			dw 0
+for248_l:			dw 0
 ntc_rg673_e:
 			IF ($ < 32768) && (ntc_rg674_e - ntc_rg674 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -14197,7 +14168,7 @@ ntc_rg673_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg674:
-for250_l:			dw 0
+p_play_screen_rs:			dw 0
 ntc_rg674_e:
 			IF ($ < 32768) && (ntc_rg675_e - ntc_rg675 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -14207,7 +14178,7 @@ ntc_rg674_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg675:
-p_play_screen_rs:			dw 0
+var_play_screen_k:			dw 0
 ntc_rg675_e:
 			IF ($ < 32768) && (ntc_rg676_e - ntc_rg676 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -14217,7 +14188,7 @@ ntc_rg675_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg676:
-var_play_screen_k:			dw 0
+var_play_screen_run:			dw 0
 ntc_rg676_e:
 			IF ($ < 32768) && (ntc_rg677_e - ntc_rg677 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -14227,7 +14198,7 @@ ntc_rg676_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg677:
-var_play_screen_run:			dw 0
+var_play_screen_st:			dw 0
 ntc_rg677_e:
 			IF ($ < 32768) && (ntc_rg678_e - ntc_rg678 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -14237,7 +14208,7 @@ ntc_rg677_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg678:
-var_play_screen_st:			dw 0
+var_play_screen_p:			dw 0
 ntc_rg678_e:
 			IF ($ < 32768) && (ntc_rg679_e - ntc_rg679 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -14247,7 +14218,7 @@ ntc_rg678_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg679:
-var_play_screen_p:			dw 0
+var_play_screen_r:			dw 0
 ntc_rg679_e:
 			IF ($ < 32768) && (ntc_rg680_e - ntc_rg680 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -14257,7 +14228,7 @@ ntc_rg679_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg680:
-var_play_screen_r:			dw 0
+var_play_screen_id:			dw 0
 ntc_rg680_e:
 			IF ($ < 32768) && (ntc_rg681_e - ntc_rg681 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -14267,7 +14238,7 @@ ntc_rg680_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg681:
-var_play_screen_id:			dw 0
+p_play_screen_pg:			dw 0
 ntc_rg681_e:
 			IF ($ < 32768) && (ntc_rg682_e - ntc_rg682 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -14277,7 +14248,7 @@ ntc_rg681_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg682:
-p_play_screen_pg:			dw 0
+var_play_screen___sel263:			dw 0
 ntc_rg682_e:
 			IF ($ < 32768) && (ntc_rg683_e - ntc_rg683 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -14287,7 +14258,7 @@ ntc_rg682_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg683:
-var_play_screen___sel265:			dw 0
+p_screens_line5_rs:			dw 0
 ntc_rg683_e:
 			IF ($ < 32768) && (ntc_rg684_e - ntc_rg684 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -14297,7 +14268,7 @@ ntc_rg683_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg684:
-p_screens_line5_rs:			dw 0
+var_screens_line5_p:			dw 0
 ntc_rg684_e:
 			IF ($ < 32768) && (ntc_rg685_e - ntc_rg685 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -14307,7 +14278,7 @@ ntc_rg684_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg685:
-var_screens_line5_p:			dw 0
+var_screens_line5_i:			dw 0
 ntc_rg685_e:
 			IF ($ < 32768) && (ntc_rg686_e - ntc_rg686 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -14317,7 +14288,7 @@ ntc_rg685_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg686:
-var_screens_line5_i:			dw 0
+var_screens_line5_c:			dw 0
 ntc_rg686_e:
 			IF ($ < 32768) && (ntc_rg687_e - ntc_rg687 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -14327,7 +14298,7 @@ ntc_rg686_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg687:
-var_screens_line5_c:			dw 0
+p_screens_line5_pg:			dw 0
 ntc_rg687_e:
 			IF ($ < 32768) && (ntc_rg688_e - ntc_rg688 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -14337,7 +14308,7 @@ ntc_rg687_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg688:
-p_screens_line5_pg:			dw 0
+var_screens_line5___sel281:			dw 0
 ntc_rg688_e:
 			IF ($ < 32768) && (ntc_rg689_e - ntc_rg689 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -14347,7 +14318,7 @@ ntc_rg688_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg689:
-var_screens_line5___sel283:			dw 0
+p_screens_keytx_rs:			dw 0
 ntc_rg689_e:
 			IF ($ < 32768) && (ntc_rg690_e - ntc_rg690 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -14357,7 +14328,7 @@ ntc_rg689_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg690:
-p_screens_keytx_rs:			dw 0
+var_screens_keytx_p:			dw 0, 0		; parameters, one block
 ntc_rg690_e:
 			IF ($ < 32768) && (ntc_rg691_e - ntc_rg691 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -14367,7 +14338,7 @@ ntc_rg690_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg691:
-var_screens_keytx_p:			dw 0, 0		; parameters, one block
+var_screens_keytx_keytx:			dw 0
 ntc_rg691_e:
 			IF ($ < 32768) && (ntc_rg692_e - ntc_rg692 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -14377,7 +14348,7 @@ ntc_rg691_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg692:
-var_screens_keytx_keytx:			dw 0
+p_screens_keytx_pg:			dw 0
 ntc_rg692_e:
 			IF ($ < 32768) && (ntc_rg693_e - ntc_rg693 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -14387,7 +14358,7 @@ ntc_rg692_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg693:
-p_screens_keytx_pg:			dw 0
+p_screens_hpage_rs:			dw 0
 ntc_rg693_e:
 			IF ($ < 32768) && (ntc_rg694_e - ntc_rg694 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -14397,7 +14368,7 @@ ntc_rg693_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg694:
-p_screens_hpage_rs:			dw 0
+var_screens_hpage_p:			dw 0
 ntc_rg694_e:
 			IF ($ < 32768) && (ntc_rg695_e - ntc_rg695 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -14407,7 +14378,7 @@ ntc_rg694_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg695:
-var_screens_hpage_p:			dw 0
+p_screens_hpage_pg:			dw 0
 ntc_rg695_e:
 			IF ($ < 32768) && (ntc_rg696_e - ntc_rg696 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -14417,7 +14388,7 @@ ntc_rg695_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg696:
-p_screens_hpage_pg:			dw 0
+var_screens_hpage___sel283:			dw 0
 ntc_rg696_e:
 			IF ($ < 32768) && (ntc_rg697_e - ntc_rg697 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -14427,7 +14398,7 @@ ntc_rg696_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg697:
-var_screens_hpage___sel285:			dw 0
+p_screens_story_rs:			dw 0
 ntc_rg697_e:
 			IF ($ < 32768) && (ntc_rg698_e - ntc_rg698 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -14437,7 +14408,7 @@ ntc_rg697_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg698:
-p_screens_story_rs:			dw 0
+var_screens_story_p:			dw 0
 ntc_rg698_e:
 			IF ($ < 32768) && (ntc_rg699_e - ntc_rg699 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -14447,7 +14418,7 @@ ntc_rg698_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg699:
-var_screens_story_p:			dw 0
+var_screens_story_k:			dw 0
 ntc_rg699_e:
 			IF ($ < 32768) && (ntc_rg700_e - ntc_rg700 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -14457,7 +14428,7 @@ ntc_rg699_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg700:
-var_screens_story_k:			dw 0
+p_screens_story_pg:			dw 0
 ntc_rg700_e:
 			IF ($ < 32768) && (ntc_rg701_e - ntc_rg701 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -14467,7 +14438,7 @@ ntc_rg700_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg701:
-p_screens_story_pg:			dw 0
+p_screens_hello_rs:			dw 0
 ntc_rg701_e:
 			IF ($ < 32768) && (ntc_rg702_e - ntc_rg702 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -14477,7 +14448,7 @@ ntc_rg701_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg702:
-p_screens_hello_rs:			dw 0
+var_screens_hello_first:			dw 0
 ntc_rg702_e:
 			IF ($ < 32768) && (ntc_rg703_e - ntc_rg703 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -14487,7 +14458,7 @@ ntc_rg702_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg703:
-var_screens_hello_first:			dw 0
+var_screens_hello_i:			dw 0
 ntc_rg703_e:
 			IF ($ < 32768) && (ntc_rg704_e - ntc_rg704 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -14497,7 +14468,7 @@ ntc_rg703_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg704:
-var_screens_hello_i:			dw 0
+var_screens_hello_c:			dw 0
 ntc_rg704_e:
 			IF ($ < 32768) && (ntc_rg705_e - ntc_rg705 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -14507,7 +14478,7 @@ ntc_rg704_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg705:
-var_screens_hello_c:			dw 0
+var_screens_hello_x:			dw 0
 ntc_rg705_e:
 			IF ($ < 32768) && (ntc_rg706_e - ntc_rg706 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -14517,7 +14488,7 @@ ntc_rg705_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg706:
-var_screens_hello_x:			dw 0
+var_screens_hello_lo:			dw 0
 ntc_rg706_e:
 			IF ($ < 32768) && (ntc_rg707_e - ntc_rg707 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -14527,7 +14498,7 @@ ntc_rg706_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg707:
-var_screens_hello_lo:			dw 0
+var_screens_hello_hi:			dw 0
 ntc_rg707_e:
 			IF ($ < 32768) && (ntc_rg708_e - ntc_rg708 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -14537,7 +14508,7 @@ ntc_rg707_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg708:
-var_screens_hello_hi:			dw 0
+p_screens_hello_pg:			dw 0
 ntc_rg708_e:
 			IF ($ < 32768) && (ntc_rg709_e - ntc_rg709 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -14547,7 +14518,7 @@ ntc_rg708_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg709:
-p_screens_hello_pg:			dw 0
+var_screens_hello___sel290:			dw 0
 ntc_rg709_e:
 			IF ($ < 32768) && (ntc_rg710_e - ntc_rg710 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -14567,7 +14538,7 @@ ntc_rg710_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg711:
-var_screens_hello___sel294:			dw 0
+p_screens_ntcpage_rs:			dw 0
 ntc_rg711_e:
 			IF ($ < 32768) && (ntc_rg712_e - ntc_rg712 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -14577,7 +14548,7 @@ ntc_rg711_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg712:
-p_screens_ntcpage_rs:			dw 0
+var_screens_ntcpage_p:			dw 0
 ntc_rg712_e:
 			IF ($ < 32768) && (ntc_rg713_e - ntc_rg713 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -14587,7 +14558,7 @@ ntc_rg712_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg713:
-var_screens_ntcpage_p:			dw 0
+p_screens_ntcpage_pg:			dw 0
 ntc_rg713_e:
 			IF ($ < 32768) && (ntc_rg714_e - ntc_rg714 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -14597,7 +14568,7 @@ ntc_rg713_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg714:
-p_screens_ntcpage_pg:			dw 0
+p_screens_ntc_rs:			dw 0
 ntc_rg714_e:
 			IF ($ < 32768) && (ntc_rg715_e - ntc_rg715 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -14607,7 +14578,7 @@ ntc_rg714_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg715:
-p_screens_ntc_rs:			dw 0
+var_screens_ntc_p:			dw 0
 ntc_rg715_e:
 			IF ($ < 32768) && (ntc_rg716_e - ntc_rg716 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -14617,7 +14588,7 @@ ntc_rg715_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg716:
-var_screens_ntc_p:			dw 0
+var_screens_ntc_k:			dw 0
 ntc_rg716_e:
 			IF ($ < 32768) && (ntc_rg717_e - ntc_rg717 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -14627,7 +14598,7 @@ ntc_rg716_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg717:
-var_screens_ntc_k:			dw 0
+p_screens_ntc_pg:			dw 0
 ntc_rg717_e:
 			IF ($ < 32768) && (ntc_rg718_e - ntc_rg718 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -14637,7 +14608,7 @@ ntc_rg717_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg718:
-p_screens_ntc_pg:			dw 0
+p_screens_hide_rs:			dw 0
 ntc_rg718_e:
 			IF ($ < 32768) && (ntc_rg719_e - ntc_rg719 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -14647,7 +14618,7 @@ ntc_rg718_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg719:
-p_screens_hide_rs:			dw 0
+var_screens_hide_ch:			dw 0, 0		; parameters, one block
 ntc_rg719_e:
 			IF ($ < 32768) && (ntc_rg720_e - ntc_rg720 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -14657,7 +14628,7 @@ ntc_rg719_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg720:
-var_screens_hide_ch:			dw 0, 0		; parameters, one block
+var_screens_hide_i:			dw 0
 ntc_rg720_e:
 			IF ($ < 32768) && (ntc_rg721_e - ntc_rg721 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -14667,7 +14638,7 @@ ntc_rg720_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg721:
-var_screens_hide_i:			dw 0
+var_screens_hide_x:			dw 0
 ntc_rg721_e:
 			IF ($ < 32768) && (ntc_rg722_e - ntc_rg722 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -14677,7 +14648,7 @@ ntc_rg721_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg722:
-var_screens_hide_x:			dw 0
+var_screens_hide_lo:			dw 0
 ntc_rg722_e:
 			IF ($ < 32768) && (ntc_rg723_e - ntc_rg723 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -14687,7 +14658,7 @@ ntc_rg722_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg723:
-var_screens_hide_lo:			dw 0
+var_screens_hide_hi:			dw 0
 ntc_rg723_e:
 			IF ($ < 32768) && (ntc_rg724_e - ntc_rg724 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -14697,7 +14668,7 @@ ntc_rg723_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg724:
-var_screens_hide_hi:			dw 0
+var_screens_hide_n:			dw 0
 ntc_rg724_e:
 			IF ($ < 32768) && (ntc_rg725_e - ntc_rg725 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -14707,7 +14678,7 @@ ntc_rg724_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg725:
-var_screens_hide_n:			dw 0
+p_screens_hide_pg:			dw 0
 ntc_rg725_e:
 			IF ($ < 32768) && (ntc_rg726_e - ntc_rg726 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -14717,7 +14688,7 @@ ntc_rg725_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg726:
-p_screens_hide_pg:			dw 0
+p_screens_letter_rs:			dw 0
 ntc_rg726_e:
 			IF ($ < 32768) && (ntc_rg727_e - ntc_rg727 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -14727,7 +14698,7 @@ ntc_rg726_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg727:
-p_screens_letter_rs:			dw 0
+var_screens_letter_ch:			dw 0
 ntc_rg727_e:
 			IF ($ < 32768) && (ntc_rg728_e - ntc_rg728 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -14737,7 +14708,7 @@ ntc_rg727_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg728:
-var_screens_letter_ch:			dw 0
+var_screens_letter_k:			dw 0
 ntc_rg728_e:
 			IF ($ < 32768) && (ntc_rg729_e - ntc_rg729 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -14747,7 +14718,7 @@ ntc_rg728_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg729:
-var_screens_letter_k:			dw 0
+p_screens_letter_pg:			dw 0
 ntc_rg729_e:
 			IF ($ < 32768) && (ntc_rg730_e - ntc_rg730 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -14757,7 +14728,7 @@ ntc_rg729_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg730:
-p_screens_letter_pg:			dw 0
+p_screens_readas_rs:			dw 0
 ntc_rg730_e:
 			IF ($ < 32768) && (ntc_rg731_e - ntc_rg731 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -14767,7 +14738,7 @@ ntc_rg730_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg731:
-p_screens_readas_rs:			dw 0
+var_screens_readas_y:			dw 0, 0, 0, 0		; parameters, one block
 ntc_rg731_e:
 			IF ($ < 32768) && (ntc_rg732_e - ntc_rg732 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -14777,7 +14748,7 @@ ntc_rg731_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg732:
-var_screens_readas_y:			dw 0, 0, 0, 0		; parameters, one block
+var_screens_readas_n:			dw 0
 ntc_rg732_e:
 			IF ($ < 32768) && (ntc_rg733_e - ntc_rg733 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -14787,7 +14758,7 @@ ntc_rg732_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg733:
-var_screens_readas_n:			dw 0
+var_screens_readas_i:			dw 0
 ntc_rg733_e:
 			IF ($ < 32768) && (ntc_rg734_e - ntc_rg734 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -14797,7 +14768,7 @@ ntc_rg733_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg734:
-var_screens_readas_i:			dw 0
+p_screens_readas_pg:			dw 0
 ntc_rg734_e:
 			IF ($ < 32768) && (ntc_rg735_e - ntc_rg735 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -14807,7 +14778,7 @@ ntc_rg734_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg735:
-p_screens_readas_pg:			dw 0
+p_screens_plaus_rs:			dw 0
 ntc_rg735_e:
 			IF ($ < 32768) && (ntc_rg736_e - ntc_rg736 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -14817,7 +14788,7 @@ ntc_rg735_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg736:
-p_screens_plaus_rs:			dw 0
+var_screens_plaus_i:			dw 0
 ntc_rg736_e:
 			IF ($ < 32768) && (ntc_rg737_e - ntc_rg737 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -14827,7 +14798,7 @@ ntc_rg736_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg737:
-var_screens_plaus_i:			dw 0
+var_screens_plaus_k:			dw 0
 ntc_rg737_e:
 			IF ($ < 32768) && (ntc_rg738_e - ntc_rg738 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -14837,7 +14808,7 @@ ntc_rg737_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg738:
-var_screens_plaus_k:			dw 0
+p_screens_plaus_pg:			dw 0
 ntc_rg738_e:
 			IF ($ < 32768) && (ntc_rg739_e - ntc_rg739 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -14847,7 +14818,7 @@ ntc_rg738_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg739:
-p_screens_plaus_pg:			dw 0
+p_screens_anatomy_rs:			dw 0
 ntc_rg739_e:
 			IF ($ < 32768) && (ntc_rg740_e - ntc_rg740 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -14857,7 +14828,7 @@ ntc_rg739_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg740:
-p_screens_anatomy_rs:			dw 0
+var_screens_anatomy_k:			dw 0
 ntc_rg740_e:
 			IF ($ < 32768) && (ntc_rg741_e - ntc_rg741 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -14867,7 +14838,7 @@ ntc_rg740_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg741:
-var_screens_anatomy_k:			dw 0
+var_screens_anatomy_i:			dw 0
 ntc_rg741_e:
 			IF ($ < 32768) && (ntc_rg742_e - ntc_rg742 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -14877,7 +14848,7 @@ ntc_rg741_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg742:
-var_screens_anatomy_i:			dw 0
+var_screens_anatomy_x:			dw 0
 ntc_rg742_e:
 			IF ($ < 32768) && (ntc_rg743_e - ntc_rg743 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -14887,7 +14858,7 @@ ntc_rg742_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg743:
-var_screens_anatomy_x:			dw 0
+var_screens_anatomy_pf:			dw 0
 ntc_rg743_e:
 			IF ($ < 32768) && (ntc_rg744_e - ntc_rg744 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -14897,7 +14868,7 @@ ntc_rg743_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg744:
-var_screens_anatomy_pf:			dw 0
+var_screens_anatomy_sf:			dw 0
 ntc_rg744_e:
 			IF ($ < 32768) && (ntc_rg745_e - ntc_rg745 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -14907,7 +14878,7 @@ ntc_rg744_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg745:
-var_screens_anatomy_sf:			dw 0
+var_screens_anatomy_bp:			dw 0
 ntc_rg745_e:
 			IF ($ < 32768) && (ntc_rg746_e - ntc_rg746 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -14917,7 +14888,7 @@ ntc_rg745_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg746:
-var_screens_anatomy_bp:			dw 0
+var_screens_anatomy_ms:			dw 0
 ntc_rg746_e:
 			IF ($ < 32768) && (ntc_rg747_e - ntc_rg747 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -14927,7 +14898,7 @@ ntc_rg746_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg747:
-var_screens_anatomy_ms:			dw 0
+var_screens_anatomy_mw:			dw 0
 ntc_rg747_e:
 			IF ($ < 32768) && (ntc_rg748_e - ntc_rg748 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -14937,7 +14908,7 @@ ntc_rg747_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg748:
-var_screens_anatomy_mw:			dw 0
+p_screens_anatomy_pg:			dw 0
 ntc_rg748_e:
 			IF ($ < 32768) && (ntc_rg749_e - ntc_rg749 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -14947,7 +14918,7 @@ ntc_rg748_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg749:
-p_screens_anatomy_pg:			dw 0
+p_screens_rhinit_rs:			dw 0
 ntc_rg749_e:
 			IF ($ < 32768) && (ntc_rg750_e - ntc_rg750 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -14957,7 +14928,7 @@ ntc_rg749_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg750:
-p_screens_rhinit_rs:			dw 0
+var_screens_rhinit_i:			dw 0
 ntc_rg750_e:
 			IF ($ < 32768) && (ntc_rg751_e - ntc_rg751 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -14967,7 +14938,7 @@ ntc_rg750_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg751:
-var_screens_rhinit_i:			dw 0
+p_screens_rhinit_pg:			dw 0
 ntc_rg751_e:
 			IF ($ < 32768) && (ntc_rg752_e - ntc_rg752 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -14977,7 +14948,7 @@ ntc_rg751_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg752:
-p_screens_rhinit_pg:			dw 0
+var_screens_rhn:			dw 0
 ntc_rg752_e:
 			IF ($ < 32768) && (ntc_rg753_e - ntc_rg753 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -14987,7 +14958,7 @@ ntc_rg752_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg753:
-var_screens_rhn:			dw 0
+for318_l:			dw 0
 ntc_rg753_e:
 			IF ($ < 32768) && (ntc_rg754_e - ntc_rg754 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -14997,7 +14968,7 @@ ntc_rg753_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg754:
-for320_l:			dw 0
+p_screens_rhshow_rs:			dw 0
 ntc_rg754_e:
 			IF ($ < 32768) && (ntc_rg755_e - ntc_rg755 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -15007,7 +14978,7 @@ ntc_rg754_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg755:
-p_screens_rhshow_rs:			dw 0
+var_screens_rhshow_i:			dw 0
 ntc_rg755_e:
 			IF ($ < 32768) && (ntc_rg756_e - ntc_rg756 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -15017,7 +14988,7 @@ ntc_rg755_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg756:
-var_screens_rhshow_i:			dw 0
+var_screens_rhshow_c:			dw 0
 ntc_rg756_e:
 			IF ($ < 32768) && (ntc_rg757_e - ntc_rg757 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -15027,7 +14998,7 @@ ntc_rg756_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg757:
-var_screens_rhshow_c:			dw 0
+p_screens_rhshow_pg:			dw 0
 ntc_rg757_e:
 			IF ($ < 32768) && (ntc_rg758_e - ntc_rg758 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -15037,7 +15008,7 @@ ntc_rg757_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg758:
-p_screens_rhshow_pg:			dw 0
+for319_l:			dw 0
 ntc_rg758_e:
 			IF ($ < 32768) && (ntc_rg759_e - ntc_rg759 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -15057,7 +15028,7 @@ ntc_rg759_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg760:
-for323_l:			dw 0
+p_screens_rhchange_rs:			dw 0
 ntc_rg760_e:
 			IF ($ < 32768) && (ntc_rg761_e - ntc_rg761 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -15067,7 +15038,7 @@ ntc_rg760_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg761:
-p_screens_rhchange_rs:			dw 0
+var_screens_rhchange_r:			dw 0
 ntc_rg761_e:
 			IF ($ < 32768) && (ntc_rg762_e - ntc_rg762 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -15077,7 +15048,7 @@ ntc_rg761_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg762:
-var_screens_rhchange_r:			dw 0
+p_screens_rhchange_pg:			dw 0
 ntc_rg762_e:
 			IF ($ < 32768) && (ntc_rg763_e - ntc_rg763 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -15087,7 +15058,7 @@ ntc_rg762_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg763:
-p_screens_rhchange_pg:			dw 0
+p_screens_hist_rs:			dw 0
 ntc_rg763_e:
 			IF ($ < 32768) && (ntc_rg764_e - ntc_rg764 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -15097,7 +15068,7 @@ ntc_rg763_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg764:
-p_screens_hist_rs:			dw 0
+var_screens_hist_blk:			dw 0
 ntc_rg764_e:
 			IF ($ < 32768) && (ntc_rg765_e - ntc_rg765 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -15107,7 +15078,7 @@ ntc_rg764_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg765:
-var_screens_hist_blk:			dw 0
+var_screens_hist_i:			dw 0
 ntc_rg765_e:
 			IF ($ < 32768) && (ntc_rg766_e - ntc_rg766 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -15117,7 +15088,7 @@ ntc_rg765_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg766:
-var_screens_hist_i:			dw 0
+var_screens_hist_g:			dw 0
 ntc_rg766_e:
 			IF ($ < 32768) && (ntc_rg767_e - ntc_rg767 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -15127,7 +15098,7 @@ ntc_rg766_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg767:
-var_screens_hist_g:			dw 0
+var_screens_hist_m:			dw 0
 ntc_rg767_e:
 			IF ($ < 32768) && (ntc_rg768_e - ntc_rg768 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -15137,7 +15108,7 @@ ntc_rg767_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg768:
-var_screens_hist_m:			dw 0
+var_screens_hist_d:			dw 0
 ntc_rg768_e:
 			IF ($ < 32768) && (ntc_rg769_e - ntc_rg769 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -15147,7 +15118,7 @@ ntc_rg768_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg769:
-var_screens_hist_d:			dw 0
+var_screens_hist_h:			dw 0
 ntc_rg769_e:
 			IF ($ < 32768) && (ntc_rg770_e - ntc_rg770 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -15157,7 +15128,7 @@ ntc_rg769_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg770:
-var_screens_hist_h:			dw 0
+p_screens_hist_pg:			dw 0
 ntc_rg770_e:
 			IF ($ < 32768) && (ntc_rg771_e - ntc_rg771 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -15167,7 +15138,7 @@ ntc_rg770_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg771:
-p_screens_hist_pg:			dw 0
+p_screens_body_rs:			dw 0
 ntc_rg771_e:
 			IF ($ < 32768) && (ntc_rg772_e - ntc_rg772 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -15177,7 +15148,7 @@ ntc_rg771_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg772:
-p_screens_body_rs:			dw 0
+var_screens_body_t:			dw 0
 ntc_rg772_e:
 			IF ($ < 32768) && (ntc_rg773_e - ntc_rg773 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -15187,7 +15158,7 @@ ntc_rg772_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg773:
-var_screens_body_t:			dw 0
+var_screens_body_body:			dw 0
 ntc_rg773_e:
 			IF ($ < 32768) && (ntc_rg774_e - ntc_rg774 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -15197,7 +15168,7 @@ ntc_rg773_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg774:
-var_screens_body_body:			dw 0
+p_screens_body_pg:			dw 0
 ntc_rg774_e:
 			IF ($ < 32768) && (ntc_rg775_e - ntc_rg775 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -15207,7 +15178,7 @@ ntc_rg774_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg775:
-p_screens_body_pg:			dw 0
+p_screens_pgn_rs:			dw 0
 ntc_rg775_e:
 			IF ($ < 32768) && (ntc_rg776_e - ntc_rg776 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -15217,7 +15188,7 @@ ntc_rg775_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg776:
-p_screens_pgn_rs:			dw 0
+var_screens_pgn_kind:			dw 0
 ntc_rg776_e:
 			IF ($ < 32768) && (ntc_rg777_e - ntc_rg777 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -15227,7 +15198,7 @@ ntc_rg776_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg777:
-var_screens_pgn_kind:			dw 0
+var_screens_pgn_pgn:			dw 0
 ntc_rg777_e:
 			IF ($ < 32768) && (ntc_rg778_e - ntc_rg778 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -15237,7 +15208,7 @@ ntc_rg777_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg778:
-var_screens_pgn_pgn:			dw 0
+p_screens_pgn_pg:			dw 0
 ntc_rg778_e:
 			IF ($ < 32768) && (ntc_rg779_e - ntc_rg779 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -15247,7 +15218,7 @@ ntc_rg778_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg779:
-p_screens_pgn_pg:			dw 0
+var_screens_pgn___sel334:			dw 0
 ntc_rg779_e:
 			IF ($ < 32768) && (ntc_rg780_e - ntc_rg780 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -15257,7 +15228,7 @@ ntc_rg779_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg780:
-var_screens_pgn___sel336:			dw 0
+p_screens_pgtx_rs:			dw 0
 ntc_rg780_e:
 			IF ($ < 32768) && (ntc_rg781_e - ntc_rg781 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -15267,7 +15238,7 @@ ntc_rg780_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg781:
-p_screens_pgtx_rs:			dw 0
+var_screens_pgtx_kind:			dw 0, 0		; parameters, one block
 ntc_rg781_e:
 			IF ($ < 32768) && (ntc_rg782_e - ntc_rg782 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -15277,7 +15248,7 @@ ntc_rg781_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg782:
-var_screens_pgtx_kind:			dw 0, 0		; parameters, one block
+var_screens_pgtx_pgtx:			dw 0
 ntc_rg782_e:
 			IF ($ < 32768) && (ntc_rg783_e - ntc_rg783 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -15287,7 +15258,7 @@ ntc_rg782_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg783:
-var_screens_pgtx_pgtx:			dw 0
+p_screens_pgtx_pg:			dw 0
 ntc_rg783_e:
 			IF ($ < 32768) && (ntc_rg784_e - ntc_rg784 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -15297,7 +15268,7 @@ ntc_rg783_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg784:
-p_screens_pgtx_pg:			dw 0
+var_screens_pgtx___sel335:			dw 0
 ntc_rg784_e:
 			IF ($ < 32768) && (ntc_rg785_e - ntc_rg785 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -15307,7 +15278,7 @@ ntc_rg784_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg785:
-var_screens_pgtx___sel337:			dw 0
+p_screens_showpg_rs:			dw 0
 ntc_rg785_e:
 			IF ($ < 32768) && (ntc_rg786_e - ntc_rg786 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -15317,7 +15288,7 @@ ntc_rg785_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg786:
-p_screens_showpg_rs:			dw 0
+var_screens_showpg_kind:			dw 0, 0		; parameters, one block
 ntc_rg786_e:
 			IF ($ < 32768) && (ntc_rg787_e - ntc_rg787 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -15327,7 +15298,7 @@ ntc_rg786_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg787:
-var_screens_showpg_kind:			dw 0, 0		; parameters, one block
+var_screens_showpg_t:			dw 0
 ntc_rg787_e:
 			IF ($ < 32768) && (ntc_rg788_e - ntc_rg788 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -15337,7 +15308,7 @@ ntc_rg787_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg788:
-var_screens_showpg_t:			dw 0
+p_screens_showpg_pg:			dw 0
 ntc_rg788_e:
 			IF ($ < 32768) && (ntc_rg789_e - ntc_rg789 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -15347,7 +15318,7 @@ ntc_rg788_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg789:
-p_screens_showpg_pg:			dw 0
+var_screens_showpg___sel337:			dw 0
 ntc_rg789_e:
 			IF ($ < 32768) && (ntc_rg790_e - ntc_rg790 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -15367,7 +15338,7 @@ ntc_rg790_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg791:
-var_screens_showpg___sel341:			dw 0
+p_screens_pages_rs:			dw 0
 ntc_rg791_e:
 			IF ($ < 32768) && (ntc_rg792_e - ntc_rg792 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -15377,7 +15348,7 @@ ntc_rg791_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg792:
-p_screens_pages_rs:			dw 0
+var_screens_pages_kind:			dw 0, 0		; parameters, one block
 ntc_rg792_e:
 			IF ($ < 32768) && (ntc_rg793_e - ntc_rg793 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -15387,7 +15358,7 @@ ntc_rg792_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg793:
-var_screens_pages_kind:			dw 0, 0		; parameters, one block
+var_screens_pages_p:			dw 0
 ntc_rg793_e:
 			IF ($ < 32768) && (ntc_rg794_e - ntc_rg794 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -15397,7 +15368,7 @@ ntc_rg793_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg794:
-var_screens_pages_p:			dw 0
+var_screens_pages_k:			dw 0
 ntc_rg794_e:
 			IF ($ < 32768) && (ntc_rg795_e - ntc_rg795 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -15407,7 +15378,7 @@ ntc_rg794_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg795:
-var_screens_pages_k:			dw 0
+p_screens_pages_pg:			dw 0
 ntc_rg795_e:
 			IF ($ < 32768) && (ntc_rg796_e - ntc_rg796 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -15417,7 +15388,7 @@ ntc_rg795_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg796:
-p_screens_pages_pg:			dw 0
+p_screens_fine_rs:			dw 0
 ntc_rg796_e:
 			IF ($ < 32768) && (ntc_rg797_e - ntc_rg797 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -15427,7 +15398,7 @@ ntc_rg796_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg797:
-p_screens_fine_rs:			dw 0
+var_screens_fine_p:			dw 0
 ntc_rg797_e:
 			IF ($ < 32768) && (ntc_rg798_e - ntc_rg798 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -15437,7 +15408,7 @@ ntc_rg797_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg798:
-var_screens_fine_p:			dw 0
+var_screens_fine_k:			dw 0
 ntc_rg798_e:
 			IF ($ < 32768) && (ntc_rg799_e - ntc_rg799 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -15447,7 +15418,7 @@ ntc_rg798_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg799:
-var_screens_fine_k:			dw 0
+p_screens_fine_pg:			dw 0
 ntc_rg799_e:
 			IF ($ < 32768) && (ntc_rg800_e - ntc_rg800 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -15457,7 +15428,7 @@ ntc_rg799_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg800:
-p_screens_fine_pg:			dw 0
+var_screens_fine___sel350:			dw 0
 ntc_rg800_e:
 			IF ($ < 32768) && (ntc_rg801_e - ntc_rg801 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -15467,7 +15438,7 @@ ntc_rg800_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg801:
-var_screens_fine___sel352:			dw 0
+p_intro_menutx_rs:			dw 0
 ntc_rg801_e:
 			IF ($ < 32768) && (ntc_rg802_e - ntc_rg802 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -15477,7 +15448,7 @@ ntc_rg801_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg802:
-p_intro_menutx_rs:			dw 0
+var_intro_menutx_i:			dw 0
 ntc_rg802_e:
 			IF ($ < 32768) && (ntc_rg803_e - ntc_rg803 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -15487,7 +15458,7 @@ ntc_rg802_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg803:
-var_intro_menutx_i:			dw 0
+var_intro_menutx_menutx:			dw 0
 ntc_rg803_e:
 			IF ($ < 32768) && (ntc_rg804_e - ntc_rg804 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -15497,7 +15468,7 @@ ntc_rg803_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg804:
-var_intro_menutx_menutx:			dw 0
+var_intro_menutx___sel356:			dw 0
 ntc_rg804_e:
 			IF ($ < 32768) && (ntc_rg805_e - ntc_rg805 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -15507,7 +15478,7 @@ ntc_rg804_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg805:
-var_intro_menutx___sel358:			dw 0
+p_intro_title_rs:			dw 0
 ntc_rg805_e:
 			IF ($ < 32768) && (ntc_rg806_e - ntc_rg806 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -15517,7 +15488,7 @@ ntc_rg805_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg806:
-p_intro_title_rs:			dw 0
+var_intro_title_k:			dw 0
 ntc_rg806_e:
 			IF ($ < 32768) && (ntc_rg807_e - ntc_rg807 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -15527,7 +15498,7 @@ ntc_rg806_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg807:
-var_intro_title_k:			dw 0
+var_intro_title_t:			dw 0
 ntc_rg807_e:
 			IF ($ < 32768) && (ntc_rg808_e - ntc_rg808 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -15537,7 +15508,7 @@ ntc_rg807_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg808:
-var_intro_title_t:			dw 0
+var_intro_title_i:			dw 0
 ntc_rg808_e:
 			IF ($ < 32768) && (ntc_rg809_e - ntc_rg809 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -15547,7 +15518,7 @@ ntc_rg808_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg809:
-var_intro_title_i:			dw 0
+var_intro_title_j:			dw 0
 ntc_rg809_e:
 			IF ($ < 32768) && (ntc_rg810_e - ntc_rg810 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -15557,7 +15528,7 @@ ntc_rg809_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg810:
-var_intro_title_j:			dw 0
+p_intro_menu_rs:			dw 0
 ntc_rg810_e:
 			IF ($ < 32768) && (ntc_rg811_e - ntc_rg811 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -15567,7 +15538,7 @@ ntc_rg810_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg811:
-p_intro_menu_rs:			dw 0
+var_intro_menu_i:			dw 0
 ntc_rg811_e:
 			IF ($ < 32768) && (ntc_rg812_e - ntc_rg812 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -15577,7 +15548,7 @@ ntc_rg811_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg812:
-var_intro_menu_i:			dw 0
+var_intro_menu_c:			dw 0
 ntc_rg812_e:
 			IF ($ < 32768) && (ntc_rg813_e - ntc_rg813 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -15587,7 +15558,7 @@ ntc_rg812_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg813:
-var_intro_menu_c:			dw 0
+var_intro_sel:			dw 0
 ntc_rg813_e:
 			IF ($ < 32768) && (ntc_rg814_e - ntc_rg814 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -15597,7 +15568,7 @@ ntc_rg813_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg814:
-var_intro_sel:			dw 0
+p_intro_run_rs:			dw 0
 ntc_rg814_e:
 			IF ($ < 32768) && (ntc_rg815_e - ntc_rg815 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -15607,7 +15578,7 @@ ntc_rg814_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg815:
-p_intro_run_rs:			dw 0
+var_intro_run_k:			dw 0
 ntc_rg815_e:
 			IF ($ < 32768) && (ntc_rg816_e - ntc_rg816 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -15617,7 +15588,7 @@ ntc_rg815_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg816:
-var_intro_run_k:			dw 0
+var_intro_run_go:			dw 0
 ntc_rg816_e:
 			IF ($ < 32768) && (ntc_rg817_e - ntc_rg817 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -15627,7 +15598,7 @@ ntc_rg816_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg817:
-var_intro_run_go:			dw 0
+var_intro_run___sel369:			dw 0
 ntc_rg817_e:
 			IF ($ < 32768) && (ntc_rg818_e - ntc_rg818 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -15637,7 +15608,7 @@ ntc_rg817_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg818:
-var_intro_run___sel371:			dw 0
+p_proto_makerom_rs:			dw 0
 ntc_rg818_e:
 			IF ($ < 32768) && (ntc_rg819_e - ntc_rg819 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -15647,7 +15618,7 @@ ntc_rg818_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg819:
-p_proto_makerom_rs:			dw 0
+var_proto_makerom_i:			dw 0
 ntc_rg819_e:
 			IF ($ < 32768) && (ntc_rg820_e - ntc_rg820 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -15657,7 +15628,7 @@ ntc_rg819_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg820:
-var_proto_makerom_i:			dw 0
+var_proto_makerom_j:			dw 0
 ntc_rg820_e:
 			IF ($ < 32768) && (ntc_rg821_e - ntc_rg821 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -15667,7 +15638,7 @@ ntc_rg820_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg821:
-var_proto_makerom_j:			dw 0
+var_proto_makerom_t:			dw 0
 ntc_rg821_e:
 			IF ($ < 32768) && (ntc_rg822_e - ntc_rg822 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -15677,7 +15648,7 @@ ntc_rg821_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg822:
-var_proto_makerom_t:			dw 0
+p_proto_makerom_pg:			dw 0
 ntc_rg822_e:
 			IF ($ < 32768) && (ntc_rg823_e - ntc_rg823 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -15687,7 +15658,7 @@ ntc_rg822_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg823:
-p_proto_makerom_pg:			dw 0
+p_proto_blksize_rs:			dw 0
 ntc_rg823_e:
 			IF ($ < 32768) && (ntc_rg824_e - ntc_rg824 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -15697,7 +15668,7 @@ ntc_rg823_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg824:
-p_proto_blksize_rs:			dw 0
+var_proto_blksize_blksize:			dw 0
 ntc_rg824_e:
 			IF ($ < 32768) && (ntc_rg825_e - ntc_rg825 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -15707,7 +15678,7 @@ ntc_rg824_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg825:
-var_proto_blksize_blksize:			dw 0
+p_proto_blksize_pg:			dw 0
 ntc_rg825_e:
 			IF ($ < 32768) && (ntc_rg826_e - ntc_rg826 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -15717,7 +15688,7 @@ ntc_rg825_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg826:
-p_proto_blksize_pg:			dw 0
+p_proto_pad_rs:			dw 0
 ntc_rg826_e:
 			IF ($ < 32768) && (ntc_rg827_e - ntc_rg827 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -15727,7 +15698,7 @@ ntc_rg826_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg827:
-p_proto_pad_rs:			dw 0
+var_proto_pad_pad:			dw 0
 ntc_rg827_e:
 			IF ($ < 32768) && (ntc_rg828_e - ntc_rg828 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -15737,7 +15708,7 @@ ntc_rg827_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg828:
-var_proto_pad_pad:			dw 0
+p_proto_pad_pg:			dw 0
 ntc_rg828_e:
 			IF ($ < 32768) && (ntc_rg829_e - ntc_rg829 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -15747,7 +15718,7 @@ ntc_rg828_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg829:
-p_proto_pad_pg:			dw 0
+var_proto_mic:			dw 0
 ntc_rg829_e:
 			IF ($ < 32768) && (ntc_rg830_e - ntc_rg830 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -15757,7 +15728,7 @@ ntc_rg829_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg830:
-var_proto_mic:			dw 0
+p_proto_offs_rs:			dw 0
 ntc_rg830_e:
 			IF ($ < 32768) && (ntc_rg831_e - ntc_rg831 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -15767,7 +15738,7 @@ ntc_rg830_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg831:
-p_proto_offs_rs:			dw 0
+var_proto_offs_offs:			dw 0
 ntc_rg831_e:
 			IF ($ < 32768) && (ntc_rg832_e - ntc_rg832 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -15777,7 +15748,7 @@ ntc_rg831_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg832:
-var_proto_offs_offs:			dw 0
+p_proto_offs_pg:			dw 0
 ntc_rg832_e:
 			IF ($ < 32768) && (ntc_rg833_e - ntc_rg833 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -15787,7 +15758,7 @@ ntc_rg832_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg833:
-p_proto_offs_pg:			dw 0
+p_proto_put_rs:			dw 0
 ntc_rg833_e:
 			IF ($ < 32768) && (ntc_rg834_e - ntc_rg834 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -15797,7 +15768,7 @@ ntc_rg833_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg834:
-p_proto_put_rs:			dw 0
+var_proto_put_v:			dw 0
 ntc_rg834_e:
 			IF ($ < 32768) && (ntc_rg835_e - ntc_rg835 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -15807,7 +15778,7 @@ ntc_rg834_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg835:
-var_proto_put_v:			dw 0
+p_proto_put_pg:			dw 0
 ntc_rg835_e:
 			IF ($ < 32768) && (ntc_rg836_e - ntc_rg836 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -15817,7 +15788,7 @@ ntc_rg835_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg836:
-p_proto_put_pg:			dw 0
+var_proto_n:			dw 0
 ntc_rg836_e:
 			IF ($ < 32768) && (ntc_rg837_e - ntc_rg837 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -15827,7 +15798,7 @@ ntc_rg836_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg837:
-var_proto_n:			dw 0
+p_proto_adr_rs:			dw 0
 ntc_rg837_e:
 			IF ($ < 32768) && (ntc_rg838_e - ntc_rg838 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -15837,7 +15808,7 @@ ntc_rg837_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg838:
-p_proto_adr_rs:			dw 0
+var_proto_adr_v:			dw 0, 0, 0		; parameters, one block
 ntc_rg838_e:
 			IF ($ < 32768) && (ntc_rg839_e - ntc_rg839 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -15847,7 +15818,7 @@ ntc_rg838_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg839:
-var_proto_adr_v:			dw 0, 0, 0		; parameters, one block
+var_proto_adr_a:			dw 0
 ntc_rg839_e:
 			IF ($ < 32768) && (ntc_rg840_e - ntc_rg840 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -15857,7 +15828,7 @@ ntc_rg839_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg840:
-var_proto_adr_a:			dw 0
+var_proto_adr_k:			dw 0
 ntc_rg840_e:
 			IF ($ < 32768) && (ntc_rg841_e - ntc_rg841 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -15867,7 +15838,7 @@ ntc_rg840_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg841:
-var_proto_adr_k:			dw 0
+p_proto_adr_pg:			dw 0
 ntc_rg841_e:
 			IF ($ < 32768) && (ntc_rg842_e - ntc_rg842 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -15877,7 +15848,7 @@ ntc_rg841_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg842:
-p_proto_adr_pg:			dw 0
+p_proto_sym_rs:			dw 0
 ntc_rg842_e:
 			IF ($ < 32768) && (ntc_rg843_e - ntc_rg843 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -15887,7 +15858,7 @@ ntc_rg842_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg843:
-p_proto_sym_rs:			dw 0
+var_proto_sym_c:			dw 0, 0, 0		; parameters, one block
 ntc_rg843_e:
 			IF ($ < 32768) && (ntc_rg844_e - ntc_rg844 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -15897,7 +15868,7 @@ ntc_rg843_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg844:
-var_proto_sym_c:			dw 0, 0, 0		; parameters, one block
+p_proto_sym_pg:			dw 0
 ntc_rg844_e:
 			IF ($ < 32768) && (ntc_rg845_e - ntc_rg845 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -15907,7 +15878,7 @@ ntc_rg844_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg845:
-p_proto_sym_pg:			dw 0
+p_proto_hv_rs:			dw 0
 ntc_rg845_e:
 			IF ($ < 32768) && (ntc_rg846_e - ntc_rg846 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -15917,7 +15888,7 @@ ntc_rg845_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg846:
-p_proto_hv_rs:			dw 0
+var_proto_hv_v:			dw 0
 ntc_rg846_e:
 			IF ($ < 32768) && (ntc_rg847_e - ntc_rg847 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -15927,7 +15898,7 @@ ntc_rg846_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg847:
-var_proto_hv_v:			dw 0
+p_proto_hv_pg:			dw 0
 ntc_rg847_e:
 			IF ($ < 32768) && (ntc_rg848_e - ntc_rg848 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -15937,7 +15908,7 @@ ntc_rg847_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg848:
-p_proto_hv_pg:			dw 0
+p_proto_hvw_rs:			dw 0
 ntc_rg848_e:
 			IF ($ < 32768) && (ntc_rg849_e - ntc_rg849 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -15947,7 +15918,7 @@ ntc_rg848_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg849:
-p_proto_hvw_rs:			dw 0
+var_proto_hvw_v:			dw 0
 ntc_rg849_e:
 			IF ($ < 32768) && (ntc_rg850_e - ntc_rg850 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -15957,7 +15928,7 @@ ntc_rg849_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg850:
-var_proto_hvw_v:			dw 0
+p_proto_hvw_pg:			dw 0
 ntc_rg850_e:
 			IF ($ < 32768) && (ntc_rg851_e - ntc_rg851 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -15967,7 +15938,7 @@ ntc_rg850_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg851:
-p_proto_hvw_pg:			dw 0
+p_proto_hvo_rs:			dw 0
 ntc_rg851_e:
 			IF ($ < 32768) && (ntc_rg852_e - ntc_rg852 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -15977,7 +15948,7 @@ ntc_rg851_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg852:
-p_proto_hvo_rs:			dw 0
+var_proto_hvo_l:			dw 0, 0		; parameters, one block
 ntc_rg852_e:
 			IF ($ < 32768) && (ntc_rg853_e - ntc_rg853 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -15987,7 +15958,7 @@ ntc_rg852_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg853:
-var_proto_hvo_l:			dw 0, 0		; parameters, one block
+p_proto_hvo_pg:			dw 0
 ntc_rg853_e:
 			IF ($ < 32768) && (ntc_rg854_e - ntc_rg854 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -15997,7 +15968,7 @@ ntc_rg853_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg854:
-p_proto_hvo_pg:			dw 0
+p_proto_enc_rs:			dw 0
 ntc_rg854_e:
 			IF ($ < 32768) && (ntc_rg855_e - ntc_rg855 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -16007,7 +15978,7 @@ ntc_rg854_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg855:
-p_proto_enc_rs:			dw 0
+var_proto_enc_pr:			dw 0
 ntc_rg855_e:
 			IF ($ < 32768) && (ntc_rg856_e - ntc_rg856 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -16017,7 +15988,7 @@ ntc_rg855_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg856:
-var_proto_enc_pr:			dw 0
+var_proto_enc_enc:			dw 0
 ntc_rg856_e:
 			IF ($ < 32768) && (ntc_rg857_e - ntc_rg857 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -16027,7 +15998,7 @@ ntc_rg856_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg857:
-var_proto_enc_enc:			dw 0
+var_proto_enc_kind:			dw 0
 ntc_rg857_e:
 			IF ($ < 32768) && (ntc_rg858_e - ntc_rg858 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -16037,7 +16008,7 @@ ntc_rg857_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg858:
-var_proto_enc_kind:			dw 0
+var_proto_enc_i:			dw 0
 ntc_rg858_e:
 			IF ($ < 32768) && (ntc_rg859_e - ntc_rg859 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -16047,7 +16018,7 @@ ntc_rg858_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg859:
-var_proto_enc_i:			dw 0
+var_proto_enc_b:			dw 0
 ntc_rg859_e:
 			IF ($ < 32768) && (ntc_rg860_e - ntc_rg860 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -16057,7 +16028,7 @@ ntc_rg859_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg860:
-var_proto_enc_b:			dw 0
+var_proto_enc_nb:			dw 0
 ntc_rg860_e:
 			IF ($ < 32768) && (ntc_rg861_e - ntc_rg861 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -16067,7 +16038,7 @@ ntc_rg860_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg861:
-var_proto_enc_nb:			dw 0
+var_proto_enc_rm:			dw 0
 ntc_rg861_e:
 			IF ($ < 32768) && (ntc_rg862_e - ntc_rg862 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -16077,7 +16048,7 @@ ntc_rg861_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg862:
-var_proto_enc_rm:			dw 0
+var_proto_enc_pf:			dw 0
 ntc_rg862_e:
 			IF ($ < 32768) && (ntc_rg863_e - ntc_rg863 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -16087,7 +16058,7 @@ ntc_rg862_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg863:
-var_proto_enc_pf:			dw 0
+var_proto_enc_sf:			dw 0
 ntc_rg863_e:
 			IF ($ < 32768) && (ntc_rg864_e - ntc_rg864 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -16097,7 +16068,7 @@ ntc_rg863_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg864:
-var_proto_enc_sf:			dw 0
+var_proto_enc_ol:			dw 0
 ntc_rg864_e:
 			IF ($ < 32768) && (ntc_rg865_e - ntc_rg865 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -16107,7 +16078,7 @@ ntc_rg864_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg865:
-var_proto_enc_ol:			dw 0
+var_proto_enc_oh:			dw 0
 ntc_rg865_e:
 			IF ($ < 32768) && (ntc_rg866_e - ntc_rg866 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -16117,7 +16088,7 @@ ntc_rg865_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg866:
-var_proto_enc_oh:			dw 0
+var_proto_enc_w:			dw 0
 ntc_rg866_e:
 			IF ($ < 32768) && (ntc_rg867_e - ntc_rg867 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -16127,7 +16098,7 @@ ntc_rg866_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg867:
-var_proto_enc_w:			dw 0
+p_proto_enc_pg:			dw 0
 ntc_rg867_e:
 			IF ($ < 32768) && (ntc_rg868_e - ntc_rg868 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -16137,7 +16108,7 @@ ntc_rg867_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg868:
-p_proto_enc_pg:			dw 0
+for381_l:			dw 0
 ntc_rg868_e:
 			IF ($ < 32768) && (ntc_rg869_e - ntc_rg869 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -16147,7 +16118,7 @@ ntc_rg868_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg869:
-for383_l:			dw 0
+for384_l:			dw 0
 ntc_rg869_e:
 			IF ($ < 32768) && (ntc_rg870_e - ntc_rg870 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -16157,7 +16128,7 @@ ntc_rg869_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg870:
-for386_l:			dw 0
+for385_l:			dw 0
 ntc_rg870_e:
 			IF ($ < 32768) && (ntc_rg871_e - ntc_rg871 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -16167,7 +16138,7 @@ ntc_rg870_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg871:
-for387_l:			dw 0
+for386_l:			dw 0
 ntc_rg871_e:
 			IF ($ < 32768) && (ntc_rg872_e - ntc_rg872 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -16177,7 +16148,7 @@ ntc_rg871_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg872:
-for388_l:			dw 0
+for389_l:			dw 0
 ntc_rg872_e:
 			IF ($ < 32768) && (ntc_rg873_e - ntc_rg873 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -16187,7 +16158,7 @@ ntc_rg872_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg873:
-for391_l:			dw 0
+for390_l:			dw 0
 ntc_rg873_e:
 			IF ($ < 32768) && (ntc_rg874_e - ntc_rg874 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -16197,7 +16168,7 @@ ntc_rg873_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg874:
-for392_l:			dw 0
+for393_l:			dw 0
 ntc_rg874_e:
 			IF ($ < 32768) && (ntc_rg875_e - ntc_rg875 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -16207,7 +16178,7 @@ ntc_rg874_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg875:
-for395_l:			dw 0
+for394_l:			dw 0
 ntc_rg875_e:
 			IF ($ < 32768) && (ntc_rg876_e - ntc_rg876 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -16217,7 +16188,7 @@ ntc_rg875_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg876:
-for396_l:			dw 0
+p_proto_pos_rs:			dw 0
 ntc_rg876_e:
 			IF ($ < 32768) && (ntc_rg877_e - ntc_rg877 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -16227,7 +16198,7 @@ ntc_rg876_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg877:
-p_proto_pos_rs:			dw 0
+var_proto_pos_pr:			dw 0
 ntc_rg877_e:
 			IF ($ < 32768) && (ntc_rg878_e - ntc_rg878 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -16237,7 +16208,7 @@ ntc_rg877_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg878:
-var_proto_pos_pr:			dw 0
+var_proto_pos_i:			dw 0
 ntc_rg878_e:
 			IF ($ < 32768) && (ntc_rg879_e - ntc_rg879 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -16247,7 +16218,7 @@ ntc_rg878_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg879:
-var_proto_pos_i:			dw 0
+var_proto_pos_p:			dw 0
 ntc_rg879_e:
 			IF ($ < 32768) && (ntc_rg880_e - ntc_rg880 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -16257,7 +16228,7 @@ ntc_rg879_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg880:
-var_proto_pos_p:			dw 0
+var_proto_pos_ro:			dw 0
 ntc_rg880_e:
 			IF ($ < 32768) && (ntc_rg881_e - ntc_rg881 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -16267,7 +16238,7 @@ ntc_rg880_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg881:
-var_proto_pos_ro:			dw 0
+var_proto_pos_rh:			dw 0
 ntc_rg881_e:
 			IF ($ < 32768) && (ntc_rg882_e - ntc_rg882 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -16277,7 +16248,7 @@ ntc_rg881_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg882:
-var_proto_pos_rh:			dw 0
+var_proto_pos_pf:			dw 0
 ntc_rg882_e:
 			IF ($ < 32768) && (ntc_rg883_e - ntc_rg883 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -16287,7 +16258,7 @@ ntc_rg882_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg883:
-var_proto_pos_pf:			dw 0
+var_proto_pos_sz:			dw 0
 ntc_rg883_e:
 			IF ($ < 32768) && (ntc_rg884_e - ntc_rg884 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -16297,7 +16268,7 @@ ntc_rg883_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg884:
-var_proto_pos_sz:			dw 0
+var_proto_pos_nro:			dw 0
 ntc_rg884_e:
 			IF ($ < 32768) && (ntc_rg885_e - ntc_rg885 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -16307,7 +16278,7 @@ ntc_rg884_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg885:
-var_proto_pos_nro:			dw 0
+var_proto_pos_nrh:			dw 0
 ntc_rg885_e:
 			IF ($ < 32768) && (ntc_rg886_e - ntc_rg886 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -16317,7 +16288,7 @@ ntc_rg885_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg886:
-var_proto_pos_nrh:			dw 0
+var_proto_pos_nsz:			dw 0
 ntc_rg886_e:
 			IF ($ < 32768) && (ntc_rg887_e - ntc_rg887 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -16327,7 +16298,7 @@ ntc_rg886_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg887:
-var_proto_pos_nsz:			dw 0
+var_proto_pos_q:			dw 0
 ntc_rg887_e:
 			IF ($ < 32768) && (ntc_rg888_e - ntc_rg888 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -16337,7 +16308,7 @@ ntc_rg887_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg888:
-var_proto_pos_q:			dw 0
+var_proto_pos_lo:			dw 0
 ntc_rg888_e:
 			IF ($ < 32768) && (ntc_rg889_e - ntc_rg889 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -16347,7 +16318,7 @@ ntc_rg888_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg889:
-var_proto_pos_lo:			dw 0
+var_proto_pos_hi:			dw 0
 ntc_rg889_e:
 			IF ($ < 32768) && (ntc_rg890_e - ntc_rg890 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -16357,7 +16328,7 @@ ntc_rg889_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg890:
-var_proto_pos_hi:			dw 0
+p_proto_pos_pg:			dw 0
 ntc_rg890_e:
 			IF ($ < 32768) && (ntc_rg891_e - ntc_rg891 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -16367,7 +16338,7 @@ ntc_rg890_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg891:
-p_proto_pos_pg:			dw 0
+for399_l:			dw 0
 ntc_rg891_e:
 			IF ($ < 32768) && (ntc_rg892_e - ntc_rg892 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -16377,7 +16348,7 @@ ntc_rg891_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg892:
-for401_l:			dw 0
+p_demo_sentence_rs:			dw 0
 ntc_rg892_e:
 			IF ($ < 32768) && (ntc_rg893_e - ntc_rg893 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -16387,7 +16358,7 @@ ntc_rg892_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg893:
-p_demo_sentence_rs:			dw 0
+var_demo_sentence_n:			dw 0
 ntc_rg893_e:
 			IF ($ < 32768) && (ntc_rg894_e - ntc_rg894 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -16397,7 +16368,7 @@ ntc_rg893_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg894:
-var_demo_sentence_n:			dw 0
+var_demo_sentence_idx:			dw 0
 ntc_rg894_e:
 			IF ($ < 32768) && (ntc_rg895_e - ntc_rg895 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -16407,7 +16378,7 @@ ntc_rg894_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg895:
-var_demo_sentence_idx:			dw 0
+var_demo_sentence_j:			dw 0
 ntc_rg895_e:
 			IF ($ < 32768) && (ntc_rg896_e - ntc_rg896 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -16417,7 +16388,7 @@ ntc_rg895_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg896:
-var_demo_sentence_j:			dw 0
+var_demo_sentence_c:			dw 0
 ntc_rg896_e:
 			IF ($ < 32768) && (ntc_rg897_e - ntc_rg897 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -16427,7 +16398,7 @@ ntc_rg896_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg897:
-var_demo_sentence_c:			dw 0
+p_demo_sentence_pg:			dw 0
 ntc_rg897_e:
 			IF ($ < 32768) && (ntc_rg898_e - ntc_rg898 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -16437,7 +16408,7 @@ ntc_rg897_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg898:
-p_demo_sentence_pg:			dw 0
+p_demo_slot_rs:			dw 0
 ntc_rg898_e:
 			IF ($ < 32768) && (ntc_rg899_e - ntc_rg899 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -16447,7 +16418,7 @@ ntc_rg898_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg899:
-p_demo_slot_rs:			dw 0
+var_demo_slot_s:			dw 0, 0		; parameters, one block
 ntc_rg899_e:
 			IF ($ < 32768) && (ntc_rg900_e - ntc_rg900 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -16457,7 +16428,7 @@ ntc_rg899_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg900:
-var_demo_slot_s:			dw 0, 0		; parameters, one block
+p_demo_slot_pg:			dw 0
 ntc_rg900_e:
 			IF ($ < 32768) && (ntc_rg901_e - ntc_rg901 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -16467,7 +16438,7 @@ ntc_rg900_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg901:
-p_demo_slot_pg:			dw 0
+var_demo_pr:			dw 0
 ntc_rg901_e:
 			IF ($ < 32768) && (ntc_rg902_e - ntc_rg902 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -16477,7 +16448,7 @@ ntc_rg901_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg902:
-var_demo_pr:			dw 0
+var_demo_en:			dw 0
 ntc_rg902_e:
 			IF ($ < 32768) && (ntc_rg903_e - ntc_rg903 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -16487,7 +16458,7 @@ ntc_rg902_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg903:
-var_demo_en:			dw 0
+p_demo_drawtext_rs:			dw 0
 ntc_rg903_e:
 			IF ($ < 32768) && (ntc_rg904_e - ntc_rg904 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -16497,7 +16468,7 @@ ntc_rg903_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg904:
-p_demo_drawtext_rs:			dw 0
+var_demo_drawtext_y:			dw 0, 0		; parameters, one block
 ntc_rg904_e:
 			IF ($ < 32768) && (ntc_rg905_e - ntc_rg905 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -16507,7 +16478,7 @@ ntc_rg904_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg905:
-var_demo_drawtext_y:			dw 0, 0		; parameters, one block
+var_demo_drawtext_x:			dw 0
 ntc_rg905_e:
 			IF ($ < 32768) && (ntc_rg906_e - ntc_rg906 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -16517,7 +16488,7 @@ ntc_rg905_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg906:
-var_demo_drawtext_x:			dw 0
+p_demo_drawtext_pg:			dw 0
 ntc_rg906_e:
 			IF ($ < 32768) && (ntc_rg907_e - ntc_rg907 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -16527,7 +16498,7 @@ ntc_rg906_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg907:
-p_demo_drawtext_pg:			dw 0
+p_demo_drawenc_rs:			dw 0
 ntc_rg907_e:
 			IF ($ < 32768) && (ntc_rg908_e - ntc_rg908 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -16537,7 +16508,7 @@ ntc_rg907_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg908:
-p_demo_drawenc_rs:			dw 0
+var_demo_drawenc_y:			dw 0
 ntc_rg908_e:
 			IF ($ < 32768) && (ntc_rg909_e - ntc_rg909 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -16547,7 +16518,7 @@ ntc_rg908_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg909:
-var_demo_drawenc_y:			dw 0
+var_demo_drawenc_k:			dw 0
 ntc_rg909_e:
 			IF ($ < 32768) && (ntc_rg910_e - ntc_rg910 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -16557,7 +16528,7 @@ ntc_rg909_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg910:
-var_demo_drawenc_k:			dw 0
+p_demo_drawenc_pg:			dw 0
 ntc_rg910_e:
 			IF ($ < 32768) && (ntc_rg911_e - ntc_rg911 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -16567,7 +16538,7 @@ ntc_rg910_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg911:
-p_demo_drawenc_pg:			dw 0
+p_demo_dots_rs:			dw 0
 ntc_rg911_e:
 			IF ($ < 32768) && (ntc_rg912_e - ntc_rg912 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -16577,7 +16548,7 @@ ntc_rg911_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg912:
-p_demo_dots_rs:			dw 0
+var_demo_dots_y:			dw 0
 ntc_rg912_e:
 			IF ($ < 32768) && (ntc_rg913_e - ntc_rg913 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -16587,7 +16558,7 @@ ntc_rg912_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg913:
-var_demo_dots_y:			dw 0
+p_demo_dots_pg:			dw 0
 ntc_rg913_e:
 			IF ($ < 32768) && (ntc_rg914_e - ntc_rg914 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -16597,7 +16568,7 @@ ntc_rg913_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg914:
-p_demo_dots_pg:			dw 0
+p_demo_rowsof_rs:			dw 0
 ntc_rg914_e:
 			IF ($ < 32768) && (ntc_rg915_e - ntc_rg915 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -16607,7 +16578,7 @@ ntc_rg914_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg915:
-p_demo_rowsof_rs:			dw 0
+var_demo_rowsof_rowsof:			dw 0
 ntc_rg915_e:
 			IF ($ < 32768) && (ntc_rg916_e - ntc_rg916 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -16617,7 +16588,7 @@ ntc_rg915_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg916:
-var_demo_rowsof_rowsof:			dw 0
+p_demo_rowsof_pg:			dw 0
 ntc_rg916_e:
 			IF ($ < 32768) && (ntc_rg917_e - ntc_rg917 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -16627,7 +16598,7 @@ ntc_rg916_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg917:
-p_demo_rowsof_pg:			dw 0
+p_demo_paginate_rs:			dw 0
 ntc_rg917_e:
 			IF ($ < 32768) && (ntc_rg918_e - ntc_rg918 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -16637,7 +16608,7 @@ ntc_rg917_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg918:
-p_demo_paginate_rs:			dw 0
+var_demo_paginate_e:			dw 0
 ntc_rg918_e:
 			IF ($ < 32768) && (ntc_rg919_e - ntc_rg919 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -16647,7 +16618,7 @@ ntc_rg918_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg919:
-var_demo_paginate_e:			dw 0
+var_demo_paginate_r:			dw 0
 ntc_rg919_e:
 			IF ($ < 32768) && (ntc_rg920_e - ntc_rg920 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -16657,7 +16628,7 @@ ntc_rg919_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg920:
-var_demo_paginate_r:			dw 0
+var_demo_paginate_st:			dw 0
 ntc_rg920_e:
 			IF ($ < 32768) && (ntc_rg921_e - ntc_rg921 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -16667,7 +16638,7 @@ ntc_rg920_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg921:
-var_demo_paginate_st:			dw 0
+var_demo_paginate_y:			dw 0
 ntc_rg921_e:
 			IF ($ < 32768) && (ntc_rg922_e - ntc_rg922 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -16677,7 +16648,7 @@ ntc_rg921_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg922:
-var_demo_paginate_y:			dw 0
+var_demo_paginate_av:			dw 0
 ntc_rg922_e:
 			IF ($ < 32768) && (ntc_rg923_e - ntc_rg923 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -16687,7 +16658,7 @@ ntc_rg922_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg923:
-var_demo_paginate_av:			dw 0
+var_demo_paginate_n:			dw 0
 ntc_rg923_e:
 			IF ($ < 32768) && (ntc_rg924_e - ntc_rg924 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -16697,7 +16668,7 @@ ntc_rg923_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg924:
-var_demo_paginate_n:			dw 0
+var_demo_paginate_k:			dw 0
 ntc_rg924_e:
 			IF ($ < 32768) && (ntc_rg925_e - ntc_rg925 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -16707,7 +16678,7 @@ ntc_rg924_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg925:
-var_demo_paginate_k:			dw 0
+var_demo_paginate_pg:			dw 0
 ntc_rg925_e:
 			IF ($ < 32768) && (ntc_rg926_e - ntc_rg926 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -16717,7 +16688,7 @@ ntc_rg925_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg926:
-var_demo_paginate_pg:			dw 0
+p_demo_paginate_pg:			dw 0
 ntc_rg926_e:
 			IF ($ < 32768) && (ntc_rg927_e - ntc_rg927 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -16727,7 +16698,7 @@ ntc_rg926_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg927:
-p_demo_paginate_pg:			dw 0
+var_demo_ne:			dw 0
 ntc_rg927_e:
 			IF ($ < 32768) && (ntc_rg928_e - ntc_rg928 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -16737,7 +16708,7 @@ ntc_rg927_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg928:
-var_demo_ne:			dw 0
+var_demo_pa:			dw 0
 ntc_rg928_e:
 			IF ($ < 32768) && (ntc_rg929_e - ntc_rg929 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -16747,7 +16718,7 @@ ntc_rg928_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg929:
-var_demo_pa:			dw 0
+var_demo_np:			dw 0
 ntc_rg929_e:
 			IF ($ < 32768) && (ntc_rg930_e - ntc_rg930 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -16757,7 +16728,7 @@ ntc_rg929_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg930:
-var_demo_np:			dw 0
+var_demo_md:			dw 0
 ntc_rg930_e:
 			IF ($ < 32768) && (ntc_rg931_e - ntc_rg931 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -16767,7 +16738,7 @@ ntc_rg930_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg931:
-var_demo_md:			dw 0
+p_demo_drawrows_rs:			dw 0
 ntc_rg931_e:
 			IF ($ < 32768) && (ntc_rg932_e - ntc_rg932 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -16777,7 +16748,7 @@ ntc_rg931_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg932:
-p_demo_drawrows_rs:			dw 0
+var_demo_drawrows_y:			dw 0, 0, 0		; parameters, one block
 ntc_rg932_e:
 			IF ($ < 32768) && (ntc_rg933_e - ntc_rg933 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -16787,7 +16758,7 @@ ntc_rg932_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg933:
-var_demo_drawrows_y:			dw 0, 0, 0		; parameters, one block
+var_demo_drawrows_k:			dw 0
 ntc_rg933_e:
 			IF ($ < 32768) && (ntc_rg934_e - ntc_rg934 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -16797,7 +16768,7 @@ ntc_rg933_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg934:
-var_demo_drawrows_k:			dw 0
+var_demo_drawrows_g:			dw 0
 ntc_rg934_e:
 			IF ($ < 32768) && (ntc_rg935_e - ntc_rg935 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -16807,7 +16778,7 @@ ntc_rg934_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg935:
-var_demo_drawrows_g:			dw 0
+var_demo_drawrows_ix:			dw 0
 ntc_rg935_e:
 			IF ($ < 32768) && (ntc_rg936_e - ntc_rg936 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -16817,7 +16788,7 @@ ntc_rg935_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg936:
-var_demo_drawrows_ix:			dw 0
+p_demo_drawrows_pg:			dw 0
 ntc_rg936_e:
 			IF ($ < 32768) && (ntc_rg937_e - ntc_rg937 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -16827,7 +16798,7 @@ ntc_rg936_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg937:
-p_demo_drawrows_pg:			dw 0
+for424_l:			dw 0
 ntc_rg937_e:
 			IF ($ < 32768) && (ntc_rg938_e - ntc_rg938 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -16837,7 +16808,7 @@ ntc_rg937_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg938:
-for426_l:			dw 0
+p_demo_savefiles_rs:			dw 0
 ntc_rg938_e:
 			IF ($ < 32768) && (ntc_rg939_e - ntc_rg939 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -16847,7 +16818,7 @@ ntc_rg938_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg939:
-p_demo_savefiles_rs:			dw 0
+var_demo_savefiles_savefiles:			dw 0
 ntc_rg939_e:
 			IF ($ < 32768) && (ntc_rg940_e - ntc_rg940 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -16857,7 +16828,7 @@ ntc_rg939_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg940:
-var_demo_savefiles_savefiles:			dw 0
+var_demo_savefiles_i:			dw 0
 ntc_rg940_e:
 			IF ($ < 32768) && (ntc_rg941_e - ntc_rg941 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -16867,7 +16838,7 @@ ntc_rg940_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg941:
-var_demo_savefiles_i:			dw 0
+var_demo_savefiles_bad:			dw 0
 ntc_rg941_e:
 			IF ($ < 32768) && (ntc_rg942_e - ntc_rg942 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -16877,7 +16848,7 @@ ntc_rg941_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg942:
-var_demo_savefiles_bad:			dw 0
+p_demo_savefiles_pg:			dw 0
 ntc_rg942_e:
 			IF ($ < 32768) && (ntc_rg943_e - ntc_rg943 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -16887,7 +16858,7 @@ ntc_rg942_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg943:
-p_demo_savefiles_pg:			dw 0
+var_esx_save_save:			dw 0
 ntc_rg943_e:
 			IF ($ < 32768) && (ntc_rg944_e - ntc_rg944 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -16897,7 +16868,7 @@ ntc_rg943_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg944:
-var_esx_save_save:			dw 0
+p_demo_item_rs:			dw 0
 ntc_rg944_e:
 			IF ($ < 32768) && (ntc_rg945_e - ntc_rg945 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -16907,7 +16878,7 @@ ntc_rg944_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg945:
-p_demo_item_rs:			dw 0
+var_demo_item_y:			dw 0, 0, 0, 0		; parameters, one block
 ntc_rg945_e:
 			IF ($ < 32768) && (ntc_rg946_e - ntc_rg946 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -16917,7 +16888,7 @@ ntc_rg945_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg946:
-var_demo_item_y:			dw 0, 0, 0, 0		; parameters, one block
+p_demo_item_pg:			dw 0
 ntc_rg946_e:
 			IF ($ < 32768) && (ntc_rg947_e - ntc_rg947 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -16927,7 +16898,7 @@ ntc_rg946_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg947:
-p_demo_item_pg:			dw 0
+p_demo_gamedraw_rs:			dw 0
 ntc_rg947_e:
 			IF ($ < 32768) && (ntc_rg948_e - ntc_rg948 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -16937,7 +16908,7 @@ ntc_rg947_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg948:
-p_demo_gamedraw_rs:			dw 0
+var_demo_gamedraw_e:			dw 0, 0		; parameters, one block
 ntc_rg948_e:
 			IF ($ < 32768) && (ntc_rg949_e - ntc_rg949 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -16947,7 +16918,7 @@ ntc_rg948_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg949:
-var_demo_gamedraw_e:			dw 0, 0		; parameters, one block
+p_demo_gamedraw_pg:			dw 0
 ntc_rg949_e:
 			IF ($ < 32768) && (ntc_rg950_e - ntc_rg950 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -16957,7 +16928,7 @@ ntc_rg949_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg950:
-p_demo_gamedraw_pg:			dw 0
+p_demo_game_rs:			dw 0
 ntc_rg950_e:
 			IF ($ < 32768) && (ntc_rg951_e - ntc_rg951 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -16967,7 +16938,7 @@ ntc_rg950_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg951:
-p_demo_game_rs:			dw 0
+var_demo_game_game:			dw 0
 ntc_rg951_e:
 			IF ($ < 32768) && (ntc_rg952_e - ntc_rg952 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -16977,7 +16948,7 @@ ntc_rg951_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg952:
-var_demo_game_game:			dw 0
+var_demo_game_e:			dw 0
 ntc_rg952_e:
 			IF ($ < 32768) && (ntc_rg953_e - ntc_rg953 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -16987,7 +16958,7 @@ ntc_rg952_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg953:
-var_demo_game_e:			dw 0
+var_demo_game_n:			dw 0
 ntc_rg953_e:
 			IF ($ < 32768) && (ntc_rg954_e - ntc_rg954 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -16997,7 +16968,7 @@ ntc_rg953_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg954:
-var_demo_game_n:			dw 0
+var_demo_game_k:			dw 0
 ntc_rg954_e:
 			IF ($ < 32768) && (ntc_rg955_e - ntc_rg955 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -17007,7 +16978,7 @@ ntc_rg954_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg955:
-var_demo_game_k:			dw 0
+var_demo_game_r:			dw 0
 ntc_rg955_e:
 			IF ($ < 32768) && (ntc_rg956_e - ntc_rg956 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -17017,7 +16988,7 @@ ntc_rg955_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg956:
-var_demo_game_r:			dw 0
+var_demo_game_c:			dw 0
 ntc_rg956_e:
 			IF ($ < 32768) && (ntc_rg957_e - ntc_rg957 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -17027,7 +16998,7 @@ ntc_rg956_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg957:
-var_demo_game_c:			dw 0
+p_demo_game_pg:			dw 0
 ntc_rg957_e:
 			IF ($ < 32768) && (ntc_rg958_e - ntc_rg958 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -17037,7 +17008,7 @@ ntc_rg957_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg958:
-p_demo_game_pg:			dw 0
+p_demo_probe_rs:			dw 0
 ntc_rg958_e:
 			IF ($ < 32768) && (ntc_rg959_e - ntc_rg959 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -17047,7 +17018,7 @@ ntc_rg958_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg959:
-p_demo_probe_rs:			dw 0
+var_demo_probe_probe:			dw 0
 ntc_rg959_e:
 			IF ($ < 32768) && (ntc_rg960_e - ntc_rg960 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -17057,7 +17028,7 @@ ntc_rg959_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg960:
-var_demo_probe_probe:			dw 0
+var_demo_probe_e:			dw 0
 ntc_rg960_e:
 			IF ($ < 32768) && (ntc_rg961_e - ntc_rg961 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -17067,7 +17038,7 @@ ntc_rg960_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg961:
-var_demo_probe_e:			dw 0
+var_demo_probe_i:			dw 0
 ntc_rg961_e:
 			IF ($ < 32768) && (ntc_rg962_e - ntc_rg962 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -17077,7 +17048,7 @@ ntc_rg961_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg962:
-var_demo_probe_i:			dw 0
+var_demo_probe_j:			dw 0
 ntc_rg962_e:
 			IF ($ < 32768) && (ntc_rg963_e - ntc_rg963 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -17087,7 +17058,7 @@ ntc_rg962_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg963:
-var_demo_probe_j:			dw 0
+var_demo_probe_m:			dw 0
 ntc_rg963_e:
 			IF ($ < 32768) && (ntc_rg964_e - ntc_rg964 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -17097,7 +17068,7 @@ ntc_rg963_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg964:
-var_demo_probe_m:			dw 0
+var_demo_probe_q:			dw 0
 ntc_rg964_e:
 			IF ($ < 32768) && (ntc_rg965_e - ntc_rg965 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -17107,7 +17078,7 @@ ntc_rg964_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg965:
-var_demo_probe_q:			dw 0
+var_demo_probe_s:			dw 0
 ntc_rg965_e:
 			IF ($ < 32768) && (ntc_rg966_e - ntc_rg966 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -17117,7 +17088,7 @@ ntc_rg965_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg966:
-var_demo_probe_s:			dw 0
+var_demo_probe_w:			dw 0
 ntc_rg966_e:
 			IF ($ < 32768) && (ntc_rg967_e - ntc_rg967 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -17127,7 +17098,7 @@ ntc_rg966_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg967:
-var_demo_probe_w:			dw 0
+var_demo_probe_n:			dw 0
 ntc_rg967_e:
 			IF ($ < 32768) && (ntc_rg968_e - ntc_rg968 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -17137,7 +17108,7 @@ ntc_rg967_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg968:
-var_demo_probe_n:			dw 0
+var_demo_probe_p:			dw 0
 ntc_rg968_e:
 			IF ($ < 32768) && (ntc_rg969_e - ntc_rg969 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -17147,7 +17118,7 @@ ntc_rg968_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg969:
-var_demo_probe_p:			dw 0
+var_demo_probe_d:			dw 0
 ntc_rg969_e:
 			IF ($ < 32768) && (ntc_rg970_e - ntc_rg970 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -17157,7 +17128,7 @@ ntc_rg969_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg970:
-var_demo_probe_d:			dw 0
+var_demo_probe_tried:			dw 0
 ntc_rg970_e:
 			IF ($ < 32768) && (ntc_rg971_e - ntc_rg971 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -17167,7 +17138,7 @@ ntc_rg970_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg971:
-var_demo_probe_tried:			dw 0
+var_demo_probe_outc:			dw 0
 ntc_rg971_e:
 			IF ($ < 32768) && (ntc_rg972_e - ntc_rg972 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -17177,7 +17148,7 @@ ntc_rg971_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg972:
-var_demo_probe_outc:			dw 0
+var_demo_probe_k:			dw 0
 ntc_rg972_e:
 			IF ($ < 32768) && (ntc_rg973_e - ntc_rg973 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -17187,7 +17158,7 @@ ntc_rg972_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg973:
-var_demo_probe_k:			dw 0
+var_demo_probe_r:			dw 0
 ntc_rg973_e:
 			IF ($ < 32768) && (ntc_rg974_e - ntc_rg974 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -17197,7 +17168,7 @@ ntc_rg973_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg974:
-var_demo_probe_r:			dw 0
+var_demo_probe_y:			dw 0
 ntc_rg974_e:
 			IF ($ < 32768) && (ntc_rg975_e - ntc_rg975 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -17207,7 +17178,7 @@ ntc_rg974_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg975:
-var_demo_probe_y:			dw 0
+var_demo_probe_eq:			dw 0
 ntc_rg975_e:
 			IF ($ < 32768) && (ntc_rg976_e - ntc_rg976 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -17217,7 +17188,7 @@ ntc_rg975_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg976:
-var_demo_probe_eq:			dw 0
+p_demo_probe_pg:			dw 0
 ntc_rg976_e:
 			IF ($ < 32768) && (ntc_rg977_e - ntc_rg977 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -17227,7 +17198,7 @@ ntc_rg976_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg977:
-p_demo_probe_pg:			dw 0
+var_demo_mc:			dw 0
 ntc_rg977_e:
 			IF ($ < 32768) && (ntc_rg978_e - ntc_rg978 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -17237,7 +17208,7 @@ ntc_rg977_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg978:
-var_demo_mc:			dw 0
+for443_l:			dw 0
 ntc_rg978_e:
 			IF ($ < 32768) && (ntc_rg979_e - ntc_rg979 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -17247,7 +17218,7 @@ ntc_rg978_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg979:
-for445_l:			dw 0
+for444_l:			dw 0
 ntc_rg979_e:
 			IF ($ < 32768) && (ntc_rg980_e - ntc_rg980 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -17257,7 +17228,7 @@ ntc_rg979_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg980:
-for446_l:			dw 0
+for447_l:			dw 0
 ntc_rg980_e:
 			IF ($ < 32768) && (ntc_rg981_e - ntc_rg981 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -17277,7 +17248,7 @@ ntc_rg981_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg982:
-for451_l:			dw 0
+for450_l:			dw 0
 ntc_rg982_e:
 			IF ($ < 32768) && (ntc_rg983_e - ntc_rg983 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -17287,7 +17258,7 @@ ntc_rg982_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg983:
-for452_l:			dw 0
+for451_l:			dw 0
 ntc_rg983_e:
 			IF ($ < 32768) && (ntc_rg984_e - ntc_rg984 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -17297,7 +17268,7 @@ ntc_rg983_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg984:
-for453_l:			dw 0
+for457_l:			dw 0
 ntc_rg984_e:
 			IF ($ < 32768) && (ntc_rg985_e - ntc_rg985 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -17307,7 +17278,7 @@ ntc_rg984_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg985:
-for459_l:			dw 0
+for460_l:			dw 0
 ntc_rg985_e:
 			IF ($ < 32768) && (ntc_rg986_e - ntc_rg986 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -17317,7 +17288,7 @@ ntc_rg985_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg986:
-for462_l:			dw 0
+p_demo_sw_rs:			dw 0
 ntc_rg986_e:
 			IF ($ < 32768) && (ntc_rg987_e - ntc_rg987 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -17327,7 +17298,7 @@ ntc_rg986_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg987:
-p_demo_sw_rs:			dw 0
+var_demo_sw_i:			dw 0, 0		; parameters, one block
 ntc_rg987_e:
 			IF ($ < 32768) && (ntc_rg988_e - ntc_rg988 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -17337,7 +17308,7 @@ ntc_rg987_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg988:
-var_demo_sw_i:			dw 0, 0		; parameters, one block
+var_demo_sw_sw:			dw 0
 ntc_rg988_e:
 			IF ($ < 32768) && (ntc_rg989_e - ntc_rg989 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -17347,7 +17318,7 @@ ntc_rg988_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg989:
-var_demo_sw_sw:			dw 0
+var_demo_sw_pg:			dw 0
 ntc_rg989_e:
 			IF ($ < 32768) && (ntc_rg990_e - ntc_rg990 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -17357,7 +17328,7 @@ ntc_rg989_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg990:
-var_demo_sw_pg:			dw 0
+var_demo_sw_o:			dw 0
 ntc_rg990_e:
 			IF ($ < 32768) && (ntc_rg991_e - ntc_rg991 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -17367,7 +17338,7 @@ ntc_rg990_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg991:
-var_demo_sw_o:			dw 0
+p_demo_sw_pg:			dw 0
 ntc_rg991_e:
 			IF ($ < 32768) && (ntc_rg992_e - ntc_rg992 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -17377,7 +17348,7 @@ ntc_rg991_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg992:
-p_demo_sw_pg:			dw 0
+p_demo_dkey_rs:			dw 0
 ntc_rg992_e:
 			IF ($ < 32768) && (ntc_rg993_e - ntc_rg993 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -17387,7 +17358,7 @@ ntc_rg992_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg993:
-p_demo_dkey_rs:			dw 0
+var_demo_dkey_p:			dw 0
 ntc_rg993_e:
 			IF ($ < 32768) && (ntc_rg994_e - ntc_rg994 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -17397,7 +17368,7 @@ ntc_rg993_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg994:
-var_demo_dkey_p:			dw 0
+var_demo_dkey_dkey:			dw 0
 ntc_rg994_e:
 			IF ($ < 32768) && (ntc_rg995_e - ntc_rg995 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -17407,7 +17378,7 @@ ntc_rg994_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg995:
-var_demo_dkey_dkey:			dw 0
+p_demo_dkey_pg:			dw 0
 ntc_rg995_e:
 			IF ($ < 32768) && (ntc_rg996_e - ntc_rg996 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -17417,7 +17388,7 @@ ntc_rg995_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg996:
-p_demo_dkey_pg:			dw 0
+p_demo_show_rs:			dw 0
 ntc_rg996_e:
 			IF ($ < 32768) && (ntc_rg997_e - ntc_rg997 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -17427,7 +17398,7 @@ ntc_rg996_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg997:
-p_demo_show_rs:			dw 0
+var_demo_show_p:			dw 0
 ntc_rg997_e:
 			IF ($ < 32768) && (ntc_rg998_e - ntc_rg998 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -17437,7 +17408,7 @@ ntc_rg997_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg998:
-var_demo_show_p:			dw 0
+var_demo_show_i:			dw 0
 ntc_rg998_e:
 			IF ($ < 32768) && (ntc_rg999_e - ntc_rg999 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -17447,7 +17418,7 @@ ntc_rg998_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg999:
-var_demo_show_i:			dw 0
+var_demo_show_e:			dw 0
 ntc_rg999_e:
 			IF ($ < 32768) && (ntc_rg1000_e - ntc_rg1000 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -17457,7 +17428,7 @@ ntc_rg999_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1000:
-var_demo_show_e:			dw 0
+var_demo_show_ok:			dw 0
 ntc_rg1000_e:
 			IF ($ < 32768) && (ntc_rg1001_e - ntc_rg1001 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -17467,7 +17438,7 @@ ntc_rg1000_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1001:
-var_demo_show_ok:			dw 0
+var_demo_show_n:			dw 0
 ntc_rg1001_e:
 			IF ($ < 32768) && (ntc_rg1002_e - ntc_rg1002 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -17477,7 +17448,7 @@ ntc_rg1001_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1002:
-var_demo_show_n:			dw 0
+var_demo_show_ch:			dw 0
 ntc_rg1002_e:
 			IF ($ < 32768) && (ntc_rg1003_e - ntc_rg1003 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -17487,7 +17458,7 @@ ntc_rg1002_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1003:
-var_demo_show_ch:			dw 0
+var_demo_show_a:			dw 0
 ntc_rg1003_e:
 			IF ($ < 32768) && (ntc_rg1004_e - ntc_rg1004 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -17497,7 +17468,7 @@ ntc_rg1003_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1004:
-var_demo_show_a:			dw 0
+p_demo_show_pg:			dw 0
 ntc_rg1004_e:
 			IF ($ < 32768) && (ntc_rg1005_e - ntc_rg1005 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -17507,7 +17478,7 @@ ntc_rg1004_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1005:
-p_demo_show_pg:			dw 0
+var_demo_show___sel469:			dw 0
 ntc_rg1005_e:
 			IF ($ < 32768) && (ntc_rg1006_e - ntc_rg1006 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -17517,7 +17488,7 @@ ntc_rg1005_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1006:
-var_demo_show___sel471:			dw 0
+for471_l:			dw 0
 ntc_rg1006_e:
 			IF ($ < 32768) && (ntc_rg1007_e - ntc_rg1007 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -17527,7 +17498,7 @@ ntc_rg1006_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1007:
-for473_l:			dw 0
+for480_l:			dw 0
 ntc_rg1007_e:
 			IF ($ < 32768) && (ntc_rg1008_e - ntc_rg1008 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -17537,7 +17508,7 @@ ntc_rg1007_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1008:
-for482_l:			dw 0
+p_demo_run_rs:			dw 0
 ntc_rg1008_e:
 			IF ($ < 32768) && (ntc_rg1009_e - ntc_rg1009 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -17547,7 +17518,7 @@ ntc_rg1008_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1009:
-p_demo_run_rs:			dw 0
+var_demo_run_m:			dw 0
 ntc_rg1009_e:
 			IF ($ < 32768) && (ntc_rg1010_e - ntc_rg1010 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -17557,7 +17528,7 @@ ntc_rg1009_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1010:
-var_demo_run_m:			dw 0
+var_demo_run_p:			dw 0
 ntc_rg1010_e:
 			IF ($ < 32768) && (ntc_rg1011_e - ntc_rg1011 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -17567,7 +17538,7 @@ ntc_rg1010_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1011:
-var_demo_run_p:			dw 0
+var_demo_run_k:			dw 0
 ntc_rg1011_e:
 			IF ($ < 32768) && (ntc_rg1012_e - ntc_rg1012 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -17577,7 +17548,7 @@ ntc_rg1011_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1012:
-var_demo_run_k:			dw 0
+var_demo_run_s:			dw 0
 ntc_rg1012_e:
 			IF ($ < 32768) && (ntc_rg1013_e - ntc_rg1013 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -17587,7 +17558,7 @@ ntc_rg1012_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1013:
-var_demo_run_s:			dw 0
+var_demo_run_j:			dw 0
 ntc_rg1013_e:
 			IF ($ < 32768) && (ntc_rg1014_e - ntc_rg1014 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -17597,7 +17568,7 @@ ntc_rg1013_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1014:
-var_demo_run_j:			dw 0
+var_demo_run_t:			dw 0
 ntc_rg1014_e:
 			IF ($ < 32768) && (ntc_rg1015_e - ntc_rg1015 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -17607,7 +17578,7 @@ ntc_rg1014_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1015:
-var_demo_run_t:			dw 0
+var_demo_run_g:			dw 0
 ntc_rg1015_e:
 			IF ($ < 32768) && (ntc_rg1016_e - ntc_rg1016 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -17617,7 +17588,7 @@ ntc_rg1015_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1016:
-var_demo_run_g:			dw 0
+p_demo_run_pg:			dw 0
 ntc_rg1016_e:
 			IF ($ < 32768) && (ntc_rg1017_e - ntc_rg1017 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -17627,7 +17598,7 @@ ntc_rg1016_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1017:
-p_demo_run_pg:			dw 0
+var_demo_run___sel496:			dw 0
 ntc_rg1017_e:
 			IF ($ < 32768) && (ntc_rg1018_e - ntc_rg1018 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -17637,7 +17608,7 @@ ntc_rg1017_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1018:
-var_demo_run___sel498:			dw 0
+p_esx_doscall_rs:			dw 0
 ntc_rg1018_e:
 			IF ($ < 32768) && (ntc_rg1019_e - ntc_rg1019 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -17647,7 +17618,7 @@ ntc_rg1018_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1019:
-p_esx_doscall_rs:			dw 0
+var_esx_doscall_hook:			dw 0, 0, 0, 0, 0		; parameters, one block
 ntc_rg1019_e:
 			IF ($ < 32768) && (ntc_rg1020_e - ntc_rg1020 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -17657,7 +17628,7 @@ ntc_rg1019_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1020:
-var_esx_doscall_hook:			dw 0, 0, 0, 0, 0		; parameters, one block
+var_esx_doscall_doscall:			dw 0
 ntc_rg1020_e:
 			IF ($ < 32768) && (ntc_rg1021_e - ntc_rg1021 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -17667,7 +17638,7 @@ ntc_rg1020_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1021:
-var_esx_doscall_doscall:			dw 0
+p_esx_doscall_pg:			dw 0
 ntc_rg1021_e:
 			IF ($ < 32768) && (ntc_rg1022_e - ntc_rg1022 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -17677,7 +17648,7 @@ ntc_rg1021_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1022:
-p_esx_doscall_pg:			dw 0
+var_esx_hlv:			dw 0
 ntc_rg1022_e:
 			IF ($ < 32768) && (ntc_rg1023_e - ntc_rg1023 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -17687,7 +17658,7 @@ ntc_rg1022_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1023:
-var_esx_hlv:			dw 0
+var_esx_ready:			dw 0
 ntc_rg1023_e:
 			IF ($ < 32768) && (ntc_rg1024_e - ntc_rg1024 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -17697,7 +17668,7 @@ ntc_rg1023_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1024:
-var_esx_ready:			dw 0
+var_esx_bcr:			dw 0
 ntc_rg1024_e:
 			IF ($ < 32768) && (ntc_rg1025_e - ntc_rg1025 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -17707,7 +17678,7 @@ ntc_rg1024_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1025:
-var_esx_bcr:			dw 0
+var_esx_der:			dw 0
 ntc_rg1025_e:
 			IF ($ < 32768) && (ntc_rg1026_e - ntc_rg1026 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -17717,7 +17688,7 @@ ntc_rg1025_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1026:
-var_esx_der:			dw 0
+var_esx_lasterror:			dw 0
 ntc_rg1026_e:
 			IF ($ < 32768) && (ntc_rg1027_e - ntc_rg1027 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -17727,7 +17698,7 @@ ntc_rg1026_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1027:
-var_esx_lasterror:			dw 0
+p_esx_copy_rs:			dw 0
 ntc_rg1027_e:
 			IF ($ < 32768) && (ntc_rg1028_e - ntc_rg1028 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -17737,7 +17708,7 @@ ntc_rg1027_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1028:
-p_esx_copy_rs:			dw 0
+var_esx_copy_src:			dw 0, 0, 0		; parameters, one block
 ntc_rg1028_e:
 			IF ($ < 32768) && (ntc_rg1029_e - ntc_rg1029 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -17747,7 +17718,7 @@ ntc_rg1028_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1029:
-var_esx_copy_src:			dw 0, 0, 0		; parameters, one block
+p_esx_copy_pg:			dw 0
 ntc_rg1029_e:
 			IF ($ < 32768) && (ntc_rg1030_e - ntc_rg1030 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -17757,7 +17728,7 @@ ntc_rg1029_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1030:
-p_esx_copy_pg:			dw 0
+p_esx_firstuse_rs:			dw 0
 ntc_rg1030_e:
 			IF ($ < 32768) && (ntc_rg1031_e - ntc_rg1031 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -17767,7 +17738,7 @@ ntc_rg1030_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1031:
-p_esx_firstuse_rs:			dw 0
+var_esx_firstuse_a:			dw 0
 ntc_rg1031_e:
 			IF ($ < 32768) && (ntc_rg1032_e - ntc_rg1032 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -17777,7 +17748,7 @@ ntc_rg1031_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1032:
-var_esx_firstuse_a:			dw 0
+p_esx_firstuse_pg:			dw 0
 ntc_rg1032_e:
 			IF ($ < 32768) && (ntc_rg1033_e - ntc_rg1033 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -17787,7 +17758,7 @@ ntc_rg1032_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1033:
-p_esx_firstuse_pg:			dw 0
+var_esx_inited:			dw 0
 ntc_rg1033_e:
 			IF ($ < 32768) && (ntc_rg1034_e - ntc_rg1034 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -17797,7 +17768,7 @@ ntc_rg1033_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1034:
-var_esx_inited:			dw 0
+var_esx_drvcode:			dw 0
 ntc_rg1034_e:
 			IF ($ < 32768) && (ntc_rg1035_e - ntc_rg1035 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -17807,7 +17778,7 @@ ntc_rg1034_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1035:
-var_esx_drvcode:			dw 0
+p_esx_save_rs:			dw 0
 ntc_rg1035_e:
 			IF ($ < 32768) && (ntc_rg1036_e - ntc_rg1036 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -17817,7 +17788,7 @@ ntc_rg1035_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1036:
-p_esx_save_rs:			dw 0
+var_esx_save_kind:			dw 0, 0, 0, 0		; parameters, one block
 ntc_rg1036_e:
 			IF ($ < 32768) && (ntc_rg1037_e - ntc_rg1037 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -17827,7 +17798,7 @@ ntc_rg1036_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1037:
-var_esx_save_kind:			dw 0, 0, 0, 0		; parameters, one block
+var_esx_save_h:			dw 0
 ntc_rg1037_e:
 			IF ($ < 32768) && (ntc_rg1038_e - ntc_rg1038 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -17837,7 +17808,7 @@ ntc_rg1037_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1038:
-var_esx_save_h:			dw 0
+var_esx_save_done:			dw 0
 ntc_rg1038_e:
 			IF ($ < 32768) && (ntc_rg1039_e - ntc_rg1039 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -17847,7 +17818,7 @@ ntc_rg1038_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1039:
-var_esx_save_done:			dw 0
+var_esx_save_want:			dw 0
 ntc_rg1039_e:
 			IF ($ < 32768) && (ntc_rg1040_e - ntc_rg1040 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -17857,7 +17828,7 @@ ntc_rg1039_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1040:
-var_esx_save_want:			dw 0
+var_esx_save_r:			dw 0
 ntc_rg1040_e:
 			IF ($ < 32768) && (ntc_rg1041_e - ntc_rg1041 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -17867,7 +17838,7 @@ ntc_rg1040_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1041:
-var_esx_save_r:			dw 0
+var_esx_save_i:			dw 0
 ntc_rg1041_e:
 			IF ($ < 32768) && (ntc_rg1042_e - ntc_rg1042 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -17877,7 +17848,7 @@ ntc_rg1041_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1042:
-var_esx_save_i:			dw 0
+p_esx_save_pg:			dw 0
 ntc_rg1042_e:
 			IF ($ < 32768) && (ntc_rg1043_e - ntc_rg1043 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -17887,7 +17858,7 @@ ntc_rg1042_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1043:
-p_esx_save_pg:			dw 0
+p_splash_show_rs:			dw 0
 ntc_rg1043_e:
 			IF ($ < 32768) && (ntc_rg1044_e - ntc_rg1044 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -17897,7 +17868,7 @@ ntc_rg1043_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1044:
-p_splash_show_rs:			dw 0
+var_splash_show_n:			dw 0
 ntc_rg1044_e:
 			IF ($ < 32768) && (ntc_rg1045_e - ntc_rg1045 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -17907,7 +17878,7 @@ ntc_rg1044_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1045:
-var_splash_show_n:			dw 0
+var_splash_show_a:			dw 0
 ntc_rg1045_e:
 			IF ($ < 32768) && (ntc_rg1046_e - ntc_rg1046 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -17917,7 +17888,7 @@ ntc_rg1045_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1046:
-var_splash_show_a:			dw 0
+p_splash_show_pg:			dw 0
 ntc_rg1046_e:
 			IF ($ < 32768) && (ntc_rg1047_e - ntc_rg1047 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -17927,7 +17898,7 @@ ntc_rg1046_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1047:
-p_splash_show_pg:			dw 0
+p_splash_run_rs:			dw 0
 ntc_rg1047_e:
 			IF ($ < 32768) && (ntc_rg1048_e - ntc_rg1048 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -17937,7 +17908,7 @@ ntc_rg1047_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1048:
-p_splash_run_rs:			dw 0
+var_splash_run_src:			dw 0
 ntc_rg1048_e:
 			IF ($ < 32768) && (ntc_rg1049_e - ntc_rg1049 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -17947,7 +17918,7 @@ ntc_rg1048_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1049:
-var_splash_run_src:			dw 0
+var_splash_run_k:			dw 0
 ntc_rg1049_e:
 			IF ($ < 32768) && (ntc_rg1050_e - ntc_rg1050 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -17957,7 +17928,7 @@ ntc_rg1049_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1050:
-var_splash_run_k:			dw 0
+var_splash_run_t:			dw 0
 ntc_rg1050_e:
 			IF ($ < 32768) && (ntc_rg1051_e - ntc_rg1051 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -17967,7 +17938,7 @@ ntc_rg1050_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1051:
-var_splash_run_t:			dw 0
+var_splash_run_held:			dw 0
 ntc_rg1051_e:
 			IF ($ < 32768) && (ntc_rg1052_e - ntc_rg1052 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -17977,7 +17948,7 @@ ntc_rg1051_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1052:
-var_splash_run_held:			dw 0
+var_splash_run_skip:			dw 0
 ntc_rg1052_e:
 			IF ($ < 32768) && (ntc_rg1053_e - ntc_rg1053 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -17987,7 +17958,7 @@ ntc_rg1052_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1053:
-var_splash_run_skip:			dw 0
+var_splash_run_hold:			dw 0
 ntc_rg1053_e:
 			IF ($ < 32768) && (ntc_rg1054_e - ntc_rg1054 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -17997,7 +17968,7 @@ ntc_rg1053_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1054:
-var_splash_run_hold:			dw 0
+p_splash_run_pg:			dw 0
 ntc_rg1054_e:
 			IF ($ < 32768) && (ntc_rg1055_e - ntc_rg1055 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -18007,7 +17978,7 @@ ntc_rg1054_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1055:
-p_splash_run_pg:			dw 0
+var_splash_key_key:			dw 0
 ntc_rg1055_e:
 			IF ($ < 32768) && (ntc_rg1056_e - ntc_rg1056 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -18017,7 +17988,7 @@ ntc_rg1055_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1056:
-var_splash_key_key:			dw 0
+tmp0:			dw 0
 ntc_rg1056_e:
 			IF ($ < 32768) && (ntc_rg1057_e - ntc_rg1057 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -18027,7 +17998,7 @@ ntc_rg1056_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1057:
-tmp0:			dw 0
+tmp1:			dw 0
 ntc_rg1057_e:
 			IF ($ < 32768) && (ntc_rg1058_e - ntc_rg1058 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -18037,7 +18008,7 @@ ntc_rg1057_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1058:
-tmp1:			dw 0
+tmp2:			dw 0
 ntc_rg1058_e:
 			IF ($ < 32768) && (ntc_rg1059_e - ntc_rg1059 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -18047,7 +18018,7 @@ ntc_rg1058_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1059:
-tmp2:			dw 0
+tmp3:			dw 0
 ntc_rg1059_e:
 			IF ($ < 32768) && (ntc_rg1060_e - ntc_rg1060 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -18057,7 +18028,7 @@ ntc_rg1059_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1060:
-tmp3:			dw 0
+tmp4:			dw 0
 ntc_rg1060_e:
 			IF ($ < 32768) && (ntc_rg1061_e - ntc_rg1061 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -18067,7 +18038,7 @@ ntc_rg1060_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1061:
-tmp4:			dw 0
+tmp5:			dw 0
 ntc_rg1061_e:
 			IF ($ < 32768) && (ntc_rg1062_e - ntc_rg1062 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -18077,7 +18048,7 @@ ntc_rg1061_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1062:
-tmp5:			dw 0
+tmp6:			dw 0
 ntc_rg1062_e:
 			IF ($ < 32768) && (ntc_rg1063_e - ntc_rg1063 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -18087,7 +18058,7 @@ ntc_rg1062_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1063:
-tmp6:			dw 0
+ltmp0:			dw 0, 0
 ntc_rg1063_e:
 			IF ($ < 32768) && (ntc_rg1064_e - ntc_rg1064 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -18097,7 +18068,7 @@ ntc_rg1063_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1064:
-ltmp0:			dw 0, 0
+ltmp1:			dw 0, 0
 ntc_rg1064_e:
 			IF ($ < 32768) && (ntc_rg1065_e - ntc_rg1065 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -18107,7 +18078,7 @@ ntc_rg1064_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1065:
-ltmp1:			dw 0, 0
+ltmp2:			dw 0, 0
 ntc_rg1065_e:
 			IF ($ < 32768) && (ntc_rg1066_e - ntc_rg1066 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -18117,7 +18088,9 @@ ntc_rg1065_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1066:
-ltmp2:			dw 0, 0
+ltmp3:			dw 0, 0
+
+; numbers passed by address (read only)
 ntc_rg1066_e:
 			IF ($ < 32768) && (ntc_rg1067_e - ntc_rg1067 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -18127,9 +18100,7 @@ ntc_rg1066_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1067:
-ltmp3:			dw 0, 0
-
-; numbers passed by address (read only)
+lit_9279:			dw 9279
 ntc_rg1067_e:
 			IF ($ < 32768) && (ntc_rg1068_e - ntc_rg1068 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -18139,7 +18110,7 @@ ntc_rg1067_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1068:
-lit_9279:			dw 9279
+lit_27272:			dw 27272
 ntc_rg1068_e:
 			IF ($ < 32768) && (ntc_rg1069_e - ntc_rg1069 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -18149,7 +18120,7 @@ ntc_rg1068_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1069:
-lit_27272:			dw 27272
+lit_m31325:			dw -31325
 ntc_rg1069_e:
 			IF ($ < 32768) && (ntc_rg1070_e - ntc_rg1070 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -18159,7 +18130,7 @@ ntc_rg1069_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1070:
-lit_m31325:			dw -31325
+lit_2259:			dw 2259
 ntc_rg1070_e:
 			IF ($ < 32768) && (ntc_rg1071_e - ntc_rg1071 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -18169,7 +18140,7 @@ ntc_rg1070_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1071:
-lit_2259:			dw 2259
+lit_1:			dw 1
 ntc_rg1071_e:
 			IF ($ < 32768) && (ntc_rg1072_e - ntc_rg1072 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -18179,7 +18150,7 @@ ntc_rg1071_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1072:
-lit_1:			dw 1
+lit_2:			dw 2
 ntc_rg1072_e:
 			IF ($ < 32768) && (ntc_rg1073_e - ntc_rg1073 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -18189,7 +18160,7 @@ ntc_rg1072_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1073:
-lit_2:			dw 2
+lit_9275:			dw 9275
 ntc_rg1073_e:
 			IF ($ < 32768) && (ntc_rg1074_e - ntc_rg1074 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -18199,7 +18170,7 @@ ntc_rg1073_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1074:
-lit_9275:			dw 9275
+lit_9531:			dw 9531
 ntc_rg1074_e:
 			IF ($ < 32768) && (ntc_rg1075_e - ntc_rg1075 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -18209,7 +18180,7 @@ ntc_rg1074_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1075:
-lit_9531:			dw 9531
+lit_67:			dw 67
 ntc_rg1075_e:
 			IF ($ < 32768) && (ntc_rg1076_e - ntc_rg1076 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -18219,7 +18190,7 @@ ntc_rg1075_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1076:
-lit_67:			dw 67
+lit_16:			dw 16
 ntc_rg1076_e:
 			IF ($ < 32768) && (ntc_rg1077_e - ntc_rg1077 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -18229,7 +18200,7 @@ ntc_rg1076_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1077:
-lit_16:			dw 16
+lit_64:			dw 64
 ntc_rg1077_e:
 			IF ($ < 32768) && (ntc_rg1078_e - ntc_rg1078 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -18239,7 +18210,7 @@ ntc_rg1077_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1078:
-lit_64:			dw 64
+lit_68:			dw 68
 ntc_rg1078_e:
 			IF ($ < 32768) && (ntc_rg1079_e - ntc_rg1079 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -18249,7 +18220,7 @@ ntc_rg1078_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1079:
-lit_68:			dw 68
+lit_7:			dw 7
 ntc_rg1079_e:
 			IF ($ < 32768) && (ntc_rg1080_e - ntc_rg1080 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -18259,7 +18230,7 @@ ntc_rg1079_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1080:
-lit_7:			dw 7
+lit_3:			dw 3
 ntc_rg1080_e:
 			IF ($ < 32768) && (ntc_rg1081_e - ntc_rg1081 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -18269,7 +18240,7 @@ ntc_rg1080_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1081:
-lit_3:			dw 3
+lit_112:			dw 112
 ntc_rg1081_e:
 			IF ($ < 32768) && (ntc_rg1082_e - ntc_rg1082 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -18279,7 +18250,7 @@ ntc_rg1081_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1082:
-lit_112:			dw 112
+lit_18:			dw 18
 ntc_rg1082_e:
 			IF ($ < 32768) && (ntc_rg1083_e - ntc_rg1083 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -18289,7 +18260,7 @@ ntc_rg1082_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1083:
-lit_18:			dw 18
+lit_12:			dw 12
 ntc_rg1083_e:
 			IF ($ < 32768) && (ntc_rg1084_e - ntc_rg1084 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -18299,7 +18270,7 @@ ntc_rg1083_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1084:
-lit_12:			dw 12
+lit_28:			dw 28
 ntc_rg1084_e:
 			IF ($ < 32768) && (ntc_rg1085_e - ntc_rg1085 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -18309,7 +18280,7 @@ ntc_rg1084_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1085:
-lit_28:			dw 28
+lit_24:			dw 24
 ntc_rg1085_e:
 			IF ($ < 32768) && (ntc_rg1086_e - ntc_rg1086 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -18319,7 +18290,7 @@ ntc_rg1085_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1086:
-lit_24:			dw 24
+lit_0:			dw 0
 ntc_rg1086_e:
 			IF ($ < 32768) && (ntc_rg1087_e - ntc_rg1087 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -18329,7 +18300,7 @@ ntc_rg1086_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1087:
-lit_0:			dw 0
+lit_255:			dw 255
 ntc_rg1087_e:
 			IF ($ < 32768) && (ntc_rg1088_e - ntc_rg1088 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -18339,7 +18310,7 @@ ntc_rg1087_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1088:
-lit_255:			dw 255
+lit_22:			dw 22
 ntc_rg1088_e:
 			IF ($ < 32768) && (ntc_rg1089_e - ntc_rg1089 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -18349,7 +18320,7 @@ ntc_rg1088_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1089:
-lit_22:			dw 22
+lit_23:			dw 23
 ntc_rg1089_e:
 			IF ($ < 32768) && (ntc_rg1090_e - ntc_rg1090 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -18359,7 +18330,7 @@ ntc_rg1089_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1090:
-lit_23:			dw 23
+lit_113:			dw 113
 ntc_rg1090_e:
 			IF ($ < 32768) && (ntc_rg1091_e - ntc_rg1091 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -18369,7 +18340,7 @@ ntc_rg1090_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1091:
-lit_113:			dw 113
+lit_21:			dw 21
 ntc_rg1091_e:
 			IF ($ < 32768) && (ntc_rg1092_e - ntc_rg1092 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -18379,7 +18350,7 @@ ntc_rg1091_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1092:
-lit_21:			dw 21
+lit_104:			dw 104
 ntc_rg1092_e:
 			IF ($ < 32768) && (ntc_rg1093_e - ntc_rg1093 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -18389,7 +18360,7 @@ ntc_rg1092_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1093:
-lit_104:			dw 104
+lit_128:			dw 128
 ntc_rg1093_e:
 			IF ($ < 32768) && (ntc_rg1094_e - ntc_rg1094 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -18399,7 +18370,7 @@ ntc_rg1093_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1094:
-lit_128:			dw 128
+lit_107:			dw 107
 ntc_rg1094_e:
 			IF ($ < 32768) && (ntc_rg1095_e - ntc_rg1095 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -18409,7 +18380,7 @@ ntc_rg1094_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1095:
-lit_107:			dw 107
+lit_105:			dw 105
 ntc_rg1095_e:
 			IF ($ < 32768) && (ntc_rg1096_e - ntc_rg1096 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -18419,7 +18390,7 @@ ntc_rg1095_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1096:
-lit_105:			dw 105
+lit_6:			dw 6
 ntc_rg1096_e:
 			IF ($ < 32768) && (ntc_rg1097_e - ntc_rg1097 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -18429,7 +18400,7 @@ ntc_rg1096_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1097:
-lit_6:			dw 6
+lit_4:			dw 4
 ntc_rg1097_e:
 			IF ($ < 32768) && (ntc_rg1098_e - ntc_rg1098 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -18439,7 +18410,7 @@ ntc_rg1097_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1098:
-lit_4:			dw 4
+lit_5:			dw 5
 ntc_rg1098_e:
 			IF ($ < 32768) && (ntc_rg1099_e - ntc_rg1099 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -18449,7 +18420,7 @@ ntc_rg1098_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1099:
-lit_5:			dw 5
+lit_8:			dw 8
 ntc_rg1099_e:
 			IF ($ < 32768) && (ntc_rg1100_e - ntc_rg1100 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -18459,7 +18430,7 @@ ntc_rg1099_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1100:
-lit_8:			dw 8
+lit_9:			dw 9
 ntc_rg1100_e:
 			IF ($ < 32768) && (ntc_rg1101_e - ntc_rg1101 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -18469,7 +18440,7 @@ ntc_rg1100_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1101:
-lit_9:			dw 9
+lit_10:			dw 10
 ntc_rg1101_e:
 			IF ($ < 32768) && (ntc_rg1102_e - ntc_rg1102 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -18479,7 +18450,7 @@ ntc_rg1101_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1102:
-lit_10:			dw 10
+lit_11:			dw 11
 ntc_rg1102_e:
 			IF ($ < 32768) && (ntc_rg1103_e - ntc_rg1103 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -18489,7 +18460,7 @@ ntc_rg1102_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1103:
-lit_11:			dw 11
+lit_13:			dw 13
 ntc_rg1103_e:
 			IF ($ < 32768) && (ntc_rg1104_e - ntc_rg1104 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -18499,7 +18470,7 @@ ntc_rg1103_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1104:
-lit_13:			dw 13
+lit_14:			dw 14
 ntc_rg1104_e:
 			IF ($ < 32768) && (ntc_rg1105_e - ntc_rg1105 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -18509,7 +18480,7 @@ ntc_rg1104_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1105:
-lit_14:			dw 14
+lit_15:			dw 15
 ntc_rg1105_e:
 			IF ($ < 32768) && (ntc_rg1106_e - ntc_rg1106 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -18519,7 +18490,7 @@ ntc_rg1105_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1106:
-lit_15:			dw 15
+lit_m1:			dw -1
 ntc_rg1106_e:
 			IF ($ < 32768) && (ntc_rg1107_e - ntc_rg1107 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -18529,7 +18500,7 @@ ntc_rg1106_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1107:
-lit_m1:			dw -1
+lit_41:			dw 41
 ntc_rg1107_e:
 			IF ($ < 32768) && (ntc_rg1108_e - ntc_rg1108 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -18539,7 +18510,7 @@ ntc_rg1107_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1108:
-lit_41:			dw 41
+lit_46:			dw 46
 ntc_rg1108_e:
 			IF ($ < 32768) && (ntc_rg1109_e - ntc_rg1109 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -18549,7 +18520,7 @@ ntc_rg1108_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1109:
-lit_46:			dw 46
+lit_40:			dw 40
 ntc_rg1109_e:
 			IF ($ < 32768) && (ntc_rg1110_e - ntc_rg1110 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -18559,7 +18530,7 @@ ntc_rg1109_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1110:
-lit_40:			dw 40
+lit_56:			dw 56
 ntc_rg1110_e:
 			IF ($ < 32768) && (ntc_rg1111_e - ntc_rg1111 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -18569,7 +18540,7 @@ ntc_rg1110_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1111:
-lit_56:			dw 56
+lit_17:			dw 17
 ntc_rg1111_e:
 			IF ($ < 32768) && (ntc_rg1112_e - ntc_rg1112 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -18579,7 +18550,7 @@ ntc_rg1111_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1112:
-lit_17:			dw 17
+lit_320:			dw 320
 ntc_rg1112_e:
 			IF ($ < 32768) && (ntc_rg1113_e - ntc_rg1113 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -18589,7 +18560,7 @@ ntc_rg1112_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1113:
-lit_320:			dw 320
+lit_256:			dw 256
 ntc_rg1113_e:
 			IF ($ < 32768) && (ntc_rg1114_e - ntc_rg1114 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -18599,7 +18570,7 @@ ntc_rg1113_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1114:
-lit_256:			dw 256
+lit_238:			dw 238
 ntc_rg1114_e:
 			IF ($ < 32768) && (ntc_rg1115_e - ntc_rg1115 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -18609,7 +18580,7 @@ ntc_rg1114_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1115:
-lit_238:			dw 238
+lit_244:			dw 244
 ntc_rg1115_e:
 			IF ($ < 32768) && (ntc_rg1116_e - ntc_rg1116 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -18619,7 +18590,7 @@ ntc_rg1115_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1116:
-lit_244:			dw 244
+lit_7559:			dw 7559
 ntc_rg1116_e:
 			IF ($ < 32768) && (ntc_rg1117_e - ntc_rg1117 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -18629,7 +18600,7 @@ ntc_rg1116_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1117:
-lit_7096:			dw 7096
+lit_16540:			dw 16540
 ntc_rg1117_e:
 			IF ($ < 32768) && (ntc_rg1118_e - ntc_rg1118 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -18639,7 +18610,7 @@ ntc_rg1117_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1118:
-lit_15556:			dw 15556
+lit_m3:			dw -3
 ntc_rg1118_e:
 			IF ($ < 32768) && (ntc_rg1119_e - ntc_rg1119 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -18649,7 +18620,7 @@ ntc_rg1118_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1119:
-lit_m3:			dw -3
+lit_m16387:			dw -16387
 ntc_rg1119_e:
 			IF ($ < 32768) && (ntc_rg1120_e - ntc_rg1120 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -18659,7 +18630,7 @@ ntc_rg1119_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1120:
-lit_m16387:			dw -16387
+lit_26:			dw 26
 ntc_rg1120_e:
 			IF ($ < 32768) && (ntc_rg1121_e - ntc_rg1121 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -18669,7 +18640,7 @@ ntc_rg1120_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1121:
-lit_26:			dw 26
+lit_400:			dw 400
 ntc_rg1121_e:
 			IF ($ < 32768) && (ntc_rg1122_e - ntc_rg1122 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -18679,7 +18650,7 @@ ntc_rg1121_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1122:
-lit_400:			dw 400
+lit_1024:			dw 1024
 ntc_rg1122_e:
 			IF ($ < 32768) && (ntc_rg1123_e - ntc_rg1123 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -18689,7 +18660,7 @@ ntc_rg1122_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1123:
-lit_1024:			dw 1024
+lit_99:			dw 99
 ntc_rg1123_e:
 			IF ($ < 32768) && (ntc_rg1124_e - ntc_rg1124 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -18699,7 +18670,7 @@ ntc_rg1123_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1124:
-lit_99:			dw 99
+lit_25:			dw 25
 ntc_rg1124_e:
 			IF ($ < 32768) && (ntc_rg1125_e - ntc_rg1125 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -18709,7 +18680,7 @@ ntc_rg1124_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1125:
-lit_25:			dw 25
+lit_16384:			dw 16384
 ntc_rg1125_e:
 			IF ($ < 32768) && (ntc_rg1126_e - ntc_rg1126 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -18719,7 +18690,7 @@ ntc_rg1125_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1126:
-lit_16384:			dw 16384
+llit_m1:			dw 65535, 65535
 ntc_rg1126_e:
 			IF ($ < 32768) && (ntc_rg1127_e - ntc_rg1127 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -18729,7 +18700,7 @@ ntc_rg1126_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1127:
-llit_m1:			dw 65535, 65535
+llit_16384:			dw 16384, 0
 ntc_rg1127_e:
 			IF ($ < 32768) && (ntc_rg1128_e - ntc_rg1128 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -18739,7 +18710,7 @@ ntc_rg1127_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1128:
-llit_16384:			dw 16384, 0
+llit_16383:			dw 16383, 0
 ntc_rg1128_e:
 			IF ($ < 32768) && (ntc_rg1129_e - ntc_rg1129 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -18749,7 +18720,7 @@ ntc_rg1128_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1129:
-llit_16383:			dw 16383, 0
+llit_0:			dw 0, 0
 ntc_rg1129_e:
 			IF ($ < 32768) && (ntc_rg1130_e - ntc_rg1130 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -18759,7 +18730,7 @@ ntc_rg1129_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1130:
-llit_0:			dw 0, 0
+llit_256:			dw 256, 0
 ntc_rg1130_e:
 			IF ($ < 32768) && (ntc_rg1131_e - ntc_rg1131 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -18769,7 +18740,7 @@ ntc_rg1130_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1131:
-llit_256:			dw 256, 0
+llit_65536:			dw 0, 1
 ntc_rg1131_e:
 			IF ($ < 32768) && (ntc_rg1132_e - ntc_rg1132 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -18779,7 +18750,7 @@ ntc_rg1131_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1132:
-llit_65536:			dw 0, 1
+llit_1:			dw 1, 0
 ntc_rg1132_e:
 			IF ($ < 32768) && (ntc_rg1133_e - ntc_rg1133 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -18789,7 +18760,7 @@ ntc_rg1132_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1133:
-llit_1:			dw 1, 0
+lit_20:			dw 20
 ntc_rg1133_e:
 			IF ($ < 32768) && (ntc_rg1134_e - ntc_rg1134 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -18799,7 +18770,7 @@ ntc_rg1133_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1134:
-lit_20:			dw 20
+lit_120:			dw 120
 ntc_rg1134_e:
 			IF ($ < 32768) && (ntc_rg1135_e - ntc_rg1135 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -18809,7 +18780,7 @@ ntc_rg1134_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1135:
-lit_120:			dw 120
+lit_4972:			dw 4972
 ntc_rg1135_e:
 			IF ($ < 32768) && (ntc_rg1136_e - ntc_rg1136 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -18819,7 +18790,7 @@ ntc_rg1135_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1136:
-lit_4699:			dw 4699
+lit_830:			dw 830
 ntc_rg1136_e:
 			IF ($ < 32768) && (ntc_rg1137_e - ntc_rg1137 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -18829,7 +18800,7 @@ ntc_rg1136_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1137:
-lit_823:			dw 823
+lit_4985:			dw 4985
 ntc_rg1137_e:
 			IF ($ < 32768) && (ntc_rg1138_e - ntc_rg1138 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -18839,7 +18810,7 @@ ntc_rg1137_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1138:
-lit_4709:			dw 4709
+lit_44:			dw 44
 ntc_rg1138_e:
 			IF ($ < 32768) && (ntc_rg1139_e - ntc_rg1139 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -18849,7 +18820,7 @@ ntc_rg1138_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1139:
-lit_44:			dw 44
+lit_38:			dw 38
 ntc_rg1139_e:
 			IF ($ < 32768) && (ntc_rg1140_e - ntc_rg1140 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -18859,7 +18830,7 @@ ntc_rg1139_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1140:
-lit_38:			dw 38
+lit_4990:			dw 4990
 ntc_rg1140_e:
 			IF ($ < 32768) && (ntc_rg1141_e - ntc_rg1141 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -18869,7 +18840,7 @@ ntc_rg1140_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1141:
-lit_4714:			dw 4714
+lit_50:			dw 50
 ntc_rg1141_e:
 			IF ($ < 32768) && (ntc_rg1142_e - ntc_rg1142 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -18879,7 +18850,7 @@ ntc_rg1141_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1142:
-lit_50:			dw 50
+lit_5002:			dw 5002
 ntc_rg1142_e:
 			IF ($ < 32768) && (ntc_rg1143_e - ntc_rg1143 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -18889,7 +18860,7 @@ ntc_rg1142_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1143:
-lit_4725:			dw 4725
+lit_5036:			dw 5036
 ntc_rg1143_e:
 			IF ($ < 32768) && (ntc_rg1144_e - ntc_rg1144 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -18899,7 +18870,7 @@ ntc_rg1143_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1144:
-lit_4759:			dw 4759
+lit_5071:			dw 5071
 ntc_rg1144_e:
 			IF ($ < 32768) && (ntc_rg1145_e - ntc_rg1145 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -18909,7 +18880,7 @@ ntc_rg1144_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1145:
-lit_4795:			dw 4795
+lit_48:			dw 48
 ntc_rg1145_e:
 			IF ($ < 32768) && (ntc_rg1146_e - ntc_rg1146 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -18919,7 +18890,7 @@ ntc_rg1145_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1146:
-lit_48:			dw 48
+lit_5116:			dw 5116
 ntc_rg1146_e:
 			IF ($ < 32768) && (ntc_rg1147_e - ntc_rg1147 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -18929,7 +18900,7 @@ ntc_rg1146_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1147:
-lit_4831:			dw 4831
+lit_62:			dw 62
 ntc_rg1147_e:
 			IF ($ < 32768) && (ntc_rg1148_e - ntc_rg1148 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -18939,7 +18910,7 @@ ntc_rg1147_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1148:
-lit_62:			dw 62
+lit_5209:			dw 5209
 ntc_rg1148_e:
 			IF ($ < 32768) && (ntc_rg1149_e - ntc_rg1149 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -18949,7 +18920,7 @@ ntc_rg1148_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1149:
-lit_4911:			dw 4911
+lit_110:			dw 110
 ntc_rg1149_e:
 			IF ($ < 32768) && (ntc_rg1150_e - ntc_rg1150 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -18959,7 +18930,7 @@ ntc_rg1149_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1150:
-lit_110:			dw 110
+lit_5168:			dw 5168
 ntc_rg1150_e:
 			IF ($ < 32768) && (ntc_rg1151_e - ntc_rg1151 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -18969,7 +18940,7 @@ ntc_rg1150_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1151:
-lit_4876:			dw 4876
+lit_160:			dw 160
 ntc_rg1151_e:
 			IF ($ < 32768) && (ntc_rg1152_e - ntc_rg1152 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -18979,7 +18950,7 @@ ntc_rg1151_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1152:
-lit_160:			dw 160
+lit_5174:			dw 5174
 ntc_rg1152_e:
 			IF ($ < 32768) && (ntc_rg1153_e - ntc_rg1153 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -18989,7 +18960,7 @@ ntc_rg1152_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1153:
-lit_4880:			dw 4880
+lit_210:			dw 210
 ntc_rg1153_e:
 			IF ($ < 32768) && (ntc_rg1154_e - ntc_rg1154 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -18999,7 +18970,7 @@ ntc_rg1153_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1154:
-lit_210:			dw 210
+lit_5180:			dw 5180
 ntc_rg1154_e:
 			IF ($ < 32768) && (ntc_rg1155_e - ntc_rg1155 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -19009,7 +18980,7 @@ ntc_rg1154_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1155:
-lit_4884:			dw 4884
+llit_5:			dw 5, 0
 ntc_rg1155_e:
 			IF ($ < 32768) && (ntc_rg1156_e - ntc_rg1156 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -19019,7 +18990,7 @@ ntc_rg1155_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1156:
-llit_5:			dw 5, 0
+lit_5192:			dw 5192
 ntc_rg1156_e:
 			IF ($ < 32768) && (ntc_rg1157_e - ntc_rg1157 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -19029,7 +19000,7 @@ ntc_rg1156_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1157:
-lit_4893:			dw 4893
+lit_5187:			dw 5187
 ntc_rg1157_e:
 			IF ($ < 32768) && (ntc_rg1158_e - ntc_rg1158 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -19039,7 +19010,7 @@ ntc_rg1157_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1158:
-lit_4889:			dw 4889
+lit_228:			dw 228
 ntc_rg1158_e:
 			IF ($ < 32768) && (ntc_rg1159_e - ntc_rg1159 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -19049,7 +19020,7 @@ ntc_rg1158_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1159:
-lit_228:			dw 228
+lit_234:			dw 234
 ntc_rg1159_e:
 			IF ($ < 32768) && (ntc_rg1160_e - ntc_rg1160 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -19059,7 +19030,7 @@ ntc_rg1159_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1160:
-lit_234:			dw 234
+lit_5203:			dw 5203
 ntc_rg1160_e:
 			IF ($ < 32768) && (ntc_rg1161_e - ntc_rg1161 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -19069,7 +19040,7 @@ ntc_rg1160_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1161:
-lit_4906:			dw 4906
+lit_130:			dw 130
 ntc_rg1161_e:
 			IF ($ < 32768) && (ntc_rg1162_e - ntc_rg1162 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -19079,7 +19050,7 @@ ntc_rg1161_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1162:
-lit_130:			dw 130
+lit_5217:			dw 5217
 ntc_rg1162_e:
 			IF ($ < 32768) && (ntc_rg1163_e - ntc_rg1163 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -19089,7 +19060,7 @@ ntc_rg1162_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1163:
-lit_4918:			dw 4918
+lit_190:			dw 190
 ntc_rg1163_e:
 			IF ($ < 32768) && (ntc_rg1164_e - ntc_rg1164 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -19099,7 +19070,7 @@ ntc_rg1163_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1164:
-lit_190:			dw 190
+lit_5441:			dw 5441
 ntc_rg1164_e:
 			IF ($ < 32768) && (ntc_rg1165_e - ntc_rg1165 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -19109,7 +19080,7 @@ ntc_rg1164_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1165:
-lit_5138:			dw 5138
+lit_5491:			dw 5491
 ntc_rg1165_e:
 			IF ($ < 32768) && (ntc_rg1166_e - ntc_rg1166 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -19119,7 +19090,7 @@ ntc_rg1165_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1166:
-lit_5185:			dw 5185
+lit_71:			dw 71
 ntc_rg1166_e:
 			IF ($ < 32768) && (ntc_rg1167_e - ntc_rg1167 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -19129,7 +19100,7 @@ ntc_rg1166_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1167:
-lit_71:			dw 71
+lit_304:			dw 304
 ntc_rg1167_e:
 			IF ($ < 32768) && (ntc_rg1168_e - ntc_rg1168 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -19139,7 +19110,7 @@ ntc_rg1167_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1168:
-lit_304:			dw 304
+lit_58:			dw 58
 ntc_rg1168_e:
 			IF ($ < 32768) && (ntc_rg1169_e - ntc_rg1169 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -19149,7 +19120,7 @@ ntc_rg1168_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1169:
-lit_58:			dw 58
+lit_4997:			dw 4997
 ntc_rg1169_e:
 			IF ($ < 32768) && (ntc_rg1170_e - ntc_rg1170 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -19159,7 +19130,7 @@ ntc_rg1169_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1170:
-lit_4720:			dw 4720
+lit_6289:			dw 6289
 ntc_rg1170_e:
 			IF ($ < 32768) && (ntc_rg1171_e - ntc_rg1171 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -19169,7 +19140,7 @@ ntc_rg1170_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1171:
-lit_5919:			dw 5919
+lit_72:			dw 72
 ntc_rg1171_e:
 			IF ($ < 32768) && (ntc_rg1172_e - ntc_rg1172 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -19179,7 +19150,7 @@ ntc_rg1171_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1172:
-lit_72:			dw 72
+lit_5597:			dw 5597
 ntc_rg1172_e:
 			IF ($ < 32768) && (ntc_rg1173_e - ntc_rg1173 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -19189,7 +19160,7 @@ ntc_rg1172_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1173:
-lit_5289:			dw 5289
+lit_270:			dw 270
 ntc_rg1173_e:
 			IF ($ < 32768) && (ntc_rg1174_e - ntc_rg1174 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -19199,7 +19170,7 @@ ntc_rg1173_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1174:
-lit_270:			dw 270
+lit_84:			dw 84
 ntc_rg1174_e:
 			IF ($ < 32768) && (ntc_rg1175_e - ntc_rg1175 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -19209,7 +19180,7 @@ ntc_rg1174_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1175:
-lit_84:			dw 84
+lit_5623:			dw 5623
 ntc_rg1175_e:
 			IF ($ < 32768) && (ntc_rg1176_e - ntc_rg1176 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -19219,7 +19190,7 @@ ntc_rg1175_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1176:
-lit_5314:			dw 5314
+lit_96:			dw 96
 ntc_rg1176_e:
 			IF ($ < 32768) && (ntc_rg1177_e - ntc_rg1177 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -19229,7 +19200,7 @@ ntc_rg1176_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1177:
-lit_96:			dw 96
+lit_5666:			dw 5666
 ntc_rg1177_e:
 			IF ($ < 32768) && (ntc_rg1178_e - ntc_rg1178 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -19239,7 +19210,7 @@ ntc_rg1177_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1178:
-lit_5353:			dw 5353
+lit_108:			dw 108
 ntc_rg1178_e:
 			IF ($ < 32768) && (ntc_rg1179_e - ntc_rg1179 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -19249,7 +19220,7 @@ ntc_rg1178_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1179:
-lit_108:			dw 108
+lit_5681:			dw 5681
 ntc_rg1179_e:
 			IF ($ < 32768) && (ntc_rg1180_e - ntc_rg1180 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -19259,7 +19230,7 @@ ntc_rg1179_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1180:
-lit_5366:			dw 5366
+lit_5717:			dw 5717
 ntc_rg1180_e:
 			IF ($ < 32768) && (ntc_rg1181_e - ntc_rg1181 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -19269,7 +19240,7 @@ ntc_rg1180_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1181:
-lit_5398:			dw 5398
+lit_5770:			dw 5770
 ntc_rg1181_e:
 			IF ($ < 32768) && (ntc_rg1182_e - ntc_rg1182 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -19279,7 +19250,7 @@ ntc_rg1181_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1182:
-lit_5436:			dw 5436
+lit_5863:			dw 5863
 ntc_rg1182_e:
 			IF ($ < 32768) && (ntc_rg1183_e - ntc_rg1183 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -19289,7 +19260,7 @@ ntc_rg1182_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1183:
-lit_5530:			dw 5530
+lit_172:			dw 172
 ntc_rg1183_e:
 			IF ($ < 32768) && (ntc_rg1184_e - ntc_rg1184 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -19299,7 +19270,7 @@ ntc_rg1183_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1184:
-lit_172:			dw 172
+lit_5912:			dw 5912
 ntc_rg1184_e:
 			IF ($ < 32768) && (ntc_rg1185_e - ntc_rg1185 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -19309,7 +19280,7 @@ ntc_rg1184_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1185:
-lit_5573:			dw 5573
+lit_6128:			dw 6128
 ntc_rg1185_e:
 			IF ($ < 32768) && (ntc_rg1186_e - ntc_rg1186 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -19319,7 +19290,7 @@ ntc_rg1185_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1186:
-lit_5788:			dw 5788
+lit_6174:			dw 6174
 ntc_rg1186_e:
 			IF ($ < 32768) && (ntc_rg1187_e - ntc_rg1187 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -19329,7 +19300,7 @@ ntc_rg1186_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1187:
-lit_5829:			dw 5829
+lit_70:			dw 70
 ntc_rg1187_e:
 			IF ($ < 32768) && (ntc_rg1188_e - ntc_rg1188 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -19339,7 +19310,7 @@ ntc_rg1187_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1188:
-lit_70:			dw 70
+lit_6180:			dw 6180
 ntc_rg1188_e:
 			IF ($ < 32768) && (ntc_rg1189_e - ntc_rg1189 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -19349,7 +19320,7 @@ ntc_rg1188_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1189:
-lit_5834:			dw 5834
+lit_150:			dw 150
 ntc_rg1189_e:
 			IF ($ < 32768) && (ntc_rg1190_e - ntc_rg1190 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -19359,7 +19330,7 @@ ntc_rg1189_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1190:
-lit_150:			dw 150
+lit_6191:			dw 6191
 ntc_rg1190_e:
 			IF ($ < 32768) && (ntc_rg1191_e - ntc_rg1191 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -19369,7 +19340,7 @@ ntc_rg1190_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1191:
-lit_5843:			dw 5843
+lit_200:			dw 200
 ntc_rg1191_e:
 			IF ($ < 32768) && (ntc_rg1192_e - ntc_rg1192 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -19379,7 +19350,7 @@ ntc_rg1191_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1192:
-lit_200:			dw 200
+lit_6203:			dw 6203
 ntc_rg1192_e:
 			IF ($ < 32768) && (ntc_rg1193_e - ntc_rg1193 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -19389,7 +19360,7 @@ ntc_rg1192_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1193:
-lit_5853:			dw 5853
+lit_32:			dw 32
 ntc_rg1193_e:
 			IF ($ < 32768) && (ntc_rg1194_e - ntc_rg1194 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -19399,7 +19370,7 @@ ntc_rg1193_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1194:
-lit_32:			dw 32
+lit_9782:			dw 9782
 ntc_rg1194_e:
 			IF ($ < 32768) && (ntc_rg1195_e - ntc_rg1195 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -19409,7 +19380,7 @@ ntc_rg1194_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1195:
-lit_9157:			dw 9157
+lit_10169:			dw 10169
 ntc_rg1195_e:
 			IF ($ < 32768) && (ntc_rg1196_e - ntc_rg1196 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -19419,7 +19390,7 @@ ntc_rg1195_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1196:
-lit_9507:			dw 9507
+lit_34:			dw 34
 ntc_rg1196_e:
 			IF ($ < 32768) && (ntc_rg1197_e - ntc_rg1197 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -19429,7 +19400,7 @@ ntc_rg1196_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1197:
-lit_34:			dw 34
+lit_9855:			dw 9855
 ntc_rg1197_e:
 			IF ($ < 32768) && (ntc_rg1198_e - ntc_rg1198 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -19439,7 +19410,7 @@ ntc_rg1197_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1198:
-lit_9227:			dw 9227
+lit_9806:			dw 9806
 ntc_rg1198_e:
 			IF ($ < 32768) && (ntc_rg1199_e - ntc_rg1199 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -19449,7 +19420,7 @@ ntc_rg1198_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1199:
-lit_9174:			dw 9174
+lit_312:			dw 312
 ntc_rg1199_e:
 			IF ($ < 32768) && (ntc_rg1200_e - ntc_rg1200 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -19459,7 +19430,7 @@ ntc_rg1199_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1200:
-lit_312:			dw 312
+lit_16569:			dw 16569
 ntc_rg1200_e:
 			IF ($ < 32768) && (ntc_rg1201_e - ntc_rg1201 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -19469,7 +19440,7 @@ ntc_rg1200_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1201:
-lit_15587:			dw 15587
+lit_9863:			dw 9863
 ntc_rg1201_e:
 			IF ($ < 32768) && (ntc_rg1202_e - ntc_rg1202 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -19479,7 +19450,7 @@ ntc_rg1201_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1202:
-lit_9237:			dw 9237
+lit_9895:			dw 9895
 ntc_rg1202_e:
 			IF ($ < 32768) && (ntc_rg1203_e - ntc_rg1203 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -19489,7 +19460,7 @@ ntc_rg1202_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1203:
-lit_9261:			dw 9261
+lit_9899:			dw 9899
 ntc_rg1203_e:
 			IF ($ < 32768) && (ntc_rg1204_e - ntc_rg1204 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -19499,7 +19470,7 @@ ntc_rg1203_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1204:
-lit_9266:			dw 9266
+lit_9886:			dw 9886
 ntc_rg1204_e:
 			IF ($ < 32768) && (ntc_rg1205_e - ntc_rg1205 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -19509,7 +19480,7 @@ ntc_rg1204_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1205:
-lit_9251:			dw 9251
+lit_16543:			dw 16543
 ntc_rg1205_e:
 			IF ($ < 32768) && (ntc_rg1206_e - ntc_rg1206 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -19519,7 +19490,7 @@ ntc_rg1205_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1206:
-lit_15559:			dw 15559
+lit_16562:			dw 16562
 ntc_rg1206_e:
 			IF ($ < 32768) && (ntc_rg1207_e - ntc_rg1207 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -19529,7 +19500,7 @@ ntc_rg1206_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1207:
-lit_15580:			dw 15580
+lit_16566:			dw 16566
 ntc_rg1207_e:
 			IF ($ < 32768) && (ntc_rg1208_e - ntc_rg1208 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -19539,7 +19510,7 @@ ntc_rg1207_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1208:
-lit_15584:			dw 15584
+lit_16590:			dw 16590
 ntc_rg1208_e:
 			IF ($ < 32768) && (ntc_rg1209_e - ntc_rg1209 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -19549,7 +19520,7 @@ ntc_rg1208_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1209:
-lit_15603:			dw 15603
+lit_16596:			dw 16596
 ntc_rg1209_e:
 			IF ($ < 32768) && (ntc_rg1210_e - ntc_rg1210 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -19559,7 +19530,7 @@ ntc_rg1209_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1210:
-lit_15608:			dw 15608
+lit_9918:			dw 9918
 ntc_rg1210_e:
 			IF ($ < 32768) && (ntc_rg1211_e - ntc_rg1211 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -19569,7 +19540,7 @@ ntc_rg1210_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1211:
-lit_9286:			dw 9286
+lit_36:			dw 36
 ntc_rg1211_e:
 			IF ($ < 32768) && (ntc_rg1212_e - ntc_rg1212 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -19579,7 +19550,7 @@ ntc_rg1211_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1212:
-lit_36:			dw 36
+lit_10211:			dw 10211
 ntc_rg1212_e:
 			IF ($ < 32768) && (ntc_rg1213_e - ntc_rg1213 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -19589,7 +19560,7 @@ ntc_rg1212_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1213:
-lit_9549:			dw 9549
+lit_10598:			dw 10598
 ntc_rg1213_e:
 			IF ($ < 32768) && (ntc_rg1214_e - ntc_rg1214 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -19599,7 +19570,7 @@ ntc_rg1213_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1214:
-lit_9895:			dw 9895
+lit_10641:			dw 10641
 ntc_rg1214_e:
 			IF ($ < 32768) && (ntc_rg1215_e - ntc_rg1215 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -19609,7 +19580,7 @@ ntc_rg1214_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1215:
-lit_9934:			dw 9934
+lit_10505:			dw 10505
 ntc_rg1215_e:
 			IF ($ < 32768) && (ntc_rg1216_e - ntc_rg1216 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -19619,7 +19590,7 @@ ntc_rg1215_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1216:
-lit_9825:			dw 9825
+lit_10548:			dw 10548
 ntc_rg1216_e:
 			IF ($ < 32768) && (ntc_rg1217_e - ntc_rg1217 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -19629,7 +19600,7 @@ ntc_rg1216_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1217:
-lit_9852:			dw 9852
+lit_10223:			dw 10223
 ntc_rg1217_e:
 			IF ($ < 32768) && (ntc_rg1218_e - ntc_rg1218 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -19639,7 +19610,7 @@ ntc_rg1217_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1218:
-lit_9560:			dw 9560
+lit_10314:			dw 10314
 ntc_rg1218_e:
 			IF ($ < 32768) && (ntc_rg1219_e - ntc_rg1219 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -19649,7 +19620,7 @@ ntc_rg1218_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1219:
-lit_9655:			dw 9655
+lit_10244:			dw 10244
 ntc_rg1219_e:
 			IF ($ < 32768) && (ntc_rg1220_e - ntc_rg1220 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -19659,7 +19630,7 @@ ntc_rg1219_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1220:
-lit_9582:			dw 9582
+lit_140:			dw 140
 ntc_rg1220_e:
 			IF ($ < 32768) && (ntc_rg1221_e - ntc_rg1221 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -19669,7 +19640,7 @@ ntc_rg1220_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1221:
-lit_140:			dw 140
+lit_10266:			dw 10266
 ntc_rg1221_e:
 			IF ($ < 32768) && (ntc_rg1222_e - ntc_rg1222 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -19679,7 +19650,7 @@ ntc_rg1221_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1222:
-lit_9602:			dw 9602
+lit_16606:			dw 16606
 ntc_rg1222_e:
 			IF ($ < 32768) && (ntc_rg1223_e - ntc_rg1223 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -19689,7 +19660,7 @@ ntc_rg1222_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1223:
-lit_15618:			dw 15618
+lit_215:			dw 215
 ntc_rg1223_e:
 			IF ($ < 32768) && (ntc_rg1224_e - ntc_rg1224 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -19699,7 +19670,7 @@ ntc_rg1223_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1224:
-lit_215:			dw 215
+lit_9073:			dw 9073
 ntc_rg1224_e:
 			IF ($ < 32768) && (ntc_rg1225_e - ntc_rg1225 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -19709,7 +19680,7 @@ ntc_rg1224_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1225:
-lit_8507:			dw 8507
+lit_94:			dw 94
 ntc_rg1225_e:
 			IF ($ < 32768) && (ntc_rg1226_e - ntc_rg1226 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -19719,7 +19690,7 @@ ntc_rg1225_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1226:
-lit_94:			dw 94
+lit_10280:			dw 10280
 ntc_rg1226_e:
 			IF ($ < 32768) && (ntc_rg1227_e - ntc_rg1227 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -19729,7 +19700,7 @@ ntc_rg1226_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1227:
-lit_9617:			dw 9617
+lit_142:			dw 142
 ntc_rg1227_e:
 			IF ($ < 32768) && (ntc_rg1228_e - ntc_rg1228 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -19739,7 +19710,7 @@ ntc_rg1227_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1228:
-lit_142:			dw 142
+lit_10480:			dw 10480
 ntc_rg1228_e:
 			IF ($ < 32768) && (ntc_rg1229_e - ntc_rg1229 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -19749,7 +19720,7 @@ ntc_rg1228_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1229:
-lit_9801:			dw 9801
+lit_164:			dw 164
 ntc_rg1229_e:
 			IF ($ < 32768) && (ntc_rg1230_e - ntc_rg1230 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -19759,7 +19730,7 @@ ntc_rg1229_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1230:
-lit_164:			dw 164
+lit_10358:			dw 10358
 ntc_rg1230_e:
 			IF ($ < 32768) && (ntc_rg1231_e - ntc_rg1231 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -19769,7 +19740,7 @@ ntc_rg1230_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1231:
-lit_9696:			dw 9696
+lit_178:			dw 178
 ntc_rg1231_e:
 			IF ($ < 32768) && (ntc_rg1232_e - ntc_rg1232 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -19779,7 +19750,7 @@ ntc_rg1231_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1232:
-lit_178:			dw 178
+lit_196:			dw 196
 ntc_rg1232_e:
 			IF ($ < 32768) && (ntc_rg1233_e - ntc_rg1233 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -19789,7 +19760,7 @@ ntc_rg1232_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1233:
-lit_196:			dw 196
+lit_10381:			dw 10381
 ntc_rg1233_e:
 			IF ($ < 32768) && (ntc_rg1234_e - ntc_rg1234 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -19799,7 +19770,7 @@ ntc_rg1233_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1234:
-lit_9716:			dw 9716
+lit_208:			dw 208
 ntc_rg1234_e:
 			IF ($ < 32768) && (ntc_rg1235_e - ntc_rg1235 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -19809,7 +19780,7 @@ ntc_rg1234_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1235:
-lit_208:			dw 208
+lit_16492:			dw 16492
 ntc_rg1235_e:
 			IF ($ < 32768) && (ntc_rg1236_e - ntc_rg1236 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -19819,7 +19790,7 @@ ntc_rg1235_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1236:
-lit_15510:			dw 15510
+lit_10398:			dw 10398
 ntc_rg1236_e:
 			IF ($ < 32768) && (ntc_rg1237_e - ntc_rg1237 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -19829,7 +19800,7 @@ ntc_rg1236_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1237:
-lit_9724:			dw 9724
+lit_10438:			dw 10438
 ntc_rg1237_e:
 			IF ($ < 32768) && (ntc_rg1238_e - ntc_rg1238 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -19839,7 +19810,7 @@ ntc_rg1237_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1238:
-lit_9761:			dw 9761
+lit_30:			dw 30
 ntc_rg1238_e:
 			IF ($ < 32768) && (ntc_rg1239_e - ntc_rg1239 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -19849,7 +19820,7 @@ ntc_rg1238_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1239:
-lit_30:			dw 30
+lit_214:			dw 214
 ntc_rg1239_e:
 			IF ($ < 32768) && (ntc_rg1240_e - ntc_rg1240 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -19859,7 +19830,7 @@ ntc_rg1239_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1240:
-lit_214:			dw 214
+lit_260:			dw 260
 ntc_rg1240_e:
 			IF ($ < 32768) && (ntc_rg1241_e - ntc_rg1241 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -19869,7 +19840,7 @@ ntc_rg1240_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1241:
-lit_260:			dw 260
+lit_211:			dw 211
 ntc_rg1241_e:
 			IF ($ < 32768) && (ntc_rg1242_e - ntc_rg1242 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -19879,7 +19850,7 @@ ntc_rg1241_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1242:
-lit_211:			dw 211
+lit_222:			dw 222
 ntc_rg1242_e:
 			IF ($ < 32768) && (ntc_rg1243_e - ntc_rg1243 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -19889,7 +19860,7 @@ ntc_rg1242_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1243:
-lit_222:			dw 222
+lit_1917:			dw 1917
 ntc_rg1243_e:
 			IF ($ < 32768) && (ntc_rg1244_e - ntc_rg1244 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -19899,7 +19870,7 @@ ntc_rg1243_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1244:
-lit_1917:			dw 1917
+lit_1948:			dw 1948
 ntc_rg1244_e:
 			IF ($ < 32768) && (ntc_rg1245_e - ntc_rg1245 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -19909,7 +19880,7 @@ ntc_rg1244_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1245:
-lit_1948:			dw 1948
+lit_1949:			dw 1949
 ntc_rg1245_e:
 			IF ($ < 32768) && (ntc_rg1246_e - ntc_rg1246 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -19919,7 +19890,7 @@ ntc_rg1245_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1246:
-lit_1949:			dw 1949
+lit_1994:			dw 1994
 ntc_rg1246_e:
 			IF ($ < 32768) && (ntc_rg1247_e - ntc_rg1247 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -19929,7 +19900,7 @@ ntc_rg1246_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1247:
-lit_1994:			dw 1994
+lit_2025:			dw 2025
 ntc_rg1247_e:
 			IF ($ < 32768) && (ntc_rg1248_e - ntc_rg1248 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -19939,7 +19910,7 @@ ntc_rg1247_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1248:
-lit_2025:			dw 2025
+lit_1087:			dw 1087
 ntc_rg1248_e:
 			IF ($ < 32768) && (ntc_rg1249_e - ntc_rg1249 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -19949,7 +19920,7 @@ ntc_rg1248_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1249:
-lit_1069:			dw 1069
+lit_1102:			dw 1102
 ntc_rg1249_e:
 			IF ($ < 32768) && (ntc_rg1250_e - ntc_rg1250 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -19959,7 +19930,7 @@ ntc_rg1249_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1250:
-lit_1084:			dw 1084
+lit_1379:			dw 1379
 ntc_rg1250_e:
 			IF ($ < 32768) && (ntc_rg1251_e - ntc_rg1251 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -19969,7 +19940,7 @@ ntc_rg1250_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1251:
-lit_1356:			dw 1356
+lit_1413:			dw 1413
 ntc_rg1251_e:
 			IF ($ < 32768) && (ntc_rg1252_e - ntc_rg1252 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -19979,7 +19950,7 @@ ntc_rg1251_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1252:
-lit_1388:			dw 1388
+lit_1685:			dw 1685
 ntc_rg1252_e:
 			IF ($ < 32768) && (ntc_rg1253_e - ntc_rg1253 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -19989,7 +19960,7 @@ ntc_rg1252_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1253:
-lit_1620:			dw 1620
+lit_1708:			dw 1708
 ntc_rg1253_e:
 			IF ($ < 32768) && (ntc_rg1254_e - ntc_rg1254 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -19999,7 +19970,7 @@ ntc_rg1253_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1254:
-lit_1645:			dw 1645
+lit_2008:			dw 2008
 ntc_rg1254_e:
 			IF ($ < 32768) && (ntc_rg1255_e - ntc_rg1255 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -20009,7 +19980,7 @@ ntc_rg1254_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1255:
-lit_1939:			dw 1939
+lit_2031:			dw 2031
 ntc_rg1255_e:
 			IF ($ < 32768) && (ntc_rg1256_e - ntc_rg1256 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -20019,7 +19990,7 @@ ntc_rg1255_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1256:
-lit_1959:			dw 1959
+lit_2427:			dw 2427
 ntc_rg1256_e:
 			IF ($ < 32768) && (ntc_rg1257_e - ntc_rg1257 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -20029,7 +20000,7 @@ ntc_rg1256_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1257:
-lit_2333:			dw 2333
+lit_2441:			dw 2441
 ntc_rg1257_e:
 			IF ($ < 32768) && (ntc_rg1258_e - ntc_rg1258 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -20039,7 +20010,7 @@ ntc_rg1257_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1258:
-lit_2347:			dw 2347
+lit_100:			dw 100
 ntc_rg1258_e:
 			IF ($ < 32768) && (ntc_rg1259_e - ntc_rg1259 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -20049,7 +20020,7 @@ ntc_rg1258_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1259:
-lit_100:			dw 100
+lit_134:			dw 134
 ntc_rg1259_e:
 			IF ($ < 32768) && (ntc_rg1260_e - ntc_rg1260 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -20059,7 +20030,7 @@ ntc_rg1259_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1260:
-lit_134:			dw 134
+lit_3311:			dw 3311
 ntc_rg1260_e:
 			IF ($ < 32768) && (ntc_rg1261_e - ntc_rg1261 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -20069,7 +20040,7 @@ ntc_rg1260_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1261:
-lit_3157:			dw 3157
+lit_122:			dw 122
 ntc_rg1261_e:
 			IF ($ < 32768) && (ntc_rg1262_e - ntc_rg1262 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -20079,7 +20050,7 @@ ntc_rg1261_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1262:
-lit_122:			dw 122
+lit_3386:			dw 3386
 ntc_rg1262_e:
 			IF ($ < 32768) && (ntc_rg1263_e - ntc_rg1263 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -20089,7 +20060,7 @@ ntc_rg1262_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1263:
-lit_3226:			dw 3226
+lit_136:			dw 136
 ntc_rg1263_e:
 			IF ($ < 32768) && (ntc_rg1264_e - ntc_rg1264 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -20099,7 +20070,7 @@ ntc_rg1263_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1264:
-lit_136:			dw 136
+lit_3396:			dw 3396
 ntc_rg1264_e:
 			IF ($ < 32768) && (ntc_rg1265_e - ntc_rg1265 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -20109,7 +20080,7 @@ ntc_rg1264_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1265:
-lit_3233:			dw 3233
+lit_3346:			dw 3346
 ntc_rg1265_e:
 			IF ($ < 32768) && (ntc_rg1266_e - ntc_rg1266 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -20119,7 +20090,7 @@ ntc_rg1265_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1266:
-lit_3189:			dw 3189
+lit_192:			dw 192
 ntc_rg1266_e:
 			IF ($ < 32768) && (ntc_rg1267_e - ntc_rg1267 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -20129,7 +20100,7 @@ ntc_rg1266_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1267:
-lit_192:			dw 192
+lit_220:			dw 220
 ntc_rg1267_e:
 			IF ($ < 32768) && (ntc_rg1268_e - ntc_rg1268 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -20139,7 +20110,7 @@ ntc_rg1267_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1268:
-lit_220:			dw 220
+lit_3406:			dw 3406
 ntc_rg1268_e:
 			IF ($ < 32768) && (ntc_rg1269_e - ntc_rg1269 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -20149,7 +20120,7 @@ ntc_rg1268_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1269:
-lit_3242:			dw 3242
+lit_2735:			dw 2735
 ntc_rg1269_e:
 			IF ($ < 32768) && (ntc_rg1270_e - ntc_rg1270 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -20159,7 +20130,7 @@ ntc_rg1269_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1270:
-lit_2621:			dw 2621
+lit_2758:			dw 2758
 ntc_rg1270_e:
 			IF ($ < 32768) && (ntc_rg1271_e - ntc_rg1271 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -20169,7 +20140,7 @@ ntc_rg1270_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1271:
-lit_2642:			dw 2642
+lit_736:			dw 736
 ntc_rg1271_e:
 			IF ($ < 32768) && (ntc_rg1272_e - ntc_rg1272 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -20179,7 +20150,7 @@ ntc_rg1271_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1272:
-lit_733:			dw 733
+lit_3042:			dw 3042
 ntc_rg1272_e:
 			IF ($ < 32768) && (ntc_rg1273_e - ntc_rg1273 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -20189,7 +20160,7 @@ ntc_rg1272_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1273:
-lit_2921:			dw 2921
+lit_3465:			dw 3465
 ntc_rg1273_e:
 			IF ($ < 32768) && (ntc_rg1274_e - ntc_rg1274 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -20199,7 +20170,7 @@ ntc_rg1273_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1274:
-lit_3292:			dw 3292
+lit_76:			dw 76
 ntc_rg1274_e:
 			IF ($ < 32768) && (ntc_rg1275_e - ntc_rg1275 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -20209,7 +20180,7 @@ ntc_rg1274_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1275:
-lit_76:			dw 76
+lit_3664:			dw 3664
 ntc_rg1275_e:
 			IF ($ < 32768) && (ntc_rg1276_e - ntc_rg1276 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -20219,7 +20190,7 @@ ntc_rg1275_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1276:
-lit_3488:			dw 3488
+lit_3671:			dw 3671
 ntc_rg1276_e:
 			IF ($ < 32768) && (ntc_rg1277_e - ntc_rg1277 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -20229,7 +20200,7 @@ ntc_rg1276_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1277:
-lit_3494:			dw 3494
+lit_3694:			dw 3694
 ntc_rg1277_e:
 			IF ($ < 32768) && (ntc_rg1278_e - ntc_rg1278 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -20239,7 +20210,7 @@ ntc_rg1277_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1278:
-lit_3508:			dw 3508
+lit_124:			dw 124
 ntc_rg1278_e:
 			IF ($ < 32768) && (ntc_rg1279_e - ntc_rg1279 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -20249,7 +20220,7 @@ ntc_rg1278_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1279:
-lit_124:			dw 124
+lit_3709:			dw 3709
 ntc_rg1279_e:
 			IF ($ < 32768) && (ntc_rg1280_e - ntc_rg1280 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -20259,7 +20230,7 @@ ntc_rg1279_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1280:
-lit_3525:			dw 3525
+lit_3743:			dw 3743
 ntc_rg1280_e:
 			IF ($ < 32768) && (ntc_rg1281_e - ntc_rg1281 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -20269,7 +20240,7 @@ ntc_rg1280_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1281:
-lit_3552:			dw 3552
+lit_156:			dw 156
 ntc_rg1281_e:
 			IF ($ < 32768) && (ntc_rg1282_e - ntc_rg1282 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -20279,7 +20250,7 @@ ntc_rg1281_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1282:
-lit_156:			dw 156
+lit_3754:			dw 3754
 ntc_rg1282_e:
 			IF ($ < 32768) && (ntc_rg1283_e - ntc_rg1283 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -20289,7 +20260,7 @@ ntc_rg1282_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1283:
-lit_3565:			dw 3565
+lit_152:			dw 152
 ntc_rg1283_e:
 			IF ($ < 32768) && (ntc_rg1284_e - ntc_rg1284 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -20299,7 +20270,7 @@ ntc_rg1283_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1284:
-lit_152:			dw 152
+lit_3765:			dw 3765
 ntc_rg1284_e:
 			IF ($ < 32768) && (ntc_rg1285_e - ntc_rg1285 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -20309,7 +20280,7 @@ ntc_rg1284_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1285:
-lit_3578:			dw 3578
+lit_168:			dw 168
 ntc_rg1285_e:
 			IF ($ < 32768) && (ntc_rg1286_e - ntc_rg1286 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -20319,7 +20290,7 @@ ntc_rg1285_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1286:
-lit_168:			dw 168
+lit_3815:			dw 3815
 ntc_rg1286_e:
 			IF ($ < 32768) && (ntc_rg1287_e - ntc_rg1287 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -20329,7 +20300,7 @@ ntc_rg1286_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1287:
-lit_3631:			dw 3631
+lit_226:			dw 226
 ntc_rg1287_e:
 			IF ($ < 32768) && (ntc_rg1288_e - ntc_rg1288 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -20339,7 +20310,7 @@ ntc_rg1287_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1288:
-lit_226:			dw 226
+lit_3776:			dw 3776
 ntc_rg1288_e:
 			IF ($ < 32768) && (ntc_rg1289_e - ntc_rg1289 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -20349,7 +20320,7 @@ ntc_rg1288_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1289:
-lit_3591:			dw 3591
+lit_3440:			dw 3440
 ntc_rg1289_e:
 			IF ($ < 32768) && (ntc_rg1290_e - ntc_rg1290 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -20359,7 +20330,7 @@ ntc_rg1289_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1290:
-lit_3273:			dw 3273
+lit_694:			dw 694
 ntc_rg1290_e:
 			IF ($ < 32768) && (ntc_rg1291_e - ntc_rg1291 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -20369,7 +20340,7 @@ ntc_rg1290_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1291:
-lit_693:			dw 693
+lit_3947:			dw 3947
 ntc_rg1291_e:
 			IF ($ < 32768) && (ntc_rg1292_e - ntc_rg1292 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -20379,7 +20350,7 @@ ntc_rg1291_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1292:
-lit_3747:			dw 3747
+lit_605:			dw 605
 ntc_rg1292_e:
 			IF ($ < 32768) && (ntc_rg1293_e - ntc_rg1293 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -20389,7 +20360,7 @@ ntc_rg1292_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1293:
-lit_603:			dw 603
+lit_3973:			dw 3973
 ntc_rg1293_e:
 			IF ($ < 32768) && (ntc_rg1294_e - ntc_rg1294 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -20399,7 +20370,7 @@ ntc_rg1293_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1294:
-lit_3773:			dw 3773
+lit_4168:			dw 4168
 ntc_rg1294_e:
 			IF ($ < 32768) && (ntc_rg1295_e - ntc_rg1295 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -20409,7 +20380,7 @@ ntc_rg1294_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1295:
-lit_3937:			dw 3937
+lit_80:			dw 80
 ntc_rg1295_e:
 			IF ($ < 32768) && (ntc_rg1296_e - ntc_rg1296 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -20419,7 +20390,7 @@ ntc_rg1295_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1296:
-lit_80:			dw 80
+lit_4186:			dw 4186
 ntc_rg1296_e:
 			IF ($ < 32768) && (ntc_rg1297_e - ntc_rg1297 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -20429,7 +20400,7 @@ ntc_rg1296_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1297:
-lit_3951:			dw 3951
+lit_90:			dw 90
 ntc_rg1297_e:
 			IF ($ < 32768) && (ntc_rg1298_e - ntc_rg1298 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -20439,7 +20410,7 @@ ntc_rg1297_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1298:
-lit_90:			dw 90
+lit_4094:			dw 4094
 ntc_rg1298_e:
 			IF ($ < 32768) && (ntc_rg1299_e - ntc_rg1299 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -20449,7 +20420,7 @@ ntc_rg1298_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1299:
-lit_3877:			dw 3877
+lit_114:			dw 114
 ntc_rg1299_e:
 			IF ($ < 32768) && (ntc_rg1300_e - ntc_rg1300 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -20459,7 +20430,7 @@ ntc_rg1299_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1300:
-lit_114:			dw 114
+lit_4127:			dw 4127
 ntc_rg1300_e:
 			IF ($ < 32768) && (ntc_rg1301_e - ntc_rg1301 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -20469,7 +20440,7 @@ ntc_rg1300_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1301:
-lit_3900:			dw 3900
+lit_138:			dw 138
 ntc_rg1301_e:
 			IF ($ < 32768) && (ntc_rg1302_e - ntc_rg1302 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -20479,7 +20450,7 @@ ntc_rg1301_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1302:
-lit_138:			dw 138
+lit_4156:			dw 4156
 ntc_rg1302_e:
 			IF ($ < 32768) && (ntc_rg1303_e - ntc_rg1303 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -20489,7 +20460,7 @@ ntc_rg1302_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1303:
-lit_3925:			dw 3925
+lit_162:			dw 162
 ntc_rg1303_e:
 			IF ($ < 32768) && (ntc_rg1304_e - ntc_rg1304 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -20499,7 +20470,7 @@ ntc_rg1303_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1304:
-lit_162:			dw 162
+lit_4162:			dw 4162
 ntc_rg1304_e:
 			IF ($ < 32768) && (ntc_rg1305_e - ntc_rg1305 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -20509,7 +20480,7 @@ ntc_rg1304_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1305:
-lit_3931:			dw 3931
+lit_4196:			dw 4196
 ntc_rg1305_e:
 			IF ($ < 32768) && (ntc_rg1306_e - ntc_rg1306 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -20519,7 +20490,7 @@ ntc_rg1305_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1306:
-lit_3961:			dw 3961
+lit_4394:			dw 4394
 ntc_rg1306_e:
 			IF ($ < 32768) && (ntc_rg1307_e - ntc_rg1307 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -20529,7 +20500,7 @@ ntc_rg1306_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1307:
-lit_4153:			dw 4153
+lit_4418:			dw 4418
 ntc_rg1307_e:
 			IF ($ < 32768) && (ntc_rg1308_e - ntc_rg1308 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -20539,7 +20510,7 @@ ntc_rg1307_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1308:
-lit_4175:			dw 4175
+lit_52:			dw 52
 ntc_rg1308_e:
 			IF ($ < 32768) && (ntc_rg1309_e - ntc_rg1309 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -20549,7 +20520,7 @@ ntc_rg1308_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1309:
-lit_52:			dw 52
+lit_4519:			dw 4519
 ntc_rg1309_e:
 			IF ($ < 32768) && (ntc_rg1310_e - ntc_rg1310 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -20559,7 +20530,7 @@ ntc_rg1309_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1310:
-lit_4266:			dw 4266
+lit_4540:			dw 4540
 ntc_rg1310_e:
 			IF ($ < 32768) && (ntc_rg1311_e - ntc_rg1311 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -20569,7 +20540,7 @@ ntc_rg1310_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1311:
-lit_4289:			dw 4289
+lit_4560:			dw 4560
 ntc_rg1311_e:
 			IF ($ < 32768) && (ntc_rg1312_e - ntc_rg1312 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -20579,7 +20550,7 @@ ntc_rg1311_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1312:
-lit_4308:			dw 4308
+lit_88:			dw 88
 ntc_rg1312_e:
 			IF ($ < 32768) && (ntc_rg1313_e - ntc_rg1313 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -20589,7 +20560,7 @@ ntc_rg1312_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1313:
-lit_88:			dw 88
+lit_4581:			dw 4581
 ntc_rg1313_e:
 			IF ($ < 32768) && (ntc_rg1314_e - ntc_rg1314 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -20599,7 +20570,7 @@ ntc_rg1313_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1314:
-lit_4327:			dw 4327
+lit_4612:			dw 4612
 ntc_rg1314_e:
 			IF ($ < 32768) && (ntc_rg1315_e - ntc_rg1315 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -20609,7 +20580,7 @@ ntc_rg1314_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1315:
-lit_4356:			dw 4356
+lit_116:			dw 116
 ntc_rg1315_e:
 			IF ($ < 32768) && (ntc_rg1316_e - ntc_rg1316 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -20619,7 +20590,7 @@ ntc_rg1315_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1316:
-lit_116:			dw 116
+lit_4643:			dw 4643
 ntc_rg1316_e:
 			IF ($ < 32768) && (ntc_rg1317_e - ntc_rg1317 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -20629,7 +20600,7 @@ ntc_rg1316_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1317:
-lit_4385:			dw 4385
+lit_148:			dw 148
 ntc_rg1317_e:
 			IF ($ < 32768) && (ntc_rg1318_e - ntc_rg1318 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -20639,7 +20610,7 @@ ntc_rg1317_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1318:
-lit_148:			dw 148
+lit_4686:			dw 4686
 ntc_rg1318_e:
 			IF ($ < 32768) && (ntc_rg1319_e - ntc_rg1319 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -20649,7 +20620,7 @@ ntc_rg1318_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1319:
-lit_4431:			dw 4431
+lit_4700:			dw 4700
 ntc_rg1319_e:
 			IF ($ < 32768) && (ntc_rg1320_e - ntc_rg1320 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -20659,7 +20630,7 @@ ntc_rg1319_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1320:
-lit_4445:			dw 4445
+lit_4715:			dw 4715
 ntc_rg1320_e:
 			IF ($ < 32768) && (ntc_rg1321_e - ntc_rg1321 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -20669,7 +20640,7 @@ ntc_rg1320_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1321:
-lit_4461:			dw 4461
+lit_92:			dw 92
 ntc_rg1321_e:
 			IF ($ < 32768) && (ntc_rg1322_e - ntc_rg1322 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -20679,7 +20650,7 @@ ntc_rg1321_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1322:
-lit_92:			dw 92
+lit_9042:			dw 9042
 ntc_rg1322_e:
 			IF ($ < 32768) && (ntc_rg1323_e - ntc_rg1323 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -20689,7 +20660,7 @@ ntc_rg1322_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1323:
-lit_8477:			dw 8477
+lit_9054:			dw 9054
 ntc_rg1323_e:
 			IF ($ < 32768) && (ntc_rg1324_e - ntc_rg1324 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -20699,7 +20670,7 @@ ntc_rg1323_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1324:
-lit_8487:			dw 8487
+lit_9078:			dw 9078
 ntc_rg1324_e:
 			IF ($ < 32768) && (ntc_rg1325_e - ntc_rg1325 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -20709,7 +20680,7 @@ ntc_rg1324_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1325:
-lit_8511:			dw 8511
+lit_65:			dw 65
 ntc_rg1325_e:
 			IF ($ < 32768) && (ntc_rg1326_e - ntc_rg1326 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -20719,7 +20690,7 @@ ntc_rg1325_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1326:
-lit_65:			dw 65
+lit_15649:			dw 15649
 ntc_rg1326_e:
 			IF ($ < 32768) && (ntc_rg1327_e - ntc_rg1327 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -20729,7 +20700,7 @@ ntc_rg1326_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1327:
-lit_14724:			dw 14724
+lit_15698:			dw 15698
 ntc_rg1327_e:
 			IF ($ < 32768) && (ntc_rg1328_e - ntc_rg1328 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -20739,7 +20710,7 @@ ntc_rg1327_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1328:
-lit_14773:			dw 14773
+lit_7621:			dw 7621
 ntc_rg1328_e:
 			IF ($ < 32768) && (ntc_rg1329_e - ntc_rg1329 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -20749,7 +20720,7 @@ ntc_rg1328_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1329:
-lit_7151:			dw 7151
+lit_7632:			dw 7632
 ntc_rg1329_e:
 			IF ($ < 32768) && (ntc_rg1330_e - ntc_rg1330 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -20759,7 +20730,7 @@ ntc_rg1329_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1330:
-lit_7157:			dw 7157
+lit_8232:			dw 8232
 ntc_rg1330_e:
 			IF ($ < 32768) && (ntc_rg1331_e - ntc_rg1331 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -20769,7 +20740,7 @@ ntc_rg1330_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1331:
-lit_7690:			dw 7690
+lit_8238:			dw 8238
 ntc_rg1331_e:
 			IF ($ < 32768) && (ntc_rg1332_e - ntc_rg1332 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -20779,7 +20750,7 @@ ntc_rg1331_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1332:
-lit_7696:			dw 7696
+lit_8770:			dw 8770
 ntc_rg1332_e:
 			IF ($ < 32768) && (ntc_rg1333_e - ntc_rg1333 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -20789,7 +20760,7 @@ ntc_rg1332_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1333:
-lit_8213:			dw 8213
+lit_781:			dw 781
 ntc_rg1333_e:
 			IF ($ < 32768) && (ntc_rg1334_e - ntc_rg1334 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -20799,7 +20770,7 @@ ntc_rg1333_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1334:
-lit_776:			dw 776
+lit_8783:			dw 8783
 ntc_rg1334_e:
 			IF ($ < 32768) && (ntc_rg1335_e - ntc_rg1335 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -20809,7 +20780,7 @@ ntc_rg1334_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1335:
-lit_8217:			dw 8217
+lit_9107:			dw 9107
 ntc_rg1335_e:
 			IF ($ < 32768) && (ntc_rg1336_e - ntc_rg1336 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -20819,7 +20790,7 @@ ntc_rg1335_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1336:
-lit_8539:			dw 8539
+lit_9231:			dw 9231
 ntc_rg1336_e:
 			IF ($ < 32768) && (ntc_rg1337_e - ntc_rg1337 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -20829,7 +20800,7 @@ ntc_rg1336_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1337:
-lit_8663:			dw 8663
+lit_9235:			dw 9235
 ntc_rg1337_e:
 			IF ($ < 32768) && (ntc_rg1338_e - ntc_rg1338 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -20839,7 +20810,7 @@ ntc_rg1337_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1338:
-lit_8667:			dw 8667
+lit_13782:			dw 13782
 ntc_rg1338_e:
 			IF ($ < 32768) && (ntc_rg1339_e - ntc_rg1339 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -20849,7 +20820,7 @@ ntc_rg1338_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1339:
-lit_12961:			dw 12961
+lit_13797:			dw 13797
 ntc_rg1339_e:
 			IF ($ < 32768) && (ntc_rg1340_e - ntc_rg1340 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -20859,7 +20830,7 @@ ntc_rg1339_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1340:
-lit_12974:			dw 12974
+lit_14297:			dw 14297
 ntc_rg1340_e:
 			IF ($ < 32768) && (ntc_rg1341_e - ntc_rg1341 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -20869,7 +20840,7 @@ ntc_rg1340_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1341:
-lit_13450:			dw 13450
+lit_14320:			dw 14320
 ntc_rg1341_e:
 			IF ($ < 32768) && (ntc_rg1342_e - ntc_rg1342 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -20879,7 +20850,7 @@ ntc_rg1341_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1342:
-lit_13471:			dw 13471
+lit_14821:			dw 14821
 ntc_rg1342_e:
 			IF ($ < 32768) && (ntc_rg1343_e - ntc_rg1343 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -20889,7 +20860,7 @@ ntc_rg1342_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1343:
-lit_13937:			dw 13937
+lit_14834:			dw 14834
 ntc_rg1343_e:
 			IF ($ < 32768) && (ntc_rg1344_e - ntc_rg1344 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -20899,7 +20870,7 @@ ntc_rg1343_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1344:
-lit_13951:			dw 13951
+lit_15333:			dw 15333
 ntc_rg1344_e:
 			IF ($ < 32768) && (ntc_rg1345_e - ntc_rg1345 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -20909,7 +20880,7 @@ ntc_rg1344_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1345:
-lit_14418:			dw 14418
+lit_15353:			dw 15353
 ntc_rg1345_e:
 			IF ($ < 32768) && (ntc_rg1346_e - ntc_rg1346 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -20919,7 +20890,7 @@ ntc_rg1345_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1346:
-lit_14435:			dw 14435
+lit_17816:			dw 17816
 ntc_rg1346_e:
 			IF ($ < 32768) && (ntc_rg1347_e - ntc_rg1347 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -20929,7 +20900,7 @@ ntc_rg1346_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1347:
-lit_16803:			dw 16803
+lit_17836:			dw 17836
 ntc_rg1347_e:
 			IF ($ < 32768) && (ntc_rg1348_e - ntc_rg1348 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -20939,7 +20910,7 @@ ntc_rg1347_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1348:
-lit_16825:			dw 16825
+lit_15731:			dw 15731
 ntc_rg1348_e:
 			IF ($ < 32768) && (ntc_rg1349_e - ntc_rg1349 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -20949,7 +20920,7 @@ ntc_rg1348_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1349:
-lit_14808:			dw 14808
+lit_15754:			dw 15754
 ntc_rg1349_e:
 			IF ($ < 32768) && (ntc_rg1350_e - ntc_rg1350 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -20959,7 +20930,7 @@ ntc_rg1349_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1350:
-lit_14826:			dw 14826
+lit_16056:			dw 16056
 ntc_rg1350_e:
 			IF ($ < 32768) && (ntc_rg1351_e - ntc_rg1351 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -20969,7 +20940,7 @@ ntc_rg1350_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1351:
-lit_15119:			dw 15119
+lit_16076:			dw 16076
 ntc_rg1351_e:
 			IF ($ < 32768) && (ntc_rg1352_e - ntc_rg1352 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -20979,7 +20950,7 @@ ntc_rg1351_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1352:
-lit_15140:			dw 15140
+lit_6316:			dw 6316
 ntc_rg1352_e:
 			IF ($ < 32768) && (ntc_rg1353_e - ntc_rg1353 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -20989,7 +20960,7 @@ ntc_rg1352_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1353:
-lit_5945:			dw 5945
+lit_6331:			dw 6331
 ntc_rg1353_e:
 			IF ($ < 32768) && (ntc_rg1354_e - ntc_rg1354 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -20999,7 +20970,7 @@ ntc_rg1353_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1354:
-lit_5958:			dw 5958
+lit_6927:			dw 6927
 ntc_rg1354_e:
 			IF ($ < 32768) && (ntc_rg1355_e - ntc_rg1355 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -21009,7 +20980,7 @@ ntc_rg1354_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1355:
-lit_6497:			dw 6497
+lit_7188:			dw 7188
 ntc_rg1355_e:
 			IF ($ < 32768) && (ntc_rg1356_e - ntc_rg1356 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -21019,7 +20990,7 @@ ntc_rg1355_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1356:
-lit_6759:			dw 6759
+lit_415:			dw 415
 ntc_rg1356_e:
 			IF ($ < 32768) && (ntc_rg1357_e - ntc_rg1357 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -21029,7 +21000,7 @@ ntc_rg1356_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1357:
-lit_415:			dw 415
+lit_431:			dw 431
 ntc_rg1357_e:
 			IF ($ < 32768) && (ntc_rg1358_e - ntc_rg1358 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -21039,7 +21010,7 @@ ntc_rg1357_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1358:
-lit_426:			dw 426
+lit_438:			dw 438
 ntc_rg1358_e:
 			IF ($ < 32768) && (ntc_rg1359_e - ntc_rg1359 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -21049,7 +21020,7 @@ ntc_rg1358_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1359:
-lit_433:			dw 433
+lit_7591:			dw 7591
 ntc_rg1359_e:
 			IF ($ < 32768) && (ntc_rg1360_e - ntc_rg1360 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -21059,7 +21030,7 @@ ntc_rg1359_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1360:
-lit_7122:			dw 7122
+lit_242:			dw 242
 ntc_rg1360_e:
 			IF ($ < 32768) && (ntc_rg1361_e - ntc_rg1361 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -21069,7 +21040,7 @@ ntc_rg1360_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1361:
-lit_242:			dw 242
+lit_488:			dw 488
 ntc_rg1361_e:
 			IF ($ < 32768) && (ntc_rg1362_e - ntc_rg1362 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -21079,7 +21050,7 @@ ntc_rg1361_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1362:
-lit_483:			dw 483
+lit_520:			dw 520
 ntc_rg1362_e:
 			IF ($ < 32768) && (ntc_rg1363_e - ntc_rg1363 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -21089,7 +21060,7 @@ ntc_rg1362_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1363:
-lit_515:			dw 515
+lit_880:			dw 880
 ntc_rg1363_e:
 			IF ($ < 32768) && (ntc_rg1364_e - ntc_rg1364 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -21099,7 +21070,7 @@ ntc_rg1363_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1364:
-lit_873:			dw 873
+lit_580:			dw 580
 ntc_rg1364_e:
 			IF ($ < 32768) && (ntc_rg1365_e - ntc_rg1365 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -21109,7 +21080,7 @@ ntc_rg1364_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1365:
-lit_580:			dw 580
+lit_280:			dw 280
 ntc_rg1365_e:
 			IF ($ < 32768) && (ntc_rg1366_e - ntc_rg1366 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -21119,7 +21090,7 @@ ntc_rg1365_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1366:
-lit_280:			dw 280
+lit_246:			dw 246
 ntc_rg1366_e:
 			IF ($ < 32768) && (ntc_rg1367_e - ntc_rg1367 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -21129,7 +21100,7 @@ ntc_rg1366_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1367:
-lit_246:			dw 246
+lit_27:			dw 27
 ntc_rg1367_e:
 			IF ($ < 32768) && (ntc_rg1368_e - ntc_rg1368 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -21139,7 +21110,7 @@ ntc_rg1367_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1368:
-lit_27:			dw 27
+lit_7637:			dw 7637
 ntc_rg1368_e:
 			IF ($ < 32768) && (ntc_rg1369_e - ntc_rg1369 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -21149,7 +21120,7 @@ ntc_rg1368_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1369:
-lit_7637:			dw 7637
+lit_4096:			dw 4096
 ntc_rg1369_e:
 			IF ($ < 32768) && (ntc_rg1370_e - ntc_rg1370 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -21159,7 +21130,7 @@ ntc_rg1369_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1370:
-lit_4096:			dw 4096
+lit_39:			dw 39
 ntc_rg1370_e:
 			IF ($ < 32768) && (ntc_rg1371_e - ntc_rg1371 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -21169,7 +21140,7 @@ ntc_rg1370_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1371:
-lit_39:			dw 39
+lit_764:			dw 764
 ntc_rg1371_e:
 			IF ($ < 32768) && (ntc_rg1372_e - ntc_rg1372 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -21179,7 +21150,7 @@ ntc_rg1371_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1372:
-lit_764:			dw 764
+vp_arr_blk_buf:			dw arr_blk_buf
 ntc_rg1372_e:
 			IF ($ < 32768) && (ntc_rg1373_e - ntc_rg1373 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -21189,7 +21160,7 @@ ntc_rg1372_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1373:
-vp_arr_blk_buf:			dw arr_blk_buf
+lit_12548:			dw 12548
 ntc_rg1373_e:
 			IF ($ < 32768) && (ntc_rg1374_e - ntc_rg1374 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -21199,7 +21170,7 @@ ntc_rg1373_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1374:
-lit_11763:			dw 11763
+lit_12542:			dw 12542
 ntc_rg1374_e:
 			IF ($ < 32768) && (ntc_rg1375_e - ntc_rg1375 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -21209,7 +21180,7 @@ ntc_rg1374_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1375:
-lit_11758:			dw 11758
+lit_12778:			dw 12778
 ntc_rg1375_e:
 			IF ($ < 32768) && (ntc_rg1376_e - ntc_rg1376 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -21219,7 +21190,7 @@ ntc_rg1375_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1376:
-lit_11968:			dw 11968
+lit_12799:			dw 12799
 ntc_rg1376_e:
 			IF ($ < 32768) && (ntc_rg1377_e - ntc_rg1377 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -21229,7 +21200,7 @@ ntc_rg1376_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1377:
-lit_11988:			dw 11988
+lit_12835:			dw 12835
 ntc_rg1377_e:
 			IF ($ < 32768) && (ntc_rg1378_e - ntc_rg1378 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -21239,7 +21210,7 @@ ntc_rg1377_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1378:
-lit_12018:			dw 12018
+lit_13188:			dw 13188
 ntc_rg1378_e:
 			IF ($ < 32768) && (ntc_rg1379_e - ntc_rg1379 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -21249,7 +21220,7 @@ ntc_rg1378_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1379:
-lit_12380:			dw 12380
+lit_13215:			dw 13215
 ntc_rg1379_e:
 			IF ($ < 32768) && (ntc_rg1380_e - ntc_rg1380 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -21259,7 +21230,7 @@ ntc_rg1379_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1380:
-lit_12405:			dw 12405
+lit_204:			dw 204
 ntc_rg1380_e:
 			IF ($ < 32768) && (ntc_rg1381_e - ntc_rg1381 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -21269,7 +21240,7 @@ ntc_rg1380_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1381:
-lit_204:			dw 204
+lit_13243:			dw 13243
 ntc_rg1381_e:
 			IF ($ < 32768) && (ntc_rg1382_e - ntc_rg1382 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -21279,7 +21250,7 @@ ntc_rg1381_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1382:
-lit_12435:			dw 12435
+lit_13373:			dw 13373
 ntc_rg1382_e:
 			IF ($ < 32768) && (ntc_rg1383_e - ntc_rg1383 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -21289,7 +21260,7 @@ ntc_rg1382_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1383:
-lit_12576:			dw 12576
+lit_13384:			dw 13384
 ntc_rg1383_e:
 			IF ($ < 32768) && (ntc_rg1384_e - ntc_rg1384 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -21299,7 +21270,7 @@ ntc_rg1383_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1384:
-lit_12589:			dw 12589
+lit_123:			dw 123
 ntc_rg1384_e:
 			IF ($ < 32768) && (ntc_rg1385_e - ntc_rg1385 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -21309,7 +21280,7 @@ ntc_rg1384_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1385:
-lit_123:			dw 123
+lit_13575:			dw 13575
 ntc_rg1385_e:
 			IF ($ < 32768) && (ntc_rg1386_e - ntc_rg1386 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -21319,7 +21290,7 @@ ntc_rg1385_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1386:
-lit_12780:			dw 12780
+lit_13405:			dw 13405
 ntc_rg1386_e:
 			IF ($ < 32768) && (ntc_rg1387_e - ntc_rg1387 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -21329,7 +21300,7 @@ ntc_rg1386_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1387:
-lit_12609:			dw 12609
+lit_186:			dw 186
 ntc_rg1387_e:
 			IF ($ < 32768) && (ntc_rg1388_e - ntc_rg1388 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -21339,7 +21310,7 @@ ntc_rg1387_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1388:
-lit_186:			dw 186
+lit_258:			dw 258
 ntc_rg1388_e:
 			IF ($ < 32768) && (ntc_rg1389_e - ntc_rg1389 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -21349,7 +21320,7 @@ ntc_rg1388_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1389:
-lit_258:			dw 258
+lit_11931:			dw 11931
 ntc_rg1389_e:
 			IF ($ < 32768) && (ntc_rg1390_e - ntc_rg1390 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -21359,7 +21330,7 @@ ntc_rg1389_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1390:
-lit_11168:			dw 11168
+lit_60:			dw 60
 ntc_rg1390_e:
 			IF ($ < 32768) && (ntc_rg1391_e - ntc_rg1391 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -21369,7 +21340,7 @@ ntc_rg1390_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1391:
-lit_60:			dw 60
+lit_12573:			dw 12573
 ntc_rg1391_e:
 			IF ($ < 32768) && (ntc_rg1392_e - ntc_rg1392 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -21379,7 +21350,7 @@ ntc_rg1391_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1392:
-lit_11790:			dw 11790
+lit_12654:			dw 12654
 ntc_rg1392_e:
 			IF ($ < 32768) && (ntc_rg1393_e - ntc_rg1393 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -21389,7 +21360,7 @@ ntc_rg1392_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1393:
-lit_11851:			dw 11851
+lit_12738:			dw 12738
 ntc_rg1393_e:
 			IF ($ < 32768) && (ntc_rg1394_e - ntc_rg1394 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -21399,7 +21370,7 @@ ntc_rg1393_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1394:
-lit_11925:			dw 11925
+lit_12000:			dw 12000
 ntc_rg1394_e:
 			IF ($ < 32768) && (ntc_rg1395_e - ntc_rg1395 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -21409,7 +21380,7 @@ ntc_rg1394_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1395:
-lit_11232:			dw 11232
+lit_12014:			dw 12014
 ntc_rg1395_e:
 			IF ($ < 32768) && (ntc_rg1396_e - ntc_rg1396 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -21419,7 +21390,7 @@ ntc_rg1395_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1396:
-lit_11239:			dw 11239
+lit_11967:			dw 11967
 ntc_rg1396_e:
 			IF ($ < 32768) && (ntc_rg1397_e - ntc_rg1397 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -21429,7 +21400,7 @@ ntc_rg1396_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1397:
-lit_11204:			dw 11204
+lit_11983:			dw 11983
 ntc_rg1397_e:
 			IF ($ < 32768) && (ntc_rg1398_e - ntc_rg1398 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -21439,7 +21410,7 @@ ntc_rg1397_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1398:
-lit_11217:			dw 11217
+lit_12455:			dw 12455
 ntc_rg1398_e:
 			IF ($ < 32768) && (ntc_rg1399_e - ntc_rg1399 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -21449,7 +21420,7 @@ ntc_rg1398_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1399:
-lit_11661:			dw 11661
+lit_12872:			dw 12872
 ntc_rg1399_e:
 			IF ($ < 32768) && (ntc_rg1400_e - ntc_rg1400 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -21459,7 +21430,7 @@ ntc_rg1399_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1400:
-lit_12057:			dw 12057
+lit_12564:			dw 12564
 ntc_rg1400_e:
 			IF ($ < 32768) && (ntc_rg1401_e - ntc_rg1401 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -21469,7 +21440,7 @@ ntc_rg1400_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1401:
-lit_11780:			dw 11780
+lit_232:			dw 232
 ntc_rg1401_e:
 			IF ($ < 32768) && (ntc_rg1402_e - ntc_rg1402 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -21479,7 +21450,7 @@ ntc_rg1401_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1402:
-lit_232:			dw 232
+lit_12883:			dw 12883
 ntc_rg1402_e:
 			IF ($ < 32768) && (ntc_rg1403_e - ntc_rg1403 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -21489,7 +21460,7 @@ ntc_rg1402_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1403:
-lit_12063:			dw 12063
+lit_12989:			dw 12989
 ntc_rg1403_e:
 			IF ($ < 32768) && (ntc_rg1404_e - ntc_rg1404 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -21499,7 +21470,7 @@ ntc_rg1403_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1404:
-lit_12171:			dw 12171
+lit_5596:			dw 5596
 ntc_rg1404_e:
 			IF ($ < 32768) && (ntc_rg1405_e - ntc_rg1405 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -21509,7 +21480,7 @@ ntc_rg1404_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1405:
-lit_5596:			dw 5596
+lit_11758:			dw 11758
 ntc_rg1405_e:
 			IF ($ < 32768) && (ntc_rg1406_e - ntc_rg1406 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -21519,7 +21490,7 @@ ntc_rg1405_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1406:
-lit_10981:			dw 10981
+lit_13023:			dw 13023
 ntc_rg1406_e:
 			IF ($ < 32768) && (ntc_rg1407_e - ntc_rg1407 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -21529,7 +21500,7 @@ ntc_rg1406_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1407:
-lit_12216:			dw 12216
+lit_13054:			dw 13054
 ntc_rg1407_e:
 			IF ($ < 32768) && (ntc_rg1408_e - ntc_rg1408 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -21539,7 +21510,7 @@ ntc_rg1407_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1408:
-lit_12247:			dw 12247
+lit_98:			dw 98
 ntc_rg1408_e:
 			IF ($ < 32768) && (ntc_rg1409_e - ntc_rg1409 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -21549,7 +21520,7 @@ ntc_rg1408_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1409:
-lit_98:			dw 98
+lit_10756:			dw 10756
 ntc_rg1409_e:
 			IF ($ < 32768) && (ntc_rg1410_e - ntc_rg1410 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -21559,7 +21530,7 @@ ntc_rg1409_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1410:
-lit_10039:			dw 10039
+lit_13641:			dw 13641
 ntc_rg1410_e:
 			IF ($ < 32768) && (ntc_rg1411_e - ntc_rg1411 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -21569,7 +21540,7 @@ ntc_rg1410_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1411:
-lit_12846:			dw 12846
+lit_11351:			dw 11351
 ntc_rg1411_e:
 			IF ($ < 32768) && (ntc_rg1412_e - ntc_rg1412 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -21579,7 +21550,7 @@ ntc_rg1411_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1412:
-lit_10592:			dw 10592
+lit_10814:			dw 10814
 ntc_rg1412_e:
 			IF ($ < 32768) && (ntc_rg1413_e - ntc_rg1413 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -21589,7 +21560,7 @@ ntc_rg1412_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1413:
-lit_10098:			dw 10098
+lit_11683:			dw 11683
 ntc_rg1413_e:
 			IF ($ < 32768) && (ntc_rg1414_e - ntc_rg1414 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -21599,7 +21570,7 @@ ntc_rg1413_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1414:
-lit_10906:			dw 10906
+lit_11699:			dw 11699
 ntc_rg1414_e:
 			IF ($ < 32768) && (ntc_rg1415_e - ntc_rg1415 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -21609,7 +21580,7 @@ ntc_rg1414_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1415:
-lit_10922:			dw 10922
+lit_11706:			dw 11706
 ntc_rg1415_e:
 			IF ($ < 32768) && (ntc_rg1416_e - ntc_rg1416 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -21619,7 +21590,7 @@ ntc_rg1415_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1416:
-lit_10929:			dw 10929
+lit_11715:			dw 11715
 ntc_rg1416_e:
 			IF ($ < 32768) && (ntc_rg1417_e - ntc_rg1417 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -21629,7 +21600,7 @@ ntc_rg1416_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1417:
-lit_10938:			dw 10938
+lit_11721:			dw 11721
 ntc_rg1417_e:
 			IF ($ < 32768) && (ntc_rg1418_e - ntc_rg1418 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -21639,7 +21610,7 @@ ntc_rg1417_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1418:
-lit_10944:			dw 10944
+lit_11733:			dw 11733
 ntc_rg1418_e:
 			IF ($ < 32768) && (ntc_rg1419_e - ntc_rg1419 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -21649,7 +21620,7 @@ ntc_rg1418_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1419:
-lit_10956:			dw 10956
+lit_11747:			dw 11747
 ntc_rg1419_e:
 			IF ($ < 32768) && (ntc_rg1420_e - ntc_rg1420 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -21659,7 +21630,7 @@ ntc_rg1419_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1420:
-lit_10970:			dw 10970
+lit_13653:			dw 13653
 ntc_rg1420_e:
 			IF ($ < 32768) && (ntc_rg1421_e - ntc_rg1421 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -21669,7 +21640,7 @@ ntc_rg1420_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1421:
-lit_12858:			dw 12858
+lit_13685:			dw 13685
 ntc_rg1421_e:
 			IF ($ < 32768) && (ntc_rg1422_e - ntc_rg1422 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -21679,7 +21650,7 @@ ntc_rg1421_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1422:
-lit_12880:			dw 12880
+lit_12465:			dw 12465
 ntc_rg1422_e:
 			IF ($ < 32768) && (ntc_rg1423_e - ntc_rg1423 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -21689,7 +21660,7 @@ ntc_rg1422_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1423:
-lit_11673:			dw 11673
+lit_12499:			dw 12499
 ntc_rg1423_e:
 			IF ($ < 32768) && (ntc_rg1424_e - ntc_rg1424 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -21699,7 +21670,7 @@ ntc_rg1423_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1424:
-lit_11709:			dw 11709
+lit_169:			dw 169
 ntc_rg1424_e:
 			IF ($ < 32768) && (ntc_rg1425_e - ntc_rg1425 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -21709,7 +21680,7 @@ ntc_rg1424_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1425:
-lit_169:			dw 169
+lit_m17408:			dw -17408
 ntc_rg1425_e:
 			IF ($ < 32768) && (ntc_rg1426_e - ntc_rg1426 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -21719,7 +21690,7 @@ ntc_rg1425_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1426:
-lit_m17408:			dw -17408
+lit_154:			dw 154
 ntc_rg1426_e:
 			IF ($ < 32768) && (ntc_rg1427_e - ntc_rg1427 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -21729,7 +21700,7 @@ ntc_rg1426_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1427:
-lit_154:			dw 154
+lit_3584:			dw 3584
 ntc_rg1427_e:
 			IF ($ < 32768) && (ntc_rg1428_e - ntc_rg1428 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -21739,7 +21710,7 @@ ntc_rg1427_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1428:
-lit_3584:			dw 3584
+lit_m17280:			dw -17280
 ntc_rg1428_e:
 			IF ($ < 32768) && (ntc_rg1429_e - ntc_rg1429 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -21749,7 +21720,7 @@ ntc_rg1428_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1429:
-lit_m17280:			dw -17280
+lit_158:			dw 158
 ntc_rg1429_e:
 			IF ($ < 32768) && (ntc_rg1430_e - ntc_rg1430 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -21759,7 +21730,8 @@ ntc_rg1429_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1430:
-lit_158:			dw 158
+lit_155:			dw 155
+
 ntc_rg1430_e:
 			IF ($ < 32768) && (ntc_rg1431_e - ntc_rg1431 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -21769,7 +21741,9 @@ ntc_rg1430_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1431:
-lit_155:			dw 155
+; ============================================================
+; Strings
+; ============================================================
 
 ntc_rg1431_e:
 			IF ($ < 32768) && (ntc_rg1432_e - ntc_rg1432 + $ > 16384)	; fwdref-ok
@@ -21780,9 +21754,7 @@ ntc_rg1431_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1432:
-; ============================================================
-; Strings
-; ============================================================
+str0:			db "*", 0
 
 ntc_rg1432_e:
 			IF ($ < 32768) && (ntc_rg1433_e - ntc_rg1433 + $ > 16384)	; fwdref-ok
@@ -21793,7 +21765,9 @@ ntc_rg1432_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1433:
-str0:			db "*", 0
+; ============================================================
+; Keyword library (used)
+; ============================================================
 
 ntc_rg1433_e:
 			IF ($ < 32768) && (ntc_rg1434_e - ntc_rg1434 + $ > 16384)	; fwdref-ok
@@ -21804,19 +21778,6 @@ ntc_rg1433_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1434:
-; ============================================================
-; Keyword library (used)
-; ============================================================
-
-ntc_rg1434_e:
-			IF ($ < 32768) && (ntc_rg1435_e - ntc_rg1435 + $ > 16384)	; fwdref-ok
-			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
-			ENDIF
-			IF ($ < 65536) && (ntc_rg1435_e - ntc_rg1435 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
-ntc_oom = 1		; (said once: the parts after this one reach it too)
-			ENDIF
-ntc_rg1435:
 ;## ntc_data @shared ntc_d_nmode
 ; ------------------------------------------------------------
 ; Scratch space: the core every program has (with ntc_d_nmode). The rest of
@@ -21829,6 +21790,18 @@ ntc_next:		ret				; IX target that continues the thread
 ntc_csp:		dw 0			; caller SP, for kw_stop (and the normal mode stack)
 ntc_ip:			dw 0			; normal mode: thread position while out of the thread
 
+ntc_rg1434_e:
+			IF ($ < 32768) && (ntc_rg1435_e - ntc_rg1435 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
+			ENDIF
+			IF ($ < 65536) && (ntc_rg1435_e - ntc_rg1435 + $ > 47616)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+ntc_oom = 1		; (said once: the parts after this one reach it too)
+			ENDIF
+ntc_rg1435:
+;## ntc_d_nmode @data
+ntc_nmode:		db 0			; 1 = running in normal mode (waits let interrupts in)
+
 ntc_rg1435_e:
 			IF ($ < 32768) && (ntc_rg1436_e - ntc_rg1436 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -21838,8 +21811,10 @@ ntc_rg1435_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1436:
-;## ntc_d_nmode @data
-ntc_nmode:		db 0			; 1 = running in normal mode (waits let interrupts in)
+;## ntc_d_div @data
+ntc_mode:		db 0			; div mode 0=quotient 1=remainder
+ntc_sgnq:		db 0			; quotient sign (bit 7)
+ntc_sgnr:		db 0			; remainder sign (bit 7)
 
 ntc_rg1436_e:
 			IF ($ < 32768) && (ntc_rg1437_e - ntc_rg1437 + $ > 16384)	; fwdref-ok
@@ -21850,10 +21825,9 @@ ntc_rg1436_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1437:
-;## ntc_d_div @data
-ntc_mode:		db 0			; div mode 0=quotient 1=remainder
-ntc_sgnq:		db 0			; quotient sign (bit 7)
-ntc_sgnr:		db 0			; remainder sign (bit 7)
+;## ntc_d_rampt @data
+ntc_rampt:		dw #7FC0		; the gate array's RAM setting now (B = port, C = value): the
+								; Memory class keeps it, Graphics puts it back after drawing
 
 ntc_rg1437_e:
 			IF ($ < 32768) && (ntc_rg1438_e - ntc_rg1438 + $ > 16384)	; fwdref-ok
@@ -21864,9 +21838,14 @@ ntc_rg1437_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1438:
-;## ntc_d_rampt @data
-ntc_rampt:		dw #7FC0		; the gate array's RAM setting now (B = port, C = value): the
-								; Memory class keeps it, Graphics puts it back after drawing
+;## kw_stop ntc_data ntc_plat_exit @shared
+kw_stop:
+			ld ix, ntc_stop_back
+			jp ntc_plat_exit
+ntc_stop_back:
+			ld sp, (ntc_csp)
+			ei
+			ret
 
 ntc_rg1438_e:
 			IF ($ < 32768) && (ntc_rg1439_e - ntc_rg1439 + $ > 16384)	; fwdref-ok
@@ -21877,13 +21856,12 @@ ntc_rg1438_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1439:
-;## kw_stop ntc_data ntc_plat_exit @shared
-kw_stop:
-			ld ix, ntc_stop_back
-			jp ntc_plat_exit
-ntc_stop_back:
-			ld sp, (ntc_csp)
-			ei
+;## kw_goto_iffalse
+;kw_goto_iffalse, <label>  - branch if NZ (false)
+kw_goto_iffalse:
+			pop hl
+			ret z
+			ld sp, hl
 			ret
 
 ntc_rg1439_e:
@@ -21895,23 +21873,6 @@ ntc_rg1439_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1440:
-;## kw_goto_iffalse
-;kw_goto_iffalse, <label>  - branch if NZ (false)
-kw_goto_iffalse:
-			pop hl
-			ret z
-			ld sp, hl
-			ret
-
-ntc_rg1440_e:
-			IF ($ < 32768) && (ntc_rg1441_e - ntc_rg1441 + $ > 16384)	; fwdref-ok
-			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
-			ENDIF
-			IF ($ < 65536) && (ntc_rg1441_e - ntc_rg1441 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
-ntc_oom = 1		; (said once: the parts after this one reach it too)
-			ENDIF
-ntc_rg1441:
 ;## kw_goto_ifzero
 ;kw_goto_ifzero, <var>, <label>  - branch if var = 0
 kw_goto_ifzero:
@@ -21924,15 +21885,15 @@ kw_goto_ifzero:
 			ld sp, hl
 			ret
 
-ntc_rg1441_e:
-			IF ($ < 32768) && (ntc_rg1442_e - ntc_rg1442 + $ > 16384)	; fwdref-ok
+ntc_rg1440_e:
+			IF ($ < 32768) && (ntc_rg1441_e - ntc_rg1441 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
-			IF ($ < 65536) && (ntc_rg1442_e - ntc_rg1442 + $ > 47616)	; fwdref-ok
+			IF ($ < 65536) && (ntc_rg1441_e - ntc_rg1441 + $ > 47616)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg1442:
+ntc_rg1441:
 ;## ntc_for_jump
 ; tails for the FOR / NEXT keywords. DE = var value, HL = limit,
 ; SP = thread at the label word. Signed compare by flipping bit 15.
@@ -22003,15 +21964,15 @@ ntc_for_end:
 			pop hl
 			ret
 
-ntc_rg1442_e:
-			IF ($ < 32768) && (ntc_rg1443_e - ntc_rg1443 + $ > 16384)	; fwdref-ok
+ntc_rg1441_e:
+			IF ($ < 32768) && (ntc_rg1442_e - ntc_rg1442 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
-			IF ($ < 65536) && (ntc_rg1443_e - ntc_rg1443 + $ > 47616)	; fwdref-ok
+			IF ($ < 65536) && (ntc_rg1442_e - ntc_rg1442 + $ > 47616)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg1443:
+ntc_rg1442:
 ;## kw_forupl ntc_for_jump
 ;kw_forupl, <var>, <literal limit>, <endlabel>
 ;  FOR entry, counting up: skip the loop if var > limit
@@ -22023,15 +21984,15 @@ kw_forupl:
 			pop hl
 			jp ntc_for_gt
 
-ntc_rg1443_e:
-			IF ($ < 32768) && (ntc_rg1444_e - ntc_rg1444 + $ > 16384)	; fwdref-ok
+ntc_rg1442_e:
+			IF ($ < 32768) && (ntc_rg1443_e - ntc_rg1443 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
-			IF ($ < 65536) && (ntc_rg1444_e - ntc_rg1444 + $ > 47616)	; fwdref-ok
+			IF ($ < 65536) && (ntc_rg1443_e - ntc_rg1443 + $ > 47616)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg1444:
+ntc_rg1443:
 ;## kw_forupv ntc_for_jump
 ;kw_forupv, <var>, <limit var>, <endlabel>
 kw_forupv:
@@ -22046,15 +22007,15 @@ kw_forupv:
 			ld l, a
 			jp ntc_for_gt
 
-ntc_rg1444_e:
-			IF ($ < 32768) && (ntc_rg1445_e - ntc_rg1445 + $ > 16384)	; fwdref-ok
+ntc_rg1443_e:
+			IF ($ < 32768) && (ntc_rg1444_e - ntc_rg1444 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
-			IF ($ < 65536) && (ntc_rg1445_e - ntc_rg1445 + $ > 47616)	; fwdref-ok
+			IF ($ < 65536) && (ntc_rg1444_e - ntc_rg1444 + $ > 47616)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg1445:
+ntc_rg1444:
 ;## kw_fordnl ntc_for_jump
 ;kw_fordnl, <var>, <literal limit>, <endlabel>
 ;  FOR entry, counting down: skip the loop if var < limit
@@ -22066,15 +22027,15 @@ kw_fordnl:
 			pop hl
 			jp ntc_for_lt
 
-ntc_rg1445_e:
-			IF ($ < 32768) && (ntc_rg1446_e - ntc_rg1446 + $ > 16384)	; fwdref-ok
+ntc_rg1444_e:
+			IF ($ < 32768) && (ntc_rg1445_e - ntc_rg1445 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
-			IF ($ < 65536) && (ntc_rg1446_e - ntc_rg1446 + $ > 47616)	; fwdref-ok
+			IF ($ < 65536) && (ntc_rg1445_e - ntc_rg1445 + $ > 47616)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg1446:
+ntc_rg1445:
 ;## kw_next1l ntc_for_jump
 ;kw_next1l, <var>, <literal limit>, <toplabel>
 ;  NEXT for STEP 1: inc var, back to the top while var <= limit
@@ -22095,15 +22056,15 @@ ntc_n1l_nc:
 			sbc a, a
 			jp ntc_for_le
 
-ntc_rg1446_e:
-			IF ($ < 32768) && (ntc_rg1447_e - ntc_rg1447 + $ > 16384)	; fwdref-ok
+ntc_rg1445_e:
+			IF ($ < 32768) && (ntc_rg1446_e - ntc_rg1446 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
-			IF ($ < 65536) && (ntc_rg1447_e - ntc_rg1447 + $ > 47616)	; fwdref-ok
+			IF ($ < 65536) && (ntc_rg1446_e - ntc_rg1446 + $ > 47616)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg1447:
+ntc_rg1446:
 ;## kw_next1v ntc_for_jump
 ;kw_next1v, <var>, <limit var>, <toplabel>
 kw_next1v:
@@ -22127,15 +22088,15 @@ ntc_n1v_nc:
 			sbc a, a
 			jp ntc_for_le
 
-ntc_rg1447_e:
-			IF ($ < 32768) && (ntc_rg1448_e - ntc_rg1448 + $ > 16384)	; fwdref-ok
+ntc_rg1446_e:
+			IF ($ < 32768) && (ntc_rg1447_e - ntc_rg1447 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
-			IF ($ < 65536) && (ntc_rg1448_e - ntc_rg1448 + $ > 47616)	; fwdref-ok
+			IF ($ < 65536) && (ntc_rg1447_e - ntc_rg1447 + $ > 47616)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg1448:
+ntc_rg1447:
 ;## ntc_nextadd
 ; var += literal step. Pops var and step. Leaves DE = new value, A = #FF when
 ; it went past 32767 or -32768 (the loop ends), else 0.
@@ -22158,15 +22119,15 @@ ntc_nextadd:
 ntc_na_ok:
 			jp (ix)
 
-ntc_rg1448_e:
-			IF ($ < 32768) && (ntc_rg1449_e - ntc_rg1449 + $ > 16384)	; fwdref-ok
+ntc_rg1447_e:
+			IF ($ < 32768) && (ntc_rg1448_e - ntc_rg1448 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
-			IF ($ < 65536) && (ntc_rg1449_e - ntc_rg1449 + $ > 47616)	; fwdref-ok
+			IF ($ < 65536) && (ntc_rg1448_e - ntc_rg1448 + $ > 47616)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg1449:
+ntc_rg1448:
 ;## kw_nextupl ntc_nextadd ntc_for_jump
 ;kw_nextupl, <var>, <literal step>, <literal limit>, <toplabel>
 ;  NEXT for a positive STEP: add, back to the top while var <= limit
@@ -22177,15 +22138,15 @@ ntc_nul_back:
 			pop hl
 			jp ntc_for_le
 
-ntc_rg1449_e:
-			IF ($ < 32768) && (ntc_rg1450_e - ntc_rg1450 + $ > 16384)	; fwdref-ok
+ntc_rg1448_e:
+			IF ($ < 32768) && (ntc_rg1449_e - ntc_rg1449 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
-			IF ($ < 65536) && (ntc_rg1450_e - ntc_rg1450 + $ > 47616)	; fwdref-ok
+			IF ($ < 65536) && (ntc_rg1449_e - ntc_rg1449 + $ > 47616)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg1450:
+ntc_rg1449:
 ;## kw_nextdnl ntc_nextadd ntc_for_jump
 ;kw_nextdnl, <var>, <literal step>, <literal limit>, <toplabel>
 ;  NEXT for a negative STEP: add, back to the top while var >= limit
@@ -22196,6 +22157,25 @@ ntc_ndl_back:
 			pop hl
 			jp ntc_for_ge
 
+ntc_rg1449_e:
+			IF ($ < 32768) && (ntc_rg1450_e - ntc_rg1450 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
+			ENDIF
+			IF ($ < 65536) && (ntc_rg1450_e - ntc_rg1450 + $ > 47616)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+ntc_oom = 1		; (said once: the parts after this one reach it too)
+			ENDIF
+ntc_rg1450:
+;## kw_ltov
+;kw_ltov, <literal>, <destvar>
+kw_ltov:
+			pop de
+			pop hl
+			ld (hl), e
+			inc hl
+			ld (hl), d
+			ret
+
 ntc_rg1450_e:
 			IF ($ < 32768) && (ntc_rg1451_e - ntc_rg1451 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -22205,10 +22185,13 @@ ntc_rg1450_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1451:
-;## kw_ltov
-;kw_ltov, <literal>, <destvar>
-kw_ltov:
-			pop de
+;## kw_vtov
+;kw_vtov, <sourcevar>, <destvar>
+kw_vtov:
+			pop hl
+			ld e, (hl)
+			inc hl
+			ld d, (hl)
 			pop hl
 			ld (hl), e
 			inc hl
@@ -22224,17 +22207,14 @@ ntc_rg1451_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1452:
-;## kw_vtov
-;kw_vtov, <sourcevar>, <destvar>
-kw_vtov:
+;## kw_ztov
+;kw_ztov, <destvar>
+kw_ztov:
+			xor a
 			pop hl
-			ld e, (hl)
+			ld (hl), a
 			inc hl
-			ld d, (hl)
-			pop hl
-			ld (hl), e
-			inc hl
-			ld (hl), d
+			ld (hl), a
 			ret
 
 ntc_rg1452_e:
@@ -22246,25 +22226,6 @@ ntc_rg1452_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1453:
-;## kw_ztov
-;kw_ztov, <destvar>
-kw_ztov:
-			xor a
-			pop hl
-			ld (hl), a
-			inc hl
-			ld (hl), a
-			ret
-
-ntc_rg1453_e:
-			IF ($ < 32768) && (ntc_rg1454_e - ntc_rg1454 + $ > 16384)	; fwdref-ok
-			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
-			ENDIF
-			IF ($ < 65536) && (ntc_rg1454_e - ntc_rg1454 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
-ntc_oom = 1		; (said once: the parts after this one reach it too)
-			ENDIF
-ntc_rg1454:
 ;## kw_ftov
 ;kw_ftov, <destvar>  - Z flag to var: true = -1, false = 0
 kw_ftov:
@@ -22284,15 +22245,15 @@ ntc_ftov_t:
 ; Arithmetic
 ; ============================================================
 
-ntc_rg1454_e:
-			IF ($ < 32768) && (ntc_rg1455_e - ntc_rg1455 + $ > 16384)	; fwdref-ok
+ntc_rg1453_e:
+			IF ($ < 32768) && (ntc_rg1454_e - ntc_rg1454 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
-			IF ($ < 65536) && (ntc_rg1455_e - ntc_rg1455 + $ > 47616)	; fwdref-ok
+			IF ($ < 65536) && (ntc_rg1454_e - ntc_rg1454 + $ > 47616)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg1455:
+ntc_rg1454:
 ;## kw_inc
 ;kw_inc, <var>
 kw_inc:
@@ -22303,15 +22264,15 @@ kw_inc:
 			inc (hl)
 			ret
 
-ntc_rg1455_e:
-			IF ($ < 32768) && (ntc_rg1456_e - ntc_rg1456 + $ > 16384)	; fwdref-ok
+ntc_rg1454_e:
+			IF ($ < 32768) && (ntc_rg1455_e - ntc_rg1455 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
-			IF ($ < 65536) && (ntc_rg1456_e - ntc_rg1456 + $ > 47616)	; fwdref-ok
+			IF ($ < 65536) && (ntc_rg1455_e - ntc_rg1455 + $ > 47616)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg1456:
+ntc_rg1455:
 ;## kw_dec
 ;kw_dec, <var>
 kw_dec:
@@ -22324,15 +22285,15 @@ kw_dec:
 			dec (hl)
 			ret
 
-ntc_rg1456_e:
-			IF ($ < 32768) && (ntc_rg1457_e - ntc_rg1457 + $ > 16384)	; fwdref-ok
+ntc_rg1455_e:
+			IF ($ < 32768) && (ntc_rg1456_e - ntc_rg1456 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
-			IF ($ < 65536) && (ntc_rg1457_e - ntc_rg1457 + $ > 47616)	; fwdref-ok
+			IF ($ < 65536) && (ntc_rg1456_e - ntc_rg1456 + $ > 47616)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg1457:
+ntc_rg1456:
 ;## kw_add
 ;kw_add, <var1>, <var2>, <destvar>
 kw_add:
@@ -22353,15 +22314,15 @@ kw_add:
 			ld (hl), d
 			ret
 
-ntc_rg1457_e:
-			IF ($ < 32768) && (ntc_rg1458_e - ntc_rg1458 + $ > 16384)	; fwdref-ok
+ntc_rg1456_e:
+			IF ($ < 32768) && (ntc_rg1457_e - ntc_rg1457 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
-			IF ($ < 65536) && (ntc_rg1458_e - ntc_rg1458 + $ > 47616)	; fwdref-ok
+			IF ($ < 65536) && (ntc_rg1457_e - ntc_rg1457 + $ > 47616)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg1458:
+ntc_rg1457:
 ;## kw_addl
 ;kw_addl, <var>, <literal>, <destvar>
 kw_addl:
@@ -22378,6 +22339,37 @@ kw_addl:
 			ld (hl), d
 			ret
 
+ntc_rg1457_e:
+			IF ($ < 32768) && (ntc_rg1458_e - ntc_rg1458 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
+			ENDIF
+			IF ($ < 65536) && (ntc_rg1458_e - ntc_rg1458 + $ > 47616)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+ntc_oom = 1		; (said once: the parts after this one reach it too)
+			ENDIF
+ntc_rg1458:
+;## kw_subvv
+;kw_subvv, <var1>, <var2>, <destvar>  - var1 - var2
+kw_subvv:
+			pop hl
+			ld e, (hl)
+			inc hl
+			ld d, (hl)
+			pop hl
+			ld a, (hl)
+			inc hl
+			ld h, (hl)
+			ld l, a
+			ex de, hl
+			or a
+			sbc hl, de
+			ex de, hl
+			pop hl
+			ld (hl), e
+			inc hl
+			ld (hl), d
+			ret
+
 ntc_rg1458_e:
 			IF ($ < 32768) && (ntc_rg1459_e - ntc_rg1459 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -22387,13 +22379,10 @@ ntc_rg1458_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1459:
-;## kw_subvv
-;kw_subvv, <var1>, <var2>, <destvar>  - var1 - var2
-kw_subvv:
-			pop hl
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
+;## kw_sublv
+;kw_sublv, <literal>, <var>, <destvar>  - literal - var
+kw_sublv:
+			pop de
 			pop hl
 			ld a, (hl)
 			inc hl
@@ -22418,34 +22407,6 @@ ntc_rg1459_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1460:
-;## kw_sublv
-;kw_sublv, <literal>, <var>, <destvar>  - literal - var
-kw_sublv:
-			pop de
-			pop hl
-			ld a, (hl)
-			inc hl
-			ld h, (hl)
-			ld l, a
-			ex de, hl
-			or a
-			sbc hl, de
-			ex de, hl
-			pop hl
-			ld (hl), e
-			inc hl
-			ld (hl), d
-			ret
-
-ntc_rg1460_e:
-			IF ($ < 32768) && (ntc_rg1461_e - ntc_rg1461 + $ > 16384)	; fwdref-ok
-			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
-			ENDIF
-			IF ($ < 65536) && (ntc_rg1461_e - ntc_rg1461 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
-ntc_oom = 1		; (said once: the parts after this one reach it too)
-			ENDIF
-ntc_rg1461:
 ;## kw_2x
 ;kw_2x, <var>, <destvar>
 kw_2x:
@@ -22462,15 +22423,15 @@ kw_2x:
 			ld (hl), d
 			ret
 
-ntc_rg1461_e:
-			IF ($ < 32768) && (ntc_rg1462_e - ntc_rg1462 + $ > 16384)	; fwdref-ok
+ntc_rg1460_e:
+			IF ($ < 32768) && (ntc_rg1461_e - ntc_rg1461 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
-			IF ($ < 65536) && (ntc_rg1462_e - ntc_rg1462 + $ > 47616)	; fwdref-ok
+			IF ($ < 65536) && (ntc_rg1461_e - ntc_rg1461 + $ > 47616)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg1462:
+ntc_rg1461:
 ;## kw_4x
 ;kw_4x, <var>, <destvar>
 kw_4x:
@@ -22488,15 +22449,15 @@ kw_4x:
 			ld (hl), d
 			ret
 
-ntc_rg1462_e:
-			IF ($ < 32768) && (ntc_rg1463_e - ntc_rg1463 + $ > 16384)	; fwdref-ok
+ntc_rg1461_e:
+			IF ($ < 32768) && (ntc_rg1462_e - ntc_rg1462 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
-			IF ($ < 65536) && (ntc_rg1463_e - ntc_rg1463 + $ > 47616)	; fwdref-ok
+			IF ($ < 65536) && (ntc_rg1462_e - ntc_rg1462 + $ > 47616)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg1463:
+ntc_rg1462:
 ;## ntc_mul
 ; BC * DE -> pop destvar, store. Low 16 bits (same signed/unsigned)
 ntc_mul:
@@ -22518,15 +22479,15 @@ ntc_mul_skip:
 			ld (hl), d
 			ret
 
-ntc_rg1463_e:
-			IF ($ < 32768) && (ntc_rg1464_e - ntc_rg1464 + $ > 16384)	; fwdref-ok
+ntc_rg1462_e:
+			IF ($ < 32768) && (ntc_rg1463_e - ntc_rg1463 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
-			IF ($ < 65536) && (ntc_rg1464_e - ntc_rg1464 + $ > 47616)	; fwdref-ok
+			IF ($ < 65536) && (ntc_rg1463_e - ntc_rg1463 + $ > 47616)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg1464:
+ntc_rg1463:
 ;## kw_mulvv ntc_mul
 ;kw_mulvv, <var1>, <var2>, <destvar>
 kw_mulvv:
@@ -22540,15 +22501,15 @@ kw_mulvv:
 			ld d, (hl)
 			jp ntc_mul
 
-ntc_rg1464_e:
-			IF ($ < 32768) && (ntc_rg1465_e - ntc_rg1465 + $ > 16384)	; fwdref-ok
+ntc_rg1463_e:
+			IF ($ < 32768) && (ntc_rg1464_e - ntc_rg1464 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
-			IF ($ < 65536) && (ntc_rg1465_e - ntc_rg1465 + $ > 47616)	; fwdref-ok
+			IF ($ < 65536) && (ntc_rg1464_e - ntc_rg1464 + $ > 47616)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg1465:
+ntc_rg1464:
 ;## kw_mulvl ntc_mul
 ;kw_mulvl, <var>, <literal>, <destvar>
 kw_mulvl:
@@ -22559,15 +22520,15 @@ kw_mulvl:
 			pop de
 			jp ntc_mul
 
-ntc_rg1465_e:
-			IF ($ < 32768) && (ntc_rg1466_e - ntc_rg1466 + $ > 16384)	; fwdref-ok
+ntc_rg1464_e:
+			IF ($ < 32768) && (ntc_rg1465_e - ntc_rg1465 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
-			IF ($ < 65536) && (ntc_rg1466_e - ntc_rg1466 + $ > 47616)	; fwdref-ok
+			IF ($ < 65536) && (ntc_rg1465_e - ntc_rg1465 + $ > 47616)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg1466:
+ntc_rg1465:
 ;## ntc_div ntc_data
 ; HL / DE signed, truncating. (ntc_mode) 0 = quotient, 1 = remainder.
 ; Remainder takes the dividend's sign. Divide by zero gives
@@ -22648,15 +22609,15 @@ ntc_div_store:
 			ld (hl), d
 			ret
 
-ntc_rg1466_e:
-			IF ($ < 32768) && (ntc_rg1467_e - ntc_rg1467 + $ > 16384)	; fwdref-ok
+ntc_rg1465_e:
+			IF ($ < 32768) && (ntc_rg1466_e - ntc_rg1466 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
-			IF ($ < 65536) && (ntc_rg1467_e - ntc_rg1467 + $ > 47616)	; fwdref-ok
+			IF ($ < 65536) && (ntc_rg1466_e - ntc_rg1466 + $ > 47616)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg1467:
+ntc_rg1466:
 ;## kw_divvv ntc_div
 ;kw_divvv, <var1>, <var2>, <destvar>  - var1 / var2
 kw_divvv:
@@ -22675,15 +22636,15 @@ ntc_divvv:
 			ld l, c
 			jp ntc_div
 
-ntc_rg1467_e:
-			IF ($ < 32768) && (ntc_rg1468_e - ntc_rg1468 + $ > 16384)	; fwdref-ok
+ntc_rg1466_e:
+			IF ($ < 32768) && (ntc_rg1467_e - ntc_rg1467 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
-			IF ($ < 65536) && (ntc_rg1468_e - ntc_rg1468 + $ > 47616)	; fwdref-ok
+			IF ($ < 65536) && (ntc_rg1467_e - ntc_rg1467 + $ > 47616)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg1468:
+ntc_rg1467:
 ;## kw_divvl ntc_div
 ;kw_divvl, <var>, <literal>, <destvar>
 kw_divvl:
@@ -22698,15 +22659,15 @@ ntc_divvl:
 			pop de
 			jp ntc_div
 
-ntc_rg1468_e:
-			IF ($ < 32768) && (ntc_rg1469_e - ntc_rg1469 + $ > 16384)	; fwdref-ok
+ntc_rg1467_e:
+			IF ($ < 32768) && (ntc_rg1468_e - ntc_rg1468 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
-			IF ($ < 65536) && (ntc_rg1469_e - ntc_rg1469 + $ > 47616)	; fwdref-ok
+			IF ($ < 65536) && (ntc_rg1468_e - ntc_rg1468 + $ > 47616)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg1469:
+ntc_rg1468:
 ;## kw_divlv ntc_div
 ;kw_divlv, <literal>, <var>, <destvar>
 kw_divlv:
@@ -22722,6 +22683,22 @@ ntc_divlv:
 			ld l, c
 			jp ntc_div
 
+ntc_rg1468_e:
+			IF ($ < 32768) && (ntc_rg1469_e - ntc_rg1469 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
+			ENDIF
+			IF ($ < 65536) && (ntc_rg1469_e - ntc_rg1469 + $ > 47616)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+ntc_oom = 1		; (said once: the parts after this one reach it too)
+			ENDIF
+ntc_rg1469:
+;## kw_modvv kw_divvv
+;kw_modvv, <var1>, <var2>, <destvar>  - var1 MOD var2
+kw_modvv:
+			ld a, 1
+			ld (ntc_mode), a
+			jp ntc_divvv
+
 ntc_rg1469_e:
 			IF ($ < 32768) && (ntc_rg1470_e - ntc_rg1470 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -22731,12 +22708,12 @@ ntc_rg1469_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1470:
-;## kw_modvv kw_divvv
-;kw_modvv, <var1>, <var2>, <destvar>  - var1 MOD var2
-kw_modvv:
+;## kw_modvl kw_divvl
+;kw_modvl, <var>, <literal>, <destvar>
+kw_modvl:
 			ld a, 1
 			ld (ntc_mode), a
-			jp ntc_divvv
+			jp ntc_divvl
 
 ntc_rg1470_e:
 			IF ($ < 32768) && (ntc_rg1471_e - ntc_rg1471 + $ > 16384)	; fwdref-ok
@@ -22747,12 +22724,26 @@ ntc_rg1470_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1471:
-;## kw_modvl kw_divvl
-;kw_modvl, <var>, <literal>, <destvar>
-kw_modvl:
-			ld a, 1
-			ld (ntc_mode), a
-			jp ntc_divvl
+;## kw_andvv
+;kw_andvv, <var1>, <var2>, <destvar>
+kw_andvv:
+			pop hl
+			ld e, (hl)
+			inc hl
+			ld d, (hl)
+			pop hl
+			ld a, (hl)
+			and e
+			ld e, a
+			inc hl
+			ld a, (hl)
+			and d
+			ld d, a
+			pop hl
+			ld (hl), e
+			inc hl
+			ld (hl), d
+			ret
 
 ntc_rg1471_e:
 			IF ($ < 32768) && (ntc_rg1472_e - ntc_rg1472 + $ > 16384)	; fwdref-ok
@@ -22763,14 +22754,11 @@ ntc_rg1471_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1472:
-;## kw_andvv
-;kw_andvv, <var1>, <var2>, <destvar>
-kw_andvv:
+;## kw_andvl
+;kw_andvl, <var>, <literal>, <destvar>
+kw_andvl:
 			pop hl
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			pop hl
+			pop de
 			ld a, (hl)
 			and e
 			ld e, a
@@ -22793,17 +22781,20 @@ ntc_rg1472_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1473:
-;## kw_andvl
-;kw_andvl, <var>, <literal>, <destvar>
-kw_andvl:
+;## kw_orvv
+;kw_orvv, <var1>, <var2>, <destvar>
+kw_orvv:
 			pop hl
-			pop de
+			ld e, (hl)
+			inc hl
+			ld d, (hl)
+			pop hl
 			ld a, (hl)
-			and e
+			or e
 			ld e, a
 			inc hl
 			ld a, (hl)
-			and d
+			or d
 			ld d, a
 			pop hl
 			ld (hl), e
@@ -22820,14 +22811,11 @@ ntc_rg1473_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1474:
-;## kw_orvv
-;kw_orvv, <var1>, <var2>, <destvar>
-kw_orvv:
+;## kw_orvl
+;kw_orvl, <var>, <literal>, <destvar>
+kw_orvl:
 			pop hl
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			pop hl
+			pop de
 			ld a, (hl)
 			or e
 			ld e, a
@@ -22850,33 +22838,6 @@ ntc_rg1474_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1475:
-;## kw_orvl
-;kw_orvl, <var>, <literal>, <destvar>
-kw_orvl:
-			pop hl
-			pop de
-			ld a, (hl)
-			or e
-			ld e, a
-			inc hl
-			ld a, (hl)
-			or d
-			ld d, a
-			pop hl
-			ld (hl), e
-			inc hl
-			ld (hl), d
-			ret
-
-ntc_rg1475_e:
-			IF ($ < 32768) && (ntc_rg1476_e - ntc_rg1476 + $ > 16384)	; fwdref-ok
-			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
-			ENDIF
-			IF ($ < 65536) && (ntc_rg1476_e - ntc_rg1476 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
-ntc_oom = 1		; (said once: the parts after this one reach it too)
-			ENDIF
-ntc_rg1476:
 ;## kw_xorvv
 ;kw_xorvv, <var1>, <var2>, <destvar>
 kw_xorvv:
@@ -22898,15 +22859,15 @@ kw_xorvv:
 			ld (hl), d
 			ret
 
-ntc_rg1476_e:
-			IF ($ < 32768) && (ntc_rg1477_e - ntc_rg1477 + $ > 16384)	; fwdref-ok
+ntc_rg1475_e:
+			IF ($ < 32768) && (ntc_rg1476_e - ntc_rg1476 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
-			IF ($ < 65536) && (ntc_rg1477_e - ntc_rg1477 + $ > 47616)	; fwdref-ok
+			IF ($ < 65536) && (ntc_rg1476_e - ntc_rg1476 + $ > 47616)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg1477:
+ntc_rg1476:
 ;## kw_notv
 ;kw_notv, <var>, <destvar>
 kw_notv:
@@ -22929,15 +22890,15 @@ kw_notv:
 ; Tails take DE = a, HL = b and test a <rel> b.
 ; ============================================================
 
-ntc_rg1477_e:
-			IF ($ < 32768) && (ntc_rg1478_e - ntc_rg1478 + $ > 16384)	; fwdref-ok
+ntc_rg1476_e:
+			IF ($ < 32768) && (ntc_rg1477_e - ntc_rg1477 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
-			IF ($ < 65536) && (ntc_rg1478_e - ntc_rg1478 + $ > 47616)	; fwdref-ok
+			IF ($ < 65536) && (ntc_rg1477_e - ntc_rg1477 + $ > 47616)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg1478:
+ntc_rg1477:
 ;## ntc_cmp
 ntc_cmp_slt:
 			ld a, d
@@ -23005,15 +22966,15 @@ ntc_cmp_ne_f:
 			or 1
 			ret
 
-ntc_rg1478_e:
-			IF ($ < 32768) && (ntc_rg1479_e - ntc_rg1479 + $ > 16384)	; fwdref-ok
+ntc_rg1477_e:
+			IF ($ < 32768) && (ntc_rg1478_e - ntc_rg1478 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
-			IF ($ < 65536) && (ntc_rg1479_e - ntc_rg1479 + $ > 47616)	; fwdref-ok
+			IF ($ < 65536) && (ntc_rg1478_e - ntc_rg1478 + $ > 47616)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg1479:
+ntc_rg1478:
 ;## kw_scpltvv ntc_cmp
 ;kw_scpltvv, <var1>, <var2>  - signed var1 < var2
 kw_scpltvv:
@@ -23028,15 +22989,15 @@ kw_scpltvv:
 			ld l, a
 			jp ntc_cmp_slt
 
-ntc_rg1479_e:
-			IF ($ < 32768) && (ntc_rg1480_e - ntc_rg1480 + $ > 16384)	; fwdref-ok
+ntc_rg1478_e:
+			IF ($ < 32768) && (ntc_rg1479_e - ntc_rg1479 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
-			IF ($ < 65536) && (ntc_rg1480_e - ntc_rg1480 + $ > 47616)	; fwdref-ok
+			IF ($ < 65536) && (ntc_rg1479_e - ntc_rg1479 + $ > 47616)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg1480:
+ntc_rg1479:
 ;## kw_scpltvl ntc_cmp
 ;kw_scpltvl, <var>, <literal>
 kw_scpltvl:
@@ -23047,15 +23008,15 @@ kw_scpltvl:
 			pop hl
 			jp ntc_cmp_slt
 
-ntc_rg1480_e:
-			IF ($ < 32768) && (ntc_rg1481_e - ntc_rg1481 + $ > 16384)	; fwdref-ok
+ntc_rg1479_e:
+			IF ($ < 32768) && (ntc_rg1480_e - ntc_rg1480 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
-			IF ($ < 65536) && (ntc_rg1481_e - ntc_rg1481 + $ > 47616)	; fwdref-ok
+			IF ($ < 65536) && (ntc_rg1480_e - ntc_rg1480 + $ > 47616)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg1481:
+ntc_rg1480:
 ;## kw_scplevv ntc_cmp
 kw_scplevv:
 			pop hl
@@ -23069,15 +23030,15 @@ kw_scplevv:
 			ld l, a
 			jp ntc_cmp_sle
 
-ntc_rg1481_e:
-			IF ($ < 32768) && (ntc_rg1482_e - ntc_rg1482 + $ > 16384)	; fwdref-ok
+ntc_rg1480_e:
+			IF ($ < 32768) && (ntc_rg1481_e - ntc_rg1481 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
-			IF ($ < 65536) && (ntc_rg1482_e - ntc_rg1482 + $ > 47616)	; fwdref-ok
+			IF ($ < 65536) && (ntc_rg1481_e - ntc_rg1481 + $ > 47616)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg1482:
+ntc_rg1481:
 ;## kw_scplevl ntc_cmp
 kw_scplevl:
 			pop hl
@@ -23087,15 +23048,15 @@ kw_scplevl:
 			pop hl
 			jp ntc_cmp_sle
 
-ntc_rg1482_e:
-			IF ($ < 32768) && (ntc_rg1483_e - ntc_rg1483 + $ > 16384)	; fwdref-ok
+ntc_rg1481_e:
+			IF ($ < 32768) && (ntc_rg1482_e - ntc_rg1482 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
-			IF ($ < 65536) && (ntc_rg1483_e - ntc_rg1483 + $ > 47616)	; fwdref-ok
+			IF ($ < 65536) && (ntc_rg1482_e - ntc_rg1482 + $ > 47616)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg1483:
+ntc_rg1482:
 ;## kw_scpgtvv ntc_cmp
 kw_scpgtvv:
 			pop hl
@@ -23109,15 +23070,15 @@ kw_scpgtvv:
 			ld l, a
 			jp ntc_cmp_sgt
 
-ntc_rg1483_e:
-			IF ($ < 32768) && (ntc_rg1484_e - ntc_rg1484 + $ > 16384)	; fwdref-ok
+ntc_rg1482_e:
+			IF ($ < 32768) && (ntc_rg1483_e - ntc_rg1483 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
-			IF ($ < 65536) && (ntc_rg1484_e - ntc_rg1484 + $ > 47616)	; fwdref-ok
+			IF ($ < 65536) && (ntc_rg1483_e - ntc_rg1483 + $ > 47616)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg1484:
+ntc_rg1483:
 ;## kw_scpgtvl ntc_cmp
 kw_scpgtvl:
 			pop hl
@@ -23127,15 +23088,15 @@ kw_scpgtvl:
 			pop hl
 			jp ntc_cmp_sgt
 
-ntc_rg1484_e:
-			IF ($ < 32768) && (ntc_rg1485_e - ntc_rg1485 + $ > 16384)	; fwdref-ok
+ntc_rg1483_e:
+			IF ($ < 32768) && (ntc_rg1484_e - ntc_rg1484 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
-			IF ($ < 65536) && (ntc_rg1485_e - ntc_rg1485 + $ > 47616)	; fwdref-ok
+			IF ($ < 65536) && (ntc_rg1484_e - ntc_rg1484 + $ > 47616)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg1485:
+ntc_rg1484:
 ;## kw_scpgevv ntc_cmp
 kw_scpgevv:
 			pop hl
@@ -23149,15 +23110,15 @@ kw_scpgevv:
 			ld l, a
 			jp ntc_cmp_sge
 
-ntc_rg1485_e:
-			IF ($ < 32768) && (ntc_rg1486_e - ntc_rg1486 + $ > 16384)	; fwdref-ok
+ntc_rg1484_e:
+			IF ($ < 32768) && (ntc_rg1485_e - ntc_rg1485 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
-			IF ($ < 65536) && (ntc_rg1486_e - ntc_rg1486 + $ > 47616)	; fwdref-ok
+			IF ($ < 65536) && (ntc_rg1485_e - ntc_rg1485 + $ > 47616)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg1486:
+ntc_rg1485:
 ;## kw_scpgevl ntc_cmp
 kw_scpgevl:
 			pop hl
@@ -23167,15 +23128,15 @@ kw_scpgevl:
 			pop hl
 			jp ntc_cmp_sge
 
-ntc_rg1486_e:
-			IF ($ < 32768) && (ntc_rg1487_e - ntc_rg1487 + $ > 16384)	; fwdref-ok
+ntc_rg1485_e:
+			IF ($ < 32768) && (ntc_rg1486_e - ntc_rg1486 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
-			IF ($ < 65536) && (ntc_rg1487_e - ntc_rg1487 + $ > 47616)	; fwdref-ok
+			IF ($ < 65536) && (ntc_rg1486_e - ntc_rg1486 + $ > 47616)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg1487:
+ntc_rg1486:
 ;## kw_cpeqvv ntc_cmp
 ;kw_cpeqvv, <var1>, <var2>
 kw_cpeqvv:
@@ -23190,15 +23151,15 @@ kw_cpeqvv:
 			ld l, a
 			jp ntc_cmp_eq
 
-ntc_rg1487_e:
-			IF ($ < 32768) && (ntc_rg1488_e - ntc_rg1488 + $ > 16384)	; fwdref-ok
+ntc_rg1486_e:
+			IF ($ < 32768) && (ntc_rg1487_e - ntc_rg1487 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
-			IF ($ < 65536) && (ntc_rg1488_e - ntc_rg1488 + $ > 47616)	; fwdref-ok
+			IF ($ < 65536) && (ntc_rg1487_e - ntc_rg1487 + $ > 47616)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg1488:
+ntc_rg1487:
 ;## kw_cpeqvl ntc_cmp
 kw_cpeqvl:
 			pop hl
@@ -23208,15 +23169,15 @@ kw_cpeqvl:
 			pop hl
 			jp ntc_cmp_eq
 
-ntc_rg1488_e:
-			IF ($ < 32768) && (ntc_rg1489_e - ntc_rg1489 + $ > 16384)	; fwdref-ok
+ntc_rg1487_e:
+			IF ($ < 32768) && (ntc_rg1488_e - ntc_rg1488 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
-			IF ($ < 65536) && (ntc_rg1489_e - ntc_rg1489 + $ > 47616)	; fwdref-ok
+			IF ($ < 65536) && (ntc_rg1488_e - ntc_rg1488 + $ > 47616)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg1489:
+ntc_rg1488:
 ;## kw_cpnevv ntc_cmp
 kw_cpnevv:
 			pop hl
@@ -23230,15 +23191,15 @@ kw_cpnevv:
 			ld l, a
 			jp ntc_cmp_ne
 
-ntc_rg1489_e:
-			IF ($ < 32768) && (ntc_rg1490_e - ntc_rg1490 + $ > 16384)	; fwdref-ok
+ntc_rg1488_e:
+			IF ($ < 32768) && (ntc_rg1489_e - ntc_rg1489 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
-			IF ($ < 65536) && (ntc_rg1490_e - ntc_rg1490 + $ > 47616)	; fwdref-ok
+			IF ($ < 65536) && (ntc_rg1489_e - ntc_rg1489 + $ > 47616)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg1490:
+ntc_rg1489:
 ;## kw_cpnevl ntc_cmp
 kw_cpnevl:
 			pop hl
@@ -23252,6 +23213,26 @@ kw_cpnevl:
 ; Memory (PEEK / POKE / DEEK / DOKE)
 ; ============================================================
 
+ntc_rg1489_e:
+			IF ($ < 32768) && (ntc_rg1490_e - ntc_rg1490 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
+			ENDIF
+			IF ($ < 65536) && (ntc_rg1490_e - ntc_rg1490 + $ > 47616)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+ntc_oom = 1		; (said once: the parts after this one reach it too)
+			ENDIF
+ntc_rg1490:
+;## kw_lptrtov8
+;kw_lptrtov8, <literaladdr>, <destvar>  - PEEK(literal)
+kw_lptrtov8:
+			pop hl
+			ld a, (hl)
+			pop hl
+			ld (hl), a
+			inc hl
+			ld (hl), 0
+			ret
+
 ntc_rg1490_e:
 			IF ($ < 32768) && (ntc_rg1491_e - ntc_rg1491 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -23261,11 +23242,14 @@ ntc_rg1490_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1491:
-;## kw_lptrtov8
-;kw_lptrtov8, <literaladdr>, <destvar>  - PEEK(literal)
-kw_lptrtov8:
+;## kw_vptrtov8
+;kw_vptrtov8, <addrvar>, <destvar>  - PEEK(var)
+kw_vptrtov8:
 			pop hl
-			ld a, (hl)
+			ld e, (hl)
+			inc hl
+			ld d, (hl)
+			ld a, (de)
 			pop hl
 			ld (hl), a
 			inc hl
@@ -23281,18 +23265,16 @@ ntc_rg1491_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1492:
-;## kw_vptrtov8
-;kw_vptrtov8, <addrvar>, <destvar>  - PEEK(var)
-kw_vptrtov8:
+;## kw_ltovptr8
+;kw_ltovptr8, <literal>, <addrvar>  - POKE var, literal
+kw_ltovptr8:
+			pop bc
 			pop hl
 			ld e, (hl)
 			inc hl
 			ld d, (hl)
-			ld a, (de)
-			pop hl
-			ld (hl), a
-			inc hl
-			ld (hl), 0
+			ex de, hl
+			ld (hl), c
 			ret
 
 ntc_rg1492_e:
@@ -23304,10 +23286,11 @@ ntc_rg1492_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1493:
-;## kw_ltovptr8
-;kw_ltovptr8, <literal>, <addrvar>  - POKE var, literal
-kw_ltovptr8:
-			pop bc
+;## kw_vtovptr8
+;kw_vtovptr8, <sourcevar>, <addrvar>  - POKE var, var
+kw_vtovptr8:
+			pop hl
+			ld c, (hl)
 			pop hl
 			ld e, (hl)
 			inc hl
@@ -23325,16 +23308,11 @@ ntc_rg1493_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1494:
-;## kw_vtovptr8
-;kw_vtovptr8, <sourcevar>, <addrvar>  - POKE var, var
-kw_vtovptr8:
+;## kw_ltolptr8
+;kw_ltolptr8, <literal>, <literaladdr>  - POKE literal, literal
+kw_ltolptr8:
+			pop bc
 			pop hl
-			ld c, (hl)
-			pop hl
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			ex de, hl
 			ld (hl), c
 			ret
 
@@ -23347,10 +23325,11 @@ ntc_rg1494_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1495:
-;## kw_ltolptr8
-;kw_ltolptr8, <literal>, <literaladdr>  - POKE literal, literal
-kw_ltolptr8:
-			pop bc
+;## kw_vtolptr8
+;kw_vtolptr8, <sourcevar>, <literaladdr>  - POKE literal, var
+kw_vtolptr8:
+			pop hl
+			ld c, (hl)
 			pop hl
 			ld (hl), c
 			ret
@@ -23364,24 +23343,6 @@ ntc_rg1495_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1496:
-;## kw_vtolptr8
-;kw_vtolptr8, <sourcevar>, <literaladdr>  - POKE literal, var
-kw_vtolptr8:
-			pop hl
-			ld c, (hl)
-			pop hl
-			ld (hl), c
-			ret
-
-ntc_rg1496_e:
-			IF ($ < 32768) && (ntc_rg1497_e - ntc_rg1497 + $ > 16384)	; fwdref-ok
-			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
-			ENDIF
-			IF ($ < 65536) && (ntc_rg1497_e - ntc_rg1497 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
-ntc_oom = 1		; (said once: the parts after this one reach it too)
-			ENDIF
-ntc_rg1497:
 ;## kw_aget
 ;kw_aget, <arraybase>, <indexvar>, <destvar>
 kw_aget:
@@ -23402,15 +23363,15 @@ kw_aget:
 			ld (hl), d
 			ret
 
-ntc_rg1497_e:
-			IF ($ < 32768) && (ntc_rg1498_e - ntc_rg1498 + $ > 16384)	; fwdref-ok
+ntc_rg1496_e:
+			IF ($ < 32768) && (ntc_rg1497_e - ntc_rg1497 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
-			IF ($ < 65536) && (ntc_rg1498_e - ntc_rg1498 + $ > 47616)	; fwdref-ok
+			IF ($ < 65536) && (ntc_rg1497_e - ntc_rg1497 + $ > 47616)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg1498:
+ntc_rg1497:
 ;## kw_aset
 ;kw_aset, <arraybase>, <indexvar>, <sourcevar>
 kw_aset:
@@ -23433,15 +23394,15 @@ kw_aset:
 			ld (hl), b
 			ret
 
-ntc_rg1498_e:
-			IF ($ < 32768) && (ntc_rg1499_e - ntc_rg1499 + $ > 16384)	; fwdref-ok
+ntc_rg1497_e:
+			IF ($ < 32768) && (ntc_rg1498_e - ntc_rg1498 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
-			IF ($ < 65536) && (ntc_rg1499_e - ntc_rg1499 + $ > 47616)	; fwdref-ok
+			IF ($ < 65536) && (ntc_rg1498_e - ntc_rg1498 + $ > 47616)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg1499:
+ntc_rg1498:
 ;## kw_aget8
 ;kw_aget8, <arraybase>, <indexvar>, <destvar>  - Byte array element (0 .. 255)
 kw_aget8:
@@ -23459,15 +23420,15 @@ kw_aget8:
 			ld (hl), 0
 			ret
 
-ntc_rg1499_e:
-			IF ($ < 32768) && (ntc_rg1500_e - ntc_rg1500 + $ > 16384)	; fwdref-ok
+ntc_rg1498_e:
+			IF ($ < 32768) && (ntc_rg1499_e - ntc_rg1499 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
-			IF ($ < 65536) && (ntc_rg1500_e - ntc_rg1500 + $ > 47616)	; fwdref-ok
+			IF ($ < 65536) && (ntc_rg1499_e - ntc_rg1499 + $ > 47616)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg1500:
+ntc_rg1499:
 ;## kw_aset8
 ;kw_aset8, <arraybase>, <indexvar>, <sourcevar>  - set a Byte array element (low byte)
 kw_aset8:
@@ -23484,15 +23445,15 @@ kw_aset8:
 			ld (de), a
 			ret
 
-ntc_rg1500_e:
-			IF ($ < 32768) && (ntc_rg1501_e - ntc_rg1501 + $ > 16384)	; fwdref-ok
+ntc_rg1499_e:
+			IF ($ < 32768) && (ntc_rg1500_e - ntc_rg1500 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
-			IF ($ < 65536) && (ntc_rg1501_e - ntc_rg1501 + $ > 47616)	; fwdref-ok
+			IF ($ < 65536) && (ntc_rg1500_e - ntc_rg1500 + $ > 47616)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg1501:
+ntc_rg1500:
 ;## kw_asetl
 ;kw_asetl, <arraybase>, <indexvar>, <literal>
 kw_asetl:
@@ -23514,15 +23475,15 @@ kw_asetl:
 ; Random (16 bit xorshift 7,9,8 - period 65535)
 ; ============================================================
 
-ntc_rg1501_e:
-			IF ($ < 32768) && (ntc_rg1502_e - ntc_rg1502 + $ > 16384)	; fwdref-ok
+ntc_rg1500_e:
+			IF ($ < 32768) && (ntc_rg1501_e - ntc_rg1501 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
-			IF ($ < 65536) && (ntc_rg1502_e - ntc_rg1502 + $ > 47616)	; fwdref-ok
+			IF ($ < 65536) && (ntc_rg1501_e - ntc_rg1501 + $ > 47616)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg1502:
+ntc_rg1501:
 ;## kw_out
 ;kw_out, <portvar>, <valuevar>  - Out port, value: out (c), a with BC = port
 kw_out:
@@ -23535,6 +23496,21 @@ kw_out:
 			out (c), a
 			ret
 
+ntc_rg1501_e:
+			IF ($ < 32768) && (ntc_rg1502_e - ntc_rg1502 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
+			ENDIF
+			IF ($ < 65536) && (ntc_rg1502_e - ntc_rg1502 + $ > 47616)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+ntc_oom = 1		; (said once: the parts after this one reach it too)
+			ENDIF
+ntc_rg1502:
+;## kw_frame ntc_data ntc_plat_frame
+;kw_frame  - wait for the start of the next frame flyback
+kw_frame:
+			ld ix, ntc_next
+			jp ntc_plat_frame
+
 ntc_rg1502_e:
 			IF ($ < 32768) && (ntc_rg1503_e - ntc_rg1503 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -23544,21 +23520,6 @@ ntc_rg1502_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1503:
-;## kw_frame ntc_data ntc_plat_frame
-;kw_frame  - wait for the start of the next frame flyback
-kw_frame:
-			ld ix, ntc_next
-			jp ntc_plat_frame
-
-ntc_rg1503_e:
-			IF ($ < 32768) && (ntc_rg1504_e - ntc_rg1504 + $ > 16384)	; fwdref-ok
-			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
-			ENDIF
-			IF ($ < 65536) && (ntc_rg1504_e - ntc_rg1504 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
-ntc_oom = 1		; (said once: the parts after this one reach it too)
-			ENDIF
-ntc_rg1504:
 ;## kw_strasc
 ;kw_strasc, <src>, <destvar>  - Asc(src), 0 if empty
 kw_strasc:
@@ -23570,15 +23531,15 @@ kw_strasc:
 			ld (hl), 0
 			ret
 
-ntc_rg1504_e:
-			IF ($ < 32768) && (ntc_rg1505_e - ntc_rg1505 + $ > 16384)	; fwdref-ok
+ntc_rg1503_e:
+			IF ($ < 32768) && (ntc_rg1504_e - ntc_rg1504 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
-			IF ($ < 65536) && (ntc_rg1505_e - ntc_rg1505 + $ > 47616)	; fwdref-ok
+			IF ($ < 65536) && (ntc_rg1504_e - ntc_rg1504 + $ > 47616)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg1505:
+ntc_rg1504:
 ;## ntc_ldata
 ntc_la:			ds 4
 ntc_lb:			ds 4
@@ -23589,15 +23550,15 @@ ntc_lcnt:		db 0
 ntc_ldst:		dw 0
 ntc_lix:		dw 0
 
-ntc_rg1505_e:
-			IF ($ < 32768) && (ntc_rg1506_e - ntc_rg1506 + $ > 16384)	; fwdref-ok
+ntc_rg1504_e:
+			IF ($ < 32768) && (ntc_rg1505_e - ntc_rg1505 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
-			IF ($ < 65536) && (ntc_rg1506_e - ntc_rg1506 + $ > 47616)	; fwdref-ok
+			IF ($ < 65536) && (ntc_rg1505_e - ntc_rg1505 + $ > 47616)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg1506:
+ntc_rg1505:
 ;## kw_l_mov
 ;kw_l_mov, <src>, <dest>  - dest = src (4 bytes)
 kw_l_mov:
@@ -23609,15 +23570,15 @@ kw_l_mov:
 			ldi
 			ret
 
-ntc_rg1506_e:
-			IF ($ < 32768) && (ntc_rg1507_e - ntc_rg1507 + $ > 16384)	; fwdref-ok
+ntc_rg1505_e:
+			IF ($ < 32768) && (ntc_rg1506_e - ntc_rg1506 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
-			IF ($ < 65536) && (ntc_rg1507_e - ntc_rg1507 + $ > 47616)	; fwdref-ok
+			IF ($ < 65536) && (ntc_rg1506_e - ntc_rg1506 + $ > 47616)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg1507:
+ntc_rg1506:
 ;## kw_l_itol
 ;kw_l_itol, <intvar>, <dest>  - Integer to Long (sign extended)
 kw_l_itol:
@@ -23637,15 +23598,15 @@ kw_l_itol:
 			ld (de), a
 			ret
 
-ntc_rg1507_e:
-			IF ($ < 32768) && (ntc_rg1508_e - ntc_rg1508 + $ > 16384)	; fwdref-ok
+ntc_rg1506_e:
+			IF ($ < 32768) && (ntc_rg1507_e - ntc_rg1507 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
-			IF ($ < 65536) && (ntc_rg1508_e - ntc_rg1508 + $ > 47616)	; fwdref-ok
+			IF ($ < 65536) && (ntc_rg1507_e - ntc_rg1507 + $ > 47616)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg1508:
+ntc_rg1507:
 ;## kw_l_ltoi
 ;kw_l_ltoi, <long>, <intdest>  - Long to Integer (low 16 bits)
 kw_l_ltoi:
@@ -23655,15 +23616,15 @@ kw_l_ltoi:
 			ldi
 			ret
 
-ntc_rg1508_e:
-			IF ($ < 32768) && (ntc_rg1509_e - ntc_rg1509 + $ > 16384)	; fwdref-ok
+ntc_rg1507_e:
+			IF ($ < 32768) && (ntc_rg1508_e - ntc_rg1508 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
-			IF ($ < 65536) && (ntc_rg1509_e - ntc_rg1509 + $ > 47616)	; fwdref-ok
+			IF ($ < 65536) && (ntc_rg1508_e - ntc_rg1508 + $ > 47616)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg1509:
+ntc_rg1508:
 ;## kw_l_add
 ;kw_l_add, <a>, <b>, <dest>  - a + b
 kw_l_add:
@@ -23690,15 +23651,15 @@ kw_l_add:
 			ld (ix+3), a
 			ret
 
-ntc_rg1509_e:
-			IF ($ < 32768) && (ntc_rg1510_e - ntc_rg1510 + $ > 16384)	; fwdref-ok
+ntc_rg1508_e:
+			IF ($ < 32768) && (ntc_rg1509_e - ntc_rg1509 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
-			IF ($ < 65536) && (ntc_rg1510_e - ntc_rg1510 + $ > 47616)	; fwdref-ok
+			IF ($ < 65536) && (ntc_rg1509_e - ntc_rg1509 + $ > 47616)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg1510:
+ntc_rg1509:
 ;## kw_l_sub
 ;kw_l_sub, <a>, <b>, <dest>  - a - b
 kw_l_sub:
@@ -23725,15 +23686,15 @@ kw_l_sub:
 			ld (ix+3), a
 			ret
 
-ntc_rg1510_e:
-			IF ($ < 32768) && (ntc_rg1511_e - ntc_rg1511 + $ > 16384)	; fwdref-ok
+ntc_rg1509_e:
+			IF ($ < 32768) && (ntc_rg1510_e - ntc_rg1510 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
-			IF ($ < 65536) && (ntc_rg1511_e - ntc_rg1511 + $ > 47616)	; fwdref-ok
+			IF ($ < 65536) && (ntc_rg1510_e - ntc_rg1510 + $ > 47616)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg1511:
+ntc_rg1510:
 ;## ntc_lcmp ntc_ldata
 ; DE = a, HL = b: work out a - b. ntc_lsgn = #80 if a < b (signed),
 ; ntc_lcnt = 0 if a = b. jp (ix) back.
@@ -23774,15 +23735,15 @@ ntc_lcm_nov:
 			ld (ntc_lcnt), a
 			jp (ix)
 
-ntc_rg1511_e:
-			IF ($ < 32768) && (ntc_rg1512_e - ntc_rg1512 + $ > 16384)	; fwdref-ok
+ntc_rg1510_e:
+			IF ($ < 32768) && (ntc_rg1511_e - ntc_rg1511 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
-			IF ($ < 65536) && (ntc_rg1512_e - ntc_rg1512 + $ > 47616)	; fwdref-ok
+			IF ($ < 65536) && (ntc_rg1511_e - ntc_rg1511 + $ > 47616)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg1512:
+ntc_rg1511:
 ;## kw_l_cplt ntc_lcmp
 ;kw_l_cplt, <a>, <b>  - Z if a < b
 kw_l_cplt:
@@ -23795,15 +23756,15 @@ ntc_lclt:
 			xor #80
 			ret
 
-ntc_rg1512_e:
-			IF ($ < 32768) && (ntc_rg1513_e - ntc_rg1513 + $ > 16384)	; fwdref-ok
+ntc_rg1511_e:
+			IF ($ < 32768) && (ntc_rg1512_e - ntc_rg1512 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
-			IF ($ < 65536) && (ntc_rg1513_e - ntc_rg1513 + $ > 47616)	; fwdref-ok
+			IF ($ < 65536) && (ntc_rg1512_e - ntc_rg1512 + $ > 47616)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg1513:
+ntc_rg1512:
 ;## kw_l_cpge ntc_lcmp
 ;kw_l_cpge, <a>, <b>  - Z if a >= b
 kw_l_cpge:
@@ -23816,15 +23777,15 @@ ntc_lcge:
 			or a
 			ret
 
-ntc_rg1513_e:
-			IF ($ < 32768) && (ntc_rg1514_e - ntc_rg1514 + $ > 16384)	; fwdref-ok
+ntc_rg1512_e:
+			IF ($ < 32768) && (ntc_rg1513_e - ntc_rg1513 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
-			IF ($ < 65536) && (ntc_rg1514_e - ntc_rg1514 + $ > 47616)	; fwdref-ok
+			IF ($ < 65536) && (ntc_rg1513_e - ntc_rg1513 + $ > 47616)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg1514:
+ntc_rg1513:
 ;## kw_l_cple ntc_lcmp
 ;kw_l_cple, <a>, <b>  - Z if a <= b
 kw_l_cple:
@@ -23840,15 +23801,15 @@ ntc_lcle:
 			xor #80
 			ret
 
-ntc_rg1514_e:
-			IF ($ < 32768) && (ntc_rg1515_e - ntc_rg1515 + $ > 16384)	; fwdref-ok
+ntc_rg1513_e:
+			IF ($ < 32768) && (ntc_rg1514_e - ntc_rg1514 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
-			IF ($ < 65536) && (ntc_rg1515_e - ntc_rg1515 + $ > 47616)	; fwdref-ok
+			IF ($ < 65536) && (ntc_rg1514_e - ntc_rg1514 + $ > 47616)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg1515:
+ntc_rg1514:
 ;## kw_l_cpgt ntc_lcmp
 ;kw_l_cpgt, <a>, <b>  - Z if a > b
 kw_l_cpgt:
@@ -23867,15 +23828,15 @@ ntc_lcgt_f:
 			or 1
 			ret
 
-ntc_rg1515_e:
-			IF ($ < 32768) && (ntc_rg1516_e - ntc_rg1516 + $ > 16384)	; fwdref-ok
+ntc_rg1514_e:
+			IF ($ < 32768) && (ntc_rg1515_e - ntc_rg1515 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
-			IF ($ < 65536) && (ntc_rg1516_e - ntc_rg1516 + $ > 47616)	; fwdref-ok
+			IF ($ < 65536) && (ntc_rg1515_e - ntc_rg1515 + $ > 47616)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg1516:
+ntc_rg1515:
 ;## ntc_lmul ntc_ldata
 ; ntc_la * ntc_lb -> ntc_lr (low 32 bits, same signed / unsigned). jp (ix)
 ntc_lmul:
@@ -23925,15 +23886,15 @@ ntc_lm_skip:
 			djnz ntc_lm_loop
 			jp (ix)
 
-ntc_rg1516_e:
-			IF ($ < 32768) && (ntc_rg1517_e - ntc_rg1517 + $ > 16384)	; fwdref-ok
+ntc_rg1515_e:
+			IF ($ < 32768) && (ntc_rg1516_e - ntc_rg1516 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
-			IF ($ < 65536) && (ntc_rg1517_e - ntc_rg1517 + $ > 47616)	; fwdref-ok
+			IF ($ < 65536) && (ntc_rg1516_e - ntc_rg1516 + $ > 47616)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg1517:
+ntc_rg1516:
 ;## ntc_lnegm
 ; HL = address of a Long: negate it in place. jp (ix)
 ntc_lnegm:
@@ -23954,15 +23915,15 @@ ntc_lnegm:
 			ld (hl), a
 			jp (ix)
 
-ntc_rg1517_e:
-			IF ($ < 32768) && (ntc_rg1518_e - ntc_rg1518 + $ > 16384)	; fwdref-ok
+ntc_rg1516_e:
+			IF ($ < 32768) && (ntc_rg1517_e - ntc_rg1517 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
-			IF ($ < 65536) && (ntc_rg1518_e - ntc_rg1518 + $ > 47616)	; fwdref-ok
+			IF ($ < 65536) && (ntc_rg1517_e - ntc_rg1517 + $ > 47616)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg1518:
+ntc_rg1517:
 ;## ntc_ldiv ntc_ldata ntc_lnegm
 ; ntc_la / ntc_lb signed, truncating: quotient in ntc_la, remainder (with
 ; the dividend's sign) in ntc_lr. Divide by 0: quotient 0, remainder =
@@ -24072,15 +24033,15 @@ ntc_ld_out:
 			ld ix, (ntc_lix)
 			jp (ix)
 
-ntc_rg1518_e:
-			IF ($ < 32768) && (ntc_rg1519_e - ntc_rg1519 + $ > 16384)	; fwdref-ok
+ntc_rg1517_e:
+			IF ($ < 32768) && (ntc_rg1518_e - ntc_rg1518 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
-			IF ($ < 65536) && (ntc_rg1519_e - ntc_rg1519 + $ > 47616)	; fwdref-ok
+			IF ($ < 65536) && (ntc_rg1518_e - ntc_rg1518 + $ > 47616)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg1519:
+ntc_rg1518:
 ;## kw_l_mul ntc_lmul ntc_ldata
 ;kw_l_mul, <a>, <b>, <dest>  - a * b
 kw_l_mul:
@@ -24111,15 +24072,15 @@ ntc_lstore:
 			ldi
 			ret
 
-ntc_rg1519_e:
-			IF ($ < 32768) && (ntc_rg1520_e - ntc_rg1520 + $ > 16384)	; fwdref-ok
+ntc_rg1518_e:
+			IF ($ < 32768) && (ntc_rg1519_e - ntc_rg1519 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
-			IF ($ < 65536) && (ntc_rg1520_e - ntc_rg1520 + $ > 47616)	; fwdref-ok
+			IF ($ < 65536) && (ntc_rg1519_e - ntc_rg1519 + $ > 47616)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg1520:
+ntc_rg1519:
 ;## kw_l_div ntc_ldiv kw_l_mul
 ;kw_l_div, <a>, <b>, <dest>  - a \ b
 kw_l_div:
@@ -24144,15 +24105,15 @@ ntc_ldv_back:
 			ld hl, ntc_la
 			jp ntc_lstore
 
-ntc_rg1520_e:
-			IF ($ < 32768) && (ntc_rg1521_e - ntc_rg1521 + $ > 16384)	; fwdref-ok
+ntc_rg1519_e:
+			IF ($ < 32768) && (ntc_rg1520_e - ntc_rg1520 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
-			IF ($ < 65536) && (ntc_rg1521_e - ntc_rg1521 + $ > 47616)	; fwdref-ok
+			IF ($ < 65536) && (ntc_rg1520_e - ntc_rg1520 + $ > 47616)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg1521:
+ntc_rg1520:
 ;## ntc_font
 ; 8x8 font buffer, chars 32-126, 8 bytes each, bit 7 = leftmost pixel.
 ; The platform fills it at start: the CPC copies its own font from the
@@ -24164,15 +24125,15 @@ ntc_font:		ds 95 * 8
 ; Platform class capabilities
 ; ============================================================
 
-ntc_rg1521_e:
-			IF ($ < 32768) && (ntc_rg1522_e - ntc_rg1522 + $ > 16384)	; fwdref-ok
+ntc_rg1520_e:
+			IF ($ < 32768) && (ntc_rg1521_e - ntc_rg1521 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
-			IF ($ < 65536) && (ntc_rg1522_e - ntc_rg1522 + $ > 47616)	; fwdref-ok
+			IF ($ < 65536) && (ntc_rg1521_e - ntc_rg1521 + $ > 47616)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg1522:
+ntc_rg1521:
 ;## ntc_memcore ntc_data ntc_mem ntc_memcore2 ntc_plat_memtop @shared
 ; ------------------------------------------------------------
 ; ntc_memcore - the Memory class, the part every scheme shares. The scheme
@@ -24287,15 +24248,15 @@ mem_chk_bad:
 			ld hl, MEM_BADPAGE
 			jp mem_err
 
-ntc_rg1522_e:
-			IF ($ < 32768) && (ntc_rg1523_e - ntc_rg1523 + $ > 16384)	; fwdref-ok
+ntc_rg1521_e:
+			IF ($ < 32768) && (ntc_rg1522_e - ntc_rg1522 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
-			IF ($ < 65536) && (ntc_rg1523_e - ntc_rg1523 + $ > 47616)	; fwdref-ok
+			IF ($ < 65536) && (ntc_rg1522_e - ntc_rg1522 + $ > 47616)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg1523:
+ntc_rg1522:
 ;## ntc_memcore2 ntc_memcore @shared @far
 ; ntc_memcore2 - the rest of the shared part: far pointers, the heap, bytes
 ; and words. Runs on the real stack (through mem_go), so a keyword ROM set
@@ -24562,15 +24523,15 @@ mem_putback:
 			pop hl
 			ret
 
-ntc_rg1523_e:
-			IF ($ < 32768) && (ntc_rg1524_e - ntc_rg1524 + $ > 16384)	; fwdref-ok
+ntc_rg1522_e:
+			IF ($ < 32768) && (ntc_rg1523_e - ntc_rg1523 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
-			IF ($ < 65536) && (ntc_rg1524_e - ntc_rg1524 + $ > 47616)	; fwdref-ok
+			IF ($ < 65536) && (ntc_rg1523_e - ntc_rg1523 + $ > 47616)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg1524:
+ntc_rg1523:
 ;## ntc_mem ntc_memcore ntc_membank ntc_nxt_bank ntc_msx_bank ntc_dot_bank @shared @far
 ; ------------------------------------------------------------
 ; ntc_mem (CPCExpansion) - 16K RAM pages in the #4000-#7FFF window (CPC gate
@@ -25698,15 +25659,15 @@ mem_lg_end:
 			dec hl
 			ret
 
-ntc_rg1524_e:
-			IF ($ < 32768) && (ntc_rg1525_e - ntc_rg1525 + $ > 16384)	; fwdref-ok
+ntc_rg1523_e:
+			IF ($ < 32768) && (ntc_rg1524_e - ntc_rg1524 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
-			IF ($ < 65536) && (ntc_rg1525_e - ntc_rg1525 + $ > 47616)	; fwdref-ok
+			IF ($ < 65536) && (ntc_rg1524_e - ntc_rg1524 + $ > 47616)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg1525:
+ntc_rg1524:
 ;## ntc_membank ntc_plat_rmr @shared @romram
 ; ------------------------------------------------------------
 ; ntc_membank - Memory's CallBank switch (CPCExpansion). Runs from RAM
@@ -25750,15 +25711,15 @@ ntc_bk_end:
 ntc_bk_di:
 			ret
 
-ntc_rg1525_e:
-			IF ($ < 32768) && (ntc_rg1526_e - ntc_rg1526 + $ > 16384)	; fwdref-ok
+ntc_rg1524_e:
+			IF ($ < 32768) && (ntc_rg1525_e - ntc_rg1525 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
-			IF ($ < 65536) && (ntc_rg1526_e - ntc_rg1526 + $ > 47616)	; fwdref-ok
+			IF ($ < 65536) && (ntc_rg1525_e - ntc_rg1525 + $ > 47616)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg1526:
+ntc_rg1525:
 ;## ntc_ovlcom ntc_data ntc_mem ntc_plat_screen ntc_plat_key kw_stop @shared
 ; ------------------------------------------------------------
 ; ntc_ovlcom - what both overlay schemes share (ntc_ovl has the rest): the
@@ -26026,15 +25987,15 @@ ntc_ovl_lfree:
 			ld hl, 0
 			ret
 
-ntc_rg1526_e:
-			IF ($ < 32768) && (ntc_rg1527_e - ntc_rg1527 + $ > 16384)	; fwdref-ok
+ntc_rg1525_e:
+			IF ($ < 32768) && (ntc_rg1526_e - ntc_rg1526 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
-			IF ($ < 65536) && (ntc_rg1527_e - ntc_rg1527 + $ > 47616)	; fwdref-ok
+			IF ($ < 65536) && (ntc_rg1526_e - ntc_rg1526 + $ > 47616)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg1527:
+ntc_rg1526:
 ;## ntc_ovl ntc_ovlcom ntc_mem ntc_plat_fs @shared
 ; ------------------------------------------------------------
 ; ntc_ovl - overlay classes (Option Class Overlay "FILE"): the class's
@@ -26408,15 +26369,15 @@ ntc_ovl_kwback:
 			ld sp, (ovl_ksp)		; the thread, after the n words
 			ret
 
-ntc_rg1527_e:
-			IF ($ < 32768) && (ntc_rg1528_e - ntc_rg1528 + $ > 16384)	; fwdref-ok
+ntc_rg1526_e:
+			IF ($ < 32768) && (ntc_rg1527_e - ntc_rg1527 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
-			IF ($ < 65536) && (ntc_rg1528_e - ntc_rg1528 + $ > 47616)	; fwdref-ok
+			IF ($ < 65536) && (ntc_rg1527_e - ntc_rg1527 + $ > 47616)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg1528:
+ntc_rg1527:
 ;## kw_bssinit ntc_data ntc_plat_memtop ntc_plat_screen kw_stop @shared
 ;kw_bssinit, <start>, <size>  - the start of the main thread: the program's arrays live after
 ;  it (from ntc_end, not in its file). Check they fit under the platform's top (and 256 bytes
@@ -26486,26 +26447,36 @@ ntc_bsz:		dw 0
 ntc_bsp:		dw 0
 ntc_bstxt:		db "GURU 001", 0
 
-ntc_rg1528_e:
-			IF ($ < 32768) && (ntc_rg1529_e - ntc_rg1529 + $ > 16384)	; fwdref-ok
+ntc_rg1527_e:
+			IF ($ < 32768) && (ntc_rg1528_e - ntc_rg1528 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
-			IF ($ < 65536) && (ntc_rg1529_e - ntc_rg1529 + $ > 47616)	; fwdref-ok
+			IF ($ < 65536) && (ntc_rg1528_e - ntc_rg1528 + $ > 47616)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg1529:
+ntc_rg1528:
 ;## ntc_nxt_bank ntc_mem @far
 	IFDEF NTC_ZXN
 ; nxt_mem_probe - 16K banks from ZXN_FIRSTBANK up are free RAM. Map each into the
 ; window, mark it, re-read; the contiguous run that still holds its marker is
 ; usable. Sets mem_banks (64K banks = usable 16K banks / 4). Called from mem_probe;
 ; leaves interrupts off (the boot re-enables, as the CPC path does).
+; 20261111: the byte each marker goes over is kept (zxn_pr_sv) and put back afterwards,
+; highest bank first - the banks hold things: Option Page ... Loaded pages (their code
+; starts at #4000), a game's data put in banks by its own build, and on a 1MB Next the
+; banks past 47 are aliases of real ones, so a marker there landed on a real bank's
+; first byte (the program's own: RANAMAGE's main thread lost a word at #4000). Highest
+; first, so an alias's real bank is put back last, with its own byte.
 nxt_mem_probe:
 			di
 			ld c, ZXN_FIRSTBANK
+			ld hl, zxn_pr_sv
 zxn_pr_w:
 			call zxn_pr_map			; 16K bank C into #4000-#7FFF
+			ld a, (MEM_WIN)
+			ld (hl), a				; the byte there, kept
+			inc hl
 			ld a, c
 			ld (MEM_WIN), a			; marker = the bank number
 			inc c
@@ -26525,6 +26496,21 @@ zxn_pr_r:
 			cp ZXN_FIRSTBANK + ZXN_MAXBANK
 			jr nz, zxn_pr_r
 zxn_pr_done:
+			push bc					; B = usable banks
+			ld c, ZXN_FIRSTBANK + ZXN_MAXBANK - 1
+			ld hl, zxn_pr_sv + ZXN_MAXBANK - 1
+zxn_pr_rs:
+			call zxn_pr_map			; every bank's byte back, highest first
+			ld a, (hl)
+			ld (MEM_WIN), a
+			dec hl
+			ld a, c
+			cp ZXN_FIRSTBANK
+			jr z, zxn_pr_rsd
+			dec c
+			jr zxn_pr_rs
+zxn_pr_rsd:
+			pop bc
 			ld c, 9					; the program's own window bank back
 			call zxn_pr_map
 			ld a, b					; 64K banks = usable 16K banks / 4
@@ -26543,6 +26529,7 @@ zxn_pr_fl:
 			djnz zxn_pr_fl
 zxn_pr_nf:
 			ret
+zxn_pr_sv:	ds ZXN_MAXBANK			; the probe's kept bytes (one a bank)
 ; zxn_pr_map - C = a 16K bank into #4000-#7FFF (MMU slots 2, 3 = NextReg #52, #53). Keeps C.
 zxn_pr_map:
 			push bc
@@ -26692,15 +26679,15 @@ nxt_mem_se_out:
 ; page (0-3), or + 2 for the whole bank.
 ; ============================================================
 
-ntc_rg1529_e:
-			IF ($ < 32768) && (ntc_rg1530_e - ntc_rg1530 + $ > 16384)	; fwdref-ok
+ntc_rg1528_e:
+			IF ($ < 32768) && (ntc_rg1529_e - ntc_rg1529 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
-			IF ($ < 65536) && (ntc_rg1530_e - ntc_rg1530 + $ > 47616)	; fwdref-ok
+			IF ($ < 65536) && (ntc_rg1529_e - ntc_rg1529 + $ > 47616)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg1530:
+ntc_rg1529:
 ;## ntc_msx_bank ntc_mem @far
 	IFDEF NTC_MSXDOS
 MSX_SETB	equ 1					; B of an MSX RAM setting (see the top)
@@ -26925,15 +26912,15 @@ msx_mem_se_out:
 ; for the whole bank.
 ; ============================================================
 
-ntc_rg1530_e:
-			IF ($ < 32768) && (ntc_rg1531_e - ntc_rg1531 + $ > 16384)	; fwdref-ok
+ntc_rg1529_e:
+			IF ($ < 32768) && (ntc_rg1530_e - ntc_rg1530 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
-			IF ($ < 65536) && (ntc_rg1531_e - ntc_rg1531 + $ > 47616)	; fwdref-ok
+			IF ($ < 65536) && (ntc_rg1530_e - ntc_rg1530 + $ > 47616)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg1531:
+ntc_rg1530:
 ;## ntc_dot_bank ntc_mem @far
 	IFDEF NTC_ZXNDOTL
 DOT_SETB	equ 1					; B of a dot command's RAM setting (see the top)
@@ -27057,15 +27044,15 @@ dot_win:
 			ret
 	ENDIF
 
-ntc_rg1531_e:
-			IF ($ < 32768) && (ntc_rg1532_e - ntc_rg1532 + $ > 16384)	; fwdref-ok
+ntc_rg1530_e:
+			IF ($ < 32768) && (ntc_rg1531_e - ntc_rg1531 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
-			IF ($ < 65536) && (ntc_rg1532_e - ntc_rg1532 + $ > 47616)	; fwdref-ok
+			IF ($ < 65536) && (ntc_rg1531_e - ntc_rg1531 + $ > 47616)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg1532:
+ntc_rg1531:
 ;## ntc_plat_data
 ntc_curx:		db 0			; cursor column (0 based)
 ntc_cury:		db 0			; cursor row (0 based)
@@ -27092,15 +27079,15 @@ ZXN_ROWS		equ 32
 ZXN_PAPER		equ #02			; RRRGGGBB: blue
 ZXN_INK			equ #FC			; yellow
 
-ntc_rg1532_e:
-			IF ($ < 32768) && (ntc_rg1533_e - ntc_rg1533 + $ > 16384)	; fwdref-ok
+ntc_rg1531_e:
+			IF ($ < 32768) && (ntc_rg1532_e - ntc_rg1532 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
-			IF ($ < 65536) && (ntc_rg1533_e - ntc_rg1533 + $ > 47616)	; fwdref-ok
+			IF ($ < 65536) && (ntc_rg1532_e - ntc_rg1532 + $ > 47616)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg1533:
+ntc_rg1532:
 ;## ntc_plat_screen ntc_plat_data ntc_font ntc_data ntc_plat_scroll @shared
 ; ------------------------------------------------------------
 ; ntc_plat_putc - A = character 32-126 (others print as ?), draw it
@@ -27198,15 +27185,15 @@ ntc_nl_do:
 			ld (ntc_cury), a
 			jp (ix)
 
-ntc_rg1533_e:
-			IF ($ < 32768) && (ntc_rg1534_e - ntc_rg1534 + $ > 16384)	; fwdref-ok
+ntc_rg1532_e:
+			IF ($ < 32768) && (ntc_rg1533_e - ntc_rg1533 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
-			IF ($ < 65536) && (ntc_rg1534_e - ntc_rg1534 + $ > 47616)	; fwdref-ok
+			IF ($ < 65536) && (ntc_rg1533_e - ntc_rg1533 + $ > 47616)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg1534:
+ntc_rg1533:
 ;## ntc_plat_scroll ntc_plat_data ntc_data @shared
 ; ------------------------------------------------------------
 ; ntc_plat_scroll - move rows 1-31 up one, clear row 31
@@ -27251,15 +27238,15 @@ ntc_plat_cls:
 			ld (ntc_cury), a
 			jp (ix)
 
-ntc_rg1534_e:
-			IF ($ < 32768) && (ntc_rg1535_e - ntc_rg1535 + $ > 16384)	; fwdref-ok
+ntc_rg1533_e:
+			IF ($ < 32768) && (ntc_rg1534_e - ntc_rg1534 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
-			IF ($ < 65536) && (ntc_rg1535_e - ntc_rg1535 + $ > 47616)	; fwdref-ok
+			IF ($ < 65536) && (ntc_rg1534_e - ntc_rg1534 + $ > 47616)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg1535:
+ntc_rg1534:
 ;## ntc_plat_key ntc_plat_data ntc_data @shared
 ; ------------------------------------------------------------
 ; ntc_plat_scankey - A = ASCII of a key pressed since the last scan,
@@ -27404,15 +27391,15 @@ ntc_keymapy:								; Symbol Shift: the symbols on the keys (+ the 128's ~ | \ {
 			db 13, "=", "+", "-", "^", 0, 0, 0
 			db " ", 0, ".", ",", "*", 0, 0, 0
 
-ntc_rg1535_e:
-			IF ($ < 32768) && (ntc_rg1536_e - ntc_rg1536 + $ > 16384)	; fwdref-ok
+ntc_rg1534_e:
+			IF ($ < 32768) && (ntc_rg1535_e - ntc_rg1535 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
-			IF ($ < 65536) && (ntc_rg1536_e - ntc_rg1536 + $ > 47616)	; fwdref-ok
+			IF ($ < 65536) && (ntc_rg1535_e - ntc_rg1535 + $ > 47616)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg1536:
+ntc_rg1535:
 ;## ntc_plat_frame ntc_plat_data ntc_data @shared
 ; ------------------------------------------------------------
 ; ntc_plat_frame - wait for the end of the display (raster line 192: the
@@ -27512,15 +27499,15 @@ ntc_fr_done:
 			ld ix, (ntc_klink)
 			jp (ix)
 
-ntc_rg1536_e:
-			IF ($ < 32768) && (ntc_rg1537_e - ntc_rg1537 + $ > 16384)	; fwdref-ok
+ntc_rg1535_e:
+			IF ($ < 32768) && (ntc_rg1536_e - ntc_rg1536 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
-			IF ($ < 65536) && (ntc_rg1537_e - ntc_rg1537 + $ > 47616)	; fwdref-ok
+			IF ($ < 65536) && (ntc_rg1536_e - ntc_rg1536 + $ > 47616)	; fwdref-ok
 			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
-ntc_rg1537:
+ntc_rg1536:
 ;## ntc_plat_exit ntc_plat_data
 ; ------------------------------------------------------------
 ; ntc_plat_exit - the end: interrupts off, a soft reset (NextReg 2 bit 0) -
@@ -27537,6 +27524,23 @@ ntc_plat_exit:
 ntc_ex_wait:
 			jr ntc_ex_wait
 
+ntc_rg1536_e:
+			IF ($ < 32768) && (ntc_rg1537_e - ntc_rg1537 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
+			ENDIF
+			IF ($ < 65536) && (ntc_rg1537_e - ntc_rg1537 + $ > 47616)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+ntc_oom = 1		; (said once: the parts after this one reach it too)
+			ENDIF
+ntc_rg1537:
+;## ntc_plat_memtop
+; ntc_plat_memtop - HL = the first byte the Memory class's Small heap must not
+; use: #BA00 (the FileSystem class's DOS area #BA00-#BDFF, then the stack to
+; #C000). Called on the real stack (call / ret), only by the Memory class.
+ntc_plat_memtop:
+			ld hl, #BA00
+			ret
+
 ntc_rg1537_e:
 			IF ($ < 32768) && (ntc_rg1538_e - ntc_rg1538 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -27546,23 +27550,6 @@ ntc_rg1537_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1538:
-;## ntc_plat_memtop
-; ntc_plat_memtop - HL = the first byte the Memory class's Small heap must not
-; use: #BA00 (the FileSystem class's DOS area #BA00-#BDFF, then the stack to
-; #C000). Called on the real stack (call / ret), only by the Memory class.
-ntc_plat_memtop:
-			ld hl, #BA00
-			ret
-
-ntc_rg1538_e:
-			IF ($ < 32768) && (ntc_rg1539_e - ntc_rg1539 + $ > 16384)	; fwdref-ok
-			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
-			ENDIF
-			IF ($ < 65536) && (ntc_rg1539_e - ntc_rg1539 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
-ntc_oom = 1		; (said once: the parts after this one reach it too)
-			ENDIF
-ntc_rg1539:
 ;## ntc_zxwin ntc_plat_data @shared
 ; ------------------------------------------------------------
 ; zxn_sel - HL = a 16K bank (a data block: Option NexData's ntc_nexdata) into
@@ -27605,6 +27592,22 @@ zs_done:
 			ret
 zxn_selb:		db 9			; the bank in the window
 
+ntc_rg1538_e:
+			IF ($ < 32768) && (ntc_rg1539_e - ntc_rg1539 + $ > 16384)	; fwdref-ok
+			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
+			ENDIF
+			IF ($ < 65536) && (ntc_rg1539_e - ntc_rg1539 + $ > 47616)	; fwdref-ok
+			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
+ntc_oom = 1		; (said once: the parts after this one reach it too)
+			ENDIF
+ntc_rg1539:
+;## ntc_plat_rmr ntc_plat_data
+; ntc_plat_rmr - zxn has no CPC gate-array ROM/mode byte; CallBank needs no ROM
+; switching here. Return the current screen mode byte, keep BC, DE, HL.
+ntc_plat_rmr:
+			ld a, (ntc_smode)
+			ret
+
 ntc_rg1539_e:
 			IF ($ < 32768) && (ntc_rg1540_e - ntc_rg1540 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
@@ -27614,22 +27617,6 @@ ntc_rg1539_e:
 ntc_oom = 1		; (said once: the parts after this one reach it too)
 			ENDIF
 ntc_rg1540:
-;## ntc_plat_rmr ntc_plat_data
-; ntc_plat_rmr - zxn has no CPC gate-array ROM/mode byte; CallBank needs no ROM
-; switching here. Return the current screen mode byte, keep BC, DE, HL.
-ntc_plat_rmr:
-			ld a, (ntc_smode)
-			ret
-
-ntc_rg1540_e:
-			IF ($ < 32768) && (ntc_rg1541_e - ntc_rg1541 + $ > 16384)	; fwdref-ok
-			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
-			ENDIF
-			IF ($ < 65536) && (ntc_rg1541_e - ntc_rg1541 + $ > 47616)	; fwdref-ok
-			ASSERT ntc_oom, "out of memory: the program does not fit below #BA00 (Option Memory Reserved #BA00-#FFFF is the top of memory)"
-ntc_oom = 1		; (said once: the parts after this one reach it too)
-			ENDIF
-ntc_rg1541:
 ;## ntc_plat_fs ntc_plat_data
 ; ------------------------------------------------------------
 ; ntc_plat_fs - files: the Next has none yet. What the page code (ntc_ovl) needs to
@@ -27665,8 +27652,8 @@ ntc_pgloaded:	db 3		; Option Page ... Loaded n: how many, then their pages
 			dw 20, 21, 22
 
 ; Option NexData: the data's 16K blocks are in these banks (the NEX file loads them)
-ntc_nexdata:	db 42, 1, 2, 3, 4, 6, 7, 11, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56
-ntc_rg1541_e:
+ntc_nexdata:	db 42, 1, 2, 3, 4, 6, 11, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57
+ntc_rg1540_e:
 ntc_end:				; the end of the program (and of its file)
 var_vid_nreg_v		equ var_vid_nreg_r + 2
 var_vid_col_r		equ var_vid_col_i + 2
@@ -27847,16 +27834,16 @@ ntc_memtab	equ 32768		; the Memory class's tables: above the window
 ntc_memtab	equ ntc_free
 			ENDIF
 ; Option Reserve: the program and its arrays (ntc_start .. ntc_free) must stay out of these
-			ASSERT (ntc_free <= 16384) || (ntc_bss >= 32768), "the program (or its arrays) reaches into Option Memory Reserved #4000-#7FFF (Main.bas line 11)"
+			ASSERT (ntc_free <= 16384) || (ntc_bss >= 32768), "the program (or its arrays) reaches into Option Memory Reserved #4000-#7FFF (Main.bas line 12)"
 			ASSERT (ntc_free <= 47616) || (ntc_bss >= 65536), "the program (or its arrays) reaches into the platform's reserved #BA00-#FFFF (platform zxn: Option Memory Available frees it)"
 			ASSERT (ntc_free <= #4000) || (ntc_start >= #8000) || NTC_WINHOLE, "pages: the program and its arrays must stay out of #4000-#7FFF (the window they run in) - declare it: Option Memory Paged &H4000, &H4000 (code may sit under it) or Option Memory Reserved &H4000, &H4000 (nothing does)"
 
 ; ============================================================
 ; Page SCR (Loaded 20): splash - threads built to run at #4000,
-; in the NEX file's bank 75 (RAM page 20); their variables are in the program, but for
+; in the NEX file's bank 76 (RAM page 20); their variables are in the program, but for
 ; Private Paged ones (after the code, cleared here)
 ; ============================================================
-			MMU 2 3, 150
+			MMU 2 3, 152
 			ORG #4000
 ovl_scr_start:
 			dw NTC_STAMP		; the build stamp: the loader checks it against the program's
@@ -27870,21 +27857,21 @@ p_splash_show:
 
 			; Splash.cls 1119: If n = 1 Then a = LogoAt()
 			dw kw_cpeqvl, var_splash_show_n, 1
-			dw kw_goto_iffalse, if518_1
+			dw kw_goto_iffalse, if516_1
 			dw fn_splash_logoat, var_splash_show_a
-if518_1:
+if516_1:
 
 			; Splash.cls 1125: If n = 2 Then a = NtcAt()
 			dw kw_cpeqvl, var_splash_show_n, 2
-			dw kw_goto_iffalse, if519_1
+			dw kw_goto_iffalse, if517_1
 			dw fn_splash_ntcat, var_splash_show_a
-if519_1:
+if517_1:
 
 			; Splash.cls 1127: If a <> 0 Then Run a
 			dw kw_cpnevl, var_splash_show_a, 0
-			dw kw_goto_iffalse, if520_1
+			dw kw_goto_iffalse, if518_1
 			dw p_splash_run_cl, var_splash_show_a
-if520_1:
+if518_1:
 			dw p_splash_show_r
 p_splash_run:
 
@@ -27903,13 +27890,13 @@ p_splash_run:
 			dw kw_ztov, var_splash_run_k
 
 			; Splash.cls 1138: Do While k < 16 And skip = 0
-do521_t:
+do519_t:
 			dw kw_scpltvl, var_splash_run_k, 16
 			dw kw_ftov, tmp0
 			dw kw_cpeqvl, var_splash_run_skip, 0
 			dw kw_ftov, tmp1
 			dw kw_andvv, tmp0, tmp1, tmp0
-			dw kw_goto_ifzero, tmp0, do521_e
+			dw kw_goto_ifzero, tmp0, do519_e
 
 			; Splash.cls 1139: k = k + 1
 			dw kw_inc, var_splash_run_k
@@ -27919,52 +27906,52 @@ do521_t:
 
 			; Splash.cls 1141: For t = 1 To 3
 			dw kw_ltov, 1, var_splash_run_t
-for522_t:
+for520_t:
 
 			; Splash.cls 1142: Frame
 			dw kw_frame
 
 			; Splash.cls 1143: Next
-			dw kw_next1l, var_splash_run_t, 3, for522_t
-for522_e:
+			dw kw_next1l, var_splash_run_t, 3, for520_t
+for520_e:
 
 			; Splash.cls 1144: If Key() = 0 Then
 			dw fn_splash_key, var_splash_key_key
 			dw kw_vtov, var_splash_key_key, tmp0
 			dw kw_cpeqvl, tmp0, 0
-			dw kw_goto_iffalse, if523_1
+			dw kw_goto_iffalse, if521_1
 
 			; Splash.cls 1145: held = 0
 			dw kw_ztov, var_splash_run_held
 
 			; Splash.cls 1146: ElseIf held = 0 Then
-			dw do521_t_go
-if523_1:
+			dw do519_t_go
+if521_1:
 			dw kw_cpeqvl, var_splash_run_held, 0
-			dw kw_goto_iffalse, do521_t
+			dw kw_goto_iffalse, do519_t
 
 			; Splash.cls 1147: skip = 1
 			dw kw_ltov, 1, var_splash_run_skip
 
 			; Splash.cls 1148: End If
-if523_2:
-if523_e:
+if521_2:
+if521_e:
 
 			; Splash.cls 1149: Loop
-			dw do521_t_go
-do521_e:
+			dw do519_t_go
+do519_e:
 
 			; Splash.cls 1150: hold = 0
 			dw kw_ztov, var_splash_run_hold
 
 			; Splash.cls 1151: Do While hold < 150 And skip = 0
-do524_t:
+do522_t:
 			dw kw_scpltvl, var_splash_run_hold, 150
 			dw kw_ftov, tmp0
 			dw kw_cpeqvl, var_splash_run_skip, 0
 			dw kw_ftov, tmp1
 			dw kw_andvv, tmp0, tmp1, tmp0
-			dw kw_goto_ifzero, tmp0, do524_e
+			dw kw_goto_ifzero, tmp0, do522_e
 
 			; Splash.cls 1152: Frame
 			dw kw_frame
@@ -27976,32 +27963,32 @@ do524_t:
 			dw fn_splash_key, var_splash_key_key
 			dw kw_vtov, var_splash_key_key, tmp0
 			dw kw_cpeqvl, tmp0, 0
-			dw kw_goto_iffalse, if525_1
+			dw kw_goto_iffalse, if523_1
 
 			; Splash.cls 1155: held = 0
 			dw kw_ztov, var_splash_run_held
 
 			; Splash.cls 1156: ElseIf held = 0 Then
-			dw do524_t_go
-if525_1:
+			dw do522_t_go
+if523_1:
 			dw kw_cpeqvl, var_splash_run_held, 0
-			dw kw_goto_iffalse, do524_t
+			dw kw_goto_iffalse, do522_t
 
 			; Splash.cls 1157: skip = 1
 			dw kw_ltov, 1, var_splash_run_skip
 
 			; Splash.cls 1158: End If
-if525_2:
-if525_e:
+if523_2:
+if523_e:
 
 			; Splash.cls 1159: Loop
-			dw do524_t_go
-do524_e:
+			dw do522_t_go
+do522_e:
 
 			; Splash.cls 1160: Do While k > 0
-do526_t:
+do524_t:
 			dw kw_scpgtvl, var_splash_run_k, 0
-			dw kw_goto_iffalse, do526_e
+			dw kw_goto_iffalse, do524_e
 
 			; Splash.cls 1161: k = k - 1
 			dw kw_dec, var_splash_run_k
@@ -28014,7 +28001,7 @@ do526_t:
 
 			; Splash.cls 1164: If skip = 0 Then
 			dw kw_cpeqvl, var_splash_run_skip, 0
-			dw kw_goto_iffalse, do526_t
+			dw kw_goto_iffalse, do524_t
 
 			; Splash.cls 1165: Frame
 			dw kw_frame
@@ -28023,11 +28010,11 @@ do526_t:
 			dw kw_frame
 
 			; Splash.cls 1167: End If
-if527_1:
+if525_1:
 
 			; Splash.cls 1168: Loop
-			dw do526_t_go
-do526_e:
+			dw do524_t_go
+do524_e:
 
 			; Splash.cls 1169: Finish
 			dw fn_splash_finish
@@ -28870,10 +28857,10 @@ ovl_scr_vsize	equ 0		; its page variables; its local memory is the rest, to #800
 
 ; ============================================================
 ; Page DEMO (Loaded 21): demo, proto, esx - threads built to run at #4000,
-; in the NEX file's bank 76 (RAM page 21); their variables are in the program, but for
+; in the NEX file's bank 77 (RAM page 21); their variables are in the program, but for
 ; Private Paged ones (after the code, cleared here)
 ; ============================================================
-			MMU 2 3, 152
+			MMU 2 3, 154
 			ORG #4000
 ovl_demo_start:
 			dw NTC_STAMP		; the build stamp: the loader checks it against the program's
@@ -28886,9 +28873,9 @@ p_demo_sentence:
 			dw kw_ztov, var_demo_sentence_n
 
 			; Demo.cls 24: Do While n < 60
-do405_t:
+do403_t:
 			dw kw_scpltvl, var_demo_sentence_n, 60
-			dw kw_goto_iffalse, do405_e
+			dw kw_goto_iffalse, do403_e
 
 			; Demo.cls 25: idx = Rng.Pick(Data.NWORDS)
 			dw p_rng_pick_c, lit_7637
@@ -28906,13 +28893,13 @@ do405_t:
 			dw kw_vtov, var_vid_pe_pe, var_demo_sentence_c
 
 			; Demo.cls 28: Do While j < 8 And c <> 0
-do406_t:
+do404_t:
 			dw kw_scpltvl, var_demo_sentence_j, 8
 			dw kw_ftov, tmp0
 			dw kw_cpnevl, var_demo_sentence_c, 0
 			dw kw_ftov, tmp1
 			dw kw_andvv, tmp0, tmp1, tmp0
-			dw kw_goto_ifzero, tmp0, do406_e
+			dw kw_goto_ifzero, tmp0, do404_e
 
 			; Demo.cls 29: Rom.Wp n, c
 			dw p_rom_wp_c, var_demo_sentence_n, var_demo_sentence_c
@@ -28933,8 +28920,8 @@ do406_t:
 			dw kw_vtov, var_vid_pe_pe, var_demo_sentence_c
 
 			; Demo.cls 33: Loop
-			dw do406_t_go
-do406_e:
+			dw do404_t_go
+do404_e:
 
 			; Demo.cls 34: Rom.Wp n, 32
 			dw p_rom_wp_c, var_demo_sentence_n, lit_32
@@ -28943,37 +28930,37 @@ do406_e:
 			dw kw_inc, var_demo_sentence_n
 
 			; Demo.cls 36: Loop
-			dw do405_t_go
-do405_e:
+			dw do403_t_go
+do403_e:
 
 			; Demo.cls 37: c = 52
 			dw kw_ltov, 52, var_demo_sentence_c
 
 			; Demo.cls 38: Do While Rom.Wg(c) <> 32
-do407_t:
+do405_t:
 			dw p_rom_wg_c, var_demo_sentence_c
 			dw kw_vtov, var_rom_wg_wg, tmp0
 			dw kw_cpnevl, tmp0, 32
-			dw kw_goto_iffalse, do407_e
+			dw kw_goto_iffalse, do405_e
 
 			; Demo.cls 39: c = c - 1
 			dw kw_dec, var_demo_sentence_c
 
 			; Demo.cls 40: Loop
-			dw do407_t_go
-do407_e:
+			dw do405_t_go
+do405_e:
 
 			; Demo.cls 41: For j = c To 51
 			dw kw_vtov, var_demo_sentence_c, var_demo_sentence_j
-			dw kw_forupl, var_demo_sentence_j, 51, for408_e
-for408_t:
+			dw kw_forupl, var_demo_sentence_j, 51, for406_e
+for406_t:
 
 			; Demo.cls 42: Rom.Wp j, 32
 			dw p_rom_wp_c, var_demo_sentence_j, lit_32
 
 			; Demo.cls 43: Next
-			dw kw_next1l, var_demo_sentence_j, 51, for408_t
-for408_e:
+			dw kw_next1l, var_demo_sentence_j, 51, for406_t
+for406_e:
 
 			; Demo.cls 44: Rom.Wn = 52
 			dw kw_ltov, 52, var_rom_wn
@@ -28982,11 +28969,11 @@ p_demo_slot:
 
 			; Demo.cls 50: If d = 1 Then
 			dw kw_cpeqvl, var_demo_slot_d, 1
-			dw kw_goto_iffalse, if409_1
+			dw kw_goto_iffalse, if407_1
 
 			; Demo.cls 51: If pr < 2 Then
 			dw kw_scpltvl, var_demo_pr, 2
-			dw kw_goto_iffalse, if410_1
+			dw kw_goto_iffalse, if408_1
 
 			; Demo.cls 52: en = Rom.Enc(Data.GENB, pr, 0, 255)
 			dw p_rom_enc_c, lit_27, var_demo_pr, lit_0, lit_255
@@ -28994,23 +28981,23 @@ p_demo_slot:
 
 			; Demo.cls 53: If en < 0 Then en = 0
 			dw kw_scpltvl, var_demo_en, 0
-			dw kw_goto_iffalse, if411_1
+			dw kw_goto_iffalse, if409_1
 			dw kw_ztov, var_demo_en
-if411_1:
+if409_1:
 
 			; Demo.cls 54: Blk.Get Data.WOB, 4096, 64, en
 			dw p_blk_get_c, lit_40, lit_4096, lit_64, var_demo_en
 
 			; Demo.cls 55: Else
-			dw if410_e_go
-if410_1:
+			dw if408_e_go
+if408_1:
 
 			; Demo.cls 56: en = Proto.Enc(pr)
 			dw p_proto_enc_cl, var_demo_pr
 			dw kw_vtov, var_proto_enc_enc, var_demo_en
 
 			; Demo.cls 57: End If
-if410_e:
+if408_e:
 
 			; Demo.cls 58: Blk.Get Data.WOB, 0, 0, 52
 			dw p_blk_get_c, lit_40, lit_0, lit_0, lit_52
@@ -29029,8 +29016,8 @@ if410_e:
 			dw p_blk_put_c, lit_39, tmp1, lit_0, tmp3
 
 			; Demo.cls 62: Else
-			dw if409_e_go
-if409_1:
+			dw if407_e_go
+if407_1:
 
 			; Demo.cls 63: Blk.Get Data.DEMOB, s * 1024, 0, 64 + 700
 			dw kw_mulvl, var_demo_slot_s, 1024, tmp1
@@ -29052,7 +29039,7 @@ if409_1:
 			dw kw_ltov, 52, var_rom_wn
 
 			; Demo.cls 68: End If
-if409_e:
+if407_e:
 			dw p_demo_slot_r
 p_demo_drawtext:
 
@@ -29060,7 +29047,7 @@ p_demo_drawtext:
 
 			; Demo.cls 74: For x = 0 To 51
 			dw kw_ztov, var_demo_drawtext_x
-for412_t:
+for410_t:
 
 			; Demo.cls 75: Vid.Ch 8 + x * 6, y, Rom.Wg(x), c
 			dw kw_mulvl, var_demo_drawtext_x, 6, tmp1
@@ -29070,8 +29057,8 @@ for412_t:
 			dw p_vid_ch_c, tmp0, var_demo_drawtext_y, tmp2, var_demo_drawtext_c
 
 			; Demo.cls 76: Next
-			dw kw_next1l, var_demo_drawtext_x, 51, for412_t
-for412_e:
+			dw kw_next1l, var_demo_drawtext_x, 51, for410_t
+for410_e:
 			dw p_demo_drawtext_r
 p_demo_drawenc:
 
@@ -29079,15 +29066,15 @@ p_demo_drawenc:
 
 			; Demo.cls 82: If pr >= 3 Then
 			dw kw_scpgevl, var_demo_pr, 3
-			dw kw_goto_iffalse, if413_1
+			dw kw_goto_iffalse, if411_1
 
 			; Demo.cls 83: For k = 0 To 109
 			dw kw_ztov, var_demo_drawenc_k
-for414_t:
+for412_t:
 
 			; Demo.cls 84: If k < en Then Vid.Hex2 8 + (k Mod 22) * 14, y + (k \ 22) * 9, Rom.Og(k), 9
 			dw kw_scpltvv, var_demo_drawenc_k, var_demo_en
-			dw kw_goto_iffalse, if415_1
+			dw kw_goto_iffalse, if413_1
 			dw kw_modvl, var_demo_drawenc_k, 22, tmp1
 			dw kw_mulvl, tmp1, 14, tmp1
 			dw kw_addl, tmp1, 8, tmp0
@@ -29097,31 +29084,31 @@ for414_t:
 			dw p_rom_og_c, var_demo_drawenc_k
 			dw kw_vtov, var_rom_og_og, tmp2
 			dw p_vid_hex2_c, tmp0, tmp1, tmp2, lit_9
-if415_1:
+if413_1:
 
 			; Demo.cls 85: Next
-			dw kw_next1l, var_demo_drawenc_k, 109, for414_t
-for414_e:
+			dw kw_next1l, var_demo_drawenc_k, 109, for412_t
+for412_e:
 
 			; Demo.cls 86: If en > 110 Then Dots y + 45
 			dw kw_scpgtvl, var_demo_en, 110
-			dw kw_goto_iffalse, if413_e
+			dw kw_goto_iffalse, if411_e
 			dw kw_addl, var_demo_drawenc_y, 45, tmp0
 			dw p_demo_dots_cl, tmp0
-if416_1:
+if414_1:
 
 			; Demo.cls 87: Else
-			dw if413_e_go
-if413_1:
+			dw if411_e_go
+if411_1:
 
 			; Demo.cls 88: For k = 0 To 54
 			dw kw_ztov, var_demo_drawenc_k
-for417_t:
+for415_t:
 
 			; Demo.cls 89: If k < en \ 2 Then Vid.Hex4 8 + (k Mod 11) * 27, y + (k \ 11) * 9, Rom.Og(k * 2 + 1), Rom.Og(k * 2), 9
 			dw kw_divvl, var_demo_en, 2, tmp1
 			dw kw_scpltvv, var_demo_drawenc_k, tmp1
-			dw kw_goto_iffalse, if418_1
+			dw kw_goto_iffalse, if416_1
 			dw kw_modvl, var_demo_drawenc_k, 11, tmp1
 			dw kw_mulvl, tmp1, 27, tmp1
 			dw kw_addl, tmp1, 8, tmp0
@@ -29136,22 +29123,22 @@ for417_t:
 			dw p_rom_og_c, tmp3
 			dw kw_vtov, var_rom_og_og, tmp3
 			dw p_vid_hex4_c, tmp0, tmp1, tmp2, tmp3, lit_9
-if418_1:
+if416_1:
 
 			; Demo.cls 90: Next
-			dw kw_next1l, var_demo_drawenc_k, 54, for417_t
-for417_e:
+			dw kw_next1l, var_demo_drawenc_k, 54, for415_t
+for415_e:
 
 			; Demo.cls 91: If en \ 2 > 55 Then Dots y + 45
 			dw kw_divvl, var_demo_en, 2, tmp0
 			dw kw_scpgtvl, tmp0, 55
-			dw kw_goto_iffalse, if419_1
+			dw kw_goto_iffalse, if417_1
 			dw kw_addl, var_demo_drawenc_y, 45, tmp0
 			dw p_demo_dots_cl, tmp0
-if419_1:
+if417_1:
 
 			; Demo.cls 92: End If
-if413_e:
+if411_e:
 			dw p_demo_drawenc_r
 p_demo_dots:
 
@@ -29168,15 +29155,15 @@ p_demo_rowsof:
 
 			; Demo.cls 104: If pr >= 3 Then
 			dw kw_scpgevl, var_demo_pr, 3
-			dw kw_goto_iffalse, if420_1
+			dw kw_goto_iffalse, if418_1
 
 			; Demo.cls 105: RowsOf = (en + 21) \ 22
 			dw kw_addl, var_demo_en, 21, tmp0
 			dw kw_divvl, tmp0, 22, var_demo_rowsof_rowsof
 
 			; Demo.cls 106: Else
-			dw if420_e_go
-if420_1:
+			dw if418_e_go
+if418_1:
 
 			; Demo.cls 107: RowsOf = (en \ 2 + 10) \ 11
 			dw kw_divvl, var_demo_en, 2, tmp0
@@ -29184,7 +29171,7 @@ if420_1:
 			dw kw_divvl, tmp0, 11, var_demo_rowsof_rowsof
 
 			; Demo.cls 108: End If
-if420_e:
+if418_e:
 			dw p_demo_rowsof_r
 p_demo_paginate:
 
@@ -29204,7 +29191,7 @@ p_demo_paginate:
 
 			; Demo.cls 118: For e = 0 To 9
 			dw kw_ztov, var_demo_paginate_e
-for421_t:
+for419_t:
 
 			; Demo.cls 119: Slot pm(e), 0
 			dw kw_aget, arr_demo_pm, var_demo_paginate_e, tmp0
@@ -29218,9 +29205,9 @@ for421_t:
 			dw kw_ztov, var_demo_paginate_st
 
 			; Demo.cls 122: Do While r > 0
-do422_t:
+do420_t:
 			dw kw_scpgtvl, var_demo_paginate_r, 0
-			dw kw_goto_iffalse, do422_e
+			dw kw_goto_iffalse, do420_e
 
 			; Demo.cls 123: av = (226 - y) \ 9
 			dw kw_sublv, 226, var_demo_paginate_y, tmp0
@@ -29228,7 +29215,7 @@ do422_t:
 
 			; Demo.cls 124: If av < 1 Then
 			dw kw_scpltvl, var_demo_paginate_av, 1
-			dw kw_goto_iffalse, if423_1
+			dw kw_goto_iffalse, if421_1
 
 			; Demo.cls 125: pg = pg + 1
 			dw kw_inc, var_demo_paginate_pg
@@ -29244,16 +29231,16 @@ do422_t:
 			dw kw_divvl, tmp0, 9, var_demo_paginate_av
 
 			; Demo.cls 129: End If
-if423_1:
+if421_1:
 
 			; Demo.cls 130: n = r
 			dw kw_vtov, var_demo_paginate_r, var_demo_paginate_n
 
 			; Demo.cls 131: If n > av Then n = av
 			dw kw_scpgtvv, var_demo_paginate_n, var_demo_paginate_av
-			dw kw_goto_iffalse, if424_1
+			dw kw_goto_iffalse, if422_1
 			dw kw_vtov, var_demo_paginate_av, var_demo_paginate_n
-if424_1:
+if422_1:
 
 			; Demo.cls 132: entE(k) = e
 			dw kw_aset8, arr_demo_ente, var_demo_paginate_k, var_demo_paginate_e
@@ -29280,12 +29267,12 @@ if424_1:
 			dw kw_subvv, var_demo_paginate_r, var_demo_paginate_n, var_demo_paginate_r
 
 			; Demo.cls 139: Loop
-			dw do422_t_go
-do422_e:
+			dw do420_t_go
+do420_e:
 
 			; Demo.cls 140: Next
-			dw kw_next1l, var_demo_paginate_e, 9, for421_t
-for421_e:
+			dw kw_next1l, var_demo_paginate_e, 9, for419_t
+for419_e:
 
 			; Demo.cls 141: ne = pg + 1
 			dw kw_addl, var_demo_paginate_pg, 1, var_demo_ne
@@ -29306,19 +29293,19 @@ p_demo_drawrows:
 
 			; Demo.cls 150: If pr >= 3 Then g = 22 Else g = 11
 			dw kw_scpgevl, var_demo_pr, 3
-			dw kw_goto_iffalse, if425_1
+			dw kw_goto_iffalse, if423_1
 			dw kw_ltov, 22, var_demo_drawrows_g
-			dw if425_e_go
-if425_1:
+			dw if423_e_go
+if423_1:
 			dw kw_ltov, 11, var_demo_drawrows_g
-if425_e:
+if423_e:
 
 			; Demo.cls 151: For k = 0 To nr * g - 1
 			dw kw_ztov, var_demo_drawrows_k
 			dw kw_mulvv, var_demo_drawrows_nr, var_demo_drawrows_g, tmp0
-			dw kw_addl, tmp0, -1, for426_l
-			dw kw_forupv, var_demo_drawrows_k, for426_l, for426_e
-for426_t:
+			dw kw_addl, tmp0, -1, for424_l
+			dw kw_forupv, var_demo_drawrows_k, for424_l, for424_e
+for424_t:
 
 			; Demo.cls 152: ix = r0 * g + k
 			dw kw_mulvv, var_demo_drawrows_r0, var_demo_drawrows_g, tmp0
@@ -29326,11 +29313,11 @@ for426_t:
 
 			; Demo.cls 153: If pr >= 3 Then
 			dw kw_scpgevl, var_demo_pr, 3
-			dw kw_goto_iffalse, if427_1
+			dw kw_goto_iffalse, if425_1
 
 			; Demo.cls 154: If ix < en Then Vid.Hex2 8 + (k Mod 22) * 14, y + (k \ 22) * 9, Rom.Og(ix), 9
 			dw kw_scpltvv, var_demo_drawrows_ix, var_demo_en
-			dw kw_goto_iffalse, if427_e
+			dw kw_goto_iffalse, if425_e
 			dw kw_modvl, var_demo_drawrows_k, 22, tmp1
 			dw kw_mulvl, tmp1, 14, tmp1
 			dw kw_addl, tmp1, 8, tmp0
@@ -29340,16 +29327,16 @@ for426_t:
 			dw p_rom_og_c, var_demo_drawrows_ix
 			dw kw_vtov, var_rom_og_og, tmp2
 			dw p_vid_hex2_c, tmp0, tmp1, tmp2, lit_9
-if428_1:
+if426_1:
 
 			; Demo.cls 155: Else
-			dw if427_e_go
-if427_1:
+			dw if425_e_go
+if425_1:
 
 			; Demo.cls 156: If ix < en \ 2 Then Vid.Hex4 8 + (k Mod 11) * 27, y + (k \ 11) * 9, Rom.Og(ix * 2 + 1), Rom.Og(ix * 2), 9
 			dw kw_divvl, var_demo_en, 2, tmp1
 			dw kw_scpltvv, var_demo_drawrows_ix, tmp1
-			dw kw_goto_iffalse, if429_1
+			dw kw_goto_iffalse, if427_1
 			dw kw_modvl, var_demo_drawrows_k, 11, tmp1
 			dw kw_mulvl, tmp1, 27, tmp1
 			dw kw_addl, tmp1, 8, tmp0
@@ -29364,14 +29351,14 @@ if427_1:
 			dw p_rom_og_c, tmp3
 			dw kw_vtov, var_rom_og_og, tmp3
 			dw p_vid_hex4_c, tmp0, tmp1, tmp2, tmp3, lit_9
-if429_1:
+if427_1:
 
 			; Demo.cls 157: End If
-if427_e:
+if425_e:
 
 			; Demo.cls 158: Next
-			dw kw_next1v, var_demo_drawrows_k, for426_l, for426_t
-for426_e:
+			dw kw_next1v, var_demo_drawrows_k, for424_l, for424_t
+for424_e:
 			dw p_demo_drawrows_r
 p_demo_savefiles:
 
@@ -29382,7 +29369,7 @@ p_demo_savefiles:
 
 			; Demo.cls 166: For i = 0 To 9
 			dw kw_ztov, var_demo_savefiles_i
-for430_t:
+for428_t:
 
 			; Demo.cls 167: Slot i, 0
 			dw p_demo_slot_cl, var_demo_savefiles_i, lit_0
@@ -29392,9 +29379,9 @@ for430_t:
 			dw p_esx_save_cl, lit_0, tmp1, vp_arr_blk_buf, lit_52
 			dw kw_vtov, var_esx_save_save, tmp0
 			dw kw_cpnevl, tmp0, 0
-			dw kw_goto_iffalse, if431_1
+			dw kw_goto_iffalse, if429_1
 			dw kw_inc, var_demo_savefiles_bad
-if431_1:
+if429_1:
 
 			; Demo.cls 169: Slot pm(i), 0
 			dw kw_aget, arr_demo_pm, var_demo_savefiles_i, tmp0
@@ -29405,13 +29392,13 @@ if431_1:
 			dw p_esx_save_cl, lit_1, var_demo_savefiles_i, tmp2, var_demo_en
 			dw kw_vtov, var_esx_save_save, tmp0
 			dw kw_cpnevl, tmp0, 0
-			dw kw_goto_iffalse, if432_1
+			dw kw_goto_iffalse, if430_1
 			dw kw_inc, var_demo_savefiles_bad
-if432_1:
+if430_1:
 
 			; Demo.cls 171: Next
-			dw kw_next1l, var_demo_savefiles_i, 9, for430_t
-for430_e:
+			dw kw_next1l, var_demo_savefiles_i, 9, for428_t
+for428_e:
 
 			; Demo.cls 172: SaveFiles = bad
 			dw kw_vtov, var_demo_savefiles_bad, var_demo_savefiles_savefiles
@@ -29423,52 +29410,52 @@ p_demo_item:
 
 			; Demo.cls 178: If k = 1 Then
 			dw kw_cpeqvl, var_demo_item_k, 1
-			dw kw_goto_iffalse, if433_1
+			dw kw_goto_iffalse, if431_1
 
 			; Demo.cls 179: If lab > 0 Then Vid.Ch 8, y, 64 + lab, 10
 			dw kw_scpgtvl, var_demo_item_lab, 0
-			dw kw_goto_iffalse, if434_1
+			dw kw_goto_iffalse, if432_1
 			dw kw_addl, var_demo_item_lab, 64, tmp2
 			dw p_vid_ch_c, lit_8, var_demo_item_y, tmp2, lit_10
-if434_1:
+if432_1:
 
 			; Demo.cls 180: Vid.Num 32, y, en, 3, 3
 			dw p_vid_num_c, lit_32, var_demo_item_y, var_demo_en, lit_3, lit_3
 
 			; Demo.cls 181: Vid.Txt 56, y, Data.TX_D_BY, 3
-			dw p_vid_txt_c, lit_56, var_demo_item_y, lit_11763, lit_3
+			dw p_vid_txt_c, lit_56, var_demo_item_y, lit_12548, lit_3
 
 			; Demo.cls 182: DrawEnc y + 10
 			dw kw_addl, var_demo_item_y, 10, tmp0
 			dw p_demo_drawenc_cl, tmp0
 
 			; Demo.cls 183: Else
-			dw if433_e_go
-if433_1:
+			dw if431_e_go
+if431_1:
 
 			; Demo.cls 184: If lab > 0 Then Vid.Num 8, y, lab, 2, 10
 			dw kw_scpgtvl, var_demo_item_lab, 0
-			dw kw_goto_iffalse, if435_1
+			dw kw_goto_iffalse, if433_1
 			dw p_vid_num_c, lit_8, var_demo_item_y, var_demo_item_lab, lit_2, lit_10
-if435_1:
+if433_1:
 
 			; Demo.cls 185: Vid.Num 38, y, 52, 2, 3
 			dw p_vid_num_c, lit_38, var_demo_item_y, lit_52, lit_2, lit_3
 
 			; Demo.cls 186: Vid.Txt 56, y, Data.TX_D_CH, 3
-			dw p_vid_txt_c, lit_56, var_demo_item_y, lit_11758, lit_3
+			dw p_vid_txt_c, lit_56, var_demo_item_y, lit_12542, lit_3
 
 			; Demo.cls 187: DrawText y + 10, 1
 			dw kw_addl, var_demo_item_y, 10, tmp0
 			dw p_demo_drawtext_cl, tmp0, lit_1
 
 			; Demo.cls 188: End If
-if433_e:
+if431_e:
 			dw p_demo_item_r
 p_demo_gamedraw:
 
 			; Demo.cls 192: Vid.Page Data.TX_D_GT, Data.TX_D_GK
-			dw p_vid_page_c, lit_11968, lit_11988
+			dw p_vid_page_c, lit_12778, lit_12799
 
 			; Demo.cls 193: Item 30, pm(e), e + 1, 1
 			dw kw_aget, arr_demo_pm, var_demo_gamedraw_e, tmp1
@@ -29480,7 +29467,7 @@ p_demo_gamedraw:
 			dw p_demo_item_cl, lit_112, var_demo_gamedraw_n, tmp2, lit_0
 
 			; Demo.cls 195: Vid.Txt 8, 190, Data.TX_D_GN, 2
-			dw p_vid_txt_c, lit_8, lit_190, lit_12018, lit_2
+			dw p_vid_txt_c, lit_8, lit_190, lit_12835, lit_2
 
 			; Demo.cls 196: Vid.PageNo pa + 2, np
 			dw kw_addl, var_demo_pa, 2, tmp0
@@ -29503,15 +29490,15 @@ p_demo_game:
 			dw kw_ltov, 1, var_demo_game_c
 
 			; Demo.cls 206: Do While r = 2
-do436_t:
+do434_t:
 			dw kw_cpeqvl, var_demo_game_r, 2
-			dw kw_goto_iffalse, do436_e
+			dw kw_goto_iffalse, do434_e
 
 			; Demo.cls 207: If c = 1 Then GameDraw e, n
 			dw kw_cpeqvl, var_demo_game_c, 1
-			dw kw_goto_iffalse, if437_1
+			dw kw_goto_iffalse, if435_1
 			dw p_demo_gamedraw_cl, var_demo_game_e, var_demo_game_n
-if437_1:
+if435_1:
 
 			; Demo.cls 208: c = 0
 			dw kw_ztov, var_demo_game_c
@@ -29526,7 +29513,7 @@ if437_1:
 			; Demo.cls 211: If (k And 1) <> 0 Then
 			dw kw_andvl, var_demo_game_k, 1, tmp0
 			dw kw_cpnevl, tmp0, 0
-			dw kw_goto_iffalse, if438_1
+			dw kw_goto_iffalse, if436_1
 
 			; Demo.cls 212: n = (n + 9) Mod 10
 			dw kw_addl, var_demo_game_n, 9, tmp0
@@ -29536,12 +29523,12 @@ if437_1:
 			dw kw_ltov, 1, var_demo_game_c
 
 			; Demo.cls 214: End If
-if438_1:
+if436_1:
 
 			; Demo.cls 215: If (k And 2) <> 0 Then
 			dw kw_andvl, var_demo_game_k, 2, tmp0
 			dw kw_cpnevl, tmp0, 0
-			dw kw_goto_iffalse, if439_1
+			dw kw_goto_iffalse, if437_1
 
 			; Demo.cls 216: n = (n + 1) Mod 10
 			dw kw_addl, var_demo_game_n, 1, tmp0
@@ -29551,12 +29538,12 @@ if438_1:
 			dw kw_ltov, 1, var_demo_game_c
 
 			; Demo.cls 218: End If
-if439_1:
+if437_1:
 
 			; Demo.cls 219: If (k And 16) <> 0 Then
 			dw kw_andvl, var_demo_game_k, 16, tmp0
 			dw kw_cpnevl, tmp0, 0
-			dw kw_goto_iffalse, if440_1
+			dw kw_goto_iffalse, if438_1
 
 			; Demo.cls 220: gs(e) = n
 			dw kw_aset, arr_demo_gs, var_demo_game_e, var_demo_game_n
@@ -29572,23 +29559,23 @@ if439_1:
 
 			; Demo.cls 224: If e = 10 Then r = 1
 			dw kw_cpeqvl, var_demo_game_e, 10
-			dw kw_goto_iffalse, if441_1
+			dw kw_goto_iffalse, if439_1
 			dw kw_ltov, 1, var_demo_game_r
-if441_1:
+if439_1:
 
 			; Demo.cls 225: End If
-if440_1:
+if438_1:
 
 			; Demo.cls 226: If (k And 32) <> 0 Then r = 0
 			dw kw_andvl, var_demo_game_k, 32, tmp0
 			dw kw_cpnevl, tmp0, 0
-			dw kw_goto_iffalse, do436_t
+			dw kw_goto_iffalse, do434_t
 			dw kw_ztov, var_demo_game_r
-if442_1:
+if440_1:
 
 			; Demo.cls 227: Loop
-			dw do436_t_go
-do436_e:
+			dw do434_t_go
+do434_e:
 
 			; Demo.cls 228: Game = r
 			dw kw_vtov, var_demo_game_r, var_demo_game_game
@@ -29603,12 +29590,12 @@ p_demo_probe:
 			dw kw_ltov, 2, var_demo_probe_r
 
 			; Demo.cls 237: Do While r = 2
-do443_t:
+do441_t:
 			dw kw_cpeqvl, var_demo_probe_r, 2
-			dw kw_goto_iffalse, do443_e
+			dw kw_goto_iffalse, do441_e
 
 			; Demo.cls 238: Vid.Page Data.TX_D_AT, Data.TX_D_AK
-			dw p_vid_page_c, lit_12380, lit_12405
+			dw p_vid_page_c, lit_13188, lit_13215
 
 			; Demo.cls 239: Vid.PageNo pa + 1, np
 			dw kw_addl, var_demo_pa, 1, tmp0
@@ -29618,17 +29605,17 @@ do443_t:
 			dw p_vid_fill_c, lit_156, lit_28, lit_1, lit_204, lit_8
 
 			; Demo.cls 241: Vid.Txt 8, 30, Data.TX_D_AI, 1
-			dw p_vid_txt_c, lit_8, lit_30, lit_12435, lit_1
+			dw p_vid_txt_c, lit_8, lit_30, lit_13243, lit_1
 
 			; Demo.cls 242: Vid.Txt 8, 112, Data.TX_D_AY, 3
-			dw p_vid_txt_c, lit_8, lit_112, lit_12576, lit_3
+			dw p_vid_txt_c, lit_8, lit_112, lit_13373, lit_3
 
 			; Demo.cls 243: Vid.Txt 162, 30, Data.TX_D_AH, 3
-			dw p_vid_txt_c, lit_162, lit_30, lit_12589, lit_3
+			dw p_vid_txt_c, lit_162, lit_30, lit_13384, lit_3
 
 			; Demo.cls 244: If mc = 0 Then
 			dw kw_cpeqvl, var_demo_mc, 0
-			dw kw_goto_iffalse, if444_1
+			dw kw_goto_iffalse, if442_1
 
 			; Demo.cls 245: Play.mn = 0
 			dw kw_ztov, var_play_mn
@@ -29641,27 +29628,27 @@ do443_t:
 
 			; Demo.cls 248: For i = 0 To mc - 1
 			dw kw_ztov, var_demo_probe_i
-			dw kw_addl, var_demo_mc, -1, for445_l
-			dw kw_forupv, var_demo_probe_i, for445_l, if444_e
-for445_t:
+			dw kw_addl, var_demo_mc, -1, for443_l
+			dw kw_forupv, var_demo_probe_i, for443_l, if442_e
+for443_t:
 
 			; Demo.cls 249: cb(i) = Play.mes(i)
 			dw kw_aget8, arr_play_mes, var_demo_probe_i, tmp1
 			dw kw_aset8, arr_demo_cb, var_demo_probe_i, tmp1
 
 			; Demo.cls 250: Next
-			dw kw_next1v, var_demo_probe_i, for445_l, for445_t
-for445_e:
+			dw kw_next1v, var_demo_probe_i, for443_l, for443_t
+for443_e:
 
 			; Demo.cls 251: Else
-			dw if444_e_go
-if444_1:
+			dw if442_e_go
+if442_1:
 
 			; Demo.cls 252: For i = 0 To mc - 1
 			dw kw_ztov, var_demo_probe_i
-			dw kw_addl, var_demo_mc, -1, for446_l
-			dw kw_forupv, var_demo_probe_i, for446_l, for446_e
-for446_t:
+			dw kw_addl, var_demo_mc, -1, for444_l
+			dw kw_forupv, var_demo_probe_i, for444_l, for444_e
+for444_t:
 
 			; Demo.cls 253: Vid.Glyph 8 + i * 6, 123, cb(i), 10
 			dw kw_mulvl, var_demo_probe_i, 6, tmp1
@@ -29670,11 +29657,11 @@ for446_t:
 			dw p_vid_glyph_c, tmp0, lit_123, tmp2, lit_10
 
 			; Demo.cls 254: Next
-			dw kw_next1v, var_demo_probe_i, for446_l, for446_t
-for446_e:
+			dw kw_next1v, var_demo_probe_i, for444_l, for444_t
+for444_e:
 
 			; Demo.cls 255: End If
-if444_e:
+if442_e:
 
 			; Demo.cls 256: Vid.Fill 156, 28, 1, 204, 8
 			dw p_vid_fill_c, lit_156, lit_28, lit_1, lit_204, lit_8
@@ -29683,17 +29670,17 @@ if444_e:
 			dw p_vid_fill_c, lit_0, lit_238, lit_320, lit_18, lit_6
 
 			; Demo.cls 258: Vid.Txt 8, 244, Data.TX_D_AK2, 3
-			dw p_vid_txt_c, lit_8, lit_244, lit_12780, lit_3
+			dw p_vid_txt_c, lit_8, lit_244, lit_13575, lit_3
 
 			; Demo.cls 259: Vid.Txt 8, 142, Data.TX_D_AX, 3
-			dw p_vid_txt_c, lit_8, lit_142, lit_12609, lit_3
+			dw p_vid_txt_c, lit_8, lit_142, lit_13405, lit_3
 
 			; Demo.cls 260: m = mc
 			dw kw_vtov, var_demo_mc, var_demo_probe_m
 
 			; Demo.cls 261: For e = 0 To 9
 			dw kw_ztov, var_demo_probe_e
-for447_t:
+for445_t:
 
 			; Demo.cls 262: Slot pm(e), 0
 			dw kw_aget, arr_demo_pm, var_demo_probe_e, tmp0
@@ -29701,12 +29688,12 @@ for447_t:
 
 			; Demo.cls 263: If pr >= 3 Then w = 1 Else w = 2
 			dw kw_scpgevl, var_demo_pr, 3
-			dw kw_goto_iffalse, if448_1
+			dw kw_goto_iffalse, if446_1
 			dw kw_ltov, 1, var_demo_probe_w
-			dw if448_e_go
-if448_1:
+			dw if446_e_go
+if446_1:
 			dw kw_ltov, 2, var_demo_probe_w
-if448_e:
+if446_e:
 
 			; Demo.cls 264: tried = 0
 			dw kw_ztov, var_demo_probe_tried
@@ -29716,9 +29703,9 @@ if448_e:
 
 			; Demo.cls 266: For s = 0 To w - 1
 			dw kw_ztov, var_demo_probe_s
-			dw kw_addl, var_demo_probe_w, -1, for449_l
-			dw kw_forupv, var_demo_probe_s, for449_l, for449_e
-for449_t:
+			dw kw_addl, var_demo_probe_w, -1, for447_l
+			dw kw_forupv, var_demo_probe_s, for447_l, for447_e
+for447_t:
 
 			; Demo.cls 267: n = (en - s) \ w
 			dw kw_subvv, var_demo_en, var_demo_probe_s, tmp0
@@ -29730,40 +29717,40 @@ for449_t:
 
 			; Demo.cls 269: If q > 0 Then
 			dw kw_scpgtvl, var_demo_probe_q, 0
-			dw kw_goto_iffalse, if450_1
+			dw kw_goto_iffalse, if448_1
 
 			; Demo.cls 270: tried = tried + q
 			dw kw_add, var_demo_probe_tried, var_demo_probe_q, var_demo_probe_tried
 
 			; Demo.cls 271: For i = 0 To q - 1
 			dw kw_ztov, var_demo_probe_i
-			dw kw_addl, var_demo_probe_q, -1, for451_l
-			dw kw_forupv, var_demo_probe_i, for451_l, for451_e
-for451_t:
+			dw kw_addl, var_demo_probe_q, -1, for449_l
+			dw kw_forupv, var_demo_probe_i, for449_l, for449_e
+for449_t:
 
 			; Demo.cls 272: ro(i) = 0
 			dw kw_aset8, arr_demo_ro, var_demo_probe_i, lit_0
 
 			; Demo.cls 273: Next
-			dw kw_next1v, var_demo_probe_i, for451_l, for451_t
-for451_e:
+			dw kw_next1v, var_demo_probe_i, for449_l, for449_t
+for449_e:
 
 			; Demo.cls 274: For i = 0 To n - 2
 			dw kw_ztov, var_demo_probe_i
-			dw kw_addl, var_demo_probe_n, -2, for452_l
-			dw kw_forupv, var_demo_probe_i, for452_l, for452_e
-for452_t:
+			dw kw_addl, var_demo_probe_n, -2, for450_l
+			dw kw_forupv, var_demo_probe_i, for450_l, for450_e
+for450_t:
 
 			; Demo.cls 275: For j = i + 1 To i + m - 1
 			dw kw_addl, var_demo_probe_i, 1, var_demo_probe_j
 			dw kw_add, var_demo_probe_i, var_demo_probe_m, tmp0
-			dw kw_addl, tmp0, -1, for453_l
-			dw kw_forupv, var_demo_probe_j, for453_l, for453_e
-for453_t:
+			dw kw_addl, tmp0, -1, for451_l
+			dw kw_forupv, var_demo_probe_j, for451_l, for451_e
+for451_t:
 
 			; Demo.cls 276: If j < n Then
 			dw kw_scpltvv, var_demo_probe_j, var_demo_probe_n
-			dw kw_goto_iffalse, if454_1
+			dw kw_goto_iffalse, if452_1
 
 			; Demo.cls 277: eq = 0
 			dw kw_ztov, var_demo_probe_eq
@@ -29778,18 +29765,18 @@ for453_t:
 			dw kw_add, tmp1, tmp2, tmp1
 			dw kw_aget8, arr_blk_buf, tmp1, tmp1
 			dw kw_cpeqvv, tmp0, tmp1
-			dw kw_goto_iffalse, if455_1
+			dw kw_goto_iffalse, if453_1
 
 			; Demo.cls 279: If w = 1 Then
 			dw kw_cpeqvl, var_demo_probe_w, 1
-			dw kw_goto_iffalse, if456_1
+			dw kw_goto_iffalse, if454_1
 
 			; Demo.cls 280: eq = 1
 			dw kw_ltov, 1, var_demo_probe_eq
 
 			; Demo.cls 281: ElseIf Blk.Buf(65 + s + i * 2) = Blk.Buf(65 + s + j * 2) Then
-			dw if456_e_go
-if456_1:
+			dw if454_e_go
+if454_1:
 			dw kw_addl, var_demo_probe_s, 65, tmp0
 			dw kw_2x, var_demo_probe_i, tmp1
 			dw kw_add, tmp0, tmp1, tmp0
@@ -29799,21 +29786,21 @@ if456_1:
 			dw kw_add, tmp1, tmp2, tmp1
 			dw kw_aget8, arr_blk_buf, tmp1, tmp1
 			dw kw_cpeqvv, tmp0, tmp1
-			dw kw_goto_iffalse, if456_2
+			dw kw_goto_iffalse, if454_2
 
 			; Demo.cls 282: eq = 1
 			dw kw_ltov, 1, var_demo_probe_eq
 
 			; Demo.cls 283: End If
-if456_2:
-if456_e:
+if454_2:
+if454_e:
 
 			; Demo.cls 284: End If
-if455_1:
+if453_1:
 
 			; Demo.cls 285: If eq = 1 Then
 			dw kw_cpeqvl, var_demo_probe_eq, 1
-			dw kw_goto_iffalse, if457_1
+			dw kw_goto_iffalse, if455_1
 
 			; Demo.cls 286: d = j - m + 1
 			dw kw_subvv, var_demo_probe_j, var_demo_probe_m, tmp0
@@ -29821,19 +29808,19 @@ if455_1:
 
 			; Demo.cls 287: If d < 0 Then d = 0
 			dw kw_scpltvl, var_demo_probe_d, 0
-			dw kw_goto_iffalse, if458_1
+			dw kw_goto_iffalse, if456_1
 			dw kw_ztov, var_demo_probe_d
-if458_1:
+if456_1:
 
 			; Demo.cls 288: For p = d To i
 			dw kw_vtov, var_demo_probe_d, var_demo_probe_p
-			dw kw_vtov, var_demo_probe_i, for459_l
-			dw kw_forupv, var_demo_probe_p, for459_l, for459_e
-for459_t:
+			dw kw_vtov, var_demo_probe_i, for457_l
+			dw kw_forupv, var_demo_probe_p, for457_l, for457_e
+for457_t:
 
 			; Demo.cls 289: If p < q Then
 			dw kw_scpltvv, var_demo_probe_p, var_demo_probe_q
-			dw kw_goto_iffalse, if460_1
+			dw kw_goto_iffalse, if458_1
 
 			; Demo.cls 290: If cb(i - p) <> cb(j - p) Then ro(p) = 1
 			dw kw_subvv, var_demo_probe_i, var_demo_probe_p, tmp0
@@ -29841,51 +29828,51 @@ for459_t:
 			dw kw_subvv, var_demo_probe_j, var_demo_probe_p, tmp1
 			dw kw_aget8, arr_demo_cb, tmp1, tmp1
 			dw kw_cpnevv, tmp0, tmp1
-			dw kw_goto_iffalse, if461_1
+			dw kw_goto_iffalse, if459_1
 			dw kw_aset8, arr_demo_ro, var_demo_probe_p, lit_1
-if461_1:
+if459_1:
 
 			; Demo.cls 291: End If
-if460_1:
+if458_1:
 
 			; Demo.cls 292: Next
-			dw kw_next1v, var_demo_probe_p, for459_l, for459_t
-for459_e:
+			dw kw_next1v, var_demo_probe_p, for457_l, for457_t
+for457_e:
 
 			; Demo.cls 293: End If
-if457_1:
+if455_1:
 
 			; Demo.cls 294: End If
-if454_1:
+if452_1:
 
 			; Demo.cls 295: Next
-			dw kw_next1v, var_demo_probe_j, for453_l, for453_t
-for453_e:
+			dw kw_next1v, var_demo_probe_j, for451_l, for451_t
+for451_e:
 
 			; Demo.cls 296: Next
-			dw kw_next1v, var_demo_probe_i, for452_l, for452_t
-for452_e:
+			dw kw_next1v, var_demo_probe_i, for450_l, for450_t
+for450_e:
 
 			; Demo.cls 297: For i = 0 To q - 1
 			dw kw_ztov, var_demo_probe_i
-			dw kw_addl, var_demo_probe_q, -1, for462_l
-			dw kw_forupv, var_demo_probe_i, for462_l, for462_e
-for462_t:
+			dw kw_addl, var_demo_probe_q, -1, for460_l
+			dw kw_forupv, var_demo_probe_i, for460_l, for460_e
+for460_t:
 
 			; Demo.cls 298: outc = outc + ro(i)
 			dw kw_aget8, arr_demo_ro, var_demo_probe_i, tmp1
 			dw kw_add, var_demo_probe_outc, tmp1, var_demo_probe_outc
 
 			; Demo.cls 299: Next
-			dw kw_next1v, var_demo_probe_i, for462_l, for462_t
-for462_e:
+			dw kw_next1v, var_demo_probe_i, for460_l, for460_t
+for460_e:
 
 			; Demo.cls 300: End If
-if450_1:
+if448_1:
 
 			; Demo.cls 301: Next
-			dw kw_next1v, var_demo_probe_s, for449_l, for449_t
-for449_e:
+			dw kw_next1v, var_demo_probe_s, for447_l, for447_t
+for447_e:
 
 			; Demo.cls 302: y = 44 + e * 16
 			dw kw_mulvl, var_demo_probe_e, 16, tmp1
@@ -29906,11 +29893,11 @@ for449_e:
 			dw p_vid_num_c, lit_258, var_demo_probe_y, tmp2, lit_4, lit_9
 
 			; Demo.cls 307: Next
-			dw kw_next1l, var_demo_probe_e, 9, for447_t
-for447_e:
+			dw kw_next1l, var_demo_probe_e, 9, for445_t
+for445_e:
 
 			; Demo.cls 308: Do
-do463_t:
+do461_t:
 
 			; Demo.cls 309: Vid.Sync
 			dw p_vid_sync_c
@@ -29922,40 +29909,40 @@ do463_t:
 			; Demo.cls 311: Loop Until (k And 60) <> 0
 			dw kw_andvl, var_demo_probe_k, 60, tmp0
 			dw kw_cpnevl, tmp0, 0
-			dw kw_goto_iffalse, do463_t
-do463_e:
+			dw kw_goto_iffalse, do461_t
+do461_e:
 
 			; Demo.cls 312: If (k And 4) <> 0 Then r = -1
 			dw kw_andvl, var_demo_probe_k, 4, tmp0
 			dw kw_cpnevl, tmp0, 0
-			dw kw_goto_iffalse, if464_1
+			dw kw_goto_iffalse, if462_1
 			dw kw_ltov, -1, var_demo_probe_r
-if464_1:
+if462_1:
 
 			; Demo.cls 313: If (k And 8) <> 0 Then r = 1
 			dw kw_andvl, var_demo_probe_k, 8, tmp0
 			dw kw_cpnevl, tmp0, 0
-			dw kw_goto_iffalse, if465_1
+			dw kw_goto_iffalse, if463_1
 			dw kw_ltov, 1, var_demo_probe_r
-if465_1:
+if463_1:
 
 			; Demo.cls 314: If (k And 16) <> 0 Then mc = 0
 			dw kw_andvl, var_demo_probe_k, 16, tmp0
 			dw kw_cpnevl, tmp0, 0
-			dw kw_goto_iffalse, if466_1
+			dw kw_goto_iffalse, if464_1
 			dw kw_ztov, var_demo_mc
-if466_1:
+if464_1:
 
 			; Demo.cls 315: If (k And 32) <> 0 Then r = 0
 			dw kw_andvl, var_demo_probe_k, 32, tmp0
 			dw kw_cpnevl, tmp0, 0
-			dw kw_goto_iffalse, do443_t
+			dw kw_goto_iffalse, do441_t
 			dw kw_ztov, var_demo_probe_r
-if467_1:
+if465_1:
 
 			; Demo.cls 316: Loop
-			dw do443_t_go
-do443_e:
+			dw do441_t_go
+do441_e:
 
 			; Demo.cls 317: Probe = r
 			dw kw_vtov, var_demo_probe_r, var_demo_probe_probe
@@ -29987,39 +29974,39 @@ p_demo_dkey:
 
 			; Demo.cls 333: If p = 0 Then
 			dw kw_cpeqvl, var_demo_dkey_p, 0
-			dw kw_goto_iffalse, if468_1
+			dw kw_goto_iffalse, if466_1
 
 			; Demo.cls 334: DKey = Data.TX_K_FIRST
-			dw kw_ltov, 610, var_demo_dkey_dkey
+			dw kw_ltov, 612, var_demo_dkey_dkey
 
 			; Demo.cls 335: ElseIf p = 3 Then
-			dw if468_e_go
-if468_1:
+			dw if466_e_go
+if466_1:
 			dw kw_cpeqvl, var_demo_dkey_p, 3
-			dw kw_goto_iffalse, if468_2
+			dw kw_goto_iffalse, if466_2
 
 			; Demo.cls 336: DKey = Data.TX_D_CHK
-			dw kw_ltov, 11616, var_demo_dkey_dkey
+			dw kw_ltov, 12411, var_demo_dkey_dkey
 
 			; Demo.cls 337: ElseIf p >= np - 1 Then
-			dw if468_e_go
-if468_2:
+			dw if466_e_go
+if466_2:
 			dw kw_addl, var_demo_np, -1, tmp2
 			dw kw_scpgevv, var_demo_dkey_p, tmp2
-			dw kw_goto_iffalse, if468_3
+			dw kw_goto_iffalse, if466_3
 
 			; Demo.cls 338: DKey = Data.TX_K_DLAST
-			dw kw_ltov, 676, var_demo_dkey_dkey
+			dw kw_ltov, 678, var_demo_dkey_dkey
 
 			; Demo.cls 339: Else
-			dw if468_e_go
-if468_3:
+			dw if466_e_go
+if466_3:
 
 			; Demo.cls 340: DKey = Data.TX_K_MID
-			dw kw_ltov, 627, var_demo_dkey_dkey
+			dw kw_ltov, 628, var_demo_dkey_dkey
 
 			; Demo.cls 341: End If
-if468_e:
+if466_e:
 			dw p_demo_dkey_r
 p_demo_show:
 
@@ -30027,18 +30014,18 @@ p_demo_show:
 
 			; Demo.cls 346: If p = pa Then Exit Sub
 			dw kw_cpeqvv, var_demo_show_p, var_demo_pa
-			dw kw_goto_iffalse, if469_1
+			dw kw_goto_iffalse, if467_1
 			dw p_demo_show_r
-if469_1:
+if467_1:
 
 			; Demo.cls 347: If p < 3 Then
 			dw kw_scpltvl, var_demo_show_p, 3
-			dw kw_goto_iffalse, if470_1
+			dw kw_goto_iffalse, if468_1
 
 			; Demo.cls 348: Vid.Page Data.TX_D_T1, DKey(p)
 			dw p_demo_dkey_cl, var_demo_show_p
 			dw kw_vtov, var_demo_dkey_dkey, tmp1
-			dw p_vid_page_c, lit_11168, tmp1
+			dw p_vid_page_c, lit_11931, tmp1
 
 			; Demo.cls 349: Item 28, 10 + p, 0, 0
 			dw kw_addl, var_demo_show_p, 10, tmp1
@@ -30049,64 +30036,64 @@ if469_1:
 			dw p_demo_item_cl, lit_60, tmp1, lit_0, lit_1
 
 			; Demo.cls 351: Select Case p
-			dw kw_vtov, var_demo_show_p, var_demo_show___sel471
+			dw kw_vtov, var_demo_show_p, var_demo_show___sel469
 
 			; Demo.cls 352: Case 0
-			dw kw_cpeqvl, var_demo_show___sel471, 0
-			dw kw_goto_iffalse, sel471_1
-sel471_b1:
+			dw kw_cpeqvl, var_demo_show___sel469, 0
+			dw kw_goto_iffalse, sel469_1
+sel469_b1:
 
 			; Demo.cls 353: Vid.Txt 8, 150, Data.TX_D_E1, 2
-			dw p_vid_txt_c, lit_8, lit_150, lit_11790, lit_2
+			dw p_vid_txt_c, lit_8, lit_150, lit_12573, lit_2
 
 			; Demo.cls 354: Case 1
-			dw if470_e_go
-sel471_1:
-			dw kw_cpeqvl, var_demo_show___sel471, 1
-			dw kw_goto_iffalse, sel471_2
-sel471_b2:
+			dw if468_e_go
+sel469_1:
+			dw kw_cpeqvl, var_demo_show___sel469, 1
+			dw kw_goto_iffalse, sel469_2
+sel469_b2:
 
 			; Demo.cls 355: Vid.Txt 8, 150, Data.TX_D_E2, 2
-			dw p_vid_txt_c, lit_8, lit_150, lit_11851, lit_2
+			dw p_vid_txt_c, lit_8, lit_150, lit_12654, lit_2
 
 			; Demo.cls 356: Case Else
-			dw if470_e_go
-sel471_2:
+			dw if468_e_go
+sel469_2:
 
 			; Demo.cls 357: Vid.Txt 8, 150, Data.TX_D_E3, 2
-			dw p_vid_txt_c, lit_8, lit_150, lit_11925, lit_2
+			dw p_vid_txt_c, lit_8, lit_150, lit_12738, lit_2
 
 			; Demo.cls 358: End Select
-sel471_e:
+sel469_e:
 
 			; Demo.cls 359: ElseIf p = 3 Then
-			dw if470_e_go
-if470_1:
+			dw if468_e_go
+if468_1:
 			dw kw_cpeqvl, var_demo_show_p, 3
-			dw kw_goto_iffalse, if470_2
+			dw kw_goto_iffalse, if468_2
 
 			; Demo.cls 360: Vid.Page Data.TX_D_CHT, DKey(p)
 			dw p_demo_dkey_cl, var_demo_show_p
 			dw kw_vtov, var_demo_dkey_dkey, tmp1
-			dw p_vid_page_c, lit_11232, tmp1
+			dw p_vid_page_c, lit_12000, tmp1
 
 			; Demo.cls 361: Vid.Txt 8, 34, Data.TX_D_CHB, 1
-			dw p_vid_txt_c, lit_8, lit_34, lit_11239, lit_1
+			dw p_vid_txt_c, lit_8, lit_34, lit_12014, lit_1
 
 			; Demo.cls 362: ElseIf p = 4 Then
-			dw if470_e_go
-if470_2:
+			dw if468_e_go
+if468_2:
 			dw kw_cpeqvl, var_demo_show_p, 4
-			dw kw_goto_iffalse, if470_3
+			dw kw_goto_iffalse, if468_3
 
 			; Demo.cls 363: Vid.Page Data.TX_D_T2, DKey(p)
 			dw p_demo_dkey_cl, var_demo_show_p
 			dw kw_vtov, var_demo_dkey_dkey, tmp1
-			dw p_vid_page_c, lit_11204, tmp1
+			dw p_vid_page_c, lit_11967, tmp1
 
 			; Demo.cls 364: For i = 0 To 9
 			dw kw_ztov, var_demo_show_i
-for472_t:
+for470_t:
 
 			; Demo.cls 365: Item 28 + i * 20, i, i + 1, 0
 			dw kw_mulvl, var_demo_show_i, 20, tmp1
@@ -30115,19 +30102,19 @@ for472_t:
 			dw p_demo_item_cl, tmp0, var_demo_show_i, tmp2, lit_0
 
 			; Demo.cls 366: Next
-			dw kw_next1l, var_demo_show_i, 9, for472_t
-for472_e:
+			dw kw_next1l, var_demo_show_i, 9, for470_t
+for470_e:
 
 			; Demo.cls 367: ElseIf p < pa Then
-			dw if470_e_go
-if470_3:
+			dw if468_e_go
+if468_3:
 			dw kw_scpltvv, var_demo_show_p, var_demo_pa
-			dw kw_goto_iffalse, if470_4
+			dw kw_goto_iffalse, if468_4
 
 			; Demo.cls 368: Vid.Page Data.TX_D_T3, DKey(p)
 			dw p_demo_dkey_cl, var_demo_show_p
 			dw kw_vtov, var_demo_dkey_dkey, tmp1
-			dw p_vid_page_c, lit_11217, tmp1
+			dw p_vid_page_c, lit_11983, tmp1
 
 			; Demo.cls 369: a = 26
 			dw kw_ltov, 26, var_demo_show_a
@@ -30137,9 +30124,9 @@ if470_3:
 			dw kw_aget8, arr_demo_pgf, tmp0, var_demo_show_i
 			dw kw_addl, var_demo_show_p, -4, tmp0
 			dw kw_aget8, arr_demo_pgf, tmp0, tmp0
-			dw kw_addl, tmp0, -1, for473_l
-			dw kw_forupv, var_demo_show_i, for473_l, if470_e
-for473_t:
+			dw kw_addl, tmp0, -1, for471_l
+			dw kw_forupv, var_demo_show_i, for471_l, if468_e
+for471_t:
 
 			; Demo.cls 371: e = entE(i)
 			dw kw_aget8, arr_demo_ente, var_demo_show_i, var_demo_show_e
@@ -30155,23 +30142,23 @@ for473_t:
 			; Demo.cls 374: If entR(i) = 0 Then
 			dw kw_aget8, arr_demo_entr, var_demo_show_i, tmp0
 			dw kw_cpeqvl, tmp0, 0
-			dw kw_goto_iffalse, if474_1
+			dw kw_goto_iffalse, if472_1
 
 			; Demo.cls 375: Vid.Num 32, a, en, 3, 3
 			dw p_vid_num_c, lit_32, var_demo_show_a, var_demo_en, lit_3, lit_3
 
 			; Demo.cls 376: Vid.Txt 56, a, Data.TX_D_BY, 3
-			dw p_vid_txt_c, lit_56, var_demo_show_a, lit_11763, lit_3
+			dw p_vid_txt_c, lit_56, var_demo_show_a, lit_12548, lit_3
 
 			; Demo.cls 377: Else
-			dw if474_e_go
-if474_1:
+			dw if472_e_go
+if472_1:
 
 			; Demo.cls 378: Vid.Txt 32, a, Data.TX_D_CONT, 3
-			dw p_vid_txt_c, lit_32, var_demo_show_a, lit_11661, lit_3
+			dw p_vid_txt_c, lit_32, var_demo_show_a, lit_12455, lit_3
 
 			; Demo.cls 379: End If
-if474_e:
+if472_e:
 
 			; Demo.cls 380: DrawRows a + 10, entR(i), entN(i)
 			dw kw_addl, var_demo_show_a, 10, tmp0
@@ -30186,25 +30173,25 @@ if474_e:
 			dw kw_add, tmp0, tmp1, var_demo_show_a
 
 			; Demo.cls 382: Next
-			dw kw_next1v, var_demo_show_i, for473_l, for473_t
-for473_e:
+			dw kw_next1v, var_demo_show_i, for471_l, for471_t
+for471_e:
 
 			; Demo.cls 383: ElseIf p = pa + 1 + md Then
-			dw if470_e_go
-if470_4:
+			dw if468_e_go
+if468_4:
 			dw kw_addl, var_demo_pa, 1, tmp1
 			dw kw_add, tmp1, var_demo_md, tmp1
 			dw kw_cpeqvv, var_demo_show_p, tmp1
-			dw kw_goto_iffalse, if470_5
+			dw kw_goto_iffalse, if468_5
 
 			; Demo.cls 384: Vid.Page Data.TX_D_KT, DKey(p)
 			dw p_demo_dkey_cl, var_demo_show_p
 			dw kw_vtov, var_demo_dkey_dkey, tmp1
-			dw p_vid_page_c, lit_12057, tmp1
+			dw p_vid_page_c, lit_12872, tmp1
 
 			; Demo.cls 385: For e = 0 To 9
 			dw kw_ztov, var_demo_show_e
-for475_t:
+for473_t:
 
 			; Demo.cls 386: Vid.Ch 40, 36 + e * 16, 65 + e, 10
 			dw kw_mulvl, var_demo_show_e, 16, tmp2
@@ -30221,20 +30208,20 @@ for475_t:
 
 			; Demo.cls 388: If md = 1 Then
 			dw kw_cpeqvl, var_demo_md, 1
-			dw kw_goto_iffalse, if476_1
+			dw kw_goto_iffalse, if474_1
 
 			; Demo.cls 389: If gs(e) = pm(e) Then ok = ok + 1
 			dw kw_aget, arr_demo_gs, var_demo_show_e, tmp0
 			dw kw_aget, arr_demo_pm, var_demo_show_e, tmp1
 			dw kw_cpeqvv, tmp0, tmp1
-			dw kw_goto_iffalse, if477_1
+			dw kw_goto_iffalse, if475_1
 			dw kw_inc, var_demo_show_ok
-if477_1:
+if475_1:
 
 			; Demo.cls 390: Vid.Txt 150, 36 + e * 16, Data.TX_D_YOU, 3
 			dw kw_mulvl, var_demo_show_e, 16, tmp2
 			dw kw_addl, tmp2, 36, tmp1
-			dw p_vid_txt_c, lit_150, tmp1, lit_11780, lit_3
+			dw p_vid_txt_c, lit_150, tmp1, lit_12564, lit_3
 
 			; Demo.cls 391: Vid.Num 232, 36 + e * 16, gs(e) + 1, 2, 10
 			dw kw_mulvl, var_demo_show_e, 16, tmp2
@@ -30244,33 +30231,33 @@ if477_1:
 			dw p_vid_num_c, lit_232, tmp1, tmp2, lit_2, lit_10
 
 			; Demo.cls 392: End If
-if476_1:
+if474_1:
 
 			; Demo.cls 393: Next
-			dw kw_next1l, var_demo_show_e, 9, for475_t
-for475_e:
+			dw kw_next1l, var_demo_show_e, 9, for473_t
+for473_e:
 
 			; Demo.cls 394: If md = 1 Then
 			dw kw_cpeqvl, var_demo_md, 1
-			dw kw_goto_iffalse, if470_e
+			dw kw_goto_iffalse, if468_e
 
 			; Demo.cls 395: Vid.Txt 8, 204, Data.TX_D_RIGHT, 3
-			dw p_vid_txt_c, lit_8, lit_204, lit_12063, lit_3
+			dw p_vid_txt_c, lit_8, lit_204, lit_12883, lit_3
 
 			; Demo.cls 396: Vid.Num 70, 204, ok, 2, 10
 			dw p_vid_num_c, lit_70, lit_204, var_demo_show_ok, lit_2, lit_10
 
 			; Demo.cls 397: End If
-if478_1:
+if476_1:
 
 			; Demo.cls 398: Else
-			dw if470_e_go
-if470_5:
+			dw if468_e_go
+if468_5:
 
 			; Demo.cls 399: Vid.Page Data.TX_D_PT, DKey(p)
 			dw p_demo_dkey_cl, var_demo_show_p
 			dw kw_vtov, var_demo_dkey_dkey, tmp1
-			dw p_vid_page_c, lit_12171, tmp1
+			dw p_vid_page_c, lit_12989, tmp1
 
 			; Demo.cls 400: a = -1
 			dw kw_ltov, -1, var_demo_show_a
@@ -30280,16 +30267,16 @@ if470_5:
 
 			; Demo.cls 402: If pr < 3 Then
 			dw kw_scpltvl, var_demo_pr, 3
-			dw kw_goto_iffalse, if479_1
+			dw kw_goto_iffalse, if477_1
 
 			; Demo.cls 403: Do While ok > 0 And a < 9
-do480_t:
+do478_t:
 			dw kw_scpgtvl, var_demo_show_ok, 0
 			dw kw_ftov, tmp0
 			dw kw_scpltvl, var_demo_show_a, 9
 			dw kw_ftov, tmp1
 			dw kw_andvv, tmp0, tmp1, tmp0
-			dw kw_goto_ifzero, tmp0, do480_e
+			dw kw_goto_ifzero, tmp0, do478_e
 
 			; Demo.cls 404: a = a + 1
 			dw kw_inc, var_demo_show_a
@@ -30303,16 +30290,16 @@ do480_t:
 
 			; Demo.cls 407: For i = 0 To 51
 			dw kw_ztov, var_demo_show_i
-for481_t:
+for479_t:
 
 			; Demo.cls 408: dp(i) = 255
 			dw kw_aset8, arr_demo_dp, var_demo_show_i, lit_255
 
 			; Demo.cls 409: For e = 0 To i - 1
 			dw kw_ztov, var_demo_show_e
-			dw kw_addl, var_demo_show_i, -1, for482_l
-			dw kw_forupv, var_demo_show_e, for482_l, for482_e
-for482_t:
+			dw kw_addl, var_demo_show_i, -1, for480_l
+			dw kw_forupv, var_demo_show_e, for480_l, for480_e
+for480_t:
 
 			; Demo.cls 410: If Proto.Pg(i) = Proto.Pg(e) And Proto.Po(i) = Proto.Po(e) Then dp(i) = e
 			dw kw_aget, arr_proto_pg, var_demo_show_i, tmp0
@@ -30324,29 +30311,29 @@ for482_t:
 			dw kw_cpeqvv, tmp1, tmp2
 			dw kw_ftov, tmp1
 			dw kw_andvv, tmp0, tmp1, tmp0
-			dw kw_goto_ifzero, tmp0, if483_1
+			dw kw_goto_ifzero, tmp0, if481_1
 			dw kw_aset8, arr_demo_dp, var_demo_show_i, var_demo_show_e
-if483_1:
+if481_1:
 
 			; Demo.cls 411: Next
-			dw kw_next1v, var_demo_show_e, for482_l, for482_t
-for482_e:
+			dw kw_next1v, var_demo_show_e, for480_l, for480_t
+for480_e:
 
 			; Demo.cls 412: Next
-			dw kw_next1l, var_demo_show_i, 51, for481_t
-for481_e:
+			dw kw_next1l, var_demo_show_i, 51, for479_t
+for479_e:
 
 			; Demo.cls 413: e = 0
 			dw kw_ztov, var_demo_show_e
 
 			; Demo.cls 414: Do While ok > 0 And e < 9
-do484_t:
+do482_t:
 			dw kw_scpgtvl, var_demo_show_ok, 0
 			dw kw_ftov, tmp0
 			dw kw_scpltvl, var_demo_show_e, 9
 			dw kw_ftov, tmp1
 			dw kw_andvv, tmp0, tmp1, tmp0
-			dw kw_goto_ifzero, tmp0, do480_t
+			dw kw_goto_ifzero, tmp0, do478_t
 
 			; Demo.cls 415: e = e + 1
 			dw kw_inc, var_demo_show_e
@@ -30362,36 +30349,36 @@ do484_t:
 
 			; Demo.cls 418: For i = 0 To 51
 			dw kw_ztov, var_demo_show_i
-for485_t:
+for483_t:
 
 			; Demo.cls 419: If dp(i) <> 255 Then
 			dw kw_aget8, arr_demo_dp, var_demo_show_i, tmp0
 			dw kw_cpnevl, tmp0, 255
-			dw kw_goto_iffalse, if486_1
+			dw kw_goto_iffalse, if484_1
 
 			; Demo.cls 420: If Blk.Buf(i) <> Blk.Buf(dp(i)) Then ok = 1
 			dw kw_aget8, arr_blk_buf, var_demo_show_i, tmp0
 			dw kw_aget8, arr_demo_dp, var_demo_show_i, tmp1
 			dw kw_aget8, arr_blk_buf, tmp1, tmp1
 			dw kw_cpnevv, tmp0, tmp1
-			dw kw_goto_iffalse, if487_1
+			dw kw_goto_iffalse, if485_1
 			dw kw_ltov, 1, var_demo_show_ok
-if487_1:
+if485_1:
 
 			; Demo.cls 421: End If
-if486_1:
+if484_1:
 
 			; Demo.cls 422: Next
-			dw kw_next1l, var_demo_show_i, 51, for485_t
-for485_e:
+			dw kw_next1l, var_demo_show_i, 51, for483_t
+for483_e:
 
 			; Demo.cls 423: Loop
-			dw do484_t_go
-do484_e:
+			dw do482_t_go
+do482_e:
 
 			; Demo.cls 424: Loop
-			dw do480_t_go
-do480_e:
+			dw do478_t_go
+do478_e:
 
 			; Demo.cls 425: Blk.Put Data.WOB, 4096 + 1500, 0, 52
 			dw p_blk_put_c, lit_40, lit_5596, lit_0, lit_52
@@ -30405,7 +30392,7 @@ do480_e:
 
 			; Demo.cls 428: For i = 0 To 51
 			dw kw_ztov, var_demo_show_i
-for488_t:
+for486_t:
 
 			; Demo.cls 429: ch = Sw(i, Rom.Og(1500 + i))
 			dw kw_addl, var_demo_show_i, 1500, tmp1
@@ -30423,17 +30410,17 @@ for488_t:
 			dw p_rom_og_c, tmp1
 			dw kw_vtov, var_rom_og_og, tmp1
 			dw kw_cpnevv, var_demo_show_ch, tmp1
-			dw kw_goto_iffalse, if489_1
+			dw kw_goto_iffalse, if487_1
 			dw kw_inc, var_demo_show_n
-if489_1:
+if487_1:
 
 			; Demo.cls 432: Next
-			dw kw_next1l, var_demo_show_i, 51, for488_t
-for488_e:
+			dw kw_next1l, var_demo_show_i, 51, for486_t
+for486_e:
 
 			; Demo.cls 433: For i = 0 To 51
 			dw kw_ztov, var_demo_show_i
-for490_t:
+for488_t:
 
 			; Demo.cls 434: Rom.Op 1900 + i, Vid.Pe(Data.GENB + Proto.Pg(i) \ 64, (Proto.Pg(i) And 63) * 256 + Proto.Po(i))
 			dw kw_addl, var_demo_show_i, 1900, tmp0
@@ -30450,12 +30437,12 @@ for490_t:
 			dw p_rom_op_c, tmp0, tmp1
 
 			; Demo.cls 435: Next
-			dw kw_next1l, var_demo_show_i, 51, for490_t
-for490_e:
+			dw kw_next1l, var_demo_show_i, 51, for488_t
+for488_e:
 
 			; Demo.cls 436: For i = 51 To 0 Step -1
 			dw kw_ltov, 51, var_demo_show_i
-for491_t:
+for489_t:
 
 			; Demo.cls 437: ch = Sw(i, Rom.Og(1700 + i))
 			dw kw_addl, var_demo_show_i, 1700, tmp1
@@ -30465,29 +30452,29 @@ for491_t:
 			dw kw_vtov, var_demo_sw_sw, var_demo_show_ch
 
 			; Demo.cls 438: Next
-			dw kw_nextdnl, var_demo_show_i, -1, 0, for491_t
-for491_e:
+			dw kw_nextdnl, var_demo_show_i, -1, 0, for489_t
+for489_e:
 
 			; Demo.cls 439: End If
-if479_1:
+if477_1:
 
 			; Demo.cls 440: If pr >= 3 Then
 			dw kw_scpgevl, var_demo_pr, 3
-			dw kw_goto_iffalse, if492_1
+			dw kw_goto_iffalse, if490_1
 
 			; Demo.cls 441: Vid.Txt 8, 40, Data.TX_D_NP, 3
-			dw p_vid_txt_c, lit_8, lit_40, lit_10981, lit_3
+			dw p_vid_txt_c, lit_8, lit_40, lit_11758, lit_3
 
 			; Demo.cls 442: Else
-			dw if492_e_go
-if492_1:
+			dw if490_e_go
+if490_1:
 
 			; Demo.cls 443: Slot pm(a), 0
 			dw kw_aget, arr_demo_pm, var_demo_show_a, tmp0
 			dw p_demo_slot_cl, tmp0, lit_0
 
 			; Demo.cls 444: Vid.Txt 8, 28, Data.TX_D_PR1, 3
-			dw p_vid_txt_c, lit_8, lit_28, lit_12216, lit_3
+			dw p_vid_txt_c, lit_8, lit_28, lit_13023, lit_3
 
 			; Demo.cls 445: Vid.Ch 62, 28, 65 + a, 10
 			dw kw_addl, var_demo_show_a, 65, tmp2
@@ -30498,7 +30485,7 @@ if492_1:
 
 			; Demo.cls 447: For i = 0 To 51
 			dw kw_ztov, var_demo_show_i
-for493_t:
+for491_t:
 
 			; Demo.cls 448: Rom.Wp i, Rom.Og(1900 + i)
 			dw kw_addl, var_demo_show_i, 1900, tmp1
@@ -30507,11 +30494,11 @@ for493_t:
 			dw p_rom_wp_c, var_demo_show_i, tmp1
 
 			; Demo.cls 449: Next
-			dw kw_next1l, var_demo_show_i, 51, for493_t
-for493_e:
+			dw kw_next1l, var_demo_show_i, 51, for491_t
+for491_e:
 
 			; Demo.cls 450: Vid.Txt 8, 68, Data.TX_D_PR2, 3
-			dw p_vid_txt_c, lit_8, lit_68, lit_12247, lit_3
+			dw p_vid_txt_c, lit_8, lit_68, lit_13054, lit_3
 
 			; Demo.cls 451: Vid.Num 98, 68, n, 2, 10
 			dw p_vid_num_c, lit_98, lit_68, var_demo_show_n, lit_2, lit_10
@@ -30520,10 +30507,10 @@ for493_e:
 			dw p_demo_drawtext_cl, lit_90, lit_10
 
 			; Demo.cls 453: End If
-if492_e:
+if490_e:
 
 			; Demo.cls 454: End If
-if470_e:
+if468_e:
 
 			; Demo.cls 455: Vid.PageNo p + 1, np
 			dw kw_addl, var_demo_show_p, 1, tmp0
@@ -30540,24 +30527,24 @@ p_demo_run:
 			dw kw_addl, var_demo_md, 12, var_demo_np
 
 			; Demo.cls 463: Vid.Page Data.TX_M11, Data.TX_D_START
-			dw p_vid_page_c, lit_10039, lit_12846
+			dw p_vid_page_c, lit_10756, lit_13641
 
 			; Demo.cls 464: If md = 1 Then
 			dw kw_cpeqvl, var_demo_md, 1
-			dw kw_goto_iffalse, if494_1
+			dw kw_goto_iffalse, if492_1
 
 			; Demo.cls 465: Vid.Txt 8, 34, Data.TX_D_GUESS, 1
-			dw p_vid_txt_c, lit_8, lit_34, lit_10592, lit_1
+			dw p_vid_txt_c, lit_8, lit_34, lit_11351, lit_1
 
 			; Demo.cls 466: Else
-			dw if494_e_go
-if494_1:
+			dw if492_e_go
+if492_1:
 
 			; Demo.cls 467: Vid.Txt 8, 34, Data.TX_D_INTRO, 1
-			dw p_vid_txt_c, lit_8, lit_34, lit_10098, lit_1
+			dw p_vid_txt_c, lit_8, lit_34, lit_10814, lit_1
 
 			; Demo.cls 468: End If
-if494_e:
+if492_e:
 
 			; Demo.cls 469: pr = 5
 			dw kw_ltov, 5, var_demo_pr
@@ -30566,97 +30553,97 @@ if494_e:
 			dw kw_ltov, 2, var_demo_run_k
 
 			; Demo.cls 471: Do While (k And 48) = 0
-do495_t:
+do493_t:
 			dw kw_andvl, var_demo_run_k, 48, tmp0
 			dw kw_cpeqvl, tmp0, 0
-			dw kw_goto_iffalse, do495_e
+			dw kw_goto_iffalse, do493_e
 
 			; Demo.cls 472: If (k And 3) <> 0 Then
 			dw kw_andvl, var_demo_run_k, 3, tmp0
 			dw kw_cpnevl, tmp0, 0
-			dw kw_goto_iffalse, if496_1
+			dw kw_goto_iffalse, if494_1
 
 			; Demo.cls 473: If (k And 1) <> 0 Then pr = (pr + 5) Mod 6 Else pr = (pr + 1) Mod 6
 			dw kw_andvl, var_demo_run_k, 1, tmp0
 			dw kw_cpnevl, tmp0, 0
-			dw kw_goto_iffalse, if497_1
+			dw kw_goto_iffalse, if495_1
 			dw kw_addl, var_demo_pr, 5, tmp0
 			dw kw_modvl, tmp0, 6, var_demo_pr
-			dw if497_e_go
-if497_1:
+			dw if495_e_go
+if495_1:
 			dw kw_addl, var_demo_pr, 1, tmp0
 			dw kw_modvl, tmp0, 6, var_demo_pr
-if497_e:
+if495_e:
 
 			; Demo.cls 474: Vid.Fill 150, 200, 160, 8, 5
 			dw p_vid_fill_c, lit_150, lit_200, lit_160, lit_8, lit_5
 
 			; Demo.cls 475: Vid.Txt 8, 200, Data.TX_D_PRO, 3
-			dw p_vid_txt_c, lit_8, lit_200, lit_10906, lit_3
+			dw p_vid_txt_c, lit_8, lit_200, lit_11683, lit_3
 
 			; Demo.cls 476: Select Case pr
-			dw kw_vtov, var_demo_pr, var_demo_run___sel498
+			dw kw_vtov, var_demo_pr, var_demo_run___sel496
 
 			; Demo.cls 477: Case 0
-			dw kw_cpeqvl, var_demo_run___sel498, 0
-			dw kw_goto_iffalse, sel498_1
-sel498_b1:
+			dw kw_cpeqvl, var_demo_run___sel496, 0
+			dw kw_goto_iffalse, sel496_1
+sel496_b1:
 
 			; Demo.cls 478: Vid.Txt 150, 200, Data.TX_D_PZ, 10
-			dw p_vid_txt_c, lit_150, lit_200, lit_10922, lit_10
+			dw p_vid_txt_c, lit_150, lit_200, lit_11699, lit_10
 
 			; Demo.cls 479: Case 1
-			dw sel498_e_go
-sel498_1:
-			dw kw_cpeqvl, var_demo_run___sel498, 1
-			dw kw_goto_iffalse, sel498_2
-sel498_b2:
+			dw sel496_e_go
+sel496_1:
+			dw kw_cpeqvl, var_demo_run___sel496, 1
+			dw kw_goto_iffalse, sel496_2
+sel496_b2:
 
 			; Demo.cls 480: Vid.Txt 150, 200, Data.TX_D_PU, 10
-			dw p_vid_txt_c, lit_150, lit_200, lit_10929, lit_10
+			dw p_vid_txt_c, lit_150, lit_200, lit_11706, lit_10
 
 			; Demo.cls 481: Case 2
-			dw sel498_e_go
-sel498_2:
-			dw kw_cpeqvl, var_demo_run___sel498, 2
-			dw kw_goto_iffalse, sel498_3
-sel498_b3:
+			dw sel496_e_go
+sel496_2:
+			dw kw_cpeqvl, var_demo_run___sel496, 2
+			dw kw_goto_iffalse, sel496_3
+sel496_b3:
 
 			; Demo.cls 482: Vid.Txt 150, 200, Data.TX_D_PB, 10
-			dw p_vid_txt_c, lit_150, lit_200, lit_10938, lit_10
+			dw p_vid_txt_c, lit_150, lit_200, lit_11715, lit_10
 
 			; Demo.cls 483: Case 3
-			dw sel498_e_go
-sel498_3:
-			dw kw_cpeqvl, var_demo_run___sel498, 3
-			dw kw_goto_iffalse, sel498_4
-sel498_b4:
+			dw sel496_e_go
+sel496_3:
+			dw kw_cpeqvl, var_demo_run___sel496, 3
+			dw kw_goto_iffalse, sel496_4
+sel496_b4:
 
 			; Demo.cls 484: Vid.Txt 150, 200, Data.TX_D_PMZ, 10
-			dw p_vid_txt_c, lit_150, lit_200, lit_10944, lit_10
+			dw p_vid_txt_c, lit_150, lit_200, lit_11721, lit_10
 
 			; Demo.cls 485: Case 4
-			dw sel498_e_go
-sel498_4:
-			dw kw_cpeqvl, var_demo_run___sel498, 4
-			dw kw_goto_iffalse, sel498_5
-sel498_b5:
+			dw sel496_e_go
+sel496_4:
+			dw kw_cpeqvl, var_demo_run___sel496, 4
+			dw kw_goto_iffalse, sel496_5
+sel496_b5:
 
 			; Demo.cls 486: Vid.Txt 150, 200, Data.TX_D_PMU, 10
-			dw p_vid_txt_c, lit_150, lit_200, lit_10956, lit_10
+			dw p_vid_txt_c, lit_150, lit_200, lit_11733, lit_10
 
 			; Demo.cls 487: Case Else
-			dw sel498_e_go
-sel498_5:
+			dw sel496_e_go
+sel496_5:
 
 			; Demo.cls 488: Vid.Txt 150, 200, Data.TX_D_PMB, 10
-			dw p_vid_txt_c, lit_150, lit_200, lit_10970, lit_10
+			dw p_vid_txt_c, lit_150, lit_200, lit_11747, lit_10
 
 			; Demo.cls 489: End Select
-sel498_e:
+sel496_e:
 
 			; Demo.cls 490: End If
-if496_1:
+if494_1:
 
 			; Demo.cls 491: Vid.Sync
 			dw p_vid_sync_c
@@ -30666,15 +30653,15 @@ if496_1:
 			dw kw_vtov, var_vid_edge_edge, var_demo_run_k
 
 			; Demo.cls 493: Loop
-			dw do495_t_go
-do495_e:
+			dw do493_t_go
+do493_e:
 
 			; Demo.cls 494: If (k And 32) <> 0 Then Exit Sub
 			dw kw_andvl, var_demo_run_k, 32, tmp0
 			dw kw_cpnevl, tmp0, 0
-			dw kw_goto_iffalse, if499_1
+			dw kw_goto_iffalse, if497_1
 			dw p_demo_run_r
-if499_1:
+if497_1:
 
 			; Demo.cls 495: Rng.Reseed
 			dw p_rng_reseed_c
@@ -30683,23 +30670,23 @@ if499_1:
 			dw p_vid_fill_c, lit_0, lit_24, lit_320, lit_208, lit_5
 
 			; Demo.cls 497: Vid.Txt 20, 104, Data.TX_D_MAKE, 3
-			dw p_vid_txt_c, lit_20, lit_104, lit_12858, lit_3
+			dw p_vid_txt_c, lit_20, lit_104, lit_13653, lit_3
 
 			; Demo.cls 498: Vid.Txt 20, 140, Data.TX_D_MAKE2, 9
-			dw p_vid_txt_c, lit_20, lit_140, lit_12880, lit_9
+			dw p_vid_txt_c, lit_20, lit_140, lit_13685, lit_9
 
 			; Demo.cls 499: If pr < 3 Then Rom.Gen Else Proto.MakeRom
 			dw kw_scpltvl, var_demo_pr, 3
-			dw kw_goto_iffalse, if500_1
+			dw kw_goto_iffalse, if498_1
 			dw p_rom_gen_c
-			dw if500_e_go
-if500_1:
+			dw if498_e_go
+if498_1:
 			dw p_proto_makerom_cl
-if500_e:
+if498_e:
 
 			; Demo.cls 500: For s = 0 To 9
 			dw kw_ztov, var_demo_run_s
-for501_t:
+for499_t:
 
 			; Demo.cls 501: Sentence
 			dw p_demo_sentence_cl
@@ -30711,12 +30698,12 @@ for501_t:
 			dw kw_aset, arr_demo_pm, var_demo_run_s, var_demo_run_s
 
 			; Demo.cls 504: Next
-			dw kw_next1l, var_demo_run_s, 9, for501_t
-for501_e:
+			dw kw_next1l, var_demo_run_s, 9, for499_t
+for499_e:
 
 			; Demo.cls 505: For s = 9 To 1 Step -1
 			dw kw_ltov, 9, var_demo_run_s
-for502_t:
+for500_t:
 
 			; Demo.cls 506: j = Rng.Pick(s + 1)
 			dw kw_addl, var_demo_run_s, 1, tmp0
@@ -30734,8 +30721,8 @@ for502_t:
 			dw kw_aset, arr_demo_pm, var_demo_run_j, var_demo_run_t
 
 			; Demo.cls 510: Next
-			dw kw_nextdnl, var_demo_run_s, -1, 1, for502_t
-for502_e:
+			dw kw_nextdnl, var_demo_run_s, -1, 1, for500_t
+for500_e:
 
 			; Demo.cls 511: Sentence
 			dw p_demo_sentence_cl
@@ -30765,11 +30752,11 @@ for502_e:
 			dw p_demo_show_cl, var_demo_run_p
 
 			; Demo.cls 520: Do
-do503_t:
+do501_t:
 
 			; Demo.cls 521: If p = pa Then
 			dw kw_cpeqvv, var_demo_run_p, var_demo_pa
-			dw kw_goto_iffalse, if504_1
+			dw kw_goto_iffalse, if502_1
 
 			; Demo.cls 522: g = Probe()
 			dw p_demo_probe_cl
@@ -30777,9 +30764,9 @@ do503_t:
 
 			; Demo.cls 523: If g = 0 Then Exit Sub
 			dw kw_cpeqvl, var_demo_run_g, 0
-			dw kw_goto_iffalse, if505_1
+			dw kw_goto_iffalse, if503_1
 			dw p_demo_run_r
-if505_1:
+if503_1:
 
 			; Demo.cls 524: p = p + g
 			dw kw_add, var_demo_run_p, var_demo_run_g, var_demo_run_p
@@ -30788,15 +30775,15 @@ if505_1:
 			dw p_demo_show_cl, var_demo_run_p
 
 			; Demo.cls 526: ElseIf md = 1 And p = pa + 1 Then
-			dw if504_e_go
-if504_1:
+			dw if502_e_go
+if502_1:
 			dw kw_cpeqvl, var_demo_md, 1
 			dw kw_ftov, tmp0
 			dw kw_addl, var_demo_pa, 1, tmp2
 			dw kw_cpeqvv, var_demo_run_p, tmp2
 			dw kw_ftov, tmp1
 			dw kw_andvv, tmp0, tmp1, tmp0
-			dw kw_goto_ifzero, tmp0, if504_2
+			dw kw_goto_ifzero, tmp0, if502_2
 
 			; Demo.cls 527: g = Game()
 			dw p_demo_game_cl
@@ -30804,9 +30791,9 @@ if504_1:
 
 			; Demo.cls 528: If g = 0 Then Exit Sub
 			dw kw_cpeqvl, var_demo_run_g, 0
-			dw kw_goto_iffalse, if506_1
+			dw kw_goto_iffalse, if504_1
 			dw p_demo_run_r
-if506_1:
+if504_1:
 
 			; Demo.cls 529: p = p + g
 			dw kw_add, var_demo_run_p, var_demo_run_g, var_demo_run_p
@@ -30815,8 +30802,8 @@ if506_1:
 			dw p_demo_show_cl, var_demo_run_p
 
 			; Demo.cls 531: Else
-			dw if504_e_go
-if504_2:
+			dw if502_e_go
+if502_2:
 
 			; Demo.cls 532: Vid.Sync
 			dw p_vid_sync_c
@@ -30832,7 +30819,7 @@ if504_2:
 			dw kw_cpeqvl, var_demo_run_p, 3
 			dw kw_ftov, tmp1
 			dw kw_andvv, tmp0, tmp1, tmp0
-			dw kw_goto_ifzero, tmp0, if507_1
+			dw kw_goto_ifzero, tmp0, if505_1
 
 			; Demo.cls 535: Vid.Fill 0, 200, 320, 10, 5
 			dw p_vid_fill_c, lit_0, lit_200, lit_320, lit_10, lit_5
@@ -30841,23 +30828,23 @@ if504_2:
 			dw p_demo_savefiles_cl
 			dw kw_vtov, var_demo_savefiles_savefiles, tmp0
 			dw kw_cpeqvl, tmp0, 0
-			dw kw_goto_iffalse, if508_1
+			dw kw_goto_iffalse, if506_1
 
 			; Demo.cls 537: Vid.Txt 8, 200, Data.TX_D_SVOK, 10
-			dw p_vid_txt_c, lit_8, lit_200, lit_11673, lit_10
+			dw p_vid_txt_c, lit_8, lit_200, lit_12465, lit_10
 
 			; Demo.cls 538: Else
-			dw if508_e_go
-if508_1:
+			dw if506_e_go
+if506_1:
 
 			; Demo.cls 539: Vid.Txt 8, 200, Data.TX_D_SVNO, 12
-			dw p_vid_txt_c, lit_8, lit_200, lit_11709, lit_12
+			dw p_vid_txt_c, lit_8, lit_200, lit_12499, lit_12
 
 			; Demo.cls 540: End If
-if508_e:
+if506_e:
 
 			; Demo.cls 541: End If
-if507_1:
+if505_1:
 
 			; Demo.cls 542: If (k And 4) <> 0 And p > 0 Then
 			dw kw_andvl, var_demo_run_k, 4, tmp0
@@ -30866,7 +30853,7 @@ if507_1:
 			dw kw_scpgtvl, var_demo_run_p, 0
 			dw kw_ftov, tmp1
 			dw kw_andvv, tmp0, tmp1, tmp0
-			dw kw_goto_ifzero, tmp0, if509_1
+			dw kw_goto_ifzero, tmp0, if507_1
 
 			; Demo.cls 543: p = p - 1
 			dw kw_dec, var_demo_run_p
@@ -30875,7 +30862,7 @@ if507_1:
 			dw p_demo_show_cl, var_demo_run_p
 
 			; Demo.cls 545: End If
-if509_1:
+if507_1:
 
 			; Demo.cls 546: If (k And 8) <> 0 And p < np - 1 Then
 			dw kw_andvl, var_demo_run_k, 8, tmp0
@@ -30885,7 +30872,7 @@ if509_1:
 			dw kw_scpltvv, var_demo_run_p, tmp2
 			dw kw_ftov, tmp1
 			dw kw_andvv, tmp0, tmp1, tmp0
-			dw kw_goto_ifzero, tmp0, if510_1
+			dw kw_goto_ifzero, tmp0, if508_1
 
 			; Demo.cls 547: p = p + 1
 			dw kw_inc, var_demo_run_p
@@ -30894,16 +30881,16 @@ if509_1:
 			dw p_demo_show_cl, var_demo_run_p
 
 			; Demo.cls 549: End If
-if510_1:
+if508_1:
 
 			; Demo.cls 550: End If
-if504_e:
+if502_e:
 
 			; Demo.cls 551: Loop Until (k And 32) <> 0
 			dw kw_andvl, var_demo_run_k, 32, tmp0
 			dw kw_cpnevl, tmp0, 0
-			dw kw_goto_iffalse, do503_t
-do503_e:
+			dw kw_goto_iffalse, do501_t
+do501_e:
 			dw p_demo_run_r
 ovl_demo__0_e:
 ovl_demo__1_s:		; proto
@@ -30913,19 +30900,19 @@ p_proto_makerom:
 
 			; Proto.cls 15: For i = 0 To 255
 			dw kw_ztov, var_proto_makerom_i
-for372_t:
+for370_t:
 
 			; Proto.cls 16: Mr(i) = i \ 16
 			dw kw_divvl, var_proto_makerom_i, 16, tmp1
 			dw kw_aset8, arr_proto_mr, var_proto_makerom_i, tmp1
 
 			; Proto.cls 17: Next
-			dw kw_next1l, var_proto_makerom_i, 255, for372_t
-for372_e:
+			dw kw_next1l, var_proto_makerom_i, 255, for370_t
+for370_e:
 
 			; Proto.cls 18: For i = 255 To 1 Step -1
 			dw kw_ltov, 255, var_proto_makerom_i
-for373_t:
+for371_t:
 
 			; Proto.cls 19: j = Rng.Pick(i + 1)
 			dw kw_addl, var_proto_makerom_i, 1, tmp0
@@ -30943,8 +30930,8 @@ for373_t:
 			dw kw_aset8, arr_proto_mr, var_proto_makerom_j, var_proto_makerom_t
 
 			; Proto.cls 23: Next
-			dw kw_nextdnl, var_proto_makerom_i, -1, 1, for373_t
-for373_e:
+			dw kw_nextdnl, var_proto_makerom_i, -1, 1, for371_t
+for371_e:
 			dw p_proto_makerom_r
 p_proto_blksize:
 
@@ -30957,7 +30944,7 @@ p_proto_pad:
 
 			; Proto.cls 32: If mic = 1 Then
 			dw kw_cpeqvl, var_proto_mic, 1
-			dw kw_goto_iffalse, if374_1
+			dw kw_goto_iffalse, if372_1
 
 			; Proto.cls 33: Pad = 10 + Rng.Pick(6)
 			dw p_rng_pick_c, lit_6
@@ -30965,8 +30952,8 @@ p_proto_pad:
 			dw kw_addl, tmp1, 10, var_proto_pad_pad
 
 			; Proto.cls 34: Else
-			dw if374_e_go
-if374_1:
+			dw if372_e_go
+if372_1:
 
 			; Proto.cls 35: Pad = 10 + Rng.Pick(246)
 			dw p_rng_pick_c, lit_246
@@ -30974,7 +30961,7 @@ if374_1:
 			dw kw_addl, tmp1, 10, var_proto_pad_pad
 
 			; Proto.cls 36: End If
-if374_e:
+if372_e:
 			dw p_proto_pad_r
 p_proto_offs:
 
@@ -30997,7 +30984,7 @@ p_proto_adr:
 
 			; Proto.cls 51: If mic = 1 Then
 			dw kw_cpeqvl, var_proto_mic, 1
-			dw kw_goto_iffalse, if375_1
+			dw kw_goto_iffalse, if373_1
 
 			; Proto.cls 52: a = Rng.Pick(256)
 			dw p_rng_pick_c, lit_256
@@ -31007,7 +30994,7 @@ p_proto_adr:
 			dw kw_ztov, var_proto_adr_k
 
 			; Proto.cls 54: Do While Mr((a + olo + ohi * 16) And 255) <> v And k < 256
-do376_t:
+do374_t:
 			dw kw_add, var_proto_adr_a, var_proto_adr_olo, tmp0
 			dw kw_mulvl, var_proto_adr_ohi, 16, tmp1
 			dw kw_add, tmp0, tmp1, tmp0
@@ -31018,7 +31005,7 @@ do376_t:
 			dw kw_scpltvl, var_proto_adr_k, 256
 			dw kw_ftov, tmp1
 			dw kw_andvv, tmp0, tmp1, tmp0
-			dw kw_goto_ifzero, tmp0, do376_e
+			dw kw_goto_ifzero, tmp0, do374_e
 
 			; Proto.cls 55: a = (a + 1) And 255
 			dw kw_addl, var_proto_adr_a, 1, tmp0
@@ -31028,21 +31015,21 @@ do376_t:
 			dw kw_inc, var_proto_adr_k
 
 			; Proto.cls 57: Loop
-			dw do376_t_go
-do376_e:
+			dw do374_t_go
+do374_e:
 
 			; Proto.cls 58: Put a
 			dw p_proto_put_cl, var_proto_adr_a
 
 			; Proto.cls 59: Else
-			dw if375_e_go
-if375_1:
+			dw if373_e_go
+if373_1:
 
 			; Proto.cls 60: If Rom.PickIdx(Data.GENB, v, olo, ohi, 0) = 0 Then
 			dw p_rom_pickidx_c, lit_27, var_proto_adr_v, var_proto_adr_olo, var_proto_adr_ohi, lit_0
 			dw kw_vtov, var_rom_pickidx_pickidx, tmp0
 			dw kw_cpeqvl, tmp0, 0
-			dw kw_goto_iffalse, if377_1
+			dw kw_goto_iffalse, if375_1
 
 			; Proto.cls 61: Put 0
 			dw p_proto_put_cl, lit_0
@@ -31051,8 +31038,8 @@ if375_1:
 			dw p_proto_put_cl, lit_0
 
 			; Proto.cls 63: Else
-			dw if377_e_go
-if377_1:
+			dw if375_e_go
+if375_1:
 
 			; Proto.cls 64: Put Rom.PickLo
 			dw p_proto_put_cl, var_rom_picklo
@@ -31061,16 +31048,16 @@ if377_1:
 			dw p_proto_put_cl, var_rom_pickhi
 
 			; Proto.cls 66: End If
-if377_e:
+if375_e:
 
 			; Proto.cls 67: End If
-if375_e:
+if373_e:
 			dw p_proto_adr_r
 p_proto_sym:
 
 			; Proto.cls 72: If mic = 1 Then
 			dw kw_cpeqvl, var_proto_mic, 1
-			dw kw_goto_iffalse, if378_1
+			dw kw_goto_iffalse, if376_1
 
 			; Proto.cls 73: Adr c \ 16, olo, ohi
 			dw kw_divvl, var_proto_sym_c, 16, tmp0
@@ -31081,14 +31068,14 @@ p_proto_sym:
 			dw p_proto_adr_cl, tmp0, var_proto_sym_olo, var_proto_sym_ohi
 
 			; Proto.cls 75: Else
-			dw if378_e_go
-if378_1:
+			dw if376_e_go
+if376_1:
 
 			; Proto.cls 76: Adr c, olo, ohi
 			dw p_proto_adr_cl, var_proto_sym_c, var_proto_sym_olo, var_proto_sym_ohi
 
 			; Proto.cls 77: End If
-if378_e:
+if376_e:
 			dw p_proto_sym_r
 p_proto_hv:
 
@@ -31099,7 +31086,7 @@ p_proto_hvw:
 
 			; Proto.cls 87: If mic = 1 Then
 			dw kw_cpeqvl, var_proto_mic, 1
-			dw kw_goto_iffalse, if379_1
+			dw kw_goto_iffalse, if377_1
 
 			; Proto.cls 88: Hv v And 15
 			dw kw_andvl, var_proto_hvw_v, 15, tmp0
@@ -31110,8 +31097,8 @@ p_proto_hvw:
 			dw p_proto_hv_cl, tmp0
 
 			; Proto.cls 90: Else
-			dw if379_e_go
-if379_1:
+			dw if377_e_go
+if377_1:
 
 			; Proto.cls 91: Hv v And 255
 			dw kw_andvl, var_proto_hvw_v, 255, tmp0
@@ -31122,13 +31109,13 @@ if379_1:
 			dw p_proto_hv_cl, tmp0
 
 			; Proto.cls 93: End If
-if379_e:
+if377_e:
 			dw p_proto_hvw_r
 p_proto_hvo:
 
 			; Proto.cls 98: If mic = 1 Then
 			dw kw_cpeqvl, var_proto_mic, 1
-			dw kw_goto_iffalse, if380_1
+			dw kw_goto_iffalse, if378_1
 
 			; Proto.cls 99: Hv l And 15
 			dw kw_andvl, var_proto_hvo_l, 15, tmp0
@@ -31139,8 +31126,8 @@ p_proto_hvo:
 			dw p_proto_hv_cl, tmp0
 
 			; Proto.cls 101: Else
-			dw if380_e_go
-if380_1:
+			dw if378_e_go
+if378_1:
 
 			; Proto.cls 102: Hv l
 			dw p_proto_hv_cl, var_proto_hvo_l
@@ -31149,7 +31136,7 @@ if380_1:
 			dw p_proto_hv_cl, var_proto_hvo_h
 
 			; Proto.cls 104: End If
-if380_e:
+if378_e:
 			dw p_proto_hvo_r
 p_proto_enc:
 
@@ -31160,9 +31147,9 @@ p_proto_enc:
 
 			; Proto.cls 111: If pr >= 3 Then mic = 1
 			dw kw_scpgevl, var_proto_enc_pr, 3
-			dw kw_goto_iffalse, if381_1
+			dw kw_goto_iffalse, if379_1
 			dw kw_ltov, 1, var_proto_mic
-if381_1:
+if379_1:
 
 			; Proto.cls 112: kind = pr - mic * 3
 			dw kw_mulvl, var_proto_mic, 3, tmp1
@@ -31176,13 +31163,13 @@ if381_1:
 
 			; Proto.cls 115: If kind = 0 Then
 			dw kw_cpeqvl, var_proto_enc_kind, 0
-			dw kw_goto_iffalse, if382_1
+			dw kw_goto_iffalse, if380_1
 
 			; Proto.cls 116: For i = 0 To Rom.Wn - 1
 			dw kw_ztov, var_proto_enc_i
-			dw kw_addl, var_rom_wn, -1, for383_l
-			dw kw_forupv, var_proto_enc_i, for383_l, for383_e
-for383_t:
+			dw kw_addl, var_rom_wn, -1, for381_l
+			dw kw_forupv, var_proto_enc_i, for381_l, for381_e
+for381_t:
 
 			; Proto.cls 117: Sym Rom.Wg(i), 0, 0
 			dw p_rom_wg_c, var_proto_enc_i
@@ -31190,8 +31177,8 @@ for383_t:
 			dw p_proto_sym_cl, tmp0, lit_0, lit_0
 
 			; Proto.cls 118: Next
-			dw kw_next1v, var_proto_enc_i, for383_l, for383_t
-for383_e:
+			dw kw_next1v, var_proto_enc_i, for381_l, for381_t
+for381_e:
 
 			; Proto.cls 119: Enc = n
 			dw kw_vtov, var_proto_n, var_proto_enc_enc
@@ -31200,7 +31187,7 @@ for383_e:
 			dw p_proto_enc_r
 
 			; Proto.cls 121: End If
-if382_1:
+if380_1:
 
 			; Proto.cls 122: pf = Pad()
 			dw p_proto_pad_cl
@@ -31212,11 +31199,11 @@ if382_1:
 
 			; Proto.cls 124: If kind = 1 Then
 			dw kw_cpeqvl, var_proto_enc_kind, 1
-			dw kw_goto_iffalse, if384_1
+			dw kw_goto_iffalse, if382_1
 
 			; Proto.cls 125: If mic = 1 Then
 			dw kw_cpeqvl, var_proto_mic, 1
-			dw kw_goto_iffalse, if385_1
+			dw kw_goto_iffalse, if383_1
 
 			; Proto.cls 126: ol = Offs()
 			dw p_proto_offs_cl
@@ -31229,8 +31216,8 @@ if382_1:
 			dw kw_andvl, var_proto_enc_ol, 15, var_proto_enc_ol
 
 			; Proto.cls 129: Else
-			dw if385_e_go
-if385_1:
+			dw if383_e_go
+if383_1:
 
 			; Proto.cls 130: ol = Offs()
 			dw p_proto_offs_cl
@@ -31241,7 +31228,7 @@ if385_1:
 			dw kw_vtov, var_proto_offs_offs, var_proto_enc_oh
 
 			; Proto.cls 132: End If
-if385_e:
+if383_e:
 
 			; Proto.cls 133: Hv ol
 			dw p_proto_hv_cl, var_proto_enc_ol
@@ -31257,9 +31244,9 @@ if385_e:
 
 			; Proto.cls 137: For i = 1 To pf
 			dw kw_ltov, 1, var_proto_enc_i
-			dw kw_vtov, var_proto_enc_pf, for386_l
-			dw kw_forupv, var_proto_enc_i, for386_l, for386_e
-for386_t:
+			dw kw_vtov, var_proto_enc_pf, for384_l
+			dw kw_forupv, var_proto_enc_i, for384_l, for384_e
+for384_t:
 
 			; Proto.cls 138: Put Rng.Pick(256)
 			dw p_rng_pick_c, lit_256
@@ -31267,14 +31254,14 @@ for386_t:
 			dw p_proto_put_cl, tmp0
 
 			; Proto.cls 139: Next
-			dw kw_next1v, var_proto_enc_i, for386_l, for386_t
-for386_e:
+			dw kw_next1v, var_proto_enc_i, for384_l, for384_t
+for384_e:
 
 			; Proto.cls 140: For i = 0 To Rom.Wn - 1
 			dw kw_ztov, var_proto_enc_i
-			dw kw_addl, var_rom_wn, -1, for387_l
-			dw kw_forupv, var_proto_enc_i, for387_l, for387_e
-for387_t:
+			dw kw_addl, var_rom_wn, -1, for385_l
+			dw kw_forupv, var_proto_enc_i, for385_l, for385_e
+for385_t:
 
 			; Proto.cls 141: Sym Rom.Wg(i), ol, oh
 			dw p_rom_wg_c, var_proto_enc_i
@@ -31282,14 +31269,14 @@ for387_t:
 			dw p_proto_sym_cl, tmp0, var_proto_enc_ol, var_proto_enc_oh
 
 			; Proto.cls 142: Next
-			dw kw_next1v, var_proto_enc_i, for387_l, for387_t
-for387_e:
+			dw kw_next1v, var_proto_enc_i, for385_l, for385_t
+for385_e:
 
 			; Proto.cls 143: For i = 1 To sf
 			dw kw_ltov, 1, var_proto_enc_i
-			dw kw_vtov, var_proto_enc_sf, for388_l
-			dw kw_forupv, var_proto_enc_i, for388_l, for388_e
-for388_t:
+			dw kw_vtov, var_proto_enc_sf, for386_l
+			dw kw_forupv, var_proto_enc_i, for386_l, for386_e
+for386_t:
 
 			; Proto.cls 144: Put Rng.Pick(256)
 			dw p_rng_pick_c, lit_256
@@ -31297,8 +31284,8 @@ for388_t:
 			dw p_proto_put_cl, tmp0
 
 			; Proto.cls 145: Next
-			dw kw_next1v, var_proto_enc_i, for388_l, for388_t
-for388_e:
+			dw kw_next1v, var_proto_enc_i, for386_l, for386_t
+for386_e:
 
 			; Proto.cls 146: Enc = n
 			dw kw_vtov, var_proto_n, var_proto_enc_enc
@@ -31307,7 +31294,7 @@ for388_e:
 			dw p_proto_enc_r
 
 			; Proto.cls 148: End If
-if384_1:
+if382_1:
 
 			; Proto.cls 149: nb = 0
 			dw kw_ztov, var_proto_enc_nb
@@ -31316,9 +31303,9 @@ if384_1:
 			dw kw_vtov, var_rom_wn, var_proto_enc_rm
 
 			; Proto.cls 151: Do While rm > 0
-do389_t:
+do387_t:
 			dw kw_scpgtvl, var_proto_enc_rm, 0
-			dw kw_goto_iffalse, do389_e
+			dw kw_goto_iffalse, do387_e
 
 			; Proto.cls 152: b = BlkSize()
 			dw p_proto_blksize_cl
@@ -31326,9 +31313,9 @@ do389_t:
 
 			; Proto.cls 153: If b > rm Then b = rm
 			dw kw_scpgtvv, var_proto_enc_b, var_proto_enc_rm
-			dw kw_goto_iffalse, if390_1
+			dw kw_goto_iffalse, if388_1
 			dw kw_vtov, var_proto_enc_rm, var_proto_enc_b
-if390_1:
+if388_1:
 
 			; Proto.cls 154: bh(nb) = b
 			dw kw_aset, arr_proto_bh, var_proto_enc_nb, var_proto_enc_b
@@ -31352,8 +31339,8 @@ if390_1:
 			dw kw_inc, var_proto_enc_nb
 
 			; Proto.cls 160: Loop
-			dw do389_t_go
-do389_e:
+			dw do387_t_go
+do387_e:
 
 			; Proto.cls 161: HvO bol(0), boh(0)
 			dw p_proto_hvo_cl, arr_proto_bol, arr_proto_boh
@@ -31369,9 +31356,9 @@ do389_e:
 
 			; Proto.cls 165: For i = 1 To pf
 			dw kw_ltov, 1, var_proto_enc_i
-			dw kw_vtov, var_proto_enc_pf, for391_l
-			dw kw_forupv, var_proto_enc_i, for391_l, for391_e
-for391_t:
+			dw kw_vtov, var_proto_enc_pf, for389_l
+			dw kw_forupv, var_proto_enc_i, for389_l, for389_e
+for389_t:
 
 			; Proto.cls 166: Put Rng.Pick(256)
 			dw p_rng_pick_c, lit_256
@@ -31379,22 +31366,22 @@ for391_t:
 			dw p_proto_put_cl, tmp0
 
 			; Proto.cls 167: Next
-			dw kw_next1v, var_proto_enc_i, for391_l, for391_t
-for391_e:
+			dw kw_next1v, var_proto_enc_i, for389_l, for389_t
+for389_e:
 
 			; Proto.cls 168: rm = 0
 			dw kw_ztov, var_proto_enc_rm
 
 			; Proto.cls 169: For b = 0 To nb - 1
 			dw kw_ztov, var_proto_enc_b
-			dw kw_addl, var_proto_enc_nb, -1, for392_l
-			dw kw_forupv, var_proto_enc_b, for392_l, for392_e
-for392_t:
+			dw kw_addl, var_proto_enc_nb, -1, for390_l
+			dw kw_forupv, var_proto_enc_b, for390_l, for390_e
+for390_t:
 
 			; Proto.cls 170: If b < nb - 1 Then
 			dw kw_addl, var_proto_enc_nb, -1, tmp1
 			dw kw_scpltvv, var_proto_enc_b, tmp1
-			dw kw_goto_iffalse, if393_1
+			dw kw_goto_iffalse, if391_1
 
 			; Proto.cls 171: HvO bol(b + 1), boh(b + 1)
 			dw kw_addl, var_proto_enc_b, 1, tmp0
@@ -31409,8 +31396,8 @@ for392_t:
 			dw p_proto_hvw_cl, tmp0
 
 			; Proto.cls 173: Else
-			dw if393_e_go
-if393_1:
+			dw if391_e_go
+if391_1:
 
 			; Proto.cls 174: HvO Offs(), Offs()
 			dw p_proto_offs_cl
@@ -31425,11 +31412,11 @@ if393_1:
 			dw p_proto_hvw_cl, tmp0
 
 			; Proto.cls 176: End If
-if393_e:
+if391_e:
 
 			; Proto.cls 177: If mic = 1 Then
 			dw kw_cpeqvl, var_proto_mic, 1
-			dw kw_goto_iffalse, if394_1
+			dw kw_goto_iffalse, if392_1
 
 			; Proto.cls 178: ol = bol(b) And 15
 			dw kw_aget, arr_proto_bol, var_proto_enc_b, tmp0
@@ -31440,8 +31427,8 @@ if393_e:
 			dw kw_divvl, tmp0, 16, var_proto_enc_oh
 
 			; Proto.cls 180: Else
-			dw if394_e_go
-if394_1:
+			dw if392_e_go
+if392_1:
 
 			; Proto.cls 181: ol = bol(b)
 			dw kw_aget, arr_proto_bol, var_proto_enc_b, var_proto_enc_ol
@@ -31450,13 +31437,13 @@ if394_1:
 			dw kw_aget, arr_proto_boh, var_proto_enc_b, var_proto_enc_oh
 
 			; Proto.cls 183: End If
-if394_e:
+if392_e:
 
 			; Proto.cls 184: For i = 1 To bh(b)
 			dw kw_ltov, 1, var_proto_enc_i
-			dw kw_aget, arr_proto_bh, var_proto_enc_b, for395_l
-			dw kw_forupv, var_proto_enc_i, for395_l, for395_e
-for395_t:
+			dw kw_aget, arr_proto_bh, var_proto_enc_b, for393_l
+			dw kw_forupv, var_proto_enc_i, for393_l, for393_e
+for393_t:
 
 			; Proto.cls 185: Sym Rom.Wg(rm), ol, oh
 			dw p_rom_wg_c, var_proto_enc_rm
@@ -31467,18 +31454,18 @@ for395_t:
 			dw kw_inc, var_proto_enc_rm
 
 			; Proto.cls 187: Next
-			dw kw_next1v, var_proto_enc_i, for395_l, for395_t
-for395_e:
+			dw kw_next1v, var_proto_enc_i, for393_l, for393_t
+for393_e:
 
 			; Proto.cls 188: Next
-			dw kw_next1v, var_proto_enc_b, for392_l, for392_t
-for392_e:
+			dw kw_next1v, var_proto_enc_b, for390_l, for390_t
+for390_e:
 
 			; Proto.cls 189: For i = 1 To sf
 			dw kw_ltov, 1, var_proto_enc_i
-			dw kw_vtov, var_proto_enc_sf, for396_l
-			dw kw_forupv, var_proto_enc_i, for396_l, for396_e
-for396_t:
+			dw kw_vtov, var_proto_enc_sf, for394_l
+			dw kw_forupv, var_proto_enc_i, for394_l, for394_e
+for394_t:
 
 			; Proto.cls 190: Put Rng.Pick(256)
 			dw p_rng_pick_c, lit_256
@@ -31486,8 +31473,8 @@ for396_t:
 			dw p_proto_put_cl, tmp0
 
 			; Proto.cls 191: Next
-			dw kw_next1v, var_proto_enc_i, for396_l, for396_t
-for396_e:
+			dw kw_next1v, var_proto_enc_i, for394_l, for394_t
+for394_e:
 
 			; Proto.cls 192: Enc = n
 			dw kw_vtov, var_proto_n, var_proto_enc_enc
@@ -31512,7 +31499,7 @@ p_proto_pos:
 
 			; Proto.cls 204: If pr = 1 Then
 			dw kw_cpeqvl, var_proto_pos_pr, 1
-			dw kw_goto_iffalse, if397_1
+			dw kw_goto_iffalse, if395_1
 
 			; Proto.cls 205: ro = Rom.B(Data.GENB, 0, 0, Blk.Buf(64), Blk.Buf(65))
 			dw kw_lptrtov8, arr_blk_buf+64, tmp3
@@ -31534,11 +31521,11 @@ p_proto_pos:
 			dw kw_addl, tmp1, 8, var_proto_pos_p
 
 			; Proto.cls 208: End If
-if397_1:
+if395_1:
 
 			; Proto.cls 209: If pr = 2 Then
 			dw kw_cpeqvl, var_proto_pos_pr, 2
-			dw kw_goto_iffalse, if398_1
+			dw kw_goto_iffalse, if396_1
 
 			; Proto.cls 210: ro = Rom.B(Data.GENB, 0, 0, Blk.Buf(64), Blk.Buf(65))
 			dw kw_lptrtov8, arr_blk_buf+64, tmp3
@@ -31572,19 +31559,19 @@ if397_1:
 			dw kw_addl, tmp1, 12, var_proto_pos_p
 
 			; Proto.cls 214: End If
-if398_1:
+if396_1:
 
 			; Proto.cls 215: i = 0
 			dw kw_ztov, var_proto_pos_i
 
 			; Proto.cls 216: Do While i < 52
-do399_t:
+do397_t:
 			dw kw_scpltvl, var_proto_pos_i, 52
-			dw kw_goto_iffalse, do399_e
+			dw kw_goto_iffalse, do397_e
 
 			; Proto.cls 217: If pr = 2 Then
 			dw kw_cpeqvl, var_proto_pos_pr, 2
-			dw kw_goto_iffalse, if400_1
+			dw kw_goto_iffalse, if398_1
 
 			; Proto.cls 218: nro = Rom.B(Data.GENB, 0, 0, Blk.Buf(64 + p), Blk.Buf(65 + p))
 			dw kw_addl, var_proto_pos_p, 64, tmp3
@@ -31622,17 +31609,17 @@ do399_t:
 			dw kw_addl, var_proto_pos_p, 8, var_proto_pos_p
 
 			; Proto.cls 222: End If
-if400_1:
+if398_1:
 
 			; Proto.cls 223: For q = 1 To sz
 			dw kw_ltov, 1, var_proto_pos_q
-			dw kw_vtov, var_proto_pos_sz, for401_l
-			dw kw_forupv, var_proto_pos_q, for401_l, for401_e
-for401_t:
+			dw kw_vtov, var_proto_pos_sz, for399_l
+			dw kw_forupv, var_proto_pos_q, for399_l, for399_e
+for399_t:
 
 			; Proto.cls 224: If i < 52 Then
 			dw kw_scpltvl, var_proto_pos_i, 52
-			dw kw_goto_iffalse, if402_1
+			dw kw_goto_iffalse, if400_1
 
 			; Proto.cls 225: lo = Blk.Buf(64 + p) + ro
 			dw kw_addl, var_proto_pos_p, 64, tmp0
@@ -31646,7 +31633,7 @@ for401_t:
 
 			; Proto.cls 227: If lo > 255 Then
 			dw kw_scpgtvl, var_proto_pos_lo, 255
-			dw kw_goto_iffalse, if403_1
+			dw kw_goto_iffalse, if401_1
 
 			; Proto.cls 228: lo = lo - 256
 			dw kw_addl, var_proto_pos_lo, -256, var_proto_pos_lo
@@ -31655,7 +31642,7 @@ for401_t:
 			dw kw_inc, var_proto_pos_hi
 
 			; Proto.cls 230: End If
-if403_1:
+if401_1:
 
 			; Proto.cls 231: Pg(i) = hi
 			dw kw_aset, arr_proto_pg, var_proto_pos_i, var_proto_pos_hi
@@ -31667,14 +31654,14 @@ if403_1:
 			dw kw_inc, var_proto_pos_i
 
 			; Proto.cls 234: End If
-if402_1:
+if400_1:
 
 			; Proto.cls 235: p = p + 2
 			dw kw_addl, var_proto_pos_p, 2, var_proto_pos_p
 
 			; Proto.cls 236: Next
-			dw kw_next1v, var_proto_pos_q, for401_l, for401_t
-for401_e:
+			dw kw_next1v, var_proto_pos_q, for399_l, for399_t
+for399_e:
 
 			; Proto.cls 237: ro = nro
 			dw kw_vtov, var_proto_pos_nro, var_proto_pos_ro
@@ -31687,13 +31674,13 @@ for401_e:
 
 			; Proto.cls 240: If sz < 1 Then sz = 52
 			dw kw_scpltvl, var_proto_pos_sz, 1
-			dw kw_goto_iffalse, do399_t
+			dw kw_goto_iffalse, do397_t
 			dw kw_ltov, 52, var_proto_pos_sz
-if404_1:
+if402_1:
 
 			; Proto.cls 241: Loop
-			dw do399_t_go
-do399_e:
+			dw do397_t_go
+do397_e:
 			dw p_proto_pos_r
 ovl_demo__1_e:
 ovl_demo__2_s:		; esx
@@ -31716,9 +31703,9 @@ p_esx_firstuse:
 
 			; Esx.cls 156: If inited <> 0 Then Exit Sub
 			dw kw_cpnevl, var_esx_inited, 0
-			dw kw_goto_iffalse, if511_1
+			dw kw_goto_iffalse, if509_1
 			dw p_esx_firstuse_r
-if511_1:
+if509_1:
 
 			; Esx.cls 157: inited = 1
 			dw kw_ltov, 1, var_esx_inited
@@ -31745,7 +31732,7 @@ p_esx_save:
 
 			; Esx.cls 169: If kind = 0 Then
 			dw kw_cpeqvl, var_esx_save_kind, 0
-			dw kw_goto_iffalse, if512_1
+			dw kw_goto_iffalse, if510_1
 
 			; Esx.cls 170: Poke BNAME, 77
 			dw kw_ltolptr8, 77, -17408
@@ -31770,8 +31757,8 @@ p_esx_save:
 			dw kw_ltov, 5, var_esx_save_i
 
 			; Esx.cls 176: Else
-			dw if512_e_go
-if512_1:
+			dw if510_e_go
+if510_1:
 
 			; Esx.cls 177: Poke BNAME, 69
 			dw kw_ltolptr8, 69, -17408
@@ -31790,7 +31777,7 @@ if512_1:
 			dw kw_ltov, 4, var_esx_save_i
 
 			; Esx.cls 182: End If
-if512_e:
+if510_e:
 
 			; Esx.cls 183: Poke BNAME + i, 46
 			dw kw_addl, var_esx_save_i, -17408, tmp0
@@ -31798,7 +31785,7 @@ if512_e:
 
 			; Esx.cls 184: If kind = 0 Then
 			dw kw_cpeqvl, var_esx_save_kind, 0
-			dw kw_goto_iffalse, if513_1
+			dw kw_goto_iffalse, if511_1
 
 			; Esx.cls 185: Poke BNAME + i + 1, 84
 			dw kw_addl, var_esx_save_i, -17408, tmp0
@@ -31816,8 +31803,8 @@ if512_e:
 			dw kw_ltovptr8, 84, tmp0
 
 			; Esx.cls 188: Else
-			dw if513_e_go
-if513_1:
+			dw if511_e_go
+if511_1:
 
 			; Esx.cls 189: Poke BNAME + i + 1, 66
 			dw kw_addl, var_esx_save_i, -17408, tmp0
@@ -31835,7 +31822,7 @@ if513_1:
 			dw kw_ltovptr8, 78, tmp0
 
 			; Esx.cls 192: End If
-if513_e:
+if511_e:
 
 			; Esx.cls 193: Poke BNAME + i + 4, 0
 			dw kw_addl, var_esx_save_i, -17408, tmp0
@@ -31848,7 +31835,7 @@ if513_e:
 
 			; Esx.cls 195: If h < 0 Then
 			dw kw_scpltvl, var_esx_save_h, 0
-			dw kw_goto_iffalse, if514_1
+			dw kw_goto_iffalse, if512_1
 
 			; Esx.cls 196: Save = 1
 			dw kw_ltov, 1, var_esx_save_save
@@ -31857,7 +31844,7 @@ if513_e:
 			dw p_esx_save_r
 
 			; Esx.cls 198: End If
-if514_1:
+if512_1:
 
 			; Esx.cls 199: Save = 0
 			dw kw_ztov, var_esx_save_save
@@ -31866,18 +31853,18 @@ if514_1:
 			dw kw_ztov, var_esx_save_done
 
 			; Esx.cls 201: Do While done < n
-do515_t:
+do513_t:
 			dw kw_scpltvv, var_esx_save_done, var_esx_save_n
-			dw kw_goto_iffalse, do515_e
+			dw kw_goto_iffalse, do513_e
 
 			; Esx.cls 202: want = n - done
 			dw kw_subvv, var_esx_save_n, var_esx_save_done, var_esx_save_want
 
 			; Esx.cls 203: If want > BCHUNK Then want = BCHUNK
 			dw kw_scpgtvl, var_esx_save_want, 384
-			dw kw_goto_iffalse, if516_1
+			dw kw_goto_iffalse, if514_1
 			dw kw_ltov, 384, var_esx_save_want
-if516_1:
+if514_1:
 
 			; Esx.cls 204: Copy addr + done, BDATA, want
 			dw kw_add, var_esx_save_addr, var_esx_save_done, tmp0
@@ -31893,23 +31880,23 @@ if516_1:
 			dw kw_cpnevv, var_esx_bcr, var_esx_save_want
 			dw kw_ftov, tmp1
 			dw kw_orvv, tmp0, tmp1, tmp0
-			dw kw_goto_ifzero, tmp0, if517_1
+			dw kw_goto_ifzero, tmp0, if515_1
 
 			; Esx.cls 207: Save = 2
 			dw kw_ltov, 2, var_esx_save_save
 
 			; Esx.cls 208: Exit Do
-			dw do515_e_go
+			dw do513_e_go
 
 			; Esx.cls 209: End If
-if517_1:
+if515_1:
 
 			; Esx.cls 210: done = done + want
 			dw kw_add, var_esx_save_done, var_esx_save_want, var_esx_save_done
 
 			; Esx.cls 211: Loop
-			dw do515_t_go
-do515_e:
+			dw do513_t_go
+do513_e:
 
 			; Esx.cls 212: r = DosCall(&H9B, h, 0, 0, 0)
 			dw p_esx_doscall_cl, lit_155, var_esx_save_h, lit_0, lit_0, lit_0
@@ -33436,10 +33423,10 @@ ovl_demo_vsize	equ 0		; its page variables; its local memory is the rest, to #80
 
 ; ============================================================
 ; Page PLAYP (Loaded 22): play, attack, screens - threads built to run at #4000,
-; in the NEX file's bank 77 (RAM page 22); their variables are in the program, but for
+; in the NEX file's bank 78 (RAM page 22); their variables are in the program, but for
 ; Private Paged ones (after the code, cleared here)
 ; ============================================================
-			MMU 2 3, 154
+			MMU 2 3, 156
 			ORG #4000
 ovl_playp_start:
 			dw NTC_STAMP		; the build stamp: the loader checks it against the program's
@@ -33560,7 +33547,7 @@ p_play_seed:
 
 			; Play.cls 48: For i = 0 To 26
 			dw kw_ztov, var_play_seed_i
-for194_t:
+for192_t:
 
 			; Play.cls 49: kd(i) = Keys.Down(kn(i))
 			dw kw_aget8, arr_play_kn, var_play_seed_i, tmp1
@@ -33568,8 +33555,8 @@ for194_t:
 			dw kw_aset, arr_play_kd, var_play_seed_i, var_keys_down_down
 
 			; Play.cls 50: Next
-			dw kw_next1l, var_play_seed_i, 26, for194_t
-for194_e:
+			dw kw_next1l, var_play_seed_i, 26, for192_t
+for192_e:
 
 			; Play.cls 51: k0 = Keys.Down(Keys.Key0)
 			dw fn_keys_down, lit_32, var_play_k0
@@ -33586,7 +33573,7 @@ p_play_typekey:
 
 			; Play.cls 59: For i = 0 To 26
 			dw kw_ztov, var_play_typekey_i
-for195_t:
+for193_t:
 
 			; Play.cls 60: d = Keys.Down(kn(i))
 			dw kw_aget8, arr_play_kn, var_play_typekey_i, tmp0
@@ -33599,16 +33586,16 @@ for195_t:
 			dw kw_cpeqvl, tmp1, 0
 			dw kw_ftov, tmp1
 			dw kw_andvv, tmp0, tmp1, tmp0
-			dw kw_goto_ifzero, tmp0, if196_1
+			dw kw_goto_ifzero, tmp0, if194_1
 			dw kw_aget8, arr_play_kc, var_play_typekey_i, var_play_typekey_r
-if196_1:
+if194_1:
 
 			; Play.cls 62: kd(i) = d
 			dw kw_aset, arr_play_kd, var_play_typekey_i, var_play_typekey_d
 
 			; Play.cls 63: Next
-			dw kw_next1l, var_play_typekey_i, 26, for195_t
-for195_e:
+			dw kw_next1l, var_play_typekey_i, 26, for193_t
+for193_e:
 
 			; Play.cls 64: d = Keys.Down(Keys.Key0)
 			dw fn_keys_down, lit_32, var_play_typekey_d
@@ -33619,9 +33606,9 @@ for195_e:
 			dw kw_cpeqvl, var_play_k0, 0
 			dw kw_ftov, tmp1
 			dw kw_andvv, tmp0, tmp1, tmp0
-			dw kw_goto_ifzero, tmp0, if197_1
+			dw kw_goto_ifzero, tmp0, if195_1
 			dw kw_ltov, 8, var_play_typekey_r
-if197_1:
+if195_1:
 
 			; Play.cls 66: k0 = d
 			dw kw_vtov, var_play_typekey_d, var_play_k0
@@ -33635,9 +33622,9 @@ if197_1:
 			dw kw_cpeqvl, var_play_ke, 0
 			dw kw_ftov, tmp1
 			dw kw_andvv, tmp0, tmp1, tmp0
-			dw kw_goto_ifzero, tmp0, if198_1
+			dw kw_goto_ifzero, tmp0, if196_1
 			dw kw_ltov, 13, var_play_typekey_r
-if198_1:
+if196_1:
 
 			; Play.cls 69: ke = d
 			dw kw_vtov, var_play_typekey_d, var_play_ke
@@ -33654,9 +33641,9 @@ p_play_showmsg:
 
 			; Play.cls 76: For i = 0 To mn - 1
 			dw kw_ztov, var_play_showmsg_i
-			dw kw_addl, var_play_mn, -1, for199_l
-			dw kw_forupv, var_play_showmsg_i, for199_l, for199_e
-for199_t:
+			dw kw_addl, var_play_mn, -1, for197_l
+			dw kw_forupv, var_play_showmsg_i, for197_l, for197_e
+for197_t:
 
 			; Play.cls 77: Vid.Glyph 8 + i * 6, y, mes(i), 10
 			dw kw_mulvl, var_play_showmsg_i, 6, tmp1
@@ -33665,16 +33652,16 @@ for199_t:
 			dw p_vid_glyph_c, tmp0, var_play_showmsg_y, tmp2, lit_10
 
 			; Play.cls 78: Next
-			dw kw_next1v, var_play_showmsg_i, for199_l, for199_t
-for199_e:
+			dw kw_next1v, var_play_showmsg_i, for197_l, for197_t
+for197_e:
 
 			; Play.cls 79: If cur <> 0 Then Vid.Fill 8 + mn * 6, y, 5, 8, 1
 			dw kw_cpnevl, var_play_showmsg_cur, 0
-			dw kw_goto_iffalse, if200_1
+			dw kw_goto_iffalse, if198_1
 			dw kw_mulvl, var_play_mn, 6, tmp1
 			dw kw_addl, tmp1, 8, tmp0
 			dw p_vid_fill_c, tmp0, var_play_showmsg_y, lit_5, lit_8, lit_1
-if200_1:
+if198_1:
 			dw p_play_showmsg_r
 p_play_line:
 
@@ -33693,7 +33680,7 @@ p_play_line:
 			dw p_play_showmsg_cl, var_play_line_y, lit_1
 
 			; Play.cls 89: Do
-do201_t:
+do199_t:
 
 			; Play.cls 90: Vid.Sync
 			dw p_vid_sync_c
@@ -33707,9 +33694,9 @@ do201_t:
 
 			; Play.cls 93: If c = 13 Then Exit Do
 			dw kw_cpeqvl, var_play_line_c, 13
-			dw kw_goto_iffalse, if202_1
-			dw do201_e_go
-if202_1:
+			dw kw_goto_iffalse, if200_1
+			dw do199_e_go
+if200_1:
 
 			; Play.cls 94: If c = 8 And mn > 0 Then
 			dw kw_cpeqvl, var_play_line_c, 8
@@ -33717,7 +33704,7 @@ if202_1:
 			dw kw_scpgtvl, var_play_mn, 0
 			dw kw_ftov, tmp1
 			dw kw_andvv, tmp0, tmp1, tmp0
-			dw kw_goto_ifzero, tmp0, if203_1
+			dw kw_goto_ifzero, tmp0, if201_1
 
 			; Play.cls 95: mn = mn - 1
 			dw kw_dec, var_play_mn
@@ -33726,7 +33713,7 @@ if202_1:
 			dw p_play_showmsg_cl, var_play_line_y, lit_1
 
 			; Play.cls 97: End If
-if203_1:
+if201_1:
 
 			; Play.cls 98: If c >= 32 And mn < mx Then
 			dw kw_scpgevl, var_play_line_c, 32
@@ -33734,7 +33721,7 @@ if203_1:
 			dw kw_scpltvv, var_play_mn, var_play_line_mx
 			dw kw_ftov, tmp1
 			dw kw_andvv, tmp0, tmp1, tmp0
-			dw kw_goto_ifzero, tmp0, if204_1
+			dw kw_goto_ifzero, tmp0, if202_1
 
 			; Play.cls 99: mes(mn) = c
 			dw kw_aset8, arr_play_mes, var_play_mn, var_play_line_c
@@ -33746,27 +33733,27 @@ if203_1:
 			dw p_play_showmsg_cl, var_play_line_y, lit_1
 
 			; Play.cls 102: End If
-if204_1:
+if202_1:
 
 			; Play.cls 103: If (t And 15) = 0 Then ShowMsg y, (t \ 16) And 1
 			dw kw_andvl, var_play_line_t, 15, tmp0
 			dw kw_cpeqvl, tmp0, 0
-			dw kw_goto_iffalse, do201_t
+			dw kw_goto_iffalse, do199_t
 			dw kw_divvl, var_play_line_t, 16, tmp1
 			dw kw_andvl, tmp1, 1, tmp1
 			dw p_play_showmsg_cl, var_play_line_y, tmp1
-if205_1:
+if203_1:
 
 			; Play.cls 104: Loop
-			dw do201_t_go
-do201_e:
+			dw do199_t_go
+do199_e:
 
 			; Play.cls 105: ShowMsg y, 0
 			dw p_play_showmsg_cl, var_play_line_y, lit_0
 
 			; Play.cls 106: If mn = 0 Then
 			dw kw_cpeqvl, var_play_mn, 0
-			dw kw_goto_iffalse, if206_1
+			dw kw_goto_iffalse, if204_1
 
 			; Play.cls 107: mes(0) = 65
 			dw kw_ltolptr8, 65, arr_play_mes
@@ -33775,15 +33762,15 @@ do201_e:
 			dw kw_ltov, 1, var_play_mn
 
 			; Play.cls 109: End If
-if206_1:
+if204_1:
 			dw p_play_line_r
 p_play_typemsg:
 
 			; Play.cls 113: Vid.Page Data.TX_PL_T, Data.TX_PL_TYPE
-			dw p_vid_page_c, lit_9157, lit_9507
+			dw p_vid_page_c, lit_9782, lit_10169
 
 			; Play.cls 114: Vid.Txt 8, 34, Data.TX_PL_MSG, 3
-			dw p_vid_txt_c, lit_8, lit_34, lit_9227, lit_3
+			dw p_vid_txt_c, lit_8, lit_34, lit_9855, lit_3
 
 			; Play.cls 115: Line 50, 40
 			dw p_play_line_cl, lit_50, lit_40
@@ -33793,97 +33780,97 @@ p_play_rowid:
 			; Play.cls 120: If i < 2 + nl Then
 			dw kw_addl, var_play_nl, 2, tmp1
 			dw kw_scpltvv, var_play_rowid_i, tmp1
-			dw kw_goto_iffalse, if207_1
+			dw kw_goto_iffalse, if205_1
 
 			; Play.cls 121: RowId = i
 			dw kw_vtov, var_play_rowid_i, var_play_rowid_rowid
 
 			; Play.cls 122: Else
-			dw if207_e_go
-if207_1:
+			dw if205_e_go
+if205_1:
 
 			; Play.cls 123: RowId = i + 3 - nl
 			dw kw_addl, var_play_rowid_i, 3, tmp0
 			dw kw_subvv, tmp0, var_play_nl, var_play_rowid_rowid
 
 			; Play.cls 124: End If
-if207_e:
+if205_e:
 			dw p_play_rowid_r
 p_play_pname:
 
 			; Play.cls 129: Select Case p
-			dw kw_vtov, var_play_pname_p, var_play_pname___sel208
+			dw kw_vtov, var_play_pname_p, var_play_pname___sel206
 
 			; Play.cls 130: Case 0
-			dw kw_cpeqvl, var_play_pname___sel208, 0
-			dw kw_goto_iffalse, sel208_1
-sel208_b1:
+			dw kw_cpeqvl, var_play_pname___sel206, 0
+			dw kw_goto_iffalse, sel206_1
+sel206_b1:
 
 			; Play.cls 131: PName = Data.TX_D_PZ
-			dw kw_ltov, 10922, var_play_pname_pname
+			dw kw_ltov, 11699, var_play_pname_pname
 
 			; Play.cls 132: Case 1
-			dw sel208_e_go
-sel208_1:
-			dw kw_cpeqvl, var_play_pname___sel208, 1
-			dw kw_goto_iffalse, sel208_2
-sel208_b2:
+			dw sel206_e_go
+sel206_1:
+			dw kw_cpeqvl, var_play_pname___sel206, 1
+			dw kw_goto_iffalse, sel206_2
+sel206_b2:
 
 			; Play.cls 133: PName = Data.TX_D_PU
-			dw kw_ltov, 10929, var_play_pname_pname
+			dw kw_ltov, 11706, var_play_pname_pname
 
 			; Play.cls 134: Case 2
-			dw sel208_e_go
-sel208_2:
-			dw kw_cpeqvl, var_play_pname___sel208, 2
-			dw kw_goto_iffalse, sel208_3
-sel208_b3:
+			dw sel206_e_go
+sel206_2:
+			dw kw_cpeqvl, var_play_pname___sel206, 2
+			dw kw_goto_iffalse, sel206_3
+sel206_b3:
 
 			; Play.cls 135: PName = Data.TX_D_PB
-			dw kw_ltov, 10938, var_play_pname_pname
+			dw kw_ltov, 11715, var_play_pname_pname
 
 			; Play.cls 136: Case 3
-			dw sel208_e_go
-sel208_3:
-			dw kw_cpeqvl, var_play_pname___sel208, 3
-			dw kw_goto_iffalse, sel208_4
-sel208_b4:
+			dw sel206_e_go
+sel206_3:
+			dw kw_cpeqvl, var_play_pname___sel206, 3
+			dw kw_goto_iffalse, sel206_4
+sel206_b4:
 
 			; Play.cls 137: PName = Data.TX_D_PMZ
-			dw kw_ltov, 10944, var_play_pname_pname
+			dw kw_ltov, 11721, var_play_pname_pname
 
 			; Play.cls 138: Case 4
-			dw sel208_e_go
-sel208_4:
-			dw kw_cpeqvl, var_play_pname___sel208, 4
-			dw kw_goto_iffalse, sel208_5
-sel208_b5:
+			dw sel206_e_go
+sel206_4:
+			dw kw_cpeqvl, var_play_pname___sel206, 4
+			dw kw_goto_iffalse, sel206_5
+sel206_b5:
 
 			; Play.cls 139: PName = Data.TX_D_PMU
-			dw kw_ltov, 10956, var_play_pname_pname
+			dw kw_ltov, 11733, var_play_pname_pname
 
 			; Play.cls 140: Case Else
-			dw sel208_e_go
-sel208_5:
+			dw sel206_e_go
+sel206_5:
 
 			; Play.cls 141: PName = Data.TX_D_PMB
-			dw kw_ltov, 10970, var_play_pname_pname
+			dw kw_ltov, 11747, var_play_pname_pname
 
 			; Play.cls 142: End Select
-sel208_e:
+sel206_e:
 			dw p_play_pname_r
 p_play_setup:
 
 			; Play.cls 146: Dim i As Integer, c As Integer, y As Integer, a As Integer, id As Integer
 
 			; Play.cls 147: Vid.Page Data.TX_PL_T, Data.TX_PL_KEYS
-			dw p_vid_page_c, lit_9157, lit_9174
+			dw p_vid_page_c, lit_9782, lit_9806
 
 			; Play.cls 148: For i = 0 To 3 + nl
 			dw kw_ztov, var_play_setup_i
-			dw kw_addl, var_play_nl, 3, for209_l
-			dw kw_forupv, var_play_setup_i, for209_l, for209_e
-for209_t:
+			dw kw_addl, var_play_nl, 3, for207_l
+			dw kw_forupv, var_play_setup_i, for207_l, for207_e
+for207_t:
 
 			; Play.cls 149: y = 34 + i * 16
 			dw kw_mulvl, var_play_setup_i, 16, tmp1
@@ -33894,7 +33881,7 @@ for209_t:
 
 			; Play.cls 151: If i = row Then
 			dw kw_cpeqvv, var_play_setup_i, var_play_row
-			dw kw_goto_iffalse, if210_1
+			dw kw_goto_iffalse, if208_1
 
 			; Play.cls 152: c = 10
 			dw kw_ltov, 10, var_play_setup_c
@@ -33904,28 +33891,28 @@ for209_t:
 			dw p_vid_fill_c, lit_4, tmp1, lit_312, lit_14, lit_6
 
 			; Play.cls 154: End If
-if210_1:
+if208_1:
 
 			; Play.cls 155: id = RowId(i)
 			dw p_play_rowid_cl, var_play_setup_i
 			dw kw_vtov, var_play_rowid_rowid, var_play_setup_id
 
 			; Play.cls 156: Select Case id
-			dw kw_vtov, var_play_setup_id, var_play_setup___sel211
+			dw kw_vtov, var_play_setup_id, var_play_setup___sel209
 
 			; Play.cls 157: Case 0
-			dw kw_cpeqvl, var_play_setup___sel211, 0
-			dw kw_goto_iffalse, sel211_1
-sel211_b1:
+			dw kw_cpeqvl, var_play_setup___sel209, 0
+			dw kw_goto_iffalse, sel209_1
+sel209_b1:
 
 			; Play.cls 158: Vid.Txt 12, y, Data.TX_PL_MSG, c
-			dw p_vid_txt_c, lit_12, var_play_setup_y, lit_9227, var_play_setup_c
+			dw p_vid_txt_c, lit_12, var_play_setup_y, lit_9855, var_play_setup_c
 
 			; Play.cls 159: For a = 0 To mn - 1
 			dw kw_ztov, var_play_setup_a
-			dw kw_addl, var_play_mn, -1, for212_l
-			dw kw_forupv, var_play_setup_a, for212_l, sel211_e
-for212_t:
+			dw kw_addl, var_play_mn, -1, for210_l
+			dw kw_forupv, var_play_setup_a, for210_l, sel209_e
+for210_t:
 
 			; Play.cls 160: Vid.Glyph 112 + a * 6, y, mes(a), 1
 			dw kw_mulvl, var_play_setup_a, 6, tmp1
@@ -33934,96 +33921,96 @@ for212_t:
 			dw p_vid_glyph_c, tmp0, var_play_setup_y, tmp2, lit_1
 
 			; Play.cls 161: Next
-			dw kw_next1v, var_play_setup_a, for212_l, for212_t
-for212_e:
+			dw kw_next1v, var_play_setup_a, for210_l, for210_t
+for210_e:
 
 			; Play.cls 162: Case 1
-			dw sel211_e_go
-sel211_1:
-			dw kw_cpeqvl, var_play_setup___sel211, 1
-			dw kw_goto_iffalse, sel211_2
-sel211_b2:
+			dw sel209_e_go
+sel209_1:
+			dw kw_cpeqvl, var_play_setup___sel209, 1
+			dw kw_goto_iffalse, sel209_2
+sel209_b2:
 
 			; Play.cls 163: Vid.Txt 12, y, Data.TX_PL_LAYERS, c
-			dw p_vid_txt_c, lit_12, var_play_setup_y, lit_15587, var_play_setup_c
+			dw p_vid_txt_c, lit_12, var_play_setup_y, lit_16569, var_play_setup_c
 
 			; Play.cls 164: Vid.Num 160, y, nl, 1, 1
 			dw p_vid_num_c, lit_160, var_play_setup_y, var_play_nl, lit_1, lit_1
 
 			; Play.cls 165: Case 5
-			dw sel211_e_go
-sel211_2:
-			dw kw_cpeqvl, var_play_setup___sel211, 5
-			dw kw_goto_iffalse, sel211_3
-sel211_b3:
+			dw sel209_e_go
+sel209_2:
+			dw kw_cpeqvl, var_play_setup___sel209, 5
+			dw kw_goto_iffalse, sel209_3
+sel209_b3:
 
 			; Play.cls 166: Vid.Txt 12, y, Data.TX_PL_RH, c
-			dw p_vid_txt_c, lit_12, var_play_setup_y, lit_9237, var_play_setup_c
+			dw p_vid_txt_c, lit_12, var_play_setup_y, lit_9863, var_play_setup_c
 
 			; Play.cls 167: If hs = 0 Then
 			dw kw_cpeqvl, var_play_hs, 0
-			dw kw_goto_iffalse, if213_1
+			dw kw_goto_iffalse, if211_1
 
 			; Play.cls 168: Vid.Txt 160, y, Data.TX_PL_OFF, 1
-			dw p_vid_txt_c, lit_160, var_play_setup_y, lit_9261, lit_1
+			dw p_vid_txt_c, lit_160, var_play_setup_y, lit_9895, lit_1
 
 			; Play.cls 169: Else
-			dw sel211_e_go
-if213_1:
+			dw sel209_e_go
+if211_1:
 
 			; Play.cls 170: Vid.Txt 160, y, Data.TX_PL_ON, 1
-			dw p_vid_txt_c, lit_160, var_play_setup_y, lit_9266, lit_1
+			dw p_vid_txt_c, lit_160, var_play_setup_y, lit_9899, lit_1
 
 			; Play.cls 171: End If
-if213_e:
+if211_e:
 
 			; Play.cls 172: Case 6
-			dw sel211_e_go
-sel211_3:
-			dw kw_cpeqvl, var_play_setup___sel211, 6
-			dw kw_goto_iffalse, sel211_4
-sel211_b4:
+			dw sel209_e_go
+sel209_3:
+			dw kw_cpeqvl, var_play_setup___sel209, 6
+			dw kw_goto_iffalse, sel209_4
+sel209_b4:
 
 			; Play.cls 173: Vid.Txt 12, y, Data.TX_PL_POOL, c
-			dw p_vid_txt_c, lit_12, var_play_setup_y, lit_9251, var_play_setup_c
+			dw p_vid_txt_c, lit_12, var_play_setup_y, lit_9886, var_play_setup_c
 
 			; Play.cls 174: Select Case pool
-			dw kw_vtov, var_play_pool, var_play_setup___sel214
+			dw kw_vtov, var_play_pool, var_play_setup___sel212
 
 			; Play.cls 175: Case 0
-			dw kw_cpeqvl, var_play_setup___sel214, 0
-			dw kw_goto_iffalse, sel214_1
-sel214_b1:
+			dw kw_cpeqvl, var_play_setup___sel212, 0
+			dw kw_goto_iffalse, sel212_1
+sel212_b1:
 
 			; Play.cls 176: Vid.Txt 160, y, Data.TX_PL_P128, 1
-			dw p_vid_txt_c, lit_160, var_play_setup_y, lit_15559, lit_1
+			dw p_vid_txt_c, lit_160, var_play_setup_y, lit_16543, lit_1
 
 			; Play.cls 177: Case 1
-			dw sel211_e_go
-sel214_1:
-			dw kw_cpeqvl, var_play_setup___sel214, 1
-			dw kw_goto_iffalse, sel214_2
-sel214_b2:
+			dw sel209_e_go
+sel212_1:
+			dw kw_cpeqvl, var_play_setup___sel212, 1
+			dw kw_goto_iffalse, sel212_2
+sel212_b2:
 
 			; Play.cls 178: Vid.Txt 160, y, Data.TX_PL_P64, 1
-			dw p_vid_txt_c, lit_160, var_play_setup_y, lit_15580, lit_1
+			dw p_vid_txt_c, lit_160, var_play_setup_y, lit_16562, lit_1
 
 			; Play.cls 179: Case Else
-			dw sel211_e_go
-sel214_2:
+			dw sel209_e_go
+sel212_2:
 
 			; Play.cls 180: Vid.Txt 160, y, Data.TX_PL_P2, 1
-			dw p_vid_txt_c, lit_160, var_play_setup_y, lit_15584, lit_1
+			dw p_vid_txt_c, lit_160, var_play_setup_y, lit_16566, lit_1
 
 			; Play.cls 181: End Select
-sel214_e:
+sel212_e:
 
 			; Play.cls 182: Case Else
-			dw sel211_e_go
-sel211_4:
+			dw sel209_e_go
+sel209_4:
 
 			; Play.cls 183: Vid.Txt 12, y, Data.TX_PL_LAYN, c
-			dw p_vid_txt_c, lit_12, var_play_setup_y, lit_15603, var_play_setup_c
+			dw p_vid_txt_c, lit_12, var_play_setup_y, lit_16590, var_play_setup_c
 
 			; Play.cls 184: Vid.Num 56, y, id - 1, 1, c
 			dw kw_addl, var_play_setup_id, -1, tmp2
@@ -34032,9 +34019,9 @@ sel211_4:
 			; Play.cls 185: If id - 1 = nl Then Vid.Txt 68, y, Data.TX_PL_OUT, c
 			dw kw_addl, var_play_setup_id, -1, tmp0
 			dw kw_cpeqvv, tmp0, var_play_nl
-			dw kw_goto_iffalse, if215_1
-			dw p_vid_txt_c, lit_68, var_play_setup_y, lit_15608, var_play_setup_c
-if215_1:
+			dw kw_goto_iffalse, if213_1
+			dw p_vid_txt_c, lit_68, var_play_setup_y, lit_16596, var_play_setup_c
+if213_1:
 
 			; Play.cls 186: Vid.Txt 160, y, PName(lp(id - 2)), 1
 			dw kw_addl, var_play_setup_id, -2, tmp2
@@ -34044,14 +34031,14 @@ if215_1:
 			dw p_vid_txt_c, lit_160, var_play_setup_y, tmp2, lit_1
 
 			; Play.cls 187: End Select
-sel211_e:
+sel209_e:
 
 			; Play.cls 188: Next
-			dw kw_next1v, var_play_setup_i, for209_l, for209_t
-for209_e:
+			dw kw_next1v, var_play_setup_i, for207_l, for207_t
+for207_e:
 
 			; Play.cls 189: Vid.Txt 8, 150, Data.TX_PL_NOTE, 3
-			dw p_vid_txt_c, lit_8, lit_150, lit_9286, lit_3
+			dw p_vid_txt_c, lit_8, lit_150, lit_9918, lit_3
 			dw p_play_setup_r
 p_play_encode:
 
@@ -34061,38 +34048,38 @@ p_play_encode:
 			dw p_vid_fill_c, lit_0, lit_200, lit_320, lit_36, lit_5
 
 			; Play.cls 196: Vid.Txt 8, 210, Data.TX_PL_WORK, 10
-			dw p_vid_txt_c, lit_8, lit_210, lit_9549, lit_10
+			dw p_vid_txt_c, lit_8, lit_210, lit_10211, lit_10
 
 			; Play.cls 197: For i = 0 To mn - 1
 			dw kw_ztov, var_play_encode_i
-			dw kw_addl, var_play_mn, -1, for216_l
-			dw kw_forupv, var_play_encode_i, for216_l, for216_e
-for216_t:
+			dw kw_addl, var_play_mn, -1, for214_l
+			dw kw_forupv, var_play_encode_i, for214_l, for214_e
+for214_t:
 
 			; Play.cls 198: Rom.Wp i, mes(i)
 			dw kw_aget8, arr_play_mes, var_play_encode_i, tmp1
 			dw p_rom_wp_c, var_play_encode_i, tmp1
 
 			; Play.cls 199: Next
-			dw kw_next1v, var_play_encode_i, for216_l, for216_t
-for216_e:
+			dw kw_next1v, var_play_encode_i, for214_l, for214_t
+for214_e:
 
 			; Play.cls 200: Rom.Wn = mn
 			dw kw_vtov, var_play_mn, var_rom_wn
 
 			; Play.cls 201: For i = 0 To mn - 1
 			dw kw_ztov, var_play_encode_i
-			dw kw_addl, var_play_mn, -1, for217_l
-			dw kw_forupv, var_play_encode_i, for217_l, for217_e
-for217_t:
+			dw kw_addl, var_play_mn, -1, for215_l
+			dw kw_forupv, var_play_encode_i, for215_l, for215_e
+for215_t:
 
 			; Play.cls 202: Rng.Mix mes(i)
 			dw kw_aget8, arr_play_mes, var_play_encode_i, tmp0
 			dw p_rng_mix_c, tmp0
 
 			; Play.cls 203: Next
-			dw kw_next1v, var_play_encode_i, for217_l, for217_t
-for217_e:
+			dw kw_next1v, var_play_encode_i, for215_l, for215_t
+for215_e:
 
 			; Play.cls 204: Rng.Reseed
 			dw p_rng_reseed_c
@@ -34102,9 +34089,9 @@ for217_e:
 
 			; Play.cls 206: For l = 0 To nl - 1
 			dw kw_ztov, var_play_encode_l
-			dw kw_addl, var_play_nl, -1, for218_l
-			dw kw_forupv, var_play_encode_l, for218_l, for218_e
-for218_t:
+			dw kw_addl, var_play_nl, -1, for216_l
+			dw kw_forupv, var_play_encode_l, for216_l, for216_e
+for216_t:
 
 			; Play.cls 207: If pool <> 0 And (lp(l) = 1 Or lp(l) = 2) Then bad = -3
 			dw kw_cpnevl, var_play_pool, 0
@@ -34117,13 +34104,13 @@ for218_t:
 			dw kw_ftov, tmp2
 			dw kw_orvv, tmp1, tmp2, tmp1
 			dw kw_andvv, tmp0, tmp1, tmp0
-			dw kw_goto_ifzero, tmp0, if219_1
+			dw kw_goto_ifzero, tmp0, if217_1
 			dw kw_ltov, -3, var_play_encode_bad
-if219_1:
+if217_1:
 
 			; Play.cls 208: Next
-			dw kw_next1v, var_play_encode_l, for218_l, for218_t
-for218_e:
+			dw kw_next1v, var_play_encode_l, for216_l, for216_t
+for216_e:
 
 			; Play.cls 209: If pool = 2 And nl > 1 Then bad = -4
 			dw kw_cpeqvl, var_play_pool, 2
@@ -34131,25 +34118,25 @@ for218_e:
 			dw kw_scpgtvl, var_play_nl, 1
 			dw kw_ftov, tmp1
 			dw kw_andvv, tmp0, tmp1, tmp0
-			dw kw_goto_ifzero, tmp0, if220_1
+			dw kw_goto_ifzero, tmp0, if218_1
 			dw kw_ltov, -4, var_play_encode_bad
-if220_1:
+if218_1:
 
 			; Play.cls 210: If bad <> 0 Then
 			dw kw_cpnevl, var_play_encode_bad, 0
-			dw kw_goto_iffalse, if221_1
+			dw kw_goto_iffalse, if219_1
 
 			; Play.cls 211: Vid.Fill 0, 200, 320, 36, 5
 			dw p_vid_fill_c, lit_0, lit_200, lit_320, lit_36, lit_5
 
 			; Play.cls 212: If bad = -3 Then Vid.Txt 8, 210, Data.TX_PL_N128, 12 Else Vid.Txt 8, 210, Data.TX_PL_N2K, 12
 			dw kw_cpeqvl, var_play_encode_bad, -3
-			dw kw_goto_iffalse, if222_1
-			dw p_vid_txt_c, lit_8, lit_210, lit_9895, lit_12
-			dw if222_e_go
-if222_1:
-			dw p_vid_txt_c, lit_8, lit_210, lit_9934, lit_12
-if222_e:
+			dw kw_goto_iffalse, if220_1
+			dw p_vid_txt_c, lit_8, lit_210, lit_10598, lit_12
+			dw if220_e_go
+if220_1:
+			dw p_vid_txt_c, lit_8, lit_210, lit_10641, lit_12
+if220_e:
 
 			; Play.cls 213: Encode = 0
 			dw kw_ztov, var_play_encode_encode
@@ -34158,16 +34145,16 @@ if222_e:
 			dw p_play_encode_r
 
 			; Play.cls 215: End If
-if221_1:
+if219_1:
 
 			; Play.cls 216: Rom.MakeMic
 			dw p_rom_makemic_c
 
 			; Play.cls 217: For l = 0 To nl - 1
 			dw kw_ztov, var_play_encode_l
-			dw kw_addl, var_play_nl, -1, for223_l
-			dw kw_forupv, var_play_encode_l, for223_l, for223_e
-for223_t:
+			dw kw_addl, var_play_nl, -1, for221_l
+			dw kw_forupv, var_play_encode_l, for221_l, for221_e
+for221_t:
 
 			; Play.cls 218: n = l
 			dw kw_vtov, var_play_encode_l, var_play_encode_n
@@ -34179,15 +34166,15 @@ for223_t:
 			dw kw_cpnevl, var_play_hs, 0
 			dw kw_ftov, tmp1
 			dw kw_andvv, tmp0, tmp1, tmp0
-			dw kw_goto_ifzero, tmp0, if224_1
+			dw kw_goto_ifzero, tmp0, if222_1
 
 			; Play.cls 220: Rom.RollHash 0, Rom.Wn
 			dw p_rom_rollhash_c, lit_0, var_rom_wn
 
 			; Play.cls 221: For i = Rom.Wn - 1 To 0 Step -1
 			dw kw_addl, var_rom_wn, -1, var_play_encode_i
-			dw kw_fordnl, var_play_encode_i, 0, for225_e
-for225_t:
+			dw kw_fordnl, var_play_encode_i, 0, for223_e
+for223_t:
 
 			; Play.cls 222: Rom.Wp i + 4, Rom.Wg(i)
 			dw kw_addl, var_play_encode_i, 4, tmp0
@@ -34196,26 +34183,26 @@ for225_t:
 			dw p_rom_wp_c, tmp0, tmp1
 
 			; Play.cls 223: Next
-			dw kw_nextdnl, var_play_encode_i, -1, 0, for225_t
-for225_e:
+			dw kw_nextdnl, var_play_encode_i, -1, 0, for223_t
+for223_e:
 
 			; Play.cls 224: For i = 0 To 3
 			dw kw_ztov, var_play_encode_i
-for226_t:
+for224_t:
 
 			; Play.cls 225: Rom.Wp i, Rom.HB(i)
 			dw kw_aget8, arr_rom_hb, var_play_encode_i, tmp1
 			dw p_rom_wp_c, var_play_encode_i, tmp1
 
 			; Play.cls 226: Next
-			dw kw_next1l, var_play_encode_i, 3, for226_t
-for226_e:
+			dw kw_next1l, var_play_encode_i, 3, for224_t
+for224_e:
 
 			; Play.cls 227: Rom.Wn = Rom.Wn + 4
 			dw kw_addl, var_rom_wn, 4, var_rom_wn
 
 			; Play.cls 228: End If
-if224_1:
+if222_1:
 
 			; Play.cls 229: rb = Rom.RomBlock(l)
 			dw p_rom_romblock_c, var_play_encode_l
@@ -34226,7 +34213,7 @@ if224_1:
 
 			; Play.cls 231: If pool = 2 Then
 			dw kw_cpeqvl, var_play_pool, 2
-			dw kw_goto_iffalse, if227_1
+			dw kw_goto_iffalse, if225_1
 
 			; Play.cls 232: rb = Rom.RomBlock(3)
 			dw p_rom_romblock_c, lit_3
@@ -34236,16 +34223,16 @@ if224_1:
 			dw kw_ltov, 2048, var_play_encode_win
 
 			; Play.cls 234: End If
-if227_1:
+if225_1:
 
 			; Play.cls 235: pm = 255
 			dw kw_ltov, 255, var_play_encode_pm
 
 			; Play.cls 236: If nl > 1 Then pm = 70
 			dw kw_scpgtvl, var_play_nl, 1
-			dw kw_goto_iffalse, if228_1
+			dw kw_goto_iffalse, if226_1
 			dw kw_ltov, 70, var_play_encode_pm
-if228_1:
+if226_1:
 
 			; Play.cls 237: c = Rom.Enc(rb, lp(n), win, pm)
 			dw kw_aget, arr_play_lp, var_play_encode_n, tmp1
@@ -34254,47 +34241,47 @@ if228_1:
 
 			; Play.cls 238: If c < 0 Then
 			dw kw_scpltvl, var_play_encode_c, 0
-			dw kw_goto_iffalse, if229_1
+			dw kw_goto_iffalse, if227_1
 
 			; Play.cls 239: bad = c
 			dw kw_vtov, var_play_encode_c, var_play_encode_bad
 
 			; Play.cls 240: Exit For
-			dw for223_e_go
+			dw for221_e_go
 
 			; Play.cls 241: End If
-if229_1:
+if227_1:
 
 			; Play.cls 242: Rom.Take c
 			dw p_rom_take_c, var_play_encode_c
 
 			; Play.cls 243: Next
-			dw kw_next1v, var_play_encode_l, for223_l, for223_t
-for223_e:
+			dw kw_next1v, var_play_encode_l, for221_l, for221_t
+for221_e:
 
 			; Play.cls 244: If bad <> 0 Then
 			dw kw_cpnevl, var_play_encode_bad, 0
-			dw kw_goto_iffalse, if230_1
+			dw kw_goto_iffalse, if228_1
 
 			; Play.cls 245: Vid.Fill 0, 200, 320, 36, 5
 			dw p_vid_fill_c, lit_0, lit_200, lit_320, lit_36, lit_5
 
 			; Play.cls 246: If bad = -1 Then
 			dw kw_cpeqvl, var_play_encode_bad, -1
-			dw kw_goto_iffalse, if231_1
+			dw kw_goto_iffalse, if229_1
 
 			; Play.cls 247: Vid.Txt 8, 210, Data.TX_PL_NOTIN, 12
-			dw p_vid_txt_c, lit_8, lit_210, lit_9825, lit_12
+			dw p_vid_txt_c, lit_8, lit_210, lit_10505, lit_12
 
 			; Play.cls 248: Else
-			dw if231_e_go
-if231_1:
+			dw if229_e_go
+if229_1:
 
 			; Play.cls 249: Vid.Txt 8, 210, Data.TX_PL_BIGF, 12
-			dw p_vid_txt_c, lit_8, lit_210, lit_9852, lit_12
+			dw p_vid_txt_c, lit_8, lit_210, lit_10548, lit_12
 
 			; Play.cls 250: End If
-if231_e:
+if229_e:
 
 			; Play.cls 251: Encode = 0
 			dw kw_ztov, var_play_encode_encode
@@ -34303,7 +34290,7 @@ if231_e:
 			dw p_play_encode_r
 
 			; Play.cls 253: End If
-if230_1:
+if228_1:
 
 			; Play.cls 254: Rom.SxSave
 			dw p_rom_sxsave_c
@@ -34316,23 +34303,23 @@ if230_1:
 
 			; Play.cls 257: For i = 0 To 15
 			dw kw_ztov, var_play_encode_i
-for232_t:
+for230_t:
 
 			; Play.cls 258: Rom.MY(i) = 0
 			dw kw_aset8, arr_rom_my, var_play_encode_i, lit_0
 
 			; Play.cls 259: Next
-			dw kw_next1l, var_play_encode_i, 15, for232_t
-for232_e:
+			dw kw_next1l, var_play_encode_i, 15, for230_t
+for230_e:
 
 			; Play.cls 260: Rom.MY(0) = nl
 			dw kw_vtolptr8, var_play_nl, arr_rom_my
 
 			; Play.cls 261: For l = 0 To nl - 1
 			dw kw_ztov, var_play_encode_l
-			dw kw_addl, var_play_nl, -1, for233_l
-			dw kw_forupv, var_play_encode_l, for233_l, for233_e
-for233_t:
+			dw kw_addl, var_play_nl, -1, for231_l
+			dw kw_forupv, var_play_encode_l, for231_l, for231_e
+for231_t:
 
 			; Play.cls 262: Rom.MY(1 + l * 2) = lp(nl - 1 - l)
 			dw kw_2x, var_play_encode_l, tmp1
@@ -34350,12 +34337,12 @@ for233_t:
 			dw kw_aset8, arr_rom_my, tmp0, tmp1
 
 			; Play.cls 264: Next
-			dw kw_next1v, var_play_encode_l, for233_l, for233_t
-for233_e:
+			dw kw_next1v, var_play_encode_l, for231_l, for231_t
+for231_e:
 
 			; Play.cls 265: If pool = 2 Then
 			dw kw_cpeqvl, var_play_pool, 2
-			dw kw_goto_iffalse, if234_1
+			dw kw_goto_iffalse, if232_1
 
 			; Play.cls 266: Rom.MY(2) = 3
 			dw kw_ltolptr8, 3, arr_rom_my+2
@@ -34364,7 +34351,7 @@ for233_e:
 			dw kw_ltolptr8, 8, arr_rom_my+9
 
 			; Play.cls 268: End If
-if234_1:
+if232_1:
 
 			; Play.cls 269: Rom.MY(7) = hs
 			dw kw_vtolptr8, var_play_hs, arr_rom_my+7
@@ -34378,30 +34365,30 @@ if234_1:
 			dw kw_vtolptr8, tmp1, arr_rom_my+13
 
 			; Play.cls 272: Rom.MY(14) = Data.TX_YOURS And 255
-			dw kw_ltolptr8, 238, arr_rom_my+14
+			dw kw_ltolptr8, 178, arr_rom_my+14
 
 			; Play.cls 273: Rom.MY(15) = Data.TX_YOURS \ 256
-			dw kw_ltolptr8, 38, arr_rom_my+15
+			dw kw_ltolptr8, 41, arr_rom_my+15
 
 			; Play.cls 274: Attack.Mwn = 0
 			dw kw_ztov, var_attack_mwn
 
 			; Play.cls 275: For i = 0 To mn - 1
 			dw kw_ztov, var_play_encode_i
-			dw kw_addl, var_play_mn, -1, for235_l
-			dw kw_forupv, var_play_encode_i, for235_l, for235_e
-for235_t:
+			dw kw_addl, var_play_mn, -1, for233_l
+			dw kw_forupv, var_play_encode_i, for233_l, for233_e
+for233_t:
 
 			; Play.cls 276: If mes(i) = 32 Then Exit For
 			dw kw_aget8, arr_play_mes, var_play_encode_i, tmp0
 			dw kw_cpeqvl, tmp0, 32
-			dw kw_goto_iffalse, if236_1
-			dw for235_e_go
-if236_1:
+			dw kw_goto_iffalse, if234_1
+			dw for233_e_go
+if234_1:
 
 			; Play.cls 277: If Attack.Mwn < 15 Then
 			dw kw_scpltvl, var_attack_mwn, 15
-			dw kw_goto_iffalse, if237_1
+			dw kw_goto_iffalse, if235_1
 
 			; Play.cls 278: Attack.Mw(Attack.Mwn) = mes(i)
 			dw kw_aget8, arr_play_mes, var_play_encode_i, tmp1
@@ -34411,11 +34398,11 @@ if236_1:
 			dw kw_inc, var_attack_mwn
 
 			; Play.cls 280: End If
-if237_1:
+if235_1:
 
 			; Play.cls 281: Next
-			dw kw_next1v, var_play_encode_i, for235_l, for235_t
-for235_e:
+			dw kw_next1v, var_play_encode_i, for233_l, for233_t
+for233_e:
 
 			; Play.cls 282: Encode = 1
 			dw kw_ltov, 1, var_play_encode_encode
@@ -34425,16 +34412,16 @@ p_play_result:
 			; Play.cls 286: Dim i As Integer, y As Integer
 
 			; Play.cls 287: Vid.Page Data.TX_PL_RES, Data.TX_PL_KEYS2
-			dw p_vid_page_c, lit_9560, lit_9655
+			dw p_vid_page_c, lit_10223, lit_10314
 
 			; Play.cls 288: Vid.Txt 8, 34, Data.TX_PL_SIZE, 3
-			dw p_vid_txt_c, lit_8, lit_34, lit_9582, lit_3
+			dw p_vid_txt_c, lit_8, lit_34, lit_10244, lit_3
 
 			; Play.cls 289: Vid.Num 140, 34, Rom.Sn, 4, 10
 			dw p_vid_num_c, lit_140, lit_34, var_rom_sn, lit_4, lit_10
 
 			; Play.cls 290: Vid.Txt 8, 46, Data.TX_PL_MLEN, 3
-			dw p_vid_txt_c, lit_8, lit_46, lit_9602, lit_3
+			dw p_vid_txt_c, lit_8, lit_46, lit_10266, lit_3
 
 			; Play.cls 291: Vid.Num 140, 46, mn, 2, 10
 			dw p_vid_num_c, lit_140, lit_46, var_play_mn, lit_2, lit_10
@@ -34444,12 +34431,12 @@ p_play_result:
 
 			; Play.cls 293: For i = 0 To nl - 1
 			dw kw_ztov, var_play_result_i
-			dw kw_addl, var_play_nl, -1, for238_l
-			dw kw_forupv, var_play_result_i, for238_l, for238_e
-for238_t:
+			dw kw_addl, var_play_nl, -1, for236_l
+			dw kw_forupv, var_play_result_i, for236_l, for236_e
+for236_t:
 
 			; Play.cls 294: Vid.Txt 8, y, Data.TX_PL_LAYN, 3
-			dw p_vid_txt_c, lit_8, var_play_result_y, lit_15603, lit_3
+			dw p_vid_txt_c, lit_8, var_play_result_y, lit_16590, lit_3
 
 			; Play.cls 295: Vid.Num 50, y, i + 1, 1, 3
 			dw kw_addl, var_play_result_i, 1, tmp2
@@ -34462,7 +34449,7 @@ for238_t:
 			dw p_vid_txt_c, lit_70, var_play_result_y, tmp2, lit_1
 
 			; Play.cls 297: Vid.Txt 160, y, Data.TX_PL_ROMN, 3
-			dw p_vid_txt_c, lit_160, var_play_result_y, lit_15618, lit_3
+			dw p_vid_txt_c, lit_160, var_play_result_y, lit_16606, lit_3
 
 			; Play.cls 298: Vid.Num 190, y, i + 1, 1, 1
 			dw kw_addl, var_play_result_i, 1, tmp2
@@ -34475,27 +34462,27 @@ for238_t:
 			dw kw_cpnevl, var_play_hs, 0
 			dw kw_ftov, tmp1
 			dw kw_andvv, tmp0, tmp1, tmp0
-			dw kw_goto_ifzero, tmp0, if239_1
-			dw p_vid_txt_c, lit_215, var_play_result_y, lit_8507, lit_9
-if239_1:
+			dw kw_goto_ifzero, tmp0, if237_1
+			dw p_vid_txt_c, lit_215, var_play_result_y, lit_9073, lit_9
+if237_1:
 
 			; Play.cls 300: y = y + 10
 			dw kw_addl, var_play_result_y, 10, var_play_result_y
 
 			; Play.cls 301: Next
-			dw kw_next1v, var_play_result_i, for238_l, for238_t
-for238_e:
+			dw kw_next1v, var_play_result_i, for236_l, for236_t
+for236_e:
 
 			; Play.cls 302: Vid.Txt 8, 94, Data.TX_PL_FIRST, 8
-			dw p_vid_txt_c, lit_8, lit_94, lit_9617, lit_8
+			dw p_vid_txt_c, lit_8, lit_94, lit_10280, lit_8
 
 			; Play.cls 303: For i = 0 To 47
 			dw kw_ztov, var_play_result_i
-for240_t:
+for238_t:
 
 			; Play.cls 304: If i < Rom.Sn Then Vid.Hex2 8 + (i Mod 16) * 18, 106 + (i \ 16) * 12, Rom.SxGet(i), 11
 			dw kw_scpltvv, var_play_result_i, var_rom_sn
-			dw kw_goto_iffalse, if241_1
+			dw kw_goto_iffalse, if239_1
 			dw kw_modvl, var_play_result_i, 16, tmp1
 			dw kw_mulvl, tmp1, 18, tmp1
 			dw kw_addl, tmp1, 8, tmp0
@@ -34505,15 +34492,15 @@ for240_t:
 			dw p_rom_sxget_c, var_play_result_i
 			dw kw_vtov, var_rom_sxget_sxget, tmp2
 			dw p_vid_hex2_c, tmp0, tmp1, tmp2, lit_11
-if241_1:
+if239_1:
 
 			; Play.cls 305: Next
-			dw kw_next1l, var_play_result_i, 47, for240_t
-for240_e:
+			dw kw_next1l, var_play_result_i, 47, for238_t
+for238_e:
 
 			; Play.cls 306: If Rom.Sn > 48 Then
 			dw kw_scpgtvl, var_rom_sn, 48
-			dw kw_goto_iffalse, if242_1
+			dw kw_goto_iffalse, if240_1
 
 			; Play.cls 307: Vid.Ch 8, 142, 46, 11
 			dw p_vid_ch_c, lit_8, lit_142, lit_46, lit_11
@@ -34525,20 +34512,20 @@ for240_e:
 			dw p_vid_ch_c, lit_20, lit_142, lit_46, lit_11
 
 			; Play.cls 310: End If
-if242_1:
+if240_1:
 
 			; Play.cls 311: If tampered >= 0 Then
 			dw kw_scpgevl, var_play_tampered, 0
-			dw kw_goto_iffalse, if243_1
+			dw kw_goto_iffalse, if241_1
 
 			; Play.cls 312: Vid.Txt 8, 150, Data.TX_PL_TAMP, 12
-			dw p_vid_txt_c, lit_8, lit_150, lit_9801, lit_12
+			dw p_vid_txt_c, lit_8, lit_150, lit_10480, lit_12
 
 			; Play.cls 313: Vid.Num 160, 150, tampered, 4, 12
 			dw p_vid_num_c, lit_160, lit_150, var_play_tampered, lit_4, lit_12
 
 			; Play.cls 314: End If
-if243_1:
+if241_1:
 			dw p_play_result_r
 p_play_decode:
 
@@ -34548,7 +34535,7 @@ p_play_decode:
 			dw p_vid_fill_c, lit_0, lit_164, lit_320, lit_72, lit_5
 
 			; Play.cls 320: Vid.Txt 8, 164, Data.TX_PL_DEC, 8
-			dw p_vid_txt_c, lit_8, lit_164, lit_9696, lit_8
+			dw p_vid_txt_c, lit_8, lit_164, lit_10358, lit_8
 
 			; Play.cls 321: Rom.Load 4
 			dw p_rom_load_c, lit_4
@@ -34558,9 +34545,9 @@ p_play_decode:
 
 			; Play.cls 323: For l = 0 To nl - 1
 			dw kw_ztov, var_play_decode_l
-			dw kw_addl, var_play_nl, -1, for244_l
-			dw kw_forupv, var_play_decode_l, for244_l, for244_e
-for244_t:
+			dw kw_addl, var_play_nl, -1, for242_l
+			dw kw_forupv, var_play_decode_l, for242_l, for242_e
+for242_t:
 
 			; Play.cls 324: c = Rom.Layer(Rom.RomBlock(Rom.Man(4, 2 + l * 2)), Rom.Man(4, 1 + l * 2))
 			dw kw_2x, var_play_decode_l, tmp2
@@ -34585,23 +34572,23 @@ for244_t:
 			dw kw_cpnevl, var_play_hs, 0
 			dw kw_ftov, tmp1
 			dw kw_andvv, tmp0, tmp1, tmp0
-			dw kw_goto_ifzero, tmp0, if245_1
+			dw kw_goto_ifzero, tmp0, if243_1
 
 			; Play.cls 327: If Rom.Wn >= 4 Then
 			dw kw_scpgevl, var_rom_wn, 4
-			dw kw_goto_iffalse, if246_1
+			dw kw_goto_iffalse, if244_1
 
 			; Play.cls 328: For i = 0 To 3
 			dw kw_ztov, var_play_decode_i
-for247_t:
+for245_t:
 
 			; Play.cls 329: Rom.HB(i) = Rom.Wg(i)
 			dw p_rom_wg_c, var_play_decode_i
 			dw kw_aset8, arr_rom_hb, var_play_decode_i, var_rom_wg_wg
 
 			; Play.cls 330: Next
-			dw kw_next1l, var_play_decode_i, 3, for247_t
-for247_e:
+			dw kw_next1l, var_play_decode_i, 3, for245_t
+for245_e:
 
 			; Play.cls 331: Rom.RollHash 4, Rom.Wn - 4
 			dw kw_addl, var_rom_wn, -4, tmp1
@@ -34609,103 +34596,103 @@ for247_e:
 
 			; Play.cls 332: For i = 0 To 3
 			dw kw_ztov, var_play_decode_i
-for248_t:
+for246_t:
 
 			; Play.cls 333: If Rom.HB(i) <> Rom.Wg(i) Then ok = 0
 			dw kw_aget8, arr_rom_hb, var_play_decode_i, tmp0
 			dw p_rom_wg_c, var_play_decode_i
 			dw kw_vtov, var_rom_wg_wg, tmp1
 			dw kw_cpnevv, tmp0, tmp1
-			dw kw_goto_iffalse, if249_1
+			dw kw_goto_iffalse, if247_1
 			dw kw_ztov, var_play_decode_ok
-if249_1:
+if247_1:
 
 			; Play.cls 334: Next
-			dw kw_next1l, var_play_decode_i, 3, for248_t
-for248_e:
+			dw kw_next1l, var_play_decode_i, 3, for246_t
+for246_e:
 
 			; Play.cls 335: Rom.Strip4
 			dw p_rom_strip4_c
 
 			; Play.cls 336: Else
-			dw if246_e_go
-if246_1:
+			dw if244_e_go
+if244_1:
 
 			; Play.cls 337: ok = 0
 			dw kw_ztov, var_play_decode_ok
 
 			; Play.cls 338: End If
-if246_e:
+if244_e:
 
 			; Play.cls 339: End If
-if245_1:
+if243_1:
 
 			; Play.cls 340: Next
-			dw kw_next1v, var_play_decode_l, for244_l, for244_t
-for244_e:
+			dw kw_next1v, var_play_decode_l, for242_l, for242_t
+for242_e:
 
 			; Play.cls 341: n = Rom.Wn
 			dw kw_vtov, var_rom_wn, var_play_decode_n
 
 			; Play.cls 342: For i = 0 To n - 1
 			dw kw_ztov, var_play_decode_i
-			dw kw_addl, var_play_decode_n, -1, for250_l
-			dw kw_forupv, var_play_decode_i, for250_l, for250_e
-for250_t:
+			dw kw_addl, var_play_decode_n, -1, for248_l
+			dw kw_forupv, var_play_decode_i, for248_l, for248_e
+for248_t:
 
 			; Play.cls 343: If i < 40 Then Vid.Ch 8 + i * 6, 178, Rom.Wg(i), 1
 			dw kw_scpltvl, var_play_decode_i, 40
-			dw kw_goto_iffalse, if251_1
+			dw kw_goto_iffalse, if249_1
 			dw kw_mulvl, var_play_decode_i, 6, tmp1
 			dw kw_addl, tmp1, 8, tmp0
 			dw p_rom_wg_c, var_play_decode_i
 			dw kw_vtov, var_rom_wg_wg, tmp2
 			dw p_vid_ch_c, tmp0, lit_178, tmp2, lit_1
-if251_1:
+if249_1:
 
 			; Play.cls 344: Next
-			dw kw_next1v, var_play_decode_i, for250_l, for250_t
-for250_e:
+			dw kw_next1v, var_play_decode_i, for248_l, for248_t
+for248_e:
 
 			; Play.cls 345: If hs <> 0 Then
 			dw kw_cpnevl, var_play_hs, 0
-			dw kw_goto_iffalse, if252_1
+			dw kw_goto_iffalse, if250_1
 
 			; Play.cls 346: If ok = 1 Then
 			dw kw_cpeqvl, var_play_decode_ok, 1
-			dw kw_goto_iffalse, if253_1
+			dw kw_goto_iffalse, if251_1
 
 			; Play.cls 347: Vid.Txt 8, 196, Data.TX_PL_HOK, 9
-			dw p_vid_txt_c, lit_8, lit_196, lit_9716, lit_9
+			dw p_vid_txt_c, lit_8, lit_196, lit_10381, lit_9
 
 			; Play.cls 348: If tampered >= 0 Then Vid.Txt 8, 208, Data.TX_PL_NOEFF, 3
 			dw kw_scpgevl, var_play_tampered, 0
-			dw kw_goto_iffalse, if252_e
-			dw p_vid_txt_c, lit_8, lit_208, lit_15510, lit_3
-if254_1:
+			dw kw_goto_iffalse, if250_e
+			dw p_vid_txt_c, lit_8, lit_208, lit_16492, lit_3
+if252_1:
 
 			; Play.cls 349: Else
-			dw if252_e_go
-if253_1:
+			dw if250_e_go
+if251_1:
 
 			; Play.cls 350: Vid.Txt 8, 196, Data.TX_PL_HBAD, 12
-			dw p_vid_txt_c, lit_8, lit_196, lit_9724, lit_12
+			dw p_vid_txt_c, lit_8, lit_196, lit_10398, lit_12
 
 			; Play.cls 351: End If
-if253_e:
+if251_e:
 
 			; Play.cls 352: Else
-			dw if252_e_go
-if252_1:
+			dw if250_e_go
+if250_1:
 
 			; Play.cls 353: If tampered >= 0 Then Vid.Txt 8, 196, Data.TX_PL_HOFF, 10
 			dw kw_scpgevl, var_play_tampered, 0
-			dw kw_goto_iffalse, if255_1
-			dw p_vid_txt_c, lit_8, lit_196, lit_9761, lit_10
-if255_1:
+			dw kw_goto_iffalse, if253_1
+			dw p_vid_txt_c, lit_8, lit_196, lit_10438, lit_10
+if253_1:
 
 			; Play.cls 354: End If
-if252_e:
+if250_e:
 			dw p_play_decode_r
 p_play_screen:
 
@@ -34716,23 +34703,23 @@ p_play_screen:
 
 			; Play.cls 360: If mn = 0 Then
 			dw kw_cpeqvl, var_play_mn, 0
-			dw kw_goto_iffalse, if256_1
+			dw kw_goto_iffalse, if254_1
 
 			; Play.cls 361: mn = 19
 			dw kw_ltov, 19, var_play_mn
 
 			; Play.cls 362: For p = 0 To 18
 			dw kw_ztov, var_play_screen_p
-for257_t:
+for255_t:
 
 			; Play.cls 363: mes(p) = Vid.TabB(Data.TX_PLDEF + p)
-			dw kw_addl, var_play_screen_p, 15490, tmp1
+			dw kw_addl, var_play_screen_p, 16472, tmp1
 			dw p_vid_tabb_c, tmp1
 			dw kw_aset8, arr_play_mes, var_play_screen_p, var_vid_tabb_tabb
 
 			; Play.cls 364: Next
-			dw kw_next1l, var_play_screen_p, 18, for257_t
-for257_e:
+			dw kw_next1l, var_play_screen_p, 18, for255_t
+for255_e:
 
 			; Play.cls 365: nl = 1 : hs = 0 : pool = 0
 			dw kw_ltov, 1, var_play_nl
@@ -34745,7 +34732,7 @@ for257_e:
 			dw kw_ltov, 1, arr_play_lp+4
 
 			; Play.cls 367: End If
-if256_1:
+if254_1:
 
 			; Play.cls 368: row = 0
 			dw kw_ztov, var_play_row
@@ -34760,9 +34747,9 @@ if256_1:
 			dw kw_ltov, 1, var_play_screen_run
 
 			; Play.cls 372: Do While run = 1
-do258_t:
+do256_t:
 			dw kw_cpeqvl, var_play_screen_run, 1
-			dw kw_goto_iffalse, do258_e
+			dw kw_goto_iffalse, do256_e
 
 			; Play.cls 373: Vid.Sync
 			dw p_vid_sync_c
@@ -34773,14 +34760,14 @@ do258_t:
 
 			; Play.cls 375: If st = 0 Then
 			dw kw_cpeqvl, var_play_screen_st, 0
-			dw kw_goto_iffalse, if259_1
+			dw kw_goto_iffalse, if257_1
 
 			; Play.cls 376: If (k And 32) <> 0 Then run = 0
 			dw kw_andvl, var_play_screen_k, 32, tmp0
 			dw kw_cpnevl, tmp0, 0
-			dw kw_goto_iffalse, if260_1
+			dw kw_goto_iffalse, if258_1
 			dw kw_ztov, var_play_screen_run
-if260_1:
+if258_1:
 
 			; Play.cls 377: If (k And 1) <> 0 And row > 0 Then row = row - 1 : Setup
 			dw kw_andvl, var_play_screen_k, 1, tmp0
@@ -34789,10 +34776,10 @@ if260_1:
 			dw kw_scpgtvl, var_play_row, 0
 			dw kw_ftov, tmp1
 			dw kw_andvv, tmp0, tmp1, tmp0
-			dw kw_goto_ifzero, tmp0, if261_1
+			dw kw_goto_ifzero, tmp0, if259_1
 			dw kw_dec, var_play_row
 			dw p_play_setup_cl
-if261_1:
+if259_1:
 
 			; Play.cls 378: If (k And 2) <> 0 And row < 3 + nl Then row = row + 1 : Setup
 			dw kw_andvl, var_play_screen_k, 2, tmp0
@@ -34802,15 +34789,15 @@ if261_1:
 			dw kw_scpltvv, var_play_row, tmp2
 			dw kw_ftov, tmp1
 			dw kw_andvv, tmp0, tmp1, tmp0
-			dw kw_goto_ifzero, tmp0, if262_1
+			dw kw_goto_ifzero, tmp0, if260_1
 			dw kw_inc, var_play_row
 			dw p_play_setup_cl
-if262_1:
+if260_1:
 
 			; Play.cls 379: If (k And 12) <> 0 Then
 			dw kw_andvl, var_play_screen_k, 12, tmp0
 			dw kw_cpnevl, tmp0, 0
-			dw kw_goto_iffalse, if263_1
+			dw kw_goto_iffalse, if261_1
 
 			; Play.cls 380: r = 1
 			dw kw_ltov, 1, var_play_screen_r
@@ -34818,21 +34805,21 @@ if262_1:
 			; Play.cls 381: If (k And 4) <> 0 Then r = -1
 			dw kw_andvl, var_play_screen_k, 4, tmp0
 			dw kw_cpnevl, tmp0, 0
-			dw kw_goto_iffalse, if264_1
+			dw kw_goto_iffalse, if262_1
 			dw kw_ltov, -1, var_play_screen_r
-if264_1:
+if262_1:
 
 			; Play.cls 382: id = RowId(row)
 			dw p_play_rowid_cl, var_play_row
 			dw kw_vtov, var_play_rowid_rowid, var_play_screen_id
 
 			; Play.cls 383: Select Case id
-			dw kw_vtov, var_play_screen_id, var_play_screen___sel265
+			dw kw_vtov, var_play_screen_id, var_play_screen___sel263
 
 			; Play.cls 384: Case 0
-			dw kw_cpeqvl, var_play_screen___sel265, 0
-			dw kw_goto_iffalse, sel265_1
-sel265_b1:
+			dw kw_cpeqvl, var_play_screen___sel263, 0
+			dw kw_goto_iffalse, sel263_1
+sel263_b1:
 
 			; Play.cls 385: TypeMsg
 			dw p_play_typemsg_cl
@@ -34842,76 +34829,76 @@ sel265_b1:
 			dw kw_vtov, var_vid_edge_edge, var_play_screen_k
 
 			; Play.cls 387: Case 1
-			dw sel265_e_go
-sel265_1:
-			dw kw_cpeqvl, var_play_screen___sel265, 1
-			dw kw_goto_iffalse, sel265_2
-sel265_b2:
+			dw sel263_e_go
+sel263_1:
+			dw kw_cpeqvl, var_play_screen___sel263, 1
+			dw kw_goto_iffalse, sel263_2
+sel263_b2:
 
 			; Play.cls 388: nl = nl + r
 			dw kw_add, var_play_nl, var_play_screen_r, var_play_nl
 
 			; Play.cls 389: If nl < 1 Then nl = 3
 			dw kw_scpltvl, var_play_nl, 1
-			dw kw_goto_iffalse, if266_1
+			dw kw_goto_iffalse, if264_1
 			dw kw_ltov, 3, var_play_nl
-if266_1:
+if264_1:
 
 			; Play.cls 390: If nl > 3 Then nl = 1
 			dw kw_scpgtvl, var_play_nl, 3
-			dw kw_goto_iffalse, if267_1
+			dw kw_goto_iffalse, if265_1
 			dw kw_ltov, 1, var_play_nl
-if267_1:
+if265_1:
 
 			; Play.cls 391: If row > 3 + nl Then row = 3 + nl
 			dw kw_addl, var_play_nl, 3, tmp1
 			dw kw_scpgtvv, var_play_row, tmp1
-			dw kw_goto_iffalse, sel265_e
+			dw kw_goto_iffalse, sel263_e
 			dw kw_addl, var_play_nl, 3, var_play_row
-if268_1:
+if266_1:
 
 			; Play.cls 392: Case 5
-			dw sel265_e_go
-sel265_2:
-			dw kw_cpeqvl, var_play_screen___sel265, 5
-			dw kw_goto_iffalse, sel265_3
-sel265_b3:
+			dw sel263_e_go
+sel263_2:
+			dw kw_cpeqvl, var_play_screen___sel263, 5
+			dw kw_goto_iffalse, sel263_3
+sel263_b3:
 
 			; Play.cls 393: hs = 1 - hs
 			dw kw_sublv, 1, var_play_hs, var_play_hs
 
 			; Play.cls 394: Case 6
-			dw sel265_e_go
-sel265_3:
-			dw kw_cpeqvl, var_play_screen___sel265, 6
-			dw kw_goto_iffalse, sel265_4
-sel265_b4:
+			dw sel263_e_go
+sel263_3:
+			dw kw_cpeqvl, var_play_screen___sel263, 6
+			dw kw_goto_iffalse, sel263_4
+sel263_b4:
 
 			; Play.cls 395: pool = pool + r
 			dw kw_add, var_play_pool, var_play_screen_r, var_play_pool
 
 			; Play.cls 396: If pool < 0 Then pool = 2
 			dw kw_scpltvl, var_play_pool, 0
-			dw kw_goto_iffalse, if269_1
+			dw kw_goto_iffalse, if267_1
 			dw kw_ltov, 2, var_play_pool
-if269_1:
+if267_1:
 
 			; Play.cls 397: If pool > 2 Then pool = 0
 			dw kw_scpgtvl, var_play_pool, 2
-			dw kw_goto_iffalse, if270_1
+			dw kw_goto_iffalse, if268_1
 			dw kw_ztov, var_play_pool
-if270_1:
+if268_1:
 
 			; Play.cls 398: If row > 3 + nl Then row = 3 + nl
 			dw kw_addl, var_play_nl, 3, tmp1
 			dw kw_scpgtvv, var_play_row, tmp1
-			dw kw_goto_iffalse, sel265_e
+			dw kw_goto_iffalse, sel263_e
 			dw kw_addl, var_play_nl, 3, var_play_row
-if271_1:
+if269_1:
 
 			; Play.cls 399: Case Else
-			dw sel265_e_go
-sel265_4:
+			dw sel263_e_go
+sel263_4:
 
 			; Play.cls 400: lp(id - 2) = lp(id - 2) + r
 			dw kw_addl, var_play_screen_id, -2, tmp0
@@ -34924,33 +34911,33 @@ sel265_4:
 			dw kw_addl, var_play_screen_id, -2, tmp0
 			dw kw_aget, arr_play_lp, tmp0, tmp0
 			dw kw_scpltvl, tmp0, 0
-			dw kw_goto_iffalse, if272_1
+			dw kw_goto_iffalse, if270_1
 			dw kw_addl, var_play_screen_id, -2, tmp0
 			dw kw_asetl, arr_play_lp, tmp0, 5
-if272_1:
+if270_1:
 
 			; Play.cls 402: If lp(id - 2) > 5 Then lp(id - 2) = 0
 			dw kw_addl, var_play_screen_id, -2, tmp0
 			dw kw_aget, arr_play_lp, tmp0, tmp0
 			dw kw_scpgtvl, tmp0, 5
-			dw kw_goto_iffalse, if273_1
+			dw kw_goto_iffalse, if271_1
 			dw kw_addl, var_play_screen_id, -2, tmp0
 			dw kw_asetl, arr_play_lp, tmp0, 0
-if273_1:
+if271_1:
 
 			; Play.cls 403: End Select
-sel265_e:
+sel263_e:
 
 			; Play.cls 404: Setup
 			dw p_play_setup_cl
 
 			; Play.cls 405: End If
-if263_1:
+if261_1:
 
 			; Play.cls 406: If (k And 64) <> 0 Then
 			dw kw_andvl, var_play_screen_k, 64, tmp0
 			dw kw_cpnevl, tmp0, 0
-			dw kw_goto_iffalse, if274_1
+			dw kw_goto_iffalse, if272_1
 
 			; Play.cls 407: Attack.Screen 0
 			dw p_attack_screen_cl, lit_0
@@ -34959,18 +34946,18 @@ if263_1:
 			dw p_play_setup_cl
 
 			; Play.cls 409: End If
-if274_1:
+if272_1:
 
 			; Play.cls 410: If (k And 16) <> 0 Then
 			dw kw_andvl, var_play_screen_k, 16, tmp0
 			dw kw_cpnevl, tmp0, 0
-			dw kw_goto_iffalse, do258_t
+			dw kw_goto_iffalse, do256_t
 
 			; Play.cls 411: If Encode() = 1 Then
 			dw p_play_encode_cl
 			dw kw_vtov, var_play_encode_encode, tmp0
 			dw kw_cpeqvl, tmp0, 1
-			dw kw_goto_iffalse, do258_t
+			dw kw_goto_iffalse, do256_t
 
 			; Play.cls 412: st = 1
 			dw kw_ltov, 1, var_play_screen_st
@@ -34979,19 +34966,19 @@ if274_1:
 			dw p_play_result_cl
 
 			; Play.cls 414: End If
-if276_1:
+if274_1:
 
 			; Play.cls 415: End If
-if275_1:
+if273_1:
 
 			; Play.cls 416: Else
-			dw do258_t_go
-if259_1:
+			dw do256_t_go
+if257_1:
 
 			; Play.cls 417: If (k And 32) <> 0 Then
 			dw kw_andvl, var_play_screen_k, 32, tmp0
 			dw kw_cpnevl, tmp0, 0
-			dw kw_goto_iffalse, if277_1
+			dw kw_goto_iffalse, if275_1
 
 			; Play.cls 418: st = 0
 			dw kw_ztov, var_play_screen_st
@@ -35000,12 +34987,12 @@ if259_1:
 			dw p_play_setup_cl
 
 			; Play.cls 420: End If
-if277_1:
+if275_1:
 
 			; Play.cls 421: If (k And 16) <> 0 Then
 			dw kw_andvl, var_play_screen_k, 16, tmp0
 			dw kw_cpnevl, tmp0, 0
-			dw kw_goto_iffalse, if278_1
+			dw kw_goto_iffalse, if276_1
 
 			; Play.cls 422: Attack.Screen 4
 			dw p_attack_screen_cl, lit_4
@@ -35014,19 +35001,19 @@ if277_1:
 			dw p_play_result_cl
 
 			; Play.cls 424: End If
-if278_1:
+if276_1:
 
 			; Play.cls 425: If (k And 64) <> 0 Then Decode
 			dw kw_andvl, var_play_screen_k, 64, tmp0
 			dw kw_cpnevl, tmp0, 0
-			dw kw_goto_iffalse, if279_1
+			dw kw_goto_iffalse, if277_1
 			dw p_play_decode_cl
-if279_1:
+if277_1:
 
 			; Play.cls 426: If (k And 128) <> 0 Then
 			dw kw_andvl, var_play_screen_k, 128, tmp0
 			dw kw_cpnevl, tmp0, 0
-			dw kw_goto_iffalse, do258_t
+			dw kw_goto_iffalse, do256_t
 
 			; Play.cls 427: p = Rng.Pick(Rom.Sn)
 			dw p_rng_pick_c, var_rom_sn
@@ -35048,14 +35035,14 @@ if279_1:
 			dw p_play_result_cl
 
 			; Play.cls 431: End If
-if280_1:
+if278_1:
 
 			; Play.cls 432: End If
-if259_e:
+if257_e:
 
 			; Play.cls 433: Loop
-			dw do258_t_go
-do258_e:
+			dw do256_t_go
+do256_e:
 			dw p_play_screen_r
 ovl_playp__0_e:
 ovl_playp__1_s:		; attack
@@ -35064,10 +35051,10 @@ p_attack_head:
 			; Attack.cls 13: Dim y As Integer
 
 			; Attack.cls 14: Vid.Page Data.TX_A1T, Data.TX_KEYS_ATT
-			dw p_vid_page_c, lit_4699, lit_823
+			dw p_vid_page_c, lit_4972, lit_830
 
 			; Attack.cls 15: Vid.Txt 8, 28, Data.TX_A_FILE, 3
-			dw p_vid_txt_c, lit_8, lit_28, lit_4709, lit_3
+			dw p_vid_txt_c, lit_8, lit_28, lit_4985, lit_3
 
 			; Attack.cls 16: Vid.Txt 44, 28, Rom.Man(f, 14) + Rom.Man(f, 15) * 256, 1
 			dw p_rom_man_c, var_attack_f, lit_14
@@ -35079,41 +35066,41 @@ p_attack_head:
 			dw p_vid_txt_c, lit_44, lit_28, tmp2, lit_1
 
 			; Attack.cls 17: Vid.Txt 8, 38, Data.TX_A_ATK, 3
-			dw p_vid_txt_c, lit_8, lit_38, lit_4714, lit_3
+			dw p_vid_txt_c, lit_8, lit_38, lit_4990, lit_3
 
 			; Attack.cls 18: Select Case atk
-			dw kw_vtov, var_attack_atk, var_attack_head___sel163
+			dw kw_vtov, var_attack_atk, var_attack_head___sel161
 
 			; Attack.cls 19: Case 0
-			dw kw_cpeqvl, var_attack_head___sel163, 0
-			dw kw_goto_iffalse, sel163_1
-sel163_b1:
+			dw kw_cpeqvl, var_attack_head___sel161, 0
+			dw kw_goto_iffalse, sel161_1
+sel161_b1:
 
 			; Attack.cls 20: Vid.Txt 50, 38, Data.TX_A_ATK1, 8
-			dw p_vid_txt_c, lit_50, lit_38, lit_4725, lit_8
+			dw p_vid_txt_c, lit_50, lit_38, lit_5002, lit_8
 
 			; Attack.cls 21: Case 1
-			dw sel163_e_go
-sel163_1:
-			dw kw_cpeqvl, var_attack_head___sel163, 1
-			dw kw_goto_iffalse, sel163_2
-sel163_b2:
+			dw sel161_e_go
+sel161_1:
+			dw kw_cpeqvl, var_attack_head___sel161, 1
+			dw kw_goto_iffalse, sel161_2
+sel161_b2:
 
 			; Attack.cls 22: Vid.Txt 50, 38, Data.TX_A_ATK2, 8
-			dw p_vid_txt_c, lit_50, lit_38, lit_4759, lit_8
+			dw p_vid_txt_c, lit_50, lit_38, lit_5036, lit_8
 
 			; Attack.cls 23: Case Else
-			dw sel163_e_go
-sel163_2:
+			dw sel161_e_go
+sel161_2:
 
 			; Attack.cls 24: Vid.Txt 50, 38, Data.TX_A_ATK3, 8
-			dw p_vid_txt_c, lit_50, lit_38, lit_4795, lit_8
+			dw p_vid_txt_c, lit_50, lit_38, lit_5071, lit_8
 
 			; Attack.cls 25: End Select
-sel163_e:
+sel161_e:
 
 			; Attack.cls 26: Vid.Txt 8, 48, Data.TX_A_HOLDS, 3
-			dw p_vid_txt_c, lit_8, lit_48, lit_4831, lit_3
+			dw p_vid_txt_c, lit_8, lit_48, lit_5116, lit_3
 			dw p_attack_head_r
 p_attack_readings:
 
@@ -35125,16 +35112,16 @@ p_attack_readings:
 			dw p_rom_load_c, var_attack_f
 
 			; Attack.cls 34: Vid.Txt 8, 62, Data.TX_A_READING, 3
-			dw p_vid_txt_c, lit_8, lit_62, lit_4911, lit_3
+			dw p_vid_txt_c, lit_8, lit_62, lit_5209, lit_3
 
 			; Attack.cls 35: Vid.Txt 110, 62, Data.TX_A_ADDRS, 3
-			dw p_vid_txt_c, lit_110, lit_62, lit_4876, lit_3
+			dw p_vid_txt_c, lit_110, lit_62, lit_5168, lit_3
 
 			; Attack.cls 36: Vid.Txt 160, 62, Data.TX_A_PAIRS, 3
-			dw p_vid_txt_c, lit_160, lit_62, lit_4880, lit_3
+			dw p_vid_txt_c, lit_160, lit_62, lit_5174, lit_3
 
 			; Attack.cls 37: Vid.Txt 210, 62, Data.TX_A_CHANCE, 3
-			dw p_vid_txt_c, lit_210, lit_62, lit_4884, lit_3
+			dw p_vid_txt_c, lit_210, lit_62, lit_5180, lit_3
 
 			; Attack.cls 38: Fill8
 			dw p_attack_fill8_cl
@@ -35155,11 +35142,11 @@ p_attack_readings:
 
 			; Attack.cls 42: For rd = 0 To 1
 			dw kw_ztov, var_attack_readings_rd
-for164_t:
+for162_t:
 
 			; Attack.cls 43: If rd >= 0 Then
 			dw kw_scpgevl, var_attack_readings_rd, 0
-			dw kw_goto_iffalse, if165_1
+			dw kw_goto_iffalse, if163_1
 
 			; Attack.cls 44: n = AtkW.Build(rd)
 			dw p_atkw_build_c, var_attack_readings_rd
@@ -35178,20 +35165,20 @@ for164_t:
 
 			; Attack.cls 47: If win = 0 Then
 			dw kw_cpeqvl, var_attack_readings_win, 0
-			dw kw_goto_iffalse, if166_1
+			dw kw_goto_iffalse, if164_1
 
 			; Attack.cls 48: w = 65536
 			dw kw_l_mov, llit_65536, var_attack_readings_w
 
 			; Attack.cls 49: Else
-			dw if166_e_go
-if166_1:
+			dw if164_e_go
+if164_1:
 
 			; Attack.cls 50: w = win
 			dw kw_l_itol, var_attack_readings_win, var_attack_readings_w
 
 			; Attack.cls 51: End If
-if166_e:
+if164_e:
 
 			; Attack.cls 52: e10 = CInt(x \ w)
 			dw kw_l_div, var_attack_readings_x, var_attack_readings_w, ltmp0
@@ -35201,20 +35188,20 @@ if166_e:
 			; Attack.cls 53: If (rd And 1) <> 0 Then
 			dw kw_andvl, var_attack_readings_rd, 1, tmp0
 			dw kw_cpnevl, tmp0, 0
-			dw kw_goto_iffalse, if167_1
+			dw kw_goto_iffalse, if165_1
 
 			; Attack.cls 54: Vid.Txt 8, y, Data.TX_A_ODD, 2
-			dw p_vid_txt_c, lit_8, var_attack_readings_y, lit_4893, lit_2
+			dw p_vid_txt_c, lit_8, var_attack_readings_y, lit_5192, lit_2
 
 			; Attack.cls 55: Else
-			dw if167_e_go
-if167_1:
+			dw if165_e_go
+if165_1:
 
 			; Attack.cls 56: Vid.Txt 8, y, Data.TX_A_EVEN, 2
-			dw p_vid_txt_c, lit_8, var_attack_readings_y, lit_4889, lit_2
+			dw p_vid_txt_c, lit_8, var_attack_readings_y, lit_5187, lit_2
 
 			; Attack.cls 57: End If
-if167_e:
+if165_e:
 
 			; Attack.cls 58: Vid.Num 110, y, n, 4, 1
 			dw p_vid_num_c, lit_110, var_attack_readings_y, var_attack_readings_n, lit_4, lit_1
@@ -35241,46 +35228,46 @@ if167_e:
 			dw kw_scpgtvv, tmp1, tmp2
 			dw kw_ftov, tmp1
 			dw kw_andvv, tmp0, tmp1, tmp0
-			dw kw_goto_ifzero, tmp0, if168_1
+			dw kw_goto_ifzero, tmp0, if166_1
 
 			; Attack.cls 64: Vid.Txt 256, y, Data.TX_A_STANDS, 12
-			dw p_vid_txt_c, lit_256, var_attack_readings_y, lit_4906, lit_12
+			dw p_vid_txt_c, lit_256, var_attack_readings_y, lit_5203, lit_12
 
 			; Attack.cls 65: any = 1
 			dw kw_ltov, 1, var_attack_readings_any
 
 			; Attack.cls 66: End If
-if168_1:
+if166_1:
 
 			; Attack.cls 67: y = y + 12
 			dw kw_addl, var_attack_readings_y, 12, var_attack_readings_y
 
 			; Attack.cls 68: End If
-if165_1:
+if163_1:
 
 			; Attack.cls 69: Next
-			dw kw_next1l, var_attack_readings_rd, 1, for164_t
-for164_e:
+			dw kw_next1l, var_attack_readings_rd, 1, for162_t
+for162_e:
 
 			; Attack.cls 70: Vid.Txt 8, 130, Data.TX_A_R1, 2
-			dw p_vid_txt_c, lit_8, lit_130, lit_4918, lit_2
+			dw p_vid_txt_c, lit_8, lit_130, lit_5217, lit_2
 
 			; Attack.cls 71: If any = 0 Then
 			dw kw_cpeqvl, var_attack_readings_any, 0
-			dw kw_goto_iffalse, if169_1
+			dw kw_goto_iffalse, if167_1
 
 			; Attack.cls 72: Vid.Txt 8, 190, Data.TX_A_R_NONE, 9
-			dw p_vid_txt_c, lit_8, lit_190, lit_5138, lit_9
+			dw p_vid_txt_c, lit_8, lit_190, lit_5441, lit_9
 
 			; Attack.cls 73: Else
-			dw if169_e_go
-if169_1:
+			dw if167_e_go
+if167_1:
 
 			; Attack.cls 74: Vid.Txt 8, 190, Data.TX_A_R_SOME, 10
-			dw p_vid_txt_c, lit_8, lit_190, lit_5185, lit_10
+			dw p_vid_txt_c, lit_8, lit_190, lit_5491, lit_10
 
 			; Attack.cls 75: End If
-if169_e:
+if167_e:
 			dw p_attack_readings_r
 p_attack_fill8:
 
@@ -35297,17 +35284,17 @@ p_attack_cribdrag:
 			dw kw_ztov, var_attack_cribdrag_m
 
 			; Attack.cls 87: Vid.Txt 8, 58, Data.TX_A_CRIB, 3
-			dw p_vid_txt_c, lit_8, lit_58, lit_4720, lit_3
+			dw p_vid_txt_c, lit_8, lit_58, lit_4997, lit_3
 
 			; Attack.cls 88: If crib >= Data.NCRIBS Then
 			dw kw_scpgevl, var_attack_crib, 6
-			dw kw_goto_iffalse, if170_1
+			dw kw_goto_iffalse, if168_1
 
 			; Attack.cls 89: For m = 0 To Mwn - 1
 			dw kw_ztov, var_attack_cribdrag_m
-			dw kw_addl, var_attack_mwn, -1, for171_l
-			dw kw_forupv, var_attack_cribdrag_m, for171_l, for171_e
-for171_t:
+			dw kw_addl, var_attack_mwn, -1, for169_l
+			dw kw_forupv, var_attack_cribdrag_m, for169_l, for169_e
+for169_t:
 
 			; Attack.cls 90: cb(m) = Mw(m)
 			dw kw_aget8, arr_attack_mw, var_attack_cribdrag_m, tmp1
@@ -35320,23 +35307,23 @@ for171_t:
 			dw p_vid_glyph_c, tmp0, lit_58, tmp2, lit_10
 
 			; Attack.cls 92: Next
-			dw kw_next1v, var_attack_cribdrag_m, for171_l, for171_t
-for171_e:
+			dw kw_next1v, var_attack_cribdrag_m, for169_l, for169_t
+for169_e:
 
 			; Attack.cls 93: m = Mwn
 			dw kw_vtov, var_attack_mwn, var_attack_cribdrag_m
 
 			; Attack.cls 94: Else
-			dw if170_e_go
-if170_1:
+			dw if168_e_go
+if168_1:
 
 			; Attack.cls 95: co = Vid.TabB(Data.T_CRIBS + crib * 2) + Vid.TabB(Data.T_CRIBS + crib * 2 + 1) * 256
 			dw kw_2x, var_attack_crib, tmp1
-			dw kw_addl, tmp1, 24656, tmp0
+			dw kw_addl, tmp1, 25844, tmp0
 			dw p_vid_tabb_c, tmp0
 			dw kw_vtov, var_vid_tabb_tabb, tmp0
 			dw kw_2x, var_attack_crib, tmp2
-			dw kw_addl, tmp2, 24656, tmp1
+			dw kw_addl, tmp2, 25844, tmp1
 			dw kw_inc, tmp1
 			dw p_vid_tabb_c, tmp1
 			dw kw_vtov, var_vid_tabb_tabb, tmp1
@@ -35344,7 +35331,7 @@ if170_1:
 			dw kw_add, tmp0, tmp1, var_attack_cribdrag_co
 
 			; Attack.cls 96: Do While Vid.TabB(co + m) <> 0 And m < 15
-do172_t:
+do170_t:
 			dw kw_add, var_attack_cribdrag_co, var_attack_cribdrag_m, tmp0
 			dw p_vid_tabb_c, tmp0
 			dw kw_vtov, var_vid_tabb_tabb, tmp0
@@ -35353,7 +35340,7 @@ do172_t:
 			dw kw_scpltvl, var_attack_cribdrag_m, 15
 			dw kw_ftov, tmp1
 			dw kw_andvv, tmp0, tmp1, tmp0
-			dw kw_goto_ifzero, tmp0, do172_e
+			dw kw_goto_ifzero, tmp0, do170_e
 
 			; Attack.cls 97: cb(m) = Vid.TabB(co + m)
 			dw kw_add, var_attack_cribdrag_co, var_attack_cribdrag_m, tmp1
@@ -35364,17 +35351,17 @@ do172_t:
 			dw kw_inc, var_attack_cribdrag_m
 
 			; Attack.cls 99: Loop
-			dw do172_t_go
-do172_e:
+			dw do170_t_go
+do170_e:
 
 			; Attack.cls 100: Vid.Txt 44, 58, co, 10
 			dw p_vid_txt_c, lit_44, lit_58, var_attack_cribdrag_co, lit_10
 
 			; Attack.cls 101: End If
-if170_e:
+if168_e:
 
 			; Attack.cls 102: Vid.Txt 8, 68, Data.TX_A_WORKING, 4
-			dw p_vid_txt_c, lit_8, lit_68, lit_5919, lit_4
+			dw p_vid_txt_c, lit_8, lit_68, lit_6289, lit_4
 
 			; Attack.cls 103: Rom.Load f
 			dw p_rom_load_c, var_attack_f
@@ -35389,29 +35376,29 @@ if170_e:
 
 			; Attack.cls 106: For i = 1 To m - 1
 			dw kw_ltov, 1, var_attack_cribdrag_i
-			dw kw_addl, var_attack_cribdrag_m, -1, for173_l
-			dw kw_forupv, var_attack_cribdrag_i, for173_l, for173_e
-for173_t:
+			dw kw_addl, var_attack_cribdrag_m, -1, for171_l
+			dw kw_forupv, var_attack_cribdrag_i, for171_l, for171_e
+for171_t:
 
 			; Attack.cls 107: If cb(i) <> cb(0) Then d = 1
 			dw kw_aget8, arr_attack_cb, var_attack_cribdrag_i, tmp0
 			dw kw_lptrtov8, arr_attack_cb, tmp1
 			dw kw_cpnevv, tmp0, tmp1
-			dw kw_goto_iffalse, if174_1
+			dw kw_goto_iffalse, if172_1
 			dw kw_ltov, 1, var_attack_cribdrag_d
-if174_1:
+if172_1:
 
 			; Attack.cls 108: Next
-			dw kw_next1v, var_attack_cribdrag_i, for173_l, for173_t
-for173_e:
+			dw kw_next1v, var_attack_cribdrag_i, for171_l, for171_t
+for171_e:
 
 			; Attack.cls 109: For rd = 0 To 1
 			dw kw_ztov, var_attack_cribdrag_rd
-for175_t:
+for173_t:
 
 			; Attack.cls 110: If rd >= 0 Then
 			dw kw_scpgevl, var_attack_cribdrag_rd, 0
-			dw kw_goto_iffalse, if176_1
+			dw kw_goto_iffalse, if174_1
 
 			; Attack.cls 111: n = AtkW.Build(rd)
 			dw p_atkw_build_c, var_attack_cribdrag_rd
@@ -35428,41 +35415,41 @@ for175_t:
 
 			; Attack.cls 115: If AtkW.Best > best Then best = AtkW.Best
 			dw kw_scpgtvv, var_atkw_best, var_attack_cribdrag_best
-			dw kw_goto_iffalse, if177_1
+			dw kw_goto_iffalse, if175_1
 			dw kw_vtov, var_atkw_best, var_attack_cribdrag_best
-if177_1:
+if175_1:
 
 			; Attack.cls 116: End If
-if176_1:
+if174_1:
 
 			; Attack.cls 117: Next
-			dw kw_next1l, var_attack_cribdrag_rd, 1, for175_t
-for175_e:
+			dw kw_next1l, var_attack_cribdrag_rd, 1, for173_t
+for173_e:
 
 			; Attack.cls 118: Vid.Fill 8, 68, 304, 10, 5
 			dw p_vid_fill_c, lit_8, lit_68, lit_304, lit_10, lit_5
 
 			; Attack.cls 119: Vid.Txt 8, 72, Data.TX_A_C_SCAN, 3
-			dw p_vid_txt_c, lit_8, lit_72, lit_5289, lit_3
+			dw p_vid_txt_c, lit_8, lit_72, lit_5597, lit_3
 
 			; Attack.cls 120: Vid.Num 270, 72, tried, 4, 1
 			dw p_vid_num_c, lit_270, lit_72, var_attack_cribdrag_tried, lit_4, lit_1
 
 			; Attack.cls 121: Vid.Txt 8, 84, Data.TX_A_C_OUT, 3
-			dw p_vid_txt_c, lit_8, lit_84, lit_5314, lit_3
+			dw p_vid_txt_c, lit_8, lit_84, lit_5623, lit_3
 
 			; Attack.cls 122: Vid.Num 270, 84, outc, 4, 12
 			dw p_vid_num_c, lit_270, lit_84, var_attack_cribdrag_outc, lit_4, lit_12
 
 			; Attack.cls 123: Vid.Txt 8, 96, Data.TX_A_C_LEFT, 3
-			dw p_vid_txt_c, lit_8, lit_96, lit_5353, lit_3
+			dw p_vid_txt_c, lit_8, lit_96, lit_5666, lit_3
 
 			; Attack.cls 124: Vid.Num 270, 96, tried - outc, 4, 9
 			dw kw_subvv, var_attack_cribdrag_tried, var_attack_cribdrag_outc, tmp2
 			dw p_vid_num_c, lit_270, lit_96, tmp2, lit_4, lit_9
 
 			; Attack.cls 125: Vid.Txt 8, 108, Data.TX_A_C_BEST, 3
-			dw p_vid_txt_c, lit_8, lit_108, lit_5366, lit_3
+			dw p_vid_txt_c, lit_8, lit_108, lit_5681, lit_3
 
 			; Attack.cls 126: Vid.Num 270, 108, best, 4, 1
 			dw p_vid_num_c, lit_270, lit_108, var_attack_cribdrag_best, lit_4, lit_1
@@ -35470,29 +35457,29 @@ for175_e:
 			; Attack.cls 127: If tried - outc = 0 Then
 			dw kw_subvv, var_attack_cribdrag_tried, var_attack_cribdrag_outc, tmp0
 			dw kw_cpeqvl, tmp0, 0
-			dw kw_goto_iffalse, if178_1
+			dw kw_goto_iffalse, if176_1
 
 			; Attack.cls 128: Vid.Txt 8, 130, Data.TX_A_C_NO, 12
-			dw p_vid_txt_c, lit_8, lit_130, lit_5398, lit_12
+			dw p_vid_txt_c, lit_8, lit_130, lit_5717, lit_12
 
 			; Attack.cls 129: Else
-			dw if178_e_go
-if178_1:
+			dw if176_e_go
+if176_1:
 
 			; Attack.cls 130: Vid.Txt 8, 130, Data.TX_A_C_MAYBE, 10
-			dw p_vid_txt_c, lit_8, lit_130, lit_5436, lit_10
+			dw p_vid_txt_c, lit_8, lit_130, lit_5770, lit_10
 
 			; Attack.cls 131: End If
-if178_e:
+if176_e:
 
 			; Attack.cls 132: If d = 0 Then Vid.Txt 8, 160, Data.TX_A_C_DEG, 3
 			dw kw_cpeqvl, var_attack_cribdrag_d, 0
-			dw kw_goto_iffalse, if179_1
-			dw p_vid_txt_c, lit_8, lit_160, lit_5530, lit_3
-if179_1:
+			dw kw_goto_iffalse, if177_1
+			dw p_vid_txt_c, lit_8, lit_160, lit_5863, lit_3
+if177_1:
 
 			; Attack.cls 133: Vid.Txt 8, 172, Data.TX_A_C_LAYERS, 11
-			dw p_vid_txt_c, lit_8, lit_172, lit_5573, lit_11
+			dw p_vid_txt_c, lit_8, lit_172, lit_5912, lit_11
 			dw p_attack_cribdrag_r
 p_attack_baseline:
 
@@ -35502,7 +35489,7 @@ p_attack_baseline:
 			dw p_rom_load_c, var_attack_f
 
 			; Attack.cls 140: Vid.Txt 8, 58, Data.TX_A_B_HDR, 3
-			dw p_vid_txt_c, lit_8, lit_58, lit_5788, lit_3
+			dw p_vid_txt_c, lit_8, lit_58, lit_6128, lit_3
 
 			; Attack.cls 141: y = 72
 			dw kw_ltov, 72, var_attack_baseline_y
@@ -35511,9 +35498,9 @@ p_attack_baseline:
 			dw kw_ztov, var_attack_baseline_l
 			dw p_rom_man_c, var_attack_f, lit_0
 			dw kw_vtov, var_rom_man_man, tmp0
-			dw kw_addl, tmp0, -1, for180_l
-			dw kw_forupv, var_attack_baseline_l, for180_l, for180_e
-for180_t:
+			dw kw_addl, tmp0, -1, for178_l
+			dw kw_forupv, var_attack_baseline_l, for178_l, for178_e
+for178_t:
 
 			; Attack.cls 143: c = Rom.Layer(Rom.RomBlock(Rom.Man(f, 2 + l * 2)), Rom.Man(f, 1 + l * 2))
 			dw kw_2x, var_attack_baseline_l, tmp2
@@ -35540,19 +35527,19 @@ for180_t:
 			dw kw_cpnevl, tmp1, 0
 			dw kw_ftov, tmp1
 			dw kw_andvv, tmp0, tmp1, tmp0
-			dw kw_goto_ifzero, tmp0, if181_1
+			dw kw_goto_ifzero, tmp0, if179_1
 			dw p_rom_strip4_c
-if181_1:
+if179_1:
 
 			; Attack.cls 146: Vid.Txt 8, y, Data.TX_A_B_LAYER, 3
-			dw p_vid_txt_c, lit_8, var_attack_baseline_y, lit_5829, lit_3
+			dw p_vid_txt_c, lit_8, var_attack_baseline_y, lit_6174, lit_3
 
 			; Attack.cls 147: Vid.Num 50, y, l + 1, 1, 1
 			dw kw_addl, var_attack_baseline_l, 1, tmp2
 			dw p_vid_num_c, lit_50, var_attack_baseline_y, tmp2, lit_1, lit_1
 
 			; Attack.cls 148: Vid.Txt 70, y, Data.TX_A_B_GOT, 3
-			dw p_vid_txt_c, lit_70, var_attack_baseline_y, lit_5834, lit_3
+			dw p_vid_txt_c, lit_70, var_attack_baseline_y, lit_6180, lit_3
 
 			; Attack.cls 149: Vid.Num 150, y, c, 4, 9
 			dw p_vid_num_c, lit_150, var_attack_baseline_y, var_attack_baseline_c, lit_4, lit_9
@@ -35561,23 +35548,23 @@ if181_1:
 			dw kw_addl, var_attack_baseline_y, 12, var_attack_baseline_y
 
 			; Attack.cls 151: Next
-			dw kw_next1v, var_attack_baseline_l, for180_l, for180_t
-for180_e:
+			dw kw_next1v, var_attack_baseline_l, for178_l, for178_t
+for178_e:
 
 			; Attack.cls 152: y = y + 6
 			dw kw_addl, var_attack_baseline_y, 6, var_attack_baseline_y
 
 			; Attack.cls 153: Vid.Txt 8, y, Data.TX_A_B_MSG, 10
-			dw p_vid_txt_c, lit_8, var_attack_baseline_y, lit_5843, lit_10
+			dw p_vid_txt_c, lit_8, var_attack_baseline_y, lit_6191, lit_10
 
 			; Attack.cls 154: y = y + 12
 			dw kw_addl, var_attack_baseline_y, 12, var_attack_baseline_y
 
 			; Attack.cls 155: For i = 0 To Rom.Wn - 1
 			dw kw_ztov, var_attack_baseline_i
-			dw kw_addl, var_rom_wn, -1, for182_l
-			dw kw_forupv, var_attack_baseline_i, for182_l, for182_e
-for182_t:
+			dw kw_addl, var_rom_wn, -1, for180_l
+			dw kw_forupv, var_attack_baseline_i, for180_l, for180_e
+for180_t:
 
 			; Attack.cls 156: Vid.Ch 8 + (i Mod 50) * 6, y + (i \ 50) * 10, Rom.Wg(i), 1
 			dw kw_modvl, var_attack_baseline_i, 50, tmp1
@@ -35591,11 +35578,11 @@ for182_t:
 			dw p_vid_ch_c, tmp0, tmp1, tmp2, lit_1
 
 			; Attack.cls 157: Next
-			dw kw_next1v, var_attack_baseline_i, for182_l, for182_t
-for182_e:
+			dw kw_next1v, var_attack_baseline_i, for180_l, for180_t
+for180_e:
 
 			; Attack.cls 158: Vid.Txt 8, 200, Data.TX_A_B_NOTE, 3
-			dw p_vid_txt_c, lit_8, lit_200, lit_5853, lit_3
+			dw p_vid_txt_c, lit_8, lit_200, lit_6203, lit_3
 			dw p_attack_baseline_r
 p_attack_draw:
 
@@ -35603,35 +35590,35 @@ p_attack_draw:
 			dw p_attack_head_cl
 
 			; Attack.cls 163: Select Case atk
-			dw kw_vtov, var_attack_atk, var_attack_draw___sel183
+			dw kw_vtov, var_attack_atk, var_attack_draw___sel181
 
 			; Attack.cls 164: Case 0
-			dw kw_cpeqvl, var_attack_draw___sel183, 0
-			dw kw_goto_iffalse, sel183_1
-sel183_b1:
+			dw kw_cpeqvl, var_attack_draw___sel181, 0
+			dw kw_goto_iffalse, sel181_1
+sel181_b1:
 
 			; Attack.cls 165: Readings
 			dw p_attack_readings_cl
 
 			; Attack.cls 166: Case 1
-			dw sel183_e_go
-sel183_1:
-			dw kw_cpeqvl, var_attack_draw___sel183, 1
-			dw kw_goto_iffalse, sel183_2
-sel183_b2:
+			dw sel181_e_go
+sel181_1:
+			dw kw_cpeqvl, var_attack_draw___sel181, 1
+			dw kw_goto_iffalse, sel181_2
+sel181_b2:
 
 			; Attack.cls 167: CribDrag
 			dw p_attack_cribdrag_cl
 
 			; Attack.cls 168: Case Else
-			dw sel183_e_go
-sel183_2:
+			dw sel181_e_go
+sel181_2:
 
 			; Attack.cls 169: Baseline
 			dw p_attack_baseline_cl
 
 			; Attack.cls 170: End Select
-sel183_e:
+sel181_e:
 			dw p_attack_draw_r
 p_attack_screen:
 
@@ -35650,9 +35637,9 @@ p_attack_screen:
 
 			; Attack.cls 178: If start = 4 Then crib = Data.NCRIBS
 			dw kw_cpeqvl, var_attack_screen_start, 4
-			dw kw_goto_iffalse, if184_1
+			dw kw_goto_iffalse, if182_1
 			dw kw_ltov, 6, var_attack_crib
-if184_1:
+if182_1:
 
 			; Attack.cls 179: Head
 			dw p_attack_head_cl
@@ -35661,9 +35648,9 @@ if184_1:
 			dw kw_ltov, 1, var_attack_screen_run
 
 			; Attack.cls 181: Do While run = 1
-do185_t:
+do183_t:
 			dw kw_cpeqvl, var_attack_screen_run, 1
-			dw kw_goto_iffalse, do185_e
+			dw kw_goto_iffalse, do183_e
 
 			; Attack.cls 182: Vid.Sync
 			dw p_vid_sync_c
@@ -35675,76 +35662,76 @@ do185_t:
 			; Attack.cls 184: If (k And 32) <> 0 Then run = 0
 			dw kw_andvl, var_attack_screen_k, 32, tmp0
 			dw kw_cpnevl, tmp0, 0
-			dw kw_goto_iffalse, if186_1
+			dw kw_goto_iffalse, if184_1
 			dw kw_ztov, var_attack_screen_run
-if186_1:
+if184_1:
 
 			; Attack.cls 185: If (k And 1) <> 0 Then atk = (atk + 2) Mod 3 : Head
 			dw kw_andvl, var_attack_screen_k, 1, tmp0
 			dw kw_cpnevl, tmp0, 0
-			dw kw_goto_iffalse, if187_1
+			dw kw_goto_iffalse, if185_1
 			dw kw_addl, var_attack_atk, 2, tmp0
 			dw kw_modvl, tmp0, 3, var_attack_atk
 			dw p_attack_head_cl
-if187_1:
+if185_1:
 
 			; Attack.cls 186: If (k And 2) <> 0 Then atk = (atk + 1) Mod 3 : Head
 			dw kw_andvl, var_attack_screen_k, 2, tmp0
 			dw kw_cpnevl, tmp0, 0
-			dw kw_goto_iffalse, if188_1
+			dw kw_goto_iffalse, if186_1
 			dw kw_addl, var_attack_atk, 1, tmp0
 			dw kw_modvl, tmp0, 3, var_attack_atk
 			dw p_attack_head_cl
-if188_1:
+if186_1:
 
 			; Attack.cls 187: If (k And 4) <> 0 Then f = (f + nf - 1) Mod nf : Head
 			dw kw_andvl, var_attack_screen_k, 4, tmp0
 			dw kw_cpnevl, tmp0, 0
-			dw kw_goto_iffalse, if189_1
+			dw kw_goto_iffalse, if187_1
 			dw kw_add, var_attack_f, var_attack_screen_nf, tmp0
 			dw kw_dec, tmp0
 			dw kw_modvv, tmp0, var_attack_screen_nf, var_attack_f
 			dw p_attack_head_cl
-if189_1:
+if187_1:
 
 			; Attack.cls 188: If (k And 8) <> 0 Then f = (f + 1) Mod nf : Head
 			dw kw_andvl, var_attack_screen_k, 8, tmp0
 			dw kw_cpnevl, tmp0, 0
-			dw kw_goto_iffalse, if190_1
+			dw kw_goto_iffalse, if188_1
 			dw kw_addl, var_attack_f, 1, tmp0
 			dw kw_modvv, tmp0, var_attack_screen_nf, var_attack_f
 			dw p_attack_head_cl
-if190_1:
+if188_1:
 
 			; Attack.cls 189: If (k And 64) <> 0 Then crib = (crib + nc - 1) Mod nc : Head
 			dw kw_andvl, var_attack_screen_k, 64, tmp0
 			dw kw_cpnevl, tmp0, 0
-			dw kw_goto_iffalse, if191_1
+			dw kw_goto_iffalse, if189_1
 			dw kw_add, var_attack_crib, var_attack_screen_nc, tmp0
 			dw kw_dec, tmp0
 			dw kw_modvv, tmp0, var_attack_screen_nc, var_attack_crib
 			dw p_attack_head_cl
-if191_1:
+if189_1:
 
 			; Attack.cls 190: If (k And 128) <> 0 Then crib = (crib + 1) Mod nc : Head
 			dw kw_andvl, var_attack_screen_k, 128, tmp0
 			dw kw_cpnevl, tmp0, 0
-			dw kw_goto_iffalse, if192_1
+			dw kw_goto_iffalse, if190_1
 			dw kw_addl, var_attack_crib, 1, tmp0
 			dw kw_modvv, tmp0, var_attack_screen_nc, var_attack_crib
 			dw p_attack_head_cl
-if192_1:
+if190_1:
 
 			; Attack.cls 191: If (k And 16) <> 0 Then Draw
 			dw kw_andvl, var_attack_screen_k, 16, tmp0
 			dw kw_cpnevl, tmp0, 0
-			dw kw_goto_iffalse, do185_t
+			dw kw_goto_iffalse, do183_t
 			dw p_attack_draw_cl
-if193_1:
+if191_1:
 
 			; Attack.cls 192: Loop
-			dw do185_t_go
-do185_e:
+			dw do183_t_go
+do183_e:
 			dw p_attack_screen_r
 ovl_playp__1_e:
 ovl_playp__2_s:		; screens
@@ -35757,16 +35744,16 @@ p_screens_line5:
 
 			; Screens.cls 8: For i = 0 To 4
 			dw kw_ztov, var_screens_line5_i
-for281_t:
+for279_t:
 
 			; Screens.cls 9: c = 4
 			dw kw_ltov, 4, var_screens_line5_c
 
 			; Screens.cls 10: If i = p Then c = 10
 			dw kw_cpeqvv, var_screens_line5_i, var_screens_line5_p
-			dw kw_goto_iffalse, if282_1
+			dw kw_goto_iffalse, if280_1
 			dw kw_ltov, 10, var_screens_line5_c
-if282_1:
+if280_1:
 
 			; Screens.cls 11: Vid.Fill 36 + i * 62, 211, 7, 7, c
 			dw kw_mulvl, var_screens_line5_i, 62, tmp1
@@ -35774,12 +35761,12 @@ if282_1:
 			dw p_vid_fill_c, tmp0, lit_211, lit_7, lit_7, var_screens_line5_c
 
 			; Screens.cls 12: Select Case i
-			dw kw_vtov, var_screens_line5_i, var_screens_line5___sel283
+			dw kw_vtov, var_screens_line5_i, var_screens_line5___sel281
 
 			; Screens.cls 13: Case 0
-			dw kw_cpeqvl, var_screens_line5___sel283, 0
-			dw kw_goto_iffalse, sel283_1
-sel283_b1:
+			dw kw_cpeqvl, var_screens_line5___sel281, 0
+			dw kw_goto_iffalse, sel281_1
+sel281_b1:
 
 			; Screens.cls 14: Vid.Num 29 + i * 62, 222, 1917, 4, c
 			dw kw_mulvl, var_screens_line5_i, 62, tmp1
@@ -35787,11 +35774,11 @@ sel283_b1:
 			dw p_vid_num_c, tmp0, lit_222, lit_1917, lit_4, var_screens_line5_c
 
 			; Screens.cls 15: Case 1
-			dw sel283_e_go
-sel283_1:
-			dw kw_cpeqvl, var_screens_line5___sel283, 1
-			dw kw_goto_iffalse, sel283_2
-sel283_b2:
+			dw sel281_e_go
+sel281_1:
+			dw kw_cpeqvl, var_screens_line5___sel281, 1
+			dw kw_goto_iffalse, sel281_2
+sel281_b2:
 
 			; Screens.cls 16: Vid.Num 29 + i * 62, 222, 1948, 4, c
 			dw kw_mulvl, var_screens_line5_i, 62, tmp1
@@ -35799,11 +35786,11 @@ sel283_b2:
 			dw p_vid_num_c, tmp0, lit_222, lit_1948, lit_4, var_screens_line5_c
 
 			; Screens.cls 17: Case 2
-			dw sel283_e_go
-sel283_2:
-			dw kw_cpeqvl, var_screens_line5___sel283, 2
-			dw kw_goto_iffalse, sel283_3
-sel283_b3:
+			dw sel281_e_go
+sel281_2:
+			dw kw_cpeqvl, var_screens_line5___sel281, 2
+			dw kw_goto_iffalse, sel281_3
+sel281_b3:
 
 			; Screens.cls 18: Vid.Num 29 + i * 62, 222, 1949, 4, c
 			dw kw_mulvl, var_screens_line5_i, 62, tmp1
@@ -35811,11 +35798,11 @@ sel283_b3:
 			dw p_vid_num_c, tmp0, lit_222, lit_1949, lit_4, var_screens_line5_c
 
 			; Screens.cls 19: Case 3
-			dw sel283_e_go
-sel283_3:
-			dw kw_cpeqvl, var_screens_line5___sel283, 3
-			dw kw_goto_iffalse, sel283_4
-sel283_b4:
+			dw sel281_e_go
+sel281_3:
+			dw kw_cpeqvl, var_screens_line5___sel281, 3
+			dw kw_goto_iffalse, sel281_4
+sel281_b4:
 
 			; Screens.cls 20: Vid.Num 29 + i * 62, 222, 1994, 4, c
 			dw kw_mulvl, var_screens_line5_i, 62, tmp1
@@ -35823,8 +35810,8 @@ sel283_b4:
 			dw p_vid_num_c, tmp0, lit_222, lit_1994, lit_4, var_screens_line5_c
 
 			; Screens.cls 21: Case Else
-			dw sel283_e_go
-sel283_4:
+			dw sel281_e_go
+sel281_4:
 
 			; Screens.cls 22: Vid.Num 29 + i * 62, 222, 2025, 4, c
 			dw kw_mulvl, var_screens_line5_i, 62, tmp1
@@ -35832,127 +35819,127 @@ sel283_4:
 			dw p_vid_num_c, tmp0, lit_222, lit_2025, lit_4, var_screens_line5_c
 
 			; Screens.cls 23: End Select
-sel283_e:
+sel281_e:
 
 			; Screens.cls 24: Next
-			dw kw_next1l, var_screens_line5_i, 4, for281_t
-for281_e:
+			dw kw_next1l, var_screens_line5_i, 4, for279_t
+for279_e:
 			dw p_screens_line5_r
 p_screens_keytx:
 
 			; Screens.cls 29: If n < 2 Then
 			dw kw_scpltvl, var_screens_keytx_n, 2
-			dw kw_goto_iffalse, if284_1
+			dw kw_goto_iffalse, if282_1
 
 			; Screens.cls 30: KeyTx = Data.TX_K_ONE
-			dw kw_ltov, 603, var_screens_keytx_keytx
+			dw kw_ltov, 605, var_screens_keytx_keytx
 
 			; Screens.cls 31: ElseIf p = 0 Then
-			dw if284_e_go
-if284_1:
+			dw if282_e_go
+if282_1:
 			dw kw_cpeqvl, var_screens_keytx_p, 0
-			dw kw_goto_iffalse, if284_2
+			dw kw_goto_iffalse, if282_2
 
 			; Screens.cls 32: KeyTx = Data.TX_K_FIRST
-			dw kw_ltov, 610, var_screens_keytx_keytx
+			dw kw_ltov, 612, var_screens_keytx_keytx
 
 			; Screens.cls 33: ElseIf p >= n - 1 Then
-			dw if284_e_go
-if284_2:
+			dw if282_e_go
+if282_2:
 			dw kw_addl, var_screens_keytx_n, -1, tmp2
 			dw kw_scpgevv, var_screens_keytx_p, tmp2
-			dw kw_goto_iffalse, if284_3
+			dw kw_goto_iffalse, if282_3
 
 			; Screens.cls 34: KeyTx = Data.TX_K_LAST
-			dw kw_ltov, 652, var_screens_keytx_keytx
+			dw kw_ltov, 653, var_screens_keytx_keytx
 
 			; Screens.cls 35: Else
-			dw if284_e_go
-if284_3:
+			dw if282_e_go
+if282_3:
 
 			; Screens.cls 36: KeyTx = Data.TX_K_MID
-			dw kw_ltov, 627, var_screens_keytx_keytx
+			dw kw_ltov, 628, var_screens_keytx_keytx
 
 			; Screens.cls 37: End If
-if284_e:
+if282_e:
 			dw p_screens_keytx_r
 p_screens_hpage:
 
 			; Screens.cls 41: Select Case p
-			dw kw_vtov, var_screens_hpage_p, var_screens_hpage___sel285
+			dw kw_vtov, var_screens_hpage_p, var_screens_hpage___sel283
 
 			; Screens.cls 42: Case 0
-			dw kw_cpeqvl, var_screens_hpage___sel285, 0
-			dw kw_goto_iffalse, sel285_1
-sel285_b1:
+			dw kw_cpeqvl, var_screens_hpage___sel283, 0
+			dw kw_goto_iffalse, sel283_1
+sel283_b1:
 
 			; Screens.cls 43: Vid.Page Data.TX_H1T, KeyTx(p, 5)
 			dw p_screens_keytx_cl, var_screens_hpage_p, lit_5
 			dw kw_vtov, var_screens_keytx_keytx, tmp1
-			dw p_vid_page_c, lit_1069, tmp1
+			dw p_vid_page_c, lit_1087, tmp1
 
 			; Screens.cls 44: Vid.Txt 8, 34, Data.TX_H1, 1
-			dw p_vid_txt_c, lit_8, lit_34, lit_1084, lit_1
+			dw p_vid_txt_c, lit_8, lit_34, lit_1102, lit_1
 
 			; Screens.cls 45: Case 1
-			dw sel285_e_go
-sel285_1:
-			dw kw_cpeqvl, var_screens_hpage___sel285, 1
-			dw kw_goto_iffalse, sel285_2
-sel285_b2:
+			dw sel283_e_go
+sel283_1:
+			dw kw_cpeqvl, var_screens_hpage___sel283, 1
+			dw kw_goto_iffalse, sel283_2
+sel283_b2:
 
 			; Screens.cls 46: Vid.Page Data.TX_H2T, KeyTx(p, 5)
 			dw p_screens_keytx_cl, var_screens_hpage_p, lit_5
 			dw kw_vtov, var_screens_keytx_keytx, tmp1
-			dw p_vid_page_c, lit_1356, tmp1
+			dw p_vid_page_c, lit_1379, tmp1
 
 			; Screens.cls 47: Vid.Txt 8, 34, Data.TX_H2, 1
-			dw p_vid_txt_c, lit_8, lit_34, lit_1388, lit_1
+			dw p_vid_txt_c, lit_8, lit_34, lit_1413, lit_1
 
 			; Screens.cls 48: Case 2
-			dw sel285_e_go
-sel285_2:
-			dw kw_cpeqvl, var_screens_hpage___sel285, 2
-			dw kw_goto_iffalse, sel285_3
-sel285_b3:
+			dw sel283_e_go
+sel283_2:
+			dw kw_cpeqvl, var_screens_hpage___sel283, 2
+			dw kw_goto_iffalse, sel283_3
+sel283_b3:
 
 			; Screens.cls 49: Vid.Page Data.TX_H3T, KeyTx(p, 5)
 			dw p_screens_keytx_cl, var_screens_hpage_p, lit_5
 			dw kw_vtov, var_screens_keytx_keytx, tmp1
-			dw p_vid_page_c, lit_1620, tmp1
+			dw p_vid_page_c, lit_1685, tmp1
 
 			; Screens.cls 50: Vid.Txt 8, 34, Data.TX_H3, 1
-			dw p_vid_txt_c, lit_8, lit_34, lit_1645, lit_1
+			dw p_vid_txt_c, lit_8, lit_34, lit_1708, lit_1
 
 			; Screens.cls 51: Case 3
-			dw sel285_e_go
-sel285_3:
-			dw kw_cpeqvl, var_screens_hpage___sel285, 3
-			dw kw_goto_iffalse, sel285_4
-sel285_b4:
+			dw sel283_e_go
+sel283_3:
+			dw kw_cpeqvl, var_screens_hpage___sel283, 3
+			dw kw_goto_iffalse, sel283_4
+sel283_b4:
 
 			; Screens.cls 52: Vid.Page Data.TX_H4T, KeyTx(p, 5)
 			dw p_screens_keytx_cl, var_screens_hpage_p, lit_5
 			dw kw_vtov, var_screens_keytx_keytx, tmp1
-			dw p_vid_page_c, lit_1939, tmp1
+			dw p_vid_page_c, lit_2008, tmp1
 
 			; Screens.cls 53: Vid.Txt 8, 34, Data.TX_H4, 1
-			dw p_vid_txt_c, lit_8, lit_34, lit_1959, lit_1
+			dw p_vid_txt_c, lit_8, lit_34, lit_2031, lit_1
 
 			; Screens.cls 54: Case Else
-			dw sel285_e_go
-sel285_4:
+			dw sel283_e_go
+sel283_4:
 
 			; Screens.cls 55: Vid.Page Data.TX_H5T, KeyTx(p, 5)
 			dw p_screens_keytx_cl, var_screens_hpage_p, lit_5
 			dw kw_vtov, var_screens_keytx_keytx, tmp1
-			dw p_vid_page_c, lit_2333, tmp1
+			dw p_vid_page_c, lit_2427, tmp1
 
 			; Screens.cls 56: Vid.Txt 8, 34, Data.TX_H5, 1
-			dw p_vid_txt_c, lit_8, lit_34, lit_2347, lit_1
+			dw p_vid_txt_c, lit_8, lit_34, lit_2441, lit_1
 
 			; Screens.cls 57: End Select
-sel285_e:
+sel283_e:
 
 			; Screens.cls 58: Line5 p
 			dw p_screens_line5_cl, var_screens_hpage_p
@@ -35972,7 +35959,7 @@ p_screens_story:
 			dw p_screens_hpage_cl, var_screens_story_p
 
 			; Screens.cls 67: Do
-do286_t:
+do284_t:
 
 			; Screens.cls 68: Vid.Sync
 			dw p_vid_sync_c
@@ -35984,29 +35971,29 @@ do286_t:
 			; Screens.cls 70: If (k And 32) <> 0 Then Exit Sub
 			dw kw_andvl, var_screens_story_k, 32, tmp0
 			dw kw_cpnevl, tmp0, 0
-			dw kw_goto_iffalse, if287_1
+			dw kw_goto_iffalse, if285_1
 			dw p_screens_story_r
-if287_1:
+if285_1:
 
 			; Screens.cls 71: If (k And 8) <> 0 Then
 			dw kw_andvl, var_screens_story_k, 8, tmp0
 			dw kw_cpnevl, tmp0, 0
-			dw kw_goto_iffalse, if288_1
+			dw kw_goto_iffalse, if286_1
 
 			; Screens.cls 72: p = p + 1
 			dw kw_inc, var_screens_story_p
 
 			; Screens.cls 73: If p > 4 Then Exit Sub
 			dw kw_scpgtvl, var_screens_story_p, 4
-			dw kw_goto_iffalse, if289_1
+			dw kw_goto_iffalse, if287_1
 			dw p_screens_story_r
-if289_1:
+if287_1:
 
 			; Screens.cls 74: HPage p
 			dw p_screens_hpage_cl, var_screens_story_p
 
 			; Screens.cls 75: End If
-if288_1:
+if286_1:
 
 			; Screens.cls 76: If (k And 4) <> 0 And p > 0 Then
 			dw kw_andvl, var_screens_story_k, 4, tmp0
@@ -36015,7 +36002,7 @@ if288_1:
 			dw kw_scpgtvl, var_screens_story_p, 0
 			dw kw_ftov, tmp1
 			dw kw_andvv, tmp0, tmp1, tmp0
-			dw kw_goto_ifzero, tmp0, do286_t
+			dw kw_goto_ifzero, tmp0, do284_t
 
 			; Screens.cls 77: p = p - 1
 			dw kw_dec, var_screens_story_p
@@ -36024,11 +36011,11 @@ if288_1:
 			dw p_screens_hpage_cl, var_screens_story_p
 
 			; Screens.cls 79: End If
-if290_1:
+if288_1:
 
 			; Screens.cls 80: Loop
-			dw do286_t_go
-do286_e:
+			dw do284_t_go
+do284_e:
 			dw p_screens_story_r
 p_screens_hello:
 
@@ -36038,72 +36025,72 @@ p_screens_hello:
 			dw p_vid_fill_c, lit_0, lit_100, lit_320, lit_134, lit_5
 
 			; Screens.cls 86: Vid.Txt 8, 104, Data.TX_N_PLAIN, 8
-			dw p_vid_txt_c, lit_8, lit_104, lit_3157, lit_8
+			dw p_vid_txt_c, lit_8, lit_104, lit_3311, lit_8
 
 			; Screens.cls 87: Vid.Txt 8, 122, Data.TX_N_ADDR, 3
-			dw p_vid_txt_c, lit_8, lit_122, lit_3226, lit_3
+			dw p_vid_txt_c, lit_8, lit_122, lit_3386, lit_3
 
 			; Screens.cls 88: Vid.Txt 8, 136, Data.TX_N_READS, 3
-			dw p_vid_txt_c, lit_8, lit_136, lit_3233, lit_3
+			dw p_vid_txt_c, lit_8, lit_136, lit_3396, lit_3
 
 			; Screens.cls 89: For i = 0 To 4
 			dw kw_ztov, var_screens_hello_i
-for291_t:
+for289_t:
 
 			; Screens.cls 90: c = Vid.TabB(Data.T_FONT + 0)
 			dw p_vid_tabb_c, lit_0
 			dw kw_vtov, var_vid_tabb_tabb, var_screens_hello_c
 
 			; Screens.cls 91: Select Case i
-			dw kw_vtov, var_screens_hello_i, var_screens_hello___sel292
+			dw kw_vtov, var_screens_hello_i, var_screens_hello___sel290
 
 			; Screens.cls 92: Case 0
-			dw kw_cpeqvl, var_screens_hello___sel292, 0
-			dw kw_goto_iffalse, sel292_1
-sel292_b1:
+			dw kw_cpeqvl, var_screens_hello___sel290, 0
+			dw kw_goto_iffalse, sel290_1
+sel290_b1:
 
 			; Screens.cls 93: c = 72
 			dw kw_ltov, 72, var_screens_hello_c
 
 			; Screens.cls 94: Case 1
-			dw sel292_e_go
-sel292_1:
-			dw kw_cpeqvl, var_screens_hello___sel292, 1
-			dw kw_goto_iffalse, sel292_2
-sel292_b2:
+			dw sel290_e_go
+sel290_1:
+			dw kw_cpeqvl, var_screens_hello___sel290, 1
+			dw kw_goto_iffalse, sel290_2
+sel290_b2:
 
 			; Screens.cls 95: c = 101
 			dw kw_ltov, 101, var_screens_hello_c
 
 			; Screens.cls 96: Case 2
-			dw sel292_e_go
-sel292_2:
-			dw kw_cpeqvl, var_screens_hello___sel292, 2
-			dw kw_goto_iffalse, sel292_3
-sel292_b3:
+			dw sel290_e_go
+sel290_2:
+			dw kw_cpeqvl, var_screens_hello___sel290, 2
+			dw kw_goto_iffalse, sel290_3
+sel290_b3:
 
 			; Screens.cls 97: c = 108
 			dw kw_ltov, 108, var_screens_hello_c
 
 			; Screens.cls 98: Case 3
-			dw sel292_e_go
-sel292_3:
-			dw kw_cpeqvl, var_screens_hello___sel292, 3
-			dw kw_goto_iffalse, sel292_4
-sel292_b4:
+			dw sel290_e_go
+sel290_3:
+			dw kw_cpeqvl, var_screens_hello___sel290, 3
+			dw kw_goto_iffalse, sel290_4
+sel290_b4:
 
 			; Screens.cls 99: c = 108
 			dw kw_ltov, 108, var_screens_hello_c
 
 			; Screens.cls 100: Case Else
-			dw sel292_e_go
-sel292_4:
+			dw sel290_e_go
+sel290_4:
 
 			; Screens.cls 101: c = 111
 			dw kw_ltov, 111, var_screens_hello_c
 
 			; Screens.cls 102: End Select
-sel292_e:
+sel290_e:
 
 			; Screens.cls 103: x = 100 + i * 42
 			dw kw_mulvl, var_screens_hello_i, 42, tmp1
@@ -36117,72 +36104,72 @@ sel292_e:
 			dw p_vid_big_c, tmp0, lit_134, var_screens_hello_c, lit_10, lit_2
 
 			; Screens.cls 106: Next
-			dw kw_next1l, var_screens_hello_i, 4, for291_t
-for291_e:
+			dw kw_next1l, var_screens_hello_i, 4, for289_t
+for289_e:
 
 			; Screens.cls 107: Vid.Txt 8, 160, Data.TX_N_ROM, 8
-			dw p_vid_txt_c, lit_8, lit_160, lit_3189, lit_8
+			dw p_vid_txt_c, lit_8, lit_160, lit_3346, lit_8
 
 			; Screens.cls 108: Vid.Txt 8, 178, Data.TX_N_ADDR, 3
-			dw p_vid_txt_c, lit_8, lit_178, lit_3226, lit_3
+			dw p_vid_txt_c, lit_8, lit_178, lit_3386, lit_3
 
 			; Screens.cls 109: Vid.Txt 8, 192, Data.TX_N_READS, 3
-			dw p_vid_txt_c, lit_8, lit_192, lit_3233, lit_3
+			dw p_vid_txt_c, lit_8, lit_192, lit_3396, lit_3
 
 			; Screens.cls 110: For i = 0 To 4
 			dw kw_ztov, var_screens_hello_i
-for293_t:
+for291_t:
 
 			; Screens.cls 111: Select Case i
-			dw kw_vtov, var_screens_hello_i, var_screens_hello___sel294
+			dw kw_vtov, var_screens_hello_i, var_screens_hello___sel292
 
 			; Screens.cls 112: Case 0
-			dw kw_cpeqvl, var_screens_hello___sel294, 0
-			dw kw_goto_iffalse, sel294_1
-sel294_b1:
+			dw kw_cpeqvl, var_screens_hello___sel292, 0
+			dw kw_goto_iffalse, sel292_1
+sel292_b1:
 
 			; Screens.cls 113: c = 72
 			dw kw_ltov, 72, var_screens_hello_c
 
 			; Screens.cls 114: Case 1
-			dw sel294_e_go
-sel294_1:
-			dw kw_cpeqvl, var_screens_hello___sel294, 1
-			dw kw_goto_iffalse, sel294_2
-sel294_b2:
+			dw sel292_e_go
+sel292_1:
+			dw kw_cpeqvl, var_screens_hello___sel292, 1
+			dw kw_goto_iffalse, sel292_2
+sel292_b2:
 
 			; Screens.cls 115: c = 101
 			dw kw_ltov, 101, var_screens_hello_c
 
 			; Screens.cls 116: Case 2
-			dw sel294_e_go
-sel294_2:
-			dw kw_cpeqvl, var_screens_hello___sel294, 2
-			dw kw_goto_iffalse, sel294_3
-sel294_b3:
+			dw sel292_e_go
+sel292_2:
+			dw kw_cpeqvl, var_screens_hello___sel292, 2
+			dw kw_goto_iffalse, sel292_3
+sel292_b3:
 
 			; Screens.cls 117: c = 108
 			dw kw_ltov, 108, var_screens_hello_c
 
 			; Screens.cls 118: Case 3
-			dw sel294_e_go
-sel294_3:
-			dw kw_cpeqvl, var_screens_hello___sel294, 3
-			dw kw_goto_iffalse, sel294_4
-sel294_b4:
+			dw sel292_e_go
+sel292_3:
+			dw kw_cpeqvl, var_screens_hello___sel292, 3
+			dw kw_goto_iffalse, sel292_4
+sel292_b4:
 
 			; Screens.cls 119: c = 108
 			dw kw_ltov, 108, var_screens_hello_c
 
 			; Screens.cls 120: Case Else
-			dw sel294_e_go
-sel294_4:
+			dw sel292_e_go
+sel292_4:
 
 			; Screens.cls 121: c = 111
 			dw kw_ltov, 111, var_screens_hello_c
 
 			; Screens.cls 122: End Select
-sel294_e:
+sel292_e:
 
 			; Screens.cls 123: x = 100 + i * 42
 			dw kw_mulvl, var_screens_hello_i, 42, tmp1
@@ -36192,7 +36179,7 @@ sel294_e:
 			dw p_rom_pick_c, lit_1, var_screens_hello_c
 			dw kw_vtov, var_rom_pick_pick, tmp0
 			dw kw_cpeqvl, tmp0, 1
-			dw kw_goto_iffalse, if295_1
+			dw kw_goto_iffalse, if293_1
 
 			; Screens.cls 125: Vid.Hex4 x, 178, Rom.PickHi, Rom.PickLo, 11
 			dw p_vid_hex4_c, var_screens_hello_x, lit_178, var_rom_pickhi, var_rom_picklo, lit_11
@@ -36204,44 +36191,44 @@ sel294_e:
 			dw p_vid_big_c, tmp0, lit_190, tmp2, lit_10, lit_2
 
 			; Screens.cls 127: End If
-if295_1:
+if293_1:
 
 			; Screens.cls 128: Next
-			dw kw_next1l, var_screens_hello_i, 4, for293_t
-for293_e:
+			dw kw_next1l, var_screens_hello_i, 4, for291_t
+for291_e:
 
 			; Screens.cls 129: Vid.Txt 8, 220, Data.TX_N_SPACE, 3
-			dw p_vid_txt_c, lit_8, lit_220, lit_3242, lit_3
+			dw p_vid_txt_c, lit_8, lit_220, lit_3406, lit_3
 			dw p_screens_hello_r
 p_screens_ntcpage:
 
 			; Screens.cls 133: If p = 0 Then
 			dw kw_cpeqvl, var_screens_ntcpage_p, 0
-			dw kw_goto_iffalse, if296_1
+			dw kw_goto_iffalse, if294_1
 
 			; Screens.cls 134: Vid.Page Data.TX_N1T, KeyTx(p, 2)
 			dw p_screens_keytx_cl, var_screens_ntcpage_p, lit_2
 			dw kw_vtov, var_screens_keytx_keytx, tmp1
-			dw p_vid_page_c, lit_2621, tmp1
+			dw p_vid_page_c, lit_2735, tmp1
 
 			; Screens.cls 135: Vid.Txt 8, 34, Data.TX_N1, 1
-			dw p_vid_txt_c, lit_8, lit_34, lit_2642, lit_1
+			dw p_vid_txt_c, lit_8, lit_34, lit_2758, lit_1
 
 			; Screens.cls 136: Else
-			dw if296_e_go
-if296_1:
+			dw if294_e_go
+if294_1:
 
 			; Screens.cls 137: Vid.Page Data.TX_N1T, Data.TX_K_NTC2
-			dw p_vid_page_c, lit_2621, lit_733
+			dw p_vid_page_c, lit_2735, lit_736
 
 			; Screens.cls 138: Vid.Txt 8, 34, Data.TX_N2, 1
-			dw p_vid_txt_c, lit_8, lit_34, lit_2921, lit_1
+			dw p_vid_txt_c, lit_8, lit_34, lit_3042, lit_1
 
 			; Screens.cls 139: Hello 0
 			dw p_screens_hello_cl, lit_0
 
 			; Screens.cls 140: End If
-if296_e:
+if294_e:
 
 			; Screens.cls 141: Vid.PageNo p + 1, 2
 			dw kw_addl, var_screens_ntcpage_p, 1, tmp0
@@ -36258,7 +36245,7 @@ p_screens_ntc:
 			dw p_screens_ntcpage_cl, var_screens_ntc_p
 
 			; Screens.cls 148: Do
-do297_t:
+do295_t:
 
 			; Screens.cls 149: Vid.Sync
 			dw p_vid_sync_c
@@ -36270,20 +36257,20 @@ do297_t:
 			; Screens.cls 151: If (k And 32) <> 0 Then Exit Sub
 			dw kw_andvl, var_screens_ntc_k, 32, tmp0
 			dw kw_cpnevl, tmp0, 0
-			dw kw_goto_iffalse, if298_1
+			dw kw_goto_iffalse, if296_1
 			dw p_screens_ntc_r
-if298_1:
+if296_1:
 
 			; Screens.cls 152: If (k And 8) <> 0 Then
 			dw kw_andvl, var_screens_ntc_k, 8, tmp0
 			dw kw_cpnevl, tmp0, 0
-			dw kw_goto_iffalse, if299_1
+			dw kw_goto_iffalse, if297_1
 
 			; Screens.cls 153: If p = 1 Then Exit Sub
 			dw kw_cpeqvl, var_screens_ntc_p, 1
-			dw kw_goto_iffalse, if300_1
+			dw kw_goto_iffalse, if298_1
 			dw p_screens_ntc_r
-if300_1:
+if298_1:
 
 			; Screens.cls 154: p = 1
 			dw kw_ltov, 1, var_screens_ntc_p
@@ -36292,7 +36279,7 @@ if300_1:
 			dw p_screens_ntcpage_cl, var_screens_ntc_p
 
 			; Screens.cls 156: End If
-if299_1:
+if297_1:
 
 			; Screens.cls 157: If (k And 4) <> 0 And p = 1 Then
 			dw kw_andvl, var_screens_ntc_k, 4, tmp0
@@ -36301,7 +36288,7 @@ if299_1:
 			dw kw_cpeqvl, var_screens_ntc_p, 1
 			dw kw_ftov, tmp1
 			dw kw_andvv, tmp0, tmp1, tmp0
-			dw kw_goto_ifzero, tmp0, if301_1
+			dw kw_goto_ifzero, tmp0, if299_1
 
 			; Screens.cls 158: p = 0
 			dw kw_ztov, var_screens_ntc_p
@@ -36310,7 +36297,7 @@ if299_1:
 			dw p_screens_ntcpage_cl, var_screens_ntc_p
 
 			; Screens.cls 160: End If
-if301_1:
+if299_1:
 
 			; Screens.cls 161: If (k And 16) <> 0 And p = 1 Then
 			dw kw_andvl, var_screens_ntc_k, 16, tmp0
@@ -36319,7 +36306,7 @@ if301_1:
 			dw kw_cpeqvl, var_screens_ntc_p, 1
 			dw kw_ftov, tmp1
 			dw kw_andvv, tmp0, tmp1, tmp0
-			dw kw_goto_ifzero, tmp0, do297_t
+			dw kw_goto_ifzero, tmp0, do295_t
 
 			; Screens.cls 162: Hello 0
 			dw p_screens_hello_cl, lit_0
@@ -36328,11 +36315,11 @@ if301_1:
 			dw p_snd_beep_c, lit_2
 
 			; Screens.cls 164: End If
-if302_1:
+if300_1:
 
 			; Screens.cls 165: Loop
-			dw do297_t_go
-do297_e:
+			dw do295_t_go
+do295_e:
 			dw p_screens_ntc_r
 p_screens_hide:
 
@@ -36342,16 +36329,16 @@ p_screens_hide:
 			dw p_vid_fill_c, lit_0, lit_24, lit_320, lit_214, lit_5
 
 			; Screens.cls 171: Vid.Txt 8, 30, Data.TX_L1, 1
-			dw p_vid_txt_c, lit_8, lit_30, lit_3292, lit_1
+			dw p_vid_txt_c, lit_8, lit_30, lit_3465, lit_1
 
 			; Screens.cls 172: Vid.Txt 8, 76, Data.TX_L_LETTER, 3
-			dw p_vid_txt_c, lit_8, lit_76, lit_3488, lit_3
+			dw p_vid_txt_c, lit_8, lit_76, lit_3664, lit_3
 
 			; Screens.cls 173: Vid.Big 70, 70, ch, 10, 3
 			dw p_vid_big_c, lit_70, lit_70, var_screens_hide_ch, lit_10, lit_3
 
 			; Screens.cls 174: Vid.Txt 110, 76, Data.TX_L_COUNT, 3
-			dw p_vid_txt_c, lit_110, lit_76, lit_3494, lit_3
+			dw p_vid_txt_c, lit_110, lit_76, lit_3671, lit_3
 
 			; Screens.cls 175: n = Rom.Count(Data.ROMB0, ch)
 			dw p_rom_count_c, lit_1, var_screens_hide_ch
@@ -36361,17 +36348,17 @@ p_screens_hide:
 			dw p_vid_num_c, lit_270, lit_76, var_screens_hide_n, lit_5, lit_9
 
 			; Screens.cls 177: Vid.Txt 8, 96, Data.TX_L_PICKS, 8
-			dw p_vid_txt_c, lit_8, lit_96, lit_3508, lit_8
+			dw p_vid_txt_c, lit_8, lit_96, lit_3694, lit_8
 
 			; Screens.cls 178: For i = 0 To 5
 			dw kw_ztov, var_screens_hide_i
-for303_t:
+for301_t:
 
 			; Screens.cls 179: If Rom.Pick(Data.ROMB0, ch) = 1 Then
 			dw p_rom_pick_c, lit_1, var_screens_hide_ch
 			dw kw_vtov, var_rom_pick_pick, tmp0
 			dw kw_cpeqvl, tmp0, 1
-			dw kw_goto_iffalse, if304_1
+			dw kw_goto_iffalse, if302_1
 
 			; Screens.cls 180: Vid.Hex4 8 + i * 50, 108, Rom.PickHi, Rom.PickLo, 11
 			dw kw_mulvl, var_screens_hide_i, 50, tmp1
@@ -36380,7 +36367,7 @@ for303_t:
 
 			; Screens.cls 181: If i = 0 Then
 			dw kw_cpeqvl, var_screens_hide_i, 0
-			dw kw_goto_iffalse, if305_1
+			dw kw_goto_iffalse, if303_1
 
 			; Screens.cls 182: lo = Rom.PickLo
 			dw kw_vtov, var_rom_picklo, var_screens_hide_lo
@@ -36389,23 +36376,23 @@ for303_t:
 			dw kw_vtov, var_rom_pickhi, var_screens_hide_hi
 
 			; Screens.cls 184: End If
-if305_1:
+if303_1:
 
 			; Screens.cls 185: End If
-if304_1:
+if302_1:
 
 			; Screens.cls 186: Next
-			dw kw_next1l, var_screens_hide_i, 5, for303_t
-for303_e:
+			dw kw_next1l, var_screens_hide_i, 5, for301_t
+for301_e:
 
 			; Screens.cls 187: Vid.Txt 8, 124, Data.TX_L_SAME, 8
-			dw p_vid_txt_c, lit_8, lit_124, lit_3525, lit_8
+			dw p_vid_txt_c, lit_8, lit_124, lit_3709, lit_8
 
 			; Screens.cls 188: Vid.Hex4 8, 140, hi, lo, 11
 			dw p_vid_hex4_c, lit_8, lit_140, var_screens_hide_hi, var_screens_hide_lo, lit_11
 
 			; Screens.cls 189: Vid.Txt 70, 140, Data.TX_L_R1, 3
-			dw p_vid_txt_c, lit_70, lit_140, lit_3552, lit_3
+			dw p_vid_txt_c, lit_70, lit_140, lit_3743, lit_3
 
 			; Screens.cls 190: Vid.Big 160, 136, Rom.B(Data.ROMB0, 0, 0, lo, hi), 10, 2
 			dw p_rom_b_c, lit_1, lit_0, lit_0, var_screens_hide_lo, var_screens_hide_hi
@@ -36413,7 +36400,7 @@ for303_e:
 			dw p_vid_big_c, lit_160, lit_136, tmp2, lit_10, lit_2
 
 			; Screens.cls 191: Vid.Txt 70, 156, Data.TX_L_R2, 3
-			dw p_vid_txt_c, lit_70, lit_156, lit_3565, lit_3
+			dw p_vid_txt_c, lit_70, lit_156, lit_3754, lit_3
 
 			; Screens.cls 192: Vid.Big 160, 152, Rom.B(Data.ROMB1, 0, 0, lo, hi), 12, 2
 			dw p_rom_b_c, lit_9, lit_0, lit_0, var_screens_hide_lo, var_screens_hide_hi
@@ -36421,7 +36408,7 @@ for303_e:
 			dw p_vid_big_c, lit_160, lit_152, tmp2, lit_12, lit_2
 
 			; Screens.cls 193: Vid.Txt 70, 172, Data.TX_L_R3, 3
-			dw p_vid_txt_c, lit_70, lit_172, lit_3578, lit_3
+			dw p_vid_txt_c, lit_70, lit_172, lit_3765, lit_3
 
 			; Screens.cls 194: Vid.Big 160, 168, Rom.B(Data.ROMB2, 0, 0, lo, hi), 12, 2
 			dw p_rom_b_c, lit_17, lit_0, lit_0, var_screens_hide_lo, var_screens_hide_hi
@@ -36429,10 +36416,10 @@ for303_e:
 			dw p_vid_big_c, lit_160, lit_168, tmp2, lit_12, lit_2
 
 			; Screens.cls 195: Vid.Txt 8, 190, Data.TX_L2, 1
-			dw p_vid_txt_c, lit_8, lit_190, lit_3631, lit_1
+			dw p_vid_txt_c, lit_8, lit_190, lit_3815, lit_1
 
 			; Screens.cls 196: Vid.Txt 8, 226, Data.TX_L_SPACE, 3
-			dw p_vid_txt_c, lit_8, lit_226, lit_3591, lit_3
+			dw p_vid_txt_c, lit_8, lit_226, lit_3776, lit_3
 			dw p_screens_hide_r
 p_screens_letter:
 
@@ -36442,13 +36429,13 @@ p_screens_letter:
 			dw kw_ltov, 72, var_screens_letter_ch
 
 			; Screens.cls 202: Vid.Page Data.TX_L1T, Data.TX_K_LET
-			dw p_vid_page_c, lit_3273, lit_693
+			dw p_vid_page_c, lit_3440, lit_694
 
 			; Screens.cls 203: Hide ch, 1
 			dw p_screens_hide_cl, var_screens_letter_ch, lit_1
 
 			; Screens.cls 204: Do
-do306_t:
+do304_t:
 
 			; Screens.cls 205: Vid.Sync
 			dw p_vid_sync_c
@@ -36460,14 +36447,14 @@ do306_t:
 			; Screens.cls 207: If (k And 32) <> 0 Then Exit Sub
 			dw kw_andvl, var_screens_letter_k, 32, tmp0
 			dw kw_cpnevl, tmp0, 0
-			dw kw_goto_iffalse, if307_1
+			dw kw_goto_iffalse, if305_1
 			dw p_screens_letter_r
-if307_1:
+if305_1:
 
 			; Screens.cls 208: If (k And 16) <> 0 Then
 			dw kw_andvl, var_screens_letter_k, 16, tmp0
 			dw kw_cpnevl, tmp0, 0
-			dw kw_goto_iffalse, if308_1
+			dw kw_goto_iffalse, if306_1
 
 			; Screens.cls 209: Hide ch, 0
 			dw p_screens_hide_cl, var_screens_letter_ch, lit_0
@@ -36476,7 +36463,7 @@ if307_1:
 			dw p_snd_beep_c, lit_2
 
 			; Screens.cls 211: End If
-if308_1:
+if306_1:
 
 			; Screens.cls 212: If (k And 4) <> 0 And ch > 65 Then
 			dw kw_andvl, var_screens_letter_k, 4, tmp0
@@ -36485,7 +36472,7 @@ if308_1:
 			dw kw_scpgtvl, var_screens_letter_ch, 65
 			dw kw_ftov, tmp1
 			dw kw_andvv, tmp0, tmp1, tmp0
-			dw kw_goto_ifzero, tmp0, if309_1
+			dw kw_goto_ifzero, tmp0, if307_1
 
 			; Screens.cls 213: ch = ch - 1
 			dw kw_dec, var_screens_letter_ch
@@ -36494,16 +36481,16 @@ if308_1:
 			dw p_screens_hide_cl, var_screens_letter_ch, lit_1
 
 			; Screens.cls 215: End If
-if309_1:
+if307_1:
 
 			; Screens.cls 216: If (k And 8) <> 0 Then
 			dw kw_andvl, var_screens_letter_k, 8, tmp0
 			dw kw_cpnevl, tmp0, 0
-			dw kw_goto_iffalse, do306_t
+			dw kw_goto_iffalse, do304_t
 
 			; Screens.cls 217: If ch < 90 Then
 			dw kw_scpltvl, var_screens_letter_ch, 90
-			dw kw_goto_iffalse, do306_t
+			dw kw_goto_iffalse, do304_t
 
 			; Screens.cls 218: ch = ch + 1
 			dw kw_inc, var_screens_letter_ch
@@ -36512,14 +36499,14 @@ if309_1:
 			dw p_screens_hide_cl, var_screens_letter_ch, lit_1
 
 			; Screens.cls 220: End If
-if311_1:
+if309_1:
 
 			; Screens.cls 221: End If
-if310_1:
+if308_1:
 
 			; Screens.cls 222: Loop
-			dw do306_t_go
-do306_e:
+			dw do304_t_go
+do304_e:
 			dw p_screens_letter_r
 p_screens_readas:
 
@@ -36540,42 +36527,42 @@ p_screens_readas:
 
 			; Screens.cls 231: For i = 0 To 44
 			dw kw_ztov, var_screens_readas_i
-for312_t:
+for310_t:
 
 			; Screens.cls 232: If i < n Then Vid.Ch 8 + i * 6, y + 12, Rom.Og(i), c
 			dw kw_scpltvv, var_screens_readas_i, var_screens_readas_n
-			dw kw_goto_iffalse, if313_1
+			dw kw_goto_iffalse, if311_1
 			dw kw_mulvl, var_screens_readas_i, 6, tmp1
 			dw kw_addl, tmp1, 8, tmp0
 			dw kw_addl, var_screens_readas_y, 12, tmp1
 			dw p_rom_og_c, var_screens_readas_i
 			dw kw_vtov, var_rom_og_og, tmp2
 			dw p_vid_ch_c, tmp0, tmp1, tmp2, var_screens_readas_c
-if313_1:
+if311_1:
 
 			; Screens.cls 233: Next
-			dw kw_next1l, var_screens_readas_i, 44, for312_t
-for312_e:
+			dw kw_next1l, var_screens_readas_i, 44, for310_t
+for310_e:
 			dw p_screens_readas_r
 p_screens_plaus:
 
 			; Screens.cls 237: Dim i As Integer, k As Integer
 
 			; Screens.cls 238: Vid.Page Data.TX_P1T, Data.TX_K_ONE
-			dw p_vid_page_c, lit_3747, lit_603
+			dw p_vid_page_c, lit_3947, lit_605
 
 			; Screens.cls 239: Vid.Txt 8, 28, Data.TX_P1, 1
-			dw p_vid_txt_c, lit_8, lit_28, lit_3773, lit_1
+			dw p_vid_txt_c, lit_8, lit_28, lit_3973, lit_1
 
 			; Screens.cls 240: Rom.Load Data.ALTFILE
 			dw p_rom_load_c, lit_1
 
 			; Screens.cls 241: Vid.Txt 8, 58, Data.TX_P_FILE, 3
-			dw p_vid_txt_c, lit_8, lit_58, lit_3937, lit_3
+			dw p_vid_txt_c, lit_8, lit_58, lit_4168, lit_3
 
 			; Screens.cls 242: For i = 0 To 16
 			dw kw_ztov, var_screens_plaus_i
-for314_t:
+for312_t:
 
 			; Screens.cls 243: Vid.Hex2 8 + i * 18, 68, Rom.Wg(i), 4
 			dw kw_mulvl, var_screens_plaus_i, 18, tmp1
@@ -36585,14 +36572,14 @@ for314_t:
 			dw p_vid_hex2_c, tmp0, lit_68, tmp2, lit_4
 
 			; Screens.cls 244: Next
-			dw kw_next1l, var_screens_plaus_i, 16, for314_t
-for314_e:
+			dw kw_next1l, var_screens_plaus_i, 16, for312_t
+for312_e:
 
 			; Screens.cls 245: Vid.Txt 8, 80, Data.TX_P_READS, 3
-			dw p_vid_txt_c, lit_8, lit_80, lit_3951, lit_3
+			dw p_vid_txt_c, lit_8, lit_80, lit_4186, lit_3
 
 			; Screens.cls 246: ReadAs 90, Data.TX_P_ROM1, Data.ROMB0, 10
-			dw p_screens_readas_cl, lit_90, lit_3877, lit_1, lit_10
+			dw p_screens_readas_cl, lit_90, lit_4094, lit_1, lit_10
 
 			; Screens.cls 247: Rom.LoadPatch
 			dw p_rom_loadpatch_c
@@ -36601,22 +36588,22 @@ for314_e:
 			dw p_rom_patch_c, lit_1
 
 			; Screens.cls 249: ReadAs 114, Data.TX_P_ROMA, Data.ROMB0, 10
-			dw p_screens_readas_cl, lit_114, lit_3900, lit_1, lit_10
+			dw p_screens_readas_cl, lit_114, lit_4127, lit_1, lit_10
 
 			; Screens.cls 250: Rom.Patch 0
 			dw p_rom_patch_c, lit_0
 
 			; Screens.cls 251: ReadAs 138, Data.TX_P_ROM2, Data.ROMB1, 12
-			dw p_screens_readas_cl, lit_138, lit_3925, lit_9, lit_12
+			dw p_screens_readas_cl, lit_138, lit_4156, lit_9, lit_12
 
 			; Screens.cls 252: ReadAs 162, Data.TX_P_ROM3, Data.ROMB2, 12
-			dw p_screens_readas_cl, lit_162, lit_3931, lit_17, lit_12
+			dw p_screens_readas_cl, lit_162, lit_4162, lit_17, lit_12
 
 			; Screens.cls 253: Vid.Txt 8, 192, Data.TX_P2, 1
-			dw p_vid_txt_c, lit_8, lit_192, lit_3961, lit_1
+			dw p_vid_txt_c, lit_8, lit_192, lit_4196, lit_1
 
 			; Screens.cls 254: Do
-do315_t:
+do313_t:
 
 			; Screens.cls 255: Vid.Sync
 			dw p_vid_sync_c
@@ -36628,8 +36615,8 @@ do315_t:
 			; Screens.cls 257: Loop Until (k And 32) <> 0
 			dw kw_andvl, var_screens_plaus_k, 32, tmp0
 			dw kw_cpnevl, tmp0, 0
-			dw kw_goto_iffalse, do315_t
-do315_e:
+			dw kw_goto_iffalse, do313_t
+do313_e:
 			dw p_screens_plaus_r
 p_screens_anatomy:
 
@@ -36638,20 +36625,20 @@ p_screens_anatomy:
 			; Screens.cls 262: Dim v(3) As Integer
 
 			; Screens.cls 263: Vid.Page Data.TX_U1T, Data.TX_K_ONE
-			dw p_vid_page_c, lit_4153, lit_603
+			dw p_vid_page_c, lit_4394, lit_605
 
 			; Screens.cls 264: Vid.Txt 8, 28, Data.TX_U1, 1
-			dw p_vid_txt_c, lit_8, lit_28, lit_4175, lit_1
+			dw p_vid_txt_c, lit_8, lit_28, lit_4418, lit_1
 
 			; Screens.cls 265: Rom.Load Data.ALTFILE
 			dw p_rom_load_c, lit_1
 
 			; Screens.cls 266: Vid.Txt 8, 52, Data.TX_U_H, 3
-			dw p_vid_txt_c, lit_8, lit_52, lit_4266, lit_3
+			dw p_vid_txt_c, lit_8, lit_52, lit_4519, lit_3
 
 			; Screens.cls 267: For i = 0 To 3
 			dw kw_ztov, var_screens_anatomy_i
-for316_t:
+for314_t:
 
 			; Screens.cls 268: v(i) = Rom.B(Data.ROMB0, 0, 0, Rom.Wg(i * 2), Rom.Wg(i * 2 + 1))
 			dw kw_2x, var_screens_anatomy_i, tmp4
@@ -36683,20 +36670,20 @@ for316_t:
 			dw p_vid_hex2_c, lit_100, tmp1, tmp2, lit_10
 
 			; Screens.cls 271: Next
-			dw kw_next1l, var_screens_anatomy_i, 3, for316_t
-for316_e:
+			dw kw_next1l, var_screens_anatomy_i, 3, for314_t
+for314_e:
 
 			; Screens.cls 272: Vid.Txt 130, 64, Data.TX_U_H1, 2
-			dw p_vid_txt_c, lit_130, lit_64, lit_4289, lit_2
+			dw p_vid_txt_c, lit_130, lit_64, lit_4540, lit_2
 
 			; Screens.cls 273: Vid.Txt 130, 76, Data.TX_U_H2, 2
-			dw p_vid_txt_c, lit_130, lit_76, lit_4308, lit_2
+			dw p_vid_txt_c, lit_130, lit_76, lit_4560, lit_2
 
 			; Screens.cls 274: Vid.Txt 130, 88, Data.TX_U_H3, 2
-			dw p_vid_txt_c, lit_130, lit_88, lit_4327, lit_2
+			dw p_vid_txt_c, lit_130, lit_88, lit_4581, lit_2
 
 			; Screens.cls 275: Vid.Txt 130, 100, Data.TX_U_H4, 2
-			dw p_vid_txt_c, lit_130, lit_100, lit_4356, lit_2
+			dw p_vid_txt_c, lit_130, lit_100, lit_4612, lit_2
 
 			; Screens.cls 276: pf = v(2) : sf = v(3)
 			dw kw_vtov, arr_screens_anatomy_v+4, var_screens_anatomy_pf
@@ -36709,7 +36696,7 @@ for316_e:
 			dw kw_divvl, tmp0, 2, var_screens_anatomy_ms
 
 			; Screens.cls 278: Vid.Txt 8, 116, Data.TX_U_LAY, 8
-			dw p_vid_txt_c, lit_8, lit_116, lit_4385, lit_8
+			dw p_vid_txt_c, lit_8, lit_116, lit_4643, lit_8
 
 			; Screens.cls 279: bp = Rom.Wn \ 300 + 1
 			dw kw_divvl, var_rom_wn, 300, tmp0
@@ -36753,22 +36740,22 @@ for316_e:
 			dw p_vid_fill_c, var_screens_anatomy_x, lit_128, tmp2, lit_14, lit_4
 
 			; Screens.cls 289: Vid.Txt 8, 148, Data.TX_U_OFF, 3
-			dw p_vid_txt_c, lit_8, lit_148, lit_4431, lit_3
+			dw p_vid_txt_c, lit_8, lit_148, lit_4686, lit_3
 
 			; Screens.cls 290: Vid.Hex4 130, 148, v(1), v(0), 10
 			dw p_vid_hex4_c, lit_130, lit_148, arr_screens_anatomy_v+2, arr_screens_anatomy_v, lit_10
 
 			; Screens.cls 291: Vid.Txt 8, 160, Data.TX_U_MSG, 3
-			dw p_vid_txt_c, lit_8, lit_160, lit_4445, lit_3
+			dw p_vid_txt_c, lit_8, lit_160, lit_4700, lit_3
 
 			; Screens.cls 292: Vid.Num 130, 160, ms, 3, 10
 			dw p_vid_num_c, lit_130, lit_160, var_screens_anatomy_ms, lit_3, lit_10
 
 			; Screens.cls 293: Vid.Txt 8, 178, Data.TX_U2, 1
-			dw p_vid_txt_c, lit_8, lit_178, lit_4461, lit_1
+			dw p_vid_txt_c, lit_8, lit_178, lit_4715, lit_1
 
 			; Screens.cls 294: Do
-do317_t:
+do315_t:
 
 			; Screens.cls 295: Vid.Sync
 			dw p_vid_sync_c
@@ -36780,8 +36767,8 @@ do317_t:
 			; Screens.cls 297: Loop Until (k And 32) <> 0
 			dw kw_andvl, var_screens_anatomy_k, 32, tmp0
 			dw kw_cpnevl, tmp0, 0
-			dw kw_goto_iffalse, do317_t
-do317_e:
+			dw kw_goto_iffalse, do315_t
+do315_e:
 			dw p_screens_anatomy_r
 p_screens_rhinit:
 
@@ -36791,15 +36778,15 @@ p_screens_rhinit:
 			dw kw_ztov, var_screens_rhn
 
 			; Screens.cls 305: Do While Vid.TabB(Data.TX_RH_MSG + rhn) <> 0
-do318_t:
-			dw kw_addl, var_screens_rhn, 8448, tmp0
+do316_t:
+			dw kw_addl, var_screens_rhn, 9013, tmp0
 			dw p_vid_tabb_c, tmp0
 			dw kw_vtov, var_vid_tabb_tabb, tmp0
 			dw kw_cpnevl, tmp0, 0
-			dw kw_goto_iffalse, do318_e
+			dw kw_goto_iffalse, do316_e
 
 			; Screens.cls 306: Rom.Wp rhn, Vid.TabB(Data.TX_RH_MSG + rhn)
-			dw kw_addl, var_screens_rhn, 8448, tmp1
+			dw kw_addl, var_screens_rhn, 9013, tmp1
 			dw p_vid_tabb_c, tmp1
 			dw kw_vtov, var_vid_tabb_tabb, tmp1
 			dw p_rom_wp_c, var_screens_rhn, tmp1
@@ -36808,29 +36795,29 @@ do318_t:
 			dw kw_inc, var_screens_rhn
 
 			; Screens.cls 308: Loop
-			dw do318_t_go
-do318_e:
+			dw do316_t_go
+do316_e:
 
 			; Screens.cls 309: Rom.RollHash 0, rhn
 			dw p_rom_rollhash_c, lit_0, var_screens_rhn
 
 			; Screens.cls 310: For i = 0 To 3
 			dw kw_ztov, var_screens_rhinit_i
-for319_t:
+for317_t:
 
 			; Screens.cls 311: oh(i) = Rom.HB(i)
 			dw kw_aget8, arr_rom_hb, var_screens_rhinit_i, tmp1
 			dw kw_aset8, arr_screens_oh, var_screens_rhinit_i, tmp1
 
 			; Screens.cls 312: Next
-			dw kw_next1l, var_screens_rhinit_i, 3, for319_t
-for319_e:
+			dw kw_next1l, var_screens_rhinit_i, 3, for317_t
+for317_e:
 
 			; Screens.cls 313: For i = 0 To rhn - 1
 			dw kw_ztov, var_screens_rhinit_i
-			dw kw_addl, var_screens_rhn, -1, for320_l
-			dw kw_forupv, var_screens_rhinit_i, for320_l, for320_e
-for320_t:
+			dw kw_addl, var_screens_rhn, -1, for318_l
+			dw kw_forupv, var_screens_rhinit_i, for318_l, for318_e
+for318_t:
 
 			; Screens.cls 314: Rom.Op i, Rom.Wg(i)
 			dw p_rom_wg_c, var_screens_rhinit_i
@@ -36838,8 +36825,8 @@ for320_t:
 			dw p_rom_op_c, var_screens_rhinit_i, tmp1
 
 			; Screens.cls 315: Next
-			dw kw_next1v, var_screens_rhinit_i, for320_l, for320_t
-for320_e:
+			dw kw_next1v, var_screens_rhinit_i, for318_l, for318_t
+for318_e:
 			dw p_screens_rhinit_r
 p_screens_rhshow:
 
@@ -36849,13 +36836,13 @@ p_screens_rhshow:
 			dw p_vid_fill_c, lit_0, lit_92, lit_320, lit_100, lit_5
 
 			; Screens.cls 321: Vid.Txt 8, 96, Data.TX_RH_A, 3
-			dw p_vid_txt_c, lit_8, lit_96, lit_8477, lit_3
+			dw p_vid_txt_c, lit_8, lit_96, lit_9042, lit_3
 
 			; Screens.cls 322: For i = 0 To rhn - 1
 			dw kw_ztov, var_screens_rhshow_i
-			dw kw_addl, var_screens_rhn, -1, for321_l
-			dw kw_forupv, var_screens_rhshow_i, for321_l, for321_e
-for321_t:
+			dw kw_addl, var_screens_rhn, -1, for319_l
+			dw kw_forupv, var_screens_rhshow_i, for319_l, for319_e
+for319_t:
 
 			; Screens.cls 323: Vid.Glyph 8 + i * 6, 108, Rom.Og(i), 1
 			dw kw_mulvl, var_screens_rhshow_i, 6, tmp1
@@ -36865,15 +36852,15 @@ for321_t:
 			dw p_vid_glyph_c, tmp0, lit_108, tmp2, lit_1
 
 			; Screens.cls 324: Next
-			dw kw_next1v, var_screens_rhshow_i, for321_l, for321_t
-for321_e:
+			dw kw_next1v, var_screens_rhshow_i, for319_l, for319_t
+for319_e:
 
 			; Screens.cls 325: Vid.Txt 8, 120, Data.TX_RH_HASH, 3
-			dw p_vid_txt_c, lit_8, lit_120, lit_8507, lit_3
+			dw p_vid_txt_c, lit_8, lit_120, lit_9073, lit_3
 
 			; Screens.cls 326: For i = 0 To 3
 			dw kw_ztov, var_screens_rhshow_i
-for322_t:
+for320_t:
 
 			; Screens.cls 327: Vid.Hex2 50 + i * 18, 120, oh(i), 10
 			dw kw_mulvl, var_screens_rhshow_i, 18, tmp1
@@ -36882,17 +36869,17 @@ for322_t:
 			dw p_vid_hex2_c, tmp0, lit_120, tmp2, lit_10
 
 			; Screens.cls 328: Next
-			dw kw_next1l, var_screens_rhshow_i, 3, for322_t
-for322_e:
+			dw kw_next1l, var_screens_rhshow_i, 3, for320_t
+for320_e:
 
 			; Screens.cls 329: Vid.Txt 8, 138, Data.TX_RH_B, 3
-			dw p_vid_txt_c, lit_8, lit_138, lit_8487, lit_3
+			dw p_vid_txt_c, lit_8, lit_138, lit_9054, lit_3
 
 			; Screens.cls 330: For i = 0 To rhn - 1
 			dw kw_ztov, var_screens_rhshow_i
-			dw kw_addl, var_screens_rhn, -1, for323_l
-			dw kw_forupv, var_screens_rhshow_i, for323_l, for323_e
-for323_t:
+			dw kw_addl, var_screens_rhn, -1, for321_l
+			dw kw_forupv, var_screens_rhshow_i, for321_l, for321_e
+for321_t:
 
 			; Screens.cls 331: c = 1
 			dw kw_ltov, 1, var_screens_rhshow_c
@@ -36903,9 +36890,9 @@ for323_t:
 			dw p_rom_og_c, var_screens_rhshow_i
 			dw kw_vtov, var_rom_og_og, tmp1
 			dw kw_cpnevv, tmp0, tmp1
-			dw kw_goto_iffalse, if324_1
+			dw kw_goto_iffalse, if322_1
 			dw kw_ltov, 12, var_screens_rhshow_c
-if324_1:
+if322_1:
 
 			; Screens.cls 333: Vid.Glyph 8 + i * 6, 150, Rom.Wg(i), c
 			dw kw_mulvl, var_screens_rhshow_i, 6, tmp1
@@ -36915,18 +36902,18 @@ if324_1:
 			dw p_vid_glyph_c, tmp0, lit_150, tmp2, var_screens_rhshow_c
 
 			; Screens.cls 334: Next
-			dw kw_next1v, var_screens_rhshow_i, for323_l, for323_t
-for323_e:
+			dw kw_next1v, var_screens_rhshow_i, for321_l, for321_t
+for321_e:
 
 			; Screens.cls 335: Rom.RollHash 0, rhn
 			dw p_rom_rollhash_c, lit_0, var_screens_rhn
 
 			; Screens.cls 336: Vid.Txt 8, 162, Data.TX_RH_HASH, 3
-			dw p_vid_txt_c, lit_8, lit_162, lit_8507, lit_3
+			dw p_vid_txt_c, lit_8, lit_162, lit_9073, lit_3
 
 			; Screens.cls 337: For i = 0 To 3
 			dw kw_ztov, var_screens_rhshow_i
-for325_t:
+for323_t:
 
 			; Screens.cls 338: c = 10
 			dw kw_ltov, 10, var_screens_rhshow_c
@@ -36935,9 +36922,9 @@ for325_t:
 			dw kw_aget8, arr_rom_hb, var_screens_rhshow_i, tmp0
 			dw kw_aget8, arr_screens_oh, var_screens_rhshow_i, tmp1
 			dw kw_cpnevv, tmp0, tmp1
-			dw kw_goto_iffalse, if326_1
+			dw kw_goto_iffalse, if324_1
 			dw kw_ltov, 12, var_screens_rhshow_c
-if326_1:
+if324_1:
 
 			; Screens.cls 340: Vid.Hex2 50 + i * 18, 162, Rom.HB(i), c
 			dw kw_mulvl, var_screens_rhshow_i, 18, tmp1
@@ -36946,11 +36933,11 @@ if326_1:
 			dw p_vid_hex2_c, tmp0, lit_162, tmp2, var_screens_rhshow_c
 
 			; Screens.cls 341: Next
-			dw kw_next1l, var_screens_rhshow_i, 3, for325_t
-for325_e:
+			dw kw_next1l, var_screens_rhshow_i, 3, for323_t
+for323_e:
 
 			; Screens.cls 342: Vid.Txt 8, 178, Data.TX_RH_SPACE, 3
-			dw p_vid_txt_c, lit_8, lit_178, lit_8511, lit_3
+			dw p_vid_txt_c, lit_8, lit_178, lit_9078, lit_3
 			dw p_screens_rhshow_r
 p_screens_rhchange:
 
@@ -36964,23 +36951,23 @@ p_screens_rhchange:
 			dw p_rom_wg_c, var_screens_rhchange_r
 			dw kw_vtov, var_rom_wg_wg, tmp0
 			dw kw_cpeqvl, tmp0, 32
-			dw kw_goto_iffalse, if327_1
+			dw kw_goto_iffalse, if325_1
 			dw kw_addl, var_screens_rhchange_r, 1, tmp0
 			dw kw_modvv, tmp0, var_screens_rhn, var_screens_rhchange_r
-if327_1:
+if325_1:
 
 			; Screens.cls 349: If Rom.Wg(r) >= 90 Then
 			dw p_rom_wg_c, var_screens_rhchange_r
 			dw kw_vtov, var_rom_wg_wg, tmp0
 			dw kw_scpgevl, tmp0, 90
-			dw kw_goto_iffalse, if328_1
+			dw kw_goto_iffalse, if326_1
 
 			; Screens.cls 350: Rom.Wp r, 65
 			dw p_rom_wp_c, var_screens_rhchange_r, lit_65
 
 			; Screens.cls 351: Else
-			dw if328_e_go
-if328_1:
+			dw if326_e_go
+if326_1:
 
 			; Screens.cls 352: Rom.Wp r, Rom.Wg(r) + 1
 			dw p_rom_wg_c, var_screens_rhchange_r
@@ -36989,7 +36976,7 @@ if328_1:
 			dw p_rom_wp_c, var_screens_rhchange_r, tmp1
 
 			; Screens.cls 353: End If
-if328_e:
+if326_e:
 
 			; Screens.cls 354: RhShow
 			dw p_screens_rhshow_cl
@@ -37000,22 +36987,22 @@ p_screens_hist:
 
 			; Screens.cls 359: For g = 0 To 15
 			dw kw_ztov, var_screens_hist_g
-for329_t:
+for327_t:
 
 			; Screens.cls 360: c(g) = 0
 			dw kw_asetl, arr_screens_hist_c, var_screens_hist_g, 0
 
 			; Screens.cls 361: Next
-			dw kw_next1l, var_screens_hist_g, 15, for329_t
-for329_e:
+			dw kw_next1l, var_screens_hist_g, 15, for327_t
+for327_e:
 
 			; Screens.cls 362: For blk = 0 To 3
 			dw kw_ztov, var_screens_hist_blk
-for330_t:
+for328_t:
 
 			; Screens.cls 363: For i = 0 To 16383 Step 4
 			dw kw_ztov, var_screens_hist_i
-for331_t:
+for329_t:
 
 			; Screens.cls 364: g = Vid.Pe(Data.ROMB0 + blk, i) \ 16
 			dw kw_addl, var_screens_hist_blk, 1, tmp0
@@ -37029,41 +37016,41 @@ for331_t:
 			dw kw_aset, arr_screens_hist_c, var_screens_hist_g, tmp1
 
 			; Screens.cls 366: Next
-			dw kw_nextupl, var_screens_hist_i, 4, 16383, for331_t
-for331_e:
+			dw kw_nextupl, var_screens_hist_i, 4, 16383, for329_t
+for329_e:
 
 			; Screens.cls 367: Next
-			dw kw_next1l, var_screens_hist_blk, 3, for330_t
-for330_e:
+			dw kw_next1l, var_screens_hist_blk, 3, for328_t
+for328_e:
 
 			; Screens.cls 368: m = 0
 			dw kw_ztov, var_screens_hist_m
 
 			; Screens.cls 369: For g = 0 To 15
 			dw kw_ztov, var_screens_hist_g
-for332_t:
+for330_t:
 
 			; Screens.cls 370: If c(g) > m Then m = c(g)
 			dw kw_aget, arr_screens_hist_c, var_screens_hist_g, tmp0
 			dw kw_scpgtvv, tmp0, var_screens_hist_m
-			dw kw_goto_iffalse, if333_1
+			dw kw_goto_iffalse, if331_1
 			dw kw_aget, arr_screens_hist_c, var_screens_hist_g, var_screens_hist_m
-if333_1:
+if331_1:
 
 			; Screens.cls 371: Next
-			dw kw_next1l, var_screens_hist_g, 15, for332_t
-for332_e:
+			dw kw_next1l, var_screens_hist_g, 15, for330_t
+for330_e:
 
 			; Screens.cls 372: d = m \ 60 + 1
 			dw kw_divvl, var_screens_hist_m, 60, tmp0
 			dw kw_addl, tmp0, 1, var_screens_hist_d
 
 			; Screens.cls 373: Vid.Txt 8, 134, Data.TX_RA_HIST, 3
-			dw p_vid_txt_c, lit_8, lit_134, lit_14724, lit_3
+			dw p_vid_txt_c, lit_8, lit_134, lit_15649, lit_3
 
 			; Screens.cls 374: For g = 0 To 15
 			dw kw_ztov, var_screens_hist_g
-for334_t:
+for332_t:
 
 			; Screens.cls 375: h = c(g) \ d
 			dw kw_aget, arr_screens_hist_c, var_screens_hist_g, tmp0
@@ -37076,8 +37063,8 @@ for334_t:
 			dw p_vid_fill_c, tmp0, tmp1, lit_15, var_screens_hist_h, lit_8
 
 			; Screens.cls 377: Next
-			dw kw_next1l, var_screens_hist_g, 15, for334_t
-for334_e:
+			dw kw_next1l, var_screens_hist_g, 15, for332_t
+for332_e:
 
 			; Screens.cls 378: h = 1024 \ d
 			dw kw_divlv, 1024, var_screens_hist_d, var_screens_hist_h
@@ -37087,23 +37074,23 @@ for334_e:
 			dw p_vid_fill_c, lit_8, tmp1, lit_304, lit_1, lit_9
 
 			; Screens.cls 380: Vid.Txt 8, 150, Data.TX_RA_FLAT, 9
-			dw p_vid_txt_c, lit_8, lit_150, lit_14773, lit_9
+			dw p_vid_txt_c, lit_8, lit_150, lit_15698, lit_9
 			dw p_screens_hist_r
 p_screens_body:
 
 			; Screens.cls 385: Do While Vid.TabB(t) <> 0
-do335_t:
+do333_t:
 			dw p_vid_tabb_c, var_screens_body_t
 			dw kw_vtov, var_vid_tabb_tabb, tmp2
 			dw kw_cpnevl, tmp2, 0
-			dw kw_goto_iffalse, do335_e
+			dw kw_goto_iffalse, do333_e
 
 			; Screens.cls 386: t = t + 1
 			dw kw_inc, var_screens_body_t
 
 			; Screens.cls 387: Loop
-			dw do335_t_go
-do335_e:
+			dw do333_t_go
+do333_e:
 
 			; Screens.cls 388: Body = t + 1
 			dw kw_addl, var_screens_body_t, 1, var_screens_body_body
@@ -37111,210 +37098,210 @@ do335_e:
 p_screens_pgn:
 
 			; Screens.cls 392: Select Case kind
-			dw kw_vtov, var_screens_pgn_kind, var_screens_pgn___sel336
+			dw kw_vtov, var_screens_pgn_kind, var_screens_pgn___sel334
 
 			; Screens.cls 393: Case 3
-			dw kw_cpeqvl, var_screens_pgn___sel336, 3
-			dw kw_goto_iffalse, sel336_1
-sel336_b1:
+			dw kw_cpeqvl, var_screens_pgn___sel334, 3
+			dw kw_goto_iffalse, sel334_1
+sel334_b1:
 
 			; Screens.cls 394: PgN = 2
 			dw kw_ltov, 2, var_screens_pgn_pgn
 
 			; Screens.cls 395: Case 4
-			dw sel336_e_go
-sel336_1:
-			dw kw_cpeqvl, var_screens_pgn___sel336, 4
-			dw kw_goto_iffalse, sel336_2
-sel336_b2:
+			dw sel334_e_go
+sel334_1:
+			dw kw_cpeqvl, var_screens_pgn___sel334, 4
+			dw kw_goto_iffalse, sel334_2
+sel334_b2:
 
 			; Screens.cls 396: PgN = 5
 			dw kw_ltov, 5, var_screens_pgn_pgn
 
 			; Screens.cls 397: Case 5
-			dw sel336_e_go
-sel336_2:
-			dw kw_cpeqvl, var_screens_pgn___sel336, 5
-			dw kw_goto_iffalse, sel336_3
-sel336_b3:
+			dw sel334_e_go
+sel334_2:
+			dw kw_cpeqvl, var_screens_pgn___sel334, 5
+			dw kw_goto_iffalse, sel334_3
+sel334_b3:
 
 			; Screens.cls 398: PgN = 4
 			dw kw_ltov, 4, var_screens_pgn_pgn
 
 			; Screens.cls 399: Case 6
-			dw sel336_e_go
-sel336_3:
-			dw kw_cpeqvl, var_screens_pgn___sel336, 6
-			dw kw_goto_iffalse, sel336_4
-sel336_b4:
+			dw sel334_e_go
+sel334_3:
+			dw kw_cpeqvl, var_screens_pgn___sel334, 6
+			dw kw_goto_iffalse, sel334_4
+sel334_b4:
 
 			; Screens.cls 400: PgN = 4
 			dw kw_ltov, 4, var_screens_pgn_pgn
 
 			; Screens.cls 401: Case Else
-			dw sel336_e_go
-sel336_4:
+			dw sel334_e_go
+sel334_4:
 
 			; Screens.cls 402: PgN = 3
 			dw kw_ltov, 3, var_screens_pgn_pgn
 
 			; Screens.cls 403: End Select
-sel336_e:
+sel334_e:
 			dw p_screens_pgn_r
 p_screens_pgtx:
 
 			; Screens.cls 407: Select Case kind * 10 + p
 			dw kw_mulvl, var_screens_pgtx_kind, 10, tmp0
 			dw kw_add, tmp0, var_screens_pgtx_p, tmp0
-			dw kw_vtov, tmp0, var_screens_pgtx___sel337
+			dw kw_vtov, tmp0, var_screens_pgtx___sel335
 
 			; Screens.cls 408: Case 30
-			dw kw_cpeqvl, var_screens_pgtx___sel337, 30
-			dw kw_goto_iffalse, sel337_1
-sel337_b1:
+			dw kw_cpeqvl, var_screens_pgtx___sel335, 30
+			dw kw_goto_iffalse, sel335_1
+sel335_b1:
 
 			; Screens.cls 409: PgTx = Data.TX_ROM1T
-			dw kw_ltov, 15741, var_screens_pgtx_pgtx
+			dw kw_ltov, 16743, var_screens_pgtx_pgtx
 
 			; Screens.cls 410: Case 31
-			dw sel337_e_go
-sel337_1:
-			dw kw_cpeqvl, var_screens_pgtx___sel337, 31
-			dw kw_goto_iffalse, sel337_2
-sel337_b2:
+			dw sel335_e_go
+sel335_1:
+			dw kw_cpeqvl, var_screens_pgtx___sel335, 31
+			dw kw_goto_iffalse, sel335_2
+sel335_b2:
 
 			; Screens.cls 411: PgTx = Data.TX_ROM2T
-			dw kw_ltov, 16233, var_screens_pgtx_pgtx
+			dw kw_ltov, 17244, var_screens_pgtx_pgtx
 
 			; Screens.cls 412: Case 40
-			dw sel337_e_go
-sel337_2:
-			dw kw_cpeqvl, var_screens_pgtx___sel337, 40
-			dw kw_goto_iffalse, sel337_3
-sel337_b3:
+			dw sel335_e_go
+sel335_2:
+			dw kw_cpeqvl, var_screens_pgtx___sel335, 40
+			dw kw_goto_iffalse, sel335_3
+sel335_b3:
 
 			; Screens.cls 413: PgTx = Data.TX_SH1T
-			dw kw_ltov, 17480, var_screens_pgtx_pgtx
+			dw kw_ltov, 18518, var_screens_pgtx_pgtx
 
 			; Screens.cls 414: Case 41
-			dw sel337_e_go
-sel337_3:
-			dw kw_cpeqvl, var_screens_pgtx___sel337, 41
-			dw kw_goto_iffalse, sel337_4
-sel337_b4:
+			dw sel335_e_go
+sel335_3:
+			dw kw_cpeqvl, var_screens_pgtx___sel335, 41
+			dw kw_goto_iffalse, sel335_4
+sel335_b4:
 
 			; Screens.cls 415: PgTx = Data.TX_SH2T
-			dw kw_ltov, 18038, var_screens_pgtx_pgtx
+			dw kw_ltov, 19088, var_screens_pgtx_pgtx
 
 			; Screens.cls 416: Case 42
-			dw sel337_e_go
-sel337_4:
-			dw kw_cpeqvl, var_screens_pgtx___sel337, 42
-			dw kw_goto_iffalse, sel337_5
-sel337_b5:
+			dw sel335_e_go
+sel335_4:
+			dw kw_cpeqvl, var_screens_pgtx___sel335, 42
+			dw kw_goto_iffalse, sel335_5
+sel335_b5:
 
 			; Screens.cls 417: PgTx = Data.TX_SH3T
-			dw kw_ltov, 18683, var_screens_pgtx_pgtx
+			dw kw_ltov, 19722, var_screens_pgtx_pgtx
 
 			; Screens.cls 418: Case 43
-			dw sel337_e_go
-sel337_5:
-			dw kw_cpeqvl, var_screens_pgtx___sel337, 43
-			dw kw_goto_iffalse, sel337_6
-sel337_b6:
+			dw sel335_e_go
+sel335_5:
+			dw kw_cpeqvl, var_screens_pgtx___sel335, 43
+			dw kw_goto_iffalse, sel335_6
+sel335_b6:
 
 			; Screens.cls 419: PgTx = Data.TX_SH4T
-			dw kw_ltov, 19346, var_screens_pgtx_pgtx
+			dw kw_ltov, 20396, var_screens_pgtx_pgtx
 
 			; Screens.cls 420: Case 44
-			dw sel337_e_go
-sel337_6:
-			dw kw_cpeqvl, var_screens_pgtx___sel337, 44
-			dw kw_goto_iffalse, sel337_7
-sel337_b7:
+			dw sel335_e_go
+sel335_6:
+			dw kw_cpeqvl, var_screens_pgtx___sel335, 44
+			dw kw_goto_iffalse, sel335_7
+sel335_b7:
 
 			; Screens.cls 421: PgTx = Data.TX_SH5T
-			dw kw_ltov, 19887, var_screens_pgtx_pgtx
+			dw kw_ltov, 20984, var_screens_pgtx_pgtx
 
 			; Screens.cls 422: Case 60
-			dw sel337_e_go
-sel337_7:
-			dw kw_cpeqvl, var_screens_pgtx___sel337, 60
-			dw kw_goto_iffalse, sel337_8
-sel337_b8:
+			dw sel335_e_go
+sel335_7:
+			dw kw_cpeqvl, var_screens_pgtx___sel335, 60
+			dw kw_goto_iffalse, sel335_8
+sel335_b8:
 
 			; Screens.cls 423: PgTx = Data.TX_PP1T
-			dw kw_ltov, 20019, var_screens_pgtx_pgtx
+			dw kw_ltov, 21111, var_screens_pgtx_pgtx
 
 			; Screens.cls 424: Case 61
-			dw sel337_e_go
-sel337_8:
-			dw kw_cpeqvl, var_screens_pgtx___sel337, 61
-			dw kw_goto_iffalse, sel337_9
-sel337_b9:
+			dw sel335_e_go
+sel335_8:
+			dw kw_cpeqvl, var_screens_pgtx___sel335, 61
+			dw kw_goto_iffalse, sel335_9
+sel335_b9:
 
 			; Screens.cls 425: PgTx = Data.TX_PP2T
-			dw kw_ltov, 20320, var_screens_pgtx_pgtx
+			dw kw_ltov, 21438, var_screens_pgtx_pgtx
 
 			; Screens.cls 426: Case 62
-			dw sel337_e_go
-sel337_9:
-			dw kw_cpeqvl, var_screens_pgtx___sel337, 62
-			dw kw_goto_iffalse, sel337_10
-sel337_b10:
+			dw sel335_e_go
+sel335_9:
+			dw kw_cpeqvl, var_screens_pgtx___sel335, 62
+			dw kw_goto_iffalse, sel335_10
+sel335_b10:
 
 			; Screens.cls 427: PgTx = Data.TX_PP3T
-			dw kw_ltov, 20949, var_screens_pgtx_pgtx
+			dw kw_ltov, 22050, var_screens_pgtx_pgtx
 
 			; Screens.cls 428: Case 63
-			dw sel337_e_go
-sel337_10:
-			dw kw_cpeqvl, var_screens_pgtx___sel337, 63
-			dw kw_goto_iffalse, sel337_11
-sel337_b11:
+			dw sel335_e_go
+sel335_10:
+			dw kw_cpeqvl, var_screens_pgtx___sel335, 63
+			dw kw_goto_iffalse, sel335_11
+sel335_b11:
 
 			; Screens.cls 429: PgTx = Data.TX_PP4T
-			dw kw_ltov, 21559, var_screens_pgtx_pgtx
+			dw kw_ltov, 22680, var_screens_pgtx_pgtx
 
 			; Screens.cls 430: Case 50
-			dw sel337_e_go
-sel337_11:
-			dw kw_cpeqvl, var_screens_pgtx___sel337, 50
-			dw kw_goto_iffalse, sel337_12
-sel337_b12:
+			dw sel335_e_go
+sel335_11:
+			dw kw_cpeqvl, var_screens_pgtx___sel335, 50
+			dw kw_goto_iffalse, sel335_12
+sel335_b12:
 
 			; Screens.cls 431: PgTx = Data.TX_FS1T
-			dw kw_ltov, 22132, var_screens_pgtx_pgtx
+			dw kw_ltov, 23264, var_screens_pgtx_pgtx
 
 			; Screens.cls 432: Case 51
-			dw sel337_e_go
-sel337_12:
-			dw kw_cpeqvl, var_screens_pgtx___sel337, 51
-			dw kw_goto_iffalse, sel337_13
-sel337_b13:
+			dw sel335_e_go
+sel335_12:
+			dw kw_cpeqvl, var_screens_pgtx___sel335, 51
+			dw kw_goto_iffalse, sel335_13
+sel335_b13:
 
 			; Screens.cls 433: PgTx = Data.TX_FS2T
-			dw kw_ltov, 22790, var_screens_pgtx_pgtx
+			dw kw_ltov, 23932, var_screens_pgtx_pgtx
 
 			; Screens.cls 434: Case 52
-			dw sel337_e_go
-sel337_13:
-			dw kw_cpeqvl, var_screens_pgtx___sel337, 52
-			dw kw_goto_iffalse, sel337_14
-sel337_b14:
+			dw sel335_e_go
+sel335_13:
+			dw kw_cpeqvl, var_screens_pgtx___sel335, 52
+			dw kw_goto_iffalse, sel335_14
+sel335_b14:
 
 			; Screens.cls 435: PgTx = Data.TX_FS3T
-			dw kw_ltov, 23309, var_screens_pgtx_pgtx
+			dw kw_ltov, 24474, var_screens_pgtx_pgtx
 
 			; Screens.cls 436: Case Else
-			dw sel337_e_go
-sel337_14:
+			dw sel335_e_go
+sel335_14:
 
 			; Screens.cls 437: PgTx = Data.TX_FS4T
-			dw kw_ltov, 23837, var_screens_pgtx_pgtx
+			dw kw_ltov, 24991, var_screens_pgtx_pgtx
 
 			; Screens.cls 438: End Select
-sel337_e:
+sel335_e:
 			dw p_screens_pgtx_r
 p_screens_showpg:
 
@@ -37322,51 +37309,51 @@ p_screens_showpg:
 
 			; Screens.cls 443: If kind = 0 Then
 			dw kw_cpeqvl, var_screens_showpg_kind, 0
-			dw kw_goto_iffalse, if338_1
+			dw kw_goto_iffalse, if336_1
 
 			; Screens.cls 444: Select Case p
-			dw kw_vtov, var_screens_showpg_p, var_screens_showpg___sel339
+			dw kw_vtov, var_screens_showpg_p, var_screens_showpg___sel337
 
 			; Screens.cls 445: Case 0
-			dw kw_cpeqvl, var_screens_showpg___sel339, 0
-			dw kw_goto_iffalse, sel339_1
-sel339_b1:
+			dw kw_cpeqvl, var_screens_showpg___sel337, 0
+			dw kw_goto_iffalse, sel337_1
+sel337_b1:
 
 			; Screens.cls 446: Vid.Page Data.TX_FA1T, KeyTx(p, 5)
 			dw p_screens_keytx_cl, var_screens_showpg_p, lit_5
 			dw kw_vtov, var_screens_keytx_keytx, tmp1
-			dw p_vid_page_c, lit_7151, tmp1
+			dw p_vid_page_c, lit_7621, tmp1
 
 			; Screens.cls 447: Vid.Txt 8, 34, Data.TX_FA1, 1
-			dw p_vid_txt_c, lit_8, lit_34, lit_7157, lit_1
+			dw p_vid_txt_c, lit_8, lit_34, lit_7632, lit_1
 
 			; Screens.cls 448: Case 1
-			dw sel339_e_go
-sel339_1:
-			dw kw_cpeqvl, var_screens_showpg___sel339, 1
-			dw kw_goto_iffalse, sel339_2
-sel339_b2:
+			dw sel337_e_go
+sel337_1:
+			dw kw_cpeqvl, var_screens_showpg___sel337, 1
+			dw kw_goto_iffalse, sel337_2
+sel337_b2:
 
 			; Screens.cls 449: Vid.Page Data.TX_FA2T, KeyTx(p, 5)
 			dw p_screens_keytx_cl, var_screens_showpg_p, lit_5
 			dw kw_vtov, var_screens_keytx_keytx, tmp1
-			dw p_vid_page_c, lit_7690, tmp1
+			dw p_vid_page_c, lit_8232, tmp1
 
 			; Screens.cls 450: Vid.Txt 8, 34, Data.TX_FA2, 1
-			dw p_vid_txt_c, lit_8, lit_34, lit_7696, lit_1
+			dw p_vid_txt_c, lit_8, lit_34, lit_8238, lit_1
 
 			; Screens.cls 451: Case 2
-			dw sel339_e_go
-sel339_2:
-			dw kw_cpeqvl, var_screens_showpg___sel339, 2
-			dw kw_goto_iffalse, sel339_3
-sel339_b3:
+			dw sel337_e_go
+sel337_2:
+			dw kw_cpeqvl, var_screens_showpg___sel337, 2
+			dw kw_goto_iffalse, sel337_3
+sel337_b3:
 
 			; Screens.cls 452: Vid.Page Data.TX_FA3T, Data.TX_K_RH
-			dw p_vid_page_c, lit_8213, lit_776
+			dw p_vid_page_c, lit_8770, lit_781
 
 			; Screens.cls 453: Vid.Txt 8, 34, Data.TX_FA3, 1
-			dw p_vid_txt_c, lit_8, lit_34, lit_8217, lit_1
+			dw p_vid_txt_c, lit_8, lit_34, lit_8783, lit_1
 
 			; Screens.cls 454: RhInit
 			dw p_screens_rhinit_cl
@@ -37375,123 +37362,123 @@ sel339_b3:
 			dw p_screens_rhshow_cl
 
 			; Screens.cls 456: Vid.Txt 8, 196, Data.TX_RH_NOTE, 3
-			dw p_vid_txt_c, lit_8, lit_196, lit_8539, lit_3
+			dw p_vid_txt_c, lit_8, lit_196, lit_9107, lit_3
 
 			; Screens.cls 457: Case 3
-			dw sel339_e_go
-sel339_3:
-			dw kw_cpeqvl, var_screens_showpg___sel339, 3
-			dw kw_goto_iffalse, sel339_4
-sel339_b4:
+			dw sel337_e_go
+sel337_3:
+			dw kw_cpeqvl, var_screens_showpg___sel337, 3
+			dw kw_goto_iffalse, sel337_4
+sel337_b4:
 
 			; Screens.cls 458: Vid.Page Data.TX_FA4T, KeyTx(p, 5)
 			dw p_screens_keytx_cl, var_screens_showpg_p, lit_5
 			dw kw_vtov, var_screens_keytx_keytx, tmp1
-			dw p_vid_page_c, lit_8663, tmp1
+			dw p_vid_page_c, lit_9231, tmp1
 
 			; Screens.cls 459: Vid.Txt 8, 34, Data.TX_FA4, 1
-			dw p_vid_txt_c, lit_8, lit_34, lit_8667, lit_1
+			dw p_vid_txt_c, lit_8, lit_34, lit_9235, lit_1
 
 			; Screens.cls 460: Case Else
-			dw sel339_e_go
-sel339_4:
+			dw sel337_e_go
+sel337_4:
 
 			; Screens.cls 461: Vid.Page Data.TX_FA5T, KeyTx(p, 5)
 			dw p_screens_keytx_cl, var_screens_showpg_p, lit_5
 			dw kw_vtov, var_screens_keytx_keytx, tmp1
-			dw p_vid_page_c, lit_12961, tmp1
+			dw p_vid_page_c, lit_13782, tmp1
 
 			; Screens.cls 462: Vid.Txt 8, 34, Data.TX_FA5, 1
-			dw p_vid_txt_c, lit_8, lit_34, lit_12974, lit_1
+			dw p_vid_txt_c, lit_8, lit_34, lit_13797, lit_1
 
 			; Screens.cls 463: End Select
-sel339_e:
+sel337_e:
 
 			; Screens.cls 464: Vid.PageNo p + 1, 5
 			dw kw_addl, var_screens_showpg_p, 1, tmp0
 			dw p_vid_pageno_c, tmp0, lit_5
 
 			; Screens.cls 465: End If
-if338_1:
+if336_1:
 
 			; Screens.cls 466: If kind = 1 Then
 			dw kw_cpeqvl, var_screens_showpg_kind, 1
-			dw kw_goto_iffalse, if340_1
+			dw kw_goto_iffalse, if338_1
 
 			; Screens.cls 467: Select Case p
-			dw kw_vtov, var_screens_showpg_p, var_screens_showpg___sel341
+			dw kw_vtov, var_screens_showpg_p, var_screens_showpg___sel339
 
 			; Screens.cls 468: Case 0
-			dw kw_cpeqvl, var_screens_showpg___sel341, 0
-			dw kw_goto_iffalse, sel341_1
-sel341_b1:
+			dw kw_cpeqvl, var_screens_showpg___sel339, 0
+			dw kw_goto_iffalse, sel339_1
+sel339_b1:
 
 			; Screens.cls 469: Vid.Page Data.TX_RA1T, KeyTx(p, 4)
 			dw p_screens_keytx_cl, var_screens_showpg_p, lit_4
 			dw kw_vtov, var_screens_keytx_keytx, tmp1
-			dw p_vid_page_c, lit_13450, tmp1
+			dw p_vid_page_c, lit_14297, tmp1
 
 			; Screens.cls 470: Vid.Txt 8, 34, Data.TX_RA1, 1
-			dw p_vid_txt_c, lit_8, lit_34, lit_13471, lit_1
+			dw p_vid_txt_c, lit_8, lit_34, lit_14320, lit_1
 
 			; Screens.cls 471: Case 1
-			dw sel341_e_go
-sel341_1:
-			dw kw_cpeqvl, var_screens_showpg___sel341, 1
-			dw kw_goto_iffalse, sel341_2
-sel341_b2:
+			dw sel339_e_go
+sel339_1:
+			dw kw_cpeqvl, var_screens_showpg___sel339, 1
+			dw kw_goto_iffalse, sel339_2
+sel339_b2:
 
 			; Screens.cls 472: Vid.Page Data.TX_RA2T, KeyTx(p, 4)
 			dw p_screens_keytx_cl, var_screens_showpg_p, lit_4
 			dw kw_vtov, var_screens_keytx_keytx, tmp1
-			dw p_vid_page_c, lit_13937, tmp1
+			dw p_vid_page_c, lit_14821, tmp1
 
 			; Screens.cls 473: Vid.Txt 8, 34, Data.TX_RA2, 1
-			dw p_vid_txt_c, lit_8, lit_34, lit_13951, lit_1
+			dw p_vid_txt_c, lit_8, lit_34, lit_14834, lit_1
 
 			; Screens.cls 474: Case 2
-			dw sel341_e_go
-sel341_2:
-			dw kw_cpeqvl, var_screens_showpg___sel341, 2
-			dw kw_goto_iffalse, sel341_3
-sel341_b3:
+			dw sel339_e_go
+sel339_2:
+			dw kw_cpeqvl, var_screens_showpg___sel339, 2
+			dw kw_goto_iffalse, sel339_3
+sel339_b3:
 
 			; Screens.cls 475: Vid.Page Data.TX_RA3T, KeyTx(p, 4)
 			dw p_screens_keytx_cl, var_screens_showpg_p, lit_4
 			dw kw_vtov, var_screens_keytx_keytx, tmp1
-			dw p_vid_page_c, lit_14418, tmp1
+			dw p_vid_page_c, lit_15333, tmp1
 
 			; Screens.cls 476: Vid.Txt 8, 34, Data.TX_RA3, 1
-			dw p_vid_txt_c, lit_8, lit_34, lit_14435, lit_1
+			dw p_vid_txt_c, lit_8, lit_34, lit_15353, lit_1
 
 			; Screens.cls 477: Hist
 			dw p_screens_hist_cl
 
 			; Screens.cls 478: Case Else
-			dw sel341_e_go
-sel341_3:
+			dw sel339_e_go
+sel339_3:
 
 			; Screens.cls 479: Vid.Page Data.TX_RA4T, KeyTx(p, 4)
 			dw p_screens_keytx_cl, var_screens_showpg_p, lit_4
 			dw kw_vtov, var_screens_keytx_keytx, tmp1
-			dw p_vid_page_c, lit_16803, tmp1
+			dw p_vid_page_c, lit_17816, tmp1
 
 			; Screens.cls 480: Vid.Txt 8, 34, Data.TX_RA4, 1
-			dw p_vid_txt_c, lit_8, lit_34, lit_16825, lit_1
+			dw p_vid_txt_c, lit_8, lit_34, lit_17836, lit_1
 
 			; Screens.cls 481: End Select
-sel341_e:
+sel339_e:
 
 			; Screens.cls 482: Vid.PageNo p + 1, 4
 			dw kw_addl, var_screens_showpg_p, 1, tmp0
 			dw p_vid_pageno_c, tmp0, lit_4
 
 			; Screens.cls 483: End If
-if340_1:
+if338_1:
 
 			; Screens.cls 484: If kind > 2 Then
 			dw kw_scpgtvl, var_screens_showpg_kind, 2
-			dw kw_goto_iffalse, if342_1
+			dw kw_goto_iffalse, if340_1
 
 			; Screens.cls 485: t = PgTx(kind, p)
 			dw p_screens_pgtx_cl, var_screens_showpg_kind, var_screens_showpg_p
@@ -37516,45 +37503,45 @@ if340_1:
 			dw p_vid_pageno_c, tmp0, tmp1
 
 			; Screens.cls 489: End If
-if342_1:
+if340_1:
 
 			; Screens.cls 490: If kind = 2 Then
 			dw kw_cpeqvl, var_screens_showpg_kind, 2
-			dw kw_goto_iffalse, if343_1
+			dw kw_goto_iffalse, if341_1
 
 			; Screens.cls 491: If p = 0 Then
 			dw kw_cpeqvl, var_screens_showpg_p, 0
-			dw kw_goto_iffalse, if344_1
+			dw kw_goto_iffalse, if342_1
 
 			; Screens.cls 492: Vid.Page Data.TX_KY1T, KeyTx(p, 2)
 			dw p_screens_keytx_cl, var_screens_showpg_p, lit_2
 			dw kw_vtov, var_screens_keytx_keytx, tmp1
-			dw p_vid_page_c, lit_14808, tmp1
+			dw p_vid_page_c, lit_15731, tmp1
 
 			; Screens.cls 493: Vid.Txt 8, 34, Data.TX_KY1, 1
-			dw p_vid_txt_c, lit_8, lit_34, lit_14826, lit_1
+			dw p_vid_txt_c, lit_8, lit_34, lit_15754, lit_1
 
 			; Screens.cls 494: Else
-			dw if344_e_go
-if344_1:
+			dw if342_e_go
+if342_1:
 
 			; Screens.cls 495: Vid.Page Data.TX_KY2T, KeyTx(p, 2)
 			dw p_screens_keytx_cl, var_screens_showpg_p, lit_2
 			dw kw_vtov, var_screens_keytx_keytx, tmp1
-			dw p_vid_page_c, lit_15119, tmp1
+			dw p_vid_page_c, lit_16056, tmp1
 
 			; Screens.cls 496: Vid.Txt 8, 34, Data.TX_KY2, 1
-			dw p_vid_txt_c, lit_8, lit_34, lit_15140, lit_1
+			dw p_vid_txt_c, lit_8, lit_34, lit_16076, lit_1
 
 			; Screens.cls 497: End If
-if344_e:
+if342_e:
 
 			; Screens.cls 498: Vid.PageNo p + 1, 2
 			dw kw_addl, var_screens_showpg_p, 1, tmp0
 			dw p_vid_pageno_c, tmp0, lit_2
 
 			; Screens.cls 499: End If
-if343_1:
+if341_1:
 			dw p_screens_showpg_r
 p_screens_pages:
 
@@ -37567,7 +37554,7 @@ p_screens_pages:
 			dw p_screens_showpg_cl, var_screens_pages_kind, var_screens_pages_p
 
 			; Screens.cls 507: Do
-do345_t:
+do343_t:
 
 			; Screens.cls 508: Vid.Sync
 			dw p_vid_sync_c
@@ -37579,29 +37566,29 @@ do345_t:
 			; Screens.cls 510: If (k And 32) <> 0 Then Exit Sub
 			dw kw_andvl, var_screens_pages_k, 32, tmp0
 			dw kw_cpnevl, tmp0, 0
-			dw kw_goto_iffalse, if346_1
+			dw kw_goto_iffalse, if344_1
 			dw p_screens_pages_r
-if346_1:
+if344_1:
 
 			; Screens.cls 511: If (k And 8) <> 0 Then
 			dw kw_andvl, var_screens_pages_k, 8, tmp0
 			dw kw_cpnevl, tmp0, 0
-			dw kw_goto_iffalse, if347_1
+			dw kw_goto_iffalse, if345_1
 
 			; Screens.cls 512: p = p + 1
 			dw kw_inc, var_screens_pages_p
 
 			; Screens.cls 513: If p >= n Then Exit Sub
 			dw kw_scpgevv, var_screens_pages_p, var_screens_pages_n
-			dw kw_goto_iffalse, if348_1
+			dw kw_goto_iffalse, if346_1
 			dw p_screens_pages_r
-if348_1:
+if346_1:
 
 			; Screens.cls 514: ShowPg kind, p
 			dw p_screens_showpg_cl, var_screens_pages_kind, var_screens_pages_p
 
 			; Screens.cls 515: End If
-if347_1:
+if345_1:
 
 			; Screens.cls 516: If (k And 4) <> 0 And p > 0 Then
 			dw kw_andvl, var_screens_pages_k, 4, tmp0
@@ -37610,7 +37597,7 @@ if347_1:
 			dw kw_scpgtvl, var_screens_pages_p, 0
 			dw kw_ftov, tmp1
 			dw kw_andvv, tmp0, tmp1, tmp0
-			dw kw_goto_ifzero, tmp0, if349_1
+			dw kw_goto_ifzero, tmp0, if347_1
 
 			; Screens.cls 517: p = p - 1
 			dw kw_dec, var_screens_pages_p
@@ -37619,7 +37606,7 @@ if347_1:
 			dw p_screens_showpg_cl, var_screens_pages_kind, var_screens_pages_p
 
 			; Screens.cls 519: End If
-if349_1:
+if347_1:
 
 			; Screens.cls 520: If (k And 16) <> 0 And kind = 0 And p = 2 Then RhChange
 			dw kw_andvl, var_screens_pages_k, 16, tmp0
@@ -37631,13 +37618,13 @@ if349_1:
 			dw kw_cpeqvl, var_screens_pages_p, 2
 			dw kw_ftov, tmp1
 			dw kw_andvv, tmp0, tmp1, tmp0
-			dw kw_goto_ifzero, tmp0, do345_t
+			dw kw_goto_ifzero, tmp0, do343_t
 			dw p_screens_rhchange_cl
-if350_1:
+if348_1:
 
 			; Screens.cls 521: Loop
-			dw do345_t_go
-do345_e:
+			dw do343_t_go
+do343_e:
 			dw p_screens_pages_r
 p_screens_fine:
 
@@ -37647,50 +37634,50 @@ p_screens_fine:
 			dw kw_ztov, var_screens_fine_p
 
 			; Screens.cls 527: Do
-do351_t:
+do349_t:
 
 			; Screens.cls 528: Vid.Page Data.TX_F1T, KeyTx(p, 3)
 			dw p_screens_keytx_cl, var_screens_fine_p, lit_3
 			dw kw_vtov, var_screens_keytx_keytx, tmp1
-			dw p_vid_page_c, lit_5945, tmp1
+			dw p_vid_page_c, lit_6316, tmp1
 
 			; Screens.cls 529: Select Case p
-			dw kw_vtov, var_screens_fine_p, var_screens_fine___sel352
+			dw kw_vtov, var_screens_fine_p, var_screens_fine___sel350
 
 			; Screens.cls 530: Case 0
-			dw kw_cpeqvl, var_screens_fine___sel352, 0
-			dw kw_goto_iffalse, sel352_1
-sel352_b1:
+			dw kw_cpeqvl, var_screens_fine___sel350, 0
+			dw kw_goto_iffalse, sel350_1
+sel350_b1:
 
 			; Screens.cls 531: Vid.Txt 8, 34, Data.TX_F1, 1
-			dw p_vid_txt_c, lit_8, lit_34, lit_5958, lit_1
+			dw p_vid_txt_c, lit_8, lit_34, lit_6331, lit_1
 
 			; Screens.cls 532: Case 1
-			dw sel352_e_go
-sel352_1:
-			dw kw_cpeqvl, var_screens_fine___sel352, 1
-			dw kw_goto_iffalse, sel352_2
-sel352_b2:
+			dw sel350_e_go
+sel350_1:
+			dw kw_cpeqvl, var_screens_fine___sel350, 1
+			dw kw_goto_iffalse, sel350_2
+sel350_b2:
 
 			; Screens.cls 533: Vid.Txt 8, 34, Data.TX_F2, 1
-			dw p_vid_txt_c, lit_8, lit_34, lit_6497, lit_1
+			dw p_vid_txt_c, lit_8, lit_34, lit_6927, lit_1
 
 			; Screens.cls 534: Case Else
-			dw sel352_e_go
-sel352_2:
+			dw sel350_e_go
+sel350_2:
 
 			; Screens.cls 535: Vid.Txt 8, 34, Data.TX_F3, 1
-			dw p_vid_txt_c, lit_8, lit_34, lit_6759, lit_1
+			dw p_vid_txt_c, lit_8, lit_34, lit_7188, lit_1
 
 			; Screens.cls 536: End Select
-sel352_e:
+sel350_e:
 
 			; Screens.cls 537: Vid.PageNo p + 1, 3
 			dw kw_addl, var_screens_fine_p, 1, tmp0
 			dw p_vid_pageno_c, tmp0, lit_3
 
 			; Screens.cls 538: Do
-do353_t:
+do351_t:
 
 			; Screens.cls 539: Vid.Sync
 			dw p_vid_sync_c
@@ -37702,32 +37689,32 @@ do353_t:
 			; Screens.cls 541: Loop Until (k And 60) <> 0
 			dw kw_andvl, var_screens_fine_k, 60, tmp0
 			dw kw_cpnevl, tmp0, 0
-			dw kw_goto_iffalse, do353_t
-do353_e:
+			dw kw_goto_iffalse, do351_t
+do351_e:
 
 			; Screens.cls 542: If (k And 32) <> 0 Then Exit Sub
 			dw kw_andvl, var_screens_fine_k, 32, tmp0
 			dw kw_cpnevl, tmp0, 0
-			dw kw_goto_iffalse, if354_1
+			dw kw_goto_iffalse, if352_1
 			dw p_screens_fine_r
-if354_1:
+if352_1:
 
 			; Screens.cls 543: If (k And 8) <> 0 Then
 			dw kw_andvl, var_screens_fine_k, 8, tmp0
 			dw kw_cpnevl, tmp0, 0
-			dw kw_goto_iffalse, if355_1
+			dw kw_goto_iffalse, if353_1
 
 			; Screens.cls 544: p = p + 1
 			dw kw_inc, var_screens_fine_p
 
 			; Screens.cls 545: If p > 2 Then Exit Sub
 			dw kw_scpgtvl, var_screens_fine_p, 2
-			dw kw_goto_iffalse, if356_1
+			dw kw_goto_iffalse, if354_1
 			dw p_screens_fine_r
-if356_1:
+if354_1:
 
 			; Screens.cls 546: End If
-if355_1:
+if353_1:
 
 			; Screens.cls 547: If (k And 4) <> 0 And p > 0 Then p = p - 1
 			dw kw_andvl, var_screens_fine_k, 4, tmp0
@@ -37736,13 +37723,13 @@ if355_1:
 			dw kw_scpgtvl, var_screens_fine_p, 0
 			dw kw_ftov, tmp1
 			dw kw_andvv, tmp0, tmp1, tmp0
-			dw kw_goto_ifzero, tmp0, do351_t
+			dw kw_goto_ifzero, tmp0, do349_t
 			dw kw_dec, var_screens_fine_p
-if357_1:
+if355_1:
 
 			; Screens.cls 548: Loop
-			dw do351_t_go
-do351_e:
+			dw do349_t_go
+do349_e:
 			dw p_screens_fine_r
 ovl_playp__2_e:
 ; calls from this page into it (no page switch), GOTO / GOSUB of copies
@@ -39133,115 +39120,115 @@ ovl_playp_vsize	equ 0		; its page variables; its local memory is the rest, to #8
 			MMU 0 1, 12
 			org #0000
 			INCBIN "INTRO.DAT", 65536, 16384
-			MMU 0 1, 14
-			org #0000
-			INCBIN "INTRO.DAT", 81920, 16384
 			MMU 0 1, 22
 			org #0000
-			INCBIN "INTRO.DAT", 98304, 16384
+			INCBIN "INTRO.DAT", 81920, 16384
 			MMU 0 1, 44
 			org #0000
-			INCBIN "INTRO.DAT", 114688, 16384
+			INCBIN "INTRO.DAT", 98304, 16384
 			MMU 0 1, 46
 			org #0000
-			INCBIN "INTRO.DAT", 131072, 16384
+			INCBIN "INTRO.DAT", 114688, 16384
 			MMU 0 1, 48
 			org #0000
-			INCBIN "INTRO.DAT", 147456, 16384
+			INCBIN "INTRO.DAT", 131072, 16384
 			MMU 0 1, 50
 			org #0000
-			INCBIN "INTRO.DAT", 163840, 16384
+			INCBIN "INTRO.DAT", 147456, 16384
 			MMU 0 1, 52
 			org #0000
-			INCBIN "INTRO.DAT", 180224, 16384
+			INCBIN "INTRO.DAT", 163840, 16384
 			MMU 0 1, 54
 			org #0000
-			INCBIN "INTRO.DAT", 196608, 16384
+			INCBIN "INTRO.DAT", 180224, 16384
 			MMU 0 1, 56
 			org #0000
-			INCBIN "INTRO.DAT", 212992, 16384
+			INCBIN "INTRO.DAT", 196608, 16384
 			MMU 0 1, 58
 			org #0000
-			INCBIN "INTRO.DAT", 229376, 16384
+			INCBIN "INTRO.DAT", 212992, 16384
 			MMU 0 1, 60
 			org #0000
-			INCBIN "INTRO.DAT", 245760, 16384
+			INCBIN "INTRO.DAT", 229376, 16384
 			MMU 0 1, 62
 			org #0000
-			INCBIN "INTRO.DAT", 262144, 16384
+			INCBIN "INTRO.DAT", 245760, 16384
 			MMU 0 1, 64
 			org #0000
-			INCBIN "INTRO.DAT", 278528, 16384
+			INCBIN "INTRO.DAT", 262144, 16384
 			MMU 0 1, 66
 			org #0000
-			INCBIN "INTRO.DAT", 294912, 16384
+			INCBIN "INTRO.DAT", 278528, 16384
 			MMU 0 1, 68
 			org #0000
-			INCBIN "INTRO.DAT", 311296, 16384
+			INCBIN "INTRO.DAT", 294912, 16384
 			MMU 0 1, 70
 			org #0000
-			INCBIN "INTRO.DAT", 327680, 16384
+			INCBIN "INTRO.DAT", 311296, 16384
 			MMU 0 1, 72
 			org #0000
-			INCBIN "INTRO.DAT", 344064, 16384
+			INCBIN "INTRO.DAT", 327680, 16384
 			MMU 0 1, 74
 			org #0000
-			INCBIN "INTRO.DAT", 360448, 16384
+			INCBIN "INTRO.DAT", 344064, 16384
 			MMU 0 1, 76
 			org #0000
-			INCBIN "INTRO.DAT", 376832, 16384
+			INCBIN "INTRO.DAT", 360448, 16384
 			MMU 0 1, 78
 			org #0000
-			INCBIN "INTRO.DAT", 393216, 16384
+			INCBIN "INTRO.DAT", 376832, 16384
 			MMU 0 1, 80
 			org #0000
-			INCBIN "INTRO.DAT", 409600, 16384
+			INCBIN "INTRO.DAT", 393216, 16384
 			MMU 0 1, 82
 			org #0000
-			INCBIN "INTRO.DAT", 425984, 16384
+			INCBIN "INTRO.DAT", 409600, 16384
 			MMU 0 1, 84
 			org #0000
-			INCBIN "INTRO.DAT", 442368, 16384
+			INCBIN "INTRO.DAT", 425984, 16384
 			MMU 0 1, 86
 			org #0000
-			INCBIN "INTRO.DAT", 458752, 16384
+			INCBIN "INTRO.DAT", 442368, 16384
 			MMU 0 1, 88
 			org #0000
-			INCBIN "INTRO.DAT", 475136, 16384
+			INCBIN "INTRO.DAT", 458752, 16384
 			MMU 0 1, 90
 			org #0000
-			INCBIN "INTRO.DAT", 491520, 16384
+			INCBIN "INTRO.DAT", 475136, 16384
 			MMU 0 1, 92
 			org #0000
-			INCBIN "INTRO.DAT", 507904, 16384
+			INCBIN "INTRO.DAT", 491520, 16384
 			MMU 0 1, 94
 			org #0000
-			INCBIN "INTRO.DAT", 524288, 16384
+			INCBIN "INTRO.DAT", 507904, 16384
 			MMU 0 1, 96
 			org #0000
-			INCBIN "INTRO.DAT", 540672, 16384
+			INCBIN "INTRO.DAT", 524288, 16384
 			MMU 0 1, 98
 			org #0000
-			INCBIN "INTRO.DAT", 557056, 16384
+			INCBIN "INTRO.DAT", 540672, 16384
 			MMU 0 1, 100
 			org #0000
-			INCBIN "INTRO.DAT", 573440, 16384
+			INCBIN "INTRO.DAT", 557056, 16384
 			MMU 0 1, 102
 			org #0000
-			INCBIN "INTRO.DAT", 589824, 16384
+			INCBIN "INTRO.DAT", 573440, 16384
 			MMU 0 1, 104
 			org #0000
-			INCBIN "INTRO.DAT", 606208, 16384
+			INCBIN "INTRO.DAT", 589824, 16384
 			MMU 0 1, 106
 			org #0000
-			INCBIN "INTRO.DAT", 622592, 16384
+			INCBIN "INTRO.DAT", 606208, 16384
 			MMU 0 1, 108
 			org #0000
-			INCBIN "INTRO.DAT", 638976, 16384
+			INCBIN "INTRO.DAT", 622592, 16384
 			MMU 0 1, 110
 			org #0000
-			INCBIN "INTRO.DAT", 655360, 16384
+			INCBIN "INTRO.DAT", 638976, 16384
 			MMU 0 1, 112
+			org #0000
+			INCBIN "INTRO.DAT", 655360, 16384
+			MMU 0 1, 114
 			org #0000
 			INCBIN "INTRO.DAT", 671744, 16384
 			MMU 3, 11			; page 11 (bank 5's second half) at #6000 to assemble the stub
@@ -39256,36 +39243,26 @@ zxn_boot:
 			and %11100111
 			out (c), a
 			dec b
-; DivMMC: its automatic paging stays as NextZXOS left it (on) - turning it off and on
-; again loses esxDOS's state in some emulators - but its entry points are cut to RST 8
-; with ROM 3 selected (#B8 = 2, #B9 = 0: the RST vectors need ROM 3; #BB = 0: no #3Dxx,
-; #0066, tape traps). A program never does rst 8 with ROM 3 in, so nothing pages it in;
-; CyborgOS's SD drive does exactly that for its esxDOS calls (ROM 3 in slots 0-1, rst 8).
-; Tested on NextZXOS 2.06H (JNEXT, 2026-10-21): esxDOS calls work with these - when the NEX
-; is started by NextZXOS (the browser, .nexload, an autoexec), not loaded as a snapshot,
-; which skips the DOS's own set-up and leaves every call answering "nonsense" (2)
-			ld a, #B8
-			out (c), a
-			inc b
-			ld a, 2
-			out (c), a
-			dec b
-			ld a, #B9
-			out (c), a
-			inc b
-			xor a
-			out (c), a
-			dec b
-			ld a, #BB
-			out (c), a
-			inc b
-			xor a
-			out (c), a
-			dec b
+; DivMMC: its automatic paging and its entry points stay exactly as NextZXOS left them
+; (NextRegs #B8-#BB untouched). Until 20261110-2 the stub cut them to "rst 8 with ROM 3"
+; (#B8 = 2, #B9 = 0, #BB = 0): every emulator ran that; four games crashed on a real Next
+; at their first esxDOS call, and #BB = 0 also cleared bit 6, the 0x1FF8-0x1FFF exit the DOS
+; leaves its memory by - the emulators do not model those registers (ZEsarUX ignores them),
+; so nothing here can prove it; the DOS's own setting is the one every working NEX runs
+; with. NextZXOS's setting traps rst 8
+; (and #0038, #3Dxx, the tape entries) only with ROM 3 paged, which a program never has
+; except round an esxDOS call (the FileSystem class, CyborgOS's SD drive: ROM 3 in
+; slots 0-1, rst 8, ROM 3 off), so nothing pages DivMMC in by accident
 ; (no out (#E3): DivMMC's memory is already out when a NEX starts - .nexload leaves it so -
 ; and writing the port selects its RAM bank 0 and drops MAPRAM, which loses NextZXOS's esxDOS
 ; state: its file handles are in DivMMC RAM. With it untouched, RST 8 calls work from the program
 ; (automap on, the ROM in slots 0-1 for the call: CyborgOS's SD drive does that)
+			ld a, #8E		; the 128K paging: normal mode, ROM 0 (no change to slots 6-7: bit 3 = 0). NextZXOS's
+			out (c), a		; DivMMC entry points (rst 8, #0038, #3Dxx, the tape addresses) trap only with ROM 3
+			inc b			; selected: with ROM 0 none can, whatever a slot holds; an esxDOS call selects ROM 3
+			xor a			; round its rst 8 and puts ROM 0 back (the FileSystem class, CyborgOS's SD drive)
+			out (c), a
+			dec b
 			ld a, 7			; CPU speed: 28MHz
 			out (c), a
 			inc b
@@ -39320,7 +39297,7 @@ zxn_mmu:	db #50, 16, #51, 17, #52, 18, #54, 20, #55, 21, #56, 10, #57, 11
 			SAVENEX OPEN "INTRO.NEX", zxn_boot, #7E00
 			SAVENEX CORE 3, 0, 0
 			SAVENEX CFG 0, 0, 0, 1		; banks past 47: a 2MB Next
-			SAVENEX BANK 5, 2, 1, 3, 4, 6, 7, 8, 9, 10, 11, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 75, 76, 77
+			SAVENEX BANK 5, 2, 1, 3, 4, 6, 8, 9, 10, 11, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 76, 77, 78
 			SAVENEX CLOSE
 
-NTC_STAMP	equ #2275		; the build stamp: the first word of every page file
+NTC_STAMP	equ #BE66		; the build stamp: the first word of every page file

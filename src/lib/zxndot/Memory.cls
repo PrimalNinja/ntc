@@ -6,7 +6,7 @@
 ' program builds with either. Decided when compiling: only that scheme's code is in the
 ' program.
 '
-' Option Memory CPCExpansion [maxpages]   (the default on cpc, cpcmin, cpcfw)
+' Option Memory Heap Pages   (the default on cpc, cpcmin, cpcfw)
 '   16K RAM pages switched into #4000-#7FFF (the window) by the gate array, up to a 4MB
 '   expansion: page 1 = main RAM #4000-#7FFF, pages 2+ = 4 for each 64K bank found (6128:
 '   pages 2-5), the standard 512K (port #7F) first, then the 512K blocks on #7E .. #78.
@@ -25,7 +25,7 @@
 '   of the window (Option Memory Reserved &H4000, &H4000), else Pages() = 0. Anything the program
 '   reads or writes in the window (Poke, FileSystem.Load ...) goes to the page in it then.
 '
-' Option Memory Small   (the default on cpm and test; any platform)
+' Option Memory Heap Main   (the default on cpm and test; any platform)
 '   No paging: Alloc / Free over the free main RAM, from the program's end up to the
 '   platform's top (CPC #A600, CP/M the BDOS, a dot command #4000 / #FF80), the stack, or an Option Memory Reserved range -
 '   HeapStart() / HeapEnd(). Far pointers are plain addresses (page 0). Pages() = 0; the

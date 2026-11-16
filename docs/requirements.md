@@ -54,7 +54,7 @@ what the platform classes (`StdIO`, `System`, `FileSystem`, `Memory`) can do.
 | Target | Name | Output | Runs on | Needs |
 |---|---|---|---|---|
 | Amstrad CPC, no firmware | `cpc` | `NAME.BIN` (AMSDOS header) at `#0040`, `RUN"NAME` | CPC 464 / 664 / 6128 | nothing: ROMs off, own screen, keys and interrupt handler; all RAM from `#0040` to the stack. No files |
-| Amstrad CPC, minimal firmware | `cpcmin` | `NAME.BIN` at `#0040` | CPC 464 / 664 / 6128 | the firmware's RAM (`#A700-#BFFF`) left alone, handed back for discs, tape and ROM commands. Files: AMSDOS (`Option RomEnable 7` after `RUN"`); the program must end below `#A600` |
+| Amstrad CPC, minimal firmware | `cpcmin` | `NAME.BIN` at `#0040` | CPC 464 / 664 / 6128 | the firmware's RAM (`#A700-#BFFF`) left alone, handed back for discs, tape and ROM commands. Files: AMSDOS (`Option ROM Enable 7` after `RUN"`); the program must end below `#A600` |
 | Amstrad CPC, full firmware | `cpcfw` | `NAME.BIN` at `#0040` | CPC 464 / 664 / 6128 | the firmware for text, keys and files (AMSDOS, other ROMs' commands); program below `#A600` when it uses files |
 | CP/M 2.2 / 3 | `cpm` | `NAME.COM` at `#0100`, ends with a warm boot | any Z80 CP/M machine | BDOS only. Console: a stream, or 80 x 24 with `Option Terminal VT52 / ANSI` |
 | Test harness | `test` | raw `NAME.BIN` at `#4000` | `test/ntcrun.py` only | - |
@@ -75,9 +75,9 @@ What each target can do:
 | Screen | own drawing, CPC font, modes 0 / 1 / 2 | own drawing | firmware text | BDOS console | ports | the tilemap's text mode, 40 x 32 / 80 x 32 |
 | Interrupts (normal mode, `Interrupt`) | own handler, 300 Hz | own handler | firmware, plus a fast ticker event for `Interrupt` | - | - | own handler, the line interrupt: 300 Hz |
 | Files (`FileSystem`) | - | Load / Save, tape / disc, volumes | Load / Save, tape / disc, volumes | everything (sequential, random access, delete, rename ...) | - | - (later: NextZXOS / esxDOS) |
-| RAM pages (`Memory`, `Option Memory CPCExpansion`) | up to a 4MB expansion | up to a 4MB expansion | up to a 4MB expansion | - | - | - (later: the Next's 8K pages) |
-| Data in the program's file (`Option NexData`: 16K blocks loaded into banks) | - | - | - | - | - | up to 96 blocks (1.5 MB; past bank 47 a 2MB Next; never bank 7, +3DOS's) |
-| Heap in main RAM (`Option Memory Small`) | yes | yes | yes | yes (up to the BDOS) | yes | yes (up to `#BE00`) |
+| RAM pages (`Memory`, `Option Memory Heap Pages`) | up to a 4MB expansion | up to a 4MB expansion | up to a 4MB expansion | - | - | - (later: the Next's 8K pages) |
+| Data in the program's file (`Option SaveNex`: 16K pieces in the pages named) | - | - | - | - | - | up to 90 pages (1.4 MB: Next banks 22-111; past Next bank 47 a 2MB Next) |
+| Heap in main RAM (`Option Memory Heap Main`) | yes | yes | yes | yes (up to the BDOS) | yes | yes (up to `#BE00`) |
 | ROM commands (`System.Command`) | - | yes | yes | - | - | - |
 | Overlay classes (`Option Class Overlay`) | - | yes (RAM pages, or one overlay area with `Small`) | yes (the same) | yes (one overlay area) | - | - |
 | Pages (`Option Page`: several classes a page, classes copied into pages) | - | yes (RAM pages, or one overlay area with `Small`) | yes (the same) | yes (one overlay area) | - | - |

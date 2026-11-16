@@ -3,7 +3,7 @@
 ' MMain.bas); Option Deprecated allows it, so the test still exercises that path.
 Option Deprecated
 Option Safe Areas = &H3000, &H0800
-Option Safe "BANK" = Bank
+Option Class Safe "BANK" = Bank
 Dim r As Integer
 r = Bank.Add(10, 20)
 Print "bank add "; r

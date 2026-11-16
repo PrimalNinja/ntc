@@ -3,7 +3,7 @@
 ' disc keeps whole 128 byte records: 384 come back). Eof reads a byte ahead (CAS TEST EOF at a
 ' #1A loses bytes - checked on the real ROMs with realcpc)
 Option PressAnyKeyOnEnd "Press a key"
-Option RomEnable 7
+Option ROM Enable 7
 Dim b(511) As Byte, c(511) As Byte
 Dim h As Integer, n As Integer, k As Integer, e As Integer, i As Integer, d As Integer
 h = FileSystem.Open("RAW.COM", FileSystem.ForRead)

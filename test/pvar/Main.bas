@@ -1,6 +1,6 @@
 ' Paged variables and local memory in an overlay class, with a List in D pages (regress.sh):
 ' cpcmin / cpcfw
-Option RomEnable 7
+Option ROM Enable 7
 Option Memory Reserved &H4000, &H4000
 Dim h As Long, n As Long, i As Integer, r As Integer
 ' a list of 200 records (4 bytes: id, value) in the heap's D pages

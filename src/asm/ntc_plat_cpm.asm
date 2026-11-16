@@ -17,7 +17,8 @@
 ; Option Terminal VT52 (Amstrad CP/M on the CPC and PCW, many
 ; others) or ANSI (most emulators and modern terminals) gives Cls
 ; and Locate with the terminal's codes (NTC_TERM, set by the
-; compiler: 0 none, 1 VT52, 2 ANSI). Mode does nothing. 80
+; compiler: 0 none, 1 VT52, 2 ANSI, 3 ADM-3A, 4 Televideo; StdIO.SetTerminal
+; changes it while the program runs). Mode does nothing. 80
 ; columns are counted for Tab; the terminal does its own wrapping.
 ; ============================================================
 ;@name     CP/M 2.2 / 3 (BDOS console)
@@ -125,7 +126,7 @@ ntc_bs_none:
 			jp (ix)
 
 ;## ntc_plat_cls @unit ntc_plat_screen ntc_plat_bdos ntc_plat_data ntc_data
-	IF NTC_TERM = 0
+	IF (NTC_TERM = 0) && (NTC_TERM_RT = 0)
 ; ntc_plat_cls - a stream can't be cleared: a new line (unless at the start)
 ntc_plat_cls:
 			ld a, (ntc_curx)
@@ -137,15 +138,41 @@ ntc_plat_cls:
 ntc_plat_locate:
 			jp (ix)
 	ELSE
-; ntc_plat_cls - clear and home with the terminal's codes
+; The terminal is a number in RAM (ntc_termno: 0 none - a stream, 1 VT52, 2 ANSI, 3 ADM-3A,
+; 4 Televideo), set by Option Terminal at the start and by StdIO.SetTerminal while the program
+; runs (20261116-4), so one .COM serves any of them.
+; ntc_plat_cls - clear and home with the terminal's codes (none: a new line, as a stream)
 ntc_plat_cls:
+			ld a, (ntc_termno)
+			or a
+			jr nz, ntc_cl_term
+			ld a, (ntc_curx)
+			or a
+			jp nz, ntc_plat_newline
+			jp (ix)
+ntc_cl_term:
+			ld hl, ntc_term_cls1
+			dec a
+			jr z, ntc_cl_go
+			ld hl, ntc_term_cls2
+			dec a
+			jr z, ntc_cl_go
+			ld hl, ntc_term_cls3
+			dec a
+			jr z, ntc_cl_go
+			ld hl, ntc_term_cls4
+ntc_cl_go:
 			xor a
 			ld (ntc_curx), a
-			ld hl, ntc_term_cls
 			jp ntc_cpm_puts
 
-; ntc_plat_locate - H = column, L = row, 1 based (kept on an 80 x 24 screen)
+; ntc_plat_locate - H = column, L = row, 1 based (kept on an 80 x 24 screen); nothing on a stream
 ntc_plat_locate:
+			ld a, (ntc_termno)
+			or a
+			jr nz, ntc_lc_term
+			jp (ix)
+ntc_lc_term:
 			ld a, h
 			or a
 			jr nz, ntc_lc_x
@@ -169,12 +196,18 @@ ntc_lc_y:
 ntc_lc_yok:
 			ld l, a
 			ld de, ntc_term_buf
-		IF NTC_TERM = 1
-			; VT52: ESC Y row+31 column+31
 			ld a, 27
 			ld (de), a
 			inc de
+			ld a, (ntc_termno)
+			cp 2
+			jr z, ntc_lc_ansi
+			; VT52: ESC Y row+31 column+31. ADM-3A and Televideo: ESC = row+31 column+31
+			cp 1
 			ld a, 'Y'
+			jr z, ntc_lc_lead
+			ld a, '='
+ntc_lc_lead:
 			ld (de), a
 			inc de
 			ld a, l
@@ -185,11 +218,9 @@ ntc_lc_yok:
 			add a, 31
 			ld (de), a
 			inc de
-		ELSE
+			jr ntc_lc_send
+ntc_lc_ansi:
 			; ANSI: ESC [ row ; column H
-			ld a, 27
-			ld (de), a
-			inc de
 			ld a, '['
 			ld (de), a
 			inc de
@@ -233,7 +264,7 @@ ntc_lc_c1:
 			ld a, 'H'
 			ld (de), a
 			inc de
-		ENDIF
+ntc_lc_send:
 			xor a
 			ld (de), a
 			ld hl, ntc_term_buf
@@ -261,11 +292,11 @@ ntc_cps_done:
 ntc_cplink:		dw 0
 ntc_cpsp:		dw 0
 ntc_term_buf:	ds 10
-		IF NTC_TERM = 1
-ntc_term_cls:	db 27, "E", 27, "H", 0		; VT52: clear, home
-		ELSE
-ntc_term_cls:	db 27, "[2J", 27, "[H", 0	; ANSI: clear, home
-		ENDIF
+ntc_termno:		db NTC_TERM					; the terminal in use (StdIO.SetTerminal changes it)
+ntc_term_cls1:	db 27, "E", 27, "H", 0		; VT52: clear, home
+ntc_term_cls2:	db 27, "[2J", 27, "[H", 0	; ANSI: clear, home
+ntc_term_cls3:	db 26, 0					; ADM-3A: Ctrl-Z clears and homes
+ntc_term_cls4:	db 27, "*", 0				; Televideo: ESC * clears and homes
 	ENDIF
 
 ;## ntc_plat_mode @unit ntc_plat_screen ntc_plat_bdos ntc_plat_data ntc_data

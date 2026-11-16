@@ -5,7 +5,8 @@
 
 			org #0100
 
-NTC_TERM	equ 0		; Option Terminal: 0 none, 1 VT52, 2 ANSI (CP/M)
+NTC_TERM	equ 0		; Option Terminal: 0 none, 1 VT52, 2 ANSI, 3 ADM-3A, 4 Televideo (CP/M)
+NTC_TERM_RT	equ 0		; 1: the program calls StdIO.SetTerminal (the terminal is chosen while it runs)
 NTC_STRMAX	equ 40		; the longest string (library buffers, temps)
 NTC_MEMBANKS	equ 64		; Option Memory: the most 64K banks the Memory class looks for
 NTC_ROMENABLE	equ 0		; Option RomEnable (cpcfw, cpcmin): the start code starts the ROMs
@@ -338,10 +339,12 @@ p_dist2:
 p_grow:
 
 			; 107: a.x = a.x + n
-			dw kw_add, var_grow_a_x, var_grow_n, var_grow_a_x
+ntc_rf1:
+			dw kw_add, 0, var_grow_n, 0
 
 			; 108: a.y = a.y + n
-			dw kw_add, var_grow_a_y, var_grow_n, var_grow_a_y
+ntc_rf2:
+			dw kw_add, 0, var_grow_n, 0
 			dw p_grow_r
 
 ; ============================================================
@@ -361,15 +364,20 @@ p_nogrow:
 p_setarea:
 
 			; 117: bx.area = CLng(bx.size.x) * bx.size.y
-			dw kw_l_itol, var_setarea_bx_size_x, ltmp0
-			dw kw_l_itol, var_setarea_bx_size_y, ltmp1
-			dw kw_l_mul, ltmp0, ltmp1, var_setarea_bx_area
+ntc_rf3:
+			dw kw_l_itol, 0, ltmp0
+ntc_rf4:
+			dw kw_l_itol, 0, ltmp1
+ntc_rf5:
+			dw kw_l_mul, ltmp0, ltmp1, 0
 
 			; 118: bx.name = bx.name & "!"
-			dw kw_strcat, var_setarea_bx_name, str14
+ntc_rf6:
+			dw kw_strcat, 0, str14
 
 			; 119: Grow bx.topleft, 1
-			dw p_grow_c, var_setarea_bx_topleft_x, var_setarea_bx_topleft_y, lit_1
+ntc_rf7:
+			dw p_grow_c, 0, 0, lit_1
 			dw p_setarea_r
 
 ; ============================================================
@@ -379,10 +387,12 @@ p_setarea:
 p_twice2:
 
 			; 124: Twice2 = Dist2(a) \ 10 + a.x
-			dw p_dist2_c, var_twice2_a_x, var_twice2_a_y
+ntc_rf8:
+			dw p_dist2_c, 0, 0
 			dw kw_vtov, var_dist2_dist2, tmp0
 			dw kw_divvl, tmp0, 10, tmp0
-			dw kw_add, tmp0, var_twice2_a_x, var_twice2_twice2
+ntc_rf9:
+			dw kw_add, tmp0, 0, var_twice2_twice2
 			dw p_twice2_r
 
 ; ============================================================
@@ -563,15 +573,11 @@ p_dist2_r:		; end of dist2
 			jp ntc_xn
 p_grow_c:		; call grow (normal)
 			pop hl			; a.x
-			ld (p_grow_a0_0), hl
-			ld de, var_grow_a_x
-			ld bc, 2
-			ldir
+			ld (ntc_rf1 + 2), hl		; (by reference: var_grow_a_x)
+			ld (ntc_rf1 + 6), hl		; (by reference: var_grow_a_x)
 			pop hl			; a.y
-			ld (p_grow_a0_1), hl
-			ld de, var_grow_a_y
-			ld bc, 2
-			ldir
+			ld (ntc_rf2 + 2), hl		; (by reference: var_grow_a_y)
+			ld (ntc_rf2 + 6), hl		; (by reference: var_grow_a_y)
 			pop hl			; n
 			ld e, (hl)
 			inc hl
@@ -581,14 +587,6 @@ p_grow_c:		; call grow (normal)
 			ld sp, p_grow
 			jp ntc_xn
 p_grow_r:		; end of grow
-			ld de, (p_grow_a0_0)
-			ld hl, var_grow_a_x
-			ld bc, 2
-			ldir
-			ld de, (p_grow_a0_1)
-			ld hl, var_grow_a_y
-			ld bc, 2
-			ldir
 			ld sp, (p_grow_rs)
 			jp ntc_xn
 p_nogrow_c:		; call nogrow (normal)
@@ -608,97 +606,29 @@ p_nogrow_r:		; end of nogrow
 			jp ntc_xn
 p_setarea_c:		; call setarea (normal)
 			pop hl			; bx.name
-			ld (p_setarea_a0_0), hl
-			ld de, var_setarea_bx_name
-			ld b, 40
-p_setarea_si0_0:
-			ld a, (hl)
-			ld (de), a
-			or a
-			jr z, p_setarea_si0_0_e
-			inc hl
-			inc de
-			djnz p_setarea_si0_0
-			xor a
-			ld (de), a
-p_setarea_si0_0_e:
+			ld (ntc_rf6 + 2), hl		; (by reference: var_setarea_bx_name)
 			pop hl			; bx.topleft.x
-			ld (p_setarea_a0_1), hl
-			ld de, var_setarea_bx_topleft_x
-			ld bc, 2
-			ldir
+			ld (ntc_rf7 + 2), hl		; (by reference: var_setarea_bx_topleft_x)
 			pop hl			; bx.topleft.y
-			ld (p_setarea_a0_2), hl
-			ld de, var_setarea_bx_topleft_y
-			ld bc, 2
-			ldir
+			ld (ntc_rf7 + 4), hl		; (by reference: var_setarea_bx_topleft_y)
 			pop hl			; bx.size.x
-			ld (p_setarea_a0_3), hl
-			ld de, var_setarea_bx_size_x
-			ld bc, 2
-			ldir
+			ld (ntc_rf3 + 2), hl		; (by reference: var_setarea_bx_size_x)
 			pop hl			; bx.size.y
-			ld (p_setarea_a0_4), hl
-			ld de, var_setarea_bx_size_y
-			ld bc, 2
-			ldir
+			ld (ntc_rf4 + 2), hl		; (by reference: var_setarea_bx_size_y)
 			pop hl			; bx.area
-			ld (p_setarea_a0_5), hl
-			ld de, var_setarea_bx_area
-			ld bc, 4
-			ldir
+			ld (ntc_rf5 + 6), hl		; (by reference: var_setarea_bx_area)
 			ld (p_setarea_rs), sp
 			ld sp, p_setarea
 			jp ntc_xn
 p_setarea_r:		; end of setarea
-			ld de, (p_setarea_a0_0)
-			ld hl, var_setarea_bx_name
-			dec de
-			ld a, (de)		; the destination's capacity
-			ld b, a
-			inc de
-p_setarea_so0_0:
-			ld a, (hl)
-			ld (de), a
-			or a
-			jr z, p_setarea_so0_0_e
-			inc hl
-			inc de
-			djnz p_setarea_so0_0
-			xor a
-			ld (de), a
-p_setarea_so0_0_e:
-			ld de, (p_setarea_a0_1)
-			ld hl, var_setarea_bx_topleft_x
-			ld bc, 2
-			ldir
-			ld de, (p_setarea_a0_2)
-			ld hl, var_setarea_bx_topleft_y
-			ld bc, 2
-			ldir
-			ld de, (p_setarea_a0_3)
-			ld hl, var_setarea_bx_size_x
-			ld bc, 2
-			ldir
-			ld de, (p_setarea_a0_4)
-			ld hl, var_setarea_bx_size_y
-			ld bc, 2
-			ldir
-			ld de, (p_setarea_a0_5)
-			ld hl, var_setarea_bx_area
-			ld bc, 4
-			ldir
 			ld sp, (p_setarea_rs)
 			jp ntc_xn
 p_twice2_c:		; call twice2 (normal)
 			pop hl			; a.x
-			ld de, var_twice2_a_x
-			ld bc, 2
-			ldir
+			ld (ntc_rf8 + 2), hl		; (by reference: var_twice2_a_x)
+			ld (ntc_rf9 + 4), hl		; (by reference: var_twice2_a_x)
 			pop hl			; a.y
-			ld de, var_twice2_a_y
-			ld bc, 2
-			ldir
+			ld (ntc_rf8 + 4), hl		; (by reference: var_twice2_a_y)
 			ld hl, 0
 			ld (var_twice2_twice2), hl
 			ld (p_twice2_rs), sp
@@ -805,30 +735,11 @@ var_dist2_a_x:			dw 0
 var_dist2_a_y:			dw 0
 p_grow_rs:			dw 0
 var_grow_n:			dw 0
-p_grow_a0_0:			dw 0
-var_grow_a_x:			dw 0
-p_grow_a0_1:			dw 0
-var_grow_a_y:			dw 0
 p_nogrow_rs:			dw 0
 var_nogrow_a_x:			dw 0
 var_nogrow_a_y:			dw 0
 p_setarea_rs:			dw 0
-p_setarea_a0_0:			dw 0
-			db 40			; capacity
-var_setarea_bx_name:			ds 41
-p_setarea_a0_1:			dw 0
-var_setarea_bx_topleft_x:			dw 0
-p_setarea_a0_2:			dw 0
-var_setarea_bx_topleft_y:			dw 0
-p_setarea_a0_3:			dw 0
-var_setarea_bx_size_x:			dw 0
-p_setarea_a0_4:			dw 0
-var_setarea_bx_size_y:			dw 0
-p_setarea_a0_5:			dw 0
-var_setarea_bx_area:			dw 0, 0
 p_twice2_rs:			dw 0
-var_twice2_a_x:			dw 0
-var_twice2_a_y:			dw 0
 p_corner_rs:			dw 0
 p_sum2_rs:			dw 0
 var_sum2_r:			dw 0
@@ -2397,7 +2308,7 @@ ntc_nl_done:
 ntc_pclink:		dw 0
 
 ;## ntc_plat_cls @unit ntc_plat_screen ntc_plat_bdos ntc_plat_data ntc_data
-	IF NTC_TERM = 0
+	IF (NTC_TERM = 0) && (NTC_TERM_RT = 0)
 ; ntc_plat_cls - a stream can't be cleared: a new line (unless at the start)
 ntc_plat_cls:
 			ld a, (ntc_curx)
@@ -2409,15 +2320,41 @@ ntc_plat_cls:
 ntc_plat_locate:
 			jp (ix)
 	ELSE
-; ntc_plat_cls - clear and home with the terminal's codes
+; The terminal is a number in RAM (ntc_termno: 0 none - a stream, 1 VT52, 2 ANSI, 3 ADM-3A,
+; 4 Televideo), set by Option Terminal at the start and by StdIO.SetTerminal while the program
+; runs (20261116-4), so one .COM serves any of them.
+; ntc_plat_cls - clear and home with the terminal's codes (none: a new line, as a stream)
 ntc_plat_cls:
+			ld a, (ntc_termno)
+			or a
+			jr nz, ntc_cl_term
+			ld a, (ntc_curx)
+			or a
+			jp nz, ntc_plat_newline
+			jp (ix)
+ntc_cl_term:
+			ld hl, ntc_term_cls1
+			dec a
+			jr z, ntc_cl_go
+			ld hl, ntc_term_cls2
+			dec a
+			jr z, ntc_cl_go
+			ld hl, ntc_term_cls3
+			dec a
+			jr z, ntc_cl_go
+			ld hl, ntc_term_cls4
+ntc_cl_go:
 			xor a
 			ld (ntc_curx), a
-			ld hl, ntc_term_cls
 			jp ntc_cpm_puts
 
-; ntc_plat_locate - H = column, L = row, 1 based (kept on an 80 x 24 screen)
+; ntc_plat_locate - H = column, L = row, 1 based (kept on an 80 x 24 screen); nothing on a stream
 ntc_plat_locate:
+			ld a, (ntc_termno)
+			or a
+			jr nz, ntc_lc_term
+			jp (ix)
+ntc_lc_term:
 			ld a, h
 			or a
 			jr nz, ntc_lc_x
@@ -2441,12 +2378,18 @@ ntc_lc_y:
 ntc_lc_yok:
 			ld l, a
 			ld de, ntc_term_buf
-		IF NTC_TERM = 1
-			; VT52: ESC Y row+31 column+31
 			ld a, 27
 			ld (de), a
 			inc de
+			ld a, (ntc_termno)
+			cp 2
+			jr z, ntc_lc_ansi
+			; VT52: ESC Y row+31 column+31. ADM-3A and Televideo: ESC = row+31 column+31
+			cp 1
 			ld a, 'Y'
+			jr z, ntc_lc_lead
+			ld a, '='
+ntc_lc_lead:
 			ld (de), a
 			inc de
 			ld a, l
@@ -2457,11 +2400,9 @@ ntc_lc_yok:
 			add a, 31
 			ld (de), a
 			inc de
-		ELSE
+			jr ntc_lc_send
+ntc_lc_ansi:
 			; ANSI: ESC [ row ; column H
-			ld a, 27
-			ld (de), a
-			inc de
 			ld a, '['
 			ld (de), a
 			inc de
@@ -2505,7 +2446,7 @@ ntc_lc_c1:
 			ld a, 'H'
 			ld (de), a
 			inc de
-		ENDIF
+ntc_lc_send:
 			xor a
 			ld (de), a
 			ld hl, ntc_term_buf
@@ -2533,11 +2474,11 @@ ntc_cps_done:
 ntc_cplink:		dw 0
 ntc_cpsp:		dw 0
 ntc_term_buf:	ds 10
-		IF NTC_TERM = 1
-ntc_term_cls:	db 27, "E", 27, "H", 0		; VT52: clear, home
-		ELSE
-ntc_term_cls:	db 27, "[2J", 27, "[H", 0	; ANSI: clear, home
-		ENDIF
+ntc_termno:		db NTC_TERM					; the terminal in use (StdIO.SetTerminal changes it)
+ntc_term_cls1:	db 27, "E", 27, "H", 0		; VT52: clear, home
+ntc_term_cls2:	db 27, "[2J", 27, "[H", 0	; ANSI: clear, home
+ntc_term_cls3:	db 26, 0					; ADM-3A: Ctrl-Z clears and homes
+ntc_term_cls4:	db 27, "*", 0				; Televideo: ESC * clears and homes
 	ENDIF
 
 ;## ntc_plat_key ntc_plat_bdos ntc_data

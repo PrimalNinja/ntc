@@ -405,3 +405,4 @@
 348	code	ntc_plat_locate
 349	code	ntc_ovl_kwin
 350	code	ntc_ovl_kwback
+-	data	ntc_rx_cur	#8978

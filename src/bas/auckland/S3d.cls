@@ -15,7 +15,7 @@
 ' after it).
 ' All the work is Z80 (#asm). Platform: cpcfw (the Graphics class, the firmware's file calls);
 ' zxn, the ZX Spectrum Next (IFDEF NTC_ZXN / #If NTC_ZXN): the blocks are 16K banks the NEX file
-' loaded (Option NexData), put in #4000 by zxn_sel; the Graphics class draws on Layer 2.
+' loaded (Option SaveNex), put in #4000 by zxn_sel; the Graphics class draws on Layer 2.
 Option Explicit
 Private bas(8) As Integer                     ' right (0-2), up (3-5), forward (6-8): 16384 = 1.0
 Private qx As Long, qy As Long, qz As Long    ' where the camera is: world units * 16384

@@ -37,7 +37,7 @@ Cls
 Print "Pages on "; System.Platform
 Summary
 If n = 0 Then
-  ' Option Memory Small (or the program in the window): no pages, a heap in main RAM
+  ' Option Memory Heap Main (or the program in the window): no pages, a heap in main RAM
   Print "No paging - heap &"; Hex$(Memory.HeapStart()); "-&"; Hex$(Memory.HeapEnd())
 Else
   Print "Page tables end at &"; Hex$(Memory.TableEnd())
@@ -100,7 +100,7 @@ End
 Sub Summary()
   Dim md As Integer
   If n = 0 Then
-    Print "No RAM pages (Option Memory Small)"
+    Print "No RAM pages (Option Memory Heap Main)"
     Exit Sub
   End If
   Print Memory.RamSize(); "K, "; n; " pages: main + "; (n - 1) \ 4; " banks"

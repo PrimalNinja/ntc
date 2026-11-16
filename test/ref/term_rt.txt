@@ -1,0 +1,7 @@
+top
+
+         vt52 at 10,3
+
+                   ansi at 20,5
+none
+-124

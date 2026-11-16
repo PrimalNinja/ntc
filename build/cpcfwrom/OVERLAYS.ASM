@@ -6,7 +6,8 @@
 			DEVICE AMSTRADCPC6128		; for SAVEAMSDOS at the end
 			org #0040
 
-NTC_TERM	equ 0		; Option Terminal: 0 none, 1 VT52, 2 ANSI (CP/M)
+NTC_TERM	equ 0		; Option Terminal: 0 none, 1 VT52, 2 ANSI, 3 ADM-3A, 4 Televideo (CP/M)
+NTC_TERM_RT	equ 0		; 1: the program calls StdIO.SetTerminal (the terminal is chosen while it runs)
 NTC_STRMAX	equ 255		; the longest string (library buffers, temps)
 NTC_MEMBANKS	equ 64		; Option Memory: the most 64K banks the Memory class looks for
 NTC_ROMENABLE	equ 1		; Option RomEnable (cpcfw, cpcmin): the start code starts the ROMs
@@ -291,10 +292,9 @@ p_banner_r:		; end of banner
 			jp ntc_xn
 p_level1_play_c:		; call play (normal)
 			pop hl			; score
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			ld (var_level1_play_score), de
+			ld de, ntc_pkbuf	; (the page's 1 parameter(s), 2 bytes)
+			ldi
+			ldi
 			ld hl, 0
 			ld (var_level1_play_play), hl
 			ld (var_level1_play_i), hl
@@ -305,7 +305,7 @@ p_level1_play_c:		; call play (normal)
 			jp ntc_ovl_enter
 p_level1_play_in:
 			ld sp, p_level1_play
-			jp ntc_xn
+			jp ntc_pkin_n		; the page is in: its parameters from ntc_pkbuf to var_level1_play_score (dw block, length start the body), then the body
 p_level1_play_r:		; end of play
 			ld sp, (ntc_csp)		; the caller's page back
 			ld hl, (p_level1_play_pg)
@@ -331,10 +331,9 @@ p_level1_bonus_r:		; end of bonus
 			jp ntc_xn
 p_level2_play_c:		; call play (normal)
 			pop hl			; score
-			ld e, (hl)
-			inc hl
-			ld d, (hl)
-			ld (var_level2_play_score), de
+			ld de, ntc_pkbuf	; (the page's 1 parameter(s), 2 bytes)
+			ldi
+			ldi
 			ld hl, 0
 			ld (var_level2_play_play), hl
 			ld (p_level2_play_rs), sp
@@ -344,13 +343,20 @@ p_level2_play_c:		; call play (normal)
 			jp ntc_ovl_enter
 p_level2_play_in:
 			ld sp, p_level2_play
-			jp ntc_xn
+			jp ntc_pkin_n		; the page is in: its parameters from ntc_pkbuf to var_level2_play_score (dw block, length start the body), then the body
 p_level2_play_r:		; end of play
 			ld sp, (ntc_csp)		; the caller's page back
 			ld hl, (p_level2_play_pg)
 			call mem_sel
 			ld sp, (p_level2_play_rs)
 			jp ntc_xn
+ntc_pkin_n:		; parameters into a page: one LDIR
+			pop de
+			pop bc
+			ld hl, ntc_pkbuf
+			ldir
+			jp ntc_xn
+ntc_pkbuf:		ds 2		; the biggest set of them
 
 ntc_rg6_e:
 			IF ($ < 32768) && (ntc_rg7_e - ntc_rg7 + $ > 16384)	; fwdref-ok
@@ -562,229 +568,217 @@ ntc_rg25_e:
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
 ntc_rg26:
-var_level1_play_score:			dw 0
+var_level1_play_i:			dw 0
 ntc_rg26_e:
 			IF ($ < 32768) && (ntc_rg27_e - ntc_rg27 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
 ntc_rg27:
-var_level1_play_i:			dw 0
+p_level1_play_pg:			dw 0
 ntc_rg27_e:
 			IF ($ < 32768) && (ntc_rg28_e - ntc_rg28 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
 ntc_rg28:
-p_level1_play_pg:			dw 0
+p_level1_bonus_rs:			dw 0
 ntc_rg28_e:
 			IF ($ < 32768) && (ntc_rg29_e - ntc_rg29 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
 ntc_rg29:
-p_level1_bonus_rs:			dw 0
+var_level1_bonus_bonus:			dw 0
 ntc_rg29_e:
 			IF ($ < 32768) && (ntc_rg30_e - ntc_rg30 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
 ntc_rg30:
-var_level1_bonus_bonus:			dw 0
+p_level1_bonus_pg:			dw 0
 ntc_rg30_e:
 			IF ($ < 32768) && (ntc_rg31_e - ntc_rg31 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
 ntc_rg31:
-p_level1_bonus_pg:			dw 0
+p_level2_play_rs:			dw 0
 ntc_rg31_e:
 			IF ($ < 32768) && (ntc_rg32_e - ntc_rg32 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
 ntc_rg32:
-p_level2_play_rs:			dw 0
+p_level2_play_pg:			dw 0
 ntc_rg32_e:
 			IF ($ < 32768) && (ntc_rg33_e - ntc_rg33 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
 ntc_rg33:
-var_level2_play_score:			dw 0
+tmp0:			dw 0
 ntc_rg33_e:
 			IF ($ < 32768) && (ntc_rg34_e - ntc_rg34 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
 ntc_rg34:
-p_level2_play_pg:			dw 0
+tmp1:			dw 0
+
+; numbers passed by address (read only)
 ntc_rg34_e:
 			IF ($ < 32768) && (ntc_rg35_e - ntc_rg35 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
 ntc_rg35:
-tmp0:			dw 0
+lit_1:			dw 1
+
 ntc_rg35_e:
 			IF ($ < 32768) && (ntc_rg36_e - ntc_rg36 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
 ntc_rg36:
-tmp1:			dw 0
+; ============================================================
+; Strings
+; ============================================================
 
-; numbers passed by address (read only)
 ntc_rg36_e:
 			IF ($ < 32768) && (ntc_rg37_e - ntc_rg37 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
 ntc_rg37:
-lit_1:			dw 1
-
+str0:			db "CPC firmware", 0
 ntc_rg37_e:
 			IF ($ < 32768) && (ntc_rg38_e - ntc_rg38 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
 ntc_rg38:
-; ============================================================
-; Strings
-; ============================================================
-
+str1:			db "Overlays on CPC firmware, ", 0
 ntc_rg38_e:
 			IF ($ < 32768) && (ntc_rg39_e - ntc_rg39 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
 ntc_rg39:
-str0:			db "CPC firmware", 0
+str2:			db "K", 0
 ntc_rg39_e:
 			IF ($ < 32768) && (ntc_rg40_e - ntc_rg40 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
 ntc_rg40:
-str1:			db "Overlays on CPC firmware, ", 0
+str3:			db "Level 1 loaded: ", 0
 ntc_rg40_e:
 			IF ($ < 32768) && (ntc_rg41_e - ntc_rg41 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
 ntc_rg41:
-str2:			db "K", 0
+str4:			db "Score ", 0
 ntc_rg41_e:
 			IF ($ < 32768) && (ntc_rg42_e - ntc_rg42 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
 ntc_rg42:
-str3:			db "Level 1 loaded: ", 0
+str5:			db "Free after level 1 ", 0
 ntc_rg42_e:
 			IF ($ < 32768) && (ntc_rg43_e - ntc_rg43 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
 ntc_rg43:
-str4:			db "Score ", 0
+str6:			db "Free after level 2 ", 0
 ntc_rg43_e:
 			IF ($ < 32768) && (ntc_rg44_e - ntc_rg44 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
 ntc_rg44:
-str5:			db "Free after level 1 ", 0
+str7:			db "Heap, largest block ", 0
 ntc_rg44_e:
 			IF ($ < 32768) && (ntc_rg45_e - ntc_rg45 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
 ntc_rg45:
-str6:			db "Free after level 2 ", 0
+str8:			db "Level 1 in page ", 0
 ntc_rg45_e:
 			IF ($ < 32768) && (ntc_rg46_e - ntc_rg46 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
 ntc_rg46:
-str7:			db "Heap, largest block ", 0
+str9:			db ", level 2 in page ", 0
 ntc_rg46_e:
 			IF ($ < 32768) && (ntc_rg47_e - ntc_rg47 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
 ntc_rg47:
-str8:			db "Level 1 in page ", 0
+str10:			db "Pages ", 0
 ntc_rg47_e:
 			IF ($ < 32768) && (ntc_rg48_e - ntc_rg48 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
 ntc_rg48:
-str9:			db ", level 2 in page ", 0
+str11:			db "Unload level 1: ", 0
 ntc_rg48_e:
 			IF ($ < 32768) && (ntc_rg49_e - ntc_rg49 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
 ntc_rg49:
-str10:			db "Pages ", 0
+str12:			db " - pages ", 0
 ntc_rg49_e:
 			IF ($ < 32768) && (ntc_rg50_e - ntc_rg50 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
 ntc_rg50:
-str11:			db "Unload level 1: ", 0
+str13:			db "Press a key", 0
 ntc_rg50_e:
 			IF ($ < 32768) && (ntc_rg51_e - ntc_rg51 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
 ntc_rg51:
-str12:			db " - pages ", 0
+str14:			db "== ", 0
 ntc_rg51_e:
 			IF ($ < 32768) && (ntc_rg52_e - ntc_rg52 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
 ntc_rg52:
-str13:			db "Press a key", 0
+str15:			db " ==", 0
 ntc_rg52_e:
 			IF ($ < 32768) && (ntc_rg53_e - ntc_rg53 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
 ntc_rg53:
-str14:			db "== ", 0
+str16:			db "Level 1", 0
 ntc_rg53_e:
 			IF ($ < 32768) && (ntc_rg54_e - ntc_rg54 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
 ntc_rg54:
-str15:			db " ==", 0
+str17:			db "  room ", 0
 ntc_rg54_e:
 			IF ($ < 32768) && (ntc_rg55_e - ntc_rg55 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
 ntc_rg55:
-str16:			db "Level 1", 0
+str18:			db "Level 2", 0
 ntc_rg55_e:
 			IF ($ < 32768) && (ntc_rg56_e - ntc_rg56 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
 ntc_rg56:
-str17:			db "  room ", 0
+str19:			db "  score so far ", 0
 ntc_rg56_e:
 			IF ($ < 32768) && (ntc_rg57_e - ntc_rg57 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
 ntc_rg57:
-str18:			db "Level 2", 0
+str20:			db ", level 1 loaded ", 0
 ntc_rg57_e:
 			IF ($ < 32768) && (ntc_rg58_e - ntc_rg58 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
 ntc_rg58:
-str19:			db "  score so far ", 0
+str21:			db "  bonus from level 1 ", 0
 ntc_rg58_e:
 			IF ($ < 32768) && (ntc_rg59_e - ntc_rg59 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
 ntc_rg59:
-str20:			db ", level 1 loaded ", 0
+str22:			db 0
+
 ntc_rg59_e:
 			IF ($ < 32768) && (ntc_rg60_e - ntc_rg60 + $ > 16384)	; fwdref-ok
 			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
 			ENDIF
 ntc_rg60:
-str21:			db "  bonus from level 1 ", 0
-ntc_rg60_e:
-			IF ($ < 32768) && (ntc_rg61_e - ntc_rg61 + $ > 16384)	; fwdref-ok
-			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
-			ENDIF
-ntc_rg61:
-str22:			db 0
-
-ntc_rg61_e:
-			IF ($ < 32768) && (ntc_rg62_e - ntc_rg62 + $ > 16384)	; fwdref-ok
-			ds 32768 - $		; Option Memory Reserved #4000-#7FFF: round it
-			ENDIF
-ntc_rg62:
 ; ============================================================
 ; Keyword library (rom)
 ; ============================================================
@@ -1047,7 +1041,7 @@ ntc_rj_tlk:		db "ROM NTC CPCFW too old: no routine #", 0
 ntc_rj_tpt:		db "ROM NTCFW<n>.ROM not found: n = #", 0
 ntc_rj_tnl:		db 13, 10, "Press a key", 13, 10, 0
 ntc_rj_dropend:
-ntc_rg62_e:
+ntc_rg60_e:
 ntc_end:				; the end of the program (and of its file)
 			DISPLAY "NTC memory: program ", /H, ntc_start, "-", /H, ntc_end - 1, " arrays ", /H, ntc_bss, "-", /H, ntc_free - 1, " stack the caller's"
 			DISPLAY "NTC memory: Reserved #4000-#7FFF"
@@ -1085,6 +1079,7 @@ ovl_level1_start:
 			dw NTC_STAMP		; the build stamp: the loader checks it against the program's
 ovl_level1__0_s:		; level1
 p_level1_play:
+			dw var_level1_play_score, 2
 
 			; Level1.cls 4: Dim i As Integer
 
@@ -1115,7 +1110,8 @@ p_level1_bonus:
 ovl_level1__0_e:
 			dw 0			; (never empty)
 ovl_level1_end:		; the end of its file; page variables (cleared on loading) follow
-ovl_level1_vsize	equ 0		; its page variables; its local memory is the rest, to #8000
+var_level1_play_score		equ ovl_level1_end + 0		; 2 bytes (level1)
+ovl_level1_vsize	equ 2		; its page variables; its local memory is the rest, to #8000
 			ASSERT ovl_level1_end + ovl_level1_vsize <= #8000, "page Level1 (level1) is more than 16K (code and page variables)"
 			DISPLAY "page Level1 (OVERLAYS.001):"
 			DISPLAY "  level1 ", /D, ovl_level1__0_e - ovl_level1__0_s
@@ -1132,6 +1128,7 @@ ovl_level2_start:
 			dw NTC_STAMP		; the build stamp: the loader checks it against the program's
 ovl_level2__0_s:		; level2
 p_level2_play:
+			dw var_level2_play_score, 2
 
 			; Level2.cls 5: Banner "Level 2"
 			dw p_banner_c, str18
@@ -1156,11 +1153,12 @@ p_level2_play:
 ovl_level2__0_e:
 			dw 0			; (never empty)
 ovl_level2_end:		; the end of its file; page variables (cleared on loading) follow
-ovl_level2_vsize	equ 0		; its page variables; its local memory is the rest, to #8000
+var_level2_play_score		equ ovl_level2_end + 0		; 2 bytes (level2)
+ovl_level2_vsize	equ 2		; its page variables; its local memory is the rest, to #8000
 			ASSERT ovl_level2_end + ovl_level2_vsize <= #8000, "page Level2 (level2) is more than 16K (code and page variables)"
 			DISPLAY "page Level2 (OVERLAYS.002):"
 			DISPLAY "  level2 ", /D, ovl_level2__0_e - ovl_level2__0_s
 			DISPLAY "  page variables ", /D, ovl_level2_vsize, ", free ", /D, #8000 - (ovl_level2_end + ovl_level2_vsize)
 			SAVEAMSDOS "OVERLAYS.002", ovl_level2_start, ovl_level2_end - ovl_level2_start, #4000
 
-NTC_STAMP	equ #8F6F		; the build stamp: the first word of every page file
+NTC_STAMP	equ #E6D7		; the build stamp: the first word of every page file

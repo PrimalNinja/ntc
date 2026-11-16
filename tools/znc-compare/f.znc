@@ -1,0 +1,12 @@
+make raw "f";
+org 0x8000;
+fixed x = 3.5; fixed y = 1.25; fixed r; fixed acc; int i;
+out(254, 1);
+for (i = 0; i < 2000; i++) { r = x * y; acc = acc + r; }
+out(254, 2);
+for (i = 0; i < 2000; i++) { r = x / y; acc = acc + r; }
+out(254, 3);
+__asm__ {
+  di
+  halt
+}

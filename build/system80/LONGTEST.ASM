@@ -14,7 +14,8 @@ ntc_s80_start:
 			di
 			jp ntc_start
 
-NTC_TERM	equ 0		; Option Terminal: 0 none, 1 VT52, 2 ANSI (CP/M)
+NTC_TERM	equ 0		; Option Terminal: 0 none, 1 VT52, 2 ANSI, 3 ADM-3A, 4 Televideo (CP/M)
+NTC_TERM_RT	equ 0		; 1: the program calls StdIO.SetTerminal (the terminal is chosen while it runs)
 NTC_STRMAX	equ 40		; the longest string (library buffers, temps)
 NTC_MEMBANKS	equ 64		; Option Memory: the most 64K banks the Memory class looks for
 NTC_ROMENABLE	equ 0		; Option RomEnable (cpcfw, cpcmin): the start code starts the ROMs
@@ -624,7 +625,8 @@ p_twice:
 p_addto:
 
 			; 195: x = x + y
-			dw kw_l_add, var_addto_x, var_addto_y, var_addto_x
+ntc_rf1:
+			dw kw_l_add, 0, var_addto_y, 0
 			dw p_addto_r
 
 ; ============================================================
@@ -762,10 +764,8 @@ p_twice_r:		; end of twice
 			jp ntc_xn
 p_addto_c:		; call addto (normal)
 			pop hl			; x
-			ld (p_addto_a0), hl
-			ld de, var_addto_x
-			ld bc, 4
-			ldir
+			ld (ntc_rf1 + 2), hl		; (by reference: var_addto_x)
+			ld (ntc_rf1 + 6), hl		; (by reference: var_addto_x)
 			pop hl			; y
 			ld de, var_addto_y
 			ld bc, 4
@@ -774,10 +774,6 @@ p_addto_c:		; call addto (normal)
 			ld sp, p_addto
 			jp ntc_xn
 p_addto_r:		; end of addto
-			ld de, (p_addto_a0)
-			ld hl, var_addto_x
-			ld bc, 4
-			ldir
 			ld sp, (p_addto_rs)
 			jp ntc_xn
 p_fact_c:		; call fact (normal)
@@ -831,8 +827,6 @@ var_chks_want:			ds 41
 p_twice_rs:			dw 0
 var_twice_v:			dw 0, 0
 p_addto_rs:			dw 0
-var_addto_x:			dw 0, 0
-p_addto_a0:			dw 0
 var_addto_y:			dw 0, 0
 p_fact_rs:			dw 0
 var_fact_k:			dw 0

@@ -1504,35 +1504,55 @@ f_md:       xor a
             jp z, md_ov             ; by 0
             call md_mul
             jp md_div
-md_mul:     ld hl, FPP              ; FPP = FPMA * FPMB (64 bits)
-            ld b, 8
-            xor a
-md_z:       ld (hl), a
+md_mul:     ld hl, (FPMA)           ; FPP = FPMA * FPMB (64 bits): four 16 x 16 products in the registers
+            ld de, (FPMB)           ; (20261114: was a 32 step loop over the bytes in memory - with md_div's, Fixed.Mul32
+            call md_u16               ; took about 77000 T-states)
+            ld (FPP), hl
+            ld (FPP+2), de
+            ld hl, 0
+            ld (FPP+4), hl
+            ld (FPP+6), hl
+            ld hl, (FPMA+2)
+            ld de, (FPMB+2)
+            ld a, h
+            or l
+            or d
+            or e
+            ret z                   ; both top words 0: that was all of it
+            call md_u16
+            ld (FPP+4), hl
+            ld (FPP+6), de
+            ld hl, (FPMA)
+            ld de, (FPMB+2)
+            call md_u16
+            call md_ac
+            ld hl, (FPMA+2)
+            ld de, (FPMB)
+            call md_u16
+md_ac:      ld bc, (FPP+2)          ; DE:HL added in at byte 2
+            add hl, bc
+            ld (FPP+2), hl
+            ld hl, (FPP+4)
+            adc hl, de
+            ld (FPP+4), hl
+            ret nc
+            ld hl, (FPP+6)
             inc hl
-            djnz md_z
-            ld a, 32
-            ld (FPCNT), a
-md_ml:      ld hl, FPP
-            ld b, 8
-            call shl
-            ld hl, FPMB
-            ld b, 4
-            call shl
-            jr nc, md_mn
-            ld hl, FPP
-            ld de, FPMA
-            ld b, 4
-            call addn
-            ld hl, FPP+4
-            ld b, 4
-md_mc:      ld a, (hl)
-            adc a, 0
-            ld (hl), a
-            inc hl
-            djnz md_mc
-md_mn:      ld hl, FPCNT
-            dec (hl)
-            jr nz, md_ml
+            ld (FPP+6), hl
+            ret
+md_u16:       ld b, h                 ; DE:HL = HL * DE (unsigned)
+            ld c, l
+            ld hl, 0
+            ld a, 16
+md_ul:       add hl, hl
+            rl e
+            rl d
+            jr nc, md_un
+            add hl, bc
+            jr nc, md_un
+            inc de
+md_un:       dec a
+            jr nz, md_ul
             ret
 md_div:     ld hl, FPMC               ; m_lngR = FPP / FPMC, rounded (+ |c| / 2), FA_S's sign, clamped
             ld de, FPDV
@@ -1552,37 +1572,101 @@ md_rc:      ld a, (hl)
             ld (hl), a
             inc hl
             djnz md_rc
-            ld hl, FPR                ; FPP / |c|: 64 steps, FPR the remainder (40 bits)
-            ld b, 5
-            xor a
-md_rz:      ld (hl), a
-            inc hl
-            djnz md_rz
-            ld a, 64
-            ld (FPCNT), a
-md_dl:      ld hl, FPP
-            ld b, 13                ; FPP and FPR side by side (FPP then FPR): one shift
-            call shl
-            ld a, (FPR+4)
+            ld hl, FPP+7              ; FPP / |c| (20261114: in the registers, and only over FPP's bytes in use -
+            ld b, 8                   ; was 64 steps over 13 bytes in memory whatever the numbers)
+md_sz:      ld a, (hl)
             or a
-            jr nz, md_ge
-            ld hl, FPR+3
-            ld de, FPMC+3
-            ld b, 4
-            call cmpn
-            jr c, md_dn
-md_ge:      ld hl, FPR
-            ld de, FPMC
-            ld b, 4
-            call subn
-            ld a, (FPR+4)
-            sbc a, 0
-            ld (FPR+4), a
+            jr nz, md_s1
+            dec hl
+            djnz md_sz
+            jp md_fit                 ; 0
+md_s1:      ld a, b                   ; B: FPP's bytes in use (1-8)
+            cp 5
+            jr nc, md_gen
+            ld hl, (FPMC+2)
+            ld a, h
+            or l
+            jr nz, md_gen
+            ld bc, (FPMC)             ; 32 bits by 16: a word at a time, the top word first
+            ld de, (FPP+2)
+            ld hl, 0
+            ld a, d
+            or e
+            call nz, md_dw
+            ld (FPP+2), de
+            ld de, (FPP)
+            call md_dw
+            ld (FPP), de
+            jr md_fit
+md_dw:      ld a, 16                  ; HL (the remainder so far, under BC) and DE's 16 bits, by BC: DE the
+md_dwl:     sla e                     ; quotient's bits, HL the remainder
+            rl d
+            adc hl, hl
+            jr c, md_dwb              ; (the remainder past 16 bits: over BC for sure)
+            sbc hl, bc
+            jr nc, md_dw1
+            add hl, bc
+            dec a
+            jr nz, md_dwl
+            ret
+md_dwb:     or a
+            sbc hl, bc
+md_dw1:     inc e
+            dec a
+            jr nz, md_dwl
+            ret
+md_gen:     ld a, b                   ; any size: 8 steps a byte in use, FPP's bytes in use shifted up, the
+            ld (FPDV), a              ; remainder (33 bits: carry, DE:HL) in the registers (FPDV: free now)
+            add a, a
+            add a, a
+            add a, a
+            ld (FPCNT), a
+            ld hl, 0
+            ld d, h
+            ld e, l
+md_gl:      push hl
             ld hl, FPP
-            set 0, (hl)
-md_dn:      ld hl, FPCNT
-            dec (hl)
-            jr nz, md_dl
+            ld a, (FPDV)
+            ld b, a
+            or a
+md_gr:      rl (hl)
+            inc hl
+            djnz md_gr
+            pop hl
+            adc hl, hl
+            ex de, hl
+            adc hl, hl
+            ex de, hl
+            jr c, md_gb               ; past 32 bits: over the divisor for sure
+            ld bc, (FPMC)
+            sbc hl, bc
+            ex de, hl
+            ld bc, (FPMC+2)
+            sbc hl, bc
+            ex de, hl
+            jr nc, md_g1
+            ld bc, (FPMC)             ; under it: put back
+            add hl, bc
+            ex de, hl
+            ld bc, (FPMC+2)
+            adc hl, bc
+            ex de, hl
+            jr md_gn
+md_gb:      ld bc, (FPMC)
+            or a
+            sbc hl, bc
+            ex de, hl
+            ld bc, (FPMC+2)
+            sbc hl, bc
+            ex de, hl
+md_g1:      ld a, (FPP)
+            inc a
+            ld (FPP), a
+md_gn:      ld a, (FPCNT)
+            dec a
+            ld (FPCNT), a
+            jr nz, md_gl
+md_fit:
             ld a, (FPP+4)             ; fits 31 bits?
             ld hl, FPP+5
             or (hl)
