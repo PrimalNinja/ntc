@@ -1016,6 +1016,37 @@ for m in --turbo ""; do
     if [ "$o" == "$(cat ref/pvar.txt)" ]; then echo "ok   paged variables $pl ${m:-normal}"; else echo "FAIL paged variables $pl ${m:-normal}"; echo "$o" | head -5; fail=1; fi
   done
 done
+# Loader: one method, Load, from where the program was run (cpcfw / cpcmin: the firmware's CAS IN
+# calls, with and without Option ROM Enable 7; cpm: its own FCB; no files: NotSupported; zxn: builds)
+ldchk() { # name, expected (one line), the run's output
+  if [ "$(echo "$3" | tr '\n' ' ' | sed 's/ --- halted.*//')" == "$2" ] && echo "$3" | grep -q "^--- halted"; then echo "ok   $1"; else echo "FAIL $1"; echo "$3" | tail -6; fail=1; fi
+}
+for pl in cpcfw cpcmin; do
+  for o in "" "Option ROM Enable 7"; do
+    rm -rf t/files; mkdir -p t/files/A t/files/TAPE; cp loader/DATA.CPC t/files/A/DATA.BIN; [ -z "$o" ] && cp loader/DATA.CPC t/files/TAPE/DATA.BIN
+    { echo "$o"; cat loader/Main.bas; } > t/ldm.bas
+    ldchk "Loader $pl ${o:-no ROM option}" "len200310116 none-2 big-8 bad-4 low20038" "$(timeout 200 python3 ntcrun.py t/ldm.bas '' --platform=$pl 2>&1)"
+  done
+done
+for pl in cpcfw cpcmin; do
+  rm -rf t/files; mkdir -p t/files/A t/files/TAPE; cp loader/DATA.CPC t/files/A/DATA.BIN
+  { echo "Option ROM Enable 7"; cat loader/Main.bas; } > t/ldm.bas
+  ldchk "Loader $pl with the keyword ROM" "len200310116 none-2 big-8 bad-4 low20038" "$(timeout 200 python3 ntcrun.py t/ldm.bas '' --platform=$pl --library=rom 2>&1)"
+done
+rm -rf t/files; mkdir -p t/files/A; cp loader/DATA.BIN t/files/A/DATA.BIN
+ldchk "Loader cpm" "len256310116 none-2 big100 bad-4 low25638" "$(timeout 200 python3 ntcrun.py loader/Main.bas '' --platform=cpm 2>&1)"
+ldchk "Loader test platform (no files)" "len-1000 none-1 big-1 bad-1 low-10" "$(timeout 200 python3 ntcrun.py loader/Main.bas '' --platform=test 2>&1)"
+for pl in zxn cpc msx sc3000 baremetal; do
+  if node cli.js loader/Main.bas --platform=$pl > t/ldz.asm 2> t/ldz.err && ! grep -q . t/ldz.err && [ -z "$(sjasmplus --nologo --msg=err --raw=t/ldz.bin t/ldz.asm 2>&1 | grep -i error)" ]; then echo "ok   Loader builds on $pl"; else echo "FAIL Loader builds on $pl"; fail=1; fi
+done
+printf 'Dim r As Integer\nr = 1\n' > t/ld0.bas; printf 'Dim r As Integer\nr = Loader.Load("DATA.BIN", &H8000, &H1000)\n' > t/ld1.bas; printf 'Dim r As Integer\nr = FileSystem.Load("DATA.BIN", &H8000, &H1000)\n' > t/ld2.bas
+ldok=1
+for c in cpcfw:200 cpcmin:260 cpm:320 zxn:700; do pl=${c%%:*}; mx=${c##*:}
+  for f in ld0 ld1 ld2; do node cli.js t/$f.bas --platform=$pl > t/$f.asm 2>/dev/null; sjasmplus --nologo --msg=err --sym=t/$f.sym --raw=t/$f.bin t/$f.asm >/dev/null 2>&1; eval "$f=$((0x$(grep -i '^ntc_free: EQU' t/$f.sym | sed 's/.*0x//')))"; done
+  n=$((ld1 - ld0)); [ $pl = cpcfw -o $pl = cpcmin ] && n=$((n - 2048))
+  [ $n -gt 0 -a $n -le $mx -a $((ld1 - ld0)) -lt $((ld2 - ld0)) ] || { echo "     Loader on $pl costs $n bytes (limit $mx; FileSystem $((ld2 - ld0)))"; ldok=0; }
+done
+[ $ldok = 1 ] && echo "ok   Loader is small on every platform (and smaller than FileSystem.Load)" || { echo "FAIL Loader size"; fail=1; }
 # a class in a page: its number parameters are in the page, side by side, filled by one LDIR
 # (ntc_pkbuf, ntc_pkin); the caller's page is back before an argument is copied back
 for m in --turbo ""; do

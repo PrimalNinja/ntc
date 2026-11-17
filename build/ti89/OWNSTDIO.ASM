@@ -5,6 +5,7 @@
 
 			org 0
 
+NTC_RAMEND	equ $01000000		; the end of the RAM the variables and arrays are in (;@ramend)
 ;## ntc_md_vectors ntc_ti89_boot
 ; (the 68k backend requires this section be named ntc_md_vectors - the generic
 ;  "68k start" slot. On AMS there is no program-owned vector table; this is just
@@ -585,7 +586,7 @@ ntc_plat_exit:
 
 			even
 ntc_romend:			; the end of the ROM: the RAM block's first image follows
-			org $FF8000
+			org $FF8000		; (;@ramorg: where this platform's variables are - 16 bit addresses, sign extended)
 ntc_ram:
 ; variables
 var_n:			dc.w 0

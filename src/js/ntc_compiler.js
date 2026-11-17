@@ -188,6 +188,10 @@ function ntcCompile(input_a, objOptions_a)
 	var objPkModes = {};		// 'n' / 't' -> true: ntc_pkin_n / ntc_pkin_t is used
 	var intPkMax = 0;			// the biggest block: ntc_pkbuf's size
 	var blnM68k = false;		// the platform's CPU is a 68000 (;@cpu 68000: md): 68000 threads, stubs and data (vasm)
+	var blnX86 = false;			// the platform's CPU is an 80386 (;@cpu x86: towns). It rides the 68000 path (blnM68k is true
+								// too: the thread is the stack pointer in user mode / ring 3, threads are 32 bit words, the
+								// variables are a RAM block with 16 bit addresses), then x86Text turns the compiler's own
+								// 68000 lines and vasm data lines into nasm's. The library (asm/ntc_lib_x86.asm) is nasm
 	var blnM65 = false;			// the platform's CPU is a 45GS02 (;@cpu 45gs02: m65): 6502 stubs, thread words - 1 (vasm)
 	var arrRamOut = [];			// 68000: the RAM block's lines (variables, temps), after the ROM
 	var blnRomDrop = false;		// Library: ROM: its start code is last, the arrays start on it (holeLayout)
@@ -394,6 +398,200 @@ function ntcCompile(input_a, objOptions_a)
 	{
 		intLabelId++;
 		return intLabelId;
+	}
+
+	// the 80386 (blnX86): the program's text is the 68000 path's. Its data lines are vasm's
+	// (dc.l / dc.w / dc.b, ds, even, $hex) and the compiler's own code lines are 68000 - a small,
+	// fixed set (the stubs, the start, Goto and GoSub stubs). Both become nasm here; the library's
+	// and the platform's lines are nasm already and pass through. a0 = esi, a1 = edi, d0 = eax,
+	// d1 = ecx, sp = esp; ebp is the scratch for memory to memory moves. A 68000 line this doesn't
+	// know is an error (so a new stub form is seen, not assembled wrong)
+	function x86Text(strText_a)
+	{
+		var objReg = { a0: 'esi', a1: 'edi', d0: 'eax', d1: 'ecx', sp: 'esp' };
+		var objW = { eax: 'ax', ecx: 'cx', ebp: 'bp' };
+		var blnRam = false;
+
+		if (!blnX86)
+		{
+			return strText_a;
+		}
+
+		function hex(str_a)
+		{
+			// $1F -> 0x1F outside strings and comments (a lone $ - nasm's "here" - is left)
+			var strOut = '';
+			var intI = 0;
+			var chrQ = '';
+			var chr = '';
+
+			for (intI = 0; intI < str_a.length; intI++)
+			{
+				chr = str_a.charAt(intI);
+				if (chrQ !== '')
+				{
+					strOut += chr;
+					if (chr === chrQ) { chrQ = ''; }
+					continue;
+				}
+				if ((chr === '"') || (chr === "'"))
+				{
+					chrQ = chr;
+					strOut += chr;
+					continue;
+				}
+				if (chr === ';')
+				{
+					return strOut + str_a.substr(intI);
+				}
+				if ((chr === '$') && /[0-9A-Fa-f]/.test(str_a.charAt(intI + 1)) && !/[\w$]/.test(str_a.charAt(intI - 1)))
+				{
+					strOut += '0x';
+					continue;
+				}
+				strOut += chr;
+			}
+			return strOut;
+		}
+
+		function mem(str_a)
+		{
+			// a 68000 operand that is memory or a register -> nasm's: { x: text, after: a line or '' }
+			var arrM = null;
+
+			if (objReg[str_a] !== undefined) { return { x: objReg[str_a], reg: true, after: '' }; }
+			if ((arrM = str_a.match(/^\((a0|a1)\)\+$/))) { return { x: '[' + objReg[arrM[1]] + ']', inc: objReg[arrM[1]], after: '' }; }
+			if ((arrM = str_a.match(/^\((a0|a1)\)$/))) { return { x: '[' + objReg[arrM[1]] + ']', after: '' }; }
+			if (/^#/.test(str_a)) { return { x: str_a.substr(1), imm: true, after: '' }; }
+			if (/^[A-Za-z_][\w.]*(\s*[+-]\s*\w+)?$/.test(str_a)) { return { x: '[' + str_a + ']', after: '' }; }
+			return null;
+		}
+
+		function code(strLabel_a, strOp_a, strArgs_a, strRest_a)
+		{
+			var arrOut = [];
+			var arrA = strArgs_a.split(/\s*,\s*/);
+			var strSz = (strOp_a.match(/\.([bwl])$/) || ['', 'l'])[1];
+			var strKw = { b: 'byte', w: 'word', l: 'dword' }[strSz];
+			var intSz = { b: 1, w: 2, l: 4 }[strSz];
+			var strBase = strOp_a.replace(/\.[bwl]$/, '');
+			var objS = null;
+			var objD = null;
+			var strS = '';
+
+			function reg(str_a) { return (strSz === 'w') ? (objW[str_a] || str_a) : ((strSz === 'b') ? ({ eax: 'al', ecx: 'cl' })[str_a] : str_a); }
+			function out(str_a) { arrOut.push('\t\t\t' + str_a); }
+			function bump(obj_a) { if (obj_a && obj_a.inc) { out('lea ' + obj_a.inc + ', [' + obj_a.inc + '+' + intSz + ']'); } }
+
+			if (strBase === 'rts') { out('ret'); }
+			else if ((strBase === 'bne') || (strBase === 'beq')) { out(((strBase === 'bne') ? 'jnz ' : 'jz ') + strArgs_a); }
+			else if (strBase === 'dbra') { out('sub ' + objW[objReg[arrA[0]]] + ', 1'); out('jnc ' + arrA[1]); }
+			else if ((strBase === 'lea') && (objReg[arrA[1]] !== undefined)) { out('mov ' + objReg[arrA[1]] + ', ' + arrA[0]); }
+			else if ((strBase === 'movea') && (arrA[0] === '(sp)+')) { out('pop ' + objReg[arrA[1]]); }
+			else if ((strBase === 'subq') && (objReg[arrA[1]] !== undefined)) { out('sub ' + reg(objReg[arrA[1]]) + ', ' + arrA[0].substr(1)); }
+			else if (strBase === 'clr')
+			{
+				objD = mem(arrA[0]);
+				if (objD === null) { return null; }
+				out('mov ' + (objD.reg ? reg(objD.x) : strKw + ' ' + objD.x) + ', 0');
+				bump(objD);
+			}
+			else if ((strBase === 'move') || (strBase === 'movea'))
+			{
+				objS = mem(arrA[0]);
+				objD = mem(arrA[1]);
+				if ((objS === null) || (objD === null)) { return null; }
+				if (objS.inc && objD.inc && (objS.inc === 'esi') && (objD.inc === 'edi'))
+				{
+					out({ b: 'movsb', w: 'movsw', l: 'movsd' }[strSz]);
+				}
+				else if (objS.imm)
+				{
+					out('mov ' + (objD.reg ? reg(objD.x) : strKw + ' ' + objD.x) + ', ' + objS.x);
+					bump(objD);
+				}
+				else if (objS.reg || objD.reg)
+				{
+					out('mov ' + (objD.reg ? reg(objD.x) : objD.x) + ', ' + (objS.reg ? reg(objS.x) : objS.x));
+					bump(objS);
+					bump(objD);
+				}
+				else
+				{
+					if (strSz === 'b') { return null; }
+					strS = (strSz === 'w') ? 'bp' : 'ebp';
+					out('mov ' + strS + ', ' + objS.x);
+					out('mov ' + objD.x + ', ' + strS);
+					bump(objS);
+					bump(objD);
+				}
+			}
+			else
+			{
+				return null;
+			}
+			if (strLabel_a !== '')
+			{
+				arrOut[0] = strLabel_a + arrOut[0];
+			}
+			if (strRest_a !== '')
+			{
+				arrOut[0] += '\t' + strRest_a;
+			}
+			return arrOut;
+		}
+
+		return strText_a.split('\n').map(function(strLine_a)
+		{
+			var arrM = null;
+			var arrC = null;
+			var strL = strLine_a;
+
+			if (/^\s*;/.test(strL) || (strL.trim() === ''))
+			{
+				return strL;
+			}
+			// data lines
+			if ((arrM = strL.match(/^(\s*(?:[A-Za-z_@.][\w.@]*:)?\s*)(dc\.[bwl]|ds\.[bwl]|dcb\.[bwl]|even|org)\b(.*)$/)))
+			{
+				if (arrM[2] === 'even')
+				{
+					return arrM[1] + 'align 2, db 0' + arrM[3];
+				}
+				if (arrM[2] === 'org')
+				{
+					// the first org is the program's (the platform's first section names its own nasm
+					// sections); the second is the variables' block (;@ramorg)
+					if (!blnRam && /ramorg/.test(arrM[3]))
+					{
+						blnRam = true;
+						return 'section .ntcram vstart=' + hex(arrM[3]).replace(/;.*$/, '').trim() + ' follows=.ntccode align=1\t; the variables (;@ramorg)';
+					}
+					return '; (org' + arrM[3] + ': the platform file names the sections)';
+				}
+				if (/^dc\./.test(arrM[2]))
+				{
+					return arrM[1] + { 'dc.b': 'db', 'dc.w': 'dw', 'dc.l': 'dd' }[arrM[2]] + hex(arrM[3]);
+				}
+				if (/^ds\./.test(arrM[2]))
+				{
+					return arrM[1] + 'times ' + hex(arrM[3]).replace(/^\s+/, '').replace(/^([^;,]*?)\s*(,\s*0)?\s*(;.*)?$/, function(str_a, strN_a, strZ_a, strCm_a) { return '(' + strN_a.trim() + ') ' + { 'ds.b': 'db', 'ds.w': 'dw', 'ds.l': 'dd' }[arrM[2]] + ' 0' + (strCm_a ? '\t' + strCm_a : ''); });
+				}
+				return arrM[1] + hex(arrM[3]).replace(/^\s*([^,]+),\s*([^;]+?)\s*(;.*)?$/, function(str_a, strN_a, strV_a, strCm_a) { return 'times (' + strN_a.trim() + ') ' + { 'dcb.b': 'db', 'dcb.w': 'dw', 'dcb.l': 'dd' }[arrM[2]] + ' ' + strV_a + (strCm_a ? '\t' + strCm_a : ''); });
+			}
+			// the compiler's own 68000 lines
+			if ((arrM = strL.match(/^((?:[A-Za-z_][\w.]*:)?\s*)(rts|bne|beq|dbra|lea|movea?\.[bwl]|subq\.[bwl]|clr\.[bwl])\b\s*([^;]*?)\s*(;.*)?$/)) && !/\[/.test(arrM[3]) && (!/^lea$/.test(arrM[2]) || /,\s*(a0|a1|sp)\s*$/.test(arrM[3])))
+			{
+				arrC = code(arrM[1], arrM[2], arrM[3], arrM[4] || '');
+				if (arrC === null)
+				{
+					arrErrors.push({ file: '', line: 0, msg: 'x86: a 68000 line of the compiler\'s that x86Text does not know: ' + strL.trim() });
+					return strL;
+				}
+				return hex(arrC.join('\n'));
+			}
+			return hex(strL);
+		}).join('\n');
 	}
 
 	function exitCode(strMode_a)
@@ -3032,6 +3230,35 @@ function ntcCompile(input_a, objOptions_a)
 	{
 		var strIndent = '\t\t\t';
 
+		if (blnX86)
+		{
+			// the 80386: the source is at esi, the destination at edi (as a0 / a1)
+			if (strDest_a.length > 0)
+			{
+				arrCode_a.push(strIndent + 'mov edi, ' + strDest_a);
+			}
+			if (intCap_a > 0)
+			{
+				arrCode_a.push(strIndent + 'mov ecx, ' + intCap_a);
+			}
+			else
+			{
+				arrCode_a.push(strIndent + 'movzx ecx, byte [edi-1]\t\t; the destination\'s capacity');
+			}
+			arrCode_a.push(strIndent + 'sub ecx, 1');
+			arrCode_a.push(strIndent + 'js ' + strLoop_a + '_e');
+			arrCode_a.push(strLoop_a + ':');
+			arrCode_a.push(strIndent + 'lodsb');
+			arrCode_a.push(strIndent + 'stosb');
+			arrCode_a.push(strIndent + 'test al, al');
+			arrCode_a.push(strIndent + 'jz ' + strLoop_a + '_z');
+			arrCode_a.push(strIndent + 'sub ecx, 1');
+			arrCode_a.push(strIndent + 'jnc ' + strLoop_a);
+			arrCode_a.push(strLoop_a + '_e:');
+			arrCode_a.push(strIndent + 'mov byte [edi], 0');
+			arrCode_a.push(strLoop_a + '_z:');
+			return;
+		}
 		if (strDest_a.length > 0)
 		{
 			arrCode_a.push(strIndent + 'lea ' + strDest_a + ', a1');
@@ -10347,6 +10574,11 @@ function ntcCompile(input_a, objOptions_a)
 			// the 68000's own keyword library (asm/ntc_lib_68k.asm)
 			strLib = objOptions.libtext68k || ((typeof NTC_LIB_ASM_68K !== 'undefined') ? NTC_LIB_ASM_68K : null);
 		}
+		if (blnX86)
+		{
+			// the 80386's own keyword library (asm/ntc_lib_x86.asm, nasm)
+			strLib = objOptions.libtextx86 || ((typeof NTC_LIB_ASM_X86 !== 'undefined') ? NTC_LIB_ASM_X86 : null);
+		}
 		if (blnM65)
 		{
 			// the 45GS02's own keyword library (asm/ntc_lib_m65.asm)
@@ -12073,7 +12305,8 @@ function ntcCompile(input_a, objOptions_a)
 		return { asm: '', libasm: '', layout: [], errors: objPrep.errors, warnings: objPrep.warnings, xref: [], map: '', procs: [], vbfiles: arrFiles, stats: { threadbytes: 0, keywords: 0, variables: 0, temps: 0, stemps: 0, normal: false, start: 'n' } };
 	}
 	readPlatform();
-	blnM68k = (String(objPlat.cpu || '') === '68000');
+	blnX86 = (String(objPlat.cpu || '').toLowerCase() === 'x86');
+	blnM68k = (String(objPlat.cpu || '') === '68000') || blnX86;
 	blnM65 = (String(objPlat.cpu || '').toLowerCase() === '45gs02');
 	if ((objOptions.org === null) || (objOptions.org === undefined))
 	{
@@ -12748,6 +12981,7 @@ function ntcCompile(input_a, objOptions_a)
 	}
 	if (blnM68k)
 	{
+		arrAsm.push('NTC_RAMEND\tequ ' + String(objPlat.ramend || '$01000000') + '\t\t; the end of the RAM the variables and arrays are in (;@ramend)');
 		arrAsm.push('@@MDVECTORS@@');		// the platform's vectors and header (at 0), put in after linking
 	}
 	if (blnM65)
@@ -12794,6 +13028,18 @@ function ntcCompile(input_a, objOptions_a)
 	if (blnM68k)
 	{
 		// the 68000: the switch to the real stack (for jsr) and back, defined before any use
+		if (blnX86)
+		{
+			arrAsm.push('%macro NTC_RS 0\t\t\t; the real stack: the thread position kept in ntc_ip');
+			arrAsm.push(strIndent + 'mov [ntc_ip], esp');
+			arrAsm.push(strIndent + 'mov esp, [ntc_csp]');
+			arrAsm.push('%endmacro');
+			arrAsm.push('%macro NTC_TS 0\t\t\t; back to the thread');
+			arrAsm.push(strIndent + 'mov esp, [ntc_ip]');
+			arrAsm.push('%endmacro');
+		}
+		else
+		{
 		arrAsm.push('NTC_RS\t\tmacro\t\t\t; the real stack: the thread position kept in ntc_ip');
 		arrAsm.push(strIndent + 'move.l sp, ntc_ip');
 		arrAsm.push(strIndent + 'movea.l ntc_csp, sp');
@@ -12801,6 +13047,7 @@ function ntcCompile(input_a, objOptions_a)
 		arrAsm.push('NTC_TS\t\tmacro\t\t\t; back to the thread');
 		arrAsm.push(strIndent + 'movea.l ntc_ip, sp');
 		arrAsm.push(strIndent + 'endm');
+		}
 	}
 	if (blnM65)
 	{
@@ -12959,6 +13206,18 @@ function ntcCompile(input_a, objOptions_a)
 		arrAsm.push(strIndent + 'cp #DF\t\t\t; AMSDOS has the cassette calls: they are running');
 		arrAsm.push(strIndent + 'jp z, ntc_roms_on');
 		arrAsm.push(strIndent + 'ei');
+		if (objProcModes['loader.load'] !== undefined)
+		{
+			// the Loader class loads from where the program was run: AMSDOS's drive (its data area
+			// is still where #BE7D points, RUN" doesn't clear it) is kept and put back when it runs again
+			arrAsm.push(strIndent + 'ld hl, (#BE7D)\t\t; Loader: the drive AMSDOS was on (its data area: #A000 or above, else it never ran)');
+			arrAsm.push(strIndent + 'ld a, h');
+			arrAsm.push(strIndent + 'cp #A0');
+			arrAsm.push(strIndent + 'jr c, ntc_roms_nodrv');
+			arrAsm.push(strIndent + 'ld a, (hl)');
+			arrAsm.push(strIndent + 'ld (ntc_roms_drvb), a');
+			arrAsm.push('ntc_roms_nodrv:');
+		}
 		if (objOptions.library === 'rom')
 		{
 			arrAsm.push(strIndent + 'ld de, #A5F0\t\t; the lowest address the ROMs may use (the keyword ROM\'s RAM is below)');
@@ -13037,9 +13296,26 @@ function ntcCompile(input_a, objOptions_a)
 		arrAsm.push(strIndent + 'daa');
 		arrAsm.push(strIndent + 'jp #BB5A');
 		arrAsm.push('ntc_roms_at:\tdw 0');
+		if (objProcModes['loader.load'] !== undefined)
+		{
+			arrAsm.push('ntc_roms_drvb:\tdb #FF\t\t; Loader: the drive AMSDOS was on (#FF: none)');
+		}
 		arrAsm.push('ntc_roms_msg:\tdb "The ROMs\' RAM reaches down to #", 0');
 		arrAsm.push('ntc_roms_msg2:\tdb ": no room for this program", 13, 10, "(fewer ROMs, or a smaller program)", 13, 10, "Press a key", 13, 10, 0');
 		arrAsm.push('ntc_roms_fit:');
+		if (objProcModes['loader.load'] !== undefined)
+		{
+			arrAsm.push(strIndent + 'ld a, (ntc_roms_drvb)\t; Loader: AMSDOS back on the drive it was on (0 or 1; anything else: left)');
+			arrAsm.push(strIndent + 'cp 2');
+			arrAsm.push(strIndent + 'jr nc, ntc_roms_drv');
+			arrAsm.push(strIndent + 'ld hl, (#BE7D)');
+			arrAsm.push(strIndent + 'ld c, a');
+			arrAsm.push(strIndent + 'ld a, h');
+			arrAsm.push(strIndent + 'cp #A0');
+			arrAsm.push(strIndent + 'jr c, ntc_roms_drv');
+			arrAsm.push(strIndent + 'ld (hl), c');
+			arrAsm.push('ntc_roms_drv:');
+		}
 		arrAsm.push(strIndent + 'di');
 		arrAsm.push(strIndent + 'IF NTC_PLATRSV == 0\t\t; (with the platform\'s #A600-#BFFF Reserved in the map, the build goes round it)');
 		arrAsm.push(strIndent + 'ASSERT ntc_free <= #A600, "Option RomEnable: the program and its arrays must end below #A600 (the ROMs take their RAM from #ABFF down)"');
@@ -14071,9 +14347,9 @@ function ntcCompile(input_a, objOptions_a)
 			});
 			arrAsm = arrKeep;
 		})();
-		arrAsm.push(strIndent + 'even');
+		arrAsm.push(strIndent + (blnX86 ? 'align 4, db 0' : 'even'));		// x86: the boot code takes the image from a 4 byte edge
 		arrAsm.push('ntc_romend:\t\t\t; the end of the ROM: the RAM block\'s first image follows');
-		arrAsm.push(strIndent + 'org $FF8000');
+		arrAsm.push(strIndent + 'org ' + String(objPlat.ramorg || '$FF8000') + '\t\t; (;@ramorg: where this platform\'s variables are - 16 bit addresses, sign extended)');
 		arrAsm.push('ntc_ram:');
 		arrAsm = arrAsm.concat(arrRamOut);
 		arrAsm.push(strIndent + 'even');
@@ -14344,7 +14620,7 @@ function ntcCompile(input_a, objOptions_a)
 		arrList_a.forEach(function(objE_a) { if (objE_a.file && (objOrigName[objE_a.file] !== undefined)) { objE_a.file = objOrigName[objE_a.file]; } });
 	});
 	return {
-		asm: objPlat.rom ? romLayout(holeLayout(linkTidy(arrAsm.join('\n')) + romTail())) : m65Numbers((blnHighCode ? highLayout : holeLayout)(linkTidy(arrAsm.join('\n')))),
+		asm: objPlat.rom ? romLayout(holeLayout(linkTidy(arrAsm.join('\n')) + romTail())) : x86Text(m65Numbers((blnHighCode ? highLayout : holeLayout)(linkTidy(blnX86 ? arrAsm.join('\n').replace(/\(([^()\n]*)\)&\$FFFF/g, '($1)') : arrAsm.join('\n'))))),
 		libasm: strLibAsm,
 		vbfiles: arrFiles,
 		layout: arrLayout,

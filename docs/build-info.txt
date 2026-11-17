@@ -37,6 +37,91 @@ Packaging rule (what goes in the archive) - READ THIS BEFORE ZIPPING
 History (newest first)
 ======================
 
+20261117-2
+  - NEW PLATFORM: towns - the Fujitsu FM Towns (80386), first stage. NTC's first x86
+    platform. A program is a 2HD floppy image that boots itself: NTC's boot sector ("IPL4")
+    reads the program with the ROM's disc call and starts it in 32 bit protected mode, no
+    Towns OS. The text console (80 x 25 drawn on the 640 x 400 screen from the ROM's font),
+    the keyboard (Inkey, Inkey$, Input; cursor keys &HF0-&HF3), Cls, Locate, scrolling,
+    Frame and Ticks (60 a second, the vertical blank interrupt) work.
+  - How it runs: ESP is the thread pointer (keywords end with ret, operands by pop), the
+    program is in ring 3 so interrupts and exceptions go to ring 0's own stack and never
+    touch the thread; flat memory, no paging, ring 3 has the I/O ports. Integer 16 bits,
+    Long 32, little endian. #asm is nasm syntax.
+  - NEW LIBRARY: asm/ntc_lib_x86.asm - the keyword library in 80386 (nasm): every section
+    of the 68000 library, the same names and operands (204 keywords).
+  - Compiler: ";@cpu x86" in a platform header. It uses the 68000 path (32 bit thread
+    words, variables in a RAM block) and a last pass writes the output as nasm: data lines,
+    and the 68000 lines the compiler writes itself in call stubs. A line the pass does not
+    know is a compile error. The Z80, 6502 and 68000 platforms do not go through the pass.
+  - Files: asm/ntc_plat_towns.asm, asm/ntc_lib_x86.asm, lib/towns/ (StdIO, System),
+    test/townsbuild.js, test/townsrun.py, test/townsregress.sh, test/towns/ (Main.bas,
+    Extra.bas + Extra.txt, self/), docs/towns.md. test/gen.js bundles the new library.
+  - RUN on the Tsugaru emulator with the free compatible ROMs: 17 tests pass (vb_test,
+    vb_test2, 3, 4, 6, 7, 8, 9, long, argfn, class, sieve, guide, the 68000 self test with
+    its machine code in 80386 (154 checks), a test of the keywords the others do not reach,
+    and a keyboard / Ticks / Locate test). vb_test is run at 2 MHz: its clock test needs a
+    frame to pass during a 2000 turn loop, and a 16 MHz 80386 ends the loop first.
+    NOT run on a real FM Towns or with a real machine's ROM.
+  - NOT there yet: graphics, sprites, screen layers, palette, text colours, sound,
+    joysticks, mouse, files, the CD drive, a Towns OS .EXP program, the Interrupt
+    statement. Variables and arrays have 60K ($1000-$FFFF); Peek / Poke / VarPtr reach the
+    first 64K; code and strings have about 600K.
+  - x68000: x68regress.sh also runs test/towns/Extra.bas (15 tests), whose text must be
+    the same as the FM Towns'.
+  - The Z80 platforms' output is byte for byte 20261117-1's.
+
+20261117-1
+  - NEW PLATFORM: x68000 - the Sharp X68000 (68000), first stage. A program is a 2HD floppy
+    image (.XDF) that boots itself: NTC's boot sector reads the program with the ROM's disc
+    call, no Human68k. The text console (96 x 32, the ROM's font), the keyboard (Inkey,
+    Inkey$, Input; cursor keys &HF0-&HF3), Cls, Locate, scrolling, Frame and Ticks (55 a
+    second) work. It uses the 68000 keyword library and compiler path of the Mega Drive.
+    Files: asm/ntc_plat_x68000.asm, lib/x68000/ (StdIO, System), test/x68build.js,
+    test/x68run.py, test/x68regress.sh, test/x68/Main.bas, docs/x68000.md.
+  - RUN on the px68k emulator with Sharp's IPL ROM: 14 self tests pass (vb_test, vb_test2,
+    3, 4, 6, 7, 8, 9, long, argfn, class, sieve, guide, and a keyboard / Ticks / Locate test).
+    NOT run on a real X68000.
+  - NOT there yet: graphics, sprites, tile layers, palette, sound, joysticks, files, a
+    Human68k .X program. Variables and arrays have 23K ($2400-$7FFF: the 68000 path keeps a
+    variable's address in 16 bits); code and strings have the rest of RAM.
+  - Compiler (68000 path): ;@ramorg says where a platform's variables are assembled (the
+    Mega Drive's $FF8000 is the default) and ;@ramend the end of that RAM, written as
+    NTC_RAMEND; kw_bssinit checks arrays against it (it was a fixed $01000000). The Mega
+    Drive's output is the same bytes as before but for that one constant's spelling.
+  - The Z80 platforms are not touched: their output is byte for byte 20261116-10's.
+
+20261116-10
+  - NEW: the Loader class - Loader.Load(name, address, maxlen), a file from where the program
+    was run, and nothing else of FileSystem (the same answers as FileSystem.Load).
+    - cpcfw / cpcmin: CAS IN OPEN / DIRECT / CLOSE on what has the cassette calls (AMSDOS's
+      drive, or tape). 152 / 223 bytes and the 2K buffer (FileSystem.Load: 1045 / 1126 and it).
+      With Loader in a program, Option ROM Enable's start code keeps AMSDOS's drive (#BE7D)
+      and puts it back, so a program RUN" from drive B loads from B.
+    - cpm: CP/M's own FCB (#005C) and record buffer (#0080), the current drive and user.
+      279 bytes (FileSystem.Load: 2368).
+    - zxn: the current folder on the default drive, the folder left alone (FileSystem goes to
+      the card's top folder). All assembly, FileSystem's DOS trampoline. 495 bytes
+      (FileSystem.Load: 5648). Files under 64K.
+    - cpc, msx, sc3000, baremetal, test: NotSupported.
+    Library sections ntc_plat_ld. On cpcfw and cpcmin it is in the keyword ROM too (new
+    registry entries at the end; the old numbers and addresses are kept).
+  - RUN ON NextZXOS in ZEsarUX (test/loader/nextcard.py, run_zes.js): the zxn Loader loads from
+    the card's top folder and from a sub-folder made current by .cd - right answers both. This
+    is also the first run of the 20261116-7 Next layout (program in the Next's banks 0-2, text
+    screen in main memory, CPC font) on NextZXOS: it starts and prints.
+  - NOT run on a real CPC: the AMSDOS drive keep is the usual #BE7D way but the test emulator's
+    firmware is a stand-in, so it only proves the code runs and loads.
+  - regress.sh: 14 Loader tests. User guide: "Loader".
+  - TEST EMULATOR FIX (test/ntcrun.py, not NTC itself): its stand-in for the firmware's fast
+    ticker does out (#DD), a round the event routine; with A = #F6 at that moment the emulator
+    took it for the PPI and never brought the main ROM in, so "ROM set romset4: interrupts
+    during far calls cpcfw" crashed. Which value A has depends on where the ROM's variables
+    sit, so the new Loader variables (10 bytes) were enough to set it off. Fixed in the
+    emulator; a real CPC has no such stub.
+  - A program without Loader that doesn't use the keyword ROM is byte for byte 20261116-9's.
+    The cpcfw and cpcmin keyword ROMs are new (Loader's code is in them).
+
 20261116-9
   - NEW: a class in a page keeps its number parameters IN THE PAGE. The parameters that are only
     copied in (ByVal, or ByRef the procedure never writes; Byte, Integer, Long) are packed side by

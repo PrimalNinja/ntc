@@ -4,8 +4,9 @@ var strDir = require('path').join(__dirname, '..', 'src') + '/';
 function read(f) { return fs.readFileSync(strDir + f, 'utf8'); }
 var strLib = read('asm/ntc_lib_gen.asm') + '\n' + read('asm/ntc_lib_cpc.asm') + '\n' + read('asm/ntc_lib_nxt.asm') + '\n' + read('asm/ntc_lib_msx.asm') + '\n' + read('asm/ntc_lib_dot.asm') + '\n' + read('asm/ntc_lib_vdp.asm');
 var strLib68k = read('asm/ntc_lib_68k.asm');		// the 68000's keyword library (md)
+var strLibX86 = read('asm/ntc_lib_x86.asm');		// the 80386's keyword library (towns)
 var strLibM65 = read('asm/ntc_lib_m65.asm');		// the 45GS02's keyword library (m65)
-var arrPlat = ['cpc', 'cpcmin', 'cpcfw', 'cpm', 'cyborgos', 'cyborgoshh', 'baremetal', 'test', 'zxn', 'zxndot', 'zxndotl', 'msx', 'msxcard', 'msx9990', 'msxdos', 'sc3000', 'colecovision', 'cpc9990', 'cpccard', 'md', 'm65', 'pcw16', 'neogeo', 'ti83', 'ti89', 'trs80', 'system80'];
+var arrPlat = ['cpc', 'cpcmin', 'cpcfw', 'cpm', 'cyborgos', 'cyborgoshh', 'baremetal', 'test', 'zxn', 'zxndot', 'zxndotl', 'msx', 'msxcard', 'msx9990', 'msxdos', 'sc3000', 'colecovision', 'cpc9990', 'cpccard', 'md', 'm65', 'pcw16', 'neogeo', 'ti83', 'ti89', 'x68000', 'towns', 'trs80', 'system80'];
 // a platform built on another: ";@base cpm" in asm/ntc_plat_<platform>.asm - its text is its own
 // file (the ;@ header, anything of its own) followed by the base's, less the base's ;@ lines it
 // has its own of and less the base's sections it has its own of (the same ;## name: its own
@@ -101,6 +102,7 @@ var strOut = '// keyword library text from asm/ntc_lib.asm and asm/ntc_plat_*.as
 	'// generated: edit the .asm / .cls files, not this one\n\n' +
 	'var NTC_LIB_ASM = ' + JSON.stringify(strLib) + ';\n\n' +
 	'var NTC_LIB_ASM_68K = ' + JSON.stringify(strLib68k) + ';\n\n' +
+	'var NTC_LIB_ASM_X86 = ' + JSON.stringify(strLibX86) + ';\n\n' +
 	'var NTC_LIB_ASM_M65 = ' + JSON.stringify(strLibM65) + ';\n\n' +
 	'var NTC_PLATFORMS = {\n' + arrPlat.map(function(strPlat) { return '\t' + strPlat + ': ' + JSON.stringify(platText(strPlat)); }).join(',\n') + '\n};\n\n' +
 	'var NTC_PLATFORM_CLASSES = ' + JSON.stringify(objClasses, null, '\t') + ';\n\n' +

@@ -382,6 +382,154 @@ FS_FAILED	equ -9
 FS_EXISTS	equ -10
 FS_BADMODE	equ -11
 
+;## ntc_plat_ld ntc_data @shared
+; ------------------------------------------------------------
+; Loader.Load (20261116-10): a file from the drive and user area the program was run from,
+; and nothing else of FileSystem. CP/M's own FCB (#005C) and record buffer (#0080): open,
+; read record by record, close. ld_go: the method's parameters are in ld_nm / ld_ad /
+; ld_mx, the result's address in ld_rs. Bytes loaded (whole records), or a status; more
+; records than maxlen holds: TooBig (-8)
+; ------------------------------------------------------------
+LD_FCB		equ #005C
+LD_DMA		equ #0080
+ld_nm:			dw 0
+ld_ad:			dw 0
+ld_mx:			dw 0
+ld_rs:			dw 0
+ld_sp:			dw 0
+ld_cnt:			dw 0
+ld_go:
+			ld (ld_sp), sp
+			ld sp, (ntc_csp)
+			push ix
+			push iy
+			ei
+			call ld_load
+			di
+			pop iy
+			pop ix
+			ex de, hl
+			ld hl, (ld_rs)
+			ld (hl), e
+			inc hl
+			ld (hl), d
+			ld sp, (ld_sp)
+			ret
+ld_load:
+			ld hl, LD_FCB			; the FCB: drive 0 (the current one), 11 spaces, the rest 0
+			ld (hl), 0
+			inc hl
+			ld b, 11
+ld_sp11:
+			ld (hl), " "
+			inc hl
+			djnz ld_sp11
+			ld b, 24
+ld_z24:
+			ld (hl), 0
+			inc hl
+			djnz ld_z24
+			ld hl, (ld_nm)
+			ld a, (hl)
+			or a
+			ld de, -4			; BadName: no name
+			jp z, ld_bad
+			ld de, LD_FCB + 1
+			ld b, 8
+			call ld_part			; the name, up to 8
+			cp "."
+			jr nz, ld_named
+			ld de, LD_FCB + 9
+			ld b, 3
+			call ld_part			; the type, up to 3
+ld_named:
+			or a
+			ld de, -4			; BadName: too long, or a second dot
+			jp nz, ld_bad
+			ld de, LD_FCB
+			ld c, 15			; open
+			call 5
+			inc a
+			ld hl, -2			; NotFound
+			ret z
+			ld hl, 0
+			ld (ld_cnt), hl
+ld_rec:
+			ld de, LD_DMA
+			ld c, 26			; the record buffer: #0080
+			call 5
+			ld de, LD_FCB
+			ld c, 33			; read the record the FCB's record number names
+			call 5
+			or a
+			jp nz, ld_end			; the end of the file
+			ld hl, LD_FCB + 33		; the next record
+			inc (hl)
+			jr nz, ld_got
+			inc hl
+			inc (hl)
+ld_got:
+			ld hl, (ld_mx)			; room left
+			ld a, h
+			or l
+			jr nz, ld_some
+			ld hl, -8			; TooBig: a record more than maxlen holds
+			ret
+ld_some:
+			ld bc, 128			; BC = min(128, room)
+			ld a, h
+			or a
+			jr nz, ld_bc
+			ld a, l
+			cp 128
+			jr nc, ld_bc
+			ld c, l
+ld_bc:
+			or a
+			sbc hl, bc
+			ld (ld_mx), hl
+			ld hl, (ld_cnt)
+			add hl, bc
+			ld (ld_cnt), hl
+			ld a, c
+			ld hl, LD_DMA
+			ld de, (ld_ad)
+			ldir
+			ld (ld_ad), de
+			cp 128
+			jp z, ld_rec			; (a part record: maxlen reached)
+ld_end:
+			ld hl, (ld_cnt)			; (reading only: nothing to close)
+			ret
+ld_bad:
+			ex de, hl
+			ret
+; ld_part - up to B characters of the name at HL into DE, capitals; stops at "." or the end.
+; A = the character it stopped at (0, ".", or the one too many)
+ld_part:
+			ld a, (hl)
+			or a
+			ret z
+			cp "."
+			jr z, ld_pdot
+			inc b
+			dec b
+			ret z				; no room: the name is too long
+			cp "a"
+			jr c, ld_pput
+			cp "z" + 1
+			jr nc, ld_pput
+			sub 32
+ld_pput:
+			ld (de), a
+			inc de
+			inc hl
+			dec b
+			jr ld_part
+ld_pdot:
+			inc hl
+			ret
+
 ;## ntc_plat_fs ntc_data ntc_capfind @shared
 fs_a1:			dw 0
 fs_a2:			dw 0

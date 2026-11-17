@@ -1575,6 +1575,258 @@ ntc_plat_rmr:
 			ld a, (ntc_smode)
 			ret
 
+;## ntc_plat_ld ntc_plat_data @shared
+; ------------------------------------------------------------
+; Loader.Load (20261116-10): a file from the folder that was current when the program was
+; run, on the default drive ("*") - and nothing else of FileSystem: F_STAT (its size),
+; F_OPEN, F_READ a chunk at a time, F_CLOSE. The DOS call is FileSystem's: rst 8 with ROM 3
+; paged in, from a trampoline copied once to #BA00 (entered by call, left by ret here). The
+; folder is left as it is. ld_go: the method's parameters are in ld_nm / ld_ad / ld_mx,
+; the result's address in ld_rs
+; ------------------------------------------------------------
+LD_T		equ #BA00		; the trampoline's copy
+LD_NAME		equ #BC00		; the name, ASCIIZ, as the DOS reads it
+LD_STAT		equ #BC40		; F_STAT's 11 bytes: the size is the last 4
+LD_DATA		equ #BC80		; file data, a chunk
+LD_CHUNK	equ 384
+ld_go:
+			ld (ld_tsp), sp
+			ld sp, (ntc_csp)        ; the real stack: call / ret from here
+			call ld_load
+			ex de, hl
+			ld hl, (ld_rs)
+			ld (hl), e
+			inc hl
+			ld (hl), d
+			ld sp, (ld_tsp)
+			ret
+ld_nm:		dw 0
+ld_ad:		dw 0
+ld_mx:		dw 0
+ld_rs:		dw 0
+ld_tsp:		dw 0
+ld_left:		dw 0
+ld_h:		db 0
+ld_rdy:		db 0
+; ld_load - HL = the length, or a status
+ld_load:
+			ld a, (ld_rdy)
+			or a
+			jr nz, ld_name
+			ld hl, ld_tramp
+			ld de, LD_T
+			ld bc, ld_trampe - ld_tramp
+			ldir                    ; the trampoline into #BA00, once
+			ld a, 1
+			ld (ld_rdy), a
+ld_name:
+			ld hl, (ld_nm)          ; the name to LD_NAME, ASCIIZ: 1 to 62 characters
+			ld de, LD_NAME
+			ld b, 63
+			ld a, (hl)
+			or a
+			jr z, ld_badname
+ld_nmlp:
+			ld a, (hl)
+			ld (de), a
+			or a
+			jr z, ld_stat
+			inc hl
+			inc de
+			djnz ld_nmlp
+ld_badname:
+			ld hl, -4               ; BadName
+			ret
+ld_stat:
+			ld a, #AC               ; F_STAT: A the drive ("*": the default), the name, DE 11 bytes
+			ld hl, LD_NAME
+			ld de, LD_STAT
+			call ld_dos
+			ld hl, -2               ; NotFound
+			ret c
+			ld hl, (LD_STAT + 9)
+			ld a, h
+			or l
+			jr nz, ld_toobig        ; 64K or more
+			ld de, (LD_STAT + 7)    ; its length
+			ld hl, (ld_mx)
+			or a
+			sbc hl, de
+			jr nc, ld_open
+ld_toobig:
+			ld hl, -8               ; TooBig
+			ret
+ld_open:
+			ld (ld_left), de
+			ld a, #9A               ; F_OPEN, B = 1: read, the file must be there
+			ld hl, LD_NAME
+			ld bc, #0100
+			call ld_dos
+			ld hl, -2
+			ret c
+			ld (ld_h), a
+ld_chunk:
+			ld hl, (ld_left)
+			ld a, h
+			or l
+			jr z, ld_close
+			ld de, LD_CHUNK
+			or a
+			sbc hl, de
+			jr c, ld_last
+			ld b, d
+			ld c, e                 ; a whole chunk
+			jr ld_read
+ld_last:
+			ld bc, (ld_left)
+ld_read:
+			push bc
+			ld a, #9D               ; F_READ: A the handle, BC bytes, to LD_DATA
+			ld hl, LD_DATA
+			call ld_dosh
+			pop de                  ; DE = asked for, BC = read
+			jr c, ld_failed
+			ld a, b
+			or c
+			jr z, ld_close          ; (shorter than its size said)
+			push de
+			push bc
+			ld hl, LD_DATA
+			ld de, (ld_ad)
+			ldir
+			ld (ld_ad), de
+			pop bc
+			ld hl, (ld_left)
+			or a
+			sbc hl, bc
+			ld (ld_left), hl
+			pop hl
+			or a
+			sbc hl, bc
+			jr z, ld_chunk          ; all it asked for: more
+ld_close:
+			ld a, #9B               ; F_CLOSE
+			call ld_dosh
+			ld de, (ld_left)        ; the length: its size less what never came
+			ld hl, (LD_STAT + 7)
+			or a
+			sbc hl, de
+			ret
+ld_failed:
+			ld a, #9B
+			call ld_dosh
+			ld hl, -9               ; Failed
+			ret
+; ld_dosh - a call on the open file: A = the hook, the handle in A for the DOS
+; ld_dos  - a call by name: A = the hook, "*" (the default drive) in A for the DOS
+;   HL = the pointer (HL and IX), BC, DE as the hook wants. Carry = an error; A, BC back
+ld_dosh:
+			ld (LD_T + (ld_hk - ld_tramp)), a
+			ld a, (ld_h)
+			jr ld_dos2
+ld_dos:
+			ld (LD_T + (ld_hk - ld_tramp)), a
+			ld a, "*"
+ld_dos2:
+			ld (LD_T + (ld_a - ld_tramp)), a
+			ld (LD_T + (ld_bc - ld_tramp)), bc
+			ld (LD_T + (ld_de - ld_tramp)), de
+			ld (LD_T + (ld_ix - ld_tramp)), hl
+			ld (LD_T + (ld_l - ld_tramp)), hl
+			call LD_T
+			ld bc, (LD_T + (ld_bc - ld_tramp))
+			ld a, (LD_T + (ld_cy - ld_tramp))
+			rra                     ; carry = the DOS's
+			ld a, (LD_T + (ld_a - ld_tramp))
+			ret
+; ---- the trampoline (copied to #BA00; FileSystem's, entered by call, left by ret; the system
+; variables' copy at #BAB0, its stack to #BC00)
+ld_tramp:
+			ld (#BA00 + (ld_sp - ld_tramp)), sp
+			ld sp, #BC00            ; own stack: #BB30-#BBFF
+			ld hl, #5C00            ; the ROM's system variables' area kept (an interrupt during the call
+			ld de, #BAB0            ; runs ROM 3's handler, which writes there): 124 bytes to #BAB0-#BB2B (the trampoline is 164 bytes: to #BAA3)
+			ld bc, 124
+			ldir
+			ld bc, #243B            ; MMU 0, 1 read (NextReg #50, #51) and set to 255 (ROM)
+			ld a, #50
+			out (c), a
+			inc b
+			in a, (c)
+			ld (#BA00 + (ld_m0 - ld_tramp)), a
+			dec b
+			ld a, #51
+			out (c), a
+			inc b
+			in a, (c)
+			ld (#BA00 + (ld_m1 - ld_tramp)), a
+			dec b
+			ld a, #50
+			out (c), a
+			inc b
+			ld a, #FF
+			out (c), a
+			dec b
+			ld a, #51
+			out (c), a
+			inc b
+			ld a, #FF
+			out (c), a
+			dec b
+			ld a, #8E               ; ROM 3, slots 6-7 kept
+			out (c), a
+			inc b
+			ld a, #03
+			out (c), a
+			ld bc, (#BA00 + (ld_bc - ld_tramp))
+			ld de, (#BA00 + (ld_de - ld_tramp))
+			ld ix, (#BA00 + (ld_ix - ld_tramp))
+			ld hl, (#BA00 + (ld_l - ld_tramp))  ; HL: the name too, or F_SEEK's mode in L
+			ld a, (#BA00 + (ld_a - ld_tramp))
+			rst 8
+ld_hk:		db 0
+			ld (#BA00 + (ld_bc - ld_tramp)), bc
+			ld (#BA00 + (ld_de - ld_tramp)), de
+			ld (#BA00 + (ld_a - ld_tramp)), a
+			ld a, 0
+			adc a, a                ; 1 = carry: an error
+			ld (#BA00 + (ld_cy - ld_tramp)), a
+			ld bc, #243B
+			ld a, #8E               ; ROM 0 again (20261110-2: the NEX stub leaves NextZXOS's DivMMC entry points, which
+			out (c), a              ; trap rst 8 and #0038 whenever ROM 3 is selected - so ROM 3 is on only round the call)
+			inc b
+			xor a
+			out (c), a
+			dec b
+			ld a, #50               ; MMU 0, 1 back
+			out (c), a
+			inc b
+			ld a, (#BA00 + (ld_m0 - ld_tramp))
+			out (c), a
+			dec b
+			ld a, #51
+			out (c), a
+			inc b
+			ld a, (#BA00 + (ld_m1 - ld_tramp))
+			out (c), a
+			ld hl, #BAB0            ; the system variables' area back
+			ld de, #5C00
+			ld bc, 124
+			ldir
+			ld sp, (#BA00 + (ld_sp - ld_tramp))
+			ret
+ld_bc:		dw 0
+ld_de:		dw 0
+ld_ix:		dw 0
+ld_a:		db 0
+ld_l:		dw 0
+ld_cy:		db 0
+ld_m0:		db 0
+ld_m1:		db 0
+ld_sp:		dw 0
+ld_trampe:
+			ASSERT ld_trampe - ld_tramp <= #B0, "Loader: the trampoline must end below #BAB0"
+
 ;## ntc_plat_fs ntc_plat_data
 ; ------------------------------------------------------------
 ; ntc_plat_fs - files: the Next has none yet. What the page code (ntc_ovl) needs to

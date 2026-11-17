@@ -14,9 +14,9 @@ NTC_ROMLIB	equ 1			; this is the keyword ROM
 NTC_BUFSIZE	equ 2048		; its buffer (ntc_buf)
 NTC_PLATRSV	equ 0
 NTC_ISLN	equ 16		; (the ROM serves up to 16 interrupt classes)
-NTC_ROM_N	equ 351			; numbers in the index
+NTC_ROM_N	equ 352			; numbers in the index
 NTC_ROM_COUNT	equ 1			; ROMs in the set (NTCMIN.ROM)
-NTC_ROM_SET	equ #606D		; the set's stamp (its ROMs find each other by it)
+NTC_ROM_SET	equ #9DD6		; the set's stamp (its ROMs find each other by it)
 MEM_WIN		equ #4000
 MEM_BADPAGE	equ -2
 MEM_BANKS	equ NTC_MEMBANKS	; 0 - 64
@@ -504,6 +504,7 @@ ntc_rom_index:
 			dw ntc_plat_locate		; 348
 			dw ntc_ovl_kwin		; 349
 			dw ntc_ovl_kwback		; 350
+			dw ld_go		; 351
 ; ---- the library (code)
 ;## ntc_data @shared ntc_d_nmode
 ntc_next:		ret				; IX target that continues the thread
@@ -9550,6 +9551,98 @@ ntc_plat_rmr:
 			ld a, (ntc_smode)
 			or #84				; (ROM: the upper ROM on)
 			ret
+;## ntc_plat_ld ntc_plat_data ntc_plat_irq ntc_data ntc_buf2k @shared
+			ASSERT NTC_BUFSIZE >= 2048, "Loader needs the whole 2K buffer (Option Buffer's size)"
+ld_go:
+			ld (ld_sp), sp
+			ld sp, (ntc_csp)
+			push ix
+			push iy
+			ld a, (ntc_irqset)		; the firmware's interrupt entry back at #38, interrupts on
+			or a
+			jr z, ld_fn_ei
+			ld hl, (ntc_irqold)
+			ld (#0038), hl
+			ld a, (ntc_irqold + 2)
+			ld (#003A), a
+ld_fn_ei:
+			ei
+			call ld_load
+			di				; NTC's again: its handler, mode, ROMs off, the screen start
+			push hl
+			ld a, (ntc_irqset)
+			or a
+			jr z, ld_ff_scr
+			ld a, #C3
+			ld (#0038), a
+			ld hl, ntc_irq
+			ld (#0039), hl
+ld_ff_scr:
+			ld a, (ntc_sinit)
+			or a
+			jr z, ld_ff_done		; the screen isn't NTC's yet
+			ld a, (ntc_smode)
+			or #84				; (ROM: the upper ROM on)
+			ld b, #7F
+			out (c), a
+			ld bc, #BC0C
+			out (c), c
+			ld bc, #BD30
+			out (c), c
+			ld bc, #BC0D
+			out (c), c
+			ld bc, #BD00
+			out (c), c
+ld_ff_done:
+			pop de
+			pop iy
+			pop ix
+			ld hl, (ld_rs)
+			ld (hl), e
+			inc hl
+			ld (hl), d
+			ld sp, (ld_sp)
+			ret
+ld_load:
+			ld hl, (ld_nm)
+			ld b, 0
+ld_ln:
+			ld a, (hl)
+			or a
+			jr z, ld_lnend
+			inc hl
+			inc b
+			jr ld_ln
+ld_lnend:
+			ld a, b
+			or a
+			ld hl, -4			; BadName: no name
+			ret z
+			ld hl, (ld_nm)
+			ld de, ntc_buf
+			call #BC77			; CAS IN OPEN (B = the name's length): BC = the file's length, carry = ok
+			ld hl, -2			; NotFound
+			ret nc
+			ld hl, (ld_mx)
+			or a
+			sbc hl, bc
+			jr nc, ld_fits
+			call #BC7D			; CAS IN ABANDON
+			ld hl, -8			; TooBig
+			ret
+ld_fits:
+			push bc
+			ld hl, (ld_ad)
+			call #BC83			; CAS IN DIRECT
+			jr c, ld_read
+			call #BC7D
+			pop bc
+			ld hl, -9			; Failed
+			ret
+ld_read:
+			call #BC7A			; CAS IN CLOSE
+			pop hl
+			ret
 ; ---- initialised variables and the code that runs from RAM: assembled for NTC_ROMDATA, copied there
 ntc_rom_img:
 			DISP NTC_ROMDATA
@@ -9692,6 +9785,11 @@ ntc_rx_s4:	dw 0			; ROM 4 of the set: its slot (B = #DF, C = slot)
 ntc_rx_s5:	dw 0			; ROM 5 of the set: its slot (B = #DF, C = slot)
 ntc_rx_s6:	dw 0			; ROM 6 of the set: its slot (B = #DF, C = slot)
 ntc_rx_s7:	dw 0			; ROM 7 of the set: its slot (B = #DF, C = slot)
+ld_nm:			dw 0
+ld_ad:			dw 0
+ld_mx:			dw 0
+ld_rs:			dw 0
+ld_sp:			dw 0
 ntc_rdbase:		dw 0
 ntc_pow10:		dw 10000, 1000, 100, 10, 0
 ntc_tabcol:		db 0
@@ -10090,3 +10188,7 @@ ntc_rom_bssend:
 			ASSERT (ntc_v_romold & #FFFF) == #8977, "ntc_v_romold moved: variables and constants keep their place (a new size or value needs a new name)"
 			ASSERT (fs_vol & #FFFF) == #9833, "fs_vol moved: variables and constants keep their place (a new size or value needs a new name)"
 			ASSERT (ntc_rx_cur & #FFFF) == #8978, "ntc_rx_cur moved: variables and constants keep their place (a new size or value needs a new name)"
+			ASSERT (ld_nm & #FFFF) == #898C, "ld_nm moved: variables and constants keep their place (a new size or value needs a new name)"
+			ASSERT (ld_ad & #FFFF) == #898E, "ld_ad moved: variables and constants keep their place (a new size or value needs a new name)"
+			ASSERT (ld_mx & #FFFF) == #8990, "ld_mx moved: variables and constants keep their place (a new size or value needs a new name)"
+			ASSERT (ld_rs & #FFFF) == #8992, "ld_rs moved: variables and constants keep their place (a new size or value needs a new name)"

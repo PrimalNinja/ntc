@@ -1,4 +1,4 @@
-# NTC - Native Threaded Code v20261116
+# NTC - Native Threaded Code
 
 (c) 2026 Cyborg Unicorn Pty Ltd - MIT License
 
@@ -285,6 +285,8 @@ Files (ES5, no node, no Python):
 | `../docs/userguide.md` | Language reference: every keyword by topic, with an example and its VB5 / VB6 differences |
 | `../docs/architecture.md` | Memory maps, the ROM structure, interrupts and start up |
 | `../docs/md.md` | The Sega Mega Drive / Genesis platform (`md`): NTC on the 68000, its memory, classes, building and testing |
+| `../docs/x68000.md` | The Sharp X68000 platform (`x68000`): a 68000 boot disc, its memory, console and keys, building and testing on the px68k emulator (first stage: no graphics or sound classes yet) |
+| `../docs/towns.md` | The Fujitsu FM Towns platform (`towns`): NTC on the 80386 (ring 3, the thread in ESP), a boot disc, its memory, console and keys, building and testing on the Tsugaru emulator (first stage: no graphics or sound classes yet) |
 | `../docs/m65.md` | The MEGA65 platform (`m65`): NTC on the 45GS02, its memory, classes, building and testing (with Xemu and NTC's test driver, `test/xemu/`) |
 | `../docs/cyborgos-readme.md` | CyborgOS: a separate project written in NTC BASIC (`bas/cyborgos320kb`, `bas/cyborgos128kb`) - its own README, user guide, design and todo list |
 | `../docs/tutorial/` | The tutorial: 77 small pages (1.1 the IDE ... 14.4 a game loop in a Tick), contents in `README.md`; every example is checked by `test/tutcheck.py` |
@@ -1265,6 +1267,24 @@ the Genesis Plus GX libretro core (`NTC_MDCORE`), with pads, pictures, plane A a
 `--log` build) the console's transcript. `mdregress.sh` runs the self tests that fit a machine
 with no keyboard, `md_test` first (157 checks of the statements on the 68000). `docs/md.md` says
 how to build vasm and the core.
+
+### x68build.js, x68run.py, x68regress.sh - the Sharp X68000 (x68000)
+
+`node x68build.js Main.bas [More.cls ...] --out=GAME.xdf [--log]` compiles for `x68000`,
+assembles with vasm (`NTC_VASM`) and writes a 2HD floppy image that boots itself. `python3
+x68run.py GAME.xdf [--frames=N] [--keys=frame:text,...] [--shot=out.png] [--log] [--untilend]`
+boots it on the px68k libretro core (`NTC_X68CORE`, with Sharp's ROMs in `NTC_X68SYS/keropi`),
+types keys, saves a picture and prints a `--log` build's transcript. `x68regress.sh` runs 15
+tests. `docs/x68000.md` says how to get the tools.
+
+### townsbuild.js, townsrun.py, townsregress.sh - the Fujitsu FM Towns (towns)
+
+`node townsbuild.js Main.bas [More.cls ...] --out=GAME.bin [--log]` compiles for `towns`,
+assembles with nasm (`NTC_NASM`, or `nasm` on the path) and writes a 2HD floppy image that boots
+itself. `python3 townsrun.py GAME.bin [--secs=N] [--keys=seconds:text,...] [--shot=out.png]
+[--log] [--anykey] [--freq=MHz]` boots it on Tsugaru (`NTC_TSUGARU` = `Tsugaru_Headless`, the
+ROMs in `NTC_TOWNSROM`), types text, saves a picture and prints a `--log` build's transcript.
+`townsregress.sh` runs 17 tests. `docs/towns.md` says how to get the tools.
 
 ### m65build.py, m65run.py, m65regress.sh - the MEGA65 (m65)
 

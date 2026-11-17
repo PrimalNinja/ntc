@@ -481,8 +481,10 @@ class Host:
             if (port >> 8) == 0xBC: s.scr.creg = val & 31
             else: s.scr.crtc[getattr(s.scr, 'creg', 0)] = val; s.scr.crtc_used = True
             return
-        if s.p == 'cpcfw' and (port >> 8) == 0xF6 and lo not in (0xDF, 0xD8, 0xD9, 0xDA) and lo not in getattr(s, 'fwport', {}):
-            # (out (#DF), a: the stand-in RST 3 with A = #F6 - a byte just read - is not the PPI)
+        if s.p == 'cpcfw' and (port >> 8) == 0xF6 and lo not in (0xDF, 0xD8, 0xD9, 0xDA) and lo not in getattr(s, 'fwport', {}) and m.pc not in STANDPC:
+            # (out (#DF), a: the stand-in RST 3 with A = #F6 - a byte just read - is not the PPI; nor are the
+            # other stand-ins' own out (n), a, known by where they are - 20261116-10: the fast ticker's stub
+            # at #BF84 / #BF89 with A = #F6 was taken for the PPI, the main ROM never came in for the event)
             s.line = val & 15; return          # the PPI's port C: the keyboard line (Keys class)
         if s.p == 'test':
             if lo == 0xFE: s.scr.put(chr(val) if 32 <= val < 127 else '?')
@@ -532,7 +534,7 @@ class Host:
                 s.ctrlj()
                 m.memory[sp] = (ret + 2) & 255; m.memory[sp + 1] = (ret + 2) >> 8
                 return
-            if (ret - 1) not in FW: print(s.scr.text(), file=sys.stderr); raise RuntimeError('out (#%04X), #%02X at pc=#%04X is not the RST 3 stand-in' % (port, val, m.pc))
+            if (ret - 1) not in FW: print(s.scr.text(), file=sys.stderr); raise RuntimeError('out (#%04X), #%02X at pc=#%04X is not the RST 3 stand-in (called from #%04X, sp=#%04X)' % (port, val, m.pc, (ret - 1) & 0xFFFF, sp))
             ok = s.cas(FW[ret - 1])
             m.f = (m.f | 1) if ok else (m.f & 0xFE)
             m.sp = sp + 2
@@ -601,6 +603,7 @@ class Host:
                 # EXPRESS asynchronous routine straight from the interrupt with the lower ROM on,
                 # ignoring the far address (6128 ROM #01E2) - so one below #4000 would run ROM code
                 r = m.de
+                if os.environ.get('NTC_TICKLOG'): print('--- fast ticker: routine #%04X block #%04X B=#%02X' % (r, m.hl, m.b), file=sys.stderr)
                 if (m.b & 0x40) and r < 0x4000:
                     print('ERROR: express event routine at #%04X: the firmware would run the lower ROM there' % r)
                 # (KL FAR ICALL: the event's ROM - NTC's main ROM - is selected for the call, then the one

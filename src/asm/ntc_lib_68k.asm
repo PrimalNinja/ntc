@@ -3413,7 +3413,7 @@ kw_bssinit:
 			andi.l #$FFFF, d0
 			move.l a0, d1
 			add.l d0, d1
-			cmpi.l #$01000000, d1
+			cmpi.l #NTC_RAMEND, d1		; (the platform's ;@ramend, written by the compiler: $01000000 on the Mega Drive)
 			bhi kw_bs_big
 			tst.l d0
 			beq kw_bs_e

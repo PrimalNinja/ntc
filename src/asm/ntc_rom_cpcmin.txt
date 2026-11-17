@@ -406,3 +406,8 @@
 349	code	ntc_ovl_kwin
 350	code	ntc_ovl_kwback
 -	data	ntc_rx_cur	#8978
+351	code	ld_go
+-	data	ld_nm	#898C
+-	data	ld_ad	#898E
+-	data	ld_mx	#8990
+-	data	ld_rs	#8992

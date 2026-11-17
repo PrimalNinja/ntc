@@ -1,0 +1,29 @@
+{
+ "name": "XTYPE",
+ "files": [
+  "Main.bas",
+  "Splash.cls",
+  "Nx.cls",
+  "Spr.cls",
+  "Tiles.cls",
+  "Fx.cls",
+  "Sfx.cls",
+  "GfxData.cls",
+  "Pals.cls",
+  "Stages.cls"
+ ],
+ "bankuse": {
+  "art": [
+   28,
+   29
+  ],
+  "splash": [
+   20
+  ]
+ },
+ "banks": [
+  28,
+  29,
+  20
+ ]
+}

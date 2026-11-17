@@ -14,9 +14,9 @@ NTC_ROMLIB	equ 1			; this is the keyword ROM
 NTC_BUFSIZE	equ 2048		; its buffer (ntc_buf)
 NTC_PLATRSV	equ 0
 NTC_ISLN	equ 16		; (the ROM serves up to 16 interrupt classes)
-NTC_ROM_N	equ 356			; numbers in the index
+NTC_ROM_N	equ 357			; numbers in the index
 NTC_ROM_COUNT	equ 1			; ROMs in the set (NTCFW.ROM)
-NTC_ROM_SET	equ #3450		; the set's stamp (its ROMs find each other by it)
+NTC_ROM_SET	equ #EE27		; the set's stamp (its ROMs find each other by it)
 MEM_WIN		equ #4000
 MEM_BADPAGE	equ -2
 MEM_BANKS	equ NTC_MEMBANKS	; 0 - 64
@@ -515,6 +515,7 @@ ntc_rom_index:
 			dw ntc_plat_locate		; 353
 			dw ntc_ovl_kwin		; 354
 			dw ntc_ovl_kwback		; 355
+			dw ld_go		; 356
 ; ---- the library (code)
 ;## ntc_data @shared ntc_d_nmode
 ntc_next:		ret				; IX target that continues the thread
@@ -8828,6 +8829,65 @@ ntc_fe_nohook:
 			or l
 			ret z
 			jp (hl)
+;## ntc_plat_ld ntc_data ntc_buf2k @shared
+			ASSERT NTC_BUFSIZE >= 2048, "Loader needs the whole 2K buffer (Option Buffer's size)"
+ld_go:
+			ld (ld_sp), sp
+			ld sp, (ntc_csp)
+			push ix
+			push iy
+			ei
+			call ld_load
+			di
+			pop iy
+			pop ix
+			ex de, hl
+			ld hl, (ld_rs)
+			ld (hl), e
+			inc hl
+			ld (hl), d
+			ld sp, (ld_sp)
+			ret
+ld_load:
+			ld hl, (ld_nm)
+			ld b, 0
+ld_ln:
+			ld a, (hl)
+			or a
+			jr z, ld_lnend
+			inc hl
+			inc b
+			jr ld_ln
+ld_lnend:
+			ld a, b
+			or a
+			ld hl, -4			; BadName: no name
+			ret z
+			ld hl, (ld_nm)
+			ld de, ntc_buf
+			call #BC77			; CAS IN OPEN (B = the name's length): BC = the file's length, carry = ok
+			ld hl, -2			; NotFound
+			ret nc
+			ld hl, (ld_mx)
+			or a
+			sbc hl, bc
+			jr nc, ld_fits
+			call #BC7D			; CAS IN ABANDON
+			ld hl, -8			; TooBig
+			ret
+ld_fits:
+			push bc
+			ld hl, (ld_ad)
+			call #BC83			; CAS IN DIRECT
+			jr c, ld_read
+			call #BC7D
+			pop bc
+			ld hl, -9			; Failed
+			ret
+ld_read:
+			call #BC7A			; CAS IN CLOSE
+			pop hl
+			ret
 ;## ntc_plat_fs ntc_data ntc_buf2k @shared
 			ASSERT NTC_BUFSIZE >= 2048, "FileSystem needs the whole 2K buffer (Option Buffer's size)"
 fs_go0:
@@ -9682,6 +9742,11 @@ ntc_v_stamp:	dw 0			; the build stamp of its page files (NTC_STAMP)
 ntc_v_romen:	db 0			; Option RomEnable (NTC_ROMENABLE)
 ntc_v_rom:	db 0			; this ROM's number
 ntc_v_romold:	db 0			; the ROM selection before the program
+ld_nm:			dw 0
+ld_ad:			dw 0
+ld_mx:			dw 0
+ld_rs:			dw 0
+ld_sp:			dw 0
 ntc_rdbase:		dw 0
 ntc_pow10:		dw 10000, 1000, 100, 10, 0
 ntc_tabcol:		db 0
@@ -9937,3 +10002,7 @@ ntc_rom_bssend:
 			ASSERT (ntc_v_rom & #FFFF) == #8955, "ntc_v_rom moved: variables and constants keep their place (a new size or value needs a new name)"
 			ASSERT (ntc_v_romold & #FFFF) == #8956, "ntc_v_romold moved: variables and constants keep their place (a new size or value needs a new name)"
 			ASSERT (fs_vol & #FFFF) == #9806, "fs_vol moved: variables and constants keep their place (a new size or value needs a new name)"
+			ASSERT (ld_nm & #FFFF) == #8957, "ld_nm moved: variables and constants keep their place (a new size or value needs a new name)"
+			ASSERT (ld_ad & #FFFF) == #8959, "ld_ad moved: variables and constants keep their place (a new size or value needs a new name)"
+			ASSERT (ld_mx & #FFFF) == #895B, "ld_mx moved: variables and constants keep their place (a new size or value needs a new name)"
+			ASSERT (ld_rs & #FFFF) == #895D, "ld_rs moved: variables and constants keep their place (a new size or value needs a new name)"

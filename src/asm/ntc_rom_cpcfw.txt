@@ -406,3 +406,8 @@
 353	code	ntc_plat_locate
 354	code	ntc_ovl_kwin
 355	code	ntc_ovl_kwback
+356	code	ld_go
+-	data	ld_nm	#8957
+-	data	ld_ad	#8959
+-	data	ld_mx	#895B
+-	data	ld_rs	#895D

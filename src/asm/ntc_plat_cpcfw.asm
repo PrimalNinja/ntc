@@ -342,6 +342,79 @@ ntc_fe_nohook:
 ; fs_go runs it on the real stack with interrupts on and stores its
 ; HL result; a routine that fails jumps to fs_err with HL = status.
 
+;## ntc_plat_ld ntc_data ntc_buf2k @shared
+; ------------------------------------------------------------
+; Loader.Load (20261116-10): a file from where the program was run, and nothing else of
+; FileSystem - CAS IN OPEN / DIRECT / CLOSE on whatever has the cassette calls (AMSDOS's
+; drive, or tape). ld_go: the method's parameters are in ld_nm / ld_ad / ld_mx, the
+; result's address in ld_rs. (The start code keeps AMSDOS's drive round Option ROM Enable
+; when the program has this class.)
+; ------------------------------------------------------------
+ld_nm:			dw 0
+ld_ad:			dw 0
+ld_mx:			dw 0
+ld_rs:			dw 0
+ld_sp:			dw 0
+			ASSERT NTC_BUFSIZE >= 2048, "Loader needs the whole 2K buffer (Option Buffer's size)"
+ld_go:
+			ld (ld_sp), sp
+			ld sp, (ntc_csp)
+			push ix
+			push iy
+			ei
+			call ld_load
+			di
+			pop iy
+			pop ix
+			ex de, hl
+			ld hl, (ld_rs)
+			ld (hl), e
+			inc hl
+			ld (hl), d
+			ld sp, (ld_sp)
+			ret
+; ld_load - Loader.Load's work (real stack): HL = the length, or a status
+ld_load:
+			ld hl, (ld_nm)
+			ld b, 0
+ld_ln:
+			ld a, (hl)
+			or a
+			jr z, ld_lnend
+			inc hl
+			inc b
+			jr ld_ln
+ld_lnend:
+			ld a, b
+			or a
+			ld hl, -4			; BadName: no name
+			ret z
+			ld hl, (ld_nm)
+			ld de, ntc_buf
+			call #BC77			; CAS IN OPEN (B = the name's length): BC = the file's length, carry = ok
+			ld hl, -2			; NotFound
+			ret nc
+			ld hl, (ld_mx)
+			or a
+			sbc hl, bc
+			jr nc, ld_fits
+			call #BC7D			; CAS IN ABANDON
+			ld hl, -8			; TooBig
+			ret
+ld_fits:
+			push bc
+			ld hl, (ld_ad)
+			call #BC83			; CAS IN DIRECT
+			jr c, ld_read
+			call #BC7D
+			pop bc
+			ld hl, -9			; Failed
+			ret
+ld_read:
+			call #BC7A			; CAS IN CLOSE
+			pop hl
+			ret
+
 ;## ntc_plat_fs ntc_data ntc_buf2k @shared
 FS_NOTFOUND	equ -2
 FS_TOOBIG	equ -8

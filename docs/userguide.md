@@ -3118,6 +3118,29 @@ End If
 The CP/M start code copies the command tail (at `#80`) aside before anything can overwrite
 it, only when the program uses `CommandLine`. See `bas/cmdline.bas`.
 
+### Loader
+
+`r = Loader.Load(name, address, maxlen)`
+
+A file from **where the program was run**, into memory - and nothing else. No Save, no open
+files, no device, drive or folder to choose. It is for a program that only reads its own data
+files, and costs a fraction of `FileSystem`. `Load` answers the file's length, or one of
+`Loader.NotFound` (-2), `Loader.BadName` (-4), `Loader.TooBig` (-8: the file holds more than
+*maxlen*, nothing is loaded), `Loader.Failed` (-9), `Loader.NotSupported` (-1) - the same
+numbers as `FileSystem.Load`, so the one can replace the other.
+
+| Platform | Where the file comes from | Costs (FileSystem.Load) |
+|---|---|---|
+| `cpcfw`, `cpcmin` | whatever has the firmware's cassette calls: the disc drive the program was run from (AMSDOS), or tape. `RUN"` of a binary drops AMSDOS: `Option ROM Enable 7` starts it again, and with `Loader` in the program it comes back on the drive it was on, not drive A. A file needs its AMSDOS header (as `FileSystem.Load`) | 152 / 223 bytes and the 2K buffer (1045 / 1126 and the buffer) |
+| `cpm` | the current drive and user area, `NAME.EXT`; CP/M's own FCB (`#005C`) and record buffer (`#0080`); whole 128-byte records | 279 bytes (2368) |
+| `zxn` | the folder that was current when the program was run (the browser runs a NEX with its own folder current), on the default drive. The folder is left as it is (`FileSystem` sets the card's top folder at its first call). A file of 64K or more is TooBig | 495 bytes (5648) |
+| `cpc`, `msx`, `sc3000`, `baremetal`, `test` | no files: `NotSupported` | - |
+
+```
+Dim lvl(1023) As Byte
+If Loader.Load("LEVEL1.DAT", VarPtr(lvl(0)), 1024) < 0 Then Print "no level"
+```
+
 ### FileSystem
 
 Files. Every platform has a `FileSystem` class with the same methods, so a program that

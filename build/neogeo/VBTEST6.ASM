@@ -5,6 +5,7 @@
 
 			org 0
 
+NTC_RAMEND	equ $01000000		; the end of the RAM the variables and arrays are in (;@ramend)
 ;## ntc_md_vectors ntc_ng_boot
 ; (the 68k backend requires this section be named ntc_md_vectors - it's the
 ;  generic "68k vectors + header + start" slot, named after the first 68k target)
@@ -1078,7 +1079,7 @@ kw_bssinit:
 			andi.l #$FFFF, d0
 			move.l a0, d1
 			add.l d0, d1
-			cmpi.l #$01000000, d1
+			cmpi.l #NTC_RAMEND, d1		; (the platform's ;@ramend, written by the compiler: $01000000 on the Mega Drive)
 			bhi kw_bs_big
 			tst.l d0
 			beq kw_bs_e
@@ -1220,7 +1221,7 @@ ntc_plat_exit:
 
 			even
 ntc_romend:			; the end of the ROM: the RAM block's first image follows
-			org $FF8000
+			org $FF8000		; (;@ramorg: where this platform's variables are - 16 bit addresses, sign extended)
 ntc_ram:
 ; variables
 var_i:			dc.w 0
